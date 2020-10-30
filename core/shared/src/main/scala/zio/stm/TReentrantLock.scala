@@ -17,7 +17,6 @@
 package zio.stm
 
 import zio.stm.TReentrantLock._
-import zio.stm.ZSTM.internal.TExit
 import zio.{ Fiber, Managed, UManaged }
 
 /**
@@ -38,8 +37,6 @@ import zio.{ Fiber, Managed, UManaged }
  */
 final class TReentrantLock private (data: TRef[LockState]) {
 
-  private val tExitOne = TExit.Succeed(1)
-
   /**
    * Acquires a read lock. The transaction will suspend until no other fiber
    * is holding a write lock. Succeeds with the number of read locks held by this fiber.
@@ -57,13 +54,13 @@ final class TReentrantLock private (data: TRef[LockState]) {
 
         case readLock: ReadLock if readLock.noOtherHolder(fiberId) =>
           data.unsafeSet(journal, WriteLock(1, readLock.readLocks(fiberId), fiberId))
-          tExitOne
+          1
 
         case WriteLock(n, m, `fiberId`) =>
           data.unsafeSet(journal, WriteLock(n + 1, m, fiberId))
-          TExit.Succeed(n + 1)
+          n + 1
 
-        case _ => TExit.Retry
+        case _ => throw ZSTM.RetryException
       }
     )
 
@@ -96,13 +93,13 @@ final class TReentrantLock private (data: TRef[LockState]) {
    * Retrieves the number of acquired read locks for this fiber.
    */
   def fiberReadLocks: USTM[Int] =
-    ZSTM.Effect((journal, fiberId, _) => TExit.Succeed(data.unsafeGet(journal).readLocks(fiberId)))
+    ZSTM.Effect((journal, fiberId, _) => data.unsafeGet(journal).readLocks(fiberId))
 
   /**
    * Retrieves the number of acquired write locks for this fiber.
    */
   def fiberWriteLocks: USTM[Int] =
-    ZSTM.Effect((journal, fiberId, _) => TExit.Succeed(data.unsafeGet(journal).writeLocks(fiberId)))
+    ZSTM.Effect((journal, fiberId, _) => data.unsafeGet(journal).writeLocks(fiberId))
 
   /**
    * Determines if any fiber has a read lock.
@@ -128,7 +125,7 @@ final class TReentrantLock private (data: TRef[LockState]) {
         case s => die(s"Defect: Fiber ${fiberId} releasing write lock it does not hold: ${s}")
       }
       data.unsafeSet(journal, res)
-      TExit.Succeed(res.writeLocks(fiberId))
+      res.writeLocks(fiberId)
     }
 
   /**
@@ -153,7 +150,7 @@ final class TReentrantLock private (data: TRef[LockState]) {
         case readLock: ReadLock =>
           val res = readLock.adjust(fiberId, delta)
           data.unsafeSet(journal, res)
-          TExit.Succeed(res.readLocks(fiberId))
+          res.readLocks(fiberId)
 
         case WriteLock(w, r, `fiberId`) =>
           val newTotal = r + delta
@@ -161,9 +158,10 @@ final class TReentrantLock private (data: TRef[LockState]) {
             die(s"Defect: Fiber ${fiberId} releasing read locks it does not hold, newTotal: $newTotal")
           else
             data.unsafeSet(journal, WriteLock(w, newTotal, fiberId))
-          TExit.Succeed(newTotal)
 
-        case _ => TExit.Retry //another fiber is holding a write lock
+          newTotal
+
+        case _ => throw ZSTM.RetryException //another fiber is holding a write lock
       }
     )
 }
