@@ -60,7 +60,7 @@ final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, ::[A]]
   def peek: USTM[A] =
     ZSTM.Effect((journal, _, _) =>
       ref.unsafeGet(journal).headOption match {
-        case None          => throw ZSTM.RetryException()
+        case None          => throw ZSTM.RetryException
         case Some((_, as)) => as.head
       }
     )
@@ -104,7 +104,7 @@ final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, ::[A]]
     ZSTM.Effect { (journal, _, _) =>
       val map = ref.unsafeGet(journal)
       map.headOption match {
-        case None => throw ZSTM.RetryException()
+        case None => throw ZSTM.RetryException
         case Some((a, as)) =>
           ref.unsafeSet(
             journal,
