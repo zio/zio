@@ -896,7 +896,7 @@ object ZSTM {
 
   private def failFn[E]: E => ZSTM[Any, E, Nothing] = _FailFn.asInstanceOf[E => ZSTM[Any, E, Nothing]]
 
-  private[stm] case class FailException[E](e: E) extends Throwable(null, null, false, false)
+  private[stm] final case class FailException[E](e: E) extends Throwable(null, null, false, false)
 
   private[stm] case object RetryException extends Throwable(null, null, false, false)
 
