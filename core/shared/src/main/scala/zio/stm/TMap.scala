@@ -435,8 +435,6 @@ object TMap {
    */
   def make[K, V](data: (K, V)*): USTM[TMap[K, V]] = fromIterable(data)
 
-  private final case class UpdateResult(stm: STM[Nothing, Unit])
-
   private def allocate[K, V](capacity: Int, data: List[(K, V)]): USTM[TMap[K, V]] = {
     val buckets  = Array.fill[List[(K, V)]](capacity)(Nil)
     val distinct = data.toMap
