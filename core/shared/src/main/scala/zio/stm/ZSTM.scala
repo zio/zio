@@ -539,8 +539,8 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
   def orElse[R1 <: R, E1, A1 >: A](that: => ZSTM[R1, E1, A1]): ZSTM[R1, E1, A1] =
     FoldCauseM[R1, Nothing, E1, () => Any, A1](
       Effect((journal, _, _) => prepareResetJournal(journal)),
-      reset => self.foldCauseM(_ => ZSTM.succeed(reset()) *> that, ZSTM.succeed(_), ZSTM.succeed(reset()) *> that),
       nothing => nothing,
+      reset => self.foldCauseM(_ => ZSTM.succeed(reset()) *> that, ZSTM.succeed(_), ZSTM.succeed(reset()) *> that),
       ZSTM.retry
     )
 
@@ -583,8 +583,8 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
   def orTry[R1 <: R, E1 >: E, A1 >: A](that: => ZSTM[R1, E1, A1]): ZSTM[R1, E1, A1] =
     FoldCauseM[R1, Nothing, E1, () => Any, A1](
       Effect((journal, _, _) => prepareResetJournal(journal)),
-      reset => self.foldCauseM(ZSTM.fail(_), ZSTM.succeed(_), ZSTM.succeed(reset()) *> that.orTry(self)),
       ZSTM.failFn,
+      reset => self.foldCauseM(ZSTM.fail(_), ZSTM.succeed(_), ZSTM.succeed(reset()) *> that.orTry(self)),
       ZSTM.retry
     )
 
@@ -821,9 +821,11 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
   def zipWith[R1 <: R, E1 >: E, B, C](that: => ZSTM[R1, E1, B])(f: (A, B) => C): ZSTM[R1, E1, C] =
     self flatMap (a => that map (b => f(a, b)))
 
-  private def foldCauseM[R1 <: R, E1, B](f: E => ZSTM[R1, E1, B], g: A => ZSTM[R1, E1, B], h: => ZSTM[R1, E1, B])(
-    implicit ev: CanFail[E]
-  ): ZSTM[R1, E1, B] = FoldCauseM(self, g, f, h)
+  private def foldCauseM[R1 <: R, E1, B](
+    onFailure: E => ZSTM[R1, E1, B],
+    onSuccess: A => ZSTM[R1, E1, B],
+    onRetry: => ZSTM[R1, E1, B]
+  )(implicit ev: CanFail[E]): ZSTM[R1, E1, B] = FoldCauseM(self, onFailure, onSuccess, onRetry)
 
   private def run(journal: Journal, fiberId: Fiber.Id, r0: R): TExit[E, A] = {
     type Erased = ZSTM[Any, Any, Any]
@@ -845,7 +847,7 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
               val k = contStack.pop()
 
               curr = k match {
-                case FoldCauseM(_, onSuccess, _, _) => onSuccess(a)
+                case FoldCauseM(_, _, onSuccess, _) => onSuccess(a)
                 case _                              => k(a)
               }
             }
@@ -867,7 +869,7 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
                 val k = contStack.pop()
 
                 k match {
-                  case FoldCauseM(_, _, onFailure, _) => curr = onFailure(e)
+                  case FoldCauseM(_, onFailure, _, _) => curr = onFailure(e)
                   case _                              => exit = TExit.Fail(e)
                 }
               }
@@ -900,8 +902,8 @@ object ZSTM {
 
   private[stm] final case class FoldCauseM[R, E1, E2, A, B](
     self: ZSTM[R, E1, A],
-    onSuccess: A => ZSTM[R, E2, B],
     onFailure: E1 => ZSTM[R, E2, B],
+    onSuccess: A => ZSTM[R, E2, B],
     onRetry: ZSTM[R, E2, B]
   ) extends ZSTM[R, E2, B]
       with Function[A, ZSTM[R, E2, B]] {
