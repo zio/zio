@@ -321,7 +321,7 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
    * and then runs the returned effect as well to produce its results.
    */
   def flatMap[R1 <: R, E1 >: E, B](f: A => ZSTM[R1, E1, B]): ZSTM[R1, E1, B] =
-    foldCauseM(ZSTM.failFn, f, ZSTM.retry)
+    FoldCauseM(self, ZSTM.failFn[E1], f, ZSTM.retry)
 
   /**
    * Creates a composite effect that represents this effect followed by another
@@ -369,7 +369,8 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
    */
   def foldM[R1 <: R, E1, B](f: E => ZSTM[R1, E1, B], g: A => ZSTM[R1, E1, B])(implicit
     ev: CanFail[E]
-  ): ZSTM[R1, E1, B] = foldCauseM(f, g, ZSTM.retry)
+  ): ZSTM[R1, E1, B] =
+    FoldCauseM(self, f, g, ZSTM.retry)
 
   /**
    * Repeats this effect forever (until the first error).
@@ -556,7 +557,8 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
     FoldCauseM[R1, Nothing, E1, () => Any, A1](
       Effect((journal, _, _) => prepareResetJournal(journal)),
       ZSTM.failFn,
-      reset => self.foldCauseM(_ => ZSTM.succeed(reset()) *> that, ZSTM.succeedNow, ZSTM.succeed(reset()) *> that),
+      reset =>
+        FoldCauseM(self, (_: E) => ZSTM.succeed(reset()) *> that, ZSTM.succeedNow[A], ZSTM.succeed(reset()) *> that),
       ZSTM.retry
     )
 
@@ -597,7 +599,7 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
    * Named alias for `<|>`.
    */
   def orTry[R1 <: R, E1 >: E, A1 >: A](that: => ZSTM[R1, E1, A1]): ZSTM[R1, E1, A1] =
-    self.foldCauseM(ZSTM.failFn, ZSTM.succeedNow, that)
+    FoldCauseM(self, ZSTM.failFn[E], ZSTM.succeedNow[A], that)
 
   /**
    * Provides the transaction its required environment, which eliminates
@@ -831,12 +833,6 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
    */
   def zipWith[R1 <: R, E1 >: E, B, C](that: => ZSTM[R1, E1, B])(f: (A, B) => C): ZSTM[R1, E1, C] =
     self flatMap (a => that map (b => f(a, b)))
-
-  private def foldCauseM[R1 <: R, E1, B](
-    onFailure: E => ZSTM[R1, E1, B],
-    onSuccess: A => ZSTM[R1, E1, B],
-    onRetry: => ZSTM[R1, E1, B]
-  )(implicit ev: CanFail[E]): ZSTM[R1, E1, B] = FoldCauseM(self, onFailure, onSuccess, onRetry)
 
   private def run(journal: Journal, fiberId: Fiber.Id, r0: R): TExit[E, A] = {
     type Erased = ZSTM[Any, Any, Any]
