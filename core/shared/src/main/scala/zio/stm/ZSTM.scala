@@ -556,7 +556,7 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
     FoldCauseM[R1, Nothing, E1, () => Any, A1](
       Effect((journal, _, _) => prepareResetJournal(journal)),
       nothing => nothing,
-      reset => self.foldCauseM(_ => ZSTM.succeed(reset()) *> that, ZSTM.succeed(_), ZSTM.succeed(reset()) *> that),
+      reset => self.foldCauseM(_ => ZSTM.succeed(reset()) *> that, ZSTM.succeedNow, ZSTM.succeed(reset()) *> that),
       ZSTM.retry
     )
 
@@ -600,7 +600,7 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
     FoldCauseM[R1, Nothing, E1, () => Any, A1](
       Effect((journal, _, _) => prepareResetJournal(journal)),
       ZSTM.failFn,
-      reset => self.foldCauseM(ZSTM.fail(_), ZSTM.succeed(_), ZSTM.succeed(reset()) *> that.orTry(self)),
+      reset => self.foldCauseM(ZSTM.failFn, ZSTM.succeedNow(_), ZSTM.succeed(reset()) *> that.orTry(self)),
       ZSTM.retry
     )
 
