@@ -910,10 +910,6 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
 object ZSTM {
   import internal._
 
-  private val _FailFn: Any => ZSTM[Any, Any, Nothing] = ZSTM.fail(_)
-
-  private def failFn[E]: E => ZSTM[Any, E, Nothing] = _FailFn.asInstanceOf[E => ZSTM[Any, E, Nothing]]
-
   private[stm] final case class FailException[E](e: E) extends Throwable(null, null, false, false)
 
   private[stm] case object RetryException extends Throwable(null, null, false, false)
@@ -931,6 +927,10 @@ object ZSTM {
   private[stm] final case class Effect[R, E, A](f: (Journal, Fiber.Id, R) => A) extends ZSTM[R, E, A]
 
   private[stm] final case class ProvideSome[R1, R2, E, A](effect: ZSTM[R1, E, A], f: R2 => R1) extends ZSTM[R2, E, A]
+
+  private val _FailFn: Any => ZSTM[Any, Any, Nothing] = ZSTM.fail(_)
+
+  private def failFn[E]: E => ZSTM[Any, E, Nothing] = _FailFn.asInstanceOf[E => ZSTM[Any, E, Nothing]]
 
   /**
    * Submerges the error case of an `Either` into the `STM`. The inverse
