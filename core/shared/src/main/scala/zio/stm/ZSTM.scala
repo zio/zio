@@ -567,9 +567,7 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
    * in left side, unless it fails or retries, in which case, it will produce the value
    * of the specified effect in right side.
    */
-  def orElseEither[R1 <: R, E1, B](
-    that: => ZSTM[R1, E1, B]
-  ): ZSTM[R1, E1, Either[A, B]] =
+  def orElseEither[R1 <: R, E1, B](that: => ZSTM[R1, E1, B]): ZSTM[R1, E1, Either[A, B]] =
     (self map (Left[A, B](_))) orElse (that map (Right[A, B](_)))
 
   /**
@@ -583,9 +581,9 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
    * fails with the `None` value, in which case it will produce the value of
    * the specified effect.
    */
-  def orElseOptional[R1 <: R, E1, A1 >: A](
-    that: => ZSTM[R1, Option[E1], A1]
-  )(implicit ev: E <:< Option[E1]): ZSTM[R1, Option[E1], A1] =
+  def orElseOptional[R1 <: R, E1, A1 >: A](that: => ZSTM[R1, Option[E1], A1])(implicit
+    ev: E <:< Option[E1]
+  ): ZSTM[R1, Option[E1], A1] =
     catchAll(ev(_).fold(that)(e => ZSTM.fail(Some(e))))
 
   /**
@@ -617,9 +615,7 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
   /**
    * Keeps some of the errors, and terminates the fiber with the rest.
    */
-  def refineOrDie[E1](
-    pf: PartialFunction[E, E1]
-  )(implicit ev1: E <:< Throwable, ev2: CanFail[E]): ZSTM[R, E1, A] =
+  def refineOrDie[E1](pf: PartialFunction[E, E1])(implicit ev1: E <:< Throwable, ev2: CanFail[E]): ZSTM[R, E1, A] =
     refineOrDieWith(pf)(ev1)
 
   /**
