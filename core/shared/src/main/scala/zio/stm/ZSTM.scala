@@ -880,14 +880,14 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
                 val k = contStack.pop()
 
                 k match {
-                  case FoldCauseM(_, onFailure, _, _) => curr = onFailure(e)
-                  case _                              => exit = TExit.Fail(e)
+                  case FoldCauseM(_, onFailure: Cont, _, _) => curr = onFailure(e)
+                  case _                                    => exit = TExit.Fail(e)
                 }
               }
           }
 
         case fc @ FoldCauseM(stm, _, _, _) =>
-          contStack.push(fc)
+          contStack.push(fc.asInstanceOf[Cont])
           curr = stm
 
         case ProvideSome(stm, f) =>
@@ -895,7 +895,7 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
 
           val cleanup = ZSTM.succeed(envStack.pop())
 
-          curr = stm.ensuring(cleanup)
+          curr = stm.ensuring(cleanup).asInstanceOf[Erased]
       }
     }
 
