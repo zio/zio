@@ -555,7 +555,7 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
   def orElse[R1 <: R, E1, A1 >: A](that: => ZSTM[R1, E1, A1]): ZSTM[R1, E1, A1] =
     FoldCauseM[R1, Nothing, E1, () => Any, A1](
       Effect((journal, _, _) => prepareResetJournal(journal)),
-      nothing => nothing,
+      ZSTM.failFn,
       reset => self.foldCauseM(_ => ZSTM.succeed(reset()) *> that, ZSTM.succeedNow, ZSTM.succeed(reset()) *> that),
       ZSTM.retry
     )
@@ -597,12 +597,7 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
    * Named alias for `<|>`.
    */
   def orTry[R1 <: R, E1 >: E, A1 >: A](that: => ZSTM[R1, E1, A1]): ZSTM[R1, E1, A1] =
-    FoldCauseM[R1, Nothing, E1, () => Any, A1](
-      Effect((journal, _, _) => prepareResetJournal(journal)),
-      ZSTM.failFn,
-      reset => self.foldCauseM(ZSTM.failFn, ZSTM.succeedNow(_), ZSTM.succeed(reset()) *> that.orTry(self)),
-      ZSTM.retry
-    )
+    self.foldCauseM(ZSTM.failFn, ZSTM.succeedNow, that)
 
   /**
    * Provides the transaction its required environment, which eliminates
