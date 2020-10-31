@@ -891,28 +891,6 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
 object ZSTM {
   import internal._
 
-  private[stm] final case class FailException[E](e: E) extends Throwable(null, null, false, false)
-
-  private[stm] case object RetryException extends Throwable(null, null, false, false)
-
-  private[stm] final case class FoldCauseM[R, E1, E2, A, B](
-    self: ZSTM[R, E1, A],
-    onFailure: E1 => ZSTM[R, E2, B],
-    onSuccess: A => ZSTM[R, E2, B],
-    onRetry: ZSTM[R, E2, B]
-  ) extends ZSTM[R, E2, B]
-      with Function[A, ZSTM[R, E2, B]] {
-    def apply(a: A): ZSTM[R, E2, B] = onSuccess(a)
-  }
-
-  private[stm] final case class Effect[R, E, A](f: (Journal, Fiber.Id, R) => A) extends ZSTM[R, E, A]
-
-  private[stm] final case class ProvideSome[R1, R2, E, A](effect: ZSTM[R1, E, A], f: R2 => R1) extends ZSTM[R2, E, A]
-
-  private val _FailFn: Any => ZSTM[Any, Any, Nothing] = ZSTM.fail(_)
-
-  private def failFn[E]: E => ZSTM[Any, E, Nothing] = _FailFn.asInstanceOf[E => ZSTM[Any, E, Nothing]]
-
   /**
    * Submerges the error case of an `Either` into the `STM`. The inverse
    * operation of `STM.either`.
@@ -1476,9 +1454,6 @@ object ZSTM {
   def whenM[R, E](b: ZSTM[R, E, Boolean]): ZSTM.WhenM[R, E] =
     new ZSTM.WhenM(b)
 
-  private[zio] def succeedNow[A](a: A): USTM[A] =
-    succeed(a)
-
   final class AccessPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[A](f: R => A): ZSTM[R, Nothing, A] =
       ZSTM.environment.map(f)
@@ -1508,6 +1483,30 @@ object ZSTM {
     def apply[R1 <: R, E1 >: E](stm: => ZSTM[R1, E1, Any]): ZSTM[R1, E1, Unit] =
       b.flatMap(b => if (b) stm.unit else unit)
   }
+
+  private[stm] final case class FailException[E](e: E) extends Throwable(null, null, false, false)
+
+  private[stm] case object RetryException extends Throwable(null, null, false, false)
+
+  private[stm] final case class FoldCauseM[R, E1, E2, A, B](
+    self: ZSTM[R, E1, A],
+    onFailure: E1 => ZSTM[R, E2, B],
+    onSuccess: A => ZSTM[R, E2, B],
+    onRetry: ZSTM[R, E2, B]
+  ) extends ZSTM[R, E2, B]
+      with Function[A, ZSTM[R, E2, B]] {
+    def apply(a: A): ZSTM[R, E2, B] = onSuccess(a)
+  }
+
+  private[stm] final case class Effect[R, E, A](f: (Journal, Fiber.Id, R) => A) extends ZSTM[R, E, A]
+
+  private[stm] final case class ProvideSome[R1, R2, E, A](effect: ZSTM[R1, E, A], f: R2 => R1) extends ZSTM[R2, E, A]
+
+  private val _FailFn: Any => ZSTM[Any, Any, Nothing] = ZSTM.fail(_)
+
+  private def failFn[E]: E => ZSTM[Any, E, Nothing] = _FailFn.asInstanceOf[E => ZSTM[Any, E, Nothing]]
+
+  private[zio] def succeedNow[A](a: A): USTM[A] = succeed(a)
 
   private[stm] object internal {
     val DefaultJournalSize = 4
