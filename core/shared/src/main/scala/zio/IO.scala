@@ -308,6 +308,12 @@ object IO {
   def effectTotal[A](effect: => A): UIO[A] = ZIO.effectTotal(effect)
 
   /**
+   * @see See [[zio.ZIO.executor]]
+   */
+  def executor: UIO[Executor] =
+    ZIO.executor
+
+  /**
    * @see See [[zio.ZIO.fail]]
    */
   def fail[E](error: => E): IO[E, Nothing] = ZIO.fail(error)

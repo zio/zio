@@ -307,6 +307,12 @@ object Task extends TaskPlatformSpecific {
   def effectTotal[A](effect: => A): UIO[A] = ZIO.effectTotal(effect)
 
   /**
+   * @see See [[zio.ZIO.executor]]
+   */
+  def executor: UIO[Executor] =
+    ZIO.executor
+
+  /**
    * @see See [[zio.ZIO.fail]]
    */
   def fail(error: => Throwable): Task[Nothing] = ZIO.fail(error)

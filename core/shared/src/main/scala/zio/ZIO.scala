@@ -2673,6 +2673,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def environment[R]: URIO[R, R] = access(r => r)
 
   /**
+   * Retrieves the executor for this effect.
+   */
+  def executor: UIO[Executor] =
+    effectSuspendTotalWith((platform, _) => ZIO.succeedNow(platform.executor))
+
+  /**
    * Returns an effect that models failure with the specified error.
    * The moral equivalent of `throw` for pure code.
    */
