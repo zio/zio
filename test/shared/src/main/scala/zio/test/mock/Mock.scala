@@ -19,7 +19,7 @@ package zio.test.mock
 import zio.internal.Executor
 import zio.stream.{ ZSink, ZStream }
 import zio.test.TestPlatform
-import zio.{ Has, Runtime, Tag, URIO, URLayer, ZIO, ULayer }
+import zio.{ Has, Runtime, Tag, ULayer, URIO, URLayer, ZIO }
 
 /**
  * A `Mock[R]` represents a mockable environment `R`.
