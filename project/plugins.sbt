@@ -4,7 +4,7 @@ addSbtPlugin("ch.epfl.lamp"                      % "sbt-dotty"                  
 addSbtPlugin("ch.epfl.scala"                     % "sbt-bloop"                     % "1.4.4")
 addSbtPlugin("ch.epfl.scala"                     % "sbt-scalafix"                  % "0.9.21")
 addSbtPlugin("com.eed3si9n"                      % "sbt-buildinfo"                 % "0.10.0")
-addSbtPlugin("com.geirsson"                      % "sbt-ci-release"                % "1.5.3")
+addSbtPlugin("com.geirsson"                      % "sbt-ci-release"                % "1.5.4")
 addSbtPlugin("com.github.cb372"                  % "sbt-explicit-dependencies"     % "0.2.15")
 addSbtPlugin("com.thoughtworks.sbt-api-mappings" % "sbt-api-mappings"              % "3.0.0")
 addSbtPlugin("com.typesafe"                      % "sbt-mima-plugin"               % "0.8.1")
