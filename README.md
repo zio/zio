@@ -50,6 +50,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [DHL Parcel The Netherlands](https://www.werkenbijdhl.nl/it)
 * [Evolution Gaming](https://www.evolutiongaming.com/)
 * [Hunters.AI](https://hunters.ai)
+* [Investsuite] (https://investsuite.com/)
 * [Kaizen Solutions](https://kaizen-solutions.net/)
 * [Kensu](https://kensu.io)
 * [LeadIQ](https://leadiq.com)
