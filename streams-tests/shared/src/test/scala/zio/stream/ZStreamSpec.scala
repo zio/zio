@@ -884,14 +884,25 @@ object ZStreamSpec extends ZIOBaseSpec {
             assertM(ZStream.never.drainFork(ZStream.die(ex)).runDrain.run)(dies(equalTo(ex)))
           } @@ zioTag(errors)
         ),
-        testM("drop")(checkM(streamOfInts, Gen.anyInt) { (s, n) =>
-          for {
-            dropStreamResult <- s.drop(n.toLong).runCollect.run
-            dropListResult   <- s.runCollect.map(_.drop(n)).run
-          } yield assert(dropListResult.succeeded)(isTrue) implies assert(dropStreamResult)(
-            equalTo(dropListResult)
-          )
-        }),
+        suite("drop")(
+          testM("drop")(checkM(streamOfInts, Gen.anyInt) { (s, n) =>
+            for {
+              dropStreamResult <- s.drop(n.toLong).runCollect.run
+              dropListResult   <- s.runCollect.map(_.drop(n)).run
+            } yield assert(dropListResult.succeeded)(isTrue) implies assert(dropStreamResult)(
+              equalTo(dropListResult)
+            )
+          }),
+          testM("leftover chunk branch") {
+            for {
+              count <- ZStream
+                         .range(1, 10, 3)
+                         .drop(5)
+                         .runCollect
+                         .map(_.length)
+            } yield assert(count)(equalTo(4))
+          }
+        ),
         testM("dropUntil") {
           checkM(pureStreamOfInts, Gen.function(Gen.boolean)) { (s, p) =>
             for {

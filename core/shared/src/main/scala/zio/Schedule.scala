@@ -1307,6 +1307,12 @@ object Schedule {
 
   }
 
+  /**
+   * Extracts a Schedule out of an effect.
+   */
+  def unwrap[R, A, B](zio: ZIO[R, Nothing, Schedule[R, A, B]]): Schedule[R, A, B] =
+    Schedule((now: OffsetDateTime, a: A) => zio.flatMap(_.step(now, a)))
+
   private[this] def calculateNextOffset(
     currentTemporalUnitAllowed: Boolean,
     currentOffset: OffsetDateTime,

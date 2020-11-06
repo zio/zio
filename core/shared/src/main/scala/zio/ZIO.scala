@@ -2673,6 +2673,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def environment[R]: URIO[R, R] = access(r => r)
 
   /**
+   * Retrieves the executor for this effect.
+   */
+  def executor: UIO[Executor] =
+    effectSuspendTotalWith((platform, _) => ZIO.succeedNow(platform.executor))
+
+  /**
    * Returns an effect that models failure with the specified error.
    * The moral equivalent of `throw` for pure code.
    */
@@ -3054,13 +3060,24 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    *
    * Unlike `foreachPar_`, this method will use at most up to `n` fibers.
    */
-  def foreachParN_[R, E, A](
-    n: Int
-  )(as: Iterable[A])(f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] =
-    Semaphore
-      .make(n.toLong)
-      .flatMap(semaphore => ZIO.foreachPar_(as)(a => semaphore.withPermit(f(a))))
+  def foreachParN_[R, E, A](n: Int)(as: Iterable[A])(f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] = {
+    def worker(q: Queue[A], ref: Ref[Int]): ZIO[R, E, Unit] =
+      ZIO.whenM(ref.modify(n => (n > 0, n - 1))) {
+        q.take.flatMap(f) *> worker(q, ref)
+      }
+
+    Queue
+      .bounded[A](n.toInt)
+      .bracket(_.shutdown) { q =>
+        for {
+          ref    <- Ref.make(as.size)
+          _      <- ZIO.foreach_(as)(q.offer).fork
+          fibers <- ZIO.collectAll(List.fill(n.toInt)(worker(q, ref).fork))
+          _      <- ZIO.foreach_(fibers)(_.await)
+        } yield ()
+      }
       .refailWithTrace
+  }
 
   /**
    * Returns an effect that forks all of the specified values, and returns a
@@ -3855,9 +3872,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def validate[R, E, A, B, Collection[+Element] <: Iterable[Element]](in: Collection[A])(
     f: A => ZIO[R, E, B]
   )(implicit bf: BuildFrom[Collection[A], B, Collection[B]], ev: CanFail[E]): ZIO[R, ::[E], Collection[B]] =
-    partition(in)(f).flatMap {
-      case (e :: es, _) => ZIO.fail(::(e, es))
-      case (_, bs)      => ZIO.succeedNow(bf.fromSpecific(in)(bs))
+    partition(in)(f).flatMap { case (es, bs) =>
+      if (es.isEmpty) ZIO.succeedNow(bf.fromSpecific(in)(bs))
+      else ZIO.fail(::(es.head, es.tail.toList))
     }
 
   /**
@@ -3870,9 +3887,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def validatePar[R, E, A, B, Collection[+Element] <: Iterable[Element]](in: Collection[A])(
     f: A => ZIO[R, E, B]
   )(implicit bf: BuildFrom[Collection[A], B, Collection[B]], ev: CanFail[E]): ZIO[R, ::[E], Collection[B]] =
-    partitionPar(in)(f).flatMap {
-      case (e :: es, _) => ZIO.fail(::(e, es))
-      case (_, bs)      => ZIO.succeedNow(bf.fromSpecific(in)(bs))
+    partitionPar(in)(f).flatMap { case (es, bs) =>
+      if (es.isEmpty) ZIO.succeedNow(bf.fromSpecific(in)(bs))
+      else ZIO.fail(::(es.head, es.tail.toList))
     }
 
   /**

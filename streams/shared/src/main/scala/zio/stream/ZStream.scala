@@ -989,7 +989,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
               counterRef.get.flatMap { cnt =>
                 if (cnt >= n) ZIO.succeedNow(chunk)
                 else if (chunk.size <= (n - cnt)) counterRef.set(cnt + chunk.size) *> go
-                else counterRef.set(cnt + chunk.size - (n - cnt)).as(chunk.drop((n - cnt).toInt))
+                else counterRef.set(cnt + (n - cnt)).as(chunk.drop((n - cnt).toInt))
               }
             }
 

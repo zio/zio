@@ -35,13 +35,14 @@ import zio.test.environment.{ TestClock, TestConsole, TestEnvironment, TestRando
  *
  * {{{
  *  import zio.test._
+ *  import zio.test.environment.Live
  *  import zio.clock.nanoTime
  *  import Assertion.isGreaterThan
  *
  *  object MyTest extends DefaultRunnableSpec {
  *    def spec = suite("clock")(
  *      testM("time is non-zero") {
- *        assertM(nanoTime)(isGreaterThan(0))
+ *        assertM(Live.live(nanoTime))(isGreaterThan(0))
  *      }
  *    )
  *  }
