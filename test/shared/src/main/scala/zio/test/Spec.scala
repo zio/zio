@@ -272,7 +272,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
    */
   def provideCustomLayer[E1 >: E, R1 <: Has[_]](
     layer: ZLayer[TestEnvironment, E1, R1]
-  )(implicit ev: TestEnvironment with R1 <:< R, tagged: Tag[R1]): Spec[TestEnvironment, E1, T] =
+  )(implicit ev1: TestEnvironment with R1 <:< R, ev2: NeedsEnv[R], tagged: Tag[R1]): Spec[TestEnvironment, E1, T] =
     provideSomeLayer[TestEnvironment](layer)
 
   /**
@@ -290,7 +290,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
    */
   def provideCustomLayerShared[E1 >: E, R1 <: Has[_]](
     layer: ZLayer[TestEnvironment, E1, R1]
-  )(implicit ev: TestEnvironment with R1 <:< R, tagged: Tag[R1]): Spec[TestEnvironment, E1, T] =
+  )(implicit ev1: TestEnvironment with R1 <:< R, ev2: NeedsEnv[R], tagged: Tag[R1]): Spec[TestEnvironment, E1, T] =
     provideSomeLayerShared[TestEnvironment](layer)
 
   /**
