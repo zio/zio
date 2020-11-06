@@ -40,11 +40,17 @@ object STM {
   def check(p: => Boolean): USTM[Unit] = ZSTM.check(p)
 
   /**
-   * @see See [[zio.stm.ZSTM.collectAll]]
+   * @see See [[[zio.stm.ZSTM.collectAll[R,E,A,Collection[+Element]<:Iterable[Element]]*]]]
    */
   def collectAll[E, A, Collection[+Element] <: Iterable[Element]](
     in: Collection[STM[E, A]]
   )(implicit bf: BuildFrom[Collection[STM[E, A]], A, Collection[A]]): STM[E, Collection[A]] =
+    ZSTM.collectAll(in)
+
+  /**
+   * @see See [[[zio.stm.ZSTM.collectAll[R,E,A](in:Set*]]]
+   */
+  def collectAll[E, A](in: Set[STM[E, A]]): STM[E, Set[A]] =
     ZSTM.collectAll(in)
 
   /**
@@ -90,7 +96,7 @@ object STM {
     ZSTM.fiberId
 
   /**
-   * @see [[zio.stm.ZSTM.filter]]
+   * @see [[zio.stm.ZSTM.filter[R,E,A,Collection*]]
    */
   def filter[E, A, Collection[+Element] <: Iterable[Element]](
     as: Collection[A]
@@ -98,11 +104,23 @@ object STM {
     ZSTM.filter(as)(f)
 
   /**
-   * @see [[zio.stm.ZSTM.filterNot]]
+   * @see [[[zio.stm.ZSTM.filter[R,E,A](as:Set*]]]
+   */
+  def filter[E, A](as: Set[A])(f: A => STM[E, Boolean]): STM[E, Set[A]] =
+    ZSTM.filter(as)(f)
+
+  /**
+   * @see [[zio.stm.ZSTM.filterNot[R,E,A,Collection*]]
    */
   def filterNot[E, A, Collection[+Element] <: Iterable[Element]](
     as: Collection[A]
   )(f: A => STM[E, Boolean])(implicit bf: BuildFrom[Collection[A], A, Collection[A]]): STM[E, Collection[A]] =
+    ZSTM.filterNot(as)(f)
+
+  /**
+   * @see [[[zio.stm.ZSTM.filterNot[R,E,A](as:Set*]]]
+   */
+  def filterNot[E, A](as: Set[A])(f: A => STM[E, Boolean]): STM[E, Set[A]] =
     ZSTM.filterNot(as)(f)
 
   /**
@@ -124,11 +142,17 @@ object STM {
     ZSTM.foldRight(in)(zero)(f)
 
   /**
-   * @see See [[zio.stm.ZSTM.foreach]]
+   * @see See [[[zio.stm.ZSTM.foreach[R,E,A,B,Collection[+Element]<:Iterable[Element]]*]]]
    */
   def foreach[E, A, B, Collection[+Element] <: Iterable[Element]](
     in: Collection[A]
   )(f: A => STM[E, B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): STM[E, Collection[B]] =
+    ZSTM.foreach(in)(f)
+
+  /**
+   * @see See [[[zio.stm.ZSTM.foreach[R,E,A,B](in:Set*]]]
+   */
+  def foreach[E, A, B](in: Set[A])(f: A => STM[E, B]): STM[E, Set[B]] =
     ZSTM.foreach(in)(f)
 
   /**

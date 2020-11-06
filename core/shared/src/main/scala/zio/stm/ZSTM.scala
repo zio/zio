@@ -1003,12 +1003,19 @@ object ZSTM {
     foreach[R, E, A, Option[B], Iterable](in)(a => f(a).optional).map(_.flatten).map(bf.fromSpecific(in))
 
   /**
-   * Collects all the transactional effects in a list, returning a single
-   * transactional effect that produces a list of values.
+   * Collects all the transactional effects in a collection, returning a single
+   * transactional effect that produces a collection of values.
    */
   def collectAll[R, E, A, Collection[+Element] <: Iterable[Element]](
     in: Collection[ZSTM[R, E, A]]
   )(implicit bf: BuildFrom[Collection[ZSTM[R, E, A]], A, Collection[A]]): ZSTM[R, E, Collection[A]] =
+    foreach(in)(ZIO.identityFn)
+
+  /**
+   * Collects all the transactional effects in a set, returning a single
+   * transactional effect that produces a set of values.
+   */
+  def collectAll[R, E, A](in: Set[ZSTM[R, E, A]]): ZSTM[R, E, Set[A]] =
     foreach(in)(ZIO.identityFn)
 
   /**
@@ -1075,6 +1082,12 @@ object ZSTM {
     }.map(_.result())
 
   /**
+   * Filters the set using the specified effectual predicate.
+   */
+  def filter[R, E, A](as: Set[A])(f: A => ZSTM[R, E, Boolean]): ZSTM[R, E, Set[A]] =
+    filter[R, E, A, Iterable](as)(f).map(_.toSet)
+
+  /**
    * Filters the collection using the specified effectual predicate, removing
    * all elements that satisfy the predicate.
    */
@@ -1082,6 +1095,13 @@ object ZSTM {
     as: Collection[A]
   )(f: A => ZSTM[R, E, Boolean])(implicit bf: BuildFrom[Collection[A], A, Collection[A]]): ZSTM[R, E, Collection[A]] =
     filter(as)(f(_).map(!_))
+
+  /**
+   * Filters the set using the specified effectual predicate, removing all
+   * elements that satisfy the predicate.
+   */
+  def filterNot[R, E, A](as: Set[A])(f: A => ZSTM[R, E, Boolean]): ZSTM[R, E, Set[A]] =
+    filterNot[R, E, A, Iterable](as)(f).map(_.toSet)
 
   /**
    * Returns an effectful function that extracts out the first element of a
@@ -1124,6 +1144,13 @@ object ZSTM {
     in.foldLeft[ZSTM[R, E, Builder[B, Collection[B]]]](ZSTM.succeed(bf.newBuilder(in))) { (tx, a) =>
       tx.zipWith(f(a))(_ += _)
     }.map(_.result())
+
+  /**
+   * Applies the function `f` to each element of the `Set[A]` and returns a
+   * transactional effect that produces a new `Set[B]`.
+   */
+  def foreach[R, E, A, B](in: Set[A])(f: A => ZSTM[R, E, B]): ZSTM[R, E, Set[B]] =
+    foreach[R, E, A, B, Iterable](in)(f).map(_.toSet)
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` and
