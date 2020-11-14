@@ -59,6 +59,7 @@
       "usecases/usecases_concurrency",
       "usecases/usecases_parallelism",
       "usecases/usecases_queuing",
+      "usecases/usecases_retrying",
       "usecases/usecases_scheduling",
       "usecases/usecases_streaming",
       "usecases/usecases_testing"
