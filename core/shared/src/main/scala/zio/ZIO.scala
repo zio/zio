@@ -3007,7 +3007,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
                    .uninterruptible
                )
 
-        fibers <- ZIO.foreach(as)(a => task(a).fork)
+        fibers <- ZIO.transplant(graft => ZIO.foreach(as)(a => graft(task(a)).fork))
         interrupter = result.await
                         .catchAll(_ => ZIO.foreach(fibers)(_.interruptAs(parentId).fork) >>= Fiber.joinAll)
                         .forkManaged
