@@ -69,6 +69,7 @@
     "How to": [
       "howto/howto_index",
       "howto/howto_use_layers",
+      "howto/howto_test_assertions",
       "howto/howto_test_effects",
       "howto/howto_mock_services",
       "howto/howto_handle_errors",
