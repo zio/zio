@@ -3,6 +3,7 @@ package zio.stream
 import java.{ util => ju }
 
 import scala.reflect.ClassTag
+
 import zio._
 import zio.clock.Clock
 import zio.duration._
