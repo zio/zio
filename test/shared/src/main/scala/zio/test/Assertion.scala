@@ -459,7 +459,7 @@ object Assertion extends AssertionVariants {
     Assertion.assertion("isEmptyString")()(_.isEmpty)
 
   /**
-   * Makes a new assertion that requires a value be true.
+   * Makes a new assertion that requires a value be false.
    */
   def isFalse: Assertion[Boolean] =
     Assertion.assertion("isFalse")()(!_)
