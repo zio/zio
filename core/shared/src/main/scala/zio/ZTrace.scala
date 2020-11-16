@@ -34,7 +34,7 @@ final case class ZTrace(
       if (stackTrace)
         s"Fiber:$fiberId was supposed to continue to:" ::
           this.stackTrace.map(loc =>
-            s"  a future continuation at " + Option(loc).map(_.prettyPrint).getOrElse("unknown")
+            s"  a future continuation at " + loc.prettyPrint
           )
       else
         s"Fiber:$fiberId was supposed to continue to: <empty trace>" :: Nil

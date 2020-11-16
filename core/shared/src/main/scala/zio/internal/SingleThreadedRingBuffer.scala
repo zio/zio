@@ -17,22 +17,31 @@
 package zio.internal
 
 private[zio] final class SingleThreadedRingBuffer[A <: AnyRef](capacity: Int) {
+
+  private[this] val sem = new java.util.concurrent.Semaphore(1, true)
+
   private[this] val array   = new Array[AnyRef](capacity)
   private[this] var size    = 0
   private[this] var current = 0
 
   def put(value: A): Unit = {
+    sem.acquire()
     array(current) = value
     increment()
+    sem.release()
   }
 
-  def dropLast(): Unit =
+  def dropLast(): Unit = {
+    sem.acquire()
     if (size > 0) {
       decrement()
       array(current) = null
     }
+    sem.release()
+  }
 
   def toReversedList: List[A] = {
+    sem.acquire()
     val begin = current - size
 
     val newArray = if (begin < 0) {
@@ -40,6 +49,7 @@ private[zio] final class SingleThreadedRingBuffer[A <: AnyRef](capacity: Int) {
     } else {
       array.slice(begin, current)
     }
+    sem.release()
 
     arrayToReversedList(newArray).asInstanceOf[List[A]]
   }
@@ -51,6 +61,12 @@ private[zio] final class SingleThreadedRingBuffer[A <: AnyRef](capacity: Int) {
       result ::= array(i)
       i += 1
     }
+
+    val nullIdx = result.indexWhere(e => Option(e).isEmpty)
+    if (nullIdx >= 0) {
+      println(s"Encountered null value in content of SingleThreadedRingBuffer, capacity=$capacity, size=$size, current=$current, nullAt=$nullIdx")
+    }
+
     result
   }
 
