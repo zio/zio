@@ -2419,7 +2419,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * @param schedule Schedule receiving as input the errors of the stream
    * @return Stream outputting elements of all attempts of the stream
    */
-  def retry[R1 <: R](schedule: Schedule[R1, E, _] = Schedule.forever): ZStream[R1 with Clock, E, O] =
+  def retry[R1 <: R](schedule: Schedule[R1, E, _]): ZStream[R1 with Clock, E, O] =
     ZStream {
       for {
         driver       <- schedule.driver.toManaged_

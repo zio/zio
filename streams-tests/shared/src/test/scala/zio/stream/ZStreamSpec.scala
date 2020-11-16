@@ -2434,7 +2434,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               for {
                 ref     <- Ref.make(0)
                 stream   = ZStream.fromEffect(ref.getAndUpdate(_ + 1)) ++ ZStream.fail(None)
-                results <- stream.retry().take(2).runCollect
+                results <- stream.retry(Schedule.forever).take(2).runCollect
               } yield results
             )(equalTo(Chunk(0, 1)))
           },
@@ -2447,7 +2447,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                              .finalizer(finalized.getAndUpdate(_ + 1))
                              .as(ZStream.fromEffect(finalized.get) ++ ZStream.fail(None))
                          )
-                results <- stream.retry().take(2).runCollect
+                results <- stream.retry(Schedule.forever).take(2).runCollect
               } yield results
             )(equalTo(Chunk(0, 1)))
           },
