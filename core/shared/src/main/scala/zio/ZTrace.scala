@@ -33,9 +33,7 @@ final case class ZTrace(
     val stackPrint =
       if (stackTrace)
         s"Fiber:$fiberId was supposed to continue to:" ::
-          this.stackTrace.map(loc =>
-            s"  a future continuation at " + loc.prettyPrint
-          )
+          this.stackTrace.map(loc => s"  a future continuation at " + loc.prettyPrint)
       else
         s"Fiber:$fiberId was supposed to continue to: <empty trace>" :: Nil
 

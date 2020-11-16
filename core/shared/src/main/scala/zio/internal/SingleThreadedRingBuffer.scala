@@ -64,7 +64,9 @@ private[zio] final class SingleThreadedRingBuffer[A <: AnyRef](capacity: Int) {
 
     val nullIdx = result.indexWhere(e => Option(e).isEmpty)
     if (nullIdx >= 0) {
-      println(s"Encountered null value in content of SingleThreadedRingBuffer, capacity=$capacity, size=$size, current=$current, nullAt=$nullIdx")
+      println(
+        s"Encountered null value in content of SingleThreadedRingBuffer, capacity=$capacity, size=$size, current=$current, nullAt=$nullIdx"
+      )
     }
 
     result
