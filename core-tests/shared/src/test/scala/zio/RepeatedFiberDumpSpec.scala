@@ -77,7 +77,7 @@ object RepeatedFiberDumpSpec extends ZIOBaseSpec {
     // Start a number of busy Fibers
     _ <- ZIO.foreach(0.to(10))(i => recurringWork(('A' + i).toChar).fork)
     f <- ZIO.unit.schedule(Schedule.duration(300.seconds)).fork
-    fd <- (dumpLoop.onError { t =>
+    fd <- (printDumps(simpleSupervisor).onError { t =>
             for {
               _ <- ZIO.succeed(t.dieOption.foreach(_.printStackTrace()))
               _ <- f.interrupt
@@ -102,16 +102,13 @@ object RepeatedFiberDumpSpec extends ZIOBaseSpec {
     go
   }
 
-  // Access the pretty Printed dump that should eventually yield the exception of #4384
-  private def dumpLoop: ZIO[Console, Throwable, String] =
-    printDumps(simpleSupervisor) <* putStrLn(" -- Dump complete")
-
   private def getDumps(sv: Supervisor[SortedSet[Fiber.Runtime[Any, Any]]]): UIO[Iterable[Fiber.Dump]] =
     sv.value.flatMap(fibers => Fiber.dump(fibers.toSeq: _*))
 
-  private def printDumps(sv: Supervisor[SortedSet[Fiber.Runtime[Any, Any]]]): ZIO[Any, Throwable, String] = for {
+  private def printDumps(sv: Supervisor[SortedSet[Fiber.Runtime[Any, Any]]]): ZIO[Console, Throwable, String] = for {
     dumps <- getDumps(sv)
     text  <- IO.foreach(dumps)(_.prettyPrintM)
+    _ <- putStrLn(" --- Dump complete")
   } yield (text.mkString("\n"))
 
   // A simple supervisor that
