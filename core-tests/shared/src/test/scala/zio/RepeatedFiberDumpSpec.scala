@@ -97,7 +97,7 @@ object RepeatedFiberDumpSpec extends ZIOBaseSpec {
 
   // Access the pretty Printed dump that should eventually yield the exception of #4384
   private def dumpLoop: ZIO[Console, Throwable, String] =
-    printDumps(simpleSupervisor) <* putStrLn("")
+    printDumps(simpleSupervisor) <* putStrLn(" -- Dump complete")
 
   private def getDumps(sv: Supervisor[SortedSet[Fiber.Runtime[Any, Any]]]): UIO[Iterable[Fiber.Dump]] =
     sv.value.flatMap(fibers => Fiber.dump(fibers.toSeq: _*))
