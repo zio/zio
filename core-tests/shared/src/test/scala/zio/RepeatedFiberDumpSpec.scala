@@ -61,14 +61,14 @@ object RepeatedFiberDumpSpec extends ZIOBaseSpec {
     _ <- putStrLn("Starting test")
     _ <- timeWarp.fork
     // Start a number of busy Fibers
-    _  <- ZIO.foreach(0.to(10))(i => recurringWork(('A' + i).toChar).fork)
-    f  <- ZIO.unit.schedule(Schedule.duration(300.seconds)).fork
-    fd <- (dumpLoop.onError{ t => // Will die on the NPE reported in #4384
-      putStrLn(t.failures.map(_.getMessage()).mkString("\n")) *> f.interrupt
-    }).schedule(Schedule.spaced(1.second)).fork
-    _  <- f.join
-    _  <- putStrLn("Stopping test")
-    _  <- fd.interrupt
+    _ <- ZIO.foreach(0.to(10))(i => recurringWork(('A' + i).toChar).fork)
+    f <- ZIO.unit.schedule(Schedule.duration(300.seconds)).fork
+    fd <- (dumpLoop.onError { t => // Will die on the NPE reported in #4384
+            putStrLn(t.failures.map(_.getMessage()).mkString("\n")) *> f.interrupt
+          }).schedule(Schedule.spaced(1.second)).fork
+    _ <- f.join
+    _ <- putStrLn("Stopping test")
+    _ <- fd.interrupt
   } yield assertCompletes) // If we end up here the bug might be fixed
 
   // Advance the test clock every 10 millis by a second
@@ -78,7 +78,7 @@ object RepeatedFiberDumpSpec extends ZIOBaseSpec {
   } yield ()
 
   // Create a fiber that does something in a loop, regularly calling itself .....
-  private def recurringWork(c : Char): ZIO[Clock with Console, Nothing, Unit] = {
+  private def recurringWork(c: Char): ZIO[Clock with Console, Nothing, Unit] = {
 
     def go: ZIO[Clock with Console, Nothing, Unit] =
       putStr(s"$c") *> go.schedule(Schedule.duration(1.second)).flatMap(_ => ZIO.unit)
@@ -86,7 +86,7 @@ object RepeatedFiberDumpSpec extends ZIOBaseSpec {
   }
 
   // Access the pretty Printed dump that should eventually yield the exception of #4384
-  private def dumpLoop : ZIO[Console, Throwable, String] =
+  private def dumpLoop: ZIO[Console, Throwable, String] =
     printDumps(simpleSupervisor) <* putStrLn("")
 
   private def getDumps(sv: Supervisor[SortedSet[Fiber.Runtime[Any, Any]]]): UIO[Iterable[Fiber.Dump]] = {

@@ -27,12 +27,11 @@ private[zio] final class SingleThreadedRingBuffer[A <: AnyRef](capacity: Int) {
     increment()
   }
 
-  def dropLast(): Unit = {
+  def dropLast(): Unit =
     if (size > 0) {
       decrement()
       array(current) = null
     }
-  }
 
   def toReversedList: List[A] = {
     val begin = current - size
