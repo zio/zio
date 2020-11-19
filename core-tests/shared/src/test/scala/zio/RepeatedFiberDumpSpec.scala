@@ -12,6 +12,13 @@ import scala.collection.immutable.SortedSet
 import java.util.function.UnaryOperator
 import zio.test.environment.Live
 
+// This test reproduces the behavior reported in https://github.com/zio/zio/issues/4384
+// The general idea is to have a supervisor that can be used to regularly pull the complete
+// Fiber.Dumps. Then we spin up some work to be done in the background, thereby causing
+// changes to one or more stack traces.
+// Eventually the dump poll will fail with a NullPointerException like in the sample output below.
+// The original issue was found while monitoring a sample app with ZMX.
+
 // Will produce something like
 // sbt:core-tests> test:testOnly *FiberDumpSpec
 // Starting test
