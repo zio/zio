@@ -15,21 +15,31 @@ import zio.test.environment.Live
 // Will produce something like
 // sbt:core-tests> test:testOnly *FiberDumpSpec
 // Starting test
-// AJIBECHGDKFFHBDA
-// GIKCJEEJCKIG
-// ADBHFFHBDA
-// GIKCJEEJCKIG
-// ADBHFFHBDA
-// GIKCJEEJCKIG
-// ADBHFFHBDA
-// Encountered null value in content of SingleThreadedRingBuffer, capacity=100, size=14, current=14, nullAt=0
+// DEAHGIFBKJC
+// BHIECAKGJFDDFJGKACEIHB
 
+// BHIECAKGJFDDFJGKACEIHB
+
+// Encountered null value in content of SingleThreadedRingBuffer, capacity=100, size=14, current=14, nullAt=0
+// java.lang.NullPointerException
+//   | => zat zio.ZTrace.$anonfun$prettyPrint$1(ZTrace.scala:36)
+//         at scala.collection.immutable.List.map(List.scala:246)
+// 	       at zio.ZTrace.prettyPrint(ZTrace.scala:36)
+// 	       at zio.internal.FiberRenderer$.$anonfun$prettyPrint$5(FiberRenderer.scala:52)
+// 	       at scala.Option.fold(Option.scala:263)
+//        at zio.internal.FiberRenderer$.prettyPrint(FiberRenderer.scala:52)
+//        at zio.internal.FiberRenderer$.$anonfun$prettyPrintM$1(FiberRenderer.scala:20)
+//        at zio.internal.FiberContext.evaluateNow(FiberContext.scala:344)
+//        at zio.internal.FiberContext.$anonfun$evaluateLater$1(FiberContext.scala:778)
+//        at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
+//        at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+//        at java.base/java.lang.Thread.run(Thread.java:834)
 // [info] - The Fiber context should
 // [info]   - allow to regularly poll the dump of all current fibers
 // [info]     Fiber failed.
 // [info]     An interrupt was produced by #79.
 // [info]
-// [info]     Fiber:Id(1605792801846,78) was supposed to continue to:
+// [info]     Fiber:Id(1605794931062,78) was supposed to continue to:
 // [info]       a future continuation at zio.ZIO$._IdentityFn(ZIO.scala:3959)
 // [info]       a future continuation at zio.ZIO.onInterrupt(ZIO.scala:981)
 // [info]       a future continuation at zio.test.environment.package$TestClock$Test.sleep(package.scala:332)
@@ -37,16 +47,13 @@ import zio.test.environment.Live
 // [info]       a future continuation at zio.Schedule.driver(Schedule.scala:349)
 // [info]       a future continuation at zio.ZIO.scheduleFrom(ZIO.scala:1684)
 // [info]
-// [info]     Fiber:Id(1605792801846,78) execution trace:
+// [info]     Fiber:Id(1605794931062,78) execution trace:
 // [info]       at zio.Promise.await(Promise.scala:50)
 // [info]       at zio.ZIO$.effectAsyncInterrupt(ZIO.scala:2574)
 // [info]       at zio.ZIO$.effectAsyncInterrupt(ZIO.scala:2574)
 // [info]       at zio.test.environment.package$TestClock$Test.sleep(package.scala:332)
 // [info]       at zio.internal.FiberContext$InterruptExit$.apply(FiberContext.scala:161)
 // [info]       at zio.internal.FiberContext$InterruptExit$.apply(FiberContext.scala:154)
-// [info]       at zio.ZIO$.effectSuspendTotal(ZIO.scala:2640)
-// [info]       at zio.ZIO$.bracketExit(ZIO.scala:2273)
-// [info]       at zio.internal.FiberContext$InterruptExit$.apply(FiberContext.scala:161)
 
 object RepeatedFiberDumpSpec extends ZIOBaseSpec {
 
