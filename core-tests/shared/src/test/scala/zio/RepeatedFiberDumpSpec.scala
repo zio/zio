@@ -63,13 +63,16 @@ object RepeatedFiberDumpSpec extends ZIOBaseSpec {
     // Start a number of busy Fibers
     _ <- ZIO.foreach(0.to(10))(i => recurringWork(('A' + i).toChar).fork)
     f <- ZIO.unit.schedule(Schedule.duration(300.seconds)).fork
-    fd <- (dumpLoop.onError { t => // Will die on the NPE reported in #4384
-            putStrLn(t.failures.map(_.getMessage()).mkString("\n")) *> f.interrupt
+    fd <- (dumpLoop.onError { t =>
+            for {
+              _ <- ZIO.succeed(t.dieOption.foreach(_.printStackTrace()))
+              _ <- f.interrupt
+            } yield ()
           }).schedule(Schedule.spaced(1.second)).fork
     _ <- f.join
     _ <- putStrLn("Stopping test")
     _ <- fd.interrupt
-  } yield assertCompletes) // If we end up here the bug might be fixed
+  } yield assertCompletes) // If we end up here the bug might have been fixed
 
   // Advance the test clock every 10 millis by a second
   private def timeWarp = for {
@@ -89,10 +92,8 @@ object RepeatedFiberDumpSpec extends ZIOBaseSpec {
   private def dumpLoop: ZIO[Console, Throwable, String] =
     printDumps(simpleSupervisor) <* putStrLn("")
 
-  private def getDumps(sv: Supervisor[SortedSet[Fiber.Runtime[Any, Any]]]): UIO[Iterable[Fiber.Dump]] = {
-    putStr(".")
+  private def getDumps(sv: Supervisor[SortedSet[Fiber.Runtime[Any, Any]]]): UIO[Iterable[Fiber.Dump]] =
     sv.value.flatMap(fibers => Fiber.dump(fibers.toSeq: _*))
-  }
 
   private def printDumps(sv: Supervisor[SortedSet[Fiber.Runtime[Any, Any]]]): ZIO[Any, Throwable, String] = for {
     dumps <- getDumps(sv)
