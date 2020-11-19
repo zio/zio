@@ -32,6 +32,7 @@
       "datatypes/datatypes_tarray",
       "datatypes/datatypes_tmap",
       "datatypes/datatypes_tpriorityqueue",
+      "datatypes/datatypes_treentrantlock",
       "datatypes/datatypes_tpromise",
       "datatypes/datatypes_tqueue",
       "datatypes/datatypes_tref",
