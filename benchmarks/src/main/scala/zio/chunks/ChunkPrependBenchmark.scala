@@ -11,8 +11,8 @@ import zio.Chunk
 @OutputTimeUnit(TimeUnit.SECONDS)
 class ChunkPrependBenchmarks {
 
-  val chunk  = Chunk(1)
-  val vector = Vector(1)
+  val chunk: Chunk[Int]   = Chunk(1)
+  val vector: Vector[Int] = Vector(1)
 
   @Param(Array("10000"))
   var size: Int = _

@@ -5,7 +5,7 @@ import zio.test._
 object REPLSpec extends DefaultRunnableSpec {
 
   @silent("Unused import")
-  def spec = suite("REPLSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("REPLSpec")(
     test("settings compile") {
       import zio.Runtime.default._
       import zio._

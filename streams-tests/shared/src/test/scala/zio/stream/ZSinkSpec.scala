@@ -2,17 +2,16 @@ package zio.stream
 
 import scala.util.Random
 
-import zio.ZIOBaseSpec
-import zio._
 import zio.duration._
 import zio.stream.SinkUtils.{ findSink, sinkRaceLaw }
 import zio.stream.ZStreamGen._
 import zio.test.Assertion.{ equalTo, isFalse, isGreaterThanEqualTo, isTrue, succeeds }
 import zio.test.environment.TestClock
 import zio.test.{ assertM, _ }
+import zio.{ ZIOBaseSpec, _ }
 
 object ZSinkSpec extends ZIOBaseSpec {
-  def spec = suite("ZSinkSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("ZSinkSpec")(
     suite("Constructors")(
       testM("collectAllToSet")(
         assertM(
@@ -26,6 +25,14 @@ object ZSinkSpec extends ZIOBaseSpec {
             .range(0, 10)
             .run(ZSink.collectAllToMap((_: Int) % 3)(_ + _))
         )(equalTo(Map[Int, Int](0 -> 18, 1 -> 12, 2 -> 15)))
+      ),
+      suite("accessSink")(
+        testM("accessSink") {
+          assertM(
+            ZStream("ignore this")
+              .run(ZSink.accessSink[String](ZSink.succeed[String, String](_)).provide("use this"))
+          )(equalTo("use this"))
+        }
       ),
       suite("collectAllWhileWith")(
         testM("example 1") {
@@ -44,7 +51,7 @@ object ZSinkSpec extends ZIOBaseSpec {
           val sink: ZSink[Any, Nothing, Int, Int, List[Int]] = ZSink
             .head[Int]
             .collectAllWhileWith[List[Int]](Nil)((a: Option[Int]) => a.fold(true)(_ < 5))(
-              (a: List[Int], b: Option[Int]) => a ++ b
+              (a: List[Int], b: Option[Int]) => a ++ b.toList
             )
           val stream = Stream.fromIterable(1 to 100)
           assertM((stream ++ stream).chunkN(3).run(sink))(equalTo(List(1, 2, 3, 4)))
@@ -230,7 +237,7 @@ object ZSinkSpec extends ZIOBaseSpec {
             ZStream.fromChunks(chunks: _*).run(headAndCount).map {
               case (head, count) => {
                 assert(head)(equalTo(chunks.flatten.headOption)) &&
-                assert(count + head.size)(equalTo(chunks.map(_.size.toLong).sum))
+                assert(count + head.toList.size)(equalTo(chunks.map(_.size.toLong).sum))
               }
             }
           }
@@ -241,15 +248,20 @@ object ZSinkSpec extends ZIOBaseSpec {
           ZStream
             .fromChunks(chunks: _*)
             .peel(ZSink.take[Int](n))
-            .flatMap {
-              case (chunk, stream) =>
-                stream.runCollect.toManaged_.map { leftover =>
-                  assert(chunk)(equalTo(chunks.flatten.take(n))) &&
-                  assert(leftover)(equalTo(chunks.flatten.drop(n)))
-                }
+            .flatMap { case (chunk, stream) =>
+              stream.runCollect.toManaged_.map { leftover =>
+                assert(chunk)(equalTo(chunks.flatten.take(n))) &&
+                assert(leftover)(equalTo(chunks.flatten.drop(n)))
+              }
             }
             .useNow
         }
+      ),
+      testM("take emits at end of chunk")(
+        Stream(1, 2)
+          .concat(Stream.dieMessage("should not get this far"))
+          .run(Sink.take(2))
+          .map(assert(_)(equalTo(Chunk(1, 2))))
       ),
       testM("timed") {
         for {

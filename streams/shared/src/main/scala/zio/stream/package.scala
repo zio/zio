@@ -4,6 +4,9 @@ package object stream {
   type Stream[+E, +A] = ZStream[Any, E, A]
   val Stream = ZStream
 
+  type UStream[+A] = ZStream[Any, Nothing, A]
+  val UStream = ZStream
+
   type Sink[+E, A, +L, +B] = ZSink[Any, E, A, L, B]
   val Sink = ZSink
 

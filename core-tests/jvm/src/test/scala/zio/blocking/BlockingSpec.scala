@@ -10,7 +10,7 @@ import zio.{ UIO, ZIOBaseSpec }
 
 object BlockingSpec extends ZIOBaseSpec {
 
-  def spec = suite("BlockingSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("BlockingSpec")(
     suite("Make a Blocking Service and verify that")(
       testM("effectBlocking completes successfully") {
         assertM(effectBlocking(()))(isUnit)

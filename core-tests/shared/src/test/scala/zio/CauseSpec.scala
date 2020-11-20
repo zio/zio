@@ -9,7 +9,7 @@ object CauseSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 
-  def spec = suite("CauseSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("CauseSpec")(
     suite("Cause")(
       testM("`Cause#died` and `Cause#stripFailures` are consistent") {
         check(causes)(c => assert(c.keepDefects)(if (c.died) isSome(anything) else isNone))
@@ -18,9 +18,8 @@ object CauseSpec extends ZIOBaseSpec {
         check(causes, causes)((a, b) => assert(a == b)(equalTo(b == a)))
       },
       testM("`Cause.equals` and `Cause.hashCode` satisfy the contract") {
-        check(equalCauses) {
-          case (a, b) =>
-            assert(a.hashCode)(equalTo(b.hashCode))
+        check(equalCauses) { case (a, b) =>
+          assert(a.hashCode)(equalTo(b.hashCode))
         }
       },
       testM("`Cause#untraced` removes all traces") {
@@ -179,15 +178,14 @@ object CauseSpec extends ZIOBaseSpec {
     ),
     suite("squashTraceWith")(
       testM("converts Cause to original exception with ZTraces in root cause") {
-        val throwable = (Gen.alphaNumericString <*> Gen.alphaNumericString).flatMap {
-          case (msg1, msg2) =>
-            Gen
-              .elements(
-                new IllegalArgumentException(msg2),
-                // null cause can't be replaced using Throwable.initCause() on the JVM
-                new IllegalArgumentException(msg2, null)
-              )
-              .map(new Throwable(msg1, _))
+        val throwable = (Gen.alphaNumericString <*> Gen.alphaNumericString).flatMap { case (msg1, msg2) =>
+          Gen
+            .elements(
+              new IllegalArgumentException(msg2),
+              // null cause can't be replaced using Throwable.initCause() on the JVM
+              new IllegalArgumentException(msg2, null)
+            )
+            .map(new Throwable(msg1, _))
         }
         val failOrDie = Gen.elements[Throwable => Cause[Throwable]](Cause.fail, Cause.die)
         check(throwable, failOrDie) { (e, makeCause) =>
@@ -231,20 +229,19 @@ object CauseSpec extends ZIOBaseSpec {
     Gen.causes(Gen.anyString, Gen.anyString.map(s => new RuntimeException(s)))
 
   val equalCauses: Gen[Random with Sized, (Cause[String], Cause[String])] =
-    (causes <*> causes <*> causes).flatMap {
-      case ((a, b), c) =>
-        Gen.elements(
-          (a, a),
-          (a, Cause.traced(a, ZTrace(Fiber.Id(0L, 0L), Nil, Nil, None))),
-          (Then(Then(a, b), c), Then(a, Then(b, c))),
-          (Then(a, Both(b, c)), Both(Then(a, b), Then(a, c))),
-          (Both(Both(a, b), c), Both(a, Both(b, c))),
-          (Both(Then(a, c), Then(b, c)), Then(Both(a, b), c)),
-          (Both(a, b), Both(b, a)),
-          (a, Cause.stackless(a)),
-          (a, Then(a, Cause.empty)),
-          (a, Both(a, Cause.empty))
-        )
+    (causes <*> causes <*> causes).flatMap { case ((a, b), c) =>
+      Gen.elements(
+        (a, a),
+        (a, Cause.traced(a, ZTrace(Fiber.Id(0L, 0L), Nil, Nil, None))),
+        (Then(Then(a, b), c), Then(a, Then(b, c))),
+        (Then(a, Both(b, c)), Both(Then(a, b), Then(a, c))),
+        (Both(Both(a, b), c), Both(a, Both(b, c))),
+        (Both(Then(a, c), Then(b, c)), Then(Both(a, b), c)),
+        (Both(a, b), Both(b, a)),
+        (a, Cause.stackless(a)),
+        (a, Then(a, Cause.empty)),
+        (a, Both(a, Cause.empty))
+      )
     }
 
   val errorCauseFunctions: Gen[Random with Sized, String => Cause[String]] =

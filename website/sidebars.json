@@ -32,6 +32,7 @@
       "datatypes/datatypes_tarray",
       "datatypes/datatypes_tmap",
       "datatypes/datatypes_tpriorityqueue",
+      "datatypes/datatypes_treentrantlock",
       "datatypes/datatypes_tpromise",
       "datatypes/datatypes_tqueue",
       "datatypes/datatypes_tref",
@@ -59,6 +60,7 @@
       "usecases/usecases_concurrency",
       "usecases/usecases_parallelism",
       "usecases/usecases_queuing",
+      "usecases/usecases_retrying",
       "usecases/usecases_scheduling",
       "usecases/usecases_streaming",
       "usecases/usecases_testing"
@@ -68,6 +70,7 @@
     "How to": [
       "howto/howto_index",
       "howto/howto_use_layers",
+      "howto/howto_test_assertions",
       "howto/howto_test_effects",
       "howto/howto_mock_services",
       "howto/howto_handle_errors",

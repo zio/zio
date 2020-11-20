@@ -1,6 +1,8 @@
 package zio
 
 import scala.concurrent.ExecutionContext
+import scala.reflect.ClassTag
+
 import zio.internal.{ Executor, Platform }
 
 object IO {
@@ -85,6 +87,12 @@ object IO {
     ZIO.collectAll(in)
 
   /**
+   * @see See [[[zio.ZIO.collectAll[R,E,A](in:Array*]]]
+   */
+  def collectAll[E, A: ClassTag](in: Array[IO[E, A]]): IO[E, Array[A]] =
+    ZIO.collectAll(in)
+
+  /**
    * @see See [[[zio.ZIO.collectAll[R,E,A](in:zio\.NonEmptyChunk*]]]
    */
   def collectAll[E, A](in: NonEmptyChunk[IO[E, A]]): IO[E, NonEmptyChunk[A]] =
@@ -108,6 +116,12 @@ object IO {
    * @see See [[[zio.ZIO.collectAllPar[R,E,A](as:Set*]]]
    */
   def collectAllPar[E, A](as: Set[IO[E, A]]): IO[E, Set[A]] =
+    ZIO.collectAllPar(as)
+
+  /**
+   * @see See [[[zio.ZIO.collectAllPar[R,E,A](as:Array*]]]
+   */
+  def collectAllPar[E, A: ClassTag](as: Array[IO[E, A]]): IO[E, Array[A]] =
     ZIO.collectAllPar(as)
 
   /**
@@ -294,6 +308,12 @@ object IO {
   def effectTotal[A](effect: => A): UIO[A] = ZIO.effectTotal(effect)
 
   /**
+   * @see See [[zio.ZIO.executor]]
+   */
+  def executor: UIO[Executor] =
+    ZIO.executor
+
+  /**
    * @see See [[zio.ZIO.fail]]
    */
   def fail[E](error: => E): IO[E, Nothing] = ZIO.fail(error)
@@ -304,7 +324,7 @@ object IO {
   val fiberId: UIO[Fiber.Id] = ZIO.fiberId
 
   /**
-   * @see [[zio.ZIO.filter]]
+   * @see [[zio.ZIO.filter[R,E,A,Collection*]]
    */
   def filter[E, A, Collection[+Element] <: Iterable[Element]](
     as: Collection[A]
@@ -312,7 +332,13 @@ object IO {
     ZIO.filter(as)(f)
 
   /**
-   * @see [[zio.ZIO.filterPar]]
+   * @see [[[zio.ZIO.filter[R,E,A](as:Set*]]]
+   */
+  def filter[E, A](as: Set[A])(f: A => IO[E, Boolean]): IO[E, Set[A]] =
+    ZIO.filter(as)(f)
+
+  /**
+   * @see [[zio.ZIO.filterPar[R,E,A,Collection*]]
    */
   def filterPar[E, A, Collection[+Element] <: Iterable[Element]](
     as: Collection[A]
@@ -320,7 +346,13 @@ object IO {
     ZIO.filterPar(as)(f)
 
   /**
-   * @see [[zio.ZIO.filterNot]]
+   * @see [[[zio.ZIO.filterPar[R,E,A](as:Set*]]]
+   */
+  def filterPar[E, A](as: Set[A])(f: A => IO[E, Boolean]): IO[E, Set[A]] =
+    ZIO.filterPar(as)(f)
+
+  /**
+   * @see [[zio.ZIO.filterNot[R,E,A,Collection*]]
    */
   def filterNot[E, A, Collection[+Element] <: Iterable[Element]](
     as: Collection[A]
@@ -328,11 +360,23 @@ object IO {
     ZIO.filterNot(as)(f)
 
   /**
-   * @see [[zio.ZIO.filterNotPar]]
+   * @see [[[zio.ZIO.filterNot[R,E,A](as:Set*]]]
+   */
+  def filterNot[E, A](as: Set[A])(f: A => IO[E, Boolean]): IO[E, Set[A]] =
+    ZIO.filterNot(as)(f)
+
+  /**
+   * @see [[zio.ZIO.filterNotPar[R,E,A,Collection*]]
    */
   def filterNotPar[E, A, Collection[+Element] <: Iterable[Element]](
     as: Collection[A]
   )(f: A => IO[E, Boolean])(implicit bf: BuildFrom[Collection[A], A, Collection[A]]): IO[E, Collection[A]] =
+    ZIO.filterNotPar(as)(f)
+
+  /**
+   * @see [[[zio.ZIO.filterNotPar[R,E,A](as:Set*]]]
+   */
+  def filterNotPar[E, A](as: Set[A])(f: A => IO[E, Boolean]): IO[E, Set[A]] =
     ZIO.filterNotPar(as)(f)
 
   /**
@@ -376,6 +420,12 @@ object IO {
     ZIO.foreach(in)(f)
 
   /**
+   * @see See [[[zio.ZIO.foreach[R,E,A,B](in:Array*]]]
+   */
+  def foreach[E, A, B: ClassTag](in: Array[A])(f: A => IO[E, B]): IO[E, Array[B]] =
+    ZIO.foreach(in)(f)
+
+  /**
    * @see See [[[zio.ZIO.foreach[R,E,Key,Key2,Value,Value2](map:Map*]]]
    */
   def foreach[E, Key, Key2, Value, Value2](
@@ -415,6 +465,12 @@ object IO {
    * @see See [[[zio.ZIO.foreachPar[R,E,A,B](as:Set*]]]
    */
   def foreachPar[E, A, B](as: Set[A])(fn: A => IO[E, B]): IO[E, Set[B]] =
+    ZIO.foreachPar(as)(fn)
+
+  /**
+   * @see See [[[zio.ZIO.foreachPar[R,E,A,B](as:Array*]]]
+   */
+  def foreachPar[E, A, B: ClassTag](as: Array[A])(fn: A => IO[E, B]): IO[E, Array[B]] =
     ZIO.foreachPar(as)(fn)
 
   /**
@@ -673,6 +729,12 @@ object IO {
    * @see See [[zio.ZIO.none]]
    */
   val none: UIO[Option[Nothing]] = ZIO.none
+
+  /**
+   *  @see See [[zio.ZIO.not]]
+   */
+  def not[E](effect: IO[E, Boolean]): IO[E, Boolean] =
+    ZIO.not(effect)
 
   /**
    * @see See [[zio.ZIO.partition]]

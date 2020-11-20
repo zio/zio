@@ -136,7 +136,7 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
     }
 
   /**
-   * Creates a stream from a [[java.io.InputStream]]
+   * Creates a stream from a `java.io.InputStream`
    */
   def fromInputStream(
     is: => InputStream,
@@ -172,7 +172,7 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
     }
 
   /**
-   * Creates a stream from a [[java.io.InputStream]]. Ensures that the input
+   * Creates a stream from a `java.io.InputStream`. Ensures that the input
    * stream is closed after it is exhausted.
    */
   def fromInputStreamEffect[R](
@@ -182,7 +182,7 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
     fromInputStreamManaged(is.toManaged(is => ZIO.effectTotal(is.close())), chunkSize)
 
   /**
-   * Creates a stream from a managed [[java.io.InputStream]] value.
+   * Creates a stream from a managed `java.io.InputStream` value.
    */
   def fromInputStreamManaged[R](
     is: ZManaged[R, IOException, InputStream],

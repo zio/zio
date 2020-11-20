@@ -16,8 +16,8 @@
 
 package zio
 
-import zio.duration.Duration
 import zio.ZManaged.ReleaseMap
+import zio.duration.Duration
 import zio.internal.Platform
 
 /**
@@ -144,6 +144,12 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    */
   final def fresh: ZLayer[RIn, E, ROut] =
     ZLayer.Fresh(self)
+
+  /**
+    * Returns the hash code of this layer.
+    */
+  override final lazy val hashCode: Int =
+    super.hashCode
 
   /**
    * Builds this layer and uses it until it is interrupted. This is useful when

@@ -248,12 +248,24 @@ final class ZSTM[-R, +E, +A] private[stm] (
 
   /**
    * Repeats this `STM` effect until its result satisfies the specified predicate.
+   * '''WARNING''': `repeatUntil` uses a busy loop to repeat the effect and will consume a
+   * thread until it completes (it cannot yield). This is because STM describes a single atomic transaction
+   * which must either complete, retry or fail a transaction before yielding back to the ZIO Runtime.
+   * - Use [[retryUntil]] instead if you don't need to maintain transaction state for repeats.
+   * - Ensure repeating the STM effect will eventually satisfy the predicate.
+   * - Consider using the Blocking thread pool for execution of the transaction.
    */
   def repeatUntil(f: A => Boolean): ZSTM[R, E, A] =
     flatMap(a => if (f(a)) ZSTM.succeedNow(a) else repeatUntil(f))
 
   /**
    * Repeats this `STM` effect while its result satisfies the specified predicate.
+   * '''WARNING''': `repeatWhile` uses a busy loop to repeat the effect and will consume a
+   * thread until it completes (it cannot yield). This is because STM describes a single atomic transaction
+   * which must either complete, retry or fail a transaction before yielding back to the ZIO Runtime.
+   * - Use [[retryWhile]] instead if you don't need to maintain transaction state for repeats.
+   * - Ensure repeating the STM effect will eventually not satisfy the predicate.
+   * - Consider using the Blocking thread pool for execution of the transaction.
    */
   def repeatWhile(f: A => Boolean): ZSTM[R, E, A] =
     flatMap(a => if (f(a)) repeatWhile(f) else ZSTM.succeedNow(a))
@@ -379,7 +391,16 @@ final class ZSTM[-R, +E, +A] private[stm] (
 
   /**
    * Repeats this effect forever (until the first error).
+   * '''WARNING''': `forever` uses a busy loop to repeat the effect and will consume a
+   * thread until it fails. This is because STM describes a single atomic transaction, and so must either complete,
+   * retry or fail a transaction before yielding back to the ZIO Runtime.
+   * - Ensure repeating the STM effect will eventually fail.
+   * - Consider using the Blocking thread pool for execution of the transaction.
    */
+  @deprecated(
+    "Repeating until failure doesn't make sense in the context of STM because it will always roll back the transaction",
+    "1.0.2"
+  )
   def forever: ZSTM[R, E, Nothing] = self *> self.forever
 
   /**
@@ -982,12 +1003,19 @@ object ZSTM {
     foreach[R, E, A, Option[B], Iterable](in)(a => f(a).optional).map(_.flatten).map(bf.fromSpecific(in))
 
   /**
-   * Collects all the transactional effects in a list, returning a single
-   * transactional effect that produces a list of values.
+   * Collects all the transactional effects in a collection, returning a single
+   * transactional effect that produces a collection of values.
    */
   def collectAll[R, E, A, Collection[+Element] <: Iterable[Element]](
     in: Collection[ZSTM[R, E, A]]
   )(implicit bf: BuildFrom[Collection[ZSTM[R, E, A]], A, Collection[A]]): ZSTM[R, E, Collection[A]] =
+    foreach(in)(ZIO.identityFn)
+
+  /**
+   * Collects all the transactional effects in a set, returning a single
+   * transactional effect that produces a set of values.
+   */
+  def collectAll[R, E, A](in: Set[ZSTM[R, E, A]]): ZSTM[R, E, Set[A]] =
     foreach(in)(ZIO.identityFn)
 
   /**
@@ -1054,6 +1082,12 @@ object ZSTM {
     }.map(_.result())
 
   /**
+   * Filters the set using the specified effectual predicate.
+   */
+  def filter[R, E, A](as: Set[A])(f: A => ZSTM[R, E, Boolean]): ZSTM[R, E, Set[A]] =
+    filter[R, E, A, Iterable](as)(f).map(_.toSet)
+
+  /**
    * Filters the collection using the specified effectual predicate, removing
    * all elements that satisfy the predicate.
    */
@@ -1061,6 +1095,13 @@ object ZSTM {
     as: Collection[A]
   )(f: A => ZSTM[R, E, Boolean])(implicit bf: BuildFrom[Collection[A], A, Collection[A]]): ZSTM[R, E, Collection[A]] =
     filter(as)(f(_).map(!_))
+
+  /**
+   * Filters the set using the specified effectual predicate, removing all
+   * elements that satisfy the predicate.
+   */
+  def filterNot[R, E, A](as: Set[A])(f: A => ZSTM[R, E, Boolean]): ZSTM[R, E, Set[A]] =
+    filterNot[R, E, A, Iterable](as)(f).map(_.toSet)
 
   /**
    * Returns an effectful function that extracts out the first element of a
@@ -1105,6 +1146,13 @@ object ZSTM {
     }.map(_.result())
 
   /**
+   * Applies the function `f` to each element of the `Set[A]` and returns a
+   * transactional effect that produces a new `Set[B]`.
+   */
+  def foreach[R, E, A, B](in: Set[A])(f: A => ZSTM[R, E, B]): ZSTM[R, E, Set[B]] =
+    foreach[R, E, A, B, Iterable](in)(f).map(_.toSet)
+
+  /**
    * Applies the function `f` to each element of the `Iterable[A]` and
    * returns a transactional effect that produces `Unit`.
    *
@@ -1114,7 +1162,7 @@ object ZSTM {
   def foreach_[R, E, A](in: Iterable[A])(f: A => ZSTM[R, E, Any]): ZSTM[R, E, Unit] =
     ZSTM.succeedNow(in.iterator).flatMap[R, E, Unit] { it =>
       def loop: ZSTM[R, E, Unit] =
-        if (it.hasNext) f(it.next) *> loop
+        if (it.hasNext) f(it.next()) *> loop
         else ZSTM.unit
       loop
     }
@@ -1777,7 +1825,7 @@ object ZSTM {
 
     private[this] val txnCounter: AtomicLong = new AtomicLong()
 
-    val globalLock = new AnyRef {}
+    val globalLock: AnyRef = new AnyRef {}
 
     sealed abstract class TExit[+A, +B] extends Serializable with Product
     object TExit {

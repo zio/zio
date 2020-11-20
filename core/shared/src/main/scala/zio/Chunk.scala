@@ -20,7 +20,7 @@ import java.nio._
 import java.util.concurrent.atomic.AtomicInteger
 
 import scala.collection.mutable.Builder
-import scala.reflect.{ classTag, ClassTag }
+import scala.reflect.{ ClassTag, classTag }
 
 /**
  * A `Chunk[A]` represents a chunk of values of type `A`. Chunks are designed
@@ -354,9 +354,8 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
       var i      = 0
       while (i < length) {
         val a = array(i)
-        dest = dest.zipWith(f(a)) {
-          case (builder, res) =>
-            if (res) builder += a else builder
+        dest = dest.zipWith(f(a)) { case (builder, res) =>
+          if (res) builder += a else builder
         }
         i += 1
       }
@@ -607,10 +606,9 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
         while (i < length) {
           val a = array(i)
           dest = dest.flatMap { state =>
-            f1(state, a).map {
-              case (state2, b) =>
-                builder += b
-                state2
+            f1(state, a).map { case (state2, b) =>
+              builder += b
+              state2
             }
           }
           i += 1
@@ -1173,9 +1171,10 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       case iterable if iterable.isEmpty => Empty
       case vector: Vector[A]            => VectorChunk(vector)
       case iterable =>
-        val first                   = iterable.head
-        implicit val A: ClassTag[A] = Tags.fromValue(first)
-        fromArray(it.toArray)
+        val builder = ChunkBuilder.make[A]()
+        builder.sizeHint(iterable.size)
+        builder ++= iterable
+        builder.result()
     }
 
   override def fill[A](n: Int)(elem: => A): Chunk[A] =
@@ -1363,9 +1362,8 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
           val j = i
           // `zipWith` is lazy in the RHS, and we rely on the side-effects of `orElse` here.
           val rhs = pf.applyOrElse(self(j), orElse)
-          dest = dest.zipWith(rhs) {
-            case (builder, b) =>
-              if (b != null) (builder += b) else builder
+          dest = dest.zipWith(rhs) { case (builder, b) =>
+            if (b != null) (builder += b) else builder
           }
           i += 1
         }
@@ -1526,7 +1524,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       (left.arrayIterator ++ right.arrayIterator).asInstanceOf[Iterator[Array[A1]]]
 
     override private[zio] def reverseArrayIterator[A1 >: A]: Iterator[Array[A1]] =
-      (right.arrayIterator ++ left.arrayIterator).asInstanceOf[Iterator[Array[A1]]]
+      (right.reverseArrayIterator ++ left.reverseArrayIterator).asInstanceOf[Iterator[Array[A1]]]
   }
 
   private final case class Singleton[A](a: A) extends Chunk[A] {

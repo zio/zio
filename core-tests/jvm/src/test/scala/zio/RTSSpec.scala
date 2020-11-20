@@ -14,7 +14,7 @@ object RTSSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 
-  def spec = suite("Blocking specs (to be migrated to ZIOSpecJvm)")(
+  def spec: ZSpec[Environment, Failure] = suite("Blocking specs (to be migrated to ZIOSpecJvm)")(
     testM("blocking caches threads") {
       import zio.blocking.Blocking
 

@@ -1,22 +1,23 @@
 package zio
 
+import java.time.temporal.{ ChronoField, ChronoUnit }
 import java.time.{ Instant, OffsetDateTime, ZoneId }
+
+import scala.concurrent.Future
 
 import zio.clock.Clock
 import zio.duration._
 import zio.stream.ZStream
 import zio.test.Assertion._
-import zio.test.TestAspect.timeout
+import zio.test.TestAspect.{ failing, timeout }
+import zio.test._
 import zio.test.environment.{ TestClock, TestRandom }
-import zio.test.{ assert, assertM, suite, testM, TestResult }
-
-import scala.concurrent.Future
 
 object ScheduleSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 
-  def spec = suite("ScheduleSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("ScheduleSpec")(
     /**
      * Retry `once` means that we try to exec `io`, get and error,
      * try again to exec `io`, and whatever the output is, we return that
@@ -301,6 +302,161 @@ object ScheduleSpec extends ZIOBaseSpec {
         assertM(failed)(equalTo("OrElseFailed"))
       }
     ) @@ zioTag(errors),
+    suite("cron-like scheduling. Repeats at point of time (minute of hour, day of week, ...)")(
+      testM("recur at 01 second of each minute") {
+        def toOffsetDateTime[T](in: (List[(OffsetDateTime, T)], Option[T])): List[OffsetDateTime] =
+          in._1.map(t => t._1.withNano(0))
+
+        val originOffset = OffsetDateTime.now().withMinute(0).withSecond(0).withNano(0)
+
+        val inTimeSecondNanosec = originOffset.withSecond(1).withNano(1)
+        val inTimeSecond        = originOffset.withSecond(1)
+        val beforeTime          = originOffset.withSecond(0)
+        val afterTime           = originOffset.withSecond(3)
+
+        val input = List(inTimeSecondNanosec, inTimeSecond, beforeTime, afterTime).map((_, ()))
+
+        assertM(runManually(Schedule.secondOfMinute(1), input).map(toOffsetDateTime)) {
+          val expected          = originOffset.withSecond(1)
+          val afterTimeExpected = expected.withMinute(expected.getMinute + 1)
+          equalTo(List(expected, afterTimeExpected, expected, afterTimeExpected))
+        }
+      },
+      testM("throw IllegalArgumentException on invalid `second` argument of `secondOfMinute`") {
+        val input = List(OffsetDateTime.now())
+        assertM(run(Schedule.secondOfMinute(60))(input)) {
+          equalTo(Chunk.empty)
+        }
+      } @@ failing(diesWith(isSubtype[IllegalArgumentException](anything))),
+      testM("recur at 01 minute of each hour") {
+        def toOffsetDateTime[T](in: (List[(OffsetDateTime, T)], Option[T])): List[OffsetDateTime] =
+          in._1.map(t => t._1.withNano(0))
+
+        val originOffset = OffsetDateTime.now().withHour(0).withSecond(0).withNano(0)
+
+        val inTimeMinuteNanosec = originOffset.withMinute(1).withNano(1)
+        val inTimeMinute        = originOffset.withMinute(1)
+        val beforeTime          = originOffset.withMinute(0)
+        val afterTime           = originOffset.withMinute(3)
+
+        val input = List(inTimeMinuteNanosec, inTimeMinute, beforeTime, afterTime).map((_, ()))
+
+        assertM(runManually(Schedule.minuteOfHour(1), input).map(toOffsetDateTime)) {
+          val expected          = originOffset.withMinute(1)
+          val afterTimeExpected = expected.withHour(expected.getHour + 1)
+          equalTo(List(expected, afterTimeExpected, expected, afterTimeExpected))
+        }
+      },
+      testM("throw IllegalArgumentException on invalid `minute` argument of `minuteOfHour`") {
+        val input = List(OffsetDateTime.now())
+        assertM(run(Schedule.minuteOfHour(60))(input)) {
+          equalTo(Chunk.empty)
+        }
+      } @@ failing(diesWith(isSubtype[IllegalArgumentException](anything))),
+      testM("recur at 01 hour of each day") {
+        def toOffsetDateTime[T](in: (List[(OffsetDateTime, T)], Option[T])): List[OffsetDateTime] =
+          in._1.map(t => t._1.withNano(0))
+
+        val originOffset = OffsetDateTime
+          .now()
+          .truncatedTo(ChronoUnit.HOURS)
+
+        val inTimeHourSecond = originOffset.withHour(1).withSecond(1)
+        val inTimeHour       = originOffset.withHour(1)
+        val beforeTime       = originOffset.withHour(0)
+        val afterTime        = originOffset.withHour(3)
+
+        val input = List(inTimeHourSecond, inTimeHour, beforeTime, afterTime).map((_, ()))
+
+        assertM(runManually(Schedule.hourOfDay(1), input).map(toOffsetDateTime)) {
+          val expected          = originOffset.withHour(1)
+          val afterTimeExpected = expected.withDayOfYear(expected.getDayOfYear + 1)
+          equalTo(List(expected, afterTimeExpected, expected, afterTimeExpected))
+        }
+      },
+      testM("throw IllegalArgumentException on invalid `hour` argument of `hourOfDay`") {
+        val input = List(OffsetDateTime.now())
+        assertM(run(Schedule.hourOfDay(24))(input)) {
+          equalTo(Chunk.empty)
+        }
+      } @@ failing(diesWith(isSubtype[IllegalArgumentException](anything))),
+      testM("recur at Tuesday of each week") {
+        def toOffsetDateTime[T](in: (List[(OffsetDateTime, T)], Option[T])): List[OffsetDateTime] =
+          in._1.map(t => t._1.withNano(0))
+
+        val originOffset = OffsetDateTime
+          .now()
+          .truncatedTo(ChronoUnit.DAYS)
+
+        val tuesdayHour = originOffset.`with`(ChronoField.DAY_OF_WEEK, 2).withHour(1)
+        val tuesday     = originOffset.`with`(ChronoField.DAY_OF_WEEK, 2)
+        val monday      = originOffset.`with`(ChronoField.DAY_OF_WEEK, 1)
+        val wednesday   = originOffset.`with`(ChronoField.DAY_OF_WEEK, 3)
+
+        val input = List(tuesdayHour, tuesday, monday, wednesday).map((_, ()))
+
+        assertM(runManually(Schedule.dayOfWeek(2), input).map(toOffsetDateTime)) {
+          val expectedTuesday = originOffset.`with`(ChronoField.DAY_OF_WEEK, 2)
+          val nextTuesday     = expectedTuesday.plusDays(7).`with`(ChronoField.DAY_OF_WEEK, 2)
+          equalTo(List(expectedTuesday, nextTuesday, expectedTuesday, nextTuesday))
+        }
+      },
+      testM("throw IllegalArgumentException on invalid `day` argument of `dayOfWeek`") {
+        val input = List(OffsetDateTime.now())
+        assertM(run(Schedule.dayOfWeek(8))(input)) {
+          equalTo(Chunk.empty)
+        }
+      } @@ failing(diesWith(isSubtype[IllegalArgumentException](anything))),
+      testM("recur in 2nd day of each month") {
+        def toOffsetDateTime[T](in: (List[(OffsetDateTime, T)], Option[T])): List[OffsetDateTime] =
+          in._1.map(t => t._1.withNano(0))
+
+        val originOffset = OffsetDateTime
+          .now()
+          .withYear(2020)
+          .withMonth(1)
+          .truncatedTo(ChronoUnit.DAYS)
+
+        val inTimeDate1 = originOffset.withDayOfMonth(2).withHour(1)
+        val inTimeDate2 = originOffset.withDayOfMonth(2)
+        val before      = originOffset.withDayOfMonth(1)
+        val after       = originOffset.withDayOfMonth(3)
+
+        val input = List(inTimeDate1, inTimeDate2, before, after).map((_, ()))
+
+        assertM(runManually(Schedule.dayOfMonth(2), input).map(toOffsetDateTime)) {
+          val expectedFirstInTime  = originOffset.withDayOfMonth(2)
+          val expectedSecondInTime = expectedFirstInTime.plusMonths(1)
+          val expectedBefore       = originOffset.withDayOfMonth(2)
+          val expectedAfter        = originOffset.withDayOfMonth(2).plusMonths(1)
+          equalTo(List(expectedFirstInTime, expectedSecondInTime, expectedBefore, expectedAfter))
+        }
+      },
+      testM("recur only in months containing valid number of days") {
+        def toOffsetDateTime[T](in: (List[(OffsetDateTime, T)], Option[T])): List[OffsetDateTime] =
+          in._1.map(t => t._1.withNano(0))
+
+        val originOffset = OffsetDateTime
+          .now()
+          .withYear(2020)
+          .withMonth(1)
+          .withDayOfMonth(31)
+          .truncatedTo(ChronoUnit.DAYS)
+
+        val input = List(originOffset).map((_, ()))
+
+        assertM(runManually(Schedule.dayOfMonth(30), input).map(toOffsetDateTime)) {
+          val expected = originOffset.withMonth(3).withDayOfMonth(30)
+          equalTo(List(expected))
+        }
+      },
+      testM("throw IllegalArgumentException on invalid `day` argument of `dayOfMonth`") {
+        val input = List(OffsetDateTime.now())
+        assertM(run(Schedule.dayOfMonth(32))(input)) {
+          equalTo(Chunk.empty)
+        }
+      } @@ failing(diesWith(isSubtype[IllegalArgumentException](anything)))
+    ),
     suite("Return the result after successful retry")(
       testM("retry exactly one time for `once` when second time succeeds - retryOrElse") {
         for {
@@ -407,6 +563,12 @@ object ScheduleSpec extends ZIOBaseSpec {
       val scheduleIntervals = runManually(Schedule.fixed(5.seconds), inputs).map(_._1.map(_._1))
 
       assertM(scheduleIntervals)(equalTo(List(offsetDateTime(5000), offsetDateTime(10000))))
+    },
+    testM("Schedule.unwrap should return a Schedule out of an effect") {
+      val effect   = ZIO.succeed(5).map(Schedule.recurs)
+      val schedule = Schedule.unwrap(effect)
+
+      checkRepeat(schedule, expected = 5)
     }
   )
 
@@ -494,6 +656,16 @@ object ScheduleSpec extends ZIOBaseSpec {
       i <- ref.updateAndGet(_ + 1)
       x <- if (i <= 1) IO.fail(s"Error: $i") else IO.succeed(i)
     } yield x
+
+  def diesWith(assertion: Assertion[Throwable]): Assertion[TestFailure[Any]] =
+    isCase(
+      "Runtime",
+      {
+        case TestFailure.Runtime(c) => c.dieOption
+        case _                      => None
+      },
+      assertion
+    )
 
   case class ScheduleError(message: String) extends Exception
   case class ScheduleFailure(message: String)

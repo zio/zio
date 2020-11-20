@@ -1,6 +1,6 @@
 package zio.test.magnolia
 
-import java.time.{ LocalDate, LocalDateTime }
+import java.time.{Instant, LocalDate, LocalDateTime}
 import java.util.UUID
 
 import zio.random.Random
@@ -79,9 +79,16 @@ object DeriveGenSpec extends DefaultRunnableSpec {
       test("tuple2")(assertDeriveGen[(Int, Int)]),
       test("tuple3")(assertDeriveGen[(Int, Int, Int)]),
       test("tuple4")(assertDeriveGen[(Int, Int, Int, Int)]),
+      test("tuple5")(assertDeriveGen[(Int, Int, Int, Int, Int)]),
+      test("tuple6")(assertDeriveGen[(Int, Int, Int, Int, Int, Int)]),
+      test("tuple7")(assertDeriveGen[(Int, Int, Int, Int, Int, Int, Int)]),
+      test("tuple8")(assertDeriveGen[(Int, Int, Int, Int, Int, Int, Int, Int)]),
+      test("tuple9")(assertDeriveGen[(Int, Int, Int, Int, Int, Int, Int, Int, Int)]),
+      test("tuple10")(assertDeriveGen[(Int, Int, Int, Int, Int, Int, Int, Int, Int, Int)]),
       test("unit")(assertDeriveGen[Unit]),
       test("uuid")(assertDeriveGen[UUID]),
       test("vector")(assertDeriveGen[Vector[Int]]),
+      test("instant")(assertDeriveGen[Instant]),
       test("localDateTime")(assertDeriveGen[LocalDateTime]),
       test("localDate")(assertDeriveGen[LocalDate]),
       test("bigDecimal")(assertDeriveGen[BigDecimal])

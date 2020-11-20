@@ -50,8 +50,11 @@ abstract class AssertionM[-A] { self =>
   def ||[A1 <: A](that: => AssertionM[A1]): AssertionM[A1] =
     AssertionM(infix(param(self), "||", param(that)), actual => self.runM(actual) || that.runM(actual))
 
+  def canEqual(that: AssertionM[_]): Boolean = that != null
+
   override def equals(that: Any): Boolean = that match {
-    case that: AssertionM[_] => this.toString == that.toString
+    case that: AssertionM[_] if that.canEqual(this) => this.toString == that.toString
+    case _                                          => false
   }
 
   override def hashCode: Int =

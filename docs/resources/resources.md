@@ -9,6 +9,9 @@ title:  "Resources"
 
 _These articles reflect the state of ZIO at the time of their publication. The code samples might be outdated, considering ZIO was early in development at the time they were written. However, the concepts are still relevant._
 
+- [Playing with ZIO Streams and JMS](http://blended-scala.org/posts/2020-10-27-ziojms/) by Andreas Gies (October 2020)
+- [Processing ZIO effects through a pipeline](https://medium.com/@svroonland/processing-zio-effects-through-a-pipeline-c469e28dff62) (September 2020)
+- [Lessons Learned From Being a ZIO Contributor](https://www.softinio.com/post/lessons-learned-from-being-a-zio-contributor/) by Salar Rahmanian (September 2020)
 - [uzhttp + sttp for light-weight http and websockets](https://timpigden.github.io/_pages/zio-uzhttp-sttp/uzhttp-sttp.html) updated for 1.0.1 by Tim Pigden (August 2020)
 - [Streaming all the way with ZIO, Doobie, Quill, http4s and fs2](https://juliano-alves.com/2020/06/15/streaming-all-the-way-zio-doobie-quill-http4s-fs2/) by Juliano Alves (June 2020)
 - [Building a cool CLI with Decline for my ZIO App](https://medium.com/@pascal.mengelt/building-a-cool-cli-with-decline-for-my-zio-app-80e095b2899a) by Pascal Mengelt (May 2020)
@@ -51,6 +54,7 @@ _These articles reflect the state of ZIO at the time of their publication. The c
 
 ## Talks
 
+- [Redis Streams with ZIO](https://youtu.be/jJnco6sMZQY) by [Leszek Gruchała](https://twitter.com/leszekgruchala) (October 2020)
 - [FP to the Max](https://www.youtube.com/watch?v=sxudIMiOo68) by John De Goes (July 2018)
 - [Modern Data Driven Applications with ZIO Streams](https://youtu.be/bbss7elSfxs) by Itamar Ravid (December 2019)
 - Systematic error management in application - We ported Rudder to ZIO: [video in French](https://www.youtube.com/watch?v=q0PlcgR5M1Q), [slides in English](https://speakerdeck.com/fanf42/systematic-error-management-we-ported-rudder-to-zio) by François Armand (Scala.io, October 2019)
@@ -68,14 +72,14 @@ _These articles reflect the state of ZIO at the time of their publication. The c
 - [ZIO: Next-Generation Effects in Scala](https://www.youtube.com/watch?v=mkSHhsJXjdc&t=6s) by John De Goes (October 2018)
 - [ZIO Queue: A new Queue for a new Era](https://www.youtube.com/watch?v=8JLprl34xEw&t=2437s) by John De Goes (September 2018)
 
-## Conferences 
+## Conferences
 ###  Scala in the City Conference by Signify Technologies, May 2020
 - [0 to 100 with ZIO Test](https://www.youtube.com/watch?v=qDFfVinjDPQ) by Adam Fraser
-- [The Joys of (Z)Streams](https://www.youtube.com/watch?v=XIIX2YSg7M0) by Itamar Ravid 
-- [FP to the Min](https://www.youtube.com/watch?v=mrHphQT4RpU) by John De Goes 
+- [The Joys of (Z)Streams](https://www.youtube.com/watch?v=XIIX2YSg7M0) by Itamar Ravid
+- [FP to the Min](https://www.youtube.com/watch?v=mrHphQT4RpU) by John De Goes
 - [Functional Effects in ZIO](https://www.youtube.com/watch?v=4EeL8-chAR8) by  Wiem Zine El Abidine
 
-## Cookbooks 
+## Cookbooks
 - [ZIO Cookbook](https://github.com/Neurodyne/zio-cookbook) A beginners' tour to ZIO by Boris V.Kuznetsov
 - [Mastering modularity in ZIO with ZLayers](https://lp.scalac.io/zio-modularity-ebook/) by Jorge Vasquez
 
@@ -86,6 +90,7 @@ _These articles reflect the state of ZIO at the time of their publication. The c
 
 ## Sample Projects
 
+- [Redis Streams with ZIO](https://github.com/kensuio-oss/redis-streams-zio) by [Leszek Gruchała](https://github.com/leszekgruchala)
 - [ZIO Production Ready Microservice](https://github.com/saraiva132/zio-cats-backend) by [Rafael Figueiredo](https://github.com/saraiva132)
 - [ZIO Modern Backend giter8 Template - Tapir, sttp, http4s](https://github.com/Anadyne/zio-full-backend.g8) by [Boris V.Kuznetsov](https://github.com/tampler)
 - [ZIO CRUD sample - Code for the 'Spring to ZIO 101' blog post 03/2020](https://github.com/adrianfilip/zio-crud-sample) by [Adrian Filip](https://github.com/adrianfilip)
@@ -113,8 +118,9 @@ _These articles reflect the state of ZIO at the time of their publication. The c
 - [Rudder](https://github.com/normation/rudder): an example about how to manage error ADT in several sub-projects and specialized sub-domains, and how one can gradually contextualize error messages in domain layers. Uses queues, brackets, interop with Java, and historical code. See [context and references](https://issues.rudder.io/issues/14870).
 - [ZIO AI Platform Backend](https://github.com/Clover-Group/zio_front): Clover Group AI Platform backend, which employs ZIO, Doobie, http4s and Kafka .
 - [Polynote](https://github.com/polynote/polynote): a new, polyglot notebook with first-class Scala support, Apache Spark integration, multi-language interoperability including Scala, Python, and SQL, as-you-type autocomplete, and more.
+- [Blended ZIO](http://blended-scala.org/): A sample project migrating a largely untyped, actor based integration framework to ZIO.
 
 ## Support
 
 - [Official Discord Server](https://discord.gg/2ccFBr4)
-- [Official Gitter Channel](https://gitter.im/ZIO/Core)
+- [Matrix/Element Bridge](https://matrix.to/#/!DSuGJGswztuWkwWSQy:matrix.org?via=matrix.org&via=t2bot.io&via=matrix.benkolera.com)

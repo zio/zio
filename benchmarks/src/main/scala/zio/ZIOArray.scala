@@ -11,11 +11,10 @@ object ZIOArray {
     def innerLoop(i: Int, j: Int): UIO[Unit] =
       if (j >= array.length) UIO.unit
       else
-        UIO((array(i), array(j))).flatMap {
-          case (ia, ja) =>
-            val maybeSwap = if (lessThanEqual0(ia, ja)) UIO.unit else swapIJ(i, ia, j, ja)
+        UIO((array(i), array(j))).flatMap { case (ia, ja) =>
+          val maybeSwap = if (lessThanEqual0(ia, ja)) UIO.unit else swapIJ(i, ia, j, ja)
 
-            maybeSwap.flatMap(_ => innerLoop(i, j + 1))
+          maybeSwap.flatMap(_ => innerLoop(i, j + 1))
         }
 
     def swapIJ(i: Int, ia: A, j: Int, ja: A): UIO[Unit] =
@@ -35,11 +34,10 @@ object CatsIOArray {
     def innerLoop(i: Int, j: Int): IO[Unit] =
       if (j >= array.length) IO.unit
       else
-        IO((array(i), array(j))).flatMap {
-          case (ia, ja) =>
-            val maybeSwap = if (lessThanEqual0(ia, ja)) IO.unit else swapIJ(i, ia, j, ja)
+        IO((array(i), array(j))).flatMap { case (ia, ja) =>
+          val maybeSwap = if (lessThanEqual0(ia, ja)) IO.unit else swapIJ(i, ia, j, ja)
 
-            maybeSwap.flatMap(_ => innerLoop(i, j + 1))
+          maybeSwap.flatMap(_ => innerLoop(i, j + 1))
         }
 
     def swapIJ(i: Int, ia: A, j: Int, ja: A): IO[Unit] =
@@ -59,11 +57,10 @@ object MonixIOArray {
     def innerLoop(i: Int, j: Int): Task[Unit] =
       if (j >= array.length) Task.unit
       else
-        Task.eval((array(i), array(j))).flatMap {
-          case (ia, ja) =>
-            val maybeSwap = if (lessThanEqual0(ia, ja)) Task.unit else swapIJ(i, ia, j, ja)
+        Task.eval((array(i), array(j))).flatMap { case (ia, ja) =>
+          val maybeSwap = if (lessThanEqual0(ia, ja)) Task.unit else swapIJ(i, ia, j, ja)
 
-            maybeSwap.flatMap(_ => innerLoop(i, j + 1))
+          maybeSwap.flatMap(_ => innerLoop(i, j + 1))
         }
 
     def swapIJ(i: Int, ia: A, j: Int, ja: A): Task[Unit] =

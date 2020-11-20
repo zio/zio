@@ -3,8 +3,7 @@ package zio
 import scala.concurrent.ExecutionContext
 
 import cats._
-import cats.effect.{ ContextShift, IO => CIO }
-import cats.effect.{ Fiber => CFiber }
+import cats.effect.{ ContextShift, Fiber => CFiber, IO => CIO }
 import monix.eval.{ Task => MTask }
 
 import zio.internal._
@@ -13,7 +12,7 @@ object IOBenchmarks extends BootstrapRuntime {
 
   override val platform: Platform = Platform.benchmark
 
-  val TracedRuntime = new BootstrapRuntime {
+  val TracedRuntime: BootstrapRuntime = new BootstrapRuntime {
     override val platform = Platform.benchmark.withTracing(Tracing.enabled)
   }
 

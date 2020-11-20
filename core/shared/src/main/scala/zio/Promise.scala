@@ -18,7 +18,7 @@ package zio
 
 import java.util.concurrent.atomic.AtomicReference
 
-import Promise.internal._
+import zio.Promise.internal._
 
 /**
  * A promise represents an asynchronous variable, of [[zio.IO]] type, that can
@@ -240,6 +240,12 @@ object Promise {
    */
   def makeAs[E, A](fiberId: Fiber.Id): UIO[Promise[E, A]] =
     ZIO.effectTotal(unsafeMake(fiberId))
+
+  /**
+   * Makes a new managed promise to be completed by the fiber creating the promise.
+   */
+  def makeManaged[E, A]: UManaged[Promise[E, A]] =
+    make[E, A].toManaged_
 
   private[zio] def unsafeMake[E, A](fiberId: Fiber.Id): Promise[E, A] =
     new Promise[E, A](new AtomicReference[State[E, A]](new internal.Pending[E, A](Nil)), fiberId :: Nil)

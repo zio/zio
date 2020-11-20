@@ -1,6 +1,8 @@
 package zio
 package stm
 
+import com.github.ghik.silencer.silent
+
 import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect.nonFlaky
@@ -11,7 +13,7 @@ object ZSTMSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 
-  def spec = suite("ZSTMSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("ZSTMSpec")(
     suite("Using `STM.atomically` to perform different computations and call:")(
       suite("absolve to convert")(
         testM("A successful Right computation into the success channel") {
@@ -253,7 +255,7 @@ object ZSTMSpec extends ZIOBaseSpec {
             r <- if (n < 10) ref.update(_ + 1)
                  else ZSTM.fail("Ouch")
           } yield r
-
+        @silent("deprecated")
         val tx = for {
           ref <- TRef.make(0)
           n   <- effect(ref).forever
@@ -742,11 +744,11 @@ object ZSTMSpec extends ZIOBaseSpec {
             tvar1 <- TRef.makeCommit(10)
             tvar2 <- TRef.makeCommit("Failed!")
             join <- (for {
-                        v1 <- tvar1.get
-                        _  <- STM.check(v1 > 0)
-                        _  <- tvar2.set("Succeeded!")
-                        v2 <- tvar2.get
-                      } yield v2).commit
+                      v1 <- tvar1.get
+                      _  <- STM.check(v1 > 0)
+                      _  <- tvar2.set("Succeeded!")
+                      v2 <- tvar2.get
+                    } yield v2).commit
           } yield assert(join)(equalTo("Succeeded!"))
         },
         testM(
@@ -766,15 +768,15 @@ object ZSTMSpec extends ZIOBaseSpec {
             tvar1 <- TRef.makeCommit(0)
             tvar2 <- TRef.makeCommit("Failed!")
             fiber <- (STM.atomically {
-                         for {
-                           v1 <- tvar1.get
-                           _  <- STM.succeed(barrier.open())
-                           _  <- STM.check(v1 > 42)
-                           _  <- tvar2.set("Succeeded!")
-                           v2 <- tvar2.get
-                         } yield v2
-                       } <* done
-                         .succeed(())).fork
+                       for {
+                         v1 <- tvar1.get
+                         _  <- STM.succeed(barrier.open())
+                         _  <- STM.check(v1 > 42)
+                         _  <- tvar2.set("Succeeded!")
+                         v2 <- tvar2.get
+                       } yield v2
+                     } <* done
+                       .succeed(())).fork
             _    <- barrier.await
             old  <- tvar2.get.commit
             _    <- tvar1.set(43).commit
@@ -864,11 +866,11 @@ object ZSTMSpec extends ZIOBaseSpec {
           for {
             tvar <- TRef.makeCommit(0)
             fiber <- (for {
-                         v <- tvar.get
-                         _ <- STM.succeed(barrier.open())
-                         _ <- STM.check(v > 0)
-                         _ <- tvar.update(10 / _)
-                       } yield ()).commit.fork
+                       v <- tvar.get
+                       _ <- STM.succeed(barrier.open())
+                       _ <- STM.check(v > 0)
+                       _ <- tvar.update(10 / _)
+                     } yield ()).commit.fork
             _ <- barrier.await
             _ <- fiber.interrupt
             _ <- tvar.set(10).commit
@@ -997,9 +999,9 @@ object ZSTMSpec extends ZIOBaseSpec {
         for {
           tvar <- TRef.makeCommit(0)
           e <- (for {
-                   _ <- tvar.update(_ + 10)
-                   _ <- STM.fail("Error!")
-                 } yield ()).commit.either
+                 _ <- tvar.update(_ + 10)
+                 _ <- STM.fail("Error!")
+               } yield ()).commit.either
           v <- tvar.get.commit
         } yield assert(e)(isLeft(equalTo("Error!"))) && assert(v)(equalTo(0))
       },
@@ -1007,9 +1009,9 @@ object ZSTMSpec extends ZIOBaseSpec {
         for {
           tvar <- TRef.makeCommit(0)
           e <- (for {
-                   _ <- tvar.update(_ + 10)
-                   _ <- STM.fail("Error!")
-                 } yield ()).commit.ignore
+                 _ <- tvar.update(_ + 10)
+                 _ <- STM.fail("Error!")
+               } yield ()).commit.ignore
           v <- tvar.get.commit
         } yield assert(e)(equalTo(())) && assert(v)(equalTo(0))
       }
@@ -1410,7 +1412,7 @@ object ZSTMSpec extends ZIOBaseSpec {
         }
   }
 
-  def unpureSuspend(ms: Long) = STM.succeed {
+  def unpureSuspend(ms: Long): USTM[Unit] = STM.succeed {
     val t0 = System.currentTimeMillis()
     while (System.currentTimeMillis() - t0 < ms) {}
   }
@@ -1418,13 +1420,13 @@ object ZSTMSpec extends ZIOBaseSpec {
   class UnpureBarrier {
     private var isOpen = false
     def open(): Unit   = isOpen = true
-    def await =
+    def await: URIO[Any, Unit] =
       ZIO
         .effectSuspend(ZIO.effect(if (isOpen) () else throw new Exception()))
         .eventually
   }
 
-  def liveClockSleep(d: Duration) = Live.live(ZIO.sleep(d))
+  def liveClockSleep(d: Duration): ZIO[Live, Nothing, Unit] = Live.live(ZIO.sleep(d))
 
   def incrementVarN(n: Int, tvar: TRef[Int]): ZIO[clock.Clock, Nothing, Int] =
     STM

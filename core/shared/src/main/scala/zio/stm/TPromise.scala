@@ -18,8 +18,8 @@ package zio.stm
 
 final class TPromise[E, A] private (val ref: TRef[Option[Either[E, A]]]) extends AnyVal {
   def await: STM[E, A] =
-    ref.get.collect {
-      case Some(e) => STM.fromEither(e)
+    ref.get.collect { case Some(e) =>
+      STM.fromEither(e)
     }.flatten
 
   def done(v: Either[E, A]): USTM[Boolean] =

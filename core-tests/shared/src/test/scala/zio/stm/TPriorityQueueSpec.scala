@@ -24,7 +24,7 @@ object TPriorityQueueSpec extends ZIOBaseSpec {
   val genPredicate: Gen[Random, Event => Boolean] =
     Gen.function(Gen.boolean)
 
-  def spec = suite("TPriorityQueueSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("TPriorityQueueSpec")(
     testM("offerAll and takeAll") {
       checkM(genEvents) { as =>
         val transaction = for {
@@ -69,14 +69,13 @@ object TPriorityQueueSpec extends ZIOBaseSpec {
         as <- genEvents
         n  <- Gen.int(0, as.length)
       } yield (as, n)
-      checkM(gen) {
-        case (as, n) =>
-          val transaction = for {
-            queue <- TPriorityQueue.fromIterable(as)
-            left  <- queue.takeUpTo(n)
-            right <- queue.takeAll
-          } yield left ++ right
-          assertM(transaction.commit)(hasSameElements(as) && isSorted)
+      checkM(gen) { case (as, n) =>
+        val transaction = for {
+          queue <- TPriorityQueue.fromIterable(as)
+          left  <- queue.takeUpTo(n)
+          right <- queue.takeAll
+        } yield left ++ right
+        assertM(transaction.commit)(hasSameElements(as) && isSorted)
       }
     },
     testM("toChunk") {

@@ -3,11 +3,12 @@ package zio.stream
 import java.nio.file.Files
 
 import zio._
+import zio.blocking.Blocking
 import zio.test.Assertion._
 import zio.test._
 
 object ZSinkPlatformSpecificSpec extends ZIOBaseSpec {
-  override def spec = suite("ZSink JVM")(
+  override def spec: Spec[Blocking, TestFailure[Throwable], TestSuccess] = suite("ZSink JVM")(
     suite("fromFile")(
       testM("writes to an existing file") {
         val data = (0 to 100).mkString

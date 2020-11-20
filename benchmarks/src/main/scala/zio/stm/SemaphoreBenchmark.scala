@@ -24,7 +24,7 @@ class SemaphoreBenchmark {
   var ops: Int = _
 
   @Benchmark
-  def semaphoreContention() =
+  def semaphoreContention(): Unit =
     unsafeRun(for {
       sem   <- Semaphore.make(fibers / 2L)
       fiber <- ZIO.forkAll(List.fill(fibers)(repeat(ops)(sem.withPermit(ZIO.succeedNow(1)))))
@@ -32,7 +32,7 @@ class SemaphoreBenchmark {
     } yield ())
 
   @Benchmark
-  def tsemaphoreContention() =
+  def tsemaphoreContention(): Unit =
     unsafeRun(for {
       sem   <- TSemaphore.make(fibers / 2L).commit
       fiber <- ZIO.forkAll(List.fill(fibers)(repeat(ops)(sem.withPermit(STM.succeedNow(1)).commit)))
@@ -40,7 +40,7 @@ class SemaphoreBenchmark {
     } yield ())
 
   @Benchmark
-  def semaphoreCatsContention() = {
+  def semaphoreCatsContention(): Unit = {
     import cats.effect.Concurrent
     import cats.effect.concurrent.Semaphore
     implicit val contextShift: ContextShift[CIO] = CIO.contextShift(ExecutionContext.global)

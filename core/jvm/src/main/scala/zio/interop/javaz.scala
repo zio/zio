@@ -22,7 +22,7 @@ import _root_.java.nio.channels.CompletionHandler
 import _root_.java.util.concurrent.{ CompletableFuture, CompletionException, CompletionStage, Future }
 
 import zio._
-import zio.blocking.{ blocking, Blocking }
+import zio.blocking.{ Blocking, blocking }
 
 private[zio] object javaz {
   def effectAsyncWithCompletionHandler[T](op: CompletionHandler[T, Any] => Any): Task[T] =

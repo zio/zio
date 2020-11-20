@@ -8,14 +8,13 @@ object TestingSupport {
     Try {
       body
       println(s"${green("+")} $l")
-    }.recoverWith {
-      case NonFatal(e) =>
-        println(s"${red("-")} $l: ${e.getMessage}")
-        e.printStackTrace()
-        Failure(e)
+    }.recoverWith { case NonFatal(e) =>
+      println(s"${red("-")} $l: ${e.getMessage}")
+      e.printStackTrace()
+      Failure(e)
     }
 
-  def run(tests: Try[Unit]*) = {
+  def run(tests: Try[Unit]*): Unit = {
     val failed       = tests.count(_.isFailure)
     val successful   = tests.count(_.isSuccess)
     val failedCount  = if (failed > 0) red(s"failed: $failed") else s"failed: $failed"
@@ -25,15 +24,15 @@ object TestingSupport {
       throw new AssertionError(s"$failed tests failed")
   }
 
-  def assertEquals(what: String, actual: => Any, expected: Any) =
+  def assertEquals(what: String, actual: => Any, expected: Any): Unit =
     assert(actual == expected, s"$what:\n  expected: `$expected`\n  actual  : `$actual`")
 
-  def colored(code: String)(str: String) = s"$code$str${Console.RESET}"
-  lazy val red                           = colored(Console.RED) _
-  lazy val green                         = colored(Console.GREEN) _
-  lazy val cyan                          = colored(Console.CYAN) _
-  lazy val blue                          = colored(Console.BLUE) _
+  def colored(code: String)(str: String): String = s"$code$str${Console.RESET}"
+  lazy val red: String => String                 = colored(Console.RED) _
+  lazy val green: String => String               = colored(Console.GREEN) _
+  lazy val cyan: String => String                = colored(Console.CYAN) _
+  lazy val blue: String => String                = colored(Console.BLUE) _
 
-  def reset(str: String) =
+  def reset(str: String): String =
     s"${Console.RESET}$str"
 }

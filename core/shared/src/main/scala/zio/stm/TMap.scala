@@ -144,7 +144,7 @@ final class TMap[K, V] private (
         val it    = pairs.iterator
 
         while (it.hasNext) {
-          val pair = it.next
+          val pair = it.next()
           val idx  = TMap.indexOf(pair._1, newCapacity)
           newBuckets(idx) = pair :: newBuckets(idx)
         }
@@ -217,7 +217,7 @@ final class TMap[K, V] private (
 
         val it = bucket.iterator
         while (it.hasNext) {
-          val pair = it.next
+          val pair = it.next()
           if (!f(pair)) {
             newBucket = pair :: newBucket
             newSize += 1
@@ -251,7 +251,7 @@ final class TMap[K, V] private (
 
         val it = bucket.iterator
         while (it.hasNext) {
-          val pair = it.next
+          val pair = it.next()
           if (f(pair)) {
             newBucket = pair :: newBucket
             newSize += 1
@@ -297,7 +297,7 @@ final class TMap[K, V] private (
 
         val it = pairs.iterator
         while (it.hasNext) {
-          data(j) = it.next
+          data(j) = it.next()
           j += 1
         }
 
@@ -332,7 +332,7 @@ final class TMap[K, V] private (
 
         val it = pairs.iterator
         while (it.hasNext) {
-          val newPair   = g(it.next)
+          val newPair   = g(it.next())
           val idx       = TMap.indexOf(newPair._1, capacity)
           val newBucket = newBuckets(idx)
 
@@ -373,7 +373,7 @@ final class TMap[K, V] private (
 
           val it = newData.iterator
           while (it.hasNext) {
-            val newPair   = it.next
+            val newPair   = it.next()
             val idx       = TMap.indexOf(newPair._1, capacity)
             val newBucket = newBuckets(idx)
 
@@ -445,7 +445,7 @@ object TMap {
 
     val it = distinct.iterator
     while (it.hasNext) {
-      val kv  = it.next
+      val kv  = it.next()
       val idx = indexOf(kv._1, capacity)
 
       buckets(idx) = kv :: buckets(idx)

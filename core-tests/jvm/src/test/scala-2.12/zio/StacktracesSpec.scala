@@ -9,7 +9,7 @@ import zio.test._
 import zio.test.environment.TestClock
 
 object StackTracesSpec extends DefaultRunnableSpec {
-  def spec = suite("StackTracesSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("StackTracesSpec")(
     testM("basic test") {
       for {
         trace <- basicTest
@@ -301,20 +301,6 @@ object StackTracesSpec extends DefaultRunnableSpec {
         assert(value)(equalTo("foo"))
       }
     },
-    testM("side effect option test") {
-      for {
-        value <- ZIO.getOrFailUnit(None).catchAll(_ => ZIO.succeed("Controlling side-effect"))
-      } yield {
-        assert(value)(equalTo("Controlling side-effect"))
-      }
-    },
-    testM("basic option test") {
-      for {
-        value <- ZIO.getOrFailUnit(Some("foo"))
-      } yield {
-        assert(value)(equalTo("foo"))
-      }
-    },
     testM("side effect unit in option test") {
       for {
         value <- ZIO.getOrFailUnit(None).catchAll { unit =>
@@ -374,7 +360,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
       _ <- ZIO.foreachPar(1 to 10)(i => (if (i >= 7) UIO(i / 0) else UIO(i / 10)))
     } yield ()
 
-  def foreachParNFail =
+  def foreachParNFail: ZIO[Any, Nothing, Unit] =
     for {
       _ <- ZIO.foreachParN(4)(1 to 10)(i => (if (i >= 7) UIO(i / 0) else UIO(i / 10)))
     } yield ()
@@ -390,7 +376,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
       ZIO.trace
 
   object nestedLeftBinds {
-    def method2 =
+    def method2: ZIO[Any, Nothing, ZTrace] =
       for {
         trace <- ZIO.trace
         _     <- ZIO.unit
@@ -399,7 +385,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
         _     <- UIO(())
       } yield trace
 
-    def method1 =
+    def method1: ZIO[Any, Nothing, ZTrace] =
       for {
         t <- method2
         _ <- ZIO.unit
@@ -409,7 +395,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
 
     def tuple(t: ZTrace): ZTrace => (ZTrace, ZTrace) = t2 => (t, t2)
 
-    val io =
+    val io: ZIO[Any, Nothing, (ZTrace, ZTrace)] =
       (for {
         t <- method1
         _ <- ZIO.unit
@@ -422,7 +408,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
         )
   }
 
-  def fiberAncestry = {
+  def fiberAncestry: ZIO[Any, Nothing, Unit] = {
     def fiber1 =
       for {
         _  <- ZIO.unit
@@ -476,14 +462,14 @@ object StackTracesSpec extends DefaultRunnableSpec {
       }
   }
 
-  def blockingTrace =
+  def blockingTrace: ZIO[Blocking, Throwable, Unit] =
     for {
       _ <- blocking.effectBlockingInterrupt {
              throw new Exception()
            }
     } yield ()
 
-  def tracingRegions = {
+  def tracingRegions: ZIO[Any, java.io.Serializable, Unit] = {
     import tracingRegionsFixture._
 
     (for {
@@ -500,38 +486,38 @@ object StackTracesSpec extends DefaultRunnableSpec {
     val traceThis: () => String = () => "trace this!"
   }
 
-  def tracingRegionsInheritance =
+  def tracingRegionsInheritance: ZIO[Any, Nothing, Unit] =
     for {
       _ <- ZIO.unit
       _ <- ZIO.unit
       untraceableFiber <- (ZIO.unit *> (ZIO.unit *> ZIO.unit *> ZIO.dieMessage("error!") *> ZIO.checkTraced(
-                              ZIO.succeed(_)
-                            )).fork).untraced
+                            ZIO.succeed(_)
+                          )).fork).untraced
       tracingStatus <- untraceableFiber.join
       _ <- ZIO.when(tracingStatus.isTraced) {
              ZIO.dieMessage("Expected disabled tracing")
            }
     } yield ()
 
-  def executionTraceConditionalExample = {
+  def executionTraceConditionalExample: ZIO[Any, Throwable, Unit] = {
     import executionTraceConditionalExampleFixture._
 
     doWork(true)
   }
 
   object executionTraceConditionalExampleFixture {
-    def doWork(condition: Boolean) =
+    def doWork(condition: Boolean): ZIO[Any, Throwable, Unit] =
       for {
-        _ <- IO.when(condition)(doSideWork)
-        _ <- doMainWork
+        _ <- IO.when(condition)(doSideWork())
+        _ <- doMainWork()
       } yield ()
 
-    def doSideWork() = Task(())
+    def doSideWork(): Task[Unit] = Task(())
 
-    def doMainWork() = Task(throw new Exception("Worker failed!"))
+    def doMainWork(): Task[Nothing] = Task(throw new Exception("Worker failed!"))
   }
 
-  def mapErrorPreservesTrace = {
+  def mapErrorPreservesTrace: ZIO[Any, Unit, ZTrace] = {
     import mapErrorPreservesTraceFixture._
 
     for {
@@ -542,29 +528,29 @@ object StackTracesSpec extends DefaultRunnableSpec {
   }
 
   object mapErrorPreservesTraceFixture {
-    val succ     = ZIO.succeed(_: ZTrace)
-    val fail     = () => throw new Exception("error!")
-    val mapError = (_: Any) => ()
+    val succ: ZTrace => UIO[ZTrace] = ZIO.succeed(_: ZTrace)
+    val fail: () => Nothing         = () => throw new Exception("error!")
+    val mapError: Any => Unit       = (_: Any) => ()
   }
 
-  def catchSomeWithOptimizedEffect = {
+  def catchSomeWithOptimizedEffect: ZIO[Any, java.io.Serializable, ZTrace] = {
     import catchSomeWithOptimizedEffectFixture._
 
     for {
       t <- Task(fail())
              .flatMap(badMethod)
-             .catchSome {
-               case _: ArithmeticException => ZIO.fail("impossible match!")
+             .catchSome { case _: ArithmeticException =>
+               ZIO.fail("impossible match!")
              }
     } yield t
   }
 
   object catchSomeWithOptimizedEffectFixture {
-    val fail      = () => throw new Exception("error!")
-    val badMethod = ZIO.succeed(_: ZTrace)
+    val fail: () => Nothing              = () => throw new Exception("error!")
+    val badMethod: ZTrace => UIO[ZTrace] = ZIO.succeed(_: ZTrace)
   }
 
-  def catchAllWithOptimizedEffect = {
+  def catchAllWithOptimizedEffect: ZIO[Any, String, ZTrace] = {
     import catchAllWithOptimizedEffectFixture._
 
     for {
@@ -575,12 +561,12 @@ object StackTracesSpec extends DefaultRunnableSpec {
   }
 
   object catchAllWithOptimizedEffectFixture {
-    val succ               = ZIO.succeed(_: ZTrace)
-    val fail               = () => throw new Exception("error!")
-    val refailAndLoseTrace = (_: Any) => ZIO.fail("bad!")
+    val succ: ZTrace => UIO[ZTrace]                    = ZIO.succeed(_: ZTrace)
+    val fail: () => Nothing                            = () => throw new Exception("error!")
+    val refailAndLoseTrace: Any => IO[String, Nothing] = (_: Any) => ZIO.fail("bad!")
   }
 
-  def foldMWithOptimizedEffect = {
+  def foldMWithOptimizedEffect: ZIO[Any, Nothing, ZTrace] = {
     import foldMWithOptimizedEffectFixture._
 
     for {
@@ -591,10 +577,10 @@ object StackTracesSpec extends DefaultRunnableSpec {
   }
 
   object foldMWithOptimizedEffectFixture {
-    val mkTrace    = (_: Any) => ZIO.trace
-    val fail       = () => throw new Exception("error!")
-    val badMethod1 = ZIO.succeed(_: ZTrace)
-    val badMethod2 = ZIO.succeed(_: ZTrace)
+    val mkTrace: Any => UIO[ZTrace]       = (_: Any) => ZIO.trace
+    val fail: () => Nothing               = () => throw new Exception("error!")
+    val badMethod1: ZTrace => UIO[ZTrace] = ZIO.succeed(_: ZTrace)
+    val badMethod2: ZTrace => UIO[ZTrace] = ZIO.succeed(_: ZTrace)
   }
 
   object singleTaskForCompFixture {
@@ -625,7 +611,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
   }
 
   implicit final class CauseMust[R](io: ZIO[R with TestClock, Any, Any]) {
-    def causeMust(check: Cause[Any] => TestResult) =
+    def causeMust(check: Cause[Any] => TestResult): URIO[R with TestClock, TestResult] =
       io.foldCause[TestResult](
         cause => {
           show(cause)
@@ -634,5 +620,4 @@ object StackTracesSpec extends DefaultRunnableSpec {
         _ => assert(false)(isTrue)
       )
   }
-
 }

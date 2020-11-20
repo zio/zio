@@ -46,7 +46,7 @@ object AkkaLineNumbers {
   }
   final case class SourceFileLines(filename: String, from: Int, to: Int, className: String, methodName: String)
       extends Result {
-    override def toString = if (from != to) s"$filename:$from-$to" else s"$filename:$from"
+    override def toString: String = if (from != to) s"$filename:$from-$to" else s"$filename:$from"
   }
 
   /**
@@ -288,9 +288,9 @@ object AkkaLineNumbers {
     if (debug) println(s"LNB: reading $count methods")
     if (c.contains("Code") && c.contains("LineNumberTable"))
       (1 to count)
-        .flatMap(_ => readMethod(d, c("Code"), c("LineNumberTable"), methodName))
-        .foldLeft(Int.MaxValue -> 0) {
-          case ((low, high), (start, end)) => (Math.min(low, start), Math.max(high, end))
+        .flatMap(_ => readMethod(d, c("Code"), c("LineNumberTable"), methodName).toList)
+        .foldLeft(Int.MaxValue -> 0) { case ((low, high), (start, end)) =>
+          (Math.min(low, start), Math.max(high, end))
         } match {
         case (Int.MaxValue, 0) => None
         case other             => Some(other)

@@ -8,7 +8,7 @@ import zio.test.TestUtils.execute
 
 object TestSpec extends ZIOBaseSpec {
 
-  def spec = suite("TestSpec")(
+  def spec: Spec[Clock, TestFailure[Any], TestSuccess] = suite("TestSpec")(
     testM("assertM works correctly") {
       assertM(nanoTime)(equalTo(0L))
     },

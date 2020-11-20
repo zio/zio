@@ -60,14 +60,14 @@ private[zio] object FiberRenderer {
       case Running(b)   => "Running(" + (if (b) "interrupting" else "") + ")"
       case Suspended(_, interruptible, epoch, _, asyncTrace) =>
         val in = if (interruptible) "interruptible" else "uninterruptible"
-        val ep = s"${epoch} asyncs"
-        val as = asyncTrace.map(_.prettyPrint).mkString(" ")
-        s"Suspended(${in}, ${ep}, ${as})"
+        val ep = s"$epoch asyncs"
+        val as = asyncTrace.map(_.prettyPrint).getOrElse("")
+        s"Suspended($in, $ep, $as)"
     }
 
   private def renderHierarchy(trees: Iterable[Dump]): String =
-    zipWithHasNext(trees).map {
-      case (tree, _) => renderOne(tree)
+    zipWithHasNext(trees).map { case (tree, _) =>
+      renderOne(tree)
     }.mkString
 
   private def renderOne(tree: Dump): String = {

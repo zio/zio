@@ -1,5 +1,7 @@
 package zio
 
+import scala.reflect.ClassTag
+
 import zio.clock.Clock
 import zio.duration.Duration
 import zio.internal.{ Executor, Platform }
@@ -97,6 +99,12 @@ object URIO {
     ZIO.collectAll(in)
 
   /**
+   * @see See [[[zio.ZIO.collectAll[R,E,A](in:Array*]]]
+   */
+  def collectAll[R, A: ClassTag](in: Array[URIO[R, A]]): URIO[R, Array[A]] =
+    ZIO.collectAll(in)
+
+  /**
    * @see See [[[zio.ZIO.collectAll[R,E,A](in:zio\.NonEmptyChunk*]]]
    */
   def collectAll[R, A](in: NonEmptyChunk[URIO[R, A]]): URIO[R, NonEmptyChunk[A]] =
@@ -120,6 +128,12 @@ object URIO {
    * @see See [[[zio.ZIO.collectAllPar[R,E,A](as:Set*]]]
    */
   def collectAllPar[R, A](as: Set[URIO[R, A]]): URIO[R, Set[A]] =
+    ZIO.collectAllPar(as)
+
+  /**
+   * @see See [[[zio.ZIO.collectAllPar[R,E,A](as:Array*]]]
+   */
+  def collectAllPar[R, A: ClassTag](as: Array[URIO[R, A]]): URIO[R, Array[A]] =
     ZIO.collectAllPar(as)
 
   /**
@@ -290,12 +304,18 @@ object URIO {
   def environment[R]: URIO[R, R] = ZIO.environment
 
   /**
+   * @see See [[zio.ZIO.executor]]
+   */
+  def executor: UIO[Executor] =
+    ZIO.executor
+
+  /**
    * @see [[zio.ZIO.fiberId]]
    */
   val fiberId: UIO[Fiber.Id] = ZIO.fiberId
 
   /**
-   * @see [[zio.ZIO.filter]]
+   * @see [[zio.ZIO.filter[R,E,A,Collection*]]
    */
   def filter[R, A, Collection[+Element] <: Iterable[Element]](
     as: Collection[A]
@@ -303,7 +323,13 @@ object URIO {
     ZIO.filter(as)(f)
 
   /**
-   * @see [[zio.ZIO.filterPar]]
+   * @see [[[zio.ZIO.filter[R,E,A](as:Set*]]]
+   */
+  def filter[R, A](as: Set[A])(f: A => URIO[R, Boolean]): URIO[R, Set[A]] =
+    ZIO.filter(as)(f)
+
+  /**
+   * @see [[zio.ZIO.filterPar[R,E,A,Collection*]]
    */
   def filterPar[R, A, Collection[+Element] <: Iterable[Element]](
     as: Collection[A]
@@ -311,7 +337,13 @@ object URIO {
     ZIO.filterPar(as)(f)
 
   /**
-   * @see [[zio.ZIO.filterNot]]
+   * @see [[[zio.ZIO.filterPar[R,E,A](as:Set*]]]
+   */
+  def filterPar[R, A](as: Set[A])(f: A => URIO[R, Boolean]): URIO[R, Set[A]] =
+    ZIO.filterPar(as)(f)
+
+  /**
+   * @see [[zio.ZIO.filterNot[R,E,A,Collection*]]
    */
   def filterNot[R, A, Collection[+Element] <: Iterable[Element]](
     as: Collection[A]
@@ -319,11 +351,23 @@ object URIO {
     ZIO.filterNot(as)(f)
 
   /**
-   * @see [[zio.ZIO.filterNotPar]]
+   * @see [[[zio.ZIO.filterNot[R,E,A](as:Set*]]]
+   */
+  def filterNot[R, A](as: Set[A])(f: A => URIO[R, Boolean]): URIO[R, Set[A]] =
+    ZIO.filterNot(as)(f)
+
+  /**
+   * @see [[zio.ZIO.filterNotPar[R,E,A,Collection*]]
    */
   def filterNotPar[R, A, Collection[+Element] <: Iterable[Element]](
     as: Collection[A]
   )(f: A => URIO[R, Boolean])(implicit bf: BuildFrom[Collection[A], A, Collection[A]]): URIO[R, Collection[A]] =
+    ZIO.filterNotPar(as)(f)
+
+  /**
+   * @see [[[zio.ZIO.filterNotPar[R,E,A](as:Set*]]]
+   */
+  def filterNotPar[R, A](as: Set[A])(f: A => URIO[R, Boolean]): URIO[R, Set[A]] =
     ZIO.filterNotPar(as)(f)
 
   /**
@@ -373,6 +417,12 @@ object URIO {
     ZIO.foreach(in)(f)
 
   /**
+   * @see [[[zio.ZIO.foreach[R,E,A,B](in:Array*]]]
+   */
+  final def foreach[R, A, B: ClassTag](in: Array[A])(f: A => URIO[R, B]): URIO[R, Array[B]] =
+    ZIO.foreach(in)(f)
+
+  /**
    * @see See [[[zio.ZIO.foreach[R,E,Key,Key2,Value,Value2](map:Map*]]]
    */
   def foreach[R, Key, Key2, Value, Value2](
@@ -412,6 +462,12 @@ object URIO {
    * @see [[[zio.ZIO.foreachPar[R,E,A,B](as:Set*]]]
    */
   final def foreachPar[R, A, B](as: Set[A])(fn: A => URIO[R, B]): URIO[R, Set[B]] =
+    ZIO.foreachPar(as)(fn)
+
+  /**
+   * @see [[[zio.ZIO.foreachPar[R,E,A,B](as:Array*]]]
+   */
+  final def foreachPar[R, A, B: ClassTag](as: Array[A])(fn: A => URIO[R, B]): URIO[R, Array[B]] =
     ZIO.foreachPar(as)(fn)
 
   /**
@@ -647,6 +703,12 @@ object URIO {
    * @see [[zio.ZIO.none]]
    */
   val none: UIO[Option[Nothing]] = ZIO.none
+
+  /**
+   *  @see See [[zio.ZIO.not]]
+   */
+  def not[R](effect: URIO[R, Boolean]): URIO[R, Boolean] =
+    ZIO.not(effect)
 
   /**
    * @see [[zio.ZIO.provide]]

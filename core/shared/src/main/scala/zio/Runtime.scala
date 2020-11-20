@@ -18,9 +18,8 @@ package zio
 
 import scala.concurrent.Future
 
-import zio.internal.Tracing
 import zio.internal.tracing.{ TracingConfig, ZIOFn }
-import zio.internal.{ Executor, FiberContext, Platform, PlatformConstants }
+import zio.internal.{ Executor, FiberContext, Platform, PlatformConstants, Tracing }
 
 /**
  * A `Runtime[R]` is capable of executing tasks within an environment `R`.
@@ -195,7 +194,8 @@ trait Runtime[+R] {
       PlatformConstants.tracingSupported,
       Platform.newWeakHashMap(),
       supervisor,
-      scope
+      scope,
+      platform.reportFailure
     )
 
     if (supervisor ne Supervisor.none) {
@@ -295,14 +295,13 @@ object Runtime {
     val runtime = Runtime((), platform)
     val (environment, shutdown) = runtime.unsafeRun {
       ZManaged.ReleaseMap.make.flatMap { releaseMap =>
-        layer.build.zio.provide(((), releaseMap)).flatMap {
-          case (_, acquire) =>
-            val finalizer = () =>
-              runtime.unsafeRun {
-                releaseMap.releaseAll(Exit.unit, ExecutionStrategy.Sequential).uninterruptible.unit
-              }
+        layer.build.zio.provide(((), releaseMap)).flatMap { case (_, acquire) =>
+          val finalizer = () =>
+            runtime.unsafeRun {
+              releaseMap.releaseAll(Exit.unit, ExecutionStrategy.Sequential).uninterruptible.unit
+            }
 
-            UIO.effectTotal(Platform.addShutdownHook(finalizer)).as((acquire, finalizer))
+          UIO.effectTotal(Platform.addShutdownHook(finalizer)).as((acquire, finalizer))
         }
       }
     }

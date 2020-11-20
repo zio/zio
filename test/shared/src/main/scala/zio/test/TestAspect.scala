@@ -98,6 +98,12 @@ object TestAspect extends TimeoutVariants {
     }
 
   /**
+   * Constructs an aspect that runs the specified effect after all tests.
+   */
+  def afterAll[R0](effect: ZIO[R0, Nothing, Any]): TestAspect[Nothing, R0, Nothing, Any] =
+    aroundAll_(ZIO.unit, effect)
+
+  /**
    * Annotates tests with the specified test annotation.
    */
   def annotate[V](key: TestAnnotation[V], value: V): TestAspectPoly =
@@ -125,6 +131,38 @@ object TestAspect extends TimeoutVariants {
    */
   def around_[R0, E0](before: ZIO[R0, E0, Any], after: ZIO[R0, Nothing, Any]): TestAspect[Nothing, R0, E0, Any] =
     around(before)(_ => after)
+
+  /**
+   * Constructs an aspect that evaluates all tests between two effects,
+   * `before` and `after`, where the result of `before` can be used in
+   * `after`.
+   */
+  def aroundAll[R0, E0, A0](
+    before: ZIO[R0, E0, A0]
+  )(after: A0 => ZIO[R0, Nothing, Any]): TestAspect[Nothing, R0, E0, Any] =
+    new TestAspect[Nothing, R0, E0, Any] {
+      def some[R <: R0, E >: E0](predicate: String => Boolean, spec: ZSpec[R, E]): ZSpec[R, E] = {
+        def aroundAll[R <: R0, E >: E0, A](
+          specs: ZManaged[R, TestFailure[E], Vector[Spec[R, TestFailure[E], TestSuccess]]]
+        ): ZManaged[R, TestFailure[E], Vector[Spec[R, TestFailure[E], TestSuccess]]] =
+          ZManaged.make(before)(after).mapError(TestFailure.fail) *> specs
+        def around[R <: R0, E >: E0, A](
+          test: ZIO[R, TestFailure[E], TestSuccess]
+        ): ZIO[R, TestFailure[E], TestSuccess] =
+          before.mapError(TestFailure.fail).bracket(after)(_ => test)
+        spec.caseValue match {
+          case Spec.SuiteCase(label, specs, exec)      => Spec.suite(label, aroundAll(specs), exec)
+          case Spec.TestCase(label, test, annotations) => Spec.test(label, around(test), annotations)
+        }
+      }
+    }
+
+  /**
+   * A less powerful variant of `aroundAll` where the result of `before` is not
+   * required by `after`.
+   */
+  def aroundAll_[R0, E0](before: ZIO[R0, E0, Any], after: ZIO[R0, Nothing, Any]): TestAspect[Nothing, R0, E0, Any] =
+    aroundAll(before)(_ => after)
 
   /**
    * Constructs an aspect that evaluates every test inside the context of the
@@ -160,6 +198,13 @@ object TestAspect extends TimeoutVariants {
       def perTest[R <: R0, E](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] =
         effect *> test
     }
+
+  /**
+   * Constructs an aspect that runs the specified effect a single time before
+   * all tests.
+   */
+  def beforeAll[R0, E0](effect: ZIO[R0, E0, Any]): TestAspect[Nothing, R0, E0, Any] =
+    aroundAll_(effect, ZIO.unit)
 
   /**
    * An aspect that runs each test on a separate fiber and prints a fiber dump
@@ -446,6 +491,15 @@ object TestAspect extends TimeoutVariants {
             val shrinks = n
           }
         }
+    }
+
+  /**
+   * An aspect that runs each test with the size set to the specified value.
+   */
+  def sized(n: Int): TestAspectAtLeastR[Sized] =
+    new PerTest.AtLeastR[Sized] {
+      def perTest[R <: Sized, E](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] =
+        Sized.withSize(n)(test)
     }
 
   /**
@@ -782,9 +836,8 @@ object TestAspect extends TimeoutVariants {
       def perTest[R <: Live with Annotations, E](
         test: ZIO[R, TestFailure[E], TestSuccess]
       ): ZIO[R, TestFailure[E], TestSuccess] =
-        Live.withLive(test)(_.either.timed).flatMap {
-          case (duration, result) =>
-            ZIO.fromEither(result) <* Annotations.annotate(TestAnnotation.timing, duration)
+        Live.withLive(test)(_.either.timed).flatMap { case (duration, result) =>
+          ZIO.fromEither(result) <* Annotations.annotate(TestAnnotation.timing, duration)
         }
     }
 
