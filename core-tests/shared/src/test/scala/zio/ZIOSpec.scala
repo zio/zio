@@ -3526,14 +3526,14 @@ object ZIOSpec extends ZIOBaseSpec {
         implicit val ec: ExecutionContext = scala.concurrent.ExecutionContext.global
         for {
           future <- ZIO.effect(scala.concurrent.Future("hello zio"))
-          result <- ZIO.fromFutureWithExecutionContext(future).either
+          result <- ZIO.fromFutureOn(future).either
         } yield assert(result)(isRight(equalTo("hello zio")))
       },
       testM("Should works using same execution context and return failure") {
         implicit val ec: ExecutionContext = scala.concurrent.ExecutionContext.global
         val program = for {
           future <- ZIO.fail(new Throwable(new IllegalArgumentException)).toFuture
-          result <- ZIO.fromFutureWithExecutionContext(future).either
+          result <- ZIO.fromFutureOn(future).either
         } yield result
         assertM(program)(isLeft(anything))
       }

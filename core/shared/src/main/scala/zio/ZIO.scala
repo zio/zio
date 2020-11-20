@@ -3180,7 +3180,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * This operator it's meant to be used when you want to specify the execution context where you want to be the future
    * executed.
    */
-  def fromFutureWithExecutionContext[A](future: scala.concurrent.Future[A])(implicit ec: ExecutionContext): Task[A] =
+  def fromFutureOn[A](future: scala.concurrent.Future[A])(implicit ec: ExecutionContext): Task[A] =
     ZIO.effect(future).flatMap { f =>
       val canceler: UIO[Unit] = f match {
         case cancelable: CancelableFuture[A] =>
