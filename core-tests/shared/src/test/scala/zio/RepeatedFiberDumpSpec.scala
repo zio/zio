@@ -76,7 +76,7 @@ object RepeatedFiberDumpSpec extends ZIOBaseSpec {
     _ <- timeWarp.fork
     // Start a number of busy Fibers
     _ <- ZIO.foreach(0.to(10))(i => recurringWork(('A' + i).toChar).fork)
-    f <- ZIO.unit.schedule(Schedule.duration(300.seconds)).fork
+    f <- ZIO.sleep(30.seconds).fork
     fd <- (printDumps(simpleSupervisor).onError { t =>
             for {
               _ <- ZIO.succeed(t.dieOption.foreach(_.printStackTrace()))
@@ -91,7 +91,7 @@ object RepeatedFiberDumpSpec extends ZIOBaseSpec {
   // Advance the test clock every 10 millis by a second
   private def timeWarp = for {
     _ <-
-      Live.withLive(environment.TestClock.adjust(java.time.Duration.ofSeconds(1)))(_.repeat(Schedule.spaced(10.millis)))
+      Live.withLive(environment.TestClock.adjust(java.time.Duration.ofSeconds(1)))(_.repeat(Schedule.spaced(100.millis)))
   } yield ()
 
   // Create a fiber that does something in a loop, regularly calling itself .....
