@@ -72,10 +72,9 @@ object RepeatedFiberDumpSpec extends ZIOBaseSpec {
   )) @@ timed @@ timeout(90.seconds)
 
   private val pollDumpForever = testM("allow to regularly poll the dump of all current fibers")(for {
-    _ <- putStrLn("Starting test")
     _ <- timeWarp.fork
     // Start a number of busy Fibers
-    _ <- ZIO.foreach(0.to(10))(i => recurringWork(('A' + i).toChar).fork)
+    _ <- ZIO.foreach(0.to(10))(_ => recurringWork.fork)
     f <- ZIO.sleep(30.seconds).fork
     fd <- (printDumps(simpleSupervisor).onError { t =>
             for {
@@ -84,7 +83,6 @@ object RepeatedFiberDumpSpec extends ZIOBaseSpec {
             } yield ()
           }).schedule(Schedule.spaced(1.second)).fork
     _ <- f.join
-    _ <- putStrLn("Stopping test")
     _ <- fd.interrupt
   } yield assertCompletes) // If we end up here the bug might have been fixed
 
@@ -95,10 +93,10 @@ object RepeatedFiberDumpSpec extends ZIOBaseSpec {
   } yield ()
 
   // Create a fiber that does something in a loop, regularly calling itself .....
-  private def recurringWork(c: Char): ZIO[Clock with Console, Nothing, Unit] = {
+  private def recurringWork: ZIO[Clock with Console, Nothing, Unit] = {
 
     def go: ZIO[Clock with Console, Nothing, Unit] =
-      putStr(s"$c") *> go.schedule(Schedule.duration(1.second)).flatMap(_ => ZIO.unit)
+      putStr(s"") *> go.schedule(Schedule.duration(1.second)).flatMap(_ => ZIO.unit)
     go
   }
 
@@ -108,7 +106,6 @@ object RepeatedFiberDumpSpec extends ZIOBaseSpec {
   private def printDumps(sv: Supervisor[SortedSet[Fiber.Runtime[Any, Any]]]): ZIO[Console, Throwable, String] = for {
     dumps <- getDumps(sv)
     text  <- IO.foreach(dumps)(_.prettyPrintM)
-    _ <- putStrLn(" --- Dump complete")
   } yield (text.mkString("\n"))
 
   // A simple supervisor that

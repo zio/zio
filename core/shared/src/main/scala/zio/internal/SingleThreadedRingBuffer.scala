@@ -53,14 +53,7 @@ private[zio] final class SingleThreadedRingBuffer[A <: AnyRef](capacity: Int) {
       i += 1
     }
 
-    val nullIdx = result.indexWhere(e => Option(e).isEmpty)
-    if (nullIdx >= 0) {
-      println(
-        s"\nEncountered null value in content of SingleThreadedRingBuffer, capacity=$capacity, size=$size, current=$current, nullAt=$nullIdx"
-      )
-    }
-
-    result
+    result.filter(e => Option(e).isDefined)
   }
 
   @inline private[this] def increment(): Unit = {
