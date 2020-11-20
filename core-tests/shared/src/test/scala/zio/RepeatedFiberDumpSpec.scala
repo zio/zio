@@ -1,16 +1,18 @@
 package zio
 
-import zio._
+import java.util.concurrent.atomic.AtomicReference
+import java.util.function.UnaryOperator
+
+import scala.collection.immutable.SortedSet
+
+import zio.Supervisor.Propagation
 import zio.clock._
 import zio.console._
 import zio.duration._
-import zio.test._
 import zio.test.TestAspect._
-import zio.Supervisor.Propagation
-import java.util.concurrent.atomic.AtomicReference
-import scala.collection.immutable.SortedSet
-import java.util.function.UnaryOperator
+import zio.test._
 import zio.test.environment.Live
+import zio.test.environment.TestClock
 
 // This test reproduces the behavior reported in https://github.com/zio/zio/issues/4384
 // The general idea is to have a supervisor that can be used to regularly pull the complete
@@ -67,7 +69,7 @@ object RepeatedFiberDumpSpec extends ZIOBaseSpec {
   override def runner: TestRunner[zio.test.environment.TestEnvironment, Any] =
     defaultTestRunner.withPlatform(_.withSupervisor(simpleSupervisor))
 
-  override def spec = (suite("The Fiber context should")(
+  override def spec: ZSpec[Live with TestClock with Clock with Console with Live with Annotations,Any] = (suite("The Fiber context should")(
     pollDumpForever
   )) @@ timed @@ timeout(90.seconds)
 
@@ -118,7 +120,7 @@ object RepeatedFiberDumpSpec extends ZIOBaseSpec {
       )
 
       override def value: zio.UIO[SortedSet[Fiber.Runtime[Any, Any]]] =
-        UIO(SortedSet(fibers.get.view.values.toSeq: _*))
+        UIO(SortedSet(fibers.get.values.toSeq: _*))
 
       override private[zio] def unsafeOnStart[R, E, A](
         environment: R,
