@@ -11,7 +11,7 @@ import zio.console._
 import zio.duration._
 import zio.test.TestAspect._
 import zio.test._
-import zio.test.environment.{Live, TestClock}
+import zio.test.environment.{ Live, TestClock }
 
 // This test reproduces the behavior reported in https://github.com/zio/zio/issues/4384
 // The general idea is to have a supervisor that can be used to regularly pull the complete
