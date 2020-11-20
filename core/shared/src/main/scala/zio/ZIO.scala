@@ -3175,7 +3175,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       }
     }
 
-    /**
+  /**
    * Imports a [[scala.concurrent.Future]] and an implicit [[scala.concurrent.ExecutionContext]] and transform into a `ZIO`.
    * This operator it's meant to be used when you want to specify the execution context where you want to be the future
    * executed.
