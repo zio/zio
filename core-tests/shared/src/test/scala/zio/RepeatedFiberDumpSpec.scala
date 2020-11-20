@@ -69,9 +69,10 @@ object RepeatedFiberDumpSpec extends ZIOBaseSpec {
   override def runner: TestRunner[zio.test.environment.TestEnvironment, Any] =
     defaultTestRunner.withPlatform(_.withSupervisor(simpleSupervisor))
 
-  override def spec: ZSpec[Live with TestClock with Clock with Console with Live with Annotations,Any] = (suite("The Fiber context should")(
-    pollDumpForever
-  )) @@ timed @@ timeout(90.seconds)
+  override def spec: ZSpec[Live with TestClock with Clock with Console with Live with Annotations, Any] =
+    (suite("The Fiber context should")(
+      pollDumpForever
+    )) @@ timed @@ timeout(90.seconds)
 
   private val pollDumpForever = testM("allow to regularly poll the dump of all current fibers")(for {
     _ <- timeWarp.fork
