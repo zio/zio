@@ -3060,6 +3060,33 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     }
 
   /**
+   * Imports a [[scala.concurrent.Future]] and an implicit [[scala.concurrent.ExecutionContext]] and transform into a `ZIO`.
+   * This operator it's meant to be used when you want to specify the execution context where you want to be the future
+   * executed.
+   */
+  def fromFutureWithExecutionContext[A](future: scala.concurrent.Future[A])(implicit ec: ExecutionContext): Task[A] =
+    Task.descriptorWith { _ =>
+      ZIO.effect(future).flatMap { f =>
+        val canceler: UIO[Unit] = f match {
+          case cancelable: CancelableFuture[A] =>
+            UIO.effectSuspendTotal(if (f.isCompleted) ZIO.unit else ZIO.fromFuture(_ => cancelable.cancel()).ignore)
+          case _ => ZIO.unit
+        }
+
+        f.value
+          .fold(
+            Task.effectAsyncInterrupt { (k: Task[A] => Unit) =>
+              f.onComplete {
+                case Success(a) => k(Task(a))
+                case Failure(t) => k(Task.fail(t))
+              }(ec)
+              Left(canceler)
+            }
+          )(Task.fromTry(_))
+      }
+    }
+
+  /**
    * Imports a function that creates a [[scala.concurrent.Future]] from an
    * [[scala.concurrent.ExecutionContext]] into a `ZIO`. The provided
    * `ExecutionContext` will interrupt the `Future` between asynchronous
@@ -3141,12 +3168,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       case None    => Task.fail(new NoSuchElementException("None.get"))
       case Some(v) => ZIO.succeedNow(v)
     })
-
-  /**
-   * Lifts an Option into a IO, if the option is not defined it fails with Unit.
-   */
-  final def getOrFailUnit[A](v: => Option[A]): IO[Unit, A] =
-    effectTotal(v).flatMap(_.fold[IO[Unit, A]](fail(()))(succeedNow))
 
   /**
    * Lifts an Option into a IO, if the option is not defined it fails with Unit.
