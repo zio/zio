@@ -54,7 +54,7 @@ object DefaultTestReporter {
           }
           val status = if (hasFailures) Failed else Passed
           val renderedLabel =
-            if (specs.isEmpty) Seq.empty
+            if (specs.isEmpty) Seq(renderIgnoreLabel(label, depth))
             else if (hasFailures) Seq(renderFailureLabel(label, depth))
             else Seq(renderSuccessLabel(label, depth))
           val renderedAnnotations = testAnnotationRenderer.run(ancestors, annotations)
@@ -66,7 +66,7 @@ object DefaultTestReporter {
             case Right(TestSuccess.Succeeded(_)) =>
               rendered(Test, label, Passed, depth, withOffset(depth)(green("+") + " " + label))
             case Right(TestSuccess.Ignored) =>
-              rendered(Test, label, Ignored, depth)
+              rendered(Test, label, Ignored, depth, withOffset(depth)(yellow("-") + " " + yellow(label)))
             case Left(TestFailure.Assertion(result)) =>
               result.fold(details => rendered(Test, label, Failed, depth, renderFailure(label, depth, details): _*))(
                 _ && _,
@@ -115,6 +115,9 @@ object DefaultTestReporter {
 
   private def renderSuccessLabel(label: String, offset: Int) =
     withOffset(offset)(green("+") + " " + label)
+
+  private def renderIgnoreLabel(label: String, offset: Int) =
+    withOffset(offset)(yellow("-") + " " + yellow(label))
 
   private def renderFailure(label: String, offset: Int, details: FailureDetails): Seq[String] =
     renderFailureLabel(label, offset) +: renderFailureDetails(details, offset)
