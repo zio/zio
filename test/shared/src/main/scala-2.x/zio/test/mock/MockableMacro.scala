@@ -314,10 +314,13 @@ private[mock] object MockableMacro {
     c.Expr[c.Tree](
       c.parse(
         s"$structure"
-          .replaceAll("\\n\\s+def \\<init\\>\\(\\) = \\{\\n\\s+super\\.\\<init\\>\\(\\);\\n\\s+\\(\\)\\n\\s+\\};?", "")
-          .replaceAll("\\{[\\n\\s]*\\};?", "")
+          .replaceAll(
+            "\\r?\\n\\s+def \\<init\\>\\(\\) = \\{\\r?\\n\\s+super\\.\\<init\\>\\(\\);\\r?\\n\\s+\\(\\)\\r?\\n\\s+\\};?",
+            ""
+          )
+          .replaceAll("\\{[\\r?\\n\\s]*\\};?", "")
           .replaceAll("final class \\$anon extends", "new")
-          .replaceAll("\\};\\n\\s+new \\$anon\\(\\)", "\\}")
+          .replaceAll("\\};\\r?\\n\\s+new \\$anon\\(\\)", "\\}")
           .replaceAll("(object .+) extends scala.AnyRef", "$1")
           .replaceAll("(object .+) with scala.Product with scala.Serializable", "$1")
       )
