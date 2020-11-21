@@ -117,7 +117,7 @@ object DefaultTestReporter {
     withOffset(offset)(green("+") + " " + label)
 
   private def renderIgnoreLabel(label: String, offset: Int) =
-    withOffset(offset)(yellow("-") + " " + yellow(label))
+    withOffset(offset)(yellow("-") + " " + yellow(label) + " - " + TestAnnotation.ignored.identifier + " suite")
 
   private def renderFailure(label: String, offset: Int, details: FailureDetails): Seq[String] =
     renderFailureLabel(label, offset) +: renderFailureDetails(details, offset)
