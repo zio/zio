@@ -18,6 +18,8 @@ package zio.test
 
 import zio.UIO
 
+import scala.language.experimental.macros
+
 trait CompileVariants {
 
   /**
@@ -28,4 +30,18 @@ trait CompileVariants {
    */
   final def typeCheck(code: String): UIO[Either[String, Unit]] =
     macro Macros.typeCheck_impl
+
+  def assertRuntime[A](value: => A)(assertion: Assertion[A]): TestResult
+
+  /**
+   * Checks the assertion holds for the given value.
+   */
+  def assert[A](expr: => A)(assertion: Assertion[A]): TestResult = macro Macros.assert_impl
+}
+
+object CompileVariants {
+  class PartialAssert[+A](value: => A, label: String, f: (=> A) => Assertion[A] => TestResult)
+      extends (Assertion[A] => TestResult) {
+    def apply(assertion: Assertion[A]) = f(value)(assertion.label(label))
+  }
 }

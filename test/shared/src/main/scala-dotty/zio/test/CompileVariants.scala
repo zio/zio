@@ -38,4 +38,24 @@ trait CompileVariants {
 
   private val errorMessage =
     "Reporting of compilation error messages on Dotty is not currently supported due to instability of the underlying APIs."
+
+  /**
+   * Checks the assertion holds for the given value.
+   */
+  def assertRuntime[A](value: => A)(assertion: Assertion[A]): TestResult
+
+  inline def assert[A](inline value: => A)(inline assertion: Assertion[A]): TestResult = ${Macros.impl('value)('assertion)}
+}
+
+
+object Macros {
+  import scala.quoted._
+  def impl[A](value: Expr[A])(assertion: Expr[Assertion[A]])(using ctx: QuoteContext, tp: Type[A]): Expr[TestResult] = {
+    import ctx.tasty._
+    val path = rootPosition.sourceFile.jpath.toString
+    val line = rootPosition.startLine + 1
+    val code = value.show
+    val label = s"expression: `$code` (at $path:$line))"
+    '{zio.test.assertRuntime[A]($value)(${assertion}.label(${Expr(label)}))}
+  }
 }

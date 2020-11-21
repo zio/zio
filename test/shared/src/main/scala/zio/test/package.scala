@@ -145,7 +145,7 @@ package object test extends CompileVariants {
   /**
    * Checks the assertion holds for the given value.
    */
-  def assert[A](value: => A)(assertion: Assertion[A]): TestResult = {
+  def assertRuntime[A](value: => A)(assertion: Assertion[A]): TestResult = {
     lazy val tryValue = Try(value)
     traverseResult(tryValue.get, assertion.run(tryValue.get), assertion)
   }
@@ -154,7 +154,7 @@ package object test extends CompileVariants {
    * Asserts that the given test was completed.
    */
   val assertCompletes: TestResult =
-    assert(true)(Assertion.isTrue)
+    assertRuntime(true)(Assertion.isTrue)
 
   /**
    * Checks the assertion holds for the given effectfully-computed value.

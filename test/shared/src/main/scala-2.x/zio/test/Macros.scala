@@ -16,14 +16,13 @@
 
 package zio.test
 
-import scala.reflect.macros.TypecheckException
-import scala.reflect.macros.blackbox.Context
+import scala.reflect.macros.{ TypecheckException, blackbox }
 
 import zio.UIO
 
 private[test] object Macros {
 
-  def typeCheck_impl(c: Context)(code: c.Expr[String]): c.Expr[UIO[Either[String, Unit]]] = {
+  def typeCheck_impl(c: blackbox.Context)(code: c.Expr[String]): c.Expr[UIO[Either[String, Unit]]] = {
     import c.universe._
     try {
       c.typecheck(c.parse(c.eval(c.Expr[String](c.untypecheck(code.tree)))))
@@ -32,5 +31,16 @@ private[test] object Macros {
       case e: TypecheckException => c.Expr(q"zio.UIO.succeed(Left(${e.getMessage}))")
       case t: Throwable          => c.Expr(q"""zio.UIO.die(new RuntimeException("Compilation failed: " + ${t.getMessage}))""")
     }
+  }
+
+  private val fieldInAnonymousClassPrefix = "$anon.this."
+
+  def assert_impl(c: blackbox.Context)(expr: c.Tree)(assertion: c.Tree): c.Tree = {
+    import c.universe._
+    val fileName = c.enclosingPosition.source.path
+    val line     = c.enclosingPosition.line
+    val code     = s"${showCode(expr).stripPrefix(fieldInAnonymousClassPrefix)}"
+    val label    = s"expression: `$code` (at $fileName:$line))"
+    q"zio.test.assertRuntime($expr)($assertion.label($label))"
   }
 }
