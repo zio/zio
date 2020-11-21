@@ -82,9 +82,7 @@ object DefaultTestReporter {
                 (Seq(renderFailureLabel(label, depth)) ++ Seq(renderCause(cause, depth))): _*
               )
           }
-          Seq(renderedResult.withAnnotations(
-            if (renderedAnnotations.exists(_.contains(TestAnnotation.ignored.identifier))) Seq.empty
-            else renderedAnnotations))
+          Seq(renderedResult.withAnnotations(renderedAnnotations))
       }
     loop(executedSpec, 0, List.empty)
   }
