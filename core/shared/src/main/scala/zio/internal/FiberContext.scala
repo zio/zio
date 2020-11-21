@@ -273,7 +273,11 @@ private[zio] final class FiberContext[E, A](
    * @param io0 The `IO` to evaluate on the fiber.
    */
   def evaluateNow(io0: IO[E, Any]): Unit =
+
     try {
+      this.fiberRefLocals.forEach { (ref, value) =>
+        ref.link(value)
+      }
       // Do NOT accidentally capture `curZio` in a closure, or Scala will wrap
       // it in `ObjectRef` and performance will plummet.
       var curZio: IO[E, Any] = io0
@@ -587,8 +591,9 @@ private[zio] final class FiberContext[E, A](
                   case ZIO.Tags.FiberRefNew =>
                     val zio = curZio.asInstanceOf[ZIO.FiberRefNew[Any]]
 
-                    val fiberRef = new FiberRef[Any](zio.initial, zio.onFork, zio.onJoin)
+                    val fiberRef = new FiberRef[Any](zio.initial, zio.onFork, zio.onJoin, zio.link)
                     fiberRefLocals.put(fiberRef, zio.initial)
+                    fiberRef.link(zio.initial)
 
                     curZio = nextInstr(fiberRef)
 
@@ -598,6 +603,7 @@ private[zio] final class FiberContext[E, A](
                     val oldValue           = Option(fiberRefLocals.get(zio.fiberRef))
                     val (result, newValue) = zio.f(oldValue.getOrElse(zio.fiberRef.initial))
                     fiberRefLocals.put(zio.fiberRef, newValue)
+                    zio.fiberRef.link(newValue)
 
                     curZio = nextInstr(result)
 
