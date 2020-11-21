@@ -203,6 +203,11 @@ object FiberRef extends Serializable {
   /**
    * Creates a new `FiberRef` with given initial value.
    */
-  def make[A](initial: A, fork: A => A = (a: A) => a, join: (A, A) => A = ((_: A, a: A) => a), link: A => Unit  = (_: A) => ()): UIO[FiberRef[A]] =
+  def make[A](
+    initial: A,
+    fork: A => A = (a: A) => a,
+    join: (A, A) => A = ((_: A, a: A) => a),
+    link: A => Unit = (_: A) => ()
+  ): UIO[FiberRef[A]] =
     new ZIO.FiberRefNew(initial, fork, join, link)
 }

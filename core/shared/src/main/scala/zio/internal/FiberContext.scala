@@ -273,7 +273,6 @@ private[zio] final class FiberContext[E, A](
    * @param io0 The `IO` to evaluate on the fiber.
    */
   def evaluateNow(io0: IO[E, Any]): Unit =
-
     try {
       this.fiberRefLocals.forEach { (ref, value) =>
         ref.link(value)

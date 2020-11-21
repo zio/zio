@@ -352,13 +352,13 @@ object FiberRefSpec extends ZIOBaseSpec {
           override def initialValue(): Option[String] = None
         }
         for {
-          _                 <- FiberRef.make(current, link = (s:String) => threadLocal.set(Some(s)))
-          loopThreadVals    <- ZIO.foreach(0 to 2000: Seq[Int])(_ =>  UIO(threadLocal.get))
+          _              <- FiberRef.make(current, link = (s: String) => threadLocal.set(Some(s)))
+          loopThreadVals <- ZIO.foreach(0 to 2000: Seq[Int])(_ => UIO(threadLocal.get))
           blockingThreadVal <- zio.blocking.effectBlocking {
-            Thread.sleep(10)
-            threadLocal.get
-          }.orDie
-          asyncThreadVal        <- Live.live(zio.clock.sleep(10.millis)) *> UIO(threadLocal.get)
+                                 Thread.sleep(10)
+                                 threadLocal.get
+                               }.orDie
+          asyncThreadVal <- Live.live(zio.clock.sleep(10.millis)) *> UIO(threadLocal.get)
         } yield {
           assert(loopThreadVals)(forall(isSome(equalTo(current)))) &&
           assert(blockingThreadVal)(isSome(equalTo(current))) &&
