@@ -19,6 +19,9 @@ object ReportingTestUtils {
   def expectedFailure(label: String): String =
     red("- " + label) + "\n"
 
+  def expectedIgnored(label: String): String =
+    yellow("- ") + yellow(label) + " - " + TestAnnotation.ignored.identifier + " suite" + "\n"
+
   def withOffset(n: Int)(s: String): String =
     " " * n + s
 
@@ -170,6 +173,7 @@ object ReportingTestUtils {
   val suite4: Spec[Any, TestFailure[Nothing], TestSuccess] = suite("Suite4")(suite1, suite("Empty")(), test3)
   val suite4Expected: Vector[String] = Vector(expectedFailure("Suite4")) ++
     suite1Expected.map(withOffset(2)) ++
+    Vector(withOffset(2)(expectedIgnored("Empty"))) ++
     test3Expected.map(withOffset(2))
 
   val mock1: ZSpec[Any, Nothing] = zio.test.test("Invalid call") {
