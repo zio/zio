@@ -1,6 +1,6 @@
 resolvers += Resolver.bintrayRepo("ktosopl", "sbt-plugins/sbt-jcstress")
 
-addSbtPlugin("ch.epfl.lamp"                      % "sbt-dotty"                     % "0.4.5")
+addSbtPlugin("ch.epfl.lamp"                      % "sbt-dotty"                     % "0.4.6")
 addSbtPlugin("ch.epfl.scala"                     % "sbt-bloop"                     % "1.4.5")
 addSbtPlugin("ch.epfl.scala"                     % "sbt-scalafix"                  % "0.9.23")
 addSbtPlugin("com.eed3si9n"                      % "sbt-buildinfo"                 % "0.10.0")
@@ -11,7 +11,7 @@ addSbtPlugin("com.typesafe"                      % "sbt-mima-plugin"            
 addSbtPlugin("de.heikoseeberger"                 % "sbt-header"                    % "5.6.0")
 addSbtPlugin("org.portable-scala"                % "sbt-scala-native-crossproject" % "1.0.0")
 addSbtPlugin("org.portable-scala"                % "sbt-scalajs-crossproject"      % "1.0.0")
-addSbtPlugin("org.scala-js"                      % "sbt-scalajs"                   % "1.3.0")
+addSbtPlugin("org.scala-js"                      % "sbt-scalajs"                   % "1.3.1")
 addSbtPlugin("org.scala-native"                  % "sbt-scala-native"              % "0.4.0-M2")
 addSbtPlugin("org.scalameta"                     % "sbt-mdoc"                      % "2.2.11")
 addSbtPlugin("org.scalameta"                     % "sbt-scalafmt"                  % "2.4.2")

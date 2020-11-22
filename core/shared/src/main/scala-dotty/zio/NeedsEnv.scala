@@ -17,7 +17,7 @@
 package zio
 
 import scala.annotation.implicitNotFound
-import scala.implicits.Not
+import scala.util.Not
 
 /**
  * A value of type `NeedsEnv[R]` provides implicit evidence that an effect with
