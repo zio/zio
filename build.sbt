@@ -433,7 +433,7 @@ lazy val benchmarks = project.module
         "org.scala-lang"             % "scala-reflect"  % scalaVersion.value,
         "org.typelevel"             %% "cats-effect"    % "2.2.0",
         "org.scalacheck"            %% "scalacheck"     % "1.15.1",
-        "qa.hedgehog"               %% "hedgehog-core"  % "0.6.0",
+        "qa.hedgehog"               %% "hedgehog-core"  % "0.5.1",
         "com.github.japgolly.nyaya" %% "nyaya-gen"      % "0.9.2"
       ),
     unusedCompileDependenciesFilter -= libraryDependencies.value
@@ -460,9 +460,6 @@ lazy val jsdocs = project
 lazy val docs = project.module
   .in(file("zio-docs"))
   .settings(
-    // skip 2.13 mdoc until mdoc is available for 2.13
-    crossScalaVersions -= Scala213,
-    //
     skip.in(publish) := true,
     moduleName := "zio-docs",
     unusedCompileDependenciesFilter -= moduleFilter("org.scalameta", "mdoc"),
@@ -482,12 +479,12 @@ lazy val docs = project.module
     )
   )
   .settings(macroExpansionSettings)
-  //.settings(mdocJS := Some(jsdocs)) // Disabled until mdoc supports ScalaJS 1.1
+  .settings(mdocJS := Some(jsdocs))
   .dependsOn(
     coreJVM,
     streamsJVM,
     testJVM,
-    testMagnoliaJVM
-    // , coreJS // Disabled until mdoc supports ScalaJS 1.1
+    testMagnoliaJVM,
+    coreJS
   )
   .enablePlugins(MdocPlugin, DocusaurusPlugin)
