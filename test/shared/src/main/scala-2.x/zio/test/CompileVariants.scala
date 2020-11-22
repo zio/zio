@@ -16,9 +16,9 @@
 
 package zio.test
 
-import zio.UIO
-
 import scala.language.experimental.macros
+
+import zio.UIO
 
 trait CompileVariants {
 
@@ -37,11 +37,4 @@ trait CompileVariants {
    * Checks the assertion holds for the given value.
    */
   def assert[A](expr: => A)(assertion: Assertion[A]): TestResult = macro Macros.assert_impl
-}
-
-object CompileVariants {
-  class PartialAssert[+A](value: => A, label: String, f: (=> A) => Assertion[A] => TestResult)
-      extends (Assertion[A] => TestResult) {
-    def apply(assertion: Assertion[A]) = f(value)(assertion.label(label))
-  }
 }

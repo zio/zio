@@ -41,6 +41,6 @@ private[test] object Macros {
     val line     = c.enclosingPosition.line
     val code     = s"${showCode(expr).stripPrefix(fieldInAnonymousClassPrefix)}"
     val label    = s"expression: `$code` (at $fileName:$line))"
-    q"zio.test.assertRuntime($expr)($assertion.label($label))"
+    q"_root_.zio.test.assertRuntime($expr)($assertion.label($label))"
   }
 }

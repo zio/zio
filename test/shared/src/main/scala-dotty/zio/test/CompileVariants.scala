@@ -56,6 +56,6 @@ object Macros {
     val line = rootPosition.startLine + 1
     val code = value.show
     val label = s"expression: `$code` (at $path:$line))"
-    '{zio.test.assertRuntime[A]($value)(${assertion}.label(${Expr(label)}))}
+    '{_root_.zio.test.assertRuntime[A]($value)(${assertion}.label(${Expr(label)}))}
   }
 }
