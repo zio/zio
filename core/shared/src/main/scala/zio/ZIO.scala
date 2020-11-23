@@ -3178,7 +3178,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * Imports a [[scala.concurrent.Future]] and an implicit [[scala.concurrent.ExecutionContext]] and transform into a `ZIO`.
    * This operator it's meant to be used when you want to specify the execution context where you want to be the future
-   * executed. For instance when you use this operator inside an Akka actor with their own context.
+   * executed.
    */
   def fromFutureOn[A](future: scala.concurrent.Future[A])(implicit ec: ExecutionContext): Task[A] =
     ZIO.effect(future).flatMap { f =>
