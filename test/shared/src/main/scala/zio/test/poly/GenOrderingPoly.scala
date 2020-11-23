@@ -158,17 +158,17 @@ object GenOrderingPoly {
   private implicit def ListOrdering[A: Ordering]: Ordering[List[A]] = {
 
     @tailrec
-    def loop[A: Ordering](left: List[A], right: List[A]): Int =
+    def go[A: Ordering](left: List[A], right: List[A]): Int =
       (left, right) match {
         case (Nil, Nil) => 0
         case (Nil, _)   => -1
         case (_, Nil)   => +1
         case ((h1 :: t1), (h2 :: t2)) =>
           val compare = Ordering[A].compare(h1, h2)
-          if (compare == 0) loop(t1, t2) else compare
+          if (compare == 0) go(t1, t2) else compare
       }
 
-    (l, r) => loop(l, r)
+    (l, r) => go(l, r)
   }
 
   /**
@@ -179,15 +179,15 @@ object GenOrderingPoly {
       val j = l.length
       val k = r.length
 
-      def loop(i: Int): Int =
+      def go(i: Int): Int =
         if (i == j && i == k) 0
         else if (i == j) -1
         else if (i == k) +1
         else {
           val compare = Ordering[A].compare(l(i), r(i))
-          if (compare == 0) loop(i + 1) else compare
+          if (compare == 0) go(i + 1) else compare
         }
 
-      loop(0)
+      go(0)
     }
 }

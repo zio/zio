@@ -128,18 +128,18 @@ package object test extends CompileVariants {
 
   private def traverseResult[A](value: => A, assertResult: AssertResult, assertion: AssertionM[A]): TestResult =
     assertResult.flatMap { fragment =>
-      def loop(whole: AssertionValue, failureDetails: FailureDetails): TestResult =
+      def go(whole: AssertionValue, failureDetails: FailureDetails): TestResult =
         if (whole.sameAssertion(failureDetails.assertion.head))
           BoolAlgebra.success(failureDetails)
         else {
           val fragment = whole.result
           val result   = if (fragment.isSuccess) fragment else !fragment
           result.flatMap { fragment =>
-            loop(fragment, FailureDetails(::(whole, failureDetails.assertion), failureDetails.gen))
+            go(fragment, FailureDetails(::(whole, failureDetails.assertion), failureDetails.gen))
           }
         }
 
-      loop(fragment, FailureDetails(::(AssertionValue(assertion, value, assertResult), Nil)))
+      go(fragment, FailureDetails(::(AssertionValue(assertion, value, assertResult), Nil)))
     }
 
   /**

@@ -22,13 +22,13 @@ The simplest way to use a `Ref` is by means of `update` or its more powerful sib
 ```scala mdoc:silent
 def repeat[E, A](n: Int)(io: IO[E, A]): IO[E, Unit] =
   Ref.make(0).flatMap { iRef =>
-    def loop: IO[E, Unit] = iRef.get.flatMap { i =>
+    def go: IO[E, Unit] = iRef.get.flatMap { i =>
       if (i < n)
         io *> iRef.update(_ + 1) *> loop
       else
         IO.unit
     }
-    loop
+    go
   }
 ```
 

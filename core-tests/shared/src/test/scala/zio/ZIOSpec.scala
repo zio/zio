@@ -3567,20 +3567,20 @@ object ZIOSpec extends ZIOBaseSpec {
 
   def deepMapNow(n: Int): UIO[Int] = {
     @tailrec
-    def loop(n: Int, acc: UIO[Int]): UIO[Int] =
+    def go(n: Int, acc: UIO[Int]): UIO[Int] =
       if (n <= 0) acc
-      else loop(n - 1, acc.map(_ + 1))
+      else go(n - 1, acc.map(_ + 1))
 
-    loop(n, IO.succeed(0))
+    go(n, IO.succeed(0))
   }
 
   def deepMapEffect(n: Int): UIO[Int] = {
     @tailrec
-    def loop(n: Int, acc: UIO[Int]): UIO[Int] =
+    def go(n: Int, acc: UIO[Int]): UIO[Int] =
       if (n <= 0) acc
-      else loop(n - 1, acc.map(_ + 1))
+      else go(n - 1, acc.map(_ + 1))
 
-    loop(n, IO.effectTotal(0))
+    go(n, IO.effectTotal(0))
   }
 
   def deepErrorEffect(n: Int): Task[Unit] =

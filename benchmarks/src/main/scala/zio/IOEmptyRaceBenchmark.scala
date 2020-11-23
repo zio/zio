@@ -21,22 +21,22 @@ class IOEmptyRaceBenchmark {
   def monixEmptyRace(): Int = {
     import monix.eval.Task
 
-    def loop(i: Int): monix.eval.Task[Int] =
-      if (i < size) Task.race(Task.never, Task.eval(i + 1)).flatMap(_ => loop(i + 1))
+    def go(i: Int): monix.eval.Task[Int] =
+      if (i < size) Task.race(Task.never, Task.eval(i + 1)).flatMap(_ => go(i + 1))
       else Task.pure(i)
 
-    loop(0).runSyncUnsafe()
+    go(0).runSyncUnsafe()
   }
 
   @Benchmark
   def catsEmptyRace(): Int = {
     import cats.effect.IO
 
-    def loop(i: Int): IO[Int] =
-      if (i < size) IO.race(IO.never, IO.delay(i + 1)).flatMap(_ => loop(i + 1))
+    def go(i: Int): IO[Int] =
+      if (i < size) IO.race(IO.never, IO.delay(i + 1)).flatMap(_ => go(i + 1))
       else IO.pure(i)
 
-    loop(0).unsafeRunSync()
+    go(0).unsafeRunSync()
   }
 
   @Benchmark
@@ -46,10 +46,10 @@ class IOEmptyRaceBenchmark {
   def zioTracedEmptyRace(): Int = zioEmptyRace(TracedRuntime)
 
   private[this] def zioEmptyRace(runtime: Runtime[Any]): Int = {
-    def loop(i: Int): UIO[Int] =
-      if (i < size) IO.never.raceFirst(IO.effectTotal(i + 1)).flatMap(loop)
+    def go(i: Int): UIO[Int] =
+      if (i < size) IO.never.raceFirst(IO.effectTotal(i + 1)).flatMap(go)
       else IO.succeedNow(i)
 
-    runtime.unsafeRun(loop(0))
+    runtime.unsafeRun(go(0))
   }
 }

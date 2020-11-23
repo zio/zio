@@ -1300,10 +1300,10 @@ object ZSTMSpec extends ZIOBaseSpec {
       testM("long mapError chains") {
         def chain(depth: Int): IO[Int, Nothing] = {
           @annotation.tailrec
-          def loop(n: Int, acc: STM[Int, Nothing]): IO[Int, Nothing] =
-            if (n <= 0) acc.commit else loop(n - 1, acc.mapError(_ + 1))
+          def go(n: Int, acc: STM[Int, Nothing]): IO[Int, Nothing] =
+            if (n <= 0) acc.commit else go(n - 1, acc.mapError(_ + 1))
 
-          loop(depth, STM.fail(0))
+          go(depth, STM.fail(0))
         }
 
         assertM(chain(10000).run)(fails(equalTo(10000)))
@@ -1475,9 +1475,9 @@ object ZSTMSpec extends ZIOBaseSpec {
 
   def chain(depth: Int)(next: STM[Nothing, Int] => STM[Nothing, Int]): UIO[Int] = {
     @annotation.tailrec
-    def loop(n: Int, acc: STM[Nothing, Int]): UIO[Int] =
-      if (n <= 0) acc.commit else loop(n - 1, next(acc))
+    def go(n: Int, acc: STM[Nothing, Int]): UIO[Int] =
+      if (n <= 0) acc.commit else go(n - 1, next(acc))
 
-    loop(depth, STM.succeed(0))
+    go(depth, STM.succeed(0))
   }
 }

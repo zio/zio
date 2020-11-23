@@ -465,14 +465,14 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
   final def foldWhileM[R, E, S](z: S)(pred: S => Boolean)(f: (S, A) => ZIO[R, E, S]): ZIO[R, E, S] = {
     val iterator = arrayIterator
 
-    def loop(s: S, iterator: Iterator[Array[A]], array: Array[A], i: Int, length: Int): ZIO[R, E, S] =
+    def go(s: S, iterator: Iterator[Array[A]], array: Array[A], i: Int, length: Int): ZIO[R, E, S] =
       if (i < length) {
-        if (pred(s)) f(s, self(i)).flatMap(loop(_, iterator, array, i + 1, length))
+        if (pred(s)) f(s, self(i)).flatMap(go(_, iterator, array, i + 1, length))
         else IO.succeedNow(s)
       } else if (iterator.hasNext) {
         val array  = iterator.next()
         val length = array.length
-        loop(s, iterator, array, 0, length)
+        go(s, iterator, array, 0, length)
       } else {
         ZIO.succeedNow(s)
       }
@@ -480,7 +480,7 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
     if (iterator.hasNext) {
       val array  = iterator.next()
       val length = array.length
-      loop(z, iterator, array, 0, length)
+      go(z, iterator, array, 0, length)
     } else {
       ZIO.succeedNow(z)
     }

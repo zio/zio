@@ -1489,7 +1489,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     orElse: (E, Option[B]) => ZIO[R1, E2, C]
   ): ZIO[R1 with Clock, E2, Either[C, B]] =
     schedule.driver.flatMap { driver =>
-      def loop(a: A): ZIO[R1 with Clock, E2, Either[C, B]] =
+      def go(a: A): ZIO[R1 with Clock, E2, Either[C, B]] =
         driver
           .next(a)
           .foldM(
@@ -1497,13 +1497,13 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
             b =>
               self.foldM(
                 e => orElse(e, Some(b)).map(Left(_)),
-                a => loop(a)
+                a => go(a)
               )
           )
 
       self.foldM(
         e => orElse(e, None).map(Left(_)),
-        a => loop(a)
+        a => go(a)
       )
     }
 
@@ -1578,7 +1578,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     schedule: Schedule[R1, E, Out],
     orElse: (E, Out) => ZIO[R1, E1, B]
   )(implicit ev: CanFail[E]): ZIO[R1 with Clock, E1, Either[B, A]] = {
-    def loop(driver: Schedule.Driver[R1 with Clock, E, Out]): ZIO[R1 with Clock, E1, Either[B, A]] =
+    def go(driver: Schedule.Driver[R1 with Clock, E, Out]): ZIO[R1 with Clock, E1, Either[B, A]] =
       self
         .map(Right(_))
         .catchAll(e =>
@@ -1586,11 +1586,11 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
             .next(e)
             .foldM(
               _ => driver.last.orDie.flatMap(out => orElse(e, out).map(Left(_))),
-              _ => loop(driver)
+              _ => go(driver)
             )
         )
 
-    schedule.driver.flatMap(loop(_))
+    schedule.driver.flatMap(go(_))
   }
 
   /**
@@ -1680,10 +1680,10 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def scheduleFrom[R1 <: R, A1 >: A, B](a: A1)(schedule: Schedule[R1, A1, B]): ZIO[R1 with Clock, E, B] =
     schedule.driver.flatMap { driver =>
-      def loop(a: A1): ZIO[R1 with Clock, E, B] =
-        driver.next(a).foldM(_ => driver.last.orDie, _ => self.flatMap(loop))
+      def go(a: A1): ZIO[R1 with Clock, E, B] =
+        driver.next(a).foldM(_ => driver.last.orDie, _ => self.flatMap(go))
 
-      loop(a)
+      go(a)
     }
 
   /**
@@ -2872,10 +2872,10 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   def foreach_[R, E, A](as: Iterable[A])(f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] =
     ZIO.effectTotal(as.iterator).flatMap { i =>
-      def loop: ZIO[R, E, Unit] =
-        if (i.hasNext) f(i.next()) *> loop
+      def go: ZIO[R, E, Unit] =
+        if (i.hasNext) f(i.next()) *> go
         else ZIO.unit
-      loop
+      go
     }
 
   /**

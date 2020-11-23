@@ -1265,15 +1265,15 @@ package object environment extends PlatformSpecific {
         //  Our RNG generates 32 bit integers so to maximize efficiency we want to
         //  pull 8 bit bytes from the current integer until it is exhausted
         //  before generating another random integer
-        def loop(i: Int, rnd: UIO[Int], n: Int, acc: UIO[List[Byte]]): UIO[List[Byte]] =
+        def go(i: Int, rnd: UIO[Int], n: Int, acc: UIO[List[Byte]]): UIO[List[Byte]] =
           if (i == length)
             acc.map(_.reverse)
           else if (n > 0)
-            rnd.flatMap(rnd => loop(i + 1, UIO.succeedNow(rnd >> 8), n - 1, acc.map(rnd.toByte :: _)))
+            rnd.flatMap(rnd => go(i + 1, UIO.succeedNow(rnd >> 8), n - 1, acc.map(rnd.toByte :: _)))
           else
-            loop(i, nextInt, (length - i) min 4, acc)
+            go(i, nextInt, (length - i) min 4, acc)
 
-        loop(0, randomInt, length min 4, UIO.succeedNow(List.empty[Byte])).map(Chunk.fromIterable)
+        go(0, randomInt, length min 4, UIO.succeedNow(List.empty[Byte])).map(Chunk.fromIterable)
       }
 
       private val randomDouble: UIO[Double] =
@@ -1302,14 +1302,14 @@ package object environment extends PlatformSpecific {
         }.flatMap {
           case Some(nextNextGaussian) => UIO.succeedNow(nextNextGaussian)
           case None =>
-            def loop: UIO[(Double, Double, Double)] =
+            def go: UIO[(Double, Double, Double)] =
               randomDouble.zip(randomDouble).flatMap { case (d1, d2) =>
                 val x      = 2 * d1 - 1
                 val y      = 2 * d2 - 1
                 val radius = x * x + y * y
-                if (radius >= 1 || radius == 0) loop else UIO.succeedNow((x, y, radius))
+                if (radius >= 1 || radius == 0) go else UIO.succeedNow((x, y, radius))
               }
-            loop.flatMap { case (x, y, radius) =>
+            go.flatMap { case (x, y, radius) =>
               val c = sqrt(-2 * log(radius) / radius)
               randomState.modify { case Data(seed1, seed2, queue) =>
                 (x * c, Data(seed1, seed2, queue.enqueue(y * c)))
@@ -1326,13 +1326,13 @@ package object environment extends PlatformSpecific {
         else if ((n & -n) == n)
           randomBits(31).map(_ >> Integer.numberOfLeadingZeros(n))
         else {
-          def loop: UIO[Int] =
+          def go: UIO[Int] =
             randomBits(31).flatMap { i =>
               val value = i % n
-              if (i - value + (n - 1) < 0) loop
+              if (i - value + (n - 1) < 0) go
               else UIO.succeedNow(value)
             }
-          loop
+          go
         }
 
       private def randomIntBetween(minInclusive: Int, maxExclusive: Int): UIO[Int] =

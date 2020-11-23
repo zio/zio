@@ -1077,15 +1077,15 @@ private[zio] object FiberContext {
     def status: Fiber.Status
     def interrupting: Boolean = {
       @tailrec
-      def loop(status0: Fiber.Status): Boolean =
+      def go(status0: Fiber.Status): Boolean =
         status0 match {
           case Status.Running(b)                      => b
           case Status.Finishing(b)                    => b
-          case Status.Suspended(previous, _, _, _, _) => loop(previous)
+          case Status.Suspended(previous, _, _, _, _) => go(previous)
           case _                                      => false
         }
 
-      loop(status)
+      go(status)
     }
   }
   object FiberState extends Serializable {

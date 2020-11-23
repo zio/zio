@@ -1161,10 +1161,10 @@ object ZSTM {
    */
   def foreach_[R, E, A](in: Iterable[A])(f: A => ZSTM[R, E, Any]): ZSTM[R, E, Unit] =
     ZSTM.succeedNow(in.iterator).flatMap[R, E, Unit] { it =>
-      def loop: ZSTM[R, E, Unit] =
-        if (it.hasNext) f(it.next()) *> loop
+      def go: ZSTM[R, E, Unit] =
+        if (it.hasNext) f(it.next()) *> go
         else ZSTM.unit
-      loop
+      go
     }
 
   /**

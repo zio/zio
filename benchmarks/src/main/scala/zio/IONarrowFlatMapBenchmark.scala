@@ -16,53 +16,48 @@ class IONarrowFlatMapBenchmark {
   var size: Int = _
 
   @Benchmark
-  def thunkNarrowFlatMap(): Int = {
-    def loop(i: Int): Thunk[Int] =
-      if (i < size) Thunk(i + 1).flatMap(loop)
-      else Thunk(i)
-
+  def thunkNarrowFlatMap(): Int =
     Thunk(0).unsafeRun()
-  }
 
   @Benchmark
   def futureNarrowFlatMap(): Int = {
     import scala.concurrent.Future
     import scala.concurrent.duration.Duration.Inf
 
-    def loop(i: Int): Future[Int] =
-      if (i < size) Future(i + 1).flatMap(loop)
+    def go(i: Int): Future[Int] =
+      if (i < size) Future(i + 1).flatMap(go)
       else Future(i)
 
-    Await.result(Future(0).flatMap(loop), Inf)
+    Await.result(Future(0).flatMap(go), Inf)
   }
 
   @Benchmark
   def completableFutureNarrowFlatMap(): Int = {
     import java.util.concurrent.CompletableFuture
 
-    def loop(i: Int): CompletableFuture[Int] =
+    def go(i: Int): CompletableFuture[Int] =
       if (i < size)
         CompletableFuture
           .completedFuture(i + 1)
-          .thenCompose(loop)
+          .thenCompose(go)
       else CompletableFuture.completedFuture(i)
 
     CompletableFuture
       .completedFuture(0)
-      .thenCompose(loop)
+      .thenCompose(go)
       .get()
   }
 
   @Benchmark
   def monoNarrowFlatMap(): Int = {
     import reactor.core.publisher.Mono
-    def loop(i: Int): Mono[Int] =
-      if (i < size) Mono.fromCallable(() => i + 1).flatMap(loop)
+    def go(i: Int): Mono[Int] =
+      if (i < size) Mono.fromCallable(() => i + 1).flatMap(go)
       else Mono.fromCallable(() => i)
 
     Mono
       .fromCallable(() => 0)
-      .flatMap(loop)
+      .flatMap(go)
       .block()
   }
 
@@ -70,13 +65,13 @@ class IONarrowFlatMapBenchmark {
   def rxSingleNarrowFlatMap(): Int = {
     import io.reactivex.Single
 
-    def loop(i: Int): Single[Int] =
-      if (i < size) Single.fromCallable(() => i + 1).flatMap(loop(_))
+    def go(i: Int): Single[Int] =
+      if (i < size) Single.fromCallable(() => i + 1).flatMap(go(_))
       else Single.fromCallable(() => i)
 
     Single
       .fromCallable(() => 0)
-      .flatMap(loop(_))
+      .flatMap(go(_))
       .blockingGet()
   }
 
@@ -84,13 +79,13 @@ class IONarrowFlatMapBenchmark {
   def twitterNarrowFlatMap(): Int = {
     import com.twitter.util.{ Await, Future }
 
-    def loop(i: Int): Future[Int] =
-      if (i < size) Future(i + 1).flatMap(loop)
+    def go(i: Int): Future[Int] =
+      if (i < size) Future(i + 1).flatMap(go)
       else Future(i)
 
     Await.result(
       Future(0)
-        .flatMap(loop)
+        .flatMap(go)
     )
   }
 
@@ -98,11 +93,11 @@ class IONarrowFlatMapBenchmark {
   def monixNarrowFlatMap(): Int = {
     import monix.eval.Task
 
-    def loop(i: Int): Task[Int] =
-      if (i < size) Task.eval(i + 1).flatMap(loop)
+    def go(i: Int): Task[Int] =
+      if (i < size) Task.eval(i + 1).flatMap(go)
       else Task.eval(i)
 
-    Task.eval(0).flatMap(loop).runSyncStep.fold(_ => sys.error("Either.right.get on Left"), identity)
+    Task.eval(0).flatMap(go).runSyncStep.fold(_ => sys.error("Either.right.get on Left"), identity)
   }
 
   @Benchmark
@@ -112,21 +107,21 @@ class IONarrowFlatMapBenchmark {
   def zioTracedNarrowFlatMap(): Int = zioNarrowFlatMap(TracedRuntime)
 
   private[this] def zioNarrowFlatMap(runtime: Runtime[Any]): Int = {
-    def loop(i: Int): UIO[Int] =
-      if (i < size) IO.effectTotal[Int](i + 1).flatMap(loop)
+    def go(i: Int): UIO[Int] =
+      if (i < size) IO.effectTotal[Int](i + 1).flatMap(go)
       else IO.effectTotal(i)
 
-    runtime.unsafeRun(IO.effectTotal(0).flatMap[Any, Nothing, Int](loop))
+    runtime.unsafeRun(IO.effectTotal(0).flatMap[Any, Nothing, Int](go))
   }
 
   @Benchmark
   def catsNarrowFlatMap(): Int = {
     import cats.effect._
 
-    def loop(i: Int): IO[Int] =
-      if (i < size) IO(i + 1).flatMap(loop)
+    def go(i: Int): IO[Int] =
+      if (i < size) IO(i + 1).flatMap(go)
       else IO(i)
 
-    IO(0).flatMap(loop).unsafeRunSync()
+    IO(0).flatMap(go).unsafeRunSync()
   }
 }

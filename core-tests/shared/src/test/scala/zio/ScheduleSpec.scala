@@ -587,19 +587,19 @@ object ScheduleSpec extends ZIOBaseSpec {
   def run[R <: Clock with TestClock, A, B](schedule: Schedule[R, A, B])(input: Iterable[A]): ZIO[R, Nothing, Chunk[B]] =
     run {
       schedule.driver.flatMap { driver =>
-        def loop(input: List[A], acc: Chunk[B]): ZIO[R, Nothing, Chunk[B]] =
+        def go(input: List[A], acc: Chunk[B]): ZIO[R, Nothing, Chunk[B]] =
           input match {
             case h :: t =>
               driver
                 .next(h)
                 .foldM(
                   _ => driver.last.fold(_ => acc, b => acc :+ b),
-                  b => loop(t, acc :+ b)
+                  b => go(t, acc :+ b)
                 )
             case Nil => UIO.succeed(acc)
           }
 
-        loop(input.toList, Chunk.empty)
+        go(input.toList, Chunk.empty)
       }
     }
 
@@ -615,7 +615,7 @@ object ScheduleSpec extends ZIOBaseSpec {
     inputs: List[(OffsetDateTime, In)]
   ): ZIO[Env, Nothing, (List[(OffsetDateTime, Out)], Option[Out])] = {
 
-    def loop(
+    def go(
       step: Schedule.StepFunction[Env, In, Out],
       inputs: List[(OffsetDateTime, In)],
       acc: List[(OffsetDateTime, Out)]
@@ -626,11 +626,11 @@ object ScheduleSpec extends ZIOBaseSpec {
           step(odt, in) flatMap {
             case Schedule.Decision.Done(out) => UIO.succeed(acc.reverse -> Some(out))
             case Schedule.Decision.Continue(out, interval, step) =>
-              loop(step, rest, (interval -> out) :: acc)
+              go(step, rest, (interval -> out) :: acc)
           }
       }
 
-    loop(schedule.step, inputs, Nil)
+    go(schedule.step, inputs, Nil)
   }
 
   def checkRepeat[B](schedule: Schedule[Any, Int, B], expected: B): ZIO[Any with Clock, Nothing, TestResult] =

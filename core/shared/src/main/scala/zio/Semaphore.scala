@@ -98,14 +98,14 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
    */
   private def releaseN0(toRelease: Long): UIO[Unit] = {
 
-    @tailrec def loop(n: Long, state: State, acc: UIO[Unit]): (UIO[Unit], State) = state match {
+    @tailrec def go(n: Long, state: State, acc: UIO[Unit]): (UIO[Unit], State) = state match {
       case Right(m) => acc -> Right(n + m)
       case Left(q) =>
         q.dequeueOption match {
           case None => acc -> Right(n)
           case Some(((p, m), q)) =>
             if (n > m)
-              loop(n - m, Left(q), acc <* p.succeed(()))
+              go(n - m, Left(q), acc <* p.succeed(()))
             else if (n == m)
               (acc <* p.succeed(())) -> Left(q)
             else
@@ -113,7 +113,7 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
         }
     }
 
-    IO.flatten(assertNonNegative(toRelease) *> state.modify(loop(toRelease, _, IO.unit))).uninterruptible
+    IO.flatten(assertNonNegative(toRelease) *> state.modify(go(toRelease, _, IO.unit))).uninterruptible
 
   }
 

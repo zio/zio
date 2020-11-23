@@ -436,14 +436,14 @@ object Assertion extends AssertionVariants {
    */
   val isDistinct: Assertion[Iterable[Any]] = {
     @scala.annotation.tailrec
-    def loop(iterator: Iterator[Any], seen: Set[Any]): Boolean = iterator.hasNext match {
+    def go(iterator: Iterator[Any], seen: Set[Any]): Boolean = iterator.hasNext match {
       case false => true
       case true =>
         val x = iterator.next()
-        if (seen.contains(x)) false else loop(iterator, seen + x)
+        if (seen.contains(x)) false else go(iterator, seen + x)
     }
 
-    Assertion.assertion("isDistinct")()(actual => loop(actual.iterator, Set.empty))
+    Assertion.assertion("isDistinct")()(actual => go(actual.iterator, Set.empty))
   }
 
   /**
@@ -609,7 +609,7 @@ object Assertion extends AssertionVariants {
    */
   def isSorted[A](implicit ord: Ordering[A]): Assertion[Iterable[A]] = {
     @scala.annotation.tailrec
-    def loop(iterator: Iterator[A]): Boolean = iterator.hasNext match {
+    def go(iterator: Iterator[A]): Boolean = iterator.hasNext match {
       case false => true
       case true =>
         val x = iterator.next()
@@ -617,11 +617,11 @@ object Assertion extends AssertionVariants {
           case false => true
           case true =>
             val y = iterator.next()
-            if (ord.lteq(x, y)) loop(Iterator(y) ++ iterator) else false
+            if (ord.lteq(x, y)) go(Iterator(y) ++ iterator) else false
         }
     }
 
-    Assertion.assertion("isSorted")()(actual => loop(actual.iterator))
+    Assertion.assertion("isSorted")()(actual => go(actual.iterator))
   }
 
   /**

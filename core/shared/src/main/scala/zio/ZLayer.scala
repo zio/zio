@@ -203,7 +203,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
 
     type S = StepFunction[RIn1, E, Any]
 
-    lazy val loop: ZLayer[(RIn1, S), E, ROut] =
+    lazy val go: ZLayer[(RIn1, S), E, ROut] =
       (ZLayer.first >>> self).catchAll {
         val update: ZLayer[((RIn1, S), E), E, (RIn1, S)] =
           ZLayer.fromFunctionManyM {
@@ -213,9 +213,9 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
                 case Continue(_, interval, next) => clock.sleep(Duration.fromInterval(now, interval)) as ((r, next))
               }).provide(r)
           }
-        update >>> ZLayer.suspend(loop.fresh)
+        update >>> ZLayer.suspend(go.fresh)
       }
-    ZLayer.identity <&> ZLayer.fromEffectMany(ZIO.succeed(schedule.step)) >>> loop
+    ZLayer.identity <&> ZLayer.fromEffectMany(ZIO.succeed(schedule.step)) >>> go
   }
 
   /**

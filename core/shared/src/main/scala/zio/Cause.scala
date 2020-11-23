@@ -483,40 +483,40 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
 
   final def find[Z](f: PartialFunction[Cause[E], Z]): Option[Z] = {
     @tailrec
-    def loop(cause: Cause[E], stack: List[Cause[E]]): Option[Z] =
+    def go(cause: Cause[E], stack: List[Cause[E]]): Option[Z] =
       f.lift(cause) match {
         case Some(z) => Some(z)
         case None =>
           cause match {
-            case Then(left, right) => loop(left, right :: stack)
-            case Both(left, right) => loop(left, right :: stack)
-            case Traced(cause, _)  => loop(cause, stack)
-            case Meta(cause, _)    => loop(cause, stack)
+            case Then(left, right) => go(left, right :: stack)
+            case Both(left, right) => go(left, right :: stack)
+            case Traced(cause, _)  => go(cause, stack)
+            case Meta(cause, _)    => go(cause, stack)
             case _ =>
               stack match {
-                case hd :: tl => loop(hd, tl)
+                case hd :: tl => go(hd, tl)
                 case Nil      => None
               }
           }
       }
-    loop(self, Nil)
+    go(self, Nil)
   }
 
   final def foldLeft[Z](z: Z)(f: PartialFunction[(Z, Cause[E]), Z]): Z = {
     @tailrec
-    def loop(z: Z, cause: Cause[E], stack: List[Cause[E]]): Z =
+    def go(z: Z, cause: Cause[E], stack: List[Cause[E]]): Z =
       (f.applyOrElse[(Z, Cause[E]), Z](z -> cause, _ => z), cause) match {
-        case (z, Then(left, right)) => loop(z, left, right :: stack)
-        case (z, Both(left, right)) => loop(z, left, right :: stack)
-        case (z, Traced(cause, _))  => loop(z, cause, stack)
-        case (z, Meta(cause, _))    => loop(z, cause, stack)
+        case (z, Then(left, right)) => go(z, left, right :: stack)
+        case (z, Both(left, right)) => go(z, left, right :: stack)
+        case (z, Traced(cause, _))  => go(z, cause, stack)
+        case (z, Meta(cause, _))    => go(z, cause, stack)
         case (z, _) =>
           stack match {
-            case hd :: tl => loop(z, hd, tl)
+            case hd :: tl => go(z, hd, tl)
             case Nil      => z
           }
       }
-    loop(z, self, Nil)
+    go(z, self, Nil)
   }
 
   private def attachTrace(e: Throwable): Throwable = {
@@ -870,7 +870,7 @@ object Cause extends Serializable {
     private def flatten(c: Cause[_]): List[Set[Cause[_]]] = {
 
       @tailrec
-      def loop(causes: List[Cause[_]], flattened: List[Set[Cause[_]]]): List[Set[Cause[_]]] = {
+      def go(causes: List[Cause[_]], flattened: List[Set[Cause[_]]]): List[Set[Cause[_]]] = {
         val (parallel, sequential) = causes.foldLeft((Set.empty[Cause[_]], List.empty[Cause[_]])) {
           case ((parallel, sequential), cause) =>
             val (set, seq) = step(cause)
@@ -878,10 +878,10 @@ object Cause extends Serializable {
         }
         val updated = if (parallel.nonEmpty) parallel :: flattened else flattened
         if (sequential.isEmpty) updated.reverse
-        else loop(sequential, updated)
+        else go(sequential, updated)
       }
 
-      loop(List(c), List.empty)
+      go(List(c), List.empty)
     }
 
     /**
@@ -891,33 +891,33 @@ object Cause extends Serializable {
     private def step(c: Cause[_]): (Set[Cause[_]], List[Cause[_]]) = {
 
       @tailrec
-      def loop(
+      def go(
         cause: Cause[_],
         stack: List[Cause[_]],
         parallel: Set[Cause[_]],
         sequential: List[Cause[_]]
       ): (Set[Cause[_]], List[Cause[_]]) = cause match {
         case Empty =>
-          if (stack.isEmpty) (parallel, sequential) else loop(stack.head, stack.tail, parallel, sequential)
+          if (stack.isEmpty) (parallel, sequential) else go(stack.head, stack.tail, parallel, sequential)
         case Then(left, right) =>
           left match {
-            case Empty      => loop(right, stack, parallel, sequential)
-            case Then(l, r) => loop(Then(l, Then(r, right)), stack, parallel, sequential)
+            case Empty      => go(right, stack, parallel, sequential)
+            case Then(l, r) => go(Then(l, Then(r, right)), stack, parallel, sequential)
             case Both(l, r) =>
-              loop(Both(Then(l, right), Then(r, right)), stack, parallel, sequential)
-            case Traced(c, _) => loop(Then(c, right), stack, parallel, sequential)
-            case Meta(c, _)   => loop(Then(c, right), stack, parallel, sequential)
-            case o            => loop(o, stack, parallel, right :: sequential)
+              go(Both(Then(l, right), Then(r, right)), stack, parallel, sequential)
+            case Traced(c, _) => go(Then(c, right), stack, parallel, sequential)
+            case Meta(c, _)   => go(Then(c, right), stack, parallel, sequential)
+            case o            => go(o, stack, parallel, right :: sequential)
           }
-        case Both(left, right) => loop(left, right :: stack, parallel, sequential)
-        case Traced(cause, _)  => loop(cause, stack, parallel, sequential)
-        case Meta(cause, _)    => loop(cause, stack, parallel, sequential)
+        case Both(left, right) => go(left, right :: stack, parallel, sequential)
+        case Traced(cause, _)  => go(cause, stack, parallel, sequential)
+        case Meta(cause, _)    => go(cause, stack, parallel, sequential)
         case o =>
           if (stack.isEmpty) (parallel ++ Set(o), sequential)
-          else loop(stack.head, stack.tail, parallel ++ Set(o), sequential)
+          else go(stack.head, stack.tail, parallel ++ Set(o), sequential)
       }
 
-      loop(c, List.empty, Set.empty, List.empty)
+      go(c, List.empty, Set.empty, List.empty)
     }
   }
 

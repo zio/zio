@@ -34,14 +34,14 @@ trait ZIOBaseSpec extends DefaultRunnableSpec {
 
   private def getSubTags(zioTag: ZIOTag): List[String] = {
     @tailrec
-    def loop(currentZioTag: ZIOTag, remainingZioTags: List[ZIOTag], result: List[String]): List[String] =
+    def go(currentZioTag: ZIOTag, remainingZioTags: List[ZIOTag], result: List[String]): List[String] =
       (currentZioTag.subTags, remainingZioTags) match {
         case (Nil, Nil)      => currentZioTag.value :: result
-        case (Nil, t :: ts)  => loop(t, ts, currentZioTag.value :: result)
-        case (st :: sts, ts) => loop(st, sts ++ ts, currentZioTag.value :: result)
+        case (Nil, t :: ts)  => go(t, ts, currentZioTag.value :: result)
+        case (st :: sts, ts) => go(st, sts ++ ts, currentZioTag.value :: result)
       }
     zioTag.subTags match {
-      case t :: ts => loop(t, ts, Nil)
+      case t :: ts => go(t, ts, Nil)
       case Nil     => Nil
     }
   }

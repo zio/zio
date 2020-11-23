@@ -37,7 +37,7 @@ object DefaultTestReporter {
     executedSpec: ExecutedSpec[E],
     testAnnotationRenderer: TestAnnotationRenderer
   ): Seq[RenderedResult[String]] = {
-    def loop(
+    def go(
       executedSpec: ExecutedSpec[E],
       depth: Int,
       ancestors: List[TestAnnotationMap]
@@ -58,7 +58,7 @@ object DefaultTestReporter {
             else if (hasFailures) Seq(renderFailureLabel(label, depth))
             else Seq(renderSuccessLabel(label, depth))
           val renderedAnnotations = testAnnotationRenderer.run(ancestors, annotations)
-          val rest                = specs.flatMap(loop(_, depth + tabSize, annotations :: ancestors))
+          val rest                = specs.flatMap(go(_, depth + tabSize, annotations :: ancestors))
           rendered(Suite, label, status, depth, (renderedLabel): _*).withAnnotations(renderedAnnotations) +: rest
         case ExecutedSpec.TestCase(label, result, annotations) =>
           val renderedAnnotations = testAnnotationRenderer.run(ancestors, annotations)
@@ -84,7 +84,7 @@ object DefaultTestReporter {
           }
           Seq(renderedResult.withAnnotations(renderedAnnotations))
       }
-    loop(executedSpec, 0, List.empty)
+    go(executedSpec, 0, List.empty)
   }
 
   def apply[E](testAnnotationRenderer: TestAnnotationRenderer): TestReporter[E] = {
@@ -252,14 +252,14 @@ object FailureRenderer {
       renderAssertionFailureDetails(failureDetails.assertion, offset)
 
   private def renderAssertionFailureDetails(failureDetails: ::[AssertionValue], offset: Int): Message = {
-    def loop(failureDetails: List[AssertionValue], rendered: Message): Message =
+    def go(failureDetails: List[AssertionValue], rendered: Message): Message =
       failureDetails match {
         case fragment :: whole :: failureDetails =>
-          loop(whole :: failureDetails, rendered :+ renderWhole(fragment, whole, offset))
+          go(whole :: failureDetails, rendered :+ renderWhole(fragment, whole, offset))
         case _ =>
           rendered
       }
-    renderFragment(failureDetails.head, offset).toMessage ++ loop(failureDetails, Message.empty)
+    renderFragment(failureDetails.head, offset).toMessage ++ go(failureDetails, Message.empty)
   }
 
   private def renderGenFailureDetails[A](failureDetails: Option[GenFailureDetails], offset: Int): Message =
@@ -379,7 +379,7 @@ object FailureRenderer {
 
   private def renderUnsatisfiedExpectations[R <: Has[_]](expectation: Expectation[R]): Message = {
 
-    def loop(stack: List[(Int, Expectation[R])], lines: Vector[Line]): Vector[Line] =
+    def go(stack: List[(Int, Expectation[R])], lines: Vector[Line]): Vector[Line] =
       stack match {
         case Nil =>
           lines
@@ -387,22 +387,22 @@ object FailureRenderer {
         case (ident, Expectation.And(children, state, _, _)) :: tail if state.isFailed =>
           val title       = Line.fromString("in any order", ident)
           val unsatisfied = children.filter(_.state.isFailed).map(ident + tabSize -> _)
-          loop(unsatisfied ++ tail, lines :+ title)
+          go(unsatisfied ++ tail, lines :+ title)
 
         case (ident, Expectation.Call(method, assertion, _, state, _)) :: tail if state.isFailed =>
           val rendered =
             withOffset(ident)(Fragment(s"$method with arguments ") + cyan(assertion.toString))
-          loop(tail, lines :+ rendered)
+          go(tail, lines :+ rendered)
 
         case (ident, Expectation.Chain(children, state, _, _)) :: tail if state.isFailed =>
           val title       = Line.fromString("in sequential order", ident)
           val unsatisfied = children.filter(_.state.isFailed).map(ident + tabSize -> _)
-          loop(unsatisfied ++ tail, lines :+ title)
+          go(unsatisfied ++ tail, lines :+ title)
 
         case (ident, Expectation.Or(children, state, _, _)) :: tail if state.isFailed =>
           val title       = Line.fromString("one of", ident)
           val unsatisfied = children.map(ident + tabSize -> _)
-          loop(unsatisfied ++ tail, lines :+ title)
+          go(unsatisfied ++ tail, lines :+ title)
 
         case (ident, Expectation.Repeated(child, range, state, _, _, completed)) :: tail if state.isFailed =>
           val min = Try(range.min.toString).getOrElse("0")
@@ -413,13 +413,13 @@ object FailureRenderer {
               ident
             )
           val unsatisfied = (ident + tabSize -> child)
-          loop(unsatisfied :: tail, lines :+ title)
+          go(unsatisfied :: tail, lines :+ title)
 
         case _ :: tail =>
-          loop(tail, lines)
+          go(tail, lines)
       }
 
-    val lines = loop(List(tabSize -> expectation), Vector.empty)
+    val lines = go(List(tabSize -> expectation), Vector.empty)
     Message(lines)
   }
 

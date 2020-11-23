@@ -26,7 +26,7 @@ package object sbt {
    */
   private[sbt] def colored(s: String): String = {
     @tailrec
-    def loop(s: String, i: Int, color: Option[String]): String =
+    def go(s: String, i: Int, color: Option[String]): String =
       if (i >= s.length) s
       else {
         val s1 = s.slice(i, i + 5)
@@ -36,14 +36,14 @@ package object sbt {
           s1 == Console.RED ||
           s1 == Console.YELLOW
         if (isColor)
-          loop(s, i + 5, Some(s1))
+          go(s, i + 5, Some(s1))
         else if (s.slice(i, i + 4) == Console.RESET)
-          loop(s, i + 4, None)
+          go(s, i + 4, None)
         else if (s.slice(i, i + 1) == "\n" && color.isDefined)
-          loop(s.patch(i + 1, color.get, 0), i + 6, color)
-        else loop(s, i + 1, color)
+          go(s.patch(i + 1, color.get, 0), i + 6, color)
+        else go(s, i + 1, color)
 
       }
-    loop(s, 0, None)
+    go(s, 0, None)
   }
 }

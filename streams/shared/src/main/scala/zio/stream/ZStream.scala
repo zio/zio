@@ -1134,7 +1134,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     s: S
   )(cont: S => Boolean)(f: (S, O) => ZIO[R1, E1, S]): ZManaged[R1, E1, S] =
     process.flatMap { (is: ZIO[R, Option[E], Chunk[O]]) =>
-      def loop(s1: S): ZIO[R1, E1, S] =
+      def go(s1: S): ZIO[R1, E1, S] =
         if (!cont(s1)) UIO.succeedNow(s1)
         else
           is.foldM(
@@ -1144,10 +1144,10 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
               case None =>
                 IO.succeedNow(s1)
             },
-            (ch: Chunk[O]) => ch.foldM(s1)(f).flatMap(loop)
+            (ch: Chunk[O]) => ch.foldM(s1)(f).flatMap(go)
           )
 
-      ZManaged.fromEffect(loop(s))
+      ZManaged.fromEffect(go(s))
     }
 
   /**
@@ -1700,7 +1700,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     that: ZStream[R1, E1, O1]
   )(b: ZStream[R1, E1, Boolean]): ZStream[R1, E1, O1] = {
 
-    def loop(
+    def go(
       leftDone: Boolean,
       rightDone: Boolean,
       s: ZIO[R1, Option[E1], Boolean],
@@ -1718,7 +1718,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
               Cause.sequenceCauseOption(_) match {
                 case None =>
                   if (rightDone) ZIO.succeedNow(Exit.fail(None))
-                  else loop(true, rightDone, s, left, right)
+                  else go(true, rightDone, s, left, right)
                 case Some(e) => ZIO.succeedNow(Exit.halt(e.map(Some(_))))
               },
               a => ZIO.succeedNow(Exit.succeed((a, (leftDone, rightDone, s))))
@@ -1729,11 +1729,11 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                 case Some(e) => ZIO.succeedNow(Exit.halt(e.map(Some(_))))
                 case None =>
                   if (leftDone) ZIO.succeedNow(Exit.fail(None))
-                  else loop(leftDone, true, s, left, right)
+                  else go(leftDone, true, s, left, right)
               },
               a => ZIO.succeedNow(Exit.succeed((a, (leftDone, rightDone, s))))
             )
-          else loop(leftDone, rightDone, s, left, right)
+          else go(leftDone, rightDone, s, left, right)
       )
 
     ZStream {
@@ -1742,7 +1742,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
         result <-
           self
             .combine(that)((false, false, sides.pullElement)) { case ((leftDone, rightDone, sides), left, right) =>
-              loop(leftDone, rightDone, sides, left, right)
+              go(leftDone, rightDone, sides, left, right)
             }
             .process
       } yield result
@@ -2427,7 +2427,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
         switchStream <- ZManaged.switchable[R, Nothing, ZIO[R, Option[E], Chunk[O]]]
         _            <- switchStream(self.process).flatMap(currStream.set).toManaged_
         pull = {
-          def loop: ZIO[R1 with Clock, Option[E], Chunk[O]] =
+          def go: ZIO[R1 with Clock, Option[E], Chunk[O]] =
             currStream.get.flatten.catchSome { case Some(e) =>
               driver
                 .next(e)
@@ -2437,11 +2437,11 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                   _ =>
                     switchStream(self.process).flatMap(currStream.set) *>
                       // Reset the schedule to its initial state when a chunk is successfully pulled
-                      loop.tap(_ => driver.reset)
+                      go.tap(_ => driver.reset)
                 )
             }
 
-          loop
+          go
         }
       } yield pull
     }

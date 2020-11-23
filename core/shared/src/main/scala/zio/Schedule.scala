@@ -67,7 +67,7 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
    * schedule.
    */
   def ***[Env1 <: Env, In2, Out2](that: Schedule[Env1, In2, Out2]): Schedule[Env1, (In, In2), (Out, Out2)] = {
-    def loop(
+    def go(
       self: StepFunction[Env, In, Out],
       that: StepFunction[Env1, In2, Out2]
     ): StepFunction[Env1, (In, In2), (Out, Out2)] =
@@ -81,11 +81,11 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
           case (Continue(out, linterval, lnext), Continue(out2, rinterval, rnext)) =>
             val interval = Schedule.minOffsetDateTime(linterval, rinterval)
 
-            Continue(out -> out2, interval, loop(lnext, rnext))
+            Continue(out -> out2, interval, go(lnext, rnext))
         }
       }
 
-    Schedule(loop(self.step, that.step))
+    Schedule(go(self.step, that.step))
   }
 
   /**
@@ -107,7 +107,7 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
   def +++[Env1 <: Env, In2, Out2](
     that: Schedule[Env1, In2, Out2]
   ): Schedule[Env1, Either[In, In2], Either[Out, Out2]] = {
-    def loop(
+    def go(
       self: StepFunction[Env, In, Out],
       that: StepFunction[Env1, In2, Out2]
     ): StepFunction[Env1, Either[In, In2], Either[Out, Out2]] =
@@ -116,18 +116,18 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
           case Left(in) =>
             self(now, in).map {
               case Done(out)                     => Done(Left(out))
-              case Continue(out, interval, next) => Continue(Left(out), interval, loop(next, that))
+              case Continue(out, interval, next) => Continue(Left(out), interval, go(next, that))
             }
 
           case Right(in2) =>
             that(now, in2).map {
               case Done(out)                      => Done(Right(out))
-              case Continue(out2, interval, next) => Continue(Right(out2), interval, loop(self, next))
+              case Continue(out2, interval, next) => Continue(Right(out2), interval, go(self, next))
             }
         }
       }
 
-    Schedule(loop(self.step, that.step))
+    Schedule(go(self.step, that.step))
   }
 
   /**
@@ -160,7 +160,7 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
    * executed before the effects described by the second schedule.
    */
   def >>>[Env1 <: Env, Out2](that: Schedule[Env1, Out, Out2]): Schedule[Env1, In, Out2] = {
-    def loop(self: StepFunction[Env, In, Out], that: StepFunction[Env1, Out, Out2]): StepFunction[Env1, In, Out2] =
+    def go(self: StepFunction[Env, In, Out], that: StepFunction[Env1, Out, Out2]): StepFunction[Env1, In, Out2] =
       (now: OffsetDateTime, in: In) =>
         self(now, in).flatMap {
           case Done(out) => that(now, out).map(_.toDone)
@@ -170,11 +170,11 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
               case Continue(out2, interval2, next2) =>
                 val combined = Schedule.maxOffsetDateTime(interval, interval2)
 
-                Continue(out2, combined, loop(next1, next2))
+                Continue(out2, combined, go(next1, next2))
             }
         }
 
-    Schedule(loop(self.step, that.step))
+    Schedule(go(self.step, that.step))
   }
 
   /**
@@ -217,23 +217,23 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
   def andThenEither[Env1 <: Env, In1 <: In, Out2](
     that: Schedule[Env1, In1, Out2]
   ): Schedule[Env1, In1, Either[Out, Out2]] = {
-    def loop(
+    def go(
       self: StepFunction[Env, In, Out],
       that: StepFunction[Env1, In1, Out2],
       onLeft: Boolean
     ): StepFunction[Env1, In1, Either[Out, Out2]] =
       (now: OffsetDateTime, in: In1) =>
         if (onLeft) self(now, in).flatMap {
-          case Continue(out, interval, next) => ZIO.succeed(Continue(Left(out), interval, loop(next, that, true)))
-          case Done(_)                       => loop(self, that, false)(now, in)
+          case Continue(out, interval, next) => ZIO.succeed(Continue(Left(out), interval, go(next, that, true)))
+          case Done(_)                       => go(self, that, false)(now, in)
         }
         else
           that(now, in).map {
             case Done(r)                       => Done(Right(r))
-            case Continue(out, interval, next) => Continue(Right(out), interval, loop(self, next, false))
+            case Continue(out, interval, next) => Continue(Right(out), interval, go(self, next, false))
           }
 
-    Schedule(loop(self.step, that.step, true))
+    Schedule(go(self.step, that.step, true))
   }
 
   /**
@@ -255,15 +255,15 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
    * function.
    */
   def checkM[Env1 <: Env, In1 <: In](test: (In1, Out) => URIO[Env1, Boolean]): Schedule[Env1, In1, Out] = {
-    def loop(self: StepFunction[Env, In1, Out]): StepFunction[Env1, In1, Out] =
+    def go(self: StepFunction[Env, In1, Out]): StepFunction[Env1, In1, Out] =
       (now: OffsetDateTime, in: In1) =>
         self(now, in).flatMap {
           case Done(out) => ZIO.succeed(Done(out))
           case Continue(out, interval, next) =>
-            test(in, out).map(b => if (b) Continue(out, interval, loop(next)) else Done(out))
+            test(in, out).map(b => if (b) Continue(out, interval, go(next)) else Done(out))
         }
 
-    Schedule(loop(step))
+    Schedule(go(step))
   }
 
   /**
@@ -296,14 +296,14 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
    * Returns a new schedule that deals with a narrower class of inputs than this schedule.
    */
   def contramapM[Env1 <: Env, In2](f: In2 => URIO[Env1, In]): Schedule[Env1, In2, Out] = {
-    def loop(self: StepFunction[Env, In, Out]): StepFunction[Env1, In2, Out] =
+    def go(self: StepFunction[Env, In, Out]): StepFunction[Env1, In2, Out] =
       (now: OffsetDateTime, in2: In2) =>
         f(in2).flatMap(in => self(now, in)).map {
           case Done(out)                     => Done(out)
-          case Continue(out, interval, next) => Continue(out, interval, loop(next))
+          case Continue(out, interval, next) => Continue(out, interval, go(next))
         }
 
-    Schedule(loop(step))
+    Schedule(go(step))
   }
 
   /**
@@ -380,14 +380,14 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
    * finalizer will be run.
    */
   def ensuring(finalizer: UIO[Any]): Schedule[Env, In, Out] = {
-    def loop(self: StepFunction[Env, In, Out]): StepFunction[Env, In, Out] =
+    def go(self: StepFunction[Env, In, Out]): StepFunction[Env, In, Out] =
       (now: OffsetDateTime, in: In) =>
         self(now, in).flatMap {
           case Done(out)                     => finalizer as Done(out)
-          case Continue(out, interval, next) => ZIO.succeed(Continue(out, interval, loop(next)))
+          case Continue(out, interval, next) => ZIO.succeed(Continue(out, interval, go(next)))
         }
 
-    Schedule(loop(step))
+    Schedule(go(step))
   }
 
   /**
@@ -405,15 +405,15 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
    * Returns a new schedule that effectfully folds over the outputs of this one.
    */
   def foldM[Env1 <: Env, Z](z: Z)(f: (Z, Out) => URIO[Env1, Z]): Schedule[Env1, In, Z] = {
-    def loop(z: Z, self: StepFunction[Env, In, Out]): StepFunction[Env1, In, Z] =
+    def go(z: Z, self: StepFunction[Env, In, Out]): StepFunction[Env1, In, Z] =
       (now: OffsetDateTime, in: In) =>
         self(now, in).flatMap {
           case Done(_) => ZIO.succeed(Done(z))
           case Continue(out, interval, next) =>
-            f(z, out).map(z2 => Continue(z2, interval, loop(z2, next)))
+            f(z, out).map(z2 => Continue(z2, interval, go(z2, next)))
         }
 
-    Schedule(loop(z, step))
+    Schedule(go(z, step))
   }
 
   /**
@@ -421,14 +421,14 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
    * when this schedule is done.
    */
   def forever: Schedule[Env, In, Out] = {
-    def loop(self: StepFunction[Env, In, Out]): StepFunction[Env, In, Out] =
+    def go(self: StepFunction[Env, In, Out]): StepFunction[Env, In, Out] =
       (now: OffsetDateTime, in: In) =>
         self(now, in).flatMap {
-          case Done(_)                       => loop(step)(now, in)
-          case Continue(out, interval, next) => ZIO.succeed(Continue(out, interval, loop(next)))
+          case Done(_)                       => go(step)(now, in)
+          case Continue(out, interval, next) => ZIO.succeed(Continue(out, interval, go(next)))
         }
 
-    Schedule(loop(self.step))
+    Schedule(go(self.step))
   }
 
   /**
@@ -439,7 +439,7 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
   def intersectWith[Env1 <: Env, In1 <: In, Out2](
     that: Schedule[Env1, In1, Out2]
   )(f: (Interval, Interval) => Interval): Schedule[Env1, In1, (Out, Out2)] = {
-    def loop(
+    def go(
       self: StepFunction[Env, In1, Out],
       that: StepFunction[Env1, In1, Out2]
     ): StepFunction[Env1, In1, (Out, Out2)] = { (now: OffsetDateTime, in: In1) =>
@@ -453,11 +453,11 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
         case (Continue(l, linterval, lnext), Continue(r, rinterval, rnext)) =>
           val combined = f(linterval, rinterval)
 
-          Continue(l -> r, combined, loop(lnext, rnext))
+          Continue(l -> r, combined, go(lnext, rnext))
       }
     }
 
-    Schedule(loop(self.step, that.step))
+    Schedule(go(self.step, that.step))
   }
 
   /**
@@ -494,15 +494,15 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
    * effectful function.
    */
   def mapM[Env1 <: Env, Out2](f: Out => URIO[Env1, Out2]): Schedule[Env1, In, Out2] = {
-    def loop(self: StepFunction[Env, In, Out]): StepFunction[Env1, In, Out2] =
+    def go(self: StepFunction[Env, In, Out]): StepFunction[Env1, In, Out2] =
       (now: OffsetDateTime, in: In) =>
         self(now, in).flatMap {
           case Done(out) => f(out).map(Done(_))
           case Continue(out, interval, next) =>
-            f(out).map(out2 => Continue(out2, interval, loop(next)))
+            f(out).map(out2 => Continue(out2, interval, go(next)))
         }
 
-    Schedule(loop(step))
+    Schedule(go(step))
   }
 
   /**
@@ -517,7 +517,7 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
    * effectual function.
    */
   def modifyDelayM[Env1 <: Env](f: (Out, Duration) => URIO[Env1, Duration]): Schedule[Env1, In, Out] = {
-    def loop(self: StepFunction[Env, In, Out]): StepFunction[Env1, In, Out] =
+    def go(self: StepFunction[Env, In, Out]): StepFunction[Env1, In, Out] =
       (now: OffsetDateTime, in: In) =>
         self(now, in).flatMap {
           case Done(out) => ZIO.succeed(Done(out))
@@ -527,11 +527,11 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
             f(out, delay).map { duration =>
               val newInterval = now.plusNanos(duration.toNanos)
 
-              Continue(out, newInterval, loop(next))
+              Continue(out, newInterval, go(next))
             }
         }
 
-    Schedule(loop(step))
+    Schedule(go(step))
   }
 
   /**
@@ -540,14 +540,14 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
    * that log failures, decisions, or computed values.
    */
   def onDecision[Env1 <: Env](f: Decision[Env, In, Out] => URIO[Env1, Any]): Schedule[Env1, In, Out] = {
-    def loop(self: StepFunction[Env, In, Out]): StepFunction[Env1, In, Out] =
+    def go(self: StepFunction[Env, In, Out]): StepFunction[Env1, In, Out] =
       (now: OffsetDateTime, in: In) =>
         self(now, in).flatMap {
           case Done(out)                     => f(Done(out)) as Done(out)
-          case Continue(out, interval, next) => f(Continue(out, interval, next)) as Continue(out, interval, loop(next))
+          case Continue(out, interval, next) => f(Continue(out, interval, next)) as Continue(out, interval, go(next))
         }
 
-    Schedule(loop(step))
+    Schedule(go(step))
   }
 
   /**
@@ -555,14 +555,14 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
    * schedule does not require any environment.
    */
   def provide(env: Env): Schedule[Any, In, Out] = {
-    def loop(self: StepFunction[Env, In, Out]): StepFunction[Any, In, Out] =
+    def go(self: StepFunction[Env, In, Out]): StepFunction[Any, In, Out] =
       (now: OffsetDateTime, in: In) =>
         self(now, in).map {
           case Done(out)                     => Done(out)
-          case Continue(out, interval, next) => Continue(out, interval, loop(next))
+          case Continue(out, interval, next) => Continue(out, interval, go(next))
         }.provide(env)
 
-    Schedule(loop(step))
+    Schedule(go(step))
   }
 
   /**
@@ -570,14 +570,14 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
    * resulting schedule does not require any environment.
    */
   def provideSome[Env2](f: Env2 => Env): Schedule[Env2, In, Out] = {
-    def loop(self: StepFunction[Env, In, Out]): StepFunction[Env2, In, Out] =
+    def go(self: StepFunction[Env, In, Out]): StepFunction[Env2, In, Out] =
       (now: OffsetDateTime, in: In) =>
         self(now, in).map {
           case Done(out)                     => Done(out)
-          case Continue(out, interval, next) => Continue(out, interval, loop(next))
+          case Continue(out, interval, next) => Continue(out, interval, go(next))
         }.provideSome(f)
 
-    Schedule(loop(step))
+    Schedule(go(step))
   }
 
   /**
@@ -594,7 +594,7 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
   def reconsiderM[Env1 <: Env, In1 <: In, Out2](
     f: Decision[Env, In, Out] => URIO[Env1, Either[Out2, (Out2, Interval)]]
   ): Schedule[Env1, In1, Out2] = {
-    def loop(self: StepFunction[Env, In, Out]): StepFunction[Env1, In1, Out2] =
+    def go(self: StepFunction[Env, In, Out]): StepFunction[Env1, In1, Out2] =
       (now: OffsetDateTime, in: In) =>
         self(now, in).flatMap {
           case d @ Done(_) =>
@@ -605,11 +605,11 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
           case d @ Continue(_, _, next) =>
             f(d).map {
               case Left(out2)              => Done(out2)
-              case Right((out2, interval)) => Continue(out2, interval, loop(next))
+              case Right((out2, interval)) => Continue(out2, interval, go(next))
             }
         }
 
-    Schedule(loop(step))
+    Schedule(go(step))
   }
 
   /**
@@ -629,15 +629,15 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
    * Resets the schedule when the specified predicate on the schedule output evaluates to true.
    */
   final def resetWhen(f: Out => Boolean): Schedule[Env, In, Out] = {
-    def loop(step: StepFunction[Env, In, Out]): StepFunction[Env, In, Out] =
+    def go(step: StepFunction[Env, In, Out]): StepFunction[Env, In, Out] =
       (now: OffsetDateTime, in: In) =>
         step(now, in).flatMap {
           case Done(out) => if (f(out)) self.step(now, in) else ZIO.succeed(Done(out))
           case Continue(out, interval, next) =>
-            if (f(out)) self.step(now, in) else ZIO.succeed(Continue(out, interval, loop(next)))
+            if (f(out)) self.step(now, in) else ZIO.succeed(Continue(out, interval, go(next)))
         }
 
-    Schedule(loop(self.step))
+    Schedule(go(self.step))
   }
 
   /**
@@ -650,7 +650,7 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
    * Runs a schedule using the provided inputs, and collects all outputs.
    */
   def run(now: OffsetDateTime, input: Iterable[In]): URIO[Env, Chunk[Out]] = {
-    def loop(
+    def go(
       now: OffsetDateTime,
       xs: List[In],
       self: StepFunction[Env, In, Out],
@@ -661,11 +661,11 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
         case in :: xs =>
           self(now, in).flatMap {
             case Done(out)                     => ZIO.succeed(acc :+ out)
-            case Continue(out, interval, next) => loop(interval, xs, next, acc :+ out)
+            case Continue(out, interval, next) => go(interval, xs, next, acc :+ out)
           }
       }
 
-    loop(now, input.toList, self.step, Chunk.empty)
+    go(now, input.toList, self.step, Chunk.empty)
   }
 
   /**
@@ -678,28 +678,28 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
    * Returns a new schedule that effectfully processes every input to this schedule.
    */
   def tapInput[Env1 <: Env, In1 <: In](f: In1 => URIO[Env1, Any]): Schedule[Env1, In1, Out] = {
-    def loop(self: StepFunction[Env, In1, Out]): StepFunction[Env1, In1, Out] =
+    def go(self: StepFunction[Env, In1, Out]): StepFunction[Env1, In1, Out] =
       (now: OffsetDateTime, in: In1) =>
         f(in) *> self(now, in).map {
           case Done(out)                     => Done(out)
-          case Continue(out, interval, next) => Continue(out, interval, loop(next))
+          case Continue(out, interval, next) => Continue(out, interval, go(next))
         }
 
-    Schedule(loop(step))
+    Schedule(go(step))
   }
 
   /**
    * Returns a new schedule that effectfully processes every output from this schedule.
    */
   def tapOutput[Env1 <: Env](f: Out => URIO[Env1, Any]): Schedule[Env1, In, Out] = {
-    def loop(self: StepFunction[Env, In, Out]): StepFunction[Env1, In, Out] =
+    def go(self: StepFunction[Env, In, Out]): StepFunction[Env1, In, Out] =
       (now: OffsetDateTime, in: In) =>
         self(now, in).flatMap {
           case Done(out)                     => f(out) as Done(out)
-          case Continue(out, interval, next) => f(out) as Continue(out, interval, loop(next))
+          case Continue(out, interval, next) => f(out) as Continue(out, interval, go(next))
         }
 
-    Schedule(loop(step))
+    Schedule(go(step))
   }
 
   /**
@@ -710,7 +710,7 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
   def unionWith[Env1 <: Env, In1 <: In, Out2](
     that: Schedule[Env1, In1, Out2]
   )(f: (Interval, Interval) => Interval): Schedule[Env1, In1, (Out, Out2)] = {
-    def loop(
+    def go(
       self: StepFunction[Env, In1, Out],
       that: StepFunction[Env1, In1, Out2]
     ): StepFunction[Env1, In1, (Out, Out2)] = { (now: OffsetDateTime, in: In1) =>
@@ -720,17 +720,17 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
       (left zip right).map {
         case (Done(l), Done(r)) => Done(l -> r)
         case (Done(l), Continue(r, rinterval, rnext)) =>
-          Continue(l -> r, rinterval, loop(StepFunction.done(l), rnext))
+          Continue(l -> r, rinterval, go(StepFunction.done(l), rnext))
         case (Continue(l, linterval, lnext), Done(r)) =>
-          Continue(l -> r, linterval, loop(lnext, StepFunction.done(r)))
+          Continue(l -> r, linterval, go(lnext, StepFunction.done(r)))
         case (Continue(l, linterval, lnext), Continue(r, rinterval, rnext)) =>
           val combined = f(linterval, rinterval)
 
-          Continue(l -> r, combined, loop(lnext, rnext))
+          Continue(l -> r, combined, go(lnext, rnext))
       }
     }
 
-    Schedule(loop(self.step, that.step))
+    Schedule(go(self.step, that.step))
   }
 
   /**
@@ -921,20 +921,20 @@ object Schedule {
    * first step.
    */
   val elapsed: Schedule[Any, Any, Duration] = {
-    def loop(start: Option[OffsetDateTime]): StepFunction[Any, Any, Duration] =
+    def go(start: Option[OffsetDateTime]): StepFunction[Any, Any, Duration] =
       (now: OffsetDateTime, _: Any) =>
         ZIO.succeed {
           start match {
-            case None => Decision.Continue(Duration.Zero, now, loop(Some(now)))
+            case None => Decision.Continue(Duration.Zero, now, go(Some(now)))
             case Some(start) =>
               val duration =
                 Duration(now.toInstant.toEpochMilli() - start.toInstant.toEpochMilli(), TimeUnit.MILLISECONDS)
 
-              Decision.Continue(duration, now, loop(Some(start)))
+              Decision.Continue(duration, now, go(Some(start)))
           }
         }
 
-    Schedule(loop(None))
+    Schedule(go(None))
   }
 
   /**
@@ -977,7 +977,7 @@ object Schedule {
 
     val intervalMillis = interval.toMillis()
 
-    def loop(state: Option[State], n: Long): StepFunction[Any, Any, Long] =
+    def go(state: Option[State], n: Long): StepFunction[Any, Any, Long] =
       (now: OffsetDateTime, _: Any) =>
         ZIO.succeed(state match {
           case Some(State(startMillis, lastRun)) =>
@@ -992,7 +992,7 @@ object Schedule {
             Continue(
               n + 1L,
               nextRun,
-              loop(Some(State(startMillis, nextRun.toInstant().toEpochMilli())), n + 1L)
+              go(Some(State(startMillis, nextRun.toInstant().toEpochMilli())), n + 1L)
             )
           case None =>
             val nowMillis = now.toInstant.toEpochMilli()
@@ -1001,11 +1001,11 @@ object Schedule {
             Continue(
               n + 1L,
               nextRun,
-              loop(Some(State(nowMillis, nextRun.toInstant().toEpochMilli())), n + 1L)
+              go(Some(State(nowMillis, nextRun.toInstant().toEpochMilli())), n + 1L)
             )
         })
 
-    Schedule(loop(None, 0L))
+    Schedule(go(None, 0L))
   }
 
   /**
@@ -1050,10 +1050,9 @@ object Schedule {
    * A schedule that always recurs, which returns inputs as outputs.
    */
   def identity[A]: Schedule[Any, A, A] = {
-    lazy val loop: StepFunction[Any, A, A] = (now: OffsetDateTime, in: A) =>
-      ZIO.succeed(Decision.Continue(in, now, loop))
+    lazy val go: StepFunction[Any, A, A] = (now: OffsetDateTime, in: A) => ZIO.succeed(Decision.Continue(in, now, go))
 
-    Schedule(loop)
+    Schedule(go)
   }
 
   /**
@@ -1104,10 +1103,10 @@ object Schedule {
    * Unfolds a schedule that repeats one time from the specified state and iterator.
    */
   def unfold[A](a: => A)(f: A => A): Schedule[Any, Any, A] = {
-    def loop(a: A): StepFunction[Any, Any, A] =
-      (now, _) => ZIO.succeed(Decision.Continue(a, now, loop(f(a))))
+    def go(a: A): StepFunction[Any, Any, A] =
+      (now, _) => ZIO.succeed(Decision.Continue(a, now, go(f(a))))
 
-    Schedule((now, _) => ZIO.effectTotal(a).map(a => Decision.Continue(a, now, loop(f(a)))))
+    Schedule((now, _) => ZIO.effectTotal(a).map(a => Decision.Continue(a, now, go(f(a)))))
   }
 
   /**
@@ -1126,7 +1125,7 @@ object Schedule {
 
     val millis = interval.toMillis
 
-    def loop(startMillis: Option[Long], n: Long): StepFunction[Any, Any, Long] =
+    def go(startMillis: Option[Long], n: Long): StepFunction[Any, Any, Long] =
       (now: OffsetDateTime, _: Any) =>
         ZIO.succeed(startMillis match {
           case Some(startMillis) =>
@@ -1136,17 +1135,17 @@ object Schedule {
                 millis - (now.toInstant.toEpochMilli - startMillis) % millis,
                 java.time.temporal.ChronoUnit.MILLIS
               ),
-              loop(Some(startMillis), n + 1L)
+              go(Some(startMillis), n + 1L)
             )
           case None =>
             Continue(
               n + 1L,
               now.plus(millis, java.time.temporal.ChronoUnit.MILLIS),
-              loop(Some(now.toInstant.toEpochMilli), n + 1)
+              go(Some(now.toInstant.toEpochMilli), n + 1)
             )
         })
 
-    Schedule(loop(None, 0L))
+    Schedule(go(None, 0L))
   }
 
   /**
@@ -1158,7 +1157,7 @@ object Schedule {
    */
   def secondOfMinute(second: Int): Schedule[Any, Any, Long] = {
 
-    def loop(n: Long, initialLoop: Boolean): StepFunction[Any, Any, Long] =
+    def go(n: Long, initialLoop: Boolean): StepFunction[Any, Any, Long] =
       (now: OffsetDateTime, _: Any) =>
         if (second >= 60 || second < 0)
           ZIO.die(
@@ -1170,11 +1169,11 @@ object Schedule {
               n + 1,
               calculateNextOffset(initialLoop, now, second, SECOND_OF_MINUTE)
                 .truncatedTo(SECONDS),
-              loop(n + 1L, initialLoop = false)
+              go(n + 1L, initialLoop = false)
             )
           )
 
-    Schedule(loop(0L, initialLoop = true))
+    Schedule(go(0L, initialLoop = true))
 
   }
 
@@ -1187,7 +1186,7 @@ object Schedule {
    */
   def minuteOfHour(minute: Int): Schedule[Any, Any, Long] = {
 
-    def loop(n: Long, initialLoop: Boolean): StepFunction[Any, Any, Long] =
+    def go(n: Long, initialLoop: Boolean): StepFunction[Any, Any, Long] =
       (now: OffsetDateTime, _: Any) =>
         if (minute >= 60 || minute < 0)
           ZIO.die(new IllegalArgumentException(s"Invalid argument in `minuteOfHour($minute)`. Must be in range 0...59"))
@@ -1197,11 +1196,11 @@ object Schedule {
               n + 1,
               calculateNextOffset(initialLoop, now, minute, MINUTE_OF_HOUR)
                 .truncatedTo(MINUTES),
-              loop(n + 1L, initialLoop = false)
+              go(n + 1L, initialLoop = false)
             )
           )
 
-    Schedule(loop(0L, initialLoop = true))
+    Schedule(go(0L, initialLoop = true))
 
   }
 
@@ -1214,7 +1213,7 @@ object Schedule {
    */
   def hourOfDay(hour: Int): Schedule[Any, Any, Long] = {
 
-    def loop(n: Long, initialLoop: Boolean): StepFunction[Any, Any, Long] =
+    def go(n: Long, initialLoop: Boolean): StepFunction[Any, Any, Long] =
       (now: OffsetDateTime, _: Any) =>
         if (hour >= 24 || hour < 0)
           ZIO.die(new IllegalArgumentException(s"Invalid argument in `hourOfDay($hour)`. Must be in range 0...23"))
@@ -1224,11 +1223,11 @@ object Schedule {
               n + 1,
               calculateNextOffset(initialLoop, now, hour, HOUR_OF_DAY)
                 .truncatedTo(HOURS),
-              loop(n + 1L, initialLoop = false)
+              go(n + 1L, initialLoop = false)
             )
           )
 
-    Schedule(loop(0L, initialLoop = true))
+    Schedule(go(0L, initialLoop = true))
 
   }
 
@@ -1241,7 +1240,7 @@ object Schedule {
    */
   def dayOfWeek(day: Int): Schedule[Any, Any, Long] = {
 
-    def loop(n: Long, initialLoop: Boolean): StepFunction[Any, Any, Long] =
+    def go(n: Long, initialLoop: Boolean): StepFunction[Any, Any, Long] =
       (now: OffsetDateTime, _: Any) =>
         if (day > 7 || day < 1)
           ZIO.die(new IllegalArgumentException(s"Invalid argument in `dayOfWeek($day)`. Must be in range 1...7"))
@@ -1250,11 +1249,11 @@ object Schedule {
             Decision.Continue(
               n + 1,
               calculateNextOffset(initialLoop, now, day, DAY_OF_WEEK).truncatedTo(DAYS),
-              loop(n + 1L, initialLoop = false)
+              go(n + 1L, initialLoop = false)
             )
           )
 
-    Schedule(loop(0L, initialLoop = true))
+    Schedule(go(0L, initialLoop = true))
 
   }
 
@@ -1290,7 +1289,7 @@ object Schedule {
 
     }
 
-    def loop(n: Long, initialLoop: Boolean): StepFunction[Any, Any, Long] =
+    def go(n: Long, initialLoop: Boolean): StepFunction[Any, Any, Long] =
       (now: OffsetDateTime, _: Any) =>
         if (day > 31 || day < 1)
           ZIO.die(new IllegalArgumentException(s"Invalid argument in `dayOfMonth($day)`. Must be in range 1...31"))
@@ -1299,11 +1298,11 @@ object Schedule {
             Decision.Continue(
               n + 1,
               calculateNextDate(initialLoop, now).truncatedTo(DAYS),
-              loop(n + 1L, initialLoop = false)
+              go(n + 1L, initialLoop = false)
             )
           )
 
-    Schedule(loop(0L, initialLoop = true))
+    Schedule(go(0L, initialLoop = true))
 
   }
 

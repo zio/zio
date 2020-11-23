@@ -119,16 +119,16 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable with Boot
           case Ignored      => notifier.fireTestIgnored(label, path)
         }
       )
-    def loop(specCase: ZSpecCase, path: Vector[String] = Vector.empty): ZSpecCase =
+    def go(specCase: ZSpecCase, path: Vector[String] = Vector.empty): ZSpecCase =
       specCase match {
         case TestCase(label, test, annotations) => TestCase(label, instrumentTest(label, path, test), annotations)
         case SuiteCase(label, specs, es) =>
           @silent("inferred to be `Any`")
           val instrumented =
-            specs.flatMap(ZManaged.foreach(_)(s => ZManaged.succeedNow(Spec(loop(s.caseValue, path :+ label)))))
+            specs.flatMap(ZManaged.foreach(_)(s => ZManaged.succeedNow(Spec(go(s.caseValue, path :+ label)))))
           SuiteCase(label, instrumented.map(_.toVector), es)
       }
-    Spec(loop(zspec.caseValue))
+    Spec(go(zspec.caseValue))
   }
 
   private def filteredSpec: ZSpec[spec.Environment, spec.Failure] =

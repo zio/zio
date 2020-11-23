@@ -136,10 +136,10 @@ package object random {
           if ((n & m) == 0L)
             UIO.succeedNow(r & m)
           else {
-            def loop(u: Long): UIO[Long] =
-              if (u + m - u % m < 0L) nextLong.flatMap(r => loop(r >>> 1))
+            def go(u: Long): UIO[Long] =
+              if (u + m - u % m < 0L) nextLong.flatMap(r => go(r >>> 1))
               else UIO.succeedNow(u % n)
-            loop(r >>> 1)
+            go(r >>> 1)
           }
         }
       }
