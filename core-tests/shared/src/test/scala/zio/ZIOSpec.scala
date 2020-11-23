@@ -3622,7 +3622,7 @@ object ZIOSpec extends ZIOBaseSpec {
         v2 <- f2.join
       } yield v1 + v2
 
-  def AsyncUnit[E] : IO[E,Unit] = IO.effectAsync[E, Unit](_(IO.unit))
+  def AsyncUnit[E]: IO[E, Unit] = IO.effectAsync[E, Unit](_(IO.unit))
 
   type Logging = Has[Logging.Service]
 
