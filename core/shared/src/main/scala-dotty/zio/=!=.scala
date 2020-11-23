@@ -17,7 +17,7 @@
 package zio
 
 import scala.annotation.implicitNotFound
-import scala.implicits.Not
+import scala.util.Not
 
 /**
  * Evidence type `A` is not equal to type `B`.
