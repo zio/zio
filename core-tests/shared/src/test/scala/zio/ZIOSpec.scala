@@ -3,7 +3,6 @@ package zio
 import scala.annotation.tailrec
 import scala.util.{ Failure, Success, Try }
 import scala.concurrent.ExecutionContext
-
 import zio.Cause._
 import zio.LatchOps._
 import zio.clock.Clock
@@ -3623,7 +3622,7 @@ object ZIOSpec extends ZIOBaseSpec {
         v2 <- f2.join
       } yield v1 + v2
 
-  def AsyncUnit[E] = IO.effectAsync[E, Unit](_(IO.unit))
+  def AsyncUnit[E] : IO[E,Unit] = IO.effectAsync[E, Unit](_(IO.unit))
 
   type Logging = Has[Logging.Service]
 
