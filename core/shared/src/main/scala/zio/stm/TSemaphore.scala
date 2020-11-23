@@ -16,31 +16,43 @@
 
 package zio.stm
 
+import zio.stm.ZSTM.internal.TExit
+
 final class TSemaphore private (val permits: TRef[Long]) extends AnyVal {
   def acquire: USTM[Unit] = acquireN(1L)
 
   def acquireN(n: Long): USTM[Unit] =
-    for {
-      _     <- assertNonNegative(n)
-      value <- permits.get
-      _     <- STM.check(value >= n)
-      _     <- permits.set(value - n)
-    } yield ()
+    new ZSTM((journal, _, _, _) => {
+      assertNonNegative(n)
+
+      val value = permits.unsafeGet(journal)
+
+      if (value < n) TExit.Retry
+      else {
+        permits.unsafeSet(journal, value - n)
+        TExit.unit
+      }
+    })
 
   def available: USTM[Long] = permits.get
 
   def release: USTM[Unit] = releaseN(1L)
 
   def releaseN(n: Long): USTM[Unit] =
-    assertNonNegative(n) *> permits.update(_ + n).unit
+    new ZSTM((journal, _, _, _) => {
+      assertNonNegative(n)
+
+      val current = permits.unsafeGet(journal)
+      permits.unsafeSet(journal, current + n)
+
+      TExit.unit
+    })
 
   def withPermit[E, B](stm: STM[E, B]): STM[E, B] =
     acquire *> stm <* release
 
-  private def assertNonNegative(n: Long): USTM[Unit] =
-    if (n < 0)
-      STM.die(new RuntimeException(s"Unexpected negative value `$n` passed to acquireN or releaseN."))
-    else STM.unit
+  private def assertNonNegative(n: Long): Unit =
+    require(n >= 0, s"Unexpected negative value `$n` passed to acquireN or releaseN.")
 }
 
 object TSemaphore {
