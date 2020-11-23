@@ -14,7 +14,8 @@ object MimaSettings {
       mimaBinaryIssueFilters ++= Seq(
         exclude[Problem]("zio.internal.*"),
         exclude[DirectMissingMethodProblem]("zio.ZManaged.reserve"),
-        exclude[DirectMissingMethodProblem]("zio.ZIO#Fork.this")
+        exclude[DirectMissingMethodProblem]("zio.ZIO#Fork.this"),
+        exclude[IncompatibleResultTypeProblem]("zio.stm.TSemaphore.assertNonNegative$extension")
       ),
       mimaFailOnProblem := failOnProblem
     )
