@@ -55,6 +55,7 @@ _These articles reflect the state of ZIO at the time of their publication. The c
 ## Talks
 
 - [Redis Streams with ZIO](https://youtu.be/jJnco6sMZQY) by [Leszek Gruchała](https://twitter.com/leszekgruchala) (October 2020)
+- [Declarative Concurrency with ZIO STM](https://www.youtube.com/watch?v=MEH7hQmGK5M) by Dejan Mijic (June 2020)
 - [FP to the Max](https://www.youtube.com/watch?v=sxudIMiOo68) by John De Goes (July 2018)
 - [Modern Data Driven Applications with ZIO Streams](https://youtu.be/bbss7elSfxs) by Itamar Ravid (December 2019)
 - Systematic error management in application - We ported Rudder to ZIO: [video in French](https://www.youtube.com/watch?v=q0PlcgR5M1Q), [slides in English](https://speakerdeck.com/fanf42/systematic-error-management-we-ported-rudder-to-zio) by François Armand (Scala.io, October 2019)

@@ -1,5 +1,5 @@
 ---
-id: datatypes_treentrant_lock
+id: datatypes_treentrantlock
 title:  "TReentrantLock"
 ---
 

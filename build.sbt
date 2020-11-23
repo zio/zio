@@ -460,9 +460,6 @@ lazy val jsdocs = project
 lazy val docs = project.module
   .in(file("zio-docs"))
   .settings(
-    // skip 2.13 mdoc until mdoc is available for 2.13
-    crossScalaVersions -= Scala213,
-    //
     skip.in(publish) := true,
     moduleName := "zio-docs",
     unusedCompileDependenciesFilter -= moduleFilter("org.scalameta", "mdoc"),
@@ -478,16 +475,16 @@ lazy val docs = project.module
       "dev.zio"            %% "zio-interop-monix"           % "3.0.0.0-RC7",
       "dev.zio"            %% "zio-interop-scalaz7x"        % "7.2.27.0-RC9",
       "dev.zio"            %% "zio-interop-reactivestreams" % "1.3.0.7-2",
-      "dev.zio"            %% "zio-interop-twitter"         % "20.9.0.0"
+      "dev.zio"            %% "zio-interop-twitter"         % "20.10.0.0"
     )
   )
   .settings(macroExpansionSettings)
-  //.settings(mdocJS := Some(jsdocs)) // Disabled until mdoc supports ScalaJS 1.1
+  .settings(mdocJS := Some(jsdocs))
   .dependsOn(
     coreJVM,
     streamsJVM,
     testJVM,
-    testMagnoliaJVM
-    // , coreJS // Disabled until mdoc supports ScalaJS 1.1
+    testMagnoliaJVM,
+    coreJS
   )
   .enablePlugins(MdocPlugin, DocusaurusPlugin)
