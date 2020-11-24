@@ -13,7 +13,7 @@ object TRandomSpec extends ZIOBaseSpec {
   implicit val FloatOrdering: Ordering[Float] =
     (l, r) => java.lang.Float.compare(l, r)
 
-  val spec: ZSpec[Environment, Failure] = suite("TRandomSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("TRandomSpec")(
     testM("nextDoubleBetween generates doubles in specified range") {
       checkM(genDoubles) { case (min, max) =>
         for {
@@ -46,7 +46,7 @@ object TRandomSpec extends ZIOBaseSpec {
           assert(n)(isLessThan(max))
       }
     }
-  ).provideSomeLayer[Environment](TRandom.live)
+  ).provideCustomLayer(TRandom.live)
 
   val genDoubles: Gen[Random, (Double, Double)] =
     for {
