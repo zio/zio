@@ -35,12 +35,14 @@ private[test] object Macros {
 
   private val fieldInAnonymousClassPrefix = "$anon.this."
 
+  def assertImpl[A](value: => A)(assertion: Assertion[A]): TestResult = zio.test.assertImpl(value)(assertion)
+
   def assert_impl(c: blackbox.Context)(expr: c.Tree)(assertion: c.Tree): c.Tree = {
     import c.universe._
     val fileName = c.enclosingPosition.source.path
     val line     = c.enclosingPosition.line
     val code     = s"${showCode(expr).stripPrefix(fieldInAnonymousClassPrefix)}"
-    val label    = s"expression: `$code` (at $fileName:$line))"
-    q"_root_.zio.test.assertRuntime($expr)($assertion.label($label))"
+    val label    = s"assert(`$code`) (at $fileName:$line)"
+    q"_root_.zio.test.CompileVariants.assertImpl($expr)($assertion.label($label))"
   }
 }

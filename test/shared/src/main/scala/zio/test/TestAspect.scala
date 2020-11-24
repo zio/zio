@@ -348,7 +348,7 @@ object TestAspect extends TimeoutVariants {
         test.foldM(
           failure =>
             if (assertion.test(failure)) ZIO.succeedNow(TestSuccess.Succeeded(BoolAlgebra.unit))
-            else ZIO.fail(TestFailure.assertion(assertRuntime(failure)(assertion))),
+            else ZIO.fail(TestFailure.assertion(assertImpl(failure)(assertion))),
           _ => ZIO.fail(TestFailure.die(new RuntimeException("did not fail as expected")))
         )
     }

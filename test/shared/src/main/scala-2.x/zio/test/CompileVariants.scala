@@ -31,10 +31,18 @@ trait CompileVariants {
   final def typeCheck(code: String): UIO[Either[String, Unit]] =
     macro Macros.typeCheck_impl
 
-  def assertRuntime[A](value: => A)(assertion: Assertion[A]): TestResult
+  private[test] def assertImpl[A](value: => A)(assertion: Assertion[A]): TestResult
 
   /**
    * Checks the assertion holds for the given value.
    */
   def assert[A](expr: => A)(assertion: Assertion[A]): TestResult = macro Macros.assert_impl
+}
+
+object CompileVariants {
+
+  /**
+   * just a proxy to call package private assertRuntime from the macro
+   */
+  def assertImpl[A](value: => A)(assertion: Assertion[A]): TestResult = zio.test.assertImpl(value)(assertion)
 }

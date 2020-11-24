@@ -42,20 +42,26 @@ trait CompileVariants {
   /**
    * Checks the assertion holds for the given value.
    */
-  def assertRuntime[A](value: => A)(assertion: Assertion[A]): TestResult
+  private[test] def assertImpl[A](value: => A)(assertion: Assertion[A]): TestResult
 
-  inline def assert[A](inline value: => A)(inline assertion: Assertion[A]): TestResult = ${Macros.impl('value)('assertion)}
+  inline def assert[A](inline value: => A)(inline assertion: Assertion[A]): TestResult = ${Macros.assert_impl('value)('assertion)}
 }
 
+object CompileVariants {
+  /**
+   * just a proxy to call package private assertRuntime from the macro
+   */
+  def assertImpl[A](value: => A)(assertion: Assertion[A]): TestResult = zio.test.assertImpl(value)(assertion)
+}
 
 object Macros {
   import scala.quoted._
-  def impl[A](value: Expr[A])(assertion: Expr[Assertion[A]])(using ctx: QuoteContext, tp: Type[A]): Expr[TestResult] = {
+  def assert_impl[A](value: Expr[A])(assertion: Expr[Assertion[A]])(using ctx: QuoteContext, tp: Type[A]): Expr[TestResult] = {
     import ctx.tasty._
     val path = rootPosition.sourceFile.jpath.toString
     val line = rootPosition.startLine + 1
     val code = value.show
-    val label = s"expression: `$code` (at $path:$line))"
-    '{_root_.zio.test.assertRuntime[A]($value)(${assertion}.label(${Expr(label)}))}
+    val label = s"assert(`$code`) (at $path:$line)"
+    '{_root_.zio.test.CompileVariants.assertImpl[A]($value)(${assertion}.label(${Expr(label)}))}
   }
 }
