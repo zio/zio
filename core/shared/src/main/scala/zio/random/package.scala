@@ -151,7 +151,7 @@ package object random {
       for {
         buffer <- ZIO.effectTotal {
                     val buffer = new scala.collection.mutable.ArrayBuffer[A]
-                    buffer += collection
+                    buffer ++= collection
                   }
         swap = (i1: Int, i2: Int) =>
                  ZIO.effectTotal {
