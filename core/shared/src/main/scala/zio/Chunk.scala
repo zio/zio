@@ -517,7 +517,7 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
    * or iterating over the elements of the chunk in lower level, performance
    * sensitive code unless you really only need the first element of the chunk.
    */
-  override final def head: A =
+  override def head: A =
     self(0)
 
   /**
