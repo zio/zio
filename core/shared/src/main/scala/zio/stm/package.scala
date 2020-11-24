@@ -17,6 +17,7 @@
 package zio
 
 package object stm extends EitherCompat {
+  type TRandom = Has[TRandom.Service]
 
   type RSTM[-R, +A]  = ZSTM[R, Throwable, A]
   type URSTM[-R, +A] = ZSTM[R, Nothing, A]

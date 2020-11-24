@@ -165,7 +165,7 @@ package object random {
   }
 
   /**
-   * Generates a pseudo-random boolean.
+   * generates a pseudo-random boolean.
    */
   val nextBoolean: URIO[Random, Boolean] =
     ZIO.accessM(_.get.nextBoolean)
