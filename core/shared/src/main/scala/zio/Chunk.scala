@@ -511,6 +511,16 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
   }
 
   /**
+   * Returns the first element of this chunk. Note that this method is partial
+   * in that it will throw an exception if the chunk is empty. Consider using
+   * `headOption` to explicitly handle the possibility that the chunk is empty
+   * or iterating over the elements of the chunk in lower level, performance
+   * sensitive code unless you really only need the first element of the chunk.
+   */
+  override def head: A =
+    self(0)
+
+  /**
    * Returns the first element of this chunk if it exists.
    */
   override final def headOption: Option[A] =
