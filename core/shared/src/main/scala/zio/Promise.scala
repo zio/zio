@@ -59,7 +59,7 @@ final class Promise[E, A] private (private val state: AtomicReference[State[E, A
             case Pending(joiners, nextKey) =>
               result = Left(interruptJoiner(nextKey))
 
-              Pending(joiners + (nextKey -> k), next(nextKey))
+              Pending(joiners.updated(nextKey, k), next(nextKey))
             case s @ Done(value) =>
               result = Right(value)
 
@@ -119,7 +119,7 @@ final class Promise[E, A] private (private val state: AtomicReference[State[E, A
 
         val newState = oldState match {
           case Pending(joiners, _) =>
-            action = () => { joiners.foreach(_._2(io)); true }
+            action = () => { joiners.foreachValue(f => { val _ = f(io) }); true }
 
             Done(io)
 
@@ -203,15 +203,15 @@ final class Promise[E, A] private (private val state: AtomicReference[State[E, A
   }
 
   private[zio] def unsafeDone(io: IO[E, A]): Unit = {
-    var retry: Boolean                     = true
-    var joiners: Iterable[IO[E, A] => Any] = null
+    var retry: Boolean                    = true
+    var joiners: LongMap[IO[E, A] => Any] = null
 
     while (retry) {
       val oldState = state.get
 
       val newState = oldState match {
         case Pending(js, _) =>
-          joiners = js.values
+          joiners = js
           Done(io)
         case _ => oldState
       }
@@ -219,7 +219,7 @@ final class Promise[E, A] private (private val state: AtomicReference[State[E, A
       retry = !state.compareAndSet(oldState, newState)
     }
 
-    if (joiners ne null) joiners.foreach(_(io))
+    if (joiners ne null) joiners.foreachValue(f => { val _ = f(io) })
   }
 
   private def next(l: Long): Long =

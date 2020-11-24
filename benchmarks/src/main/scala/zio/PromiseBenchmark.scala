@@ -53,7 +53,7 @@ class PromiseBenchmark {
     for {
       promise <- Promise.make[Nothing, Unit]
       joiners <- ZIO.loop(1)(_ <= n, _ + 1)(_ => promise.await.fork)
-      _       <- UIO.effectTotal(promise.unsafeDone(IO.succeedNow(())))
+      _       <- UIO.effectTotal(promise.unsafeDone(IO.unit))
       _       <- ZIO.foreach_(joiners)(_.join)
     } yield ()
   }
