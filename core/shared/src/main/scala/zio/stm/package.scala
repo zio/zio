@@ -25,4 +25,5 @@ package object stm extends EitherCompat {
   type TaskSTM[+A]   = ZSTM[Any, Throwable, A]
   type TRef[A]       = ZTRef[Nothing, Nothing, A, A]
   type ETRef[+E, A]  = ZTRef[E, E, A, A]
+
 }
