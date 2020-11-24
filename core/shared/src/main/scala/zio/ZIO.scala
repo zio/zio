@@ -1508,37 +1508,43 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     }
 
   /**
-   * Repeats this effect until its error satisfies the specified predicate.
+   * Repeats this effect until its value satisfies the specified predicate
+   * or until the first failure.
    */
   final def repeatUntil(f: A => Boolean): ZIO[R, E, A] =
     repeatUntilM(a => ZIO.succeed(f(a)))
 
   /**
-   * Repeats this effect until its error equals the predicate.
+   * Repeats this effect until its value is equal to the specified value
+   * or until the first failure.
    */
   final def repeatUntilEquals[A1 >: A](a: => A1): ZIO[R, E, A1] =
     repeatUntil(_ == a)
 
   /**
-   * Repeats this effect until its error satisfies the specified effectful predicate.
+   * Repeats this effect until its value satisfies the specified effectful predicate
+   * or until the first failure.
    */
   final def repeatUntilM[R1 <: R](f: A => URIO[R1, Boolean]): ZIO[R1, E, A] =
     self.flatMap(a => f(a).flatMap(b => if (b) ZIO.succeedNow(a) else ZIO.yieldNow *> repeatUntilM(f)))
 
   /**
-   * Repeats this effect while its error satisfies the specified predicate.
+   * Repeats this effect while its value satisfies the specified predicate
+   * or until the first failure.
    */
   final def repeatWhile(f: A => Boolean): ZIO[R, E, A] =
     repeatWhileM(a => ZIO.succeed(f(a)))
 
   /**
-   * Repeats this effect for as long as the error equals the predicate.
+   * Repeats this effect for as long as its value is equal to the specified value
+   * or until the first failure.
    */
   final def repeatWhileEquals[A1 >: A](a: => A1): ZIO[R, E, A1] =
     repeatWhile(_ == a)
 
   /**
-   * Repeats this effect while its error satisfies the specified effectful predicate.
+   * Repeats this effect while its value satisfies the specified effectful predicate
+   * or until the first failure.
    */
   final def repeatWhileM[R1 <: R](f: A => URIO[R1, Boolean]): ZIO[R1, E, A] =
     repeatUntilM(e => f(e).map(!_))
@@ -1600,7 +1606,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     retryUntilM(e => ZIO.succeed(f(e)))
 
   /**
-   * Retries this effect until its error equals the predicate.
+   * Retries this effect until its error is equal to the specified error.
    */
   final def retryUntilEquals[E1 >: E](e: => E1)(implicit ev: CanFail[E1]): ZIO[R, E1, A] =
     retryUntil(_ == e)
@@ -1618,7 +1624,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     retryWhileM(e => ZIO.succeed(f(e)))
 
   /**
-   * Retries this effect for as long as the error equals the predicate.
+   * Retries this effect for as long as its error is equal to the specified error.
    */
   final def retryWhileEquals[E1 >: E](e: => E1)(implicit ev: CanFail[E1]): ZIO[R, E1, A] =
     retryWhile(_ == e)
