@@ -32,6 +32,7 @@ object TestingSupport {
   lazy val green: String => String               = colored(Console.GREEN) _
   lazy val cyan: String => String                = colored(Console.CYAN) _
   lazy val blue: String => String                = colored(Console.BLUE) _
+  lazy val yellow: String => String              = colored(Console.YELLOW) _
 
   def reset(str: String): String =
     s"${Console.RESET}$str"

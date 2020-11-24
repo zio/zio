@@ -85,7 +85,8 @@ object ZTestFrameworkSpec {
           s"${reset("info:")} ${red("- some suite")} - ignored: 1",
           s"${reset("info:")}   ${red("- failing test")}",
           s"${reset("info:")}     ${blue("1")} did not satisfy ${cyan("equalTo(2)")}",
-          s"${reset("info:")}   ${green("+")} passing test"
+          s"${reset("info:")}   ${green("+")} passing test",
+          s"${reset("info:")}   ${yellow("-")} ${yellow("ignored test")} - ignored: 1"
         ).mkString("\n")
       )
     )
