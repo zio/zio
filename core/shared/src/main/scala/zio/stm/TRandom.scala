@@ -1,7 +1,7 @@
 package zio.stm
 
-import zio.random.Random
 import zio._
+import zio.random.Random
 
 object TRandom extends Serializable {
 
