@@ -119,7 +119,11 @@ final class Promise[E, A] private (private val state: AtomicReference[State[E, A
 
         val newState = oldState match {
           case Pending(joiners, _) =>
-            action = () => { joiners.foreachValue(f => { val _ = f(io) }); true }
+            action = () => {
+              joiners.foreachValue { f =>
+                val _ = f(io)
+              }; true
+            }
 
             Done(io)
 
@@ -219,7 +223,9 @@ final class Promise[E, A] private (private val state: AtomicReference[State[E, A
       retry = !state.compareAndSet(oldState, newState)
     }
 
-    if (joiners ne null) joiners.foreachValue(f => { val _ = f(io) })
+    if (joiners ne null) joiners.foreachValue { f =>
+      val _ = f(io)
+    }
   }
 
   private def next(l: Long): Long =
