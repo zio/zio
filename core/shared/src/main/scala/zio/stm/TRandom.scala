@@ -1,7 +1,7 @@
 package zio.stm
 
 import zio.random.Random
-import zio.{ BuildFrom, BuildFromOps, Chunk, ZLayer, random }
+import zio._
 
 object TRandom extends Serializable {
 
