@@ -149,8 +149,10 @@ package object random {
       collection: Collection[A]
     )(implicit bf: BuildFrom[Collection[A], A, Collection[A]]): UIO[Collection[A]] =
       for {
-        buffer <- ZIO.effectTotal(new scala.collection.mutable.ArrayBuffer[A])
-        _      <- ZIO.effectTotal(buffer ++= collection)
+        buffer <- ZIO.effectTotal {
+                    val buffer = new scala.collection.mutable.ArrayBuffer[A]
+                    buffer += collection
+                  }
         swap = (i1: Int, i2: Int) =>
                  ZIO.effectTotal {
                    val tmp = buffer(i1)
@@ -159,7 +161,7 @@ package object random {
                    buffer
                  }
         _ <-
-          ZIO.foreach((collection.size to 2 by -1).toList)((n: Int) => nextIntBounded(n).flatMap(k => swap(n - 1, k)))
+          ZIO.foreach_((collection.size to 2 by -1).toList)((n: Int) => nextIntBounded(n).flatMap(k => swap(n - 1, k)))
       } yield bf.fromSpecific(collection)(buffer)
   }
 
