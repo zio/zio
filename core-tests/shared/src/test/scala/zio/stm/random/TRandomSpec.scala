@@ -1,4 +1,4 @@
-package zio.stm
+package zio.stm.random
 
 import zio.ZIOBaseSpec
 import zio.random.Random
@@ -17,7 +17,7 @@ object TRandomSpec extends ZIOBaseSpec {
     testM("nextDoubleBetween generates doubles in specified range") {
       checkM(genDoubles) { case (min, max) =>
         for {
-          n <- TRandom.nextDoubleBetween(min, max).commit
+          n <- nextDoubleBetween(min, max).commit
         } yield assert(n)(isGreaterThanEqualTo(min)) &&
           assert(n)(isLessThan(max))
       }
@@ -25,7 +25,7 @@ object TRandomSpec extends ZIOBaseSpec {
     testM("nextFloatBetween generates floats in specified range") {
       checkM(genFloats) { case (min, max) =>
         for {
-          n <- TRandom.nextFloatBetween(min, max).commit
+          n <- nextFloatBetween(min, max).commit
         } yield assert(n)(isGreaterThanEqualTo(min)) &&
           assert(n)(isLessThan(max))
       }
@@ -33,7 +33,7 @@ object TRandomSpec extends ZIOBaseSpec {
     testM("nextIntBetween generates integers in specified range") {
       checkM(genInts) { case (min, max) =>
         for {
-          n <- TRandom.nextIntBetween(min, max).commit
+          n <- nextIntBetween(min, max).commit
         } yield assert(n)(isGreaterThanEqualTo(min)) &&
           assert(n)(isLessThan(max))
       }
@@ -41,7 +41,7 @@ object TRandomSpec extends ZIOBaseSpec {
     testM("nextLongBetween generates longs in specified range") {
       checkM(genLongs) { case (min, max) =>
         for {
-          n <- TRandom.nextLongBetween(min, max).commit
+          n <- nextLongBetween(min, max).commit
         } yield assert(n)(isGreaterThanEqualTo(min)) &&
           assert(n)(isLessThan(max))
       }
