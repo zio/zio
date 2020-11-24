@@ -3,12 +3,12 @@ id: interop_reactivestreams
 title:  "Reactive Streams"
 ---
 
-Checkout the `interop-reactiveStreams` module for inter-operation support.
+Checkout the `interop-reactive-streams` module for inter-operation support.
 
 ## Reactive Streams `Producer` and `Subscriber`
 
 **ZIO** integrates with [Reactive Streams](http://reactivestreams.org) by providing conversions from `zio.stream.Stream` to `org.reactivestreams.Publisher`
-and from `zio.stream.Sink` to `org.reactivestreams.Subscriber` and vice versa. Simply import `import zio.interop.reactiveStreams._` to make the 
+and from `zio.stream.Sink` to `org.reactivestreams.Subscriber` and vice versa. Simply import `import zio.interop.reactivestreams._` to make the 
 conversions available.
 
 ## Examples
@@ -18,7 +18,7 @@ First, let's get a few imports out of the way.
 ```scala
 import org.reactivestreams.example.unicast._
 import zio._
-import zio.interop.reactiveStreams._
+import zio.interop.reactivestreams._
 import zio.stream._
 
 val runtime = Runtime.default
