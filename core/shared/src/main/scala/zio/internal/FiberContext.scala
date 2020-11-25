@@ -923,7 +923,7 @@ private[zio] final class FiberContext[E, A](
     oldState match {
       case Executing(
             status,
-            observers: List[Callback[Nothing, Exit[E, A]]],
+            observers: List[_],
             interrupted
           ) => // TODO: Dotty doesn't infer this properly
         if (!state.compareAndSet(oldState, Executing(status.withInterrupting(value), observers, interrupted)))
@@ -938,7 +938,7 @@ private[zio] final class FiberContext[E, A](
     val oldState = state.get
 
     oldState match {
-      case Executing(_, observers: List[Callback[Nothing, Exit[E, A]]], _)
+      case Executing(_, observers: List[_], _)
           if openScope.scope.unsafeClosed() => // TODO: Dotty doesn't infer this properly
 
         /*
@@ -954,7 +954,7 @@ private[zio] final class FiberContext[E, A](
 
       case Executing(
             oldStatus,
-            observers: List[Callback[Nothing, Exit[E, A]]],
+            observers: List[_],
             interrupted
           ) => // TODO: Dotty doesn't infer this properly
 
