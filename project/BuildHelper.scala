@@ -21,7 +21,13 @@ object BuildHelper {
     "UTF-8",
     "-feature",
     "-unchecked"
-  )
+  ) ++ {
+    if (sys.env.contains("CI")) {
+      Seq("-Xfatal-warnings") // to enable Scalafix
+    } else {
+      Nil
+    }
+  }
 
   private val std2xOptions = Seq(
     "-language:higherKinds",
@@ -31,7 +37,7 @@ object BuildHelper {
     "-Xlint:_,-missing-interpolator,-type-parameter-shadow",
     "-Ywarn-numeric-widen",
     "-Ywarn-value-discard"
-  ) ++ customOptions
+  )
 
   private def optimizerOptions(optimize: Boolean) =
     if (optimize)
@@ -41,21 +47,10 @@ object BuildHelper {
       )
     else Nil
 
-  private def propertyFlag(property: String, default: Boolean) =
-    sys.props.get(property).map(_.toBoolean).getOrElse(default)
-
-  private def customOptions =
-    if (propertyFlag("fatal.warnings", true)) {
-      Seq("-Xfatal-warnings")
-    } else {
-      Nil
-    }
-
   def buildInfoSettings(packageName: String) =
     Seq(
-      buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion, isSnapshot),
-      buildInfoPackage := packageName,
-      buildInfoObject := "BuildInfo"
+      buildInfoKeys := Seq[BuildInfoKey](organization, moduleName, name, version, scalaVersion, sbtVersion, isSnapshot),
+      buildInfoPackage := packageName
     )
 
   val dottySettings = Seq(
@@ -128,9 +123,9 @@ object BuildHelper {
     initialCommands in Compile in console := initialCommandsStr
   )
 
-  def extraOptions(scalaVersion: String, optimize: Boolean) =
+  def extraOptions(scalaVersion: String, isDotty: Boolean, optimize: Boolean) =
     CrossVersion.partialVersion(scalaVersion) match {
-      case Some((0, _)) =>
+      case _ if isDotty =>
         Seq(
           "-language:implicitConversions",
           "-Xignore-scala2-macros"
@@ -175,39 +170,47 @@ object BuildHelper {
       case _ => Seq.empty
     }
 
-  def platformSpecificSources(platform: String, conf: String, baseDirectory: File)(versions: String*) =
-    List("scala" :: versions.toList.map("scala-" + _): _*).map { version =>
-      baseDirectory.getParentFile / platform.toLowerCase / "src" / conf / version
-    }.filter(_.exists)
+  def platformSpecificSources(platform: String, conf: String, baseDirectory: File)(versions: String*) = for {
+    platform <- List("shared", platform)
+    version  <- "scala" :: versions.toList.map("scala-" + _)
+    result    = baseDirectory.getParentFile / platform.toLowerCase / "src" / conf / version
+    if result.exists
+  } yield result
 
-  def crossPlatformSources(scalaVer: String, platform: String, conf: String, baseDir: File, isDotty: Boolean) =
-    CrossVersion.partialVersion(scalaVer) match {
-      case Some((2, x)) if x <= 11 =>
-        platformSpecificSources(platform, conf, baseDir)("2.11", "2.x")
-      case Some((2, x)) if x >= 12 =>
-        platformSpecificSources(platform, conf, baseDir)("2.12+", "2.12", "2.x")
+  def crossPlatformSources(scalaVer: String, platform: String, conf: String, baseDir: File, isDotty: Boolean) = {
+    val versions = CrossVersion.partialVersion(scalaVer) match {
+      case Some((2, 11)) =>
+        List("2.11", "2.11+", "2.11-2.12", "2.x")
+      case Some((2, 12)) =>
+        List("2.12", "2.11+", "2.12+", "2.11-2.12", "2.12-2.13", "2.x")
+      case Some((2, 13)) =>
+        List("2.13", "2.11+", "2.12+", "2.13+", "2.12-2.13", "2.x")
       case _ if isDotty =>
-        platformSpecificSources(platform, conf, baseDir)("2.12+", "dotty")
+        List("dotty", "2.11+", "2.12+", "2.13+", "3.x")
       case _ =>
-        Nil
+        List()
     }
+    platformSpecificSources(platform, conf, baseDir)(versions: _*)
+  }
 
   lazy val crossProjectSettings = Seq(
     Compile / unmanagedSourceDirectories ++= {
-      val platform = crossProjectPlatform.value.identifier
-      val baseDir  = baseDirectory.value
-      val scalaVer = scalaVersion.value
-      val isDot    = isDotty.value
-
-      crossPlatformSources(scalaVer, platform, "main", baseDir, isDot)
+      crossPlatformSources(
+        scalaVersion.value,
+        crossProjectPlatform.value.identifier,
+        "main",
+        baseDirectory.value,
+        isDotty.value
+      )
     },
     Test / unmanagedSourceDirectories ++= {
-      val platform = crossProjectPlatform.value.identifier
-      val baseDir  = baseDirectory.value
-      val scalaVer = scalaVersion.value
-      val isDot    = isDotty.value
-
-      crossPlatformSources(scalaVer, platform, "test", baseDir, isDot)
+      crossPlatformSources(
+        scalaVersion.value,
+        crossProjectPlatform.value.identifier,
+        "test",
+        baseDirectory.value,
+        isDotty.value
+      )
     }
   )
 
@@ -215,7 +218,7 @@ object BuildHelper {
     name := s"$prjName",
     crossScalaVersions := Seq(Scala211, Scala212, Scala213),
     scalaVersion in ThisBuild := Scala212,
-    scalacOptions := stdOptions ++ extraOptions(scalaVersion.value, optimize = !isSnapshot.value),
+    scalacOptions := stdOptions ++ extraOptions(scalaVersion.value, isDotty.value, optimize = !isSnapshot.value),
     libraryDependencies ++= {
       if (isDotty.value)
         Seq(
@@ -239,76 +242,7 @@ object BuildHelper {
     parallelExecution in Test := true,
     incOptions ~= (_.withLogRecompileOnMacro(false)),
     autoAPIMappings := true,
-    unusedCompileDependenciesFilter -= moduleFilter("org.scala-js", "scalajs-library"),
-    Compile / unmanagedSourceDirectories ++= {
-      CrossVersion.partialVersion(scalaVersion.value) match {
-        case Some((2, x)) if x <= 11 =>
-          Seq(
-            Seq(file(sourceDirectory.value.getPath + "/main/scala-2.11")),
-            CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.11")),
-            CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-2.11")),
-            CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.x")),
-            CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.11-2.12"))
-          ).flatten
-        case Some((2, x)) if x == 12 =>
-          Seq(
-            Seq(file(sourceDirectory.value.getPath + "/main/scala-2.12")),
-            Seq(file(sourceDirectory.value.getPath + "/main/scala-2.12+")),
-            CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.12+")),
-            CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-2.12+")),
-            CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.x")),
-            CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.12-2.13")),
-            CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.11-2.12"))
-          ).flatten
-        case Some((2, x)) if x >= 13 =>
-          Seq(
-            Seq(file(sourceDirectory.value.getPath + "/main/scala-2.12")),
-            Seq(file(sourceDirectory.value.getPath + "/main/scala-2.12+")),
-            CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.12+")),
-            CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-2.12+")),
-            CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.x")),
-            CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.12-2.13")),
-            CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.13+"))
-          ).flatten
-        case _ =>
-          if (isDotty.value)
-            Seq(
-              Seq(file(sourceDirectory.value.getPath + "/main/scala-2.12")),
-              Seq(file(sourceDirectory.value.getPath + "/main/scala-2.12+")),
-              CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.12+")),
-              CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-2.12+")),
-              CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-dotty")),
-              CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.13+"))
-            ).flatten
-          else
-            Nil
-      }
-    },
-    Test / unmanagedSourceDirectories ++= {
-      CrossVersion.partialVersion(scalaVersion.value) match {
-        case Some((2, x)) if x <= 11 =>
-          Seq(
-            Seq(file(sourceDirectory.value.getPath + "/test/scala-2.11")),
-            CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-2.x"))
-          ).flatten
-        case Some((2, x)) if x >= 12 =>
-          Seq(
-            Seq(file(sourceDirectory.value.getPath + "/test/scala-2.12")),
-            Seq(file(sourceDirectory.value.getPath + "/test/scala-2.12+")),
-            CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-2.x"))
-          ).flatten
-        case _ =>
-          if (isDotty.value)
-            Seq(
-              Seq(file(sourceDirectory.value.getPath + "/test/scala-2.12+")),
-              CrossType.Full.sharedSrcDir(baseDirectory.value, "main").toList.map(f => file(f.getPath + "-2.12+")),
-              CrossType.Full.sharedSrcDir(baseDirectory.value, "test").toList.map(f => file(f.getPath + "-dotty"))
-            ).flatten
-          else
-            Nil
-      }
-
-    }
+    unusedCompileDependenciesFilter -= moduleFilter("org.scala-js", "scalajs-library")
   )
 
   def macroExpansionSettings = Seq(
@@ -342,6 +276,17 @@ object BuildHelper {
   def jsSettings = Seq(
     libraryDependencies += "io.github.cquiroz" %%% "scala-java-time"      % "2.0.0",
     libraryDependencies += "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.0.0"
+  )
+
+  def nativeSettings = Seq(
+    scalaVersion := Scala211,
+    crossScalaVersions := Seq(scalaVersion.value),
+    Test / skip := true,
+    doc / skip := true,
+    SettingKey[Boolean](
+      "ide-skip-project" // Exclude from Intellij because Scala Native projects break it - https://github.com/scala-native/scala-native/issues/1007#issuecomment-370402092
+    ) := true,
+    Compile / doc / sources := Seq.empty
   )
 
   def welcomeMessage = onLoadMessage := {
