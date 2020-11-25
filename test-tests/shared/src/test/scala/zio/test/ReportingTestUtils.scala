@@ -112,7 +112,7 @@ object ReportingTestUtils {
     expectedFailure("Addition works fine"),
     withOffset(2)(s"${blue("2")} did not satisfy ${cyan("equalTo(3)")}\n"),
     withOffset(2)(
-      s"${blue("2")} did not satisfy ${cyan("(") + yellow("equalTo(3)") + cyan(s" ?? ${assertLabel("2", 103)})")}\n"
+      s"${blue("2")} did not satisfy ${cyan("(") + yellow("equalTo(3)") + cyan(s" ?? ${assertLabel("2", 107)})")}\n"
     )
   )
 
@@ -126,7 +126,7 @@ object ReportingTestUtils {
     ),
     withOffset(2)(
       s"${blue("Right(Some(3))")} did not satisfy ${cyan("(isRight(") + yellow("isSome(isGreaterThan(4))") + cyan(
-        s") ?? ${assertLabel("Right[Nothing, Some[Int]](Some[Int](3))", 111)})"
+        s") ?? ${assertLabel("Right[Nothing, Some[Int]](Some[Int](3))", 117)})"
       )}\n"
     )
   )
@@ -146,7 +146,7 @@ object ReportingTestUtils {
     expectedFailure("labeled failures"),
     withOffset(2)(s"${blue("0")} did not satisfy ${cyan("equalTo(1)")}\n"),
     withOffset(2)(
-      s"${blue("Some(0)")} did not satisfy ${cyan("((isSome(") + yellow("equalTo(1)") + cyan(s""") ?? "third") ?? ${assertLabel("c", 131)})""")}\n"
+      s"${blue("Some(0)")} did not satisfy ${cyan("((isSome(") + yellow("equalTo(1)") + cyan(s""") ?? "third") ?? ${assertLabel("c", 139)})""")}\n"
     )
   )
 
@@ -157,7 +157,7 @@ object ReportingTestUtils {
     expectedFailure("Not combinator"),
     withOffset(2)(s"${blue("100")} satisfied ${cyan("equalTo(100)")}\n"),
     withOffset(2)(
-      s"${blue("100")} did not satisfy ${cyan("(not(") + yellow("equalTo(100)") + cyan(s") ?? ${assertLabel("100", 143)})")}\n"
+      s"${blue("100")} did not satisfy ${cyan("(not(") + yellow("equalTo(100)") + cyan(s") ?? ${assertLabel("100", 151)})")}\n"
     )
   )
 
