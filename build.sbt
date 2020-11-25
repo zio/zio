@@ -278,6 +278,11 @@ lazy val testTests = crossProject(JSPlatform, JVMPlatform)
   .settings(buildInfoSettings("zio.test"))
   .settings(skip in publish := true)
   .settings(macroExpansionSettings)
+  .settings(
+    libraryDependencies ++= Seq(
+      "com.lihaoyi" %%% "sourcecode" % "0.2.1" % Test
+    )
+  )
   .enablePlugins(BuildInfoPlugin)
 
 lazy val testTestsJVM = testTests.jvm.settings(dottySettings)

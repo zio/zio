@@ -61,6 +61,9 @@ object Macros {
     val path = rootPosition.sourceFile.jpath.toString
     val line = rootPosition.startLine + 1
     val code = value.show
+      // reduce clutter
+      .replaceAll("""scala\.([a-zA-Z0-9_]+)""", "$1")
+      .replaceAll("""\.apply(\s*[\[(])""", "$1")
     val label = s"assert(`$code`) (at $path:$line)"
     '{_root_.zio.test.CompileVariants.assertImpl[A]($value)(${assertion}.label(${Expr(label)}))}
   }

@@ -33,7 +33,7 @@ private[test] object Macros {
     }
   }
 
-  private val fieldInAnonymousClassPrefix = "$anon.this."
+  private[test] val fieldInAnonymousClassPrefix = "$anon.this."
 
   def assertImpl[A](value: => A)(assertion: Assertion[A]): TestResult = zio.test.assertImpl(value)(assertion)
 
@@ -41,8 +41,14 @@ private[test] object Macros {
     import c.universe._
     val fileName = c.enclosingPosition.source.path
     val line     = c.enclosingPosition.line
-    val code     = s"${showCode(expr).stripPrefix(fieldInAnonymousClassPrefix)}"
-    val label    = s"assert(`$code`) (at $fileName:$line)"
+    val code = showCode(expr)
+      .stripPrefix(fieldInAnonymousClassPrefix)
+      // for scala 3 compatibility
+      .replace(".`package`.", ".")
+      // reduce clutter
+      .replaceAll("""scala\.([a-zA-Z0-9_]+)""", "$1")
+      .replaceAll("""\.apply(\s*[\[(])""", "$1")
+    val label = s"assert(`$code`) (at $fileName:$line)"
     q"_root_.zio.test.CompileVariants.assertImpl($expr)($assertion.label($label))"
   }
 }
