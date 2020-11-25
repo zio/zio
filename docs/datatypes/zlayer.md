@@ -18,8 +18,7 @@ title:  "ZLayer"
 
 ### The simplest ZLayer application
 
- This application demonstrates a ZIO program with a single dependency on a
- simple string value.
+ This application demonstrates a ZIO program with a single dependency on a simple string value.
 
 ```scala mdoc:silent
 import zio._
@@ -27,13 +26,14 @@ import zio._
 object Example extends zio.App {
 
   // Define our simple ZIO program
-  val zio = for {
+  val zio: ZIO[Has[String], Nothing, Unit] = for {
     name <- ZIO.access[Has[String]](_.get)
     _    <- UIO(println(s"Hello, $name!"))
   } yield ()
 
-  // Create a ZLayer that exposes a string as a dependency to a ZIO program
-  val nameLayer = ZLayer.succeed("Adam")
+  // Create a ZLayer that produces a string and can be used to satisfy a string
+  // dependency that the program has
+  val nameLayer: ULayer[Has[String]] = ZLayer.succeed("Adam")
 
   // Run the program, providing the `nameLayer`
   def run(args: List[String]): URIO[ZEnv, ExitCode] =
@@ -131,11 +131,7 @@ object ZLayerApp0 extends zio.App {
 
 ### ZLayer example with complex dependencies
 
- In this example, we can see that `ModuleC` depends upon `ModuleA`, `ModuleB`,
- and `Clock`. The layer provided to the runnable application shows how
- dependency layers that are siblings can be combined using `++` into a single
- combined layer, and then can be provided together as the dependency for another
- layer.
+ In this example, we can see that `ModuleC` depends upon `ModuleA`, `ModuleB`, and `Clock`. The layer provided to the runnable application shows how dependency layers can be combined using `++` into a single combined layer. The combined layer will then be able to produce both of the outputs of the original layers as a single layer.
 
 ```scala mdoc:silent
 import zio._

@@ -200,7 +200,7 @@ object UserRepo {
 }
 ```
 
-Then, we define another module to perform some basic logging. We provide also a `consoleLogger` implementation that relies on Zio's `Console`:
+Then, we define another module to perform some basic logging. We provide also a `consoleLogger` implementation that relies on ZIO's `Console`:
 
 ```scala mdoc:silent
 type Logging = Has[Logging.Service]
@@ -276,7 +276,7 @@ some common base requirements, along with our custom requirements, in a single l
 Notice that `provideCustomLayer` is just a special case of `provideSomeLayer`.
 
 ## Updating local dependencies
-Given a layer, it is possible to update one or more components it provides. The `.update` method allows us to replace one
+Given a layer, it is possible to update one or more components it provides. The `update` method allows us to replace one
 requirement with a different implementation:
 
 ```scala mdoc:silent
@@ -323,7 +323,7 @@ val fullRepo: Layer[Nothing, UserRepo] = connectionLayer >>> postgresLayer
 ```
 
 ## Layers are shared in the dependency graph
-One important feature of `ZIO` layers is that they are acquired in parallel wherever possible, and they are shared. For every layer in our dependency graph, there is only one instance of it that is shared between all the layers that depend on it. If you don't want to share a module, create a fresh, non-shared version of it through [`ZLayer.fresh`][ZLayer.fresh].
+One important feature of `ZIO` layers is that they are acquired in parallel wherever possible, and they are shared. For every layer in our dependency graph, there is only one instance of it that is shared between all the layers that depend on it. If you don't want to share a module, create a fresh, non-shared version of it through [`ZLayer#fresh`][ZLayer#fresh].
 
 Notice also that the [`ZLayer`][ZLayer] mechanism makes it impossible to build cyclic dependencies, making the initialization process very linear, by construction.
 
