@@ -27,10 +27,17 @@ object MavenJunitSpec extends DefaultRunnableSpec {
       } yield {
         assert(mvnResult)(not(equalTo(0))) &&
         assert(report)(
-          containsFailure("should fail", "zio.test.junit.TestFailed: 11 did not satisfy equalTo(12)") &&
+          containsFailure(
+            "should fail",
+            s"""zio.test.junit.TestFailed:
+               |11 did not satisfy equalTo(12)
+               |11 did not satisfy (equalTo(12) ?? "assert(`11`) (at ${mvn.mvnRoot}/src/test/scala/zio/test/junit/maven/FailingSpec.scala:10)")""".stripMargin
+          ) &&
             containsFailure(
               "should fail - isSome",
-              "zio.test.junit.TestFailed: \n11 did not satisfy equalTo(12)\nSome(11) did not satisfy isSome(equalTo(12))"
+              s"""zio.test.junit.TestFailed:
+                 |11 did not satisfy equalTo(12)
+                 |Some(11) did not satisfy (isSome(equalTo(12)) ?? "assert(`Some[Int](11)`) (at ${mvn.mvnRoot}/src/test/scala/zio/test/junit/maven/FailingSpec.scala:13)")""".stripMargin
             ) &&
             containsSuccess("should succeed")
         )
@@ -54,14 +61,14 @@ object MavenJunitSpec extends DefaultRunnableSpec {
         .orElseFail(
           new AssertionError(
             "Missing project.version system property\n" +
-              "when running from IDE put this into `VM Parameters`: `-Dproject.dir=<current zio version>`"
+              "when running from IDE put this into `VM Parameters`: `-Dproject.version=<current zio version>`"
           )
         )
   } yield new MavenDriver(projectDir, projectVer)
 
   class MavenDriver(projectDir: String, projectVersion: String) {
-    private val mvnRoot = new File(s"$projectDir/../maven").getCanonicalPath
-    private val cli     = new MavenCli
+    val mvnRoot     = new File(s"$projectDir/../maven").getCanonicalPath
+    private val cli = new MavenCli
     System.setProperty("maven.multiModuleProjectDirectory", mvnRoot)
 
     def clean(): RIO[Blocking, Int] = run("clean")
@@ -77,7 +84,9 @@ object MavenJunitSpec extends DefaultRunnableSpec {
         (report \ "testcase").map { tcNode =>
           TestCase(
             tcNode \@ "name",
-            (tcNode \ "error").headOption.map(error => TestError(error.text.trim, error \@ "type"))
+            (tcNode \ "error").headOption.map(error =>
+              TestError(error.text.linesIterator.map(_.trim).mkString("\n"), error \@ "type")
+            )
           )
         }
       }
