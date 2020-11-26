@@ -3,6 +3,7 @@ package zio.test.sbt
 import sbt.testing.{ EventHandler, Logger, Task, TaskDef }
 
 import zio.clock.Clock
+import zio.duration._
 import zio.test.{ AbstractRunnableSpec, FilteredSpec, SummaryBuilder, TestArgs, TestLogger }
 import zio.{ Layer, Runtime, UIO, ZIO, ZLayer }
 
@@ -25,7 +26,14 @@ abstract class BaseTestTask(
 
   protected def run(eventHandler: EventHandler): ZIO[TestLogger with Clock, Throwable, Unit] =
     for {
-      spec   <- specInstance.runSpec(FilteredSpec(specInstance.spec, args))
+      spec <- specInstance
+                .runSpec(FilteredSpec(specInstance.spec, args))
+                .race {
+                  ZIO.effectTotal {
+                    val fqn = taskDef.fullyQualifiedName().stripSuffix("$") + "$"
+                    println(s"$fqn did not complete")
+                  }.delay(5.minutes) *> ZIO.dieMessage("Test framework timeout")
+                }
       summary = SummaryBuilder.buildSummary(spec)
       _      <- sendSummary.provide(summary)
       events  = ZTestEvent.from(spec, taskDef.fullyQualifiedName(), taskDef.fingerprint())
