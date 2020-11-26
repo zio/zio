@@ -16,8 +16,6 @@
 
 package zio.test
 
-import scala.language.experimental.macros
-
 import zio.UIO
 
 trait CompileVariants {
