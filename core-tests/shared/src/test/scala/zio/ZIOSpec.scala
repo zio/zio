@@ -3531,21 +3531,22 @@ object ZIOSpec extends ZIOBaseSpec {
     suite("sequence")(
       testM("transforms a List of ZIOs into a ZIO of List") {
         val expectedResult: List[Int] = List(1, 2, 3, 4)
-        val in: List[UIO[Int]] = List(ZIO.succeed(1), ZIO.succeed(2), ZIO.succeed(3), ZIO.succeed(4))
-        val outZIO: UIO[List[Int]] = ZIO.sequence[Any, Nothing, Int, List](in)
+        val in: List[UIO[Int]]        = List(ZIO.succeed(1), ZIO.succeed(2), ZIO.succeed(3), ZIO.succeed(4))
+        val outZIO: UIO[List[Int]]    = ZIO.sequence[Any, Nothing, Int, List](in)
         for {
           out <- outZIO
         } yield assert(out)(equalTo(expectedResult))
       },
       testM("returns the first throwable if present") {
-        val in: List[ZIO[Any, Throwable, Int]] = List(ZIO.succeed(1), ZIO.succeed(2),
-          ZIO.fail(new RuntimeException("An exception")), ZIO.succeed(4))
+        val in: List[ZIO[Any, Throwable, Int]] =
+          List(ZIO.succeed(1), ZIO.succeed(2), ZIO.fail(new RuntimeException("An exception")), ZIO.succeed(4))
         val outZIO: ZIO[Any, Throwable, List[Int]] = ZIO.sequence(in)
 
         assertM(outZIO.run)(fails(isSubtype[RuntimeException](anything)))
       },
       testM("transform an iterable of ZIOs with an internal Functor into a ZIO of Iterable") {
-        val expectedResult: Iterable[Seq[Int]] = Iterable.newBuilder.+=(Seq(1)).+=(Seq(2)).+=(Seq(3)).+=(Seq(4)).result()
+        val expectedResult: Iterable[Seq[Int]] =
+          Iterable.newBuilder.+=(Seq(1)).+=(Seq(2)).+=(Seq(3)).+=(Seq(4)).result()
         val in = Iterable.newBuilder
           .+=(ZIO.effect(List(1)))
           .+=(ZIO.succeed(List(2)))

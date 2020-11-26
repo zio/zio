@@ -3280,11 +3280,17 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     effectTotal(v).flatMap(_.fold[IO[Unit, A]](fail(()))(succeedNow))
 
   /**
+   * Transforms a `TraversableOnce[ZIO[R, E, A]]`
+   *  into a `ZIO[R, E, TraversableOnce[A]]`. Useful for reducing many `ZIO`s into a single `ZIO`.
    *
+   * @tparam A        the type of the value inside the ZIO
+   * @tparam M        the type of the `TraversableOnce` of ZIOs
+   * @param in        the `TraversableOnce` of ZIOs which will be sequenced
+   * @return          the `ZIO` of the `TraversableOnce` of results
    */
-  final def sequence[R, E, A, M[A] <: TraversableOnce[A]](in: M[ZIO[R, E, A]])
-                                                         (implicit cbf: CanBuildFrom[M[ZIO[R, E, A]], A, M[A]])
-  : ZIO[R, E, M[A]] = {
+  final def sequence[R, E, A, M[A] <: TraversableOnce[A]](
+    in: M[ZIO[R, E, A]]
+  )(implicit cbf: CanBuildFrom[M[ZIO[R, E, A]], A, M[A]]): ZIO[R, E, M[A]] = {
     val initialValue: ZIO[R, E, mutable.Builder[A, M[A]]] = ZIO.succeed(cbf.apply(in))
     in.foldLeft(initialValue) { case (zioA, zioB) =>
       zioA.zipWith(zioB)(_ += _)
