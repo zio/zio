@@ -2276,10 +2276,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   final def refineOrDie[E1](
     pf: PartialFunction[E, E1]
   )(implicit ev1: E <:< Throwable, ev2: CanFail[E]): ZStream[R, E1, O] =
-    ZStream(self.process.map(_.mapError {
-      case None                         => None
-      case Some(e) if pf.isDefinedAt(e) => Some(pf.apply(e))
-    }))
+    refineOrDieWith(pf)(ev1)
 
   /**
    * Keeps some of the errors, and terminates the fiber with the rest, using
