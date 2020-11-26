@@ -41,19 +41,29 @@ private[test] object Macros {
     import c.universe._
     val fileName = c.enclosingPosition.source.path
     val line     = c.enclosingPosition.line
-    val code = showCode(expr)
-      .stripPrefix(fieldInAnonymousClassPrefix)
-      // for scala 3 compatibility
-      .replace(".`package`.", ".")
-      // reduce clutter
-      .replaceAll("""scala\.([a-zA-Z0-9_]+)""", "$1")
-      .replaceAll("""\.apply(\s*[\[(])""", "$1")
-    val label = s"assert(`$code`) (at $fileName:$line)"
+    val code     = showExpr(c)(expr)
+    val label    = s"assert(`$code`) (at $fileName:$line)"
     q"_root_.zio.test.CompileVariants.assertImpl($expr)($assertion.label($label))"
   }
 
   def sourcePath_impl(c: blackbox.Context): c.Tree = {
     import c.universe._
     q"${c.enclosingPosition.source.path}"
+  }
+
+  private def showExpr(c: blackbox.Context)(expr: c.Tree) = {
+    import c.universe._
+    showCode(expr)
+      .stripPrefix(fieldInAnonymousClassPrefix)
+      // for scala 3 compatibility
+      .replace(".`package`.", ".")
+      // reduce clutter
+      .replaceAll("""scala\.([a-zA-Z0-9_]+)""", "$1")
+      .replaceAll("""\.apply(\s*[\[(])""", "$1")
+  }
+
+  def showExpression_impl(c: blackbox.Context)(expr: c.Tree): c.Tree = {
+    import c.universe._
+    q"${showExpr(c)(expr)}"
   }
 }

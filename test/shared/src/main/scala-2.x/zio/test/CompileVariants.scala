@@ -37,6 +37,8 @@ trait CompileVariants {
   def assert[A](expr: => A)(assertion: Assertion[A]): TestResult = macro Macros.assert_impl
 
   private[zio] def sourcePath: String = macro Macros.sourcePath_impl
+
+  private[zio] def showExpression[A](expr: => A): String = macro Macros.showExpression_impl
 }
 
 object CompileVariants {

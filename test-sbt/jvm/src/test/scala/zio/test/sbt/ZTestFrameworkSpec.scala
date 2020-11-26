@@ -99,19 +99,23 @@ object ZTestFrameworkSpec {
     val loggers = Seq.fill(3)(new MockLogger)
 
     loadAndExecute(multiLineSpecFQN, loggers = loggers)
-    val Seq(labelLine1, labelLine2) = assertLabel("\"\"\"Hello,\nWorld!\"\"\"").linesIterator.toSeq
+    val label = assertLabel(zio.test.showExpression("Hello,\nWorld!"))
     loggers.map(_.messages) foreach (messages =>
       assertEquals(
         "logged messages",
         messages.mkString.split("\n").dropRight(1).mkString("\n").withNoLineNumbers,
         List(
-          s"${reset("info:")} ${red("- multi-line test")}",
-          s"${reset("info:")}   ${Console.BLUE}Hello,",
-          s"${reset("info:")} ${blue("World!")} did not satisfy ${cyan("equalTo(Hello, World!)")}",
-          s"${reset("info:")}   ${Console.BLUE}Hello,",
-          s"${reset("info:")} ${blue("World!")} did not satisfy ${cyan("(") + yellow("equalTo(Hello, World!)") + s"${Console.CYAN} ?? $labelLine1"}",
-          s"${reset("info:")} ${cyan(s"$labelLine2)")}"
+          s"${red("- multi-line test")}",
+          s"  ${Console.BLUE}Hello,",
+          s"${blue("World!")} did not satisfy ${cyan("equalTo(Hello, World!)")}",
+          s"  ${Console.BLUE}Hello,",
+          s"${blue("World!")} did not satisfy ${cyan("(") + yellow("equalTo(Hello, World!)") + cyan(
+            s" ?? ${label.linesIterator.mkString("\n" + Console.CYAN)})"
+          )}"
         ).mkString("\n")
+          .linesIterator
+          .map(s"${reset("info:")} " + _)
+          .mkString("\n")
       )
     )
   }
