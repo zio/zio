@@ -17,6 +17,8 @@
 package zio
 
 import scala.annotation.implicitNotFound
+import scala.collection.generic.CanBuildFrom
+import scala.collection.mutable
 import scala.collection.mutable.Builder
 import scala.concurrent.ExecutionContext
 import scala.reflect.ClassTag
@@ -3276,6 +3278,18 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   final def getOrFailUnit[A](v: => Option[A]): IO[Unit, A] =
     effectTotal(v).flatMap(_.fold[IO[Unit, A]](fail(()))(succeedNow))
+
+  /**
+   *
+   */
+  final def sequence[R, E, A, M[A] <: TraversableOnce[A]](in: M[ZIO[R, E, A]])
+                                                         (implicit cbf: CanBuildFrom[M[ZIO[R, E, A]], A, M[A]])
+  : ZIO[R, E, M[A]] = {
+    val initialValue: ZIO[R, E, mutable.Builder[A, M[A]]] = ZIO.succeed(cbf.apply(in))
+    in.foldLeft(initialValue) { case (zioA, zioB) =>
+      zioA.zipWith(zioB)(_ += _)
+    }.map(_.result())
+  }
 
   /**
    * Returns an effect that models failure with the specified `Cause`.
