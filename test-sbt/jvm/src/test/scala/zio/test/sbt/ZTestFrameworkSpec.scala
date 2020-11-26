@@ -110,10 +110,10 @@ object ZTestFrameworkSpec {
           s"${blue("World!")} did not satisfy ${cyan("equalTo(Hello, World!)")}",
           s"  ${Console.BLUE}Hello,",
           s"${blue("World!")} did not satisfy ${cyan("(") + yellow("equalTo(Hello, World!)") + cyan(
-            s" ?? ${label.linesIterator.mkString("\n" + Console.CYAN)})"
+            s" ?? ${label.split('\n').mkString("\n" + Console.CYAN)})"
           )}"
         ).mkString("\n")
-          .linesIterator
+          .split('\n')
           .map(s"${reset("info:")} " + _)
           .mkString("\n")
       )
