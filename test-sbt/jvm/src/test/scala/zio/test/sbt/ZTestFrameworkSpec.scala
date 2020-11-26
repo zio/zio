@@ -219,7 +219,7 @@ object ZTestFrameworkSpec {
     }
   }
 
-  lazy val sourceFilePath: String       = sourcecode.File()
+  lazy val sourceFilePath: String       = zio.test.sourcePath
   def assertLabel(expr: String): String = s""""assert(`$expr`) (at $sourceFilePath:XXX)""""
   implicit class TestOutputOps(output: String) {
     def withNoLineNumbers: String =

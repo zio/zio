@@ -278,11 +278,6 @@ lazy val testTests = crossProject(JSPlatform, JVMPlatform)
   .settings(buildInfoSettings("zio.test"))
   .settings(skip in publish := true)
   .settings(macroExpansionSettings)
-  .settings(
-    libraryDependencies ++= Seq(
-      "com.lihaoyi" %%% "sourcecode" % "0.2.1" % Test
-    )
-  )
   .enablePlugins(BuildInfoPlugin)
 
 lazy val testTestsJVM = testTests.jvm.settings(dottySettings)
@@ -341,11 +336,6 @@ lazy val testRunner = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-sbt"))
   .settings(stdSettings("zio-test-sbt"))
   .settings(crossProjectSettings)
-  .settings(
-    libraryDependencies ++= Seq(
-      "com.lihaoyi" %%% "sourcecode" % "0.2.1" % Test
-    )
-  )
   .settings(mainClass in (Test, run) := Some("zio.test.sbt.TestMain"))
   .jsSettings(libraryDependencies ++= Seq("org.scala-js" %% "scalajs-test-interface" % scalaJSVersion))
   .jvmSettings(libraryDependencies ++= Seq("org.scala-sbt" % "test-interface" % "1.0"))

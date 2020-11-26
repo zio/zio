@@ -51,4 +51,9 @@ private[test] object Macros {
     val label = s"assert(`$code`) (at $fileName:$line)"
     q"_root_.zio.test.CompileVariants.assertImpl($expr)($assertion.label($label))"
   }
+
+  def sourcePath_impl(c: blackbox.Context): c.Tree = {
+    import c.universe._
+    q"${c.enclosingPosition.source.path}"
+  }
 }

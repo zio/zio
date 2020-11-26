@@ -15,7 +15,7 @@ import zio.{ Cause, Layer, ZIO }
 
 object ReportingTestUtils {
 
-  val sourceFilePath: String = sourcecode.File()
+  val sourceFilePath: String = zio.test.sourcePath
 
   def expectedSuccess(label: String): String =
     green("+") + " " + label + "\n"

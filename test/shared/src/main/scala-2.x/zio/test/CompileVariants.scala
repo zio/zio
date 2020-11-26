@@ -35,6 +35,8 @@ trait CompileVariants {
    * Checks the assertion holds for the given value.
    */
   def assert[A](expr: => A)(assertion: Assertion[A]): TestResult = macro Macros.assert_impl
+
+  private[zio] def sourcePath: String = macro Macros.sourcePath_impl
 }
 
 object CompileVariants {

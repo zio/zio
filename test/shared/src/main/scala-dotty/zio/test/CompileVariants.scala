@@ -45,6 +45,8 @@ trait CompileVariants {
   private[test] def assertImpl[A](value: => A)(assertion: Assertion[A]): TestResult
 
   inline def assert[A](inline value: => A)(inline assertion: Assertion[A]): TestResult = ${Macros.assert_impl('value)('assertion)}
+
+  private[zio] inline def sourcePath: String = ${Macros.sourcePath_impl}
 }
 
 object CompileVariants {
@@ -66,5 +68,9 @@ object Macros {
       .replaceAll("""\.apply(\s*[\[(])""", "$1")
     val label = s"assert(`$code`) (at $path:$line)"
     '{_root_.zio.test.CompileVariants.assertImpl[A]($value)(${assertion}.label(${Expr(label)}))}
+  }
+  def sourcePath_impl(using ctx: QuoteContext): Expr[String] = {
+    import ctx.tasty._
+    Expr(rootPosition.sourceFile.jpath.toString)
   }
 }
