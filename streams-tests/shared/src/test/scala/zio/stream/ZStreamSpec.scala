@@ -3337,7 +3337,17 @@ object ZStreamSpec extends ZIOBaseSpec {
               "type arguments [Error] do not conform to method refineToOrDie's type parameter bounds [E1 <: RuntimeException]"
             assertM(result)(isLeft(equalTo(expected)))
           } @@ scala2Only
-        )
+        ),
+        testM("refineOrDie") {
+          val error = new Exception
+
+          ZStream
+            .fail(error)
+            .refineOrDie { case e: IllegalArgumentException => e }
+            .runDrain
+            .run
+            .map(assert(_)(dies(equalTo(error))))
+        }
       ),
       suite("Constructors")(
         testM("access") {
