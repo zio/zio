@@ -67,8 +67,8 @@ object MavenJunitSpec extends DefaultRunnableSpec {
   } yield new MavenDriver(projectDir, projectVer)
 
   class MavenDriver(projectDir: String, projectVersion: String) {
-    val mvnRoot     = new File(s"$projectDir/../maven").getCanonicalPath
-    private val cli = new MavenCli
+    val mvnRoot: String = new File(s"$projectDir/../maven").getCanonicalPath
+    private val cli     = new MavenCli
     System.setProperty("maven.multiModuleProjectDirectory", mvnRoot)
 
     def clean(): RIO[Blocking, Int] = run("clean")
