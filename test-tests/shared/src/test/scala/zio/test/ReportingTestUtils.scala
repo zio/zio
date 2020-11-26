@@ -67,7 +67,7 @@ object ReportingTestUtils {
                      TestLogger.fromConsole ++ TestClock.default
                    )
       actualSummary = SummaryBuilder.buildSummary(results)
-    } yield actualSummary.summary
+    } yield actualSummary.summary.withNoLineNumbers
 
   private[this] def TestTestRunner(testEnvironment: Layer[Nothing, TestEnvironment]) =
     TestRunner[TestEnvironment, String](
