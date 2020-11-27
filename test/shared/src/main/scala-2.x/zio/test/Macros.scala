@@ -16,14 +16,13 @@
 
 package zio.test
 
-import scala.reflect.macros.TypecheckException
-import scala.reflect.macros.blackbox.Context
+import scala.reflect.macros.{ TypecheckException, blackbox }
 
 import zio.UIO
 
 private[test] object Macros {
 
-  def typeCheck_impl(c: Context)(code: c.Expr[String]): c.Expr[UIO[Either[String, Unit]]] = {
+  def typeCheck_impl(c: blackbox.Context)(code: c.Expr[String]): c.Expr[UIO[Either[String, Unit]]] = {
     import c.universe._
     try {
       c.typecheck(c.parse(c.eval(c.Expr[String](c.untypecheck(code.tree)))))
@@ -32,5 +31,39 @@ private[test] object Macros {
       case e: TypecheckException => c.Expr(q"zio.UIO.succeed(Left(${e.getMessage}))")
       case t: Throwable          => c.Expr(q"""zio.UIO.die(new RuntimeException("Compilation failed: " + ${t.getMessage}))""")
     }
+  }
+
+  private[test] val fieldInAnonymousClassPrefix = "$anon.this."
+
+  def assertImpl[A](value: => A)(assertion: Assertion[A]): TestResult = zio.test.assertImpl(value)(assertion)
+
+  def assert_impl(c: blackbox.Context)(expr: c.Tree)(assertion: c.Tree): c.Tree = {
+    import c.universe._
+    val fileName = c.enclosingPosition.source.path
+    val line     = c.enclosingPosition.line
+    val code     = showExpr(c)(expr)
+    val label    = s"assert(`$code`) (at $fileName:$line)"
+    q"_root_.zio.test.CompileVariants.assertImpl($expr)($assertion.label($label))"
+  }
+
+  def sourcePath_impl(c: blackbox.Context): c.Tree = {
+    import c.universe._
+    q"${c.enclosingPosition.source.path}"
+  }
+
+  private def showExpr(c: blackbox.Context)(expr: c.Tree) = {
+    import c.universe._
+    showCode(expr)
+      .stripPrefix(fieldInAnonymousClassPrefix)
+      // for scala 3 compatibility
+      .replace(".`package`.", ".")
+      // reduce clutter
+      .replaceAll("""scala\.([a-zA-Z0-9_]+)""", "$1")
+      .replaceAll("""\.apply(\s*[\[(])""", "$1")
+  }
+
+  def showExpression_impl(c: blackbox.Context)(expr: c.Tree): c.Tree = {
+    import c.universe._
+    q"${showExpr(c)(expr)}"
   }
 }

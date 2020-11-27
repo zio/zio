@@ -1,5 +1,7 @@
 package zio.test
 
+import java.util.regex.Pattern
+
 import scala.{ Console => SConsole }
 
 import zio.clock.Clock
@@ -12,6 +14,8 @@ import zio.test.mock.module.PureModuleMock
 import zio.{ Cause, Layer, ZIO }
 
 object ReportingTestUtils {
+
+  val sourceFilePath: String = zio.test.sourcePath
 
   def expectedSuccess(label: String): String =
     green("+") + " " + label + "\n"
@@ -53,7 +57,7 @@ object ReportingTestUtils {
              .run(spec)
              .provideLayer[Nothing, TestEnvironment, TestLogger with Clock](TestLogger.fromConsole ++ TestClock.default)
       output <- TestConsole.output
-    } yield output.mkString
+    } yield output.mkString.withNoLineNumbers
 
   def runSummary(spec: ZSpec[TestEnvironment, String]): ZIO[TestEnvironment, Nothing, String] =
     for {
@@ -63,7 +67,7 @@ object ReportingTestUtils {
                      TestLogger.fromConsole ++ TestClock.default
                    )
       actualSummary = SummaryBuilder.buildSummary(results)
-    } yield actualSummary.summary
+    } yield actualSummary.summary.withNoLineNumbers
 
   private[this] def TestTestRunner(testEnvironment: Layer[Nothing, TestEnvironment]) =
     TestRunner[TestEnvironment, String](
@@ -83,11 +87,15 @@ object ReportingTestUtils {
     expectedFailure("Value falls within range"),
     withOffset(2)(s"${blue("52")} did not satisfy ${cyan("equalTo(42)")}\n"),
     withOffset(2)(
-      s"${blue("52")} did not satisfy ${cyan("(") + yellow("equalTo(42)") + cyan(" || (isGreaterThan(5) && isLessThan(10)))")}\n"
+      s"${blue("52")} did not satisfy ${cyan("((") + yellow("equalTo(42)") + cyan(
+        s" || (isGreaterThan(5) && isLessThan(10))) ?? ${assertLabel("52")})"
+      )}\n"
     ),
     withOffset(2)(s"${blue("52")} did not satisfy ${cyan("isLessThan(10)")}\n"),
     withOffset(2)(
-      s"${blue("52")} did not satisfy ${cyan("(equalTo(42) || (isGreaterThan(5) && ") + yellow("isLessThan(10)") + cyan("))")}\n"
+      s"${blue("52")} did not satisfy ${cyan("((equalTo(42) || (isGreaterThan(5) && ") + yellow(
+        "isLessThan(10)"
+      ) + cyan(s")) ?? ${assertLabel("52")})")}\n"
     )
   )
 
@@ -104,7 +112,10 @@ object ReportingTestUtils {
   val test5: ZSpec[Any, Nothing] = zio.test.test("Addition works fine")(assert(1 + 1)(equalTo(3)))
   val test5Expected: Vector[String] = Vector(
     expectedFailure("Addition works fine"),
-    withOffset(2)(s"${blue("2")} did not satisfy ${cyan("equalTo(3)")}\n")
+    withOffset(2)(s"${blue("2")} did not satisfy ${cyan("equalTo(3)")}\n"),
+    withOffset(2)(
+      s"${blue("2")} did not satisfy ${cyan("(") + yellow("equalTo(3)") + cyan(s" ?? ${assertLabel("2")})")}\n"
+    )
   )
 
   val test6: ZSpec[Any, Nothing] =
@@ -116,7 +127,9 @@ object ReportingTestUtils {
       s"${blue("Some(3)")} did not satisfy ${cyan("isSome(") + yellow("isGreaterThan(4)") + cyan(")")}\n"
     ),
     withOffset(2)(
-      s"${blue("Right(Some(3))")} did not satisfy ${cyan("isRight(") + yellow("isSome(isGreaterThan(4))") + cyan(")")}\n"
+      s"${blue("Right(Some(3))")} did not satisfy ${cyan("(isRight(") + yellow("isSome(isGreaterThan(4))") + cyan(
+        s") ?? ${assertLabel("Right[Nothing, Some[Int]](Some[Int](3))")})"
+      )}\n"
     )
   )
 
@@ -135,7 +148,7 @@ object ReportingTestUtils {
     expectedFailure("labeled failures"),
     withOffset(2)(s"${blue("0")} did not satisfy ${cyan("equalTo(1)")}\n"),
     withOffset(2)(
-      s"${blue("Some(0)")} did not satisfy ${cyan("(isSome(") + yellow("equalTo(1)") + cyan(") ?? \"third\")")}\n"
+      s"${blue("Some(0)")} did not satisfy ${cyan("((isSome(") + yellow("equalTo(1)") + cyan(s""") ?? "third") ?? ${assertLabel("c")})""")}\n"
     )
   )
 
@@ -146,7 +159,7 @@ object ReportingTestUtils {
     expectedFailure("Not combinator"),
     withOffset(2)(s"${blue("100")} satisfied ${cyan("equalTo(100)")}\n"),
     withOffset(2)(
-      s"${blue("100")} did not satisfy ${cyan("not(") + yellow("equalTo(100)") + cyan(")")}\n"
+      s"${blue("100")} did not satisfy ${cyan("(not(") + yellow("equalTo(100)") + cyan(s") ?? ${assertLabel("100")})")}\n"
     )
   )
 
@@ -231,4 +244,10 @@ object ReportingTestUtils {
     expectedFailure("Invalid range"),
     withOffset(2)(s"""${red("- invalid repetition range 4 to 2 by -1")}\n""")
   )
+
+  def assertLabel(expr: String): String = s""""assert(`$expr`) (at $sourceFilePath:XXX)""""
+  implicit class TestOutputOps(output: String) {
+    def withNoLineNumbers: String =
+      output.replaceAll(Pattern.quote(sourceFilePath + ":") + "\\d+", sourceFilePath + ":XXX")
+  }
 }
