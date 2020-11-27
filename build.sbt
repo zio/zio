@@ -131,14 +131,7 @@ lazy val coreJS = core.js
   .settings(jsSettings)
 
 lazy val coreNative = core.native
-  .settings(scalaVersion := Scala211)
-  .settings(crossScalaVersions := Seq(scalaVersion.value))
-  .settings(skip in Test := true)
-  .settings(skip in doc := true)
-  .settings( // Exclude from Intellij because Scala Native projects break it - https://github.com/scala-native/scala-native/issues/1007#issuecomment-370402092
-    SettingKey[Boolean]("ide-skip-project") := true
-  )
-  .settings(sources in (Compile, doc) := Seq.empty)
+  .settings(nativeSettings)
   .settings(
     libraryDependencies ++= Seq(
       "dev.whaling" %%% "native-loop-core"      % "0.1.1",
@@ -200,14 +193,7 @@ lazy val streamsJVM = streams.jvm
 lazy val streamsJS = streams.js
 
 lazy val streamsNative = streams.native
-  .settings(scalaVersion := Scala211)
-  .settings(crossScalaVersions := Seq(scalaVersion.value))
-  .settings(skip in Test := true)
-  .settings(skip in doc := true)
-  .settings( // Exclude from Intellij because Scala Native projects break it - https://github.com/scala-native/scala-native/issues/1007#issuecomment-370402092
-    SettingKey[Boolean]("ide-skip-project") := true
-  )
-  .settings(sources in (Compile, doc) := Seq.empty)
+  .settings(nativeSettings)
   .disablePlugins(
     ScalafixPlugin // for some reason `ThisBuild / scalafixScalaBinaryVersion := CrossVersion.binaryScalaVersion(scalaVersion.value)` isn't enough
   )
@@ -251,14 +237,7 @@ lazy val testJVM = test.jvm
   .settings(mimaSettings(failOnProblem = false))
 lazy val testJS = test.js
 lazy val testNative = test.native
-  .settings(scalaVersion := Scala211)
-  .settings(crossScalaVersions := Seq(scalaVersion.value))
-  .settings(skip in Test := true)
-  .settings(skip in doc := true)
-  .settings( // Exclude from Intellij because Scala Native projects break it - https://github.com/scala-native/scala-native/issues/1007#issuecomment-370402092
-    SettingKey[Boolean]("ide-skip-project") := true
-  )
-  .settings(sources in (Compile, doc) := Seq.empty)
+  .settings(nativeSettings)
   .settings {
     libraryDependencies ~= {
       _.filterNot(_.name == "portable-scala-reflect")
@@ -287,6 +266,7 @@ lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-magnolia"))
   .dependsOn(test)
   .settings(stdSettings("zio-test-magnolia"))
+  .settings(crossProjectSettings)
   .settings(macroDefinitionSettings)
   .settings(
     crossScalaVersions --= Seq(Scala211, ScalaDotty),
@@ -302,6 +282,7 @@ lazy val testMagnoliaTests = crossProject(JVMPlatform, JSPlatform)
   .dependsOn(testMagnolia)
   .dependsOn(testTests % "test->test;compile->compile")
   .settings(stdSettings("test-magnolia-tests"))
+  .settings(crossProjectSettings)
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
   .dependsOn(testRunner)
   .settings(buildInfoSettings("zio.test"))
@@ -323,11 +304,8 @@ lazy val stacktracerJVM = stacktracer.jvm
   .settings(replSettings)
 
 lazy val stacktracerNative = stacktracer.native
-  .settings(scalaVersion := Scala211)
-  .settings(crossScalaVersions := Seq(scalaVersion.value))
+  .settings(nativeSettings)
   .settings(scalacOptions -= "-Xfatal-warnings") // Issue 3112
-  .settings(skip in Test := true)
-  .settings(skip in doc := true)
   .disablePlugins(
     ScalafixPlugin // for some reason `ThisBuild / scalafixScalaBinaryVersion := CrossVersion.binaryScalaVersion(scalaVersion.value)` isn't enough
   )
@@ -345,6 +323,7 @@ lazy val testRunner = crossProject(JVMPlatform, JSPlatform)
 lazy val testJunitRunner = crossProject(JVMPlatform)
   .in(file("test-junit"))
   .settings(stdSettings("zio-test-junit"))
+  .settings(crossProjectSettings)
   .settings(libraryDependencies ++= Seq("junit" % "junit" % "4.13.1"))
   .dependsOn(test)
 
@@ -356,6 +335,7 @@ lazy val testRunnerJS  = testRunner.js.settings(jsSettings)
 lazy val testJunitRunnerTests = crossProject(JVMPlatform)
   .in(file("test-junit-tests"))
   .settings(stdSettings("test-junit-tests"))
+  .settings(crossProjectSettings)
   .settings(fork in Test := true)
   .settings(javaOptions in Test ++= {
     Seq(s"-Dproject.dir=${baseDirectory.value}", s"-Dproject.version=${version.value}")
