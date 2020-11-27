@@ -9,10 +9,12 @@ import BuildInfoKeys._
 import scalafix.sbt.ScalafixPlugin.autoImport._
 
 object BuildHelper {
-  val Scala211        = "2.11.12"
-  val Scala212        = "2.12.12"
-  val Scala213        = "2.13.3"
-  val ScalaDotty      = "3.0.0-M1"
+  // Keep this consistent with the version in .circleci/config.yml
+  val Scala211   = "2.11.12"
+  val Scala212   = "2.12.12"
+  val Scala213   = "2.13.3"
+  val ScalaDotty = "3.0.0-M1"
+
   val SilencerVersion = "1.7.1"
 
   private val stdOptions = Seq(
@@ -54,11 +56,16 @@ object BuildHelper {
     )
 
   val dottySettings = Seq(
-    // Keep this consistent with the version in .circleci/config.yml
     crossScalaVersions += ScalaDotty,
     scalacOptions ++= {
       if (isDotty.value)
         Seq("-noindent")
+      else
+        Seq()
+    },
+    scalacOptions --= {
+      if (isDotty.value)
+        Seq("-Xfatal-warnings")
       else
         Seq()
     },
