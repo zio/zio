@@ -761,7 +761,15 @@ object ZIOSpec extends ZIOBaseSpec {
           e <- ZIO.foreachPar(actions)(a => a).flip
           v <- ref.get
         } yield assert(e)(equalTo("C")) && assert(v)(isFalse)
-      } @@ zioTag(interruption)
+      } @@ zioTag(interruption),
+      testM("does not kill fiber when forked on the parent scope") {
+        for {
+          ref    <- Ref.make(0)
+          fibers <- ZIO.foreachPar(1 to 100)(_ => ref.update(_ + 1).fork)
+          _      <- ZIO.foreach(fibers)(_.await)
+          value  <- ref.get
+        } yield assert(value)(equalTo(100))
+      }
     ),
     suite("foreachPar_")(
       testM("accumulates errors") {
@@ -3045,7 +3053,7 @@ object ZIOSpec extends ZIOBaseSpec {
           fiber <- ZIO.transplant { grafter =>
                      grafter {
                        val zio = for {
-                         _ <- (latch1.succeed(()) *> ZIO.infinity.onInterrupt(latch2.succeed(()))).fork
+                         _ <- (latch1.succeed(()) *> ZIO.infinity).onInterrupt(latch2.succeed(())).fork
                          _ <- ZIO.infinity
                        } yield ()
                        zio.fork

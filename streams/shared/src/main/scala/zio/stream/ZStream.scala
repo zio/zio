@@ -2276,10 +2276,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   final def refineOrDie[E1](
     pf: PartialFunction[E, E1]
   )(implicit ev1: E <:< Throwable, ev2: CanFail[E]): ZStream[R, E1, O] =
-    ZStream(self.process.map(_.mapError {
-      case None                         => None
-      case Some(e) if pf.isDefinedAt(e) => Some(pf.apply(e))
-    }))
+    refineOrDieWith(pf)(ev1)
 
   /**
    * Keeps some of the errors, and terminates the fiber with the rest, using
@@ -2288,11 +2285,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   final def refineOrDieWith[E1](
     pf: PartialFunction[E, E1]
   )(f: E => Throwable)(implicit ev: CanFail[E]): ZStream[R, E1, O] =
-    ZStream(self.process.map(_.mapError {
-      case None                         => None
-      case Some(e) if pf.isDefinedAt(e) => Some(pf.apply(e))
-      case Some(e)                      => throw f(e)
-    }))
+    self.catchAll(err => (pf lift err).fold[ZStream[R, E1, O]](ZStream.die(f(err)))(ZStream.fail(_)))
 
   /**
    * Repeats the entire stream using the specified schedule. The stream will execute normally,

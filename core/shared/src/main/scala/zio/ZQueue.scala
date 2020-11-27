@@ -120,7 +120,7 @@ sealed abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { 
             if (n <= 0) ZIO.succeed(Nil)
             else take.flatMap(a => takeRemainder(n - 1).map(a :: _))
 
-          takeRemainder(remaining - 1).map(list => bs ++ list.reverse)
+          takeRemainder(remaining).map(list => bs ++ list.reverse)
         } else
           UIO.succeedNow(bs)
       }
