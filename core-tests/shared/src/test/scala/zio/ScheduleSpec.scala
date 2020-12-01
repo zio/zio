@@ -7,6 +7,7 @@ import scala.concurrent.Future
 
 import zio.clock.Clock
 import zio.duration._
+import zio.random.Random
 import zio.stream.ZStream
 import zio.test.Assertion._
 import zio.test.TestAspect.{ failing, timeout }
@@ -569,6 +570,18 @@ object ScheduleSpec extends ZIOBaseSpec {
       val schedule = Schedule.unwrap(effect)
 
       checkRepeat(schedule, expected = 5)
+    },
+    zio.test.test("provideCustomLayer provides the part of the environment that is not part of the `ZEnv`") {
+      val loggingLayer: ZLayer[Any, Nothing, Logging]      = Logging.live
+      val schedule: Schedule[ZEnv with Logging, Any, Unit] = Schedule.once
+      val schedule2: Schedule[ZEnv, Any, Unit]             = schedule.provideCustomLayer(loggingLayer)
+      assert(schedule2)(anything)
+    },
+    zio.test.test("provideSomeLayer can split environment into two parts") {
+      val clockLayer: ZLayer[Any, Nothing, Clock]          = Clock.live
+      val schedule: Schedule[Clock with Random, Any, Unit] = Schedule.once
+      val schedule2: Schedule[Random, Any, Unit]           = schedule.provideSomeLayer[Random](clockLayer)
+      assert(schedule2)(anything)
     }
   )
 
@@ -670,4 +683,11 @@ object ScheduleSpec extends ZIOBaseSpec {
   case class ScheduleError(message: String) extends Exception
   case class ScheduleFailure(message: String)
   case class ScheduleSuccess[O](content: O)
+
+  type Logging = Has[Logging.Service]
+
+  object Logging {
+    trait Service
+    val live: ZLayer[Any, Nothing, Logging] = ZLayer.succeed(new Logging.Service {})
+  }
 }
