@@ -1234,16 +1234,17 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
    * Constructs a `Chunk` by repeatedly applying the effectual function `f` as
    * long as it returns `Some`.
    */
-  def unfoldM[R, E, A, S](s: S)(f: S => ZIO[R, E, Option[(A, S)]]): ZIO[R, E, Chunk[A]] = {
+  def unfoldM[R, E, A, S](s: S)(f: S => ZIO[R, E, Option[(A, S)]]): ZIO[R, E, Chunk[A]] =
+    ZIO.effectSuspendTotal {
 
-    def go(s: S, builder: ChunkBuilder[A]): ZIO[R, E, Chunk[A]] =
-      f(s).flatMap {
-        case Some((a, s)) => go(s, builder += a)
-        case None         => ZIO.succeedNow(builder.result())
-      }
+      def go(s: S, builder: ChunkBuilder[A]): ZIO[R, E, Chunk[A]] =
+        f(s).flatMap {
+          case Some((a, s)) => go(s, builder += a)
+          case None         => ZIO.succeedNow(builder.result())
+        }
 
-    go(s, ChunkBuilder.make[A]())
-  }
+      go(s, ChunkBuilder.make[A]())
+    }
 
   /**
    * The unit chunk
