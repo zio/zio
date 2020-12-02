@@ -20,7 +20,9 @@ import java.util.concurrent.atomic.{ AtomicBoolean, AtomicLong, AtomicReference 
 
 import scala.annotation.{ switch, tailrec }
 import scala.collection.JavaConverters._
+
 import com.github.ghik.silencer.silent
+
 import zio.Fiber.Status
 import zio._
 import zio.internal.FiberContext.FiberRefLocals
