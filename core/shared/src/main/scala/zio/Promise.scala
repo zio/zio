@@ -200,6 +200,8 @@ final class Promise[E, A] private (private val state: AtomicReference[State[E, A
     }
   }
 
+  private[zio] def currentState: UIO[State[E, A]] = IO.succeed(state.get())
+
   private[zio] def unsafeDone(io: IO[E, A]): Unit = {
     var retry: Boolean                 = true
     var joiners: List[IO[E, A] => Any] = null
