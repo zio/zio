@@ -16,7 +16,7 @@
 
 package zio.internal
 
-import java.util.concurrent.atomic.{ AtomicBoolean, AtomicLong, AtomicReference }
+import java.util.concurrent.atomic.{ AtomicBoolean, AtomicReference }
 
 import scala.annotation.{ switch, tailrec }
 import scala.collection.JavaConverters._
