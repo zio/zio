@@ -284,7 +284,7 @@ private[zio] final class FiberContext[E, A](
     val newEvaluation     = EvaluationState.Pending(Thread.currentThread().getId)
     if (
       !currentEvaluation.isEqual(newEvaluation) ||
-        !evaluationsInProgress.compareAndSet(currentEvaluation, newEvaluation)
+      !evaluationsInProgress.compareAndSet(currentEvaluation, newEvaluation)
     ) {
       evaluateLater(io0)
     } else {
