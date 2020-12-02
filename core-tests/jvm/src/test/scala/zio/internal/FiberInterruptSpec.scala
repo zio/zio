@@ -1,12 +1,12 @@
 package zio.internal
 
 import zio.Promise.internal.Pending
-import zio.duration._
 import zio.test.Assertion.equalTo
-import zio.test.TestAspect.flaky
-import zio.test._
 import zio.test.environment.Live
+import zio.test.{ ZSpec, assertM, suite, testM }
 import zio.{ Promise, ZIOBaseSpec }
+import zio.duration._
+import zio.test.TestAspect._
 
 object FiberInterruptSpec extends ZIOBaseSpec {
 
