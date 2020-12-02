@@ -15,7 +15,6 @@ import org.openjdk.jmh.annotations.{
   Threads,
   Warmup
 }
-
 import zio.IOBenchmarks.verify
 
 @State(Scope.Thread)

@@ -16,10 +16,10 @@
 
 package zio.test
 
-import scala.concurrent.ExecutionContext
-
 import zio.internal.Executor
 import zio.{ Runtime, URIO, ZIO }
+
+import scala.concurrent.ExecutionContext
 
 /**
  * A `Fun[A, B]` is a referentially transparent version of a potentially

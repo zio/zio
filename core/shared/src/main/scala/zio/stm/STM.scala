@@ -16,9 +16,9 @@
 
 package zio.stm
 
-import scala.util.Try
-
 import zio.{ BuildFrom, CanFail, Fiber, IO }
+
+import scala.util.Try
 
 object STM {
 

@@ -16,11 +16,10 @@
 
 package zio.test.mock
 
-import scala.reflect.macros.whitebox.Context
-
 import com.github.ghik.silencer.silent
-
 import zio.test.TestVersion
+
+import scala.reflect.macros.whitebox.Context
 
 /**
  * Generates method tags for a service into annotated object.

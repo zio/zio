@@ -20,7 +20,6 @@ import java.time.{ Instant, LocalDate, LocalDateTime }
 import java.util.UUID
 
 import magnolia._
-
 import zio.random.Random
 import zio.test.{ Gen, Sized }
 

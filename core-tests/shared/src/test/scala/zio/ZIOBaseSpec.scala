@@ -1,10 +1,10 @@
 package zio
 
-import scala.annotation.tailrec
-
 import zio.duration._
 import zio.test._
 import zio.test.environment.Live
+
+import scala.annotation.tailrec
 
 trait ZIOBaseSpec extends DefaultRunnableSpec {
   override def aspects: List[TestAspectAtLeastR[Live]] =

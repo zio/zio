@@ -2,15 +2,14 @@ package zio.test.junit
 
 import java.io.File
 
-import scala.collection.immutable
-import scala.xml.XML
-
 import org.apache.maven.cli.MavenCli
-
 import zio.blocking.{ Blocking, effectBlocking }
 import zio.test.Assertion._
 import zio.test.{ DefaultRunnableSpec, ZSpec, _ }
 import zio.{ RIO, ZIO }
+
+import scala.collection.immutable
+import scala.xml.XML
 
 /**
  * when running from IDE run `sbt publishM2`, copy the snapshot version the artifacts were published under (something like: `1.0.2+0-37ee0765+20201006-1859-SNAPSHOT`)

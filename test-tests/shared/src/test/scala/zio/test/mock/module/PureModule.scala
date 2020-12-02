@@ -16,9 +16,9 @@
 
 package zio.test.mock.module
 
-import scala.reflect.ClassTag
-
 import zio.{ IO, Tag, URIO, ZIO }
+
+import scala.reflect.ClassTag
 
 /**
  * Example module used for testing ZIO Mock framework.

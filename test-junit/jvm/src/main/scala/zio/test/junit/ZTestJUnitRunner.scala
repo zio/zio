@@ -4,7 +4,6 @@ import com.github.ghik.silencer.silent
 import org.junit.runner.manipulation.{ Filter, Filterable }
 import org.junit.runner.notification.{ Failure, RunNotifier }
 import org.junit.runner.{ Description, RunWith, Runner }
-
 import zio.ZIO.effectTotal
 import zio._
 import zio.test.FailureRenderer.FailureMessage.Message
