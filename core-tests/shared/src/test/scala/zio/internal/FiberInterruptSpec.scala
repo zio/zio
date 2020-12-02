@@ -3,13 +3,13 @@ package zio.internal
 import zio.Promise.internal.Pending
 import zio.duration._
 import zio.test.Assertion.equalTo
+import zio.test.TestAspect.flaky
 import zio.test._
 import zio.test.environment.Live
 import zio.{ Promise, ZIOBaseSpec }
 
 object FiberInterruptSpec extends ZIOBaseSpec {
 
-  //Flaky
   override def spec: ZSpec[Environment, Failure] =
     suite("FiberInterruptSpec")(
       testM("must interrupt all Promise joiners") {
@@ -33,6 +33,6 @@ object FiberInterruptSpec extends ZIOBaseSpec {
         } yield joinerSize
 
         assertM(Live.live(io))(equalTo(0))
-      }
+      } @@ flaky
     )
 }
