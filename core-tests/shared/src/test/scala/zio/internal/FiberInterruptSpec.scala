@@ -15,8 +15,8 @@ object FiberInterruptSpec extends ZIOBaseSpec {
       testM("must interrupt all Promise joiners") {
 
         /**
-         * The idea here, that spawn and interrupt as much joiners as possible
-         * To make sure that, all of them got cleaned up
+         * The idea here to spawn and interrupt as much joiners as possible
+         * And to make sure that, all of them got cleaned up
          */
         (for {
           p <- Promise.make[Throwable, Unit]
