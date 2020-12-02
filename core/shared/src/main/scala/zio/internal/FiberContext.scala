@@ -70,7 +70,7 @@ private[zio] final class FiberContext[E, A](
   private[this] val interruptStatus       = StackBool(startIStatus.toBoolean)
   private[this] val supervisors           = Stack[Supervisor[Any]](supervisor0)
   private[this] val forkScopeOverride     = Stack[Option[ZScope[Exit[Any, Any]]]]()
-  private[this] val evaluationsInProgress = new AtomicLong(0L)
+  private[this] val evaluationsInProgress = new AtomicReference[EvaluationState](EvaluationState.Empty)
 
   var scopeKey: ZScope.Key = null
 
@@ -280,8 +280,12 @@ private[zio] final class FiberContext[E, A](
      * Since we are not allowed to interrupt in the middle of another evaluation due to various race conditions,
      * we will delay new zio effect and wait until current instruction will be completed by `shouldInterrupt()`
      */
-    if (evaluationsInProgress.incrementAndGet() > 1L) {
-      evaluationsInProgress.decrementAndGet()
+    val currentEvaluation = evaluationsInProgress.get()
+    val newEvaluation     = EvaluationState.Pending(Thread.currentThread().getId)
+    if (
+      !currentEvaluation.isEqual(newEvaluation) ||
+        !evaluationsInProgress.compareAndSet(currentEvaluation, newEvaluation)
+    ) {
       evaluateLater(io0)
     } else {
       try {
@@ -671,7 +675,7 @@ private[zio] final class FiberContext[E, A](
           }
         }
       } finally {
-        evaluationsInProgress.decrementAndGet()
+        evaluationsInProgress.set(EvaluationState.Empty)
         Fiber._currentFiber.remove()
       }
 
@@ -1089,6 +1093,26 @@ private[zio] final class FiberContext[E, A](
 
 }
 private[zio] object FiberContext {
+
+  sealed trait EvaluationState {
+    def isEqual(that: EvaluationState): Boolean
+  }
+
+  object EvaluationState {
+
+    case class Pending(threadId: Long) extends EvaluationState {
+      override def isEqual(that: EvaluationState): Boolean = that match {
+        case Pending(thatThreadId) if thatThreadId != threadId => false
+        case _                                                 => true
+      }
+    }
+
+    case object Empty extends EvaluationState {
+      override def isEqual(that: EvaluationState): Boolean = true
+    }
+
+  }
+
   sealed abstract class FiberState[+E, +A] extends Serializable with Product {
     def interrupted: Cause[Nothing]
     def status: Fiber.Status
