@@ -275,11 +275,9 @@ private[zio] final class FiberContext[E, A](
    */
   def evaluateNow(io0: IO[E, Any]): Unit = {
 
-    /**
-     * We must respect the order of instructions if another evaluation is in progress of current FiberContext
-     * Since we are not allowed to interrupt in the middle of another evaluation due to various race conditions,
-     * we will delay new zio effect and wait until current instruction will be completed by `shouldInterrupt()`
-     */
+    // We must respect the order of instructions if another evaluation is in progress of current FiberContext
+    // Since we are not allowed to interrupt in the middle of another evaluation due to various race conditions,
+    // we will delay new zio effect and wait until current instruction will be completed by `shouldInterrupt()`
     val currentEvaluation = evaluationsInProgress.get()
     val newEvaluation     = EvaluationState.Pending(Thread.currentThread().getId)
     if (
