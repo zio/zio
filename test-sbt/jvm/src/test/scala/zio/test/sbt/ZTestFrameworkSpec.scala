@@ -16,6 +16,8 @@
 
 package zio.test.sbt
 
+import java.util.regex.Pattern
+
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Try
 
@@ -80,11 +82,12 @@ object ZTestFrameworkSpec {
     loggers.map(_.messages) foreach (messages =>
       assertEquals(
         "logged messages",
-        messages.mkString.split("\n").dropRight(1).mkString("\n"),
+        messages.mkString.split("\n").dropRight(1).mkString("\n").withNoLineNumbers,
         List(
           s"${reset("info:")} ${red("- some suite")} - ignored: 1",
           s"${reset("info:")}   ${red("- failing test")}",
           s"${reset("info:")}     ${blue("1")} did not satisfy ${cyan("equalTo(2)")}",
+          s"${reset("info:")}     ${blue("1")} did not satisfy ${cyan("(") + yellow("equalTo(2)") + cyan(s" ?? ${assertLabel("1")})")}",
           s"${reset("info:")}   ${green("+")} passing test",
           s"${reset("info:")}   ${yellow("-")} ${yellow("ignored test")} - ignored: 1"
         ).mkString("\n")
@@ -96,16 +99,23 @@ object ZTestFrameworkSpec {
     val loggers = Seq.fill(3)(new MockLogger)
 
     loadAndExecute(multiLineSpecFQN, loggers = loggers)
-
+    val label = assertLabel(zio.test.showExpression("Hello,\nWorld!"))
     loggers.map(_.messages) foreach (messages =>
       assertEquals(
         "logged messages",
-        messages.mkString.split("\n").dropRight(1).mkString("\n"),
+        messages.mkString.split("\n").dropRight(1).mkString("\n").withNoLineNumbers,
         List(
-          s"${reset("info:")} ${red("- multi-line test")}",
-          s"${reset("info:")}   ${Console.BLUE}Hello,",
-          s"${reset("info:")} ${blue("World!")} did not satisfy ${cyan("equalTo(Hello, World!)")}"
+          s"${red("- multi-line test")}",
+          s"  ${Console.BLUE}Hello,",
+          s"${blue("World!")} did not satisfy ${cyan("equalTo(Hello, World!)")}",
+          s"  ${Console.BLUE}Hello,",
+          s"${blue("World!")} did not satisfy ${cyan("(") + yellow("equalTo(Hello, World!)") + cyan(
+            s" ?? ${label.split('\n').mkString("\n" + Console.CYAN)})"
+          )}"
         ).mkString("\n")
+          .split('\n')
+          .map(s"${reset("info:")} " + _)
+          .mkString("\n")
       )
     )
   }
@@ -211,5 +221,12 @@ object ZTestFrameworkSpec {
     def spec: ZSpec[Environment, Failure] = zio.test.test("multi-line test") {
       zio.test.assert("Hello,\nWorld!")(Assertion.equalTo("Hello, World!"))
     }
+  }
+
+  lazy val sourceFilePath: String       = zio.test.sourcePath
+  def assertLabel(expr: String): String = s""""assert(`$expr`) (at $sourceFilePath:XXX)""""
+  implicit class TestOutputOps(output: String) {
+    def withNoLineNumbers: String =
+      output.replaceAll(Pattern.quote(sourceFilePath + ":") + "\\d+", sourceFilePath + ":XXX")
   }
 }

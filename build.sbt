@@ -349,7 +349,7 @@ lazy val testJunitRunnerTests = crossProject(JVMPlatform)
       // required to run embedded maven in the tests
       "org.apache.maven"       % "maven-embedder"         % "3.6.3"  % Test,
       "org.apache.maven"       % "maven-compat"           % "3.6.3"  % Test,
-      "org.apache.maven.wagon" % "wagon-http"             % "3.4.0"  % Test,
+      "org.apache.maven.wagon" % "wagon-http"             % "3.4.2"  % Test,
       "org.eclipse.aether"     % "aether-connector-basic" % "1.1.0"  % Test,
       "org.eclipse.aether"     % "aether-transport-wagon" % "1.1.0"  % Test,
       "org.slf4j"              % "slf4j-simple"           % "1.7.30" % Test
@@ -411,7 +411,7 @@ lazy val benchmarks = project.module
         "org.ow2.asm"                % "asm"            % "9.0",
         "org.scala-lang"             % "scala-compiler" % scalaVersion.value % Provided,
         "org.scala-lang"             % "scala-reflect"  % scalaVersion.value,
-        "org.typelevel"             %% "cats-effect"    % "2.2.0",
+        "org.typelevel"             %% "cats-effect"    % "2.3.0",
         "org.scalacheck"            %% "scalacheck"     % "1.15.1",
         "qa.hedgehog"               %% "hedgehog-core"  % "0.5.1",
         "com.github.japgolly.nyaya" %% "nyaya-gen"      % "0.9.2"

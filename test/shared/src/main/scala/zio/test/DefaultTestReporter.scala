@@ -357,7 +357,7 @@ object FailureRenderer {
     failedMatches.map {
       case InvalidCall.InvalidArguments(invoked, args, assertion) =>
         val header = red(s"- $invoked called with invalid arguments").toLine
-        (header +: renderTestFailure("", assert(args)(assertion)).drop(1)).withOffset(tabSize)
+        (header +: renderTestFailure("", assertImpl(args)(assertion)).drop(1)).withOffset(tabSize)
 
       case InvalidCall.InvalidCapability(invoked, expected, assertion) =>
         Message(
