@@ -60,28 +60,28 @@ object CompileVariants {
 
 object Macros {
   import scala.quoted._
-  def assert_impl[A](value: Expr[A])(assertion: Expr[Assertion[A]])(using ctx: QuoteContext, tp: Type[A]): Expr[TestResult] = {
-    import ctx.tasty._
-    val path = rootPosition.sourceFile.jpath.toString
-    val line = rootPosition.startLine + 1
+  def assert_impl[A](value: Expr[A])(assertion: Expr[Assertion[A]])(using ctx: Quotes, tp: Type[A]): Expr[TestResult] = {
+    import quotes.reflect._
+    val path = Position.ofMacroExpansion.sourceFile.jpath.toString
+    val line = Position.ofMacroExpansion.startLine + 1
     val code = showExpr(value)
     val label = s"assert(`$code`) (at $path:$line)"
     '{_root_.zio.test.CompileVariants.assertImpl[A]($value)(${assertion}.label(${Expr(label)}))}
   }
 
-  private def showExpr[A](expr: Expr[A])(using ctx: QuoteContext) = {
+  private def showExpr[A](expr: Expr[A])(using ctx: Quotes) = {
     expr.show
       // reduce clutter
       .replaceAll("""scala\.([a-zA-Z0-9_]+)""", "$1")
       .replaceAll("""\.apply(\s*[\[(])""", "$1")
   }
 
-  def sourcePath_impl(using ctx: QuoteContext): Expr[String] = {
-    import ctx.tasty._
-    Expr(rootPosition.sourceFile.jpath.toString)
+  def sourcePath_impl(using ctx: Quotes): Expr[String] = {
+    import quotes.reflect._
+    Expr(Position.ofMacroExpansion.sourceFile.jpath.toString)
   }
-  def showExpression_impl[A](value: Expr[A])(using ctx: QuoteContext) = {
-    import ctx.tasty._
+  def showExpression_impl[A](value: Expr[A])(using ctx: Quotes) = {
+    import quotes.reflect._
     Expr(showExpr(value))
   }
 }
