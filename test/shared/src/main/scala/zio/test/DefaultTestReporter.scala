@@ -35,7 +35,8 @@ object DefaultTestReporter {
 
   def render[E](
     executedSpec: ExecutedSpec[E],
-    testAnnotationRenderer: TestAnnotationRenderer
+    testAnnotationRenderer: TestAnnotationRenderer,
+    includeCause: Boolean
   ): Seq[RenderedResult[String]] = {
     def loop(
       executedSpec: ExecutedSpec[E],
@@ -79,7 +80,7 @@ object DefaultTestReporter {
                 label,
                 Failed,
                 depth,
-                (Seq(renderFailureLabel(label, depth)) ++ Seq(renderCause(cause, depth))): _*
+                (Seq(renderFailureLabel(label, depth)) ++ Seq(renderCause(cause, depth)).filter(_ => includeCause)): _*
               )
           }
           Seq(renderedResult.withAnnotations(renderedAnnotations))
@@ -89,7 +90,7 @@ object DefaultTestReporter {
 
   def apply[E](testAnnotationRenderer: TestAnnotationRenderer): TestReporter[E] = {
     (duration: Duration, executedSpec: ExecutedSpec[E]) =>
-      val rendered = render(executedSpec, testAnnotationRenderer).flatMap(_.rendered)
+      val rendered = render(executedSpec, testAnnotationRenderer, true).flatMap(_.rendered)
       val stats    = logStats(duration, executedSpec)
       TestLogger.logLine((rendered ++ Seq(stats)).mkString("\n"))
   }
