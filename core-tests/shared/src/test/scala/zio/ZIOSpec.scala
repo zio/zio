@@ -2926,6 +2926,17 @@ object ZIOSpec extends ZIOBaseSpec {
           _       <- fiber.interrupt
           value   <- ref.get
         } yield assert(value)(isTrue)
+      },
+      testM("effectAsyncInterrupt cancelation") {
+        for {
+          ref <- ZIO.effectTotal(new java.util.concurrent.atomic.AtomicInteger(0))
+          effect = ZIO.effectAsyncInterrupt[Any, Nothing, Any] { _ =>
+                     ref.incrementAndGet()
+                     Left(ZIO.effectTotal(ref.decrementAndGet()))
+                   }
+          _     <- ZIO.unit.race(effect).repeatN(100000)
+          value <- ZIO.effectTotal(ref.get)
+        } yield assert(value)(equalTo(0))
       }
     ) @@ zioTag(interruption),
     suite("RTS environment")(
