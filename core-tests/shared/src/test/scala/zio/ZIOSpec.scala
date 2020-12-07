@@ -2934,10 +2934,10 @@ object ZIOSpec extends ZIOBaseSpec {
                      ref.incrementAndGet()
                      Left(ZIO.effectTotal(ref.decrementAndGet()))
                    }
-          _     <- ZIO.unit.race(effect).repeatN(100000)
-          value <- ZIO.effectTotal(ref.get)
+          _     <- ZIO.unit.race(effect)
+          value <- ZIO.effectTotal(ref.get())
         } yield assert(value)(equalTo(0))
-      }
+      } @@ jvm(nonFlaky(100000))
     ) @@ zioTag(interruption),
     suite("RTS environment")(
       testM("provide is modular") {
