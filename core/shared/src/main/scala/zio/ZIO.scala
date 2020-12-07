@@ -3268,16 +3268,22 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Lifts an Option into a ZIO, if the option is not defined it fails with NoSuchElementException.
    */
   final def getOrFail[A](v: => Option[A]): Task[A] =
-    effectSuspendTotal(v match {
-      case None    => Task.fail(new NoSuchElementException("None.get"))
-      case Some(v) => ZIO.succeedNow(v)
-    })
+    getOrFailWith(new NoSuchElementException("None.get"))(v)
 
   /**
    * Lifts an Option into a IO, if the option is not defined it fails with Unit.
    */
   final def getOrFailUnit[A](v: => Option[A]): IO[Unit, A] =
-    effectTotal(v).flatMap(_.fold[IO[Unit, A]](fail(()))(succeedNow))
+    getOrFailWith(())(v)
+
+  /**
+   * Lifts an Option into a ZIO. If the option is not defined, fail with the `e` value.
+   */
+  final def getOrFailWith[E, A](e: => E)(v: => Option[A]): IO[E, A] =
+    effectSuspendTotal(v match {
+      case None    => IO.fail(e)
+      case Some(v) => ZIO.succeedNow(v)
+    })
 
   /**
    * Returns an effect that models failure with the specified `Cause`.
