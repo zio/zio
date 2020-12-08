@@ -1,11 +1,11 @@
 package zio.stream
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
-
 import zio._
 import zio.test.Assertion._
 import zio.test._
+
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 
 object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
   def spec: ZSpec[Environment, Failure] = suite("ZStream JS")(

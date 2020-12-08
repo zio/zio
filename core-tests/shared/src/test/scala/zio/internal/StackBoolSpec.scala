@@ -1,11 +1,11 @@
 package zio.internal
 
-import scala.util.Random.nextInt
-
 import zio.ZIOBaseSpec
 import zio.random.Random
 import zio.test.Assertion.equalTo
 import zio.test.{ Gen, ZSpec, assert, checkAll, suite, test, testM }
+
+import scala.util.Random.nextInt
 
 object StackBoolSpec extends ZIOBaseSpec {
 

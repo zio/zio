@@ -16,10 +16,10 @@
 
 package zio.test.poly
 
-import scala.annotation.tailrec
-
 import zio.random.Random
 import zio.test.{ Gen, Sized }
+
+import scala.annotation.tailrec
 
 /**
  * `GenOrderingPoly` provides evidence that instances of `Gen[T]` and

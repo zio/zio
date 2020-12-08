@@ -16,9 +16,9 @@
 
 package zio.macros
 
-import scala.reflect.macros.whitebox
-
 import com.github.ghik.silencer.silent
+
+import scala.reflect.macros.whitebox
 
 private[macros] abstract class AccessibleMMacroBase(override val c: whitebox.Context) extends AccessibleMacroBase(c) {
 

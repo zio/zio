@@ -9,11 +9,11 @@ import java.nio.{ Buffer, ByteBuffer }
 import java.util.zip.{ DataFormatException, Inflater }
 import java.{ util => ju }
 
-import scala.annotation.tailrec
-
 import zio._
 import zio.blocking.{ Blocking, effectBlockingIO }
 import zio.stream.compression._
+
+import scala.annotation.tailrec
 
 trait ZSinkPlatformSpecificConstructors {
   self: ZSink.type =>

@@ -1,8 +1,8 @@
 package zio
 
-import scala.reflect.ClassTag
-
 import zio.internal.{ Executor, Platform }
+
+import scala.reflect.ClassTag
 
 object UIO {
 

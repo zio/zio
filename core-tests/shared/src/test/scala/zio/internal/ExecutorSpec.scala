@@ -1,11 +1,11 @@
 package zio.internal
 import java.util.concurrent.RejectedExecutionException
 
-import scala.concurrent.ExecutionContext
-
 import zio.ZIOBaseSpec
 import zio.test.Assertion._
 import zio.test._
+
+import scala.concurrent.ExecutionContext
 
 final class TestExecutor(val submitResult: Boolean) extends Executor {
   val here: Boolean                       = true

@@ -1,11 +1,11 @@
 package zio
 
-import scala.concurrent.ExecutionContext
-import scala.reflect.ClassTag
-
 import zio.clock.Clock
 import zio.duration.Duration
 import zio.internal.{ Executor, Platform }
+
+import scala.concurrent.ExecutionContext
+import scala.reflect.ClassTag
 
 object RIO {
 

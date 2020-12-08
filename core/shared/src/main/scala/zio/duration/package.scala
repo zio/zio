@@ -20,11 +20,11 @@ import java.time.temporal.{ ChronoUnit, TemporalUnit }
 import java.time.{ Duration => JavaDuration, Instant, OffsetDateTime }
 import java.util.concurrent.TimeUnit
 
+import zio.duration.Duration
+
 import scala.concurrent.duration.{ Duration => ScalaDuration, FiniteDuration => ScalaFiniteDuration }
 import scala.language.implicitConversions
 import scala.math.Ordering
-
-import zio.duration.Duration
 
 package object duration {
 

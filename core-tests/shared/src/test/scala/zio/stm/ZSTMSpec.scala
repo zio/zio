@@ -2,7 +2,6 @@ package zio
 package stm
 
 import com.github.ghik.silencer.silent
-
 import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect.nonFlaky

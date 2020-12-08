@@ -16,11 +16,11 @@
 
 package zio.test
 
-import scala.reflect.ClassTag
-import scala.util.{ Failure, Success, Try }
-
 import zio.test.AssertionM.RenderParam
 import zio.{ Cause, Exit, ZIO }
+
+import scala.reflect.ClassTag
+import scala.util.{ Failure, Success, Try }
 
 /**
  * An `Assertion[A]` is capable of producing assertion results on an `A`. As a
