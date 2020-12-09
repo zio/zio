@@ -1,12 +1,11 @@
 package zio
 
-import scala.concurrent.ExecutionContext
-
 import cats._
 import cats.effect.{ ContextShift, Fiber => CFiber, IO => CIO }
 import monix.eval.{ Task => MTask }
-
 import zio.internal._
+
+import scala.concurrent.ExecutionContext
 
 object IOBenchmarks extends BootstrapRuntime {
 

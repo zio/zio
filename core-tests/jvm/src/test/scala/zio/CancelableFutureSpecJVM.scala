@@ -2,12 +2,12 @@ package zio
 
 import java.util.concurrent.Executors
 
-import scala.concurrent.ExecutionContext
-
 import zio.internal.Executor
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test._
+
+import scala.concurrent.ExecutionContext
 
 object CancelableFutureSpecJVM extends ZIOBaseSpec {
 

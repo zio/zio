@@ -16,10 +16,10 @@
 
 package zio
 
-import scala.concurrent.Future
-
 import zio.internal.tracing.{ TracingConfig, ZIOFn }
 import zio.internal.{ Executor, FiberContext, Platform, PlatformConstants, Tracing }
+
+import scala.concurrent.Future
 
 /**
  * A `Runtime[R]` is capable of executing tasks within an environment `R`.

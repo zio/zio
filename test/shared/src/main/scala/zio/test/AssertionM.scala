@@ -16,10 +16,10 @@
 
 package zio.test
 
+import zio.{ UIO, ZIO }
+
 import scala.reflect.ClassTag
 import scala.util.Try
-
-import zio.{ UIO, ZIO }
 
 /**
  * An `AssertionM[A]` is capable of producing assertion results on an `A`. As a

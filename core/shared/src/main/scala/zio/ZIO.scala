@@ -16,17 +16,17 @@
 
 package zio
 
-import scala.annotation.implicitNotFound
-import scala.collection.mutable.Builder
-import scala.concurrent.ExecutionContext
-import scala.reflect.ClassTag
-import scala.util.{ Failure, Success }
-
 import zio.clock.Clock
 import zio.duration._
 import zio.internal.tracing.{ ZIOFn, ZIOFn1, ZIOFn2 }
 import zio.internal.{ Executor, Platform }
 import zio.{ TracingStatus => TracingS }
+
+import scala.annotation.implicitNotFound
+import scala.collection.mutable.Builder
+import scala.concurrent.ExecutionContext
+import scala.reflect.ClassTag
+import scala.util.{ Failure, Success }
 
 /**
  * A `ZIO[R, E, A]` value is an immutable value that lazily describes a
@@ -2477,6 +2477,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * Similar to Either.cond, evaluate the predicate,
    * return the given A as success if predicate returns true, and the given E as error otherwise
+   *
+   * For effectful conditionals, see [[ZIO.ifM]]
    */
   def cond[E, A](predicate: Boolean, result: => A, error: => E): IO[E, A] =
     if (predicate) ZIO.succeed(result) else ZIO.fail(error)
@@ -3266,16 +3268,22 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Lifts an Option into a ZIO, if the option is not defined it fails with NoSuchElementException.
    */
   final def getOrFail[A](v: => Option[A]): Task[A] =
-    effectSuspendTotal(v match {
-      case None    => Task.fail(new NoSuchElementException("None.get"))
-      case Some(v) => ZIO.succeedNow(v)
-    })
+    getOrFailWith(new NoSuchElementException("None.get"))(v)
 
   /**
    * Lifts an Option into a IO, if the option is not defined it fails with Unit.
    */
   final def getOrFailUnit[A](v: => Option[A]): IO[Unit, A] =
-    effectTotal(v).flatMap(_.fold[IO[Unit, A]](fail(()))(succeedNow))
+    getOrFailWith(())(v)
+
+  /**
+   * Lifts an Option into a ZIO. If the option is not defined, fail with the `e` value.
+   */
+  final def getOrFailWith[E, A](e: => E)(v: => Option[A]): IO[E, A] =
+    effectSuspendTotal(v match {
+      case None    => IO.fail(e)
+      case Some(v) => ZIO.succeedNow(v)
+    })
 
   /**
    * Returns an effect that models failure with the specified `Cause`.

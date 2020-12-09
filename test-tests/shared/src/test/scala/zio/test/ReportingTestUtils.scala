@@ -2,8 +2,6 @@ package zio.test
 
 import java.util.regex.Pattern
 
-import scala.{ Console => SConsole }
-
 import zio.clock.Clock
 import zio.test.Assertion.{ equalTo, isGreaterThan, isLessThan, isRight, isSome, not }
 import zio.test.environment.{ TestClock, TestConsole, TestEnvironment, testEnvironment }
@@ -12,6 +10,8 @@ import zio.test.mock.internal.InvalidCall._
 import zio.test.mock.internal.MockException._
 import zio.test.mock.module.PureModuleMock
 import zio.{ Cause, Layer, ZIO }
+
+import scala.{ Console => SConsole }
 
 object ReportingTestUtils {
 

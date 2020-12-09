@@ -20,12 +20,12 @@ import java.lang.ref.WeakReference
 import java.util.concurrent.ConcurrentHashMap
 import java.util.{ Collections, Map => JMap, Set => JSet, WeakHashMap }
 
-import scala.concurrent.ExecutionContext
-
 import zio.internal.stacktracer.Tracer
 import zio.internal.stacktracer.impl.AkkaLineNumbersTracer
 import zio.internal.tracing.TracingConfig
 import zio.{ Cause, Supervisor }
+
+import scala.concurrent.ExecutionContext
 
 private[internal] trait PlatformSpecific {
 

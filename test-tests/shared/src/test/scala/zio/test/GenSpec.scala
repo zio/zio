@@ -2,8 +2,6 @@ package zio.test
 
 import java.time._
 
-import scala.math.Numeric.DoubleIsFractional
-
 import zio.duration.{ Duration, _ }
 import zio.random.Random
 import zio.test.Assertion._
@@ -11,6 +9,8 @@ import zio.test.GenUtils._
 import zio.test.TestAspect.{ nonFlaky, scala2Only, setSeed }
 import zio.test.{ check => Check, checkN => CheckN }
 import zio.{ Chunk, NonEmptyChunk, ZIO }
+
+import scala.math.Numeric.DoubleIsFractional
 
 object GenSpec extends ZIOBaseSpec {
   implicit val localDateTimeOrdering: Ordering[LocalDateTime] = _ compareTo _

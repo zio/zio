@@ -16,10 +16,10 @@
 
 package zio.stm
 
-import scala.collection.immutable.SortedMap
-
 import zio.stm.ZSTM.internal._
 import zio.{ Chunk, ChunkBuilder }
+
+import scala.collection.immutable.SortedMap
 
 /**
  * A `TPriorityQueue` contains values of type `A` that an `Ordering` is defined

@@ -2,9 +2,9 @@ package zio.stream
 
 import java.nio.charset.{ Charset, StandardCharsets }
 
-import scala.collection.mutable
-
 import zio._
+
+import scala.collection.mutable
 
 // Contract notes for transducers:
 // - When a None is received, the transducer must flush all of its internal state
