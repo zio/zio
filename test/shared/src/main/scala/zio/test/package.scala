@@ -16,13 +16,13 @@
 
 package zio
 
-import scala.collection.immutable.SortedSet
-import scala.util.Try
-
 import zio.console.Console
 import zio.duration.Duration
 import zio.stream.{ ZSink, ZStream }
 import zio.test.environment.{ TestClock, TestConsole, TestEnvironment, TestRandom, TestSystem, testEnvironment }
+
+import scala.collection.immutable.SortedSet
+import scala.util.Try
 
 /**
  * _ZIO Test_ is a featherweight testing library for effectful programs.

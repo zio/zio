@@ -3,7 +3,6 @@ package zio.internal
 import java.util.concurrent.TimeUnit
 
 import org.openjdk.jmh.annotations._
-
 import zio.internal.BenchUtils._
 
 @OutputTimeUnit(TimeUnit.NANOSECONDS)

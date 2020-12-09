@@ -1,9 +1,9 @@
 package zio
 
+import zio.internal.{ Executor, Platform }
+
 import scala.concurrent.ExecutionContext
 import scala.reflect.ClassTag
-
-import zio.internal.{ Executor, Platform }
 
 object Task extends TaskPlatformSpecific {
 

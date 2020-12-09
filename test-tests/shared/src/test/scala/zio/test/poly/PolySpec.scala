@@ -1,10 +1,10 @@
 package zio.test.poly
 
-import scala.annotation.tailrec
-
 import zio.random._
 import zio.test.Assertion._
 import zio.test._
+
+import scala.annotation.tailrec
 
 object PolySpec extends DefaultRunnableSpec {
 

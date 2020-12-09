@@ -5,7 +5,6 @@ import java.util.concurrent.locks.StampedLock
 
 import org.openjdk.jmh.annotations.{ Benchmark, Group, GroupThreads, _ }
 import org.openjdk.jmh.infra.Blackhole
-
 import zio.IOBenchmarks._
 import zio._
 

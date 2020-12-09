@@ -1,13 +1,13 @@
 package zio.test
 
-import scala.reflect.ClassTag
-
 import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test.TestUtils._
 import zio.test.environment.TestRandom
 import zio.{ Ref, TracingStatus, ZIO }
+
+import scala.reflect.ClassTag
 
 object TestAspectSpec extends ZIOBaseSpec {
 

@@ -2,12 +2,12 @@ package zio.stream
 
 import java.nio.charset.StandardCharsets
 
-import scala.io.Source
-
 import zio._
 import zio.random.Random
 import zio.test.Assertion._
 import zio.test._
+
+import scala.io.Source
 
 object ZTransducerSpec extends ZIOBaseSpec {
   import ZIOTag._

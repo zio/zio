@@ -4,7 +4,6 @@ import java.util.concurrent.TimeUnit
 
 import cats.data.Chain
 import org.openjdk.jmh.annotations._
-
 import zio.Chunk
 
 @State(Scope.Thread)

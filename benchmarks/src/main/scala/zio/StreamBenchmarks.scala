@@ -2,18 +2,17 @@ package zio
 
 import java.util.concurrent.TimeUnit
 
-import scala.concurrent.duration.Duration
-import scala.concurrent.{ Await, ExecutionContextExecutor }
-
 import akka.Done
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.{ Keep, Sink => AkkaSink, Source => AkkaSource }
 import cats.effect.{ IO => CatsIO }
 import fs2.{ Chunk => FS2Chunk, Stream => FS2Stream }
 import org.openjdk.jmh.annotations._
-
 import zio.IOBenchmarks._
 import zio.stream._
+
+import scala.concurrent.duration.Duration
+import scala.concurrent.{ Await, ExecutionContextExecutor }
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))

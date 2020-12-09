@@ -3,7 +3,6 @@ package zio.chunks
 import java.util.concurrent.TimeUnit
 
 import org.openjdk.jmh.annotations.{ Benchmark, BenchmarkMode, Mode, OutputTimeUnit, Scope, Setup, State }
-
 import zio.Chunk
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.AverageTime))

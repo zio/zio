@@ -2,11 +2,10 @@ package zio
 
 import java.util.concurrent.TimeUnit
 
-import scala.concurrent.Await
-
 import org.openjdk.jmh.annotations._
-
 import zio.IOBenchmarks._
+
+import scala.concurrent.Await
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))

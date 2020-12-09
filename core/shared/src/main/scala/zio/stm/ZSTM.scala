@@ -19,14 +19,13 @@ package zio.stm
 import java.util.concurrent.atomic.{ AtomicBoolean, AtomicLong }
 import java.util.{ HashMap => MutableMap }
 
+import com.github.ghik.silencer.silent
+import zio._
+import zio.internal.{ Platform, Stack, Sync }
+
 import scala.annotation.tailrec
 import scala.collection.mutable.Builder
 import scala.util.{ Failure, Success, Try }
-
-import com.github.ghik.silencer.silent
-
-import zio._
-import zio.internal.{ Platform, Stack, Sync }
 
 /**
  * `STM[E, A]` represents an effect that can be performed transactionally,

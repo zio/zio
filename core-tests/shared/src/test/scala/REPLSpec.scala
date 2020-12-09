@@ -1,5 +1,4 @@
 import com.github.ghik.silencer.silent
-
 import zio.test._
 
 object REPLSpec extends DefaultRunnableSpec {

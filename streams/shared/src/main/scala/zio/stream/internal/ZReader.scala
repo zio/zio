@@ -1,8 +1,8 @@
 package zio.stream.internal
 
-import scala.annotation.tailrec
-
 import zio.{ Chunk, Exit, FiberFailure, Runtime, ZIO }
+
+import scala.annotation.tailrec
 
 private[zio] class ZReader(private var chunks: Iterator[Chunk[Char]]) extends java.io.Reader {
   private var current: Chunk[Char] = Chunk.empty

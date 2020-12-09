@@ -1,10 +1,10 @@
 package zio
 
-import scala.reflect.ClassTag
-
 import zio.clock.Clock
 import zio.duration.Duration
 import zio.internal.{ Executor, Platform }
+
+import scala.reflect.ClassTag
 
 object URIO {
 

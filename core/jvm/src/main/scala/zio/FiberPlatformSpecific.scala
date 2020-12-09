@@ -17,7 +17,6 @@
 package zio
 
 import _root_.java.util.concurrent.{ CompletionStage, Future }
-
 import zio.blocking.Blocking
 import zio.interop.javaz
 

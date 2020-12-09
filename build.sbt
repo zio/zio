@@ -53,7 +53,7 @@ addCommandAlias(
 )
 addCommandAlias(
   "testJVMDotty",
-  ";coreTestsJVM/test;stacktracerJVM/test:compile;streamsTestsJVM/test;testTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile"
+  ";coreTestsJVM/test;stacktracerJVM/test:compile;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile"
 )
 addCommandAlias(
   "testJVM211",
@@ -269,13 +269,26 @@ lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform)
   .settings(crossProjectSettings)
   .settings(macroDefinitionSettings)
   .settings(
-    crossScalaVersions --= Seq(Scala211, ScalaDotty),
-    scalacOptions += "-language:experimental.macros",
-    libraryDependencies += ("com.propensive" %%% "magnolia" % "0.17.0").exclude("org.scala-lang", "scala-compiler")
+    crossScalaVersions --= Seq(Scala211),
+    scalacOptions ++= {
+      if (isDotty.value) {
+        Seq.empty
+      } else {
+        Seq("-language:experimental.macros")
+      }
+    },
+    libraryDependencies ++= {
+      if (isDotty.value) {
+        Seq.empty
+      } else {
+        Seq(("com.propensive" %%% "magnolia" % "0.17.0").exclude("org.scala-lang", "scala-compiler"))
+      }
+    }
   )
 
 lazy val testMagnoliaJVM = testMagnolia.jvm
-lazy val testMagnoliaJS  = testMagnolia.js
+  .settings(dottySettings)
+lazy val testMagnoliaJS = testMagnolia.js
 
 lazy val testMagnoliaTests = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-magnolia-tests"))
@@ -290,7 +303,8 @@ lazy val testMagnoliaTests = crossProject(JVMPlatform, JSPlatform)
   .enablePlugins(BuildInfoPlugin)
 
 lazy val testMagnoliaTestsJVM = testMagnoliaTests.jvm
-lazy val testMagnoliaTestsJS  = testMagnoliaTests.js.settings(jsSettings)
+  .settings(dottySettings)
+lazy val testMagnoliaTestsJS = testMagnoliaTests.js.settings(jsSettings)
 
 lazy val stacktracer = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("stacktracer"))
@@ -406,7 +420,7 @@ lazy val benchmarks = project.module
         "com.twitter"               %% "util-core"      % "20.10.0",
         "com.typesafe.akka"         %% "akka-stream"    % "2.6.10",
         "io.monix"                  %% "monix"          % "3.2.2",
-        "io.projectreactor"          % "reactor-core"   % "3.4.0",
+        "io.projectreactor"          % "reactor-core"   % "3.4.1",
         "io.reactivex.rxjava2"       % "rxjava"         % "2.2.20",
         "org.ow2.asm"                % "asm"            % "9.0",
         "org.scala-lang"             % "scala-compiler" % scalaVersion.value % Provided,

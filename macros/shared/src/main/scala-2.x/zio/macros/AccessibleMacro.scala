@@ -16,9 +16,9 @@
 
 package zio.macros
 
-import scala.reflect.macros.whitebox
-
 import com.github.ghik.silencer.silent
+
+import scala.reflect.macros.whitebox
 
 /**
  * Generates method accessors for a service into annotated object.
