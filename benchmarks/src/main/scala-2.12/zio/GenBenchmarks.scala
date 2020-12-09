@@ -4,7 +4,6 @@ import java.util.concurrent.TimeUnit
 
 import org.openjdk.jmh.annotations._
 import org.scalacheck
-
 import zio.IOBenchmarks.unsafeRun
 import zio.test.Gen
 

@@ -2,11 +2,10 @@ package zio
 
 import java.util.concurrent.TimeUnit
 
-import scala.collection.immutable.Range
-
 import org.openjdk.jmh.annotations._
-
 import zio.IOBenchmarks.unsafeRun
+
+import scala.collection.immutable.Range
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))

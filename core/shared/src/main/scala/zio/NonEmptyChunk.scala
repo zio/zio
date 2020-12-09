@@ -16,9 +16,9 @@
 
 package zio
 
-import scala.language.implicitConversions
-
 import zio.NonEmptyChunk._
+
+import scala.language.implicitConversions
 
 /**
  * A `NonEmptyChunk` is a `Chunk` that is guaranteed to contain at least one

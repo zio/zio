@@ -16,9 +16,9 @@
 
 package zio.stm
 
-import scala.collection.immutable.{ Queue => ScalaQueue }
-
 import zio.stm.ZSTM.internal._
+
+import scala.collection.immutable.{ Queue => ScalaQueue }
 
 final class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
 

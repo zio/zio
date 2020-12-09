@@ -16,17 +16,17 @@
 
 package zio
 
-import scala.annotation.implicitNotFound
-import scala.collection.mutable.Builder
-import scala.concurrent.ExecutionContext
-import scala.reflect.ClassTag
-import scala.util.{ Failure, Success }
-
 import zio.clock.Clock
 import zio.duration._
 import zio.internal.tracing.{ ZIOFn, ZIOFn1, ZIOFn2 }
 import zio.internal.{ Executor, Platform }
 import zio.{ TracingStatus => TracingS }
+
+import scala.annotation.implicitNotFound
+import scala.collection.mutable.Builder
+import scala.concurrent.ExecutionContext
+import scala.reflect.ClassTag
+import scala.util.{ Failure, Success }
 
 /**
  * A `ZIO[R, E, A]` value is an immutable value that lazily describes a
@@ -1508,37 +1508,43 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     }
 
   /**
-   * Repeats this effect until its error satisfies the specified predicate.
+   * Repeats this effect until its value satisfies the specified predicate
+   * or until the first failure.
    */
   final def repeatUntil(f: A => Boolean): ZIO[R, E, A] =
     repeatUntilM(a => ZIO.succeed(f(a)))
 
   /**
-   * Repeats this effect until its error equals the predicate.
+   * Repeats this effect until its value is equal to the specified value
+   * or until the first failure.
    */
   final def repeatUntilEquals[A1 >: A](a: => A1): ZIO[R, E, A1] =
     repeatUntil(_ == a)
 
   /**
-   * Repeats this effect until its error satisfies the specified effectful predicate.
+   * Repeats this effect until its value satisfies the specified effectful predicate
+   * or until the first failure.
    */
   final def repeatUntilM[R1 <: R](f: A => URIO[R1, Boolean]): ZIO[R1, E, A] =
     self.flatMap(a => f(a).flatMap(b => if (b) ZIO.succeedNow(a) else ZIO.yieldNow *> repeatUntilM(f)))
 
   /**
-   * Repeats this effect while its error satisfies the specified predicate.
+   * Repeats this effect while its value satisfies the specified predicate
+   * or until the first failure.
    */
   final def repeatWhile(f: A => Boolean): ZIO[R, E, A] =
     repeatWhileM(a => ZIO.succeed(f(a)))
 
   /**
-   * Repeats this effect for as long as the error equals the predicate.
+   * Repeats this effect for as long as its value is equal to the specified value
+   * or until the first failure.
    */
   final def repeatWhileEquals[A1 >: A](a: => A1): ZIO[R, E, A1] =
     repeatWhile(_ == a)
 
   /**
-   * Repeats this effect while its error satisfies the specified effectful predicate.
+   * Repeats this effect while its value satisfies the specified effectful predicate
+   * or until the first failure.
    */
   final def repeatWhileM[R1 <: R](f: A => URIO[R1, Boolean]): ZIO[R1, E, A] =
     repeatUntilM(e => f(e).map(!_))
@@ -1600,7 +1606,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     retryUntilM(e => ZIO.succeed(f(e)))
 
   /**
-   * Retries this effect until its error equals the predicate.
+   * Retries this effect until its error is equal to the specified error.
    */
   final def retryUntilEquals[E1 >: E](e: => E1)(implicit ev: CanFail[E1]): ZIO[R, E1, A] =
     retryUntil(_ == e)
@@ -1618,7 +1624,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     retryWhileM(e => ZIO.succeed(f(e)))
 
   /**
-   * Retries this effect for as long as the error equals the predicate.
+   * Retries this effect for as long as its error is equal to the specified error.
    */
   final def retryWhileEquals[E1 >: E](e: => E1)(implicit ev: CanFail[E1]): ZIO[R, E1, A] =
     retryWhile(_ == e)
@@ -2471,6 +2477,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * Similar to Either.cond, evaluate the predicate,
    * return the given A as success if predicate returns true, and the given E as error otherwise
+   *
+   * For effectful conditionals, see [[ZIO.ifM]]
    */
   def cond[E, A](predicate: Boolean, result: => A, error: => E): IO[E, A] =
     if (predicate) ZIO.succeed(result) else ZIO.fail(error)
@@ -3007,7 +3015,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
                    .uninterruptible
                )
 
-        fibers <- ZIO.foreach(as)(a => task(a).fork)
+        fibers <- ZIO.transplant(graft => ZIO.foreach(as)(a => graft(task(a)).fork))
         interrupter = result.await
                         .catchAll(_ => ZIO.foreach(fibers)(_.interruptAs(parentId).fork) >>= Fiber.joinAll)
                         .forkManaged
@@ -3260,16 +3268,22 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Lifts an Option into a ZIO, if the option is not defined it fails with NoSuchElementException.
    */
   final def getOrFail[A](v: => Option[A]): Task[A] =
-    effectSuspendTotal(v match {
-      case None    => Task.fail(new NoSuchElementException("None.get"))
-      case Some(v) => ZIO.succeedNow(v)
-    })
+    getOrFailWith(new NoSuchElementException("None.get"))(v)
 
   /**
    * Lifts an Option into a IO, if the option is not defined it fails with Unit.
    */
   final def getOrFailUnit[A](v: => Option[A]): IO[Unit, A] =
-    effectTotal(v).flatMap(_.fold[IO[Unit, A]](fail(()))(succeedNow))
+    getOrFailWith(())(v)
+
+  /**
+   * Lifts an Option into a ZIO. If the option is not defined, fail with the `e` value.
+   */
+  final def getOrFailWith[E, A](e: => E)(v: => Option[A]): IO[E, A] =
+    effectSuspendTotal(v match {
+      case None    => IO.fail(e)
+      case Some(v) => ZIO.succeedNow(v)
+    })
 
   /**
    * Returns an effect that models failure with the specified `Cause`.

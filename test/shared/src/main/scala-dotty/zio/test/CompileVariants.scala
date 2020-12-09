@@ -38,4 +38,50 @@ trait CompileVariants {
 
   private val errorMessage =
     "Reporting of compilation error messages on Dotty is not currently supported due to instability of the underlying APIs."
+
+  /**
+   * Checks the assertion holds for the given value.
+   */
+  private[test] def assertImpl[A](value: => A)(assertion: Assertion[A]): TestResult
+
+  inline def assert[A](inline value: => A)(inline assertion: Assertion[A]): TestResult = ${Macros.assert_impl('value)('assertion)}
+
+  private[zio] inline def sourcePath: String = ${Macros.sourcePath_impl}
+
+  private[zio] inline def showExpression[A](inline value: => A): String = ${Macros.showExpression_impl('value)}
+}
+
+object CompileVariants {
+  /**
+   * just a proxy to call package private assertRuntime from the macro
+   */
+  def assertImpl[A](value: => A)(assertion: Assertion[A]): TestResult = zio.test.assertImpl(value)(assertion)
+}
+
+object Macros {
+  import scala.quoted._
+  def assert_impl[A](value: Expr[A])(assertion: Expr[Assertion[A]])(using ctx: QuoteContext, tp: Type[A]): Expr[TestResult] = {
+    import ctx.tasty._
+    val path = rootPosition.sourceFile.jpath.toString
+    val line = rootPosition.startLine + 1
+    val code = showExpr(value)
+    val label = s"assert(`$code`) (at $path:$line)"
+    '{_root_.zio.test.CompileVariants.assertImpl[A]($value)(${assertion}.label(${Expr(label)}))}
+  }
+
+  private def showExpr[A](expr: Expr[A])(using ctx: QuoteContext) = {
+    expr.show
+      // reduce clutter
+      .replaceAll("""scala\.([a-zA-Z0-9_]+)""", "$1")
+      .replaceAll("""\.apply(\s*[\[(])""", "$1")
+  }
+
+  def sourcePath_impl(using ctx: QuoteContext): Expr[String] = {
+    import ctx.tasty._
+    Expr(rootPosition.sourceFile.jpath.toString)
+  }
+  def showExpression_impl[A](value: Expr[A])(using ctx: QuoteContext) = {
+    import ctx.tasty._
+    Expr(showExpr(value))
+  }
 }

@@ -13,14 +13,14 @@ import java.util.zip.{
   InflaterInputStream
 }
 
-import scala.annotation.tailrec
-
 import zio._
 import zio.stream.ZTransducer.{ deflate, gunzip, gzip, inflate }
 import zio.stream._
 import zio.stream.compression.TestData._
 import zio.test.Assertion._
 import zio.test._
+
+import scala.annotation.tailrec
 
 object CompressionSpec extends DefaultRunnableSpec {
   override def spec: ZSpec[Environment, Failure] =

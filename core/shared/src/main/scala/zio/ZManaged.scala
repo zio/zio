@@ -16,12 +16,12 @@
 
 package zio
 
-import scala.collection.immutable.LongMap
-import scala.reflect.ClassTag
-
 import zio.ZManaged.ReleaseMap
 import zio.clock.Clock
 import zio.duration.Duration
+
+import scala.collection.immutable.LongMap
+import scala.reflect.ClassTag
 
 /**
  * A `Reservation[-R, +E, +A]` encapsulates resource acquisition and disposal

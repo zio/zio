@@ -3,7 +3,6 @@ package zio.test.sbt
 import java.util.concurrent.atomic.AtomicReference
 
 import sbt.testing.Logger
-
 import zio.test.sbt.TestingSupport._
 
 class MockLogger extends Logger {

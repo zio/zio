@@ -18,10 +18,10 @@ package zio
 
 import java.util.concurrent.atomic.AtomicBoolean
 
-import scala.annotation.tailrec
-
 import zio.ZQueue.internal._
 import zio.internal.MutableConcurrentQueue
+
+import scala.annotation.tailrec
 
 /**
  * A `ZQueue[RA, RB, EA, EB, A, B]` is a lightweight, asynchronous queue into which values of
@@ -120,7 +120,7 @@ sealed abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { 
             if (n <= 0) ZIO.succeed(Nil)
             else take.flatMap(a => takeRemainder(n - 1).map(a :: _))
 
-          takeRemainder(remaining - 1).map(list => bs ++ list.reverse)
+          takeRemainder(remaining).map(list => bs ++ list.reverse)
         } else
           UIO.succeedNow(bs)
       }

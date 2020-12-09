@@ -53,7 +53,7 @@ addCommandAlias(
 )
 addCommandAlias(
   "testJVMDotty",
-  ";coreTestsJVM/test;stacktracerJVM/test:compile;streamsTestsJVM/test;testTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile"
+  ";coreTestsJVM/test;stacktracerJVM/test:compile;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile"
 )
 addCommandAlias(
   "testJVM211",
@@ -131,14 +131,7 @@ lazy val coreJS = core.js
   .settings(jsSettings)
 
 lazy val coreNative = core.native
-  .settings(scalaVersion := Scala211)
-  .settings(crossScalaVersions := Seq(scalaVersion.value))
-  .settings(skip in Test := true)
-  .settings(skip in doc := true)
-  .settings( // Exclude from Intellij because Scala Native projects break it - https://github.com/scala-native/scala-native/issues/1007#issuecomment-370402092
-    SettingKey[Boolean]("ide-skip-project") := true
-  )
-  .settings(sources in (Compile, doc) := Seq.empty)
+  .settings(nativeSettings)
   .settings(
     libraryDependencies ++= Seq(
       "dev.whaling" %%% "native-loop-core"      % "0.1.1",
@@ -200,14 +193,7 @@ lazy val streamsJVM = streams.jvm
 lazy val streamsJS = streams.js
 
 lazy val streamsNative = streams.native
-  .settings(scalaVersion := Scala211)
-  .settings(crossScalaVersions := Seq(scalaVersion.value))
-  .settings(skip in Test := true)
-  .settings(skip in doc := true)
-  .settings( // Exclude from Intellij because Scala Native projects break it - https://github.com/scala-native/scala-native/issues/1007#issuecomment-370402092
-    SettingKey[Boolean]("ide-skip-project") := true
-  )
-  .settings(sources in (Compile, doc) := Seq.empty)
+  .settings(nativeSettings)
   .disablePlugins(
     ScalafixPlugin // for some reason `ThisBuild / scalafixScalaBinaryVersion := CrossVersion.binaryScalaVersion(scalaVersion.value)` isn't enough
   )
@@ -251,14 +237,7 @@ lazy val testJVM = test.jvm
   .settings(mimaSettings(failOnProblem = false))
 lazy val testJS = test.js
 lazy val testNative = test.native
-  .settings(scalaVersion := Scala211)
-  .settings(crossScalaVersions := Seq(scalaVersion.value))
-  .settings(skip in Test := true)
-  .settings(skip in doc := true)
-  .settings( // Exclude from Intellij because Scala Native projects break it - https://github.com/scala-native/scala-native/issues/1007#issuecomment-370402092
-    SettingKey[Boolean]("ide-skip-project") := true
-  )
-  .settings(sources in (Compile, doc) := Seq.empty)
+  .settings(nativeSettings)
   .settings {
     libraryDependencies ~= {
       _.filterNot(_.name == "portable-scala-reflect")
@@ -287,21 +266,36 @@ lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-magnolia"))
   .dependsOn(test)
   .settings(stdSettings("zio-test-magnolia"))
+  .settings(crossProjectSettings)
   .settings(macroDefinitionSettings)
   .settings(
-    crossScalaVersions --= Seq(Scala211, ScalaDotty),
-    scalacOptions += "-language:experimental.macros",
-    libraryDependencies += ("com.propensive" %%% "magnolia" % "0.17.0").exclude("org.scala-lang", "scala-compiler")
+    crossScalaVersions --= Seq(Scala211),
+    scalacOptions ++= {
+      if (isDotty.value) {
+        Seq.empty
+      } else {
+        Seq("-language:experimental.macros")
+      }
+    },
+    libraryDependencies ++= {
+      if (isDotty.value) {
+        Seq.empty
+      } else {
+        Seq(("com.propensive" %%% "magnolia" % "0.17.0").exclude("org.scala-lang", "scala-compiler"))
+      }
+    }
   )
 
 lazy val testMagnoliaJVM = testMagnolia.jvm
-lazy val testMagnoliaJS  = testMagnolia.js
+  .settings(dottySettings)
+lazy val testMagnoliaJS = testMagnolia.js
 
 lazy val testMagnoliaTests = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-magnolia-tests"))
   .dependsOn(testMagnolia)
   .dependsOn(testTests % "test->test;compile->compile")
   .settings(stdSettings("test-magnolia-tests"))
+  .settings(crossProjectSettings)
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
   .dependsOn(testRunner)
   .settings(buildInfoSettings("zio.test"))
@@ -309,7 +303,8 @@ lazy val testMagnoliaTests = crossProject(JVMPlatform, JSPlatform)
   .enablePlugins(BuildInfoPlugin)
 
 lazy val testMagnoliaTestsJVM = testMagnoliaTests.jvm
-lazy val testMagnoliaTestsJS  = testMagnoliaTests.js.settings(jsSettings)
+  .settings(dottySettings)
+lazy val testMagnoliaTestsJS = testMagnoliaTests.js.settings(jsSettings)
 
 lazy val stacktracer = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("stacktracer"))
@@ -323,11 +318,8 @@ lazy val stacktracerJVM = stacktracer.jvm
   .settings(replSettings)
 
 lazy val stacktracerNative = stacktracer.native
-  .settings(scalaVersion := Scala211)
-  .settings(crossScalaVersions := Seq(scalaVersion.value))
+  .settings(nativeSettings)
   .settings(scalacOptions -= "-Xfatal-warnings") // Issue 3112
-  .settings(skip in Test := true)
-  .settings(skip in doc := true)
   .disablePlugins(
     ScalafixPlugin // for some reason `ThisBuild / scalafixScalaBinaryVersion := CrossVersion.binaryScalaVersion(scalaVersion.value)` isn't enough
   )
@@ -345,6 +337,7 @@ lazy val testRunner = crossProject(JVMPlatform, JSPlatform)
 lazy val testJunitRunner = crossProject(JVMPlatform)
   .in(file("test-junit"))
   .settings(stdSettings("zio-test-junit"))
+  .settings(crossProjectSettings)
   .settings(libraryDependencies ++= Seq("junit" % "junit" % "4.13.1"))
   .dependsOn(test)
 
@@ -356,6 +349,7 @@ lazy val testRunnerJS  = testRunner.js.settings(jsSettings)
 lazy val testJunitRunnerTests = crossProject(JVMPlatform)
   .in(file("test-junit-tests"))
   .settings(stdSettings("test-junit-tests"))
+  .settings(crossProjectSettings)
   .settings(fork in Test := true)
   .settings(javaOptions in Test ++= {
     Seq(s"-Dproject.dir=${baseDirectory.value}", s"-Dproject.version=${version.value}")
@@ -369,7 +363,7 @@ lazy val testJunitRunnerTests = crossProject(JVMPlatform)
       // required to run embedded maven in the tests
       "org.apache.maven"       % "maven-embedder"         % "3.6.3"  % Test,
       "org.apache.maven"       % "maven-compat"           % "3.6.3"  % Test,
-      "org.apache.maven.wagon" % "wagon-http"             % "3.4.0"  % Test,
+      "org.apache.maven.wagon" % "wagon-http"             % "3.4.2"  % Test,
       "org.eclipse.aether"     % "aether-connector-basic" % "1.1.0"  % Test,
       "org.eclipse.aether"     % "aether-transport-wagon" % "1.1.0"  % Test,
       "org.slf4j"              % "slf4j-simple"           % "1.7.30" % Test
@@ -421,18 +415,18 @@ lazy val benchmarks = project.module
     skip in publish := true,
     libraryDependencies ++=
       Seq(
-        "co.fs2"                    %% "fs2-core"       % "2.4.4",
+        "co.fs2"                    %% "fs2-core"       % "2.4.6",
         "com.google.code.findbugs"   % "jsr305"         % "3.0.2",
         "com.twitter"               %% "util-core"      % "20.10.0",
         "com.typesafe.akka"         %% "akka-stream"    % "2.6.10",
-        "io.monix"                  %% "monix"          % "3.3.0",
-        "io.projectreactor"          % "reactor-core"   % "3.4.0",
+        "io.monix"                  %% "monix"          % "3.2.2",
+        "io.projectreactor"          % "reactor-core"   % "3.4.1",
         "io.reactivex.rxjava2"       % "rxjava"         % "2.2.20",
         "org.ow2.asm"                % "asm"            % "9.0",
         "org.scala-lang"             % "scala-compiler" % scalaVersion.value % Provided,
         "org.scala-lang"             % "scala-reflect"  % scalaVersion.value,
-        "org.typelevel"             %% "cats-effect"    % "2.2.0",
-        "org.scalacheck"            %% "scalacheck"     % "1.15.0",
+        "org.typelevel"             %% "cats-effect"    % "2.3.0",
+        "org.scalacheck"            %% "scalacheck"     % "1.15.1",
         "qa.hedgehog"               %% "hedgehog-core"  % "0.5.1",
         "com.github.japgolly.nyaya" %% "nyaya-gen"      % "0.9.2"
       ),
@@ -460,9 +454,6 @@ lazy val jsdocs = project
 lazy val docs = project.module
   .in(file("zio-docs"))
   .settings(
-    // skip 2.13 mdoc until mdoc is available for 2.13
-    crossScalaVersions -= Scala213,
-    //
     skip.in(publish) := true,
     moduleName := "zio-docs",
     unusedCompileDependenciesFilter -= moduleFilter("org.scalameta", "mdoc"),
@@ -478,16 +469,16 @@ lazy val docs = project.module
       "dev.zio"            %% "zio-interop-monix"           % "3.0.0.0-RC7",
       "dev.zio"            %% "zio-interop-scalaz7x"        % "7.2.27.0-RC9",
       "dev.zio"            %% "zio-interop-reactivestreams" % "1.3.0.7-2",
-      "dev.zio"            %% "zio-interop-twitter"         % "20.9.0.0"
+      "dev.zio"            %% "zio-interop-twitter"         % "20.10.0.0"
     )
   )
   .settings(macroExpansionSettings)
-  //.settings(mdocJS := Some(jsdocs)) // Disabled until mdoc supports ScalaJS 1.1
+  .settings(mdocJS := Some(jsdocs))
   .dependsOn(
     coreJVM,
     streamsJVM,
     testJVM,
-    testMagnoliaJVM
-    // , coreJS // Disabled until mdoc supports ScalaJS 1.1
+    testMagnoliaJVM,
+    coreJS
   )
   .enablePlugins(MdocPlugin, DocusaurusPlugin)

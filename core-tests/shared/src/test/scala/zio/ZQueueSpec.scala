@@ -1,13 +1,13 @@
 package zio
 
-import scala.collection.immutable.Range
-
 import zio.ZQueueSpecUtil.waitForSize
 import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect.{ jvm, nonFlaky }
 import zio.test._
 import zio.test.environment.Live
+
+import scala.collection.immutable.Range
 
 object ZQueueSpec extends ZIOBaseSpec {
 
@@ -264,13 +264,11 @@ object ZQueueSpec extends ZIOBaseSpec {
       },
       testM("blocks until a required minimum of elements is collected") {
         for {
-          queue   <- Queue.bounded[Int](100)
-          counter <- Ref.make(0)
-          updater  = (queue.offer(10) *> counter.update(_ + 1)).forever
-          getter   = queue.takeBetween(5, 10)
-          _       <- getter.race(updater)
-          count   <- counter.get
-        } yield assert(count >= 5)(isTrue)
+          queue  <- Queue.bounded[Int](100)
+          updater = queue.offer(10).forever
+          getter  = queue.takeBetween(5, 10)
+          res    <- getter.race(updater)
+        } yield assert(res)(hasSize(isGreaterThanEqualTo(5)))
       }
     ),
     testM("offerAll with takeAll") {

@@ -570,6 +570,16 @@ object ChunkSpec extends ZIOBaseSpec {
       check(Gen.listOf(Gen.oneOf(Gen.anyInt, Gen.anyString, Gen.none))) { as =>
         assert(Chunk.fromIterable(as).toList)(equalTo(as))
       }
+    },
+    zio.test.test("unfold") {
+      assert(
+        Chunk.unfold(0)(n => if (n < 10) Some((n, n + 1)) else None)
+      )(equalTo(Chunk.fromIterable(0 to 9)))
+    },
+    testM("unfoldM") {
+      assertM(
+        Chunk.unfoldM(0)(n => if (n < 10) IO.some((n, n + 1)) else IO.none)
+      )(equalTo(Chunk.fromIterable(0 to 9)))
     }
   )
 }

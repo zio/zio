@@ -3,8 +3,6 @@ package zio.stream
 import java.io.{ ByteArrayInputStream, IOException }
 import java.util.concurrent.TimeUnit
 
-import scala.concurrent.ExecutionContext
-
 import zio._
 import zio.clock.Clock
 import zio.duration._
@@ -15,6 +13,8 @@ import zio.test.Assertion._
 import zio.test.TestAspect.{ exceptJS, flaky, nonFlaky, scala2Only, timeout }
 import zio.test._
 import zio.test.environment.TestClock
+
+import scala.concurrent.ExecutionContext
 
 object ZStreamSpec extends ZIOBaseSpec {
   import ZIOTag._
@@ -2428,6 +2428,68 @@ object ZStreamSpec extends ZIOBaseSpec {
             )(equalTo(Chunk("A", "A", "B")))
           )
         ),
+        suite("retry")(
+          testM("retry a failing stream") {
+            assertM(
+              for {
+                ref     <- Ref.make(0)
+                stream   = ZStream.fromEffect(ref.getAndUpdate(_ + 1)) ++ ZStream.fail(None)
+                results <- stream.retry(Schedule.forever).take(2).runCollect
+              } yield results
+            )(equalTo(Chunk(0, 1)))
+          },
+          testM("cleanup resources before restarting the stream") {
+            assertM(
+              for {
+                finalized <- Ref.make(0)
+                stream = ZStream.unwrapManaged(
+                           ZManaged
+                             .finalizer(finalized.getAndUpdate(_ + 1))
+                             .as(ZStream.fromEffect(finalized.get) ++ ZStream.fail(None))
+                         )
+                results <- stream.retry(Schedule.forever).take(2).runCollect
+              } yield results
+            )(equalTo(Chunk(0, 1)))
+          },
+          testM("retry a failing stream according to a schedule") {
+            for {
+              times <- Ref.make(List.empty[java.time.Instant])
+              stream =
+                ZStream
+                  .fromEffect(clock.instant.flatMap(time => times.update(time +: _)))
+                  .flatMap(_ => Stream.fail(None))
+              streamFib <- stream.retry(Schedule.exponential(1.second)).take(3).runDrain.fork
+              _         <- TestClock.adjust(1.second)
+              _         <- TestClock.adjust(2.second)
+              _         <- streamFib.interrupt
+              results   <- times.get.map(_.map(_.getEpochSecond.toInt))
+            } yield assert(results)(equalTo(List(3, 1, 0)))
+          },
+          testM("reset the schedule after a successful pull") {
+            for {
+              times <- Ref.make(List.empty[java.time.Instant])
+              ref   <- Ref.make(0)
+              stream =
+                ZStream
+                  .fromEffect(clock.instant.flatMap(time => times.update(time +: _) *> ref.updateAndGet(_ + 1)))
+                  .flatMap { attemptNr =>
+                    if (attemptNr == 3 || attemptNr == 5) Stream.succeed(attemptNr) else Stream.fail(None)
+                  }
+                  .forever
+              streamFib <- stream
+                             .retry(Schedule.exponential(1.second))
+                             .take(2)
+                             .tap(e => UIO(println(s"Got element ${e}")))
+                             .runDrain
+                             .fork
+              _       <- TestClock.adjust(1.second)
+              _       <- TestClock.adjust(2.second)
+              _       <- TestClock.adjust(1.second)
+              _       <- streamFib.join
+              results <- times.get.map(_.map(_.getEpochSecond.toInt))
+            } yield assert(results)(equalTo(List(4, 3, 3, 1, 0)))
+          }
+        ),
         testM("some") {
           val s1 = ZStream.succeed(Some(1)) ++ ZStream.succeed(None)
           s1.some.runCollect.either.map(assert(_)(isLeft(equalTo(None))))
@@ -3275,7 +3337,17 @@ object ZStreamSpec extends ZIOBaseSpec {
               "type arguments [Error] do not conform to method refineToOrDie's type parameter bounds [E1 <: RuntimeException]"
             assertM(result)(isLeft(equalTo(expected)))
           } @@ scala2Only
-        )
+        ),
+        testM("refineOrDie") {
+          val error = new Exception
+
+          ZStream
+            .fail(error)
+            .refineOrDie { case e: IllegalArgumentException => e }
+            .runDrain
+            .run
+            .map(assert(_)(dies(equalTo(error))))
+        }
       ),
       suite("Constructors")(
         testM("access") {

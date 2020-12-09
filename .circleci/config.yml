@@ -10,7 +10,7 @@ scala_213: &scala_213
   SCALA_VERSION: 2.13.3
 
 scala_dotty: &scala_dotty
-  SCALA_VERSION: 0.27.0-RC1
+  SCALA_VERSION: 3.0.0-M1
 
 jdk_8: &jdk_8
   JDK_VERSION: 8
@@ -45,9 +45,11 @@ install_jdk: &install_jdk
         fi
         sudo apt update
         if [ $JDK_VERSION == 11 ]; then
-          sudo apt install -y adoptopenjdk-11-hotspot
+          sudo apt install -y --no-install-recommends adoptopenjdk-11-hotspot-jre
+          sudo update-alternatives --set java /usr/lib/jvm/adoptopenjdk-11-hotspot-jre-amd64/bin/java
         elif [ $JDK_VERSION == 8 ]; then
-          sudo apt install -y openjdk-8-jdk
+          sudo apt install -y --no-install-recommends openjdk-8-jre-headless
+          sudo update-alternatives --set java /usr/lib/jvm/java-8-openjdk-amd64/jre/bin/java
         fi
         java -version
 
@@ -116,7 +118,7 @@ mdoc: &mdoc
     - run:
         name: Generate documentation
         command: |
-          ./sbt -Dfatal.warnings=true coreJVM/doc coreJS/doc streamsJVM/doc streamsJS/doc testJVM/doc testJS/doc
+          ./sbt coreJVM/doc coreJS/doc streamsJVM/doc streamsJS/doc testJVM/doc testJS/doc
           ./sbt ++${SCALA_VERSION}! mdoc
     - <<: *clean_cache
     - <<: *save_cache
@@ -128,7 +130,7 @@ mimaChecks: &mimaChecks
     - <<: *install_jdk
     - run:
         name: Run MiMa checks
-        command: ./sbt -Dfatal.warnings=true ++${SCALA_VERSION}! mimaChecks
+        command: ./sbt ++${SCALA_VERSION}! mimaChecks
     - <<: *clean_cache
     - <<: *save_cache
 
@@ -139,7 +141,7 @@ testJVM: &testJVM
     - <<: *install_jdk
     - run:
         name: Run tests
-        command: ./sbt -Dfatal.warnings=true ++${SCALA_VERSION}! testJVM
+        command: ./sbt ++${SCALA_VERSION}! testJVM
     - <<: *clean_cache
     - <<: *save_cache
     - store_test_results:
@@ -152,7 +154,7 @@ testJVMNoBenchmarks: &testJVMNoBenchmarks
     - <<: *install_jdk
     - run:
         name: Run tests
-        command: ./sbt -Dfatal.warnings=true ++${SCALA_VERSION}! testJVMNoBenchmarks
+        command: ./sbt ++${SCALA_VERSION}! testJVMNoBenchmarks
     - <<: *clean_cache
     - <<: *save_cache
     - store_test_results:
@@ -164,7 +166,7 @@ testJVMDotty: &testJVMDotty
     - <<: *load_cache
     - run:
         name: Run tests
-        command: ./sbt -Dfatal.warnings=true ++${SCALA_VERSION}! testJVMDotty
+        command: ./sbt ++${SCALA_VERSION}! testJVMDotty
     - <<: *clean_cache
     - <<: *save_cache
 
@@ -175,7 +177,7 @@ testJVM211: &testJVM211
     - <<: *install_jdk
     - run:
         name: Run tests
-        command: ./sbt -Dfatal.warnings=true ++${SCALA_VERSION}! testJVM211
+        command: ./sbt ++${SCALA_VERSION}! testJVM211
     - <<: *clean_cache
     - <<: *save_cache
     - store_test_results:
@@ -189,7 +191,7 @@ testJS: &testJS
     - <<: *install_nodejs
     - run:
         name: Run tests
-        command: ./sbt -Dfatal.warnings=true ++${SCALA_VERSION}! testJS
+        command: ./sbt ++${SCALA_VERSION}! testJS
     - <<: *clean_cache
     - <<: *save_cache
     - store_test_results:
@@ -203,7 +205,7 @@ testJS211: &testJS211
     - <<: *install_nodejs
     - run:
         name: Run tests
-        command: ./sbt -Dfatal.warnings=true ++${SCALA_VERSION}! testJS211
+        command: ./sbt ++${SCALA_VERSION}! testJS211
     - <<: *clean_cache
     - <<: *save_cache
     - store_test_results:

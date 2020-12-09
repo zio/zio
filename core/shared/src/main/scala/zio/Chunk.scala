@@ -19,6 +19,7 @@ package zio
 import java.nio._
 import java.util.concurrent.atomic.AtomicInteger
 
+import scala.annotation.tailrec
 import scala.collection.mutable.Builder
 import scala.reflect.{ ClassTag, classTag }
 
@@ -509,6 +510,16 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
     case None        => Seq.empty[A].hashCode
     case Some(array) => array.toSeq.hashCode
   }
+
+  /**
+   * Returns the first element of this chunk. Note that this method is partial
+   * in that it will throw an exception if the chunk is empty. Consider using
+   * `headOption` to explicitly handle the possibility that the chunk is empty
+   * or iterating over the elements of the chunk in lower level, performance
+   * sensitive code unless you really only need the first element of the chunk.
+   */
+  override def head: A =
+    self(0)
 
   /**
    * Returns the first element of this chunk if it exists.
@@ -1202,6 +1213,38 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
    */
   def succeed[A](a: A): Chunk[A] =
     single(a)
+
+  /**
+   * Constructs a `Chunk` by repeatedly applying the function `f` as long as it
+   * returns `Some`.
+   */
+  def unfold[S, A](s: S)(f: S => Option[(A, S)]): Chunk[A] = {
+
+    @tailrec
+    def go(s: S, builder: ChunkBuilder[A]): Chunk[A] =
+      f(s) match {
+        case Some((a, s)) => go(s, builder += a)
+        case None         => builder.result()
+      }
+
+    go(s, ChunkBuilder.make[A]())
+  }
+
+  /**
+   * Constructs a `Chunk` by repeatedly applying the effectual function `f` as
+   * long as it returns `Some`.
+   */
+  def unfoldM[R, E, A, S](s: S)(f: S => ZIO[R, E, Option[(A, S)]]): ZIO[R, E, Chunk[A]] =
+    ZIO.effectSuspendTotal {
+
+      def go(s: S, builder: ChunkBuilder[A]): ZIO[R, E, Chunk[A]] =
+        f(s).flatMap {
+          case Some((a, s)) => go(s, builder += a)
+          case None         => ZIO.succeedNow(builder.result())
+        }
+
+      go(s, ChunkBuilder.make[A]())
+    }
 
   /**
    * The unit chunk

@@ -2,9 +2,6 @@ package zio
 
 import java.util.concurrent.TimeUnit
 
-import scala.collection.Iterable
-import scala.util.Random
-
 import org.openjdk.jmh.annotations.{
   Benchmark,
   BenchmarkMode,
@@ -19,6 +16,9 @@ import org.openjdk.jmh.annotations.{
   State,
   Warmup
 }
+
+import scala.collection.Iterable
+import scala.util.Random
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))

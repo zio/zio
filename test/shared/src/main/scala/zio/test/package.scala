@@ -16,13 +16,13 @@
 
 package zio
 
-import scala.collection.immutable.SortedSet
-import scala.util.Try
-
 import zio.console.Console
 import zio.duration.Duration
 import zio.stream.{ ZSink, ZStream }
 import zio.test.environment.{ TestClock, TestConsole, TestEnvironment, TestRandom, TestSystem, testEnvironment }
+
+import scala.collection.immutable.SortedSet
+import scala.util.Try
 
 /**
  * _ZIO Test_ is a featherweight testing library for effectful programs.
@@ -145,7 +145,7 @@ package object test extends CompileVariants {
   /**
    * Checks the assertion holds for the given value.
    */
-  def assert[A](value: => A)(assertion: Assertion[A]): TestResult = {
+  private[test] def assertImpl[A](value: => A)(assertion: Assertion[A]): TestResult = {
     lazy val tryValue = Try(value)
     traverseResult(tryValue.get, assertion.run(tryValue.get), assertion)
   }
@@ -154,7 +154,7 @@ package object test extends CompileVariants {
    * Asserts that the given test was completed.
    */
   val assertCompletes: TestResult =
-    assert(true)(Assertion.isTrue)
+    assertImpl(true)(Assertion.isTrue)
 
   /**
    * Checks the assertion holds for the given effectfully-computed value.

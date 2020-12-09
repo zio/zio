@@ -1,13 +1,13 @@
 package zio.test.environment
 
-import scala.util.{ Random => SRandom }
-
 import zio._
 import zio.random.Random
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test._
 import zio.test.environment.TestRandom.{ DefaultData, Test => ZRandom }
+
+import scala.util.{ Random => SRandom }
 
 object RandomSpec extends ZIOBaseSpec {
 

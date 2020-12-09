@@ -3,9 +3,9 @@ package zio.stream.compression
 import java.util.zip.Deflater
 import java.{ util => ju }
 
-import scala.annotation.tailrec
-
 import zio.{ Chunk, ZIO, ZManaged }
+
+import scala.annotation.tailrec
 
 object Deflate {
 

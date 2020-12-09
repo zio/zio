@@ -16,10 +16,10 @@
 
 package zio
 
+import zio.internal.Platform
+
 import scala.annotation.tailrec
 import scala.util.control.NonFatal
-
-import zio.internal.Platform
 
 sealed abstract class Cause[+E] extends Product with Serializable { self =>
   import Cause.Internal._

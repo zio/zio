@@ -2,8 +2,6 @@ package zio.stream
 
 import java.{ util => ju }
 
-import scala.reflect.ClassTag
-
 import zio._
 import zio.clock.Clock
 import zio.duration._
@@ -11,6 +9,8 @@ import zio.internal.UniqueKey
 import zio.stm.TQueue
 import zio.stream.internal.Utils.zipChunks
 import zio.stream.internal.{ ZInputStream, ZReader }
+
+import scala.reflect.ClassTag
 
 /**
  * A `ZStream[R, E, O]` is a description of a program that, when evaluated,
@@ -2276,10 +2276,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   final def refineOrDie[E1](
     pf: PartialFunction[E, E1]
   )(implicit ev1: E <:< Throwable, ev2: CanFail[E]): ZStream[R, E1, O] =
-    ZStream(self.process.map(_.mapError {
-      case None                         => None
-      case Some(e) if pf.isDefinedAt(e) => Some(pf.apply(e))
-    }))
+    refineOrDieWith(pf)(ev1)
 
   /**
    * Keeps some of the errors, and terminates the fiber with the rest, using
@@ -2288,11 +2285,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   final def refineOrDieWith[E1](
     pf: PartialFunction[E, E1]
   )(f: E => Throwable)(implicit ev: CanFail[E]): ZStream[R, E1, O] =
-    ZStream(self.process.map(_.mapError {
-      case None                         => None
-      case Some(e) if pf.isDefinedAt(e) => Some(pf.apply(e))
-      case Some(e)                      => throw f(e)
-    }))
+    self.catchAll(err => (pf lift err).fold[ZStream[R, E1, O]](ZStream.die(f(err)))(ZStream.fail(_)))
 
   /**
    * Repeats the entire stream using the specified schedule. The stream will execute normally,
@@ -2405,6 +2398,43 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                 )
             }
           go
+        }
+      } yield pull
+    }
+
+  /**
+   * When the stream fails, retry it according to the given schedule
+   *
+   * This retries the entire stream, so will re-execute all of the stream's acquire operations.
+   *
+   * The schedule is reset as soon as the first element passes through the stream again.
+   *
+   * @param schedule Schedule receiving as input the errors of the stream
+   * @return Stream outputting elements of all attempts of the stream
+   */
+  def retry[R1 <: R](schedule: Schedule[R1, E, _]): ZStream[R1 with Clock, E, O] =
+    ZStream {
+      for {
+        driver       <- schedule.driver.toManaged_
+        currStream   <- Ref.make[ZIO[R, Option[E], Chunk[O]]](Pull.end).toManaged_
+        switchStream <- ZManaged.switchable[R, Nothing, ZIO[R, Option[E], Chunk[O]]]
+        _            <- switchStream(self.process).flatMap(currStream.set).toManaged_
+        pull = {
+          def loop: ZIO[R1 with Clock, Option[E], Chunk[O]] =
+            currStream.get.flatten.catchSome { case Some(e) =>
+              driver
+                .next(e)
+                .foldM(
+                  // Failure of the schedule indicates it doesn't accept the input
+                  _ => Pull.fail(e),
+                  _ =>
+                    switchStream(self.process).flatMap(currStream.set) *>
+                      // Reset the schedule to its initial state when a chunk is successfully pulled
+                      loop.tap(_ => driver.reset)
+                )
+            }
+
+          loop
         }
       } yield pull
     }
