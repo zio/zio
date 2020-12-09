@@ -1,5 +1,3 @@
-resolvers += Resolver.bintrayRepo("ktosopl", "sbt-plugins/sbt-jcstress")
-
 addSbtPlugin("ch.epfl.lamp"                      % "sbt-dotty"                     % "0.4.6")
 addSbtPlugin("ch.epfl.scala"                     % "sbt-bloop"                     % "1.4.6")
 addSbtPlugin("ch.epfl.scala"                     % "sbt-scalafix"                  % "0.9.24")
