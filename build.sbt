@@ -417,7 +417,7 @@ lazy val benchmarks = project.module
       Seq(
         "co.fs2"                    %% "fs2-core"       % "2.4.6",
         "com.google.code.findbugs"   % "jsr305"         % "3.0.2",
-        "com.twitter"               %% "util-core"      % "20.10.0",
+        "com.twitter"               %% "util-core"      % "20.12.0",
         "com.typesafe.akka"         %% "akka-stream"    % "2.6.10",
         "io.monix"                  %% "monix"          % "3.2.2",
         "io.projectreactor"          % "reactor-core"   % "3.4.1",
