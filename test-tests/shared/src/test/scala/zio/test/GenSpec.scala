@@ -675,6 +675,34 @@ object GenSpec extends ZIOBaseSpec {
           )
         )
       )
+    },
+    testM("unfoldGen") {
+      sealed trait Command
+      case object Pop                   extends Command
+      final case class Push(value: Int) extends Command
+
+      val genPop: Gen[Any, Command]     = Gen.const(Pop)
+      def genPush: Gen[Random, Command] = Gen.anyInt.map(value => Push(value))
+
+      val genCommands: Gen[Random with Sized, List[Command]] =
+        Gen.unfoldGen(0) { n =>
+          if (n <= 0)
+            genPush.map(command => (n + 1, command))
+          else
+            Gen.oneOf(
+              genPop.map(command => (n - 1, command)),
+              genPush.map(command => (n + 1, command))
+            )
+        }
+
+      check(genCommands) { commands =>
+        val stack = scala.collection.mutable.Stack.empty[Int]
+        commands.foreach {
+          case Pop         => stack.pop()
+          case Push(value) => stack.push(value)
+        }
+        assertCompletes
+      }
     }
   )
 }
