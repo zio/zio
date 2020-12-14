@@ -2583,18 +2583,18 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       flatten {
         effectAsyncMaybe(
           ZIOFn(register) { (k: UIO[ZIO[R, E, A]] => Unit) =>
-            started.set(true)
-
-            try register(io => k(ZIO.succeedNow(io))) match {
-              case Left(canceler) =>
-                cancel.set(canceler)
-                None
-              case Right(io) => Some(ZIO.succeedNow(io))
-            } finally if (!cancel.isSet) cancel.set(ZIO.unit)
+            if (!started.getAndSet(true)) {
+              try register(io => k(ZIO.succeedNow(io))) match {
+                case Left(canceler) =>
+                  cancel.set(canceler)
+                  None
+                case Right(io) => Some(ZIO.succeedNow(io))
+              } finally if (!cancel.isSet) cancel.set(ZIO.unit)
+            } else None
           },
           blockingOn
         )
-      }.onInterrupt(effectSuspendTotal(if (started.get) cancel.get() else ZIO.unit))
+      }.onInterrupt(effectSuspendTotal(if (started.getAndSet(true)) cancel.get() else ZIO.unit))
     }
   }
 
