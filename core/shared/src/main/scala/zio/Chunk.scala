@@ -701,7 +701,7 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
     val chunks    = ChunkBuilder.make[Chunk[A]]()
     var i         = 0
     while (i < remainder) {
-      val chunk = ChunkBuilder.make[A]
+      val chunk = ChunkBuilder.make[A]()
       var j     = 0
       while (j <= quotient) {
         chunk += iterator.next()
