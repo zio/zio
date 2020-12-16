@@ -3,7 +3,7 @@ package zio.stm
 import org.openjdk.jmh.annotations._
 import zio._
 
-import java.lang.{ Runtime => JRuntime }
+import java.lang.{Runtime => JRuntime}
 import java.util.concurrent.TimeUnit
 
 @State(Scope.Thread)

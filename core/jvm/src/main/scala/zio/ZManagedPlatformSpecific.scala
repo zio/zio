@@ -20,7 +20,7 @@ import zio.blocking._
 
 import java.io
 import java.io.IOException
-import java.net.{ URI, URL }
+import java.net.{URI, URL}
 import java.nio.file.Path
 
 private[zio] trait ZManagedPlatformSpecific {

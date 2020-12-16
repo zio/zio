@@ -1,7 +1,7 @@
 package zio.internal
 
 import org.openjdk.jmh.annotations._
-import org.openjdk.jmh.infra.{ Blackhole, Control }
+import org.openjdk.jmh.infra.{Blackhole, Control}
 import zio.internal.BenchUtils._
 
 import java.util.concurrent.TimeUnit

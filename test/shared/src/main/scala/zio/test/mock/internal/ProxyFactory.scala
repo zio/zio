@@ -17,8 +17,8 @@
 package zio.test.mock.internal
 
 import zio.test.Assertion
-import zio.test.mock.{ Capability, Expectation, Proxy }
-import zio.{ Has, IO, Tag, UIO, ULayer, ZIO, ZLayer }
+import zio.test.mock.{Capability, Expectation, Proxy}
+import zio.{Has, IO, Tag, UIO, ULayer, ZIO, ZLayer}
 
 import scala.util.Try
 

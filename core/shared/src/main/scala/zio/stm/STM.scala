@@ -16,7 +16,7 @@
 
 package zio.stm
 
-import zio.{ BuildFrom, CanFail, Fiber, IO }
+import zio.{BuildFrom, CanFail, Fiber, IO}
 
 import scala.util.Try
 

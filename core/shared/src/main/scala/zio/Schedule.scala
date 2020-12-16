@@ -23,7 +23,7 @@ import zio.random._
 import java.time.OffsetDateTime
 import java.time.temporal.ChronoField._
 import java.time.temporal.ChronoUnit._
-import java.time.temporal.{ ChronoField, TemporalAdjusters }
+import java.time.temporal.{ChronoField, TemporalAdjusters}
 import java.util.concurrent.TimeUnit
 
 /**

@@ -18,13 +18,13 @@ package zio.stm
 
 import com.github.ghik.silencer.silent
 import zio._
-import zio.internal.{ Platform, Stack, Sync }
+import zio.internal.{Platform, Stack, Sync}
 
-import java.util.concurrent.atomic.{ AtomicBoolean, AtomicLong }
-import java.util.{ HashMap => MutableMap }
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
+import java.util.{HashMap => MutableMap}
 import scala.annotation.tailrec
 import scala.collection.mutable.Builder
-import scala.util.{ Failure, Success, Try }
+import scala.util.{Failure, Success, Try}
 
 /**
  * `STM[E, A]` represents an effect that can be performed transactionally,
@@ -72,7 +72,7 @@ import scala.util.{ Failure, Success, Try }
 final class ZSTM[-R, +E, +A] private[stm] (
   private val exec: (ZSTM.internal.Journal, Fiber.Id, AtomicLong, R) => ZSTM.internal.TExit[E, A]
 ) extends AnyVal { self =>
-  import ZSTM.internal.{ prepareResetJournal, TExit }
+  import ZSTM.internal.{prepareResetJournal, TExit}
 
   /**
    * Alias for `<*>` and `zip`.

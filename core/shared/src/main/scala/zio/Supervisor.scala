@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.internal.{ Platform, Sync }
+import zio.internal.{Platform, Sync}
 
 import scala.collection.immutable.SortedSet
 

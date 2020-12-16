@@ -4,7 +4,7 @@ import zio._
 import zio.test.Assertion._
 import zio.test._
 
-import scala.scalajs.js.{ Promise => JSPromise }
+import scala.scalajs.js.{Promise => JSPromise}
 
 object JSSpec extends ZIOBaseSpec {
   def spec: Spec[Any, TestFailure[Throwable], TestSuccess] = suite("JSSpec")(

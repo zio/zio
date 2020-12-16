@@ -2,7 +2,7 @@ package zio
 
 import zio.clock.Clock
 import zio.duration.Duration
-import zio.internal.{ Executor, Platform }
+import zio.internal.{Executor, Platform}
 
 import scala.reflect.ClassTag
 

@@ -3,9 +3,9 @@ package zio
 import zio.test.Assertion._
 import zio.test._
 
-import java.io.{ File, IOException }
+import java.io.{File, IOException}
 import java.nio.file.Files
-import java.{ util => ju }
+import java.{util => ju}
 
 object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
 

@@ -1,6 +1,6 @@
 package zio.test.environment
 
-import zio.{ system }
+import zio.{system}
 import zio.test.Assertion._
 import zio.test.TestAspect.nonFlaky
 import zio.test._

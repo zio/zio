@@ -17,7 +17,7 @@
 package zio.test.mock
 
 import zio.system.System
-import zio.{ Has, IO, UIO, URLayer, ZLayer }
+import zio.{Has, IO, UIO, URLayer, ZLayer}
 
 object MockSystem extends Mock[System] {
 

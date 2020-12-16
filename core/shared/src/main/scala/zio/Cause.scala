@@ -291,7 +291,7 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
       val stackless = maybeData.fold(false)(_.stackless)
       if (stackless) List(e.toString)
       else {
-        import java.io.{ PrintWriter, StringWriter }
+        import java.io.{PrintWriter, StringWriter}
         val sw = new StringWriter()
         val pw = new PrintWriter(sw)
         e.printStackTrace(pw)

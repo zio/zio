@@ -17,7 +17,7 @@
 package zio
 
 import zio.internal.tracing.ZIOFn
-import zio.internal.{ Executor, NamedThreadFactory }
+import zio.internal.{Executor, NamedThreadFactory}
 
 import java.io.IOException
 import java.util.concurrent._

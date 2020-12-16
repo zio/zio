@@ -17,7 +17,7 @@
 package zio.test
 
 import zio.stream.ZStream
-import zio.{ Cause, Exit, ZIO }
+import zio.{Cause, Exit, ZIO}
 
 /**
  * A sample is a single observation from a random variable, together with a

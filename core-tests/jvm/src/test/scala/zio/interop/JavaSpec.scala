@@ -8,8 +8,8 @@ import zio.test._
 
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
-import java.nio.channels.{ AsynchronousServerSocketChannel, AsynchronousSocketChannel }
-import java.util.concurrent.{ CompletableFuture, CompletionStage, Future }
+import java.nio.channels.{AsynchronousServerSocketChannel, AsynchronousSocketChannel}
+import java.util.concurrent.{CompletableFuture, CompletionStage, Future}
 
 object JavaSpec extends ZIOBaseSpec {
 

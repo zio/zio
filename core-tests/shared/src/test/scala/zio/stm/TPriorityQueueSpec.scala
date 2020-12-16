@@ -3,7 +3,7 @@ package zio.stm
 import zio.random.Random
 import zio.test.Assertion._
 import zio.test._
-import zio.{ Chunk, ZIOBaseSpec }
+import zio.{Chunk, ZIOBaseSpec}
 
 object TPriorityQueueSpec extends ZIOBaseSpec {
 

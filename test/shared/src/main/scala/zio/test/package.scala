@@ -18,8 +18,8 @@ package zio
 
 import zio.console.Console
 import zio.duration.Duration
-import zio.stream.{ ZSink, ZStream }
-import zio.test.environment.{ TestClock, TestConsole, TestEnvironment, TestRandom, TestSystem, testEnvironment }
+import zio.stream.{ZSink, ZStream}
+import zio.test.environment.{TestClock, TestConsole, TestEnvironment, TestRandom, TestSystem, testEnvironment}
 
 import scala.collection.immutable.SortedSet
 import scala.util.Try

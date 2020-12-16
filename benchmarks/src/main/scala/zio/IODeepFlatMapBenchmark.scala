@@ -77,7 +77,7 @@ class IODeepFlatMapBenchmark {
 
   @Benchmark
   def twitterDeepFlatMap(): BigInt = {
-    import com.twitter.util.{ Await, Future }
+    import com.twitter.util.{Await, Future}
 
     def fib(n: Int): Future[BigInt] =
       if (n <= 1) Future(n)

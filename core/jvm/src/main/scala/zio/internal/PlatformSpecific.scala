@@ -19,11 +19,11 @@ package zio.internal
 import zio.internal.stacktracer.Tracer
 import zio.internal.stacktracer.impl.AkkaLineNumbersTracer
 import zio.internal.tracing.TracingConfig
-import zio.{ Cause, Supervisor }
+import zio.{Cause, Supervisor}
 
 import java.lang.ref.WeakReference
 import java.util.concurrent.ConcurrentHashMap
-import java.util.{ Collections, Map => JMap, Set => JSet, WeakHashMap }
+import java.util.{Collections, Map => JMap, Set => JSet, WeakHashMap}
 import scala.concurrent.ExecutionContext
 
 private[internal] trait PlatformSpecific {

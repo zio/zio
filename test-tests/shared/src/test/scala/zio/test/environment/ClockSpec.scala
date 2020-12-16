@@ -10,7 +10,7 @@ import zio.test.TestAspect._
 import zio.test._
 import zio.test.environment.TestClock._
 
-import java.time.{ OffsetDateTime, ZoneId }
+import java.time.{OffsetDateTime, ZoneId}
 import java.util.concurrent.TimeUnit
 
 object ClockSpec extends ZIOBaseSpec {

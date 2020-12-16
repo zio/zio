@@ -18,15 +18,15 @@ package zio
 
 import zio.clock.Clock
 import zio.duration._
-import zio.internal.tracing.{ ZIOFn, ZIOFn1, ZIOFn2 }
-import zio.internal.{ Executor, Platform }
-import zio.{ TracingStatus => TracingS }
+import zio.internal.tracing.{ZIOFn, ZIOFn1, ZIOFn2}
+import zio.internal.{Executor, Platform}
+import zio.{TracingStatus => TracingS}
 
 import scala.annotation.implicitNotFound
 import scala.collection.mutable.Builder
 import scala.concurrent.ExecutionContext
 import scala.reflect.ClassTag
-import scala.util.{ Failure, Success }
+import scala.util.{Failure, Success}
 
 /**
  * A `ZIO[R, E, A]` value is an immutable value that lazily describes a

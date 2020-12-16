@@ -18,9 +18,9 @@ package zio.test.mock
 
 import zio.clock.Clock
 import zio.duration.Duration
-import zio.{ Has, IO, UIO, URLayer, ZLayer }
+import zio.{Has, IO, UIO, URLayer, ZLayer}
 
-import java.time.{ DateTimeException, OffsetDateTime }
+import java.time.{DateTimeException, OffsetDateTime}
 import java.util.concurrent.TimeUnit
 
 object MockClock extends Mock[Clock] {

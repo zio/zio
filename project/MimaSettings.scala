@@ -1,5 +1,5 @@
 import sbt._
-import sbt.Keys.{ name, organization }
+import sbt.Keys.{name, organization}
 
 import com.typesafe.tools.mima.plugin.MimaKeys._
 import com.typesafe.tools.mima.core._

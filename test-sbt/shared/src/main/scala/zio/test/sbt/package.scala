@@ -1,6 +1,6 @@
 package zio.test
 
-import zio.{ UIO, URIO }
+import zio.{UIO, URIO}
 
 import scala.annotation.tailrec
 

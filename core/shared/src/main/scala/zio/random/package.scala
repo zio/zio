@@ -28,7 +28,7 @@ package object random {
 
     object Service {
       val live: Service = new Service {
-        import scala.util.{ Random => SRandom }
+        import scala.util.{Random => SRandom}
 
         val nextBoolean: UIO[Boolean] =
           ZIO.effectTotal(SRandom.nextBoolean())

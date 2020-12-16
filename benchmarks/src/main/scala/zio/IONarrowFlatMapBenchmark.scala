@@ -80,7 +80,7 @@ class IONarrowFlatMapBenchmark {
 
   @Benchmark
   def twitterNarrowFlatMap(): Int = {
-    import com.twitter.util.{ Await, Future }
+    import com.twitter.util.{Await, Future}
 
     def loop(i: Int): Future[Int] =
       if (i < size) Future(i + 1).flatMap(loop)

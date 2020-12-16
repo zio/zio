@@ -1,6 +1,6 @@
 package zio.chunks
 
-import org.openjdk.jmh.annotations.{ Benchmark, BenchmarkMode, Mode, OutputTimeUnit, Scope, Setup, State }
+import org.openjdk.jmh.annotations.{Benchmark, BenchmarkMode, Mode, OutputTimeUnit, Scope, Setup, State}
 import zio.Chunk
 
 import java.util.concurrent.TimeUnit

@@ -20,7 +20,7 @@ import zio.blocking.Blocking
 import zio.interop.javaz
 
 import java.nio.channels.CompletionHandler
-import java.util.concurrent.{ CompletableFuture, CompletionStage, Future }
+import java.util.concurrent.{CompletableFuture, CompletionStage, Future}
 
 private[zio] trait ZIOPlatformSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
   def toCompletableFuture[A1 >: A](implicit ev: E <:< Throwable): URIO[R, CompletableFuture[A1]] =

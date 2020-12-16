@@ -19,7 +19,7 @@ package zio.test
 import zio.duration.Duration
 import zio.random.Random
 
-import java.time.{ Instant, LocalDateTime, OffsetDateTime, ZoneOffset }
+import java.time.{Instant, LocalDateTime, OffsetDateTime, ZoneOffset}
 
 trait TimeVariants {
 

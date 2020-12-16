@@ -16,9 +16,9 @@
 
 package zio
 
-import java.io.{ EOFException, IOException, PrintStream }
+import java.io.{EOFException, IOException, PrintStream}
 import scala.io.StdIn
-import scala.{ Console => SConsole }
+import scala.{Console => SConsole}
 
 package object console {
   type Console = Has[Console.Service]

@@ -1,7 +1,7 @@
 package zio
 
-import cats.effect.{ ContextShift, IO => CIO }
-import monix.eval.{ Task => MTask }
+import cats.effect.{ContextShift, IO => CIO}
+import monix.eval.{Task => MTask}
 import org.openjdk.jmh.annotations._
 import zio.IOBenchmarks._
 import zio.stm._

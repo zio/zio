@@ -18,7 +18,7 @@ package zio.test.mock
 
 import com.github.ghik.silencer.silent
 import zio.test.Assertion
-import zio.{ =!=, Has, IO, LightTypeTag, Tag, taggedIsSubtype, taggedTagType }
+import zio.{=!=, Has, IO, LightTypeTag, Tag, taggedIsSubtype, taggedTagType}
 
 import java.util.UUID
 

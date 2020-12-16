@@ -18,7 +18,7 @@ package zio
 
 import zio.duration.Duration
 
-import java.time.{ DateTimeException, Instant, OffsetDateTime, ZoneId }
+import java.time.{DateTimeException, Instant, OffsetDateTime, ZoneId}
 import java.util.concurrent.TimeUnit
 
 package object clock {

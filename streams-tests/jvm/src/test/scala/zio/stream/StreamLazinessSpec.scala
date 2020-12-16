@@ -1,7 +1,7 @@
 package zio.stream
 
 import zio.test._
-import zio.{ UIO, ZIOBaseSpec }
+import zio.{UIO, ZIOBaseSpec}
 
 object StreamLazinessSpec extends ZIOBaseSpec {
 

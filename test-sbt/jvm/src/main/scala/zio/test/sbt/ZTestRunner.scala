@@ -18,7 +18,7 @@ package zio.test.sbt
 
 import sbt.testing._
 import zio.ZIO
-import zio.test.{ Summary, TestArgs }
+import zio.test.{Summary, TestArgs}
 
 import java.util.concurrent.atomic.AtomicReference
 

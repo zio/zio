@@ -16,7 +16,7 @@
 
 package zio.internal
 
-import zio.internal.MutableQueueFieldsPadding.{ headUpdater, tailUpdater }
+import zio.internal.MutableQueueFieldsPadding.{headUpdater, tailUpdater}
 
 import java.util.concurrent.atomic.AtomicLongArray
 
@@ -155,7 +155,7 @@ object RingBuffer {
  * better performance in some very specific situations.
  */
 abstract class RingBuffer[A](override final val capacity: Int) extends MutableQueueFieldsPadding[A] with Serializable {
-  import RingBuffer.{ STATE_EMPTY, STATE_FULL, STATE_LOOP, STATE_RESERVED }
+  import RingBuffer.{STATE_EMPTY, STATE_FULL, STATE_LOOP, STATE_RESERVED}
 
   private val buf: Array[AnyRef]   = new Array[AnyRef](capacity)
   private val seq: AtomicLongArray = new AtomicLongArray(capacity)

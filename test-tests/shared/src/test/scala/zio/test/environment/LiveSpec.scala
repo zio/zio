@@ -3,7 +3,7 @@ package zio.test.environment
 import zio.duration._
 import zio.test.Assertion._
 import zio.test._
-import zio.{ clock, console }
+import zio.{clock, console}
 
 import java.util.concurrent.TimeUnit
 

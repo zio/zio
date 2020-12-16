@@ -17,7 +17,7 @@
 package zio.clock
 
 import zio.duration.Duration
-import zio.internal.{ NamedThreadFactory, Scheduler }
+import zio.internal.{NamedThreadFactory, Scheduler}
 
 import java.util.concurrent._
 

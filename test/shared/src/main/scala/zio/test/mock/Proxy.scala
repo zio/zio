@@ -16,7 +16,7 @@
 
 package zio.test.mock
 
-import zio.{ Has, ZIO }
+import zio.{Has, ZIO}
 
 /**
  * A `Proxy` provides the machinery to map mocked invocations to predefined results

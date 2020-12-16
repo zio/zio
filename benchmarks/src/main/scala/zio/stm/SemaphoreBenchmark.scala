@@ -1,6 +1,6 @@
 package zio.stm
 
-import cats.effect.{ ContextShift, IO => CIO }
+import cats.effect.{ContextShift, IO => CIO}
 import org.openjdk.jmh.annotations._
 import zio.IOBenchmarks._
 import zio._

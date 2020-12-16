@@ -2,8 +2,8 @@ package zio.stream.compression
 
 import zio._
 
-import java.util.zip.{ CRC32, Inflater }
-import java.{ util => ju }
+import java.util.zip.{CRC32, Inflater}
+import java.{util => ju}
 import scala.annotation.tailrec
 
 /**

@@ -1,8 +1,8 @@
 package zio
 
-import cats.effect.{ ContextShift, IO => CIO }
+import cats.effect.{ContextShift, IO => CIO}
 import cats.implicits._
-import monix.eval.{ Task => MTask }
+import monix.eval.{Task => MTask}
 import monix.execution.BufferCapacity.Bounded
 import monix.execution.ChannelType.SPSC
 import org.openjdk.jmh.annotations._

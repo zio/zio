@@ -4,9 +4,9 @@ import zio.ZIOBaseSpec
 import zio.test.Assertion._
 import zio.test._
 
-import java.time.{ Duration => JavaDuration }
+import java.time.{Duration => JavaDuration}
 import java.util.concurrent.TimeUnit
-import scala.concurrent.duration.{ Duration => ScalaDuration }
+import scala.concurrent.duration.{Duration => ScalaDuration}
 
 object DurationSpec extends ZIOBaseSpec {
 

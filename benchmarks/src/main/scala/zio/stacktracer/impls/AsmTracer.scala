@@ -22,7 +22,7 @@ import zio.internal.stacktracer.ZTraceElement.SourceLocation
 import zio.stacktracer.impls.AsmTracer.MethodSearchVisitor
 
 import java.lang.invoke.SerializedLambda
-import scala.util.{ Failure, Success, Try }
+import scala.util.{Failure, Success, Try}
 
 /**
  * Java 8+ only

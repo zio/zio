@@ -26,7 +26,7 @@ class IOMapBenchmark {
   @Benchmark
   def futureMap(): BigInt = {
     import scala.concurrent.duration.Duration.Inf
-    import scala.concurrent.{ Await, Future }
+    import scala.concurrent.{Await, Future}
 
     @tailrec
     def sumTo(t: Future[BigInt], n: Int): Future[BigInt] =
@@ -77,7 +77,7 @@ class IOMapBenchmark {
 
   @Benchmark
   def twitterFutureMap(): BigInt = {
-    import com.twitter.util.{ Await, Future }
+    import com.twitter.util.{Await, Future}
 
     @tailrec
     def sumTo(t: Future[BigInt], n: Int): Future[BigInt] =

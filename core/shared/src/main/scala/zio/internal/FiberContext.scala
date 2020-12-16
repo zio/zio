@@ -23,8 +23,8 @@ import zio.internal.FiberContext.FiberRefLocals
 import zio.internal.stacktracer.ZTraceElement
 import zio.internal.tracing.ZIOFn
 
-import java.util.concurrent.atomic.{ AtomicBoolean, AtomicReference }
-import scala.annotation.{ switch, tailrec }
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
+import scala.annotation.{switch, tailrec}
 import scala.collection.JavaConverters._
 
 /**

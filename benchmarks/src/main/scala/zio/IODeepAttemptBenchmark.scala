@@ -91,7 +91,7 @@ class IODeepAttemptBenchmark {
 
   @Benchmark
   def twitterDeepAttempt(): BigInt = {
-    import com.twitter.util.{ Await, Future }
+    import com.twitter.util.{Await, Future}
 
     def descent(n: Int): Future[BigInt] =
       if (n == depth)

@@ -19,7 +19,7 @@ package zio
 import zio.internal.Sync
 
 import java.util.Map
-import java.util.concurrent.atomic.{ AtomicInteger, AtomicReference }
+import java.util.concurrent.atomic.{AtomicInteger, AtomicReference}
 
 /**
  * A `ZScope[A]` is a value that allows adding finalizers identified by a key.

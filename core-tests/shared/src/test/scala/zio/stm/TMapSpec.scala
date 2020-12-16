@@ -18,7 +18,7 @@ package zio.stm
 
 import zio.test.Assertion._
 import zio.test._
-import zio.{ URIO, ZIOBaseSpec }
+import zio.{URIO, ZIOBaseSpec}
 
 object TMapSpec extends ZIOBaseSpec {
 

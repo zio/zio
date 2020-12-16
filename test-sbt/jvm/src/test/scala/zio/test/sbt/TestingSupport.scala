@@ -1,7 +1,7 @@
 package zio.test.sbt
 
 import scala.util.control.NonFatal
-import scala.util.{ Failure, Try }
+import scala.util.{Failure, Try}
 
 object TestingSupport {
   def test[T](l: String)(body: => Unit): Try[Unit] =

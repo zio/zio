@@ -3,7 +3,7 @@ package zio.internal
 import zio.duration.Duration
 import zio.internal.Scheduler.CancelToken
 
-import java.util.concurrent.{ ScheduledExecutorService, TimeUnit }
+import java.util.concurrent.{ScheduledExecutorService, TimeUnit}
 
 private[zio] abstract class Scheduler {
   def schedule(task: Runnable, duration: Duration): CancelToken

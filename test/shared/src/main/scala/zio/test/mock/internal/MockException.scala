@@ -17,7 +17,7 @@
 package zio.test.mock.internal
 
 import zio.Has
-import zio.test.mock.{ Capability, Expectation }
+import zio.test.mock.{Capability, Expectation}
 
 /**
  * A `MockException` is used internally by the mock framework to signal

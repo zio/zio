@@ -2,10 +2,10 @@ package zio.test.mock
 
 import zio.duration._
 import zio.test.environment.Live
-import zio.test.mock.internal.{ ExpectationState, InvalidCall, MockException }
-import zio.test.mock.module.{ PureModule, PureModuleMock }
-import zio.test.{ Assertion, Spec, TestFailure, TestSuccess, ZIOBaseSpec, suite }
-import zio.{ IO, UIO }
+import zio.test.mock.internal.{ExpectationState, InvalidCall, MockException}
+import zio.test.mock.module.{PureModule, PureModuleMock}
+import zio.test.{Assertion, Spec, TestFailure, TestSuccess, ZIOBaseSpec, suite}
+import zio.{IO, UIO}
 
 object BasicEffectMockSpec extends ZIOBaseSpec with MockSpecUtils[PureModule] {
 
