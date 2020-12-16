@@ -1,9 +1,9 @@
 package zio.stream.compression
 
-import java.util.zip.{ CRC32, Deflater }
-
 import zio.stream.compression.Gzipper._
 import zio.{ Chunk, ZIO }
+
+import java.util.zip.{ CRC32, Deflater }
 
 private[compression] class Gzipper(
   bufferSize: Int,

@@ -16,9 +16,9 @@
 
 package zio.internal
 
-import java.util.concurrent.atomic.AtomicLongArray
-
 import zio.internal.MutableQueueFieldsPadding.{ headUpdater, tailUpdater }
+
+import java.util.concurrent.atomic.AtomicLongArray
 
 object RingBuffer {
 

@@ -16,11 +16,11 @@
 
 package zio.test.sbt
 
-import java.util.concurrent.atomic.AtomicReference
-
 import sbt.testing._
 import zio.ZIO
 import zio.test.{ Summary, TestArgs }
+
+import java.util.concurrent.atomic.AtomicReference
 
 final class ZTestRunner(val args: Array[String], val remoteArgs: Array[String], testClassLoader: ClassLoader)
     extends Runner {

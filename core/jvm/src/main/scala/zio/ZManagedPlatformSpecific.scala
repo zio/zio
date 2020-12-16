@@ -16,12 +16,12 @@
 
 package zio
 
+import zio.blocking._
+
 import java.io
 import java.io.IOException
 import java.net.{ URI, URL }
 import java.nio.file.Path
-
-import zio.blocking._
 
 private[zio] trait ZManagedPlatformSpecific {
 

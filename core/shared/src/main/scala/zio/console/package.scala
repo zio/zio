@@ -17,7 +17,6 @@
 package zio
 
 import java.io.{ EOFException, IOException, PrintStream }
-
 import scala.io.StdIn
 import scala.{ Console => SConsole }
 

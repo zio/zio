@@ -16,10 +16,9 @@
 
 package zio
 
-import java.lang.{ System => JSystem }
-
 import com.github.ghik.silencer.silent
 
+import java.lang.{ System => JSystem }
 import scala.collection.JavaConverters._
 
 package object system {

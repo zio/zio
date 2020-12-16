@@ -1,7 +1,5 @@
 package zio
 
-import java.util.concurrent.TimeUnit
-
 import cats.effect.implicits._
 import cats.effect.{ ContextShift, IO => CIO }
 import cats.implicits._
@@ -9,6 +7,7 @@ import monix.eval.{ Task => MTask }
 import org.openjdk.jmh.annotations._
 import zio.IOBenchmarks.{ monixScheduler, unsafeRun }
 
+import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.Duration
 import scala.concurrent.{ Await, ExecutionContext, Future }
 

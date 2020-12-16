@@ -16,10 +16,6 @@
 
 package zio.test
 
-import java.io.{ EOFException, IOException }
-import java.time.{ Instant, OffsetDateTime, ZoneId }
-import java.util.concurrent.TimeUnit
-
 import zio.clock.Clock
 import zio.console.Console
 import zio.duration._
@@ -27,6 +23,9 @@ import zio.random.Random
 import zio.system.System
 import zio.{ PlatformSpecific => _, _ }
 
+import java.io.{ EOFException, IOException }
+import java.time.{ Instant, OffsetDateTime, ZoneId }
+import java.util.concurrent.TimeUnit
 import scala.collection.immutable.{ Queue, SortedSet }
 import scala.math.{ log, sqrt }
 

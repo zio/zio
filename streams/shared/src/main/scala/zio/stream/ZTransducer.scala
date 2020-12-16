@@ -1,9 +1,8 @@
 package zio.stream
 
-import java.nio.charset.{ Charset, StandardCharsets }
-
 import zio._
 
+import java.nio.charset.{ Charset, StandardCharsets }
 import scala.collection.mutable
 
 // Contract notes for transducers:

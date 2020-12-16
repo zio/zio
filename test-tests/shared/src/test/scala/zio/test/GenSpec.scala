@@ -1,7 +1,5 @@
 package zio.test
 
-import java.time._
-
 import zio.duration.{ Duration, _ }
 import zio.random.Random
 import zio.test.Assertion._
@@ -10,6 +8,7 @@ import zio.test.TestAspect.{ nonFlaky, scala2Only, setSeed }
 import zio.test.{ check => Check, checkN => CheckN }
 import zio.{ Chunk, NonEmptyChunk, ZIO }
 
+import java.time._
 import scala.math.Numeric.DoubleIsFractional
 
 object GenSpec extends ZIOBaseSpec {

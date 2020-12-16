@@ -1,12 +1,11 @@
 package zio.stm
 
-import java.util.concurrent.TimeUnit
-
 import cats.effect.{ ContextShift, IO => CIO }
 import org.openjdk.jmh.annotations._
 import zio.IOBenchmarks._
 import zio._
 
+import java.util.concurrent.TimeUnit
 import scala.concurrent.ExecutionContext
 
 @State(Scope.Thread)

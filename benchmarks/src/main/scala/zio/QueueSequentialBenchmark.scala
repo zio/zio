@@ -1,7 +1,5 @@
 package zio
 
-import java.util.concurrent.TimeUnit
-
 import cats.effect.{ ContextShift, IO => CIO }
 import cats.implicits._
 import monix.eval.{ Task => MTask }
@@ -11,6 +9,7 @@ import org.openjdk.jmh.annotations._
 import zio.IOBenchmarks._
 import zio.stm._
 
+import java.util.concurrent.TimeUnit
 import scala.concurrent.ExecutionContext
 
 @State(Scope.Thread)

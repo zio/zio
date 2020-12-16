@@ -1,9 +1,9 @@
 package zio.internal
 
-import java.util.concurrent.{ ScheduledExecutorService, TimeUnit }
-
 import zio.duration.Duration
 import zio.internal.Scheduler.CancelToken
+
+import java.util.concurrent.{ ScheduledExecutorService, TimeUnit }
 
 private[zio] abstract class Scheduler {
   def schedule(task: Runnable, duration: Duration): CancelToken

@@ -16,12 +16,12 @@
 
 package zio.test.magnolia
 
-import java.time.{ Instant, LocalDate, LocalDateTime }
-import java.util.UUID
-
 import magnolia._
 import zio.random.Random
 import zio.test.{ Gen, Sized }
+
+import java.time.{ Instant, LocalDate, LocalDateTime }
+import java.util.UUID
 
 /**
  * A `DeriveGen[A]` can derive a generator of `A` values. Implicit instances of

@@ -18,7 +18,6 @@ package zio
 
 import java.nio._
 import java.util.concurrent.atomic.AtomicInteger
-
 import scala.annotation.tailrec
 import scala.collection.mutable.Builder
 import scala.reflect.{ ClassTag, classTag }

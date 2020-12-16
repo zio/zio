@@ -1,7 +1,5 @@
 package zio.stream
 
-import java.{ util => ju }
-
 import zio._
 import zio.clock.Clock
 import zio.duration._
@@ -10,6 +8,7 @@ import zio.stm.TQueue
 import zio.stream.internal.Utils.zipChunks
 import zio.stream.internal.{ ZInputStream, ZReader }
 
+import java.{ util => ju }
 import scala.reflect.ClassTag
 
 /**

@@ -1,17 +1,16 @@
 package zio.stream
 
+import zio._
+import zio.blocking.{ Blocking, effectBlockingIO }
+import zio.test.Assertion._
+import zio.test._
+
 import java.io.{ FileNotFoundException, FileReader, IOException, OutputStream, Reader }
 import java.net.InetSocketAddress
 import java.nio.channels.AsynchronousSocketChannel
 import java.nio.file.{ Files, NoSuchFileException, Paths }
 import java.nio.{ Buffer, ByteBuffer }
 import java.util.concurrent.CountDownLatch
-
-import zio._
-import zio.blocking.{ Blocking, effectBlockingIO }
-import zio.test.Assertion._
-import zio.test._
-
 import scala.concurrent.ExecutionContext.global
 
 object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {

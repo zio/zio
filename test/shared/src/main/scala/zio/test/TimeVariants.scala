@@ -16,10 +16,10 @@
 
 package zio.test
 
-import java.time.{ Instant, LocalDateTime, OffsetDateTime, ZoneOffset }
-
 import zio.duration.Duration
 import zio.random.Random
+
+import java.time.{ Instant, LocalDateTime, OffsetDateTime, ZoneOffset }
 
 trait TimeVariants {
 

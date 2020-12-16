@@ -1,7 +1,5 @@
 package zio
 
-import java.util.concurrent.TimeUnit
-
 import org.openjdk.jmh.annotations.{
   Benchmark,
   BenchmarkMode,
@@ -16,6 +14,8 @@ import org.openjdk.jmh.annotations.{
   Warmup
 }
 import zio.IOBenchmarks.verify
+
+import java.util.concurrent.TimeUnit
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))

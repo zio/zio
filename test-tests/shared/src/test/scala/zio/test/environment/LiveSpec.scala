@@ -1,11 +1,11 @@
 package zio.test.environment
 
-import java.util.concurrent.TimeUnit
-
 import zio.duration._
 import zio.test.Assertion._
 import zio.test._
 import zio.{ clock, console }
+
+import java.util.concurrent.TimeUnit
 
 object LiveSpec extends ZIOBaseSpec {
 

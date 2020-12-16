@@ -1,9 +1,9 @@
 package zio.stm
 
-import java.util.concurrent.TimeUnit
-
 import org.openjdk.jmh.annotations._
 import zio._
+
+import java.util.concurrent.TimeUnit
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))

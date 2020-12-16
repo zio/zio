@@ -16,13 +16,12 @@
 
 package zio.stm
 
-import java.util.concurrent.atomic.{ AtomicBoolean, AtomicLong }
-import java.util.{ HashMap => MutableMap }
-
 import com.github.ghik.silencer.silent
 import zio._
 import zio.internal.{ Platform, Stack, Sync }
 
+import java.util.concurrent.atomic.{ AtomicBoolean, AtomicLong }
+import java.util.{ HashMap => MutableMap }
 import scala.annotation.tailrec
 import scala.collection.mutable.Builder
 import scala.util.{ Failure, Success, Try }

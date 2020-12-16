@@ -16,11 +16,11 @@
 
 package zio
 
-import java.io.IOException
-import java.util.concurrent._
-
 import zio.internal.tracing.ZIOFn
 import zio.internal.{ Executor, NamedThreadFactory }
+
+import java.io.IOException
+import java.util.concurrent._
 
 package object blocking {
   type Blocking = Has[Blocking.Service]

@@ -16,9 +16,9 @@
 
 package zio
 
-import java.io.IOException
-
 import zio.blocking._
+
+import java.io.IOException
 
 abstract class ZInputStream {
   def readN(n: Int): ZIO[Blocking, Option[IOException], Chunk[Byte]]

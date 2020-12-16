@@ -1,7 +1,5 @@
 package zio
 
-import java.util.concurrent.TimeUnit
-
 import akka.Done
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.{ Keep, Sink => AkkaSink, Source => AkkaSource }
@@ -11,6 +9,7 @@ import org.openjdk.jmh.annotations._
 import zio.IOBenchmarks._
 import zio.stream._
 
+import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.Duration
 import scala.concurrent.{ Await, ExecutionContextExecutor }
 

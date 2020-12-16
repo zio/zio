@@ -16,8 +16,6 @@
 
 package zio.test.sbt
 
-import java.util.regex.Pattern
-
 import sbt.testing._
 import zio.UIO
 import zio.test.sbt.TestingSupport._
@@ -34,6 +32,7 @@ import zio.test.{
   ZSpec
 }
 
+import java.util.regex.Pattern
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Try
 

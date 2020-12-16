@@ -1,8 +1,5 @@
 package zio.stream
 
-import java.io.{ ByteArrayInputStream, IOException }
-import java.util.concurrent.TimeUnit
-
 import zio._
 import zio.clock.Clock
 import zio.duration._
@@ -10,10 +7,12 @@ import zio.stm.TQueue
 import zio.stream.ZSink.Push
 import zio.stream.ZStreamGen._
 import zio.test.Assertion._
-import zio.test.TestAspect.{ exceptJS, flaky, nonFlaky, scala2Only, timeout }
+import zio.test.TestAspect.{exceptJS, flaky, nonFlaky, scala2Only, timeout}
 import zio.test._
 import zio.test.environment.TestClock
 
+import java.io.{ByteArrayInputStream, IOException}
+import java.util.concurrent.TimeUnit
 import scala.concurrent.ExecutionContext
 
 object ZStreamSpec extends ZIOBaseSpec {
