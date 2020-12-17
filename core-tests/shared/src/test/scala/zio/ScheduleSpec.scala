@@ -134,8 +134,8 @@ object ScheduleSpec extends ZIOBaseSpec {
         assertM(scheduled)(equalTo(expected))
       },
       testM("free from stack overflow") {
-        assertM(ZStream.fromSchedule(Schedule.forever *> Schedule.recurs(1000000)).runCount)(
-          equalTo(1000000L)
+        assertM(ZStream.fromSchedule(Schedule.forever *> Schedule.recurs(100000)).runCount)(
+          equalTo(100000L)
         )
       }
     ),
