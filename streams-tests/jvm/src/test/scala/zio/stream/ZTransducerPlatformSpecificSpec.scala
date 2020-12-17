@@ -1,13 +1,13 @@
 package zio.stream
 
-import java.io.{ IOException, InputStream }
-import java.nio.charset.Charset
-import java.nio.file.{ Files, Path, Paths }
-
 import zio._
 import zio.blocking.Blocking
 import zio.test.Assertion._
 import zio.test._
+
+import java.io.{IOException, InputStream}
+import java.nio.charset.Charset
+import java.nio.file.{Files, Path, Paths}
 
 object ZTransducerPlatformSpecificSpec extends ZIOBaseSpec {
   private val bomTestFilesPath: Path = Paths.get("zio/stream/bom")

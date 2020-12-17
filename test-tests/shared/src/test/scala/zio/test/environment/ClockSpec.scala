@@ -1,8 +1,5 @@
 package zio.test.environment
 
-import java.time.{ OffsetDateTime, ZoneId }
-import java.util.concurrent.TimeUnit
-
 import zio._
 import zio.clock._
 import zio.duration.Duration._
@@ -12,6 +9,9 @@ import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test._
 import zio.test.environment.TestClock._
+
+import java.time.{OffsetDateTime, ZoneId}
+import java.util.concurrent.TimeUnit
 
 object ClockSpec extends ZIOBaseSpec {
 

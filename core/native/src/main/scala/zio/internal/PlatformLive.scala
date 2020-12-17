@@ -17,7 +17,7 @@
 package zio.internal
 
 import scala.concurrent.ExecutionContext
-import zio.{ Cause, Supervisor }
+import zio.{Cause, Supervisor}
 import zio.internal.stacktracer.Tracer
 import zio.internal.tracing.TracingConfig
 import scala.scalanative.loop.EventLoop

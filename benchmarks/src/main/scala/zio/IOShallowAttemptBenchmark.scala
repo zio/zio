@@ -1,10 +1,9 @@
 package zio
 
-import java.util.concurrent.TimeUnit
-
 import org.openjdk.jmh.annotations._
 import zio.IOBenchmarks._
 
+import java.util.concurrent.TimeUnit
 import scala.concurrent.Await
 
 @State(Scope.Thread)
@@ -95,8 +94,8 @@ class IOShallowAttemptBenchmark {
 
   @Benchmark
   def twitterShallowAttempt(): BigInt = {
-    import com.twitter.util.{ Await, Future }
-    import com.twitter.util.{ Return, Throw }
+    import com.twitter.util.{Await, Future}
+    import com.twitter.util.{Return, Throw}
 
     def throwup(n: Int): Future[BigInt] =
       if (n == 0) throwup(n + 1).rescue { case _ =>

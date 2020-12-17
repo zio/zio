@@ -18,7 +18,7 @@ package zio.test
 
 import zio.UIO
 
-import scala.reflect.macros.{ TypecheckException, blackbox }
+import scala.reflect.macros.{TypecheckException, blackbox}
 
 private[test] object Macros {
 

@@ -1,10 +1,10 @@
 package zio
 
-import java.util.concurrent.atomic.AtomicReference
-
 import zio.FiberRefSpecUtil._
 import zio.test.Assertion._
 import zio.test._
+
+import java.util.concurrent.atomic.AtomicReference
 
 object FiberRefSpecJvm extends ZIOBaseSpec {
 

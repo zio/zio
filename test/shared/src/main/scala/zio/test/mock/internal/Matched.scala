@@ -17,7 +17,7 @@
 package zio.test.mock.internal
 
 import zio.test.mock.Expectation
-import zio.{ Has, IO }
+import zio.{Has, IO}
 
 /**
  * A `Matched[R, E, A]` represents a succesful result of depth first search

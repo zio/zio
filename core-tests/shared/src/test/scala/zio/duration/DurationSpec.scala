@@ -1,13 +1,12 @@
 package zio.duration
 
-import java.time.{ Duration => JavaDuration }
-import java.util.concurrent.TimeUnit
-
 import zio.ZIOBaseSpec
 import zio.test.Assertion._
 import zio.test._
 
-import scala.concurrent.duration.{ Duration => ScalaDuration }
+import java.time.{Duration => JavaDuration}
+import java.util.concurrent.TimeUnit
+import scala.concurrent.duration.{Duration => ScalaDuration}
 
 object DurationSpec extends ZIOBaseSpec {
 

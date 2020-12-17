@@ -1,7 +1,5 @@
 package zio
 
-import java.util.concurrent.TimeUnit
-
 import org.openjdk.jmh.annotations.{
   Benchmark,
   BenchmarkMode,
@@ -17,6 +15,7 @@ import org.openjdk.jmh.annotations.{
   Warmup
 }
 
+import java.util.concurrent.TimeUnit
 import scala.collection.Iterable
 import scala.util.Random
 

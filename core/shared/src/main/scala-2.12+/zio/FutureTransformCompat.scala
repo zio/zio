@@ -16,7 +16,7 @@
 
 package zio
 
-import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
 
 private[zio] trait FutureTransformCompat[+A] { this: CancelableFuture[A] =>

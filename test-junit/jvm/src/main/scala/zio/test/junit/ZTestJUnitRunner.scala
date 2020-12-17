@@ -1,17 +1,17 @@
 package zio.test.junit
 
 import com.github.ghik.silencer.silent
-import org.junit.runner.manipulation.{ Filter, Filterable }
-import org.junit.runner.notification.{ Failure, RunNotifier }
-import org.junit.runner.{ Description, RunWith, Runner }
+import org.junit.runner.manipulation.{Filter, Filterable}
+import org.junit.runner.notification.{Failure, RunNotifier}
+import org.junit.runner.{Description, RunWith, Runner}
 import zio.ZIO.effectTotal
 import zio._
 import zio.test.FailureRenderer.FailureMessage.Message
 import zio.test.RenderedResult.CaseType.Test
 import zio.test.RenderedResult.Status.Failed
-import zio.test.Spec.{ SpecCase, SuiteCase, TestCase }
-import zio.test.TestFailure.{ Assertion, Runtime }
-import zio.test.TestSuccess.{ Ignored, Succeeded }
+import zio.test.Spec.{SpecCase, SuiteCase, TestCase}
+import zio.test.TestFailure.{Assertion, Runtime}
+import zio.test.TestSuccess.{Ignored, Succeeded}
 import zio.test._
 
 /**

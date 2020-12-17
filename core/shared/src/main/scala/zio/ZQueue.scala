@@ -16,11 +16,10 @@
 
 package zio
 
-import java.util.concurrent.atomic.AtomicBoolean
-
 import zio.ZQueue.internal._
 import zio.internal.MutableConcurrentQueue
 
+import java.util.concurrent.atomic.AtomicBoolean
 import scala.annotation.tailrec
 
 /**

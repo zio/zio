@@ -1,15 +1,14 @@
 package zio.stream
 
-import java.{ util => ju }
-
 import zio._
 import zio.clock.Clock
 import zio.duration._
 import zio.internal.UniqueKey
 import zio.stm.TQueue
 import zio.stream.internal.Utils.zipChunks
-import zio.stream.internal.{ ZInputStream, ZReader }
+import zio.stream.internal.{ZInputStream, ZReader}
 
+import java.{util => ju}
 import scala.reflect.ClassTag
 
 /**
@@ -59,7 +58,7 @@ import scala.reflect.ClassTag
  */
 abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Option[E], Chunk[O]]]) { self =>
 
-  import ZStream.{ BufferedPull, Pull, TerminationStrategy }
+  import ZStream.{BufferedPull, Pull, TerminationStrategy}
 
   /**
    * Symbolic alias for [[ZStream#cross]].
@@ -2065,7 +2064,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     strategy: TerminationStrategy = TerminationStrategy.Both
   )(l: O => O3, r: O2 => O3): ZStream[R1, E1, O3] =
     ZStream {
-      import TerminationStrategy.{ Left => L, Right => R, Either => E }
+      import TerminationStrategy.{Left => L, Right => R, Either => E}
 
       for {
         handoff <- ZStream.Handoff.make[Take[E1, O3]].toManaged_

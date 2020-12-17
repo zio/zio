@@ -16,13 +16,12 @@
 
 package zio.test
 
+import zio.random._
+import zio.stream.{Stream, ZStream}
+import zio.{Chunk, ExecutionStrategy, NonEmptyChunk, UIO, URIO, ZIO}
+
 import java.nio.charset.StandardCharsets
 import java.util.UUID
-
-import zio.random._
-import zio.stream.{ Stream, ZStream }
-import zio.{ Chunk, ExecutionStrategy, NonEmptyChunk, UIO, URIO, ZIO }
-
 import scala.collection.immutable.SortedMap
 import scala.math.Numeric.DoubleIsFractional
 

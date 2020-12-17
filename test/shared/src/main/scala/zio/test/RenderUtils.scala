@@ -16,7 +16,7 @@
 
 package zio.test
 
-import scala.{ Console => SConsole }
+import scala.{Console => SConsole}
 
 private[test] object ConsoleUtils {
 

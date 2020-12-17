@@ -1,8 +1,8 @@
 package zio.test.mock
 
-import zio.test.mock.internal.{ InvalidCall, MockException }
-import zio.test.mock.module.{ PureModule, PureModuleMock }
-import zio.test.{ Annotations, Assertion, Spec, TestAspect, TestFailure, TestSuccess, ZIOBaseSpec, suite }
+import zio.test.mock.internal.{InvalidCall, MockException}
+import zio.test.mock.module.{PureModule, PureModuleMock}
+import zio.test.{Annotations, Assertion, Spec, TestAspect, TestFailure, TestSuccess, ZIOBaseSpec, suite}
 
 object PolyMockSpec extends ZIOBaseSpec with MockSpecUtils[PureModule] {
 

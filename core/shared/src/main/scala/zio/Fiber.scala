@@ -18,7 +18,7 @@ package zio
 
 import zio.console.Console
 import zio.internal.stacktracer.ZTraceElement
-import zio.internal.{ Executor, FiberRenderer }
+import zio.internal.{Executor, FiberRenderer}
 
 import scala.concurrent.Future
 

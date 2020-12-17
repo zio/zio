@@ -5,7 +5,7 @@ import zio.Exit.Failure
 import zio.ZManaged.ReleaseMap
 import zio.duration._
 import zio.test.Assertion._
-import zio.test.TestAspect.{ nonFlaky, scala2Only }
+import zio.test.TestAspect.{nonFlaky, scala2Only}
 import zio.test._
 import zio.test.environment._
 

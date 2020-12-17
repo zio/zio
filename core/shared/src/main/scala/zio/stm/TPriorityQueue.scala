@@ -17,7 +17,7 @@
 package zio.stm
 
 import zio.stm.ZSTM.internal._
-import zio.{ Chunk, ChunkBuilder }
+import zio.{Chunk, ChunkBuilder}
 
 import scala.collection.immutable.SortedMap
 

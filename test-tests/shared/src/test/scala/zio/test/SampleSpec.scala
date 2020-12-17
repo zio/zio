@@ -2,7 +2,7 @@ package zio.test
 
 import zio.stream.ZStream
 import zio.test.Assertion._
-import zio.{ UIO, ZIO }
+import zio.{UIO, ZIO}
 
 object SampleSpec extends ZIOBaseSpec {
 

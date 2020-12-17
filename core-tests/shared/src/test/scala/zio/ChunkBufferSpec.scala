@@ -1,9 +1,9 @@
 package zio
 
-import java.nio._
-
 import zio.test.Assertion.equalTo
 import zio.test._
+
+import java.nio._
 
 object ChunkBufferSpec extends ZIOBaseSpec {
 

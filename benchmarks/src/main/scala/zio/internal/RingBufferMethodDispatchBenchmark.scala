@@ -1,8 +1,8 @@
 package zio.internal
 
-import java.util.concurrent.TimeUnit
-
 import org.openjdk.jmh.annotations._
+
+import java.util.concurrent.TimeUnit
 
 /*
  * Main purposes of this set of benchmarks are:

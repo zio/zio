@@ -1,13 +1,12 @@
 package zio.test.junit
 
-import java.io.File
-
 import org.apache.maven.cli.MavenCli
-import zio.blocking.{ Blocking, effectBlocking }
+import zio.blocking.{Blocking, effectBlocking}
 import zio.test.Assertion._
-import zio.test.{ DefaultRunnableSpec, ZSpec, _ }
-import zio.{ RIO, ZIO }
+import zio.test.{DefaultRunnableSpec, ZSpec, _}
+import zio.{RIO, ZIO}
 
+import java.io.File
 import scala.collection.immutable
 import scala.xml.XML
 

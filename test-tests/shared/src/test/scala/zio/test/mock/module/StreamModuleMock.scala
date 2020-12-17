@@ -18,8 +18,8 @@ package zio.test.mock.module
 
 import com.github.ghik.silencer.silent
 import zio.stream.ZSink
-import zio.test.mock.{ Mock, Proxy }
-import zio.{ Has, UIO, URLayer, ZLayer }
+import zio.test.mock.{Mock, Proxy}
+import zio.{Has, UIO, URLayer, ZLayer}
 
 /**
  * Example module used for testing ZIO Mock framework.

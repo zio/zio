@@ -17,7 +17,7 @@
 package zio.test.mock.internal
 
 import zio.test.mock.Expectation
-import zio.{ Has, Ref, UIO, ZIO }
+import zio.{Has, Ref, UIO, ZIO}
 
 /**
  * A `MockState[R]` represents the state of a mock.

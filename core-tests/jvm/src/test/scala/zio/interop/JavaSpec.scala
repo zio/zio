@@ -1,15 +1,15 @@
 package zio
 package interop
 
-import java.net.InetSocketAddress
-import java.nio.ByteBuffer
-import java.nio.channels.{ AsynchronousServerSocketChannel, AsynchronousSocketChannel }
-import java.util.concurrent.{ CompletableFuture, CompletionStage, Future }
-
 import zio.blocking.Blocking
 import zio.interop.javaz._
 import zio.test.Assertion._
 import zio.test._
+
+import java.net.InetSocketAddress
+import java.nio.ByteBuffer
+import java.nio.channels.{AsynchronousServerSocketChannel, AsynchronousSocketChannel}
+import java.util.concurrent.{CompletableFuture, CompletionStage, Future}
 
 object JavaSpec extends ZIOBaseSpec {
 
