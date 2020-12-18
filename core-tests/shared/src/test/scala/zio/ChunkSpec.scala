@@ -580,6 +580,15 @@ object ChunkSpec extends ZIOBaseSpec {
       assertM(
         Chunk.unfoldM(0)(n => if (n < 10) IO.some((n, n + 1)) else IO.none)
       )(equalTo(Chunk.fromIterable(0 to 9)))
+    },
+    testM("split") {
+      val smallInts = Gen.small(n => Gen.const(n), 1)
+      val chunks    = Gen.chunkOf(Gen.anyInt)
+      check(smallInts, chunks) { (n, chunk) =>
+        val groups = chunk.split(n)
+        assert(groups.flatten)(equalTo(chunk)) &&
+        assert(groups.size)(equalTo(n min chunk.length))
+      }
     }
   )
 }

@@ -690,6 +690,41 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
     ev(apply(index))
 
   /**
+   * Splits this chunk into `n` equally sized chunks.
+   */
+  final def split(n: Int): Chunk[Chunk[A]] = {
+    val length    = self.length
+    val quotient  = length / n
+    val remainder = length % n
+    val iterator  = self.iterator
+    val chunks    = ChunkBuilder.make[Chunk[A]]()
+    var i         = 0
+    while (i < remainder) {
+      val chunk = ChunkBuilder.make[A]()
+      var j     = 0
+      while (j <= quotient) {
+        chunk += iterator.next()
+        j += 1
+      }
+      chunks += chunk.result()
+      i += 1
+    }
+    if (quotient > 0) {
+      while (i < n) {
+        val chunk = ChunkBuilder.make[A]()
+        var j     = 0
+        while (j < quotient) {
+          chunk += iterator.next()
+          j += 1
+        }
+        chunks += chunk.result()
+        i += 1
+      }
+    }
+    chunks.result()
+  }
+
+  /**
    * Returns two splits of this chunk at the specified index.
    */
   override final def splitAt(n: Int): (Chunk[A], Chunk[A]) =
