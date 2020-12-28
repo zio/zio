@@ -20,7 +20,7 @@ import zio.{Chunk, ZIO}
  */
 trait MutableRunnableSpec extends DefaultRunnableSpec { self =>
 
-  private[test] final class SpecBuilder[R, E, T](_spec: Spec[R, E, T]) {
+  final class SpecBuilder[R, E, T](_spec: Spec[R, E, T]) {
 
     var spec: Spec[R, E, T] = _spec
 
