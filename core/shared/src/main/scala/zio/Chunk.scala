@@ -321,7 +321,7 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
    * Given an element, return its index in this chunk if it is found within it.
    * Otherwise, return -1.
    */
-  override final def indexOf[B >: A](elem: B): Int = {
+  override def indexOf[B >: A](elem: B): Int = {
     val iterator    = arrayIterator
     var targetIndex = -1
     while (targetIndex == -1 && iterator.hasNext) {
