@@ -322,7 +322,7 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
    * Otherwise, return -1.
    */
   override final def indexOf[B >: A](elem: B): Int = {
-    val iterator = arrayIterator
+    val iterator    = arrayIterator
     var targetIndex = -1
     while (targetIndex == -1 && iterator.hasNext) {
       val array  = iterator.next()
