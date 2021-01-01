@@ -62,7 +62,7 @@ trait MutableRunnableSpec extends DefaultRunnableSpec { self =>
    */
   def test(label: String)(assertion: => TestResult): SpecBuilder = {
     val test = zio.test.test(label)(assertion)
-    val sb = new SpecBuilder(test)
+    val sb   = new SpecBuilder(test)
     tests = tests :+ sb
     sb
   }
@@ -72,7 +72,7 @@ trait MutableRunnableSpec extends DefaultRunnableSpec { self =>
    */
   def testM(label: String)(assertion: => ZIO[Environment, Failure, TestResult]): SpecBuilder = {
     val test = zio.test.testM(label)(assertion)
-    val sb = new SpecBuilder(test)
+f    val sb   = new SpecBuilder(test)
     tests = tests :+ sb
     sb
   }
