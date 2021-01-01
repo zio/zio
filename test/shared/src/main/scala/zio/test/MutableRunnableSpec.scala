@@ -1,6 +1,7 @@
 package zio.test
 
 import zio.{Chunk, ZIO}
+import zio.test.environment.TestEnvironment
 
 /**
  * Syntax for writing test like
@@ -20,9 +21,11 @@ import zio.{Chunk, ZIO}
  */
 trait MutableRunnableSpec extends DefaultRunnableSpec { self =>
 
-  final class SpecBuilder[R, E, T](_spec: Spec[R, E, T]) {
+  type ZS = ZSpec[Environment, Any]
 
-    var spec: Spec[R, E, T] = _spec
+  final class SpecBuilder(_spec: ZS) {
+
+    var spec: ZS = _spec
 
     /**
      * Syntax for adding aspects.
@@ -30,36 +33,36 @@ trait MutableRunnableSpec extends DefaultRunnableSpec { self =>
      * test("foo") { assert(42, equalTo(42)) } @@ ignore
      * }}}
      */
-    final def @@[R0 <: R1, R1 <: R, E0, E1, E2 >: E0 <: E1](
-      aspect: TestAspect[R0, R1, E0, E1]
-    )(implicit ev1: E <:< TestFailure[E2], ev2: T <:< TestSuccess): SpecBuilder[R1, E1, T] = {
-      spec = spec.@@[R0, R1, E0, E1, E2](aspect).asInstanceOf[Spec[R, E, T]]
-      this.asInstanceOf[SpecBuilder[R1, E1, T]]
+    final def @@(
+      aspect: TestAspect[Environment, Environment, Failure, Failure]
+    ): SpecBuilder = {
+      spec = spec @@ aspect
+      this
     }
 
   }
 
-  var allSuites: Chunk[SpecBuilder[_, _, _]] = Chunk.empty
-  var tests: Chunk[SpecBuilder[_, _, _]]     = Chunk.empty
+  var allSuites: Chunk[SpecBuilder] = Chunk.empty
+  var tests: Chunk[SpecBuilder]     = Chunk.empty
 
   /**
    * Builds a suite containing a number of other specs.
    */
-  def suite[R, E, T](label: String)(specs: => SpecBuilder[R, E, T]): SpecBuilder[R, E, T] = {
+  def suite(label: String)(specs: => SpecBuilder): SpecBuilder = {
     specs
-    val suite = zio.test.suite(label)(tests.map(_.spec.asInstanceOf[Spec[R, E, T]]): _*)
+    val suite = zio.test.suite(label)(tests.map(_.spec): _*)
     tests = Chunk.empty
     val sb = new SpecBuilder(suite)
     allSuites = allSuites :+ sb
-    sb.asInstanceOf[SpecBuilder[R, E, T]]
+    sb
   }
 
   /**
    * Builds a spec with a single pure test.
    */
-  def test(label: String)(assertion: => TestResult): SpecBuilder[Any, TestFailure[Nothing], TestSuccess] = {
+  def test(label: String)(assertion: => TestResult): SpecBuilder = {
     val test = zio.test.test(label)(assertion)
-    val sb   = new SpecBuilder(test)
+    val sb = new SpecBuilder(test)
     tests = tests :+ sb
     sb
   }
@@ -67,14 +70,14 @@ trait MutableRunnableSpec extends DefaultRunnableSpec { self =>
   /**
    * Builds a spec with a single effectful test.
    */
-  def testM[R, E](label: String)(assertion: => ZIO[R, E, TestResult]): SpecBuilder[R, TestFailure[E], TestSuccess] = {
+  def testM(label: String)(assertion: => ZIO[Environment, Failure, TestResult]): SpecBuilder = {
     val test = zio.test.testM(label)(assertion)
-    val sb   = new SpecBuilder(test)
+    val sb = new SpecBuilder(test)
     tests = tests :+ sb
     sb
   }
 
-  override def spec: ZSpec[Any, Any] =
+  override def spec: ZSpec[Environment, Failure] =
     zio.test.suite(self.getClass.getSimpleName)(
       allSuites.map(_.spec.asInstanceOf[Spec[Any, TestFailure[Any], TestSuccess]]): _*
     )

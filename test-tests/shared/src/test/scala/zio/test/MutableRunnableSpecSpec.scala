@@ -26,7 +26,7 @@ object MutableRunnableSpecSpec extends MutableRunnableSpec {
     }
 
     test("ignoring this test") {
-      assert(1)(equalTo(1))
+      assert(1)(equalTo(123))
     } @@ ignore
   }
 
