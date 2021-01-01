@@ -1,7 +1,6 @@
 package zio.test
 
 import zio.{Chunk, ZIO}
-import zio.test.environment.TestEnvironment
 
 /**
  * Syntax for writing test like
