@@ -3,7 +3,7 @@ package zio.internal
 import zio.ZIOBaseSpec
 import zio.random.Random
 import zio.test.Assertion.equalTo
-import zio.test.{Gen, ZSpec, assert, checkAll, suite, test, testM}
+import zio.test.{Gen, ZSpec, assert, checkAll, suite, testM}
 
 import scala.util.Random.nextInt
 

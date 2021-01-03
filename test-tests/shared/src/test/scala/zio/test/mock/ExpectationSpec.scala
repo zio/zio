@@ -2,7 +2,7 @@ package zio.test.mock
 
 import zio.Has
 import zio.test.mock.module.{PureModule, PureModuleMock}
-import zio.test.{Assertion, ZIOBaseSpec, ZSpec, assert, suite, test}
+import zio.test.{Assertion, ZIOBaseSpec, ZSpec, assert, suite}
 
 object ExpectationSpec extends ZIOBaseSpec {
 
