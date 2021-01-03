@@ -18,7 +18,7 @@ package zio
 
 import scala.collection.IterableFactoryDefaults
 import scala.collection.SeqFactory
-import scala.collection.immutable.{ IndexedSeq, IndexedSeqOps, StrictOptimizedSeqOps }
+import scala.collection.immutable.{IndexedSeq, IndexedSeqOps, StrictOptimizedSeqOps}
 import scala.reflect.ClassTag
 
 /**

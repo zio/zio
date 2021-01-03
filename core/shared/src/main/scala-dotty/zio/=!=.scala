@@ -21,7 +21,6 @@ import scala.util.Not
 
 /**
  * Evidence type `A` is not equal to type `B`.
- *
  */
 @implicitNotFound("${A} must not be ${B}")
 abstract class =!=[A, B] extends Serializable
