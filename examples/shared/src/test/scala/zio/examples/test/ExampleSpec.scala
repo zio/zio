@@ -1,6 +1,7 @@
 package zio.examples.test
 
-import zio.test.{ assert, suite, test, Assertion, DefaultRunnableSpec }
+import zio._
+import test._
 
 object ExampleSpec extends DefaultRunnableSpec {
 
