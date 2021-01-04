@@ -16,8 +16,6 @@
 
 package zio.test
 
-import java.util.regex.Pattern
-
 import zio.duration._
 import zio.test.ConsoleUtils.{cyan, red, _}
 import zio.test.FailureRenderer.FailureMessage.{Fragment, Message}
@@ -28,6 +26,7 @@ import zio.test.mock.Expectation
 import zio.test.mock.internal.{InvalidCall, MockException}
 import zio.{Cause, Has}
 
+import java.util.regex.Pattern
 import scala.io.AnsiColor
 import scala.util.Try
 
