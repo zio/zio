@@ -3184,13 +3184,12 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
       (leftUpd.isDefined, rightUpd.isDefined) match {
         case (true, true)   => Exit.succeed((emit, Running(newExcess)))
         case (false, false) => Exit.fail(None)
-        case _ => {
+        case _ =>
           val newState = newExcess match {
-            case Left(l)  => l.nonEmptyOrElse[State[O, O2]](End)(LeftDone(_))
-            case Right(r) => r.nonEmptyOrElse[State[O, O2]](End)(RightDone(_))
+            case Left(l)  => l.nonEmptyOrElse(End, LeftDone(_))
+            case Right(r) => r.nonEmptyOrElse(End, RightDone(_))
           }
           Exit.succeed((emit, newState))
-        }
       }
     }
 
@@ -3206,14 +3205,12 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
           {
             p2.optional.map(handleSuccess(None, _, Left(excessL)))
           }.catchAllCause(e => UIO.succeedNow(Exit.halt(e.map(Some(_)))))
-        case RightDone(excessR) => {
+        case RightDone(excessR) =>
           p1.optional
             .map(handleSuccess(_, None, Right(excessR)))
             .catchAllCause(e => UIO.succeedNow(Exit.halt(e.map(Some(_)))))
-        }
-        case End => {
+        case End =>
           UIO.succeedNow(Exit.fail(None))
-        }
       }
     }
   }

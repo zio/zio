@@ -664,7 +664,7 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
   /**
    * Runs `fn` if a `chunk` is not empty or returns default value
    */
-  def nonEmptyOrElse[B](ifEmpty: => B)(fn: NonEmptyChunk[A] => B): B =
+  def nonEmptyOrElse[B](ifEmpty: => B, fn: NonEmptyChunk[A] => B): B =
     if (isEmpty) ifEmpty else fn(NonEmptyChunk.nonEmpty(self))
 
   /**

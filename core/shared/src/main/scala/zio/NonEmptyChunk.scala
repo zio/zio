@@ -204,7 +204,7 @@ final class NonEmptyChunk[+A] private (private val chunk: Chunk[A]) { self =>
    * Zips this `NonEmptyCHunk` with the specified `NonEmptyChunk`, only
    * keeping as many elements as are in the smaller chunk.
    */
-  final def zipWith[B, C](that: NonEmptyChunk[B])(f: (A, B) => C): NonEmptyChunk[C] =
+  def zipWith[B, C](that: NonEmptyChunk[B])(f: (A, B) => C): NonEmptyChunk[C] =
     nonEmpty(chunk.zipWith(that.chunk)(f))
 
   /**
@@ -217,7 +217,7 @@ final class NonEmptyChunk[+A] private (private val chunk: Chunk[A]) { self =>
    * Annotates each element of this `NonEmptyChunk` with its index, with the
    * specified offset.
    */
-  final def zipWithIndexFrom(indexOffset: Int): NonEmptyChunk[(A, Int)] =
+  def zipWithIndexFrom(indexOffset: Int): NonEmptyChunk[(A, Int)] =
     nonEmpty(chunk.zipWithIndexFrom(indexOffset))
 }
 
@@ -233,7 +233,7 @@ object NonEmptyChunk {
    * Checks if a `chunk` is not empty and constructs a `NonEmptyChunk` from it.
    */
   def fromChunk[A](chunk: Chunk[A]): Option[NonEmptyChunk[A]] =
-    chunk.nonEmptyOrElse[Option[NonEmptyChunk[A]]](None)(Some(_))
+    chunk.nonEmptyOrElse(None, Some(_))
 
   /**
    * Constructs a `NonEmptyChunk` from the `::` case of a `List`.
