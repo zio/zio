@@ -35,7 +35,7 @@ object MavenJunitSpec extends DefaultRunnableSpec {
               "should fail - isSome",
               s"""zio.test.junit.TestFailed:
                  |11 did not satisfy equalTo(12)
-                 |`Some[Int](11)` = Some(11) did not satisfy isSome(equalTo(12))
+                 |Some(11) did not satisfy isSome(equalTo(12))
                  |at ${mvn.mvnRoot}/src/test/scala/zio/test/junit/maven/FailingSpec.scala:13""".stripMargin
             ) &&
             containsSuccess("should succeed")
