@@ -1,7 +1,7 @@
 package zio.examples.test
 
 import zio._
-import test._
+import zio.test._
 
 object ExampleSpec extends DefaultRunnableSpec {
 
