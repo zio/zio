@@ -41,7 +41,9 @@ object MavenJunitSpec extends DefaultRunnableSpec {
         )
       }
     }
-  ) @@ TestAspect.sequential
+  ) @@ TestAspect.sequential @@
+    // flaky: sometimes maven fails to download dependencies in CI
+    TestAspect.flaky(3)
 
   def makeMaven: ZIO[Any, AssertionError, MavenDriver] = for {
     projectDir <-
