@@ -589,6 +589,11 @@ object ChunkSpec extends ZIOBaseSpec {
         assert(groups.flatten)(equalTo(chunk)) &&
         assert(groups.size)(equalTo(n min chunk.length))
       }
+    },
+    testM("fromIterator") {
+      check(Gen.chunkOf(Gen.anyInt)) { as =>
+        assert(Chunk.fromIterator(as.toIterator))(equalTo(as))
+      }
     }
   )
 }
