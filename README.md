@@ -49,6 +49,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [CurrencyCloud](https://www.currencycloud.com/)
 * [Devsisters](https://devsisters.com/)
 * [DHL Parcel The Netherlands](https://www.werkenbijdhl.nl/it)
+* [Doomoolmori](https://doomoolmori.com/)
 * [Evolution](https://evolution.engineering)
 * [Hunters.AI](https://hunters.ai)
 * [iHeartRadio](https://www.iheart.com/)
