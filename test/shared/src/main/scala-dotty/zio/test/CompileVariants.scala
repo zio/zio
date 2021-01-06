@@ -101,21 +101,8 @@ object Macros {
   }
 
   private def showExpr[A](expr: Expr[A])(using ctx: Quotes) = {
-    dropQuotes(
-      expr.show
-        // reduce clutter
-        .replaceAll("""scala\.([a-zA-Z0-9_]+)""", "$1")
-        .replaceAll("""\.apply(\s*[\[(])""", "$1")
-        // scala 2.* compatibility for string literals
-        .replaceAll("""\\n""", "\n")
-    )
-  }
-
-  @tailrec
-  private def dropQuotes(str: String): String = {
-    if(str.startsWith("\"") && str.endsWith("\"")) {
-      dropQuotes(str.slice(1, str.length - 1))
-    } else str
+    import quotes.reflect._
+    Term.of(expr).pos.sourceCode
   }
 
   def sourcePath_impl(using ctx: Quotes): Expr[String] = {

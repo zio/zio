@@ -18,7 +18,6 @@ package zio.test
 
 import zio.UIO
 
-import scala.annotation.tailrec
 import scala.reflect.macros.{TypecheckException, blackbox}
 
 private[test] object Macros {
@@ -67,25 +66,61 @@ private[test] object Macros {
 
   private def showExpr(c: blackbox.Context)(expr: c.Tree) = {
     import c.universe._
-    dropQuotes(
-      showCode(expr)
-        .stripPrefix(fieldInAnonymousClassPrefix)
-        // for scala 3 compatibility
-        .replace(".`package`.", ".")
-        // reduce clutter
-        .replaceAll("""scala\.([a-zA-Z0-9_]+)""", "$1")
-        .replaceAll("""\.apply(\s*[\[(])""", "$1")
-    )
+    val cleanedAst = TreeCleaner.clean(c)(expr)
+    val code       = showCode(cleanedAst)
+    TreeCleaner.postProcess(code)
   }
-
-  @tailrec
-  private def dropQuotes(str: String): String =
-    if (str.startsWith("\"") && str.endsWith("\"")) {
-      dropQuotes(str.slice(1, str.length - 1))
-    } else str
 
   def showExpression_impl(c: blackbox.Context)(expr: c.Tree): c.Tree = {
     import c.universe._
     q"${showExpr(c)(expr)}"
+  }
+}
+
+/**
+ * removes visual clutter from scala reflect Trees:
+ */
+object TreeCleaner {
+  private val magicQuote = "-- $%^*"
+  private val startQuote = s"`$magicQuote"
+  private val endQuote   = s"$magicQuote`"
+
+  def postProcess(code: String): String =
+    code
+      .replace(startQuote, "\"")
+      .replace(endQuote, "\"")
+
+  def clean(c: blackbox.Context)(expr: c.Tree): c.Tree = {
+    import c.universe._
+    object PackageSelects {
+      def unapply(tree: c.Tree): Option[String] = packageSelects(c)(tree)
+    }
+    expr match {
+      // remove type parameters from methods: foo[Int](args) => foo(args)
+      case Apply(TypeApply(t, _), args) => Apply(clean(c)(t), args.map(clean(c)(_)))
+      case Apply(t, args)               => Apply(clean(c)(t), args.map(clean(c)(_)))
+      // foo.apply => foo
+      case Select(PackageSelects(n), TermName("apply")) => Ident(TermName(cleanTupleTerm(n)))
+      case Select(This(_), tn)                          => Ident(tn)
+      case Select(left, TermName("apply"))              => clean(c)(left)
+      case PackageSelects(n)                            => Ident(TermName(cleanTupleTerm(n)))
+      case Select(t, n)                                 => Select(clean(c)(t), n)
+      case l @ Literal(Constant(s: String)) =>
+        if (s.contains("\n")) Ident(TermName(s"$magicQuote${s.replace("\n", "\\n")}$magicQuote"))
+        else l
+      case t => t
+    }
+  }
+
+  private def cleanTupleTerm(n: String) =
+    if (n.matches("Tuple\\d+")) "" else n
+
+  private def packageSelects(c: blackbox.Context)(select: c.universe.Tree): Option[String] = {
+    import c.universe._
+    select match {
+      case Select(nested @ Select(_, _), TermName(name))                => packageSelects(c)(nested).map(_ => name)
+      case Select(id @ Ident(_), TermName(what)) if id.symbol.isPackage => Some(what)
+      case _                                                            => None
+    }
   }
 }

@@ -107,9 +107,14 @@ object ReportingTestUtils {
   )
 
   val test5: ZSpec[Any, Nothing] = zio.test.test("Addition works fine")(assert(1 + 1)(equalTo(3)))
+  // the captured expression for `1+1` is different between dotty and 2.x
+  def expressionIfNotRedundant(expr: String, value: Any): String =
+    Option(expr).filterNot(_ == value.toString).fold(value.toString)(e => s"`$e` = $value")
   val test5Expected: Vector[String] = Vector(
     expectedFailure("Addition works fine"),
-    withOffset(2)(s"${blue("2")} did not satisfy ${cyan("equalTo(3)")}\n"),
+    withOffset(2)(
+      s"${blue(expressionIfNotRedundant(showExpression(1 + 1), 2))} did not satisfy ${cyan("equalTo(3)")}\n"
+    ),
     withOffset(4)(assertSourceLocation() + "\n")
   )
 
@@ -122,7 +127,7 @@ object ReportingTestUtils {
       s"${blue("Some(3)")} did not satisfy ${cyan("isSome(") + yellow("isGreaterThan(4)") + cyan(")")}\n"
     ),
     withOffset(2)(
-      s"${blue(s"`${showExpression(Right(Some(3)))}` = Right(Some(3))")} did not satisfy ${cyan("isRight(") + yellow("isSome(isGreaterThan(4))") + cyan(")")}\n"
+      s"${blue(s"Right(Some(3))")} did not satisfy ${cyan("isRight(") + yellow("isSome(isGreaterThan(4))") + cyan(")")}\n"
     ),
     withOffset(4)(assertSourceLocation() + "\n")
   )

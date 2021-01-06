@@ -303,8 +303,18 @@ object FailureRenderer {
     }
 
   private def renderValue(av: AssertionValue) = (av.value, av.expression) match {
-    case (v, Some(expression)) if v.toString != expression => s"`$expression` = $v"
-    case (v, _)                                            => v.toString
+    case (v, Some(expression)) if !expressionRedundant(v.toString, expression) => s"`$expression` = $v"
+    case (v, _)                                                                => v.toString
+  }
+
+  private def expressionRedundant(valueStr: String, expression: String) = {
+    // toString drops double quotes, and for tuples and collections doesn't include spaces after the comma
+    def strip(s: String) = s
+      .replace("\"", "")
+      .replace(" ", "")
+      .replace("\n", "")
+      .replace("\\n", "")
+    strip(valueStr) == strip(expression)
   }
 
   private def renderAssertionLocation(av: AssertionValue, offset: Int) = av.sourceLocation.fold(Message()) { location =>
