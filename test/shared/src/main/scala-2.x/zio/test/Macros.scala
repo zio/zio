@@ -55,7 +55,7 @@ private[test] object Macros {
     import c.universe._
     val (fileName, line) = location(c)
     val srcLocation      = s"$fileName:$line"
-    val code             = showExpr(c)(expr)
+    val code             = CleanCodePrinter.show(c)(expr)
     q"_root_.zio.test.CompileVariants.assertImpl($expr, $code, $srcLocation)($assertion)"
   }
 
@@ -64,33 +64,31 @@ private[test] object Macros {
     q"${c.enclosingPosition.source.path}"
   }
 
-  private def showExpr(c: blackbox.Context)(expr: c.Tree) = {
-    import c.universe._
-    val cleanedAst = TreeCleaner.clean(c)(expr)
-    val code       = showCode(cleanedAst)
-    TreeCleaner.postProcess(code)
-  }
-
   def showExpression_impl(c: blackbox.Context)(expr: c.Tree): c.Tree = {
     import c.universe._
-    q"${showExpr(c)(expr)}"
+    q"${CleanCodePrinter.show(c)(expr)}"
   }
 }
 
 /**
  * removes visual clutter from scala reflect Trees:
  */
-object TreeCleaner {
+private[test] object CleanCodePrinter {
   private val magicQuote = "-- $%^*"
   private val startQuote = s"`$magicQuote"
   private val endQuote   = s"$magicQuote`"
 
-  def postProcess(code: String): String =
+  def show(c: blackbox.Context)(expr: c.Tree): String = {
+    import c.universe._
+    postProcess(showCode(clean(c)(expr)))
+  }
+
+  private def postProcess(code: String): String =
     code
       .replace(startQuote, "\"")
       .replace(endQuote, "\"")
 
-  def clean(c: blackbox.Context)(expr: c.Tree): c.Tree = {
+  private def clean(c: blackbox.Context)(expr: c.Tree): c.Tree = {
     import c.universe._
     object PackageSelects {
       def unapply(tree: c.Tree): Option[String] = packageSelects(c)(tree)
