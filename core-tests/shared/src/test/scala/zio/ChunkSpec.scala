@@ -592,7 +592,7 @@ object ChunkSpec extends ZIOBaseSpec {
     },
     testM("fromIterator") {
       check(Gen.chunkOf(Gen.anyInt)) { as =>
-        assert(Chunk.fromIterator(as.toIterator))(equalTo(as))
+        assert(Chunk.fromIterator(as.iterator))(equalTo(as))
       }
     }
   )
