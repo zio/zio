@@ -198,13 +198,13 @@ object ZTestFrameworkSpec {
   lazy val failingSpecFQN = SimpleFailingSpec.getClass.getName
   object SimpleFailingSpec extends DefaultRunnableSpec {
     def spec: Spec[Annotations, TestFailure[Any], TestSuccess] = zio.test.suite("some suite")(
-      zio.test.test("failing test") {
+      test("failing test") {
         zio.test.assert(1)(Assertion.equalTo(2))
       },
-      zio.test.test("passing test") {
+      test("passing test") {
         zio.test.assert(1)(Assertion.equalTo(1))
       },
-      zio.test.test("ignored test") {
+      test("ignored test") {
         zio.test.assert(1)(Assertion.equalTo(2))
       } @@ TestAspect.ignore
     )
@@ -212,7 +212,7 @@ object ZTestFrameworkSpec {
 
   lazy val multiLineSpecFQN = MultiLineSpec.getClass.getName
   object MultiLineSpec extends DefaultRunnableSpec {
-    def spec: ZSpec[Environment, Failure] = zio.test.test("multi-line test") {
+    def spec: ZSpec[Environment, Failure] = test("multi-line test") {
       zio.test.assert("Hello,\nWorld!")(Assertion.equalTo("Hello, World!"))
     }
   }

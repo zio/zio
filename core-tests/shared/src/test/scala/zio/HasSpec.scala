@@ -34,7 +34,7 @@ object HasSpec extends ZIOBaseSpec {
 
   def spec: ZSpec[Environment, Failure] = suite("HasSpec")(
     suite("monomorphic types")(
-      zio.test.test("Modules sharing common parent are independent") {
+      test("Modules sharing common parent are independent") {
         val hasBoth = Has(dog1).add[Cat](cat1)
 
         val dog = hasBoth.get[Dog]
@@ -42,7 +42,7 @@ object HasSpec extends ZIOBaseSpec {
 
         assert(dog)(anything) && assert(cat)(anything)
       },
-      zio.test.test("Siblings can be updated independently") {
+      test("Siblings can be updated independently") {
         val whole: Has[Dog] with Has[Cat] = Has(dog1).add(cat1)
 
         val updated: Has[Dog] with Has[Cat] = whole.update[Dog](_ => dog2).update[Cat](_ => cat2)
@@ -51,14 +51,14 @@ object HasSpec extends ZIOBaseSpec {
         assert(updated.get[Dog])(equalTo(dog2)) &&
         assert(updated.get[Cat])(equalTo(cat2))
       },
-      zio.test.test("Prune will delete what is not known about") {
+      test("Prune will delete what is not known about") {
         val whole: Has[Dog] with Has[Cat] = Has(dog1).add(cat1)
 
         assert(whole.size)(equalTo(2)) &&
         assert((whole: Has[Dog]).prune.size)(equalTo(1)) &&
         assert((whole: Has[Cat]).prune.size)(equalTo(1))
       },
-      zio.test.test("Union will prune what is not known about on RHS") {
+      test("Union will prune what is not known about on RHS") {
         val unioned = Has(dog1) union ((Has(dog2).add(bunny1)): Has[Bunny])
 
         assert(unioned.get[Dog])(equalTo(dog1)) &&
@@ -66,7 +66,7 @@ object HasSpec extends ZIOBaseSpec {
       }
     ),
     suite("covariant types")(
-      zio.test.test("Modules sharing common parent are independent") {
+      test("Modules sharing common parent are independent") {
         val hasBoth = Has(dogs1).add[IList[Cat]](cats1)
 
         val dogs = hasBoth.get[IList[Dog]]
@@ -74,7 +74,7 @@ object HasSpec extends ZIOBaseSpec {
 
         assert(dogs)(anything) && assert(cats)(anything)
       },
-      zio.test.test("Siblings can be updated independently") {
+      test("Siblings can be updated independently") {
         val whole: Has[IList[Dog]] with Has[IList[Cat]] = Has(dogs1).add(cats1)
 
         val updated: Has[IList[Dog]] with Has[IList[Cat]] =
@@ -84,14 +84,14 @@ object HasSpec extends ZIOBaseSpec {
         assert(updated.get[IList[Dog]])(equalTo(dogs2)) &&
         assert(updated.get[IList[Cat]])(equalTo(cats2))
       },
-      zio.test.test("Prune will delete what is not known about") {
+      test("Prune will delete what is not known about") {
         val whole: Has[IList[Dog]] with Has[IList[Cat]] = Has(dogs1).add(cats1)
 
         assert(whole.size)(equalTo(2)) &&
         assert((whole: Has[IList[Dog]]).prune.size)(equalTo(1)) &&
         assert((whole: Has[IList[Cat]]).prune.size)(equalTo(1))
       },
-      zio.test.test("Union will prune what is not known about on RHS") {
+      test("Union will prune what is not known about on RHS") {
         val unioned = Has(dogs1) union ((Has(dogs2).add(bunnies1)): Has[IList[Bunny]])
 
         assert(unioned.get[IList[Dog]])(equalTo(dogs1)) &&
@@ -99,7 +99,7 @@ object HasSpec extends ZIOBaseSpec {
       }
     ),
     suite("contravariant types")(
-      zio.test.test("Modules sharing common parent are independent") {
+      test("Modules sharing common parent are independent") {
         val hasBoth = Has(dogHotel1).add[PetHotel[Cat]](catHotel1)
 
         val dogHotel = hasBoth.get[PetHotel[Dog]]
@@ -107,7 +107,7 @@ object HasSpec extends ZIOBaseSpec {
 
         assert(dogHotel)(anything) && assert(catHotel)(anything)
       },
-      zio.test.test("Siblings can be updated independently") {
+      test("Siblings can be updated independently") {
         val whole: Has[PetHotel[Dog]] with Has[PetHotel[Cat]] = Has(dogHotel1).add(catHotel1)
 
         val updated: Has[PetHotel[Dog]] with Has[PetHotel[Cat]] =
@@ -117,14 +117,14 @@ object HasSpec extends ZIOBaseSpec {
         assert(updated.get[PetHotel[Dog]])(equalTo(dogHotel2)) &&
         assert(updated.get[PetHotel[Cat]])(equalTo(catHotel2))
       },
-      zio.test.test("Prune will delete what is not known about") {
+      test("Prune will delete what is not known about") {
         val whole: Has[PetHotel[Dog]] with Has[PetHotel[Cat]] = Has(dogHotel1).add(catHotel1)
 
         assert(whole.size)(equalTo(2)) &&
         assert((whole: Has[PetHotel[Dog]]).prune.size)(equalTo(1)) &&
         assert((whole: Has[PetHotel[Cat]]).prune.size)(equalTo(1))
       },
-      zio.test.test("Union will prune what is not known about on RHS") {
+      test("Union will prune what is not known about on RHS") {
         val unioned = Has(dogHotel1) union ((Has(dogHotel2).add(bunnyHotel1)): Has[PetHotel[Bunny]])
 
         assert(unioned.get[PetHotel[Dog]])(equalTo(dogHotel1)) &&
