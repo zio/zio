@@ -7,7 +7,7 @@ import zio.test.TestAspect.silent
 object SummaryBuilderSpec extends ZIOBaseSpec {
 
   def summarize(log: Vector[String]): String =
-    log.filter(!_.contains("+")).mkString.stripLineEnd
+    log.filter(!_.contains(green("+"))).mkString.stripLineEnd
 
   def labelOnly(log: Vector[String]): String =
     log.take(1).mkString.stripLineEnd
