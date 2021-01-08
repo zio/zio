@@ -1222,6 +1222,15 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
         builder.result()
     }
 
+  /**
+   * Creates a chunk from an iterator.
+   */
+  def fromIterator[A](iterator: Iterator[A]): Chunk[A] = {
+    val builder = ChunkBuilder.make[A]()
+    builder ++= iterator
+    builder.result()
+  }
+
   override def fill[A](n: Int)(elem: => A): Chunk[A] =
     if (n <= 0) Chunk.empty
     else {
