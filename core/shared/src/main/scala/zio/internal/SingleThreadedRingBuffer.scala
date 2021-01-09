@@ -51,7 +51,7 @@ private[zio] final class SingleThreadedRingBuffer[A <: AnyRef](capacity: Int) {
       // https://github.com/zio/zio/issues/4384: We might concurrently drop the last
       // element of the Ringbuffer and create the reversed list. Therefore we omit
       // Null elements from the result.
-      if (Option(array(i)).isDefined) result ::= array(i)
+      if (array(i) != null) result ::= array(i)
       i += 1
     }
     result
