@@ -927,7 +927,7 @@ object Schedule {
           start match {
             case None => Decision.Continue(Duration.Zero, now, loop(Some(now)))
             case Some(start) =>
-              val duration = Duration.fromInterval(start,now)
+              val duration = Duration.fromInterval(start, now)
               Decision.Continue(duration, now, loop(Some(start)))
           }
         }
