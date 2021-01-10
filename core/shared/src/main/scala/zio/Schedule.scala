@@ -24,7 +24,6 @@ import java.time.OffsetDateTime
 import java.time.temporal.ChronoField._
 import java.time.temporal.ChronoUnit._
 import java.time.temporal.{ChronoField, TemporalAdjusters}
-import java.util.concurrent.TimeUnit
 
 /**
  * A `Schedule[Env, In, Out]` defines a recurring schedule, which consumes values of type `In`, and
