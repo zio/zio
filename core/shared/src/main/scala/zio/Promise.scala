@@ -140,6 +140,16 @@ final class Promise[E, A] private (private val state: AtomicReference[State[E, A
   def fail(e: E): UIO[Boolean] = completeWith(IO.fail(e))
 
   /**
+   * Creates a new promise by applying the specified function (which also
+   * produces a promise) to the value of this promise once it is completed.
+   */
+  def flatMap[E1 >: E, B](f: A => UIO[Promise[E1, B]]): UIO[Promise[E1, B]] =
+    for {
+      result <- Promise.make[E1, B]
+      _      <- await.flatMap(f).flatMap(_.await).to(result).fork
+    } yield result
+
+  /**
    * Halts the promise with the specified cause, which will be propagated to all
    * fibers waiting on the value of the promise.
    */
@@ -168,6 +178,16 @@ final class Promise[E, A] private (private val state: AtomicReference[State[E, A
     })
 
   /**
+   * Creates a new promise by applying the specified function to the value of
+   * this promise once it is completed.
+   */
+  def map[B](f: A => B): UIO[Promise[E, B]] =
+    for {
+      b <- Promise.make[E, B]
+      _ <- await.map(f).to(b).fork
+    } yield b
+
+  /**
    * Checks for completion of this Promise. Returns the result effect if this
    * promise has already been completed or a `None` otherwise.
    */
@@ -181,6 +201,20 @@ final class Promise[E, A] private (private val state: AtomicReference[State[E, A
    * Completes the promise with the specified value.
    */
   def succeed(a: A): UIO[Boolean] = completeWith(IO.succeedNow(a))
+
+  /**
+   * Zips this promise with the specified promise combining their results
+   * into a tuple.
+   */
+  def zip[E1 >: E, B](p: Promise[E1, B]): UIO[Promise[E1, (A, B)]] =
+    flatMap(a => UIO.succeed(p.map(b => (a, b))).flatten)
+
+  /**
+   * Zips this promise with the specified promise using the specified
+   * combiner function.
+   */
+  def zipWith[E1 >: E, B, C](p: Promise[E1, B])(f: (A, B) => C): UIO[Promise[E1, C]] =
+    flatMap(a => UIO.succeed(p.map(b => f(a, b))).flatten)
 
   private def interruptJoiner(joiner: IO[E, A] => Any): Canceler[Any] = IO.effectTotal {
     var retry = true

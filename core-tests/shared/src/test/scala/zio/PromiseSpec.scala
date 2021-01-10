@@ -74,12 +74,144 @@ object PromiseSpec extends ZIOBaseSpec {
         v <- p.await
       } yield assert(s)(isFalse) && assert(v)(equalTo(1))
     },
+    testM("flatMap a promise that completes") {
+      def f(v: Int) =
+        for {
+          p <- Promise.make[Exception, Int]
+          _ <- p.succeed(v * 2)
+        } yield p
+      for {
+        a      <- Promise.make[Exception, Int]
+        b      <- a.flatMap(f)
+        _      <- a.succeed(1)
+        result <- b.await.run
+      } yield assert(result)(succeeds(equalTo(2)))
+    },
+    testM("flatMap a promise that fails") {
+      val exception = new Exception
+      for {
+        a      <- Promise.make[Exception, Int]
+        b      <- a.flatMap(_ => Promise.make[Exception, Int])
+        _      <- a.fail(exception)
+        result <- b.await.run
+      } yield assert(result)(fails(equalTo(exception)))
+    },
+    testM("flatMap a promise that dies") {
+      val exception = new Exception
+      for {
+        a      <- Promise.make[Exception, Int]
+        b      <- a.flatMap(_ => Promise.make[Exception, Int])
+        _      <- a.die(exception)
+        result <- b.await.run
+      } yield assert(result)(dies(equalTo(exception)))
+    },
+    testM("flatMap a promise that is interrupted") {
+      for {
+        a      <- Promise.make[Exception, Int]
+        b      <- a.flatMap(_ => Promise.make[Exception, Int])
+        _      <- a.interrupt
+        result <- b.await.run
+      } yield assert(result)(isInterrupted)
+    },
+    testM("flatMap with a function throwing an exception") {
+      val exception = new Exception
+      for {
+        a      <- Promise.make[Exception, Int]
+        b      <- a.flatMap[Exception, Int](_ => throw exception)
+        _      <- a.succeed(1)
+        result <- b.await.run
+      } yield assert(result)(dies(equalTo(exception)))
+    },
+    testM("flatMap with a function returning a promise that fails") {
+      val exception = new Exception
+      val failingPromise =
+        for {
+          p <- Promise.make[Exception, Int]
+          _ <- p.fail(exception)
+        } yield p
+      for {
+        a      <- Promise.make[Exception, Int]
+        b      <- a.flatMap(_ => failingPromise)
+        _      <- a.succeed(1)
+        result <- b.await.run
+      } yield assert(result)(fails(equalTo(exception)))
+    },
+    testM("flatMap with a function returning a promise that dies") {
+      val exception = new Exception
+      val dyingPromise =
+        for {
+          p <- Promise.make[Exception, Int]
+          _ <- p.die(exception)
+        } yield p
+      for {
+        a      <- Promise.make[Exception, Int]
+        b      <- a.flatMap(_ => dyingPromise)
+        _      <- a.succeed(1)
+        result <- b.await.run
+      } yield assert(result)(dies(equalTo(exception)))
+    },
+    testM("flatMap with a function returning a promise that is interrupted") {
+      val interruptedPromise =
+        for {
+          p <- Promise.make[Exception, Int]
+          _ <- p.interrupt
+        } yield p
+      for {
+        a      <- Promise.make[Exception, Int]
+        b      <- a.flatMap(_ => interruptedPromise)
+        _      <- a.succeed(1)
+        result <- b.await.run
+      } yield assert(result)(isInterrupted)
+    },
     testM("interrupt a promise") {
       for {
         p <- Promise.make[Exception, Int]
         s <- p.interrupt
       } yield assert(s)(isTrue)
     } @@ zioTag(interruption),
+    testM("map a promise that completes") {
+      for {
+        a      <- Promise.make[Exception, Int]
+        b      <- a.map(_ * 2)
+        _      <- a.succeed(1)
+        result <- b.await.run
+      } yield assert(result)(succeeds(equalTo(2)))
+    },
+    testM("map a promise that fails") {
+      val exception = new Exception
+      for {
+        a      <- Promise.make[Exception, Int]
+        b      <- a.map(_ * 2)
+        _      <- a.fail(exception)
+        result <- b.await.run
+      } yield assert(result)(fails(equalTo(exception)))
+    },
+    testM("map a promise that dies") {
+      val exception = new Exception
+      for {
+        a      <- Promise.make[Exception, Int]
+        b      <- a.map(_ * 2)
+        _      <- a.die(exception)
+        result <- b.await.run
+      } yield assert(result)(dies(equalTo(exception)))
+    },
+    testM("map with a function throwing an exception") {
+      val exception = new Exception
+      for {
+        a      <- Promise.make[Exception, Int]
+        b      <- a.map[Int](_ => throw exception)
+        _      <- a.succeed(1)
+        result <- b.await.run
+      } yield assert(result)(dies(equalTo(exception)))
+    },
+    testM("map a promise that is interrupted") {
+      for {
+        a      <- Promise.make[Exception, Int]
+        b      <- a.map(_ * 2)
+        _      <- a.interrupt
+        result <- b.await.run
+      } yield assert(result)(isInterrupted)
+    },
     testM("poll a promise that is not completed yet") {
       for {
         p       <- Promise.make[String, Int]
@@ -120,6 +252,165 @@ object PromiseSpec extends ZIOBaseSpec {
         _ <- p.fail("failure")
         d <- p.isDone
       } yield assert(d)(isTrue)
-    } @@ zioTag(errors)
+    } @@ zioTag(errors),
+    testM("zip when both promises complete") {
+      for {
+        a      <- Promise.make[Exception, Int]
+        b      <- Promise.make[Exception, Int]
+        z      <- a.zip(b)
+        _      <- a.succeed(1)
+        _      <- b.succeed(2)
+        result <- z.await.run
+      } yield assert(result)(succeeds(equalTo((1, 2))))
+    },
+    testM("zip when this promise fails") {
+      val exception = new Exception
+      for {
+        a      <- Promise.make[Exception, Int]
+        b      <- Promise.make[Exception, Int]
+        z      <- a.zip(b)
+        _      <- a.fail(exception)
+        _      <- b.succeed(2)
+        result <- z.await.run
+      } yield assert(result)(fails(equalTo(exception)))
+    },
+    testM("zip when the other promise fails") {
+      val exception = new Exception
+      for {
+        a      <- Promise.make[Exception, Int]
+        b      <- Promise.make[Exception, Int]
+        z      <- a.zip(b)
+        _      <- a.succeed(1)
+        _      <- b.fail(exception)
+        result <- z.await.run
+      } yield assert(result)(fails(equalTo(exception)))
+    },
+    testM("zip this promise dies") {
+      val exception = new Exception
+      for {
+        a      <- Promise.make[Exception, Int]
+        b      <- Promise.make[Exception, Int]
+        z      <- a.zip(b)
+        _      <- a.die(exception)
+        _      <- b.succeed(2)
+        result <- z.await.run
+      } yield assert(result)(dies(equalTo(exception)))
+    },
+    testM("zip when the other promise dies") {
+      val exception = new Exception
+      for {
+        a      <- Promise.make[Exception, Int]
+        b      <- Promise.make[Exception, Int]
+        z      <- a.zip(b)
+        _      <- a.succeed(1)
+        _      <- b.die(exception)
+        result <- z.await.run
+      } yield assert(result)(dies(equalTo(exception)))
+    },
+    testM("zip when this promise is interrupted") {
+      for {
+        a      <- Promise.make[Exception, Int]
+        b      <- Promise.make[Exception, Int]
+        z      <- a.zip(b)
+        _      <- a.interrupt
+        _      <- b.succeed(2)
+        result <- z.await.run
+      } yield assert(result)(isInterrupted)
+    },
+    testM("zip when the other promise is interrupted") {
+      for {
+        a      <- Promise.make[Exception, Int]
+        b      <- Promise.make[Exception, Int]
+        z      <- a.zip(b)
+        _      <- a.succeed(1)
+        _      <- b.interrupt
+        result <- z.await.run
+      } yield assert(result)(isInterrupted)
+    },
+    testM("zipWith when both promises complete") {
+      for {
+        a      <- Promise.make[Exception, Int]
+        b      <- Promise.make[Exception, Int]
+        z      <- a.zipWith(b)(_ + _)
+        _      <- a.succeed(1)
+        _      <- b.succeed(2)
+        result <- z.await.run
+      } yield assert(result)(succeeds(equalTo(3)))
+    },
+    testM("zipWith when this promise fails") {
+      val exception = new Exception
+      for {
+        a      <- Promise.make[Exception, Int]
+        b      <- Promise.make[Exception, Int]
+        z      <- a.zipWith(b)(_ + _)
+        _      <- a.fail(exception)
+        _      <- b.succeed(2)
+        result <- z.await.run
+      } yield assert(result)(fails(equalTo(exception)))
+    },
+    testM("zipWith the other promise fails") {
+      val exception = new Exception
+      for {
+        a      <- Promise.make[Exception, Int]
+        b      <- Promise.make[Exception, Int]
+        z      <- a.zipWith(b)(_ + _)
+        _      <- a.succeed(1)
+        _      <- b.fail(exception)
+        result <- z.await.run
+      } yield assert(result)(fails(equalTo(exception)))
+    },
+    testM("zipWith when this promise dies") {
+      val exception = new Exception
+      for {
+        a      <- Promise.make[Exception, Int]
+        b      <- Promise.make[Exception, Int]
+        z      <- a.zipWith(b)(_ + _)
+        _      <- a.die(exception)
+        _      <- b.succeed(2)
+        result <- z.await.run
+      } yield assert(result)(dies(equalTo(exception)))
+    },
+    testM("zipWith when the other promise dies") {
+      val exception = new Exception
+      for {
+        a      <- Promise.make[Exception, Int]
+        b      <- Promise.make[Exception, Int]
+        z      <- a.zipWith(b)(_ + _)
+        _      <- a.succeed(1)
+        _      <- b.die(exception)
+        result <- z.await.run
+      } yield assert(result)(dies(equalTo(exception)))
+    },
+    testM("zipWith using a function that throws an exception") {
+      val exception = new Exception
+      for {
+        a      <- Promise.make[Exception, Int]
+        b      <- Promise.make[Exception, Int]
+        z      <- a.zipWith[Exception, Int, Int](b)((_, _) => throw exception)
+        _      <- a.succeed(1)
+        _      <- b.succeed(2)
+        result <- z.await.run
+      } yield assert(result)(dies(equalTo(exception)))
+    },
+    testM("zipWith when this promise is interrupted") {
+      for {
+        a      <- Promise.make[Exception, Int]
+        b      <- Promise.make[Exception, Int]
+        z      <- a.zipWith(b)(_ + _)
+        _      <- a.interrupt
+        _      <- b.succeed(2)
+        result <- z.await.run
+      } yield assert(result)(isInterrupted)
+    },
+    testM("zipWith when the other promise is interrupted") {
+      for {
+        a      <- Promise.make[Exception, Int]
+        b      <- Promise.make[Exception, Int]
+        z      <- a.zipWith(b)(_ + _)
+        _      <- a.succeed(1)
+        _      <- b.interrupt
+        result <- z.await.run
+      } yield assert(result)(isInterrupted)
+    }
   )
 }
