@@ -522,7 +522,7 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
         self(now, in).flatMap {
           case Done(out) => ZIO.succeed(Done(out))
           case Continue(out, interval, next) =>
-            val delay = Duration.fromInterval(interval, now)
+            val delay = Duration.fromInterval(now, interval)
 
             f(out, delay).map { duration =>
               val newInterval = now.plusNanos(duration.toNanos)
