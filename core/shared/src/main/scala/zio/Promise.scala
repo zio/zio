@@ -37,8 +37,10 @@ import java.util.concurrent.atomic.AtomicReference
  * } yield value
  * }}}
  */
-final class Promise[E, A] private (private val state: AtomicReference[State[E, A]], blockingOn: List[Fiber.Id])
-    extends Serializable {
+final class Promise[E, A] private (
+  private val state: AtomicReference[Promise.internal.State[E, A]],
+  blockingOn: List[Fiber.Id]
+) extends Serializable {
 
   /**
    * Retrieves the value of the promise, suspending the fiber running the action
