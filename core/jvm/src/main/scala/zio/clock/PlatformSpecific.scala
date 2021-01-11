@@ -16,10 +16,10 @@
 
 package zio.clock
 
-import java.util.concurrent._
-
 import zio.duration.Duration
-import zio.internal.{ NamedThreadFactory, Scheduler }
+import zio.internal.{NamedThreadFactory, Scheduler}
+
+import java.util.concurrent._
 
 private[clock] trait PlatformSpecific {
   import Scheduler.CancelToken

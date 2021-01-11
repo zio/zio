@@ -16,9 +16,9 @@
 
 package zio
 
-import scala.collection.generic.{ CanBuildFrom, GenericCompanion, GenericTraversableTemplate }
+import scala.collection.generic.{CanBuildFrom, GenericCompanion, GenericTraversableTemplate}
 import scala.collection.immutable.IndexedSeq
-import scala.collection.{ GenTraversableOnce, IndexedSeqLike }
+import scala.collection.{GenTraversableOnce, IndexedSeqLike}
 import scala.reflect.ClassTag
 
 /**

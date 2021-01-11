@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.UIO
+import zio.{UIO, ZIO}
 
 trait CompileVariants {
 
@@ -29,12 +29,29 @@ trait CompileVariants {
   final def typeCheck(code: String): UIO[Either[String, Unit]] =
     macro Macros.typeCheck_impl
 
-  private[test] def assertImpl[A](value: => A)(assertion: Assertion[A]): TestResult
+  private[test] def assertImpl[A](
+    value: => A,
+    expression: Option[String] = None,
+    sourceLocation: Option[String] = None
+  )(assertion: Assertion[A]): TestResult
+
+  /**
+   * Checks the assertion holds for the given effectfully-computed value.
+   */
+  private[test] def assertMInternal[R, E, A](effect: ZIO[R, E, A], sourceLocation: Option[String] = None)(
+    assertion: AssertionM[A]
+  ): ZIO[R, E, TestResult]
 
   /**
    * Checks the assertion holds for the given value.
    */
   def assert[A](expr: => A)(assertion: Assertion[A]): TestResult = macro Macros.assert_impl
+
+  /**
+   * Checks the assertion holds for the given effectfully-computed value.
+   */
+  def assertM[R, E, A](effect: ZIO[R, E, A])(assertion: AssertionM[A]): ZIO[R, E, TestResult] =
+    macro Macros.assertM_impl
 
   private[zio] def sourcePath: String = macro Macros.sourcePath_impl
 
@@ -46,5 +63,11 @@ object CompileVariants {
   /**
    * just a proxy to call package private assertRuntime from the macro
    */
-  def assertImpl[A](value: => A)(assertion: Assertion[A]): TestResult = zio.test.assertImpl(value)(assertion)
+  def assertImpl[A](value: => A, expression: String, sourceLocation: String)(assertion: Assertion[A]): TestResult =
+    zio.test.assertImpl(value, Some(expression), Some(sourceLocation))(assertion)
+
+  def assertMInternal[R, E, A](effect: ZIO[R, E, A], sourceLocation: String)(
+    assertion: AssertionM[A]
+  ): ZIO[R, E, TestResult] =
+    zio.test.assertMInternal(effect, Some(sourceLocation))(assertion)
 }

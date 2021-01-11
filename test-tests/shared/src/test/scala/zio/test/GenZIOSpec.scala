@@ -2,7 +2,7 @@ package zio.test
 
 import zio.test.Assertion._
 import zio.test.Gen._
-import zio.test.GenUtils.{ partitionExit, sampleEffect }
+import zio.test.GenUtils.{partitionExit, sampleEffect}
 
 object GenZIOSpec extends ZIOBaseSpec {
 

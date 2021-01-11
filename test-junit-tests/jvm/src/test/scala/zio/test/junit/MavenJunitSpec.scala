@@ -1,13 +1,12 @@
 package zio.test.junit
 
-import java.io.File
-
 import org.apache.maven.cli.MavenCli
-import zio.blocking.{ Blocking, effectBlocking }
+import zio.blocking.{Blocking, effectBlocking}
 import zio.test.Assertion._
-import zio.test.{ DefaultRunnableSpec, ZSpec, _ }
-import zio.{ RIO, ZIO }
+import zio.test.{DefaultRunnableSpec, ZSpec, _}
+import zio.{RIO, ZIO}
 
+import java.io.File
 import scala.collection.immutable
 import scala.xml.XML
 
@@ -30,19 +29,22 @@ object MavenJunitSpec extends DefaultRunnableSpec {
             "should fail",
             s"""zio.test.junit.TestFailed:
                |11 did not satisfy equalTo(12)
-               |11 did not satisfy (equalTo(12) ?? "assert(`11`) (at ${mvn.mvnRoot}/src/test/scala/zio/test/junit/maven/FailingSpec.scala:10)")""".stripMargin
+               |at ${mvn.mvnRoot}/src/test/scala/zio/test/junit/maven/FailingSpec.scala:10""".stripMargin
           ) &&
             containsFailure(
               "should fail - isSome",
               s"""zio.test.junit.TestFailed:
                  |11 did not satisfy equalTo(12)
-                 |Some(11) did not satisfy (isSome(equalTo(12)) ?? "assert(`Some[Int](11)`) (at ${mvn.mvnRoot}/src/test/scala/zio/test/junit/maven/FailingSpec.scala:13)")""".stripMargin
+                 |Some(11) did not satisfy isSome(equalTo(12))
+                 |at ${mvn.mvnRoot}/src/test/scala/zio/test/junit/maven/FailingSpec.scala:13""".stripMargin
             ) &&
             containsSuccess("should succeed")
         )
       }
     }
-  ) @@ TestAspect.sequential
+  ) @@ TestAspect.sequential @@
+    // flaky: sometimes maven fails to download dependencies in CI
+    TestAspect.flaky(3)
 
   def makeMaven: ZIO[Any, AssertionError, MavenDriver] = for {
     projectDir <-

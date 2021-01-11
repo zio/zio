@@ -17,7 +17,7 @@
 package zio.internal
 
 import zio.internal.tracing.TracingConfig
-import zio.{ Cause, Supervisor }
+import zio.{Cause, Supervisor}
 
 /**
  * A `Platform` provides the minimum capabilities necessary to bootstrap

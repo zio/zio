@@ -17,7 +17,7 @@
 package zio.test
 
 import zio.duration._
-import zio.{ Chunk, Fiber, Tag }
+import zio.{Chunk, Fiber, Tag}
 
 /**
  * A type of annotation.

@@ -18,7 +18,7 @@ package zio
 
 import zio.Chunk.BitChunk
 
-import scala.collection.mutable.{ ArrayBuilder, Builder }
+import scala.collection.mutable.{ArrayBuilder, Builder}
 import scala.{
   Boolean => SBoolean,
   Byte => SByte,

@@ -17,7 +17,6 @@
 package zio.internal
 
 import java.util.concurrent._
-
 import scala.concurrent.ExecutionContext
 
 /**

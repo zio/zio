@@ -17,10 +17,10 @@
 package zio.test.mock
 
 import zio.test.Assertion
-import zio.test.mock.Expectation.{ And, Chain, Or, Repeated }
-import zio.test.mock.Result.{ Fail, Succeed }
-import zio.test.mock.internal.{ ExpectationState, MockException, MockState, ProxyFactory }
-import zio.{ Has, IO, Managed, Tag, ULayer, URLayer, ZLayer }
+import zio.test.mock.Expectation.{And, Chain, Or, Repeated}
+import zio.test.mock.Result.{Fail, Succeed}
+import zio.test.mock.internal.{ExpectationState, MockException, MockState, ProxyFactory}
+import zio.{Has, IO, Managed, Tag, ULayer, URLayer, ZLayer}
 
 import scala.language.implicitConversions
 

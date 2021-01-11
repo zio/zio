@@ -1,7 +1,7 @@
 package zio.test.laws
 
 import zio.random.Random
-import zio.test.{ FunctionVariants, Gen }
+import zio.test.{FunctionVariants, Gen}
 
 /**
  * A `GenF` knows how to construct a generator of `F[A,B]` values given a

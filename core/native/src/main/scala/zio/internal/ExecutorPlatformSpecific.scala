@@ -16,10 +16,10 @@
 
 package zio.internal
 
-import java.util.concurrent.{ AbstractExecutorService, TimeUnit }
-import java.{ util => ju }
+import java.util.concurrent.{AbstractExecutorService, TimeUnit}
+import java.{util => ju}
 
-import scala.concurrent.{ ExecutionContext, ExecutionContextExecutorService }
+import scala.concurrent.{ExecutionContext, ExecutionContextExecutorService}
 
 trait ExecutorPlatformSpecific { this: Executor =>
 

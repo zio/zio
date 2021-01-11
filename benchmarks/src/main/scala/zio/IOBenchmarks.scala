@@ -1,8 +1,8 @@
 package zio
 
 import cats._
-import cats.effect.{ ContextShift, Fiber => CFiber, IO => CIO }
-import monix.eval.{ Task => MTask }
+import cats.effect.{ContextShift, Fiber => CFiber, IO => CIO}
+import monix.eval.{Task => MTask}
 import zio.internal._
 
 import scala.concurrent.ExecutionContext

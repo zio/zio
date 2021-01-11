@@ -1,9 +1,9 @@
 package zio.clock
 
-import java.time.DateTimeException
-
 import zio._
 import zio.test._
+
+import java.time.DateTimeException
 
 object ClockSpec extends ZIOBaseSpec {
 

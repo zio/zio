@@ -1,6 +1,6 @@
 package zio
 
-import zio.internal.{ Executor, Platform }
+import zio.internal.{Executor, Platform}
 
 import scala.concurrent.ExecutionContext
 import scala.reflect.ClassTag

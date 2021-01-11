@@ -17,8 +17,8 @@
 package zio.test.mock.module
 
 import com.github.ghik.silencer.silent
-import zio.test.mock.{ Mock, Proxy }
-import zio.{ Has, IO, Tag, UIO, URLayer, ZLayer }
+import zio.test.mock.{Mock, Proxy}
+import zio.{Has, IO, Tag, UIO, URLayer, ZLayer}
 
 /**
  * Example pure module used for testing ZIO Mock framework.

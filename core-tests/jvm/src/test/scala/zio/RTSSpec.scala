@@ -1,14 +1,14 @@
 package zio
 
-import java.util.concurrent.Callable
-import java.util.concurrent.atomic.AtomicInteger
-
 import zio.clock.Clock
 import zio.duration._
 import zio.test.Assertion._
-import zio.test.TestAspect.{ nonFlaky, silent }
+import zio.test.TestAspect.{nonFlaky, silent}
 import zio.test._
 import zio.test.environment.Live
+
+import java.util.concurrent.Callable
+import java.util.concurrent.atomic.AtomicInteger
 
 object RTSSpec extends ZIOBaseSpec {
 

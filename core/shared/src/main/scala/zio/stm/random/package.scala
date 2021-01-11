@@ -184,7 +184,7 @@ package object random {
       } yield bf.fromSpecific(collection)(result)
 
     private[zio] object PureRandom {
-      import scala.util.{ Random => SRandom }
+      import scala.util.{Random => SRandom}
 
       type Seed = Long
 

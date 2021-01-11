@@ -16,8 +16,8 @@
 
 package zio
 
-import zio.internal.tracing.{ TracingConfig, ZIOFn }
-import zio.internal.{ Executor, FiberContext, Platform, PlatformConstants, Tracing }
+import zio.internal.tracing.{TracingConfig, ZIOFn}
+import zio.internal.{Executor, FiberContext, Platform, PlatformConstants, Tracing}
 
 import scala.concurrent.Future
 

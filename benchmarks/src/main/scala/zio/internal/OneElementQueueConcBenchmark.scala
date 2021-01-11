@@ -1,11 +1,11 @@
 package zio.internal
 
-import java.util.concurrent.TimeUnit
-
 import org.openjdk.jmh.annotations._
 import org.openjdk.jmh.infra.Blackhole
 import zio.internal.BenchUtils._
-import zio.internal.ProducerConsumerBenchmark.{ OfferCounters, PollCounters }
+import zio.internal.ProducerConsumerBenchmark.{OfferCounters, PollCounters}
+
+import java.util.concurrent.TimeUnit
 
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.MICROSECONDS)

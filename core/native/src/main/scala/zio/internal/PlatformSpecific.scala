@@ -16,12 +16,12 @@
 
 package zio.internal
 
-import java.util.{ HashMap, HashSet, Map => JMap, Set => JSet }
+import java.util.{HashMap, HashSet, Map => JMap, Set => JSet}
 
 import scala.concurrent.ExecutionContext
 
 import com.github.ghik.silencer.silent
-import zio.{ Cause, Supervisor }
+import zio.{Cause, Supervisor}
 import zio.internal.stacktracer.Tracer
 import zio.internal.tracing.TracingConfig
 

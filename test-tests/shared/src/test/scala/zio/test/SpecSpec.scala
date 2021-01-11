@@ -31,7 +31,7 @@ object SpecSpec extends ZIOBaseSpec {
       testM("gracefully handles fiber death") {
         implicit val needsEnv = NeedsEnv
         val spec = suite("suite")(
-          zio.test.test("test") {
+          test("test") {
             assert(true)(isTrue)
           }
         ).provideLayerShared(ZLayer.fromEffectMany(ZIO.dieMessage("everybody dies")))
@@ -57,10 +57,10 @@ object SpecSpec extends ZIOBaseSpec {
       },
       testM("is not interfered with by test level failures") {
         val spec = suite("suite")(
-          zio.test.test("test1") {
+          test("test1") {
             assert(1)(Assertion.equalTo(2))
           },
-          zio.test.test("test2") {
+          test("test2") {
             assert(1)(Assertion.equalTo(1))
           },
           testM("test3") {

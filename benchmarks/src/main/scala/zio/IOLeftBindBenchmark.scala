@@ -1,10 +1,9 @@
 package zio
 
-import java.util.concurrent.TimeUnit
-
 import org.openjdk.jmh.annotations._
 import zio.IOBenchmarks._
 
+import java.util.concurrent.TimeUnit
 import scala.concurrent.Await
 
 @State(Scope.Thread)
@@ -87,7 +86,7 @@ class IOLeftBindBenchmark {
 
   @Benchmark
   def twitterLeftBindBenchmark(): Int = {
-    import com.twitter.util.{ Await, Future }
+    import com.twitter.util.{Await, Future}
 
     def loop(i: Int): Future[Int] =
       if (i % depth == 0) Future(i + 1).flatMap(loop)

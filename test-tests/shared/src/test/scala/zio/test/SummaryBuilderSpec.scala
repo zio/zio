@@ -7,7 +7,10 @@ import zio.test.TestAspect.silent
 object SummaryBuilderSpec extends ZIOBaseSpec {
 
   def summarize(log: Vector[String]): String =
-    log.filter(!_.contains("+")).mkString.stripLineEnd
+    log.filter(!_.contains(green("+"))).mkString.stripLineEnd
+
+  def labelOnly(log: Vector[String]): String =
+    log.take(1).mkString.stripLineEnd
 
   def spec: ZSpec[Environment, Failure] =
     suite("SummaryBuilderSpec")(
@@ -18,7 +21,7 @@ object SummaryBuilderSpec extends ZIOBaseSpec {
         assertM(runSummary(test3))(equalTo(summarize(test3Expected)))
       },
       testM("correctly reports an error in a test") {
-        assertM(runSummary(test4))(equalTo(summarize(test4Expected)))
+        assertM(runSummary(test4))(equalTo(labelOnly(test4Expected)))
       },
       testM("doesn't generate summary for a successful test suite") {
         assertM(runSummary(suite1))(equalTo(""))

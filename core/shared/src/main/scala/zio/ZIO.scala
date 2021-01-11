@@ -18,15 +18,15 @@ package zio
 
 import zio.clock.Clock
 import zio.duration._
-import zio.internal.tracing.{ ZIOFn, ZIOFn1, ZIOFn2 }
-import zio.internal.{ Executor, Platform }
-import zio.{ TracingStatus => TracingS }
+import zio.internal.tracing.{ZIOFn, ZIOFn1, ZIOFn2}
+import zio.internal.{Executor, Platform}
+import zio.{TracingStatus => TracingS}
 
 import scala.annotation.implicitNotFound
 import scala.collection.mutable.Builder
 import scala.concurrent.ExecutionContext
 import scala.reflect.ClassTag
-import scala.util.{ Failure, Success }
+import scala.util.{Failure, Success}
 
 /**
  * A `ZIO[R, E, A]` value is an immutable value that lazily describes a
@@ -2583,18 +2583,18 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       flatten {
         effectAsyncMaybe(
           ZIOFn(register) { (k: UIO[ZIO[R, E, A]] => Unit) =>
-            started.set(true)
-
-            try register(io => k(ZIO.succeedNow(io))) match {
-              case Left(canceler) =>
-                cancel.set(canceler)
-                None
-              case Right(io) => Some(ZIO.succeedNow(io))
-            } finally if (!cancel.isSet) cancel.set(ZIO.unit)
+            if (!started.getAndSet(true)) {
+              try register(io => k(ZIO.succeedNow(io))) match {
+                case Left(canceler) =>
+                  cancel.set(canceler)
+                  None
+                case Right(io) => Some(ZIO.succeedNow(io))
+              } finally if (!cancel.isSet) cancel.set(ZIO.unit)
+            } else None
           },
           blockingOn
         )
-      }.onInterrupt(effectSuspendTotal(if (started.get) cancel.get() else ZIO.unit))
+      }.onInterrupt(effectSuspendTotal(if (started.getAndSet(true)) cancel.get() else ZIO.unit))
     }
   }
 

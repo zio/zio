@@ -16,7 +16,7 @@
 
 package zio
 
-import scala.collection.mutable.{ ArrayBuilder, Builder }
+import scala.collection.mutable.{ArrayBuilder, Builder}
 import scala.{
   Boolean => SBoolean,
   Byte => SByte,

@@ -16,11 +16,11 @@
 
 package zio.test.mock
 
-import java.util.UUID
-
 import com.github.ghik.silencer.silent
 import zio.test.Assertion
-import zio.{ =!=, Has, IO, LightTypeTag, Tag, taggedIsSubtype, taggedTagType }
+import zio.{=!=, Has, IO, LightTypeTag, Tag, taggedIsSubtype, taggedTagType}
+
+import java.util.UUID
 
 /**
  * A `Capability[R, I, E, A]` represents a capability of environment `R` that takes an input `I`

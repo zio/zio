@@ -1,7 +1,7 @@
 package zio.test.laws
 
-import zio.test.{ Gen, TestConfig, TestResult, check }
-import zio.{ URIO, ZIO }
+import zio.test.{Gen, TestConfig, TestResult, check}
+import zio.{URIO, ZIO}
 
 object ZLawsF2 {
 

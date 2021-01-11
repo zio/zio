@@ -7,12 +7,12 @@ import zio.duration._
 import zio.internal.Platform
 import zio.random.Random
 import zio.test.Assertion._
-import zio.test.TestAspect.{ flaky, forked, ignore, jvm, jvmOnly, nonFlaky, scala2Only }
+import zio.test.TestAspect.{flaky, forked, ignore, jvm, jvmOnly, nonFlaky, scala2Only}
 import zio.test._
-import zio.test.environment.{ Live, TestClock }
+import zio.test.environment.{Live, TestClock}
 
 import scala.annotation.tailrec
-import scala.util.{ Failure, Success, Try }
+import scala.util.{Failure, Success, Try}
 
 object ZIOSpec extends ZIOBaseSpec {
 
@@ -944,7 +944,7 @@ object ZIOSpec extends ZIOBaseSpec {
       testM("running Future can be interrupted") {
         import java.util.concurrent.atomic.AtomicInteger
 
-        import scala.concurrent.{ ExecutionContext, Future }
+        import scala.concurrent.{ExecutionContext, Future}
         def infiniteFuture(ref: AtomicInteger)(implicit ec: ExecutionContext): Future[Nothing] =
           Future(ref.getAndIncrement()).flatMap(_ => infiniteFuture(ref))
         for {
@@ -2926,7 +2926,18 @@ object ZIOSpec extends ZIOBaseSpec {
           _       <- fiber.interrupt
           value   <- ref.get
         } yield assert(value)(isTrue)
-      }
+      },
+      testM("effectAsyncInterrupt cancelation") {
+        for {
+          ref <- ZIO.effectTotal(new java.util.concurrent.atomic.AtomicInteger(0))
+          effect = ZIO.effectAsyncInterrupt[Any, Nothing, Any] { _ =>
+                     ref.incrementAndGet()
+                     Left(ZIO.effectTotal(ref.decrementAndGet()))
+                   }
+          _     <- ZIO.unit.race(effect)
+          value <- ZIO.effectTotal(ref.get())
+        } yield assert(value)(equalTo(0))
+      } @@ jvm(nonFlaky(100000))
     ) @@ zioTag(interruption),
     suite("RTS environment")(
       testM("provide is modular") {

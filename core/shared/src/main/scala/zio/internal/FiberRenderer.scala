@@ -1,8 +1,8 @@
 package zio.internal
 
 import zio.Fiber.Dump
-import zio.Fiber.Status.{ Done, Finishing, Running, Suspended }
-import zio.{ Fiber, UIO, ZIO }
+import zio.Fiber.Status.{Done, Finishing, Running, Suspended}
+import zio.{Fiber, UIO, ZIO}
 
 private[zio] object FiberRenderer {
 

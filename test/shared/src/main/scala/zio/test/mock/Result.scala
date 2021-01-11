@@ -16,7 +16,7 @@
 
 package zio.test.mock
 
-import zio.{ IO, UIO }
+import zio.{IO, UIO}
 
 /**
  * A `Result[-I, +E, +A]` represents the value or failure that will be returned
