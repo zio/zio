@@ -7,11 +7,6 @@ import zio.test.TestAspect.ignore
 object MutableRunnableSpecSpec extends MutableRunnableSpec {
 
   test("top level test") {
-
-    test("top level test") {
-      assert(0)(equalTo(0))
-    }
-
     assert(0)(equalTo(0))
   }
 
@@ -43,6 +38,13 @@ object MutableRunnableSpecSpec extends MutableRunnableSpec {
         assert(3)(equalTo(3))
       }
     }
+  }
+
+  test("last") {
+//    test("last test in test must be commented not to fail") {
+//      assert(0)(equalTo(0))
+//    }
+    assert(0)(equalTo(0))
   }
 
 }

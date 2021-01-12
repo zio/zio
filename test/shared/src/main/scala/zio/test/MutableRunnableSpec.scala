@@ -2,6 +2,8 @@ package zio.test
 
 import zio.{Chunk, ZIO}
 
+import scala.util.control.NoStackTrace
+
 /**
  * Syntax for writing test like
  * {{{
@@ -21,6 +23,9 @@ import zio.{Chunk, ZIO}
 trait MutableRunnableSpec extends DefaultRunnableSpec { self =>
 
   type ZS = ZSpec[Environment, Any]
+
+  class InAnotherTestException(`type`: String, label: String) extends
+    Exception(s"${`type`} `${label}` is in another test") with NoStackTrace
 
   sealed trait SpecBuilder {
     def toSpec: ZS
@@ -67,14 +72,14 @@ trait MutableRunnableSpec extends DefaultRunnableSpec { self =>
 
   // init SpecBuilder for this test class
   var stack: List[SuiteBuilder] = SuiteBuilder(self.getClass.getSimpleName) :: Nil
-  var stackIsTest = false
+  var testRunning = false
 
   /**
    * Builds a suite containing a number of other specs.
    */
   def suite(label: String)(specs: => SpecBuilder): SuiteBuilder = {
-    if(stackIsTest)
-      throw new RuntimeException(s"Can not add suite $label to test ${stack.head.label}")
+    if(testRunning)
+      throw new InAnotherTestException("Suite", label)
     val _oldStack = stack
     val builder = SuiteBuilder(label)
     stack.head.nested = stack.head.nested :+ builder
@@ -88,13 +93,11 @@ trait MutableRunnableSpec extends DefaultRunnableSpec { self =>
    * Builds a spec with a single pure test.
    */
   def test(label: String)(assertion: => TestResult): TestBuilder = {
-    if(stackIsTest)
-      throw new RuntimeException(s"Can not add test $label to test ${stack.head.label}")
-    stackIsTest = true
+    if(testRunning)
+      throw new InAnotherTestException("Test", label)
     val test = zio.test.test(label)(assertion)
     val builder = TestBuilder(label, test)
     stack.head.nested = stack.head.nested :+ builder
-    stackIsTest = false
     builder
   }
 
@@ -102,16 +105,16 @@ trait MutableRunnableSpec extends DefaultRunnableSpec { self =>
    * Builds a spec with a single effectful test.
    */
   def testM(label: String)(assertion: => ZIO[Environment, Failure, TestResult]): TestBuilder = {
-    if(stackIsTest)
-      throw new RuntimeException(s"Can not add test $label to test ${stack.head.label}")
-    stackIsTest = true
+    if(testRunning)
+      throw new InAnotherTestException("Test", label)
     val test = zio.test.testM(label)(assertion)
     val builder = TestBuilder(label, test)
     stack.head.nested = stack.head.nested :+ builder
-    stackIsTest = false
     builder
   }
 
-  override def spec: ZSpec[Environment, Failure] =
+  override def spec: ZSpec[Environment, Failure] = {
+    testRunning = true
     stack.head.toSpec
+  }
 }
