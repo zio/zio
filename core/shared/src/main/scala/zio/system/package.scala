@@ -16,8 +16,6 @@
 
 package zio
 
-import com.github.ghik.silencer.silent
-
 import java.lang.{System => JSystem}
 import scala.collection.JavaConverters._
 
@@ -58,13 +56,11 @@ package object system {
         def envOrOption(variable: String, alt: => Option[String]): IO[SecurityException, Option[String]] =
           envOrOptionWith(variable, alt)(env)
 
-        @silent("JavaConverters")
         val envs: IO[SecurityException, Map[String, String]] =
           IO.effect(JSystem.getenv.asScala.toMap).refineToOrDie[SecurityException]
 
         val lineSeparator: UIO[String] = IO.effectTotal(JSystem.lineSeparator)
 
-        @silent("JavaConverters")
         val properties: IO[Throwable, Map[String, String]] =
           IO.effect(JSystem.getProperties.asScala.toMap)
 

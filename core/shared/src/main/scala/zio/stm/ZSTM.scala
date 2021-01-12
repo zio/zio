@@ -16,7 +16,6 @@
 
 package zio.stm
 
-import com.github.ghik.silencer.silent
 import zio._
 import zio.internal.{Platform, Stack, Sync}
 
@@ -1644,7 +1643,7 @@ object ZSTM {
 
           loop = !todo.compareAndSet(oldTodo, emptyTodo)
 
-          if (!loop) allTodos.putAll(oldTodo.asJava): @silent("JavaConverters")
+          if (!loop) allTodos.putAll(oldTodo.asJava)
         }
       }
 

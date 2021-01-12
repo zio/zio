@@ -16,7 +16,6 @@
 
 package zio.internal
 
-import com.github.ghik.silencer.silent
 import zio.Fiber.Status
 import zio._
 import zio.internal.FiberContext.FiberRefLocals
@@ -684,7 +683,7 @@ private[zio] final class FiberContext[E, A](
     reportFailure: Option[Cause[Any] => Unit] = None
   ): FiberContext[E, A] = {
     val childFiberRefLocals: FiberRefLocals = Platform.newWeakHashMap()
-    val locals                              = fiberRefLocals.asScala: @silent("JavaConverters")
+    val locals                              = fiberRefLocals.asScala
     locals.foreach { case (fiberRef, value) =>
       childFiberRefLocals.put(fiberRef, fiberRef.fork(value))
     }
@@ -817,7 +816,7 @@ private[zio] final class FiberContext[E, A](
     // using collection views of the map; `asScala` uses an iterator on the map, so we must
     // synchronize on the map when using it. We have to run some IO actions afterwards, so we
     // make a copy for use in the `foreach_` below.
-    val locals = Sync(fiberRefLocals)(fiberRefLocals.asScala.toMap): @silent("JavaConverters")
+    val locals = Sync(fiberRefLocals)(fiberRefLocals.asScala.toMap)
 
     if (locals.isEmpty) UIO.unit
     else
