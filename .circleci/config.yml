@@ -103,6 +103,7 @@ lint: &lint
   steps:
     - checkout
     - <<: *load_cache
+    - <<: *install_jdk
     - run:
         name: Lint code
         command: ./sbt ++${SCALA_VERSION} fmtCheck fixCheck
@@ -113,6 +114,7 @@ mdoc: &mdoc
   steps:
     - checkout
     - <<: *load_cache
+    - <<: *install_jdk
     - run:
         name: Generate documentation
         command: |
