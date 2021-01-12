@@ -1,8 +1,9 @@
 package zio.test
 
+import zio.clock.Clock
 import zio.duration._
 import zio.test.environment.TestEnvironment
-import zio.{Chunk, Has, ZIO, ZLayer}
+import zio.{Chunk, Has, URIO, ZIO, ZLayer}
 
 import scala.util.control.NoStackTrace
 
@@ -22,9 +23,9 @@ import scala.util.control.NoStackTrace
  * }
  * }}}
  */
-class MutableRunnableSpec[R <: Has[_]](layer: ZLayer[TestEnvironment, Throwable, R]) extends DefaultRunnableSpec {
+class MutableRunnableSpec[R <: Has[_]](layer: ZLayer[TestEnvironment, Throwable, R])
+    extends RunnableSpec[TestEnvironment, Any] {
   self =>
-//class MutableRunnableSpec extends DefaultRunnableSpec { self =>
 
   type ZS = ZSpec[R, Any]
 
@@ -39,8 +40,8 @@ class MutableRunnableSpec[R <: Has[_]](layer: ZLayer[TestEnvironment, Throwable,
 
   case class SuiteBuilder(label: String) extends SpecBuilder {
 
-    var nested: Chunk[SpecBuilder]                         = Chunk.empty
-    var aspects: Chunk[TestAspect[R, R, Failure, Failure]] = Chunk.empty
+    private[test] var nested: Chunk[SpecBuilder]                   = Chunk.empty
+    private var aspects: Chunk[TestAspect[R, R, Failure, Failure]] = Chunk.empty
 
     /**
      * Syntax for adding aspects.
@@ -122,8 +123,22 @@ class MutableRunnableSpec[R <: Has[_]](layer: ZLayer[TestEnvironment, Throwable,
     builder
   }
 
-  override def spec: ZSpec[Environment, Failure] = {
+  final override def spec: ZSpec[Environment, Failure] = {
     testRunning = true
     stack.head.toSpec.provideLayerShared(layer.mapError(TestFailure.fail))
   }
+
+  override def aspects: List[TestAspect[Nothing, TestEnvironment, Nothing, Any]] =
+    List(TestAspect.timeoutWarning(60.seconds))
+
+  override def runner: TestRunner[TestEnvironment, Any] =
+    defaultTestRunner
+
+  /**
+   * Returns an effect that executes a given spec, producing the results of the execution.
+   */
+  private[zio] override def runSpec(
+    spec: ZSpec[Environment, Failure]
+  ): URIO[TestLogger with Clock, ExecutedSpec[Failure]] =
+    runner.run(aspects.foldLeft(spec)(_ @@ _) @@ TestAspect.fibers)
 }
