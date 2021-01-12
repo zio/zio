@@ -6,6 +6,15 @@ import zio.test.TestAspect.ignore
 
 object MutableRunnableSpecSpec extends MutableRunnableSpec {
 
+  test("top level test") {
+
+    test("top level test") {
+      assert(0)(equalTo(0))
+    }
+
+    assert(0)(equalTo(0))
+  }
+
   suite("first") {
 
     test("simple") {
@@ -28,6 +37,12 @@ object MutableRunnableSpecSpec extends MutableRunnableSpec {
     test("ignoring this test") {
       assert(1)(equalTo(123))
     } @@ ignore
+
+    suite("nested suite") {
+      test("test in nested suite"){
+        assert(3)(equalTo(3))
+      }
+    }
   }
 
 }
