@@ -4,7 +4,7 @@ import zio.ZIO
 import zio.test.Assertion.equalTo
 import zio.test.TestAspect.ignore
 
-object MutableRunnableSpecSpec extends MutableRunnableSpec {
+object DefaultMutableRunnableSpecSpec extends DefaultMutableRunnableSpec {
 
   test("top level test") {
     assert(0)(equalTo(0))
@@ -34,11 +34,18 @@ object MutableRunnableSpecSpec extends MutableRunnableSpec {
     } @@ ignore
 
     suite("nested suite") {
-      test("test in nested suite"){
+      test("test in nested suite") {
         assert(3)(equalTo(3))
       }
     }
   }
+
+  suite("ignored suite") {
+
+    test("failing test 2") {
+      assert(2)(equalTo(123))
+    }
+  } @@ ignore
 
   test("last") {
 //    test("test in test must be commented not to fail") {
