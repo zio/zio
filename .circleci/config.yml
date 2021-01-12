@@ -47,7 +47,7 @@ install_jdk: &install_jdk
           sudo update-alternatives --set java /usr/lib/jvm/adoptopenjdk-11-hotspot-jre-amd64/bin/java
         elif [ $JDK_VERSION == 8 ]; then
           sudo apt install -y --no-install-recommends adoptopenjdk-8-hotspot-jre
-          sudo update-alternatives --set java /usr/lib/jvm/adoptopenjdk-8-hotspot-jre-amd64/bin/java
+          sudo update-alternatives --set java /usr/lib/jvm/adoptopenjdk-8-hotspot-amd64/bin/java
         fi
         java -version
 
