@@ -100,9 +100,9 @@ object Macros {
     '{_root_.zio.test.CompileVariants.assertMInternal($effect, ${Expr(srcLocation)})($assertion)}
   }
 
-  private def showExpr[A](expr: Expr[A])(using ctx: Quotes) = {
+  private def showExpr[A](expr: Expr[A])(using ctx: Quotes): String = {
     import quotes.reflect._
-    Term.of(expr).pos.sourceCode
+    Term.of(expr).pos.sourceCode.get
   }
 
   def sourcePath_impl(using ctx: Quotes): Expr[String] = {
