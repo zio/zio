@@ -41,7 +41,7 @@ object MutableRunnableSpecSpec extends MutableRunnableSpec {
   }
 
   test("last") {
-//    test("last test in test must be commented not to fail") {
+//    test("test in test must be commented not to fail") {
 //      assert(0)(equalTo(0))
 //    }
     assert(0)(equalTo(0))

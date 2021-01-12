@@ -1,8 +1,10 @@
 package zio.test
 
-import zio.{Chunk, ZIO}
+import zio.duration._
+import zio.{Chunk, Has, ZIO, ZLayer}
 
 import scala.util.control.NoStackTrace
+import zio.test.environment.TestEnvironment
 
 /**
  * Syntax for writing test like
@@ -20,9 +22,10 @@ import scala.util.control.NoStackTrace
  * }
  * }}}
  */
-trait MutableRunnableSpec extends DefaultRunnableSpec { self =>
+class MutableRunnableSpec[R <: Has[_]](layer: ZLayer[TestEnvironment, Throwable, R]) extends DefaultRunnableSpec { self =>
+//class MutableRunnableSpec extends DefaultRunnableSpec { self =>
 
-  type ZS = ZSpec[Environment, Any]
+  type ZS = ZSpec[R, Any]
 
   class InAnotherTestException(`type`: String, label: String) extends
     Exception(s"${`type`} `${label}` is in another test") with NoStackTrace
@@ -115,6 +118,6 @@ trait MutableRunnableSpec extends DefaultRunnableSpec { self =>
 
   override def spec: ZSpec[Environment, Failure] = {
     testRunning = true
-    stack.head.toSpec
+    stack.head.toSpec.provideLayerShared(layer.mapError(TestFailure.fail))
   }
 }
