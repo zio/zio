@@ -4071,7 +4071,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
      * foreground.
      */
     def force[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
-      if (flag == InterruptStatus.Uninterruptible) zio.uninterruptible.disconnect.interruptible
+      if (flag == _root_.zio.InterruptStatus.Uninterruptible) zio.uninterruptible.disconnect.interruptible
       else zio.interruptStatus(flag)
   }
 

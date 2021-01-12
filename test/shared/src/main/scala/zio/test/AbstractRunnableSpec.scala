@@ -48,4 +48,9 @@ abstract class AbstractRunnableSpec {
    * the platform used by the runner
    */
   final def platform = runner.platform
+
+  /**
+   * Builds a spec with a single pure test.
+   */
+  def test(label: String)(assertion: => TestResult): ZSpec[Any, Nothing] = zio.test.test(label)(assertion)
 }

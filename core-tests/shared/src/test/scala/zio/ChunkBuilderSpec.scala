@@ -21,7 +21,7 @@ object ChunkBuilderSpec extends ZIOBaseSpec {
           assert(builder.result())(equalTo(as))
         }
       },
-      zio.test.test("toString") {
+      test("toString") {
         val builder = new ChunkBuilder.Boolean
         assert(builder.toString)(equalTo("ChunkBuilder.Boolean"))
       }
@@ -41,7 +41,7 @@ object ChunkBuilderSpec extends ZIOBaseSpec {
           assert(builder.result())(equalTo(as))
         }
       },
-      zio.test.test("toString") {
+      test("toString") {
         val builder = new ChunkBuilder.Byte
         assert(builder.toString)(equalTo("ChunkBuilder.Byte"))
       }
@@ -61,7 +61,7 @@ object ChunkBuilderSpec extends ZIOBaseSpec {
           assert(builder.result())(equalTo(as))
         }
       },
-      zio.test.test("toString") {
+      test("toString") {
         val builder = new ChunkBuilder.Char
         assert(builder.toString)(equalTo("ChunkBuilder.Char"))
       }
@@ -81,7 +81,7 @@ object ChunkBuilderSpec extends ZIOBaseSpec {
           assert(builder.result())(equalTo(as))
         }
       },
-      zio.test.test("toString") {
+      test("toString") {
         val builder = new ChunkBuilder.Double
         assert(builder.toString)(equalTo("ChunkBuilder.Double"))
       }
@@ -101,7 +101,7 @@ object ChunkBuilderSpec extends ZIOBaseSpec {
           assert(builder.result())(equalTo(as))
         }
       },
-      zio.test.test("toString") {
+      test("toString") {
         val builder = new ChunkBuilder.Float
         assert(builder.toString)(equalTo("ChunkBuilder.Float"))
       }
@@ -121,7 +121,7 @@ object ChunkBuilderSpec extends ZIOBaseSpec {
           assert(builder.result())(equalTo(as))
         }
       },
-      zio.test.test("toString") {
+      test("toString") {
         val builder = new ChunkBuilder.Int
         assert(builder.toString)(equalTo("ChunkBuilder.Int"))
       }
@@ -141,7 +141,7 @@ object ChunkBuilderSpec extends ZIOBaseSpec {
           assert(builder.result())(equalTo(as))
         }
       },
-      zio.test.test("toString") {
+      test("toString") {
         val builder = new ChunkBuilder.Long
         assert(builder.toString)(equalTo("ChunkBuilder.Long"))
       }
@@ -161,7 +161,7 @@ object ChunkBuilderSpec extends ZIOBaseSpec {
           assert(builder.result())(equalTo(as))
         }
       },
-      zio.test.test("toString") {
+      test("toString") {
         val builder = new ChunkBuilder.Short
         assert(builder.toString)(equalTo("ChunkBuilder.Short"))
       }

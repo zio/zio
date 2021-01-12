@@ -24,18 +24,16 @@ import zio.{Has, Ref, UIO, ZIO}
  */
 private[mock] final case class MockState[R <: Has[_]](
   expectationRef: Ref[Expectation[R]],
-  callsCountRef: Ref[Int],
-  failedMatchesRef: Ref[List[InvalidCall]]
+  callsCountRef: Ref[Int]
 )
 
 private[mock] object MockState {
 
   def make[R <: Has[_]](trunk: Expectation[R]): UIO[MockState[R]] =
     for {
-      expectationRef   <- Ref.make[Expectation[R]](trunk)
-      callsCountRef    <- Ref.make[Int](0)
-      failedMatchesRef <- Ref.make[List[InvalidCall]](List.empty)
-    } yield MockState[R](expectationRef, callsCountRef, failedMatchesRef)
+      expectationRef <- Ref.make[Expectation[R]](trunk)
+      callsCountRef  <- Ref.make[Int](0)
+    } yield MockState[R](expectationRef, callsCountRef)
 
   def checkUnmetExpectations[R <: Has[_]](state: MockState[R]): ZIO[Any, Nothing, Any] =
     state.expectationRef.get

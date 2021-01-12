@@ -262,7 +262,11 @@ object FailureRenderer {
         case _ =>
           rendered
       }
-    renderFragment(failureDetails.head, offset).toMessage ++ loop(failureDetails, Message.empty)
+
+    renderFragment(failureDetails.head, offset).toMessage ++ loop(
+      failureDetails,
+      Message.empty
+    ) ++ renderAssertionLocation(failureDetails.last, offset)
   }
 
   private def renderGenFailureDetails[A](failureDetails: Option[GenFailureDetails], offset: Int): Message =
@@ -286,17 +290,38 @@ object FailureRenderer {
 
   private def renderWhole(fragment: AssertionValue, whole: AssertionValue, offset: Int): Line =
     withOffset(offset + tabSize) {
-      blue(whole.value.toString) +
+      blue(renderValue(whole)) +
         renderSatisfied(whole) ++
         highlight(cyan(whole.printAssertion), fragment.printAssertion)
     }
 
   private def renderFragment(fragment: AssertionValue, offset: Int): Line =
     withOffset(offset + tabSize) {
-      blue(fragment.value.toString) +
+      blue(renderValue(fragment)) +
         renderSatisfied(fragment) +
         cyan(fragment.printAssertion)
     }
+
+  private def renderValue(av: AssertionValue) = (av.value, av.expression) match {
+    case (v, Some(expression)) if !expressionRedundant(v.toString, expression) => s"`$expression` = $v"
+    case (v, _)                                                                => v.toString
+  }
+
+  private def expressionRedundant(valueStr: String, expression: String) = {
+    // toString drops double quotes, and for tuples and collections doesn't include spaces after the comma
+    def strip(s: String) = s
+      .replace("\"", "")
+      .replace(" ", "")
+      .replace("\n", "")
+      .replace("\\n", "")
+    strip(valueStr) == strip(expression)
+  }
+
+  private def renderAssertionLocation(av: AssertionValue, offset: Int) = av.sourceLocation.fold(Message()) { location =>
+    blue(s"at $location").toLine
+      .withOffset(offset + 2 * tabSize)
+      .toMessage
+  }
 
   private def highlight(fragment: Fragment, substring: String, colorCode: String = AnsiColor.YELLOW): Line = {
     val parts = fragment.text.split(Pattern.quote(substring))

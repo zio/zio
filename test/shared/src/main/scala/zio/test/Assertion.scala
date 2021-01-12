@@ -635,7 +635,7 @@ object Assertion extends AssertionVariants {
    *
    * Example:
    * {{{
-   *   assert(Duration.fromNanos(1), isSubtype[Duration.Finite](Assertion.anything))
+   *   assert(Duration.fromNanos(1))(isSubtype[Duration.Finite](Assertion.anything))
    * }}}
    */
   def isSubtype[A](assertion: Assertion[A])(implicit C: ClassTag[A]): Assertion[Any] =
