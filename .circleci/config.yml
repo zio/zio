@@ -39,10 +39,8 @@ install_jdk: &install_jdk
         deb http://mirror.math.princeton.edu/pub/ubuntu/ xenial-security main restricted universe
         EOF
 
-        if [ $JDK_VERSION == 11 ]; then
-          wget -qO - https://adoptopenjdk.jfrog.io/adoptopenjdk/api/gpg/key/public | sudo apt-key add -
-          sudo add-apt-repository https://adoptopenjdk.jfrog.io/adoptopenjdk/deb/ -y
-        fi
+        wget -qO - https://bintray.com/user/downloadSubjectPublicKey?username=adoptopenjdk | sudo apt-key add -
+        sudo add-apt-repository https://dl.bintray.com/adoptopenjdk/deb/ -y
         sudo apt update
         if [ $JDK_VERSION == 11 ]; then
           sudo apt install -y --no-install-recommends adoptopenjdk-11-hotspot-jre
