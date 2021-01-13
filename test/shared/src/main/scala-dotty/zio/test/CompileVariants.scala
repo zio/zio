@@ -100,16 +100,16 @@ object Macros {
     '{_root_.zio.test.CompileVariants.assertMInternal($effect, ${Expr(srcLocation)})($assertion)}
   }
 
-  private def showExpr[A](expr: Expr[A])(using ctx: Quotes) = {
+  private def showExpr[A](expr: Expr[A])(using ctx: Quotes): String = {
     import quotes.reflect._
-    Term.of(expr).pos.sourceCode
+    expr.asTerm.pos.sourceCode.get
   }
 
   def sourcePath_impl(using ctx: Quotes): Expr[String] = {
     import quotes.reflect._
     Expr(Position.ofMacroExpansion.sourceFile.jpath.toString)
   }
-  def showExpression_impl[A](value: Expr[A])(using ctx: Quotes) = {
+  def showExpression_impl[A](value: Expr[A])(using ctx: Quotes): Expr[String] = {
     import quotes.reflect._
     Expr(showExpr(value))
   }
