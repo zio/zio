@@ -44,7 +44,7 @@ install_jdk: &install_jdk
         sudo apt update
         export DEBIAN_FRONTEND=noninteractive
         sudo apt-get install \
-          -o "Dpkg::Options::=--force-confold" -o "Dpkg::Options::=--force-confdef" -o "APT::Immediate-Configure=false" -y --allow-downgrades --allow-remove-essential --allow-change-held-packages --no-install-recommends \
+          -o "Dpkg::Options::=--force-confold" -o "Dpkg::Options::=--force-confdef" -o "APT::Immediate-Configure=false" --allow-downgrades --allow-remove-essential --allow-change-held-packages --no-install-recommends \
           openjdk-${JDK_VERSION}-jre-headless
         sudo update-alternatives --install /usr/bin/java java /usr/lib/jvm/java-${JDK_VERSION}-openjdk-amd64/bin/java 9999
         sudo update-alternatives --set java /usr/lib/jvm/java-${JDK_VERSION}-openjdk-amd64/bin/java
