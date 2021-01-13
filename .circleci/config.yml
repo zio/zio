@@ -48,11 +48,13 @@ install_jdk: &install_jdk
             -o "Dpkg::Options::=--force-confold" -o "Dpkg::Options::=--force-confdef" -o "APT::Immediate-Configure=false" -y --allow-downgrades --allow-remove-essential --allow-change-held-packages --no-install-recommends \
             openjdk-11-jre-headless
           sudo update-alternatives --install /usr/bin/java java /usr/lib/jvm/java-11-openjdk-amd64/bin/java 9999
+          sudo update-alternatives --set java /usr/lib/jvm/java-11-openjdk-amd64/bin/java
         elif [ $JDK_VERSION == 8 ]; then
           sudo apt-get install \
             -o "Dpkg::Options::=--force-confold" -o "Dpkg::Options::=--force-confdef" -o "APT::Immediate-Configure=false" -y --allow-downgrades --allow-remove-essential --allow-change-held-packages --no-install-recommends \
             openjdk-8-jre-headless
           sudo update-alternatives --install /usr/bin/java java /usr/lib/jvm/java-8-openjdk-amd64/bin/java 9999
+          sudo update-alternatives --set java /usr/lib/jvm/java-8-openjdk-amd64/bin/java
         fi
         java -version
 
