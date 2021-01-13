@@ -31,6 +31,7 @@ install_jdk: &install_jdk
       command: |
         while $(ps aux | grep -i ' apt ' | grep -v grep > /dev/null); do sleep 1; done # Wait for apt to be ready
 
+        # jfrog repositories with AdoptOpenJDK haven't been reliable, use Java from Ubuntu instead
         sudo rm /etc/apt/sources.list.d/*
         sudo tee /etc/apt/sources.list > /dev/null \<< 'EOF'
         deb http://mirror.math.princeton.edu/pub/ubuntu/ groovy main universe
@@ -38,6 +39,7 @@ install_jdk: &install_jdk
         deb http://mirror.math.princeton.edu/pub/ubuntu/ groovy-backports main universe
         deb http://mirror.math.princeton.edu/pub/ubuntu/ groovy-security main restricted universe
         EOF
+
         sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 871920D1991BC93C
         sudo apt update
         export DEBIAN_FRONTEND=noninteractive
@@ -46,13 +48,11 @@ install_jdk: &install_jdk
             -o "Dpkg::Options::=--force-confold" -o "Dpkg::Options::=--force-confdef" -o "APT::Immediate-Configure=false" -y --allow-downgrades --allow-remove-essential --allow-change-held-packages --no-install-recommends \
             openjdk-11-jre-headless
           sudo update-alternatives --install /usr/bin/java java /usr/lib/jvm/java-11-openjdk-amd64/bin/java 9999
-          sudo update-alternatives --set java /usr/lib/jvm/java-11-openjdk-amd64/bin/java
         elif [ $JDK_VERSION == 8 ]; then
           sudo apt-get install \
             -o "Dpkg::Options::=--force-confold" -o "Dpkg::Options::=--force-confdef" -o "APT::Immediate-Configure=false" -y --allow-downgrades --allow-remove-essential --allow-change-held-packages --no-install-recommends \
             openjdk-8-jre-headless
           sudo update-alternatives --install /usr/bin/java java /usr/lib/jvm/java-8-openjdk-amd64/bin/java 9999
-          sudo update-alternatives --set java /usr/lib/jvm/java-8-openjdk-amd64/bin/java
         fi
         java -version
 
@@ -169,6 +169,7 @@ testJVMDotty: &testJVMDotty
   steps:
     - checkout
     - <<: *load_cache
+    - <<: *install_jdk
     - run:
         name: Run tests
         command: ./sbt ++${SCALA_VERSION}! testJVMDotty
@@ -220,6 +221,7 @@ testNative: &testNative
   steps:
     - checkout
     - <<: *load_cache
+    - <<: *install_jdk
     - run:
         name: Run tests
         command: ./sbt compileNative
@@ -233,6 +235,7 @@ release: &release
           name: Fetch git tags
           command: git fetch --tags
       - <<: *load_cache
+      - <<: *install_jdk
       - run: 
           name: Write sonatype credentials
           command: echo "credentials += Credentials(\"Sonatype Nexus Repository Manager\", \"oss.sonatype.org\", \"${SONATYPE_USER}\", \"${SONATYPE_PASSWORD}\")" > ~/.sbt/1.0/sonatype.sbt
@@ -263,6 +266,7 @@ microsite: &microsite
             - "b3:9b:af:d5:de:74:32:e7:7a:21:77:77:66:fe:2f:42"
       - checkout
       - <<: *load_cache
+      - <<: *install_jdk
       - <<: *install_nodejs
       - <<: *install_yarn
       - run:
