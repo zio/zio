@@ -18,7 +18,7 @@ package zio
 
 import zio.duration.Duration
 
-import java.time.{DateTimeException, Instant, OffsetDateTime, ZoneId}
+import java.time.{DateTimeException, Instant, LocalDateTime, OffsetDateTime}
 import java.util.concurrent.TimeUnit
 
 package object clock {
@@ -27,18 +27,41 @@ package object clock {
 
   object Clock extends PlatformSpecific with Serializable {
     trait Service extends Serializable {
+
       def currentTime(unit: TimeUnit): UIO[Long]
+
+      // Could be UIO. We keep IO to preserve binary compatibility.
       def currentDateTime: IO[DateTimeException, OffsetDateTime]
-      def instant: UIO[java.time.Instant]                               = currentTime(TimeUnit.MILLISECONDS).map(java.time.Instant.ofEpochMilli(_))
+
+      // The implementation is only here to preserve binary compatibility.
+      def instant: UIO[java.time.Instant] = currentTime(TimeUnit.MILLISECONDS).map(java.time.Instant.ofEpochMilli(_))
+
+      // This could be a UIO. We keep IO to preserve binary compatibility.
+      // The implementation is only here to preserve binary compatibility.
       def localDateTime: IO[DateTimeException, java.time.LocalDateTime] = currentDateTime.map(_.toLocalDateTime())
+
       def nanoTime: UIO[Long]
+
       def sleep(duration: Duration): UIO[Unit]
     }
 
     object Service {
       val live: Service = new Service {
         def currentTime(unit: TimeUnit): UIO[Long] =
-          IO.effectTotal(System.currentTimeMillis).map(l => unit.convert(l, TimeUnit.MILLISECONDS))
+          instant.map { inst =>
+            // A nicer solution without loss of precision or range would be
+            // unit.toChronoUnit.between(Instant.EPOCH, inst)
+            // However, ChronoUnit is not available on all platforms
+            unit match {
+              case TimeUnit.NANOSECONDS =>
+                val micros = inst.toEpochMilli() * 1000000 + inst.getNano()
+                unit.convert(micros, TimeUnit.NANOSECONDS)
+              case TimeUnit.NANOSECONDS | TimeUnit.MICROSECONDS =>
+                val micros = inst.toEpochMilli() * 1000 + inst.getNano() / 1000
+                unit.convert(micros, TimeUnit.MICROSECONDS)
+              case _ => unit.convert(inst.toEpochMilli(), TimeUnit.MILLISECONDS)
+            }
+          }
 
         val nanoTime: UIO[Long] = IO.effectTotal(System.nanoTime)
 
@@ -48,16 +71,14 @@ package object clock {
             Left(UIO.effectTotal(canceler()))
           }
 
-        def currentDateTime: IO[DateTimeException, OffsetDateTime] = {
-          val dateTime =
-            for {
-              millis         <- currentTime(TimeUnit.MILLISECONDS)
-              zone           <- ZIO(ZoneId.systemDefault)
-              instant        <- ZIO(Instant.ofEpochMilli(millis))
-              offsetDateTime <- ZIO(OffsetDateTime.ofInstant(instant, zone))
-            } yield offsetDateTime
-          dateTime.refineToOrDie[DateTimeException]
-        }
+        def currentDateTime: IO[DateTimeException, OffsetDateTime] =
+          ZIO.effectTotal(OffsetDateTime.now())
+
+        override def instant: zio.UIO[Instant] =
+          ZIO.effectTotal(Instant.now())
+
+        override def localDateTime: zio.IO[DateTimeException, LocalDateTime] =
+          ZIO.effectTotal(LocalDateTime.now())
 
       }
     }
