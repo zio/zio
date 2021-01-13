@@ -1,6 +1,5 @@
 package zio.test.junit
 
-import com.github.ghik.silencer.silent
 import org.junit.runner.manipulation.{Filter, Filterable}
 import org.junit.runner.notification.{Failure, RunNotifier}
 import org.junit.runner.{Description, RunWith, Runner}
@@ -122,7 +121,6 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable with Boot
       specCase match {
         case TestCase(label, test, annotations) => TestCase(label, instrumentTest(label, path, test), annotations)
         case SuiteCase(label, specs, es) =>
-          @silent("inferred to be `Any`")
           val instrumented =
             specs.flatMap(ZManaged.foreach(_)(s => ZManaged.succeedNow(Spec(loop(s.caseValue, path :+ label)))))
           SuiteCase(label, instrumented.map(_.toVector), es)
