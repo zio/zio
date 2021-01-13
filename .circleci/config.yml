@@ -33,21 +33,19 @@ install_jdk: &install_jdk
 
         sudo rm /etc/apt/sources.list.d/*
         sudo tee /etc/apt/sources.list > /dev/null \<< 'EOF'
-        deb http://mirror.math.princeton.edu/pub/ubuntu/ xenial main universe
-        deb http://mirror.math.princeton.edu/pub/ubuntu/ xenial-updates main universe
-        deb http://mirror.math.princeton.edu/pub/ubuntu/ xenial-backports main universe
-        deb http://mirror.math.princeton.edu/pub/ubuntu/ xenial-security main restricted universe
+        deb http://mirror.math.princeton.edu/pub/ubuntu/ groovy main universe
+        deb http://mirror.math.princeton.edu/pub/ubuntu/ groovy-updates main universe
+        deb http://mirror.math.princeton.edu/pub/ubuntu/ groovy-backports main universe
+        deb http://mirror.math.princeton.edu/pub/ubuntu/ groovy-security main restricted universe
         EOF
 
-        wget -qO - https://bintray.com/user/downloadSubjectPublicKey?username=adoptopenjdk | sudo apt-key add -
-        sudo add-apt-repository https://dl.bintray.com/adoptopenjdk/deb/ -y
         sudo apt update
         if [ $JDK_VERSION == 11 ]; then
-          sudo apt install -y --no-install-recommends adoptopenjdk-11-hotspot-jre
-          sudo update-alternatives --set java /usr/lib/jvm/adoptopenjdk-11-hotspot-jre-amd64/bin/java
+          sudo apt install -y --no-install-recommends openjdk-11-jre-headless
+          sudo update-alternatives --set java /usr/lib/jvm/java-11-openjdk-amd64/bin/java
         elif [ $JDK_VERSION == 8 ]; then
-          sudo apt install -y --no-install-recommends adoptopenjdk-8-hotspot
-          sudo update-alternatives --set java /usr/lib/jvm/adoptopenjdk-8-hotspot-amd64/bin/java
+          sudo apt install -y --no-install-recommends openjdk-8-jre-headless
+          sudo update-alternatives --set java /usr/lib/jvm/java-8-openjdk-amd64/bin/java
         fi
         java -version
 
