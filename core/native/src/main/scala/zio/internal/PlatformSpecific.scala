@@ -20,7 +20,6 @@ import java.util.{HashMap, HashSet, Map => JMap, Set => JSet}
 
 import scala.concurrent.ExecutionContext
 
-import com.github.ghik.silencer.silent
 import zio.{Cause, Supervisor}
 import zio.internal.stacktracer.Tracer
 import zio.internal.tracing.TracingConfig
@@ -127,6 +126,5 @@ private[internal] trait PlatformSpecific {
 
   final def newWeakReference[A](value: A): () => A = { () => value }
 
-  @silent("is never used")
   final def forceThrowableCause(throwable: => Throwable, newCause: => Throwable): Unit = ()
 }
