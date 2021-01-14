@@ -36,7 +36,7 @@ class MutableRunnableSpec[R <: Has[_]](layer: ZLayer[TestEnvironment, Throwable,
     def label: String
   }
 
-  case class SuiteBuilder(label: String) extends SpecBuilder {
+  sealed case class SuiteBuilder(label: String) extends SpecBuilder {
 
     private[test] var nested: Chunk[SpecBuilder]                   = Chunk.empty
     private var aspects: Chunk[TestAspect[R, R, Failure, Failure]] = Chunk.empty
@@ -62,7 +62,7 @@ class MutableRunnableSpec[R <: Has[_]](layer: ZLayer[TestEnvironment, Throwable,
       )((spec, aspect) => spec @@ aspect)
   }
 
-  case class TestBuilder(label: String, var toSpec: ZSpec[R, Any]) extends SpecBuilder {
+  sealed case class TestBuilder(label: String, var toSpec: ZSpec[R, Any]) extends SpecBuilder {
 
     /**
      * Syntax for adding aspects.
