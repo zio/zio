@@ -27,18 +27,16 @@ class MutableRunnableSpec[R <: Has[_]](layer: ZLayer[TestEnvironment, Throwable,
     extends RunnableSpec[TestEnvironment, Any] {
   self =>
 
-  type ZS = ZSpec[R, Any]
-
-  class InAnotherTestException(`type`: String, label: String)
+  private class InAnotherTestException(`type`: String, label: String)
       extends Exception(s"${`type`} `${label}` is in another test")
       with NoStackTrace
 
   sealed trait SpecBuilder {
-    def toSpec: ZS
+    def toSpec: ZSpec[R, Any]
     def label: String
   }
 
-  case class SuiteBuilder(label: String) extends SpecBuilder {
+  final case class SuiteBuilder(label: String) extends SpecBuilder {
 
     private[test] var nested: Chunk[SpecBuilder]                   = Chunk.empty
     private var aspects: Chunk[TestAspect[R, R, Failure, Failure]] = Chunk.empty
@@ -56,7 +54,7 @@ class MutableRunnableSpec[R <: Has[_]](layer: ZLayer[TestEnvironment, Throwable,
       this
     }
 
-    def toSpec: ZS =
+    def toSpec: ZSpec[R, Any] =
       aspects.foldLeft(
         zio.test.suite(label)(
           nested.map(_.toSpec): _*
@@ -64,7 +62,7 @@ class MutableRunnableSpec[R <: Has[_]](layer: ZLayer[TestEnvironment, Throwable,
       )((spec, aspect) => spec @@ aspect)
   }
 
-  case class TestBuilder(label: String, var toSpec: ZS) extends SpecBuilder {
+  final case class TestBuilder(label: String, var toSpec: ZSpec[R, Any]) extends SpecBuilder {
 
     /**
      * Syntax for adding aspects.
@@ -81,13 +79,13 @@ class MutableRunnableSpec[R <: Has[_]](layer: ZLayer[TestEnvironment, Throwable,
   }
 
   // init SpecBuilder for this test class
-  var stack: List[SuiteBuilder] = SuiteBuilder(self.getClass.getSimpleName.stripSuffix("$")) :: Nil
-  var testRunning               = false
+  private var stack: List[SuiteBuilder] = SuiteBuilder(self.getClass.getSimpleName.stripSuffix("$")) :: Nil
+  private var testRunning               = false
 
   /**
    * Builds a suite containing a number of other specs.
    */
-  def suite(label: String)(specs: => SpecBuilder): SuiteBuilder = {
+  final def suite(label: String)(specs: => SpecBuilder): SuiteBuilder = {
     if (testRunning)
       throw new InAnotherTestException("Suite", label)
     val _oldStack = stack
@@ -102,7 +100,7 @@ class MutableRunnableSpec[R <: Has[_]](layer: ZLayer[TestEnvironment, Throwable,
   /**
    * Builds a spec with a single pure test.
    */
-  def test(label: String)(assertion: => TestResult): TestBuilder = {
+  final def test(label: String)(assertion: => TestResult): TestBuilder = {
     if (testRunning)
       throw new InAnotherTestException("Test", label)
     val test    = zio.test.test(label)(assertion)
@@ -114,7 +112,7 @@ class MutableRunnableSpec[R <: Has[_]](layer: ZLayer[TestEnvironment, Throwable,
   /**
    * Builds a spec with a single effectful test.
    */
-  def testM(label: String)(assertion: => ZIO[R, Failure, TestResult]): TestBuilder = {
+  final def testM(label: String)(assertion: => ZIO[R, Failure, TestResult]): TestBuilder = {
     if (testRunning)
       throw new InAnotherTestException("Test", label)
     val test    = zio.test.testM(label)(assertion)
