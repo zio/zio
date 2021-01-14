@@ -56,7 +56,7 @@ package object clock {
               case TimeUnit.NANOSECONDS =>
                 val micros = inst.toEpochMilli() * 1000000 + inst.getNano()
                 unit.convert(micros, TimeUnit.NANOSECONDS)
-              case TimeUnit.NANOSECONDS | TimeUnit.MICROSECONDS =>
+              case TimeUnit.MICROSECONDS =>
                 val micros = inst.toEpochMilli() * 1000 + inst.getNano() / 1000
                 unit.convert(micros, TimeUnit.MICROSECONDS)
               case _ => unit.convert(inst.toEpochMilli(), TimeUnit.MILLISECONDS)
