@@ -1,0 +1,144 @@
+package zio.test
+
+import zio.clock.Clock
+import zio.duration._
+import zio.test.environment.TestEnvironment
+import zio.{Chunk, Has, URIO, ZIO, ZLayer}
+
+import scala.util.control.NoStackTrace
+
+/**
+ * Syntax for writing test like
+ * {{{
+ * object MySpec extends MutableRunnableSpec(layer) {
+ *   suite("foo") {
+ *     testM("name") {
+ *     } @@ ignore
+ *
+ *     test("name 2")
+ *   }
+ *   suite("another suite") {
+ *     test("name 3")
+ *   }
+ * }
+ * }}}
+ */
+class MutableRunnableSpec[R <: Has[_]](layer: ZLayer[TestEnvironment, Throwable, R])
+    extends RunnableSpec[TestEnvironment, Any] {
+  self =>
+
+  private class InAnotherTestException(`type`: String, label: String)
+      extends Exception(s"${`type`} `${label}` is in another test")
+      with NoStackTrace
+
+  sealed trait SpecBuilder {
+    def toSpec: ZSpec[R, Any]
+    def label: String
+  }
+
+  sealed case class SuiteBuilder(label: String) extends SpecBuilder {
+
+    private[test] var nested: Chunk[SpecBuilder]                   = Chunk.empty
+    private var aspects: Chunk[TestAspect[R, R, Failure, Failure]] = Chunk.empty
+
+    /**
+     * Syntax for adding aspects.
+     * {{{
+     * test("foo") { assert(42, equalTo(42)) } @@ ignore
+     * }}}
+     */
+    final def @@(
+      aspect: TestAspect[R, R, Failure, Failure]
+    ): SpecBuilder = {
+      aspects = aspects :+ aspect
+      this
+    }
+
+    def toSpec: ZSpec[R, Any] =
+      aspects.foldLeft(
+        zio.test.suite(label)(
+          nested.map(_.toSpec): _*
+        )
+      )((spec, aspect) => spec @@ aspect)
+  }
+
+  sealed case class TestBuilder(label: String, var toSpec: ZSpec[R, Any]) extends SpecBuilder {
+
+    /**
+     * Syntax for adding aspects.
+     * {{{
+     * test("foo") { assert(42, equalTo(42)) } @@ ignore
+     * }}}
+     */
+    final def @@(
+      aspect: TestAspect[R, R, Failure, Failure]
+    ): TestBuilder = {
+      toSpec = toSpec @@ aspect
+      this
+    }
+  }
+
+  // init SpecBuilder for this test class
+  private var stack: List[SuiteBuilder] = SuiteBuilder(self.getClass.getSimpleName.stripSuffix("$")) :: Nil
+  // to prevent calling tests inside tests
+  // there should be no tests constructions after spec was built
+  private var specBuilt = false
+
+  /**
+   * Builds a suite containing a number of other specs.
+   */
+  final def suite(label: String)(specs: => SpecBuilder): SuiteBuilder = {
+    if (specBuilt)
+      throw new InAnotherTestException("Suite", label)
+    val _oldStack = stack
+    val builder   = SuiteBuilder(label)
+    stack.head.nested = stack.head.nested :+ builder
+    stack = builder :: stack
+    specs
+    stack = _oldStack
+    builder
+  }
+
+  /**
+   * Builds a spec with a single pure test.
+   */
+  final def test(label: String)(assertion: => TestResult): TestBuilder = {
+    if (specBuilt)
+      throw new InAnotherTestException("Test", label)
+    val test    = zio.test.test(label)(assertion)
+    val builder = TestBuilder(label, test)
+    stack.head.nested = stack.head.nested :+ builder
+    builder
+  }
+
+  /**
+   * Builds a spec with a single effectful test.
+   */
+  final def testM(label: String)(assertion: => ZIO[R, Failure, TestResult]): TestBuilder = {
+    if (specBuilt)
+      throw new InAnotherTestException("Test", label)
+    val test    = zio.test.testM(label)(assertion)
+    val builder = TestBuilder(label, test)
+    stack.head.nested = stack.head.nested :+ builder
+    builder
+  }
+
+  final override def spec: ZSpec[Environment, Failure] = {
+    specBuilt = true
+    stack.head.toSpec.provideLayerShared(layer.mapError(TestFailure.fail))
+  }
+
+  override def aspects: List[TestAspect[Nothing, TestEnvironment, Nothing, Any]] =
+    List(TestAspect.timeoutWarning(60.seconds))
+
+  override def runner: TestRunner[TestEnvironment, Any] =
+    defaultTestRunner
+
+  /**
+   * Returns an effect that executes a given spec, producing the results of the execution.
+   */
+  private[zio] override def runSpec(
+    spec: ZSpec[Environment, Failure]
+  ): URIO[TestLogger with Clock, ExecutedSpec[Failure]] =
+    runner.run(aspects.foldLeft(spec)(_ @@ _) @@ TestAspect.fibers)
+}
