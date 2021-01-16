@@ -67,7 +67,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Risk Ident](https://riskident.com/)
 * [Rudder](https://www.rudder.io/)
 * [TomTom](https://tomtom.com)
-* [Unit Finance](https://unit.co)
+* [Unit](https://unit.co)
 * [Univalence](https://univalence.io)
 * [Wehkamp](https://www.wehkamp.nl)
 
