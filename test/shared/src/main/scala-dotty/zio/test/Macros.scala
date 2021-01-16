@@ -49,7 +49,7 @@ object Macros {
     expr.asTerm.pos.sourceCode.get
   }
 
-  def sourceLocation_impl(using ctx: QuoteContext): Expr[SourceLocation] = {
+  def sourceLocation_impl(using ctx: Quotes): Expr[SourceLocation] = {
     import quotes.reflect._
     val (path, line) = location(ctx)
     '{SourceLocation(${Expr(path)}, ${Expr(line)})}
@@ -59,6 +59,7 @@ object Macros {
     import quotes.reflect._
     Expr(Position.ofMacroExpansion.sourceFile.jpath.toString)
   }
+
   def showExpression_impl[A](value: Expr[A])(using ctx: Quotes): Expr[String] = {
     import quotes.reflect._
     Expr(showExpr(value))

@@ -72,5 +72,5 @@ object CompileVariants {
 
   def assertMProxy[R, E, A](effect: ZIO[R, E, A], sourceLocation: String)
                               (assertion: AssertionM[A]): ZIO[R, E, TestResult] =
-    zio.test.assertMInternal(effect, Some(sourceLocation))(assertion)
+    zio.test.assertMImpl(effect, Some(sourceLocation))(assertion)
 }
