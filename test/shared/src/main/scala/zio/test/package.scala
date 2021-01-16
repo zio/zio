@@ -554,14 +554,16 @@ package object test extends CompileVariants {
   /**
    * Builds a spec with a single pure test.
    */
-  def test(label: String)(assertion: => TestResult): ZSpec[Any, Nothing] =
+  def test(label: String)(assertion: => TestResult)(implicit loc: SourceLocation): ZSpec[Any, Nothing] =
     testM(label)(ZIO.effectTotal(assertion))
 
   /**
    * Builds a spec with a single effectful test.
    */
-  def testM[R, E](label: String)(assertion: => ZIO[R, E, TestResult]): ZSpec[R, E] =
-    Spec.test(label, ZTest(assertion), TestAnnotationMap.empty)
+  def testM[R, E](label: String)(assertion: => ZIO[R, E, TestResult])(implicit loc: SourceLocation): ZSpec[R, E] =
+    Spec
+      .test(label, ZTest(assertion), TestAnnotationMap.empty)
+      .annotate(TestAnnotation.location, loc :: Nil)
 
   /**
    * Passes version specific information to the specified function, which will
