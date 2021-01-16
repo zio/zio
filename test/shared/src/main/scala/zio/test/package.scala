@@ -174,7 +174,7 @@ package object test extends CompileVariants {
   /**
    * Checks the assertion holds for the given effectfully-computed value.
    */
-  override private[test] def assertMInternal[R, E, A](effect: ZIO[R, E, A], sourceLocation: Option[String] = None)(
+  override private[test] def assertMImpl[R, E, A](effect: ZIO[R, E, A], sourceLocation: Option[String] = None)(
     assertion: AssertionM[A]
   ): ZIO[R, E, TestResult] =
     for {

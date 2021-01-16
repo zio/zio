@@ -41,14 +41,11 @@ private[test] object Macros {
     (path, line)
   }
 
-  def assertImpl[A](value: => A, label: String, location: String)(assertion: Assertion[A]): TestResult =
-    zio.test.assertImpl(value, Some(label), Some(location))(assertion)
-
   def assertM_impl(c: blackbox.Context)(effect: c.Tree)(assertion: c.Tree): c.Tree = {
     import c.universe._
     val (fileName, line) = location(c)
     val srcLocation      = s"$fileName:$line"
-    q"_root_.zio.test.CompileVariants.assertMInternal($effect, $srcLocation)($assertion)"
+    q"_root_.zio.test.CompileVariants.assertMProxy($effect, $srcLocation)($assertion)"
   }
 
   def assert_impl(c: blackbox.Context)(expr: c.Tree)(assertion: c.Tree): c.Tree = {
@@ -56,7 +53,7 @@ private[test] object Macros {
     val (fileName, line) = location(c)
     val srcLocation      = s"$fileName:$line"
     val code             = CleanCodePrinter.show(c)(expr)
-    q"_root_.zio.test.CompileVariants.assertImpl($expr, $code, $srcLocation)($assertion)"
+    q"_root_.zio.test.CompileVariants.assertProxy($expr, $code, $srcLocation)($assertion)"
   }
 
   def sourcePath_impl(c: blackbox.Context): c.Tree = {
