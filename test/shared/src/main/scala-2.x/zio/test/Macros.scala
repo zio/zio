@@ -56,6 +56,12 @@ private[test] object Macros {
     q"_root_.zio.test.CompileVariants.assertProxy($expr, $code, $srcLocation)($assertion)"
   }
 
+  def sourceLocation_impl(c: blackbox.Context): c.Expr[SourceLocation] = {
+    import c.universe._
+    val (path, line) = location(c)
+    c.Expr[SourceLocation](q"""${c.prefix}($path, $line)""")
+  }
+
   def sourcePath_impl(c: blackbox.Context): c.Tree = {
     import c.universe._
     q"${c.enclosingPosition.source.path}"
