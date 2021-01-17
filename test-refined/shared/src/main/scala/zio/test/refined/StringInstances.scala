@@ -9,16 +9,14 @@ import zio.test.magnolia.DeriveGen
 object string extends StringInstances
 
 trait StringInstances {
-  implicit def endsWithStringDeriveGen[S <: String](
-    implicit
+  implicit def endsWithStringDeriveGen[S <: String](implicit
     ws: Witness.Aux[S]
   ): DeriveGen[Refined[String, EndsWith[S]]] =
     DeriveGen.instance(
       Gen.anyString.map(value => Refined.unsafeApply(value + ws.value))
     )
 
-  implicit def startsWithStringDeriveGen[S <: String](
-    implicit
+  implicit def startsWithStringDeriveGen[S <: String](implicit
     ws: Witness.Aux[S]
   ): DeriveGen[Refined[String, StartsWith[S]]] =
     DeriveGen.instance(
