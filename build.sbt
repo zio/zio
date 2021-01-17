@@ -142,7 +142,7 @@ lazy val coreNative = core.native
   .settings(nativeSettings)
   .settings(
     libraryDependencies ++= Seq(
-      "dev.whaling" %%% "native-loop-core" % "0.1.1",
+      "dev.whaling" %%% "native-loop-core"      % "0.1.1",
       "dev.whaling" %%% "native-loop-js-compat" % "0.1.1"
     )
   )
@@ -184,7 +184,7 @@ lazy val macros = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(testRunner)
 
 lazy val macrosJVM = macros.jvm.settings(dottySettings)
-lazy val macrosJS = macros.js.settings(jsSettings)
+lazy val macrosJS  = macros.js.settings(jsSettings)
 
 lazy val streams = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("streams"))
@@ -273,7 +273,7 @@ lazy val testTests = crossProject(JSPlatform, JVMPlatform)
   .enablePlugins(BuildInfoPlugin)
 
 lazy val testTestsJVM = testTests.jvm.settings(dottySettings)
-lazy val testTestsJS = testTests.js.settings(jsSettings)
+lazy val testTestsJS  = testTests.js.settings(jsSettings)
 
 lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-magnolia"))
@@ -385,7 +385,7 @@ lazy val testJunitRunner = crossProject(JVMPlatform)
 lazy val testJunitRunnerJVM = testJunitRunner.jvm.settings(dottySettings)
 
 lazy val testRunnerJVM = testRunner.jvm.settings(dottySettings)
-lazy val testRunnerJS = testRunner.js.settings(jsSettings)
+lazy val testRunnerJS  = testRunner.js.settings(jsSettings)
 
 lazy val testJunitRunnerTests = crossProject(JVMPlatform)
   .in(file("test-junit-tests"))
@@ -402,15 +402,15 @@ lazy val testJunitRunnerTests = crossProject(JVMPlatform)
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
   .settings(
     libraryDependencies ++= Seq(
-      "junit" % "junit" % "4.13.1" % Test,
-      "org.scala-lang.modules" %% "scala-xml" % "1.3.0" % Test,
+      "junit"                   % "junit"     % "4.13.1" % Test,
+      "org.scala-lang.modules" %% "scala-xml" % "1.3.0"  % Test,
       // required to run embedded maven in the tests
-      "org.apache.maven" % "maven-embedder" % "3.6.3" % Test,
-      "org.apache.maven" % "maven-compat" % "3.6.3" % Test,
-      "org.apache.maven.wagon" % "wagon-http" % "3.4.2" % Test,
-      "org.eclipse.aether" % "aether-connector-basic" % "1.1.0" % Test,
-      "org.eclipse.aether" % "aether-transport-wagon" % "1.1.0" % Test,
-      "org.slf4j" % "slf4j-simple" % "1.7.30" % Test
+      "org.apache.maven"       % "maven-embedder"         % "3.6.3"  % Test,
+      "org.apache.maven"       % "maven-compat"           % "3.6.3"  % Test,
+      "org.apache.maven.wagon" % "wagon-http"             % "3.4.2"  % Test,
+      "org.eclipse.aether"     % "aether-connector-basic" % "1.1.0"  % Test,
+      "org.eclipse.aether"     % "aether-transport-wagon" % "1.1.0"  % Test,
+      "org.slf4j"              % "slf4j-simple"           % "1.7.30" % Test
     )
   )
   .dependsOn(test)
@@ -431,10 +431,10 @@ lazy val testJunitRunnerTestsJVM = testJunitRunnerTests.jvm
   )
 
 /**
-  * Examples sub-project that is not included in the root project.
-  * To run tests :
-  * `sbt "examplesJVM/test"`
-  */
+ * Examples sub-project that is not included in the root project.
+ * To run tests :
+ * `sbt "examplesJVM/test"`
+ */
 lazy val examples = crossProject(JVMPlatform, JSPlatform)
   .in(file("examples"))
   .settings(stdSettings("examples"))
@@ -459,27 +459,26 @@ lazy val benchmarks = project.module
     skip in publish := true,
     libraryDependencies ++=
       Seq(
-        "co.fs2" %% "fs2-core" % "2.5.0",
-        "com.google.code.findbugs" % "jsr305" % "3.0.2",
-        "com.twitter" %% "util-core" % "20.10.0",
-        "com.typesafe.akka" %% "akka-stream" % "2.6.10",
-        "io.monix" %% "monix" % "3.2.2",
-        "io.projectreactor" % "reactor-core" % "3.4.2",
-        "io.reactivex.rxjava2" % "rxjava" % "2.2.20",
-        "org.ow2.asm" % "asm" % "9.0",
-        "org.scala-lang" % "scala-compiler" % scalaVersion.value % Provided,
-        "org.scala-lang" % "scala-reflect" % scalaVersion.value,
-        "org.typelevel" %% "cats-effect" % "2.3.1",
-        "org.scalacheck" %% "scalacheck" % "1.15.2",
-        "qa.hedgehog" %% "hedgehog-core" % "0.6.1",
-        "com.github.japgolly.nyaya" %% "nyaya-gen" % "0.9.2"
+        "co.fs2"                    %% "fs2-core"       % "2.5.0",
+        "com.google.code.findbugs"   % "jsr305"         % "3.0.2",
+        "com.twitter"               %% "util-core"      % "20.10.0",
+        "com.typesafe.akka"         %% "akka-stream"    % "2.6.10",
+        "io.monix"                  %% "monix"          % "3.2.2",
+        "io.projectreactor"          % "reactor-core"   % "3.4.2",
+        "io.reactivex.rxjava2"       % "rxjava"         % "2.2.20",
+        "org.ow2.asm"                % "asm"            % "9.0",
+        "org.scala-lang"             % "scala-compiler" % scalaVersion.value % Provided,
+        "org.scala-lang"             % "scala-reflect"  % scalaVersion.value,
+        "org.typelevel"             %% "cats-effect"    % "2.3.1",
+        "org.scalacheck"            %% "scalacheck"     % "1.15.2",
+        "qa.hedgehog"               %% "hedgehog-core"  % "0.6.1",
+        "com.github.japgolly.nyaya" %% "nyaya-gen"      % "0.9.2"
       ),
     unusedCompileDependenciesFilter -= libraryDependencies.value
-      .map(
-        moduleid =>
-          moduleFilter(
-            organization = moduleid.organization,
-            name = moduleid.name
+      .map(moduleid =>
+        moduleFilter(
+          organization = moduleid.organization,
+          name = moduleid.name
         )
       )
       .reduce(_ | _),
@@ -511,14 +510,14 @@ lazy val docs = project.module
     scalacOptions ~= { _ filterNot (_ startsWith "-Ywarn") },
     scalacOptions ~= { _ filterNot (_ startsWith "-Xlint") },
     libraryDependencies ++= Seq(
-      "commons-io" % "commons-io" % "2.7" % "provided",
-      "org.jsoup" % "jsoup" % "1.13.1" % "provided",
-      "org.reactivestreams" % "reactive-streams-examples" % "1.0.3" % "provided",
-      "dev.zio" %% "zio-interop-cats" % "2.2.0.1",
-      "dev.zio" %% "zio-interop-monix" % "3.0.0.0-RC7",
-      "dev.zio" %% "zio-interop-scalaz7x" % "7.2.27.0-RC9",
-      "dev.zio" %% "zio-interop-reactivestreams" % "1.3.0.7-2",
-      "dev.zio" %% "zio-interop-twitter" % "20.10.0.0"
+      "commons-io"          % "commons-io"                  % "2.7"    % "provided",
+      "org.jsoup"           % "jsoup"                       % "1.13.1" % "provided",
+      "org.reactivestreams" % "reactive-streams-examples"   % "1.0.3"  % "provided",
+      "dev.zio"            %% "zio-interop-cats"            % "2.2.0.1",
+      "dev.zio"            %% "zio-interop-monix"           % "3.0.0.0-RC7",
+      "dev.zio"            %% "zio-interop-scalaz7x"        % "7.2.27.0-RC9",
+      "dev.zio"            %% "zio-interop-reactivestreams" % "1.3.0.7-2",
+      "dev.zio"            %% "zio-interop-twitter"         % "20.10.0.0"
     )
   )
   .settings(macroExpansionSettings)
