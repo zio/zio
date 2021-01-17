@@ -38,6 +38,10 @@ trait CharInstances {
     val whiteSpaceGens: Seq[Gen[Random, Char]] =
       whitespaceChars.map(Gen.const(_))
 
-    DeriveGen.instance(Gen.oneOf[Random, Char](whiteSpaceGens: _*))
+    DeriveGen.instance(
+      Gen
+        .oneOf[Random, Char](whiteSpaceGens: _*)
+        .map(char => Refined.unsafeApply(char))
+    )
   }
 }
