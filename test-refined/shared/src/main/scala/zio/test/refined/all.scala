@@ -1,3 +1,3 @@
 package zio.test.refined
 
-object all extends StringInstances with CharInstances
+object all extends BooleanInstances with CharInstances with StringInstances
