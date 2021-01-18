@@ -1128,6 +1128,7 @@ object ZIOSpec extends ZIOBaseSpec {
             assertM(actual)(equalTo(expected))
         }
       },
+      //format: off
       testM("with Tuple5") {
         checkM(Gen.anyInt, Gen.alphaNumericString, Gen.alphaNumericString, Gen.alphaNumericString, Gen.alphaNumericString) {
           (int: Int, str1: String, str2: String, str3: String, str4: String) =>
@@ -1148,7 +1149,6 @@ object ZIOSpec extends ZIOBaseSpec {
             assertM(actual)(equalTo(expected))
         }
       },
-      //format: off
       testM("with Tuple7") {
         checkM(Gen.anyInt, Gen.alphaNumericString, Gen.alphaNumericString, Gen.alphaNumericString, Gen.alphaNumericString, Gen.alphaNumericString, Gen.alphaNumericString) {
           (int: Int, str1: String, str2: String, str3: String, str4: String, str5: String, str6: String) =>
@@ -1309,8 +1309,8 @@ object ZIOSpec extends ZIOBaseSpec {
             assertM(actual)(equalTo(expected))
         }
       }
+      //format: on
     ),
-    //format: on
     suite("mapParN")(
       testM("with Tuple2") {
         checkM(Gen.anyInt, Gen.alphaNumericString) { (int: Int, str: String) =>
@@ -1338,6 +1338,7 @@ object ZIOSpec extends ZIOBaseSpec {
             assertM(actual)(equalTo(expected))
         }
       },
+      //format: off
       testM("with Tuple5") {
         checkM(Gen.anyInt, Gen.alphaNumericString, Gen.alphaNumericString, Gen.alphaNumericString, Gen.alphaNumericString) {
           (int: Int, str1: String, str2: String, str3: String, str4: String) =>
@@ -1358,7 +1359,6 @@ object ZIOSpec extends ZIOBaseSpec {
             assertM(actual)(equalTo(expected))
         }
       },
-      //format: off
       testM("with Tuple7") {
         checkM(Gen.anyInt, Gen.alphaNumericString, Gen.alphaNumericString, Gen.alphaNumericString, Gen.alphaNumericString, Gen.alphaNumericString, Gen.alphaNumericString) {
           (int: Int, str1: String, str2: String, str3: String, str4: String, str5: String, str6: String) =>
@@ -1519,8 +1519,8 @@ object ZIOSpec extends ZIOBaseSpec {
             assertM(actual)(equalTo(expected))
         }
       }
+      //format: on
     ),
-    //format: on
     suite("memoize")(
       testM("non-memoized returns new instances on repeated calls") {
         val io = random.nextString(10)
