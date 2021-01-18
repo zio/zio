@@ -3565,7 +3565,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     zio11: ZIO[R, E, M],
     zio12: ZIO[R, E, N]
   ): ZIO[R, E, (A, B, C, D, G, H, I, J, K, L, M, N)] =
-    mapN(zio1, zio2, zio3, zio4, zio5, zio6, zio7, zio8, zio9, zio10, zio11, zio12)((_, _, _, _, _, _, _, _, _, _, _, _))
+    mapN(zio1, zio2, zio3, zio4, zio5, zio6, zio7, zio8, zio9, zio10, zio11, zio12)(
+      (_, _, _, _, _, _, _, _, _, _, _, _)
+    )
 
   /**
    * Sequentially zips the specified effects. Specialized version of mapN.
@@ -3585,7 +3587,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     zio12: ZIO[R, E, N],
     zio13: ZIO[R, E, O]
   ): ZIO[R, E, (A, B, C, D, G, H, I, J, K, L, M, N, O)] =
-    mapN(zio1, zio2, zio3, zio4, zio5, zio6, zio7, zio8, zio9, zio10, zio11, zio12, zio13)((_, _, _, _, _, _, _, _, _, _, _, _, _))
+    mapN(zio1, zio2, zio3, zio4, zio5, zio6, zio7, zio8, zio9, zio10, zio11, zio12, zio13)(
+      (_, _, _, _, _, _, _, _, _, _, _, _, _)
+    )
 
   /**
    * Sequentially zips the specified effects. Specialized version of mapN.
@@ -3606,7 +3610,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     zio13: ZIO[R, E, O],
     zio14: ZIO[R, E, P]
   ): ZIO[R, E, (A, B, C, D, G, H, I, J, K, L, M, N, O, P)] =
-    mapN(zio1, zio2, zio3, zio4, zio5, zio6, zio7, zio8, zio9, zio10, zio11, zio12, zio13, zio14)((_, _, _, _, _, _, _, _, _, _, _, _, _, _))
+    mapN(zio1, zio2, zio3, zio4, zio5, zio6, zio7, zio8, zio9, zio10, zio11, zio12, zio13, zio14)(
+      (_, _, _, _, _, _, _, _, _, _, _, _, _, _)
+    )
 
   /**
    * Sequentially zips the specified effects. Specialized version of mapN.
@@ -3628,7 +3634,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     zio14: ZIO[R, E, P],
     zio15: ZIO[R, E, Q]
   ): ZIO[R, E, (A, B, C, D, G, H, I, J, K, L, M, N, O, P, Q)] =
-    mapN(zio1, zio2, zio3, zio4, zio5, zio6, zio7, zio8, zio9, zio10, zio11, zio12, zio13, zio14, zio15)((_, _, _, _, _, _, _, _, _, _, _, _, _, _, _))
+    mapN(zio1, zio2, zio3, zio4, zio5, zio6, zio7, zio8, zio9, zio10, zio11, zio12, zio13, zio14, zio15)(
+      (_, _, _, _, _, _, _, _, _, _, _, _, _, _, _)
+    )
 
   /**
    * Sequentially zips the specified effects. Specialized version of mapN.
@@ -3651,7 +3659,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     zio15: ZIO[R, E, Q],
     zio16: ZIO[R, E, S]
   ): ZIO[R, E, (A, B, C, D, G, H, I, J, K, L, M, N, O, P, Q, S)] =
-    mapN(zio1, zio2, zio3, zio4, zio5, zio6, zio7, zio8, zio9, zio10, zio11, zio12, zio13, zio14, zio15, zio16)((_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _))
+    mapN(zio1, zio2, zio3, zio4, zio5, zio6, zio7, zio8, zio9, zio10, zio11, zio12, zio13, zio14, zio15, zio16)(
+      (_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _)
+    )
 
   /**
    * Sequentially zips the specified effects. Specialized version of mapN.
@@ -3675,7 +3685,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     zio16: ZIO[R, E, S],
     zio17: ZIO[R, E, T]
   ): ZIO[R, E, (A, B, C, D, G, H, I, J, K, L, M, N, O, P, Q, S, T)] =
-    mapN(zio1, zio2, zio3, zio4, zio5, zio6, zio7, zio8, zio9, zio10, zio11, zio12, zio13, zio14, zio15, zio16, zio17)((_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _))
+    mapN(zio1, zio2, zio3, zio4, zio5, zio6, zio7, zio8, zio9, zio10, zio11, zio12, zio13, zio14, zio15, zio16, zio17)(
+      (_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _)
+    )
 
   /**
    * Sequentially zips the specified effects. Specialized version of mapN.
@@ -3700,7 +3712,11 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     zio17: ZIO[R, E, T],
     zio18: ZIO[R, E, U]
   ): ZIO[R, E, (A, B, C, D, G, H, I, J, K, L, M, N, O, P, Q, S, T, U)] =
-    mapN(zio1, zio2, zio3, zio4, zio5, zio6, zio7, zio8, zio9, zio10, zio11, zio12, zio13, zio14, zio15, zio16, zio17, zio18)((_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _))
+    // format: off
+    mapN(zio1, zio2, zio3, zio4, zio5, zio6, zio7, zio8, zio9, zio10, zio11, zio12, zio13, zio14, zio15, zio16, zio17, zio18)(
+      (_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _)
+    )
+    // format: on
 
   /**
    * Sequentially zips the specified effects. Specialized version of mapN.
@@ -3726,7 +3742,11 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     zio18: ZIO[R, E, U],
     zio19: ZIO[R, E, V]
   ): ZIO[R, E, (A, B, C, D, G, H, I, J, K, L, M, N, O, P, Q, S, T, U, V)] =
-    mapN(zio1, zio2, zio3, zio4, zio5, zio6, zio7, zio8, zio9, zio10, zio11, zio12, zio13, zio14, zio15, zio16, zio17, zio18, zio19)((_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _))
+    // format: off
+    mapN(zio1, zio2, zio3, zio4, zio5, zio6, zio7, zio8, zio9, zio10, zio11, zio12, zio13, zio14, zio15, zio16, zio17, zio18, zio19)(
+      (_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _)
+    )
+    // format: on
 
   /**
    * Sequentially zips the specified effects. Specialized version of mapN.
@@ -3753,7 +3773,11 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     zio19: ZIO[R, E, V],
     zio20: ZIO[R, E, W]
   ): ZIO[R, E, (A, B, C, D, G, H, I, J, K, L, M, N, O, P, Q, S, T, U, V, W)] =
-    mapN(zio1, zio2, zio3, zio4, zio5, zio6, zio7, zio8, zio9, zio10, zio11, zio12, zio13, zio14, zio15, zio16, zio17, zio18, zio19, zio20)((_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _))
+    // format: off
+    mapN(zio1, zio2, zio3, zio4, zio5, zio6, zio7, zio8, zio9, zio10, zio11, zio12, zio13, zio14, zio15, zio16, zio17, zio18, zio19, zio20)(
+      (_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _)
+    )
+    // format: on
 
   /**
    * Sequentially zips the specified effects. Specialized version of mapN.
@@ -3781,7 +3805,11 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     zio20: ZIO[R, E, W],
     zio21: ZIO[R, E, X]
   ): ZIO[R, E, (A, B, C, D, G, H, I, J, K, L, M, N, O, P, Q, S, T, U, V, W, X)] =
-    mapN(zio1, zio2, zio3, zio4, zio5, zio6, zio7, zio8, zio9, zio10, zio11, zio12, zio13, zio14, zio15, zio16, zio17, zio18, zio19, zio20, zio21)((_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _))
+    // format: off
+    mapN(zio1, zio2, zio3, zio4, zio5, zio6, zio7, zio8, zio9, zio10, zio11, zio12, zio13, zio14, zio15, zio16, zio17, zio18, zio19, zio20, zio21)(
+      (_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _)
+    )
+    // format: on
 
   /**
    * Sequentially zips the specified effects. Specialized version of mapN.
@@ -3810,7 +3838,11 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     zio21: ZIO[R, E, X],
     zio22: ZIO[R, E, Y]
   ): ZIO[R, E, (A, B, C, D, G, H, I, J, K, L, M, N, O, P, Q, S, T, U, V, W, X, Y)] =
-    mapN(zio1, zio2, zio3, zio4, zio5, zio6, zio7, zio8, zio9, zio10, zio11, zio12, zio13, zio14, zio15, zio16, zio17, zio18, zio19, zio20, zio21, zio22)((_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _))
+    // format: off
+    mapN(zio1, zio2, zio3, zio4, zio5, zio6, zio7, zio8, zio9, zio10, zio11, zio12, zio13, zio14, zio15, zio16, zio17, zio18, zio19, zio20, zio21, zio22)(
+      (_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _)
+    )
+    // format: on
 
   /**
    * Zips the specified effects in parallel. Specialized version of mapParN.
@@ -3957,7 +3989,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     zio11: ZIO[R, E, M],
     zio12: ZIO[R, E, N]
   ): ZIO[R, E, (A, B, C, D, G, H, I, J, K, L, M, N)] =
-    mapParN(zio1, zio2, zio3, zio4, zio5, zio6, zio7, zio8, zio9, zio10, zio11, zio12)((_, _, _, _, _, _, _, _, _, _, _, _))
+    mapParN(zio1, zio2, zio3, zio4, zio5, zio6, zio7, zio8, zio9, zio10, zio11, zio12)(
+      (_, _, _, _, _, _, _, _, _, _, _, _)
+    )
 
   /**
    * Zips the specified effects in parallel. Specialized version of mapParN.
@@ -3977,7 +4011,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     zio12: ZIO[R, E, N],
     zio13: ZIO[R, E, O]
   ): ZIO[R, E, (A, B, C, D, G, H, I, J, K, L, M, N, O)] =
-    mapParN(zio1, zio2, zio3, zio4, zio5, zio6, zio7, zio8, zio9, zio10, zio11, zio12, zio13)((_, _, _, _, _, _, _, _, _, _, _, _, _))
+    mapParN(zio1, zio2, zio3, zio4, zio5, zio6, zio7, zio8, zio9, zio10, zio11, zio12, zio13)(
+      (_, _, _, _, _, _, _, _, _, _, _, _, _)
+    )
 
   /**
    * Zips the specified effects in parallel. Specialized version of mapParN.
@@ -3998,7 +4034,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     zio13: ZIO[R, E, O],
     zio14: ZIO[R, E, P]
   ): ZIO[R, E, (A, B, C, D, G, H, I, J, K, L, M, N, O, P)] =
-    mapParN(zio1, zio2, zio3, zio4, zio5, zio6, zio7, zio8, zio9, zio10, zio11, zio12, zio13, zio14)((_, _, _, _, _, _, _, _, _, _, _, _, _, _))
+    mapParN(zio1, zio2, zio3, zio4, zio5, zio6, zio7, zio8, zio9, zio10, zio11, zio12, zio13, zio14)(
+      (_, _, _, _, _, _, _, _, _, _, _, _, _, _)
+    )
 
   /**
    * Zips the specified effects in parallel. Specialized version of mapParN.
@@ -4020,7 +4058,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     zio14: ZIO[R, E, P],
     zio15: ZIO[R, E, Q]
   ): ZIO[R, E, (A, B, C, D, G, H, I, J, K, L, M, N, O, P, Q)] =
-    mapParN(zio1, zio2, zio3, zio4, zio5, zio6, zio7, zio8, zio9, zio10, zio11, zio12, zio13, zio14, zio15)((_, _, _, _, _, _, _, _, _, _, _, _, _, _, _))
+    mapParN(zio1, zio2, zio3, zio4, zio5, zio6, zio7, zio8, zio9, zio10, zio11, zio12, zio13, zio14, zio15)(
+      (_, _, _, _, _, _, _, _, _, _, _, _, _, _, _)
+    )
 
   /**
    * Zips the specified effects in parallel. Specialized version of mapParN.
@@ -4043,7 +4083,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     zio15: ZIO[R, E, Q],
     zio16: ZIO[R, E, S]
   ): ZIO[R, E, (A, B, C, D, G, H, I, J, K, L, M, N, O, P, Q, S)] =
-    mapParN(zio1, zio2, zio3, zio4, zio5, zio6, zio7, zio8, zio9, zio10, zio11, zio12, zio13, zio14, zio15, zio16)((_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _))
+    mapParN(zio1, zio2, zio3, zio4, zio5, zio6, zio7, zio8, zio9, zio10, zio11, zio12, zio13, zio14, zio15, zio16)(
+      (_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _)
+    )
 
   /**
    * Zips the specified effects in parallel. Specialized version of mapParN.
@@ -4067,7 +4109,11 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     zio16: ZIO[R, E, S],
     zio17: ZIO[R, E, T]
   ): ZIO[R, E, (A, B, C, D, G, H, I, J, K, L, M, N, O, P, Q, S, T)] =
-    mapParN(zio1, zio2, zio3, zio4, zio5, zio6, zio7, zio8, zio9, zio10, zio11, zio12, zio13, zio14, zio15, zio16, zio17)((_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _))
+    // format: off
+    mapParN(zio1, zio2, zio3, zio4, zio5, zio6, zio7, zio8, zio9, zio10, zio11, zio12, zio13, zio14, zio15, zio16, zio17)(
+      (_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _)
+    )
+    // format: on
 
   /**
    * Zips the specified effects in parallel. Specialized version of mapParN.
@@ -4092,7 +4138,11 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     zio17: ZIO[R, E, T],
     zio18: ZIO[R, E, U]
   ): ZIO[R, E, (A, B, C, D, G, H, I, J, K, L, M, N, O, P, Q, S, T, U)] =
-    mapParN(zio1, zio2, zio3, zio4, zio5, zio6, zio7, zio8, zio9, zio10, zio11, zio12, zio13, zio14, zio15, zio16, zio17, zio18)((_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _))
+    // format: off
+    mapParN(zio1, zio2, zio3, zio4, zio5, zio6, zio7, zio8, zio9, zio10, zio11, zio12, zio13, zio14, zio15, zio16, zio17, zio18)(
+      (_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _)
+    )
+    // format: on
 
   /**
    * Zips the specified effects in parallel. Specialized version of mapParN.
@@ -4118,7 +4168,11 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     zio18: ZIO[R, E, U],
     zio19: ZIO[R, E, V]
   ): ZIO[R, E, (A, B, C, D, G, H, I, J, K, L, M, N, O, P, Q, S, T, U, V)] =
-    mapParN(zio1, zio2, zio3, zio4, zio5, zio6, zio7, zio8, zio9, zio10, zio11, zio12, zio13, zio14, zio15, zio16, zio17, zio18, zio19)((_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _))
+    // format: off
+    mapParN(zio1, zio2, zio3, zio4, zio5, zio6, zio7, zio8, zio9, zio10, zio11, zio12, zio13, zio14, zio15, zio16, zio17, zio18, zio19)(
+      (_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _)
+    )
+    // format: on
 
   /**
    * Zips the specified effects in parallel. Specialized version of mapParN.
@@ -4145,7 +4199,11 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     zio19: ZIO[R, E, V],
     zio20: ZIO[R, E, W]
   ): ZIO[R, E, (A, B, C, D, G, H, I, J, K, L, M, N, O, P, Q, S, T, U, V, W)] =
-    mapParN(zio1, zio2, zio3, zio4, zio5, zio6, zio7, zio8, zio9, zio10, zio11, zio12, zio13, zio14, zio15, zio16, zio17, zio18, zio19, zio20)((_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _))
+    // format: off
+    mapParN(zio1, zio2, zio3, zio4, zio5, zio6, zio7, zio8, zio9, zio10, zio11, zio12, zio13, zio14, zio15, zio16, zio17, zio18, zio19, zio20)(
+      (_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _)
+    )
+    // format: on
 
   /**
    * Zips the specified effects in parallel. Specialized version of mapParN.
@@ -4173,7 +4231,11 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     zio20: ZIO[R, E, W],
     zio21: ZIO[R, E, X]
   ): ZIO[R, E, (A, B, C, D, G, H, I, J, K, L, M, N, O, P, Q, S, T, U, V, W, X)] =
-    mapParN(zio1, zio2, zio3, zio4, zio5, zio6, zio7, zio8, zio9, zio10, zio11, zio12, zio13, zio14, zio15, zio16, zio17, zio18, zio19, zio20, zio21)((_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _))
+    // format: off
+    mapParN(zio1, zio2, zio3, zio4, zio5, zio6, zio7, zio8, zio9, zio10, zio11, zio12, zio13, zio14, zio15, zio16, zio17, zio18, zio19, zio20, zio21)(
+      (_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _)
+    )
+    // format: on
 
   /**
    * Zips the specified effects in parallel. Specialized version of mapParN.
@@ -4202,7 +4264,11 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     zio21: ZIO[R, E, X],
     zio22: ZIO[R, E, Y]
   ): ZIO[R, E, (A, B, C, D, G, H, I, J, K, L, M, N, O, P, Q, S, T, U, V, W, X, Y)] =
-    mapParN(zio1, zio2, zio3, zio4, zio5, zio6, zio7, zio8, zio9, zio10, zio11, zio12, zio13, zio14, zio15, zio16, zio17, zio18, zio19, zio20, zio21, zio22)((_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _))
+    // format: off
+    mapParN(zio1, zio2, zio3, zio4, zio5, zio6, zio7, zio8, zio9, zio10, zio11, zio12, zio13, zio14, zio15, zio16, zio17, zio18, zio19, zio20, zio21, zio22)(
+      (_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _)
+    )
+    // format: on
 
   /**
    * Sequentially zips the specified effects using the specified combiner
@@ -5031,10 +5097,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   )(
     f: (A, B, C, D, G, H, I, J) => F
   ): ZIO[R, E, F] =
-    (zio1 <&> zio2 <&> zio3 <&> zio4 <&> zio5 <&> zio6 <&> zio7 <&> zio8).map { case (((((((a, b), c), d), g), h), i), j) =>
-      f(a, b, c, d, g, h, i, j)
+    (zio1 <&> zio2 <&> zio3 <&> zio4 <&> zio5 <&> zio6 <&> zio7 <&> zio8).map {
+      case (((((((a, b), c), d), g), h), i), j) =>
+        f(a, b, c, d, g, h, i, j)
     }
 
+  // format: off
   /**
    * Returns an effect that executes the specified effects in parallel,
    * combining their results with the specified `f` function. If any effect
@@ -5433,6 +5501,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     (zio1 <&> zio2 <&> zio3 <&> zio4 <&> zio5 <&> zio6 <&> zio7 <&> zio8 <&> zio9 <&> zio10 <&> zio11 <&> zio12 <&> zio13 <&> zio14 <&> zio15 <&> zio16 <&> zio17 <&> zio18 <&> zio19 <&> zio20 <&> zio21 <&> zio22).map { case (((((((((((((((((((((a, b), c), d), g), h), i), j), k), l), m), n), o), p), q), s), t), u), v), w), x), y) =>
       f(a, b, c, d, g, h, i, j, k, l, m, n, o, p, q, s, t, u, v, w, x, y)
     }
+  // format: on
 
   /**
    * Returns a memoized version of the specified effectual function.

@@ -409,7 +409,9 @@ package object test extends CompileVariants {
   )(
     test: (A, B, C, D, F, G, H, I, J, K, L, M) => ZIO[R1, E, TestResult]
   ): ZIO[R1, E, TestResult] =
-    checkM(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6 <*> rv7 <*> rv8 <*> rv9 <*> rv10 <*> rv11 <*> rv12)(reassociate(test))
+    checkM(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6 <*> rv7 <*> rv8 <*> rv9 <*> rv10 <*> rv11 <*> rv12)(
+      reassociate(test)
+    )
 
   /**
    * A version of `checkM` that accepts thirteen random variables.
@@ -431,7 +433,9 @@ package object test extends CompileVariants {
   )(
     test: (A, B, C, D, F, G, H, I, J, K, L, M, N) => ZIO[R1, E, TestResult]
   ): ZIO[R1, E, TestResult] =
-    checkM(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6 <*> rv7 <*> rv8 <*> rv9 <*> rv10 <*> rv11 <*> rv12 <*> rv13)(reassociate(test))
+    checkM(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6 <*> rv7 <*> rv8 <*> rv9 <*> rv10 <*> rv11 <*> rv12 <*> rv13)(
+      reassociate(test)
+    )
 
   /**
    * A version of `checkM` that accepts fourteen random variables.
@@ -454,7 +458,11 @@ package object test extends CompileVariants {
   )(
     test: (A, B, C, D, F, G, H, I, J, K, L, M, N, O) => ZIO[R1, E, TestResult]
   ): ZIO[R1, E, TestResult] =
-    checkM(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6 <*> rv7 <*> rv8 <*> rv9 <*> rv10 <*> rv11 <*> rv12 <*> rv13 <*> rv14)(reassociate(test))
+    // format: off
+    checkM(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6 <*> rv7 <*> rv8 <*> rv9 <*> rv10 <*> rv11 <*> rv12 <*> rv13 <*> rv14)(
+      reassociate(test)
+    )
+    // format: on
 
   /**
    * A version of `checkM` that accepts fifteen random variables.
@@ -478,7 +486,11 @@ package object test extends CompileVariants {
   )(
     test: (A, B, C, D, F, G, H, I, J, K, L, M, N, O, P) => ZIO[R1, E, TestResult]
   ): ZIO[R1, E, TestResult] =
-    checkM(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6 <*> rv7 <*> rv8 <*> rv9 <*> rv10 <*> rv11 <*> rv12 <*> rv13 <*> rv14 <*> rv15)(reassociate(test))
+    // format: off
+    checkM(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6 <*> rv7 <*> rv8 <*> rv9 <*> rv10 <*> rv11 <*> rv12 <*> rv13 <*> rv14 <*> rv15)(
+      reassociate(test)
+    )
+    // format: on
 
   /**
    * A version of `checkM` that accepts sixteen random variables.
@@ -503,7 +515,11 @@ package object test extends CompileVariants {
   )(
     test: (A, B, C, D, F, G, H, I, J, K, L, M, N, O, P, Q) => ZIO[R1, E, TestResult]
   ): ZIO[R1, E, TestResult] =
-    checkM(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6 <*> rv7 <*> rv8 <*> rv9 <*> rv10 <*> rv11 <*> rv12 <*> rv13 <*> rv14 <*> rv15 <*> rv16)(reassociate(test))
+    // format: off
+    checkM(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6 <*> rv7 <*> rv8 <*> rv9 <*> rv10 <*> rv11 <*> rv12 <*> rv13 <*> rv14 <*> rv15 <*> rv16)(
+      reassociate(test)
+    )
+    // format: on
 
   /**
    * A version of `checkM` that accepts seventeen random variables.
@@ -529,7 +545,11 @@ package object test extends CompileVariants {
   )(
     test: (A, B, C, D, F, G, H, I, J, K, L, M, N, O, P, Q, S) => ZIO[R1, E, TestResult]
   ): ZIO[R1, E, TestResult] =
-    checkM(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6 <*> rv7 <*> rv8 <*> rv9 <*> rv10 <*> rv11 <*> rv12 <*> rv13 <*> rv14 <*> rv15 <*> rv16 <*> rv17)(reassociate(test))
+    // format: off
+    checkM(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6 <*> rv7 <*> rv8 <*> rv9 <*> rv10 <*> rv11 <*> rv12 <*> rv13 <*> rv14 <*> rv15 <*> rv16 <*> rv17)(
+      reassociate(test)
+    )
+    // format: on
 
   /**
    * A version of `checkM` that accepts eighteen random variables.
@@ -556,7 +576,11 @@ package object test extends CompileVariants {
   )(
     test: (A, B, C, D, F, G, H, I, J, K, L, M, N, O, P, Q, S, T) => ZIO[R1, E, TestResult]
   ): ZIO[R1, E, TestResult] =
-    checkM(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6 <*> rv7 <*> rv8 <*> rv9 <*> rv10 <*> rv11 <*> rv12 <*> rv13 <*> rv14 <*> rv15 <*> rv16 <*> rv17 <*> rv18)(reassociate(test))
+    // format: off
+    checkM(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6 <*> rv7 <*> rv8 <*> rv9 <*> rv10 <*> rv11 <*> rv12 <*> rv13 <*> rv14 <*> rv15 <*> rv16 <*> rv17 <*> rv18)(
+      reassociate(test)
+    )
+    // format: on
 
   /**
    * A version of `checkM` that accepts nineteen random variables.
@@ -584,7 +608,11 @@ package object test extends CompileVariants {
   )(
     test: (A, B, C, D, F, G, H, I, J, K, L, M, N, O, P, Q, S, T, U) => ZIO[R1, E, TestResult]
   ): ZIO[R1, E, TestResult] =
-    checkM(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6 <*> rv7 <*> rv8 <*> rv9 <*> rv10 <*> rv11 <*> rv12 <*> rv13 <*> rv14 <*> rv15 <*> rv16 <*> rv17 <*> rv18 <*> rv19)(reassociate(test))
+    // format: off
+    checkM(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6 <*> rv7 <*> rv8 <*> rv9 <*> rv10 <*> rv11 <*> rv12 <*> rv13 <*> rv14 <*> rv15 <*> rv16 <*> rv17 <*> rv18 <*> rv19)(
+      reassociate(test)
+    )
+    // format: on
 
   /**
    * A version of `checkM` that accepts twenty random variables.
@@ -613,7 +641,11 @@ package object test extends CompileVariants {
   )(
     test: (A, B, C, D, F, G, H, I, J, K, L, M, N, O, P, Q, S, T, U, V) => ZIO[R1, E, TestResult]
   ): ZIO[R1, E, TestResult] =
-    checkM(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6 <*> rv7 <*> rv8 <*> rv9 <*> rv10 <*> rv11 <*> rv12 <*> rv13 <*> rv14 <*> rv15 <*> rv16 <*> rv17 <*> rv18 <*> rv19 <*> rv20)(reassociate(test))
+    // format: off
+    checkM(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6 <*> rv7 <*> rv8 <*> rv9 <*> rv10 <*> rv11 <*> rv12 <*> rv13 <*> rv14 <*> rv15 <*> rv16 <*> rv17 <*> rv18 <*> rv19 <*> rv20)(
+      reassociate(test)
+    )
+    // format: on
 
   /**
    * A version of `checkM` that accepts twenty one random variables.
@@ -643,7 +675,11 @@ package object test extends CompileVariants {
   )(
     test: (A, B, C, D, F, G, H, I, J, K, L, M, N, O, P, Q, S, T, U, V, W) => ZIO[R1, E, TestResult]
   ): ZIO[R1, E, TestResult] =
-    checkM(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6 <*> rv7 <*> rv8 <*> rv9 <*> rv10 <*> rv11 <*> rv12 <*> rv13 <*> rv14 <*> rv15 <*> rv16 <*> rv17 <*> rv18 <*> rv19 <*> rv20 <*> rv21)(reassociate(test))
+    // format: off
+    checkM(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6 <*> rv7 <*> rv8 <*> rv9 <*> rv10 <*> rv11 <*> rv12 <*> rv13 <*> rv14 <*> rv15 <*> rv16 <*> rv17 <*> rv18 <*> rv19 <*> rv20 <*> rv21)(
+      reassociate(test)
+    )
+    // format: on
 
   /**
    * A version of `checkM` that accepts twenty two random variables.
@@ -674,7 +710,11 @@ package object test extends CompileVariants {
   )(
     test: (A, B, C, D, F, G, H, I, J, K, L, M, N, O, P, Q, S, T, U, V, W, X) => ZIO[R1, E, TestResult]
   ): ZIO[R1, E, TestResult] =
-    checkM(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6 <*> rv7 <*> rv8 <*> rv9 <*> rv10 <*> rv11 <*> rv12 <*> rv13 <*> rv14 <*> rv15 <*> rv16 <*> rv17 <*> rv18 <*> rv19 <*> rv20 <*> rv21 <*> rv22)(reassociate(test))
+    // format: off
+    checkM(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6 <*> rv7 <*> rv8 <*> rv9 <*> rv10 <*> rv11 <*> rv12 <*> rv13 <*> rv14 <*> rv15 <*> rv16 <*> rv17 <*> rv18 <*> rv19 <*> rv20 <*> rv21 <*> rv22)(
+      reassociate(test)
+    )
+    // format: on
 
   /**
    * Checks the test passes for all values from the given random variable. This
@@ -1276,12 +1316,12 @@ package object test extends CompileVariants {
       }
     }
 
-  private def reassociate[A, B, C, D](fn: (A, B, C) => D): (((A, B), C)) => D = {
-    case ((a, b), c) => fn(a, b, c)
+  private def reassociate[A, B, C, D](fn: (A, B, C) => D): (((A, B), C)) => D = { case ((a, b), c) =>
+    fn(a, b, c)
   }
 
-  private def reassociate[A, B, C, D, E](fn: (A, B, C, D) => E): ((((A, B), C), D)) => E = {
-    case (((a, b), c), d) => fn(a, b, c, d)
+  private def reassociate[A, B, C, D, E](fn: (A, B, C, D) => E): ((((A, B), C), D)) => E = { case (((a, b), c), d) =>
+    fn(a, b, c, d)
   }
 
   private def reassociate[A, B, C, D, E, F](fn: (A, B, C, D, E) => F): (((((A, B), C), D), E)) => F = {
@@ -1292,67 +1332,110 @@ package object test extends CompileVariants {
     case (((((a, b), c), d), e), f) => fn(a, b, c, d, e, f)
   }
 
-  private def reassociate[A, B, C, D, E, F, G, H](fn: (A, B, C, D, E, F, G) => H): (((((((A, B), C), D), E), F), G)) => H = {
-    case ((((((a, b), c), d), e), f), g) => fn(a, b, c, d, e, f, g)
+  private def reassociate[A, B, C, D, E, F, G, H](
+    fn: (A, B, C, D, E, F, G) => H
+  ): (((((((A, B), C), D), E), F), G)) => H = { case ((((((a, b), c), d), e), f), g) =>
+    fn(a, b, c, d, e, f, g)
   }
 
-  private def reassociate[A, B, C, D, E, F, G, H, I](fn: (A, B, C, D, E, F, G, H) => I): ((((((((A, B), C), D), E), F), G), H)) => I = {
-    case (((((((a, b), c), d), e), f), g), h) => fn(a, b, c, d, e, f, g, h)
+  private def reassociate[A, B, C, D, E, F, G, H, I](
+    fn: (A, B, C, D, E, F, G, H) => I
+  ): ((((((((A, B), C), D), E), F), G), H)) => I = { case (((((((a, b), c), d), e), f), g), h) =>
+    fn(a, b, c, d, e, f, g, h)
   }
 
-  private def reassociate[A, B, C, D, E, F, G, H, I, J](fn: (A, B, C, D, E, F, G, H, I) => J): (((((((((A, B), C), D), E), F), G), H), I)) => J = {
-    case ((((((((a, b), c), d), e), f), g), h), i) => fn(a, b, c, d, e, f, g, h, i)
+  private def reassociate[A, B, C, D, E, F, G, H, I, J](
+    fn: (A, B, C, D, E, F, G, H, I) => J
+  ): (((((((((A, B), C), D), E), F), G), H), I)) => J = { case ((((((((a, b), c), d), e), f), g), h), i) =>
+    fn(a, b, c, d, e, f, g, h, i)
   }
 
-  private def reassociate[A, B, C, D, E, F, G, H, I, J, K](fn: (A, B, C, D, E, F, G, H, I, J) => K): ((((((((((A, B), C), D), E), F), G), H), I), J)) => K = {
-    case (((((((((a, b), c), d), e), f), g), h), i), j) => fn(a, b, c, d, e, f, g, h, i, j)
+  private def reassociate[A, B, C, D, E, F, G, H, I, J, K](
+    fn: (A, B, C, D, E, F, G, H, I, J) => K
+  ): ((((((((((A, B), C), D), E), F), G), H), I), J)) => K = { case (((((((((a, b), c), d), e), f), g), h), i), j) =>
+    fn(a, b, c, d, e, f, g, h, i, j)
   }
 
-  private def reassociate[A, B, C, D, E, F, G, H, I, J, K, L](fn: (A, B, C, D, E, F, G, H, I, J, K) => L): (((((((((((A, B), C), D), E), F), G), H), I), J), K)) => L = {
+  private def reassociate[A, B, C, D, E, F, G, H, I, J, K, L](
+    fn: (A, B, C, D, E, F, G, H, I, J, K) => L
+  ): (((((((((((A, B), C), D), E), F), G), H), I), J), K)) => L = {
     case ((((((((((a, b), c), d), e), f), g), h), i), j), k) => fn(a, b, c, d, e, f, g, h, i, j, k)
   }
 
-  private def reassociate[A, B, C, D, E, F, G, H, I, J, K, L, M](fn: (A, B, C, D, E, F, G, H, I, J, K, L) => M): ((((((((((((A, B), C), D), E), F), G), H), I), J), K), L)) => M = {
+  private def reassociate[A, B, C, D, E, F, G, H, I, J, K, L, M](
+    fn: (A, B, C, D, E, F, G, H, I, J, K, L) => M
+  ): ((((((((((((A, B), C), D), E), F), G), H), I), J), K), L)) => M = {
     case (((((((((((a, b), c), d), e), f), g), h), i), j), k), l) => fn(a, b, c, d, e, f, g, h, i, j, k, l)
   }
 
-  private def reassociate[A, B, C, D, E, F, G, H, I, J, K, L, M, N](fn: (A, B, C, D, E, F, G, H, I, J, K, L, M) => N): (((((((((((((A, B), C), D), E), F), G), H), I), J), K), L), M)) => N = {
+  private def reassociate[A, B, C, D, E, F, G, H, I, J, K, L, M, N](
+    fn: (A, B, C, D, E, F, G, H, I, J, K, L, M) => N
+  ): (((((((((((((A, B), C), D), E), F), G), H), I), J), K), L), M)) => N = {
     case ((((((((((((a, b), c), d), e), f), g), h), i), j), k), l), m) => fn(a, b, c, d, e, f, g, h, i, j, k, l, m)
   }
 
-  private def reassociate[A, B, C, D, E, F, G, H, I, J, K, L, M, N, O](fn: (A, B, C, D, E, F, G, H, I, J, K, L, M, N) => O): ((((((((((((((A, B), C), D), E), F), G), H), I), J), K), L), M), N)) => O = {
-    case (((((((((((((a, b), c), d), e), f), g), h), i), j), k), l), m), n) => fn(a, b, c, d, e, f, g, h, i, j, k, l, m, n)
+  private def reassociate[A, B, C, D, E, F, G, H, I, J, K, L, M, N, O](
+    fn: (A, B, C, D, E, F, G, H, I, J, K, L, M, N) => O
+  ): ((((((((((((((A, B), C), D), E), F), G), H), I), J), K), L), M), N)) => O = {
+    case (((((((((((((a, b), c), d), e), f), g), h), i), j), k), l), m), n) =>
+      fn(a, b, c, d, e, f, g, h, i, j, k, l, m, n)
   }
 
-  private def reassociate[A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P](fn: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O) => P): (((((((((((((((A, B), C), D), E), F), G), H), I), J), K), L), M), N), O)) => P = {
-    case ((((((((((((((a, b), c), d), e), f), g), h), i), j), k), l), m), n), o) => fn(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o)
+  private def reassociate[A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P](
+    fn: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O) => P
+  ): (((((((((((((((A, B), C), D), E), F), G), H), I), J), K), L), M), N), O)) => P = {
+    case ((((((((((((((a, b), c), d), e), f), g), h), i), j), k), l), m), n), o) =>
+      fn(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o)
   }
 
-  private def reassociate[A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q](fn: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P) => Q): ((((((((((((((((A, B), C), D), E), F), G), H), I), J), K), L), M), N), O), P)) => Q = {
-    case (((((((((((((((a, b), c), d), e), f), g), h), i), j), k), l), m), n), o), p) => fn(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p)
+  private def reassociate[A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q](
+    fn: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P) => Q
+  ): ((((((((((((((((A, B), C), D), E), F), G), H), I), J), K), L), M), N), O), P)) => Q = {
+    case (((((((((((((((a, b), c), d), e), f), g), h), i), j), k), l), m), n), o), p) =>
+      fn(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p)
   }
 
-  private def reassociate[A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R](fn: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q) => R): (((((((((((((((((A, B), C), D), E), F), G), H), I), J), K), L), M), N), O), P), Q)) => R = {
-    case ((((((((((((((((a, b), c), d), e), f), g), h), i), j), k), l), m), n), o), p), q) => fn(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q)
+  private def reassociate[A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R](
+    fn: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q) => R
+  ): (((((((((((((((((A, B), C), D), E), F), G), H), I), J), K), L), M), N), O), P), Q)) => R = {
+    case ((((((((((((((((a, b), c), d), e), f), g), h), i), j), k), l), m), n), o), p), q) =>
+      fn(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q)
   }
 
-  private def reassociate[A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S](fn: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R) => S): ((((((((((((((((((A, B), C), D), E), F), G), H), I), J), K), L), M), N), O), P), Q), R)) => S = {
-    case (((((((((((((((((a, b), c), d), e), f), g), h), i), j), k), l), m), n), o), p), q), r) => fn(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r)
+  private def reassociate[A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S](
+    fn: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R) => S
+  ): ((((((((((((((((((A, B), C), D), E), F), G), H), I), J), K), L), M), N), O), P), Q), R)) => S = {
+    case (((((((((((((((((a, b), c), d), e), f), g), h), i), j), k), l), m), n), o), p), q), r) =>
+      fn(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r)
   }
 
-  private def reassociate[A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T](fn: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S) => T): (((((((((((((((((((A, B), C), D), E), F), G), H), I), J), K), L), M), N), O), P), Q), R), S)) => T = {
-    case ((((((((((((((((((a, b), c), d), e), f), g), h), i), j), k), l), m), n), o), p), q), r), s) => fn(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s)
+  private def reassociate[A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T](
+    fn: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S) => T
+  ): (((((((((((((((((((A, B), C), D), E), F), G), H), I), J), K), L), M), N), O), P), Q), R), S)) => T = {
+    case ((((((((((((((((((a, b), c), d), e), f), g), h), i), j), k), l), m), n), o), p), q), r), s) =>
+      fn(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s)
   }
 
-  private def reassociate[A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U](fn: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T) => U): ((((((((((((((((((((A, B), C), D), E), F), G), H), I), J), K), L), M), N), O), P), Q), R), S), T)) => U = {
-    case (((((((((((((((((((a, b), c), d), e), f), g), h), i), j), k), l), m), n), o), p), q), r), s), t) => fn(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t)
+  private def reassociate[A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U](
+    fn: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T) => U
+  ): ((((((((((((((((((((A, B), C), D), E), F), G), H), I), J), K), L), M), N), O), P), Q), R), S), T)) => U = {
+    case (((((((((((((((((((a, b), c), d), e), f), g), h), i), j), k), l), m), n), o), p), q), r), s), t) =>
+      fn(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t)
   }
 
-  private def reassociate[A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V](fn: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U) => V): (((((((((((((((((((((A, B), C), D), E), F), G), H), I), J), K), L), M), N), O), P), Q), R), S), T), U)) => V = {
-    case ((((((((((((((((((((a, b), c), d), e), f), g), h), i), j), k), l), m), n), o), p), q), r), s), t), u) => fn(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u)
+  private def reassociate[A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V](
+    fn: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U) => V
+  ): (((((((((((((((((((((A, B), C), D), E), F), G), H), I), J), K), L), M), N), O), P), Q), R), S), T), U)) => V = {
+    case ((((((((((((((((((((a, b), c), d), e), f), g), h), i), j), k), l), m), n), o), p), q), r), s), t), u) =>
+      fn(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u)
   }
 
-  private def reassociate[A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W](fn: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V) => W): ((((((((((((((((((((((A, B), C), D), E), F), G), H), I), J), K), L), M), N), O), P), Q), R), S), T), U), V)) => W = {
-    case (((((((((((((((((((((a, b), c), d), e), f), g), h), i), j), k), l), m), n), o), p), q), r), s), t), u), v) => fn(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v)
+  private def reassociate[A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W](
+    fn: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V) => W
+  ): (
+    (((((((((((((((((((((A, B), C), D), E), F), G), H), I), J), K), L), M), N), O), P), Q), R), S), T), U), V)
+  ) => W = {
+    case (((((((((((((((((((((a, b), c), d), e), f), g), h), i), j), k), l), m), n), o), p), q), r), s), t), u), v) =>
+      fn(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v)
   }
 }
