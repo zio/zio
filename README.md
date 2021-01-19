@@ -51,6 +51,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [DHL Parcel The Netherlands](https://www.werkenbijdhl.nl/it)
 * [Doomoolmori](https://doomoolmori.com/)
 * [Evolution](https://evolution.engineering)
+* [Fugo.ai](https://www.fugo.ai)
 * [Hunters.AI](https://hunters.ai)
 * [iHeartRadio](https://www.iheart.com/)
 * [Investsuite](https://investsuite.com/)
