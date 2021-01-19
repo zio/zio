@@ -16,10 +16,10 @@
 
 package zio.test
 
-import zio.URIO
 import zio.clock.Clock
 import zio.duration._
 import zio.test.environment.TestEnvironment
+import zio.{URIO, ZIO}
 
 /**
  * A default runnable spec that provides testable versions of all of the
@@ -42,8 +42,20 @@ abstract class DefaultRunnableSpec extends RunnableSpec[TestEnvironment, Any] {
     runner.run(aspects.foldLeft(spec)(_ @@ _) @@ TestAspect.fibers)
 
   /**
+   * Builds a suite containing a number of other specs.
+   */
+  def suite[R, E, T](label: String)(specs: Spec[R, E, T]*): Spec[R, E, T] =
+    zio.test.suite(label)(specs: _*)
+
+  /**
    * Builds a spec with a single pure test.
    */
   def test(label: String)(assertion: => TestResult)(implicit loc: SourceLocation): ZSpec[Any, Nothing] =
     zio.test.test(label)(assertion)
+
+  /**
+   * Builds a spec with a single effectful test.
+   */
+  def testM[R, E](label: String)(assertion: => ZIO[R, E, TestResult])(implicit loc: SourceLocation): ZSpec[R, E] =
+    zio.test.testM(label)(assertion)
 }

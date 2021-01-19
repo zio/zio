@@ -74,14 +74,14 @@ object ReportingTestUtils {
       reporter = DefaultTestReporter(TestAnnotationRenderer.default)
     )
 
-  val test1: ZSpec[Any, Nothing] = zio.test.test("Addition works fine")(assert(1 + 1)(equalTo(2)))
+  val test1: ZSpec[Any, Nothing] = test("Addition works fine")(assert(1 + 1)(equalTo(2)))
   val test1Expected: String      = expectedSuccess("Addition works fine")
 
-  val test2: ZSpec[Any, Nothing] = zio.test.test("Subtraction works fine")(assert(1 - 1)(equalTo(0)))
+  val test2: ZSpec[Any, Nothing] = test("Subtraction works fine")(assert(1 - 1)(equalTo(0)))
   val test2Expected: String      = expectedSuccess("Subtraction works fine")
 
   val test3: ZSpec[Any, Nothing] =
-    zio.test.test("Value falls within range")(assert(52)(equalTo(42) || (isGreaterThan(5) && isLessThan(10))))
+    test("Value falls within range")(assert(52)(equalTo(42) || (isGreaterThan(5) && isLessThan(10))))
   val test3Expected: Vector[String] = Vector(
     expectedFailure("Value falls within range"),
     withOffset(2)(s"${blue("52")} did not satisfy ${cyan("equalTo(42)")}\n"),
@@ -106,7 +106,7 @@ object ReportingTestUtils {
       withOffset(2)("No ZIO Trace available.\n")
   )
 
-  val test5: ZSpec[Any, Nothing] = zio.test.test("Addition works fine")(assert(1 + 1)(equalTo(3)))
+  val test5: ZSpec[Any, Nothing] = test("Addition works fine")(assert(1 + 1)(equalTo(3)))
   // the captured expression for `1+1` is different between dotty and 2.x
   def expressionIfNotRedundant(expr: String, value: Any): String =
     Option(expr).filterNot(_ == value.toString).fold(value.toString)(e => s"`$e` = $value")
@@ -119,7 +119,7 @@ object ReportingTestUtils {
   )
 
   val test6: ZSpec[Any, Nothing] =
-    zio.test.test("Multiple nested failures")(assert(Right(Some(3)))(isRight(isSome(isGreaterThan(4)))))
+    test("Multiple nested failures")(assert(Right(Some(3)))(isRight(isSome(isGreaterThan(4)))))
   val test6Expected: Vector[String] = Vector(
     expectedFailure("Multiple nested failures"),
     withOffset(2)(s"${blue("3")} did not satisfy ${cyan("isGreaterThan(4)")}\n"),
@@ -152,7 +152,7 @@ object ReportingTestUtils {
     withOffset(4)(assertSourceLocation() + "\n")
   )
 
-  val test8: ZSpec[Any, Nothing] = zio.test.test("Not combinator") {
+  val test8: ZSpec[Any, Nothing] = test("Not combinator") {
     assert(100)(not(equalTo(100)))
   }
   val test8Expected: Vector[String] = Vector(
@@ -190,7 +190,7 @@ object ReportingTestUtils {
     Vector(withOffset(2)(expectedIgnored("Empty"))) ++
     test3Expected.map(withOffset(2))
 
-  val mock1: ZSpec[Any, Nothing] = zio.test.test("Invalid call") {
+  val mock1: ZSpec[Any, Nothing] = test("Invalid call") {
     throw InvalidCallException(
       List(
         InvalidCapability(PureModuleMock.SingleParam, PureModuleMock.ParameterizedCommand, equalTo(1)),
@@ -212,7 +212,7 @@ object ReportingTestUtils {
     )
   )
 
-  val mock2: ZSpec[Any, Nothing] = zio.test.test("Unsatisfied expectations") {
+  val mock2: ZSpec[Any, Nothing] = test("Unsatisfied expectations") {
     throw UnsatisfiedExpectationsException(
       PureModuleMock.SingleParam(equalTo(2), value("foo")) ++
         PureModuleMock.SingleParam(equalTo(3), value("bar"))
@@ -227,7 +227,7 @@ object ReportingTestUtils {
     withOffset(6)(s"""zio.test.mock.module.PureModuleMock.SingleParam with arguments ${cyan("equalTo(3)")}\n""")
   )
 
-  val mock3: ZSpec[Any, Nothing] = zio.test.test("Extra calls") {
+  val mock3: ZSpec[Any, Nothing] = test("Extra calls") {
     throw UnexpectedCallException(PureModuleMock.ManyParams, (2, "3", 4L))
   }
 
@@ -237,7 +237,7 @@ object ReportingTestUtils {
     withOffset(4)(s"${cyan("(2,3,4)")}\n")
   )
 
-  val mock4: ZSpec[Any, Nothing] = zio.test.test("Invalid range") {
+  val mock4: ZSpec[Any, Nothing] = test("Invalid range") {
     throw InvalidRangeException(4 to 2 by -1)
   }
 
