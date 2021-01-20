@@ -41,6 +41,7 @@ production to craft concurrent applications.
 Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/master/README.md)!
 
 * [adsquare](https://www.adsquare.com/)
+* [Asana](https://asana.com/)
 * [AutoScout24](https://www.autoscout24.de)
 * [Call Handling](https://www.callhandling.co.uk/)
 * [Compellon](https://www.compellon.com/)
