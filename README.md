@@ -41,6 +41,7 @@ production to craft concurrent applications.
 Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/master/README.md)!
 
 * [adsquare](https://www.adsquare.com/)
+* [Asana](https://asana.com/)
 * [AutoScout24](https://www.autoscout24.de)
 * [Call Handling](https://www.callhandling.co.uk/)
 * [Compellon](https://www.compellon.com/)
@@ -48,9 +49,11 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Coralogix](https://coralogix.com)
 * [CurrencyCloud](https://www.currencycloud.com/)
 * [Devsisters](https://devsisters.com/)
+- [Dream11](https://dream11.com)
 * [DHL Parcel The Netherlands](https://www.werkenbijdhl.nl/it)
 * [Doomoolmori](https://doomoolmori.com/)
 * [Evolution](https://evolution.engineering)
+* [Fugo.ai](https://www.fugo.ai)
 * [GrandParade](https://grandparade.co.uk)
 * [Hunters.AI](https://hunters.ai)
 * [iHeartRadio](https://www.iheart.com/)
@@ -69,9 +72,11 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Risk Ident](https://riskident.com/)
 * [Rudder](https://www.rudder.io/)
 * [TomTom](https://tomtom.com)
+* [Tweddle Group](https://tweddle.com)
 * [Unit](https://unit.co)
 * [Univalence](https://univalence.io)
 * [Wehkamp](https://www.wehkamp.nl)
+* [DataChef](https://datachef.co)
 
 # Sponsors
 

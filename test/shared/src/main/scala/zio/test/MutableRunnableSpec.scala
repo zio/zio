@@ -102,7 +102,7 @@ class MutableRunnableSpec[R <: Has[_]](layer: ZLayer[TestEnvironment, Throwable,
   /**
    * Builds a spec with a single pure test.
    */
-  final def test(label: String)(assertion: => TestResult): TestBuilder = {
+  final def test(label: String)(assertion: => TestResult)(implicit loc: SourceLocation): TestBuilder = {
     if (specBuilt)
       throw new InAnotherTestException("Test", label)
     val test    = zio.test.test(label)(assertion)
@@ -114,7 +114,9 @@ class MutableRunnableSpec[R <: Has[_]](layer: ZLayer[TestEnvironment, Throwable,
   /**
    * Builds a spec with a single effectful test.
    */
-  final def testM(label: String)(assertion: => ZIO[R, Failure, TestResult]): TestBuilder = {
+  final def testM(
+    label: String
+  )(assertion: => ZIO[R, Failure, TestResult])(implicit loc: SourceLocation): TestBuilder = {
     if (specBuilt)
       throw new InAnotherTestException("Test", label)
     val test    = zio.test.testM(label)(assertion)
