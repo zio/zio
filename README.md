@@ -48,6 +48,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Coralogix](https://coralogix.com)
 * [CurrencyCloud](https://www.currencycloud.com/)
 * [Devsisters](https://devsisters.com/)
+- [Dream11](https://dream11.com)
 * [DHL Parcel The Netherlands](https://www.werkenbijdhl.nl/it)
 * [Doomoolmori](https://doomoolmori.com/)
 * [Evolution](https://evolution.engineering)
