@@ -78,6 +78,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Unit](https://unit.co)
 * [Univalence](https://univalence.io)
 * [Wehkamp](https://www.wehkamp.nl)
+* [Yandex.Classifieds](https://o.yandex.ru)
 * [DataChef](https://datachef.co)
 
 # Sponsors
