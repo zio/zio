@@ -6,35 +6,49 @@
         });
         </script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/"><img class="logo" src="/img/navbar_brand.png" alt="ZIO"/><h2 class="headerTitleWithLogo">ZIO</h2></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class=""><a href="/docs/overview/overview_index" target="_self">Overview</a></li><li class=""><a href="/docs/datatypes/datatypes_index" target="_self">Data Types</a></li><li class=""><a href="/docs/interop/interop_index" target="_self">Interop</a></li><li class=""><a href="/docs/usecases/usecases_index" target="_self">Use Cases</a></li><li class=""><a href="/docs/howto/howto_index" target="_self">How to</a></li><li class=""><a href="/docs/resources/resources" target="_self">Resources</a></li><li class=""><a href="/docs/ecosystem/ecosystem" target="_self">Ecosystem</a></li><li class=""><a href="/docs/about/about_index" target="_self">About</a></li><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><h1 id="__docusaurus" class="postHeaderTitle">ZLayer</h1></header><article><div><span><p><code>ZLayer[A, E, B]</code> describes a layer of an application: every layer in an
 application requires some services (the input) and produces some services
-(the output). Layers can be thought of as recipes for producing bundles of services, given
-their dependencies (other services).</p>
+(the output). Layers can be thought of as recipes for producing bundles of
+services, given their dependencies (other services).</p>
 <p>Construction of layers can be effectful and utilize resources that must be
 acquired and safely released when the services are done being utilized.</p>
-<p>By default layers are shared, meaning that if the same layer is used twice
-the layer will only be allocated a single time. Because of their excellent composition properties, layers are the idiomatic
-way in ZIO to create services that depend on other services.</p>
+<p>Layers are shared by default, meaning that if the same layer is used twice,
+the layer will only be allocated a single time. Because of their excellent
+composition properties, layers are the idiomatic way in ZIO to create services
+that depend on other services.</p>
 <h3><a class="anchor" aria-hidden="true" id="the-simplest-zlayer-application"></a><a href="#the-simplest-zlayer-application" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>The simplest ZLayer application</h3>
+<p>This application demonstrates a ZIO program with a single dependency on a simple string value.</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> zio._
 
 <span class="hljs-class"><span class="hljs-keyword">object</span> <span class="hljs-title">Example</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">zio</span>.<span class="hljs-title">App</span> </span>{
 
-  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">run</span></span>(args: <span class="hljs-type">List</span>[<span class="hljs-type">String</span>]): <span class="hljs-type">URIO</span>[<span class="hljs-type">ZEnv</span>, <span class="hljs-type">ExitCode</span>] =
-    zio.provideLayer(nameLayer).as(<span class="hljs-type">ExitCode</span>.success)
-
-  <span class="hljs-keyword">val</span> zio = <span class="hljs-keyword">for</span> {
+  <span class="hljs-comment">// Define our simple ZIO program</span>
+  <span class="hljs-keyword">val</span> zio: <span class="hljs-type">ZIO</span>[<span class="hljs-type">Has</span>[<span class="hljs-type">String</span>], <span class="hljs-type">Nothing</span>, <span class="hljs-type">Unit</span>] = <span class="hljs-keyword">for</span> {
     name &lt;- <span class="hljs-type">ZIO</span>.access[<span class="hljs-type">Has</span>[<span class="hljs-type">String</span>]](_.get)
     _    &lt;- <span class="hljs-type">UIO</span>(println(<span class="hljs-string">s"Hello, <span class="hljs-subst">$name</span>!"</span>))
   } <span class="hljs-keyword">yield</span> ()
 
-  <span class="hljs-keyword">val</span> nameLayer = <span class="hljs-type">ZLayer</span>.succeed(<span class="hljs-string">"Adam"</span>)}
+  <span class="hljs-comment">// Create a ZLayer that produces a string and can be used to satisfy a string</span>
+  <span class="hljs-comment">// dependency that the program has</span>
+  <span class="hljs-keyword">val</span> nameLayer: <span class="hljs-type">ULayer</span>[<span class="hljs-type">Has</span>[<span class="hljs-type">String</span>]] = <span class="hljs-type">ZLayer</span>.succeed(<span class="hljs-string">"Adam"</span>)
+
+  <span class="hljs-comment">// Run the program, providing the `nameLayer`</span>
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">run</span></span>(args: <span class="hljs-type">List</span>[<span class="hljs-type">String</span>]): <span class="hljs-type">URIO</span>[<span class="hljs-type">ZEnv</span>, <span class="hljs-type">ExitCode</span>] =
+    zio.provideLayer(nameLayer).as(<span class="hljs-type">ExitCode</span>.success)
+}
 
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="zlayer-application-with-dependencies"></a><a href="#zlayer-application-with-dependencies" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>ZLayer application with dependencies</h3>
+<p>In the following example, our ZIO application has several dependencies:</p>
+<ul>
+<li><code>zio.clock.Clock</code></li>
+<li><code>zio.console.Console</code></li>
+<li><code>ModuleB</code></li>
+</ul>
+<p><code>ModuleB</code> in turn depends upon <code>ModuleA</code>.</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> zio._
-<span class="hljs-keyword">import</span> zio.console._
 <span class="hljs-keyword">import</span> zio.clock._
-<span class="hljs-keyword">import</span> java.io.<span class="hljs-type">IOException</span>
+<span class="hljs-keyword">import</span> zio.console._
 <span class="hljs-keyword">import</span> zio.duration.<span class="hljs-type">Duration</span>._
+<span class="hljs-keyword">import</span> java.io.<span class="hljs-type">IOException</span>
 
 <span class="hljs-class"><span class="hljs-keyword">object</span> <span class="hljs-title">moduleA</span> </span>{
   <span class="hljs-class"><span class="hljs-keyword">type</span> <span class="hljs-title">ModuleA</span> </span>= <span class="hljs-type">Has</span>[<span class="hljs-type">ModuleA</span>.<span class="hljs-type">Service</span>]
@@ -107,6 +121,7 @@ way in ZIO to create services that depend on other services.</p>
 <span class="hljs-comment">// done: v = 10 </span>
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="zlayer-example-with-complex-dependencies"></a><a href="#zlayer-example-with-complex-dependencies" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>ZLayer example with complex dependencies</h3>
+<p>In this example, we can see that <code>ModuleC</code> depends upon <code>ModuleA</code>, <code>ModuleB</code>, and <code>Clock</code>. The layer provided to the runnable application shows how dependency layers can be combined using <code>++</code> into a single combined layer. The combined layer will then be able to produce both of the outputs of the original layers as a single layer.</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> zio._
 <span class="hljs-keyword">import</span> zio.clock._
 
@@ -170,7 +185,7 @@ way in ZIO to create services that depend on other services.</p>
   <span class="hljs-comment">// 42</span>
 }
 </code></pre>
-</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"></nav></div><footer class="nav-footer" id="footer"><section class="sitemap"><a href="/" class="nav-home"><img src="/img/navbar_brand.png" alt="ZIO"/></a><div><h5>GitHub</h5><a href="https://github.com/zio/zio"><img src="https://img.shields.io/github/stars/zio/zio?style=social" alt="github"/></a></div><div><h5>Chat with us on Discord</h5><a href="https://discord.gg/2ccFBr4"><img src="https://img.shields.io/discord/629491597070827530?logo=discord&amp;style=social" alt="discord"/></a></div><div><h5>Follow us on Twitter</h5><a href="https://twitter.com/zioscala"><img src="https://img.shields.io/twitter/follow/zioscala?label=Follow&amp;style=social" alt="twitter"/></a></div><div><h5>Additional resources</h5><a href="https://javadoc.io/doc/dev.zio/zio_2.12/">Scaladoc of zio</a></div><div><a href="https://www.netlify.com"><img src="https://www.netlify.com/img/global/badges/netlify-color-accent.svg" alt="Deploys by Netlify"/></a></div></section><section class="copyright">Copyright © 2020 ZIO Maintainers</section></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>
+</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"></nav></div><footer class="nav-footer" id="footer"><section class="sitemap"><a href="/" class="nav-home"><img src="/img/navbar_brand.png" alt="ZIO"/></a><div><h5>GitHub</h5><a href="https://github.com/zio/zio"><img src="https://img.shields.io/github/stars/zio/zio?style=social" alt="github"/></a></div><div><h5>Chat with us on Discord</h5><a href="https://discord.gg/2ccFBr4"><img src="https://img.shields.io/discord/629491597070827530?logo=discord&amp;style=social" alt="discord"/></a></div><div><h5>Follow us on Twitter</h5><a href="https://twitter.com/zioscala"><img src="https://img.shields.io/twitter/follow/zioscala?label=Follow&amp;style=social" alt="twitter"/></a></div><div><h5>Additional resources</h5><a href="https://javadoc.io/doc/dev.zio/zio_2.12/">Scaladoc of zio</a></div><div><a href="https://www.netlify.com"><img src="https://www.netlify.com/img/global/badges/netlify-color-accent.svg" alt="Deploys by Netlify"/></a></div></section><section class="copyright">Copyright © 2021 ZIO Maintainers</section></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>
                 document.addEventListener('keyup', function(e) {
                   if (e.target !== document.body) {
                     return;
