@@ -42,6 +42,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 
 * [adsquare](https://www.adsquare.com/)
 * [Asana](https://asana.com/)
+* [auto.ru](https://auto.ru)
 * [AutoScout24](https://www.autoscout24.de)
 * [Call Handling](https://www.callhandling.co.uk/)
 * [Compellon](https://www.compellon.com/)
