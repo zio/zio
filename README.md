@@ -44,6 +44,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Asana](https://asana.com/)
 * [auto.ru](https://auto.ru)
 * [AutoScout24](https://www.autoscout24.de)
+* [Avast](https://www.avast.com)
 * [Call Handling](https://www.callhandling.co.uk/)
 * [Compellon](https://www.compellon.com/)
 * [Contramap](https://www.contramap.dev)
