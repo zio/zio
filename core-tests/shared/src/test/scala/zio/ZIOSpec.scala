@@ -899,12 +899,12 @@ object ZIOSpec extends ZIOBaseSpec {
       } @@ nonFlaky,
       testM("infers correctly") {
         for {
-          ref <- Ref.make(0)
-          worker = ZIO.never
+          ref    <- Ref.make(0)
+          worker  = ZIO.never
           workers = List.fill(4)(worker)
-          fiber <- ZIO.forkAll(workers)
-          _     <- fiber.interrupt
-          value <- ref.get
+          fiber  <- ZIO.forkAll(workers)
+          _      <- fiber.interrupt
+          value  <- ref.get
         } yield assert(value)(equalTo(0))
       }
     ),
