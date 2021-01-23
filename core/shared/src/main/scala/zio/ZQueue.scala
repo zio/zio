@@ -106,23 +106,23 @@ sealed abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { 
    * is less than min items available, it'll block until the items are
    * collected.
    */
-  final def takeBetween(min: Int, max: Int): ZIO[RB, EB, List[B]] =
-    if (max < min) UIO.succeedNow(Nil)
-    else
-      takeUpTo(max).flatMap { bs =>
-        val remaining = min - bs.length
+  final def takeBetween(min: Int, max: Int): ZIO[RB, EB, List[B]] = {
 
-        if (remaining == 1)
-          take.map(bs :+ _)
-        else if (remaining > 1) {
-          def takeRemainder(n: Int): ZIO[RB, EB, List[B]] =
-            if (n <= 0) ZIO.succeed(Nil)
-            else take.flatMap(a => takeRemainder(n - 1).map(a :: _))
+    def takeRemainder(min: Int, max: Int, acc: Chunk[B]): ZIO[RB, EB, Chunk[B]] =
+      if (max < min) UIO.succeedNow(acc)
+      else
+        takeUpTo(max).flatMap { bs =>
+          val remaining = min - bs.length
+          if (remaining == 1)
+            take.map(b => acc ++ bs ++ Chunk(b))
+          else if (remaining > 1) {
+            take.flatMap(b => takeRemainder(remaining - 1, max - bs.length - 1, acc ++ bs ++ Chunk(b)))
+          } else
+            UIO.succeedNow(acc ++ bs)
+        }
 
-          takeRemainder(remaining).map(list => bs ++ list.reverse)
-        } else
-          UIO.succeedNow(bs)
-      }
+    takeRemainder(min, max, Chunk.empty).map(_.toList)
+  }
 
   /**
    * Alias for `both`.
