@@ -103,9 +103,10 @@ sealed abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { 
   def takeUpTo(max: Int): ZIO[RB, EB, List[B]]
 
   /**
-   * Takes between min and max number of values from the queue. If there
-   * is less than min items available, it'll block until the items are
-   * collected.
+   * Takes a number of elements from the queue between the specified minimum
+   * and maximum. If there are fewer than the minimum number of elements
+   * available, suspends until at least the minimum number of elements have
+   * been collected.
    */
   final def takeBetween(min: Int, max: Int): ZIO[RB, EB, List[B]] =
     ZIO.effectSuspendTotal {
