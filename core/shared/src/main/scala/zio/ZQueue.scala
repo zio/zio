@@ -20,6 +20,7 @@ import zio.ZQueue.internal._
 import zio.internal.MutableConcurrentQueue
 
 import java.util.concurrent.atomic.AtomicBoolean
+import scala.collection.mutable.ListBuffer
 import scala.annotation.tailrec
 
 /**
@@ -106,23 +107,29 @@ sealed abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { 
    * is less than min items available, it'll block until the items are
    * collected.
    */
-  final def takeBetween(min: Int, max: Int): ZIO[RB, EB, List[B]] = {
+  final def takeBetween(min: Int, max: Int): ZIO[RB, EB, List[B]] =
+    ZIO.effectSuspendTotal {
+      val buffer = ListBuffer[B]()
 
-    def takeRemainder(min: Int, max: Int, acc: Chunk[B]): ZIO[RB, EB, Chunk[B]] =
-      if (max < min) UIO.succeedNow(acc)
-      else
-        takeUpTo(max).flatMap { bs =>
-          val remaining = min - bs.length
-          if (remaining == 1)
-            take.map(b => acc ++ bs ++ Chunk(b))
-          else if (remaining > 1) {
-            take.flatMap(b => takeRemainder(remaining - 1, max - bs.length - 1, acc ++ bs ++ Chunk(b)))
-          } else
-            UIO.succeedNow(acc ++ bs)
-        }
+      def takeRemainder(min: Int, max: Int): ZIO[RB, EB, Unit] =
+        if (max < min) ZIO.unit
+        else
+          takeUpTo(max).flatMap { bs =>
+            buffer ++= bs
+            val remaining = min - bs.length
+            if (remaining == 1)
+              take.map(b => buffer += b)
+            else if (remaining > 1) {
+              take.flatMap { b =>
+                buffer += b
+                takeRemainder(remaining - 1, max - bs.length - 1)
+              }
+            } else
+              ZIO.unit
+          }
 
-    takeRemainder(min, max, Chunk.empty).map(_.toList)
-  }
+      takeRemainder(min, max).as(buffer.toList)
+    }
 
   /**
    * Alias for `both`.
