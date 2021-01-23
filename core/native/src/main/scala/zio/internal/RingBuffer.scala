@@ -16,6 +16,8 @@
 
 package zio.internal
 
+import zio.{Chunk, ChunkBuilder}
+
 object RingBuffer {
 
   /**
@@ -109,6 +111,64 @@ final class RingBuffer[A](override final val capacity: Int) extends MutableConcu
     }
   }
 
+  override def offerAll(as: Iterable[A]): Iterable[A] = {
+    var curSeq  = 0L
+    var curHead = 0L
+    var curTail = tail
+    var curIdx  = 0
+    val offers   = as.size.toLong
+    var forQueue = math.min(offers, capacity - (curTail - curHead))
+    var enqTail  = 0L
+    var state   = STATE_LOOP
+
+    while (state == STATE_LOOP) {
+      if (forQueue == 0) {
+        state = STATE_FULL
+      } else {
+        curIdx = posToIdx(curTail, capacity)
+        curSeq = seq(curIdx)
+        if (curSeq < curTail) {
+          curHead = head
+          if (curTail >= curHead + capacity) {
+            state = STATE_LOOP
+          } else {
+            state = STATE_FULL
+          }
+        } else if (curSeq == curTail) {
+          enqTail = curTail + forQueue
+          if (tail == curTail) {
+            tail = enqTail
+            state = STATE_RESERVED
+          } else {
+            curTail += 1
+            forQueue -= 1
+            state = STATE_LOOP
+          }
+        } else {
+          curHead = head
+          curTail = tail
+          forQueue = math.min(offers, capacity - (curTail - curHead))
+          state = STATE_LOOP
+        }
+
+      }
+    }
+
+    if (state == STATE_RESERVED) {
+      val iterator = as.iterator
+      while (curTail < enqTail) {
+        val a = iterator.next()
+        curIdx = posToIdx(curTail, capacity)
+        buf(curIdx) = a.asInstanceOf[AnyRef]
+        seq(curIdx) = curTail + 1
+        curTail += 1
+      }
+      Chunk.fromIterator(iterator)
+    } else {
+      as
+    }
+  }
+
   override def poll(default: A): A = {
     var curSeq  = 0L
     var curHead = head
@@ -181,6 +241,65 @@ final class RingBuffer[A](override final val capacity: Int) extends MutableConcu
       deqElement.asInstanceOf[A]
     } else {
       default
+    }
+  }
+
+  override def pollUpTo(n: Int): Iterable[A] = {
+    var curSeq  = 0L
+    var curHead = head
+    var curIdx  = 0
+    var curTail = 0L
+    val takers  = n.toLong
+    var toTake  = math.min(takers, curTail - curHead)
+    var deqHead = 0L
+    var state   = STATE_LOOP
+
+    while (state == STATE_LOOP) {
+      if (toTake == 0) {
+        state = STATE_EMPTY
+      } else {
+        curIdx = posToIdx(curHead, capacity)
+        curSeq = seq(curIdx)
+        if (curSeq <= curHead) {
+          curTail = tail
+          if (curHead >= curTail) {
+            state = STATE_EMPTY
+          } else {
+            state = STATE_LOOP
+          }
+        } else if (curSeq == curHead + 1) {
+          deqHead = curHead + toTake
+          if (head == curHead) {
+            head = deqHead
+            state = STATE_RESERVED
+          } else {
+            curHead += 1
+            toTake -= 1
+            state = STATE_LOOP
+          }
+        } else {
+          curHead = head
+          curTail = tail
+          toTake = math.min(takers, curTail - curHead)
+          state = STATE_LOOP
+        }
+      }
+    }
+
+    if (state == STATE_RESERVED) {
+      val builder = ChunkBuilder.make[A]()
+      builder.sizeHint(n)
+      while (curHead < deqHead) {
+        curIdx = posToIdx(curHead, capacity)
+        val a = buf(curIdx).asInstanceOf[A]
+        buf(curIdx) = null
+        seq(curIdx) = curHead + capacity
+        builder += a
+        curHead += 1
+      }
+      builder.result()
+    } else {
+      Chunk.empty
     }
   }
 

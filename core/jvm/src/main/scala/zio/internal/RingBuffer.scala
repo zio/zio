@@ -17,6 +17,7 @@
 package zio.internal
 
 import zio.internal.MutableQueueFieldsPadding.{headUpdater, tailUpdater}
+import zio.{Chunk, ChunkBuilder}
 
 import java.util.concurrent.atomic.AtomicLongArray
 
@@ -246,6 +247,72 @@ abstract class RingBuffer[A](override final val capacity: Int) extends MutableQu
     }
   }
 
+  override final def offerAll(as: Iterable[A]): Iterable[A] = {
+    val aCapacity = capacity
+
+    val aSeq   = seq
+    var curSeq = 0L
+
+    val aHead   = headUpdater
+    var curHead = aHead.get(this)
+
+    val aTail   = tailUpdater
+    var curTail = aTail.get(this)
+    var curIdx  = 0
+
+    val offers   = as.size.toLong
+    var forQueue = math.min(offers, aCapacity - (curTail - curHead))
+    var enqTail  = 0L
+
+    var state = STATE_LOOP
+
+    while (state == STATE_LOOP) {
+      if (forQueue == 0) {
+        state = STATE_FULL
+      } else {
+        curIdx = posToIdx(curTail, aCapacity)
+        curSeq = aSeq.get(curIdx)
+        if (curSeq < curTail) {
+          curHead = aHead.get(this)
+          if (curTail >= curHead + aCapacity) {
+            state = STATE_LOOP
+          } else {
+            state = STATE_FULL
+          }
+        } else if (curSeq == curTail) {
+          enqTail = curTail + forQueue
+          if (aTail.compareAndSet(this, curTail, enqTail)) {
+            state = STATE_RESERVED
+          } else {
+            curTail += 1
+            forQueue -= 1
+            state = STATE_LOOP
+          }
+        } else {
+          curHead = aHead.get(this)
+          curTail = aTail.get(this)
+          forQueue = math.min(offers, aCapacity - (curTail - curHead))
+          state = STATE_LOOP
+        }
+
+      }
+    }
+
+    if (state == STATE_RESERVED) {
+      val iterator = as.iterator
+      while (curTail < enqTail) {
+        val a = iterator.next()
+        curIdx = posToIdx(curTail, aCapacity)
+        buf(curIdx) = a.asInstanceOf[AnyRef]
+        aSeq.lazySet(curIdx, curTail + 1)
+        curTail += 1
+      }
+      Chunk.fromIterator(iterator)
+    } else {
+      as
+    }
+  }
+
   override final def poll(default: A): A = {
     // Loading all instance fields locally. Otherwise JVM will reload
     // them after every volatile read in a loop below.
@@ -333,6 +400,73 @@ abstract class RingBuffer[A](override final val capacity: Int) extends MutableQu
       deqElement.asInstanceOf[A]
     } else {
       default
+    }
+  }
+
+  override final def pollUpTo(n: Int): Iterable[A] = {
+    val aCapacity = capacity
+
+    val aSeq   = seq
+    var curSeq = 0L
+
+    val aHead   = headUpdater
+    var curHead = aHead.get(this)
+    var curIdx  = 0
+
+    val aTail   = tailUpdater
+    var curTail = aTail.get(this)
+
+    val takers  = n.toLong
+    var toTake  = math.min(takers, curTail - curHead)
+    var deqHead = 0L
+
+    var state = STATE_LOOP
+
+    while (state == STATE_LOOP) {
+      if (toTake == 0) {
+        state = STATE_EMPTY
+      } else {
+        curIdx = posToIdx(curHead, aCapacity)
+        curSeq = aSeq.get(curIdx)
+        if (curSeq <= curHead) {
+          curTail = aTail.get(this)
+          if (curHead >= curTail) {
+            state = STATE_EMPTY
+          } else {
+            state = STATE_LOOP
+          }
+        } else if (curSeq == curHead + 1) {
+          deqHead = curHead + toTake
+          if (aHead.compareAndSet(this, curHead, deqHead)) {
+            state = STATE_RESERVED
+          } else {
+            curHead += 1
+            toTake -= 1
+            state = STATE_LOOP
+          }
+        } else {
+          curHead = aHead.get(this)
+          curTail = aTail.get(this)
+          toTake = math.min(takers, curTail - curHead)
+          state = STATE_LOOP
+        }
+      }
+    }
+
+    if (state == STATE_RESERVED) {
+      val builder = ChunkBuilder.make[A]()
+      builder.sizeHint(n)
+      while (curHead < deqHead) {
+        curIdx = posToIdx(curHead, aCapacity)
+        val a = buf(curIdx).asInstanceOf[A]
+        buf(curIdx) = null
+        aSeq.lazySet(curIdx, curHead + aCapacity)
+        builder += a
+        curHead += 1
+      }
+      builder.result()
+    } else {
+      Chunk.empty
     }
   }
 
