@@ -248,7 +248,7 @@ final class RingBuffer[A](override final val capacity: Int) extends MutableConcu
     var curSeq  = 0L
     var curHead = head
     var curIdx  = 0
-    var curTail = 0L
+    var curTail = tail
     val takers  = n.toLong
     var toTake  = math.min(takers, curTail - curHead)
     var deqHead = 0L
