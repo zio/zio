@@ -20,8 +20,8 @@ import zio.ZQueue.internal._
 import zio.internal.MutableConcurrentQueue
 
 import java.util.concurrent.atomic.AtomicBoolean
-import scala.collection.mutable.ListBuffer
 import scala.annotation.tailrec
+import scala.collection.mutable.ListBuffer
 
 /**
  * A `ZQueue[RA, RB, EA, EB, A, B]` is a lightweight, asynchronous queue into which values of
