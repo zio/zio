@@ -112,14 +112,14 @@ final class RingBuffer[A](override final val capacity: Int) extends MutableConcu
   }
 
   override def offerAll(as: Iterable[A]): Iterable[A] = {
-    var curSeq  = 0L
-    var curHead = 0L
-    var curTail = tail
-    var curIdx  = 0
+    var curSeq   = 0L
+    var curHead  = 0L
+    var curTail  = tail
+    var curIdx   = 0
     val offers   = as.size.toLong
     var forQueue = math.min(offers, capacity - (curTail - curHead))
     var enqTail  = 0L
-    var state   = STATE_LOOP
+    var state    = STATE_LOOP
 
     while (state == STATE_LOOP) {
       if (forQueue == 0) {
