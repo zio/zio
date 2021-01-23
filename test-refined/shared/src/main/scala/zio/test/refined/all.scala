@@ -6,3 +6,4 @@ object all
     with CollectionInstances
     with GenericInstances
     with StringInstances
+    with NumericInstances
