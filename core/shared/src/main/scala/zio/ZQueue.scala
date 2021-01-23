@@ -112,7 +112,7 @@ sealed abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { 
     ZIO.effectSuspendTotal {
       val buffer = ListBuffer[B]()
 
-      def takeRemainder(min: Int, max: Int): ZIO[RB, EB, Unit] =
+      def takeRemainder(min: Int, max: Int): ZIO[RB, EB, Any] =
         if (max < min) ZIO.unit
         else
           takeUpTo(max).flatMap { bs =>
