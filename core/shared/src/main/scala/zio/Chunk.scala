@@ -1118,7 +1118,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
   def fromArray[A](array: Array[A]): Chunk[A] =
     (if (array.isEmpty) Empty
      else
-       array.asInstanceOf[AnyRef] match {
+       (array.asInstanceOf[AnyRef]: @unchecked) match {
          case x: Array[AnyRef]  => AnyRefArray(x)
          case x: Array[Int]     => IntArray(x)
          case x: Array[Double]  => DoubleArray(x)
