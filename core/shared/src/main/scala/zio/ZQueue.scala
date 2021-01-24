@@ -21,6 +21,7 @@ import zio.internal.MutableConcurrentQueue
 
 import java.util.concurrent.atomic.AtomicBoolean
 import scala.annotation.tailrec
+import scala.collection.mutable.ListBuffer
 
 /**
  * A `ZQueue[RA, RB, EA, EB, A, B]` is a lightweight, asynchronous queue into which values of
@@ -102,27 +103,35 @@ sealed abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { 
   def takeUpTo(max: Int): ZIO[RB, EB, List[B]]
 
   /**
-   * Takes between min and max number of values from the queue. If there
-   * is less than min items available, it'll block until the items are
-   * collected.
+   * Takes a number of elements from the queue between the specified minimum
+   * and maximum. If there are fewer than the minimum number of elements
+   * available, suspends until at least the minimum number of elements have
+   * been collected.
    */
   final def takeBetween(min: Int, max: Int): ZIO[RB, EB, List[B]] =
-    if (max < min) UIO.succeedNow(Nil)
-    else
-      takeUpTo(max).flatMap { bs =>
-        val remaining = min - bs.length
+    ZIO.effectSuspendTotal {
+      val buffer = ListBuffer[B]()
 
-        if (remaining == 1)
-          take.map(bs :+ _)
-        else if (remaining > 1) {
-          def takeRemainder(n: Int): ZIO[RB, EB, List[B]] =
-            if (n <= 0) ZIO.succeed(Nil)
-            else take.flatMap(a => takeRemainder(n - 1).map(a :: _))
+      def takeRemainder(min: Int, max: Int): ZIO[RB, EB, Any] =
+        if (max < min) ZIO.unit
+        else
+          takeUpTo(max).flatMap { bs =>
+            val remaining = min - bs.length
+            if (remaining == 1)
+              take.flatMap(b => ZIO.effectTotal(buffer ++= bs += b))
+            else if (remaining > 1) {
+              take.flatMap { b =>
+                ZIO.effectSuspendTotal {
+                  buffer ++= bs += b
+                  takeRemainder(remaining - 1, max - bs.length - 1)
+                }
+              }
+            } else
+              ZIO.effectTotal(buffer ++= bs)
+          }
 
-          takeRemainder(remaining).map(list => bs ++ list.reverse)
-        } else
-          UIO.succeedNow(bs)
-      }
+      takeRemainder(min, max).as(buffer.toList)
+    }
 
   /**
    * Alias for `both`.
