@@ -1880,11 +1880,27 @@ object ZManaged extends ZManagedPlatformSpecific {
     makeExit(acquire)((a, _) => release(a))
 
   /**
+   * Lifts a `ZIO[R, E, A]` into `ZManaged[R, E, A]` with a release action
+   * that does not need access to the resource. The acquire and release actions
+   * will be performed uninterruptibly.
+   */
+  def make_[R, R1 <: R, E, A](acquire: ZIO[R, E, A])(release: ZIO[R1, Nothing, Any]): ZManaged[R1, E, A] =
+    make(acquire)(_ => release)
+
+  /**
    * Lifts a synchronous effect into `ZManaged[R, Throwable, A]` with a release action.
    * The acquire and release actions will be performed uninterruptibly.
    */
   def makeEffect[A](acquire: => A)(release: A => Any): ZManaged[Any, Throwable, A] =
     make(Task(acquire))(a => Task(release(a)).orDie)
+
+  /**
+   * Lifts a synchronous effect into `ZManaged[R, Throwable, A]` with a release
+   * action that does not need access to the resource. The acquire and release
+   * actions will be performed uninterruptibly.
+   */
+  def makeEffect_[A](acquire: => A)(release: => Any): ZManaged[Any, Throwable, A] =
+    makeEffect(acquire)(_ => release)
 
   /**
    * Lifts a `ZIO[R, E, A]` into `ZManaged[R, E, A]` with a release action that handles `Exit`.
@@ -1902,6 +1918,16 @@ object ZManaged extends ZManagedPlatformSpecific {
     }
 
   /**
+   * Lifts a `ZIO[R, E, A]` into `ZManaged[R, E, A]` with a release action that
+   * does not need access to the resource but handles `Exit`. The acquire and
+   * release actions will be performed uninterruptibly.
+   */
+  def makeExit_[R, R1 <: R, E, A](acquire: ZIO[R, E, A])(
+    release: Exit[Any, Any] => ZIO[R1, Nothing, Any]
+  ): ZManaged[R1, E, A] =
+    makeExit(acquire)((_, exit) => release(exit))
+
+  /**
    * Lifts a ZIO[R, E, A] into ZManaged[R, E, A] with a release action.
    * The acquire action will be performed interruptibly, while release
    * will be performed uninterruptibly.
@@ -1910,6 +1936,16 @@ object ZManaged extends ZManagedPlatformSpecific {
     acquire: ZIO[R, E, A]
   )(release: A => URIO[R, Any]): ZManaged[R, E, A] =
     ZManaged.fromEffect(acquire).onExitFirst(_.foreach(release))
+
+  /**
+   * Lifts a ZIO[R, E, A] into ZManaged[R, E, A] with a release action that
+   * does not require access to the resource. The acquire action will be
+   * performed interruptibly, while release will be performed uninterruptibly.
+   */
+  def makeInterruptible_[R, R1 <: R, E, A](
+    acquire: ZIO[R, E, A]
+  )(release: ZIO[R1, Nothing, Any]): ZManaged[R1, E, A] =
+    makeInterruptible[R1, E, A](acquire)(_ => release)
 
   /**
    * Creates a ZManaged from a [[Reservation]] produced by an effect. Evaluating

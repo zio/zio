@@ -16,10 +16,10 @@
 
 package zio.stm
 
-import java.util.concurrent.atomic.AtomicReference
-
 import zio.UIO
 import zio.stm.ZSTM.internal._
+
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * A `ZTRef[EA, EB, A, B]` is a polymorphic, purely functional description of a

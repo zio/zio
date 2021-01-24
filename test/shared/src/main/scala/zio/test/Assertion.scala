@@ -17,10 +17,10 @@
 package zio.test
 
 import zio.test.AssertionM.RenderParam
-import zio.{ Cause, Exit, ZIO }
+import zio.{Cause, Exit, ZIO}
 
 import scala.reflect.ClassTag
-import scala.util.{ Failure, Success, Try }
+import scala.util.{Failure, Success, Try}
 
 /**
  * An `Assertion[A]` is capable of producing assertion results on an `A`. As a
@@ -635,7 +635,7 @@ object Assertion extends AssertionVariants {
    *
    * Example:
    * {{{
-   *   assert(Duration.fromNanos(1), isSubtype[Duration.Finite](Assertion.anything))
+   *   assert(Duration.fromNanos(1))(isSubtype[Duration.Finite](Assertion.anything))
    * }}}
    */
   def isSubtype[A](assertion: Assertion[A])(implicit C: ClassTag[A]): Assertion[Any] =

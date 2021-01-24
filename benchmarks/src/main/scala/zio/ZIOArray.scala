@@ -1,6 +1,6 @@
 package zio
 
-import scala.{ Array, Boolean, Int, Unit }
+import scala.{Array, Boolean, Int, Unit}
 
 object ZIOArray {
 

@@ -1,7 +1,7 @@
 package zio.stm
 
 import zio.test._
-import zio.{ UIO, ZIOBaseSpec }
+import zio.{UIO, ZIOBaseSpec}
 
 object STMLazinessSpec extends ZIOBaseSpec {
 

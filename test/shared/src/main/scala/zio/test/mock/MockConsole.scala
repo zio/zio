@@ -16,10 +16,10 @@
 
 package zio.test.mock
 
-import java.io.IOException
-
 import zio.console.Console
-import zio.{ Has, IO, UIO, URLayer, ZLayer }
+import zio.{Has, IO, UIO, URLayer, ZLayer}
+
+import java.io.IOException
 
 object MockConsole extends Mock[Console] {
 

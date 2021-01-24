@@ -122,7 +122,7 @@ class Index extends React.Component {
                 },
                 {
                   title: '',
-                  image: `${baseUrl}img/softwaremill.svg`,
+                  image: `https://files.softwaremill.com/logo/logo_vertical.png`,
                   imageAlt: 'SoftwareMill',
                   imageLink: 'https://softwaremill.com/',
                   imageAlign: 'top',

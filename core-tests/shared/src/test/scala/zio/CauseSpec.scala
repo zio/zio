@@ -1,6 +1,6 @@
 package zio
 
-import zio.Cause.{ Both, Then }
+import zio.Cause.{Both, Then}
 import zio.random.Random
 import zio.test.Assertion._
 import zio.test._
@@ -25,7 +25,7 @@ object CauseSpec extends ZIOBaseSpec {
       testM("`Cause#untraced` removes all traces") {
         check(causes)(c => assert(c.untraced.traces.headOption)(isNone))
       },
-      zio.test.test("`Cause.failures is stack safe") {
+      test("`Cause.failures is stack safe") {
         val n     = 100000
         val cause = List.fill(n)(Cause.fail("fail")).reduce(_ && _)
         assert(cause.failures.length)(equalTo(n))
@@ -210,14 +210,14 @@ object CauseSpec extends ZIOBaseSpec {
       }
     ),
     suite("stripSomeDefects")(
-      zio.test.test("returns `Some` with remaining causes") {
+      test("returns `Some` with remaining causes") {
         val c1       = Cause.die(new NumberFormatException("can't parse to int"))
         val c2       = Cause.die(new ArithmeticException("division by zero"))
         val cause    = Cause.Both(c1, c2)
         val stripped = cause.stripSomeDefects { case _: NumberFormatException => }
         assert(stripped)(isSome(equalTo(c2)))
       },
-      zio.test.test("returns `None` if there are no remaining causes") {
+      test("returns `None` if there are no remaining causes") {
         val cause    = Cause.die(new NumberFormatException("can't parse to int"))
         val stripped = cause.stripSomeDefects { case _: NumberFormatException => }
         assert(stripped)(isNone)

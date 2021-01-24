@@ -16,10 +16,9 @@
 
 package zio.test.mock.module
 
-import com.github.ghik.silencer.silent
 import zio.stream.ZSink
-import zio.test.mock.{ Mock, Proxy }
-import zio.{ Has, UIO, URLayer, ZLayer }
+import zio.test.mock.{Mock, Proxy}
+import zio.{Has, UIO, URLayer, ZLayer}
 
 /**
  * Example module used for testing ZIO Mock framework.
@@ -29,7 +28,6 @@ object StreamModuleMock extends Mock[StreamModule] {
   object Sink   extends Sink[Any, String, Int, Nothing, List[Int]]
   object Stream extends Stream[Any, String, Int]
 
-  @silent("is never used")
   val compose: URLayer[Has[Proxy], StreamModule] =
     ZLayer.fromServiceM { proxy =>
       withRuntime.map { rts =>

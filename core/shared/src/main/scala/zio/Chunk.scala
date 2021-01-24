@@ -18,10 +18,9 @@ package zio
 
 import java.nio._
 import java.util.concurrent.atomic.AtomicInteger
-
 import scala.annotation.tailrec
 import scala.collection.mutable.Builder
-import scala.reflect.{ ClassTag, classTag }
+import scala.reflect.{ClassTag, classTag}
 
 /**
  * A `Chunk[A]` represents a chunk of values of type `A`. Chunks are designed
@@ -691,6 +690,41 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
     ev(apply(index))
 
   /**
+   * Splits this chunk into `n` equally sized chunks.
+   */
+  final def split(n: Int): Chunk[Chunk[A]] = {
+    val length    = self.length
+    val quotient  = length / n
+    val remainder = length % n
+    val iterator  = self.iterator
+    val chunks    = ChunkBuilder.make[Chunk[A]]()
+    var i         = 0
+    while (i < remainder) {
+      val chunk = ChunkBuilder.make[A]()
+      var j     = 0
+      while (j <= quotient) {
+        chunk += iterator.next()
+        j += 1
+      }
+      chunks += chunk.result()
+      i += 1
+    }
+    if (quotient > 0) {
+      while (i < n) {
+        val chunk = ChunkBuilder.make[A]()
+        var j     = 0
+        while (j < quotient) {
+          chunk += iterator.next()
+          j += 1
+        }
+        chunks += chunk.result()
+        i += 1
+      }
+    }
+    chunks.result()
+  }
+
+  /**
    * Returns two splits of this chunk at the specified index.
    */
   override final def splitAt(n: Int): (Chunk[A], Chunk[A]) =
@@ -1187,6 +1221,15 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
         builder ++= iterable
         builder.result()
     }
+
+  /**
+   * Creates a chunk from an iterator.
+   */
+  def fromIterator[A](iterator: Iterator[A]): Chunk[A] = {
+    val builder = ChunkBuilder.make[A]()
+    builder ++= iterator
+    builder.result()
+  }
 
   override def fill[A](n: Int)(elem: => A): Chunk[A] =
     if (n <= 0) Chunk.empty

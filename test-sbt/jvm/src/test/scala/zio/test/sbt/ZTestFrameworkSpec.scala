@@ -16,8 +16,6 @@
 
 package zio.test.sbt
 
-import java.util.regex.Pattern
-
 import sbt.testing._
 import zio.UIO
 import zio.test.sbt.TestingSupport._
@@ -34,6 +32,7 @@ import zio.test.{
   ZSpec
 }
 
+import java.util.regex.Pattern
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Try
 
@@ -86,7 +85,7 @@ object ZTestFrameworkSpec {
           s"${reset("info:")} ${red("- some suite")} - ignored: 1",
           s"${reset("info:")}   ${red("- failing test")}",
           s"${reset("info:")}     ${blue("1")} did not satisfy ${cyan("equalTo(2)")}",
-          s"${reset("info:")}     ${blue("1")} did not satisfy ${cyan("(") + yellow("equalTo(2)") + cyan(s" ?? ${assertLabel("1")})")}",
+          s"${reset("info:")}       ${blue(assertLocation)}",
           s"${reset("info:")}   ${green("+")} passing test",
           s"${reset("info:")}   ${yellow("-")} ${yellow("ignored test")} - ignored: 1"
         ).mkString("\n")
@@ -98,7 +97,6 @@ object ZTestFrameworkSpec {
     val loggers = Seq.fill(3)(new MockLogger)
 
     loadAndExecute(multiLineSpecFQN, loggers = loggers)
-    val label = assertLabel(zio.test.showExpression("Hello,\nWorld!"))
     loggers.map(_.messages) foreach (messages =>
       assertEquals(
         "logged messages",
@@ -107,10 +105,7 @@ object ZTestFrameworkSpec {
           s"${red("- multi-line test")}",
           s"  ${Console.BLUE}Hello,",
           s"${blue("World!")} did not satisfy ${cyan("equalTo(Hello, World!)")}",
-          s"  ${Console.BLUE}Hello,",
-          s"${blue("World!")} did not satisfy ${cyan("(") + yellow("equalTo(Hello, World!)") + cyan(
-            s" ?? ${label.split('\n').mkString("\n" + Console.CYAN)})"
-          )}"
+          s"    ${blue(assertLocation)}"
         ).mkString("\n")
           .split('\n')
           .map(s"${reset("info:")} " + _)
@@ -203,13 +198,13 @@ object ZTestFrameworkSpec {
   lazy val failingSpecFQN = SimpleFailingSpec.getClass.getName
   object SimpleFailingSpec extends DefaultRunnableSpec {
     def spec: Spec[Annotations, TestFailure[Any], TestSuccess] = zio.test.suite("some suite")(
-      zio.test.test("failing test") {
+      test("failing test") {
         zio.test.assert(1)(Assertion.equalTo(2))
       },
-      zio.test.test("passing test") {
+      test("passing test") {
         zio.test.assert(1)(Assertion.equalTo(1))
       },
-      zio.test.test("ignored test") {
+      test("ignored test") {
         zio.test.assert(1)(Assertion.equalTo(2))
       } @@ TestAspect.ignore
     )
@@ -217,13 +212,13 @@ object ZTestFrameworkSpec {
 
   lazy val multiLineSpecFQN = MultiLineSpec.getClass.getName
   object MultiLineSpec extends DefaultRunnableSpec {
-    def spec: ZSpec[Environment, Failure] = zio.test.test("multi-line test") {
+    def spec: ZSpec[Environment, Failure] = test("multi-line test") {
       zio.test.assert("Hello,\nWorld!")(Assertion.equalTo("Hello, World!"))
     }
   }
 
-  lazy val sourceFilePath: String       = zio.test.sourcePath
-  def assertLabel(expr: String): String = s""""assert(`$expr`) (at $sourceFilePath:XXX)""""
+  lazy val sourceFilePath: String = zio.test.sourcePath
+  lazy val assertLocation: String = s"at $sourceFilePath:XXX"
   implicit class TestOutputOps(output: String) {
     def withNoLineNumbers: String =
       output.replaceAll(Pattern.quote(sourceFilePath + ":") + "\\d+", sourceFilePath + ":XXX")

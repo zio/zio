@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.{ ExecutionStrategy, Has, Layer, UIO, ZIO }
+import zio.{ExecutionStrategy, Has, Layer, UIO, ZIO}
 
 /**
  * A `TestExecutor[R, E]` is capable of executing specs that require an

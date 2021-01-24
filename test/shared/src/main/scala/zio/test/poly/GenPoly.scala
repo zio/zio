@@ -17,7 +17,7 @@
 package zio.test.poly
 
 import zio.random.Random
-import zio.test.{ Gen, Sized }
+import zio.test.{Gen, Sized}
 
 /**
  * `GenPoly` provides evidence that an instance of `Gen[T]` exists for some

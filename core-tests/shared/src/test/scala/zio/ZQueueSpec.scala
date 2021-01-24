@@ -3,7 +3,7 @@ package zio
 import zio.ZQueueSpecUtil.waitForSize
 import zio.duration._
 import zio.test.Assertion._
-import zio.test.TestAspect.{ jvm, nonFlaky }
+import zio.test.TestAspect.{jvm, nonFlaky}
 import zio.test._
 import zio.test.environment.Live
 
@@ -269,6 +269,16 @@ object ZQueueSpec extends ZIOBaseSpec {
           getter  = queue.takeBetween(5, 10)
           res    <- getter.race(updater)
         } yield assert(res)(hasSize(isGreaterThanEqualTo(5)))
+      },
+      testM("returns elements in the correct order") {
+        checkM(Gen.listOf(Gen.int(-10, 10))) { as =>
+          for {
+            queue <- Queue.bounded[Int](100)
+            f     <- ZIO.foreach(as)(queue.offer).fork
+            bs    <- queue.takeBetween(as.length, as.length)
+            _     <- f.interrupt
+          } yield assert(as)(equalTo(bs))
+        }
       }
     ),
     testM("offerAll with takeAll") {

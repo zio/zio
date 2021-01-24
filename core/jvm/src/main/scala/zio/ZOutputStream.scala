@@ -16,9 +16,9 @@
 
 package zio
 
-import java.io.IOException
-
 import zio.blocking._
+
+import java.io.IOException
 
 abstract class ZOutputStream {
   def write(chunk: Chunk[Byte]): ZIO[Blocking, IOException, Unit]

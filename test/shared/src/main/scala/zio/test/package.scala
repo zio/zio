@@ -18,8 +18,8 @@ package zio
 
 import zio.console.Console
 import zio.duration.Duration
-import zio.stream.{ ZSink, ZStream }
-import zio.test.environment.{ TestClock, TestConsole, TestEnvironment, TestRandom, TestSystem, testEnvironment }
+import zio.stream.{ZSink, ZStream}
+import zio.test.environment.{TestClock, TestConsole, TestEnvironment, TestRandom, TestSystem, testEnvironment}
 
 import scala.collection.immutable.SortedSet
 import scala.util.Try
@@ -126,7 +126,13 @@ package object test extends CompileVariants {
    */
   type Annotated[+A] = (A, TestAnnotationMap)
 
-  private def traverseResult[A](value: => A, assertResult: AssertResult, assertion: AssertionM[A]): TestResult =
+  private def traverseResult[A](
+    value: => A,
+    assertResult: AssertResult,
+    assertion: AssertionM[A],
+    expression: Option[String],
+    sourceLocation: Option[String]
+  ): TestResult =
     assertResult.flatMap { fragment =>
       def loop(whole: AssertionValue, failureDetails: FailureDetails): TestResult =
         if (whole.sameAssertion(failureDetails.assertion.head))
@@ -139,15 +145,24 @@ package object test extends CompileVariants {
           }
         }
 
-      loop(fragment, FailureDetails(::(AssertionValue(assertion, value, assertResult), Nil)))
+      loop(
+        fragment,
+        FailureDetails(::(AssertionValue(assertion, value, assertResult, expression, sourceLocation), Nil))
+      )
     }
 
   /**
    * Checks the assertion holds for the given value.
    */
-  private[test] def assertImpl[A](value: => A)(assertion: Assertion[A]): TestResult = {
+  override private[test] def assertImpl[A](
+    value: => A,
+    expression: Option[String] = None,
+    sourceLocation: Option[String] = None
+  )(
+    assertion: Assertion[A]
+  ): TestResult = {
     lazy val tryValue = Try(value)
-    traverseResult(tryValue.get, assertion.run(tryValue.get), assertion)
+    traverseResult(tryValue.get, assertion.run(tryValue.get), assertion, expression, sourceLocation)
   }
 
   /**
@@ -159,11 +174,13 @@ package object test extends CompileVariants {
   /**
    * Checks the assertion holds for the given effectfully-computed value.
    */
-  def assertM[R, E, A](effect: ZIO[R, E, A])(assertion: AssertionM[A]): ZIO[R, E, TestResult] =
+  override private[test] def assertMImpl[R, E, A](effect: ZIO[R, E, A], sourceLocation: Option[String] = None)(
+    assertion: AssertionM[A]
+  ): ZIO[R, E, TestResult] =
     for {
       value        <- effect
       assertResult <- assertion.runM(value).run
-    } yield traverseResult(value, assertResult, assertion)
+    } yield traverseResult(value, assertResult, assertion, None, sourceLocation)
 
   /**
    * Checks the test passes for "sufficient" numbers of samples from the
@@ -537,14 +554,16 @@ package object test extends CompileVariants {
   /**
    * Builds a spec with a single pure test.
    */
-  def test(label: String)(assertion: => TestResult): ZSpec[Any, Nothing] =
+  def test(label: String)(assertion: => TestResult)(implicit loc: SourceLocation): ZSpec[Any, Nothing] =
     testM(label)(ZIO.effectTotal(assertion))
 
   /**
    * Builds a spec with a single effectful test.
    */
-  def testM[R, E](label: String)(assertion: => ZIO[R, E, TestResult]): ZSpec[R, E] =
-    Spec.test(label, ZTest(assertion), TestAnnotationMap.empty)
+  def testM[R, E](label: String)(assertion: => ZIO[R, E, TestResult])(implicit loc: SourceLocation): ZSpec[R, E] =
+    Spec
+      .test(label, ZTest(assertion), TestAnnotationMap.empty)
+      .annotate(TestAnnotation.location, loc :: Nil)
 
   /**
    * Passes version specific information to the specified function, which will

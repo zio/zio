@@ -1,6 +1,6 @@
 package zio.stream
 
-import java.io.{ IOException, InputStream }
+import java.io.{IOException, InputStream}
 
 import scala.concurrent.Future
 

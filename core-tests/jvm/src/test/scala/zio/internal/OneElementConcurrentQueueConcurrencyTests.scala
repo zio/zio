@@ -1,7 +1,7 @@
 package zio.internal
 
 import org.openjdk.jcstress.annotations._
-import org.openjdk.jcstress.infra.results.{ IIII_Result, II_Result, I_Result }
+import org.openjdk.jcstress.infra.results.{IIII_Result, II_Result, I_Result}
 
 object OneElementConcurrentQueueConcurrencyTests {
   /*

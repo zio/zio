@@ -18,7 +18,7 @@ package zio.test.laws
 
 import zio.Chunk
 import zio.random.Random
-import zio.test.{ Gen, Sized }
+import zio.test.{Gen, Sized}
 
 /**
  * A `GenF` knows how to construct a generator of `F[A]` values given a

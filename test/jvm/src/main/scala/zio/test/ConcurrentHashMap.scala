@@ -16,7 +16,7 @@
 
 package zio.test
 
-import java.util.concurrent.{ ConcurrentHashMap => JConcurrentHashMap }
+import java.util.concurrent.{ConcurrentHashMap => JConcurrentHashMap}
 
 private[test] final case class ConcurrentHashMap[K, V] private (private val map: JConcurrentHashMap[K, V]) {
   def foldLeft[B](z: B)(op: (B, (K, V)) => B): B = {

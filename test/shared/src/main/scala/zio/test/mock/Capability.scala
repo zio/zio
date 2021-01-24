@@ -16,11 +16,10 @@
 
 package zio.test.mock
 
-import java.util.UUID
-
-import com.github.ghik.silencer.silent
 import zio.test.Assertion
-import zio.{ =!=, Has, IO, LightTypeTag, Tag, taggedIsSubtype, taggedTagType }
+import zio.{=!=, Has, IO, LightTypeTag, Tag, taggedIsSubtype, taggedTagType}
+
+import java.util.UUID
 
 /**
  * A `Capability[R, I, E, A]` represents a capability of environment `R` that takes an input `I`
@@ -39,7 +38,6 @@ protected[mock] abstract class Capability[R <: Has[_]: Tag, I: Tag, E: Tag, A: T
   val errorTag: LightTypeTag  = taggedTagType(implicitly[Tag[E]])
   val outputTag: LightTypeTag = taggedTagType(implicitly[Tag[A]])
 
-  @silent("is never used")
   def apply()(implicit ev1: I =:= Unit, ev2: A <:< Unit): Expectation[R] =
     Expectation.Call[R, I, E, A](
       self,
@@ -47,15 +45,12 @@ protected[mock] abstract class Capability[R <: Has[_]: Tag, I: Tag, E: Tag, A: T
       ((_: I) => IO.unit).asInstanceOf[I => IO[E, A]]
     )
 
-  @silent("is never used")
   def apply(assertion: Assertion[I])(implicit ev1: I =!= Unit, ev2: A <:< Unit): Expectation[R] =
     Expectation.Call[R, I, E, A](self, assertion, ((_: I) => IO.unit).asInstanceOf[I => IO[E, A]])
 
-  @silent("is never used")
   def apply(assertion: Assertion[I], result: Result[I, E, A])(implicit ev: I =!= Unit): Expectation[R] =
     Expectation.Call[R, I, E, A](self, assertion, result.io)
 
-  @silent("is never used")
   def apply(returns: Result[I, E, A])(implicit ev: I <:< Unit): Expectation[R] =
     Expectation.Call[R, I, E, A](self, Assertion.isUnit.asInstanceOf[Assertion[I]], returns.io)
 
@@ -102,15 +97,12 @@ object Capability {
       def of[I: Tag]: Capability[R, I, E, A] =
         toMethod[R, I, E, A](self)
 
-      @silent("is never used")
       def of[I: Tag](assertion: Assertion[I])(implicit ev1: I =!= Unit, ev2: A <:< Unit): Expectation[R] =
         toExpectation[R, I, E, A](self, assertion)
 
-      @silent("is never used")
       def of[I: Tag](assertion: Assertion[I], result: Result[I, E, A])(implicit ev: I =!= Unit): Expectation[R] =
         toExpectation[R, I, E, A](self, assertion, result)
 
-      @silent("is never used")
       def of[I: Tag](returns: Result[I, E, A])(implicit ev: I <:< Unit): Expectation[R] =
         toExpectation[R, I, E, A](self, returns)
     }
@@ -124,17 +116,14 @@ object Capability {
       def of[E <: E1: Tag]: Capability[R, I, E, A] =
         toMethod[R, I, E, A](self)
 
-      @silent("is never used")
       def of[E <: E1: Tag](assertion: Assertion[I])(implicit ev1: I =!= Unit, ev2: A <:< Unit): Expectation[R] =
         toExpectation[R, I, E, A](self, assertion)
 
-      @silent("is never used")
       def of[E <: E1: Tag](assertion: Assertion[I], result: Result[I, E, A])(implicit
         ev: I =!= Unit
       ): Expectation[R] =
         toExpectation[R, I, E, A](self, assertion, result)
 
-      @silent("is never used")
       def of[E <: E1: Tag](returns: Result[I, E, A])(implicit ev: I <:< Unit): Expectation[R] =
         toExpectation[R, I, E, A](self, returns)
     }
@@ -148,17 +137,14 @@ object Capability {
       def of[A <: A1: Tag]: Capability[R, I, E, A] =
         toMethod[R, I, E, A](self)
 
-      @silent("is never used")
       def of[A <: A1: Tag](assertion: Assertion[I])(implicit ev1: I =!= Unit, ev2: A <:< Unit): Expectation[R] =
         toExpectation[R, I, E, A](self, assertion)
 
-      @silent("is never used")
       def of[A <: A1: Tag](assertion: Assertion[I], result: Result[I, E, A])(implicit
         ev: I =!= Unit
       ): Expectation[R] =
         toExpectation[R, I, E, A](self, assertion, result)
 
-      @silent("is never used")
       def of[A <: A1: Tag](returns: Result[I, E, A])(implicit ev: I <:< Unit): Expectation[R] =
         toExpectation[R, I, E, A](self, returns)
     }
@@ -172,19 +158,16 @@ object Capability {
       def of[I: Tag, E <: E1: Tag]: Capability[R, I, E, A] =
         toMethod[R, I, E, A](self)
 
-      @silent("is never used")
       def of[I: Tag, E <: E1: Tag](
         assertion: Assertion[I]
       )(implicit ev1: I =!= Unit, ev2: A <:< Unit): Expectation[R] =
         toExpectation[R, I, E, A](self, assertion)
 
-      @silent("is never used")
       def of[I: Tag, E <: E1: Tag](assertion: Assertion[I], result: Result[I, E, A])(implicit
         ev: I =!= Unit
       ): Expectation[R] =
         toExpectation[R, I, E, A](self, assertion, result)
 
-      @silent("is never used")
       def of[I: Tag, E <: E1: Tag](returns: Result[I, E, A])(implicit ev: I <:< Unit): Expectation[R] =
         toExpectation[R, I, E, A](self, returns)
     }
@@ -198,19 +181,16 @@ object Capability {
       def of[I: Tag, A <: A1: Tag]: Capability[R, I, E, A] =
         toMethod[R, I, E, A](self)
 
-      @silent("is never used")
       def of[I: Tag, A <: A1: Tag](
         assertion: Assertion[I]
       )(implicit ev1: I =!= Unit, ev2: A <:< Unit): Expectation[R] =
         toExpectation[R, I, E, A](self, assertion)
 
-      @silent("is never used")
       def of[I: Tag, A <: A1: Tag](assertion: Assertion[I], result: Result[I, E, A])(implicit
         ev: I =!= Unit
       ): Expectation[R] =
         toExpectation[R, I, E, A](self, assertion, result)
 
-      @silent("is never used")
       def of[I: Tag, A <: A1: Tag](returns: Result[I, E, A])(implicit ev: I <:< Unit): Expectation[R] =
         toExpectation[R, I, E, A](self, returns)
     }
@@ -224,19 +204,16 @@ object Capability {
       def of[E <: E1: Tag, A <: A1: Tag]: Capability[R, I, E, A] =
         toMethod[R, I, E, A](self)
 
-      @silent("is never used")
       def of[E <: E1: Tag, A <: A1: Tag](
         assertion: Assertion[I]
       )(implicit ev1: I =!= Unit, ev2: A <:< Unit): Expectation[R] =
         toExpectation[R, I, E, A](self, assertion)
 
-      @silent("is never used")
       def of[E <: E1: Tag, A <: A1: Tag](assertion: Assertion[I], result: Result[I, E, A])(implicit
         ev: I =!= Unit
       ): Expectation[R] =
         toExpectation[R, I, E, A](self, assertion, result)
 
-      @silent("is never used")
       def of[E <: E1: Tag, A <: A1: Tag](returns: Result[I, E, A])(implicit ev: I <:< Unit): Expectation[R] =
         toExpectation[R, I, E, A](self, returns)
     }
@@ -250,26 +227,22 @@ object Capability {
       def of[I: Tag, E <: E1: Tag, A <: A1: Tag]: Capability[R, I, E, A] =
         toMethod[R, I, E, A](self)
 
-      @silent("is never used")
       def of[I: Tag, E <: E1: Tag, A <: A1: Tag](
         assertion: Assertion[I]
       )(implicit ev1: I =!= Unit, ev2: A <:< Unit): Expectation[R] =
         toExpectation[R, I, E, A](self, assertion)
 
-      @silent("is never used")
       def of[I: Tag, E <: E1: Tag, A <: A1: Tag](assertion: Assertion[I], result: Result[I, E, A])(implicit
         ev: I =!= Unit
       ): Expectation[R] =
         toExpectation[R, I, E, A](self, assertion, result)
 
-      @silent("is never used")
       def of[I: Tag, E <: E1: Tag, A <: A1: Tag](
         returns: Result[I, E, A]
       )(implicit ev: I <:< Unit): Expectation[R] =
         toExpectation[R, I, E, A](self, returns)
     }
 
-    @silent("is never used")
     private def toExpectation[R <: Has[_]: Tag, I: Tag, E: Tag, A: Tag](
       poly: Poly[R, _, _, _],
       assertion: Assertion[I]
@@ -280,7 +253,6 @@ object Capability {
         ((_: I) => IO.unit).asInstanceOf[I => IO[E, A]]
       )
 
-    @silent("is never used")
     private def toExpectation[R <: Has[_]: Tag, I: Tag, E: Tag, A: Tag](
       poly: Poly[R, _, _, _],
       assertion: Assertion[I],
@@ -288,7 +260,6 @@ object Capability {
     )(implicit ev: I =!= Unit): Expectation[R] =
       Expectation.Call[R, I, E, A](toMethod[R, I, E, A](poly), assertion, result.io)
 
-    @silent("is never used")
     private def toExpectation[R <: Has[_]: Tag, I: Tag, E: Tag, A: Tag](
       poly: Poly[R, _, _, _],
       returns: Result[I, E, A]

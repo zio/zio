@@ -3,7 +3,7 @@ package system
 
 import zio.test.Assertion._
 import zio.test._
-import zio.test.environment.{ Live, live }
+import zio.test.environment.{Live, live}
 
 import scala.reflect.io.File
 

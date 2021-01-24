@@ -1,10 +1,9 @@
 package zio
 
-import java.util.concurrent.TimeUnit
-
 import org.openjdk.jmh.annotations._
 import zio.IOBenchmarks._
 
+import java.util.concurrent.TimeUnit
 import scala.concurrent.Await
 
 @State(Scope.Thread)
@@ -92,7 +91,7 @@ class IODeepAttemptBenchmark {
 
   @Benchmark
   def twitterDeepAttempt(): BigInt = {
-    import com.twitter.util.{ Await, Future }
+    import com.twitter.util.{Await, Future}
 
     def descent(n: Int): Future[BigInt] =
       if (n == depth)

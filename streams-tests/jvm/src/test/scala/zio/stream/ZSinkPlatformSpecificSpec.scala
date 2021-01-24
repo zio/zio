@@ -1,11 +1,11 @@
 package zio.stream
 
-import java.nio.file.Files
-
 import zio._
 import zio.blocking.Blocking
 import zio.test.Assertion._
 import zio.test._
+
+import java.nio.file.Files
 
 object ZSinkPlatformSpecificSpec extends ZIOBaseSpec {
   override def spec: Spec[Blocking, TestFailure[Throwable], TestSuccess] = suite("ZSink JVM")(

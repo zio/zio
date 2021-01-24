@@ -1,16 +1,15 @@
 package zio
 
-import java.time.temporal.{ ChronoField, ChronoUnit }
-import java.time.{ Instant, OffsetDateTime, ZoneId }
-
 import zio.clock.Clock
 import zio.duration._
 import zio.stream.ZStream
 import zio.test.Assertion._
-import zio.test.TestAspect.{ failing, timeout }
+import zio.test.TestAspect.{failing, timeout}
 import zio.test._
-import zio.test.environment.{ TestClock, TestRandom }
+import zio.test.environment.{TestClock, TestRandom}
 
+import java.time.temporal.{ChronoField, ChronoUnit}
+import java.time.{Instant, OffsetDateTime, ZoneId}
 import scala.concurrent.Future
 
 object ScheduleSpec extends ZIOBaseSpec {
@@ -134,8 +133,8 @@ object ScheduleSpec extends ZIOBaseSpec {
         assertM(scheduled)(equalTo(expected))
       },
       testM("free from stack overflow") {
-        assertM(ZStream.fromSchedule(Schedule.forever *> Schedule.recurs(1000000)).runCount)(
-          equalTo(1000000L)
+        assertM(ZStream.fromSchedule(Schedule.forever *> Schedule.recurs(100000)).runCount)(
+          equalTo(100000L)
         )
       }
     ),

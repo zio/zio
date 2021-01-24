@@ -1,15 +1,14 @@
 package zio.stream
 
-import java.{ util => ju }
-
 import zio._
 import zio.clock.Clock
 import zio.duration._
 import zio.internal.UniqueKey
 import zio.stm.TQueue
 import zio.stream.internal.Utils.zipChunks
-import zio.stream.internal.{ ZInputStream, ZReader }
+import zio.stream.internal.{ZInputStream, ZReader}
 
+import java.{util => ju}
 import scala.reflect.ClassTag
 
 /**
@@ -59,7 +58,7 @@ import scala.reflect.ClassTag
  */
 abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Option[E], Chunk[O]]]) { self =>
 
-  import ZStream.{ BufferedPull, Pull, TerminationStrategy }
+  import ZStream.{BufferedPull, Pull, TerminationStrategy}
 
   /**
    * Symbolic alias for [[ZStream#cross]].
@@ -2065,7 +2064,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     strategy: TerminationStrategy = TerminationStrategy.Both
   )(l: O => O3, r: O2 => O3): ZStream[R1, E1, O3] =
     ZStream {
-      import TerminationStrategy.{ Left => L, Right => R, Either => E }
+      import TerminationStrategy.{Left => L, Right => R, Either => E}
 
       for {
         handoff <- ZStream.Handoff.make[Take[E1, O3]].toManaged_
@@ -3026,6 +3025,18 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   final def via[R2, E2, O2](f: ZStream[R, E, O] => ZStream[R2, E2, O2]): ZStream[R2, E2, O2] = f(self)
 
   /**
+   * Returns this stream if the specified condition is satisfied, otherwise returns an empty stream.
+   */
+  def when(b: => Boolean): ZStream[R, E, O] =
+    ZStream.when(b)(self)
+
+  /**
+   * Returns this stream if the specified effectful condition is satisfied, otherwise returns an empty stream.
+   */
+  def whenM[R1 <: R, E1 >: E](b: ZIO[R1, E1, Boolean]): ZStream[R1, E1, O] =
+    ZStream.whenM(b)(self)
+
+  /**
    * Equivalent to [[filter]] but enables the use of filter clauses in for-comprehensions
    */
   def withFilter(predicate: O => Boolean): ZStream[R, E, O] =
@@ -3984,6 +3995,30 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     managed(fa).flatten
 
   /**
+   * Returns the specified stream if the given condition is satisfied, otherwise returns an empty stream.
+   */
+  def when[R, E, O](b: => Boolean)(zStream: => ZStream[R, E, O]): ZStream[R, E, O] =
+    whenM(ZIO.effectTotal(b))(zStream)
+
+  /**
+   * Returns the resulting stream when the given `PartialFunction` is defined for the given value, otherwise returns an empty stream.
+   */
+  def whenCase[R, E, A, O](a: => A)(pf: PartialFunction[A, ZStream[R, E, O]]): ZStream[R, E, O] =
+    whenCaseM(ZIO.effectTotal(a))(pf)
+
+  /**
+   * Returns the resulting stream when the given `PartialFunction` is defined for the given effectful value, otherwise returns an empty stream.
+   */
+  def whenCaseM[R, E, A](a: ZIO[R, E, A]): WhenCaseM[R, E, A] =
+    new WhenCaseM(a)
+
+  /**
+   * Returns the specified stream if the given effectful condition is satisfied, otherwise returns an empty stream.
+   */
+  def whenM[R, E](b: ZIO[R, E, Boolean]) =
+    new WhenM(b)
+
+  /**
    * Zips the specified streams together with the specified function.
    */
   def zipN[R, E, A, B, C](zStream1: ZStream[R, E, A], zStream2: ZStream[R, E, B])(
@@ -4198,6 +4233,16 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       case class Empty(notifyConsumer: Promise[Nothing, Unit])          extends State[Nothing]
       case class Full[+A](a: A, notifyProducer: Promise[Nothing, Unit]) extends State[A]
     }
+  }
+
+  final class WhenM[R, E](private val b: ZIO[R, E, Boolean]) extends AnyVal {
+    def apply[R1 <: R, E1 >: E, O](zStream: ZStream[R1, E1, O]): ZStream[R1, E1, O] =
+      fromEffect(b).flatMap(if (_) zStream else ZStream.empty)
+  }
+
+  final class WhenCaseM[R, E, A](private val a: ZIO[R, E, A]) extends AnyVal {
+    def apply[R1 <: R, E1 >: E, O](pf: PartialFunction[A, ZStream[R1, E1, O]]): ZStream[R1, E1, O] =
+      fromEffect(a).flatMap(pf.applyOrElse(_, (_: A) => ZStream.empty))
   }
 
   sealed trait TerminationStrategy

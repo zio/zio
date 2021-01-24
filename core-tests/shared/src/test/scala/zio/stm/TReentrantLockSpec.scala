@@ -18,9 +18,9 @@ package zio.stm
 
 import zio.duration._
 import zio.test.Assertion._
-import zio.test.TestAspect.{ flaky, timeout }
+import zio.test.TestAspect.{flaky, timeout}
 import zio.test._
-import zio.{ Exit, Promise, Ref, Schedule, ZIO }
+import zio.{Exit, Promise, Ref, Schedule, ZIO}
 
 object TReentrantLockSpec extends DefaultRunnableSpec {
   def pollSchedule[E, A]: Schedule[Any, Option[Exit[E, A]], Option[Exit[E, A]]] =

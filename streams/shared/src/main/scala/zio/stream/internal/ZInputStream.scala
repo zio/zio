@@ -1,6 +1,6 @@
 package zio.stream.internal
 
-import zio.{ Chunk, Exit, FiberFailure, Runtime, ZIO }
+import zio.{Chunk, Exit, FiberFailure, Runtime, ZIO}
 
 import scala.annotation.tailrec
 

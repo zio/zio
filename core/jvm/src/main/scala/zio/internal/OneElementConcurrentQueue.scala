@@ -17,7 +17,7 @@
 package zio.internal
 
 import java.io.Serializable
-import java.util.concurrent.atomic.{ AtomicReference, LongAdder }
+import java.util.concurrent.atomic.{AtomicReference, LongAdder}
 
 /**
  * This is a specialized implementation of MutableConcurrentQueue of

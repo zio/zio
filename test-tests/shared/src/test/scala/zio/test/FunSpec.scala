@@ -1,7 +1,7 @@
 package zio.test
 
 import zio.test.Assertion._
-import zio.{ ZIO, random }
+import zio.{ZIO, random}
 
 import scala.math.abs
 

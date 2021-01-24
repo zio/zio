@@ -40,4 +40,10 @@ abstract class DefaultRunnableSpec extends RunnableSpec[TestEnvironment, Any] {
     spec: ZSpec[Environment, Failure]
   ): URIO[TestLogger with Clock, ExecutedSpec[Failure]] =
     runner.run(aspects.foldLeft(spec)(_ @@ _) @@ TestAspect.fibers)
+
+  /**
+   * Builds a spec with a single pure test.
+   */
+  def test(label: String)(assertion: => TestResult)(implicit loc: SourceLocation): ZSpec[Any, Nothing] =
+    zio.test.test(label)(assertion)
 }

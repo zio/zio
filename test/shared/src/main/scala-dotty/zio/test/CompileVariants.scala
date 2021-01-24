@@ -16,8 +16,10 @@
 
 package zio.test
 
-import zio.UIO
+import zio.test.Macros.location
+import zio.{UIO, ZIO}
 
+import scala.annotation.tailrec
 import scala.compiletime.testing.typeChecks
 
 trait CompileVariants {
@@ -42,46 +44,33 @@ trait CompileVariants {
   /**
    * Checks the assertion holds for the given value.
    */
-  private[test] def assertImpl[A](value: => A)(assertion: Assertion[A]): TestResult
+  private[test] def assertImpl[A](value: => A, expression: Option[String] = None, sourceLocation: Option[String] = None)
+                                 (assertion: Assertion[A]): TestResult
+  /**
+   * Checks the assertion holds for the given effectfully-computed value.
+   */
+  private[test] def assertMImpl[R, E, A](effect: ZIO[R, E, A], sourceLocation: Option[String] = None)
+                                            (assertion: AssertionM[A]): ZIO[R, E, TestResult]
+
 
   inline def assert[A](inline value: => A)(inline assertion: Assertion[A]): TestResult = ${Macros.assert_impl('value)('assertion)}
+
+  inline def assertM[R, E, A](effect: ZIO[R, E, A])(assertion: AssertionM[A]): ZIO[R, E, TestResult] = ${Macros.assertM_impl('effect)('assertion)}
 
   private[zio] inline def sourcePath: String = ${Macros.sourcePath_impl}
 
   private[zio] inline def showExpression[A](inline value: => A): String = ${Macros.showExpression_impl('value)}
 }
 
+/**
+ * Proxy methods to call package private methods from the macro
+ */
 object CompileVariants {
-  /**
-   * just a proxy to call package private assertRuntime from the macro
-   */
-  def assertImpl[A](value: => A)(assertion: Assertion[A]): TestResult = zio.test.assertImpl(value)(assertion)
-}
 
-object Macros {
-  import scala.quoted._
-  def assert_impl[A](value: Expr[A])(assertion: Expr[Assertion[A]])(using ctx: Quotes, tp: Type[A]): Expr[TestResult] = {
-    import quotes.reflect._
-    val path = Position.ofMacroExpansion.sourceFile.jpath.toString
-    val line = Position.ofMacroExpansion.startLine + 1
-    val code = showExpr(value)
-    val label = s"assert(`$code`) (at $path:$line)"
-    '{_root_.zio.test.CompileVariants.assertImpl[A]($value)(${assertion}.label(${Expr(label)}))}
-  }
+  def assertProxy[A](value: => A, expression: String, sourceLocation: String)(assertion: Assertion[A]): TestResult =
+    zio.test.assertImpl(value, Some(expression), Some(sourceLocation))(assertion)
 
-  private def showExpr[A](expr: Expr[A])(using ctx: Quotes) = {
-    expr.show
-      // reduce clutter
-      .replaceAll("""scala\.([a-zA-Z0-9_]+)""", "$1")
-      .replaceAll("""\.apply(\s*[\[(])""", "$1")
-  }
-
-  def sourcePath_impl(using ctx: Quotes): Expr[String] = {
-    import quotes.reflect._
-    Expr(Position.ofMacroExpansion.sourceFile.jpath.toString)
-  }
-  def showExpression_impl[A](value: Expr[A])(using ctx: Quotes) = {
-    import quotes.reflect._
-    Expr(showExpr(value))
-  }
+  def assertMProxy[R, E, A](effect: ZIO[R, E, A], sourceLocation: String)
+                              (assertion: AssertionM[A]): ZIO[R, E, TestResult] =
+    zio.test.assertMImpl(effect, Some(sourceLocation))(assertion)
 }
