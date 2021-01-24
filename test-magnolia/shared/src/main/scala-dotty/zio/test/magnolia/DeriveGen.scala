@@ -40,29 +40,29 @@ object DeriveGen {
         BigDecimal(Double.MaxValue) * BigDecimal(Double.MaxValue)
     ))
 
-    given [A, B] (using a: DeriveGen[A], b: DeriveGen[B]) as DeriveGen[Either[A, B]] = 
+    given [A, B] (using a: DeriveGen[A], b: DeriveGen[B]): DeriveGen[Either[A, B]] =
         instance(Gen.either(a.derive, b.derive))
-    given [A, B] (using b: DeriveGen[B]) as DeriveGen[A => B] =
+    given [A, B] (using b: DeriveGen[B]): DeriveGen[A => B] =
         instance(Gen.function(b.derive))
-    given [A] (using a: DeriveGen[A]) as DeriveGen[Iterable[A]] =
+    given [A] (using a: DeriveGen[A]): DeriveGen[Iterable[A]] =
         instance(Gen.oneOf(Gen.listOf(a.derive), Gen.vectorOf(a.derive), Gen.setOf(a.derive)))
-    given [A] (using a: DeriveGen[A]) as DeriveGen[List[A]] =
+    given [A] (using a: DeriveGen[A]): DeriveGen[List[A]] =
         instance(Gen.listOf(a.derive))
-    given [A, B] (using a: DeriveGen[A], b: DeriveGen[B]) as DeriveGen[Map[A, B]] =
+    given [A, B] (using a: DeriveGen[A], b: DeriveGen[B]): DeriveGen[Map[A, B]] =
         instance(Gen.mapOf(a.derive, b.derive))
-    given [A] (using a: => DeriveGen[A]) as DeriveGen[Option[A]] =
+    given [A] (using a: => DeriveGen[A]): DeriveGen[Option[A]] =
         instance(Gen.option(a.derive))
-    given [A] (using a: DeriveGen[A]) as DeriveGen[Seq[A]] =
+    given [A] (using a: DeriveGen[A]): DeriveGen[Seq[A]] =
         instance(Gen.oneOf(Gen.listOf(a.derive), Gen.vectorOf(a.derive)))
-    given [A, B] (using b: DeriveGen[B]) as DeriveGen[PartialFunction[A, B]] =
+    given [A, B] (using b: DeriveGen[B]): DeriveGen[PartialFunction[A, B]] =
         instance(Gen.partialFunction(b.derive))
-    given [A] (using a: DeriveGen[A]) as DeriveGen[Set[A]] =
+    given [A] (using a: DeriveGen[A]): DeriveGen[Set[A]] =
         instance(Gen.setOf(a.derive))
-    given [A] (using a: DeriveGen[A]) as DeriveGen[Vector[A]] =
+    given [A] (using a: DeriveGen[A]): DeriveGen[Vector[A]] =
         instance(Gen.vectorOf(a.derive))
 
     given DeriveGen[EmptyTuple] = instance(Gen.const(EmptyTuple))
-    given [A, T <: Tuple] (using a: DeriveGen[A], t: DeriveGen[T]) as DeriveGen[A *: T] =
+    given [A, T <: Tuple] (using a: DeriveGen[A], t: DeriveGen[T]): DeriveGen[A *: T] =
         instance((a.derive <&> t.derive).map(_ *: _))
 
     inline def gen[T](using m: Mirror.Of[T]): DeriveGen[T] =
@@ -76,7 +76,7 @@ object DeriveGen {
             }
         }    
 
-    inline given derived[T](using m: Mirror.Of[T]) as DeriveGen[T] = 
+    inline given derived[T](using m: Mirror.Of[T]): DeriveGen[T] =
         gen[T]
 
     def genSum[T](s: Mirror.SumOf[T], instances: => List[DeriveGen[_]]): Gen[Random with Sized, T] =
@@ -92,3 +92,4 @@ object DeriveGen {
             case _: (t *: ts) => summonInline[DeriveGen[t]] :: summonAll[ts]
         }
 }
+

@@ -4,7 +4,7 @@ import zio.clock.Clock
 import zio.duration._
 import zio.stream.ZStream
 import zio.test.Assertion._
-import zio.test.TestAspect.{failing, flaky, timeout}
+import zio.test.TestAspect.{failing, timeout}
 import zio.test._
 import zio.test.environment.{TestClock, TestRandom}
 
@@ -133,10 +133,10 @@ object ScheduleSpec extends ZIOBaseSpec {
         assertM(scheduled)(equalTo(expected))
       },
       testM("free from stack overflow") {
-        assertM(ZStream.fromSchedule(Schedule.forever *> Schedule.recurs(1000000)).runCount)(
-          equalTo(1000000L)
+        assertM(ZStream.fromSchedule(Schedule.forever *> Schedule.recurs(100000)).runCount)(
+          equalTo(100000L)
         )
-      } @@ flaky
+      }
     ),
     suite("Retry on failure according to a provided strategy")(
       testM("retry 0 time for `once` when first time succeeds") {

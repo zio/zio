@@ -38,7 +38,7 @@ trait CompileVariants {
   /**
    * Checks the assertion holds for the given effectfully-computed value.
    */
-  private[test] def assertMInternal[R, E, A](effect: ZIO[R, E, A], sourceLocation: Option[String] = None)(
+  private[test] def assertMImpl[R, E, A](effect: ZIO[R, E, A], sourceLocation: Option[String] = None)(
     assertion: AssertionM[A]
   ): ZIO[R, E, TestResult]
 
@@ -58,16 +58,16 @@ trait CompileVariants {
   private[zio] def showExpression[A](expr: => A): String = macro Macros.showExpression_impl
 }
 
+/**
+ * Proxy methods to call package private methods from the macro
+ */
 object CompileVariants {
 
-  /**
-   * just a proxy to call package private assertRuntime from the macro
-   */
-  def assertImpl[A](value: => A, expression: String, sourceLocation: String)(assertion: Assertion[A]): TestResult =
+  def assertProxy[A](value: => A, expression: String, sourceLocation: String)(assertion: Assertion[A]): TestResult =
     zio.test.assertImpl(value, Some(expression), Some(sourceLocation))(assertion)
 
-  def assertMInternal[R, E, A](effect: ZIO[R, E, A], sourceLocation: String)(
+  def assertMProxy[R, E, A](effect: ZIO[R, E, A], sourceLocation: String)(
     assertion: AssertionM[A]
   ): ZIO[R, E, TestResult] =
-    zio.test.assertMInternal(effect, Some(sourceLocation))(assertion)
+    zio.test.assertMImpl(effect, Some(sourceLocation))(assertion)
 }

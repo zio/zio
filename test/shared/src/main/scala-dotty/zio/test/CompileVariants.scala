@@ -49,7 +49,7 @@ trait CompileVariants {
   /**
    * Checks the assertion holds for the given effectfully-computed value.
    */
-  private[test] def assertMInternal[R, E, A](effect: ZIO[R, E, A], sourceLocation: Option[String] = None)
+  private[test] def assertMImpl[R, E, A](effect: ZIO[R, E, A], sourceLocation: Option[String] = None)
                                             (assertion: AssertionM[A]): ZIO[R, E, TestResult]
 
 
@@ -62,55 +62,15 @@ trait CompileVariants {
   private[zio] inline def showExpression[A](inline value: => A): String = ${Macros.showExpression_impl('value)}
 }
 
+/**
+ * Proxy methods to call package private methods from the macro
+ */
 object CompileVariants {
-  /**
-   * just a proxy to call package private assertRuntime from the macro
-   */
-  def assertImpl[A](value: => A, expression: String, sourceLocation: String)(assertion: Assertion[A]): TestResult =
+
+  def assertProxy[A](value: => A, expression: String, sourceLocation: String)(assertion: Assertion[A]): TestResult =
     zio.test.assertImpl(value, Some(expression), Some(sourceLocation))(assertion)
 
-  def assertMInternal[R, E, A](effect: ZIO[R, E, A], sourceLocation: String)
+  def assertMProxy[R, E, A](effect: ZIO[R, E, A], sourceLocation: String)
                               (assertion: AssertionM[A]): ZIO[R, E, TestResult] =
-    zio.test.assertMInternal(effect, Some(sourceLocation))(assertion)
-}
-
-object Macros {
-  import scala.quoted._
-
-  private def location(ctx: Quotes): (String, Int) = {
-    import ctx.reflect._
-    val path = Position.ofMacroExpansion.sourceFile.jpath.toString
-    val line = Position.ofMacroExpansion.startLine + 1
-    (path, line)
-  }
-
-  def assert_impl[A](value: Expr[A])(assertion: Expr[Assertion[A]])(using ctx: Quotes, tp: Type[A]): Expr[TestResult] = {
-    import quotes.reflect._
-    val (path, line) = location(ctx)
-    val code = showExpr(value)
-    val srcLocation = s"$path:$line"
-    '{_root_.zio.test.CompileVariants.assertImpl[A]($value, ${Expr(code)}, ${Expr(srcLocation)})($assertion)}
-  }
-
-  def assertM_impl[R: Type, E: Type, A: Type](effect: Expr[ZIO[R, E, A]])(assertion: Expr[AssertionM[A]])
-                           (using ctx: Quotes): Expr[ZIO[R, E, TestResult]] = {
-    import quotes.reflect._
-    val (path, line) = location(ctx)
-    val srcLocation = s"$path:$line"
-    '{_root_.zio.test.CompileVariants.assertMInternal($effect, ${Expr(srcLocation)})($assertion)}
-  }
-
-  private def showExpr[A](expr: Expr[A])(using ctx: Quotes) = {
-    import quotes.reflect._
-    Term.of(expr).pos.sourceCode
-  }
-
-  def sourcePath_impl(using ctx: Quotes): Expr[String] = {
-    import quotes.reflect._
-    Expr(Position.ofMacroExpansion.sourceFile.jpath.toString)
-  }
-  def showExpression_impl[A](value: Expr[A])(using ctx: Quotes) = {
-    import quotes.reflect._
-    Expr(showExpr(value))
-  }
+    zio.test.assertMImpl(effect, Some(sourceLocation))(assertion)
 }
