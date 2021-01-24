@@ -4,10 +4,10 @@ scala_211: &scala_211
   SCALA_VERSION: 2.11.12
 
 scala_212: &scala_212
-  SCALA_VERSION: 2.12.12
+  SCALA_VERSION: 2.12.13
 
 scala_213: &scala_213
-  SCALA_VERSION: 2.13.3
+  SCALA_VERSION: 2.13.4
 
 scala_dotty: &scala_dotty
   SCALA_VERSION: 3.0.0-M3
