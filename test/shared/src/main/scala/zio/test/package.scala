@@ -566,6 +566,20 @@ package object test extends CompileVariants {
       .annotate(TestAnnotation.location, loc :: Nil)
 
   /**
+   * Builds a parameterized spec with test values provided by a generator.
+   */
+  def testAllM[R0, R1, E, A](
+    label: String
+  )(gen: Gen[R0, A])(test: A => ZIO[R1, E, TestResult])(implicit
+    loc: SourceLocation
+  ): Spec[R0 with R1, TestFailure[E], TestSuccess] = {
+    val specs =
+      gen.sample.map(a => testM(s"$label ${a.value}")(test(a.value))).runCollect.map(_.toVector)
+
+    Spec.suite(label, ZManaged.fromEffect(specs), None)
+  }
+
+  /**
    * Passes version specific information to the specified function, which will
    * use that information to create a test. If the version is neither Dotty nor
    * Scala 2, an ignored test result will be returned.
