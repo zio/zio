@@ -116,17 +116,18 @@ sealed abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { 
         if (max < min) ZIO.unit
         else
           takeUpTo(max).flatMap { bs =>
-            buffer ++= bs
             val remaining = min - bs.length
             if (remaining == 1)
-              take.map(b => buffer += b)
+              take.flatMap(b => ZIO.effectTotal(buffer ++= bs += b))
             else if (remaining > 1) {
               take.flatMap { b =>
-                buffer += b
-                takeRemainder(remaining - 1, max - bs.length - 1)
+                ZIO.effectSuspendTotal {
+                  buffer ++= bs += b
+                  takeRemainder(remaining - 1, max - bs.length - 1)
+                }
               }
             } else
-              ZIO.unit
+              ZIO.effectTotal(buffer ++= bs)
           }
 
       takeRemainder(min, max).as(buffer.toList)
