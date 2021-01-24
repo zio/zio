@@ -134,8 +134,8 @@ lazy val coreNative = core.native
   .settings(nativeSettings)
   .settings(
     libraryDependencies ++= Seq(
-      "dev.whaling" %%% "native-loop-core"      % "0.1.1",
-      "dev.whaling" %%% "native-loop-js-compat" % "0.1.1"
+      "com.github.lolgab" %%% "native-loop-core"      % "0.2.0",
+      "com.github.lolgab" %%% "native-loop-js-compat" % "0.2.0"
     )
   )
   .disablePlugins(
