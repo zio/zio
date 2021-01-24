@@ -254,47 +254,43 @@ abstract class RingBuffer[A](override final val capacity: Int) extends MutableQu
     var curSeq = 0L
 
     val aHead   = headUpdater
-    var curHead = aHead.get(this)
+    var curHead = 0L
 
     val aTail   = tailUpdater
-    var curTail = aTail.get(this)
+    var curTail = 0L
     var curIdx  = 0
 
-    val offers   = as.size.toLong
-    var forQueue = math.min(offers, aCapacity - (curTail - curHead))
-    var enqTail  = 0L
+    val offers  = as.size.toLong
+    var enqHead = 0L
+    var enqTail = 0L
 
     var state = STATE_LOOP
 
     while (state == STATE_LOOP) {
-      if (forQueue == 0) {
+      curHead = aHead.get(this)
+      curTail = aTail.get(this)
+      val size      = curTail - curHead
+      val available = aCapacity - size
+      val forQueue  = math.min(offers, available)
+      if (forQueue <= 0) {
         state = STATE_FULL
       } else {
-        curIdx = posToIdx(curTail, aCapacity)
-        curSeq = aSeq.get(curIdx)
-        if (curSeq < curTail) {
-          curHead = aHead.get(this)
-          if (curTail >= curHead + aCapacity) {
-            state = STATE_LOOP
-          } else {
-            state = STATE_FULL
+        enqHead = curTail
+        enqTail = curTail + forQueue
+        var loop = true
+        while (loop & enqHead < enqTail) {
+          curIdx = posToIdx(enqHead, aCapacity)
+          curSeq = seq.get(curIdx)
+          if (curSeq != enqHead) {
+            loop = false
           }
-        } else if (curSeq == curTail) {
-          enqTail = curTail + forQueue
-          if (aTail.compareAndSet(this, curTail, enqTail)) {
-            state = STATE_RESERVED
-          } else {
-            curTail += 1
-            forQueue -= 1
-            state = STATE_LOOP
-          }
+          enqHead += 1
+        }
+        if (enqHead == enqTail && aTail.compareAndSet(this, curTail, enqTail)) {
+          state = STATE_RESERVED
         } else {
-          curHead = aHead.get(this)
-          curTail = aTail.get(this)
-          forQueue = math.min(offers, aCapacity - (curTail - curHead))
           state = STATE_LOOP
         }
-
       }
     }
 
@@ -410,44 +406,40 @@ abstract class RingBuffer[A](override final val capacity: Int) extends MutableQu
     var curSeq = 0L
 
     val aHead   = headUpdater
-    var curHead = aHead.get(this)
+    var curHead = 0L
     var curIdx  = 0
 
     val aTail   = tailUpdater
-    var curTail = aTail.get(this)
+    var curTail = 0L
 
     val takers  = n.toLong
-    var toTake  = math.min(takers, curTail - curHead)
     var deqHead = 0L
+    var deqTail = 0L
 
     var state = STATE_LOOP
 
     while (state == STATE_LOOP) {
-      if (toTake == 0) {
+      curHead = aHead.get(this)
+      curTail = aTail.get(this)
+      val size   = curTail - curHead
+      val toTake = math.min(takers, size)
+      if (toTake <= 0) {
         state = STATE_EMPTY
       } else {
-        curIdx = posToIdx(curHead, aCapacity)
-        curSeq = aSeq.get(curIdx)
-        if (curSeq <= curHead) {
-          curTail = aTail.get(this)
-          if (curHead >= curTail) {
-            state = STATE_EMPTY
-          } else {
-            state = STATE_LOOP
+        deqHead = curHead
+        deqTail = curHead + toTake
+        var loop = true
+        while (loop && deqHead < deqTail) {
+          curIdx = posToIdx(deqHead, aCapacity)
+          curSeq = seq.get(curIdx)
+          if (curSeq != deqHead + 1) {
+            loop = false
           }
-        } else if (curSeq == curHead + 1) {
-          deqHead = curHead + toTake
-          if (aHead.compareAndSet(this, curHead, deqHead)) {
-            state = STATE_RESERVED
-          } else {
-            curHead += 1
-            toTake -= 1
-            state = STATE_LOOP
-          }
+          deqHead += 1
+        }
+        if (deqHead == deqTail && aHead.compareAndSet(this, curHead, deqTail)) {
+          state = STATE_RESERVED
         } else {
-          curHead = aHead.get(this)
-          curTail = aTail.get(this)
-          toTake = math.min(takers, curTail - curHead)
           state = STATE_LOOP
         }
       }
@@ -456,7 +448,7 @@ abstract class RingBuffer[A](override final val capacity: Int) extends MutableQu
     if (state == STATE_RESERVED) {
       val builder = ChunkBuilder.make[A]()
       builder.sizeHint(n)
-      while (curHead < deqHead) {
+      while (curHead < deqTail) {
         curIdx = posToIdx(curHead, aCapacity)
         val a = buf(curIdx).asInstanceOf[A]
         buf(curIdx) = null
