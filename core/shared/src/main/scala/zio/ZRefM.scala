@@ -16,6 +16,8 @@
 
 package zio
 
+import com.github.ghik.silencer.silent
+
 /**
  * A `ZRefM[RA, RB, EA, EB, A, B]` is a polymorphic, purely functional
  * description of a mutable reference. The fundamental operations of a `ZRefM`
@@ -420,6 +422,7 @@ object ZRefM {
      * a return value for the modification. This is a more powerful version of
      * `update`.
      */
+    @silent("unreachable code")
     def modify[R1 <: R, E1 >: E, B](f: A => ZIO[R1, E1, (B, A)]): ZIO[R1, E1, B] =
       self match {
         case atomic: Atomic[A] =>

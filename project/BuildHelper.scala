@@ -11,8 +11,8 @@ import scalafix.sbt.ScalafixPlugin.autoImport._
 object BuildHelper {
   // Keep this consistent with the version in .circleci/config.yml
   val Scala211   = "2.11.12"
-  val Scala212   = "2.12.12"
-  val Scala213   = "2.13.3"
+  val Scala212   = "2.12.13"
+  val Scala213   = "2.13.4"
   val ScalaDotty = "3.0.0-M3"
 
   val SilencerVersion = "1.7.1"

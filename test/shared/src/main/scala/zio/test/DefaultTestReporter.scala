@@ -42,15 +42,17 @@ object DefaultTestReporter {
       depth: Int,
       ancestors: List[TestAnnotationMap]
     ): Seq[RenderedResult[String]] =
-      executedSpec.caseValue match {
+      (executedSpec.caseValue: @unchecked) match {
         case ExecutedSpec.SuiteCase(label, specs) =>
           val hasFailures = executedSpec.exists {
             case ExecutedSpec.TestCase(_, test, _) => test.isLeft
             case _                                 => false
           }
-          val annotations = executedSpec.fold[TestAnnotationMap] {
-            case ExecutedSpec.SuiteCase(_, annotations)   => annotations.foldLeft(TestAnnotationMap.empty)(_ ++ _)
-            case ExecutedSpec.TestCase(_, _, annotations) => annotations
+          val annotations = executedSpec.fold[TestAnnotationMap] { es =>
+            (es: @unchecked) match {
+              case ExecutedSpec.SuiteCase(_, annotations)   => annotations.foldLeft(TestAnnotationMap.empty)(_ ++ _)
+              case ExecutedSpec.TestCase(_, _, annotations) => annotations
+            }
           }
           val status = if (hasFailures) Failed else Passed
           val renderedLabel =
@@ -95,17 +97,19 @@ object DefaultTestReporter {
   }
 
   private def logStats[E](duration: Duration, executedSpec: ExecutedSpec[E]): String = {
-    val (success, ignore, failure) = executedSpec.fold[(Int, Int, Int)] {
-      case ExecutedSpec.SuiteCase(_, stats) =>
-        stats.foldLeft((0, 0, 0)) { case ((x1, x2, x3), (y1, y2, y3)) =>
-          (x1 + y1, x2 + y2, x3 + y3)
-        }
-      case ExecutedSpec.TestCase(_, result, _) =>
-        result match {
-          case Left(_)                         => (0, 0, 1)
-          case Right(TestSuccess.Succeeded(_)) => (1, 0, 0)
-          case Right(TestSuccess.Ignored)      => (0, 1, 0)
-        }
+    val (success, ignore, failure) = executedSpec.fold[(Int, Int, Int)] { es =>
+      (es: @unchecked) match {
+        case ExecutedSpec.SuiteCase(_, stats) =>
+          stats.foldLeft((0, 0, 0)) { case ((x1, x2, x3), (y1, y2, y3)) =>
+            (x1 + y1, x2 + y2, x3 + y3)
+          }
+        case ExecutedSpec.TestCase(_, result, _) =>
+          result match {
+            case Left(_)                         => (0, 0, 1)
+            case Right(TestSuccess.Succeeded(_)) => (1, 0, 0)
+            case Right(TestSuccess.Ignored)      => (0, 1, 0)
+          }
+      }
     }
     val total = success + ignore + failure
     cyan(

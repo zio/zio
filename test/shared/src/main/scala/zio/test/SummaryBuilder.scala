@@ -22,16 +22,20 @@ object SummaryBuilder {
   private def countTestResults[E](
     executedSpec: ExecutedSpec[E]
   )(pred: Either[TestFailure[E], TestSuccess] => Boolean): Int =
-    executedSpec.fold[Int] {
-      case ExecutedSpec.SuiteCase(_, counts) => counts.sum
-      case ExecutedSpec.TestCase(_, test, _) => if (pred(test)) 1 else 0
+    executedSpec.fold[Int] { c =>
+      (c: @unchecked) match {
+        case ExecutedSpec.SuiteCase(_, counts) => counts.sum
+        case ExecutedSpec.TestCase(_, test, _) => if (pred(test)) 1 else 0
+      }
     }
 
   private def extractFailures[E](executedSpec: ExecutedSpec[E]): Seq[ExecutedSpec[E]] =
-    executedSpec.fold[Seq[ExecutedSpec[E]]] {
-      case ExecutedSpec.SuiteCase(label, specs) =>
-        val newSpecs = specs.flatten
-        if (newSpecs.nonEmpty) Seq(ExecutedSpec(ExecutedSpec.SuiteCase(label, newSpecs))) else Seq.empty
-      case c @ ExecutedSpec.TestCase(_, test, _) => if (test.isLeft) Seq(ExecutedSpec(c)) else Seq.empty
+    executedSpec.fold[Seq[ExecutedSpec[E]]] { c =>
+      (c: @unchecked) match {
+        case ExecutedSpec.SuiteCase(label, specs) =>
+          val newSpecs = specs.flatten
+          if (newSpecs.nonEmpty) Seq(ExecutedSpec(ExecutedSpec.SuiteCase(label, newSpecs))) else Seq.empty
+        case c @ ExecutedSpec.TestCase(_, test, _) => if (test.isLeft) Seq(ExecutedSpec(c)) else Seq.empty
+      }
     }
 }
