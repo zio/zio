@@ -272,7 +272,7 @@ abstract class RingBuffer[A](override final val capacity: Int) extends MutableQu
       val size      = curTail - curHead
       val available = aCapacity - size
       val forQueue  = math.min(offers, available)
-      if (forQueue <= 0) {
+      if (forQueue == 0) {
         state = STATE_FULL
       } else {
         enqHead = curTail
@@ -280,13 +280,13 @@ abstract class RingBuffer[A](override final val capacity: Int) extends MutableQu
         var loop = true
         while (loop & enqHead < enqTail) {
           curIdx = posToIdx(enqHead, aCapacity)
-          curSeq = seq.get(curIdx)
+          curSeq = aSeq.get(curIdx)
           if (curSeq != enqHead) {
             loop = false
           }
           enqHead += 1
         }
-        if (enqHead == enqTail && aTail.compareAndSet(this, curTail, enqTail)) {
+        if (loop && aTail.compareAndSet(this, curTail, enqTail)) {
           state = STATE_RESERVED
         } else {
           state = STATE_LOOP
@@ -431,13 +431,13 @@ abstract class RingBuffer[A](override final val capacity: Int) extends MutableQu
         var loop = true
         while (loop && deqHead < deqTail) {
           curIdx = posToIdx(deqHead, aCapacity)
-          curSeq = seq.get(curIdx)
+          curSeq = aSeq.get(curIdx)
           if (curSeq != deqHead + 1) {
             loop = false
           }
           deqHead += 1
         }
-        if (deqHead == deqTail && aHead.compareAndSet(this, curHead, deqTail)) {
+        if (loop && aHead.compareAndSet(this, curHead, deqTail)) {
           state = STATE_RESERVED
         } else {
           state = STATE_LOOP

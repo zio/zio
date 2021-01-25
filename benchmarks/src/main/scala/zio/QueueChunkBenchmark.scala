@@ -16,8 +16,8 @@ import java.util.concurrent.TimeUnit
  */
 class QueueChunkBenchmark {
 
-  val totalSize   = 100000
-  val chunkSize   = 1000
+  val totalSize   = 1000
+  val chunkSize   = 10
   val parallelism = 5
 
   var zioQ: Queue[Int] = _
