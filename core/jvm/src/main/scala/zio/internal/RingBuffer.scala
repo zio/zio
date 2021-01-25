@@ -273,38 +273,58 @@ abstract class RingBuffer[A](override final val capacity: Int) extends MutableQu
       val available = aCapacity - size
       val forQueue  = math.min(offers, available)
       if (forQueue == 0) {
+        // There are no elements to offer or no space in the queue, terminate
+        // immediately.
         state = STATE_FULL
       } else {
+        // We know that space for this many elements has been reserved in the
+        // queue. However, elements in some of these spaces may be in the
+        // process of being dequeued so we need to check for that.
         enqHead = curTail
         enqTail = curTail + forQueue
-        var loop = true
-        while (loop & enqHead < enqTail) {
+        var continue = true
+        while (continue & enqHead < enqTail) {
           curIdx = posToIdx(enqHead, aCapacity)
           curSeq = aSeq.get(curIdx)
           if (curSeq != enqHead) {
-            loop = false
+            // The element at this spot has not been dequeued yet, or possibly
+            // has been dequeued and another thread has already enqueued a new
+            // element. We need to abort and retry.
+            continue = false
           }
           enqHead += 1
         }
-        if (loop && aTail.compareAndSet(this, curTail, enqTail)) {
+        // If all elements have been dequeued, we can do compare and swap to
+        // try to reserve the space in the queue.
+        if (continue && aTail.compareAndSet(this, curTail, enqTail)) {
+          // We successfully reserved the space in the queue. We can prepare to
+          // enqueue the elements and publish our changes.
+          enqHead = curTail
           state = STATE_RESERVED
         } else {
+          // Another thread beat us to reserving space in the queue. We need to
+          // abort and retry.
           state = STATE_LOOP
         }
       }
     }
 
     if (state == STATE_RESERVED) {
+      // We have successfully resserved space in the queue and have exclusive
+      // ownership of each space until we publish our changes. Enqueue the
+      // elements sequentially and publish our changes as we go.
       val iterator = as.iterator
-      while (curTail < enqTail) {
+      while (enqHead < enqTail) {
         val a = iterator.next()
-        curIdx = posToIdx(curTail, aCapacity)
+        curIdx = posToIdx(enqHead, aCapacity)
         buf(curIdx) = a.asInstanceOf[AnyRef]
-        aSeq.lazySet(curIdx, curTail + 1)
-        curTail += 1
+        aSeq.lazySet(curIdx, enqHead + 1)
+        enqHead += 1
       }
       Chunk.fromIterator(iterator)
     } else {
+      // There was no space in the queue or the original collection was empty.
+      // Just return the original collection unchanged.
       as
     }
   }
@@ -424,40 +444,58 @@ abstract class RingBuffer[A](override final val capacity: Int) extends MutableQu
       val size   = curTail - curHead
       val toTake = math.min(takers, size)
       if (toTake <= 0) {
+        // There are no elements to take, terminate immediately.
         state = STATE_EMPTY
       } else {
+        // We know that space for this many elements has been reserved in the
+        // queue. However, some of these elements may still be in the process
+        // of being enqueued, so we need to check for that.
         deqHead = curHead
         deqTail = curHead + toTake
-        var loop = true
-        while (loop && deqHead < deqTail) {
+        var continue = true
+        while (continue && deqHead < deqTail) {
           curIdx = posToIdx(deqHead, aCapacity)
           curSeq = aSeq.get(curIdx)
           if (curSeq != deqHead + 1) {
-            loop = false
+            // The element at this spot has not been enqueued yet, or possibly
+            // has been enqueued and already dequeued by another thread. We
+            // need to abort and retry.
+            continue = false
           }
           deqHead += 1
         }
-        if (loop && aHead.compareAndSet(this, curHead, deqTail)) {
+        // If all elements have been enqueued, we can do compare and swap to
+        // try to reserve the space in the queue.
+        if (continue && aHead.compareAndSet(this, curHead, deqTail)) {
+          // We successfully reserved the space in the queue. We can prepare to
+          // dequeue the elements and publish our changes.
+          deqHead = curHead
           state = STATE_RESERVED
         } else {
+          // Another thread beat us to reserving space in the queue. We need to
+          // abort and retry.
           state = STATE_LOOP
         }
       }
     }
 
     if (state == STATE_RESERVED) {
+      // We have successfully resserved space in the queue and have exclusive
+      // ownership of each space until we publish our changes. Dequeue the
+      // elements sequentially and publish our changes as we go.
       val builder = ChunkBuilder.make[A]()
       builder.sizeHint(n)
-      while (curHead < deqTail) {
-        curIdx = posToIdx(curHead, aCapacity)
+      while (deqHead < deqTail) {
+        curIdx = posToIdx(deqHead, aCapacity)
         val a = buf(curIdx).asInstanceOf[A]
         buf(curIdx) = null
-        aSeq.lazySet(curIdx, curHead + aCapacity)
+        aSeq.lazySet(curIdx, deqHead + aCapacity)
         builder += a
-        curHead += 1
+        deqHead += 1
       }
       builder.result()
     } else {
+      // There were no elements to take, just return an empty collection.
       Chunk.empty
     }
   }
