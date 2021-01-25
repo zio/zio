@@ -51,6 +51,7 @@ import zio.interop.catz.implicits._
 ```
 
 The reason why a `Timer[Task]` is not provided by the default "interop" import is that it makes testing programs that require timing capabilities very difficult. The extra import (wherever needed) makes reasoning about timing-related effects much easier.
+If you are using `RIO` for a custom environment then your environment must use the `Clock` service, e.g. `R <: Clock` to get a timer.
 
 ## Example
 
