@@ -215,7 +215,7 @@ When working with randomness testing might be hard because the inputs to the tes
 that deals with Randomness.
 `TestRandom` can operate in two modes based on needed use case. In first mode it is a purely functional pseudo-random number generator. During generation on random values like when calling `nextInt` no internal state is being mutated. It is expected to chain such operations with combinators like `flatMap`. To preserve the same values generated between invocation of tests `setSeed` method can be used. It is guaranteed to return the same sequence of values for any given seed.
 
-```scala
+```scala mdoc
 import zio.test.assert
 import zio.test.environment.TestRandom
 import zio.test.Assertion.equalTo
@@ -237,7 +237,7 @@ testM("Use setSeed to generate stable values") {
 
 In second mode `TestRandom` maintains an internal buffer of values that can be "fed" upfront with methods such as `feedInts`. When random values are being generated first values from that buffer are being used.
 
-```scala
+```scala mdoc
 import zio.test.environment.TestRandom
 testM("One can provide its own list of ints") {
   for {
@@ -294,7 +294,7 @@ testM("One can move time very fast") {
 
 `TestClock` affects also all code running asynchronously that is scheduled to run after a certain time.
 
-```scala
+```scala mdoc
 import zio.duration._
 import zio.test.Assertion.equalTo
 import zio.test._
@@ -370,7 +370,7 @@ the test environment.
 
 The pattern with `Promise` and `await` can be generalized when we need to wait for multiple values using a `Queue`. We simply need to put multiple values into the queue and progress the clock multiple times and there is no need to create multiple promises. Even if you have a non-trivial flow of data from multiple streams that can produce at different intervals and would like to test snapshots of data in particular point in time `Queue` can help with that.
 
-```scala
+```scala mdoc
 import zio.duration._
 import zio.test.Assertion.equalTo
 import zio.test._
