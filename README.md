@@ -40,6 +40,7 @@ production to craft concurrent applications.
 
 Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/master/README.md)!
 
+* [Adidas](https://www.adidas.com/)
 * [adsquare](https://www.adsquare.com/)
 * [Asana](https://asana.com/)
 * [auto.ru](https://auto.ru)
