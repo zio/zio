@@ -2197,7 +2197,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * stream is valid only within the scope of [[ZManaged]].
    */
   def peel[R1 <: R, E1 >: E, O1 >: O, Z](
-    sink: ZSink[R1, E1, O1, O1, Z]
+    sink: ZSink[R1, E1, O, O1, Z]
   ): ZManaged[R1, E1, (Z, ZStream[R, E, O1])] =
     self.process.flatMap { pull =>
       val stream = ZStream.repeatEffectChunkOption(pull)
