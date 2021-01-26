@@ -4,7 +4,7 @@ import zio.test.Assertion._
 import zio.test.junit.JUnitRunnableSpec
 import zio.test.mock.Expectation.{value, valueF}
 import zio.test.mock.{MockClock, MockConsole, MockRandom}
-import zio.test.{assertM, suite, testM}
+import zio.test.assertM
 import zio.{clock, console, random}
 
 class MockExampleSpecWithJUnit extends JUnitRunnableSpec {

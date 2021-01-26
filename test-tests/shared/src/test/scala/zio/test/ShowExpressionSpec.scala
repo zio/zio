@@ -58,7 +58,7 @@ object ShowExpressionSpec extends ZIOBaseSpec {
   def methodWithDefaultArgs(arg: String = "") = arg
 
   def test(desc: String, actual: String, expected: String): ZSpec[Any, Nothing] =
-    zio.test.test(desc) {
+    test(desc) {
       val code = actual
       assert(code)(equalTo(expected))
     }
