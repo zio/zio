@@ -1550,6 +1550,20 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     repeatUntilM(e => f(e).map(!_))
 
   /**
+    * Performs this effect the specified number of times and collects the
+    * results.
+    */
+  final def replicateM(n: Int): ZIO[R, E, Iterable[A]] =
+    ZIO.collectAll(ZIO.replicate(n)(self))
+
+  /**
+    * Performs this effect the specified number of times, discarding the
+    * results.
+    */
+  final def replicateM_(n: Int): ZIO[R, E, Unit] =
+    ZIO.collectAll_(ZIO.replicate(n)(self))
+
+  /**
    * Retries with the specified retry policy.
    * Retries are done following the failure of the original `io` (up to a fixed maximum with
    * `once` or `recurs` for example), so that that `io.retry(Schedule.once)` means
