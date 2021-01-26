@@ -552,6 +552,12 @@ package object test extends CompileVariants {
     Spec.suite(label, ZManaged.succeedNow(specs.toVector), None)
 
   /**
+   * Builds an effectual suite containing a number of other specs.
+   */
+  def suiteM[R, E, T](label: String)(specs: ZIO[R, E, Iterable[Spec[R, E, T]]]): Soec[R, E, T] =
+    Spec.suite(label, specs.map(_.toVector).toManaged_, None)
+
+  /**
    * Builds a spec with a single pure test.
    */
   def test(label: String)(assertion: => TestResult)(implicit loc: SourceLocation): ZSpec[Any, Nothing] =
