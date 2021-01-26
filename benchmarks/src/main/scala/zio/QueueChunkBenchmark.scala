@@ -8,9 +8,9 @@ import java.util.concurrent.TimeUnit
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
-@Measurement(iterations = 15, timeUnit = TimeUnit.SECONDS, time = 3)
-@Warmup(iterations = 15, timeUnit = TimeUnit.SECONDS, time = 3)
-@Fork(3)
+@Measurement(iterations = 5, timeUnit = TimeUnit.SECONDS, time = 3)
+@Warmup(iterations = 5, timeUnit = TimeUnit.SECONDS, time = 3)
+@Fork(1)
 /**
  * This benchmark offers and takes chunks of items.
  */
@@ -22,43 +22,74 @@ class QueueChunkBenchmark {
 
   val chunk: List[Int] = List.fill(chunkSize)(0)
 
-  var zioQ: Queue[Int] = _
+  var queue: Queue[Int] = _
+
+  var offerChunks: List[UIO[Any]] = _
+  var takeChunks: List[UIO[Any]]  = _
+
+  var offers: List[UIO[Any]] = _
+  var takes: List[UIO[Any]]  = _
 
   @Setup(Level.Trial)
-  def createQueues(): Unit =
-    zioQ = unsafeRun(Queue.bounded[Int](totalSize))
+  def setup(): Unit = {
+    queue = unsafeRun(Queue.bounded[Int](totalSize))
+    offerChunks = List.fill(parallelism) {
+      repeat(totalSize * 1 / chunkSize * 1 / parallelism)(queue.offerAll(chunk))
+    }
+    takeChunks = List.fill(parallelism) {
+      repeat(totalSize * 1 / chunkSize * 1 / parallelism)(queue.takeBetween(chunkSize, chunkSize))
+    }
+    offers = List.fill(parallelism) {
+      repeat(totalSize * 1 / parallelism)(queue.offer(0))
+    }
+    takes = List.fill(parallelism) {
+      repeat(totalSize * 1 / parallelism)(queue.take)
+    }
+  }
 
   @Benchmark
-  def zioQueueParallel(): Int = {
+  def parallel(): Int = {
 
     val io = for {
-      offers <- IO.forkAll {
-                  List.fill(parallelism) {
-                    repeat(totalSize * 1 / chunkSize * 1 / parallelism)(zioQ.offerAll(chunk).unit)
-                  }
-                }
-      takes <- IO.forkAll {
-                 List.fill(parallelism) {
-                   repeat(totalSize * 1 / chunkSize * 1 / parallelism)(zioQ.takeBetween(chunkSize, chunkSize).unit)
-                 }
-               }
-      _ <- offers.join
-      _ <- takes.join
+      offers <- ZIO.forkAll(offers)
+      takes  <- ZIO.forkAll(takes)
+      _      <- offers.join
+      _      <- takes.join
     } yield 0
 
     unsafeRun(io)
   }
 
   @Benchmark
-  def zioQueueSequential(): Int = {
-
-    def repeat(task: UIO[Unit], max: Int): UIO[Unit] =
-      if (max < 1) IO.unit
-      else task.flatMap(_ => repeat(task, max - 1))
+  def parallelChunked(): Int = {
 
     val io = for {
-      _ <- repeat(zioQ.offerAll(chunk).unit, totalSize / chunkSize)
-      _ <- repeat(zioQ.takeUpTo(chunkSize).unit, totalSize / chunkSize)
+      offers <- ZIO.forkAll(offerChunks)
+      takes  <- ZIO.forkAll(takeChunks)
+      _      <- offers.join
+      _      <- takes.join
+    } yield 0
+
+    unsafeRun(io)
+  }
+
+  @Benchmark
+  def sequential(): Int = {
+
+    val io = for {
+      _ <- repeat(totalSize)(queue.offer(0))
+      _ <- repeat(totalSize)(queue.take)
+    } yield 0
+
+    unsafeRun(io)
+  }
+
+  @Benchmark
+  def sequentialChunked(): Int = {
+
+    val io = for {
+      _ <- repeat(totalSize / chunkSize)(queue.offerAll(chunk))
+      _ <- repeat(totalSize / chunkSize)(queue.takeBetween(chunkSize, chunkSize))
     } yield 0
 
     unsafeRun(io)
