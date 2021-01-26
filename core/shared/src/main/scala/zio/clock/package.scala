@@ -54,11 +54,9 @@ package object clock {
             // However, ChronoUnit is not available on all platforms
             unit match {
               case TimeUnit.NANOSECONDS =>
-                val micros = inst.toEpochMilli() * 1000000 + inst.getNano()
-                unit.convert(micros, TimeUnit.NANOSECONDS)
+                inst.getEpochSecond() * 1000000000 + inst.getNano()
               case TimeUnit.MICROSECONDS =>
-                val micros = inst.toEpochMilli() * 1000 + inst.getNano() / 1000
-                unit.convert(micros, TimeUnit.MICROSECONDS)
+                inst.getEpochSecond() * 1000000 + inst.getNano() / 1000
               case _ => unit.convert(inst.toEpochMilli(), TimeUnit.MILLISECONDS)
             }
           }
