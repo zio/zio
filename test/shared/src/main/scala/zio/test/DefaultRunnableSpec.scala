@@ -48,6 +48,12 @@ abstract class DefaultRunnableSpec extends RunnableSpec[TestEnvironment, Any] {
     zio.test.suite(label)(specs: _*)
 
   /**
+   * Builds an effectual suite containing a number of other specs.
+   */
+  def suiteM[R, E, T](label: String)(specs: ZIO[R, E, Iterable[Spec[R, E, T]]]): Spec[R, E, T] =
+    zio.test.suiteM(label)(specs)
+
+  /**
    * Builds a spec with a single pure test.
    */
   def test(label: String)(assertion: => TestResult)(implicit loc: SourceLocation): ZSpec[Any, Nothing] =
