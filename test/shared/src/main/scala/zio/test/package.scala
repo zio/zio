@@ -554,7 +554,7 @@ package object test extends CompileVariants {
   /**
    * Builds an effectual suite containing a number of other specs.
    */
-  def suiteM[R, E, T](label: String)(specs: ZIO[R, E, Iterable[Spec[R, E, T]]]): Soec[R, E, T] =
+  def suiteM[R, E, T](label: String)(specs: ZIO[R, E, Iterable[Spec[R, E, T]]]): Spec[R, E, T] =
     Spec.suite(label, specs.map(_.toVector).toManaged_, None)
 
   /**
