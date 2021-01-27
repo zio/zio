@@ -689,6 +689,18 @@ object UIO {
     ZIO.replicate(n)(effect)
 
   /**
+   * @see See [[zio.ZIO.replicateM]]
+   */
+  def replicateM[A](n: Int)(effect: UIO[A]): UIO[Iterable[A]] =
+    ZIO.replicateM(n)(effect)
+
+  /**
+   * @see See [[zio.ZIO.replicateM_]]
+   */
+  def replicateM_[A](n: Int)(effect: UIO[A]): UIO[Unit] =
+    ZIO.replicateM_(n)(effect)
+
+  /**
    * @see See [[zio.ZIO.reserve]]
    */
   def reserve[A, B](reservation: UIO[Reservation[Any, Nothing, A]])(use: A => UIO[B]): UIO[B] =
