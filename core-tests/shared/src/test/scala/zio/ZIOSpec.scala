@@ -274,6 +274,12 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(res)(equalTo(List(1, 2, 3)))
       }
     ),
+    suite("collectAllParN_")(
+      testM("preserves failures") {
+        val tasks = List.fill(10)(ZIO.fail(new RuntimeException))
+        assertM(ZIO.collectAllParN_(5)(tasks).flip)(anything)
+      }
+    ),
     suite("collectM")(
       testM("returns failure ignoring value") {
         val goodCase =
