@@ -1554,14 +1554,14 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * results.
    */
   final def replicateM(n: Int): ZIO[R, E, Iterable[A]] =
-    ZIO.collectAll(ZIO.replicate(n)(self))
+    ZIO.replicateM(n)(self)
 
   /**
    * Performs this effect the specified number of times, discarding the
    * results.
    */
   final def replicateM_(n: Int): ZIO[R, E, Unit] =
-    ZIO.collectAll_(ZIO.replicate(n)(self))
+    ZIO.replicateM_(n)(self)
 
   /**
    * Retries with the specified retry policy.
@@ -3716,6 +3716,20 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     new Iterable[ZIO[R, E, A]] {
       override def iterator: Iterator[ZIO[R, E, A]] = Iterator.range(0, n).map(_ => effect)
     }
+
+  /**
+   * Performs this effect the specified number of times and collects the
+   * results.
+   */
+  def replicateM[R, E, A](n: Int)(effect: ZIO[R, E, A]): ZIO[R, E, Iterable[A]] =
+    ZIO.collectAll(ZIO.replicate(n)(effect))
+
+  /**
+   * Performs this effect the specified number of times, discarding the
+   * results.
+   */
+  def replicateM_[R, E, A](n: Int)(effect: ZIO[R, E, A]): ZIO[R, E, Unit] =
+    ZIO.collectAll_(ZIO.replicate(n)(effect))
 
   /**
    * Requires that the given `ZIO[R, E, Option[A]]` contain a value. If there is no

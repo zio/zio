@@ -819,6 +819,18 @@ object RIO {
     ZIO.replicate(n)(effect)
 
   /**
+   * @see See [[zio.ZIO.replicateM]]
+   */
+  def replicateM[R, A](n: Int)(effect: RIO[R, A]): RIO[R, Iterable[A]] =
+    ZIO.replicateM(n)(effect)
+
+  /**
+   * @see See [[zio.ZIO.replicateM_]]
+   */
+  def replicateM_[R, A](n: Int)(effect: RIO[R, A]): RIO[R, Unit] =
+    ZIO.replicateM_(n)(effect)
+
+  /**
    * @see See [[zio.ZIO.require]]
    */
   def require[A](error: => Throwable): IO[Throwable, Option[A]] => IO[Throwable, A] =
