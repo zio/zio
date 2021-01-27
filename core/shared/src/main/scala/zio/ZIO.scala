@@ -3077,7 +3077,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
           ref    <- Ref.make(as.size)
           _      <- ZIO.foreach_(as)(q.offer).fork
           fibers <- ZIO.collectAll(List.fill(n.toInt)(worker(q, ref).fork))
-          _      <- ZIO.foreach_(fibers)(_.await)
+          _      <- ZIO.foreach_(fibers)(_.join)
         } yield ()
       }
       .refailWithTrace
