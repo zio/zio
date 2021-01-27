@@ -11,7 +11,7 @@ import scalafix.sbt.ScalafixPlugin.autoImport._
 object BuildHelper {
   // Keep this consistent with the version in .circleci/config.yml
   val Scala211   = "2.11.12"
-  val Scala212   = "2.12.13"
+  val Scala212   = "2.12.12"
   val Scala213   = "2.13.4"
   val ScalaDotty = "3.0.0-M3"
 
@@ -88,7 +88,7 @@ object BuildHelper {
   )
 
   val scalaReflectSettings = Seq(
-    libraryDependencies ++= Seq("dev.zio" %%% "izumi-reflect" % "1.0.0-M12")
+    libraryDependencies ++= Seq("dev.zio" %%% "izumi-reflect" % "1.0.0-M13")
   )
 
   // Keep this consistent with the version in .core-tests/shared/src/test/scala/REPLSpec.scala
