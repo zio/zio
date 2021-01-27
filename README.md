@@ -47,17 +47,18 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [AutoScout24](https://www.autoscout24.de)
 * [Avast](https://www.avast.com)
 * [Call Handling](https://www.callhandling.co.uk/)
-* [Compellon](https://www.compellon.com/)
 * [Colisweb](https://www.colisweb.com/en)
 * [Collibra](https://www.collibra.com/)
+* [Compellon](https://www.compellon.com/)
 * [Contramap](https://www.contramap.dev)
 * [Coralogix](https://coralogix.com)
 * [CurrencyCloud](https://www.currencycloud.com/)
+* [DataChef](https://datachef.co)
 * [Demyst](https://demyst.com)
 * [Devsisters](https://devsisters.com/)
-* [Dream11](https://dream11.com)
 * [DHL Parcel The Netherlands](https://www.werkenbijdhl.nl/it)
 * [Doomoolmori](https://doomoolmori.com/)
+* [Dream11](https://dream11.com)
 * [Evolution](https://evolution.engineering)
 * [Fugo.ai](https://www.fugo.ai)
 * [GrandParade](https://grandparade.co.uk)
@@ -84,7 +85,6 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Univalence](https://univalence.io)
 * [Wehkamp](https://www.wehkamp.nl)
 * [Yandex.Classifieds](https://o.yandex.ru)
-* [DataChef](https://datachef.co)
 
 # Sponsors
 
