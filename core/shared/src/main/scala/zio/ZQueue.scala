@@ -320,34 +320,14 @@ object ZQueue {
     /**
      * Poll n items from the queue
      */
-    def unsafePollN[A](q: MutableConcurrentQueue[A], max: Int): List[A] = {
-      val empty = null.asInstanceOf[A]
-
-      @tailrec
-      def poll(as: List[A], n: Int): List[A] =
-        if (n < 1) as
-        else
-          q.poll(empty) match {
-            case null => as
-            case a    => poll(a :: as, n - 1)
-          }
-
-      poll(List.empty[A], max).reverse
-    }
+    def unsafePollN[A](q: MutableConcurrentQueue[A], max: Int): List[A] =
+      q.pollUpTo(max).toList
 
     /**
      * Offer items to the queue
      */
-    def unsafeOfferAll[A](q: MutableConcurrentQueue[A], as: List[A]): List[A] = {
-      @tailrec
-      def offerAll(as: List[A]): List[A] =
-        as match {
-          case Nil          => as
-          case head :: tail => if (q.offer(head)) offerAll(tail) else as
-        }
-
-      offerAll(as)
-    }
+    def unsafeOfferAll[A](q: MutableConcurrentQueue[A], as: List[A]): List[A] =
+      q.offerAll(as).toList
 
     /**
      * Remove an item from the queue

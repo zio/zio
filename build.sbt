@@ -11,7 +11,9 @@ inThisBuild(
   List(
     organization := "dev.zio",
     homepage := Some(url("https://zio.dev")),
-    licenses := List("Apache-2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")),
+    licenses := List(
+      "Apache-2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")
+    ),
     developers := List(
       Developer(
         "jdegoes",
@@ -28,7 +30,10 @@ inThisBuild(
 
 addCommandAlias("build", "; prepare; testJVM")
 addCommandAlias("prepare", "; fix; fmt")
-addCommandAlias("fix", "all compile:scalafix test:scalafix; all scalafmtSbt scalafmtAll")
+addCommandAlias(
+  "fix",
+  "all compile:scalafix test:scalafix; all scalafmtSbt scalafmtAll"
+)
 addCommandAlias(
   "fixCheck",
   "; compile:scalafix --check ; test:scalafix --check"
@@ -78,7 +83,10 @@ lazy val root = project
     name := "zio",
     skip in publish := true,
     console := (console in Compile in coreJVM).value,
-    unusedCompileDependenciesFilter -= moduleFilter("org.scala-js", "scalajs-library"),
+    unusedCompileDependenciesFilter -= moduleFilter(
+      "org.scala-js",
+      "scalajs-library"
+    ),
     welcomeMessage
   )
   .aggregate(
@@ -152,7 +160,9 @@ lazy val coreTests = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(testRunner)
   .settings(buildInfoSettings("zio"))
   .settings(skip in publish := true)
-  .settings(Compile / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat)
+  .settings(
+    Compile / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat
+  )
   .enablePlugins(BuildInfoPlugin)
 
 lazy val coreTestsJVM = coreTests.jvm
@@ -208,7 +218,9 @@ lazy val streamsTests = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(testRunner)
   .settings(buildInfoSettings("zio.stream"))
   .settings(skip in publish := true)
-  .settings(Compile / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.AllLibraryJars)
+  .settings(
+    Compile / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.AllLibraryJars
+  )
   .enablePlugins(BuildInfoPlugin)
 
 lazy val streamsTestsJVM = streamsTests.jvm
@@ -227,7 +239,8 @@ lazy val test = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(macroExpansionSettings)
   .settings(
     libraryDependencies ++= Seq(
-      ("org.portable-scala" %%% "portable-scala-reflect" % "1.1.0").withDottyCompat(scalaVersion.value)
+      ("org.portable-scala" %%% "portable-scala-reflect" % "1.1.0")
+        .withDottyCompat(scalaVersion.value)
     )
   )
 
@@ -276,7 +289,10 @@ lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform)
       if (isDotty.value) {
         Seq.empty
       } else {
-        Seq(("com.propensive" %%% "magnolia" % "0.17.0").exclude("org.scala-lang", "scala-compiler"))
+        Seq(
+          ("com.propensive" %%% "magnolia" % "0.17.0")
+            .exclude("org.scala-lang", "scala-compiler")
+        )
       }
     }
   )
@@ -301,11 +317,31 @@ lazy val testMagnoliaTestsJVM = testMagnoliaTests.jvm
   .settings(dottySettings)
 lazy val testMagnoliaTestsJS = testMagnoliaTests.js.settings(jsSettings)
 
+lazy val testRefined = crossProject(JVMPlatform, JSPlatform)
+  .in(file("test-refined"))
+  .dependsOn(testMagnolia)
+  .settings(stdSettings("zio-test-refined"))
+  .settings(crossProjectSettings)
+  .settings(macroDefinitionSettings)
+  .settings(
+    crossScalaVersions --= Seq(Scala211),
+    libraryDependencies ++=
+      Seq(
+        ("eu.timepit" %% "refined" % "0.9.20")
+          .withDottyCompat(scalaVersion.value)
+      )
+  )
+
+lazy val testRefinedJVM = testRefined.jvm
+  .settings(dottySettings)
+lazy val testRefinedJS = testRefined.js
+
 lazy val stacktracer = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("stacktracer"))
   .settings(stdSettings("zio-stacktracer"))
   .settings(crossProjectSettings)
   .settings(buildInfoSettings("zio.internal.stacktracer"))
+  .enablePlugins(BuildInfoPlugin)
 
 lazy val stacktracerJS = stacktracer.js
 lazy val stacktracerJVM = stacktracer.jvm
@@ -324,8 +360,14 @@ lazy val testRunner = crossProject(JVMPlatform, JSPlatform)
   .settings(stdSettings("zio-test-sbt"))
   .settings(crossProjectSettings)
   .settings(mainClass in (Test, run) := Some("zio.test.sbt.TestMain"))
-  .jsSettings(libraryDependencies ++= Seq("org.scala-js" %% "scalajs-test-interface" % scalaJSVersion))
-  .jvmSettings(libraryDependencies ++= Seq("org.scala-sbt" % "test-interface" % "1.0"))
+  .jsSettings(
+    libraryDependencies ++= Seq(
+      "org.scala-js" %% "scalajs-test-interface" % scalaJSVersion
+    )
+  )
+  .jvmSettings(
+    libraryDependencies ++= Seq("org.scala-sbt" % "test-interface" % "1.0")
+  )
   .dependsOn(core)
   .dependsOn(test)
 
@@ -347,7 +389,10 @@ lazy val testJunitRunnerTests = crossProject(JVMPlatform)
   .settings(crossProjectSettings)
   .settings(fork in Test := true)
   .settings(javaOptions in Test ++= {
-    Seq(s"-Dproject.dir=${baseDirectory.value}", s"-Dproject.version=${version.value}")
+    Seq(
+      s"-Dproject.dir=${baseDirectory.value}",
+      s"-Dproject.version=${version.value}"
+    )
   })
   .settings(skip in publish := true)
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
@@ -426,7 +471,12 @@ lazy val benchmarks = project.module
         "com.github.japgolly.nyaya" %% "nyaya-gen"      % "0.9.2"
       ),
     unusedCompileDependenciesFilter -= libraryDependencies.value
-      .map(moduleid => moduleFilter(organization = moduleid.organization, name = moduleid.name))
+      .map(moduleid =>
+        moduleFilter(
+          organization = moduleid.organization,
+          name = moduleid.name
+        )
+      )
       .reduce(_ | _),
     scalacOptions in Compile in console := Seq(
       "-Ypartial-unification",
@@ -436,15 +486,14 @@ lazy val benchmarks = project.module
       "-Xsource:2.13",
       "-Yrepl-class-based"
     ),
-    resolvers += Resolver.url("bintray-scala-hedgehog", url("https://dl.bintray.com/hedgehogqa/scala-hedgehog"))(
-      Resolver.ivyStylePatterns
-    )
+    resolvers += Resolver.url(
+      "bintray-scala-hedgehog",
+      url("https://dl.bintray.com/hedgehogqa/scala-hedgehog")
+    )(Resolver.ivyStylePatterns)
   )
 
 lazy val jsdocs = project
-  .settings(
-    libraryDependencies += "org.scala-js" %%% "scalajs-dom" % "1.0.0"
-  )
+  .settings(libraryDependencies += "org.scala-js" %%% "scalajs-dom" % "1.0.0")
   .enablePlugins(ScalaJSPlugin)
 lazy val docs = project.module
   .in(file("zio-docs"))
@@ -469,11 +518,5 @@ lazy val docs = project.module
   )
   .settings(macroExpansionSettings)
   .settings(mdocJS := Some(jsdocs))
-  .dependsOn(
-    coreJVM,
-    streamsJVM,
-    testJVM,
-    testMagnoliaJVM,
-    coreJS
-  )
+  .dependsOn(coreJVM, streamsJVM, testJVM, testMagnoliaJVM, coreJS)
   .enablePlugins(MdocPlugin, DocusaurusPlugin)

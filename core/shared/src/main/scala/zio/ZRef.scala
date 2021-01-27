@@ -16,6 +16,8 @@
 
 package zio
 
+import com.github.ghik.silencer.silent
+
 import java.util.concurrent.atomic.AtomicReference
 
 /**
@@ -508,6 +510,7 @@ object ZRef extends Serializable {
      * computes a return value for the modification. This is a more powerful
      * version of `update`.
      */
+    @silent("unreachable code")
     def modify[B](f: A => (B, A)): IO[E, B] =
       self match {
         case atomic: Atomic[A] => atomic.modify(f)
@@ -608,6 +611,7 @@ object ZRef extends Serializable {
 
   private[zio] implicit class UnsafeSyntax[A](private val self: Ref[A]) extends AnyVal {
 
+    @silent("unreachable code")
     def unsafeGet: A =
       self match {
         case atomic: Atomic[A] => atomic.unsafeGet
@@ -639,6 +643,7 @@ object ZRef extends Serializable {
           }
       }
 
+    @silent("unreachable code")
     def unsafeModify[B](f: A => (B, A)): B =
       self match {
         case atomic: Atomic[A] => atomic.unsafeModify(f)
@@ -677,6 +682,7 @@ object ZRef extends Serializable {
           derived.unsafeModify(v => pf.applyOrElse[A, (B, A)](v, _ => (default, v)))
       }
 
+    @silent("unreachable code")
     def unsafeSet(a: A): Unit =
       self match {
         case atomic: Atomic[A] => atomic.unsafeSet(a)
@@ -691,6 +697,7 @@ object ZRef extends Serializable {
           }.merge
       }
 
+    @silent("unreachable code")
     def unsafeSetAsync(a: A): Unit =
       self match {
         case atomic: Atomic[A] => atomic.unsafeSetAsync(a)

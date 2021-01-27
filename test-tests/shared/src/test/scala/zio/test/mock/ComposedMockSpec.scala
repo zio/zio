@@ -5,7 +5,7 @@ import zio.console.Console
 import zio.duration._
 import zio.random.Random
 import zio.system.System
-import zio.test.{Assertion, ZIOBaseSpec, ZSpec, assertM, suite, testM}
+import zio.test.{Assertion, ZIOBaseSpec, ZSpec, assertM}
 import zio.{Has, Tag, ULayer, ZIO, clock, console, random, system}
 
 object ComposedMockSpec extends ZIOBaseSpec {

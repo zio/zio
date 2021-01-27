@@ -40,6 +40,7 @@ production to craft concurrent applications.
 
 Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/master/README.md)!
 
+* [Adidas](https://www.adidas.com/)
 * [adsquare](https://www.adsquare.com/)
 * [Asana](https://asana.com/)
 * [auto.ru](https://auto.ru)
@@ -48,6 +49,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Call Handling](https://www.callhandling.co.uk/)
 * [Compellon](https://www.compellon.com/)
 * [Colisweb](https://www.colisweb.com/en)
+* [Collibra](https://www.collibra.com/)
 * [Contramap](https://www.contramap.dev)
 * [Coralogix](https://coralogix.com)
 * [CurrencyCloud](https://www.currencycloud.com/)
@@ -74,6 +76,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [PPC Samurai](https://ppcsamurai.com/)
 * [Risk Ident](https://riskident.com/)
 * [Rudder](https://www.rudder.io/)
+* [SoftwareMill](https://softwaremill.com/)
 * [TomTom](https://tomtom.com)
 * [Tweddle Group](https://tweddle.com)
 * [Unit](https://unit.co)

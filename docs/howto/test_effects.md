@@ -172,7 +172,7 @@ control and determinism. However there is another source of complexity that come
 
 It is easy to accidentally use different test instances at the same time.
 
-```scala mdoc:fail
+```scala
 import zio.test._
 import zio.test.environment.TestClock
 import Assertion._

@@ -28,13 +28,15 @@ final class TestAnnotation[V] private (
   val combine: (V, V) => V,
   private val tag: Tag[V]
 ) extends Serializable {
-  override def equals(that: Any): Boolean = that match {
+
+  override def equals(that: Any): Boolean = (that: @unchecked) match {
     case that: TestAnnotation[_] => (identifier, tag) == ((that.identifier, that.tag))
   }
 
   override lazy val hashCode: Int =
     (identifier, tag).hashCode
 }
+
 object TestAnnotation {
 
   def apply[V](identifier: String, initial: V, combine: (V, V) => V)(implicit tag: Tag[V]): TestAnnotation[V] =
@@ -76,9 +78,9 @@ object TestAnnotation {
   val location: TestAnnotation[List[SourceLocation]] =
     TestAnnotation("location", List.empty, _ ++ _)
 
-  import scala.collection.immutable.SortedSet
-
   import zio.Ref
+
+  import scala.collection.immutable.SortedSet
 
   val fibers: TestAnnotation[Either[Int, Chunk[Ref[SortedSet[Fiber.Runtime[Any, Any]]]]]] =
     TestAnnotation("fibers", Left(0), compose(_, _))
