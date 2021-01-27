@@ -227,7 +227,7 @@ lazy val test = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(macroExpansionSettings)
   .settings(
     libraryDependencies ++= Seq(
-      ("org.portable-scala" %%% "portable-scala-reflect" % "1.0.0").withDottyCompat(scalaVersion.value)
+      ("org.portable-scala" %%% "portable-scala-reflect" % "1.1.0").withDottyCompat(scalaVersion.value)
     )
   )
 
@@ -238,11 +238,6 @@ lazy val testJVM = test.jvm
 lazy val testJS = test.js
 lazy val testNative = test.native
   .settings(nativeSettings)
-  .settings {
-    libraryDependencies ~= {
-      _.filterNot(_.name == "portable-scala-reflect")
-    }
-  }
   .disablePlugins(
     ScalafixPlugin // for some reason `ThisBuild / scalafixScalaBinaryVersion := CrossVersion.binaryScalaVersion(scalaVersion.value)` isn't enough
   )
