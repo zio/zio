@@ -53,6 +53,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Contramap](https://www.contramap.dev)
 * [Coralogix](https://coralogix.com)
 * [CurrencyCloud](https://www.currencycloud.com/)
+* [Demyst](https://demyst.com)
 * [Devsisters](https://devsisters.com/)
 * [Dream11](https://dream11.com)
 * [DHL Parcel The Netherlands](https://www.werkenbijdhl.nl/it)
