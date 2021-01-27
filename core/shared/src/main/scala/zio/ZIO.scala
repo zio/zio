@@ -3065,22 +3065,22 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Unlike `foreachPar_`, this method will use at most up to `n` fibers.
    */
   def foreachParN_[R, E, A](n: Int)(as: Iterable[A])(f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] = {
-    def worker(q: Queue[A], ref: Ref[Int]): ZIO[R, E, Unit] =
-      ZIO.whenM(ref.modify(n => (n > 0, n - 1))) {
-        q.take.flatMap(f) *> worker(q, ref)
-      }
+    val size = as.size
+    if (size == 0) ZIO.unit
+    else {
 
-    Queue
-      .bounded[A](n.toInt)
-      .bracket(_.shutdown) { q =>
-        for {
-          ref    <- Ref.make(as.size)
-          _      <- ZIO.foreach_(as)(q.offer).fork
-          fibers <- ZIO.collectAll(List.fill(n.toInt)(worker(q, ref).fork))
-          _      <- ZIO.foreach_(fibers)(_.join)
-        } yield ()
-      }
-      .refailWithTrace
+      def worker(queue: Queue[A]): ZIO[R, E, Unit] =
+        queue.poll.flatMap {
+          case Some(a) => f(a) *> worker(queue)
+          case None    => ZIO.unit
+        }
+
+      for {
+        queue <- Queue.bounded[A](size)
+        _     <- queue.offerAll(as)
+        _     <- ZIO.collectAllPar_(ZIO.replicate(n)(worker(queue)))
+      } yield ()
+    }.refailWithTrace
   }
 
   /**
