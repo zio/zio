@@ -296,6 +296,15 @@ object BuildHelper {
     Compile / doc / sources := Seq.empty
   )
 
+  val scalaReflectTestSettings: List[Setting[_]] = List(
+    libraryDependencies ++= {
+      if (isDotty.value)
+        Seq(("org.scala-lang" % "scala-reflect" % Scala213 % Test).withDottyCompat(scalaVersion.value))
+      else
+        Seq("org.scala-lang" % "scala-reflect" % scalaVersion.value % Test)
+    }
+  )
+
   def welcomeMessage = onLoadMessage := {
     import scala.Console
 
