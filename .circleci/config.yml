@@ -287,14 +287,14 @@ jobs:
     <<: *lint
     <<: *machine_ubuntu
     environment:
-      - <<: *scala_212
+      - <<: *scala_213
       - <<: *jdk_8
 
   mdoc:
     <<: *mdoc
     <<: *machine_ubuntu
     environment:
-      - <<: *scala_212
+      - <<: *scala_213
       - <<: *jdk_8
 
   test_211_jdk8_jvm:
@@ -345,7 +345,7 @@ jobs:
       - <<: *scala_dotty
       - <<: *jdk_8
 
-  test_212_jdk11_jvm:
+  test_213_jdk11_jvm:
     <<: *testJVM
     <<: *machine_ubuntu
     <<: *machine_resource
@@ -440,7 +440,7 @@ workflows:
             - lint
           filters:
             <<: *filter_tags
-      - test_212_jdk11_jvm:
+      - test_213_jdk11_jvm:
           requires:
             - lint
           filters:
@@ -472,10 +472,10 @@ workflows:
             - test_211_jdk8_js
             - test_211_jdk8_native
             - test_212_jdk8_jvm
-            - test_212_jdk11_jvm
             - test_212_jdk8_js
             - test_213_jdk8_jvm
             - test_213_jdk8_js
+            - test_213_jdk11_jvm
             - test_dotty_jdk8_jvm
             - mdoc
             - mima_212

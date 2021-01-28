@@ -224,7 +224,7 @@ object BuildHelper {
   def stdSettings(prjName: String) = Seq(
     name := s"$prjName",
     crossScalaVersions := Seq(Scala211, Scala212, Scala213),
-    scalaVersion in ThisBuild := Scala212,
+    scalaVersion in ThisBuild := Scala213,
     scalacOptions := stdOptions ++ extraOptions(scalaVersion.value, isDotty.value, optimize = !isSnapshot.value),
     libraryDependencies ++= {
       if (isDotty.value)
