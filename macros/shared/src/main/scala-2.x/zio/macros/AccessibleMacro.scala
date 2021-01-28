@@ -32,7 +32,7 @@ private[macros] class AccessibleMacro(override val c: whitebox.Context) extends 
   @silent("pattern var [^\\s]+ in method unapply is never used")
   override def macroApply(annottees: Seq[c.Tree]): MacroApply = new MacroApply(annottees) {
     protected def treeTpe(tree: Tree): Type =
-      tree match {
+      (tree: @unchecked) match {
         case tq"$typeName[..$typeParams]" =>
           val typeArgs = typeParams.map(t => c.typecheck(tq"$t", c.TYPEmode, silent = true).tpe)
           c.typecheck(tq"$typeName[..$typeArgs]", c.TYPEmode).tpe

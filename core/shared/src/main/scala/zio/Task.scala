@@ -774,6 +774,18 @@ object Task extends TaskPlatformSpecific {
     ZIO.replicate(n)(effect)
 
   /**
+   * @see See [[zio.ZIO.replicateM]]
+   */
+  def replicateM[A](n: Int)(effect: Task[A]): Task[Iterable[A]] =
+    ZIO.replicateM(n)(effect)
+
+  /**
+   * @see See [[zio.ZIO.replicateM_]]
+   */
+  def replicateM_[A](n: Int)(effect: Task[A]): Task[Unit] =
+    ZIO.replicateM_(n)(effect)
+
+  /**
    * @see See [[zio.ZIO.require]]
    */
   def require[A](error: => Throwable): Task[Option[A]] => Task[A] =

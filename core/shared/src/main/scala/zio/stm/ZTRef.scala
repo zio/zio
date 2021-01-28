@@ -16,6 +16,7 @@
 
 package zio.stm
 
+import com.github.ghik.silencer.silent
 import zio.UIO
 import zio.stm.ZSTM.internal._
 
@@ -455,6 +456,7 @@ object ZTRef {
           }
       }
 
+    @silent("unreachable code")
     def modify[B](f: A => (B, A)): STM[E, B] =
       self match {
         case atomic: Atomic[A] => atomic.modify(f)

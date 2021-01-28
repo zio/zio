@@ -21,6 +21,7 @@ import zio.internal.MutableConcurrentQueue
 
 import java.util.concurrent.atomic.AtomicBoolean
 import scala.annotation.tailrec
+import scala.collection.mutable.ListBuffer
 
 /**
  * A `ZQueue[RA, RB, EA, EB, A, B]` is a lightweight, asynchronous queue into which values of
@@ -102,27 +103,35 @@ sealed abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { 
   def takeUpTo(max: Int): ZIO[RB, EB, List[B]]
 
   /**
-   * Takes between min and max number of values from the queue. If there
-   * is less than min items available, it'll block until the items are
-   * collected.
+   * Takes a number of elements from the queue between the specified minimum
+   * and maximum. If there are fewer than the minimum number of elements
+   * available, suspends until at least the minimum number of elements have
+   * been collected.
    */
   final def takeBetween(min: Int, max: Int): ZIO[RB, EB, List[B]] =
-    if (max < min) UIO.succeedNow(Nil)
-    else
-      takeUpTo(max).flatMap { bs =>
-        val remaining = min - bs.length
+    ZIO.effectSuspendTotal {
+      val buffer = ListBuffer[B]()
 
-        if (remaining == 1)
-          take.map(bs :+ _)
-        else if (remaining > 1) {
-          def takeRemainder(n: Int): ZIO[RB, EB, List[B]] =
-            if (n <= 0) ZIO.succeed(Nil)
-            else take.flatMap(a => takeRemainder(n - 1).map(a :: _))
+      def takeRemainder(min: Int, max: Int): ZIO[RB, EB, Any] =
+        if (max < min) ZIO.unit
+        else
+          takeUpTo(max).flatMap { bs =>
+            val remaining = min - bs.length
+            if (remaining == 1)
+              take.flatMap(b => ZIO.effectTotal(buffer ++= bs += b))
+            else if (remaining > 1) {
+              take.flatMap { b =>
+                ZIO.effectSuspendTotal {
+                  buffer ++= bs += b
+                  takeRemainder(remaining - 1, max - bs.length - 1)
+                }
+              }
+            } else
+              ZIO.effectTotal(buffer ++= bs)
+          }
 
-          takeRemainder(remaining).map(list => bs ++ list.reverse)
-        } else
-          UIO.succeedNow(bs)
-      }
+      takeRemainder(min, max).as(buffer.toList)
+    }
 
   /**
    * Alias for `both`.
@@ -311,34 +320,14 @@ object ZQueue {
     /**
      * Poll n items from the queue
      */
-    def unsafePollN[A](q: MutableConcurrentQueue[A], max: Int): List[A] = {
-      val empty = null.asInstanceOf[A]
-
-      @tailrec
-      def poll(as: List[A], n: Int): List[A] =
-        if (n < 1) as
-        else
-          q.poll(empty) match {
-            case null => as
-            case a    => poll(a :: as, n - 1)
-          }
-
-      poll(List.empty[A], max).reverse
-    }
+    def unsafePollN[A](q: MutableConcurrentQueue[A], max: Int): List[A] =
+      q.pollUpTo(max).toList
 
     /**
      * Offer items to the queue
      */
-    def unsafeOfferAll[A](q: MutableConcurrentQueue[A], as: List[A]): List[A] = {
-      @tailrec
-      def offerAll(as: List[A]): List[A] =
-        as match {
-          case Nil          => as
-          case head :: tail => if (q.offer(head)) offerAll(tail) else as
-        }
-
-      offerAll(as)
-    }
+    def unsafeOfferAll[A](q: MutableConcurrentQueue[A], as: List[A]): List[A] =
+      q.offerAll(as).toList
 
     /**
      * Remove an item from the queue

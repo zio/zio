@@ -274,6 +274,12 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(res)(equalTo(List(1, 2, 3)))
       }
     ),
+    suite("collectAllParN_")(
+      testM("preserves failures") {
+        val tasks = List.fill(10)(ZIO.fail(new RuntimeException))
+        assertM(ZIO.collectAllParN_(5)(tasks).flip)(anything)
+      }
+    ),
     suite("collectM")(
       testM("returns failure ignoring value") {
         val goodCase =
@@ -896,7 +902,17 @@ object ZIOSpec extends ZIOBaseSpec {
             assert(result3.dieOption)(isSome(equalTo(boom))) && assert(result3.interrupted)(isTrue)
           }
         }
-      } @@ nonFlaky
+      } @@ nonFlaky,
+      testM("infers correctly") {
+        for {
+          ref    <- Ref.make(0)
+          worker  = ZIO.never
+          workers = List.fill(4)(worker)
+          fiber  <- ZIO.forkAll(workers)
+          _      <- fiber.interrupt
+          value  <- ref.get
+        } yield assert(value)(equalTo(0))
+      }
     ),
     suite("forkAs")(
       testM("child has specified name") {
