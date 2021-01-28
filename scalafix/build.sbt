@@ -12,7 +12,7 @@ inThisBuild(
         url("http://degoes.net")
       )
     ),
-    scalaVersion := V.scala212,
+    scalaVersion := V.scala213,
     addCompilerPlugin(scalafixSemanticdb),
     scalacOptions ++= List(
       "-Yrangepos",
