@@ -160,7 +160,6 @@ lazy val coreTests = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(testRunner)
   .settings(buildInfoSettings("zio"))
   .settings(skip in publish := true)
-  .settings(libraryDependencies += "org.scala-lang" % "scala-reflect" % scalaVersion.value)
   .settings(
     Compile / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat
   )
@@ -169,6 +168,7 @@ lazy val coreTests = crossProject(JSPlatform, JVMPlatform)
 lazy val coreTestsJVM = coreTests.jvm
   .settings(dottySettings)
   .configure(_.enablePlugins(JCStressPlugin))
+  .settings(libraryDependencies += "org.scala-lang" % "scala-reflect" % scalaVersion.value)
   .settings(replSettings)
 
 lazy val coreTestsJS = coreTests.js
@@ -268,8 +268,10 @@ lazy val testTests = crossProject(JSPlatform, JVMPlatform)
   .settings(macroExpansionSettings)
   .enablePlugins(BuildInfoPlugin)
 
-lazy val testTestsJVM = testTests.jvm.settings(dottySettings)
-lazy val testTestsJS  = testTests.js.settings(jsSettings)
+lazy val testTestsJVM = testTests.jvm
+  .settings(dottySettings)
+  .settings(libraryDependencies += "org.scala-lang" % "scala-reflect" % scalaVersion.value)
+lazy val testTestsJS = testTests.js.settings(jsSettings)
 
 lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-magnolia"))
