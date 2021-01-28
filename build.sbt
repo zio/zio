@@ -169,14 +169,7 @@ lazy val coreTestsJVM = coreTests.jvm
   .settings(dottySettings)
   .configure(_.enablePlugins(JCStressPlugin))
   .settings(replSettings)
-  .settings {
-    libraryDependencies ++= {
-      if (isDotty.value)
-        Seq(("org.scala-lang" % "scala-reflect" % Scala213 % Test).withDottyCompat(scalaVersion.value))
-      else
-        Seq("org.scala-lang" % "scala-reflect" % scalaVersion.value % Test)
-    }
-  }
+  .settings(scalaReflectTestSettings)
 
 lazy val coreTestsJS = coreTests.js
   .settings(jsSettings)
@@ -282,14 +275,7 @@ lazy val testTests = crossProject(JSPlatform, JVMPlatform)
 
 lazy val testTestsJVM = testTests.jvm
   .settings(dottySettings)
-  .settings {
-    libraryDependencies ++= {
-      if (isDotty.value)
-        Seq(("org.scala-lang" % "scala-reflect" % Scala213 % Test).withDottyCompat(scalaVersion.value))
-      else
-        Seq("org.scala-lang" % "scala-reflect" % scalaVersion.value % Test)
-    }
-  }
+  .settings(scalaReflectTestSettings)
 lazy val testTestsJS = testTests.js.settings(jsSettings)
 
 lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform)
@@ -393,6 +379,11 @@ lazy val testRunner = crossProject(JVMPlatform, JSPlatform)
   .dependsOn(core)
   .dependsOn(test)
 
+lazy val testRunnerJVM = testRunner.jvm
+  .settings(dottySettings)
+  .settings(scalaReflectTestSettings)
+lazy val testRunnerJS = testRunner.js.settings(jsSettings)
+
 lazy val testJunitRunner = crossProject(JVMPlatform)
   .in(file("test-junit"))
   .settings(stdSettings("zio-test-junit"))
@@ -401,18 +392,6 @@ lazy val testJunitRunner = crossProject(JVMPlatform)
   .dependsOn(test)
 
 lazy val testJunitRunnerJVM = testJunitRunner.jvm.settings(dottySettings)
-
-lazy val testRunnerJVM = testRunner.jvm
-  .settings(dottySettings)
-  .settings {
-    libraryDependencies ++= {
-      if (isDotty.value)
-        Seq(("org.scala-lang" % "scala-reflect" % Scala213 % Test).withDottyCompat(scalaVersion.value))
-      else
-        Seq("org.scala-lang" % "scala-reflect" % scalaVersion.value % Test)
-    }
-  }
-lazy val testRunnerJS = testRunner.js.settings(jsSettings)
 
 lazy val testJunitRunnerTests = crossProject(JVMPlatform)
   .in(file("test-junit-tests"))
@@ -456,6 +435,7 @@ lazy val testJunitRunnerTestsJVM = testJunitRunnerTests.jvm
         .dependsOn(Keys.publishM2 in stacktracerJVM)
         .value
   )
+  .settings(scalaReflectTestSettings)
 
 /**
  * Examples sub-project that is not included in the root project.
