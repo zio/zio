@@ -169,6 +169,14 @@ lazy val coreTestsJVM = coreTests.jvm
   .settings(dottySettings)
   .configure(_.enablePlugins(JCStressPlugin))
   .settings(replSettings)
+  .settings {
+    libraryDependencies ++= {
+      if (isDotty.value)
+        Seq(("org.scala-lang" % "scala-reflect" % Scala213 % Provided).withDottyCompat(scalaVersion.value))
+      else
+        Seq("org.scala-lang" % "scala-reflect" % scalaVersion.value % Provided)
+    }
+  }
 
 lazy val coreTestsJS = coreTests.js
   .settings(jsSettings)
