@@ -169,6 +169,7 @@ lazy val coreTestsJVM = coreTests.jvm
   .settings(dottySettings)
   .configure(_.enablePlugins(JCStressPlugin))
   .settings(replSettings)
+  .settings(scalaReflectTestSettings)
 
 lazy val coreTestsJS = coreTests.js
   .settings(jsSettings)
@@ -239,7 +240,7 @@ lazy val test = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(macroExpansionSettings)
   .settings(
     libraryDependencies ++= Seq(
-      ("org.portable-scala" %%% "portable-scala-reflect" % "1.0.0")
+      ("org.portable-scala" %%% "portable-scala-reflect" % "1.1.0")
         .withDottyCompat(scalaVersion.value)
     )
   )
@@ -267,8 +268,10 @@ lazy val testTests = crossProject(JSPlatform, JVMPlatform)
   .settings(macroExpansionSettings)
   .enablePlugins(BuildInfoPlugin)
 
-lazy val testTestsJVM = testTests.jvm.settings(dottySettings)
-lazy val testTestsJS  = testTests.js.settings(jsSettings)
+lazy val testTestsJVM = testTests.jvm
+  .settings(dottySettings)
+  .settings(scalaReflectTestSettings)
+lazy val testTestsJS = testTests.js.settings(jsSettings)
 
 lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-magnolia"))
@@ -371,6 +374,11 @@ lazy val testRunner = crossProject(JVMPlatform, JSPlatform)
   .dependsOn(core)
   .dependsOn(test)
 
+lazy val testRunnerJVM = testRunner.jvm
+  .settings(dottySettings)
+  .settings(scalaReflectTestSettings)
+lazy val testRunnerJS = testRunner.js.settings(jsSettings)
+
 lazy val testJunitRunner = crossProject(JVMPlatform)
   .in(file("test-junit"))
   .settings(stdSettings("zio-test-junit"))
@@ -379,9 +387,6 @@ lazy val testJunitRunner = crossProject(JVMPlatform)
   .dependsOn(test)
 
 lazy val testJunitRunnerJVM = testJunitRunner.jvm.settings(dottySettings)
-
-lazy val testRunnerJVM = testRunner.jvm.settings(dottySettings)
-lazy val testRunnerJS  = testRunner.js.settings(jsSettings)
 
 lazy val testJunitRunnerTests = crossProject(JVMPlatform)
   .in(file("test-junit-tests"))
@@ -425,6 +430,7 @@ lazy val testJunitRunnerTestsJVM = testJunitRunnerTests.jvm
         .dependsOn(Keys.publishM2 in stacktracerJVM)
         .value
   )
+  .settings(scalaReflectTestSettings)
 
 /**
  * Examples sub-project that is not included in the root project.
