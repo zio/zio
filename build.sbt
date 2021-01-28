@@ -168,7 +168,14 @@ lazy val coreTests = crossProject(JSPlatform, JVMPlatform)
 lazy val coreTestsJVM = coreTests.jvm
   .settings(dottySettings)
   .configure(_.enablePlugins(JCStressPlugin))
-  .settings(libraryDependencies += "org.scala-lang" % "scala-reflect" % scalaVersion.value)
+  .settings(
+    libraryDependencies ++= {
+      if (!isDotty.value)
+        Seq("org.scala-lang" % "scala-reflect" % scalaVersion.value)
+      else
+        Seq()
+    }
+  )
   .settings(replSettings)
 
 lazy val coreTestsJS = coreTests.js
