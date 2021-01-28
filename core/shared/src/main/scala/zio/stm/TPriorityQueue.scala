@@ -31,6 +31,12 @@ import scala.collection.immutable.SortedMap
 final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, ::[A]]]) extends AnyVal {
 
   /**
+   * Checks whether the queue is empty.
+   */
+  def isEmpty: USTM[Boolean] =
+    ref.get.map(_.isEmpty)
+
+  /**
    * Offers the specified value to the queue.
    */
   def offer(a: A): USTM[Unit] =

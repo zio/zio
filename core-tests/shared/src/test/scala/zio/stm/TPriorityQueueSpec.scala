@@ -25,6 +25,16 @@ object TPriorityQueueSpec extends ZIOBaseSpec {
     Gen.function(Gen.boolean)
 
   def spec: ZSpec[Environment, Failure] = suite("TPriorityQueueSpec")(
+    testM("isEmpty") {
+      checkM(genEvents) { as =>
+        val transaction = for {
+          queue <- TPriorityQueue.empty[Event]
+          _     <- queue.offerAll(as)
+          empty <- queue.isEmpty
+        } yield empty
+        assertM(transaction.commit)(equalTo(as.isEmpty))
+      }
+    },
     testM("offerAll and takeAll") {
       checkM(genEvents) { as =>
         val transaction = for {
