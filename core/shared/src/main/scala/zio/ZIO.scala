@@ -1550,6 +1550,20 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     repeatUntilM(e => f(e).map(!_))
 
   /**
+   * Performs this effect the specified number of times and collects the
+   * results.
+   */
+  final def replicateM(n: Int): ZIO[R, E, Iterable[A]] =
+    ZIO.replicateM(n)(self)
+
+  /**
+   * Performs this effect the specified number of times, discarding the
+   * results.
+   */
+  final def replicateM_(n: Int): ZIO[R, E, Unit] =
+    ZIO.replicateM_(n)(self)
+
+  /**
    * Retries with the specified retry policy.
    * Retries are done following the failure of the original `io` (up to a fixed maximum with
    * `once` or `recurs` for example), so that that `io.retry(Schedule.once)` means
@@ -3065,22 +3079,22 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Unlike `foreachPar_`, this method will use at most up to `n` fibers.
    */
   def foreachParN_[R, E, A](n: Int)(as: Iterable[A])(f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] = {
-    def worker(q: Queue[A], ref: Ref[Int]): ZIO[R, E, Unit] =
-      ZIO.whenM(ref.modify(n => (n > 0, n - 1))) {
-        q.take.flatMap(f) *> worker(q, ref)
-      }
+    val size = as.size
+    if (size == 0) ZIO.unit
+    else {
 
-    Queue
-      .bounded[A](n.toInt)
-      .bracket(_.shutdown) { q =>
-        for {
-          ref    <- Ref.make(as.size)
-          _      <- ZIO.foreach_(as)(q.offer).fork
-          fibers <- ZIO.collectAll(List.fill(n.toInt)(worker(q, ref).fork))
-          _      <- ZIO.foreach_(fibers)(_.await)
-        } yield ()
-      }
-      .refailWithTrace
+      def worker(queue: Queue[A]): ZIO[R, E, Unit] =
+        queue.poll.flatMap {
+          case Some(a) => f(a) *> worker(queue)
+          case None    => ZIO.unit
+        }
+
+      for {
+        queue <- Queue.bounded[A](size)
+        _     <- queue.offerAll(as)
+        _     <- ZIO.collectAllPar_(ZIO.replicate(n)(worker(queue)))
+      } yield ()
+    }.refailWithTrace
   }
 
   /**
@@ -3702,6 +3716,20 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     new Iterable[ZIO[R, E, A]] {
       override def iterator: Iterator[ZIO[R, E, A]] = Iterator.range(0, n).map(_ => effect)
     }
+
+  /**
+   * Performs this effect the specified number of times and collects the
+   * results.
+   */
+  def replicateM[R, E, A](n: Int)(effect: ZIO[R, E, A]): ZIO[R, E, Iterable[A]] =
+    ZIO.collectAll(ZIO.replicate(n)(effect))
+
+  /**
+   * Performs this effect the specified number of times, discarding the
+   * results.
+   */
+  def replicateM_[R, E, A](n: Int)(effect: ZIO[R, E, A]): ZIO[R, E, Unit] =
+    ZIO.collectAll_(ZIO.replicate(n)(effect))
 
   /**
    * Requires that the given `ZIO[R, E, Option[A]]` contain a value. If there is no

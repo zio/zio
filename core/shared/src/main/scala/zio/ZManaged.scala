@@ -1903,6 +1903,23 @@ object ZManaged extends ZManagedPlatformSpecific {
     makeEffect(acquire)(_ => release)
 
   /**
+   * Lifts a synchronous effect that does not throw exceptions into a
+   * `ZManaged[Any, Nothing, A]` with a release action. The acquire and
+   * release actions will be performed uninterruptibly.
+   */
+  def makeEffectTotal[A](acquire: => A)(release: A => Any): ZManaged[Any, Nothing, A] =
+    make(ZIO.effectTotal(acquire))(a => ZIO.effectTotal(release(a)))
+
+  /**
+   * Lifts a synchronous effect that does not throw exceptions into a
+   * `ZManaged[Any, Nothing, A]` with a release action that does not need
+   * access to the resource. The acquire and release actions will be performed
+   * uninterruptibly.
+   */
+  def makeEffectTotal_[A](acquire: => A)(release: => A): ZManaged[Any, Nothing, A] =
+    makeEffectTotal(acquire)(_ => release)
+
+  /**
    * Lifts a `ZIO[R, E, A]` into `ZManaged[R, E, A]` with a release action that handles `Exit`.
    * The acquire and release actions will be performed uninterruptibly.
    */
