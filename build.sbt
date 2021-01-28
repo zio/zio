@@ -370,9 +370,13 @@ lazy val testRunner = crossProject(JVMPlatform, JSPlatform)
   )
   .jvmSettings(
     libraryDependencies ++= Seq(
-      ("org.scala-lang" % "scala-reflect"  % scalaVersion.value).withDottyCompat(scalaVersion.value),
-      "org.scala-sbt"   % "test-interface" % "1.0"
-    )
+      "org.scala-sbt" % "test-interface" % "1.0"
+    ) ++ {
+      if (isDotty.value)
+        Seq("org.scala-lang" % "scala-reflect" % scalaVersion.value)
+      else
+        Seq()
+    }
   )
   .dependsOn(core)
   .dependsOn(test)
