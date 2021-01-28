@@ -172,9 +172,9 @@ lazy val coreTestsJVM = coreTests.jvm
   .settings {
     libraryDependencies ++= {
       if (isDotty.value)
-        Seq(("org.scala-lang" % "scala-reflect" % Scala213).withDottyCompat(scalaVersion.value))
+        Seq(("org.scala-lang" % "scala-reflect" % Scala213 % Test).withDottyCompat(scalaVersion.value))
       else
-        Seq("org.scala-lang" % "scala-reflect" % scalaVersion.value)
+        Seq("org.scala-lang" % "scala-reflect" % scalaVersion.value % Test)
     }
   }
 
@@ -280,8 +280,17 @@ lazy val testTests = crossProject(JSPlatform, JVMPlatform)
   .settings(macroExpansionSettings)
   .enablePlugins(BuildInfoPlugin)
 
-lazy val testTestsJVM = testTests.jvm.settings(dottySettings)
-lazy val testTestsJS  = testTests.js.settings(jsSettings)
+lazy val testTestsJVM = testTests.jvm
+  .settings(dottySettings)
+  .settings {
+    libraryDependencies ++= {
+      if (isDotty.value)
+        Seq(("org.scala-lang" % "scala-reflect" % Scala213 % Test).withDottyCompat(scalaVersion.value))
+      else
+        Seq("org.scala-lang" % "scala-reflect" % scalaVersion.value % Test)
+    }
+  }
+lazy val testTestsJS = testTests.js.settings(jsSettings)
 
 lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-magnolia"))
