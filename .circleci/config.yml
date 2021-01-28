@@ -287,14 +287,14 @@ jobs:
     <<: *lint
     <<: *machine_ubuntu
     environment:
-      - <<: *scala_212
+      - <<: *scala_213
       - <<: *jdk_8
 
   mdoc:
     <<: *mdoc
     <<: *machine_ubuntu
     environment:
-      - <<: *scala_212
+      - <<: *scala_213
       - <<: *jdk_8
 
   test_211_jdk8_jvm:
@@ -345,7 +345,7 @@ jobs:
       - <<: *scala_dotty
       - <<: *jdk_8
 
-  test_212_jdk11_jvm:
+  test_213_jdk11_jvm:
     <<: *testJVM
     <<: *machine_ubuntu
     <<: *machine_resource
