@@ -402,8 +402,17 @@ lazy val testJunitRunner = crossProject(JVMPlatform)
 
 lazy val testJunitRunnerJVM = testJunitRunner.jvm.settings(dottySettings)
 
-lazy val testRunnerJVM = testRunner.jvm.settings(dottySettings)
-lazy val testRunnerJS  = testRunner.js.settings(jsSettings)
+lazy val testRunnerJVM = testRunner.jvm
+  .settings(dottySettings)
+  .settings {
+    libraryDependencies ++= {
+      if (isDotty.value)
+        Seq(("org.scala-lang" % "scala-reflect" % Scala213 % Test).withDottyCompat(scalaVersion.value))
+      else
+        Seq("org.scala-lang" % "scala-reflect" % scalaVersion.value % Test)
+    }
+  }
+lazy val testRunnerJS = testRunner.js.settings(jsSettings)
 
 lazy val testJunitRunnerTests = crossProject(JVMPlatform)
   .in(file("test-junit-tests"))
