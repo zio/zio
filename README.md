@@ -77,6 +77,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Performance Immo](https://www.performance-immo.com/)
 * [PPC Samurai](https://ppcsamurai.com/)
 * [Risk Ident](https://riskident.com/)
+* [Rocker](https://rocker.com/)
 * [Rudder](https://www.rudder.io/)
 * [SoftwareMill](https://softwaremill.com/)
 * [TomTom](https://tomtom.com)
