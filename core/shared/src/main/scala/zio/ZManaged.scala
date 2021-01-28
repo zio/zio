@@ -1908,7 +1908,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * release actions will be performed uninterruptibly.
    */
   def makeEffectTotal[A](acquire: => A)(release: A => Any): ZManaged[Any, Nothing, A] =
-    make(ZIO.effectTotal(acquire))(a => ZIO.effectTotal(release))
+    make(ZIO.effectTotal(acquire))(a => ZIO.effectTotal(release(a)))
 
   /**
    * Lifts a synchronous effect that does not throw exceptions into a
