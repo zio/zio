@@ -172,9 +172,9 @@ lazy val coreTestsJVM = coreTests.jvm
   .settings {
     libraryDependencies ++= {
       if (isDotty.value)
-        Seq(("org.scala-lang" % "scala-reflect" % Scala213 % Provided).withDottyCompat(scalaVersion.value))
+        Seq(("org.scala-lang" % "scala-reflect" % Scala213).withDottyCompat(scalaVersion.value))
       else
-        Seq("org.scala-lang" % "scala-reflect" % scalaVersion.value % Provided)
+        Seq("org.scala-lang" % "scala-reflect" % scalaVersion.value)
     }
   }
 
