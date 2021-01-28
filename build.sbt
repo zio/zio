@@ -372,7 +372,7 @@ lazy val testRunner = crossProject(JVMPlatform, JSPlatform)
     libraryDependencies ++= Seq(
       "org.scala-sbt" % "test-interface" % "1.0"
     ) ++ {
-      if (isDotty.value)
+      if (!isDotty.value)
         Seq("org.scala-lang" % "scala-reflect" % scalaVersion.value)
       else
         Seq()
