@@ -1,10 +1,9 @@
 package zio.stream
 
-import java.io.{IOException, InputStream}
-
-import scala.concurrent.Future
-
 import zio._
+
+import java.io.{IOException, InputStream}
+import scala.concurrent.Future
 
 trait ZSinkPlatformSpecificConstructors
 
