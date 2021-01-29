@@ -286,8 +286,6 @@ object BuildHelper {
   )
 
   def nativeSettings = Seq(
-    scalaVersion := Scala211,
-    crossScalaVersions := Seq(scalaVersion.value),
     libraryDependencies += "org.ekrich" %%% "sjavatime" % "1.1.0",
     Test / skip := true,
     doc / skip := true,

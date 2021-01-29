@@ -45,7 +45,7 @@ addCommandAlias(
   ";coreTestsJVM/test:compile;stacktracerJVM/test:compile;streamsTestsJVM/test:compile;testTestsJVM/test:compile;testMagnoliaTestsJVM/test:compile;testRunnerJVM/test:compile;examplesJVM/test:compile;macrosJVM/test:compile"
 )
 addCommandAlias(
-  "compileNative",
+  "testNative",
   ";coreNative/compile;stacktracerNative/compile;streamsNative/compile;testNative/compile"
 )
 addCommandAlias(
@@ -146,9 +146,6 @@ lazy val coreNative = core.native
       "com.github.lolgab" %%% "native-loop-js-compat" % "0.2.0"
     )
   )
-  .disablePlugins(
-    ScalafixPlugin // for some reason `ThisBuild / scalafixScalaBinaryVersion := CrossVersion.binaryScalaVersion(scalaVersion.value)` isn't enough
-  )
 
 lazy val coreTests = crossProject(JSPlatform, JVMPlatform)
   .in(file("core-tests"))
@@ -205,9 +202,6 @@ lazy val streamsJS = streams.js
 
 lazy val streamsNative = streams.native
   .settings(nativeSettings)
-  .disablePlugins(
-    ScalafixPlugin // for some reason `ThisBuild / scalafixScalaBinaryVersion := CrossVersion.binaryScalaVersion(scalaVersion.value)` isn't enough
-  )
 
 lazy val streamsTests = crossProject(JSPlatform, JVMPlatform)
   .in(file("streams-tests"))
@@ -252,9 +246,6 @@ lazy val testJVM = test.jvm
 lazy val testJS = test.js
 lazy val testNative = test.native
   .settings(nativeSettings)
-  .disablePlugins(
-    ScalafixPlugin // for some reason `ThisBuild / scalafixScalaBinaryVersion := CrossVersion.binaryScalaVersion(scalaVersion.value)` isn't enough
-  )
 
 lazy val testTests = crossProject(JSPlatform, JVMPlatform)
   .in(file("test-tests"))
@@ -354,9 +345,6 @@ lazy val stacktracerJVM = stacktracer.jvm
 lazy val stacktracerNative = stacktracer.native
   .settings(nativeSettings)
   .settings(scalacOptions -= "-Xfatal-warnings") // Issue 3112
-  .disablePlugins(
-    ScalafixPlugin // for some reason `ThisBuild / scalafixScalaBinaryVersion := CrossVersion.binaryScalaVersion(scalaVersion.value)` isn't enough
-  )
 
 lazy val testRunner = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-sbt"))
