@@ -142,8 +142,8 @@ lazy val coreNative = core.native
   .settings(nativeSettings)
   .settings(
     libraryDependencies ++= Seq(
-      "dev.whaling" %%% "native-loop-core"      % "0.1.1",
-      "dev.whaling" %%% "native-loop-js-compat" % "0.1.1"
+      "com.github.lolgab" %%% "native-loop-core"      % "0.2.0",
+      "com.github.lolgab" %%% "native-loop-js-compat" % "0.2.0"
     )
   )
   .disablePlugins(
@@ -252,11 +252,6 @@ lazy val testJVM = test.jvm
 lazy val testJS = test.js
 lazy val testNative = test.native
   .settings(nativeSettings)
-  .settings {
-    libraryDependencies ~= {
-      _.filterNot(_.name == "portable-scala-reflect")
-    }
-  }
   .disablePlugins(
     ScalafixPlugin // for some reason `ThisBuild / scalafixScalaBinaryVersion := CrossVersion.binaryScalaVersion(scalaVersion.value)` isn't enough
   )

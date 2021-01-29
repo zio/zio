@@ -88,7 +88,7 @@ object BuildHelper {
   )
 
   val scalaReflectSettings = Seq(
-    libraryDependencies ++= Seq("dev.zio" %%% "izumi-reflect" % "1.0.0-M12")
+    libraryDependencies ++= Seq("dev.zio" %%% "izumi-reflect" % "1.0.0-M13")
   )
 
   // Keep this consistent with the version in .core-tests/shared/src/test/scala/REPLSpec.scala
@@ -288,6 +288,7 @@ object BuildHelper {
   def nativeSettings = Seq(
     scalaVersion := Scala211,
     crossScalaVersions := Seq(scalaVersion.value),
+    libraryDependencies += "org.ekrich" %%% "sjavatime" % "1.1.0",
     Test / skip := true,
     doc / skip := true,
     SettingKey[Boolean](
