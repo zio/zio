@@ -4,10 +4,10 @@ scala_211: &scala_211
   SCALA_VERSION: 2.11.12
 
 scala_212: &scala_212
-  SCALA_VERSION: 2.12.12
+  SCALA_VERSION: 2.12.13
 
 scala_213: &scala_213
-  SCALA_VERSION: 2.13.3
+  SCALA_VERSION: 2.13.4
 
 scala_dotty: &scala_dotty
   SCALA_VERSION: 3.0.0-M3
@@ -169,6 +169,8 @@ testJVMDotty: &testJVMDotty
         command: ./sbt ++${SCALA_VERSION}! testJVMDotty
     - <<: *clean_cache
     - <<: *save_cache
+    - store_test_results:
+        path: core-tests/jvm/target/test-reports
 
 testJVM211: &testJVM211
   steps:
@@ -218,9 +220,11 @@ testNative: &testNative
     - <<: *install_jdk
     - run:
         name: Run tests
-        command: ./sbt compileNative
+        command: ./sbt testNative
     - <<: *clean_cache
     - <<: *save_cache
+    - store_test_results:
+        path: core-tests/native/target/test-reports
 
 release: &release
   steps:
@@ -287,14 +291,14 @@ jobs:
     <<: *lint
     <<: *machine_ubuntu
     environment:
-      - <<: *scala_212
+      - <<: *scala_213
       - <<: *jdk_8
 
   mdoc:
     <<: *mdoc
     <<: *machine_ubuntu
     environment:
-      - <<: *scala_212
+      - <<: *scala_213
       - <<: *jdk_8
 
   test_211_jdk8_jvm:
@@ -345,7 +349,7 @@ jobs:
       - <<: *scala_dotty
       - <<: *jdk_8
 
-  test_212_jdk11_jvm:
+  test_213_jdk11_jvm:
     <<: *testJVM
     <<: *machine_ubuntu
     <<: *machine_resource
@@ -383,6 +387,22 @@ jobs:
     <<: *machine_resource
     environment:
       - <<: *scala_211
+      - <<: *jdk_8
+
+  test_212_jdk8_native:
+    <<: *testNative
+    <<: *machine_ubuntu
+    <<: *machine_resource
+    environment:
+      - <<: *scala_212
+      - <<: *jdk_8
+
+  test_213_jdk8_native:
+    <<: *testNative
+    <<: *machine_ubuntu
+    <<: *machine_resource
+    environment:
+      - <<: *scala_213
       - <<: *jdk_8
 
   release:
@@ -440,7 +460,7 @@ workflows:
             - lint
           filters:
             <<: *filter_tags
-      - test_212_jdk11_jvm:
+      - test_213_jdk11_jvm:
           requires:
             - lint
           filters:
@@ -465,6 +485,16 @@ workflows:
             - lint
           filters:
             <<: *filter_tags
+      - test_212_jdk8_native:
+          requires:
+            - lint
+          filters:
+            <<: *filter_tags
+      - test_213_jdk8_native:
+          requires:
+            - lint
+          filters:
+            <<: *filter_tags
       - release:
           context: Sonatype2
           requires:
@@ -472,10 +502,12 @@ workflows:
             - test_211_jdk8_js
             - test_211_jdk8_native
             - test_212_jdk8_jvm
-            - test_212_jdk11_jvm
             - test_212_jdk8_js
+            - test_212_jdk8_native
             - test_213_jdk8_jvm
             - test_213_jdk8_js
+            - test_213_jdk8_native
+            - test_213_jdk11_jvm
             - test_dotty_jdk8_jvm
             - mdoc
             - mima_212

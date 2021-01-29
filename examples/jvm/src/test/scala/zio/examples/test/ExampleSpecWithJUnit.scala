@@ -1,7 +1,7 @@
 package zio.examples.test
 
 import zio.test.junit.JUnitRunnableSpec
-import zio.test.{Assertion, assert, suite}
+import zio.test.{Assertion, assert}
 
 class ExampleSpecWithJUnit extends JUnitRunnableSpec {
   def spec = suite("some suite")(

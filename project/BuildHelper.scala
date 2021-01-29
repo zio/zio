@@ -11,8 +11,8 @@ import scalafix.sbt.ScalafixPlugin.autoImport._
 object BuildHelper {
   // Keep this consistent with the version in .circleci/config.yml
   val Scala211   = "2.11.12"
-  val Scala212   = "2.12.12"
-  val Scala213   = "2.13.3"
+  val Scala212   = "2.12.13"
+  val Scala213   = "2.13.4"
   val ScalaDotty = "3.0.0-M3"
 
   val SilencerVersion = "1.7.1"
@@ -88,7 +88,7 @@ object BuildHelper {
   )
 
   val scalaReflectSettings = Seq(
-    libraryDependencies ++= Seq("dev.zio" %%% "izumi-reflect" % "1.0.0-M12")
+    libraryDependencies ++= Seq("dev.zio" %%% "izumi-reflect" % "1.0.0-M13")
   )
 
   // Keep this consistent with the version in .core-tests/shared/src/test/scala/REPLSpec.scala
@@ -224,7 +224,7 @@ object BuildHelper {
   def stdSettings(prjName: String) = Seq(
     name := s"$prjName",
     crossScalaVersions := Seq(Scala211, Scala212, Scala213),
-    scalaVersion in ThisBuild := Scala212,
+    scalaVersion in ThisBuild := Scala213,
     scalacOptions := stdOptions ++ extraOptions(scalaVersion.value, isDotty.value, optimize = !isSnapshot.value),
     libraryDependencies ++= {
       if (isDotty.value)
@@ -286,14 +286,22 @@ object BuildHelper {
   )
 
   def nativeSettings = Seq(
-    scalaVersion := Scala211,
-    crossScalaVersions := Seq(scalaVersion.value),
+    libraryDependencies += "org.ekrich" %%% "sjavatime" % "1.1.0",
     Test / skip := true,
     doc / skip := true,
     SettingKey[Boolean](
       "ide-skip-project" // Exclude from Intellij because Scala Native projects break it - https://github.com/scala-native/scala-native/issues/1007#issuecomment-370402092
     ) := true,
     Compile / doc / sources := Seq.empty
+  )
+
+  val scalaReflectTestSettings: List[Setting[_]] = List(
+    libraryDependencies ++= {
+      if (isDotty.value)
+        Seq(("org.scala-lang" % "scala-reflect" % Scala213 % Test).withDottyCompat(scalaVersion.value))
+      else
+        Seq("org.scala-lang" % "scala-reflect" % scalaVersion.value % Test)
+    }
   )
 
   def welcomeMessage = onLoadMessage := {

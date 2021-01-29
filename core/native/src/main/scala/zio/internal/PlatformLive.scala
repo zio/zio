@@ -16,17 +16,17 @@
 
 package zio.internal
 
-import scala.concurrent.ExecutionContext
-import zio.{Cause, Supervisor}
 import zio.internal.stacktracer.Tracer
 import zio.internal.tracing.TracingConfig
-import scala.scalanative.loop.EventLoop
+import zio.{Cause, Supervisor}
+
+import scala.concurrent.ExecutionContext
 
 object PlatformLive {
-  lazy val Default = Global
-  lazy val Global  = fromExecutionContext(EventLoop)
+  lazy val Default          = Global
+  lazy val Global: Platform = fromExecutionContext(ExecutionContext.global)
 
-  def makeDefault(): Platform = fromExecutionContext(EventLoop)
+  def makeDefault(): Platform = fromExecutionContext(ExecutionContext.global)
 
   def fromExecutor(executor0: Executor): Platform =
     new Platform {

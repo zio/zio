@@ -124,7 +124,11 @@ private[test] object CleanCodePrinter {
       case Match(tree, cases) =>
         Match(
           clean(c)(tree, ctx),
-          cases.map { case CaseDef(t1, t2, t3) => CaseDef(clean(c)(t1, ctx), clean(c)(t2, ctx), clean(c)(t3, ctx)) }
+          cases.map { cd =>
+            (cd: @unchecked) match {
+              case CaseDef(t1, t2, t3) => CaseDef(clean(c)(t1, ctx), clean(c)(t2, ctx), clean(c)(t3, ctx))
+            }
+          }
         )
       case Block(trees, tree) => Block(trees.map(clean(c)(_, ctx)), clean(c)(tree, ctx))
       case If(t1, t2, t3)     => If(clean(c)(t1, ctx), clean(c)(t2, ctx), clean(c)(t3, ctx))
@@ -152,8 +156,11 @@ private[test] object CleanCodePrinter {
 
   private def cleanValDefs(c: blackbox.Context)(vals: List[c.universe.ValDef]) = {
     import c.universe._
-    vals.map { case ValDef(mods, name, _, _) =>
-      ValDef(mods, name, EmptyTree, EmptyTree)
+    vals.map { vd =>
+      (vd: @unchecked) match {
+        case ValDef(mods, name, _, _) =>
+          ValDef(mods, name, EmptyTree, EmptyTree)
+      }
     }
   }
 

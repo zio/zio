@@ -16,7 +16,7 @@ private[zio] object Scheduler {
     new Scheduler {
       val ConstFalse = () => false
 
-      override def schedule(task: Runnable, duration: Duration): CancelToken = duration match {
+      override def schedule(task: Runnable, duration: Duration): CancelToken = (duration: @unchecked) match {
         case Duration.Infinity => ConstFalse
         case Duration.Zero =>
           task.run()

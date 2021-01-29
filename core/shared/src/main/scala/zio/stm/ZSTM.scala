@@ -1360,6 +1360,20 @@ object ZSTM {
     }
 
   /**
+   * Performs this transaction the specified number of times and collects the
+   * results.
+   */
+  def replicateM[R, E, A](n: Int)(transaction: ZSTM[R, E, A]): ZSTM[R, E, Iterable[A]] =
+    ZSTM.collectAll(ZSTM.replicate(n)(transaction))
+
+  /**
+   * Performs this transaction the specified number of times, discarding the
+   * results.
+   */
+  def replicateM_[R, E, A](n: Int)(transaction: ZSTM[R, E, A]): ZSTM[R, E, Unit] =
+    ZSTM.collectAll_(ZSTM.replicate(n)(transaction))
+
+  /**
    * Requires that the given `ZSTM[R, E, Option[A]]` contain a value. If there is no
    * value, then the specified error will be raised.
    */

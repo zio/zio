@@ -288,6 +288,18 @@ object STM {
     ZSTM.replicate(n)(tx)
 
   /**
+   * @see See [[zio.stm.ZSTM.replicate]]
+   */
+  def replicateM[E, A](n: Int)(transaction: STM[E, A]): STM[E, Iterable[A]] =
+    ZSTM.replicateM(n)(transaction)
+
+  /**
+   * @see See [[zio.stm.ZSTM.replicate]]
+   */
+  def replicateM_[E, A](n: Int)(transaction: STM[E, A]): STM[E, Unit] =
+    ZSTM.replicateM_(n)(transaction)
+
+  /**
    * @see See [[zio.stm.ZSTM.require]]
    */
   def require[E, A](error: => E): STM[E, Option[A]] => STM[E, A] =

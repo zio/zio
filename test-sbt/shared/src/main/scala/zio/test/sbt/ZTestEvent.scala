@@ -15,15 +15,18 @@ final case class ZTestEvent(
 }
 
 object ZTestEvent {
+
   def from[E](
     executedSpec: ExecutedSpec[E],
     fullyQualifiedName: String,
     fingerprint: Fingerprint
   ): Seq[ZTestEvent] =
-    executedSpec.fold[Seq[ZTestEvent]] {
-      case ExecutedSpec.SuiteCase(_, results) => results.flatten
-      case ExecutedSpec.TestCase(label, result, _) =>
-        Seq(ZTestEvent(fullyQualifiedName, new TestSelector(label), toStatus(result), None, 0, fingerprint))
+    executedSpec.fold[Seq[ZTestEvent]] { c =>
+      (c: @unchecked) match {
+        case ExecutedSpec.SuiteCase(_, results) => results.flatten
+        case ExecutedSpec.TestCase(label, result, _) =>
+          Seq(ZTestEvent(fullyQualifiedName, new TestSelector(label), toStatus(result), None, 0, fingerprint))
+      }
     }
 
   private def toStatus[E](result: Either[TestFailure[E], TestSuccess]) = result match {

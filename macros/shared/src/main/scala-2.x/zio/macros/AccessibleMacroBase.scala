@@ -100,7 +100,7 @@ private[macros] abstract class AccessibleMacroBase(val c: whitebox.Context) {
 
     @silent("pattern var [^\\s]+ in method unapply is never used")
     private def typeInfo(tree: Tree): TypeInfo =
-      tree match {
+      (tree: @unchecked) match {
         case tq"$_[..$typeParams]" =>
           val tpe       = treeTpe(tree)
           val dealiased = tpe.dealias

@@ -11,7 +11,9 @@ inThisBuild(
   List(
     organization := "dev.zio",
     homepage := Some(url("https://zio.dev")),
-    licenses := List("Apache-2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")),
+    licenses := List(
+      "Apache-2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")
+    ),
     developers := List(
       Developer(
         "jdegoes",
@@ -28,7 +30,10 @@ inThisBuild(
 
 addCommandAlias("build", "; prepare; testJVM")
 addCommandAlias("prepare", "; fix; fmt")
-addCommandAlias("fix", "all compile:scalafix test:scalafix; all scalafmtSbt scalafmtAll")
+addCommandAlias(
+  "fix",
+  "all compile:scalafix test:scalafix; all scalafmtSbt scalafmtAll"
+)
 addCommandAlias(
   "fixCheck",
   "; compile:scalafix --check ; test:scalafix --check"
@@ -40,7 +45,7 @@ addCommandAlias(
   ";coreTestsJVM/test:compile;stacktracerJVM/test:compile;streamsTestsJVM/test:compile;testTestsJVM/test:compile;testMagnoliaTestsJVM/test:compile;testRunnerJVM/test:compile;examplesJVM/test:compile;macrosJVM/test:compile"
 )
 addCommandAlias(
-  "compileNative",
+  "testNative",
   ";coreNative/compile;stacktracerNative/compile;streamsNative/compile;testNative/compile"
 )
 addCommandAlias(
@@ -78,7 +83,10 @@ lazy val root = project
     name := "zio",
     skip in publish := true,
     console := (console in Compile in coreJVM).value,
-    unusedCompileDependenciesFilter -= moduleFilter("org.scala-js", "scalajs-library"),
+    unusedCompileDependenciesFilter -= moduleFilter(
+      "org.scala-js",
+      "scalajs-library"
+    ),
     welcomeMessage
   )
   .aggregate(
@@ -134,12 +142,9 @@ lazy val coreNative = core.native
   .settings(nativeSettings)
   .settings(
     libraryDependencies ++= Seq(
-      "dev.whaling" %%% "native-loop-core"      % "0.1.1",
-      "dev.whaling" %%% "native-loop-js-compat" % "0.1.1"
+      "com.github.lolgab" %%% "native-loop-core"      % "0.2.0",
+      "com.github.lolgab" %%% "native-loop-js-compat" % "0.2.0"
     )
-  )
-  .disablePlugins(
-    ScalafixPlugin // for some reason `ThisBuild / scalafixScalaBinaryVersion := CrossVersion.binaryScalaVersion(scalaVersion.value)` isn't enough
   )
 
 lazy val coreTests = crossProject(JSPlatform, JVMPlatform)
@@ -152,13 +157,16 @@ lazy val coreTests = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(testRunner)
   .settings(buildInfoSettings("zio"))
   .settings(skip in publish := true)
-  .settings(Compile / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat)
+  .settings(
+    Compile / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat
+  )
   .enablePlugins(BuildInfoPlugin)
 
 lazy val coreTestsJVM = coreTests.jvm
   .settings(dottySettings)
   .configure(_.enablePlugins(JCStressPlugin))
   .settings(replSettings)
+  .settings(scalaReflectTestSettings)
 
 lazy val coreTestsJS = coreTests.js
   .settings(jsSettings)
@@ -194,9 +202,6 @@ lazy val streamsJS = streams.js
 
 lazy val streamsNative = streams.native
   .settings(nativeSettings)
-  .disablePlugins(
-    ScalafixPlugin // for some reason `ThisBuild / scalafixScalaBinaryVersion := CrossVersion.binaryScalaVersion(scalaVersion.value)` isn't enough
-  )
 
 lazy val streamsTests = crossProject(JSPlatform, JVMPlatform)
   .in(file("streams-tests"))
@@ -208,7 +213,9 @@ lazy val streamsTests = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(testRunner)
   .settings(buildInfoSettings("zio.stream"))
   .settings(skip in publish := true)
-  .settings(Compile / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.AllLibraryJars)
+  .settings(
+    Compile / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.AllLibraryJars
+  )
   .enablePlugins(BuildInfoPlugin)
 
 lazy val streamsTestsJVM = streamsTests.jvm
@@ -227,7 +234,8 @@ lazy val test = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(macroExpansionSettings)
   .settings(
     libraryDependencies ++= Seq(
-      ("org.portable-scala" %%% "portable-scala-reflect" % "1.0.0").withDottyCompat(scalaVersion.value)
+      ("org.portable-scala" %%% "portable-scala-reflect" % "1.1.0")
+        .withDottyCompat(scalaVersion.value)
     )
   )
 
@@ -238,14 +246,6 @@ lazy val testJVM = test.jvm
 lazy val testJS = test.js
 lazy val testNative = test.native
   .settings(nativeSettings)
-  .settings {
-    libraryDependencies ~= {
-      _.filterNot(_.name == "portable-scala-reflect")
-    }
-  }
-  .disablePlugins(
-    ScalafixPlugin // for some reason `ThisBuild / scalafixScalaBinaryVersion := CrossVersion.binaryScalaVersion(scalaVersion.value)` isn't enough
-  )
 
 lazy val testTests = crossProject(JSPlatform, JVMPlatform)
   .in(file("test-tests"))
@@ -259,8 +259,10 @@ lazy val testTests = crossProject(JSPlatform, JVMPlatform)
   .settings(macroExpansionSettings)
   .enablePlugins(BuildInfoPlugin)
 
-lazy val testTestsJVM = testTests.jvm.settings(dottySettings)
-lazy val testTestsJS  = testTests.js.settings(jsSettings)
+lazy val testTestsJVM = testTests.jvm
+  .settings(dottySettings)
+  .settings(scalaReflectTestSettings)
+lazy val testTestsJS = testTests.js.settings(jsSettings)
 
 lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-magnolia"))
@@ -281,7 +283,10 @@ lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform)
       if (isDotty.value) {
         Seq.empty
       } else {
-        Seq(("com.propensive" %%% "magnolia" % "0.17.0").exclude("org.scala-lang", "scala-compiler"))
+        Seq(
+          ("com.propensive" %%% "magnolia" % "0.17.0")
+            .exclude("org.scala-lang", "scala-compiler")
+        )
       }
     }
   )
@@ -306,11 +311,31 @@ lazy val testMagnoliaTestsJVM = testMagnoliaTests.jvm
   .settings(dottySettings)
 lazy val testMagnoliaTestsJS = testMagnoliaTests.js.settings(jsSettings)
 
+lazy val testRefined = crossProject(JVMPlatform, JSPlatform)
+  .in(file("test-refined"))
+  .dependsOn(testMagnolia)
+  .settings(stdSettings("zio-test-refined"))
+  .settings(crossProjectSettings)
+  .settings(macroDefinitionSettings)
+  .settings(
+    crossScalaVersions --= Seq(Scala211),
+    libraryDependencies ++=
+      Seq(
+        ("eu.timepit" %% "refined" % "0.9.20")
+          .withDottyCompat(scalaVersion.value)
+      )
+  )
+
+lazy val testRefinedJVM = testRefined.jvm
+  .settings(dottySettings)
+lazy val testRefinedJS = testRefined.js
+
 lazy val stacktracer = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("stacktracer"))
   .settings(stdSettings("zio-stacktracer"))
   .settings(crossProjectSettings)
   .settings(buildInfoSettings("zio.internal.stacktracer"))
+  .enablePlugins(BuildInfoPlugin)
 
 lazy val stacktracerJS = stacktracer.js
 lazy val stacktracerJVM = stacktracer.jvm
@@ -320,19 +345,27 @@ lazy val stacktracerJVM = stacktracer.jvm
 lazy val stacktracerNative = stacktracer.native
   .settings(nativeSettings)
   .settings(scalacOptions -= "-Xfatal-warnings") // Issue 3112
-  .disablePlugins(
-    ScalafixPlugin // for some reason `ThisBuild / scalafixScalaBinaryVersion := CrossVersion.binaryScalaVersion(scalaVersion.value)` isn't enough
-  )
 
 lazy val testRunner = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-sbt"))
   .settings(stdSettings("zio-test-sbt"))
   .settings(crossProjectSettings)
   .settings(mainClass in (Test, run) := Some("zio.test.sbt.TestMain"))
-  .jsSettings(libraryDependencies ++= Seq("org.scala-js" %% "scalajs-test-interface" % scalaJSVersion))
-  .jvmSettings(libraryDependencies ++= Seq("org.scala-sbt" % "test-interface" % "1.0"))
+  .jsSettings(
+    libraryDependencies ++= Seq(
+      "org.scala-js" %% "scalajs-test-interface" % scalaJSVersion
+    )
+  )
+  .jvmSettings(
+    libraryDependencies ++= Seq("org.scala-sbt" % "test-interface" % "1.0")
+  )
   .dependsOn(core)
   .dependsOn(test)
+
+lazy val testRunnerJVM = testRunner.jvm
+  .settings(dottySettings)
+  .settings(scalaReflectTestSettings)
+lazy val testRunnerJS = testRunner.js.settings(jsSettings)
 
 lazy val testJunitRunner = crossProject(JVMPlatform)
   .in(file("test-junit"))
@@ -343,16 +376,16 @@ lazy val testJunitRunner = crossProject(JVMPlatform)
 
 lazy val testJunitRunnerJVM = testJunitRunner.jvm.settings(dottySettings)
 
-lazy val testRunnerJVM = testRunner.jvm.settings(dottySettings)
-lazy val testRunnerJS  = testRunner.js.settings(jsSettings)
-
 lazy val testJunitRunnerTests = crossProject(JVMPlatform)
   .in(file("test-junit-tests"))
   .settings(stdSettings("test-junit-tests"))
   .settings(crossProjectSettings)
   .settings(fork in Test := true)
   .settings(javaOptions in Test ++= {
-    Seq(s"-Dproject.dir=${baseDirectory.value}", s"-Dproject.version=${version.value}")
+    Seq(
+      s"-Dproject.dir=${baseDirectory.value}",
+      s"-Dproject.version=${version.value}"
+    )
   })
   .settings(skip in publish := true)
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
@@ -385,6 +418,7 @@ lazy val testJunitRunnerTestsJVM = testJunitRunnerTests.jvm
         .dependsOn(Keys.publishM2 in stacktracerJVM)
         .value
   )
+  .settings(scalaReflectTestSettings)
 
 /**
  * Examples sub-project that is not included in the root project.
@@ -417,9 +451,9 @@ lazy val benchmarks = project.module
       Seq(
         "co.fs2"                    %% "fs2-core"       % "2.5.0",
         "com.google.code.findbugs"   % "jsr305"         % "3.0.2",
-        "com.twitter"               %% "util-core"      % "20.10.0",
-        "com.typesafe.akka"         %% "akka-stream"    % "2.6.11",
-        "io.monix"                  %% "monix"          % "3.3.0",
+        "com.twitter"               %% "util-core"      % "21.1.0",
+        "com.typesafe.akka"         %% "akka-stream"    % "2.6.12",
+        "io.monix"                  %% "monix"          % "3.2.2",
         "io.projectreactor"          % "reactor-core"   % "3.4.2",
         "io.reactivex.rxjava2"       % "rxjava"         % "2.2.20",
         "org.ow2.asm"                % "asm"            % "9.0",
@@ -431,7 +465,12 @@ lazy val benchmarks = project.module
         "com.github.japgolly.nyaya" %% "nyaya-gen"      % "0.9.2"
       ),
     unusedCompileDependenciesFilter -= libraryDependencies.value
-      .map(moduleid => moduleFilter(organization = moduleid.organization, name = moduleid.name))
+      .map(moduleid =>
+        moduleFilter(
+          organization = moduleid.organization,
+          name = moduleid.name
+        )
+      )
       .reduce(_ | _),
     scalacOptions in Compile in console := Seq(
       "-Ypartial-unification",
@@ -441,15 +480,14 @@ lazy val benchmarks = project.module
       "-Xsource:2.13",
       "-Yrepl-class-based"
     ),
-    resolvers += Resolver.url("bintray-scala-hedgehog", url("https://dl.bintray.com/hedgehogqa/scala-hedgehog"))(
-      Resolver.ivyStylePatterns
-    )
+    resolvers += Resolver.url(
+      "bintray-scala-hedgehog",
+      url("https://dl.bintray.com/hedgehogqa/scala-hedgehog")
+    )(Resolver.ivyStylePatterns)
   )
 
 lazy val jsdocs = project
-  .settings(
-    libraryDependencies += "org.scala-js" %%% "scalajs-dom" % "1.0.0"
-  )
+  .settings(libraryDependencies += "org.scala-js" %%% "scalajs-dom" % "1.0.0")
   .enablePlugins(ScalaJSPlugin)
 lazy val docs = project.module
   .in(file("zio-docs"))
@@ -474,11 +512,5 @@ lazy val docs = project.module
   )
   .settings(macroExpansionSettings)
   .settings(mdocJS := Some(jsdocs))
-  .dependsOn(
-    coreJVM,
-    streamsJVM,
-    testJVM,
-    testMagnoliaJVM,
-    coreJS
-  )
+  .dependsOn(coreJVM, streamsJVM, testJVM, testMagnoliaJVM, coreJS)
   .enablePlugins(MdocPlugin, DocusaurusPlugin)

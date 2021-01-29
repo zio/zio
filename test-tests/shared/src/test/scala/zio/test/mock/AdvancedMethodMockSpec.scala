@@ -2,7 +2,7 @@ package zio.test.mock
 
 import zio.test.mock.internal.{InvalidCall, MockException}
 import zio.test.mock.module.{ImpureModule, ImpureModuleMock}
-import zio.test.{Assertion, Spec, TestFailure, TestSuccess, ZIOBaseSpec, suite}
+import zio.test.{Assertion, Spec, TestFailure, TestSuccess, ZIOBaseSpec}
 import zio.{URIO, ZIO}
 
 object AdvancedMethodMockSpec extends ZIOBaseSpec with MockSpecUtils[ImpureModule] {
