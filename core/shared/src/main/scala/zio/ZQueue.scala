@@ -134,6 +134,14 @@ sealed abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { 
     }
 
   /**
+   * Takes the specified number of elements from the queue.
+   * If there are fewer than the specified number of elements available,
+   * it suspends until they become available.
+   */
+  final def takeN(n: Int): ZIO[RB, EB, List[B]] =
+    takeBetween(n, n)
+
+  /**
    * Alias for `both`.
    */
   final def &&[RA1 <: RA, RB1 <: RB, EA1 >: EA, EB1 >: EB, A1 <: A, C, D](
