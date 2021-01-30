@@ -18,6 +18,7 @@ package zio
 
 import zio.clock.Clock
 import zio.duration._
+import zio.internal.macros.ProvideLayerAutoMacro
 import zio.internal.tracing.{ZIOFn, ZIOFn1, ZIOFn2}
 import zio.internal.{Executor, Platform}
 import zio.{TracingStatus => TracingS}
@@ -49,7 +50,8 @@ import scala.util.{Failure, Success}
  * To run an effect, you need a `Runtime`, which is capable of executing effects.
  * Runtimes bundle a thread pool together with the environment that effects need.
  */
-sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E, A] { self =>
+sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E, A] {
+  self =>
 
   /**
    * Sequentially zips this effect with the specified effect, combining the
@@ -1176,12 +1178,39 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     provideSomeLayer[ZEnv](layer)
 
   /**
+   * Automatically constructs the part of the environment that is not part of the `ZEnv`,
+   * leaving an effect that only depends on the `ZEnv`. This will also satisfy transitive
+   * `ZEnv` requirements with `ZEnv.any`, allowing them to be provided later.
+   *
+   * {{{
+   * val zio: ZIO[OldLady with Console, Nothing, Unit] = ???
+   * val oldLadyLayer: ZLayer[Fly with System, Nothing, Car] = ???
+   * val flyLayer: ZLayer[Any, Nothing, Fly] = ???
+   *
+   * // The ZEnv you use later will provide both System to flyLayer and Console to zio
+   * val zio2 : ZIO[ZEnv, Nothing, Unit] = zio.provideCustomLayerAuto(carLayer, wheelLayer)
+   * }}}
+   */
+  def provideCustomLayerAuto[E1 >: E](
+    layers: ZLayer[_, E1, _]*
+  ): ZIO[ZEnv, E1, A] =
+    macro ProvideLayerAutoMacro.provideCustomLayerAutoImpl[R, E1, A]
+
+  /**
    * Provides a layer to the ZIO effect, which translates it to another level.
    */
   final def provideLayer[E1 >: E, R0, R1](
     layer: ZLayer[R0, E1, R1]
   )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R]): ZIO[R0, E1, A] =
     layer.build.map(ev1).use(self.provide)
+
+  /**
+   * Automatically assembles a layer to the ZIO effect, which translates it to another level.
+   */
+  def provideLayerAuto[E1 >: E](
+    layers: ZLayer[_, E1, _]*
+  ): ZIO[Any, E1, A] =
+    macro ProvideLayerAutoMacro.provideLayerAutoImpl[R, E1, A]
 
   /**
    * Provides some of the environment required to run this effect,

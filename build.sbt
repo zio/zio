@@ -128,6 +128,14 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(buildInfoSettings("zio"))
   .settings(libraryDependencies += "dev.zio" %%% "izumi-reflect" % "1.1.1")
   .enablePlugins(BuildInfoPlugin)
+  .settings(macroDefinitionSettings)
+  .settings(macroExpansionSettings)
+  .settings(
+    libraryDependencies ++= Seq(
+      ("org.portable-scala" %%% "portable-scala-reflect" % "1.0.0")
+        .withDottyCompat(scalaVersion.value)
+    )
+  )
 
 lazy val coreJVM = core.jvm
   .settings(dottySettings)
@@ -286,21 +294,19 @@ lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform)
   .settings(
     crossScalaVersions --= Seq(Scala211),
     scalacOptions ++= {
-      if (scalaVersion.value == ScalaDotty) {
+      if (scalaVersion.value == ScalaDotty)
         Seq.empty
-      } else {
+      else
         Seq("-language:experimental.macros")
-      }
     },
     libraryDependencies ++= {
-      if (scalaVersion.value == ScalaDotty) {
+      if (scalaVersion.value == ScalaDotty)
         Seq.empty
-      } else {
+      else
         Seq(
           ("com.propensive" %%% "magnolia" % "0.17.0")
             .exclude("org.scala-lang", "scala-compiler")
         )
-      }
     }
   )
 
