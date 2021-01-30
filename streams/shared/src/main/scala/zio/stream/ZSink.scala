@@ -909,6 +909,19 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    */
   def timed: ZSink[Clock, Nothing, Any, Nothing, Duration] = ZSink.drain.timed.map(_._2)
 
+  /**
+   * Create a sink which enqueues each element into the specified queue.
+   */
+  def toQueue[R, E, I](queue: ZQueue[R, Nothing, E, Any, I, Any]): ZSink[R, E, I, Nothing, Unit] =
+    foreachChunk(queue.offerAll)
+
+  /**
+   * Create a sink which enqueues each element into the specified queue.
+   * The queue will be shutdown once the stream is closed.
+   */
+  def toQueueWithShutdown[R, E, I](queue: ZQueue[R, Nothing, E, Any, I, Any]): ZSink[R, E, I, Nothing, Unit] =
+    ZSink(ZManaged.make(ZIO.succeedNow(queue))(_.shutdown).map(toQueue[R, E, I]).flatMap(_.push))
+
   final class AccessSinkPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[E, I, L, Z](f: R => ZSink[R, E, I, L, Z]): ZSink[R, E, I, L, Z] =
       ZSink {
