@@ -367,18 +367,12 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
    * Returns the first element that satisfies the predicate.
    */
   override final def find(f: A => Boolean): Option[A] = {
-    val iterator          = arrayIterator
+    val iterator          = self.iterator
     var result: Option[A] = None
     while (result.isEmpty && iterator.hasNext) {
-      val array  = iterator.next()
-      val length = array.length
-      var i      = 0
-      while (result.isEmpty && i < length) {
-        val a = array(i)
-        if (f(a)) {
-          result = Some(a)
-        }
-        i += 1
+      val a = iterator.next()
+      if (f(a)) {
+        result = Some(a)
       }
     }
     result
@@ -1518,6 +1512,9 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     override def foreach[B](f: A => B): Unit =
       array.foreach(f)
 
+    override def iterator: Iterator[A] =
+      array.iterator
+
     override def materialize[A1 >: A]: Chunk[A1] =
       self
 
@@ -1601,6 +1598,9 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       right.foreach(f)
     }
 
+    override def iterator: Iterator[A] =
+      left.iterator ++ right.iterator
+
     override def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit = {
       left.toArray(n, dest)
       right.toArray(n + left.length, dest)
@@ -1657,6 +1657,9 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
         i += 1
       }
     }
+
+    override def iterator: Iterator[A] =
+      chunk.iterator.slice(offset, offset + l)
 
     override def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit = {
       var i = 0
