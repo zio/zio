@@ -9,7 +9,7 @@ If you are a happy Scalaz 7.2 user `interop-scala7x` module offers `ZIO` instanc
 
 ### Example
 
-```scala
+```scala mdoc
 import scalaz._, Scalaz._
 import zio.interop.scalaz72._
 
@@ -25,7 +25,7 @@ Due to `Applicative` and `Monad` coherence law `ZIO`'s `Applicative` instance ha
 
 ### Example
 
-```scala
+```scala mdoc
 import scalaz._, Scalaz._
 import zio.interop.scalaz72._
 

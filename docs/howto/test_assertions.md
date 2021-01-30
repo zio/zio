@@ -12,13 +12,13 @@ operate on `Seq[A]`, with the type `Assertion[Seq[A]]`.
 For this example, I would select `hasAt`, as it accepts both the position into
 a sequence, as well as an `Assertion[A]` to apply at that position:
 
-```scala
+```scala mdoc
 Assertion.hasAt[A](pos: Int)(assertion: Assertion[A]): Assertion[Seq[A]]
 ```
 
 I could start by writing:
 
-```scala mdoc:reset:invisible
+```scala mdoc:reset
 import zio.test._, zio.test.Assertion._
 ```
 
@@ -37,7 +37,7 @@ of the return type `Assertion[A]`.
 I could select `equalTo`, as it accepts an `A` as a parameter, allowing me to
 supply `5`:
 
-```scala mdoc:reset:invisible
+```scala mdoc:reset
 import zio.test._, zio.test.Assertion._
 ```
 
@@ -56,13 +56,13 @@ section. `approximatelyEquals` looks like what we want, as it permits the
 starting value `reference`, as well as a `tolerance`, for any `A` that is
 `Numeric`:
 
-```scala
+```scala mdoc
 Assertion.approximatelyEquals[A: Numeric](reference: A, tolerance: A): Assertion[A]
 ```
 
 Changing out `equalTo` with `approximatelyEquals` leaves us with:
 
-```scala mdoc:reset:invisible
+```scala mdoc:reset
 import zio.test._, zio.test.Assertion._
 ```
 

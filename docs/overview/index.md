@@ -21,7 +21,7 @@ For example, an effect of type `ZIO[Any, IOException, Byte]` has no requirements
 
 A value of type `ZIO[R, E, A]` is like an effectful version of the following function type:
 
-```scala
+```scala mdoc
 R => Either[E, A]
 ```
 

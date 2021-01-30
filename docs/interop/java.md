@@ -9,7 +9,7 @@ ZIO has full interoperability with foreign Java code. Let me show you how it wor
 
 `CompletionStage` is the interface that comes closest to emulate a functional asynchronous effects API like ZIO's, so we start with it. It's a breeze:
 
-```scala
+```scala mdoc
 def loggedStage[A](stage: => CompletionStage[A]): Task[A] =
     ZIO.fromCompletionStage(UIO {
         stage.thenApplyAsync { a =>
@@ -21,7 +21,7 @@ def loggedStage[A](stage: => CompletionStage[A]): Task[A] =
 
 By Jove, you can even turn it into fiber!
 
-```scala
+```scala mdoc
 def stageToFiber[A](stage: => CompletionStage[A]): Fiber[Throwable, A] = 
   Fiber.fromCompletionStage(future)
 ````
@@ -30,14 +30,14 @@ This API creates a synthetic fiber which doesn't have any notion of identity.
 
 Additionally, you may want to go the other way and convert a ZIO value into a `CompletionStage`. Easy as pie:
 
-```scala
+```scala mdoc
 def taskToStage[A](task: Task[A]): UIO[CompletableFuture[A]] =
     task.toCompletableFuture
 ```
 
 As you can see, it commits to a concrete class implementing the `CompletionStage` interface, i.e. `CompletableFuture`. It is worth to point out that any `IO[E, A]` can be turned into a completable future provided you can turn a value of type `E` into a `Throwable`:
 
-```scala
+```scala mdoc
 def ioToStage[E, A](io: IO[E, A])(toThrowable: E => Throwable): UIO[CompletableFuture[A]] =
     io.toCompletableFutureWith(toThrowable)
 ```
@@ -46,7 +46,7 @@ def ioToStage[E, A](io: IO[E, A])(toThrowable: E => Throwable): UIO[CompletableF
 
 You can embed any `java.util.concurrent.Future` in a ZIO computation via `ZIO.fromFutureJava`. A toy wrapper around Apache Async HTTP client could look like:
 
-```scala
+```scala mdoc
 def execute(client: HttpAsyncClient, request: HttpUriRequest): RIO[Blocking, HttpResponse] =
     ZIO.fromFutureJava(UIO {
         client.execute(request, null)
@@ -57,7 +57,7 @@ That's it. Just a bit of a warning here, mate. As you can see from the requireme
 
 Should you need it, it is also possible to convert a future into a fiber using `Fiber.fromFutureJava`. Same same, but different:
 
-```scala
+```scala mdoc
 def execute(client: HttpAsyncClient, request: HttpUriRequest): Fiber[Throwable, HttpResponse] =
     Fiber.fromFutureJava {
         client.execute(request, null)
@@ -68,7 +68,7 @@ def execute(client: HttpAsyncClient, request: HttpUriRequest): Fiber[Throwable, 
 
 Java libraries using channels from the NIO API for asynchronous, interruptible I/O can be hooked into by providing completion handlers. As in, reading the contents of a file:
 
-```scala
+```scala mdoc
 def readFile(file: AsynchronousFileChannel): Task[Chunk[Byte]] = for {
     pos <- Ref.make(0)
     buf <- ZIO.effectTotal(ByteBuffer.allocate(1024))

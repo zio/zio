@@ -7,7 +7,7 @@ title: "Twitter"
 
 ### Example
 
-```scala
+```scala mdoc
 import com.twitter.util.Future
 import zio.{ App, Task }
 import zio.console._
