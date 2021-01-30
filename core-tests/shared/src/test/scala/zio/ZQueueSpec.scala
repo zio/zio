@@ -281,6 +281,31 @@ object ZQueueSpec extends ZIOBaseSpec {
         }
       }
     ),
+    suite("takeN")(
+      testM("returns immediately if there is enough elements") {
+        for {
+          queue <- Queue.bounded[Int](100)
+          _     <- queue.offerAll(List(1, 2, 3, 4, 5))
+          res   <- queue.takeN(3)
+        } yield assert(res)(equalTo(List(1, 2, 3)))
+      },
+      testM("returns an empty list if a negative number or zero is specified") {
+        for {
+          queue       <- Queue.bounded[Int](100)
+          _           <- queue.offerAll(List(1, 2, 3))
+          resNegative <- queue.takeN(-3)
+          resZero     <- queue.takeN(0)
+        } yield assert(resNegative)(isEmpty) && assert(resZero)(isEmpty)
+      },
+      testM("blocks until the required number of elements is available") {
+        for {
+          queue  <- Queue.bounded[Int](100)
+          updater = queue.offer(10).forever
+          getter  = queue.takeN(5)
+          res    <- getter.race(updater)
+        } yield assert(res)(hasSize(equalTo(5)))
+      }
+    ),
     testM("offerAll with takeAll") {
       for {
         queue <- Queue.bounded[Int](10)
