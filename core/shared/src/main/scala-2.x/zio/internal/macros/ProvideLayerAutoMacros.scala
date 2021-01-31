@@ -4,7 +4,7 @@ import zio._
 
 import scala.reflect.macros.blackbox
 
-class ProvideLayerAutoMacro(val c: blackbox.Context) extends MacroUtils with ExprGraphModule {
+class ProvideLayerAutoMacros(val c: blackbox.Context) extends MacroUtils with ExprGraphModule {
   import c.universe._
 
   def provideLayerAutoImpl[R: c.WeakTypeTag, E, A](

@@ -9,6 +9,10 @@ object ProvideLayerAutoExample extends App {
       console.putStrLn(s"There was an old who lady swallowed:\n- ${contents.mkString("\n- ")}")
     }
 
+  val autoLayer: ZLayer[Any, Nothing, Has[OldLady]] =
+    ZLayer.fromAuto[Has[OldLady]](OldLady.live, Spider.live, Fly.live, Console.live)
+  val _ = autoLayer
+
   def run(args: List[String]): URIO[ZEnv, ExitCode] =
     program
       .provideCustomLayerAuto(OldLady.live, Spider.live, Fly.live)

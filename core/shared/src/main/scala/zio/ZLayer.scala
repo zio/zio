@@ -300,7 +300,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
     }
 }
 
-object ZLayer {
+object ZLayer extends ZLayerCompanionVersionSpecific {
 
   private final case class Fold[RIn, E, E1, ROut, ROut1](
     self: ZLayer[RIn, E, ROut],

@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.internal.macros.ProvideLayerAutoMacro
+import zio.internal.macros.ProvideLayerAutoMacros
 
 private[zio] trait ZIOVersionSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
 
@@ -37,7 +37,7 @@ private[zio] trait ZIOVersionSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
   def provideCustomLayerAuto[E1 >: E](
     layers: ZLayer[_, E1, _]*
   ): ZIO[ZEnv, E1, A] =
-    macro ProvideLayerAutoMacro.provideCustomLayerAutoImpl[R, E1, A]
+    macro ProvideLayerAutoMacros.provideCustomLayerAutoImpl[R, E1, A]
 
   /**
    * Automatically assembles a layer for the ZIO effect, which translates it to another level.
@@ -45,6 +45,6 @@ private[zio] trait ZIOVersionSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
   def provideLayerAuto[E1 >: E](
     layers: ZLayer[_, E1, _]*
   ): ZIO[Any, E1, A] =
-    macro ProvideLayerAutoMacro.provideLayerAutoImpl[R, E1, A]
+    macro ProvideLayerAutoMacros.provideLayerAutoImpl[R, E1, A]
 
 }

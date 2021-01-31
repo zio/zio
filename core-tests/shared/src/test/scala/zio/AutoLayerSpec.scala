@@ -1,20 +1,26 @@
 package zio
 
+import zio.internal.macros.StringUtils.StringOps
 import zio.test.Assertion._
+import zio.test.AssertionM.Render.param
 import zio.test._
 import zio.test.environment.TestConsole
 
 object AutoLayerSpec extends ZIOBaseSpec {
 
+  def containsStringWithoutAnsi(element: String): Assertion[String] =
+    Assertion.assertion("containsStringWithoutAnsi")(param(element))(_.removingAnsiCodes.contains(element))
+
   def spec: ZSpec[Environment, Failure] =
     suite("AutoLayerSpec")(
-      suite("provideLayerAuto")(
+      suite("`zio.provideLayerAuto`")(
         testM("automatically constructs a layer from its dependencies") {
           val doubleLayer = ZLayer.succeed(100.1)
           val stringLayer = ZLayer.succeed("this string is 28 chars long")
           val intLayer    = ZIO.services[String, Double].map { case (str, double) => str.length + double.toInt }.toLayer
-          val program     = ZIO.service[Int]
-          val provided    = program.provideLayerAuto(intLayer, stringLayer, doubleLayer)
+
+          val program  = ZIO.service[Int]
+          val provided = program.provideLayerAuto(intLayer, stringLayer, doubleLayer)
           assertM(provided)(equalTo(128))
         },
         testM("reports missing top-level layers") {
@@ -22,14 +28,16 @@ object AutoLayerSpec extends ZIOBaseSpec {
           val _                                                = program
 
           val checked = typeCheck("program.provideLayerAuto(ZLayer.succeed(3))")
-          assertM(checked)(isLeft(containsString("missing String")))
+          assertM(checked)(isLeft(containsStringWithoutAnsi("missing String")))
         },
         testM("reports multiple missing top-level layers") {
           val program: URIO[Has[String] with Has[Int], String] = UIO("test")
           val _                                                = program
 
           val checked = typeCheck("program.provideLayerAuto()")
-          assertM(checked)(isLeft(containsString("missing String") && containsString("missing Int")))
+          assertM(checked)(
+            isLeft(containsStringWithoutAnsi("missing String") && containsStringWithoutAnsi("missing Int"))
+          )
         },
         testM("reports missing transitive dependencies") {
           import TestLayers._
@@ -39,8 +47,8 @@ object AutoLayerSpec extends ZIOBaseSpec {
           val checked = typeCheck("program.provideLayerAuto(OldLady.live)")
           assertM(checked)(
             isLeft(
-              containsString("provide zio.AutoLayerSpec.TestLayers.Fly") &&
-                containsString("for TestLayers.OldLady.live")
+              containsStringWithoutAnsi("missing zio.AutoLayerSpec.TestLayers.Fly") &&
+                containsStringWithoutAnsi("for TestLayers.OldLady.live")
             )
           )
         },
@@ -52,8 +60,8 @@ object AutoLayerSpec extends ZIOBaseSpec {
           val checked = typeCheck("program.provideLayerAuto(OldLady.live, Fly.live)")
           assertM(checked)(
             isLeft(
-              containsString("provide zio.AutoLayerSpec.TestLayers.Spider") &&
-                containsString("for TestLayers.Fly.live")
+              containsStringWithoutAnsi("missing zio.AutoLayerSpec.TestLayers.Spider") &&
+                containsStringWithoutAnsi("for TestLayers.Fly.live")
             )
           )
         },
@@ -65,8 +73,8 @@ object AutoLayerSpec extends ZIOBaseSpec {
           val checked = typeCheck("program.provideLayerAuto(OldLady.live, Fly.manEatingFly)")
           assertM(checked)(
             isLeft(
-              containsString("TestLayers.Fly.manEatingFly") &&
-                containsString("both requires and is transitively required by TestLayers.OldLady.live")
+              containsStringWithoutAnsi("TestLayers.Fly.manEatingFly") &&
+                containsStringWithoutAnsi("both requires and is transitively required by TestLayers.OldLady.live")
             )
           )
         }
@@ -78,6 +86,37 @@ object AutoLayerSpec extends ZIOBaseSpec {
           val provided    = TestConsole.feedLines("Your Lucky Number is:") *> program.provideCustomLayerAuto(stringLayer)
 
           assertM(provided)(equalTo("Your Lucky Number is: -1295463240"))
+        }
+      ),
+      suite("`ZLayer.fromAuto`")(
+        testM("automatically constructs a layer from its dependencies") {
+          val doubleLayer = ZLayer.succeed(100.1)
+          val stringLayer = ZLayer.succeed("this string is 28 chars long")
+          val intLayer    = ZIO.services[String, Double].map { case (str, double) => str.length + double.toInt }.toLayer
+          val program     = ZIO.service[Int]
+
+          val layer    = ZLayer.fromAuto[Has[Int]](intLayer, stringLayer, doubleLayer)
+          val provided = program.provideLayer(layer)
+          assertM(provided)(equalTo(128))
+        }
+      ),
+      suite("`ZLayer.fromAutoDebug`")(
+        testM("automatically constructs and visualizes a layer from its dependencies") {
+          val doubleLayer = ZLayer.succeed(100.1)
+          val stringLayer = ZLayer.succeed("this string is 28 chars long")
+          val intLayer    = ZIO.services[String, Double].map { case (str, double) => str.length + double.toInt }.toLayer
+          val program     = ZIO.service[Int]
+          val _           = ZLayer.fromAuto[Has[Int]](intLayer, stringLayer, doubleLayer)
+
+          val checked = typeCheck("ZLayer.fromAutoDebug[Has[Int]](intLayer, stringLayer, doubleLayer)")
+          assertM(checked)(
+            isLeft(
+              containsStringWithoutAnsi("""
+         intLayer         
+      ┌──────┴─────┐      
+ stringLayer  doubleLayer""".trim)
+            )
+          )
         }
       )
     )

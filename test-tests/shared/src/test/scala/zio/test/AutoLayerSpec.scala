@@ -1,9 +1,13 @@
 package zio.test
 
 import zio._
+import zio.internal.macros.StringUtils.StringOps
 import zio.test.Assertion._
+import zio.test.AssertionM.Render.param
 
 object AutoLayerSpec extends ZIOBaseSpec {
+  def containsStringWithoutAnsi(element: String): Assertion[String] =
+    Assertion.assertion("containsStringWithoutAnsi")(param(element))(_.removingAnsiCodes.contains(element))
 
   def spec: ZSpec[Environment, Failure] =
     suite("AutoLayerSpec")(
@@ -21,14 +25,16 @@ object AutoLayerSpec extends ZIOBaseSpec {
           val program: URIO[Has[String] with Has[Int], String] = UIO("test")
           val _                                                = program
           val checked                                          = typeCheck("""testM("foo")(assertM(program)(anything)).provideLayerAuto(ZLayer.succeed(3))""")
-          assertM(checked)(isLeft(containsString("missing String")))
+          assertM(checked)(isLeft(containsStringWithoutAnsi("missing String")))
         },
         testM("reports multiple missing top-level layers") {
           val program: URIO[Has[String] with Has[Int], String] = UIO("test")
           val _                                                = program
 
           val checked = typeCheck("""testM("foo")(assertM(program)(anything)).provideLayerAuto()""")
-          assertM(checked)(isLeft(containsString("missing String") && containsString("missing Int")))
+          assertM(checked)(
+            isLeft(containsStringWithoutAnsi("missing String") && containsStringWithoutAnsi("missing Int"))
+          )
         },
         testM("reports missing transitive dependencies") {
           import TestLayers._
@@ -38,8 +44,8 @@ object AutoLayerSpec extends ZIOBaseSpec {
           val checked = typeCheck("""testM("foo")(assertM(program)(anything)).provideLayerAuto(OldLady.live)""")
           assertM(checked)(
             isLeft(
-              containsString("provide zio.test.AutoLayerSpec.TestLayers.Fly") &&
-                containsString("for TestLayers.OldLady.live")
+              containsStringWithoutAnsi("missing zio.test.AutoLayerSpec.TestLayers.Fly") &&
+                containsStringWithoutAnsi("for TestLayers.OldLady.live")
             )
           )
         },
@@ -52,8 +58,8 @@ object AutoLayerSpec extends ZIOBaseSpec {
             typeCheck("""testM("foo")(assertM(program)(anything)).provideLayerAuto(OldLady.live, Fly.live)""")
           assertM(checked)(
             isLeft(
-              containsString("provide zio.test.AutoLayerSpec.TestLayers.Spider") &&
-                containsString("for TestLayers.Fly.live")
+              containsStringWithoutAnsi("missing zio.test.AutoLayerSpec.TestLayers.Spider") &&
+                containsStringWithoutAnsi("for TestLayers.Fly.live")
             )
           )
         },
@@ -66,8 +72,8 @@ object AutoLayerSpec extends ZIOBaseSpec {
             typeCheck("""testM("foo")(assertM(program)(anything)).provideLayerAuto(OldLady.live, Fly.manEatingFly)""")
           assertM(checked)(
             isLeft(
-              containsString("TestLayers.Fly.manEatingFly") &&
-                containsString("both requires and is transitively required by TestLayers.OldLady.live")
+              containsStringWithoutAnsi("TestLayers.Fly.manEatingFly") &&
+                containsStringWithoutAnsi("both requires and is transitively required by TestLayers.OldLady.live")
             )
           )
         }
