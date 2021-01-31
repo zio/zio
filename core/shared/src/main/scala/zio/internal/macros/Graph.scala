@@ -2,36 +2,28 @@ package zio.internal.macros
 
 import zio.internal.macros.LayerLike._
 
-case class Graph[A: LayerLike](nodes: List[Node[A]]) {
-  def map[B: LayerLike](f: A => B): Graph[B] =
-    Graph(nodes.map { node =>
-      Node(node.inputs, node.outputs, f(node.value))
-    })
+final case class Graph[A: LayerLike](nodes: List[Node[A]]) {
 
-  def buildComplete(outputs: List[String]): Validation[GraphError[A], A] =
+  def buildComplete(outputs: List[String]): Either[::[GraphError[A]], A] =
     traverse(outputs) { output =>
       getNodeWithOutput(output, error = GraphError.MissingTopLevelDependency(output))
     }
       .flatMap(traverse(_)(node => buildNode(node, Set(node))))
       .map(_.distinct.combineHorizontally)
 
-  private def getNodeWithOutput[E](output: String, error: E = ()): Validation[E, Node[A]] =
-    Validation.fromEither {
-      nodes.find(_.outputs.contains(output)).toRight(error)
-    }
+  def map[B: LayerLike](f: A => B): Graph[B] =
+    Graph(nodes.map(_.map(f)))
 
-  private def getDependencies[E](node: Node[A]): Validation[GraphError[A], List[Node[A]]] =
+  private def getNodeWithOutput[E](output: String, error: E): Either[::[E], Node[A]] =
+    nodes.find(_.outputs.contains(output)).toRight(::(error, Nil))
+
+  private def getDependencies[E](node: Node[A]): Either[::[GraphError[A]], List[Node[A]]] =
     traverse(node.inputs) { input =>
       getNodeWithOutput(input, error = GraphError.MissingDependency(node, input))
     }
       .map(_.distinct)
 
-  /**
-   * @param node The node to build the sub-graph for
-   * @param seen The nodes already seen. Used to check for cycles.
-   * @return Either the fully constructed sub-graph or a graph errors
-   */
-  private def buildNode(node: Node[A], seen: Set[Node[A]] = Set.empty): Validation[GraphError[A], A] =
+  private def buildNode(node: Node[A], seen: Set[Node[A]]): Either[::[GraphError[A]], A] =
     getDependencies(node).flatMap {
       traverse(_) { out =>
         for {
@@ -48,14 +40,21 @@ case class Graph[A: LayerLike](nodes: List[Node[A]]) {
     node: Node[A],
     seen: Set[Node[A]],
     dependency: Node[A]
-  ): Validation[GraphError.CircularDependency[A], Unit] =
+  ): Either[::[GraphError.CircularDependency[A]], Unit] =
     if (seen(dependency))
-      Validation.fail(GraphError.CircularDependency(node, dependency, seen.size))
+      Left(::(GraphError.CircularDependency(node, dependency, seen.size), Nil))
     else
-      Validation.succeed(())
+      Right(())
 
-  private def traverse[B, C](list: List[B])(f: B => Validation[GraphError[A], C]): Validation[GraphError[A], List[C]] =
-    list.foldRight(Validation.succeed[GraphError[A], List[C]](List.empty)) { (a, b) =>
-      f(a).zipWithPar(b)(_ +: _)
+  private def traverse[B, C](
+    list: List[B]
+  )(f: B => Either[::[GraphError[A]], C]): Either[::[GraphError[A]], List[C]] =
+    list.foldRight[Either[::[GraphError[A]], List[C]]](Right(List.empty)) { (a, b) =>
+      (f(a), b) match {
+        case (Left(::(e, es)), Left(e1s)) => Left(::(e, es ++ e1s))
+        case (Left(es), _)                => Left(es)
+        case (_, Left(es))                => Left(es)
+        case (Right(a), Right(b))         => Right(a +: b)
+      }
     }
 }

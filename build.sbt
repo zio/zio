@@ -130,12 +130,6 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .enablePlugins(BuildInfoPlugin)
   .settings(macroDefinitionSettings)
   .settings(macroExpansionSettings)
-  .settings(
-    libraryDependencies ++= Seq(
-      ("org.portable-scala" %%% "portable-scala-reflect" % "1.0.0")
-        .withDottyCompat(scalaVersion.value)
-    )
-  )
 
 lazy val coreJVM = core.jvm
   .settings(dottySettings)

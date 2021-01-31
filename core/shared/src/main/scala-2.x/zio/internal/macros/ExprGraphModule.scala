@@ -16,24 +16,23 @@ object ansi {
   def Magenta(string: String): String = string
 }
 
-trait ExprGraphSupport { self: MacroUtils =>
+private[zio] trait ExprGraphModule { self: MacroUtils =>
   val c: blackbox.Context
   import c.universe._
 
-  case class ExprGraph(graph: Graph[LayerExpr]) {
+  sealed case class ExprGraph(graph: Graph[LayerExpr]) {
     def buildLayerFor(output: List[String]): LayerExpr =
       if (output.isEmpty) {
         reify(zio.ZLayer.succeed(())).asInstanceOf[LayerExpr]
       } else
         graph.buildComplete(output) match {
-          case Validation.Failure(errors) =>
-            c.error(c.enclosingPosition, renderErrors(errors))
+          case Left(errors) =>
             c.abort(c.enclosingPosition, renderErrors(errors))
-          case Validation.Success(value) =>
+          case Right(value) =>
             value
         }
 
-    private def renderErrors(errors: NonEmptyChunk[GraphError[LayerExpr]]): String = {
+    private def renderErrors(errors: ::[GraphError[LayerExpr]]): String = {
       val allErrors = sortErrors(errors)
 
       val errorMessage =
@@ -53,12 +52,13 @@ trait ExprGraphSupport { self: MacroUtils =>
     /**
      * Return only the first level of circular dependencies, as these will be the most relevant.
      */
-    private def sortErrors(errors: NonEmptyChunk[GraphError[LayerExpr]]): Chunk[GraphError[LayerExpr]] = {
-      val (circularDependencyErrors, otherErrors) = errors.distinct.partitionMap {
-        case circularDependency: GraphError.CircularDependency[LayerExpr] =>
-          Left(circularDependency)
-        case other => Right(other)
-      }
+    private def sortErrors(errors: ::[GraphError[LayerExpr]]): Chunk[GraphError[LayerExpr]] = {
+      val (circularDependencyErrors, otherErrors) =
+        NonEmptyChunk.fromIterable(errors.head, errors.tail).distinct.partitionMap {
+          case circularDependency: GraphError.CircularDependency[LayerExpr] =>
+            Left(circularDependency)
+          case other => Right(other)
+        }
       val sorted                    = circularDependencyErrors.sortBy(_.depth)
       val lowestDepthCircularErrors = sorted.takeWhile(_.depth == sorted.headOption.map(_.depth).getOrElse(0))
       lowestDepthCircularErrors ++ otherErrors
@@ -81,7 +81,7 @@ provide $styledDependency
           val styledNode       = ansi.WhiteUnderlined(node.value.showTree)
           val styledDependency = ansi.White(dependency.value.showTree)
           s"""
-${ansi.Magenta("PARADOX ENCOUNTERED")} — Please don't open a rift in space-time!
+${ansi.Magenta("Circular Dependency")} 
 $styledNode
 both requires ${ansi.Bold("and")} is transitively required by $styledDependency
     """

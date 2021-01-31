@@ -26,7 +26,8 @@ import zio.test.environment.TestEnvironment
  * an environment of type `R` and may potentially fail with an error of type
  * `E`.
  */
-final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) { self =>
+final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) extends SpecVersionSpecific[R, E, T] {
+  self =>
 
   /**
    * Syntax for adding aspects.

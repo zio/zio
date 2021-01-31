@@ -4,7 +4,7 @@ import zio._
 
 import scala.reflect.macros.blackbox
 
-class ProvideLayerAutoMacro(val c: blackbox.Context) extends MacroUtils with ExprGraphSupport {
+class ProvideLayerAutoMacro(val c: blackbox.Context) extends MacroUtils with ExprGraphModule {
   import c.universe._
 
   def provideLayerAutoImpl[R: c.WeakTypeTag, E, A](
@@ -28,5 +28,4 @@ class ProvideLayerAutoMacro(val c: blackbox.Context) extends MacroUtils with Exp
     val layerExpr = ExprGraph(nodes).buildLayerFor(requirements)
     c.Expr[ZIO[ZEnv, E, A]](q"${c.prefix}.provideCustomLayer(${layerExpr.tree})")
   }
-
 }

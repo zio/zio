@@ -53,7 +53,6 @@ trait MacroUtils {
   }
 
   implicit class TreeOps(self: c.Expr[_]) {
-//    def showTree: String = showCode(self.tree, printOwners = false) //CleanCodePrinter.show(c)(self.tree)
     def showTree: String = CleanCodePrinter.show(c)(self.tree)
   }
 }
