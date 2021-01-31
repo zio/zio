@@ -45,7 +45,7 @@ val created: URIO[DBConnection, Boolean] = for {
 
 To run the program we must supply a `DBConnection` through `provide`, before feeding it to ZIO runtime.
 
-```scala mdoc
+```scala
 val dbConnection: DBConnection = ???
 val runnable: UIO[Boolean] = created.provide(dbConnection)
 
@@ -363,7 +363,7 @@ No other code will need to be changed, because the previous implementation's dep
 However, if an upstream dependency is used by many other services, it can be convenient to "pass through" that dependency, and include it in the output of a layer. This can be done with the `>+>` operator, which provides the output of one layer to another layer, returning a new layer that outputs the services of _both_ layers.
 
 ```scala mdoc
-val layer: ZLayer[Any, Nothing, Connection with UserRepo] = connection >+> userRepo
+val updatedLayer2: ZLayer[Any, Nothing, Has[Connection] with UserRepo] = connection >+> userRepo
 ```
 
 Here, the `Connection` dependency has been passed through, and is available to all downstream services. This allows a style of composition where the `>+>` operator is used to build a progressively larger set of services, with each new service able to depend on all the services before it.

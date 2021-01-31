@@ -14,14 +14,14 @@ Interop layer provides the following conversions:
 
 To convert an `IO` value to `Task`, use the following method:
 
-```scala mdoc
+```scala
 def toTask: UIO[eval.Task[A]]
 ```
 
 To perform conversion in other direction, use the following extension method
 available on `IO` companion object:
 
-```scala mdoc
+```scala
 def fromTask[A](task: eval.Task[A])(implicit scheduler: Scheduler): Task[A]
 ```
 
@@ -58,20 +58,20 @@ object UnsafeExample extends App {
 
 To convert an `IO` value to `Coeval`, use the following method:
 
-```scala mdoc
+```scala
 def toCoeval: UIO[eval.Coeval[A]]
 ```
 
 To perform conversion in other direction, use the following extension method
 available on `IO` companion object:
 
-```scala mdoc
+```scala
 def fromCoeval[A](coeval: eval.Coeval[A]): Task[A]
 ```
 
 ### Example
 
-```scala mdoc
+```scala mdoc:reset
 import monix.eval.Coeval
 import zio.{ IO, Runtime }
 import zio.interop.monix._

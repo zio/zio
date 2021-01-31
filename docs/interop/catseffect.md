@@ -7,7 +7,7 @@ The `interop-cats` module provides interoperability for the Cats Effect ecosyste
 
 To use this module, add the following to your `build.sbt`:
 
-```scala mdoc
+```scala
 libraryDependencies += "dev.zio" %% "zio-interop-cats" % "<version>"
 ```
 
@@ -25,7 +25,7 @@ Due to limitations of Cats Effect, ZIO cannot provide instances for arbitrary er
 
 For convenience, ZIO includes the `Task` and `RIO` type aliases, which fix the error type to `Throwable`, and may be useful for interop with Cats Effect:
 
-```scala mdoc
+```scala
 type Task[   +A] = ZIO[Any, Throwable, A]
 type RIO[-R, +A] = ZIO[  R, Throwable, A]
 ```
@@ -33,6 +33,7 @@ type RIO[-R, +A] = ZIO[  R, Throwable, A]
 In order to use Cats Effect instances for these types, you should have an implicit `Runtime[R]` in scope for the environment type of your effects. The following code snippet creates an implicit `Runtime` for all the modules built into ZIO:
 
 ```scala mdoc
+import zio. { Runtime, ZEnv }
 implicit val runtime: Runtime[ZEnv] = Runtime.default
 ```
 
@@ -57,7 +58,7 @@ If you are using `RIO` for a custom environment then your environment must use t
 
 The following example shows how to use ZIO with Doobie (a library for JDBC access) and FS2 (a streaming library), which both rely on Cats Effect instances:
 
-```scala mdoc
+```scala
 import doobie.imports._
 import fs2.Stream
 import zio.Task

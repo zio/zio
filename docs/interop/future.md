@@ -12,7 +12,10 @@ Basic interoperability with Scala's `Future` is now provided by ZIO, and does no
 Scala's `Future` can be converted into a ZIO effect with `ZIO.fromFuture`:
 
 ```scala mdoc
-def loggedFuture[A](future: ExecutionContext => Future[A]): UIO[Task[A]] = {
+import zio. { UIO, ZIO, Task }
+import scala.concurrent. { ExecutionContext, Future }
+
+def loggedFuture[A](future: ExecutionContext => Future[A]): Task[A] = {
   ZIO.fromFuture { implicit ec =>
     future(ec).flatMap { result =>
       Future("Future succeeded with " + result).map(_ => result)
@@ -24,6 +27,7 @@ def loggedFuture[A](future: ExecutionContext => Future[A]): UIO[Task[A]] = {
 Scala's `Future` can also be converted into a `Fiber` with `Fiber.fromFuture`:
 
 ```scala mdoc
+import zio.Fiber
 def futureToFiber[A](future: => Future[A]): Fiber[Throwable, A] = 
   Fiber.fromFuture(future)
 ```

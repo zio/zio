@@ -37,7 +37,7 @@ libraryDependencies += "dev.zio" %% "zio-macros" % "<zio-version>"
 
 The `@accessible` macro generates _capability accessors_ into annotated module object.
 
-```scala mdoc
+```scala
 import zio.{ Has, ZIO }
 import zio.macros.accessible
 
@@ -68,7 +68,7 @@ libraryDependencies += "dev.zio" %% "zio-test" % "<zio-version>"
 
 The `@mockable[A]` generates _capability tags_ and _mock layer_ into annotated object.
 
-```scala mdoc
+```scala
 import zio.test.mock.mockable
 
 @mockable[AccountObserver.Service]
@@ -77,7 +77,7 @@ object AccountObserverMock
 
 Will result in:
 
-```scala mdoc
+```scala
 import zio.{ Has, UIO, URLayer, ZLayer }
 import zio.test.mock.{ Mock, Proxy }
 

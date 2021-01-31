@@ -35,7 +35,7 @@ Unlike `try` / `finally`, `ensuring` works across all types of effects, includin
 
 A common use for `try` / `finally` is safely acquiring and releasing resources, such as new socket connections or opened files:
 
-```scala mdoc
+```scala
 val handle = openFile(name)
 
 try {

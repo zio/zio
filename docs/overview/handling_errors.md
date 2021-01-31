@@ -133,7 +133,7 @@ The next most powerful function is `ZIO#retryOrElse`, which allows specification
 ```scala mdoc
   openFile("primary.data").retryOrElse(
     Schedule.recurs(5), 
-    (_, _) => ZIO.succeed(DefaultData))
+    (_, _: Long) => ZIO.succeed(DefaultData))
 ```
 
 The final method, `ZIO#retryOrElseEither`, allows returning a different type for the fallback.

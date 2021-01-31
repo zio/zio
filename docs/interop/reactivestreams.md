@@ -82,7 +82,7 @@ runtime.unsafeRun(
 A `Sink` used as a `Subscriber` buffers up to `qSize` elements. If possible, `qSize` should be
 a power of two for best performance. The default is 16.
 
-```scala mdoc
+```scala
 val sink = Sink.collectAll[Integer]
 runtime.unsafeRun(
   sink.toSubscriber(qSize = 16).flatMap { case (subscriber, result) => 
