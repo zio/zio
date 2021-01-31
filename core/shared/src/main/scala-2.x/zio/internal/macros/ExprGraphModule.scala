@@ -1,20 +1,9 @@
 package zio.internal.macros
 
+import zio.internal.macros.ansi.AnsiStringOps
 import zio.{Chunk, NonEmptyChunk}
 
 import scala.reflect.macros.blackbox
-
-// TODO: Replace these no-ops with an actual implementation.
-object ansi {
-  def Red(string: String): String           = string
-  def RedUnderlined(string: String): String = string
-
-  def White(string: String): String           = string
-  def WhiteUnderlined(string: String): String = string
-
-  def Bold(string: String): String    = string
-  def Magenta(string: String): String = string
-}
 
 private[zio] trait ExprGraphModule { self: MacroUtils =>
   val c: blackbox.Context
@@ -40,11 +29,10 @@ private[zio] trait ExprGraphModule { self: MacroUtils =>
           .map(renderError)
           .mkString("\n")
           .linesIterator
-          .mkString("\n🪄  ")
-      val title = ansi.RedUnderlined("ZLayer Auto-Build Issue")
+          .mkString("\n")
       s"""
-🪄  $title
-🪄  $errorMessage
+${"ZLayer Auto Assemble".yellow.underlined}
+$errorMessage
 
 """
     }
@@ -67,24 +55,23 @@ private[zio] trait ExprGraphModule { self: MacroUtils =>
     private def renderError(error: GraphError[LayerExpr]): String =
       error match {
         case GraphError.MissingDependency(node, dependency) =>
-          val styledDependency = ansi.WhiteUnderlined(dependency)
-          val styledLayer      = ansi.White(node.value.showTree)
+          val styledDependency = dependency.white.bold
+          val styledLayer      = node.value.showTree.white
           s"""
-provide $styledDependency
-    for $styledLayer"""
+${"missing".faint} $styledDependency
+    ${"for".faint} $styledLayer"""
 
         case GraphError.MissingTopLevelDependency(dependency) =>
-          val styledDependency = ansi.WhiteUnderlined(dependency)
-          s"""missing $styledDependency"""
+          val styledDependency = dependency.white.bold
+          s"""
+${"missing".faint} $styledDependency"""
 
         case GraphError.CircularDependency(node, dependency, _) =>
-          val styledNode       = ansi.WhiteUnderlined(node.value.showTree)
-          val styledDependency = ansi.White(dependency.value.showTree)
+          val styledNode       = node.value.showTree.white.bold
+          val styledDependency = dependency.value.showTree.white
           s"""
-${ansi.Magenta("Circular Dependency")} 
-$styledNode
-both requires ${ansi.Bold("and")} is transitively required by $styledDependency
-    """
+${"Circular Dependency".yellow} 
+$styledNode both requires ${"and".bold} is transitively required by $styledDependency"""
       }
 
   }
