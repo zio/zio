@@ -1,5 +1,6 @@
 package zio
 
+import com.github.ghik.silencer.silent
 import zio.ZQueueSpecUtil.waitForSize
 import zio.duration._
 import zio.test.Assertion._
@@ -759,7 +760,7 @@ object ZQueueSpec extends ZIOBaseSpec {
       for {
         q1 <- Queue.bounded[Int](100)
         q2 <- Queue.bounded[Int](100)
-        q   = q1 both q2 @silent("deprecated")
+        q   = (q1 both q2): @silent("deprecated")
         _  <- q.offer(10)
         v  <- q.take
       } yield assert(v)(equalTo((10, 10)))
