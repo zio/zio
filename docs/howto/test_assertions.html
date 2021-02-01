@@ -24,10 +24,10 @@ test(<span class="hljs-string">"Fourth value is equal to 5"</span>) {
   assert(xs)(hasAt(<span class="hljs-number">3</span>)(???))
 }
 <span class="hljs-comment">// res1: ZSpec[Any, Nothing] = Spec(</span>
-<span class="hljs-comment">//   TestCase(</span>
-<span class="hljs-comment">//     "Fourth value is equal to 5",</span>
-<span class="hljs-comment">//     &lt;function1&gt;,</span>
-<span class="hljs-comment">//     Map(zio.test.TestAnnotation@ba6bde4b -&gt; List(SourceLocation(test_assertions.md,20)))</span>
+<span class="hljs-comment">//   caseValue = TestCase(</span>
+<span class="hljs-comment">//     label = "Fourth value is equal to 5",</span>
+<span class="hljs-comment">//     test = &lt;function1&gt;,</span>
+<span class="hljs-comment">//     annotations = Map(zio.test.TestAnnotation@f867660b -&gt; List(SourceLocation(test_assertions.md,20)))</span>
 <span class="hljs-comment">//   )</span>
 <span class="hljs-comment">// )</span>
 </code></pre>
@@ -43,10 +43,10 @@ test(<span class="hljs-string">"Fourth value is equal to 5"</span>) {
   assert(xs)(hasAt(<span class="hljs-number">3</span>)(equalTo(<span class="hljs-number">5</span>)))
 }
 <span class="hljs-comment">// res3: ZSpec[Any, Nothing] = Spec(</span>
-<span class="hljs-comment">//   TestCase(</span>
-<span class="hljs-comment">//     "Fourth value is equal to 5",</span>
-<span class="hljs-comment">//     &lt;function1&gt;,</span>
-<span class="hljs-comment">//     Map(zio.test.TestAnnotation@ba6bde4b -&gt; List(SourceLocation(test_assertions.md,40)))</span>
+<span class="hljs-comment">//   caseValue = TestCase(</span>
+<span class="hljs-comment">//     label = "Fourth value is equal to 5",</span>
+<span class="hljs-comment">//     test = &lt;function1&gt;,</span>
+<span class="hljs-comment">//     annotations = Map(zio.test.TestAnnotation@f867660b -&gt; List(SourceLocation(test_assertions.md,40)))</span>
 <span class="hljs-comment">//   )</span>
 <span class="hljs-comment">// )</span>
 </code></pre>
@@ -66,10 +66,10 @@ test(<span class="hljs-string">"Fourth value is approximately equal to 5"</span>
   assert(xs)(hasAt(<span class="hljs-number">3</span>)(approximatelyEquals(<span class="hljs-number">5</span>, <span class="hljs-number">2</span>)))
 }
 <span class="hljs-comment">// res5: ZSpec[Any, Nothing] = Spec(</span>
-<span class="hljs-comment">//   TestCase(</span>
-<span class="hljs-comment">//     "Fourth value is approximately equal to 5",</span>
-<span class="hljs-comment">//     &lt;function1&gt;,</span>
-<span class="hljs-comment">//     Map(zio.test.TestAnnotation@ba6bde4b -&gt; List(SourceLocation(test_assertions.md,60)))</span>
+<span class="hljs-comment">//   caseValue = TestCase(</span>
+<span class="hljs-comment">//     label = "Fourth value is approximately equal to 5",</span>
+<span class="hljs-comment">//     test = &lt;function1&gt;,</span>
+<span class="hljs-comment">//     annotations = Map(zio.test.TestAnnotation@f867660b -&gt; List(SourceLocation(test_assertions.md,60)))</span>
 <span class="hljs-comment">//   )</span>
 <span class="hljs-comment">// )</span>
 </code></pre>
