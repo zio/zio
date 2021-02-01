@@ -298,9 +298,9 @@ object BuildHelper {
   val scalaReflectTestSettings: List[Setting[_]] = List(
     libraryDependencies ++= {
       if (isDotty.value)
-        Seq(("org.scala-lang" % "scala-reflect" % Scala213 % Test).withDottyCompat(scalaVersion.value))
+        Seq(("org.scala-lang" % "scala-reflect" % Scala213).withDottyCompat(scalaVersion.value))
       else
-        Seq("org.scala-lang" % "scala-reflect" % scalaVersion.value % Test)
+        Seq("org.scala-lang" % "scala-reflect" % scalaVersion.value)
     }
   )
 
