@@ -9,14 +9,18 @@ If you are a happy Scalaz 7.2 user `interop-scala7x` module offers `ZIO` instanc
 
 ### Example
 
-```scala
+```scala mdoc
+import zio. { ZIO }
 import scalaz._, Scalaz._
-import zio.interop.scalaz72._
+import zio.interop._
 
+case class User()
+case class UserId()
+case class UserError()
 type Database = IList[User]
 
 def findUser(id: UserId): ZIO[Database, UserError, User] = ???
-def findUsers(ids: IList[UserId]): ZIO[Database, UserError, IList[User]] = ids.traverse(findUser(_))
+def findUsers(ids: IList[UserId]): ZIO[Database, UserError, IList[User]] = ???
 ```
 
 ## `ZIO` parallel `Applicative` instance
@@ -26,9 +30,9 @@ Due to `Applicative` and `Monad` coherence law `ZIO`'s `Applicative` instance ha
 ### Example
 
 ```scala
-import scalaz._, Scalaz._
-import zio.interop.scalaz72._
-
+import zio.interop._
+case class UserDetails()
+case class TransactionHistory()
 case class Dashboard(details: UserDetails, history: TransactionHistory)
 
 def getDetails(id: UserId): ZIO[Database, UserError, UserDetails] = ???
