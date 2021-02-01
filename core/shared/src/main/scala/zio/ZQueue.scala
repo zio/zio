@@ -588,8 +588,7 @@ object ZQueue {
           .whenM(shutdownHook.succeed(()))(
             UIO.foreachPar(unsafePollAll(takers))(_.interruptAs(fiberId)) *> strategy.shutdown
           )
-          .uninterruptible
-      }
+      }.uninterruptible
 
     val isShutdown: UIO[Boolean] = UIO(shutdownFlag.get)
 
