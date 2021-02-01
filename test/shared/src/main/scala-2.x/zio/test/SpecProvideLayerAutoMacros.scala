@@ -1,31 +1,21 @@
 package zio.test
 
 import zio._
-import zio.internal.macros.{ExprGraphModule, MacroUtils, Node}
+import zio.internal.macros.{ExprGraph, MacroUtils, Node}
 import zio.test.environment.TestEnvironment
 
 import scala.reflect.macros.blackbox
 
-class SpecProvideLayerAutoMacros(val c: blackbox.Context) extends MacroUtils with ExprGraphModule {
+class SpecProvideLayerAutoMacros(val c: blackbox.Context) extends MacroUtils {
   import c.universe._
 
-  def provideLayerAutoImpl[
-    R: c.WeakTypeTag,
-    E,
-    A
-  ](
-    layers: c.Expr[ZLayer[_, E, _]]*
-  ): c.Expr[Spec[Any, E, A]] = {
+  def provideLayerAutoImpl[R: c.WeakTypeTag, E, A](layers: c.Expr[ZLayer[_, E, _]]*): c.Expr[Spec[Any, E, A]] = {
     assertProperVarArgs(layers)
-    val layerExpr = ExprGraph.buildLayer[R](layers.map(getNode).toList)
+    val layerExpr = ExprGraph(layers.map(getNode).toList).buildLayerFor(getRequirements[R])
     c.Expr[Spec[Any, E, A]](q"${c.prefix}.provideLayer(${layerExpr.tree})")
   }
 
-  def provideCustomLayerAutoImpl[
-    R: c.WeakTypeTag,
-    E,
-    A
-  ](
+  def provideCustomLayerAutoImpl[R: c.WeakTypeTag, E, A](
     layers: c.Expr[ZLayer[_, E, _]]*
   ): c.Expr[Spec[TestEnvironment, E, A]] = {
     assertProperVarArgs(layers)
@@ -39,23 +29,13 @@ class SpecProvideLayerAutoMacros(val c: blackbox.Context) extends MacroUtils wit
     c.Expr[Spec[TestEnvironment, E, A]](q"${c.prefix}.provideCustomLayer(${layerExpr.tree})")
   }
 
-  def provideLayerSharedAutoImpl[
-    R: c.WeakTypeTag,
-    E,
-    A
-  ](
-    layers: c.Expr[ZLayer[_, E, _]]*
-  ): c.Expr[Spec[Any, E, A]] = {
+  def provideLayerSharedAutoImpl[R: c.WeakTypeTag, E, A](layers: c.Expr[ZLayer[_, E, _]]*): c.Expr[Spec[Any, E, A]] = {
     assertProperVarArgs(layers)
-    val layerExpr = ExprGraph.buildLayer[R](layers.map(getNode).toList)
+    val layerExpr = ExprGraph(layers.map(getNode).toList).buildLayerFor(getRequirements[R])
     c.Expr[Spec[Any, E, A]](q"${c.prefix}.provideLayerShared(${layerExpr.tree})")
   }
 
-  def provideCustomLayerSharedAutoImpl[
-    R: c.WeakTypeTag,
-    E,
-    A
-  ](
+  def provideCustomLayerSharedAutoImpl[R: c.WeakTypeTag, E, A](
     layers: c.Expr[ZLayer[_, E, _]]*
   ): c.Expr[Spec[TestEnvironment, E, A]] = {
     assertProperVarArgs(layers)

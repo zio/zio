@@ -53,7 +53,8 @@ trait CompileVariants {
                                             (assertion: AssertionM[A]): ZIO[R, E, TestResult]
 
 
-  inline def assert[A](inline value: => A)(inline assertion: Assertion[A]): TestResult = ${Macros.assert_impl('value)('assertion)}
+  inline def assert[A](inline value: => A)(inline assertion: Assertion[A]): TestResult = 
+    ${Macros.assert_impl('value)('assertion)}
 
   inline def assertM[R, E, A](effect: ZIO[R, E, A])(assertion: AssertionM[A]): ZIO[R, E, TestResult] = ${Macros.assertM_impl('effect)('assertion)}
 

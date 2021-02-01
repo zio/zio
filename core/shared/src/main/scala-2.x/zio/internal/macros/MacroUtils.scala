@@ -55,4 +55,21 @@ trait MacroUtils {
   implicit class TreeOps(self: c.Expr[_]) {
     def showTree: String = CleanCodePrinter.show(c)(self.tree)
   }
+
+  implicit val exprLayerLike: LayerLike[LayerExpr] =
+    new LayerLike[LayerExpr] {
+      override def empty: LayerExpr = c.Expr(q"zio.ZLayer.succeed(())")
+
+      override def composeH(lhs: LayerExpr, rhs: LayerExpr): LayerExpr =
+        c.Expr(q"""$lhs +!+ $rhs""")
+
+      override def composeV(lhs: LayerExpr, rhs: LayerExpr): LayerExpr =
+        c.Expr(q"""$lhs >>> $rhs""")
+    }
+
+  implicit val exprExprLike: ExprLike[LayerExpr] =
+    new ExprLike[LayerExpr] {
+      def showTree(expr: LayerExpr): String      = CleanCodePrinter.show(c)(expr.tree)
+      def compileError(message: String): Nothing = c.abort(c.enclosingPosition, message)
+    }
 }

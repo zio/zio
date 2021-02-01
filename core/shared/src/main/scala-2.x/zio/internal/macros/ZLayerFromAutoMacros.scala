@@ -1,12 +1,12 @@
 package zio.internal.macros
 
 import zio._
+import zio.internal.ansi.AnsiStringOps
 import zio.internal.macros.StringUtils.StringOps
-import zio.internal.macros.ansi.AnsiStringOps
 
 import scala.reflect.macros.blackbox
 
-class ZLayerFromAutoMacros(val c: blackbox.Context) extends MacroUtils with ExprGraphModule {
+class ZLayerFromAutoMacros(val c: blackbox.Context) extends MacroUtils {
   import c.universe._
 
   def fromAutoImpl[
@@ -17,8 +17,8 @@ class ZLayerFromAutoMacros(val c: blackbox.Context) extends MacroUtils with Expr
   ): c.Expr[ZLayer[Any, E, R]] = {
     assertEnvIsNotNothing[R]()
     assertProperVarArgs(layers)
-    ExprGraph
-      .buildLayer[R](layers.map(getNode).toList)
+    ExprGraph(layers.map(getNode).toList)
+      .buildLayerFor(getRequirements[R])
       .asInstanceOf[c.Expr[ZLayer[Any, E, R]]]
   }
 

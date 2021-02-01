@@ -1,4 +1,4 @@
-package zio.internal.macros
+package zio.internal
 
 object ansi {
   trait AnsiCode {

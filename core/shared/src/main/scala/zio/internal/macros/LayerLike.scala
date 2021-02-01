@@ -1,6 +1,7 @@
 package zio.internal.macros
 
 trait LayerLike[A] {
+  def empty: A
   def composeH(lhs: A, rhs: A): A
   def composeV(lhs: A, rhs: A): A
 }

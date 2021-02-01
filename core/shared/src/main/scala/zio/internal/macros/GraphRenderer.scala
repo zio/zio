@@ -1,7 +1,7 @@
 package zio.internal.macros
 
+import zio.internal.ansi.AnsiStringOps
 import zio.internal.macros.StringUtils.StringOps
-import zio.internal.macros.ansi.AnsiStringOps
 
 private[macros] sealed trait RenderGraph { self =>
   def ++(that: RenderGraph): RenderGraph
@@ -95,6 +95,8 @@ private[macros] object RenderGraph {
   }
 
   implicit val layerLike: LayerLike[RenderGraph] = new LayerLike[RenderGraph] {
+    override def empty = Row(List.empty)
+
     override def composeH(lhs: RenderGraph, rhs: RenderGraph): RenderGraph = lhs ++ rhs
 
     override def composeV(lhs: RenderGraph, rhs: RenderGraph): RenderGraph = lhs >>> rhs
