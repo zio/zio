@@ -43,6 +43,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Adidas](https://www.adidas.com/)
 * [adsquare](https://www.adsquare.com/)
 * [Asana](https://asana.com/)
+* [Aurinko](https://www.aurinko.io/)
 * [auto.ru](https://auto.ru)
 * [AutoScout24](https://www.autoscout24.de)
 * [Avast](https://www.avast.com)
