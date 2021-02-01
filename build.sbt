@@ -166,7 +166,6 @@ lazy val coreTestsJVM = coreTests.jvm
   .settings(dottySettings)
   .configure(_.enablePlugins(JCStressPlugin))
   .settings(replSettings)
-  .settings(scalaReflectTestSettings)
 
 lazy val coreTestsJS = coreTests.js
   .settings(jsSettings)
@@ -259,10 +258,8 @@ lazy val testTests = crossProject(JSPlatform, JVMPlatform)
   .settings(macroExpansionSettings)
   .enablePlugins(BuildInfoPlugin)
 
-lazy val testTestsJVM = testTests.jvm
-  .settings(dottySettings)
-  .settings(scalaReflectTestSettings)
-lazy val testTestsJS = testTests.js.settings(jsSettings)
+lazy val testTestsJVM = testTests.jvm.settings(dottySettings)
+lazy val testTestsJS  = testTests.js.settings(jsSettings)
 
 lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-magnolia"))
@@ -418,7 +415,6 @@ lazy val testJunitRunnerTestsJVM = testJunitRunnerTests.jvm
         .dependsOn(Keys.publishM2 in stacktracerJVM)
         .value
   )
-  .settings(scalaReflectTestSettings)
 
 /**
  * Examples sub-project that is not included in the root project.
