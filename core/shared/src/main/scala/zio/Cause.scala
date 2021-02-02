@@ -552,17 +552,17 @@ object Cause extends Serializable {
    * Converts the specified `Cause[Option[E]]` to an `Option[Cause[E]]` by
    * recursively stripping out any failures with the error `None`.
    */
-  def sequenceCauseOption[E](c: Cause[Option[E]]): Option[Cause[E]] =
+  def flipCauseOption[E](c: Cause[Option[E]]): Option[Cause[E]] =
     c match {
       case Internal.Empty                => Some(Internal.Empty)
-      case Internal.Traced(cause, trace) => sequenceCauseOption(cause).map(Internal.Traced(_, trace))
-      case Internal.Meta(cause, data)    => sequenceCauseOption(cause).map(Internal.Meta(_, data))
+      case Internal.Traced(cause, trace) => flipCauseOption(cause).map(Internal.Traced(_, trace))
+      case Internal.Meta(cause, data)    => flipCauseOption(cause).map(Internal.Meta(_, data))
       case Internal.Interrupt(id)        => Some(Internal.Interrupt(id))
       case d @ Internal.Die(_)           => Some(d)
       case Internal.Fail(Some(e))        => Some(Internal.Fail(e))
       case Internal.Fail(None)           => None
       case Internal.Then(left, right) =>
-        (sequenceCauseOption(left), sequenceCauseOption(right)) match {
+        (flipCauseOption(left), flipCauseOption(right)) match {
           case (Some(cl), Some(cr)) => Some(Internal.Then(cl, cr))
           case (None, Some(cr))     => Some(cr)
           case (Some(cl), None)     => Some(cl)
@@ -570,7 +570,7 @@ object Cause extends Serializable {
         }
 
       case Internal.Both(left, right) =>
-        (sequenceCauseOption(left), sequenceCauseOption(right)) match {
+        (flipCauseOption(left), flipCauseOption(right)) match {
           case (Some(cl), Some(cr)) => Some(Internal.Both(cl, cr))
           case (None, Some(cr))     => Some(cr)
           case (Some(cl), None)     => Some(cl)
@@ -582,24 +582,24 @@ object Cause extends Serializable {
    * Converts the specified `Cause[Either[E, A]]` to an `Either[Cause[E], A]` by
    * recursively stripping out any failures with the error `None`.
    */
-  def sequenceCauseEither[E, A](c: Cause[Either[E, A]]): Either[Cause[E], A] =
+  def flipCauseEither[E, A](c: Cause[Either[E, A]]): Either[Cause[E], A] =
     c match {
       case Internal.Empty                => Left(Internal.Empty)
-      case Internal.Traced(cause, trace) => sequenceCauseEither(cause).left.map(Internal.Traced(_, trace))
-      case Internal.Meta(cause, data)    => sequenceCauseEither(cause).left.map(Internal.Meta(_, data))
+      case Internal.Traced(cause, trace) => flipCauseEither(cause).left.map(Internal.Traced(_, trace))
+      case Internal.Meta(cause, data)    => flipCauseEither(cause).left.map(Internal.Meta(_, data))
       case Internal.Interrupt(id)        => Left(Internal.Interrupt(id))
       case d @ Internal.Die(_)           => Left(d)
       case Internal.Fail(Left(e))        => Left(Internal.Fail(e))
       case Internal.Fail(Right(a))       => Right(a)
       case Internal.Then(left, right) =>
-        (sequenceCauseEither(left), sequenceCauseEither(right)) match {
+        (flipCauseEither(left), flipCauseEither(right)) match {
           case (Left(cl), Left(cr)) => Left(Internal.Then(cl, cr))
           case (Right(a), _)        => Right(a)
           case (_, Right(a))        => Right(a)
         }
 
       case Internal.Both(left, right) =>
-        (sequenceCauseEither(left), sequenceCauseEither(right)) match {
+        (flipCauseEither(left), flipCauseEither(right)) match {
           case (Left(cl), Left(cr)) => Left(Internal.Both(cl, cr))
           case (Right(a), _)        => Right(a)
           case (_, Right(a))        => Right(a)
@@ -621,7 +621,7 @@ object Cause extends Serializable {
 
   object Fail {
     def apply[E](value: E): Cause[E] =
-      new Internal.Fail(value)
+      Internal.Fail(value)
     def unapply[E](cause: Cause[E]): Option[E] =
       cause.find {
         case cause if cause eq Internal.Empty => None
@@ -636,7 +636,7 @@ object Cause extends Serializable {
 
   object Die {
     def apply(value: Throwable): Cause[Nothing] =
-      new Internal.Die(value)
+      Internal.Die(value)
     def unapply[E](cause: Cause[E]): Option[Throwable] =
       cause.find {
         case cause if cause eq Internal.Empty => None
@@ -681,7 +681,7 @@ object Cause extends Serializable {
 
   object Then {
     def apply[E](left: Cause[E], right: Cause[E]): Cause[E] =
-      new Internal.Then(left, right)
+      Internal.Then(left, right)
     def unapply[E](cause: Cause[E]): Option[(Cause[E], Cause[E])] =
       cause.find {
         case cause if cause eq Internal.Empty => None
@@ -696,7 +696,7 @@ object Cause extends Serializable {
 
   object Both {
     def apply[E](left: Cause[E], right: Cause[E]): Cause[E] =
-      new Internal.Both(left, right)
+      Internal.Both(left, right)
     def unapply[E](cause: Cause[E]): Option[(Cause[E], Cause[E])] =
       cause.find {
         case cause if cause eq Internal.Empty => None

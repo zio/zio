@@ -521,7 +521,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
             }
 
           def failover(cause: Cause[Option[E]]) =
-            Cause.sequenceCauseOption(cause) match {
+            Cause.flipCauseOption(cause) match {
               case None => ZIO.fail(None)
               case Some(cause) =>
                 closeCurrent(cause) *> open(f(cause))(Other(_)).flatten
@@ -786,7 +786,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
         pull = {
           def go: ZIO[R1, Option[E1], Chunk[O1]] =
             currStream.get.flatten.catchAllCause {
-              Cause.sequenceCauseOption(_) match {
+              Cause.flipCauseOption(_) match {
                 case Some(e) => Pull.halt(e)
                 case None =>
                   switched.getAndSet(true).flatMap {
@@ -1226,7 +1226,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
         pull = {
           def go: ZIO[R, Option[E], Chunk[O]] =
             currStream.get.flatten.catchAllCause {
-              Cause.sequenceCauseOption(_) match {
+              Cause.flipCauseOption(_) match {
                 case Some(e) => Pull.halt(e)
                 case None =>
                   switchStream(self.process).flatMap(currStream.set) *> ZIO.yieldNow *> go
@@ -1314,7 +1314,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
         }
 
       currInnerStream.get.flatten.catchAllCause { c =>
-        Cause.sequenceCauseOption(c) match {
+        Cause.flipCauseOption(c) match {
           case Some(e) => Pull.halt(e)
           case None    =>
             // The additional switch is needed to eagerly run the finalizer
@@ -1707,14 +1707,14 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
       right: ZIO[R1, Option[E1], O1]
     ): ZIO[R1, Nothing, Exit[Option[E1], (O1, (Boolean, Boolean, ZIO[R1, Option[E1], Boolean]))]] =
       s.foldCauseM(
-        Cause.sequenceCauseOption(_) match {
+        Cause.flipCauseOption(_) match {
           case None    => ZIO.succeedNow(Exit.fail(None))
           case Some(e) => ZIO.succeedNow(Exit.halt(e.map(Some(_))))
         },
         b =>
           if (b && !leftDone) {
             left.foldCauseM(
-              Cause.sequenceCauseOption(_) match {
+              Cause.flipCauseOption(_) match {
                 case None =>
                   if (rightDone) ZIO.succeedNow(Exit.fail(None))
                   else loop(true, rightDone, s, left, right)
@@ -1724,7 +1724,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
             )
           } else if (!b && !rightDone)
             right.foldCauseM(
-              Cause.sequenceCauseOption(_) match {
+              Cause.flipCauseOption(_) match {
                 case Some(e) => ZIO.succeedNow(Exit.halt(e.map(Some(_))))
                 case None =>
                   if (leftDone) ZIO.succeedNow(Exit.fail(None))
@@ -1848,7 +1848,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
         def go: ZIO[R1, Nothing, Unit] =
           as.foldCauseM(
             Cause
-              .sequenceCauseOption(_)
+              .flipCauseOption(_)
               .fold[ZIO[R1, Nothing, Unit]](queue.offer(Take.end).unit)(c => queue.offer(Take.halt(c)) *> go),
             a => queue.offer(Take.chunk(a)) *> go
           )
@@ -1941,7 +1941,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     ZStream(
       self.process.map(
         _.mapErrorCause(
-          Cause.sequenceCauseOption(_) match {
+          Cause.flipCauseOption(_) match {
             case None    => Cause.fail(None)
             case Some(c) => f(c).map(Some(_))
           }
@@ -2078,7 +2078,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                       case _ =>
                         pull.run.flatMap { exit =>
                           done.modify { done =>
-                            ((done, exit.fold(c => Left(Cause.sequenceCauseOption(c)), Right(_))): @unchecked) match {
+                            ((done, exit.fold(c => Left(Cause.flipCauseOption(c)), Right(_))): @unchecked) match {
                               case (state @ Some(true), _) =>
                                 ZIO.succeedNow((false, state))
                               case (state, Right(chunk)) =>
@@ -2460,16 +2460,16 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     (process <*> sink.push).mapM { case (pull, push) =>
       def go: ZIO[R1, E1, B] = pull.foldCauseM(
         Cause
-          .sequenceCauseOption(_)
+          .flipCauseOption(_)
           .fold(
             push(None).foldCauseM(
-              c => Cause.sequenceCauseEither(c.map(_._1)).fold(IO.halt(_), ZIO.succeedNow),
+              c => Cause.flipCauseEither(c.map(_._1)).fold(IO.halt(_), ZIO.succeedNow),
               _ => IO.dieMessage("empty stream / empty sinks")
             )
           )(IO.halt(_)),
         os =>
           push(Some(os))
-            .foldCauseM(c => Cause.sequenceCauseEither(c.map(_._1)).fold(IO.halt(_), ZIO.succeedNow), _ => go)
+            .foldCauseM(c => Cause.flipCauseEither(c.map(_._1)).fold(IO.halt(_), ZIO.succeedNow), _ => go)
       )
 
       go
@@ -2875,7 +2875,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                   case (Exit.Success(chunk), previous) =>
                     previous.interrupt *> store(chunk)
                   case (Exit.Failure(cause), previous) =>
-                    Cause.sequenceCauseOption(cause) match {
+                    Cause.flipCauseOption(cause) match {
                       case Some(e) =>
                         previous.interrupt *> Pull.halt(e)
                       case None =>
@@ -3454,7 +3454,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
         pull = {
           def go: ZIO[R, Option[E], Chunk[O]] =
             currStream.get.flatten.catchAllCause {
-              Cause.sequenceCauseOption(_) match {
+              Cause.flipCauseOption(_) match {
                 case Some(e) => Pull.halt(e)
                 case None =>
                   currIndex.getAndUpdate(_ + 1).flatMap { i =>
