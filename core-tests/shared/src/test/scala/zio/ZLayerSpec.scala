@@ -264,7 +264,7 @@ object ZLayerSpec extends ZIOBaseSpec {
         case class A(name: String, value: Int)
         case class B(name: String)
         val l1: Layer[Nothing, Has[A]]               = ZLayer.succeed(A("name", 1))
-        val l2: ZLayer[Has[String], Nothing, Has[B]] = ZLayer.fromService(B)
+        val l2: ZLayer[Has[String], Nothing, Has[B]] = ZLayer.fromService(B.apply)
         val live: Layer[Nothing, Has[B]]             = l1.map(a => Has(a.get[A].name)) >>> l2
         assertM(ZIO.access[Has[B]](_.get).provideLayer(live))(equalTo(B("name")))
       },

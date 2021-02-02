@@ -26,7 +26,7 @@ object AutoLayerSpec extends ZIOBaseSpec {
           val _                                                = program
           val checked                                          = typeCheck("""testM("foo")(assertM(program)(anything)).provideLayerAuto(ZLayer.succeed(3))""")
           assertM(checked)(isLeft(containsStringWithoutAnsi("missing String")))
-        },
+        } @@ TestAspect.exceptDotty,
         testM("reports multiple missing top-level layers") {
           val program: URIO[Has[String] with Has[Int], String] = UIO("test")
           val _                                                = program
@@ -35,7 +35,7 @@ object AutoLayerSpec extends ZIOBaseSpec {
           assertM(checked)(
             isLeft(containsStringWithoutAnsi("missing String") && containsStringWithoutAnsi("missing Int"))
           )
-        },
+        } @@ TestAspect.exceptDotty,
         testM("reports missing transitive dependencies") {
           import TestLayers._
           val program: URIO[Has[OldLady], Boolean] = ZIO.service[OldLady].flatMap(_.willDie)
@@ -48,7 +48,7 @@ object AutoLayerSpec extends ZIOBaseSpec {
                 containsStringWithoutAnsi("for TestLayers.OldLady.live")
             )
           )
-        },
+        } @@ TestAspect.exceptDotty,
         testM("reports nested missing transitive dependencies") {
           import TestLayers._
           val program: URIO[Has[OldLady], Boolean] = ZIO.service[OldLady].flatMap(_.willDie)
@@ -62,7 +62,7 @@ object AutoLayerSpec extends ZIOBaseSpec {
                 containsStringWithoutAnsi("for TestLayers.Fly.live")
             )
           )
-        },
+        } @@ TestAspect.exceptDotty,
         testM("reports circular dependencies") {
           import TestLayers._
           val program: URIO[Has[OldLady], Boolean] = ZIO.service[OldLady].flatMap(_.willDie)
@@ -76,7 +76,7 @@ object AutoLayerSpec extends ZIOBaseSpec {
                 containsStringWithoutAnsi("both requires and is transitively required by TestLayers.OldLady.live")
             )
           )
-        }
+        } @@ TestAspect.exceptDotty
       )
     )
 

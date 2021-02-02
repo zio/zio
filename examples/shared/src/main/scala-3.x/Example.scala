@@ -24,9 +24,6 @@ object Cool extends App {
 
   val layer0 = ZLayer.fromAuto[Console ++ String ++ Int](layer, boolLayer, Console.live) 
 
-  inline def debug[T] = ${AutoLayerMacroUtils.inter[T]}
-    // UIO(println(debug[Int ++ String ++ Console])).exitCode
-
   def run(args: List[String]) =
     program.provideCustomLayerAuto(layer, boolLayer).exitCode
 }

@@ -57,7 +57,7 @@ $errorMessage
         val styledLayer      = exprLike.showTree(node.value).white
         s"""
 ${"missing".faint} $styledDependency
-  ${"for".faint} $styledLayer"""
+    ${"for".faint} $styledLayer"""
 
       case GraphError.MissingTopLevelDependency(dependency) =>
         val styledDependency = dependency.white.bold

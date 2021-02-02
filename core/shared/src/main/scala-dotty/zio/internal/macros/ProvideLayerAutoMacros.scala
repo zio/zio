@@ -32,7 +32,7 @@ object ProvideLayerAutoMacros {
   }
 }
 
-object AutoLayerMacroUtils {
+private [zio] object AutoLayerMacroUtils {
   type LayerExpr = Expr[ZLayer[_,_,_]]
 
   def buildLayerFor[R: Type](layers: Expr[Seq[ZLayer[_,_,_]]])(using Quotes): LayerExpr = {
@@ -51,16 +51,11 @@ object AutoLayerMacroUtils {
             }.toList
       }
 
-  def inter[T: Type](using ctx: Quotes) : Expr[List[String]] =  {
-    val strs = intersectionTypes[T]
-    Expr(strs)
-  }
-
   def intersectionTypes[T: Type](using ctx: Quotes) : List[String] = {
     import ctx.reflect._
 
     def go(tpe: TypeRepr): List[TypeRepr] = 
-      tpe.dealias.simplified match {
+      tpe.dealias.simplified.dealias match {
         case AndType(lhs, rhs) =>
           go(lhs) ++ go(rhs)
 
@@ -68,7 +63,7 @@ object AutoLayerMacroUtils {
           List.empty
 
         case AppliedType(h, head :: Nil) if head.dealias =:= head =>
-          List(head)
+          List(head.dealias)
 
         case AppliedType(h, head :: t) => 
           go(head) ++ t.flatMap(t => go(t))
