@@ -4,6 +4,7 @@ import zio.internal.ansi.AnsiStringOps
 import zio._
 import scala.quoted._
 import scala.compiletime._
+import zio.internal.macros.StringUtils.StringOps
 
 import AutoLayerMacroUtils._
 
@@ -29,6 +30,32 @@ object ProvideLayerAutoMacros {
   def fromAutoImpl[Out: Type, E: Type](layers: Expr[Seq[ZLayer[_,E,_]]])(using Quotes): Expr[ZLayer[Any,E,Out]] = {
     val expr = buildLayerFor[Out](layers)
     '{$expr.asInstanceOf[ZLayer[Any, E, Out]]}
+  }
+
+  def fromAutoDebugImpl[Out: Type, E: Type](layers: Expr[Seq[ZLayer[_,E,_]]])(using Quotes): Expr[ZLayer[Any,E,Out]] = {
+    import quotes.reflect._
+    val expr = buildLayerFor[Out](layers)
+    '{$expr.asInstanceOf[ZLayer[Any, E, Out]]}
+
+    val graph        = ExprGraph(getNodes(layers))
+    val requirements = intersectionTypes[Out]
+    graph.buildLayerFor(requirements)
+
+    val graphString: String = 
+      graph.graph
+        .map(layer => RenderGraph(summon[ExprLike[LayerExpr]].showTree(layer)))
+        .buildComplete(requirements)
+        .toOption
+        .get.render
+
+
+    val maxWidth = graphString.maxLineWidth
+    val title    = "Layer Graph Visualization"
+    val adjust   = (maxWidth - title.length) / 2
+
+    val rendered = "\n" + (" " * adjust) + title.yellow.underlined + "\n\n" + graphString + "\n\n"
+
+    report.throwError(rendered)
   }
 }
 
