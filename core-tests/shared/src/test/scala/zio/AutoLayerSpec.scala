@@ -29,7 +29,7 @@ object AutoLayerSpec extends ZIOBaseSpec {
 
           val checked = typeCheck("program.provideLayerAuto(ZLayer.succeed(3))")
           assertM(checked)(isLeft(containsStringWithoutAnsi("missing String")))
-        },
+        } @@ TestAspect.exceptDotty,
         testM("reports multiple missing top-level layers") {
           val program: URIO[Has[String] with Has[Int], String] = UIO("test")
           val _                                                = program
@@ -38,7 +38,7 @@ object AutoLayerSpec extends ZIOBaseSpec {
           assertM(checked)(
             isLeft(containsStringWithoutAnsi("missing String") && containsStringWithoutAnsi("missing Int"))
           )
-        },
+        } @@ TestAspect.exceptDotty,
         testM("reports missing transitive dependencies") {
           import TestLayers._
           val program: URIO[Has[OldLady], Boolean] = ZIO.service[OldLady].flatMap(_.willDie)
@@ -51,7 +51,7 @@ object AutoLayerSpec extends ZIOBaseSpec {
                 containsStringWithoutAnsi("for TestLayers.OldLady.live")
             )
           )
-        },
+        } @@ TestAspect.exceptDotty,
         testM("reports nested missing transitive dependencies") {
           import TestLayers._
           val program: URIO[Has[OldLady], Boolean] = ZIO.service[OldLady].flatMap(_.willDie)
@@ -64,7 +64,7 @@ object AutoLayerSpec extends ZIOBaseSpec {
                 containsStringWithoutAnsi("for TestLayers.Fly.live")
             )
           )
-        },
+        } @@ TestAspect.exceptDotty,
         testM("reports circular dependencies") {
           import TestLayers._
           val program: URIO[Has[OldLady], Boolean] = ZIO.service[OldLady].flatMap(_.willDie)
@@ -77,13 +77,14 @@ object AutoLayerSpec extends ZIOBaseSpec {
                 containsStringWithoutAnsi("both requires and is transitively required by TestLayers.OldLady.live")
             )
           )
-        }
+        } @@ TestAspect.exceptDotty
       ),
       suite("provideCustomLayerAuto")(
         testM("automatically constructs a layer from its dependencies, leaving off ZEnv") {
           val stringLayer = console.getStrLn.orDie.toLayer
           val program     = ZIO.service[String].zipWith(random.nextInt)((str, int) => s"$str $int")
-          val provided    = TestConsole.feedLines("Your Lucky Number is:") *> program.provideCustomLayerAuto(stringLayer)
+          val provided = TestConsole.feedLines("Your Lucky Number is:") *>
+            program.provideCustomLayerAuto(stringLayer)
 
           assertM(provided)(equalTo("Your Lucky Number is: -1295463240"))
         }
@@ -105,7 +106,6 @@ object AutoLayerSpec extends ZIOBaseSpec {
           val doubleLayer = ZLayer.succeed(100.1)
           val stringLayer = ZLayer.succeed("this string is 28 chars long")
           val intLayer    = ZIO.services[String, Double].map { case (str, double) => str.length + double.toInt }.toLayer
-          val program     = ZIO.service[Int]
           val _           = ZLayer.fromAuto[Has[Int]](intLayer, stringLayer, doubleLayer)
 
           val checked = typeCheck("ZLayer.fromAutoDebug[Has[Int]](intLayer, stringLayer, doubleLayer)")
@@ -118,7 +118,7 @@ object AutoLayerSpec extends ZIOBaseSpec {
             )
           )
         }
-      )
+      ) @@ TestAspect.exceptDotty
     )
 
   object TestLayers {

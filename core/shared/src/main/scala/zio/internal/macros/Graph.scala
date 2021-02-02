@@ -40,7 +40,7 @@ final case class Graph[A: LayerLike](nodes: List[Node[A]]) {
     node: Node[A],
     seen: Set[Node[A]],
     dependency: Node[A]
-  ): Either[::[GraphError.CircularDependency[A]], Unit] =
+  ): Either[::[GraphError[A]], Unit] =
     if (seen(dependency))
       Left(::(GraphError.CircularDependency(node, dependency, seen.size), Nil))
     else

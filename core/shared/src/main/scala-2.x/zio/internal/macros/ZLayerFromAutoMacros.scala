@@ -34,12 +34,11 @@ class ZLayerFromAutoMacros(val c: blackbox.Context) extends MacroUtils {
     val requirements = getRequirements[Out]
     graph.buildLayerFor(requirements)
 
-    val graphString: String = graph.graph
-      .map(layer => RenderGraph(layer.showTree))
-      .buildComplete(requirements)
-      .toOption
-      .get
-      .render
+    val graphString: String = eitherToOption(
+      graph.graph
+        .map(layer => RenderGraph(layer.showTree))
+        .buildComplete(requirements)
+    ).get.render
 
     val maxWidth = graphString.maxLineWidth
     val title    = "Layer Graph Visualization"
@@ -48,6 +47,11 @@ class ZLayerFromAutoMacros(val c: blackbox.Context) extends MacroUtils {
     val rendered = "\n" + (" " * adjust) + title.yellow.underlined + "\n\n" + graphString + "\n\n"
 
     c.abort(c.enclosingPosition, rendered)
+  }
+
+  private def eitherToOption[A](either: Either[_, A]): Option[A] = either match {
+    case Left(_)      => None
+    case Right(value) => Some(value)
   }
 
   private def assertEnvIsNotNothing[Out <: Has[_]: c.WeakTypeTag](): Unit = {

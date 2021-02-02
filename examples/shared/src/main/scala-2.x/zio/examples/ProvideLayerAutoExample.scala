@@ -3,6 +3,9 @@ package zio.examples
 import zio._
 import zio.console.Console
 
+// import org.portablescala.reflect.annotation.EnableReflectiveInstantiation
+
+// @EnableReflectiveInstantiation
 object ProvideLayerAutoExample extends App {
   val program =
     OldLady.contentsOfStomach.flatMap { contents =>

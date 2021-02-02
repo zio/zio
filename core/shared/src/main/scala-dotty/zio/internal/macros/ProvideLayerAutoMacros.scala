@@ -13,24 +13,23 @@ object ProvideLayerAutoMacros {
     '{$zio.provideLayer($expr.asInstanceOf[ZLayer[Any, E, R]])}
   }
 
-  def provideCustomLayerAutoImpl[R: Type, E: Type, A: Type](zio: Expr[ZIO[R,E,A]], layers: Expr[Seq[ZLayer[_,E,_]]])(using Quotes): Expr[ZIO[ZEnv,E,A]] = {
+  def provideCustomLayerAutoImpl[R <: Has[?], E, A]
+  (zio: Expr[ZIO[R,E,A]], layers: Expr[Seq[ZLayer[_,E,_]]])(using Quotes, Type[R], Type[E], Type[A]): Expr[ZIO[ZEnv,E,A]] = {
     val ZEnvRequirements = intersectionTypes[ZEnv]
-    val requirements     = intersectionTypes[R] diff ZEnvRequirements
+    val requirements     = intersectionTypes[R] 
 
     val zEnvLayer = Node(List.empty, ZEnvRequirements, '{ZEnv.any})
     val nodes     = (zEnvLayer +: getNodes(layers)).toList
 
     val expr = ExprGraph(nodes).buildLayerFor(requirements)
-    '{$zio.provideLayer($expr.asInstanceOf[ZLayer[ZEnv, E, R]])}
+
+    '{$zio.asInstanceOf[ZIO[Has[Unit], E, A]].provideLayer(ZEnv.any >>> $expr.asInstanceOf[ZLayer[ZEnv, E, Has[Unit]]])}
   }
 
   def fromAutoImpl[Out: Type, E: Type](layers: Expr[Seq[ZLayer[_,E,_]]])(using Quotes): Expr[ZLayer[Any,E,Out]] = {
     val expr = buildLayerFor[Out](layers)
     '{$expr.asInstanceOf[ZLayer[Any, E, Out]]}
   }
-
-  inline def provideLayerAuto[R,E,A](inline zio: ZIO[R,E,A], inline layers: ZLayer[_,E,_]*): ZIO[Any, E, A] = 
-    ${provideLayerAutoImpl('zio, 'layers)}
 }
 
 object AutoLayerMacroUtils {
@@ -52,14 +51,36 @@ object AutoLayerMacroUtils {
             }.toList
       }
 
+  def inter[T: Type](using ctx: Quotes) : Expr[List[String]] =  {
+    val strs = intersectionTypes[T]
+    Expr(strs)
+  }
+
   def intersectionTypes[T: Type](using ctx: Quotes) : List[String] = {
     import ctx.reflect._
 
     def go(tpe: TypeRepr): List[TypeRepr] = 
-      tpe.dealias match {
-        case AndType(lhs, rhs) => go(lhs.dealias) ++ go(rhs.dealias)
-        case AppliedType(_, head :: _) => List(head.dealias)
-        case other => List.empty
+      tpe.dealias.simplified match {
+        case AndType(lhs, rhs) =>
+          go(lhs) ++ go(rhs)
+
+        case AppliedType(_, TypeBounds(_,_) :: _) =>  
+          List.empty
+
+        case AppliedType(h, head :: Nil) if head.dealias =:= head =>
+          List(head)
+
+        case AppliedType(h, head :: t) => 
+          go(head) ++ t.flatMap(t => go(t))
+
+        case other if other =:= TypeRepr.of[Any] => 
+          List.empty
+
+        case other if other.dealias != other => 
+          go(other)
+
+        case other => 
+          List(other.dealias)
       }
 
     go(TypeRepr.of[T]).map(_.show)
@@ -72,10 +93,10 @@ object AutoLayerMacroUtils {
       override def empty: LayerExpr = '{ZLayer.succeed(())}
 
       override def composeH(lhs: LayerExpr, rhs: LayerExpr): LayerExpr =
-        '{${lhs.asExprOf[ZLayer[_,_,Has[_]]]} +!+ ${rhs.asExprOf[ZLayer[_,_,Has[_]]]}}
+        '{$lhs.asInstanceOf[ZLayer[_,_,Has[_]]] +!+ $rhs.asInstanceOf[ZLayer[_,_,Has[_]]]}
 
       override def composeV(lhs: LayerExpr, rhs: LayerExpr): LayerExpr =
-        '{${lhs.asExprOf[ZLayer[_,_,Has[Unit]]]} >>> ${rhs.asExprOf[ZLayer[Has[Unit],_,_]]}}
+        '{$lhs.asInstanceOf[ZLayer[_,_,Has[Unit]]] >>> $rhs.asInstanceOf[ZLayer[Has[Unit],_,_]]}
     }
 
   implicit def exprExprLike[A](using Quotes): ExprLike[Expr[A]] = new ExprLike[Expr[A]] {

@@ -129,7 +129,6 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(libraryDependencies += "dev.zio" %%% "izumi-reflect" % "1.1.1")
   .enablePlugins(BuildInfoPlugin)
   .settings(macroDefinitionSettings)
-  .settings(macroExpansionSettings)
 
 lazy val coreJVM = core.jvm
   .settings(dottySettings)

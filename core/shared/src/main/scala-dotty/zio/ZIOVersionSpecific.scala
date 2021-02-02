@@ -10,6 +10,11 @@ trait ZIOVersionSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
     ${ProvideLayerAutoMacros.provideCustomLayerAutoImpl('self, 'layers)}
 }
 
+final class FromLayerAutoPartiallyApplied[R <: Has[_]](val dummy: Boolean = true) extends AnyVal {
+  inline def apply[E](inline layers: ZLayer[_, E, _]*): ZLayer[Any, E, R] =
+    ${ProvideLayerAutoMacros.fromAutoImpl[R, E]('layers)}
+}
+
 trait ZLayerCompanionVersionSpecific {
-  //
+  inline def fromAuto[R <: Has[_]]: FromLayerAutoPartiallyApplied[R] = new FromLayerAutoPartiallyApplied[R]()
 }

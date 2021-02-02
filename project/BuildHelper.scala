@@ -64,7 +64,7 @@ object BuildHelper {
     )
 
   val dottySettings = Seq(
-    crossScalaVersions += ScalaDotty,
+    crossScalaVersions += Scala212,
     scalacOptions ++= {
       if (scalaVersion.value == ScalaDotty)
         Seq("-noindent")
