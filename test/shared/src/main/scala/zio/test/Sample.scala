@@ -103,7 +103,7 @@ final case class Sample[-R, +A](value: A, shrink: ZStream[R, Nothing, Sample[R, 
               Exit.succeed((zipWith(r)(f), (leftDone, rightDone, Some(l), Some(r))))
 
             case (Exit.Success(l), Exit.Failure(cause)) =>
-              Cause.sequenceCauseOption(cause) match {
+              Cause.flipCauseOption(cause) match {
                 case Some(c) => Exit.halt(c)
                 case None =>
                   s2 match {
@@ -113,7 +113,7 @@ final case class Sample[-R, +A](value: A, shrink: ZStream[R, Nothing, Sample[R, 
               }
 
             case (Exit.Failure(cause), Exit.Success(r)) =>
-              Cause.sequenceCauseOption(cause) match {
+              Cause.flipCauseOption(cause) match {
                 case Some(c) => Exit.halt(c)
                 case None =>
                   s1 match {
@@ -123,7 +123,7 @@ final case class Sample[-R, +A](value: A, shrink: ZStream[R, Nothing, Sample[R, 
               }
 
             case (Exit.Failure(causeL), Exit.Failure(causeR)) =>
-              (Cause.sequenceCauseOption(causeL), Cause.sequenceCauseOption(causeR)) match {
+              (Cause.flipCauseOption(causeL), Cause.flipCauseOption(causeR)) match {
                 case (None, None) =>
                   (leftDone, rightDone, s1, s2) match {
                     case (false, _, _, Some(r)) => Exit.succeed((r.map(f(self.value, _)), (true, rightDone, s1, s2)))

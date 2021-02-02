@@ -36,7 +36,7 @@ case class Take[+E, +A](exit: Exit[Option[E], Chunk[A]]) extends AnyVal {
    * yield a value.
    */
   def fold[Z](end: => Z, error: Cause[E] => Z, value: Chunk[A] => Z): Z =
-    exit.fold(Cause.sequenceCauseOption(_).fold(end)(error), value)
+    exit.fold(Cause.flipCauseOption(_).fold(end)(error), value)
 
   /**
    * Effectful version of [[Take#fold]].
@@ -49,19 +49,19 @@ case class Take[+E, +A](exit: Exit[Option[E], Chunk[A]]) extends AnyVal {
     error: Cause[E] => ZIO[R, E1, Z],
     value: Chunk[A] => ZIO[R, E1, Z]
   ): ZIO[R, E1, Z] =
-    exit.foldM(Cause.sequenceCauseOption(_).fold(end)(error), value)
+    exit.foldM(Cause.flipCauseOption(_).fold(end)(error), value)
 
   /**
    * Checks if this `take` is done (`Take.end`).
    */
   def isDone: Boolean =
-    exit.fold(Cause.sequenceCauseOption(_).isEmpty, _ => false)
+    exit.fold(Cause.flipCauseOption(_).isEmpty, _ => false)
 
   /**
    * Checks if this `take` is a failure.
    */
   def isFailure: Boolean =
-    exit.fold(Cause.sequenceCauseOption(_).nonEmpty, _ => false)
+    exit.fold(Cause.flipCauseOption(_).nonEmpty, _ => false)
 
   /**
    * Checks if this `take` is a success.
@@ -114,7 +114,7 @@ object Take {
    * Error from stream when pulling is converted to `Take.halt`, end of stream to `Take.end`.
    */
   def fromPull[R, E, A](pull: ZStream.Pull[R, E, A]): URIO[R, Take[E, A]] =
-    pull.foldCause(Cause.sequenceCauseOption(_).fold[Take[E, Nothing]](end)(halt), chunk)
+    pull.foldCause(Cause.flipCauseOption(_).fold[Take[E, Nothing]](end)(halt), chunk)
 
   /**
    * Creates a failing `Take[E, Nothing]` with the specified cause.
