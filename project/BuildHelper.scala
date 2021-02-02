@@ -286,7 +286,7 @@ object BuildHelper {
   )
 
   def nativeSettings = Seq(
-    libraryDependencies += "org.ekrich" %%% "sjavatime" % "1.1.0",
+    libraryDependencies += "org.ekrich" %%% "sjavatime" % "1.1.1",
     Test / skip := true,
     doc / skip := true,
     SettingKey[Boolean](
