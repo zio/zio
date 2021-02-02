@@ -301,8 +301,6 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
 }
 
 object ZLayer {
-  @deprecated("use Layer", "1.0.0")
-  type NoDeps[+E, +B] = ZLayer[Any, E, B]
 
   private final case class Fold[RIn, E, E1, ROut, ROut1](
     self: ZLayer[RIn, E, ROut],
