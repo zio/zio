@@ -65,6 +65,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Flipp](https://flipp.com/)
 * [Fugo.ai](https://www.fugo.ai)
 * [GrandParade](https://grandparade.co.uk)
+* [greyflower.media GmbH](https://greyflower.media)
 * [Hunters.AI](https://hunters.ai)
 * [iHeartRadio](https://www.iheart.com/)
 * [Investsuite](https://investsuite.com/)
@@ -88,6 +89,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Unit](https://unit.co)
 * [Univalence](https://univalence.io)
 * [Vakantiediscounter](https://www.vakantiediscounter.nl)
+* [Verbund AG](https://www.verbund.com)
 * [Wehkamp](https://www.wehkamp.nl)
 * [Yandex.Classifieds](https://o.yandex.ru)
 
