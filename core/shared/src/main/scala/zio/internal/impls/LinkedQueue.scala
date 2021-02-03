@@ -17,6 +17,7 @@
 package zio.internal
 
 import com.github.ghik.silencer.silent
+import zio.Chunk
 
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicLong
@@ -46,11 +47,11 @@ private[zio] final class LinkedQueue[A] extends MutableConcurrentQueue[A] with S
     success
   }
 
-  override def offerAll(as: Iterable[A]): Iterable[A] = {
+  override def offerAll(as: Iterable[A]): Chunk[A] = {
     import collection.JavaConverters._
     jucConcurrentQueue.addAll(as.asJavaCollection): @silent("JavaConverters")
     enqueuedCounter.addAndGet(as.size.toLong)
-    Iterable.empty
+    Chunk.empty
   }
 
   override def poll(default: A): A = {

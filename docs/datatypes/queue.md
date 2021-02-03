@@ -107,23 +107,23 @@ val polled: UIO[Option[Int]] = for {
 You can consume multiple items at once with `takeUpTo`. If the queue doesn't have enough items to return, it will return all the items without waiting for more offers.
 
 ```scala mdoc:silent
-val taken: UIO[List[Int]] = for {
+val taken: UIO[Chunk[Int]] = for {
   queue <- Queue.bounded[Int](100)
   _ <- queue.offer(10)
   _ <- queue.offer(20)
-  list  <- queue.takeUpTo(5)
-} yield list
+  chunk  <- queue.takeUpTo(5)
+} yield chunk
 ```
 
-Similarly, you can get all items at once with `takeAll`. It also returns without waiting (an empty list if the queue is empty).
+Similarly, you can get all items at once with `takeAll`. It also returns without waiting (an empty collection if the queue is empty).
 
 ```scala mdoc:silent
-val all: UIO[List[Int]] = for {
+val all: UIO[Chunk[Int]] = for {
   queue <- Queue.bounded[Int](100)
   _ <- queue.offer(10)
   _ <- queue.offer(20)
-  list  <- queue.takeAll
-} yield list
+  chunk  <- queue.takeAll
+} yield chunk
 ```
 
 ## Shutting Down a Queue
@@ -238,24 +238,6 @@ val timeQueued: UIO[ZQueue[Clock, Clock, Nothing, Nothing, String, (Duration, St
         .map(dequeueTs => ((dequeueTs - enqueueTs).millis, el))
     }
   } yield durations
-```
-
-### ZQueue#bothWith
-
-We may also compose two queues together into a single queue that
-broadcasts offers and takes from both of the queues:
-
-```scala mdoc:silent
-val fromComposedQueues: UIO[(Int, String)] = 
-  for {
-    q1       <- Queue.bounded[Int](3)
-    q2       <- Queue.bounded[Int](3)
-    q2Mapped =  q2.map(_.toString)
-    both     =  q1.bothWith(q2Mapped)((_, _))
-    _        <- both.offer(1)
-    iAndS    <- both.take
-    (i, s)   =  iAndS
-  } yield (i, s)
 ```
 
 ## Additional Resources

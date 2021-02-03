@@ -16,7 +16,7 @@
 
 package zio.internal
 
-import zio.ChunkBuilder
+import zio.{Chunk, ChunkBuilder}
 
 object MutableConcurrentQueue {
 
@@ -62,9 +62,8 @@ protected[zio] abstract class MutableConcurrentQueue[A] {
   /**
    * A non-blocking enqueue of multiple elements.
    */
-  def offerAll(as: Iterable[A]): Iterable[A] = {
-    val builder = ChunkBuilder.make[A]()
-    builder.sizeHint(as.size)
+  def offerAll(as: Iterable[A]): Chunk[A] = {
+    val builder  = ChunkBuilder.make[A]()
     val iterator = as.iterator
     var loop     = true
     while (loop && iterator.hasNext) {
@@ -93,9 +92,8 @@ protected[zio] abstract class MutableConcurrentQueue[A] {
   /**
    * A non-blocking dequeue of multiple elements.
    */
-  def pollUpTo(n: Int): Iterable[A] = {
+  def pollUpTo(n: Int): Chunk[A] = {
     val builder = ChunkBuilder.make[A]()
-    builder.sizeHint(n)
     val default = null.asInstanceOf[A]
     var i       = n
     while (i > 0) {
