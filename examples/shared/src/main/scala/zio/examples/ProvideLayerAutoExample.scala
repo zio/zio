@@ -14,12 +14,13 @@ object ProvideLayerAutoExample extends App {
       OldLady.live,
       Spider.live,
       Fly.live,
+      Bear.live,
       Console.live
     )
 
   def run(args: List[String]): URIO[ZEnv, ExitCode] =
     program
-      .provideCustomLayerAuto(OldLady.live, Spider.live, Fly.live)
+      .provideLayerAuto(OldLady.live, Spider.live, Fly.live, Bear.live, Console.live)
       .exitCode
 
   trait OldLady {
@@ -29,7 +30,7 @@ object ProvideLayerAutoExample extends App {
   object OldLady {
     def contentsOfStomach: ZIO[Has[OldLady], Nothing, List[String]] = ZIO.accessM(_.get.contentsOfStomach)
 
-    def live: URLayer[Has[Spider], Has[OldLady]] =
+    def live: URLayer[Has[Spider] with Has[Bear], Has[OldLady]] =
       (for {
         spiderGuts <- Spider.contentsOfStomach
       } yield new OldLady {
@@ -52,10 +53,21 @@ object ProvideLayerAutoExample extends App {
       }).toLayer
   }
 
+  trait Bear {}
+
+  object Bear {
+    def live: URLayer[Has[Fly], Has[Bear]] =
+      ZLayer.succeed(new Bear {})
+  }
+
   trait Fly {}
 
   object Fly {
-    def live: URLayer[Console, Has[Fly]] =
+
+    def live: URLayer[Console, Has[Fly]] = {
+      println("FLY")
+
       console.putStrLn("Bzzzzzzzzzz...").as(new Fly {}).toLayer
+    }
   }
 }

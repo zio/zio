@@ -22,7 +22,7 @@ object ProvideLayerAutoMacros {
     val zEnvLayer = Node(List.empty, ZEnvRequirements, '{ZEnv.any})
     val nodes     = (zEnvLayer +: getNodes(layers)).toList
 
-    val expr = generateExprGraph(nodes).buildLayerFor(requirements)
+    val expr = buildMemoizedLayer(ExprGraph(nodes), requirements)
 
     '{$zio.asInstanceOf[ZIO[Has[Unit], E, A]].provideLayer(ZEnv.any >>> $expr.asInstanceOf[ZLayer[ZEnv, E, Has[Unit]]])}
   }
@@ -37,7 +37,7 @@ object ProvideLayerAutoMacros {
     val expr = buildLayerFor[Out](layers)
     '{$expr.asInstanceOf[ZLayer[Any, E, Out]]}
 
-    val graph        = generateExprGraph(layers)
+    val graph        = ExprGraph(layers)
     val requirements = intersectionTypes[Out]
     graph.buildLayerFor(requirements)
 
@@ -59,18 +59,12 @@ object ProvideLayerAutoMacros {
   }
 }
 
-private [zio] object AutoLayerMacroUtils {
-  type LayerExpr = Expr[ZLayer[_,_,_]]
 
-  def renderExpr[A](expr: Expr[A])(using Quotes): String = {
-    import quotes.reflect._
-    expr.asTerm.pos.sourceCode.getOrElse(expr.show)
-  }
+trait ExprGraphCompileVariants { self : ExprGraph.type =>
+  def apply(layers: Expr[Seq[ZLayer[_,_,_]]])(using ctx: Quotes): ExprGraph[LayerExpr] = 
+    apply(getNodes(layers))
 
-  def generateExprGraph(layers: Expr[Seq[ZLayer[_,_,_]]])(using ctx: Quotes): ExprGraph[LayerExpr] = 
-    generateExprGraph(getNodes(layers))
-
-  def generateExprGraph(nodes: List[Node[LayerExpr]])(using ctx: Quotes): ExprGraph[LayerExpr] = {
+  def apply(nodes: List[Node[LayerExpr]])(using ctx: Quotes): ExprGraph[LayerExpr] = {
     import ctx.reflect._
 
     def compileError(message: String) : Nothing = report.throwError(message)
@@ -88,50 +82,5 @@ private [zio] object AutoLayerMacroUtils {
       composeH,
       composeV
       )
-  }
-
-  def buildLayerFor[R: Type](layers: Expr[Seq[ZLayer[_,_,_]]])(using Quotes): LayerExpr = {
-    generateExprGraph(layers).buildLayerFor(intersectionTypes[R])
-  }
-
-  def getNodes(layers: Expr[Seq[ZLayer[_,_,_]]])(using Quotes): List[Node[LayerExpr]] =
-      layers match {
-        case Varargs(args) => 
-            args.map {
-              case '{$layer: ZLayer[in, e, out]} =>
-                 val inputs = intersectionTypes[in]
-                 val outputs = intersectionTypes[out]
-                 Node(inputs, outputs, layer) 
-            }.toList
-      }
-
-  def intersectionTypes[T: Type](using ctx: Quotes) : List[String] = {
-    import ctx.reflect._
-
-    def go(tpe: TypeRepr): List[TypeRepr] = 
-      tpe.dealias.simplified.dealias match {
-        case AndType(lhs, rhs) =>
-          go(lhs) ++ go(rhs)
-
-        case AppliedType(_, TypeBounds(_,_) :: _) =>  
-          List.empty
-
-        case AppliedType(h, head :: Nil) if head.dealias =:= head =>
-          List(head.dealias)
-
-        case AppliedType(h, head :: t) => 
-          go(head) ++ t.flatMap(t => go(t))
-
-        case other if other =:= TypeRepr.of[Any] => 
-          List.empty
-
-        case other if other.dealias != other => 
-          go(other)
-
-        case other => 
-          List(other.dealias)
-      }
-
-    go(TypeRepr.of[T]).map(_.show)
   }
 }

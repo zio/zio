@@ -74,3 +74,5 @@ ${"Circular Dependency".yellow}
 $styledNode both requires ${"and".bold} is transitively required by $styledDependency"""
     }
 }
+
+object ExprGraph extends ExprGraphCompileVariants {}

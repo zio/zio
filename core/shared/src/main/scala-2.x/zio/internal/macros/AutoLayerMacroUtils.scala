@@ -69,3 +69,5 @@ trait AutoLayerMacroUtils {
     def showTree: String = CleanCodePrinter.show(c)(self.tree)
   }
 }
+
+trait ExprGraphCompileVariants {}
