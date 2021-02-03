@@ -16,25 +16,4 @@
 
 package zio.internal
 
-import java.util.concurrent.{AbstractExecutorService, TimeUnit}
-import java.{util => ju}
-import scala.concurrent.{ExecutionContext, ExecutionContextExecutorService}
-
-trait ExecutorPlatformSpecific { this: Executor =>
-
-  /**
-   * Views this `Executor` as a Scala `ExecutionContextExecutorService`.
-   */
-  lazy val asECES: ExecutionContextExecutorService =
-    new AbstractExecutorService with ExecutionContextExecutorService {
-      override val prepare: ExecutionContext                               = asEC
-      override val isShutdown: Boolean                                     = false
-      override val isTerminated: Boolean                                   = false
-      override val shutdown: Unit                                          = ()
-      override val shutdownNow: ju.List[Runnable]                          = ju.Collections.emptyList[Runnable]
-      override def execute(runnable: Runnable): Unit                       = asEC execute runnable
-      override def reportFailure(t: Throwable): Unit                       = asEC reportFailure t
-      override def awaitTermination(length: Long, unit: TimeUnit): Boolean = false
-    }
-
-}
+trait ExecutorPlatformSpecific
