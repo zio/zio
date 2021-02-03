@@ -3,19 +3,21 @@ package zio.internal.macros
 import zio._
 import zio.internal.ansi.AnsiStringOps
 
-trait ExprLike[A] {
-  def showTree(expr: A): String
-  def compileError(message: String): Nothing
-}
-
-final case class ExprGraph[A](graph: Graph[A])(implicit exprLike: ExprLike[A], layerLike: LayerLike[A]) {
+final case class ExprGraph[A](
+  graph: Graph[A],
+  showExpr: A => String,
+  abort: String => Nothing,
+  emptyExpr: A,
+  composeH: (A, A) => A,
+  composeV: (A, A) => A
+) {
   def buildLayerFor(output: List[String]): A =
     if (output.isEmpty)
-      layerLike.empty
+      emptyExpr
     else
       graph.buildComplete(output) match {
-        case Left(errors) => exprLike.compileError(renderErrors(errors))
-        case Right(value) => value
+        case Left(errors) => abort(renderErrors(errors))
+        case Right(value) => value.fold(emptyExpr, composeH, composeV)
       }
 
   private def renderErrors(errors: ::[GraphError[A]]): String = {
@@ -54,7 +56,7 @@ $errorMessage
     error match {
       case GraphError.MissingDependency(node, dependency) =>
         val styledDependency = dependency.white.bold
-        val styledLayer      = exprLike.showTree(node.value).white
+        val styledLayer      = showExpr(node.value).white
         s"""
 ${"missing".faint} $styledDependency
     ${"for".faint} $styledLayer"""
@@ -65,15 +67,10 @@ ${"missing".faint} $styledDependency
 ${"missing".faint} $styledDependency"""
 
       case GraphError.CircularDependency(node, dependency, _) =>
-        val styledNode       = exprLike.showTree(node.value).white.bold
-        val styledDependency = exprLike.showTree(dependency.value).white
+        val styledNode       = showExpr(node.value).white.bold
+        val styledDependency = showExpr(dependency.value).white
         s"""
 ${"Circular Dependency".yellow} 
 $styledNode both requires ${"and".bold} is transitively required by $styledDependency"""
     }
-}
-
-object ExprGraph {
-  def apply[A: LayerLike: ExprLike](layers: List[Node[A]]): ExprGraph[A] =
-    new ExprGraph(Graph(layers))
 }

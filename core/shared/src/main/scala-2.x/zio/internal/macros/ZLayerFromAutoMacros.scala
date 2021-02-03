@@ -6,7 +6,7 @@ import zio.internal.macros.StringUtils.StringOps
 
 import scala.reflect.macros.blackbox
 
-class ZLayerFromAutoMacros(val c: blackbox.Context) extends MacroUtils {
+final class ZLayerFromAutoMacros(val c: blackbox.Context) extends AutoLayerMacroUtils {
   import c.universe._
 
   def fromAutoImpl[
@@ -15,9 +15,10 @@ class ZLayerFromAutoMacros(val c: blackbox.Context) extends MacroUtils {
   ](layers: c.Expr[ZLayer[_, E, _]]*)(
     dummyK: c.Expr[DummyK[R]]
   ): c.Expr[ZLayer[Any, E, R]] = {
+    val _ = dummyK
     assertEnvIsNotNothing[R]()
     assertProperVarArgs(layers)
-    ExprGraph(layers.map(getNode).toList)
+    generateExprGraph(layers)
       .buildLayerFor(getRequirements[R])
       .asInstanceOf[c.Expr[ZLayer[Any, E, R]]]
   }
@@ -28,17 +29,18 @@ class ZLayerFromAutoMacros(val c: blackbox.Context) extends MacroUtils {
   ](layers: c.Expr[ZLayer[_, E, _]]*)(
     dummyK: c.Expr[DummyK[Out]]
   ): c.Expr[ZLayer[Any, E, Out]] = {
+    val _ = dummyK
     assertEnvIsNotNothing[Out]()
     assertProperVarArgs(layers)
-    val graph        = ExprGraph(layers.map(getNode).toList)
+    val graph        = generateExprGraph(layers)
     val requirements = getRequirements[Out]
     graph.buildLayerFor(requirements)
 
     val graphString: String = eitherToOption(
       graph.graph
-        .map(layer => RenderGraph(layer.showTree))
+        .map(layer => RenderedGraph(layer.showTree))
         .buildComplete(requirements)
-    ).get.render
+    ).get.fold(RenderedGraph.Row(List.empty), _ ++ _, _ >>> _).render
 
     val maxWidth = graphString.maxLineWidth
     val title    = "Layer Graph Visualization"
@@ -49,11 +51,18 @@ class ZLayerFromAutoMacros(val c: blackbox.Context) extends MacroUtils {
     c.abort(c.enclosingPosition, rendered)
   }
 
+  /**
+   * Scala 2.11 doesn't have `Either.toOption`
+   */
   private def eitherToOption[A](either: Either[_, A]): Option[A] = either match {
     case Left(_)      => None
     case Right(value) => Some(value)
   }
 
+  /**
+   * Ensures the macro has been annotated with the intended result type.
+   * The macro will not behave correctly otherwise.
+   */
   private def assertEnvIsNotNothing[Out <: Has[_]: c.WeakTypeTag](): Unit = {
     val outType     = weakTypeOf[Out]
     val nothingType = weakTypeOf[Nothing]

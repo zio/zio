@@ -1,17 +1,17 @@
 package zio.internal.macros
 
-import zio.internal.macros.LayerLike._
+import zio.internal.macros.LayerCompose._
 
-final case class Graph[A: LayerLike](nodes: List[Node[A]]) {
+final case class Graph[A](nodes: List[Node[A]]) {
 
-  def buildComplete(outputs: List[String]): Either[::[GraphError[A]], A] =
+  def buildComplete(outputs: List[String]): Either[::[GraphError[A]], LayerCompose[A]] =
     traverse(outputs) { output =>
       getNodeWithOutput(output, error = GraphError.MissingTopLevelDependency(output))
     }
       .flatMap(traverse(_)(node => buildNode(node, Set(node))))
       .map(_.distinct.combineHorizontally)
 
-  def map[B: LayerLike](f: A => B): Graph[B] =
+  def map[B](f: A => B): Graph[B] =
     Graph(nodes.map(_.map(f)))
 
   private def getNodeWithOutput[E](output: String, error: E): Either[::[E], Node[A]] =
@@ -23,7 +23,7 @@ final case class Graph[A: LayerLike](nodes: List[Node[A]]) {
     }
       .map(_.distinct)
 
-  private def buildNode(node: Node[A], seen: Set[Node[A]]): Either[::[GraphError[A]], A] =
+  private def buildNode(node: Node[A], seen: Set[Node[A]]): Either[::[GraphError[A]], LayerCompose[A]] =
     getDependencies(node).flatMap {
       traverse(_) { out =>
         for {
@@ -31,8 +31,8 @@ final case class Graph[A: LayerLike](nodes: List[Node[A]]) {
           tree <- buildNode(out, seen + out)
         } yield tree
       }.map {
-        case Nil      => node.value
-        case children => children.distinct.combineHorizontally >>> node.value
+        case Nil      => LayerCompose.succeed(node.value)
+        case children => children.distinct.combineHorizontally >>> LayerCompose.succeed(node.value)
       }
     }
 

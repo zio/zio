@@ -4,13 +4,26 @@ import zio._
 
 import scala.reflect.macros.blackbox
 
-trait MacroUtils {
+trait AutoLayerMacroUtils {
   val c: blackbox.Context
   import c.universe._
 
   private val zioSymbol = typeOf[Has[_]].typeSymbol
 
   type LayerExpr = c.Expr[ZLayer[_, _, _]]
+
+  def generateExprGraph(layers: Seq[LayerExpr]): ExprGraph[LayerExpr] =
+    generateExprGraph(layers.map(getNode).toList)
+
+  def generateExprGraph(nodes: List[Node[LayerExpr]]): ExprGraph[LayerExpr] =
+    ExprGraph[LayerExpr](
+      graph = Graph(nodes),
+      showExpr = expr => CleanCodePrinter.show(c)(expr.tree),
+      abort = c.abort(c.enclosingPosition, _),
+      emptyExpr = reify(ZLayer.succeed(())),
+      composeH = (lhs, rhs) => c.Expr(q"""$lhs +!+ $rhs"""),
+      composeV = (lhs, rhs) => c.Expr(q"""$lhs >>> $rhs""")
+    )
 
   def getNode(layer: LayerExpr): Node[LayerExpr] = {
     val tpe                   = layer.actualType.dealias
@@ -55,21 +68,4 @@ trait MacroUtils {
   implicit class TreeOps(self: c.Expr[_]) {
     def showTree: String = CleanCodePrinter.show(c)(self.tree)
   }
-
-  implicit val exprLayerLike: LayerLike[LayerExpr] =
-    new LayerLike[LayerExpr] {
-      override def empty: LayerExpr = c.Expr(q"zio.ZLayer.succeed(())")
-
-      override def composeH(lhs: LayerExpr, rhs: LayerExpr): LayerExpr =
-        c.Expr(q"""$lhs +!+ $rhs""")
-
-      override def composeV(lhs: LayerExpr, rhs: LayerExpr): LayerExpr =
-        c.Expr(q"""$lhs >>> $rhs""")
-    }
-
-  implicit val exprExprLike: ExprLike[LayerExpr] =
-    new ExprLike[LayerExpr] {
-      def showTree(expr: LayerExpr): String      = CleanCodePrinter.show(c)(expr.tree)
-      def compileError(message: String): Nothing = c.abort(c.enclosingPosition, message)
-    }
 }

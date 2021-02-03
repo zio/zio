@@ -22,7 +22,7 @@ object ProvideLayerAutoMacros {
     val zEnvLayer = Node(List.empty, ZEnvRequirements, '{ZEnv.any})
     val nodes     = (zEnvLayer +: getNodes(layers)).toList
 
-    val expr = ExprGraph(nodes).buildLayerFor(requirements)
+    val expr = generateExprGraph(nodes).buildLayerFor(requirements)
 
     '{$zio.asInstanceOf[ZIO[Has[Unit], E, A]].provideLayer(ZEnv.any >>> $expr.asInstanceOf[ZLayer[ZEnv, E, Has[Unit]]])}
   }
@@ -37,17 +37,17 @@ object ProvideLayerAutoMacros {
     val expr = buildLayerFor[Out](layers)
     '{$expr.asInstanceOf[ZLayer[Any, E, Out]]}
 
-    val graph        = ExprGraph(getNodes(layers))
+    val graph        = generateExprGraph(layers)
     val requirements = intersectionTypes[Out]
     graph.buildLayerFor(requirements)
 
     val graphString: String = 
       graph.graph
-        .map(layer => RenderGraph(summon[ExprLike[LayerExpr]].showTree(layer)))
+        .map(layer => RenderedGraph(renderExpr(layer)))
         .buildComplete(requirements)
         .toOption
-        .get.render
-
+        .get
+        .fold(RenderedGraph.Row(List.empty), _ ++ _, _ >>> _).render
 
     val maxWidth = graphString.maxLineWidth
     val title    = "Layer Graph Visualization"
@@ -62,9 +62,36 @@ object ProvideLayerAutoMacros {
 private [zio] object AutoLayerMacroUtils {
   type LayerExpr = Expr[ZLayer[_,_,_]]
 
+  def renderExpr[A](expr: Expr[A])(using Quotes): String = {
+    import quotes.reflect._
+    expr.asTerm.pos.sourceCode.getOrElse(expr.show)
+  }
+
+  def generateExprGraph(layers: Expr[Seq[ZLayer[_,_,_]]])(using ctx: Quotes): ExprGraph[LayerExpr] = 
+    generateExprGraph(getNodes(layers))
+
+  def generateExprGraph(nodes: List[Node[LayerExpr]])(using ctx: Quotes): ExprGraph[LayerExpr] = {
+    import ctx.reflect._
+
+    def compileError(message: String) : Nothing = report.throwError(message)
+    def empty: LayerExpr = '{ZLayer.succeed(())}
+    def composeH(lhs: LayerExpr, rhs: LayerExpr): LayerExpr =
+        '{$lhs.asInstanceOf[ZLayer[_,_,Has[_]]] +!+ $rhs.asInstanceOf[ZLayer[_,_,Has[_]]]}
+    def composeV(lhs: LayerExpr, rhs: LayerExpr): LayerExpr =
+        '{$lhs.asInstanceOf[ZLayer[_,_,Has[Unit]]] >>> $rhs.asInstanceOf[ZLayer[Has[Unit],_,_]]}
+
+    ExprGraph[LayerExpr](
+      Graph(nodes),
+      renderExpr,
+      compileError,
+      empty,
+      composeH,
+      composeV
+      )
+  }
+
   def buildLayerFor[R: Type](layers: Expr[Seq[ZLayer[_,_,_]]])(using Quotes): LayerExpr = {
-    val nodes = getNodes(layers)
-    ExprGraph(nodes).buildLayerFor(intersectionTypes[R])
+    generateExprGraph(layers).buildLayerFor(intersectionTypes[R])
   }
 
   def getNodes(layers: Expr[Seq[ZLayer[_,_,_]]])(using Quotes): List[Node[LayerExpr]] =
@@ -106,26 +133,5 @@ private [zio] object AutoLayerMacroUtils {
       }
 
     go(TypeRepr.of[T]).map(_.show)
-  }
-
-  implicit def exprLayerLike(using ctx: Quotes): LayerLike[Expr[ZLayer[_,_,_]]] =
-    new LayerLike[LayerExpr] {
-      import ctx.reflect._
-
-      override def empty: LayerExpr = '{ZLayer.succeed(())}
-
-      override def composeH(lhs: LayerExpr, rhs: LayerExpr): LayerExpr =
-        '{$lhs.asInstanceOf[ZLayer[_,_,Has[_]]] +!+ $rhs.asInstanceOf[ZLayer[_,_,Has[_]]]}
-
-      override def composeV(lhs: LayerExpr, rhs: LayerExpr): LayerExpr =
-        '{$lhs.asInstanceOf[ZLayer[_,_,Has[Unit]]] >>> $rhs.asInstanceOf[ZLayer[Has[Unit],_,_]]}
-    }
-
-  implicit def exprExprLike[A](using Quotes): ExprLike[Expr[A]] = new ExprLike[Expr[A]] {
-    import quotes.reflect._
-
-    def showTree(expr: Expr[A]): String = expr.asTerm.pos.sourceCode.getOrElse(expr.show)
-
-    def compileError(message: String) : Nothing = report.throwError(message)
   }
 }

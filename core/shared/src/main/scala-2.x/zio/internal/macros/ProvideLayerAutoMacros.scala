@@ -4,14 +4,14 @@ import zio._
 
 import scala.reflect.macros.blackbox
 
-class ProvideLayerAutoMacros(val c: blackbox.Context) extends MacroUtils {
+class ProvideLayerAutoMacros(val c: blackbox.Context) extends AutoLayerMacroUtils {
   import c.universe._
 
   def provideLayerAutoImpl[R: c.WeakTypeTag, E, A](
     layers: c.Expr[ZLayer[_, E, _]]*
   ): c.Expr[ZIO[Any, E, A]] = {
     assertProperVarArgs(layers)
-    val expr = ExprGraph(layers.map(getNode).toList).buildLayerFor(getRequirements[R])
+    val expr = generateExprGraph(layers).buildLayerFor(getRequirements[R])
     c.Expr[ZIO[Any, E, A]](q"${c.prefix}.provideLayer(${expr.tree})")
   }
 
@@ -25,7 +25,7 @@ class ProvideLayerAutoMacros(val c: blackbox.Context) extends MacroUtils {
     val zEnvLayer = Node(List.empty, ZEnvRequirements, reify(ZEnv.any))
     val nodes     = (zEnvLayer +: layers.map(getNode)).toList
 
-    val layerExpr = ExprGraph(nodes).buildLayerFor(requirements)
+    val layerExpr = generateExprGraph(nodes).buildLayerFor(requirements)
     c.Expr[ZIO[ZEnv, E, A]](q"${c.prefix}.provideCustomLayer(${layerExpr.tree})")
   }
 }

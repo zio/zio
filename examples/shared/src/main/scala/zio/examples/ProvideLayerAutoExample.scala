@@ -14,16 +14,12 @@ object ProvideLayerAutoExample extends App {
       OldLady.live,
       Spider.live,
       Fly.live,
-      Console.live,
-      ZLayer.succeed(12),
-      ZLayer.succeed(true)
+      Console.live
     )
-
-  val _ = autoLayer
 
   def run(args: List[String]): URIO[ZEnv, ExitCode] =
     program
-      .provideCustomLayerAuto(OldLady.live, Spider.live, Fly.live, ZLayer.succeed(12), ZLayer.succeed(true))
+      .provideCustomLayerAuto(OldLady.live, Spider.live, Fly.live)
       .exitCode
 
   trait OldLady {
@@ -59,7 +55,7 @@ object ProvideLayerAutoExample extends App {
   trait Fly {}
 
   object Fly {
-    def live: URLayer[Console with Has[Boolean] with Has[Int], Has[Fly]] =
+    def live: URLayer[Console, Has[Fly]] =
       console.putStrLn("Bzzzzzzzzzz...").as(new Fly {}).toLayer
   }
 }

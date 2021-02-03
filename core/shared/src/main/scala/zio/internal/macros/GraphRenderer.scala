@@ -3,24 +3,24 @@ package zio.internal.macros
 import zio.internal.ansi.AnsiStringOps
 import zio.internal.macros.StringUtils.StringOps
 
-private[macros] sealed trait RenderGraph { self =>
-  def ++(that: RenderGraph): RenderGraph
-  def >>>(that: RenderGraph): RenderGraph
+private[macros] sealed trait RenderedGraph { self =>
+  def ++(that: RenderedGraph): RenderedGraph
+  def >>>(that: RenderedGraph): RenderedGraph
   def render: String
 }
 
-private[macros] object RenderGraph {
-  def apply(string: String): RenderGraph = Value(string)
+private[macros] object RenderedGraph {
+  def apply(string: String): RenderedGraph = Value(string)
 
-  final case class Value(string: String, children: List[RenderGraph] = List.empty) extends RenderGraph { self =>
-    override def ++(that: RenderGraph): RenderGraph = that match {
+  final case class Value(string: String, children: List[RenderedGraph] = List.empty) extends RenderedGraph { self =>
+    override def ++(that: RenderedGraph): RenderedGraph = that match {
       case value: Value =>
         Row(List(self, value))
       case Row(values) =>
         Row(self +: values)
     }
 
-    override def >>>(that: RenderGraph): RenderGraph =
+    override def >>>(that: RenderedGraph): RenderedGraph =
       that match {
         case Value(string, children) => Value(string, self +: children)
         case Row(_)                  => throw new Error("NOT LIKE THIS")
@@ -76,8 +76,8 @@ private[macros] object RenderGraph {
 
   }
 
-  final case class Row(values: List[RenderGraph]) extends RenderGraph { self =>
-    override def ++(that: RenderGraph): RenderGraph =
+  final case class Row(values: List[RenderedGraph]) extends RenderedGraph { self =>
+    override def ++(that: RenderedGraph): RenderedGraph =
       that match {
         case value: Value =>
           Row(self.values :+ value)
@@ -85,20 +85,12 @@ private[macros] object RenderGraph {
           Row(self.values ++ values)
       }
 
-    override def >>>(that: RenderGraph): RenderGraph =
+    override def >>>(that: RenderedGraph): RenderedGraph =
       that match {
         case Value(string, children) => Value(string, self.values ++ children)
         case Row(_)                  => throw new Error("NOT LIKE THIS")
       }
 
     override def render: String = values.map(_.render).foldLeft("")(_ +++ _)
-  }
-
-  implicit val layerLike: LayerLike[RenderGraph] = new LayerLike[RenderGraph] {
-    override def empty = Row(List.empty)
-
-    override def composeH(lhs: RenderGraph, rhs: RenderGraph): RenderGraph = lhs ++ rhs
-
-    override def composeV(lhs: RenderGraph, rhs: RenderGraph): RenderGraph = lhs >>> rhs
   }
 }

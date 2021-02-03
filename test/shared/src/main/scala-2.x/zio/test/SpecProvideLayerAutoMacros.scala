@@ -1,17 +1,17 @@
 package zio.test
 
 import zio._
-import zio.internal.macros.{ExprGraph, MacroUtils, Node}
+import zio.internal.macros.{AutoLayerMacroUtils, Node}
 import zio.test.environment.TestEnvironment
 
 import scala.reflect.macros.blackbox
 
-class SpecProvideLayerAutoMacros(val c: blackbox.Context) extends MacroUtils {
+class SpecProvideLayerAutoMacros(val c: blackbox.Context) extends AutoLayerMacroUtils {
   import c.universe._
 
   def provideLayerAutoImpl[R: c.WeakTypeTag, E, A](layers: c.Expr[ZLayer[_, E, _]]*): c.Expr[Spec[Any, E, A]] = {
     assertProperVarArgs(layers)
-    val layerExpr = ExprGraph(layers.map(getNode).toList).buildLayerFor(getRequirements[R])
+    val layerExpr = generateExprGraph(layers).buildLayerFor(getRequirements[R])
     c.Expr[Spec[Any, E, A]](q"${c.prefix}.provideLayer(${layerExpr.tree})")
   }
 
@@ -25,13 +25,13 @@ class SpecProvideLayerAutoMacros(val c: blackbox.Context) extends MacroUtils {
     val testEnvLayer = Node(List.empty, TestEnvRequirements, reify(TestEnvironment.any))
     val nodes        = (testEnvLayer +: layers.map(getNode)).toList
 
-    val layerExpr = ExprGraph(nodes).buildLayerFor(requirements)
+    val layerExpr = generateExprGraph(nodes).buildLayerFor(requirements)
     c.Expr[Spec[TestEnvironment, E, A]](q"${c.prefix}.provideCustomLayer(${layerExpr.tree})")
   }
 
   def provideLayerSharedAutoImpl[R: c.WeakTypeTag, E, A](layers: c.Expr[ZLayer[_, E, _]]*): c.Expr[Spec[Any, E, A]] = {
     assertProperVarArgs(layers)
-    val layerExpr = ExprGraph(layers.map(getNode).toList).buildLayerFor(getRequirements[R])
+    val layerExpr = generateExprGraph(layers).buildLayerFor(getRequirements[R])
     c.Expr[Spec[Any, E, A]](q"${c.prefix}.provideLayerShared(${layerExpr.tree})")
   }
 
@@ -45,7 +45,7 @@ class SpecProvideLayerAutoMacros(val c: blackbox.Context) extends MacroUtils {
     val testEnvLayer = Node(List.empty, TestEnvRequirements, reify(TestEnvironment.any))
     val nodes        = (testEnvLayer +: layers.map(getNode)).toList
 
-    val layerExpr = ExprGraph(nodes).buildLayerFor(requirements)
+    val layerExpr = generateExprGraph(nodes).buildLayerFor(requirements)
     c.Expr[Spec[TestEnvironment, E, A]](q"${c.prefix}.provideCustomLayerShared(${layerExpr.tree})")
   }
 }
