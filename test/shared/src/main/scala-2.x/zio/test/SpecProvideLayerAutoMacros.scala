@@ -11,7 +11,7 @@ class SpecProvideLayerAutoMacros(val c: blackbox.Context) extends AutoLayerMacro
 
   def provideLayerAutoImpl[R: c.WeakTypeTag, E, A](layers: c.Expr[ZLayer[_, E, _]]*): c.Expr[Spec[Any, E, A]] = {
     assertProperVarArgs(layers)
-    val layerExpr = generateExprGraph(layers).buildLayerFor(getRequirements[R])
+    val layerExpr = buildMemoizedLayer(generateExprGraph(layers), getRequirements[R])
     c.Expr[Spec[Any, E, A]](q"${c.prefix}.provideLayer(${layerExpr.tree})")
   }
 
@@ -25,13 +25,13 @@ class SpecProvideLayerAutoMacros(val c: blackbox.Context) extends AutoLayerMacro
     val testEnvLayer = Node(List.empty, TestEnvRequirements, reify(TestEnvironment.any))
     val nodes        = (testEnvLayer +: layers.map(getNode)).toList
 
-    val layerExpr = generateExprGraph(nodes).buildLayerFor(requirements)
+    val layerExpr = buildMemoizedLayer(generateExprGraph(nodes), requirements)
     c.Expr[Spec[TestEnvironment, E, A]](q"${c.prefix}.provideCustomLayer(${layerExpr.tree})")
   }
 
   def provideLayerSharedAutoImpl[R: c.WeakTypeTag, E, A](layers: c.Expr[ZLayer[_, E, _]]*): c.Expr[Spec[Any, E, A]] = {
     assertProperVarArgs(layers)
-    val layerExpr = generateExprGraph(layers).buildLayerFor(getRequirements[R])
+    val layerExpr = buildMemoizedLayer(generateExprGraph(layers), getRequirements[R])
     c.Expr[Spec[Any, E, A]](q"${c.prefix}.provideLayerShared(${layerExpr.tree})")
   }
 
@@ -45,7 +45,7 @@ class SpecProvideLayerAutoMacros(val c: blackbox.Context) extends AutoLayerMacro
     val testEnvLayer = Node(List.empty, TestEnvRequirements, reify(TestEnvironment.any))
     val nodes        = (testEnvLayer +: layers.map(getNode)).toList
 
-    val layerExpr = generateExprGraph(nodes).buildLayerFor(requirements)
+    val layerExpr = buildMemoizedLayer(generateExprGraph(nodes), requirements)
     c.Expr[Spec[TestEnvironment, E, A]](q"${c.prefix}.provideCustomLayerShared(${layerExpr.tree})")
   }
 }

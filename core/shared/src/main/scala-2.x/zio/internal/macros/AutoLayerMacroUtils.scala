@@ -25,6 +25,28 @@ trait AutoLayerMacroUtils {
       composeV = (lhs, rhs) => c.Expr(q"""$lhs >>> $rhs""")
     )
 
+  def buildMemoizedLayer(exprGraph: ExprGraph[LayerExpr], requirements: List[String]): LayerExpr = {
+    // This is run for its side effects: Reporting compile errors with the original source names.
+    val _ = exprGraph.buildLayerFor(requirements)
+
+    val nodes = exprGraph.graph.nodes
+    val renamedNodes = nodes.map { node =>
+      val freshName = c.freshName("layer")
+      val termName  = TermName(freshName)
+      node.copy(value = c.Expr[ZLayer[_, _, _]](q"$termName"))
+    }
+
+    val layerExpr = exprGraph.copy(graph = Graph(renamedNodes)).buildLayerFor(requirements)
+    val definitions = renamedNodes.zip(nodes).map { case (renamedNode, node) =>
+      ValDef(Modifiers(), TermName(renamedNode.value.tree.toString()), TypeTree(), node.value.tree)
+    }
+
+    c.Expr(q"""
+    ..$definitions
+    ${layerExpr.tree}
+    """)
+  }
+
   def getNode(layer: LayerExpr): Node[LayerExpr] = {
     val tpe                   = layer.actualType.dealias
     val in :: _ :: out :: Nil = tpe.typeArgs

@@ -23,6 +23,19 @@ object AutoLayerSpec extends ZIOBaseSpec {
           val provided = program.provideLayerAuto(intLayer, stringLayer, doubleLayer)
           assertM(provided)(equalTo(128))
         },
+        testM("automatically memoizes non-val layers") {
+          def sideEffectingLayer(ref: Ref[Int]): ZLayer[Any, Nothing, Has[String]] =
+            ref.update(_ + 1).as("Howdy").toLayer
+
+          val layerA: URLayer[Has[String], Has[Int]]     = ZLayer.succeed(1)
+          val layerB: URLayer[Has[String], Has[Boolean]] = ZLayer.succeed(true)
+
+          for {
+            ref    <- Ref.make(0)
+            _      <- ZIO.services[Int, Boolean].provideLayerAuto(layerA, layerB, sideEffectingLayer(ref))
+            result <- ref.get
+          } yield assert(result)(equalTo(1))
+        },
         testM("reports missing top-level layers") {
           val program: URIO[Has[String] with Has[Int], String] = UIO("test")
           val _                                                = program

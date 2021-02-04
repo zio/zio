@@ -9,7 +9,7 @@ object Cool extends App {
   val boolLayer =
     ZLayer.succeed(true)
 
-  val layer: ZLayer[Has[Boolean], Unit, Has[Int] with Has[String]] =
+  val layer: ZLayer[Has[Boolean], Nothing, Has[Int] with Has[String]] =
     ZLayer.succeed(1) ++ ZLayer.succeed("hello")
 
   val program: ZIO[Has[String] with Has[Int] with Console, Nothing, Unit] =
@@ -22,7 +22,7 @@ object Cool extends App {
     case (a,b) => Has[a] & Has[b] 
   }
 
-  val layer0 = ZLayer.fromAuto[Console ++ String ++ Int](layer, boolLayer, Console.live) 
+  val layer12: ULayer[Console ++ String ++ Int] = ZLayer.fromAuto[Console ++ String ++ Int](layer, boolLayer, Console.live) 
 
   def run(args: List[String]) =
     program.provideCustomLayerAuto(layer, boolLayer).exitCode

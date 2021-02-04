@@ -18,8 +18,7 @@ final class ZLayerFromAutoMacros(val c: blackbox.Context) extends AutoLayerMacro
     val _ = dummyK
     assertEnvIsNotNothing[R]()
     assertProperVarArgs(layers)
-    generateExprGraph(layers)
-      .buildLayerFor(getRequirements[R])
+    buildMemoizedLayer(generateExprGraph(layers), getRequirements[R])
       .asInstanceOf[c.Expr[ZLayer[Any, E, R]]]
   }
 
