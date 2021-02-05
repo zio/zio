@@ -142,8 +142,7 @@ lazy val coreNative = core.native
   .settings(nativeSettings)
   .settings(
     libraryDependencies ++= Seq(
-      "com.github.lolgab" %%% "native-loop-core"      % "0.2.0",
-      "com.github.lolgab" %%% "native-loop-js-compat" % "0.2.0"
+      "com.github.lolgab" %%% "native-loop-core" % "0.2.0"
     )
   )
 
