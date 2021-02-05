@@ -240,24 +240,6 @@ val timeQueued: UIO[ZQueue[Clock, Clock, Nothing, Nothing, String, (Duration, St
   } yield durations
 ```
 
-### ZQueue#bothWith
-
-We may also compose two queues together into a single queue that
-broadcasts offers and takes from both of the queues:
-
-```scala mdoc:silent
-val fromComposedQueues: UIO[(Int, String)] = 
-  for {
-    q1       <- Queue.bounded[Int](3)
-    q2       <- Queue.bounded[Int](3)
-    q2Mapped =  q2.map(_.toString)
-    both     =  q1.bothWith(q2Mapped)((_, _))
-    _        <- both.offer(1)
-    iAndS    <- both.take
-    (i, s)   =  iAndS
-  } yield (i, s)
-```
-
 ## Additional Resources
 
 - [ZIO Queue Talk by John De Goes @ ScalaWave 2018](https://www.slideshare.net/jdegoes/zio-queue)

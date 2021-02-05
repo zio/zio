@@ -277,16 +277,6 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
   def compose[Env1 <: Env, In2](that: Schedule[Env1, In2, In]): Schedule[Env1, In2, Out] = that >>> self
 
   /**
-   * Returns a new schedule that combines this schedule with the specified schedule, merging the next
-   * intervals according to the specified merge function.
-   */
-  @deprecated("use intersectWith", "2.0.0")
-  def combineWith[Env1 <: Env, In1 <: In, Out2](
-    that: Schedule[Env1, In1, Out2]
-  )(f: (Interval, Interval) => Interval): Schedule[Env1, In1, (Out, Out2)] =
-    intersectWith(that)(f)
-
-  /**
    * Returns a new schedule that deals with a narrower class of inputs than this schedule.
    */
   def contramap[Env1 <: Env, In2](f: In2 => In): Schedule[Env, In2, Out] =

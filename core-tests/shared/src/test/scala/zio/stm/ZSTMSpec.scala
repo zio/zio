@@ -1,7 +1,6 @@
 package zio
 package stm
 
-import com.github.ghik.silencer.silent
 import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect.nonFlaky
@@ -247,20 +246,6 @@ object ZSTMSpec extends ZIOBaseSpec {
           }
         }
       ),
-      testM("forever") {
-        def effect(ref: TRef[Int]) =
-          for {
-            n <- ref.get
-            r <- if (n < 10) ref.update(_ + 1)
-                 else ZSTM.fail("Ouch")
-          } yield r
-        @silent("deprecated")
-        val tx = for {
-          ref <- TRef.make(0)
-          n   <- effect(ref).forever
-        } yield n
-        assertM(tx.commit.run)(fails(equalTo("Ouch")))
-      },
       suite("get")(
         testM("extracts the value from Some") {
           assertM(STM.succeed(Some(1)).get.commit)(equalTo(1))

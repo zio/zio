@@ -388,20 +388,6 @@ final class ZSTM[-R, +E, +A] private[stm] (
     }
 
   /**
-   * Repeats this effect forever (until the first error).
-   * '''WARNING''': `forever` uses a busy loop to repeat the effect and will consume a
-   * thread until it fails. This is because STM describes a single atomic transaction, and so must either complete,
-   * retry or fail a transaction before yielding back to the ZIO Runtime.
-   * - Ensure repeating the STM effect will eventually fail.
-   * - Consider using the Blocking thread pool for execution of the transaction.
-   */
-  @deprecated(
-    "Repeating until failure doesn't make sense in the context of STM because it will always roll back the transaction",
-    "1.0.2"
-  )
-  def forever: ZSTM[R, E, Nothing] = self *> self.forever
-
-  /**
    * Unwraps the optional success of this effect, but can fail with None value.
    */
   def get[B](implicit ev1: E <:< Nothing, ev2: A <:< Option[B]): ZSTM[R, Option[Nothing], B] =

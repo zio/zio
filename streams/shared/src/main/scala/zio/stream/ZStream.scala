@@ -1169,31 +1169,6 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     runManaged(ZSink.foreachChunk(f))
 
   /**
-   * Consumes chunks of the stream, passing them to the specified callback,
-   * and terminating consumption when the callback returns `false`.
-   */
-  @deprecated("Use `foreachWhile`", "1.0.0-RC21")
-  final def foreachChunkWhile[R1 <: R, E1 >: E](f: Chunk[O] => ZIO[R1, E1, Boolean]): ZIO[R1, E1, Unit] =
-    foreachChunkWhileManaged(f).use_(ZIO.unit)
-
-  /**
-   * Like [[ZStream#foreachChunkWhile]], but returns a `ZManaged` so the finalization order
-   * can be controlled.
-   */
-  @deprecated("use `foreachWhileManaged`", "1.0.0-RC21")
-  final def foreachChunkWhileManaged[R1 <: R, E1 >: E](f: Chunk[O] => ZIO[R1, E1, Boolean]): ZManaged[R1, E1, Unit] =
-    for {
-      chunks <- self.process
-      step = chunks.flatMap(f(_).mapError(Some(_))).flatMap {
-               if (_) UIO.unit else IO.fail(None)
-             }
-      _ <- step.forever.catchAll {
-             case Some(e) => IO.fail(e)
-             case None    => UIO.unit
-           }.toManaged_
-    } yield ()
-
-  /**
    * Like [[ZStream#foreach]], but returns a `ZManaged` so the finalization order
    * can be controlled.
    */
@@ -4130,14 +4105,6 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     def halt[E](c: Cause[E]): IO[Option[E], Nothing]                              = IO.halt(c).mapError(Some(_))
     def empty[A]: IO[Nothing, Chunk[A]]                                           = UIO(Chunk.empty)
     val end: IO[Option[Nothing], Nothing]                                         = IO.fail(None)
-  }
-
-  @deprecated("use zio.stream.Take instead", "1.0.0")
-  type Take[+E, +A] = Exit[Option[E], Chunk[A]]
-
-  object Take {
-    @deprecated("use zio.stream.Take.end instead", "1.0.0")
-    val End: Exit[Option[Nothing], Nothing] = Exit.fail(None)
   }
 
   private[zio] case class BufferedPull[R, E, A](

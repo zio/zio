@@ -60,38 +60,4 @@ private[zio] trait VersionSpecific {
           parent
       }
     }
-
-  @deprecated("use Tag", "1.0.0") type Tagged[A]                                              = izumi.reflect.Tag[A]
-  @deprecated("use LightTypeTag", "1.0.0") type TypeTag                                       = izumi.reflect.macrortti.LightTypeTag
-  @deprecated("use TagK", "1.0.0") type TaggedF[F[_]]                                         = izumi.reflect.TagK[F]
-  @deprecated("use TagKK", "1.0.0") type TaggedF2[F[_, _]]                                    = izumi.reflect.TagKK[F]
-  @deprecated("use TagK3", "1.0.0") type TaggedF3[F[_, _, _]]                                 = izumi.reflect.TagK3[F]
-  @deprecated("use TagK4", "1.0.0") type TaggedF4[F[_, _, _, _]]                              = izumi.reflect.TagK4[F]
-  @deprecated("use TagK5", "1.0.0") type TaggedF5[F[_, _, _, _, _]]                           = izumi.reflect.TagK5[F]
-  @deprecated("use TagK6", "1.0.0") type TaggedF6[F[_, _, _, _, _, _]]                        = izumi.reflect.TagK6[F]
-  @deprecated("use TagK7", "1.0.0") type TaggedF7[F[_, _, _, _, _, _, _]]                     = izumi.reflect.TagK7[F]
-  @deprecated("use TagK8", "1.0.0") type TaggedF8[F[_, _, _, _, _, _, _, _]]                  = izumi.reflect.TagK8[F]
-  @deprecated("use TagK9", "1.0.0") type TaggedF9[F[_, _, _, _, _, _, _, _, _]]               = izumi.reflect.TagK9[F]
-  @deprecated("use TagK10", "1.0.0") type TaggedF10[F[_, _, _, _, _, _, _, _, _, _]]          = izumi.reflect.TagK10[F]
-  @deprecated("use TagK11", "1.0.0") type TaggedF11[F[_, _, _, _, _, _, _, _, _, _, _]]       = izumi.reflect.TagK11[F]
-  @deprecated("use TagK12", "1.0.0") type TaggedF12[F[_, _, _, _, _, _, _, _, _, _, _, _]]    = izumi.reflect.TagK12[F]
-  @deprecated("use TagK13", "1.0.0") type TaggedF13[F[_, _, _, _, _, _, _, _, _, _, _, _, _]] = izumi.reflect.TagK13[F]
-  @deprecated("use TagK14", "1.0.0")
-  type TaggedF14[F[_, _, _, _, _, _, _, _, _, _, _, _, _, _]] = izumi.reflect.TagK14[F]
-  @deprecated("use TagK15", "1.0.0")
-  type TaggedF15[F[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _]] = izumi.reflect.TagK15[F]
-  @deprecated("use TagK16", "1.0.0")
-  type TaggedF16[F[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _]] = izumi.reflect.TagK16[F]
-  @deprecated("use TagK17", "1.0.0")
-  type TaggedF17[F[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _]] = izumi.reflect.TagK17[F]
-  @deprecated("use TagK18", "1.0.0")
-  type TaggedF18[F[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _]] = izumi.reflect.TagK18[F]
-  @deprecated("use TagK19", "1.0.0")
-  type TaggedF19[F[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _]] = izumi.reflect.TagK19[F]
-  @deprecated("use TagK20", "1.0.0")
-  type TaggedF20[F[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _]] = izumi.reflect.TagK20[F]
-  @deprecated("use TagK21", "1.0.0")
-  type TaggedF21[F[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _]] = izumi.reflect.TagK21[F]
-  @deprecated("use TagK22", "1.0.0")
-  type TaggedF22[F[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _]] = izumi.reflect.TagK22[F]
 }
