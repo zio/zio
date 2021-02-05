@@ -211,7 +211,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                      .catchAll(_ => ZIO.succeedNow(()))
               value <- queue.takeAll
               _     <- queue.shutdown
-            } yield assert(value)(equalTo(List(1, 2, 3, 4, 5)))
+            } yield assert(value)(equalTo(Chunk(1, 2, 3, 4, 5)))
           } @@ zioTag(errors),
           testM("error propagation 1") {
             val e = new RuntimeException("Boom")
@@ -3022,7 +3022,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               s.toQueue(1000)
                 .use(queue => queue.size.repeatWhile(_ != c.size + 1) *> queue.takeAll)
             )(
-              equalTo(c.toSeq.toList.map(Take.single) :+ Take.end)
+              equalTo(c.map(Take.single) :+ Take.end)
             )
           }),
           testM("toQueueUnbounded")(checkM(Gen.chunkOfBounded(0, 3)(Gen.anyInt)) { (c: Chunk[Int]) =>
@@ -3030,7 +3030,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             assertM(
               s.toQueueUnbounded.use(queue => queue.size.repeatWhile(_ != c.size + 1) *> queue.takeAll)
             )(
-              equalTo(c.toSeq.toList.map(Take.single) :+ Take.end)
+              equalTo(c.map(Take.single) :+ Take.end)
             )
           })
         ),

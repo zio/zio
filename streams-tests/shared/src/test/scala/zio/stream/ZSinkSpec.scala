@@ -180,7 +180,7 @@ object ZSinkSpec extends ZIOBaseSpec {
           checkM(pureStreamOfInts) { stream =>
             for {
               queue                    <- ZQueue.unbounded[Int]
-              (result, streamElements) <- stream.run(ZSink.fromQueue(queue) <&> ZSink.collectAll.map(_.toList))
+              (result, streamElements) <- stream.run(ZSink.fromQueue(queue) <&> ZSink.collectAll)
               queueElements            <- queue.takeAll
             } yield assert(result)(isUnit) && assert(queueElements)(equalTo(streamElements))
           }
@@ -205,7 +205,7 @@ object ZSinkSpec extends ZIOBaseSpec {
       ),
       suite("fromQueueWithShutdown")(
         testM("enqueues all elements and shuts down the queue when the stream completes") {
-          checkM(Gen.listOfBounded(1, 5)(Gen.anyInt)) { elements =>
+          checkM(Gen.chunkOfBounded(1, 5)(Gen.anyInt)) { elements =>
             for {
               sourceQueue         <- ZQueue.unbounded[Int]
               targetQueue         <- ZQueue.unbounded[Int]

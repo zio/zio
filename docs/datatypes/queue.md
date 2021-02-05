@@ -107,23 +107,23 @@ val polled: UIO[Option[Int]] = for {
 You can consume multiple items at once with `takeUpTo`. If the queue doesn't have enough items to return, it will return all the items without waiting for more offers.
 
 ```scala mdoc:silent
-val taken: UIO[List[Int]] = for {
+val taken: UIO[Chunk[Int]] = for {
   queue <- Queue.bounded[Int](100)
   _ <- queue.offer(10)
   _ <- queue.offer(20)
-  list  <- queue.takeUpTo(5)
-} yield list
+  chunk  <- queue.takeUpTo(5)
+} yield chunk
 ```
 
-Similarly, you can get all items at once with `takeAll`. It also returns without waiting (an empty list if the queue is empty).
+Similarly, you can get all items at once with `takeAll`. It also returns without waiting (an empty collection if the queue is empty).
 
 ```scala mdoc:silent
-val all: UIO[List[Int]] = for {
+val all: UIO[Chunk[Int]] = for {
   queue <- Queue.bounded[Int](100)
   _ <- queue.offer(10)
   _ <- queue.offer(20)
-  list  <- queue.takeAll
-} yield list
+  chunk  <- queue.takeAll
+} yield chunk
 ```
 
 ## Shutting Down a Queue
