@@ -13,7 +13,7 @@ private [zio] object AutoLayerMacroUtils {
     expr.asTerm.pos.sourceCode.getOrElse(expr.show)
   }
 
-  def buildMemoizedLayer(exprGraph: ExprGraph[LayerExpr], requirements: List[String])(using ctx: Quotes) : LayerExpr = {
+  def buildMemoizedLayer(exprGraph: ZLayerExprBuilder[LayerExpr], requirements: List[String])(using ctx: Quotes) : LayerExpr = {
     import ctx.reflect._
 
     val layerExprs = exprGraph.graph.nodes.map(_.value)

@@ -39,7 +39,7 @@ final class ZLayerFromAutoMacros(val c: blackbox.Context) extends AutoLayerMacro
       graph.graph
         .map(layer => RenderedGraph(layer.showTree))
         .buildComplete(requirements)
-    ).get.fold(RenderedGraph.Row(List.empty), _ ++ _, _ >>> _).render
+    ).get.fold[RenderedGraph](RenderedGraph.Row(List.empty), identity, _ ++ _, _ >>> _).render
 
     val maxWidth = graphString.maxLineWidth
     val title    = "Layer Graph Visualization"

@@ -60,7 +60,7 @@ object ProvideLayerAutoMacros {
 }
 
 
-trait ExprGraphCompileVariants { self : ExprGraph.type =>
+trait ExprGraphCompileVariants { self : ZLayerExprBuilder.type =>
   def apply(layers: Expr[Seq[ZLayer[_,_,_]]])(using ctx: Quotes): ExprGraph[LayerExpr] = 
     apply(getNodes(layers))
 

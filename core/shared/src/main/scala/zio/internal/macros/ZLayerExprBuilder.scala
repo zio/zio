@@ -3,7 +3,7 @@ package zio.internal.macros
 import zio._
 import zio.internal.ansi.AnsiStringOps
 
-final case class ExprGraph[A](
+final case class ZLayerExprBuilder[A](
   graph: Graph[A],
   showExpr: A => String,
   abort: String => Nothing,
@@ -17,7 +17,7 @@ final case class ExprGraph[A](
     else
       graph.buildComplete(output) match {
         case Left(errors) => abort(renderErrors(errors))
-        case Right(value) => value.fold(emptyExpr, composeH, composeV)
+        case Right(value) => value.fold(emptyExpr, identity, composeH, composeV)
       }
 
   private def renderErrors(errors: ::[GraphError[A]]): String = {
@@ -42,9 +42,8 @@ $errorMessage
   private def sortErrors(errors: ::[GraphError[A]]): Chunk[GraphError[A]] = {
     val (circularDependencyErrors, otherErrors) =
       NonEmptyChunk.fromIterable(errors.head, errors.tail).distinct.partitionMap {
-        case circularDependency: GraphError.CircularDependency[A] =>
-          Left(circularDependency)
-        case other => Right(other)
+        case circularDependency: GraphError.CircularDependency[A] => Left(circularDependency)
+        case other                                                => Right(other)
       }
     val sorted                = circularDependencyErrors.sortBy(_.depth)
     val initialCircularErrors = sorted.takeWhile(_.depth == sorted.headOption.map(_.depth).getOrElse(0))
@@ -75,4 +74,4 @@ $styledNode both requires ${"and".bold} is transitively required by $styledDepen
     }
 }
 
-object ExprGraph extends ExprGraphCompileVariants {}
+object ZLayerExprBuilder extends ExprGraphCompileVariants {}

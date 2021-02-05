@@ -5,10 +5,10 @@ import zio.internal.macros.LayerCompose._
 final case class Graph[A](nodes: List[Node[A]]) {
 
   def buildComplete(outputs: List[String]): Either[::[GraphError[A]], LayerCompose[A]] =
-    traverse(outputs) { output =>
+    forEach(outputs) { output =>
       getNodeWithOutput(output, error = GraphError.MissingTopLevelDependency(output))
     }
-      .flatMap(traverse(_)(node => buildNode(node, Set(node))))
+      .flatMap(forEach(_)(node => buildNode(node, Set(node))))
       .map(_.distinct.combineHorizontally)
 
   def map[B](f: A => B): Graph[B] =
@@ -18,21 +18,17 @@ final case class Graph[A](nodes: List[Node[A]]) {
     nodes.find(_.outputs.contains(output)).toRight(::(error, Nil))
 
   private def getDependencies[E](node: Node[A]): Either[::[GraphError[A]], List[Node[A]]] =
-    traverse(node.inputs) { input =>
+    forEach(node.inputs) { input =>
       getNodeWithOutput(input, error = GraphError.MissingDependency(node, input))
     }
       .map(_.distinct)
 
   private def buildNode(node: Node[A], seen: Set[Node[A]]): Either[::[GraphError[A]], LayerCompose[A]] =
     getDependencies(node).flatMap {
-      traverse(_) { out =>
-        for {
-          _    <- assertNonCircularDependency(node, seen, out)
-          tree <- buildNode(out, seen + out)
-        } yield tree
+      forEach(_) { out =>
+        assertNonCircularDependency(node, seen, out).flatMap(_ => buildNode(out, seen + out))
       }.map {
-        case Nil      => LayerCompose.succeed(node.value)
-        case children => children.distinct.combineHorizontally >>> LayerCompose.succeed(node.value)
+        _.distinct.combineHorizontally >>> LayerCompose.succeed(node.value)
       }
     }
 
@@ -46,7 +42,7 @@ final case class Graph[A](nodes: List[Node[A]]) {
     else
       Right(())
 
-  private def traverse[B, C](
+  private def forEach[B, C](
     list: List[B]
   )(f: B => Either[::[GraphError[A]], C]): Either[::[GraphError[A]], List[C]] =
     list.foldRight[Either[::[GraphError[A]], List[C]]](Right(List.empty)) { (a, b) =>

@@ -12,11 +12,11 @@ trait AutoLayerMacroUtils {
 
   type LayerExpr = c.Expr[ZLayer[_, _, _]]
 
-  def generateExprGraph(layers: Seq[LayerExpr]): ExprGraph[LayerExpr] =
+  def generateExprGraph(layers: Seq[LayerExpr]): ZLayerExprBuilder[LayerExpr] =
     generateExprGraph(layers.map(getNode).toList)
 
-  def generateExprGraph(nodes: List[Node[LayerExpr]]): ExprGraph[LayerExpr] =
-    ExprGraph[LayerExpr](
+  def generateExprGraph(nodes: List[Node[LayerExpr]]): ZLayerExprBuilder[LayerExpr] =
+    ZLayerExprBuilder[LayerExpr](
       graph = Graph(nodes),
       showExpr = expr => CleanCodePrinter.show(c)(expr.tree),
       abort = c.abort(c.enclosingPosition, _),
@@ -25,21 +25,21 @@ trait AutoLayerMacroUtils {
       composeV = (lhs, rhs) => c.Expr(q"""$lhs >>> $rhs""")
     )
 
-  def buildMemoizedLayer(exprGraph: ExprGraph[LayerExpr], requirements: List[String]): LayerExpr = {
+  def buildMemoizedLayer(exprGraph: ZLayerExprBuilder[LayerExpr], requirements: List[String]): LayerExpr = {
     // This is run for its side effects: Reporting compile errors with the original source names.
     val _ = exprGraph.buildLayerFor(requirements)
 
     val nodes = exprGraph.graph.nodes
-    val renamedNodes = nodes.map { node =>
+    val memoizedNodes = nodes.map { node =>
       val freshName = c.freshName("layer")
       val termName  = TermName(freshName)
       node.copy(value = c.Expr[ZLayer[_, _, _]](q"$termName"))
     }
 
-    val layerExpr = exprGraph.copy(graph = Graph(renamedNodes)).buildLayerFor(requirements)
-    val definitions = renamedNodes.zip(nodes).map { case (renamedNode, node) =>
-      ValDef(Modifiers(), TermName(renamedNode.value.tree.toString()), TypeTree(), node.value.tree)
+    val definitions = memoizedNodes.zip(nodes).map { case (memoizedNode, node) =>
+      ValDef(Modifiers(), TermName(memoizedNode.value.tree.toString()), TypeTree(), node.value.tree)
     }
+    val layerExpr = exprGraph.copy(graph = Graph(memoizedNodes)).buildLayerFor(requirements)
 
     c.Expr(q"""
     ..$definitions

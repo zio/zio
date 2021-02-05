@@ -9,12 +9,16 @@ sealed trait LayerCompose[+A] { self =>
   def ++[A1 >: A](that: LayerCompose[A1]): LayerCompose[A1] =
     if (self eq Empty) that else if (that eq Empty) self else ComposeH(self, that)
 
-  def fold[A1 >: A](z: A1, composeH: (A1, A1) => A1, composeV: (A1, A1) => A1): A1 = self match {
-    case Empty                 => z
-    case Value(value)          => value
-    case ComposeH(left, right) => composeH(left.fold(z, composeH, composeV), right.fold(z, composeH, composeV))
-    case ComposeV(left, right) => composeV(left.fold(z, composeH, composeV), right.fold(z, composeH, composeV))
+  def fold[B](z: B, value: A => B, composeH: (B, B) => B, composeV: (B, B) => B): B = self match {
+    case Empty         => z
+    case Value(value0) => value(value0)
+    case ComposeH(left, right) =>
+      composeH(left.fold(z, value, composeH, composeV), right.fold(z, value, composeH, composeV))
+    case ComposeV(left, right) =>
+      composeV(left.fold(z, value, composeH, composeV), right.fold(z, value, composeH, composeV))
   }
+
+  def toSet[A1 >: A]: Set[A1] = fold[Set[A1]](Set.empty[A1], Set(_), _ ++ _, _ ++ _)
 }
 
 object LayerCompose {
