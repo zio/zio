@@ -82,7 +82,7 @@ _These articles reflect the state of ZIO at the time of their publication. The c
 
 ## Cookbooks
 - [ZIO Cookbook](https://github.com/Neurodyne/zio-cookbook) A beginners' tour to ZIO by Boris V.Kuznetsov
-- [Mastering modularity in ZIO with ZLayers](https://lp.scalac.io/zio-modularity-ebook/) by Jorge Vasquez
+- [Mastering modularity in ZIO with ZLayers](https://ad.scalac.io/zio-ebook) by Jorge Vasquez
 
 ## Cheat Sheet
 
