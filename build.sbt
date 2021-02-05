@@ -133,7 +133,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
 lazy val coreJVM = core.jvm
   .settings(dottySettings)
   .settings(replSettings)
-  .settings(mimaSettings(failOnProblem = true))
+  .settings(mimaSettings(failOnProblem = false))
 
 lazy val coreJS = core.js
   .settings(jsSettings)
