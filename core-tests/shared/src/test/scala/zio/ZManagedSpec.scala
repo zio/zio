@@ -487,13 +487,17 @@ object ZManagedSpec extends ZIOBaseSpec {
           default <- executor
           ref1    <- Ref.make[Executor](default)
           ref2    <- Ref.make[Executor](default)
-          managed  = ZManaged.make_(ZIO.executor.flatMap(ref1.set))(ZIO.executor.flatMap(ref2.set)).lock(global)
-          use     <- managed.use_(ZIO.executor)
+          managed  = ZManaged.make_(executor.flatMap(ref1.set))(executor.flatMap(ref2.set)).lock(global)
+          before  <- executor
+          use     <- managed.use_(executor)
           acquire <- ref1.get
           release <- ref2.get
-        } yield assert(acquire)(equalTo(global)) &&
+          after   <- executor
+        } yield assert(before)(equalTo(default)) &&
+          assert(acquire)(equalTo(global)) &&
           assert(use)(equalTo(global)) &&
-          assert(release)(equalTo(global))
+          assert(release)(equalTo(global)) &&
+          assert(after)(equalTo(default))
       }
     ),
     suite("mergeAll")(
