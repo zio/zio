@@ -111,6 +111,22 @@ object AutoLayerSpec extends ZIOBaseSpec {
           val layer    = ZLayer.fromAuto[Has[Int]](intLayer, stringLayer, doubleLayer)
           val provided = ZIO.service[Int].provideLayer(layer)
           assertM(provided)(equalTo(128))
+        },
+        testM("correctly decomposes nested, aliased intersection types") {
+          type StringAlias           = String
+          type HasBooleanDoubleAlias = Has[Boolean] with Has[Double]
+          type Has2[A, B]            = Has[A] with Has[B]
+          type FinalAlias            = Has2[Int, StringAlias] with HasBooleanDoubleAlias
+
+          val checked = typeCheck("ZLayer.fromAuto[FinalAlias]()")
+          assertM(checked)(
+            isLeft(
+              containsStringWithoutAnsi("missing Int") &&
+                containsStringWithoutAnsi("missing String") &&
+                containsStringWithoutAnsi("missing Boolean") &&
+                containsStringWithoutAnsi("missing Double")
+            )
+          )
         }
       ),
       suite("`ZLayer.fromSomeAuto`")(
