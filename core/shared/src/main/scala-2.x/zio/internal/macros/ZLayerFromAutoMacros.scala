@@ -11,15 +11,24 @@ final class ZLayerFromAutoMacros(val c: blackbox.Context) extends AutoLayerMacro
 
   def fromAutoImpl[
     E,
+    R0: c.WeakTypeTag,
     R <: Has[_]: c.WeakTypeTag
   ](layers: c.Expr[ZLayer[_, E, _]]*)(
+    dummyKRemainder: c.Expr[DummyK[R0]],
     dummyK: c.Expr[DummyK[R]]
-  ): c.Expr[ZLayer[Any, E, R]] = {
-    val _ = dummyK
+  ): c.Expr[ZLayer[R0, E, R]] = {
+    val _ = (dummyK, dummyKRemainder)
     assertEnvIsNotNothing[R]()
     assertProperVarArgs(layers)
-    buildMemoizedLayer(generateExprGraph(layers), getRequirements[R])
-      .asInstanceOf[c.Expr[ZLayer[Any, E, R]]]
+
+    val deferredRequirements = getRequirements[R0]
+    val requirements         = getRequirements[R] diff deferredRequirements
+
+    val deferredLayer = Node(List.empty, deferredRequirements, reify(ZLayer.requires[R0]))
+    val nodes         = (deferredLayer +: layers.map(getNode)).toList
+
+    buildMemoizedLayer(generateExprGraph(nodes), requirements)
+      .asInstanceOf[c.Expr[ZLayer[R0, E, R]]]
   }
 
   def fromAutoDebugImpl[
@@ -39,7 +48,9 @@ final class ZLayerFromAutoMacros(val c: blackbox.Context) extends AutoLayerMacro
       graph.graph
         .map(layer => RenderedGraph(layer.showTree))
         .buildComplete(requirements)
-    ).get.fold[RenderedGraph](RenderedGraph.Row(List.empty), identity, _ ++ _, _ >>> _).render
+    ).get
+      .fold[RenderedGraph](RenderedGraph.Row(List.empty), identity, _ ++ _, _ >>> _)
+      .render
 
     val maxWidth = graphString.maxLineWidth
     val title    = "Layer Graph Visualization"

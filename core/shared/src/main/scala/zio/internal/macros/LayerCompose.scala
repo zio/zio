@@ -2,7 +2,7 @@ package zio.internal.macros
 
 import zio.internal.macros.LayerCompose.{ComposeH, ComposeV, Empty, Value}
 
-sealed trait LayerCompose[+A] { self =>
+sealed abstract class LayerCompose[+A] extends Product with Serializable { self =>
   def >>>[A1 >: A](that: LayerCompose[A1]): LayerCompose[A1] =
     if (self eq Empty) that else if (that eq Empty) self else ComposeV(self, that)
 

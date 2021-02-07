@@ -34,7 +34,7 @@ private [zio] object AutoLayerMacroUtils {
   }
 
   def buildLayerFor[R: Type](layers: Expr[Seq[ZLayer[_,_,_]]])(using Quotes): LayerExpr =
-    buildMemoizedLayer(ExprGraph(layers), intersectionTypes[R])
+    buildMemoizedLayer(ZLayerExprBuilder(layers), intersectionTypes[R])
 
   def getNodes(layers: Expr[Seq[ZLayer[_,_,_]]])(using Quotes): List[Node[LayerExpr]] =
     layers match {
@@ -46,7 +46,6 @@ private [zio] object AutoLayerMacroUtils {
           Node(inputs, outputs, layer)
         }.toList
     }
-
 
   def intersectionTypes[T: Type](using ctx: Quotes) : List[String] = {
     import ctx.reflect._

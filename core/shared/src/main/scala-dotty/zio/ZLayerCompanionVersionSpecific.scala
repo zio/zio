@@ -2,12 +2,17 @@ package zio
 
 import zio.internal.macros.ProvideLayerAutoMacros
 
-final class FromLayerAutoPartiallyApplied[R <: Has[_]](val dummy: Boolean = true) extends AnyVal {
+final class FromAutoPartiallyApplied[R <: Has[_]](val dummy: Boolean = true) extends AnyVal {
   inline def apply[E](inline layers: ZLayer[_, E, _]*): ZLayer[Any, E, R] =
-    ${ProvideLayerAutoMacros.fromAutoImpl[R, E]('layers)}
+    ${ProvideLayerAutoMacros.fromAutoImpl[Any, R, E]('layers)}
 }
 
-final class FromLayerAutoDebugPartiallyApplied[R <: Has[_]](val dummy: Boolean = true) extends AnyVal {
+final class FromSomeAutoPartiallyApplied[R0 <: Has[_], R <: Has[_]](val dummy: Boolean = true) extends AnyVal {
+  inline def apply[E](inline layers: ZLayer[_, E, _]*): ZLayer[R0, E, R] =
+    ${ProvideLayerAutoMacros.fromAutoImpl[R0, R, E]('layers)}
+}
+
+final class FromAutoDebugPartiallyApplied[R <: Has[_]](val dummy: Boolean = true) extends AnyVal {
   inline def apply[E](inline layers: ZLayer[_, E, _]*): ZLayer[Any, E, R] =
     ${ProvideLayerAutoMacros.fromAutoDebugImpl[R, E]('layers)}
 }
@@ -15,13 +20,27 @@ final class FromLayerAutoDebugPartiallyApplied[R <: Has[_]](val dummy: Boolean =
 trait ZLayerCompanionVersionSpecific {
       /**
    * Automatically assembles a layer for the provided type.
-   * The type of the target layer[s] must be provided.
    *
    * {{{
-   * ZLayer.fromAuto[A with B](A.live, B.live)
+   * val layer = ZLayer.fromAuto[Car](carLayer, wheelsLayer, engineLayer)
    * }}}
    */
-  inline def fromAuto[R <: Has[_]]: FromLayerAutoPartiallyApplied[R] = new FromLayerAutoPartiallyApplied[R]()
+  inline def fromAuto[R <: Has[_]]: FromAutoPartiallyApplied[R] = 
+    new FromAutoPartiallyApplied[R]()
+
+    /**
+   * Automatically assembles a layer for the provided type `R`, leaving 
+   * a remainder `R0`. 
+   *
+   * {{{
+   * val carLayer: ZLayer[Engine with Wheels, Nothing, Car] = ???
+   * val wheelsLayer: ZLayer[Any, Nothing, Wheels] = ???
+   * 
+   * val layer = ZLayer.fromSomeAuto[Engine, Car](carLayer, wheelsLayer)
+   * }}}
+   */
+  def fromSomeAuto[R0 <: Has[_], R <: Has[_]] =
+    new FromSomeAutoPartiallyApplied[R0, R]
 
     /**
    * Generates a visualization of the automatically assembled
@@ -39,5 +58,5 @@ trait ZLayerCompanionVersionSpecific {
    * >  Console.live
    * >  }}}
    */
-  inline def fromAutoDebug[R <: Has[_]]: FromLayerAutoDebugPartiallyApplied[R] = new FromLayerAutoDebugPartiallyApplied[R]()
+  inline def fromAutoDebug[R <: Has[_]]: FromAutoDebugPartiallyApplied[R] = new FromAutoDebugPartiallyApplied[R]()
 }

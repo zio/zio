@@ -5,7 +5,6 @@ import zio.internal.macros.ProvideLayerAutoMacros
 import zio.internal.macros.AutoLayerMacroUtils
 
 object Cool extends App {
-
   val boolLayer =
     ZLayer.succeed(true)
 
@@ -16,13 +15,19 @@ object Cool extends App {
     ZIO.services[String, Int].flatMap(in => putStrLn(in.toString()))
 
   type ++[A,B] <: Has[_] = (A,B) match {
-    case (a & Has[_], b & Has[_]) => a & b & Has[_]
-    case (a, b & Has[_]) => Has[a] & b
-    case (a & Has[_], b) => a & Has[b]
-    case (a,b) => Has[a] & Has[b] 
+    case (Has[_], Has[_]) => A & B & Has[_]
+    case (_, Has[_]) => Has[A] & B
+    case (Has[_], _) => A & Has[B]
+    case (_,_) => Has[A] & Has[B] 
   }
 
-  val layer12: ULayer[Console ++ String ++ Int] = ZLayer.fromAuto[Console ++ String ++ Int](layer, boolLayer, Console.live) 
+  val nice : ZLayer[Int ++ String, Nothing, Has[ServiceLive]] = 
+    ZLayer.fromServices(ServiceLive.apply)
+
+  case class ServiceLive(int: Int, string: String)
+
+  val layer12: ULayer[Console ++ String ++ Int] = 
+    ZLayer.fromAuto[Console ++ String ++ Int](layer, boolLayer, Console.live) 
 
   def run(args: List[String]) =
     program.provideCustomLayerAuto(layer, boolLayer).exitCode

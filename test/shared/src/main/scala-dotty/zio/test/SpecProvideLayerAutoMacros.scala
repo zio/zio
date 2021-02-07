@@ -21,7 +21,7 @@ object SpecProvideLayerAutoMacros {
     val zEnvLayer = Node(List.empty, ZEnvRequirements, '{TestEnvironment.any})
     val nodes     = (zEnvLayer +: getNodes(layers)).toList
 
-    val expr = buildMemoizedLayer(ExprGraph(nodes), requirements)
+    val expr = buildMemoizedLayer(ZLayerExprBuilder(nodes), requirements)
 
     '{$spec.asInstanceOf[Spec[Has[Unit], E, T]].provideLayer(TestEnvironment.any >>> $expr.asInstanceOf[ZLayer[TestEnvironment, E, Has[Unit]]])}
   }
@@ -40,7 +40,7 @@ object SpecProvideLayerAutoMacros {
     val zEnvLayer = Node(List.empty, ZEnvRequirements, '{TestEnvironment.any})
     val nodes     = (zEnvLayer +: getNodes(layers)).toList
 
-    val expr = buildMemoizedLayer(ExprGraph(nodes), requirements)
+    val expr = buildMemoizedLayer(ZLayerExprBuilder(nodes), requirements)
 
     '{$spec.asInstanceOf[Spec[Has[Unit], E, T]].provideLayerShared(TestEnvironment.any >>> $expr.asInstanceOf[ZLayer[TestEnvironment, E, Has[Unit]]])}
   }

@@ -107,10 +107,20 @@ object AutoLayerSpec extends ZIOBaseSpec {
           val doubleLayer = ZLayer.succeed(100.1)
           val stringLayer = ZLayer.succeed("this string is 28 chars long")
           val intLayer    = ZIO.services[String, Double].map { case (str, double) => str.length + double.toInt }.toLayer
-          val program     = ZIO.service[Int]
 
           val layer    = ZLayer.fromAuto[Has[Int]](intLayer, stringLayer, doubleLayer)
-          val provided = program.provideLayer(layer)
+          val provided = ZIO.service[Int].provideLayer(layer)
+          assertM(provided)(equalTo(128))
+        }
+      ),
+      suite("`ZLayer.fromSomeAuto`")(
+        testM("automatically constructs a layer from its dependencies, leaving off some remainder") {
+          val stringLayer = ZLayer.succeed("this string is 28 chars long")
+          val intLayer    = ZIO.services[String, Double].map { case (str, double) => str.length + double.toInt }.toLayer
+          val program     = ZIO.service[Int]
+
+          val layer    = ZLayer.fromSomeAuto[Has[Double] with Has[Boolean], Has[Int]](intLayer, stringLayer)
+          val provided = program.provideLayer(ZLayer.succeed(true) ++ ZLayer.succeed(100.1) >>> layer)
           assertM(provided)(equalTo(128))
         }
       ),

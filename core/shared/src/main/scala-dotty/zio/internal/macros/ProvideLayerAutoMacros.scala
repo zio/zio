@@ -9,27 +9,20 @@ import zio.internal.macros.StringUtils.StringOps
 import AutoLayerMacroUtils._
 
 object ProvideLayerAutoMacros {
-  def provideLayerAutoImpl[R: Type, E: Type, A: Type](zio: Expr[ZIO[R,E,A]], layers: Expr[Seq[ZLayer[_,E,_]]])(using Quotes): Expr[ZIO[Any,E,A]] = {
-    val expr = buildLayerFor[R](layers)
-    '{$zio.provideLayer($expr.asInstanceOf[ZLayer[Any, E, R]])}
+  def provideLayerAutoImpl[R0: Type, R: Type, E: Type, A: Type](zio: Expr[ZIO[R,E,A]], layers: Expr[Seq[ZLayer[_,E,_]]])(using Quotes): Expr[ZIO[R0,E,A]] = {
+    val layerExpr = fromAutoImpl[R0, R, E](layers)
+    '{$zio.provideLayer($layerExpr)}
   }
 
-  def provideCustomLayerAutoImpl[R <: Has[?], E, A]
-  (zio: Expr[ZIO[R,E,A]], layers: Expr[Seq[ZLayer[_,E,_]]])(using Quotes, Type[R], Type[E], Type[A]): Expr[ZIO[ZEnv,E,A]] = {
-    val ZEnvRequirements = intersectionTypes[ZEnv]
-    val requirements     = intersectionTypes[R] 
+  def fromAutoImpl[In: Type, Out: Type, E: Type](layers: Expr[Seq[ZLayer[_,E,_]]])(using Quotes): Expr[ZLayer[In,E,Out]] = {
+    val deferredRequirements = intersectionTypes[In]
+    val requirements     = intersectionTypes[Out] 
 
-    val zEnvLayer = Node(List.empty, ZEnvRequirements, '{ZEnv.any})
+    val zEnvLayer = Node(List.empty, deferredRequirements, '{ZLayer.requires[In]})
     val nodes     = (zEnvLayer +: getNodes(layers)).toList
 
-    val expr = buildMemoizedLayer(ExprGraph(nodes), requirements)
-
-    '{$zio.asInstanceOf[ZIO[Has[Unit], E, A]].provideLayer(ZEnv.any >>> $expr.asInstanceOf[ZLayer[ZEnv, E, Has[Unit]]])}
-  }
-
-  def fromAutoImpl[Out: Type, E: Type](layers: Expr[Seq[ZLayer[_,E,_]]])(using Quotes): Expr[ZLayer[Any,E,Out]] = {
-    val expr = buildLayerFor[Out](layers)
-    '{$expr.asInstanceOf[ZLayer[Any, E, Out]]}
+    buildMemoizedLayer(ZLayerExprBuilder(nodes), requirements)
+      .asInstanceOf[Expr[ZLayer[In,E,Out]]]
   }
 
   def fromAutoDebugImpl[Out: Type, E: Type](layers: Expr[Seq[ZLayer[_,E,_]]])(using Quotes): Expr[ZLayer[Any,E,Out]] = {
@@ -37,7 +30,7 @@ object ProvideLayerAutoMacros {
     val expr = buildLayerFor[Out](layers)
     '{$expr.asInstanceOf[ZLayer[Any, E, Out]]}
 
-    val graph        = ExprGraph(layers)
+    val graph        = ZLayerExprBuilder(layers)
     val requirements = intersectionTypes[Out]
     graph.buildLayerFor(requirements)
 
@@ -47,7 +40,7 @@ object ProvideLayerAutoMacros {
         .buildComplete(requirements)
         .toOption
         .get
-        .fold(RenderedGraph.Row(List.empty), _ ++ _, _ >>> _).render
+        .fold[RenderedGraph](RenderedGraph.Row(List.empty), identity, _ ++ _, _ >>> _).render
 
     val maxWidth = graphString.maxLineWidth
     val title    = "Layer Graph Visualization"
@@ -61,10 +54,10 @@ object ProvideLayerAutoMacros {
 
 
 trait ExprGraphCompileVariants { self : ZLayerExprBuilder.type =>
-  def apply(layers: Expr[Seq[ZLayer[_,_,_]]])(using ctx: Quotes): ExprGraph[LayerExpr] = 
+  def apply(layers: Expr[Seq[ZLayer[_,_,_]]])(using ctx: Quotes): ZLayerExprBuilder[LayerExpr] = 
     apply(getNodes(layers))
 
-  def apply(nodes: List[Node[LayerExpr]])(using ctx: Quotes): ExprGraph[LayerExpr] = {
+  def apply(nodes: List[Node[LayerExpr]])(using ctx: Quotes): ZLayerExprBuilder[LayerExpr] = {
     import ctx.reflect._
 
     def compileError(message: String) : Nothing = report.throwError(message)
@@ -74,7 +67,7 @@ trait ExprGraphCompileVariants { self : ZLayerExprBuilder.type =>
     def composeV(lhs: LayerExpr, rhs: LayerExpr): LayerExpr =
         '{$lhs.asInstanceOf[ZLayer[_,_,Has[Unit]]] >>> $rhs.asInstanceOf[ZLayer[Has[Unit],_,_]]}
 
-    ExprGraph[LayerExpr](
+    ZLayerExprBuilder[LayerExpr](
       Graph(nodes),
       renderExpr,
       compileError,
