@@ -41,6 +41,7 @@ production to craft concurrent applications.
 Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/master/README.md)!
 
 * [Adidas](https://www.adidas.com/)
+* [Adgear / Samsung Ads](https://adgear.com/en/)
 * [adsquare](https://www.adsquare.com/)
 * [Asana](https://asana.com/)
 * [Aurinko](https://www.aurinko.io/)
