@@ -13,13 +13,13 @@ private [zio] object AutoLayerMacroUtils {
     expr.asTerm.pos.sourceCode.getOrElse(expr.show)
   }
 
-  def buildMemoizedLayer(exprGraph: ZLayerExprBuilder[LayerExpr], requirements: List[String])(using ctx: Quotes) : LayerExpr = {
-    import ctx.reflect._
-
-    val layerExprs = exprGraph.graph.nodes.map(_.value)
+  def buildMemoizedLayer(exprGraph: ZLayerExprBuilder[LayerExpr], requirements: List[String])(using  Quotes) : LayerExpr = {
+    import quotes.reflect._
 
     // This is run for its side effects: Reporting compile errors with the original source names.
     val _ = exprGraph.buildLayerFor(requirements)
+
+    val layerExprs = exprGraph.graph.nodes.map(_.value)
 
     ValDef.let(Symbol.spliceOwner, layerExprs.map(_.asTerm)) { idents =>
       val exprMap = layerExprs.zip(idents).toMap
@@ -34,20 +34,33 @@ private [zio] object AutoLayerMacroUtils {
   }
 
   def buildLayerFor[R: Type](layers: Expr[Seq[ZLayer[_,_,_]]])(using Quotes): LayerExpr =
-    buildMemoizedLayer(ZLayerExprBuilder(layers), intersectionTypes[R])
+    buildMemoizedLayer(ZLayerExprBuilder(layers), getRequirements[R])
 
   def getNodes(layers: Expr[Seq[ZLayer[_,_,_]]])(using Quotes): List[Node[LayerExpr]] =
     layers match {
       case Varargs(args) =>
         args.map {
           case '{$layer: ZLayer[in, e, out]} =>
-          val inputs = intersectionTypes[in]
-          val outputs = intersectionTypes[out]
+          val inputs = getRequirements[in]
+          val outputs = getRequirements[out]
           Node(inputs, outputs, layer)
         }.toList
     }
 
-  def intersectionTypes[T: Type](using ctx: Quotes) : List[String] = {
+  def getRequirements[T: Type](using Quotes): List[String] = {
+      import quotes.reflect._
+
+      val (nonHasTypes, requirements) = intersectionTypes[T].map(_.asType).partitionMap {
+        case '[Has[t]] => Right(TypeRepr.of[t].show)
+        case '[t] => Left(TypeRepr.of[t].show)
+      }
+
+    if (nonHasTypes.nonEmpty) report.throwError(s"Contains non-Has types:\n- ${nonHasTypes.mkString("\n- ")}")
+
+    requirements
+  }
+
+  def intersectionTypes[T: Type](using ctx: Quotes) : List[ctx.reflect.TypeRepr] = {
     import ctx.reflect._
 
     def go(tpe: TypeRepr): List[TypeRepr] =
@@ -57,12 +70,6 @@ private [zio] object AutoLayerMacroUtils {
 
         case AppliedType(_, TypeBounds(_,_) :: _) =>
           List.empty
-
-        case AppliedType(h, head :: Nil) if head.dealias =:= head =>
-          List(head.dealias)
-
-        case AppliedType(h, head :: t) =>
-          go(head) ++ t.flatMap(t => go(t))
 
         case other if other =:= TypeRepr.of[Any] =>
           List.empty
@@ -74,6 +81,6 @@ private [zio] object AutoLayerMacroUtils {
           List(other.dealias)
       }
 
-    go(TypeRepr.of[T]).map(_.show)
+    go(TypeRepr.of[T])
   }
 }

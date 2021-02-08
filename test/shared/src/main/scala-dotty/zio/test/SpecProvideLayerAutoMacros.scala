@@ -15,8 +15,8 @@ object SpecProvideLayerAutoMacros {
 
   def provideCustomLayerAutoImpl[R <: Has[?], E, T]
   (spec: Expr[Spec[R,E,T]], layers: Expr[Seq[ZLayer[_,E,_]]])(using Quotes, Type[R], Type[E], Type[T]): Expr[Spec[TestEnvironment,E,T]] = {
-    val ZEnvRequirements = intersectionTypes[TestEnvironment]
-    val requirements     = intersectionTypes[R] 
+    val ZEnvRequirements = getRequirements[TestEnvironment]
+    val requirements     = getRequirements[R]
 
     val zEnvLayer = Node(List.empty, ZEnvRequirements, '{TestEnvironment.any})
     val nodes     = (zEnvLayer +: getNodes(layers)).toList
@@ -34,8 +34,8 @@ object SpecProvideLayerAutoMacros {
 
   def provideCustomLayerSharedAutoImpl[R <: Has[?], E, T]
   (spec: Expr[Spec[R,E,T]], layers: Expr[Seq[ZLayer[_,E,_]]])(using Quotes, Type[R], Type[E], Type[T]): Expr[Spec[TestEnvironment,E,T]] = {
-    val ZEnvRequirements = intersectionTypes[TestEnvironment]
-    val requirements     = intersectionTypes[R] 
+    val ZEnvRequirements = getRequirements[TestEnvironment]
+    val requirements     = getRequirements[R]
 
     val zEnvLayer = Node(List.empty, ZEnvRequirements, '{TestEnvironment.any})
     val nodes     = (zEnvLayer +: getNodes(layers)).toList

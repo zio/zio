@@ -11,12 +11,12 @@ import AutoLayerMacroUtils._
 object ProvideLayerAutoMacros {
   def provideLayerAutoImpl[R0: Type, R: Type, E: Type, A: Type](zio: Expr[ZIO[R,E,A]], layers: Expr[Seq[ZLayer[_,E,_]]])(using Quotes): Expr[ZIO[R0,E,A]] = {
     val layerExpr = fromAutoImpl[R0, R, E](layers)
-    '{$zio.provideLayer($layerExpr)}
+    '{$zio.provideLayer($layerExpr.asInstanceOf[ZLayer[R0,E,R]])}
   }
 
   def fromAutoImpl[In: Type, Out: Type, E: Type](layers: Expr[Seq[ZLayer[_,E,_]]])(using Quotes): Expr[ZLayer[In,E,Out]] = {
-    val deferredRequirements = intersectionTypes[In]
-    val requirements     = intersectionTypes[Out] 
+    val deferredRequirements = getRequirements[In]
+    val requirements     = getRequirements[Out]
 
     val zEnvLayer = Node(List.empty, deferredRequirements, '{ZLayer.requires[In]})
     val nodes     = (zEnvLayer +: getNodes(layers)).toList
@@ -31,7 +31,7 @@ object ProvideLayerAutoMacros {
     '{$expr.asInstanceOf[ZLayer[Any, E, Out]]}
 
     val graph        = ZLayerExprBuilder(layers)
-    val requirements = intersectionTypes[Out]
+    val requirements = getRequirements[Out]
     graph.buildLayerFor(requirements)
 
     val graphString: String = 

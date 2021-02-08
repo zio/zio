@@ -1,14 +1,13 @@
 package zio.internal.macros
 
 import zio._
+import zio.internal.ansi.AnsiStringOps
 
 import scala.reflect.macros.blackbox
 
 trait AutoLayerMacroUtils {
   val c: blackbox.Context
   import c.universe._
-
-  private val zioSymbol = typeOf[Has[_]].typeSymbol
 
   type LayerExpr = c.Expr[ZLayer[_, _, _]]
 
@@ -56,11 +55,26 @@ trait AutoLayerMacroUtils {
   def getRequirements[T: c.WeakTypeTag]: List[String] =
     getRequirements(weakTypeOf[T])
 
-  def getRequirements(tpe: Type): List[String] =
-    tpe.intersectionTypes
-      .filter(_.dealias.typeSymbol == zioSymbol)
+  def isValidHasType(tpe: Type): Boolean =
+    tpe.isHas || tpe.isAny
+
+  def getRequirements(tpe: Type): List[String] = {
+    val intersectionTypes = tpe.intersectionTypes
+
+    intersectionTypes.filter(!isValidHasType(_)) match {
+      case Nil => ()
+      case nonHasTypes =>
+        c.abort(
+          c.enclosingPosition,
+          s"\nContains non-Has types:\n- ${nonHasTypes.map(_.toString.white).mkString("\n- ")}"
+        )
+    }
+
+    intersectionTypes
+      .filter(_.isHas)
       .map(_.dealias.typeArgs.head.dealias.toString)
       .distinct
+  }
 
   def assertProperVarArgs(layers: Seq[c.Expr[_]]): Unit =
     layers.map(_.tree) collect { case Typed(_, Ident(typeNames.WILDCARD_STAR)) =>
@@ -71,6 +85,9 @@ trait AutoLayerMacroUtils {
     }
 
   implicit class TypeOps(self: Type) {
+    def isHas: Boolean = self.dealias.typeSymbol == typeOf[Has[_]].typeSymbol
+
+    def isAny: Boolean = self.dealias.typeSymbol == typeOf[Any].typeSymbol
 
     /**
      * Given a type `A with B with C` You'll get back List[A,B,C]
