@@ -4,6 +4,7 @@ import zio._
 import scala.quoted._
 import scala.compiletime._
 import zio.internal.macros.StringUtils.StringOps
+import zio.internal.ansi.AnsiStringOps
 
 private [zio] object AutoLayerMacroUtils {
   type LayerExpr = Expr[ZLayer[_,_,_]]
@@ -36,7 +37,8 @@ private [zio] object AutoLayerMacroUtils {
   def buildLayerFor[R: Type](layers: Expr[Seq[ZLayer[_,_,_]]])(using Quotes): LayerExpr =
     buildMemoizedLayer(ZLayerExprBuilder(layers), getRequirements[R])
 
-  def getNodes(layers: Expr[Seq[ZLayer[_,_,_]]])(using Quotes): List[Node[LayerExpr]] =
+  def getNodes(layers: Expr[Seq[ZLayer[_,_,_]]])(using Quotes): List[Node[LayerExpr]] = {
+    import quotes.reflect._
     layers match {
       case Varargs(args) =>
         args.map {
@@ -45,14 +47,18 @@ private [zio] object AutoLayerMacroUtils {
           val outputs = getRequirements[out]
           Node(inputs, outputs, layer)
         }.toList
+
+      case _ => 
+        report.throwError("Auto-construction cannot work with `someList: _*` syntax.\nPlease pass the layers themselves into this method.")
     }
+  }
 
   def getRequirements[T: Type](using Quotes): List[String] = {
       import quotes.reflect._
 
       val (nonHasTypes, requirements) = intersectionTypes[T].map(_.asType).partitionMap {
         case '[Has[t]] => Right(TypeRepr.of[t].show)
-        case '[t] => Left(TypeRepr.of[t].show)
+        case '[t] => Left(TypeRepr.of[t].show.white)
       }
 
     if (nonHasTypes.nonEmpty) report.throwError(s"Contains non-Has types:\n- ${nonHasTypes.mkString("\n- ")}")
