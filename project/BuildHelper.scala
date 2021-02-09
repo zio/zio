@@ -280,13 +280,7 @@ object BuildHelper {
     }
   )
 
-  def jsSettings = Seq(
-    libraryDependencies += "io.github.cquiroz" %%% "scala-java-time"      % "2.1.0",
-    libraryDependencies += "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.1.0"
-  )
-
   def nativeSettings = Seq(
-    libraryDependencies += "org.ekrich" %%% "sjavatime" % "1.1.1",
     Test / skip := true,
     doc / skip := true,
     SettingKey[Boolean](
