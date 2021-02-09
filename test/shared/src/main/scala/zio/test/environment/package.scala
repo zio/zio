@@ -24,7 +24,7 @@ import zio.system.System
 import zio.{PlatformSpecific => _, _}
 
 import java.io.{EOFException, IOException}
-import java.time.{Instant, OffsetDateTime, ZoneId}
+import java.time.{Instant, LocalDateTime, OffsetDateTime, ZoneId}
 import java.util.concurrent.TimeUnit
 import scala.collection.immutable.{Queue, SortedSet}
 import scala.math.{log, sqrt}
@@ -280,6 +280,18 @@ package object environment extends PlatformSpecific {
         clockState.get.map(_.duration.toNanos)
 
       /**
+       * Returns the current clock time as an `Instant`.
+       */
+      val instant: UIO[Instant] =
+        clockState.get.map(data => toInstant(data.duration))
+
+      /**
+       * Returns the current clock time as a `LocalDateTime`.
+       */
+      val localDateTime: UIO[LocalDateTime] =
+        clockState.get.map(data => toLocalDateTime(data.duration, data.timeZone))
+
+      /**
        * Saves the `TestClock`'s current state in an effect which, when run,
        * will restore the `TestClock` state to the saved state
        */
@@ -443,7 +455,19 @@ package object environment extends PlatformSpecific {
        * Constructs an `OffsetDateTime` from a `Duration` and a `ZoneId`.
        */
       private def toDateTime(duration: Duration, timeZone: ZoneId): OffsetDateTime =
-        OffsetDateTime.ofInstant(Instant.ofEpochMilli(duration.toMillis), timeZone)
+        OffsetDateTime.ofInstant(toInstant(duration), timeZone)
+
+      /**
+       * Constructs a `LocalDateTime` from a `Duration` and a `ZoneId`.
+       */
+      private def toLocalDateTime(duration: Duration, timeZone: ZoneId): LocalDateTime =
+        LocalDateTime.ofInstant(toInstant(duration), timeZone)
+
+      /**
+       * Constructs an `Instant` from a `Duration`.
+       */
+      private def toInstant(duration: Duration): Instant =
+        Instant.ofEpochMilli(duration.toMillis)
 
       /**
        * Forks a fiber that will display a warning message if a test is using

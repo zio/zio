@@ -18,7 +18,7 @@ package zio
 
 import zio.duration.Duration
 
-import java.time.{DateTimeException, Instant, LocalDateTime, OffsetDateTime}
+import java.time.{Instant, LocalDateTime, OffsetDateTime}
 import java.util.concurrent.TimeUnit
 
 package object clock {
@@ -30,15 +30,11 @@ package object clock {
 
       def currentTime(unit: TimeUnit): UIO[Long]
 
-      // Could be UIO. We keep IO to preserve binary compatibility.
-      def currentDateTime: IO[DateTimeException, OffsetDateTime]
+      def currentDateTime: UIO[OffsetDateTime]
 
-      // The implementation is only here to preserve binary compatibility.
-      def instant: UIO[java.time.Instant] = currentTime(TimeUnit.MILLISECONDS).map(java.time.Instant.ofEpochMilli(_))
+      def instant: UIO[java.time.Instant]
 
-      // This could be a UIO. We keep IO to preserve binary compatibility.
-      // The implementation is only here to preserve binary compatibility.
-      def localDateTime: IO[DateTimeException, java.time.LocalDateTime] = currentDateTime.map(_.toLocalDateTime())
+      def localDateTime: UIO[java.time.LocalDateTime]
 
       def nanoTime: UIO[Long]
 
@@ -69,13 +65,13 @@ package object clock {
             Left(UIO.effectTotal(canceler()))
           }
 
-        def currentDateTime: IO[DateTimeException, OffsetDateTime] =
+        def currentDateTime: UIO[OffsetDateTime] =
           ZIO.effectTotal(OffsetDateTime.now())
 
-        override def instant: zio.UIO[Instant] =
+        override def instant: UIO[Instant] =
           ZIO.effectTotal(Instant.now())
 
-        override def localDateTime: zio.IO[DateTimeException, LocalDateTime] =
+        override def localDateTime: UIO[LocalDateTime] =
           ZIO.effectTotal(LocalDateTime.now())
 
       }
@@ -97,7 +93,7 @@ package object clock {
   /**
    * Get the current time, represented in the current timezone.
    */
-  val currentDateTime: ZIO[Clock, DateTimeException, OffsetDateTime] =
+  val currentDateTime: URIO[Clock, OffsetDateTime] =
     ZIO.accessM(_.get.currentDateTime)
 
   val instant: ZIO[Clock, Nothing, java.time.Instant] =
