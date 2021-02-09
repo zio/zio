@@ -300,7 +300,7 @@ object BuildHelper {
       if (isDotty.value)
         Seq(("org.scala-lang" % "scala-reflect" % Scala213 % Provided).withDottyCompat(scalaVersion.value))
       else
-        Seq("org.scala-lang" % "scala-reflect" % scalaVersion.value)
+        Seq("org.scala-lang" % "scala-reflect" % scalaVersion.value % Provided)
     }
   )
 
