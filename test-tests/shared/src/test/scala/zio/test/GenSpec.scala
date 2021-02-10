@@ -170,6 +170,9 @@ object GenSpec extends ZIOBaseSpec {
       testM("chunkOfN generates chunks of correct size") {
         checkSample(Gen.chunkOfN(10)(smallInt))(forall(equalTo(10)), _.map(_.length))
       },
+      testM("collect collects values a partial function is defined at") {
+        checkSample(smallInt.collect { case n if n % 2 == 0 => n })(forall(equalTo(0)), _.map(_ % 2))
+      },
       testM("const generates constant value") {
         checkSample(Gen.const("constant"))(forall(equalTo("constant")))
       },
@@ -433,6 +436,9 @@ object GenSpec extends ZIOBaseSpec {
       },
       testM("chunkOfN shrinks elements") {
         checkShrink(Gen.chunkOfN(10)(smallInt))(Chunk.fill(10)(-10))
+      },
+      testM("collect collects shrinks a partial function is defined at") {
+        checkShrink(Gen.int(1, 10).collect { case n if n % 2 == 0 => n })(2)
       },
       testM("double shrinks to bottom of range") {
         checkShrink(Gen.double(5.0, 9.0))(5.0)
