@@ -3050,6 +3050,24 @@ object ZIOSpec extends ZIOBaseSpec {
         }
       }
     ),
+    suite("tapSome")(
+      testM("is identity if the function doesn't match") {
+        for {
+          ref    <- Ref.make(false)
+          result <- ref.set(true).as(42).tapSome(PartialFunction.empty)
+          effect <- ref.get
+        } yield assert(result)(equalTo(42)) &&
+          assert(effect)(isTrue)
+      },
+      testM("runs the effect if the function matches") {
+        for {
+          ref    <- Ref.make(0)
+          result <- ref.set(10).as(42).tapSome { case r => ref.set(r) }
+          effect <- ref.get
+        } yield assert(result)(equalTo(42)) &&
+          assert(effect)(equalTo(42))
+      }
+    ),
     suite("tapCause")(
       testM("effectually peeks at the cause of the failure of this effect") {
         for {
