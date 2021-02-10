@@ -1,9 +1,9 @@
 package zio.test.mock
 
 import zio.console.Console
-import zio.test.{ Assertion, ZIOBaseSpec, ZSpec }
 import zio.test.mock.internal.MockException
-import zio.{ ZIO, console }
+import zio.test.{Assertion, ZIOBaseSpec, ZSpec}
+import zio.{ZIO, console}
 
 object EmptyMockSpec extends ZIOBaseSpec with MockSpecUtils[Console] {
 
@@ -29,7 +29,7 @@ object EmptyMockSpec extends ZIOBaseSpec with MockSpecUtils[Console] {
               hasField[X, Any]("args", _.args, equalTo("foo"))
           )
         )
-      },
+      }
     )
   )
 }

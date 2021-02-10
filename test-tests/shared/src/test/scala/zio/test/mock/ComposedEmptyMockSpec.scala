@@ -2,9 +2,10 @@ package zio.test.mock
 
 import zio.clock.Clock
 import zio.console.Console
-import zio.test.{Assertion, ZIOBaseSpec, ZSpec}
 import zio.test.mock.internal.MockException
-import zio.{clock, console, ZIO }
+import zio.test.{Assertion, ZIOBaseSpec, ZSpec}
+import zio.{ZIO, clock, console}
+
 import java.io.IOException
 
 object ComposedEmptyMockSpec extends ZIOBaseSpec with MockSpecUtils[Console with Clock] {
@@ -13,11 +14,14 @@ object ComposedEmptyMockSpec extends ZIOBaseSpec with MockSpecUtils[Console with
   import Expectation._
   import MockException._
 
-  def branchingProgram(predicate: Boolean) =
-    ZIO.succeed(predicate).flatMap {
-      case true  => console.getStrLn
-      case false => clock.nanoTime
-    }.unit
+  def branchingProgram(predicate: Boolean): ZIO[Console with Clock, IOException, Unit] =
+    ZIO
+      .succeed(predicate)
+      .flatMap {
+        case true  => console.getStrLn
+        case false => clock.nanoTime
+      }
+      .unit
 
   def spec: ZSpec[Environment, Failure] = suite("ComposedEmptyMockSpec")(
     suite("expect no calls on empty mocks")(
@@ -25,8 +29,7 @@ object ComposedEmptyMockSpec extends ZIOBaseSpec with MockSpecUtils[Console with
         MockConsole.empty ++ MockClock.NanoTime(value(42L)),
         branchingProgram(false),
         isUnit
-      ),
-      {
+      ), {
         type M = Capability[Console, Unit, IOException, String]
         type X = UnexpectedCallException[Console, Unit, IOException, String]
 
@@ -56,7 +59,7 @@ object ComposedEmptyMockSpec extends ZIOBaseSpec with MockSpecUtils[Console with
               hasField[X, Any]("args", _.args, equalTo(()))
           )
         )
-      },
+      }
     )
   )
 }
