@@ -512,6 +512,11 @@ object ChunkSpec extends ZIOBaseSpec {
       assert(Chunk(1, 2, 3).zipAllWith(Chunk(3, 2))(_ => 0, _ => 0)(_ + _))(equalTo(Chunk(4, 4, 0))) &&
       assert(Chunk(1, 2).zipAllWith(Chunk(3, 2, 1))(_ => 0, _ => 0)(_ + _))(equalTo(Chunk(4, 4, 0)))
     },
+    test("zipWithIndex") {
+      val (ch1, ch2) = Chunk("a", "b", "c", "d").splitAt(2)
+      val ch         = ch1 ++ ch2
+      assert(ch.zipWithIndex.toList)(equalTo(ch.toList.zipWithIndex))
+    },
     test("partitionMap") {
       val as       = Chunk(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)
       val (bs, cs) = as.partitionMap(n => if (n % 2 == 0) Left(n) else Right(n))
