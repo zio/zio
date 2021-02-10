@@ -114,6 +114,7 @@ lazy val root = project
     stacktracerNative,
     testRunnerJS,
     testRunnerJVM,
+    testRunnerNative,
     testJunitRunnerJVM,
     testJunitRunnerTestsJVM,
     testMagnoliaJVM,
@@ -136,7 +137,6 @@ lazy val coreJVM = core.jvm
   .settings(mimaSettings(failOnProblem = true))
 
 lazy val coreJS = core.js
-  .settings(jsSettings)
 
 lazy val coreNative = core.native
   .settings(nativeSettings)
@@ -167,7 +167,6 @@ lazy val coreTestsJVM = coreTests.jvm
   .settings(replSettings)
 
 lazy val coreTestsJS = coreTests.js
-  .settings(jsSettings)
 
 lazy val macros = crossProject(JSPlatform, JVMPlatform)
   .in(file("macros"))
@@ -180,7 +179,7 @@ lazy val macros = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(testRunner)
 
 lazy val macrosJVM = macros.jvm.settings(dottySettings)
-lazy val macrosJS  = macros.js.settings(jsSettings)
+lazy val macrosJS  = macros.js
 
 lazy val streams = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("streams"))
@@ -221,7 +220,6 @@ lazy val streamsTestsJVM = streamsTests.jvm
   .settings(dottySettings)
 
 lazy val streamsTestsJS = streamsTests.js
-  .settings(jsSettings)
 
 lazy val test = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("test"))
@@ -242,8 +240,15 @@ lazy val testJVM = test.jvm
   // No bincompat on zio-test yet
   .settings(mimaSettings(failOnProblem = false))
 lazy val testJS = test.js
+  .settings(
+    libraryDependencies ++= List(
+      "io.github.cquiroz" %%% "scala-java-time"      % "2.1.0",
+      "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.1.0"
+    )
+  )
 lazy val testNative = test.native
   .settings(nativeSettings)
+  .settings(libraryDependencies += "org.ekrich" %%% "sjavatime" % "1.1.1")
 
 lazy val testTests = crossProject(JSPlatform, JVMPlatform)
   .in(file("test-tests"))
@@ -258,7 +263,7 @@ lazy val testTests = crossProject(JSPlatform, JVMPlatform)
   .enablePlugins(BuildInfoPlugin)
 
 lazy val testTestsJVM = testTests.jvm.settings(dottySettings)
-lazy val testTestsJS  = testTests.js.settings(jsSettings)
+lazy val testTestsJS  = testTests.js
 
 lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-magnolia"))
@@ -305,7 +310,7 @@ lazy val testMagnoliaTests = crossProject(JVMPlatform, JSPlatform)
 
 lazy val testMagnoliaTestsJVM = testMagnoliaTests.jvm
   .settings(dottySettings)
-lazy val testMagnoliaTestsJS = testMagnoliaTests.js.settings(jsSettings)
+lazy val testMagnoliaTestsJS = testMagnoliaTests.js
 
 lazy val testRefined = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-refined"))
@@ -342,26 +347,23 @@ lazy val stacktracerNative = stacktracer.native
   .settings(nativeSettings)
   .settings(scalacOptions -= "-Xfatal-warnings") // Issue 3112
 
-lazy val testRunner = crossProject(JVMPlatform, JSPlatform)
+lazy val testRunner = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("test-sbt"))
   .settings(stdSettings("zio-test-sbt"))
   .settings(crossProjectSettings)
   .settings(mainClass in (Test, run) := Some("zio.test.sbt.TestMain"))
-  .jsSettings(
-    libraryDependencies ++= Seq(
-      "org.scala-js" %% "scalajs-test-interface" % scalaJSVersion
-    )
-  )
-  .jvmSettings(
-    libraryDependencies ++= Seq("org.scala-sbt" % "test-interface" % "1.0")
-  )
   .dependsOn(core)
   .dependsOn(test)
 
 lazy val testRunnerJVM = testRunner.jvm
   .settings(dottySettings)
   .settings(scalaReflectTestSettings)
-lazy val testRunnerJS = testRunner.js.settings(jsSettings)
+  .settings(libraryDependencies ++= Seq("org.scala-sbt" % "test-interface" % "1.0"))
+lazy val testRunnerJS = testRunner.js
+  .settings(libraryDependencies ++= Seq("org.scala-js" %% "scalajs-test-interface" % scalaJSVersion))
+lazy val testRunnerNative = testRunner.native
+  .settings(nativeSettings)
+  .settings(libraryDependencies ++= Seq("org.scala-native" %%% "test-interface" % nativeVersion))
 
 lazy val testJunitRunner = crossProject(JVMPlatform)
   .in(file("test-junit"))
@@ -428,7 +430,7 @@ lazy val examples = crossProject(JVMPlatform, JSPlatform)
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
   .dependsOn(macros, testRunner)
 
-lazy val examplesJS = examples.js.settings(jsSettings)
+lazy val examplesJS = examples.js
 lazy val examplesJVM = examples.jvm
   .settings(dottySettings)
   .dependsOn(testJunitRunnerJVM)
