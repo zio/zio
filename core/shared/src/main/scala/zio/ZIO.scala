@@ -2698,7 +2698,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Retrieves the executor for this effect.
    */
   def executor: UIO[Executor] =
-    effectSuspendTotalWith((platform, _) => ZIO.succeedNow(platform.executor))
+    ZIO.descriptorWith(descriptor => ZIO.succeedNow(descriptor.executor))
 
   /**
    * Returns an effect that models failure with the specified error.
@@ -3383,7 +3383,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * [[ZIO!.lock]].
    */
   def lock[R, E, A](executor: => Executor)(zio: ZIO[R, E, A]): ZIO[R, E, A] =
-    ZIO.effectSuspendTotal(new ZIO.Lock(executor, zio))
+    ZIO.descriptorWith(descriptor => ZIO.shift(executor).bracket_(ZIO.shift(descriptor.executor), zio))
 
   /**
    * Loops with the specified effectual function, collecting the results into a
@@ -3765,7 +3765,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     for {
       environment <- environment[R]
       platform    <- effectSuspendTotalWith((p, _) => ZIO.succeedNow(p))
-    } yield Runtime(environment, platform)
+      executor    <- executor
+    } yield Runtime(environment, platform.withExecutor(executor))
 
   /**
    * Passes the fiber's scope to the specified function, which creates an effect
@@ -3804,6 +3805,16 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   def services[A: Tag, B: Tag, C: Tag, D: Tag]: URIO[Has[A] with Has[B] with Has[C] with Has[D], (A, B, C, D)] =
     ZIO.access(r => (r.get[A], r.get[B], r.get[C], r.get[D]))
+
+  /**
+   * Returns an effect that shifts execution to the specified executor. This
+   * is useful to specify a default executor that effects sequenced after this
+   * one will be run on if they are not shifted somewhere else. It can also be
+   * used to implement higher level operators to manage where an effect is run
+   * such as [[ZIO!.lock]] and [[ZIO!.on]].
+   */
+  def shift(executor: Executor): UIO[Unit] =
+    new ZIO.Shift(executor)
 
   /**
    * Returns an effect that suspends for the specified duration. This method is
@@ -4282,7 +4293,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     final val EffectAsync              = 8
     final val Fork                     = 9
     final val Descriptor               = 10
-    final val Lock                     = 11
+    final val Shift                    = 11
     final val Yield                    = 12
     final val Access                   = 13
     final val Provide                  = 14
@@ -4370,8 +4381,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     override def tag = Tags.Descriptor
   }
 
-  private[zio] final class Lock[R, E, A](val executor: Executor, val zio: ZIO[R, E, A]) extends ZIO[R, E, A] {
-    override def tag = Tags.Lock
+  private[zio] final class Shift(val executor: Executor) extends UIO[Unit] {
+    override def tag = Tags.Shift
   }
 
   private[zio] object Yield extends UIO[Unit] {

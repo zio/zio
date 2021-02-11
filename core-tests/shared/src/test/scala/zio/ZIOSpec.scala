@@ -351,6 +351,17 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(IO.done(failed).run)(fails(equalTo(error)))
       }
     ),
+    suite("executor")(
+      testM("retrieves the current executor for this effect") {
+        val executor = internal.Executor.fromExecutionContext(100) {
+          scala.concurrent.ExecutionContext.Implicits.global
+        }
+        for {
+          default <- ZIO.executor
+          global  <- ZIO.executor.lock(executor)
+        } yield assert(default)(not(equalTo(global)))
+      }
+    ),
     suite("repeatUntil")(
       testM("repeatUntil repeats until condition is true") {
         for {

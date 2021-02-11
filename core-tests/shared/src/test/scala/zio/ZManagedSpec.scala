@@ -4,10 +4,13 @@ import zio.Cause.Interrupt
 import zio.Exit.Failure
 import zio.ZManaged.ReleaseMap
 import zio.duration._
+import zio.internal.Executor
 import zio.test.Assertion._
 import zio.test.TestAspect.{nonFlaky, scala2Only}
 import zio.test._
 import zio.test.environment._
+
+import scala.concurrent.ExecutionContext
 
 object ZManagedSpec extends ZIOBaseSpec {
 
@@ -474,6 +477,27 @@ object ZManagedSpec extends ZIOBaseSpec {
         val onFalse: ZManaged[R1, E1, A] = ZManaged.succeed(new A {})
         val _                            = ZManaged.ifM(b)(onTrue, onFalse)
         ZIO.succeed(assertCompletes)
+      }
+    ),
+    suite("lock")(
+      testM("locks acquire, use, and release actions to the specified executor") {
+        val executor: UIO[Executor] = ZIO.descriptorWith(descriptor => ZIO.succeedNow(descriptor.executor))
+        val global                  = Executor.fromExecutionContext(100)(ExecutionContext.global)
+        for {
+          default <- executor
+          ref1    <- Ref.make[Executor](default)
+          ref2    <- Ref.make[Executor](default)
+          managed  = ZManaged.make_(executor.flatMap(ref1.set))(executor.flatMap(ref2.set)).lock(global)
+          before  <- executor
+          use     <- managed.use_(executor)
+          acquire <- ref1.get
+          release <- ref2.get
+          after   <- executor
+        } yield assert(before)(equalTo(default)) &&
+          assert(acquire)(equalTo(global)) &&
+          assert(use)(equalTo(global)) &&
+          assert(release)(equalTo(global)) &&
+          assert(after)(equalTo(default))
       }
     ),
     suite("mergeAll")(

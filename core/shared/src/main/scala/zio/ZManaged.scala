@@ -19,8 +19,10 @@ package zio
 import zio.ZManaged.ReleaseMap
 import zio.clock.Clock
 import zio.duration.Duration
+import zio.internal.Executor
 
 import scala.collection.immutable.LongMap
+import scala.concurrent.ExecutionContext
 import scala.reflect.ClassTag
 
 /**
@@ -443,6 +445,14 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
   def left[R1 <: R, C]: ZManaged[Either[R1, C], E, Either[A, C]] = self +++ ZManaged.identity
 
   /**
+   * Locks this managed effect to the specified executor, guaranteeing that
+   * this managed effect as well as managed effects that are composed
+   * sequentially after it will be run on the specified executor.
+   */
+  final def lock(executor: Executor): ZManaged[R, E, A] =
+    ZManaged.lock(executor) *> self
+
+  /**
    * Returns an effect whose success is mapped by the specified `f` function.
    */
   def map[B](f: A => B): ZManaged[R, E, B] =
@@ -503,6 +513,13 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
       e => ZManaged.fail(Some(e)),
       a => a.fold[ZManaged[R, Option[E], Unit]](ZManaged.succeedNow(()))(_ => ZManaged.fail(None))
     )
+
+  /**
+   * Runs this managed effect, as well as any managed effects that are composed
+   * sequentially after it, using the specified `ExecutionContext`.
+   */
+  final def on(ec: ExecutionContext): ZManaged[R, E, A] =
+    self.lock(Executor.fromExecutionContext(Int.MaxValue)(ec))
 
   /**
    * Ensures that a cleanup function runs when this ZManaged is finalized, after
@@ -1830,6 +1847,14 @@ object ZManaged extends ZManagedPlatformSpecific {
     else ZManaged.succeedNow(initial)
 
   /**
+   * Returns a managed effect that describes shifting to the specified executor
+   * as the `acquire` action and shifting back to the original executor as the
+   * `release` action.
+   */
+  def lock(executor: => Executor): ZManaged[Any, Nothing, Unit] =
+    ZManaged.make(ZIO.descriptorWith(descriptor => ZIO.shift(executor).as(descriptor.executor)))(ZIO.shift).unit
+
+  /**
    * Loops with the specified effectual function, collecting the results into a
    * list. The moral equivalent of:
    *
@@ -2207,6 +2232,13 @@ object ZManaged extends ZManagedPlatformSpecific {
 
   def sandbox[R, E, A](v: ZManaged[R, E, A]): ZManaged[R, Cause[E], A] =
     v.sandbox
+
+  /**
+   * Returns a managed effect that describes shifting to the specified executor
+   * as the `acquire` action with no release action.
+   */
+  def shift(executor: => Executor): ZManaged[Any, Nothing, Unit] =
+    ZManaged.fromEffect(ZIO.shift(executor))
 
   /**
    * A scope in which [[ZManaged]] values can be safely allocated. Passing a managed

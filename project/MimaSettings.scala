@@ -15,7 +15,9 @@ object MimaSettings {
         exclude[Problem]("zio.internal.*"),
         exclude[DirectMissingMethodProblem]("zio.ZManaged.reserve"),
         exclude[DirectMissingMethodProblem]("zio.ZIO#Fork.this"),
-        exclude[IncompatibleResultTypeProblem]("zio.stm.TSemaphore.assertNonNegative$extension")
+        exclude[IncompatibleResultTypeProblem]("zio.stm.TSemaphore.assertNonNegative$extension"),
+        exclude[MissingClassProblem]("zio.ZIO$Lock"),
+        exclude[DirectMissingMethodProblem]("zio.ZIO#Tags.Lock")
       ),
       mimaFailOnProblem := failOnProblem
     )

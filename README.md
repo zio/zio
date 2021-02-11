@@ -40,6 +40,7 @@ production to craft concurrent applications.
 
 Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/master/README.md)!
 
+* [AdGear / Samsung Ads](https://adgear.com/en/)
 * [Adidas](https://www.adidas.com/)
 * [adsquare](https://www.adsquare.com/)
 * [Asana](https://asana.com/)
@@ -84,7 +85,9 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Rocker](https://rocker.com/)
 * [Rudder](https://www.rudder.io/)
 * [SoftwareMill](https://softwaremill.com/)
+* [Stuart](https://stuart.com/)
 * [TomTom](https://tomtom.com)
+* [Tinkoff](https://tinkoff.ru)
 * [Tweddle Group](https://tweddle.com)
 * [Unit](https://unit.co)
 * [Univalence](https://univalence.io)

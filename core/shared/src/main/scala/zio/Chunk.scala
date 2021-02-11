@@ -978,14 +978,16 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
     val iterator = arrayIterator
     val builder  = ChunkBuilder.make[(A, Int)]()
     builder.sizeHint(length)
+    var idx = indexOffset
     while (iterator.hasNext) {
       val array  = iterator.next()
       val length = array.length
-      var i      = indexOffset
+      var i      = 0
       while (i < length) {
         val a = array(i)
-        builder += ((a, i))
+        builder += ((a, idx))
         i += 1
+        idx += 1
       }
     }
     builder.result()
