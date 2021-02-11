@@ -11,7 +11,7 @@ import zio.test._
  *
  * Concurrent tests are run via jcstress and are in [[RingBufferConcurrencyTests]].
  */
-object MutableConcurrentQueueJVM extends ZIOBaseSpec {
+object MutableConcurrentQueueSpecJVM extends ZIOBaseSpec {
 
   def spec: ZSpec[Environment, Failure] = suite("MutableConcurrentQueueSpec")(
     suite("Serialization works for")(
