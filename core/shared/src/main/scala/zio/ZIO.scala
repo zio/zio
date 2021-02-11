@@ -2698,7 +2698,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Retrieves the executor for this effect.
    */
   def executor: UIO[Executor] =
-    effectSuspendTotalWith((platform, _) => ZIO.succeedNow(platform.executor))
+    ZIO.descriptorWith(descriptor => ZIO.succeedNow(descriptor.executor))
 
   /**
    * Returns an effect that models failure with the specified error.
@@ -3765,7 +3765,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     for {
       environment <- environment[R]
       platform    <- effectSuspendTotalWith((p, _) => ZIO.succeedNow(p))
-    } yield Runtime(environment, platform)
+      executor    <- executor
+    } yield Runtime(environment, platform.withExecutor(executor))
 
   /**
    * Passes the fiber's scope to the specified function, which creates an effect
