@@ -258,7 +258,7 @@ Let's add some extra logic to our program that creates a user:
 ```scala mdoc:silent
 val makeUser2: ZIO[Logging with UserRepo with Clock with Random, DBError, Unit] = for {
     uId       <- zio.random.nextLong.map(UserId)
-    createdAt <- zio.clock.currentDateTime.orDie
+    createdAt <- zio.clock.currentDateTime
     _         <- Logging.info(s"inserting user")
     _         <- UserRepo.createUser(User(uId, "Chet"))
     _         <- Logging.info(s"user inserted, created at $createdAt")

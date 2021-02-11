@@ -208,7 +208,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
         val update: ZLayer[((RIn1, S), E), E, (RIn1, S)] =
           ZLayer.fromFunctionManyM {
             case ((r, s), e) =>
-              clock.currentDateTime.orDie.flatMap(now => s(now, e).flatMap {
+              clock.currentDateTime.flatMap(now => s(now, e).flatMap {
                 case Done(_) => ZIO.fail(e)
                 case Continue(_, interval, next) => clock.sleep(Duration.fromInterval(now, interval)) as ((r, next))
               }).provide(r)
