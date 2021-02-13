@@ -452,7 +452,7 @@ lazy val benchmarks = project.module
         "com.typesafe.akka"         %% "akka-stream"    % "2.6.12",
         "io.monix"                  %% "monix"          % "3.3.0",
         "io.projectreactor"          % "reactor-core"   % "3.4.2",
-        "io.reactivex.rxjava2"       % "rxjava"         % "2.2.20",
+        "io.reactivex.rxjava2"       % "rxjava"         % "2.2.21",
         "org.jctools"                % "jctools-core"   % "3.2.0",
         "org.ow2.asm"                % "asm"            % "9.1",
         "org.scala-lang"             % "scala-compiler" % scalaVersion.value % Provided,
