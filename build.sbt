@@ -369,7 +369,7 @@ lazy val testJunitRunner = crossProject(JVMPlatform)
   .in(file("test-junit"))
   .settings(stdSettings("zio-test-junit"))
   .settings(crossProjectSettings)
-  .settings(libraryDependencies ++= Seq("junit" % "junit" % "4.13.1"))
+  .settings(libraryDependencies ++= Seq("junit" % "junit" % "4.13.2"))
   .dependsOn(test)
 
 lazy val testJunitRunnerJVM = testJunitRunner.jvm.settings(dottySettings)
@@ -389,7 +389,7 @@ lazy val testJunitRunnerTests = crossProject(JVMPlatform)
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
   .settings(
     libraryDependencies ++= Seq(
-      "junit"                   % "junit"     % "4.13.1" % Test,
+      "junit"                   % "junit"     % "4.13.2" % Test,
       "org.scala-lang.modules" %% "scala-xml" % "1.3.0"  % Test,
       // required to run embedded maven in the tests
       "org.apache.maven"       % "maven-embedder"         % "3.6.3"  % Test,
