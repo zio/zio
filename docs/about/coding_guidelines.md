@@ -10,7 +10,7 @@ Additionally, bear in mind that, although we try to enforce these rules to the
 best of our ability, both via automated rules (scalafix) and strict reviewing 
 processes, it is both possible to find existing code that does not comply to 
 these rules. If that is the case, we would be extremely grateful if you could 
-make a contribution, by proving a fix to said issue.
+make a contribution, by providing a fix to said issue.
 
 Last, but not least, these rules are continuously evolving and as such, 
 refer to them once in a while when in doubt.
