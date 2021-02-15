@@ -81,6 +81,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [NewMotion](https://newmotion.com)
 * [Optrak](https://optrak.com)
 * [Performance Immo](https://www.performance-immo.com/)
+* [Playtika](https://www.playtika.com)
 * [PPC Samurai](https://ppcsamurai.com/)
 * [Risk Ident](https://riskident.com/)
 * [Rocker](https://rocker.com/)
