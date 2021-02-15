@@ -42,7 +42,7 @@ addCommandAlias("fmt", "all root/scalafmtSbt root/scalafmtAll")
 addCommandAlias("fmtCheck", "all root/scalafmtSbtCheck root/scalafmtCheckAll")
 addCommandAlias(
   "compileJVM",
-  ";coreTestsJVM/test:compile;stacktracerJVM/test:compile;streamsTestsJVM/test:compile;testTestsJVM/test:compile;testMagnoliaTestsJVM/test:compile;testRunnerJVM/test:compile;examplesJVM/test:compile;macrosJVM/test:compile"
+  ";coreTestsJVM/test:compile;stacktracerJVM/test:compile;streamsTestsJVM/test:compile;testTestsJVM/test:compile;testMagnoliaTestsJVM/test:compile;testRefinedJVM/test:compile;testRunnerJVM/test:compile;examplesJVM/test:compile;macrosJVM/test:compile"
 )
 addCommandAlias(
   "testNative",
@@ -50,15 +50,15 @@ addCommandAlias(
 )
 addCommandAlias(
   "testJVM",
-  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile;benchmarks/test:compile;macrosJVM/test;testJunitRunnerTestsJVM/test"
+  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRefinedJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile;benchmarks/test:compile;macrosJVM/test;testJunitRunnerTestsJVM/test"
 )
 addCommandAlias(
   "testJVMNoBenchmarks",
-  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile"
+  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRefinedJVM/test:compile;testRunnerJVM/test:run;examplesJVM/test:compile"
 )
 addCommandAlias(
   "testJVMDotty",
-  ";coreTestsJVM/test;stacktracerJVM/test:compile;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile"
+  ";coreTestsJVM/test;stacktracerJVM/test:compile;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRefinedJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile"
 )
 addCommandAlias(
   "testJVM211",
@@ -66,7 +66,7 @@ addCommandAlias(
 )
 addCommandAlias(
   "testJS",
-  ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/test;testMagnoliaTestsJS/test;examplesJS/test:compile;macrosJS/test"
+  ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/test;testMagnoliaTestsJS/test;testRefinedJS/test;examplesJS/test:compile;macrosJS/test"
 )
 addCommandAlias(
   "testJS211",
@@ -118,7 +118,9 @@ lazy val root = project
     testJunitRunnerJVM,
     testJunitRunnerTestsJVM,
     testMagnoliaJVM,
-    testMagnoliaJS
+    testMagnoliaJS,
+    testRefinedJVM,
+    testRefinedJS
   )
   .enablePlugins(ScalaJSPlugin)
 
@@ -369,7 +371,7 @@ lazy val testJunitRunner = crossProject(JVMPlatform)
   .in(file("test-junit"))
   .settings(stdSettings("zio-test-junit"))
   .settings(crossProjectSettings)
-  .settings(libraryDependencies ++= Seq("junit" % "junit" % "4.13.1"))
+  .settings(libraryDependencies ++= Seq("junit" % "junit" % "4.13.2"))
   .dependsOn(test)
 
 lazy val testJunitRunnerJVM = testJunitRunner.jvm.settings(dottySettings)
@@ -389,7 +391,7 @@ lazy val testJunitRunnerTests = crossProject(JVMPlatform)
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
   .settings(
     libraryDependencies ++= Seq(
-      "junit"                   % "junit"     % "4.13.1" % Test,
+      "junit"                   % "junit"     % "4.13.2" % Test,
       "org.scala-lang.modules" %% "scala-xml" % "1.3.0"  % Test,
       // required to run embedded maven in the tests
       "org.apache.maven"       % "maven-embedder"         % "3.6.3"  % Test,
@@ -448,11 +450,11 @@ lazy val benchmarks = project.module
       Seq(
         "co.fs2"                    %% "fs2-core"       % "2.5.0",
         "com.google.code.findbugs"   % "jsr305"         % "3.0.2",
-        "com.twitter"               %% "util-core"      % "21.1.0",
+        "com.twitter"               %% "util-core"      % "21.2.0",
         "com.typesafe.akka"         %% "akka-stream"    % "2.6.12",
         "io.monix"                  %% "monix"          % "3.3.0",
-        "io.projectreactor"          % "reactor-core"   % "3.4.2",
-        "io.reactivex.rxjava2"       % "rxjava"         % "2.2.20",
+        "io.projectreactor"          % "reactor-core"   % "3.4.3",
+        "io.reactivex.rxjava2"       % "rxjava"         % "2.2.21",
         "org.jctools"                % "jctools-core"   % "3.2.0",
         "org.ow2.asm"                % "asm"            % "9.1",
         "org.scala-lang"             % "scala-compiler" % scalaVersion.value % Provided,

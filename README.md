@@ -71,6 +71,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [iHeartRadio](https://www.iheart.com/)
 * [Investsuite](https://investsuite.com/)
 * [Kaizen Solutions](https://kaizen-solutions.net/)
+* [Kodmagi](https://www.kodmagi.se)
 * [Kensu](https://kensu.io)
 * [LeadIQ](https://leadiq.com)
 * [LiveIntent Inc.](https://liveintent.com)
@@ -80,6 +81,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [NewMotion](https://newmotion.com)
 * [Optrak](https://optrak.com)
 * [Performance Immo](https://www.performance-immo.com/)
+* [Playtika](https://www.playtika.com)
 * [PPC Samurai](https://ppcsamurai.com/)
 * [Risk Ident](https://riskident.com/)
 * [Rocker](https://rocker.com/)
@@ -95,6 +97,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Verbund AG](https://www.verbund.com)
 * [Wehkamp](https://www.wehkamp.nl)
 * [Yandex.Classifieds](https://o.yandex.ru)
+* [Audela](https://audela.ca)
 
 # Sponsors
 

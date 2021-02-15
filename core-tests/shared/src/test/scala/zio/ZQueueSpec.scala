@@ -779,6 +779,32 @@ object ZQueueSpec extends ZIOBaseSpec {
       } yield assert(s1)(equalTo(0)) &&
         assert(s2)(equalTo(1))
     },
+    testM("queue filterOutput with take") {
+      for {
+        queue <- Queue.bounded[Int](2).map(_.filterOutput(_ % 2 == 0))
+        _     <- queue.offer(1)
+        _     <- queue.offer(2)
+        value <- queue.take
+      } yield assert(value)(equalTo(2))
+    },
+    testM("queue filterOutput with takeAll") {
+      for {
+        queue  <- Queue.unbounded[Int].map(_.filterOutput(_ % 2 == 0))
+        _      <- queue.offerAll(List(1, 2, 3, 4, 5))
+        values <- queue.takeAll
+        size   <- queue.size
+      } yield assert(values)(equalTo(List(2, 4))) &&
+        assert(size)(equalTo(0))
+    },
+    testM("queue filterOutput with takeUpTo") {
+      for {
+        queue  <- Queue.unbounded[Int].map(_.filterOutput(_ % 2 == 0))
+        _      <- queue.offerAll(List(1, 2, 3, 4, 5))
+        values <- queue.takeUpTo(2)
+        size   <- queue.size
+      } yield assert(values)(equalTo(List(2, 4))) &&
+        assert(size)(equalTo(1))
+    },
     testM("queue isShutdown") {
       for {
         queue <- Queue.bounded[Int](5)
