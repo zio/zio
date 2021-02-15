@@ -250,23 +250,21 @@ sealed abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { 
             else take
           }
         }
-      def takeAll: ZIO[RB1, EB1, List[B]] =
+      def takeAll: ZIO[RB1, EB1, Chunk[B]] =
         self.takeAll.flatMap(bs => ZIO.filter(bs)(f))
-      def takeUpTo(max: Int): ZIO[RB1, EB1, List[B]] =
+      def takeUpTo(max: Int): ZIO[RB1, EB1, Chunk[B]] =
         ZIO.effectSuspendTotal {
-          val buffer = ListBuffer[B]()
-          def loop(max: Int): ZIO[RB1, EB1, Unit] =
+          def loop(max: Int, acc: Chunk[B]): ZIO[RB1, EB1, Chunk[B]] =
             self.takeUpTo(max).flatMap { bs =>
-              if (bs.isEmpty) ZIO.unit
+              if (bs.isEmpty) ZIO.succeedNow(acc)
               else
                 ZIO.filter(bs)(f).flatMap { filtered =>
-                  buffer ++= filtered
                   val length = filtered.length
-                  if (length == max) ZIO.unit
-                  else loop(max - length)
+                  if (length == max) ZIO.succeedNow(acc ++ filtered)
+                  else loop(max - length, acc ++ filtered)
                 }
             }
-          loop(max).as(buffer.toList)
+          loop(max, Chunk.empty)
         }
     }
 
