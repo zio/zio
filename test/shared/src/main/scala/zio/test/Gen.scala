@@ -44,6 +44,15 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
     self.cross(that)
 
   /**
+   * Maps the values produced by this generator with the specified partial
+   * function, discarding any values the partial function is not defined at.
+   */
+  def collect[B](pf: PartialFunction[A, B]): Gen[R, B] =
+    self.flatMap { a =>
+      pf.andThen(Gen.const(_)).applyOrElse[A, Gen[Any, B]](a, _ => Gen.empty)
+    }
+
+  /**
    * Composes this generator with the specified generator to create a cartesian
    * product of elements.
    */

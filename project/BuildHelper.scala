@@ -15,7 +15,7 @@ object BuildHelper {
   val Scala213   = "2.13.4"
   val ScalaDotty = "3.0.0-M3"
 
-  val SilencerVersion = "1.7.1"
+  val SilencerVersion = "1.7.2"
 
   private val stdOptions = Seq(
     "-deprecation",
@@ -280,13 +280,7 @@ object BuildHelper {
     }
   )
 
-  def jsSettings = Seq(
-    libraryDependencies += "io.github.cquiroz" %%% "scala-java-time"      % "2.1.0",
-    libraryDependencies += "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.1.0"
-  )
-
   def nativeSettings = Seq(
-    libraryDependencies += "org.ekrich" %%% "sjavatime" % "1.1.0",
     Test / skip := true,
     doc / skip := true,
     SettingKey[Boolean](
@@ -298,9 +292,9 @@ object BuildHelper {
   val scalaReflectTestSettings: List[Setting[_]] = List(
     libraryDependencies ++= {
       if (isDotty.value)
-        Seq(("org.scala-lang" % "scala-reflect" % Scala213 % Test).withDottyCompat(scalaVersion.value))
+        Seq(("org.scala-lang" % "scala-reflect" % Scala213).withDottyCompat(scalaVersion.value))
       else
-        Seq("org.scala-lang" % "scala-reflect" % scalaVersion.value % Test)
+        Seq("org.scala-lang" % "scala-reflect" % scalaVersion.value)
     }
   )
 

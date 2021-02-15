@@ -144,6 +144,7 @@ sealed abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { 
   /**
    * Alias for `both`.
    */
+  @deprecated("use ZStream", "2.0.0")
   final def &&[RA1 <: RA, RB1 <: RB, EA1 >: EA, EB1 >: EB, A1 <: A, C, D](
     that: ZQueue[RA1, RB1, EA1, EB1, A1, C]
   ): ZQueue[RA1, RB1, EA1, EB1, A1, (B, C)] =
@@ -152,6 +153,7 @@ sealed abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { 
   /**
    * Like `bothWith`, but tuples the elements instead of applying a function.
    */
+  @deprecated("use ZStream", "2.0.0")
   final def both[RA1 <: RA, RB1 <: RB, EA1 >: EA, EB1 >: EB, A1 <: A, C, D](
     that: ZQueue[RA1, RB1, EA1, EB1, A1, C]
   ): ZQueue[RA1, RB1, EA1, EB1, A1, (B, C)] =
@@ -160,6 +162,7 @@ sealed abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { 
   /**
    * Like `bothWithM`, but uses a pure function.
    */
+  @deprecated("use ZStream", "2.0.0")
   final def bothWith[RA1 <: RA, RB1 <: RB, EA1 >: EA, EB1 >: EB, A1 <: A, C, D](
     that: ZQueue[RA1, RB1, EA1, EB1, A1, C]
   )(f: (B, C) => D): ZQueue[RA1, RB1, EA1, EB1, A1, D] =
@@ -174,6 +177,7 @@ sealed abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { 
    * For example, a dropping queue and a bounded queue composed together may apply `f`
    * to different elements.
    */
+  @deprecated("use ZStream", "2.0.0")
   final def bothWithM[RA1 <: RA, RB1 <: RB, R3 <: RB1, EA1 >: EA, EB1 >: EB, E3 >: EB1, A1 <: A, C, D](
     that: ZQueue[RA1, RB1, EA1, EB1, A1, C]
   )(f: (B, C) => ZIO[R3, E3, D]): ZQueue[RA1, R3, EA1, E3, A1, D] =
@@ -586,10 +590,9 @@ object ZQueue {
 
         UIO
           .whenM(shutdownHook.succeed(()))(
-            UIO.foreachPar(unsafePollAll(takers))(_.interruptAs(fiberId)) *> strategy.shutdown
+            UIO.foreachPar_(unsafePollAll(takers))(_.interruptAs(fiberId)) *> strategy.shutdown
           )
-          .uninterruptible
-      }
+      }.uninterruptible
 
     val isShutdown: UIO[Boolean] = UIO(shutdownFlag.get)
 

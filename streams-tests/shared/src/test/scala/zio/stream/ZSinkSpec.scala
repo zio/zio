@@ -175,19 +175,12 @@ object ZSinkSpec extends ZIOBaseSpec {
           )
         }
       ),
-      suite("succeed")(
-        testM("handles leftovers") {
-          assertM(ZStream(1, 2, 3).run(ZSink.succeed[Int, String]("ok").exposeLeftover))(
-            equalTo(("ok", Chunk(1, 2, 3)))
-          )
-        }
-      ),
-      suite("toQueue")(
+      suite("fromQueue")(
         testM("enqueues all elements") {
           checkM(pureStreamOfInts) { stream =>
             for {
               queue                    <- ZQueue.unbounded[Int]
-              (result, streamElements) <- stream.run(ZSink.toQueue(queue) <&> ZSink.collectAll.map(_.toList))
+              (result, streamElements) <- stream.run(ZSink.fromQueue(queue) <&> ZSink.collectAll.map(_.toList))
               queueElements            <- queue.takeAll
             } yield assert(result)(isUnit) && assert(queueElements)(equalTo(streamElements))
           }
@@ -197,13 +190,20 @@ object ZSinkSpec extends ZIOBaseSpec {
             queue       <- ZQueue.unbounded[Int]
             exception    = new Exception
             failingQueue = queue.contramapM[Any, Exception, Int](_ => ZIO.fail(exception))
-            queueSink    = ZSink.toQueue(failingQueue)
+            queueSink    = ZSink.fromQueue(failingQueue)
             stream       = Stream(1)
             result      <- stream.run(queueSink).either
           } yield assert(result)(isLeft(equalTo(exception)))
         }
       ),
-      suite("toQueueWithShutdown")(
+      suite("succeed")(
+        testM("handles leftovers") {
+          assertM(ZStream(1, 2, 3).run(ZSink.succeed[Int, String]("ok").exposeLeftover))(
+            equalTo(("ok", Chunk(1, 2, 3)))
+          )
+        }
+      ),
+      suite("fromQueueWithShutdown")(
         testM("enqueues all elements and shuts down the queue when the stream completes") {
           checkM(Gen.listOfBounded(1, 5)(Gen.anyInt)) { elements =>
             for {
@@ -211,7 +211,7 @@ object ZSinkSpec extends ZIOBaseSpec {
               targetQueue         <- ZQueue.unbounded[Int]
               stream               = ZStream.fromQueue(sourceQueue)
               streamCompleted     <- Promise.make[Nothing, Unit]
-              _                   <- stream.run(ZSink.toQueueWithShutdown(targetQueue)).flatMap(streamCompleted.succeed).fork
+              _                   <- stream.run(ZSink.fromQueueWithShutdown(targetQueue)).flatMap(streamCompleted.succeed).fork
               _                   <- sourceQueue.offerAll(elements)
               queueElements       <- targetQueue.takeBetween(elements.size, elements.size)
               _                   <- sourceQueue.shutdown
@@ -226,7 +226,7 @@ object ZSinkSpec extends ZIOBaseSpec {
             queue       <- ZQueue.unbounded[Int]
             exception    = new Exception
             failingQueue = queue.contramapM[Any, Exception, Int](_ => ZIO.fail(exception))
-            queueSink    = ZSink.toQueueWithShutdown(failingQueue)
+            queueSink    = ZSink.fromQueueWithShutdown(failingQueue)
             stream       = Stream(1)
             result      <- stream.run(queueSink).either
           } yield assert(result)(isLeft(equalTo(exception)))
@@ -235,7 +235,7 @@ object ZSinkSpec extends ZIOBaseSpec {
           for {
             queue      <- ZQueue.unbounded[Int]
             exception   = new Exception
-            queueSink   = ZSink.toQueueWithShutdown(queue)
+            queueSink   = ZSink.fromQueueWithShutdown(queue)
             stream      = Stream.fail(exception)
             result     <- stream.run(queueSink).either
             isShutdown <- queue.isShutdown

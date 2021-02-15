@@ -29,9 +29,9 @@ private[internal] trait PlatformSpecific {
   /**
    * Adds a shutdown hook that executes the specified action on shutdown.
    */
-  @silent("never used")
-  def addShutdownHook(action: () => Unit): Unit =
-    ()
+  def addShutdownHook(action: () => Unit): Unit = {
+    val _ = action
+  }
 
   /**
    * A Runtime with settings suitable for benchmarks, specifically with Tracing
@@ -127,6 +127,6 @@ private[internal] trait PlatformSpecific {
 
   final def newWeakReference[A](value: A): () => A = { () => value }
 
-  @silent("never used")
+  @silent("is never used")
   final def forceThrowableCause(throwable: => Throwable, newCause: => Throwable): Unit = ()
 }
