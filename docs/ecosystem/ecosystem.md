@@ -48,6 +48,7 @@ If you know a useful library that has direct support for ZIO, please consider [s
 - [zio-grpc](https://github.com/scalapb/zio-grpc): A native gRPC support for ZIO
 - [zio-interop-log4j2](https://github.com/mlangc/zio-interop-log4j2): Fiber aware MDC logging for Log4j 2
 - [zio-kinesis](https://github.com/svroonland/zio-kinesis): ZIO Streams based AWS Kinesis client
+- [zio-magic](https://github.com/kitlangton/zio-magic/): Construct ZLayers automagically (w/ helpful compile-time errors) 
 - [zio-saga](https://github.com/VladKopanev/zio-saga): Purely functional transaction management with Saga pattern
 - [zio-slf4j](https://github.com/NeQuissimus/zio-slf4j): Referentially transparent logging with slf4j
 - [zio-slick](https://github.com/rleibman/zio-slick): Bridge library between ZIO and Slick Functional Relational Mapping Library
