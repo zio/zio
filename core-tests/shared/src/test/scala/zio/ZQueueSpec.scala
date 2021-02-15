@@ -793,7 +793,7 @@ object ZQueueSpec extends ZIOBaseSpec {
         _      <- queue.offerAll(List(1, 2, 3, 4, 5))
         values <- queue.takeAll
         size   <- queue.size
-      } yield assert(values)(equalTo(List(2, 4))) &&
+      } yield assert(values)(equalTo(Chunk(2, 4))) &&
         assert(size)(equalTo(0))
     },
     testM("queue filterOutput with takeUpTo") {
@@ -802,7 +802,7 @@ object ZQueueSpec extends ZIOBaseSpec {
         _      <- queue.offerAll(List(1, 2, 3, 4, 5))
         values <- queue.takeUpTo(2)
         size   <- queue.size
-      } yield assert(values)(equalTo(List(2, 4))) &&
+      } yield assert(values)(equalTo(Chunk(2, 4))) &&
         assert(size)(equalTo(1))
     },
     testM("queue isShutdown") {
