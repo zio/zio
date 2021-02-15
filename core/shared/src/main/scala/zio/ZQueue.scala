@@ -292,6 +292,59 @@ sealed abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { 
     }
 
   /**
+   * Filters elements dequeued from the queue using the specified predicate.
+   */
+  final def filterOutput(f: B => Boolean): ZQueue[RA, RB, EA, EB, A, B] =
+    filterOutputM(b => ZIO.succeedNow(f(b)))
+
+  /**
+   * Filters elements dequeued from the queue using the specified effectual
+   * predicate.
+   */
+  def filterOutputM[RB1 <: RB, EB1 >: EB](f: B => ZIO[RB1, EB1, Boolean]): ZQueue[RA, RB1, EA, EB1, A, B] =
+    new ZQueue[RA, RB1, EA, EB1, A, B] {
+      def awaitShutdown: UIO[Unit] =
+        self.awaitShutdown
+      def capacity: Int =
+        self.capacity
+      def isShutdown: UIO[Boolean] =
+        self.isShutdown
+      def offer(a: A): ZIO[RA, EA, Boolean] =
+        self.offer(a)
+      def offerAll(as: Iterable[A]): ZIO[RA, EA, Boolean] =
+        self.offerAll(as)
+      def shutdown: UIO[Unit] =
+        self.shutdown
+      def size: UIO[Int] =
+        self.size
+      def take: ZIO[RB1, EB1, B] =
+        self.take.flatMap { b =>
+          f(b).flatMap { p =>
+            if (p) ZIO.succeedNow(b)
+            else take
+          }
+        }
+      def takeAll: ZIO[RB1, EB1, List[B]] =
+        self.takeAll.flatMap(bs => ZIO.filter(bs)(f))
+      def takeUpTo(max: Int): ZIO[RB1, EB1, List[B]] =
+        ZIO.effectSuspendTotal {
+          val buffer = ListBuffer[B]()
+          def loop(max: Int): ZIO[RB1, EB1, Unit] =
+            self.takeUpTo(max).flatMap { bs =>
+              if (bs.isEmpty) ZIO.unit
+              else
+                ZIO.filter(bs)(f).flatMap { filtered =>
+                  buffer ++= filtered
+                  val length = filtered.length
+                  if (length == max) ZIO.unit
+                  else loop(max - length)
+                }
+            }
+          loop(max).as(buffer.toList)
+        }
+    }
+
+  /**
    * Transforms elements dequeued from this queue with a function.
    */
   final def map[C](f: B => C): ZQueue[RA, RB, EA, EB, A, C] =
