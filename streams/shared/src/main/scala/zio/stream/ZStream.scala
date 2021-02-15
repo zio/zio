@@ -577,8 +577,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                  c  <- p
                  (z1, chunk) = c.foldLeft[(Option[O], Chunk[O])]((z0, Chunk.empty)) {
                                  case ((Some(o), os), o1) if (f(o, o1)) => (Some(o1), os)
-                                 case ((Some(o), os), o1)               => (Some(o1), os :+ o1)
-                                 case ((None, os), o1)                  => (Some(o1), os :+ o1)
+                                 case ((_, os), o1)                     => (Some(o1), os :+ o1)
                                }
                  _ <- ref.set(z1)
                } yield chunk
