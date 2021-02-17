@@ -98,6 +98,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Wehkamp](https://www.wehkamp.nl)
 * [Yandex.Classifieds](https://o.yandex.ru)
 * [Audela](https://audela.ca)
+* [Valamis Group](https://valamis.com)
 
 # Sponsors
 
