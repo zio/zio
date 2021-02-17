@@ -461,7 +461,7 @@ lazy val benchmarks = project.module
         "org.scala-lang"             % "scala-reflect"  % scalaVersion.value,
         "org.typelevel"             %% "cats-effect"    % "2.3.2",
         "org.scalacheck"            %% "scalacheck"     % "1.15.3",
-        "qa.hedgehog"               %% "hedgehog-core"  % "0.6.1",
+        "qa.hedgehog"               %% "hedgehog-core"  % "0.6.2",
         "com.github.japgolly.nyaya" %% "nyaya-gen"      % "0.9.2"
       ),
     unusedCompileDependenciesFilter -= libraryDependencies.value
