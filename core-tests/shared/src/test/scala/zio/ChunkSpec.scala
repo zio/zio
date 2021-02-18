@@ -519,20 +519,20 @@ object ChunkSpec extends ZIOBaseSpec {
     },
     testM("zipWithIndex on concatenated chunks") {
       check(smallChunks(intGen), smallChunks(intGen)) { (c1, c2) =>
-        val items = (c1 ++ c2).zipWithIndex.map(_._1)
+        val items   = (c1 ++ c2).zipWithIndex.map(_._1)
         val indices = (c1 ++ c2).zipWithIndex.map(_._2)
 
         assert(items.toList)(equalTo(c1.toList ++ c2.toList)) &&
-          assert(indices.toList)(equalTo((0 until (c1.size + c2.size)).toList))
+        assert(indices.toList)(equalTo((0 until (c1.size + c2.size)).toList))
       }
     },
     testM("zipWithIndexFrom on concatenated chunks") {
       check(smallChunks(intGen), smallChunks(intGen), Gen.int(0, 10)) { (c1, c2, from) =>
-        val items = (c1 ++ c2).zipWithIndexFrom(from).map(_._1)
+        val items   = (c1 ++ c2).zipWithIndexFrom(from).map(_._1)
         val indices = (c1 ++ c2).zipWithIndexFrom(from).map(_._2)
 
         assert(items.toList)(equalTo(c1.toList ++ c2.toList)) &&
-          assert(indices.toList)(equalTo((from until (c1.size + c2.size + from)).toList))
+        assert(indices.toList)(equalTo((from until (c1.size + c2.size + from)).toList))
       }
     },
     test("partitionMap") {
