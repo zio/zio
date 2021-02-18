@@ -163,18 +163,18 @@ object ZIOSpec extends ZIOBaseSpec {
       testM("returns new instances after duration") {
         def incrementAndGet(ref: Ref[Int]): UIO[Int] = ref.updateAndGet(_ + 1)
         for {
-          ref              <- Ref.make(0)
-          tuple            <- incrementAndGet(ref).cachedInvalidate(60.minutes)
+          ref                 <- Ref.make(0)
+          tuple               <- incrementAndGet(ref).cachedInvalidate(60.minutes)
           (cached, invalidate) = tuple
-          a                <- cached
-          _                <- TestClock.adjust(59.minutes)
-          b                <- cached
-          _                <- invalidate
-          c                <- cached
-          _                <- TestClock.adjust(1.minute)
-          d                <- cached
-          _                <- TestClock.adjust(59.minutes)
-          e                <- cached
+          a                   <- cached
+          _                   <- TestClock.adjust(59.minutes)
+          b                   <- cached
+          _                   <- invalidate
+          c                   <- cached
+          _                   <- TestClock.adjust(1.minute)
+          d                   <- cached
+          _                   <- TestClock.adjust(59.minutes)
+          e                   <- cached
         } yield assert(a)(equalTo(b)) &&
           assert(b)(not(equalTo(c))) &&
           assert(c)(equalTo(d)) &&
