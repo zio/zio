@@ -148,7 +148,7 @@ object ZIOSpec extends ZIOBaseSpec {
           d     <- cache
         } yield assert(a)(equalTo(b)) && assert(b)(not(equalTo(c))) && assert(c)(equalTo(d))
       },
-      testM("correctly handled an infinite duration time to live") {
+      testM("correctly handles an infinite duration time to live") {
         for {
           ref            <- Ref.make(0)
           getAndIncrement = ref.modify(curr => (curr, curr + 1))
@@ -157,6 +157,28 @@ object ZIOSpec extends ZIOBaseSpec {
           b              <- cached
           c              <- cached
         } yield assert((a, b, c))(equalTo((0, 0, 0)))
+      }
+    ),
+    suite("cachedWith")(
+      testM("returns new instances after duration") {
+        def incrementAndGet(ref: Ref[Int]): UIO[Int] = ref.updateAndGet(_ + 1)
+        for {
+          ref              <- Ref.make(0)
+          tuple            <- incrementAndGet(ref).cachedWith(60.minutes)
+          (get, invalidate) = tuple
+          a                <- get
+          _                <- TestClock.adjust(59.minutes)
+          b                <- get
+          _                <- invalidate
+          c                <- get
+          _                <- TestClock.adjust(1.minute)
+          d                <- get
+          _                <- TestClock.adjust(59.minutes)
+          e                <- get
+        } yield assert(a)(equalTo(b)) &&
+          assert(b)(not(equalTo(c))) &&
+          assert(c)(equalTo(d)) &&
+          assert(d)(not(equalTo(e)))
       }
     ),
     suite("catchAllDefect")(

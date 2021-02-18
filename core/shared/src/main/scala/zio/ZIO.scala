@@ -285,7 +285,16 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Returns an effect that, if evaluated, will return the cached result of
    * this effect. Cached results will expire after `timeToLive` duration.
    */
-  final def cached(timeToLive: Duration): ZIO[R with Clock, Nothing, IO[E, A]] = {
+  final def cached(timeToLive: Duration): ZIO[R with Clock, Nothing, IO[E, A]] =
+    cachedWith(timeToLive).map(_._1)
+
+  /**
+   * Returns an effect that, if evaluated, will return the cached result of
+   * this effect. Cached results will expire after `timeToLive` duration. In
+   * addition, returns an effect that can be used to invalidate the current
+   * cached value before the `timeToLive` duration expires.
+   */
+  final def cachedWith(timeToLive: Duration): ZIO[R with Clock, Nothing, (IO[E, A], UIO[Unit])] = {
 
     def compute(start: Long): ZIO[R with Clock, Nothing, Option[(Long, Promise[E, A])]] =
       for {
@@ -303,10 +312,13 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
         }
       }
 
+    def invalidate(cache: RefM[Option[(Long, Promise[E, A])]]): UIO[Unit] =
+      cache.set(None)
+
     for {
       r     <- ZIO.environment[R with Clock]
       cache <- RefM.make[Option[(Long, Promise[E, A])]](None)
-    } yield get(cache).provide(r)
+    } yield (get(cache).provide(r), invalidate(cache))
   }
 
   /**
