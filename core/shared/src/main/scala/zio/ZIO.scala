@@ -286,7 +286,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * this effect. Cached results will expire after `timeToLive` duration.
    */
   final def cached(timeToLive: Duration): ZIO[R with Clock, Nothing, IO[E, A]] =
-    cachedWith(timeToLive).map(_._1)
+    cachedInvalidate(timeToLive).map(_._1)
 
   /**
    * Returns an effect that, if evaluated, will return the cached result of
@@ -294,7 +294,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * addition, returns an effect that can be used to invalidate the current
    * cached value before the `timeToLive` duration expires.
    */
-  final def cachedWith(timeToLive: Duration): ZIO[R with Clock, Nothing, (IO[E, A], UIO[Unit])] = {
+  final def cachedInvalidate(timeToLive: Duration): ZIO[R with Clock, Nothing, (IO[E, A], UIO[Unit])] = {
 
     def compute(start: Long): ZIO[R with Clock, Nothing, Option[(Long, Promise[E, A])]] =
       for {

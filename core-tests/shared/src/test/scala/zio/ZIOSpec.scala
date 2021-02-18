@@ -164,17 +164,17 @@ object ZIOSpec extends ZIOBaseSpec {
         def incrementAndGet(ref: Ref[Int]): UIO[Int] = ref.updateAndGet(_ + 1)
         for {
           ref              <- Ref.make(0)
-          tuple            <- incrementAndGet(ref).cachedWith(60.minutes)
-          (get, invalidate) = tuple
-          a                <- get
+          tuple            <- incrementAndGet(ref).cachedInvalidate(60.minutes)
+          (cached, invalidate) = tuple
+          a                <- cached
           _                <- TestClock.adjust(59.minutes)
-          b                <- get
+          b                <- cached
           _                <- invalidate
-          c                <- get
+          c                <- cached
           _                <- TestClock.adjust(1.minute)
-          d                <- get
+          d                <- cached
           _                <- TestClock.adjust(59.minutes)
-          e                <- get
+          e                <- cached
         } yield assert(a)(equalTo(b)) &&
           assert(b)(not(equalTo(c))) &&
           assert(c)(equalTo(d)) &&
