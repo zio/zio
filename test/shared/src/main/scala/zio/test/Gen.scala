@@ -182,6 +182,24 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     weighted(char(48, 57) -> 10, char(65, 90) -> 26, char(97, 122) -> 26)
 
   /**
+   * A generator of alpha characters.
+   */
+  val alphaChar: Gen[Random, Char] =
+    weighted(char(65, 90) -> 26, char(97, 122) -> 26)
+
+  /**
+   * A generator of numeric characters. Shrinks toward '0'.
+   */
+  val numericChar: Gen[Random, Char] =
+    weighted(char(48, 57) -> 10)
+
+  /**
+   * A generator of whitespace characters.
+   */
+  val whitespaceChars: Seq[Char] =
+    (Char.MinValue to Char.MaxValue).filter(_.isWhitespace)
+
+  /**
    * A generator of alphanumeric strings. Shrinks towards the empty string.
    */
   val alphaNumericString: Gen[Random with Sized, String] =
