@@ -9,6 +9,7 @@ title:  "Resources"
 
 _These articles reflect the state of ZIO at the time of their publication. The code samples might be outdated, considering ZIO was early in development at the time they were written. However, the concepts are still relevant._
 
+- [Streaming microservices with ZIO and Kafka](https://scalac.io/streaming-microservices-with-zio-and-kafka/) by Aleksandar Skrbic (February 2021)
 - [Playing with ZIO Streams and JMS](https://blended-zio.github.io/blended-zio/blog/zio-streams-jms) by Andreas Gies (October 2020)
 - [Processing ZIO effects through a pipeline](https://medium.com/@svroonland/processing-zio-effects-through-a-pipeline-c469e28dff62) (September 2020)
 - [Lessons Learned From Being a ZIO Contributor](https://www.softinio.com/post/lessons-learned-from-being-a-zio-contributor/) by Salar Rahmanian (September 2020)
