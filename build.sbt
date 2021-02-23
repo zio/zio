@@ -396,7 +396,7 @@ lazy val testJunitRunnerTests = crossProject(JVMPlatform)
       // required to run embedded maven in the tests
       "org.apache.maven"       % "maven-embedder"         % "3.6.3"  % Test,
       "org.apache.maven"       % "maven-compat"           % "3.6.3"  % Test,
-      "org.apache.maven.wagon" % "wagon-http"             % "3.4.2"  % Test,
+      "org.apache.maven.wagon" % "wagon-http"             % "3.4.3"  % Test,
       "org.eclipse.aether"     % "aether-connector-basic" % "1.1.0"  % Test,
       "org.eclipse.aether"     % "aether-transport-wagon" % "1.1.0"  % Test,
       "org.slf4j"              % "slf4j-simple"           % "1.7.30" % Test
