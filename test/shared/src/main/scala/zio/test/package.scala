@@ -18,8 +18,8 @@ package zio
 
 import zio.console.Console
 import zio.duration.Duration
-import zio.stream.{ZSink, ZStream}
-import zio.test.environment.{TestClock, TestConsole, TestEnvironment, TestRandom, TestSystem, testEnvironment}
+import zio.stream.{ ZSink, ZStream }
+import zio.test.environment.{ TestClock, TestConsole, TestEnvironment, TestRandom, TestSystem, testEnvironment }
 
 import scala.collection.immutable.SortedSet
 import scala.util.Try
@@ -170,6 +170,12 @@ package object test extends CompileVariants {
    */
   val assertCompletes: TestResult =
     assertImpl(true)(Assertion.isTrue)
+
+  /**
+   * Asserts that the given test was completed.
+   */
+  val assertCompletesM: UIO[TestResult] =
+    assertMImpl(UIO(true))(Assertion.isTrue)
 
   /**
    * Checks the assertion holds for the given effectfully-computed value.
@@ -656,6 +662,7 @@ package object test extends CompileVariants {
   }
 
   object Sized {
+
     trait Service extends Serializable {
       def size: UIO[Int]
       def withSize[R, E, A](size: Int)(zio: ZIO[R, E, A]): ZIO[R, E, A]
@@ -749,6 +756,7 @@ package object test extends CompileVariants {
   }
 
   object TestLogger {
+
     trait Service extends Serializable {
       def logLine(line: String): UIO[Unit]
     }
@@ -767,20 +775,25 @@ package object test extends CompileVariants {
   object CheckVariants {
 
     final class CheckN(private val n: Int) extends AnyVal {
+
       def apply[R <: TestConfig, A](rv: Gen[R, A])(test: A => TestResult): URIO[R, TestResult] =
         checkNM(n)(rv)(test andThen ZIO.succeedNow)
+
       def apply[R <: TestConfig, A, B](rv1: Gen[R, A], rv2: Gen[R, B])(
         test: (A, B) => TestResult
       ): URIO[R, TestResult] =
         checkN(n)(rv1 <*> rv2)(test.tupled)
+
       def apply[R <: TestConfig, A, B, C](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
         test: (A, B, C) => TestResult
       ): URIO[R, TestResult] =
         checkN(n)(rv1 <*> rv2 <*> rv3)(reassociate(test))
+
       def apply[R <: TestConfig, A, B, C, D](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D])(
         test: (A, B, C, D) => TestResult
       ): URIO[R, TestResult] =
         checkN(n)(rv1 <*> rv2 <*> rv3 <*> rv4)(reassociate(test))
+
       def apply[R <: TestConfig, A, B, C, D, F](
         rv1: Gen[R, A],
         rv2: Gen[R, B],
@@ -791,6 +804,7 @@ package object test extends CompileVariants {
         test: (A, B, C, D, F) => TestResult
       ): URIO[R, TestResult] =
         checkN(n)(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5)(reassociate(test))
+
       def apply[R <: TestConfig, A, B, C, D, F, G](
         rv1: Gen[R, A],
         rv2: Gen[R, B],
@@ -805,17 +819,21 @@ package object test extends CompileVariants {
     }
 
     final class CheckNM(private val n: Int) extends AnyVal {
+
       def apply[R <: TestConfig, R1 <: R, E, A](rv: Gen[R, A])(
         test: A => ZIO[R1, E, TestResult]
       ): ZIO[R1, E, TestResult] = checkStream(rv.sample.forever.take(n.toLong))(test)
+
       def apply[R <: TestConfig, R1 <: R, E, A, B](rv1: Gen[R, A], rv2: Gen[R, B])(
         test: (A, B) => ZIO[R1, E, TestResult]
       ): ZIO[R1, E, TestResult] =
         checkNM(n)(rv1 <*> rv2)(test.tupled)
+
       def apply[R <: TestConfig, R1 <: R, E, A, B, C](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
         test: (A, B, C) => ZIO[R1, E, TestResult]
       ): ZIO[R1, E, TestResult] =
         checkNM(n)(rv1 <*> rv2 <*> rv3)(reassociate(test))
+
       def apply[R <: TestConfig, R1 <: R, E, A, B, C, D](
         rv1: Gen[R, A],
         rv2: Gen[R, B],
@@ -825,6 +843,7 @@ package object test extends CompileVariants {
         test: (A, B, C, D) => ZIO[R1, E, TestResult]
       ): ZIO[R1, E, TestResult] =
         checkNM(n)(rv1 <*> rv2 <*> rv3 <*> rv4)(reassociate(test))
+
       def apply[R <: TestConfig, R1 <: R, E, A, B, C, D, F](
         rv1: Gen[R, A],
         rv2: Gen[R, B],
@@ -835,6 +854,7 @@ package object test extends CompileVariants {
         test: (A, B, C, D, F) => ZIO[R1, E, TestResult]
       ): ZIO[R1, E, TestResult] =
         checkNM(n)(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5)(reassociate(test))
+
       def apply[R <: TestConfig, R1 <: R, E, A, B, C, D, F, G](
         rv1: Gen[R, A],
         rv2: Gen[R, B],
