@@ -126,7 +126,7 @@ private[internal] trait PlatformSpecific {
    * Makes a new default platform. This is a side-effecting method.
    */
   def makeDefault(yieldOpCount: Int = defaultYieldOpCount): Platform =
-    fromExecutor(Executor.makeDefault(yieldOpCount))
+    fromExecutor(Executor.makeDefault(yieldOpCount)).withSupervisor(Supervisor.unsafeTrack(true))
 
   final def newWeakHashMap[A, B](): JMap[A, B] =
     Collections.synchronizedMap(new WeakHashMap[A, B]())
