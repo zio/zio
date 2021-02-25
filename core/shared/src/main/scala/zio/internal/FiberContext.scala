@@ -398,7 +398,7 @@ private[zio] final class FiberContext[E, A](
                     curZio = nextInstr(effect())
 
                   case ZIO.Tags.Fail =>
-                    val zio = curZio.asInstanceOf[ZIO.Fail[E, Any]]
+                    val zio = curZio.asInstanceOf[ZIO.Fail[E]]
 
                     // Put last trace into a val to avoid `ObjectRef` boxing.
                     val fastPathTrace = fastPathFlatMapContinuationTrace
