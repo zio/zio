@@ -62,6 +62,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [DHL Parcel The Netherlands](https://www.werkenbijdhl.nl/it)
 * [Doomoolmori](https://doomoolmori.com/)
 * [Dream11](https://dream11.com)
+* [EnelX](https://www.enelx.com)
 * [Evolution](https://evolution.engineering)
 * [Flipp](https://flipp.com/)
 * [Fugo.ai](https://www.fugo.ai)
