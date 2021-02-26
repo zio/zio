@@ -79,6 +79,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Megogo](https://megogo.net)
 * [Mylivn](https://www.mylivn.com/)
 * [NewMotion](https://newmotion.com)
+* [NsLookup](https://www.nslookup.io)
 * [Ocado Technology](https://ocadotechnology.com)
 * [Optrak](https://optrak.com)
 * [Performance Immo](https://www.performance-immo.com/)
