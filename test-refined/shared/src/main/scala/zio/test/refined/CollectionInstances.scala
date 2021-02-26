@@ -2,9 +2,10 @@ package zio.test.refined
 
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.collection.{NonEmpty, Size}
-import zio.test.Gen
-import zio.test.magnolia.DeriveGen
 import zio.{Chunk, NonEmptyChunk}
+import zio.random.Random
+import zio.test.{Gen, Sized}
+import zio.test.magnolia.DeriveGen
 
 object collection extends CollectionInstances
 
@@ -13,7 +14,7 @@ trait CollectionInstances {
     deriveGenT: DeriveGen[T]
   ): DeriveGen[Refined[NonEmptyChunk[T], NonEmpty]] =
     DeriveGen.instance(
-      nonEmptyChunkDeriveGen(deriveGenT).derive.map(Refined.unsafeApply)
+      nonEmptyChunkRefinedGen(deriveGenT.derive)
     )
 
   implicit def nonEmptyListRefinedDeriveGen[T](implicit
@@ -28,8 +29,7 @@ trait CollectionInstances {
     deriveGenT: DeriveGen[T]
   ): DeriveGen[Refined[Vector[T], NonEmpty]] =
     DeriveGen.instance(
-      nonEmptyChunkDeriveGen(deriveGenT).derive
-        .map(v => Refined.unsafeApply(v.toVector))
+      nonEmptyChunkGen(deriveGenT.derive).map(r => Refined.unsafeApply(r.toVector))
     )
 
   implicit def sizedChunkRefinedDeriveGen[T, P](implicit
@@ -46,8 +46,7 @@ trait CollectionInstances {
     deriveGenSize: DeriveGen[Int Refined P]
   ): DeriveGen[Refined[List[T], Size[P]]] =
     DeriveGen.instance(
-      sizedChunkDeriveGen(deriveGenT, deriveGenSize).derive
-        .map(r => Refined.unsafeApply(r.toList))
+      sizedChunkGen(deriveGenT.derive, deriveGenSize.derive).map(r => Refined.unsafeApply(r.toList))
     )
 
   implicit def vectorSizeRefinedDeriveGen[T: DeriveGen, P](implicit
@@ -55,20 +54,20 @@ trait CollectionInstances {
     deriveGenSize: DeriveGen[Int Refined P]
   ): DeriveGen[Refined[Vector[T], Size[P]]] =
     DeriveGen.instance(
-      sizedChunkDeriveGen(deriveGenT, deriveGenSize).derive
-        .map(r => Refined.unsafeApply(r.toVector))
+      sizedChunkGen(deriveGenT.derive, deriveGenSize.derive).map(r => Refined.unsafeApply(r.toVector))
     )
 
-  private def nonEmptyChunkDeriveGen[T](implicit
-    arbT: DeriveGen[T]
-  ): DeriveGen[NonEmptyChunk[T]] =
-    DeriveGen.instance(Gen.chunkOf1(arbT.derive))
+  private[refined] def nonEmptyChunkGen[T](
+    arbT: Gen[Random with Sized, T]
+  ): Gen[Random with Sized, NonEmptyChunk[T]] =
+    Gen.chunkOf1(arbT)
 
-  private def sizedChunkDeriveGen[T, P](implicit
-    deriveGenT: DeriveGen[T],
-    deriveGenSize: DeriveGen[Int Refined P]
-  ): DeriveGen[Chunk[T]] =
-    DeriveGen.instance(deriveGenSize.derive.flatMap { n =>
-      Gen.chunkOfN(n.value)(deriveGenT.derive)
-    })
+  private[refined] def sizedChunkGen[T, P](
+    genT: Gen[Random with Sized, T],
+    sizeGen: Gen[Random with Sized, Int Refined P]
+  ): Gen[Random with Sized, Chunk[T]] =
+    sizeGen.flatMap { n =>
+      Gen.chunkOfN(n.value)(genT)
+    }
+
 }
