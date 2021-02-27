@@ -4379,14 +4379,14 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     override def tag = Tags.CheckInterrupt
   }
 
-  private[zio] final class Fail[E, A](val fill: (() => ZTrace) => Cause[E]) extends IO[E, A] { self =>
+  private[zio] final class Fail[E](val fill: (() => ZTrace) => Cause[E]) extends IO[E, Nothing] { self =>
     override def tag = Tags.Fail
 
-    override def map[B](f: A => B): IO[E, B] =
-      self.asInstanceOf[IO[E, B]]
+    override def map[B](f: Nothing => B): IO[E, Nothing] =
+      self
 
-    override def flatMap[R1 <: Any, E1 >: E, B](k: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
-      self.asInstanceOf[ZIO[R1, E1, B]]
+    override def flatMap[R1 <: Any, E1 >: E, B](k: Nothing => ZIO[R1, E1, B]): ZIO[R1, E1, Nothing] =
+      self
   }
 
   private[zio] final class Descriptor[R, E, A](val k: Fiber.Descriptor => ZIO[R, E, A]) extends ZIO[R, E, A] {
