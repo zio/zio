@@ -116,7 +116,6 @@ private[internal] trait PlatformSpecific {
    */
   final def makeDefault(yieldOpCount: Int = defaultYieldOpCount): Platform =
     fromExecutor(Executor.fromExecutionContext(yieldOpCount)(ExecutionContext.global))
-      .withSupervisor(Supervisor.unsafeTrack(true))
 
   final def newWeakSet[A](): JSet[A] = new HashSet[A]()
 
