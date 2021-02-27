@@ -18,8 +18,8 @@ package zio
 
 import zio.console.Console
 import zio.duration.Duration
-import zio.stream.{ ZSink, ZStream }
-import zio.test.environment.{ TestClock, TestConsole, TestEnvironment, TestRandom, TestSystem, testEnvironment }
+import zio.stream.{ZSink, ZStream}
+import zio.test.environment.{TestClock, TestConsole, TestEnvironment, TestRandom, TestSystem, testEnvironment}
 
 import scala.collection.immutable.SortedSet
 import scala.util.Try
@@ -175,7 +175,7 @@ package object test extends CompileVariants {
    * Asserts that the given test was completed.
    */
   val assertCompletesM: UIO[TestResult] =
-    assertMImpl(UIO(true))(Assertion.isTrue)
+    assertMImpl(UIO.succeed(true))(Assertion.isTrue)
 
   /**
    * Checks the assertion holds for the given effectfully-computed value.
