@@ -73,6 +73,7 @@ _These articles reflect the state of ZIO at the time of their publication. The c
 - [ZIO Schedule: Conquering Flakiness and Recurrence with Pure Functional Programming](https://www.youtube.com/watch?v=onQSHiafAY8&t=1s) by John De Goes (October 2018)
 - [ZIO: Next-Generation Effects in Scala](https://www.youtube.com/watch?v=mkSHhsJXjdc&t=6s) by John De Goes (October 2018)
 - [ZIO Queue: A new Queue for a new Era](https://www.youtube.com/watch?v=8JLprl34xEw&t=2437s) by John De Goes (September 2018)
+- [ZLayers by example](https://www.youtube.com/watch?v=u5IrfkAo6nk) by Wiem Zine El Abidine (December 2020)
 
 ## Conferences
 ###  Scala in the City Conference by Signify Technologies, May 2020
