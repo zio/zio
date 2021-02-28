@@ -75,6 +75,7 @@ _These articles reflect the state of ZIO at the time of their publication. The c
 - [ZIO Queue: A new Queue for a new Era](https://www.youtube.com/watch?v=8JLprl34xEw&t=2437s) by John De Goes (September 2018)
 - [ZLayers by example](https://www.youtube.com/watch?v=u5IrfkAo6nk) by Wiem Zine El Abidine (December 2020)
 - [ZIO inception: Journey through layers and intersection types](https://www.youtube.com/watch?v=vNQFlq1SvaE) by Vladimir Pavkin (July 2020)
+- [A Tour of ZIO](https://www.youtube.com/watch?v=TWdC7DhvD8M) by John De Goes (January 2020)
 
 ## Conferences
 ###  Scala in the City Conference by Signify Technologies, May 2020
