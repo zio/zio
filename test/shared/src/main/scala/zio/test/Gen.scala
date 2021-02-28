@@ -176,6 +176,12 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
 object Gen extends GenZIO with FunctionVariants with TimeVariants {
 
   /**
+   * A generator of alpha characters.
+   */
+  val alphaChar: Gen[Random, Char] =
+    weighted(char(65, 90) -> 26, char(97, 122) -> 26)
+
+  /**
    * A generator of alphanumeric characters. Shrinks toward '0'.
    */
   val alphaNumericChar: Gen[Random, Char] =
@@ -595,6 +601,12 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     Gen.const(None)
 
   /**
+   * A generator of numeric characters. Shrinks toward '0'.
+   */
+  val numericChar: Gen[Random, Char] =
+    weighted(char(48, 57) -> 10)
+
+  /**
    * A generator of optional values. Shrinks toward `None`.
    */
   def option[R <: Random, A](gen: Gen[R, A]): Gen[R, Option[A]] =
@@ -780,6 +792,12 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     }
     uniform.flatMap(n => map.rangeImpl(Some(n), None).head._2)
   }
+
+  /**
+   * A generator of whitespace characters.
+   */
+  val whitespaceChars: Seq[Char] =
+    (Char.MinValue to Char.MaxValue).filter(_.isWhitespace)
 
   /**
    * Zips the specified generators together pairwise. The new generator will
