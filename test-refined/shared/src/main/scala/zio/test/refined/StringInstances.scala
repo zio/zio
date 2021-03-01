@@ -4,8 +4,8 @@ import eu.timepit.refined.api.Refined
 import eu.timepit.refined.string.{EndsWith, StartsWith, Uuid}
 import shapeless.Witness
 import zio.random.Random
-import zio.test.{Gen, Sized}
 import zio.test.magnolia.DeriveGen
+import zio.test.{Gen, Sized}
 
 object string extends StringInstances
 
