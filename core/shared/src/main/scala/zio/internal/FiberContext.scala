@@ -719,7 +719,7 @@ private[zio] final class FiberContext[E, A](
     if (currentSup ne Supervisor.none) {
       currentSup.unsafeOnStart(currentEnv, zio, Some(self), childContext)
 
-      childContext.onDone(exit => currentSup.unsafeOnEnd(exit, childContext))
+      childContext.onDone(exit => currentSup.unsafeOnEnd(exit.flatten, childContext))
     }
 
     val childZio = if (parentScope ne ZScope.global) {
