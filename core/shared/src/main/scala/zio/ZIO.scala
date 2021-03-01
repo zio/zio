@@ -285,7 +285,16 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Returns an effect that, if evaluated, will return the cached result of
    * this effect. Cached results will expire after `timeToLive` duration.
    */
-  final def cached(timeToLive: Duration): ZIO[R with Clock, Nothing, IO[E, A]] = {
+  final def cached(timeToLive: Duration): ZIO[R with Clock, Nothing, IO[E, A]] =
+    cachedInvalidate(timeToLive).map(_._1)
+
+  /**
+   * Returns an effect that, if evaluated, will return the cached result of
+   * this effect. Cached results will expire after `timeToLive` duration. In
+   * addition, returns an effect that can be used to invalidate the current
+   * cached value before the `timeToLive` duration expires.
+   */
+  final def cachedInvalidate(timeToLive: Duration): ZIO[R with Clock, Nothing, (IO[E, A], UIO[Unit])] = {
 
     def compute(start: Long): ZIO[R with Clock, Nothing, Option[(Long, Promise[E, A])]] =
       for {
@@ -303,10 +312,13 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
         }
       }
 
+    def invalidate(cache: RefM[Option[(Long, Promise[E, A])]]): UIO[Unit] =
+      cache.set(None)
+
     for {
       r     <- ZIO.environment[R with Clock]
       cache <- RefM.make[Option[(Long, Promise[E, A])]](None)
-    } yield get(cache).provide(r)
+    } yield (get(cache).provide(r), invalidate(cache))
   }
 
   /**
@@ -4367,14 +4379,14 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     override def tag = Tags.CheckInterrupt
   }
 
-  private[zio] final class Fail[E, A](val fill: (() => ZTrace) => Cause[E]) extends IO[E, A] { self =>
+  private[zio] final class Fail[E](val fill: (() => ZTrace) => Cause[E]) extends IO[E, Nothing] { self =>
     override def tag = Tags.Fail
 
-    override def map[B](f: A => B): IO[E, B] =
-      self.asInstanceOf[IO[E, B]]
+    override def map[B](f: Nothing => B): IO[E, Nothing] =
+      self
 
-    override def flatMap[R1 <: Any, E1 >: E, B](k: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
-      self.asInstanceOf[ZIO[R1, E1, B]]
+    override def flatMap[R1 <: Any, E1 >: E, B](k: Nothing => ZIO[R1, E1, B]): ZIO[R1, E1, Nothing] =
+      self
   }
 
   private[zio] final class Descriptor[R, E, A](val k: Fiber.Descriptor => ZIO[R, E, A]) extends ZIO[R, E, A] {

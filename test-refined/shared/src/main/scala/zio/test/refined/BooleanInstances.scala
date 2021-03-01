@@ -19,8 +19,8 @@ trait BooleanInstances {
     DeriveGen.instance(orGen(genA, genB))
   }
 
-  def orGen[T, A, B](implicit
-    genA: Gen[random.Random with Sized, T],
-    genB: Gen[random.Random with Sized, T]
-  ): Gen[Random with Sized, Refined[T, A Or B]] = Gen.oneOf[Random with Sized, T](genA, genB).map(Refined.unsafeApply)
+  def orGen[R <: Random, T, A, B](implicit
+    genA: Gen[R, T],
+    genB: Gen[R, T]
+  ): Gen[R, Refined[T, A Or B]] = Gen.oneOf(genA, genB).map(Refined.unsafeApply)
 }

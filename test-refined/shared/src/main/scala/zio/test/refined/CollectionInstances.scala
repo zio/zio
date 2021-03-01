@@ -11,41 +11,37 @@ object collection extends CollectionInstances
 
 trait CollectionInstances {
 
-  def nonEmptyChunkRefinedGen[C, T](implicit
-    genT: Gen[Random with Sized, T]
-  ): Gen[Random with Sized, Refined[NonEmptyChunk[T], NonEmpty]] =
-    nonEmptyChunkGen(genT).map(Refined.unsafeApply)
+  def nonEmptyChunkRefinedGen[R <: Random with Sized, C, T](implicit
+    genT: Gen[R, T]
+  ): Gen[R, Refined[NonEmptyChunk[T], NonEmpty]] =
+    Gen.chunkOf1(genT).map(Refined.unsafeApply)
 
-  def nonEmptyListRefinedGen[T](implicit
-    genT: Gen[Random with Sized, T]
-  ): Gen[Random with Sized, Refined[List[T], NonEmpty]] =
-    nonEmptyChunkGen(genT)
-      .map(v => Refined.unsafeApply(v.toList))
+  def nonEmptyListRefinedGen[R <: Random with Sized, T](implicit
+    genT: Gen[R, T]
+  ): Gen[R, Refined[List[T], NonEmpty]] = Gen.listOf1(genT).map(Refined.unsafeApply)
 
-  def nonEmptyVectorRefinedGen[T](implicit
-    genT: Gen[Random with Sized, T]
-  ): Gen[Random with Sized with Sized, Refined[Vector[T], NonEmpty]] =
-    nonEmptyChunkGen(genT)
-      .map(v => Refined.unsafeApply(v.toVector))
+  def nonEmptyVectorRefinedGen[R <: Random with Sized, T](implicit
+    genT: Gen[R, T]
+  ): Gen[R, Refined[Vector[T], NonEmpty]] = Gen.vectorOf1(genT).map(Refined.unsafeApply)
 
-  def sizedChunkRefinedGen[T, P](implicit
-    genT: Gen[Random with Sized, T],
+  def sizedChunkRefinedGen[R <: Random with Sized, T, P](implicit
+    genT: Gen[R, T],
     sizeGen: Gen[Random, Int Refined P]
-  ): Gen[Random with Sized, Refined[Chunk[T], Size[P]]] =
+  ): Gen[R, Refined[Chunk[T], Size[P]]] =
     sizedChunkGen(genT, sizeGen)
       .map(r => Refined.unsafeApply(r))
 
-  def listSizeRefinedGen[T, P](implicit
-    genT: Gen[Random with Sized, T],
+  def listSizeRefinedGen[R <: Random with Sized, T, P](implicit
+    genT: Gen[R, T],
     sizeGen: Gen[Random, Int Refined P]
-  ): Gen[Random with Sized, Refined[List[T], Size[P]]] =
+  ): Gen[R, Refined[List[T], Size[P]]] =
     sizedChunkGen(genT, sizeGen)
       .map(r => Refined.unsafeApply(r.toList))
 
-  def vectorSizeRefinedGen[T: DeriveGen, P](implicit
-    genT: Gen[Random with Sized, T],
+  def vectorSizeRefinedGen[R <: Random with Sized, T: DeriveGen, P](implicit
+    genT: Gen[R, T],
     sizeGen: Gen[Random, Int Refined P]
-  ): Gen[Random with Sized, Refined[Vector[T], Size[P]]] =
+  ): Gen[R, Refined[Vector[T], Size[P]]] =
     sizedChunkGen(genT, sizeGen)
       .map(r => Refined.unsafeApply(r.toVector))
 
@@ -59,14 +55,14 @@ trait CollectionInstances {
   implicit def nonEmptyListRefinedDeriveGen[T](implicit
     deriveGenT: DeriveGen[T]
   ): DeriveGen[Refined[List[T], NonEmpty]] = DeriveGen.instance(
-    nonEmptyChunkGen(deriveGenT.derive).map(r => Refined.unsafeApply(r.toList))
+    Gen.listOf1(deriveGenT.derive).map(Refined.unsafeApply)
   )
 
   implicit def nonEmptyVectorRefinedDeriveGen[T](implicit
     deriveGenT: DeriveGen[T]
   ): DeriveGen[Refined[Vector[T], NonEmpty]] =
     DeriveGen.instance(
-      nonEmptyChunkGen(deriveGenT.derive).map(r => Refined.unsafeApply(r.toVector))
+      Gen.vectorOf1(deriveGenT.derive).map(Refined.unsafeApply)
     )
 
   implicit def sizedChunkRefinedDeriveGen[T, P](implicit
@@ -93,15 +89,10 @@ trait CollectionInstances {
       sizedChunkGen(deriveGenT.derive, deriveGenSize.derive).map(r => Refined.unsafeApply(r.toVector))
     )
 
-  private[refined] def nonEmptyChunkGen[T](
-    arbT: Gen[Random with Sized, T]
-  ): Gen[Random with Sized, NonEmptyChunk[T]] =
-    Gen.chunkOf1(arbT)
-
-  private[refined] def sizedChunkGen[T, P](
-    genT: Gen[Random with Sized, T],
+  private[refined] def sizedChunkGen[R <: Random with Sized, T, P](
+    genT: Gen[R, T],
     sizeGen: Gen[Random with Sized, Int Refined P]
-  ): Gen[Random with Sized, Chunk[T]] =
+  ): Gen[R, Chunk[T]] =
     sizeGen.flatMap { n =>
       Gen.chunkOfN(n.value)(genT)
     }
