@@ -91,6 +91,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Rocker](https://rocker.com/)
 * [Rudder](https://www.rudder.io/)
 * [SecurityScorecard](https://www.securityscorecard.io/) 
+* [Signicat](https://www.signicat.com/)
 * [SoftwareMill](https://softwaremill.com/)
 * [Stuart](https://stuart.com/)
 * [TomTom](https://tomtom.com)
