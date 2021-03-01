@@ -663,7 +663,7 @@ object RIO {
   /**
    * @see [[zio.ZIO.infinity]]
    */
-  val infinity: URIO[Clock, Nothing] = ZIO.sleep(Duration.fromNanos(Long.MaxValue)) *> ZIO.never
+  val infinity: URIO[Has[Clock], Nothing] = ZIO.sleep(Duration.fromNanos(Long.MaxValue)) *> ZIO.never
 
   /**
    * @see See [[zio.ZIO.interrupt]]
@@ -925,7 +925,7 @@ object RIO {
   /**
    * @see See [[zio.ZIO.sleep]]
    */
-  def sleep(duration: => Duration): RIO[Clock, Unit] =
+  def sleep(duration: => Duration): RIO[Has[Clock], Unit] =
     ZIO.sleep(duration)
 
   /**

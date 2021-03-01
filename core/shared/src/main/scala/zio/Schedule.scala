@@ -324,8 +324,8 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
   /**
    * Returns a driver that can be used to step the schedule, appropriately handling sleeping.
    */
-  def driver: UIO[Schedule.Driver[Env with Clock, In, Out]] =
-    Ref.make[(Option[Out], StepFunction[Env with Clock, In, Out])]((None, step)).map { ref =>
+  def driver: UIO[Schedule.Driver[Env with Has[Clock], In, Out]] =
+    Ref.make[(Option[Out], StepFunction[Env with Has[Clock], In, Out])]((None, step)).map { ref =>
       val next = (in: In) =>
         for {
           step <- ref.get.map(_._2)

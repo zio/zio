@@ -7,7 +7,7 @@ import zio.test.mock.Expectation._
 import zio.test.mock.internal.InvalidCall._
 import zio.test.mock.internal.MockException._
 import zio.test.mock.module.PureModuleMock
-import zio.{Cause, Layer, ZIO}
+import zio.{Cause, Has, Layer, ZIO}
 
 import java.util.regex.Pattern
 import scala.{Console => SConsole}
@@ -54,7 +54,9 @@ object ReportingTestUtils {
     for {
       _ <- TestTestRunner(testEnvironment)
              .run(spec)
-             .provideLayer[Nothing, TestEnvironment, TestLogger with Clock](TestLogger.fromConsole ++ TestClock.default)
+             .provideLayer[Nothing, TestEnvironment, TestLogger with Has[Clock]](
+               TestLogger.fromConsole ++ TestClock.default
+             )
       output <- TestConsole.output
     } yield output.mkString.withNoLineNumbers
 
@@ -62,7 +64,7 @@ object ReportingTestUtils {
     for {
       results <- TestTestRunner(testEnvironment)
                    .run(spec)
-                   .provideLayer[Nothing, TestEnvironment, TestLogger with Clock](
+                   .provideLayer[Nothing, TestEnvironment, TestLogger with Has[Clock]](
                      TestLogger.fromConsole ++ TestClock.default
                    )
       actualSummary = SummaryBuilder.buildSummary(results)

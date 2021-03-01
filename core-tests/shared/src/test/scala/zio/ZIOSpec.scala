@@ -1602,9 +1602,9 @@ object ZIOSpec extends ZIOBaseSpec {
     ),
     suite("provideSomeLayer")(
       testM("can split environment into two parts") {
-        val clockLayer: ZLayer[Any, Nothing, Clock]    = Clock.live
-        val zio: ZIO[Clock with Random, Nothing, Unit] = ZIO.unit
-        val zio2: URIO[Random, Unit]                   = zio.provideSomeLayer[Random](clockLayer)
+        val clockLayer: ZLayer[Any, Nothing, Has[Clock]]    = Clock.live
+        val zio: ZIO[Has[Clock] with Random, Nothing, Unit] = ZIO.unit
+        val zio2: URIO[Random, Unit]                        = zio.provideSomeLayer[Random](clockLayer)
         assertM(zio2)(anything)
       }
     ),
@@ -2298,12 +2298,12 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(io)(equalTo(42))
       },
       testM("deep effectAsyncM doesn't block threads") {
-        def stackIOs(count: Int): URIO[Clock, Int] =
+        def stackIOs(count: Int): URIO[Has[Clock], Int] =
           if (count <= 0) IO.succeed(42)
           else asyncIO(stackIOs(count - 1))
 
-        def asyncIO(cont: URIO[Clock, Int]): URIO[Clock, Int] =
-          ZIO.effectAsyncM[Clock, Nothing, Int] { k =>
+        def asyncIO(cont: URIO[Has[Clock], Int]): URIO[Has[Clock], Int] =
+          ZIO.effectAsyncM[Has[Clock], Nothing, Int] { k =>
             clock.sleep(5.millis) *> cont *> IO.effectTotal(k(IO.succeed(42)))
           }
 
@@ -2495,7 +2495,7 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(res1)(isUnit) && assert(res2)(isUnit)
       },
       testM("supervise fibers") {
-        def makeChild(n: Int): URIO[Clock, Fiber[Nothing, Unit]] =
+        def makeChild(n: Int): URIO[Has[Clock], Fiber[Nothing, Unit]] =
           (clock.sleep(20.millis * n.toDouble) *> ZIO.infinity).fork
 
         val io =
@@ -2599,7 +2599,7 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(Live.live(io).run)(fails(equalTo("Uh oh")))
       },
       testM("timeout of terminate") {
-        val io: ZIO[Clock, Nothing, Option[Int]] = IO.die(ExampleError).timeout(1.hour)
+        val io: ZIO[Has[Clock], Nothing, Option[Int]] = IO.die(ExampleError).timeout(1.hour)
         assertM(Live.live(io).run)(dies(equalTo(ExampleError)))
       }
     ),
@@ -2981,7 +2981,7 @@ object ZIOSpec extends ZIOBaseSpec {
             ref    <- Ref.make(false)
             fiber1 <- latch1
                         .succeed(())
-                        .bracketExit[Clock, Nothing, Unit](
+                        .bracketExit[Has[Clock], Nothing, Unit](
                           (_: Boolean, _: Exit[Any, Any]) => ZIO.unit,
                           (_: Boolean) => latch2.await *> clock.sleep(10.millis) *> ref.set(true).unit
                         )

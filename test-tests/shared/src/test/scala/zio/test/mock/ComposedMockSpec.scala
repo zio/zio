@@ -35,7 +35,7 @@ object ComposedMockSpec extends ZIOBaseSpec {
             _    <- console.putStrLn(time.toString)
           } yield ()
 
-        testValueComposed[Clock with Console, Nothing, Unit]("Console with Clock")(composed, program, isUnit)
+        testValueComposed[Has[Clock] with Console, Nothing, Unit]("Console with Clock")(composed, program, isUnit)
       }, {
         val cmd1 = MockRandom.NextInt(value(42))
         val cmd2 = MockClock.Sleep(equalTo(42.seconds))
@@ -52,7 +52,7 @@ object ComposedMockSpec extends ZIOBaseSpec {
             _ <- console.putStrLn(v.toString)
           } yield ()
 
-        testValueComposed[Random with Clock with System with Console, Throwable, Unit](
+        testValueComposed[Random with Has[Clock] with System with Console, Throwable, Unit](
           "Random with Clock with System with Console"
         )(composed, program, isUnit)
       }

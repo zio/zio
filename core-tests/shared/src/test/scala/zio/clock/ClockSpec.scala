@@ -7,7 +7,7 @@ import java.time.DateTimeException
 
 object ClockSpec extends ZIOBaseSpec {
 
-  def spec: Spec[Clock, TestFailure[DateTimeException], TestSuccess] = suite("ClockSpec")(
+  def spec: Spec[Has[Clock], TestFailure[DateTimeException], TestSuccess] = suite("ClockSpec")(
     testM("currentDateTime does not throw a DateTimeException") {
       for {
         _ <- clock.currentDateTime

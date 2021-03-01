@@ -23,26 +23,25 @@ import java.util.concurrent.TimeUnit
 
 package object clock {
 
-  type Clock = Has[Clock.Service]
+  trait Clock extends Serializable {
+
+    def currentTime(unit: TimeUnit): UIO[Long]
+
+    def currentDateTime: UIO[OffsetDateTime]
+
+    def instant: UIO[java.time.Instant]
+
+    def localDateTime: UIO[java.time.LocalDateTime]
+
+    def nanoTime: UIO[Long]
+
+    def sleep(duration: Duration): UIO[Unit]
+  }
 
   object Clock extends PlatformSpecific with Serializable {
-    trait Service extends Serializable {
-
-      def currentTime(unit: TimeUnit): UIO[Long]
-
-      def currentDateTime: UIO[OffsetDateTime]
-
-      def instant: UIO[java.time.Instant]
-
-      def localDateTime: UIO[java.time.LocalDateTime]
-
-      def nanoTime: UIO[Long]
-
-      def sleep(duration: Duration): UIO[Unit]
-    }
 
     object Service {
-      val live: Service = new Service {
+      val live: Clock = new Clock {
         def currentTime(unit: TimeUnit): UIO[Long] =
           instant.map { inst =>
             // A nicer solution without loss of precision or range would be
@@ -77,38 +76,38 @@ package object clock {
       }
     }
 
-    val any: ZLayer[Clock, Nothing, Clock] =
-      ZLayer.requires[Clock]
+    val any: ZLayer[Has[Clock], Nothing, Has[Clock]] =
+      ZLayer.requires[Has[Clock]]
 
-    val live: Layer[Nothing, Clock] =
+    val live: Layer[Nothing, Has[Clock]] =
       ZLayer.succeed(Service.live)
   }
 
   /**
    * Returns the current time, relative to the Unix epoch.
    */
-  def currentTime(unit: => TimeUnit): URIO[Clock, Long] =
+  def currentTime(unit: => TimeUnit): URIO[Has[Clock], Long] =
     ZIO.accessM(_.get.currentTime(unit))
 
   /**
    * Get the current time, represented in the current timezone.
    */
-  val currentDateTime: URIO[Clock, OffsetDateTime] =
+  val currentDateTime: URIO[Has[Clock], OffsetDateTime] =
     ZIO.accessM(_.get.currentDateTime)
 
-  val instant: ZIO[Clock, Nothing, java.time.Instant] =
+  val instant: ZIO[Has[Clock], Nothing, java.time.Instant] =
     ZIO.accessM(_.get.instant)
 
   /**
    * Returns the system nano time, which is not relative to any date.
    */
-  val nanoTime: URIO[Clock, Long] =
+  val nanoTime: URIO[Has[Clock], Long] =
     ZIO.accessM(_.get.nanoTime)
 
   /**
    * Sleeps for the specified duration. This is always asynchronous.
    */
-  def sleep(duration: => Duration): URIO[Clock, Unit] =
+  def sleep(duration: => Duration): URIO[Has[Clock], Unit] =
     ZIO.accessM(_.get.sleep(duration))
 
 }

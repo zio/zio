@@ -18,8 +18,8 @@ class TMapContentionBenchmarks {
   @Param(Array("100", "1000", "10000"))
   var repeatedUpdates: Int = _
 
-  private var mapUpdates: URIO[Clock, Unit] = _
-  private var refUpdates: URIO[Clock, Unit] = _
+  private var mapUpdates: URIO[Has[Clock], Unit] = _
+  private var refUpdates: URIO[Has[Clock], Unit] = _
 
   @Setup(Level.Trial)
   def setup(): Unit = {

@@ -250,7 +250,7 @@ package object environment extends PlatformSpecific {
       live: Live.Service,
       annotations: Annotations.Service,
       warningState: RefM[TestClock.WarningData]
-    ) extends Clock.Service
+    ) extends Clock
         with TestClock.Service {
 
       /**
@@ -487,20 +487,20 @@ package object environment extends PlatformSpecific {
      * interface. This can be useful for mixing in with implementations of
      * other interfaces.
      */
-    def live(data: Data): ZLayer[Live with Annotations, Nothing, Clock with TestClock] =
-      ZLayer.fromServicesManyManaged[Live.Service, Annotations.Service, Any, Nothing, Clock with TestClock] {
+    def live(data: Data): ZLayer[Live with Annotations, Nothing, Has[Clock] with TestClock] =
+      ZLayer.fromServicesManyManaged[Live.Service, Annotations.Service, Any, Nothing, Has[Clock] with TestClock] {
         (live: Live.Service, annotations: Annotations.Service) =>
           for {
             ref  <- Ref.make(data).toManaged_
             refM <- RefM.make(WarningData.start).toManaged_
             test <- Managed.make(UIO(Test(ref, live, annotations, refM)))(_.warningDone)
-          } yield Has.allOf[Clock.Service, TestClock.Service](test, test)
+          } yield Has.allOf[Clock, TestClock.Service](test, test)
       }
 
-    val any: ZLayer[Clock with TestClock, Nothing, Clock with TestClock] =
-      ZLayer.requires[Clock with TestClock]
+    val any: ZLayer[Has[Clock] with TestClock, Nothing, Has[Clock] with TestClock] =
+      ZLayer.requires[Has[Clock] with TestClock]
 
-    val default: ZLayer[Live with Annotations, Nothing, Clock with TestClock] =
+    val default: ZLayer[Live with Annotations, Nothing, Has[Clock] with TestClock] =
       live(Data(Duration.Zero, Nil, ZoneId.of("UTC")))
 
     /**
@@ -1536,14 +1536,14 @@ package object environment extends PlatformSpecific {
     val deterministic: Layer[Nothing, Random with TestRandom] =
       make(DefaultData)
 
-    val random: ZLayer[Clock, Nothing, Random with TestRandom] =
-      (ZLayer.service[Clock.Service] ++ deterministic) >>>
-        (ZLayer.fromFunctionManyM { (env: Clock with Random with TestRandom) =>
+    val random: ZLayer[Has[Clock], Nothing, Random with TestRandom] =
+      (ZLayer.service[Clock] ++ deterministic) >>>
+        (ZLayer.fromFunctionManyM { (env: Has[Clock] with Random with TestRandom) =>
           val random     = env.get[Random.Service]
           val testRandom = env.get[TestRandom.Service]
 
           for {
-            time <- env.get[Clock.Service].nanoTime
+            time <- env.get[Clock].nanoTime
             _    <- env.get[TestRandom.Service].setSeed(time)
           } yield Has.allOf[Random.Service, TestRandom.Service](random, testRandom)
         })

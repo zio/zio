@@ -4,7 +4,7 @@ import zio.clock.Clock
 import zio.console.Console
 import zio.test.mock.internal.MockException
 import zio.test.{Assertion, ZIOBaseSpec, ZSpec}
-import zio.{ZIO, clock, console}
+import zio.{Has, ZIO, clock, console}
 
 import java.io.IOException
 
@@ -14,7 +14,7 @@ object ComposedEmptyMockSpec extends ZIOBaseSpec with MockSpecUtils[ComposedEmpt
   import Expectation._
   import MockException._
 
-  def branchingProgram(predicate: Boolean): ZIO[Console with Clock, IOException, Unit] =
+  def branchingProgram(predicate: Boolean): ZIO[Console with Has[Clock], IOException, Unit] =
     ZIO
       .succeed(predicate)
       .flatMap {
@@ -48,8 +48,8 @@ object ComposedEmptyMockSpec extends ZIOBaseSpec with MockSpecUtils[ComposedEmpt
         isUnit
       ), {
 
-        type M = Capability[Clock, Unit, Nothing, Long]
-        type X = UnexpectedCallException[Clock, Unit, Nothing, Long]
+        type M = Capability[Has[Clock], Unit, Nothing, Long]
+        type X = UnexpectedCallException[Has[Clock], Unit, Nothing, Long]
 
         testDied("should fail when call on Clock happened")(
           MockClock.empty ++ MockConsole.GetStrLn(value("foo")),
@@ -65,5 +65,5 @@ object ComposedEmptyMockSpec extends ZIOBaseSpec with MockSpecUtils[ComposedEmpt
 }
 
 object ComposedEmptyMockSpecCompat {
-  type Environment = Console with Clock
+  type Environment = Has[Console] with Has[Clock]
 }

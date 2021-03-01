@@ -18,7 +18,7 @@ object RTSSpec extends ZIOBaseSpec {
     testM("blocking caches threads") {
       import zio.blocking.Blocking
 
-      def runAndTrack(ref: Ref[Set[Thread]]): ZIO[Blocking with Clock, Nothing, Boolean] =
+      def runAndTrack(ref: Ref[Set[Thread]]): ZIO[Blocking with Has[Clock], Nothing, Boolean] =
         blocking.blocking {
           UIO(Thread.currentThread())
             .flatMap(thread => ref.modify(set => (set.contains(thread), set + thread))) <* ZIO

@@ -816,9 +816,9 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
    * `once` or `recurs` for example), so that that `io.retry(Schedule.once)` means
    * "execute `io` and in case of failure, try again once".
    */
-  def retry[R1 <: R, S](policy: Schedule[R1, E, S])(implicit ev: CanFail[E]): ZManaged[R1 with Clock, E, A] =
-    ZManaged(ZIO.accessM[(R1 with Clock, ZManaged.ReleaseMap)] { case (env, releaseMap) =>
-      zio.provideSome[R1 with Clock](env => (env, releaseMap)).retry(policy).provide(env)
+  def retry[R1 <: R, S](policy: Schedule[R1, E, S])(implicit ev: CanFail[E]): ZManaged[R1 with Has[Clock], E, A] =
+    ZManaged(ZIO.accessM[(R1 with Has[Clock], ZManaged.ReleaseMap)] { case (env, releaseMap) =>
+      zio.provideSome[R1 with Has[Clock]](env => (env, releaseMap)).retry(policy).provide(env)
     })
 
   def right[R1 <: R, C]: ZManaged[Either[C, R1], E, Either[C, A]] = ZManaged.identity +++ self
@@ -943,7 +943,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
   /**
    * Returns a new effect that executes this one and times the acquisition of the resource.
    */
-  def timed: ZManaged[R with Clock, E, (Duration, A)] =
+  def timed: ZManaged[R with Has[Clock], E, (Duration, A)] =
     ZManaged {
       ZIO.environment[(R, ReleaseMap)].flatMap { case (r, releaseMap) =>
         self.zio
@@ -952,7 +952,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
           .map { case (duration, (fin, a)) =>
             (fin, (duration, a))
           }
-          .provideSome[(R with Clock, ReleaseMap)](_._1)
+          .provideSome[(R with Has[Clock], ReleaseMap)](_._1)
       }
     }
 
@@ -962,11 +962,11 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
    * If the reservation completes successfully (even after the timeout) the release action will be run on a new fiber.
    * `Some` will be returned if acquisition and reservation complete in time
    */
-  def timeout(d: Duration): ZManaged[R with Clock, E, Option[A]] =
+  def timeout(d: Duration): ZManaged[R with Has[Clock], E, Option[A]] =
     ZManaged {
       ZIO.uninterruptibleMask { restore =>
         for {
-          env                 <- ZIO.environment[(R with Clock, ReleaseMap)]
+          env                 <- ZIO.environment[(R with Has[Clock], ReleaseMap)]
           (r, outerReleaseMap) = env
           innerReleaseMap     <- ZManaged.ReleaseMap.make
           earlyRelease        <- outerReleaseMap.add(innerReleaseMap.releaseAll(_, ExecutionStrategy.Sequential))

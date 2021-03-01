@@ -197,7 +197,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
   /**
    * Retries constructing this layer according to the specified schedule.
    */
-  final def retry[RIn1 <: RIn with clock.Clock](schedule: Schedule[RIn1, E, Any]): ZLayer[RIn1, E, ROut] = {
+  final def retry[RIn1 <: RIn with Has[clock.Clock]](schedule: Schedule[RIn1, E, Any]): ZLayer[RIn1, E, ROut] = {
     import Schedule.StepFunction
     import Schedule.Decision._
 
