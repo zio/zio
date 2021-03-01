@@ -34,17 +34,13 @@ private[zio] trait ZIOVersionSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
    * val zio2 : ZIO[ZEnv, Nothing, Unit] = zio.provideCustomLayerAuto(oldLadyLayer, flyLayer)
    * }}}
    */
-  def provideCustomLayerAuto[E1 >: E](
-    layers: ZLayer[_, E1, _]*
-  ): ZIO[ZEnv, E1, A] =
-    macro ProvideLayerAutoMacros.provideCustomLayerAutoImpl[R, E1, A]
+  def provideCustomLayerAuto[E1 >: E](layers: ZLayer[_, E1, _]*): ZIO[ZEnv, E1, A] =
+    macro ProvideLayerAutoMacros.provideCustomLayerAutoImpl[ZIO, R, E1, A]
 
   /**
-   * Automatically assembles a layer for the ZIO effect, which translates it to another level.
+   * Automatically assembles a layer for the ZIO effect.
    */
-  def provideLayerAuto[E1 >: E](
-    layers: ZLayer[_, E1, _]*
-  ): ZIO[Any, E1, A] =
-    macro ProvideLayerAutoMacros.provideLayerAutoImpl[R, E1, A]
+  def provideLayerAuto[E1 >: E](layers: ZLayer[_, E1, _]*): ZIO[Any, E1, A] =
+    macro ProvideLayerAutoMacros.provideLayerAutoImpl[ZIO, R, E1, A]
 
 }

@@ -23,7 +23,7 @@ trait ZIOVersionSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
     /**
    * Automatically assembles a layer for the ZIO effect, which translates it to another level.
    */
-  inline def provideLayerAuto[E1 >: E](inline layers: ZLayer[_,E1,_]*): ZIO[Any, E1, A] = 
+  inline def provideLayerAuto[E1 >: E](inline layers: ZLayer[_,E1,_]*): ZIO[Any, E1, A] =
     ${ProvideLayerAutoMacros.provideLayerAutoImpl[Any, R,E1, A]('self, 'layers)}
 
 }

@@ -18,7 +18,7 @@ package zio
 
 import zio.internal.macros.ProvideLayerAutoMacros
 
-private[zio] trait ZIOVersionSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
+private[zio] trait ZManagedVersionSpecific[-R, +E, +A] { self: ZManaged[R, E, A] =>
 
   /**
    * Automatically constructs the part of the environment that is not part of the `ZEnv`,
@@ -26,21 +26,21 @@ private[zio] trait ZIOVersionSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
    * `ZEnv` requirements with `ZEnv.any`, allowing them to be provided later.
    *
    * {{{
-   * val zio: ZIO[OldLady with Console, Nothing, Unit] = ???
+   * val zio: ZManaged[OldLady with Console, Nothing, Unit] = ???
    * val oldLadyLayer: ZLayer[Fly, Nothing, OldLady] = ???
    * val flyLayer: ZLayer[Blocking, Nothing, Fly] = ???
    *
    * // The ZEnv you use later will provide both Blocking to flyLayer and Console to zio
-   * val zio2 : ZIO[ZEnv, Nothing, Unit] = zio.provideCustomLayerAuto(oldLadyLayer, flyLayer)
+   * val zio2 : ZManaged[ZEnv, Nothing, Unit] = zio.provideCustomLayerAuto(oldLadyLayer, flyLayer)
    * }}}
    */
-  def provideCustomLayerAuto[E1 >: E](layers: ZLayer[_, E1, _]*): ZIO[ZEnv, E1, A] =
-    macro ProvideLayerAutoMacros.provideCustomLayerAutoImpl[ZIO, R, E1, A]
+  def provideCustomLayerAuto[E1 >: E](layers: ZLayer[_, E1, _]*): ZManaged[ZEnv, E1, A] =
+    macro ProvideLayerAutoMacros.provideCustomLayerAutoImpl[ZManaged, R, E1, A]
 
   /**
-   * Automatically assembles a layer for the ZIO effect.
+   * Automatically assembles a layer for the ZManaged effect.
    */
-  def provideLayerAuto[E1 >: E](layers: ZLayer[_, E1, _]*): ZIO[Any, E1, A] =
-    macro ProvideLayerAutoMacros.provideLayerAutoImpl[ZIO, R, E1, A]
+  def provideLayerAuto[E1 >: E](layers: ZLayer[_, E1, _]*): ZManaged[Any, E1, A] =
+    macro ProvideLayerAutoMacros.provideLayerAutoImpl[ZManaged, R, E1, A]
 
 }

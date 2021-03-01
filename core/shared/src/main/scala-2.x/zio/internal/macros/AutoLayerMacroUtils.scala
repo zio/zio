@@ -72,7 +72,7 @@ trait AutoLayerMacroUtils {
 
     intersectionTypes
       .filter(_.isHas)
-      .map(_.dealias.typeArgs.head.dealias.toString)
+      .map(_.dealias.typeArgs.head.dealias.map(_.dealias).toString)
       .distinct
   }
 
@@ -92,11 +92,12 @@ trait AutoLayerMacroUtils {
     /**
      * Given a type `A with B with C` You'll get back List[A,B,C]
      */
-    def intersectionTypes: List[Type] = self.dealias match {
-      case t: RefinedType =>
-        t.parents.flatMap(_.dealias.intersectionTypes)
-      case _ => List(self)
-    }
+    def intersectionTypes: List[Type] =
+      self.dealias match {
+        case t: RefinedType =>
+          t.parents.flatMap(_.dealias.intersectionTypes)
+        case _ => List(self)
+      }
   }
 
   implicit class ZLayerExprOps(self: c.Expr[ZLayer[_, _, _]]) {
