@@ -93,6 +93,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [SecurityScorecard](https://www.securityscorecard.io/) 
 * [SoftwareMill](https://softwaremill.com/)
 * [Stuart](https://stuart.com/)
+* [Teads](https://teads.com)
 * [TomTom](https://tomtom.com)
 * [Tinkoff](https://tinkoff.ru)
 * [Tweddle Group](https://tweddle.com)
