@@ -72,7 +72,8 @@ import scala.reflect.ClassTag
  * Instead, recursive operators must be defined explicitly. See the definition of
  * [[ZStream#forever]] for an example. This limitation will be lifted in the future.
  */
-abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Option[E], Chunk[O]]]) { self =>
+abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Option[E], Chunk[O]]])
+    extends ZStreamVersionSpecific[R, E, O] { self =>
 
   import ZStream.{BufferedPull, Pull, TerminationStrategy}
 

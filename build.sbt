@@ -202,6 +202,7 @@ lazy val streams = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(buildInfoSettings("zio.stream"))
   .settings(streamReplSettings)
   .enablePlugins(BuildInfoPlugin)
+  .settings(macroDefinitionSettings)
 
 lazy val streamsJVM = streams.jvm
   .settings(dottySettings)
