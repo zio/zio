@@ -18,6 +18,7 @@ package zio.test.refined
 
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.char._
+import zio.Has
 import zio.random.Random
 import zio.test.Gen
 import zio.test.magnolia.DeriveGen
@@ -26,14 +27,14 @@ object char extends CharInstances
 
 trait CharInstances {
 
-  val digitGen: Gen[Random, Refined[Char, Digit]]   = Gen.numericChar.map(value => Refined.unsafeApply(value))
-  val letterGen: Gen[Random, Refined[Char, Letter]] = Gen.alphaChar.map(value => Refined.unsafeApply(value))
-  val lowerCaseGen: Gen[Random, Refined[Char, LowerCase]] =
+  val digitGen: Gen[Has[Random], Refined[Char, Digit]]   = Gen.numericChar.map(value => Refined.unsafeApply(value))
+  val letterGen: Gen[Has[Random], Refined[Char, Letter]] = Gen.alphaChar.map(value => Refined.unsafeApply(value))
+  val lowerCaseGen: Gen[Has[Random], Refined[Char, LowerCase]] =
     Gen.alphaChar.map(value => Refined.unsafeApply(value.toLower))
-  val upperCaseGen: Gen[Random, Refined[Char, UpperCase]] =
+  val upperCaseGen: Gen[Has[Random], Refined[Char, UpperCase]] =
     Gen.alphaChar.map(value => Refined.unsafeApply(value.toUpper))
-  val whitespaceGen: Gen[Random, Refined[Char, Whitespace]] = Gen
-    .oneOf[Random, Char](Gen.whitespaceChars.map(Gen.const(_)): _*)
+  val whitespaceGen: Gen[Has[Random], Refined[Char, Whitespace]] = Gen
+    .oneOf[Has[Random], Char](Gen.whitespaceChars.map(Gen.const(_)): _*)
     .map(char => Refined.unsafeApply(char))
 
   implicit def digitArbitrary: DeriveGen[Refined[Char, Digit]] =

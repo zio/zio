@@ -3,7 +3,7 @@ package zio.test.mock
 import zio.console.Console
 import zio.test.mock.internal.MockException
 import zio.test.{Assertion, ZIOBaseSpec, ZSpec}
-import zio.{ZIO, console, Has}
+import zio.{Has, ZIO, console}
 
 object EmptyMockSpec extends ZIOBaseSpec with MockSpecUtils[Has[Console]] {
 

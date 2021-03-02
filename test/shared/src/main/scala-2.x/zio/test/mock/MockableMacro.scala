@@ -39,7 +39,8 @@ private[mock] object MockableMacro {
     }
 
     val service: Type = c.typecheck(q"(??? : ${c.prefix.tree})").tpe.typeArgs.head
-    if (service == definitions.NothingTpe) abort(s"@mockable macro requires type parameter: @mockable[Module.Service]")
+    if (service == definitions.NothingTpe)
+      abort(s"@mockable macro requires type parameter: @mockable[Module.Random]")
 
     val serviceBaseTypeParameters         = service.baseType(service.typeSymbol).typeConstructor.typeParams.map(_.asType)
     val serviceTypeParameterSubstitutions = serviceBaseTypeParameters.zip(service.typeArgs).toMap

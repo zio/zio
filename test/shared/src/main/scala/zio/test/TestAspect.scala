@@ -665,19 +665,19 @@ object TestAspect extends TimeoutVariants {
 
   /**
    * An aspect that restores the
-   * [[zio.test.environment.TestSystem TestSystem]]'s state to its starting
+   * [[zio.test.environment.TestSystem Has[TestSystem]]]'s state to its starting
    * state after the test is run. Note that this is only useful when repeating
    * tests.
    */
   def restoreTestSystem: TestAspectAtLeastR[ZTestEnv] =
-    restore[TestSystem](_.get)
+    restore[Has[TestSystem]](_.get)
 
   /**
    * An aspect that restores all state in the standard provided test
    * environments ([[zio.test.environment.TestClock TestClock]],
    * [[zio.test.environment.TestConsole TestConsole]],
    * [[zio.test.environment.TestRandom TestRandom]] and
-   * [[zio.test.environment.TestSystem TestSystem]]) to their starting state
+   * [[zio.test.environment.TestSystem Has[TestSystem]]]) to their starting state
    * after the test is run. Note that this is only useful when repeating tests.
    */
   def restoreTestEnvironment: TestAspectAtLeastR[ZTestEnv] =

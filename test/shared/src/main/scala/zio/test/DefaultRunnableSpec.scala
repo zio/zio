@@ -23,7 +23,7 @@ import zio.{Has, URIO, ZIO}
 
 /**
  * A default runnable spec that provides testable versions of all of the
- * modules in ZIO (Clock, Random, etc).
+ * modules in ZIO (Clock, Has[Random], etc).
  */
 abstract class DefaultRunnableSpec extends RunnableSpec[TestEnvironment, Any] {
 

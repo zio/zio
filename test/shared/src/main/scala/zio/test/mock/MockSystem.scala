@@ -19,7 +19,7 @@ package zio.test.mock
 import zio.system.System
 import zio.{Has, IO, UIO, URLayer, ZLayer}
 
-object MockSystem extends Mock[System] {
+object MockSystem extends Mock[Has[System]] {
 
   object Env              extends Effect[String, SecurityException, Option[String]]
   object EnvOrElse        extends Effect[(String, String), SecurityException, String]
@@ -31,9 +31,9 @@ object MockSystem extends Mock[System] {
   object PropertyOrOption extends Effect[(String, Option[String]), Throwable, Option[String]]
   object LineSeparator    extends Effect[Unit, Nothing, String]
 
-  val compose: URLayer[Has[Proxy], System] =
+  val compose: URLayer[Has[Proxy], Has[System]] =
     ZLayer.fromService(proxy =>
-      new System.Service {
+      new System {
         def env(variable: String): IO[SecurityException, Option[String]] =
           proxy(Env, variable)
         def envOrElse(variable: String, alt: => String): IO[SecurityException, String] =

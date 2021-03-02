@@ -17,6 +17,7 @@
 package zio.stm
 
 import zio._
+import zio.random.Random
 
 package object random {
   type TRandom = Has[TRandom.Service]
@@ -48,7 +49,7 @@ package object random {
     val any: ZLayer[TRandom, Nothing, TRandom] =
       ZLayer.requires[TRandom]
 
-    val live: ZLayer[zio.random.Random, Nothing, TRandom] =
+    val live: ZLayer[Has[Random], Nothing, TRandom] =
       ZLayer.fromEffect {
         import PureRandom._
         zio.random.nextLong.flatMap { init =>

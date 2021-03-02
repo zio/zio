@@ -84,7 +84,6 @@ package object environment extends PlatformSpecific {
   type TestClock   = Has[TestClock.Service]
   type TestConsole = Has[TestConsole.Service]
   type TestRandom  = Has[TestRandom.Service]
-  type TestSystem  = Has[TestSystem.Service]
 
   val liveEnvironment: Layer[Nothing, ZEnv] = ZEnv.live
 
@@ -948,9 +947,7 @@ package object environment extends PlatformSpecific {
     /**
      * Adapted from @gzmo work in Scala.js (https://github.com/scala-js/scala-js/pull/780)
      */
-    final case class Test(randomState: Ref[Data], bufferState: Ref[Buffer])
-        extends Random.Service
-        with TestRandom.Service {
+    final case class Test(randomState: Ref[Data], bufferState: Ref[Buffer]) extends Random with TestRandom.Service {
 
       /**
        * Clears the buffer of booleans.
@@ -1521,31 +1518,31 @@ package object environment extends PlatformSpecific {
     /**
      * Constructs a new `TestRandom` with the specified initial state. This can
      * be useful for providing the required environment to an effect that
-     * requires a `Random`, such as with `ZIO#provide`.
+     * requires a `Has[Random]`, such as with `ZIO#provide`.
      */
-    def make(data: Data): Layer[Nothing, Random with TestRandom] =
+    def make(data: Data): Layer[Nothing, Has[Random] with TestRandom] =
       ZLayer.fromEffectMany(for {
         data   <- Ref.make(data)
         buffer <- Ref.make(Buffer())
         test    = Test(data, buffer)
-      } yield Has.allOf[Random.Service, TestRandom.Service](test, test))
+      } yield Has.allOf[Random, TestRandom.Service](test, test))
 
-    val any: ZLayer[Random with TestRandom, Nothing, Random with TestRandom] =
-      ZLayer.requires[Random with TestRandom]
+    val any: ZLayer[Has[Random] with TestRandom, Nothing, Has[Random] with TestRandom] =
+      ZLayer.requires[Has[Random] with TestRandom]
 
-    val deterministic: Layer[Nothing, Random with TestRandom] =
+    val deterministic: Layer[Nothing, Has[Random] with TestRandom] =
       make(DefaultData)
 
-    val random: ZLayer[Has[Clock], Nothing, Random with TestRandom] =
+    val random: ZLayer[Has[Clock], Nothing, Has[Random] with TestRandom] =
       (ZLayer.service[Clock] ++ deterministic) >>>
-        (ZLayer.fromFunctionManyM { (env: Has[Clock] with Random with TestRandom) =>
-          val random     = env.get[Random.Service]
+        (ZLayer.fromFunctionManyM { (env: Has[Clock] with Has[Random] with TestRandom) =>
+          val random     = env.get[Random]
           val testRandom = env.get[TestRandom.Service]
 
           for {
             time <- env.get[Clock].nanoTime
             _    <- env.get[TestRandom.Service].setSeed(time)
-          } yield Has.allOf[Random.Service, TestRandom.Service](random, testRandom)
+          } yield Has.allOf[Random, TestRandom.Service](random, testRandom)
         })
 
     /**
@@ -1589,33 +1586,33 @@ package object environment extends PlatformSpecific {
   }
 
   /**
-   * `TestSystem` supports deterministic testing of effects involving system
-   * properties. Internally, `TestSystem` maintains mappings of environment
+   * `Has[TestSystem]` supports deterministic testing of effects involving system
+   * properties. Internally, `Has[TestSystem]` maintains mappings of environment
    * variables and system properties that can be set and accessed. No actual
    * environment variables or system properties will be accessed or set as a
    * result of these actions.
    *
    * {{{
    * import zio.system
-   * import zio.test.environment.TestSystem
+   * import zio.test.environment.HasTestSystem
    *
    * for {
-   *   _      <- TestSystem.putProperty("java.vm.name", "VM")
+   *   _      <- Has[TestSystem].putProperty("java.vm.name", "VM")
    *   result <- system.property("java.vm.name")
    * } yield result == Some("VM")
    * }}}
    */
+  trait TestSystem extends Restorable {
+    def putEnv(name: String, value: String): UIO[Unit]
+    def putProperty(name: String, value: String): UIO[Unit]
+    def setLineSeparator(lineSep: String): UIO[Unit]
+    def clearEnv(variable: String): UIO[Unit]
+    def clearProperty(prop: String): UIO[Unit]
+  }
+
   object TestSystem extends Serializable {
 
-    trait Service extends Restorable {
-      def putEnv(name: String, value: String): UIO[Unit]
-      def putProperty(name: String, value: String): UIO[Unit]
-      def setLineSeparator(lineSep: String): UIO[Unit]
-      def clearEnv(variable: String): UIO[Unit]
-      def clearProperty(prop: String): UIO[Unit]
-    }
-
-    final case class Test(systemState: Ref[TestSystem.Data]) extends System.Service with TestSystem.Service {
+    final case class Test(systemState: Ref[TestSystem.Data]) extends System with TestSystem {
 
       /**
        * Returns the specified environment variable if it exists.
@@ -1671,20 +1668,20 @@ package object environment extends PlatformSpecific {
 
       /**
        * Adds the specified name and value to the mapping of environment
-       * variables maintained by this `TestSystem`.
+       * variables maintained by this `Has[TestSystem]`.
        */
       def putEnv(name: String, value: String): UIO[Unit] =
         systemState.update(data => data.copy(envs = data.envs.updated(name, value)))
 
       /**
        * Adds the specified name and value to the mapping of system properties
-       * maintained by this `TestSystem`.
+       * maintained by this `Has[TestSystem]`.
        */
       def putProperty(name: String, value: String): UIO[Unit] =
         systemState.update(data => data.copy(properties = data.properties.updated(name, value)))
 
       /**
-       * Sets the system line separator maintained by this `TestSystem` to the
+       * Sets the system line separator maintained by this `Has[TestSystem]` to the
        * specified value.
        */
       def setLineSeparator(lineSep: String): UIO[Unit] =
@@ -1703,7 +1700,7 @@ package object environment extends PlatformSpecific {
         systemState.update(data => data.copy(properties = data.properties - prop))
 
       /**
-       * Saves the `TestSystem``'s current state in an effect which, when run, will restore the `TestSystem`
+       * Saves the `Has[TestSystem]``'s current state in an effect which, when run, will restore the `Has[TestSystem]`
        * state to the saved state.
        */
       val save: UIO[UIO[Unit]] =
@@ -1713,72 +1710,72 @@ package object environment extends PlatformSpecific {
     }
 
     /**
-     * The default initial state of the `TestSystem` with no environment variable
+     * The default initial state of the `Has[TestSystem]` with no environment variable
      * or system property mappings and the system line separator set to the new
      * line character.
      */
     val DefaultData: Data = Data(Map(), Map(), "\n")
 
     /**
-     * Constructs a new `TestSystem` with the specified initial state. This can
+     * Constructs a new `Has[TestSystem]` with the specified initial state. This can
      * be useful for providing the required environment to an effect that
      * requires a `Has[Console]`, such as with `ZIO#provide`.
      */
-    def live(data: Data): Layer[Nothing, System with TestSystem] =
+    def live(data: Data): Layer[Nothing, Has[System] with Has[TestSystem]] =
       ZLayer.fromEffectMany(
-        Ref.make(data).map(ref => Has.allOf[System.Service, TestSystem.Service](Test(ref), Test(ref)))
+        Ref.make(data).map(ref => Has.allOf[System, TestSystem](Test(ref), Test(ref)))
       )
 
-    val any: ZLayer[System with TestSystem, Nothing, System with TestSystem] =
-      ZLayer.requires[System with TestSystem]
+    val any: ZLayer[Has[System] with Has[TestSystem], Nothing, Has[System] with Has[TestSystem]] =
+      ZLayer.requires[Has[System] with Has[TestSystem]]
 
-    val default: Layer[Nothing, System with TestSystem] =
+    val default: Layer[Nothing, Has[System] with Has[TestSystem]] =
       live(DefaultData)
 
     /**
-     * Accesses a `TestSystem` instance in the environment and adds the specified
+     * Accesses a `Has[TestSystem]` instance in the environment and adds the specified
      * name and value to the mapping of environment variables.
      */
-    def putEnv(name: => String, value: => String): URIO[TestSystem, Unit] =
+    def putEnv(name: => String, value: => String): URIO[Has[TestSystem], Unit] =
       ZIO.accessM(_.get.putEnv(name, value))
 
     /**
-     * Accesses a `TestSystem` instance in the environment and adds the specified
+     * Accesses a `Has[TestSystem]` instance in the environment and adds the specified
      * name and value to the mapping of system properties.
      */
-    def putProperty(name: => String, value: => String): URIO[TestSystem, Unit] =
+    def putProperty(name: => String, value: => String): URIO[Has[TestSystem], Unit] =
       ZIO.accessM(_.get.putProperty(name, value))
 
     /**
-     * Accesses a `TestSystem` instance in the environment and saves the system state in an effect which, when run,
-     * will restore the `TestSystem` to the saved state
+     * Accesses a `Has[TestSystem]` instance in the environment and saves the system state in an effect which, when run,
+     * will restore the `Has[TestSystem]` to the saved state
      */
-    val save: ZIO[TestSystem, Nothing, UIO[Unit]] =
+    val save: ZIO[Has[TestSystem], Nothing, UIO[Unit]] =
       ZIO.accessM(_.get.save)
 
     /**
-     * Accesses a `TestSystem` instance in the environment and sets the line
+     * Accesses a `Has[TestSystem]` instance in the environment and sets the line
      * separator to the specified value.
      */
-    def setLineSeparator(lineSep: => String): URIO[TestSystem, Unit] =
+    def setLineSeparator(lineSep: => String): URIO[Has[TestSystem], Unit] =
       ZIO.accessM(_.get.setLineSeparator(lineSep))
 
     /**
-     * Accesses a `TestSystem` instance in the environment and clears the mapping
+     * Accesses a `Has[TestSystem]` instance in the environment and clears the mapping
      * of environment variables.
      */
-    def clearEnv(variable: => String): URIO[TestSystem, Unit] =
+    def clearEnv(variable: => String): URIO[Has[TestSystem], Unit] =
       ZIO.accessM(_.get.clearEnv(variable))
 
     /**
-     * Accesses a `TestSystem` instance in the environment and clears the mapping
+     * Accesses a `Has[TestSystem]` instance in the environment and clears the mapping
      * of system properties.
      */
-    def clearProperty(prop: => String): URIO[TestSystem, Unit] =
+    def clearProperty(prop: => String): URIO[Has[TestSystem], Unit] =
       ZIO.accessM(_.get.clearProperty(prop))
 
     /**
-     * The state of the `TestSystem`.
+     * The state of the `Has[TestSystem]`.
      */
     final case class Data(
       properties: Map[String, String] = Map.empty,

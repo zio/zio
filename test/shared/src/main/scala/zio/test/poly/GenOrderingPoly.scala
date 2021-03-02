@@ -16,6 +16,7 @@
 
 package zio.test.poly
 
+import zio.Has
 import zio.random.Random
 import zio.test.{Gen, Sized}
 
@@ -35,7 +36,7 @@ object GenOrderingPoly {
    * Constructs an instance of `GenOrderingPoly` using the specified `Gen` and
    * `Ordering` instances, existentially hiding the underlying type.
    */
-  def apply[A](gen: Gen[Random with Sized, A], ord: Ordering[A]): GenOrderingPoly =
+  def apply[A](gen: Gen[Has[Random] with Sized, A], ord: Ordering[A]): GenOrderingPoly =
     new GenOrderingPoly {
       type T = A
       val genT = gen
@@ -74,7 +75,7 @@ object GenOrderingPoly {
   val float: GenOrderingPoly =
     GenNumericPoly.float
 
-  lazy val genOrderingPoly: Gen[Random, GenOrderingPoly] = {
+  lazy val genOrderingPoly: Gen[Has[Random], GenOrderingPoly] = {
     val primitives = Gen.elements(
       boolean,
       byte,

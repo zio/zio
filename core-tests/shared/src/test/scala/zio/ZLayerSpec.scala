@@ -82,7 +82,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           r3 <- testSize(ZEnv.live >>> Live.default, 1, "Live.default")
           r4 <- testSize(ZEnv.live >>> TestRandom.deterministic, 2, "TestRandom.live")
           r5 <- testSize(Sized.live(100), 1, "Sized.live(100)")
-          r6 <- testSize(TestSystem.default, 2, "TestSystem.default")
+          r6 <- testSize(TestSystem.default, 2, "Has[TestSystem].default")
         } yield r1 && r2 && r3 && r4 && r5 && r6
       },
       testM("Size of >>> (9)") {

@@ -24,7 +24,7 @@ trait GenZIO {
   /**
    * A generator of `Cause` values
    */
-  final def causes[R <: Random with Sized, E](e: Gen[R, E], t: Gen[R, Throwable]): Gen[R, Cause[E]] = {
+  final def causes[R <: Has[Random] with Sized, E](e: Gen[R, E], t: Gen[R, Throwable]): Gen[R, Cause[E]] = {
     val failure        = e.map(Cause.fail)
     val die            = t.map(Cause.die)
     val empty          = Gen.const(Cause.empty)
@@ -61,14 +61,14 @@ trait GenZIO {
    * A generator of effects that are the result of chaining the specified
    * effect with itself a random number of times.
    */
-  final def chained[R <: Random with Sized, Env, E, A](gen: Gen[R, ZIO[Env, E, A]]): Gen[R, ZIO[Env, E, A]] =
+  final def chained[R <: Has[Random] with Sized, Env, E, A](gen: Gen[R, ZIO[Env, E, A]]): Gen[R, ZIO[Env, E, A]] =
     Gen.small(chainedN(_)(gen))
 
   /**
    * A generator of effects that are the result of chaining the specified
    * effect with itself a given number of times.
    */
-  final def chainedN[R <: Random, Env, E, A](n: Int)(zio: Gen[R, ZIO[Env, E, A]]): Gen[R, ZIO[Env, E, A]] =
+  final def chainedN[R <: Has[Random], Env, E, A](n: Int)(zio: Gen[R, ZIO[Env, E, A]]): Gen[R, ZIO[Env, E, A]] =
     Gen.listOfN(n min 1)(zio).map(_.reduce(_ *> _))
 
   /**

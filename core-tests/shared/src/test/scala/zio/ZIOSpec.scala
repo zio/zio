@@ -1602,9 +1602,9 @@ object ZIOSpec extends ZIOBaseSpec {
     ),
     suite("provideSomeLayer")(
       testM("can split environment into two parts") {
-        val clockLayer: ZLayer[Any, Nothing, Has[Clock]]    = Clock.live
-        val zio: ZIO[Has[Clock] with Random, Nothing, Unit] = ZIO.unit
-        val zio2: URIO[Random, Unit]                        = zio.provideSomeLayer[Random](clockLayer)
+        val clockLayer: ZLayer[Any, Nothing, Has[Clock]]         = Clock.live
+        val zio: ZIO[Has[Clock] with Has[Random], Nothing, Unit] = ZIO.unit
+        val zio2: URIO[Has[Random], Unit]                        = zio.provideSomeLayer[Has[Random]](clockLayer)
         assertM(zio2)(anything)
       }
     ),
@@ -3658,10 +3658,10 @@ object ZIOSpec extends ZIOBaseSpec {
     )
   )
 
-  def functionIOGen: Gen[Random with Sized, String => Task[Int]] =
-    Gen.function[Random with Sized, String, Task[Int]](Gen.successes(Gen.anyInt))
+  def functionIOGen: Gen[Has[Random] with Sized, String => Task[Int]] =
+    Gen.function[Has[Random] with Sized, String, Task[Int]](Gen.successes(Gen.anyInt))
 
-  def listGen: Gen[Random with Sized, List[String]] =
+  def listGen: Gen[Has[Random] with Sized, List[String]] =
     Gen.listOfN(100)(Gen.alphaNumericString)
 
   val exampleError = new Error("something went wrong")

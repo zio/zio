@@ -1,10 +1,10 @@
 package zio.test
 
-import zio.{Has, ZIO}
 import zio.clock._
 import zio.test.Assertion._
 import zio.test.TestAspect.failing
 import zio.test.TestUtils.execute
+import zio.{Has, ZIO}
 
 object TestSpec extends ZIOBaseSpec {
 

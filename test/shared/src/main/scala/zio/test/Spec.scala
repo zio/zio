@@ -338,9 +338,9 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
    * {{{
    * val clockLayer: ZLayer[Any, Nothing, Clock] = ???
    *
-   * val spec: ZSpec[Clock with Random, Nothing] = ???
+   * val spec: ZSpec[Clock with Has[Random], Nothing] = ???
    *
-   * val spec2 = spec.provideSomeLayer[Random](clockLayer)
+   * val spec2 = spec.provideSomeLayer[Has[Random]](clockLayer)
    * }}}
    */
   final def provideSomeLayer[R0 <: Has[_]]: Spec.ProvideSomeLayer[R0, R, E, T] =
@@ -354,9 +354,9 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
    * {{{
    * val clockLayer: ZLayer[Any, Nothing, Clock] = ???
    *
-   * val spec: ZSpec[Clock with Random, Nothing] = ???
+   * val spec: ZSpec[Clock with Has[Random], Nothing] = ???
    *
-   * val spec2 = spec.provideSomeLayerShared[Random](clockLayer)
+   * val spec2 = spec.provideSomeLayerShared[Has[Random]](clockLayer)
    * }}}
    */
   final def provideSomeLayerShared[R0 <: Has[_]]: Spec.ProvideSomeLayerShared[R0, R, E, T] =

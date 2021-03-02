@@ -42,31 +42,31 @@ object EnvironmentSpec extends ZIOBaseSpec {
         assert(input2)(equalTo("Input 2"))
       }
     },
-    testM("Random returns next pseudorandom integer") {
+    testM("Has[Random] returns next pseudorandom integer") {
       for {
         i <- random.nextInt
         j <- random.nextInt
       } yield !assert(i)(equalTo(j))
     },
-    testM("Random is deterministic") {
+    testM("Has[Random] is deterministic") {
       for {
         i <- random.nextInt.provideLayer(testEnvironment)
         j <- random.nextInt.provideLayer(testEnvironment)
       } yield assert(i)(equalTo(j))
     },
-    testM("System returns an environment variable when it is set") {
+    testM("Has[System] returns an environment variable when it is set") {
       for {
         _   <- TestSystem.putEnv("k1", "v1")
         env <- system.env("k1")
       } yield assert(env)(isSome(equalTo("v1")))
     },
-    testM("System returns a property when it is set") {
+    testM("Has[System] returns a property when it is set") {
       for {
         _   <- TestSystem.putProperty("k1", "v1")
         env <- system.property("k1")
       } yield assert(env)(isSome(equalTo("v1")))
     },
-    testM("System returns the line separator when it is set") {
+    testM("Has[System] returns the line separator when it is set") {
       for {
         _       <- TestSystem.setLineSeparator(",")
         lineSep <- system.lineSeparator

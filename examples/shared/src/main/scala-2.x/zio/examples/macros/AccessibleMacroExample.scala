@@ -24,7 +24,7 @@ object AccessibleMacroExample {
     def baz(x: Int, y: Int): IO[String, Int]
     def poly[A](a: A): IO[Long, A]
     def poly2[A <: Foo](a: Wrapped[A]): IO[String, List[A]]
-    def dependent(n: Int): ZIO[Random, Long, Int]
+    def dependent(n: Int): ZIO[Has[Random], Long, Int]
     val value: String
     def value2: String
     def value3(): String
@@ -47,7 +47,7 @@ object AccessibleMacroExample {
         def baz(x: Int, y: Int): IO[String, Int]                        = UIO.succeed(x + y)
         def poly[A](a: A): IO[Long, A]                                  = UIO.succeed(a)
         def poly2[A <: Foo](a: Wrapped[A]): IO[String, List[A]]         = UIO.succeed(List(a.value))
-        def dependent(n: Int): ZIO[Random, Long, Int]                   = random.nextIntBounded(n)
+        def dependent(n: Int): ZIO[Has[Random], Long, Int]              = random.nextIntBounded(n)
         val value: String                                               = "foo"
         def value2: String                                              = "foo2"
         def value3(): String                                            = "foo3"
@@ -61,7 +61,7 @@ object AccessibleMacroExample {
 
   // can use accessors even in the same compilation unit
   val program: URIO[
-    AccessibleMacroExample with Random,
+    AccessibleMacroExample with Has[Random],
     (Int, String, Long, List[Foo], Int, String, String, String, String, Chunk[Int], Chunk[Int], String, String)
   ] =
     for {
@@ -92,7 +92,7 @@ object AccessibleMacroExample {
   def _baz(x: Int, y: Int): ZIO[AccessibleMacroExample, String, Int]                  = AccessibleMacroExample.baz(x, y)
   def _poly[A](a: A): ZIO[AccessibleMacroExample, Long, A]                            = AccessibleMacroExample.poly(a)
   def _poly2[A <: Foo](a: Wrapped[A]): ZIO[AccessibleMacroExample, String, List[A]]   = AccessibleMacroExample.poly2(a)
-  def _dependent(n: Int): ZIO[AccessibleMacroExample with Random, Long, Int]          = AccessibleMacroExample.dependent(n)
+  def _dependent(n: Int): ZIO[AccessibleMacroExample with Has[Random], Long, Int]     = AccessibleMacroExample.dependent(n)
   val _value: URIO[AccessibleMacroExample, String]                                     = AccessibleMacroExample.valuedef _value2                         : URIO[AccessibleMacroExample, String]                                   = AccessibleMacroExample.value2
   def _value3(): URIO[AccessibleMacroExample, String]                              = AccessibleMacroExample.value3()
   def _function(n: Int): URIO[AccessibleMacroExample, String]                          = AccessibleMacroExample.function(n)

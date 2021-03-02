@@ -19,7 +19,7 @@ package zio.test.mock
 import zio.random.Random
 import zio.{Chunk, Has, UIO, URLayer, ZLayer}
 
-object MockRandom extends Mock[Random] {
+object MockRandom extends Mock[Has[Random]] {
 
   object NextBoolean       extends Effect[Unit, Nothing, Boolean]
   object NextBytes         extends Effect[Int, Nothing, Chunk[Byte]]
@@ -39,9 +39,9 @@ object MockRandom extends Mock[Random] {
   object SetSeed           extends Effect[Long, Nothing, Unit]
   object Shuffle           extends Effect[Iterable[Any], Nothing, Iterable[Any]]
 
-  val compose: URLayer[Has[Proxy], Random] =
+  val compose: URLayer[Has[Proxy], Has[Random]] =
     ZLayer.fromService(proxy =>
-      new Random.Service {
+      new Random {
         val nextBoolean: UIO[Boolean]                = proxy(NextBoolean)
         def nextBytes(length: Int): UIO[Chunk[Byte]] = proxy(NextBytes, length)
         val nextDouble: UIO[Double]                  = proxy(NextDouble)

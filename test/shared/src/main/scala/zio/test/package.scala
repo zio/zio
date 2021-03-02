@@ -88,7 +88,7 @@ package object test extends CompileVariants {
    * A `ZRTestEnv` is an alias for all ZIO provided [[zio.test.environment.Restorable Restorable]]
    * [[zio.test.environment.TestEnvironment TestEnvironment]] objects
    */
-  type ZTestEnv = TestClock with TestConsole with TestRandom with TestSystem
+  type ZTestEnv = TestClock with TestConsole with TestRandom with Has[TestSystem]
 
   /**
    * A `ZTest[R, E]` is an effectfully produced test that requires an `R` and

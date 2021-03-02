@@ -2294,9 +2294,9 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * {{{
    * val clockLayer: ZLayer[Any, Nothing, Clock] = ???
    *
-   * val stream: ZStream[Clock with Random, Nothing, Unit] = ???
+   * val stream: ZStream[Clock with Has[Random], Nothing, Unit] = ???
    *
-   * val stream2 = stream.provideSomeLayer[Random](clockLayer)
+   * val stream2 = stream.provideSomeLayer[Has[Random]](clockLayer)
    * }}}
    */
   final def provideSomeLayer[R0 <: Has[_]]: ZStream.ProvideSomeLayer[R0, R, E, O] =

@@ -18,7 +18,7 @@ package zio.test
 
 import zio.random._
 import zio.stream.{Stream, ZStream}
-import zio.{Chunk, ExecutionStrategy, NonEmptyChunk, UIO, URIO, ZIO}
+import zio.{Chunk, ExecutionStrategy, Has, NonEmptyChunk, UIO, URIO, ZIO}
 
 import java.nio.charset.StandardCharsets
 import java.util.UUID
@@ -74,7 +74,7 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
    * generators of the desired values instead.
    *
    * {{{
-   * val evens: Gen[Random, Int] = Gen.anyInt.map(_ * 2)
+   * val evens: Gen[Has[Random], Int] = Gen.anyInt.map(_ * 2)
    * }}}
    */
   def filter(f: A => Boolean): Gen[R, A] = Gen {
@@ -184,38 +184,38 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A generator of alphanumeric characters. Shrinks toward '0'.
    */
-  val alphaNumericChar: Gen[Random, Char] =
+  val alphaNumericChar: Gen[Has[Random], Char] =
     weighted(char(48, 57) -> 10, char(65, 90) -> 26, char(97, 122) -> 26)
 
   /**
    * A generator of alphanumeric strings. Shrinks towards the empty string.
    */
-  val alphaNumericString: Gen[Random with Sized, String] =
+  val alphaNumericString: Gen[Has[Random] with Sized, String] =
     Gen.string(alphaNumericChar)
 
   /**
    * A generator of alphanumeric strings whose size falls within the specified
    * bounds.
    */
-  def alphaNumericStringBounded(min: Int, max: Int): Gen[Random with Sized, String] =
+  def alphaNumericStringBounded(min: Int, max: Int): Gen[Has[Random] with Sized, String] =
     Gen.stringBounded(min, max)(alphaNumericChar)
 
   /**
    * A generator US-ASCII strings. Shrinks towards the empty string.
    */
-  def anyASCIIString: Gen[Random with Sized, String] =
+  def anyASCIIString: Gen[Has[Random] with Sized, String] =
     Gen.string(Gen.anyASCIIChar)
 
   /**
    * A generator of US-ASCII characters. Shrinks toward '0'.
    */
-  def anyASCIIChar: Gen[Random, Char] =
+  def anyASCIIChar: Gen[Has[Random], Char] =
     Gen.oneOf(Gen.char('\u0000', '\u007F'))
 
   /**
    * A generator of bytes. Shrinks toward '0'.
    */
-  val anyByte: Gen[Random, Byte] =
+  val anyByte: Gen[Has[Random], Byte] =
     fromEffectSample {
       nextIntBounded(Byte.MaxValue - Byte.MinValue + 1)
         .map(r => (Byte.MinValue + r).toByte)
@@ -225,7 +225,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A generator of characters. Shrinks toward '0'.
    */
-  val anyChar: Gen[Random, Char] =
+  val anyChar: Gen[Has[Random], Char] =
     fromEffectSample {
       nextIntBounded(Char.MaxValue - Char.MinValue + 1)
         .map(r => (Char.MinValue + r).toChar)
@@ -235,31 +235,31 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A generator of doubles. Shrinks toward '0'.
    */
-  val anyDouble: Gen[Random, Double] =
+  val anyDouble: Gen[Has[Random], Double] =
     fromEffectSample(nextDouble.map(Sample.shrinkFractional(0f)))
 
   /**
    * A generator of floats. Shrinks toward '0'.
    */
-  val anyFloat: Gen[Random, Float] =
+  val anyFloat: Gen[Has[Random], Float] =
     fromEffectSample(nextFloat.map(Sample.shrinkFractional(0f)))
 
   /**
    * A generator of integers. Shrinks toward '0'.
    */
-  val anyInt: Gen[Random, Int] =
+  val anyInt: Gen[Has[Random], Int] =
     fromEffectSample(nextInt.map(Sample.shrinkIntegral(0)))
 
   /**
    * A generator of longs. Shrinks toward '0'.
    */
-  val anyLong: Gen[Random, Long] =
+  val anyLong: Gen[Has[Random], Long] =
     fromEffectSample(nextLong.map(Sample.shrinkIntegral(0L)))
 
   /**
    * A generator of shorts. Shrinks toward '0'.
    */
-  val anyShort: Gen[Random, Short] =
+  val anyShort: Gen[Has[Random], Short] =
     fromEffectSample {
       nextIntBounded(Short.MaxValue - Short.MinValue + 1)
         .map(r => (Short.MinValue + r).toShort)
@@ -269,20 +269,20 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A generator of strings. Shrinks towards the empty string.
    */
-  def anyString: Gen[Random with Sized, String] =
+  def anyString: Gen[Has[Random] with Sized, String] =
     Gen.string(Gen.anyUnicodeChar)
 
   /**
    * A generator of Unicode characters. Shrinks toward '0'.
    */
-  val anyUnicodeChar: Gen[Random, Char] =
+  val anyUnicodeChar: Gen[Has[Random], Char] =
     Gen.oneOf(Gen.char('\u0000', '\uD7FF'), Gen.char('\uE000', '\uFFFD'))
 
   /**
    * A generator of universally unique identifiers. The returned generator will
    * not have any shrinking.
    */
-  val anyUUID: Gen[Random, UUID] =
+  val anyUUID: Gen[Has[Random], UUID] =
     Gen.fromEffect(nextUUID)
 
   /**
@@ -292,7 +292,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * The values generated will have a precision equal to the precision of the
    * difference between `max` and `min`.
    */
-  def bigDecimal(min: BigDecimal, max: BigDecimal): Gen[Random, BigDecimal] =
+  def bigDecimal(min: BigDecimal, max: BigDecimal): Gen[Has[Random], BigDecimal] =
     if (min > max)
       Gen.fromEffect(UIO.die(new IllegalArgumentException("invalid bounds")))
     else {
@@ -306,7 +306,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * A generator of big integers inside the specified range: [start, end].
    * The shrinker will shrink toward the lower end of the range ("smallest").
    */
-  def bigInt(min: BigInt, max: BigInt): Gen[Random, BigInt] =
+  def bigInt(min: BigInt, max: BigInt): Gen[Has[Random], BigInt] =
     Gen.fromEffectSample {
       if (min > max) UIO.die(new IllegalArgumentException("invalid bounds"))
       else {
@@ -326,51 +326,51 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A generator of booleans. Shrinks toward 'false'.
    */
-  val boolean: Gen[Random, Boolean] =
+  val boolean: Gen[Has[Random], Boolean] =
     elements(false, true)
 
   /**
    * A generator whose size falls within the specified bounds.
    */
-  def bounded[R <: Random, A](min: Int, max: Int)(f: Int => Gen[R, A]): Gen[R, A] =
+  def bounded[R <: Has[Random], A](min: Int, max: Int)(f: Int => Gen[R, A]): Gen[R, A] =
     int(min, max).flatMap(f)
 
   /**
    * A generator of byte values inside the specified range: [start, end].
    * The shrinker will shrink toward the lower end of the range ("smallest").
    */
-  def byte(min: Byte, max: Byte): Gen[Random, Byte] =
+  def byte(min: Byte, max: Byte): Gen[Has[Random], Byte] =
     int(min.toInt, max.toInt).map(_.toByte)
 
   /**
    * A generator of character values inside the specified range: [start, end].
    * The shrinker will shrink toward the lower end of the range ("smallest").
    */
-  def char(min: Char, max: Char): Gen[Random, Char] =
+  def char(min: Char, max: Char): Gen[Has[Random], Char] =
     int(min.toInt, max.toInt).map(_.toChar)
 
   /**
    * A sized generator of chunks.
    */
-  def chunkOf[R <: Random with Sized, A](g: Gen[R, A]): Gen[R, Chunk[A]] =
+  def chunkOf[R <: Has[Random] with Sized, A](g: Gen[R, A]): Gen[R, Chunk[A]] =
     listOf(g).map(Chunk.fromIterable)
 
   /**
    * A sized generator of non-empty chunks.
    */
-  def chunkOf1[R <: Random with Sized, A](g: Gen[R, A]): Gen[R, NonEmptyChunk[A]] =
+  def chunkOf1[R <: Has[Random] with Sized, A](g: Gen[R, A]): Gen[R, NonEmptyChunk[A]] =
     listOf1(g).map { case h :: t => NonEmptyChunk.fromIterable(h, t) }
 
   /**
    * A generator of chunks whose size falls within the specified bounds.
    */
-  def chunkOfBounded[R <: Random, A](min: Int, max: Int)(g: Gen[R, A]): Gen[R, Chunk[A]] =
+  def chunkOfBounded[R <: Has[Random], A](min: Int, max: Int)(g: Gen[R, A]): Gen[R, Chunk[A]] =
     bounded(min, max)(chunkOfN(_)(g))
 
   /**
    * A generator of chunks of the specified size.
    */
-  def chunkOfN[R <: Random, A](n: Int)(g: Gen[R, A]): Gen[R, Chunk[A]] =
+  def chunkOfN[R <: Has[Random], A](n: Int)(g: Gen[R, A]): Gen[R, Chunk[A]] =
     listOfN(n)(g).map(Chunk.fromIterable)
 
   /**
@@ -436,7 +436,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * A generator of double values inside the specified range: [start, end].
    * The shrinker will shrink toward the lower end of the range ("smallest").
    */
-  def double(min: Double, max: Double): Gen[Random, Double] =
+  def double(min: Double, max: Double): Gen[Has[Random], Double] =
     if (min > max)
       Gen.fromEffect(UIO.die(new IllegalArgumentException("invalid bounds")))
     else
@@ -445,10 +445,10 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
         if (n < max) n else Math.nextAfter(max, Double.NegativeInfinity)
       }
 
-  def either[R <: Random, A, B](left: Gen[R, A], right: Gen[R, B]): Gen[R, Either[A, B]] =
+  def either[R <: Has[Random], A, B](left: Gen[R, A], right: Gen[R, B]): Gen[R, Either[A, B]] =
     oneOf(left.map(Left(_)), right.map(Right(_)))
 
-  def elements[A](as: A*): Gen[Random, A] =
+  def elements[A](as: A*): Gen[Has[Random], A] =
     if (as.isEmpty) empty else int(0, as.length - 1).map(as)
 
   val empty: Gen[Any, Nothing] =
@@ -458,7 +458,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * A generator of exponentially distributed doubles with mean `1`.
    * The shrinker will shrink toward `0`.
    */
-  val exponential: Gen[Random, Double] =
+  val exponential: Gen[Has[Random], Double] =
     uniform.map(n => -math.log(1 - n))
 
   /**
@@ -486,21 +486,21 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * Constructs a generator from a function that uses randomness. The returned
    * generator will not have any shrinking.
    */
-  final def fromRandom[A](f: Random.Service => UIO[A]): Gen[Random, A] =
-    Gen(ZStream.fromEffect(ZIO.accessM[Random](r => f(r.get)).map(Sample.noShrink)))
+  final def fromRandom[A](f: Random => UIO[A]): Gen[Has[Random], A] =
+    Gen(ZStream.fromEffect(ZIO.accessM[Has[Random]](r => f(r.get)).map(Sample.noShrink)))
 
   /**
    * Constructs a generator from a function that uses randomness to produce a
    * sample.
    */
-  final def fromRandomSample[R <: Random, A](f: Random.Service => UIO[Sample[R, A]]): Gen[R, A] =
-    Gen(ZStream.fromEffect(ZIO.accessM[Random](r => f(r.get))))
+  final def fromRandomSample[R <: Has[Random], A](f: Random => UIO[Sample[R, A]]): Gen[R, A] =
+    Gen(ZStream.fromEffect(ZIO.accessM[Has[Random]](r => f(r.get))))
 
   /**
    * A generator of integers inside the specified range: [start, end].
    * The shrinker will shrink toward the lower end of the range ("smallest").
    */
-  def int(min: Int, max: Int): Gen[Random, Int] =
+  def int(min: Int, max: Int): Gen[Has[Random], Int] =
     Gen.fromEffectSample {
       if (min > max) UIO.die(new IllegalArgumentException("invalid bounds"))
       else {
@@ -515,20 +515,20 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    *  A generator of strings that can be encoded in the ISO-8859-1 character set.
    */
-  val iso_8859_1: Gen[Random with Sized, String] =
+  val iso_8859_1: Gen[Has[Random] with Sized, String] =
     chunkOf(anyByte).map(chunk => new String(chunk.toArray, StandardCharsets.ISO_8859_1))
 
   /**
    * A sized generator that uses a uniform distribution of size values. A large
    * number of larger sizes will be generated.
    */
-  def large[R <: Random with Sized, A](f: Int => Gen[R, A], min: Int = 0): Gen[R, A] =
+  def large[R <: Has[Random] with Sized, A](f: Int => Gen[R, A], min: Int = 0): Gen[R, A] =
     size.flatMap(max => int(min, max)).flatMap(f)
 
-  def listOf[R <: Random with Sized, A](g: Gen[R, A]): Gen[R, List[A]] =
+  def listOf[R <: Has[Random] with Sized, A](g: Gen[R, A]): Gen[R, List[A]] =
     small(listOfN(_)(g))
 
-  def listOf1[R <: Random with Sized, A](g: Gen[R, A]): Gen[R, ::[A]] =
+  def listOf1[R <: Has[Random] with Sized, A](g: Gen[R, A]): Gen[R, ::[A]] =
     for {
       h <- g
       t <- small(n => listOfN(n - 1 max 0)(g))
@@ -537,17 +537,17 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A generator of lists whose size falls within the specified bounds.
    */
-  def listOfBounded[R <: Random, A](min: Int, max: Int)(g: Gen[R, A]): Gen[R, List[A]] =
+  def listOfBounded[R <: Has[Random], A](min: Int, max: Int)(g: Gen[R, A]): Gen[R, List[A]] =
     bounded(min, max)(listOfN(_)(g))
 
-  def listOfN[R <: Random, A](n: Int)(g: Gen[R, A]): Gen[R, List[A]] =
+  def listOfN[R <: Has[Random], A](n: Int)(g: Gen[R, A]): Gen[R, List[A]] =
     List.fill(n)(g).foldRight[Gen[R, List[A]]](const(Nil))((a, gen) => a.crossWith(gen)(_ :: _))
 
   /**
    * A generator of long values in the specified range: [start, end].
    * The shrinker will shrink toward the lower end of the range ("smallest").
    */
-  def long(min: Long, max: Long): Gen[Random, Long] =
+  def long(min: Long, max: Long): Gen[Has[Random], Long] =
     Gen.fromEffectSample {
       if (min > max) UIO.die(new IllegalArgumentException("invalid bounds"))
       else {
@@ -562,25 +562,25 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A sized generator of maps.
    */
-  def mapOf[R <: Random with Sized, A, B](key: Gen[R, A], value: Gen[R, B]): Gen[R, Map[A, B]] =
+  def mapOf[R <: Has[Random] with Sized, A, B](key: Gen[R, A], value: Gen[R, B]): Gen[R, Map[A, B]] =
     small(mapOfN(_)(key, value))
 
   /**
    * A sized generator of non-empty maps.
    */
-  def mapOf1[R <: Random with Sized, A, B](key: Gen[R, A], value: Gen[R, B]): Gen[R, Map[A, B]] =
+  def mapOf1[R <: Has[Random] with Sized, A, B](key: Gen[R, A], value: Gen[R, B]): Gen[R, Map[A, B]] =
     small(mapOfN(_)(key, value), 1)
 
   /**
    * A generator of maps of the specified size.
    */
-  def mapOfN[R <: Random, A, B](n: Int)(key: Gen[R, A], value: Gen[R, B]): Gen[R, Map[A, B]] =
+  def mapOfN[R <: Has[Random], A, B](n: Int)(key: Gen[R, A], value: Gen[R, B]): Gen[R, Map[A, B]] =
     setOfN(n)(key).crossWith(listOfN(n)(value))(_.zip(_).toMap)
 
   /**
    * A generator of maps whose size falls within the specified bounds.
    */
-  def mapOfBounded[R <: Random, A, B](min: Int, max: Int)(key: Gen[R, A], value: Gen[R, B]): Gen[R, Map[A, B]] =
+  def mapOfBounded[R <: Has[Random], A, B](min: Int, max: Int)(key: Gen[R, A], value: Gen[R, B]): Gen[R, Map[A, B]] =
     bounded(min, max)(mapOfN(_)(key, value))
 
   /**
@@ -588,7 +588,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * The majority of sizes will be towards the lower end of the range but some
    * larger sizes will be generated as well.
    */
-  def medium[R <: Random with Sized, A](f: Int => Gen[R, A], min: Int = 0): Gen[R, A] = {
+  def medium[R <: Has[Random] with Sized, A](f: Int => Gen[R, A], min: Int = 0): Gen[R, A] = {
     val gen = for {
       max <- size
       n   <- exponential
@@ -611,10 +611,10 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A generator of optional values. Shrinks toward `None`.
    */
-  def option[R <: Random, A](gen: Gen[R, A]): Gen[R, Option[A]] =
+  def option[R <: Has[Random], A](gen: Gen[R, A]): Gen[R, Option[A]] =
     oneOf(none, gen.map(Some(_)))
 
-  def oneOf[R <: Random, A](as: Gen[R, A]*): Gen[R, A] =
+  def oneOf[R <: Has[Random], A](as: Gen[R, A]*): Gen[R, A] =
     if (as.isEmpty) empty else int(0, as.length - 1).flatMap(as)
 
   /**
@@ -623,7 +623,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * and thus will be guaranteed to generate the same `B` value or both be
    * outside the partial function's domain, if they have the same `hashCode`.
    */
-  def partialFunction[R <: Random, A, B](gen: Gen[R, B]): Gen[R, PartialFunction[A, B]] =
+  def partialFunction[R <: Has[Random], A, B](gen: Gen[R, B]): Gen[R, PartialFunction[A, B]] =
     partialFunctionWith(gen)(_.hashCode)
 
   /**
@@ -634,37 +634,37 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * domain, if they have have the same hash. This is useful when `A` does not
    * implement `hashCode` in a way that is consistent with equality.
    */
-  def partialFunctionWith[R <: Random, A, B](gen: Gen[R, B])(hash: A => Int): Gen[R, PartialFunction[A, B]] =
+  def partialFunctionWith[R <: Has[Random], A, B](gen: Gen[R, B])(hash: A => Int): Gen[R, PartialFunction[A, B]] =
     functionWith(option(gen))(hash).map(Function.unlift)
 
   /**
    * A generator of printable characters. Shrinks toward '!'.
    */
-  val printableChar: Gen[Random, Char] =
+  val printableChar: Gen[Has[Random], Char] =
     char(33, 126)
 
   /**
    * A sized generator of sets.
    */
-  def setOf[R <: Random with Sized, A](gen: Gen[R, A]): Gen[R, Set[A]] =
+  def setOf[R <: Has[Random] with Sized, A](gen: Gen[R, A]): Gen[R, Set[A]] =
     small(setOfN(_)(gen))
 
   /**
    * A sized generator of non-empty sets.
    */
-  def setOf1[R <: Random with Sized, A](gen: Gen[R, A]): Gen[R, Set[A]] =
+  def setOf1[R <: Has[Random] with Sized, A](gen: Gen[R, A]): Gen[R, Set[A]] =
     small(setOfN(_)(gen), 1)
 
   /**
    * A generator of sets whose size falls within the specified bounds.
    */
-  def setOfBounded[R <: Random, A](min: Int, max: Int)(g: Gen[R, A]): Gen[R, Set[A]] =
+  def setOfBounded[R <: Has[Random], A](min: Int, max: Int)(g: Gen[R, A]): Gen[R, Set[A]] =
     bounded(min, max)(setOfN(_)(g))
 
   /**
    * A generator of sets of the specified size.
    */
-  def setOfN[R <: Random, A](n: Int)(gen: Gen[R, A]): Gen[R, Set[A]] =
+  def setOfN[R <: Has[Random], A](n: Int)(gen: Gen[R, A]): Gen[R, Set[A]] =
     List.fill(n)(gen).foldLeft[Gen[R, Set[A]]](const(Set.empty)) { (acc, gen) =>
       for {
         set  <- acc
@@ -676,7 +676,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * A generator of short values inside the specified range: [start, end].
    * The shrinker will shrink toward the lower end of the range ("smallest").
    */
-  def short(min: Short, max: Short): Gen[Random, Short] =
+  def short(min: Short, max: Short): Gen[Has[Random], Short] =
     int(min.toInt, max.toInt).map(_.toShort)
 
   def size: Gen[Sized, Int] =
@@ -693,7 +693,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * The values generated will be strongly concentrated towards the lower end
    * of the range but a few larger values will still be generated.
    */
-  def small[R <: Random with Sized, A](f: Int => Gen[R, A], min: Int = 0): Gen[R, A] = {
+  def small[R <: Has[Random] with Sized, A](f: Int => Gen[R, A], min: Int = 0): Gen[R, A] = {
     val gen = for {
       max <- size
       n   <- exponential
@@ -704,19 +704,19 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   def some[R, A](gen: Gen[R, A]): Gen[R, Option[A]] =
     gen.map(Some(_))
 
-  def string[R <: Random with Sized](char: Gen[R, Char]): Gen[R, String] =
+  def string[R <: Has[Random] with Sized](char: Gen[R, Char]): Gen[R, String] =
     listOf(char).map(_.mkString)
 
-  def string1[R <: Random with Sized](char: Gen[R, Char]): Gen[R, String] =
+  def string1[R <: Has[Random] with Sized](char: Gen[R, Char]): Gen[R, String] =
     listOf1(char).map(_.mkString)
 
   /**
    * A generator of strings whose size falls within the specified bounds.
    */
-  def stringBounded[R <: Random](min: Int, max: Int)(g: Gen[R, Char]): Gen[R, String] =
+  def stringBounded[R <: Has[Random]](min: Int, max: Int)(g: Gen[R, Char]): Gen[R, String] =
     bounded(min, max)(stringN(_)(g))
 
-  def stringN[R <: Random](n: Int)(char: Gen[R, Char]): Gen[R, String] =
+  def stringN[R <: Has[Random]](n: Int)(char: Gen[R, Char]): Gen[R, String] =
     listOfN(n)(char).map(_.mkString)
 
   /**
@@ -729,14 +729,14 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A generator of throwables.
    */
-  val throwable: Gen[Random, Throwable] =
+  val throwable: Gen[Has[Random], Throwable] =
     Gen.const(new Throwable)
 
   /**
    * A sized generator of collections, where each collection is generated by
    * repeatedly applying a function to an initial state.
    */
-  def unfoldGen[R <: Random with Sized, S, A](s: S)(f: S => Gen[R, (S, A)]): Gen[R, List[A]] =
+  def unfoldGen[R <: Has[Random] with Sized, S, A](s: S)(f: S => Gen[R, (S, A)]): Gen[R, List[A]] =
     small(unfoldGenN(_)(s)(f))
 
   /**
@@ -754,7 +754,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * A generator of uniformly distributed doubles between [0, 1].
    * The shrinker will shrink toward `0`.
    */
-  def uniform: Gen[Random, Double] =
+  def uniform: Gen[Has[Random], Double] =
     fromEffectSample(nextDouble.map(Sample.shrinkFractional(0.0)))
 
   /**
@@ -763,19 +763,19 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   val unit: Gen[Any, Unit] =
     const(())
 
-  def vectorOf[R <: Random with Sized, A](g: Gen[R, A]): Gen[R, Vector[A]] =
+  def vectorOf[R <: Has[Random] with Sized, A](g: Gen[R, A]): Gen[R, Vector[A]] =
     listOf(g).map(_.toVector)
 
-  def vectorOf1[R <: Random with Sized, A](g: Gen[R, A]): Gen[R, Vector[A]] =
+  def vectorOf1[R <: Has[Random] with Sized, A](g: Gen[R, A]): Gen[R, Vector[A]] =
     listOf1(g).map(_.toVector)
 
   /**
    * A generator of vectors whose size falls within the specified bounds.
    */
-  def vectorOfBounded[R <: Random, A](min: Int, max: Int)(g: Gen[R, A]): Gen[R, Vector[A]] =
+  def vectorOfBounded[R <: Has[Random], A](min: Int, max: Int)(g: Gen[R, A]): Gen[R, Vector[A]] =
     bounded(min, max)(vectorOfN(_)(g))
 
-  def vectorOfN[R <: Random, A](n: Int)(g: Gen[R, A]): Gen[R, Vector[A]] =
+  def vectorOfN[R <: Has[Random], A](n: Int)(g: Gen[R, A]): Gen[R, Vector[A]] =
     listOfN(n)(g).map(_.toVector)
 
   /**
@@ -786,7 +786,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * val trueFalse = Gen.weighted((Gen.const(true), 9), (Gen.const(false), 1))
    * }}}
    */
-  def weighted[R <: Random, A](gs: (Gen[R, A], Double)*): Gen[R, A] = {
+  def weighted[R <: Has[Random], A](gs: (Gen[R, A], Double)*): Gen[R, A] = {
     val sum = gs.map(_._2).sum
     val (map, _) = gs.foldLeft((SortedMap.empty[Double, Gen[R, A]], 0.0)) { case ((map, acc), (gen, d)) =>
       if ((acc + d) / sum > acc / sum) (map.updated((acc + d) / sum, gen), acc + d)

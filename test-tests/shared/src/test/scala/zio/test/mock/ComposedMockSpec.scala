@@ -56,8 +56,8 @@ object ComposedMockSpec extends ZIOBaseSpec {
             _ <- console.putStrLn(v.toString)
           } yield ()
 
-        testValueComposed[Random with Has[Clock] with System with Has[Console], Throwable, Unit](
-          "Random with Clock with System with Has[Console]"
+        testValueComposed[Has[Random] with Has[Clock] with Has[System] with Has[Console], Throwable, Unit](
+          "Has[Random] with Clock with Has[System] with Has[Console]"
         )(composed, program, isUnit)
       }
     )

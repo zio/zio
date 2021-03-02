@@ -28,7 +28,7 @@ private[test] abstract class PlatformSpecific {
       with TestConfig
       with TestConsole
       with TestRandom
-      with TestSystem
+      with Has[TestSystem]
       with ZEnv
 
   object TestEnvironment {

@@ -5,7 +5,7 @@ import zio.random.Random
 import zio.stream.ZStream
 import zio.test.Assertion.{equalTo, forall}
 import zio.test.environment.TestRandom
-import zio.{Exit, UIO, URIO, ZIO}
+import zio.{Exit, UIO, URIO, ZIO, Has}
 
 object GenUtils {
 
@@ -15,26 +15,26 @@ object GenUtils {
   }
 
   def checkFinite[A, B](
-    gen: Gen[Random, A]
-  )(assertion: Assertion[B], f: List[A] => B = (a: List[A]) => a): URIO[Random, TestResult] =
+    gen: Gen[Has[Random], A]
+  )(assertion: Assertion[B], f: List[A] => B = (a: List[A]) => a): URIO[Has[Random], TestResult] =
     assertM(gen.sample.map(_.value).runCollect.map(xs => f(xs.toList)))(assertion)
 
   def checkSample[A, B](
-    gen: Gen[Random with Sized, A],
+    gen: Gen[Has[Random] with Sized, A],
     size: Int = 100
-  )(assertion: Assertion[B], f: List[A] => B = (a: List[A]) => a): URIO[Random, TestResult] =
+  )(assertion: Assertion[B], f: List[A] => B = (a: List[A]) => a): URIO[Has[Random], TestResult] =
     assertM(provideSize(sample100(gen).map(f))(size))(assertion)
 
-  def checkShrink[A](gen: Gen[Random with Sized, A])(a: A): URIO[Random, TestResult] =
+  def checkShrink[A](gen: Gen[Has[Random] with Sized, A])(a: A): URIO[Has[Random], TestResult] =
     provideSize(alwaysShrinksTo(gen)(a: A))(100)
 
-  val deterministic: Gen[Random with Sized, Gen[Any, Int]] =
+  val deterministic: Gen[Has[Random] with Sized, Gen[Any, Int]] =
     Gen.listOf1(Gen.int(-10, 10)).map(as => Gen.fromIterable(as))
 
-  def equal[A](left: Gen[Random, A], right: Gen[Random, A]): UIO[Boolean] =
+  def equal[A](left: Gen[Has[Random], A], right: Gen[Has[Random], A]): UIO[Boolean] =
     equalSample(left, right).zipWith(equalShrink(left, right))(_ && _)
 
-  def equalShrink[A](left: Gen[Random, A], right: Gen[Random, A]): UIO[Boolean] = {
+  def equalShrink[A](left: Gen[Has[Random], A], right: Gen[Has[Random], A]): UIO[Boolean] = {
     val testRandom = TestRandom.deterministic
     for {
       leftShrinks  <- ZIO.collectAll(List.fill(100)(shrinks(left))).provideLayer(testRandom)
@@ -42,7 +42,7 @@ object GenUtils {
     } yield leftShrinks == rightShrinks
   }
 
-  def equalSample[A](left: Gen[Random, A], right: Gen[Random, A]): UIO[Boolean] = {
+  def equalSample[A](left: Gen[Has[Random], A], right: Gen[Has[Random], A]): UIO[Boolean] = {
     val testRandom = TestRandom.deterministic
     for {
       leftSample  <- sample100(left).provideLayer(testRandom)
@@ -50,7 +50,7 @@ object GenUtils {
     } yield leftSample == rightSample
   }
 
-  val genIntList: Gen[Random, List[Int]] = Gen.oneOf(
+  val genIntList: Gen[Has[Random], List[Int]] = Gen.oneOf(
     Gen.const(List.empty),
     for {
       tail <- Gen.suspend(genIntList)
@@ -58,7 +58,7 @@ object GenUtils {
     } yield head :: tail
   )
 
-  val genStringIntFn: Gen[Random, String => Int] = Gen.function(Gen.int(-10, 10))
+  val genStringIntFn: Gen[Has[Random], String => Int] = Gen.function(Gen.int(-10, 10))
 
   def partitionExit[E, A](eas: List[Exit[E, A]]): (Iterable[Failure[E]], Iterable[A]) =
     ZIO.partitionMap(eas) {
@@ -66,10 +66,10 @@ object GenUtils {
       case e @ Failure(_) => Left(e)
     }
 
-  def provideSize[A](zio: ZIO[Random with Sized, Nothing, A])(n: Int): URIO[Random, A] =
-    zio.provideLayer[Nothing, Random, Random with Sized](Random.any ++ Sized.live(n))
+  def provideSize[A](zio: ZIO[Has[Random] with Sized, Nothing, A])(n: Int): URIO[Has[Random], A] =
+    zio.provideLayer[Nothing, Has[Random], Has[Random] with Sized](Random.any ++ Sized.live(n))
 
-  val random: Gen[Any, Gen[Random, Int]] =
+  val random: Gen[Any, Gen[Has[Random], Int]] =
     Gen.const(Gen.int(-10, 10))
 
   def shrinks[R, A](gen: Gen[R, A]): ZIO[R, Nothing, List[A]] =
@@ -78,7 +78,7 @@ object GenUtils {
   def shrinksTo[R, A](gen: Gen[R, A]): URIO[R, A] =
     shrinks(gen).map(_.reverse.head)
 
-  val smallInt: Gen[Random, Int] = Gen.int(-10, 10)
+  val smallInt: Gen[Has[Random], Int] = Gen.int(-10, 10)
 
   def sample[R, A](gen: Gen[R, A]): ZIO[R, Nothing, List[A]] =
     gen.sample.map(_.value).runCollect.map(_.toList)
@@ -87,15 +87,15 @@ object GenUtils {
     gen.sample.map(_.value).forever.take(100).runCollect.map(_.toList)
 
   def sampleEffect[E, A](
-    gen: Gen[Random with Sized, ZIO[Random with Sized, E, A]],
+    gen: Gen[Has[Random] with Sized, ZIO[Has[Random] with Sized, E, A]],
     size: Int = 100
-  ): ZIO[Random, Nothing, List[Exit[E, A]]] =
+  ): ZIO[Has[Random], Nothing, List[Exit[E, A]]] =
     provideSize(sample100(gen).flatMap(effects => ZIO.foreach(effects)(_.run)))(size)
 
   def shrink[R, A](gen: Gen[R, A]): URIO[R, A] =
     gen.sample.take(1).flatMap(_.shrinkSearch(_ => true)).take(1000).runLast.map(_.get)
 
-  val shrinkable: Gen[Random, Int] =
+  val shrinkable: Gen[Has[Random], Int] =
     Gen.fromRandomSample(_.nextIntBounded(90).map(_ + 10).map(Sample.shrinkIntegral(0)))
 
   def shrinkWith[R, A](gen: Gen[R, A])(f: A => Boolean): ZIO[R, Nothing, List[A]] =

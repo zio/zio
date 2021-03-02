@@ -25,16 +25,16 @@ import zio.random.Random
 import zio.test.{Gen, Sized}
 
 trait DeriveGen[A] {
-    def derive: Gen[Random with Sized, A]
+    def derive: Gen[Has[Random] with Sized, A]
 }
 
 object DeriveGen {
-    def apply[A](using DeriveGen[A]): Gen[Random with Sized, A] = 
+    def apply[A](using DeriveGen[A]): Gen[Has[Random] with Sized, A] =
         summon[DeriveGen[A]].derive
 
-    inline def instance[A](gen: => Gen[Random with Sized, A]): DeriveGen[A] =
+    inline def instance[A](gen: => Gen[Has[Random] with Sized, A]): DeriveGen[A] =
         new DeriveGen[A] {
-            val derive: Gen[Random with Sized, A] = gen
+            val derive: Gen[Has[Random] with Sized, A] = gen
         }
 
     given DeriveGen[Boolean] = instance(Gen.boolean)
@@ -83,7 +83,7 @@ object DeriveGen {
 
     inline def gen[T](using m: Mirror.Of[T]): DeriveGen[T] =
         new DeriveGen[T] {
-            def derive: Gen[Random with Sized, T] = {
+            def derive: Gen[Has[Random] with Sized, T] = {
                 val elemInstances = summonAll[m.MirroredElemTypes]
                 inline m match {
                     case s: Mirror.SumOf[T]     => genSum(s, elemInstances)
@@ -95,10 +95,10 @@ object DeriveGen {
     inline given derived[T](using m: Mirror.Of[T]): DeriveGen[T] =
         gen[T]
 
-    def genSum[T](s: Mirror.SumOf[T], instances: => List[DeriveGen[_]]): Gen[Random with Sized, T] =
+    def genSum[T](s: Mirror.SumOf[T], instances: => List[DeriveGen[_]]): Gen[Has[Random] with Sized, T] =
         Gen.suspend(Gen.oneOf(instances.map(_.asInstanceOf[DeriveGen[T]].derive) : _*))
 
-    def genProduct[T](p: Mirror.ProductOf[T], instances: => List[DeriveGen[_]]): Gen[Random with Sized, T] = 
+    def genProduct[T](p: Mirror.ProductOf[T], instances: => List[DeriveGen[_]]): Gen[Has[Random] with Sized, T] =
         Gen.suspend(
             Gen.zipAll(instances.map(_.derive)).map(lst => Tuple.fromArray(lst.toArray)).map(p.fromProduct))
 

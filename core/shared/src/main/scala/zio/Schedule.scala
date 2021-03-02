@@ -453,13 +453,13 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
   /**
    * Returns a new schedule that randomly modifies the size of the intervals of this schedule.
    */
-  def jittered: Schedule[Env with Random, In, Out] = jittered(0.0, 1.0)
+  def jittered: Schedule[Env with Has[Random], In, Out] = jittered(0.0, 1.0)
 
   /**
    * Returns a new schedule that randomly modifies the size of the intervals of this schedule.
    */
-  def jittered(min: Double, max: Double): Schedule[Env with Random, In, Out] =
-    delayedM[Env with Random] { duration =>
+  def jittered(min: Double, max: Double): Schedule[Env with Has[Random], In, Out] =
+    delayedM[Env with Has[Random]] { duration =>
       nextDouble.map { random =>
         val d        = duration.toNanos
         val jittered = d * min * (1 - random) + d * max * random

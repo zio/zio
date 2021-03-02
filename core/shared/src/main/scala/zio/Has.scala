@@ -21,8 +21,8 @@ import scala.annotation.implicitNotFound
 /**
  * The trait `Has[A]` is used with ZIO environment to express an effect's
  * dependency on a service of type `A`. For example,
- * `RIO[Has[Has[Console].Service], Unit]` is an effect that requires a
- * `Has[Console].Service` service. Inside the ZIO library, type aliases are provided
+ * `RIO[Has[Has[Console].Random], Unit]` is an effect that requires a
+ * `Has[Console].Random` service. Inside the ZIO library, type aliases are provided
  * as shorthands for common services, e.g.:
  *
  * {{{

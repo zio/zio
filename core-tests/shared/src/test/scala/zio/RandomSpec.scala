@@ -53,25 +53,25 @@ object RandomSpec extends ZIOBaseSpec {
     }
   )
 
-  val genDoubles: Gen[Random, (Double, Double)] =
+  val genDoubles: Gen[Has[Random], (Double, Double)] =
     for {
       a <- Gen.anyDouble
       b <- Gen.anyDouble if a != b
     } yield if (b > a) (a, b) else (b, a)
 
-  val genFloats: Gen[Random, (Float, Float)] =
+  val genFloats: Gen[Has[Random], (Float, Float)] =
     for {
       a <- Gen.anyFloat
       b <- Gen.anyFloat if a != b
     } yield if (b > a) (a, b) else (b, a)
 
-  val genInts: Gen[Random, (Int, Int)] =
+  val genInts: Gen[Has[Random], (Int, Int)] =
     for {
       a <- Gen.anyInt
       b <- Gen.anyInt if a != b
     } yield if (b > a) (a, b) else (b, a)
 
-  val genLongs: Gen[Random, (Long, Long)] =
+  val genLongs: Gen[Has[Random], (Long, Long)] =
     for {
       a <- Gen.anyLong
       b <- Gen.anyLong if a != b

@@ -1192,7 +1192,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * effect.provideSome[Has[Console]](env =>
    *   new Has[Console] with Logging {
    *     val console = env.console
-   *     val logging = new Logging.Service[Any] {
+   *     val logging = new Logging.Random[Any] {
    *       def log(line: String) = console.putStrLn(line)
    *     }
    *   }
@@ -1209,9 +1209,9 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * {{{
    * val clockLayer: ZLayer[Any, Nothing, Clock] = ???
    *
-   * val zio: ZIO[Clock with Random, Nothing, Unit] = ???
+   * val zio: ZIO[Clock with Has[Random], Nothing, Unit] = ???
    *
-   * val zio2 = zio.provideSomeLayer[Random](clockLayer)
+   * val zio2 = zio.provideSomeLayer[Has[Random]](clockLayer)
    * }}}
    */
   final def provideSomeLayer[R0 <: Has[_]]: ZIO.ProvideSomeLayer[R0, R, E, A] =
@@ -2749,7 +2749,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * [[IO.effect]], or [[ZIO.effect]].
    *
    * {{{
-   * val nanoTime: UIO[Long] = IO.effectTotal(System.nanoTime())
+   * val nanoTime: UIO[Long] = IO.effectTotal(Has[System].nanoTime())
    * }}}
    */
   def effectTotal[A](effect: => A): UIO[A] = new ZIO.EffectTotal(() => effect)
