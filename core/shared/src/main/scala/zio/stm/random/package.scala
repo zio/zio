@@ -20,36 +20,34 @@ import zio._
 import zio.random.Random
 
 package object random {
-  type TRandom = Has[TRandom.Service]
+  trait TRandom {
+    def nextBoolean: STM[Nothing, Boolean]
+    def nextBytes(length: Int): STM[Nothing, Chunk[Byte]]
+    def nextDouble: STM[Nothing, Double]
+    def nextDoubleBetween(minInclusive: Double, maxExclusive: Double): STM[Nothing, Double]
+    def nextFloat: STM[Nothing, Float]
+    def nextFloatBetween(minInclusive: Float, maxExclusive: Float): STM[Nothing, Float]
+    def nextGaussian: STM[Nothing, Double]
+    def nextInt: STM[Nothing, Int]
+    def nextIntBetween(minInclusive: Int, maxExclusive: Int): STM[Nothing, Int]
+    def nextIntBounded(n: Int): STM[Nothing, Int]
+    def nextLong: STM[Nothing, Long]
+    def nextLongBetween(minInclusive: Long, maxExclusive: Long): STM[Nothing, Long]
+    def nextLongBounded(n: Long): STM[Nothing, Long]
+    def nextPrintableChar: STM[Nothing, Char]
+    def nextString(length: Int): STM[Nothing, String]
+    def setSeed(seed: Long): STM[Nothing, Unit]
+    def shuffle[A, Collection[+Element] <: Iterable[Element]](collection: Collection[A])(implicit
+      bf: BuildFrom[Collection[A], A, Collection[A]]
+    ): STM[Nothing, Collection[A]]
+  }
 
   object TRandom extends Serializable {
 
-    trait Service {
-      def nextBoolean: STM[Nothing, Boolean]
-      def nextBytes(length: Int): STM[Nothing, Chunk[Byte]]
-      def nextDouble: STM[Nothing, Double]
-      def nextDoubleBetween(minInclusive: Double, maxExclusive: Double): STM[Nothing, Double]
-      def nextFloat: STM[Nothing, Float]
-      def nextFloatBetween(minInclusive: Float, maxExclusive: Float): STM[Nothing, Float]
-      def nextGaussian: STM[Nothing, Double]
-      def nextInt: STM[Nothing, Int]
-      def nextIntBetween(minInclusive: Int, maxExclusive: Int): STM[Nothing, Int]
-      def nextIntBounded(n: Int): STM[Nothing, Int]
-      def nextLong: STM[Nothing, Long]
-      def nextLongBetween(minInclusive: Long, maxExclusive: Long): STM[Nothing, Long]
-      def nextLongBounded(n: Long): STM[Nothing, Long]
-      def nextPrintableChar: STM[Nothing, Char]
-      def nextString(length: Int): STM[Nothing, String]
-      def setSeed(seed: Long): STM[Nothing, Unit]
-      def shuffle[A, Collection[+Element] <: Iterable[Element]](collection: Collection[A])(implicit
-        bf: BuildFrom[Collection[A], A, Collection[A]]
-      ): STM[Nothing, Collection[A]]
-    }
+    val any: ZLayer[Has[TRandom], Nothing, Has[TRandom]] =
+      ZLayer.requires[Has[TRandom]]
 
-    val any: ZLayer[TRandom, Nothing, TRandom] =
-      ZLayer.requires[TRandom]
-
-    val live: ZLayer[Has[Random], Nothing, TRandom] =
+    val live: ZLayer[Has[Random], Nothing, Has[TRandom]] =
       ZLayer.fromEffect {
         import PureRandom._
         zio.random.nextLong.flatMap { init =>
@@ -59,7 +57,7 @@ package object random {
               def withSeed[A](f: Seed => (A, Seed)): STM[Nothing, A] =
                 seed.modify(f)
 
-              new Service {
+              new TRandom {
                 def nextBoolean: USTM[Boolean] =
                   withSeed(rndBoolean)
 
@@ -281,106 +279,106 @@ package object random {
   /**
    * Generates a pseudo-random boolean inside a transaction.
    */
-  val nextBoolean: URSTM[TRandom, Boolean] =
+  val nextBoolean: URSTM[Has[TRandom], Boolean] =
     ZSTM.accessM(_.get.nextBoolean)
 
   /**
    * Generates a pseudo-random chunk of bytes of the specified length inside a transaction.
    */
-  def nextBytes(length: => Int): URSTM[TRandom, Chunk[Byte]] =
+  def nextBytes(length: => Int): URSTM[Has[TRandom], Chunk[Byte]] =
     ZSTM.accessM(_.get.nextBytes(length))
 
   /**
    * Generates a pseudo-random, uniformly distributed double between 0.0 and
    * 1.0 inside a transaction.
    */
-  val nextDouble: URSTM[TRandom, Double] = ZSTM.accessM(_.get.nextDouble)
+  val nextDouble: URSTM[Has[TRandom], Double] = ZSTM.accessM(_.get.nextDouble)
 
   /**
    * Generates a pseudo-random double in the specified range inside a transaction.
    */
-  def nextDoubleBetween(minInclusive: Double, maxExclusive: Double): URSTM[TRandom, Double] =
+  def nextDoubleBetween(minInclusive: Double, maxExclusive: Double): URSTM[Has[TRandom], Double] =
     ZSTM.accessM(_.get.nextDoubleBetween(minInclusive, maxExclusive))
 
   /**
    * Generates a pseudo-random, uniformly distributed float between 0.0 and
    * 1.0 inside a transaction.
    */
-  val nextFloat: URSTM[TRandom, Float] =
+  val nextFloat: URSTM[Has[TRandom], Float] =
     ZSTM.accessM(_.get.nextFloat)
 
   /**
    * Generates a pseudo-random float in the specified range inside a transaction.
    */
-  def nextFloatBetween(minInclusive: Float, maxExclusive: Float): URSTM[TRandom, Float] =
+  def nextFloatBetween(minInclusive: Float, maxExclusive: Float): URSTM[Has[TRandom], Float] =
     ZSTM.accessM(_.get.nextFloatBetween(minInclusive, maxExclusive))
 
   /**
    * Generates a pseudo-random double from a normal distribution with mean 0.0
    * and standard deviation 1.0 inside a transaction.
    */
-  val nextGaussian: URSTM[TRandom, Double] =
+  val nextGaussian: URSTM[Has[TRandom], Double] =
     ZSTM.accessM(_.get.nextGaussian)
 
   /**
    * Generates a pseudo-random integer inside a transaction.
    */
-  val nextInt: URSTM[TRandom, Int] =
+  val nextInt: URSTM[Has[TRandom], Int] =
     ZSTM.accessM(_.get.nextInt)
 
   /**
    * Generates a pseudo-random integer in the specified range inside a transaction.
    */
-  def nextIntBetween(minInclusive: Int, maxExclusive: Int): URSTM[TRandom, Int] =
+  def nextIntBetween(minInclusive: Int, maxExclusive: Int): URSTM[Has[TRandom], Int] =
     ZSTM.accessM(_.get.nextIntBetween(minInclusive, maxExclusive))
 
   /**
    * Generates a pseudo-random integer between 0 (inclusive) and the specified
    * value (exclusive) inside a transaction.
    */
-  def nextIntBounded(n: => Int): URSTM[TRandom, Int] =
+  def nextIntBounded(n: => Int): URSTM[Has[TRandom], Int] =
     ZSTM.accessM(_.get.nextIntBounded(n))
 
   /**
    * Generates a pseudo-random long inside a transaction.
    */
-  val nextLong: URSTM[TRandom, Long] =
+  val nextLong: URSTM[Has[TRandom], Long] =
     ZSTM.accessM(_.get.nextLong)
 
   /**
    * Generates a pseudo-random long in the specified range inside a transaction.
    */
-  def nextLongBetween(minInclusive: Long, maxExclusive: Long): URSTM[TRandom, Long] =
+  def nextLongBetween(minInclusive: Long, maxExclusive: Long): URSTM[Has[TRandom], Long] =
     ZSTM.accessM(_.get.nextLongBetween(minInclusive, maxExclusive))
 
   /**
    * Generates a pseudo-random long between 0 (inclusive) and the specified
    * value (exclusive) inside a transaction.
    */
-  def nextLongBounded(n: => Long): URSTM[TRandom, Long] =
+  def nextLongBounded(n: => Long): URSTM[Has[TRandom], Long] =
     ZSTM.accessM(_.get.nextLongBounded(n))
 
   /**
    * Generates a pseudo-random character from the ASCII range 33-126 inside a transaction.
    */
-  val nextPrintableChar: URSTM[TRandom, Char] =
+  val nextPrintableChar: URSTM[Has[TRandom], Char] =
     ZSTM.accessM(_.get.nextPrintableChar)
 
   /**
    * Generates a pseudo-random string of the specified length inside a transaction.
    */
-  def nextString(length: => Int): URSTM[TRandom, String] =
+  def nextString(length: => Int): URSTM[Has[TRandom], String] =
     ZSTM.accessM(_.get.nextString(length))
 
   /**
    * Sets the seed of this random number generator inside a transaction.
    */
-  def setSeed(seed: Long): URSTM[TRandom, Unit] =
+  def setSeed(seed: Long): URSTM[Has[TRandom], Unit] =
     ZSTM.accessM(_.get.setSeed(seed))
 
   /**
    * Randomly shuffles the specified list.
    */
-  def shuffle[A](list: => List[A]): URSTM[TRandom, List[A]] =
+  def shuffle[A](list: => List[A]): URSTM[Has[TRandom], List[A]] =
     ZSTM.accessM(_.get.shuffle(list))
 }

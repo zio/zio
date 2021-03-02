@@ -22,7 +22,7 @@ abstract class BaseTestTask(
       .asInstanceOf[AbstractRunnableSpec]
   }
 
-  protected def run(eventHandler: EventHandler): ZIO[TestLogger with Has[Clock], Throwable, Unit] =
+  protected def run(eventHandler: EventHandler): ZIO[Has[TestLogger] with Has[Clock], Throwable, Unit] =
     for {
       spec   <- specInstance.runSpec(FilteredSpec(specInstance.spec, args))
       summary = SummaryBuilder.buildSummary(spec)
@@ -31,8 +31,8 @@ abstract class BaseTestTask(
       _      <- ZIO.foreach(events)(e => ZIO.effect(eventHandler.handle(e)))
     } yield ()
 
-  protected def sbtTestLayer(loggers: Array[Logger]): Layer[Nothing, TestLogger with Has[Clock]] =
-    ZLayer.succeed[TestLogger.Service](new TestLogger.Service {
+  protected def sbtTestLayer(loggers: Array[Logger]): Layer[Nothing, Has[TestLogger] with Has[Clock]] =
+    ZLayer.succeed[TestLogger](new TestLogger {
       def logLine(line: String): UIO[Unit] =
         ZIO.effect(loggers.foreach(_.info(colored(line)))).ignore
     }) ++ Clock.live

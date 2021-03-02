@@ -33,10 +33,10 @@ private[zio] trait ZManagedPlatformSpecific {
   val blocking: ZManaged[Blocking, Nothing, Unit] =
     blockingExecutor.toManaged_.flatMap(executor => ZManaged.lock(executor))
 
-  def readFile(path: Path): ZManaged[Blocking, IOException, ZInputStream] =
+  def readFile(path: Path): ZManaged[Has[Blocking], IOException, ZInputStream] =
     readFile(path.toString())
 
-  def readFile(path: String): ZManaged[Blocking, IOException, ZInputStream] =
+  def readFile(path: String): ZManaged[Has[Blocking], IOException, ZInputStream] =
     ZManaged
       .make(
         effectBlockingIO {
@@ -46,7 +46,7 @@ private[zio] trait ZManagedPlatformSpecific {
       )(tuple => effectBlocking(tuple._1.close()).orDie)
       .map(_._2)
 
-  def readURL(url: URL): ZManaged[Blocking, IOException, ZInputStream] =
+  def readURL(url: URL): ZManaged[Has[Blocking], IOException, ZInputStream] =
     ZManaged
       .make(
         effectBlockingIO {
@@ -56,16 +56,16 @@ private[zio] trait ZManagedPlatformSpecific {
       )(tuple => effectBlocking(tuple._1.close()).orDie)
       .map(_._2)
 
-  def readURL(url: String): ZManaged[Blocking, IOException, ZInputStream] =
+  def readURL(url: String): ZManaged[Has[Blocking], IOException, ZInputStream] =
     ZManaged.fromEffect(ZIO.effectTotal(new URL(url))).flatMap(readURL)
 
-  def readURI(uri: URI): ZManaged[Blocking, IOException, ZInputStream] =
+  def readURI(uri: URI): ZManaged[Has[Blocking], IOException, ZInputStream] =
     for {
       isAbsolute <- ZManaged.fromEffect(effectBlockingIO(uri.isAbsolute()))
       is         <- if (isAbsolute) readURL(uri.toURL()) else readFile(uri.toString())
     } yield is
 
-  def writeFile(path: String): ZManaged[Blocking, IOException, ZOutputStream] =
+  def writeFile(path: String): ZManaged[Has[Blocking], IOException, ZOutputStream] =
     ZManaged
       .make(
         effectBlockingIO {
@@ -75,7 +75,7 @@ private[zio] trait ZManagedPlatformSpecific {
       )(tuple => effectBlocking(tuple._1.close()).orDie)
       .map(_._2)
 
-  def writeFile(path: Path): ZManaged[Blocking, IOException, ZOutputStream] =
+  def writeFile(path: Path): ZManaged[Has[Blocking], IOException, ZOutputStream] =
     writeFile(path.toString())
 
 }

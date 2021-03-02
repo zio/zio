@@ -225,10 +225,10 @@ object CauseSpec extends ZIOBaseSpec {
     )
   )
 
-  val causes: Gen[Has[Random] with Sized, Cause[String]] =
+  val causes: Gen[Has[Random] with Has[Sized], Cause[String]] =
     Gen.causes(Gen.anyString, Gen.anyString.map(s => new RuntimeException(s)))
 
-  val equalCauses: Gen[Has[Random] with Sized, (Cause[String], Cause[String])] =
+  val equalCauses: Gen[Has[Random] with Has[Sized], (Cause[String], Cause[String])] =
     (causes <*> causes <*> causes).flatMap { case ((a, b), c) =>
       Gen.elements(
         (a, a),
@@ -244,10 +244,10 @@ object CauseSpec extends ZIOBaseSpec {
       )
     }
 
-  val errorCauseFunctions: Gen[Has[Random] with Sized, String => Cause[String]] =
+  val errorCauseFunctions: Gen[Has[Random] with Has[Sized], String => Cause[String]] =
     Gen.function(causes)
 
-  val errors: Gen[Has[Random] with Sized, String] =
+  val errors: Gen[Has[Random] with Has[Sized], String] =
     Gen.anyString
 
   val fiberIds: Gen[Has[Random], Fiber.Id] =

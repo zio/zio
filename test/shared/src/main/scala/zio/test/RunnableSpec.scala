@@ -26,7 +26,7 @@ abstract class RunnableSpec[R <: Has[_], E] extends AbstractRunnableSpec {
   override type Environment = R
   override type Failure     = E
 
-  private def run(spec: ZSpec[Environment, Failure]): URIO[TestLogger with Has[Clock], Int] =
+  private def run(spec: ZSpec[Environment, Failure]): URIO[Has[TestLogger] with Has[Clock], Int] =
     for {
       results <- runSpec(spec)
       hasFailures = results.exists {

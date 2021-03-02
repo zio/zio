@@ -10,7 +10,9 @@ import java.util.concurrent.TimeUnit
 
 object ClockSpecJVM extends ZIOBaseSpec {
 
-  def spec: Spec[Annotations with TestConfig with ZTestEnv with Live with Annotations, TestFailure[Any], TestSuccess] =
+  def spec: Spec[Has[Annotations] with Has[TestConfig] with ZTestEnv with Has[Live] with Has[Annotations], TestFailure[
+    Any
+  ], TestSuccess] =
     suite("ClockSpec")(
       testM("currentTime has microsecond resolution on JRE >= 9") {
         val unit = TimeUnit.MICROSECONDS

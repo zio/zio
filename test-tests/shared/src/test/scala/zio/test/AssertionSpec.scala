@@ -2,14 +2,14 @@ package zio.test
 
 import zio.test.Assertion._
 import zio.test.TestAspect._
-import zio.{Chunk, Exit}
+import zio.{Chunk, Exit, Has}
 
 import scala.collection.immutable.SortedSet
 import scala.util.{Failure, Success}
 
 object AssertionSpec extends ZIOBaseSpec {
 
-  def spec: Spec[Annotations, TestFailure[Any], TestSuccess] = suite("AssertionSpec")(
+  def spec: Spec[Has[Annotations], TestFailure[Any], TestSuccess] = suite("AssertionSpec")(
     test("and must succeed when both assertions are satisfied") {
       assert(sampleUser)(nameStartsWithU && ageGreaterThan20)
     },

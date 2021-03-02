@@ -2333,7 +2333,7 @@ object ZIOSpec extends ZIOBaseSpec {
         for {
           step            <- Promise.make[Nothing, Unit]
           unexpectedPlace <- Ref.make(List.empty[Int])
-          runtime         <- ZIO.runtime[Live]
+          runtime         <- ZIO.runtime[Has[Live]]
           fork <- ZIO
                     .effectAsync[Any, Nothing, Unit] { k =>
                       runtime.unsafeRunAsync_ {
@@ -2359,7 +2359,7 @@ object ZIOSpec extends ZIOBaseSpec {
         for {
           step            <- Promise.make[Nothing, Unit]
           unexpectedPlace <- Ref.make(List.empty[Int])
-          runtime         <- ZIO.runtime[Live]
+          runtime         <- ZIO.runtime[Has[Live]]
           fork <- ZIO
                     .effectAsyncMaybe[Any, Nothing, Unit] { k =>
                       runtime.unsafeRunAsync_ {
@@ -3658,10 +3658,10 @@ object ZIOSpec extends ZIOBaseSpec {
     )
   )
 
-  def functionIOGen: Gen[Has[Random] with Sized, String => Task[Int]] =
-    Gen.function[Has[Random] with Sized, String, Task[Int]](Gen.successes(Gen.anyInt))
+  def functionIOGen: Gen[Has[Random] with Has[Sized], String => Task[Int]] =
+    Gen.function[Has[Random] with Has[Sized], String, Task[Int]](Gen.successes(Gen.anyInt))
 
-  def listGen: Gen[Has[Random] with Sized, List[String]] =
+  def listGen: Gen[Has[Random] with Has[Sized], List[String]] =
     Gen.listOfN(100)(Gen.alphaNumericString)
 
   val exampleError = new Error("something went wrong")

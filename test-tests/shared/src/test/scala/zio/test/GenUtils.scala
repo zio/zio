@@ -5,7 +5,7 @@ import zio.random.Random
 import zio.stream.ZStream
 import zio.test.Assertion.{equalTo, forall}
 import zio.test.environment.TestRandom
-import zio.{Exit, UIO, URIO, ZIO, Has}
+import zio.{Exit, Has, UIO, URIO, ZIO}
 
 object GenUtils {
 
@@ -20,15 +20,15 @@ object GenUtils {
     assertM(gen.sample.map(_.value).runCollect.map(xs => f(xs.toList)))(assertion)
 
   def checkSample[A, B](
-    gen: Gen[Has[Random] with Sized, A],
+    gen: Gen[Has[Random] with Has[Sized], A],
     size: Int = 100
   )(assertion: Assertion[B], f: List[A] => B = (a: List[A]) => a): URIO[Has[Random], TestResult] =
     assertM(provideSize(sample100(gen).map(f))(size))(assertion)
 
-  def checkShrink[A](gen: Gen[Has[Random] with Sized, A])(a: A): URIO[Has[Random], TestResult] =
+  def checkShrink[A](gen: Gen[Has[Random] with Has[Sized], A])(a: A): URIO[Has[Random], TestResult] =
     provideSize(alwaysShrinksTo(gen)(a: A))(100)
 
-  val deterministic: Gen[Has[Random] with Sized, Gen[Any, Int]] =
+  val deterministic: Gen[Has[Random] with Has[Sized], Gen[Any, Int]] =
     Gen.listOf1(Gen.int(-10, 10)).map(as => Gen.fromIterable(as))
 
   def equal[A](left: Gen[Has[Random], A], right: Gen[Has[Random], A]): UIO[Boolean] =
@@ -66,8 +66,8 @@ object GenUtils {
       case e @ Failure(_) => Left(e)
     }
 
-  def provideSize[A](zio: ZIO[Has[Random] with Sized, Nothing, A])(n: Int): URIO[Has[Random], A] =
-    zio.provideLayer[Nothing, Has[Random], Has[Random] with Sized](Random.any ++ Sized.live(n))
+  def provideSize[A](zio: ZIO[Has[Random] with Has[Sized], Nothing, A])(n: Int): URIO[Has[Random], A] =
+    zio.provideLayer[Nothing, Has[Random], Has[Random] with Has[Sized]](Random.any ++ Sized.live(n))
 
   val random: Gen[Any, Gen[Has[Random], Int]] =
     Gen.const(Gen.int(-10, 10))
@@ -87,7 +87,7 @@ object GenUtils {
     gen.sample.map(_.value).forever.take(100).runCollect.map(_.toList)
 
   def sampleEffect[E, A](
-    gen: Gen[Has[Random] with Sized, ZIO[Has[Random] with Sized, E, A]],
+    gen: Gen[Has[Random] with Has[Sized], ZIO[Has[Random] with Has[Sized], E, A]],
     size: Int = 100
   ): ZIO[Has[Random], Nothing, List[Exit[E, A]]] =
     provideSize(sample100(gen).flatMap(effects => ZIO.foreach(effects)(_.run)))(size)

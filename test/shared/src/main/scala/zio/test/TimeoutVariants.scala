@@ -18,7 +18,7 @@ package zio.test
 
 import zio.duration._
 import zio.test.environment.Live
-import zio.{URIO, ZIO, console}
+import zio.{Has, URIO, ZIO, console}
 
 trait TimeoutVariants {
 
@@ -28,13 +28,13 @@ trait TimeoutVariants {
    */
   def timeoutWarning(
     duration: Duration
-  ): TestAspect[Nothing, Live, Nothing, Any] =
-    new TestAspect[Nothing, Live, Nothing, Any] {
-      def some[R <: Live, E](
+  ): TestAspect[Nothing, Has[Live], Nothing, Any] =
+    new TestAspect[Nothing, Has[Live], Nothing, Any] {
+      def some[R <: Has[Live], E](
         predicate: String => Boolean,
         spec: ZSpec[R, E]
       ): ZSpec[R, E] = {
-        def loop(labels: List[String], spec: ZSpec[R, E]): ZSpec[R with Live, E] =
+        def loop(labels: List[String], spec: ZSpec[R, E]): ZSpec[R with Has[Live], E] =
           spec.caseValue match {
             case Spec.SuiteCase(label, specs, exec) =>
               Spec.suite(label, specs.map(_.map(loop(label :: labels, _))), exec)
@@ -51,7 +51,7 @@ trait TimeoutVariants {
     testLabel: String,
     test: ZTest[R, E],
     duration: Duration
-  ): ZTest[R with Live, E] =
+  ): ZTest[R with Has[Live], E] =
     test.raceWith(Live.withLive(showWarning(suiteLabels, testLabel, duration))(_.delay(duration)))(
       (result, fiber) => fiber.interrupt *> ZIO.done(result),
       (_, fiber) => fiber.join
@@ -61,7 +61,7 @@ trait TimeoutVariants {
     suiteLabels: List[String],
     testLabel: String,
     duration: Duration
-  ): URIO[Live, Unit] =
+  ): URIO[Has[Live], Unit] =
     Live.live(console.putStrLn(renderWarning(suiteLabels, testLabel, duration)))
 
   private def renderWarning(suiteLabels: List[String], testLabel: String, duration: Duration): String =

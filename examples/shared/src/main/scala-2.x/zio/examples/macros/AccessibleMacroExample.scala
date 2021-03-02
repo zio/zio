@@ -8,7 +8,6 @@ import zio.{Chunk, Has, IO, RIO, UIO, URIO, ZIO, ZLayer, random}
 
 @accessible
 object AccessibleMacroExample {
-
   type AccessibleMacroExample = Has[AccessibleMacroExample.Service]
 
   trait Foo { val value: String }

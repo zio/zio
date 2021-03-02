@@ -41,7 +41,7 @@ trait ZSinkPlatformSpecificConstructors {
    */
   final def fromOutputStream(
     os: OutputStream
-  ): ZSink[Blocking, IOException, Byte, Byte, Long] = fromOutputStreamManaged(ZManaged.succeedNow(os))
+  ): ZSink[Has[Blocking], IOException, Byte, Byte, Long] = fromOutputStreamManaged(ZManaged.succeedNow(os))
 
   /**
    * Uses the provided `OutputStream` resource to create a [[ZSink]] that consumes byte chunks
@@ -50,8 +50,8 @@ trait ZSinkPlatformSpecificConstructors {
    * The `OutputStream` will be automatically closed after the stream is finished or an error occurred.
    */
   final def fromOutputStreamManaged(
-    os: ZManaged[Blocking, IOException, OutputStream]
-  ): ZSink[Blocking, IOException, Byte, Byte, Long] =
+    os: ZManaged[Has[Blocking], IOException, OutputStream]
+  ): ZSink[Has[Blocking], IOException, Byte, Byte, Long] =
     ZSink.managed(os) { out =>
       ZSink.foldLeftChunksM(0L) { (bytesWritten, byteChunk: Chunk[Byte]) =>
         blocking.effectBlockingInterrupt {
@@ -72,7 +72,7 @@ trait ZSinkPlatformSpecificConstructors {
     path: => Path,
     position: Long = 0L,
     options: Set[OpenOption] = Set(WRITE, TRUNCATE_EXISTING, CREATE)
-  ): ZSink[Blocking, Throwable, Byte, Byte, Long] = {
+  ): ZSink[Has[Blocking], Throwable, Byte, Byte, Long] = {
     val managedChannel = ZManaged.make(
       blocking
         .effectBlockingInterrupt(
@@ -87,8 +87,8 @@ trait ZSinkPlatformSpecificConstructors {
         )
     )(chan => blocking.effectBlocking(chan.close()).orDie)
 
-    val writer: ZSink[Blocking, Throwable, Byte, Byte, Unit] = ZSink.managed(managedChannel) { chan =>
-      ZSink.foreachChunk[Blocking, Throwable, Byte](byteChunk =>
+    val writer: ZSink[Has[Blocking], Throwable, Byte, Byte, Unit] = ZSink.managed(managedChannel) { chan =>
+      ZSink.foreachChunk[Has[Blocking], Throwable, Byte](byteChunk =>
         blocking.effectBlockingInterrupt {
           chan.write(ByteBuffer.wrap(byteChunk.toArray))
         }
@@ -229,7 +229,7 @@ trait ZStreamPlatformSpecificConstructors {
   /**
    * Creates a stream of bytes from a file at the specified path.
    */
-  def fromFile(path: => Path, chunkSize: Int = ZStream.DefaultChunkSize): ZStream[Blocking, Throwable, Byte] =
+  def fromFile(path: => Path, chunkSize: Int = ZStream.DefaultChunkSize): ZStream[Has[Blocking], Throwable, Byte] =
     ZStream
       .bracket(blocking.effectBlockingInterrupt(FileChannel.open(path)))(chan =>
         blocking.effectBlocking(chan.close()).orDie
@@ -256,7 +256,7 @@ trait ZStreamPlatformSpecificConstructors {
   def fromInputStream(
     is: => InputStream,
     chunkSize: Int = ZStream.DefaultChunkSize
-  ): ZStream[Blocking, IOException, Byte] =
+  ): ZStream[Has[Blocking], IOException, Byte] =
     ZStream.fromEffect(UIO(is)).flatMap { capturedIs =>
       ZStream.repeatEffectChunkOption {
         for {
@@ -280,7 +280,7 @@ trait ZStreamPlatformSpecificConstructors {
   final def fromResource(
     path: String,
     chunkSize: Int = ZStream.DefaultChunkSize
-  ): ZStream[Blocking, IOException, Byte] =
+  ): ZStream[Has[Blocking], IOException, Byte] =
     ZStream.managed {
       ZManaged.fromAutoCloseable {
         effectBlockingIO(getClass.getClassLoader.getResourceAsStream(path.replace('\\', '/'))).flatMap { x =>
@@ -299,7 +299,7 @@ trait ZStreamPlatformSpecificConstructors {
   def fromInputStreamEffect[R](
     is: ZIO[R, IOException, InputStream],
     chunkSize: Int = ZStream.DefaultChunkSize
-  ): ZStream[R with Blocking, IOException, Byte] =
+  ): ZStream[R with Has[Blocking], IOException, Byte] =
     fromInputStreamManaged(is.toManaged(is => ZIO.effectTotal(is.close())), chunkSize)
 
   /**
@@ -308,7 +308,7 @@ trait ZStreamPlatformSpecificConstructors {
   def fromInputStreamManaged[R](
     is: ZManaged[R, IOException, InputStream],
     chunkSize: Int = ZStream.DefaultChunkSize
-  ): ZStream[R with Blocking, IOException, Byte] =
+  ): ZStream[R with Has[Blocking], IOException, Byte] =
     ZStream
       .managed(is)
       .flatMap(fromInputStream(_, chunkSize))
@@ -316,7 +316,10 @@ trait ZStreamPlatformSpecificConstructors {
   /**
    * Creates a stream from `java.io.Reader`.
    */
-  def fromReader(reader: => Reader, chunkSize: Int = ZStream.DefaultChunkSize): ZStream[Blocking, IOException, Char] =
+  def fromReader(
+    reader: => Reader,
+    chunkSize: Int = ZStream.DefaultChunkSize
+  ): ZStream[Has[Blocking], IOException, Char] =
     ZStream.fromEffect(UIO(reader)).flatMap { capturedReader =>
       ZStream.repeatEffectChunkOption {
         for {
@@ -340,7 +343,7 @@ trait ZStreamPlatformSpecificConstructors {
   def fromReaderEffect[R](
     reader: => ZIO[R, IOException, Reader],
     chunkSize: Int = ZStream.DefaultChunkSize
-  ): ZStream[R with Blocking, IOException, Char] =
+  ): ZStream[R with Has[Blocking], IOException, Char] =
     fromReaderManaged(reader.toManaged(r => ZIO.effectTotal(r.close())), chunkSize)
 
   /**
@@ -349,7 +352,7 @@ trait ZStreamPlatformSpecificConstructors {
   def fromReaderManaged[R](
     reader: => ZManaged[R, IOException, Reader],
     chunkSize: Int = ZStream.DefaultChunkSize
-  ): ZStream[R with Blocking, IOException, Char] =
+  ): ZStream[R with Has[Blocking], IOException, Char] =
     ZStream.managed(reader).flatMap(fromReader(_, chunkSize))
 
   /**
@@ -359,7 +362,7 @@ trait ZStreamPlatformSpecificConstructors {
   def fromOutputStreamWriter(
     write: OutputStream => Unit,
     chunkSize: Int = ZStream.DefaultChunkSize
-  ): ZStream[Blocking, Throwable, Byte] = {
+  ): ZStream[Has[Blocking], Throwable, Byte] = {
     def from(in: InputStream, out: OutputStream, err: Promise[Throwable, None.type]) = {
       val readIn = fromInputStream(in, chunkSize).ensuring(ZIO.effectTotal(in.close()))
       val writeOut = ZStream.fromEffect {
@@ -413,7 +416,7 @@ trait ZStreamPlatformSpecificConstructors {
   def fromSocketServer(
     port: Int,
     host: Option[String] = None
-  ): ZStream[Blocking, Throwable, Connection] =
+  ): ZStream[Has[Blocking], Throwable, Connection] =
     for {
       server <- ZStream.managed(ZManaged.fromAutoCloseable(blocking.effectBlocking {
                   AsynchronousServerSocketChannel

@@ -1,5 +1,6 @@
 package zio.test.mock
 
+import zio.Has
 import zio.test.mock.internal.{InvalidCall, MockException}
 import zio.test.mock.module.{PureModule, PureModuleMock}
 import zio.test.{Annotations, Assertion, Spec, TestAspect, TestFailure, TestSuccess, ZIOBaseSpec}
@@ -12,7 +13,7 @@ object PolyMockSpec extends ZIOBaseSpec with MockSpecUtils[PureModule] {
   import MockException._
   import TestAspect.exceptDotty
 
-  def spec: Spec[Annotations, TestFailure[Any], TestSuccess] = suite("PolyMockSpec")(
+  def spec: Spec[Has[Annotations], TestFailure[Any], TestSuccess] = suite("PolyMockSpec")(
     suite("polymorphic input")(
       suite("expectations met")(
         testValue("String")(

@@ -82,9 +82,9 @@ object TestAspect extends TimeoutVariants {
   /**
    * An aspect that marks tests as ignored.
    */
-  val ignore: TestAspectAtLeastR[Annotations] =
-    new TestAspectAtLeastR[Annotations] {
-      def some[R <: Annotations, E](predicate: String => Boolean, spec: ZSpec[R, E]): ZSpec[R, E] =
+  val ignore: TestAspectAtLeastR[Has[Annotations]] =
+    new TestAspectAtLeastR[Has[Annotations]] {
+      def some[R <: Has[Annotations], E](predicate: String => Boolean, spec: ZSpec[R, E]): ZSpec[R, E] =
         spec.when(false)
     }
 
@@ -212,10 +212,13 @@ object TestAspect extends TimeoutVariants {
    * An aspect that runs each test on a separate fiber and prints a fiber dump
    * if the test fails or has not terminated within the specified duration.
    */
-  def diagnose(duration: Duration): TestAspectAtLeastR[Live with Annotations] =
-    new TestAspectAtLeastR[Live with Annotations] {
-      def some[R <: Live with Annotations, E](predicate: String => Boolean, spec: ZSpec[R, E]): ZSpec[R, E] = {
-        def diagnose[R <: Live with Annotations, E](
+  def diagnose(duration: Duration): TestAspectAtLeastR[Has[Live] with Has[Annotations]] =
+    new TestAspectAtLeastR[Has[Live] with Has[Annotations]] {
+      def some[R <: Has[Live] with Has[Annotations], E](
+        predicate: String => Boolean,
+        spec: ZSpec[R, E]
+      ): ZSpec[R, E] = {
+        def diagnose[R <: Has[Live] with Has[Annotations], E](
           label: String,
           test: ZIO[R, TestFailure[E], TestSuccess]
         ): ZIO[R, TestFailure[E], TestSuccess] =
@@ -225,7 +228,7 @@ object TestAspect extends TimeoutVariants {
               (_, _) => dump(label) *> fiber.join
             )
           }
-        def dump[E, A](label: String): URIO[Live with Annotations, Unit] =
+        def dump[E, A](label: String): URIO[Has[Live] with Has[Annotations], Unit] =
           Annotations.supervisedFibers.flatMap(fibers => Live.live(Fiber.putDumpStr(label, fibers.toSeq: _*)))
         spec.transform[R, TestFailure[E], TestSuccess] {
           case c @ Spec.SuiteCase(_, _, _) => c
@@ -236,13 +239,15 @@ object TestAspect extends TimeoutVariants {
     }
 
   /**
-   * An aspect that runs each test with the `TestConsole` instance in the
+   * An aspect that runs each test with the `Has[TestConsole]` instance in the
    * environment set to debug mode so that console output is rendered to
    * standard output in addition to being written to the output buffer.
    */
-  val debug: TestAspectAtLeastR[TestConsole] =
-    new PerTest.AtLeastR[TestConsole] {
-      def perTest[R <: TestConsole, E](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] =
+  val debug: TestAspectAtLeastR[Has[TestConsole]] =
+    new PerTest.AtLeastR[Has[TestConsole]] {
+      def perTest[R <: Has[TestConsole], E](
+        test: ZIO[R, TestFailure[E], TestSuccess]
+      ): ZIO[R, TestFailure[E], TestSuccess] =
         TestConsole.debug(test)
     }
 
@@ -257,7 +262,7 @@ object TestAspect extends TimeoutVariants {
   /**
    * An aspect that only runs tests on Dotty.
    */
-  val dottyOnly: TestAspectAtLeastR[Annotations] =
+  val dottyOnly: TestAspectAtLeastR[Has[Annotations]] =
     if (TestVersion.isDotty) identity else ignore
 
   /**
@@ -274,49 +279,49 @@ object TestAspect extends TimeoutVariants {
   /**
    * An aspect that runs tests on all versions except Dotty.
    */
-  val exceptDotty: TestAspectAtLeastR[Annotations] =
+  val exceptDotty: TestAspectAtLeastR[Has[Annotations]] =
     if (TestVersion.isDotty) ignore else identity
 
   /**
    * An aspect that runs tests on all platforms except ScalaJS.
    */
-  val exceptJS: TestAspectAtLeastR[Annotations] =
+  val exceptJS: TestAspectAtLeastR[Has[Annotations]] =
     if (TestPlatform.isJS) ignore else identity
 
   /**
    * An aspect that runs tests on all platforms except the JVM.
    */
-  val exceptJVM: TestAspectAtLeastR[Annotations] =
+  val exceptJVM: TestAspectAtLeastR[Has[Annotations]] =
     if (TestPlatform.isJVM) ignore else identity
 
   /**
    * An aspect that runs tests on all platforms except ScalaNative.
    */
-  val exceptNative: TestAspectAtLeastR[Annotations] =
+  val exceptNative: TestAspectAtLeastR[Has[Annotations]] =
     if (TestPlatform.isNative) ignore else identity
 
   /**
    * An aspect that runs tests on all versions except Scala 2.
    */
-  val exceptScala2: TestAspectAtLeastR[Annotations] =
+  val exceptScala2: TestAspectAtLeastR[Has[Annotations]] =
     if (TestVersion.isScala2) ignore else identity
 
   /**
    * An aspect that runs tests on all versions except Scala 2.11.
    */
-  val exceptScala211: TestAspectAtLeastR[Annotations] =
+  val exceptScala211: TestAspectAtLeastR[Has[Annotations]] =
     if (TestVersion.isScala211) ignore else identity
 
   /**
    * An aspect that runs tests on all versions except Scala 2.12.
    */
-  val exceptScala212: TestAspectAtLeastR[Annotations] =
+  val exceptScala212: TestAspectAtLeastR[Has[Annotations]] =
     if (TestVersion.isScala212) ignore else identity
 
   /**
    * An aspect that runs tests on all versions except Scala 2.13.
    */
-  val exceptScala213: TestAspectAtLeastR[Annotations] =
+  val exceptScala213: TestAspectAtLeastR[Has[Annotations]] =
     if (TestVersion.isScala213) ignore else identity
 
   /**
@@ -357,9 +362,9 @@ object TestAspect extends TimeoutVariants {
 
   import scala.collection.immutable.SortedSet
 
-  private[zio] lazy val fibers: TestAspect[Nothing, Annotations, Nothing, Any] =
-    new TestAspect.PerTest[Nothing, Annotations, Nothing, Any] {
-      def perTest[R <: Annotations, E](
+  private[zio] lazy val fibers: TestAspect[Nothing, Has[Annotations], Nothing, Any] =
+    new TestAspect.PerTest[Nothing, Has[Annotations], Nothing, Any] {
+      def perTest[R <: Has[Annotations], E](
         test: ZIO[R, TestFailure[E], TestSuccess]
       ): ZIO[R, TestFailure[E], TestSuccess] = {
         val acquire = ZIO.effectTotal(new AtomicReference(SortedSet.empty[Fiber.Runtime[Any, Any]])).tap { ref =>
@@ -385,9 +390,9 @@ object TestAspect extends TimeoutVariants {
    * An aspect that retries a test until success, with a default limit, for use
    * with flaky tests.
    */
-  val flaky: TestAspectAtLeastR[Annotations with TestConfig with ZTestEnv] = {
-    val flaky = new PerTest.AtLeastR[Annotations with TestConfig with ZTestEnv] {
-      def perTest[R <: Annotations with TestConfig with ZTestEnv, E](
+  val flaky: TestAspectAtLeastR[Has[Annotations] with Has[TestConfig] with ZTestEnv] = {
+    val flaky = new PerTest.AtLeastR[Has[Annotations] with Has[TestConfig] with ZTestEnv] {
+      def perTest[R <: Has[Annotations] with Has[TestConfig] with ZTestEnv, E](
         test: ZIO[R, TestFailure[E], TestSuccess]
       ): ZIO[R, TestFailure[E], TestSuccess] =
         TestConfig.retries.flatMap { n =>
@@ -401,9 +406,9 @@ object TestAspect extends TimeoutVariants {
    * An aspect that retries a test until success, with the specified limit, for
    * use with flaky tests.
    */
-  def flaky(n: Int): TestAspectAtLeastR[ZTestEnv with Annotations] = {
-    val flaky = new PerTest.AtLeastR[ZTestEnv with Annotations] {
-      def perTest[R <: ZTestEnv with Annotations, E](
+  def flaky(n: Int): TestAspectAtLeastR[ZTestEnv with Has[Annotations]] = {
+    val flaky = new PerTest.AtLeastR[ZTestEnv with Has[Annotations]] {
+      def perTest[R <: ZTestEnv with Has[Annotations], E](
         test: ZIO[R, TestFailure[E], TestSuccess]
       ): ZIO[R, TestFailure[E], TestSuccess] =
         test.catchAll(_ => test.tapError(_ => Annotations.annotate(TestAnnotation.retried, 1)).retryN(n - 1))
@@ -424,9 +429,9 @@ object TestAspect extends TimeoutVariants {
    * An aspect that only runs a test if the specified environment variable
    * satisfies the specified assertion.
    */
-  def ifEnv(env: String, assertion: Assertion[String]): TestAspectAtLeastR[Live with Annotations] =
-    new TestAspectAtLeastR[Live with Annotations] {
-      def some[R <: Live with Annotations, E](predicate: String => Boolean, spec: ZSpec[R, E]): ZSpec[R, E] =
+  def ifEnv(env: String, assertion: Assertion[String]): TestAspectAtLeastR[Has[Live] with Has[Annotations]] =
+    new TestAspectAtLeastR[Has[Live] with Has[Annotations]] {
+      def some[R <: Has[Live] with Has[Annotations], E](predicate: String => Boolean, spec: ZSpec[R, E]): ZSpec[R, E] =
         spec.whenM(Live.live(system.env(env)).orDie.map(_.fold(false)(assertion.test)))
     }
 
@@ -434,23 +439,23 @@ object TestAspect extends TimeoutVariants {
    * As aspect that only runs a test if the specified environment variable is
    * set.
    */
-  def ifEnvSet(env: String): TestAspectAtLeastR[Live with Annotations] =
+  def ifEnvSet(env: String): TestAspectAtLeastR[Has[Live] with Has[Annotations]] =
     ifEnv(env, Assertion.anything)
 
   /**
    * An aspect that only runs a test if the specified Java property satisfies
    * the specified assertion.
    */
-  def ifProp(prop: String, assertion: Assertion[String]): TestAspectAtLeastR[Live with Annotations] =
-    new TestAspectAtLeastR[Live with Annotations] {
-      def some[R <: Live with Annotations, E](predicate: String => Boolean, spec: ZSpec[R, E]): ZSpec[R, E] =
+  def ifProp(prop: String, assertion: Assertion[String]): TestAspectAtLeastR[Has[Live] with Has[Annotations]] =
+    new TestAspectAtLeastR[Has[Live] with Has[Annotations]] {
+      def some[R <: Has[Live] with Has[Annotations], E](predicate: String => Boolean, spec: ZSpec[R, E]): ZSpec[R, E] =
         spec.whenM(Live.live(system.property(prop)).orDie.map(_.fold(false)(assertion.test)))
     }
 
   /**
    * As aspect that only runs a test if the specified Java property is set.
    */
-  def ifPropSet(prop: String): TestAspectAtLeastR[Live with Annotations] =
+  def ifPropSet(prop: String): TestAspectAtLeastR[Has[Live] with Has[Annotations]] =
     ifProp(prop, Assertion.anything)
 
   /**
@@ -464,7 +469,7 @@ object TestAspect extends TimeoutVariants {
   /**
    * An aspect that only runs tests on ScalaJS.
    */
-  val jsOnly: TestAspectAtLeastR[Annotations] =
+  val jsOnly: TestAspectAtLeastR[Has[Annotations]] =
     if (TestPlatform.isJS) identity else ignore
 
   /**
@@ -478,18 +483,20 @@ object TestAspect extends TimeoutVariants {
   /**
    * An aspect that only runs tests on the JVM.
    */
-  val jvmOnly: TestAspectAtLeastR[Annotations] =
+  val jvmOnly: TestAspectAtLeastR[Has[Annotations]] =
     if (TestPlatform.isJVM) identity else ignore
 
   /**
    * An aspect that runs each test with the maximum number of shrinkings to
    * minimize large failures set to the specified value.
    */
-  def shrinks(n: Int): TestAspectAtLeastR[TestConfig] =
-    new PerTest.AtLeastR[TestConfig] {
-      def perTest[R <: TestConfig, E](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] =
-        test.updateService[TestConfig.Service] { old =>
-          new TestConfig.Service {
+  def shrinks(n: Int): TestAspectAtLeastR[Has[TestConfig]] =
+    new PerTest.AtLeastR[Has[TestConfig]] {
+      def perTest[R <: Has[TestConfig], E](
+        test: ZIO[R, TestFailure[E], TestSuccess]
+      ): ZIO[R, TestFailure[E], TestSuccess] =
+        test.updateService[TestConfig] { old =>
+          new TestConfig {
             val repeats = old.repeats
             val retries = old.retries
             val samples = old.samples
@@ -501,9 +508,9 @@ object TestAspect extends TimeoutVariants {
   /**
    * An aspect that runs each test with the size set to the specified value.
    */
-  def sized(n: Int): TestAspectAtLeastR[Sized] =
-    new PerTest.AtLeastR[Sized] {
-      def perTest[R <: Sized, E](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] =
+  def sized(n: Int): TestAspectAtLeastR[Has[Sized]] =
+    new PerTest.AtLeastR[Has[Sized]] {
+      def perTest[R <: Has[Sized], E](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] =
         Sized.withSize(n)(test)
     }
 
@@ -518,16 +525,16 @@ object TestAspect extends TimeoutVariants {
   /**
    * An aspect that only runs tests on ScalaNative.
    */
-  val nativeOnly: TestAspectAtLeastR[Annotations] =
+  val nativeOnly: TestAspectAtLeastR[Has[Annotations]] =
     if (TestPlatform.isNative) identity else ignore
 
   /**
    * An aspect that repeats the test a default number of times, ensuring it is
    * stable ("non-flaky"). Stops at the first failure.
    */
-  val nonFlaky: TestAspectAtLeastR[ZTestEnv with Annotations with TestConfig] = {
-    val nonFlaky = new PerTest.AtLeastR[ZTestEnv with Annotations with TestConfig] {
-      def perTest[R <: ZTestEnv with Annotations with TestConfig, E](
+  val nonFlaky: TestAspectAtLeastR[ZTestEnv with Has[Annotations] with Has[TestConfig]] = {
+    val nonFlaky = new PerTest.AtLeastR[ZTestEnv with Has[Annotations] with Has[TestConfig]] {
+      def perTest[R <: ZTestEnv with Has[Annotations] with Has[TestConfig], E](
         test: ZIO[R, TestFailure[E], TestSuccess]
       ): ZIO[R, TestFailure[E], TestSuccess] =
         TestConfig.repeats.flatMap { n =>
@@ -541,9 +548,9 @@ object TestAspect extends TimeoutVariants {
    * An aspect that repeats the test a specified number of times, ensuring it
    * is stable ("non-flaky"). Stops at the first failure.
    */
-  def nonFlaky(n: Int): TestAspectAtLeastR[ZTestEnv with Annotations] = {
-    val nonFlaky = new PerTest.AtLeastR[ZTestEnv with Annotations] {
-      def perTest[R <: ZTestEnv with Annotations, E](
+  def nonFlaky(n: Int): TestAspectAtLeastR[ZTestEnv with Has[Annotations]] = {
+    val nonFlaky = new PerTest.AtLeastR[ZTestEnv with Has[Annotations]] {
+      def perTest[R <: ZTestEnv with Has[Annotations], E](
         test: ZIO[R, TestFailure[E], TestSuccess]
       ): ZIO[R, TestFailure[E], TestSuccess] =
         test *> test.tap(_ => Annotations.annotate(TestAnnotation.repeated, 1)).repeatN(n - 1)
@@ -555,7 +562,7 @@ object TestAspect extends TimeoutVariants {
    * Constructs an aspect that requires a test to not terminate within the
    * specified time.
    */
-  def nonTermination(duration: Duration): TestAspectAtLeastR[Live] =
+  def nonTermination(duration: Duration): TestAspectAtLeastR[Has[Live]] =
     timeout(duration) >>>
       failing(
         isCase[TestFailure[Any], Throwable](
@@ -572,7 +579,7 @@ object TestAspect extends TimeoutVariants {
    * Sets the seed of the `TestRandom` instance in the environment to a random
    * value before each test.
    */
-  val nondeterministic: TestAspectAtLeastR[Live with TestRandom] =
+  val nondeterministic: TestAspectAtLeastR[Has[Live] with Has[TestRandom]] =
     before(Live.live(clock.nanoTime).flatMap(TestRandom.setSeed(_)))
 
   /**
@@ -591,7 +598,7 @@ object TestAspect extends TimeoutVariants {
   /**
    * An aspect that repeats successful tests according to a schedule.
    */
-  def repeat[R0 <: ZTestEnv with Annotations with Live](
+  def repeat[R0 <: ZTestEnv with Has[Annotations] with Has[Live]](
     schedule: Schedule[R0, TestSuccess, Any]
   ): TestAspectAtLeastR[R0] = {
     val repeat = new PerTest.AtLeastR[R0] {
@@ -614,11 +621,13 @@ object TestAspect extends TimeoutVariants {
    * An aspect that runs each test with the number of times to repeat tests to
    * ensure they are stable set to the specified value.
    */
-  def repeats(n: Int): TestAspectAtLeastR[TestConfig] =
-    new PerTest.AtLeastR[TestConfig] {
-      def perTest[R <: TestConfig, E](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] =
-        test.updateService[TestConfig.Service] { old =>
-          new TestConfig.Service {
+  def repeats(n: Int): TestAspectAtLeastR[Has[TestConfig]] =
+    new PerTest.AtLeastR[Has[TestConfig]] {
+      def perTest[R <: Has[TestConfig], E](
+        test: ZIO[R, TestFailure[E], TestSuccess]
+      ): ZIO[R, TestFailure[E], TestSuccess] =
+        test.updateService[TestConfig] { old =>
+          new TestConfig {
             val repeats = n
             val retries = old.retries
             val samples = old.samples
@@ -638,21 +647,21 @@ object TestAspect extends TimeoutVariants {
 
   /**
    * An aspect that restores the
-   * [[zio.test.environment.TestClock TestClock]]'s state to its starting
+   * [[zio.test.environment.TestClock Has[TestClock]]]'s state to its starting
    * state after the test is run. Note that this is only useful when repeating
    * tests.
    */
-  def restoreTestClock: TestAspectAtLeastR[TestClock] =
-    restore[TestClock](_.get)
+  def restoreTestClock: TestAspectAtLeastR[Has[TestClock]] =
+    restore[Has[TestClock]](_.get)
 
   /**
    * An aspect that restores the
-   * [[zio.test.environment.TestConsole TestConsole]]'s state to its starting
+   * [[zio.test.environment.TestConsole Has[TestConsole]]]'s state to its starting
    * state after the test is run. Note that this is only useful when repeating
    * tests.
    */
-  def restoreTestConsole: TestAspectAtLeastR[TestConsole] =
-    restore[TestConsole](_.get)
+  def restoreTestConsole: TestAspectAtLeastR[Has[TestConsole]] =
+    restore[Has[TestConsole]](_.get)
 
   /**
    * An aspect that restores the
@@ -660,8 +669,8 @@ object TestAspect extends TimeoutVariants {
    * state after the test is run. Note that this is only useful when repeating
    * tests.
    */
-  def restoreTestRandom: TestAspectAtLeastR[TestRandom] =
-    restore[TestRandom](_.get)
+  def restoreTestRandom: TestAspectAtLeastR[Has[TestRandom]] =
+    restore[Has[TestRandom]](_.get)
 
   /**
    * An aspect that restores the
@@ -674,8 +683,8 @@ object TestAspect extends TimeoutVariants {
 
   /**
    * An aspect that restores all state in the standard provided test
-   * environments ([[zio.test.environment.TestClock TestClock]],
-   * [[zio.test.environment.TestConsole TestConsole]],
+   * environments ([[zio.test.environment.TestClock Has[TestClock]]],
+   * [[zio.test.environment.TestConsole Has[TestConsole]]],
    * [[zio.test.environment.TestRandom TestRandom]] and
    * [[zio.test.environment.TestSystem Has[TestSystem]]]) to their starting state
    * after the test is run. Note that this is only useful when repeating tests.
@@ -687,11 +696,13 @@ object TestAspect extends TimeoutVariants {
    * An aspect that runs each test with the number of times to retry flaky
    * tests set to the specified value.
    */
-  def retries(n: Int): TestAspectAtLeastR[TestConfig] =
-    new PerTest.AtLeastR[TestConfig] {
-      def perTest[R <: TestConfig, E](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] =
-        test.updateService[TestConfig.Service] { old =>
-          new TestConfig.Service {
+  def retries(n: Int): TestAspectAtLeastR[Has[TestConfig]] =
+    new PerTest.AtLeastR[Has[TestConfig]] {
+      def perTest[R <: Has[TestConfig], E](
+        test: ZIO[R, TestFailure[E], TestSuccess]
+      ): ZIO[R, TestFailure[E], TestSuccess] =
+        test.updateService[TestConfig] { old =>
+          new TestConfig {
             val repeats = old.repeats
             val retries = n
             val samples = old.samples
@@ -703,7 +714,7 @@ object TestAspect extends TimeoutVariants {
   /**
    * An aspect that retries failed tests according to a schedule.
    */
-  def retry[R0 <: ZTestEnv with Annotations with Live, E0](
+  def retry[R0 <: ZTestEnv with Has[Annotations] with Has[Live], E0](
     schedule: Schedule[R0, TestFailure[E0], Any]
   ): TestAspect[Nothing, R0, Nothing, E0] = {
     val retry = new TestAspect.PerTest[Nothing, R0, Nothing, E0] {
@@ -721,11 +732,13 @@ object TestAspect extends TimeoutVariants {
    * An aspect that runs each test with the number of sufficient samples to
    * check for a random variable set to the specified value.
    */
-  def samples(n: Int): TestAspectAtLeastR[TestConfig] =
-    new PerTest.AtLeastR[TestConfig] {
-      def perTest[R <: TestConfig, E](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] =
-        test.updateService[TestConfig.Service] { old =>
-          new TestConfig.Service {
+  def samples(n: Int): TestAspectAtLeastR[Has[TestConfig]] =
+    new PerTest.AtLeastR[Has[TestConfig]] {
+      def perTest[R <: Has[TestConfig], E](
+        test: ZIO[R, TestFailure[E], TestSuccess]
+      ): ZIO[R, TestFailure[E], TestSuccess] =
+        test.updateService[TestConfig] { old =>
+          new TestConfig {
             val repeats = old.repeats
             val retries = old.retries
             val samples = n
@@ -775,42 +788,44 @@ object TestAspect extends TimeoutVariants {
   /**
    * An aspect that only runs tests on Scala 2.
    */
-  val scala2Only: TestAspectAtLeastR[Annotations] =
+  val scala2Only: TestAspectAtLeastR[Has[Annotations]] =
     if (TestVersion.isScala2) identity else ignore
 
   /**
    * An aspect that only runs tests on Scala 2.11.
    */
-  val scala211Only: TestAspectAtLeastR[Annotations] =
+  val scala211Only: TestAspectAtLeastR[Has[Annotations]] =
     if (TestVersion.isScala211) identity else ignore
 
   /**
    * An aspect that only runs tests on Scala 2.12.
    */
-  val scala212Only: TestAspectAtLeastR[Annotations] =
+  val scala212Only: TestAspectAtLeastR[Has[Annotations]] =
     if (TestVersion.isScala212) identity else ignore
 
   /**
    * An aspect that only runs tests on Scala 2.13.
    */
-  val scala213Only: TestAspectAtLeastR[Annotations] =
+  val scala213Only: TestAspectAtLeastR[Has[Annotations]] =
     if (TestVersion.isScala213) identity else ignore
 
   /**
    * Sets the seed of the `TestRandom` instance in the environment to the
    * specified value before each test.
    */
-  def setSeed(seed: => Long): TestAspectAtLeastR[TestRandom] =
+  def setSeed(seed: => Long): TestAspectAtLeastR[Has[TestRandom]] =
     before(TestRandom.setSeed(seed))
 
   /**
-   * An aspect that runs each test with the `TestConsole` instance in the
+   * An aspect that runs each test with the `Has[TestConsole]` instance in the
    * environment set to silent mode so that console output is only written to
    * the output buffer and not rendered to standard output.
    */
-  val silent: TestAspectAtLeastR[TestConsole] =
-    new PerTest.AtLeastR[TestConsole] {
-      def perTest[R <: TestConsole, E](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] =
+  val silent: TestAspectAtLeastR[Has[TestConsole]] =
+    new PerTest.AtLeastR[Has[TestConsole]] {
+      def perTest[R <: Has[TestConsole], E](
+        test: ZIO[R, TestFailure[E], TestSuccess]
+      ): ZIO[R, TestFailure[E], TestSuccess] =
         TestConsole.silent(test)
     }
 
@@ -836,9 +851,9 @@ object TestAspect extends TimeoutVariants {
   /**
    * Annotates tests with their execution times.
    */
-  val timed: TestAspectAtLeastR[Live with Annotations] =
-    new TestAspect.PerTest.AtLeastR[Live with Annotations] {
-      def perTest[R <: Live with Annotations, E](
+  val timed: TestAspectAtLeastR[Has[Live] with Has[Annotations]] =
+    new TestAspect.PerTest.AtLeastR[Has[Live] with Has[Annotations]] {
+      def perTest[R <: Has[Live] with Has[Annotations], E](
         test: ZIO[R, TestFailure[E], TestSuccess]
       ): ZIO[R, TestFailure[E], TestSuccess] =
         Live.withLive(test)(_.either.timed).flatMap { case (duration, result) =>
@@ -852,9 +867,9 @@ object TestAspect extends TimeoutVariants {
    */
   def timeout(
     duration: Duration
-  ): TestAspectAtLeastR[Live] =
-    new PerTest.AtLeastR[Live] {
-      def perTest[R <: Live, E](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] = {
+  ): TestAspectAtLeastR[Has[Live]] =
+    new PerTest.AtLeastR[Has[Live]] {
+      def perTest[R <: Has[Live], E](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] = {
         def timeoutFailure =
           TestTimeoutException(s"Timeout of ${duration.render} exceeded.")
         Live

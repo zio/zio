@@ -160,7 +160,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
       }
     },
     testM("blocking trace") {
-      val io: RIO[Blocking, Unit] = for {
+      val io: RIO[Has[Blocking], Unit] = for {
         trace <- blockingTrace
       } yield trace
 
@@ -462,7 +462,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
       }
   }
 
-  def blockingTrace: ZIO[Blocking, Throwable, Unit] =
+  def blockingTrace: ZIO[Has[Blocking], Throwable, Unit] =
     for {
       _ <- blocking.effectBlockingInterrupt {
              throw new Exception()
@@ -610,8 +610,8 @@ object StackTracesSpec extends DefaultRunnableSpec {
     } yield ()
   }
 
-  implicit final class CauseMust[R](io: ZIO[R with TestClock, Any, Any]) {
-    def causeMust(check: Cause[Any] => TestResult): URIO[R with TestClock, TestResult] =
+  implicit final class CauseMust[R](io: ZIO[R with Has[TestClock], Any, Any]) {
+    def causeMust(check: Cause[Any] => TestResult): URIO[R with Has[TestClock], TestResult] =
       io.foldCause[TestResult](
         cause => {
           show(cause)

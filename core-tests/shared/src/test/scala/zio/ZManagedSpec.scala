@@ -1618,10 +1618,10 @@ object ZManagedSpec extends ZIOBaseSpec {
 
   val ZManagedExampleDie: ZManaged[Any, Throwable, Int] = ZManaged.effectTotal(throw ExampleError)
 
-  def countDownLatch(n: Int): UIO[URIO[Live, Unit]] =
+  def countDownLatch(n: Int): UIO[URIO[Has[Live], Unit]] =
     Ref.make(n).map { counter =>
       counter.update(_ - 1) *> {
-        def await: URIO[Live, Unit] = counter.get.flatMap { n =>
+        def await: URIO[Has[Live], Unit] = counter.get.flatMap { n =>
           if (n <= 0) ZIO.unit
           else Live.live(ZIO.sleep(10.milliseconds)) *> await
         }
@@ -1632,7 +1632,7 @@ object ZManagedSpec extends ZIOBaseSpec {
   def doInterrupt(
     managed: IO[Nothing, Unit] => ZManaged[Any, Nothing, Unit],
     expected: Fiber.Id => Option[Exit[Nothing, Unit]]
-  ): ZIO[Live, Nothing, TestResult] =
+  ): ZIO[Has[Live], Nothing, TestResult] =
     for {
       fiberId            <- ZIO.fiberId
       never              <- Promise.make[Nothing, Unit]
@@ -1664,8 +1664,8 @@ object ZManagedSpec extends ZIOBaseSpec {
 
   def testAcquirePar[R, E](
     n: Int,
-    f: ZManaged[Live, Nothing, Unit] => ZManaged[R, E, Any]
-  ): ZIO[R with Live, Nothing, TestResult] =
+    f: ZManaged[Has[Live], Nothing, Unit] => ZManaged[R, E, Any]
+  ): ZIO[R with Has[Live], Nothing, TestResult] =
     for {
       effects      <- Ref.make(0)
       countDown    <- countDownLatch(n + 1)
@@ -1681,8 +1681,8 @@ object ZManagedSpec extends ZIOBaseSpec {
 
   def testReservePar[R, E, A](
     n: Int,
-    f: ZManaged[Live, Nothing, Unit] => ZManaged[R, E, A]
-  ): ZIO[R with Live, Nothing, TestResult] =
+    f: ZManaged[Has[Live], Nothing, Unit] => ZManaged[R, E, A]
+  ): ZIO[R with Has[Live], Nothing, TestResult] =
     for {
       effects      <- Ref.make(0)
       countDown    <- countDownLatch(n + 1)

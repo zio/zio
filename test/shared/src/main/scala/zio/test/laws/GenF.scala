@@ -40,9 +40,9 @@ object GenF {
   /**
    * A generator of `Chunk` values.
    */
-  val chunk: GenF[Has[Random] with Sized, Chunk] =
-    new GenF[Has[Random] with Sized, Chunk] {
-      def apply[R1 <: Has[Random] with Sized, A](gen: Gen[R1, A]): Gen[R1, Chunk[A]] =
+  val chunk: GenF[Has[Random] with Has[Sized], Chunk] =
+    new GenF[Has[Random] with Has[Sized], Chunk] {
+      def apply[R1 <: Has[Random] with Has[Sized], A](gen: Gen[R1, A]): Gen[R1, Chunk[A]] =
         Gen.chunkOf(gen)
     }
 
@@ -58,16 +58,16 @@ object GenF {
   /**
    * A generator of `List` values.
    */
-  val list: GenF[Has[Random] with Sized, List] =
-    new GenF[Has[Random] with Sized, List] {
-      def apply[R1 <: Has[Random] with Sized, A](gen: Gen[R1, A]): Gen[R1, List[A]] =
+  val list: GenF[Has[Random] with Has[Sized], List] =
+    new GenF[Has[Random] with Has[Sized], List] {
+      def apply[R1 <: Has[Random] with Has[Sized], A](gen: Gen[R1, A]): Gen[R1, List[A]] =
         Gen.listOf(gen)
     }
 
   /**
    * A generator of `Map` values.
    */
-  def map[R <: Has[Random] with Sized, A](a: Gen[R, A]): GenF[R, ({ type lambda[+x] = Map[A, x] })#lambda] =
+  def map[R <: Has[Random] with Has[Sized], A](a: Gen[R, A]): GenF[R, ({ type lambda[+x] = Map[A, x] })#lambda] =
     new GenF[R, ({ type lambda[+x] = Map[A, x] })#lambda] {
       def apply[R1 <: R, B](b: Gen[R1, B]): Gen[R1, Map[A, B]] =
         Gen.mapOf(a, b)
@@ -85,18 +85,18 @@ object GenF {
   /**
    * A generator of `Set` values.
    */
-  val set: GenF[Has[Random] with Sized, Set] =
-    new GenF[Has[Random] with Sized, Set] {
-      def apply[R1 <: Has[Random] with Sized, A](gen: Gen[R1, A]): Gen[R1, Set[A]] =
+  val set: GenF[Has[Random] with Has[Sized], Set] =
+    new GenF[Has[Random] with Has[Sized], Set] {
+      def apply[R1 <: Has[Random] with Has[Sized], A](gen: Gen[R1, A]): Gen[R1, Set[A]] =
         Gen.setOf(gen)
     }
 
   /**
    * A generator of `Vector` values.
    */
-  val vector: GenF[Has[Random] with Sized, Vector] =
-    new GenF[Has[Random] with Sized, Vector] {
-      def apply[R1 <: Has[Random] with Sized, A](gen: Gen[R1, A]): Gen[R1, Vector[A]] =
+  val vector: GenF[Has[Random] with Has[Sized], Vector] =
+    new GenF[Has[Random] with Has[Sized], Vector] {
+      def apply[R1 <: Has[Random] with Has[Sized], A](gen: Gen[R1, A]): Gen[R1, Vector[A]] =
         Gen.vectorOf(gen)
     }
 }

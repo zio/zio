@@ -6,7 +6,7 @@ import zio.test.Assertion._
 import zio.test.GenUtils._
 import zio.test.TestAspect.{nonFlaky, scala2Only, setSeed}
 import zio.test.{check => Check, checkN => CheckN}
-import zio.{Chunk, NonEmptyChunk, ZIO}
+import zio.{Chunk, Has, NonEmptyChunk, ZIO}
 
 import java.time._
 import scala.math.Numeric.DoubleIsFractional
@@ -686,7 +686,7 @@ object GenSpec extends ZIOBaseSpec {
       val genPop: Gen[Any, Command]          = Gen.const(Pop)
       def genPush: Gen[Has[Random], Command] = Gen.anyInt.map(value => Push(value))
 
-      val genCommands: Gen[Has[Random] with Sized, List[Command]] =
+      val genCommands: Gen[Has[Random] with Has[Sized], List[Command]] =
         Gen.unfoldGen(0) { n =>
           if (n <= 0)
             genPush.map(command => (n + 1, command))

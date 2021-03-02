@@ -31,7 +31,7 @@ import scala.math.{log, sqrt}
 
 /**
  * The `environment` package contains testable versions of all the standard ZIO
- * environment types through the [[TestClock]], [[TestConsole]],
+ * environment types through the [[TestClock]], [[Has[TestConsole]]],
  * [[TestSystem]], and [[TestRandom]] modules. See the documentation on the
  * individual modules for more detail about using each of them.
  *
@@ -60,7 +60,7 @@ import scala.math.{log, sqrt}
  * {{{
  * import zio.test.environment._
  *
- * myProgram.provideM(TestConsole.make(TestConsole.DefaultData))
+ * myProgram.provideM(Has[TestConsole].make(Has[TestConsole].DefaultData))
  * }}}
  *
  * Finally, you can create a `Test` object that implements the test interface
@@ -80,11 +80,6 @@ import scala.math.{log, sqrt}
  * to provide the implementation for test services that you mix in.
  */
 package object environment extends PlatformSpecific {
-  type Live        = Has[Live.Service]
-  type TestClock   = Has[TestClock.Service]
-  type TestConsole = Has[TestConsole.Service]
-  type TestRandom  = Has[TestRandom.Service]
-
   val liveEnvironment: Layer[Nothing, ZEnv] = ZEnv.live
 
   val testEnvironment: Layer[Nothing, TestEnvironment] =
@@ -95,7 +90,7 @@ package object environment extends PlatformSpecific {
    * environment. This is useful for performing effects such as timing out
    * tests, accessing the real time, or printing to the real console.
    */
-  def live[E, A](zio: ZIO[ZEnv, E, A]): ZIO[Live, E, A] =
+  def live[E, A](zio: ZIO[ZEnv, E, A]): ZIO[Has[Live], E, A] =
     Live.live(zio)
 
   /**
@@ -111,11 +106,11 @@ package object environment extends PlatformSpecific {
    */
   def withLive[R, E, E1, A, B](
     zio: ZIO[R, E, A]
-  )(f: IO[E, A] => ZIO[ZEnv, E1, B]): ZIO[R with Live, E1, B] =
+  )(f: IO[E, A] => ZIO[ZEnv, E1, B]): ZIO[R with Has[Live], E1, B] =
     Live.withLive(zio)(f)
 
   /**
-   * The `Live` trait provides access to the "live" environment from within the
+   * The `Has[Live]` trait provides access to the "live" environment from within the
    * test environment for effects such as printing test results to the console or
    * timing out tests where it is necessary to access the real environment.
    *
@@ -134,22 +129,22 @@ package object environment extends PlatformSpecific {
    * with the test environment, for example to time out a test. Both of these
    * methods are re-exported in the `environment` package for easy availability.
    */
+  trait Live {
+    def provide[E, A](zio: ZIO[ZEnv, E, A]): IO[E, A]
+  }
+
   object Live {
 
-    trait Service {
-      def provide[E, A](zio: ZIO[ZEnv, E, A]): IO[E, A]
-    }
-
     /**
-     * Constructs a new `Live` service that implements the `Live` interface.
+     * Constructs a new `Has[Live]` service that implements the `Has[Live]` interface.
      * This typically should not be necessary as `TestEnvironment` provides
      * access to live versions of all the standard ZIO environment types but
      * could be useful if you are mixing in interfaces to create your own
      * environment type.
      */
-    def default: ZLayer[ZEnv, Nothing, Live] =
+    def default: ZLayer[ZEnv, Nothing, Has[Live]] =
       ZLayer(ZManaged.access[ZEnv] { zenv =>
-        Has(new Live.Service {
+        Has(new Live {
           def provide[E, A](zio: ZIO[ZEnv, E, A]): IO[E, A] =
             zio.provide(zenv)
         })
@@ -158,7 +153,7 @@ package object environment extends PlatformSpecific {
     /**
      * Provides an effect with the "live" environment.
      */
-    def live[E, A](zio: ZIO[ZEnv, E, A]): ZIO[Live, E, A] =
+    def live[E, A](zio: ZIO[ZEnv, E, A]): ZIO[Has[Live], E, A] =
       ZIO.accessM(_.get.provide(zio))
 
     /**
@@ -166,14 +161,14 @@ package object environment extends PlatformSpecific {
      * while ensuring that the effect itself is provided with the test
      * environment.
      */
-    def withLive[R <: Live, E, E1, A, B](
+    def withLive[R <: Has[Live], E, E1, A, B](
       zio: ZIO[R, E, A]
     )(f: IO[E, A] => ZIO[ZEnv, E1, B]): ZIO[R, E1, B] =
       ZIO.environment[R].flatMap(r => live(f(zio.provide(r))))
   }
 
   /**
-   * `TestClock` makes it easy to deterministically and efficiently test
+   * `Has[TestClock]` makes it easy to deterministically and efficiently test
    * effects involving the passage of time.
    *
    * Instead of waiting for actual time to pass, `sleep` and methods
@@ -182,7 +177,7 @@ package object environment extends PlatformSpecific {
    * methods, and all effects scheduled to take place on or before that time
    * will automatically be run in order.
    *
-   * For example, here is how we can test `ZIO#timeout` using `TestClock:
+   * For example, here is how we can test `ZIO#timeout` using `Has[TestClock]:
    *
    * {{{
    *  import zio.ZIO
@@ -191,7 +186,7 @@ package object environment extends PlatformSpecific {
    *
    *  for {
    *    fiber  <- ZIO.sleep(5.minutes).timeout(1.minute).fork
-   *    _      <- TestClock.adjust(1.minute)
+   *    _      <- Has[TestClock].adjust(1.minute)
    *    result <- fiber.join
    *  } yield result == None
    * }}}
@@ -200,7 +195,7 @@ package object environment extends PlatformSpecific {
    * and methods derived from it will semantically block until the time is set
    * to on or after the time they are scheduled to run. If we didn't fork the
    * fiber on which we called sleep we would never get to set the time on the
-   * line below. Thus, a useful pattern when using `TestClock` is to fork the
+   * line below. Thus, a useful pattern when using `Has[TestClock]` is to fork the
    * effect being tested, then adjust the clock time, and finally verify that
    * the expected effects have been performed.
    *
@@ -216,10 +211,10 @@ package object environment extends PlatformSpecific {
    *    q <- Queue.unbounded[Unit]
    *    _ <- q.offer(()).delay(60.minutes).forever.fork
    *    a <- q.poll.map(_.isEmpty)
-   *    _ <- TestClock.adjust(60.minutes)
+   *    _ <- Has[TestClock].adjust(60.minutes)
    *    b <- q.take.as(true)
    *    c <- q.poll.map(_.isEmpty)
-   *    _ <- TestClock.adjust(60.minutes)
+   *    _ <- Has[TestClock].adjust(60.minutes)
    *    d <- q.take.as(true)
    *    e <- q.poll.map(_.isEmpty)
    *  } yield a && b && c && d && e
@@ -233,24 +228,24 @@ package object environment extends PlatformSpecific {
    * exactly one value is placed in the queue, and when we adjust the clock by
    * another 60 minutes exactly one more value is placed in the queue.
    */
-  object TestClock extends Serializable {
+  trait TestClock extends Restorable {
+    def adjust(duration: Duration): UIO[Unit]
+    def setDateTime(dateTime: OffsetDateTime): UIO[Unit]
+    def setTime(duration: Duration): UIO[Unit]
+    def setTimeZone(zone: ZoneId): UIO[Unit]
+    def sleeps: UIO[List[Duration]]
+    def timeZone: UIO[ZoneId]
+  }
 
-    trait Service extends Restorable {
-      def adjust(duration: Duration): UIO[Unit]
-      def setDateTime(dateTime: OffsetDateTime): UIO[Unit]
-      def setTime(duration: Duration): UIO[Unit]
-      def setTimeZone(zone: ZoneId): UIO[Unit]
-      def sleeps: UIO[List[Duration]]
-      def timeZone: UIO[ZoneId]
-    }
+  object TestClock extends Serializable {
 
     final case class Test(
       clockState: Ref[TestClock.Data],
-      live: Live.Service,
-      annotations: Annotations.Service,
+      live: Live,
+      annotations: Annotations,
       warningState: RefM[TestClock.WarningData]
     ) extends Clock
-        with TestClock.Service {
+        with TestClock {
 
       /**
        * Increments the current clock time by the specified duration. Any
@@ -291,8 +286,8 @@ package object environment extends PlatformSpecific {
         clockState.get.map(data => toLocalDateTime(data.duration, data.timeZone))
 
       /**
-       * Saves the `TestClock`'s current state in an effect which, when run,
-       * will restore the `TestClock` state to the saved state
+       * Saves the `Has[TestClock]`'s current state in an effect which, when run,
+       * will restore the `Has[TestClock]` state to the saved state
        */
       val save: UIO[UIO[Unit]] =
         for {
@@ -357,7 +352,7 @@ package object environment extends PlatformSpecific {
 
       /**
        * Cancels the warning message that is displayed if a test is using time
-       * but is not advancing the `TestClock`.
+       * but is not advancing the `Has[TestClock]`.
        */
       private[TestClock] val warningDone: UIO[Unit] =
         warningState.updateSomeM[Any, Nothing] {
@@ -470,7 +465,7 @@ package object environment extends PlatformSpecific {
 
       /**
        * Forks a fiber that will display a warning message if a test is using
-       * time but is not advancing the `TestClock`.
+       * time but is not advancing the `Has[TestClock]`.
        */
       private val warningStart: UIO[Unit] =
         warningState.updateSomeM { case WarningData.Start =>
@@ -482,83 +477,83 @@ package object environment extends PlatformSpecific {
     }
 
     /**
-     * Constructs a new `Test` object that implements the `TestClock`
+     * Constructs a new `Test` object that implements the `Has[TestClock]`
      * interface. This can be useful for mixing in with implementations of
      * other interfaces.
      */
-    def live(data: Data): ZLayer[Live with Annotations, Nothing, Has[Clock] with TestClock] =
-      ZLayer.fromServicesManyManaged[Live.Service, Annotations.Service, Any, Nothing, Has[Clock] with TestClock] {
-        (live: Live.Service, annotations: Annotations.Service) =>
+    def live(data: Data): ZLayer[Has[Live] with Has[Annotations], Nothing, Has[Clock] with Has[TestClock]] =
+      ZLayer.fromServicesManyManaged[Live, Annotations, Any, Nothing, Has[Clock] with Has[TestClock]] {
+        (live: Live, annotations: Annotations) =>
           for {
             ref  <- Ref.make(data).toManaged_
             refM <- RefM.make(WarningData.start).toManaged_
             test <- Managed.make(UIO(Test(ref, live, annotations, refM)))(_.warningDone)
-          } yield Has.allOf[Clock, TestClock.Service](test, test)
+          } yield Has.allOf[Clock, TestClock](test, test)
       }
 
-    val any: ZLayer[Has[Clock] with TestClock, Nothing, Has[Clock] with TestClock] =
-      ZLayer.requires[Has[Clock] with TestClock]
+    val any: ZLayer[Has[Clock] with Has[TestClock], Nothing, Has[Clock] with Has[TestClock]] =
+      ZLayer.requires[Has[Clock] with Has[TestClock]]
 
-    val default: ZLayer[Live with Annotations, Nothing, Has[Clock] with TestClock] =
+    val default: ZLayer[Has[Live] with Has[Annotations], Nothing, Has[Clock] with Has[TestClock]] =
       live(Data(Duration.Zero, Nil, ZoneId.of("UTC")))
 
     /**
-     * Accesses a `TestClock` instance in the environment and increments the
+     * Accesses a `Has[TestClock]` instance in the environment and increments the
      * time by the specified duration, running any actions scheduled for on or
      * before the new time in order.
      */
-    def adjust(duration: => Duration): URIO[TestClock, Unit] =
+    def adjust(duration: => Duration): URIO[Has[TestClock], Unit] =
       ZIO.accessM(_.get.adjust(duration))
 
     /**
-     * Accesses a `TestClock` instance in the environment and saves the clock
-     * state in an effect which, when run, will restore the `TestClock` to the
+     * Accesses a `Has[TestClock]` instance in the environment and saves the clock
+     * state in an effect which, when run, will restore the `Has[TestClock]` to the
      * saved state.
      */
-    val save: ZIO[TestClock, Nothing, UIO[Unit]] =
+    val save: ZIO[Has[TestClock], Nothing, UIO[Unit]] =
       ZIO.accessM(_.get.save)
 
     /**
-     * Accesses a `TestClock` instance in the environment and sets the clock
+     * Accesses a `Has[TestClock]` instance in the environment and sets the clock
      * time to the specified `OffsetDateTime`, running any actions scheduled
      * for on or before the new time in order.
      */
-    def setDateTime(dateTime: => OffsetDateTime): URIO[TestClock, Unit] =
+    def setDateTime(dateTime: => OffsetDateTime): URIO[Has[TestClock], Unit] =
       ZIO.accessM(_.get.setDateTime(dateTime))
 
     /**
-     * Accesses a `TestClock` instance in the environment and sets the clock
+     * Accesses a `Has[TestClock]` instance in the environment and sets the clock
      * time to the specified time in terms of duration since the epoch,
      * running any actions scheduled for on or before the new time in order.
      */
-    def setTime(duration: => Duration): URIO[TestClock, Unit] =
+    def setTime(duration: => Duration): URIO[Has[TestClock], Unit] =
       ZIO.accessM(_.get.setTime(duration))
 
     /**
-     * Accesses a `TestClock` instance in the environment, setting the time
+     * Accesses a `Has[TestClock]` instance in the environment, setting the time
      * zone to the specified time zone. The clock time in terms of nanoseconds
      * since the epoch will not be altered and no scheduled actions will be
      * run as a result of this effect.
      */
-    def setTimeZone(zone: => ZoneId): URIO[TestClock, Unit] =
+    def setTimeZone(zone: => ZoneId): URIO[Has[TestClock], Unit] =
       ZIO.accessM(_.get.setTimeZone(zone))
 
     /**
-     * Accesses a `TestClock` instance in the environment and returns a list
+     * Accesses a `Has[TestClock]` instance in the environment and returns a list
      * of times that effects are scheduled to run.
      */
-    val sleeps: ZIO[TestClock, Nothing, List[Duration]] =
+    val sleeps: ZIO[Has[TestClock], Nothing, List[Duration]] =
       ZIO.accessM(_.get.sleeps)
 
     /**
-     * Accesses a `TestClock` instance in the environment and returns the current
+     * Accesses a `Has[TestClock]` instance in the environment and returns the current
      * time zone.
      */
-    val timeZone: URIO[TestClock, ZoneId] =
+    val timeZone: URIO[Has[TestClock], ZoneId] =
       ZIO.accessM(_.get.timeZone)
 
     /**
-     * `Data` represents the state of the `TestClock`, including the clock time
+     * `Data` represents the state of the `Has[TestClock]`, including the clock time
      * and time zone.
      */
     final case class Data(
@@ -576,10 +571,10 @@ package object environment extends PlatformSpecific {
 
     /**
      * `WarningData` describes the state of the warning message that is
-     * displayed if a test is using time by is not advancing the `TestClock`.
+     * displayed if a test is using time by is not advancing the `Has[TestClock]`.
      * The possible states are `Start` if a test has not used time, `Pending`
-     * if a test has used time but has not adjusted the `TestClock`, and `Done`
-     * if a test has adjusted the `TestClock` or the warning message has
+     * if a test has used time but has not adjusted the `Has[TestClock]`, and `Done`
+     * if a test has adjusted the `Has[TestClock]` or the warning message has
      * already been displayed.
      */
     sealed abstract class WarningData
@@ -597,7 +592,7 @@ package object environment extends PlatformSpecific {
 
       /**
        * State indicating that a test has used time but has not adjusted the
-       * `TestClock` with a reference to the fiber that will display the
+       * `Has[TestClock]` with a reference to the fiber that will display the
        * warning message.
        */
       def pending(fiber: Fiber[Nothing, Unit]): WarningData = Pending(fiber)
@@ -611,27 +606,27 @@ package object environment extends PlatformSpecific {
 
     /**
      * The warning message that will be displayed if a test is using time but
-     * is not advancing the `TestClock`.
+     * is not advancing the `Has[TestClock]`.
      */
     private val warning =
       "Warning: A test is using time, but is not advancing the test clock, " +
-        "which may result in the test hanging. Use TestClock.adjust to " +
+        "which may result in the test hanging. Use Has[TestClock].adjust to " +
         "manually advance the time."
   }
 
   /**
-   * `TestConsole` provides a testable interface for programs interacting with
+   * `Has[TestConsole]` provides a testable interface for programs interacting with
    * the console by modeling input and output as reading from and writing to
-   * input and output buffers maintained by `TestConsole` and backed by a
+   * input and output buffers maintained by `Has[TestConsole]` and backed by a
    * `Ref`.
    *
-   * All calls to `putStr` and `putStrLn` using the `TestConsole` will write
+   * All calls to `putStr` and `putStrLn` using the `Has[TestConsole]` will write
    * the string to the output buffer and all calls to `getStrLn` will take a
    * string from the input buffer. To facilitate debugging, by default output
    * will also be rendered to standard output. You can enable or disable this
    * for a scope using `debug`, `silent`, or the corresponding test aspects.
    *
-   * `TestConsole` has several methods to access and manipulate the content of
+   * `Has[TestConsole]` has several methods to access and manipulate the content of
    * these buffers including `feedLines` to feed strings to the input  buffer
    * that will then be returned by calls to `getStrLn`, `output` to get the
    * content of the output buffer from calls to `putStr` and `putStrLn`, and
@@ -642,7 +637,7 @@ package object environment extends PlatformSpecific {
    *
    * {{{
    * import zio.console._
-   * import zio.test.environment.TestConsole
+   * import zio.test.environment.HasTestConsole
    * import zio.ZIO
    *
    * val sayHello = for {
@@ -651,30 +646,30 @@ package object environment extends PlatformSpecific {
    * } yield ()
    *
    * for {
-   *   _ <- TestConsole.feedLines("John", "Jane", "Sally")
+   *   _ <- Has[TestConsole].feedLines("John", "Jane", "Sally")
    *   _ <- ZIO.collectAll(List.fill(3)(sayHello))
-   *   result <- TestConsole.output
+   *   result <- Has[TestConsole].output
    * } yield result == Vector("Hello, John!\n", "Hello, Jane!\n", "Hello, Sally!\n")
    * }}}
    */
-  object TestConsole extends Serializable {
+  trait TestConsole extends Restorable {
+    def clearInput: UIO[Unit]
+    def clearOutput: UIO[Unit]
+    def debug[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A]
+    def feedLines(lines: String*): UIO[Unit]
+    def output: UIO[Vector[String]]
+    def outputErr: UIO[Vector[String]]
+    def silent[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A]
+  }
 
-    trait Service extends Restorable {
-      def clearInput: UIO[Unit]
-      def clearOutput: UIO[Unit]
-      def debug[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A]
-      def feedLines(lines: String*): UIO[Unit]
-      def output: UIO[Vector[String]]
-      def outputErr: UIO[Vector[String]]
-      def silent[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A]
-    }
+  object TestConsole extends Serializable {
 
     case class Test(
       consoleState: Ref[TestConsole.Data],
-      live: Live.Service,
+      live: Live,
       debugState: FiberRef[Boolean]
     ) extends Console
-        with TestConsole.Service {
+        with TestConsole {
 
       /**
        * Clears the contents of the input buffer.
@@ -689,7 +684,7 @@ package object environment extends PlatformSpecific {
         consoleState.update(data => data.copy(output = Vector.empty))
 
       /**
-       * Runs the specified effect with the `TestConsole` set to debug mode,
+       * Runs the specified effect with the `Has[TestConsole]` set to debug mode,
        * so that console output is rendered to standard output in addition to
        * being written to the output buffer.
        */
@@ -768,8 +763,8 @@ package object environment extends PlatformSpecific {
         } *> live.provide(console.putStrLn(line)).whenM(debugState.get)
 
       /**
-       * Saves the `TestConsole`'s current state in an effect which, when run,
-       * will restore the `TestConsole` state to the saved state.
+       * Saves the `Has[TestConsole]`'s current state in an effect which, when run,
+       * will restore the `Has[TestConsole]` state to the saved state.
        */
       val save: UIO[UIO[Unit]] =
         for {
@@ -777,7 +772,7 @@ package object environment extends PlatformSpecific {
         } yield consoleState.set(consoleData)
 
       /**
-       * Runs the specified effect with the `TestConsole` set to silent mode,
+       * Runs the specified effect with the `Has[TestConsole]` set to silent mode,
        * so that console output is only written to the output buffer and not
        * rendered to standard output.
        */
@@ -786,91 +781,91 @@ package object environment extends PlatformSpecific {
     }
 
     /**
-     * Constructs a new `Test` object that implements the `TestConsole`
+     * Constructs a new `Test` object that implements the `Has[TestConsole]`
      * interface. This can be useful for mixing in with implementations of other
      * interfaces.
      */
-    def make(data: Data, debug: Boolean = true): ZLayer[Live, Nothing, Has[Console] with TestConsole] =
-      ZLayer.fromServiceManyM { (live: Live.Service) =>
+    def make(data: Data, debug: Boolean = true): ZLayer[Has[Live], Nothing, Has[Console] with Has[TestConsole]] =
+      ZLayer.fromServiceManyM { (live: Live) =>
         for {
           ref      <- Ref.make(data)
           debugRef <- FiberRef.make(debug)
           test      = Test(ref, live, debugRef)
-        } yield Has.allOf[Console, TestConsole.Service](test, test)
+        } yield Has.allOf[Console, TestConsole](test, test)
       }
 
-    val any: ZLayer[Has[Console] with TestConsole, Nothing, Has[Console] with TestConsole] =
-      ZLayer.requires[Has[Console] with TestConsole]
+    val any: ZLayer[Has[Console] with Has[TestConsole], Nothing, Has[Console] with Has[TestConsole]] =
+      ZLayer.requires[Has[Console] with Has[TestConsole]]
 
-    val debug: ZLayer[Live, Nothing, Has[Console] with TestConsole] =
+    val debug: ZLayer[Has[Live], Nothing, Has[Console] with Has[TestConsole]] =
       make(Data(Nil, Vector()), true)
 
-    val silent: ZLayer[Live, Nothing, Has[Console] with TestConsole] =
+    val silent: ZLayer[Has[Live], Nothing, Has[Console] with Has[TestConsole]] =
       make(Data(Nil, Vector()), false)
 
     /**
-     * Accesses a `TestConsole` instance in the environment and clears the input
+     * Accesses a `Has[TestConsole]` instance in the environment and clears the input
      * buffer.
      */
-    val clearInput: URIO[TestConsole, Unit] =
+    val clearInput: URIO[Has[TestConsole], Unit] =
       ZIO.accessM(_.get.clearInput)
 
     /**
-     * Accesses a `TestConsole` instance in the environment and clears the output
+     * Accesses a `Has[TestConsole]` instance in the environment and clears the output
      * buffer.
      */
-    val clearOutput: URIO[TestConsole, Unit] =
+    val clearOutput: URIO[Has[TestConsole], Unit] =
       ZIO.accessM(_.get.clearOutput)
 
     /**
-     * Accesses a `TestConsole` instance in the environment and runs the
-     * specified effect with the `TestConsole` set to debug mode, so that
+     * Accesses a `Has[TestConsole]` instance in the environment and runs the
+     * specified effect with the `Has[TestConsole]` set to debug mode, so that
      * console output is rendered to standard output in addition to being
      * written to the output buffer.
      */
-    def debug[R <: TestConsole, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+    def debug[R <: Has[TestConsole], E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
       ZIO.accessM(_.get.debug(zio))
 
     /**
-     * Accesses a `TestConsole` instance in the environment and writes the
+     * Accesses a `Has[TestConsole]` instance in the environment and writes the
      * specified sequence of strings to the input buffer.
      */
-    def feedLines(lines: String*): URIO[TestConsole, Unit] =
+    def feedLines(lines: String*): URIO[Has[TestConsole], Unit] =
       ZIO.accessM(_.get.feedLines(lines: _*))
 
     /**
-     * Accesses a `TestConsole` instance in the environment and returns the
+     * Accesses a `Has[TestConsole]` instance in the environment and returns the
      * contents of the output buffer.
      */
-    val output: ZIO[TestConsole, Nothing, Vector[String]] =
+    val output: ZIO[Has[TestConsole], Nothing, Vector[String]] =
       ZIO.accessM(_.get.output)
 
     /**
-     * Accesses a `TestConsole` instance in the environment and returns the
+     * Accesses a `Has[TestConsole]` instance in the environment and returns the
      * contents of the error buffer.
      */
-    val outputErr: ZIO[TestConsole, Nothing, Vector[String]] =
+    val outputErr: ZIO[Has[TestConsole], Nothing, Vector[String]] =
       ZIO.accessM(_.get.outputErr)
 
     /**
-     * Accesses a `TestConsole` instance in the environment and saves the
+     * Accesses a `Has[TestConsole]` instance in the environment and saves the
      * console state in an effect which, when run, will restore the
-     * `TestConsole` to the saved state.
+     * `Has[TestConsole]` to the saved state.
      */
-    val save: ZIO[TestConsole, Nothing, UIO[Unit]] =
+    val save: ZIO[Has[TestConsole], Nothing, UIO[Unit]] =
       ZIO.accessM(_.get.save)
 
     /**
-     * Accesses a `TestConsole` instance in the environment and runs the
-     * specified effect with the `TestConsole` set to silent mode, so that
+     * Accesses a `Has[TestConsole]` instance in the environment and runs the
+     * specified effect with the `Has[TestConsole]` set to silent mode, so that
      * console output is only written to the output buffer and not rendered to
      * standard output.
      */
-    def silent[R <: TestConsole, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+    def silent[R <: Has[TestConsole], E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
       ZIO.accessM(_.get.silent(zio))
 
     /**
-     * The state of the `TestConsole`.
+     * The state of the `Has[TestConsole]`.
      */
     final case class Data(
       input: List[String] = List.empty,
@@ -921,33 +916,33 @@ package object environment extends PlatformSpecific {
    * so you can fill the buffer with new values or go back to pseudo-random
    * number generation.
    */
-  object TestRandom extends Serializable {
+  trait TestRandom extends Restorable {
+    def clearBooleans: UIO[Unit]
+    def clearBytes: UIO[Unit]
+    def clearChars: UIO[Unit]
+    def clearDoubles: UIO[Unit]
+    def clearFloats: UIO[Unit]
+    def clearInts: UIO[Unit]
+    def clearLongs: UIO[Unit]
+    def clearStrings: UIO[Unit]
+    def feedBooleans(booleans: Boolean*): UIO[Unit]
+    def feedBytes(bytes: Chunk[Byte]*): UIO[Unit]
+    def feedChars(chars: Char*): UIO[Unit]
+    def feedDoubles(doubles: Double*): UIO[Unit]
+    def feedFloats(floats: Float*): UIO[Unit]
+    def feedInts(ints: Int*): UIO[Unit]
+    def feedLongs(longs: Long*): UIO[Unit]
+    def feedStrings(strings: String*): UIO[Unit]
+    def getSeed: UIO[Long]
+    def setSeed(seed: Long): UIO[Unit]
+  }
 
-    trait Service extends Restorable {
-      def clearBooleans: UIO[Unit]
-      def clearBytes: UIO[Unit]
-      def clearChars: UIO[Unit]
-      def clearDoubles: UIO[Unit]
-      def clearFloats: UIO[Unit]
-      def clearInts: UIO[Unit]
-      def clearLongs: UIO[Unit]
-      def clearStrings: UIO[Unit]
-      def feedBooleans(booleans: Boolean*): UIO[Unit]
-      def feedBytes(bytes: Chunk[Byte]*): UIO[Unit]
-      def feedChars(chars: Char*): UIO[Unit]
-      def feedDoubles(doubles: Double*): UIO[Unit]
-      def feedFloats(floats: Float*): UIO[Unit]
-      def feedInts(ints: Int*): UIO[Unit]
-      def feedLongs(longs: Long*): UIO[Unit]
-      def feedStrings(strings: String*): UIO[Unit]
-      def getSeed: UIO[Long]
-      def setSeed(seed: Long): UIO[Unit]
-    }
+  object TestRandom extends Serializable {
 
     /**
      * Adapted from @gzmo work in Scala.js (https://github.com/scala-js/scala-js/pull/780)
      */
-    final case class Test(randomState: Ref[Data], bufferState: Ref[Buffer]) extends Random with TestRandom.Service {
+    final case class Test(randomState: Ref[Data], bufferState: Ref[Buffer]) extends Random with TestRandom {
 
       /**
        * Clears the buffer of booleans.
@@ -1263,7 +1258,7 @@ package object environment extends PlatformSpecific {
 
       @inline
       private def mostSignificantBits(x: Double): Int =
-        toInt((x / (1 << 24).toDouble))
+        toInt(x / (1 << 24).toDouble)
 
       private def randomBits(bits: Int): UIO[Int] =
         randomState.modify { data =>
@@ -1362,7 +1357,7 @@ package object environment extends PlatformSpecific {
         for {
           i1 <- randomBits(32)
           i2 <- randomBits(32)
-        } yield ((i1.toLong << 32) + i2)
+        } yield (i1.toLong << 32) + i2
 
       private def randomLongBounded(n: Long): UIO[Long] =
         Random.nextLongBoundedWith(n)(randomLong)
@@ -1401,118 +1396,118 @@ package object environment extends PlatformSpecific {
      * Accesses a `TestRandom` instance in the environment and clears the buffer
      * of booleans.
      */
-    val clearBooleans: URIO[TestRandom, Unit] =
+    val clearBooleans: URIO[Has[TestRandom], Unit] =
       ZIO.accessM(_.get.clearBooleans)
 
     /**
      * Accesses a `TestRandom` instance in the environment and clears the buffer
      * of bytes.
      */
-    val clearBytes: URIO[TestRandom, Unit] =
+    val clearBytes: URIO[Has[TestRandom], Unit] =
       ZIO.accessM(_.get.clearBytes)
 
     /**
      * Accesses a `TestRandom` instance in the environment and clears the buffer
      * of characters.
      */
-    val clearChars: URIO[TestRandom, Unit] =
+    val clearChars: URIO[Has[TestRandom], Unit] =
       ZIO.accessM(_.get.clearChars)
 
     /**
      * Accesses a `TestRandom` instance in the environment and clears the buffer
      * of doubles.
      */
-    val clearDoubles: URIO[TestRandom, Unit] =
+    val clearDoubles: URIO[Has[TestRandom], Unit] =
       ZIO.accessM(_.get.clearDoubles)
 
     /**
      * Accesses a `TestRandom` instance in the environment and clears the buffer
      * of floats.
      */
-    val clearFloats: URIO[TestRandom, Unit] =
+    val clearFloats: URIO[Has[TestRandom], Unit] =
       ZIO.accessM(_.get.clearFloats)
 
     /**
      * Accesses a `TestRandom` instance in the environment and clears the buffer
      * of integers.
      */
-    val clearInts: URIO[TestRandom, Unit] =
+    val clearInts: URIO[Has[TestRandom], Unit] =
       ZIO.accessM(_.get.clearInts)
 
     /**
      * Accesses a `TestRandom` instance in the environment and clears the buffer
      * of longs.
      */
-    val clearLongs: URIO[TestRandom, Unit] =
+    val clearLongs: URIO[Has[TestRandom], Unit] =
       ZIO.accessM(_.get.clearLongs)
 
     /**
      * Accesses a `TestRandom` instance in the environment and clears the buffer
      * of strings.
      */
-    val clearStrings: URIO[TestRandom, Unit] =
+    val clearStrings: URIO[Has[TestRandom], Unit] =
       ZIO.accessM(_.get.clearStrings)
 
     /**
      * Accesses a `TestRandom` instance in the environment and feeds the buffer
      * with the specified sequence of booleans.
      */
-    def feedBooleans(booleans: Boolean*): URIO[TestRandom, Unit] =
+    def feedBooleans(booleans: Boolean*): URIO[Has[TestRandom], Unit] =
       ZIO.accessM(_.get.feedBooleans(booleans: _*))
 
     /**
      * Accesses a `TestRandom` instance in the environment and feeds the buffer
      * with the specified sequence of chunks of bytes.
      */
-    def feedBytes(bytes: Chunk[Byte]*): URIO[TestRandom, Unit] =
+    def feedBytes(bytes: Chunk[Byte]*): URIO[Has[TestRandom], Unit] =
       ZIO.accessM(_.get.feedBytes(bytes: _*))
 
     /**
      * Accesses a `TestRandom` instance in the environment and feeds the buffer
      * with the specified sequence of characters.
      */
-    def feedChars(chars: Char*): URIO[TestRandom, Unit] =
+    def feedChars(chars: Char*): URIO[Has[TestRandom], Unit] =
       ZIO.accessM(_.get.feedChars(chars: _*))
 
     /**
      * Accesses a `TestRandom` instance in the environment and feeds the buffer
      * with the specified sequence of doubles.
      */
-    def feedDoubles(doubles: Double*): URIO[TestRandom, Unit] =
+    def feedDoubles(doubles: Double*): URIO[Has[TestRandom], Unit] =
       ZIO.accessM(_.get.feedDoubles(doubles: _*))
 
     /**
      * Accesses a `TestRandom` instance in the environment and feeds the buffer
      * with the specified sequence of floats.
      */
-    def feedFloats(floats: Float*): URIO[TestRandom, Unit] =
+    def feedFloats(floats: Float*): URIO[Has[TestRandom], Unit] =
       ZIO.accessM(_.get.feedFloats(floats: _*))
 
     /**
      * Accesses a `TestRandom` instance in the environment and feeds the buffer
      * with the specified sequence of integers.
      */
-    def feedInts(ints: Int*): URIO[TestRandom, Unit] =
+    def feedInts(ints: Int*): URIO[Has[TestRandom], Unit] =
       ZIO.accessM(_.get.feedInts(ints: _*))
 
     /**
      * Accesses a `TestRandom` instance in the environment and feeds the buffer
      * with the specified sequence of longs.
      */
-    def feedLongs(longs: Long*): URIO[TestRandom, Unit] =
+    def feedLongs(longs: Long*): URIO[Has[TestRandom], Unit] =
       ZIO.accessM(_.get.feedLongs(longs: _*))
 
     /**
      * Accesses a `TestRandom` instance in the environment and feeds the buffer
      * with the specified sequence of strings.
      */
-    def feedStrings(strings: String*): URIO[TestRandom, Unit] =
+    def feedStrings(strings: String*): URIO[Has[TestRandom], Unit] =
       ZIO.accessM(_.get.feedStrings(strings: _*))
 
     /**
      * Accesses a `TestRandom` instance in the environment and gets the seed.
      */
-    val getSeed: URIO[TestRandom, Long] =
+    val getSeed: URIO[Has[TestRandom], Long] =
       ZIO.accessM(_.get.getSeed)
 
     /**
@@ -1520,30 +1515,30 @@ package object environment extends PlatformSpecific {
      * be useful for providing the required environment to an effect that
      * requires a `Has[Random]`, such as with `ZIO#provide`.
      */
-    def make(data: Data): Layer[Nothing, Has[Random] with TestRandom] =
+    def make(data: Data): Layer[Nothing, Has[Random] with Has[TestRandom]] =
       ZLayer.fromEffectMany(for {
         data   <- Ref.make(data)
         buffer <- Ref.make(Buffer())
         test    = Test(data, buffer)
-      } yield Has.allOf[Random, TestRandom.Service](test, test))
+      } yield Has.allOf[Random, TestRandom](test, test))
 
-    val any: ZLayer[Has[Random] with TestRandom, Nothing, Has[Random] with TestRandom] =
-      ZLayer.requires[Has[Random] with TestRandom]
+    val any: ZLayer[Has[Random] with Has[TestRandom], Nothing, Has[Random] with Has[TestRandom]] =
+      ZLayer.requires[Has[Random] with Has[TestRandom]]
 
-    val deterministic: Layer[Nothing, Has[Random] with TestRandom] =
+    val deterministic: Layer[Nothing, Has[Random] with Has[TestRandom]] =
       make(DefaultData)
 
-    val random: ZLayer[Has[Clock], Nothing, Has[Random] with TestRandom] =
+    val random: ZLayer[Has[Clock], Nothing, Has[Random] with Has[TestRandom]] =
       (ZLayer.service[Clock] ++ deterministic) >>>
-        (ZLayer.fromFunctionManyM { (env: Has[Clock] with Has[Random] with TestRandom) =>
+        ZLayer.fromFunctionManyM { (env: Has[Clock] with Has[Random] with Has[TestRandom]) =>
           val random     = env.get[Random]
-          val testRandom = env.get[TestRandom.Service]
+          val testRandom = env.get[TestRandom]
 
           for {
             time <- env.get[Clock].nanoTime
-            _    <- env.get[TestRandom.Service].setSeed(time)
-          } yield Has.allOf[Random, TestRandom.Service](random, testRandom)
-        })
+            _    <- env.get[TestRandom].setSeed(time)
+          } yield Has.allOf[Random, TestRandom](random, testRandom)
+        }
 
     /**
      * Constructs a new `Test` object that implements the `TestRandom` interface.
@@ -1560,14 +1555,14 @@ package object environment extends PlatformSpecific {
      * state in an effect which, when run, will restore the `TestRandom` to the
      * saved state.
      */
-    val save: ZIO[TestRandom, Nothing, UIO[Unit]] =
+    val save: ZIO[Has[TestRandom], Nothing, UIO[Unit]] =
       ZIO.accessM(_.get.save)
 
     /**
      * Accesses a `TestRandom` instance in the environment and sets the seed to
      * the specified value.
      */
-    def setSeed(seed: => Long): URIO[TestRandom, Unit] =
+    def setSeed(seed: => Long): URIO[Has[TestRandom], Unit] =
       ZIO.accessM(_.get.setSeed(seed))
 
     /**

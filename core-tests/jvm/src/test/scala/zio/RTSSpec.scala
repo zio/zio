@@ -14,11 +14,11 @@ object RTSSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 
-  def spec: ZSpec[Environment, Failure] = suite("Blocking specs (to be migrated to ZIOSpecJvm)")(
+  def spec: ZSpec[Environment, Failure] = suite("Has[Blocking] specs (to be migrated to ZIOSpecJvm)")(
     testM("blocking caches threads") {
       import zio.blocking.Blocking
 
-      def runAndTrack(ref: Ref[Set[Thread]]): ZIO[Blocking with Has[Clock], Nothing, Boolean] =
+      def runAndTrack(ref: Ref[Set[Thread]]): ZIO[Has[Blocking] with Has[Clock], Nothing, Boolean] =
         blocking.blocking {
           UIO(Thread.currentThread())
             .flatMap(thread => ref.modify(set => (set.contains(thread), set + thread))) <* ZIO

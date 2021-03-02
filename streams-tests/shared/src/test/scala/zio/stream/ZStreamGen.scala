@@ -11,10 +11,10 @@ object ZStreamGen extends GenZIO {
   def tinyChunkOf[R <: Has[Random], A](g: Gen[R, A]): Gen[R, Chunk[A]] =
     Gen.chunkOfBounded(0, 5)(g)
 
-  def streamGen[R <: Has[Random], A](a: Gen[R, A], max: Int): Gen[R with Sized, ZStream[Any, String, A]] =
+  def streamGen[R <: Has[Random], A](a: Gen[R, A], max: Int): Gen[R with Has[Sized], ZStream[Any, String, A]] =
     Gen.oneOf(failingStreamGen(a, max), pureStreamGen(a, max))
 
-  def pureStreamGen[R <: Has[Random], A](a: Gen[R, A], max: Int): Gen[R with Sized, ZStream[Any, Nothing, A]] =
+  def pureStreamGen[R <: Has[Random], A](a: Gen[R, A], max: Int): Gen[R with Has[Sized], ZStream[Any, Nothing, A]] =
     max match {
       case 0 => Gen.const(ZStream.empty)
       case n =>
@@ -27,7 +27,7 @@ object ZStreamGen extends GenZIO {
         )
     }
 
-  def failingStreamGen[R <: Has[Random], A](a: Gen[R, A], max: Int): Gen[R with Sized, ZStream[Any, String, A]] =
+  def failingStreamGen[R <: Has[Random], A](a: Gen[R, A], max: Int): Gen[R with Has[Sized], ZStream[Any, String, A]] =
     max match {
       case 0 => Gen.const(ZStream.fromEffect(IO.fail("fail-case")))
       case _ =>
@@ -47,10 +47,10 @@ object ZStreamGen extends GenZIO {
   def nPulls[R, E, A](pull: ZIO[R, Option[E], A], n: Int): ZIO[R, Nothing, Iterable[Either[Option[E], A]]] =
     ZIO.foreach(1 to n)(_ => pull.either)
 
-  val streamOfInts: Gen[Has[Random] with Sized, ZStream[Any, String, Int]] =
+  val streamOfInts: Gen[Has[Random] with Has[Sized], ZStream[Any, String, Int]] =
     Gen.bounded(0, 5)(streamGen(Gen.anyInt, _)).zipWith(Gen.function(Gen.boolean))(injectEmptyChunks)
 
-  val pureStreamOfInts: Gen[Has[Random] with Sized, ZStream[Any, Nothing, Int]] =
+  val pureStreamOfInts: Gen[Has[Random] with Has[Sized], ZStream[Any, Nothing, Int]] =
     Gen.bounded(0, 5)(pureStreamGen(Gen.anyInt, _)).zipWith(Gen.function(Gen.boolean))(injectEmptyChunks)
 
   def injectEmptyChunks[R, E, A](stream: ZStream[R, E, A], predicate: Chunk[A] => Boolean): ZStream[R, E, A] =

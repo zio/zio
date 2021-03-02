@@ -35,7 +35,7 @@ object GenNumericPoly {
    * Constructs an instance of `GenIntegralPoly` using the specified `Gen`
    * and `Numeric` instances, existentially hiding the underlying type.
    */
-  def apply[A](gen: Gen[Has[Random] with Sized, A], num: Numeric[A]): GenNumericPoly =
+  def apply[A](gen: Gen[Has[Random] with Has[Sized], A], num: Numeric[A]): GenNumericPoly =
     new GenNumericPoly {
       type T = A
       val genT = gen

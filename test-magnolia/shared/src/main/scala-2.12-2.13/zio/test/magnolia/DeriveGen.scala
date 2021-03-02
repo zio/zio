@@ -33,14 +33,14 @@ import java.util.UUID
  * {{{
  * final case class Point(x: Double, y: Double)
  *
- * val genPoint: Gen[Has[Random] with Sized, Point] = DeriveGen[Point]
+ * val genPoint: Gen[Has[Random] with Has[Sized], Point] = DeriveGen[Point]
  *
  * sealed trait Color
  * case object Red   extends Color
  * case object Green extends Color
  * case object Blue  extends Color
  *
- * val genColor: Gen[Has[Random] with Sized, Color] = DeriveGen[Color]
+ * val genColor: Gen[Has[Random] with Has[Sized], Color] = DeriveGen[Color]
  * }}}
  *
  * You can derive generators that include your own custom types by providing an
@@ -48,7 +48,7 @@ import java.util.UUID
  * `instance` method.
  */
 trait DeriveGen[A] {
-  def derive: Gen[Has[Random] with Sized, A]
+  def derive: Gen[Has[Random] with Has[Sized], A]
 }
 
 object DeriveGen {
@@ -56,14 +56,14 @@ object DeriveGen {
   /**
    * Derives a generator of `A` values given an implicit `DeriveGen` instance.
    */
-  def apply[A](implicit ev: DeriveGen[A]): Gen[Has[Random] with Sized, A] = ev.derive
+  def apply[A](implicit ev: DeriveGen[A]): Gen[Has[Random] with Has[Sized], A] = ev.derive
 
   /**
    * Constructs a `DeriveGen` instance given a generator of `A` values.
    */
-  def instance[A](gen: Gen[Has[Random] with Sized, A]): DeriveGen[A] =
+  def instance[A](gen: Gen[Has[Random] with Has[Sized], A]): DeriveGen[A] =
     new DeriveGen[A] {
-      val derive: Gen[Has[Random] with Sized, A] = gen
+      val derive: Gen[Has[Random] with Has[Sized], A] = gen
     }
 
   implicit val genBoolean: DeriveGen[Boolean]             = instance(Gen.boolean)

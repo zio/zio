@@ -190,20 +190,20 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A generator of alphanumeric strings. Shrinks towards the empty string.
    */
-  val alphaNumericString: Gen[Has[Random] with Sized, String] =
+  val alphaNumericString: Gen[Has[Random] with Has[Sized], String] =
     Gen.string(alphaNumericChar)
 
   /**
    * A generator of alphanumeric strings whose size falls within the specified
    * bounds.
    */
-  def alphaNumericStringBounded(min: Int, max: Int): Gen[Has[Random] with Sized, String] =
+  def alphaNumericStringBounded(min: Int, max: Int): Gen[Has[Random] with Has[Sized], String] =
     Gen.stringBounded(min, max)(alphaNumericChar)
 
   /**
    * A generator US-ASCII strings. Shrinks towards the empty string.
    */
-  def anyASCIIString: Gen[Has[Random] with Sized, String] =
+  def anyASCIIString: Gen[Has[Random] with Has[Sized], String] =
     Gen.string(Gen.anyASCIIChar)
 
   /**
@@ -269,7 +269,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A generator of strings. Shrinks towards the empty string.
    */
-  def anyString: Gen[Has[Random] with Sized, String] =
+  def anyString: Gen[Has[Random] with Has[Sized], String] =
     Gen.string(Gen.anyUnicodeChar)
 
   /**
@@ -352,13 +352,13 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A sized generator of chunks.
    */
-  def chunkOf[R <: Has[Random] with Sized, A](g: Gen[R, A]): Gen[R, Chunk[A]] =
+  def chunkOf[R <: Has[Random] with Has[Sized], A](g: Gen[R, A]): Gen[R, Chunk[A]] =
     listOf(g).map(Chunk.fromIterable)
 
   /**
    * A sized generator of non-empty chunks.
    */
-  def chunkOf1[R <: Has[Random] with Sized, A](g: Gen[R, A]): Gen[R, NonEmptyChunk[A]] =
+  def chunkOf1[R <: Has[Random] with Has[Sized], A](g: Gen[R, A]): Gen[R, NonEmptyChunk[A]] =
     listOf1(g).map { case h :: t => NonEmptyChunk.fromIterable(h, t) }
 
   /**
@@ -515,20 +515,20 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    *  A generator of strings that can be encoded in the ISO-8859-1 character set.
    */
-  val iso_8859_1: Gen[Has[Random] with Sized, String] =
+  val iso_8859_1: Gen[Has[Random] with Has[Sized], String] =
     chunkOf(anyByte).map(chunk => new String(chunk.toArray, StandardCharsets.ISO_8859_1))
 
   /**
    * A sized generator that uses a uniform distribution of size values. A large
    * number of larger sizes will be generated.
    */
-  def large[R <: Has[Random] with Sized, A](f: Int => Gen[R, A], min: Int = 0): Gen[R, A] =
+  def large[R <: Has[Random] with Has[Sized], A](f: Int => Gen[R, A], min: Int = 0): Gen[R, A] =
     size.flatMap(max => int(min, max)).flatMap(f)
 
-  def listOf[R <: Has[Random] with Sized, A](g: Gen[R, A]): Gen[R, List[A]] =
+  def listOf[R <: Has[Random] with Has[Sized], A](g: Gen[R, A]): Gen[R, List[A]] =
     small(listOfN(_)(g))
 
-  def listOf1[R <: Has[Random] with Sized, A](g: Gen[R, A]): Gen[R, ::[A]] =
+  def listOf1[R <: Has[Random] with Has[Sized], A](g: Gen[R, A]): Gen[R, ::[A]] =
     for {
       h <- g
       t <- small(n => listOfN(n - 1 max 0)(g))
@@ -562,13 +562,13 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A sized generator of maps.
    */
-  def mapOf[R <: Has[Random] with Sized, A, B](key: Gen[R, A], value: Gen[R, B]): Gen[R, Map[A, B]] =
+  def mapOf[R <: Has[Random] with Has[Sized], A, B](key: Gen[R, A], value: Gen[R, B]): Gen[R, Map[A, B]] =
     small(mapOfN(_)(key, value))
 
   /**
    * A sized generator of non-empty maps.
    */
-  def mapOf1[R <: Has[Random] with Sized, A, B](key: Gen[R, A], value: Gen[R, B]): Gen[R, Map[A, B]] =
+  def mapOf1[R <: Has[Random] with Has[Sized], A, B](key: Gen[R, A], value: Gen[R, B]): Gen[R, Map[A, B]] =
     small(mapOfN(_)(key, value), 1)
 
   /**
@@ -588,7 +588,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * The majority of sizes will be towards the lower end of the range but some
    * larger sizes will be generated as well.
    */
-  def medium[R <: Has[Random] with Sized, A](f: Int => Gen[R, A], min: Int = 0): Gen[R, A] = {
+  def medium[R <: Has[Random] with Has[Sized], A](f: Int => Gen[R, A], min: Int = 0): Gen[R, A] = {
     val gen = for {
       max <- size
       n   <- exponential
@@ -646,13 +646,13 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A sized generator of sets.
    */
-  def setOf[R <: Has[Random] with Sized, A](gen: Gen[R, A]): Gen[R, Set[A]] =
+  def setOf[R <: Has[Random] with Has[Sized], A](gen: Gen[R, A]): Gen[R, Set[A]] =
     small(setOfN(_)(gen))
 
   /**
    * A sized generator of non-empty sets.
    */
-  def setOf1[R <: Has[Random] with Sized, A](gen: Gen[R, A]): Gen[R, Set[A]] =
+  def setOf1[R <: Has[Random] with Has[Sized], A](gen: Gen[R, A]): Gen[R, Set[A]] =
     small(setOfN(_)(gen), 1)
 
   /**
@@ -679,13 +679,13 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   def short(min: Short, max: Short): Gen[Has[Random], Short] =
     int(min.toInt, max.toInt).map(_.toShort)
 
-  def size: Gen[Sized, Int] =
+  def size: Gen[Has[Sized], Int] =
     Gen.fromEffect(Sized.size)
 
   /**
    * A sized generator, whose size falls within the specified bounds.
    */
-  def sized[R <: Sized, A](f: Int => Gen[R, A]): Gen[R, A] =
+  def sized[R <: Has[Sized], A](f: Int => Gen[R, A]): Gen[R, A] =
     size.flatMap(f)
 
   /**
@@ -693,7 +693,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * The values generated will be strongly concentrated towards the lower end
    * of the range but a few larger values will still be generated.
    */
-  def small[R <: Has[Random] with Sized, A](f: Int => Gen[R, A], min: Int = 0): Gen[R, A] = {
+  def small[R <: Has[Random] with Has[Sized], A](f: Int => Gen[R, A], min: Int = 0): Gen[R, A] = {
     val gen = for {
       max <- size
       n   <- exponential
@@ -704,10 +704,10 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   def some[R, A](gen: Gen[R, A]): Gen[R, Option[A]] =
     gen.map(Some(_))
 
-  def string[R <: Has[Random] with Sized](char: Gen[R, Char]): Gen[R, String] =
+  def string[R <: Has[Random] with Has[Sized]](char: Gen[R, Char]): Gen[R, String] =
     listOf(char).map(_.mkString)
 
-  def string1[R <: Has[Random] with Sized](char: Gen[R, Char]): Gen[R, String] =
+  def string1[R <: Has[Random] with Has[Sized]](char: Gen[R, Char]): Gen[R, String] =
     listOf1(char).map(_.mkString)
 
   /**
@@ -736,7 +736,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * A sized generator of collections, where each collection is generated by
    * repeatedly applying a function to an initial state.
    */
-  def unfoldGen[R <: Has[Random] with Sized, S, A](s: S)(f: S => Gen[R, (S, A)]): Gen[R, List[A]] =
+  def unfoldGen[R <: Has[Random] with Has[Sized], S, A](s: S)(f: S => Gen[R, (S, A)]): Gen[R, List[A]] =
     small(unfoldGenN(_)(s)(f))
 
   /**
@@ -763,10 +763,10 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   val unit: Gen[Any, Unit] =
     const(())
 
-  def vectorOf[R <: Has[Random] with Sized, A](g: Gen[R, A]): Gen[R, Vector[A]] =
+  def vectorOf[R <: Has[Random] with Has[Sized], A](g: Gen[R, A]): Gen[R, Vector[A]] =
     listOf(g).map(_.toVector)
 
-  def vectorOf1[R <: Has[Random] with Sized, A](g: Gen[R, A]): Gen[R, Vector[A]] =
+  def vectorOf1[R <: Has[Random] with Has[Sized], A](g: Gen[R, A]): Gen[R, Vector[A]] =
     listOf1(g).map(_.toVector)
 
   /**

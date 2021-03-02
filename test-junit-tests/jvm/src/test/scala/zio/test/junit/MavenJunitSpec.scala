@@ -4,7 +4,7 @@ import org.apache.maven.cli.MavenCli
 import zio.blocking.{Blocking, effectBlocking}
 import zio.test.Assertion._
 import zio.test.{DefaultRunnableSpec, ZSpec, _}
-import zio.{RIO, ZIO}
+import zio.{Has, RIO, ZIO}
 
 import java.io.File
 import scala.collection.immutable
@@ -74,20 +74,20 @@ object MavenJunitSpec extends DefaultRunnableSpec {
     private val cli     = new MavenCli
     System.setProperty("maven.multiModuleProjectDirectory", mvnRoot)
 
-    def clean(): RIO[Blocking, Int] = run("clean")
+    def clean(): RIO[Has[Blocking], Int] = run("clean")
 
-    def test(): RIO[Blocking, Int] = run(
+    def test(): RIO[Has[Blocking], Int] = run(
       "test",
       s"-Dzio.version=$projectVersion",
       s"-Dscala.version=$scalaVersion",
       s"-Dscala.compat.version=$scalaCompatVersion",
       s"-ssettings.xml"
     )
-    def run(command: String*): RIO[Blocking, Int] = effectBlocking(
+    def run(command: String*): RIO[Has[Blocking], Int] = effectBlocking(
       cli.doMain(command.toArray, mvnRoot, System.out, System.err)
     )
 
-    def parseSurefireReport(testFQN: String): ZIO[Blocking, Throwable, immutable.Seq[TestCase]] =
+    def parseSurefireReport(testFQN: String): ZIO[Has[Blocking], Throwable, immutable.Seq[TestCase]] =
       effectBlocking(
         XML.load(scala.xml.Source.fromFile(new File(s"$mvnRoot/target/surefire-reports/TEST-$testFQN.xml")))
       ).map { report =>

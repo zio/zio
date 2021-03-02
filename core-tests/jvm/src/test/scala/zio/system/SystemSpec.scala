@@ -9,7 +9,7 @@ import java.io.File
 
 object SystemSpec extends ZIOBaseSpec {
 
-  def spec: Spec[Live, TestFailure[Throwable], TestSuccess] = suite("SystemSpec")(
+  def spec: Spec[Has[Live], TestFailure[Throwable], TestSuccess] = suite("SystemSpec")(
     suite("Fetch an environment variable and check that")(
       testM("If it exists, return a reasonable value") {
         assertM(live(system.env("PATH")))(isSome(containsString(File.separator + "bin")))

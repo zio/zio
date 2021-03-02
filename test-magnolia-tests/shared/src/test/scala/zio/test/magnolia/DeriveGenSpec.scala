@@ -1,8 +1,9 @@
 package zio.test.magnolia
 
+import zio.Has
+
 import java.time.{Instant, LocalDate, LocalDateTime}
 import java.util.UUID
-
 import zio.random.Random
 import zio.test.Assertion._
 import zio.test.GenUtils._
@@ -14,7 +15,7 @@ object DeriveGenSpec extends DefaultRunnableSpec {
 
   final case class Person(name: String, age: Int)
 
-  val genPerson: Gen[Has[Random] with Sized, Person] = DeriveGen[Person]
+  val genPerson: Gen[Has[Random] with Has[Sized], Person] = DeriveGen[Person]
 
   sealed trait Color
 
@@ -24,7 +25,7 @@ object DeriveGenSpec extends DefaultRunnableSpec {
     case object Blue  extends Color
   }
 
-  val genColor: Gen[Has[Random] with Sized, Color] = DeriveGen[Color]
+  val genColor: Gen[Has[Random] with Has[Sized], Color] = DeriveGen[Color]
 
   sealed trait NonEmptyList[+A] { self =>
     def foldLeft[S](s: S)(f: (S, A) => S): S =
@@ -43,7 +44,7 @@ object DeriveGenSpec extends DefaultRunnableSpec {
     implicit def deriveGen[A: DeriveGen]: DeriveGen[NonEmptyList[A]] = DeriveGen.gen
   }
 
-  def genNonEmptyList[A](implicit ev: DeriveGen[A]): Gen[Has[Random] with Sized, NonEmptyList[A]] =
+  def genNonEmptyList[A](implicit ev: DeriveGen[A]): Gen[Has[Random] with Has[Sized], NonEmptyList[A]] =
     DeriveGen[NonEmptyList[A]]
 
   def assertDeriveGen[A: DeriveGen]: TestResult = assertCompletes

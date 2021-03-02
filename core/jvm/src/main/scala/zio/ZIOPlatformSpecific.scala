@@ -41,6 +41,6 @@ private[zio] trait ZIOCompanionPlatformSpecific {
   def fromCompletableFuture[A](cs: => CompletableFuture[A]): Task[A] = fromCompletionStage(cs)
 
   /** WARNING: this uses the blocking Future#get, consider using `fromCompletionStage` */
-  def fromFutureJava[A](future: => Future[A]): RIO[Blocking, A] = javaz.fromFutureJava(future)
+  def fromFutureJava[A](future: => Future[A]): RIO[Has[Blocking], A] = javaz.fromFutureJava(future)
 
 }

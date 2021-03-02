@@ -596,7 +596,7 @@ object ScheduleSpec extends ZIOBaseSpec {
   /**
    * Run a schedule using the provided input and collect all outputs
    */
-  def run[R <: Has[Clock] with TestClock, A, B](
+  def run[R <: Has[Clock] with Has[TestClock], A, B](
     schedule: Schedule[R, A, B]
   )(input: Iterable[A]): ZIO[R, Nothing, Chunk[B]] =
     run {
@@ -617,7 +617,7 @@ object ScheduleSpec extends ZIOBaseSpec {
       }
     }
 
-  def run[R <: TestClock, E, A](effect: ZIO[R, E, A]): ZIO[R, E, A] =
+  def run[R <: Has[TestClock], E, A](effect: ZIO[R, E, A]): ZIO[R, E, A] =
     for {
       fiber  <- effect.fork
       _      <- TestClock.setTime(Duration.Infinity)

@@ -1,5 +1,6 @@
 package zio.test
 
+import zio.Has
 import zio.random.Random
 import zio.test.Assertion._
 
@@ -110,11 +111,11 @@ object BoolAlgebraSpec extends ZIOBaseSpec {
     },
     testM("monad right identity") {
       val genInt      = Gen.int(0, 9)
-      val genFunction = Gen.function[Has[Random] with Sized, Int, BoolAlgebra[Int]](boolAlgebra)
+      val genFunction = Gen.function[Has[Random] with Has[Sized], Int, BoolAlgebra[Int]](boolAlgebra)
       check(genInt, genFunction)((a, f) => assert(BoolAlgebra.success(a).flatMap(f))(equalTo(f(a))))
     },
     testM("monad associativity") {
-      val genFunction = Gen.function[Has[Random] with Sized, Int, BoolAlgebra[Int]](boolAlgebra)
+      val genFunction = Gen.function[Has[Random] with Has[Sized], Int, BoolAlgebra[Int]](boolAlgebra)
       check(boolAlgebra, genFunction, genFunction) { (a, f, g) =>
         assert(a.flatMap(f).flatMap(g))(equalTo(a.flatMap(n => f(n).flatMap(g))))
       }
@@ -151,7 +152,7 @@ object BoolAlgebraSpec extends ZIOBaseSpec {
   val isSuccess: Assertion[BoolAlgebra[Any]] = assertion("isSuccess")()(_.isSuccess)
   val isFailure: Assertion[BoolAlgebra[Any]] = assertion("isFailure")()(_.isFailure)
 
-  def boolAlgebra: Gen[Has[Random] with Sized, BoolAlgebra[Int]] = Gen.small(s => boolAlgebraOfSize(s), 1)
+  def boolAlgebra: Gen[Has[Random] with Has[Sized], BoolAlgebra[Int]] = Gen.small(s => boolAlgebraOfSize(s), 1)
 
   def boolAlgebraOfSize(size: Int): Gen[Has[Random], BoolAlgebra[Int]] =
     if (size == 1) {

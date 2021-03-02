@@ -17,7 +17,7 @@ import scala.concurrent.ExecutionContext.global
 
 object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
 
-  def socketClient(port: Int): ZManaged[Blocking, Throwable, AsynchronousSocketChannel] =
+  def socketClient(port: Int): ZManaged[Has[Blocking], Throwable, AsynchronousSocketChannel] =
     ZManaged.make(effectBlockingIO(AsynchronousSocketChannel.open()).flatMap { client =>
       ZIO
         .fromFutureJava(client.connect(new InetSocketAddress("localhost", port)))

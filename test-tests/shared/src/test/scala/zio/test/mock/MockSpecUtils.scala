@@ -4,7 +4,7 @@ import zio.duration._
 import zio.test.environment.Live
 import zio.test.mock.module.T22
 import zio.test.{Assertion, ZSpec, assertM, testM}
-import zio.{IO, ULayer, ZIO}
+import zio.{Has, IO, ULayer, ZIO}
 
 trait MockSpecUtils[R] {
 
@@ -33,7 +33,7 @@ trait MockSpecUtils[R] {
     mock: ULayer[R],
     app: ZIO[R, E, A],
     check: Assertion[Option[A]]
-  ): ZSpec[Live, E] = testM(name) {
+  ): ZSpec[Has[Live], E] = testM(name) {
     val result =
       Live.live {
         mock.build
