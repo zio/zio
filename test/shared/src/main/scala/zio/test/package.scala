@@ -759,8 +759,8 @@ package object test extends CompileVariants {
       def logLine(line: String): UIO[Unit]
     }
 
-    def fromConsole: ZLayer[Console, Nothing, TestLogger] =
-      ZLayer.fromService { (console: Console.Service) =>
+    def fromConsole: ZLayer[Has[Console], Nothing, TestLogger] =
+      ZLayer.fromService { (console: Console) =>
         new Service {
           def logLine(line: String): UIO[Unit] = console.putStrLn(line)
         }

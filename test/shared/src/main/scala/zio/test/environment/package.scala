@@ -674,7 +674,7 @@ package object environment extends PlatformSpecific {
       consoleState: Ref[TestConsole.Data],
       live: Live.Service,
       debugState: FiberRef[Boolean]
-    ) extends Console.Service
+    ) extends Console
         with TestConsole.Service {
 
       /**
@@ -791,22 +791,22 @@ package object environment extends PlatformSpecific {
      * interface. This can be useful for mixing in with implementations of other
      * interfaces.
      */
-    def make(data: Data, debug: Boolean = true): ZLayer[Live, Nothing, Console with TestConsole] =
+    def make(data: Data, debug: Boolean = true): ZLayer[Live, Nothing, Has[Console] with TestConsole] =
       ZLayer.fromServiceManyM { (live: Live.Service) =>
         for {
           ref      <- Ref.make(data)
           debugRef <- FiberRef.make(debug)
           test      = Test(ref, live, debugRef)
-        } yield Has.allOf[Console.Service, TestConsole.Service](test, test)
+        } yield Has.allOf[Console, TestConsole.Service](test, test)
       }
 
-    val any: ZLayer[Console with TestConsole, Nothing, Console with TestConsole] =
-      ZLayer.requires[Console with TestConsole]
+    val any: ZLayer[Has[Console] with TestConsole, Nothing, Has[Console] with TestConsole] =
+      ZLayer.requires[Has[Console] with TestConsole]
 
-    val debug: ZLayer[Live, Nothing, Console with TestConsole] =
+    val debug: ZLayer[Live, Nothing, Has[Console] with TestConsole] =
       make(Data(Nil, Vector()), true)
 
-    val silent: ZLayer[Live, Nothing, Console with TestConsole] =
+    val silent: ZLayer[Live, Nothing, Has[Console] with TestConsole] =
       make(Data(Nil, Vector()), false)
 
     /**
@@ -1722,7 +1722,7 @@ package object environment extends PlatformSpecific {
     /**
      * Constructs a new `TestSystem` with the specified initial state. This can
      * be useful for providing the required environment to an effect that
-     * requires a `Console`, such as with `ZIO#provide`.
+     * requires a `Has[Console]`, such as with `ZIO#provide`.
      */
     def live(data: Data): Layer[Nothing, System with TestSystem] =
       ZLayer.fromEffectMany(

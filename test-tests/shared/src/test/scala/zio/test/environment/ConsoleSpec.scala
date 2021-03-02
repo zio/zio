@@ -1,6 +1,6 @@
 package zio.test.environment
 
-import zio.ZIO
+import zio.{Has, ZIO}
 import zio.console._
 import zio.test.Assertion._
 import zio.test.TestAspect.{nonFlaky, silent}
@@ -33,7 +33,7 @@ object ConsoleSpec extends ZIOBaseSpec {
       testM("reads from input") {
         {
           for {
-            testConsole <- ZIO.environment[Console].map(_.get)
+            testConsole <- ZIO.environment[Has[Console]].map(_.get)
             input1      <- testConsole.getStrLn
             input2      <- testConsole.getStrLn
           } yield {

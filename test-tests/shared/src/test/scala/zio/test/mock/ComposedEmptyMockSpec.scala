@@ -14,7 +14,7 @@ object ComposedEmptyMockSpec extends ZIOBaseSpec with MockSpecUtils[ComposedEmpt
   import Expectation._
   import MockException._
 
-  def branchingProgram(predicate: Boolean): ZIO[Console with Has[Clock], IOException, Unit] =
+  def branchingProgram(predicate: Boolean): ZIO[Has[Console] with Has[Clock], IOException, Unit] =
     ZIO
       .succeed(predicate)
       .flatMap {
@@ -25,15 +25,15 @@ object ComposedEmptyMockSpec extends ZIOBaseSpec with MockSpecUtils[ComposedEmpt
 
   def spec: ZSpec[Environment, Failure] = suite("ComposedEmptyMockSpec")(
     suite("expect no calls on empty mocks")(
-      testValue("should succeed when no calls on Console")(
+      testValue("should succeed when no calls on Has[Console]")(
         MockConsole.empty ++ MockClock.NanoTime(value(42L)),
         branchingProgram(false),
         isUnit
       ), {
-        type M = Capability[Console, Unit, IOException, String]
-        type X = UnexpectedCallException[Console, Unit, IOException, String]
+        type M = Capability[Has[Console], Unit, IOException, String]
+        type X = UnexpectedCallException[Has[Console], Unit, IOException, String]
 
-        testDied("should fail when call on Console happened")(
+        testDied("should fail when call on Has[Console] happened")(
           MockConsole.empty ++ MockClock.NanoTime(value(42L)),
           branchingProgram(true),
           isSubtype[X](

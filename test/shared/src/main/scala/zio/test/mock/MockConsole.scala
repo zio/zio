@@ -21,7 +21,7 @@ import zio.{Has, IO, UIO, URLayer, ZLayer}
 
 import java.io.IOException
 
-object MockConsole extends Mock[Console] {
+object MockConsole extends Mock[Has[Console]] {
 
   object PutStr      extends Effect[String, Nothing, Unit]
   object PutStrErr   extends Effect[String, Nothing, Unit]
@@ -29,9 +29,9 @@ object MockConsole extends Mock[Console] {
   object PutStrLnErr extends Effect[String, Nothing, Unit]
   object GetStrLn    extends Effect[Unit, IOException, String]
 
-  val compose: URLayer[Has[Proxy], Console] =
+  val compose: URLayer[Has[Proxy], Has[Console]] =
     ZLayer.fromService(proxy =>
-      new Console.Service {
+      new Console {
         def putStr(line: String): UIO[Unit]      = proxy(PutStr, line)
         def putStrErr(line: String): UIO[Unit]   = proxy(PutStrErr, line)
         def putStrLn(line: String): UIO[Unit]    = proxy(PutStrLn, line)

@@ -17,6 +17,7 @@
 package zio
 
 import zio.clock.Clock
+import zio.console.Console
 import zio.duration._
 import zio.internal.tracing.{ZIOFn, ZIOFn1, ZIOFn2}
 import zio.internal.{Executor, Platform}
@@ -568,7 +569,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   /**
    * Maps this effect to the default exit codes.
    */
-  final def exitCode: URIO[R with console.Console, ExitCode] =
+  final def exitCode: URIO[R with Has[Console], ExitCode] =
     self.foldCauseM(
       cause => console.putStrLnErr(cause.prettyPrint) as ExitCode.failure,
       _ => ZIO.succeedNow(ExitCode.success)
@@ -1186,10 +1187,10 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * please see [[zio.ZIO.provideSomeLayer]]
    *
    * {{{
-   * val effect: ZIO[Console with Logging, Nothing, Unit] = ???
+   * val effect: ZIO[Has[Console] with Logging, Nothing, Unit] = ???
    *
-   * effect.provideSome[Console](env =>
-   *   new Console with Logging {
+   * effect.provideSome[Has[Console]](env =>
+   *   new Has[Console] with Logging {
    *     val console = env.console
    *     val logging = new Logging.Service[Any] {
    *       def log(line: String) = console.putStrLn(line)

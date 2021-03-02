@@ -21,20 +21,19 @@ import scala.io.StdIn
 import scala.{Console => SConsole}
 
 package object console {
-  type Console = Has[Console.Service]
+  trait Console extends Serializable {
+    def putStr(line: String): UIO[Unit]
+
+    def putStrErr(line: String): UIO[Unit]
+
+    def putStrLn(line: String): UIO[Unit]
+
+    def putStrLnErr(line: String): UIO[Unit]
+
+    def getStrLn: IO[IOException, String]
+  }
 
   object Console extends Serializable {
-    trait Service extends Serializable {
-      def putStr(line: String): UIO[Unit]
-
-      def putStrErr(line: String): UIO[Unit]
-
-      def putStrLn(line: String): UIO[Unit]
-
-      def putStrLnErr(line: String): UIO[Unit]
-
-      def getStrLn: IO[IOException, String]
-    }
 
     object Service {
       private def putStr(stream: PrintStream)(line: String): UIO[Unit] =
@@ -43,7 +42,7 @@ package object console {
       private def putStrLn(stream: PrintStream)(line: String): UIO[Unit] =
         IO.effectTotal(SConsole.withOut(stream)(SConsole.println(line)))
 
-      val live: Service = new Service {
+      val live: Console = new Console {
         def putStr(line: String): UIO[Unit] = Service.putStr(SConsole.out)(line)
 
         def putStrErr(line: String): UIO[Unit] = Service.putStr(SConsole.err)(line)
@@ -62,35 +61,35 @@ package object console {
       }
     }
 
-    val any: ZLayer[Console, Nothing, Console] =
-      ZLayer.requires[Console]
+    val any: ZLayer[Has[Console], Nothing, Has[Console]] =
+      ZLayer.requires[Has[Console]]
 
-    val live: Layer[Nothing, Console] =
+    val live: Layer[Nothing, Has[Console]] =
       ZLayer.succeed(Service.live)
   }
 
   /**
    * Prints text to the console.
    */
-  def putStr(line: => String): URIO[Console, Unit] =
+  def putStr(line: => String): URIO[Has[Console], Unit] =
     ZIO.accessM(_.get putStr line)
 
   /**
    * Prints text to the standard error console.
    */
-  def putStrErr(line: => String): URIO[Console, Unit] =
+  def putStrErr(line: => String): URIO[Has[Console], Unit] =
     ZIO.accessM(_.get putStrErr line)
 
   /**
    * Prints a line of text to the console, including a newline character.
    */
-  def putStrLn(line: => String): URIO[Console, Unit] =
+  def putStrLn(line: => String): URIO[Has[Console], Unit] =
     ZIO.accessM(_.get putStrLn line)
 
   /**
    * Prints a line of text to the standard error console, including a newline character.
    */
-  def putStrLnErr(line: => String): URIO[Console, Unit] =
+  def putStrLnErr(line: => String): URIO[Has[Console], Unit] =
     ZIO.accessM(_.get putStrLnErr line)
 
   /**
@@ -98,6 +97,6 @@ package object console {
    * Fails with an [[java.io.EOFException]] when the underlying [[java.io.Reader]]
    * returns null.
    */
-  val getStrLn: ZIO[Console, IOException, String] =
+  val getStrLn: ZIO[Has[Console], IOException, String] =
     ZIO.accessM(_.get.getStrLn)
 }

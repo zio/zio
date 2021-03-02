@@ -18,21 +18,21 @@ object EnvironmentSpec extends ZIOBaseSpec {
         time <- clock.currentTime(TimeUnit.MILLISECONDS)
       } yield assert(time)(equalTo(1L))
     },
-    testM("Console writes line to output") {
+    testM("Has[Console] writes line to output") {
       for {
         _      <- console.putStrLn("First line")
         _      <- console.putStrLn("Second line")
         output <- TestConsole.output
       } yield assert(output)(equalTo(Vector("First line\n", "Second line\n")))
     } @@ silent,
-    testM("Console writes error line to error console") {
+    testM("Has[Console] writes error line to error console") {
       for {
         _      <- console.putStrLnErr("First line")
         _      <- console.putStrLnErr("Second line")
         output <- TestConsole.outputErr
       } yield assert(output)(equalTo(Vector("First line\n", "Second line\n")))
     } @@ silent,
-    testM("Console reads line from input") {
+    testM("Has[Console] reads line from input") {
       for {
         _      <- TestConsole.feedLines("Input 1", "Input 2")
         input1 <- console.getStrLn

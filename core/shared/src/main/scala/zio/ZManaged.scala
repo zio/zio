@@ -724,10 +724,10 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
    * leaving the remainder `R0`.
    *
    * {{{
-   * val managed: ZManaged[Console with Logging, Nothing, Unit] = ???
+   * val managed: ZManaged[Has[Console] with Logging, Nothing, Unit] = ???
    *
-   * managed.provideSome[Console](env =>
-   *   new Console with Logging {
+   * managed.provideSome[Has[Console]](env =>
+   *   new Has[Console] with Logging {
    *     val console = env.console
    *     val logging = new Logging.Service[Any] {
    *       def log(line: String) = console.putStrLn(line)
