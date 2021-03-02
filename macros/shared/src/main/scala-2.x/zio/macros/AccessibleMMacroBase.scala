@@ -56,8 +56,8 @@ private[macros] abstract class AccessibleMMacroBase(override val c: whitebox.Con
 
       candidates match {
         case Seq(c)   => c
-        case Seq()    => abort(s"`Random` doesn't have type param for [$tpTpe]")
-        case nonEmpty => abort(s"`Random` contains several possible candidates for [$tpTpe]: $nonEmpty")
+        case Seq()    => abort(s"`Service` doesn't have type param for [$tpTpe]")
+        case nonEmpty => abort(s"`Service` contains several possible candidates for [$tpTpe]: $nonEmpty")
       }
     }
 

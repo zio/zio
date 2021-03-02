@@ -1,10 +1,80 @@
 package zio.examples.macros
 
 import zio.console.Console
+import zio.examples.macros.UpdatedAccessibleMacroExample.CompanionService
 import zio.macros.{accessible, throwing}
 import zio.random.Random
 import zio.stream.{ZSink, ZStream}
+import zio.test.mock.mockable
 import zio.{Chunk, Has, IO, RIO, UIO, URIO, ZIO, ZLayer, random}
+
+object UpdatedAccessibleMacroExample {
+  trait Foo { val value: String }
+  case class Bar(value: String) extends Foo
+  case class Wrapped[T](value: T)
+
+  // Trait Without Companion Object
+  @accessible
+  trait FooBarService {
+    val foo: UIO[Unit]
+    def bar(n: Int): UIO[Unit]
+    def baz(x: Int, y: Int): IO[String, Int]
+    def poly[A](a: A): IO[Long, A]
+    def poly2[A <: Foo](a: Wrapped[A]): IO[String, List[A]]
+    def dependent(n: Int): ZIO[Has[Random], Long, Int]
+    val value: String
+    def function(n: Int): String
+    def stream(n: Int): ZStream[Any, String, Int]
+    def sink(n: Int): ZSink[Any, Nothing, Int, Nothing, Chunk[Int]]
+  }
+
+  object FooBarSanityCheck {
+    val _foo: URIO[Has[FooBarService], Unit]                                        = FooBarService.foo
+    def _bar(n: Int): URIO[Has[FooBarService], Unit]                                = FooBarService.bar(n)
+    def _baz(x: Int, y: Int): ZIO[Has[FooBarService], String, Int]                  = FooBarService.baz(x, y)
+    def _poly[A](a: A): ZIO[Has[FooBarService], Long, A]                            = FooBarService.poly(a)
+    def _poly2[A <: Foo](a: Wrapped[A]): ZIO[Has[FooBarService], String, List[A]]   = FooBarService.poly2(a)
+    def _dependent(n: Int): ZIO[Has[FooBarService] with Has[Random], Long, Int]     = FooBarService.dependent(n)
+    def _value: RIO[Has[FooBarService], String]                                     = FooBarService.value
+    def _function(n: Int): RIO[Has[FooBarService], String]                          = FooBarService.function(n)
+    def _stream(n: Int): ZStream[Has[FooBarService], String, Int]                   = FooBarService.stream(n)
+    def _sink(n: Int): ZSink[Has[FooBarService], Nothing, Int, Nothing, Chunk[Int]] = FooBarService.sink(n)
+  }
+
+  // Trait With Companion Object
+  @accessible
+  trait CompanionService {
+    val foo: UIO[Unit]
+    def bar(n: Int): UIO[Unit]
+    def baz(x: Int, y: Int): IO[String, Int]
+    def poly[A](a: A): IO[Long, A]
+    def poly2[A <: Foo](a: Wrapped[A]): IO[String, List[A]]
+    def dependent(n: Int): ZIO[Has[Random], Long, Int]
+    val value: String
+    def function(n: Int): String
+    def stream(n: Int): ZStream[Any, String, Int]
+    def sink(n: Int): ZSink[Any, Nothing, Int, Nothing, Chunk[Int]]
+  }
+
+  object CompanionService {
+    def someExistingMethod(string: String): UIO[Int] = UIO(12)
+  }
+
+  object CompanionSanityCheck {
+    val _foo: URIO[Has[CompanionService], Unit]                                        = CompanionService.foo
+    def _bar(n: Int): URIO[Has[CompanionService], Unit]                                = CompanionService.bar(n)
+    def _baz(x: Int, y: Int): ZIO[Has[CompanionService], String, Int]                  = CompanionService.baz(x, y)
+    def _poly[A](a: A): ZIO[Has[CompanionService], Long, A]                            = CompanionService.poly(a)
+    def _poly2[A <: Foo](a: Wrapped[A]): ZIO[Has[CompanionService], String, List[A]]   = CompanionService.poly2(a)
+    def _dependent(n: Int): ZIO[Has[CompanionService] with Has[Random], Long, Int]     = CompanionService.dependent(n)
+    def _value: RIO[Has[CompanionService], String]                                     = CompanionService.value
+    def _function(n: Int): RIO[Has[CompanionService], String]                          = CompanionService.function(n)
+    def _stream(n: Int): ZStream[Has[CompanionService], String, Int]                   = CompanionService.stream(n)
+    def _sink(n: Int): ZSink[Has[CompanionService], Nothing, Int, Nothing, Chunk[Int]] = CompanionService.sink(n)
+
+    def _someExistingMethod(string: String): UIO[Int] = CompanionService.someExistingMethod(string)
+  }
+}
 
 @accessible
 object AccessibleMacroExample {

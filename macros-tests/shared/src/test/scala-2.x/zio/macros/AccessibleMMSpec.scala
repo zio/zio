@@ -8,29 +8,21 @@ object AccessibleMMSpec extends DefaultRunnableSpec {
 
   def spec: ZSpec[Environment, Failure] = suite("AccessibleMMSpec")(
     suite("AccessibleMM macro")(
-      testM("compiles when applied to object with empty Random") {
+      testM("compiles when applied to object with empty Service") {
         assertM(typeCheck {
           """
             @accessibleMM[IO]
             object Module {
-              trait Random[F[_, _]]
+              trait Service[F[_, _]]
             }
           """
         })(isRight(anything))
       },
-      testM("fails when applied to object without a Random") {
+      testM("fails when applied to object without a Service") {
         assertM(typeCheck {
           """
             @accessibleMM[IO]
             object Module
-          """
-        })(isLeft(anything))
-      },
-      testM("fails when applied to trait") {
-        assertM(typeCheck {
-          """
-            @accessibleMM[IO]
-            trait Module[F[_, _]]
           """
         })(isLeft(anything))
       },
@@ -42,32 +34,32 @@ object AccessibleMMSpec extends DefaultRunnableSpec {
           """
         })(isLeft(anything))
       },
-      testM("fails when applied to object with Random without type param") {
+      testM("fails when applied to object with Service without type param") {
         assertM(typeCheck {
           """
             @accessibleMM[IO]
             object Module {
-              trait Random
+              trait Service
             }
           """
         })(isLeft(anything))
       },
-      testM("fails when applied to Random with Random without suitable type param") {
+      testM("fails when applied to Service with Service without suitable type param") {
         assertM(typeCheck {
           """
             @accessibleMM[IO]
             object Module {
-              trait Random[F[_]]
+              trait Service[F[_]]
             }
           """
         })(isLeft(anything))
       },
-      testM("fails when applied to Random with Random with multiple suitable type params") {
+      testM("fails when applied to Service with Service with multiple suitable type params") {
         assertM(typeCheck {
           """
             @accessibleMM[IO]
             object Module {
-              trait Random[F[_, _], G[_, _]]
+              trait Service[F[_, _], G[_, _]]
             }
           """
         })(isLeft(anything))
@@ -77,7 +69,7 @@ object AccessibleMMSpec extends DefaultRunnableSpec {
           """
             @accessibleMM[Either]
             object Module {
-              trait Random[F[_, _]]
+              trait Service[F[_, _]]
             }
           """
         })(isLeft(anything))
@@ -87,13 +79,13 @@ object AccessibleMMSpec extends DefaultRunnableSpec {
           """
             @accessibleMM[URIO]
             object Module {
-              trait Random[F[_, _]] {
+              trait Service[F[_, _]] {
                 val foo: F[Has[Unit], Unit]
               }
             }
 
             object Check {
-              val foo: ZIO[Has[Module.Random[URIO]] with Has[Unit], Nothing, Unit] =
+              val foo: ZIO[Has[Module.Service[URIO]] with Has[Unit], Nothing, Unit] =
                 Module.foo
             }
           """
@@ -104,13 +96,13 @@ object AccessibleMMSpec extends DefaultRunnableSpec {
           """
             @accessibleMM[URIO]
             object Module {
-              trait Random[F[_, _]] {
+              trait Service[F[_, _]] {
                 def foo(i: Int): F[Has[Unit], Unit]
               }
             }
 
             object Check {
-              def foo(i: Int): ZIO[Has[Module.Random[URIO]] with Has[Unit], Nothing, Unit] =
+              def foo(i: Int): ZIO[Has[Module.Service[URIO]] with Has[Unit], Nothing, Unit] =
                 Module.foo(i)
             }
           """
@@ -121,13 +113,13 @@ object AccessibleMMSpec extends DefaultRunnableSpec {
           """
             @accessibleMM[IO]
             object Module {
-              trait Random[F[_, _]] {
+              trait Service[F[_, _]] {
                 def varargsFoo(a: Int, b: Int*): F[Unit, Unit]
               }
             }
 
             object Check {
-              def varargsFoo(a: Int, b: Int*): ZIO[Has[Module.Random[IO]], Unit, Unit] =
+              def varargsFoo(a: Int, b: Int*): ZIO[Has[Module.Service[IO]], Unit, Unit] =
                 Module.varargsFoo(a, b: _*)
             }
           """
@@ -138,13 +130,13 @@ object AccessibleMMSpec extends DefaultRunnableSpec {
           """
             @accessibleMM[IO]
             object Module {
-              trait Random[F[_, _]] {
+              trait Service[F[_, _]] {
                 def foo(a: Int): Task[Unit]
               }
             }
 
             object Check {
-              def foo(a: Int): ZIO[Has[Module.Random[IO]], Throwable, Unit] =
+              def foo(a: Int): ZIO[Has[Module.Service[IO]], Throwable, Unit] =
                 Module.foo(a)
             }
           """
@@ -155,13 +147,13 @@ object AccessibleMMSpec extends DefaultRunnableSpec {
           """
             @accessibleMM[RManaged]
             object Module {
-              trait Random[F[_, _]] {
+              trait Service[F[_, _]] {
                 def managed(s: String): F[Has[Unit], Int]
               }
             }
 
             object Check {
-              def managed(s: String): ZManaged[Has[Module.Random[RManaged]] with Has[Unit], Throwable, Int] =
+              def managed(s: String): ZManaged[Has[Module.Service[RManaged]] with Has[Unit], Throwable, Int] =
                 Module.managed(s)
             }
           """
@@ -172,16 +164,16 @@ object AccessibleMMSpec extends DefaultRunnableSpec {
           """
              @accessibleMM[IO]
              object Module {
-               trait Random[F[_, _]] {
+               trait Service[F[_, _]] {
                  def foo(x: Int): F[Unit, Unit] = foo(x.toString)
                  def foo(x: String): F[Unit, Unit]
                }
              }
 
              object Check {
-              def foo(x: Int): ZIO[Has[Module.Random[IO]], Unit, Unit] =
+              def foo(x: Int): ZIO[Has[Module.Service[IO]], Unit, Unit] =
                 Module.foo(x)
-              def foo(x: String): ZIO[Has[Module.Random[IO]], Unit, Unit] =
+              def foo(x: String): ZIO[Has[Module.Service[IO]], Unit, Unit] =
                 Module.foo(x)
             }
           """.stripMargin
@@ -192,7 +184,7 @@ object AccessibleMMSpec extends DefaultRunnableSpec {
           """
              @accessibleMM[IO]
              object Module {
-               trait Random[F[_, _], T] {
+               trait Service[F[_, _], T] {
                  val v: F[Int, T]
                  def f1: F[Int, Unit]
                  def f2(): F[Int, Unit]
@@ -204,19 +196,19 @@ object AccessibleMMSpec extends DefaultRunnableSpec {
              }
 
              object Check {
-               def v[T: Tag]: ZIO[Has[Module.Random[IO, T]], Int, T] =
+               def v[T: Tag]: ZIO[Has[Module.Service[IO, T]], Int, T] =
                  Module.v[T]
-               def f1[T: Tag]: ZIO[Has[Module.Random[IO, T]], Int, Unit] =
+               def f1[T: Tag]: ZIO[Has[Module.Service[IO, T]], Int, Unit] =
                  Module.f1[T]
-               def f2[T: Tag](): ZIO[Has[Module.Random[IO, T]], Int, Unit] =
+               def f2[T: Tag](): ZIO[Has[Module.Service[IO, T]], Int, Unit] =
                  Module.f2[T]()
-               def f3[T: Tag](t: T): ZIO[Has[Module.Random[IO, T]], Int, Unit] =
+               def f3[T: Tag](t: T): ZIO[Has[Module.Service[IO, T]], Int, Unit] =
                  Module.f3[T](t)
-               def f4[T: Tag](t: T)(i: Int): ZIO[Has[Module.Random[IO, T]], Int, Unit] =
+               def f4[T: Tag](t: T)(i: Int): ZIO[Has[Module.Service[IO, T]], Int, Unit] =
                  Module.f4[T](t)(i)
-               def f5[T: Tag](t: T)(implicit i: Int): ZIO[Has[Module.Random[IO, T]], Int, Unit] =
+               def f5[T: Tag](t: T)(implicit i: Int): ZIO[Has[Module.Service[IO, T]], Int, Unit] =
                  Module.f5[T](t)
-               def f6[T: Tag](t: T*): ZIO[Has[Module.Random[IO, T]], Int, Unit] =
+               def f6[T: Tag](t: T*): ZIO[Has[Module.Service[IO, T]], Int, Unit] =
                  Module.f6[T](t: _*)
              }
           """
@@ -227,13 +219,13 @@ object AccessibleMMSpec extends DefaultRunnableSpec {
           """
              @accessibleMM[RIO]
              object Module {
-               trait Random[-A, F[_, _]] {
+               trait Service[-A, F[_, _]] {
                  val v: F[A, Int]
                }
              }
 
              object Check {
-               def v[A: Tag]: ZIO[Has[Module.Random[A, RIO]] with A, Throwable, Int] =
+               def v[A: Tag]: ZIO[Has[Module.Service[A, RIO]] with A, Throwable, Int] =
                  Module.v[A]
              }
           """
@@ -247,7 +239,7 @@ object AccessibleMMSpec extends DefaultRunnableSpec {
 
              @accessibleMM[IO]
              object Module {
-               trait Random[T <: Foo, M[_, _], U >: Bar] {
+               trait Service[T <: Foo, M[_, _], U >: Bar] {
                  val v: M[U, T]
                  def f1: M[T, U]
                  def f2(): M[T, U]
@@ -259,19 +251,19 @@ object AccessibleMMSpec extends DefaultRunnableSpec {
              }
 
              object Check {
-               def v[T <: Foo: Tag, U >: Bar: Tag]: ZIO[Has[Module.Random[T, IO, U]], U, T] =
+               def v[T <: Foo: Tag, U >: Bar: Tag]: ZIO[Has[Module.Service[T, IO, U]], U, T] =
                  Module.v[T, U]
-               def f1[T <: Foo: Tag, U >: Bar: Tag]: ZIO[Has[Module.Random[T, IO, U]], T, U] =
+               def f1[T <: Foo: Tag, U >: Bar: Tag]: ZIO[Has[Module.Service[T, IO, U]], T, U] =
                  Module.f1[T, U]
-               def f2[T <: Foo: Tag, U >: Bar: Tag](): ZIO[Has[Module.Random[T, IO, U]], T, U] =
+               def f2[T <: Foo: Tag, U >: Bar: Tag](): ZIO[Has[Module.Service[T, IO, U]], T, U] =
                  Module.f2[T, U]()
-               def f3[T <: Foo: Tag, U >: Bar: Tag](t: T): ZIO[Has[Module.Random[T, IO, U]], T, U] =
+               def f3[T <: Foo: Tag, U >: Bar: Tag](t: T): ZIO[Has[Module.Service[T, IO, U]], T, U] =
                  Module.f3[T, U](t)
-               def f4[T <: Foo: Tag, U >: Bar: Tag](t: T)(u: U): ZIO[Has[Module.Random[T, IO, U]], T, U] =
+               def f4[T <: Foo: Tag, U >: Bar: Tag](t: T)(u: U): ZIO[Has[Module.Service[T, IO, U]], T, U] =
                  Module.f4[T, U](t)(u)
-               def f5[T <: Foo: Tag, U >: Bar: Tag](t: T)(implicit u: U): ZIO[Has[Module.Random[T, IO, U]], T, U] =
+               def f5[T <: Foo: Tag, U >: Bar: Tag](t: T)(implicit u: U): ZIO[Has[Module.Service[T, IO, U]], T, U] =
                  Module.f5[T, U](t)
-               def f6[T <: Foo: Tag, U >: Bar: Tag](t: T*): ZIO[Has[Module.Random[T, IO, U]], T, U] =
+               def f6[T <: Foo: Tag, U >: Bar: Tag](t: T*): ZIO[Has[Module.Service[T, IO, U]], T, U] =
                  Module.f6[T, U](t: _*)
              }
           """
@@ -282,7 +274,7 @@ object AccessibleMMSpec extends DefaultRunnableSpec {
           """
             @accessibleMM[IO]
             object Module {
-              trait Random[M[_, _]] {
+              trait Service[M[_, _]] {
                 val static                                 : M[Int, String]
                 def zeroArgs                               : M[Int, Int]
                 def zeroArgsWithParens()                   : M[Int, Long]
@@ -297,16 +289,16 @@ object AccessibleMMSpec extends DefaultRunnableSpec {
             }
 
             object Check {
-              val static                                 : ZIO[Has[Module.Random[IO]], Int, String] = Module.static
-              def zeroArgs                               : ZIO[Has[Module.Random[IO]], Int, Int]    = Module.zeroArgs
-              def zeroArgsWithParens()                   : ZIO[Has[Module.Random[IO]], Int, Long]   = Module.zeroArgsWithParens()
-              def singleArg(arg1: Int)                   : ZIO[Has[Module.Random[IO]], Int, String] = Module.singleArg(arg1)
-              def multiArgs(arg1: Int, arg2: Long)       : ZIO[Has[Module.Random[IO]], Int, String] = Module.multiArgs(arg1, arg2)
-              def multiParamLists(arg1: Int)(arg2: Long) : ZIO[Has[Module.Random[IO]], Int, String] = Module.multiParamLists(arg1)(arg2)
-              def typedVarargs[T](arg1: Int, arg2: T*)   : ZIO[Has[Module.Random[IO]], Int, T]      = Module.typedVarargs[T](arg1, arg2: _*)
-              def command(arg1: Int)                     : ZIO[Has[Module.Random[IO]], Int, Unit]   = Module.command(arg1)
-              def overloaded(arg1: Int)                  : ZIO[Has[Module.Random[IO]], Int, String] = Module.overloaded(arg1)
-              def overloaded(arg1: Long)                 : ZIO[Has[Module.Random[IO]], Int, String] = Module.overloaded(arg1)
+              val static                                 : ZIO[Has[Module.Service[IO]], Int, String] = Module.static
+              def zeroArgs                               : ZIO[Has[Module.Service[IO]], Int, Int]    = Module.zeroArgs
+              def zeroArgsWithParens()                   : ZIO[Has[Module.Service[IO]], Int, Long]   = Module.zeroArgsWithParens()
+              def singleArg(arg1: Int)                   : ZIO[Has[Module.Service[IO]], Int, String] = Module.singleArg(arg1)
+              def multiArgs(arg1: Int, arg2: Long)       : ZIO[Has[Module.Service[IO]], Int, String] = Module.multiArgs(arg1, arg2)
+              def multiParamLists(arg1: Int)(arg2: Long) : ZIO[Has[Module.Service[IO]], Int, String] = Module.multiParamLists(arg1)(arg2)
+              def typedVarargs[T](arg1: Int, arg2: T*)   : ZIO[Has[Module.Service[IO]], Int, T]      = Module.typedVarargs[T](arg1, arg2: _*)
+              def command(arg1: Int)                     : ZIO[Has[Module.Service[IO]], Int, Unit]   = Module.command(arg1)
+              def overloaded(arg1: Int)                  : ZIO[Has[Module.Service[IO]], Int, String] = Module.overloaded(arg1)
+              def overloaded(arg1: Long)                 : ZIO[Has[Module.Service[IO]], Int, String] = Module.overloaded(arg1)
             }
           """
         })(isRight(anything))
@@ -316,7 +308,7 @@ object AccessibleMMSpec extends DefaultRunnableSpec {
           """
             @accessibleMM[URManaged]
             object Module {
-              trait Random[M[_, _]] {
+              trait Service[M[_, _]] {
                 val staticManaged                                 : M[Has[Int], String]
                 def zeroArgsManaged                               : M[Has[Int], Int]
                 def zeroArgsTypedManaged[T]                       : M[Has[Int], T]
@@ -332,17 +324,17 @@ object AccessibleMMSpec extends DefaultRunnableSpec {
             }
 
             object Check {
-              val staticManaged                                 : ZManaged[Has[Module.Random[URManaged]] with Has[Int], Nothing, String] = Module.staticManaged
-              def zeroArgsManaged                               : ZManaged[Has[Module.Random[URManaged]] with Has[Int], Nothing, Int]    = Module.zeroArgsManaged
-              def zeroArgsTypedManaged[T]                       : ZManaged[Has[Module.Random[URManaged]] with Has[Int], Nothing, T]      = Module.zeroArgsTypedManaged[T]
-              def zeroArgsWithParensManaged()                   : ZManaged[Has[Module.Random[URManaged]] with Has[Int], Nothing, Long]   = Module.zeroArgsWithParensManaged()
-              def singleArgManaged(arg1: Int)                   : ZManaged[Has[Module.Random[URManaged]] with Has[Int], Nothing, String] = Module.singleArgManaged(arg1)
-              def multiArgsManaged(arg1: Int, arg2: Long)       : ZManaged[Has[Module.Random[URManaged]] with Has[Int], Nothing, String] = Module.multiArgsManaged(arg1, arg2)
-              def multiParamListsManaged(arg1: Int)(arg2: Long) : ZManaged[Has[Module.Random[URManaged]] with Has[Int], Nothing, String] = Module.multiParamListsManaged(arg1)(arg2)
-              def typedVarargsManaged[T](arg1: Int, arg2: T*)   : ZManaged[Has[Module.Random[URManaged]] with Has[Int], Nothing, T]      = Module.typedVarargsManaged[T](arg1, arg2: _*)
-              def commandManaged(arg1: Int)                     : ZManaged[Has[Module.Random[URManaged]] with Has[Int], Nothing, Unit]   = Module.commandManaged(arg1)
-              def overloadedManaged(arg1: Int)                  : ZManaged[Has[Module.Random[URManaged]] with Has[Int], Nothing, String] = Module.overloadedManaged(arg1)
-              def overloadedManaged(arg1: Long)                 : ZManaged[Has[Module.Random[URManaged]] with Has[Int], Nothing, String] = Module.overloadedManaged(arg1)
+              val staticManaged                                 : ZManaged[Has[Module.Service[URManaged]] with Has[Int], Nothing, String] = Module.staticManaged
+              def zeroArgsManaged                               : ZManaged[Has[Module.Service[URManaged]] with Has[Int], Nothing, Int]    = Module.zeroArgsManaged
+              def zeroArgsTypedManaged[T]                       : ZManaged[Has[Module.Service[URManaged]] with Has[Int], Nothing, T]      = Module.zeroArgsTypedManaged[T]
+              def zeroArgsWithParensManaged()                   : ZManaged[Has[Module.Service[URManaged]] with Has[Int], Nothing, Long]   = Module.zeroArgsWithParensManaged()
+              def singleArgManaged(arg1: Int)                   : ZManaged[Has[Module.Service[URManaged]] with Has[Int], Nothing, String] = Module.singleArgManaged(arg1)
+              def multiArgsManaged(arg1: Int, arg2: Long)       : ZManaged[Has[Module.Service[URManaged]] with Has[Int], Nothing, String] = Module.multiArgsManaged(arg1, arg2)
+              def multiParamListsManaged(arg1: Int)(arg2: Long) : ZManaged[Has[Module.Service[URManaged]] with Has[Int], Nothing, String] = Module.multiParamListsManaged(arg1)(arg2)
+              def typedVarargsManaged[T](arg1: Int, arg2: T*)   : ZManaged[Has[Module.Service[URManaged]] with Has[Int], Nothing, T]      = Module.typedVarargsManaged[T](arg1, arg2: _*)
+              def commandManaged(arg1: Int)                     : ZManaged[Has[Module.Service[URManaged]] with Has[Int], Nothing, Unit]   = Module.commandManaged(arg1)
+              def overloadedManaged(arg1: Int)                  : ZManaged[Has[Module.Service[URManaged]] with Has[Int], Nothing, String] = Module.overloadedManaged(arg1)
+              def overloadedManaged(arg1: Long)                 : ZManaged[Has[Module.Service[URManaged]] with Has[Int], Nothing, String] = Module.overloadedManaged(arg1)
             }
           """
         })(isRight(anything))
@@ -352,13 +344,13 @@ object AccessibleMMSpec extends DefaultRunnableSpec {
           """
             @accessibleMM[IO]
             object Module {
-              trait Random[F[_, _]] {
+              trait Service[F[_, _]] {
                 def function(arg1: Int) : String
               }
             }
 
             object Check {
-              def function(arg1: Int) : ZIO[Has[Module.Random[IO]], Throwable, String] = Module.function(arg1)
+              def function(arg1: Int) : ZIO[Has[Module.Service[IO]], Throwable, String] = Module.function(arg1)
             }
           """
         })(isRight(anything))
@@ -368,7 +360,7 @@ object AccessibleMMSpec extends DefaultRunnableSpec {
           """
              @accessibleMM[URIO]
              object Module {
-               trait Random[F[-_, +_]] {
+               trait Service[F[-_, +_]] {
                  val v: F[Any, Int]
                  final val vCov: F[Int, Any] = v
                }
@@ -376,58 +368,58 @@ object AccessibleMMSpec extends DefaultRunnableSpec {
 
              object Check {
                def assertServiceVariant[S[F[-_, +_]]] = ()
-               assertServiceVariant[Module.Random]
+               assertServiceVariant[Module.Service]
 
-               val v: ZIO[Has[Module.Random[URIO]] with Any, Nothing, Int] =
+               val v: ZIO[Has[Module.Service[URIO]] with Any, Nothing, Int] =
                  Module.v
 
-               val vCov: ZIO[Has[Module.Random[URIO]] with Int, Nothing, Any] =
+               val vCov: ZIO[Has[Module.Service[URIO]] with Int, Nothing, Any] =
                  Module.vCov
              }
           """
         })(isRight(anything))
       },
-      testM("preserves Random covariance") {
+      testM("preserves Service covariance") {
         assertM(typeCheck {
           """
              @accessibleMM[URIO]
              object Module {
-               trait Random[+F[_, _]] {
+               trait Service[+F[_, _]] {
                  val v: F[Any, Int]
                }
 
-               val narrow: Random[URIO] = ???
-               val widen: Random[RIO] = narrow
+               val narrow: Service[URIO] = ???
+               val widen: Service[RIO] = narrow
              }
 
              object Check {
                def assertServiceVariant[S[+F[_, _]]] = ()
-               assertServiceVariant[Module.Random]
+               assertServiceVariant[Module.Service]
 
-               val v: ZIO[Has[Module.Random[URIO]], Nothing, Int] =
+               val v: ZIO[Has[Module.Service[URIO]], Nothing, Int] =
                  Module.v
              }
           """
         })(isRight(anything))
       },
-      testM("preserves Random contravariance") {
+      testM("preserves Service contravariance") {
         assertM(typeCheck {
           """
              @accessibleMM[URIO]
              object Module {
-               trait Random[-F[_, _]] {
+               trait Service[-F[_, _]] {
                  val v: F[Any, Int]
                }
 
-               val narrow: Random[RIO] = ???
-               val widen: Random[URIO] = narrow
+               val narrow: Service[RIO] = ???
+               val widen: Service[URIO] = narrow
              }
 
              object Check {
                def assertServiceVariant[S[-F[_, _]]] = ()
-               assertServiceVariant[Module.Random]
+               assertServiceVariant[Module.Service]
 
-               val v: ZIO[Has[Module.Random[URIO]], Nothing, Int] =
+               val v: ZIO[Has[Module.Service[URIO]], Nothing, Int] =
                  Module.v
              }
           """
@@ -440,13 +432,13 @@ object AccessibleMMSpec extends DefaultRunnableSpec {
           """
              @accessibleMM[URIO]
              object Module {
-               trait Random[F[+_, +_]] {
+               trait Service[F[+_, +_]] {
                  val v: F[Int, Int]
                }
              }
 
              object Check {
-               val v: ZIO[Has[Module.Random[URIO]] with AnyVal, Nothing, Int] =
+               val v: ZIO[Has[Module.Service[URIO]] with AnyVal, Nothing, Int] =
                  Module.v
              }
           """
