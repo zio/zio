@@ -724,12 +724,12 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
    * leaving the remainder `R0`.
    *
    * {{{
-   * val managed: ZManaged[Has[Console] with Logging, Nothing, Unit] = ???
+   * val managed: ZManaged[Console with Logging, Nothing, Unit] = ???
    *
-   * managed.provideSome[Has[Console]](env =>
-   *   new Has[Console] with Logging {
+   * managed.provideSome[Console](env =>
+   *   new Console with Logging {
    *     val console = env.console
-   *     val logging = new Logging.Random[Any] {
+   *     val logging = new Logging[Any] {
    *       def log(line: String) = console.putStrLn(line)
    *     }
    *   }
@@ -744,9 +744,9 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
    * specified layer and leaving the remainder `R0`.
    *
    * {{{
-   * val clockLayer: ZLayer[Any, Nothing, Clock] = ???
+   * val clockLayer: ZLayer[Any, Nothing, Has[Clock]] = ???
    *
-   * val managed: ZManaged[Clock with Has[Random], Nothing, Unit] = ???
+   * val managed: ZManaged[Has[Clock] with Has[Random], Nothing, Unit] = ???
    *
    * val managed2 = managed.provideSomeLayer[Has[Random]](clockLayer)
    * }}}

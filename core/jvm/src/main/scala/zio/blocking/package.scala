@@ -25,7 +25,7 @@ import java.util.concurrent._
 package object blocking {
 
   /**
-   * The `Has[Blocking]` module provides access to a thread pool that can be used for performing
+   * The `Blocking` module provides access to a thread pool that can be used for performing
    * blocking operations, such as thread sleeps, synchronous socket/file reads, and so forth.
    * The contract is that the thread pool will accept unlimited tasks (up to the available memory)
    * and continuously create new threads as necessary.

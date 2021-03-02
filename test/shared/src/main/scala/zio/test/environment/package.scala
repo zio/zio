@@ -31,7 +31,7 @@ import scala.math.{log, sqrt}
 
 /**
  * The `environment` package contains testable versions of all the standard ZIO
- * environment types through the [[TestClock]], [[Has[TestConsole]]],
+ * environment types through the [[TestClock]], [[TestConsole]],
  * [[TestSystem]], and [[TestRandom]] modules. See the documentation on the
  * individual modules for more detail about using each of them.
  *
@@ -60,7 +60,7 @@ import scala.math.{log, sqrt}
  * {{{
  * import zio.test.environment._
  *
- * myProgram.provideM(Has[TestConsole].make(Has[TestConsole].DefaultData))
+ * myProgram.provideM(TestConsole.make(TestConsole.DefaultData))
  * }}}
  *
  * Finally, you can create a `Test` object that implements the test interface
@@ -110,7 +110,7 @@ package object environment extends PlatformSpecific {
     Live.withLive(zio)(f)
 
   /**
-   * The `Has[Live]` trait provides access to the "live" environment from within the
+   * The `Live` trait provides access to the "live" environment from within the
    * test environment for effects such as printing test results to the console or
    * timing out tests where it is necessary to access the real environment.
    *
@@ -136,7 +136,7 @@ package object environment extends PlatformSpecific {
   object Live {
 
     /**
-     * Constructs a new `Has[Live]` service that implements the `Has[Live]` interface.
+     * Constructs a new `Live` service that implements the `Live` interface.
      * This typically should not be necessary as `TestEnvironment` provides
      * access to live versions of all the standard ZIO environment types but
      * could be useful if you are mixing in interfaces to create your own
@@ -168,7 +168,7 @@ package object environment extends PlatformSpecific {
   }
 
   /**
-   * `Has[TestClock]` makes it easy to deterministically and efficiently test
+   * `TestClock` makes it easy to deterministically and efficiently test
    * effects involving the passage of time.
    *
    * Instead of waiting for actual time to pass, `sleep` and methods
@@ -177,7 +177,7 @@ package object environment extends PlatformSpecific {
    * methods, and all effects scheduled to take place on or before that time
    * will automatically be run in order.
    *
-   * For example, here is how we can test `ZIO#timeout` using `Has[TestClock]:
+   * For example, here is how we can test `ZIO#timeout` using `TestClock`:
    *
    * {{{
    *  import zio.ZIO
@@ -186,7 +186,7 @@ package object environment extends PlatformSpecific {
    *
    *  for {
    *    fiber  <- ZIO.sleep(5.minutes).timeout(1.minute).fork
-   *    _      <- Has[TestClock].adjust(1.minute)
+   *    _      <- TestClock.adjust(1.minute)
    *    result <- fiber.join
    *  } yield result == None
    * }}}
@@ -195,7 +195,7 @@ package object environment extends PlatformSpecific {
    * and methods derived from it will semantically block until the time is set
    * to on or after the time they are scheduled to run. If we didn't fork the
    * fiber on which we called sleep we would never get to set the time on the
-   * line below. Thus, a useful pattern when using `Has[TestClock]` is to fork the
+   * line below. Thus, a useful pattern when using `TestClock` is to fork the
    * effect being tested, then adjust the clock time, and finally verify that
    * the expected effects have been performed.
    *
@@ -211,10 +211,10 @@ package object environment extends PlatformSpecific {
    *    q <- Queue.unbounded[Unit]
    *    _ <- q.offer(()).delay(60.minutes).forever.fork
    *    a <- q.poll.map(_.isEmpty)
-   *    _ <- Has[TestClock].adjust(60.minutes)
+   *    _ <- TestClock.adjust(60.minutes)
    *    b <- q.take.as(true)
    *    c <- q.poll.map(_.isEmpty)
-   *    _ <- Has[TestClock].adjust(60.minutes)
+   *    _ <- TestClock.adjust(60.minutes)
    *    d <- q.take.as(true)
    *    e <- q.poll.map(_.isEmpty)
    *  } yield a && b && c && d && e
@@ -286,8 +286,8 @@ package object environment extends PlatformSpecific {
         clockState.get.map(data => toLocalDateTime(data.duration, data.timeZone))
 
       /**
-       * Saves the `Has[TestClock]`'s current state in an effect which, when run,
-       * will restore the `Has[TestClock]` state to the saved state
+       * Saves the `TestClock`'s current state in an effect which, when run,
+       * will restore the `TestClock` state to the saved state
        */
       val save: UIO[UIO[Unit]] =
         for {
@@ -352,7 +352,7 @@ package object environment extends PlatformSpecific {
 
       /**
        * Cancels the warning message that is displayed if a test is using time
-       * but is not advancing the `Has[TestClock]`.
+       * but is not advancing the `TestClock`.
        */
       private[TestClock] val warningDone: UIO[Unit] =
         warningState.updateSomeM[Any, Nothing] {
@@ -465,7 +465,7 @@ package object environment extends PlatformSpecific {
 
       /**
        * Forks a fiber that will display a warning message if a test is using
-       * time but is not advancing the `Has[TestClock]`.
+       * time but is not advancing the `TestClock`.
        */
       private val warningStart: UIO[Unit] =
         warningState.updateSomeM { case WarningData.Start =>
@@ -477,7 +477,7 @@ package object environment extends PlatformSpecific {
     }
 
     /**
-     * Constructs a new `Test` object that implements the `Has[TestClock]`
+     * Constructs a new `Test` object that implements the `TestClock`
      * interface. This can be useful for mixing in with implementations of
      * other interfaces.
      */
@@ -498,7 +498,7 @@ package object environment extends PlatformSpecific {
       live(Data(Duration.Zero, Nil, ZoneId.of("UTC")))
 
     /**
-     * Accesses a `Has[TestClock]` instance in the environment and increments the
+     * Accesses a `TestClock` instance in the environment and increments the
      * time by the specified duration, running any actions scheduled for on or
      * before the new time in order.
      */
@@ -506,15 +506,15 @@ package object environment extends PlatformSpecific {
       ZIO.accessM(_.get.adjust(duration))
 
     /**
-     * Accesses a `Has[TestClock]` instance in the environment and saves the clock
-     * state in an effect which, when run, will restore the `Has[TestClock]` to the
+     * Accesses a `TestClock` instance in the environment and saves the clock
+     * state in an effect which, when run, will restore the `TestClock` to the
      * saved state.
      */
     val save: ZIO[Has[TestClock], Nothing, UIO[Unit]] =
       ZIO.accessM(_.get.save)
 
     /**
-     * Accesses a `Has[TestClock]` instance in the environment and sets the clock
+     * Accesses a `TestClock` instance in the environment and sets the clock
      * time to the specified `OffsetDateTime`, running any actions scheduled
      * for on or before the new time in order.
      */
@@ -522,7 +522,7 @@ package object environment extends PlatformSpecific {
       ZIO.accessM(_.get.setDateTime(dateTime))
 
     /**
-     * Accesses a `Has[TestClock]` instance in the environment and sets the clock
+     * Accesses a `TestClock` instance in the environment and sets the clock
      * time to the specified time in terms of duration since the epoch,
      * running any actions scheduled for on or before the new time in order.
      */
@@ -530,7 +530,7 @@ package object environment extends PlatformSpecific {
       ZIO.accessM(_.get.setTime(duration))
 
     /**
-     * Accesses a `Has[TestClock]` instance in the environment, setting the time
+     * Accesses a `TestClock` instance in the environment, setting the time
      * zone to the specified time zone. The clock time in terms of nanoseconds
      * since the epoch will not be altered and no scheduled actions will be
      * run as a result of this effect.
@@ -539,21 +539,21 @@ package object environment extends PlatformSpecific {
       ZIO.accessM(_.get.setTimeZone(zone))
 
     /**
-     * Accesses a `Has[TestClock]` instance in the environment and returns a list
+     * Accesses a `TestClock` instance in the environment and returns a list
      * of times that effects are scheduled to run.
      */
     val sleeps: ZIO[Has[TestClock], Nothing, List[Duration]] =
       ZIO.accessM(_.get.sleeps)
 
     /**
-     * Accesses a `Has[TestClock]` instance in the environment and returns the current
+     * Accesses a `TestClock` instance in the environment and returns the current
      * time zone.
      */
     val timeZone: URIO[Has[TestClock], ZoneId] =
       ZIO.accessM(_.get.timeZone)
 
     /**
-     * `Data` represents the state of the `Has[TestClock]`, including the clock time
+     * `Data` represents the state of the `TestClock`, including the clock time
      * and time zone.
      */
     final case class Data(
@@ -571,10 +571,10 @@ package object environment extends PlatformSpecific {
 
     /**
      * `WarningData` describes the state of the warning message that is
-     * displayed if a test is using time by is not advancing the `Has[TestClock]`.
+     * displayed if a test is using time by is not advancing the `TestClock`.
      * The possible states are `Start` if a test has not used time, `Pending`
-     * if a test has used time but has not adjusted the `Has[TestClock]`, and `Done`
-     * if a test has adjusted the `Has[TestClock]` or the warning message has
+     * if a test has used time but has not adjusted the `TestClock`, and `Done`
+     * if a test has adjusted the `TestClock` or the warning message has
      * already been displayed.
      */
     sealed abstract class WarningData
@@ -592,7 +592,7 @@ package object environment extends PlatformSpecific {
 
       /**
        * State indicating that a test has used time but has not adjusted the
-       * `Has[TestClock]` with a reference to the fiber that will display the
+       * `TestClock` with a reference to the fiber that will display the
        * warning message.
        */
       def pending(fiber: Fiber[Nothing, Unit]): WarningData = Pending(fiber)
@@ -606,7 +606,7 @@ package object environment extends PlatformSpecific {
 
     /**
      * The warning message that will be displayed if a test is using time but
-     * is not advancing the `Has[TestClock]`.
+     * is not advancing the `TestClock`.
      */
     private val warning =
       "Warning: A test is using time, but is not advancing the test clock, " +
@@ -615,18 +615,18 @@ package object environment extends PlatformSpecific {
   }
 
   /**
-   * `Has[TestConsole]` provides a testable interface for programs interacting with
+   * `TestConsole` provides a testable interface for programs interacting with
    * the console by modeling input and output as reading from and writing to
-   * input and output buffers maintained by `Has[TestConsole]` and backed by a
+   * input and output buffers maintained by `TestConsole` and backed by a
    * `Ref`.
    *
-   * All calls to `putStr` and `putStrLn` using the `Has[TestConsole]` will write
+   * All calls to `putStr` and `putStrLn` using the `TestConsole` will write
    * the string to the output buffer and all calls to `getStrLn` will take a
    * string from the input buffer. To facilitate debugging, by default output
    * will also be rendered to standard output. You can enable or disable this
    * for a scope using `debug`, `silent`, or the corresponding test aspects.
    *
-   * `Has[TestConsole]` has several methods to access and manipulate the content of
+   * `TestConsole` has several methods to access and manipulate the content of
    * these buffers including `feedLines` to feed strings to the input  buffer
    * that will then be returned by calls to `getStrLn`, `output` to get the
    * content of the output buffer from calls to `putStr` and `putStrLn`, and
@@ -637,7 +637,7 @@ package object environment extends PlatformSpecific {
    *
    * {{{
    * import zio.console._
-   * import zio.test.environment.HasTestConsole
+   * import zio.test.environment.TestConsole
    * import zio.ZIO
    *
    * val sayHello = for {
@@ -646,9 +646,9 @@ package object environment extends PlatformSpecific {
    * } yield ()
    *
    * for {
-   *   _ <- Has[TestConsole].feedLines("John", "Jane", "Sally")
+   *   _ <- TestConsole.feedLines("John", "Jane", "Sally")
    *   _ <- ZIO.collectAll(List.fill(3)(sayHello))
-   *   result <- Has[TestConsole].output
+   *   result <- TestConsole.output
    * } yield result == Vector("Hello, John!\n", "Hello, Jane!\n", "Hello, Sally!\n")
    * }}}
    */
@@ -684,7 +684,7 @@ package object environment extends PlatformSpecific {
         consoleState.update(data => data.copy(output = Vector.empty))
 
       /**
-       * Runs the specified effect with the `Has[TestConsole]` set to debug mode,
+       * Runs the specified effect with the `TestConsole` set to debug mode,
        * so that console output is rendered to standard output in addition to
        * being written to the output buffer.
        */
@@ -763,8 +763,8 @@ package object environment extends PlatformSpecific {
         } *> live.provide(console.putStrLn(line)).whenM(debugState.get)
 
       /**
-       * Saves the `Has[TestConsole]`'s current state in an effect which, when run,
-       * will restore the `Has[TestConsole]` state to the saved state.
+       * Saves the `TestConsole`'s current state in an effect which, when run,
+       * will restore the `TestConsole` state to the saved state.
        */
       val save: UIO[UIO[Unit]] =
         for {
@@ -772,7 +772,7 @@ package object environment extends PlatformSpecific {
         } yield consoleState.set(consoleData)
 
       /**
-       * Runs the specified effect with the `Has[TestConsole]` set to silent mode,
+       * Runs the specified effect with the `TestConsole` set to silent mode,
        * so that console output is only written to the output buffer and not
        * rendered to standard output.
        */
@@ -781,7 +781,7 @@ package object environment extends PlatformSpecific {
     }
 
     /**
-     * Constructs a new `Test` object that implements the `Has[TestConsole]`
+     * Constructs a new `Test` object that implements the `TestConsole`
      * interface. This can be useful for mixing in with implementations of other
      * interfaces.
      */
@@ -804,22 +804,22 @@ package object environment extends PlatformSpecific {
       make(Data(Nil, Vector()), false)
 
     /**
-     * Accesses a `Has[TestConsole]` instance in the environment and clears the input
+     * Accesses a `TestConsole` instance in the environment and clears the input
      * buffer.
      */
     val clearInput: URIO[Has[TestConsole], Unit] =
       ZIO.accessM(_.get.clearInput)
 
     /**
-     * Accesses a `Has[TestConsole]` instance in the environment and clears the output
+     * Accesses a `TestConsole` instance in the environment and clears the output
      * buffer.
      */
     val clearOutput: URIO[Has[TestConsole], Unit] =
       ZIO.accessM(_.get.clearOutput)
 
     /**
-     * Accesses a `Has[TestConsole]` instance in the environment and runs the
-     * specified effect with the `Has[TestConsole]` set to debug mode, so that
+     * Accesses a `TestConsole` instance in the environment and runs the
+     * specified effect with the `TestConsole` set to debug mode, so that
      * console output is rendered to standard output in addition to being
      * written to the output buffer.
      */
@@ -827,37 +827,37 @@ package object environment extends PlatformSpecific {
       ZIO.accessM(_.get.debug(zio))
 
     /**
-     * Accesses a `Has[TestConsole]` instance in the environment and writes the
+     * Accesses a `TestConsole` instance in the environment and writes the
      * specified sequence of strings to the input buffer.
      */
     def feedLines(lines: String*): URIO[Has[TestConsole], Unit] =
       ZIO.accessM(_.get.feedLines(lines: _*))
 
     /**
-     * Accesses a `Has[TestConsole]` instance in the environment and returns the
+     * Accesses a `TestConsole` instance in the environment and returns the
      * contents of the output buffer.
      */
     val output: ZIO[Has[TestConsole], Nothing, Vector[String]] =
       ZIO.accessM(_.get.output)
 
     /**
-     * Accesses a `Has[TestConsole]` instance in the environment and returns the
+     * Accesses a `TestConsole` instance in the environment and returns the
      * contents of the error buffer.
      */
     val outputErr: ZIO[Has[TestConsole], Nothing, Vector[String]] =
       ZIO.accessM(_.get.outputErr)
 
     /**
-     * Accesses a `Has[TestConsole]` instance in the environment and saves the
+     * Accesses a `TestConsole` instance in the environment and saves the
      * console state in an effect which, when run, will restore the
-     * `Has[TestConsole]` to the saved state.
+     * `TestConsole` to the saved state.
      */
     val save: ZIO[Has[TestConsole], Nothing, UIO[Unit]] =
       ZIO.accessM(_.get.save)
 
     /**
-     * Accesses a `Has[TestConsole]` instance in the environment and runs the
-     * specified effect with the `Has[TestConsole]` set to silent mode, so that
+     * Accesses a `TestConsole` instance in the environment and runs the
+     * specified effect with the `TestConsole` set to silent mode, so that
      * console output is only written to the output buffer and not rendered to
      * standard output.
      */
@@ -865,7 +865,7 @@ package object environment extends PlatformSpecific {
       ZIO.accessM(_.get.silent(zio))
 
     /**
-     * The state of the `Has[TestConsole]`.
+     * The state of the `TestConsole`.
      */
     final case class Data(
       input: List[String] = List.empty,
@@ -1513,7 +1513,7 @@ package object environment extends PlatformSpecific {
     /**
      * Constructs a new `TestRandom` with the specified initial state. This can
      * be useful for providing the required environment to an effect that
-     * requires a `Has[Random]`, such as with `ZIO#provide`.
+     * requires a `Random`, such as with `ZIO#provide`.
      */
     def make(data: Data): Layer[Nothing, Has[Random] with Has[TestRandom]] =
       ZLayer.fromEffectMany(for {
@@ -1581,18 +1581,18 @@ package object environment extends PlatformSpecific {
   }
 
   /**
-   * `Has[TestSystem]` supports deterministic testing of effects involving system
-   * properties. Internally, `Has[TestSystem]` maintains mappings of environment
+   * `TestSystem` supports deterministic testing of effects involving system
+   * properties. Internally, `TestSystem` maintains mappings of environment
    * variables and system properties that can be set and accessed. No actual
    * environment variables or system properties will be accessed or set as a
    * result of these actions.
    *
    * {{{
    * import zio.system
-   * import zio.test.environment.HasTestSystem
+   * import zio.test.environment.TestSystem
    *
    * for {
-   *   _      <- Has[TestSystem].putProperty("java.vm.name", "VM")
+   *   _      <- TestSystem.putProperty("java.vm.name", "VM")
    *   result <- system.property("java.vm.name")
    * } yield result == Some("VM")
    * }}}
@@ -1663,20 +1663,20 @@ package object environment extends PlatformSpecific {
 
       /**
        * Adds the specified name and value to the mapping of environment
-       * variables maintained by this `Has[TestSystem]`.
+       * variables maintained by this `TestSystem`.
        */
       def putEnv(name: String, value: String): UIO[Unit] =
         systemState.update(data => data.copy(envs = data.envs.updated(name, value)))
 
       /**
        * Adds the specified name and value to the mapping of system properties
-       * maintained by this `Has[TestSystem]`.
+       * maintained by this `TestSystem`.
        */
       def putProperty(name: String, value: String): UIO[Unit] =
         systemState.update(data => data.copy(properties = data.properties.updated(name, value)))
 
       /**
-       * Sets the system line separator maintained by this `Has[TestSystem]` to the
+       * Sets the system line separator maintained by this `TestSystem` to the
        * specified value.
        */
       def setLineSeparator(lineSep: String): UIO[Unit] =
@@ -1695,7 +1695,7 @@ package object environment extends PlatformSpecific {
         systemState.update(data => data.copy(properties = data.properties - prop))
 
       /**
-       * Saves the `Has[TestSystem]``'s current state in an effect which, when run, will restore the `Has[TestSystem]`
+       * Saves the `TestSystem``'s current state in an effect which, when run, will restore the `TestSystem`
        * state to the saved state.
        */
       val save: UIO[UIO[Unit]] =
@@ -1705,16 +1705,16 @@ package object environment extends PlatformSpecific {
     }
 
     /**
-     * The default initial state of the `Has[TestSystem]` with no environment variable
+     * The default initial state of the `TestSystem` with no environment variable
      * or system property mappings and the system line separator set to the new
      * line character.
      */
     val DefaultData: Data = Data(Map(), Map(), "\n")
 
     /**
-     * Constructs a new `Has[TestSystem]` with the specified initial state. This can
+     * Constructs a new `TestSystem` with the specified initial state. This can
      * be useful for providing the required environment to an effect that
-     * requires a `Has[Console]`, such as with `ZIO#provide`.
+     * requires a `TestSystem`, such as with `ZIO#provide`.
      */
     def live(data: Data): Layer[Nothing, Has[System] with Has[TestSystem]] =
       ZLayer.fromEffectMany(
@@ -1728,49 +1728,49 @@ package object environment extends PlatformSpecific {
       live(DefaultData)
 
     /**
-     * Accesses a `Has[TestSystem]` instance in the environment and adds the specified
+     * Accesses a `TestSystem` instance in the environment and adds the specified
      * name and value to the mapping of environment variables.
      */
     def putEnv(name: => String, value: => String): URIO[Has[TestSystem], Unit] =
       ZIO.accessM(_.get.putEnv(name, value))
 
     /**
-     * Accesses a `Has[TestSystem]` instance in the environment and adds the specified
+     * Accesses a `TestSystem` instance in the environment and adds the specified
      * name and value to the mapping of system properties.
      */
     def putProperty(name: => String, value: => String): URIO[Has[TestSystem], Unit] =
       ZIO.accessM(_.get.putProperty(name, value))
 
     /**
-     * Accesses a `Has[TestSystem]` instance in the environment and saves the system state in an effect which, when run,
-     * will restore the `Has[TestSystem]` to the saved state
+     * Accesses a `TestSystem` instance in the environment and saves the system state in an effect which, when run,
+     * will restore the `TestSystem` to the saved state
      */
     val save: ZIO[Has[TestSystem], Nothing, UIO[Unit]] =
       ZIO.accessM(_.get.save)
 
     /**
-     * Accesses a `Has[TestSystem]` instance in the environment and sets the line
+     * Accesses a `TestSystem` instance in the environment and sets the line
      * separator to the specified value.
      */
     def setLineSeparator(lineSep: => String): URIO[Has[TestSystem], Unit] =
       ZIO.accessM(_.get.setLineSeparator(lineSep))
 
     /**
-     * Accesses a `Has[TestSystem]` instance in the environment and clears the mapping
+     * Accesses a `TestSystem` instance in the environment and clears the mapping
      * of environment variables.
      */
     def clearEnv(variable: => String): URIO[Has[TestSystem], Unit] =
       ZIO.accessM(_.get.clearEnv(variable))
 
     /**
-     * Accesses a `Has[TestSystem]` instance in the environment and clears the mapping
+     * Accesses a `TestSystem` instance in the environment and clears the mapping
      * of system properties.
      */
     def clearProperty(prop: => String): URIO[Has[TestSystem], Unit] =
       ZIO.accessM(_.get.clearProperty(prop))
 
     /**
-     * The state of the `Has[TestSystem]`.
+     * The state of the `TestSystem`.
      */
     final case class Data(
       properties: Map[String, String] = Map.empty,
