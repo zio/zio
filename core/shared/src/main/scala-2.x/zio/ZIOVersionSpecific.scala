@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.internal.macros.ProvideLayerAutoMacros
+import zio.internal.macros.ProvideLayerMacros
 
 private[zio] trait ZIOVersionSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
 
@@ -31,16 +31,16 @@ private[zio] trait ZIOVersionSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
    * val flyLayer: ZLayer[Blocking, Nothing, Fly] = ???
    *
    * // The ZEnv you use later will provide both Blocking to flyLayer and Console to zio
-   * val zio2 : ZIO[ZEnv, Nothing, Unit] = zio.provideCustomLayerAuto(oldLadyLayer, flyLayer)
+   * val zio2 : ZIO[ZEnv, Nothing, Unit] = zio.provideCustomLayer(oldLadyLayer, flyLayer)
    * }}}
    */
-  def provideCustomLayerAuto[E1 >: E](layers: ZLayer[_, E1, _]*): ZIO[ZEnv, E1, A] =
-    macro ProvideLayerAutoMacros.provideCustomLayerAutoImpl[ZIO, R, E1, A]
+  def provideCustomLayer[E1 >: E](layers: ZLayer[_, E1, _]*): ZIO[ZEnv, E1, A] =
+    macro ProvideLayerMacros.provideCustomLayerImpl[ZIO, R, E1, A]
 
   /**
    * Automatically assembles a layer for the ZIO effect.
    */
-  def provideLayerAuto[E1 >: E](layers: ZLayer[_, E1, _]*): ZIO[Any, E1, A] =
-    macro ProvideLayerAutoMacros.provideLayerAutoImpl[ZIO, R, E1, A]
+  def provideLayer[E1 >: E](layers: ZLayer[_, E1, _]*): ZIO[Any, E1, A] =
+    macro ProvideLayerMacros.provideLayerImpl[ZIO, R, E1, A]
 
 }

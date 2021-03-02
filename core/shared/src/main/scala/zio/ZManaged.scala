@@ -706,10 +706,10 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    *
    * val managed: ZManaged[ZEnv with Logging, Nothing, Unit] = ???
    *
-   * val managed2 = managed.provideCustomLayer(loggingLayer)
+   * val managed2 = managed.provideCustomLayerManual(loggingLayer)
    * }}}
    */
-  def provideCustomLayer[E1 >: E, R1 <: Has[_]](
+  def provideCustomLayerManual[E1 >: E, R1 <: Has[_]](
     layer: ZLayer[ZEnv, E1, R1]
   )(implicit ev: ZEnv with R1 <:< R, tagged: Tag[R1]): ZManaged[ZEnv, E1, A] =
     provideSomeLayer[ZEnv](layer)
@@ -717,7 +717,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   /**
    * Provides a layer to the `ZManaged`, which translates it to another level.
    */
-  def provideLayer[E1 >: E, R0, R1](
+  def provideLayerManual[E1 >: E, R0, R1](
     layer: ZLayer[R0, E1, R1]
   )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R]): ZManaged[R0, E1, A] =
     layer.build.map(ev1).flatMap(self.provide)
@@ -1214,7 +1214,7 @@ object ZManaged extends ZManagedPlatformSpecific {
     def apply[E1 >: E, R1 <: Has[_]](
       layer: ZLayer[R0, E1, R1]
     )(implicit ev1: R0 with R1 <:< R, ev2: NeedsEnv[R], tagged: Tag[R1]): ZManaged[R0, E1, A] =
-      self.provideLayer[E1, R0, R0 with R1](ZLayer.identity[R0] ++ layer)
+      self.provideLayerManual[E1, R0, R0 with R1](ZLayer.identity[R0] ++ layer)
   }
 
   final class UnlessM[R, E](private val b: ZManaged[R, E, Boolean]) extends AnyVal {

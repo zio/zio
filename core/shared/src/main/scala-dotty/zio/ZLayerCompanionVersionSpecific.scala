@@ -1,6 +1,6 @@
 package zio
 
-import zio.internal.macros.ProvideLayerAutoMacros
+import zio.internal.macros.ProvideLayerMacros
 
 final class FromAutoPartiallyApplied[R <: Has[_]](val dummy: Boolean = true) extends AnyVal {
   inline def apply[E](inline layers: ZLayer[_, E, _]*): ZLayer[Any, E, R] =

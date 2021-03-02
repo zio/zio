@@ -12,29 +12,29 @@ object SpecSpec extends ZIOBaseSpec {
     ZLayer.succeed(())
 
   def spec: Spec[TestEnvironment, TestFailure[Nothing], TestSuccess] = suite("SpecSpec")(
-    suite("provideCustomLayer")(
+    suite("provideCustomLayerManual")(
       testM("provides the part of the environment that is not part of the `TestEnvironment`") {
         for {
           _ <- ZIO.environment[TestEnvironment]
           _ <- ZIO.environment[Has[Unit]]
         } yield assertCompletes
-      }.provideCustomLayer(layer)
+      }.provideCustomLayerManual(layer)
     ),
-    suite("provideLayer")(
+    suite("provideLayerManual")(
       testM("does not have early initialization issues") {
         for {
           _ <- ZIO.environment[Has[Unit]]
         } yield assertCompletes
-      }.provideLayer(layer)
+      }.provideLayerManual(layer)
     ),
-    suite("provideLayerShared")(
+    suite("provideLayerManualShared")(
       testM("gracefully handles fiber death") {
         implicit val needsEnv = NeedsEnv
         val spec = suite("suite")(
           test("test") {
             assert(true)(isTrue)
           }
-        ).provideLayerShared(ZLayer.fromEffectMany(ZIO.dieMessage("everybody dies")))
+        ).provideLayerManualShared(ZLayer.fromEffectMany(ZIO.dieMessage("everybody dies")))
         for {
           _ <- execute(spec)
         } yield assertCompletes
@@ -51,7 +51,7 @@ object SpecSpec extends ZIOBaseSpec {
         for {
           ref    <- Ref.make(true)
           layer   = ZLayer.fromEffect(ref.set(false).as(ref))
-          _      <- execute(spec.provideCustomLayerShared(layer) @@ ifEnvSet("foo"))
+          _      <- execute(spec.provideCustomLayerManualShared(layer) @@ ifEnvSet("foo"))
           result <- ref.get
         } yield assert(result)(isTrue)
       },
@@ -66,7 +66,7 @@ object SpecSpec extends ZIOBaseSpec {
           testM("test3") {
             assertM(ZIO.service[Int])(Assertion.equalTo(42))
           }
-        ).provideLayerShared(ZLayer.succeed(43))
+        ).provideLayerManualShared(ZLayer.succeed(43))
         for {
           executedSpec <- execute(spec)
           successes = executedSpec.fold[Int] { c =>
@@ -144,7 +144,7 @@ object SpecSpec extends ZIOBaseSpec {
                      testM("test2") {
                        assertM(update)(equalTo(2))
                      }
-                   ).provideCustomLayerShared(layer),
+                   ).provideCustomLayerManualShared(layer),
                    suite("suite2")(
                      testM("test1") {
                        assertM(update)(equalTo(1))
@@ -152,7 +152,7 @@ object SpecSpec extends ZIOBaseSpec {
                      testM("test2") {
                        assertM(update)(equalTo(2))
                      }
-                   ).provideCustomLayerShared(layer)
+                   ).provideCustomLayerManualShared(layer)
                  ) @@ sequential
           succeeded <- succeeded(spec)
           log       <- ref.get.map(_.reverse)
@@ -173,7 +173,7 @@ object SpecSpec extends ZIOBaseSpec {
                 }
               )
             )
-          ).provideCustomLayerShared(ZLayer.fromAcquireRelease(Ref.make(0))(_.set(-1)))
+          ).provideCustomLayerManualShared(ZLayer.fromAcquireRelease(Ref.make(0))(_.set(-1)))
         assertM(succeeded(spec))(isTrue)
       }
     )

@@ -266,7 +266,7 @@ object ZLayerSpec extends ZIOBaseSpec {
         val l1: Layer[Nothing, Has[A]]               = ZLayer.succeed(A("name", 1))
         val l2: ZLayer[Has[String], Nothing, Has[B]] = ZLayer.fromService(B.apply)
         val live: Layer[Nothing, Has[B]]             = l1.map(a => Has(a.get[A].name)) >>> l2
-        assertM(ZIO.access[Has[B]](_.get).provideLayer(live))(equalTo(B("name")))
+        assertM(ZIO.access[Has[B]](_.get).provideLayerManual(live))(equalTo(B("name")))
       },
       testM("memoization") {
         val expected = Vector(acquire1, release1)
@@ -275,8 +275,8 @@ object ZLayerSpec extends ZIOBaseSpec {
           memoized = makeLayer1(ref).memoize
           _ <- memoized.use { layer =>
                  for {
-                   _ <- ZIO.environment[Module1].provideLayer(layer)
-                   _ <- ZIO.environment[Module1].provideLayer(layer)
+                   _ <- ZIO.environment[Module1].provideLayerManual(layer)
+                   _ <- ZIO.environment[Module1].provideLayerManual(layer)
                  } yield ()
                }
           actual <- ref.get
@@ -303,7 +303,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           i <- ZIO.environment[Has[Int]].map(_.get[Int])
           s <- ZIO.environment[Has[String]].map(_.get[String])
         } yield (i, s)
-        assertM(zio.provideLayer(live))(equalTo((1, "1")))
+        assertM(zio.provideLayerManual(live))(equalTo((1, "1")))
       },
       testM("fresh with ++") {
         val expected = Vector(acquire1, acquire1, release1, release1)
@@ -369,19 +369,19 @@ object ZLayerSpec extends ZIOBaseSpec {
         } yield assert(result)(equalTo(4))
       },
       testM("error handling") {
-        val sleep  = ZIO.sleep(100.milliseconds).provideLayer(Clock.live)
+        val sleep  = ZIO.sleep(100.milliseconds).provideLayerManual(Clock.live)
         val layer1 = ZLayer.fail("foo")
         val layer2 = ZLayer.succeed("bar")
         val layer3 = ZLayer.succeed("baz")
         val layer4 = ZLayer.fromAcquireRelease(sleep)(_ => sleep)
         val env    = layer1 ++ ((layer2 ++ layer3) >+> layer4)
-        assertM(ZIO.unit.provideCustomLayer(env).run)(fails(equalTo("foo")))
+        assertM(ZIO.unit.provideCustomLayerManual(env).run)(fails(equalTo("foo")))
       },
       testM("project") {
         final case class Person(name: String, age: Int)
         val personLayer = ZLayer.succeed(Person("User", 42))
         val ageLayer    = personLayer.project(_.age)
-        assertM(ZIO.service[Int].provideLayer(ageLayer))(equalTo(42))
+        assertM(ZIO.service[Int].provideLayerManual(ageLayer))(equalTo(42))
       },
       testM("tap") {
         for {

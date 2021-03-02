@@ -559,7 +559,7 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
   /**
    * Provides a layer to the schedule, which translates it to another level.
    */
-  def provideLayer[Env0, Env1](
+  def provideLayerManual[Env0, Env1](
     layer: ZLayer[Env0, Nothing, Env1]
   )(implicit ev1: Env1 <:< Env, ev2: NeedsEnv[Env]): Schedule[Env0, In, Out] = {
     def loop(self: StepFunction[Env, In, Out]): StepFunction[Env0, In, Out] =
@@ -567,7 +567,7 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
         self(now, in).map {
           case Done(out)                     => Done(out)
           case Continue(out, interval, next) => Continue(out, interval, loop(next))
-        }.provideLayer(layer)
+        }.provideLayerManual(layer)
 
     Schedule(loop(step))
   }
@@ -591,7 +591,7 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
    * Provides the part of the environment that is not part of the `ZEnv`,
    * leaving a schedule that only depends on the `ZEnv`.
    */
-  final def provideCustomLayer[Env1 <: Has[_]](
+  final def provideCustomLayerManual[Env1 <: Has[_]](
     layer: ZLayer[ZEnv, Nothing, Env1]
   )(implicit ev: ZEnv with Env1 <:< Env, tagged: Tag[Env1]): Schedule[ZEnv, In, Out] =
     provideSomeLayer[ZEnv](layer)
@@ -1408,6 +1408,6 @@ object Schedule {
     def apply[Env1 <: Has[_]](
       layer: ZLayer[Env0, Nothing, Env1]
     )(implicit ev1: Env0 with Env1 <:< Env, ev2: NeedsEnv[Env], tagged: Tag[Env1]): Schedule[Env0, In, Out] =
-      self.provideLayer[Env0, Env0 with Env1](ZLayer.identity[Env0] ++ layer)
+      self.provideLayerManual[Env0, Env0 with Env1](ZLayer.identity[Env0] ++ layer)
   }
 }

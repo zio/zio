@@ -352,7 +352,7 @@ We can combine our expectation to build complex scenarios using combinators defi
 object AccountObserverSpec extends DefaultRunnableSpec {
   def spec = suite("processEvent")(
     testM("calls putStrLn > getStrLn > putStrLn and returns unit") {
-      val result = app.provideLayer(mockEnv >>> AccountObserver.live)
+      val result = app.provideLayerManual(mockEnv >>> AccountObserver.live)
       assertM(result)(isUnit)
     }
   )
@@ -402,7 +402,7 @@ val combinedApp =
     _    <- console.putStrLn(s"$name, your lucky number today is $num!")
   } yield ()
 
-val result = combinedApp.provideLayer(combinedEnv)
+val result = combinedApp.provideLayerManual(combinedEnv)
 assertM(result)(isUnit)
 ```
 

@@ -9,9 +9,9 @@ import zio.internal.macros.StringUtils.StringOps
 import AutoLayerMacroUtils._
 
 object ProvideLayerAutoMacros {
-  def provideLayerAutoImpl[R0: Type, R: Type, E: Type, A: Type](zio: Expr[ZIO[R,E,A]], layers: Expr[Seq[ZLayer[_,E,_]]])(using Quotes): Expr[ZIO[R0,E,A]] = {
+  def provideLayerImpl[R0: Type, R: Type, E: Type, A: Type](zio: Expr[ZIO[R,E,A]], layers: Expr[Seq[ZLayer[_,E,_]]])(using Quotes): Expr[ZIO[R0,E,A]] = {
     val layerExpr = fromAutoImpl[R0, R, E](layers)
-    '{$zio.provideLayer($layerExpr.asInstanceOf[ZLayer[R0,E,R]])}
+    '{$zio.provideLayerManual($layerExpr.asInstanceOf[ZLayer[R0,E,R]])}
   }
 
   def fromAutoImpl[In: Type, Out: Type, E: Type](layers: Expr[Seq[ZLayer[_,E,_]]])(using Quotes): Expr[ZLayer[In,E,Out]] = {

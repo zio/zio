@@ -20,7 +20,7 @@ object ProvideLayerAutoExample extends App {
 
   def run(args: List[String]): URIO[ZEnv, ExitCode] =
     program
-      .provideLayerAuto(OldLady.live, Spider.live, Fly.live, Bear.live, Console.live)
+      .provideLayer(OldLady.live, Spider.live, Fly.live, Bear.live, Console.live)
       .exitCode
 
   trait OldLady {

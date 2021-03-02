@@ -1,6 +1,6 @@
 package zio.stream
 
-import zio.internal.macros.ProvideLayerAutoMacros
+import zio.internal.macros.ProvideLayerMacros
 import zio.{ZEnv, ZLayer}
 
 private[zio] trait ZStreamVersionSpecific[-R, +E, +O] { self: ZStream[R, E, O] =>
@@ -16,16 +16,16 @@ private[zio] trait ZStreamVersionSpecific[-R, +E, +O] { self: ZStream[R, E, O] =
    * val flyLayer: ZLayer[Blocking, Nothing, Fly] = ???
    *
    * // The ZEnv you use later will provide both Blocking to flyLayer and Console to stream
-   * val stream2 : ZStream[ZEnv, Nothing, Unit] = stream.provideCustomLayerAuto(oldLadyLayer, flyLayer)
+   * val stream2 : ZStream[ZEnv, Nothing, Unit] = stream.provideCustomLayer(oldLadyLayer, flyLayer)
    * }}}
    */
-  def provideCustomLayerAuto[E1 >: E](layers: ZLayer[_, E1, _]*): ZStream[ZEnv, E1, O] =
-    macro ProvideLayerAutoMacros.provideCustomLayerAutoImpl[ZStream, R, E1, O]
+  def provideCustomLayer[E1 >: E](layers: ZLayer[_, E1, _]*): ZStream[ZEnv, E1, O] =
+    macro ProvideLayerMacros.provideCustomLayerImpl[ZStream, R, E1, O]
 
   /**
    * Automatically assembles a layer for the ZStream effect.
    */
-  def provideLayerAuto[E1 >: E](layers: ZLayer[_, E1, _]*): ZStream[Any, E1, O] =
-    macro ProvideLayerAutoMacros.provideLayerAutoImpl[ZStream, R, E1, O]
+  def provideLayer[E1 >: E](layers: ZLayer[_, E1, _]*): ZStream[Any, E1, O] =
+    macro ProvideLayerMacros.provideLayerImpl[ZStream, R, E1, O]
 
 }

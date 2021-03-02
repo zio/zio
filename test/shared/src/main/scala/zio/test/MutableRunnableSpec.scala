@@ -145,7 +145,7 @@ class MutableRunnableSpec[R <: Has[_]](
 
   final override def spec: ZSpec[Environment, Failure] = {
     specBuilt = true
-    (stack.head @@ aspect).toSpec.provideLayerShared(layer.mapError(TestFailure.fail))
+    (stack.head @@ aspect).toSpec.provideLayerManualShared(layer.mapError(TestFailure.fail))
   }
 
   override def aspects: List[TestAspect[Nothing, TestEnvironment, Nothing, Any]] =

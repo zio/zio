@@ -40,7 +40,7 @@ object ConsoleSpec extends ZIOBaseSpec {
             assert(input1)(equalTo("Input 1")) &&
             assert(input2)(equalTo("Input 2"))
           }
-        }.provideLayer(TestConsole.make(Data(List("Input 1", "Input 2"), Vector.empty)))
+        }.provideLayerManual(TestConsole.make(Data(List("Input 1", "Input 2"), Vector.empty)))
       },
       testM("fails on empty input") {
         for {

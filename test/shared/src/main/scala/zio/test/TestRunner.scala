@@ -49,7 +49,7 @@ final case class TestRunner[R <: Has[_], E](
   def unsafeRun(
     spec: ZSpec[R, E]
   ): ExecutedSpec[E] =
-    runtime.unsafeRun(run(spec).provideLayer(bootstrap))
+    runtime.unsafeRun(run(spec).provideLayerManual(bootstrap))
 
   /**
    * An unsafe, asynchronous run of the specified spec.
@@ -59,7 +59,7 @@ final case class TestRunner[R <: Has[_], E](
   )(
     k: ExecutedSpec[E] => Unit
   ): Unit =
-    runtime.unsafeRunAsync(run(spec).provideLayer(bootstrap)) {
+    runtime.unsafeRunAsync(run(spec).provideLayerManual(bootstrap)) {
       case Exit.Success(v) => k(v)
       case Exit.Failure(c) => throw FiberFailure(c)
     }
@@ -70,7 +70,7 @@ final case class TestRunner[R <: Has[_], E](
   def unsafeRunSync(
     spec: ZSpec[R, E]
   ): Exit[Nothing, ExecutedSpec[E]] =
-    runtime.unsafeRunSync(run(spec).provideLayer(bootstrap))
+    runtime.unsafeRunSync(run(spec).provideLayerManual(bootstrap))
 
   /**
    * Creates a copy of this runner replacing the reporter.

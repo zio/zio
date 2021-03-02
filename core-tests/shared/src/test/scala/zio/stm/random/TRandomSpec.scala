@@ -46,7 +46,7 @@ object TRandomSpec extends ZIOBaseSpec {
           assert(n)(isLessThan(max))
       }
     }
-  ).provideCustomLayer(TRandom.live)
+  ).provideCustomLayerManual(TRandom.live)
 
   val genDoubles: Gen[Random, (Double, Double)] =
     for {

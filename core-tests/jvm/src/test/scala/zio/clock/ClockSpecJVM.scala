@@ -19,7 +19,7 @@ object ClockSpecJVM extends ZIOBaseSpec {
           _ <- ZIO.foreach(1 to 1000)(_ => UIO.unit) // just pass some time
           b <- clock.currentTime(unit)
         } yield assert((b - a) % 1000)(not(equalTo(0L)))
-      }.provideLayer(Clock.live)
+      }.provideLayerManual(Clock.live)
       // We might actually have measured exactly one millisecond. In that case we can simply retry.
         @@ TestAspect.flaky
         // This test should only run on JRE >= 9, which is when microsecond precision was introduced.
@@ -32,7 +32,7 @@ object ClockSpecJVM extends ZIOBaseSpec {
           time   <- clock.currentTime(unit).map(TimeUnit.MILLISECONDS.convert(_, unit))
           finish <- ZIO.effectTotal(Instant.now).map(_.toEpochMilli)
         } yield assert(time)(isGreaterThanEqualTo(start) && isLessThanEqualTo(finish))
-      }.provideLayer(Clock.live)
+      }.provideLayerManual(Clock.live)
         @@ TestAspect.nonFlaky
     )
 }

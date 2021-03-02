@@ -1,7 +1,7 @@
 import zio._
 import zio.console._
 
-import zio.internal.macros.ProvideLayerAutoMacros
+import zio.internal.macros.ProvideLayerMacros
 import zio.internal.macros.AutoLayerMacroUtils
 
 object Cool extends App {
@@ -30,5 +30,5 @@ object Cool extends App {
     ZLayer.fromAuto[Console ++ String ++ Int](layer, boolLayer, Console.live) 
 
   def run(args: List[String]) =
-    program.provideCustomLayerAuto(layer, boolLayer).exitCode
+    program.provideCustomLayer(layer, boolLayer).exitCode
 }
