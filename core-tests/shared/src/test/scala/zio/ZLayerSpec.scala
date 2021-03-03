@@ -32,7 +32,7 @@ object ZLayerSpec extends ZIOBaseSpec {
   }
 
   def makeLayer1(ref: Ref[Vector[String]]): ZLayer[Any, Nothing, Module1] =
-    ZLayer {
+    ZLayer.many {
       ZManaged.make(ref.update(_ :+ acquire1).as(Has(new Module1.Service {})))(_ => ref.update(_ :+ release1))
     }
 
@@ -43,7 +43,7 @@ object ZLayerSpec extends ZIOBaseSpec {
   }
 
   def makeLayer2(ref: Ref[Vector[String]]): ZLayer[Any, Nothing, Module2] =
-    ZLayer {
+    ZLayer.many {
       ZManaged.make(ref.update(_ :+ acquire2).as(Has(new Module2.Service {})))(_ => ref.update(_ :+ release2))
     }
 
@@ -54,7 +54,7 @@ object ZLayerSpec extends ZIOBaseSpec {
   }
 
   def makeLayer3(ref: Ref[Vector[String]]): ZLayer[Any, Nothing, Module3] =
-    ZLayer {
+    ZLayer.many {
       ZManaged.make(ref.update(_ :+ acquire3).as(Has(new Module3.Service {})))(_ => ref.update(_ :+ release3))
     }
 
@@ -253,8 +253,8 @@ object ZLayerSpec extends ZIOBaseSpec {
       testM("layers can be acquired in parallel") {
         for {
           promise <- Promise.make[Nothing, Unit]
-          layer1   = ZLayer.fromManagedMany(ZManaged.never)
-          layer2   = ZLayer.fromManagedMany(Managed.make(promise.succeed(()).map(Has(_)))(_ => ZIO.unit))
+          layer1   = ZLayer.many(ZManaged.never)
+          layer2   = ZLayer.many(Managed.make(promise.succeed(()).map(Has(_)))(_ => ZIO.unit))
           env      = (layer1 ++ layer2).build
           _       <- env.use_(ZIO.unit).forkDaemon
           _       <- promise.await
@@ -349,7 +349,7 @@ object ZLayerSpec extends ZIOBaseSpec {
       testM("preserves identity of acquired resources") {
         for {
           testRef <- Ref.make(Vector[String]())
-          layer = ZLayer.fromManagedMany(
+          layer = ZLayer.many(
                     for {
                       ref <- Ref.make[Vector[String]](Vector()).toManaged(ref => ref.get.flatMap(testRef.set))
                       _   <- ZManaged.unit
@@ -363,7 +363,7 @@ object ZLayerSpec extends ZIOBaseSpec {
         for {
           ref    <- Ref.make(0)
           effect  = ref.update(_ + 1) *> ZIO.fail("fail")
-          layer   = ZLayer.fromEffectMany(effect).retry(Schedule.recurs(3))
+          layer   = ZLayer.many(effect).retry(Schedule.recurs(3))
           _      <- layer.build.useNow.ignore
           result <- ref.get
         } yield assert(result)(equalTo(4))
@@ -373,7 +373,7 @@ object ZLayerSpec extends ZIOBaseSpec {
         val layer1 = ZLayer.fail("foo")
         val layer2 = ZLayer.succeed("bar")
         val layer3 = ZLayer.succeed("baz")
-        val layer4 = ZLayer.fromAcquireRelease(sleep)(_ => sleep)
+        val layer4 = ZManaged.make(sleep)(_ => sleep).toLayer
         val env    = layer1 ++ ((layer2 ++ layer3) >+> layer4)
         assertM(ZIO.unit.provideCustomLayer(env).run)(fails(equalTo("foo")))
       },

@@ -305,15 +305,15 @@ private[mock] object MockableMacro {
           ..$tags
 
           val compose: $composeAsc =
-            _root_.zio.ZLayer.fromServiceM { proxy =>
-              withRuntime.map { rts =>
+            _root_.zio.ZIO.service[_root_.zio.test.mock.Proxy].flatMap { proxy =>
+              withRuntime[_root_.zio.Has[_root_.zio.test.mock.Proxy]].map { rts =>
                 class $serviceClassName extends $service {
                   ..$mocks
                 }
                 new $serviceClassName
               }
-            }
-
+            }.toLayer
+            
           ..$body
         }
       """

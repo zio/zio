@@ -48,7 +48,7 @@ package object random {
       ZLayer.requires[Has[TRandom]]
 
     val live: ZLayer[Has[Random], Nothing, Has[TRandom]] =
-      ZLayer.fromEffect {
+      ZLayer.apply {
         import PureRandom._
         zio.random.nextLong.flatMap { init =>
           TRef

@@ -143,12 +143,15 @@ package object environment extends PlatformSpecific {
      * environment type.
      */
     def default: ZLayer[ZEnv, Nothing, Has[Live]] =
-      ZLayer(ZManaged.access[ZEnv] { zenv =>
-        Has(new Live {
-          def provide[E, A](zio: ZIO[ZEnv, E, A]): IO[E, A] =
-            zio.provide(zenv)
-        })
-      })
+      ZLayer {
+        ZManaged
+          .access[ZEnv] { zenv =>
+            new Live {
+              def provide[E, A](zio: ZIO[ZEnv, E, A]): IO[E, A] =
+                zio.provide(zenv)
+            }
+          }
+      }
 
     /**
      * Provides an effect with the "live" environment.
@@ -481,15 +484,18 @@ package object environment extends PlatformSpecific {
      * interface. This can be useful for mixing in with implementations of
      * other interfaces.
      */
-    def live(data: Data): ZLayer[Has[Live] with Has[Annotations], Nothing, Has[Clock] with Has[TestClock]] =
-      ZLayer.fromServicesManyManaged[Live, Annotations, Any, Nothing, Has[Clock] with Has[TestClock]] {
-        (live: Live, annotations: Annotations) =>
-          for {
-            ref  <- Ref.make(data).toManaged_
-            refM <- RefM.make(WarningData.start).toManaged_
-            test <- Managed.make(UIO(Test(ref, live, annotations, refM)))(_.warningDone)
-          } yield Has.allOf[Clock, TestClock](test, test)
+    def live(data: Data): ZLayer[Has[Annotations] with Has[Live], Nothing, Has[Clock] with Has[TestClock]] =
+      ZLayer.many {
+        for {
+          live        <- ZManaged.service[Live]
+          annotations <- ZManaged.service[Annotations]
+          ref         <- Ref.make(data).toManaged_
+          refM        <- RefM.make(WarningData.start).toManaged_
+          test        <- Managed.make(UIO(Test(ref, live, annotations, refM)))(_.warningDone)
+        } yield Has.allOf[Clock, TestClock](test, test)
       }
+
+//    case class FooLive(int: Int, string: String)
 
     val any: ZLayer[Has[Clock] with Has[TestClock], Nothing, Has[Clock] with Has[TestClock]] =
       ZLayer.requires[Has[Clock] with Has[TestClock]]
@@ -786,8 +792,9 @@ package object environment extends PlatformSpecific {
      * interfaces.
      */
     def make(data: Data, debug: Boolean = true): ZLayer[Has[Live], Nothing, Has[Console] with Has[TestConsole]] =
-      ZLayer.fromServiceManyM { (live: Live) =>
+      ZLayer.many {
         for {
+          live     <- ZIO.service[Live]
           ref      <- Ref.make(data)
           debugRef <- FiberRef.make(debug)
           test      = Test(ref, live, debugRef)
@@ -1516,7 +1523,7 @@ package object environment extends PlatformSpecific {
      * requires a `Random`, such as with `ZIO#provide`.
      */
     def make(data: Data): Layer[Nothing, Has[Random] with Has[TestRandom]] =
-      ZLayer.fromEffectMany(for {
+      ZLayer.many(for {
         data   <- Ref.make(data)
         buffer <- Ref.make(Buffer())
         test    = Test(data, buffer)
@@ -1530,13 +1537,12 @@ package object environment extends PlatformSpecific {
 
     val random: ZLayer[Has[Clock], Nothing, Has[Random] with Has[TestRandom]] =
       (ZLayer.service[Clock] ++ deterministic) >>>
-        ZLayer.fromFunctionManyM { (env: Has[Clock] with Has[Random] with Has[TestRandom]) =>
-          val random     = env.get[Random]
-          val testRandom = env.get[TestRandom]
-
+        ZLayer.many {
           for {
-            time <- env.get[Clock].nanoTime
-            _    <- env.get[TestRandom].setSeed(time)
+            random     <- ZIO.service[Random]
+            testRandom <- ZIO.service[TestRandom]
+            time       <- clock.nanoTime
+            _          <- TestRandom.setSeed(time)
           } yield Has.allOf[Random, TestRandom](random, testRandom)
         }
 
@@ -1717,7 +1723,7 @@ package object environment extends PlatformSpecific {
      * requires a `TestSystem`, such as with `ZIO#provide`.
      */
     def live(data: Data): Layer[Nothing, Has[System] with Has[TestSystem]] =
-      ZLayer.fromEffectMany(
+      ZLayer.many(
         Ref.make(data).map(ref => Has.allOf[System, TestSystem](Test(ref), Test(ref)))
       )
 

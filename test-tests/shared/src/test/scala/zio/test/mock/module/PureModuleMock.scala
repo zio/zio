@@ -2,7 +2,7 @@ package zio.test.mock.module
 
 import com.github.ghik.silencer.silent
 import zio.test.mock.{Mock, Proxy}
-import zio.{Has, IO, Tag, UIO, URLayer, ZLayer}
+import zio.{Has, IO, Tag, UIO, URLayer, ZIO, ZLayer}
 
 /**
  * Example pure module used for testing ZIO Mock framework.
@@ -40,60 +40,63 @@ object PureModuleMock extends Mock[PureModule] {
 
   @silent("is never used")
   val compose: URLayer[Has[Proxy], PureModule] =
-    ZLayer.fromServiceM { proxy =>
-      withRuntime.map { rts =>
-        new PureModule.Service {
-          val static: IO[String, String]                                     = proxy(Static)
-          def zeroParams: IO[String, String]                                 = proxy(ZeroParams)
-          def zeroParamsWithParens(): IO[String, String]                     = proxy(ZeroParamsWithParens)
-          def singleParam(a: Int): IO[String, String]                        = proxy(SingleParam, a)
-          def manyParams(a: Int, b: String, c: Long): IO[String, String]     = proxy(ManyParams, (a, b, c))
-          def manyParamLists(a: Int)(b: String)(c: Long): IO[String, String] = proxy(ManyParamLists, a, b, c)
-          def command: IO[Unit, Unit]                                        = proxy(Command)
-          def parameterizedCommand(a: Int): IO[Unit, Unit]                   = proxy(ParameterizedCommand, a)
-          def looped(a: Int): UIO[Nothing]                                   = proxy(Looped, a)
-          def overloaded(n: Int): IO[String, String]                         = proxy(Overloaded._0, n)
-          def overloaded(n: Long): IO[String, String]                        = proxy(Overloaded._1, n)
-          def polyInput[I: Tag](v: I): IO[String, String]                    = proxy(PolyInput.of[I], v)
-          def polyError[E: Tag](v: String): IO[E, String]                    = proxy(PolyError.of[E], v)
-          def polyOutput[A: Tag](v: String): IO[String, A]                   = proxy(PolyOutput.of[A], v)
-          def polyInputError[I: Tag, E: Tag](v: I): IO[E, String]            = proxy(PolyInputError.of[I, E], v)
-          def polyInputOutput[I: Tag, A: Tag](v: I): IO[String, A]           = proxy(PolyInputOutput.of[I, A], v)
-          def polyErrorOutput[E: Tag, A: Tag](v: String): IO[E, A]           = proxy(PolyErrorOutput.of[E, A], v)
-          def polyInputErrorOutput[I: Tag, E: Tag, A: Tag](v: I): IO[E, A] =
-            proxy(PolyInputErrorOutput.of[I, E, A], v)
-          def polyMixed[A: Tag]: IO[String, (A, String)]      = proxy(PolyMixed.of[(A, String)])
-          def polyBounded[A <: AnyVal: Tag]: IO[String, A]    = proxy(PolyBounded.of[A])
-          def varargs(a: Int, b: String*): IO[String, String] = proxy(Varargs, (a, b))
-          def curriedVarargs(a: Int, b: String*)(c: Long, d: Char*): IO[String, String] =
-            proxy(CurriedVarargs, (a, b, c, d))
-          def byName(a: => Int): IO[String, String] = proxy(ByName, a)
-          def maxParams(
-            a: Int,
-            b: Int,
-            c: Int,
-            d: Int,
-            e: Int,
-            f: Int,
-            g: Int,
-            h: Int,
-            i: Int,
-            j: Int,
-            k: Int,
-            l: Int,
-            m: Int,
-            n: Int,
-            o: Int,
-            p: Int,
-            q: Int,
-            r: Int,
-            s: Int,
-            t: Int,
-            u: Int,
-            v: Int
-          ): IO[String, String] =
-            proxy(MaxParams, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v))
+    ZIO
+      .service[Proxy]
+      .flatMap { proxy =>
+        withRuntime[Has[Proxy]].map { rts =>
+          new PureModule.Service {
+            val static: IO[String, String]                                     = proxy(Static)
+            def zeroParams: IO[String, String]                                 = proxy(ZeroParams)
+            def zeroParamsWithParens(): IO[String, String]                     = proxy(ZeroParamsWithParens)
+            def singleParam(a: Int): IO[String, String]                        = proxy(SingleParam, a)
+            def manyParams(a: Int, b: String, c: Long): IO[String, String]     = proxy(ManyParams, (a, b, c))
+            def manyParamLists(a: Int)(b: String)(c: Long): IO[String, String] = proxy(ManyParamLists, a, b, c)
+            def command: IO[Unit, Unit]                                        = proxy(Command)
+            def parameterizedCommand(a: Int): IO[Unit, Unit]                   = proxy(ParameterizedCommand, a)
+            def looped(a: Int): UIO[Nothing]                                   = proxy(Looped, a)
+            def overloaded(n: Int): IO[String, String]                         = proxy(Overloaded._0, n)
+            def overloaded(n: Long): IO[String, String]                        = proxy(Overloaded._1, n)
+            def polyInput[I: Tag](v: I): IO[String, String]                    = proxy(PolyInput.of[I], v)
+            def polyError[E: Tag](v: String): IO[E, String]                    = proxy(PolyError.of[E], v)
+            def polyOutput[A: Tag](v: String): IO[String, A]                   = proxy(PolyOutput.of[A], v)
+            def polyInputError[I: Tag, E: Tag](v: I): IO[E, String]            = proxy(PolyInputError.of[I, E], v)
+            def polyInputOutput[I: Tag, A: Tag](v: I): IO[String, A]           = proxy(PolyInputOutput.of[I, A], v)
+            def polyErrorOutput[E: Tag, A: Tag](v: String): IO[E, A]           = proxy(PolyErrorOutput.of[E, A], v)
+            def polyInputErrorOutput[I: Tag, E: Tag, A: Tag](v: I): IO[E, A] =
+              proxy(PolyInputErrorOutput.of[I, E, A], v)
+            def polyMixed[A: Tag]: IO[String, (A, String)]      = proxy(PolyMixed.of[(A, String)])
+            def polyBounded[A <: AnyVal: Tag]: IO[String, A]    = proxy(PolyBounded.of[A])
+            def varargs(a: Int, b: String*): IO[String, String] = proxy(Varargs, (a, b))
+            def curriedVarargs(a: Int, b: String*)(c: Long, d: Char*): IO[String, String] =
+              proxy(CurriedVarargs, (a, b, c, d))
+            def byName(a: => Int): IO[String, String] = proxy(ByName, a)
+            def maxParams(
+              a: Int,
+              b: Int,
+              c: Int,
+              d: Int,
+              e: Int,
+              f: Int,
+              g: Int,
+              h: Int,
+              i: Int,
+              j: Int,
+              k: Int,
+              l: Int,
+              m: Int,
+              n: Int,
+              o: Int,
+              p: Int,
+              q: Int,
+              r: Int,
+              s: Int,
+              t: Int,
+              u: Int,
+              v: Int
+            ): IO[String, String] =
+              proxy(MaxParams, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v))
+          }
         }
       }
-    }
+      .toLayer
 }

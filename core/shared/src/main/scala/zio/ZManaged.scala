@@ -996,14 +996,14 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
    * Constructs a layer from this managed resource.
    */
   def toLayer[A1 >: A: Tag]: ZLayer[R, E, Has[A1]] =
-    ZLayer.fromManaged(self)
+    ZLayer.apply(self)
 
   /**
    * Constructs a layer from this managed resource, which must return one or
    * more services.
    */
   def toLayerMany[A1 <: Has[_]](implicit ev: A <:< A1): ZLayer[R, E, A1] =
-    ZLayer(self.map(ev))
+    ZLayer.many(self.map(ev))
 
   /**
    * Return unit while running the effect

@@ -176,7 +176,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    * computed result of this layer.
    */
   final def memoize: ZManaged[Any, Nothing, ZLayer[RIn, E, ROut]] =
-    build.memoize.map(ZLayer(_))
+    build.memoize.map(ZLayer.many(_))
 
   /**
    * Translates effect failure into death of the fiber, making all failures
@@ -215,7 +215,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
           }
         update >>> ZLayer.suspend(loop.fresh)
       }
-    ZLayer.identity <&> ZLayer.fromEffectMany(ZIO.succeed(schedule.step)) >>> loop
+    ZLayer.identity <&> ZLayer.many(ZIO.succeed(schedule.step)) >>> loop
   }
 
   /**
@@ -294,7 +294,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
       case ZLayer.Suspend(self) =>
          ZManaged.succeed(memoMap => memoMap.getOrElseMemoize(self()))
       case ZLayer.ZipWith(self, that, f) =>
-        ZManaged.succeed(memoMap => memoMap.getOrElseMemoize(self).zipWith(memoMap.getOrElseMemoize(that))(f))   
+        ZManaged.succeed(memoMap => memoMap.getOrElseMemoize(self).zipWith(memoMap.getOrElseMemoize(that))(f))
       case ZLayer.ZipWithPar(self, that, f) =>
         ZManaged.succeed(memoMap => memoMap.getOrElseMemoize(self).zipWithPar(memoMap.getOrElseMemoize(that))(f))
     }
@@ -324,18 +324,39 @@ object ZLayer {
   /**
    * Constructs a layer from a managed resource.
    */
-  def apply[RIn, E, ROut](managed: ZManaged[RIn, E, ROut]): ZLayer[RIn, E, ROut] =
+  def apply[R, E, A: Tag](managed: ZManaged[R, E, A]): ZLayer[R, E, Has[A]] =
+    many(managed.asService)
+
+  /**
+   * Constructs a layer from an effect.
+   */
+  def apply[R, E, A: Tag](zio: ZIO[R, E, A]): ZLayer[R, E, Has[A]] =
+    many(zio.asService)
+
+  /**
+   * Constructs a layer from a managed resource, which must return one or more
+   * services.
+   */
+  def many[R, E, A](managed: ZManaged[R, E, A]): ZLayer[R, E, A] =
     Managed(managed)
+
+  /**
+   * Constructs a layer from an effect, which must return one or more services.
+   */
+  def many[R, E, A](zio: ZIO[R, E, A]): ZLayer[R, E, A] =
+    Managed(zio.toManaged_)
 
   /**
    * Constructs a layer that fails with the specified value.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZIO.fail", "zio 2.0.0")
   def fail[E](e: E): Layer[E, Nothing] =
-    ZLayer(ZManaged.fail(e))
+    ZLayer.many(ZManaged.fail(e))
 
   /**
    * A layer that passes along the first element of a tuple.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZIO", "zio 2.0.0")
   def first[A]: ZLayer[(A, Any), Nothing, A] =
     ZLayer.fromFunctionMany(_._1)
 
@@ -343,6 +364,7 @@ object ZLayer {
    * Constructs a layer from acquire and release actions. The acquire and
    * release actions will be performed uninterruptibly.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZManaged", "zio 2.0.0")
   def fromAcquireRelease[R, E, A: Tag](acquire: ZIO[R, E, A])(release: A => URIO[R, Any]): ZLayer[R, E, Has[A]] =
     fromManaged(ZManaged.make(acquire)(release))
 
@@ -351,12 +373,14 @@ object ZLayer {
    * or more services. The acquire and release actions will be performed
    * uninterruptibly.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZManaged", "zio 2.0.0")
   def fromAcquireReleaseMany[R, E, A](acquire: ZIO[R, E, A])(release: A => URIO[R, Any]): ZLayer[R, E, A] =
     fromManagedMany(ZManaged.make(acquire)(release))
 
   /**
    * Constructs a layer from the specified effect.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZIO", "zio 2.0.0")
   def fromEffect[R, E, A: Tag](zio: ZIO[R, E, A]): ZLayer[R, E, Has[A]] =
     fromEffectMany(zio.asService)
 
@@ -364,12 +388,14 @@ object ZLayer {
    * Constructs a layer from the specified effect, which must return one or
    * more services.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZIO", "zio 2.0.0")
   def fromEffectMany[R, E, A](zio: ZIO[R, E, A]): ZLayer[R, E, A] =
-    ZLayer(ZManaged.fromEffect(zio))
+    ZLayer.many(ZManaged.fromEffect(zio))
 
   /**
    * Constructs a layer from the environment using the specified function.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZIO", "zio 2.0.0")
   def fromFunction[A, B: Tag](f: A => B): ZLayer[A, Nothing, Has[B]] =
     fromFunctionM(a => ZIO.succeedNow(f(a)))
 
@@ -377,6 +403,7 @@ object ZLayer {
    * Constructs a layer from the environment using the specified effectful
    * function.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZIO", "zio 2.0.0")
   def fromFunctionM[A, E, B: Tag](f: A => IO[E, B]): ZLayer[A, E, Has[B]] =
     fromFunctionManaged(a => f(a).toManaged_)
 
@@ -384,6 +411,7 @@ object ZLayer {
    * Constructs a layer from the environment using the specified effectful
    * resourceful function.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZIO", "zio 2.0.0")
   def fromFunctionManaged[A, E, B: Tag](f: A => ZManaged[Any, E, B]): ZLayer[A, E, Has[B]] =
     fromManaged(ZManaged.fromFunctionM(f))
 
@@ -391,6 +419,7 @@ object ZLayer {
    * Constructs a layer from the environment using the specified function,
    * which must return one or more services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZIO", "zio 2.0.0")
   def fromFunctionMany[A, B](f: A => B): ZLayer[A, Nothing, B] =
     fromFunctionManyM(a => ZIO.succeedNow(f(a)))
 
@@ -398,6 +427,7 @@ object ZLayer {
    * Constructs a layer from the environment using the specified effectful
    * function, which must return one or more services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZIO", "zio 2.0.0")
   def fromFunctionManyM[A, E, B](f: A => IO[E, B]): ZLayer[A, E, B] =
     fromFunctionManyManaged(a => f(a).toManaged_)
 
@@ -405,18 +435,21 @@ object ZLayer {
    * Constructs a layer from the environment using the specified effectful
    * resourceful function, which must return one or more services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZIO", "zio 2.0.0")
   def fromFunctionManyManaged[A, E, B](f: A => ZManaged[Any, E, B]): ZLayer[A, E, B] =
-    ZLayer(ZManaged.fromFunctionM(f))
+    ZLayer.many(ZManaged.fromFunctionM(f))
 
   /**
    * Constructs a layer that purely depends on the specified service.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZIO", "zio 2.0.0")
   def fromService[A: Tag, B: Tag](f: A => B): ZLayer[Has[A], Nothing, Has[B]] =
     fromServiceM[A, Any, Nothing, B](a => ZIO.succeedNow(f(a)))
 
   /**
    * Constructs a layer that purely depends on the specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZIO", "zio 2.0.0")
   def fromServices[A0: Tag, A1: Tag, B: Tag](
     f: (A0, A1) => B
   ): ZLayer[Has[A0] with Has[A1], Nothing, Has[B]] = {
@@ -427,6 +460,7 @@ object ZLayer {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZIO", "zio 2.0.0")
   def fromServices[A0: Tag, A1: Tag, A2: Tag, B: Tag](
     f: (A0, A1, A2) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2], Nothing, Has[B]] = {
@@ -437,6 +471,7 @@ object ZLayer {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZIO", "zio 2.0.0")
   def fromServices[A0: Tag, A1: Tag, A2: Tag, A3: Tag, B: Tag](
     f: (A0, A1, A2, A3) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3], Nothing, Has[B]] = {
@@ -447,6 +482,7 @@ object ZLayer {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZIO", "zio 2.0.0")
   def fromServices[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, B: Tag](
     f: (A0, A1, A2, A3, A4) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4], Nothing, Has[B]] = {
@@ -457,6 +493,7 @@ object ZLayer {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZIO", "zio 2.0.0")
   def fromServices[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, B: Tag](
     f: (A0, A1, A2, A3, A4, A5) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5], Nothing, Has[B]] = {
@@ -467,6 +504,7 @@ object ZLayer {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZIO", "zio 2.0.0")
   def fromServices[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6], Nothing, Has[B]] = {
@@ -477,6 +515,7 @@ object ZLayer {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZIO", "zio 2.0.0")
   def fromServices[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7], Nothing, Has[B]] = {
@@ -487,6 +526,7 @@ object ZLayer {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZIO", "zio 2.0.0")
   def fromServices[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8], Nothing, Has[B]] = {
@@ -497,6 +537,7 @@ object ZLayer {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZIO", "zio 2.0.0")
   def fromServices[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9], Nothing, Has[B]] = {
@@ -507,6 +548,7 @@ object ZLayer {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZIO", "zio 2.0.0")
   def fromServices[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10], Nothing, Has[B]] = {
@@ -517,6 +559,7 @@ object ZLayer {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZIO", "zio 2.0.0")
   def fromServices[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11], Nothing, Has[B]] = {
@@ -527,6 +570,7 @@ object ZLayer {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZIO", "zio 2.0.0")
   def fromServices[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12], Nothing, Has[B]] = {
@@ -537,6 +581,7 @@ object ZLayer {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZIO", "zio 2.0.0")
   def fromServices[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13], Nothing, Has[B]] = {
@@ -547,6 +592,7 @@ object ZLayer {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZIO", "zio 2.0.0")
   def fromServices[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14], Nothing, Has[B]] = {
@@ -557,6 +603,7 @@ object ZLayer {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZIO", "zio 2.0.0")
   def fromServices[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15], Nothing, Has[B]] = {
@@ -567,6 +614,7 @@ object ZLayer {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZIO", "zio 2.0.0")
   def fromServices[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16], Nothing, Has[B]] = {
@@ -577,6 +625,7 @@ object ZLayer {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZIO", "zio 2.0.0")
   def fromServices[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, A17: Tag, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17], Nothing, Has[B]] = {
@@ -587,6 +636,7 @@ object ZLayer {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZIO", "zio 2.0.0")
   def fromServices[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, A17: Tag, A18: Tag, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18], Nothing, Has[B]] = {
@@ -597,6 +647,7 @@ object ZLayer {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZIO", "zio 2.0.0")
   def fromServices[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, A17: Tag, A18: Tag, A19: Tag, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19], Nothing, Has[B]] = {
@@ -607,6 +658,7 @@ object ZLayer {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZIO", "zio 2.0.0")
   def fromServices[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, A17: Tag, A18: Tag, A19: Tag, A20: Tag, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19] with Has[A20], Nothing, Has[B]] = {
@@ -617,6 +669,7 @@ object ZLayer {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZIO", "zio 2.0.0")
   def fromServices[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, A17: Tag, A18: Tag, A19: Tag, A20: Tag, A21: Tag, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19] with Has[A20] with Has[A21], Nothing, Has[B]] = {
@@ -627,12 +680,14 @@ object ZLayer {
   /**
    * Constructs a layer that effectfully depends on the specified service.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZIO", "zio 2.0.0")
   def fromServiceM[A: Tag, R, E, B: Tag](f: A => ZIO[R, E, B]): ZLayer[R with Has[A], E, Has[B]] =
     fromServiceManaged(a => f(a).toManaged_)
 
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZIO", "zio 2.0.0")
   def fromServicesM[A0: Tag, A1: Tag, R, E, B: Tag](
     f: (A0, A1) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1], E, Has[B]] = {
@@ -643,6 +698,7 @@ object ZLayer {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZIO", "zio 2.0.0")
   def fromServicesM[A0: Tag, A1: Tag, A2: Tag, R, E, B: Tag](
     f: (A0, A1, A2) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2], E, Has[B]] = {
@@ -653,6 +709,7 @@ object ZLayer {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZIO", "zio 2.0.0")
   def fromServicesM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3], E, Has[B]] = {
@@ -663,6 +720,7 @@ object ZLayer {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZIO", "zio 2.0.0")
   def fromServicesM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4], E, Has[B]] = {
@@ -673,6 +731,7 @@ object ZLayer {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZIO", "zio 2.0.0")
   def fromServicesM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4, A5) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5], E, Has[B]] = {
@@ -683,6 +742,7 @@ object ZLayer {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZIO", "zio 2.0.0")
   def fromServicesM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6], E, Has[B]] = {
@@ -693,6 +753,7 @@ object ZLayer {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZIO", "zio 2.0.0")
   def fromServicesM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7], E, Has[B]] = {
@@ -703,6 +764,7 @@ object ZLayer {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZIO", "zio 2.0.0")
   def fromServicesM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8], E, Has[B]] = {
@@ -713,6 +775,7 @@ object ZLayer {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZIO", "zio 2.0.0")
   def fromServicesM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9], E, Has[B]] = {
@@ -723,6 +786,7 @@ object ZLayer {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZIO", "zio 2.0.0")
   def fromServicesM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10], E, Has[B]] = {
@@ -733,6 +797,7 @@ object ZLayer {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZIO", "zio 2.0.0")
   def fromServicesM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11], E, Has[B]] = {
@@ -743,6 +808,7 @@ object ZLayer {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZIO", "zio 2.0.0")
   def fromServicesM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12], E, Has[B]] = {
@@ -753,6 +819,7 @@ object ZLayer {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZIO", "zio 2.0.0")
   def fromServicesM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13], E, Has[B]] = {
@@ -763,6 +830,7 @@ object ZLayer {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZIO", "zio 2.0.0")
   def fromServicesM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14], E, Has[B]] = {
@@ -773,6 +841,7 @@ object ZLayer {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZIO", "zio 2.0.0")
   def fromServicesM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15], E, Has[B]] = {
@@ -783,6 +852,7 @@ object ZLayer {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZIO", "zio 2.0.0")
   def fromServicesM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16], E, Has[B]] = {
@@ -793,6 +863,7 @@ object ZLayer {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZIO", "zio 2.0.0")
   def fromServicesM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, A17: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17], E, Has[B]] = {
@@ -803,6 +874,7 @@ object ZLayer {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZIO", "zio 2.0.0")
   def fromServicesM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, A17: Tag, A18: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18], E, Has[B]] = {
@@ -813,6 +885,7 @@ object ZLayer {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZIO", "zio 2.0.0")
   def fromServicesM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, A17: Tag, A18: Tag, A19: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19], E, Has[B]] = {
@@ -823,6 +896,7 @@ object ZLayer {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZIO", "zio 2.0.0")
   def fromServicesM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, A17: Tag, A18: Tag, A19: Tag, A20: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19] with Has[A20], E, Has[B]] = {
@@ -833,6 +907,7 @@ object ZLayer {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZIO", "zio 2.0.0")
   def fromServicesM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, A17: Tag, A18: Tag, A19: Tag, A20: Tag, A21: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19] with Has[A20] with Has[A21], E, Has[B]] = {
@@ -844,6 +919,7 @@ object ZLayer {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified service.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZManaged", "zio 2.0.0")
   def fromServiceManaged[A: Tag, R, E, B: Tag](f: A => ZManaged[R, E, B]): ZLayer[R with Has[A], E, Has[B]] =
     fromServiceManyManaged(a => f(a).asService)
 
@@ -851,6 +927,7 @@ object ZLayer {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZManaged", "zio 2.0.0")
   def fromServicesManaged[A0: Tag, A1: Tag, R, E, B: Tag](
     f: (A0, A1) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1], E, Has[B]] = {
@@ -862,6 +939,7 @@ object ZLayer {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZManaged", "zio 2.0.0")
   def fromServicesManaged[A0: Tag, A1: Tag, A2: Tag, R, E, B: Tag](
     f: (A0, A1, A2) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2], E, Has[B]] = {
@@ -873,6 +951,7 @@ object ZLayer {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZManaged", "zio 2.0.0")
   def fromServicesManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3], E, Has[B]] = {
@@ -884,6 +963,7 @@ object ZLayer {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZManaged", "zio 2.0.0")
   def fromServicesManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4], E, Has[B]] = {
@@ -895,6 +975,7 @@ object ZLayer {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZManaged", "zio 2.0.0")
   def fromServicesManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4, A5) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5], E, Has[B]] = {
@@ -917,6 +998,7 @@ object ZLayer {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZManaged", "zio 2.0.0")
   def fromServicesManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7], E, Has[B]] = {
@@ -928,6 +1010,7 @@ object ZLayer {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZManaged", "zio 2.0.0")
   def fromServicesManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8], E, Has[B]] = {
@@ -939,6 +1022,7 @@ object ZLayer {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZManaged", "zio 2.0.0")
   def fromServicesManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9], E, Has[B]] = {
@@ -950,6 +1034,7 @@ object ZLayer {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZManaged", "zio 2.0.0")
   def fromServicesManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10], E, Has[B]] = {
@@ -961,6 +1046,7 @@ object ZLayer {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZManaged", "zio 2.0.0")
   def fromServicesManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11], E, Has[B]] = {
@@ -972,6 +1058,7 @@ object ZLayer {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZManaged", "zio 2.0.0")
   def fromServicesManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12], E, Has[B]] = {
@@ -983,6 +1070,7 @@ object ZLayer {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZManaged", "zio 2.0.0")
   def fromServicesManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13], E, Has[B]] = {
@@ -994,6 +1082,7 @@ object ZLayer {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZManaged", "zio 2.0.0")
   def fromServicesManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14], E, Has[B]] = {
@@ -1005,6 +1094,7 @@ object ZLayer {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZManaged", "zio 2.0.0")
   def fromServicesManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15], E, Has[B]] = {
@@ -1016,6 +1106,7 @@ object ZLayer {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZManaged", "zio 2.0.0")
   def fromServicesManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16], E, Has[B]] = {
@@ -1027,6 +1118,7 @@ object ZLayer {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZManaged", "zio 2.0.0")
   def fromServicesManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, A17: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17], E, Has[B]] = {
@@ -1038,6 +1130,7 @@ object ZLayer {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZManaged", "zio 2.0.0")
   def fromServicesManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, A17: Tag, A18: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18], E, Has[B]] = {
@@ -1049,6 +1142,7 @@ object ZLayer {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZManaged", "zio 2.0.0")
   def fromServicesManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, A17: Tag, A18: Tag, A19: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19], E, Has[B]] = {
@@ -1060,6 +1154,7 @@ object ZLayer {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZManaged", "zio 2.0.0")
   def fromServicesManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, A17: Tag, A18: Tag, A19: Tag, A20: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19] with Has[A20], E, Has[B]] =
@@ -1069,6 +1164,7 @@ object ZLayer {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZManaged", "zio 2.0.0")
   def fromServicesManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, A17: Tag, A18: Tag, A19: Tag, A20: Tag, A21: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19] with Has[A20] with Has[A21], E, Has[B]] = {
@@ -1081,6 +1177,7 @@ object ZLayer {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromService`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZIO returning a Has intersection", "zio 2.0.0")
   def fromServiceMany[A: Tag, B](f: A => B): ZLayer[Has[A], Nothing, B] =
     fromServiceManyM[A, Any, Nothing, B](a => ZIO.succeedNow(f(a)))
 
@@ -1089,6 +1186,7 @@ object ZLayer {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZIO returning a Has intersection", "zio 2.0.0")
   def fromServicesMany[A0: Tag, A1: Tag, B](
     f: (A0, A1) => B
   ): ZLayer[Has[A0] with Has[A1], Nothing, B] = {
@@ -1101,6 +1199,7 @@ object ZLayer {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZIO returning a Has intersection", "zio 2.0.0")
   def fromServicesMany[A0: Tag, A1: Tag, A2: Tag, B](
     f: (A0, A1, A2) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2], Nothing, B] = {
@@ -1113,6 +1212,7 @@ object ZLayer {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZIO returning a Has intersection", "zio 2.0.0")
   def fromServicesMany[A0: Tag, A1: Tag, A2: Tag, A3: Tag, B](
     f: (A0, A1, A2, A3) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3], Nothing, B] = {
@@ -1125,6 +1225,7 @@ object ZLayer {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZIO returning a Has intersection", "zio 2.0.0")
   def fromServicesMany[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, B](
     f: (A0, A1, A2, A3, A4) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4], Nothing, B] = {
@@ -1137,6 +1238,7 @@ object ZLayer {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZIO returning a Has intersection", "zio 2.0.0")
   def fromServicesMany[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, B](
     f: (A0, A1, A2, A3, A4, A5) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5], Nothing, B] = {
@@ -1149,6 +1251,7 @@ object ZLayer {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZIO returning a Has intersection", "zio 2.0.0")
   def fromServicesMany[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, B](
     f: (A0, A1, A2, A3, A4, A5, A6) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6], Nothing, B] = {
@@ -1161,6 +1264,7 @@ object ZLayer {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZIO returning a Has intersection", "zio 2.0.0")
   def fromServicesMany[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7], Nothing, B] = {
@@ -1173,6 +1277,7 @@ object ZLayer {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZIO returning a Has intersection", "zio 2.0.0")
   def fromServicesMany[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8], Nothing, B] = {
@@ -1185,6 +1290,7 @@ object ZLayer {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZIO returning a Has intersection", "zio 2.0.0")
   def fromServicesMany[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9], Nothing, B] = {
@@ -1197,6 +1303,7 @@ object ZLayer {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZIO returning a Has intersection", "zio 2.0.0")
   def fromServicesMany[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10], Nothing, B] = {
@@ -1209,6 +1316,7 @@ object ZLayer {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZIO returning a Has intersection", "zio 2.0.0")
   def fromServicesMany[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11], Nothing, B] = {
@@ -1221,6 +1329,7 @@ object ZLayer {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZIO returning a Has intersection", "zio 2.0.0")
   def fromServicesMany[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12], Nothing, B] = {
@@ -1233,6 +1342,7 @@ object ZLayer {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZIO returning a Has intersection", "zio 2.0.0")
   def fromServicesMany[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13], Nothing, B] = {
@@ -1245,6 +1355,7 @@ object ZLayer {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZIO returning a Has intersection", "zio 2.0.0")
   def fromServicesMany[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14], Nothing, B] = {
@@ -1257,6 +1368,7 @@ object ZLayer {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZIO returning a Has intersection", "zio 2.0.0")
   def fromServicesMany[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15], Nothing, B] = {
@@ -1269,6 +1381,7 @@ object ZLayer {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZIO returning a Has intersection", "zio 2.0.0")
   def fromServicesMany[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16], Nothing, B] = {
@@ -1281,6 +1394,7 @@ object ZLayer {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZIO returning a Has intersection", "zio 2.0.0")
   def fromServicesMany[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, A17: Tag, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17], Nothing, B] = {
@@ -1293,6 +1407,7 @@ object ZLayer {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZIO returning a Has intersection", "zio 2.0.0")
   def fromServicesMany[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, A17: Tag, A18: Tag, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18], Nothing, B] = {
@@ -1305,6 +1420,7 @@ object ZLayer {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZIO returning a Has intersection", "zio 2.0.0")
   def fromServicesMany[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, A17: Tag, A18: Tag, A19: Tag, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19], Nothing, B] = {
@@ -1317,6 +1433,7 @@ object ZLayer {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZIO returning a Has intersection", "zio 2.0.0")
   def fromServicesMany[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, A17: Tag, A18: Tag, A19: Tag, A20: Tag, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19] with Has[A20], Nothing, B] = {
@@ -1329,6 +1446,7 @@ object ZLayer {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZIO returning a Has intersection", "zio 2.0.0")
   def fromServicesMany[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, A17: Tag, A18: Tag, A19: Tag, A20: Tag, A21: Tag, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19] with Has[A20] with Has[A21], Nothing, B] = {
@@ -1341,6 +1459,7 @@ object ZLayer {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServiceM`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZIO returning a Has intersection", "zio 2.0.0")
   def fromServiceManyM[A: Tag, R, E, B](f: A => ZIO[R, E, B]): ZLayer[R with Has[A], E, B] =
     fromServiceManyManaged(a => f(a).toManaged_)
 
@@ -1349,6 +1468,7 @@ object ZLayer {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZIO returning a Has intersection", "zio 2.0.0")
   def fromServicesManyM[A0: Tag, A1: Tag, R, E, B](
     f: (A0, A1) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1], E, B] = {
@@ -1361,6 +1481,7 @@ object ZLayer {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZIO returning a Has intersection", "zio 2.0.0")
   def fromServicesManyM[A0: Tag, A1: Tag, A2: Tag, R, E, B](
     f: (A0, A1, A2) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2], E, B] = {
@@ -1373,6 +1494,7 @@ object ZLayer {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZIO returning a Has intersection", "zio 2.0.0")
   def fromServicesManyM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, R, E, B](
     f: (A0, A1, A2, A3) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3], E, B] = {
@@ -1385,6 +1507,7 @@ object ZLayer {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZIO returning a Has intersection", "zio 2.0.0")
   def fromServicesManyM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4], E, B] = {
@@ -1397,6 +1520,7 @@ object ZLayer {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZIO returning a Has intersection", "zio 2.0.0")
   def fromServicesManyM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4, A5) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5], E, B] = {
@@ -1409,6 +1533,7 @@ object ZLayer {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZIO returning a Has intersection", "zio 2.0.0")
   def fromServicesManyM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6], E, B] = {
@@ -1421,6 +1546,7 @@ object ZLayer {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZIO returning a Has intersection", "zio 2.0.0")
   def fromServicesManyM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7], E, B] = {
@@ -1433,6 +1559,7 @@ object ZLayer {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZIO returning a Has intersection", "zio 2.0.0")
   def fromServicesManyM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8], E, B] = {
@@ -1445,6 +1572,7 @@ object ZLayer {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZIO returning a Has intersection", "zio 2.0.0")
   def fromServicesManyM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9], E, B] = {
@@ -1457,6 +1585,7 @@ object ZLayer {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZIO returning a Has intersection", "zio 2.0.0")
   def fromServicesManyM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10], E, B] = {
@@ -1469,6 +1598,7 @@ object ZLayer {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZIO returning a Has intersection", "zio 2.0.0")
   def fromServicesManyM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11], E, B] = {
@@ -1481,6 +1611,7 @@ object ZLayer {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZIO returning a Has intersection", "zio 2.0.0")
   def fromServicesManyM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12], E, B] = {
@@ -1493,6 +1624,7 @@ object ZLayer {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZIO returning a Has intersection", "zio 2.0.0")
   def fromServicesManyM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13], E, B] = {
@@ -1505,6 +1637,7 @@ object ZLayer {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZIO returning a Has intersection", "zio 2.0.0")
   def fromServicesManyM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14], E, B] = {
@@ -1517,6 +1650,7 @@ object ZLayer {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZIO returning a Has intersection", "zio 2.0.0")
   def fromServicesManyM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15], E, B] = {
@@ -1529,6 +1663,7 @@ object ZLayer {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZIO returning a Has intersection", "zio 2.0.0")
   def fromServicesManyM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16], E, B] = {
@@ -1541,6 +1676,7 @@ object ZLayer {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZIO returning a Has intersection", "zio 2.0.0")
   def fromServicesManyM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, A17: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17], E, B] = {
@@ -1553,6 +1689,7 @@ object ZLayer {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZIO returning a Has intersection", "zio 2.0.0")
   def fromServicesManyM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, A17: Tag, A18: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18], E, B] = {
@@ -1565,6 +1702,7 @@ object ZLayer {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZIO returning a Has intersection", "zio 2.0.0")
   def fromServicesManyM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, A17: Tag, A18: Tag, A19: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19], E, B] = {
@@ -1577,6 +1715,7 @@ object ZLayer {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZIO returning a Has intersection", "zio 2.0.0")
   def fromServicesManyM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, A17: Tag, A18: Tag, A19: Tag, A20: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19] with Has[A20], E, B] = {
@@ -1589,6 +1728,7 @@ object ZLayer {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZIO returning a Has intersection", "zio 2.0.0")
   def fromServicesManyM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, A17: Tag, A18: Tag, A19: Tag, A20: Tag, A21: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19] with Has[A20] with Has[A21], E, B] = {
@@ -1601,18 +1741,20 @@ object ZLayer {
    * specified service, which must return one or more services. For the more
    * common variant that returns a single service see `fromServiceManaged`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZManaged returning a Has intersection", "zio 2.0.0")
   def fromServiceManyManaged[A: Tag, R, E, B](f: A => ZManaged[R, E, B]): ZLayer[R with Has[A], E, B] =
-    ZLayer(ZManaged.accessManaged[R with Has[A]](m => f(m.get[A])))
+    ZLayer.many(ZManaged.accessManaged[R with Has[A]](m => f(m.get[A])))
 
   /**
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZManaged returning a Has intersection", "zio 2.0.0")
   def fromServicesManyManaged[A0: Tag, A1: Tag, R, E, B](
     f: (A0, A1) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1], E, B] =
-    ZLayer {
+    ZLayer.many {
       for {
         a0 <- ZManaged.environment[Has[A0]].map(_.get[A0])
         a1 <- ZManaged.environment[Has[A1]].map(_.get[A1])
@@ -1625,10 +1767,11 @@ object ZLayer {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZManaged returning a Has intersection", "zio 2.0.0")
   def fromServicesManyManaged[A0: Tag, A1: Tag, A2: Tag, R, E, B](
     f: (A0, A1, A2) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2], E, B] =
-    ZLayer {
+    ZLayer.many {
       for {
         a0 <- ZManaged.environment[Has[A0]].map(_.get[A0])
         a1 <- ZManaged.environment[Has[A1]].map(_.get[A1])
@@ -1642,10 +1785,11 @@ object ZLayer {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZManaged returning a Has intersection", "zio 2.0.0")
   def fromServicesManyManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, R, E, B](
     f: (A0, A1, A2, A3) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3], E, B] =
-    ZLayer {
+    ZLayer.many {
       for {
         a0 <- ZManaged.environment[Has[A0]].map(_.get[A0])
         a1 <- ZManaged.environment[Has[A1]].map(_.get[A1])
@@ -1660,10 +1804,11 @@ object ZLayer {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZManaged returning a Has intersection", "zio 2.0.0")
   def fromServicesManyManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4], E, B] =
-    ZLayer {
+    ZLayer.many {
       for {
         a0 <- ZManaged.environment[Has[A0]].map(_.get[A0])
         a1 <- ZManaged.environment[Has[A1]].map(_.get[A1])
@@ -1679,10 +1824,11 @@ object ZLayer {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZManaged returning a Has intersection", "zio 2.0.0")
   def fromServicesManyManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4, A5) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5], E, B] =
-    ZLayer {
+    ZLayer.many {
       for {
         a0 <- ZManaged.environment[Has[A0]].map(_.get[A0])
         a1 <- ZManaged.environment[Has[A1]].map(_.get[A1])
@@ -1699,10 +1845,11 @@ object ZLayer {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZManaged returning a Has intersection", "zio 2.0.0")
   def fromServicesManyManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6], E, B] =
-    ZLayer {
+    ZLayer.many {
       for {
         a0 <- ZManaged.environment[Has[A0]].map(_.get[A0])
         a1 <- ZManaged.environment[Has[A1]].map(_.get[A1])
@@ -1720,10 +1867,11 @@ object ZLayer {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZManaged returning a Has intersection", "zio 2.0.0")
   def fromServicesManyManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7], E, B] =
-    ZLayer {
+    ZLayer.many {
       for {
         a0 <- ZManaged.environment[Has[A0]].map(_.get[A0])
         a1 <- ZManaged.environment[Has[A1]].map(_.get[A1])
@@ -1742,10 +1890,11 @@ object ZLayer {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZManaged returning a Has intersection", "zio 2.0.0")
   def fromServicesManyManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8], E, B] =
-    ZLayer {
+    ZLayer.many {
       for {
         a0 <- ZManaged.environment[Has[A0]].map(_.get[A0])
         a1 <- ZManaged.environment[Has[A1]].map(_.get[A1])
@@ -1765,10 +1914,11 @@ object ZLayer {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZManaged returning a Has intersection", "zio 2.0.0")
   def fromServicesManyManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9], E, B] =
-    ZLayer {
+    ZLayer.many {
       for {
         a0 <- ZManaged.environment[Has[A0]].map(_.get[A0])
         a1 <- ZManaged.environment[Has[A1]].map(_.get[A1])
@@ -1789,10 +1939,11 @@ object ZLayer {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZManaged returning a Has intersection", "zio 2.0.0")
   def fromServicesManyManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10], E, B] =
-    ZLayer {
+    ZLayer.many {
       for {
         a0  <- ZManaged.environment[Has[A0]].map(_.get[A0])
         a1  <- ZManaged.environment[Has[A1]].map(_.get[A1])
@@ -1814,10 +1965,11 @@ object ZLayer {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZManaged returning a Has intersection", "zio 2.0.0")
   def fromServicesManyManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11], E, B] =
-    ZLayer {
+    ZLayer.many {
       for {
         a0  <- ZManaged.environment[Has[A0]].map(_.get[A0])
         a1  <- ZManaged.environment[Has[A1]].map(_.get[A1])
@@ -1840,10 +1992,11 @@ object ZLayer {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZManaged returning a Has intersection", "zio 2.0.0")
   def fromServicesManyManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12], E, B] =
-    ZLayer {
+    ZLayer.many {
       for {
         a0  <- ZManaged.environment[Has[A0]].map(_.get[A0])
         a1  <- ZManaged.environment[Has[A1]].map(_.get[A1])
@@ -1867,10 +2020,11 @@ object ZLayer {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZManaged returning a Has intersection", "zio 2.0.0")
   def fromServicesManyManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13], E, B] =
-    ZLayer {
+    ZLayer.many {
       for {
         a0  <- ZManaged.environment[Has[A0]].map(_.get[A0])
         a1  <- ZManaged.environment[Has[A1]].map(_.get[A1])
@@ -1895,10 +2049,11 @@ object ZLayer {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZManaged returning a Has intersection", "zio 2.0.0")
   def fromServicesManyManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14], E, B] =
-    ZLayer {
+    ZLayer.many {
       for {
         a0  <- ZManaged.environment[Has[A0]].map(_.get[A0])
         a1  <- ZManaged.environment[Has[A1]].map(_.get[A1])
@@ -1924,10 +2079,11 @@ object ZLayer {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZManaged returning a Has intersection", "zio 2.0.0")
   def fromServicesManyManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15], E, B] =
-    ZLayer {
+    ZLayer.many {
       for {
         a0  <- ZManaged.environment[Has[A0]].map(_.get[A0])
         a1  <- ZManaged.environment[Has[A1]].map(_.get[A1])
@@ -1954,10 +2110,11 @@ object ZLayer {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZManaged returning a Has intersection", "zio 2.0.0")
   def fromServicesManyManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16], E, B] =
-    ZLayer {
+    ZLayer.many {
       for {
         a0  <- ZManaged.environment[Has[A0]].map(_.get[A0])
         a1  <- ZManaged.environment[Has[A1]].map(_.get[A1])
@@ -1985,10 +2142,11 @@ object ZLayer {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZManaged returning a Has intersection", "zio 2.0.0")
   def fromServicesManyManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, A17: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17], E, B] =
-    ZLayer {
+    ZLayer.many {
       for {
         a0  <- ZManaged.environment[Has[A0]].map(_.get[A0])
         a1  <- ZManaged.environment[Has[A1]].map(_.get[A1])
@@ -2017,10 +2175,11 @@ object ZLayer {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZManaged returning a Has intersection", "zio 2.0.0")
   def fromServicesManyManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, A17: Tag, A18: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18], E, B] =
-    ZLayer {
+    ZLayer.many {
       for {
         a0  <- ZManaged.environment[Has[A0]].map(_.get[A0])
         a1  <- ZManaged.environment[Has[A1]].map(_.get[A1])
@@ -2050,10 +2209,11 @@ object ZLayer {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZManaged returning a Has intersection", "zio 2.0.0")
   def fromServicesManyManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, A17: Tag, A18: Tag, A19: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19], E, B] =
-    ZLayer {
+    ZLayer.many {
       for {
         a0  <- ZManaged.environment[Has[A0]].map(_.get[A0])
         a1  <- ZManaged.environment[Has[A1]].map(_.get[A1])
@@ -2084,10 +2244,11 @@ object ZLayer {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZManaged returning a Has intersection", "zio 2.0.0")
   def fromServicesManyManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, A17: Tag, A18: Tag, A19: Tag, A20: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19] with Has[A20], E, B] =
-    ZLayer {
+    ZLayer.many {
       for {
         a0  <- ZManaged.environment[Has[A0]].map(_.get[A0])
         a1  <- ZManaged.environment[Has[A1]].map(_.get[A1])
@@ -2119,10 +2280,11 @@ object ZLayer {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
+  @deprecated("use `ZLayer.many` instead, passing in a ZManaged returning a Has intersection", "zio 2.0.0")
   def fromServicesManyManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, A17: Tag, A18: Tag, A19: Tag, A20: Tag, A21: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19] with Has[A20] with Has[A21], E, B] =
-    ZLayer {
+    ZLayer.many {
       for {
         a0  <- ZManaged.environment[Has[A0]].map(_.get[A0])
         a1  <- ZManaged.environment[Has[A1]].map(_.get[A1])
@@ -2153,15 +2315,17 @@ object ZLayer {
   /**
    * Constructs a layer from a managed resource.
    */
+  @deprecated("use `ZLayer.apply` instead", "zio 2.0.0")
   def fromManaged[R, E, A: Tag](m: ZManaged[R, E, A]): ZLayer[R, E, Has[A]] =
-    ZLayer(m.asService)
+    ZLayer(m)
 
   /**
    * Constructs a layer from a managed resource, which must return one or more
    * services.
    */
+  @deprecated("use `ZLayer.many` instead", "zio 2.0.0")
   def fromManagedMany[R, E, A](m: ZManaged[R, E, A]): ZLayer[R, E, A] =
-    ZLayer(m)
+    ZLayer.many(m)
 
   /**
    * An identity layer that passes along its inputs.
@@ -2174,7 +2338,7 @@ object ZLayer {
    * output.
    */
   def requires[A]: ZLayer[A, Nothing, A] =
-    ZLayer(ZManaged.environment[A])
+    ZLayer.many(ZManaged.environment[A])
 
   /**
    * A layer that passes along the second element of a tuple.
@@ -2187,20 +2351,20 @@ object ZLayer {
    * the environment.
    */
   def service[A]: ZLayer[Has[A], Nothing, Has[A]] =
-    ZLayer(ZManaged.environment[Has[A]])
+    ZLayer.many(ZManaged.environment[Has[A]])
 
   /**
    * Constructs a layer from the specified value.
    */
   def succeed[A: Tag](a: A): ULayer[Has[A]] =
-    ZLayer(ZManaged.succeedNow(Has(a)))
+    ZLayer.many(ZManaged.succeedNow(Has(a)))
 
   /**
    * Constructs a layer from the specified value, which must return one or more
    * services.
    */
   def succeedMany[A](a: A): ULayer[A] =
-    ZLayer(ZManaged.succeedNow(a))
+    ZLayer.many(ZManaged.succeedNow(a))
 
   /**
     * Lazily constructs a layer. This is useful to avoid infinite recursion when
@@ -2228,7 +2392,7 @@ object ZLayer {
      * specified function
      */
     final def project[B: Tag](f: A => B)(implicit tag: Tag[A]): ZLayer[R, E, Has[B]] =
-      self >>> ZLayer.fromFunction(r => f(r.get))
+      self >>> ZLayer { ZIO.service[A].map(f) }
   }
 
   /**

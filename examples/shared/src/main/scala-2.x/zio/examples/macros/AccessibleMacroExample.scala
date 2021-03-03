@@ -1,11 +1,9 @@
 package zio.examples.macros
 
 import zio.console.Console
-import zio.examples.macros.UpdatedAccessibleMacroExample.CompanionService
 import zio.macros.{accessible, throwing}
 import zio.random.Random
 import zio.stream.{ZSink, ZStream}
-import zio.test.mock.mockable
 import zio.{Chunk, Has, IO, RIO, UIO, URIO, ZIO, ZLayer, random}
 
 object UpdatedAccessibleMacroExample {
@@ -85,7 +83,6 @@ object AccessibleMacroExample {
   case class Wrapped[T](value: T)
 
   trait Service {
-
     val foo: UIO[Unit]
     def foo2: UIO[Unit]
     def foo3(): UIO[Unit]

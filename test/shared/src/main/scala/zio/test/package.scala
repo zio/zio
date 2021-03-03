@@ -634,7 +634,7 @@ package object test extends CompileVariants {
      * Constructs a new `Has[Annotations]` service.
      */
     val live: Layer[Nothing, Has[Annotations]] =
-      ZLayer.fromEffect(FiberRef.make(TestAnnotationMap.empty).map { fiberRef =>
+      ZLayer.apply(FiberRef.make(TestAnnotationMap.empty).map { fiberRef =>
         new Annotations {
           def annotate[V](key: TestAnnotation[V], value: V): UIO[Unit] =
             fiberRef.update(_.annotate(key, value))
@@ -675,7 +675,7 @@ package object test extends CompileVariants {
   object Sized {
 
     def live(size: Int): Layer[Nothing, Has[Sized]] =
-      ZLayer.fromEffect(FiberRef.make(size).map { fiberRef =>
+      ZLayer.apply(FiberRef.make(size).map { fiberRef =>
         new Sized {
           val size: UIO[Int] =
             fiberRef.get

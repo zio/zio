@@ -328,7 +328,7 @@ object Expectation {
    * Implicitly converts Expectation to ZLayer mock environment.
    */
   implicit def toLayer[R <: Has[_]: Tag](trunk: Expectation[R]): ULayer[R] =
-    ZLayer.fromManagedMany(
+    ZLayer.many(
       for {
         state <- Managed.make(MockState.make(trunk))(MockState.checkUnmetExpectations)
         env   <- (ProxyFactory.mockProxy(state) >>> trunk.mock.compose).build

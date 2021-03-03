@@ -34,7 +34,7 @@ object SpecSpec extends ZIOBaseSpec {
           test("test") {
             assert(true)(isTrue)
           }
-        ).provideLayerShared(ZLayer.fromEffectMany(ZIO.dieMessage("everybody dies")))
+        ).provideLayerShared(ZLayer.many(ZIO.dieMessage("everybody dies")))
         for {
           _ <- execute(spec)
         } yield assertCompletes
@@ -50,7 +50,7 @@ object SpecSpec extends ZIOBaseSpec {
         )
         for {
           ref    <- Ref.make(true)
-          layer   = ZLayer.fromEffect(ref.set(false).as(ref))
+          layer   = ZLayer.apply(ref.set(false).as(ref))
           _      <- execute(spec.provideCustomLayerShared(layer) @@ ifEnvSet("foo"))
           result <- ref.get
         } yield assert(result)(isTrue)
@@ -135,7 +135,7 @@ object SpecSpec extends ZIOBaseSpec {
           acquire = ref.update("Acquiring" :: _)
           release = ref.update("Releasing" :: _)
           update  = ZIO.service[Ref[Int]].flatMap(_.updateAndGet(_ + 1))
-          layer   = ZLayer.fromAcquireRelease(acquire *> Ref.make(0))(_ => release)
+          layer   = ZManaged.make(acquire *> Ref.make(0))(_ => release).toLayer
           spec = suite("spec")(
                    suite("suite1")(
                      testM("test1") {
@@ -173,7 +173,7 @@ object SpecSpec extends ZIOBaseSpec {
                 }
               )
             )
-          ).provideCustomLayerShared(ZLayer.fromAcquireRelease(Ref.make(0))(_.set(-1)))
+          ).provideCustomLayerShared(ZManaged.make(Ref.make(0))(_.set(-1)).toLayer)
         assertM(succeeded(spec))(isTrue)
       }
     )
