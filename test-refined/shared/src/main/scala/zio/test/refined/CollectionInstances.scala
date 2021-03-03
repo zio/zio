@@ -3,6 +3,7 @@ package zio.test.refined
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.collection.{NonEmpty, Size}
 import zio.random.Random
+import zio.test.Gen.{listOfN, vectorOfN}
 import zio.test.magnolia.DeriveGen
 import zio.test.{Gen, Sized}
 import zio.{Chunk, NonEmptyChunk}
@@ -11,7 +12,7 @@ object collection extends CollectionInstances
 
 trait CollectionInstances {
 
-  def nonEmptyChunkRefinedGen[R <: Random with Sized, C, T](implicit
+  def nonEmptyChunkRefinedGen[R <: Random with Sized, T](implicit
     genT: Gen[R, T]
   ): Gen[R, Refined[NonEmptyChunk[T], NonEmpty]] =
     Gen.chunkOf1(genT).map(Refined.unsafeApply)
@@ -26,24 +27,26 @@ trait CollectionInstances {
 
   def sizedChunkRefinedGen[R <: Random with Sized, T, P](implicit
     genT: Gen[R, T],
-    sizeGen: Gen[Random, Int Refined P]
+    sizeGen: Gen[R, Int Refined P]
   ): Gen[R, Refined[Chunk[T], Size[P]]] =
-    sizedChunkGen(genT, sizeGen)
-      .map(r => Refined.unsafeApply(r))
+    sizeGen.flatMap { n =>
+      Gen.chunkOfN(n.value)(genT)
+    }.map(r => Refined.unsafeApply(r))
 
   def listSizeRefinedGen[R <: Random with Sized, T, P](implicit
     genT: Gen[R, T],
-    sizeGen: Gen[Random, Int Refined P]
+    sizeGen: Gen[R, Int Refined P]
   ): Gen[R, Refined[List[T], Size[P]]] =
-    sizedChunkGen(genT, sizeGen)
-      .map(r => Refined.unsafeApply(r.toList))
+    sizeGen.flatMap { n =>
+      listOfN(n.value)(genT)
+    }.map(Refined.unsafeApply)
 
-  def vectorSizeRefinedGen[R <: Random with Sized, T: DeriveGen, P](implicit
+  def vectorSizeRefinedGen[R <: Random with Sized, T, P](implicit
     genT: Gen[R, T],
-    sizeGen: Gen[Random, Int Refined P]
-  ): Gen[R, Refined[Vector[T], Size[P]]] =
-    sizedChunkGen(genT, sizeGen)
-      .map(r => Refined.unsafeApply(r.toVector))
+    sizeGen: Gen[R, Int Refined P]
+  ): Gen[R, Refined[Vector[T], Size[P]]] = sizeGen.flatMap { n =>
+    vectorOfN(n.value)(genT)
+  }.map(Refined.unsafeApply)
 
   implicit def nonEmptyChunkRefinedDeriveGen[C, T](implicit
     deriveGenT: DeriveGen[T]
@@ -55,14 +58,14 @@ trait CollectionInstances {
   implicit def nonEmptyListRefinedDeriveGen[T](implicit
     deriveGenT: DeriveGen[T]
   ): DeriveGen[Refined[List[T], NonEmpty]] = DeriveGen.instance(
-    Gen.listOf1(deriveGenT.derive).map(Refined.unsafeApply)
+    nonEmptyListRefinedGen(deriveGenT.derive)
   )
 
   implicit def nonEmptyVectorRefinedDeriveGen[T](implicit
     deriveGenT: DeriveGen[T]
   ): DeriveGen[Refined[Vector[T], NonEmpty]] =
     DeriveGen.instance(
-      Gen.vectorOf1(deriveGenT.derive).map(Refined.unsafeApply)
+      nonEmptyVectorRefinedGen(deriveGenT.derive)
     )
 
   implicit def sizedChunkRefinedDeriveGen[T, P](implicit
@@ -70,7 +73,7 @@ trait CollectionInstances {
     deriveGenSize: DeriveGen[Int Refined P]
   ): DeriveGen[Refined[Chunk[T], Size[P]]] =
     DeriveGen.instance(
-      sizedChunkGen(deriveGenT.derive, deriveGenSize.derive).map(r => Refined.unsafeApply(r))
+      sizedChunkRefinedGen(deriveGenT.derive, deriveGenSize.derive)
     )
 
   implicit def listSizeRefinedDeriveGen[T, P](implicit
@@ -78,23 +81,14 @@ trait CollectionInstances {
     deriveGenSize: DeriveGen[Int Refined P]
   ): DeriveGen[Refined[List[T], Size[P]]] =
     DeriveGen.instance(
-      sizedChunkGen(deriveGenT.derive, deriveGenSize.derive).map(r => Refined.unsafeApply(r.toList))
+      listSizeRefinedGen(deriveGenT.derive, deriveGenSize.derive)
     )
 
-  implicit def vectorSizeRefinedDeriveGen[T: DeriveGen, P](implicit
+  implicit def vectorSizeRefinedDeriveGen[T, P](implicit
     deriveGenT: DeriveGen[T],
     deriveGenSize: DeriveGen[Int Refined P]
   ): DeriveGen[Refined[Vector[T], Size[P]]] =
     DeriveGen.instance(
-      sizedChunkGen(deriveGenT.derive, deriveGenSize.derive).map(r => Refined.unsafeApply(r.toVector))
+      vectorSizeRefinedGen(deriveGenT.derive, deriveGenSize.derive)
     )
-
-  private[refined] def sizedChunkGen[R <: Random with Sized, T, P](
-    genT: Gen[R, T],
-    sizeGen: Gen[Random with Sized, Int Refined P]
-  ): Gen[R, Chunk[T]] =
-    sizeGen.flatMap { n =>
-      Gen.chunkOfN(n.value)(genT)
-    }
-
 }
