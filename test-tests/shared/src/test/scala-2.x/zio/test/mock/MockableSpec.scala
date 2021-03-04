@@ -243,6 +243,18 @@ object MockableSpec extends DefaultRunnableSpec {
 
           Check
         })(anything)
+      },
+      test("generates mocks for polymorphic services") {
+        assert({
+          @mockable[PolyModulePureDefsModule.Service[Int, String, Unit]]
+          object ModuleMock
+
+          object Check {
+            val mock: Mock[PolyModulePureDefsModule[Int, String, Unit]] = ModuleMock
+          }
+
+          Check
+        })(anything)
       }
     )
   )
