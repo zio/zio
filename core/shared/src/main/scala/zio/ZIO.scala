@@ -1827,6 +1827,19 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def tap[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Any]): ZIO[R1, E1, A] = self.flatMap(new ZIO.TapFn(f))
 
   /**
+   * Returns an effect that effectfully "peeks" at the success of this effect.
+   * If the partial function isn't defined at the input, the result is equivalent to the original effect.
+   *
+   * {{{
+   * readFile("data.json").tapSome {
+   *   case content if content.nonEmpty => putStrLn(content)
+   * }
+   * }}}
+   */
+  final def tapSome[R1 <: R, E1 >: E](f: PartialFunction[A, ZIO[R1, E1, Any]]): ZIO[R1, E1, A] =
+    self.tap(f.applyOrElse(_, (_: A) => ZIO.unit))
+
+  /**
    * Returns an effect that effectfully "peeks" at the failure or success of
    * this effect.
    * {{{
