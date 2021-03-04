@@ -3011,7 +3011,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
         task = ZIOFn(f)((a: A) =>
                  ZIO
-                   .whenM[R, E](startTask) {
+                   .ifM(startTask)(
                      ZIO
                        .effectSuspendTotal(f(a))
                        .interruptible
@@ -3024,8 +3024,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
                          ZIO.whenM(isComplete) {
                            result.succeed(())
                          }
-                       }
-                   }
+                       },
+                     causes.update(_ && Cause.Interrupt(parentId))
+                   )
                    .uninterruptible
                )
 
@@ -3104,19 +3105,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def forkAll[R, E, A, Collection[+Element] <: Iterable[Element]](
     as: Collection[ZIO[R, E, A]]
   )(implicit bf: BuildFrom[Collection[ZIO[R, E, A]], A, Collection[A]]): URIO[R, Fiber[E, Collection[A]]] =
-    ZIO.foreach[R, Nothing, ZIO[R, E, A], Fiber[E, A], Iterable](as)(_.fork).map { fibers =>
-      if (fibers.isEmpty) Fiber.succeed(bf.newBuilder(as).result())
-      else {
-        val iterator                                     = fibers.iterator
-        var builder: Fiber[E, Builder[A, Collection[A]]] = null
-        while (iterator.hasNext) {
-          val fiber = iterator.next()
-          if (builder eq null) builder = fiber.map(bf.newBuilder(as) += _)
-          else builder = builder.zipWith(fiber)(_ += _)
-        }
-        builder.map(_.result())
-      }
-    }
+    ZIO
+      .foreach[R, Nothing, ZIO[R, E, A], Fiber[E, A], Iterable](as)(_.fork)
+      .map(Fiber.collectAll[E, A, Iterable](_).map(bf.fromSpecific(as)))
 
   /**
    * Returns an effect that forks all of the specified values, and returns a
