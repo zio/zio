@@ -74,6 +74,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [iHeartRadio](https://www.iheart.com/)
 * [Investsuite](https://investsuite.com/)
 * [Kaizen Solutions](https://kaizen-solutions.net/)
+* [Kamon APM](https://kamon.io/)
 * [Kodmagi](https://www.kodmagi.se)
 * [Kensu](https://kensu.io)
 * [LeadIQ](https://leadiq.com)
