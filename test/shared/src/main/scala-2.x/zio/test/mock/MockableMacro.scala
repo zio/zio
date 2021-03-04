@@ -33,8 +33,8 @@ private[mock] object MockableMacro {
     def log(msg: String)   = c.info(c.enclosingPosition, msg, true)
     def abort(msg: String) = c.abort(c.enclosingPosition, msg)
 
-    val mockName: TermName = annottees.head match {
-      case m: ModuleDef => m.name
+    val (mockName: TermName, body: List[Tree]) = annottees.head match {
+      case m: ModuleDef => (m.name, m.impl.body)
       case _            => abort("@mockable macro should only be applied to objects.")
     }
 
@@ -307,6 +307,8 @@ private[mock] object MockableMacro {
                 new $serviceClassName
               }
             }
+
+          ..$body
         }
       """
 
