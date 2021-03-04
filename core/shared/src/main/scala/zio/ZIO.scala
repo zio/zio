@@ -4054,7 +4054,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     /**
      * Keeps some of the errors, and terminates the fiber with the rest.
      */
-    def refineToOrDie[E1 <: E: ClassTag](implicit ev: CanFail[E]): ZIO[R, E1, A] =
+    def refineToOrDie[E1 <: E: ClassTag: NotNull](implicit ev: CanFail[E]): ZIO[R, E1, A] =
       self.refineOrDie { case e: E1 => e }
   }
 
