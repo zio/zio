@@ -1,5 +1,6 @@
 package zio.test.mock
 
+import zio.Has
 import zio.test.Assertion._
 import zio.test._
 import zio.test.mock.modules._
@@ -20,6 +21,24 @@ object MockableSpec extends DefaultRunnableSpec {
 
           object Check {
             val mock: Mock[EmptyModule] = ModuleMock
+          }
+
+          Check
+        })(anything)
+      },
+      test("generates mocks retaining body on objects") {
+        assert({
+          @mockable[SinglePureValModule.Service]
+          object ModuleMock {
+            val someFooHelper: Expectation[Has[SinglePureValModule.Service]] = Foo().atLeast(1)
+          }
+
+          object Check {
+            val mock: Mock[SinglePureValModule] = ModuleMock
+
+            val Foo: ModuleMock.Effect[Unit, Nothing, Unit] = ModuleMock.Foo
+
+            val someFoo: Expectation[Has[SinglePureValModule.Service]] = ModuleMock.someFooHelper
           }
 
           Check
