@@ -24,32 +24,6 @@ object ProvideLayerAutoMacros {
     buildMemoizedLayer(ZLayerExprBuilder(nodes), requirements)
       .asInstanceOf[Expr[ZLayer[In,E,Out]]]
   }
-
-  def fromAutoDebugImpl[Out: Type, E: Type](layers: Expr[Seq[ZLayer[_,E,_]]])(using Quotes): Expr[ZLayer[Any,E,Out]] = {
-    import quotes.reflect._
-    val expr = buildLayerFor[Out](layers)
-    '{$expr.asInstanceOf[ZLayer[Any, E, Out]]}
-
-    val graph        = ZLayerExprBuilder(layers)
-    val requirements = getRequirements[Out]
-    graph.buildLayerFor(requirements)
-
-    val graphString: String = 
-      graph.graph
-        .map(layer => RenderedGraph(renderExpr(layer)))
-        .buildComplete(requirements)
-        .toOption
-        .get
-        .fold[RenderedGraph](RenderedGraph.Row(List.empty), identity, _ ++ _, _ >>> _).render
-
-    val maxWidth = graphString.maxLineWidth
-    val title    = "Layer Graph Visualization"
-    val adjust   = (maxWidth - title.length) / 2
-
-    val rendered = "\n" + (" " * adjust) + title.yellow.underlined + "\n\n" + graphString + "\n\n"
-
-    report.throwError(rendered)
-  }
 }
 
 

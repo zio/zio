@@ -31,36 +31,6 @@ final class ZLayerFromAutoMacros(val c: blackbox.Context) extends AutoLayerMacro
       .asInstanceOf[c.Expr[ZLayer[R0, E, R]]]
   }
 
-  def fromAutoDebugImpl[
-    E,
-    Out <: Has[_]: c.WeakTypeTag
-  ](layers: c.Expr[ZLayer[_, E, _]]*)(
-    dummyK: c.Expr[DummyK[Out]]
-  ): c.Expr[ZLayer[Any, E, Out]] = {
-    val _ = dummyK
-    assertEnvIsNotNothing[Out]()
-    assertProperVarArgs(layers)
-    val graph        = generateExprGraph(layers)
-    val requirements = getRequirements[Out]
-    graph.buildLayerFor(requirements)
-
-    val graphString: String = eitherToOption(
-      graph.graph
-        .map(layer => RenderedGraph(layer.showTree))
-        .buildComplete(requirements)
-    ).get
-      .fold[RenderedGraph](RenderedGraph.Row(List.empty), identity, _ ++ _, _ >>> _)
-      .render
-
-    val maxWidth = graphString.maxLineWidth
-    val title    = "Layer Graph Visualization"
-    val adjust   = (maxWidth - title.length) / 2
-
-    val rendered = "\n" + (" " * adjust) + title.yellow.underlined + "\n\n" + graphString + "\n\n"
-
-    c.abort(c.enclosingPosition, rendered)
-  }
-
   /**
    * Scala 2.11 doesn't have `Either.toOption`
    */

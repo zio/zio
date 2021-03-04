@@ -27,7 +27,7 @@ private[zio] trait ZLayerCompanionVersionSpecific {
    * ZLayer.fromAuto[Car](carLayer, wheelsLayer, engineLayer)
    * }}}
    */
-  def fromAuto[R <: Has[_]] =
+  def fromAuto[R <: Has[_]]: FromLayerAutoPartiallyApplied[R] =
     new FromLayerAutoPartiallyApplied[R]
 
   /**
@@ -41,27 +41,8 @@ private[zio] trait ZLayerCompanionVersionSpecific {
    * val layer = ZLayer.fromSomeAuto[Engine, Car](carLayer, wheelsLayer)
    * }}}
    */
-  def fromSomeAuto[R0 <: Has[_], R <: Has[_]] =
+  def fromSomeAuto[R0 <: Has[_], R <: Has[_]]: FromSomeAutoPartiallyApplied[R0, R] =
     new FromSomeAutoPartiallyApplied[R0, R]
-
-  /**
-   * Generates a visualization of the automatically assembled
-   * final ZLayer. The type of the target layer[s] must be provided.
-   *
-   * {{{
-   * ZLayer.fromAutoDebug[App](App.live, UserService.live, ...)
-   *
-   * >                            App.live
-   * >                        ┌──────┴──────────────────────┐
-   * >                UserService.live                Console.live
-   * >        ┌──────────────┴┬──────────────┐
-   * >  UserRepo.live  Analytics.live  Console.live
-   * >        │
-   * >  Console.live
-   * >  }}}
-   */
-  def fromAutoDebug[R <: Has[_]] =
-    new FromLayerAutoDebugPartiallyApplied[R]
 
 }
 
@@ -75,9 +56,4 @@ private[zio] final class FromSomeAutoPartiallyApplied[R0 <: Has[_], R <: Has[_]]
 ) extends AnyVal {
   def apply[E](layers: ZLayer[_, E, _]*)(implicit dummyKRemainder: DummyK[R0], dummyK: DummyK[R]): ZLayer[R0, E, R] =
     macro ZLayerFromAutoMacros.fromAutoImpl[E, R0, R]
-}
-
-private[zio] final class FromLayerAutoDebugPartiallyApplied[R <: Has[_]](val dummy: Boolean = true) extends AnyVal {
-  def apply[E](layers: ZLayer[_, E, _]*)(implicit dummyK: DummyK[R]): ZLayer[Any, E, R] =
-    macro ZLayerFromAutoMacros.fromAutoDebugImpl[E, R]
 }

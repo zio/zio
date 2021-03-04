@@ -150,25 +150,7 @@ object AutoLayerSpec extends ZIOBaseSpec {
           val provided = program.provideLayerManual(ZLayer.succeed(true) ++ ZLayer.succeed(100.1) >>> layer)
           assertM(provided)(equalTo(128))
         }
-      ),
-      suite("`ZLayer.fromAutoDebug`")(
-        testM("automatically constructs and visualizes a layer from its dependencies") {
-          val doubleLayer = ZLayer.succeed(100.1)
-          val stringLayer = ZLayer.succeed("this string is 28 chars long")
-          val intLayer    = ZIO.services[String, Double].map { case (str, double) => str.length + double.toInt }.toLayer
-          val _           = ZLayer.fromAuto[Has[Int]](intLayer, stringLayer, doubleLayer)
-
-          val checked = typeCheck("ZLayer.fromAutoDebug[Has[Int]](intLayer, stringLayer, doubleLayer)")
-          assertM(checked)(
-            isLeft(
-              containsStringWithoutAnsi("""
-         intLayer         
-      ┌──────┴─────┐      
- stringLayer  doubleLayer""".trim)
-            )
-          )
-        }
-      ) @@ TestAspect.exceptDotty
+      )
     )
 
   object TestLayers {
