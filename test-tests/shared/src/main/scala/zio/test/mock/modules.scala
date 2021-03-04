@@ -124,7 +124,12 @@ object modules {
   type PolyModulePureDefsModule[R, E, A] = Has[PolyModulePureDefsModule.Service[R, E, A]]
   object PolyModulePureDefsModule {
     trait Service[R, E, A] {
+      val static: ZIO[R, E, A]
+      def zeroParams: ZIO[R, E, A]
       def zeroParamsWithParens(): ZIO[R, E, A]
+      def singleParam(a: Int): ZIO[R, E, A]
+      def manyParams(a: Int, b: String, c: Long): ZIO[R, E, A]
+      def manyParamLists(a: Int)(b: String)(c: Long): ZIO[R, E, A]
     }
   }
 }
