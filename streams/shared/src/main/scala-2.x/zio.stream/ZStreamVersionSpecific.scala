@@ -20,7 +20,7 @@ private[zio] trait ZStreamVersionSpecific[-R, +E, +O] { self: ZStream[R, E, O] =
    * }}}
    */
   def provideCustomLayer[E1 >: E](layers: ZLayer[_, E1, _]*): ZStream[ZEnv, E1, O] =
-    macro ProvideLayerMacros.provideCustomLayerImpl[ZStream, R, E1, O]
+    macro ProvideLayerMacros.provideSomeLayerImpl[ZStream, ZEnv, R, E1, O]
 
   /**
    * Automatically assembles a layer for the ZStream effect.

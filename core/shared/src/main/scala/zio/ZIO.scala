@@ -1174,7 +1174,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def provideCustomLayerManual[E1 >: E, R1 <: Has[_]](
     layer: ZLayer[ZEnv, E1, R1]
   )(implicit ev: ZEnv with R1 <:< R, tagged: Tag[R1]): ZIO[ZEnv, E1, A] =
-    provideSomeLayer[ZEnv](layer)
+    provideSomeLayerManual[ZEnv](layer)
 
   /**
    * Provides a layer to the ZIO effect, which translates it to another level.
@@ -1189,7 +1189,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * leaving the remainder `R0`.
    *
    * If your environment has the type `Has[_]`,
-   * please see [[zio.ZIO.provideSomeLayer]]
+   * please see [[zio.ZIO.provideSomeLayerManual]]
    *
    * {{{
    * val effect: ZIO[Console with Logging, Nothing, Unit] = ???
@@ -1216,10 +1216,10 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    *
    * val zio: ZIO[Clock with Random, Nothing, Unit] = ???
    *
-   * val zio2 = zio.provideSomeLayer[Random](clockLayer)
+   * val zio2 = zio.provideSomeLayerManual[Random](clockLayer)
    * }}}
    */
-  final def provideSomeLayer[R0 <: Has[_]]: ZIO.ProvideSomeLayer[R0, R, E, A] =
+  final def provideSomeLayerManual[R0 <: Has[_]]: ZIO.ProvideSomeLayer[R0, R, E, A] =
     new ZIO.ProvideSomeLayer[R0, R, E, A](self)
 
   /**

@@ -35,7 +35,7 @@ private[zio] trait ScheduleVersionSpecific[-Env, -In, +Out] { self: Schedule[Env
    * }}}
    */
   def provideCustomLayer(layers: ZLayer[_, Nothing, _]*): Schedule[ZEnv, In, Out] =
-    macro ProvideLayerMacros.provideCustomLayerImpl[Schedule, Env, Nothing, Out]
+    macro ProvideLayerMacros.provideSomeLayerImpl[Schedule, ZEnv, Env, Nothing, Out]
 
   /**
    * Automatically assembles a layer for the Schedule effect.

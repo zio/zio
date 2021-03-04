@@ -41,6 +41,7 @@ private[zio] trait ZLayerCompanionVersionSpecific {
    * val layer = ZLayer.fromSomeAuto[Engine, Car](carLayer, wheelsLayer)
    * }}}
    */
+
   def fromSomeAuto[R0 <: Has[_], R <: Has[_]]: FromSomeAutoPartiallyApplied[R0, R] =
     new FromSomeAutoPartiallyApplied[R0, R]
 

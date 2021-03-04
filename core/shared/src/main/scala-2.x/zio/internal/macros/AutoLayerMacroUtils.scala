@@ -93,10 +93,13 @@ trait AutoLayerMacroUtils {
      * Given a type `A with B with C` You'll get back List[A,B,C]
      */
     def intersectionTypes: List[Type] =
-      self.dealias match {
+      self.dealias.map(_.dealias) match {
         case t: RefinedType =>
-          t.parents.flatMap(_.dealias.intersectionTypes)
-        case _ => List(self)
+          t.parents.flatMap(_.intersectionTypes)
+        case TypeRef(_, sym, _) if sym.info.isInstanceOf[RefinedTypeApi] =>
+          sym.info.intersectionTypes
+        case other =>
+          List(other)
       }
   }
 

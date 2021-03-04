@@ -7,8 +7,8 @@ final case class Graph[A](nodes: List[Node[A]]) {
   def buildComplete(outputs: List[String]): Either[::[GraphError[A]], LayerCompose[A]] =
     forEach(outputs) { output =>
       getNodeWithOutput(output, error = GraphError.MissingTopLevelDependency(output))
+        .flatMap(node => buildNode(node, Set(node)))
     }
-      .flatMap(forEach(_)(node => buildNode(node, Set(node))))
       .map(_.distinct.combineHorizontally)
 
   def map[B](f: A => B): Graph[B] =

@@ -274,7 +274,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
   def provideCustomLayerManual[E1 >: E, R1 <: Has[_]](
     layer: ZLayer[TestEnvironment, E1, R1]
   )(implicit ev: TestEnvironment with R1 <:< R, tagged: Tag[R1]): Spec[TestEnvironment, E1, T] =
-    provideSomeLayer[TestEnvironment](layer)
+    provideSomeLayerManual[TestEnvironment](layer)
 
   /**
    * Provides all tests with a shared version of the part of the environment
@@ -341,10 +341,10 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    *
    * val spec: ZSpec[Clock with Random, Nothing] = ???
    *
-   * val spec2 = spec.provideSomeLayer[Random](clockLayer)
+   * val spec2 = spec.provideSomeLayerManual[Random](clockLayer)
    * }}}
    */
-  final def provideSomeLayer[R0 <: Has[_]]: Spec.ProvideSomeLayer[R0, R, E, T] =
+  final def provideSomeLayerManual[R0 <: Has[_]]: Spec.ProvideSomeLayer[R0, R, E, T] =
     new Spec.ProvideSomeLayer[R0, R, E, T](self)
 
   /**
@@ -487,11 +487,13 @@ object Spec {
         case SuiteCase(label, specs, exec) =>
           Spec.suite(
             label,
-            layer.memoize.flatMap(layer => specs.map(_.map(_.provideSomeLayer(layer))).provideSomeLayer(layer)),
+            layer.memoize.flatMap(layer =>
+              specs.map(_.map(_.provideSomeLayerManual(layer))).provideSomeLayerManual(layer)
+            ),
             exec
           )
         case TestCase(label, test, annotations) =>
-          Spec.test(label, test.provideSomeLayer(layer), annotations)
+          Spec.test(label, test.provideSomeLayerManual(layer), annotations)
       }
   }
 

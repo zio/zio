@@ -594,13 +594,13 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
   final def provideCustomLayerManual[Env1 <: Has[_]](
     layer: ZLayer[ZEnv, Nothing, Env1]
   )(implicit ev: ZEnv with Env1 <:< Env, tagged: Tag[Env1]): Schedule[ZEnv, In, Out] =
-    provideSomeLayer[ZEnv](layer)
+    provideSomeLayerManual[ZEnv](layer)
 
   /**
    * Splits the environment into two parts, providing one part using the
    * specified layer and leaving the remainder `Env0`.
    */
-  final def provideSomeLayer[Env0 <: Has[_]]: Schedule.ProvideSomeLayer[Env0, Env, In, Out] =
+  final def provideSomeLayerManual[Env0 <: Has[_]]: Schedule.ProvideSomeLayer[Env0, Env, In, Out] =
     new Schedule.ProvideSomeLayer[Env0, Env, In, Out](self)
 
   /**

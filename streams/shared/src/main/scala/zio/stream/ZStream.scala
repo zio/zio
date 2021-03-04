@@ -2291,7 +2291,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   def provideCustomLayerManual[E1 >: E, R1 <: Has[_]](
     layer: ZLayer[ZEnv, E1, R1]
   )(implicit ev: ZEnv with R1 <:< R, tagged: Tag[R1]): ZStream[ZEnv, E1, O] =
-    provideSomeLayer[ZEnv](layer)
+    provideSomeLayerManual[ZEnv](layer)
 
   /**
    * Provides a layer to the stream, which translates it to another level.
@@ -2327,10 +2327,10 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    *
    * val stream: ZStream[Clock with Random, Nothing, Unit] = ???
    *
-   * val stream2 = stream.provideSomeLayer[Random](clockLayer)
+   * val stream2 = stream.provideSomeLayerManual[Random](clockLayer)
    * }}}
    */
-  final def provideSomeLayer[R0 <: Has[_]]: ZStream.ProvideSomeLayer[R0, R, E, O] =
+  final def provideSomeLayerManual[R0 <: Has[_]]: ZStream.ProvideSomeLayer[R0, R, E, O] =
     new ZStream.ProvideSomeLayer[R0, R, E, O](self)
 
   /**

@@ -48,7 +48,7 @@ $errorMessage
     val sorted                = circularDependencyErrors.sortBy(_.depth)
     val initialCircularErrors = sorted.takeWhile(_.depth == sorted.headOption.map(_.depth).getOrElse(0))
 
-    initialCircularErrors ++ otherErrors
+    initialCircularErrors ++ otherErrors.sortBy(_.isInstanceOf[GraphError.MissingDependency[A]])
   }
 
   private def renderError(error: GraphError[A]): String =

@@ -576,10 +576,10 @@ object ScheduleSpec extends ZIOBaseSpec {
       val schedule2: Schedule[ZEnv, Any, Unit]             = schedule.provideCustomLayerManual(loggingLayer)
       assert(schedule2)(anything)
     },
-    zio.test.test("provideSomeLayer can split environment into two parts") {
+    zio.test.test("provideSomeLayerManual can split environment into two parts") {
       val clockLayer: ZLayer[Any, Nothing, Clock]          = Clock.live
       val schedule: Schedule[Clock with Random, Any, Unit] = Schedule.once
-      val schedule2: Schedule[Random, Any, Unit]           = schedule.provideSomeLayer[Random](clockLayer)
+      val schedule2: Schedule[Random, Any, Unit]           = schedule.provideSomeLayerManual[Random](clockLayer)
       assert(schedule2)(anything)
     }
   )

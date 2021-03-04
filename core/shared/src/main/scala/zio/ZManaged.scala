@@ -712,7 +712,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   def provideCustomLayerManual[E1 >: E, R1 <: Has[_]](
     layer: ZLayer[ZEnv, E1, R1]
   )(implicit ev: ZEnv with R1 <:< R, tagged: Tag[R1]): ZManaged[ZEnv, E1, A] =
-    provideSomeLayer[ZEnv](layer)
+    provideSomeLayerManual[ZEnv](layer)
 
   /**
    * Provides a layer to the `ZManaged`, which translates it to another level.
@@ -751,10 +751,10 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    *
    * val managed: ZManaged[Clock with Random, Nothing, Unit] = ???
    *
-   * val managed2 = managed.provideSomeLayer[Random](clockLayer)
+   * val managed2 = managed.provideSomeLayerManual[Random](clockLayer)
    * }}}
    */
-  final def provideSomeLayer[R0 <: Has[_]]: ZManaged.ProvideSomeLayer[R0, R, E, A] =
+  final def provideSomeLayerManual[R0 <: Has[_]]: ZManaged.ProvideSomeLayer[R0, R, E, A] =
     new ZManaged.ProvideSomeLayer[R0, R, E, A](self)
 
   /**

@@ -1616,11 +1616,11 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(zio2)(anything)
       }
     ),
-    suite("provideSomeLayer")(
+    suite("provideSomeLayerManual")(
       testM("can split environment into two parts") {
         val clockLayer: ZLayer[Any, Nothing, Clock]    = Clock.live
         val zio: ZIO[Clock with Random, Nothing, Unit] = ZIO.unit
-        val zio2: URIO[Random, Unit]                   = zio.provideSomeLayer[Random](clockLayer)
+        val zio2: URIO[Random, Unit]                   = zio.provideSomeLayerManual[Random](clockLayer)
         assertM(zio2)(anything)
       }
     ),

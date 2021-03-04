@@ -26,16 +26,31 @@ private[zio] trait ZManagedVersionSpecific[-R, +E, +A] { self: ZManaged[R, E, A]
    * `ZEnv` requirements with `ZEnv.any`, allowing them to be provided later.
    *
    * {{{
-   * val zio: ZManaged[OldLady with Console, Nothing, Unit] = ???
+   * val managed: ZManaged[OldLady with Console, Nothing, Unit] = ???
    * val oldLadyLayer: ZLayer[Fly, Nothing, OldLady] = ???
    * val flyLayer: ZLayer[Blocking, Nothing, Fly] = ???
    *
-   * // The ZEnv you use later will provide both Blocking to flyLayer and Console to zio
-   * val zio2 : ZManaged[ZEnv, Nothing, Unit] = zio.provideCustomLayer(oldLadyLayer, flyLayer)
+   * // The ZEnv you use later will provide both Blocking to flyLayer and Console to managed
+   * val managed2 : ZManaged[ZEnv, Nothing, Unit] = managed.provideCustomLayer(oldLadyLayer, flyLayer)
    * }}}
    */
   def provideCustomLayer[E1 >: E](layers: ZLayer[_, E1, _]*): ZManaged[ZEnv, E1, A] =
-    macro ProvideLayerMacros.provideCustomLayerImpl[ZManaged, R, E1, A]
+    macro ProvideLayerMacros.provideSomeLayerImpl[ZManaged, ZEnv, R, E1, A]
+
+  /**
+   * Splits the environment into two parts, assembling one part using the
+   * specified layers and leaving the remainder `R0`.
+   *
+   * {{{
+   * val clockLayer: ZLayer[Any, Nothing, Clock] = ???
+   *
+   * val managed: ZManaged[Clock with Random, Nothing, Unit] = ???
+   *
+   * val managed2 = managed.provideSomeLayer[Random](clockLayer)
+   * }}}
+   */
+  def provideSomeLayer[R0 <: Has[_]]: ProvideSomeLayerManagedPartiallyApplied[R0, R, E, A] =
+    new ProvideSomeLayerManagedPartiallyApplied[R0, R, E, A](self)
 
   /**
    * Automatically assembles a layer for the ZManaged effect.
@@ -43,4 +58,15 @@ private[zio] trait ZManagedVersionSpecific[-R, +E, +A] { self: ZManaged[R, E, A]
   def provideLayer[E1 >: E](layers: ZLayer[_, E1, _]*): ZManaged[Any, E1, A] =
     macro ProvideLayerMacros.provideLayerImpl[ZManaged, R, E1, A]
 
+}
+
+private final class ProvideSomeLayerManagedPartiallyApplied[R0 <: Has[_], -R, +E, +A](val self: ZManaged[R, E, A])
+    extends AnyVal {
+  final def provideLayerManual[E1 >: E, R1](
+    layer: ZLayer[R0, E1, R1]
+  )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R]): ZManaged[R0, E1, A] =
+    self.provideLayerManual(layer)
+
+  def apply[E1 >: E](layers: ZLayer[_, E1, _]*): ZManaged[R0, E1, A] =
+    macro ProvideLayerMacros.provideSomeLayerImpl[ZManaged, R0, R, E1, A]
 }
