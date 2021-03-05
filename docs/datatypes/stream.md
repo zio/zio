@@ -156,7 +156,7 @@ import zio._
 
 def tupleStreamReduce(total: Int, element: (Int, Int)) = {
   val (a,b) = element
-  total + (a +b)
+  total + (a + b)
 } 
 
 val reducedResult: UIO[Int] = zippedStream.run(Sink.foldLeft(0)(tupleStreamReduce))

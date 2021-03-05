@@ -148,7 +148,7 @@ object ZIOSpec extends ZIOBaseSpec {
           d     <- cache
         } yield assert(a)(equalTo(b)) && assert(b)(not(equalTo(c))) && assert(c)(equalTo(d))
       },
-      testM("correctly handled an infinite duration time to live") {
+      testM("correctly handles an infinite duration time to live") {
         for {
           ref            <- Ref.make(0)
           getAndIncrement = ref.modify(curr => (curr, curr + 1))
@@ -157,6 +157,28 @@ object ZIOSpec extends ZIOBaseSpec {
           b              <- cached
           c              <- cached
         } yield assert((a, b, c))(equalTo((0, 0, 0)))
+      }
+    ),
+    suite("cachedWith")(
+      testM("returns new instances after duration") {
+        def incrementAndGet(ref: Ref[Int]): UIO[Int] = ref.updateAndGet(_ + 1)
+        for {
+          ref                 <- Ref.make(0)
+          tuple               <- incrementAndGet(ref).cachedInvalidate(60.minutes)
+          (cached, invalidate) = tuple
+          a                   <- cached
+          _                   <- TestClock.adjust(59.minutes)
+          b                   <- cached
+          _                   <- invalidate
+          c                   <- cached
+          _                   <- TestClock.adjust(1.minute)
+          d                   <- cached
+          _                   <- TestClock.adjust(59.minutes)
+          e                   <- cached
+        } yield assert(a)(equalTo(b)) &&
+          assert(b)(not(equalTo(c))) &&
+          assert(c)(equalTo(d)) &&
+          assert(d)(not(equalTo(e)))
       }
     ),
     suite("catchAllDefect")(
@@ -349,6 +371,17 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(IO.done(interrupted).run)(isInterrupted) &&
         assertM(IO.done(terminated).run)(dies(equalTo(error))) &&
         assertM(IO.done(failed).run)(fails(equalTo(error)))
+      }
+    ),
+    suite("executor")(
+      testM("retrieves the current executor for this effect") {
+        val executor = internal.Executor.fromExecutionContext(100) {
+          scala.concurrent.ExecutionContext.Implicits.global
+        }
+        for {
+          default <- ZIO.executor
+          global  <- ZIO.executor.lock(executor)
+        } yield assert(default)(not(equalTo(global)))
       }
     ),
     suite("repeatUntil")(
@@ -3048,6 +3081,24 @@ object ZIOSpec extends ZIOBaseSpec {
           assert(value)(equalTo(2)) &&
           assert(end)(equalTo(3))
         }
+      }
+    ),
+    suite("tapSome")(
+      testM("is identity if the function doesn't match") {
+        for {
+          ref    <- Ref.make(false)
+          result <- ref.set(true).as(42).tapSome(PartialFunction.empty)
+          effect <- ref.get
+        } yield assert(result)(equalTo(42)) &&
+          assert(effect)(isTrue)
+      },
+      testM("runs the effect if the function matches") {
+        for {
+          ref    <- Ref.make(0)
+          result <- ref.set(10).as(42).tapSome { case r => ref.set(r) }
+          effect <- ref.get
+        } yield assert(result)(equalTo(42)) &&
+          assert(effect)(equalTo(42))
       }
     ),
     suite("tapCause")(

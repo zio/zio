@@ -2384,16 +2384,16 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                     case None =>
                       val scheduleOutput = sdriver.last.orDie.map(g)
 
-                      val continue =
-                        sdriver.next(()) *>
-                          switchPull((self.map(f) ++ ZStream.fromEffect(scheduleOutput)).process)
-                            .tap(currPull.set(_)) *> go
-
-                      val halt = doneRef.set(true) *> Pull.end
-
-                      continue orElse halt
+                      sdriver
+                        .next(())
+                        .foldM(
+                          _ => doneRef.set(true) *> Pull.end,
+                          _ =>
+                            switchPull((self.map(f) ++ ZStream.fromEffect(scheduleOutput)).process)
+                              .tap(currPull.set(_)) *> go
+                        )
                   },
-                  ZIO.succeedNow
+                  ZIO.succeedNow(_)
                 )
             }
           go

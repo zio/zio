@@ -17,8 +17,10 @@
   "datatypes-sidebar": {
     "Data Types": [
       "datatypes/datatypes_index",
+      "datatypes/datatypes_chunk",
       "datatypes/datatypes_fiber",
       "datatypes/datatypes_fiberref",
+      "datatypes/datatypes_has",
       "datatypes/datatypes_io",
       "datatypes/datatypes_managed",
       "datatypes/datatypes_promise",
@@ -28,15 +30,16 @@
       "datatypes/datatypes_semaphore",
       "datatypes/datatypes_sink",
       "datatypes/datatypes_stream",
-      "datatypes/datatypes_chunk",
       "datatypes/datatypes_tarray",
       "datatypes/datatypes_tmap",
       "datatypes/datatypes_tpriorityqueue",
-      "datatypes/datatypes_treentrantlock",
       "datatypes/datatypes_tpromise",
       "datatypes/datatypes_tqueue",
+      "datatypes/datatypes_treentrantlock",
       "datatypes/datatypes_tref",
-      "datatypes/datatypes_tset"
+      "datatypes/datatypes_tsemaphore",
+      "datatypes/datatypes_tset",
+      "datatypes/datatypes_zlayer"
     ]
   },
   "interop-sidebar": {

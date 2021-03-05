@@ -139,6 +139,11 @@ sealed abstract class Expectation[R <: Has[_]: Tag] { self =>
     Repeated(self, range)
 
   /**
+   * Converts this expectation to ZLayer.
+   */
+  def toLayer: ULayer[R] = Expectation.toLayer(self)
+
+  /**
    * Invocations log.
    */
   private[test] val invocations: List[Int]
@@ -225,6 +230,14 @@ object Expectation {
       private[test] def unapply[R <: Has[_]](chain: Chain[R]): Option[(List[Expectation[R]])] =
         Some(chain.children)
     }
+  }
+
+  private[test] case class NoCalls[R <: Has[_]: Tag](mock: Mock[R]) extends Expectation[R] {
+
+    override private[test] val invocations: List[Int] = Nil
+
+    override private[test] val state: ExpectationState = Satisfied
+
   }
 
   /**

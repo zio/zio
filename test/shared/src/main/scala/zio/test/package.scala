@@ -172,6 +172,12 @@ package object test extends CompileVariants {
     assertImpl(true)(Assertion.isTrue)
 
   /**
+   * Asserts that the given test was completed.
+   */
+  val assertCompletesM: UIO[TestResult] =
+    assertMImpl(UIO.succeedNow(true))(Assertion.isTrue)
+
+  /**
    * Checks the assertion holds for the given effectfully-computed value.
    */
   override private[test] def assertMImpl[R, E, A](effect: ZIO[R, E, A], sourceLocation: Option[String] = None)(

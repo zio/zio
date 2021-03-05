@@ -190,7 +190,7 @@ sealed abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { 
       def awaitShutdown: UIO[Unit] = self.awaitShutdown *> that.awaitShutdown
       def size: UIO[Int]           = self.size.zipWithPar(that.size)(math.max)
       def shutdown: UIO[Unit]      = self.shutdown.zipWithPar(that.shutdown)((_, _) => ())
-      def isShutdown: UIO[Boolean] = self.isShutdown
+      def isShutdown: UIO[Boolean] = self.isShutdown.zipWithPar(that.isShutdown)(_ || _)
       def take: ZIO[R3, E3, D]     = self.take.zipPar(that.take).flatMap(f.tupled)
 
       def takeAll: ZIO[R3, E3, List[D]] =
@@ -224,7 +224,7 @@ sealed abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { 
 
   /**
    * Transforms elements enqueued into and dequeued from this queue with the
-   * specified effectual functions.
+   * specified pure functions.
    */
   final def dimap[C, D](f: C => A, g: B => D): ZQueue[RA, RB, EA, EB, C, D] =
     dimapM(f andThen ZIO.succeedNow, g andThen ZIO.succeedNow)
@@ -289,6 +289,59 @@ sealed abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { 
       def take: ZIO[RB, EB, B]                     = self.take
       def takeAll: ZIO[RB, EB, List[B]]            = self.takeAll
       def takeUpTo(max: Int): ZIO[RB, EB, List[B]] = self.takeUpTo(max)
+    }
+
+  /**
+   * Filters elements dequeued from the queue using the specified predicate.
+   */
+  final def filterOutput(f: B => Boolean): ZQueue[RA, RB, EA, EB, A, B] =
+    filterOutputM(b => ZIO.succeedNow(f(b)))
+
+  /**
+   * Filters elements dequeued from the queue using the specified effectual
+   * predicate.
+   */
+  def filterOutputM[RB1 <: RB, EB1 >: EB](f: B => ZIO[RB1, EB1, Boolean]): ZQueue[RA, RB1, EA, EB1, A, B] =
+    new ZQueue[RA, RB1, EA, EB1, A, B] {
+      def awaitShutdown: UIO[Unit] =
+        self.awaitShutdown
+      def capacity: Int =
+        self.capacity
+      def isShutdown: UIO[Boolean] =
+        self.isShutdown
+      def offer(a: A): ZIO[RA, EA, Boolean] =
+        self.offer(a)
+      def offerAll(as: Iterable[A]): ZIO[RA, EA, Boolean] =
+        self.offerAll(as)
+      def shutdown: UIO[Unit] =
+        self.shutdown
+      def size: UIO[Int] =
+        self.size
+      def take: ZIO[RB1, EB1, B] =
+        self.take.flatMap { b =>
+          f(b).flatMap { p =>
+            if (p) ZIO.succeedNow(b)
+            else take
+          }
+        }
+      def takeAll: ZIO[RB1, EB1, List[B]] =
+        self.takeAll.flatMap(bs => ZIO.filter(bs)(f))
+      def takeUpTo(max: Int): ZIO[RB1, EB1, List[B]] =
+        ZIO.effectSuspendTotal {
+          val buffer = ListBuffer[B]()
+          def loop(max: Int): ZIO[RB1, EB1, Unit] =
+            self.takeUpTo(max).flatMap { bs =>
+              if (bs.isEmpty) ZIO.unit
+              else
+                ZIO.filter(bs)(f).flatMap { filtered =>
+                  buffer ++= filtered
+                  val length = filtered.length
+                  if (length == max) ZIO.unit
+                  else loop(max - length)
+                }
+            }
+          loop(max).as(buffer.toList)
+        }
     }
 
   /**

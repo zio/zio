@@ -15,7 +15,7 @@ import java.util.Random
 
 object API {
   def makeRequest = Task.effect {
-    if (new Random().nextInt(10) > 7) "some value" else throw new Exception("hi")
+    if (new Random().nextInt(10) < 7) "some value" else throw new Exception("hi")
   }
 }
 ```

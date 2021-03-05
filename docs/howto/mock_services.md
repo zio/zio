@@ -359,6 +359,25 @@ object AccountObserverSpec extends DefaultRunnableSpec {
 }
 ```
 
+## Mocking unused collaborators
+
+Often the dependency on a collaborator is only in some branches of the code. To test the correct behaviour of branches without depedencies, we still have to provide it to the environment, but we would like to assert it was never called. With the `Mock.empty` method you can obtain a `ZLayer` with an empty service (no calls expected).
+
+```scala mdoc:silent
+object MaybeConsoleSpec extends DefaultRunnableSpec {
+  def spec = suite("processEvent")(
+    testM("expect no call") {
+      def maybeConsole(invokeConsole: Boolean) =
+        ZIO.when(invokeConsole)(console.putStrLn("foo"))
+
+      val maybeTest1 = maybeConsole(false).provideLayer(MockConsole.empty)
+      val maybeTest2 = maybeConsole(true).provideLayer(MockConsole.PutStrLn(equalTo("foo")))
+      assertM(maybeTest1)(isUnit) *> assertM(maybeTest2)(isUnit)
+    }
+  )
+}
+```
+
 ## Mocking multiple collaborators
 
 In some cases we have more than one collaborating service being called. You can create mocks for rich environments and as you enrich the environment by using _capability tags_ from another service, the underlaying mocked layer will be updated.
@@ -452,7 +471,9 @@ You can find more examples in the `examples` and `test-tests` subproject:
 - [MockExampleSpec][link-gh-mock-example-spec]
 - [BasicMockSpec][link-gh-basic-mock-spec]
 - [AdvancedMockSpec][link-gh-advanced-mock-spec]
+- [EmptyMockSpec][link-gh-empty-mock-spec]
 - [ComposedMockSpec][link-gh-composed-mock-spec]
+- [ComposedEmptyMockSpec][link-gh-composed-empty-mock-spec]
 - [PolyMockSpec][link-gh-poly-mock-spec]
 
 [doc-use-modules-and-layers]: use_modules_and_layers.md
@@ -462,5 +483,7 @@ You can find more examples in the `examples` and `test-tests` subproject:
 [link-gh-mock-example-spec]: https://github.com/zio/zio/blob/master/examples/shared/src/test/scala/zio/examples/test/MockExampleSpec.scala
 [link-gh-basic-mock-spec]: https://github.com/zio/zio/blob/master/test-tests/shared/src/test/scala/zio/test/mock/BasicMockSpec.scala
 [link-gh-advanced-mock-spec]: https://github.com/zio/zio/blob/master/test-tests/shared/src/test/scala/zio/test/mock/AdvancedMockSpec.scala
+[link-gh-empty-mock-spec]: https://github.com/zio/zio/blob/master/test-tests/shared/src/test/scala/zio/test/mock/EmptyMockSpec.scala
 [link-gh-composed-mock-spec]: https://github.com/zio/zio/blob/master/test-tests/shared/src/test/scala/zio/test/mock/ComposedMockSpec.scala
+[link-gh-composed-empty-mock-spec]: https://github.com/zio/zio/blob/master/test-tests/shared/src/test/scala/zio/test/mock/ComposedEmptyMockSpec.scala
 [link-gh-poly-mock-spec]: https://github.com/zio/zio/blob/master/test-tests/shared/src/test/scala/zio/test/mock/PolyMockSpec.scala

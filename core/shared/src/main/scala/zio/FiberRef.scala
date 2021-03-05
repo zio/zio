@@ -31,6 +31,7 @@ package zio
  *
  * FiberRef#make also allows specifying how the values will be combined when joining.
  * By default this will use the value of the joined fiber.
+ * {{{
  * for {
  *   fiberRef <- FiberRef.make(0, math.max)
  *   child    <- fiberRef.update(_ + 1).fork

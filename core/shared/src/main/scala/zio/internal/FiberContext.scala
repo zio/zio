@@ -64,10 +64,11 @@ private[zio] final class FiberContext[E, A](
 
   private[this] val stack             = Stack[Any => IO[Any, Any]]()
   private[this] val environments      = Stack[AnyRef](startEnv)
-  private[this] val executors         = Stack[Executor](startExec)
   private[this] val interruptStatus   = StackBool(startIStatus.toBoolean)
   private[this] val supervisors       = Stack[Supervisor[Any]](supervisor0)
   private[this] val forkScopeOverride = Stack[Option[ZScope[Exit[Any, Any]]]]()
+
+  private[this] var currentExecutor = startExec
 
   var scopeKey: ZScope.Key = null
 
@@ -209,7 +210,8 @@ private[zio] final class FiberContext[E, A](
     discardedFolds
   }
 
-  private[this] def executor: Executor = executors.peekOrElse(platform.executor)
+  private[this] def executor: Executor =
+    if (currentExecutor ne null) currentExecutor else platform.executor
 
   @inline private[this] def raceWithImpl[R, EL, ER, E, A, B, C](
     race: ZIO.RaceWith[R, EL, ER, E, A, B, C]
@@ -396,7 +398,7 @@ private[zio] final class FiberContext[E, A](
                     curZio = nextInstr(effect())
 
                   case ZIO.Tags.Fail =>
-                    val zio = curZio.asInstanceOf[ZIO.Fail[E, Any]]
+                    val zio = curZio.asInstanceOf[ZIO.Fail[E]]
 
                     // Put last trace into a val to avoid `ObjectRef` boxing.
                     val fastPathTrace = fastPathFlatMapContinuationTrace
@@ -526,12 +528,12 @@ private[zio] final class FiberContext[E, A](
 
                     curZio = k(getDescriptor())
 
-                  case ZIO.Tags.Lock =>
-                    val zio = curZio.asInstanceOf[ZIO.Lock[Any, E, Any]]
+                  case ZIO.Tags.Shift =>
+                    val zio = curZio.asInstanceOf[ZIO.Shift]
 
                     curZio =
-                      if (zio.executor eq executors.peek()) zio.zio
-                      else lock(zio.executor).bracket_(unlock, zio.zio)
+                      if (zio.executor eq currentExecutor) ZIO.unit
+                      else shift(zio.executor)
 
                   case ZIO.Tags.Yield =>
                     evaluateLater(ZIO.unit)
@@ -659,11 +661,8 @@ private[zio] final class FiberContext[E, A](
       }
     } finally Fiber._currentFiber.remove()
 
-  private[this] def lock(executor: Executor): UIO[Unit] =
-    ZIO.effectTotal(executors.push(executor)) *> ZIO.yieldNow
-
-  private[this] def unlock: UIO[Unit] =
-    ZIO.effectTotal(executors.pop()) *> ZIO.yieldNow
+  private[this] def shift(executor: Executor): UIO[Unit] =
+    ZIO.effectTotal { currentExecutor = executor } *> ZIO.yieldNow
 
   private[this] def getDescriptor(): Fiber.Descriptor =
     Fiber.Descriptor(
@@ -707,7 +706,7 @@ private[zio] final class FiberContext[E, A](
       childId,
       platform,
       currentEnv,
-      executors.peek(),
+      currentExecutor,
       InterruptStatus.fromBoolean(interruptStatus.peekOrElse(true)),
       ancestry,
       tracingRegion,
@@ -720,7 +719,7 @@ private[zio] final class FiberContext[E, A](
     if (currentSup ne Supervisor.none) {
       currentSup.unsafeOnStart(currentEnv, zio, Some(self), childContext)
 
-      childContext.onDone(exit => currentSup.unsafeOnEnd(exit, childContext))
+      childContext.onDone(exit => currentSup.unsafeOnEnd(exit.flatten, childContext))
     }
 
     val childZio = if (parentScope ne ZScope.global) {
