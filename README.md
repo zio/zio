@@ -110,6 +110,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Yandex.Classifieds](https://o.yandex.ru)
 * [Audela](https://audela.ca)
 * [Valamis Group](https://valamis.com)
+* [Vish](https://getvish.com)
 
 # Sponsors
 
