@@ -37,6 +37,7 @@ private[zio] object CleanCodePrinter {
       case Apply(t, args)               => Apply(clean(c)(t, ctx), cleanArgs(c)(args, ctx))
       // foo.apply => foo
       case Select(PackageSelects(n), TermName("apply")) => Ident(TermName(cleanTupleTerm(n)))
+      case Select(PackageSelects(n), TermName(name))    => Select(Ident(TermName(n)), TermName(cleanTupleTerm(name)))
       case PackageSelects(n)                            => Ident(TermName(cleanTupleTerm(n)))
       case Select(This(_), tn)                          => Ident(tn)
       case Select(left, TermName("apply"))              => clean(c)(left, ctx)

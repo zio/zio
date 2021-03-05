@@ -1,12 +1,15 @@
 package zio
 
 import zio.console.Console
+import zio.internal.macros.MacroUnitTestUtils
 import zio.internal.macros.StringUtils.StringOps
 import zio.random.Random
 import zio.test.Assertion._
 import zio.test.AssertionM.Render.param
 import zio.test._
 import zio.test.environment.TestConsole
+
+import java.util.UUID
 
 object AutoLayerSpec extends ZIOBaseSpec {
 
@@ -266,7 +269,28 @@ object AutoLayerSpec extends ZIOBaseSpec {
             assertM(provided.useNow)(equalTo("Your Lucky Number is: -1295463240"))
           }
         )
-      )
+      ),
+      suite("MacroUnitTestUtils") {
+        suite(".getRequirements")(
+          test("retrieves a list of Strings representing the types in a compound Has type") {
+            type FunctionTypeHas          = Has[String => UUID]
+            type NestedHas                = Has[FunctionTypeHas with Has[Task[Double]]]
+            type ListAlias[A]             = List[A]
+            type TypeFunction[F[_, _], A] = F[String, A]
+            type Env =
+              Has[Int] with FunctionTypeHas with NestedHas with Has[TypeFunction[Either, ListAlias[Int]]]
+
+            val result = MacroUnitTestUtils.getRequirements[Env]
+            val expected = List(
+              "Int",
+              "String => java.util.UUID",
+              "zio.Has[String => java.util.UUID] with zio.Has[zio.ZIO[Any,Throwable,Double]]",
+              "scala.util.Either[String,List[Int]]"
+            )
+            assert(result)(equalTo(expected))
+          }
+        )
+      }
     )
 
   object TestLayers {

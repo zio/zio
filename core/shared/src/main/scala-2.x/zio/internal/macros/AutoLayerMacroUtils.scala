@@ -5,7 +5,7 @@ import zio.internal.ansi.AnsiStringOps
 
 import scala.reflect.macros.blackbox
 
-trait AutoLayerMacroUtils {
+private[zio] trait AutoLayerMacroUtils {
   val c: blackbox.Context
   import c.universe._
 

@@ -4,7 +4,7 @@ import zio._
 
 import scala.reflect.macros.blackbox
 
-class ProvideLayerMacros(val c: blackbox.Context) extends AutoLayerMacroUtils {
+private[zio] class ProvideLayerMacros(val c: blackbox.Context) extends AutoLayerMacroUtils {
   import c.universe._
 
   def provideLayerImpl[F[_, _, _], R: c.WeakTypeTag, E, A](
@@ -29,4 +29,18 @@ class ProvideLayerMacros(val c: blackbox.Context) extends AutoLayerMacroUtils {
     val layerExpr = buildMemoizedLayer(generateExprGraph(nodes), requirements)
     c.Expr[F[R0, E, A]](q"${c.prefix}.provideLayerManual(${layerExpr.tree} ++ ${remainderExpr.tree})")
   }
+
+  def debugGetRequirements[R: c.WeakTypeTag]: c.Expr[List[String]] =
+    c.Expr[List[String]](q"${getRequirements[R]}")
+
+  def debugShowTree(any: c.Tree): c.Expr[String] = {
+    val string = CleanCodePrinter.show(c)(any)
+    c.Expr[String](q"$string")
+  }
+}
+
+private[zio] object MacroUnitTestUtils {
+  def getRequirements[R]: List[String] = macro ProvideLayerMacros.debugGetRequirements[R]
+
+  def showTree(any: Any): String = macro ProvideLayerMacros.debugShowTree
 }
