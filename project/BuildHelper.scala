@@ -289,15 +289,6 @@ object BuildHelper {
     Compile / doc / sources := Seq.empty
   )
 
-  val scalaReflectTestSettings: List[Setting[_]] = List(
-    libraryDependencies ++= {
-      if (isDotty.value)
-        Seq()
-      else
-        Seq("org.scala-lang" % "scala-reflect" % scalaVersion.value)
-    }
-  )
-
   def welcomeMessage = onLoadMessage := {
     import scala.Console
 

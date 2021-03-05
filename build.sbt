@@ -232,7 +232,7 @@ lazy val test = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(macroExpansionSettings)
   .settings(
     libraryDependencies ++= Seq(
-      ("org.portable-scala" %%% "portable-scala-reflect" % "1.1.0")
+      ("org.portable-scala" %%% "portable-scala-reflect" % "1.1.1")
         .withDottyCompat(scalaVersion.value)
     )
   )
@@ -359,7 +359,6 @@ lazy val testRunner = crossProject(JSPlatform, JVMPlatform, NativePlatform)
 
 lazy val testRunnerJVM = testRunner.jvm
   .settings(dottySettings)
-  .settings(scalaReflectTestSettings)
   .settings(libraryDependencies ++= Seq("org.scala-sbt" % "test-interface" % "1.0"))
 lazy val testRunnerJS = testRunner.js
   .settings(libraryDependencies ++= Seq("org.scala-js" %% "scalajs-test-interface" % scalaJSVersion))
