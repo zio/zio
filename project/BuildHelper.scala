@@ -2,7 +2,6 @@ import sbt._
 import Keys._
 import explicitdeps.ExplicitDepsPlugin.autoImport._
 import sbtcrossproject.CrossPlugin.autoImport._
-import org.portablescala.sbtplatformdeps.PlatformDepsPlugin.autoImport._
 import sbtbuildinfo._
 import dotty.tools.sbtplugin.DottyPlugin.autoImport._
 import BuildInfoKeys._
@@ -12,8 +11,8 @@ object BuildHelper {
   // Keep this consistent with the version in .circleci/config.yml
   val Scala211   = "2.11.12"
   val Scala212   = "2.12.13"
-  val Scala213   = "2.13.4"
-  val ScalaDotty = "3.0.0-M3"
+  val Scala213   = "2.13.5"
+  val ScalaDotty = "3.0.0-RC1"
 
   val SilencerVersion = "1.7.3"
 
@@ -85,10 +84,6 @@ object BuildHelper {
         old
       }
     }
-  )
-
-  val scalaReflectSettings = Seq(
-    libraryDependencies ++= Seq("dev.zio" %%% "izumi-reflect" % "1.0.0-M13")
   )
 
   // Keep this consistent with the version in .core-tests/shared/src/test/scala/REPLSpec.scala
