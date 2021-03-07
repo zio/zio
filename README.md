@@ -48,7 +48,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [auto.ru](https://auto.ru)
 * [AutoScout24](https://www.autoscout24.de)
 * [Avast](https://www.avast.com)
-* [CalcBank] (https://www.calcbank.com.br)
+* [CalcBank](https://www.calcbank.com.br)
 * [Call Handling](https://www.callhandling.co.uk/)
 * [CodeComprehension](https://codecomprehension.com)
 * [Codept](https://www.codept.de/)
