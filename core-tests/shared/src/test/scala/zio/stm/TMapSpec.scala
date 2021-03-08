@@ -338,7 +338,7 @@ object TMapSpec extends ZIOBaseSpec {
         assertM(tx.commit)(equalTo(0))
       }
     ),
-    suite("folds")(
+    suite("bug #4648")(
       testM("avoid NullPointerException caused by race condition") {
         for {
           keys <- ZIO.succeed((0 to 10).toList)
