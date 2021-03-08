@@ -428,6 +428,7 @@ lazy val examples = crossProject(JVMPlatform, JSPlatform)
   .settings(stdSettings("examples"))
   .settings(crossProjectSettings)
   .settings(macroExpansionSettings)
+  .settings(scalacOptions += "-Xfatal-warnings")
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
   .dependsOn(macros, testRunner)
 

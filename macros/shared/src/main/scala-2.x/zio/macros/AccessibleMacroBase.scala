@@ -162,23 +162,23 @@ private[macros] abstract class AccessibleMacroBase(val c: whitebox.Context) {
       })
 
       val returnValue = (info.capability, paramLists) match {
-        case (_: Capability.Effect, argLists) if argLists.flatten.nonEmpty =>
+        case (_: Capability.Effect, argLists) if argLists.flatten.nonEmpty || argLists.size == 1 =>
           q"_root_.zio.ZIO.accessM(_.get[Service[..$serviceTypeArgs]].$name[..$typeArgs](...$argNames))"
         case (_: Capability.Effect, _) =>
           q"_root_.zio.ZIO.accessM(_.get[Service[..$serviceTypeArgs]].$name)"
-        case (_: Capability.Managed, argLists) if argLists.flatten.nonEmpty =>
+        case (_: Capability.Managed, argLists) if argLists.flatten.nonEmpty || argLists.size == 1 =>
           q"_root_.zio.ZManaged.accessManaged(_.get[Service[..$serviceTypeArgs]].$name[..$typeArgs](...$argNames))"
         case (_: Capability.Managed, _) =>
           q"_root_.zio.ZManaged.accessManaged(_.get[Service[..$serviceTypeArgs]].$name[..$typeArgs])"
-        case (_: Capability.Stream, argLists) if argLists.flatten.nonEmpty =>
+        case (_: Capability.Stream, argLists) if argLists.flatten.nonEmpty || argLists.size == 1 =>
           q"_root_.zio.stream.ZStream.accessStream(_.get[Service[..$serviceTypeArgs]].$name[..$typeArgs](...$argNames))"
         case (_: Capability.Stream, _) =>
           q"_root_.zio.stream.ZStream.accessStream(_.get[Service[..$serviceTypeArgs]].$name)"
-        case (_: Capability.Sink, argLists) if argLists.flatten.nonEmpty =>
+        case (_: Capability.Sink, argLists) if argLists.flatten.nonEmpty || argLists.size == 1 =>
           q"_root_.zio.stream.ZSink.accessSink(_.get[Service[..$serviceTypeArgs]].$name[..$typeArgs](...$argNames))"
         case (_: Capability.Sink, _) =>
           q"_root_.zio.stream.ZSink.accessSink(_.get[Service[..$serviceTypeArgs]].$name)"
-        case (_, argLists) if argLists.flatten.nonEmpty =>
+        case (_, argLists) if argLists.flatten.nonEmpty || argLists.size == 1 =>
           val argNames = argLists.map(_.map(_.name))
           q"_root_.zio.ZIO.access(_.get[Service[..$serviceTypeArgs]].$name[..$typeArgs](...$argNames))"
         case (_, _) =>
