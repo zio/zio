@@ -292,9 +292,8 @@ final class TMap[K, V] private (
 
       while (i < capacity) {
         val bucket = buckets.array(i)
-        val pairs  = bucket.unsafeGet(journal)
 
-        builder.addAll(pairs)
+        builder ++= bucket.unsafeGet(journal)
 
         i += 1
       }
