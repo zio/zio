@@ -19,6 +19,8 @@ package zio.stm
 import zio.Chunk
 import zio.stm.ZSTM.internal._
 
+import scala.collection.mutable.ArrayBuffer
+
 /**
  * Transactional map implemented on top of [[TRef]] and [[TArray]]. Resolves
  * conflicts via chaining.
@@ -85,7 +87,7 @@ final class TMap[K, V] private (
    * Atomically folds using a transactional function.
    */
   def foldM[A, E](zero: A)(op: (A, (K, V)) => STM[E, A]): STM[E, A] =
-    toChunk.flatMap(STM.foldLeft(_)(zero)(op))
+    toChunk.flatMap(ZSTM.foldLeft(_)(zero)(op))
 
   /**
    * Atomically performs transactional-effect for each binding present in map.
@@ -286,25 +288,19 @@ final class TMap[K, V] private (
     new ZSTM((journal, _, _, _) => {
       val buckets  = tBuckets.unsafeGet(journal)
       val capacity = buckets.array.length
-      val size     = tSize.unsafeGet(journal)
-      val data     = Array.ofDim[(K, V)](size)
       var i        = 0
-      var j        = 0
+      val list     = ArrayBuffer[(K, V)]()
 
       while (i < capacity) {
         val bucket = buckets.array(i)
         val pairs  = bucket.unsafeGet(journal)
 
-        val it = pairs.iterator
-        while (it.hasNext) {
-          data(j) = it.next()
-          j += 1
-        }
+        list.addAll(pairs)
 
         i += 1
       }
 
-      TExit.Succeed(Chunk.fromArray(data))
+      TExit.Succeed(Chunk.fromArray(list.toArray))
     })
 
   /**
