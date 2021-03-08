@@ -16,10 +16,8 @@
 
 package zio.stm
 
-import zio.Chunk
 import zio.stm.ZSTM.internal._
-
-import scala.collection.mutable.ArrayBuffer
+import zio.{Chunk, ChunkBuilder}
 
 /**
  * Transactional map implemented on top of [[TRef]] and [[TArray]]. Resolves
@@ -288,19 +286,20 @@ final class TMap[K, V] private (
     new ZSTM((journal, _, _, _) => {
       val buckets  = tBuckets.unsafeGet(journal)
       val capacity = buckets.array.length
+      val size     = tSize.unsafeGet(journal)
       var i        = 0
-      val list     = ArrayBuffer[(K, V)]()
+      val builder  = ChunkBuilder.make[(K, V)](size)
 
       while (i < capacity) {
         val bucket = buckets.array(i)
         val pairs  = bucket.unsafeGet(journal)
 
-        list.addAll(pairs)
+        builder.addAll(pairs)
 
         i += 1
       }
 
-      TExit.Succeed(Chunk.fromArray(list.toArray))
+      TExit.Succeed(builder.result())
     })
 
   /**
