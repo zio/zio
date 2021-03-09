@@ -398,7 +398,7 @@ private[zio] final class FiberContext[E, A](
                     curZio = nextInstr(effect())
 
                   case ZIO.Tags.Fail =>
-                    val zio = curZio.asInstanceOf[ZIO.Fail[E, Any]]
+                    val zio = curZio.asInstanceOf[ZIO.Fail[E]]
 
                     // Put last trace into a val to avoid `ObjectRef` boxing.
                     val fastPathTrace = fastPathFlatMapContinuationTrace
@@ -719,7 +719,7 @@ private[zio] final class FiberContext[E, A](
     if (currentSup ne Supervisor.none) {
       currentSup.unsafeOnStart(currentEnv, zio, Some(self), childContext)
 
-      childContext.onDone(exit => currentSup.unsafeOnEnd(exit, childContext))
+      childContext.onDone(exit => currentSup.unsafeOnEnd(exit.flatten, childContext))
     }
 
     val childZio = if (parentScope ne ZScope.global) {

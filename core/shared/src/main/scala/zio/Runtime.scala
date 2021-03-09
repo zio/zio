@@ -201,7 +201,7 @@ trait Runtime[+R] {
     if (supervisor ne Supervisor.none) {
       supervisor.unsafeOnStart(environment, zio, None, context)
 
-      context.onDone(exit => supervisor.unsafeOnEnd(exit, context))
+      context.onDone(exit => supervisor.unsafeOnEnd(exit.flatten, context))
     }
 
     context.evaluateNow(ZIOFn.recordStackTrace(() => zio)(zio.asInstanceOf[IO[E, A]]))

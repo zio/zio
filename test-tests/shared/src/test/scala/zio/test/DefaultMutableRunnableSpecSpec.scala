@@ -2,7 +2,7 @@ package zio.test
 
 import zio.ZIO
 import zio.test.Assertion.equalTo
-import zio.test.TestAspect.ignore
+import zio.test.TestAspect._
 
 object DefaultMutableRunnableSpecSpec extends DefaultMutableRunnableSpec {
 
@@ -54,4 +54,9 @@ object DefaultMutableRunnableSpecSpec extends DefaultMutableRunnableSpec {
     assert(0)(equalTo(0))
   }
 
+  suite("suite supports chained aspects") {
+    test("test supports chained aspects") {
+      assertCompletes
+    } @@ ignore @@ timed
+  } @@ ignore @@ timed
 }

@@ -49,7 +49,7 @@ class MutableRunnableSpec[R <: Has[_]](layer: ZLayer[TestEnvironment, Throwable,
      */
     final def @@(
       aspect: TestAspect[R, R, Failure, Failure]
-    ): SpecBuilder = {
+    ): SuiteBuilder = {
       aspects = aspects :+ aspect
       this
     }

@@ -150,7 +150,7 @@ sealed abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { 
 
   /**
    * Transforms elements enqueued into and dequeued from this queue with the
-   * specified effectual functions.
+   * specified pure functions.
    */
   final def dimap[C, D](f: C => A, g: B => D): ZQueue[RA, RB, EA, EB, C, D] =
     dimapM(f andThen ZIO.succeedNow, g andThen ZIO.succeedNow)
