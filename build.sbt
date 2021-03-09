@@ -2,8 +2,6 @@ import BuildHelper._
 import MimaSettings.mimaSettings
 import explicitdeps.ExplicitDepsPlugin.autoImport.moduleFilterRemoveValue
 import sbt.Keys
-// shadow sbt-scalajs' crossProject from Scala.js 0.6.x
-import sbtcrossproject.CrossPlugin.autoImport.crossProject
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
@@ -21,10 +19,7 @@ inThisBuild(
         "john@degoes.net",
         url("http://degoes.net")
       )
-    ),
-    pgpPassphrase := sys.env.get("PGP_PASSPHRASE").map(_.toArray),
-    pgpPublicRing := file("/tmp/public.asc"),
-    pgpSecretRing := file("/tmp/secret.asc")
+    )
   )
 )
 
@@ -130,7 +125,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(stdSettings("zio"))
   .settings(crossProjectSettings)
   .settings(buildInfoSettings("zio"))
-  .settings(scalaReflectSettings)
+  .settings(libraryDependencies += "dev.zio" %%% "izumi-reflect" % "1.0.0-M16")
   .enablePlugins(BuildInfoPlugin)
 
 lazy val coreJVM = core.jvm
@@ -500,14 +495,17 @@ lazy val docs = project.module
     scalacOptions ~= { _ filterNot (_ startsWith "-Ywarn") },
     scalacOptions ~= { _ filterNot (_ startsWith "-Xlint") },
     libraryDependencies ++= Seq(
-      "commons-io"          % "commons-io"                  % "2.7"    % "provided",
-      "org.jsoup"           % "jsoup"                       % "1.13.1" % "provided",
-      "org.reactivestreams" % "reactive-streams-examples"   % "1.0.3"  % "provided",
-      "dev.zio"            %% "zio-interop-cats"            % "2.3.1.0",
-      "dev.zio"            %% "zio-interop-monix"           % "3.0.0.0-RC7",
-      "dev.zio"            %% "zio-interop-scalaz7x"        % "7.2.27.0-RC9",
-      "dev.zio"            %% "zio-interop-reactivestreams" % "1.3.0.7-2",
-      "dev.zio"            %% "zio-interop-twitter"         % "20.10.0.0"
+      "commons-io"          % "commons-io"                % "2.7"    % "provided",
+      "org.jsoup"           % "jsoup"                     % "1.13.1" % "provided",
+      "org.reactivestreams" % "reactive-streams-examples" % "1.0.3"  % "provided",
+      /* to evict 1.3.0 brought in by mdoc-js */
+      "org.scala-js"  % "scalajs-compiler"            % scalaJSVersion cross CrossVersion.full,
+      "org.scala-js" %% "scalajs-linker"              % scalaJSVersion,
+      "dev.zio"      %% "zio-interop-cats"            % "2.3.1.0",
+      "dev.zio"      %% "zio-interop-monix"           % "3.0.0.0-RC7",
+      "dev.zio"      %% "zio-interop-scalaz7x"        % "7.2.27.0-RC9",
+      "dev.zio"      %% "zio-interop-reactivestreams" % "1.3.0.7-2",
+      "dev.zio"      %% "zio-interop-twitter"         % "20.10.0.0"
     )
   )
   .settings(macroExpansionSettings)
