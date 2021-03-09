@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Test effects · ZIO</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="## How zio-test was designed"/><meta name="docsearch:language" content="en"/><meta property="og:title" content="Test effects · ZIO"/><meta property="og:type" content="website"/><meta property="og:url" content="https://zio.dev/"/><meta property="og:description" content="## How zio-test was designed"/><meta name="twitter:card" content="summary"/><link rel="shortcut icon" href="/img/favicon.png"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/default.min.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script src="https://unpkg.com/vanilla-back-to-top@7.1.14/dist/vanilla-back-to-top.min.js"></script><script>
+<!DOCTYPE html><html lang="en"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Test effects · ZIO</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="## How zio-test was designed"/><meta name="docsearch:language" content="en"/><meta property="og:title" content="Test effects · ZIO"/><meta property="og:type" content="website"/><meta property="og:url" content="https://zio.dev/"/><meta property="og:description" content="## How zio-test was designed"/><meta name="twitter:card" content="summary"/><link rel="shortcut icon" href="/img/favicon.png"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/default.min.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script src="https://unpkg.com/vanilla-back-to-top@7.1.14/dist/vanilla-back-to-top.min.js"></script><script>
         document.addEventListener('DOMContentLoaded', function() {
           addBackToTop(
             {"zIndex":100,"cornerOffset":100}
@@ -81,7 +81,7 @@ and at best wrap them in <code>scala.util.Future</code> because blocking would e
 <span class="hljs-comment">// clockSuite: Spec[Live, TestFailure[Nothing], TestSuccess] = Spec(</span>
 <span class="hljs-comment">//   caseValue = SuiteCase(</span>
 <span class="hljs-comment">//     label = "clock",</span>
-<span class="hljs-comment">//     specs = zio.ZManaged$$anon$2@7c53d8c5,</span>
+<span class="hljs-comment">//     specs = zio.ZManaged$$anon$2@4b9ee397,</span>
 <span class="hljs-comment">//     exec = None</span>
 <span class="hljs-comment">//   )</span>
 <span class="hljs-comment">// )</span>
@@ -94,7 +94,7 @@ and at best wrap them in <code>scala.util.Future</code> because blocking would e
 <span class="hljs-comment">// paymentProviderABCSuite: Spec[Any, TestFailure[Nothing], TestSuccess] = Spec(</span>
 <span class="hljs-comment">//   caseValue = SuiteCase(</span>
 <span class="hljs-comment">//     label = "ABC payment provider tests",</span>
-<span class="hljs-comment">//     specs = zio.ZManaged$$anon$2@7df8f304,</span>
+<span class="hljs-comment">//     specs = zio.ZManaged$$anon$2@2a8f3a8a,</span>
 <span class="hljs-comment">//     exec = None</span>
 <span class="hljs-comment">//   )</span>
 <span class="hljs-comment">// )</span>
@@ -102,7 +102,7 @@ and at best wrap them in <code>scala.util.Future</code> because blocking would e
 <span class="hljs-comment">// paymentProviderXYZSuite: Spec[Any, TestFailure[Nothing], TestSuccess] = Spec(</span>
 <span class="hljs-comment">//   caseValue = SuiteCase(</span>
 <span class="hljs-comment">//     label = "XYZ payment provider tests",</span>
-<span class="hljs-comment">//     specs = zio.ZManaged$$anon$2@36840474,</span>
+<span class="hljs-comment">//     specs = zio.ZManaged$$anon$2@7c0121cd,</span>
 <span class="hljs-comment">//     exec = None</span>
 <span class="hljs-comment">//   )</span>
 <span class="hljs-comment">// )</span>
@@ -110,7 +110,7 @@ and at best wrap them in <code>scala.util.Future</code> because blocking would e
 <span class="hljs-comment">// allPaymentProvidersTests: Spec[Any, TestFailure[Nothing], TestSuccess] = Spec(</span>
 <span class="hljs-comment">//   caseValue = SuiteCase(</span>
 <span class="hljs-comment">//     label = "All payment providers tests",</span>
-<span class="hljs-comment">//     specs = zio.ZManaged$$anon$2@70139d3a,</span>
+<span class="hljs-comment">//     specs = zio.ZManaged$$anon$2@5db6236d,</span>
 <span class="hljs-comment">//     exec = None</span>
 <span class="hljs-comment">//   )</span>
 <span class="hljs-comment">// )</span>
@@ -142,7 +142,7 @@ test(<span class="hljs-string">"Check assertions"</span>) {
 <span class="hljs-comment">//   caseValue = TestCase(</span>
 <span class="hljs-comment">//     label = "Check assertions",</span>
 <span class="hljs-comment">//     test = &lt;function1&gt;,</span>
-<span class="hljs-comment">//     annotations = Map(zio.test.TestAnnotation@363e3d95 -&gt; List(SourceLocation(test_effects.md,60)))</span>
+<span class="hljs-comment">//     annotations = Map(zio.test.TestAnnotation@6d1eee2c -&gt; List(SourceLocation(test_effects.md,60)))</span>
 <span class="hljs-comment">//   )</span>
 <span class="hljs-comment">// )</span>
 </code></pre>
@@ -168,7 +168,7 @@ test(<span class="hljs-string">"Rich checking"</span>) {
 <span class="hljs-comment">//   caseValue = TestCase(</span>
 <span class="hljs-comment">//     label = "Rich checking",</span>
 <span class="hljs-comment">//     test = &lt;function1&gt;,</span>
-<span class="hljs-comment">//     annotations = Map(zio.test.TestAnnotation@363e3d95 -&gt; List(SourceLocation(test_effects.md,83)))</span>
+<span class="hljs-comment">//     annotations = Map(zio.test.TestAnnotation@6d1eee2c -&gt; List(SourceLocation(test_effects.md,83)))</span>
 <span class="hljs-comment">//   )</span>
 <span class="hljs-comment">// )</span>
 </code></pre>
@@ -193,7 +193,7 @@ testM(<span class="hljs-string">"Semaphore should expose available number of per
 <span class="hljs-comment">//   caseValue = TestCase(</span>
 <span class="hljs-comment">//     label = "Semaphore should expose available number of permits",</span>
 <span class="hljs-comment">//     test = &lt;function1&gt;,</span>
-<span class="hljs-comment">//     annotations = Map(zio.test.TestAnnotation@363e3d95 -&gt; List(SourceLocation(test_effects.md,105)))</span>
+<span class="hljs-comment">//     annotations = Map(zio.test.TestAnnotation@6d1eee2c -&gt; List(SourceLocation(test_effects.md,105)))</span>
 <span class="hljs-comment">//   )</span>
 <span class="hljs-comment">// )</span>
 </code></pre>
@@ -210,7 +210,7 @@ testM(<span class="hljs-string">"Semaphore should expose available number of per
 <span class="hljs-comment">// suite1: Spec[clock.package.Clock, TestFailure[Nothing], TestSuccess] = Spec(</span>
 <span class="hljs-comment">//   caseValue = SuiteCase(</span>
 <span class="hljs-comment">//     label = "suite1",</span>
-<span class="hljs-comment">//     specs = zio.ZManaged$$anon$2@67783127,</span>
+<span class="hljs-comment">//     specs = zio.ZManaged$$anon$2@d1d3ef2,</span>
 <span class="hljs-comment">//     exec = None</span>
 <span class="hljs-comment">//   )</span>
 <span class="hljs-comment">// )</span>
@@ -222,7 +222,7 @@ testM(<span class="hljs-string">"Semaphore should expose available number of per
 <span class="hljs-comment">// suite2: Spec[clock.package.Clock, TestFailure[Nothing], TestSuccess] = Spec(</span>
 <span class="hljs-comment">//   caseValue = SuiteCase(</span>
 <span class="hljs-comment">//     label = "suite2",</span>
-<span class="hljs-comment">//     specs = zio.ZManaged$$anon$2@3d2058b9,</span>
+<span class="hljs-comment">//     specs = zio.ZManaged$$anon$2@39cfa5fb,</span>
 <span class="hljs-comment">//     exec = None</span>
 <span class="hljs-comment">//   )</span>
 <span class="hljs-comment">// )</span>
@@ -232,7 +232,7 @@ testM(<span class="hljs-string">"Semaphore should expose available number of per
 <span class="hljs-comment">// suite3: Spec[clock.package.Clock, TestFailure[Nothing], TestSuccess] = Spec(</span>
 <span class="hljs-comment">//   caseValue = SuiteCase(</span>
 <span class="hljs-comment">//     label = "suite3",</span>
-<span class="hljs-comment">//     specs = zio.ZManaged$$anon$2@79611305,</span>
+<span class="hljs-comment">//     specs = zio.ZManaged$$anon$2@2ac6245c,</span>
 <span class="hljs-comment">//     exec = None</span>
 <span class="hljs-comment">//   )</span>
 <span class="hljs-comment">// )</span>
@@ -314,7 +314,7 @@ testM(<span class="hljs-string">"Use setSeed to generate stable values"</span>) 
 <span class="hljs-comment">//   caseValue = TestCase(</span>
 <span class="hljs-comment">//     label = "Use setSeed to generate stable values",</span>
 <span class="hljs-comment">//     test = &lt;function1&gt;,</span>
-<span class="hljs-comment">//     annotations = Map(zio.test.TestAnnotation@363e3d95 -&gt; List(SourceLocation(test_effects.md,176)))</span>
+<span class="hljs-comment">//     annotations = Map(zio.test.TestAnnotation@6d1eee2c -&gt; List(SourceLocation(test_effects.md,176)))</span>
 <span class="hljs-comment">//   )</span>
 <span class="hljs-comment">// )</span>
 </code></pre>
@@ -340,7 +340,7 @@ testM(<span class="hljs-string">"One can provide its own list of ints"</span>) {
 <span class="hljs-comment">//   caseValue = TestCase(</span>
 <span class="hljs-comment">//     label = "One can provide its own list of ints",</span>
 <span class="hljs-comment">//     test = &lt;function1&gt;,</span>
-<span class="hljs-comment">//     annotations = Map(zio.test.TestAnnotation@363e3d95 -&gt; List(SourceLocation(test_effects.md,197)))</span>
+<span class="hljs-comment">//     annotations = Map(zio.test.TestAnnotation@6d1eee2c -&gt; List(SourceLocation(test_effects.md,197)))</span>
 <span class="hljs-comment">//   )</span>
 <span class="hljs-comment">// )</span>
 </code></pre>
@@ -371,7 +371,7 @@ testM(<span class="hljs-string">"One can move time very fast"</span>) {
 <span class="hljs-comment">//   caseValue = TestCase(</span>
 <span class="hljs-comment">//     label = "One can move time very fast",</span>
 <span class="hljs-comment">//     test = &lt;function1&gt;,</span>
-<span class="hljs-comment">//     annotations = Map(zio.test.TestAnnotation@363e3d95 -&gt; List(SourceLocation(test_effects.md,236)))</span>
+<span class="hljs-comment">//     annotations = Map(zio.test.TestAnnotation@6d1eee2c -&gt; List(SourceLocation(test_effects.md,236)))</span>
 <span class="hljs-comment">//   )</span>
 <span class="hljs-comment">// )</span>
 </code></pre>
@@ -394,7 +394,7 @@ testM(<span class="hljs-string">"One can control time as he see fit"</span>) {
 <span class="hljs-comment">//   caseValue = TestCase(</span>
 <span class="hljs-comment">//     label = "One can control time as he see fit",</span>
 <span class="hljs-comment">//     test = &lt;function1&gt;,</span>
-<span class="hljs-comment">//     annotations = Map(zio.test.TestAnnotation@363e3d95 -&gt; List(SourceLocation(test_effects.md,260)))</span>
+<span class="hljs-comment">//     annotations = Map(zio.test.TestAnnotation@6d1eee2c -&gt; List(SourceLocation(test_effects.md,260)))</span>
 <span class="hljs-comment">//   )</span>
 <span class="hljs-comment">// )</span>
 </code></pre>
@@ -426,7 +426,7 @@ testM(<span class="hljs-string">"One can control time as he see fit"</span>) {
     }
 }
 <span class="hljs-comment">// schedulingLayer: ZLayer[Clock with Has[LoggingService], Nothing, Has[SchedulingService]] = Managed(</span>
-<span class="hljs-comment">//   self = zio.ZManaged$$anon$2@64eac317</span>
+<span class="hljs-comment">//   self = zio.ZManaged$$anon$2@5a9b26e5</span>
 <span class="hljs-comment">// )</span>
 
 testM(<span class="hljs-string">"One can control time for failing effects too"</span>) {
@@ -450,7 +450,7 @@ testM(<span class="hljs-string">"One can control time for failing effects too"</
 <span class="hljs-comment">//   caseValue = TestCase(</span>
 <span class="hljs-comment">//     label = "One can control time for failing effects too",</span>
 <span class="hljs-comment">//     test = &lt;function1&gt;,</span>
-<span class="hljs-comment">//     annotations = Map(zio.test.TestAnnotation@363e3d95 -&gt; List(SourceLocation(test_effects.md,315)))</span>
+<span class="hljs-comment">//     annotations = Map(zio.test.TestAnnotation@6d1eee2c -&gt; List(SourceLocation(test_effects.md,315)))</span>
 <span class="hljs-comment">//   )</span>
 <span class="hljs-comment">// )</span>
 </code></pre>
@@ -484,7 +484,7 @@ testM(<span class="hljs-string">"zipWithLatest"</span>) {
 <span class="hljs-comment">//   caseValue = TestCase(</span>
 <span class="hljs-comment">//     label = "zipWithLatest",</span>
 <span class="hljs-comment">//     test = &lt;function1&gt;,</span>
-<span class="hljs-comment">//     annotations = Map(zio.test.TestAnnotation@363e3d95 -&gt; List(SourceLocation(test_effects.md,352)))</span>
+<span class="hljs-comment">//     annotations = Map(zio.test.TestAnnotation@6d1eee2c -&gt; List(SourceLocation(test_effects.md,352)))</span>
 <span class="hljs-comment">//   )</span>
 <span class="hljs-comment">// )</span>
 </code></pre>
@@ -516,7 +516,7 @@ as writing and reading to and from internal buffers.</p>
 <span class="hljs-comment">// consoleSuite: Spec[console.package.Console with TestConsole, TestFailure[java.io.IOException], TestSuccess] = Spec(</span>
 <span class="hljs-comment">//   caseValue = SuiteCase(</span>
 <span class="hljs-comment">//     label = "ConsoleTest",</span>
-<span class="hljs-comment">//     specs = zio.ZManaged$$anon$2@42bd37a4,</span>
+<span class="hljs-comment">//     specs = zio.ZManaged$$anon$2@3e9569ea,</span>
 <span class="hljs-comment">//     exec = None</span>
 <span class="hljs-comment">//   )</span>
 <span class="hljs-comment">// )</span>
@@ -537,7 +537,7 @@ like in the code below:</p>
   _      &lt;- <span class="hljs-type">TestSystem</span>.putProperty(<span class="hljs-string">"java.vm.name"</span>, <span class="hljs-string">"VM"</span>)
   result &lt;- system.property(<span class="hljs-string">"java.vm.name"</span>)
 } <span class="hljs-keyword">yield</span> assert(result)(equalTo(<span class="hljs-type">Some</span>(<span class="hljs-string">"VM"</span>)))
-<span class="hljs-comment">// res11: ZIO[TestSystem with system.package.System, Throwable, TestResult] = zio.ZIO$FlatMap@7de75ada</span>
+<span class="hljs-comment">// res11: ZIO[TestSystem with system.package.System, Throwable, TestResult] = zio.ZIO$FlatMap@7a31e3be</span>
 </code></pre>
 <p>It is worth noticing that no actual environment variables or properties will be set during testing so there will be
 no impact on other parts of the system.</p>
