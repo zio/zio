@@ -50,6 +50,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Avast](https://www.avast.com)
 * [CalcBank](https://www.calcbank.com.br)
 * [Call Handling](https://www.callhandling.co.uk/)
+* [Carvana](https://www.carvana.com)
 * [Cloudfarms](https://cloudfarms.com)
 * [CodeComprehension](https://codecomprehension.com)
 * [Codept](https://www.codept.de/)
