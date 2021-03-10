@@ -89,6 +89,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [NewMotion](https://newmotion.com)
 * [NsLookup](https://www.nslookup.io)
 * [Ocado Technology](https://ocadotechnology.com)
+* [Olyro GmbH](https://olyro.de)
 * [Optrak](https://optrak.com)
 * [Performance Immo](https://www.performance-immo.com/)
 * [Playtika](https://www.playtika.com)
