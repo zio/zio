@@ -116,6 +116,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Audela](https://audela.ca)
 * [Valamis Group](https://valamis.com)
 * [Vish](https://getvish.com)
+* [Zooz](https://zooz.com/)
 
 # Sponsors
 
