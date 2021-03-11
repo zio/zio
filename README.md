@@ -43,6 +43,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [AdGear / Samsung Ads](https://adgear.com/en/)
 * [Adidas](https://www.adidas.com/)
 * [adsquare](https://www.adsquare.com/)
+* [Ayolab](https://www.ayolab.com/)
 * [Asana](https://asana.com/)
 * [Aurinko](https://www.aurinko.io/)
 * [auto.ru](https://auto.ru)
