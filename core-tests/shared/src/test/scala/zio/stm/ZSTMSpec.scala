@@ -1392,6 +1392,33 @@ object ZSTMSpec extends ZIOBaseSpec {
 
         assertM(tx.commit)(equalTo((Left("error"), "error")))
       } @@ zioTag(errors)
+    ),
+    suite("issue #4786")(
+      testM("check atomicity ") {
+        val max = 99
+        def transaction(i: Int, ref: TRef[Int], sum: TRef[Int]) =
+          for {
+            ref_prev <- ref.get
+            sum_prev <- sum.get
+            _        <- sum.set(sum_prev + ref_prev + i)
+            _        <- ref.set(i)
+          } yield i
+
+        for {
+          (sum, ref) <- ZSTM.atomically(TRef.make[Int](0) zip TRef.make[Int](0))
+
+          fibers <- ZIO.forkAll {
+                      scala.util.Random.shuffle(1 to max).map { i =>
+                        ZSTM.atomically(transaction(i, ref, sum)).fork
+                      }
+                    }
+          _ <- fibers.join
+          (sum, ref) <- ZSTM.atomically {
+                          sum.get zip ref.get
+                        }
+          passed = sum + ref == (max + 1) * max
+        } yield assert(passed)(isTrue)
+      } @@ nonFlaky
     )
   )
 
