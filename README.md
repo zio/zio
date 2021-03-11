@@ -51,6 +51,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [CalcBank](https://www.calcbank.com.br)
 * [Call Handling](https://www.callhandling.co.uk/)
 * [Carvana](https://www.carvana.com)
+* [Cellular](https://www.cellular.de)
 * [Cloudfarms](https://cloudfarms.com)
 * [CodeComprehension](https://codecomprehension.com)
 * [Codept](https://www.codept.de/)
