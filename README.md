@@ -69,6 +69,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Devsisters](https://devsisters.com/)
 * [DHL Parcel The Netherlands](https://www.werkenbijdhl.nl/it)
 * [Doomoolmori](https://doomoolmori.com/)
+* [Dow Jones](https://www.dowjones.com)
 * [Dream11](https://dream11.com)
 * [Deutsche Telekom IoT GmbH](https://iot.telekom.com/en)
 * [EnelX](https://www.enelx.com)
