@@ -112,6 +112,8 @@ const siteConfig = {
     indexName: 'zio',
     algoliaOptions: {} // Optional, if provided by Algolia
   },
+  
+  docsSideNavCollapsible: true,
 };
 
 module.exports = siteConfig;
