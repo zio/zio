@@ -1,6 +1,6 @@
 ---
-id: datatypes_fiberref
-title:  "FiberRef"
+id: fiberref
+title: "FiberRef"
 ---
 
 `FiberRef[A]` models a mutable reference to a value of type `A`. The two basic operations are `set`, which sets the reference to a new value, and `get`, which retrieves the current value of the reference.

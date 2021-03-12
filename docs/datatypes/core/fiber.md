@@ -1,6 +1,6 @@
 ---
-id: datatypes_fiber
-title:  "Fiber"
+id: fiber
+title: "Fiber"
 ---
 
 To perform an effect without blocking the current process, you can use fibers, which are a lightweight mechanism for concurrency.

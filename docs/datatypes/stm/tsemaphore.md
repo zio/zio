@@ -1,6 +1,6 @@
 ---
-id: datatypes_tsemaphore
-title:  "TSemaphore"
+id: tsemaphore
+title: "TSemaphore"
 ---
 
 `TSemaphore` is a semaphore with transactional semantics that can be used to control access to a common resource. It 

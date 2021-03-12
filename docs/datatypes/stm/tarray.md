@@ -1,6 +1,6 @@
 ---
-id: datatypes_tarray
-title:  "TArray"
+id: tarray
+title: "TArray"
 ---
 
 `TArray` is an array of mutable references that can participate in transactions in STM.

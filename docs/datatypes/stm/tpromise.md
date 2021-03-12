@@ -1,6 +1,6 @@
 ---
-id: datatypes_tpromise
-title:  "TPromise"
+id: tpromise
+title: "TPromise"
 ---
 
 `TPromise` is a mutable reference that can be set exactly once and can participate in transactions in STM.

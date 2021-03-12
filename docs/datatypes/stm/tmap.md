@@ -1,6 +1,6 @@
 ---
-id: datatypes_tmap
-title:  "TMap"
+id: tmap
+title: "TMap"
 ---
 
 A `TMap[A]` is a mutable map that can participate in transactions in STM.

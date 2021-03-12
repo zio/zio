@@ -1,6 +1,6 @@
 ---
-id: datatypes_promise
-title:  "Promise"
+id: promise
+title: "Promise"
 ---
 
 A `Promise[E, A]` is a variable of `IO[E, A]` type that can be set exactly once.

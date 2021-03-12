@@ -16,45 +16,46 @@
   },
   "datatypes-sidebar": {
     "Overview": [
-      "datatypes/datatypes_index"
+      "datatypes/index"
     ],
     "Core Data Types": [
-      "datatypes/datatypes_io",
-      "datatypes/datatypes_fiber",
-      "datatypes/datatypes_fiberref"
+      "datatypes/core/io",
+      "datatypes/core/fiber",
+      "datatypes/core/fiberref"
     ],
     "Concurrency Primitives": [
-      "datatypes/datatypes_promise",
-      "datatypes/datatypes_semaphore",
-      "datatypes/datatypes_ref",
-      "datatypes/datatypes_queue"
+      "datatypes/concurrency/promise",
+      "datatypes/concurrency/semaphore",
+      "datatypes/concurrency/ref",
+      "datatypes/concurrency/queue"
     ],
     "STM": [
-      "datatypes/datatypes_stm",
-      "datatypes/datatypes_tarray",
-      "datatypes/datatypes_tset",
-      "datatypes/datatypes_tmap",
-      "datatypes/datatypes_tref",
-      "datatypes/datatypes_tpriorityqueue",
-      "datatypes/datatypes_tpromise",
-      "datatypes/datatypes_tqueue",
-      "datatypes/datatypes_treentrantlock",
-      "datatypes/datatypes_tsemaphore"
+      "datatypes/stm/stm",
+      "datatypes/stm/tarray",
+      "datatypes/stm/tset",
+      "datatypes/stm/tmap",
+      "datatypes/stm/tref",
+      "datatypes/stm/tpriorityqueue",
+      "datatypes/stm/tpromise",
+      "datatypes/stm/tqueue",
+      "datatypes/stm/treentrantlock",
+      "datatypes/stm/tsemaphore"
     ],
     "Resource Safety": [
-      "datatypes/datatypes_managed"
+      "datatypes/resource/managed"
     ],
-    "Runtime": [
-    ],
+    "Runtime": [],
     "Streaming": [
-      "datatypes/datatypes_stream",
-      "datatypes/datatypes_sink"
+      "datatypes/stream/stream",
+      "datatypes/stream/sink"
+    ],
+    "Module": [
+      "datatypes/module/has",
+      "datatypes/module/zlayer"
     ],
     "Miscellaneous": [
-      "datatypes/datatypes_chunk",
-      "datatypes/datatypes_schedule",
-      "datatypes/datatypes_has",
-      "datatypes/datatypes_zlayer"
+      "datatypes/misc/chunk",
+      "datatypes/misc/schedule"
     ]
   },
   "interop-sidebar": {

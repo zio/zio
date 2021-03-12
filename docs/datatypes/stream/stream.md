@@ -1,6 +1,6 @@
 ---
-id: datatypes_stream
-title:  "Stream"
+id: stream
+title: "Stream"
 ---
 
 A `Stream[E, A]` represents an effectful stream that can produce values of

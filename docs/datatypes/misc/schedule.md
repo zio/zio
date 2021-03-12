@@ -1,6 +1,6 @@
 ---
-id: datatypes_schedule
-title:  "Schedule"
+id: schedule
+title: "Schedule"
 ---
 
 ```scala mdoc:silent

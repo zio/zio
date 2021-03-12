@@ -1,6 +1,6 @@
 ---
-id: datatypes_io
-title:  "IO"
+id: io
+title: "IO"
 ---
 
 A value of type `IO[E, A]` describes an effect that may fail with an `E`, run forever, or produce a single `A`.

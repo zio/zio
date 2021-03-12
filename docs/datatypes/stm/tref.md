@@ -1,6 +1,6 @@
 ---
-id: datatypes_tref
-title:  "TRef"
+id: tref
+title: "TRef"
 ---
 
 A `TRef[A]` is a mutable reference to an immutable value, which can participate in transactions in STM. The mutable reference can be retrieved and set from within transactions, with strong guarantees for atomicity, consistency, and isolation from other transactions.
@@ -175,4 +175,4 @@ On the running fiber, we suspend until the sender balance suffers changes, in th
 
 ## ZTRef
 
-Like `Ref[A]`, `TRef[A]` is actually a type alias for `ZTRef[+EA, +EB, -A, +B]`, a polymorphic, transactional reference and supports all the transformations that `ZRef` does. For more discussion regarding polymorphic references see the documentation on [`ZRef`](../datatypes/ref.md).
+Like `Ref[A]`, `TRef[A]` is actually a type alias for `ZTRef[+EA, +EB, -A, +B]`, a polymorphic, transactional reference and supports all the transformations that `ZRef` does. For more discussion regarding polymorphic references see the documentation on [`ZRef`](../concurrency/ref.md).

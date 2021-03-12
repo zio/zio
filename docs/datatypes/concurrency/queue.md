@@ -1,6 +1,6 @@
 ---
-id: datatypes_queue
-title:  "Queue"
+id: queue
+title: "Queue"
 ---
 
 `Queue` is a lightweight in-memory queue built on ZIO with composable and transparent back-pressure. It is fully asynchronous (no locks or blocking), purely-functional and type-safe.

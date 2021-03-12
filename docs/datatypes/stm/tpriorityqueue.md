@@ -1,6 +1,6 @@
 ---
-id: datatypes_tpriorityqueue
-title:  "TPriorityQueue"
+id: tpriorityqueue
+title: "TPriorityQueue"
 ---
 
 A `TPriorityQueue[A]` is a mutable queue that can participate in STM transactions. A `TPriorityQueue` contains values of type `A` for which an `Ordering` is defined. Unlike a `TQueue`, `take` returns the highest priority value (the value that is first in the specified ordering) as opposed to the first value offered to the queue. The ordering of elements sharing the same priority when taken from the queue is not guaranteed.

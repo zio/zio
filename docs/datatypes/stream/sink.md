@@ -1,6 +1,6 @@
 ---
-id: datatypes_sink
-title:  "Sink"
+id: sink
+title: "Sink"
 ---
 
 A `ZSink[R, E, A, B]` is used to consume elements produced by a stream.

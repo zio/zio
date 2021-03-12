@@ -1,6 +1,6 @@
 ---
-id: datatypes_ref
-title:  "Ref"
+id: ref
+title: "Ref"
 ---
 
 `Ref[A]` models a mutable reference to a value of type `A`. The two basic operations are `set`, which fills the `Ref` with a new value, and `get`, which retrieves its current content. All operations on a `Ref` are atomic and thread-safe, providing a reliable foundation for synchronizing concurrent programs.

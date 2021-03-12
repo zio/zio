@@ -1,6 +1,6 @@
 ---
-id: datatypes_zlayer
-title:  "ZLayer"
+id: zlayer
+title: "ZLayer"
 ---
 
 `ZLayer[A, E, B]` describes a layer of an application: every layer in an

@@ -1,6 +1,6 @@
 ---
-id: datatypes_managed
-title:  "Managed"
+id: managed
+title: "Managed"
 ---
 
 `Managed` is a data structure that encapsulates the acquisition and the release of a resource.

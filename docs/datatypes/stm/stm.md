@@ -1,6 +1,6 @@
 ---
-id: datatypes_stm
-title:  "STM"
+id: stm
+title: "STM"
 ---
 
 Software Transactional Memory (STM) is a technique which allows composition of arbitrary atomic operations. It is the 

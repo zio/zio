@@ -1,6 +1,6 @@
 ---
-id: datatypes_treentrantlock
-title:  "TReentrantLock"
+id: treentrantlock
+title: "TReentrantLock"
 ---
 
 A TReentrantLock allows safe concurrent access to some mutable state efficiently, allowing multiple fibers to read the 

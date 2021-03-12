@@ -1,6 +1,6 @@
 ---
-id: datatypes_semaphore
-title:  "Semaphore"
+id: semaphore
+title: "Semaphore"
 ---
 
 A `Semaphore` datatype which allows synchronization between fibers with the `withPermit` operation, which safely acquires and releases a permit.

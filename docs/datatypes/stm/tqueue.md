@@ -1,6 +1,6 @@
 ---
-id: datatypes_tqueue
-title:  "TQueue"
+id: tqueue
+title: "TQueue"
 ---
 
 A `TQueue[A]` is a mutable queue that can participate in transactions in STM.
