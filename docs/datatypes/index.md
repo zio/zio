@@ -3,7 +3,16 @@ id: index
 title: "Summary"
 ---
 
-ZIO contains a small number of data types that can help you solve complex problems in asynchronous and concurrent programming.
+ZIO contains a few data types that can help you solve complex problems in asynchronous and concurrent programming. ZIO data types categorize into these sections:
+
+1. [Core Data Types](#core-data-types)
+2. [Concurrency Primitives](#concurrency-primitives)
+3. [STM](#stm)
+4. [Resource Safety](#resource-safety)
+5. [Runtime](#runtime)
+6. [Streaming](#streaming)
+7. [Module](#module)
+8. [Miscellaneous](#miscellaneous)
 
 ## Core Data Types
  - **[ZIO](core/io.md)** — A `ZIO` is a value that models an effectful program, which might fail or succeed.
