@@ -28,13 +28,37 @@ Although Chunk is a common data type in ZIO, it exists primarily to support stre
 
 When we are doing data streaming, a lot of times the source stream is a stream of bytes. Hence, internally we use a Chunk of bytes to represent that, so we don't have to box the bytes. Of course, it can be utilized for Chunks of Ints and many other types. Using Chunk is especially common when we are encoding and decoding at the level of streams. It is a very efficient, high-performance data type. 
 
-## Creating a Chunk
+## Operations
 
-```scala mdoc
-Chunk(1,2,3)
+### Creating a Chunk
+
+Creating empty `Chunk`:
+```
+val emptyChunk = Chunk.empty
 ```
 
-## Concatenating chunk:
+Creating a `Chunk` with specified values:
+```scala mdoc
+val specifiedValuesChunk = Chunk(1,2,3)
+```
+
+Alternatively, we can create a `Chunk` by providing a collection of values:
+```scala mdoc
+val fromIterableChunk: Chunk[Int] = Chunk.fromIterable(List(1, 2, 3))
+val fromArrayChunk: Chunk[Int] = Chunk.fromArray(Array(1, 2, 3))
+```
+
+Creating a `Chunk` using filling same n element into it:
+```scala mdoc
+val chunk: Chunk[Int] = Chunk.fill(3)(0)
+```
+
+Creating a `Chunk` using unfold method by repeatedly applying the given function, as long as it returns Some:
+```scala mdoc
+val unfolded = Chunk.unfold(0)(n => if (n < 8) Some((n*2, n+2)) else None)
+```
+
+### Concatenating chunk
 
 `++` Returns the concatenation of this chunk with the specified chunk. For example:
 
@@ -42,7 +66,7 @@ Chunk(1,2,3)
 Chunk(1,2,3) ++ Chunk(4,5,6)
 ```
 
-## Collecting chunk:
+### Collecting chunk
 
 `collect` Returns a filtered, mapped subset of the elements of this chunk.
 How to use `collect` function to cherry-pick all strings from Chunk[A]:
@@ -68,7 +92,7 @@ or another example:
 ```scala mdoc
 Chunk(9, 2, 5, 1, 6).collectWhile { case element if element >= 2 => true }
 ```
-## Dropping chunk:
+### Dropping chunk
 
 `drop` drops the first `n` elements of the chunk:
 
@@ -82,13 +106,13 @@ Chunk("Sarah", "Bob", "Jane").drop(1)
 Chunk(9, 2, 5, 1, 6).dropWhile(_ >= 2)
 ```
 
-## Comparing chunks:
+### Comparing chunks
 
 ```scala mdoc
 Chunk("A","B") == Chunk("A", "C")
 ```
 
-#Converting chunks
+### Converting chunks
 
 `toArray` converts the chunk into an Array.
 
@@ -97,7 +121,6 @@ Chunk(1,2,3).toArray
 ```
 
 `toSeq`converts the chunk into `Seq`.
-
 
 ``` scala mdoc
 Chunk(1,2,3).toSeq
