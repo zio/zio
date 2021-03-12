@@ -19,17 +19,20 @@
       "datatypes/index"
     ],
     "Core Data Types": [
+      "datatypes/core/index",
       "datatypes/core/io",
       "datatypes/core/fiber",
       "datatypes/core/fiberref"
     ],
     "Concurrency Primitives": [
+      "datatypes/concurrency/index",
       "datatypes/concurrency/promise",
       "datatypes/concurrency/semaphore",
       "datatypes/concurrency/ref",
       "datatypes/concurrency/queue"
     ],
     "STM": [
+      "datatypes/stm/index",
       "datatypes/stm/stm",
       "datatypes/stm/tarray",
       "datatypes/stm/tset",
@@ -42,18 +45,22 @@
       "datatypes/stm/tsemaphore"
     ],
     "Resource Safety": [
+      "datatypes/resource/index",
       "datatypes/resource/managed"
     ],
     "Runtime": [],
     "Streaming": [
+      "datatypes/stream/index",
       "datatypes/stream/stream",
       "datatypes/stream/sink"
     ],
     "Module": [
+      "datatypes/module/index",
       "datatypes/module/has",
       "datatypes/module/zlayer"
     ],
     "Miscellaneous": [
+      "datatypes/misc/index",
       "datatypes/misc/chunk",
       "datatypes/misc/schedule"
     ]
