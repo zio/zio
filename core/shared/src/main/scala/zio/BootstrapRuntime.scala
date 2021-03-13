@@ -19,7 +19,7 @@ package zio
 import zio.internal.Platform
 
 trait BootstrapRuntime extends Runtime[ZEnv] {
-  def environment: ZEnv = ZEnv.Services.live
+  val environment: ZEnv = ZEnv.Services.live
 
   /**
    * The platform of the runtime, which provides the essential capabilities

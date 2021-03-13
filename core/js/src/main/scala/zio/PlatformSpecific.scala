@@ -29,7 +29,7 @@ private[zio] trait PlatformSpecific {
     private[zio] object Services {
       val live: ZEnv =
         Has.allOf[Clock, Console, System, Random](
-          Clock.Service.live,
+          Clock.ClockLive,
           Console.Service.live,
           System.Service.live,
           Random.Service.live

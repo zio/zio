@@ -16,7 +16,6 @@
 
 package zio
 
-import zio.Clock
 import zio.blocking.Blocking
 import zio.console.Console
 import zio.random.Random
@@ -30,7 +29,7 @@ private[zio] trait PlatformSpecific {
     private[zio] object Services {
       val live: ZEnv =
         Has.allOf[Clock, Console, System, Random, Blocking](
-          Clock.Service.live,
+          Clock.ClockLive,
           Console.Service.live,
           System.Service.live,
           Random.Service.live,
