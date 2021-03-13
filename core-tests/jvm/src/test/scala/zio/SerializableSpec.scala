@@ -24,8 +24,8 @@ object SerializableSpec extends ZIOBaseSpec {
     },
     testM("Clock is serializable") {
       for {
-        time1 <- clock.nanoTime
-        time2 <- serializeAndBack(clock.nanoTime).flatten
+        time1 <- Clock.nanoTime
+        time2 <- serializeAndBack(Clock.nanoTime).flatten
       } yield assert(time1)(isLessThanEqualTo(time2))
     },
     testM("Queue is serializable") {

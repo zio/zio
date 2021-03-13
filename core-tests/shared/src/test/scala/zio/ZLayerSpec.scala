@@ -1,6 +1,6 @@
 package zio
 
-import zio.clock._
+import zio.Clock._
 import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect.nonFlaky

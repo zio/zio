@@ -1,8 +1,8 @@
 package zio
 
 import zio.Cause._
+import zio.Clock
 import zio.LatchOps._
-import zio.clock.Clock
 import zio.duration._
 import zio.internal.Platform
 import zio.random.Random
@@ -1001,7 +1001,7 @@ object ZIOSpec extends ZIOBaseSpec {
           fiber <- ZIO.fromFutureInterrupt(ec => infiniteFuture(ref)(ec)).fork
           _     <- fiber.interrupt
           v1    <- ZIO.effectTotal(ref.get)
-          _     <- Live.live(clock.sleep(10.milliseconds))
+          _     <- Live.live(Clock.sleep(10.milliseconds))
           v2    <- ZIO.effectTotal(ref.get)
         } yield assert(v1)(equalTo(v2))
       },
@@ -2085,7 +2085,7 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(res)(equalTo(42))
       } @@ zioTag(interruption),
       testM("timeout a long computation") {
-        val io = (clock.sleep(5.seconds) *> IO.succeed(true)).timeout(10.millis)
+        val io = (Clock.sleep(5.seconds) *> IO.succeed(true)).timeout(10.millis)
         assertM(Live.live(io))(isNone)
       },
       testM("timeout a long computation with an error") {
@@ -2218,14 +2218,14 @@ object ZIOSpec extends ZIOBaseSpec {
             log  = makeLogger(ref)
             f <- ZIO
                    .bracket(
-                     ZIO.bracket(ZIO.unit)(_ => log("start 1") *> clock.sleep(10.millis) *> log("release 1"))(_ =>
+                     ZIO.bracket(ZIO.unit)(_ => log("start 1") *> Clock.sleep(10.millis) *> log("release 1"))(_ =>
                        ZIO.unit
                      )
-                   )(_ => log("start 2") *> clock.sleep(10.millis) *> log("release 2"))(_ => ZIO.unit)
+                   )(_ => log("start 2") *> Clock.sleep(10.millis) *> log("release 2"))(_ => ZIO.unit)
                    .fork
-            _ <- (ref.get <* clock.sleep(1.millis)).repeatUntil(_.contains("start 1"))
+            _ <- (ref.get <* Clock.sleep(1.millis)).repeatUntil(_.contains("start 1"))
             _ <- f.interrupt
-            _ <- (ref.get <* clock.sleep(1.millis)).repeatUntil(_.contains("release 2"))
+            _ <- (ref.get <* Clock.sleep(1.millis)).repeatUntil(_.contains("release 2"))
             l <- ref.get
           } yield l
 
@@ -2238,7 +2238,7 @@ object ZIOSpec extends ZIOBaseSpec {
             p1 <- Promise.make[Nothing, Unit]
             p2 <- Promise.make[Nothing, Int]
             s <- (p1.succeed(()) *> p2.await)
-                   .ensuring(r.set(true) *> clock.sleep(10.millis))
+                   .ensuring(r.set(true) *> Clock.sleep(10.millis))
                    .fork
             _    <- p1.await
             _    <- s.interrupt
@@ -2304,7 +2304,7 @@ object ZIOSpec extends ZIOBaseSpec {
 
         def asyncIO(cont: URIO[Has[Clock], Int]): URIO[Has[Clock], Int] =
           ZIO.effectAsyncM[Has[Clock], Nothing, Int] { k =>
-            clock.sleep(5.millis) *> cont *> IO.effectTotal(k(IO.succeed(42)))
+            Clock.sleep(5.millis) *> cont *> IO.effectTotal(k(IO.succeed(42)))
           }
 
         val procNum = java.lang.Runtime.getRuntime.availableProcessors()
@@ -2386,7 +2386,7 @@ object ZIOSpec extends ZIOBaseSpec {
         }
       } @@ flaky,
       testM("sleep 0 must return") {
-        assertM(Live.live(clock.sleep(1.nanos)))(isUnit)
+        assertM(Live.live(Clock.sleep(1.nanos)))(isUnit)
       },
       testM("shallow bind of async chain") {
         val io = (0 until 10).foldLeft[Task[Int]](IO.succeed[Int](0)) { (acc, _) =>
@@ -2496,7 +2496,7 @@ object ZIOSpec extends ZIOBaseSpec {
       },
       testM("supervise fibers") {
         def makeChild(n: Int): URIO[Has[Clock], Fiber[Nothing, Unit]] =
-          (clock.sleep(20.millis * n.toDouble) *> ZIO.infinity).fork
+          (Clock.sleep(20.millis * n.toDouble) *> ZIO.infinity).fork
 
         val io =
           for {
@@ -2933,7 +2933,7 @@ object ZIOSpec extends ZIOBaseSpec {
             p1 <- Promise.make[Nothing, Unit]
             p3 <- Promise.make[Nothing, Unit]
             s <- (p1.succeed(()) *> ZIO.never)
-                   .ensuring(r.set(true) *> clock.sleep(10.millis) *> p3.succeed(()))
+                   .ensuring(r.set(true) *> Clock.sleep(10.millis) *> p3.succeed(()))
                    .disconnect
                    .fork
             _    <- p1.await
@@ -2962,7 +2962,7 @@ object ZIOSpec extends ZIOBaseSpec {
             fiber1 <- withLatch { (release2, await2) =>
                         withLatch { release1 =>
                           release1
-                            .bracket_(ZIO.unit, await2 *> clock.sleep(10.millis) *> ref.set(true))
+                            .bracket_(ZIO.unit, await2 *> Clock.sleep(10.millis) *> ref.set(true))
                             .uninterruptible
                             .fork
                         } <* release2
@@ -2983,7 +2983,7 @@ object ZIOSpec extends ZIOBaseSpec {
                         .succeed(())
                         .bracketExit[Has[Clock], Nothing, Unit](
                           (_: Boolean, _: Exit[Any, Any]) => ZIO.unit,
-                          (_: Boolean) => latch2.await *> clock.sleep(10.millis) *> ref.set(true).unit
+                          (_: Boolean) => latch2.await *> Clock.sleep(10.millis) *> ref.set(true).unit
                         )
                         .uninterruptible
                         .fork
@@ -3000,7 +3000,7 @@ object ZIOSpec extends ZIOBaseSpec {
           for {
             ref <- Ref.make(false)
             fiber <- withLatch { release =>
-                       (release *> clock.sleep(10.millis) *> ref.set(true).unit).uninterruptible.fork
+                       (release *> Clock.sleep(10.millis) *> ref.set(true).unit).uninterruptible.fork
                      }
             _     <- fiber.interrupt
             value <- ref.get
@@ -3079,7 +3079,7 @@ object ZIOSpec extends ZIOBaseSpec {
       testM("runs effect for each recurrence of the schedule") {
         for {
           ref     <- Ref.make[List[Duration]](List.empty)
-          effect   = clock.nanoTime.flatMap(duration => ref.update(duration.nanoseconds :: _))
+          effect   = Clock.nanoTime.flatMap(duration => ref.update(duration.nanoseconds :: _))
           schedule = Schedule.spaced(1.second) && Schedule.recurs(5)
           _       <- effect.schedule(schedule).fork
           _       <- TestClock.adjust(5.seconds)

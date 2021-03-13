@@ -1193,7 +1193,7 @@ object ZManagedSpec extends ZIOBaseSpec {
     suite("timed")(
       testM("Should time both the reservation and the acquisition") {
         val managed = ZManaged.makeReserve(
-          clock.sleep(20.milliseconds) *> ZIO.succeed(Reservation(clock.sleep(20.milliseconds), _ => ZIO.unit))
+          Clock.sleep(20.milliseconds) *> ZIO.succeed(Reservation(Clock.sleep(20.milliseconds), _ => ZIO.unit))
         )
         val test = managed.timed.use { case (duration, _) =>
           ZIO.succeed(assert(duration.toNanos)(isGreaterThanEqualTo(40.milliseconds.toNanos)))

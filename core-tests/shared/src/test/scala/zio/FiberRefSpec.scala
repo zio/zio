@@ -353,7 +353,7 @@ object FiberRefSpec extends ZIOBaseSpec {
 object FiberRefSpecUtil {
   val (initial, update, update1, update2) = ("initial", "update", "update1", "update2")
   val looseTimeAndCpu: ZIO[Has[Live], Nothing, Unit] = Live.live {
-    (ZIO.yieldNow <* clock.sleep(1.nano)).repeatN(100)
+    (ZIO.yieldNow <* Clock.sleep(1.nano)).repeatN(100)
   }
 
   def setRefOrHandle(fiberRef: FiberRef[Int], value: Int): UIO[Unit] =

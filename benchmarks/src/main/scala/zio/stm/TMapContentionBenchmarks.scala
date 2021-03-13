@@ -1,8 +1,7 @@
 package zio.stm
 
 import org.openjdk.jmh.annotations._
-import zio._
-import zio.clock.Clock
+import zio.{Clock, _}
 
 import java.util.concurrent.TimeUnit
 

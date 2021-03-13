@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 
-package zio.clock
+package zio
 
 import zio.duration.Duration
 import zio.internal.Scheduler
 
 import scala.scalajs.js
 
-private[clock] trait PlatformSpecific {
-  private[clock] val globalScheduler = new Scheduler {
+private[zio] trait ClockPlatformSpecific {
+  private[zio] val globalScheduler = new Scheduler {
     import Scheduler.CancelToken
 
     private[this] val ConstFalse = () => false

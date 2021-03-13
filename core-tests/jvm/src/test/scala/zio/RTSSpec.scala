@@ -1,6 +1,6 @@
 package zio
 
-import zio.clock.Clock
+import zio.Clock
 import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect.{nonFlaky, silent}
@@ -139,7 +139,7 @@ object RTSSpec extends ZIOBaseSpec {
       val zio =
         for {
           f <- test.fork
-          c <- (IO.effectTotal[Int](c.get) <* clock.sleep(1.millis))
+          c <- (IO.effectTotal[Int](c.get) <* Clock.sleep(1.millis))
                  .repeatUntil(_ >= 1) <* f.interrupt
         } yield c
 

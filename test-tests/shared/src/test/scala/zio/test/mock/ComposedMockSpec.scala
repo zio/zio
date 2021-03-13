@@ -1,12 +1,11 @@
 package zio.test.mock
 
-import zio.clock.Clock
 import zio.console.Console
 import zio.duration._
 import zio.random.Random
 import zio.system.System
 import zio.test.{Assertion, ZIOBaseSpec, ZSpec, assertM}
-import zio.{Has, Tag, ULayer, ZIO, clock, console, random, system}
+import zio.{Clock, Has, Tag, ULayer, ZIO, console, random, system}
 
 object ComposedMockSpec extends ZIOBaseSpec {
 
@@ -31,7 +30,7 @@ object ComposedMockSpec extends ZIOBaseSpec {
 
         val program =
           for {
-            time <- clock.nanoTime
+            time <- Clock.nanoTime
             _    <- console.putStrLn(time.toString)
           } yield ()
 
@@ -51,7 +50,7 @@ object ComposedMockSpec extends ZIOBaseSpec {
         val program =
           for {
             n <- random.nextInt
-            _ <- clock.sleep(n.seconds)
+            _ <- Clock.sleep(n.seconds)
             v <- system.property("foo")
             _ <- console.putStrLn(v.toString)
           } yield ()

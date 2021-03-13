@@ -55,7 +55,7 @@ object UpdatedAccessibleMacroExample {
   }
 
   object CompanionService {
-    def someExistingMethod(string: String): UIO[Int] = UIO(12)
+    def someExistingMethod(string: String): UIO[Int] = UIO(string.length)
   }
 
   object CompanionSanityCheck {
@@ -104,26 +104,28 @@ object AccessibleMacroExample {
   }
 
   val live: ZLayer[Has[Console], Nothing, Has[Service]] =
-    ZLayer.fromService(console =>
-      new Service {
-        val foo: UIO[Unit]                                              = UIO.unit
-        def foo2: UIO[Unit]                                             = UIO.unit
-        def foo3(): UIO[Unit]                                           = UIO.unit
-        def bar(n: Int): UIO[Unit]                                      = console.putStrLn(s"bar $n")
-        def baz(x: Int, y: Int): IO[String, Int]                        = UIO.succeed(x + y)
-        def poly[A](a: A): IO[Long, A]                                  = UIO.succeed(a)
-        def poly2[A <: Foo](a: Wrapped[A]): IO[String, List[A]]         = UIO.succeed(List(a.value))
-        def dependent(n: Int): ZIO[Has[Random], Long, Int]              = random.nextIntBounded(n)
-        val value: String                                               = "foo"
-        def value2: String                                              = "foo2"
-        def value3(): String                                            = "foo3"
-        def function(n: Int): String                                    = s"foo $n"
-        def stream(n: Int): ZStream[Any, String, Int]                   = ZStream.fromIterable(List(1, 2, 3))
-        def sink(n: Int): ZSink[Any, Nothing, Int, Nothing, Chunk[Int]] = ZSink.collectAll
+    ZIO
+      .service[Console]
+      .map(console =>
+        new Service {
+          val foo: UIO[Unit]                                              = UIO.unit
+          def foo2: UIO[Unit]                                     = UIO.unit
+          def foo3(): UIO[Unit]                                   = UIO.unit
+          def bar(n: Int): UIO[Unit]                                      = console.putStrLn(s"bar $n")
+          def baz(x: Int, y: Int): IO[String, Int]                        = UIO.succeed(x + y)
+          def poly[A](a: A): IO[Long, A]                                  = UIO.succeed(a)
+          def poly2[A <: Foo](a: Wrapped[A]): IO[String, List[A]]         = UIO.succeed(List(a.value))
+          def dependent(n: Int): ZIO[Has[Random], Long, Int]              = random.nextIntBounded(n)
+          val value: String                                               = "foo"
+          def value2: String                                      = "foo2"
+          def value3(): String                                    = "foo3"
+          def function(n: Int): String                                    = s"foo $n"
+          def stream(n: Int): ZStream[Any, String, Int]                   = ZStream.fromIterable(List(1, 2, 3))
+          def sink(n: Int): ZSink[Any, Nothing, Int, Nothing, Chunk[Int]] = ZSink.collectAll
         def withEx(): String                                            = throw new Exception("test")
-        def withEx1(p: String): String                                  = throw new Exception("test")
-      }
-    )
+        def withEx1(p: String): String                                  = throw new Exception("test")}
+      )
+      .toLayer
 
   // can use accessors even in the same compilation unit
   val program: URIO[

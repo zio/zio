@@ -16,8 +16,8 @@
 
 package zio
 
+import zio.Clock
 import zio.blocking.Blocking
-import zio.clock.Clock
 import zio.console.Console
 import zio.random.Random
 import zio.system.System

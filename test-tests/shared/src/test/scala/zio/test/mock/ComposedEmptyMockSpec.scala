@@ -1,10 +1,9 @@
 package zio.test.mock
 
-import zio.clock.Clock
 import zio.console.Console
 import zio.test.mock.internal.MockException
 import zio.test.{Assertion, ZIOBaseSpec, ZSpec}
-import zio.{Has, ZIO, clock, console}
+import zio.{Clock, Has, ZIO, console}
 
 import java.io.IOException
 
@@ -19,7 +18,7 @@ object ComposedEmptyMockSpec extends ZIOBaseSpec with MockSpecUtils[ComposedEmpt
       .succeed(predicate)
       .flatMap {
         case true  => console.getStrLn
-        case false => clock.nanoTime
+        case false => Clock.nanoTime
       }
       .unit
 

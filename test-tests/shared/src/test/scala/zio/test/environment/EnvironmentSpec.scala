@@ -1,7 +1,7 @@
 package zio.test.environment
 
+import zio.Clock._
 import zio._
-import zio.clock._
 import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect._
@@ -15,7 +15,7 @@ object EnvironmentSpec extends ZIOBaseSpec {
     testM("Clock returns time when it is set") {
       for {
         _    <- TestClock.setTime(1.millis)
-        time <- clock.currentTime(TimeUnit.MILLISECONDS)
+        time <- Clock.currentTime(TimeUnit.MILLISECONDS)
       } yield assert(time)(equalTo(1L))
     },
     testM("Has[Console] writes line to output") {
@@ -74,7 +74,7 @@ object EnvironmentSpec extends ZIOBaseSpec {
     },
     testM("clock service can be overwritten") {
       val withLiveClock = TestEnvironment.live ++ Clock.live
-      val time          = clock.nanoTime.provideLayer(withLiveClock)
+      val time          = Clock.nanoTime.provideLayer(withLiveClock)
       assertM(time)(isGreaterThan(0L))
     } @@ nonFlaky
   )

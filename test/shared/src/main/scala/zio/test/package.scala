@@ -36,7 +36,7 @@ import scala.util.Try
  * {{{
  *  import zio.test._
  *  import zio.test.environment.Live
- *  import zio.clock.nanoTime
+ *  import zio.Clock.nanoTime
  *  import Assertion.isGreaterThan
  *
  *  object MyTest extends DefaultRunnableSpec {

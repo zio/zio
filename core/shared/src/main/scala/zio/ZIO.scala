@@ -16,12 +16,11 @@
 
 package zio
 
-import zio.clock.Clock
 import zio.console.Console
 import zio.duration._
 import zio.internal.tracing.{ZIOFn, ZIOFn1, ZIOFn2}
 import zio.internal.{Executor, Platform}
-import zio.{TracingStatus => TracingS}
+import zio.{Clock, TracingStatus => TracingS}
 
 import scala.annotation.implicitNotFound
 import scala.collection.mutable.Builder
@@ -305,7 +304,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
 
     def get(cache: RefM[Option[(Long, Promise[E, A])]]): ZIO[R with Has[Clock], E, A] =
       ZIO.uninterruptibleMask { restore =>
-        clock.nanoTime.flatMap { time =>
+        Clock.nanoTime.flatMap { time =>
           cache.updateSomeAndGetM {
             case None                              => compute(time)
             case Some((end, _)) if end - time <= 0 => compute(time)
@@ -480,7 +479,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * [[zio.duration.Duration]].
    */
   final def delay(duration: Duration): ZIO[R with Has[Clock], E, A] =
-    clock.sleep(duration) *> self
+    Clock.sleep(duration) *> self
 
   /**
    * Returns an effect whose interruption will be disconnected from the
@@ -1901,7 +1900,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   /**
    * Returns a new effect that executes this one and times the execution.
    */
-  final def timed: ZIO[R with Has[Clock], E, (Duration, A)] = timedWith(clock.nanoTime)
+  final def timed: ZIO[R with Has[Clock], E, (Duration, A)] = timedWith(Clock.nanoTime)
 
   /**
    * A more powerful variation of `timed` that allows specifying the clock.
@@ -3925,7 +3924,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * asynchronous, and does not actually block the fiber executing the effect.
    */
   def sleep(duration: => Duration): URIO[Has[Clock], Unit] =
-    clock.sleep(duration)
+    Clock.sleep(duration)
 
   /**
    *  Returns an effect with the optional value.

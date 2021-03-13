@@ -1,6 +1,6 @@
 package zio
 
-import zio.clock.Clock
+import zio.Clock
 import zio.duration._
 import zio.random.Random
 import zio.stream.ZStream
@@ -123,13 +123,13 @@ object ScheduleSpec extends ZIOBaseSpec {
     suite("Simulate a schedule")(
       testM("without timing out") {
         val schedule  = Schedule.exponential(1.minute)
-        val scheduled = clock.currentDateTime.flatMap(schedule.run(_, List.fill(5)(())))
+        val scheduled = Clock.currentDateTime.flatMap(schedule.run(_, List.fill(5)(())))
         val expected  = Chunk(1.minute, 2.minute, 4.minute, 8.minute, 16.minute)
         assertM(scheduled)(equalTo(expected))
       } @@ timeout(1.seconds),
       testM("respect Schedule.recurs even if more input is provided than needed") {
         val schedule  = Schedule.recurs(2) && Schedule.exponential(1.minute)
-        val scheduled = clock.currentDateTime.flatMap(schedule.run(_, 1 to 10))
+        val scheduled = Clock.currentDateTime.flatMap(schedule.run(_, 1 to 10))
         val expected  = Chunk((0L, 1.minute), (1L, 2.minute), (2L, 4.minute))
         assertM(scheduled)(equalTo(expected))
       },
@@ -199,7 +199,7 @@ object ScheduleSpec extends ZIOBaseSpec {
         val expected = (800.millis, "GiveUpError", 4L)
         val result = io.retryOrElseEither(
           strategy,
-          (e: String, r: Long) => clock.nanoTime.map(nanos => (Duration.fromNanos(nanos), e, r))
+          (e: String, r: Long) => Clock.nanoTime.map(nanos => (Duration.fromNanos(nanos), e, r))
         )
         assertM(run(result))(isLeft(equalTo(expected)))
       },

@@ -10,7 +10,7 @@ object ClockSpec extends ZIOBaseSpec {
   def spec: Spec[Has[Clock], TestFailure[DateTimeException], TestSuccess] = suite("ClockSpec")(
     testM("currentDateTime does not throw a DateTimeException") {
       for {
-        _ <- clock.currentDateTime
+        _ <- Clock.currentDateTime
       } yield assertCompletes
     }
   )

@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.clock.Clock
+import zio.Clock
 import zio.duration._
 import zio.random._
 
@@ -329,7 +329,7 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
       val next = (in: In) =>
         for {
           step <- ref.get.map(_._2)
-          now  <- clock.currentDateTime
+          now  <- Clock.currentDateTime
           dec  <- step(now, in)
           v <- dec match {
                  case Done(out) => ref.set((Some(out), StepFunction.done(out))) *> ZIO.fail(None)

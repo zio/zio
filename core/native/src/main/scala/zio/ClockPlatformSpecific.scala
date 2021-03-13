@@ -14,45 +14,34 @@
  * limitations under the License.
  */
 
-package zio.clock
+package zio
 
 import zio.duration.Duration
-import zio.internal.{NamedThreadFactory, Scheduler}
+import zio.internal.Scheduler
 
-import java.util.concurrent._
+import scala.concurrent.duration._
+import scala.scalanative.loop._
 
-private[clock] trait PlatformSpecific {
-  import Scheduler.CancelToken
-
-  private[clock] val globalScheduler = new Scheduler {
-
-    private[this] val service = makeService()
+private[zio] trait ClockPlatformSpecific {
+  private[zio] val globalScheduler = new Scheduler {
+    import Scheduler.CancelToken
 
     private[this] val ConstFalse = () => false
 
     override def schedule(task: Runnable, duration: Duration): CancelToken = (duration: @unchecked) match {
       case Duration.Infinity => ConstFalse
-      case Duration.Finite(_) =>
-        val future = service.schedule(
-          new Runnable {
-            def run: Unit =
-              task.run()
-          },
-          duration.toNanos,
-          TimeUnit.NANOSECONDS
-        )
+      case Duration.Finite(nanos) =>
+        var completed = false
 
+        val handle = Timer.timeout(nanos.nanos) { () =>
+          completed = true
+
+          task.run()
+        }
         () => {
-          val canceled = future.cancel(true)
-
-          canceled
+          handle.clear()
+          !completed
         }
     }
-  }
-
-  private[this] def makeService(): ScheduledExecutorService = {
-    val service = new ScheduledThreadPoolExecutor(1, new NamedThreadFactory("zio-timer", true))
-    service.setRemoveOnCancelPolicy(true)
-    service
   }
 }

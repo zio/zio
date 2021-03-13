@@ -18,10 +18,10 @@ package zio.test.refined
 
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.boolean.Or
-import zio.Has
 import zio.random.Random
 import zio.test.magnolia.DeriveGen
 import zio.test.{Gen, Sized}
+import zio.Has
 
 object boolean extends BooleanInstances
 

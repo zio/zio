@@ -16,9 +16,8 @@
 
 package zio.stream
 
-import zio._
-import zio.clock.Clock
 import zio.duration._
+import zio.{Clock, _}
 
 // Important notes while writing sinks and combinators:
 // - What return values for sinks mean:
@@ -304,10 +303,10 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
    */
   final def timed: ZSink[R with Has[Clock], E, I, L, (Z, Duration)] =
     ZSink {
-      self.push.zipWith(clock.nanoTime.toManaged_) { (push, start) =>
+      self.push.zipWith(Clock.nanoTime.toManaged_) { (push, start) =>
         push(_).catchAll {
           case (Left(e), leftover)  => Push.fail(e, leftover)
-          case (Right(z), leftover) => clock.nanoTime.flatMap(stop => Push.emit(z -> (stop - start).nanos, leftover))
+          case (Right(z), leftover) => Clock.nanoTime.flatMap(stop => Push.emit(z -> (stop - start).nanos, leftover))
         }
       }
     }

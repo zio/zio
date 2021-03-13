@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.clock.Clock
+import zio.Clock
 import zio.console.Console
 import zio.random.Random
 import zio.system.System

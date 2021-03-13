@@ -1,7 +1,7 @@
 package zio.test.environment
 
+import zio.Clock._
 import zio._
-import zio.clock._
 import zio.duration.Duration._
 import zio.duration._
 import zio.stream._
@@ -81,13 +81,13 @@ object ClockSpec extends ZIOBaseSpec {
         for {
           expected <- UIO.effectTotal(OffsetDateTime.now(ZoneId.of("UTC+9")))
           _        <- setDateTime(expected)
-          actual   <- clock.currentDateTime
+          actual   <- Clock.currentDateTime
         } yield assert(actual.toInstant.toEpochMilli)(equalTo(expected.toInstant.toEpochMilli))
       },
       testM("setTime correctly sets nanotime") {
         for {
           _    <- setTime(1.millis)
-          time <- clock.nanoTime
+          time <- Clock.nanoTime
         } yield assert(time)(equalTo(1.millis.toNanos))
       },
       testM("setTime correctly sets currentTime") {
@@ -158,7 +158,7 @@ object ClockSpec extends ZIOBaseSpec {
       testM("adjustments to time are visible on other fibers") {
         for {
           promise <- Promise.make[Nothing, Unit]
-          effect   = adjust(1.second) *> clock.currentTime(TimeUnit.SECONDS)
+          effect   = adjust(1.second) *> Clock.currentTime(TimeUnit.SECONDS)
           result  <- (effect <* promise.succeed(())) <&> (promise.await *> effect)
         } yield assert(result)(equalTo((1L, 2L)))
       },

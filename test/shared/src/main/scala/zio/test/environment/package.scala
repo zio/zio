@@ -16,12 +16,11 @@
 
 package zio.test
 
-import zio.clock.Clock
 import zio.console.Console
 import zio.duration._
 import zio.random.Random
 import zio.system.System
-import zio.{PlatformSpecific => _, _}
+import zio.{Clock, PlatformSpecific => _, _}
 
 import java.io.{EOFException, IOException}
 import java.time.{Instant, LocalDateTime, OffsetDateTime, ZoneId}
@@ -121,7 +120,7 @@ package object environment extends PlatformSpecific {
    * import zio.clock
    * import zio.test.environment._
    *
-   * val realTime = live(clock.nanoTime)
+   * val realTime = live(Clock.nanoTime)
    * }}}
    *
    * The `withLive` method can be used to apply a transformation to an effect
@@ -1541,7 +1540,7 @@ package object environment extends PlatformSpecific {
           for {
             random     <- ZIO.service[Random]
             testRandom <- ZIO.service[TestRandom]
-            time       <- clock.nanoTime
+            time       <- Clock.nanoTime
             _          <- TestRandom.setSeed(time)
           } yield Has.many[Random, TestRandom](random, testRandom)
         }

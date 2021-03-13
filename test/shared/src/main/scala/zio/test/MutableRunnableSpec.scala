@@ -16,10 +16,9 @@
 
 package zio.test
 
-import zio.clock.Clock
 import zio.duration._
 import zio.test.environment.TestEnvironment
-import zio.{Chunk, Has, URIO, ZIO, ZLayer}
+import zio.{Chunk, Clock, Has, URIO, ZIO, ZLayer}
 
 import scala.util.control.NoStackTrace
 

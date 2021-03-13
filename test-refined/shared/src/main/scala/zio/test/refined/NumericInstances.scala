@@ -19,6 +19,7 @@ package zio.test.refined
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.internal.WitnessAs
 import eu.timepit.refined.numeric.{Greater, Less}
+import zio.Has
 import zio.random.Random
 import zio.test.Gen
 import zio.test.magnolia.DeriveGen

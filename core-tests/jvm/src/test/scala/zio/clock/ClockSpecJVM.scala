@@ -1,6 +1,5 @@
-package zio.clock
+package zio
 
-import zio._
 import zio.test.Assertion._
 import zio.test._
 import zio.test.environment.Live
@@ -17,9 +16,9 @@ object ClockSpecJVM extends ZIOBaseSpec {
       testM("currentTime has microsecond resolution on JRE >= 9") {
         val unit = TimeUnit.MICROSECONDS
         for {
-          a <- clock.currentTime(unit)
+          a <- Clock.currentTime(unit)
           _ <- ZIO.foreach(1 to 1000)(_ => UIO.unit) // just pass some time
-          b <- clock.currentTime(unit)
+          b <- Clock.currentTime(unit)
         } yield assert((b - a) % 1000)(not(equalTo(0L)))
       }.provideLayer(Clock.live)
       // We might actually have measured exactly one millisecond. In that case we can simply retry.
@@ -31,7 +30,7 @@ object ClockSpecJVM extends ZIOBaseSpec {
         val unit = TimeUnit.MICROSECONDS
         for {
           start  <- ZIO.effectTotal(Instant.now).map(_.toEpochMilli)
-          time   <- clock.currentTime(unit).map(TimeUnit.MILLISECONDS.convert(_, unit))
+          time   <- Clock.currentTime(unit).map(TimeUnit.MILLISECONDS.convert(_, unit))
           finish <- ZIO.effectTotal(Instant.now).map(_.toEpochMilli)
         } yield assert(time)(isGreaterThanEqualTo(start) && isLessThanEqualTo(finish))
       }.provideLayer(Clock.live)

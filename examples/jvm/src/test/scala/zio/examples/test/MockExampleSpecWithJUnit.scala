@@ -5,13 +5,13 @@ import zio.test.junit.JUnitRunnableSpec
 import zio.test.mock.Expectation.{value, valueF}
 import zio.test.mock.{MockClock, MockConsole, MockRandom}
 import zio.test.assertM
-import zio.{clock, console, random}
+import zio.{console, random, Clock}
 
 class MockExampleSpecWithJUnit extends JUnitRunnableSpec {
 
   def spec = suite("suite with mocks")(
     testM("expect call returning output") {
-      val app = clock.nanoTime
+      val app = Clock.nanoTime
       val env = MockClock.NanoTime(value(1000L))
       val out = app.provideLayer(env)
       assertM(out)(equalTo(1000L))

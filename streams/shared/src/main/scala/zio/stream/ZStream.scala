@@ -16,13 +16,12 @@
 
 package zio.stream
 
-import zio._
-import zio.clock.Clock
 import zio.duration._
 import zio.internal.UniqueKey
 import zio.stm.TQueue
 import zio.stream.internal.Utils.zipChunks
 import zio.stream.internal.{ZInputStream, ZReader}
+import zio.{Clock, _}
 
 import java.{util => ju}
 import scala.reflect.ClassTag
@@ -1656,7 +1655,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * given duration completes. See `interruptAfter` for this behavior.
    */
   final def haltAfter(duration: Duration): ZStream[R with Has[Clock], E, O] =
-    haltWhen(clock.sleep(duration))
+    haltWhen(Clock.sleep(duration))
 
   /**
    * Partitions the stream with specified chunkSize
@@ -1839,7 +1838,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * after the given duration.
    */
   final def interruptAfter(duration: Duration): ZStream[R with Has[Clock], E, O] =
-    interruptWhen(clock.sleep(duration))
+    interruptWhen(Clock.sleep(duration))
 
   /**
    * Enqueues elements of this stream into a queue. Stream failure and ending will also be
@@ -2778,12 +2777,12 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     ZStream {
       for {
         chunks      <- self.process
-        currentTime <- clock.nanoTime.toManaged_
+        currentTime <- Clock.nanoTime.toManaged_
         bucket      <- Ref.make((units, currentTime)).toManaged_
         pull = {
           def go: ZIO[R1 with Has[Clock], Option[E1], Chunk[O]] =
             chunks.flatMap { chunk =>
-              (costFn(chunk).mapError(Some(_)) <*> clock.nanoTime) flatMap { case (weight, current) =>
+              (costFn(chunk).mapError(Some(_)) <*> Clock.nanoTime) flatMap { case (weight, current) =>
                 bucket.modify { case (tokens, timestamp) =>
                   val elapsed = current - timestamp
                   val cycles  = elapsed.toDouble / duration.toNanos
@@ -2836,12 +2835,12 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     ZStream {
       for {
         chunks      <- self.process
-        currentTime <- clock.nanoTime.toManaged_
+        currentTime <- Clock.nanoTime.toManaged_
         bucket      <- Ref.make((units, currentTime)).toManaged_
         pull = for {
                  chunk   <- chunks
                  weight  <- costFn(chunk).mapError(Some(_))
-                 current <- clock.nanoTime
+                 current <- Clock.nanoTime
                  delay <- bucket.modify { case (tokens, timestamp) =>
                             val elapsed = current - timestamp
                             val cycles  = elapsed.toDouble / duration.toNanos
@@ -2864,7 +2863,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                             (delay, (remaining, current))
 
                           }
-                 _ <- clock.sleep(delay).when(delay > Duration.Zero)
+                 _ <- Clock.sleep(delay).when(delay > Duration.Zero)
                } yield chunk
       } yield pull
     }
@@ -2889,7 +2888,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
         pull = {
           def store(chunk: Chunk[O2]): URIO[Has[Clock], Chunk[O2]] =
             chunk.lastOption
-              .map(last => clock.sleep(d).as(last).forkDaemon.flatMap(f => ref.set(Previous(f))))
+              .map(last => Clock.sleep(d).as(last).forkDaemon.flatMap(f => ref.set(Previous(f))))
               .getOrElse(ref.set(NotStarted))
               .as(Chunk.empty)
 
