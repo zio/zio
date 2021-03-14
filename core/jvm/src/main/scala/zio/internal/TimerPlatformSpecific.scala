@@ -109,8 +109,8 @@ trait TimerPlatformSpecific { timer: Timer =>
           def getDelay(unit: TimeUnit): Long =
             state.get match {
               case Done(_)         => 0L
-              case Running(_, end) => unit.convert(Duration.fromInterval(now(), end))
-              case Scheduling(end) => unit.convert(Duration.fromInterval(now(), end))
+              case Running(_, end) => unit.convert(Duration.fromInterval(now(), end).toMillis, TimeUnit.MILLISECONDS)
+              case Scheduling(end) => unit.convert(Duration.fromInterval(now(), end).toMillis, TimeUnit.MILLISECONDS)
             }
           def cancel(mayInterruptIfRunning: Boolean): Boolean = {
             val currentState = state.getAndUpdate {
