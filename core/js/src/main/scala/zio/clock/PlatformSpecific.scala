@@ -17,13 +17,13 @@
 package zio.clock
 
 import zio.duration.Duration
-import zio.internal.Scheduler
+import zio.internal.Timer
 
 import scala.scalajs.js
 
 private[clock] trait PlatformSpecific {
-  private[clock] val globalScheduler = new Scheduler {
-    import Scheduler.CancelToken
+  private[clock] val globalTimer = new Timer {
+    import Timer.CancelToken
 
     private[this] val ConstFalse = () => false
 

@@ -17,14 +17,14 @@
 package zio.clock
 
 import zio.duration.Duration
-import zio.internal.Scheduler
+import zio.internal.Timer
 
 import scala.concurrent.duration._
-import scala.scalanative.loop._
+import scala.scalanative.loop.{Timer => NativeTimer}
 
 private[clock] trait PlatformSpecific {
-  private[clock] val globalScheduler = new Scheduler {
-    import Scheduler.CancelToken
+  private[clock] val globalTimer = new Timer {
+    import Timer.CancelToken
 
     private[this] val ConstFalse = () => false
 
@@ -33,7 +33,7 @@ private[clock] trait PlatformSpecific {
       case Duration.Finite(nanos) =>
         var completed = false
 
-        val handle = Timer.timeout(nanos.nanos) { () =>
+        val handle = NativeTimer.timeout(nanos.nanos) { () =>
           completed = true
 
           task.run()

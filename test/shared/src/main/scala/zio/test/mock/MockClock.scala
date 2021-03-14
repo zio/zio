@@ -18,7 +18,7 @@ package zio.test.mock
 
 import zio.clock.Clock
 import zio.duration.Duration
-import zio.{Has, IO, UIO, URLayer, ZLayer}
+import zio.{Has, IO, UIO, URLayer, ZLayer, internal}
 
 import java.time.{DateTimeException, OffsetDateTime}
 import java.util.concurrent.TimeUnit
@@ -29,6 +29,7 @@ object MockClock extends Mock[Clock] {
   object CurrentDateTime extends Effect[Unit, DateTimeException, OffsetDateTime]
   object NanoTime        extends Effect[Unit, Nothing, Long]
   object Sleep           extends Effect[Duration, Nothing, Unit]
+  object Timer           extends Effect[Unit, Nothing, zio.internal.Timer]
 
   val compose: URLayer[Has[Proxy], Clock] =
     ZLayer.fromService(proxy =>
@@ -37,6 +38,7 @@ object MockClock extends Mock[Clock] {
         def currentDateTime: IO[DateTimeException, OffsetDateTime] = proxy(CurrentDateTime)
         val nanoTime: UIO[Long]                                    = proxy(NanoTime)
         def sleep(duration: Duration): UIO[Unit]                   = proxy(Sleep, duration)
+        val timer: UIO[internal.Timer]                             = proxy(Timer)
       }
     )
 }

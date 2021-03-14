@@ -1,19 +1,19 @@
 package zio.internal
 
 import zio.duration.Duration
-import zio.internal.Scheduler.CancelToken
+import zio.internal.Timer.CancelToken
 
 import java.util.concurrent.{ScheduledExecutorService, TimeUnit}
 
-private[zio] abstract class Scheduler {
+abstract class Timer extends TimerPlatformSpecific { self =>
   def schedule(task: Runnable, duration: Duration): CancelToken
 }
 
-private[zio] object Scheduler {
+object Timer {
   type CancelToken = () => Boolean
 
-  def fromScheduledExecutorService(service: ScheduledExecutorService): Scheduler =
-    new Scheduler {
+  def fromScheduledExecutorService(service: ScheduledExecutorService): Timer =
+    new Timer {
       val ConstFalse = () => false
 
       override def schedule(task: Runnable, duration: Duration): CancelToken = (duration: @unchecked) match {

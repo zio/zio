@@ -17,14 +17,14 @@
 package zio.clock
 
 import zio.duration.Duration
-import zio.internal.{NamedThreadFactory, Scheduler}
+import zio.internal.{NamedThreadFactory, Timer}
 
 import java.util.concurrent._
 
 private[clock] trait PlatformSpecific {
-  import Scheduler.CancelToken
+  import Timer.CancelToken
 
-  private[clock] val globalScheduler = new Scheduler {
+  private[clock] val globalTimer = new Timer {
 
     private[this] val service = makeService()
 

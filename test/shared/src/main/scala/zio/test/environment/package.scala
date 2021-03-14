@@ -19,6 +19,8 @@ package zio.test
 import zio.clock.Clock
 import zio.console.Console
 import zio.duration._
+import zio.internal.Timer
+import zio.internal.Timer.CancelToken
 import zio.random.Random
 import zio.system.System
 import zio.{PlatformSpecific => _, _}
@@ -337,6 +339,20 @@ package object environment extends PlatformSpecific {
        */
       lazy val sleeps: UIO[List[Duration]] =
         clockState.get.map(_.sleeps.map(_._1))
+
+      /**
+       * Retrieves the timer.
+       */
+      lazy val timer: UIO[Timer] =
+        ZIO.runtime[Any].map { runtime =>
+          new Timer {
+            def schedule(runnable: Runnable, duration: Duration): CancelToken = {
+              val canceler =
+                runtime.unsafeRunAsyncCancelable(sleep(duration) *> ZIO.effectTotal(runnable.run()))(_ => ())
+              () => canceler(Fiber.Id.None).interrupted
+            }
+          }
+        }
 
       /**
        * Returns the time zone.

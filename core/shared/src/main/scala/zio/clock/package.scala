@@ -17,6 +17,7 @@
 package zio
 
 import zio.duration.Duration
+import zio.internal.Timer
 
 import java.time.{DateTimeException, Instant, LocalDateTime, OffsetDateTime}
 import java.util.concurrent.TimeUnit
@@ -43,6 +44,8 @@ package object clock {
       def nanoTime: UIO[Long]
 
       def sleep(duration: Duration): UIO[Unit]
+
+      def timer: UIO[Timer]
     }
 
     object Service {
@@ -65,9 +68,12 @@ package object clock {
 
         def sleep(duration: Duration): UIO[Unit] =
           UIO.effectAsyncInterrupt { cb =>
-            val canceler = globalScheduler.schedule(() => cb(UIO.unit), duration)
+            val canceler = globalTimer.schedule(() => cb(UIO.unit), duration)
             Left(UIO.effectTotal(canceler()))
           }
+
+        def timer: UIO[Timer] =
+          ZIO.succeedNow(globalTimer)
 
         def currentDateTime: IO[DateTimeException, OffsetDateTime] =
           ZIO.effectTotal(OffsetDateTime.now())
@@ -115,4 +121,9 @@ package object clock {
   def sleep(duration: => Duration): URIO[Clock, Unit] =
     ZIO.accessM(_.get.sleep(duration))
 
+  /**
+   * Retrieves the timer.
+   */
+  def timer: URIO[Clock, Timer] =
+    ZIO.accessM(_.get.timer)
 }
