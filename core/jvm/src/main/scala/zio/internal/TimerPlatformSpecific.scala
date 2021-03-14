@@ -24,7 +24,6 @@ import java.time.Instant
 import java.util.concurrent._
 import java.util.concurrent.atomic.AtomicReference
 import java.util.{Collections, List}
-
 import scala.annotation.tailrec
 
 trait TimerPlatformSpecific { timer: Timer =>
