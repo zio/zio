@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.{ExecutionStrategy, Has, Layer, UIO, ZIO, ZManaged}
+import zio.{ExecutionStrategy, Has, Layer, UIO, URIO, ZIO, ZManaged}
 
 /**
  * A `TestExecutor[R, E]` is capable of executing specs that require an
@@ -27,6 +27,7 @@ abstract class TestExecutor[+R <: Has[_], E] {
   def environment: Layer[Nothing, R]
 }
 
+// TODO: remove this after dealing with its usages
 object TestExecutor {
   def default[R <: Annotations, E](
     env: Layer[Nothing, R]
@@ -60,4 +61,37 @@ object TestExecutor {
         }.useNow)
     val environment = env
   }
+}
+
+abstract class TestExecutor2[R <: Has[_], E] {
+  def run(spec: ZSpec[R, E], defExec: ExecutionStrategy): URIO[R with Annotations, ExecutedSpec[E]]
+}
+
+object TestExecutor2 {
+  def default[R <: Has[_], E]: TestExecutor2[R, E] =
+    new TestExecutor2[R, E] {
+      def run(
+        spec: ZSpec[R, E],
+        defExec: ExecutionStrategy
+      ): URIO[R with Annotations, ExecutedSpec[E]] =
+        spec.annotated
+          .foreachExec(defExec)(
+            e =>
+              e.failureOrCause.fold(
+                { case (failure, annotations) => ZIO.succeedNow((Left(failure), annotations)) },
+                cause => ZIO.succeedNow((Left(TestFailure.Runtime(cause)), TestAnnotationMap.empty))
+              ),
+            { case (success, annotations) =>
+              ZIO.succeedNow((Right(success), annotations))
+            }
+          )
+          .use(_.foldM[R with Annotations, Nothing, ExecutedSpec[E]](defExec) {
+            case Spec.SuiteCase(label, specs, _) =>
+              specs.map(specs => ExecutedSpec.suite(label, specs))
+            case Spec.TestCase(label, test, staticAnnotations) =>
+              test.map { case (result, dynamicAnnotations) =>
+                ExecutedSpec.test(label, result, staticAnnotations ++ dynamicAnnotations)
+              }.toManaged_
+          }.useNow)
+    }
 }

@@ -1,8 +1,7 @@
 package zio.test
 
-import zio.clock.Clock
 import zio.test.Assertion.{equalTo, isGreaterThan, isLessThan, isRight, isSome, not}
-import zio.test.environment.{TestClock, TestConsole, TestEnvironment, testEnvironment}
+import zio.test.environment.{TestConsole, TestEnvironment, testEnvironment}
 import zio.test.mock.Expectation._
 import zio.test.mock.internal.InvalidCall._
 import zio.test.mock.internal.MockException._
@@ -52,25 +51,27 @@ object ReportingTestUtils {
 
   def runLog(spec: ZSpec[TestEnvironment, String]): ZIO[TestEnvironment, Nothing, String] =
     for {
-      _ <- TestTestRunner(testEnvironment)
+      _ <- TestTestRunner
              .run(spec)
-             .provideLayer[Nothing, TestEnvironment, TestLogger with Clock](TestLogger.fromConsole ++ TestClock.default)
+             .provideLayer(
+               TestLogger.fromConsole ++ testEnvironment
+             )
       output <- TestConsole.output
     } yield output.mkString.withNoLineNumbers
 
   def runSummary(spec: ZSpec[TestEnvironment, String]): ZIO[TestEnvironment, Nothing, String] =
     for {
-      results <- TestTestRunner(testEnvironment)
+      results <- TestTestRunner
                    .run(spec)
-                   .provideLayer[Nothing, TestEnvironment, TestLogger with Clock](
-                     TestLogger.fromConsole ++ TestClock.default
+                   .provideLayer(
+                     TestLogger.fromConsole ++ testEnvironment
                    )
       actualSummary = SummaryBuilder.buildSummary(results)
     } yield actualSummary.summary.withNoLineNumbers
 
-  private[this] def TestTestRunner(testEnvironment: Layer[Nothing, TestEnvironment]) =
+  private[this] val TestTestRunner =
     TestRunner[TestEnvironment, String](
-      executor = TestExecutor.default[TestEnvironment, String](testEnvironment),
+      executor = TestExecutor2.default[TestEnvironment, String],
       reporter = DefaultTestReporter(TestAnnotationRenderer.default)
     )
 
