@@ -198,7 +198,7 @@ trait TimerPlatformSpecific { timer: Timer =>
         def shutdown(): Unit =
           ()
         def shutdownNow(): List[Runnable] =
-          Collections.emptyList
+          Collections.emptyList[Runnable]
       }
     }
 }
