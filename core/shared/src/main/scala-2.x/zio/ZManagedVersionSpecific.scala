@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.internal.macros.ProvideLayerMacros
+import zio.internal.macros.LayerMacros
 
 private[zio] trait ZManagedVersionSpecific[-R, +E, +A] { self: ZManaged[R, E, A] =>
 
@@ -31,11 +31,11 @@ private[zio] trait ZManagedVersionSpecific[-R, +E, +A] { self: ZManaged[R, E, A]
    * val flyLayer: ZLayer[Blocking, Nothing, Fly] = ???
    *
    * // The ZEnv you use later will provide both Blocking to flyLayer and Console to managed
-   * val managed2 : ZManaged[ZEnv, Nothing, Unit] = managed.provideCustomLayer(oldLadyLayer, flyLayer)
+   * val managed2 : ZManaged[ZEnv, Nothing, Unit] = managed.injectCustom(oldLadyLayer, flyLayer)
    * }}}
    */
-  def provideCustomLayer[E1 >: E](layers: ZLayer[_, E1, _]*): ZManaged[ZEnv, E1, A] =
-    macro ProvideLayerMacros.provideSomeLayerImpl[ZManaged, ZEnv, R, E1, A]
+  def injectCustom[E1 >: E](layers: ZLayer[_, E1, _]*): ZManaged[ZEnv, E1, A] =
+    macro LayerMacros.injectSomeImpl[ZManaged, ZEnv, R, E1, A]
 
   /**
    * Splits the environment into two parts, assembling one part using the
@@ -46,17 +46,17 @@ private[zio] trait ZManagedVersionSpecific[-R, +E, +A] { self: ZManaged[R, E, A]
    *
    * val managed: ZManaged[Clock with Random, Nothing, Unit] = ???
    *
-   * val managed2 = managed.provideSomeLayer[Random](clockLayer)
+   * val managed2 = managed.injectSome[Random](clockLayer)
    * }}}
    */
-  def provideSomeLayer[R0 <: Has[_]]: ProvideSomeLayerManagedPartiallyApplied[R0, R, E, A] =
+  def injectSome[R0 <: Has[_]]: ProvideSomeLayerManagedPartiallyApplied[R0, R, E, A] =
     new ProvideSomeLayerManagedPartiallyApplied[R0, R, E, A](self)
 
   /**
    * Automatically assembles a layer for the ZManaged effect.
    */
-  def provideLayer[E1 >: E](layers: ZLayer[_, E1, _]*): ZManaged[Any, E1, A] =
-    macro ProvideLayerMacros.provideLayerImpl[ZManaged, R, E1, A]
+  def inject[E1 >: E](layers: ZLayer[_, E1, _]*): ZManaged[Any, E1, A] =
+    macro LayerMacros.injectImpl[ZManaged, R, E1, A]
 
 }
 
@@ -68,5 +68,5 @@ private final class ProvideSomeLayerManagedPartiallyApplied[R0 <: Has[_], -R, +E
     self.provideLayerManual(layer)
 
   def apply[E1 >: E](layers: ZLayer[_, E1, _]*): ZManaged[R0, E1, A] =
-    macro ProvideLayerMacros.provideSomeLayerImpl[ZManaged, R0, R, E1, A]
+    macro LayerMacros.injectSomeImpl[ZManaged, R0, R, E1, A]
 }

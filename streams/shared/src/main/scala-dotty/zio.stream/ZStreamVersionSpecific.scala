@@ -1,7 +1,7 @@
 package zio.stream
 
 import zio.{ZLayer, ZEnv}
-import zio.internal.macros.ProvideLayerMacros
+import zio.internal.macros.LayerMacros
 
 trait ZStreamVersionSpecific[-R, +E, +O] { self: ZStream[R, E, O] =>
   /**
@@ -15,25 +15,25 @@ trait ZStreamVersionSpecific[-R, +E, +O] { self: ZStream[R, E, O] =>
    * val flyLayer: ZLayer[Blocking, Nothing, Fly] = ???
    *
    * // The ZEnv you use later will provide both Blocking to flyLayer and Console to stream
-   * val stream2 : ZStream[ZEnv, Nothing, Unit] = stream.provideCustomLayer(oldLadyLayer, flyLayer)
+   * val stream2 : ZStream[ZEnv, Nothing, Unit] = stream.injectCustom(oldLadyLayer, flyLayer)
    * }}}
    */
-  inline def provideCustomLayer[E1 >: E](inline layers: ZLayer[_,E1,_]*): ZStream[ZEnv, E1, O] =
-    ${ZStreamProvideMacro.provideLayerImpl[ZEnv, R, E1, O]('self, 'layers)}
+  inline def injectCustom[E1 >: E](inline layers: ZLayer[_,E1,_]*): ZStream[ZEnv, E1, O] =
+    ${ZStreamProvideMacro.injectImpl[ZEnv, R, E1, O]('self, 'layers)}
 
   /**
    * Automatically assembles a layer for the ZStream effect, which translates it to another level.
    */
-  inline def provideLayer[E1 >: E](inline layers: ZLayer[_,E1,_]*): ZStream[Any, E1, O] =
-    ${ZStreamProvideMacro.provideLayerImpl[Any, R, E1, O]('self, 'layers)}
+  inline def inject[E1 >: E](inline layers: ZLayer[_,E1,_]*): ZStream[Any, E1, O] =
+    ${ZStreamProvideMacro.injectImpl[Any, R, E1, O]('self, 'layers)}
 
 }
 
 object ZStreamProvideMacro {
   import scala.quoted._
 
-  def provideLayerImpl[R0: Type, R: Type, E: Type, A: Type](zstream: Expr[ZStream[R,E,A]], layers: Expr[Seq[ZLayer[_,E,_]]])(using Quotes): Expr[ZStream[R0,E,A]] = {
-    val layerExpr = ProvideLayerAutoMacros.fromAutoImpl[R0, R, E](layers)
+  def injectImpl[R0: Type, R: Type, E: Type, A: Type](zstream: Expr[ZStream[R,E,A]], layers: Expr[Seq[ZLayer[_,E,_]]])(using Quotes): Expr[ZStream[R0,E,A]] = {
+    val layerExpr = LayerMacros.fromAutoImpl[R0, R, E](layers)
     '{$zstream.provideLayerManual($layerExpr.asInstanceOf[ZLayer[R0,E,R]])}
   }
 }

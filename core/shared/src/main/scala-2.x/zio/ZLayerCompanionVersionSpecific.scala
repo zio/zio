@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.internal.macros.{DummyK, ZLayerFromAutoMacros}
+import zio.internal.macros.{DummyK, WireMacros}
 
 private[zio] trait ZLayerCompanionVersionSpecific {
 
@@ -24,11 +24,11 @@ private[zio] trait ZLayerCompanionVersionSpecific {
    * Automatically assembles a layer for the provided type.
    *
    * {{{
-   * ZLayer.fromAuto[Car](carLayer, wheelsLayer, engineLayer)
+   * ZLayer.wire[Car](carLayer, wheelsLayer, engineLayer)
    * }}}
    */
-  def fromAuto[R <: Has[_]]: FromLayerAutoPartiallyApplied[R] =
-    new FromLayerAutoPartiallyApplied[R]
+  def wire[R <: Has[_]]: WirePartiallyApplied[R] =
+    new WirePartiallyApplied[R]
 
   /**
    * Automatically assembles a layer for the provided type `R`, leaving
@@ -38,23 +38,23 @@ private[zio] trait ZLayerCompanionVersionSpecific {
    * val carLayer: ZLayer[Engine with Wheels, Nothing, Car] = ???
    * val wheelsLayer: ZLayer[Any, Nothing, Wheels] = ???
    *
-   * val layer = ZLayer.fromSomeAuto[Engine, Car](carLayer, wheelsLayer)
+   * val layer = ZLayer.wireSome[Engine, Car](carLayer, wheelsLayer)
    * }}}
    */
 
-  def fromSomeAuto[R0 <: Has[_], R <: Has[_]]: FromSomeAutoPartiallyApplied[R0, R] =
-    new FromSomeAutoPartiallyApplied[R0, R]
+  def wireSome[R0 <: Has[_], R <: Has[_]]: WireSomePartiallyApplied[R0, R] =
+    new WireSomePartiallyApplied[R0, R]
 
 }
 
-private[zio] final class FromLayerAutoPartiallyApplied[R <: Has[_]](val dummy: Boolean = true) extends AnyVal {
+private[zio] final class WirePartiallyApplied[R <: Has[_]](val dummy: Boolean = true) extends AnyVal {
   def apply[E](layers: ZLayer[_, E, _]*)(implicit dummyKRemainder: DummyK[Any], dummyK: DummyK[R]): ZLayer[Any, E, R] =
-    macro ZLayerFromAutoMacros.fromAutoImpl[E, Any, R]
+    macro WireMacros.fromAutoImpl[E, Any, R]
 }
 
-private[zio] final class FromSomeAutoPartiallyApplied[R0 <: Has[_], R <: Has[_]](
+private[zio] final class WireSomePartiallyApplied[R0 <: Has[_], R <: Has[_]](
   val dummy: Boolean = true
 ) extends AnyVal {
   def apply[E](layers: ZLayer[_, E, _]*)(implicit dummyKRemainder: DummyK[R0], dummyK: DummyK[R]): ZLayer[R0, E, R] =
-    macro ZLayerFromAutoMacros.fromAutoImpl[E, R0, R]
+    macro WireMacros.fromAutoImpl[E, R0, R]
 }

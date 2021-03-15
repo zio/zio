@@ -11,7 +11,7 @@ object AutoLayerSpec extends ZIOBaseSpec {
 
   def spec: ZSpec[Environment, Failure] =
     suite("AutoLayerSpec")(
-      suite("provideLayer")(
+      suite("inject")(
         suite("meta-suite") {
           val doubleLayer = ZLayer.succeed(100.1)
           val stringLayer = ZLayer.succeed("this string is 28 chars long")
@@ -19,20 +19,20 @@ object AutoLayerSpec extends ZIOBaseSpec {
           testM("automatically constructs a layer from its dependencies") {
             val program = ZIO.service[Int]
             assertM(program)(equalTo(128))
-          }.provideLayer(doubleLayer, stringLayer, intLayer)
+          }.inject(doubleLayer, stringLayer, intLayer)
         },
         testM("reports missing top-level layers") {
           val program: URIO[Has[String] with Has[Int], String] = UIO("test")
           val _                                                = program
           val checked =
-            typeCheck("""testM("foo")(assertM(program)(anything)).provideLayer(ZLayer.succeed(3))""")
+            typeCheck("""testM("foo")(assertM(program)(anything)).inject(ZLayer.succeed(3))""")
           assertM(checked)(isLeft(containsStringWithoutAnsi("missing String")))
         } @@ TestAspect.exceptDotty,
         testM("reports multiple missing top-level layers") {
           val program: URIO[Has[String] with Has[Int], String] = UIO("test")
           val _                                                = program
 
-          val checked = typeCheck("""testM("foo")(assertM(program)(anything)).provideLayer()""")
+          val checked = typeCheck("""testM("foo")(assertM(program)(anything)).inject()""")
           assertM(checked)(
             isLeft(containsStringWithoutAnsi("missing String") && containsStringWithoutAnsi("missing Int"))
           )
@@ -42,7 +42,7 @@ object AutoLayerSpec extends ZIOBaseSpec {
           val program: URIO[Has[OldLady], Boolean] = ZIO.service[OldLady].flatMap(_.willDie)
           val _                                    = program
 
-          val checked = typeCheck("""testM("foo")(assertM(program)(anything)).provideLayer(OldLady.live)""")
+          val checked = typeCheck("""testM("foo")(assertM(program)(anything)).inject(OldLady.live)""")
           assertM(checked)(
             isLeft(
               containsStringWithoutAnsi("missing zio.test.AutoLayerSpec.TestLayers.Fly") &&
@@ -56,7 +56,7 @@ object AutoLayerSpec extends ZIOBaseSpec {
           val _                                    = program
 
           val checked =
-            typeCheck("""testM("foo")(assertM(program)(anything)).provideLayer(OldLady.live, Fly.live)""")
+            typeCheck("""testM("foo")(assertM(program)(anything)).inject(OldLady.live, Fly.live)""")
           assertM(checked)(
             isLeft(
               containsStringWithoutAnsi("missing zio.test.AutoLayerSpec.TestLayers.Spider") &&
@@ -71,7 +71,7 @@ object AutoLayerSpec extends ZIOBaseSpec {
 
           val checked =
             typeCheck(
-              """testM("foo")(assertM(program)(anything)).provideLayer(OldLady.live, Fly.manEatingFly)"""
+              """testM("foo")(assertM(program)(anything)).inject(OldLady.live, Fly.manEatingFly)"""
             )
           assertM(checked)(
             isLeft(
@@ -80,7 +80,29 @@ object AutoLayerSpec extends ZIOBaseSpec {
             )
           )
         } @@ TestAspect.exceptDotty
-      )
+      ),
+      suite(".injectShared") {
+        val refLayer = Ref.make(1).toLayer
+
+        suite("layer is shared between tests and suites")(
+          suite("suite 1")(
+            testM("test 1") {
+              assertM(ZIO.service[Ref[Int]].flatMap(_.getAndUpdate(_ + 1)))(equalTo(1))
+            },
+            testM("test 2") {
+              assertM(ZIO.service[Ref[Int]].flatMap(_.getAndUpdate(_ + 1)))(equalTo(2))
+            }
+          ),
+          suite("suite 2")(
+            testM("test 3") {
+              assertM(ZIO.service[Ref[Int]].flatMap(_.getAndUpdate(_ + 1)))(equalTo(3))
+            },
+            testM("test 4") {
+              assertM(ZIO.service[Ref[Int]].flatMap(_.getAndUpdate(_ + 1)))(equalTo(4))
+            }
+          )
+        ).injectShared(refLayer) @@ TestAspect.sequential
+      }
     )
 
   object TestLayers {

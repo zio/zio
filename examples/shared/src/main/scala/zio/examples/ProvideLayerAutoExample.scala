@@ -10,7 +10,7 @@ object ProvideLayerAutoExample extends App {
     }
 
   val autoLayer: ZLayer[Any, Nothing, Has[OldLady]] =
-    ZLayer.fromAuto[Has[OldLady]](
+    ZLayer.wire[Has[OldLady]](
       OldLady.live,
       Spider.live,
       Fly.live,
@@ -20,7 +20,7 @@ object ProvideLayerAutoExample extends App {
 
   def run(args: List[String]): URIO[ZEnv, ExitCode] =
     program
-      .provideLayer(OldLady.live, Spider.live, Fly.live, Bear.live, Console.live)
+      .inject(OldLady.live, Spider.live, Fly.live, Bear.live, Console.live)
       .exitCode
 
   trait OldLady {

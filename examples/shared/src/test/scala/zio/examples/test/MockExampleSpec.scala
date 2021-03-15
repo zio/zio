@@ -13,8 +13,8 @@ object MockExampleSpec extends DefaultRunnableSpec {
       def maybeConsole(invokeConsole: Boolean) =
         ZIO.when(invokeConsole)(console.putStrLn("foo"))
 
-      val maybeTest1 = maybeConsole(false).provideLayer(MockConsole.empty)
-      val maybeTest2 = maybeConsole(true).provideLayer(MockConsole.PutStrLn(equalTo("foo")))
+      val maybeTest1 = maybeConsole(false).inject(MockConsole.empty)
+      val maybeTest2 = maybeConsole(true).inject(MockConsole.PutStrLn(equalTo("foo")))
       assertM(maybeTest1)(isUnit) *> assertM(maybeTest2)(isUnit)
     },
     testM("expect no call on skipped branch") {
@@ -25,10 +25,10 @@ object MockExampleSpec extends DefaultRunnableSpec {
         }
 
       val clockLayer      = MockClock.NanoTime(value(42L)).toLayer
-      val noCallToConsole = branchingProgram(false).provideLayer(MockConsole.empty ++ clockLayer)
+      val noCallToConsole = branchingProgram(false).inject(MockConsole.empty ++ clockLayer)
 
       val consoleLayer  = MockConsole.GetStrLn(value("foo")).toLayer
-      val noCallToClock = branchingProgram(true).provideLayer(MockClock.empty ++ consoleLayer)
+      val noCallToClock = branchingProgram(true).inject(MockClock.empty ++ consoleLayer)
       assertM(noCallToConsole)(equalTo(42L)) *> assertM(noCallToClock)(equalTo("foo"))
     },
     testM("expect no call on multiple skipped branches") {
@@ -43,11 +43,11 @@ object MockExampleSpec extends DefaultRunnableSpec {
 
       val clockLayer = (MockClock.NanoTime(value(42L)) andThen MockClock.NanoTime(value(42L))).toLayer
       val noCallToConsole = composedBranchingProgram(false, false)
-        .provideLayer(MockConsole.empty ++ clockLayer)
+        .inject(MockConsole.empty ++ clockLayer)
 
       val consoleLayer = (MockConsole.GetStrLn(value("foo")) andThen MockConsole.GetStrLn(value("foo"))).toLayer
       val noCallToClock = composedBranchingProgram(true, true)
-        .provideLayer(MockClock.empty ++ consoleLayer)
+        .inject(MockClock.empty ++ consoleLayer)
 
       assertM(noCallToConsole)(equalTo((42L, 42L))) *> assertM(noCallToClock)(equalTo(("foo", "foo")))
     },
@@ -55,8 +55,8 @@ object MockExampleSpec extends DefaultRunnableSpec {
       def maybeConsole(invokeConsole: Boolean) =
         ZIO.when(invokeConsole)(console.putStrLn("foo"))
 
-      val maybeTest1 = maybeConsole(true).provideLayer(MockConsole.empty)
-      val maybeTest2 = maybeConsole(false).provideLayer(MockConsole.PutStrLn(equalTo("foo")))
+      val maybeTest1 = maybeConsole(true).inject(MockConsole.empty)
+      val maybeTest2 = maybeConsole(false).inject(MockConsole.PutStrLn(equalTo("foo")))
       assertM(maybeTest1)(isUnit) *> assertM(maybeTest2)(isUnit)
     },
     testM("expect call returning output") {

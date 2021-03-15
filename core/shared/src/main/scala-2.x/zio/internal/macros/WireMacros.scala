@@ -6,7 +6,7 @@ import zio.internal.macros.StringUtils.StringOps
 
 import scala.reflect.macros.blackbox
 
-final class ZLayerFromAutoMacros(val c: blackbox.Context) extends AutoLayerMacroUtils {
+final class WireMacros(val c: blackbox.Context) extends LayerMacroUtils {
   import c.universe._
 
   def fromAutoImpl[
@@ -51,7 +51,7 @@ final class ZLayerFromAutoMacros(val c: blackbox.Context) extends AutoLayerMacro
         s"""
 ${"ZLayer Auto Assemble".yellow.underlined}
         
-You must provide a type to ${"fromAuto".white} (e.g. ${"ZLayer.fromAuto".white}${"[A with B]".yellow.underlined}${"(A.live, B.live)".white})
+You must provide a type to ${"wire".white} (e.g. ${"ZLayer.wire".white}${"[A with B]".yellow.underlined}${"(A.live, B.live)".white})
 
 """
       c.abort(c.enclosingPosition, errorMessage)

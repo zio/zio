@@ -1,8 +1,8 @@
 import zio._
 import zio.console._
 
-import zio.internal.macros.ProvideLayerMacros
-import zio.internal.macros.AutoLayerMacroUtils
+import zio.internal.macros.LayerMacros
+import zio.internal.macros.LayerMacroUtils
 
 object Cool extends App {
   val boolLayer =
@@ -27,8 +27,8 @@ object Cool extends App {
   case class ServiceLive(int: Int, string: String)
 
   val layer12: ULayer[Console ++ String ++ Int] = 
-    ZLayer.fromAuto[Console ++ String ++ Int](layer, boolLayer, Console.live) 
+    ZLayer.wire[Console ++ String ++ Int](layer, boolLayer, Console.live)
 
   def run(args: List[String]) =
-    program.provideCustomLayer(layer, boolLayer).exitCode
+    program.injectCustom(layer, boolLayer).exitCode
 }

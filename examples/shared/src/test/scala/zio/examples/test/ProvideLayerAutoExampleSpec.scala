@@ -15,17 +15,17 @@ object ProvideLayerAutoExampleSpec extends DefaultRunnableSpec {
 
   def spec =
     suite("AutoLayerExampleSpec")(
-      testM("provideLayer") {
+      testM("inject") {
         assertM(exampleZio)(anything)
-      }.provideLayer(Console.live, OldLady.live, Spider.live, Fly.live, Bear.live),
-      testM("provideCustomLayer") {
+      }.inject(Console.live, OldLady.live, Spider.live, Fly.live, Bear.live),
+      testM("injectCustom") {
         assertM(exampleZio)(anything)
-      }.provideCustomLayer(OldLady.live, Spider.live, Fly.live, Bear.live),
-      testM("provideLayerManualSharedAuto") {
+      }.injectCustom(OldLady.live, Spider.live, Fly.live, Bear.live),
+      testM("injectShared") {
         assertM(exampleZio)(anything)
-      }.provideLayerManualSharedAuto(Console.live, OldLady.live, Spider.live, Fly.live, Bear.live),
-      testM("provideCustomLayerManualSharedAuto") {
+      }.injectShared(Console.live, OldLady.live, Spider.live, Fly.live, Bear.live),
+      testM("injectCustomShared") {
         assertM(exampleZio)(anything)
-      }.provideCustomLayerManualSharedAuto(OldLady.live, Spider.live, Fly.live, Bear.live)
+      }.injectCustomShared(OldLady.live, Spider.live, Fly.live, Bear.live)
     )
 }

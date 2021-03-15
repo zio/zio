@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.internal.macros.ProvideLayerMacros
+import zio.internal.macros.LayerMacros
 
 private[zio] trait ZIOVersionSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
 
@@ -31,11 +31,11 @@ private[zio] trait ZIOVersionSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
    * val flyLayer: ZLayer[Blocking, Nothing, Fly] = ???
    *
    * // The ZEnv you use later will provide both Blocking to flyLayer and Console to zio
-   * val zio2 : ZIO[ZEnv, Nothing, Unit] = zio.provideCustomLayer(oldLadyLayer, flyLayer)
+   * val zio2 : ZIO[ZEnv, Nothing, Unit] = zio.injectCustom(oldLadyLayer, flyLayer)
    * }}}
    */
-  def provideCustomLayer[E1 >: E](layers: ZLayer[_, E1, _]*): ZIO[ZEnv, E1, A] =
-    macro ProvideLayerMacros.provideSomeLayerImpl[ZIO, ZEnv, R, E1, A]
+  def injectCustom[E1 >: E](layers: ZLayer[_, E1, _]*): ZIO[ZEnv, E1, A] =
+    macro LayerMacros.injectSomeImpl[ZIO, ZEnv, R, E1, A]
 
   /**
    * Splits the environment into two parts, assembling one part using the
@@ -46,17 +46,17 @@ private[zio] trait ZIOVersionSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
    *
    * val zio: ZIO[Clock with Random, Nothing, Unit] = ???
    *
-   * val zio2 = zio.provideSomeLayer[Random](clockLayer)
+   * val zio2 = zio.injectSome[Random](clockLayer)
    * }}}
    */
-  def provideSomeLayer[R0 <: Has[_]]: ProvideSomeLayerPartiallyApplied[R0, R, E, A] =
+  def injectSome[R0 <: Has[_]]: ProvideSomeLayerPartiallyApplied[R0, R, E, A] =
     new ProvideSomeLayerPartiallyApplied[R0, R, E, A](self)
 
   /**
    * Automatically assembles a layer for the ZIO effect.
    */
-  def provideLayer[E1 >: E](layers: ZLayer[_, E1, _]*): ZIO[Any, E1, A] =
-    macro ProvideLayerMacros.provideLayerImpl[ZIO, R, E1, A]
+  def inject[E1 >: E](layers: ZLayer[_, E1, _]*): ZIO[Any, E1, A] =
+    macro LayerMacros.injectImpl[ZIO, R, E1, A]
 
 }
 
@@ -67,5 +67,5 @@ private final class ProvideSomeLayerPartiallyApplied[R0 <: Has[_], -R, +E, +A](v
     self.provideLayerManual(layer)
 
   def apply[E1 >: E](layers: ZLayer[_, E1, _]*): ZIO[R0, E1, A] =
-    macro ProvideLayerMacros.provideSomeLayerImpl[ZIO, R0, R, E1, A]
+    macro LayerMacros.injectSomeImpl[ZIO, R0, R, E1, A]
 }

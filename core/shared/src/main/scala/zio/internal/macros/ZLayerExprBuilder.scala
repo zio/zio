@@ -3,15 +3,16 @@ package zio.internal.macros
 import zio._
 import zio.internal.ansi.AnsiStringOps
 
-final case class ZLayerExprBuilder[A](
-  graph: Graph[A],
+final case class ZLayerExprBuilder[Key, A](
+  graph: Graph[Key, A],
+  showKey: Key => String,
   showExpr: A => String,
   abort: String => Nothing,
   emptyExpr: A,
   composeH: (A, A) => A,
   composeV: (A, A) => A
 ) {
-  def buildLayerFor(output: List[String]): A =
+  def buildLayerFor(output: List[Key]): A =
     if (output.isEmpty)
       emptyExpr
     else
@@ -20,7 +21,7 @@ final case class ZLayerExprBuilder[A](
         case Right(value) => value.fold(emptyExpr, identity, composeH, composeV)
       }
 
-  private def renderErrors(errors: ::[GraphError[A]]): String = {
+  private def renderErrors(errors: ::[GraphError[Key, A]]): String = {
     val allErrors = sortErrors(errors)
 
     val errorMessage =
@@ -39,29 +40,29 @@ $errorMessage
   /**
    * Return only the first level of circular dependencies, as these will be the most relevant.
    */
-  private def sortErrors(errors: ::[GraphError[A]]): Chunk[GraphError[A]] = {
+  private def sortErrors(errors: ::[GraphError[Key, A]]): Chunk[GraphError[Key, A]] = {
     val (circularDependencyErrors, otherErrors) =
       NonEmptyChunk.fromIterable(errors.head, errors.tail).distinct.partitionMap {
-        case circularDependency: GraphError.CircularDependency[A] => Left(circularDependency)
-        case other                                                => Right(other)
+        case circularDependency: GraphError.CircularDependency[Key, A] => Left(circularDependency)
+        case other                                                     => Right(other)
       }
     val sorted                = circularDependencyErrors.sortBy(_.depth)
     val initialCircularErrors = sorted.takeWhile(_.depth == sorted.headOption.map(_.depth).getOrElse(0))
 
-    initialCircularErrors ++ otherErrors.sortBy(_.isInstanceOf[GraphError.MissingDependency[A]])
+    initialCircularErrors ++ otherErrors.sortBy(_.isInstanceOf[GraphError.MissingDependency[Key, A]])
   }
 
-  private def renderError(error: GraphError[A]): String =
+  private def renderError(error: GraphError[Key, A]): String =
     error match {
       case GraphError.MissingDependency(node, dependency) =>
-        val styledDependency = dependency.white.bold
+        val styledDependency = showKey(dependency).white.bold
         val styledLayer      = showExpr(node.value).white
         s"""
 ${"missing".faint} $styledDependency
     ${"for".faint} $styledLayer"""
 
       case GraphError.MissingTopLevelDependency(dependency) =>
-        val styledDependency = dependency.white.bold
+        val styledDependency = showKey(dependency).white.bold
         s"""
 ${"missing".faint} $styledDependency"""
 

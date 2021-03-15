@@ -5,18 +5,19 @@ import zio.internal.ansi.AnsiStringOps
 
 import scala.reflect.macros.blackbox
 
-private[zio] trait AutoLayerMacroUtils {
+private[zio] trait LayerMacroUtils {
   val c: blackbox.Context
   import c.universe._
 
   type LayerExpr = c.Expr[ZLayer[_, _, _]]
 
-  def generateExprGraph(layers: Seq[LayerExpr]): ZLayerExprBuilder[LayerExpr] =
+  def generateExprGraph(layers: Seq[LayerExpr]): ZLayerExprBuilder[c.Type, LayerExpr] =
     generateExprGraph(layers.map(getNode).toList)
 
-  def generateExprGraph(nodes: List[Node[LayerExpr]]): ZLayerExprBuilder[LayerExpr] =
-    ZLayerExprBuilder[LayerExpr](
-      graph = Graph(nodes),
+  def generateExprGraph(nodes: List[Node[c.Type, LayerExpr]]): ZLayerExprBuilder[c.Type, LayerExpr] =
+    ZLayerExprBuilder[c.Type, LayerExpr](
+      graph = Graph(nodes, _ =:= _),
+      showKey = tpe => tpe.toString,
       showExpr = expr => CleanCodePrinter.show(c)(expr.tree),
       abort = c.abort(c.enclosingPosition, _),
       emptyExpr = reify(ZLayer.succeed(())),
@@ -24,7 +25,7 @@ private[zio] trait AutoLayerMacroUtils {
       composeV = (lhs, rhs) => c.Expr(q"""$lhs >>> $rhs""")
     )
 
-  def buildMemoizedLayer(exprGraph: ZLayerExprBuilder[LayerExpr], requirements: List[String]): LayerExpr = {
+  def buildMemoizedLayer(exprGraph: ZLayerExprBuilder[c.Type, LayerExpr], requirements: List[c.Type]): LayerExpr = {
     // This is run for its side effects: Reporting compile errors with the original source names.
     val _ = exprGraph.buildLayerFor(requirements)
 
@@ -38,7 +39,7 @@ private[zio] trait AutoLayerMacroUtils {
     val definitions = memoizedNodes.zip(nodes).map { case (memoizedNode, node) =>
       ValDef(Modifiers(), TermName(memoizedNode.value.tree.toString()), TypeTree(), node.value.tree)
     }
-    val layerExpr = exprGraph.copy(graph = Graph(memoizedNodes)).buildLayerFor(requirements)
+    val layerExpr = exprGraph.copy(graph = Graph[c.Type, LayerExpr](memoizedNodes, _ =:= _)).buildLayerFor(requirements)
 
     c.Expr(q"""
     ..$definitions
@@ -46,19 +47,19 @@ private[zio] trait AutoLayerMacroUtils {
     """)
   }
 
-  def getNode(layer: LayerExpr): Node[LayerExpr] = {
+  def getNode(layer: LayerExpr): Node[c.Type, LayerExpr] = {
     val tpe                   = layer.actualType.dealias
     val in :: _ :: out :: Nil = tpe.typeArgs
     Node(getRequirements(in), getRequirements(out), layer)
   }
 
-  def getRequirements[T: c.WeakTypeTag]: List[String] =
+  def getRequirements[T: c.WeakTypeTag]: List[c.Type] =
     getRequirements(weakTypeOf[T])
 
   def isValidHasType(tpe: Type): Boolean =
     tpe.isHas || tpe.isAny
 
-  def getRequirements(tpe: Type): List[String] = {
+  def getRequirements(tpe: Type): List[c.Type] = {
     val intersectionTypes = tpe.intersectionTypes
 
     intersectionTypes.filter(!isValidHasType(_)) match {
@@ -72,7 +73,7 @@ private[zio] trait AutoLayerMacroUtils {
 
     intersectionTypes
       .filter(_.isHas)
-      .map(_.dealias.typeArgs.head.dealias.map(_.dealias).toString)
+      .map(_.dealias.typeArgs.head)
       .distinct
   }
 
@@ -93,7 +94,7 @@ private[zio] trait AutoLayerMacroUtils {
      * Given a type `A with B with C` You'll get back List[A,B,C]
      */
     def intersectionTypes: List[Type] =
-      self.dealias.map(_.dealias) match {
+      self.dealias match {
         case t: RefinedType =>
           t.parents.flatMap(_.intersectionTypes)
         case TypeRef(_, sym, _) if sym.info.isInstanceOf[RefinedTypeApi] =>
@@ -101,11 +102,6 @@ private[zio] trait AutoLayerMacroUtils {
         case other =>
           List(other)
       }
-  }
-
-  implicit class ZLayerExprOps(self: c.Expr[ZLayer[_, _, _]]) {
-    def outputTypes: List[Type] = self.actualType.dealias.typeArgs(2).intersectionTypes
-    def inputTypes: List[Type]  = self.actualType.dealias.typeArgs.head.intersectionTypes
   }
 
   implicit class TreeOps(self: c.Expr[_]) {

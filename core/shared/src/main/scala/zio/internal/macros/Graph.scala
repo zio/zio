@@ -2,28 +2,28 @@ package zio.internal.macros
 
 import zio.internal.macros.LayerCompose._
 
-final case class Graph[A](nodes: List[Node[A]]) {
+final case class Graph[Key, A](nodes: List[Node[Key, A]], keyEquals: (Key, Key) => Boolean) {
 
-  def buildComplete(outputs: List[String]): Either[::[GraphError[A]], LayerCompose[A]] =
+  def buildComplete(outputs: List[Key]): Either[::[GraphError[Key, A]], LayerCompose[A]] =
     forEach(outputs) { output =>
       getNodeWithOutput(output, error = GraphError.MissingTopLevelDependency(output))
         .flatMap(node => buildNode(node, Set(node)))
     }
       .map(_.distinct.combineHorizontally)
 
-  def map[B](f: A => B): Graph[B] =
-    Graph(nodes.map(_.map(f)))
+  def map[B](f: A => B): Graph[Key, B] =
+    Graph(nodes.map(_.map(f)), keyEquals)
 
-  private def getNodeWithOutput[E](output: String, error: E): Either[::[E], Node[A]] =
-    nodes.find(_.outputs.contains(output)).toRight(::(error, Nil))
+  private def getNodeWithOutput[E](output: Key, error: E): Either[::[E], Node[Key, A]] =
+    nodes.find(_.outputs.exists(keyEquals(_, output))).toRight(::(error, Nil))
 
-  private def getDependencies[E](node: Node[A]): Either[::[GraphError[A]], List[Node[A]]] =
+  private def getDependencies[E](node: Node[Key, A]): Either[::[GraphError[Key, A]], List[Node[Key, A]]] =
     forEach(node.inputs) { input =>
       getNodeWithOutput(input, error = GraphError.MissingDependency(node, input))
     }
       .map(_.distinct)
 
-  private def buildNode(node: Node[A], seen: Set[Node[A]]): Either[::[GraphError[A]], LayerCompose[A]] =
+  private def buildNode(node: Node[Key, A], seen: Set[Node[Key, A]]): Either[::[GraphError[Key, A]], LayerCompose[A]] =
     getDependencies(node).flatMap {
       forEach(_) { out =>
         assertNonCircularDependency(node, seen, out).flatMap(_ => buildNode(out, seen + out))
@@ -33,10 +33,10 @@ final case class Graph[A](nodes: List[Node[A]]) {
     }
 
   private def assertNonCircularDependency(
-    node: Node[A],
-    seen: Set[Node[A]],
-    dependency: Node[A]
-  ): Either[::[GraphError[A]], Unit] =
+    node: Node[Key, A],
+    seen: Set[Node[Key, A]],
+    dependency: Node[Key, A]
+  ): Either[::[GraphError[Key, A]], Unit] =
     if (seen(dependency))
       Left(::(GraphError.CircularDependency(node, dependency, seen.size), Nil))
     else
@@ -44,8 +44,8 @@ final case class Graph[A](nodes: List[Node[A]]) {
 
   private def forEach[B, C](
     list: List[B]
-  )(f: B => Either[::[GraphError[A]], C]): Either[::[GraphError[A]], List[C]] =
-    list.foldRight[Either[::[GraphError[A]], List[C]]](Right(List.empty)) { (a, b) =>
+  )(f: B => Either[::[GraphError[Key, A]], C]): Either[::[GraphError[Key, A]], List[C]] =
+    list.foldRight[Either[::[GraphError[Key, A]], List[C]]](Right(List.empty)) { (a, b) =>
       (f(a), b) match {
         case (Left(::(e, es)), Left(e1s)) => Left(::(e, es ++ e1s))
         case (Left(es), _)                => Left(es)

@@ -1,15 +1,15 @@
 package zio.test
 
 import zio._
-import zio.internal.macros.{AutoLayerMacroUtils, Node}
+import zio.internal.macros.{LayerMacroUtils, Node}
 import zio.test.environment.TestEnvironment
 
 import scala.reflect.macros.blackbox
 
-class SpecProvideLayerAutoMacros(val c: blackbox.Context) extends AutoLayerMacroUtils {
+class SpecLayerMacros(val c: blackbox.Context) extends LayerMacroUtils {
   import c.universe._
 
-  def provideLayerImpl[R: c.WeakTypeTag, E, A](layers: c.Expr[ZLayer[_, E, _]]*): c.Expr[Spec[Any, E, A]] = {
+  def injectImpl[R: c.WeakTypeTag, E, A](layers: c.Expr[ZLayer[_, E, _]]*): c.Expr[Spec[Any, E, A]] = {
     assertProperVarArgs(layers)
     val layerExpr = buildMemoizedLayer(generateExprGraph(layers), getRequirements[R])
     c.Expr[Spec[Any, E, A]](q"${c.prefix}.provideLayerManual(${layerExpr.tree})")
@@ -29,7 +29,7 @@ class SpecProvideLayerAutoMacros(val c: blackbox.Context) extends AutoLayerMacro
     c.Expr[Spec[TestEnvironment, E, A]](q"${c.prefix}.provideCustomLayerManual(${layerExpr.tree})")
   }
 
-  def provideLayerManualSharedAutoImpl[R: c.WeakTypeTag, E, A](
+  def injectSharedImpl[R: c.WeakTypeTag, E, A](
     layers: c.Expr[ZLayer[_, E, _]]*
   ): c.Expr[Spec[Any, E, A]] = {
     assertProperVarArgs(layers)
@@ -37,7 +37,7 @@ class SpecProvideLayerAutoMacros(val c: blackbox.Context) extends AutoLayerMacro
     c.Expr[Spec[Any, E, A]](q"${c.prefix}.provideLayerManualShared(${layerExpr.tree})")
   }
 
-  def provideCustomLayerManualSharedAutoImpl[R: c.WeakTypeTag, E, A](
+  def injectCustomSharedImpl[R: c.WeakTypeTag, E, A](
     layers: c.Expr[ZLayer[_, E, _]]*
   ): c.Expr[Spec[TestEnvironment, E, A]] = {
     assertProperVarArgs(layers)

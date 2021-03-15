@@ -8,8 +8,8 @@ trait SpecVersionSpecific[-R, +E, +T] { self: Spec[R, E, T] =>
   /**
    * Automatically assembles a layer for the spec, translating it up a level.
    */
-  inline def provideLayer[E1 >: E](inline layers: ZLayer[_, E1, _]*): Spec[Any, E1, T] =
-    ${SpecProvideLayerAutoMacros.provideLayerImpl('self, 'layers)}
+  inline def inject[E1 >: E](inline layers: ZLayer[_, E1, _]*): Spec[Any, E1, T] =
+    ${SpecLayerMacros.injectImpl('self, 'layers)}
 
   /**
    * Automatically constructs the part of the environment that is not part of the
@@ -25,17 +25,17 @@ trait SpecVersionSpecific[-R, +E, +T] { self: Spec[R, E, T] =>
    * // The TestEnvironment you use later will provide both Blocking to flyLayer and
    * // Console to zio
    * val zio2 : ZIO[TestEnvironment, Nothing, Unit] =
-   *   zio.provideCustomLayer(oldLadyLayer, flyLayer)
+   *   zio.injectCustom(oldLadyLayer, flyLayer)
    * }}}
    */
-  inline def provideCustomLayer[E1 >: E](inline layers: ZLayer[_, E1, _]*): Spec[TestEnvironment, E1, T] =
-    ${SpecProvideLayerAutoMacros.provideCustomLayerImpl('self, 'layers)}
+  inline def injectCustom[E1 >: E](inline layers: ZLayer[_, E1, _]*): Spec[TestEnvironment, E1, T] =
+    ${SpecLayerMacros.provideCustomLayerImpl('self, 'layers)}
 
   /**
    * Automatically assembles a layer for the spec, sharing services between all tests.
    */
-  inline def provideLayerManualSharedAuto[E1 >: E](inline layers: ZLayer[_, E1, _]*): Spec[Any, E1, T] =
-    ${SpecProvideLayerAutoMacros.provideLayerManualSharedAutoImpl('self, 'layers)}
+  inline def injectShared[E1 >: E](inline layers: ZLayer[_, E1, _]*): Spec[Any, E1, T] =
+    ${SpecLayerMacros.injectSharedImpl('self, 'layers)}
 
   /**
    * Automatically constructs the part of the environment that is not part of the
@@ -53,9 +53,9 @@ trait SpecVersionSpecific[-R, +E, +T] { self: Spec[R, E, T] =>
    * // The TestEnvironment you use later will provide both Blocking to flyLayer and
    * // Console to zio
    * val zio2 : ZIO[TestEnvironment, Nothing, Unit] =
-   *   zio.provideCustomLayer(oldLadyLayer, flyLayer)
+   *   zio.injectCustom(oldLadyLayer, flyLayer)
    * }}}
    */
-  inline def provideCustomLayerManualSharedAuto[E1 >: E](inline layers: ZLayer[_, E1, _]*): Spec[TestEnvironment, E1, T] =
-    ${SpecProvideLayerAutoMacros.provideCustomLayerManualSharedAutoImpl('self, 'layers)}
+  inline def injectCustomShared[E1 >: E](inline layers: ZLayer[_, E1, _]*): Spec[TestEnvironment, E1, T] =
+    ${SpecLayerMacros.injectCustomSharedImpl('self, 'layers)}
 }

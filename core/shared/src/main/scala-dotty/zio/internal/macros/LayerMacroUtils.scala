@@ -6,7 +6,7 @@ import scala.compiletime._
 import zio.internal.macros.StringUtils.StringOps
 import zio.internal.ansi.AnsiStringOps
 
-private [zio] object AutoLayerMacroUtils {
+private [zio] object LayerMacroUtils {
   type LayerExpr = Expr[ZLayer[_,_,_]]
 
   def renderExpr[A](expr: Expr[A])(using Quotes): String = {
@@ -14,8 +14,8 @@ private [zio] object AutoLayerMacroUtils {
     expr.asTerm.pos.sourceCode.getOrElse(expr.show)
   }
 
-  def buildMemoizedLayer(exprGraph: ZLayerExprBuilder[LayerExpr], requirements: List[String])(using  Quotes) : LayerExpr = {
-    import quotes.reflect._
+  def buildMemoizedLayer(ctx: Quotes)(exprGraph: ZLayerExprBuilder[ctx.reflect.TypeRepr, LayerExpr], requirements: List[ctx.reflect.TypeRepr]) : LayerExpr = {
+    import ctx.reflect._
 
     // This is run for its side effects: Reporting compile errors with the original source names.
     val _ = exprGraph.buildLayerFor(requirements)
@@ -34,34 +34,39 @@ private [zio] object AutoLayerMacroUtils {
     }.asExpr.asInstanceOf[LayerExpr]
   }
 
-  def buildLayerFor[R: Type](layers: Expr[Seq[ZLayer[_,_,_]]])(using Quotes): LayerExpr =
-    buildMemoizedLayer(ZLayerExprBuilder(layers), getRequirements[R])
+  def buildLayerFor[R: Type](layers: Expr[Seq[ZLayer[_,_,_]]])(using ctx: Quotes): LayerExpr = {
+    import quotes.reflect._
+    buildMemoizedLayer(ctx)(ZLayerExprBuilder(ctx)(layers), getRequirements[R](TypeRepr.of[R].show))
+  }
 
-  def getNodes(layers: Expr[Seq[ZLayer[_,_,_]]])(using Quotes): List[Node[LayerExpr]] = {
+  def getNodes(layers: Expr[Seq[ZLayer[_,_,_]]])(using ctx:Quotes): List[Node[ctx.reflect.TypeRepr, LayerExpr]] = {
     import quotes.reflect._
     layers match {
       case Varargs(args) =>
         args.map {
           case '{$layer: ZLayer[in, e, out]} =>
-          val inputs = getRequirements[in]
-          val outputs = getRequirements[out]
+          val inputs = getRequirements[in]("Input for " + layer.show.white)
+          val outputs = getRequirements[out]("Output for " + layer.show.white)
           Node(inputs, outputs, layer)
         }.toList
 
-      case _ => 
+      case other =>
         report.throwError("Auto-construction cannot work with `someList: _*` syntax.\nPlease pass the layers themselves into this method.")
     }
   }
 
-  def getRequirements[T: Type](using Quotes): List[String] = {
+  def getRequirements[T: Type](description: String)(using ctx: Quotes): List[ctx.reflect.TypeRepr] = {
       import quotes.reflect._
 
       val (nonHasTypes, requirements) = intersectionTypes[T].map(_.asType).partitionMap {
-        case '[Has[t]] => Right(TypeRepr.of[t].show)
-        case '[t] => Left(TypeRepr.of[t].show.white)
+        case '[Has[t]] => Right(TypeRepr.of[t])
+        case '[t] => Left(TypeRepr.of[t])
       }
 
-    if (nonHasTypes.nonEmpty) report.throwError(s"Contains non-Has types:\n- ${nonHasTypes.mkString("\n- ")}")
+    if (nonHasTypes.nonEmpty) report.throwError(
+      "ZLayer Construction Error".yellow.black + "\n" +
+      s"${description} contains non-Has types:\n- ${nonHasTypes.mkString("\n- ")}"
+    )
 
     requirements
   }
@@ -70,7 +75,7 @@ private [zio] object AutoLayerMacroUtils {
     import ctx.reflect._
 
     def go(tpe: TypeRepr): List[TypeRepr] =
-      tpe.dealias.simplified.dealias match {
+      tpe.dealias. match {
         case AndType(lhs, rhs) =>
           go(lhs) ++ go(rhs)
 
@@ -89,4 +94,14 @@ private [zio] object AutoLayerMacroUtils {
 
     go(TypeRepr.of[T])
   }
+}
+
+private[zio] object MacroUnitTestUtils {
+//  def getRequirements[R]: List[String] = '{
+//    LayerMacros.debugGetRequirements[R]
+//  }
+//
+//  def showTree(any: Any): String = '{
+//    LayerMacros.debugShowTree
+//  }
 }

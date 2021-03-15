@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.internal.macros.ProvideLayerMacros
+import zio.internal.macros.LayerMacros
 
 private[zio] trait ScheduleVersionSpecific[-Env, -In, +Out] { self: Schedule[Env, In, Out] =>
 
@@ -31,16 +31,16 @@ private[zio] trait ScheduleVersionSpecific[-Env, -In, +Out] { self: Schedule[Env
    * val flyLayer: ZLayer[Blocking, Nothing, Fly] = ???
    *
    * // The ZEnv you use later will provide both Blocking to flyLayer and Console to zio
-   * val zio2 : Schedule[ZEnv, Nothing, Unit] = zio.provideCustomLayer(oldLadyLayer, flyLayer)
+   * val zio2 : Schedule[ZEnv, Nothing, Unit] = zio.injectCustom(oldLadyLayer, flyLayer)
    * }}}
    */
-  def provideCustomLayer(layers: ZLayer[_, Nothing, _]*): Schedule[ZEnv, In, Out] =
-    macro ProvideLayerMacros.provideSomeLayerImpl[Schedule, ZEnv, Env, Nothing, Out]
+  def injectCustom(layers: ZLayer[_, Nothing, _]*): Schedule[ZEnv, In, Out] =
+    macro LayerMacros.injectSomeImpl[Schedule, ZEnv, Env, Nothing, Out]
 
   /**
    * Automatically assembles a layer for the Schedule effect.
    */
-  def provideLayer(layers: ZLayer[_, Nothing, _]*): Schedule[Any, In, Out] =
-    macro ProvideLayerMacros.provideLayerImpl[Schedule, Env, Nothing, Out]
+  def inject(layers: ZLayer[_, Nothing, _]*): Schedule[Any, In, Out] =
+    macro LayerMacros.injectImpl[Schedule, Env, Nothing, Out]
 
 }

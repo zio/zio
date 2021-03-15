@@ -6,33 +6,41 @@ import scala.quoted._
 import scala.compiletime._
 import zio.internal.macros.StringUtils.StringOps
 
-import AutoLayerMacroUtils._
+import LayerMacroUtils._
 
-object ProvideLayerAutoMacros {
-  def provideLayerImpl[R0: Type, R: Type, E: Type, A: Type](zio: Expr[ZIO[R,E,A]], layers: Expr[Seq[ZLayer[_,E,_]]])(using Quotes): Expr[ZIO[R0,E,A]] = {
+object LayerMacros {
+  def injectImpl[R0: Type, R: Type, E: Type, A: Type](zio: Expr[ZIO[R,E,A]], layers: Expr[Seq[ZLayer[_,E,_]]])(using Quotes): Expr[ZIO[R0,E,A]] = {
     val layerExpr = fromAutoImpl[R0, R, E](layers)
     '{$zio.provideLayerManual($layerExpr.asInstanceOf[ZLayer[R0,E,R]])}
   }
 
-  def fromAutoImpl[In: Type, Out: Type, E: Type](layers: Expr[Seq[ZLayer[_,E,_]]])(using Quotes): Expr[ZLayer[In,E,Out]] = {
-    val deferredRequirements = getRequirements[In]
-    val requirements     = getRequirements[Out]
+  def fromAutoImpl[In: Type, Out: Type, E: Type](layers: Expr[Seq[ZLayer[_,E,_]]])(using ctx: Quotes): Expr[ZLayer[In,E,Out]] = {
+    val deferredRequirements = getRequirements[In]("Specified Remainder")
+    val requirements     = getRequirements[Out](s"Target Environment")
 
     val zEnvLayer = Node(List.empty, deferredRequirements, '{ZLayer.requires[In]})
     val nodes     = (zEnvLayer +: getNodes(layers)).toList
 
-    buildMemoizedLayer(ZLayerExprBuilder(nodes), requirements)
+    buildMemoizedLayer(ctx)(ZLayerExprBuilder.fromNodes(ctx)(nodes), requirements)
       .asInstanceOf[Expr[ZLayer[In,E,Out]]]
   }
 }
 
 
 trait ExprGraphCompileVariants { self : ZLayerExprBuilder.type =>
-  def apply(layers: Expr[Seq[ZLayer[_,_,_]]])(using ctx: Quotes): ZLayerExprBuilder[LayerExpr] = 
-    apply(getNodes(layers))
+  def apply(ctx: Quotes)(layers: Expr[Seq[ZLayer[_,_,_]]]): ZLayerExprBuilder[ctx.reflect.TypeRepr, LayerExpr] =  {
+    implicit val qcx: ctx.type = ctx
+    fromNodes(ctx)(getNodes(layers))
+  }
 
-  def apply(nodes: List[Node[LayerExpr]])(using ctx: Quotes): ZLayerExprBuilder[LayerExpr] = {
+  def fromNodes(ctx: Quotes)(nodes: List[Node[ctx.reflect.TypeRepr, LayerExpr]]): ZLayerExprBuilder[ctx.reflect.TypeRepr, LayerExpr] = {
     import ctx.reflect._
+    implicit val qcx: ctx.type = ctx
+
+    def renderTypeRepr(typeRepr: TypeRepr)(using Quotes): String = {
+      import quotes.reflect._
+      typeRepr.show
+    }
 
     def compileError(message: String) : Nothing = report.throwError(message)
     def empty: LayerExpr = '{ZLayer.succeed(())}
@@ -41,8 +49,9 @@ trait ExprGraphCompileVariants { self : ZLayerExprBuilder.type =>
     def composeV(lhs: LayerExpr, rhs: LayerExpr): LayerExpr =
         '{$lhs.asInstanceOf[ZLayer[_,_,Has[Unit]]] >>> $rhs.asInstanceOf[ZLayer[Has[Unit],_,_]]}
 
-    ZLayerExprBuilder[LayerExpr](
-      Graph(nodes),
+    ZLayerExprBuilder(
+      Graph(nodes, _ =:= _),
+      renderTypeRepr,
       renderExpr,
       compileError,
       empty,

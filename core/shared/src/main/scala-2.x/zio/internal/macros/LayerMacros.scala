@@ -4,10 +4,10 @@ import zio._
 
 import scala.reflect.macros.blackbox
 
-private[zio] class ProvideLayerMacros(val c: blackbox.Context) extends AutoLayerMacroUtils {
+private[zio] class LayerMacros(val c: blackbox.Context) extends LayerMacroUtils {
   import c.universe._
 
-  def provideLayerImpl[F[_, _, _], R: c.WeakTypeTag, E, A](
+  def injectImpl[F[_, _, _], R: c.WeakTypeTag, E, A](
     layers: c.Expr[ZLayer[_, E, _]]*
   ): c.Expr[F[Any, E, A]] = {
     assertProperVarArgs(layers)
@@ -15,7 +15,7 @@ private[zio] class ProvideLayerMacros(val c: blackbox.Context) extends AutoLayer
     c.Expr[F[Any, E, A]](q"${c.prefix}.provideLayerManual(${expr.tree})")
   }
 
-  def provideSomeLayerImpl[F[_, _, _], R0: c.WeakTypeTag, R: c.WeakTypeTag, E, A](
+  def injectSomeImpl[F[_, _, _], R0: c.WeakTypeTag, R: c.WeakTypeTag, E, A](
     layers: c.Expr[ZLayer[_, E, _]]*
   ): c.Expr[F[R0, E, A]] = {
     assertProperVarArgs(layers)
@@ -40,7 +40,7 @@ private[zio] class ProvideLayerMacros(val c: blackbox.Context) extends AutoLayer
 }
 
 private[zio] object MacroUnitTestUtils {
-  def getRequirements[R]: List[String] = macro ProvideLayerMacros.debugGetRequirements[R]
+  def getRequirements[R]: List[String] = macro LayerMacros.debugGetRequirements[R]
 
-  def showTree(any: Any): String = macro ProvideLayerMacros.debugShowTree
+  def showTree(any: Any): String = macro LayerMacros.debugShowTree
 }
