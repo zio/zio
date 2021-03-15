@@ -18,7 +18,7 @@ object TimerSpec extends ZIOBaseSpec {
           for {
             runtime                  <- ZIO.runtime[Clock]
             ref                      <- Ref.make[List[Long]](List.empty)
-            timer                    <- clock.timer
+            timer                    <- blocking.blocking(clock.timer)
             scheduledExecutorService <- timer.asScheduledExecutorService
             _ <- ZIO.effectTotal {
                    scheduledExecutorService.scheduleAtFixedRate(
@@ -43,12 +43,13 @@ object TimerSpec extends ZIOBaseSpec {
             runtime                  <- ZIO.runtime[Clock]
             ref                      <- Ref.make[List[Long]](List.empty)
             timer                    <- clock.timer
-            scheduledExecutorService <- timer.asScheduledExecutorService
+            scheduledExecutorService <- blocking.blocking(timer.asScheduledExecutorService)
             _ <- ZIO.effectTotal {
                    scheduledExecutorService.scheduleAtFixedRate(
                      new Runnable {
                        def run(): Unit =
                          runtime.unsafeRun {
+                           UIO(println("foo"))
                            ZIO.sleep(5.seconds) *>
                              clock.currentTime(TimeUnit.SECONDS).flatMap(now => ref.update(now :: _))
                          }
@@ -66,7 +67,7 @@ object TimerSpec extends ZIOBaseSpec {
           for {
             runtime                  <- ZIO.runtime[Clock]
             ref                      <- Ref.make[List[Long]](List.empty)
-            timer                    <- clock.timer
+            timer                    <- blocking.blocking(clock.timer)
             scheduledExecutorService <- timer.asScheduledExecutorService
             _ <- ZIO.effectTotal {
                    scheduledExecutorService.scheduleWithFixedDelay(
