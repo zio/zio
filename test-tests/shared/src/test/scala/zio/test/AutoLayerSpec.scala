@@ -82,24 +82,17 @@ object AutoLayerSpec extends ZIOBaseSpec {
         } @@ TestAspect.exceptDotty
       ),
       suite(".injectShared") {
+        val addOne   = ZIO.service[Ref[Int]].flatMap(_.getAndUpdate(_ + 1))
         val refLayer = Ref.make(1).toLayer
 
         suite("layer is shared between tests and suites")(
           suite("suite 1")(
-            testM("test 1") {
-              assertM(ZIO.service[Ref[Int]].flatMap(_.getAndUpdate(_ + 1)))(equalTo(1))
-            },
-            testM("test 2") {
-              assertM(ZIO.service[Ref[Int]].flatMap(_.getAndUpdate(_ + 1)))(equalTo(2))
-            }
+            testM("test 1")(assertM(addOne)(equalTo(1))),
+            testM("test 2")(assertM(addOne)(equalTo(2)))
           ),
           suite("suite 2")(
-            testM("test 3") {
-              assertM(ZIO.service[Ref[Int]].flatMap(_.getAndUpdate(_ + 1)))(equalTo(3))
-            },
-            testM("test 4") {
-              assertM(ZIO.service[Ref[Int]].flatMap(_.getAndUpdate(_ + 1)))(equalTo(4))
-            }
+            testM("test 3")(assertM(addOne)(equalTo(3))),
+            testM("test 4")(assertM(addOne)(equalTo(4)))
           )
         ).injectShared(refLayer) @@ TestAspect.sequential
       }
