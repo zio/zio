@@ -11,13 +11,13 @@ ZIO contains a few data types that can help you solve complex problems in asynch
 4. [Resource Safety](#resource-safety)
 5. [Runtime](#runtime)
 6. [Streaming](#streaming)
-7. [Module](#module)
-8. [Miscellaneous](#miscellaneous)
+7. [Miscellaneous](#miscellaneous)
 
 ## Core Data Types
  - **[ZIO](core/io.md)** — A `ZIO` is a value that models an effectful program, which might fail or succeed.
  - **[Fiber](core/fiber.md)** — A fiber value models an `IO` value that has started running, and is the moral equivalent of a green thread.
  - **[FiberRef](core/fiberref.md)** — `FiberRef[A]` models a mutable reference to a value of type `A`. As opposed to `Ref[A]`, a value is bound to an executing `Fiber` only.  You can think of it as Java's `ThreadLocal` on steroids.
+ - **[ZLayer](core/zlayer.md)** - A `ZLayer` describes a layer of an application.
  
 ## Concurrency Primitives
  - **[Promise](concurrency/promise.md)** — A `Promise` is a model of a variable that may be set a single time, and awaited on by many fibers.
@@ -49,12 +49,9 @@ The following datatypes can be found in ZIO streams library:
  - **[Stream](stream/stream.md)** — A `Stream` is a lazy, concurrent, asynchronous source of values.
  - **[Sink](stream/sink.md)** — A `Sink` is a consumer of values from a `Stream`, which may produces a value when it has consumed enough.
  
-## Module
- - **[Has](module/has.md)** - A `Has` is used to express an effect's dependency on a service of type `A`.
- - **[ZLayer](module/zlayer.md)** - A `ZLayer` describes a layer of an application.
-
 ## Miscellaneous
  - **[Chunk](misc/chunk.md)** — ZIO `Chunk`: Fast, Pure Alternative to Arrays
  - **[Schedule](misc/schedule.md)** — A `Schedule` is a model of a recurring schedule, which can be used for repeating successful `IO` values, or retrying failed `IO` values.
+ - **[Has](misc/has.md)** - A `Has` is used to express an effect's dependency on a service of type `A`.
 
 To learn more about these data types, please explore the pages above, or check out the Scaladoc documentation.

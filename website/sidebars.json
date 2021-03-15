@@ -22,7 +22,8 @@
       "datatypes/core/index",
       "datatypes/core/io",
       "datatypes/core/fiber",
-      "datatypes/core/fiberref"
+      "datatypes/core/fiberref",
+      "datatypes/module/zlayer"
     ],
     "Concurrency Primitives": [
       "datatypes/concurrency/index",
@@ -54,15 +55,11 @@
       "datatypes/stream/stream",
       "datatypes/stream/sink"
     ],
-    "Module": [
-      "datatypes/module/index",
-      "datatypes/module/has",
-      "datatypes/module/zlayer"
-    ],
     "Miscellaneous": [
       "datatypes/misc/index",
       "datatypes/misc/chunk",
-      "datatypes/misc/schedule"
+      "datatypes/misc/schedule",
+      "datatypes/module/has"
     ]
   },
   "interop-sidebar": {
