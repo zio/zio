@@ -125,7 +125,7 @@ trait TimerPlatformSpecific { timer: Timer =>
           }
           def isCancelled(): Boolean =
             state.get match {
-              case Done(Left(t: InterruptedException)) => true
+              case Done(Left(_: InterruptedException)) => true
               case _                                   => false
             }
           def isDone(): Boolean =
