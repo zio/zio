@@ -38,7 +38,7 @@ object MockClock extends Mock[Clock] {
         def currentDateTime: IO[DateTimeException, OffsetDateTime] = proxy(CurrentDateTime)
         val nanoTime: UIO[Long]                                    = proxy(NanoTime)
         def sleep(duration: Duration): UIO[Unit]                   = proxy(Sleep, duration)
-        val timer: UIO[zio.internal.Timer]                             = proxy(Timer)
+        val timer: UIO[zio.internal.Timer]                         = proxy(Timer)
       }
     )
 }
