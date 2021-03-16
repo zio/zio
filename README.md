@@ -73,6 +73,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Dow Jones](https://www.dowjones.com)
 * [Dream11](https://dream11.com)
 * [Deutsche Telekom IoT GmbH](https://iot.telekom.com/en)
+* [eBay](https://www.ebay.com)
 * [EnelX](https://www.enelx.com)
 * [Evolution](https://evolution.engineering)
 * [Flipp](https://flipp.com/)
