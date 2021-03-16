@@ -17,6 +17,7 @@
 package zio
 
 import zio.ZManaged.ReleaseMap
+import zio.blocking._
 import zio.clock.Clock
 import zio.duration.Duration
 import zio.internal.Executor
@@ -1437,6 +1438,14 @@ object ZManaged extends ZManagedPlatformSpecific {
     new ZManaged[R, E, A] {
       def zio = run0
     }
+
+  /**
+   * Returns a managed effect that describes shifting to the blocking executor
+   * as the `acquire` action and shifting back to the original executor as the
+   * `release` action.
+   */
+  val blocking: ZManaged[Blocking, Nothing, Unit] =
+    blockingExecutor.toManaged_.flatMap(executor => ZManaged.lock(executor))
 
   /**
    * Evaluate each effect in the structure from left to right, collecting the
