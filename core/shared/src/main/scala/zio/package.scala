@@ -14,7 +14,12 @@
  * limitations under the License.
  */
 
-package object zio extends BuildFromCompat with EitherCompat with PlatformSpecific with VersionSpecific {
+package object zio
+    extends BuildFromCompat
+    with EitherCompat
+    with PlatformSpecific
+    with VersionSpecific
+    with FunctionToLayerOps {
   private[zio] type Callback[E, A] = Exit[E, A] => Any
 
   type Canceler[-R] = URIO[R, Any]
