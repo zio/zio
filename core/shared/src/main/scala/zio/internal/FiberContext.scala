@@ -1072,8 +1072,8 @@ private[zio] final class FiberContext[E, A](
     val exit         = Exit.die(t)
     val currentState = state.getAndSet(Done(exit))
     currentState match {
-      case Executing(status, observers, interrupted) => notifyObservers(exit, observers)
-      case Done(value)                               =>
+      case Executing(_, observers, _) => notifyObservers(exit, observers)
+      case _                          =>
     }
   }
 
