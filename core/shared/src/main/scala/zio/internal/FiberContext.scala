@@ -650,13 +650,14 @@ private[zio] final class FiberContext[E, A](
           // either a bug in the interpreter or a bug in the user's code. Let the
           // fiber die but attempt finalization & report errors.
           case t: Throwable =>
-            curZio =
-              if (platform.fatal(t)) platform.reportFatal(t)
-              else {
-                setInterrupting(true)
+            curZio = if (platform.fatal(t)) {
+              fatal(t)
+              platform.reportFatal(t)
+            } else {
+              setInterrupting(true)
 
-                ZIO.die(t)
-              }
+              ZIO.die(t)
+            }
         }
       }
     } finally Fiber._currentFiber.remove()
@@ -1065,6 +1066,15 @@ private[zio] final class FiberContext[E, A](
 
     // For improved fairness, we resume in order of submission:
     observers.reverse.foreach(k => k(result))
+  }
+
+  private[this] def fatal(t: Throwable): Unit = {
+    val exit         = Exit.die(t)
+    val currentState = state.getAndSet(Done(exit))
+    currentState match {
+      case Executing(status, observers, interrupted) => notifyObservers(exit, observers)
+      case Done(value)                               =>
+    }
   }
 
 }
