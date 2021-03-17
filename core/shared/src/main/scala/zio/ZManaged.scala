@@ -1800,6 +1800,22 @@ object ZManaged extends ZManagedPlatformSpecific {
   def fromFunctionM[R, E, A](f: R => ZManaged[Any, E, A]): ZManaged[R, E, A] = flatten(fromFunction(f))
 
   /**
+   * Lifts an `Option` into a `ZManaged` but preserves the error as an option in the error channel, making it easier to compose
+   * in some scenarios.
+   */
+  def fromOption[A](v: => Option[A]): ZManaged[Any, Option[Nothing], A] =
+    effectTotal(v).flatMap(_.fold[Managed[Option[Nothing], A]](fail(None))(succeedNow))
+
+  /**
+   * Lifts a `Try` into a `ZManaged`.
+   */
+  def fromTry[A](value: => scala.util.Try[A]): TaskManaged[A] =
+    effect(value).flatMap {
+      case scala.util.Success(v) => succeedNow(v)
+      case scala.util.Failure(t) => fail(t)
+    }
+
+  /**
    * Returns an effect that models failure with the specified `Cause`.
    */
   def halt[E](cause: => Cause[E]): ZManaged[Any, E, Nothing] =
