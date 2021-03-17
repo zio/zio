@@ -651,7 +651,7 @@ private[zio] final class FiberContext[E, A](
           // fiber die but attempt finalization & report errors.
           case t: Throwable =>
             curZio = if (platform.fatal(t)) {
-              fatal(t)
+              fatal.set(true)
               platform.reportFatal(t)
             } else {
               setInterrupting(true)
@@ -1067,16 +1067,6 @@ private[zio] final class FiberContext[E, A](
     // For improved fairness, we resume in order of submission:
     observers.reverse.foreach(k => k(result))
   }
-
-  private[this] def fatal(t: Throwable): Unit = {
-    val exit         = Exit.die(t)
-    val currentState = state.getAndSet(Done(exit))
-    currentState match {
-      case Executing(_, observers: List[Callback[Nothing, Exit[E, A]]], _) => notifyObservers(exit, observers)
-      case _                                                               =>
-    }
-  }
-
 }
 private[zio] object FiberContext {
   sealed abstract class FiberState[+E, +A] extends Serializable with Product {
@@ -1113,4 +1103,7 @@ private[zio] object FiberContext {
 
   private val noop: Option[Any => Unit] =
     Some(_ => ())
+
+  val fatal: AtomicBoolean =
+    new AtomicBoolean(false)
 }
