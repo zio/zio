@@ -3,21 +3,186 @@ id: ref
 title: "Ref"
 ---
 
-`Ref[A]` models a mutable reference to a value of type `A`. The two basic operations are `set`, which fills the `Ref` with a new value, and `get`, which retrieves its current content. All operations on a `Ref` are atomic and thread-safe, providing a reliable foundation for synchronizing concurrent programs.
+`Ref[A]` models a **mutable reference** to a value of type `A` in which we can store **immutable** data. The two basic operations are `set`, which fills the `Ref` with a new value, and `get`, which retrieves its current content. All operations on a `Ref` are atomic and thread-safe, providing a reliable foundation for synchronizing concurrent programs.
 
-```scala mdoc:silent
+`Ref` is ZIO's analog to something like a State Monad in more Haskell-Oriented FP. We don't need State Monad in ZIO, because we have `Ref`s. `Ref`s allow us to get and set state, or update it.
+
+When we write stateful applications, we need some mechanism to manage our state. We need a way to update the in-memory state in a functional way. So this is why we need `Ref`s.
+
+`Ref`s are:
+- Purely Functional and Referential Transparent
+- Concurrent-Safe and Lock-free
+- Update and Modify atomically
+
+## Concurrent Stateful Application
+**`Ref`s are building blocks for writing concurrent stateful applications**. Without `Ref` or something equivalently, we can't do that. Anytime we need to share information between multiple fibers, and those fibers have to update the same information, they need to communicate through something that provides the guarantee of atomicity. So `Ref`s can update the state in an atomic way, consistent and isolated from all other concurrent updates.
+
+**`Ref`s are concurrent-safe**. we can share the same `Ref` among many fibers. All of them can update `Ref` concurrently. We don't have to worry about race conditions. Even we have ten thousand fibers all updating the same `Ref` as long as they are using atomic update and modify functions, we will have zero race conditions. 
+
+
+## Operations
+The `Ref` has lots of operations. Here we are going to introduce the most important and common ones. Also, note that `Ref` is a type alias for `ZRef`. `ZRef` has many type parameters. Basically, all of these type parameters on `ZRef` are useful for the more advanced operators. So as a not advanced user, don't worry about them.
+
+### make
+`Ref` is never empty and it always contains something. We can create `Ref` by providing the initial value to the `make`,  which is a constructor of the `Ref` data type. We should pass an **immutable value** of type `A` to the constructor, and it returns an `UIO[Ref[A]]` value:
+
+```scala mdoc:invisible
 import zio._
-
-for {
-  ref <- Ref.make(100)
-  v1 <- ref.get
-  v2 <- ref.set(v1 - 50)
-} yield v2
+import zio.console._
 ```
 
-## Updating a `Ref`
+```scala
+def make[A](a: A): UIO[Ref[A]]
+```
 
-The simplest way to use a `Ref` is by means of `update` or its more powerful sibling `modify`. Let's write a combinator `repeat` just because we can:
+As we can see, the output is wrapped in `UIO`, which means creating `Ref` is effectful. Whenever we `make`, `update`, or `modify` the `Ref`, we are doing some effectful operation, this is why their output is wrapped in `UIO`. It helps the API remain referential transparent.
+
+Let's create some `Ref`s from immutable values:
+
+```scala mdoc
+val counterRef = Ref.make(0)
+val stringRef = Ref.make("initial") 
+
+sealed trait State
+case object Active  extends State
+case object Changed extends State
+case object Closed  extends State
+
+val stateRef = Ref.make(Active) 
+```
+
+> _**Warning**_:  
+>
+> The big mistake to creating `Ref` is trying to store mutable data inside it. It doesn't work. The only way to use a `Ref` is to store **immutable data** inside it, otherwise, it does not provide us atomic guarantees, and we can have collisions and race conditions. 
+
+As we mentioned above, we shouldn't create `Ref` from a mutable variable. The following snippet compiles, but it leads us to race conditions due to improper use of `make`:
+
+```scala mdoc:nest
+// Compiles but don't work properly
+var init = 0
+val counterRef = Ref.make(init)
+```
+
+So we should change the `init` to be immutable:
+
+```scala mdoc:nest
+val init = 0
+val counterRef = Ref.make(init)
+```
+
+### get
+The `get` method returns the current value of the reference. Its return type is `IO[EB, B]`. Which `B` is the value type of returning effect and in the failure case, `EB` is the error type of that effect.
+
+```scala
+def get: IO[EB, B]
+```
+
+As the `make` and `get` methods of `Ref` are effectful, we can chain them together with flatMap. In the following example, we create a `Ref` with `initial` value, and then we acquire the current state with the `get` method:
+
+```scala mdoc:silent
+Ref.make("initial")
+   .flatMap(_.get)
+   .flatMap(current => putStrLn(s"current value of ref: $current"))
+```
+
+We can use syntactic sugar representation of flatMap series with for-comprehension:
+
+```scala mdoc:silent
+for {
+  ref   <- Ref.make("initial")
+  value <- ref.get
+} yield assert(value == "initial")
+```
+
+Note that, there is no way to access the shared state outside the monadic operations.
+
+### set
+The `set` method atomically writes a new value to the `Ref`.
+
+```scala mdoc:silent
+for {
+  ref   <- Ref.make("initial")
+  _     <- ref.set("update")
+  value <- ref.get
+} yield assert(value == "update")
+```
+
+### update
+With `update`, we can atomically update the state of `Ref` with a given **pure** function. A function that we pass to the `update` needs to be a pure function, it needs to be deterministic and free of side effects.
+
+```scala
+def update(f: A => A): IO[E, Unit]
+```
+
+Assume we have a counter, we can increase its value with the `update` method:
+
+```scala mdoc:silent:nest
+val counterInital = 0
+for {
+  counterRef <- Ref.make(counterInital)
+  _          <- counterRef.update(_ + 1)
+  value <- counterRef.get
+} yield assert(value == 1)
+```
+
+> _**Note**_:  
+>
+> The `update` is not the composition of `get` and `set`, this composition is not concurrently safe. So whenever we need to update our state, we should not compose `get` and `set` to manage our state in a concurrent environment. Instead, we should use the `update` operation which modifies its `Ref` atomically. 
+
+The following snippet is not concurrent safe:
+
+```scala mdoc:silent:nest
+// Unsafe State Management
+object UnsafeCountRequests extends zio.App {
+  import zio.console._
+
+  def request(counter: Ref[Int]) = for {
+    current <- counter.get
+    _ <- counter.set(current + 1)
+  } yield ()
+
+  private val initial = 0
+  private val program =
+    for {
+      ref <- Ref.make(initial)
+      _ <- request(ref) zipPar request(ref)
+      rn <- ref.get
+      _ <- putStrLn(s"total requests performed: $rn")
+    } yield ()
+
+  override def run(args: List[String]) = program.exitCode
+}
+```
+
+The above snippet doesn't behave deterministically. This program sometimes print 2 and sometime print 1. So let's fix that issue by using `update` which behaves atomically:
+
+```scala mdoc:silent:nest
+// Unsafe State Management
+object CountRequests extends zio.App {
+  import zio.console._
+
+  def request(counter: Ref[Int]): ZIO[Console, Nothing, Unit] = {
+    for {
+      _ <- counter.update(_ + 1)
+      reqNumber <- counter.get
+      _ <- putStrLn(s"request number: $reqNumber")
+    } yield ()
+  }
+
+  private val initial = 0
+  private val program =
+    for {
+      ref <- Ref.make(initial)
+      _ <- request(ref) zipPar request(ref)
+      rn <- ref.get
+      _ <- putStrLn(s"total requests performed: $rn")
+    } yield ()
+
+  override def run(args: List[String]) = program.exitCode
+}
+```
+
+Here is another use case of `update` to write `repeat` combinator:
 
 ```scala mdoc:silent
 def repeat[E, A](n: Int)(io: IO[E, A]): IO[E, Unit] =
@@ -31,6 +196,54 @@ def repeat[E, A](n: Int)(io: IO[E, A]): IO[E, Unit] =
     loop
   }
 ```
+
+### modify
+`modify` is a more powerful version of the `update`. It atomically modifies its `Ref` with the given function and, also computes a return value. The function that we pass to the `modify` needs to be a pure function; it needs to be deterministic and free of side effects.
+
+```scala
+def modify[B](f: A => (B, A)): IO[E, B]
+```
+
+Remember the `CountRequest` example. What if we want to log the number of each request, inside the `request` function? Let's see what happen if we write that function with the composition of `update` and `get` methods:
+
+```scala mdoc:silent:nest
+// Unsafe in Concurrent Environment
+def request(counter: Ref[Int]) = {
+  for {
+    _  <- counter.update(_ + 1)
+    rn <- counter.get
+    _  <- putStrLn(s"request number received: $rn")
+  } yield ()
+}
+```
+What happens if between running the update and get, another update in another fiber performed? This function doesn't perform in a deterministic fashion in concurrent environments. So we need a way to perform **get and set and get** atomically. This is why we need the `modify` method. Let's fix the `request` function to do that atomically:
+
+```scala mdoc:silent:nest
+// Safe in Concurrent Environment
+def request(counter: Ref[Int]) = {
+  for {
+    rn <- counter.modify(c => (c + 1, c + 1))
+    _  <- putStrLn(s"request number received: $rn")
+  } yield ()
+}
+```
+
+## AtomicReference in Java 
+For Java programmers, we can think of `Ref` as an AtomicReference. Java has a `java.util.concurrent.atomic` package and that package contains `AtomicReference`, `AtomicLong`, `AtomicBoolean` and so forth. We can think of `Ref` as being an `AtomicReference`. It has roughly the same power, the same guarantees, and the same limitations. It packages it up in a higher-level context and of course, makes it ZIO friendly. 
+ 
+## Ref vs. State Monad
+Basically `Ref` allows us to have all the power of State Monad inside ZIO. State Monad lacks two important futures that we use in real-life application development:
+
+1. Concurrency Support
+2. Error Handling
+
+### Concurrency
+State Monad is its effect system that only includes state. It allows us to do pure stateful computations. We can only get, set and update related computations to managing the state. State Monad updates its state with series of stateful computations sequentially, but **we can't use the State Monad to do async or concurrent computations**. But `Ref`s have great support on concurrent and async programming.
+
+### Error Handling
+In real-life applications, we need error handling. In most real-life stateful applications, we will involve some database IO and API calls and or some concurrent and sync stuff that it can fail in different ways along the path of execution. So besides the state management, we need a way to do error handling. The State Monad doesn't have the ability to model error management. 
+
+We can combine State Monad and Either Monad with StateT monad transformer, but it imposes massive performance overhead. It doesn't buy us anything that we can't do with a Ref. So it is an anti-pattern. In the ZIO model, errors are encoded in effects and Ref utilizes that. So besides state management, we have the ability to error-handling without any further work.
 
 ## State Transformers
 
