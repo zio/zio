@@ -17,7 +17,7 @@
 package zio.test.poly
 
 import zio.Has
-import zio.random.Random
+import zio.Random
 import zio.test.{Gen, Sized}
 
 /**

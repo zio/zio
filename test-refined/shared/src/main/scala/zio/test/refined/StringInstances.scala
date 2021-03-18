@@ -20,7 +20,7 @@ import eu.timepit.refined.api.Refined
 import eu.timepit.refined.string.{EndsWith, StartsWith, Uuid}
 import shapeless.Witness
 import zio.Has
-import zio.random.Random
+import zio.Random
 import zio.test.magnolia.DeriveGen
 import zio.test.{Gen, Sized}
 

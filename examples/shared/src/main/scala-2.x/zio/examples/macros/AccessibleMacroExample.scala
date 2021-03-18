@@ -2,9 +2,9 @@ package zio.examples.macros
 
 import zio.Console
 import zio.macros.{accessible, throwing}
-import zio.random.Random
+import zio.Random
 import zio.stream.{ZSink, ZStream}
-import zio.{Chunk, Has, IO, RIO, UIO, URIO, ZIO, ZLayer, random}
+import zio.{Chunk, Has, IO, RIO, UIO, URIO, ZIO, ZLayer, Random}
 
 object UpdatedAccessibleMacroExample {
   trait Foo { val value: String }
@@ -115,7 +115,7 @@ object AccessibleMacroExample {
           def baz(x: Int, y: Int): IO[String, Int]                        = UIO.succeed(x + y)
           def poly[A](a: A): IO[Long, A]                                  = UIO.succeed(a)
           def poly2[A <: Foo](a: Wrapped[A]): IO[String, List[A]]         = UIO.succeed(List(a.value))
-          def dependent(n: Int): ZIO[Has[Random], Long, Int]              = random.nextIntBounded(n)
+          def dependent(n: Int): ZIO[Has[Random], Long, Int]              = Random.nextIntBounded(n)
           val value: String                                               = "foo"
           def value2: String                                      = "foo2"
           def value3(): String                                    = "foo3"

@@ -1,7 +1,7 @@
 package zio.test
 
 import zio.duration.{Duration, _}
-import zio.random.Random
+import zio.Random
 import zio.test.Assertion._
 import zio.test.GenUtils._
 import zio.test.TestAspect.{nonFlaky, scala2Only, setSeed}

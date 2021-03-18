@@ -1,6 +1,6 @@
 package zio.internal
 
-import zio.random.Random
+import zio.Random
 import zio.test.Assertion.equalTo
 import zio.test.{Gen, ZSpec, assert, checkAll}
 import zio.{Has, ZIOBaseSpec}

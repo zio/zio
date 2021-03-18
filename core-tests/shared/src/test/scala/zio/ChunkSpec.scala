@@ -1,6 +1,6 @@
 package zio
 
-import zio.random.Random
+import zio.Random
 import zio.test.Assertion._
 import zio.test.TestAspect.exceptScala211
 import zio.test._

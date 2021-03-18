@@ -18,7 +18,7 @@ package zio.test
 
 import zio.Has
 import zio.duration.Duration
-import zio.random.Random
+import zio.Random
 
 import java.time.{Instant, LocalDateTime, OffsetDateTime, ZoneOffset}
 

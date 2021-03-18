@@ -2,7 +2,7 @@ package zio
 
 import zio.Clock
 import zio.duration._
-import zio.random.Random
+import zio.Random
 import zio.stream.ZStream
 import zio.test.Assertion._
 import zio.test.TestAspect.{failing, timeout}

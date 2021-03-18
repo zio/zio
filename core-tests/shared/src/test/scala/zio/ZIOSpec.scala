@@ -5,7 +5,7 @@ import zio.Clock
 import zio.LatchOps._
 import zio.duration._
 import zio.internal.Platform
-import zio.random.Random
+import zio.Random
 import zio.test.Assertion._
 import zio.test.TestAspect.{flaky, forked, ignore, jvm, jvmOnly, nonFlaky, scala2Only}
 import zio.test._
@@ -1208,19 +1208,19 @@ object ZIOSpec extends ZIOBaseSpec {
     ),
     suite("memoize")(
       testM("non-memoized returns new instances on repeated calls") {
-        val io = random.nextString(10)
+        val io = Random.nextString(10)
         (io <*> io)
           .map(tuple => assert(tuple._1)(not(equalTo(tuple._2))))
       },
       testM("memoized returns the same instance on repeated calls") {
-        val ioMemo = random.nextString(10).memoize
+        val ioMemo = Random.nextString(10).memoize
         ioMemo
           .flatMap(io => io <*> io)
           .map(tuple => assert(tuple._1)(equalTo(tuple._2)))
       },
       testM("memoized function returns the same instance on repeated calls") {
         for {
-          memoized <- ZIO.memoize((n: Int) => random.nextString(n))
+          memoized <- ZIO.memoize((n: Int) => Random.nextString(n))
           a        <- memoized(10)
           b        <- memoized(10)
           c        <- memoized(11)

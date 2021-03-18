@@ -18,7 +18,7 @@ package zio
 
 import zio.Clock
 import zio.Console
-import zio.random.Random
+import zio.Random
 import zio.System
 
 private[zio] trait PlatformSpecific {
@@ -32,7 +32,7 @@ private[zio] trait PlatformSpecific {
           Clock.ClockLive,
           Console.ConsoleLive,
           System.SystemLive,
-          Random.Service.live
+          Random.RandomLive
         )
     }
 

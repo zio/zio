@@ -16,7 +16,8 @@
 
 package zio.test
 
-import zio.random._
+import zio.Random
+import zio.Random._
 import zio.stream.{Stream, ZStream}
 import zio.{Chunk, ExecutionStrategy, Has, NonEmptyChunk, UIO, URIO, ZIO}
 

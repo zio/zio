@@ -1,7 +1,7 @@
 package zio.test.environment
 
 import zio._
-import zio.random.Random
+import zio.Random
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test._
@@ -64,8 +64,8 @@ object RandomSpec extends ZIOBaseSpec {
     testM("check fed ints do not survive repeating tests") {
       for {
         _      <- TestRandom.setSeed(5)
-        value  <- zio.random.nextInt
-        value2 <- zio.random.nextInt
+        value  <- zio.Random.nextInt
+        value2 <- zio.Random.nextInt
         _      <- TestRandom.feedInts(1, 2)
       } yield assert(value)(equalTo(-1157408321)) && assert(value2)(equalTo(758500184))
     } @@ nonFlaky,
@@ -74,9 +74,9 @@ object RandomSpec extends ZIOBaseSpec {
         for {
           _        <- TestRandom.setSeed(seed)
           newSeed  <- TestRandom.getSeed
-          value    <- random.nextInt
+          value    <- Random.nextInt
           _        <- TestRandom.setSeed(newSeed)
-          newValue <- random.nextInt
+          newValue <- Random.nextInt
         } yield assert(newSeed)(equalTo(seed & ((1L << 48) - 1))) &&
           assert(newValue)(equalTo(value))
       }
@@ -120,7 +120,7 @@ object RandomSpec extends ZIOBaseSpec {
 
   def nextBytes(n: Int)(random: SRandom): Chunk[Byte] = {
     val arr = new Array[Byte](n)
-    random.nextBytes(arr)
+    Random.nextBytes(arr)
     Chunk.fromArray(arr)
   }
 

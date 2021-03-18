@@ -1,7 +1,7 @@
 package zio.test
 
 import zio.test.Assertion._
-import zio.{ZIO, random}
+import zio.{ZIO, Random}
 
 import scala.math.abs
 
@@ -10,19 +10,19 @@ object FunSpec extends ZIOBaseSpec {
   def spec: ZSpec[Environment, Failure] = suite("FunSpec")(
     testM("fun converts effects into pure functions") {
       for {
-        f <- Fun.make((n: Int) => random.nextIntBounded(n))
-        n <- random.nextInt.map(abs(_))
+        f <- Fun.make((n: Int) => Random.nextIntBounded(n))
+        n <- Random.nextInt.map(abs(_))
       } yield assert(f(n))(equalTo(f(n)))
     },
     testM("fun does not have race conditions") {
       for {
-        f       <- Fun.make((_: Int) => random.nextIntBounded(6))
+        f       <- Fun.make((_: Int) => Random.nextIntBounded(6))
         results <- ZIO.foreachPar(List.range(0, 1000))(n => ZIO.effectTotal((n % 6, f(n % 6))))
       } yield assert(results.distinct.length)(equalTo(6))
     },
     testM("fun is showable") {
       for {
-        f <- Fun.make((_: String) => random.nextBoolean)
+        f <- Fun.make((_: String) => Random.nextBoolean)
         p  = f("Scala")
         q  = f("Haskell")
       } yield {

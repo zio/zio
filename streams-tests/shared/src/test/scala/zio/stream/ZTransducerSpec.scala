@@ -1,7 +1,7 @@
 package zio.stream
 
 import zio._
-import zio.random.Random
+import zio.Random
 import zio.test.Assertion._
 import zio.test._
 

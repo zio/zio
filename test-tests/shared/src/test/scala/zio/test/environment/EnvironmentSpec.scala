@@ -44,14 +44,14 @@ object EnvironmentSpec extends ZIOBaseSpec {
     },
     testM("Has[Random] returns next pseudorandom integer") {
       for {
-        i <- random.nextInt
-        j <- random.nextInt
+        i <- Random.nextInt
+        j <- Random.nextInt
       } yield !assert(i)(equalTo(j))
     },
     testM("Has[Random] is deterministic") {
       for {
-        i <- random.nextInt.provideLayer(testEnvironment)
-        j <- random.nextInt.provideLayer(testEnvironment)
+        i <- Random.nextInt.provideLayer(testEnvironment)
+        j <- Random.nextInt.provideLayer(testEnvironment)
       } yield assert(i)(equalTo(j))
     },
     testM("Has[System] returns an environment variable when it is set") {

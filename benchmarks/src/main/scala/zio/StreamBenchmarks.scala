@@ -200,7 +200,7 @@ object CSV {
   val RowSep    = '\n'
 
   def alphanumeric(random: scala.util.Random, min: Int, max: Int): String = {
-    val n = random.nextInt(max - min + 1) + min
+    val n = scala.util.Random.nextInt(max - min + 1) + min
 
     random.alphanumeric.take(n).mkString
   }

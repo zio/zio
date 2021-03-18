@@ -2,7 +2,7 @@ package zio.test
 
 import zio.test.Assertion._
 import zio.test.TestAspect.failing
-import zio.{Chunk, Ref, ZIO, random}
+import zio.{Chunk, Ref, ZIO, Random}
 
 object CheckSpec extends ZIOBaseSpec {
 
@@ -11,14 +11,14 @@ object CheckSpec extends ZIOBaseSpec {
       checkM(Gen.int(1, 100)) { n =>
         for {
           _ <- ZIO.effect(())
-          r <- random.nextIntBounded(n)
+          r <- Random.nextIntBounded(n)
         } yield assert(r)(isLessThan(n))
       }
     },
     testM("effectual properties can be tested") {
       checkM(Gen.int(1, 100)) { n =>
         for {
-          r <- random.nextIntBounded(n)
+          r <- Random.nextIntBounded(n)
         } yield assert(r)(isLessThan(n))
       }
     },
@@ -26,7 +26,7 @@ object CheckSpec extends ZIOBaseSpec {
       checkM(Gen.int(1, 100)) { n =>
         for {
           _ <- ZIO.fail("fail")
-          r <- random.nextIntBounded(n)
+          r <- Random.nextIntBounded(n)
         } yield assert(r)(isLessThan(n))
       }
     } @@ failing,
@@ -40,7 +40,7 @@ object CheckSpec extends ZIOBaseSpec {
         _ <- checkM(gen <*> gen) { _ =>
                for {
                  _ <- ref.update(_ + 1)
-                 p <- random.nextIntBounded(10).map(_ != 0)
+                 p <- Random.nextIntBounded(10).map(_ != 0)
                } yield assert(p)(isTrue)
              }
         result <- ref.get
@@ -79,7 +79,7 @@ object CheckSpec extends ZIOBaseSpec {
     testM("checkM effect type is correctly inferred") {
       checkM(Gen.unit) { _ =>
         for {
-          _ <- random.nextInt
+          _ <- Random.nextInt
         } yield assertCompletes
       }
     }

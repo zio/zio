@@ -19,7 +19,7 @@ package zio.test.refined
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.char._
 import zio.Has
-import zio.random.Random
+import zio.Random
 import zio.test.Gen
 import zio.test.magnolia.DeriveGen
 

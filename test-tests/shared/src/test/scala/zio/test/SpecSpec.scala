@@ -91,19 +91,19 @@ object SpecSpec extends ZIOBaseSpec {
           spec = suite("suite")(
                    testM("test1") {
                      for {
-                       n <- random.nextInt
+                       n <- Random.nextInt
                        _ <- ref.update(_ + n)
                      } yield assertCompletes
                    },
                    testM("test2") {
                      for {
-                       n <- random.nextInt
+                       n <- Random.nextInt
                        _ <- ref.update(_ + n)
                      } yield assertCompletes
                    },
                    testM("test3") {
                      for {
-                       n <- random.nextInt
+                       n <- Random.nextInt
                        _ <- ref.update(_ + n)
                      } yield assertCompletes
                    }

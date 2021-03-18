@@ -16,7 +16,7 @@
 
 package zio.test.laws
 
-import zio.random.Random
+import zio.Random
 import zio.test.{Gen, Sized}
 import zio.{Chunk, Has}
 

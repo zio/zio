@@ -1,6 +1,6 @@
 package zio
 
-import zio.random.Random
+import zio.Random
 import zio.test.Assertion._
 import zio.test._
 import zio.test.environment.Live
@@ -17,7 +17,7 @@ object RandomSpec extends ZIOBaseSpec {
     testM("nextDoubleBetween generates doubles in specified range") {
       checkM(genDoubles) { case (min, max) =>
         for {
-          n <- Live.live(random.nextDoubleBetween(min, max))
+          n <- Live.live(Random.nextDoubleBetween(min, max))
         } yield assert(n)(isGreaterThanEqualTo(min)) &&
           assert(n)(isLessThan(max))
       }
@@ -25,7 +25,7 @@ object RandomSpec extends ZIOBaseSpec {
     testM("nextFloatBetween generates floats in specified range") {
       checkM(genFloats) { case (min, max) =>
         for {
-          n <- Live.live(random.nextFloatBetween(min, max))
+          n <- Live.live(Random.nextFloatBetween(min, max))
         } yield assert(n)(isGreaterThanEqualTo(min)) &&
           assert(n)(isLessThan(max))
       }
@@ -33,7 +33,7 @@ object RandomSpec extends ZIOBaseSpec {
     testM("nextIntBetween generates integers in specified range") {
       checkM(genInts) { case (min, max) =>
         for {
-          n <- Live.live(random.nextIntBetween(min, max))
+          n <- Live.live(Random.nextIntBetween(min, max))
         } yield assert(n)(isGreaterThanEqualTo(min)) &&
           assert(n)(isLessThan(max))
       }
@@ -41,7 +41,7 @@ object RandomSpec extends ZIOBaseSpec {
     testM("nextLongBetween generates longs in specified range") {
       checkM(genLongs) { case (min, max) =>
         for {
-          n <- Live.live(random.nextLongBetween(min, max))
+          n <- Live.live(Random.nextLongBetween(min, max))
         } yield assert(n)(isGreaterThanEqualTo(min)) &&
           assert(n)(isLessThan(max))
       }

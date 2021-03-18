@@ -4,7 +4,7 @@ import zio.Has
 
 import java.time.{Instant, LocalDate, LocalDateTime}
 import java.util.UUID
-import zio.random.Random
+import zio.Random
 import zio.test.Assertion._
 import zio.test.GenUtils._
 import zio.test.Sized

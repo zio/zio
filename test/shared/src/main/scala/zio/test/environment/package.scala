@@ -18,7 +18,7 @@ package zio.test
 
 import zio.Console
 import zio.duration._
-import zio.random.Random
+import zio.Random
 import zio.System
 import zio.{Clock, PlatformSpecific => _, _}
 
@@ -902,14 +902,14 @@ package object environment extends PlatformSpecific {
    * sequence of "random" inputs.
    *
    * {{{
-   * import zio.random._
+   * import zio.Random._
    * import zio.test.environment.TestRandom
    *
    * for {
    *   _ <- TestRandom.feedInts(4, 5, 2)
-   *   x <- random.nextIntBounded(6)
-   *   y <- random.nextIntBounded(6)
-   *   z <- random.nextIntBounded(6)
+   *   x <- Random.nextIntBounded(6)
+   *   y <- Random.nextIntBounded(6)
+   *   z <- Random.nextIntBounded(6)
    * } yield x + y + z == 11
    * }}}
    *

@@ -1,7 +1,7 @@
 package zio.test.poly
 
 import zio.Has
-import zio.random._
+import zio.Random._
 import zio.test.Assertion._
 import zio.test._
 

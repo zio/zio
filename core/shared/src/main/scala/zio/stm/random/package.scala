@@ -17,7 +17,7 @@
 package zio.stm
 
 import zio._
-import zio.random.Random
+import zio.Random
 
 package object random {
   trait TRandom {
@@ -50,7 +50,7 @@ package object random {
     val live: ZLayer[Has[Random], Nothing, Has[TRandom]] =
       ZLayer.apply {
         import PureRandom._
-        zio.random.nextLong.flatMap { init =>
+        zio.Random.nextLong.flatMap { init =>
           TRef
             .make(init)
             .map { seed =>

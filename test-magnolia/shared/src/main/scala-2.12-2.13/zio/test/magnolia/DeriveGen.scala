@@ -18,7 +18,7 @@ package zio.test.magnolia
 
 import magnolia._
 import zio.Has
-import zio.random.Random
+import zio.Random
 import zio.test.{Gen, Sized}
 
 import java.time.{Instant, LocalDate, LocalDateTime}

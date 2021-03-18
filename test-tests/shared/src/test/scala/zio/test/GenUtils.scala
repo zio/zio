@@ -1,7 +1,7 @@
 package zio.test
 
 import zio.Exit.{Failure, Success}
-import zio.random.Random
+import zio.Random
 import zio.stream.ZStream
 import zio.test.Assertion.{equalTo, forall}
 import zio.test.environment.TestRandom
