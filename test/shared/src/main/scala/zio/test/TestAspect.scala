@@ -432,7 +432,7 @@ object TestAspect extends TimeoutVariants {
   def ifEnv(env: String, assertion: Assertion[String]): TestAspectAtLeastR[Has[Live] with Has[Annotations]] =
     new TestAspectAtLeastR[Has[Live] with Has[Annotations]] {
       def some[R <: Has[Live] with Has[Annotations], E](predicate: String => Boolean, spec: ZSpec[R, E]): ZSpec[R, E] =
-        spec.whenM(Live.live(system.env(env)).orDie.map(_.fold(false)(assertion.test)))
+        spec.whenM(Live.live(System.env(env)).orDie.map(_.fold(false)(assertion.test)))
     }
 
   /**
@@ -449,7 +449,7 @@ object TestAspect extends TimeoutVariants {
   def ifProp(prop: String, assertion: Assertion[String]): TestAspectAtLeastR[Has[Live] with Has[Annotations]] =
     new TestAspectAtLeastR[Has[Live] with Has[Annotations]] {
       def some[R <: Has[Live] with Has[Annotations], E](predicate: String => Boolean, spec: ZSpec[R, E]): ZSpec[R, E] =
-        spec.whenM(Live.live(system.property(prop)).orDie.map(_.fold(false)(assertion.test)))
+        spec.whenM(Live.live(System.property(prop)).orDie.map(_.fold(false)(assertion.test)))
     }
 
   /**

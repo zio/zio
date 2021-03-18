@@ -1397,8 +1397,8 @@ object ZSTMSpec extends ZIOBaseSpec {
   }
 
   def unpureSuspend(ms: Long): USTM[Unit] = STM.succeed {
-    val t0 = System.currentTimeMillis()
-    while (System.currentTimeMillis() - t0 < ms) {}
+    val t0 = java.lang.System.currentTimeMillis()
+    while (java.lang.System.currentTimeMillis() - t0 < ms) {}
   }
 
   class UnpureBarrier {

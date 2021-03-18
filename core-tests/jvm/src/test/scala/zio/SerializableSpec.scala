@@ -2,7 +2,7 @@ package zio
 
 import zio.SerializableSpecHelpers._
 import zio.internal.stacktracer.ZTraceElement
-import zio.system.System
+import zio.System
 import zio.test.Assertion._
 import zio.test.TestAspect.scala2Only
 import zio.test.environment.Live
@@ -229,7 +229,7 @@ object SerializableSpec extends ZIOBaseSpec {
     testM("TracingStatus.Untraced is serializable") {
       Live.live(for {
         system <- ZIO.accessM[Has[System]](has => serializeAndBack(has.get[System]))
-        result <- system.property("notpresent")
+        result <- System.property("notpresent")
       } yield assert(result)(equalTo(Option.empty[String])))
     }
   )

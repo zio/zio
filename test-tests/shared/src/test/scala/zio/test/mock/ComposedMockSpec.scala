@@ -2,9 +2,8 @@ package zio.test.mock
 
 import zio.duration._
 import zio.random.Random
-import zio.system.System
 import zio.test.{Assertion, ZIOBaseSpec, ZSpec, assertM}
-import zio.{Clock, Has, Tag, ULayer, ZIO, Console, random, system}
+import zio.{Clock, Has, Tag, ULayer, ZIO, Console, random, System}
 
 object ComposedMockSpec extends ZIOBaseSpec {
 
@@ -50,7 +49,7 @@ object ComposedMockSpec extends ZIOBaseSpec {
           for {
             n <- random.nextInt
             _ <- Clock.sleep(n.seconds)
-            v <- system.property("foo")
+            v <- System.property("foo")
             _ <- Console.putStrLn(v.toString)
           } yield ()
 

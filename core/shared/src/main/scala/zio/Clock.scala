@@ -59,7 +59,7 @@ object Clock extends ClockPlatformSpecific with Serializable {
         }
       }
 
-    val nanoTime: UIO[Long] = IO.effectTotal(System.nanoTime)
+    val nanoTime: UIO[Long] = IO.effectTotal(java.lang.System.nanoTime)
 
     def sleep(duration: Duration): UIO[Unit] =
       UIO.effectAsyncInterrupt { cb =>

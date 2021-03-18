@@ -57,19 +57,19 @@ object EnvironmentSpec extends ZIOBaseSpec {
     testM("Has[System] returns an environment variable when it is set") {
       for {
         _   <- TestSystem.putEnv("k1", "v1")
-        env <- system.env("k1")
+        env <- System.env("k1")
       } yield assert(env)(isSome(equalTo("v1")))
     },
     testM("Has[System] returns a property when it is set") {
       for {
         _   <- TestSystem.putProperty("k1", "v1")
-        env <- system.property("k1")
+        env <- System.property("k1")
       } yield assert(env)(isSome(equalTo("v1")))
     },
     testM("Has[System] returns the line separator when it is set") {
       for {
         _       <- TestSystem.setLineSeparator(",")
-        lineSep <- system.lineSeparator
+        lineSep <- System.lineSeparator
       } yield assert(lineSep)(equalTo(","))
     },
     testM("clock service can be overwritten") {

@@ -104,7 +104,7 @@ class ParallelMergeSortBenchmark {
     val ie = i + middle - start
     var j  = middle
     var k  = start
-    System.arraycopy(is, start, buf, i, middle - start)
+    java.lang.System.arraycopy(is, start, buf, i, middle - start)
 
     while (i < ie && j < end) {
       val (a, b) = (buf(i), is(j))
@@ -120,7 +120,7 @@ class ParallelMergeSortBenchmark {
     }
 
     if (i < ie) {
-      System.arraycopy(buf, i, is, k, ie - i)
+      java.lang.System.arraycopy(buf, i, is, k, ie - i)
     }
   }
 

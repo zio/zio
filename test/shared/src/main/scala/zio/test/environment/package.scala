@@ -19,7 +19,7 @@ package zio.test
 import zio.Console
 import zio.duration._
 import zio.random.Random
-import zio.system.System
+import zio.System
 import zio.{Clock, PlatformSpecific => _, _}
 
 import java.io.{EOFException, IOException}
@@ -1598,7 +1598,7 @@ package object environment extends PlatformSpecific {
    *
    * for {
    *   _      <- TestSystem.putProperty("java.vm.name", "VM")
-   *   result <- system.property("java.vm.name")
+   *   result <- System.property("java.vm.name")
    * } yield result == Some("VM")
    * }}}
    */
