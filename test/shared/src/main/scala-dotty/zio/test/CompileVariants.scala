@@ -55,6 +55,8 @@ trait CompileVariants {
 
   inline def assert[A](inline value: => A)(inline assertion: Assertion[A]): TestResult = ${Macros.assert_impl('value)('assertion)}
 
+  inline def assertEqual[A](inline actual: => A, inline expected: => A): TestResult = ${Macros.assert_equal_impl('actual, 'expected)}
+
   inline def assertM[R, E, A](effect: ZIO[R, E, A])(assertion: AssertionM[A]): ZIO[R, E, TestResult] = ${Macros.assertM_impl('effect)('assertion)}
 
   private[zio] inline def sourcePath: String = ${Macros.sourcePath_impl}

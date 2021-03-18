@@ -56,6 +56,14 @@ private[test] object Macros {
     q"_root_.zio.test.CompileVariants.assertProxy($expr, $code, $srcLocation)($assertion)"
   }
 
+  def assert_equal_impl(c: blackbox.Context)(actual: c.Tree, expected: c.Tree): c.Tree = {
+    import c.universe._
+    val (fileName, line) = location(c)
+    val srcLocation      = s"$fileName:$line"
+    val code             = CleanCodePrinter.show(c)(actual)
+    q"_root_.zio.test.CompileVariants.assertProxy($actual, $code, $srcLocation)(Assertion.equalTo($expected))"
+  }
+
   def sourceLocation_impl(c: blackbox.Context): c.Expr[SourceLocation] = {
     import c.universe._
     val (path, line) = location(c)

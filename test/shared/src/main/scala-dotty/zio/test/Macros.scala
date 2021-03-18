@@ -44,6 +44,14 @@ object Macros {
     '{_root_.zio.test.CompileVariants.assertProxy($value, ${Expr(code)}, ${Expr(srcLocation)})($assertion)}
   }
 
+  def assert_equal_impl[A](actual: Expr[A], expected: Expr[A])(using ctx: Quotes, tp: Type[A]): Expr[TestResult] = {
+    import quotes.reflect._
+    val (path, line) = location(ctx)
+    val code = showExpr(actual)
+    val srcLocation = s"$path:$line"
+    '{_root_.zio.test.CompileVariants.assertProxy($actual, ${Expr(code)}, ${Expr(srcLocation)})(Assertion.equalTo($expected))}
+  }
+
   private def showExpr[A](expr: Expr[A])(using ctx: Quotes): String = {
     import quotes.reflect._
     expr.asTerm.pos.sourceCode.get
