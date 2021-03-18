@@ -48,8 +48,8 @@ trait CompileVariants {
   def assert[A](expr: => A)(assertion: Assertion[A]): TestResult = macro Macros.assert_impl
 
   /**
-    * Checks the actual value is equal to the expected value.
-    */
+   * Checks the actual value is equal to the expected value.
+   */
   def assertEqual[A](actual: => A, expected: => A): TestResult = macro Macros.assert_equal_impl
 
   /**
