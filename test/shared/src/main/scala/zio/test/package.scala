@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.console.Console
+import zio.Console
 import zio.duration.Duration
 import zio.stream.{ZSink, ZStream}
 import zio.test.environment.{TestClock, TestConsole, TestEnvironment, TestRandom, TestSystem, testEnvironment}
@@ -775,7 +775,7 @@ package object test extends CompileVariants {
       }
 
     def logLine(line: String): URIO[Has[TestLogger], Unit] =
-      ZIO.accessM(_.get.logLine(line))
+      ZIO.serviceWith(_.logLine(line))
   }
 
   object CheckVariants {

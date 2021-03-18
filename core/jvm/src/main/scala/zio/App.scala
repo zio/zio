@@ -23,7 +23,7 @@ import zio.internal.FiberContext
  *
  * {{{
  * import zio.App
- * import zio.console._
+ * import zio.Console._
  *
  * object MyApp extends App {
  *

@@ -8,7 +8,7 @@ object StreamREPLSpec extends DefaultRunnableSpec {
     test("settings compile") {
       import zio.Runtime.default._
       import zio._
-      import zio.console._
+      import zio.Console._
       import zio.duration._
       import zio.stream._
       @silent("never used")

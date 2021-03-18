@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.console.Console
+import zio.Console
 import zio.internal.Platform
 import zio.{Clock, _}
 

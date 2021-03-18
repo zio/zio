@@ -3,7 +3,7 @@ package zio.test.environment
 import zio.duration._
 import zio.test.Assertion._
 import zio.test._
-import zio.{Clock, console}
+import zio.{Clock, Console}
 
 import java.util.concurrent.TimeUnit
 
@@ -18,7 +18,7 @@ object LiveSpec extends ZIOBaseSpec {
     },
     testM("withLive provides real environment to single effect") {
       for {
-        _      <- Live.withLive(console.putStr("woot"))(_.delay(1.nanosecond))
+        _      <- Live.withLive(Console.putStr("woot"))(_.delay(1.nanosecond))
         result <- TestConsole.output
       } yield assert(result)(equalTo(Vector("woot")))
     }

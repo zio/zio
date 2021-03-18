@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.console.Console
+import zio.Console
 import zio.internal.stacktracer.ZTraceElement
 import zio.internal.{Executor, FiberRenderer}
 
@@ -751,7 +751,7 @@ object Fiber extends FiberPlatformSpecific {
    * fibers and renders it to the console.
    */
   def putDumpStr(label: String, fibers: Fiber.Runtime[_, _]*): URIO[Has[Console], Unit] =
-    dumpStr(fibers: _*).flatMap(str => console.putStrLn(s"$label: ${str}"))
+    dumpStr(fibers: _*).flatMap(str => Console.putStrLn(s"$label: ${str}"))
 
   /**
    * Returns a fiber that has already succeeded with the specified value.

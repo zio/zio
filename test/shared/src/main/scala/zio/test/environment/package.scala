@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.console.Console
+import zio.Console
 import zio.duration._
 import zio.random.Random
 import zio.system.System
@@ -472,7 +472,7 @@ package object environment extends PlatformSpecific {
       private val warningStart: UIO[Unit] =
         warningState.updateSomeM { case WarningData.Start =>
           for {
-            fiber <- live.provide(console.putStrLn(warning).delay(5.seconds)).interruptible.fork
+            fiber <- live.provide(Console.putStrLn(warning).delay(5.seconds)).interruptible.fork
           } yield WarningData.pending(fiber)
         }
 
@@ -641,7 +641,7 @@ package object environment extends PlatformSpecific {
    * the console.
    *
    * {{{
-   * import zio.console._
+   * import zio.Console._
    * import zio.test.environment.TestConsole
    * import zio.ZIO
    *
@@ -739,7 +739,7 @@ package object environment extends PlatformSpecific {
       override def putStr(line: String): UIO[Unit] =
         consoleState.update { data =>
           Data(data.input, data.output :+ line, data.errOutput)
-        } *> live.provide(console.putStr(line)).whenM(debugState.get)
+        } *> live.provide(Console.putStr(line)).whenM(debugState.get)
 
       /**
        * Writes the specified string to the error buffer.
@@ -747,7 +747,7 @@ package object environment extends PlatformSpecific {
       override def putStrErr(line: String): UIO[Unit] =
         consoleState.update { data =>
           Data(data.input, data.output, data.errOutput :+ line)
-        } *> live.provide(console.putStr(line)).whenM(debugState.get)
+        } *> live.provide(Console.putStr(line)).whenM(debugState.get)
 
       /**
        * Writes the specified string to the output buffer followed by a newline
@@ -756,7 +756,7 @@ package object environment extends PlatformSpecific {
       override def putStrLn(line: String): UIO[Unit] =
         consoleState.update { data =>
           Data(data.input, data.output :+ s"$line\n", data.errOutput)
-        } *> live.provide(console.putStrLn(line)).whenM(debugState.get)
+        } *> live.provide(Console.putStrLn(line)).whenM(debugState.get)
 
       /**
        * Writes the specified string to the error buffer followed by a newline
@@ -765,7 +765,7 @@ package object environment extends PlatformSpecific {
       override def putStrLnErr(line: String): UIO[Unit] =
         consoleState.update { data =>
           Data(data.input, data.output, data.errOutput :+ s"$line\n")
-        } *> live.provide(console.putStrLn(line)).whenM(debugState.get)
+        } *> live.provide(Console.putStrLn(line)).whenM(debugState.get)
 
       /**
        * Saves the `TestConsole`'s current state in an effect which, when run,

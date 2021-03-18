@@ -4,14 +4,14 @@ import zio.test.Assertion._
 import zio.test.mock.Expectation.{value, valueF}
 import zio.test.mock.{MockClock, MockConsole, MockRandom}
 import zio.test.{assertM, DefaultRunnableSpec}
-import zio.{Clock, console, random, ZIO}
+import zio.{Clock, Console, random, ZIO}
 
 object MockExampleSpec extends DefaultRunnableSpec {
 
   def spec = suite("suite with mocks")(
     testM("expect no call") {
       def maybeConsole(invokeConsole: Boolean) =
-        ZIO.when(invokeConsole)(console.putStrLn("foo"))
+        ZIO.when(invokeConsole)(Console.putStrLn("foo"))
 
       val maybeTest1 = maybeConsole(false).provideLayer(MockConsole.empty)
       val maybeTest2 = maybeConsole(true).provideLayer(MockConsole.PutStrLn(equalTo("foo")))
@@ -20,7 +20,7 @@ object MockExampleSpec extends DefaultRunnableSpec {
     testM("expect no call on skipped branch") {
       def branchingProgram(predicate: Boolean) =
         ZIO.succeed(predicate).flatMap {
-          case true  => console.getStrLn
+          case true  => Console.getStrLn
           case false => Clock.nanoTime
         }
 
@@ -34,7 +34,7 @@ object MockExampleSpec extends DefaultRunnableSpec {
     testM("expect no call on multiple skipped branches") {
       def branchingProgram(predicate: Boolean) =
         ZIO.succeed(predicate).flatMap {
-          case true  => console.getStrLn
+          case true  => Console.getStrLn
           case false => Clock.nanoTime
         }
 
@@ -53,7 +53,7 @@ object MockExampleSpec extends DefaultRunnableSpec {
     },
     testM("should fail if call for unexpected method") {
       def maybeConsole(invokeConsole: Boolean) =
-        ZIO.when(invokeConsole)(console.putStrLn("foo"))
+        ZIO.when(invokeConsole)(Console.putStrLn("foo"))
 
       val maybeTest1 = maybeConsole(true).provideLayer(MockConsole.empty)
       val maybeTest2 = maybeConsole(false).provideLayer(MockConsole.PutStrLn(equalTo("foo")))
@@ -66,7 +66,7 @@ object MockExampleSpec extends DefaultRunnableSpec {
       assertM(out)(equalTo(1000L))
     },
     testM("expect call with input satisfying assertion") {
-      val app = console.putStrLn("foo")
+      val app = Console.putStrLn("foo")
       val env = MockConsole.PutStrLn(equalTo("foo"))
       val out = app.provideLayer(env)
       assertM(out)(isUnit)
@@ -93,7 +93,7 @@ object MockExampleSpec extends DefaultRunnableSpec {
       val app =
         for {
           n <- random.nextInt
-          _ <- console.putStrLn(n.toString)
+          _ <- Console.putStrLn(n.toString)
         } yield ()
 
       val env = MockRandom.NextInt(value(42)) andThen MockConsole.PutStrLn(equalTo("42"))
@@ -131,7 +131,7 @@ object MockExampleSpec extends DefaultRunnableSpec {
       assertM(out)(equalTo(42))
     },
     testM("failure if invalid arguments") {
-      val app = console.putStrLn("foo")
+      val app = Console.putStrLn("foo")
       val env = MockConsole.PutStrLn(equalTo("bar"))
       val out = app.provideLayer(env)
       assertM(out)(isUnit)

@@ -1,7 +1,7 @@
 package zio
 
 import zio.Clock
-import zio.console._
+import zio.Console._
 import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect._

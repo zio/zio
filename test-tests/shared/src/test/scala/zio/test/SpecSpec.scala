@@ -116,13 +116,13 @@ object SpecSpec extends ZIOBaseSpec {
         val spec = suite("suite")(
           testM("test1") {
             for {
-              _      <- console.putStrLn("Hello, World!")
+              _      <- Console.putStrLn("Hello, World!")
               output <- TestConsole.output
             } yield assert(output)(equalTo(Vector("Hello, World!\n")))
           },
           testM("test2") {
             for {
-              _      <- console.putStrLn("Hello, World!")
+              _      <- Console.putStrLn("Hello, World!")
               output <- TestConsole.output
             } yield assert(output)(equalTo(Vector("Hello, World!\n")))
           }

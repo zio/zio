@@ -16,7 +16,7 @@
 
 package zio.test.mock
 
-import zio.console.Console
+import zio.Console
 import zio.{Has, IO, UIO, URLayer, ZLayer}
 
 import java.io.IOException

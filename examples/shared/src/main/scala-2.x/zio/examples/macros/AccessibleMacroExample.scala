@@ -1,6 +1,6 @@
 package zio.examples.macros
 
-import zio.console.Console
+import zio.Console
 import zio.macros.{accessible, throwing}
 import zio.random.Random
 import zio.stream.{ZSink, ZStream}

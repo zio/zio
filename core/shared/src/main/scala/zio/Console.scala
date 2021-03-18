@@ -20,53 +20,54 @@ import java.io.{EOFException, IOException, PrintStream}
 import scala.io.StdIn
 import scala.{Console => SConsole}
 
-package object console {
-  trait Console extends Serializable {
-    def putStr(line: String): UIO[Unit]
+trait Console extends Serializable {
+  def putStr(line: String): UIO[Unit]
 
-    def putStrErr(line: String): UIO[Unit]
+  def putStrErr(line: String): UIO[Unit]
 
-    def putStrLn(line: String): UIO[Unit]
+  def putStrLn(line: String): UIO[Unit]
 
-    def putStrLnErr(line: String): UIO[Unit]
+  def putStrLnErr(line: String): UIO[Unit]
 
-    def getStrLn: IO[IOException, String]
+  def getStrLn: IO[IOException, String]
+}
+
+object Console extends Serializable {
+
+  // Layer Definitions
+
+  val any: ZLayer[Has[Console], Nothing, Has[Console]] =
+    ZLayer.requires[Has[Console]]
+
+  val live: Layer[Nothing, Has[Console]] =
+    ZLayer.succeed(ConsoleLive)
+
+  object ConsoleLive extends Console {
+
+    def putStr(line: String): UIO[Unit] = putStr(SConsole.out)(line)
+
+    def putStrErr(line: String): UIO[Unit] = putStr(SConsole.err)(line)
+
+    def putStrLnErr(line: String): UIO[Unit] = putStrLn(SConsole.err)(line)
+
+    def putStrLn(line: String): UIO[Unit] = putStrLn(SConsole.out)(line)
+
+    val getStrLn: IO[IOException, String] =
+      IO.effect {
+        val line = StdIn.readLine()
+
+        if (line ne null) line
+        else throw new EOFException("There is no more input left to read")
+      }.refineToOrDie[IOException]
+
+    private def putStr(stream: PrintStream)(line: String): UIO[Unit] =
+      IO.effectTotal(SConsole.withOut(stream)(SConsole.print(line)))
+
+    private def putStrLn(stream: PrintStream)(line: String): UIO[Unit] =
+      IO.effectTotal(SConsole.withOut(stream)(SConsole.println(line)))
   }
 
-  object Console extends Serializable {
-
-    object Service {
-      private def putStr(stream: PrintStream)(line: String): UIO[Unit] =
-        IO.effectTotal(SConsole.withOut(stream)(SConsole.print(line)))
-
-      private def putStrLn(stream: PrintStream)(line: String): UIO[Unit] =
-        IO.effectTotal(SConsole.withOut(stream)(SConsole.println(line)))
-
-      val live: Console = new Console {
-        def putStr(line: String): UIO[Unit] = Service.putStr(SConsole.out)(line)
-
-        def putStrErr(line: String): UIO[Unit] = Service.putStr(SConsole.err)(line)
-
-        def putStrLnErr(line: String): UIO[Unit] = Service.putStrLn(SConsole.err)(line)
-
-        def putStrLn(line: String): UIO[Unit] = Service.putStrLn(SConsole.out)(line)
-
-        val getStrLn: IO[IOException, String] =
-          IO.effect {
-            val line = StdIn.readLine()
-
-            if (line ne null) line
-            else throw new EOFException("There is no more input left to read")
-          }.refineToOrDie[IOException]
-      }
-    }
-
-    val any: ZLayer[Has[Console], Nothing, Has[Console]] =
-      ZLayer.requires[Has[Console]]
-
-    val live: Layer[Nothing, Has[Console]] =
-      ZLayer.succeed(Service.live)
-  }
+  // Accessor Methods
 
   /**
    * Prints text to the console.

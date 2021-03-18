@@ -5,7 +5,7 @@ import zio.test.junit.JUnitRunnableSpec
 import zio.test.mock.Expectation.{value, valueF}
 import zio.test.mock.{MockClock, MockConsole, MockRandom}
 import zio.test.assertM
-import zio.{console, random, Clock}
+import zio.{Console, random, Clock}
 
 class MockExampleSpecWithJUnit extends JUnitRunnableSpec {
 
@@ -17,7 +17,7 @@ class MockExampleSpecWithJUnit extends JUnitRunnableSpec {
       assertM(out)(equalTo(1000L))
     },
     testM("expect call with input satisfying assertion") {
-      val app = console.putStrLn("foo")
+      val app = Console.putStrLn("foo")
       val env = MockConsole.PutStrLn(equalTo("foo"))
       val out = app.provideLayer(env)
       assertM(out)(isUnit)
@@ -44,7 +44,7 @@ class MockExampleSpecWithJUnit extends JUnitRunnableSpec {
       val app =
         for {
           n <- random.nextInt
-          _ <- console.putStrLn(n.toString)
+          _ <- Console.putStrLn(n.toString)
         } yield ()
 
       val env = MockRandom.NextInt(value(42)) andThen MockConsole.PutStrLn(equalTo("42"))
@@ -82,7 +82,7 @@ class MockExampleSpecWithJUnit extends JUnitRunnableSpec {
       assertM(out)(equalTo(42))
     },
     testM("failure if invalid arguments") {
-      val app = console.putStrLn("foo")
+      val app = Console.putStrLn("foo")
       val env = MockConsole.PutStrLn(equalTo("bar"))
       val out = app.provideLayer(env)
       assertM(out)(isUnit)
