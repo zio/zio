@@ -19,9 +19,9 @@ package zio.test.refined
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.generic.Equal
 import shapeless.Witness
-import zio.{Has, Random}
 import zio.test.magnolia.DeriveGen
 import zio.test.{Gen, Sized}
+import zio.{Has, Random}
 
 object generic extends GenericInstances
 

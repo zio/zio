@@ -2,7 +2,7 @@ package zio.test
 
 import zio.test.Assertion._
 import zio.test.TestAspect.failing
-import zio.{Chunk, Ref, ZIO, Random}
+import zio.{Chunk, Random, Ref, ZIO}
 
 object CheckSpec extends ZIOBaseSpec {
 

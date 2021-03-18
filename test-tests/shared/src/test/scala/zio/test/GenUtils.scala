@@ -1,11 +1,10 @@
 package zio.test
 
 import zio.Exit.{Failure, Success}
-import zio.Random
 import zio.stream.ZStream
 import zio.test.Assertion.{equalTo, forall}
 import zio.test.environment.TestRandom
-import zio.{Exit, Has, UIO, URIO, ZIO}
+import zio.{Exit, Has, Random, UIO, URIO, ZIO}
 
 object GenUtils {
 

@@ -1,9 +1,8 @@
 package zio.stm
 
-import zio.Random
 import zio.test.Assertion._
 import zio.test._
-import zio.{Chunk, Has, ZIOBaseSpec}
+import zio.{Chunk, Has, Random, ZIOBaseSpec}
 
 object TPriorityQueueSpec extends ZIOBaseSpec {
 

@@ -16,9 +16,8 @@
 
 package zio.test.poly
 
-import zio.Has
-import zio.Random
 import zio.test.{Gen, Sized}
+import zio.{Has, Random}
 
 /**
  * `GenNumericPoly` provides evidence that instances of `Gen[T]` and

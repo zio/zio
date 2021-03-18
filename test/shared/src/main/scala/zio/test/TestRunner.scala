@@ -16,9 +16,8 @@
 
 package zio.test
 
-import zio.Console
 import zio.internal.Platform
-import zio.{Clock, _}
+import zio.{Clock, Console, _}
 
 /**
  * A `TestRunner[R, E]` encapsulates all the logic necessary to run specs that

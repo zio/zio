@@ -1,6 +1,6 @@
 package zio
 
-import zio.blocking.Blocking
+import zio.Blocking
 import zio.duration._
 import zio.internal.stacktracer.ZTraceElement
 import zio.internal.stacktracer.ZTraceElement.{NoLocation, SourceLocation}
@@ -464,7 +464,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
 
   def blockingTrace: ZIO[Has[Blocking], Throwable, Unit] =
     for {
-      _ <- blocking.effectBlockingInterrupt {
+      _ <- Blocking.effectBlockingInterrupt {
              throw new Exception()
            }
     } yield ()

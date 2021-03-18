@@ -18,7 +18,6 @@ package zio.test.refined
 
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.collection.{NonEmpty, Size}
-import zio.Random
 import zio.test.Gen.{listOfN, vectorOfN}
 import zio.test.magnolia.DeriveGen
 import zio.test.{Gen, Sized}

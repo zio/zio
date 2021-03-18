@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.blocking._
+import zio.Blocking._
 
 import java.io
 import java.io.IOException

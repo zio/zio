@@ -1,7 +1,7 @@
 package zio
 package interop
 
-import zio.blocking.Blocking
+import zio.Blocking
 import zio.interop.javaz._
 import zio.test.Assertion._
 import zio.test._

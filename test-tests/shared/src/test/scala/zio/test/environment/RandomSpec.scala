@@ -1,11 +1,10 @@
 package zio.test.environment
 
-import zio._
-import zio.Random
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test._
 import zio.test.environment.TestRandom.{DefaultData, Test => ZRandom}
+import zio.{Random, _}
 
 import scala.util.{Random => SRandom}
 
@@ -120,7 +119,7 @@ object RandomSpec extends ZIOBaseSpec {
 
   def nextBytes(n: Int)(random: SRandom): Chunk[Byte] = {
     val arr = new Array[Byte](n)
-    Random.nextBytes(arr)
+    random.nextBytes(arr)
     Chunk.fromArray(arr)
   }
 

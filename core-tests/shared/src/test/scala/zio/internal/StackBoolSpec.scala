@@ -1,9 +1,8 @@
 package zio.internal
 
-import zio.Random
 import zio.test.Assertion.equalTo
 import zio.test.{Gen, ZSpec, assert, checkAll}
-import zio.{Has, ZIOBaseSpec}
+import zio.{Has, Random, ZIOBaseSpec}
 
 import scala.util.Random.nextInt
 

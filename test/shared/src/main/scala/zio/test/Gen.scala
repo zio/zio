@@ -16,10 +16,9 @@
 
 package zio.test
 
-import zio.Random
 import zio.Random._
 import zio.stream.{Stream, ZStream}
-import zio.{Chunk, ExecutionStrategy, Has, NonEmptyChunk, UIO, URIO, ZIO}
+import zio.{Chunk, ExecutionStrategy, Has, NonEmptyChunk, Random, UIO, URIO, ZIO}
 
 import java.nio.charset.StandardCharsets
 import java.util.UUID

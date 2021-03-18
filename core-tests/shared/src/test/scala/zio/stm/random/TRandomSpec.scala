@@ -1,9 +1,8 @@
 package zio.stm.random
 
-import zio.Random
 import zio.test.Assertion._
 import zio.test._
-import zio.{Has, ZIOBaseSpec}
+import zio.{Has, Random, ZIOBaseSpec}
 
 object TRandomSpec extends ZIOBaseSpec {
 

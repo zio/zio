@@ -1,15 +1,14 @@
 package zio
 
 import zio.Cause._
-import zio.Clock
 import zio.LatchOps._
 import zio.duration._
 import zio.internal.Platform
-import zio.Random
 import zio.test.Assertion._
 import zio.test.TestAspect.{flaky, forked, ignore, jvm, jvmOnly, nonFlaky, scala2Only}
 import zio.test._
 import zio.test.environment.{Live, TestClock}
+import zio.{Clock, Random}
 
 import scala.annotation.tailrec
 import scala.util.{Failure, Success, Try}

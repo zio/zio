@@ -1,10 +1,9 @@
 package zio.test.junit
 
 import org.apache.maven.cli.MavenCli
-import zio.blocking.{Blocking, effectBlocking}
 import zio.test.Assertion._
 import zio.test.{DefaultRunnableSpec, ZSpec, _}
-import zio.{Has, RIO, ZIO}
+import zio.{Blocking, Has, RIO, ZIO}
 
 import java.io.File
 import scala.collection.immutable
@@ -83,23 +82,24 @@ object MavenJunitSpec extends DefaultRunnableSpec {
       s"-Dscala.compat.version=$scalaCompatVersion",
       s"-ssettings.xml"
     )
-    def run(command: String*): RIO[Has[Blocking], Int] = effectBlocking(
+    def run(command: String*): RIO[Has[Blocking], Int] = Blocking.effectBlocking(
       cli.doMain(command.toArray, mvnRoot, System.out, System.err)
     )
 
     def parseSurefireReport(testFQN: String): ZIO[Has[Blocking], Throwable, immutable.Seq[TestCase]] =
-      effectBlocking(
-        XML.load(scala.xml.Source.fromFile(new File(s"$mvnRoot/target/surefire-reports/TEST-$testFQN.xml")))
-      ).map { report =>
-        (report \ "testcase").map { tcNode =>
-          TestCase(
-            tcNode \@ "name",
-            (tcNode \ "error").headOption.map(error =>
-              TestError(error.text.linesIterator.map(_.trim).mkString("\n"), error \@ "type")
+      Blocking
+        .effectBlocking(
+          XML.load(scala.xml.Source.fromFile(new File(s"$mvnRoot/target/surefire-reports/TEST-$testFQN.xml")))
+        )
+        .map { report =>
+          (report \ "testcase").map { tcNode =>
+            TestCase(
+              tcNode \@ "name",
+              (tcNode \ "error").headOption
+                .map(error => TestError(error.text.linesIterator.map(_.trim).mkString("\n"), error \@ "type"))
             )
-          )
+          }
         }
-      }
 
   }
 

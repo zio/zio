@@ -18,8 +18,7 @@ package zio.interop
 
 import _root_.java.nio.channels.CompletionHandler
 import _root_.java.util.concurrent.{CompletableFuture, CompletionException, CompletionStage, Future}
-import zio._
-import zio.blocking.{Blocking, blocking}
+import zio.{Blocking, _}
 
 import scala.concurrent.ExecutionException
 
@@ -86,7 +85,7 @@ private[zio] object javaz {
         if (future.isDone) {
           unwrapDone(p.fatal)(future)
         } else {
-          blocking(Task.effectSuspend(unwrapDone(p.fatal)(future)))
+          Blocking.blocking(Task.effectSuspend(unwrapDone(p.fatal)(future)))
         }
       }
     }

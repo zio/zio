@@ -16,8 +16,6 @@
 
 package zio
 
-import zio.blocking.Blocking
-
 private[zio] trait PlatformSpecific {
   type ZEnv = Has[Clock] with Has[Console] with Has[System] with Has[Random] with Has[Blocking]
 
@@ -30,7 +28,7 @@ private[zio] trait PlatformSpecific {
           Console.ConsoleLive,
           System.SystemLive,
           Random.RandomLive,
-          Blocking.Service.live
+          Blocking.BlockingLive
         )
     }
 

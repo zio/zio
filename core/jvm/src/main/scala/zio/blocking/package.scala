@@ -22,147 +22,169 @@ import zio.internal.{Executor, NamedThreadFactory}
 import java.io.IOException
 import java.util.concurrent._
 
-package object blocking {
+/**
+ * The `Blocking` module provides access to a thread pool that can be used for performing
+ * blocking operations, such as thread sleeps, synchronous socket/file reads, and so forth.
+ * The contract is that the thread pool will accept unlimited tasks (up to the available memory)
+ * and continuously create new threads as necessary.
+ */
+trait Blocking extends Serializable {
 
   /**
-   * The `Blocking` module provides access to a thread pool that can be used for performing
-   * blocking operations, such as thread sleeps, synchronous socket/file reads, and so forth.
-   * The contract is that the thread pool will accept unlimited tasks (up to the available memory)
-   * and continuously create new threads as necessary.
+   * Locks the specified effect to the blocking thread pool.
    */
-  trait Blocking extends Serializable {
+  def blocking[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+    zio.lock(blockingExecutor)
 
-    /**
-     * Locks the specified effect to the blocking thread pool.
-     */
-    def blocking[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
-      zio.lock(blockingExecutor)
+  /**
+   * Retrieves the executor for all blocking tasks.
+   */
+  def blockingExecutor: Executor
 
-    /**
-     * Retrieves the executor for all blocking tasks.
-     */
-    def blockingExecutor: Executor
+  /**
+   * Imports a synchronous effect that does blocking IO into a pure value.
+   */
+  def effectBlocking[A](effect: => A): Task[A] =
+    blocking(ZIO.effect(effect))
 
-    /**
-     * Imports a synchronous effect that does blocking IO into a pure value.
-     */
-    def effectBlocking[A](effect: => A): Task[A] =
-      blocking(ZIO.effect(effect))
+  /**
+   * Imports a synchronous effect that does blocking IO into a pure value,
+   * with a custom cancel effect.
+   *
+   * If the returned `ZIO` is interrupted, the blocked thread running the
+   * synchronous effect will be interrupted via the cancel effect.
+   */
+  def effectBlockingCancelable[A](effect: => A)(cancel: UIO[Unit]): Task[A] =
+    blocking(ZIO.effect(effect)).fork.flatMap(_.join).onInterrupt(cancel)
 
-    /**
-     * Imports a synchronous effect that does blocking IO into a pure value,
-     * with a custom cancel effect.
-     *
-     * If the returned `ZIO` is interrupted, the blocked thread running the
-     * synchronous effect will be interrupted via the cancel effect.
-     */
-    def effectBlockingCancelable[A](effect: => A)(cancel: UIO[Unit]): Task[A] =
-      blocking(ZIO.effect(effect)).fork.flatMap(_.join).onInterrupt(cancel)
+  /**
+   * Imports a synchronous effect that does blocking IO into a pure value.
+   *
+   * If the returned `ZIO` is interrupted, the blocked thread running the
+   * synchronous effect will be interrupted via `Thread.interrupt`.
+   *
+   * Note that this adds significant overhead. For performance sensitive
+   * applications consider using `effectBlocking` or
+   * `effectBlockingCancel`.
+   */
+  def effectBlockingInterrupt[A](effect: => A): Task[A] =
+    // Reference user's lambda for the tracer
+    ZIOFn.recordTrace(() => effect) {
+      ZIO.effectSuspendTotal {
+        import java.util.concurrent.atomic.AtomicReference
+        import java.util.concurrent.locks.ReentrantLock
 
-    /**
-     * Imports a synchronous effect that does blocking IO into a pure value.
-     *
-     * If the returned `ZIO` is interrupted, the blocked thread running the
-     * synchronous effect will be interrupted via `Thread.interrupt`.
-     *
-     * Note that this adds significant overhead. For performance sensitive
-     * applications consider using `effectBlocking` or
-     * `effectBlockingCancel`.
-     */
-    def effectBlockingInterrupt[A](effect: => A): Task[A] =
-      // Reference user's lambda for the tracer
-      ZIOFn.recordTrace(() => effect) {
-        ZIO.effectSuspendTotal {
-          import java.util.concurrent.atomic.AtomicReference
-          import java.util.concurrent.locks.ReentrantLock
+        import zio.internal.OneShot
 
-          import zio.internal.OneShot
+        val lock   = new ReentrantLock()
+        val thread = new AtomicReference[Option[Thread]](None)
+        val begin  = OneShot.make[Unit]
+        val end    = OneShot.make[Unit]
 
-          val lock   = new ReentrantLock()
-          val thread = new AtomicReference[Option[Thread]](None)
-          val begin  = OneShot.make[Unit]
-          val end    = OneShot.make[Unit]
+        def withMutex[B](b: => B): B =
+          try {
+            lock.lock(); b
+          } finally lock.unlock()
 
-          def withMutex[B](b: => B): B =
-            try {
-              lock.lock(); b
-            } finally lock.unlock()
+        val interruptThread: UIO[Unit] =
+          ZIO.effectTotal {
+            begin.get()
 
-          val interruptThread: UIO[Unit] =
-            ZIO.effectTotal {
-              begin.get()
+            var looping = true
+            var n       = 0L
+            val base    = 2L
+            while (looping) {
+              withMutex(thread.get match {
+                case None         => looping = false; ()
+                case Some(thread) => thread.interrupt()
+              })
 
-              var looping = true
-              var n       = 0L
-              val base    = 2L
-              while (looping) {
-                withMutex(thread.get match {
-                  case None         => looping = false; ()
-                  case Some(thread) => thread.interrupt()
-                })
-
-                if (looping) {
-                  n += 1
-                  Thread.sleep(math.min(50, base * n))
-                }
+              if (looping) {
+                n += 1
+                Thread.sleep(math.min(50, base * n))
               }
-
-              end.get()
             }
 
-          blocking(
-            ZIO.uninterruptibleMask(restore =>
-              for {
-                fiber <- ZIO.effectSuspend {
-                           val current = Some(Thread.currentThread)
+            end.get()
+          }
 
-                           withMutex(thread.set(current))
+        blocking(
+          ZIO.uninterruptibleMask(restore =>
+            for {
+              fiber <- ZIO.effectSuspend {
+                         val current = Some(Thread.currentThread)
 
-                           begin.set(())
+                         withMutex(thread.set(current))
 
-                           try {
-                             val a = effect
+                         begin.set(())
 
-                             ZIO.succeedNow(a)
-                           } catch {
-                             case _: InterruptedException =>
-                               Thread.interrupted // Clear interrupt status
-                               ZIO.interrupt
-                             case t: Throwable =>
-                               ZIO.fail(t)
-                           } finally {
-                             withMutex { thread.set(None); end.set(()) }
-                           }
-                         }.forkDaemon
-                a <- restore(fiber.join.refailWithTrace).ensuring(interruptThread)
-              } yield a
-            )
+                         try {
+                           val a = effect
+
+                           ZIO.succeedNow(a)
+                         } catch {
+                           case _: InterruptedException =>
+                             Thread.interrupted // Clear interrupt status
+                             ZIO.interrupt
+                           case t: Throwable =>
+                             ZIO.fail(t)
+                         } finally {
+                           withMutex { thread.set(None); end.set(()) }
+                         }
+                       }.forkDaemon
+              a <- restore(fiber.join.refailWithTrace).ensuring(interruptThread)
+            } yield a
           )
-        }
-      }
-
-    /**
-     * Imports a synchronous effect that does blocking IO into a pure value,
-     * refining the error type to `[[java.io.IOException]]`.
-     */
-    def effectBlockingIO[A](effect: => A): IO[IOException, A] =
-      effectBlocking(effect).refineToOrDie[IOException]
-  }
-
-  object Blocking extends Serializable {
-
-    object Service {
-      val live: Blocking = new Blocking {
-        override val blockingExecutor: Executor = internal.blockingExecutor0
+        )
       }
     }
 
-    val any: ZLayer[Has[Blocking], Nothing, Has[Blocking]] =
-      ZLayer.requires[Has[Blocking]]
+  /**
+   * Imports a synchronous effect that does blocking IO into a pure value,
+   * refining the error type to `[[java.io.IOException]]`.
+   */
+  def effectBlockingIO[A](effect: => A): IO[IOException, A] =
+    effectBlocking(effect).refineToOrDie[IOException]
+}
 
-    val live: Layer[Nothing, Has[Blocking]] =
-      ZLayer.succeed(Service.live)
+object Blocking extends Serializable {
+
+  // Layer Definitions
+
+  val any: ZLayer[Has[Blocking], Nothing, Has[Blocking]] =
+    ZLayer.requires[Has[Blocking]]
+
+  val live: Layer[Nothing, Has[Blocking]] =
+    ZLayer.succeed(BlockingLive)
+
+  object BlockingLive extends Blocking {
+    override val blockingExecutor: Executor = internal.blockingExecutor0
   }
+
+  private[zio] object internal {
+    private[zio] val blockingExecutor0 =
+      Executor.fromThreadPoolExecutor(_ => Int.MaxValue) {
+        val corePoolSize  = 0
+        val maxPoolSize   = 1000
+        val keepAliveTime = 60000L
+        val timeUnit      = TimeUnit.MILLISECONDS
+        val workQueue     = new SynchronousQueue[Runnable]()
+        val threadFactory = new NamedThreadFactory("zio-default-blocking", true)
+
+        val threadPool = new ThreadPoolExecutor(
+          corePoolSize,
+          maxPoolSize,
+          keepAliveTime,
+          timeUnit,
+          workQueue,
+          threadFactory
+        )
+
+        threadPool
+      }
+  }
+
+  // Accessor Methods
 
   /**
    * Locks the specified effect to the blocking thread pool.
@@ -210,27 +232,4 @@ package object blocking {
    */
   def effectBlockingIO[A](effect: => A): ZIO[Has[Blocking], IOException, A] =
     ZIO.accessM(_.get.effectBlockingIO(effect))
-
-  private[blocking] object internal {
-    private[blocking] val blockingExecutor0 =
-      Executor.fromThreadPoolExecutor(_ => Int.MaxValue) {
-        val corePoolSize  = 0
-        val maxPoolSize   = 1000
-        val keepAliveTime = 60000L
-        val timeUnit      = TimeUnit.MILLISECONDS
-        val workQueue     = new SynchronousQueue[Runnable]()
-        val threadFactory = new NamedThreadFactory("zio-default-blocking", true)
-
-        val threadPool = new ThreadPoolExecutor(
-          corePoolSize,
-          maxPoolSize,
-          keepAliveTime,
-          timeUnit,
-          workQueue,
-          threadFactory
-        )
-
-        threadPool
-      }
-  }
 }

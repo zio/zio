@@ -16,11 +16,8 @@
 
 package zio.test
 
-import zio.Console
 import zio.duration._
-import zio.Random
-import zio.System
-import zio.{Clock, PlatformSpecific => _, _}
+import zio.{Clock, Console, PlatformSpecific => _, Random, System, _}
 
 import java.io.{EOFException, IOException}
 import java.time.{Instant, LocalDateTime, OffsetDateTime, ZoneId}

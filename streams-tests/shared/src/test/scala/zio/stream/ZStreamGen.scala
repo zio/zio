@@ -1,8 +1,7 @@
 package zio.stream
 
-import zio._
-import zio.Random
 import zio.test.{Gen, GenZIO, Sized}
+import zio.{Random, _}
 
 object ZStreamGen extends GenZIO {
   def tinyListOf[R <: Has[Random], A](g: Gen[R, A]): Gen[R, List[A]] =

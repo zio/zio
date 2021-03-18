@@ -1,12 +1,11 @@
 package zio.test
 
 import zio.duration.{Duration, _}
-import zio.Random
 import zio.test.Assertion._
 import zio.test.GenUtils._
 import zio.test.TestAspect.{nonFlaky, scala2Only, setSeed}
 import zio.test.{check => Check, checkN => CheckN}
-import zio.{Chunk, Has, NonEmptyChunk, ZIO}
+import zio.{Chunk, Has, NonEmptyChunk, Random, ZIO}
 
 import java.time._
 import scala.math.Numeric.DoubleIsFractional

@@ -16,11 +16,10 @@
 
 package zio
 
-import zio.Console
 import zio.duration._
 import zio.internal.tracing.{ZIOFn, ZIOFn1, ZIOFn2}
 import zio.internal.{Executor, Platform}
-import zio.{Clock, TracingStatus => TracingS}
+import zio.{Clock, Console, TracingStatus => TracingS}
 
 import scala.annotation.implicitNotFound
 import scala.collection.mutable.Builder

@@ -1,9 +1,8 @@
 package zio.stream
 
-import zio._
-import zio.Random
 import zio.test.Assertion._
 import zio.test._
+import zio.{Random, _}
 
 import java.nio.charset.StandardCharsets
 import scala.io.Source

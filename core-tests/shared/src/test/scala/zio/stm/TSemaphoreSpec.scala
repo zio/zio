@@ -1,10 +1,9 @@
 package zio.stm
 
-import zio.Random
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test._
-import zio.{Has, ZIOBaseSpec}
+import zio.{Has, Random, ZIOBaseSpec}
 
 object TSemaphoreSpec extends ZIOBaseSpec {
   override def spec: ZSpec[Environment, Failure] = suite("TSemaphore")(

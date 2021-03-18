@@ -1,8 +1,7 @@
 package zio.test
 
-import zio.Has
-import zio.Random
 import zio.test.Assertion._
+import zio.{Has, Random}
 
 object BoolAlgebraSpec extends ZIOBaseSpec {
 

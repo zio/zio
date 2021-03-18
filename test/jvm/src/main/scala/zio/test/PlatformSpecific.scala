@@ -16,9 +16,8 @@
 
 package zio.test
 
-import zio.blocking.Blocking
 import zio.test.environment._
-import zio.{Has, ZEnv, ZLayer}
+import zio.{Blocking, Has, ZEnv, ZLayer}
 
 private[test] abstract class PlatformSpecific {
   type TestEnvironment =

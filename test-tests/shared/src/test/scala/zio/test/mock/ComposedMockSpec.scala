@@ -1,9 +1,8 @@
 package zio.test.mock
 
 import zio.duration._
-import zio.Random
 import zio.test.{Assertion, ZIOBaseSpec, ZSpec, assertM}
-import zio.{Clock, Has, Tag, ULayer, ZIO, Console, Random, System}
+import zio.{Clock, Console, Has, Random, System, Tag, ULayer, ZIO}
 
 object ComposedMockSpec extends ZIOBaseSpec {
 
