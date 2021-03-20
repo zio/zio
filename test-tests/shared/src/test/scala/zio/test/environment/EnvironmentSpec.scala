@@ -20,23 +20,23 @@ object EnvironmentSpec extends ZIOBaseSpec {
     },
     testM("Has[Console] writes line to output") {
       for {
-        _      <- Console.putStrLn("First line")
-        _      <- Console.putStrLn("Second line")
+        _      <- Console.printLine("First line")
+        _      <- Console.printLine("Second line")
         output <- TestConsole.output
       } yield assert(output)(equalTo(Vector("First line\n", "Second line\n")))
     } @@ silent,
     testM("Has[Console] writes error line to error console") {
       for {
-        _      <- Console.putStrLnErr("First line")
-        _      <- Console.putStrLnErr("Second line")
+        _      <- Console.printLineError("First line")
+        _      <- Console.printLineError("Second line")
         output <- TestConsole.outputErr
       } yield assert(output)(equalTo(Vector("First line\n", "Second line\n")))
     } @@ silent,
     testM("Has[Console] reads line from input") {
       for {
         _      <- TestConsole.feedLines("Input 1", "Input 2")
-        input1 <- Console.getStrLn
-        input2 <- Console.getStrLn
+        input1 <- Console.readLine
+        input2 <- Console.readLine
       } yield {
         assert(input1)(equalTo("Input 1")) &&
         assert(input2)(equalTo("Input 2"))

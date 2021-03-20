@@ -17,8 +17,8 @@ class MockExampleSpecWithJUnit extends JUnitRunnableSpec {
       assertM(out)(equalTo(1000L))
     },
     testM("expect call with input satisfying assertion") {
-      val app = Console.putStrLn("foo")
-      val env = MockConsole.PutStrLn(equalTo("foo"))
+      val app = Console.printLine("foo")
+      val env = MockConsole.PrintLine(equalTo("foo"))
       val out = app.provideLayer(env)
       assertM(out)(isUnit)
     },
@@ -44,10 +44,10 @@ class MockExampleSpecWithJUnit extends JUnitRunnableSpec {
       val app =
         for {
           n <- Random.nextInt
-          _ <- Console.putStrLn(n.toString)
+          _ <- Console.printLine(n.toString)
         } yield ()
 
-      val env = MockRandom.NextInt(value(42)) andThen MockConsole.PutStrLn(equalTo("42"))
+      val env = MockRandom.NextInt(value(42)) andThen MockConsole.PrintLine(equalTo("42"))
       val out = app.provideLayer(env)
       assertM(out)(isUnit)
     },
@@ -82,8 +82,8 @@ class MockExampleSpecWithJUnit extends JUnitRunnableSpec {
       assertM(out)(equalTo(42))
     },
     testM("failure if invalid arguments") {
-      val app = Console.putStrLn("foo")
-      val env = MockConsole.PutStrLn(equalTo("bar"))
+      val app = Console.printLine("foo")
+      val env = MockConsole.PrintLine(equalTo("bar"))
       val out = app.provideLayer(env)
       assertM(out)(isUnit)
     },

@@ -22,20 +22,20 @@ import java.io.IOException
 
 object MockConsole extends Mock[Has[Console]] {
 
-  object PutStr      extends Effect[String, Nothing, Unit]
-  object PutStrErr   extends Effect[String, Nothing, Unit]
-  object PutStrLn    extends Effect[String, Nothing, Unit]
-  object PutStrLnErr extends Effect[String, Nothing, Unit]
-  object GetStrLn    extends Effect[Unit, IOException, String]
+  object Print          extends Effect[String, Nothing, Unit]
+  object PrintError     extends Effect[String, Nothing, Unit]
+  object PrintLine      extends Effect[String, Nothing, Unit]
+  object PrintLineError extends Effect[String, Nothing, Unit]
+  object ReadLine       extends Effect[Unit, IOException, String]
 
   val compose: URLayer[Has[Proxy], Has[Console]] =
     ZLayer.fromService(proxy =>
       new Console {
-        def putStr(line: String): UIO[Unit]      = proxy(PutStr, line)
-        def putStrErr(line: String): UIO[Unit]   = proxy(PutStrErr, line)
-        def putStrLn(line: String): UIO[Unit]    = proxy(PutStrLn, line)
-        def putStrLnErr(line: String): UIO[Unit] = proxy(PutStrLnErr, line)
-        val getStrLn: IO[IOException, String]    = proxy(GetStrLn)
+        def print(line: String): UIO[Unit]          = proxy(Print, line)
+        def printError(line: String): UIO[Unit]     = proxy(PrintError, line)
+        def printLine(line: String): UIO[Unit]      = proxy(PrintLine, line)
+        def printLineError(line: String): UIO[Unit] = proxy(PrintLineError, line)
+        val readLine: IO[IOException, String]       = proxy(ReadLine)
       }
     )
 }

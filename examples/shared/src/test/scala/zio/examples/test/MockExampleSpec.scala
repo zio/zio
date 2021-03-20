@@ -11,30 +11,30 @@ object MockExampleSpec extends DefaultRunnableSpec {
   def spec = suite("suite with mocks")(
     testM("expect no call") {
       def maybeConsole(invokeConsole: Boolean) =
-        ZIO.when(invokeConsole)(Console.putStrLn("foo"))
+        ZIO.when(invokeConsole)(Console.printLine("foo"))
 
       val maybeTest1 = maybeConsole(false).provideLayer(MockConsole.empty)
-      val maybeTest2 = maybeConsole(true).provideLayer(MockConsole.PutStrLn(equalTo("foo")))
+      val maybeTest2 = maybeConsole(true).provideLayer(MockConsole.PrintLine(equalTo("foo")))
       assertM(maybeTest1)(isUnit) *> assertM(maybeTest2)(isUnit)
     },
     testM("expect no call on skipped branch") {
       def branchingProgram(predicate: Boolean) =
         ZIO.succeed(predicate).flatMap {
-          case true  => Console.getStrLn
+          case true  => Console.readLine
           case false => Clock.nanoTime
         }
 
       val clockLayer      = MockClock.NanoTime(value(42L)).toLayer
       val noCallToConsole = branchingProgram(false).provideLayer(MockConsole.empty ++ clockLayer)
 
-      val consoleLayer  = MockConsole.GetStrLn(value("foo")).toLayer
+      val consoleLayer  = MockConsole.ReadLine(value("foo")).toLayer
       val noCallToClock = branchingProgram(true).provideLayer(MockClock.empty ++ consoleLayer)
       assertM(noCallToConsole)(equalTo(42L)) *> assertM(noCallToClock)(equalTo("foo"))
     },
     testM("expect no call on multiple skipped branches") {
       def branchingProgram(predicate: Boolean) =
         ZIO.succeed(predicate).flatMap {
-          case true  => Console.getStrLn
+          case true  => Console.readLine
           case false => Clock.nanoTime
         }
 
@@ -45,7 +45,7 @@ object MockExampleSpec extends DefaultRunnableSpec {
       val noCallToConsole = composedBranchingProgram(false, false)
         .provideLayer(MockConsole.empty ++ clockLayer)
 
-      val consoleLayer = (MockConsole.GetStrLn(value("foo")) andThen MockConsole.GetStrLn(value("foo"))).toLayer
+      val consoleLayer = (MockConsole.ReadLine(value("foo")) andThen MockConsole.ReadLine(value("foo"))).toLayer
       val noCallToClock = composedBranchingProgram(true, true)
         .provideLayer(MockClock.empty ++ consoleLayer)
 
@@ -53,10 +53,10 @@ object MockExampleSpec extends DefaultRunnableSpec {
     },
     testM("should fail if call for unexpected method") {
       def maybeConsole(invokeConsole: Boolean) =
-        ZIO.when(invokeConsole)(Console.putStrLn("foo"))
+        ZIO.when(invokeConsole)(Console.printLine("foo"))
 
       val maybeTest1 = maybeConsole(true).provideLayer(MockConsole.empty)
-      val maybeTest2 = maybeConsole(false).provideLayer(MockConsole.PutStrLn(equalTo("foo")))
+      val maybeTest2 = maybeConsole(false).provideLayer(MockConsole.PrintLine(equalTo("foo")))
       assertM(maybeTest1)(isUnit) *> assertM(maybeTest2)(isUnit)
     },
     testM("expect call returning output") {
@@ -66,8 +66,8 @@ object MockExampleSpec extends DefaultRunnableSpec {
       assertM(out)(equalTo(1000L))
     },
     testM("expect call with input satisfying assertion") {
-      val app = Console.putStrLn("foo")
-      val env = MockConsole.PutStrLn(equalTo("foo"))
+      val app = Console.printLine("foo")
+      val env = MockConsole.PrintLine(equalTo("foo"))
       val out = app.provideLayer(env)
       assertM(out)(isUnit)
     },
@@ -93,10 +93,10 @@ object MockExampleSpec extends DefaultRunnableSpec {
       val app =
         for {
           n <- Random.nextInt
-          _ <- Console.putStrLn(n.toString)
+          _ <- Console.printLine(n.toString)
         } yield ()
 
-      val env = MockRandom.NextInt(value(42)) andThen MockConsole.PutStrLn(equalTo("42"))
+      val env = MockRandom.NextInt(value(42)) andThen MockConsole.PrintLine(equalTo("42"))
       val out = app.provideLayer(env)
       assertM(out)(isUnit)
     },
@@ -131,8 +131,8 @@ object MockExampleSpec extends DefaultRunnableSpec {
       assertM(out)(equalTo(42))
     },
     testM("failure if invalid arguments") {
-      val app = Console.putStrLn("foo")
-      val env = MockConsole.PutStrLn(equalTo("bar"))
+      val app = Console.printLine("foo")
+      val env = MockConsole.PrintLine(equalTo("bar"))
       val out = app.provideLayer(env)
       assertM(out)(isUnit)
     },

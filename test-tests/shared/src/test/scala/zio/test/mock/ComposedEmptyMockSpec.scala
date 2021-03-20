@@ -16,7 +16,7 @@ object ComposedEmptyMockSpec extends ZIOBaseSpec with MockSpecUtils[ComposedEmpt
     ZIO
       .succeed(predicate)
       .flatMap {
-        case true  => Console.getStrLn
+        case true  => Console.readLine
         case false => Clock.nanoTime
       }
       .unit
@@ -35,13 +35,13 @@ object ComposedEmptyMockSpec extends ZIOBaseSpec with MockSpecUtils[ComposedEmpt
           MockConsole.empty ++ MockClock.NanoTime(value(42L)),
           branchingProgram(true),
           isSubtype[X](
-            hasField[X, M]("capability", _.capability, equalTo(MockConsole.GetStrLn)) &&
+            hasField[X, M]("capability", _.capability, equalTo(MockConsole.ReadLine)) &&
               hasField[X, Any]("args", _.args, equalTo(()))
           )
         )
       },
       testValue("should succeed when no calls on Clock")(
-        MockClock.empty ++ MockConsole.GetStrLn(value("foo")),
+        MockClock.empty ++ MockConsole.ReadLine(value("foo")),
         branchingProgram(true),
         isUnit
       ), {
@@ -50,7 +50,7 @@ object ComposedEmptyMockSpec extends ZIOBaseSpec with MockSpecUtils[ComposedEmpt
         type X = UnexpectedCallException[Has[Clock], Unit, Nothing, Long]
 
         testDied("should fail when call on Clock happened")(
-          MockClock.empty ++ MockConsole.GetStrLn(value("foo")),
+          MockClock.empty ++ MockConsole.ReadLine(value("foo")),
           branchingProgram(false),
           isSubtype[X](
             hasField[X, M]("capability", _.capability, equalTo(MockClock.NanoTime)) &&

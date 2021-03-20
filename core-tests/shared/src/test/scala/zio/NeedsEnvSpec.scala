@@ -11,7 +11,7 @@ object NeedsEnvSpec extends ZIOBaseSpec {
         """
             import zio._
             import zio.Console._
-            val sayHello = Console.putStrLn("Hello, World!")
+            val sayHello = Console.printLine("Hello, World!")
             sayHello.provideLayer(Console.live)
             """
       }

@@ -751,7 +751,7 @@ object Fiber extends FiberPlatformSpecific {
    * fibers and renders it to the console.
    */
   def putDumpStr(label: String, fibers: Fiber.Runtime[_, _]*): URIO[Has[Console], Unit] =
-    dumpStr(fibers: _*).flatMap(str => Console.putStrLn(s"$label: ${str}"))
+    dumpStr(fibers: _*).flatMap(str => Console.printLine(s"$label: ${str}"))
 
   /**
    * Returns a fiber that has already succeeded with the specified value.

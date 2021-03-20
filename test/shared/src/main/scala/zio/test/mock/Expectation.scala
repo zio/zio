@@ -52,7 +52,7 @@ sealed abstract class Expectation[R <: Has[_]: Tag] { self =>
    * Compose two expectations, producing a new expectation to satisfy both.
    *
    * {{
-   * val mockEnv = MockClock.sleep(equalTo(1.second)) and MockConsole.getStrLn(value("foo"))
+   * val mockEnv = MockClock.sleep(equalTo(1.second)) and MockConsole.readLine(value("foo"))
    * }}
    */
   def and[R0 <: Has[_]: Tag](that: Expectation[R0]): Expectation[R with R0] =
@@ -70,7 +70,7 @@ sealed abstract class Expectation[R <: Has[_]: Tag] { self =>
    * Compose two expectations, producing a new expectation to satisfy both sequentially.
    *
    * {{
-   * val mockEnv = MockClock.sleep(equalTo(1.second)) andThen MockConsole.getStrLn(value("foo"))
+   * val mockEnv = MockClock.sleep(equalTo(1.second)) andThen MockConsole.readLine(value("foo"))
    * }}
    */
   def andThen[R0 <: Has[_]: Tag](that: Expectation[R0]): Expectation[R with R0] =
@@ -108,7 +108,7 @@ sealed abstract class Expectation[R <: Has[_]: Tag] { self =>
    * Compose two expectations, producing a new expectation to satisfy one of them.
    *
    * {{
-   * val mockEnv = MockClock.sleep(equalTo(1.second)) or MockConsole.getStrLn(value("foo"))
+   * val mockEnv = MockClock.sleep(equalTo(1.second)) or MockConsole.readLine(value("foo"))
    * }}
    */
   def or[R0 <: Has[_]: Tag](that: Expectation[R0]): Expectation[R with R0] =

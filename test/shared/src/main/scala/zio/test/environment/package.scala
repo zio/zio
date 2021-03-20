@@ -469,7 +469,7 @@ package object environment extends PlatformSpecific {
       private val warningStart: UIO[Unit] =
         warningState.updateSomeM { case WarningData.Start =>
           for {
-            fiber <- live.provide(Console.putStrLn(warning).delay(5.seconds)).interruptible.fork
+            fiber <- live.provide(Console.printLine(warning).delay(5.seconds)).interruptible.fork
           } yield WarningData.pending(fiber)
         }
 
@@ -622,16 +622,16 @@ package object environment extends PlatformSpecific {
    * input and output buffers maintained by `TestConsole` and backed by a
    * `Ref`.
    *
-   * All calls to `putStr` and `putStrLn` using the `TestConsole` will write
-   * the string to the output buffer and all calls to `getStrLn` will take a
+   * All calls to `print` and `printLine` using the `TestConsole` will write
+   * the string to the output buffer and all calls to `readLine` will take a
    * string from the input buffer. To facilitate debugging, by default output
    * will also be rendered to standard output. You can enable or disable this
    * for a scope using `debug`, `silent`, or the corresponding test aspects.
    *
    * `TestConsole` has several methods to access and manipulate the content of
    * these buffers including `feedLines` to feed strings to the input  buffer
-   * that will then be returned by calls to `getStrLn`, `output` to get the
-   * content of the output buffer from calls to `putStr` and `putStrLn`, and
+   * that will then be returned by calls to `readLine`, `output` to get the
+   * content of the output buffer from calls to `print` and `printLine`, and
    * `clearInput` and `clearOutput` to clear the respective buffers.
    *
    * Together, these functions make it easy to test programs interacting with
@@ -643,8 +643,8 @@ package object environment extends PlatformSpecific {
    * import zio.ZIO
    *
    * val sayHello = for {
-   *   name <- getStrLn
-   *   _    <- putStrLn("Hello, " + name + "!")
+   *   name <- readLine
+   *   _    <- printLine("Hello, " + name + "!")
    * } yield ()
    *
    * for {
@@ -706,7 +706,7 @@ package object environment extends PlatformSpecific {
        * Takes the first value from the input buffer, if one exists, or else
        * fails with an `EOFException`.
        */
-      val getStrLn: IO[IOException, String] = {
+      val readLine: IO[IOException, String] = {
         for {
           input <- consoleState.get.flatMap(d =>
                      IO.fromOption(d.input.headOption)
@@ -733,36 +733,36 @@ package object environment extends PlatformSpecific {
       /**
        * Writes the specified string to the output buffer.
        */
-      override def putStr(line: String): UIO[Unit] =
+      override def print(line: String): UIO[Unit] =
         consoleState.update { data =>
           Data(data.input, data.output :+ line, data.errOutput)
-        } *> live.provide(Console.putStr(line)).whenM(debugState.get)
+        } *> live.provide(Console.print(line)).whenM(debugState.get)
 
       /**
        * Writes the specified string to the error buffer.
        */
-      override def putStrErr(line: String): UIO[Unit] =
+      override def printError(line: String): UIO[Unit] =
         consoleState.update { data =>
           Data(data.input, data.output, data.errOutput :+ line)
-        } *> live.provide(Console.putStr(line)).whenM(debugState.get)
+        } *> live.provide(Console.printError(line)).whenM(debugState.get)
 
       /**
        * Writes the specified string to the output buffer followed by a newline
        * character.
        */
-      override def putStrLn(line: String): UIO[Unit] =
+      override def printLine(line: String): UIO[Unit] =
         consoleState.update { data =>
           Data(data.input, data.output :+ s"$line\n", data.errOutput)
-        } *> live.provide(Console.putStrLn(line)).whenM(debugState.get)
+        } *> live.provide(Console.printLine(line)).whenM(debugState.get)
 
       /**
        * Writes the specified string to the error buffer followed by a newline
        * character.
        */
-      override def putStrLnErr(line: String): UIO[Unit] =
+      override def printLineError(line: String): UIO[Unit] =
         consoleState.update { data =>
           Data(data.input, data.output, data.errOutput :+ s"$line\n")
-        } *> live.provide(Console.putStrLn(line)).whenM(debugState.get)
+        } *> live.provide(Console.printLineError(line)).whenM(debugState.get)
 
       /**
        * Saves the `TestConsole`'s current state in an effect which, when run,

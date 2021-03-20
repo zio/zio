@@ -730,7 +730,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
    *   new Console with Logging {
    *     val console = env.console
    *     val logging = new Logging[Any] {
-   *       def log(line: String) = Console.putStrLn(line)
+   *       def log(line: String) = Console.printLine(line)
    *     }
    *   }
    * )

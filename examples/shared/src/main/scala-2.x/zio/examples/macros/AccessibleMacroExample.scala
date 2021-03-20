@@ -110,7 +110,7 @@ object AccessibleMacroExample {
           val foo: UIO[Unit]                                              = UIO.unit
           def foo2: UIO[Unit]                                     = UIO.unit
           def foo3(): UIO[Unit]                                   = UIO.unit
-          def bar(n: Int): UIO[Unit]                                      = console.putStrLn(s"bar $n")
+          def bar(n: Int): UIO[Unit]                                      = console.printLine(s"bar $n")
           def baz(x: Int, y: Int): IO[String, Int]                        = UIO.succeed(x + y)
           def poly[A](a: A): IO[Long, A]                                  = UIO.succeed(a)
           def poly2[A <: Foo](a: Wrapped[A]): IO[String, List[A]]         = UIO.succeed(List(a.value))

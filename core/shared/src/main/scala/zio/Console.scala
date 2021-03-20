@@ -21,15 +21,30 @@ import scala.io.StdIn
 import scala.{Console => SConsole}
 
 trait Console extends Serializable {
-  def putStr(line: String): UIO[Unit]
+  def print(line: String): UIO[Unit]
 
-  def putStrErr(line: String): UIO[Unit]
+  def printError(line: String): UIO[Unit]
 
-  def putStrLn(line: String): UIO[Unit]
+  def printLine(line: String): UIO[Unit]
 
-  def putStrLnErr(line: String): UIO[Unit]
+  def printLineError(line: String): UIO[Unit]
 
-  def getStrLn: IO[IOException, String]
+  def readLine: IO[IOException, String]
+
+  @deprecated("use `print`", "2.0.0")
+  def putStr(line: String): UIO[Unit] = print(line)
+
+  @deprecated("use `printError`", "2.0.0")
+  def putStrErr(line: String): UIO[Unit] = printError(line)
+
+  @deprecated("use `printLine`", "2.0.0")
+  def putStrLn(line: String): UIO[Unit] = printLine(line)
+
+  @deprecated("use `printLineError`", "2.0.0")
+  def putStrLnErr(line: String): UIO[Unit] = printLineError(line)
+
+  @deprecated("use `readLine`", "2.0.0")
+  def getStrLn: IO[IOException, String] = readLine
 }
 
 object Console extends Serializable {
@@ -44,15 +59,15 @@ object Console extends Serializable {
 
   object ConsoleLive extends Console {
 
-    def putStr(line: String): UIO[Unit] = putStr(SConsole.out)(line)
+    def print(line: String): UIO[Unit] = putStr(SConsole.out)(line)
 
-    def putStrErr(line: String): UIO[Unit] = putStr(SConsole.err)(line)
+    def printError(line: String): UIO[Unit] = putStr(SConsole.err)(line)
 
-    def putStrLnErr(line: String): UIO[Unit] = putStrLn(SConsole.err)(line)
+    def printLine(line: String): UIO[Unit] = putStrLn(SConsole.out)(line)
 
-    def putStrLn(line: String): UIO[Unit] = putStrLn(SConsole.out)(line)
+    def printLineError(line: String): UIO[Unit] = putStrLn(SConsole.err)(line)
 
-    val getStrLn: IO[IOException, String] =
+    def readLine: IO[IOException, String] =
       IO.effect {
         val line = StdIn.readLine()
 
@@ -72,32 +87,69 @@ object Console extends Serializable {
   /**
    * Prints text to the console.
    */
-  def putStr(line: => String): URIO[Has[Console], Unit] =
-    ZIO.accessM(_.get putStr line)
+  def print(line: => String): URIO[Has[Console], Unit] =
+    ZIO.serviceWith(_.print(line))
 
   /**
    * Prints text to the standard error console.
    */
-  def putStrErr(line: => String): URIO[Has[Console], Unit] =
-    ZIO.accessM(_.get putStrErr line)
+  def printError(line: => String): URIO[Has[Console], Unit] =
+    ZIO.serviceWith(_.printError(line))
 
   /**
    * Prints a line of text to the console, including a newline character.
    */
-  def putStrLn(line: => String): URIO[Has[Console], Unit] =
-    ZIO.accessM(_.get putStrLn line)
+  def printLine(line: => String): URIO[Has[Console], Unit] =
+    ZIO.serviceWith(_.printLine(line))
 
   /**
    * Prints a line of text to the standard error console, including a newline character.
    */
-  def putStrLnErr(line: => String): URIO[Has[Console], Unit] =
-    ZIO.accessM(_.get putStrLnErr line)
+  def printLineError(line: => String): URIO[Has[Console], Unit] =
+    ZIO.serviceWith(_.printLineError(line))
 
   /**
    * Retrieves a line of input from the console.
    * Fails with an [[java.io.EOFException]] when the underlying [[java.io.Reader]]
    * returns null.
    */
+  val readLine: ZIO[Has[Console], IOException, String] =
+    ZIO.accessM(_.get.readLine)
+
+  /**
+   * Prints text to the console.
+   */
+  @deprecated("use `print`", "2.0.0")
+  def putStr(line: => String): URIO[Has[Console], Unit] =
+    print(line)
+
+  /**
+   * Prints text to the standard error console.
+   */
+  @deprecated("use `printError`", "2.0.0")
+  def putStrErr(line: => String): URIO[Has[Console], Unit] =
+    printError(line)
+
+  /**
+   * Prints a line of text to the console, including a newline character.
+   */
+  @deprecated("use `printLine`", "2.0.0")
+  def putStrLn(line: => String): URIO[Has[Console], Unit] =
+    printLine(line)
+
+  /**
+   * Prints a line of text to the standard error console, including a newline character.
+   */
+  @deprecated("use `printLineError`", "2.0.0")
+  def putStrLnErr(line: => String): URIO[Has[Console], Unit] =
+    printLineError(line)
+
+  /**
+   * Retrieves a line of input from the console.
+   * Fails with an [[java.io.EOFException]] when the underlying [[java.io.Reader]]
+   * returns null.
+   */
+  @deprecated("use `readLine`", "2.0.0")
   val getStrLn: ZIO[Has[Console], IOException, String] =
-    ZIO.accessM(_.get.getStrLn)
+    readLine
 }

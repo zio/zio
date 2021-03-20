@@ -569,7 +569,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def exitCode: URIO[R with Has[Console], ExitCode] =
     self.foldCauseM(
-      cause => Console.putStrLnErr(cause.prettyPrint) as ExitCode.failure,
+      cause => Console.printLineError(cause.prettyPrint) as ExitCode.failure,
       _ => ZIO.succeedNow(ExitCode.success)
     )
 
@@ -1191,7 +1191,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    *   new Console with Logging {
    *     val console = env.console
    *     val logging = new Logging[Any] {
-   *       def log(line: String) = Console.putStrLn(line)
+   *       def log(line: String) = Console.printLine(line)
    *     }
    *   }
    * )
@@ -1839,7 +1839,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Returns an effect that effectfully "peeks" at the success of this effect.
    *
    * {{{
-   * readFile("data.json").tap(putStrLn)
+   * readFile("data.json").tap(printLine)
    * }}}
    */
   final def tap[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Any]): ZIO[R1, E1, A] = self.flatMap(new ZIO.TapFn(f))
@@ -1850,7 +1850,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    *
    * {{{
    * readFile("data.json").tapSome {
-   *   case content if content.nonEmpty => putStrLn(content)
+   *   case content if content.nonEmpty => printLine(content)
    * }
    * }}}
    */
@@ -2597,7 +2597,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * thrown exceptions into typed failed effects creating with `ZIO.fail`.
    *
    * {{{
-   * def putStrLn(line: String): Task[Unit] = Task.effect(println(line))
+   * def printLine(line: String): Task[Unit] = Task.effect(println(line))
    * }}}
    */
   def effect[A](effect: => A): Task[A] = new ZIO.EffectPartial(() => effect)

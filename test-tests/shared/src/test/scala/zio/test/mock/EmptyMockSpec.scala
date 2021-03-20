@@ -13,7 +13,7 @@ object EmptyMockSpec extends ZIOBaseSpec with MockSpecUtils[Has[Console]] {
     suite("expect no calls on empty mocks")(
       testValue("should succeed when no call")(
         MockConsole.empty,
-        ZIO.when(false)(Console.putStrLn("foo")),
+        ZIO.when(false)(Console.printLine("foo")),
         isUnit
       ), {
 
@@ -22,9 +22,9 @@ object EmptyMockSpec extends ZIOBaseSpec with MockSpecUtils[Has[Console]] {
 
         testDied("should fail when call happened")(
           MockConsole.empty,
-          ZIO.when(true)(Console.putStrLn("foo")),
+          ZIO.when(true)(Console.printLine("foo")),
           isSubtype[X](
-            hasField[X, M]("capability", _.capability, equalTo(MockConsole.PutStrLn)) &&
+            hasField[X, M]("capability", _.capability, equalTo(MockConsole.PrintLine)) &&
               hasField[X, Any]("args", _.args, equalTo("foo"))
           )
         )

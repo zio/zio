@@ -66,7 +66,7 @@ object RTSSpec extends ZIOBaseSpec {
         fiber   <- promise.await.fork
         dump    <- fiber.dump
         dumpStr <- dump.prettyPrintM
-        _       <- Console.putStrLn(dumpStr)
+        _       <- Console.printLine(dumpStr)
       } yield assert(dumpStr)(anything)
     } @@ silent,
     testM("interruption causes") {
@@ -74,7 +74,7 @@ object RTSSpec extends ZIOBaseSpec {
         queue    <- Queue.bounded[Int](100)
         producer <- queue.offer(42).forever.fork
         rez      <- producer.interrupt
-        _        <- Console.putStrLn(rez.fold(_.prettyPrint, _ => ""))
+        _        <- Console.printLine(rez.fold(_.prettyPrint, _ => ""))
       } yield assert(rez)(anything)
     } @@ zioTag(interruption) @@ silent,
     testM("interruption of unending bracket") {

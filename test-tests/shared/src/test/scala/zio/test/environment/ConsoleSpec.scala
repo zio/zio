@@ -5,7 +5,7 @@ import zio.test.Assertion._
 import zio.test.TestAspect.{nonFlaky, silent}
 import zio.test._
 import zio.test.environment.TestConsole._
-import zio.{Console, Has, ZIO}
+import zio.{Console, ZIO}
 
 object ConsoleSpec extends ZIOBaseSpec {
 
@@ -18,15 +18,15 @@ object ConsoleSpec extends ZIOBaseSpec {
       },
       testM("writes to output") {
         for {
-          _      <- putStr("First line")
-          _      <- putStr("Second line")
+          _      <- print("First line")
+          _      <- print("Second line")
           output <- TestConsole.output
         } yield assert(output)(equalTo(Vector("First line", "Second line")))
       },
       testM("writes line to output") {
         for {
-          _      <- putStrLn("First line")
-          _      <- putStrLn("Second line")
+          _      <- printLine("First line")
+          _      <- printLine("Second line")
           output <- TestConsole.output
         } yield assert(output)(equalTo(Vector("First line\n", "Second line\n")))
       },
@@ -34,8 +34,8 @@ object ConsoleSpec extends ZIOBaseSpec {
         {
           for {
             testConsole <- ZIO.service[Console]
-            input1      <- testConsole.getStrLn
-            input2      <- testConsole.getStrLn
+            input1      <- testConsole.readLine
+            input2      <- testConsole.readLine
           } yield {
             assert(input1)(equalTo("Input 1")) &&
             assert(input2)(equalTo("Input 2"))
@@ -44,7 +44,7 @@ object ConsoleSpec extends ZIOBaseSpec {
       },
       testM("fails on empty input") {
         for {
-          failed <- getStrLn.either
+          failed <- readLine.either
           message = failed.fold(_.getMessage, identity)
         } yield {
           assert(failed.isLeft)(isTrue) &&
@@ -54,8 +54,8 @@ object ConsoleSpec extends ZIOBaseSpec {
       testM("feeds lines to input") {
         for {
           _      <- feedLines("Input 1", "Input 2")
-          input1 <- getStrLn
-          input2 <- getStrLn
+          input1 <- readLine
+          input2 <- readLine
         } yield {
           assert(input1)(equalTo("Input 1")) &&
           assert(input2)(equalTo("Input 2"))
@@ -65,7 +65,7 @@ object ConsoleSpec extends ZIOBaseSpec {
         for {
           _      <- feedLines("Input 1", "Input 2")
           _      <- clearInput
-          failed <- getStrLn.either
+          failed <- readLine.either
           message = failed.fold(_.getMessage, identity)
         } yield {
           assert(failed.isLeft)(isTrue) &&
@@ -74,8 +74,8 @@ object ConsoleSpec extends ZIOBaseSpec {
       },
       testM("clears lines from output") {
         for {
-          _      <- putStr("First line")
-          _      <- putStr("Second line")
+          _      <- print("First line")
+          _      <- print("Second line")
           _      <- clearOutput
           output <- TestConsole.output
         } yield assert(output)(isEmpty)
@@ -83,7 +83,7 @@ object ConsoleSpec extends ZIOBaseSpec {
       testM("output is empty at the start of repeating tests") {
         for {
           output <- TestConsole.output
-          _      <- putStrLn("Input")
+          _      <- printLine("Input")
         } yield assert(output)(isEmpty)
       } @@ nonFlaky
     ) @@ silent
