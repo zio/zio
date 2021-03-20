@@ -70,7 +70,7 @@ import scala.util.{Failure, Success, Try}
  *  [[https://www.microsoft.com/en-us/research/publication/lock-free-data-structures-using-stms-in-haskell/]]
  */
 sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
-  import ZSTM.internal.{prepareResetJournal, Journal, TExit}
+  import ZSTM.internal.{prepareResetJournal, Journal, Tags, TExit}
   import ZSTM._
 
   /**
@@ -845,7 +845,7 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
 
     while (exit eq null) {
       (curr.tag: @annotation.switch) match {
-        case internal.Tags.Effect =>
+        case Tags.Effect =>
           try {
             val effect = curr.asInstanceOf[Effect[Any, Any, Any]]
             val a      = effect.f(journal, fiberId, envStack.peek())
@@ -866,22 +866,22 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
               if (curr eq null) exit = TExit.Fail(e)
           }
 
-        case internal.Tags.OnSuccess =>
+        case Tags.OnSuccess =>
           val fc = curr.asInstanceOf[OnSuccess[Any, Any, Any, Any]]
           contStack.push(fc.onSuccess)
           curr = fc.self
 
-        case internal.Tags.OnFailure =>
+        case Tags.OnFailure =>
           val fc = curr.asInstanceOf[OnFailure[Any, Any, Any, Any]]
           contStack.push(fc)
           curr = fc.self
 
-        case internal.Tags.OnRetry =>
+        case Tags.OnRetry =>
           val fc = curr.asInstanceOf[OnRetry[Any, Any, Any]]
           contStack.push(fc)
           curr = fc.self
 
-        case internal.Tags.ProvideSome =>
+        case Tags.ProvideSome =>
           val ps = curr.asInstanceOf[ProvideSome[Any, Any, Any, Any]]
 
           envStack.push(ps.f.asInstanceOf[AnyRef => AnyRef](envStack.peek()))
@@ -890,7 +890,7 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
 
           curr = ps.effect.ensuring(cleanup).asInstanceOf[Erased]
 
-        case internal.Tags.SucceedNow =>
+        case Tags.SucceedNow =>
           val a = curr.asInstanceOf[SucceedNow[Any]].a
 
           if (contStack.isEmpty) exit = TExit.Succeed(a)
@@ -899,7 +899,7 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
             curr = k(a)
           }
 
-        case internal.Tags.Succeed =>
+        case Tags.Succeed =>
           val a = curr.asInstanceOf[Succeed[Any]].a()
 
           if (contStack.isEmpty) exit = TExit.Succeed(a)
