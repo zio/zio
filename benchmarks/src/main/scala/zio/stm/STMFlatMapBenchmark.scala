@@ -2,6 +2,8 @@ package zio.stm
 
 import org.openjdk.jmh.annotations._
 import zio._
+import io.github.timwspence.cats.stm.{STM => CatsSTM}
+import cats.effect.{IO => CIO}
 
 import java.util.concurrent.TimeUnit
 
@@ -12,6 +14,8 @@ import java.util.concurrent.TimeUnit
 @Warmup(iterations = 15, timeUnit = TimeUnit.SECONDS, time = 10)
 @Fork(1)
 class STMFlatMapBenchmark {
+  import IOBenchmarks._
+
   @Param(Array("20"))
   var depth: Int = _
 
@@ -22,6 +26,16 @@ class STMFlatMapBenchmark {
       else
         fib(n - 1).flatMap(a => fib(n - 2).flatMap(b => STM.succeedNow(a + b)))
 
-    IOBenchmarks.unsafeRun(fib(depth).commit)
+    unsafeRun(fib(depth).commit)
+  }
+
+  @Benchmark
+  def catsFlatMap(): BigInt = {
+    def fib(n: Int): CatsSTM[BigInt] =
+      if (n <= 1) CatsSTM.pure[BigInt](n)
+      else
+        fib(n - 1).flatMap(a => fib(n - 2).flatMap(b => CatsSTM.pure(a + b)))
+
+    fib(depth).commit[CIO].unsafeRunSync()
   }
 }
