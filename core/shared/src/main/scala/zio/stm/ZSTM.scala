@@ -818,10 +818,10 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
 
   private def run(journal: Journal, fiberId: Fiber.Id, r0: R): TExit[E, A] = {
     type Erased     = ZSTM[Any, Any, Any]
-    type Cont       = Any => Erased
     type ErasedFold = FoldCauseM[Any, Any, Any, Any, Any]
+    // type Cont       = Any => ErasedFold
 
-    val contStack = Stack[Cont]()
+    val contStack = Stack[ErasedFold]()
     val envStack  = Stack[AnyRef](r0.asInstanceOf[AnyRef])
     var exit      = null.asInstanceOf[TExit[Any, Any]]
     var curr      = self.asInstanceOf[Erased]
@@ -835,31 +835,19 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
 
             if (contStack.isEmpty) exit = TExit.Succeed(a)
             else {
-              val k = contStack.pop()
-
-              curr = k(a)
+              curr = contStack.pop()(a)
             }
           } catch {
             case ZSTM.RetryException =>
               if (contStack.isEmpty) exit = TExit.Retry
               else {
-                val k = contStack.pop()
-
-                k match {
-                  case fc: FoldCauseM[_, _, _, _, _] => curr = fc.asInstanceOf[ErasedFold].onRetry
-                  case _                             => exit = TExit.Retry
-                }
+                curr = contStack.pop().onRetry
               }
 
             case ZSTM.FailException(e) =>
               if (contStack.isEmpty) exit = TExit.Fail(e)
               else {
-                val k = contStack.pop()
-
-                k match {
-                  case fc: FoldCauseM[_, _, _, _, _] => curr = fc.asInstanceOf[ErasedFold].onFailure(e)
-                  case _                             => exit = TExit.Fail(e)
-                }
+                curr = contStack.pop().onFailure(e)
               }
           }
 
