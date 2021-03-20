@@ -21,6 +21,7 @@
     "Core Data Types": [
       "datatypes/core/index",
       "datatypes/core/io",
+      "datatypes/core/exit",
       "datatypes/core/fiber",
       "datatypes/core/fiberref",
       "datatypes/module/zlayer"
