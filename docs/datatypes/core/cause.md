@@ -31,7 +31,7 @@ import zio._
 import zio.duration._
 for {
   failExit <- ZIO.fail("Oh! Error!").run
-  dieExit  <- ZIO.die(throw new ArithmeticException("divide by zero")).run
+  dieExit  <- ZIO.effectTotal(5 / 0).run
   thenExit <- ZIO.fail("first").ensuring(ZIO.die(throw new Exception("second"))).run
   bothExit <- ZIO.fail("first").zipPar(ZIO.die(throw new Exception("second"))).run
   fiber    <- ZIO.sleep(1.second).fork
