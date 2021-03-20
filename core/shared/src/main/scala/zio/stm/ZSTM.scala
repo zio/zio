@@ -827,7 +827,7 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
     var curr      = self.asInstanceOf[Erased]
 
     while (exit eq null) {
-      curr.tag match {
+      (curr.tag: @annotation.switch) match {
         case internal.Tags.Effect =>
           try {
             val effect = curr.asInstanceOf[Effect[Any, Any, Any]]
@@ -837,10 +837,7 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
             else {
               val k = contStack.pop()
 
-              curr = k match {
-                case fc: FoldCauseM[_, _, _, _, _] => fc.asInstanceOf[ErasedFold].onSuccess(a)
-                case _                             => k(a)
-              }
+              curr = k(a)
             }
           } catch {
             case ZSTM.RetryException =>
@@ -879,6 +876,24 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
           val cleanup = ZSTM.succeed(envStack.pop())
 
           curr = ps.effect.ensuring(cleanup).asInstanceOf[Erased]
+
+        case internal.Tags.SucceedNow =>
+          val a = curr.asInstanceOf[SucceedNow[Any]].a
+
+          if (contStack.isEmpty) exit = TExit.Succeed(a)
+          else {
+            val k = contStack.pop()
+            curr = k(a)
+          }
+
+        case internal.Tags.Succeed =>
+          val a = curr.asInstanceOf[Succeed[Any]].a()
+
+          if (contStack.isEmpty) exit = TExit.Succeed(a)
+          else {
+            val k = contStack.pop()
+            curr = k(a)
+          }
       }
     }
 
@@ -1374,7 +1389,7 @@ object ZSTM {
   /**
    * Returns an `STM` effect that succeeds with the specified value.
    */
-  def succeed[A](a: => A): USTM[A] = Effect((_, _, _) => a)
+  def succeed[A](a: => A): USTM[A] = Succeed(() => a)
 
   /**
    * Suspends creation of the specified transaction lazily.
@@ -1532,6 +1547,14 @@ object ZSTM {
     def tag: Int = Tags.ProvideSome
   }
 
+  private[stm] final case class SucceedNow[A](a: A) extends ZSTM[Any, Nothing, A] {
+    def tag: Int = Tags.SucceedNow
+  }
+
+  private[stm] final case class Succeed[A](a: () => A) extends ZSTM[Any, Nothing, A] {
+    def tag: Int = Tags.Succeed
+  }
+
   private val _FailFn: Any => ZSTM[Any, Any, Nothing] = ZSTM.fail(_)
 
   private val _SucceedFn: Any => ZSTM[Any, Nothing, Any] = ZSTM.succeedNow(_)
@@ -1540,7 +1563,7 @@ object ZSTM {
 
   private def succeedFn[A]: A => ZSTM[Any, Nothing, A] = _SucceedFn.asInstanceOf[A => ZSTM[Any, Nothing, A]]
 
-  private[zio] def succeedNow[A](a: A): USTM[A] = succeed(a)
+  private[zio] def succeedNow[A](a: A): USTM[A] = SucceedNow(a)
 
   private[stm] object internal {
     val DefaultJournalSize = 4
@@ -1550,6 +1573,8 @@ object ZSTM {
       final val Effect      = 0
       final val FoldCauseM  = 1
       final val ProvideSome = 2
+      final val SucceedNow  = 3
+      final val Succeed     = 4
     }
 
     class Versioned[A](val value: A)
