@@ -198,7 +198,7 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
    * Recovers from all errors.
    */
   def catchAll[R1 <: R, E2, A1 >: A](h: E => ZSTM[R1, E2, A1])(implicit ev: CanFail[E]): ZSTM[R1, E2, A1] =
-    foldM[R1, E2, A1](h, ZSTM.succeedNow)
+    OnFailure(self, h)
 
   /**
    * Recovers from some or all of the error cases.
@@ -368,7 +368,13 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
   def foldM[R1 <: R, E1, B](f: E => ZSTM[R1, E1, B], g: A => ZSTM[R1, E1, B])(implicit
     ev: CanFail[E]
   ): ZSTM[R1, E1, B] =
-    OnEverything(self, f, g, ZSTM.retry)
+    self
+      .map(Right(_))
+      .catchAll(f(_).map(Left(_)))
+      .flatMap {
+        case Left(b)  => ZSTM.succeedNow(b)
+        case Right(a) => g(a)
+      }
 
   /**
    * Unwraps the optional success of this effect, but can fail with None value.
@@ -538,13 +544,9 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
    * Named alias for `<>`.
    */
   def orElse[R1 <: R, E1, A1 >: A](that: => ZSTM[R1, E1, A1]): ZSTM[R1, E1, A1] =
-    OnEverything[R1, Nothing, E1, () => Any, A1](
-      Effect((journal, _, _) => prepareResetJournal(journal)),
-      ZSTM.failFn,
-      reset =>
-        OnEverything(self, (_: E) => ZSTM.succeed(reset()) *> that, ZSTM.succeedNow[A], ZSTM.succeed(reset()) *> that),
-      ZSTM.retry
-    )
+    Effect[Any, Nothing, () => Any]((journal, _, _) => prepareResetJournal(journal)).flatMap { reset =>
+      self.orTry(ZSTM.succeed(reset()) *> that).catchAll(_ => ZSTM.succeed(reset()) *> that)
+    }
 
   /**
    * Returns a transactional effect that will produce the value of this effect
@@ -581,7 +583,7 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
    * Named alias for `<|>`.
    */
   def orTry[R1 <: R, E1 >: E, A1 >: A](that: => ZSTM[R1, E1, A1]): ZSTM[R1, E1, A1] =
-    OnEverything(self, ZSTM.failFn[E], ZSTM.succeedNow[A], that)
+    OnRetry(self, that)
 
   /**
    * Provides the transaction its required environment, which eliminates
@@ -817,14 +819,29 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
     self flatMap (a => that map (b => f(a, b)))
 
   private def run(journal: Journal, fiberId: Fiber.Id, r0: R): TExit[E, A] = {
-    type Erased     = ZSTM[Any, Any, Any]
-    type ErasedFold = FoldCauseM[Any, Any, Any, Any, Any]
-    // type Cont       = Any => ErasedFold
+    type Erased = ZSTM[Any, Any, Any]
+    type Cont   = Any => Erased
 
-    val contStack = Stack[ErasedFold]()
+    val contStack = Stack[Cont]()
     val envStack  = Stack[AnyRef](r0.asInstanceOf[AnyRef])
     var exit      = null.asInstanceOf[TExit[Any, Any]]
     var curr      = self.asInstanceOf[Erased]
+
+    def unwindStack(error: Any, isRetry: Boolean): Erased = {
+      var result = null.asInstanceOf[Erased]
+
+      while (!contStack.isEmpty && (result eq null)) {
+        val head = contStack.pop()
+
+        head match {
+          case OnFailure(_, onFailure) => if (!isRetry) result = onFailure(error)
+          case OnRetry(_, onRetry)     => if (isRetry) result = onRetry
+          case _                       =>
+        }
+      }
+
+      result
+    }
 
     while (exit eq null) {
       (curr.tag: @annotation.switch) match {
@@ -839,20 +856,28 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
             }
           } catch {
             case ZSTM.RetryException =>
-              if (contStack.isEmpty) exit = TExit.Retry
-              else {
-                curr = contStack.pop().onRetry
-              }
+              curr = unwindStack(null, true)
+
+              if (curr eq null) exit = TExit.Retry
 
             case ZSTM.FailException(e) =>
-              if (contStack.isEmpty) exit = TExit.Fail(e)
-              else {
-                curr = contStack.pop().onFailure(e)
-              }
+              curr = unwindStack(e, false)
+
+              if (curr eq null) exit = TExit.Fail(e)
           }
 
-        case internal.Tags.FoldCauseM =>
-          val fc = curr.asInstanceOf[ErasedFold]
+        case internal.Tags.OnSuccess =>
+          val fc = curr.asInstanceOf[OnSuccess[Any, Any, Any, Any]]
+          contStack.push(fc.onSuccess)
+          curr = fc.self
+
+        case internal.Tags.OnFailure =>
+          val fc = curr.asInstanceOf[OnFailure[Any, Any, Any, Any]]
+          contStack.push(fc)
+          curr = fc.self
+
+        case internal.Tags.OnRetry =>
+          val fc = curr.asInstanceOf[OnRetry[Any, Any, Any]]
           contStack.push(fc)
           curr = fc.self
 
@@ -1494,41 +1519,25 @@ object ZSTM {
     def tag: Int = Tags.Effect
   }
 
-  private[stm] sealed trait FoldCauseM[R, E1, E2, A, B] extends ZSTM[R, E2, B] with Function[A, ZSTM[R, E2, B]] {
-    final def apply(a: A): ZSTM[R, E2, B] = onSuccess(a)
+  private[stm] final case class OnFailure[R, E1, E2, A](self: ZSTM[R, E1, A], onFailure: E1 => ZSTM[R, E2, A])
+      extends ZSTM[R, E2, A]
+      with Function[A, ZSTM[R, E2, A]] {
+    def tag: Int = Tags.OnFailure
 
-    def onFailure: E1 => ZSTM[R, E2, B]
-
-    def onRetry: ZSTM[R, E2, B]
-
-    def onSuccess: A => ZSTM[R, E2, B]
-
-    def self: ZSTM[R, E1, A]
-
-    final def tag: Int = Tags.FoldCauseM
+    def apply(a: A): ZSTM[R, E2, A] = succeedNow(a)
   }
 
-  private[stm] final case class OnEverything[R, E1, E2, A, B](
-    self: ZSTM[R, E1, A],
-    onFailure: E1 => ZSTM[R, E2, B],
-    onSuccess: A => ZSTM[R, E2, B],
-    onRetry: ZSTM[R, E2, B]
-  ) extends FoldCauseM[R, E1, E2, A, B]
+  private[stm] final case class OnRetry[R, E, A](self: ZSTM[R, E, A], onRetry: ZSTM[R, E, A])
+      extends ZSTM[R, E, A]
+      with Function[A, ZSTM[R, E, A]] {
+    def tag: Int = Tags.OnRetry
 
-  private[stm] final case class OnFailure[R, E1, E2, A](self: ZSTM[R, E1, A], onFailure: E1 => ZSTM[R, E2, A])
-      extends FoldCauseM[R, E1, E2, A, A] {
-
-    def onRetry: ZSTM[R, E2, A] = ZSTM.retry
-
-    def onSuccess: A => ZSTM[R, E2, A] = ZSTM.succeedFn[A]
+    def apply(a: A): ZSTM[R, E, A] = succeedNow(a)
   }
 
   private[stm] final case class OnSuccess[R, E, A, B](self: ZSTM[R, E, A], onSuccess: A => ZSTM[R, E, B])
-      extends FoldCauseM[R, E, E, A, B] {
-
-    def onFailure: E => ZSTM[R, E, B] = ZSTM.failFn[E]
-
-    def onRetry: ZSTM[R, E, B] = ZSTM.retry
+      extends ZSTM[R, E, B] {
+    def tag: Int = Tags.OnSuccess
   }
 
   private[stm] final case class ProvideSome[R1, R2, E, A](effect: ZSTM[R1, E, A], f: R2 => R1) extends ZSTM[R2, E, A] {
@@ -1543,14 +1552,6 @@ object ZSTM {
     def tag: Int = Tags.Succeed
   }
 
-  private val _FailFn: Any => ZSTM[Any, Any, Nothing] = ZSTM.fail(_)
-
-  private val _SucceedFn: Any => ZSTM[Any, Nothing, Any] = ZSTM.succeedNow(_)
-
-  private def failFn[E]: E => ZSTM[Any, E, Nothing] = _FailFn.asInstanceOf[E => ZSTM[Any, E, Nothing]]
-
-  private def succeedFn[A]: A => ZSTM[Any, Nothing, A] = _SucceedFn.asInstanceOf[A => ZSTM[Any, Nothing, A]]
-
   private[zio] def succeedNow[A](a: A): USTM[A] = SucceedNow(a)
 
   private[stm] object internal {
@@ -1559,10 +1560,12 @@ object ZSTM {
 
     object Tags {
       final val Effect      = 0
-      final val FoldCauseM  = 1
-      final val ProvideSome = 2
-      final val SucceedNow  = 3
-      final val Succeed     = 4
+      final val OnSuccess   = 1
+      final val SucceedNow  = 2
+      final val Succeed     = 3
+      final val OnFailure   = 4
+      final val ProvideSome = 5
+      final val OnRetry     = 6
     }
 
     class Versioned[A](val value: A)
