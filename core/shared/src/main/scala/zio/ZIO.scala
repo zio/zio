@@ -3748,6 +3748,20 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     ZIO.collectAll_(ZIO.replicate(n)(effect))
 
   /**
+   * Performs this effect the specified number of times in parallel and
+   * collects the results.
+   */
+  def replicateParM[R, E, A](n: Int)(effect: ZIO[R, E, A]): ZIO[R, E, Iterable[A]] =
+    ZIO.collectAllPar(ZIO.replicate(n)(effect))
+
+  /**
+   * Performs this effect the specified number of times in parallel, discarding
+   * the results.
+   */
+  def replicateParM_[R, E, A](n: Int)(effect: ZIO[R, E, A]): ZIO[R, E, Unit] =
+    ZIO.collectAllPar_(ZIO.replicate(n)(effect))
+
+  /**
    * Requires that the given `ZIO[R, E, Option[A]]` contain a value. If there is no
    * value, then the specified error will be raised.
    */
