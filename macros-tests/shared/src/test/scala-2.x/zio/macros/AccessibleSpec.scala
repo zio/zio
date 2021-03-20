@@ -292,7 +292,7 @@ object AccessibleSpec extends DefaultRunnableSpec {
             @accessible
             object Module {
               trait Service {
-                @noThrow
+                @throwsNothing
                 val test: Unit
               }
             }
@@ -310,7 +310,7 @@ object AccessibleSpec extends DefaultRunnableSpec {
             @accessible
             object Module {
               trait Service {
-                @noThrow
+                @throwsNothing
                 def test: Unit
               }
             }

@@ -19,4 +19,4 @@ package zio.macros
 import scala.annotation.{StaticAnnotation, compileTimeOnly}
 
 @compileTimeOnly("marks that a field or method will not throw")
-class noThrow extends StaticAnnotation
+class throwsNothing extends StaticAnnotation

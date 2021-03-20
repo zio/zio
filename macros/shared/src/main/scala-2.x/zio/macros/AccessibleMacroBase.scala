@@ -211,15 +211,15 @@ private[macros] abstract class AccessibleMacroBase(val c: whitebox.Context) {
       }
     }
 
-    private def withNoThrow(mods: Modifiers, tree: Tree) = {
-      val isNoThrow = mods.annotations.exists {
-        case q"new $name" => name.toString == classOf[noThrow].getSimpleName()
+    private def withThrowsNothing(mods: Modifiers, tree: Tree) = {
+      val isThrowsNothing = mods.annotations.exists {
+        case q"new $name" => name.toString == classOf[throwsNothing].getSimpleName()
         case _            => true
       }
       val info = typeInfo(tree)
       info.capability match {
-        case Capability.Method(v) if isNoThrow => info.copy(capability = Capability.NoThrowMethod(v))
-        case _                                 => info
+        case Capability.Method(v) if isThrowsNothing => info.copy(capability = Capability.NoThrowMethod(v))
+        case _                                       => info
       }
     }
 
@@ -231,7 +231,7 @@ private[macros] abstract class AccessibleMacroBase(val c: whitebox.Context) {
           case DefDef(mods, termName, tparams, argLists, tree: Tree, _) if termName != constructorName =>
             makeAccessor(
               termName,
-              withNoThrow(mods, tree),
+              withThrowsNothing(mods, tree),
               moduleInfo.serviceTypeParams,
               tparams,
               argLists,
@@ -239,7 +239,7 @@ private[macros] abstract class AccessibleMacroBase(val c: whitebox.Context) {
             )
 
           case v @ ValDef(mods, termName, tree: Tree, _) =>
-            makeAccessor(termName, withNoThrow(mods, tree), moduleInfo.serviceTypeParams, Nil, Nil, isVal = true)
+            makeAccessor(termName, withThrowsNothing(mods, tree), moduleInfo.serviceTypeParams, Nil, Nil, isVal = true)
         }
 
       moduleInfo.module match {
