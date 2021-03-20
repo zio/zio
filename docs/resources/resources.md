@@ -10,9 +10,10 @@ title:  "Resources"
 _These articles reflect the state of ZIO at the time of their publication. The code samples might be outdated, considering ZIO was early in development at the time they were written. However, the concepts are still relevant._
 
 - [Streaming microservices with ZIO and Kafka](https://scalac.io/streaming-microservices-with-zio-and-kafka/) by Aleksandar Skrbic (February 2021)
+- [Introduction to ZIO Actors](https://www.softinio.com/post/introduction-to-zio-actors/) by [Salar Rahmanian](https://www.softinio.com) (November 2020)
 - [Playing with ZIO Streams and JMS](https://blended-zio.github.io/blended-zio/blog/zio-streams-jms) by Andreas Gies (October 2020)
 - [Processing ZIO effects through a pipeline](https://medium.com/@svroonland/processing-zio-effects-through-a-pipeline-c469e28dff62) (September 2020)
-- [Lessons Learned From Being a ZIO Contributor](https://www.softinio.com/post/lessons-learned-from-being-a-zio-contributor/) by Salar Rahmanian (September 2020)
+- [Lessons Learned From Being a ZIO Contributor](https://www.softinio.com/post/lessons-learned-from-being-a-zio-contributor/) by [Salar Rahmanian](https://www.softinio.com) (September 2020)
 - [uzhttp + sttp for light-weight http and websockets](https://timpigden.github.io/_pages/zio-uzhttp-sttp/uzhttp-sttp.html) updated for 1.0.1 by Tim Pigden (August 2020)
 - [Streaming all the way with ZIO, Doobie, Quill, http4s and fs2](https://juliano-alves.com/2020/06/15/streaming-all-the-way-zio-doobie-quill-http4s-fs2/) by Juliano Alves (June 2020)
 - [Building a cool CLI with Decline for my ZIO App](https://medium.com/@pascal.mengelt/building-a-cool-cli-with-decline-for-my-zio-app-80e095b2899a) by Pascal Mengelt (May 2020)
@@ -55,6 +56,7 @@ _These articles reflect the state of ZIO at the time of their publication. The c
 
 ## Talks
 
+- [Acting Lessons for Scala Engineers with Akka and ZIO](https://www.youtube.com/watch?v=AQXBlbkf9wc) by [Salar Rahmanian](https://wwww.softinio.com) (November 2020)
 - [Redis Streams with ZIO](https://youtu.be/jJnco6sMZQY) by [Leszek Gruchała](https://twitter.com/leszekgruchala) (October 2020)
 - [Declarative Concurrency with ZIO STM](https://www.youtube.com/watch?v=MEH7hQmGK5M) by Dejan Mijic (June 2020)
 - [FP to the Max](https://www.youtube.com/watch?v=sxudIMiOo68) by John De Goes (July 2018)
