@@ -26,6 +26,7 @@ private[macros] abstract class AccessibleMacroBase(val c: whitebox.Context) {
 
   protected val any: Tree       = tq"_root_.scala.Any"
   protected val throwable: Tree = tq"_root_.java.lang.Throwable"
+  protected val nothing: Tree   = tq"_root_.scala.Nothing"
 
   protected val zioServiceName: TermName  = TermName("Service")
   protected val constructorName: TermName = TermName("$init$")
@@ -44,6 +45,7 @@ private[macros] abstract class AccessibleMacroBase(val c: whitebox.Context) {
     case class Method(a: Tree)                                   extends Capability
     case class Sink(r: Tree, e: Tree, a: Tree, l: Tree, b: Tree) extends Capability
     case class Stream(r: Tree, e: Tree, a: Tree)                 extends Capability
+    case class NoThrowMethod(a: Tree)                            extends Capability
   }
 
   protected case class TypeInfo(capability: Capability) {
@@ -54,6 +56,7 @@ private[macros] abstract class AccessibleMacroBase(val c: whitebox.Context) {
       case Capability.Sink(r, _, _, _, _) => r
       case Capability.Stream(r, _, _)     => r
       case Capability.Method(_)           => any
+      case Capability.NoThrowMethod(_)    => any
     }
 
     val e: Tree = capability match {
@@ -62,6 +65,7 @@ private[macros] abstract class AccessibleMacroBase(val c: whitebox.Context) {
       case Capability.Sink(_, e, _, _, _) => e
       case Capability.Stream(_, e, _)     => e
       case Capability.Method(_)           => throwable
+      case Capability.NoThrowMethod(_)    => nothing
     }
 
     val a: Tree = capability match {
@@ -70,6 +74,7 @@ private[macros] abstract class AccessibleMacroBase(val c: whitebox.Context) {
       case Capability.Sink(_, e, a, l, b) => tq"_root_.zio.stream.ZSink[$any, $e, $a, $l, $b]"
       case Capability.Stream(_, e, a)     => tq"_root_.zio.stream.ZStream[$any, $e, $a]"
       case Capability.Method(a)           => a
+      case Capability.NoThrowMethod(a)    => a
     }
   }
 
@@ -147,6 +152,8 @@ private[macros] abstract class AccessibleMacroBase(val c: whitebox.Context) {
           else tq"_root_.zio.stream.ZSink[_root_.zio.Has[Service[..$serviceTypeArgs]], $e, $a, $l, $b]"
         case Capability.Method(a) =>
           tq"_root_.zio.ZIO[_root_.zio.Has[Service[..$serviceTypeArgs]], $throwable, $a]"
+        case Capability.NoThrowMethod(a) =>
+          tq"_root_.zio.ZIO[_root_.zio.Has[Service[..$serviceTypeArgs]], $nothing, $a]"
       }
 
       val typeArgs = typeParams.map(_.name)
@@ -204,16 +211,35 @@ private[macros] abstract class AccessibleMacroBase(val c: whitebox.Context) {
       }
     }
 
+    private def withNoThrow(mods: Modifiers, tree: Tree) = {
+      val isNoThrow = mods.annotations.exists {
+        case q"new $name" => name.toString == classOf[noThrow].getSimpleName()
+        case _            => true
+      }
+      val info = typeInfo(tree)
+      info.capability match {
+        case Capability.Method(v) if isNoThrow => info.copy(capability = Capability.NoThrowMethod(v))
+        case _                                 => info
+      }
+    }
+
     @silent("pattern var [^\\s]+ in method unapply is never used")
     final def apply(): c.Tree = {
 
       val accessors =
         moduleInfo.service.impl.body.collect {
-          case DefDef(_, termName, tparams, argLists, tree: Tree, _) if termName != constructorName =>
-            makeAccessor(termName, typeInfo(tree), moduleInfo.serviceTypeParams, tparams, argLists, isVal = false)
+          case DefDef(mods, termName, tparams, argLists, tree: Tree, _) if termName != constructorName =>
+            makeAccessor(
+              termName,
+              withNoThrow(mods, tree),
+              moduleInfo.serviceTypeParams,
+              tparams,
+              argLists,
+              isVal = false
+            )
 
-          case ValDef(_, termName, tree: Tree, _) =>
-            makeAccessor(termName, typeInfo(tree), moduleInfo.serviceTypeParams, Nil, Nil, isVal = true)
+          case v @ ValDef(mods, termName, tree: Tree, _) =>
+            makeAccessor(termName, withNoThrow(mods, tree), moduleInfo.serviceTypeParams, Nil, Nil, isVal = true)
         }
 
       moduleInfo.module match {

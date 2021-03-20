@@ -285,6 +285,42 @@ object AccessibleSpec extends DefaultRunnableSpec {
             }
           """
         })(isRight(anything))
+      },
+      testM("generates accessor for noThrow values") {
+        assertM(typeCheck {
+          """
+            @accessible
+            object Module {
+              trait Service {
+                @noThrow
+                val test: Unit
+              }
+            }
+
+            object Check {
+              val foo: ZIO[Has[Module.Service], Nothing, Unit] =
+                Module.test
+            }
+          """
+        })(isRight(anything))
+      },
+      testM("generates accessor for noThrow methods") {
+        assertM(typeCheck {
+          """
+            @accessible
+            object Module {
+              trait Service {
+                @noThrow
+                def test: Unit
+              }
+            }
+
+            object Check {
+              def foo: ZIO[Has[Module.Service], Nothing, Unit] =
+                Module.test
+            }
+          """
+        })(isRight(anything))
       }
     )
   )
