@@ -867,46 +867,38 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
           }
 
         case Tags.OnSuccess =>
-          val fc = curr.asInstanceOf[OnSuccess[Any, Any, Any, Any]]
-          contStack.push(fc.onSuccess)
-          curr = fc.self
+          val onSuccess = curr.asInstanceOf[OnSuccess[Any, Any, Any, Any]]
+          contStack.push(onSuccess.k)
+          curr = onSuccess.stm
 
         case Tags.OnFailure =>
-          val fc = curr.asInstanceOf[OnFailure[Any, Any, Any, Any]]
-          contStack.push(fc)
-          curr = fc.self
+          val onFailure = curr.asInstanceOf[OnFailure[Any, Any, Any, Any]]
+          contStack.push(onFailure)
+          curr = onFailure.stm
 
         case Tags.OnRetry =>
-          val fc = curr.asInstanceOf[OnRetry[Any, Any, Any]]
-          contStack.push(fc)
-          curr = fc.self
+          val onRetry = curr.asInstanceOf[OnRetry[Any, Any, Any]]
+          contStack.push(onRetry)
+          curr = onRetry.stm
 
         case Tags.ProvideSome =>
-          val ps = curr.asInstanceOf[ProvideSome[Any, Any, Any, Any]]
+          val provideSome = curr.asInstanceOf[ProvideSome[Any, Any, Any, Any]]
 
-          envStack.push(ps.f.asInstanceOf[AnyRef => AnyRef](envStack.peek()))
+          envStack.push(provideSome.f.asInstanceOf[AnyRef => AnyRef](envStack.peek()))
 
           val cleanup = ZSTM.succeed(envStack.pop())
 
-          curr = ps.effect.ensuring(cleanup).asInstanceOf[Erased]
+          curr = provideSome.effect.ensuring(cleanup).asInstanceOf[Erased]
 
         case Tags.SucceedNow =>
           val a = curr.asInstanceOf[SucceedNow[Any]].a
 
-          if (contStack.isEmpty) exit = TExit.Succeed(a)
-          else {
-            val k = contStack.pop()
-            curr = k(a)
-          }
+          if (contStack.isEmpty) exit = TExit.Succeed(a) else curr = contStack.pop()(a)
 
         case Tags.Succeed =>
           val a = curr.asInstanceOf[Succeed[Any]].a()
 
-          if (contStack.isEmpty) exit = TExit.Succeed(a)
-          else {
-            val k = contStack.pop()
-            curr = k(a)
-          }
+          if (contStack.isEmpty) exit = TExit.Succeed(a) else curr = contStack.pop()(a)
       }
     }
 
@@ -1519,7 +1511,7 @@ object ZSTM {
     def tag: Int = Tags.Effect
   }
 
-  private[stm] final case class OnFailure[R, E1, E2, A](self: ZSTM[R, E1, A], onFailure: E1 => ZSTM[R, E2, A])
+  private[stm] final case class OnFailure[R, E1, E2, A](stm: ZSTM[R, E1, A], k: E1 => ZSTM[R, E2, A])
       extends ZSTM[R, E2, A]
       with Function[A, ZSTM[R, E2, A]] {
     def tag: Int = Tags.OnFailure
@@ -1527,7 +1519,7 @@ object ZSTM {
     def apply(a: A): ZSTM[R, E2, A] = succeedNow(a)
   }
 
-  private[stm] final case class OnRetry[R, E, A](self: ZSTM[R, E, A], onRetry: ZSTM[R, E, A])
+  private[stm] final case class OnRetry[R, E, A](stm: ZSTM[R, E, A], onRetry: ZSTM[R, E, A])
       extends ZSTM[R, E, A]
       with Function[A, ZSTM[R, E, A]] {
     def tag: Int = Tags.OnRetry
@@ -1535,7 +1527,7 @@ object ZSTM {
     def apply(a: A): ZSTM[R, E, A] = succeedNow(a)
   }
 
-  private[stm] final case class OnSuccess[R, E, A, B](self: ZSTM[R, E, A], onSuccess: A => ZSTM[R, E, B])
+  private[stm] final case class OnSuccess[R, E, A, B](stm: ZSTM[R, E, A], k: A => ZSTM[R, E, B])
       extends ZSTM[R, E, B] {
     def tag: Int = Tags.OnSuccess
   }
