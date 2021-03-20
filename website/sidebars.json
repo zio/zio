@@ -83,7 +83,8 @@
   },
   "resources-sidebar": {
     "Resources": [
-      "resources/resources"
+      "resources/resources",
+      "resources/migrating_from_monix"
     ]
   },
   "ecosystem-sidebar": {
