@@ -2097,14 +2097,14 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
 
   /**
    * Sequentially zips the this result with the specified result. Combines both
-   * `Cause[E1]` when both both effects fail.
+   * `Cause[E1]` when both effects fail.
    */
   final def validate[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, (A, B)] =
     validateWith(that)((_, _))
 
   /**
    * Returns an effect that executes both this effect and the specified effect,
-   * in parallel. Combines both Cause[E1]` when both both effects fail.
+   * in parallel. Combines both Cause[E1]` when both effects fail.
    */
   final def validatePar[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, (A, B)] =
     validateWithPar(that)((_, _))
