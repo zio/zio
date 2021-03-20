@@ -130,4 +130,4 @@ _These articles reflect the state of ZIO at the time of their publication. The c
 ## Support
 
 - [Official Discord Server](https://discord.gg/2ccFBr4)
-- [Matrix/Element Bridge](https://matrix.to/#/!DSuGJGswztuWkwWSQy:matrix.org?via=matrix.org&via=t2bot.io&via=matrix.benkolera.com)
+
