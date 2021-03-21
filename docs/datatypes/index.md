@@ -6,18 +6,23 @@ title: "Introduction"
 ZIO contains a few data types that can help you solve complex problems in asynchronous and concurrent programming. ZIO data types categorize into these sections:
 
 1. [Core Data Types](#core-data-types)
-2. [Concurrency Primitives](#concurrency-primitives)
-3. [STM](#stm)
-4. [Resource Safety](#resource-safety)
-5. [Runtime](#runtime)
-6. [Streaming](#streaming)
-7. [Miscellaneous](#miscellaneous)
+2. [Fiber Primitives](#fiber-primitives)
+3. [Concurrency Primitives](#concurrency-primitives)
+4. [STM](#stm)
+5. [Resource Safety](#resource-safety)
+6. [Runtime](#runtime)
+7. [Streaming](#streaming)
+8. [Miscellaneous](#miscellaneous)
 
 ## Core Data Types
  - **[ZIO](core/io.md)** — A `ZIO` is a value that models an effectful program, which might fail or succeed.
- - **[Fiber](core/fiber.md)** — A fiber value models an `IO` value that has started running, and is the moral equivalent of a green thread.
- - **[FiberRef](core/fiberref.md)** — `FiberRef[A]` models a mutable reference to a value of type `A`. As opposed to `Ref[A]`, a value is bound to an executing `Fiber` only.  You can think of it as Java's `ThreadLocal` on steroids.
  - **[ZLayer](core/zlayer.md)** - A `ZLayer` describes a layer of an application.
+ 
+## Fiber Primitives
+ - **[Fiber](fiber/fiber.md)** — A fiber value models an `IO` value that has started running, and is the moral equivalent of a green thread.
+ - **[FiberRef](fiber/fiberref.md)** — `FiberRef[A]` models a mutable reference to a value of type `A`. As opposed to `Ref[A]`, a value is bound to an executing `Fiber` only.  You can think of it as Java's `ThreadLocal` on steroids.
+ - **[Fiber.Status](fiber/fiberstatus.md)** — `Fiber.Status` describe the current status of a Fiber.
+ - **[Fiber.Id](fiber/fiberid.md)** — `Fiber.Id` describe the unique identity of a Fiber.
  
 ## Concurrency Primitives
  - **[Promise](concurrency/promise.md)** — A `Promise` is a model of a variable that may be set a single time, and awaited on by many fibers.

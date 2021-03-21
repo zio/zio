@@ -23,9 +23,14 @@
       "datatypes/core/io",
       "datatypes/core/exit",
       "datatypes/core/cause",
-      "datatypes/core/fiber",
-      "datatypes/core/fiberref",
       "datatypes/module/zlayer"
+    ],
+    "Fiber Primitives": [
+      "datatypes/fiber/index",
+      "datatypes/fiber/fiber",
+      "datatypes/fiber/fiberref",
+      "datatypes/fiber/fiberid",
+      "datatypes/fiber/fiberstatus"
     ],
     "Concurrency Primitives": [
       "datatypes/concurrency/index",
