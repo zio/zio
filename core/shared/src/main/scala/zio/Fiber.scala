@@ -274,7 +274,7 @@ sealed abstract class Fiber[+E, +A] { self =>
    * @param ev implicit witness that E is a subtype of Throwable
    * @return `UIO[Future[A]]`
    */
-  final def toFuture(implicit ev: E HasError Throwable): UIO[CancelableFuture[A]] =
+  final def toFuture(implicit ev: E IsSubtypeOfError Throwable): UIO[CancelableFuture[A]] =
     self toFutureWith ev
 
   /**

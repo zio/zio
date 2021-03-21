@@ -389,7 +389,7 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
    * Squashes a `Cause` down to a single `Throwable`, chosen to be the
    * "most important" `Throwable`.
    */
-  final def squash(implicit ev: E HasError Throwable): Throwable =
+  final def squash(implicit ev: E IsSubtypeOfError Throwable): Throwable =
     squashWith(ev)
 
   /**
@@ -413,7 +413,7 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
    * In addition, appends a new element the to `Throwable`s "caused by" chain,
    * with this `Cause` "pretty printed" (in stackless mode) as the message.
    */
-  final def squashTrace(implicit ev: E HasError Throwable): Throwable =
+  final def squashTrace(implicit ev: E IsSubtypeOfError Throwable): Throwable =
     squashTraceWith(ev)
 
   /**

@@ -24,7 +24,7 @@ private[zio] trait ZIOPlatformSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
   /**
    * Converts the current `ZIO` to a Scala.js promise.
    */
-  def toPromiseJS(implicit ev: E HasError Throwable): URIO[R, JSPromise[A]] =
+  def toPromiseJS(implicit ev: E IsSubtypeOfError Throwable): URIO[R, JSPromise[A]] =
     toPromiseJSWith(ev)
 
   /**
