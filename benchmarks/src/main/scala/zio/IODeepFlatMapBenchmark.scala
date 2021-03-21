@@ -1,12 +1,10 @@
 package zio
 
-import java.util.concurrent.TimeUnit
-
-import scala.concurrent.Await
-
 import org.openjdk.jmh.annotations._
-
 import zio.IOBenchmarks._
+
+import java.util.concurrent.TimeUnit
+import scala.concurrent.Await
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
@@ -79,7 +77,7 @@ class IODeepFlatMapBenchmark {
 
   @Benchmark
   def twitterDeepFlatMap(): BigInt = {
-    import com.twitter.util.{ Await, Future }
+    import com.twitter.util.{Await, Future}
 
     def fib(n: Int): Future[BigInt] =
       if (n <= 1) Future(n)
@@ -98,7 +96,7 @@ class IODeepFlatMapBenchmark {
       else
         fib(n - 1).flatMap(a => fib(n - 2).flatMap(b => Task.eval(a + b)))
 
-    fib(depth).runSyncStep.right.get
+    fib(depth).runSyncStep.fold(_ => sys.error("Either.right.get on Left"), identity)
   }
 
   @Benchmark
@@ -125,6 +123,6 @@ class IODeepFlatMapBenchmark {
       else
         fib(n - 1).flatMap(a => fib(n - 2).flatMap(b => IO(a + b)))
 
-    fib(depth).unsafeRunSync
+    fib(depth).unsafeRunSync()
   }
 }

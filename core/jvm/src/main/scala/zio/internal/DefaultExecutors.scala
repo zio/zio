@@ -1,6 +1,6 @@
 package zio.internal
 
-import java.util.concurrent.{ LinkedBlockingQueue, RejectedExecutionException, ThreadPoolExecutor, TimeUnit }
+import java.util.concurrent.{LinkedBlockingQueue, RejectedExecutionException, ThreadPoolExecutor, TimeUnit}
 
 private[internal] abstract class DefaultExecutors {
   final def makeDefault(yieldOpCount: Int): Executor =
@@ -62,7 +62,5 @@ private[internal] abstract class DefaultExecutors {
         } catch {
           case _: RejectedExecutionException => false
         }
-
-      def here = false
     }
 }

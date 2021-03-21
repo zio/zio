@@ -16,8 +16,10 @@
 
 package zio.test
 
-import zio.UIO
+import zio.test.Macros.location
+import zio.{UIO, ZIO}
 
+import scala.annotation.tailrec
 import scala.compiletime.testing.typeChecks
 
 trait CompileVariants {
@@ -38,4 +40,37 @@ trait CompileVariants {
 
   private val errorMessage =
     "Reporting of compilation error messages on Dotty is not currently supported due to instability of the underlying APIs."
+
+  /**
+   * Checks the assertion holds for the given value.
+   */
+  private[test] def assertImpl[A](value: => A, expression: Option[String] = None, sourceLocation: Option[String] = None)
+                                 (assertion: Assertion[A]): TestResult
+  /**
+   * Checks the assertion holds for the given effectfully-computed value.
+   */
+  private[test] def assertMImpl[R, E, A](effect: ZIO[R, E, A], sourceLocation: Option[String] = None)
+                                            (assertion: AssertionM[A]): ZIO[R, E, TestResult]
+
+
+  inline def assert[A](inline value: => A)(inline assertion: Assertion[A]): TestResult = ${Macros.assert_impl('value)('assertion)}
+
+  inline def assertM[R, E, A](effect: ZIO[R, E, A])(assertion: AssertionM[A]): ZIO[R, E, TestResult] = ${Macros.assertM_impl('effect)('assertion)}
+
+  private[zio] inline def sourcePath: String = ${Macros.sourcePath_impl}
+
+  private[zio] inline def showExpression[A](inline value: => A): String = ${Macros.showExpression_impl('value)}
+}
+
+/**
+ * Proxy methods to call package private methods from the macro
+ */
+object CompileVariants {
+
+  def assertProxy[A](value: => A, expression: String, sourceLocation: String)(assertion: Assertion[A]): TestResult =
+    zio.test.assertImpl(value, Some(expression), Some(sourceLocation))(assertion)
+
+  def assertMProxy[R, E, A](effect: ZIO[R, E, A], sourceLocation: String)
+                              (assertion: AssertionM[A]): ZIO[R, E, TestResult] =
+    zio.test.assertMImpl(effect, Some(sourceLocation))(assertion)
 }

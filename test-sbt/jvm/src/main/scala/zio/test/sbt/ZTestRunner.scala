@@ -16,12 +16,11 @@
 
 package zio.test.sbt
 
-import java.util.concurrent.atomic.AtomicReference
-
 import sbt.testing._
-
 import zio.ZIO
-import zio.test.{ Summary, TestArgs }
+import zio.test.{Summary, TestArgs}
+
+import java.util.concurrent.atomic.AtomicReference
 
 final class ZTestRunner(val args: Array[String], val remoteArgs: Array[String], testClassLoader: ClassLoader)
     extends Runner {
@@ -66,7 +65,7 @@ final class ZTestRunner(val args: Array[String], val remoteArgs: Array[String], 
 final class ZTestTask(taskDef: TaskDef, testClassLoader: ClassLoader, sendSummary: SendSummary, testArgs: TestArgs)
     extends BaseTestTask(taskDef, testClassLoader, sendSummary, testArgs)
 
-trait ZTestTaskPolicy {
+abstract class ZTestTaskPolicy {
   def merge(zioTasks: Array[ZTestTask]): Array[Task]
 }
 

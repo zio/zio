@@ -27,7 +27,7 @@ import zio.ZIO
  * NOTE: it being an `abstract class`, not trait is important as type casing
  * on class appears to be about 10 times faster in [[zio.internal.FiberContext.unwrap]]
  * hot-spot.
- * */
+ */
 private[zio] abstract class ZIOFn extends Serializable {
   def underlying: AnyRef
 }
@@ -55,7 +55,7 @@ private[zio] object ZIOFn {
 
   /**
    * Adds the specified lambda to the stack trace during the evaluation of `zio`
-   * */
+   */
   @noinline
   def recordStackTrace[R, E, A](lambda: AnyRef)(zio: ZIO[R, E, A]): ZIO[R, E, A] =
     zio.map(ZIOFn(lambda)(ZIO.identityFn))

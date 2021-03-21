@@ -4,13 +4,13 @@ scala_211: &scala_211
   SCALA_VERSION: 2.11.12
 
 scala_212: &scala_212
-  SCALA_VERSION: 2.12.10
+  SCALA_VERSION: 2.12.13
 
 scala_213: &scala_213
-  SCALA_VERSION: 2.13.1
+  SCALA_VERSION: 2.13.5
 
 scala_dotty: &scala_dotty
-  SCALA_VERSION: 0.22.0-RC1
+  SCALA_VERSION: 3.0.0-RC1
 
 jdk_8: &jdk_8
   JDK_VERSION: 8
@@ -31,29 +31,28 @@ install_jdk: &install_jdk
       command: |
         while $(ps aux | grep -i ' apt ' | grep -v grep > /dev/null); do sleep 1; done # Wait for apt to be ready
 
+        # jfrog repositories with AdoptOpenJDK haven't been reliable, use Java from Ubuntu instead
         sudo rm /etc/apt/sources.list.d/*
         sudo tee /etc/apt/sources.list > /dev/null \<< 'EOF'
-        deb http://mirror.math.princeton.edu/pub/ubuntu/ xenial main universe
-        deb http://mirror.math.princeton.edu/pub/ubuntu/ xenial-updates main universe
-        deb http://mirror.math.princeton.edu/pub/ubuntu/ xenial-backports main universe
-        deb http://mirror.math.princeton.edu/pub/ubuntu/ xenial-security main restricted universe
+        deb http://mirror.math.princeton.edu/pub/ubuntu/ groovy main universe
+        deb http://mirror.math.princeton.edu/pub/ubuntu/ groovy-updates main universe
+        deb http://mirror.math.princeton.edu/pub/ubuntu/ groovy-backports main universe
+        deb http://mirror.math.princeton.edu/pub/ubuntu/ groovy-security main restricted universe
         EOF
 
-        if [ $JDK_VERSION == 11 ]; then
-          wget -qO - https://adoptopenjdk.jfrog.io/adoptopenjdk/api/gpg/key/public | sudo apt-key add -
-          sudo add-apt-repository https://adoptopenjdk.jfrog.io/adoptopenjdk/deb/ -y
-        fi
+        sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 871920D1991BC93C
         sudo apt update
-        if [ $JDK_VERSION == 11 ]; then
-          sudo apt install -y adoptopenjdk-11-hotspot
-        elif [ $JDK_VERSION == 8 ]; then
-          sudo apt install -y openjdk-8-jdk
-        fi
+        export DEBIAN_FRONTEND=noninteractive
+        sudo apt-get install \
+          -o "Dpkg::Options::=--force-confold" -o "Dpkg::Options::=--force-confdef" -o "APT::Immediate-Configure=false" --allow-downgrades --allow-remove-essential --allow-change-held-packages --no-install-recommends \
+          openjdk-${JDK_VERSION}-jre-headless
+        sudo update-alternatives --install /usr/bin/java java /usr/lib/jvm/java-${JDK_VERSION}-openjdk-amd64/bin/java 9999
+        sudo update-alternatives --set java /usr/lib/jvm/java-${JDK_VERSION}-openjdk-amd64/bin/java
         java -version
 
 load_cache: &load_cache
   - restore_cache:
-      key: sbt-cache-v2
+      key: sbt-cache-v3
 
 clean_cache: &clean_cache
   - run:
@@ -65,7 +64,7 @@ clean_cache: &clean_cache
 
 save_cache: &save_cache
   - save_cache:
-      key: sbt-cache-v2
+      key: sbt-cache-v3
       paths:
           - "~/.ivy2/cache"
           - "~/.sbt"
@@ -77,6 +76,8 @@ install_yarn: &install_yarn
   - run:
       name: Install Yarn
       command: |
+        sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 78BD65473CB3BD13
+        sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 5DC22404A6F9F1CA
         curl -sL https://dl.yarnpkg.com/debian/pubkey.gpg | sudo apt-key add -
         sudo bash -c 'echo "deb https://dl.yarnpkg.com/debian/ stable main" > /etc/apt/sources.list.d/yarn.list'
         sudo apt update && sudo apt install yarn -y
@@ -101,9 +102,10 @@ lint: &lint
   steps:
     - checkout
     - <<: *load_cache
+    - <<: *install_jdk
     - run:
         name: Lint code
-        command: ./sbt ++${SCALA_VERSION}! fmtCheck fixCheck
+        command: ./sbt ++${SCALA_VERSION} fmtCheck fixCheck
     - <<: *clean_cache
     - <<: *save_cache
 
@@ -111,11 +113,23 @@ mdoc: &mdoc
   steps:
     - checkout
     - <<: *load_cache
+    - <<: *install_jdk
     - run:
         name: Generate documentation
         command: |
-          ./sbt -Dfatal.warnings=true coreJVM/doc coreJS/doc streamsJVM/doc streamsJS/doc testJVM/doc testJS/doc
+          ./sbt coreJVM/doc coreJS/doc streamsJVM/doc streamsJS/doc testJVM/doc testJS/doc
           ./sbt ++${SCALA_VERSION}! mdoc
+    - <<: *clean_cache
+    - <<: *save_cache
+
+mimaChecks: &mimaChecks
+  steps:
+    - checkout
+    - <<: *load_cache
+    - <<: *install_jdk
+    - run:
+        name: Run MiMa checks
+        command: ./sbt ++${SCALA_VERSION}! mimaChecks
     - <<: *clean_cache
     - <<: *save_cache
 
@@ -126,7 +140,7 @@ testJVM: &testJVM
     - <<: *install_jdk
     - run:
         name: Run tests
-        command: ./sbt -Dfatal.warnings=true ++${SCALA_VERSION}! testJVM
+        command: ./sbt ++${SCALA_VERSION}! testJVM
     - <<: *clean_cache
     - <<: *save_cache
     - store_test_results:
@@ -139,7 +153,7 @@ testJVMNoBenchmarks: &testJVMNoBenchmarks
     - <<: *install_jdk
     - run:
         name: Run tests
-        command: ./sbt -Dfatal.warnings=true ++${SCALA_VERSION}! testJVMNoBenchmarks
+        command: ./sbt ++${SCALA_VERSION}! testJVMNoBenchmarks
     - <<: *clean_cache
     - <<: *save_cache
     - store_test_results:
@@ -149,11 +163,14 @@ testJVMDotty: &testJVMDotty
   steps:
     - checkout
     - <<: *load_cache
+    - <<: *install_jdk
     - run:
         name: Run tests
-        command: ./sbt -Dfatal.warnings=true ++${SCALA_VERSION}! testJVMDotty
+        command: ./sbt ++${SCALA_VERSION}! testJVMDotty
     - <<: *clean_cache
     - <<: *save_cache
+    - store_test_results:
+        path: core-tests/jvm/target/test-reports
 
 testJVM211: &testJVM211
   steps:
@@ -162,7 +179,7 @@ testJVM211: &testJVM211
     - <<: *install_jdk
     - run:
         name: Run tests
-        command: ./sbt -Dfatal.warnings=true ++${SCALA_VERSION}! testJVM211
+        command: ./sbt ++${SCALA_VERSION}! testJVM211
     - <<: *clean_cache
     - <<: *save_cache
     - store_test_results:
@@ -176,7 +193,7 @@ testJS: &testJS
     - <<: *install_nodejs
     - run:
         name: Run tests
-        command: ./sbt -Dfatal.warnings=true ++${SCALA_VERSION}! testJS
+        command: ./sbt ++${SCALA_VERSION}! testJS
     - <<: *clean_cache
     - <<: *save_cache
     - store_test_results:
@@ -190,7 +207,7 @@ testJS211: &testJS211
     - <<: *install_nodejs
     - run:
         name: Run tests
-        command: ./sbt -Dfatal.warnings=true ++${SCALA_VERSION}! testJS211
+        command: ./sbt ++${SCALA_VERSION}! testJS211
     - <<: *clean_cache
     - <<: *save_cache
     - store_test_results:
@@ -200,11 +217,14 @@ testNative: &testNative
   steps:
     - checkout
     - <<: *load_cache
+    - <<: *install_jdk
     - run:
         name: Run tests
-        command: ./sbt compileNative
+        command: ./sbt testNative
     - <<: *clean_cache
     - <<: *save_cache
+    - store_test_results:
+        path: core-tests/native/target/test-reports
 
 release: &release
   steps:
@@ -213,6 +233,7 @@ release: &release
           name: Fetch git tags
           command: git fetch --tags
       - <<: *load_cache
+      - <<: *install_jdk
       - run: 
           name: Write sonatype credentials
           command: echo "credentials += Credentials(\"Sonatype Nexus Repository Manager\", \"oss.sonatype.org\", \"${SONATYPE_USER}\", \"${SONATYPE_PASSWORD}\")" > ~/.sbt/1.0/sonatype.sbt
@@ -243,6 +264,7 @@ microsite: &microsite
             - "b3:9b:af:d5:de:74:32:e7:7a:21:77:77:66:fe:2f:42"
       - checkout
       - <<: *load_cache
+      - <<: *install_jdk
       - <<: *install_nodejs
       - <<: *install_yarn
       - run:
@@ -269,14 +291,14 @@ jobs:
     <<: *lint
     <<: *machine_ubuntu
     environment:
-      - <<: *scala_212
+      - <<: *scala_213
       - <<: *jdk_8
 
   mdoc:
     <<: *mdoc
     <<: *machine_ubuntu
     environment:
-      - <<: *scala_212
+      - <<: *scala_213
       - <<: *jdk_8
 
   test_211_jdk8_jvm:
@@ -303,6 +325,22 @@ jobs:
       - <<: *scala_213
       - <<: *jdk_8
 
+  mima_212:
+    <<: *mimaChecks
+    <<: *machine_ubuntu
+    <<: *machine_resource
+    environment:
+      - <<: *scala_212
+      - <<: *jdk_8
+
+  mima_213:
+    <<: *mimaChecks
+    <<: *machine_ubuntu
+    <<: *machine_resource
+    environment:
+      - <<: *scala_213
+      - <<: *jdk_8
+
   test_dotty_jdk8_jvm:
     <<: *testJVMDotty
     <<: *machine_ubuntu
@@ -311,7 +349,7 @@ jobs:
       - <<: *scala_dotty
       - <<: *jdk_8
 
-  test_212_jdk11_jvm:
+  test_213_jdk11_jvm:
     <<: *testJVM
     <<: *machine_ubuntu
     <<: *machine_resource
@@ -322,6 +360,7 @@ jobs:
   test_211_jdk8_js:
     <<: *testJS211
     <<: *machine_ubuntu
+    <<: *machine_resource
     environment:
       - <<: *scala_211
       - <<: *jdk_8
@@ -329,6 +368,7 @@ jobs:
   test_212_jdk8_js:
     <<: *testJS
     <<: *machine_ubuntu
+    <<: *machine_resource
     environment:
       - <<: *scala_212
       - <<: *jdk_8
@@ -336,6 +376,7 @@ jobs:
   test_213_jdk8_js:
     <<: *testJS
     <<: *machine_ubuntu
+    <<: *machine_resource
     environment:
       - <<: *scala_213
       - <<: *jdk_8
@@ -346,6 +387,22 @@ jobs:
     <<: *machine_resource
     environment:
       - <<: *scala_211
+      - <<: *jdk_8
+
+  test_212_jdk8_native:
+    <<: *testNative
+    <<: *machine_ubuntu
+    <<: *machine_resource
+    environment:
+      - <<: *scala_212
+      - <<: *jdk_8
+
+  test_213_jdk8_native:
+    <<: *testNative
+    <<: *machine_ubuntu
+    <<: *machine_resource
+    environment:
+      - <<: *scala_213
       - <<: *jdk_8
 
   release:
@@ -373,6 +430,16 @@ workflows:
             - lint
           filters:
             <<: *filter_tags
+      - mima_212:
+          requires:
+            - lint
+          filters:
+            <<: *filter_tags
+      - mima_213:
+          requires:
+            - lint
+          filters:
+            <<: *filter_tags
       - test_211_jdk8_jvm:
           requires:
             - lint
@@ -393,7 +460,7 @@ workflows:
             - lint
           filters:
             <<: *filter_tags
-      - test_212_jdk11_jvm:
+      - test_213_jdk11_jvm:
           requires:
             - lint
           filters:
@@ -418,17 +485,33 @@ workflows:
             - lint
           filters:
             <<: *filter_tags
+      - test_212_jdk8_native:
+          requires:
+            - lint
+          filters:
+            <<: *filter_tags
+      - test_213_jdk8_native:
+          requires:
+            - lint
+          filters:
+            <<: *filter_tags
       - release:
           context: Sonatype2
           requires:
             - test_211_jdk8_jvm
             - test_211_jdk8_js
+            - test_211_jdk8_native
             - test_212_jdk8_jvm
-            - test_212_jdk11_jvm
             - test_212_jdk8_js
+            - test_212_jdk8_native
             - test_213_jdk8_jvm
             - test_213_jdk8_js
+            - test_213_jdk8_native
+            - test_213_jdk11_jvm
+            - test_dotty_jdk8_jvm
             - mdoc
+            - mima_212
+            - mima_213
           filters:
             <<: *filter_tags
             branches:

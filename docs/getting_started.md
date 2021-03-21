@@ -28,13 +28,12 @@ println(s"""```""")
 Your application can extend `App`, which provides a complete runtime system and allows you to write your whole program using ZIO:
 
 ```scala mdoc:silent
-import zio.App
 import zio.console._
 
-object MyApp extends App {
+object MyApp extends zio.App {
 
   def run(args: List[String]) =
-    myAppLogic.fold(_ => 1, _ => 0)
+    myAppLogic.exitCode
 
   val myAppLogic =
     for {
@@ -44,7 +43,7 @@ object MyApp extends App {
     } yield ()
 }
 ```
-The run `run` method should return a ZIO value which has all its errors handled,  
+The `run` method should return a ZIO value which has all its errors handled,  
 which, in ZIO parlance, is an unexceptional ZIO value.  
 
 One way to do this is to invoke `fold` over a ZIO value, to get an unexceptional ZIO value.

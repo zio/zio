@@ -16,56 +16,76 @@
 
 package zio.stm
 
+import zio.stm.ZSTM.internal._
+import zio.{Chunk, ChunkBuilder}
+
 /**
  * Transactional map implemented on top of [[TRef]] and [[TArray]]. Resolves
  * conflicts via chaining.
  */
 final class TMap[K, V] private (
   private val tBuckets: TRef[TArray[List[(K, V)]]],
-  private val tCapacity: TRef[Int],
   private val tSize: TRef[Int]
 ) {
 
   /**
    * Tests whether or not map contains a key.
    */
-  def contains(k: K): STM[Nothing, Boolean] =
+  def contains(k: K): USTM[Boolean] =
     get(k).map(_.isDefined)
+
+  /**
+   * Tests if the map is empty or not
+   */
+  def isEmpty: USTM[Boolean] =
+    tSize.map(_ == 0).get
 
   /**
    * Removes binding for given key.
    */
-  def delete(k: K): STM[Nothing, Unit] = {
-    def removeMatching(bucket: List[(K, V)]): STM[Nothing, List[(K, V)]] = {
-      val (toRemove, toRetain) = bucket.partition(_._1 == k)
-      if (toRemove.isEmpty) STM.succeedNow(toRetain) else tSize.update(_ - toRemove.size).as(toRetain)
-    }
+  def delete(k: K): USTM[Unit] =
+    new ZSTM((journal, _, _, _) => {
+      val buckets = tBuckets.unsafeGet(journal)
+      val idx     = TMap.indexOf(k, buckets.array.length)
+      val bucket  = buckets.array(idx).unsafeGet(journal)
 
-    for {
-      buckets <- tBuckets.get
-      idx     <- indexOf(k)
-      _       <- buckets.updateM(idx, removeMatching)
-    } yield ()
-  }
+      val (toRemove, toRetain) = bucket.partition(_._1 == k)
+
+      if (toRemove.nonEmpty) {
+        val currSize = tSize.unsafeGet(journal)
+        buckets.array(idx).unsafeSet(journal, toRetain)
+        tSize.unsafeSet(journal, currSize - 1)
+      }
+
+      TExit.unit
+    })
 
   /**
    * Atomically folds using a pure function.
    */
-  def fold[A](zero: A)(op: (A, (K, V)) => A): STM[Nothing, A] =
-    tBuckets.get.flatMap(_.fold(zero)((acc, bucket) => bucket.foldLeft(acc)(op)))
+  def fold[A](zero: A)(op: (A, (K, V)) => A): USTM[A] =
+    new ZSTM((journal, _, _, _) => {
+      val buckets = tBuckets.unsafeGet(journal)
+      var res     = zero
+      var i       = 0
+
+      while (i < buckets.array.length) {
+        val bucket = buckets.array(i)
+        val items  = bucket.unsafeGet(journal)
+
+        res = items.foldLeft(res)(op)
+
+        i += 1
+      }
+
+      TExit.Succeed(res)
+    })
 
   /**
    * Atomically folds using a transactional function.
    */
-  def foldM[A, E](zero: A)(op: (A, (K, V)) => STM[E, A]): STM[E, A] = {
-    def loopM(res: A, remaining: List[(K, V)]): STM[E, A] =
-      remaining match {
-        case Nil          => STM.succeedNow(res)
-        case head :: tail => op(res, head).flatMap(loopM(_, tail))
-      }
-
-    tBuckets.get.flatMap(_.foldM(zero)(loopM))
-  }
+  def foldM[A, E](zero: A)(op: (A, (K, V)) => STM[E, A]): STM[E, A] =
+    toChunk.flatMap(ZSTM.foldLeft(_)(zero)(op))
 
   /**
    * Atomically performs transactional-effect for each binding present in map.
@@ -76,24 +96,26 @@ final class TMap[K, V] private (
   /**
    * Retrieves value associated with given key.
    */
-  def get(k: K): STM[Nothing, Option[V]] =
-    for {
-      buckets <- tBuckets.get
-      idx     <- indexOf(k)
-      bucket  <- buckets(idx)
-    } yield bucket.find(_._1 == k).map(_._2)
+  def get(k: K): USTM[Option[V]] =
+    new ZSTM((journal, _, _, _) => {
+      val buckets = tBuckets.unsafeGet(journal)
+      val idx     = TMap.indexOf(k, buckets.array.length)
+      val bucket  = buckets.array(idx).unsafeGet(journal)
+
+      TExit.Succeed(bucket.find(_._1 == k).map(_._2))
+    })
 
   /**
    * Retrieves value associated with given key or default value, in case the
    * key isn't present.
    */
-  def getOrElse(k: K, default: => V): STM[Nothing, V] =
+  def getOrElse(k: K, default: => V): USTM[V] =
     get(k).map(_.getOrElse(default))
 
   /**
    * Collects all keys stored in map.
    */
-  def keys: STM[Nothing, List[K]] =
+  def keys: USTM[List[K]] =
     toList.map(_.map(_._1))
 
   /**
@@ -101,7 +123,7 @@ final class TMap[K, V] private (
    * value, otherwise merge the existing value with the new one using function `f`
    * and store the result
    */
-  def merge(k: K, v: V)(f: (V, V) => V): STM[Nothing, V] =
+  def merge(k: K, v: V)(f: (V, V) => V): USTM[V] =
     get(k).flatMap(_.fold(put(k, v).as(v)) { v0 =>
       val v1 = f(v0, v)
       put(k, v1).as(v1)
@@ -110,141 +132,280 @@ final class TMap[K, V] private (
   /**
    * Stores new binding into the map.
    */
-  def put(k: K, v: V): STM[Nothing, Unit] = {
-    def upsert(bucket: List[(K, V)]): STM[Nothing, List[(K, V)]] = {
-      val exists = bucket.exists(_._1 == k)
+  def put(k: K, v: V): USTM[Unit] = {
+    def resize(journal: Journal, buckets: TArray[List[(K, V)]]): Unit = {
+      val capacity    = buckets.array.length
+      val newCapacity = capacity << 1
+      val newBuckets  = Array.fill[List[(K, V)]](newCapacity)(Nil)
+      var i           = 0
 
-      if (exists)
-        STM.succeedNow(bucket.map(kv => if (kv._1 == k) (k, v) else kv))
-      else
-        tSize.update(_ + 1).as((k, v) :: bucket)
+      while (i < capacity) {
+        val pairs = buckets.array(i).unsafeGet(journal)
+        val it    = pairs.iterator
+
+        while (it.hasNext) {
+          val pair = it.next()
+          val idx  = TMap.indexOf(pair._1, newCapacity)
+          newBuckets(idx) = pair :: newBuckets(idx)
+        }
+
+        i += 1
+      }
+
+      // insert new pair
+      val newIdx = TMap.indexOf(k, newCapacity)
+      newBuckets(newIdx) = (k, v) :: newBuckets(newIdx)
+
+      val newArray = Array.ofDim[TRef[List[(K, V)]]](newCapacity)
+
+      i = 0
+      while (i < newCapacity) {
+        newArray(i) = ZTRef.unsafeMake(newBuckets(i))
+        i += 1
+      }
+
+      tBuckets.unsafeSet(journal, new TArray(newArray))
     }
 
-    def resize(newCapacity: Int): STM[Nothing, Unit] =
-      for {
-        data       <- toList
-        tmap       <- TMap.allocate(newCapacity, data)
-        newBuckets <- tmap.tBuckets.get
-        _          <- tBuckets.set(newBuckets)
-        _          <- tCapacity.set(newCapacity)
-      } yield ()
+    new ZSTM((journal, _, _, _) => {
+      val buckets      = tBuckets.unsafeGet(journal)
+      val capacity     = buckets.array.length
+      val idx          = TMap.indexOf(k, capacity)
+      val bucket       = buckets.array(idx).unsafeGet(journal)
+      val shouldUpdate = bucket.exists(_._1 == k)
 
-    for {
-      buckets     <- tBuckets.get
-      idx         <- indexOf(k)
-      _           <- buckets.updateM(idx, upsert)
-      size        <- tSize.get
-      capacity    <- tCapacity.get
-      needsResize = capacity * TMap.LoadFactor < size
-      _           <- if (needsResize) resize(capacity << 1) else STM.unit
-    } yield ()
+      if (shouldUpdate) {
+        val newBucket = bucket.map(kv => if (kv._1 == k) (k, v) else kv)
+        buckets.array(idx).unsafeSet(journal, newBucket)
+      } else {
+        val newSize = tSize.unsafeGet(journal) + 1
+
+        tSize.unsafeSet(journal, newSize)
+
+        if (capacity * TMap.LoadFactor < newSize) resize(journal, buckets)
+        else {
+          val newBucket = (k, v) :: bucket
+          buckets.array(idx).unsafeSet(journal, newBucket)
+        }
+      }
+
+      TExit.unit
+    })
   }
+
+  /**
+   * Stores new binding in the map if it does not already exist.
+   */
+  def putIfAbsent(k: K, v: V): USTM[Unit] =
+    get(k).flatMap(_.fold(put(k, v))(_ => STM.unit))
 
   /**
    * Removes bindings matching predicate.
    */
-  def removeIf(p: (K, V) => Boolean): STM[Nothing, Unit] =
-    tBuckets.get.flatMap(_.transform(_.filterNot(kv => p(kv._1, kv._2))))
+  def removeIf(p: (K, V) => Boolean): USTM[Unit] =
+    new ZSTM((journal, _, _, _) => {
+      val f        = p.tupled
+      val buckets  = tBuckets.unsafeGet(journal)
+      val capacity = buckets.array.length
+
+      var i       = 0
+      var newSize = 0
+
+      while (i < capacity) {
+        val bucket    = buckets.array(i).unsafeGet(journal)
+        var newBucket = List.empty[(K, V)]
+
+        val it = bucket.iterator
+        while (it.hasNext) {
+          val pair = it.next()
+          if (!f(pair)) {
+            newBucket = pair :: newBucket
+            newSize += 1
+          }
+        }
+
+        buckets.array(i).unsafeSet(journal, newBucket)
+        i += 1
+      }
+
+      tSize.unsafeSet(journal, newSize)
+
+      TExit.unit
+    })
 
   /**
    * Retains bindings matching predicate.
    */
-  def retainIf(p: (K, V) => Boolean): STM[Nothing, Unit] =
-    tBuckets.get.flatMap(_.transform(_.filter(kv => p(kv._1, kv._2))))
+  def retainIf(p: (K, V) => Boolean): USTM[Unit] =
+    new ZSTM((journal, _, _, _) => {
+      val f        = p.tupled
+      val buckets  = tBuckets.unsafeGet(journal)
+      val capacity = buckets.array.length
+
+      var i       = 0
+      var newSize = 0
+
+      while (i < capacity) {
+        val bucket    = buckets.array(i).unsafeGet(journal)
+        var newBucket = List.empty[(K, V)]
+
+        val it = bucket.iterator
+        while (it.hasNext) {
+          val pair = it.next()
+          if (f(pair)) {
+            newBucket = pair :: newBucket
+            newSize += 1
+          }
+        }
+
+        buckets.array(i).unsafeSet(journal, newBucket)
+        i += 1
+      }
+
+      tSize.unsafeSet(journal, newSize)
+
+      TExit.unit
+    })
+
+  /**
+   * Returns the number of bindings.
+   */
+  val size: USTM[Int] =
+    tSize.get
 
   /**
    * Collects all bindings into a list.
    */
-  def toList: STM[Nothing, List[(K, V)]] =
+  def toList: USTM[List[(K, V)]] =
     fold(List.empty[(K, V)])((acc, kv) => kv :: acc)
+
+  /**
+   * Collects all bindings into a chunk.
+   */
+  def toChunk: USTM[Chunk[(K, V)]] =
+    new ZSTM((journal, _, _, _) => {
+      val buckets  = tBuckets.unsafeGet(journal)
+      val capacity = buckets.array.length
+      val size     = tSize.unsafeGet(journal)
+      var i        = 0
+      val builder  = ChunkBuilder.make[(K, V)](size)
+
+      while (i < capacity) {
+        val bucket = buckets.array(i)
+
+        builder ++= bucket.unsafeGet(journal)
+
+        i += 1
+      }
+
+      TExit.Succeed(builder.result())
+    })
 
   /**
    * Collects all bindings into a map.
    */
-  def toMap: STM[Nothing, Map[K, V]] =
+  def toMap: USTM[Map[K, V]] =
     fold(Map.empty[K, V])(_ + _)
 
   /**
    * Atomically updates all bindings using a pure function.
    */
-  def transform(f: (K, V) => (K, V)): STM[Nothing, Unit] =
-    tBuckets.get.flatMap { tArr =>
-      val g = f.tupled
+  def transform(f: (K, V) => (K, V)): USTM[Unit] =
+    new ZSTM((journal, _, _, _) => {
+      val g        = f.tupled
+      val buckets  = tBuckets.unsafeGet(journal)
+      val capacity = buckets.array.length
 
-      var idx      = 0
-      val original = tArr.array
-      val capacity = original.length
-      val newArr   = Array.ofDim[TRef[List[(K, V)]]](capacity)
+      val newBuckets = Array.fill[List[(K, V)]](capacity)(Nil)
+      var newSize    = 0
+      var i          = 0
 
-      while (idx < capacity) {
-        newArr(idx) = TRef.unsafeMake(Nil)
-        idx = idx + 1
+      while (i < capacity) {
+        val bucket = buckets.array(i)
+        val pairs  = bucket.unsafeGet(journal)
+
+        val it = pairs.iterator
+        while (it.hasNext) {
+          val newPair   = g(it.next())
+          val idx       = TMap.indexOf(newPair._1, capacity)
+          val newBucket = newBuckets(idx)
+
+          if (!newBucket.exists(_._1 == newPair._1)) {
+            newBuckets(idx) = newPair :: newBucket
+            newSize += 1
+          }
+        }
+
+        i += 1
       }
 
-      val newBuckets = new TArray(newArr)
+      i = 0
 
-      val overwrite =
-        STM
-          .foreach(original)(_.get.map(_.view.map(g)))
-          .flatMap[Any, Nothing, Unit] { xs =>
-            STM.foreach_(xs.view.flatten.toMap)(kv => newBuckets.update(TMap.indexOf(kv._1, capacity), kv :: _))
-          }
+      while (i < capacity) {
+        buckets.array(i).unsafeSet(journal, newBuckets(i))
+        i += 1
+      }
 
-      overwrite *> tBuckets.set(newBuckets)
-    }
+      tSize.unsafeSet(journal, newSize)
+
+      TExit.unit
+    })
 
   /**
    * Atomically updates all bindings using a transactional function.
    */
   def transformM[E](f: (K, V) => STM[E, (K, V)]): STM[E, Unit] =
-    tBuckets.get.flatMap { tArr =>
+    toChunk.flatMap { data =>
       val g = f.tupled
 
-      var idx      = 0
-      val original = tArr.array
-      val capacity = original.length
-      val newArr   = Array.ofDim[TRef[List[(K, V)]]](capacity)
+      STM.foreach(data)(g).flatMap { newData =>
+        new ZSTM((journal, _, _, _) => {
+          val buckets    = tBuckets.unsafeGet(journal)
+          val capacity   = buckets.array.length
+          val newBuckets = Array.fill[List[(K, V)]](capacity)(Nil)
+          var newSize    = 0
 
-      while (idx < capacity) {
-        newArr(idx) = TRef.unsafeMake(Nil)
-        idx = idx + 1
-      }
+          val it = newData.iterator
+          while (it.hasNext) {
+            val newPair   = it.next()
+            val idx       = TMap.indexOf(newPair._1, capacity)
+            val newBucket = newBuckets(idx)
 
-      val newBuckets = new TArray(newArr)
-
-      val overwrite =
-        STM
-          .foreach(original)(_.get.map(_.view.map(g)))
-          .flatMap { xs =>
-            STM.collectAll(xs.view.flatten.toIterable).flatMap[Any, E, Unit] { items =>
-              val distinct = items.toMap
-              STM.foreach_(distinct)(kv => newBuckets.update(TMap.indexOf(kv._1, capacity), kv :: _))
+            if (!newBucket.exists(_._1 == newPair._1)) {
+              newBuckets(idx) = newPair :: newBucket
+              newSize += 1
             }
           }
 
-      overwrite *> tBuckets.set(newBuckets)
+          var i = 0
+          while (i < capacity) {
+            buckets.array(i).unsafeSet(journal, newBuckets(i))
+            i += 1
+          }
+
+          tSize.unsafeSet(journal, newSize)
+          TExit.unit
+        })
+      }
     }
 
   /**
    * Atomically updates all values using a pure function.
    */
-  def transformValues(f: V => V): STM[Nothing, Unit] =
-    tBuckets.get.flatMap(_.transform(_.map(kv => kv._1 -> f(kv._2))))
+  def transformValues(f: V => V): USTM[Unit] =
+    transform((k, v) => k -> f(v))
 
   /**
    * Atomically updates all values using a transactional function.
    */
   def transformValuesM[E](f: V => STM[E, V]): STM[E, Unit] =
-    tBuckets.get.flatMap(_.transformM(bucket => STM.collectAll(bucket.map(kv => f(kv._2).map(kv._1 -> _)))))
+    transformM((k, v) => f(v).map(k -> _))
 
   /**
    * Collects all values stored in map.
    */
-  def values: STM[Nothing, List[V]] =
+  def values: USTM[List[V]] =
     toList.map(_.map(_._2))
-
-  private def indexOf(k: K): STM[Nothing, Int] =
-    tCapacity.get.map(c => TMap.indexOf(k, c))
 }
 
 object TMap {
@@ -252,12 +413,12 @@ object TMap {
   /**
    * Makes an empty `TMap`.
    */
-  def empty[K, V]: STM[Nothing, TMap[K, V]] = fromIterable(Nil)
+  def empty[K, V]: USTM[TMap[K, V]] = fromIterable(Nil)
 
   /**
    * Makes a new `TMap` initialized with provided iterable.
    */
-  def fromIterable[K, V](data: Iterable[(K, V)]): STM[Nothing, TMap[K, V]] = {
+  def fromIterable[K, V](data: Iterable[(K, V)]): USTM[TMap[K, V]] = {
     val size     = data.size
     val capacity = if (size < InitialCapacity) InitialCapacity else nextPowerOfTwo(size)
     allocate(capacity, data.toList)
@@ -266,9 +427,11 @@ object TMap {
   /**
    * Makes a new `TMap` that is initialized with specified values.
    */
-  def make[K, V](data: (K, V)*): STM[Nothing, TMap[K, V]] = fromIterable(data)
+  def make[K, V](data: (K, V)*): USTM[TMap[K, V]] = fromIterable(data)
 
-  private def allocate[K, V](capacity: Int, data: List[(K, V)]): STM[Nothing, TMap[K, V]] = {
+  private final case class UpdateResult(stm: STM[Nothing, Unit])
+
+  private def allocate[K, V](capacity: Int, data: List[(K, V)]): USTM[TMap[K, V]] = {
     val buckets  = Array.fill[List[(K, V)]](capacity)(Nil)
     val distinct = data.toMap
 
@@ -276,7 +439,7 @@ object TMap {
 
     val it = distinct.iterator
     while (it.hasNext) {
-      val kv  = it.next
+      val kv  = it.next()
       val idx = indexOf(kv._1, capacity)
 
       buckets(idx) = kv :: buckets(idx)
@@ -284,11 +447,10 @@ object TMap {
     }
 
     for {
-      tChains   <- TArray.fromIterable(buckets)
-      tBuckets  <- TRef.make(tChains)
-      tCapacity <- TRef.make(capacity)
-      tSize     <- TRef.make(size)
-    } yield new TMap(tBuckets, tCapacity, tSize)
+      tArray   <- TArray.fromIterable(buckets)
+      tBuckets <- TRef.make(tArray)
+      tSize    <- TRef.make(size)
+    } yield new TMap(tBuckets, tSize)
   }
 
   private def hash[K](k: K): Int = {

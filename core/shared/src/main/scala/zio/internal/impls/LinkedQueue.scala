@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-package zio.internal.impls
+package zio.internal
+
+import com.github.ghik.silencer.silent
 
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicLong
-
-import zio.internal.MutableConcurrentQueue
 
 private[zio] final class LinkedQueue[A] extends MutableConcurrentQueue[A] with Serializable {
   override final val capacity = Int.MaxValue
@@ -44,6 +44,13 @@ private[zio] final class LinkedQueue[A] extends MutableConcurrentQueue[A] with S
     val success = jucConcurrentQueue.offer(a)
     if (success) enqueuedCounter.incrementAndGet()
     success
+  }
+
+  override def offerAll(as: Iterable[A]): Iterable[A] = {
+    import collection.JavaConverters._
+    jucConcurrentQueue.addAll(as.asJavaCollection): @silent("JavaConverters")
+    enqueuedCounter.addAndGet(as.size.toLong)
+    Iterable.empty
   }
 
   override def poll(default: A): A = {

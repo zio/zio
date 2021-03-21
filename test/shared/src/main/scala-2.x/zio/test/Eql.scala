@@ -28,10 +28,12 @@ import scala.annotation.implicitNotFound
     "potentially be equal. However, ${A} and ${B} are unrelated types, so " +
     "they cannot be equal."
 )
-sealed trait Eql[A, B]
+sealed abstract class Eql[A, B]
 
-object Eql {
-  implicit final def eqlReflexive[A]: Eql[A, A]        = new Eql[A, A] {}
+object Eql extends EqlLowPriority {
   implicit final def eqlSubtype1[A <: B, B]: Eql[A, B] = new Eql[A, B] {}
+}
+
+private[test] sealed abstract class EqlLowPriority {
   implicit final def eqlSubtype2[A, B <: A]: Eql[A, B] = new Eql[A, B] {}
 }

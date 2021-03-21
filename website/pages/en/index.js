@@ -98,6 +98,14 @@ class Index extends React.Component {
               {[
                 {
                   title: '',
+                  image: `${baseUrl}img/ziverge.png`,
+                  imageAlt: 'Ziverge',
+                  imageLink: 'https://ziverge.com',
+                  imageAlign: 'top',
+                  content: 'Brilliant solutions for innovative companies'
+                },
+                {
+                  title: '',
                   image: `${baseUrl}img/scalac.svg`,
                   imageAlt: 'Scalac',
                   imageLink: 'https://scalac.io/',
@@ -114,7 +122,7 @@ class Index extends React.Component {
                 },
                 {
                   title: '',
-                  image: `${baseUrl}img/softwaremill.svg`,
+                  image: `https://files.softwaremill.com/logo/logo_vertical.png`,
                   imageAlt: 'SoftwareMill',
                   imageLink: 'https://softwaremill.com/',
                   imageAlign: 'top',

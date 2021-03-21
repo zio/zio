@@ -16,20 +16,20 @@
 
 package zio.test
 
-import zio.{ Has, UIO, ZIO, ZLayer }
+import zio.{ExecutionStrategy, Has, Layer, UIO, ZIO}
 
 /**
  * A `TestExecutor[R, E]` is capable of executing specs that require an
  * environment `R` and may fail with an `E`.
  */
-trait TestExecutor[+R <: Has[_], E] {
+abstract class TestExecutor[+R <: Has[_], E] {
   def run(spec: ZSpec[R, E], defExec: ExecutionStrategy): UIO[ExecutedSpec[E]]
-  def environment: ZLayer.NoDeps[Nothing, R]
+  def environment: Layer[Nothing, R]
 }
 
 object TestExecutor {
   def default[R <: Annotations, E](
-    env: ZLayer.NoDeps[Nothing, R]
+    env: Layer[Nothing, R]
   ): TestExecutor[R, E] = new TestExecutor[R, E] {
     def run(spec: ZSpec[R, E], defExec: ExecutionStrategy): UIO[ExecutedSpec[E]] =
       spec.annotated
@@ -39,19 +39,19 @@ object TestExecutor {
             e.failureOrCause.fold(
               { case (failure, annotations) => ZIO.succeedNow((Left(failure), annotations)) },
               cause => ZIO.succeedNow((Left(TestFailure.Runtime(cause)), TestAnnotationMap.empty))
-            ), {
-            case (success, annotations) => ZIO.succeedNow((Right(success), annotations))
+            ),
+          { case (success, annotations) =>
+            ZIO.succeedNow((Right(success), annotations))
           }
         )
-        .flatMap(_.fold[UIO[ExecutedSpec[E]]] {
-          case Spec.SuiteCase(label, specs, exec) =>
-            UIO.succeedNow(Spec.suite(label, specs.flatMap(UIO.collectAll).map(_.toVector), exec))
-          case Spec.TestCase(label, test, annotations) =>
-            test.map {
-              case (result, annotations1) =>
-                Spec.test(label, UIO.succeedNow(result), annotations ++ annotations1)
-            }
-        })
+        .use(_.foldM[Any, Nothing, ExecutedSpec[E]](defExec) {
+          case Spec.SuiteCase(label, specs, _) =>
+            specs.map(specs => ExecutedSpec.suite(label, specs))
+          case Spec.TestCase(label, test, staticAnnotations) =>
+            test.map { case (result, dynamicAnnotations) =>
+              ExecutedSpec.test(label, result, staticAnnotations ++ dynamicAnnotations)
+            }.toManaged_
+        }.useNow)
     val environment = env
   }
 }

@@ -16,9 +16,9 @@
 
 package zio
 
-import scala.annotation.tailrec
-
 import zio.internal.stacktracer.ZTraceElement
+
+import scala.annotation.tailrec
 
 final case class ZTrace(
   fiberId: Fiber.Id,
@@ -56,7 +56,7 @@ final case class ZTrace(
    *
    * NOTE: `parentTrace` fields are still populated for members of this list,
    * despite that the next trace in the list is equivalent to `parentTrace`
-   * */
+   */
   def parents: List[ZTrace] = {
     val builder = List.newBuilder[ZTrace]
     var parent  = parentTrace.orNull

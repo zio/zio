@@ -1,18 +1,18 @@
 package zio
 
-import java.io.{ ByteArrayInputStream, ByteArrayOutputStream, ObjectInputStream, ObjectOutputStream }
-
 import zio.SerializableSpecHelpers._
 import zio.internal.stacktracer.ZTraceElement
 import zio.system.System
 import zio.test.Assertion._
 import zio.test.TestAspect.scala2Only
 import zio.test.environment.Live
-import zio.test.{ test => testSync, _ }
+import zio.test.{test => testSync, _}
+
+import java.io.{ByteArrayInputStream, ByteArrayOutputStream, ObjectInputStream, ObjectOutputStream}
 
 object SerializableSpec extends ZIOBaseSpec {
 
-  def spec = suite("SerializableSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("SerializableSpec")(
     testM("Semaphore is serializable") {
       val n = 20L
       for {
@@ -49,7 +49,7 @@ object SerializableSpec extends ZIOBaseSpec {
     },
     testM("IO is serializable") {
       val list = List("1", "2", "3")
-      val io   = IO.succeedNow(list)
+      val io   = IO.succeed(list)
       for {
         returnIO <- serializeAndBack(io)
         result   <- returnIO
@@ -64,7 +64,7 @@ object SerializableSpec extends ZIOBaseSpec {
     },
     testM("FiberStatus is serializable") {
       val list = List("1", "2", "3")
-      val io   = IO.succeedNow(list)
+      val io   = IO.succeed(list)
       for {
         fiber          <- io.fork
         status         <- fiber.await

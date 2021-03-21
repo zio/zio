@@ -16,4 +16,24 @@
 
 package zio
 
-private[zio] trait TaskPlatformSpecific
+import scala.scalajs.js
+import scala.scalajs.js.{Promise => JSPromise}
+
+private[zio] trait TaskPlatformSpecific { self: Task.type =>
+
+  /**
+   * Imports a Scala.js promise into a `Task`.
+   */
+  def fromPromiseJS[A](promise: => JSPromise[A]): Task[A] =
+    self.effectAsync { callback =>
+      promise.`then`[Unit](
+        a => callback(UIO.succeedNow(a)),
+        js.defined { (e: Any) =>
+          callback(IO.fail(e match {
+            case t: Throwable => t
+            case _            => js.JavaScriptException(e)
+          }))
+        }
+      )
+    }
+}

@@ -22,12 +22,11 @@ import zio.test._
 
 object TSetSpec extends ZIOBaseSpec {
 
-  def spec = suite("TSet")(
+  def spec: ZSpec[Environment, Failure] = suite("TSet")(
     suite("factories")(
       testM("apply") {
         val tx = TSet.make(1, 2, 2, 3).flatMap[Any, Nothing, List[Int]](_.toList)
         assertM(tx.commit)(hasSameElements(List(1, 2, 3)))
-
       },
       testM("empty") {
         val tx = TSet.empty[Int].flatMap[Any, Nothing, List[Int]](_.toList)
@@ -147,7 +146,7 @@ object TSetSpec extends ZIOBaseSpec {
         val tx =
           for {
             tset <- TSet.make(1, 2, 3)
-            _    <- tset.transformM(a => STM.succeedNow(a * 2))
+            _    <- tset.transformM(a => STM.succeed(a * 2))
             res  <- tset.toList
           } yield res
 
@@ -157,7 +156,7 @@ object TSetSpec extends ZIOBaseSpec {
         val tx =
           for {
             tset <- TSet.make(1, 2, 3)
-            _    <- tset.transformM(_ => STM.succeedNow(1))
+            _    <- tset.transformM(_ => STM.succeed(1))
             res  <- tset.toList
           } yield res
 
@@ -187,7 +186,7 @@ object TSetSpec extends ZIOBaseSpec {
         val tx =
           for {
             tset <- TSet.make(1, 2, 3)
-            res  <- tset.foldM(0)((acc, a) => STM.succeedNow(acc + a))
+            res  <- tset.foldM(0)((acc, a) => STM.succeed(acc + a))
           } yield res
 
         assertM(tx.commit)(equalTo(6))
@@ -196,10 +195,21 @@ object TSetSpec extends ZIOBaseSpec {
         val tx =
           for {
             tset <- TSet.empty[Int]
-            res  <- tset.foldM(0)((acc, a) => STM.succeedNow(acc + a))
+            res  <- tset.foldM(0)((acc, a) => STM.succeed(acc + a))
           } yield res
 
         assertM(tx.commit)(equalTo(0))
+      },
+      testM("toSet") {
+        val set = Set(1, 2, 3)
+
+        val tx =
+          for {
+            tset <- TSet.fromIterable(set)
+            res  <- tset.toSet
+          } yield res
+
+        assertM(tx.commit)(hasSameElements(set))
       }
     ),
     suite("set operations")(

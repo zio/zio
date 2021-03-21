@@ -1,10 +1,9 @@
 package zio.chunks
 
-import java.util.concurrent.TimeUnit
-
 import org.openjdk.jmh.annotations._
-
 import zio._
+
+import java.util.concurrent.TimeUnit
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.AverageTime))
@@ -16,7 +15,7 @@ class ChunkArrayBenchmarks {
   var chunk: Chunk[Int] = _
 
   @Setup(Level.Trial)
-  def setup() = {
+  def setup(): Unit = {
     val array = (1 to size).toArray
     chunk = Chunk.fromArray(array)
   }
@@ -38,5 +37,4 @@ class ChunkArrayBenchmarks {
 
   @Benchmark
   def foldM(): UIO[Int] = chunk.foldM(0)((s, a) => ZIO.succeed(s + a))
-
 }

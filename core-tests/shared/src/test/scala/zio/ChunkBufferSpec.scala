@@ -1,13 +1,13 @@
 package zio
 
-import java.nio._
-
 import zio.test.Assertion.equalTo
 import zio.test._
 
+import java.nio._
+
 object ChunkBufferSpec extends ZIOBaseSpec {
 
-  def spec = suite("ChunkBufferSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("ChunkBufferSpec")(
     suite("ByteBuffer")(
       testM("byte array buffer no copying") {
         UIO.effectTotal {
@@ -396,20 +396,20 @@ object ChunkBufferSpec extends ZIOBaseSpec {
   )
 
   final def byteChunk(bytes: Byte*): Chunk[Byte] =
-    Chunk(bytes: _*)
+    Chunk.fromIterable(bytes)
 
   final def charChunk(chars: Char*): Chunk[Char] =
-    Chunk(chars: _*)
+    Chunk.fromIterable(chars)
 
   final def doubleChunk(doubles: Double*): Chunk[Double] =
-    Chunk(doubles: _*)
+    Chunk.fromIterable(doubles)
 
   final def floatChunk(floats: Float*): Chunk[Float] =
-    Chunk(floats: _*)
+    Chunk.fromIterable(floats)
 
   final def longChunk(longs: Long*): Chunk[Long] =
-    Chunk(longs: _*)
+    Chunk.fromIterable(longs)
 
   final def shortChunk(shorts: Short*): Chunk[Short] =
-    Chunk(shorts: _*)
+    Chunk.fromIterable(shorts)
 }

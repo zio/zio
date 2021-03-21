@@ -17,7 +17,9 @@
 package zio.test
 
 import zio.internal.Executor
-import zio.{ Runtime, ZIO }
+import zio.{Runtime, URIO, ZIO}
+
+import scala.concurrent.ExecutionContext
 
 /**
  * A `Fun[A, B]` is a referentially transparent version of a potentially
@@ -45,7 +47,7 @@ private[test] object Fun {
    * Constructs a new `Fun` from an effectual function. The function should not
    * involve asynchronous effects.
    */
-  def make[R, A, B](f: A => ZIO[R, Nothing, B]): ZIO[R, Nothing, Fun[A, B]] =
+  def make[R, A, B](f: A => URIO[R, B]): ZIO[R, Nothing, Fun[A, B]] =
     makeHash(f)(_.hashCode)
 
   /**
@@ -53,7 +55,7 @@ private[test] object Fun {
    * This is useful when the domain of the function does not implement
    * `hashCode` in a way that is consistent with equality.
    */
-  def makeHash[R, A, B](f: A => ZIO[R, Nothing, B])(hash: A => Int): ZIO[R, Nothing, Fun[A, B]] =
+  def makeHash[R, A, B](f: A => URIO[R, B])(hash: A => Int): ZIO[R, Nothing, Fun[A, B]] =
     ZIO.runtime[R].map { runtime =>
       val funRuntime = withFunExecutor(runtime)
       Fun(a => funRuntime.unsafeRun(f(a)), hash)
@@ -66,15 +68,17 @@ private[test] object Fun {
     Fun(f, _.hashCode)
 
   /**
-   * Constructs a new runtime on Scala.js with an unyielding executor so that
-   * synchronous effects with a large number of operations can be safely
-   * executed.
+   * Constructs a new runtime that synchronously executes effects.
    */
   private def withFunExecutor[R](runtime: Runtime[R]): Runtime[R] =
-    if (TestPlatform.isJS) {
-      runtime.withExecutor {
-        val ec = runtime.platform.executor.asEC
-        Executor.fromExecutionContext(Int.MaxValue)(ec)
+    runtime.withExecutor {
+      Executor.fromExecutionContext(Int.MaxValue) {
+        new ExecutionContext {
+          def execute(runnable: Runnable): Unit =
+            runnable.run()
+          def reportFailure(cause: Throwable): Unit =
+            cause.printStackTrace()
+        }
       }
-    } else runtime
+    }
 }

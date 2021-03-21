@@ -1,10 +1,9 @@
 package zio
 
-import java.util.concurrent.TimeUnit
-
-import scala.collection.immutable.Range
-
 import org.openjdk.jmh.annotations._
+
+import java.util.concurrent.TimeUnit
+import scala.collection.immutable.Range
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
@@ -16,7 +15,7 @@ class ArrayFillBenchmark {
   def createTestArray: Array[Int] = Range.inclusive(1, size).toArray.reverse
 
   @Benchmark
-  def zioArrayFill() = {
+  def zioArrayFill(): Unit = {
     import IOBenchmarks.unsafeRun
 
     def arrayFill(array: Array[Int])(i: Int): UIO[Unit] =
@@ -32,7 +31,7 @@ class ArrayFillBenchmark {
   }
 
   @Benchmark
-  def monoArrayFill() = {
+  def monoArrayFill(): Unit = {
     import reactor.core.publisher.Mono
 
     def arrayFill(array: Array[Int])(i: Int): Mono[Unit] =
@@ -42,7 +41,7 @@ class ArrayFillBenchmark {
           .fromSupplier(() => array.update(i, i))
           .flatMap(_ => arrayFill(array)(i + 1))
 
-    (for {
+    val _ = (for {
       array <- Mono.fromSupplier(() => createTestArray)
       _     <- arrayFill(array)(0)
     } yield ())
@@ -50,7 +49,7 @@ class ArrayFillBenchmark {
   }
 
   @Benchmark
-  def catsArrayFill() = {
+  def catsArrayFill(): Unit = {
     import cats.effect.IO
 
     def arrayFill(array: Array[Int])(i: Int): IO[Unit] =
@@ -64,7 +63,7 @@ class ArrayFillBenchmark {
   }
 
   @Benchmark
-  def monixArrayFill() = {
+  def monixArrayFill(): Unit = {
     import IOBenchmarks.monixScheduler
     import monix.eval.Task
 

@@ -16,8 +16,8 @@
 
 package zio.test
 
-import zio.Tagged
 import zio.duration._
+import zio.{Chunk, Fiber, Tag}
 
 /**
  * A type of annotation.
@@ -26,20 +26,20 @@ final class TestAnnotation[V] private (
   val identifier: String,
   val initial: V,
   val combine: (V, V) => V,
-  private val tag: Tagged[V]
+  private val tag: Tag[V]
 ) extends Serializable {
-  override def equals(that: Any): Boolean = that match {
+
+  override def equals(that: Any): Boolean = (that: @unchecked) match {
     case that: TestAnnotation[_] => (identifier, tag) == ((that.identifier, that.tag))
   }
 
-  override lazy val hashCode =
+  override lazy val hashCode: Int =
     (identifier, tag).hashCode
 }
+
 object TestAnnotation {
 
-  def apply[V](identifier: String, initial: V, combine: (V, V) => V)(
-    implicit tag: Tagged[V]
-  ): TestAnnotation[V] =
+  def apply[V](identifier: String, initial: V, combine: (V, V) => V)(implicit tag: Tag[V]): TestAnnotation[V] =
     new TestAnnotation(identifier, initial, combine, tag)
 
   /**
@@ -71,4 +71,25 @@ object TestAnnotation {
    */
   val timing: TestAnnotation[Duration] =
     TestAnnotation("timing", Duration.Zero, _ + _)
+
+  /**
+   * An annotation for capturing the source location (file name and line number) of the calling test.
+   */
+  val location: TestAnnotation[List[SourceLocation]] =
+    TestAnnotation("location", List.empty, _ ++ _)
+
+  import zio.Ref
+
+  import scala.collection.immutable.SortedSet
+
+  val fibers: TestAnnotation[Either[Int, Chunk[Ref[SortedSet[Fiber.Runtime[Any, Any]]]]]] =
+    TestAnnotation("fibers", Left(0), compose(_, _))
+
+  def compose[A](left: Either[Int, Chunk[A]], right: Either[Int, Chunk[A]]): Either[Int, Chunk[A]] =
+    (left, right) match {
+      case (Left(n), Left(m))           => Left(n + m)
+      case (Right(refs1), Right(refs2)) => Right(refs1 ++ refs2)
+      case (Right(_), Left(n))          => Left(n)
+      case (Left(_), Right(refs))       => Right(refs)
+    }
 }

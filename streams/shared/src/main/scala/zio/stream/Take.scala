@@ -16,111 +16,133 @@
 
 package zio.stream
 
-import zio.stream.ZStream.Pull
-import zio.{ Cause, IO, ZIO }
+import zio._
 
 /**
  * A `Take[E, A]` represents a single `take` from a queue modeling a stream of
- * values. A `Take` may be a failure cause `Cause[E]`, an element value `A`
+ * values. A `Take` may be a failure cause `Cause[E]`, an chunk value `A`
  * or an end-of-stream marker.
  */
-sealed trait Take[+E, +A] extends Product with Serializable { self =>
+case class Take[+E, +A](exit: Exit[Option[E], Chunk[A]]) extends AnyVal {
 
   /**
-   * Creates a `take` with element value `B` obtained by transforming value of type `A`
-   * by applying function `f`. If `take` is a failure `Take.Fail` or an end-of-stream marker
-   * `Take.End` original `take` instance is returned.
+   * Transforms `Take[E, A]` to `ZIO[R, E, B]`.
    */
-  final def flatMap[E1 >: E, B](f: A => Take[E1, B]): Take[E1, B] = self match {
-    case t @ Take.Fail(_) => t
-    case Take.Value(a)    => f(a)
-    case Take.End         => Take.End
-  }
+  def done[R]: ZIO[R, Option[E], Chunk[A]] =
+    IO.done(exit)
 
   /**
-   * Checks if this `take` is a failure (`Take.Fail`).
+   * Folds over the failure cause, success value and end-of-stream marker to
+   * yield a value.
    */
-  final def isFailure: Boolean = self match {
-    case Take.Fail(_) => true
-    case _            => false
-  }
+  def fold[Z](end: => Z, error: Cause[E] => Z, value: Chunk[A] => Z): Z =
+    exit.fold(Cause.sequenceCauseOption(_).fold(end)(error), value)
 
   /**
-   * Transforms `Take[E, A]` to `Take[E, B]` by applying function `f`
-   * to an element value if `take` is not failure or end-of-stream marker.
+   * Effectful version of [[Take#fold]].
+   *
+   * Folds over the failure cause, success value and end-of-stream marker to
+   * yield an effect.
    */
-  final def map[B](f: A => B): Take[E, B] = self match {
-    case t @ Take.Fail(_) => t
-    case Take.Value(a)    => Take.Value(f(a))
-    case Take.End         => Take.End
-  }
+  def foldM[R, E1, Z](
+    end: => ZIO[R, E1, Z],
+    error: Cause[E] => ZIO[R, E1, Z],
+    value: Chunk[A] => ZIO[R, E1, Z]
+  ): ZIO[R, E1, Z] =
+    exit.foldM(Cause.sequenceCauseOption(_).fold(end)(error), value)
 
   /**
-   * Zips this `take` and the specified one together, producing a `take` with tuple of
-   * their values.
+   * Checks if this `take` is done (`Take.end`).
    */
-  final def zip[E1 >: E, B](that: Take[E1, B]): Take[E1, (A, B)] =
-    self.zipWith(that)(_ -> _)
+  def isDone: Boolean =
+    exit.fold(Cause.sequenceCauseOption(_).isEmpty, _ => false)
 
   /**
-   * Zips this `take` and the specified one together, producing `take` with a value `C` by applying
-   * provided function `f` to values from both `takes`. In case both `takes` are `Take.Fail`,
-   * `take` with combined cause will be produced.
-   * Otherwise, if one of this or that `take` is `Take.Fail` or `Take.End` that one will be returned.
+   * Checks if this `take` is a failure.
    */
-  final def zipWith[E1 >: E, B, C](that: Take[E1, B])(f: (A, B) => C): Take[E1, C] = (self, that) match {
-    case (Take.Value(a), Take.Value(b)) => Take.Value(f(a, b))
-    case (Take.Fail(a), Take.Fail(b))   => Take.Fail(a && b)
-    case (Take.End, _)                  => Take.End
-    case (t @ Take.Fail(_), _)          => t
-    case (_, Take.End)                  => Take.End
-    case (_, t @ Take.Fail(_))          => t
-  }
+  def isFailure: Boolean =
+    exit.fold(Cause.sequenceCauseOption(_).nonEmpty, _ => false)
+
+  /**
+   * Checks if this `take` is a success.
+   */
+  def isSuccess: Boolean =
+    exit.fold(_ => false, _ => true)
+
+  /**
+   * Transforms `Take[E, A]` to `Take[E, B]` by applying function `f`.
+   */
+  def map[B](f: A => B): Take[E, B] =
+    Take(exit.map(_.map(f)))
+
+  /**
+   * Returns an effect that effectfully "peeks" at the success of this take.
+   */
+  def tap[R, E1](f: Chunk[A] => ZIO[R, E1, Any]): ZIO[R, E1, Unit] =
+    exit.foreach(f).unit
 }
 
 object Take {
 
   /**
-   * Represents a failure `take` with a `Cause[E]`.
+   * Creates a `Take[Nothing, A]` with a singleton chunk.
    */
-  final case class Fail[+E](value: Cause[E]) extends Take[E, Nothing]
+  def single[A](a: A): Take[Nothing, A] =
+    Take(Exit.succeed(Chunk.single(a)))
 
   /**
-   * Represents `take` with value of type `A` retrieved from queue modeling stream.
+   * Creates a `Take[Nothing, A]` with the specified chunk.
    */
-  final case class Value[+A](value: A) extends Take[Nothing, A]
+  def chunk[A](as: Chunk[A]): Take[Nothing, A] =
+    Take(Exit.succeed(as))
 
   /**
-   * Represents end of stream marker.
+   * Creates a failing `Take[E, Nothing]` with the specified failure.
    */
-  case object End extends Take[Nothing, Nothing]
+  def fail[E](e: E): Take[E, Nothing] =
+    Take(Exit.fail(Some(e)))
 
   /**
-   * Creates a `Take` from an effect.
+   * Creates an effect from `ZIO[R, E,A]` that does not fail, but succeeds with the `Take[E, A]`.
+   * Error from stream when pulling is converted to `Take.halt`. Creates a singleton chunk.
    */
-  def fromEffect[R, E, A](zio: ZIO[R, E, A]): ZIO[R, Nothing, Take[E, A]] =
-    zio.foldCause(Take.Fail(_), Take.Value(_))
+  def fromEffect[R, E, A](zio: ZIO[R, E, A]): URIO[R, Take[E, A]] =
+    zio.foldCause(halt, single)
 
   /**
    * Creates effect from `Pull[R, E, A]` that does not fail, but succeeds with the `Take[E, A]`.
-   * Error from stream when pulling is converted to `Take.Fail`, end of stream to `Take.End`.
+   * Error from stream when pulling is converted to `Take.halt`, end of stream to `Take.end`.
    */
-  def fromPull[R, E, A](pull: Pull[R, E, A]): ZIO[R, Nothing, Take[E, A]] =
-    pull.foldCause(
-      Cause.sequenceCauseOption(_).fold[Take[E, A]](Take.End)(Take.Fail(_)),
-      Take.Value(_)
-    )
+  def fromPull[R, E, A](pull: ZStream.Pull[R, E, A]): URIO[R, Take[E, A]] =
+    pull.foldCause(Cause.sequenceCauseOption(_).fold[Take[E, Nothing]](end)(halt), chunk)
 
   /**
-   * Creates new effect with value `Option[A]` or error `E` from effect returning `Take[E, A]`.
-   * Result of stream reading is mapped to effect value as follows: terminated stream is
-   * mapped to `None`, value `a` read from stream is mapped to `Some(a)`.
-   * In case of error from stream reading, effect with `E` is returned.
+   * Creates a failing `Take[E, Nothing]` with the specified cause.
    */
-  def option[E, A](io: IO[E, Take[E, A]]): IO[E, Option[A]] =
-    io.flatMap {
-      case Take.End      => IO.succeedNow(None)
-      case Take.Value(a) => IO.succeedNow(Some(a))
-      case Take.Fail(e)  => IO.halt(e)
-    }
+  def halt[E](c: Cause[E]): Take[E, Nothing] =
+    Take(Exit.halt(c.map(Some(_))))
+
+  /**
+   * Creates a failing `Take[Nothing, Nothing]` with the specified throwable.
+   */
+  def die(t: Throwable): Take[Nothing, Nothing] =
+    Take(Exit.die(t))
+
+  /**
+   * Creates a failing `Take[Nothing, Nothing]` with the specified error message.
+   */
+  def dieMessage(msg: String): Take[Nothing, Nothing] =
+    Take(Exit.die(new RuntimeException(msg)))
+
+  /**
+   * Creates a `Take[E, A]` from `Exit[E, A]`.
+   */
+  def done[E, A](exit: Exit[E, A]): Take[E, A] =
+    Take(exit.mapError[Option[E]](Some(_)).map(Chunk.single))
+
+  /**
+   * End-of-stream marker
+   */
+  val end: Take[Nothing, Nothing] =
+    Take(Exit.fail(None))
 }

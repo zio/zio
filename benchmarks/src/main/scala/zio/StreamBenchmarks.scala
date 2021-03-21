@@ -1,18 +1,17 @@
 package zio
 
-import java.util.concurrent.TimeUnit
-
-import scala.concurrent.Await
-import scala.concurrent.duration.Duration
-
-import IOBenchmarks._
+import akka.Done
 import akka.actor.ActorSystem
-import akka.stream.scaladsl.{ Source => AkkaSource, Sink => AkkaSink, Keep }
-import cats.effect.{ IO => CatsIO }
-import fs2.{ Stream => FS2Stream, Chunk => FS2Chunk }
+import akka.stream.scaladsl.{Keep, Sink => AkkaSink, Source => AkkaSource}
+import cats.effect.{IO => CatsIO}
+import fs2.{Chunk => FS2Chunk, Stream => FS2Stream}
 import org.openjdk.jmh.annotations._
-
+import zio.IOBenchmarks._
 import zio.stream._
+
+import java.util.concurrent.TimeUnit
+import scala.concurrent.duration.Duration
+import scala.concurrent.{Await, ExecutionContextExecutor}
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
@@ -24,8 +23,8 @@ class StreamBenchmarks {
   @Param(Array("5000"))
   var chunkSize: Int = _
 
-  implicit val system = ActorSystem("benchmarks")
-  implicit val ec     = system.dispatcher
+  implicit val system: ActorSystem          = ActorSystem("benchmarks")
+  implicit val ec: ExecutionContextExecutor = system.dispatcher
 
   @TearDown
   def shutdown(): Unit = {
@@ -34,7 +33,7 @@ class StreamBenchmarks {
   }
 
   @Benchmark
-  def akkaChunkFilterMapSum = {
+  def akkaChunkFilterMapSum: Long = {
     val chunks = (1 to chunkCount).map(i => Array.fill(chunkSize)(i))
     val program = AkkaSource
       .fromIterator(() => chunks.iterator.flatten)
@@ -42,11 +41,11 @@ class StreamBenchmarks {
       .map(_.toLong)
       .toMat(AkkaSink.fold(0L)(_ + _))(Keep.right)
 
-    Await.result(program.run, Duration.Inf)
+    Await.result(program.run(), Duration.Inf)
   }
 
   @Benchmark
-  def fs2ChunkFilterMapSum = {
+  def fs2ChunkFilterMapSum: Long = {
     val chunks = (1 to chunkCount).map(i => FS2Chunk.array(Array.fill(chunkSize)(i)))
     val stream = FS2Stream(chunks: _*)
       .flatMap(FS2Stream.chunk(_))
@@ -55,25 +54,25 @@ class StreamBenchmarks {
       .covary[CatsIO]
       .compile
       .fold(0L)(_ + _)
-    stream.unsafeRunSync
+    stream.unsafeRunSync()
   }
 
   @Benchmark
-  def zioChunkFilterMapSum = {
+  def zioChunkFilterMapSum: Long = {
     val chunks = (1 to chunkCount).map(i => Chunk.fromArray(Array.fill(chunkSize)(i)))
-    val stream = ZStreamChunk
+    val stream = ZStream
       .fromChunks(chunks: _*)
       .filter(_ % 2 == 0)
       .map(_.toLong)
 
-    val sink   = ZSink.foldLeft(0L)((s, as: Chunk[Long]) => as.fold(s)(_ + _))
+    val sink   = ZSink.foldLeftChunks(0L)((s, as: Chunk[Long]) => as.fold(s)(_ + _))
     val result = stream.run(sink)
 
     unsafeRun(result)
   }
 
   @Benchmark
-  def zioChunkChunkFilterMapSum = {
+  def zioChunkChunkFilterMapSum: Long = {
     val chunks = Chunk.fromArray((1 to chunkCount).toArray).flatMap(i => Chunk.fromArray(Array.fill(chunkSize)(i)))
     chunks
       .filter(_ % 2 == 0)
@@ -97,8 +96,8 @@ class CSVStreamBenchmarks {
 
   var genCsvChunks: Array[Array[Char]] = _
 
-  implicit val system = ActorSystem("benchmarks")
-  implicit val ec     = system.dispatcher
+  implicit val system: ActorSystem          = ActorSystem("benchmarks")
+  implicit val ec: ExecutionContextExecutor = system.dispatcher
 
   @Setup
   def setup(): Unit =
@@ -111,82 +110,79 @@ class CSVStreamBenchmarks {
   }
 
   @Benchmark
-  def akkaCsvTokenize() = {
+  def akkaCsvTokenize(): Done = {
     val chunks = genCsvChunks
 
     val program = AkkaSource
       .fromIterator(() => chunks.iterator.flatten)
-      .scan((Vector.empty[Char], Vector.empty[CSV.Token])) {
-        case ((acc, _), char) =>
-          if (char == CSV.ColumnSep) {
-            Vector.empty[Char] ->
-              ((if (acc.nonEmpty)
-                  Vector(CSV.Column(acc.mkString))
-                else Vector.empty[CSV.Token]) ++
-                Vector(CSV.NewCol))
-          } else if (char == CSV.RowSep) {
-            Vector.empty[Char] ->
-              ((if (acc.nonEmpty)
-                  Vector(CSV.Column(acc.mkString))
-                else Vector.empty[CSV.Token]) ++
-                Vector(CSV.NewCol))
-          } else (acc :+ char) -> Vector.empty[CSV.Token]
+      .scan((Vector.empty[Char], Vector.empty[CSV.Token])) { case ((acc, _), char) =>
+        if (char == CSV.ColumnSep) {
+          Vector.empty[Char] ->
+            ((if (acc.nonEmpty)
+                Vector(CSV.Column(acc.mkString))
+              else Vector.empty[CSV.Token]) ++
+              Vector(CSV.NewCol))
+        } else if (char == CSV.RowSep) {
+          Vector.empty[Char] ->
+            ((if (acc.nonEmpty)
+                Vector(CSV.Column(acc.mkString))
+              else Vector.empty[CSV.Token]) ++
+              Vector(CSV.NewCol))
+        } else (acc :+ char) -> Vector.empty[CSV.Token]
       }
       .mapConcat(t => t._2)
       .toMat(AkkaSink.ignore)(Keep.right)
 
-    Await.result(program.run, Duration.Inf)
+    Await.result(program.run(), Duration.Inf)
   }
 
   @Benchmark
-  def fs2CsvTokenize() = {
+  def fs2CsvTokenize(): Unit = {
     val chunks = genCsvChunks.map(FS2Chunk.array)
     val stream = FS2Stream(chunks.toIndexedSeq: _*)
       .flatMap(FS2Stream.chunk)
-      .mapAccumulate(Vector.empty[Char]) {
-        case (acc, char) =>
-          if (char == CSV.ColumnSep) {
-            Vector.empty[Char] ->
-              ((if (acc.nonEmpty)
-                  Vector(CSV.Column(acc.mkString))
-                else Vector.empty[CSV.Token]) ++
-                Vector(CSV.NewCol))
-          } else if (char == CSV.RowSep) {
-            Vector.empty[Char] ->
-              ((if (acc.nonEmpty)
-                  Vector(CSV.Column(acc.mkString))
-                else Vector.empty[CSV.Token]) ++
-                Vector(CSV.NewCol))
-          } else (acc :+ char) -> Vector.empty[CSV.Token]
+      .mapAccumulate(Vector.empty[Char]) { case (acc, char) =>
+        if (char == CSV.ColumnSep) {
+          Vector.empty[Char] ->
+            ((if (acc.nonEmpty)
+                Vector(CSV.Column(acc.mkString))
+              else Vector.empty[CSV.Token]) ++
+              Vector(CSV.NewCol))
+        } else if (char == CSV.RowSep) {
+          Vector.empty[Char] ->
+            ((if (acc.nonEmpty)
+                Vector(CSV.Column(acc.mkString))
+              else Vector.empty[CSV.Token]) ++
+              Vector(CSV.NewCol))
+        } else (acc :+ char) -> Vector.empty[CSV.Token]
       }
       .flatMap(t => FS2Stream(t._2))
       .covary[CatsIO]
       .compile
       .drain
 
-    stream.unsafeRunSync
+    stream.unsafeRunSync()
   }
 
   @Benchmark
-  def zioCsvTokenize() = {
+  def zioCsvTokenize(): Unit = {
     val chunks = genCsvChunks.map(Chunk.fromArray)
-    val stream = ZStreamChunk
+    val stream = ZStream
       .fromChunks(chunks.toIndexedSeq: _*)
-      .mapAccum[Vector[Char], Chunk[CSV.Token]](Vector.empty[Char]) {
-        case (acc, char) =>
-          if (char == CSV.ColumnSep) {
-            Vector.empty[Char] ->
-              ((if (acc.nonEmpty)
-                  Chunk(CSV.Column(acc.mkString))
-                else Chunk.empty) ++
-                Chunk(CSV.NewCol))
-          } else if (char == CSV.RowSep) {
-            Vector.empty[Char] ->
-              ((if (acc.nonEmpty)
-                  Chunk(CSV.Column(acc.mkString))
-                else Chunk.empty) ++
-                Chunk(CSV.NewCol))
-          } else (acc :+ char) -> Chunk.empty
+      .mapAccum[Vector[Char], Chunk[CSV.Token]](Vector.empty[Char]) { case (acc, char) =>
+        if (char == CSV.ColumnSep) {
+          Vector.empty[Char] ->
+            ((if (acc.nonEmpty)
+                Chunk(CSV.Column(acc.mkString))
+              else Chunk.empty) ++
+              Chunk(CSV.NewCol))
+        } else if (char == CSV.RowSep) {
+          Vector.empty[Char] ->
+            ((if (acc.nonEmpty)
+                Chunk(CSV.Column(acc.mkString))
+              else Chunk.empty) ++
+              Chunk(CSV.NewCol))
+        } else (acc :+ char) -> Chunk.empty
       }
       .mapConcatChunk(identity)
 

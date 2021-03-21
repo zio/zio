@@ -13,10 +13,6 @@ println(s"""libraryDependencies += "dev.zio" %%% "zio" % "${zio.BuildInfo.versio
 println(s"""```""")
 ```
 
-Java Time API which is not a part of ScalaJS. You might have to add dependency that provides `java.time` package to
-avoid linker errors when using `Clock`. ZIO uses [scala-java-time](https://github.com/cquiroz/scala-java-time) for
-running it's test.
-
 ## Example
 
 Your main function can extend `App` as follows.
@@ -24,18 +20,36 @@ This example uses [scala-js-dom](https://github.com/scala-js/scala-js-dom) to ac
 will need to add that library as a dependency to your `build.sbt`.
 
 ```scala
-import org.scalajs.dom.document
-import zio.{App, IO}
+import org.scalajs.dom.{document, raw}
+import zio._
+import zio.duration._
+import zio.clock._
 
-object MyApp extends App {
+object Main extends App {
 
-  def run(args: List[String]): IO[Nothing, Int] =
+  def run(args: List[String]) = {
     for {
-      p <- IO.effectSuspendTotal(document.createElement("p"))
-      t <- IO.effectSuspendTotal(document.createTextNode("Hello World"))
-      _ <- IO.effectSuspendTotal(p.appendChild(t))
-      _ <- IO.effectSuspendTotal(document.body.appendChild(p))
-    } yield 0
-}
+      _      <- putStrLn("Starting progress bar demo.")  // Outputs on browser console log.
+      target <- IO.effectTotal(document.createElement("pre"))
+      _      <- update(target).repeat(Schedule.spaced(1.seconds))
+      _      <- IO.effectTotal(node.appendChild(target)) // "node" is provided in this page by mdoc.
+    } yield ExitCode.success
+  }
 
+  def update(target: raw.Element) = {
+      for {
+        time   <- currentTime(TimeUnit.SECONDS)
+        output <- UIO.effectTotal(progress((time % 11).toInt, 10))
+        _      <- UIO.effectTotal(target.innerHTML = output)
+      } yield ()
+  }
+
+  def progress(tick: Int, size: Int) = {
+      val bar_length = tick
+      val empty_length = size - tick
+      val bar = "#" * bar_length + " " * empty_length
+      s"$bar $bar_length%"
+  }
+
+}
 ```

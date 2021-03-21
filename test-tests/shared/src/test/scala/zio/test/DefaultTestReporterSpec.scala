@@ -6,7 +6,7 @@ import zio.test.TestAspect.silent
 
 object DefaultTestReporterSpec extends ZIOBaseSpec {
 
-  def spec =
+  def spec: ZSpec[Environment, Failure] =
     suite("DefaultTestReporterSpec")(
       testM("correctly reports a successful test") {
         assertM(runLog(test1))(equalTo(test1Expected.mkString + reportStats(1, 0, 0)))
@@ -41,16 +41,16 @@ object DefaultTestReporterSpec extends ZIOBaseSpec {
       testM("correctly reports negated failures") {
         assertM(runLog(test8))(equalTo(test8Expected.mkString + reportStats(0, 0, 1)))
       },
-      testM("correctly reports mock failure of invalid argument") {
+      testM("correctly reports mock failure of invalid call") {
         assertM(runLog(mock1))(equalTo(mock1Expected.mkString + reportStats(0, 0, 1)))
       },
-      testM("correctly reports mock failure of invalid method") {
+      testM("correctly reports mock failure of unmet expectations") {
         assertM(runLog(mock2))(equalTo(mock2Expected.mkString + reportStats(0, 0, 1)))
       },
-      testM("correctly reports mock failure of unmet expectations") {
+      testM("correctly reports mock failure of unexpected call") {
         assertM(runLog(mock3))(equalTo(mock3Expected.mkString + reportStats(0, 0, 1)))
       },
-      testM("correctly reports mock failure of unexpected call") {
+      testM("correctly reports mock failure of invalid range") {
         assertM(runLog(mock4))(equalTo(mock4Expected.mkString + reportStats(0, 0, 1)))
       }
     ) @@ silent

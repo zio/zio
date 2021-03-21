@@ -23,14 +23,14 @@ package object internal {
   /**
    * Returns an effect that models success with the specified value.
    */
-  def ZIOSucceedNow[A](a: A): ZIO[Any, Nothing, A] =
+  def ZIOSucceedNow[A](a: A): UIO[A] =
     ZIO.succeedNow(a)
 
   /**
    * Lifts an eager, pure value into a Managed.
    */
   def ZManagedSucceedNow[A](r: A): ZManaged[Any, Nothing, A] =
-    ZManaged(IO.succeedNow(Reservation(IO.succeedNow(r), _ => IO.unit)))
+    ZManaged.succeedNow(r)
 
   /**
    * Returns an `STM` effect that succeeds with the specified value.

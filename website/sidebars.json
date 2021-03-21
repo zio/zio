@@ -10,14 +10,17 @@
       "overview/overview_testing_effects",
       "overview/overview_running_effects",
       "overview/overview_background",
-      "overview/overview_performance"
+      "overview/overview_performance",
+      "overview/overview_platforms"
     ]
   },
   "datatypes-sidebar": {
     "Data Types": [
       "datatypes/datatypes_index",
+      "datatypes/datatypes_chunk",
       "datatypes/datatypes_fiber",
       "datatypes/datatypes_fiberref",
+      "datatypes/datatypes_has",
       "datatypes/datatypes_io",
       "datatypes/datatypes_managed",
       "datatypes/datatypes_promise",
@@ -27,13 +30,16 @@
       "datatypes/datatypes_semaphore",
       "datatypes/datatypes_sink",
       "datatypes/datatypes_stream",
-      "datatypes/datatypes_chunk",
       "datatypes/datatypes_tarray",
       "datatypes/datatypes_tmap",
+      "datatypes/datatypes_tpriorityqueue",
       "datatypes/datatypes_tpromise",
       "datatypes/datatypes_tqueue",
+      "datatypes/datatypes_treentrantlock",
       "datatypes/datatypes_tref",
-      "datatypes/datatypes_tset"
+      "datatypes/datatypes_tsemaphore",
+      "datatypes/datatypes_tset",
+      "datatypes/datatypes_zlayer"
     ]
   },
   "interop-sidebar": {
@@ -57,6 +63,7 @@
       "usecases/usecases_concurrency",
       "usecases/usecases_parallelism",
       "usecases/usecases_queuing",
+      "usecases/usecases_retrying",
       "usecases/usecases_scheduling",
       "usecases/usecases_streaming",
       "usecases/usecases_testing"
@@ -66,10 +73,12 @@
     "How to": [
       "howto/howto_index",
       "howto/howto_use_layers",
+      "howto/howto_test_assertions",
       "howto/howto_test_effects",
       "howto/howto_mock_services",
       "howto/howto_handle_errors",
-      "howto/howto_access_system_information"
+      "howto/howto_access_system_information",
+      "howto/howto_macros"
     ]
   },
   "resources-sidebar": {
@@ -85,6 +94,7 @@
   "about-sidebar": {
       "About": [
           "about/about_index",
+          "about/about_coding_guidelines",
           "about/about_contributing",
           "about/about_coc"
       ]

@@ -16,12 +16,12 @@
 
 package zio
 
+import zio.internal.Platform
+
 import scala.annotation.tailrec
 import scala.util.control.NonFatal
 
-import zio.internal.Platform
-
-sealed trait Cause[+E] extends Product with Serializable { self =>
+sealed abstract class Cause[+E] extends Product with Serializable { self =>
   import Cause.Internal._
 
   /**
@@ -36,11 +36,17 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
     if (self eq Empty) that else if (that eq Empty) self else Then(self, that)
 
   /**
+   * Maps the error value of this cause to the specified constant value.
+   */
+  final def as[E1](e: => E1): Cause[E1] =
+    map(_ => e)
+
+  /**
    * Determines if this cause contains or is equal to the specified cause.
    */
   final def contains[E1 >: E](that: Cause[E1]): Boolean =
-    (self eq that) || foldLeft[Boolean](false) {
-      case (acc, cause) => acc || (cause == that)
+    (self eq that) || foldLeft[Boolean](false) { case (acc, cause) =>
+      acc || (cause == that)
     }
 
   /**
@@ -48,8 +54,8 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
    */
   final def defects: List[Throwable] =
     self
-      .foldLeft(List.empty[Throwable]) {
-        case (z, Die(v)) => v :: z
+      .foldLeft(List.empty[Throwable]) { case (z, Die(v)) =>
+        v :: z
       }
       .reverse
 
@@ -74,13 +80,33 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
     find { case Fail(e) => e }
 
   /**
+   * Returns the `E` associated with the first `Fail` in this `Cause` if one
+   * exists, along with its (optional) trace.
+   */
+  def failureTraceOption: Option[(E, Option[ZTrace])] =
+    find {
+      case Traced(Fail(e), trace) => (e, Some(trace))
+      case Fail(e)                => (e, None)
+    }
+
+  /**
    * Retrieve the first checked error on the `Left` if available,
    * if there are no checked errors return the rest of the `Cause`
    * that is known to contain only `Die` or `Interrupt` causes.
-   * */
+   */
   final def failureOrCause: Either[E, Cause[Nothing]] = failureOption match {
     case Some(error) => Left(error)
     case None        => Right(self.asInstanceOf[Cause[Nothing]]) // no E inside this cause, can safely cast
+  }
+
+  /**
+   * Retrieve the first checked error and its trace on the `Left` if available,
+   * if there are no checked errors return the rest of the `Cause`
+   * that is known to contain only `Die` or `Interrupt` causes.
+   */
+  final def failureTraceOrCause: Either[(E, Option[ZTrace]), Cause[Nothing]] = failureTraceOption match {
+    case Some(errorAndTrace) => Left(errorAndTrace)
+    case None                => Right(self.asInstanceOf[Cause[Nothing]]) // no E inside this cause, can safely cast
   }
 
   /**
@@ -88,8 +114,8 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
    */
   final def failures: List[E] =
     self
-      .foldLeft(List.empty[E]) {
-        case (z, Fail(v)) => v :: z
+      .foldLeft(List.empty[E]) { case (z, Fail(v)) =>
+        v :: z
       }
       .reverse
 
@@ -128,8 +154,8 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
    * by this `Cause`.
    */
   final def interruptors: Set[Fiber.Id] =
-    foldLeft[Set[Fiber.Id]](Set()) {
-      case (acc, Interrupt(fiberId)) => acc + fiberId
+    foldLeft[Set[Fiber.Id]](Set()) { case (acc, Interrupt(fiberId)) =>
+      acc + fiberId
     }
 
   /**
@@ -176,6 +202,37 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
         cause.fold(empty, failCase, dieCase, interruptCase)(thenCase, bothCase, tracedCase)
     }
 
+  /**
+   * Remove all `Fail` and `Interrupt` nodes from this `Cause`,
+   * return only `Die` cause/finalizer defects.
+   */
+  final def keepDefects: Option[Cause[Nothing]] =
+    self match {
+      case Empty        => None
+      case Interrupt(_) => None
+      case Fail(_)      => None
+      case d @ Die(_)   => Some(d)
+
+      case Both(l, r) =>
+        (l.keepDefects, r.keepDefects) match {
+          case (Some(l), Some(r)) => Some(Both(l, r))
+          case (Some(l), None)    => Some(l)
+          case (None, Some(r))    => Some(r)
+          case (None, None)       => None
+        }
+
+      case Then(l, r) =>
+        (l.keepDefects, r.keepDefects) match {
+          case (Some(l), Some(r)) => Some(Then(l, r))
+          case (Some(l), None)    => Some(l)
+          case (None, Some(r))    => Some(r)
+          case (None, None)       => None
+        }
+
+      case Traced(c, trace) => c.keepDefects.map(Traced(_, trace))
+      case Meta(c, data)    => c.keepDefects.map(Meta(_, data))
+    }
+
   final def map[E1](f: E => E1): Cause[E1] =
     flatMap(e => Fail(f(e)))
 
@@ -200,8 +257,8 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
    * Returns a `String` with the cause pretty-printed.
    */
   final def prettyPrint: String = {
-    sealed trait Segment
-    sealed trait Step extends Segment
+    sealed abstract class Segment
+    sealed abstract class Step extends Segment
 
     final case class Sequential(all: List[Step])     extends Segment
     final case class Parallel(all: List[Sequential]) extends Step
@@ -234,7 +291,7 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
       val stackless = maybeData.fold(false)(_.stackless)
       if (stackless) List(e.toString)
       else {
-        import java.io.{ PrintWriter, StringWriter }
+        import java.io.{PrintWriter, StringWriter}
         val sw = new StringWriter()
         val pw = new PrintWriter(sw)
         e.printStackTrace(pw)
@@ -305,10 +362,9 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
           prefixBlock(lines, "─", " ")
         case Parallel(all) =>
           List(("══╦" * (all.size - 1)) + "══╗") ++
-            all.foldRight[List[String]](Nil) {
-              case (current, acc) =>
-                prefixBlock(acc, "  ║", "  ║") ++
-                  prefixBlock(format(current), "  ", "  ")
+            all.foldRight[List[String]](Nil) { case (current, acc) =>
+              prefixBlock(acc, "  ║", "  ║") ++
+                prefixBlock(format(current), "  ", "  ")
             }
         case Sequential(all) =>
           all.flatMap { segment =>
@@ -370,34 +426,49 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
     attachTrace(squashWith(f))
 
   /**
-   * Remove all `Fail` and `Interrupt` nodes from this `Cause`,
-   * return only `Die` cause/finalizer defects.
+   * Discards all typed failures kept on this `Cause`.
    */
-  final def stripFailures: Option[Cause[Nothing]] =
+  final def stripFailures: Cause[Nothing] =
     self match {
-      case Empty        => None
-      case Interrupt(_) => None
-      case Fail(_)      => None
-      case d @ Die(_)   => Some(d)
+      case Empty            => Empty
+      case c @ Interrupt(_) => c
+      case Fail(_)          => Empty
+      case c @ Die(_)       => c
 
+      case Both(l, r) => l.stripFailures && r.stripFailures
+      case Then(l, r) => l.stripFailures ++ r.stripFailures
+
+      case Traced(c, trace) => Traced(c.stripFailures, trace)
+      case Meta(c, data)    => Meta(c.stripFailures, data)
+    }
+
+  /**
+   * Remove all `Die` causes that the specified partial function is defined at,
+   * returning `Some` with the remaining causes or `None` if there are no
+   * remaining causes.
+   */
+  final def stripSomeDefects(pf: PartialFunction[Throwable, Any]): Option[Cause[E]] =
+    self match {
+      case Empty              => None
+      case Interrupt(fiberId) => Some(Interrupt(fiberId))
+      case Fail(e)            => Some(Fail(e))
+      case Die(t)             => if (pf.isDefinedAt(t)) None else Some(Die(t))
       case Both(l, r) =>
-        (l.stripFailures, r.stripFailures) match {
+        (l.stripSomeDefects(pf), r.stripSomeDefects(pf)) match {
           case (Some(l), Some(r)) => Some(Both(l, r))
           case (Some(l), None)    => Some(l)
           case (None, Some(r))    => Some(r)
           case (None, None)       => None
         }
-
       case Then(l, r) =>
-        (l.stripFailures, r.stripFailures) match {
+        (l.stripSomeDefects(pf), r.stripSomeDefects(pf)) match {
           case (Some(l), Some(r)) => Some(Then(l, r))
           case (Some(l), None)    => Some(l)
           case (None, Some(r))    => Some(r)
           case (None, None)       => None
         }
-
-      case Traced(c, trace) => c.stripFailures.map(Traced(_, trace))
-      case Meta(c, data)    => c.stripFailures.map(Meta(_, data))
+      case Traced(c, trace) => c.stripSomeDefects(pf).map(Traced(_, trace))
+      case Meta(c, data)    => c.stripSomeDefects(pf).map(Meta(_, data))
     }
 
   /**
@@ -405,12 +476,12 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
    */
   final def traces: List[ZTrace] =
     self
-      .foldLeft(List.empty[ZTrace]) {
-        case (z, Traced(_, trace)) => trace :: z
+      .foldLeft(List.empty[ZTrace]) { case (z, Traced(_, trace)) =>
+        trace :: z
       }
       .reverse
 
-  private def find[Z](f: PartialFunction[Cause[E], Z]): Option[Z] = {
+  final def find[Z](f: PartialFunction[Cause[E], Z]): Option[Z] = {
     @tailrec
     def loop(cause: Cause[E], stack: List[Cause[E]]): Option[Z] =
       f.lift(cause) match {
@@ -431,7 +502,7 @@ sealed trait Cause[+E] extends Product with Serializable { self =>
     loop(self, Nil)
   }
 
-  private def foldLeft[Z](z: Z)(f: PartialFunction[(Z, Cause[E]), Z]): Z = {
+  final def foldLeft[Z](z: Z)(f: PartialFunction[(Z, Cause[E]), Z]): Z = {
     @tailrec
     def loop(z: Z, cause: Cause[E], stack: List[Cause[E]]): Z =
       (f.applyOrElse[(Z, Cause[E]), Z](z -> cause, _ => z), cause) match {
@@ -504,6 +575,34 @@ object Cause extends Serializable {
           case (None, Some(cr))     => Some(cr)
           case (Some(cl), None)     => Some(cl)
           case (None, None)         => None
+        }
+    }
+
+  /**
+   * Converts the specified `Cause[Either[E, A]]` to an `Either[Cause[E], A]` by
+   * recursively stripping out any failures with the error `None`.
+   */
+  def sequenceCauseEither[E, A](c: Cause[Either[E, A]]): Either[Cause[E], A] =
+    c match {
+      case Internal.Empty                => Left(Internal.Empty)
+      case Internal.Traced(cause, trace) => sequenceCauseEither(cause).left.map(Internal.Traced(_, trace))
+      case Internal.Meta(cause, data)    => sequenceCauseEither(cause).left.map(Internal.Meta(_, data))
+      case Internal.Interrupt(id)        => Left(Internal.Interrupt(id))
+      case d @ Internal.Die(_)           => Left(d)
+      case Internal.Fail(Left(e))        => Left(Internal.Fail(e))
+      case Internal.Fail(Right(a))       => Right(a)
+      case Internal.Then(left, right) =>
+        (sequenceCauseEither(left), sequenceCauseEither(right)) match {
+          case (Left(cl), Left(cr)) => Left(Internal.Then(cl, cr))
+          case (Right(a), _)        => Right(a)
+          case (_, Right(a))        => Right(a)
+        }
+
+      case Internal.Both(left, right) =>
+        (sequenceCauseEither(left), sequenceCauseEither(right)) match {
+          case (Left(cl), Left(cr)) => Left(Internal.Both(cl, cr))
+          case (Right(a), _)        => Right(a)
+          case (_, Right(a))        => Right(a)
         }
     }
 

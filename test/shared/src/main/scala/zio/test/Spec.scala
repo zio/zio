@@ -73,50 +73,41 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
    * Returns the number of tests in the spec that satisfy the specified
    * predicate.
    */
-  final def countTests(f: T => Boolean): ZIO[R, E, Int] =
-    fold[ZIO[R, E, Int]] {
-      case SuiteCase(_, specs, _) => specs.flatMap(ZIO.collectAll(_).map(_.sum))
-      case TestCase(_, test, _)   => test.map(t => if (f(t)) 1 else 0)
+  final def countTests(f: T => Boolean): ZManaged[R, E, Int] =
+    fold[ZManaged[R, E, Int]] {
+      case SuiteCase(_, specs, _) => specs.flatMap(ZManaged.collectAll(_).map(_.sum))
+      case TestCase(_, test, _)   => test.map(t => if (f(t)) 1 else 0).toManaged_
     }
+
+  /**
+   * Returns an effect that models execution of this spec.
+   */
+  final def execute(defExec: ExecutionStrategy): ZManaged[R, Nothing, Spec[Any, E, T]] =
+    ZManaged.accessManaged(provide(_).foreachExec(defExec)(ZIO.halt(_), ZIO.succeedNow))
 
   /**
    * Determines if any node in the spec is satisfied by the given predicate.
    */
-  final def exists[R1 <: R, E1 >: E](f: SpecCase[R, E, T, Any] => ZIO[R1, E1, Boolean]): ZIO[R1, E1, Boolean] =
-    fold[ZIO[R1, E1, Boolean]] {
-      case c @ SuiteCase(_, specs, _) => specs.flatMap(ZIO.collectAll(_).map(_.exists(identity))).zipWith(f(c))(_ || _)
-      case c @ TestCase(_, _, _)      => f(c)
+  final def exists[R1 <: R, E1 >: E](f: SpecCase[R, E, T, Any] => ZIO[R1, E1, Boolean]): ZManaged[R1, E1, Boolean] =
+    fold[ZManaged[R1, E1, Boolean]] {
+      case c @ SuiteCase(_, specs, _) =>
+        specs.flatMap(ZManaged.collectAll(_).map(_.exists(identity))).zipWith(f(c).toManaged_)(_ || _)
+      case c @ TestCase(_, _, _) => f(c).toManaged_
     }
 
   /**
-   * Returns a new spec with only those suites and tests with annotations
-   * satisfying the specified predicate. If no annotations satisfy the
-   * specified predicate then returns `Some` with an empty suite with the root
-   * label if this is a suite or `None` otherwise.
+   * Returns a new spec with only those tests with annotations satisfying the
+   * specified predicate. If no annotations satisfy the specified predicate
+   * then returns `Some` with an empty suite if this is a suite or `None`
+   * otherwise.
    */
-  final def filterAnnotations[V](key: TestAnnotation[V])(f: V => Boolean): Option[Spec[R, E, T]] = {
-    def loop(spec: Spec[R, E, T]): URIO[R, Option[Spec[R, E, T]]] =
-      spec.caseValue match {
-        case SuiteCase(label, specs, exec) =>
-          specs.foldCauseM(
-            c => ZIO.succeedNow(Some(Spec.suite(label, ZIO.halt(c), exec))),
-            ZIO.foreach(_)(loop).map(_.toVector.flatten).map { specs =>
-              if (specs.isEmpty) None
-              else Some(Spec.suite(label, ZIO.succeedNow(specs), exec))
-            }
-          )
-        case t @ TestCase(_, _, annotations) =>
-          if (f(annotations.get(key))) ZIO.succeedNow(Some(Spec(t)))
-          else ZIO.succeedNow(None)
-      }
+  final def filterAnnotations[V](key: TestAnnotation[V])(f: V => Boolean): Option[Spec[R, E, T]] =
     caseValue match {
       case SuiteCase(label, specs, exec) =>
-        Some(Spec.suite(label, specs.flatMap(ZIO.foreach(_)(loop).map(_.toVector.flatten)), exec))
-      case t @ TestCase(_, _, annotations) =>
-        if (f(annotations.get(key))) Some(Spec(t))
-        else None
+        Some(Spec.suite(label, specs.map(_.flatMap(_.filterAnnotations(key)(f).toList)), exec))
+      case TestCase(label, test, annotations) =>
+        if (f(annotations.get(key))) Some(Spec.test(label, test, annotations)) else None
     }
-  }
 
   /**
    * Returns a new spec with only those suites and tests satisfying the
@@ -124,35 +115,16 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
    * suite will be included in the new spec. Otherwise only those specs in a
    * suite that satisfy the specified predicate will be included in the new
    * spec. If no labels satisfy the specified predicate then returns `Some`
-   * with an empty suite with the root label if this is a suite or `None`
-   * otherwise.
+   * with an empty suite if this is a suite or `None` otherwise.
    */
-  final def filterLabels(f: String => Boolean): Option[Spec[R, E, T]] = {
-    def loop(spec: Spec[R, E, T]): URIO[R, Option[Spec[R, E, T]]] =
-      spec.caseValue match {
-        case SuiteCase(label, specs, exec) =>
-          if (f(label))
-            ZIO.succeedNow(Some(Spec.suite(label, specs, exec)))
-          else
-            specs.foldCauseM(
-              c => ZIO.succeedNow(Some(Spec.suite(label, ZIO.halt(c), exec))),
-              ZIO.foreach(_)(loop).map(_.toVector.flatten).map { specs =>
-                if (specs.isEmpty) None
-                else Some(Spec.suite(label, ZIO.succeedNow(specs), exec))
-              }
-            )
-        case TestCase(label, test, annotations) =>
-          if (f(label)) ZIO.succeedNow(Some(Spec.test(label, test, annotations)))
-          else ZIO.succeedNow(None)
-      }
+  final def filterLabels(f: String => Boolean): Option[Spec[R, E, T]] =
     caseValue match {
       case SuiteCase(label, specs, exec) =>
         if (f(label)) Some(Spec.suite(label, specs, exec))
-        else Some(Spec.suite(label, specs.flatMap(ZIO.foreach(_)(loop).map(_.toVector.flatten)), exec))
+        else Some(Spec.suite(label, specs.map(_.flatMap(_.filterLabels(f).toList)), exec))
       case TestCase(label, test, annotations) =>
         if (f(label)) Some(Spec.test(label, test, annotations)) else None
     }
-  }
 
   /**
    * Returns a new spec with only those suites and tests with tags satisfying
@@ -178,43 +150,26 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
    */
   final def foldM[R1 <: R, E1, Z](
     defExec: ExecutionStrategy
-  )(f: SpecCase[R, E, T, Z] => ZIO[R1, E1, Z]): ZIO[R1, E1, Z] =
+  )(f: SpecCase[R, E, T, Z] => ZManaged[R1, E1, Z]): ZManaged[R1, E1, Z] =
     caseValue match {
       case SuiteCase(label, specs, exec) =>
-        exec.getOrElse(defExec) match {
-          case ExecutionStrategy.Parallel =>
-            specs.foldCauseM(
-              c => f(SuiteCase(label, ZIO.halt(c), exec)),
-              ZIO
-                .foreachPar(_)(_.foldM(defExec)(f))
-                .flatMap(z => f(SuiteCase(label, ZIO.succeedNow(z.toVector), exec)))
-            )
-          case ExecutionStrategy.ParallelN(n) =>
-            specs.foldCauseM(
-              c => f(SuiteCase(label, ZIO.halt(c), exec)),
-              ZIO
-                .foreachParN(n)(_)(_.foldM(defExec)(f))
-                .flatMap(z => f(SuiteCase(label, ZIO.succeedNow(z.toVector), exec)))
-            )
-          case ExecutionStrategy.Sequential =>
-            specs.foldCauseM(
-              c => f(SuiteCase(label, ZIO.halt(c), exec)),
-              ZIO
-                .foreach(_)(_.foldM(defExec)(f))
-                .flatMap(z => f(SuiteCase(label, ZIO.succeedNow(z.toVector), exec)))
-            )
-        }
-
+        specs.foldCauseM(
+          c => f(SuiteCase(label, ZManaged.halt(c), exec)),
+          ZManaged
+            .foreachExec(_)(exec.getOrElse(defExec))(_.foldM(defExec)(f).release)
+            .flatMap(z => f(SuiteCase(label, ZManaged.succeedNow(z.toVector), exec)))
+        )
       case t @ TestCase(_, _, _) => f(t)
     }
 
   /**
    * Determines if all node in the spec are satisfied by the given predicate.
    */
-  final def forall[R1 <: R, E1 >: E](f: SpecCase[R, E, T, Any] => ZIO[R1, E1, Boolean]): ZIO[R1, E1, Boolean] =
-    fold[ZIO[R1, E1, Boolean]] {
-      case c @ SuiteCase(_, specs, _) => specs.flatMap(ZIO.collectAll(_).map(_.forall(identity))).zipWith(f(c))(_ && _)
-      case c @ TestCase(_, _, _)      => f(c)
+  final def forall[R1 <: R, E1 >: E](f: SpecCase[R, E, T, Any] => ZIO[R1, E1, Boolean]): ZManaged[R1, E1, Boolean] =
+    fold[ZManaged[R1, E1, Boolean]] {
+      case c @ SuiteCase(_, specs, _) =>
+        specs.flatMap(ZManaged.collectAll(_).map(_.forall(identity))).zipWith(f(c).toManaged_)(_ && _)
+      case c @ TestCase(_, _, _) => f(c).toManaged_
     }
 
   /**
@@ -224,15 +179,17 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
    */
   final def foreachExec[R1 <: R, E1, A](
     defExec: ExecutionStrategy
-  )(failure: Cause[E] => ZIO[R1, E1, A], success: T => ZIO[R1, E1, A]): ZIO[R1, Nothing, Spec[R1, E1, A]] =
+  )(failure: Cause[E] => ZIO[R1, E1, A], success: T => ZIO[R1, E1, A]): ZManaged[R1, Nothing, Spec[R1, E1, A]] =
     foldM[R1, Nothing, Spec[R1, E1, A]](defExec) {
       case SuiteCase(label, specs, exec) =>
         specs.foldCause(
           e => Spec.test(label, failure(e), TestAnnotationMap.empty),
-          t => Spec.suite(label, ZIO.succeedNow(t), exec)
+          t => Spec.suite(label, ZManaged.succeedNow(t), exec)
         )
       case TestCase(label, test, annotations) =>
-        test.foldCause(e => Spec.test(label, failure(e), annotations), t => Spec.test(label, success(t), annotations))
+        test
+          .foldCause(e => Spec.test(label, failure(e), annotations), t => Spec.test(label, success(t), annotations))
+          .toManaged_
     }
 
   /**
@@ -243,7 +200,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
   final def foreach[R1 <: R, E1, A](
     failure: Cause[E] => ZIO[R1, E1, A],
     success: T => ZIO[R1, E1, A]
-  ): ZIO[R1, Nothing, Spec[R1, E1, A]] =
+  ): ZManaged[R1, Nothing, Spec[R1, E1, A]] =
     foreachExec(ExecutionStrategy.Sequential)(failure, success)
 
   /**
@@ -254,7 +211,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
   final def foreachPar[R1 <: R, E1, A](
     failure: Cause[E] => ZIO[R1, E1, A],
     success: T => ZIO[R1, E1, A]
-  ): ZIO[R1, Nothing, Spec[R1, E1, A]] =
+  ): ZManaged[R1, Nothing, Spec[R1, E1, A]] =
     foreachExec(ExecutionStrategy.Parallel)(failure, success)
 
   /**
@@ -264,7 +221,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
    */
   final def foreachParN[R1 <: R, E1, A](
     n: Int
-  )(failure: Cause[E] => ZIO[R1, E1, A], success: T => ZIO[R1, E1, A]): ZIO[R1, Nothing, Spec[R1, E1, A]] =
+  )(failure: Cause[E] => ZIO[R1, E1, A], success: T => ZIO[R1, E1, A]): ZManaged[R1, Nothing, Spec[R1, E1, A]] =
     foreachExec(ExecutionStrategy.ParallelN(n))(failure, success)
 
   /**
@@ -315,7 +272,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
    */
   def provideCustomLayer[E1 >: E, R1 <: Has[_]](
     layer: ZLayer[TestEnvironment, E1, R1]
-  )(implicit ev: TestEnvironment with R1 <:< R, tagged: Tagged[R1]): Spec[TestEnvironment, E1, T] =
+  )(implicit ev: TestEnvironment with R1 <:< R, tagged: Tag[R1]): Spec[TestEnvironment, E1, T] =
     provideSomeLayer[TestEnvironment](layer)
 
   /**
@@ -333,13 +290,13 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
    */
   def provideCustomLayerShared[E1 >: E, R1 <: Has[_]](
     layer: ZLayer[TestEnvironment, E1, R1]
-  )(implicit ev: TestEnvironment with R1 <:< R, tagged: Tagged[R1]): Spec[TestEnvironment, E1, T] =
+  )(implicit ev: TestEnvironment with R1 <:< R, tagged: Tag[R1]): Spec[TestEnvironment, E1, T] =
     provideSomeLayerShared[TestEnvironment](layer)
 
   /**
    * Provides a layer to the spec, translating it up a level.
    */
-  final def provideLayer[E1 >: E, R0, R1 <: Has[_]](
+  final def provideLayer[E1 >: E, R0, R1](
     layer: ZLayer[R0, E1, R1]
   )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R]): Spec[R0, E1, T] =
     transform[R0, E1, T] {
@@ -350,25 +307,19 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
   /**
    * Provides a layer to the spec, sharing services between all tests.
    */
-  final def provideLayerShared[E1 >: E, R0, R1 <: Has[_]](
+  final def provideLayerShared[E1 >: E, R0, R1](
     layer: ZLayer[R0, E1, R1]
-  )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R]): Spec[R0, E1, T] = {
-    def loop(r: R)(spec: Spec[R, E, T]): UIO[Spec[Any, E, T]] =
-      spec.caseValue match {
-        case SuiteCase(label, specs, exec) =>
-          specs.provide(r).run.map { result =>
-            Spec.suite(label, ZIO.done(result).flatMap(ZIO.foreach(_)(loop(r))).map(_.toVector), exec)
-          }
-        case TestCase(label, test, annotations) =>
-          test.provide(r).run.map(result => Spec.test(label, ZIO.done(result), annotations))
-      }
+  )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R]): Spec[R0, E1, T] =
     caseValue match {
       case SuiteCase(label, specs, exec) =>
-        Spec.suite(label, layer.build.use(r => specs.flatMap(ZIO.foreach(_)(loop(r))).map(_.toVector).provide(r)), exec)
+        Spec.suite(
+          label,
+          layer.memoize.flatMap(layer => specs.map(_.map(_.provideLayer(layer))).provideLayer(layer)),
+          exec
+        )
       case TestCase(label, test, annotations) =>
         Spec.test(label, test.provideLayer(layer), annotations)
     }
-  }
 
   /**
    * Uses the specified function to provide each test in this spec with part of
@@ -414,10 +365,10 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
   /**
    * Computes the size of the spec, i.e. the number of tests in the spec.
    */
-  final def size: ZIO[R, E, Int] =
-    fold[ZIO[R, E, Int]] {
-      case SuiteCase(_, counts, _) => counts.flatMap(ZIO.collectAll(_).map(_.sum))
-      case TestCase(_, _, _)       => ZIO.succeedNow(1)
+  final def size: ZManaged[R, E, Int] =
+    fold[ZManaged[R, E, Int]] {
+      case SuiteCase(_, counts, _) => counts.flatMap(ZManaged.collectAll(_).map(_.sum))
+      case TestCase(_, _, _)       => ZManaged.succeedNow(1)
     }
 
   /**
@@ -438,38 +389,33 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
     z0: Z
   )(
     f: (Z, SpecCase[R, E, T, Spec[R1, E1, T1]]) => (Z, SpecCase[R1, E1, T1, Spec[R1, E1, T1]])
-  ): ZIO[R, E, (Z, Spec[R1, E1, T1])] =
+  ): ZManaged[R, E, (Z, Spec[R1, E1, T1])] =
     caseValue match {
       case SuiteCase(label, specs, exec) =>
         for {
           specs <- specs
-          result <- ZIO.foldLeft(specs)(z0 -> Vector.empty[Spec[R1, E1, T1]]) {
-                     case ((z, vector), spec) =>
-                       spec.transformAccum(z)(f).map { case (z1, spec1) => z1 -> (vector :+ spec1) }
-                   }
+          result <- ZManaged.foldLeft(specs)(z0 -> Vector.empty[Spec[R1, E1, T1]]) { case ((z, vector), spec) =>
+                      spec.transformAccum(z)(f).map { case (z1, spec1) => z1 -> (vector :+ spec1) }
+                    }
           (z, specs1)     = result
-          res             = f(z, SuiteCase(label, ZIO.succeedNow(specs1), exec))
+          res             = f(z, SuiteCase(label, ZManaged.succeedNow(specs1), exec))
           (z1, caseValue) = res
         } yield z1 -> Spec(caseValue)
       case t @ TestCase(_, _, _) =>
         val (z, caseValue) = f(z0, t)
-        ZIO.succeedNow(z -> Spec(caseValue))
+        ZManaged.succeedNow(z -> Spec(caseValue))
     }
 
   /**
-   * Runs only tests whose labels (which must be strings) contain the given substring.
-   * If a suite label contains the specified string all specs in that suite will be included in the resulting spec.
+   * Updates a service in the environment of this effect.
    */
-  final def only(s: String)(implicit ev: T <:< TestSuccess): Spec[R, E, TestSuccess] =
-    self
-      .asInstanceOf[Spec[R, E, TestSuccess]]
-      .filterLabels(_.contains(s))
-      .getOrElse(Spec.test("only", ignored, TestAnnotationMap.empty))
+  final def updateService[M] =
+    new Spec.UpdateService[R, E, T, M](self)
 
   /**
    * Runs the spec only if the specified predicate is satisfied.
    */
-  final def when(b: Boolean)(implicit ev: T <:< TestSuccess): Spec[R with Annotations, E, TestSuccess] =
+  final def when(b: => Boolean)(implicit ev: T <:< TestSuccess): Spec[R with Annotations, E, TestSuccess] =
     whenM(ZIO.succeedNow(b))
 
   /**
@@ -482,9 +428,9 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
       case SuiteCase(label, specs, exec) =>
         Spec.suite(
           label,
-          b.flatMap(b =>
-            if (b) specs.asInstanceOf[ZIO[R1, E1, Vector[Spec[R1, E1, TestSuccess]]]]
-            else ZIO.succeedNow(Vector.empty)
+          b.toManaged_.flatMap(b =>
+            if (b) specs.asInstanceOf[ZManaged[R1, E1, Vector[Spec[R1, E1, TestSuccess]]]]
+            else ZManaged.succeedNow(Vector.empty)
           ),
           exec
         )
@@ -501,20 +447,23 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
 }
 
 object Spec {
-  sealed trait SpecCase[-R, +E, +T, +A] { self =>
+  sealed abstract class SpecCase[-R, +E, +T, +A] { self =>
     final def map[B](f: A => B): SpecCase[R, E, T, B] = self match {
       case SuiteCase(label, specs, exec)      => SuiteCase(label, specs.map(_.map(f)), exec)
       case TestCase(label, test, annotations) => TestCase(label, test, annotations)
     }
   }
-  final case class SuiteCase[-R, +E, +A](label: String, specs: ZIO[R, E, Vector[A]], exec: Option[ExecutionStrategy])
-      extends SpecCase[R, E, Nothing, A]
+  final case class SuiteCase[-R, +E, +A](
+    label: String,
+    specs: ZManaged[R, E, Vector[A]],
+    exec: Option[ExecutionStrategy]
+  ) extends SpecCase[R, E, Nothing, A]
   final case class TestCase[-R, +E, +T](label: String, test: ZIO[R, E, T], annotations: TestAnnotationMap)
       extends SpecCase[R, E, T, Nothing]
 
   final def suite[R, E, T](
     label: String,
-    specs: ZIO[R, E, Vector[Spec[R, E, T]]],
+    specs: ZManaged[R, E, Vector[Spec[R, E, T]]],
     exec: Option[ExecutionStrategy]
   ): Spec[R, E, T] =
     Spec(SuiteCase(label, specs, exec))
@@ -525,14 +474,28 @@ object Spec {
   final class ProvideSomeLayer[R0 <: Has[_], -R, +E, +T](private val self: Spec[R, E, T]) extends AnyVal {
     def apply[E1 >: E, R1 <: Has[_]](
       layer: ZLayer[R0, E1, R1]
-    )(implicit ev1: R0 with R1 <:< R, ev2: NeedsEnv[R], tagged: Tagged[R1]): Spec[R0, E1, T] =
+    )(implicit ev1: R0 with R1 <:< R, ev2: NeedsEnv[R], tagged: Tag[R1]): Spec[R0, E1, T] =
       self.provideLayer[E1, R0, R0 with R1](ZLayer.identity[R0] ++ layer)
   }
 
   final class ProvideSomeLayerShared[R0 <: Has[_], -R, +E, +T](private val self: Spec[R, E, T]) extends AnyVal {
     def apply[E1 >: E, R1 <: Has[_]](
       layer: ZLayer[R0, E1, R1]
-    )(implicit ev1: R0 with R1 <:< R, ev2: NeedsEnv[R], tagged: Tagged[R1]): Spec[R0, E1, T] =
-      self.provideLayerShared[E1, R0, R0 with R1](ZLayer.identity[R0] ++ layer)
+    )(implicit ev1: R0 with R1 <:< R, ev2: NeedsEnv[R], tagged: Tag[R1]): Spec[R0, E1, T] =
+      self.caseValue match {
+        case SuiteCase(label, specs, exec) =>
+          Spec.suite(
+            label,
+            layer.memoize.flatMap(layer => specs.map(_.map(_.provideSomeLayer(layer))).provideSomeLayer(layer)),
+            exec
+          )
+        case TestCase(label, test, annotations) =>
+          Spec.test(label, test.provideSomeLayer(layer), annotations)
+      }
+  }
+
+  final class UpdateService[-R, +E, +T, M](private val self: Spec[R, E, T]) extends AnyVal {
+    def apply[R1 <: R with Has[M]](f: M => M)(implicit ev: Has.IsHas[R1], tag: Tag[M]): Spec[R1, E, T] =
+      self.provideSome(ev.update(_, f))
   }
 }

@@ -31,6 +31,7 @@ package zio
  *
  * FiberRef#make also allows specifying how the values will be combined when joining.
  * By default this will use the value of the joined fiber.
+ * {{{
  * for {
  *   fiberRef <- FiberRef.make(0, math.max)
  *   child    <- fiberRef.update(_ + 1).fork
@@ -45,8 +46,11 @@ package zio
  * @param initial
  * @tparam A
  */
-final class FiberRef[A] private[zio] (private[zio] val initial: A, private[zio] val combine: (A, A) => A)
-    extends Serializable { self =>
+final class FiberRef[A] private[zio] (
+  private[zio] val initial: A,
+  private[zio] val fork: A => A,
+  private[zio] val join: (A, A) => A
+) extends Serializable { self =>
 
   /**
    * Reads the value associated with the current fiber. Returns initial value if
@@ -199,6 +203,6 @@ object FiberRef extends Serializable {
   /**
    * Creates a new `FiberRef` with given initial value.
    */
-  def make[A](initialValue: A, combine: (A, A) => A = (_: A, last: A) => last): UIO[FiberRef[A]] =
-    new ZIO.FiberRefNew(initialValue, combine)
+  def make[A](initial: A, fork: A => A = (a: A) => a, join: (A, A) => A = ((_: A, a: A) => a)): UIO[FiberRef[A]] =
+    new ZIO.FiberRefNew(initial, fork, join)
 }

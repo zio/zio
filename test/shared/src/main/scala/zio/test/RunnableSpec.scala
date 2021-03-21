@@ -17,22 +17,24 @@
 package zio.test
 
 import zio.clock.Clock
-import zio.test.Spec.TestCase
-import zio.{ Has, UIO, URIO }
+import zio.{Has, URIO}
 
 /**
  * A `RunnableSpec` has a main function and can be run by the JVM / Scala.js.
  */
-trait RunnableSpec[R <: Has[_], E] extends AbstractRunnableSpec {
+abstract class RunnableSpec[R <: Has[_], E] extends AbstractRunnableSpec {
   override type Environment = R
   override type Failure     = E
 
   private def run(spec: ZSpec[Environment, Failure]): URIO[TestLogger with Clock, Int] =
     for {
-      results     <- runSpec(spec)
-      hasFailures <- results.exists { case TestCase(_, test, _) => test.map(_.isLeft); case _ => UIO.succeedNow(false) }
-      summary     <- SummaryBuilder.buildSummary(results)
-      _           <- TestLogger.logLine(summary.summary)
+      results <- runSpec(spec)
+      hasFailures = results.exists {
+                      case ExecutedSpec.TestCase(_, test, _) => test.isLeft
+                      case _                                 => false
+                    }
+      summary = SummaryBuilder.buildSummary(results)
+      _      <- TestLogger.logLine(summary.summary)
     } yield if (hasFailures) 1 else 0
 
   /**
@@ -58,7 +60,7 @@ trait RunnableSpec[R <: Has[_], E] extends AbstractRunnableSpec {
     catch { case _: SecurityException => }
 
   private def isAmmonite: Boolean =
-    sys.env.exists {
-      case (k, v) => k.contains("JAVA_MAIN_CLASS") && v == "ammonite.Main"
+    sys.env.exists { case (k, v) =>
+      k.contains("JAVA_MAIN_CLASS") && v == "ammonite.Main"
     }
 }

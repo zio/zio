@@ -20,10 +20,10 @@
 
 package zio
 
-import scala.annotation.tailrec
-import scala.collection.immutable.{ Queue => IQueue }
+import zio.internals._
 
-import internals._
+import scala.annotation.tailrec
+import scala.collection.immutable.{Queue => IQueue}
 
 /**
  * An asynchronous semaphore, which is a generalization of a mutex. Semaphores
@@ -31,7 +31,7 @@ import internals._
  * concurrently by different parties. Attempts to acquire more permits than
  * available result in the acquiring fiber being suspended until the specified
  * number of permits become available.
- **/
+ */
 final class Semaphore private (private val state: Ref[State]) extends Serializable {
 
   /**
@@ -64,7 +64,7 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
    * Acquires `n` permits in a [[zio.ZManaged]] and releases the permits in the finalizer.
    */
   def withPermitsManaged[R, E](n: Long): ZManaged[R, E, Unit] =
-    ZManaged(prepare(n).map(a => Reservation(a.awaitAcquire, _ => a.release)))
+    ZManaged.makeReserve(prepare(n).map(a => Reservation(a.awaitAcquire, _ => a.release)))
 
   /**
    * Ported from @mpilquist work in Cats Effect (https://github.com/typelevel/cats-effect/pull/403)
@@ -77,7 +77,7 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
         case Right(m) => IO.unit -> Right(m + n)
       })
 
-    if (n == 0)
+    if (n == 0L)
       IO.succeedNow(Acquisition(IO.unit, IO.unit))
     else
       Promise.make[Nothing, Unit].flatMap { p =>

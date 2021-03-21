@@ -1,11 +1,10 @@
 package zio.internal
-import java.util.concurrent.RejectedExecutionException
-
-import scala.concurrent.ExecutionContext
-
 import zio.ZIOBaseSpec
 import zio.test.Assertion._
 import zio.test._
+
+import java.util.concurrent.RejectedExecutionException
+import scala.concurrent.ExecutionContext
 
 final class TestExecutor(val submitResult: Boolean) extends Executor {
   val here: Boolean                       = true
@@ -26,25 +25,25 @@ object TestExecutor {
   val y       = new TestExecutor(true)
   val u       = new TestExecutor(true)
 
-  val badEC = new ExecutionContext {
+  val badEC: ExecutionContext = new ExecutionContext {
     override def execute(r: Runnable): Unit            = throw new RejectedExecutionException("Rejected: " + r.toString)
     override def reportFailure(cause: Throwable): Unit = ()
   }
 
-  val ec = new ExecutionContext {
+  val ec: ExecutionContext = new ExecutionContext {
     override def execute(r: Runnable): Unit            = ()
     override def reportFailure(cause: Throwable): Unit = ()
   }
 
   // backward compatibility for scala 2.11.12
-  val runnable = new Runnable {
+  val runnable: Runnable = new Runnable {
     override def run(): Unit = ()
   }
 }
 
 object ExecutorSpec extends ZIOBaseSpec {
 
-  def spec = suite("ExecutorSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("ExecutorSpec")(
     suite("Create the default unyielding executor and check that:")(
       test("When converted to an EC, it reports Throwables to stdout") {
         val t = new CheckPrintThrowable
@@ -55,6 +54,9 @@ object ExecutorSpec extends ZIOBaseSpec {
     suite("Create an executor that cannot have tasks submitted to and check that:")(
       test("It throws an exception upon submission") {
         assert(TestExecutor.failing.submitOrThrow(TestExecutor.runnable))(throwsA[RejectedExecutionException])
+      },
+      test("When converted to Java, it throws an exception upon calling execute") {
+        assert(TestExecutor.failing.asJava.execute(TestExecutor.runnable))(throwsA[RejectedExecutionException])
       }
     ),
     suite("Create a yielding executor and check that:")(
@@ -68,6 +70,9 @@ object ExecutorSpec extends ZIOBaseSpec {
         assert(Executor.fromExecutionContext(1)(TestExecutor.ec).submit(TestExecutor.runnable))(
           not(throwsA[RejectedExecutionException])
         )
+      },
+      test("When converted to Java, it accepts Runnables") {
+        assert(TestExecutor.y.asJava.execute(TestExecutor.runnable))(not(throwsA[RejectedExecutionException]))
       }
     ),
     suite("Create an unyielding executor and check that:")(
@@ -76,6 +81,9 @@ object ExecutorSpec extends ZIOBaseSpec {
       },
       test("When converted to an ExecutionContext, it accepts Runnables") {
         assert(TestExecutor.u.asEC.execute(TestExecutor.runnable))(not(throwsA[RejectedExecutionException]))
+      },
+      test("When converted to Java, it accepts Runnables") {
+        assert(TestExecutor.u.asJava.execute(TestExecutor.runnable))(not(throwsA[RejectedExecutionException]))
       }
     )
   )

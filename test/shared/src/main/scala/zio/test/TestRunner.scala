@@ -30,17 +30,17 @@ final case class TestRunner[R <: Has[_], E](
   executor: TestExecutor[R, E],
   platform: Platform = Platform.makeDefault().withReportFailure(_ => ()),
   reporter: TestReporter[E] = DefaultTestReporter(TestAnnotationRenderer.default),
-  bootstrap: ZLayer.NoDeps[Nothing, TestLogger with Clock] = ((Console.live >>> TestLogger.fromConsole) ++ Clock.live)
+  bootstrap: Layer[Nothing, TestLogger with Clock] = ((Console.live >>> TestLogger.fromConsole) ++ Clock.live)
 ) { self =>
 
-  lazy val runtime = Runtime((), platform)
+  lazy val runtime: Runtime[Unit] = Runtime((), platform)
 
   /**
    * Runs the spec, producing the execution results.
    */
   def run(spec: ZSpec[R, E]): URIO[TestLogger with Clock, ExecutedSpec[E]] =
-    executor.run(spec, ExecutionStrategy.ParallelN(4)).timed.flatMap {
-      case (duration, results) => reporter(duration, results).as(results)
+    executor.run(spec, ExecutionStrategy.ParallelN(4)).timed.flatMap { case (duration, results) =>
+      reporter(duration, results).as(results)
     }
 
   /**
@@ -75,7 +75,7 @@ final case class TestRunner[R <: Has[_], E](
   /**
    * Creates a copy of this runner replacing the reporter.
    */
-  def withReporter[E1 >: E](reporter: TestReporter[E1]) =
+  def withReporter[E1 >: E](reporter: TestReporter[E1]): TestRunner[R, E] =
     copy(reporter = reporter)
 
   /**

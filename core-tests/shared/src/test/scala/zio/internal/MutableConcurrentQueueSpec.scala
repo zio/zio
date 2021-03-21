@@ -12,7 +12,7 @@ import zio.test._
  */
 object MutableConcurrentQueueSpec extends ZIOBaseSpec {
 
-  def spec = suite("MutableConcurrentQueueSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("MutableConcurrentQueueSpec")(
     suite("Make a bounded MutableConcurrentQueue")(
       test("of capacity 1 return a queue of capacity 1") {
         val q = MutableConcurrentQueue.bounded(1)

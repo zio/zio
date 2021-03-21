@@ -16,9 +16,9 @@
 
 package zio
 
-import java.util.concurrent.atomic.AtomicReference
+import zio.Promise.internal._
 
-import Promise.internal._
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * A promise represents an asynchronous variable, of [[zio.IO]] type, that can
@@ -37,8 +37,10 @@ import Promise.internal._
  * } yield value
  * }}}
  */
-final class Promise[E, A] private (private val state: AtomicReference[State[E, A]], blockingOn: List[Fiber.Id])
-    extends Serializable {
+final class Promise[E, A] private (
+  private val state: AtomicReference[Promise.internal.State[E, A]],
+  blockingOn: List[Fiber.Id]
+) extends Serializable {
 
   /**
    * Retrieves the value of the promise, suspending the fiber running the action
@@ -225,7 +227,7 @@ object Promise {
   private val ConstFalse: () => Boolean = () => false
 
   private[zio] object internal {
-    sealed trait State[E, A]                                       extends Serializable with Product
+    sealed abstract class State[E, A]                              extends Serializable with Product
     final case class Pending[E, A](joiners: List[IO[E, A] => Any]) extends State[E, A]
     final case class Done[E, A](value: IO[E, A])                   extends State[E, A]
   }
@@ -239,7 +241,14 @@ object Promise {
    * Makes a new promise to be completed by the fiber with the specified id.
    */
   def makeAs[E, A](fiberId: Fiber.Id): UIO[Promise[E, A]] =
-    ZIO.effectTotal(
-      new Promise[E, A](new AtomicReference[State[E, A]](new internal.Pending[E, A](Nil)), fiberId :: Nil)
-    )
+    ZIO.effectTotal(unsafeMake(fiberId))
+
+  /**
+   * Makes a new managed promise to be completed by the fiber creating the promise.
+   */
+  def makeManaged[E, A]: UManaged[Promise[E, A]] =
+    make[E, A].toManaged_
+
+  private[zio] def unsafeMake[E, A](fiberId: Fiber.Id): Promise[E, A] =
+    new Promise[E, A](new AtomicReference[State[E, A]](new internal.Pending[E, A](Nil)), fiberId :: Nil)
 }

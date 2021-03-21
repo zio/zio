@@ -46,7 +46,7 @@ import zio._
 import zio.console._
 
 val zManagedResource: ZManaged[Console, Nothing, Unit] = ZManaged.make(console.putStrLn("acquiring"))(_ => console.putStrLn("releasing"))
-val zUsedResource: ZIO[Console, Nothing, Unit] = zManagedResource.use { _ => console.putStrLn("running") }
+val zUsedResource: URIO[Console, Unit] = zManagedResource.use { _ => console.putStrLn("running") }
 ```
 
 ## Combining Managed

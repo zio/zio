@@ -16,22 +16,27 @@
 
 package zio.test.mock
 
+import zio.console.Console
+import zio.{Has, IO, UIO, URLayer, ZLayer}
+
 import java.io.IOException
 
-import zio.console.Console
-import zio.{ Has, IO, UIO }
-import zio.{ IO, UIO }
+object MockConsole extends Mock[Console] {
 
-object MockConsole {
+  object PutStr      extends Effect[String, Nothing, Unit]
+  object PutStrErr   extends Effect[String, Nothing, Unit]
+  object PutStrLn    extends Effect[String, Nothing, Unit]
+  object PutStrLnErr extends Effect[String, Nothing, Unit]
+  object GetStrLn    extends Effect[Unit, IOException, String]
 
-  object putStr   extends Method[Console.Service, String, Unit]
-  object putStrLn extends Method[Console.Service, String, Unit]
-  object getStrLn extends Method[Console.Service, Unit, String]
-
-  implicit val mockableConsole: Mockable[Console.Service] = (mock: Mock) =>
-    Has(new Console.Service {
-      def putStr(line: String): UIO[Unit]   = mock(MockConsole.putStr, line)
-      def putStrLn(line: String): UIO[Unit] = mock(MockConsole.putStrLn, line)
-      val getStrLn: IO[IOException, String] = mock(MockConsole.getStrLn)
-    })
+  val compose: URLayer[Has[Proxy], Console] =
+    ZLayer.fromService(proxy =>
+      new Console.Service {
+        def putStr(line: String): UIO[Unit]      = proxy(PutStr, line)
+        def putStrErr(line: String): UIO[Unit]   = proxy(PutStrErr, line)
+        def putStrLn(line: String): UIO[Unit]    = proxy(PutStrLn, line)
+        def putStrLnErr(line: String): UIO[Unit] = proxy(PutStrLnErr, line)
+        val getStrLn: IO[IOException, String]    = proxy(GetStrLn)
+      }
+    )
 }

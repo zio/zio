@@ -1,12 +1,11 @@
 package zio.internal
 
-import java.util.concurrent.TimeUnit
-
-import BenchUtils._
 import org.openjdk.jmh.annotations._
 import org.openjdk.jmh.infra.Blackhole
+import zio.internal.BenchUtils._
+import zio.internal.ProducerConsumerBenchmark.{OfferCounters, PollCounters}
 
-import zio.internal.ProducerConsumerBenchmark.{ OfferCounters, PollCounters }
+import java.util.concurrent.TimeUnit
 
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
@@ -126,12 +125,12 @@ object ProducerConsumerBenchmark {
   @State(Scope.Thread)
   @AuxCounters(AuxCounters.Type.EVENTS)
   class PollCounters(var failedPolls: Long, var madePolls: Long) {
-    def this() { this(0, 0) }
+    def this() = { this(0, 0) }
   }
 
   @State(Scope.Thread)
   @AuxCounters(AuxCounters.Type.EVENTS)
   class OfferCounters(var failedOffers: Long, var madeOffers: Long) {
-    def this() { this(0, 0) }
+    def this() = { this(0, 0) }
   }
 }

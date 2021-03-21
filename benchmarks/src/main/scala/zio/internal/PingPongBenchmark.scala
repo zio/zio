@@ -1,10 +1,10 @@
 package zio.internal
 
-import java.util.concurrent.TimeUnit
-
-import BenchUtils._
 import org.openjdk.jmh.annotations._
-import org.openjdk.jmh.infra.{ Blackhole, Control }
+import org.openjdk.jmh.infra.{Blackhole, Control}
+import zio.internal.BenchUtils._
+
+import java.util.concurrent.TimeUnit
 
 @BenchmarkMode(Array(Mode.AverageTime))
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
@@ -13,8 +13,8 @@ import org.openjdk.jmh.infra.{ Blackhole, Control }
 @Fork(5)
 @State(Scope.Group)
 private[this] class PingPongBenchmark {
-  def mkEl(): AnyRef = new Object()
-  val emptyEl        = null.asInstanceOf[AnyRef]
+  def mkEl(): AnyRef  = new Object()
+  val emptyEl: AnyRef = null.asInstanceOf[AnyRef]
 
   @Param(Array("1", "2"))
   var batchSize: Int = _

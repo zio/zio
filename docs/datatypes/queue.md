@@ -153,10 +153,10 @@ val awaitShutdown: UIO[Unit] = for {
 
 ## Transforming queues
 
-A `Queue[A]` is in fact a type alias for `ZQueue[Any, Nothing, Any, Nothing, A, A]`.
+A `Queue[A]` is in fact a type alias for `ZQueue[Any, Any, Nothing, Nothing, A, A]`.
 The signature for the expanded version is:
 ```scala
-trait ZQueue[RA, EA, RB, EB, A, B]
+trait ZQueue[RA, RB, EA, EB, A, B]
 ```
 
 Which is to say:
@@ -192,7 +192,7 @@ import zio.clock._
 
 val currentTimeMillis = currentTime(TimeUnit.MILLISECONDS)
 
-val annotatedOut: UIO[ZQueue[Any, Nothing, Clock, Nothing, String, (Long, String)]] =
+val annotatedOut: UIO[ZQueue[Any, Clock, Nothing, Nothing, String, (Long, String)]] =
   for {
     queue <- Queue.bounded[String](3)
     mapped = queue.mapM { el =>
@@ -208,7 +208,7 @@ elements as they are enqueued. This queue will annotate the elements
 with their enqueue timestamp:
 
 ```scala mdoc:silent
-val annotatedIn: UIO[ZQueue[Clock, Nothing, Any, Nothing, String, (Long, String)]] =
+val annotatedIn: UIO[ZQueue[Clock, Any, Nothing, Nothing, String, (Long, String)]] =
   for {
     queue <- Queue.bounded[(Long, String)](3)
     mapped = queue.contramapM { el: String =>
@@ -227,7 +227,7 @@ compute the time that the elements stayed in the queue:
 ```scala mdoc:silent
 import zio.duration._
 
-val timeQueued: UIO[ZQueue[Clock, Nothing, Clock, Nothing, String, (Duration, String)]] =
+val timeQueued: UIO[ZQueue[Clock, Clock, Nothing, Nothing, String, (Duration, String)]] =
   for {
     queue <- Queue.bounded[(Long, String)](3)
     enqueueTimestamps = queue.contramapM { el: String =>
@@ -261,6 +261,6 @@ val fromComposedQueues: UIO[(Int, String)] =
 ## Additional Resources
 
 - [ZIO Queue Talk by John De Goes @ ScalaWave 2018](https://www.slideshare.net/jdegoes/zio-queue)
-- [ZIO Queue Talk by Wiem Zine Elabidine @ PSUG 2018](https://www.slideshare.net/wiemzin/psug-zio-queue)
+- [ZIO Queue Talk by Wiem Zine El Abidine @ PSUG 2018](https://www.slideshare.net/wiemzin/psug-zio-queue)
 - [Elevator Control System using ZIO](https://medium.com/@wiemzin/elevator-control-system-using-zio-c718ae423c58)
 - [Scalaz 8 IO vs Akka (typed) actors vs Monix](https://blog.softwaremill.com/scalaz-8-io-vs-akka-typed-actors-vs-monix-part-1-5672657169e1)

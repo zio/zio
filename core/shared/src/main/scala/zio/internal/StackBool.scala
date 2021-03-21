@@ -47,7 +47,7 @@ private[zio] final class StackBool private () {
   def size: Long = _size
 
   def push(flag: Boolean): Unit = {
-    val index = _size & 0X3FL
+    val index = _size & 0x3fL
 
     if (flag) head.bits = head.bits | (1L << index)
     else head.bits = head.bits & (~(1L << index))
@@ -61,7 +61,7 @@ private[zio] final class StackBool private () {
     if (_size == 0L) b
     else {
       _size -= 1L
-      val index = _size & 0X3FL
+      val index = _size & 0x3fL
 
       if (index == 63L && head.next != null) head = head.next
 
@@ -72,7 +72,7 @@ private[zio] final class StackBool private () {
     if (_size == 0L) b
     else {
       val size  = _size - 1L
-      val index = size & 0X3FL
+      val index = size & 0x3fL
       val entry =
         if (index == 63L && head.next != null) head.next else head
 
@@ -87,7 +87,7 @@ private[zio] final class StackBool private () {
   override def toString: String =
     "StackBool(" + toList.mkString(", ") + ")"
 
-  override def equals(that: Any) = that match {
+  override def equals(that: Any): Boolean = (that: @unchecked) match {
     case that: StackBool => toList == that.toList
   }
 

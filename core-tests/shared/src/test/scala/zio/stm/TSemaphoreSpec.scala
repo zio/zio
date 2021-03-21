@@ -6,7 +6,7 @@ import zio.test.Assertion._
 import zio.test._
 
 object TSemaphoreSpec extends ZIOBaseSpec {
-  override def spec = suite("TSemaphore")(
+  override def spec: ZSpec[Environment, Failure] = suite("TSemaphore")(
     suite("factories")(
       testM("make") {
         checkM(Gen.long(1L, Int.MaxValue)) { expected =>
@@ -31,40 +31,38 @@ object TSemaphoreSpec extends ZIOBaseSpec {
         }
       },
       testM("used capacity must be equal to the # of acquires minus # of releases") {
-        checkM(usedCapacityGen) {
-          case (capacity, acquire, release) =>
-            val actual = for {
-              sem <- TSemaphore.make(capacity)
-              _   <- repeat(sem.acquire)(acquire) *> repeat(sem.release)(release)
-              cap <- sem.available
-            } yield cap
+        checkM(usedCapacityGen) { case (capacity, acquire, release) =>
+          val actual = for {
+            sem <- TSemaphore.make(capacity)
+            _   <- repeat(sem.acquire)(acquire) *> repeat(sem.release)(release)
+            cap <- sem.available
+          } yield cap
 
-            val usedCapacity = acquire - release
-            assertM(actual.commit)(equalTo(capacity - usedCapacity))
+          val usedCapacity = acquire - release
+          assertM(actual.commit)(equalTo(capacity - usedCapacity))
         }
       },
       testM("acquireN/releaseN(n) is acquire/release repeated N times") {
-        checkM(Gen.long(1, 100)) {
-          capacity =>
-            def acquireRelease(
-              sem: TSemaphore
-            )(acq: Long => STM[Nothing, Unit])(rel: Long => STM[Nothing, Unit]): STM[Nothing, (Long, Long)] =
-              for {
-                _            <- acq(capacity)
-                usedCapacity <- sem.available
-                _            <- rel(capacity)
-                freeCapacity <- sem.available
-              } yield (usedCapacity, freeCapacity)
+        checkM(Gen.long(1, 100)) { capacity =>
+          def acquireRelease(
+            sem: TSemaphore
+          )(acq: Long => STM[Nothing, Unit])(rel: Long => STM[Nothing, Unit]): STM[Nothing, (Long, Long)] =
+            for {
+              _            <- acq(capacity)
+              usedCapacity <- sem.available
+              _            <- rel(capacity)
+              freeCapacity <- sem.available
+            } yield (usedCapacity, freeCapacity)
 
-            STM.atomically {
-              for {
-                sem               <- TSemaphore.make(capacity)
-                acquireReleaseN   = acquireRelease(sem)(sem.acquireN)(sem.releaseN)
-                acquireReleaseRep = acquireRelease(sem)(repeat(sem.acquire))(repeat(sem.release))
-                resN              <- acquireReleaseN
-                resRep            <- acquireReleaseRep
-              } yield assert(resN)(equalTo(resRep)) && assert(resN)(equalTo((0L, capacity)))
-            }
+          STM.atomically {
+            for {
+              sem              <- TSemaphore.make(capacity)
+              acquireReleaseN   = acquireRelease(sem)(sem.acquireN)(sem.releaseN)
+              acquireReleaseRep = acquireRelease(sem)(repeat(sem.acquire))(repeat(sem.release))
+              resN             <- acquireReleaseN
+              resRep           <- acquireReleaseRep
+            } yield assert(resN)(equalTo(resRep)) && assert(resN)(equalTo((0L, capacity)))
+          }
         }
       },
       testM("withPermit automatically acquires and releases a permit once an action completes") {

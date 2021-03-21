@@ -1,20 +1,21 @@
 package zio
 
-import java.util.concurrent.TimeUnit
-
-import org.openjdk.jmh.annotations.Benchmark
-import org.openjdk.jmh.annotations.BenchmarkMode
-import org.openjdk.jmh.annotations.Fork
-import org.openjdk.jmh.annotations.Measurement
-import org.openjdk.jmh.annotations.Mode
-import org.openjdk.jmh.annotations.OutputTimeUnit
-import org.openjdk.jmh.annotations.Param
-import org.openjdk.jmh.annotations.Scope
-import org.openjdk.jmh.annotations.State
-import org.openjdk.jmh.annotations.Threads
-import org.openjdk.jmh.annotations.Warmup
-
+import org.openjdk.jmh.annotations.{
+  Benchmark,
+  BenchmarkMode,
+  Fork,
+  Measurement,
+  Mode,
+  OutputTimeUnit,
+  Param,
+  Scope,
+  State,
+  Threads,
+  Warmup
+}
 import zio.IOBenchmarks.verify
+
+import java.util.concurrent.TimeUnit
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
@@ -53,7 +54,7 @@ class FiberRefBenchmarks {
     for {
       fiberRefs <- ZIO.foreach(1.to(n))(i => FiberRef.make(i))
       _         <- ZIO.foreach_(1.to(n))(_ => ZIO.yieldNow)
-      values    <- ZIO.collectAllPar(fiberRefs.map(_.get))
+      values    <- ZIO.foreachPar(fiberRefs)(_.get)
       _         <- verify(values == 1.to(n))(s"Got $values")
     } yield ()
   }
@@ -64,8 +65,8 @@ class FiberRefBenchmarks {
       values1   <- ZIO.foreachPar(fiberRefs)(ref => ref.update(-_) *> ref.get)
       values2   <- ZIO.foreachPar(fiberRefs)(_.get)
       _ <- verify(values1.forall(_ < 0) && values1.size == values2.size)(
-            s"Got \nvalues1: $values1, \nvalues2: $values2"
-          )
+             s"Got \nvalues1: $values1, \nvalues2: $values2"
+           )
     } yield ()
   }
 }

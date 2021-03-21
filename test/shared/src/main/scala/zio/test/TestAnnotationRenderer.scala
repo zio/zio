@@ -16,12 +16,13 @@ package zio.test
  * limitations under the License.
  */
 
+import zio.duration._
 import zio.test.TestAnnotationRenderer._
 
 /**
  * A `TestAnnotationRenderer` knows how to render test annotations.
  */
-sealed trait TestAnnotationRenderer { self =>
+sealed abstract class TestAnnotationRenderer { self =>
 
   def run(ancestors: List[TestAnnotationMap], child: TestAnnotationMap): List[String]
 
@@ -50,7 +51,7 @@ object TestAnnotationRenderer {
   /**
    * A test annotation renderer that renders a single test annotation.
    */
-  sealed trait LeafRenderer extends TestAnnotationRenderer
+  sealed abstract class LeafRenderer extends TestAnnotationRenderer
 
   object LeafRenderer {
     def apply[V](annotation: TestAnnotation[V])(render: ::[V] => Option[String]): TestAnnotationRenderer =
@@ -78,10 +79,9 @@ object TestAnnotationRenderer {
    * A test annotation renderer that renders the number of ignored tests.
    */
   val ignored: TestAnnotationRenderer =
-    LeafRenderer(TestAnnotation.ignored) {
-      case (child :: _) =>
-        if (child == 0) None
-        else Some(s"ignored: $child")
+    LeafRenderer(TestAnnotation.ignored) { case (child :: _) =>
+      if (child == 0) None
+      else Some(s"ignored: $child")
     }
 
   /**
@@ -89,10 +89,9 @@ object TestAnnotationRenderer {
    * repeated.
    */
   val repeated: TestAnnotationRenderer =
-    LeafRenderer(TestAnnotation.repeated) {
-      case (child :: _) =>
-        if (child == 0) None
-        else Some(s"repeated: $child")
+    LeafRenderer(TestAnnotation.repeated) { case (child :: _) =>
+      if (child == 0) None
+      else Some(s"repeated: $child")
     }
 
   /**
@@ -100,20 +99,18 @@ object TestAnnotationRenderer {
    * retried before it succeeded.
    */
   val retried: TestAnnotationRenderer =
-    LeafRenderer(TestAnnotation.retried) {
-      case (child :: _) =>
-        if (child == 0) None
-        else Some(s"retried: $child")
+    LeafRenderer(TestAnnotation.retried) { case (child :: _) =>
+      if (child == 0) None
+      else Some(s"retried: $child")
     }
 
   /**
    * A test annotation renderer that renders string tags.
    */
   val tagged: TestAnnotationRenderer =
-    LeafRenderer(TestAnnotation.tagged) {
-      case (child :: _) =>
-        if (child.isEmpty) None
-        else Some(s"tagged: ${child.map("\"" + _ + "\"").mkString(", ")}")
+    LeafRenderer(TestAnnotation.tagged) { case (child :: _) =>
+      if (child.isEmpty) None
+      else Some(s"tagged: ${child.map("\"" + _ + "\"").mkString(", ")}")
     }
 
   /**
@@ -131,9 +128,8 @@ object TestAnnotationRenderer {
    * execution time.
    */
   val timed: TestAnnotationRenderer =
-    LeafRenderer(TestAnnotation.timing) {
-      case (child :: ancestors) =>
-        if (child.isZero) None
-        else Some(f"${child.render} (${(child.toNanos.toDouble / (child :: ancestors).last.toNanos) * 100}%2.2f%%)")
+    LeafRenderer(TestAnnotation.timing) { case (child :: ancestors) =>
+      if (child.isZero) None
+      else Some(f"${child.render} (${(child.toNanos.toDouble / (child :: ancestors).last.toNanos) * 100}%2.2f%%)")
     }
 }

@@ -16,10 +16,9 @@
 
 package zio.test
 
-import zio.ZIO
-import zio.console
 import zio.duration._
 import zio.test.environment.Live
+import zio.{URIO, ZIO, console}
 
 trait TimeoutVariants {
 
@@ -62,7 +61,7 @@ trait TimeoutVariants {
     suiteLabels: List[String],
     testLabel: String,
     duration: Duration
-  ): ZIO[Live, Nothing, Unit] =
+  ): URIO[Live, Unit] =
     Live.live(console.putStrLn(renderWarning(suiteLabels, testLabel, duration)))
 
   private def renderWarning(suiteLabels: List[String], testLabel: String, duration: Duration): String =

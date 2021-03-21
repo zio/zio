@@ -1,10 +1,8 @@
 package zio.internal
 
-import java.util.concurrent.TimeUnit
-
 import org.openjdk.jmh.annotations._
 
-import zio.internal.impls._
+import java.util.concurrent.TimeUnit
 
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
 @BenchmarkMode(Array(Mode.AverageTime))

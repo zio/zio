@@ -22,10 +22,10 @@ trait ManagedApp extends BootstrapRuntime { ma =>
    * The main function of the application, which will be passed the command-line
    * arguments to the program and has to return an `ZManaged` with the errors fully handled.
    */
-  def run(args: List[String]): ZManaged[ZEnv, Nothing, Int]
+  def run(args: List[String]): ZManaged[ZEnv, Nothing, ExitCode]
 
   private val app = new App {
-    override def run(args: List[String]): ZIO[ZEnv, Nothing, Int] =
+    override def run(args: List[String]): URIO[ZEnv, ExitCode] =
       ma.run(args).use(exit => ZIO.effectTotal(exit))
   }
 

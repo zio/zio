@@ -10,7 +10,7 @@ object ZIOLazinessSpec extends ZIOBaseSpec {
       assertCompletes
     }
 
-  def spec = suite("ZIOLazinessSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("ZIOLazinessSpec")(
     suite("IO")(
       testM("die")(assertLazy(IO.die)),
       testM("dieMessage")(assertLazy(IO.dieMessage)),
@@ -20,6 +20,7 @@ object ZIOLazinessSpec extends ZIOBaseSpec {
       testM("fromFiber")(assertLazy(IO.fromFiber)),
       testM("fromOption")(assertLazy(IO.fromOption)),
       testM("fromTry")(assertLazy(IO.fromTry)),
+      testM("getOrFailUnit")(assertLazy(IO.getOrFailUnit)),
       testM("halt")(assertLazy(IO.halt)),
       testM("interruptAs")(assertLazy(IO.interruptAs)),
       testM("left")(assertLazy(IO.left)),
@@ -126,6 +127,7 @@ object ZIOLazinessSpec extends ZIOBaseSpec {
       testM("fromFiber")(assertLazy(ZIO.fromFiber)),
       testM("fromOption")(assertLazy(ZIO.fromOption)),
       testM("fromTry")(assertLazy(ZIO.fromTry)),
+      testM("getOrFailUnit")(assertLazy(ZIO.getOrFailUnit)),
       testM("halt")(assertLazy(ZIO.halt)),
       testM("interruptAs")(assertLazy(ZIO.interruptAs)),
       testM("left")(assertLazy(ZIO.left)),

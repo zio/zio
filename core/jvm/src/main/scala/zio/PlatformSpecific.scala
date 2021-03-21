@@ -41,7 +41,7 @@ private[zio] trait PlatformSpecific {
     val any: ZLayer[ZEnv, Nothing, ZEnv] =
       ZLayer.requires[ZEnv]
 
-    val live: ZLayer.NoDeps[Nothing, ZEnv] =
+    val live: Layer[Nothing, ZEnv] =
       Clock.live ++ Console.live ++ System.live ++ Random.live ++ Blocking.live
   }
 }

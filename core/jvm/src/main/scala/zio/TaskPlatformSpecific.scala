@@ -16,14 +16,14 @@
 
 package zio
 
-import _root_.java.nio.channels.CompletionHandler
-import _root_.java.util.concurrent.CompletionStage
-
 import zio.interop.javaz
+
+import java.nio.channels.CompletionHandler
+import java.util.concurrent.CompletionStage
 
 private[zio] trait TaskPlatformSpecific {
 
-  def effectAsyncWithCompletionHandler[T](op: CompletionHandler[T, Any] => Unit): Task[T] =
+  def effectAsyncWithCompletionHandler[T](op: CompletionHandler[T, Any] => Any): Task[T] =
     javaz.effectAsyncWithCompletionHandler(op)
 
   def fromCompletionStage[A](cs: => CompletionStage[A]): Task[A] = javaz.fromCompletionStage(cs)

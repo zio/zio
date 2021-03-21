@@ -8,7 +8,9 @@ import zio.test._
 
 object SemaphoreSpec extends ZIOBaseSpec {
 
-  def spec = suite("SemaphoreSpec")(
+  import ZIOTag._
+
+  def spec: Spec[Any, TestFailure[Any], TestSuccess] = suite("SemaphoreSpec")(
     suite("Make a Semaphore and verify that")(
       testM("`acquire` permits sequentially") {
         val n = 20L
@@ -45,7 +47,7 @@ object SemaphoreSpec extends ZIOBaseSpec {
           _       <- s.withPermit(IO.fail("fail")).either
           permits <- s.available
         } yield assert(permits)(equalTo(1L))
-      },
+      } @@ zioTag(errors),
       testM("`withPermit` does not leak fibers or permits upon cancellation") {
         val n = 1L
         for {
@@ -54,7 +56,7 @@ object SemaphoreSpec extends ZIOBaseSpec {
           _       <- fiber.interrupt
           permits <- s.available
         } yield assert(permits)(equalTo(1L))
-      },
+      } @@ zioTag(interruption),
       testM("`withPermitManaged` does not leak fibers or permits upon cancellation") {
         for {
           s       <- Semaphore.make(1L)
@@ -66,7 +68,7 @@ object SemaphoreSpec extends ZIOBaseSpec {
     )
   )
 
-  def offsettingWithPermits(withPermits: (Semaphore, Vector[Long]) => UIO[Unit]) = {
+  def offsettingWithPermits(withPermits: (Semaphore, Vector[Long]) => UIO[Unit]): ZIO[Any, Nothing, TestResult] = {
     val permits = Vector(1L, 0L, 20L, 4L, 0L, 5L, 2L, 1L, 1L, 3L)
 
     for {

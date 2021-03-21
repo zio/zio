@@ -16,8 +16,9 @@
 
 package zio.internal
 
+import zio.ChunkBuilder
+
 object MutableConcurrentQueue {
-  import zio.internal.impls._
 
   /**
    * @note in case you need extreme performance, make sure to use capacity
@@ -59,6 +60,25 @@ protected[zio] abstract class MutableConcurrentQueue[A] {
   def offer(a: A): Boolean
 
   /**
+   * A non-blocking enqueue of multiple elements.
+   */
+  def offerAll(as: Iterable[A]): Iterable[A] = {
+    val builder = ChunkBuilder.make[A]()
+    builder.sizeHint(as.size)
+    val iterator = as.iterator
+    var loop     = true
+    while (loop && iterator.hasNext) {
+      val a = iterator.next()
+      if (!offer(a)) {
+        builder += a
+        loop = false
+      }
+    }
+    builder ++= iterator
+    builder.result()
+  }
+
+  /**
    * A non-blocking dequeue.
    *
    * @return either an element from the queue, or the `default`
@@ -69,6 +89,23 @@ protected[zio] abstract class MutableConcurrentQueue[A] {
    * to pay for lower heap churn from not using [[scala.Option]] here.
    */
   def poll(default: A): A
+
+  /**
+   * A non-blocking dequeue of multiple elements.
+   */
+  def pollUpTo(n: Int): Iterable[A] = {
+    val builder = ChunkBuilder.make[A]()
+    builder.sizeHint(n)
+    val default = null.asInstanceOf[A]
+    var i       = n
+    while (i > 0) {
+      val a = poll(default)
+      if (a == default) i = 0
+      else builder += a
+      i -= 1
+    }
+    builder.result()
+  }
 
   /**
    * @return the '''current''' number of elements inside the queue.

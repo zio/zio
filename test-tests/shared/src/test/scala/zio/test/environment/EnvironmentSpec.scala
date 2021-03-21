@@ -1,7 +1,5 @@
 package zio.test.environment
 
-import java.util.concurrent.TimeUnit
-
 import zio._
 import zio.clock._
 import zio.duration._
@@ -9,13 +7,14 @@ import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test._
 
+import java.util.concurrent.TimeUnit
+
 object EnvironmentSpec extends ZIOBaseSpec {
 
-  def spec = suite("EnvironmentSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("EnvironmentSpec")(
     testM("Clock returns time when it is set") {
       for {
         _    <- TestClock.setTime(1.millis)
-        _    <- clock.sleep(1.millis)
         time <- clock.currentTime(TimeUnit.MILLISECONDS)
       } yield assert(time)(equalTo(1L))
     },
@@ -24,6 +23,13 @@ object EnvironmentSpec extends ZIOBaseSpec {
         _      <- console.putStrLn("First line")
         _      <- console.putStrLn("Second line")
         output <- TestConsole.output
+      } yield assert(output)(equalTo(Vector("First line\n", "Second line\n")))
+    } @@ silent,
+    testM("Console writes error line to error console") {
+      for {
+        _      <- console.putStrLnErr("First line")
+        _      <- console.putStrLnErr("Second line")
+        output <- TestConsole.outputErr
       } yield assert(output)(equalTo(Vector("First line\n", "Second line\n")))
     } @@ silent,
     testM("Console reads line from input") {

@@ -1,8 +1,8 @@
 package zio.chunks
 
-import java.util.concurrent.TimeUnit
-
 import org.openjdk.jmh.annotations._
+
+import java.util.concurrent.TimeUnit
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.AverageTime))
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
@@ -14,7 +14,7 @@ class ArrayBenchmarks {
   var size: Int = _
 
   @Setup(Level.Trial)
-  def setup() =
+  def setup(): Unit =
     array = (1 to size).toArray
 
   @Benchmark
@@ -87,7 +87,7 @@ class ArrayBenchmarks {
     var n  = total
     val it = mappings.iterator
     while (it.hasNext) {
-      val mapped = it.next
+      val mapped = it.next()
 
       n -= mapped.length
 

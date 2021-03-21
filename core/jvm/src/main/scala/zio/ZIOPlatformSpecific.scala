@@ -16,11 +16,11 @@
 
 package zio
 
-import _root_.java.nio.channels.CompletionHandler
-import _root_.java.util.concurrent.{ CompletableFuture, CompletionStage, Future }
-
 import zio.blocking.Blocking
 import zio.interop.javaz
+
+import java.nio.channels.CompletionHandler
+import java.util.concurrent.{CompletableFuture, CompletionStage, Future}
 
 private[zio] trait ZIOPlatformSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
   def toCompletableFuture[A1 >: A](implicit ev: E <:< Throwable): URIO[R, CompletableFuture[A1]] =
@@ -32,7 +32,7 @@ private[zio] trait ZIOPlatformSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
 
 private[zio] trait ZIOCompanionPlatformSpecific {
 
-  def effectAsyncWithCompletionHandler[T](op: CompletionHandler[T, Any] => Unit): Task[T] =
+  def effectAsyncWithCompletionHandler[T](op: CompletionHandler[T, Any] => Any): Task[T] =
     javaz.effectAsyncWithCompletionHandler(op)
 
   def fromCompletionStage[A](cs: => CompletionStage[A]): Task[A] = javaz.fromCompletionStage(cs)

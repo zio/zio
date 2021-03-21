@@ -14,25 +14,43 @@
  * limitations under the License.
  */
 
-package object zio extends EitherCompat with PlatformSpecific with VersionSpecific {
+package object zio extends BuildFromCompat with EitherCompat with PlatformSpecific with VersionSpecific {
   private[zio] type Callback[E, A] = Exit[E, A] => Any
 
   type Canceler[-R] = URIO[R, Any]
 
-  type RIO[-R, +A]  = ZIO[R, Throwable, A]
-  type URIO[-R, +A] = ZIO[R, Nothing, A]
-  type IO[+E, +A]   = ZIO[Any, E, A]
-  type UIO[+A]      = ZIO[Any, Nothing, A]
-  type Task[+A]     = ZIO[Any, Throwable, A]
+  type IO[+E, +A]   = ZIO[Any, E, A]         // Succeed with an `A`, may fail with `E`        , no requirements.
+  type Task[+A]     = ZIO[Any, Throwable, A] // Succeed with an `A`, may fail with `Throwable`, no requirements.
+  type RIO[-R, +A]  = ZIO[R, Throwable, A]   // Succeed with an `A`, may fail with `Throwable`, requires an `R`.
+  type UIO[+A]      = ZIO[Any, Nothing, A]   // Succeed with an `A`, cannot fail              , no requirements.
+  type URIO[-R, +A] = ZIO[R, Nothing, A]     // Succeed with an `A`, cannot fail              , requires an `R`.
 
-  type RManaged[-R, +A]  = ZManaged[R, Throwable, A]
-  type URManaged[-R, +A] = ZManaged[R, Nothing, A]
-  type Managed[+E, +A]   = ZManaged[Any, E, A]
-  type UManaged[+A]      = ZManaged[Any, Nothing, A]
-  type TaskManaged[+A]   = ZManaged[Any, Throwable, A]
+  type Managed[+E, +A]   = ZManaged[Any, E, A]         //Manage an `A`, may fail with `E`        , no requirements
+  type TaskManaged[+A]   = ZManaged[Any, Throwable, A] //Manage an `A`, may fail with `Throwable`, no requirements
+  type RManaged[-R, +A]  = ZManaged[R, Throwable, A]   //Manage an `A`, may fail with `Throwable`, requires an `R`
+  type UManaged[+A]      = ZManaged[Any, Nothing, A]   //Manage an `A`, cannot fail              , no requirements
+  type URManaged[-R, +A] = ZManaged[R, Nothing, A]     //Manage an `A`, cannot fail              , requires an `R`
 
-  type Queue[A] = ZQueue[Any, Nothing, Any, Nothing, A, A]
-  type Ref[A]   = ZRef[Nothing, Nothing, A, A]
+  val Managed: ZManaged.type = ZManaged
+
+  type RLayer[-RIn, +ROut]  = ZLayer[RIn, Throwable, ROut]
+  type URLayer[-RIn, +ROut] = ZLayer[RIn, Nothing, ROut]
+  type Layer[+E, +ROut]     = ZLayer[Any, E, ROut]
+  type ULayer[+ROut]        = ZLayer[Any, Nothing, ROut]
+  type TaskLayer[+ROut]     = ZLayer[Any, Throwable, ROut]
+
+  type Queue[A] = ZQueue[Any, Any, Nothing, Nothing, A, A]
+
+  /**
+   * A queue that can only be dequeued.
+   */
+  type Dequeue[+A] = ZQueue[Nothing, Any, Any, Nothing, Nothing, A]
+
+  type Ref[A]      = ZRef[Nothing, Nothing, A, A]
+  type ERef[+E, A] = ZRef[E, E, A, A]
+
+  type RefM[A]      = ZRefM[Any, Any, Nothing, Nothing, A, A]
+  type ERefM[+E, A] = ZRefM[Any, Any, E, E, A, A]
 
   object <*> {
     def unapply[A, B](ab: (A, B)): Some[(A, B)] =

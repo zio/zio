@@ -8,7 +8,7 @@ title:  "Testing"
 ```scala
 libraryDependencies ++= Seq(
   "dev.zio" %% "zio-test"          % zioVersion % "test",
-  "dev.zio" %% "zio-test-sbt"      % zioVersion % "test"
+  "dev.zio" %% "zio-test-sbt"      % zioVersion % "test",
   "dev.zio" %% "zio-test-magnolia" % zioVersion % "test" // optional
 )
 testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
@@ -26,7 +26,7 @@ import zio.test.environment._
 import HelloWorld._
 
 object HelloWorld {
-  def sayHello: ZIO[Console, Nothing, Unit] =
+  def sayHello: URIO[Console, Unit] =
     console.putStrLn("Hello, World!")
 }
 
@@ -63,7 +63,7 @@ If a property fails, the failure will be automatically shrunk to the smallest fa
 
 ZIO Test also supports automatic derivation of generators using the ZIO Test Magnolia module:
 
-```scala mdoc:silent
+```scala mdoc:silent:nest
 import zio.random.Random
 import zio.test.magnolia._
 

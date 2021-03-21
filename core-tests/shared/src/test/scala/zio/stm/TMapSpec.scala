@@ -16,13 +16,14 @@
 
 package zio.stm
 
-import zio.ZIOBaseSpec
 import zio.test.Assertion._
+import zio.test.TestAspect.nonFlaky
 import zio.test._
+import zio.{URIO, ZIO, ZIOBaseSpec}
 
 object TMapSpec extends ZIOBaseSpec {
 
-  def spec = suite("TMap")(
+  def spec: ZSpec[Environment, Failure] = suite("TMap")(
     suite("factories")(
       testM("apply") {
         val tx = TMap.make("a" -> 1, "b" -> 2, "c" -> 2, "b" -> 3).flatMap[Any, Nothing, List[(String, Int)]](_.toList)
@@ -119,7 +120,7 @@ object TMapSpec extends ZIOBaseSpec {
         assertM(tx.commit)(isNone)
       },
       testM("add many keys with negative hash codes") {
-        val expected = Range(1, 1000).map(i => HashContainer(-i) -> i).toList
+        val expected = (1 to 1000).map(i => HashContainer(-i) -> i).toList
 
         val tx =
           for {
@@ -129,9 +130,32 @@ object TMapSpec extends ZIOBaseSpec {
           } yield e
 
         assertM(tx.commit)(hasSameElements(expected))
+      },
+      testM("putIfAbsent") {
+        val expected = List("a" -> 1, "b" -> 2)
+
+        val tx =
+          for {
+            tmap <- TMap.make("a" -> 1)
+            _    <- tmap.putIfAbsent("b", 2)
+            _    <- tmap.putIfAbsent("a", 10)
+            e    <- tmap.toList
+          } yield e
+
+        assertM(tx.commit)(hasSameElements(expected))
       }
     ),
     suite("transformations")(
+      testM("size") {
+        val elems = List("a" -> 1, "b" -> 2)
+        val tx =
+          for {
+            tmap <- TMap.fromIterable(elems)
+            size <- tmap.size
+          } yield size
+
+        assertM(tx.commit)(equalTo(2))
+      },
       testM("toList") {
         val elems = List("a" -> 1, "b" -> 2)
         val tx =
@@ -139,6 +163,16 @@ object TMapSpec extends ZIOBaseSpec {
             tmap <- TMap.fromIterable(elems)
             list <- tmap.toList
           } yield list
+
+        assertM(tx.commit)(hasSameElements(elems))
+      },
+      testM("toChunk") {
+        val elems = List("a" -> 1, "b" -> 2)
+        val tx =
+          for {
+            tmap  <- TMap.fromIterable(elems)
+            chunk <- tmap.toChunk
+          } yield chunk.toList
 
         assertM(tx.commit)(hasSameElements(elems))
       },
@@ -214,13 +248,13 @@ object TMapSpec extends ZIOBaseSpec {
             res  <- tmap.toList
           } yield res
 
-        assertM(tx.commit)(hasSameElements(List("key" -> 2)))
+        assertM(tx.commit)(hasSameElements(List("key" -> 6)))
       },
       testM("transformM") {
         val tx =
           for {
             tmap <- TMap.make("a" -> 1, "aa" -> 2, "aaa" -> 3)
-            _    <- tmap.transformM((k, v) => STM.succeedNow(k.replaceAll("a", "b") -> v * 2))
+            _    <- tmap.transformM((k, v) => STM.succeed(k.replaceAll("a", "b") -> v * 2))
             res  <- tmap.toList
           } yield res
 
@@ -230,11 +264,11 @@ object TMapSpec extends ZIOBaseSpec {
         val tx =
           for {
             tmap <- TMap.make("a" -> 1, "aa" -> 2, "aaa" -> 3)
-            _    <- tmap.transformM((_, v) => STM.succeedNow("key" -> v * 2))
+            _    <- tmap.transformM((_, v) => STM.succeed("key" -> v * 2))
             res  <- tmap.toList
           } yield res
 
-        assertM(tx.commit)(hasSameElements(List("key" -> 2)))
+        assertM(tx.commit)(hasSameElements(List("key" -> 6)))
       },
       testM("transformValues") {
         val tx =
@@ -246,11 +280,20 @@ object TMapSpec extends ZIOBaseSpec {
 
         assertM(tx.commit)(hasSameElements(List("a" -> 2, "aa" -> 4, "aaa" -> 6)))
       },
+      testM("parallel value transformation") {
+        for {
+          tmap <- TMap.make("a" -> 0).commit
+          tx    = tmap.transformValues(_ + 1).commit.repeatN(999)
+          n     = 2
+          _    <- URIO.collectAllPar_(List.fill(n)(tx))
+          res  <- tmap.get("a").commit
+        } yield assert(res)(isSome(equalTo(2000)))
+      },
       testM("transformValuesM") {
         val tx =
           for {
             tmap <- TMap.make("a" -> 1, "aa" -> 2, "aaa" -> 3)
-            _    <- tmap.transformValuesM(v => STM.succeedNow(v * 2))
+            _    <- tmap.transformValuesM(v => STM.succeed(v * 2))
             res  <- tmap.toList
           } yield res
 
@@ -280,7 +323,7 @@ object TMapSpec extends ZIOBaseSpec {
         val tx =
           for {
             tmap <- TMap.make("a" -> 1, "b" -> 2, "c" -> 3)
-            res  <- tmap.foldM(0)((acc, kv) => STM.succeedNow(acc + kv._2))
+            res  <- tmap.foldM(0)((acc, kv) => STM.succeed(acc + kv._2))
           } yield res
 
         assertM(tx.commit)(equalTo(6))
@@ -289,11 +332,27 @@ object TMapSpec extends ZIOBaseSpec {
         val tx =
           for {
             tmap <- TMap.empty[String, Int]
-            res  <- tmap.foldM(0)((acc, kv) => STM.succeedNow(acc + kv._2))
+            res  <- tmap.foldM(0)((acc, kv) => STM.succeed(acc + kv._2))
           } yield res
 
         assertM(tx.commit)(equalTo(0))
       }
+    ),
+    suite("bug #4648")(
+      testM("avoid NullPointerException caused by race condition") {
+        for {
+          keys <- ZIO.succeed((0 to 10).toList)
+          map  <- TMap.fromIterable(keys.zipWithIndex).commit
+          exit <- ZIO
+                    .foreach_(keys) { k =>
+                      for {
+                        _ <- map.delete(k).commit.fork
+                        _ <- map.toChunk.commit
+                      } yield ()
+                    }
+                    .run
+        } yield assert(exit)(succeeds(isUnit))
+      } @@ nonFlaky
     )
   )
 

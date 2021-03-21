@@ -16,8 +16,7 @@
 
 package zio
 
-import _root_.java.util.concurrent.{ CompletionStage, Future }
-
+import _root_.java.util.concurrent.{CompletionStage, Future}
 import zio.blocking.Blocking
 import zio.interop.javaz
 
@@ -41,8 +40,6 @@ private[zio] trait FiberPlatformSpecific {
             UIO.succeedNow(None)
           }
         }
-
-      final def children: UIO[Iterable[Fiber[Any, Any]]] = UIO(Nil)
 
       final def getRef[A](ref: FiberRef[A]): UIO[A] = UIO(ref.initial)
 
@@ -68,11 +65,9 @@ private[zio] trait FiberPlatformSpecific {
               .fold(Exit.fail, Exit.succeed)
               .map(Some(_))
           } else {
-            UIO.succeed(None)
+            UIO.none
           }
         }
-
-      def children: UIO[Iterable[Fiber[Any, Any]]] = UIO(Nil)
 
       def getRef[A](ref: FiberRef[A]): UIO[A] = UIO(ref.initial)
 

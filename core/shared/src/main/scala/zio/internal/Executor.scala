@@ -17,16 +17,13 @@
 package zio.internal
 
 import java.util.concurrent._
-import java.{ util => ju }
-
 import scala.concurrent.ExecutionContext
-import scala.concurrent.ExecutionContextExecutorService
 
 /**
  * An executor is responsible for executing actions. Each action is guaranteed
  * to begin execution on a fresh stack frame.
  */
-trait Executor { self =>
+abstract class Executor extends ExecutorPlatformSpecific { self =>
 
   /**
    * The number of operations a fiber should run before yielding.
@@ -50,11 +47,6 @@ trait Executor { self =>
     if (!submit(runnable)) throw new RejectedExecutionException(s"Unable to run ${runnable.toString()}")
 
   /**
-   * Whether or not the caller is being run on this executor.
-   */
-  def here: Boolean
-
-  /**
    * Views this `Executor` as a Scala `ExecutionContext`.
    */
   lazy val asEC: ExecutionContext =
@@ -67,19 +59,12 @@ trait Executor { self =>
     }
 
   /**
-   * Views this `Executor` as a Scala `ExecutionContextExecutorService`.
+   * Views this `Executor` as a Java `Executor`.
    */
-  lazy val asECES: ExecutionContextExecutorService =
-    new AbstractExecutorService with ExecutionContextExecutorService {
-      override val prepare: ExecutionContext                               = asEC
-      override val isShutdown: Boolean                                     = false
-      override val isTerminated: Boolean                                   = false
-      override val shutdown: Unit                                          = ()
-      override val shutdownNow: ju.List[Runnable]                          = ju.Collections.emptyList[Runnable]
-      override def execute(runnable: Runnable): Unit                       = asEC execute runnable
-      override def reportFailure(t: Throwable): Unit                       = asEC reportFailure t
-      override def awaitTermination(length: Long, unit: TimeUnit): Boolean = false
-    }
+  lazy val asJava: java.util.concurrent.Executor =
+    command =>
+      if (submit(command)) ()
+      else throw new java.util.concurrent.RejectedExecutionException
 
 }
 
@@ -102,8 +87,6 @@ object Executor extends DefaultExecutors with Serializable {
         } catch {
           case _: RejectedExecutionException => false
         }
-
-      def here = false
 
       def metrics = None
     }

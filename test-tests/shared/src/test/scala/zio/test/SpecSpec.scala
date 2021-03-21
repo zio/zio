@@ -1,27 +1,37 @@
 package zio.test
 
-import zio.test.Assertion.{ equalTo, isFalse, isTrue }
-import zio.test.TestAspect.ifEnvSet
+import zio._
+import zio.test.Assertion._
+import zio.test.TestAspect._
 import zio.test.TestUtils._
-import zio.test.environment.TestEnvironment
-import zio.{ Has, Ref, ZIO, ZLayer }
+import zio.test.environment._
 
 object SpecSpec extends ZIOBaseSpec {
 
-  type Module = Has[Module.Service]
+  val layer: ZLayer[Any, Nothing, Has[Unit]] =
+    ZLayer.succeed(())
 
-  object Module {
-    trait Service
-  }
-
-  val layer = ZLayer.succeed(new Module.Service {})
-
-  def spec = suite("SpecSpec")(
+  def spec: Spec[TestEnvironment, TestFailure[Nothing], TestSuccess] = suite("SpecSpec")(
+    suite("provideCustomLayer")(
+      testM("provides the part of the environment that is not part of the `TestEnvironment`") {
+        for {
+          _ <- ZIO.environment[TestEnvironment]
+          _ <- ZIO.environment[Has[Unit]]
+        } yield assertCompletes
+      }.provideCustomLayer(layer)
+    ),
+    suite("provideLayer")(
+      testM("does not have early initialization issues") {
+        for {
+          _ <- ZIO.environment[Has[Unit]]
+        } yield assertCompletes
+      }.provideLayer(layer)
+    ),
     suite("provideLayerShared")(
       testM("gracefully handles fiber death") {
-        import zio.NeedsEnv.needsEnv
-        val spec = suite("Suite1")(
-          test("Test1") {
+        implicit val needsEnv = NeedsEnv
+        val spec = suite("suite")(
+          test("test") {
             assert(true)(isTrue)
           }
         ).provideLayerShared(ZLayer.fromEffectMany(ZIO.dieMessage("everybody dies")))
@@ -30,90 +40,142 @@ object SpecSpec extends ZIOBaseSpec {
         } yield assertCompletes
       },
       testM("does not acquire the environment if the suite is ignored") {
-        val spec = suite("Suite1")(
-          testM("Test1") {
-            assertM(ZIO.accessM[Has[Ref[Boolean]]](_.get[Ref[Boolean]].get))(isTrue)
+        val spec = suite("suite")(
+          testM("test1") {
+            assertM(ZIO.service[Ref[Boolean]].flatMap(_.get))(isTrue)
           },
-          testM("another test") {
-            assertM(ZIO.accessM[Has[Ref[Boolean]]](_.get[Ref[Boolean]].get))(isTrue)
+          testM("test2") {
+            assertM(ZIO.service[Ref[Boolean]].flatMap(_.get))(isTrue)
           }
         )
         for {
           ref    <- Ref.make(true)
-          layer  = ZLayer.fromEffect(ref.set(false).as(ref))
+          layer   = ZLayer.fromEffect(ref.set(false).as(ref))
           _      <- execute(spec.provideCustomLayerShared(layer) @@ ifEnvSet("foo"))
           result <- ref.get
         } yield assert(result)(isTrue)
       },
       testM("is not interfered with by test level failures") {
-        val spec = suite("some suite")(
-          test("failing test") {
+        val spec = suite("suite")(
+          test("test1") {
             assert(1)(Assertion.equalTo(2))
           },
-          test("passing test") {
+          test("test2") {
             assert(1)(Assertion.equalTo(1))
           },
-          testM("test requires env") {
-            assertM(ZIO.access[Has[Int]](_.get[Int]))(Assertion.equalTo(42))
+          testM("test3") {
+            assertM(ZIO.service[Int])(Assertion.equalTo(42))
           }
         ).provideLayerShared(ZLayer.succeed(43))
         for {
           executedSpec <- execute(spec)
-          successes    <- executedSpec.countTests(_.isRight)
-          failures     <- executedSpec.countTests(_.isLeft)
+          successes = executedSpec.fold[Int] { c =>
+                        (c: @unchecked) match {
+                          case ExecutedSpec.SuiteCase(_, counts) => counts.sum
+                          case ExecutedSpec.TestCase(_, test, _) => if (test.isRight) 1 else 0
+                        }
+                      }
+          failures = executedSpec.fold[Int] { c =>
+                       (c: @unchecked) match {
+                         case ExecutedSpec.SuiteCase(_, counts) => counts.sum
+                         case ExecutedSpec.TestCase(_, test, _) => if (test.isLeft) 1 else 0
+                       }
+                     }
         } yield assert(successes)(equalTo(1)) && assert(failures)(equalTo(2))
       }
     ),
-    suite("only")(
-      testM("ignores all tests except one matching the given label") {
+    suite("provideSomeLayerShared")(
+      testM("leaves the remainder of the environment") {
         for {
-          passed1 <- isSuccess(mixedSpec.only(passingTest))
-          passed2 <- isSuccess(mixedSpec.only(failingTest))
-        } yield assert(passed1)(isTrue) && assert(passed2)(isFalse)
+          ref <- Ref.make[Set[Int]](Set.empty)
+          spec = suite("suite")(
+                   testM("test1") {
+                     for {
+                       n <- random.nextInt
+                       _ <- ref.update(_ + n)
+                     } yield assertCompletes
+                   },
+                   testM("test2") {
+                     for {
+                       n <- random.nextInt
+                       _ <- ref.update(_ + n)
+                     } yield assertCompletes
+                   },
+                   testM("test3") {
+                     for {
+                       n <- random.nextInt
+                       _ <- ref.update(_ + n)
+                     } yield assertCompletes
+                   }
+                 ).provideSomeLayerShared[TestEnvironment](layer) @@ nondeterministic
+          _      <- execute(spec)
+          result <- ref.get
+        } yield assert(result)(hasSize(isGreaterThan(1)))
       },
-      testM("ignores all tests except ones in the suite matching the given label") {
-        for {
-          passed1 <- isSuccess(mixedSpec.only(passingSuite))
-          passed2 <- isSuccess(mixedSpec.only(failingSuite))
-        } yield assert(passed1)(isTrue) && assert(passed2)(isFalse)
+      testM("does not cause the remainder to be shared") {
+        val spec = suite("suite")(
+          testM("test1") {
+            for {
+              _      <- console.putStrLn("Hello, World!")
+              output <- TestConsole.output
+            } yield assert(output)(equalTo(Vector("Hello, World!\n")))
+          },
+          testM("test2") {
+            for {
+              _      <- console.putStrLn("Hello, World!")
+              output <- TestConsole.output
+            } yield assert(output)(equalTo(Vector("Hello, World!\n")))
+          }
+        ).provideSomeLayerShared[TestEnvironment](layer) @@ silent
+        assertM(succeeded(spec))(isTrue)
       },
-      testM("runs everything if root suite label given") {
+      testM("releases resources as soon as possible") {
         for {
-          passed <- isSuccess(mixedSpec.only(rootSuite))
-        } yield assert(passed)(isFalse)
+          ref    <- Ref.make[List[String]](List.empty)
+          acquire = ref.update("Acquiring" :: _)
+          release = ref.update("Releasing" :: _)
+          update  = ZIO.service[Ref[Int]].flatMap(_.updateAndGet(_ + 1))
+          layer   = ZLayer.fromAcquireRelease(acquire *> Ref.make(0))(_ => release)
+          spec = suite("spec")(
+                   suite("suite1")(
+                     testM("test1") {
+                       assertM(update)(equalTo(1))
+                     },
+                     testM("test2") {
+                       assertM(update)(equalTo(2))
+                     }
+                   ).provideCustomLayerShared(layer),
+                   suite("suite2")(
+                     testM("test1") {
+                       assertM(update)(equalTo(1))
+                     },
+                     testM("test2") {
+                       assertM(update)(equalTo(2))
+                     }
+                   ).provideCustomLayerShared(layer)
+                 ) @@ sequential
+          succeeded <- succeeded(spec)
+          log       <- ref.get.map(_.reverse)
+        } yield assert(succeeded)(isTrue) &&
+          assert(log)(equalTo(List("Acquiring", "Releasing", "Acquiring", "Releasing")))
+      },
+      testM("correctly handles nested suites") {
+        val spec =
+          suite("a")(
+            suite("b")(
+              suite("c")(
+                suite("d") {
+                  testM("test") {
+                    for {
+                      n <- ZIO.service[Ref[Int]].flatMap(_.updateAndGet(_ + 1))
+                    } yield assert(n)(equalTo(1))
+                  }
+                }
+              )
+            )
+          ).provideCustomLayerShared(ZLayer.fromAcquireRelease(Ref.make(0))(_.set(-1)))
+        assertM(succeeded(spec))(isTrue)
       }
-    ),
-    suite("provideCustomLayer")(
-      testM("provides the part of the environment that is not part of the `TestEnvironment`") {
-        for {
-          _ <- ZIO.environment[TestEnvironment]
-          _ <- ZIO.environment[Module]
-        } yield assertCompletes
-      }.provideCustomLayer(layer)
-    ),
-    suite("provideLayer")(
-      testM("does not have early initialization issues") {
-        for {
-          _ <- ZIO.environment[Module]
-        } yield assertCompletes
-      }.provideLayer(layer)
     )
-  )
-
-  val failingTest  = "failing-test"
-  val failingSuite = "failing-suite"
-  val passingTest  = "passing-test"
-  val passingSuite = "passing-suite"
-  val rootSuite    = "root-suite"
-  val prefix       = "prefix"
-  val suffix       = "suffix"
-
-  val mixedSpec = suite(prefix + rootSuite + suffix)(
-    suite(prefix + failingSuite + suffix)(test(prefix + failingTest + suffix) {
-      assert(1)(equalTo(2))
-    }),
-    suite(prefix + passingSuite + suffix)(test(prefix + passingTest + suffix) {
-      assert(1)(equalTo(1))
-    })
   )
 }

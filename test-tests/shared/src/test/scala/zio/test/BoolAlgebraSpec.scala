@@ -5,9 +5,11 @@ import zio.test.Assertion._
 
 object BoolAlgebraSpec extends ZIOBaseSpec {
 
-  def spec = suite("BoolAlgebraSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("BoolAlgebraSpec")(
     test("all returns conjunction of values") {
-      assert(BoolAlgebra.all(List(success1, failure1, failure2)))(isSome(isFailure))
+      assert(BoolAlgebra.all(List(success1, failure1, failure2)))(isSome(isFailure)) &&
+      assert(BoolAlgebra.all(success1, failure1, failure2))(isFailure) &&
+      assert(BoolAlgebra.all(success1, success2))(isSuccess)
     },
     testM("and distributes over or") {
       check(boolAlgebra, boolAlgebra, boolAlgebra)((a, b, c) => assert(a && (b || c))(equalTo((a && b) || (a && c))))
@@ -19,7 +21,9 @@ object BoolAlgebraSpec extends ZIOBaseSpec {
       check(boolAlgebra, boolAlgebra)((a, b) => assert(a && b)(equalTo(b && a)))
     },
     test("any returns disjunction of values") {
-      assert(BoolAlgebra.any(List(success1, failure1, failure2)))(isSome(isSuccess))
+      assert(BoolAlgebra.any(List(success1, failure1, failure2)))(isSome(isSuccess)) &&
+      assert(BoolAlgebra.any(success1, failure1, failure2))(isSuccess) &&
+      assert(BoolAlgebra.any(failure1, failure2))(isFailure)
     },
     test("as maps values to constant value") {
       assert((success1 && success2).as("value"))(equalTo(BoolAlgebra.success("value") && BoolAlgebra.success("value")))
@@ -139,10 +143,10 @@ object BoolAlgebraSpec extends ZIOBaseSpec {
   val value3 = "first failure"
   val value4 = "second failure"
 
-  val success1 = BoolAlgebra.success(value1)
-  val success2 = BoolAlgebra.success(value2)
-  val failure1 = BoolAlgebra.failure(value3)
-  val failure2 = BoolAlgebra.failure(value4)
+  val success1: BoolAlgebra[String] = BoolAlgebra.success(value1)
+  val success2: BoolAlgebra[String] = BoolAlgebra.success(value2)
+  val failure1: BoolAlgebra[String] = BoolAlgebra.failure(value3)
+  val failure2: BoolAlgebra[String] = BoolAlgebra.failure(value4)
 
   val isSuccess: Assertion[BoolAlgebra[Any]] = assertion("isSuccess")()(_.isSuccess)
   val isFailure: Assertion[BoolAlgebra[Any]] = assertion("isFailure")()(_.isFailure)
@@ -158,10 +162,10 @@ object BoolAlgebraSpec extends ZIOBaseSpec {
       for {
         n <- Gen.int(1, size - 2)
         gen <- Gen.oneOf(
-                (boolAlgebraOfSize(n) <*> boolAlgebraOfSize(size - n - 1)).map(p => p._1 && p._2),
-                (boolAlgebraOfSize(n) <*> boolAlgebraOfSize(size - n - 1)).map(p => p._1 || p._2),
-                boolAlgebraOfSize(size - 1).map(!_)
-              )
+                 (boolAlgebraOfSize(n) <*> boolAlgebraOfSize(size - n - 1)).map(p => p._1 && p._2),
+                 (boolAlgebraOfSize(n) <*> boolAlgebraOfSize(size - n - 1)).map(p => p._1 || p._2),
+                 boolAlgebraOfSize(size - 1).map(!_)
+               )
       } yield gen
     }
 

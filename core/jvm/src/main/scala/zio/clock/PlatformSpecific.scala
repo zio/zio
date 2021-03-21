@@ -16,31 +16,31 @@
 
 package zio.clock
 
-import java.util.concurrent._
-
 import zio.duration.Duration
-import zio.internal.{ NamedThreadFactory, Scheduler }
+import zio.internal.{NamedThreadFactory, Scheduler}
+
+import java.util.concurrent._
 
 private[clock] trait PlatformSpecific {
   import Scheduler.CancelToken
 
   private[clock] val globalScheduler = new Scheduler {
 
-    private[this] val service = Executors.newScheduledThreadPool(1, new NamedThreadFactory("zio-timer", true))
+    private[this] val service = makeService()
 
     private[this] val ConstFalse = () => false
 
-    override def schedule(task: Runnable, duration: Duration): CancelToken = duration match {
+    override def schedule(task: Runnable, duration: Duration): CancelToken = (duration: @unchecked) match {
       case Duration.Infinity => ConstFalse
-      case Duration.Zero =>
-        task.run()
-
-        ConstFalse
-      case duration: Duration.Finite =>
-        val future = service.schedule(new Runnable {
-          def run: Unit =
-            task.run()
-        }, duration.toNanos, TimeUnit.NANOSECONDS)
+      case Duration.Finite(_) =>
+        val future = service.schedule(
+          new Runnable {
+            def run: Unit =
+              task.run()
+          },
+          duration.toNanos,
+          TimeUnit.NANOSECONDS
+        )
 
         () => {
           val canceled = future.cancel(true)
@@ -48,5 +48,11 @@ private[clock] trait PlatformSpecific {
           canceled
         }
     }
+  }
+
+  private[this] def makeService(): ScheduledExecutorService = {
+    val service = new ScheduledThreadPoolExecutor(1, new NamedThreadFactory("zio-timer", true))
+    service.setRemoveOnCancelPolicy(true)
+    service
   }
 }

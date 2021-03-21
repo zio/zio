@@ -19,17 +19,18 @@ The most common and easy way to create suites is to use `suite` function. For te
 
 ```scala mdoc
 import zio.test._
+import zio.test.environment.Live
 import zio.clock.nanoTime
 import Assertion.isGreaterThan
 
 val clockSuite = suite("clock") (
   testM("time is non-zero") {
-    assertM(nanoTime)(isGreaterThan(0L))
+    assertM(Live.live(nanoTime))(isGreaterThan(0L))
   }
 )
 ```
 
-As you can see the whole suit was assigned to `clockSuite` val. As it was said suites can contain other suites so we can aggregate them as much as needed. Example, we can have multiple suites that test external HTTP apis and one big suite that will aggregate them all.
+As you can see the whole suite was assigned to `clockSuite` val. As it was said suites can contain other suites so we can aggregate them as much as needed. Example, we can have multiple suites that test external HTTP apis and one big suite that will aggregate them all.
 
 
 ```scala mdoc
@@ -78,7 +79,8 @@ Here the expression `Right(Some(2))` is of type `Either[Any, Option[Int]]`and ou
 is of type `Assertion[Either[Any, Option[Int]]]`
 
 
-```scala mdoc
+```scala mdoc:reset-object
+import zio.test._
 import zio.test.Assertion.{isRight, isSome,equalTo, isGreaterThanEqualTo, not, hasField}
 
 final case class Address(country:String, city:String)
@@ -170,20 +172,18 @@ control and determinism. However there is another source of complexity that come
 
 It is easy to accidentally use different test instances at the same time.
 
-```scala mdoc:fail
+```scala
 import zio.test._
 import zio.test.environment.TestClock
-import scala.language.postfixOps
 import Assertion._
-import zio.duration.Duration
-import scala.concurrent.duration._
+import zio.duration._
 
 testM("`acquire` doesn't leak permits upon cancellation") {
   for {
       testClock <- TestClock.makeTest(TestClock.DefaultData)
       s         <- Semaphore.make(1L)
-      sf        <- s.acquireN(2).timeout(Duration.fromScala(1 milli)).either.fork
-      _         <- testClock.adjust(Duration.fromScala(1 second))
+      sf        <- s.acquireN(2).timeout(1.millisecond).either.fork
+      _         <- testClock.adjust(1.second)
       _         <- sf.join
       _         <- s.release
       permits   <- s.available
@@ -262,53 +262,29 @@ like `clearInts`.
 
 ### Testing Clock
 
-In most cases you want unit tests to be as fast as possible. Waiting for real time to pass by is a real killer for 
-this. ZIO exposes a `TestClock` in `TestEnvironment` that can control time so we can deterministically and efficiently 
-test effects involving the passage of time without actually having to wait for the full amount of time to pass.
-
-When using `TestClock`, it's very important to understand two key related concepts (clock time and fiber time) and how
-they interact with each other.
-
-#### Fiber Time
-Each fiber has a fiber time associated with it. Calls to `sleep` and methods derived from it will semantically block 
-until the clock time is set/adjusted to on or after the current fiber time. The fiber time is simply the cumulative 
-duration of successive `sleep` calls on the fiber.
+In most cases you want unit tests to be as fast as possible. Waiting for real time to pass by is a real killer for  this. ZIO exposes a `TestClock` in `TestEnvironment` that can control time so we can deterministically and efficiently  test effects involving the passage of time without actually having to wait for the full amount of time to pass. Calls to `sleep` and methods derived from it will semantically block until the clock time is set/adjusted to on or after the time the effect is scheduled to run. 
 
 #### Clock Time
-Clock time is just like a clock on the wall, except that in our `TestClock`, the clock is broken. Instead of moving by
-itself, the clock time only changes when adjusted or set by the user, using the `adjust` and `setTime` methods. The
-clock time never changes by itself. When the clock is adjusted, any effects on sleeping fibers with a fiber time 
-on or before the new clock time will automatically be run.
-
-#### TestClock Vectors
-The interaction between clock time and fiber time can be thought of in terms of vector addition, with clock time on the
-x axis and fiber time on the y axis. A fiber will continue to execute as long as clock time remains greater than fiber
-time (i.e. is below the identity function). Fibers that end up with greater fiber time than clock time can't do anything
-except wait for another fiber to adjust the clock time to be greater than the fiber time, at which point exection will
-resume.
-
-![TestClock Vectors](test_time.svg)
+Clock time is just like a clock on the wall, except that in our `TestClock`, the clock is broken Instead of moving by itself, the clock time only changes when adjusted or set by the user, using the `adjust` and `setTime` methods. The clock time never changes by itself. When the clock is adjusted, any effects scheduled to run on or before the new clock time will automatically be run, in order.
 
 #### Examples
 
 **Example 1**
 
-Thanks to call to `TestClock.adjust(1.minute)` we moved the time instantly 1 minute.
+Thanks to the call to `TestClock.adjust(1.minute)` we moved the time instantly 1 minute.
 
 ```scala mdoc
 import java.util.concurrent.TimeUnit
 import zio.clock.currentTime
-import zio.duration.Duration
+import zio.duration._
 import zio.test.Assertion.isGreaterThanEqualTo
 import zio.test._
 import zio.test.environment.TestClock
-import scala.concurrent.duration._
-import scala.language.postfixOps
 
 testM("One can move time very fast") {
   for {
     startTime <- currentTime(TimeUnit.SECONDS)
-    _         <- TestClock.adjust(Duration.fromScala(1 minute))
+    _         <- TestClock.adjust(1.minute)
     endTime   <- currentTime(TimeUnit.SECONDS)
   } yield assert(endTime - startTime)(isGreaterThanEqualTo(60L))
 }
@@ -316,88 +292,103 @@ testM("One can move time very fast") {
 
 **Example 2**
 
-`TestClock` affects also all code running asynchronously that is scheduled to run after certain time but with caveats to how runtime works.
+`TestClock` affects also all code running asynchronously that is scheduled to run after a certain time.
 
 ```scala mdoc
-import zio.duration.Duration
+import zio.duration._
 import zio.test.Assertion.equalTo
 import zio.test._
 import zio.test.environment.TestClock
-import scala.concurrent.duration._
-import scala.language.postfixOps
 
 testM("One can control time as he see fit") {
   for {
     promise <- Promise.make[Unit, Int]
-    _       <- (ZIO.sleep(Duration.fromScala(10 seconds)) *> promise.succeed(1)).fork
-    _       <- TestClock.adjust(Duration.fromScala(10 seconds))
+    _       <- (ZIO.sleep(10.seconds) *> promise.succeed(1)).fork
+    _       <- TestClock.adjust(10.seconds)
     readRef <- promise.await
   } yield assert(1)(equalTo(readRef))
 }
 ```
 
-The above code creates a write once cell that will be set to "1" after 10 seconds asynchronously from a different thread thanks to call to `fork`. 
-At the end we wait on the promise until it is set. With call to `TestClock.adjust(10.seconds)` we simulate passing of 10 seconds of time.
-Because of it we don't need to wait for the real 10 seconds to pass and thus our unit test can run faster. This is a pattern that will very often be used when `sleep` and `TestClock` are being used for testing of effects that are based on time. The fiber that needs to sleep will be forked and `TestClock` will used to adjust the time so that all expected effects are run in the forked fiber.
+The above code creates a write once cell that will be set to "1" after 10 seconds asynchronously from a different thread thanks to call to `fork`. At the end we wait on the promise until it is set. With call to `TestClock.adjust(10.seconds)` we simulate passing of 10 seconds of time. Because of it we don't need to wait for the real 10 seconds to pass and thus our unit test can run faster This is a pattern that will very often be used when `sleep` and `TestClock` are being used for testing of effects that are based on time. The fiber that needs to sleep will be forked and `TestClock` will used to adjust the time so that all expected effects are run in the forked fiber.
 
-**WARNING**
-Notice that if we don't call `adjust` at all we'll get stuck. `TestClock` doesn't make any progress on its own.
+**Example 3**
 
+A more complex example leveraging layers and multiple services is shown below. 
 
-It is worth mentioning that adjusting the time on `TestClock` doesn't make us immune to the timing overheads 
-introduced by the runtime and races this introduces. Effects are guaranteed to be waken up not earlier than the argument 
-passed to `sleep` but from there the order of execution since scheduled on different threads is indeterministic and its 
-up to the user code to use tools like `Promise` to guarantee proper sequencing. 
+```scala mdoc:reset
+import zio.clock.Clock
+import zio.duration._
+import zio.test.Assertion._
+import zio.test._
+import zio.test.environment.{ TestClock, TestEnvironment }
+import zio._
 
-The code below will be flaky because there is non-zero overhead when switching fibers thus reading of the value might 
-happen before it is set and its change is propagated.
+trait SchedulingService {
+  def schedule(promise: Promise[Unit, Int]): ZIO[Any, Exception, Boolean]
+}
 
-```scala mdoc
-testM("THIS TEST WILL FAIL - Sleep and adjust can introduce races") {
-  for {
-    ref     <- Ref.make(0)
-    _       <- (ZIO.sleep(Duration(10, TimeUnit.SECONDS)) *> ref.update(_ + 1)).fork
-    _       <- TestClock.adjust(Duration(10, TimeUnit.SECONDS))
-    value   <- ref.get
-  } yield assert(1)(equalTo(value))
+trait LoggingService {
+  def log(msg: String): ZIO[Any, Exception, Unit]
+}
+
+val schedulingLayer: ZLayer[Clock with Has[LoggingService], Nothing, Has[SchedulingService]] =
+  ZLayer.fromFunction { env =>
+    new SchedulingService {
+      def schedule(promise: Promise[Unit, Int]): ZIO[Any, Exception, Boolean] =
+        (ZIO.sleep(10.seconds) *> promise.succeed(1))
+          .tap(b => ZIO.service[LoggingService].flatMap(_.log(b.toString)))
+          .provide(env)
+    }
+}
+
+testM("One can control time for failing effects too") {
+  val failingLogger = ZLayer.succeed(new LoggingService {
+    override def log(msg: String): ZIO[Any, Exception, Unit] = ZIO.fail(new Exception("BOOM"))
+  })
+
+  val partialLayer = (ZLayer.identity[Clock] ++ failingLogger) >>> schedulingLayer
+
+  val testCase =
+    for {
+      promise <- Promise.make[Unit, Int]
+      result  <- ZIO.service[SchedulingService].flatMap(_.schedule(promise)).run.fork
+      _       <- TestClock.adjust(10.seconds)
+      readRef <- promise.await
+      result  <- result.join
+    } yield assert(1)(equalTo(readRef)) && assert(result)(fails(isSubtype[Exception](anything)))
+  testCase.provideSomeLayer[TestEnvironment](partialLayer)
 }
 ```
 
-The pattern with `Promise` and `await` can be generalized when we need to wait for multiple values using a `Queue`. We simply need to put multiple values into
-the queue and progress the clock multiple times and there is no need to create multiple promises.
-Even if you have a non-trivial flow of data from multiple streams that can produce at different intervals and would like to test
-snapshots of data in particular point in time `Queue` can help with that.
+In this case we want to test a layered effect that can potentially fail with an error. To do this we need to run the effect 
+and use assertions that expect an `Exit` value. 
+Because we are providing a layer to the test we need to provide everything expected by our test case and leave the test
+environment behind using `.provideSomeLayer[TestEnvironment]`. Keep in mind we do not provide any implementation of the `Clock` 
+because doing will make force `SchedulingService` to use it, while the clock we need here is the `TestClock` provided by 
+the test environment.
+
+The pattern with `Promise` and `await` can be generalized when we need to wait for multiple values using a `Queue`. We simply need to put multiple values into the queue and progress the clock multiple times and there is no need to create multiple promises. Even if you have a non-trivial flow of data from multiple streams that can produce at different intervals and would like to test snapshots of data in particular point in time `Queue` can help with that.
 
 ```scala mdoc
-import zio.duration.Duration
+import zio.duration._
 import zio.test.Assertion.equalTo
 import zio.test._
 import zio.test.environment.TestClock
-import scala.concurrent.duration._
-import scala.language.postfixOps
 import zio.stream._
 
 testM("zipWithLatest") {
-  val s1 = Stream.iterate(0)(_ + 1).fixed(Duration.fromScala(100 millis))
-  val s2 = Stream.iterate(0)(_ + 1).fixed(Duration.fromScala(70 millis))
+  val s1 = Stream.iterate(0)(_ + 1).fixed(100.milliseconds)
+  val s2 = Stream.iterate(0)(_ + 1).fixed(70.milliseconds)
   val s3 = s1.zipWithLatest(s2)((_, _))
 
   for {
-    _ <- TestClock.setTime(Duration.fromScala(0 millis))
-    q <- Queue.unbounded[(Int, Int)]
-    _ <- s3.foreach(q.offer).fork
-    a <- q.take
-    _ <- TestClock.setTime(Duration.fromScala(70 millis))
-    b <- q.take
-    _ <- TestClock.setTime(Duration.fromScala(100 millis))
-    c <- q.take
-    _ <- TestClock.setTime(Duration.fromScala(140 millis))
-    d <- q.take
-  } yield
-    assert(a)(equalTo(0 -> 0)) &&
-      assert(b)(equalTo(0       -> 1)) &&
-      assert(c)(equalTo(1       -> 1)) &&
-      assert(d)(equalTo(1       -> 2))
+    q      <- Queue.unbounded[(Int, Int)]
+    _      <- s3.foreach(q.offer).fork
+    fiber  <- ZIO.collectAll(ZIO.replicate(4)(q.take)).fork
+    _      <- TestClock.adjust(1.second)
+    result <- fiber.join
+  } yield assert(result)(equalTo(List(0 -> 0, 0 -> 1, 1 -> 1, 1 -> 2)))
 }
 ```
 
@@ -484,7 +475,10 @@ object MySpec extends DefaultRunnableSpec {
     } @@ timeout(10.nanos), //@@ timeout will fail a test that doesn't pass within the specified time
     test("A failing test... that passes") {
       assert(true)(isFalse)
-    } @@ failure, //@@ failure turns a failing test into a passing test
+    } @@ failing, //@@ failing turns a failing test into a passing test
+    test("A ignored test") {
+      assert(false)(isTrue)
+    } @@ ignore, //@@ ignore marks test as ignored
     test("A flaky test that only works on the JVM and sometimes fails; let's compose some aspects!") {
       assert(false)(isTrue)
     } @@ jvmOnly           // only run on the JVM
@@ -492,4 +486,4 @@ object MySpec extends DefaultRunnableSpec {
       @@ timeout(20.nanos) //it's a good idea to compose `eventually` with `timeout`, or the test may never end
   ) @@ timeout(60.seconds)   //apply a timeout to the whole suite
 }
-``` 
+```

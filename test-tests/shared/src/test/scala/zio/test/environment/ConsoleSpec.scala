@@ -3,13 +3,13 @@ package zio.test.environment
 import zio.ZIO
 import zio.console._
 import zio.test.Assertion._
-import zio.test.TestAspect.{ nonFlaky, silent }
+import zio.test.TestAspect.{nonFlaky, silent}
 import zio.test._
 import zio.test.environment.TestConsole._
 
 object ConsoleSpec extends ZIOBaseSpec {
 
-  def spec =
+  def spec: ZSpec[Environment, Failure] =
     suite("ConsoleSpec")(
       testM("outputs nothing") {
         for {
@@ -44,7 +44,7 @@ object ConsoleSpec extends ZIOBaseSpec {
       },
       testM("fails on empty input") {
         for {
-          failed  <- getStrLn.either
+          failed <- getStrLn.either
           message = failed.fold(_.getMessage, identity)
         } yield {
           assert(failed.isLeft)(isTrue) &&
@@ -63,9 +63,9 @@ object ConsoleSpec extends ZIOBaseSpec {
       },
       testM("clears lines from input") {
         for {
-          _       <- feedLines("Input 1", "Input 2")
-          _       <- clearInput
-          failed  <- getStrLn.either
+          _      <- feedLines("Input 1", "Input 2")
+          _      <- clearInput
+          failed <- getStrLn.either
           message = failed.fold(_.getMessage, identity)
         } yield {
           assert(failed.isLeft)(isTrue) &&

@@ -19,7 +19,8 @@ package zio.clock
 import zio.duration.Duration
 import zio.internal.Scheduler
 
-import scala.scalajs.js
+import scala.concurrent.duration._
+import scala.scalanative.loop._
 
 private[clock] trait PlatformSpecific {
   private[clock] val globalScheduler = new Scheduler {
@@ -27,22 +28,18 @@ private[clock] trait PlatformSpecific {
 
     private[this] val ConstFalse = () => false
 
-    override def schedule(task: Runnable, duration: Duration): CancelToken = duration match {
+    override def schedule(task: Runnable, duration: Duration): CancelToken = (duration: @unchecked) match {
       case Duration.Infinity => ConstFalse
-      case Duration.Zero =>
-        task.run()
-
-        ConstFalse
-      case duration: Duration.Finite =>
+      case Duration.Finite(nanos) =>
         var completed = false
 
-        val handle = js.timers.setTimeout(duration.toMillis.toDouble) {
+        val handle = Timer.timeout(nanos.nanos) { () =>
           completed = true
 
           task.run()
         }
         () => {
-          js.timers.clearTimeout(handle)
+          handle.clear()
           !completed
         }
     }

@@ -1,17 +1,15 @@
 package zio
 
-import java.util.concurrent.TimeUnit
-
-import scala.concurrent.duration.Duration
-import scala.concurrent.{ Await, ExecutionContext, Future }
-
-import IOBenchmarks.monixScheduler
-import IOBenchmarks.unsafeRun
 import cats.effect.implicits._
-import cats.effect.{ ContextShift, IO => CIO }
+import cats.effect.{ContextShift, IO => CIO}
 import cats.implicits._
-import monix.eval.{ Task => MTask }
+import monix.eval.{Task => MTask}
 import org.openjdk.jmh.annotations._
+import zio.IOBenchmarks.{monixScheduler, unsafeRun}
+
+import java.util.concurrent.TimeUnit
+import scala.concurrent.duration.Duration
+import scala.concurrent.{Await, ExecutionContext, Future}
 
 @Measurement(iterations = 10, time = 3, timeUnit = TimeUnit.SECONDS)
 @Warmup(iterations = 10, time = 3, timeUnit = TimeUnit.SECONDS)
@@ -57,22 +55,22 @@ class ParSequenceBenchmark {
     result.runSyncUnsafe()
   }
   @Benchmark
-  def monixGather(): Long = {
+  def monixParSequence(): Long = {
     val tasks  = (0 until count).map(_ => MTask.eval(1)).toList
-    val result = MTask.gather(tasks).map(_.sum.toLong)
+    val result = MTask.parSequence(tasks).map(_.sum.toLong)
     result.runSyncUnsafe()
   }
   @Benchmark
-  def monixGatherUnordered(): Long = {
+  def monixParSequenceUnordered(): Long = {
     val tasks  = (0 until count).map(_ => MTask.eval(1)).toList
-    val result = MTask.gatherUnordered(tasks).map(_.sum.toLong)
+    val result = MTask.parSequenceUnordered(tasks).map(_.sum.toLong)
     result.runSyncUnsafe()
   }
 
   @Benchmark
-  def monixGatherN(): Long = {
+  def monixParSequenceN(): Long = {
     val tasks  = (0 until count).map(_ => MTask.eval(1)).toList
-    val result = MTask.gatherN(parallelism)(tasks).map(_.sum.toLong)
+    val result = MTask.parSequenceN(parallelism)(tasks).map(_.sum.toLong)
     result.runSyncUnsafe()
   }
 

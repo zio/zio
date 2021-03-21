@@ -16,15 +16,15 @@
 
 package zio.internal
 
-import java.util.concurrent.ConcurrentHashMap
-import java.util.{ Collections, WeakHashMap, Map => JMap, Set => JSet }
-
-import scala.concurrent.ExecutionContext
-
-import zio.Cause
 import zio.internal.stacktracer.Tracer
 import zio.internal.stacktracer.impl.AkkaLineNumbersTracer
 import zio.internal.tracing.TracingConfig
+import zio.{Cause, Supervisor}
+
+import java.lang.ref.WeakReference
+import java.util.concurrent.ConcurrentHashMap
+import java.util.{Collections, Map => JMap, Set => JSet, WeakHashMap}
+import scala.concurrent.ExecutionContext
 
 private[internal] trait PlatformSpecific {
 
@@ -45,8 +45,8 @@ private[internal] trait PlatformSpecific {
    * Tracing adds a constant ~2x overhead on FlatMaps, however, it's an
    * optional feature and it's not valid to compare the performance of ZIO with
    * enabled Tracing with effect types _without_ a comparable feature.
-   * */
-  lazy val benchmark = makeDefault(Int.MaxValue).withReportFailure(_ => ()).withTracing(Tracing.disabled)
+   */
+  lazy val benchmark: Platform = makeDefault(Int.MaxValue).withReportFailure(_ => ()).withTracing(Tracing.disabled)
 
   /**
    * The default platform, configured with settings designed to work well for
@@ -71,12 +71,12 @@ private[internal] trait PlatformSpecific {
   /**
    * A `Platform` created from Scala's global execution context.
    */
-  lazy val global = fromExecutionContext(ExecutionContext.global)
+  lazy val global: Platform = fromExecutionContext(ExecutionContext.global)
 
   /**
    * Creates a platform from an `Executor`.
    */
-  final def fromExecutor(executor0: Executor) =
+  final def fromExecutor(executor0: Executor): Platform =
     new Platform {
       val executor = executor0
 
@@ -97,10 +97,12 @@ private[internal] trait PlatformSpecific {
         if (cause.died)
           System.err.println(cause.prettyPrint)
 
+      val supervisor = Supervisor.none
+
     }
 
   /**
-   * Creates a Platform from an exeuction context.
+   * Creates a Platform from an execution context.
    */
   final def fromExecutionContext(ec: ExecutionContext): Platform =
     fromExecutor(Executor.fromExecutionContext(defaultYieldOpCount)(ec))
@@ -136,6 +138,12 @@ private[internal] trait PlatformSpecific {
     Collections.newSetFromMap(new WeakHashMap[A, java.lang.Boolean]())
 
   final def newConcurrentSet[A](): JSet[A] = ConcurrentHashMap.newKeySet[A]()
+
+  final def newWeakReference[A](value: A): () => A = {
+    val ref = new WeakReference[A](value)
+
+    () => ref.get()
+  }
 
   /**
    * calling `initCause()` on [[java.lang.Throwable]] may fail on the JVM if `newCause != this`,

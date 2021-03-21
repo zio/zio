@@ -1,12 +1,11 @@
 package zio.stacktracer
 
-import java.util.concurrent.TimeUnit
-
 import org.openjdk.jmh.annotations._
-
-import zio.internal.stacktracer.impl.{ AkkaLineNumbers, AkkaLineNumbersTracer }
-import zio.stacktracer.TracersBenchmark.{ akkaTracer, asmTracer }
+import zio.internal.stacktracer.impl.{AkkaLineNumbers, AkkaLineNumbersTracer}
+import zio.stacktracer.TracersBenchmark.{akkaTracer, asmTracer}
 import zio.stacktracer.impls.AsmTracer
+
+import java.util.concurrent.TimeUnit
 
 @BenchmarkMode(Array(Mode.AverageTime))
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
@@ -16,7 +15,7 @@ import zio.stacktracer.impls.AsmTracer
 class TracersBenchmark {
 
   @Benchmark
-  def akkaLineNumbers1000Lambdas() = {
+  def akkaLineNumbers1000Lambdas(): Unit = {
     var i = 0
     while (i != 1000) {
       AkkaLineNumbers((a: Any) => a)
@@ -25,7 +24,7 @@ class TracersBenchmark {
   }
 
   @Benchmark
-  def akkaTracer1000Lambdas() = {
+  def akkaTracer1000Lambdas(): Unit = {
     var i = 0
     while (i != 1000) {
       akkaTracer.traceLocation((a: Any) => a)
@@ -34,7 +33,7 @@ class TracersBenchmark {
   }
 
   @Benchmark
-  def asmTracer1000Lambdas() = {
+  def asmTracer1000Lambdas(): Unit = {
     var i = 0
     while (i != 1000) {
       asmTracer.traceLocation((a: Any) => a)
