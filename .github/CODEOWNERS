@@ -1,5 +1,2 @@
-.circleci/config.yml @mijicd
-build.sbt @mijicd
-project/BuildHelper.scala @mijicd
 streams/ @iravid
 streams-test/ @iravid
