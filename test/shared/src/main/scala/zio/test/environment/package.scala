@@ -361,7 +361,7 @@ package object environment extends PlatformSpecific {
        * but is not advancing the `TestClock`.
        */
       private[TestClock] val warningDone: UIO[Unit] =
-        warningState.updateSome[Any, Nothing] {
+        warningState.updateSomeM[Any, Nothing] {
           case WarningData.Start          => ZIO.succeedNow(WarningData.done)
           case WarningData.Pending(fiber) => fiber.interrupt.as(WarningData.done)
         }
@@ -409,7 +409,7 @@ package object environment extends PlatformSpecific {
             case Left(_) => ZIO.succeedNow(SortedSet.empty[Fiber.Runtime[Any, Any]])
             case Right(refs) =>
               ZIO
-                .foreach(refs)(_.get)
+                .foreach(refs)(ref => ZIO.effectTotal(ref.get))
                 .map(_.foldLeft(SortedSet.empty[Fiber.Runtime[Any, Any]])(_ ++ _))
                 .map(_.filter(_.id != descriptor.id))
           }
@@ -474,7 +474,7 @@ package object environment extends PlatformSpecific {
        * time but is not advancing the `TestClock`.
        */
       private val warningStart: UIO[Unit] =
-        warningState.updateSome { case WarningData.Start =>
+        warningState.updateSomeM { case WarningData.Start =>
           for {
             fiber <- live.provide(console.putStrLn(warning).delay(5.seconds)).interruptible.fork
           } yield WarningData.pending(fiber)

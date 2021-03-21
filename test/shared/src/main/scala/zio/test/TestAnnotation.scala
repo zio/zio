@@ -19,6 +19,9 @@ package zio.test
 import zio.duration._
 import zio.{Chunk, Fiber, Tag}
 
+import scala.collection.immutable.SortedSet
+import java.util.concurrent.atomic.AtomicReference
+
 /**
  * A type of annotation.
  */
@@ -78,11 +81,7 @@ object TestAnnotation {
   val location: TestAnnotation[List[SourceLocation]] =
     TestAnnotation("location", List.empty, _ ++ _)
 
-  import zio.Ref
-
-  import scala.collection.immutable.SortedSet
-
-  val fibers: TestAnnotation[Either[Int, Chunk[Ref[SortedSet[Fiber.Runtime[Any, Any]]]]]] =
+  val fibers: TestAnnotation[Either[Int, Chunk[AtomicReference[SortedSet[Fiber.Runtime[Any, Any]]]]]] =
     TestAnnotation("fibers", Left(0), compose(_, _))
 
   def compose[A](left: Either[Int, Chunk[A]], right: Either[Int, Chunk[A]]): Either[Int, Chunk[A]] =

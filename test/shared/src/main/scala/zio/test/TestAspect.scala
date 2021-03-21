@@ -21,6 +21,8 @@ import zio.duration._
 import zio.test.Assertion.{equalTo, hasMessage, isCase, isSubtype}
 import zio.test.environment.{Live, Restorable, TestClock, TestConsole, TestRandom, TestSystem}
 
+import java.util.concurrent.atomic.AtomicReference
+
 /**
  * A `TestAspect` is an aspect that can be weaved into specs. You can think of
  * an aspect as a polymorphic function, capable of transforming one test into
@@ -360,14 +362,17 @@ object TestAspect extends TimeoutVariants {
       def perTest[R <: Annotations, E](
         test: ZIO[R, TestFailure[E], TestSuccess]
       ): ZIO[R, TestFailure[E], TestSuccess] = {
-        val acquire = Ref.make(SortedSet.empty[Fiber.Runtime[Any, Any]]).tap { ref =>
+        val acquire = ZIO.effectTotal(new AtomicReference(SortedSet.empty[Fiber.Runtime[Any, Any]])).tap { ref =>
           Annotations.annotate(TestAnnotation.fibers, Right(Chunk(ref)))
         }
         val release = Annotations.get(TestAnnotation.fibers).flatMap {
           case Right(refs) =>
-            ZIO.foreach(refs)(_.get).map(_.foldLeft(SortedSet.empty[Fiber.Runtime[Any, Any]])(_ ++ _).size).tap { n =>
-              Annotations.annotate(TestAnnotation.fibers, Left(n))
-            }
+            ZIO
+              .foreach(refs)(ref => ZIO.effectTotal(ref.get))
+              .map(_.foldLeft(SortedSet.empty[Fiber.Runtime[Any, Any]])(_ ++ _).size)
+              .tap { n =>
+                Annotations.annotate(TestAnnotation.fibers, Left(n))
+              }
           case Left(_) => ZIO.unit
         }
         acquire.bracket(_ => release) { ref =>

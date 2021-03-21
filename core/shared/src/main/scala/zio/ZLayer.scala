@@ -2256,7 +2256,7 @@ object ZLayer {
           new MemoMap { self =>
             final def getOrElseMemoize[E, A, B](layer: ZLayer[A, E, B]): ZManaged[A, E, B] =
               ZManaged {
-                ref.modify { map =>
+                ref.modifyM { map =>
                   map.get(layer) match {
                     case Some((acquire, release)) =>
                       val cached =

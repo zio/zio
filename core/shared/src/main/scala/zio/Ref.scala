@@ -29,7 +29,4 @@ object Ref extends Serializable {
    */
   def makeManaged[A](a: A): UManaged[Ref[A]] =
     ZRef.makeManaged(a)
-
-  private[zio] def unsafeMake[A](a: A): Ref[A] =
-    ZRef.unsafeMake(a)
 }

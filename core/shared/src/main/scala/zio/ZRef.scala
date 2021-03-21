@@ -21,24 +21,34 @@ import com.github.ghik.silencer.silent
 import java.util.concurrent.atomic.AtomicReference
 
 /**
- * A `ZRef[EA, EB, A, B]` is a polymorphic, purely functional description of a
- * mutable reference. The fundamental operations of a `ZRef` are `set` and
- * `get`. `set` takes a value of type `A` and sets the reference to a new
- * value, potentially failing with an error of type `EA`. `get` gets the
- * current value of the reference and returns a value of type `B`, potentially
- * failing with an error of type `EB`.
+ * A `ZRef[RA, RB, EA, EB, A, B]` is a polymorphic, purely functional
+ * description of a mutable reference. The fundamental operations of a `ZRef`
+ * are `set` and `get`. `set` takes a value of type `A` and sets the reference
+ * to a new value, requiring an environment of type `RA` and potentially
+ * failing with an error of type `EA`. `get` gets the current value of the
+ * reference and returns a value of type `B`, requiring an environment of type
+ * `RB` and potentially failing with an error of type `EB`.
  *
  * When the error and value types of the `ZRef` are unified, that is, it is a
- * `ZRef[E, E, A, A]`, the `ZRef` also supports atomic `modify` and `update`
- * operations. All operations are guaranteed to be safe for concurrent access.
+ * `ZRef[R, R, E, E, A, A]`, the `ZRef` also supports atomic `modify` and
+ * `update` operations. All operations are guaranteed to be safe for concurrent
+ * access.
+ *
+ * By default, `ZRef` is implemented in terms of compare and swap operations
+ * for maximum performance and does not support performing effects within
+ * update operations. If you need to perform effects within update operations
+ * you can create a `ZRefM`, a specialized type of `ZRef` that supports
+ * performing effects within update operations at some cost to performance. In
+ * this case writes will semantically block other writers, while multiple
+ * readers can read simultaneously.
  *
  * NOTE: While `ZRef` provides the functional equivalent of a mutable
- * reference, the value inside the `ZRef` should be immutable. For performance
- * reasons `ZRef` is implemented in terms of compare and swap operations rather
- * than synchronization. These operations are not safe for mutable values that
- * do not support concurrent access.
+ * reference, the value inside the `ZRef` should normally be immutable since
+ * compare and swap operations are not safe for mutable values that do not
+ * support concurrent access. If you do need to use a mutable value `ZRefM`
+ * will guarantee that access to the value is properly synchronized.
  */
-sealed abstract class ZRef[+EA, +EB, -A, +B] extends Serializable { self =>
+sealed abstract class ZRef[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { self =>
 
   /**
    * Folds over the error and value types of the `ZRef`. This is a highly
@@ -52,7 +62,7 @@ sealed abstract class ZRef[+EA, +EB, -A, +B] extends Serializable { self =>
     eb: EB => ED,
     ca: C => Either[EC, A],
     bd: B => Either[ED, D]
-  ): ZRef[EC, ED, C, D]
+  ): ZRef[RA, RB, EC, ED, C, D]
 
   /**
    * Folds over the error and value types of the `ZRef`, allowing access to
@@ -65,65 +75,68 @@ sealed abstract class ZRef[+EA, +EB, -A, +B] extends Serializable { self =>
     ec: EB => EC,
     ca: C => B => Either[EC, A],
     bd: B => Either[ED, D]
-  ): ZRef[EC, ED, C, D]
+  ): ZRef[RA with RB, RB, EC, ED, C, D]
 
   /**
    * Reads the value from the `ZRef`.
    */
-  def get: IO[EB, B]
+  def get: ZIO[RB, EB, B]
 
   /**
    * Writes a new value to the `ZRef`, with a guarantee of immediate
    * consistency (at some cost to performance).
    */
-  def set(a: A): IO[EA, Unit]
+  def set(a: A): ZIO[RA, EA, Unit]
 
   /**
    * Writes a new value to the `ZRef` without providing a guarantee of
    * immediate consistency.
    */
-  def setAsync(a: A): IO[EA, Unit]
+  def setAsync(a: A): ZIO[RA, EA, Unit]
 
   /**
    * Maps and filters the `get` value of the `ZRef` with the specified partial
    * function, returning a `ZRef` with a `get` value that succeeds with the
    * result of the partial function if it is defined or else fails with `None`.
    */
-  final def collect[C](pf: PartialFunction[B, C]): ZRef[EA, Option[EB], A, C] =
+  def collect[C](pf: PartialFunction[B, C]): ZRef[RA, RB, EA, Option[EB], A, C] =
     fold(identity, Some(_), Right(_), pf.lift(_).toRight(None))
 
   /**
    * Transforms the `set` value of the `ZRef` with the specified function.
    */
-  final def contramap[C](f: C => A): ZRef[EA, EB, C, B] =
+  def contramap[C](f: C => A): ZRef[RA, RB, EA, EB, C, B] =
     contramapEither(c => Right(f(c)))
 
   /**
    * Transforms the `set` value of the `ZRef` with the specified fallible
    * function.
    */
-  final def contramapEither[EC >: EA, C](f: C => Either[EC, A]): ZRef[EC, EB, C, B] =
+  def contramapEither[EC >: EA, C](f: C => Either[EC, A]): ZRef[RA, RB, EC, EB, C, B] =
     dimapEither(f, Right(_))
 
   /**
    * Transforms both the `set` and `get` values of the `ZRef` with the
    * specified functions.
    */
-  final def dimap[C, D](f: C => A, g: B => D): ZRef[EA, EB, C, D] =
+  def dimap[C, D](f: C => A, g: B => D): ZRef[RA, RB, EA, EB, C, D] =
     dimapEither(c => Right(f(c)), b => Right(g(b)))
 
   /**
    * Transforms both the `set` and `get` values of the `ZRef` with the
    * specified fallible functions.
    */
-  final def dimapEither[EC >: EA, ED >: EB, C, D](f: C => Either[EC, A], g: B => Either[ED, D]): ZRef[EC, ED, C, D] =
+  def dimapEither[EC >: EA, ED >: EB, C, D](
+    f: C => Either[EC, A],
+    g: B => Either[ED, D]
+  ): ZRef[RA, RB, EC, ED, C, D] =
     fold(identity, identity, f, g)
 
   /**
    * Transforms both the `set` and `get` errors of the `ZRef` with the
    * specified functions.
    */
-  final def dimapError[EC, ED](f: EA => EC, g: EB => ED): ZRef[EC, ED, A, B] =
+  def dimapError[EC, ED](f: EA => EC, g: EB => ED): ZRef[RA, RB, EC, ED, A, B] =
     fold(f, g, Right(_), Right(_))
 
   /**
@@ -131,7 +144,7 @@ sealed abstract class ZRef[+EA, +EB, -A, +B] extends Serializable { self =>
    * returning a `ZRef` with a `set` value that succeeds if the predicate is
    * satisfied or else fails with `None`.
    */
-  final def filterInput[A1 <: A](f: A1 => Boolean): ZRef[Option[EA], EB, A1, B] =
+  def filterInput[A1 <: A](f: A1 => Boolean): ZRef[RA, RB, Option[EA], EB, A1, B] =
     fold(Some(_), identity, a => if (f(a)) Right(a) else Left(None), Right(_))
 
   /**
@@ -139,36 +152,549 @@ sealed abstract class ZRef[+EA, +EB, -A, +B] extends Serializable { self =>
    * returning a `ZRef` with a `get` value that succeeds if the predicate is
    * satisfied or else fails with `None`.
    */
-  final def filterOutput(f: B => Boolean): ZRef[EA, Option[EB], A, B] =
+  def filterOutput(f: B => Boolean): ZRef[RA, RB, EA, Option[EB], A, B] =
     fold(identity, Some(_), Right(_), b => if (f(b)) Right(b) else Left(None))
 
   /**
    * Transforms the `get` value of the `ZRef` with the specified function.
    */
-  final def map[C](f: B => C): ZRef[EA, EB, A, C] =
+  def map[C](f: B => C): ZRef[RA, RB, EA, EB, A, C] =
     mapEither(b => Right(f(b)))
 
   /**
    * Transforms the `get` value of the `ZRef` with the specified fallible
    * function.
    */
-  final def mapEither[EC >: EB, C](f: B => Either[EC, C]): ZRef[EA, EC, A, C] =
+  def mapEither[EC >: EB, C](f: B => Either[EC, C]): ZRef[RA, RB, EA, EC, A, C] =
     dimapEither(Right(_), f)
 
   /**
    * Returns a read only view of the `ZRef`.
    */
-  final def readOnly: ZRef[EA, EB, Nothing, B] =
+  def readOnly: ZRef[RA, RB, EA, EB, Nothing, B] =
     self
 
   /**
    * Returns a write only view of the `ZRef`.
    */
-  final def writeOnly: ZRef[EA, Unit, A, Nothing] =
+  def writeOnly: ZRef[RA, RB, EA, Unit, A, Nothing] =
     fold(identity, _ => (), Right(_), _ => Left(()))
 }
 
 object ZRef extends Serializable {
+
+  /**
+   * Creates a new `ZRef` with the specified value.
+   */
+  def make[A](a: A): UIO[Ref[A]] =
+    UIO.effectTotal(Atomic(new AtomicReference(a)))
+
+  /**
+   * Creates a new managed `ZRef` with the specified value
+   */
+  def makeManaged[A](a: A): Managed[Nothing, Ref[A]] =
+    make(a).toManaged_
+
+  implicit class UnifiedSyntax[-R, +E, A](private val self: ZRef[R, R, E, E, A, A]) extends AnyVal {
+
+    /**
+     * Atomically writes the specified value to the `ZRef`, returning the value
+     * immediately before modification.
+     */
+    def getAndSet(a: A): ZIO[R, E, A] =
+      self match {
+        case atomic: Atomic[A] => atomic.getAndSet(a)
+        case derived           => derived.modify(v => (v, a))
+      }
+
+    /**
+     * Atomically modifies the `ZRef` with the specified function, returning
+     * the value immediately before modification.
+     */
+    def getAndUpdate(f: A => A): ZIO[R, E, A] =
+      self match {
+        case atomic: Atomic[A] => atomic.getAndUpdate(f)
+        case derived           => derived.modify(v => (v, f(v)))
+      }
+
+    /**
+     * Atomically modifies the `ZRef` with the specified partial function,
+     * returning the value immediately before modification. If the function is
+     * undefined on the current value it doesn't change it.
+     */
+    def getAndUpdateSome(pf: PartialFunction[A, A]): ZIO[R, E, A] =
+      self match {
+        case atomic: Atomic[A] => atomic.getAndUpdateSome(pf)
+        case derived =>
+          derived.modify { v =>
+            val result = pf.applyOrElse[A, A](v, identity)
+            (v, result)
+          }
+      }
+
+    /**
+     * Atomically modifies the `ZRef` with the specified function, which
+     * computes a return value for the modification. This is a more powerful
+     * version of `update`.
+     */
+    @silent("unreachable code")
+    def modify[B](f: A => (B, A)): ZIO[R, E, B] =
+      self match {
+        case atomic: Atomic[A] => atomic.modify(f)
+        case atomicM: AtomicM[A] =>
+          atomicM.semaphore.withPermit(atomicM.ref.get.map(f).flatMap { case (b, a) => atomicM.ref.set(a).as(b) })
+        case derived: Derived[E, E, A, A] =>
+          derived.value.modify { s =>
+            derived.getEither(s) match {
+              case Left(e) => (Left(e), s)
+              case Right(a1) => {
+                val (b, a2) = f(a1)
+                derived.setEither(a2) match {
+                  case Left(e)  => (Left(e), s)
+                  case Right(s) => (Right(b), s)
+                }
+              }
+            }
+          }.absolve
+        case derivedM: DerivedM[R, R, E, E, A, A] =>
+          derivedM.value.semaphore.withPermit {
+            derivedM.value.ref.get.flatMap { s =>
+              derivedM.getEither(s).map(f).flatMap { case (b, a) =>
+                derivedM.setEither(a).flatMap(derivedM.value.ref.set).as(b)
+              }
+            }
+          }
+        case derivedAll: DerivedAll[E, E, A, A] =>
+          derivedAll.value.modify { s =>
+            derivedAll.getEither(s) match {
+              case Left(e) => (Left(e), s)
+              case Right(a1) => {
+                val (b, a2) = f(a1)
+                derivedAll.setEither(a2)(s) match {
+                  case Left(e)  => (Left(e), s)
+                  case Right(s) => (Right(b), s)
+                }
+              }
+            }
+          }.absolve
+        case derivedAllM: DerivedAllM[R, R, E, E, A, A] =>
+          derivedAllM.value.semaphore.withPermit {
+            derivedAllM.value.ref.get.flatMap { s =>
+              derivedAllM.getEither(s).map(f).flatMap { case (b, a) =>
+                derivedAllM.setEither(a)(s).flatMap(derivedAllM.value.ref.set).as(b)
+              }
+            }
+          }
+      }
+
+    /**
+     * Atomically modifies the `ZRef` with the specified partial function,
+     * which computes a return value for the modification if the function is
+     * defined on the current value otherwise it returns a default value. This
+     * is a more powerful version of `updateSome`.
+     */
+    def modifySome[B](default: B)(pf: PartialFunction[A, (B, A)]): ZIO[R, E, B] =
+      self match {
+        case atomic: Atomic[A] => atomic.modifySome(default)(pf)
+        case derived =>
+          derived.modify(v => pf.applyOrElse[A, (B, A)](v, _ => (default, v)))
+      }
+
+    /**
+     * Atomically modifies the `ZRef` with the specified function.
+     */
+    def update(f: A => A): ZIO[R, E, Unit] =
+      self match {
+        case atomic: Atomic[A] => atomic.update(f)
+        case derived           => derived.modify(v => ((), f(v)))
+      }
+
+    /**
+     * Atomically modifies the `ZRef` with the specified function and returns
+     * the updated value.
+     */
+    def updateAndGet(f: A => A): ZIO[R, E, A] =
+      self match {
+        case atomic: Atomic[A] => atomic.updateAndGet(f)
+        case derived =>
+          derived.modify { v =>
+            val result = f(v)
+            (result, result)
+          }
+      }
+
+    /**
+     * Atomically modifies the `ZRef` with the specified partial function. If
+     * the function is undefined on the current value it doesn't change it.
+     */
+    def updateSome(pf: PartialFunction[A, A]): ZIO[R, E, Unit] =
+      self match {
+        case atomic: Atomic[A] => atomic.updateSome(pf)
+        case derived =>
+          derived.modify { v =>
+            val result = pf.applyOrElse[A, A](v, identity)
+            ((), result)
+          }
+      }
+
+    /**
+     * Atomically modifies the `ZRef` with the specified partial function. If
+     * the function is undefined on the current value it returns the old value
+     * without changing it.
+     */
+    def updateSomeAndGet(pf: PartialFunction[A, A]): ZIO[R, E, A] =
+      self match {
+        case atomic: Atomic[A] => atomic.updateSomeAndGet(pf)
+        case derived =>
+          derived.modify { v =>
+            val result = pf.applyOrElse[A, A](v, identity)
+            (result, result)
+          }
+      }
+  }
+
+  /**
+   * A `ZRefM[RA, RB, EA, EB, A, B]` is a polymorphic, purely functional
+   * description of a mutable reference. The fundamental operations of a `ZRefM`
+   * are `set` and `get`. `set` takes a value of type `A` and sets the reference
+   * to a new value, requiring an environment of type `RA` and potentially
+   * failing with an error of type `EA`. `get` gets the current value of the
+   * reference and returns a value of type `B`, requiring an environment of type
+   * `RB` and potentially failing with an error of type `EB`.
+   *
+   * When the error and value types of the `ZRefM` are unified, that is, it is a
+   * `ZRefM[R, R, E, E, A, A]`, the `ZRefM` also supports atomic `modify` and
+   * `update` operations.
+   *
+   * Unlike an ordinary `ZRef`, a `ZRefM` allows performing effects within update
+   * operations, at some cost to performance. Writes will semantically block
+   * other writers, while multiple readers can read simultaneously.
+   */
+  sealed abstract class ZRefM[-RA, -RB, +EA, +EB, -A, +B] extends ZRef[RA, RB, EA, EB, A, B] { self =>
+
+    /**
+     * Folds over the error and value types of the `ZRefM`. This is a highly
+     * polymorphic method that is capable of arbitrarily transforming the error
+     * and value types of the `ZRefM`. For most use cases one of the more
+     * specific combinators implemented in terms of `foldM` will be more
+     * ergonomic but this method is extremely useful for implementing new
+     * combinators.
+     */
+    def foldM[RC <: RA, RD <: RB, EC, ED, C, D](
+      ea: EA => EC,
+      eb: EB => ED,
+      ca: C => ZIO[RC, EC, A],
+      bd: B => ZIO[RD, ED, D]
+    ): ZRefM[RC, RD, EC, ED, C, D]
+
+    /**
+     * Folds over the error and value types of the `ZRefM`, allowing access to
+     * the state in transforming the `set` value. This is a more powerful version
+     * of `foldM` but requires unifying the environment and error types.
+     */
+    def foldAllM[RC <: RA with RB, RD <: RB, EC, ED, C, D](
+      ea: EA => EC,
+      eb: EB => ED,
+      ec: EB => EC,
+      ca: C => B => ZIO[RC, EC, A],
+      bd: B => ZIO[RD, ED, D]
+    ): ZRefM[RC, RD, EC, ED, C, D]
+
+    /**
+     * Maps and filters the `get` value of the `ZRefM` with the specified partial
+     * function, returning a `ZRefM` with a `get` value that succeeds with the
+     * result of the partial function if it is defined or else fails with `None`.
+     */
+    override final def collect[C](pf: PartialFunction[B, C]): ZRefM[RA, RB, EA, Option[EB], A, C] =
+      collectM(pf.andThen(ZIO.succeedNow(_)))
+
+    /**
+     * Maps and filters the `get` value of the `ZRefM` with the specified
+     * effectual partial function, returning a `ZRefM` with a `get` value that
+     * succeeds with the result of the partial function if it is defined or else
+     * fails with `None`.
+     */
+    final def collectM[RC <: RB, EC >: EB, C](
+      pf: PartialFunction[B, ZIO[RC, EC, C]]
+    ): ZRefM[RA, RC, EA, Option[EC], A, C] =
+      foldM(
+        identity,
+        Some(_),
+        ZIO.succeedNow,
+        b => pf.andThen(_.asSomeError).applyOrElse[B, ZIO[RC, Option[EC], C]](b, _ => ZIO.fail(None))
+      )
+
+    /**
+     * Transforms the `set` value of the `ZRefM` with the specified function.
+     */
+    override final def contramap[C](f: C => A): ZRefM[RA, RB, EA, EB, C, B] =
+      contramapM(c => ZIO.succeedNow(f(c)))
+
+    /**
+     * Transforms the `set` value of the `ZRef` with the specified fallible
+     * function.
+     */
+    override final def contramapEither[EC >: EA, C](f: C => Either[EC, A]): ZRefM[RA, RB, EC, EB, C, B] =
+      dimapEither(f, Right(_))
+
+    /**
+     * Transforms the `set` value of the `ZRefM` with the specified effectual
+     * function.
+     */
+    final def contramapM[RC <: RA, EC >: EA, C](f: C => ZIO[RC, EC, A]): ZRefM[RC, RB, EC, EB, C, B] =
+      dimapM(f, ZIO.succeedNow)
+
+    /**
+     * Transforms both the `set` and `get` values of the `ZRefM` with the
+     * specified functions.
+     */
+    override final def dimap[C, D](f: C => A, g: B => D): ZRefM[RA, RB, EA, EB, C, D] =
+      dimapM(c => ZIO.succeedNow(f(c)), b => ZIO.succeedNow(g(b)))
+
+    /**
+     * Transforms both the `set` and `get` values of the `ZRef` with the
+     * specified fallible functions.
+     */
+    override final def dimapEither[EC >: EA, ED >: EB, C, D](
+      f: C => Either[EC, A],
+      g: B => Either[ED, D]
+    ): ZRefM[RA, RB, EC, ED, C, D] =
+      fold(identity, identity, f, g)
+
+    /**
+     * Transforms both the `set` and `get` values of the `ZRefM` with the
+     * specified effectual functions.
+     */
+    final def dimapM[RC <: RA, RD <: RB, EC >: EA, ED >: EB, C, D](
+      f: C => ZIO[RC, EC, A],
+      g: B => ZIO[RD, ED, D]
+    ): ZRefM[RC, RD, EC, ED, C, D] =
+      foldM(identity, identity, f, g)
+
+    /**
+     * Transforms both the `set` and `get` errors of the `ZRefM` with the
+     * specified functions.
+     */
+    override final def dimapError[EC, ED](f: EA => EC, g: EB => ED): ZRefM[RA, RB, EC, ED, A, B] =
+      fold(f, g, Right(_), Right(_))
+
+    /**
+     * Filters the `set` value of the `ZRefM` with the specified predicate,
+     * returning a `ZRefM` with a `set` value that succeeds if the predicate is
+     * satisfied or else fails with `None`.
+     */
+    override final def filterInput[A1 <: A](f: A1 => Boolean): ZRefM[RA, RB, Option[EA], EB, A1, B] =
+      filterInputM(a => ZIO.succeedNow(f(a)))
+
+    /**
+     * Filters the `set` value of the `ZRefM` with the specified effectual
+     * predicate, returning a `ZRefM` with a `set` value that succeeds if the
+     * predicate is satisfied or else fails with `None`.
+     */
+    final def filterInputM[RC <: RA, EC >: EA, A1 <: A](
+      f: A1 => ZIO[RC, EC, Boolean]
+    ): ZRefM[RC, RB, Option[EC], EB, A1, B] =
+      foldM(Some(_), identity, a => ZIO.ifM(f(a).asSomeError)(ZIO.succeedNow(a), ZIO.fail(None)), ZIO.succeedNow)
+
+    /**
+     * Filters the `get` value of the `ZRefM` with the specified predicate,
+     * returning a `ZRefM` with a `get` value that succeeds if the predicate is
+     * satisfied or else fails with `None`.
+     */
+    override final def filterOutput(f: B => Boolean): ZRefM[RA, RB, EA, Option[EB], A, B] =
+      filterOutputM(a => ZIO.succeedNow(f(a)))
+
+    /**
+     * Filters the `get` value of the `ZRefM` with the specified effectual predicate,
+     * returning a `ZRefM` with a `get` value that succeeds if the predicate is
+     * satisfied or else fails with `None`.
+     */
+    final def filterOutputM[RC <: RB, EC >: EB](f: B => ZIO[RC, EC, Boolean]): ZRefM[RA, RC, EA, Option[EC], A, B] =
+      foldM(identity, Some(_), ZIO.succeedNow, b => ZIO.ifM(f(b).asSomeError)(ZIO.succeedNow(b), ZIO.fail(None)))
+
+    /**
+     * Folds over the error and value types of the `ZRefM`.
+     */
+    final def fold[EC, ED, C, D](
+      ea: EA => EC,
+      eb: EB => ED,
+      ca: C => Either[EC, A],
+      bd: B => Either[ED, D]
+    ): ZRefM[RA, RB, EC, ED, C, D] =
+      foldM(ea, eb, c => ZIO.fromEither(ca(c)), b => ZIO.fromEither(bd(b)))
+
+    /**
+     * Folds over the error and value types of the `ZRefM`, allowing access to
+     * the state in transforming the `set` value but requiring unifying the error
+     * type.
+     */
+    final def foldAll[EC, ED, C, D](
+      ea: EA => EC,
+      eb: EB => ED,
+      ec: EB => EC,
+      ca: C => B => Either[EC, A],
+      bd: B => Either[ED, D]
+    ): ZRefM[RA with RB, RB, EC, ED, C, D] =
+      foldAllM(ea, eb, ec, c => b => ZIO.fromEither(ca(c)(b)), b => ZIO.fromEither(bd(b)))
+
+    /**
+     * Transforms the `get` value of the `ZRefM` with the specified function.
+     */
+    override final def map[C](f: B => C): ZRefM[RA, RB, EA, EB, A, C] =
+      mapM(b => ZIO.succeedNow(f(b)))
+
+    /**
+     * Transforms the `get` value of the `ZRef` with the specified fallible
+     * function.
+     */
+    override final def mapEither[EC >: EB, C](f: B => Either[EC, C]): ZRefM[RA, RB, EA, EC, A, C] =
+      dimapEither(Right(_), f)
+
+    /**
+     * Transforms the `get` value of the `ZRefM` with the specified effectual
+     * function.
+     */
+    final def mapM[RC <: RB, EC >: EB, C](f: B => ZIO[RC, EC, C]): ZRefM[RA, RC, EA, EC, A, C] =
+      dimapM(ZIO.succeedNow, f)
+
+    /**
+     * Returns a read only view of the `ZRefM`.
+     */
+    override final def readOnly: ZRefM[RA, RB, EA, EB, Nothing, B] =
+      self
+
+    /**
+     * Performs the specified effect every time a value is written to this
+     * `ZRefM`.
+     */
+    final def tapInput[RC <: RA, EC >: EA, A1 <: A](f: A1 => ZIO[RC, EC, Any]): ZRefM[RC, RB, EC, EB, A1, B] =
+      contramapM(a => f(a).as(a))
+
+    /**
+     * Performs the specified effect very time a value is read from this
+     * `ZRefM`.
+     */
+    final def tapOutput[RC <: RB, EC >: EB](f: B => ZIO[RC, EC, Any]): ZRefM[RA, RC, EA, EC, A, B] =
+      mapM(b => f(b).as(b))
+
+    /**
+     * Returns a write only view of the `ZRefM`.
+     */
+    override final def writeOnly: ZRefM[RA, RB, EA, Unit, A, Nothing] =
+      fold(identity, _ => (), Right(_), _ => Left(()))
+  }
+
+  object ZRefM {
+
+    implicit class UnifiedSyntax[-R, +E, A](private val self: ZRefM[R, R, E, E, A, A]) extends AnyVal {
+
+      /**
+       * Atomically modifies the `RefM` with the specified function, returning the
+       * value immediately before modification.
+       */
+      def getAndUpdateM[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, A]): ZIO[R1, E1, A] =
+        modifyM(v => f(v).map(result => (v, result)))
+
+      /**
+       * Atomically modifies the `RefM` with the specified partial function,
+       * returning the value immediately before modification.
+       * If the function is undefined on the current value it doesn't change it.
+       */
+      def getAndUpdateSomeM[R1 <: R, E1 >: E](pf: PartialFunction[A, ZIO[R1, E1, A]]): ZIO[R1, E1, A] =
+        modifyM(v => pf.applyOrElse[A, ZIO[R1, E1, A]](v, ZIO.succeedNow).map(result => (v, result)))
+
+      /**
+       * Atomically modifies the `RefM` with the specified function, which computes
+       * a return value for the modification. This is a more powerful version of
+       * `update`.
+       */
+      @silent("unreachable code")
+      def modifyM[R1 <: R, E1 >: E, B](f: A => ZIO[R1, E1, (B, A)]): ZIO[R1, E1, B] =
+        self match {
+          case atomicM: AtomicM[A] =>
+            atomicM.semaphore.withPermit(atomicM.ref.get.flatMap(f).flatMap { case (b, a) => atomicM.ref.set(a).as(b) })
+          case derivedM: DerivedM[R, R, E, E, A, A] =>
+            derivedM.value.semaphore.withPermit {
+              derivedM.value.ref.get.flatMap { s =>
+                derivedM.getEither(s).flatMap(f).flatMap { case (b, a) =>
+                  derivedM.setEither(a).flatMap(derivedM.value.ref.set).as(b)
+                }
+              }
+            }
+          case derivedAllM: DerivedAllM[R, R, E, E, A, A] =>
+            derivedAllM.value.semaphore.withPermit {
+              derivedAllM.value.ref.get.flatMap { s =>
+                derivedAllM.getEither(s).flatMap(f).flatMap { case (b, a) =>
+                  derivedAllM.setEither(a)(s).flatMap(derivedAllM.value.ref.set).as(b)
+                }
+              }
+            }
+        }
+
+      /**
+       * Atomically modifies the `RefM` with the specified function, which computes
+       * a return value for the modification if the function is defined in the current value
+       * otherwise it returns a default value.
+       * This is a more powerful version of `updateSome`.
+       */
+      def modifySomeM[R1 <: R, E1 >: E, B](default: B)(pf: PartialFunction[A, ZIO[R1, E1, (B, A)]]): ZIO[R1, E1, B] =
+        modifyM(v => pf.applyOrElse[A, ZIO[R1, E1, (B, A)]](v, _ => ZIO.succeedNow((default, v))))
+
+      /**
+       * Atomically modifies the `RefM` with the specified function.
+       */
+      def updateM[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, A]): ZIO[R1, E1, Unit] =
+        modifyM(v => f(v).map(result => ((), result)))
+
+      /**
+       * Atomically modifies the `RefM` with the specified function, returning the
+       * value immediately after modification.
+       */
+      def updateAndGetM[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, A]): ZIO[R1, E1, A] =
+        modifyM(v => f(v).map(result => (result, result)))
+
+      /**
+       * Atomically modifies the `RefM` with the specified partial function.
+       * If the function is undefined on the current value it doesn't change it.
+       */
+      def updateSomeM[R1 <: R, E1 >: E](pf: PartialFunction[A, ZIO[R1, E1, A]]): ZIO[R1, E1, Unit] =
+        modifyM(v => pf.applyOrElse[A, ZIO[R1, E1, A]](v, ZIO.succeedNow).map(result => ((), result)))
+
+      /**
+       * Atomically modifies the `RefM` with the specified partial function.
+       * If the function is undefined on the current value it returns the old value
+       * without changing it.
+       */
+      def updateSomeAndGetM[R1 <: R, E1 >: E](pf: PartialFunction[A, ZIO[R1, E1, A]]): ZIO[R1, E1, A] =
+        modifyM(v => pf.applyOrElse[A, ZIO[R1, E1, A]](v, ZIO.succeedNow).map(result => (result, result)))
+    }
+
+    /**
+     * Creates a new `RefM` and a `Dequeue` that will emit every change to the
+     * `RefM`.
+     */
+    def dequeueRef[A](a: A): UIO[(RefM[A], Dequeue[A])] =
+      for {
+        ref   <- make(a)
+        queue <- Queue.unbounded[A]
+      } yield (ref.tapInput(queue.offer), queue)
+
+    /**
+     * Creates a new `ZRefM` with the specified value.
+     */
+    def make[A](a: A): UIO[RefM[A]] =
+      for {
+        ref       <- Ref.make(a)
+        semaphore <- Semaphore.make(1)
+      } yield AtomicM(ref, semaphore)
+
+    /**
+     * Creates a new `ZRefM` with the specified value in the context of a
+     * `Managed.`
+     */
+    def makeManaged[A](a: A): UManaged[RefM[A]] =
+      make(a).toManaged_
+  }
 
   private final case class Atomic[A](value: AtomicReference[A]) extends Ref[A] { self =>
 
@@ -177,12 +703,15 @@ object ZRef extends Serializable {
       eb: Nothing => ED,
       ca: C => Either[EC, A],
       bd: A => Either[ED, D]
-    ): ZRef[EC, ED, C, D] =
+    ): ZRef[Any, Any, EC, ED, C, D] =
       new Derived[EC, ED, C, D] {
         type S = A
-        def getEither(s: S): Either[ED, D] = bd(s)
-        def setEither(c: C): Either[EC, S] = ca(c)
-        val value: Atomic[S]               = self
+        def getEither(s: S): Either[ED, D] =
+          bd(s)
+        def setEither(c: C): Either[EC, S] =
+          ca(c)
+        val value: Atomic[S] =
+          self
       }
 
     def foldAll[EC, ED, C, D](
@@ -191,164 +720,186 @@ object ZRef extends Serializable {
       ec: Nothing => EC,
       ca: C => A => Either[EC, A],
       bd: A => Either[ED, D]
-    ): ZRef[EC, ED, C, D] =
+    ): ZRef[Any, Any, EC, ED, C, D] =
       new DerivedAll[EC, ED, C, D] {
         type S = A
-        def getEither(s: S): Either[ED, D]       = bd(s)
-        def setEither(c: C)(s: S): Either[EC, S] = ca(c)(s)
-        val value: Atomic[S]                     = self
+        def getEither(s: S): Either[ED, D] =
+          bd(s)
+        def setEither(c: C)(s: S): Either[EC, S] =
+          ca(c)(s)
+        val value: Atomic[S] =
+          self
       }
 
     def get: UIO[A] =
-      UIO.effectTotal(unsafeGet)
+      UIO.effectTotal(value.get)
 
     def getAndSet(a: A): UIO[A] =
-      UIO.effectTotal(unsafeGetAndSet(a))
+      UIO.effectTotal {
+        var loop       = true
+        var current: A = null.asInstanceOf[A]
+        while (loop) {
+          current = value.get
+          loop = !value.compareAndSet(current, a)
+        }
+        current
+      }
 
     def getAndUpdate(f: A => A): UIO[A] =
-      UIO.effectTotal(unsafeGetAndUpdate(f))
+      UIO.effectTotal {
+        {
+          var loop       = true
+          var current: A = null.asInstanceOf[A]
+          while (loop) {
+            current = value.get
+            val next = f(current)
+            loop = !value.compareAndSet(current, next)
+          }
+          current
+        }
+      }
 
     def getAndUpdateSome(pf: PartialFunction[A, A]): UIO[A] =
-      UIO.effectTotal(unsafeGetAndUpdateSome(pf))
+      UIO.effectTotal {
+        var loop       = true
+        var current: A = null.asInstanceOf[A]
+        while (loop) {
+          current = value.get
+          val next = pf.applyOrElse(current, (_: A) => current)
+          loop = !value.compareAndSet(current, next)
+        }
+        current
+      }
 
     def modify[B](f: A => (B, A)): UIO[B] =
-      UIO.effectTotal(unsafeModify(f))
+      UIO.effectTotal {
+        var loop = true
+        var b: B = null.asInstanceOf[B]
+        while (loop) {
+          val current = value.get
+          val tuple   = f(current)
+          b = tuple._1
+          loop = !value.compareAndSet(current, tuple._2)
+        }
+        b
+      }
 
     def modifySome[B](default: B)(pf: PartialFunction[A, (B, A)]): UIO[B] =
-      UIO.effectTotal(unsafeModifySome(default)(pf))
+      UIO.effectTotal {
+        {
+          var loop = true
+          var b: B = null.asInstanceOf[B]
+          while (loop) {
+            val current = value.get
+            val tuple   = pf.applyOrElse(current, (_: A) => (default, current))
+            b = tuple._1
+            loop = !value.compareAndSet(current, tuple._2)
+          }
+          b
+        }
+      }
 
     def set(a: A): UIO[Unit] =
-      UIO.effectTotal(unsafeSet(a))
+      UIO.effectTotal(value.set(a))
 
     def setAsync(a: A): UIO[Unit] =
-      UIO.effectTotal(unsafeSetAsync(a))
+      UIO.effectTotal(value.lazySet(a))
 
     override def toString: String =
       s"Ref(${value.get})"
 
-    def unsafeGet: A =
-      value.get
-
-    def unsafeGetAndSet(a: A): A = {
-      var loop       = true
-      var current: A = null.asInstanceOf[A]
-      while (loop) {
-        current = value.get
-        loop = !value.compareAndSet(current, a)
-      }
-      current
-    }
-
-    def unsafeGetAndUpdate(f: A => A): A = {
-      var loop       = true
-      var current: A = null.asInstanceOf[A]
-      while (loop) {
-        current = value.get
-        val next = f(current)
-        loop = !value.compareAndSet(current, next)
-      }
-      current
-    }
-
-    def unsafeGetAndUpdateSome(pf: PartialFunction[A, A]): A = {
-      var loop       = true
-      var current: A = null.asInstanceOf[A]
-      while (loop) {
-        current = value.get
-        val next = pf.applyOrElse(current, (_: A) => current)
-        loop = !value.compareAndSet(current, next)
-      }
-      current
-    }
-
-    def unsafeModify[B](f: A => (B, A)): B = {
-      var loop = true
-      var b: B = null.asInstanceOf[B]
-      while (loop) {
-        val current = value.get
-        val tuple   = f(current)
-        b = tuple._1
-        loop = !value.compareAndSet(current, tuple._2)
-      }
-      b
-    }
-
-    def unsafeModifySome[B](default: B)(pf: PartialFunction[A, (B, A)]): B = {
-      var loop = true
-      var b: B = null.asInstanceOf[B]
-      while (loop) {
-        val current = value.get
-        val tuple   = pf.applyOrElse(current, (_: A) => (default, current))
-        b = tuple._1
-        loop = !value.compareAndSet(current, tuple._2)
-      }
-      b
-    }
-
-    def unsafeSet(a: A): Unit =
-      value.set(a)
-
-    def unsafeSetAsync(a: A): Unit =
-      value.lazySet(a)
-
-    def unsafeUpdate(f: A => A): Unit = {
-      var loop    = true
-      var next: A = null.asInstanceOf[A]
-      while (loop) {
-        val current = value.get
-        next = f(current)
-        loop = !value.compareAndSet(current, next)
-      }
-      ()
-    }
-
-    def unsafeUpdateAndGet(f: A => A): A = {
-      var loop    = true
-      var next: A = null.asInstanceOf[A]
-      while (loop) {
-        val current = value.get
-        next = f(current)
-        loop = !value.compareAndSet(current, next)
-      }
-      next
-    }
-
-    def unsafeUpdateSome(pf: PartialFunction[A, A]): Unit = {
-      var loop    = true
-      var next: A = null.asInstanceOf[A]
-      while (loop) {
-        val current = value.get
-        next = pf.applyOrElse(current, (_: A) => current)
-        loop = !value.compareAndSet(current, next)
-      }
-      ()
-    }
-
-    def unsafeUpdateSomeAndGet(pf: PartialFunction[A, A]): A = {
-      var loop    = true
-      var next: A = null.asInstanceOf[A]
-      while (loop) {
-        val current = value.get
-        next = pf.applyOrElse(current, (_: A) => current)
-        loop = !value.compareAndSet(current, next)
-      }
-      next
-    }
-
     def update(f: A => A): UIO[Unit] =
-      UIO.effectTotal(unsafeUpdate(f))
+      UIO.effectTotal {
+        var loop    = true
+        var next: A = null.asInstanceOf[A]
+        while (loop) {
+          val current = value.get
+          next = f(current)
+          loop = !value.compareAndSet(current, next)
+        }
+        ()
+      }
 
     def updateAndGet(f: A => A): UIO[A] =
-      UIO.effectTotal(unsafeUpdateAndGet(f))
+      UIO.effectTotal {
+        var loop    = true
+        var next: A = null.asInstanceOf[A]
+        while (loop) {
+          val current = value.get
+          next = f(current)
+          loop = !value.compareAndSet(current, next)
+        }
+        next
+      }
 
     def updateSome(pf: PartialFunction[A, A]): UIO[Unit] =
-      UIO.effectTotal(unsafeUpdateSome(pf))
+      UIO.effectTotal {
+        var loop    = true
+        var next: A = null.asInstanceOf[A]
+        while (loop) {
+          val current = value.get
+          next = pf.applyOrElse(current, (_: A) => current)
+          loop = !value.compareAndSet(current, next)
+        }
+        ()
+      }
 
     def updateSomeAndGet(pf: PartialFunction[A, A]): UIO[A] =
-      UIO.effectTotal(unsafeUpdateSomeAndGet(pf))
+      UIO.effectTotal {
+        var loop    = true
+        var next: A = null.asInstanceOf[A]
+        while (loop) {
+          val current = value.get
+          next = pf.applyOrElse(current, (_: A) => current)
+          loop = !value.compareAndSet(current, next)
+        }
+        next
+      }
   }
 
-  private abstract class Derived[+EA, +EB, -A, +B] extends ZRef[EA, EB, A, B] { self =>
+  final case class AtomicM[A](ref: Ref[A], semaphore: Semaphore) extends RefM[A] { self =>
+
+    def foldM[RC, RD, EC, ED, C, D](
+      ea: Nothing => EC,
+      eb: Nothing => ED,
+      ca: C => ZIO[RC, EC, A],
+      bd: A => ZIO[RD, ED, D]
+    ): ZRefM[RC, RD, EC, ED, C, D] =
+      new DerivedM[RC, RD, EC, ED, C, D] {
+        type S = A
+        def getEither(s: S): ZIO[RD, ED, D] =
+          bd(s)
+        def setEither(c: C): ZIO[RC, EC, S] =
+          ca(c)
+        val value: AtomicM[S] =
+          self
+      }
+
+    def foldAllM[RC, RD, EC, ED, C, D](
+      ea: Nothing => EC,
+      eb: Nothing => ED,
+      ec: Nothing => EC,
+      ca: C => A => ZIO[RC, EC, A],
+      bd: A => ZIO[RD, ED, D]
+    ): ZRefM[RC, RD, EC, ED, C, D] =
+      new DerivedAllM[RC, RD, EC, ED, C, D] {
+        type S = A
+        def getEither(s: S): ZIO[RD, ED, D]       = bd(s)
+        def setEither(c: C)(s: S): ZIO[RC, EC, S] = ca(c)(s)
+        val value: AtomicM[S]                     = self
+      }
+
+    def get: IO[Nothing, A] =
+      ref.get
+
+    def set(a: A): IO[Nothing, Unit] =
+      semaphore.withPermit(ref.set(a))
+
+    def setAsync(a: A): IO[Nothing, Unit] =
+      semaphore.withPermit(ref.setAsync(a))
+  }
+
+  private abstract class Derived[+EA, +EB, -A, +B] extends ZRef[Any, Any, EA, EB, A, B] { self =>
     type S
 
     def getEither(s: S): Either[EB, B]
@@ -362,7 +913,7 @@ object ZRef extends Serializable {
       eb: EB => ED,
       ca: C => Either[EC, A],
       bd: B => Either[ED, D]
-    ): ZRef[EC, ED, C, D] =
+    ): ZRef[Any, Any, EC, ED, C, D] =
       new Derived[EC, ED, C, D] {
         type S = self.S
         def getEither(s: S): Either[ED, D] =
@@ -379,7 +930,7 @@ object ZRef extends Serializable {
       ec: EB => EC,
       ca: C => B => Either[EC, A],
       bd: B => Either[ED, D]
-    ): ZRef[EC, ED, C, D] =
+    ): ZRef[Any, Any, EC, ED, C, D] =
       new DerivedAll[EC, ED, C, D] {
         type S = self.S
         def getEither(s: S): Either[ED, D] =
@@ -403,7 +954,62 @@ object ZRef extends Serializable {
       setEither(a).fold(ZIO.fail(_), value.setAsync)
   }
 
-  private abstract class DerivedAll[+EA, +EB, -A, +B] extends ZRef[EA, EB, A, B] { self =>
+  private abstract class DerivedM[-RA, -RB, +EA, +EB, -A, +B] extends ZRefM[RA, RB, EA, EB, A, B] { self =>
+    type S
+
+    def getEither(s: S): ZIO[RB, EB, B]
+
+    def setEither(a: A): ZIO[RA, EA, S]
+
+    val value: AtomicM[S]
+
+    final def foldM[RC <: RA, RD <: RB, EC, ED, C, D](
+      ea: EA => EC,
+      eb: EB => ED,
+      ca: C => ZIO[RC, EC, A],
+      bd: B => ZIO[RD, ED, D]
+    ): ZRefM[RC, RD, EC, ED, C, D] =
+      new DerivedM[RC, RD, EC, ED, C, D] {
+        type S = self.S
+        def getEither(s: S): ZIO[RD, ED, D] =
+          self.getEither(s).foldM(e => ZIO.fail(eb(e)), bd)
+        def setEither(c: C): ZIO[RC, EC, S] =
+          ca(c).flatMap(a => self.setEither(a).mapError(ea))
+        val value: AtomicM[S] =
+          self.value
+      }
+
+    final def foldAllM[RC <: RA with RB, RD <: RB, EC, ED, C, D](
+      ea: EA => EC,
+      eb: EB => ED,
+      ec: EB => EC,
+      ca: C => B => ZIO[RC, EC, A],
+      bd: B => ZIO[RD, ED, D]
+    ): ZRefM[RC, RD, EC, ED, C, D] =
+      new DerivedAllM[RC, RD, EC, ED, C, D] {
+        type S = self.S
+        def getEither(s: S): ZIO[RD, ED, D] =
+          self.getEither(s).foldM(e => ZIO.fail(eb(e)), bd)
+        def setEither(c: C)(s: S): ZIO[RC, EC, S] =
+          self
+            .getEither(s)
+            .foldM(e => ZIO.fail(ec(e)), ca(c))
+            .flatMap(a => self.setEither(a).mapError(ea))
+        val value: AtomicM[S] =
+          self.value
+      }
+
+    final def get: ZIO[RB, EB, B] =
+      value.get.flatMap(getEither)
+
+    final def set(a: A): ZIO[RA, EA, Unit] =
+      value.semaphore.withPermit(setEither(a).flatMap(value.ref.set))
+
+    final def setAsync(a: A): ZIO[RA, EA, Unit] =
+      value.semaphore.withPermit(setEither(a).flatMap(value.ref.setAsync))
+  }
+
+  private abstract class DerivedAll[+EA, +EB, -A, +B] extends ZRef[Any, Any, EA, EB, A, B] { self =>
     type S
 
     def getEither(s: S): Either[EB, B]
@@ -417,7 +1023,7 @@ object ZRef extends Serializable {
       eb: EB => ED,
       ca: C => Either[EC, A],
       bd: B => Either[ED, D]
-    ): ZRef[EC, ED, C, D] =
+    ): ZRef[Any, Any, EC, ED, C, D] =
       new DerivedAll[EC, ED, C, D] {
         type S = self.S
         def getEither(s: S): Either[ED, D] =
@@ -434,7 +1040,7 @@ object ZRef extends Serializable {
       ec: EB => EC,
       ca: C => B => Either[EC, A],
       bd: B => Either[ED, D]
-    ): ZRef[EC, ED, C, D] =
+    ): ZRef[Any, Any, EC, ED, C, D] =
       new DerivedAll[EC, ED, C, D] {
         type S = self.S
         def getEither(s: S): Either[ED, D] =
@@ -468,299 +1074,58 @@ object ZRef extends Serializable {
       }.absolve
   }
 
-  implicit class UnifiedSyntax[+E, A](private val self: ERef[E, A]) extends AnyVal {
+  private abstract class DerivedAllM[-RA, -RB, +EA, +EB, -A, +B] extends ZRefM[RA, RB, EA, EB, A, B] { self =>
+    type S
 
-    /**
-     * Atomically writes the specified value to the `ZRef`, returning the value
-     * immediately before modification.
-     */
-    def getAndSet(a: A): IO[E, A] =
-      self match {
-        case atomic: Atomic[A] => atomic.getAndSet(a)
-        case derived           => derived.modify(v => (v, a))
+    def getEither(s: S): ZIO[RB, EB, B]
+
+    def setEither(a: A)(s: S): ZIO[RA, EA, S]
+
+    val value: AtomicM[S]
+
+    final def foldM[RC <: RA, RD <: RB, EC, ED, C, D](
+      ea: EA => EC,
+      eb: EB => ED,
+      ca: C => ZIO[RC, EC, A],
+      bd: B => ZIO[RD, ED, D]
+    ): ZRefM[RC, RD, EC, ED, C, D] =
+      new DerivedAllM[RC, RD, EC, ED, C, D] {
+        type S = self.S
+        def getEither(s: S): ZIO[RD, ED, D] =
+          self.getEither(s).foldM(e => ZIO.fail(eb(e)), bd)
+        def setEither(c: C)(s: S): ZIO[RC, EC, S] =
+          ca(c).flatMap(a => self.setEither(a)(s).mapError(ea))
+        val value: AtomicM[S] =
+          self.value
       }
 
-    /**
-     * Atomically modifies the `ZRef` with the specified function, returning
-     * the value immediately before modification.
-     */
-    def getAndUpdate(f: A => A): IO[E, A] =
-      self match {
-        case atomic: Atomic[A] => atomic.getAndUpdate(f)
-        case derived           => derived.modify(v => (v, f(v)))
+    final def foldAllM[RC <: RA with RB, RD <: RB, EC, ED, C, D](
+      ea: EA => EC,
+      eb: EB => ED,
+      ec: EB => EC,
+      ca: C => B => ZIO[RC, EC, A],
+      bd: B => ZIO[RD, ED, D]
+    ): ZRefM[RC, RD, EC, ED, C, D] =
+      new DerivedAllM[RC, RD, EC, ED, C, D] {
+        type S = self.S
+        def getEither(s: S): ZIO[RD, ED, D] =
+          self.getEither(s).foldM(e => ZIO.fail(eb(e)), bd)
+        def setEither(c: C)(s: S): ZIO[RC, EC, S] =
+          self
+            .getEither(s)
+            .foldM(e => ZIO.fail(ec(e)), ca(c))
+            .flatMap(a => self.setEither(a)(s).mapError(ea))
+        val value: AtomicM[S] =
+          self.value
       }
 
-    /**
-     * Atomically modifies the `ZRef` with the specified partial function,
-     * returning the value immediately before modification. If the function is
-     * undefined on the current value it doesn't change it.
-     */
-    def getAndUpdateSome(pf: PartialFunction[A, A]): IO[E, A] =
-      self match {
-        case atomic: Atomic[A] => atomic.getAndUpdateSome(pf)
-        case derived =>
-          derived.modify { v =>
-            val result = pf.applyOrElse[A, A](v, identity)
-            (v, result)
-          }
-      }
+    final def get: ZIO[RB, EB, B] =
+      value.get.flatMap(getEither)
 
-    /**
-     * Atomically modifies the `ZRef` with the specified function, which
-     * computes a return value for the modification. This is a more powerful
-     * version of `update`.
-     */
-    @silent("unreachable code")
-    def modify[B](f: A => (B, A)): IO[E, B] =
-      self match {
-        case atomic: Atomic[A] => atomic.modify(f)
-        case derived: Derived[E, E, A, A] =>
-          derived.value.modify { s =>
-            derived.getEither(s) match {
-              case Left(e) => (Left(e), s)
-              case Right(a1) => {
-                val (b, a2) = f(a1)
-                derived.setEither(a2) match {
-                  case Left(e)  => (Left(e), s)
-                  case Right(s) => (Right(b), s)
-                }
-              }
-            }
-          }.absolve
-        case derivedAll: DerivedAll[E, E, A, A] =>
-          derivedAll.value.modify { s =>
-            derivedAll.getEither(s) match {
-              case Left(e) => (Left(e), s)
-              case Right(a1) => {
-                val (b, a2) = f(a1)
-                derivedAll.setEither(a2)(s) match {
-                  case Left(e)  => (Left(e), s)
-                  case Right(s) => (Right(b), s)
-                }
-              }
-            }
-          }.absolve
-      }
+    final def set(a: A): ZIO[RA, EA, Unit] =
+      value.semaphore.withPermit(value.get.flatMap(setEither(a)).flatMap(value.ref.set))
 
-    /**
-     * Atomically modifies the `ZRef` with the specified partial function,
-     * which computes a return value for the modification if the function is
-     * defined on the current value otherwise it returns a default value. This
-     * is a more powerful version of `updateSome`.
-     */
-    def modifySome[B](default: B)(pf: PartialFunction[A, (B, A)]): IO[E, B] =
-      self match {
-        case atomic: Atomic[A] => atomic.modifySome(default)(pf)
-        case derived =>
-          derived.modify(v => pf.applyOrElse[A, (B, A)](v, _ => (default, v)))
-      }
-
-    /**
-     * Atomically modifies the `ZRef` with the specified function.
-     */
-    def update(f: A => A): IO[E, Unit] =
-      self match {
-        case atomic: Atomic[A] => atomic.update(f)
-        case derived           => derived.modify(v => ((), f(v)))
-      }
-
-    /**
-     * Atomically modifies the `ZRef` with the specified function and returns
-     * the updated value.
-     */
-    def updateAndGet(f: A => A): IO[E, A] =
-      self match {
-        case atomic: Atomic[A] => atomic.updateAndGet(f)
-        case derived =>
-          derived.modify { v =>
-            val result = f(v)
-            (result, result)
-          }
-      }
-
-    /**
-     * Atomically modifies the `ZRef` with the specified partial function. If
-     * the function is undefined on the current value it doesn't change it.
-     */
-    def updateSome(pf: PartialFunction[A, A]): IO[E, Unit] =
-      self match {
-        case atomic: Atomic[A] => atomic.updateSome(pf)
-        case derived =>
-          derived.modify { v =>
-            val result = pf.applyOrElse[A, A](v, identity)
-            ((), result)
-          }
-      }
-
-    /**
-     * Atomically modifies the `ZRef` with the specified partial function. If
-     * the function is undefined on the current value it returns the old value
-     * without changing it.
-     */
-    def updateSomeAndGet(pf: PartialFunction[A, A]): IO[E, A] =
-      self match {
-        case atomic: Atomic[A] => atomic.updateSomeAndGet(pf)
-        case derived =>
-          derived.modify { v =>
-            val result = pf.applyOrElse[A, A](v, identity)
-            (result, result)
-          }
-      }
-
+    final def setAsync(a: A): ZIO[RA, EA, Unit] =
+      value.semaphore.withPermit(value.get.flatMap(setEither(a)).flatMap(value.ref.setAsync))
   }
-
-  private[zio] implicit class UnsafeSyntax[A](private val self: Ref[A]) extends AnyVal {
-
-    @silent("unreachable code")
-    def unsafeGet: A =
-      self match {
-        case atomic: Atomic[A] => atomic.unsafeGet
-        case derived: Derived[Nothing, Nothing, A, A] =>
-          derived.getEither(derived.value.unsafeGet).merge
-        case derivedAll: DerivedAll[Nothing, Nothing, A, A] =>
-          derivedAll.getEither(derivedAll.value.unsafeGet).merge
-      }
-
-    def unsafeGetAndSet(a: A): A =
-      self match {
-        case atomic: Atomic[A] => atomic.unsafeGetAndSet(a)
-        case derived           => derived.unsafeModify(v => (v, a))
-      }
-
-    def unsafeGetAndUpdate(f: A => A): A =
-      self match {
-        case atomic: Atomic[A] => atomic.unsafeGetAndUpdate(f)
-        case derived           => derived.unsafeModify(v => (v, f(v)))
-      }
-
-    def unsafeGetAndUpdateSome(pf: PartialFunction[A, A]): A =
-      self match {
-        case atomic: Atomic[A] => atomic.unsafeGetAndUpdateSome(pf)
-        case derived =>
-          derived.unsafeModify { v =>
-            val result = pf.applyOrElse[A, A](v, identity)
-            (v, result)
-          }
-      }
-
-    @silent("unreachable code")
-    def unsafeModify[B](f: A => (B, A)): B =
-      self match {
-        case atomic: Atomic[A] => atomic.unsafeModify(f)
-        case derived: Derived[Nothing, Nothing, A, A] =>
-          derived.value.unsafeModify { s =>
-            derived.getEither(s) match {
-              case Left(e) => (Left(e), s)
-              case Right(a1) => {
-                val (b, a2) = f(a1)
-                derived.setEither(a2) match {
-                  case Left(e)  => (Left(e), s)
-                  case Right(s) => (Right(b), s)
-                }
-              }
-            }
-          }.merge
-        case derivedAll: DerivedAll[Nothing, Nothing, A, A] =>
-          derivedAll.value.unsafeModify { s =>
-            derivedAll.getEither(s) match {
-              case Left(e) => (Left(e), s)
-              case Right(a1) => {
-                val (b, a2) = f(a1)
-                derivedAll.setEither(a2)(s) match {
-                  case Left(e)  => (Left(e), s)
-                  case Right(s) => (Right(b), s)
-                }
-              }
-            }
-          }.merge
-      }
-
-    def unsafeModifySome[B](default: B)(pf: PartialFunction[A, (B, A)]): B =
-      self match {
-        case atomic: Atomic[A] => atomic.unsafeModifySome(default)(pf)
-        case derived =>
-          derived.unsafeModify(v => pf.applyOrElse[A, (B, A)](v, _ => (default, v)))
-      }
-
-    @silent("unreachable code")
-    def unsafeSet(a: A): Unit =
-      self match {
-        case atomic: Atomic[A] => atomic.unsafeSet(a)
-        case derived: Derived[Nothing, Nothing, A, A] =>
-          derived.value.unsafeSet(derived.setEither(a).merge)
-        case derivedAll: DerivedAll[Nothing, Nothing, A, A] =>
-          derivedAll.value.unsafeModify { s =>
-            derivedAll.setEither(a)(s) match {
-              case Left(e)  => (Left(e), s)
-              case Right(s) => (Right(()), s)
-            }
-          }.merge
-      }
-
-    @silent("unreachable code")
-    def unsafeSetAsync(a: A): Unit =
-      self match {
-        case atomic: Atomic[A] => atomic.unsafeSetAsync(a)
-        case derived: Derived[Nothing, Nothing, A, A] =>
-          derived.value.unsafeSetAsync(derived.setEither(a).merge)
-        case derivedAll: DerivedAll[Nothing, Nothing, A, A] =>
-          derivedAll.value.unsafeModify { s =>
-            derivedAll.setEither(a)(s) match {
-              case Left(e)  => (Left(e), s)
-              case Right(s) => (Right(()), s)
-            }
-          }.merge
-      }
-
-    def unsafeUpdate(f: A => A): Unit =
-      self match {
-        case atomic: Atomic[A] => atomic.unsafeUpdate(f)
-        case derived           => derived.unsafeModify(v => ((), f(v)))
-      }
-
-    def unsafeUpdateAndGet(f: A => A): A =
-      self match {
-        case atomic: Atomic[A] => atomic.unsafeUpdateAndGet(f)
-        case derived =>
-          derived.unsafeModify { v =>
-            val result = f(v)
-            (result, result)
-          }
-      }
-
-    def unsafeUpdateSome(pf: PartialFunction[A, A]): Unit =
-      self match {
-        case atomic: Atomic[A] => atomic.unsafeUpdateSome(pf)
-        case derived =>
-          derived.unsafeModify { v =>
-            val result = pf.applyOrElse[A, A](v, identity)
-            ((), result)
-          }
-      }
-
-    def unsafeUpdateSomeAndGet(pf: PartialFunction[A, A]): A =
-      self match {
-        case atomic: Atomic[A] => atomic.unsafeUpdateSomeAndGet(pf)
-        case derived =>
-          derived.unsafeModify { v =>
-            val result = pf.applyOrElse[A, A](v, identity)
-            (result, result)
-          }
-      }
-  }
-
-  /**
-   * Creates a new `ZRef` with the specified value.
-   */
-  def make[A](a: A): UIO[Ref[A]] =
-    UIO.effectTotal(unsafeMake(a))
-
-  /**
-   * Creates a new managed `ZRef` with the specified value
-   */
-  def makeManaged[A](a: A): Managed[Nothing, Ref[A]] =
-    make(a).toManaged_
-
-  private[zio] def unsafeMake[A](a: A): Ref[A] =
-    Atomic(new AtomicReference(a))
 }

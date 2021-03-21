@@ -644,7 +644,7 @@ package object test extends CompileVariants {
                 case Left(_) => ZIO.succeedNow(SortedSet.empty[Fiber.Runtime[Any, Any]])
                 case Right(refs) =>
                   ZIO
-                    .foreach(refs)(_.get)
+                    .foreach(refs)(ref => ZIO.effectTotal(ref.get))
                     .map(_.foldLeft(SortedSet.empty[Fiber.Runtime[Any, Any]])(_ ++ _))
                     .map(_.filter(_.id != descriptor.id))
               }
