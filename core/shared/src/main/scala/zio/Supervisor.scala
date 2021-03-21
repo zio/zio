@@ -18,8 +18,8 @@ package zio
 
 import zio.internal.{Platform, Sync}
 
-import scala.collection.immutable.SortedSet
 import java.util.concurrent.atomic.AtomicReference
+import scala.collection.immutable.SortedSet
 
 /**
  * A `Supervisor[A]` is allowed to supervise the launching and termination of

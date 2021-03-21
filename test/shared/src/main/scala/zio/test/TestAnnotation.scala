@@ -19,8 +19,8 @@ package zio.test
 import zio.duration._
 import zio.{Chunk, Fiber, Tag}
 
-import scala.collection.immutable.SortedSet
 import java.util.concurrent.atomic.AtomicReference
+import scala.collection.immutable.SortedSet
 
 /**
  * A type of annotation.
