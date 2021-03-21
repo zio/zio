@@ -180,12 +180,20 @@ object Supervisor {
           parent: Option[Fiber.Runtime[Any, Any]],
           fiber: Fiber.Runtime[E, A]
         ): Propagation = {
-          ref.updateAndGet(_ + fiber)
+          var loop = true
+          while (loop) {
+            val set = ref.get
+            loop = !ref.compareAndSet(set, set + fiber)
+          }
           Propagation.Continue
         }
 
         def unsafeOnEnd[R, E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A]): Propagation = {
-          ref.updateAndGet(_ - fiber)
+          var loop = true
+          while (loop) {
+            val set = ref.get
+            loop = !ref.compareAndSet(set, set - fiber)
+          }
 
           Propagation.Continue
         }
