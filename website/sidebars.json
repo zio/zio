@@ -23,7 +23,7 @@
       "datatypes/core/io",
       "datatypes/core/exit",
       "datatypes/core/cause",
-      "datatypes/module/zlayer"
+      "datatypes/core/zlayer"
     ],
     "Fiber Primitives": [
       "datatypes/fiber/index",
