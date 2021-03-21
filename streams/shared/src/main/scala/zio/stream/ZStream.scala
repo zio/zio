@@ -2306,7 +2306,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    */
   final def refineOrDie[E1](
     pf: PartialFunction[E, E1]
-  )(implicit ev1: E <:< Throwable, ev2: CanFail[E]): ZStream[R, E1, O] =
+  )(implicit ev1: E HasError Throwable, ev2: CanFail[E]): ZStream[R, E1, O] =
     refineOrDieWith(pf)(ev1)
 
   /**
@@ -2990,7 +2990,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * Converts this stream of bytes into a `java.io.InputStream` wrapped in a [[ZManaged]].
    * The returned input stream will only be valid within the scope of the ZManaged.
    */
-  def toInputStream(implicit ev0: E <:< Throwable, ev1: O <:< Byte): ZManaged[R, E, java.io.InputStream] =
+  def toInputStream(implicit ev0: E HasError Throwable, ev1: O <:< Byte): ZManaged[R, E, java.io.InputStream] =
     for {
       runtime <- ZIO.runtime[R].toManaged_
       pull    <- process.asInstanceOf[ZManaged[R, Nothing, ZIO[R, Option[Throwable], Chunk[Byte]]]]
@@ -3023,7 +3023,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * Converts this stream of chars into a `java.io.Reader` wrapped in a [[ZManaged]].
    * The returned reader will only be valid within the scope of the ZManaged.
    */
-  def toReader(implicit ev0: E <:< Throwable, ev1: O <:< Char): ZManaged[R, E, java.io.Reader] =
+  def toReader(implicit ev0: E HasError Throwable, ev1: O <:< Char): ZManaged[R, E, java.io.Reader] =
     for {
       runtime <- ZIO.runtime[R].toManaged_
       pull    <- process.asInstanceOf[ZManaged[R, Nothing, ZIO[R, Option[Throwable], Chunk[Char]]]]

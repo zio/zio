@@ -23,7 +23,7 @@ import java.nio.channels.CompletionHandler
 import java.util.concurrent.{CompletableFuture, CompletionStage, Future}
 
 private[zio] trait ZIOPlatformSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
-  def toCompletableFuture[A1 >: A](implicit ev: E <:< Throwable): URIO[R, CompletableFuture[A1]] =
+  def toCompletableFuture[A1 >: A](implicit ev: E HasError Throwable): URIO[R, CompletableFuture[A1]] =
     toCompletableFutureWith(ev)
 
   def toCompletableFutureWith[A1 >: A](f: E => Throwable): URIO[R, CompletableFuture[A1]] =

@@ -159,7 +159,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
    * Attempts to convert defects into a failure, throwing away all information
    * about the cause of the failure.
    */
-  def absorb(implicit ev: E <:< Throwable): ZManaged[R, Throwable, A] =
+  def absorb(implicit ev: E HasError Throwable): ZManaged[R, Throwable, A] =
     absorbWith(ev)
 
   /**
@@ -462,7 +462,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
    * Returns an effect whose success is mapped by the specified side effecting
    * `f` function, translating any thrown exceptions into typed failed effects.
    */
-  final def mapEffect[B](f: A => B)(implicit ev: E <:< Throwable): ZManaged[R, Throwable, B] =
+  final def mapEffect[B](f: A => B)(implicit ev: E HasError Throwable): ZManaged[R, Throwable, B] =
     foldM(e => ZManaged.fail(ev(e)), a => ZManaged.effect(f(a)))
 
   /**
@@ -590,7 +590,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
    * Translates effect failure into death of the fiber, making all failures unchecked and
    * not a part of the type of the effect.
    */
-  def orDie(implicit ev1: E <:< Throwable, ev2: CanFail[E]): ZManaged[R, Nothing, A] =
+  def orDie(implicit ev1: E HasError Throwable, ev2: CanFail[E]): ZManaged[R, Nothing, A] =
     orDieWith(ev1)
 
   /**
@@ -759,7 +759,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
    */
   def refineOrDie[E1](
     pf: PartialFunction[E, E1]
-  )(implicit ev1: E <:< Throwable, ev2: CanFail[E]): ZManaged[R, E1, A] =
+  )(implicit ev1: E HasError Throwable, ev2: CanFail[E]): ZManaged[R, E1, A] =
     refineOrDieWith(pf)(ev1)
 
   /**
