@@ -83,7 +83,7 @@ of your logic at a higher level of abstraction, with more powerful combinators a
 
 | Monix / Cats Effect | ZIO |
 |-------|-----|
-| `Deferred` | `Deferred` |
+| `Deferred[Task, A]` | `Promise[Throwable, A]` |
 | `Fiber` | `Fiber` |
 | `MVar` | `Queue` |
 | `Ref` | `Ref` |
