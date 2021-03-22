@@ -12,7 +12,7 @@ title:  "Talks"
 - [Upgrade Your Future](https://www.youtube.com/watch?v=USgfku1h7Hw) by John De Goes (September 2019)
 - [One Monad to Rule Them All](https://www.youtube.com/watch?v=POUEz8XHMhE) by John De Goes (August 2019)
 - [Functional Concurrency in Scala with ZIO](https://www.youtube.com/watch?v=m5nas4Hndqo) by Itamar Ravid (June 2019)
-- [Error Management: Future vs ZIO](https://www.youtube.com/watch?v=mGxcaQs3JWI) by John De Goes and Kai (May 2019)
+- [Error Management: Future vs ZIO](https://www.youtube.com/watch?v=mGxcaQs3JWI) by John De Goes and Kai (May 2019), [slide](https://www.slideshare.net/jdegoes/error-management-future-vs-zio)
 - [Atomically { Delete Your Actors }](https://www.youtube.com/watch?v=d6WWmia0BPM) by John De Goes and Wiem Zine El Abidine (April 2019)
 - [Thinking Functionally](https://www.youtube.com/watch?v=-KA3BSdqYug) by John De Goes (March 2019)
 - [Tour of ZIO](https://www.youtube.com/watch?v=5s0GOA3WQnY&t=1405s) by Oleksandra Holubitska (March 2019)
