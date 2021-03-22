@@ -285,6 +285,83 @@ object AccessibleSpec extends DefaultRunnableSpec {
             }
           """
         })(isRight(anything))
+      },
+      testM("generates accessor for throwing values") {
+        assertM(typeCheck {
+          """
+            @accessible
+            object Module {
+              trait Service {
+                @throwing
+                val test: Unit
+              }
+            }
+            object Check {
+              val foo: ZIO[Has[Module.Service], Nothing, Unit] =
+                Module.test
+            }
+          """
+        })(isRight(anything))
+      },
+      testM("generates accessor for throwing methods") {
+        assertM(typeCheck {
+          """
+            @accessible
+            object Module {
+              trait Service {
+                @throwing
+                def test: Unit
+              }
+            }
+            object Check {
+              def foo: ZIO[Has[Module.Service], Throwable, Unit] =
+                Module.test
+            }
+          """
+        })(isRight(anything))
+      },
+      testM("generates accessor for values") {
+        assertM(typeCheck {
+          """
+            @accessible
+            object Module {
+              trait Service {
+                val test: Unit
+              }
+            }
+            object Check {
+              val foo: ZIO[Has[Module.Service], Nothing, Unit] =
+                Module.test
+            }
+          """
+        })(isRight(anything))
+      },
+      testM("generates accessor for methods") {
+        assertM(typeCheck {
+          """
+            @accessible
+            object Module {
+              trait Service {
+                def test: Unit
+              }
+            }
+            object Check {
+              def foo: ZIO[Has[Module.Service], Nothing, Unit] =
+                Module.test
+            }
+          """
+        })(isRight(anything))
+      },
+      testM("bubbles the error to the error channel for defs") {
+        @accessible
+        object Module {
+          trait Service {
+            @throwing
+            def test(): Unit = throw new Exception("ups")
+          }
+        }
+        def layer = ZLayer.succeed(new Module.Service {})
+        assertM(Module.test().flip.provideLayer(layer))(hasField("message", _.getMessage, equalTo("ups")))
       }
     )
   )

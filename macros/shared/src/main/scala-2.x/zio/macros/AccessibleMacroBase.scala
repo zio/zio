@@ -26,6 +26,7 @@ private[macros] abstract class AccessibleMacroBase(val c: whitebox.Context) {
 
   protected val any: Tree       = tq"_root_.scala.Any"
   protected val throwable: Tree = tq"_root_.java.lang.Throwable"
+  protected val nothing: Tree   = tq"_root_.scala.Nothing"
 
   protected val zioServiceName: TermName  = TermName("Service")
   protected val constructorName: TermName = TermName("$init$")
@@ -44,6 +45,7 @@ private[macros] abstract class AccessibleMacroBase(val c: whitebox.Context) {
     case class Method(a: Tree)                                   extends Capability
     case class Sink(r: Tree, e: Tree, a: Tree, l: Tree, b: Tree) extends Capability
     case class Stream(r: Tree, e: Tree, a: Tree)                 extends Capability
+    case class ThrowingMethod(a: Tree)                           extends Capability
   }
 
   protected case class TypeInfo(capability: Capability) {
@@ -54,6 +56,7 @@ private[macros] abstract class AccessibleMacroBase(val c: whitebox.Context) {
       case Capability.Sink(r, _, _, _, _) => r
       case Capability.Stream(r, _, _)     => r
       case Capability.Method(_)           => any
+      case Capability.ThrowingMethod(_)   => any
     }
 
     val e: Tree = capability match {
@@ -61,7 +64,8 @@ private[macros] abstract class AccessibleMacroBase(val c: whitebox.Context) {
       case Capability.Managed(_, e, _)    => e
       case Capability.Sink(_, e, _, _, _) => e
       case Capability.Stream(_, e, _)     => e
-      case Capability.Method(_)           => throwable
+      case Capability.Method(_)           => nothing
+      case Capability.ThrowingMethod(_)   => throwable
     }
 
     val a: Tree = capability match {
@@ -70,6 +74,7 @@ private[macros] abstract class AccessibleMacroBase(val c: whitebox.Context) {
       case Capability.Sink(_, e, a, l, b) => tq"_root_.zio.stream.ZSink[$any, $e, $a, $l, $b]"
       case Capability.Stream(_, e, a)     => tq"_root_.zio.stream.ZStream[$any, $e, $a]"
       case Capability.Method(a)           => a
+      case Capability.ThrowingMethod(a)   => a
     }
   }
 
@@ -146,6 +151,8 @@ private[macros] abstract class AccessibleMacroBase(val c: whitebox.Context) {
           if (r != any) tq"_root_.zio.stream.ZSink[_root_.zio.Has[Service[..$serviceTypeArgs]] with $r, $e, $a, $l, $b]"
           else tq"_root_.zio.stream.ZSink[_root_.zio.Has[Service[..$serviceTypeArgs]], $e, $a, $l, $b]"
         case Capability.Method(a) =>
+          tq"_root_.zio.ZIO[_root_.zio.Has[Service[..$serviceTypeArgs]], $nothing, $a]"
+        case Capability.ThrowingMethod(a) =>
           tq"_root_.zio.ZIO[_root_.zio.Has[Service[..$serviceTypeArgs]], $throwable, $a]"
       }
 
@@ -178,6 +185,11 @@ private[macros] abstract class AccessibleMacroBase(val c: whitebox.Context) {
           q"_root_.zio.stream.ZSink.accessSink(_.get[Service[..$serviceTypeArgs]].$name[..$typeArgs](...$argNames))"
         case (_: Capability.Sink, _) =>
           q"_root_.zio.stream.ZSink.accessSink(_.get[Service[..$serviceTypeArgs]].$name)"
+        case (_: Capability.ThrowingMethod, argLists) if argLists.flatten.nonEmpty || argLists.size == 1 =>
+          val argNames = argLists.map(_.map(_.name))
+          q"_root_.zio.ZIO.accessM(s => ZIO(s.get[Service[..$serviceTypeArgs]].$name[..$typeArgs](...$argNames)))"
+        case (_: Capability.ThrowingMethod, _) =>
+          q"_root_.zio.ZIO.accessM(s => ZIO(s.get[Service[..$serviceTypeArgs]].$name))"
         case (_, argLists) if argLists.flatten.nonEmpty || argLists.size == 1 =>
           val argNames = argLists.map(_.map(_.name))
           q"_root_.zio.ZIO.access(_.get[Service[..$serviceTypeArgs]].$name[..$typeArgs](...$argNames))"
@@ -204,15 +216,34 @@ private[macros] abstract class AccessibleMacroBase(val c: whitebox.Context) {
       }
     }
 
+    private def withThrowing(mods: Modifiers, tree: Tree) = {
+      val isThrowing = mods.annotations.exists {
+        case q"new $name" => name.toString == classOf[throwing].getSimpleName()
+        case _            => true
+      }
+      val info = typeInfo(tree)
+      info.capability match {
+        case Capability.Method(v) if isThrowing => info.copy(capability = Capability.ThrowingMethod(v))
+        case _                                  => info
+      }
+    }
+
     @silent("pattern var [^\\s]+ in method unapply is never used")
     final def apply(): c.Tree = {
 
       val accessors =
         moduleInfo.service.impl.body.collect {
-          case DefDef(_, termName, tparams, argLists, tree: Tree, _) if termName != constructorName =>
-            makeAccessor(termName, typeInfo(tree), moduleInfo.serviceTypeParams, tparams, argLists, isVal = false)
+          case DefDef(mods, termName, tparams, argLists, tree: Tree, _) if termName != constructorName =>
+            makeAccessor(
+              termName,
+              withThrowing(mods, tree),
+              moduleInfo.serviceTypeParams,
+              tparams,
+              argLists,
+              isVal = false
+            )
 
-          case ValDef(_, termName, tree: Tree, _) =>
+          case v @ ValDef(mods, termName, tree: Tree, _) =>
             makeAccessor(termName, typeInfo(tree), moduleInfo.serviceTypeParams, Nil, Nil, isVal = true)
         }
 
