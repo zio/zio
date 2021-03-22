@@ -3557,6 +3557,30 @@ object ZIOSpec extends ZIOBaseSpec {
         }
       }
     ),
+    suite("to options operator")(
+      testM("basic option to transform value into option some") {
+        for {
+          value <- ZIO.toOption("foo")
+        } yield {
+          assert(value.isDefined)(equalTo(true))
+        }
+      },
+      testM("basic option to transform null value into option none") {
+        for {
+          value <- ZIO.toOption(null)
+        } yield {
+          assert(value.isDefined)(equalTo(false))
+        }
+      },
+      testM("basic option to transform throwable expression value into option none") {
+        def getValue(value: String): String = value.toUpperCase()
+        for {
+          value <- ZIO.toOption(getValue(null))
+        } yield {
+          assert(value.isDefined)(equalTo(false))
+        }
+      }
+    ),
     suite("promises")(
       testM("promise test") {
         val func: String => String = s => s.toUpperCase

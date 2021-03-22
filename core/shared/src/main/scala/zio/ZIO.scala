@@ -3262,6 +3262,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     effectTotal(v).flatMap(_.fold[IO[Option[Nothing], A]](fail(None))(succeedNow))
 
   /**
+   * Lifts an func object into a `ZIO` of `Option`. In case there's no side-effect we return a Some[A] and otherwise a None
+   */
+  def toOption[A](v: => A): UIO[Option[A]] =
+    ZIO.effect(Option(v)).catchAll(_ => ZIO.succeed(None))
+
+  /**
    * Lifts a `Try` into a `ZIO`.
    */
   def fromTry[A](value: => scala.util.Try[A]): Task[A] =
