@@ -283,13 +283,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * not have any shrinking.
    */
   val anyUUID: Gen[Random, UUID] =
-    for {
-      mostSigBits  <- Gen.anyLong.noShrink
-      leastSigBits <- Gen.anyLong.noShrink
-    } yield new UUID(
-      (mostSigBits & ~0x0000f000) | 0x00004000,
-      (leastSigBits & ~(0xc0000000L << 32)) | (0x80000000L << 32)
-    )
+    Gen.fromEffect(nextUUID)
 
   /**
    * A generator of big decimals inside the specified range: [start, end].
