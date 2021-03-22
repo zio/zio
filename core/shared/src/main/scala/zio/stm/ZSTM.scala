@@ -831,9 +831,7 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
       var result = null.asInstanceOf[Erased]
 
       while (!contStack.isEmpty && (result eq null)) {
-        val head = contStack.pop()
-
-        head match {
+        contStack.pop() match {
           case OnFailure(_, onFailure) => if (!isRetry) result = onFailure(error)
           case OnRetry(_, onRetry)     => if (isRetry) result = onRetry
           case _                       =>
@@ -850,10 +848,7 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
             val effect = curr.asInstanceOf[Effect[Any, Any, Any]]
             val a      = effect.f(journal, fiberId, envStack.peek())
 
-            if (contStack.isEmpty) exit = TExit.Succeed(a)
-            else {
-              curr = contStack.pop()(a)
-            }
+            if (contStack.isEmpty) exit = TExit.Succeed(a) else curr = contStack.pop()(a)
           } catch {
             case ZSTM.RetryException =>
               curr = unwindStack(null, true)
@@ -1527,8 +1522,7 @@ object ZSTM {
     def apply(a: A): ZSTM[R, E, A] = succeedNow(a)
   }
 
-  private[stm] final case class OnSuccess[R, E, A, B](stm: ZSTM[R, E, A], k: A => ZSTM[R, E, B])
-      extends ZSTM[R, E, B] {
+  private[stm] final case class OnSuccess[R, E, A, B](stm: ZSTM[R, E, A], k: A => ZSTM[R, E, B]) extends ZSTM[R, E, B] {
     def tag: Int = Tags.OnSuccess
   }
 
