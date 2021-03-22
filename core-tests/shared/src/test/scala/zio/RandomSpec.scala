@@ -45,7 +45,12 @@ object RandomSpec extends ZIOBaseSpec {
         } yield assert(n)(isGreaterThanEqualTo(min)) &&
           assert(n)(isLessThan(max))
       }
-    }
+    },
+      testM("nextUUID generates universally unique identifiers") {
+        check(Gen.fromEffect(Live.live(random.nextUUID))) { uuid =>
+          assert(uuid.variant)(equalTo(2))
+        }
+      },
   )
 
   val genDoubles: Gen[Random, (Double, Double)] =

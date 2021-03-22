@@ -341,9 +341,6 @@ object GenSpec extends ZIOBaseSpec {
       testM("unit generates the constant unit value") {
         checkSample(Gen.unit)(forall(equalTo(())))
       },
-      testM("UUID generates random UUIDs") {
-        checkSample(Gen.anyUUID)(forall(equalTo(2)), _.map(_.variant))
-      },
       testM("vectorOf generates sizes in range") {
         checkSample(Gen.vectorOf(smallInt))(
           forall(isGreaterThanEqualTo(0) && isLessThanEqualTo(100)),
