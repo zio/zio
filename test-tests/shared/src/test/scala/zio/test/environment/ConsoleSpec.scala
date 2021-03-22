@@ -3,13 +3,13 @@ package zio.test.environment
 import zio.ZIO
 import zio.console._
 import zio.test.Assertion._
-import zio.test.TestAspect.{ nonFlaky, silent }
+import zio.test.TestAspect.{nonFlaky, silent}
 import zio.test._
 import zio.test.environment.TestConsole._
 
 object ConsoleSpec extends ZIOBaseSpec {
 
-  def spec =
+  def spec: ZSpec[Environment, Failure] =
     suite("ConsoleSpec")(
       testM("outputs nothing") {
         for {

@@ -249,4 +249,4 @@ def safeDownload(url: String) =
 
 ## Next Steps
 
-If you are comfortable creating effects from values, Scala data data types, and side-effects, the next step is learning [basic operations](basic_operations.md) on effects.
+If you are comfortable creating effects from values, Scala data types, and side-effects, the next step is learning [basic operations](basic_operations.md) on effects.

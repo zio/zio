@@ -1,9 +1,9 @@
 package zio.test.mock
 
-import zio.test.mock.internal.{ ExpectationState, InvalidCall, MockException }
-import zio.test.mock.module.{ ImpureModule, ImpureModuleMock }
-import zio.test.{ suite, Assertion, ZIOBaseSpec }
-import zio.{ IO, UIO }
+import zio.test.mock.internal.{ExpectationState, InvalidCall, MockException}
+import zio.test.mock.module.{ImpureModule, ImpureModuleMock}
+import zio.test.{Assertion, Spec, TestFailure, TestSuccess, ZIOBaseSpec}
+import zio.{IO, UIO}
 
 object BasicMethodMockSpec extends ZIOBaseSpec with MockSpecUtils[ImpureModule] {
 
@@ -13,7 +13,7 @@ object BasicMethodMockSpec extends ZIOBaseSpec with MockSpecUtils[ImpureModule] 
   import InvalidCall._
   import MockException._
 
-  def spec =
+  def spec: Spec[Any, TestFailure[Any], TestSuccess] =
     suite("BasicMethodMockSpec")(
       suite("methods")(
         suite("zeroParams")(
@@ -225,8 +225,8 @@ object BasicMethodMockSpec extends ZIOBaseSpec with MockSpecUtils[ImpureModule] 
           testValue("returns valueF")(
             ImpureModuleMock.Varargs(
               equalTo((1, Seq("2", "3"))),
-              valueF {
-                case (a, b) => s"foo $a, [${b.mkString(", ")}]"
+              valueF { case (a, b) =>
+                s"foo $a, [${b.mkString(", ")}]"
               }
             ),
             ImpureModule.varargs(1, "2", "3"),
@@ -235,8 +235,8 @@ object BasicMethodMockSpec extends ZIOBaseSpec with MockSpecUtils[ImpureModule] 
           testValue("returns valueM")(
             ImpureModuleMock.Varargs(
               equalTo((1, Seq("2", "3"))),
-              valueM {
-                case (a, b) => UIO.succeed(s"foo $a, [${b.mkString(", ")}]")
+              valueM { case (a, b) =>
+                UIO.succeed(s"foo $a, [${b.mkString(", ")}]")
               }
             ),
             ImpureModule.varargs(1, "2", "3"),
@@ -250,8 +250,8 @@ object BasicMethodMockSpec extends ZIOBaseSpec with MockSpecUtils[ImpureModule] 
           testDied("returns failureF")(
             ImpureModuleMock.Varargs(
               equalTo((1, Seq("2", "3"))),
-              failureF {
-                case (a, b) => new Exception(s"foo $a, [${b.mkString(", ")}]")
+              failureF { case (a, b) =>
+                new Exception(s"foo $a, [${b.mkString(", ")}]")
               }
             ),
             ImpureModule.varargs(1, "2", "3"),
@@ -260,8 +260,8 @@ object BasicMethodMockSpec extends ZIOBaseSpec with MockSpecUtils[ImpureModule] 
           testDied("returns failureM")(
             ImpureModuleMock.Varargs(
               equalTo((1, Seq("2", "3"))),
-              failureM {
-                case (a, b) => IO.fail(new Exception(s"foo $a, [${b.mkString(", ")}]"))
+              failureM { case (a, b) =>
+                IO.fail(new Exception(s"foo $a, [${b.mkString(", ")}]"))
               }
             ),
             ImpureModule.varargs(1, "2", "3"),
@@ -277,8 +277,8 @@ object BasicMethodMockSpec extends ZIOBaseSpec with MockSpecUtils[ImpureModule] 
           testValue("returns valueF")(
             ImpureModuleMock.CurriedVarargs(
               equalTo((1, Seq("2", "3"), 4L, Seq('5', '6'))),
-              valueF {
-                case (a, b, c, d) => s"foo $a, [${b.mkString(", ")}], $c, [${d.mkString(", ")}]"
+              valueF { case (a, b, c, d) =>
+                s"foo $a, [${b.mkString(", ")}], $c, [${d.mkString(", ")}]"
               }
             ),
             ImpureModule.curriedVarargs(1, "2", "3")(4L, '5', '6'),
@@ -287,8 +287,8 @@ object BasicMethodMockSpec extends ZIOBaseSpec with MockSpecUtils[ImpureModule] 
           testValue("returns valueM")(
             ImpureModuleMock.CurriedVarargs(
               equalTo((1, Seq("2", "3"), 4L, Seq('5', '6'))),
-              valueM {
-                case (a, b, c, d) => UIO.succeed(s"foo $a, [${b.mkString(", ")}], $c, [${d.mkString(", ")}]")
+              valueM { case (a, b, c, d) =>
+                UIO.succeed(s"foo $a, [${b.mkString(", ")}], $c, [${d.mkString(", ")}]")
               }
             ),
             ImpureModule.curriedVarargs(1, "2", "3")(4L, '5', '6'),
@@ -303,8 +303,8 @@ object BasicMethodMockSpec extends ZIOBaseSpec with MockSpecUtils[ImpureModule] 
           testDied("returns failureF")(
             ImpureModuleMock.CurriedVarargs(
               equalTo((1, Seq("2", "3"), 4L, Seq('5', '6'))),
-              failureF {
-                case (a, b, c, d) => new Exception(s"foo $a, [${b.mkString(", ")}], $c, [${d.mkString(", ")}]")
+              failureF { case (a, b, c, d) =>
+                new Exception(s"foo $a, [${b.mkString(", ")}], $c, [${d.mkString(", ")}]")
               }
             ),
             ImpureModule.curriedVarargs(1, "2", "3")(4L, '5', '6'),
@@ -315,8 +315,8 @@ object BasicMethodMockSpec extends ZIOBaseSpec with MockSpecUtils[ImpureModule] 
           testDied("returns failureM")(
             ImpureModuleMock.CurriedVarargs(
               equalTo((1, Seq("2", "3"), 4L, Seq('5', '6'))),
-              failureM {
-                case (a, b, c, d) => IO.fail(new Exception(s"foo $a, [${b.mkString(", ")}], $c, [${d.mkString(", ")}]"))
+              failureM { case (a, b, c, d) =>
+                IO.fail(new Exception(s"foo $a, [${b.mkString(", ")}], $c, [${d.mkString(", ")}]"))
               }
             ),
             ImpureModule.curriedVarargs(1, "2", "3")(4L, '5', '6'),

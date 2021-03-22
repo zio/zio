@@ -21,7 +21,9 @@ ZIO contains a small number of data types that can help you solve complex proble
  - **[TPriorityQueue](tpriorityqueue.md)** - A `TPriorityQueue[A]` is a mutable priority queue that can participate in transactions.
  - **[TPromise](tpromise.md)** - A `TPromise` is a mutable reference that can be set exactly once and can participate in transactions.
  - **[TQueue](tqueue.md)** - A `TQueue` is a mutable queue that can participate in transactions.
+ - **[TReentrantLock](treentrantlock.md)** - A `TReentrantLock` is a reentrant read / write lock that can be composed.
  - **[TRef](tref.md)** - A `TRef` is a mutable reference to an immutable value that can participate in transactions.
+  - **[TSemaphore](tsemaphore.md)** - A `TSemaphore` is a semaphore that can participate in transactions.
  - **[TSet](tset.md)** - A `TSet` is a mutable set that can participate in transactions.
  - **[Has](has.md)** - A `Has` is used to express an effect's dependency on a service of type `A`.
  - **[ZLayer](zlayer.md)** - A `ZLayer` describes a layer of an application.

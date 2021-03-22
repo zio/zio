@@ -1,20 +1,21 @@
 package zio.test.environment
 
-import java.time.{ OffsetDateTime, ZoneId }
-import java.util.concurrent.TimeUnit
-
 import zio._
 import zio.clock._
 import zio.duration.Duration._
 import zio.duration._
+import zio.stream._
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test._
 import zio.test.environment.TestClock._
 
+import java.time.{OffsetDateTime, ZoneId}
+import java.util.concurrent.TimeUnit
+
 object ClockSpec extends ZIOBaseSpec {
 
-  def spec =
+  def spec: ZSpec[Environment, Failure] =
     suite("ClockSpec")(
       testM("sleep does not require passage of clock time") {
         for {
@@ -160,6 +161,19 @@ object ClockSpec extends ZIOBaseSpec {
           effect   = adjust(1.second) *> clock.currentTime(TimeUnit.SECONDS)
           result  <- (effect <* promise.succeed(())) <&> (promise.await *> effect)
         } yield assert(result)(equalTo((1L, 2L)))
+      },
+      testM("zipWithLatest example from documentation") {
+        val s1 = Stream.iterate(0)(_ + 1).fixed(100.milliseconds)
+        val s2 = Stream.iterate(0)(_ + 1).fixed(70.milliseconds)
+        val s3 = s1.zipWithLatest(s2)((_, _))
+
+        for {
+          q      <- Queue.unbounded[(Int, Int)]
+          _      <- s3.foreach(q.offer).fork
+          fiber  <- ZIO.collectAll(ZIO.replicate(4)(q.take)).fork
+          _      <- TestClock.adjust(1.second)
+          result <- fiber.join
+        } yield assert(result)(equalTo(List(0 -> 0, 0 -> 1, 1 -> 1, 1 -> 2)))
       }
     )
 }

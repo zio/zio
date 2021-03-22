@@ -87,7 +87,7 @@ private[zio] final class StackBool private () {
   override def toString: String =
     "StackBool(" + toList.mkString(", ") + ")"
 
-  override def equals(that: Any) = that match {
+  override def equals(that: Any): Boolean = (that: @unchecked) match {
     case that: StackBool => toList == that.toList
   }
 

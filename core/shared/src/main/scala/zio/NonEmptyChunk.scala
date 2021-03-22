@@ -16,9 +16,9 @@
 
 package zio
 
-import scala.language.implicitConversions
-
 import zio.NonEmptyChunk._
+
+import scala.language.implicitConversions
 
 /**
  * A `NonEmptyChunk` is a `Chunk` that is guaranteed to contain at least one
@@ -252,6 +252,15 @@ object NonEmptyChunk {
    */
   def single[A](a: A): NonEmptyChunk[A] =
     NonEmptyChunk(a)
+
+  /**
+   * Extracts the elements from a `NonEmptyChunk`.
+   */
+  def unapplySeq[A](seq: Seq[A]): Option[Seq[A]] =
+    seq match {
+      case chunk: Chunk[A] if chunk.nonEmpty => Some(chunk)
+      case _                                 => None
+    }
 
   /**
    * The unit non-empty chunk.

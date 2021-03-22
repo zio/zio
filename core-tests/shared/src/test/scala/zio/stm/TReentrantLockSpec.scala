@@ -18,16 +18,16 @@ package zio.stm
 
 import zio.duration._
 import zio.test.Assertion._
-import zio.test.TestAspect.{ flaky, timeout }
+import zio.test.TestAspect.{flaky, timeout}
 import zio.test._
-import zio.{ Exit, Promise, Ref, Schedule, ZIO }
+import zio.{Exit, Promise, Ref, Schedule, ZIO}
 
 object TReentrantLockSpec extends DefaultRunnableSpec {
-  def pollSchedule[E, A] =
+  def pollSchedule[E, A]: Schedule[Any, Option[Exit[E, A]], Option[Exit[E, A]]] =
     (Schedule.recurs(100) *>
       Schedule.identity[Option[Exit[E, A]]]).whileOutput(_.isEmpty)
 
-  override def spec = suite("StmReentrantLock")(
+  override def spec: ZSpec[Environment, Failure] = suite("StmReentrantLock")(
     testM("1 read lock") {
       for {
         lock  <- TReentrantLock.make.commit

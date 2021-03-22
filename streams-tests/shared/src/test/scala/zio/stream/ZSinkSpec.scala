@@ -1,18 +1,17 @@
 package zio.stream
 
+import zio.duration._
+import zio.stream.SinkUtils.{findSink, sinkRaceLaw}
+import zio.stream.ZStreamGen._
+import zio.test.Assertion.{equalTo, isFalse, isGreaterThanEqualTo, isLeft, isTrue, isUnit, succeeds}
+import zio.test.environment.TestClock
+import zio.test.{assertM, _}
+import zio.{ZIOBaseSpec, _}
+
 import scala.util.Random
 
-import zio.ZIOBaseSpec
-import zio._
-import zio.duration._
-import zio.stream.SinkUtils.{ findSink, sinkRaceLaw }
-import zio.stream.ZStreamGen._
-import zio.test.Assertion.{ equalTo, isFalse, isGreaterThanEqualTo, isTrue, succeeds }
-import zio.test.environment.TestClock
-import zio.test.{ assertM, _ }
-
 object ZSinkSpec extends ZIOBaseSpec {
-  def spec = suite("ZSinkSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("ZSinkSpec")(
     suite("Constructors")(
       testM("collectAllToSet")(
         assertM(
@@ -26,6 +25,14 @@ object ZSinkSpec extends ZIOBaseSpec {
             .range(0, 10)
             .run(ZSink.collectAllToMap((_: Int) % 3)(_ + _))
         )(equalTo(Map[Int, Int](0 -> 18, 1 -> 12, 2 -> 15)))
+      ),
+      suite("accessSink")(
+        testM("accessSink") {
+          assertM(
+            ZStream("ignore this")
+              .run(ZSink.accessSink[String](ZSink.succeed[String, String](_)).provide("use this"))
+          )(equalTo("use this"))
+        }
       ),
       suite("collectAllWhileWith")(
         testM("example 1") {
@@ -44,7 +51,7 @@ object ZSinkSpec extends ZIOBaseSpec {
           val sink: ZSink[Any, Nothing, Int, Int, List[Int]] = ZSink
             .head[Int]
             .collectAllWhileWith[List[Int]](Nil)((a: Option[Int]) => a.fold(true)(_ < 5))(
-              (a: List[Int], b: Option[Int]) => a ++ b
+              (a: List[Int], b: Option[Int]) => a ++ b.toList
             )
           val stream = Stream.fromIterable(1 to 100)
           assertM((stream ++ stream).chunkN(3).run(sink))(equalTo(List(1, 2, 3, 4)))
@@ -168,11 +175,72 @@ object ZSinkSpec extends ZIOBaseSpec {
           )
         }
       ),
+      suite("fromQueue")(
+        testM("enqueues all elements") {
+          checkM(pureStreamOfInts) { stream =>
+            for {
+              queue                    <- ZQueue.unbounded[Int]
+              (result, streamElements) <- stream.run(ZSink.fromQueue(queue) <&> ZSink.collectAll.map(_.toList))
+              queueElements            <- queue.takeAll
+            } yield assert(result)(isUnit) && assert(queueElements)(equalTo(streamElements))
+          }
+        },
+        testM("fails if offering to the queue fails") {
+          for {
+            queue       <- ZQueue.unbounded[Int]
+            exception    = new Exception
+            failingQueue = queue.contramapM[Any, Exception, Int](_ => ZIO.fail(exception))
+            queueSink    = ZSink.fromQueue(failingQueue)
+            stream       = Stream(1)
+            result      <- stream.run(queueSink).either
+          } yield assert(result)(isLeft(equalTo(exception)))
+        }
+      ),
       suite("succeed")(
         testM("handles leftovers") {
           assertM(ZStream(1, 2, 3).run(ZSink.succeed[Int, String]("ok").exposeLeftover))(
             equalTo(("ok", Chunk(1, 2, 3)))
           )
+        }
+      ),
+      suite("fromQueueWithShutdown")(
+        testM("enqueues all elements and shuts down the queue when the stream completes") {
+          checkM(Gen.listOfBounded(1, 5)(Gen.anyInt)) { elements =>
+            for {
+              sourceQueue         <- ZQueue.unbounded[Int]
+              targetQueue         <- ZQueue.unbounded[Int]
+              stream               = ZStream.fromQueue(sourceQueue)
+              streamCompleted     <- Promise.make[Nothing, Unit]
+              _                   <- stream.run(ZSink.fromQueueWithShutdown(targetQueue)).flatMap(streamCompleted.succeed).fork
+              _                   <- sourceQueue.offerAll(elements)
+              queueElements       <- targetQueue.takeBetween(elements.size, elements.size)
+              _                   <- sourceQueue.shutdown
+              _                   <- streamCompleted.await
+              targetQueueShutdown <- targetQueue.isShutdown
+            } yield assert(queueElements)(equalTo(elements)) &&
+              assert(targetQueueShutdown)(isTrue)
+          }
+        },
+        testM("fails if offering to the queue fails") {
+          for {
+            queue       <- ZQueue.unbounded[Int]
+            exception    = new Exception
+            failingQueue = queue.contramapM[Any, Exception, Int](_ => ZIO.fail(exception))
+            queueSink    = ZSink.fromQueueWithShutdown(failingQueue)
+            stream       = Stream(1)
+            result      <- stream.run(queueSink).either
+          } yield assert(result)(isLeft(equalTo(exception)))
+        },
+        testM("shuts down the queue if the stream fails") {
+          for {
+            queue      <- ZQueue.unbounded[Int]
+            exception   = new Exception
+            queueSink   = ZSink.fromQueueWithShutdown(queue)
+            stream      = Stream.fail(exception)
+            result     <- stream.run(queueSink).either
+            isShutdown <- queue.isShutdown
+          } yield assert(result)(isLeft(equalTo(exception))) &&
+            assert(isShutdown)(isTrue)
         }
       )
     ),
@@ -230,7 +298,7 @@ object ZSinkSpec extends ZIOBaseSpec {
             ZStream.fromChunks(chunks: _*).run(headAndCount).map {
               case (head, count) => {
                 assert(head)(equalTo(chunks.flatten.headOption)) &&
-                assert(count + head.size)(equalTo(chunks.map(_.size.toLong).sum))
+                assert(count + head.toList.size)(equalTo(chunks.map(_.size.toLong).sum))
               }
             }
           }
@@ -241,15 +309,20 @@ object ZSinkSpec extends ZIOBaseSpec {
           ZStream
             .fromChunks(chunks: _*)
             .peel(ZSink.take[Int](n))
-            .flatMap {
-              case (chunk, stream) =>
-                stream.runCollect.toManaged_.map { leftover =>
-                  assert(chunk)(equalTo(chunks.flatten.take(n))) &&
-                  assert(leftover)(equalTo(chunks.flatten.drop(n)))
-                }
+            .flatMap { case (chunk, stream) =>
+              stream.runCollect.toManaged_.map { leftover =>
+                assert(chunk)(equalTo(chunks.flatten.take(n))) &&
+                assert(leftover)(equalTo(chunks.flatten.drop(n)))
+              }
             }
             .useNow
         }
+      ),
+      testM("take emits at end of chunk")(
+        Stream(1, 2)
+          .concat(Stream.dieMessage("should not get this far"))
+          .run(Sink.take(2))
+          .map(assert(_)(equalTo(Chunk(1, 2))))
       ),
       testM("timed") {
         for {

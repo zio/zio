@@ -16,11 +16,10 @@
 
 package zio.test.mock
 
-import scala.reflect.macros.whitebox.Context
-
 import com.github.ghik.silencer.silent
-
 import zio.test.TestVersion
+
+import scala.reflect.macros.whitebox.Context
 
 /**
  * Generates method tags for a service into annotated object.
@@ -34,13 +33,16 @@ private[mock] object MockableMacro {
     def log(msg: String)   = c.info(c.enclosingPosition, msg, true)
     def abort(msg: String) = c.abort(c.enclosingPosition, msg)
 
-    val mockName: TermName = annottees.head match {
-      case m: ModuleDef => m.name
+    val (mockName: TermName, body: List[Tree]) = annottees.head match {
+      case m: ModuleDef => (m.name, m.impl.body)
       case _            => abort("@mockable macro should only be applied to objects.")
     }
 
     val service: Type = c.typecheck(q"(??? : ${c.prefix.tree})").tpe.typeArgs.head
     if (service == definitions.NothingTpe) abort(s"@mockable macro requires type parameter: @mockable[Module.Service]")
+
+    val serviceBaseTypeParameters         = service.baseType(service.typeSymbol).typeConstructor.typeParams.map(_.asType)
+    val serviceTypeParameterSubstitutions = serviceBaseTypeParameters.zip(service.typeArgs).toMap
 
     val env: Type        = c.typecheck(tq"_root_.zio.Has[$service]", c.TYPEmode).tpe
     val any: Type        = definitions.AnyTpe
@@ -135,9 +137,11 @@ private[mock] object MockableMacro {
           if (symbol.isVal) unit
           else c.typecheck(tq"(..${params.map(paramTypeToTupleType(_))})", c.TYPEmode).tpe
 
+        def substituteServiceTypeParam(t: Type) = serviceTypeParameterSubstitutions.getOrElse(t.typeSymbol.asType, t)
+
         val dealiased = symbol.returnType.dealias
         val capability =
-          (dealiased.typeArgs, dealiased.typeSymbol.fullName) match {
+          (dealiased.typeArgs.map(substituteServiceTypeParam(_)), dealiased.typeSymbol.fullName) match {
             case (r :: e :: a :: Nil, "zio.ZIO")                     => Capability.Effect(r, e, a)
             case (r :: e :: a0 :: a :: b :: Nil, "zio.stream.ZSink") => Capability.Sink(r, e, a0, a, b)
             case (r :: e :: a :: Nil, "zio.stream.ZStream")          => Capability.Stream(r, e, a)
@@ -272,10 +276,9 @@ private[mock] object MockableMacro {
           makeTag(name.toTermName, info)
         case (name, infos) =>
           val tagName = capitalize(name.toTermName)
-          val overloadedTags = sortOverloads(infos).zipWithIndex.map {
-            case (info, idx) =>
-              val idxName = TermName(s"_$idx")
-              makeTag(idxName, info)
+          val overloadedTags = sortOverloads(infos).zipWithIndex.map { case (info, idx) =>
+            val idxName = TermName(s"_$idx")
+            makeTag(idxName, info)
           }
 
           q"object $tagName { ..$overloadedTags }"
@@ -286,10 +289,9 @@ private[mock] object MockableMacro {
         case (name, info :: Nil) =>
           List(makeMock(name.toTermName, info, None))
         case (name, infos) =>
-          sortOverloads(infos).zipWithIndex.map {
-            case (info, idx) =>
-              val idxName = TermName(s"_$idx")
-              makeMock(name.toTermName, info, Some(idxName))
+          sortOverloads(infos).zipWithIndex.map { case (info, idx) =>
+            val idxName = TermName(s"_$idx")
+            makeMock(name.toTermName, info, Some(idxName))
           }
       }.toList.flatten
 
@@ -310,16 +312,21 @@ private[mock] object MockableMacro {
                 new $serviceClassName
               }
             }
+
+          ..$body
         }
       """
 
     c.Expr[c.Tree](
       c.parse(
         s"$structure"
-          .replaceAll("\\n\\s+def \\<init\\>\\(\\) = \\{\\n\\s+super\\.\\<init\\>\\(\\);\\n\\s+\\(\\)\\n\\s+\\};?", "")
-          .replaceAll("\\{[\\n\\s]*\\};?", "")
+          .replaceAll(
+            "\\r?\\n\\s+def \\<init\\>\\(\\) = \\{\\r?\\n\\s+super\\.\\<init\\>\\(\\);\\r?\\n\\s+\\(\\)\\r?\\n\\s+\\};?",
+            ""
+          )
+          .replaceAll("\\{[\\r?\\n\\s]*\\};?", "")
           .replaceAll("final class \\$anon extends", "new")
-          .replaceAll("\\};\\n\\s+new \\$anon\\(\\)", "\\}")
+          .replaceAll("\\};\\r?\\n\\s+new \\$anon\\(\\)", "\\}")
           .replaceAll("(object .+) extends scala.AnyRef", "$1")
           .replaceAll("(object .+) with scala.Product with scala.Serializable", "$1")
       )

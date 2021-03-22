@@ -1,18 +1,18 @@
 package zio.stream
 
+import zio._
+import zio.blocking.{Blocking, effectBlockingIO}
+import zio.stream.compression._
+
 import java.io._
 import java.net.InetSocketAddress
-import java.nio.channels.{ AsynchronousServerSocketChannel, AsynchronousSocketChannel, CompletionHandler, FileChannel }
+import java.nio.channels.{AsynchronousServerSocketChannel, AsynchronousSocketChannel, CompletionHandler, FileChannel}
 import java.nio.file.StandardOpenOption._
-import java.nio.file.{ OpenOption, Path }
-import java.nio.{ Buffer, ByteBuffer }
-import java.util.zip.{ DataFormatException, Inflater }
-import java.{ util => ju }
-
+import java.nio.file.{OpenOption, Path}
+import java.nio.{Buffer, ByteBuffer}
+import java.util.zip.{DataFormatException, Inflater}
+import java.{util => ju}
 import scala.annotation.tailrec
-import zio._
-import zio.blocking.Blocking
-import zio.stream.compression._
 
 trait ZSinkPlatformSpecificConstructors {
   self: ZSink.type =>
@@ -42,8 +42,8 @@ trait ZSinkPlatformSpecificConstructors {
           val bytes = byteChunk.toArray
           out.write(bytes)
           bytesWritten + bytes.length
-        }.refineOrDie {
-          case e: IOException => e
+        }.refineOrDie { case e: IOException =>
+          e
         }
       }
     }
@@ -234,9 +234,8 @@ trait ZStreamPlatformSpecificConstructors {
       }
 
   /**
-   * Creates a stream from a [[java.io.InputStream]]
-   * Note: the input stream will not be explicitly closed after
-   * it is exhausted.
+   * Creates a stream from a `java.io.InputStream`.
+   * Note: the input stream will not be explicitly closed after it is exhausted.
    */
   def fromInputStream(
     is: => InputStream,
@@ -260,7 +259,25 @@ trait ZStreamPlatformSpecificConstructors {
     }
 
   /**
-   * Creates a stream from a [[java.io.InputStream]]. Ensures that the input
+   * Creates a stream from the resource specified in `path`
+   */
+  final def fromResource(
+    path: String,
+    chunkSize: Int = ZStream.DefaultChunkSize
+  ): ZStream[Blocking, IOException, Byte] =
+    ZStream.managed {
+      ZManaged.fromAutoCloseable {
+        effectBlockingIO(getClass.getClassLoader.getResourceAsStream(path.replace('\\', '/'))).flatMap { x =>
+          if (x == null)
+            ZIO.fail(new FileNotFoundException(s"No such resource: '$path'"))
+          else
+            ZIO.succeed(x)
+        }
+      }
+    }.flatMap(is => fromInputStream(is, chunkSize = chunkSize))
+
+  /**
+   * Creates a stream from a `java.io.InputStream`. Ensures that the input
    * stream is closed after it is exhausted.
    */
   def fromInputStreamEffect[R](
@@ -270,7 +287,7 @@ trait ZStreamPlatformSpecificConstructors {
     fromInputStreamManaged(is.toManaged(is => ZIO.effectTotal(is.close())), chunkSize)
 
   /**
-   * Creates a stream from a managed [[java.io.InputStream]] value.
+   * Creates a stream from a managed `java.io.InputStream` value.
    */
   def fromInputStreamManaged[R](
     is: ZManaged[R, IOException, InputStream],
@@ -281,7 +298,7 @@ trait ZStreamPlatformSpecificConstructors {
       .flatMap(fromInputStream(_, chunkSize))
 
   /**
-   * Creates a stream from [[java.io.Reader]].
+   * Creates a stream from `java.io.Reader`.
    */
   def fromReader(reader: => Reader, chunkSize: Int = ZStream.DefaultChunkSize): ZStream[Blocking, IOException, Char] =
     ZStream.fromEffect(UIO(reader)).flatMap { capturedReader =>
@@ -302,7 +319,7 @@ trait ZStreamPlatformSpecificConstructors {
     }
 
   /**
-   * Creates a stream from an effect producing [[java.io.Reader]].
+   * Creates a stream from an effect producing `java.io.Reader`.
    */
   def fromReaderEffect[R](
     reader: => ZIO[R, IOException, Reader],
@@ -311,7 +328,7 @@ trait ZStreamPlatformSpecificConstructors {
     fromReaderManaged(reader.toManaged(r => ZIO.effectTotal(r.close())), chunkSize)
 
   /**
-   * Creates a stream from managed [[java.io.Reader]].
+   * Creates a stream from managed `java.io.Reader`.
    */
   def fromReaderManaged[R](
     reader: => ZManaged[R, IOException, Reader],
@@ -320,7 +337,7 @@ trait ZStreamPlatformSpecificConstructors {
     ZStream.managed(reader).flatMap(fromReader(_, chunkSize))
 
   /**
-   * Creates a stream from a callback that writes to [[java.io.OutputStream]].
+   * Creates a stream from a callback that writes to `java.io.OutputStream`.
    * Note: the input stream will be closed after the `write` is done.
    */
   def fromOutputStreamWriter(
@@ -446,20 +463,19 @@ trait ZStreamPlatformSpecificConstructors {
      * The sink will yield the count of bytes written.
      */
     def write: Sink[Throwable, Byte, Nothing, Int] =
-      ZSink.foldLeftChunksM(0) {
-        case (nbBytesWritten, c) =>
-          IO.effectAsync[Throwable, Int] { callback =>
-            socket.write(
-              ByteBuffer.wrap(c.toArray),
-              null,
-              new CompletionHandler[Integer, Void] {
-                override def completed(result: Integer, attachment: Void): Unit =
-                  callback(ZIO.succeed(nbBytesWritten + result.toInt))
+      ZSink.foldLeftChunksM(0) { case (nbBytesWritten, c) =>
+        IO.effectAsync[Throwable, Int] { callback =>
+          socket.write(
+            ByteBuffer.wrap(c.toArray),
+            null,
+            new CompletionHandler[Integer, Void] {
+              override def completed(result: Integer, attachment: Void): Unit =
+                callback(ZIO.succeed(nbBytesWritten + result.toInt))
 
-                override def failed(error: Throwable, attachment: Void): Unit = callback(ZIO.fail(error))
-              }
-            )
-          }
+              override def failed(error: Throwable, attachment: Void): Unit = callback(ZIO.fail(error))
+            }
+          )
+        }
       }
 
     /**
@@ -511,8 +527,8 @@ trait ZTransducerPlatformSpecificConstructors {
   ): ZTransducer[Any, CompressionException, Byte, Byte] = {
     def makeInflater: ZManaged[Any, Nothing, Option[Chunk[Byte]] => ZIO[Any, CompressionException, Chunk[Byte]]] =
       ZManaged
-        .make(ZIO.effectTotal((new Array[Byte](bufferSize), new Inflater(noWrap)))) {
-          case (_, inflater) => ZIO.effectTotal(inflater.end())
+        .make(ZIO.effectTotal((new Array[Byte](bufferSize), new Inflater(noWrap)))) { case (_, inflater) =>
+          ZIO.effectTotal(inflater.end())
         }
         .map {
           case (buffer, inflater) => {
@@ -524,15 +540,15 @@ trait ZTransducerPlatformSpecificConstructors {
                 } else {
                   throw CompressionException("Inflater is not finished when input stream completed")
                 }
-              }.refineOrDie {
-                case e: DataFormatException => CompressionException(e)
+              }.refineOrDie { case e: DataFormatException =>
+                CompressionException(e)
               }
             case Some(chunk) =>
               ZIO.effect {
                 inflater.setInput(chunk.toArray)
                 pullAllOutput(inflater, buffer, chunk)
-              }.refineOrDie {
-                case e: DataFormatException => CompressionException(e)
+              }.refineOrDie { case e: DataFormatException =>
+                CompressionException(e)
               }
           }
         }

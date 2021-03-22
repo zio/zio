@@ -1,12 +1,10 @@
 package zio
 
-import java.util.concurrent.TimeUnit
-
-import scala.annotation.tailrec
-
 import org.openjdk.jmh.annotations._
-
 import zio.IOBenchmarks._
+
+import java.util.concurrent.TimeUnit
+import scala.annotation.tailrec
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
@@ -28,7 +26,7 @@ class IOMapBenchmark {
   @Benchmark
   def futureMap(): BigInt = {
     import scala.concurrent.duration.Duration.Inf
-    import scala.concurrent.{ Await, Future }
+    import scala.concurrent.{Await, Future}
 
     @tailrec
     def sumTo(t: Future[BigInt], n: Int): Future[BigInt] =
@@ -79,7 +77,7 @@ class IOMapBenchmark {
 
   @Benchmark
   def twitterFutureMap(): BigInt = {
-    import com.twitter.util.{ Await, Future }
+    import com.twitter.util.{Await, Future}
 
     @tailrec
     def sumTo(t: Future[BigInt], n: Int): Future[BigInt] =
@@ -99,7 +97,7 @@ class IOMapBenchmark {
       if (n <= 1) t
       else sumTo(t.map(_ + n), n - 1)
 
-    sumTo(Task.eval(0), depth).runSyncStep.right.get
+    sumTo(Task.eval(0), depth).runSyncStep.fold(_ => sys.error("Either.right.get on Left"), identity)
   }
 
   @Benchmark

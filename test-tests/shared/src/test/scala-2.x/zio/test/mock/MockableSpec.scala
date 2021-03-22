@@ -1,5 +1,6 @@
 package zio.test.mock
 
+import zio.Has
 import zio.test.Assertion._
 import zio.test._
 import zio.test.mock.modules._
@@ -11,7 +12,7 @@ import zio.test.mock.modules._
  */
 object MockableSpec extends DefaultRunnableSpec {
 
-  def spec = suite("MockableSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("MockableSpec")(
     suite("Mockable macro")(
       test("compiles when applied to object with empty Service") {
         assert({
@@ -20,6 +21,24 @@ object MockableSpec extends DefaultRunnableSpec {
 
           object Check {
             val mock: Mock[EmptyModule] = ModuleMock
+          }
+
+          Check
+        })(anything)
+      },
+      test("generates mocks retaining body on objects") {
+        assert({
+          @mockable[SinglePureValModule.Service]
+          object ModuleMock {
+            val someFooHelper: Expectation[Has[SinglePureValModule.Service]] = Foo().atLeast(1)
+          }
+
+          object Check {
+            val mock: Mock[SinglePureValModule] = ModuleMock
+
+            val Foo: ModuleMock.Effect[Unit, Nothing, Unit] = ModuleMock.Foo
+
+            val someFoo: Expectation[Has[SinglePureValModule.Service]] = ModuleMock.someFooHelper
           }
 
           Check
@@ -239,6 +258,25 @@ object MockableSpec extends DefaultRunnableSpec {
 
             val Foo: ModuleMock.Method[Int, Throwable, String]    = ModuleMock.Foo
             val Bar: ModuleMock.Method[String, Throwable, String] = ModuleMock.Bar
+          }
+
+          Check
+        })(anything)
+      },
+      test("generates mocks for polymorphic services") {
+        assert({
+          @mockable[PolyModulePureDefsModule.Service[String, Exception, Double]]
+          object ModuleMock
+
+          object Check {
+            val mock: Mock[PolyModulePureDefsModule[String, Exception, Double]] = ModuleMock
+
+            val Static: ModuleMock.Effect[Unit, Exception, Double]                        = ModuleMock.Static
+            val ZeroParams: ModuleMock.Effect[Unit, Exception, Double]                    = ModuleMock.ZeroParams
+            val ZeroParamsWithParens: ModuleMock.Effect[Unit, Exception, Double]          = ModuleMock.ZeroParamsWithParens
+            val SingleParam: ModuleMock.Effect[Int, Exception, Double]                    = ModuleMock.SingleParam
+            val ManyParams: ModuleMock.Effect[(Int, String, Long), Exception, Double]     = ModuleMock.ManyParams
+            val ManyParamLists: ModuleMock.Effect[(Int, String, Long), Exception, Double] = ModuleMock.ManyParamLists
           }
 
           Check

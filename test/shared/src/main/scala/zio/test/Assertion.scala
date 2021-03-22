@@ -16,11 +16,11 @@
 
 package zio.test
 
-import scala.reflect.ClassTag
-import scala.util.{ Failure, Success, Try }
-
 import zio.test.AssertionM.RenderParam
-import zio.{ Cause, Exit, ZIO }
+import zio.{Cause, Exit, ZIO}
+
+import scala.reflect.ClassTag
+import scala.util.{Failure, Success, Try}
 
 /**
  * An `Assertion[A]` is capable of producing assertion results on an `A`. As a
@@ -60,8 +60,14 @@ final class Assertion[-A] private (
   def apply(a: => A): AssertResult =
     run(a)
 
+  override def canEqual(that: AssertionM[_]): Boolean = that match {
+    case _: Assertion[_] => true
+    case _               => false
+  }
+
   override def equals(that: Any): Boolean = that match {
-    case that: Assertion[_] => this.toString == that.toString
+    case that: Assertion[_] if that.canEqual(this) => this.toString == that.toString
+    case _                                         => false
   }
 
   override def hashCode: Int =
@@ -223,7 +229,7 @@ object Assertion extends AssertionVariants {
     Assertion.assertion("endsWithString")(param(suffix))(_.endsWith(suffix))
 
   /**
-   * Makes a new assertion that requires a given string to equal another ignoring case
+   * Makes a new assertion that requires a given string to equal another ignoring case.
    */
   def equalsIgnoreCase(other: String): Assertion[String] =
     Assertion.assertion("equalsIgnoreCase")(param(other))(_.equalsIgnoreCase(other))
@@ -267,7 +273,7 @@ object Assertion extends AssertionVariants {
 
   /**
    * Makes a new assertion that requires an Iterable to have the same distinct elements
-   * as the other Iterable, though not necessarily in the same order
+   * as the other Iterable, though not necessarily in the same order.
    */
   def hasSameElementsDistinct[A](other: Iterable[A]): Assertion[Iterable[A]] =
     Assertion.assertion("hasSameElementsDistinct")(param(other))(actual => actual.toSet == other.toSet)
@@ -313,14 +319,14 @@ object Assertion extends AssertionVariants {
 
   /**
    * Makes a new assertion that requires an Iterable to contain the first
-   * element satisfying the given assertion
+   * element satisfying the given assertion.
    */
   def hasFirst[A](assertion: Assertion[A]): Assertion[Iterable[A]] =
     Assertion.assertionRec("hasFirst")(param(assertion))(assertion)(actual => actual.headOption)
 
   /**
    * Makes a new assertion that requires the intersection of two Iterables
-   * satisfy the given assertion
+   * satisfy the given assertion.
    */
   def hasIntersection[A](other: Iterable[A])(assertion: Assertion[Iterable[A]]): Assertion[Iterable[A]] =
     Assertion.assertionRec("hasIntersection")(param(other))(assertion) { actual =>
@@ -352,7 +358,7 @@ object Assertion extends AssertionVariants {
 
   /**
    * Makes a new assertion that requires an Iterable to contain the last
-   * element satisfying the given assertion
+   * element satisfying the given assertion.
    */
   def hasLast[A](assertion: Assertion[A]): Assertion[Iterable[A]] =
     Assertion.assertionRec("hasLast")(param(assertion))(assertion)(actual => actual.lastOption)
@@ -373,7 +379,7 @@ object Assertion extends AssertionVariants {
 
   /**
    * Makes a new assertion that requires an Iterable to have the same elements
-   * as the specified Iterable, though not necessarily in the same order
+   * as the specified Iterable, though not necessarily in the same order.
    */
   def hasSameElements[A](other: Iterable[A]): Assertion[Iterable[A]] =
     Assertion.assertion("hasSameElements")(param(other)) { actual =>
@@ -399,7 +405,7 @@ object Assertion extends AssertionVariants {
 
   /**
    * Makes a new assertion that requires the specified Iterable to be a subset of the
-   * other Iterable
+   * other Iterable.
    */
   def hasSubset[A](other: Iterable[A]): Assertion[Iterable[A]] =
     hasIntersection(other)(hasSameElements(other))
@@ -453,7 +459,7 @@ object Assertion extends AssertionVariants {
     Assertion.assertion("isEmptyString")()(_.isEmpty)
 
   /**
-   * Makes a new assertion that requires a value be true.
+   * Makes a new assertion that requires a value be false.
    */
   def isFalse: Assertion[Boolean] =
     Assertion.assertion("isFalse")()(!_)
@@ -546,7 +552,7 @@ object Assertion extends AssertionVariants {
     Assertion.assertion("isNonEmpty")()(_.nonEmpty)
 
   /**
-   * Makes a new assertion that requires a given string to be non empty
+   * Makes a new assertion that requires a given string to be non empty.
    */
   val isNonEmptyString: Assertion[String] =
     Assertion.assertion("isNonEmptyString")()(_.nonEmpty)
@@ -625,11 +631,11 @@ object Assertion extends AssertionVariants {
     isSorted(ord.reverse)
 
   /**
-   * Makes an assertion that requires a value have the specified type.
+   * Makes a new assertion that requires a value have the specified type.
    *
    * Example:
    * {{{
-   *   assert(Duration.fromNanos(1), isSubtype[Duration.Finite](Assertion.anything))
+   *   assert(Duration.fromNanos(1))(isSubtype[Duration.Finite](Assertion.anything))
    * }}}
    */
   def isSubtype[A](assertion: Assertion[A])(implicit C: ClassTag[A]): Assertion[Any] =
@@ -664,7 +670,7 @@ object Assertion extends AssertionVariants {
     Assertion.assertion("isUnit")()(_ => true)
 
   /**
-   * Returns a new assertion that requires a value to fall within a
+   * Makes a new assertion that requires a value to fall within a
    * specified min and max (inclusive).
    */
   def isWithin[A](min: A, max: A)(implicit ord: Ordering[A]): Assertion[A] =
@@ -714,7 +720,7 @@ object Assertion extends AssertionVariants {
     Assertion.assertion("startsWith")(param(prefix))(_.startsWith(prefix))
 
   /**
-   * Makes a new assertion that requires a given string to start with a specified prefix
+   * Makes a new assertion that requires a given string to start with a specified prefix.
    */
   def startsWithString(prefix: String): Assertion[String] =
     Assertion.assertion("startsWithString")(param(prefix))(_.startsWith(prefix))
@@ -729,7 +735,7 @@ object Assertion extends AssertionVariants {
     }
 
   /**
-   * Returns a new assertion that requires the expression to throw.
+   * Makes a new assertion that requires the expression to throw.
    */
   def throws[A](assertion: Assertion[Throwable]): Assertion[A] =
     Assertion.assertionRec("throws")(param(assertion))(assertion) { actual =>
@@ -742,7 +748,7 @@ object Assertion extends AssertionVariants {
     }
 
   /**
-   * Returns a new assertion that requires the expression to throw an instance
+   * Makes a new assertion that requires the expression to throw an instance
    * of given type (or its subtype).
    */
   def throwsA[E: ClassTag]: Assertion[Any] =

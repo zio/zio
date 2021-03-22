@@ -1,11 +1,11 @@
 package zio.test
 
-import zio.Exit.{ Failure, Success }
+import zio.Exit.{Failure, Success}
 import zio.random.Random
 import zio.stream.ZStream
-import zio.test.Assertion.{ equalTo, forall }
+import zio.test.Assertion.{equalTo, forall}
 import zio.test.environment.TestRandom
-import zio.{ Exit, UIO, URIO, ZIO }
+import zio.{Exit, UIO, URIO, ZIO}
 
 object GenUtils {
 
@@ -78,7 +78,7 @@ object GenUtils {
   def shrinksTo[R, A](gen: Gen[R, A]): URIO[R, A] =
     shrinks(gen).map(_.reverse.head)
 
-  val smallInt = Gen.int(-10, 10)
+  val smallInt: Gen[Random, Int] = Gen.int(-10, 10)
 
   def sample[R, A](gen: Gen[R, A]): ZIO[R, Nothing, List[A]] =
     gen.sample.map(_.value).runCollect.map(_.toList)
@@ -101,7 +101,7 @@ object GenUtils {
   def shrinkWith[R, A](gen: Gen[R, A])(f: A => Boolean): ZIO[R, Nothing, List[A]] =
     gen.sample.take(1).flatMap(_.shrinkSearch(!f(_))).take(1000).filter(!f(_)).runCollect.map(_.toList)
 
-  val three = Gen(ZStream(Sample.unfold[Any, Int, Int](3) { n =>
+  val three: Gen[Any, Int] = Gen(ZStream(Sample.unfold[Any, Int, Int](3) { n =>
     if (n == 0) (n, ZStream.empty)
     else (n, ZStream(n - 1))
   }))

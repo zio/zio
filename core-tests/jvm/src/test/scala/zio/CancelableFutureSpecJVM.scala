@@ -1,19 +1,18 @@
 package zio
 
-import java.util.concurrent.Executors
-
-import scala.concurrent.ExecutionContext
-
 import zio.internal.Executor
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test._
 
+import java.util.concurrent.Executors
+import scala.concurrent.ExecutionContext
+
 object CancelableFutureSpecJVM extends ZIOBaseSpec {
 
   import ZIOTag._
 
-  def spec =
+  def spec: ZSpec[ZTestEnv with Annotations with TestConfig, Any] =
     suite("CancelableFutureSpecJVM")(
       testM("fromFuture/unsafeRunToFuture doesn't deadlock") {
 

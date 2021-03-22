@@ -17,12 +17,13 @@
 package zio.stm
 
 import zio.test.Assertion._
+import zio.test.TestAspect.nonFlaky
 import zio.test._
-import zio.{ URIO, ZIOBaseSpec }
+import zio.{URIO, ZIO, ZIOBaseSpec}
 
 object TMapSpec extends ZIOBaseSpec {
 
-  def spec = suite("TMap")(
+  def spec: ZSpec[Environment, Failure] = suite("TMap")(
     suite("factories")(
       testM("apply") {
         val tx = TMap.make("a" -> 1, "b" -> 2, "c" -> 2, "b" -> 3).flatMap[Any, Nothing, List[(String, Int)]](_.toList)
@@ -336,6 +337,22 @@ object TMapSpec extends ZIOBaseSpec {
 
         assertM(tx.commit)(equalTo(0))
       }
+    ),
+    suite("bug #4648")(
+      testM("avoid NullPointerException caused by race condition") {
+        for {
+          keys <- ZIO.succeed((0 to 10).toList)
+          map  <- TMap.fromIterable(keys.zipWithIndex).commit
+          exit <- ZIO
+                    .foreach_(keys) { k =>
+                      for {
+                        _ <- map.delete(k).commit.fork
+                        _ <- map.toChunk.commit
+                      } yield ()
+                    }
+                    .run
+        } yield assert(exit)(succeeds(isUnit))
+      } @@ nonFlaky
     )
   )
 

@@ -78,6 +78,11 @@ package object laws {
     type Invariant[-CapsF[_[_]], -Caps[_]]      = ZLawfulF.Invariant[CapsF, Caps, Any]
   }
 
+  object LawfulF2 {
+    type Divariant[-CapsBoth[_[-_, +_]], -CapsLeft[_], -CapsRight[_]] =
+      ZLawfulF2.Divariant[CapsBoth, CapsLeft, CapsRight, Any]
+  }
+
   object Laws {
     type Law1[-Caps[_]]  = ZLaws.Law1[Caps]
     type Law1M[-Caps[_]] = ZLaws.Law1M[Caps, Any]
@@ -126,6 +131,17 @@ package object laws {
       type Law2M[-CapsF[_[_]], -Caps[_]] = ZLawsF.Invariant.Law2M[CapsF, Caps, Any]
       type Law3[-CapsF[_[_]], -Caps[_]]  = ZLawsF.Invariant.Law3[CapsF, Caps]
       type Law3M[-CapsF[_[_]], -Caps[_]] = ZLawsF.Invariant.Law3M[CapsF, Caps, Any]
+    }
+  }
+
+  object LawsF2 {
+    type Divariant[-CapsBoth[_[-_, +_]], -CapsLeft[_], -CapsRight[_]] =
+      ZLawsF2.Divariant[CapsBoth, CapsLeft, CapsRight, Any]
+
+    object Divariant {
+      type ComposeLaw[-CapsBothF[_[-_, +_]], -Caps[_]] = ZLawsF2.Divariant.ComposeLaw[CapsBothF, Caps]
+      type Law1[CapsBothF[_[-_, +_]], -CapsLeft[_], -CapsRight[_]] =
+        ZLawsF2.Divariant.Law1[CapsBothF, CapsLeft, CapsRight]
     }
   }
 

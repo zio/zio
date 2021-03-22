@@ -1,10 +1,9 @@
 package zio.stream
 
-import java.nio.charset.{ Charset, StandardCharsets }
-
-import scala.collection.mutable
-
 import zio._
+
+import java.nio.charset.{Charset, StandardCharsets}
+import scala.collection.mutable
 
 // Contract notes for transducers:
 // - When a None is received, the transducer must flush all of its internal state
@@ -170,9 +169,8 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
                     val remaining = toCollect - collected.length
                     if (remaining <= data.length) {
                       val (newCollected, remainder) = data.splitAt(remaining)
-                      scope(f(collected ++ newCollected).push).flatMap {
-                        case (finalizer, push) =>
-                          push(Some(remainder)).map((_, State.Emitting(finalizer, push)))
+                      scope(f(collected ++ newCollected).push).flatMap { case (finalizer, push) =>
+                        push(Some(remainder)).map((_, State.Emitting(finalizer, push)))
                       }
                     } else {
                       ZIO.succeedNow((Chunk.empty, State.Collecting(collected ++ data)))
@@ -244,16 +242,16 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
    * Accumulates incoming elements into a chunk as long as they verify predicate `p`.
    */
   def collectAllWhile[I](p: I => Boolean): ZTransducer[Any, Nothing, I, List[I]] =
-    fold[I, (List[I], Boolean)]((Nil, true))(_._2) {
-      case ((as, _), a) => if (p(a)) (a :: as, true) else (as, false)
+    fold[I, (List[I], Boolean)]((Nil, true))(_._2) { case ((as, _), a) =>
+      if (p(a)) (a :: as, true) else (as, false)
     }.map(_._1.reverse).filter(_.nonEmpty)
 
   /**
    * Accumulates incoming elements into a chunk as long as they verify effectful predicate `p`.
    */
   def collectAllWhileM[R, E, I](p: I => ZIO[R, E, Boolean]): ZTransducer[R, E, I, List[I]] =
-    foldM[R, E, I, (List[I], Boolean)]((Nil, true))(_._2) {
-      case ((as, _), a) => p(a).map(if (_) (a :: as, true) else (as, false))
+    foldM[R, E, I, (List[I], Boolean)]((Nil, true))(_._2) { case ((as, _), a) =>
+      p(a).map(if (_) (a :: as, true) else (as, false))
     }.map(_._1.reverse).filter(_.nonEmpty)
 
   /**
@@ -320,13 +318,12 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
   def fold[I, O](z: O)(contFn: O => Boolean)(f: (O, I) => O): ZTransducer[Any, Nothing, I, O] =
     ZTransducer {
       def go(in: Chunk[I], state: O, progress: Boolean): (Chunk[O], O, Boolean) =
-        in.foldLeft[(Chunk[O], O, Boolean)]((Chunk.empty, state, progress)) {
-          case ((os0, state, _), i) =>
-            val o = f(state, i)
-            if (contFn(o))
-              (os0, o, true)
-            else
-              (os0 :+ o, z, false)
+        in.foldLeft[(Chunk[O], O, Boolean)]((Chunk.empty, state, progress)) { case ((os0, state, _), i) =>
+          val o = f(state, i)
+          if (contFn(o))
+            (os0, o, true)
+          else
+            (os0 :+ o, z, false)
         }
 
       ZRef.makeManaged[Option[O]](Some(z)).map { state =>
@@ -366,25 +363,23 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
       val initial = Some(z)
 
       def go(in: Chunk[I], state: O, progress: Boolean): ZIO[R, E, (Chunk[O], O, Boolean)] =
-        in.foldM[R, E, (Chunk[O], O, Boolean)]((Chunk.empty, state, progress)) {
-          case ((os0, state, _), i) =>
-            f(state, i).map { o =>
-              if (contFn(o))
-                (os0, o, true)
-              else
-                (os0 :+ o, z, false)
-            }
+        in.foldM[R, E, (Chunk[O], O, Boolean)]((Chunk.empty, state, progress)) { case ((os0, state, _), i) =>
+          f(state, i).map { o =>
+            if (contFn(o))
+              (os0, o, true)
+            else
+              (os0 :+ o, z, false)
+          }
         }
 
       ZRef.makeManaged[Option[O]](initial).map { state =>
         {
           case Some(in) =>
-            state.get.flatMap(s => go(in, s.getOrElse(z), s.nonEmpty)).flatMap {
-              case (os, s, progress) =>
-                if (progress)
-                  state.set(Some(s)) *> Push.emit(os)
-                else
-                  state.set(None) *> Push.emit(os)
+            state.get.flatMap(s => go(in, s.getOrElse(z), s.nonEmpty)).flatMap { case (os, s, progress) =>
+              if (progress)
+                state.set(Some(s)) *> Push.emit(os)
+              else
+                state.set(None) *> Push.emit(os)
             }
           case None =>
             state.getAndSet(None).map(_.fold[Chunk[O]](Chunk.empty)(Chunk.single(_)))
@@ -399,8 +394,8 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
    * Like [[foldWeighted]], but with a constant cost function of 1.
    */
   def foldUntil[I, O](z: O, max: Long)(f: (O, I) => O): ZTransducer[Any, Nothing, I, O] =
-    fold[I, (O, Long)]((z, 0))(_._2 < max) {
-      case ((o, count), i) => (f(o, i), count + 1)
+    fold[I, (O, Long)]((z, 0))(_._2 < max) { case ((o, count), i) =>
+      (f(o, i), count + 1)
     }.map(_._1)
 
   /**
@@ -410,8 +405,8 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
    * Like [[foldWeightedM]], but with a constant cost function of 1.
    */
   def foldUntilM[R, E, I, O](z: O, max: Long)(f: (O, I) => ZIO[R, E, O]): ZTransducer[R, E, I, O] =
-    foldM[R, E, I, (O, Long)]((z, 0))(_._2 < max) {
-      case ((o, count), i) => f(o, i).map((_, count + 1))
+    foldM[R, E, I, (O, Long)]((z, 0))(_._2 < max) { case ((o, count), i) =>
+      f(o, i).map((_, count + 1))
     }.map(_._1)
 
   /**
@@ -473,30 +468,29 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
         state: FoldWeightedState,
         dirty: Boolean
       ): (Chunk[O], FoldWeightedState, Boolean) =
-        in.foldLeft[(Chunk[O], FoldWeightedState, Boolean)]((os0, state, dirty)) {
-          case ((os0, state, _), i) =>
-            val total = state.cost + costFn(state.result, i)
+        in.foldLeft[(Chunk[O], FoldWeightedState, Boolean)]((os0, state, dirty)) { case ((os0, state, _), i) =>
+          val total = state.cost + costFn(state.result, i)
 
-            if (total > max) {
-              val is = decompose(i)
+          if (total > max) {
+            val is = decompose(i)
 
-              if (is.length <= 1 && !dirty)
-                // If `i` cannot be decomposed, we need to cross the `max` threshold. To
-                // minimize "injury", we only allow this when we haven't added anything else
-                // to the aggregate (dirty = false).
-                (os0 :+ f(state.result, if (is.nonEmpty) is(0) else i), initial, false)
-              else if (is.length <= 1 && dirty) {
-                // If the state is dirty and `i` cannot be decomposed, we close the current
-                // aggregate and a create new one from `is`. We're not adding `f(initial, i)` to
-                // the results immediately because it could be that `i` by itself does not
-                // cross the threshold, so we can attempt to aggregate it with subsequent elements.
-                val elem = if (is.nonEmpty) is(0) else i
-                (os0 :+ state.result, FoldWeightedState(f(initial.result, elem), costFn(initial.result, elem)), true)
-              } else
-                // `i` got decomposed, so we will recurse and see whether the decomposition
-                // can be aggregated without crossing `max`.
-                go(is, os0, state, dirty)
-            } else (os0, FoldWeightedState(f(state.result, i), total), true)
+            if (is.length <= 1 && !dirty)
+              // If `i` cannot be decomposed, we need to cross the `max` threshold. To
+              // minimize "injury", we only allow this when we haven't added anything else
+              // to the aggregate (dirty = false).
+              (os0 :+ f(state.result, if (is.nonEmpty) is(0) else i), initial, false)
+            else if (is.length <= 1 && dirty) {
+              // If the state is dirty and `i` cannot be decomposed, we close the current
+              // aggregate and a create new one from `is`. We're not adding `f(initial, i)` to
+              // the results immediately because it could be that `i` by itself does not
+              // cross the threshold, so we can attempt to aggregate it with subsequent elements.
+              val elem = if (is.nonEmpty) is(0) else i
+              (os0 :+ state.result, FoldWeightedState(f(initial.result, elem), costFn(initial.result, elem)), true)
+            } else
+              // `i` got decomposed, so we will recurse and see whether the decomposition
+              // can be aggregated without crossing `max`.
+              go(is, os0, state, dirty)
+          } else (os0, FoldWeightedState(f(state.result, i), total), true)
         }
 
       ZRef.makeManaged[Option[FoldWeightedState]](Some(initial)).map { state =>
@@ -558,26 +552,25 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
         state: FoldWeightedState,
         dirty: Boolean
       ): ZIO[R, E, (Chunk[O], FoldWeightedState, Boolean)] =
-        in.foldM[R, E, (Chunk[O], FoldWeightedState, Boolean)]((os, state, dirty)) {
-          case ((os, state, _), i) =>
-            costFn(state.result, i).flatMap { cost =>
-              val total = cost + state.cost
-              if (total > max)
-                decompose(i).flatMap(is =>
-                  // See comments on `foldWeightedDecompose` for details on every case here.
-                  if (is.length <= 1 && !dirty)
-                    f(state.result, if (is.nonEmpty) is(0) else i).map(o => ((os :+ o), initial, false))
-                  else if (is.length <= 1 && dirty) {
-                    val elem = if (is.nonEmpty) is(0) else i
+        in.foldM[R, E, (Chunk[O], FoldWeightedState, Boolean)]((os, state, dirty)) { case ((os, state, _), i) =>
+          costFn(state.result, i).flatMap { cost =>
+            val total = cost + state.cost
+            if (total > max)
+              decompose(i).flatMap(is =>
+                // See comments on `foldWeightedDecompose` for details on every case here.
+                if (is.length <= 1 && !dirty)
+                  f(state.result, if (is.nonEmpty) is(0) else i).map(o => ((os :+ o), initial, false))
+                else if (is.length <= 1 && dirty) {
+                  val elem = if (is.nonEmpty) is(0) else i
 
-                    f(initial.result, elem).zipWith(costFn(initial.result, elem)) { (s, cost) =>
-                      (os :+ state.result, FoldWeightedState(s, cost), true)
-                    }
-                  } else go(is, os, state, dirty)
-                )
-              else
-                f(state.result, i).map(o => (os, FoldWeightedState(o, total), true))
-            }
+                  f(initial.result, elem).zipWith(costFn(initial.result, elem)) { (s, cost) =>
+                    (os :+ state.result, FoldWeightedState(s, cost), true)
+                  }
+                } else go(is, os, state, dirty)
+              )
+            else
+              f(state.result, i).map(o => (os, FoldWeightedState(o, total), true))
+          }
         }
 
       ZRef.makeManaged[Option[FoldWeightedState]](Some(initial)).map { state =>
@@ -624,12 +617,11 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
    * Creates a transducer that returns the first element of the stream, if it exists.
    */
   def head[O]: ZTransducer[Any, Nothing, O, Option[O]] =
-    foldLeft[O, Option[O]](Option.empty[O]) {
-      case (acc, a) =>
-        acc match {
-          case Some(_) => acc
-          case None    => Some(a)
-        }
+    foldLeft[O, Option[O]](Option.empty[O]) { case (acc, a) =>
+      acc match {
+        case Some(_) => acc
+        case None    => Some(a)
+      }
     }
 
   /**
@@ -688,47 +680,46 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
             }
 
           case Some(strings) =>
-            stateRef.modify {
-              case (leftover, wasSplitCRLF) =>
-                val buf    = mutable.ArrayBuffer[String]()
-                var inCRLF = wasSplitCRLF
-                var carry  = leftover getOrElse ""
+            stateRef.modify { case (leftover, wasSplitCRLF) =>
+              val buf    = mutable.ArrayBuffer[String]()
+              var inCRLF = wasSplitCRLF
+              var carry  = leftover getOrElse ""
 
-                strings.foreach { string =>
-                  val concat = carry + string
+              strings.foreach { string =>
+                val concat = carry + string
 
-                  if (concat.length() > 0) {
-                    var i =
-                      // If we had a split CRLF, we start reading
-                      // from the last character of the leftover (which was the '\r')
-                      if (inCRLF && carry.length > 0) carry.length - 1
-                      // Otherwise we just skip over the entire previous leftover as
-                      // it doesn't contain a newline.
-                      else carry.length
-                    var sliceStart = 0
+                if (concat.length() > 0) {
+                  var i =
+                    // If we had a split CRLF, we start reading
+                    // from the last character of the leftover (which was the '\r')
+                    if (inCRLF && carry.length > 0) carry.length - 1
+                    // Otherwise we just skip over the entire previous leftover as
+                    // it doesn't contain a newline.
+                    else carry.length
+                  var sliceStart = 0
 
-                    while (i < concat.length()) {
-                      if (concat(i) == '\n') {
-                        buf += concat.substring(sliceStart, i)
-                        i += 1
-                        sliceStart = i
-                      } else if (concat(i) == '\r' && (i + 1) < concat.length && concat(i + 1) == '\n') {
-                        buf += concat.substring(sliceStart, i)
-                        i += 2
-                        sliceStart = i
-                      } else if (concat(i) == '\r' && i == concat.length - 1) {
-                        inCRLF = true
-                        i += 1
-                      } else {
-                        i += 1
-                      }
+                  while (i < concat.length()) {
+                    if (concat(i) == '\n') {
+                      buf += concat.substring(sliceStart, i)
+                      i += 1
+                      sliceStart = i
+                    } else if (concat(i) == '\r' && (i + 1) < concat.length && concat(i + 1) == '\n') {
+                      buf += concat.substring(sliceStart, i)
+                      i += 2
+                      sliceStart = i
+                    } else if (concat(i) == '\r' && i == concat.length - 1) {
+                      inCRLF = true
+                      i += 1
+                    } else {
+                      i += 1
                     }
-
-                    carry = concat.substring(sliceStart, concat.length)
                   }
-                }
 
-                (Chunk.fromArray(buf.toArray), (if (carry.length() > 0) Some(carry) else None, inCRLF))
+                  carry = concat.substring(sliceStart, concat.length)
+                }
+              }
+
+              (Chunk.fromArray(buf.toArray), (if (carry.length() > 0) Some(carry) else None, inCRLF))
             }
         }
       }
@@ -840,14 +831,14 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
         if (
           len >= 1 &&
           (is2ByteSequenceStart(chunk(len - 1)) ||
-          is3ByteSequenceStart(chunk(len - 1)) ||
-          is4ByteSequenceStart(chunk(len - 1)))
+            is3ByteSequenceStart(chunk(len - 1)) ||
+            is4ByteSequenceStart(chunk(len - 1)))
         )
           len - 1
         else if (
           len >= 2 &&
           (is3ByteSequenceStart(chunk(len - 2)) ||
-          is4ByteSequenceStart(chunk(len - 2)))
+            is4ByteSequenceStart(chunk(len - 2)))
         )
           len - 2
         else if (len >= 3 && is4ByteSequenceStart(chunk(len - 3)))

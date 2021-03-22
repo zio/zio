@@ -16,10 +16,10 @@
 
 package zio.stm
 
-import scala.collection.immutable.SortedMap
-
 import zio.stm.ZSTM.internal._
-import zio.{ Chunk, ChunkBuilder }
+import zio.{Chunk, ChunkBuilder}
+
+import scala.collection.immutable.SortedMap
 
 /**
  * A `TPriorityQueue` contains values of type `A` that an `Ordering` is defined
@@ -29,6 +29,18 @@ import zio.{ Chunk, ChunkBuilder }
  * be taken from the queue is not guaranteed.
  */
 final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, ::[A]]]) extends AnyVal {
+
+  /**
+   * Checks whether the queue is empty.
+   */
+  def isEmpty: USTM[Boolean] =
+    ref.get.map(_.isEmpty)
+
+  /**
+   * Checks whether the queue is not empty..
+   */
+  def nonEmpty: USTM[Boolean] =
+    ref.get.map(_.nonEmpty)
 
   /**
    * Offers the specified value to the queue.
@@ -72,12 +84,11 @@ final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, ::[A]]
    */
   def retainIf(f: A => Boolean): USTM[Unit] =
     ref.update { map =>
-      map.keys.foldLeft(map) {
-        case (map, a) =>
-          map(a).filter(f) match {
-            case h :: t => map + (a -> ::(h, t))
-            case Nil    => map - a
-          }
+      map.keys.foldLeft(map) { case (map, a) =>
+        map(a).filter(f) match {
+          case h :: t => map + (a -> ::(h, t))
+          case Nil    => map - a
+        }
       }
     }
 
@@ -114,7 +125,7 @@ final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, ::[A]]
     ref.modify { map =>
       val builder = ChunkBuilder.make[A]()
       map.foreach(builder ++= _._2)
-      (builder.result, SortedMap.empty(map.ordering))
+      (builder.result(), SortedMap.empty(map.ordering))
     }
 
   /**
@@ -136,7 +147,7 @@ final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, ::[A]]
         }
         i += l.length
       }
-      (builder.result, updated)
+      (builder.result(), updated)
     }
 
   /**
@@ -167,7 +178,7 @@ final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, ::[A]]
     ref.modify { map =>
       val builder = ChunkBuilder.make[A]()
       map.foreach(builder ++= _._2)
-      (builder.result, map)
+      (builder.result(), map)
     }
 
   /**

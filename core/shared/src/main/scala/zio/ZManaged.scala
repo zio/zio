@@ -16,13 +16,14 @@
 
 package zio
 
-import scala.collection.immutable.LongMap
-import scala.reflect.ClassTag
-
-import ZManaged.ReleaseMap
-
+import zio.ZManaged.ReleaseMap
 import zio.clock.Clock
 import zio.duration.Duration
+import zio.internal.Executor
+
+import scala.collection.immutable.LongMap
+import scala.concurrent.ExecutionContext
+import scala.reflect.ClassTag
 
 /**
  * A `Reservation[-R, +E, +A]` encapsulates resource acquisition and disposal
@@ -309,20 +310,18 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
    */
   def flatMap[R1 <: R, E1 >: E, B](f: A => ZManaged[R1, E1, B]): ZManaged[R1, E1, B] =
     ZManaged {
-      self.zio.flatMap {
-        case (releaseSelf, a) =>
-          f(a).zio.map {
-            case (releaseThat, b) =>
-              (
-                e =>
-                  releaseThat(e).run
-                    .flatMap(e1 =>
-                      releaseSelf(e).run
-                        .flatMap(e2 => ZIO.done(e1 *> e2))
-                    ),
-                b
-              )
-          }
+      self.zio.flatMap { case (releaseSelf, a) =>
+        f(a).zio.map { case (releaseThat, b) =>
+          (
+            e =>
+              releaseThat(e).run
+                .flatMap(e1 =>
+                  releaseSelf(e).run
+                    .flatMap(e2 => ZIO.done(e1 *> e2))
+                ),
+            b
+          )
+        }
       }
     }
 
@@ -446,6 +445,14 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
   def left[R1 <: R, C]: ZManaged[Either[R1, C], E, Either[A, C]] = self +++ ZManaged.identity
 
   /**
+   * Locks this managed effect to the specified executor, guaranteeing that
+   * this managed effect as well as managed effects that are composed
+   * sequentially after it will be run on the specified executor.
+   */
+  final def lock(executor: Executor): ZManaged[R, E, A] =
+    ZManaged.lock(executor) *> self
+
+  /**
    * Returns an effect whose success is mapped by the specified `f` function.
    */
   def map[B](f: A => B): ZManaged[R, E, B] =
@@ -506,6 +513,13 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
       e => ZManaged.fail(Some(e)),
       a => a.fold[ZManaged[R, Option[E], Unit]](ZManaged.succeedNow(()))(_ => ZManaged.fail(None))
     )
+
+  /**
+   * Runs this managed effect, as well as any managed effects that are composed
+   * sequentially after it, using the specified `ExecutionContext`.
+   */
+  final def on(ec: ExecutionContext): ZManaged[R, E, A] =
+    self.lock(Executor.fromExecutionContext(Int.MaxValue)(ec))
 
   /**
    * Ensures that a cleanup function runs when this ZManaged is finalized, after
@@ -642,16 +656,14 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
                             releaseMap
                               .releaseAll(Exit.fail(c), ExecutionStrategy.Sequential) *>
                               ZIO.halt(c),
-                          {
-                            case (release, a) =>
-                              UIO.succeed(
-                                ZManaged {
-                                  ZIO.accessM[(Any, ReleaseMap)] {
-                                    case (_, releaseMap) =>
-                                      releaseMap.add(release).map((_, a))
-                                  }
+                          { case (release, a) =>
+                            UIO.succeed(
+                              ZManaged {
+                                ZIO.accessM[(Any, ReleaseMap)] { case (_, releaseMap) =>
+                                  releaseMap.add(release).map((_, a))
                                 }
-                              )
+                              }
+                            )
                           }
                         )
       } yield preallocated
@@ -663,17 +675,15 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
    */
   def preallocateManaged: ZManaged[R, E, Managed[Nothing, A]] =
     ZManaged {
-      self.zio.map {
-        case (release, a) =>
-          (
-            release,
-            ZManaged {
-              ZIO.accessM[(Any, ReleaseMap)] {
-                case (_, releaseMap) =>
-                  releaseMap.add(release).map((_, a))
-              }
+      self.zio.map { case (release, a) =>
+        (
+          release,
+          ZManaged {
+            ZIO.accessM[(Any, ReleaseMap)] { case (_, releaseMap) =>
+              releaseMap.add(release).map((_, a))
             }
-          )
+          }
+        )
       }
     }
 
@@ -807,9 +817,8 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
    * "execute `io` and in case of failure, try again once".
    */
   def retry[R1 <: R, S](policy: Schedule[R1, E, S])(implicit ev: CanFail[E]): ZManaged[R1 with Clock, E, A] =
-    ZManaged(ZIO.accessM[(R1 with Clock, ZManaged.ReleaseMap)] {
-      case (env, releaseMap) =>
-        zio.provideSome[R1 with Clock](env => (env, releaseMap)).retry(policy).provide(env)
+    ZManaged(ZIO.accessM[(R1 with Clock, ZManaged.ReleaseMap)] { case (env, releaseMap) =>
+      zio.provideSome[R1 with Clock](env => (env, releaseMap)).retry(policy).provide(env)
     })
 
   def right[R1 <: R, C]: ZManaged[Either[C, R1], E, Either[C, A]] = ZManaged.identity +++ self
@@ -936,16 +945,14 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
    */
   def timed: ZManaged[R with Clock, E, (Duration, A)] =
     ZManaged {
-      ZIO.environment[(R, ReleaseMap)].flatMap {
-        case (r, releaseMap) =>
-          self.zio
-            .provide((r, releaseMap))
-            .timed
-            .map {
-              case (duration, (fin, a)) =>
-                (fin, (duration, a))
-            }
-            .provideSome[(R with Clock, ReleaseMap)](_._1)
+      ZIO.environment[(R, ReleaseMap)].flatMap { case (r, releaseMap) =>
+        self.zio
+          .provide((r, releaseMap))
+          .timed
+          .map { case (duration, (fin, a)) =>
+            (fin, (duration, a))
+          }
+          .provideSome[(R with Clock, ReleaseMap)](_._1)
       }
     }
 
@@ -1138,23 +1145,26 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
       val innerMap =
         ZManaged.ReleaseMap.makeManaged(ExecutionStrategy.Sequential).zio.provideSome[R1]((_, parallelReleaseMap))
 
-      (innerMap zip innerMap) flatMap {
-        case ((_, l), (_, r)) =>
-          self.zio
-            .provideSome[R1]((_, l))
-            .zipWithPar(that.zio.provideSome[R1]((_, r))) {
-              // We can safely discard the finalizers here because the resulting ZManaged's early
-              // release will trigger the ReleaseMap, which would release both finalizers in
-              // parallel.
-              case ((_, a), (_, b)) =>
-                f(a, b)
-            }
+      (innerMap zip innerMap) flatMap { case ((_, l), (_, r)) =>
+        self.zio
+          .provideSome[R1]((_, l))
+          .zipWithPar(that.zio.provideSome[R1]((_, r))) {
+            // We can safely discard the finalizers here because the resulting ZManaged's early
+            // release will trigger the ReleaseMap, which would release both finalizers in
+            // parallel.
+            case ((_, a), (_, b)) =>
+              f(a, b)
+          }
 
       }
     }
 }
 
 object ZManaged extends ZManagedPlatformSpecific {
+
+  private sealed abstract class State
+  private final case class Exited(nextKey: Long, exit: Exit[Any, Any])            extends State
+  private final case class Running(nextKey: Long, finalizers: LongMap[Finalizer]) extends State
 
   final class AccessPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[A](f: R => A): ZManaged[R, Nothing, A] =
@@ -1300,10 +1310,6 @@ object ZManaged extends ZManagedPlatformSpecific {
         else if (l == Long.MinValue) Long.MaxValue
         else l - 1
 
-      sealed abstract class State
-      final case class Exited(nextKey: Long, exit: Exit[Any, Any])            extends State
-      final case class Running(nextKey: Long, finalizers: LongMap[Finalizer]) extends State
-
       Ref.make[State](Running(initialKey, LongMap.empty)).map { ref =>
         new ReleaseMap {
           type Key = Long
@@ -1337,8 +1343,8 @@ object ZManaged extends ZManagedPlatformSpecific {
                   case ExecutionStrategy.Sequential =>
                     (
                       ZIO
-                        .foreach(Chunk.fromIterable(fins)) {
-                          case (_, fin) => fin.apply(exit).run
+                        .foreach(fins: Iterable[(Long, Finalizer)]) { case (_, fin) =>
+                          fin.apply(exit).run
                         }
                         .flatMap(results => ZIO.done(Exit.collectAll(results) getOrElse Exit.unit)),
                       Exited(nextKey, exit)
@@ -1347,9 +1353,8 @@ object ZManaged extends ZManagedPlatformSpecific {
                   case ExecutionStrategy.Parallel =>
                     (
                       ZIO
-                        .foreachPar(Chunk.fromIterable(fins)) {
-                          case (_, finalizer) =>
-                            finalizer(exit).run
+                        .foreachPar(fins: Iterable[(Long, Finalizer)]) { case (_, finalizer) =>
+                          finalizer(exit).run
                         }
                         .flatMap(results => ZIO.done(Exit.collectAllPar(results) getOrElse Exit.unit)),
                       Exited(nextKey, exit)
@@ -1358,9 +1363,8 @@ object ZManaged extends ZManagedPlatformSpecific {
                   case ExecutionStrategy.ParallelN(n) =>
                     (
                       ZIO
-                        .foreachParN(n)(Chunk.fromIterable(fins)) {
-                          case (_, finalizer) =>
-                            finalizer(exit).run
+                        .foreachParN(n)(fins: Iterable[(Long, Finalizer)]) { case (_, finalizer) =>
+                          finalizer(exit).run
                         }
                         .flatMap(results => ZIO.done(Exit.collectAllPar(results) getOrElse Exit.unit)),
                       Exited(nextKey, exit)
@@ -1796,6 +1800,22 @@ object ZManaged extends ZManagedPlatformSpecific {
   def fromFunctionM[R, E, A](f: R => ZManaged[Any, E, A]): ZManaged[R, E, A] = flatten(fromFunction(f))
 
   /**
+   * Lifts an `Option` into a `ZManaged` but preserves the error as an option in the error channel, making it easier to compose
+   * in some scenarios.
+   */
+  def fromOption[A](v: => Option[A]): ZManaged[Any, Option[Nothing], A] =
+    effectTotal(v).flatMap(_.fold[Managed[Option[Nothing], A]](fail(None))(succeedNow))
+
+  /**
+   * Lifts a `Try` into a `ZManaged`.
+   */
+  def fromTry[A](value: => scala.util.Try[A]): TaskManaged[A] =
+    effect(value).flatMap {
+      case scala.util.Success(v) => succeedNow(v)
+      case scala.util.Failure(t) => fail(t)
+    }
+
+  /**
    * Returns an effect that models failure with the specified `Cause`.
    */
   def halt[E](cause: => Cause[E]): ZManaged[Any, E, Nothing] =
@@ -1841,6 +1861,14 @@ object ZManaged extends ZManagedPlatformSpecific {
   def iterate[R, E, S](initial: S)(cont: S => Boolean)(body: S => ZManaged[R, E, S]): ZManaged[R, E, S] =
     if (cont(initial)) body(initial).flatMap(iterate(_)(cont)(body))
     else ZManaged.succeedNow(initial)
+
+  /**
+   * Returns a managed effect that describes shifting to the specified executor
+   * as the `acquire` action and shifting back to the original executor as the
+   * `release` action.
+   */
+  def lock(executor: => Executor): ZManaged[Any, Nothing, Unit] =
+    ZManaged.make(ZIO.descriptorWith(descriptor => ZIO.shift(executor).as(descriptor.executor)))(ZIO.shift).unit
 
   /**
    * Loops with the specified effectual function, collecting the results into a
@@ -1893,11 +1921,44 @@ object ZManaged extends ZManagedPlatformSpecific {
     makeExit(acquire)((a, _) => release(a))
 
   /**
+   * Lifts a `ZIO[R, E, A]` into `ZManaged[R, E, A]` with a release action
+   * that does not need access to the resource. The acquire and release actions
+   * will be performed uninterruptibly.
+   */
+  def make_[R, R1 <: R, E, A](acquire: ZIO[R, E, A])(release: ZIO[R1, Nothing, Any]): ZManaged[R1, E, A] =
+    make(acquire)(_ => release)
+
+  /**
    * Lifts a synchronous effect into `ZManaged[R, Throwable, A]` with a release action.
    * The acquire and release actions will be performed uninterruptibly.
    */
   def makeEffect[A](acquire: => A)(release: A => Any): ZManaged[Any, Throwable, A] =
     make(Task(acquire))(a => Task(release(a)).orDie)
+
+  /**
+   * Lifts a synchronous effect into `ZManaged[R, Throwable, A]` with a release
+   * action that does not need access to the resource. The acquire and release
+   * actions will be performed uninterruptibly.
+   */
+  def makeEffect_[A](acquire: => A)(release: => Any): ZManaged[Any, Throwable, A] =
+    makeEffect(acquire)(_ => release)
+
+  /**
+   * Lifts a synchronous effect that does not throw exceptions into a
+   * `ZManaged[Any, Nothing, A]` with a release action. The acquire and
+   * release actions will be performed uninterruptibly.
+   */
+  def makeEffectTotal[A](acquire: => A)(release: A => Any): ZManaged[Any, Nothing, A] =
+    make(ZIO.effectTotal(acquire))(a => ZIO.effectTotal(release(a)))
+
+  /**
+   * Lifts a synchronous effect that does not throw exceptions into a
+   * `ZManaged[Any, Nothing, A]` with a release action that does not need
+   * access to the resource. The acquire and release actions will be performed
+   * uninterruptibly.
+   */
+  def makeEffectTotal_[A](acquire: => A)(release: => A): ZManaged[Any, Nothing, A] =
+    makeEffectTotal(acquire)(_ => release)
 
   /**
    * Lifts a `ZIO[R, E, A]` into `ZManaged[R, E, A]` with a release action that handles `Exit`.
@@ -1915,6 +1976,16 @@ object ZManaged extends ZManagedPlatformSpecific {
     }
 
   /**
+   * Lifts a `ZIO[R, E, A]` into `ZManaged[R, E, A]` with a release action that
+   * does not need access to the resource but handles `Exit`. The acquire and
+   * release actions will be performed uninterruptibly.
+   */
+  def makeExit_[R, R1 <: R, E, A](acquire: ZIO[R, E, A])(
+    release: Exit[Any, Any] => ZIO[R1, Nothing, Any]
+  ): ZManaged[R1, E, A] =
+    makeExit(acquire)((_, exit) => release(exit))
+
+  /**
    * Lifts a ZIO[R, E, A] into ZManaged[R, E, A] with a release action.
    * The acquire action will be performed interruptibly, while release
    * will be performed uninterruptibly.
@@ -1923,6 +1994,16 @@ object ZManaged extends ZManagedPlatformSpecific {
     acquire: ZIO[R, E, A]
   )(release: A => URIO[R, Any]): ZManaged[R, E, A] =
     ZManaged.fromEffect(acquire).onExitFirst(_.foreach(release))
+
+  /**
+   * Lifts a ZIO[R, E, A] into ZManaged[R, E, A] with a release action that
+   * does not require access to the resource. The acquire action will be
+   * performed interruptibly, while release will be performed uninterruptibly.
+   */
+  def makeInterruptible_[R, R1 <: R, E, A](
+    acquire: ZIO[R, E, A]
+  )(release: ZIO[R1, Nothing, Any]): ZManaged[R1, E, A] =
+    makeInterruptible[R1, E, A](acquire)(_ => release)
 
   /**
    * Creates a ZManaged from a [[Reservation]] produced by an effect. Evaluating
@@ -2012,8 +2093,8 @@ object ZManaged extends ZManagedPlatformSpecific {
     zManaged2: ZManaged[R, E, B],
     zManaged3: ZManaged[R, E, C]
   )(f: (A, B, C) => D): ZManaged[R, E, D] =
-    (zManaged1 <&> zManaged2 <&> zManaged3).map {
-      case ((a, b), c) => f(a, b, c)
+    (zManaged1 <&> zManaged2 <&> zManaged3).map { case ((a, b), c) =>
+      f(a, b, c)
     }
 
   /**
@@ -2027,8 +2108,8 @@ object ZManaged extends ZManagedPlatformSpecific {
     zManaged3: ZManaged[R, E, C],
     zManaged4: ZManaged[R, E, D]
   )(f: (A, B, C, D) => F): ZManaged[R, E, F] =
-    (zManaged1 <&> zManaged2 <&> zManaged3 <&> zManaged4).map {
-      case (((a, b), c), d) => f(a, b, c, d)
+    (zManaged1 <&> zManaged2 <&> zManaged3 <&> zManaged4).map { case (((a, b), c), d) =>
+      f(a, b, c, d)
     }
 
   /**
@@ -2092,9 +2173,8 @@ object ZManaged extends ZManagedPlatformSpecific {
     scope.map { allocate =>
       new PreallocationScope {
         def apply[R, E, A](managed: ZManaged[R, E, A]) =
-          allocate(managed).map {
-            case (release, res) =>
-              ZManaged.makeExit(ZIO.succeedNow(res))((_, exit) => release(exit))
+          allocate(managed).map { case (release, res) =>
+            ZManaged.makeExit(ZIO.succeedNow(res))((_, exit) => release(exit))
           }
       }
     }
@@ -2158,8 +2238,23 @@ object ZManaged extends ZManagedPlatformSpecific {
   lazy val releaseMap: ZManaged[Any, Nothing, ReleaseMap] =
     apply(ZIO.environment[(Any, ReleaseMap)].map(tp => (Finalizer.noop, tp._2)))
 
+  /**
+   * Returns an ZManaged that accesses the runtime, which can be used to
+   * (unsafely) execute tasks. This is useful for integration with legacy
+   * code that must call back into ZIO code.
+   */
+  def runtime[R]: ZManaged[R, Nothing, Runtime[R]] =
+    ZManaged.fromEffect(ZIO.runtime[R])
+
   def sandbox[R, E, A](v: ZManaged[R, E, A]): ZManaged[R, Cause[E], A] =
     v.sandbox
+
+  /**
+   * Returns a managed effect that describes shifting to the specified executor
+   * as the `acquire` action with no release action.
+   */
+  def shift(executor: => Executor): ZManaged[Any, Nothing, Unit] =
+    ZManaged.fromEffect(ZIO.shift(executor))
 
   /**
    * A scope in which [[ZManaged]] values can be safely allocated. Passing a managed

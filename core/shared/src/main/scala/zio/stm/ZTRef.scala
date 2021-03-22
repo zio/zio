@@ -16,10 +16,11 @@
 
 package zio.stm
 
-import java.util.concurrent.atomic.AtomicReference
-
+import com.github.ghik.silencer.silent
 import zio.UIO
 import zio.stm.ZSTM.internal._
+
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * A `ZTRef[EA, EB, A, B]` is a polymorphic, purely functional description of a
@@ -266,7 +267,7 @@ object ZTRef {
     def modifySome[B](default: B)(f: PartialFunction[A, (B, A)]): USTM[B] =
       modify(a => f.lift(a).getOrElse((default, a)))
 
-    override def toString =
+    override def toString: String =
       s"ZTRef.Atomic(id = ${self.hashCode()}, versioned.value = ${versioned.value}, todo = ${todo.get})"
 
     /**
@@ -455,6 +456,7 @@ object ZTRef {
           }
       }
 
+    @silent("unreachable code")
     def modify[B](f: A => (B, A)): STM[E, B] =
       self match {
         case atomic: Atomic[A] => atomic.modify(f)

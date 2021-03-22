@@ -56,18 +56,18 @@ private[mock] object Debug {
         renderRoot("Chain", children)
       case Expectation.Or(children, _, _, _) =>
         renderRoot("Or", children)
+      case Expectation.NoCalls(_) => renderRoot("NoCalls", Nil)
       case Expectation.Repeated(child, range, _, _, started, completed) =>
         val progress = s"progress = $started out of $completed,"
-        ("Repeated(" :: state :: s"range = $range," :: progress :: invoked :: prettify(child) :: ")" :: Nil)
+        ("Repeated(" :: state :: s"range = $range," :: progress :: invoked :: prettify(child, 1) :: ")" :: Nil)
           .mkString(s"\n$ident")
     }
   }
 
   def prettify[R <: Has[_]](scopes: List[Scope[R]]): String =
-    scopes.map {
-      case Scope(expectation, id, _) =>
-        val rendered = prettify(expectation)
-        s">>>\nInvocation ID: $id\n$rendered"
+    scopes.map { case Scope(expectation, id, _) =>
+      val rendered = prettify(expectation)
+      s">>>\nInvocation ID: $id\n$rendered"
     } match {
       case Nil         => ""
       case head :: Nil => s"[Head]:\n$head"

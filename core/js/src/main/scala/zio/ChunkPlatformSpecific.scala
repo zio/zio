@@ -1,6 +1,6 @@
 package zio
 
-import scala.reflect.{ classTag, ClassTag }
+import scala.reflect.{ClassTag, classTag}
 
 private[zio] trait ChunkPlatformSpecific {
 

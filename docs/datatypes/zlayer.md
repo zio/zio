@@ -5,41 +5,58 @@ title:  "ZLayer"
 
 `ZLayer[A, E, B]` describes a layer of an application: every layer in an
  application requires some services (the input) and produces some services
- (the output). Layers can be thought of as recipes for producing bundles of services, given
- their dependencies (other services).
+ (the output). Layers can be thought of as recipes for producing bundles of
+ services, given their dependencies (other services).
 
  Construction of layers can be effectful and utilize resources that must be
  acquired and safely released when the services are done being utilized.
 
- By default layers are shared, meaning that if the same layer is used twice
- the layer will only be allocated a single time. Because of their excellent composition properties, layers are the idiomatic
- way in ZIO to create services that depend on other services.
+ Layers are shared by default, meaning that if the same layer is used twice,
+ the layer will only be allocated a single time. Because of their excellent
+ composition properties, layers are the idiomatic way in ZIO to create services
+ that depend on other services.
 
 ### The simplest ZLayer application
+
+ This application demonstrates a ZIO program with a single dependency on a simple string value.
+
 ```scala mdoc:silent
 import zio._
 
 object Example extends zio.App {
 
-  def run(args: List[String]): URIO[ZEnv, ExitCode] =
-    zio.provideLayer(nameLayer).as(ExitCode.success)
-
-  val zio = for {
+  // Define our simple ZIO program
+  val zio: ZIO[Has[String], Nothing, Unit] = for {
     name <- ZIO.access[Has[String]](_.get)
     _    <- UIO(println(s"Hello, $name!"))
   } yield ()
 
-  val nameLayer = ZLayer.succeed("Adam")}
+  // Create a ZLayer that produces a string and can be used to satisfy a string
+  // dependency that the program has
+  val nameLayer: ULayer[Has[String]] = ZLayer.succeed("Adam")
+
+  // Run the program, providing the `nameLayer`
+  def run(args: List[String]): URIO[ZEnv, ExitCode] =
+    zio.provideLayer(nameLayer).as(ExitCode.success)
+}
 
 ```
 
 ### ZLayer application with dependencies 
+
+ In the following example, our ZIO application has several dependencies:
+ - `zio.clock.Clock`
+ - `zio.console.Console`
+ - `ModuleB`
+
+ `ModuleB` in turn depends upon `ModuleA`.
+
 ```scala mdoc:silent
 import zio._
-import zio.console._
 import zio.clock._
-import java.io.IOException
+import zio.console._
 import zio.duration.Duration._
+import java.io.IOException
 
 object moduleA {
   type ModuleA = Has[ModuleA.Service]
@@ -113,6 +130,9 @@ object ZLayerApp0 extends zio.App {
 ```
 
 ### ZLayer example with complex dependencies
+
+ In this example, we can see that `ModuleC` depends upon `ModuleA`, `ModuleB`, and `Clock`. The layer provided to the runnable application shows how dependency layers can be combined using `++` into a single combined layer. The combined layer will then be able to produce both of the outputs of the original layers as a single layer.
+
 ```scala mdoc:silent
 import zio._
 import zio.clock._

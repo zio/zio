@@ -1,15 +1,15 @@
 package zio.test.environment
 
-import java.util.concurrent.TimeUnit
-
 import zio.duration._
 import zio.test.Assertion._
 import zio.test._
-import zio.{ clock, console }
+import zio.{clock, console}
+
+import java.util.concurrent.TimeUnit
 
 object LiveSpec extends ZIOBaseSpec {
 
-  def spec = suite("LiveSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("LiveSpec")(
     testM("live can access real environment") {
       for {
         test <- clock.currentTime(TimeUnit.MILLISECONDS)

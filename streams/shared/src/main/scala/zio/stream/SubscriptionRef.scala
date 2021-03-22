@@ -16,7 +16,7 @@
 
 package zio.stream
 
-import zio.{ RefM, UIO }
+import zio.{RefM, UIO}
 
 /**
  * A `SubscriptionRef[A]` contains a `RefM[A]` and a `Stream` that will emit
@@ -30,7 +30,7 @@ object SubscriptionRef {
    * Creates a new `SubscriptionRef` with the specified value.
    */
   def make[A](a: A): UIO[SubscriptionRef[A]] =
-    RefM.dequeueRef(a).map {
-      case (ref, queue) => new SubscriptionRef(ref, ZStream.fromQueue(queue))
+    RefM.dequeueRef(a).map { case (ref, queue) =>
+      new SubscriptionRef(ref, ZStream.fromQueue(queue))
     }
 }

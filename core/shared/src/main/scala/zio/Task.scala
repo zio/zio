@@ -1,8 +1,9 @@
 package zio
 
-import scala.concurrent.ExecutionContext
+import zio.internal.{Executor, Platform}
 
-import zio.internal.{ Executor, Platform }
+import scala.concurrent.ExecutionContext
+import scala.reflect.ClassTag
 
 object Task extends TaskPlatformSpecific {
 
@@ -86,6 +87,12 @@ object Task extends TaskPlatformSpecific {
     ZIO.collectAll(in)
 
   /**
+   * @see See [[[zio.ZIO.collectAll[R,E,A](in:Array*]]]
+   */
+  def collectAll[A: ClassTag](in: Array[Task[A]]): Task[Array[A]] =
+    ZIO.collectAll(in)
+
+  /**
    * @see See [[[zio.ZIO.collectAll[R,E,A](in:zio\.NonEmptyChunk*]]]
    */
   def collectAll[A](in: NonEmptyChunk[Task[A]]): Task[NonEmptyChunk[A]] =
@@ -109,6 +116,12 @@ object Task extends TaskPlatformSpecific {
    * @see See [[[zio.ZIO.collectAllPar[R,E,A](as:Set*]]]
    */
   def collectAllPar[A](as: Set[Task[A]]): Task[Set[A]] =
+    ZIO.collectAllPar(as)
+
+  /**
+   * @see See [[[zio.ZIO.collectAllPar[R,E,A](as:Array*]]]
+   */
+  def collectAllPar[A: ClassTag](as: Array[Task[A]]): Task[Array[A]] =
     ZIO.collectAllPar(as)
 
   /**
@@ -294,6 +307,12 @@ object Task extends TaskPlatformSpecific {
   def effectTotal[A](effect: => A): UIO[A] = ZIO.effectTotal(effect)
 
   /**
+   * @see See [[zio.ZIO.executor]]
+   */
+  def executor: UIO[Executor] =
+    ZIO.executor
+
+  /**
    * @see See [[zio.ZIO.fail]]
    */
   def fail(error: => Throwable): Task[Nothing] = ZIO.fail(error)
@@ -304,7 +323,7 @@ object Task extends TaskPlatformSpecific {
   val fiberId: UIO[Fiber.Id] = ZIO.fiberId
 
   /**
-   * @see [[zio.ZIO.filter]]
+   * @see [[zio.ZIO.filter[R,E,A,Collection*]]
    */
   def filter[A, Collection[+Element] <: Iterable[Element]](
     as: Collection[A]
@@ -312,7 +331,13 @@ object Task extends TaskPlatformSpecific {
     ZIO.filter(as)(f)
 
   /**
-   * @see [[zio.ZIO.filterPar]]
+   * @see [[zio.ZIO.filter[R,E,A](as:Set*]]
+   */
+  def filter[A](as: Set[A])(f: A => Task[Boolean]): Task[Set[A]] =
+    ZIO.filter(as)(f)
+
+  /**
+   * @see [[zio.ZIO.filterPar[R,E,A,Collection*]]
    */
   def filterPar[A, Collection[+Element] <: Iterable[Element]](
     as: Collection[A]
@@ -320,7 +345,13 @@ object Task extends TaskPlatformSpecific {
     ZIO.filterPar(as)(f)
 
   /**
-   * @see [[zio.ZIO.filterNot]]
+   * @see [[[zio.ZIO.filterPar[R,E,A](as:Set*]]]
+   */
+  def filterPar[A](as: Set[A])(f: A => Task[Boolean]): Task[Set[A]] =
+    ZIO.filterPar(as)(f)
+
+  /**
+   * @see [[zio.ZIO.filterNot[R,E,A,Collection*]]
    */
   def filterNot[A, Collection[+Element] <: Iterable[Element]](
     as: Collection[A]
@@ -328,11 +359,23 @@ object Task extends TaskPlatformSpecific {
     ZIO.filterNot(as)(f)
 
   /**
-   * @see [[zio.ZIO.filterNotPar]]
+   * @see [[[zio.ZIO.filterNot[R,E,A](as:Set*]]]
+   */
+  def filterNot[A](as: Set[A])(f: A => Task[Boolean]): Task[Set[A]] =
+    ZIO.filterNot(as)(f)
+
+  /**
+   * @see [[zio.ZIO.filterNotPar[R,E,A,Collection*]]
    */
   def filterNotPar[A, Collection[+Element] <: Iterable[Element]](
     as: Collection[A]
   )(f: A => Task[Boolean])(implicit bf: BuildFrom[Collection[A], A, Collection[A]]): Task[Collection[A]] =
+    ZIO.filterNotPar(as)(f)
+
+  /**
+   * @see [[[zio.ZIO.filterNotPar[R,E,A](as:Set*]]]
+   */
+  def filterNotPar[A](as: Set[A])(f: A => Task[Boolean]): Task[Set[A]] =
     ZIO.filterNotPar(as)(f)
 
   /**
@@ -377,6 +420,12 @@ object Task extends TaskPlatformSpecific {
     ZIO.foreach(in)(f)
 
   /**
+   * @see See [[[zio.ZIO.foreach[R,E,A,B](in:Array*]]]
+   */
+  def foreach[A, B: ClassTag](in: Array[A])(f: A => Task[B]): Task[Array[B]] =
+    ZIO.foreach(in)(f)
+
+  /**
    * @see See [[[zio.ZIO.foreach[R,E,Key,Key2,Value,Value2](map:Map*]]]
    */
   def foreach[Key, Key2, Value, Value2](
@@ -416,6 +465,12 @@ object Task extends TaskPlatformSpecific {
    * @see See [[[zio.ZIO.foreachPar[R,E,A,B](as:Set*]]]
    */
   def foreachPar[A, B](as: Set[A])(fn: A => Task[B]): Task[Set[B]] =
+    ZIO.foreachPar(as)(fn)
+
+  /**
+   * @see See [[[zio.ZIO.foreachPar[R,E,A,B](as:Array*]]]
+   */
+  def foreachPar[A, B: ClassTag](as: Array[A])(fn: A => Task[B]): Task[Array[B]] =
     ZIO.foreachPar(as)(fn)
 
   /**
@@ -671,6 +726,12 @@ object Task extends TaskPlatformSpecific {
   val none: Task[Option[Nothing]] = ZIO.none
 
   /**
+   *  @see See [[zio.ZIO.not]]
+   */
+  def not(effect: Task[Boolean]): Task[Boolean] =
+    ZIO.not(effect)
+
+  /**
    * @see See [[zio.ZIO.partition]]
    */
   def partition[A, B](in: Iterable[A])(f: A => Task[B]): Task[(Iterable[Throwable], Iterable[B])] =
@@ -711,6 +772,18 @@ object Task extends TaskPlatformSpecific {
    */
   def replicate[A](n: Int)(effect: Task[A]): Iterable[Task[A]] =
     ZIO.replicate(n)(effect)
+
+  /**
+   * @see See [[zio.ZIO.replicateM]]
+   */
+  def replicateM[A](n: Int)(effect: Task[A]): Task[Iterable[A]] =
+    ZIO.replicateM(n)(effect)
+
+  /**
+   * @see See [[zio.ZIO.replicateM_]]
+   */
+  def replicateM_[A](n: Int)(effect: Task[A]): Task[Unit] =
+    ZIO.replicateM_(n)(effect)
 
   /**
    * @see See [[zio.ZIO.require]]

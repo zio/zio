@@ -16,10 +16,10 @@
 
 package zio
 
-import java.util.Map
-import java.util.concurrent.atomic.{ AtomicInteger, AtomicReference }
-
 import zio.internal.Sync
+
+import java.util.Map
+import java.util.concurrent.atomic.{AtomicInteger, AtomicReference}
 
 /**
  * A `ZScope[A]` is a value that allows adding finalizers identified by a key.
@@ -313,10 +313,9 @@ object ZScope {
             val a = exitValue.get()
 
             array
-              .foldLeft[UIO[Cause[Nothing]]](noCauseEffect) {
-                case (acc, o) =>
-                  if (o ne null) acc.zipWith(o.finalizer(a).cause)(_ ++ _)
-                  else acc
+              .foldLeft[UIO[Cause[Nothing]]](noCauseEffect) { case (acc, o) =>
+                if (o ne null) acc.zipWith(o.finalizer(a).cause)(_ ++ _)
+                else acc
               }
               .uncause[Nothing]
           }

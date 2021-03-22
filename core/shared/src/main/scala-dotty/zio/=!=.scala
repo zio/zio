@@ -17,15 +17,14 @@
 package zio
 
 import scala.annotation.implicitNotFound
-import scala.implicits.Not
+import scala.util.NotGiven
 
 /**
  * Evidence type `A` is not equal to type `B`.
- *
  */
 @implicitNotFound("${A} must not be ${B}")
 abstract class =!=[A, B] extends Serializable
 
 object =!= {
-  implicit def neq[A, B](implicit ev: Not[A =:= B]): A =!= B = new =!=[A, B] {}
+  implicit def neq[A, B](implicit ev: NotGiven[A =:= B]): A =!= B = new =!=[A, B] {}
 }

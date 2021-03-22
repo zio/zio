@@ -1,9 +1,9 @@
 package zio.test.mock
 
-import zio.ZIO
-import zio.test.mock.internal.{ InvalidCall, MockException }
-import zio.test.mock.module.{ ImpureModule, ImpureModuleMock }
-import zio.test.{ suite, Assertion, ZIOBaseSpec }
+import zio.test.mock.internal.{InvalidCall, MockException}
+import zio.test.mock.module.{ImpureModule, ImpureModuleMock}
+import zio.test.{Assertion, Spec, TestFailure, TestSuccess, ZIOBaseSpec}
+import zio.{URIO, ZIO}
 
 object AdvancedMethodMockSpec extends ZIOBaseSpec with MockSpecUtils[ImpureModule] {
 
@@ -16,13 +16,13 @@ object AdvancedMethodMockSpec extends ZIOBaseSpec with MockSpecUtils[ImpureModul
   val cmdB = ImpureModuleMock.Overloaded._0
   val cmdC = ImpureModuleMock.ZeroParams
 
-  val A = ImpureModuleMock.SingleParam(equalTo(1), value("A"))
-  val B = ImpureModuleMock.Overloaded._0(equalTo(2), value("B"))
-  val C = ImpureModuleMock.ZeroParams(value("C"))
+  val A: Expectation[ImpureModule] = ImpureModuleMock.SingleParam(equalTo(1), value("A"))
+  val B: Expectation[ImpureModule] = ImpureModuleMock.Overloaded._0(equalTo(2), value("B"))
+  val C: Expectation[ImpureModule] = ImpureModuleMock.ZeroParams(value("C"))
 
-  val a = ImpureModule.singleParam(1)
-  val b = ImpureModule.overloaded(2)
-  val c = ImpureModule.zeroParams
+  val a: URIO[ImpureModule, String] = ImpureModule.singleParam(1)
+  val b: URIO[ImpureModule, String] = ImpureModule.overloaded(2)
+  val c                             = ImpureModule.zeroParams
 
   type E = InvalidCallException
   type L = List[InvalidCall]
@@ -33,8 +33,8 @@ object AdvancedMethodMockSpec extends ZIOBaseSpec with MockSpecUtils[ImpureModul
       hasField[E, L](
         "failedMatches",
         _.failedMatches,
-        failedMatches.zipWithIndex.foldLeft[Assertion[L]](zero) {
-          case (acc, (failure, idx)) => acc && hasAt(idx)(equalTo(failure))
+        failedMatches.zipWithIndex.foldLeft[Assertion[L]](zero) { case (acc, (failure, idx)) =>
+          acc && hasAt(idx)(equalTo(failure))
         }
       )
     )
@@ -53,7 +53,7 @@ object AdvancedMethodMockSpec extends ZIOBaseSpec with MockSpecUtils[ImpureModul
   def hasUnsatisfiedExpectations: Assertion[Throwable] =
     isSubtype[UnsatisfiedExpectationsException[ImpureModule]](anything)
 
-  def spec =
+  def spec: Spec[Any, TestFailure[Any], TestSuccess] =
     suite("AdvancedMethodMockSpec")(
       suite("expectations composition")(
         suite("A and B")(

@@ -7,7 +7,7 @@ object ZRefMSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 
-  def spec = suite("ZRefMSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("ZRefMSpec")(
     suite("atomic")(
       testM("get") {
         for {

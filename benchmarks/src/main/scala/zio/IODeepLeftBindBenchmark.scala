@@ -1,10 +1,9 @@
 package zio
 
-import java.util.concurrent.TimeUnit
-
 import org.openjdk.jmh.annotations._
-
 import zio.IOBenchmarks._
+
+import java.util.concurrent.TimeUnit
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
@@ -24,7 +23,7 @@ class IODeepLeftBindBenchmark {
       i += 1
     }
 
-    io.runSyncStep.right.get
+    io.runSyncStep.fold(_ => sys.error("Either.right.get on Left"), identity)
   }
 
   @Benchmark
@@ -55,7 +54,7 @@ class IODeepLeftBindBenchmark {
       i += 1
     }
 
-    io.unsafeRunSync
+    io.unsafeRunSync()
   }
 
 }

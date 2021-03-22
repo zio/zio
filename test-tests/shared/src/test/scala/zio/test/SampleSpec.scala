@@ -2,11 +2,11 @@ package zio.test
 
 import zio.stream.ZStream
 import zio.test.Assertion._
-import zio.{ UIO, ZIO }
+import zio.{UIO, ZIO}
 
 object SampleSpec extends ZIOBaseSpec {
 
-  def spec = suite("SampleSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("SampleSpec")(
     testM("monad left identity") {
       val sample = Sample.shrinkIntegral(0)(5)
       val result = equalSamples(sample.flatMap(Sample.noShrink), sample)

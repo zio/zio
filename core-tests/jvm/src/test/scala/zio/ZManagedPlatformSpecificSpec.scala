@@ -1,15 +1,15 @@
 package zio
 
-import java.io.{ File, IOException }
-import java.nio.file.Files
-import java.{ util => ju }
-
 import zio.test.Assertion._
 import zio.test._
 
+import java.io.{File, IOException}
+import java.nio.file.Files
+import java.{util => ju}
+
 object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
 
-  def spec = suite("ZManagedPlatformSpecificSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("ZManagedPlatformSpecificSpec")(
     testM("writeFile & readFile & OutputStream.write & InputStream.readAll") {
       val fixture = Chunk[Byte](1, 2, 3, 6, 5, 4)
       for {

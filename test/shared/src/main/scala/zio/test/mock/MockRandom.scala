@@ -17,7 +17,7 @@
 package zio.test.mock
 
 import zio.random.Random
-import zio.{ Chunk, Has, UIO, URLayer, ZLayer }
+import zio.{Chunk, Has, UIO, URLayer, ZLayer}
 
 object MockRandom extends Mock[Random] {
 

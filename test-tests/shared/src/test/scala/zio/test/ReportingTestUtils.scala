@@ -1,23 +1,29 @@
 package zio.test
 
-import scala.{ Console => SConsole }
-
 import zio.clock.Clock
-import zio.test.Assertion.{ equalTo, isGreaterThan, isLessThan, isRight, isSome, not }
-import zio.test.environment.{ testEnvironment, TestClock, TestConsole, TestEnvironment }
+import zio.test.Assertion.{equalTo, isGreaterThan, isLessThan, isRight, isSome, not}
+import zio.test.environment.{TestClock, TestConsole, TestEnvironment, testEnvironment}
 import zio.test.mock.Expectation._
 import zio.test.mock.internal.InvalidCall._
 import zio.test.mock.internal.MockException._
 import zio.test.mock.module.PureModuleMock
-import zio.{ Cause, Layer, ZIO }
+import zio.{Cause, Layer, ZIO}
+
+import java.util.regex.Pattern
+import scala.{Console => SConsole}
 
 object ReportingTestUtils {
+
+  val sourceFilePath: String = zio.test.sourcePath
 
   def expectedSuccess(label: String): String =
     green("+") + " " + label + "\n"
 
   def expectedFailure(label: String): String =
     red("- " + label) + "\n"
+
+  def expectedIgnored(label: String): String =
+    yellow("- ") + yellow(label) + " - " + TestAnnotation.ignored.identifier + " suite" + "\n"
 
   def withOffset(n: Int)(s: String): String =
     " " * n + s
@@ -37,22 +43,22 @@ object ReportingTestUtils {
   def yellow(s: String): String =
     SConsole.YELLOW + s + SConsole.RESET
 
-  def reportStats(success: Int, ignore: Int, failure: Int) = {
+  def reportStats(success: Int, ignore: Int, failure: Int): String = {
     val total = success + ignore + failure
     cyan(
       s"Ran $total test${if (total == 1) "" else "s"} in 0 ns: $success succeeded, $ignore ignored, $failure failed"
     ) + "\n"
   }
 
-  def runLog(spec: ZSpec[TestEnvironment, String]) =
+  def runLog(spec: ZSpec[TestEnvironment, String]): ZIO[TestEnvironment, Nothing, String] =
     for {
       _ <- TestTestRunner(testEnvironment)
              .run(spec)
              .provideLayer[Nothing, TestEnvironment, TestLogger with Clock](TestLogger.fromConsole ++ TestClock.default)
       output <- TestConsole.output
-    } yield output.mkString
+    } yield output.mkString.withNoLineNumbers
 
-  def runSummary(spec: ZSpec[TestEnvironment, String]) =
+  def runSummary(spec: ZSpec[TestEnvironment, String]): ZIO[TestEnvironment, Nothing, String] =
     for {
       results <- TestTestRunner(testEnvironment)
                    .run(spec)
@@ -60,7 +66,7 @@ object ReportingTestUtils {
                      TestLogger.fromConsole ++ TestClock.default
                    )
       actualSummary = SummaryBuilder.buildSummary(results)
-    } yield actualSummary.summary
+    } yield actualSummary.summary.withNoLineNumbers
 
   private[this] def TestTestRunner(testEnvironment: Layer[Nothing, TestEnvironment]) =
     TestRunner[TestEnvironment, String](
@@ -68,27 +74,31 @@ object ReportingTestUtils {
       reporter = DefaultTestReporter(TestAnnotationRenderer.default)
     )
 
-  val test1         = zio.test.test("Addition works fine")(assert(1 + 1)(equalTo(2)))
-  val test1Expected = expectedSuccess("Addition works fine")
+  val test1: ZSpec[Any, Nothing] = test("Addition works fine")(assert(1 + 1)(equalTo(2)))
+  val test1Expected: String      = expectedSuccess("Addition works fine")
 
-  val test2         = zio.test.test("Subtraction works fine")(assert(1 - 1)(equalTo(0)))
-  val test2Expected = expectedSuccess("Subtraction works fine")
+  val test2: ZSpec[Any, Nothing] = test("Subtraction works fine")(assert(1 - 1)(equalTo(0)))
+  val test2Expected: String      = expectedSuccess("Subtraction works fine")
 
-  val test3 = zio.test.test("Value falls within range")(assert(52)(equalTo(42) || (isGreaterThan(5) && isLessThan(10))))
-  val test3Expected = Vector(
+  val test3: ZSpec[Any, Nothing] =
+    test("Value falls within range")(assert(52)(equalTo(42) || (isGreaterThan(5) && isLessThan(10))))
+  val test3Expected: Vector[String] = Vector(
     expectedFailure("Value falls within range"),
     withOffset(2)(s"${blue("52")} did not satisfy ${cyan("equalTo(42)")}\n"),
     withOffset(2)(
       s"${blue("52")} did not satisfy ${cyan("(") + yellow("equalTo(42)") + cyan(" || (isGreaterThan(5) && isLessThan(10)))")}\n"
     ),
+    withOffset(4)(assertSourceLocation() + "\n"),
     withOffset(2)(s"${blue("52")} did not satisfy ${cyan("isLessThan(10)")}\n"),
     withOffset(2)(
       s"${blue("52")} did not satisfy ${cyan("(equalTo(42) || (isGreaterThan(5) && ") + yellow("isLessThan(10)") + cyan("))")}\n"
-    )
+    ),
+    withOffset(4)(assertSourceLocation() + "\n")
   )
 
-  val test4 = Spec.test("Failing test", failed(Cause.fail("Fail")), TestAnnotationMap.empty)
-  val test4Expected = Vector(
+  val test4: Spec[Any, TestFailure[String], Nothing] =
+    Spec.test("Failing test", failed(Cause.fail("Fail")), TestAnnotationMap.empty)
+  val test4Expected: Vector[String] = Vector(
     expectedFailure("Failing test"),
     withOffset(2)("Fiber failed.\n") +
       withOffset(2)("A checked error was not handled.\n") +
@@ -96,25 +106,33 @@ object ReportingTestUtils {
       withOffset(2)("No ZIO Trace available.\n")
   )
 
-  val test5 = zio.test.test("Addition works fine")(assert(1 + 1)(equalTo(3)))
-  val test5Expected = Vector(
+  val test5: ZSpec[Any, Nothing] = test("Addition works fine")(assert(1 + 1)(equalTo(3)))
+  // the captured expression for `1+1` is different between dotty and 2.x
+  def expressionIfNotRedundant(expr: String, value: Any): String =
+    Option(expr).filterNot(_ == value.toString).fold(value.toString)(e => s"`$e` = $value")
+  val test5Expected: Vector[String] = Vector(
     expectedFailure("Addition works fine"),
-    withOffset(2)(s"${blue("2")} did not satisfy ${cyan("equalTo(3)")}\n")
+    withOffset(2)(
+      s"${blue(expressionIfNotRedundant(showExpression(1 + 1), 2))} did not satisfy ${cyan("equalTo(3)")}\n"
+    ),
+    withOffset(4)(assertSourceLocation() + "\n")
   )
 
-  val test6 = zio.test.test("Multiple nested failures")(assert(Right(Some(3)))(isRight(isSome(isGreaterThan(4)))))
-  val test6Expected = Vector(
+  val test6: ZSpec[Any, Nothing] =
+    test("Multiple nested failures")(assert(Right(Some(3)))(isRight(isSome(isGreaterThan(4)))))
+  val test6Expected: Vector[String] = Vector(
     expectedFailure("Multiple nested failures"),
     withOffset(2)(s"${blue("3")} did not satisfy ${cyan("isGreaterThan(4)")}\n"),
     withOffset(2)(
       s"${blue("Some(3)")} did not satisfy ${cyan("isSome(") + yellow("isGreaterThan(4)") + cyan(")")}\n"
     ),
     withOffset(2)(
-      s"${blue("Right(Some(3))")} did not satisfy ${cyan("isRight(") + yellow("isSome(isGreaterThan(4))") + cyan(")")}\n"
-    )
+      s"${blue(s"Right(Some(3))")} did not satisfy ${cyan("isRight(") + yellow("isSome(isGreaterThan(4))") + cyan(")")}\n"
+    ),
+    withOffset(4)(assertSourceLocation() + "\n")
   )
 
-  val test7 = testM("labeled failures") {
+  val test7: ZSpec[Any, Nothing] = testM("labeled failures") {
     for {
       a <- ZIO.effectTotal(Some(1))
       b <- ZIO.effectTotal(Some(1))
@@ -125,51 +143,54 @@ object ReportingTestUtils {
       assert(c)(isSome(equalTo(1)).label("third")) &&
       assert(d)(isSome(equalTo(1)).label("fourth"))
   }
-  val test7Expected = Vector(
+  val test7Expected: Vector[String] = Vector(
     expectedFailure("labeled failures"),
     withOffset(2)(s"${blue("0")} did not satisfy ${cyan("equalTo(1)")}\n"),
     withOffset(2)(
-      s"${blue("Some(0)")} did not satisfy ${cyan("(isSome(") + yellow("equalTo(1)") + cyan(") ?? \"third\")")}\n"
-    )
+      s"${blue("`c` = Some(0)")} did not satisfy ${cyan("(isSome(") + yellow("equalTo(1)") + cyan(") ?? \"third\")")}\n"
+    ),
+    withOffset(4)(assertSourceLocation() + "\n")
   )
 
-  val test8 = zio.test.test("Not combinator") {
+  val test8: ZSpec[Any, Nothing] = test("Not combinator") {
     assert(100)(not(equalTo(100)))
   }
-  val test8Expected = Vector(
+  val test8Expected: Vector[String] = Vector(
     expectedFailure("Not combinator"),
     withOffset(2)(s"${blue("100")} satisfied ${cyan("equalTo(100)")}\n"),
     withOffset(2)(
       s"${blue("100")} did not satisfy ${cyan("not(") + yellow("equalTo(100)") + cyan(")")}\n"
-    )
+    ),
+    withOffset(4)(assertSourceLocation() + "\n")
   )
 
-  val suite1 = suite("Suite1")(test1, test2)
-  val suite1Expected = Vector(
+  val suite1: Spec[Any, TestFailure[Nothing], TestSuccess] = suite("Suite1")(test1, test2)
+  val suite1Expected: Vector[String] = Vector(
     expectedSuccess("Suite1"),
     withOffset(2)(test1Expected),
     withOffset(2)(test2Expected)
   )
 
-  val suite2 = suite("Suite2")(test1, test2, test3)
-  val suite2Expected = Vector(
+  val suite2: Spec[Any, TestFailure[Nothing], TestSuccess] = suite("Suite2")(test1, test2, test3)
+  val suite2Expected: Vector[String] = Vector(
     expectedFailure("Suite2"),
     withOffset(2)(test1Expected),
     withOffset(2)(test2Expected)
   ) ++ test3Expected.map(withOffset(2)(_))
 
-  val suite3 = suite("Suite3")(suite1, suite2, test3)
-  val suite3Expected = Vector(expectedFailure("Suite3")) ++
+  val suite3: Spec[Any, TestFailure[Nothing], TestSuccess] = suite("Suite3")(suite1, suite2, test3)
+  val suite3Expected: Vector[String] = Vector(expectedFailure("Suite3")) ++
     suite1Expected.map(withOffset(2)) ++
     suite2Expected.map(withOffset(2)) ++
     test3Expected.map(withOffset(2))
 
-  val suite4 = suite("Suite4")(suite1, suite("Empty")(), test3)
-  val suite4Expected = Vector(expectedFailure("Suite4")) ++
+  val suite4: Spec[Any, TestFailure[Nothing], TestSuccess] = suite("Suite4")(suite1, suite("Empty")(), test3)
+  val suite4Expected: Vector[String] = Vector(expectedFailure("Suite4")) ++
     suite1Expected.map(withOffset(2)) ++
+    Vector(withOffset(2)(expectedIgnored("Empty"))) ++
     test3Expected.map(withOffset(2))
 
-  val mock1 = zio.test.test("Invalid call") {
+  val mock1: ZSpec[Any, Nothing] = test("Invalid call") {
     throw InvalidCallException(
       List(
         InvalidCapability(PureModuleMock.SingleParam, PureModuleMock.ParameterizedCommand, equalTo(1)),
@@ -178,7 +199,7 @@ object ReportingTestUtils {
     )
   }
 
-  val mock1Expected = Vector(
+  val mock1Expected: Vector[String] = Vector(
     expectedFailure("Invalid call"),
     withOffset(2)(s"${red("- could not find a matching expectation")}\n"),
     withOffset(4)(
@@ -191,14 +212,14 @@ object ReportingTestUtils {
     )
   )
 
-  val mock2 = zio.test.test("Unsatisfied expectations") {
+  val mock2: ZSpec[Any, Nothing] = test("Unsatisfied expectations") {
     throw UnsatisfiedExpectationsException(
       PureModuleMock.SingleParam(equalTo(2), value("foo")) ++
         PureModuleMock.SingleParam(equalTo(3), value("bar"))
     )
   }
 
-  val mock2Expected = Vector(
+  val mock2Expected: Vector[String] = Vector(
     expectedFailure("Unsatisfied expectations"),
     withOffset(2)(s"${red("- unsatisfied expectations")}\n"),
     withOffset(4)(s"in sequential order\n"),
@@ -206,22 +227,28 @@ object ReportingTestUtils {
     withOffset(6)(s"""zio.test.mock.module.PureModuleMock.SingleParam with arguments ${cyan("equalTo(3)")}\n""")
   )
 
-  val mock3 = zio.test.test("Extra calls") {
+  val mock3: ZSpec[Any, Nothing] = test("Extra calls") {
     throw UnexpectedCallException(PureModuleMock.ManyParams, (2, "3", 4L))
   }
 
-  val mock3Expected = Vector(
+  val mock3Expected: Vector[String] = Vector(
     expectedFailure("Extra calls"),
     withOffset(2)(s"${red("- unexpected call to zio.test.mock.module.PureModuleMock.ManyParams with arguments")}\n"),
     withOffset(4)(s"${cyan("(2,3,4)")}\n")
   )
 
-  val mock4 = zio.test.test("Invalid range") {
+  val mock4: ZSpec[Any, Nothing] = test("Invalid range") {
     throw InvalidRangeException(4 to 2 by -1)
   }
 
-  val mock4Expected = Vector(
+  val mock4Expected: Vector[String] = Vector(
     expectedFailure("Invalid range"),
     withOffset(2)(s"""${red("- invalid repetition range 4 to 2 by -1")}\n""")
   )
+
+  def assertSourceLocation(): String = blue(s"at $sourceFilePath:XXX")
+  implicit class TestOutputOps(output: String) {
+    def withNoLineNumbers: String =
+      output.replaceAll(Pattern.quote(sourceFilePath + ":") + "\\d+", sourceFilePath + ":XXX")
+  }
 }

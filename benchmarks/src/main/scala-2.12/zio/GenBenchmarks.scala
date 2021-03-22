@@ -1,12 +1,11 @@
 package zio
 
-import java.util.concurrent.TimeUnit
-
 import org.openjdk.jmh.annotations._
 import org.scalacheck
-
 import zio.IOBenchmarks.unsafeRun
 import zio.test.Gen
+
+import java.util.concurrent.TimeUnit
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.AverageTime))
@@ -71,7 +70,7 @@ class GenBenchmarks {
       .run(hedgehog.Size(0), hedgehog.core.Seed.fromTime())
       .value
       ._2
-      .head
+      .get
 
   @Benchmark
   def hedgehogIntListsOfSizeN: List[List[Int]] =
@@ -82,7 +81,7 @@ class GenBenchmarks {
       .run(hedgehog.Size(0), hedgehog.core.Seed.fromTime())
       .value
       ._2
-      .head
+      .get
 
   @Benchmark
   def hedgehogStringsOfSizeN: List[String] =
@@ -92,18 +91,18 @@ class GenBenchmarks {
       .run(hedgehog.Size(0), hedgehog.core.Seed.fromTime())
       .value
       ._2
-      .head
+      .get
 
   @Benchmark
   def nyayaDoubles: List[Double] =
-    nyaya.gen.Gen.double.list.sample
+    nyaya.gen.Gen.double.list.sample()
 
   @Benchmark
   def nyayaIntListsOfSizeN: List[List[Int]] =
-    nyaya.gen.Gen.int.list(0 to listSize).list(0 to elementSize).sample
+    nyaya.gen.Gen.int.list(0 to listSize).list(0 to elementSize).sample()
 
   @Benchmark
   def nyayaStringsOfSizeN: List[String] =
-    nyaya.gen.Gen.string(0 to elementSize).list(0 to listSize).sample
+    nyaya.gen.Gen.string(0 to elementSize).list(0 to listSize).sample()
 
 }

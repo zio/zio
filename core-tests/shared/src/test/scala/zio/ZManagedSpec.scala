@@ -1,20 +1,22 @@
 package zio
 
-import ZManaged.ReleaseMap
-
 import zio.Cause.Interrupt
 import zio.Exit.Failure
+import zio.ZManaged.ReleaseMap
 import zio.duration._
+import zio.internal.Executor
 import zio.test.Assertion._
-import zio.test.TestAspect.{ nonFlaky, scala2Only }
+import zio.test.TestAspect.{nonFlaky, scala2Only}
 import zio.test._
 import zio.test.environment._
+
+import scala.concurrent.ExecutionContext
 
 object ZManagedSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 
-  def spec = suite("ZManaged")(
+  def spec: ZSpec[Environment, Failure] = suite("ZManaged")(
     suite("absorbWith")(
       testM("on fail") {
         assertM(ZManagedExampleError.absorbWith(identity).use[Any, Throwable, Int](ZIO.succeed(_)).run)(
@@ -134,12 +136,11 @@ object ZManagedSpec extends ZIOBaseSpec {
             ZManaged.finalizer(ref.update(3 :: _)).as(ref)
         }
 
-        (inner <&> inner).useNow.flatMap {
-          case (l, r) => l.get <*> r.get
-        }.map {
-          case (l, r) =>
-            assert(l)(equalTo(List(1, 2, 3))) &&
-              assert(r)(equalTo(List(1, 2, 3)))
+        (inner <&> inner).useNow.flatMap { case (l, r) =>
+          l.get <*> r.get
+        }.map { case (l, r) =>
+          assert(l)(equalTo(List(1, 2, 3))) &&
+            assert(r)(equalTo(List(1, 2, 3)))
         }
       } @@ TestAspect.nonFlaky
     ),
@@ -236,13 +237,13 @@ object ZManagedSpec extends ZIOBaseSpec {
         for {
           effects <- Ref.make[List[String]](Nil)
           _ <- (for {
-                   _ <- ZManaged.finalizer(ZIO.dieMessage("Boom"))
-                   _ <- ZManaged.finalizer(effects.update("First" :: _))
-                   _ <- ZManaged.finalizer(ZIO.dieMessage("Boom"))
-                   _ <- ZManaged.finalizer(effects.update("Second" :: _))
-                   _ <- ZManaged.finalizer(ZIO.dieMessage("Boom"))
-                   _ <- ZManaged.finalizer(effects.update("Third" :: _))
-                 } yield ()).use_(ZIO.unit).run
+                 _ <- ZManaged.finalizer(ZIO.dieMessage("Boom"))
+                 _ <- ZManaged.finalizer(effects.update("First" :: _))
+                 _ <- ZManaged.finalizer(ZIO.dieMessage("Boom"))
+                 _ <- ZManaged.finalizer(effects.update("Second" :: _))
+                 _ <- ZManaged.finalizer(ZIO.dieMessage("Boom"))
+                 _ <- ZManaged.finalizer(effects.update("Third" :: _))
+               } yield ()).use_(ZIO.unit).run
           result <- effects.get
         } yield assert(result)(equalTo(List("First", "Second", "Third")))
       }
@@ -478,6 +479,27 @@ object ZManagedSpec extends ZIOBaseSpec {
         ZIO.succeed(assertCompletes)
       }
     ),
+    suite("lock")(
+      testM("locks acquire, use, and release actions to the specified executor") {
+        val executor: UIO[Executor] = ZIO.descriptorWith(descriptor => ZIO.succeedNow(descriptor.executor))
+        val global                  = Executor.fromExecutionContext(100)(ExecutionContext.global)
+        for {
+          default <- executor
+          ref1    <- Ref.make[Executor](default)
+          ref2    <- Ref.make[Executor](default)
+          managed  = ZManaged.make_(executor.flatMap(ref1.set))(executor.flatMap(ref2.set)).lock(global)
+          before  <- executor
+          use     <- managed.use_(executor)
+          acquire <- ref1.get
+          release <- ref2.get
+          after   <- executor
+        } yield assert(before)(equalTo(default)) &&
+          assert(acquire)(equalTo(global)) &&
+          assert(use)(equalTo(global)) &&
+          assert(release)(equalTo(global)) &&
+          assert(after)(equalTo(default))
+      }
+    ),
     suite("mergeAll")(
       testM("Merges elements in the correct order") {
         def res(int: Int) =
@@ -696,8 +718,8 @@ object ZManagedSpec extends ZIOBaseSpec {
         def res(int: Int) =
           ZManaged.succeed(List(int))
 
-        val managed = ZManaged.reduceAll(ZManaged.succeed(Nil), List(1, 2, 3, 4).map(res)) {
-          case (a1, a2) => a1 ++ a2
+        val managed = ZManaged.reduceAll(ZManaged.succeed(Nil), List(1, 2, 3, 4).map(res)) { case (a1, a2) =>
+          a1 ++ a2
         }
         managed.use[Any, Nothing, TestResult](res => ZIO.succeed(assert(res)(equalTo(List(1, 2, 3, 4)))))
       },
@@ -713,8 +735,8 @@ object ZManagedSpec extends ZIOBaseSpec {
         def res(int: Int) =
           ZManaged.succeed(List(int))
 
-        val managed = ZManaged.reduceAllPar(ZManaged.succeed(Nil), List(1, 2, 3, 4).map(res)) {
-          case (a1, a2) => a1 ++ a2
+        val managed = ZManaged.reduceAllPar(ZManaged.succeed(Nil), List(1, 2, 3, 4).map(res)) { case (a1, a2) =>
+          a1 ++ a2
         }
         managed.use[Any, Nothing, TestResult](res => ZIO.succeed(assert(res)(hasSameElements(List(1, 2, 3, 4)))))
       },
@@ -742,8 +764,8 @@ object ZManagedSpec extends ZIOBaseSpec {
         def res(int: Int) =
           ZManaged.succeed(List(int))
 
-        val managed = ZManaged.reduceAllParN(2)(ZManaged.succeed(Nil), List(1, 2, 3, 4).map(res)) {
-          case (acc, a) => a ++ acc
+        val managed = ZManaged.reduceAllParN(2)(ZManaged.succeed(Nil), List(1, 2, 3, 4).map(res)) { case (acc, a) =>
+          a ++ acc
         }
         managed.use[Any, Nothing, TestResult](res => ZIO.succeed(assert(res)(hasSameElements(List(4, 3, 2, 1)))))
       },
@@ -1031,13 +1053,12 @@ object ZManagedSpec extends ZIOBaseSpec {
           for {
             ref <- Ref.make(0)
             res  = ZManaged.reserve(Reservation(ZIO.unit, _ => ref.update(_ + 1)))
-            result <- scope(res).flatMap {
-                        case (close, _) =>
-                          for {
-                            res1 <- ref.get
-                            _    <- close(Exit.unit)
-                            res2 <- ref.get
-                          } yield (res1, res2)
+            result <- scope(res).flatMap { case (close, _) =>
+                        for {
+                          res1 <- ref.get
+                          _    <- close(Exit.unit)
+                          res2 <- ref.get
+                        } yield (res1, res2)
                       }
           } yield assert(result)(equalTo((0, 1)))
         }
@@ -1174,9 +1195,8 @@ object ZManagedSpec extends ZIOBaseSpec {
         val managed = ZManaged.makeReserve(
           clock.sleep(20.milliseconds) *> ZIO.succeed(Reservation(clock.sleep(20.milliseconds), _ => ZIO.unit))
         )
-        val test = managed.timed.use {
-          case (duration, _) =>
-            ZIO.succeed(assert(duration.toNanos)(isGreaterThanEqualTo(40.milliseconds.toNanos)))
+        val test = managed.timed.use { case (duration, _) =>
+          ZIO.succeed(assert(duration.toNanos)(isGreaterThanEqualTo(40.milliseconds.toNanos)))
         }
         for {
           f      <- test.fork
@@ -1243,8 +1263,8 @@ object ZManagedSpec extends ZIOBaseSpec {
         for {
           ref    <- Ref.make(false)
           managed = ZManaged.make(ZIO.unit)(_ => ref.set(true)).withEarlyRelease
-          result <- managed.use {
-                      case (canceler, _) => canceler *> ref.get
+          result <- managed.use { case (canceler, _) =>
+                      canceler *> ref.get
                     }
         } yield assert(result)(isTrue)
       },
@@ -1253,14 +1273,13 @@ object ZManagedSpec extends ZIOBaseSpec {
           ref    <- Ref.make(true)
           latch  <- Promise.make[Nothing, Unit]
           managed = Managed.make(ZIO.unit)(_ => latch.succeed(()) *> ZIO.never.whenM(ref.get)).withEarlyRelease
-          result <- managed.use {
-                      case (canceler, _) =>
-                        for {
-                          fiber        <- canceler.forkDaemon
-                          _            <- latch.await
-                          interruption <- withLive(fiber.interrupt)(_.timeout(5.seconds))
-                          _            <- ref.set(false)
-                        } yield interruption
+          result <- managed.use { case (canceler, _) =>
+                      for {
+                        fiber        <- canceler.forkDaemon
+                        _            <- latch.await
+                        interruption <- withLive(fiber.interrupt)(_.timeout(5.seconds))
+                        _            <- ref.set(false)
+                      } yield interruption
                     }
         } yield assert(result)(isNone)
       } @@ zioTag(interruption),
@@ -1287,10 +1306,9 @@ object ZManagedSpec extends ZIOBaseSpec {
           ref      <- Ref.make(List[String]())
           managed   = (label: String) => ZManaged.finalizer(ref.update(label :: _))
           composite = (managed("1") *> managed("2") *> managed("3")).withEarlyRelease
-          testResult <- composite.use {
-                          case (release, _) =>
-                            release *>
-                              ref.get.map(l => assert(l)(equalTo(List("1", "2", "3"))))
+          testResult <- composite.use { case (release, _) =>
+                          release *>
+                            ref.get.map(l => assert(l)(equalTo(List("1", "2", "3"))))
                         }
         } yield testResult
       }
@@ -1525,8 +1543,8 @@ object ZManagedSpec extends ZIOBaseSpec {
             f <- ZManaged.fail("Uh oh!")
           } yield f
 
-        val errorToVal = zm.catchSomeCause {
-          case Cause.Fail("Uh oh!") => ZManaged.succeed("matched")
+        val errorToVal = zm.catchSomeCause { case Cause.Fail("Uh oh!") =>
+          ZManaged.succeed("matched")
         }
         assertM(errorToVal.use(ZIO.succeed(_)))(equalTo("matched"))
       } @@ zioTag(errors),
@@ -1537,8 +1555,8 @@ object ZManagedSpec extends ZIOBaseSpec {
             f <- ZManaged.fail("Uh oh!")
           } yield f
 
-        val errorToVal = zm.catchSomeCause {
-          case Cause.Fail("not matched") => ZManaged.succeed("matched")
+        val errorToVal = zm.catchSomeCause { case Cause.Fail("not matched") =>
+          ZManaged.succeed("matched")
         }
         val executed = errorToVal.use[Any, String, String](ZIO.succeed(_)).run
         assertM(executed)(fails(equalTo("Uh oh!")))
@@ -1546,16 +1564,16 @@ object ZManagedSpec extends ZIOBaseSpec {
     ),
     suite("collect")(
       testM("collectM maps value, if PF matched") {
-        val managed = ZManaged.succeed(42).collectM("Oh No!") {
-          case 42 => ZManaged.succeed(84)
+        val managed = ZManaged.succeed(42).collectM("Oh No!") { case 42 =>
+          ZManaged.succeed(84)
         }
         val effect: IO[String, Int] = managed.use(ZIO.succeed(_))
 
         assertM(effect)(equalTo(84))
       },
       testM("collectM produces given error, if PF not matched") {
-        val managed = ZManaged.succeed(42).collectM("Oh No!") {
-          case 43 => ZManaged.succeed(84)
+        val managed = ZManaged.succeed(42).collectM("Oh No!") { case 43 =>
+          ZManaged.succeed(84)
         }
         val effect: IO[String, Int] = managed.use(ZIO.succeed(_))
 
@@ -1614,7 +1632,7 @@ object ZManagedSpec extends ZIOBaseSpec {
   def doInterrupt(
     managed: IO[Nothing, Unit] => ZManaged[Any, Nothing, Unit],
     expected: Fiber.Id => Option[Exit[Nothing, Unit]]
-  ) =
+  ): ZIO[Live, Nothing, TestResult] =
     for {
       fiberId            <- ZIO.fiberId
       never              <- Promise.make[Nothing, Unit]
@@ -1635,7 +1653,7 @@ object ZManagedSpec extends ZIOBaseSpec {
   def testFinalizersPar[R, E](
     n: Int,
     f: ZManaged[Any, Nothing, Unit] => ZManaged[R, E, Any]
-  ) =
+  ): ZIO[R, E, TestResult] =
     for {
       releases <- Ref.make[Int](0)
       baseRes   = ZManaged.make(ZIO.succeed(()))(_ => releases.update(_ + 1))
@@ -1647,7 +1665,7 @@ object ZManagedSpec extends ZIOBaseSpec {
   def testAcquirePar[R, E](
     n: Int,
     f: ZManaged[Live, Nothing, Unit] => ZManaged[R, E, Any]
-  ) =
+  ): ZIO[R with Live, Nothing, TestResult] =
     for {
       effects      <- Ref.make(0)
       countDown    <- countDownLatch(n + 1)
@@ -1664,7 +1682,7 @@ object ZManagedSpec extends ZIOBaseSpec {
   def testReservePar[R, E, A](
     n: Int,
     f: ZManaged[Live, Nothing, Unit] => ZManaged[R, E, A]
-  ) =
+  ): ZIO[R with Live, Nothing, TestResult] =
     for {
       effects      <- Ref.make(0)
       countDown    <- countDownLatch(n + 1)
@@ -1679,7 +1697,7 @@ object ZManagedSpec extends ZIOBaseSpec {
   def testParallelNestedFinalizerOrdering(
     listLength: Int,
     f: List[ZManaged[Any, Nothing, Ref[List[Int]]]] => ZManaged[Any, Nothing, List[Ref[List[Int]]]]
-  ) = {
+  ): ZIO[Any, Nothing, TestResult] = {
     val inner = Ref.make(List[Int]()).toManaged_.flatMap { ref =>
       ZManaged.finalizer(ref.update(1 :: _)) *>
         ZManaged.finalizer(ref.update(2 :: _)) *>

@@ -1,12 +1,10 @@
 package zio
 
-import java.util.concurrent.TimeUnit
-
-import scala.concurrent.Await
-
 import org.openjdk.jmh.annotations._
-
 import zio.IOBenchmarks._
+
+import java.util.concurrent.TimeUnit
+import scala.concurrent.Await
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
@@ -96,12 +94,12 @@ class IOShallowAttemptBenchmark {
 
   @Benchmark
   def twitterShallowAttempt(): BigInt = {
-    import com.twitter.util.{ Await, Future }
-    import com.twitter.util.{ Return, Throw }
+    import com.twitter.util.{Await, Future}
+    import com.twitter.util.{Return, Throw}
 
     def throwup(n: Int): Future[BigInt] =
-      if (n == 0) throwup(n + 1).rescue {
-        case _ => Future.value(0)
+      if (n == 0) throwup(n + 1).rescue { case _ =>
+        Future.value(0)
       }
       else if (n == depth) Future(1)
       else
@@ -126,7 +124,7 @@ class IOShallowAttemptBenchmark {
           case Right(_) => Task.raiseError(new Error("Oh noes!"))
         }
 
-    throwup(0).runSyncStep.right.get
+    throwup(0).runSyncStep.fold(_ => sys.error("Either.right.get on Left"), identity)
   }
 
   @Benchmark

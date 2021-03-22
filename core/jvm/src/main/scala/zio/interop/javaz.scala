@@ -16,13 +16,12 @@
 
 package zio.interop
 
-import scala.concurrent.ExecutionException
-
 import _root_.java.nio.channels.CompletionHandler
-import _root_.java.util.concurrent.{ CompletableFuture, CompletionException, CompletionStage, Future }
-
+import _root_.java.util.concurrent.{CompletableFuture, CompletionException, CompletionStage, Future}
 import zio._
-import zio.blocking.{ blocking, Blocking }
+import zio.blocking.{Blocking, blocking}
+
+import scala.concurrent.ExecutionException
 
 private[zio] object javaz {
   def effectAsyncWithCompletionHandler[T](op: CompletionHandler[T, Any] => Any): Task[T] =

@@ -1,12 +1,10 @@
 package zio
 
-import java.util.concurrent.TimeUnit
-
-import scala.concurrent.Await
-
 import org.openjdk.jmh.annotations._
-
 import zio.IOBenchmarks._
+
+import java.util.concurrent.TimeUnit
+import scala.concurrent.Await
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
@@ -76,19 +74,19 @@ class IOLeftBindBenchmark {
     import io.reactivex.Single
 
     def loop(i: Int): Single[Int] =
-      if (i % depth == 0) Single.fromCallable(() => i + 1).flatMap(loop)
+      if (i % depth == 0) Single.fromCallable(() => i + 1).flatMap(loop(_))
       else if (i < size) loop(i + 1).flatMap(i => Single.fromCallable(() => i))
       else Single.fromCallable(() => i)
 
     Single
       .fromCallable(() => 0)
-      .flatMap(loop)
+      .flatMap(loop(_))
       .blockingGet()
   }
 
   @Benchmark
   def twitterLeftBindBenchmark(): Int = {
-    import com.twitter.util.{ Await, Future }
+    import com.twitter.util.{Await, Future}
 
     def loop(i: Int): Future[Int] =
       if (i % depth == 0) Future(i + 1).flatMap(loop)
@@ -110,7 +108,7 @@ class IOLeftBindBenchmark {
       else if (i < size) loop(i + 1).flatMap(i => Task.eval(i))
       else Task.eval(i)
 
-    Task.eval(0).flatMap(loop).runSyncStep.right.get
+    Task.eval(0).flatMap(loop).runSyncStep.fold(_ => sys.error("Either.right.get on Left"), identity)
   }
 
   @Benchmark
@@ -137,6 +135,6 @@ class IOLeftBindBenchmark {
       else if (i < size) loop(i + 1).flatMap(i => IO(i))
       else IO(i)
 
-    IO(0).flatMap(loop).unsafeRunSync
+    IO(0).flatMap(loop).unsafeRunSync()
   }
 }

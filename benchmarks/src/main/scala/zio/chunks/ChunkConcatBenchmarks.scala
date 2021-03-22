@@ -1,10 +1,9 @@
 package zio.chunks
 
-import java.util.concurrent.TimeUnit
-
 import org.openjdk.jmh.annotations._
-
 import zio.Chunk
+
+import java.util.concurrent.TimeUnit
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))

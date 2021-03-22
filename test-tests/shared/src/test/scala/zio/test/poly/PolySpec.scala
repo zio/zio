@@ -1,10 +1,10 @@
 package zio.test.poly
 
-import scala.annotation.tailrec
-
 import zio.random._
 import zio.test.Assertion._
 import zio.test._
+
+import scala.annotation.tailrec
 
 object PolySpec extends DefaultRunnableSpec {
 
@@ -41,7 +41,7 @@ object PolySpec extends DefaultRunnableSpec {
   def genExpr(t: GenPoly): Gen[Random with Sized, Expr[t.T]] =
     Gen.oneOf(genMapping(t), genValue(t))
 
-  def spec = suite("PolySpec")(
+  def spec: ZSpec[Environment, Failure] = suite("PolySpec")(
     testM("map fusion") {
       check(GenPoly.genPoly.flatMap(genExpr(_)))(expr => assert(eval(fuse(expr)))(equalTo(eval(expr))))
     }

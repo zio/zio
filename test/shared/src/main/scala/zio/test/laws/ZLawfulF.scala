@@ -17,7 +17,7 @@
 package zio.test.laws
 
 /**
- * `ZLawful[CapsF, Caps, R]` describes a set of laws that a parameterized type
+ * `ZLawfulF[CapsF, Caps, R]` describes a set of laws that a parameterized type
  * `F[A]` with capabilities `CapsF` is expected to satisfy with respect to all
  * types `A` that have capabilities `Caps`. Lawful instances can be combined
  * using `+` to describe a set of capabilities and all of the laws that those

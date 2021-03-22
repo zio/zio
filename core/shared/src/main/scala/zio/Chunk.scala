@@ -18,9 +18,9 @@ package zio
 
 import java.nio._
 import java.util.concurrent.atomic.AtomicInteger
-
+import scala.annotation.tailrec
 import scala.collection.mutable.Builder
-import scala.reflect.{ classTag, ClassTag }
+import scala.reflect.{ClassTag, classTag}
 
 /**
  * A `Chunk[A]` represents a chunk of values of type `A`. Chunks are designed
@@ -354,9 +354,8 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
       var i      = 0
       while (i < length) {
         val a = array(i)
-        dest = dest.zipWith(f(a)) {
-          case (builder, res) =>
-            if (res) builder += a else builder
+        dest = dest.zipWith(f(a)) { case (builder, res) =>
+          if (res) builder += a else builder
         }
         i += 1
       }
@@ -512,6 +511,16 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
   }
 
   /**
+   * Returns the first element of this chunk. Note that this method is partial
+   * in that it will throw an exception if the chunk is empty. Consider using
+   * `headOption` to explicitly handle the possibility that the chunk is empty
+   * or iterating over the elements of the chunk in lower level, performance
+   * sensitive code unless you really only need the first element of the chunk.
+   */
+  override def head: A =
+    self(0)
+
+  /**
    * Returns the first element of this chunk if it exists.
    */
   override final def headOption: Option[A] =
@@ -607,10 +616,9 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
         while (i < length) {
           val a = array(i)
           dest = dest.flatMap { state =>
-            f1(state, a).map {
-              case (state2, b) =>
-                builder += b
-                state2
+            f1(state, a).map { case (state2, b) =>
+              builder += b
+              state2
             }
           }
           i += 1
@@ -680,6 +688,41 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
    */
   def short(index: Int)(implicit ev: A <:< Short): Short =
     ev(apply(index))
+
+  /**
+   * Splits this chunk into `n` equally sized chunks.
+   */
+  final def split(n: Int): Chunk[Chunk[A]] = {
+    val length    = self.length
+    val quotient  = length / n
+    val remainder = length % n
+    val iterator  = self.iterator
+    val chunks    = ChunkBuilder.make[Chunk[A]]()
+    var i         = 0
+    while (i < remainder) {
+      val chunk = ChunkBuilder.make[A]()
+      var j     = 0
+      while (j <= quotient) {
+        chunk += iterator.next()
+        j += 1
+      }
+      chunks += chunk.result()
+      i += 1
+    }
+    if (quotient > 0) {
+      while (i < n) {
+        val chunk = ChunkBuilder.make[A]()
+        var j     = 0
+        while (j < quotient) {
+          chunk += iterator.next()
+          j += 1
+        }
+        chunks += chunk.result()
+        i += 1
+      }
+    }
+    chunks.result()
+  }
 
   /**
    * Returns two splits of this chunk at the specified index.
@@ -942,14 +985,16 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
     val iterator = arrayIterator
     val builder  = ChunkBuilder.make[(A, Int)]()
     builder.sizeHint(length)
+    var idx = indexOffset
     while (iterator.hasNext) {
       val array  = iterator.next()
       val length = array.length
-      var i      = indexOffset
+      var i      = 0
       while (i < length) {
         val a = array(i)
-        builder += ((a, i))
+        builder += ((a, idx))
         i += 1
+        idx += 1
       }
     }
     builder.result()
@@ -1075,7 +1120,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
   def fromArray[A](array: Array[A]): Chunk[A] =
     (if (array.isEmpty) Empty
      else
-       array.asInstanceOf[AnyRef] match {
+       (array.asInstanceOf[AnyRef]: @unchecked) match {
          case x: Array[AnyRef]  => AnyRefArray(x)
          case x: Array[Int]     => IntArray(x)
          case x: Array[Double]  => DoubleArray(x)
@@ -1173,10 +1218,20 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       case iterable if iterable.isEmpty => Empty
       case vector: Vector[A]            => VectorChunk(vector)
       case iterable =>
-        val first                   = iterable.head
-        implicit val A: ClassTag[A] = Tags.fromValue(first)
-        fromArray(it.toArray)
+        val builder = ChunkBuilder.make[A]()
+        builder.sizeHint(iterable.size)
+        builder ++= iterable
+        builder.result()
     }
+
+  /**
+   * Creates a chunk from an iterator.
+   */
+  def fromIterator[A](iterator: Iterator[A]): Chunk[A] = {
+    val builder = ChunkBuilder.make[A]()
+    builder ++= iterator
+    builder.result()
+  }
 
   override def fill[A](n: Int)(elem: => A): Chunk[A] =
     if (n <= 0) Chunk.empty
@@ -1203,6 +1258,38 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
    */
   def succeed[A](a: A): Chunk[A] =
     single(a)
+
+  /**
+   * Constructs a `Chunk` by repeatedly applying the function `f` as long as it
+   * returns `Some`.
+   */
+  def unfold[S, A](s: S)(f: S => Option[(A, S)]): Chunk[A] = {
+
+    @tailrec
+    def go(s: S, builder: ChunkBuilder[A]): Chunk[A] =
+      f(s) match {
+        case Some((a, s)) => go(s, builder += a)
+        case None         => builder.result()
+      }
+
+    go(s, ChunkBuilder.make[A]())
+  }
+
+  /**
+   * Constructs a `Chunk` by repeatedly applying the effectual function `f` as
+   * long as it returns `Some`.
+   */
+  def unfoldM[R, E, A, S](s: S)(f: S => ZIO[R, E, Option[(A, S)]]): ZIO[R, E, Chunk[A]] =
+    ZIO.effectSuspendTotal {
+
+      def go(s: S, builder: ChunkBuilder[A]): ZIO[R, E, Chunk[A]] =
+        f(s).flatMap {
+          case Some((a, s)) => go(s, builder += a)
+          case None         => ZIO.succeedNow(builder.result())
+        }
+
+      go(s, ChunkBuilder.make[A]())
+    }
 
   /**
    * The unit chunk
@@ -1363,9 +1450,8 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
           val j = i
           // `zipWith` is lazy in the RHS, and we rely on the side-effects of `orElse` here.
           val rhs = pf.applyOrElse(self(j), orElse)
-          dest = dest.zipWith(rhs) {
-            case (builder, b) =>
-              if (b != null) (builder += b) else builder
+          dest = dest.zipWith(rhs) { case (builder, b) =>
+            if (b != null) (builder += b) else builder
           }
           i += 1
         }
@@ -1526,7 +1612,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       (left.arrayIterator ++ right.arrayIterator).asInstanceOf[Iterator[Array[A1]]]
 
     override private[zio] def reverseArrayIterator[A1 >: A]: Iterator[Array[A1]] =
-      (right.arrayIterator ++ left.arrayIterator).asInstanceOf[Iterator[Array[A1]]]
+      (right.reverseArrayIterator ++ left.reverseArrayIterator).asInstanceOf[Iterator[Array[A1]]]
   }
 
   private final case class Singleton[A](a: A) extends Chunk[A] {

@@ -1,10 +1,9 @@
 package zio.stream.compression
 
-import java.{ util => ju }
+import zio.{Chunk, ZIO, ZManaged}
+
 import java.util.zip.Deflater
-
-import zio.{ Chunk, ZIO, ZManaged }
-
+import java.{util => ju}
 import scala.annotation.tailrec
 
 object Deflate {
@@ -21,8 +20,8 @@ object Deflate {
         val deflater = new Deflater(level.jValue, noWrap)
         deflater.setStrategy(strategy.jValue)
         (deflater, new Array[Byte](bufferSize))
-      }) {
-        case (deflater, _) => ZIO.effectTotal(deflater.end())
+      }) { case (deflater, _) =>
+        ZIO.effectTotal(deflater.end())
       }
       .map {
         case (deflater, buffer) => {

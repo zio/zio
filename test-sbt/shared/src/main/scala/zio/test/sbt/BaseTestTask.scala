@@ -1,11 +1,9 @@
 package zio.test.sbt
 
-import sbt.testing.{ EventHandler, Logger, Task, TaskDef }
-
-import zio.UIO
+import sbt.testing.{EventHandler, Logger, Task, TaskDef}
 import zio.clock.Clock
-import zio.test.{ AbstractRunnableSpec, FilteredSpec, SummaryBuilder, TestArgs, TestLogger }
-import zio.{ Layer, Runtime, ZIO, ZLayer }
+import zio.test.{AbstractRunnableSpec, FilteredSpec, SummaryBuilder, TestArgs, TestLogger}
+import zio.{Layer, Runtime, UIO, ZIO, ZLayer}
 
 abstract class BaseTestTask(
   val taskDef: TaskDef,
@@ -16,7 +14,7 @@ abstract class BaseTestTask(
 
   protected lazy val specInstance: AbstractRunnableSpec = {
     import org.portablescala.reflect._
-    val fqn = taskDef.fullyQualifiedName.stripSuffix("$") + "$"
+    val fqn = taskDef.fullyQualifiedName().stripSuffix("$") + "$"
     Reflect
       .lookupLoadableModuleClass(fqn, testClassLoader)
       .getOrElse(throw new ClassNotFoundException("failed to load object: " + fqn))
@@ -29,7 +27,7 @@ abstract class BaseTestTask(
       spec   <- specInstance.runSpec(FilteredSpec(specInstance.spec, args))
       summary = SummaryBuilder.buildSummary(spec)
       _      <- sendSummary.provide(summary)
-      events  = ZTestEvent.from(spec, taskDef.fullyQualifiedName, taskDef.fingerprint)
+      events  = ZTestEvent.from(spec, taskDef.fullyQualifiedName(), taskDef.fingerprint())
       _      <- ZIO.foreach(events)(e => ZIO.effect(eventHandler.handle(e)))
     } yield ()
 

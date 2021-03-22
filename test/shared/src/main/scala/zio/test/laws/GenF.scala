@@ -18,7 +18,7 @@ package zio.test.laws
 
 import zio.Chunk
 import zio.random.Random
-import zio.test.{ Gen, Sized }
+import zio.test.{Gen, Sized}
 
 /**
  * A `GenF` knows how to construct a generator of `F[A]` values given a
@@ -26,7 +26,6 @@ import zio.test.{ Gen, Sized }
  * knows how to generate lists with elements given a generator of elements of
  * that type. You can think of `GenF` as a "recipe" for building generators
  * for parameterized types.
- * `
  */
 trait GenF[-R, F[_]] {
 

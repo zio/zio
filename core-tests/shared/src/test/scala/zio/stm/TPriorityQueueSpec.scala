@@ -3,7 +3,7 @@ package zio.stm
 import zio.random.Random
 import zio.test.Assertion._
 import zio.test._
-import zio.{ Chunk, ZIOBaseSpec }
+import zio.{Chunk, ZIOBaseSpec}
 
 object TPriorityQueueSpec extends ZIOBaseSpec {
 
@@ -24,7 +24,27 @@ object TPriorityQueueSpec extends ZIOBaseSpec {
   val genPredicate: Gen[Random, Event => Boolean] =
     Gen.function(Gen.boolean)
 
-  def spec = suite("TPriorityQueueSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("TPriorityQueueSpec")(
+    testM("isEmpty") {
+      checkM(genEvents) { as =>
+        val transaction = for {
+          queue <- TPriorityQueue.empty[Event]
+          _     <- queue.offerAll(as)
+          empty <- queue.isEmpty
+        } yield empty
+        assertM(transaction.commit)(equalTo(as.isEmpty))
+      }
+    },
+    testM("nonEmpty") {
+      checkM(genEvents) { as =>
+        val transaction = for {
+          queue    <- TPriorityQueue.empty[Event]
+          _        <- queue.offerAll(as)
+          nonEmpty <- queue.nonEmpty
+        } yield nonEmpty
+        assertM(transaction.commit)(equalTo(as.nonEmpty))
+      }
+    },
     testM("offerAll and takeAll") {
       checkM(genEvents) { as =>
         val transaction = for {
@@ -69,14 +89,13 @@ object TPriorityQueueSpec extends ZIOBaseSpec {
         as <- genEvents
         n  <- Gen.int(0, as.length)
       } yield (as, n)
-      checkM(gen) {
-        case (as, n) =>
-          val transaction = for {
-            queue <- TPriorityQueue.fromIterable(as)
-            left  <- queue.takeUpTo(n)
-            right <- queue.takeAll
-          } yield left ++ right
-          assertM(transaction.commit)(hasSameElements(as) && isSorted)
+      checkM(gen) { case (as, n) =>
+        val transaction = for {
+          queue <- TPriorityQueue.fromIterable(as)
+          left  <- queue.takeUpTo(n)
+          right <- queue.takeAll
+        } yield left ++ right
+        assertM(transaction.commit)(hasSameElements(as) && isSorted)
       }
     },
     testM("toChunk") {

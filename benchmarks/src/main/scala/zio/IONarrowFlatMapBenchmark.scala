@@ -1,12 +1,10 @@
 package zio
 
-import java.util.concurrent.TimeUnit
-
-import scala.concurrent.Await
-
 import org.openjdk.jmh.annotations._
-
 import zio.IOBenchmarks._
+
+import java.util.concurrent.TimeUnit
+import scala.concurrent.Await
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
@@ -71,18 +69,18 @@ class IONarrowFlatMapBenchmark {
     import io.reactivex.Single
 
     def loop(i: Int): Single[Int] =
-      if (i < size) Single.fromCallable(() => i + 1).flatMap(loop)
+      if (i < size) Single.fromCallable(() => i + 1).flatMap(loop(_))
       else Single.fromCallable(() => i)
 
     Single
       .fromCallable(() => 0)
-      .flatMap(loop)
+      .flatMap(loop(_))
       .blockingGet()
   }
 
   @Benchmark
   def twitterNarrowFlatMap(): Int = {
-    import com.twitter.util.{ Await, Future }
+    import com.twitter.util.{Await, Future}
 
     def loop(i: Int): Future[Int] =
       if (i < size) Future(i + 1).flatMap(loop)
@@ -102,7 +100,7 @@ class IONarrowFlatMapBenchmark {
       if (i < size) Task.eval(i + 1).flatMap(loop)
       else Task.eval(i)
 
-    Task.eval(0).flatMap(loop).runSyncStep.right.get
+    Task.eval(0).flatMap(loop).runSyncStep.fold(_ => sys.error("Either.right.get on Left"), identity)
   }
 
   @Benchmark
@@ -127,6 +125,6 @@ class IONarrowFlatMapBenchmark {
       if (i < size) IO(i + 1).flatMap(loop)
       else IO(i)
 
-    IO(0).flatMap(loop).unsafeRunSync
+    IO(0).flatMap(loop).unsafeRunSync()
   }
 }

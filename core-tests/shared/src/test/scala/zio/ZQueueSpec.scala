@@ -1,19 +1,20 @@
 package zio
 
-import scala.collection.immutable.Range
-
+import com.github.ghik.silencer.silent
 import zio.ZQueueSpecUtil.waitForSize
 import zio.duration._
 import zio.test.Assertion._
-import zio.test.TestAspect.{ jvm, nonFlaky }
+import zio.test.TestAspect.{jvm, nonFlaky}
 import zio.test._
 import zio.test.environment.Live
+
+import scala.collection.immutable.Range
 
 object ZQueueSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 
-  def spec = suite("ZQueueSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("ZQueueSpec")(
     testM("sequential offer and take") {
       for {
         queue <- Queue.bounded[Int](100)
@@ -264,13 +265,46 @@ object ZQueueSpec extends ZIOBaseSpec {
       },
       testM("blocks until a required minimum of elements is collected") {
         for {
-          queue   <- Queue.bounded[Int](100)
-          counter <- Ref.make(0)
-          updater  = (queue.offer(10) *> counter.update(_ + 1)).forever
-          getter   = queue.takeBetween(5, 10)
-          _       <- getter.race(updater)
-          count   <- counter.get
-        } yield assert(count >= 5)(isTrue)
+          queue  <- Queue.bounded[Int](100)
+          updater = queue.offer(10).forever
+          getter  = queue.takeBetween(5, 10)
+          res    <- getter.race(updater)
+        } yield assert(res)(hasSize(isGreaterThanEqualTo(5)))
+      },
+      testM("returns elements in the correct order") {
+        checkM(Gen.listOf(Gen.int(-10, 10))) { as =>
+          for {
+            queue <- Queue.bounded[Int](100)
+            f     <- ZIO.foreach(as)(queue.offer).fork
+            bs    <- queue.takeBetween(as.length, as.length)
+            _     <- f.interrupt
+          } yield assert(as)(equalTo(bs))
+        }
+      }
+    ),
+    suite("takeN")(
+      testM("returns immediately if there is enough elements") {
+        for {
+          queue <- Queue.bounded[Int](100)
+          _     <- queue.offerAll(List(1, 2, 3, 4, 5))
+          res   <- queue.takeN(3)
+        } yield assert(res)(equalTo(List(1, 2, 3)))
+      },
+      testM("returns an empty list if a negative number or zero is specified") {
+        for {
+          queue       <- Queue.bounded[Int](100)
+          _           <- queue.offerAll(List(1, 2, 3))
+          resNegative <- queue.takeN(-3)
+          resZero     <- queue.takeN(0)
+        } yield assert(resNegative)(isEmpty) && assert(resZero)(isEmpty)
+      },
+      testM("blocks until the required number of elements is available") {
+        for {
+          queue  <- Queue.bounded[Int](100)
+          updater = queue.offer(10).forever
+          getter  = queue.takeN(5)
+          res    <- getter.race(updater)
+        } yield assert(res)(hasSize(equalTo(5)))
       }
     ),
     testM("offerAll with takeAll") {
@@ -726,7 +760,7 @@ object ZQueueSpec extends ZIOBaseSpec {
       for {
         q1 <- Queue.bounded[Int](100)
         q2 <- Queue.bounded[Int](100)
-        q   = q1 both q2
+        q   = (q1 both q2): @silent("deprecated")
         _  <- q.offer(10)
         v  <- q.take
       } yield assert(v)(equalTo((10, 10)))
@@ -754,6 +788,32 @@ object ZQueueSpec extends ZIOBaseSpec {
         s2 <- q.size
       } yield assert(s1)(equalTo(0)) &&
         assert(s2)(equalTo(1))
+    },
+    testM("queue filterOutput with take") {
+      for {
+        queue <- Queue.bounded[Int](2).map(_.filterOutput(_ % 2 == 0))
+        _     <- queue.offer(1)
+        _     <- queue.offer(2)
+        value <- queue.take
+      } yield assert(value)(equalTo(2))
+    },
+    testM("queue filterOutput with takeAll") {
+      for {
+        queue  <- Queue.unbounded[Int].map(_.filterOutput(_ % 2 == 0))
+        _      <- queue.offerAll(List(1, 2, 3, 4, 5))
+        values <- queue.takeAll
+        size   <- queue.size
+      } yield assert(values)(equalTo(List(2, 4))) &&
+        assert(size)(equalTo(0))
+    },
+    testM("queue filterOutput with takeUpTo") {
+      for {
+        queue  <- Queue.unbounded[Int].map(_.filterOutput(_ % 2 == 0))
+        _      <- queue.offerAll(List(1, 2, 3, 4, 5))
+        values <- queue.takeUpTo(2)
+        size   <- queue.size
+      } yield assert(values)(equalTo(List(2, 4))) &&
+        assert(size)(equalTo(1))
     },
     testM("queue isShutdown") {
       for {

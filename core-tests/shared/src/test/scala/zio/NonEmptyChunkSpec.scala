@@ -1,23 +1,24 @@
 package zio
 
+import zio.random.Random
 import zio.test.Assertion._
 import zio.test._
 
 object NonEmptyChunkSpec extends ZIOBaseSpec {
 
-  lazy val genChunk = Gen.chunkOf(genInt)
+  lazy val genChunk: Gen[Random with Sized, Chunk[Int]] = Gen.chunkOf(genInt)
 
-  lazy val genInt = Gen.int(-10, 10)
+  lazy val genInt: Gen[Random, Int] = Gen.int(-10, 10)
 
-  lazy val genIntFunction = Gen.function(genInt)
+  lazy val genIntFunction: Gen[Random, Any => Int] = Gen.function(genInt)
 
-  lazy val genIntFunction2 = Gen.function2(genInt)
+  lazy val genIntFunction2: Gen[Random, (Any, Any) => Int] = Gen.function2(genInt)
 
-  lazy val genNonEmptyChunk = Gen.chunkOf1(genInt)
+  lazy val genNonEmptyChunk: Gen[Random with Sized, NonEmptyChunk[Int]] = Gen.chunkOf1(genInt)
 
-  lazy val genNonEmptyChunkFunction = Gen.function(genNonEmptyChunk)
+  lazy val genNonEmptyChunkFunction: Gen[Random with Sized, Any => NonEmptyChunk[Int]] = Gen.function(genNonEmptyChunk)
 
-  def spec = suite("NonEmptyChunkSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("NonEmptyChunkSpec")(
     testM("+") {
       check(genNonEmptyChunk, genInt)((as, a) => assert((as :+ a).toChunk)(equalTo(as.toChunk :+ a)))
     },
@@ -55,6 +56,35 @@ object NonEmptyChunkSpec extends ZIOBaseSpec {
         val expected = as.init.foldRight(map(as.last))(reduce)
         assert(actual)(equalTo(expected))
       }
-    }
+    },
+    suite("unapplySeq")(
+      test("matches a nonempty chunk") {
+        val chunk = Chunk(1, 2, 3)
+        val actual = chunk match {
+          case NonEmptyChunk(x, y, z) => Some((x, y, z))
+          case _                      => None
+        }
+        val expected = Some((1, 2, 3))
+        assert(actual)(equalTo(expected))
+      },
+      test("does not match an empty chunk") {
+        val chunk = Chunk.empty
+        val actual = chunk match {
+          case NonEmptyChunk(x, y, z) => Some((x, y, z))
+          case _                      => None
+        }
+        val expected = None
+        assert(actual)(equalTo(expected))
+      },
+      test("does not match another collection type") {
+        val vector = Vector(1, 2, 3)
+        val actual = vector match {
+          case NonEmptyChunk(x, y, z) => Some((x, y, z))
+          case _                      => None
+        }
+        val expected = None
+        assert(actual)(equalTo(expected))
+      }
+    )
   )
 }

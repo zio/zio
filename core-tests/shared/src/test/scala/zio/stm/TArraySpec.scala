@@ -17,13 +17,13 @@ package zio.stm
 
 import zio.test.Assertion._
 import zio.test._
-import zio.{ Chunk, ZIOBaseSpec }
+import zio.{Chunk, ZIOBaseSpec}
 
 object TArraySpec extends ZIOBaseSpec {
 
   import ZIOTag._
 
-  def spec = suite("TArraySpec")(
+  def spec: ZSpec[Environment, Failure] = suite("TArraySpec")(
     suite("apply")(
       testM("happy-path") {
         val res = for {
@@ -51,8 +51,8 @@ object TArraySpec extends ZIOBaseSpec {
       testM("succeeds for empty") {
         for {
           tArray <- makeTArray[Option[Int]](0)(None).commit
-          result <- tArray.collectFirst {
-                      case any => any
+          result <- tArray.collectFirst { case any =>
+                      any
                     }.commit
         } yield assert(result)(isNone)
       },
@@ -87,8 +87,8 @@ object TArraySpec extends ZIOBaseSpec {
       testM("succeeds for empty") {
         for {
           tArray <- makeTArray[Option[Int]](0)(None).commit
-          result <- tArray.collectFirstM {
-                      case any => STM.succeed(any)
+          result <- tArray.collectFirstM { case any =>
+                      STM.succeed(any)
                     }.commit
         } yield assert(result)(isNone)
       },

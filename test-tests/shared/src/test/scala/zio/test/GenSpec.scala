@@ -1,21 +1,20 @@
 package zio.test
 
-import java.time._
-
-import scala.math.Numeric.DoubleIsFractional
-
-import zio.duration.{ Duration, _ }
+import zio.duration.{Duration, _}
 import zio.random.Random
 import zio.test.Assertion._
 import zio.test.GenUtils._
-import zio.test.TestAspect.{ nonFlaky, scala2Only }
-import zio.test.{ check => Check, checkN => CheckN }
-import zio.{ Chunk, NonEmptyChunk, ZIO }
+import zio.test.TestAspect.{nonFlaky, scala2Only, setSeed}
+import zio.test.{check => Check, checkN => CheckN}
+import zio.{Chunk, NonEmptyChunk, ZIO}
+
+import java.time._
+import scala.math.Numeric.DoubleIsFractional
 
 object GenSpec extends ZIOBaseSpec {
   implicit val localDateTimeOrdering: Ordering[LocalDateTime] = _ compareTo _
 
-  def spec = suite("GenSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("GenSpec")(
     suite("integration tests")(
       testM("with bogus even property") {
         val gen = Gen.int(0, 100)
@@ -170,6 +169,9 @@ object GenSpec extends ZIOBaseSpec {
       },
       testM("chunkOfN generates chunks of correct size") {
         checkSample(Gen.chunkOfN(10)(smallInt))(forall(equalTo(10)), _.map(_.length))
+      },
+      testM("collect collects values a partial function is defined at") {
+        checkSample(smallInt.collect { case n if n % 2 == 0 => n })(forall(equalTo(0)), _.map(_ % 2))
       },
       testM("const generates constant value") {
         checkSample(Gen.const("constant"))(forall(equalTo("constant")))
@@ -435,6 +437,9 @@ object GenSpec extends ZIOBaseSpec {
       testM("chunkOfN shrinks elements") {
         checkShrink(Gen.chunkOfN(10)(smallInt))(Chunk.fill(10)(-10))
       },
+      testM("collect collects shrinks a partial function is defined at") {
+        checkShrink(Gen.int(1, 10).collect { case n if n % 2 == 0 => n })(2)
+      },
       testM("double shrinks to bottom of range") {
         checkShrink(Gen.double(5.0, 9.0))(5.0)
       },
@@ -596,7 +601,11 @@ object GenSpec extends ZIOBaseSpec {
             result <- shrinkWith(gen) { case (x, y) => x < m && y < n }
           } yield assert(result.reverse.headOption)(isSome(equalTo((m, 0)) || equalTo((0, n))))
         }
-      }
+      },
+      testM("determinism") {
+        val gen = Gen.anyInt <&> Gen.anyInt
+        assertM(gen.runHead)(isSome(equalTo((-1170105035, 234785527))))
+      } @@ setSeed(42) @@ nonFlaky
     ),
     testM("fromIterable constructs deterministic generators") {
       val expected   = List.range(1, 6).flatMap(x => List.range(1, 6).map(y => x + y))
@@ -671,6 +680,34 @@ object GenSpec extends ZIOBaseSpec {
           )
         )
       )
+    },
+    testM("unfoldGen") {
+      sealed trait Command
+      case object Pop                   extends Command
+      final case class Push(value: Int) extends Command
+
+      val genPop: Gen[Any, Command]     = Gen.const(Pop)
+      def genPush: Gen[Random, Command] = Gen.anyInt.map(value => Push(value))
+
+      val genCommands: Gen[Random with Sized, List[Command]] =
+        Gen.unfoldGen(0) { n =>
+          if (n <= 0)
+            genPush.map(command => (n + 1, command))
+          else
+            Gen.oneOf(
+              genPop.map(command => (n - 1, command)),
+              genPush.map(command => (n + 1, command))
+            )
+        }
+
+      check(genCommands) { commands =>
+        val stack = scala.collection.mutable.Stack.empty[Int]
+        commands.foreach {
+          case Pop         => stack.pop()
+          case Push(value) => stack.push(value)
+        }
+        assertCompletes
+      }
     }
   )
 }

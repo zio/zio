@@ -86,26 +86,25 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
   def collectAllWhileWith[S](z: S)(p: Z => Boolean)(f: (S, Z) => S)(implicit ev: L <:< I): ZSink[R, E, I, L, S] =
     ZSink {
       Ref.makeManaged(z).flatMap { acc =>
-        Push.restartable(push).map {
-          case (push, restart) =>
-            def go(s: S, in: Option[Chunk[I]], end: Boolean): ZIO[R, (Either[E, S], Chunk[L]), S] =
-              push(in)
-                .as(s)
-                .catchAll({
-                  case (Left(e), leftover) => Push.fail(e, leftover)
-                  case (Right(z), leftover) =>
-                    if (p(z)) {
-                      val s1 = f(s, z)
-                      if (leftover.isEmpty)
-                        if (end) Push.emit(s1, Chunk.empty) else restart.as(s1)
-                      else
-                        restart *> go(s1, Some(leftover.asInstanceOf[Chunk[I]]), end)
-                    } else {
-                      Push.emit(s, leftover)
-                    }
-                })
+        Push.restartable(push).map { case (push, restart) =>
+          def go(s: S, in: Option[Chunk[I]], end: Boolean): ZIO[R, (Either[E, S], Chunk[L]), S] =
+            push(in)
+              .as(s)
+              .catchAll({
+                case (Left(e), leftover) => Push.fail(e, leftover)
+                case (Right(z), leftover) =>
+                  if (p(z)) {
+                    val s1 = f(s, z)
+                    if (leftover.isEmpty)
+                      if (end) Push.emit(s1, Chunk.empty) else restart.as(s1)
+                    else
+                      restart *> go(s1, Some(leftover.asInstanceOf[Chunk[I]]), end)
+                  } else {
+                    Push.emit(s, leftover)
+                  }
+              })
 
-            (in: Option[Chunk[I]]) => acc.get.flatMap(s => go(s, in, in.isEmpty).flatMap(s1 => acc.set(s1)))
+          (in: Option[Chunk[I]]) => acc.get.flatMap(s => go(s, in, in.isEmpty).flatMap(s1 => acc.set(s1)))
         }
       }
     }
@@ -304,25 +303,24 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
    */
   def toTransducer(implicit ev: L <:< I): ZTransducer[R, E, I, Z] =
     ZTransducer {
-      ZSink.Push.restartable(push).map {
-        case (push, restart) =>
-          def go(input: Option[Chunk[I]]): ZIO[R, E, Chunk[Z]] =
-            push(input).foldM(
-              {
-                case (Left(e), _) => ZIO.fail(e)
-                case (Right(z), leftover) =>
-                  restart *> {
-                    if (leftover.isEmpty || input.isEmpty) {
-                      ZIO.succeed(Chunk.single(z))
-                    } else {
-                      go(Some(leftover).asInstanceOf[Option[Chunk[I]]]).map(more => Chunk.single(z) ++ more)
-                    }
+      ZSink.Push.restartable(push).map { case (push, restart) =>
+        def go(input: Option[Chunk[I]]): ZIO[R, E, Chunk[Z]] =
+          push(input).foldM(
+            {
+              case (Left(e), _) => ZIO.fail(e)
+              case (Right(z), leftover) =>
+                restart *> {
+                  if (leftover.isEmpty || input.isEmpty) {
+                    ZIO.succeed(Chunk.single(z))
+                  } else {
+                    go(Some(leftover).asInstanceOf[Option[Chunk[I]]]).map(more => Chunk.single(z) ++ more)
                   }
-              },
-              _ => UIO.succeedNow(Chunk.empty)
-            )
+                }
+            },
+            _ => UIO.succeedNow(Chunk.empty)
+          )
 
-          (input: Option[Chunk[I]]) => go(input)
+        (input: Option[Chunk[I]]) => go(input)
       }
     }
 
@@ -473,25 +471,32 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
     f: Z => ZIO[R1, E1, Boolean]
   )(implicit ev: L <:< I): ZSink[R1, E1, I, L, Option[Z]] =
     ZSink {
-      Push.restartable(push).map {
-        case (push, restart) =>
-          def go(in: Option[Chunk[I]], end: Boolean): ZIO[R1, (Either[E1, Option[Z]], Chunk[L]), Unit] =
-            push(in).catchAll {
-              case (Left(e), leftover) => Push.fail(e, leftover)
-              case (Right(z), leftover) =>
-                f(z).mapError(err => (Left(err), leftover)).flatMap { satisfied =>
-                  if (satisfied)
-                    Push.emit(Some(z), leftover)
-                  else if (leftover.isEmpty)
-                    if (end) Push.emit(None, Chunk.empty) else restart *> Push.more
-                  else
-                    go(Some(leftover.asInstanceOf[Chunk[I]]), end)
-                }
-            }
+      Push.restartable(push).map { case (push, restart) =>
+        def go(in: Option[Chunk[I]], end: Boolean): ZIO[R1, (Either[E1, Option[Z]], Chunk[L]), Unit] =
+          push(in).catchAll {
+            case (Left(e), leftover) => Push.fail(e, leftover)
+            case (Right(z), leftover) =>
+              f(z).mapError(err => (Left(err), leftover)).flatMap { satisfied =>
+                if (satisfied)
+                  Push.emit(Some(z), leftover)
+                else if (leftover.isEmpty)
+                  if (end) Push.emit(None, Chunk.empty) else restart *> Push.more
+                else
+                  go(Some(leftover.asInstanceOf[Chunk[I]]), end)
+              }
+          }
 
-          (is: Option[Chunk[I]]) => go(is, is.isEmpty)
+        (is: Option[Chunk[I]]) => go(is, is.isEmpty)
       }
     }
+
+  /**
+   * Provides the sink with its required environment, which eliminates
+   * its dependency on `R`.
+   */
+  def provide(r: R)(implicit ev: NeedsEnv[R]): ZSink[Any, E, I, L, Z] =
+    ZSink(self.push.provide(r).map(push => i => push(i).provide(r)))
+
 }
 
 object ZSink extends ZSinkPlatformSpecificConstructors {
@@ -519,8 +524,14 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
       } yield (newPush, restart)
   }
 
-  def apply[R, E, I, L, Z](push: ZManaged[R, Nothing, Push[R, E, I, L, Z]]) =
+  def apply[R, E, I, L, Z](push: ZManaged[R, Nothing, Push[R, E, I, L, Z]]): ZSink[R, E, I, L, Z] =
     new ZSink(push) {}
+
+  /**
+   * Accesses the environment of the sink in the context of a sink.
+   */
+  def accessSink[R]: AccessSinkPartiallyApplied[R] =
+    new AccessSinkPartiallyApplied[R]
 
   /**
    * A sink that collects all of its inputs into a chunk.
@@ -805,6 +816,19 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     ZSink(Managed.succeed(sink))
 
   /**
+   * Create a sink which enqueues each element into the specified queue.
+   */
+  def fromQueue[R, E, I](queue: ZQueue[R, Nothing, E, Any, I, Any]): ZSink[R, E, I, Nothing, Unit] =
+    foreachChunk(queue.offerAll)
+
+  /**
+   * Create a sink which enqueues each element into the specified queue.
+   * The queue will be shutdown once the stream is closed.
+   */
+  def fromQueueWithShutdown[R, E, I](queue: ZQueue[R, Nothing, E, Any, I, Any]): ZSink[R, E, I, Nothing, Unit] =
+    ZSink(ZManaged.make(ZIO.succeedNow(queue))(_.shutdown).map(fromQueue[R, E, I]).flatMap(_.push))
+
+  /**
    * Creates a sink halting with a specified cause.
    */
   def halt[E](e: => Cause[E]): ZSink[Any, E, Any, Nothing, Nothing] =
@@ -878,9 +902,9 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
                  state.get.flatMap { take =>
                    is match {
                      case Some(ch) =>
-                       val idx = n - take.length
-                       if (idx < ch.length) {
-                         val (chunk, leftover) = ch.splitAt(idx)
+                       val remaining = n - take.length
+                       if (remaining <= ch.length) {
+                         val (chunk, leftover) = ch.splitAt(remaining)
                          state.set(Chunk.empty) *> Push.emit(take ++ chunk, leftover)
                        } else {
                          state.set(take ++ ch) *> Push.more
@@ -897,4 +921,15 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * A sink with timed execution.
    */
   def timed: ZSink[Clock, Nothing, Any, Nothing, Duration] = ZSink.drain.timed.map(_._2)
+
+  final class AccessSinkPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+    def apply[E, I, L, Z](f: R => ZSink[R, E, I, L, Z]): ZSink[R, E, I, L, Z] =
+      ZSink {
+        for {
+          env  <- ZManaged.environment[R]
+          push <- f(env).push
+        } yield push
+      }
+  }
+
 }

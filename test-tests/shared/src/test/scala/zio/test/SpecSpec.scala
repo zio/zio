@@ -31,7 +31,7 @@ object SpecSpec extends ZIOBaseSpec {
       testM("gracefully handles fiber death") {
         implicit val needsEnv = NeedsEnv
         val spec = suite("suite")(
-          zio.test.test("test") {
+          test("test") {
             assert(true)(isTrue)
           }
         ).provideLayerShared(ZLayer.fromEffectMany(ZIO.dieMessage("everybody dies")))
@@ -57,10 +57,10 @@ object SpecSpec extends ZIOBaseSpec {
       },
       testM("is not interfered with by test level failures") {
         val spec = suite("suite")(
-          zio.test.test("test1") {
+          test("test1") {
             assert(1)(Assertion.equalTo(2))
           },
-          zio.test.test("test2") {
+          test("test2") {
             assert(1)(Assertion.equalTo(1))
           },
           testM("test3") {
@@ -69,13 +69,17 @@ object SpecSpec extends ZIOBaseSpec {
         ).provideLayerShared(ZLayer.succeed(43))
         for {
           executedSpec <- execute(spec)
-          successes = executedSpec.fold[Int] {
-                        case ExecutedSpec.SuiteCase(_, counts) => counts.sum
-                        case ExecutedSpec.TestCase(_, test, _) => if (test.isRight) 1 else 0
+          successes = executedSpec.fold[Int] { c =>
+                        (c: @unchecked) match {
+                          case ExecutedSpec.SuiteCase(_, counts) => counts.sum
+                          case ExecutedSpec.TestCase(_, test, _) => if (test.isRight) 1 else 0
+                        }
                       }
-          failures = executedSpec.fold[Int] {
-                       case ExecutedSpec.SuiteCase(_, counts) => counts.sum
-                       case ExecutedSpec.TestCase(_, test, _) => if (test.isLeft) 1 else 0
+          failures = executedSpec.fold[Int] { c =>
+                       (c: @unchecked) match {
+                         case ExecutedSpec.SuiteCase(_, counts) => counts.sum
+                         case ExecutedSpec.TestCase(_, test, _) => if (test.isLeft) 1 else 0
+                       }
                      }
         } yield assert(successes)(equalTo(1)) && assert(failures)(equalTo(2))
       }

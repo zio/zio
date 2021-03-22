@@ -1,11 +1,10 @@
 package zio.chunks
 
-import java.util.concurrent.TimeUnit
-
 import cats.data.Chain
 import org.openjdk.jmh.annotations._
-
 import zio.Chunk
+
+import java.util.concurrent.TimeUnit
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.AverageTime))
@@ -17,7 +16,7 @@ class ChainBenchmarks {
   val largeChain: Chain[Int] =
     (0 to 1000).foldLeft(Chain.empty[Int])((acc, _) => acc ++ Chain.fromSeq(0 to 1000))
 
-  val largeChunk =
+  val largeChunk: Chunk[Int] =
     (0 to 1000).foldLeft[Chunk[Int]](Chunk.empty)((acc, _) => acc ++ Chunk.fromIterable(0 to 1000))
 
   val largeVector: Vector[Int] =

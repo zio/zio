@@ -1,23 +1,22 @@
 package zio.stream
 
-import java.nio.charset.StandardCharsets
-
-import scala.io.Source
-
 import zio._
 import zio.random.Random
 import zio.test.Assertion._
 import zio.test._
 
+import java.nio.charset.StandardCharsets
+import scala.io.Source
+
 object ZTransducerSpec extends ZIOBaseSpec {
   import ZIOTag._
 
-  val initErrorParser = ZTransducer.fromEffect(IO.fail("Ouch"))
+  val initErrorParser: ZTransducer[Any, String, Any, Nothing] = ZTransducer.fromEffect(IO.fail("Ouch"))
 
   def run[R, E, I, O](parser: ZTransducer[R, E, I, O], input: List[Chunk[I]]): ZIO[R, E, Chunk[O]] =
     ZStream.fromChunks(input: _*).transduce(parser).runCollect
 
-  def spec = suite("ZTransducerSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("ZTransducerSpec")(
     suite("Combinators")(
       suite("contramap")(
         testM("happy path") {
@@ -110,12 +109,11 @@ object ZTransducerSpec extends ZIOBaseSpec {
               .int(0, 10)
               .flatMap(Gen.listOfN(_)(Gen.small(Gen.chunkOfN(_)(Gen.anyInt)))),
             Gen.small(Gen.const(_), 1)
-          ) {
-            case (chunks, groupingSize) =>
-              for {
-                transduced <- ZIO.foreach(chunks)(chunk => run(ZTransducer.collectAllN[Int](groupingSize), List(chunk)))
-                regular     = chunks.map(chunk => Chunk.fromArray(chunk.grouped(groupingSize).toArray))
-              } yield assert(transduced)(equalTo(regular))
+          ) { case (chunks, groupingSize) =>
+            for {
+              transduced <- ZIO.foreach(chunks)(chunk => run(ZTransducer.collectAllN[Int](groupingSize), List(chunk)))
+              regular     = chunks.map(chunk => Chunk.fromArray(chunk.grouped(groupingSize).toArray))
+            } yield assert(transduced)(equalTo(regular))
           }
         }
       ),
@@ -196,8 +194,8 @@ object ZTransducerSpec extends ZIOBaseSpec {
           (assertM(run(empty))(succeeds(equalTo((Chunk(0), Nil)))) <*>
             assertM(run(single))(succeeds(equalTo((Chunk(30), List(1))))) <*>
             assertM(run(double))(succeeds(equalTo((Chunk(30), List(2, 1))))) <*>
-            assertM(run(failed))(fails(equalTo("Ouch")))).map {
-            case (((r1, r2), r3), r4) => r1 && r2 && r3 && r4
+            assertM(run(failed))(fails(equalTo("Ouch")))).map { case (((r1, r2), r3), r4) =>
+            r1 && r2 && r3 && r4
           }
         }
       ),
@@ -231,8 +229,8 @@ object ZTransducerSpec extends ZIOBaseSpec {
           (assertM(run(empty))(succeeds(equalTo((Chunk(0), Nil)))) <*>
             assertM(run(single))(succeeds(equalTo((Chunk(30), List(1))))) <*>
             assertM(run(double))(succeeds(equalTo((Chunk(30), List(2, 1))))) <*>
-            assertM(run(failed))(fails(equalTo("Ouch")))).map {
-            case (((r1, r2), r3), r4) => r1 && r2 && r3 && r4
+            assertM(run(failed))(fails(equalTo("Ouch")))).map { case (((r1, r2), r3), r4) =>
+            r1 && r2 && r3 && r4
           }
         }
       ),
@@ -646,8 +644,8 @@ object ZTransducerSpec extends ZIOBaseSpec {
                             Managed.make(
                               ref
                                 .update(_ + 1)
-                                .as[Option[Chunk[Int]] => IO[String, Chunk[Int]]]({
-                                  case _ => ZIO.fail("boom")
+                                .as[Option[Chunk[Int]] => IO[String, Chunk[Int]]]({ case _ =>
+                                  ZIO.fail("boom")
                                 })
                             )(_ => ref.update(_ - 1))
                           }
@@ -667,16 +665,15 @@ object ZTransducerSpec extends ZIOBaseSpec {
               n    <- Gen.anyInt.filter(_ > data.length)
             } yield (data, n)
 
-          checkM(gen) {
-            case (data, n) =>
-              val test =
-                ZStream
-                  .fromChunk(data)
-                  .transduce {
-                    ZTransducer.branchAfter(n)(ZTransducer.prepend)
-                  }
-                  .runCollect
-              assertM(test.run)(succeeds(equalTo(data)))
+          checkM(gen) { case (data, n) =>
+            val test =
+              ZStream
+                .fromChunk(data)
+                .transduce {
+                  ZTransducer.branchAfter(n)(ZTransducer.prepend)
+                }
+                .runCollect
+            assertM(test.run)(succeeds(equalTo(data)))
           }
         }
       ),
@@ -748,7 +745,8 @@ object ZTransducerSpec extends ZIOBaseSpec {
       ),
       suite("usASCII")(
         testM("US-ASCII strings") {
-          checkM(Gen.usASCII) { s =>
+          checkM(Gen.chunkOf(Gen.anyASCIIString)) { chunk =>
+            val s = chunk.mkString("")
             ZTransducer.usASCIIDecode.push.use { push =>
               for {
                 part1 <- push(Some(Chunk.fromArray(s.getBytes(StandardCharsets.US_ASCII))))

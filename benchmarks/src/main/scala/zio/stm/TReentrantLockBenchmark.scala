@@ -1,13 +1,12 @@
 package zio.stm
 
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.locks.StampedLock
-
-import org.openjdk.jmh.annotations.{ Benchmark, Group, GroupThreads, _ }
+import org.openjdk.jmh.annotations.{Benchmark, Group, GroupThreads, _}
 import org.openjdk.jmh.infra.Blackhole
-
 import zio.IOBenchmarks._
 import zio._
+
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.locks.StampedLock
 
 @State(Scope.Group)
 @BenchmarkMode(Array(Mode.Throughput))

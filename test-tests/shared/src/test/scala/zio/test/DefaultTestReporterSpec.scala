@@ -6,7 +6,7 @@ import zio.test.TestAspect.silent
 
 object DefaultTestReporterSpec extends ZIOBaseSpec {
 
-  def spec =
+  def spec: ZSpec[Environment, Failure] =
     suite("DefaultTestReporterSpec")(
       testM("correctly reports a successful test") {
         assertM(runLog(test1))(equalTo(test1Expected.mkString + reportStats(1, 0, 0)))

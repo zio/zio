@@ -16,8 +16,8 @@
 
 package zio.stm
 
-import zio.Chunk
 import zio.stm.ZSTM.internal._
+import zio.{Chunk, ChunkBuilder}
 
 /**
  * Transactional map implemented on top of [[TRef]] and [[TArray]]. Resolves
@@ -85,7 +85,7 @@ final class TMap[K, V] private (
    * Atomically folds using a transactional function.
    */
   def foldM[A, E](zero: A)(op: (A, (K, V)) => STM[E, A]): STM[E, A] =
-    toChunk.flatMap(STM.foldLeft(_)(zero)(op))
+    toChunk.flatMap(ZSTM.foldLeft(_)(zero)(op))
 
   /**
    * Atomically performs transactional-effect for each binding present in map.
@@ -144,7 +144,7 @@ final class TMap[K, V] private (
         val it    = pairs.iterator
 
         while (it.hasNext) {
-          val pair = it.next
+          val pair = it.next()
           val idx  = TMap.indexOf(pair._1, newCapacity)
           newBuckets(idx) = pair :: newBuckets(idx)
         }
@@ -217,7 +217,7 @@ final class TMap[K, V] private (
 
         val it = bucket.iterator
         while (it.hasNext) {
-          val pair = it.next
+          val pair = it.next()
           if (!f(pair)) {
             newBucket = pair :: newBucket
             newSize += 1
@@ -251,7 +251,7 @@ final class TMap[K, V] private (
 
         val it = bucket.iterator
         while (it.hasNext) {
-          val pair = it.next
+          val pair = it.next()
           if (f(pair)) {
             newBucket = pair :: newBucket
             newSize += 1
@@ -287,24 +287,18 @@ final class TMap[K, V] private (
       val buckets  = tBuckets.unsafeGet(journal)
       val capacity = buckets.array.length
       val size     = tSize.unsafeGet(journal)
-      val data     = Array.ofDim[(K, V)](size)
       var i        = 0
-      var j        = 0
+      val builder  = ChunkBuilder.make[(K, V)](size)
 
       while (i < capacity) {
         val bucket = buckets.array(i)
-        val pairs  = bucket.unsafeGet(journal)
 
-        val it = pairs.iterator
-        while (it.hasNext) {
-          data(j) = it.next
-          j += 1
-        }
+        builder ++= bucket.unsafeGet(journal)
 
         i += 1
       }
 
-      TExit.Succeed(Chunk.fromArray(data))
+      TExit.Succeed(builder.result())
     })
 
   /**
@@ -332,7 +326,7 @@ final class TMap[K, V] private (
 
         val it = pairs.iterator
         while (it.hasNext) {
-          val newPair   = g(it.next)
+          val newPair   = g(it.next())
           val idx       = TMap.indexOf(newPair._1, capacity)
           val newBucket = newBuckets(idx)
 
@@ -373,7 +367,7 @@ final class TMap[K, V] private (
 
           val it = newData.iterator
           while (it.hasNext) {
-            val newPair   = it.next
+            val newPair   = it.next()
             val idx       = TMap.indexOf(newPair._1, capacity)
             val newBucket = newBuckets(idx)
 
@@ -445,7 +439,7 @@ object TMap {
 
     val it = distinct.iterator
     while (it.hasNext) {
-      val kv  = it.next
+      val kv  = it.next()
       val idx = indexOf(kv._1, capacity)
 
       buckets(idx) = kv :: buckets(idx)

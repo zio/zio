@@ -16,11 +16,11 @@
 
 package zio
 
+import zio.internal.tracing.ZIOFn
+import zio.internal.{Executor, NamedThreadFactory}
+
 import java.io.IOException
 import java.util.concurrent._
-
-import zio.internal.tracing.ZIOFn
-import zio.internal.{ Executor, NamedThreadFactory }
 
 package object blocking {
   type Blocking = Has[Blocking.Service]
@@ -147,7 +147,7 @@ package object blocking {
        * Imports a synchronous effect that does blocking IO into a pure value,
        * refining the error type to `[[java.io.IOException]]`.
        */
-      def effectBlockingIO[A](effect: => A): ZIO[Blocking, IOException, A] =
+      def effectBlockingIO[A](effect: => A): IO[IOException, A] =
         effectBlocking(effect).refineToOrDie[IOException]
     }
 

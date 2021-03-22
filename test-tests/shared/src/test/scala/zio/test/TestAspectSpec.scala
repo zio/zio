@@ -1,17 +1,17 @@
 package zio.test
 
-import scala.reflect.ClassTag
-
 import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test.TestUtils._
 import zio.test.environment.TestRandom
-import zio.{ Ref, TracingStatus, ZIO }
+import zio.{Ref, TracingStatus, ZIO}
+
+import scala.reflect.ClassTag
 
 object TestAspectSpec extends ZIOBaseSpec {
 
-  def spec = suite("TestAspectSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("TestAspectSpec")(
     testM("around evaluates tests inside context of Managed") {
       for {
         ref <- Ref.make(0)
@@ -23,6 +23,32 @@ object TestAspectSpec extends ZIOBaseSpec {
       } yield {
         assert(result)(isTrue) &&
         assert(after)(equalTo(-1))
+      }
+    },
+    testM("aroundAll evaluates all tests between before and after effects") {
+      for {
+        ref <- Ref.make(0)
+        spec = suite("suite1")(
+                 suite("suite2")(
+                   testM("test1") {
+                     assertM(ref.get)(equalTo(1))
+                   },
+                   testM("test2") {
+                     assertM(ref.get)(equalTo(1))
+                   },
+                   testM("test3") {
+                     assertM(ref.get)(equalTo(1))
+                   }
+                 ) @@ aroundAll_(ref.update(_ + 1), ref.update(_ - 1)),
+                 testM("test4") {
+                   assertM(ref.get)(equalTo(1))
+                 } @@ aroundAll_(ref.update(_ + 1), ref.update(_ - 1))
+               )
+        result <- succeeded(spec)
+        after  <- ref.get
+      } yield {
+        assert(result)(isTrue) &&
+        assert(after)(equalTo(0))
       }
     },
     testM("after evaluates in case if test IO fails") {
@@ -254,6 +280,14 @@ object TestAspectSpec extends ZIOBaseSpec {
         value <- ref.get
       } yield assert(value)(equalTo(1))
     } @@ shrinks(0),
+    testM("shrinks preserves the original failure") {
+      check(Gen.anyInt) { n =>
+        assert(n)(equalTo(n + 1))
+      }
+    } @@ shrinks(0) @@ failing,
+    testM("sized sets the size to the specified value") {
+      assertM(Sized.size)(equalTo(42))
+    } @@ sized(42),
     testM("timeout makes tests fail after given duration") {
       assertM(ZIO.never *> ZIO.unit)(equalTo(()))
     } @@ timeout(1.nanos)
@@ -286,7 +320,7 @@ object TestAspectSpec extends ZIOBaseSpec {
       assertion
     )
 
-  val interruptionTimeoutFailure =
+  val interruptionTimeoutFailure: TestTimeoutException =
     TestTimeoutException(
       "Timeout of 10 ms exceeded. Couldn't interrupt test within 1 ns, possible resource leak!"
     )

@@ -17,7 +17,7 @@
 package zio.test
 
 import zio.clock.Clock
-import zio.{ Has, URIO }
+import zio.{Has, URIO}
 
 /**
  * A `RunnableSpec` has a main function and can be run by the JVM / Scala.js.
@@ -60,7 +60,7 @@ abstract class RunnableSpec[R <: Has[_], E] extends AbstractRunnableSpec {
     catch { case _: SecurityException => }
 
   private def isAmmonite: Boolean =
-    sys.env.exists {
-      case (k, v) => k.contains("JAVA_MAIN_CLASS") && v == "ammonite.Main"
+    sys.env.exists { case (k, v) =>
+      k.contains("JAVA_MAIN_CLASS") && v == "ammonite.Main"
     }
 }

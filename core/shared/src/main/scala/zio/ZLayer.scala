@@ -16,8 +16,8 @@
 
 package zio
 
-import zio.duration.Duration
 import zio.ZManaged.ReleaseMap
+import zio.duration.Duration
 import zio.internal.Platform
 
 /**
@@ -75,7 +75,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
   final def >+>[E1 >: E, RIn2 >: ROut, ROut1 >: ROut, ROut2](
     that: ZLayer[RIn2, E1, ROut2]
   )(implicit ev: Has.Union[ROut1, ROut2], tagged: Tag[ROut2]): ZLayer[RIn, E1, ROut1 with ROut2] =
-    self.++[E1, RIn, ROut1, ROut2](self >>> that)
+    ZLayer.ZipWith(self, self >>> that, ev.union)
 
   /**
    * Feeds the output services of this layer into the input of the specified
@@ -144,6 +144,12 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    */
   final def fresh: ZLayer[RIn, E, ROut] =
     ZLayer.Fresh(self)
+
+  /**
+    * Returns the hash code of this layer.
+    */
+  override final lazy val hashCode: Int =
+    super.hashCode
 
   /**
    * Builds this layer and uses it until it is interrupted. This is useful when
@@ -287,6 +293,8 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
         Managed.succeed(_ => self)
       case ZLayer.Suspend(self) =>
          ZManaged.succeed(memoMap => memoMap.getOrElseMemoize(self()))
+      case ZLayer.ZipWith(self, that, f) =>
+        ZManaged.succeed(memoMap => memoMap.getOrElseMemoize(self).zipWith(memoMap.getOrElseMemoize(that))(f))   
       case ZLayer.ZipWithPar(self, that, f) =>
         ZManaged.succeed(memoMap => memoMap.getOrElseMemoize(self).zipWithPar(memoMap.getOrElseMemoize(that))(f))
     }
@@ -304,6 +312,11 @@ object ZLayer {
   private final case class Fresh[RIn, E, ROut](self: ZLayer[RIn, E, ROut])        extends ZLayer[RIn, E, ROut]
   private final case class Managed[-RIn, +E, +ROut](self: ZManaged[RIn, E, ROut]) extends ZLayer[RIn, E, ROut]
   private final case class Suspend[-RIn, +E, +ROut](self: () => ZLayer[RIn, E, ROut]) extends ZLayer[RIn, E, ROut]
+  private final case class ZipWith[-RIn, +E, ROut, ROut2, ROut3](
+    self: ZLayer[RIn, E, ROut],
+    that: ZLayer[RIn, E, ROut2],
+    f: (ROut, ROut2) => ROut3
+  ) extends ZLayer[RIn, E, ROut3]
   private final case class ZipWithPar[-RIn, +E, ROut, ROut2, ROut3](
     self: ZLayer[RIn, E, ROut],
     that: ZLayer[RIn, E, ROut2],

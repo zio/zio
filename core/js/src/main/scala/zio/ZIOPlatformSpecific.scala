@@ -17,7 +17,7 @@
 package zio
 
 import scala.scalajs.js
-import scala.scalajs.js.{ Promise => JSPromise }
+import scala.scalajs.js.{Promise => JSPromise}
 
 private[zio] trait ZIOPlatformSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
 

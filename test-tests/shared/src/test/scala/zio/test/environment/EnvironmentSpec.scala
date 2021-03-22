@@ -1,7 +1,5 @@
 package zio.test.environment
 
-import java.util.concurrent.TimeUnit
-
 import zio._
 import zio.clock._
 import zio.duration._
@@ -9,9 +7,11 @@ import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test._
 
+import java.util.concurrent.TimeUnit
+
 object EnvironmentSpec extends ZIOBaseSpec {
 
-  def spec = suite("EnvironmentSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("EnvironmentSpec")(
     testM("Clock returns time when it is set") {
       for {
         _    <- TestClock.setTime(1.millis)

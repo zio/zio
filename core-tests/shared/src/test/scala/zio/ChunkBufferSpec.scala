@@ -1,13 +1,13 @@
 package zio
 
-import java.nio._
-
 import zio.test.Assertion.equalTo
 import zio.test._
 
+import java.nio._
+
 object ChunkBufferSpec extends ZIOBaseSpec {
 
-  def spec = suite("ChunkBufferSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("ChunkBufferSpec")(
     suite("ByteBuffer")(
       testM("byte array buffer no copying") {
         UIO.effectTotal {

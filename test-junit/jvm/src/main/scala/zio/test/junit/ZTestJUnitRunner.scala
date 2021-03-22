@@ -1,16 +1,16 @@
 package zio.test.junit
 
-import com.github.ghik.silencer.silent
-import org.junit.runner.manipulation.{ Filter, Filterable }
-import org.junit.runner.notification.{ Failure, RunNotifier }
-import org.junit.runner.{ Description, RunWith, Runner }
-
+import org.junit.runner.manipulation.{Filter, Filterable}
+import org.junit.runner.notification.{Failure, RunNotifier}
+import org.junit.runner.{Description, RunWith, Runner}
 import zio.ZIO.effectTotal
 import zio._
 import zio.test.FailureRenderer.FailureMessage.Message
-import zio.test.Spec.{ SpecCase, SuiteCase, TestCase }
-import zio.test.TestFailure.{ Assertion, Runtime }
-import zio.test.TestSuccess.{ Ignored, Succeeded }
+import zio.test.RenderedResult.CaseType.Test
+import zio.test.RenderedResult.Status.Failed
+import zio.test.Spec.{SpecCase, SuiteCase, TestCase}
+import zio.test.TestFailure.{Assertion, Runtime}
+import zio.test.TestSuccess.{Ignored, Succeeded}
 import zio.test._
 
 /**
@@ -83,9 +83,18 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable with Boot
     label: String,
     result: TestResult
   ): UIO[Unit] = {
-    val rendered = FailureRenderer.renderTestFailure("", result)
+    val rendered = renderFailureDetails(label, result)
     notifier.fireTestFailure(label, path, renderToString(rendered))
   }
+
+  private def renderFailureDetails(label: String, result: TestResult) =
+    Message(
+      result
+        .fold(failures =>
+          RenderedResult(Test, label, Failed, 0, FailureRenderer.renderFailureDetails(failures, 0).lines)
+        )(_ && _, _ || _, !_)
+        .rendered
+    )
 
   private def testDescription(label: String, path: Vector[String]) = {
     val uniqueId = path.mkString(":") + ":" + label
@@ -112,7 +121,6 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable with Boot
       specCase match {
         case TestCase(label, test, annotations) => TestCase(label, instrumentTest(label, path, test), annotations)
         case SuiteCase(label, specs, es) =>
-          @silent("inferred to be `Any`")
           val instrumented =
             specs.flatMap(ZManaged.foreach(_)(s => ZManaged.succeedNow(Spec(loop(s.caseValue, path :+ label)))))
           SuiteCase(label, instrumented.map(_.toVector), es)

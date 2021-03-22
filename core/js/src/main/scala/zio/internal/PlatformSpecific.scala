@@ -16,15 +16,13 @@
 
 package zio.internal
 
-import java.util.{ HashMap, HashSet, Map => JMap, Set => JSet }
-
-import scala.concurrent.ExecutionContext
-
 import com.github.ghik.silencer.silent
-
 import zio.internal.stacktracer.Tracer
 import zio.internal.tracing.TracingConfig
-import zio.{ Cause, Supervisor }
+import zio.{Cause, Supervisor}
+
+import java.util.{HashMap, HashSet, Map => JMap, Set => JSet}
+import scala.concurrent.ExecutionContext
 
 private[internal] trait PlatformSpecific {
 
@@ -43,14 +41,14 @@ private[internal] trait PlatformSpecific {
    * optional feature and it's not valid to compare the performance of ZIO with
    * enabled Tracing with effect types _without_ a comparable feature.
    */
-  lazy val benchmark = makeDefault(Int.MaxValue).withReportFailure(_ => ()).withTracing(Tracing.disabled)
+  lazy val benchmark: Platform = makeDefault(Int.MaxValue).withReportFailure(_ => ()).withTracing(Tracing.disabled)
 
   /**
    * The default platform, configured with settings designed to work well for
    * mainstream usage. Advanced users should consider making their own platform
    * customized for specific application requirements.
    */
-  lazy val default = makeDefault()
+  lazy val default: Platform = makeDefault()
 
   /**
    * The default number of operations the ZIO runtime should execute before
@@ -67,7 +65,7 @@ private[internal] trait PlatformSpecific {
   /**
    * A `Platform` created from Scala's global execution context.
    */
-  lazy val global = fromExecutionContext(ExecutionContext.global)
+  lazy val global: Platform = fromExecutionContext(ExecutionContext.global)
 
   /**
    * Creates a platform from an `Executor`.

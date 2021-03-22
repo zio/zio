@@ -17,8 +17,7 @@
 package zio.test.mock.module
 
 import com.github.ghik.silencer.silent
-
-import zio.{ Tag, URIO, ZIO }
+import zio.{Tag, URIO, ZIO}
 
 /**
  * Example of impure module used for testing ZIO Mock framework.

@@ -16,12 +16,12 @@
 
 package zio
 
-import java.util.concurrent.atomic.AtomicBoolean
-
-import scala.annotation.tailrec
-
 import zio.ZQueue.internal._
 import zio.internal.MutableConcurrentQueue
+
+import java.util.concurrent.atomic.AtomicBoolean
+import scala.annotation.tailrec
+import scala.collection.mutable.ListBuffer
 
 /**
  * A `ZQueue[RA, RB, EA, EB, A, B]` is a lightweight, asynchronous queue into which values of
@@ -103,31 +103,48 @@ sealed abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { 
   def takeUpTo(max: Int): ZIO[RB, EB, List[B]]
 
   /**
-   * Takes between min and max number of values from the queue. If there
-   * is less than min items available, it'll block until the items are
-   * collected.
+   * Takes a number of elements from the queue between the specified minimum
+   * and maximum. If there are fewer than the minimum number of elements
+   * available, suspends until at least the minimum number of elements have
+   * been collected.
    */
   final def takeBetween(min: Int, max: Int): ZIO[RB, EB, List[B]] =
-    if (max < min) UIO.succeedNow(Nil)
-    else
-      takeUpTo(max).flatMap { bs =>
-        val remaining = min - bs.length
+    ZIO.effectSuspendTotal {
+      val buffer = ListBuffer[B]()
 
-        if (remaining == 1)
-          take.map(bs :+ _)
-        else if (remaining > 1) {
-          def takeRemainder(n: Int): ZIO[RB, EB, List[B]] =
-            if (n <= 0) ZIO.succeed(Nil)
-            else take.flatMap(a => takeRemainder(n - 1).map(a :: _))
+      def takeRemainder(min: Int, max: Int): ZIO[RB, EB, Any] =
+        if (max < min) ZIO.unit
+        else
+          takeUpTo(max).flatMap { bs =>
+            val remaining = min - bs.length
+            if (remaining == 1)
+              take.flatMap(b => ZIO.effectTotal(buffer ++= bs += b))
+            else if (remaining > 1) {
+              take.flatMap { b =>
+                ZIO.effectSuspendTotal {
+                  buffer ++= bs += b
+                  takeRemainder(remaining - 1, max - bs.length - 1)
+                }
+              }
+            } else
+              ZIO.effectTotal(buffer ++= bs)
+          }
 
-          takeRemainder(remaining - 1).map(list => bs ++ list.reverse)
-        } else
-          UIO.succeedNow(bs)
-      }
+      takeRemainder(min, max).as(buffer.toList)
+    }
+
+  /**
+   * Takes the specified number of elements from the queue.
+   * If there are fewer than the specified number of elements available,
+   * it suspends until they become available.
+   */
+  final def takeN(n: Int): ZIO[RB, EB, List[B]] =
+    takeBetween(n, n)
 
   /**
    * Alias for `both`.
    */
+  @deprecated("use ZStream", "2.0.0")
   final def &&[RA1 <: RA, RB1 <: RB, EA1 >: EA, EB1 >: EB, A1 <: A, C, D](
     that: ZQueue[RA1, RB1, EA1, EB1, A1, C]
   ): ZQueue[RA1, RB1, EA1, EB1, A1, (B, C)] =
@@ -136,6 +153,7 @@ sealed abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { 
   /**
    * Like `bothWith`, but tuples the elements instead of applying a function.
    */
+  @deprecated("use ZStream", "2.0.0")
   final def both[RA1 <: RA, RB1 <: RB, EA1 >: EA, EB1 >: EB, A1 <: A, C, D](
     that: ZQueue[RA1, RB1, EA1, EB1, A1, C]
   ): ZQueue[RA1, RB1, EA1, EB1, A1, (B, C)] =
@@ -144,6 +162,7 @@ sealed abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { 
   /**
    * Like `bothWithM`, but uses a pure function.
    */
+  @deprecated("use ZStream", "2.0.0")
   final def bothWith[RA1 <: RA, RB1 <: RB, EA1 >: EA, EB1 >: EB, A1 <: A, C, D](
     that: ZQueue[RA1, RB1, EA1, EB1, A1, C]
   )(f: (B, C) => D): ZQueue[RA1, RB1, EA1, EB1, A1, D] =
@@ -158,6 +177,7 @@ sealed abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { 
    * For example, a dropping queue and a bounded queue composed together may apply `f`
    * to different elements.
    */
+  @deprecated("use ZStream", "2.0.0")
   final def bothWithM[RA1 <: RA, RB1 <: RB, R3 <: RB1, EA1 >: EA, EB1 >: EB, E3 >: EB1, A1 <: A, C, D](
     that: ZQueue[RA1, RB1, EA1, EB1, A1, C]
   )(f: (B, C) => ZIO[R3, E3, D]): ZQueue[RA1, R3, EA1, E3, A1, D] =
@@ -170,25 +190,23 @@ sealed abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { 
       def awaitShutdown: UIO[Unit] = self.awaitShutdown *> that.awaitShutdown
       def size: UIO[Int]           = self.size.zipWithPar(that.size)(math.max)
       def shutdown: UIO[Unit]      = self.shutdown.zipWithPar(that.shutdown)((_, _) => ())
-      def isShutdown: UIO[Boolean] = self.isShutdown
+      def isShutdown: UIO[Boolean] = self.isShutdown.zipWithPar(that.isShutdown)(_ || _)
       def take: ZIO[R3, E3, D]     = self.take.zipPar(that.take).flatMap(f.tupled)
 
       def takeAll: ZIO[R3, E3, List[D]] =
-        self.takeAll.zipPar(that.takeAll).flatMap {
-          case (bs, cs) =>
-            val bsIt = bs.iterator
-            val csIt = cs.iterator
+        self.takeAll.zipPar(that.takeAll).flatMap { case (bs, cs) =>
+          val bsIt = bs.iterator
+          val csIt = cs.iterator
 
-            ZIO.foreach(bsIt.zip(csIt).toList)(f.tupled)
+          ZIO.foreach(bsIt.zip(csIt).toList)(f.tupled)
         }
 
       def takeUpTo(max: Int): ZIO[R3, E3, List[D]] =
-        self.takeUpTo(max).zipPar(that.takeUpTo(max)).flatMap {
-          case (bs, cs) =>
-            val bsIt = bs.iterator
-            val csIt = cs.iterator
+        self.takeUpTo(max).zipPar(that.takeUpTo(max)).flatMap { case (bs, cs) =>
+          val bsIt = bs.iterator
+          val csIt = cs.iterator
 
-            ZIO.foreach(bsIt.zip(csIt).toList)(f.tupled)
+          ZIO.foreach(bsIt.zip(csIt).toList)(f.tupled)
         }
     }
 
@@ -206,7 +224,7 @@ sealed abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { 
 
   /**
    * Transforms elements enqueued into and dequeued from this queue with the
-   * specified effectual functions.
+   * specified pure functions.
    */
   final def dimap[C, D](f: C => A, g: B => D): ZQueue[RA, RB, EA, EB, C, D] =
     dimapM(f andThen ZIO.succeedNow, g andThen ZIO.succeedNow)
@@ -274,6 +292,59 @@ sealed abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { 
     }
 
   /**
+   * Filters elements dequeued from the queue using the specified predicate.
+   */
+  final def filterOutput(f: B => Boolean): ZQueue[RA, RB, EA, EB, A, B] =
+    filterOutputM(b => ZIO.succeedNow(f(b)))
+
+  /**
+   * Filters elements dequeued from the queue using the specified effectual
+   * predicate.
+   */
+  def filterOutputM[RB1 <: RB, EB1 >: EB](f: B => ZIO[RB1, EB1, Boolean]): ZQueue[RA, RB1, EA, EB1, A, B] =
+    new ZQueue[RA, RB1, EA, EB1, A, B] {
+      def awaitShutdown: UIO[Unit] =
+        self.awaitShutdown
+      def capacity: Int =
+        self.capacity
+      def isShutdown: UIO[Boolean] =
+        self.isShutdown
+      def offer(a: A): ZIO[RA, EA, Boolean] =
+        self.offer(a)
+      def offerAll(as: Iterable[A]): ZIO[RA, EA, Boolean] =
+        self.offerAll(as)
+      def shutdown: UIO[Unit] =
+        self.shutdown
+      def size: UIO[Int] =
+        self.size
+      def take: ZIO[RB1, EB1, B] =
+        self.take.flatMap { b =>
+          f(b).flatMap { p =>
+            if (p) ZIO.succeedNow(b)
+            else take
+          }
+        }
+      def takeAll: ZIO[RB1, EB1, List[B]] =
+        self.takeAll.flatMap(bs => ZIO.filter(bs)(f))
+      def takeUpTo(max: Int): ZIO[RB1, EB1, List[B]] =
+        ZIO.effectSuspendTotal {
+          val buffer = ListBuffer[B]()
+          def loop(max: Int): ZIO[RB1, EB1, Unit] =
+            self.takeUpTo(max).flatMap { bs =>
+              if (bs.isEmpty) ZIO.unit
+              else
+                ZIO.filter(bs)(f).flatMap { filtered =>
+                  buffer ++= filtered
+                  val length = filtered.length
+                  if (length == max) ZIO.unit
+                  else loop(max - length)
+                }
+            }
+          loop(max).as(buffer.toList)
+        }
+    }
+
+  /**
    * Transforms elements dequeued from this queue with a function.
    */
   final def map[C](f: B => C): ZQueue[RA, RB, EA, EB, A, C] =
@@ -314,34 +385,14 @@ object ZQueue {
     /**
      * Poll n items from the queue
      */
-    def unsafePollN[A](q: MutableConcurrentQueue[A], max: Int): List[A] = {
-      val empty = null.asInstanceOf[A]
-
-      @tailrec
-      def poll(as: List[A], n: Int): List[A] =
-        if (n < 1) as
-        else
-          q.poll(empty) match {
-            case null => as
-            case a    => poll(a :: as, n - 1)
-          }
-
-      poll(List.empty[A], max).reverse
-    }
+    def unsafePollN[A](q: MutableConcurrentQueue[A], max: Int): List[A] =
+      q.pollUpTo(max).toList
 
     /**
      * Offer items to the queue
      */
-    def unsafeOfferAll[A](q: MutableConcurrentQueue[A], as: List[A]): List[A] = {
-      @tailrec
-      def offerAll(as: List[A]): List[A] =
-        as match {
-          case Nil          => as
-          case head :: tail => if (q.offer(head)) offerAll(tail) else as
-        }
-
-      offerAll(as)
-    }
+    def unsafeOfferAll[A](q: MutableConcurrentQueue[A], as: List[A]): List[A] =
+      q.offerAll(as).toList
 
     /**
      * Remove an item from the queue
@@ -558,8 +609,8 @@ object ZQueue {
         else {
           val pTakers                = if (queue.isEmpty()) unsafePollN(takers, as.size) else List.empty
           val (forTakers, remaining) = as.splitAt(pTakers.size)
-          (pTakers zip forTakers).foreach {
-            case (taker, item) => unsafeCompletePromise(taker, item)
+          (pTakers zip forTakers).foreach { case (taker, item) =>
+            unsafeCompletePromise(taker, item)
           }
 
           if (remaining.isEmpty) IO.succeedNow(true)
@@ -592,10 +643,9 @@ object ZQueue {
 
         UIO
           .whenM(shutdownHook.succeed(()))(
-            UIO.foreachPar(unsafePollAll(takers))(_.interruptAs(fiberId)) *> strategy.shutdown
+            UIO.foreachPar_(unsafePollAll(takers))(_.interruptAs(fiberId)) *> strategy.shutdown
           )
-          .uninterruptible
-      }
+      }.uninterruptible
 
     val isShutdown: UIO[Boolean] = UIO(shutdownFlag.get)
 

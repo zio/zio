@@ -1,10 +1,9 @@
 package zio.chunks
 
-import java.util.concurrent.TimeUnit
-
 import org.openjdk.jmh.annotations._
-
 import zio._
+
+import java.util.concurrent.TimeUnit
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.AverageTime))
@@ -16,7 +15,7 @@ class MixedChunkBenchmarks {
   var chunk: Chunk[Int] = _
 
   @Setup(Level.Trial)
-  def setup() = {
+  def setup(): Unit = {
     val array = (1 to size).toArray
     val whole = Chunk.fromArray(array)
 

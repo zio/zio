@@ -1,11 +1,10 @@
 package zio
 
-import java.util.concurrent.TimeUnit
-
-import scala.concurrent.Await
-
-import IOBenchmarks._
 import org.openjdk.jmh.annotations._
+import zio.IOBenchmarks._
+
+import java.util.concurrent.TimeUnit
+import scala.concurrent.Await
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
@@ -16,7 +15,7 @@ class IODeepAttemptBenchmark {
   @Param(Array("1000"))
   var depth: Int = _
 
-  def halfway = depth / 2
+  def halfway: Int = depth / 2
 
   @Benchmark
   def thunkDeepAttempt(): BigInt = {
@@ -92,7 +91,7 @@ class IODeepAttemptBenchmark {
 
   @Benchmark
   def twitterDeepAttempt(): BigInt = {
-    import com.twitter.util.{ Await, Future }
+    import com.twitter.util.{Await, Future}
 
     def descent(n: Int): Future[BigInt] =
       if (n == depth)
@@ -113,7 +112,7 @@ class IODeepAttemptBenchmark {
       else if (n == halfway) descend(n + 1).attempt.map(_.fold(_ => 50, a => a))
       else descend(n + 1).map(_ + n)
 
-    descend(0).runSyncStep.right.get
+    descend(0).runSyncStep.fold(_ => sys.error("Either.right.get on Left"), identity)
   }
 
   @Benchmark

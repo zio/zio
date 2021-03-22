@@ -1,7 +1,7 @@
 package zio.stm
 
 import zio.test._
-import zio.{ UIO, ZIOBaseSpec }
+import zio.{UIO, ZIOBaseSpec}
 
 object STMLazinessSpec extends ZIOBaseSpec {
 
@@ -11,7 +11,7 @@ object STMLazinessSpec extends ZIOBaseSpec {
       assertCompletes
     }
 
-  def spec = suite("STMLazinessSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("STMLazinessSpec")(
     suite("STM")(
       testM("check")(assertLazy(STM.check)),
       testM("die")(assertLazy(STM.die)),

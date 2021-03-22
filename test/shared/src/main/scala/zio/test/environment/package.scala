@@ -16,19 +16,18 @@
 
 package zio.test
 
-import java.io.{ EOFException, IOException }
-import java.time.{ Instant, OffsetDateTime, ZoneId }
-import java.util.concurrent.TimeUnit
-
-import scala.collection.immutable.{ Queue, SortedSet }
-import scala.math.{ log, sqrt }
-
 import zio.clock.Clock
 import zio.console.Console
 import zio.duration._
 import zio.random.Random
 import zio.system.System
-import zio.{ PlatformSpecific => _, _ }
+import zio.{PlatformSpecific => _, _}
+
+import java.io.{EOFException, IOException}
+import java.time.{Instant, OffsetDateTime, ZoneId}
+import java.util.concurrent.TimeUnit
+import scala.collection.immutable.{Queue, SortedSet}
+import scala.math.{log, sqrt}
 
 /**
  * The `environment` package contains testable versions of all the standard ZIO
@@ -359,33 +358,34 @@ package object environment extends PlatformSpecific {
        * Polls until all descendants of this fiber are done or suspended.
        */
       private lazy val awaitSuspended: UIO[Unit] =
-        live.provide {
-          suspended.repeat {
-            Schedule.recurUntilEquals(true) && Schedule.fixed(10.milliseconds)
-          }
-        }.unit
+        suspended
+          .zipWith(live.provide(ZIO.sleep(10.milliseconds)) *> suspended)(_ == _)
+          .filterOrFail(identity)(())
+          .eventually
+          .unit
 
       /**
        * Delays for a short period of time.
        */
       private lazy val delay: UIO[Unit] =
-        if (TestPlatform.isJS) ZIO.yieldNow
-        else live.provide(ZIO.sleep(5.milliseconds))
+        live.provide(ZIO.sleep(5.milliseconds))
 
       /**
-       * Captures a "snapshot" of the status of all descendants of this fiber.
-       * Fails with the `Unit` value if any descendant of this fiber is not
-       * done or suspended. Note that because we cannot synchronize on the
-       * status of multiple fibers at the same time this snapshot may not be
-       * fully consistent.
+       * Captures a "snapshot" of the identifier and status of all fibers in
+       * this test other than the current fiber. Fails with the `Unit` value if
+       * any of these fibers are not done or suspended. Note that because we
+       * cannot synchronize on the status of multiple fibers at the same time
+       * this snapshot may not be fully consistent.
        */
-      private lazy val freeze: IO[Unit, Set[Fiber.Status]] =
+      private lazy val freeze: IO[Unit, Map[Fiber.Id, Fiber.Status]] =
         supervisedFibers.flatMap { fibers =>
-          ZIO.foreach(fibers)(_.status.filterOrFail {
-            case Fiber.Status.Done                     => true
-            case Fiber.Status.Suspended(_, _, _, _, _) => true
-            case _                                     => false
-          }(()))
+          IO.foldLeft(fibers)(Map.empty[Fiber.Id, Fiber.Status]) { (map, fiber) =>
+            fiber.status.flatMap {
+              case done @ Fiber.Status.Done                          => IO.succeedNow(map + (fiber.id -> done))
+              case suspended @ Fiber.Status.Suspended(_, _, _, _, _) => IO.succeedNow(map + (fiber.id -> suspended))
+              case _                                                 => IO.fail(())
+            }
+          }
         }
 
       /**
@@ -433,8 +433,11 @@ package object environment extends PlatformSpecific {
       /**
        * Returns whether all descendants of this fiber are done or suspended.
        */
-      private lazy val suspended: UIO[Boolean] =
-        freeze.zipWith(delay *> freeze)(_ == _).orElseSucceed(false)
+      private lazy val suspended: IO[Unit, Map[Fiber.Id, Fiber.Status]] =
+        freeze.zip(delay *> freeze).flatMap { case (first, last) =>
+          if (first == last) ZIO.succeedNow(first)
+          else ZIO.fail(())
+        }
 
       /**
        * Constructs an `OffsetDateTime` from a `Duration` and a `ZoneId`.
@@ -447,11 +450,10 @@ package object environment extends PlatformSpecific {
        * time but is not advancing the `TestClock`.
        */
       private val warningStart: UIO[Unit] =
-        warningState.updateSome {
-          case WarningData.Start =>
-            for {
-              fiber <- live.provide(console.putStrLn(warning).delay(5.seconds)).interruptible.fork
-            } yield WarningData.pending(fiber)
+        warningState.updateSome { case WarningData.Start =>
+          for {
+            fiber <- live.provide(console.putStrLn(warning).delay(5.seconds)).interruptible.fork
+          } yield WarningData.pending(fiber)
         }
 
     }
@@ -1042,9 +1044,8 @@ package object environment extends PlatformSpecific {
        * Gets the seed of this `TestRandom`.
        */
       val getSeed: UIO[Long] =
-        randomState.get.map {
-          case Data(seed1, seed2, _) =>
-            ((seed1.toLong << 24) | seed2) ^ 0x5deece66dL
+        randomState.get.map { case Data(seed1, seed2, _) =>
+          ((seed1.toLong << 24) | seed2) ^ 0x5deece66dL
         }
 
       /**
@@ -1293,29 +1294,25 @@ package object environment extends PlatformSpecific {
         //  The Box-Muller transform generates two normally distributed random
         //  doubles, so we store the second double in a queue and check the
         //  queue before computing a new pair of values to avoid wasted work.
-        randomState.modify {
-          case Data(seed1, seed2, queue) =>
-            queue.dequeueOption.fold((Option.empty[Double], Data(seed1, seed2, queue))) {
-              case (d, queue) => (Some(d), Data(seed1, seed2, queue))
-            }
+        randomState.modify { case Data(seed1, seed2, queue) =>
+          queue.dequeueOption.fold((Option.empty[Double], Data(seed1, seed2, queue))) { case (d, queue) =>
+            (Some(d), Data(seed1, seed2, queue))
+          }
         }.flatMap {
           case Some(nextNextGaussian) => UIO.succeedNow(nextNextGaussian)
           case None =>
             def loop: UIO[(Double, Double, Double)] =
-              randomDouble.zip(randomDouble).flatMap {
-                case (d1, d2) =>
-                  val x      = 2 * d1 - 1
-                  val y      = 2 * d2 - 1
-                  val radius = x * x + y * y
-                  if (radius >= 1 || radius == 0) loop else UIO.succeedNow((x, y, radius))
+              randomDouble.zip(randomDouble).flatMap { case (d1, d2) =>
+                val x      = 2 * d1 - 1
+                val y      = 2 * d2 - 1
+                val radius = x * x + y * y
+                if (radius >= 1 || radius == 0) loop else UIO.succeedNow((x, y, radius))
               }
-            loop.flatMap {
-              case (x, y, radius) =>
-                val c = sqrt(-2 * log(radius) / radius)
-                randomState.modify {
-                  case Data(seed1, seed2, queue) =>
-                    (x * c, Data(seed1, seed2, queue.enqueue(y * c)))
-                }
+            loop.flatMap { case (x, y, radius) =>
+              val c = sqrt(-2 * log(radius) / radius)
+              randomState.modify { case Data(seed1, seed2, queue) =>
+                (x * c, Data(seed1, seed2, queue.enqueue(y * c)))
+              }
             }
         }
 

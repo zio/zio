@@ -1,13 +1,13 @@
 package zio.interop
 
-import scala.scalajs.js.{ Promise => JSPromise }
-
 import zio._
 import zio.test.Assertion._
 import zio.test._
 
+import scala.scalajs.js.{Promise => JSPromise}
+
 object JSSpec extends ZIOBaseSpec {
-  def spec = suite("JSSpec")(
+  def spec: Spec[Any, TestFailure[Throwable], TestSuccess] = suite("JSSpec")(
     suite("Task.fromPromiseJS must")(
       testM("be lazy on the Promise parameter") {
         var evaluated = false

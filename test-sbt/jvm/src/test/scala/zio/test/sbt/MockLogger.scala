@@ -1,10 +1,9 @@
 package zio.test.sbt
 
-import java.util.concurrent.atomic.AtomicReference
-
 import sbt.testing.Logger
-
 import zio.test.sbt.TestingSupport._
+
+import java.util.concurrent.atomic.AtomicReference
 
 class MockLogger extends Logger {
   private val logged = new AtomicReference(Vector.empty[String])

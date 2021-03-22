@@ -1,11 +1,10 @@
 package zio.internal
-import java.util.concurrent.RejectedExecutionException
-
-import scala.concurrent.ExecutionContext
-
 import zio.ZIOBaseSpec
 import zio.test.Assertion._
 import zio.test._
+
+import java.util.concurrent.RejectedExecutionException
+import scala.concurrent.ExecutionContext
 
 final class TestExecutor(val submitResult: Boolean) extends Executor {
   val here: Boolean                       = true
@@ -26,25 +25,25 @@ object TestExecutor {
   val y       = new TestExecutor(true)
   val u       = new TestExecutor(true)
 
-  val badEC = new ExecutionContext {
+  val badEC: ExecutionContext = new ExecutionContext {
     override def execute(r: Runnable): Unit            = throw new RejectedExecutionException("Rejected: " + r.toString)
     override def reportFailure(cause: Throwable): Unit = ()
   }
 
-  val ec = new ExecutionContext {
+  val ec: ExecutionContext = new ExecutionContext {
     override def execute(r: Runnable): Unit            = ()
     override def reportFailure(cause: Throwable): Unit = ()
   }
 
   // backward compatibility for scala 2.11.12
-  val runnable = new Runnable {
+  val runnable: Runnable = new Runnable {
     override def run(): Unit = ()
   }
 }
 
 object ExecutorSpec extends ZIOBaseSpec {
 
-  def spec = suite("ExecutorSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("ExecutorSpec")(
     suite("Create the default unyielding executor and check that:")(
       test("When converted to an EC, it reports Throwables to stdout") {
         val t = new CheckPrintThrowable

@@ -17,7 +17,7 @@
 package zio
 
 import scala.annotation.implicitNotFound
-import scala.implicits.Not
+import scala.util.NotGiven
 
 /**
  * A value of type `CanFail[E]` provides implicit evidence that an effect with
@@ -33,5 +33,5 @@ import scala.implicits.Not
 sealed abstract class CanFail[-E]
 
 object CanFail extends CanFail[Any] {
-  implicit def canFail[E](implicit ev: Not[E =:= Nothing]): CanFail[E] = CanFail
+  implicit def canFail[E](implicit ev: NotGiven[E =:= Nothing]): CanFail[E] = CanFail
 }

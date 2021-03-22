@@ -17,7 +17,7 @@
 package zio
 
 import scala.annotation.implicitNotFound
-import scala.implicits.Not
+import scala.util.NotGiven
 
 /**
  * A value of type `NeedsEnv[R]` provides implicit evidence that an effect with
@@ -33,5 +33,5 @@ sealed abstract class NeedsEnv[+R]
 
 object NeedsEnv extends NeedsEnv[Nothing] {
 
-  implicit def needsEnv[R](implicit ev: Not[R =:= Any]): NeedsEnv[R] = NeedsEnv
+  implicit def needsEnv[R](implicit ev: NotGiven[R =:= Any]): NeedsEnv[R] = NeedsEnv
 }

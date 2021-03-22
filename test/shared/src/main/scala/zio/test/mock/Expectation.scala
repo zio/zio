@@ -16,13 +16,13 @@
 
 package zio.test.mock
 
-import scala.language.implicitConversions
-
 import zio.test.Assertion
-import zio.test.mock.Expectation.{ And, Chain, Or, Repeated }
-import zio.test.mock.Result.{ Fail, Succeed }
-import zio.test.mock.internal.{ ExpectationState, MockException, MockState, ProxyFactory }
-import zio.{ Has, IO, Managed, Tag, ULayer, URLayer, ZLayer }
+import zio.test.mock.Expectation.{And, Chain, Or, Repeated}
+import zio.test.mock.Result.{Fail, Succeed}
+import zio.test.mock.internal.{ExpectationState, MockException, MockState, ProxyFactory}
+import zio.{Has, IO, Managed, Tag, ULayer, URLayer, ZLayer}
+
+import scala.language.implicitConversions
 
 /**
  * An `Expectation[R]` is an immutable tree structure that represents
@@ -139,6 +139,11 @@ sealed abstract class Expectation[R <: Has[_]: Tag] { self =>
     Repeated(self, range)
 
   /**
+   * Converts this expectation to ZLayer.
+   */
+  def toLayer: ULayer[R] = Expectation.toLayer(self)
+
+  /**
    * Invocations log.
    */
   private[test] val invocations: List[Int]
@@ -225,6 +230,14 @@ object Expectation {
       private[test] def unapply[R <: Has[_]](chain: Chain[R]): Option[(List[Expectation[R]])] =
         Some(chain.children)
     }
+  }
+
+  private[test] case class NoCalls[R <: Has[_]: Tag](mock: Mock[R]) extends Expectation[R] {
+
+    override private[test] val invocations: List[Int] = Nil
+
+    override private[test] val state: ExpectationState = Satisfied
+
   }
 
   /**

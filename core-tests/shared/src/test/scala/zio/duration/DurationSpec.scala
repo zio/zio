@@ -1,17 +1,16 @@
 package zio.duration
 
-import java.time.{ Duration => JavaDuration }
-import java.util.concurrent.TimeUnit
-
-import scala.concurrent.duration.{ Duration => ScalaDuration }
-
 import zio.ZIOBaseSpec
 import zio.test.Assertion._
 import zio.test._
 
+import java.time.{Duration => JavaDuration}
+import java.util.concurrent.TimeUnit
+import scala.concurrent.duration.{Duration => ScalaDuration}
+
 object DurationSpec extends ZIOBaseSpec {
 
-  def spec = suite("DurationSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("DurationSpec")(
     suite("Make a Duration from positive nanos and check that: ")(
       test("The Duration is Finite") {
         assert(Duration.fromNanos(1) == Duration.Infinity)(equalTo(false))

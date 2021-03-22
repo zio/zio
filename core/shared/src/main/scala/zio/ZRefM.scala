@@ -16,6 +16,8 @@
 
 package zio
 
+import com.github.ghik.silencer.silent
+
 /**
  * A `ZRefM[RA, RB, EA, EB, A, B]` is a polymorphic, purely functional
  * description of a mutable reference. The fundamental operations of a `ZRefM`
@@ -420,6 +422,7 @@ object ZRefM {
      * a return value for the modification. This is a more powerful version of
      * `update`.
      */
+    @silent("unreachable code")
     def modify[R1 <: R, E1 >: E, B](f: A => ZIO[R1, E1, (B, A)]): ZIO[R1, E1, B] =
       self match {
         case atomic: Atomic[A] =>
@@ -427,18 +430,16 @@ object ZRefM {
         case derived: Derived[R, R, E, E, A, A] =>
           derived.value.semaphore.withPermit {
             derived.value.ref.get.flatMap { s =>
-              derived.getEither(s).flatMap(f).flatMap {
-                case (b, a) =>
-                  derived.setEither(a).flatMap(derived.value.ref.set).as(b)
+              derived.getEither(s).flatMap(f).flatMap { case (b, a) =>
+                derived.setEither(a).flatMap(derived.value.ref.set).as(b)
               }
             }
           }
         case derivedAll: DerivedAll[R, R, E, E, A, A] =>
           derivedAll.value.semaphore.withPermit {
             derivedAll.value.ref.get.flatMap { s =>
-              derivedAll.getEither(s).flatMap(f).flatMap {
-                case (b, a) =>
-                  derivedAll.setEither(a)(s).flatMap(derivedAll.value.ref.set).as(b)
+              derivedAll.getEither(s).flatMap(f).flatMap { case (b, a) =>
+                derivedAll.setEither(a)(s).flatMap(derivedAll.value.ref.set).as(b)
               }
             }
           }

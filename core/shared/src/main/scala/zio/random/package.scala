@@ -28,7 +28,7 @@ package object random {
 
     object Service {
       val live: Service = new Service {
-        import scala.util.{ Random => SRandom }
+        import scala.util.{Random => SRandom}
 
         val nextBoolean: UIO[Boolean] =
           ZIO.effectTotal(SRandom.nextBoolean())
@@ -149,24 +149,24 @@ package object random {
       collection: Collection[A]
     )(implicit bf: BuildFrom[Collection[A], A, Collection[A]]): UIO[Collection[A]] =
       for {
-        bufferRef <- Ref.make(new scala.collection.mutable.ArrayBuffer[A])
-        _         <- bufferRef.update(_ ++= collection)
+        buffer <- ZIO.effectTotal {
+                    val buffer = new scala.collection.mutable.ArrayBuffer[A]
+                    buffer ++= collection
+                  }
         swap = (i1: Int, i2: Int) =>
-                 bufferRef.update {
-                   case buffer =>
-                     val tmp = buffer(i1)
-                     buffer(i1) = buffer(i2)
-                     buffer(i2) = tmp
-                     buffer
+                 ZIO.effectTotal {
+                   val tmp = buffer(i1)
+                   buffer(i1) = buffer(i2)
+                   buffer(i2) = tmp
+                   buffer
                  }
         _ <-
-          ZIO.foreach((collection.size to 2 by -1).toList)((n: Int) => nextIntBounded(n).flatMap(k => swap(n - 1, k)))
-        buffer <- bufferRef.get
+          ZIO.foreach_((collection.size to 2 by -1).toList)((n: Int) => nextIntBounded(n).flatMap(k => swap(n - 1, k)))
       } yield bf.fromSpecific(collection)(buffer)
   }
 
   /**
-   * Generates a pseudo-random boolean.
+   * generates a pseudo-random boolean.
    */
   val nextBoolean: URIO[Random, Boolean] =
     ZIO.accessM(_.get.nextBoolean)

@@ -5,15 +5,15 @@ title:  "Background"
 
 Procedural Scala programs use _procedural functions_, which are:
 
- * **Partial** — Procedures do not return values for some inputs (for example, they throw exceptions).
+ * **Partial** — Procedures do not return values for some inputs (for example, they throw exceptions).
  * **Non-Deterministic** — Procedures return different outputs for the same input.
  * **Impure** — Procedures perform side-effects, which mutate data or interact with the external world.
 
 Unlike procedural Scala programs, functional Scala programs only use _pure functions_, which are:
 
- * **Total** — Functions always return an output for every input.
- * **Deterministic** — Functions return the same output for the same input.
- * **Pure** — The only effect of providing a function an input is computing the output.
+ * **Total** — Functions always return an output for every input.
+ * **Deterministic** — Functions return the same output for the same input.
+ * **Pure** — The only effect of providing a function an input is computing the output.
 
 Pure functions only combine or transform input values into output values in a total, deterministic way. Pure functions are easier to understand, easier to test, easier to refactor, and easier to abstract over.
 

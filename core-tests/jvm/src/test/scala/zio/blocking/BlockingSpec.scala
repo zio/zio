@@ -1,16 +1,16 @@
 package zio.blocking
 
-import java.util.concurrent.atomic.AtomicBoolean
-
 import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect.nonFlaky
 import zio.test._
-import zio.{ UIO, ZIOBaseSpec }
+import zio.{UIO, ZIOBaseSpec}
+
+import java.util.concurrent.atomic.AtomicBoolean
 
 object BlockingSpec extends ZIOBaseSpec {
 
-  def spec = suite("BlockingSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("BlockingSpec")(
     suite("Make a Blocking Service and verify that")(
       testM("effectBlocking completes successfully") {
         assertM(effectBlocking(()))(isUnit)
