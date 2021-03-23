@@ -61,6 +61,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Collibra](https://www.collibra.com/)
 * [Compellon](https://www.compellon.com/)
 * [Complicated Robot](https://www.complicatedrobot.com/)
+* [Conduktor](https://www.conduktor.io)
 * [Contramap](https://www.contramap.dev)
 * [Coralogix](https://coralogix.com)
 * [CurrencyCloud](https://www.currencycloud.com/)
