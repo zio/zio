@@ -3627,7 +3627,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
           Pull.fail,
           iterator =>
             ZIO.effect {
-              if (maxChunkSize == 1) {
+              if (maxChunkSize <= 1) {
                 if (iterator.isEmpty) Pull.end else Pull.emit(iterator.next())
               } else {
                 val builder = ChunkBuilder.make[A]()
@@ -3665,7 +3665,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     ZStream {
       Managed.effectTotal(iterator).map { iterator =>
         ZIO.effectTotal {
-          if (maxChunkSize == 1) {
+          if (maxChunkSize <= 1) {
             if (iterator.isEmpty) Pull.end else Pull.emit(iterator.next())
           } else {
             val builder = ChunkBuilder.make[A]()

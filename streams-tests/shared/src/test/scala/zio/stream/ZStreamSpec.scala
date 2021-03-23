@@ -3644,12 +3644,12 @@ object ZStreamSpec extends ZIOBaseSpec {
           assertM(ZStream.fromIterableM(UIO.effectTotal(l)).runCollect)(equalTo(l))
         }),
         testM("fromIterator") {
-          checkM(Gen.small(Gen.chunkOfN(_)(Gen.anyInt)), Gen.anyInt.map(math.abs)) { (chunk, maxChunkSize) =>
+          checkM(Gen.small(Gen.chunkOfN(_)(Gen.anyInt)), Gen.small(Gen.const(_), 1)) { (chunk, maxChunkSize) =>
             assertM(ZStream.fromIterator(chunk.iterator, maxChunkSize).runCollect)(equalTo(chunk))
           }
         },
         testM("fromIteratorTotal") {
-          checkM(Gen.small(Gen.chunkOfN(_)(Gen.anyInt)), Gen.anyInt.map(math.abs)) { (chunk, maxChunkSize) =>
+          checkM(Gen.small(Gen.chunkOfN(_)(Gen.anyInt)), Gen.small(Gen.const(_), 1)) { (chunk, maxChunkSize) =>
             assertM(ZStream.fromIteratorTotal(chunk.iterator, maxChunkSize).runCollect)(equalTo(chunk))
           }
         },
