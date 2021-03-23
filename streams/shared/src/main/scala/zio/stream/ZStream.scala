@@ -3617,8 +3617,8 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     fromEffect(iterable).mapConcat(identity)
 
   /**
-    * Creates a stream from an iterator that may throw exceptions.
-    */
+   * Creates a stream from an iterator that may throw exceptions.
+   */
   def fromIterator[A](iterator: => Iterator[A], maxChunkSize: Int = 1): ZStream[Any, Throwable, A] =
     ZStream {
       ZManaged
