@@ -3616,33 +3616,33 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   def fromIterableM[R, E, O](iterable: ZIO[R, E, Iterable[O]]): ZStream[R, E, O] =
     fromEffect(iterable).mapConcat(identity)
 
-  def fromIterator[A](iterator: => Iterator[A]): ZStream[Any, Throwable, A] = {
-    object StreamEnd extends Throwable
-
-    ZStream.fromEffect(Task(iterator) <*> ZIO.runtime[Any]).flatMap { case (it, rt) =>
-      ZStream.repeatEffectOption {
-        Task {
-          val hasNext: Boolean =
-            try it.hasNext
-            catch {
-              case e: Throwable if !rt.platform.fatal(e) =>
-                throw e
-            }
-
-          if (hasNext) {
-            try it.next()
-            catch {
-              case e: Throwable if !rt.platform.fatal(e) =>
-                throw e
-            }
-          } else throw StreamEnd
-        }.mapError {
-          case StreamEnd => None
-          case e         => Some(e)
-        }
-      }
+  /**
+    * Creates a stream from an iterator that may throw exceptions.
+    */
+  def fromIterator[A](iterator: => Iterator[A], maxChunkSize: Int = 1): ZStream[Any, Throwable, A] =
+    ZStream {
+      ZManaged
+        .effect(iterator)
+        .fold(
+          Pull.fail,
+          iterator =>
+            ZIO.effect {
+              if (maxChunkSize == 1) {
+                if (iterator.isEmpty) Pull.end else Pull.emit(iterator.next())
+              } else {
+                val builder = ChunkBuilder.make[A]()
+                var i       = 0
+                while (i < maxChunkSize && iterator.hasNext) {
+                  val a = iterator.next()
+                  builder += a
+                  i += 1
+                }
+                val chunk = builder.result()
+                if (chunk.isEmpty) Pull.end else Pull.emit(chunk)
+              }
+            }.asSomeError.flatten
+        )
     }
-  }
 
   /**
    * Creates a stream from an iterator that may potentially throw exceptions
@@ -3659,16 +3659,25 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     managed(iterator).flatMap(fromIterator(_))
 
   /**
-   * Creates a stream from an iterator
+   * Creates a stream from an iterator that does not throw exceptions.
    */
-  def fromIteratorTotal[A](iterator: => Iterator[A]): ZStream[Any, Nothing, A] =
+  def fromIteratorTotal[A](iterator: => Iterator[A], maxChunkSize: Int = 1): ZStream[Any, Nothing, A] =
     ZStream {
-      Managed.effectTotal(iterator).map { it =>
-        IO.effectTotal {
-          if (it.hasNext)
-            Pull.emit(it.next())
-          else
-            Pull.end
+      Managed.effectTotal(iterator).map { iterator =>
+        ZIO.effectTotal {
+          if (maxChunkSize == 1) {
+            if (iterator.isEmpty) Pull.end else Pull.emit(iterator.next())
+          } else {
+            val builder = ChunkBuilder.make[A]()
+            var i       = 0
+            while (i < maxChunkSize && iterator.hasNext) {
+              val a = iterator.next()
+              builder += a
+              i += 1
+            }
+            val chunk = builder.result()
+            if (chunk.isEmpty) Pull.end else Pull.emit(chunk)
+          }
         }.flatten
       }
     }
