@@ -25,7 +25,7 @@ private[zio] trait TaskPlatformSpecific {
   def effectAsyncWithCompletionHandler[T](op: CompletionHandler[T, Any] => Any): Task[T] =
     javaz.effectAsyncWithCompletionHandler(op)
 
-  /** Alias for `formCompletionStage` for a concrete implementation of CompletionStage*/
+  /** Alias for `formCompletionStage` for a concrete implementation of CompletionStage */
   def fromCompletableFuture[A](cs: => CompletableFuture[A]): Task[A] = fromCompletionStage(cs)
 
   def fromCompletionStage[A](cs: => CompletionStage[A]): Task[A] = javaz.fromCompletionStage(cs)
