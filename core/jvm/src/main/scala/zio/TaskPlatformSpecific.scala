@@ -17,6 +17,7 @@
 package zio
 
 import zio.interop.javaz
+
 import java.nio.channels.CompletionHandler
 import java.util.concurrent.{CompletableFuture, CompletionStage}
 
