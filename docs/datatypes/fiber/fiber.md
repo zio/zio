@@ -221,3 +221,88 @@ Fibers only ever shift onto the thread pool of the runtime system, which means t
 For performance reasons, fibers will attempt to execute on the same thread for a (configurable) minimum period, before yielding to other fibers. Fibers that resume from asynchronous callbacks will resume on the initiating thread, and continue for some time before yielding and resuming on the runtime thread pool.
 
 These defaults help guarantee stack safety and cooperative multitasking. They can be changed in `Runtime` if automatic thread shifting is not desired.
+
+## Type of Workloads
+Let's discuss the type of workloads that a fiber can handle. There are three types of workloads that a fiber can handle:
+1. **CPU Work/Pure CPU Bound** is a computation that uses the computational power of a CPU intensively and purely, without exceeding the computation boundary. By intensive, means a huge chunk of work which involves a significant amount of time to computed by CPU, e.g. complex numerical computation.
+2. **Blocking I/O** is a computation, which exceeds the computational boundary by doing communication in a blocking fashion. For example, waiting for a certain amount of time to elapse or waiting for an external event to happen are blocking I/O operations.
+3. **Asynchronous I/O** is a computation, which exceeds the computation boundary by doing communication asynchronously, e.g. registering a callback for a specific event.
+
+### CPU Work
+What we refer to as CPU Work is pure computational firepower without involving any interaction and communication with the outside world. It doesn't involve any I/O operation. It's a pure computation. By I/O, we mean anything that involves reading from and writing to an external resource such as a file or a socket or web API, or anything that would be characterized as I/O. 
+
+Fibers are designed to be **cooperative** which means that **they will yield to each other as required to preserve some level of fairness**. If we have a fiber that's is doing CPU Work which passes through one or more ZIO operations such as flatMap or map, as long as there exists a touchpoint where the ZIO runtime system can sort of keep a tab on that ongoing CPU Work then that fiber will yield to other fibers. These touchpoints allow many fibers who are doing CPU Work to end up sharing the same thread.
+
+What if though, we have a CPU Work operation that takes a really long time to run? Let's say 30 seconds or something it does pure CPU Work very computationally intensive? What happens if we take that single gigantic function and put that into a `ZIO.effect`? So there is no way for the ZIO Runtime that can force that fiber to yield to other fibers. In this situation, the ZIO Runtime cannot preserve some level of fairness, and that single big CPU operation monopolizes the underlying thread. It is not a good practice to monopolize the underlying thread.
+
+ZIO has a special thread pool that can be used to do these computations. That's the **blocking thread pool**. There is a `ZIO.blocking._` package that contains an operator called `blocking`, which can be used to run a big CPU Work on a dedicated thread. So, it doesn't interfere with all the other work that is going on simultaneously in the ZIO Runtime system.
+
+If a CPU Work doesn't yield quickly, then that is going to monopolize a thread. So how can we determine that our CPU Work can yield quickly or not? 
+- If we wrote that CPU Work by composing many ZIO operations, even that CPU Work is very CPU intensive, due to the composition of ZIO operations, it has a chance to yield quickly to other fibers and don't monopolizing a thread.
+- If that CPU work doesn't compose any ZIO operation, or we lift that from a legacy library, the ZIO Runtime doesn't have any chance of yielding quickly to other fibers. So this fiber going to monopolize the underlying thread.
+
+The best practice is to run those huge CPU Work on a dedicated thread pool, by lifting them with the `blocking` operator in the `ZIO.blocking` package.
+
+> _**Note**:_
+>
+> So as a rule of thumb, when we have a huge CPU Work that is not chunked with built-in ZIO operations and going to monopolize the underlying thread, we should run that on a dedicated thread pool that is designed to perform CPU-driven tasks.
+
+### Blocking I/O
+Inside Java, there are many methods that we can call them that will put our thread to sleep. For example, if we call `read` on a socket and there is nothing to read right now because not enough bytes have been read from the other side over the TCP/IP protocol, then that will put our thread to sleep. 
+
+Most of the I/O operations and certainly all the classic I/O operations like `InputStream` and `OutputStream` are utilizing a locking mechanism that will parks a thread. When we `write` to the `OutputStream`, actually before the data has been written to that file, that method will just `block` it, and it will `park` the thread. The thread will `wait` until the data can actually be written and after it is actually written then it can return. It is the same way for `read` and similar blocking operations. Anytime we use a `lock`, anything in `java.util.concurrent.locks`, all those locks use this mechanism. All these operations are called blocking because they `park` the thread that is doing the work, and the thread that's doing the work goes to sleep.
+
+> _**Note:**_ 
+>
+> What we refer to as blocking I/O is not necessarily just an I/O operation. Remember every time we use a `lock` we are also `park`ing a thread. It goes to `sleep`, and it has to be woken up again. We refer to this entire class of operations as **blocking I/O**.
+
+There are multiple types of overhead associated with parking a thread:
+
+1. When we `park` a thread then that thread is still consuming resources, it's still obviously consuming stack resources, the heap, and all metadata associated with the underlying thread in the JVM.
+
+2. Then even further down deeper, in the operating system because every JVM thread corresponds to an operating system level thread, there's a large amount of overhead. Every thread has a pre-allocated stack size so that memory is reserved even if that thread's not doing any work. That memory is sort of reserved for the thread, and we cannot touch it. 
+
+3. Besides, the actual process of putting a thread to sleep and then later waking it up again is computationally intensive. It slows down our computations.
+
+This is why it has become a sort of best practice and part of the architectural pattern of reactive applications to design what is called **non-blocking application**. Non-blocking is synonymous with asynchronous. Non-blocking and asynchronous and to some degree even reactive, they're all trying to get at something which is we want scalable applications.
+
+Scalable applications cannot afford to have thousands of threads just sitting around doing nothing and just consuming work and taking a long time to wake up again. We cannot do so-called blocking I/O, in scalable applications. It is considered an anti-pattern because it is not efficient. That is not a way to build scalable applications and nonetheless, we have to support that use case. 
+
+Today, we have lots of common Java libraries that use blocking constructs, like `InputStream` and `OutputStream`, and `Reader` and `Writer`. Also, the JDBC is entirely blocking. The only way of doing database I/O in Java is blocking. So obviously, we have to do blocking I/O. We can do blocking I/O from a fiber. So is it best practice? No, it should be avoided whenever possible, but the reality is we have to do blocking I/O. 
+
+Whenever we lift a blocking I/O operation into ZIO, the ZIO Runtime is executing a fiber that is doing blocking I/O. The underlying thread will be parked, and it has to be woken up later. It doesn't have any ability to stop from happening. It can't stop an underlying thread from being parked that's just the way these APIs are designed. So, we have to block. There's no way around that. That fiber will be monopolizing the underneath thread and therefore that thread is not available for performing all the work of the other fibers in the system. So that can be a bottleneck point in our application. 
+
+And again, the solution to this problem is the same as the solution to the first class of problems, the CPU Work. The solution is to run this **using the blocking thread pool** in ZIO which will ensure that this blocking code executes on its dedicated thread pool. **So it doesn't have to interfere or compete with the threads that are used for doing the bulk of work in your application**. So basically ZIO's philosophy is if we have to do CPU Work or if we have to do synchronous that's ok we can do that. Just we need to do it in the right place. So it doesn't interfere with our primary thread pool.
+
+ZIO has one primary built-in fixed thread pool. This sort of workhorse thread pool is designed to be used for the majority of our application requirements. It has a certain number of threads in it and that stays constant over the lifetime of our application.
+
+Why is that the case? Well because for the majority of workloads in our applications, it does not actually help things to create more threads than the number of CPU cores. If we have eight cores, it does not accelerate any sort of processing to create more than eight threads. Because at the end of the day our hardware is only capable of running eight things at the same time. 
+
+If we create a thousand threads on a system that can only run eight of them in parallel at a time, then what does the operating system have to do? As we have not as much as the needed CPU core, the operating system starts giving a little slice of the eight core to all these threads by switching between them over and over again.
+
+The context switching overhead is significant. The CPU has to load in new registers, refill all its caches, it has to go through all these crazy complex processes that interfere with its main job to get stuff done. There's significant overhead associated with that. As a result, it's not going to be very efficient. We are going to waste a lot of our time and resources just switching back and forth between all these threads, that would kill our application.
+
+So for that reason, ZIO's default thread pool is fixed with a number of threads equal to the number of CPU cores. That is the best practice. That means that no matter how much work we create if we create a hundred thousand fibers, they will still run on a fixed number of threads.
+
+Let's say we do blocking I/O on the main ZIO thread pool, so we have got eight threads all sitting and parked on a socket read. What happens to all the other 100000 fibers in our system? They line up in a queue waiting for their chance to run. That's not ideal. That's why we should take these effects that either do blocking I/O, or they do big CPU Work that's not chunked and run them using ZIO's blocking thread pool which will give us a dedicated thread. 
+
+That dedicated thread is not efficient but again, sometimes we have to interact with legacy code and legacy code is full of all blocking codes. We just need to be able to handle that gracefully and ZIO‌ does that using the blocking thread pool.
+
+### Asynchronous I/O
+The third category is asynchronous I/O, and we refer to it as Async Work. Async Work is a code that whenever it runs into something that it needs to wait on, instead of blocking and parking the thread, it registers a callback, and returns immediately.
+
+ It allows us to register a callback and then when that result is available then our callback will be invoked. Callbacks are the fundamental way by which all async code on the JVM works. There is no mechanism in the JVM right now to support async code natively and once that would probably happen in the Loom project, in the future, and will simplify a lot of things.
+
+But for now, in current days, sort of JVM all published JVM versions there's no such thing. The only way we can get a non-blocking async code is to have this callback registering mechanism. 
+
+Callbacks have the pro that they don't wait for CPU. Instead of waiting to read the next chunk from a socket or instead of waiting to acquire a lock, all we have to do is call it and give it a callback. It doesn't need to do anything else it can return control to the thread pool and then later on when that data has been read from the socket or when that lock has been acquired or when that amount of time has elapsed if we're sleeping for a certain amount of time then our callback can be invoked. 
+
+It has the potential to be extraordinarily efficient. The drawback of callbacks is they are not so pretty and fun to work with. They don't compose well with try-finally constructs. Error handling is really terrible, we have to do error propagation on our own. So that is what gave rise to data types like `Future` which eliminates the need for callbacks. By using `Future`s we can wrap callback-based APIs and get the benefits of async but without the callbacks. Also, it has a for-comprehension that we can structure our code as a nice linear sequence. 
+
+Similarly in ZIO we never see a callback with ZIO, but fundamentally everything boils down to asynchronous on the JVM in a callback fashion. Callback base code is obscenely efficient but it is extraordinarily painful to deal with directly. Data types like `Future` and `ZIO` allow us to avoid even seeing a callback in our code. 
+
+With ZIO, we do not have to think about a callback nonetheless sometimes when we need to integrate with legacy code. ZIO has an appropriate constructor to turn that ugly callback-based API into a ZIO effect. It is the `async` constructor.
+
+Every time we do one of ZIO blocking operations it doesn't actually block the underlying thread, but also it is a semantic blocking managed by ZIO. For example, every time we see something like `ZIO.sleep` or when we take something from a queue (`queue.take`) or offer something to a queue (`queue.offer`) or if we acquire a permit from a semaphore (`semaphore.withPermit`) or if we acquire a lock (`ZIO.lock`) and so forth, we are blocking semantically. If we use the same stuff in Java, like `Thread.sleep` or any of its `lock` machinery then those things are going to block a thread. So this is why we say ZIO is 100% blocking but the Java thread is not.
+
+All of the pieces of machinery ZIO gives us are 100% asynchronous and non-blocking. As they don't block and monopolize the thread, all of the async work is executed on the primary thread pool in ZIO.
