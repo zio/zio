@@ -83,11 +83,13 @@ of your logic at a higher level of abstraction, with more powerful combinators a
 
 | Monix / Cats Effect | ZIO |
 |-------|-----|
-| `Deferred[Task, A]` | `Promise[Throwable, A]` |
+| `Deferred` | `Promise` |
 | `Fiber` | `Fiber` |
 | `MVar` | `Queue` |
 | `Ref` | `Ref` |
 | `Resource` | `ZManaged` |
 | `Semaphore` | `Semaphore` |
 | `TaskApp` | `App` |
+| `TaskLocal` | `FiberRef` |
 | `Task` | `Task` |
+
