@@ -459,20 +459,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Taps the effect, printing the result of calling `.toString` on the value
    */
   final def debug: ZIO[R, E, A] =
-    self.tap(value => UIO(println(value)))
-
-  /**
-   * Taps the effect, printing the result of calling `.toString` on the value.
-   * Prefixes the output with the given message.
-   */
-  final def debug(prefix: => String): ZIO[R, E, A] =
-    self.tap(value => UIO(println(s"$prefix: $value")))
-
-  /**
-   * Taps the effect, printing the result of calling `.toString` on the value
-   * or the error.
-   */
-  final def debugBoth: ZIO[R, E, A] =
     self.tapBoth(
       error => UIO(println(s"<FAIL> $error")),
       value => UIO(println(value))
@@ -482,24 +468,11 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Taps the effect, printing the result of calling `.toString` on the value.
    * Prefixes the output with the given message.
    */
-  final def debugBoth(prefix: => String): ZIO[R, E, A] =
+  final def debug(prefix: => String): ZIO[R, E, A] =
     self.tapBoth(
       error => UIO(println(s"<FAIL> $prefix: $error")),
       value => UIO(println(s"$prefix: $value"))
     )
-
-  /**
-   * Taps the effect, printing the result of calling `.toString` on the failure.
-   */
-  final def debugError: ZIO[R, E, A] =
-    self.tapError(error => UIO(println(s"<FAIL> $error")))
-
-  /**
-   * Taps the effect, printing the result of calling `.toString` on the failure.
-   * Prefixes the output with the given message.
-   */
-  final def debugError(prefix: => String): ZIO[R, E, A] =
-    self.tapError(error => UIO(println(s"<FAIL> $prefix: $error")))
 
   /**
    * Returns an effect that is delayed from this effect by the specified
