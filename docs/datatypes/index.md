@@ -15,7 +15,12 @@ ZIO contains a few data types that can help you solve complex problems in asynch
 8. [Miscellaneous](#miscellaneous)
 
 ## Core Data Types
- - **[ZIO](core/io.md)** — A `ZIO` is a value that models an effectful program, which might fail or succeed.
+ - **[ZIO](core/zio.md)** — A `ZIO` is a value that models an effectful program, which might fail or succeed.
+   + **[UIO](core/uio.md)** — An `UIO[A]` is a type alias for `ZIO[Any, Nothing, A]`.
+   + **[URIO](core/urio.md)** — An `URIO[R, A]` is a type alias for `ZIO[R, Nothing, A]`.
+   + **[Task](core/task.md)** — A `Task[A]` is a type alias for `ZIO[Any, Throwable, A]`.
+   + **[RIO](core/rio.md)** — A `RIO[R, A]` is a type alias for `ZIO[R, Throwable, A]`.
+   + **[IO](core/io.md)** — An `IO[E, A]` is a type alias for `ZIO[Any, E, A]`.
  - **[Exit](core/exit.md)** — An `Exit[E, A]` describes the result of executing an `IO` value.
  - **[Cause](core/cause.md)** - `Cause[E]` is a description of a full story of a fiber failure. 
  - **[ZLayer](core/zlayer.md)** - A `ZLayer` describes a layer of an application.
