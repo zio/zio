@@ -143,7 +143,43 @@ val chainedActionsValueWithForComprehension: UIO[List[Int]] = for {
 } yield added
 ```
 
-## Brackets
+## Resource Management
+
+ZIO's resource management features work across synchronous, asynchronous, concurrent, and other effect types, and provide strong guarantees even in the presence of failure, interruption, or defects in the application.
+
+### Finalizing
+
+Scala has a `try` / `finally` construct which helps us to make sure we don't leak resources because no matter what happens in the try, the `finally` block will be executed. So we can open files in the try block, and then we can close them in the `finally` block, and that gives us the guarantee that we will not leak resources.
+
+The problem with the `try` / `finally` construct is that it only applies with synchronous code, they don't work for asynchronous code. ZIO gives us a method called `ensuring` that works with either synchronous or asynchronous actions. So we have a functional try/finally but across the async region of our code, also our finalizer could have async regions.
+
+Like `try` / `finally`, the `ensuring` operation guarantees that if an effect begins executing and then terminates (for whatever reason), then the finalizer will begin executing:
+
+```scala mdoc
+val finalizer = 
+  UIO.effectTotal(println("Finalizing!"))
+
+val finalized: IO[String, Unit] = 
+  IO.fail("Failed!").ensuring(finalizer)
+```
+
+The finalizer is not allowed to fail, which means that it must handle any errors internally.
+
+Like `try` / `finally`, finalizers can be nested, and the failure of any inner finalizer will not affect outer finalizers. Nested finalizers will be executed in reverse order, and linearly (not in parallel).
+
+Unlike `try` / `finally`, `ensuring` works across all types of effects, including asynchronous and concurrent effects.
+
+Here is another example of ensuring that our clean-up action called before our effect is done:
+
+```scala mdoc:silent
+import zio.Task
+var i: Int = 0
+val action: Task[String] = Task.effectTotal(i += 1) *> Task.fail(new Throwable("Boom!"))
+val cleanupAction: UIO[Unit] = UIO.effectTotal(i -= 1)
+val composite = action.ensuring(cleanupAction)
+```
+
+### Brackets
 
 Brackets are a built-in primitive that let you safely acquire and release resources.
 
