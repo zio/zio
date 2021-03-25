@@ -11,4 +11,5 @@ title: "Summary"
    + **[IO](io.md)** — An `IO[E, A]` is a type alias for `ZIO[Any, E, A]`.
 - **[Exit](exit.md)** — An `Exit[E, A]` describes the result of executing an `IO` value.
 - **[Cause](cause.md)** - `Cause[E]` is a description of a full story of a fiber failure. 
+- **[Runtime](runtime.md)** — A `Runtime[R]` is capable of executing tasks within an environment `R`.
 - **[ZLayer](zlayer.md)** - A `ZLayer` describes a layer of an application.

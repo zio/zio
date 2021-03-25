@@ -23,6 +23,7 @@ ZIO contains a few data types that can help you solve complex problems in asynch
    + **[IO](core/io.md)** — An `IO[E, A]` is a type alias for `ZIO[Any, E, A]`.
  - **[Exit](core/exit.md)** — An `Exit[E, A]` describes the result of executing an `IO` value.
  - **[Cause](core/cause.md)** - `Cause[E]` is a description of a full story of a fiber failure. 
+ - **[Runtime](core/runtime.md)** — A `Runtime[R]` is capable of executing tasks within an environment `R`.
  - **[ZLayer](core/zlayer.md)** - A `ZLayer` describes a layer of an application.
  
 ## Fiber Primitives
