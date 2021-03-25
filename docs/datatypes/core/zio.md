@@ -181,13 +181,23 @@ val composite = action.ensuring(cleanupAction)
 
 ### Brackets
 
-Brackets are a built-in primitive that let you safely acquire and release resources.
+In Scala the `try` / `finally` is often used to manage resources. A common use for `try` / `finally` is safely acquiring and releasing resources, such as new socket connections or opened files:
 
-Brackets are used for a similar purpose as try/catch/finally, only brackets work with synchronous and asynchronous actions, work seamlessly with fiber interruption, and are built on a different error model that ensures no errors are ever swallowed.
+```scala 
+val handle = openFile(name)
+
+try {
+  processFile(handle)
+} finally closeFile(handle)
+```
+
+ZIO encapsulates this common pattern with `ZIO#bracket`, which allows you to specify an _acquire_ effect, which acquires a resource; a _release_ effect, which releases it; and a _use_ effect, which uses the resource. Bracket lets us open a file and close the file and no matter what happens when we are using that resource.
+ 
+The release action is guaranteed to be executed by the runtime system, even if the utilize action throws an exception or the executing fiber is interrupted.
+
+Brackets are a built-in primitive that let us safely acquire and release resources. They are used for a similar purpose as `try/catch/finally`, only brackets work with synchronous and asynchronous actions, work seamlessly with fiber interruption, and are built on a different error model that ensures no errors are ever swallowed.
 
 Brackets consist of an *acquire* action, a *utilize* action (which uses the acquired resource), and a *release* action.
-
-The release action is guaranteed to be executed by the runtime system, even if the utilize action throws an exception or the executing fiber is interrupted.
 
 ```scala mdoc:silent
 import zio.{ UIO, IO }
@@ -213,18 +223,9 @@ val groupedFileData: IO[IOException, Unit] = openFile("data.json").bracket(close
 
 Brackets have compositional semantics, so if a bracket is nested inside another bracket, and the outer bracket acquires a resource, then the outer bracket's release will always be called, even if, for example, the inner bracket's release fails.
 
-A helper method called `ensuring` provides a simpler analogue of `finally`:
+Let's look at a full working example on using brackets:
 
 ```scala mdoc:silent
-import zio.Task
-var i: Int = 0
-val action: Task[String] = Task.effectTotal(i += 1) *> Task.fail(new Throwable("Boom!"))
-val cleanupAction: UIO[Unit] = UIO.effectTotal(i -= 1)
-val composite = action.ensuring(cleanupAction)
-```
-### A full working example on using brackets
-```scala mdoc:silent
-
 import zio.{ ExitCode, Task, UIO }
 import java.io.{ File, FileInputStream }
 import java.nio.charset.StandardCharsets
@@ -256,5 +257,4 @@ object Main extends App {
     string <- Task(new FileInputStream(file)).bracket(closeStream)(convertBytes(_, len))
   } yield string
 }
-
 ```
