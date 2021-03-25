@@ -24,6 +24,7 @@
       "datatypes/core/uio",
       "datatypes/core/urio",
       "datatypes/core/task",
+      "datatypes/core/rio",
       "datatypes/core/exit",
       "datatypes/core/cause",
       "datatypes/core/zlayer"
