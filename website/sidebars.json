@@ -20,6 +20,7 @@
     ],
     "Core Data Types": [
       "datatypes/core/index",
+      "datatypes/core/zio",
       "datatypes/core/uio",
       "datatypes/core/urio",
       "datatypes/core/task",
