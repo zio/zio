@@ -20,11 +20,11 @@
     ],
     "Core Data Types": [
       "datatypes/core/index",
-      "datatypes/core/io",
       "datatypes/core/uio",
       "datatypes/core/urio",
       "datatypes/core/task",
       "datatypes/core/rio",
+      "datatypes/core/io",
       "datatypes/core/exit",
       "datatypes/core/cause",
       "datatypes/core/zlayer"
