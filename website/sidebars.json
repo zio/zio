@@ -23,6 +23,7 @@
       "datatypes/core/io",
       "datatypes/core/uio",
       "datatypes/core/urio",
+      "datatypes/core/task",
       "datatypes/core/exit",
       "datatypes/core/cause",
       "datatypes/core/zlayer"
