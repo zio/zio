@@ -61,7 +61,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   /**
    * Returns an effect that executes both this effect and the specified effect,
    * in parallel, returning result of provided effect. If either side fails,
-   * then the other side will be interrupted, interrupted the result.
+   * then the other side will be interrupted.
    */
   final def &>[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, B] =
     self.zipWithPar(that)((_, b) => b)
@@ -89,7 +89,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   /**
    * Returns an effect that executes both this effect and the specified effect,
    * in parallel, this effect result returned. If either side fails,
-   * then the other side will be interrupted, interrupted the result.
+   * then the other side will be interrupted.
    */
   final def <&[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, A] =
     self.zipWithPar(that)((a, _) => a)
@@ -97,7 +97,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   /**
    * Returns an effect that executes both this effect and the specified effect,
    * in parallel, combining their results into a tuple. If either side fails,
-   * then the other side will be interrupted, interrupted the result.
+   * then the other side will be interrupted.
    */
   final def <&>[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, (A, B)] =
     self.zipWithPar(that)((a, b) => (a, b))
