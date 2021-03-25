@@ -22,6 +22,7 @@
       "datatypes/core/index",
       "datatypes/core/io",
       "datatypes/core/uio",
+      "datatypes/core/urio",
       "datatypes/core/exit",
       "datatypes/core/cause",
       "datatypes/core/zlayer"
