@@ -21,6 +21,7 @@
     "Core Data Types": [
       "datatypes/core/index",
       "datatypes/core/io",
+      "datatypes/core/uio",
       "datatypes/core/exit",
       "datatypes/core/cause",
       "datatypes/core/zlayer"
