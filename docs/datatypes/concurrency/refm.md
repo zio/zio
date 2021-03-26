@@ -4,7 +4,9 @@ title: "RefM"
 ---
 `RefM[A]` models a **mutable reference** to a value of type `A` in which we can store **immutable** data, and update it atomically **and** effectfully.
 
-Almost all of `RefM` operations are the same as `Ref`. We suggest reading `Ref` at first if you are not familiar with `Ref`.
+> _**Note:**_
+>
+> Almost all of `RefM` operations are the same as `Ref`. We suggest reading [`Ref`](ref.md) at first if you are not familiar with `Ref`.
 
 Let's explain how we can update a shared state effectfully with `RefM`. The `update` method and all other related methods get an effectful operation and then run they run these effects to change the shared state. This is the main difference between `RefM` and `Ref`. 
 
