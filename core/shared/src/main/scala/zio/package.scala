@@ -17,9 +17,10 @@
 package object zio
     extends BuildFromCompat
     with EitherCompat
+    with FunctionToLayerOps
+    with IntersectionTypeCompat
     with PlatformSpecific
-    with VersionSpecific
-    with FunctionToLayerOps {
+    with VersionSpecific {
   private[zio] type Callback[E, A] = Exit[E, A] => Any
 
   type Canceler[-R] = URIO[R, Any]
