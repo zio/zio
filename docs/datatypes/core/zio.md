@@ -174,7 +174,9 @@ Here is another example of ensuring that our clean-up action called before our e
 ```scala mdoc:silent
 import zio.Task
 var i: Int = 0
-val action: Task[String] = Task.effectTotal(i += 1) *> Task.fail(new Throwable("Boom!"))
+val action: Task[String] =
+  Task.effectTotal(i += 1) *>
+    Task.fail(new Throwable("Boom!"))
 val cleanupAction: UIO[Unit] = UIO.effectTotal(i -= 1)
 val composite = action.ensuring(cleanupAction)
 ```
