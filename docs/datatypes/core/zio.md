@@ -181,6 +181,9 @@ val cleanupAction: UIO[Unit] = UIO.effectTotal(i -= 1)
 val composite = action.ensuring(cleanupAction)
 ```
 
+> _**Note:**
+> Finalizers offer very powerful guarantees, but they are low-level, and should generally not be used for releasing resources. For higher-level logic built on `ensuring`, see `ZIO#bracket` on the next section.
+
 ### Brackets
 
 In Scala the `try` / `finally` is often used to manage resources. A common use for `try` / `finally` is safely acquiring and releasing resources, such as new socket connections or opened files:
