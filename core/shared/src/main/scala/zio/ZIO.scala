@@ -2387,6 +2387,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     foreach(in)(ZIO.identityFn)
 
   /**
+   * Evaluate effect if present, and return its result as `Option[A]`.
+   */
+  def collectAll[R, E, A](in: Option[ZIO[R, E, A]]): ZIO[R, E, Option[A]] =
+    foreach(in)(ZIO.identityFn)
+
+  /**
    * Evaluate each effect in the structure from left to right, and collect the
    * results. For a parallel version, see `collectAllPar`.
    */
