@@ -263,3 +263,33 @@ object Main extends App {
   } yield string
 }
 ```
+
+## Unswallowed Exceptions
+
+The Java and Scala error models are broken. Because if we have the right combinations of `try`/`finally`/`catch`es we can actually throw many exceptions, and then we are only able to catch one of them. All the other ones are lost. They are swallowed into a black hole, and also the one that we catch is the wrong one. It is not the primary cause of the failure. 
+
+In the following example, we are going to show this behavior:
+
+```scala mdoc:silent
+ try {
+    try throw new Error("e1")
+    finally throw new Error("e2")
+ } catch {
+   case e: Error => println(e) 
+ }
+```
+
+The above program just prints the `e2`, which is lossy and, also is not the primary cause of failure.
+
+But in the ZIO version, all the errors will still be reported. So even though we are only able to catch one error, the other ones will be reported which we have full control over them. They don't get lost.
+
+Let's write a ZIO version:
+
+```scala mdoc:silent
+IO.fail("e1")
+  .ensuring(IO.effectTotal(throw new Exception("e2")))
+  .catchAll {
+    case "e1" => putStrLn("e1")
+    case "e2" => putStrLn("e2")
+  }
+```
