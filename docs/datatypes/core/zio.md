@@ -151,6 +151,7 @@ ZIO's resource management features work across synchronous, asynchronous, concur
 
 Scala has a `try` / `finally` construct which helps us to make sure we don't leak resources because no matter what happens in the try, the `finally` block will be executed. So we can open files in the try block, and then we can close them in the `finally` block, and that gives us the guarantee that we will not leak resources.
 
+#### Asynchronous Try / Finally
 The problem with the `try` / `finally` construct is that it only applies with synchronous code, they don't work for asynchronous code. ZIO gives us a method called `ensuring` that works with either synchronous or asynchronous actions. So we have a functional try/finally but across the async region of our code, also our finalizer could have async regions.
 
 Like `try` / `finally`, the `ensuring` operation guarantees that if an effect begins executing and then terminates (for whatever reason), then the finalizer will begin executing:
@@ -182,7 +183,30 @@ val composite = action.ensuring(cleanupAction)
 ```
 
 > _**Note:**
-> Finalizers offer very powerful guarantees, but they are low-level, and should generally not be used for releasing resources. For higher-level logic built on `ensuring`, see `ZIO#bracket` on the next section.
+> Finalizers offer very powerful guarantees, but they are low-level, and should generally not be used for releasing resources. For higher-level logic built on `ensuring`, see `ZIO#bracket` on the bracket section.
+
+#### Unstoppable Finalizers
+
+In Scala when we nest `try` / `finally` finalizers, they cannot be stopped. If we have nested finalizers and one of them fails for some sort of catastrophic reason the ones on the outside will still be run and in the correct order. 
+
+```scala 
+try {
+  try {
+    try {
+      ...
+    } finally f1
+  } finally f2
+} finally f3
+```
+
+Also in ZIO like `try` / `finally`, the finalizers are unstoppable. This means if we have a buggy finalizer, and it is going to leak some resources that unfortunately happens, we will leak the minimum amount of resources because all other finalizers will be run in the correct order.
+
+```scala
+val io = ???
+io.ensuring(f1)
+ .ensuring(f2)
+ .ensuring(f3)
+```
 
 ### Brackets
 
