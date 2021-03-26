@@ -43,6 +43,7 @@
       "datatypes/concurrency/promise",
       "datatypes/concurrency/semaphore",
       "datatypes/concurrency/ref",
+      "datatypes/concurrency/refm",
       "datatypes/concurrency/queue"
     ],
     "STM": [
