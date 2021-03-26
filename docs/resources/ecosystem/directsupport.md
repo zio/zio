@@ -1,27 +1,7 @@
 ---
-id: ecosystem
-title:  "Ecosystem"
+id: directsupport
+title:  "Libraries with Direct ZIO Support"
 ---
-
-### If you find a new great library, talk, resource, slides or project, related to ZIO, consider adding to the list with your PR
-
-## Official ZIO Libraries
-
-These libraries are hosted in the [ZIO organization](https://github.com/zio/) on Github, and are generally maintained by core contributors to ZIO.
-
-- [ZIO Actors](https://github.com/zio/zio-actors): A high-performance, purely-functional library for building, composing, and supervising typed actors based on ZIO
-- [ZIO Akka Cluster](https://github.com/zio/zio-akka-cluster): A ZIO wrapper for Akka Cluster
-- [ZIO Config](https://github.com/zio/zio-config): A ZIO based configuration parsing library
-- [ZIO Web](https://github.com/zio/zio-web): A ZIO-powered HTTP server and client
-- [ZIO Kafka](https://github.com/zio/zio-kafka): A Kafka client for ZIO and ZIO Streams
-- [ZIO Keeper](https://github.com/zio/zio-keeper): A functional library for consistent replication of metadata across dynamic clusters
-- [ZIO Logging](https://github.com/zio/zio-logging): An environmental effect for adding logging into any ZIO application, with choice of pluggable back-ends
-- [ZIO NIO](https://github.com/zio/zio-nio): A performant, purely-functional, low-level, and unopinionated wrapper around Java NIO functionality
-- [ZIO SQS](https://github.com/zio/zio-sqs): A ZIO-powered client for AWS SQS
-- [ZIO Telemetry](https://github.com/zio/zio-telemetry): A ZIO-powered OpenTelemetry library 
-
-
-## Libraries with Direct ZIO Support
 
 If you know a useful library that has direct support for ZIO, please consider [submitting a pull request](https://github.com/zio/zio/pulls) to add it to this list.
 
@@ -53,16 +33,3 @@ If you know a useful library that has direct support for ZIO, please consider [s
 - [zio-slf4j](https://github.com/NeQuissimus/zio-slf4j): Referentially transparent logging with slf4j
 - [zio-slick](https://github.com/rleibman/zio-slick): Bridge library between ZIO and Slick Functional Relational Mapping Library
 - [zio-test-akka-http](https://github.com/senia-psm/zio-test-akka-http): Akka-HTTP Route TestKit for zio-test
-
-
-## Tools for ZIO
-
-- [ZIO IntelliJ](https://github.com/zio/zio-intellij): A complimentary, community-developed plugin for IntelliJ IDEA, brings enhancements when using ZIO in your projects
-- [zio-shield](https://github.com/zio/zio-shield): Enforce best coding practices with ZIO
-- [zio-akka-quickstart.g8](https://github.com/ScalaConsultants/zio-akka-quickstart.g8): A Giter8 template for a basic Scala application build using ZIO, Akka HTTP and Slick
-- [zio-dotty-quickstart.g8](https://github.com/ScalaConsultants/zio-dotty-quickstart.g8): A Giter8 template for a basic Dotty application build using ZIO
-
-
-## ZIO Interoperability Libraries
-
-ZIO provides the ability to interoperate with other parts of the broader ecosystem, see [Interop](../interop/index.md) for overview.

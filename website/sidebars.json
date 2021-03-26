@@ -105,18 +105,28 @@
       "howto/howto_mock_services",
       "howto/howto_handle_errors",
       "howto/howto_access_system_information",
-      "howto/howto_macros"
+      "howto/howto_macros",
+      "howto/migrating_from_monix"
     ]
   },
   "resources-sidebar": {
-    "Resources": [
-      "resources/resources",
-      "resources/migrating_from_monix"
-    ]
-  },
-  "ecosystem-sidebar": {
+    "Overview": [
+      "resources/index"
+    ],
+    "Learning": [
+      "resources/learning/index",
+      "resources/learning/articles",
+      "resources/learning/talks",
+      "resources/learning/cookbooks",
+      "resources/learning/cheatsheets",
+      "resources/learning/sampleprojects",
+      "resources/learning/poweredbyzio"
+    ],
     "Ecosystem": [
-      "ecosystem/ecosystem"
+      "resources/ecosystem/index",
+      "resources/ecosystem/officials",
+      "resources/ecosystem/directsupport",
+      "resources/ecosystem/tools"
     ]
   },
   "about-sidebar": {

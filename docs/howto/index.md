@@ -11,3 +11,4 @@ Here are a few guides for common patterns with ZIO:
 - **[Mock services](mock_services.md)**: how to test interactions between services with **mocks**.
 - **[Handle errors](handle_errors.md)**: how to deal with **errors** in ZIO (declared errors vs unforeseen defects).
 - **[Access system information](system.md)**: how to access **environment variables** and other **system properties** with ZIO.
+- **[How to migrate from Monix to ZIO](migrating_from_monix.md)**
