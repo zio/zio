@@ -16,6 +16,6 @@
 
  package zio
 
- private[zio] trait VersionSpecific {
+ private[zio] trait IntersectionTypeCompat {
   type &[+A, +B] = A with B
  }
