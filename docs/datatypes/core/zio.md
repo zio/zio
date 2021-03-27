@@ -54,6 +54,21 @@ val value: UIO[String] = ZIO.succeed("Hello World")
 
 We should never use either constructor for importing impure code into `ZIO`. The result of doing so is undefined.
 
+There are several functions to lift different pure values into the `ZIO` data type:
+
+| Function      | Input Type             | Output Type             |
+|---------------|------------------------|-------------------------|
+| fromOption    | Option[A]              | IO[Option[Nothing], A]  |
+| some          | A                      | UIO[Option[A]]          |
+| none          |                        | UIO[Option[Nothing]]    |
+| getOrFail     | Option[A]              | Task[A]                 |
+| getOrFailUnit | Option[A]              | IO[Unit, A]             |
+| getOrFailWith | e:=> E, v:=> Option[A] | IO[E, A]                |
+| left          | A                      | UIO[Either[A, Nothing]] |
+| right         | A                      | UIO[Either[Nothing, B]] |
+| fromTry       | scala.util.Try[A]      | Task[A]                 |
+| fromEither    | Either[E, A]           | IO[E, A]                |
+
 ### Synchronous Operations
 
 We can use the `effectTotal` method of `ZIO` to import effectful synchronous code into our purely functional program:
