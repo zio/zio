@@ -7,4 +7,4 @@ title: "Task"
 
 Some time, we know that our effect may fail, but we don't care the type of that exception, this is where we can use `Task`. The type signature of this type-alias is similar to the `Future[T]` and Cats `IO`.
 
-This type-alias is a good start point for anyone who wants to refactor the current code base which is written in Cats `IO` or Monix `Task`. 
+If we want to be less precise and want to eliminate the need to think about requirements and error types, we can use `Task`. This type-alias is a good start point for anyone who wants to refactor the current code base which is written in Cats `IO` or Monix `Task`. 
