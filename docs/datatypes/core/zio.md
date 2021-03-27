@@ -40,9 +40,11 @@ val getStrLn: ZIO[Console, IOException, String] =
 
 `ZIO` can be _interpreted_ by the ZIO runtime system into effectful interactions with the external world. Ideally, this occurs at a single time, in your application's `main` function. The `App` class provides this functionality automatically.
 
-## Pure Values
+## Creation
 
-You can lift pure values into `ZIO` with `ZIO.succeed`:
+### Pure Values
+
+We can lift pure values into `ZIO` with `ZIO.succeed`:
 
 ```scala mdoc:silent
 import zio.{ UIO, ZIO }
@@ -50,21 +52,11 @@ import zio.{ UIO, ZIO }
 val value: UIO[String] = ZIO.succeed("Hello World")
 ```
 
-You should never use either constructor for importing impure code into `ZIO`. The result of doing so is undefined.
+We should never use either constructor for importing impure code into `ZIO`. The result of doing so is undefined.
 
-## Infallible ZIO
+### Synchronous Operations
 
-`ZIO` values of type `UIO[A]` (where the error type is `Nothing`) are considered _infallible_,
-because the `Nothing` type is _uninhabitable_, i.e. there can be no actual values of type `Nothing`. Values of this type may produce an `A`, but will never fail with an `E`.
-
-## Unproductive IO
-
-`ZIO` values of type `IO[E, Nothing]` (where the value type is `Nothing`) are considered _unproductive_,
-because the `Nothing` type is _uninhabitable_, i.e. there can be no actual values of type `Nothing`. Values of this type may fail with an `E`, but will never produce a value.
-
-## Impure Code
-
-You can use the `effectTotal` method of `ZIO` to import effectful synchronous code into your purely functional program:
+We can use the `effectTotal` method of `ZIO` to import effectful synchronous code into our purely functional program:
 
 ```scala mdoc:invisible
 import zio.UIO
@@ -88,7 +80,8 @@ def readFile(name: String): ZIO[Nothing, IOException, Array[Byte]] =
   ZIO.effect(FileUtils.readFileToByteArray(new File(name))).refineToOrDie[IOException]
 ```
 
-You can use the `effectAsync` method of `IO` to import effectful asynchronous code into your purely functional program:
+### Asynchronous Operations
+We can use the `effectAsync` method of `IO` to import effectful asynchronous code into our purely functional program:
 
 ```scala mdoc:invisible
 case class HttpException()
@@ -107,6 +100,16 @@ def makeRequest(req: Request): ZIO[Nothing, HttpException, Response] =
 ```
 
 In this example, it's assumed the `Http.req` method will invoke the specified callback when the result has been asynchronously computed.
+
+## Infallible ZIO
+
+`ZIO` values of type `UIO[A]` (where the error type is `Nothing`) are considered _infallible_,
+because the `Nothing` type is _uninhabitable_, i.e. there can be no actual values of type `Nothing`. Values of this type may produce an `A`, but will never fail with an `E`.
+
+## Unproductive IO
+
+`ZIO` values of type `IO[E, Nothing]` (where the value type is `Nothing`) are considered _unproductive_,
+because the `Nothing` type is _uninhabitable_, i.e. there can be no actual values of type `Nothing`. Values of this type may fail with an `E`, but will never produce a value.
 
 ## Mapping
 
