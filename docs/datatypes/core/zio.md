@@ -118,7 +118,8 @@ In this example, it's assumed the `Http.req` method will invoke the specified ca
 
 ## Mapping
 
-You can change an `IO[E, A]` to an `IO[E, B]` by calling the `map` method with a function `A => B`. This lets you transform values produced by actions into other values.
+### map
+We can change an `IO[E, A]` to an `IO[E, B]` by calling the `map` method with a function `A => B`. This lets you transform values produced by actions into other values.
 
 ```scala mdoc:silent
 import zio.{ UIO, IO }
@@ -126,10 +127,12 @@ import zio.{ UIO, IO }
 val mappedValue: UIO[Int] = IO.succeed(21).map(_ * 2)
 ```
 
-You can transform an `IO[E, A]` into an `IO[E2, A]` by calling the `mapError` method with a function `E => E2`:
+### mapError
+We can transform an `IO[E, A]` into an `IO[E2, A]` by calling the `mapError` method with a function `E => E2`:
 
 ```scala mdoc:silent
-val mappedError: IO[Exception, String] = IO.fail("No no!").mapError(msg => new Exception(msg))
+val mappedError: IO[Exception, String] = 
+  IO.fail("No no!").mapError(msg => new Exception(msg))
 ```
 
 ## Chaining
