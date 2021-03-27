@@ -101,16 +101,6 @@ def makeRequest(req: Request): ZIO[Nothing, HttpException, Response] =
 
 In this example, it's assumed the `Http.req` method will invoke the specified callback when the result has been asynchronously computed.
 
-## Infallible ZIO
-
-`ZIO` values of type `UIO[A]` (where the error type is `Nothing`) are considered _infallible_,
-because the `Nothing` type is _uninhabitable_, i.e. there can be no actual values of type `Nothing`. Values of this type may produce an `A`, but will never fail with an `E`.
-
-## Unproductive IO
-
-`ZIO` values of type `IO[E, Nothing]` (where the value type is `Nothing`) are considered _unproductive_,
-because the `Nothing` type is _uninhabitable_, i.e. there can be no actual values of type `Nothing`. Values of this type may fail with an `E`, but will never produce a value.
-
 ## Mapping
 
 You can change an `IO[E, A]` to an `IO[E, B]` by calling the `map` method with a function `A => B`. This lets you transform values produced by actions into other values.
