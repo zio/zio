@@ -45,10 +45,11 @@ val getStrLn: ZIO[Console, IOException, String] =
 ### Pure Values
 
 We can lift pure values into `ZIO` with `ZIO.succeed`:
+```scala mdoc:invisible
+import zio.{UIO, IO, RIO}
+```
 
 ```scala mdoc:silent
-import zio.{ UIO, ZIO }
-
 val value: UIO[String] = ZIO.succeed("Hello World")
 ```
 
@@ -134,6 +135,17 @@ We can transform an `IO[E, A]` into an `IO[E2, A]` by calling the `mapError` met
 val mappedError: IO[Exception, String] = 
   IO.fail("No no!").mapError(msg => new Exception(msg))
 ```
+
+### mapEffect
+`mapEffect` returns an effect whose success is mapped by the specified side-effecting `f` function, translating any thrown exceptions into typed failed effects.
+
+Converting literal "Five" String to Int by calling `toInt` is a side effecting because it will throws `NumberFormatException` exception:
+
+```scala mdoc:silent
+val task: RIO[Any, Int] = ZIO.succeed("hello").mapEffect(_.toInt)
+```   
+
+`mapEffect` converts an unchecked exception to a checked one by returning the `RIO` effect.
 
 ## Chaining
 
