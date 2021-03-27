@@ -42,7 +42,9 @@
       "datatypes/concurrency/index",
       "datatypes/concurrency/promise",
       "datatypes/concurrency/semaphore",
+      "datatypes/concurrency/zref",
       "datatypes/concurrency/ref",
+      "datatypes/concurrency/zrefm",
       "datatypes/concurrency/refm",
       "datatypes/concurrency/queue"
     ],
@@ -74,6 +76,16 @@
       "datatypes/misc/chunk",
       "datatypes/misc/schedule",
       "datatypes/module/has"
+    ]
+  },
+  "services-sidebar": {
+    "Services": [
+      "services/index",
+      "services/console",
+      "services/clock",
+      "services/random",
+      "services/blocking",
+      "services/system"
     ]
   },
   "interop-sidebar": {
