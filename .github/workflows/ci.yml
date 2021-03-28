@@ -16,6 +16,7 @@ on:
       - published
 
 jobs:
+  timeout-minutes: 60
   build:
     runs-on: ubuntu-20.04
     strategy:
@@ -65,9 +66,9 @@ jobs:
     - name: Cache scala dependencies
       uses: coursier/cache-action@v5
     - name: Run Scala 211 JVM Tests
-      run: sbt ++${{ env.SCALA_211 }}! testJVM11
+      run: sbt ++${{ env.SCALA_211 }}! testJVM211
     - name: Run Scala 211 JS Tests
-      run: sbt ++${{ env.SCALA_211 }}! testJS11
+      run: sbt ++${{ env.SCALA_211 }}! testJS211
   scala3:
     runs-on: ubuntu-20.04
     strategy:
