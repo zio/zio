@@ -1,5 +1,12 @@
 name: CI
 
+env:
+  JAVA8: adopt@1.8
+  JAVA11: adopt@1.11
+  SCALA_211: 2.11.12
+  SCALA_212: 2.12.13
+  SCALA_213: 2.13.5
+  SCALA_3: 3.0.0-RC1
 on:
   pull_request:
   push:
@@ -11,16 +18,11 @@ on:
 jobs:
   build:
     runs-on: ubuntu-20.04
-    env:
-      SCALA_211: 2.11.12
-      SCALA_212: 2.12.13
-      SCALA_213: 2.13.5
-      SCALA_3: 3.0.0-RC1
     strategy:
       fail-fast: false
       matrix:
-        java: ['adopt@1.8', 'adopt@1.11']
-        scala: [env.SCALA_212, env.SCALA_213]
+        java: [${{ env.java8 }}, ${{ env.java8 }}]
+        scala: [${{ env.SCALA_212}}, ${{ env.SCALA_213 }}]
     steps:
     - uses: actions/checkout@v2.3.4
     - uses: olafurpg/setup-scala@v10
@@ -40,10 +42,45 @@ jobs:
       run: sbt ++${{ matrix.scala }}! testJS
     - name: Run Scala Native Tests
       run: sbt testNative
+  benchmark:
+    runs-on: ubuntu-20.04
+    strategy:
+      fail-fast: false
+    steps:
+    - uses: actions/checkout@v2.3.4
+    - uses: olafurpg/setup-scala@v10
+      with:
+        java-version: ${{ env.java8 }}
+    - name: Cache scala dependencies
+      uses: coursier/cache-action@v5
+    - name: Run JVM Benchmark tests
+      run: sbt ++${{ env.SCALA_213 }}! testJVMNoBenchmarks
+  scala211:
+    runs-on: ubuntu-20.04
+    strategy:
+      fail-fast: false
+    steps:
+    - uses: actions/checkout@v2.3.4
+    - uses: olafurpg/setup-scala@v10
+      with:
+        java-version: ${{ env.java8 }}
+    - name: Cache scala dependencies
+      uses: coursier/cache-action@v5
     - name: Run Scala 211 JVM Tests
       run: sbt ++{{ env.SCALA_211 }}! testJVM11
     - name: Run Scala 211 JS Tests
       run: sbt ++{{ env.SCALA_211 }}! testJS11
+  scala3:
+    runs-on: ubuntu-20.04
+    strategy:
+      fail-fast: false
+    steps:
+    - uses: actions/checkout@v2.3.4
+    - uses: olafurpg/setup-scala@v10
+      with:
+        java-version: ${{ env.java8 }}
+    - name: Cache scala dependencies
+      uses: coursier/cache-action@v5
     - name: Run Scala 3 JVM Tests
       run: sbt ++{{ env.SCALA_3 }}! testJVMDotty
   publish:
