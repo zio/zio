@@ -30,7 +30,7 @@ jobs:
       with:
         java-version: ${{ matrix.java }}
     - name: Cache scala dependencies
-      uses: coursier/cache-action@v5
+      uses: coursier/cache-action@v6
     - name: Lint code
       run: sbt fmtCheck fixCheck
     - name: Mima Checks
@@ -51,7 +51,7 @@ jobs:
       with:
         java-version: 'adopt@1.8'
     - name: Cache scala dependencies
-      uses: coursier/cache-action@v5
+      uses: coursier/cache-action@v6
     - name: Run JVM Benchmark tests
       run: sbt ++${{ env.SCALA_213 }}! testJVMNoBenchmarks
   scala211:
@@ -65,7 +65,7 @@ jobs:
       with:
         java-version: 'adopt@1.8'
     - name: Cache scala dependencies
-      uses: coursier/cache-action@v5
+      uses: coursier/cache-action@v6
     - name: Run Scala 211 JVM Tests
       run: sbt ++${{ env.SCALA_211 }}! testJVM211
     - name: Run Scala 211 JS Tests
@@ -81,7 +81,7 @@ jobs:
       with:
         java-version: 'adopt@1.8'
     - name: Cache scala dependencies
-      uses: coursier/cache-action@v5
+      uses: coursier/cache-action@v6
     - name: Run Scala 3 JVM Tests
       run: sbt ++${{ env.SCALA_3 }}! testJVMDotty
   publish:
