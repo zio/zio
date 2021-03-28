@@ -213,6 +213,18 @@ for {
 
 If we want the first success or failure, rather than the first success, then we can use `left.either race right.either`, for any effects `left` and `right`.
 
+## Timeout
+
+ZIO lets us timeout any effect using the `ZIO#timeout` method, which returns a new effect that succeeds with an `Option`. A value of `None` indicates the timeout elapsed before the effect completed.
+
+```scala mdoc:silent
+import zio.duration._
+
+IO.succeed("Hello").timeout(10.seconds)
+```
+
+If an effect times out, then instead of continuing to execute in the background, it will be interrupted so no resources will be wasted.
+
 ## Resource Management
 
 ZIO's resource management features work across synchronous, asynchronous, concurrent, and other effect types, and provide strong guarantees even in the presence of failure, interruption, or defects in the application.
