@@ -21,8 +21,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        java: [${{ env.java8 }}, ${{ env.java8 }}]
-        scala: [${{ env.SCALA_212}}, ${{ env.SCALA_213 }}]
+        java: [env.java8, env.java8]
+        scala: [env.SCALA_212, env.SCALA_213]
     steps:
     - uses: actions/checkout@v2.3.4
     - uses: olafurpg/setup-scala@v10
