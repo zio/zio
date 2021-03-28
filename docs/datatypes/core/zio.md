@@ -180,6 +180,39 @@ val chainedActionsValueWithForComprehension: UIO[List[Int]] = for {
 } yield added
 ```
 
+## Parallelism
+
+ZIO provides many operations for performing effects in parallel. These methods are all named with a `Par` suffix that helps you identify opportunities to parallelize your code.
+
+For example, the ordinary `ZIO#zip` method zips two effects together, sequentially. But there is also a `ZIO#zipPar` method, which zips two effects together in parallel.
+
+The following table summarizes some of the sequential operations and their corresponding parallel versions:
+
+| **Description**              | **Sequential**    | **Parallel**         |
+| ---------------------------: | :---------------: | :------------------: |
+| Zips two effects into one    | `ZIO.zip`         | `ZIO.zipPar`         |
+| Zips two effects into one    | `ZIO.zipWith`     | `ZIO.zipWithPar`     |
+| Collects from many effects   | `ZIO.collectAll`  | `ZIO.collectAllPar`  |
+| Effectfully loop over values | `ZIO.foreach`     | `ZIO.foreachPar`     |
+| Reduces many values          | `ZIO.reduceAll`   | `ZIO.reduceAllPar`   |
+| Merges many values           | `ZIO.mergeAll`    | `ZIO.mergeAllPar`    |
+
+For all the parallel operations, if one effect fails, then others will be interrupted, to minimize unnecessary computation.
+
+If the fail-fast behavior is not desired, potentially failing effects can be first converted into infallible effects using the `ZIO#either` or `ZIO#option` methods.
+
+### Racing
+
+ZIO lets us race multiple effects in parallel, returning the first successful result:
+
+```scala mdoc:silent
+for {
+  winner <- IO.succeed("Hello").race(IO.succeed("Goodbye"))
+} yield winner
+```
+
+If we want the first success or failure, rather than the first success, then we can use `left.either race right.either`, for any effects `left` and `right`.
+
 ## Resource Management
 
 ZIO's resource management features work across synchronous, asynchronous, concurrent, and other effect types, and provide strong guarantees even in the presence of failure, interruption, or defects in the application.
