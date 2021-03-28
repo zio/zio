@@ -42,7 +42,7 @@ val getStrLn: ZIO[Console, IOException, String] =
 
 ## Creation
 
-### Pure Values
+### From Pure Values
 
 We can lift pure values into `ZIO` with `ZIO.succeed`:
 ```scala mdoc:invisible
@@ -70,7 +70,7 @@ There are several functions to lift different pure values into the `ZIO` data ty
 | fromTry       | scala.util.Try[A]      | Task[A]                 |
 | fromEither    | Either[E, A]           | IO[E, A]                |
 
-### Synchronous Operations
+### From Synchronous Code
 
 We can use the `effectTotal` method of `ZIO` to import effectful synchronous code into our purely functional program:
 
@@ -96,7 +96,7 @@ def readFile(name: String): ZIO[Nothing, IOException, Array[Byte]] =
   ZIO.effect(FileUtils.readFileToByteArray(new File(name))).refineToOrDie[IOException]
 ```
 
-### Asynchronous Operations
+### From Asynchronous Code
 We can use the `effectAsync` method of `IO` to import effectful asynchronous code into our purely functional program:
 
 ```scala mdoc:invisible
@@ -116,6 +116,20 @@ def makeRequest(req: Request): ZIO[Nothing, HttpException, Response] =
 ```
 
 In this example, it's assumed the `Http.req` method will invoke the specified callback when the result has been asynchronously computed.
+
+### Others
+`ZIO` supports lifting and importing functions from various data types. Here is the list of most of them:
+
+| Function            | Input Type                                     | Output Type  |
+|---------------------|------------------------------------------------|--------------|
+| fromFiber           | Fiber[E, A]                                    | IO[E, A]     |
+| fromFiberM          | IO[E, Fiber[E, A]]                             | IO[E, A]     |
+| fromFunction        | R => A                                         | URIO[R, A]   |
+| fromFunctionFuture  | R => scala.concurrent.Future[A]                | RIO[R, A]    |
+| fromFuture          | ExecutionContext => scala.concurrent.Future[A] | Task[A]      |
+| fromFutureInterrupt | ExecutionContext => scala.concurrent.Future[A] | Task[A]      |
+| fromFunctionM       | R => IO[E, A]                                  | ZIO[R, E, A] |
+| fromPromiseScala    | scala.concurrent.Promise[A]                    | Task[A]      |
 
 ## Mapping
 
