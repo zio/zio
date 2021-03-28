@@ -21,8 +21,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        java: [env.java8, env.java8]
-        scala: [env.SCALA_212, env.SCALA_213]
+        java: ['adopt@1.8,' 'adopt@1.11']
+        scala: ['2.12.13', '2.13.5']
     steps:
     - uses: actions/checkout@v2.3.4
     - uses: olafurpg/setup-scala@v10
@@ -36,8 +36,6 @@ jobs:
       run: sbt ++${{ matrix.scala }}! mimaChecks
     - name: Run JVM tests
       run: sbt ++${{ matrix.scala }}! testJVM
-    - name: Run JVM Benchmark tests
-      run: sbt ++${{ env.SCALA_213 }}! testJVMNoBenchmarks
     - name: Run JS Tests
       run: sbt ++${{ matrix.scala }}! testJS
     - name: Run Scala Native Tests
@@ -50,7 +48,7 @@ jobs:
     - uses: actions/checkout@v2.3.4
     - uses: olafurpg/setup-scala@v10
       with:
-        java-version: ${{ env.java8 }}
+        java-version: 'adopt@1.8'
     - name: Cache scala dependencies
       uses: coursier/cache-action@v5
     - name: Run JVM Benchmark tests
@@ -63,7 +61,7 @@ jobs:
     - uses: actions/checkout@v2.3.4
     - uses: olafurpg/setup-scala@v10
       with:
-        java-version: ${{ env.java8 }}
+        java-version: 'adopt@1.8'
     - name: Cache scala dependencies
       uses: coursier/cache-action@v5
     - name: Run Scala 211 JVM Tests
@@ -78,7 +76,7 @@ jobs:
     - uses: actions/checkout@v2.3.4
     - uses: olafurpg/setup-scala@v10
       with:
-        java-version: ${{ env.java8 }}
+        java-version: 'adopt@1.8'
     - name: Cache scala dependencies
       uses: coursier/cache-action@v5
     - name: Run Scala 3 JVM Tests
