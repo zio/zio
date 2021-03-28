@@ -161,6 +161,36 @@ val task: RIO[Any, Int] = ZIO.succeed("hello").mapEffect(_.toInt)
 
 `mapEffect` converts an unchecked exception to a checked one by returning the `RIO` effect.
 
+## Zipping
+
+We can combine two effects into a single effect with the `zip` method. The resulting effect succeeds with a tuple that contains the success values of both effects:
+
+```scala mdoc:silent
+val zipped: UIO[(String, Int)] = 
+  ZIO.succeed("4").zip(ZIO.succeed(2))
+```
+
+Note that `zip` operates sequentially: the effect on the left side is executed before the effect on the right side.
+
+In any `zip` operation, if either the left or right-hand sides fail, then the composed effect will fail, because _both_ values are required to construct the tuple.
+
+### zipLeft and zipRight
+
+Sometimes, when the success value of an effect is not useful (or example, it is `Unit`), it can be more convenient to use the `zipLeft` or `zipRight` functions, which first perform a `zip`, and then map over the tuple to discard one side or the other:
+
+```scala mdoc:silent
+val zipRight1 = 
+  putStrLn("What is your name?").zipRight(getStrLn)
+```
+
+The `zipRight` and `zipLeft` functions have symbolic aliases, known as `*>` and `<*`, respectively. Some developers find these operators easier to read:
+
+```scala mdoc:silent
+val zipRight2 = 
+  putStrLn("What is your name?") *>
+  getStrLn
+```
+
 ## Chaining
 
 You can execute two actions in sequence with the `flatMap` method. The second action may depend on the value produced by the first action.
