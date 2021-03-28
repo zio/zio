@@ -16,9 +16,9 @@ on:
       - published
 
 jobs:
-  timeout-minutes: 60
   build:
     runs-on: ubuntu-20.04
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -56,6 +56,7 @@ jobs:
       run: sbt ++${{ env.SCALA_213 }}! testJVMNoBenchmarks
   scala211:
     runs-on: ubuntu-20.04
+    timeout-minutes: 60
     strategy:
       fail-fast: false
     steps:
@@ -71,6 +72,7 @@ jobs:
       run: sbt ++${{ env.SCALA_211 }}! testJS211
   scala3:
     runs-on: ubuntu-20.04
+    timeout-minutes: 60
     strategy:
       fail-fast: false
     steps:
@@ -84,6 +86,7 @@ jobs:
       run: sbt ++${{ env.SCALA_3 }}! testJVMDotty
   publish:
     runs-on: ubuntu-20.04
+    timeout-minutes: 60
     needs: [build, benchmark, scala211, scala3]
     if: github.event_name != 'pull_request'
     steps:
