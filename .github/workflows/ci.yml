@@ -11,11 +11,16 @@ on:
 jobs:
   build:
     runs-on: ubuntu-20.04
+    env:
+      SCALA_211: 2.11.12
+      SCALA_212: 2.12.13
+      SCALA_213: 2.13.5
+      SCALA_3: 3.0.0-RC1
     strategy:
       fail-fast: false
       matrix:
         java: ['adopt@1.8', 'adopt@1.11']
-        scala: ['2.11.12','2.12.13', '2.13.5', '3.0.0-RC1']
+        scala: [env.SCALA_212, env.SCALA_213]
     steps:
     - uses: actions/checkout@v2.3.4
     - uses: olafurpg/setup-scala@v10
@@ -30,11 +35,17 @@ jobs:
     - name: Run JVM tests
       run: sbt ++${{ matrix.scala }}! testJVM
     - name: Run JVM Benchmark tests
-      run: sbt ++${{ matrix.scala }}! testJVMNoBenchmarks
+      run: sbt ++${{ env.SCALA_213 }}! testJVMNoBenchmarks
     - name: Run JS Tests
       run: sbt ++${{ matrix.scala }}! testJS
     - name: Run Scala Native Tests
       run: sbt testNative
+    - name: Run Scala 211 JVM Tests
+      run: sbt ++{{ env.SCALA_211 }}! testJVM11
+    - name: Run Scala 211 JS Tests
+      run: sbt ++{{ env.SCALA_211 }}! testJS11
+    - name: Run Scala 3 JVM Tests
+      run: sbt ++{{ env.SCALA_3 }}! testJVMDotty
   publish:
     runs-on: ubuntu-20.04
     needs: [build]
