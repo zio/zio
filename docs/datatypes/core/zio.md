@@ -475,6 +475,33 @@ val task: RIO[Any, Int] = ZIO.succeed("hello").mapEffect(_.toInt)
 
 `mapEffect` converts an unchecked exception to a checked one by returning the `RIO` effect.
 
+## Chaining
+
+We can execute two actions in sequence with the `flatMap` method. The second action may depend on the value produced by the first action.
+
+```scala mdoc:silent
+val chainedActionsValue: UIO[List[Int]] = IO.succeed(List(1, 2, 3)).flatMap { list =>
+  IO.succeed(list.map(_ + 1))
+}
+```
+
+If the first effect fails, the callback passed to `flatMap` will never be invoked, and the composed effect returned by `flatMap` will also fail.
+
+In _any_ chain of effects, the first failure will short-circuit the whole chain, just like throwing an exception will prematurely exit a sequence of statements.
+
+Because the `ZIO` data type supports both `flatMap` and `map`, we can use Scala's _for comprehensions_ to build sequential effects:
+
+```scala mdoc:silent
+val program = 
+  for {
+    _    <- putStrLn("Hello! What is your name?")
+    name <- getStrLn
+    _    <- putStrLn(s"Hello, ${name}, welcome to ZIO!")
+  } yield ()
+```
+
+_For comprehensions_ provide a more procedural syntax for composing chains of effects.
+
 ## Zipping
 
 We can combine two effects into a single effect with the `zip` method. The resulting effect succeeds with a tuple that contains the success values of both effects:
@@ -504,33 +531,6 @@ val zipRight2 =
   putStrLn("What is your name?") *>
   getStrLn
 ```
-
-## Chaining
-
-We can execute two actions in sequence with the `flatMap` method. The second action may depend on the value produced by the first action.
-
-```scala mdoc:silent
-val chainedActionsValue: UIO[List[Int]] = IO.succeed(List(1, 2, 3)).flatMap { list =>
-  IO.succeed(list.map(_ + 1))
-}
-```
-
-If the first effect fails, the callback passed to `flatMap` will never be invoked, and the composed effect returned by `flatMap` will also fail.
-
-In _any_ chain of effects, the first failure will short-circuit the whole chain, just like throwing an exception will prematurely exit a sequence of statements.
-
-Because the `ZIO` data type supports both `flatMap` and `map`, we can use Scala's _for comprehensions_ to build sequential effects:
-
-```scala mdoc:silent
-val program = 
-  for {
-    _    <- putStrLn("Hello! What is your name?")
-    name <- getStrLn
-    _    <- putStrLn(s"Hello, ${name}, welcome to ZIO!")
-  } yield ()
-```
-
-_For comprehensions_ provide a more procedural syntax for composing chains of effects.
 
 ## Parallelism
 
