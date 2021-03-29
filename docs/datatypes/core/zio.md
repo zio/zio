@@ -27,7 +27,7 @@ The `ZIO[R, E, A]` data type has three type parameters:
 In the following example, the `getStrLn` function requires the `Console` service, it may fail with value of type `IOException`, or may succeed with a value of type `String`:
 
 ```scala mdoc:invisible
-import zio.{ZIO, IO, URIO, UIO, Task, RIO}
+import zio.{ZIO, IO, URIO, UIO, Task, RIO, Schedule}
 import zio.console._
 import java.io.IOException
 ```
@@ -564,6 +564,182 @@ IO.succeed("Hello").timeout(10.seconds)
 ```
 
 If an effect times out, then instead of continuing to execute in the background, it will be interrupted so no resources will be wasted.
+
+## Error Management
+
+### Either
+
+| Function      | Input Type                | Output Type             |
+|---------------|---------------------------|-------------------------|
+| `ZIO#either`  |                           | `URIO[R, Either[E, A]]` |
+| `ZIO.absolve` | `ZIO[R, E, Either[E, A]]` | `ZIO[R, E, A]`          |
+
+We can surface failures with `ZIO#either`, which takes an `ZIO[R, E, A]` and produces an `ZIO[R, Nothing, Either[E, A]]`.
+
+```scala mdoc:silent:nest
+val zeither: UIO[Either[String, Int]] = 
+  IO.fail("Uh oh!").either
+```
+
+We can submerge failures with `ZIO.absolve`, which is the opposite of `either` and turns an `ZIO[R, Nothing, Either[E, A]]` into a `ZIO[R, E, A]`:
+
+```scala mdoc:silent
+def sqrt(io: UIO[Double]): IO[String, Double] =
+  ZIO.absolve(
+    io.map(value =>
+      if (value < 0.0) Left("Value must be >= 0.0")
+      else Right(Math.sqrt(value))
+    )
+  )
+```
+
+### Catching
+
+| Function              | Input Type                                              | Output Type       |
+|-----------------------|---------------------------------------------------------|-------------------|
+| `ZIO#catchAll`        | `E => ZIO[R1, E2, A1]`                                  | `ZIO[R1, E2, A1]` |
+| `ZIO#catchAllCause`   | `Cause[E] => ZIO[R1, E2, A1]`                           | `ZIO[R1, E2, A1]` |
+| `ZIO#catchAllDefect`  | `Throwable => ZIO[R1, E1, A1]`                          | `ZIO[R1, E1, A1]` |
+| `ZIO#catchAllTrace`   | `((E, Option[ZTrace])) => ZIO[R1, E2, A1]`              | `ZIO[R1, E2, A1]` |
+| `ZIO#catchSome`       | `PartialFunction[E, ZIO[R1, E1, A1]]`                   | `ZIO[R1, E1, A1]` |
+| `ZIO#catchSomeCause`  | `PartialFunction[Cause[E], ZIO[R1, E1, A1]]`            | `ZIO[R1, E1, A1]` |
+| `ZIO#catchSomeDefect` | `PartialFunction[Throwable, ZIO[R1, E1, A1]]`           | `ZIO[R1, E1, A1]` |
+| `ZIO#catchSomeTrace`  | `PartialFunction[(E, Option[ZTrace]), ZIO[R1, E1, A1]]` | `ZIO[R1, E1, A1]` |
+
+#### Catching All Errors 
+If we want to catch and recover from all types of errors and effectfully attempt recovery, we can use the `catchAll` method:
+
+```scala mdoc:invisible
+import java.io.{ FileNotFoundException, IOException }
+def readFile(s: String): IO[IOException, Array[Byte]] = 
+  ZIO.effect(???).refineToOrDie[IOException]
+```
+
+```scala mdoc:silent
+val z: IO[IOException, Array[Byte]] = 
+  readFile("primary.json").catchAll(_ => 
+    readFile("backup.json"))
+```
+
+In the callback passed to `catchAll`, we may return an effect with a different error type (or perhaps `Nothing`), which will be reflected in the type of effect returned by `catchAll`.
+#### Catching Some Errors
+
+If we want to catch and recover from only some types of exceptions and effectfully attempt recovery, we can use the `catchSome` method:
+
+```scala mdoc:silent
+val data: IO[IOException, Array[Byte]] = 
+  readFile("primary.data").catchSome {
+    case _ : FileNotFoundException => 
+      readFile("backup.data")
+  }
+```
+
+Unlike `catchAll`, `catchSome` cannot reduce or eliminate the error type, although it can widen the error type to a broader class of errors.
+
+### Fallback
+
+| Function         | Input Type                | Output Type                 |
+|------------------|---------------------------|-----------------------------|
+| `orElse`         | `ZIO[R1, E2, A1]`         | `ZIO[R1, E2, A1]`           |
+| `orElseEither`   | `ZIO[R1, E2, B]`          | `ZIO[R1, E2, Either[A, B]]` |
+| `orElseFail`     | `E1`                      | `ZIO[R, E1, A]`             |
+| `orElseOptional` | `ZIO[R1, Option[E1], A1]` | `ZIO[R1, Option[E1], A1]`   |
+| `orElseSucceed`  | `A1`                      | `URIO[R, A1]`              |
+
+We can try one effect, or, if it fails, try another effect, with the `orElse` combinator:
+
+```scala mdoc:silent
+val primaryOrBackupData: IO[IOException, Array[Byte]] = 
+  readFile("primary.data").orElse(readFile("backup.data"))
+```
+
+### Folding
+
+| Function     | Input Type                                                                       | Output Type      |
+|--------------|----------------------------------------------------------------------------------|------------------|
+| `fold`       | `failure: E => B, success: A => B`                                               | `URIO[R, B]`     |
+| `foldCause`  | `failure: Cause[E] => B, success: A => B`                                        | `URIO[R, B]`     |
+| `foldM`      | `failure: E => ZIO[R1, E2, B], success: A => ZIO[R1, E2, B]`                     | `ZIO[R1, E2, B]` |
+| `foldCauseM` | `failure: Cause[E] => ZIO[R1, E2, B], success: A => ZIO[R1, E2, B]`              | `ZIO[R1, E2, B]` |
+| `foldTraceM` | `failure: ((E, Option[ZTrace])) => ZIO[R1, E2, B], success: A => ZIO[R1, E2, B]` | `ZIO[R1, E2, B]` |
+
+Scala's `Option` and `Either` data types have `fold`, which let us handle both failure and success at the same time. In a similar fashion, `ZIO` effects also have several methods that allow us to handle both failure and success.
+
+The first fold method, `fold`, lets us non-effectfully handle both failure and success, by supplying a non-effectful handler for each case:
+
+```scala mdoc:silent
+lazy val DefaultData: Array[Byte] = Array(0, 0)
+
+val primaryOrDefaultData: UIO[Array[Byte]] = 
+  readFile("primary.data").fold(
+    _    => DefaultData,
+    data => data)
+```
+
+The second fold method, `foldM`, lets us effectfully handle both failure and success, by supplying an effectful (but still pure) handler for each case:
+
+```scala mdoc:silent
+val primaryOrSecondaryData: IO[IOException, Array[Byte]] = 
+  readFile("primary.data").foldM(
+    _    => readFile("secondary.data"),
+    data => ZIO.succeed(data))
+```
+
+Nearly all error handling methods are defined in terms of `foldM`, because it is both powerful and fast.
+
+In the following example, `foldM` is used to handle both failure and success of the `readUrls` method:
+
+```scala mdoc:invisible
+sealed trait Content
+case class NoContent(t: Throwable) extends Content
+case class OkContent(s: String) extends Content
+def readUrls(file: String): Task[List[String]] = IO.succeed("Hello" :: Nil)
+def fetchContent(urls: List[String]): UIO[Content] = IO.succeed(OkContent("Roger"))
+```
+```scala mdoc:silent
+val urls: UIO[Content] =
+  readUrls("urls.json").foldM(
+    error   => IO.succeed(NoContent(error)), 
+    success => fetchContent(success)
+  )
+```
+
+### Retrying
+
+| Function            | Input Type                                                           | Output Type                            |
+|---------------------|----------------------------------------------------------------------|----------------------------------------|
+| `retry`             | `Schedule[R1, E, S]`                                                 | `ZIO[R1 with Clock, E, A]`             |
+| `retryN`            | `n: Int`                                                             | `ZIO[R, E, A]`                         |
+| `retryOrElse`       | `policy: Schedule[R1, E, S], orElse: (E, S) => ZIO[R1, E1, A1]`      | `ZIO[R1 with Clock, E1, A1]`           |
+| `retryOrElseEither` | `schedule: Schedule[R1, E, Out], orElse: (E, Out) => ZIO[R1, E1, B]` | `ZIO[R1 with Clock, E1, Either[B, A]]` |
+| `retryUntil`        | `E => Boolean`                                                       | `ZIO[R, E, A]`                         |
+| `retryUntilEquals`  | `E1`                                                                 | `ZIO[R, E1, A]`                        |
+| `retryUntilM`       | `E => URIO[R1, Boolean]`                                             | `ZIO[R1, E, A]`                        |
+| `retryWhile`        | `E => Boolean`                                                       | `ZIO[R, E, A]`                         |
+| `retryWhileEquals`  | `E1`                                                                 | `ZIO[R, E1, A]`                        |
+| `retryWhileM`       | `E => URIO[R1, Boolean]`                                             | `ZIO[R1, E, A]`                        |
+
+There are a number of useful methods on the ZIO data type for retrying failed effects. 
+
+The most basic of these is `ZIO#retry`, which takes a `Schedule` and returns a new effect that will retry the first effect if it fails, according to the specified policy:
+
+```scala mdoc:silent
+import zio.clock._
+
+val retriedOpenFile: ZIO[Clock, IOException, Array[Byte]] = 
+  readFile("primary.data").retry(Schedule.recurs(5))
+```
+
+The next most powerful function is `ZIO#retryOrElse`, which allows specification of a fallback to use, if the effect does not succeed with the specified policy:
+
+```scala mdoc:silent
+readFile("primary.data").retryOrElse(
+  Schedule.recurs(5), 
+  (_, _:Long) => ZIO.succeed(DefaultData)
+)
+```
+
+The final method, `ZIO#retryOrElseEither`, allows returning a different type for the fallback.
 
 ## Resource Management
 
