@@ -393,7 +393,7 @@ lazy val testJunitRunnerTests = crossProject(JVMPlatform)
     Seq(
       s"-Dproject.dir=${baseDirectory.value}",
       s"-Dproject.version=${version.value}",
-      s"-XX:+UseG1GC"
+      s"-Xmx2g"
     )
   })
   .settings(skip in publish := true)
