@@ -453,12 +453,16 @@ val mappedValue: UIO[Int] = IO.succeed(21).map(_ * 2)
 ```
 
 ### mapError
-We can transform an `IO[E, A]` into an `IO[E2, A]` by calling the `mapError` method with a function `E => E2`:
+We can transform an `IO[E, A]` into an `IO[E2, A]` by calling the `mapError` method with a function `E => E2`.  This lets us transform the failure values of effects:
 
 ```scala mdoc:silent
 val mappedError: IO[Exception, String] = 
   IO.fail("No no!").mapError(msg => new Exception(msg))
 ```
+
+> _**Note:**_
+>
+> Note that mapping over an effect's success or error channel does not change the success or failure of the effect, in the same way that mapping over an `Either` does not change whether the `Either` is `Left` or `Right`.
 
 ### mapEffect
 `mapEffect` returns an effect whose success is mapped by the specified side-effecting `f` function, translating any thrown exceptions into typed failed effects.
