@@ -731,6 +731,18 @@ object IO {
   val none: UIO[Option[Nothing]] = ZIO.none
 
   /**
+   * @see See [[zio.ZIO.noneOrFail]]
+   */
+  def noneOrFail[E](o: Option[E]): IO[E, Unit] =
+    ZIO.noneOrFail(o)
+
+  /**
+   * @see See [[zio.ZIO.noneOrFailWith]]
+   */
+  def noneOrFailWith[E, O](o: Option[O], f: O => E): IO[E, Unit] =
+    ZIO.noneOrFailWith(o, f)
+
+  /**
    *  @see See [[zio.ZIO.not]]
    */
   def not[E](effect: IO[E, Boolean]): IO[E, Boolean] =
