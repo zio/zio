@@ -1,6 +1,6 @@
 package zio
 
-import cats.effect.{ContextShift, IO => CIO}
+import cats.effect.{IO => CIO}
 import cats.implicits._
 import monix.eval.{Task => MTask}
 import monix.execution.BufferCapacity.Bounded
