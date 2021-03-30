@@ -7,6 +7,8 @@ env:
   SCALA_212: 2.12.13
   SCALA_213: 2.13.5
   SCALA_3: 3.0.0-RC1
+  JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
+  JVM_OPTS:  -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
 on:
   pull_request:
   push:
