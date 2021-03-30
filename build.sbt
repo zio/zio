@@ -392,7 +392,9 @@ lazy val testJunitRunnerTests = crossProject(JVMPlatform)
   .settings(javaOptions in Test ++= {
     Seq(
       s"-Dproject.dir=${baseDirectory.value}",
-      s"-Dproject.version=${version.value}"
+      s"-Dproject.version=${version.value}",
+      s"-Dscala.version=${scalaVersion.value}",
+      s"-Dscala.compat.version=${scalaBinaryVersion.value}"
     )
   })
   .settings(skip in publish := true)
