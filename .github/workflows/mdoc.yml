@@ -1,8 +1,6 @@
 name: Website
 
 on:
-  push:
-    branches: [master]
   release:
     types:
       - published
