@@ -2,7 +2,7 @@
 
 | CI | Release | Snapshot | Issues | Scaladoc |
 | --- | --- | --- | --- | --- |
-| [![CI][Badge-CI] | [![Release Artifacts][Badge-SonatypeReleases]][Link-SonatypeReleases] | [![Snapshot Artifacts][Badge-SonatypeSnapshots]][Link-SonatypeSnapshots] | [![Average time to resolve an issue][Badge-IsItMaintained]][Link-IsItMaintained] | [![Badge-Scaladoc]][Link-Scaladoc] |
+| ![CI][Badge-CI] | [![Release Artifacts][Badge-SonatypeReleases]][Link-SonatypeReleases] | [![Snapshot Artifacts][Badge-SonatypeSnapshots]][Link-SonatypeSnapshots] | [![Average time to resolve an issue][Badge-IsItMaintained]][Link-IsItMaintained] | [![Badge-Scaladoc]][Link-Scaladoc] |
 
 | Scaladex | Discord | Twitter | Gitpod |
 | --- | --- | --- | --- |
