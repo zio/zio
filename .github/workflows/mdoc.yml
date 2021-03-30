@@ -1,0 +1,20 @@
+name: Website
+
+on:
+  push:
+    branches: [master]
+  release:
+    types:
+      - published
+
+jobs:
+  publish:
+    runs-on: ubuntu-20.04
+    if: github.event_name != 'pull_request'
+    steps:
+      - uses: actions/checkout@v2
+      - uses: olafurpg/setup-scala@v10
+      - uses: olafurpg/setup-gpg@v3
+      - run: sbt docs/docusaurusPublishGhpages
+        env:
+          GIT_DEPLOY_KEY: ${{ secrets.GIT_DEPLOY_KEY }}

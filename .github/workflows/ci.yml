@@ -1,0 +1,104 @@
+name: CI
+
+env:
+  JAVA8: adopt@1.8
+  JAVA11: adopt@1.11
+  SCALA_211: 2.11.12
+  SCALA_212: 2.12.13
+  SCALA_213: 2.13.5
+  SCALA_3: 3.0.0-RC1
+  JAVA_OPTS: -Xms2048M -Xmx3072M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
+  JVM_OPTS:  -Xms2048M -Xmx3072M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
+on:
+  pull_request:
+  push:
+    branches: ['master']
+  release:
+    types:
+      - published
+
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        java: ['adopt@1.8', 'adopt@1.11']
+        scala: ['2.12.13', '2.13.5']
+    steps:
+    - uses: actions/checkout@v2.3.4
+    - uses: olafurpg/setup-scala@v10
+      with:
+        java-version: ${{ matrix.java }}
+    - name: Cache scala dependencies
+      uses: coursier/cache-action@v6
+    - name: Lint code
+      run: sbt fmtCheck fixCheck
+    - name: Mima Checks
+      run: sbt ++${{ matrix.scala }}! mimaChecks
+    - name: Run JVM tests
+      run: sbt ++${{ matrix.scala }}! testJVM
+    - name: Run JS Tests
+      run: sbt ++${{ matrix.scala }}! testJS
+    - name: Run Scala Native Tests
+      run: sbt testNative
+  benchmark:
+    runs-on: ubuntu-20.04
+    strategy:
+      fail-fast: false
+    steps:
+    - uses: actions/checkout@v2.3.4
+    - uses: olafurpg/setup-scala@v10
+      with:
+        java-version: 'adopt@1.8'
+    - name: Cache scala dependencies
+      uses: coursier/cache-action@v6
+    - name: Run JVM Benchmark tests
+      run: sbt ++${{ env.SCALA_213 }}! testJVMNoBenchmarks
+  scala211:
+    runs-on: ubuntu-20.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+    steps:
+    - uses: actions/checkout@v2.3.4
+    - uses: olafurpg/setup-scala@v10
+      with:
+        java-version: 'adopt@1.8'
+    - name: Cache scala dependencies
+      uses: coursier/cache-action@v6
+    - name: Run Scala 211 JVM Tests
+      run: sbt ++${{ env.SCALA_211 }}! testJVM211
+    - name: Run Scala 211 JS Tests
+      run: sbt ++${{ env.SCALA_211 }}! testJS211
+  scala3:
+    runs-on: ubuntu-20.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+    steps:
+    - uses: actions/checkout@v2.3.4
+    - uses: olafurpg/setup-scala@v10
+      with:
+        java-version: 'adopt@1.8'
+    - name: Cache scala dependencies
+      uses: coursier/cache-action@v6
+    - name: Run Scala 3 JVM Tests
+      run: sbt ++${{ env.SCALA_3 }}! testJVMDotty
+  publish:
+    runs-on: ubuntu-20.04
+    timeout-minutes: 60
+    needs: [build, benchmark, scala211, scala3]
+    if: github.event_name != 'pull_request'
+    steps:
+      - uses: actions/checkout@v2.3.4
+        with:
+          fetch-depth: 0
+      - uses: olafurpg/setup-scala@v10
+      - run: sbt ci-release
+        env:
+          PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
+          PGP_SECRET: ${{ secrets.PGP_SECRET }}
+          SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
+          SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
