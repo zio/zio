@@ -731,6 +731,8 @@ val urls: UIO[Content] =
 | `retryWhileEquals`  | `E1`                                                                 | `ZIO[R, E1, A]`                        |
 | `retryWhileM`       | `E => URIO[R1, Boolean]`                                             | `ZIO[R1, E, A]`                        |
 
+When we are building applications we want to be resilient in the face of a transient failure. This is where we need to retry to overcome these failures.
+
 There are a number of useful methods on the ZIO data type for retrying failed effects. 
 
 The most basic of these is `ZIO#retry`, which takes a `Schedule` and returns a new effect that will retry the first effect if it fails, according to the specified policy:
