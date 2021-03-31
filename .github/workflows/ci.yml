@@ -32,14 +32,14 @@ jobs:
     - name: Lint code
       run: sbt fmtCheck fixCheck
 
-  build:
+  test:
     runs-on: ubuntu-20.04
     timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
         java: ['adopt@1.8', 'adopt@1.11']
-        scala: ['2.12.13', '2.13.5']
+        scala: ['2.11.12', '2.12.13', '2.13.5', '3.0.0-RC1']
         platform: ['JVM', 'JS']
     steps:
     - name: Checkout current branch
@@ -55,59 +55,23 @@ jobs:
       run: sbt ++${{ matrix.scala }}! mimaChecks
     - name: Run tests
       run: sbt ++${{ matrix.scala }}! test${{ matrix.platform }}
+    - name: Run Scala 2.11 tests
+      if: ${{ matrix.scala == '2.11.12' && matrix.java == 'adopt@1.8' }}
+      run: sbt ++${{ matrix.scala }}! test${{ matrix.platform }}211
+    - name: Run Scala 3 tests
+      if: ${{ matrix.scala == '3.0.0-RC1' && matrix.java == 'adopt@1.8' && matrix.platform == 'JVM' }}
+      run: sbt ++${{ matrix.scala }}! testJVMDotty
+    - name: Compile benchmarks
+      if: ${{ matrix.scala == '2.13.5' && matrix.java == 'adopt@1.8' && matrix.platform == 'JVM' }}
+      run: sbt ++${{ matrix.scala }}! testJVMNoBenchmarks
     - name: Run Scala Native Tests
-      run: sbt testNative
-
-  benchmark:
-    runs-on: ubuntu-20.04
-    steps:
-    - name: Checkout current branch
-      uses: actions/checkout@v2.3.4
-    - name: Setup Scala and Java
-      uses: olafurpg/setup-scala@v10
-      with:
-        java-version: 'adopt@1.8'
-    - name: Cache scala dependencies
-      uses: coursier/cache-action@v6
-    - name: Run tests
-      run: sbt ++${{ env.SCALA_213 }}! testJVMNoBenchmarks
-
-  scala211:
-    runs-on: ubuntu-20.04
-    timeout-minutes: 60
-    strategy:
-      fail-fast: false
-      matrix:
-        platform: ['JVM', 'JS']
-    steps:
-    - name: Checkout current branch
-      uses: actions/checkout@v2.3.4
-    - name: Setup Scala and Java
-      uses: olafurpg/setup-scala@v10
-    - name: Cache scala dependencies
-      uses: coursier/cache-action@v6
-    - name: Run tests
-      run: sbt ++${{ env.SCALA_211 }}! test${{ matrix.platform }}211
-
-  scala3:
-    runs-on: ubuntu-20.04
-    timeout-minutes: 60
-    steps:
-    - name: Checkout current branch
-      uses: actions/checkout@v2.3.4
-    - name: Setup Scala and Java
-      uses: olafurpg/setup-scala@v10
-      with:
-        java-version: 'adopt@1.8'
-    - name: Cache scala dependencies
-      uses: coursier/cache-action@v6
-    - name: Run Scala 3 JVM Tests
-      run: sbt ++${{ env.SCALA_3 }}! testJVMDotty
+      if: ${{ matrix.scala != '3.0.0-RC1' && matrix.platform == 'JVM' }}
+      run: sbt ++${{ matrix.scala }}! testNative
 
   publish:
     runs-on: ubuntu-20.04
     timeout-minutes: 60
-    needs: [lint, build, benchmark, scala211, scala3]
+    needs: [lint, test]
     if: github.event_name != 'pull_request'
     steps:
       - name: Checkout current branch
