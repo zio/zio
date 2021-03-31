@@ -9,6 +9,7 @@ env:
   SCALA_3: 3.0.0-RC1
   JAVA_OPTS: -Xms2048M -Xmx3072M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
   JVM_OPTS:  -Xms2048M -Xmx3072M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
+
 on:
   pull_request:
   push:
@@ -18,85 +19,65 @@ on:
       - published
 
 jobs:
-  build:
+  lint:
+    runs-on: ubuntu-20.04
+    timeout-minutes: 60
+    steps:
+    - name: Checkout current branch
+      uses: actions/checkout@v2.3.4
+    - name: Setup Scala and Java
+      uses: olafurpg/setup-scala@v10
+    - name: Cache scala dependencies
+      uses: coursier/cache-action@v6
+    - name: Lint code
+      run: sbt fmtCheck fixCheck
+
+  test:
     runs-on: ubuntu-20.04
     timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
         java: ['adopt@1.8', 'adopt@1.11']
-        scala: ['2.12.13', '2.13.5']
+        scala: ['2.11.12', '2.12.13', '2.13.5', '3.0.0-RC1']
+        platform: ['JVM', 'JS', 'Native']
     steps:
-    - uses: actions/checkout@v2.3.4
-    - uses: olafurpg/setup-scala@v10
+    - name: Checkout current branch
+      uses: actions/checkout@v2.3.4
+    - name: Setup Scala and Java
+      uses: olafurpg/setup-scala@v10
       with:
         java-version: ${{ matrix.java }}
     - name: Cache scala dependencies
       uses: coursier/cache-action@v6
-    - name: Lint code
-      run: sbt fmtCheck fixCheck
     - name: Mima Checks
+      if: ${{ matrix.scala != env.SCALA_211 && matrix.scala != env.SCALA_3 && matrix.platform == 'JVM' }}
       run: sbt ++${{ matrix.scala }}! mimaChecks
-    - name: Run JVM tests
-      run: sbt ++${{ matrix.scala }}! testJVM
-    - name: Run JS Tests
-      run: sbt ++${{ matrix.scala }}! testJS
-    - name: Run Scala Native Tests
-      run: sbt testNative
-  benchmark:
-    runs-on: ubuntu-20.04
-    strategy:
-      fail-fast: false
-    steps:
-    - uses: actions/checkout@v2.3.4
-    - uses: olafurpg/setup-scala@v10
-      with:
-        java-version: 'adopt@1.8'
-    - name: Cache scala dependencies
-      uses: coursier/cache-action@v6
-    - name: Run JVM Benchmark tests
-      run: sbt ++${{ env.SCALA_213 }}! testJVMNoBenchmarks
-  scala211:
-    runs-on: ubuntu-20.04
-    timeout-minutes: 60
-    strategy:
-      fail-fast: false
-    steps:
-    - uses: actions/checkout@v2.3.4
-    - uses: olafurpg/setup-scala@v10
-      with:
-        java-version: 'adopt@1.8'
-    - name: Cache scala dependencies
-      uses: coursier/cache-action@v6
-    - name: Run Scala 211 JVM Tests
-      run: sbt ++${{ env.SCALA_211 }}! testJVM211
-    - name: Run Scala 211 JS Tests
-      run: sbt ++${{ env.SCALA_211 }}! testJS211
-  scala3:
-    runs-on: ubuntu-20.04
-    timeout-minutes: 60
-    strategy:
-      fail-fast: false
-    steps:
-    - uses: actions/checkout@v2.3.4
-    - uses: olafurpg/setup-scala@v10
-      with:
-        java-version: 'adopt@1.8'
-    - name: Cache scala dependencies
-      uses: coursier/cache-action@v6
-    - name: Run Scala 3 JVM Tests
-      run: sbt ++${{ env.SCALA_3 }}! testJVMDotty
+    - name: Test 2.11.x
+      if: ${{ matrix.scala == env.SCALA_211 && matrix.java == env.JAVA8 && matrix.platform != 'Native' }}
+      run: sbt ++${{ matrix.scala }}! test${{ matrix.platform }}211
+    - name: Test 2.12.x and 2.13.x
+      if: ${{ matrix.scala != env.SCALA_211 && matrix.scala != env.SCALA_3 && matrix.platform != 'Native' }}
+      run: sbt ++${{ matrix.scala }}! test${{ matrix.platform }}
+    - name: Test 3.x (JVM only)
+      if: ${{ matrix.scala == env.SCALA_3 && matrix.java == env.JAVA8 && matrix.platform == 'JVM' }}
+      run: sbt ++${{ matrix.scala }}! testJVMDotty
+    - name: Test native
+      if: ${{ matrix.scala != env.SCALA_3 && matrix.platform == 'Native' }}
+      run: sbt ++${{ matrix.scala }}! testNative
+
   publish:
     runs-on: ubuntu-20.04
     timeout-minutes: 60
-    needs: [build, benchmark, scala211, scala3]
+    needs: [lint, test]
     if: github.event_name != 'pull_request'
     steps:
-      - uses: actions/checkout@v2.3.4
-        with:
-          fetch-depth: 0
-      - uses: olafurpg/setup-scala@v10
-      - run: sbt ci-release
+      - name: Checkout current branch
+        uses: actions/checkout@v2.3.4
+      - name: Setup Scala and Java
+        uses: olafurpg/setup-scala@v10
+      - name: Release
+        run: sbt ci-release
         env:
           PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
           PGP_SECRET: ${{ secrets.PGP_SECRET }}
