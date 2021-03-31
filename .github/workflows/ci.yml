@@ -53,21 +53,21 @@ jobs:
     - name: Mima Checks
       if: ${{ matrix.scala != env.SCALA_211 && matrix.scala != env.SCALA_3 && matrix.platform == 'JVM' }}
       run: sbt ++${{ matrix.scala }}! mimaChecks
-    - name: Run tests
-      if: ${{ matrix.scala == env.SCALA_212 || matrix.scala == env.SCALA_213 }}
-      run: sbt ++${{ matrix.scala }}! test${{ matrix.platform }}
-    - name: Run Scala 2.11 tests
+    - name: Test 2.11.x (JVM only)
       if: ${{ matrix.scala == env.SCALA_211 && matrix.java == env.JAVA8 }}
       run: sbt ++${{ matrix.scala }}! test${{ matrix.platform }}211
-    - name: Run Scala 3 tests
+    - name: Test 2.12.x and 2.13.x
+      if: ${{ matrix.scala == env.SCALA_212 || matrix.scala == env.SCALA_213 }}
+      run: sbt ++${{ matrix.scala }}! test${{ matrix.platform }}
+    - name: Test 3.x (JVM only)
       if: ${{ matrix.scala == env.SCALA_3 && matrix.java == env.JAVA8 && matrix.platform == 'JVM' }}
       run: sbt ++${{ matrix.scala }}! testJVMDotty
+    - name: Test native
+      if: ${{ matrix.scala != env.SCALA_3 && matrix.platform == 'JVM' }}
+      run: sbt ++${{ matrix.scala }}! testNative
     - name: Compile benchmarks
       if: ${{ matrix.scala == env.SCALA_213 && matrix.java == env.JAVA8 && matrix.platform == 'JVM' }}
       run: sbt ++${{ matrix.scala }}! testJVMNoBenchmarks
-    - name: Run Scala Native Tests
-      if: ${{ matrix.scala != env.SCALA_3 && matrix.platform == 'JVM' }}
-      run: sbt ++${{ matrix.scala }}! testNative
 
   publish:
     runs-on: ubuntu-20.04
