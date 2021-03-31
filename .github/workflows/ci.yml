@@ -40,7 +40,7 @@ jobs:
       matrix:
         java: ['adopt@1.8', 'adopt@1.11']
         scala: ['2.11.12', '2.12.13', '2.13.5', '3.0.0-RC1']
-        platform: ['JVM', 'JS']
+        platform: ['JVM', 'JS', 'Native']
     steps:
     - name: Checkout current branch
       uses: actions/checkout@v2.3.4
@@ -63,7 +63,7 @@ jobs:
       if: ${{ matrix.scala == env.SCALA_3 && matrix.java == env.JAVA8 && matrix.platform == 'JVM' }}
       run: sbt ++${{ matrix.scala }}! testJVMDotty
     - name: Test native
-      if: ${{ matrix.scala != env.SCALA_3 && matrix.platform == 'JVM' }}
+      if: ${{ matrix.scala != env.SCALA_3 && matrix.platform == 'Native' }}
       run: sbt ++${{ matrix.scala }}! testNative
     - name: Compile benchmarks
       if: ${{ matrix.scala == env.SCALA_213 && matrix.java == env.JAVA8 && matrix.platform == 'JVM' }}
