@@ -51,7 +51,7 @@ jobs:
     - name: Cache scala dependencies
       uses: coursier/cache-action@v6
     - name: Mima Checks
-      if: ${{ matrix.platform == 'JVM' }}
+      if: ${{ matrix.scala != env.SCALA_211 && matrix.scala != env.SCALA_3 && matrix.platform == 'JVM' }}
       run: sbt ++${{ matrix.scala }}! mimaChecks
     - name: Run tests
       run: sbt ++${{ matrix.scala }}! test${{ matrix.platform }}
