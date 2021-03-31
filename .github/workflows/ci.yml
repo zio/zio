@@ -65,9 +65,6 @@ jobs:
     - name: Test native
       if: ${{ matrix.scala != env.SCALA_3 && matrix.platform == 'Native' }}
       run: sbt ++${{ matrix.scala }}! testNative
-    - name: Compile benchmarks
-      if: ${{ matrix.scala == env.SCALA_213 && matrix.java == env.JAVA8 && matrix.platform == 'JVM' }}
-      run: sbt ++${{ matrix.scala }}! testJVMNoBenchmarks
 
   publish:
     runs-on: ubuntu-20.04
