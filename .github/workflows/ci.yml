@@ -40,6 +40,7 @@ jobs:
       matrix:
         java: ['adopt@1.8', 'adopt@1.11']
         scala: ['2.12.13', '2.13.5']
+        platform: ['JVM', 'JS']
     steps:
     - name: Checkout current branch
       uses: actions/checkout@v2.3.4
@@ -50,11 +51,10 @@ jobs:
     - name: Cache scala dependencies
       uses: coursier/cache-action@v6
     - name: Mima Checks
+      if: ${{ matrix.platform == 'JVM' }}
       run: sbt ++${{ matrix.scala }}! mimaChecks
-    - name: Run JVM tests
-      run: sbt ++${{ matrix.scala }}! testJVM
-    - name: Run JS Tests
-      run: sbt ++${{ matrix.scala }}! testJS
+    - name: Run tests
+      run: sbt ++${{ matrix.scala }}! test${{ matrix.platform }}
     - name: Run Scala Native Tests
       run: sbt testNative
 
@@ -69,25 +69,25 @@ jobs:
         java-version: 'adopt@1.8'
     - name: Cache scala dependencies
       uses: coursier/cache-action@v6
-    - name: Run JVM Benchmark tests
+    - name: Run tests
       run: sbt ++${{ env.SCALA_213 }}! testJVMNoBenchmarks
 
   scala211:
     runs-on: ubuntu-20.04
     timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ['JVM', 'JS']
     steps:
     - name: Checkout current branch
       uses: actions/checkout@v2.3.4
     - name: Setup Scala and Java
       uses: olafurpg/setup-scala@v10
-      with:
-        java-version: 'adopt@1.8'
     - name: Cache scala dependencies
       uses: coursier/cache-action@v6
-    - name: Run Scala 211 JVM Tests
-      run: sbt ++${{ env.SCALA_211 }}! testJVM211
-    - name: Run Scala 211 JS Tests
-      run: sbt ++${{ env.SCALA_211 }}! testJS211
+    - name: Run tests
+      run: sbt ++${{ env.SCALA_211 }}! test${{ matrix.platform }}211
 
   scala3:
     runs-on: ubuntu-20.04
