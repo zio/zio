@@ -9,6 +9,7 @@ env:
   SCALA_3: 3.0.0-RC1
   JAVA_OPTS: -Xms2048M -Xmx3072M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
   JVM_OPTS:  -Xms2048M -Xmx3072M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
+
 on:
   pull_request:
   push:
@@ -43,6 +44,7 @@ jobs:
       run: sbt ++${{ matrix.scala }}! testJS
     - name: Run Scala Native Tests
       run: sbt testNative
+
   benchmark:
     runs-on: ubuntu-20.04
     steps:
@@ -54,6 +56,7 @@ jobs:
       uses: coursier/cache-action@v6
     - name: Run JVM Benchmark tests
       run: sbt ++${{ env.SCALA_213 }}! testJVMNoBenchmarks
+
   scala211:
     runs-on: ubuntu-20.04
     timeout-minutes: 60
@@ -68,6 +71,7 @@ jobs:
       run: sbt ++${{ env.SCALA_211 }}! testJVM211
     - name: Run Scala 211 JS Tests
       run: sbt ++${{ env.SCALA_211 }}! testJS211
+
   scala3:
     runs-on: ubuntu-20.04
     timeout-minutes: 60
@@ -80,6 +84,7 @@ jobs:
       uses: coursier/cache-action@v6
     - name: Run Scala 3 JVM Tests
       run: sbt ++${{ env.SCALA_3 }}! testJVMDotty
+
   publish:
     runs-on: ubuntu-20.04
     timeout-minutes: 60
