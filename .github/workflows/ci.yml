@@ -38,8 +38,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        java: ['adopt@1.8', 'adopt@1.11']
-        scala: ['2.11.12', '2.12.13', '2.13.5', '3.0.0-RC1']
+        java: [env.JAVA8, env.JAVA11]
+        scala: [env.SCALA_211, env.SCALA_212, env.SCALA_213, env.SCALA_3]
         platform: ['JVM', 'JS']
     steps:
     - name: Checkout current branch
@@ -56,16 +56,16 @@ jobs:
     - name: Run tests
       run: sbt ++${{ matrix.scala }}! test${{ matrix.platform }}
     - name: Run Scala 2.11 tests
-      if: ${{ matrix.scala == '2.11.12' && matrix.java == 'adopt@1.8' }}
+      if: ${{ matrix.scala == env.SCALA_211 && matrix.java == env.JAVA8 }}
       run: sbt ++${{ matrix.scala }}! test${{ matrix.platform }}211
     - name: Run Scala 3 tests
-      if: ${{ matrix.scala == '3.0.0-RC1' && matrix.java == 'adopt@1.8' && matrix.platform == 'JVM' }}
+      if: ${{ matrix.scala == env.SCALA_3 && matrix.java == env.JAVA8 && matrix.platform == 'JVM' }}
       run: sbt ++${{ matrix.scala }}! testJVMDotty
     - name: Compile benchmarks
-      if: ${{ matrix.scala == '2.13.5' && matrix.java == 'adopt@1.8' && matrix.platform == 'JVM' }}
+      if: ${{ matrix.scala == env.SCALA_213 && matrix.java == env.JAVA8 && matrix.platform == 'JVM' }}
       run: sbt ++${{ matrix.scala }}! testJVMNoBenchmarks
     - name: Run Scala Native Tests
-      if: ${{ matrix.scala != '3.0.0-RC1' && matrix.platform == 'JVM' }}
+      if: ${{ matrix.scala != env.SCALA_3 && matrix.platform == 'JVM' }}
       run: sbt ++${{ matrix.scala }}! testNative
 
   publish:
