@@ -23,8 +23,10 @@ jobs:
     runs-on: ubuntu-20.04
     timeout-minutes: 60
     steps:
-    - uses: actions/checkout@v2.3.4
-    - uses: olafurpg/setup-scala@v10
+    - name: Checkout current branch
+      uses: actions/checkout@v2.3.4
+    - name: Setup Scala and Java
+      uses: olafurpg/setup-scala@v10
     - name: Cache scala dependencies
       uses: coursier/cache-action@v6
     - name: Lint code
@@ -39,8 +41,10 @@ jobs:
         java: ['adopt@1.8', 'adopt@1.11']
         scala: ['2.12.13', '2.13.5']
     steps:
-    - uses: actions/checkout@v2.3.4
-    - uses: olafurpg/setup-scala@v10
+    - name: Checkout current branch
+      uses: actions/checkout@v2.3.4
+    - name: Setup Scala and Java
+      uses: olafurpg/setup-scala@v10
       with:
         java-version: ${{ matrix.java }}
     - name: Cache scala dependencies
@@ -57,8 +61,10 @@ jobs:
   benchmark:
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@v2.3.4
-    - uses: olafurpg/setup-scala@v10
+    - name: Checkout current branch
+      uses: actions/checkout@v2.3.4
+    - name: Setup Scala and Java
+      uses: olafurpg/setup-scala@v10
       with:
         java-version: 'adopt@1.8'
     - name: Cache scala dependencies
@@ -70,8 +76,10 @@ jobs:
     runs-on: ubuntu-20.04
     timeout-minutes: 60
     steps:
-    - uses: actions/checkout@v2.3.4
-    - uses: olafurpg/setup-scala@v10
+    - name: Checkout current branch
+      uses: actions/checkout@v2.3.4
+    - name: Setup Scala and Java
+      uses: olafurpg/setup-scala@v10
       with:
         java-version: 'adopt@1.8'
     - name: Cache scala dependencies
@@ -85,8 +93,10 @@ jobs:
     runs-on: ubuntu-20.04
     timeout-minutes: 60
     steps:
-    - uses: actions/checkout@v2.3.4
-    - uses: olafurpg/setup-scala@v10
+    - name: Checkout current branch
+      uses: actions/checkout@v2.3.4
+    - name: Setup Scala and Java
+      uses: olafurpg/setup-scala@v10
       with:
         java-version: 'adopt@1.8'
     - name: Cache scala dependencies
@@ -100,11 +110,14 @@ jobs:
     needs: [lint, build, benchmark, scala211, scala3]
     if: github.event_name != 'pull_request'
     steps:
-      - uses: actions/checkout@v2.3.4
+      - name: Checkout current branch
+        uses: actions/checkout@v2.3.4
         with:
           fetch-depth: 0
-      - uses: olafurpg/setup-scala@v10
-      - run: sbt ci-release
+      - name: Setup Scala and Java
+        uses: olafurpg/setup-scala@v10
+      - name: Release
+        run: sbt ci-release
         env:
           PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
           PGP_SECRET: ${{ secrets.PGP_SECRET }}
