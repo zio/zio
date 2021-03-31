@@ -19,6 +19,17 @@ on:
       - published
 
 jobs:
+  lint:
+    runs-on: ubuntu-20.04
+    timeout-minutes: 60
+    steps:
+    - uses: actions/checkout@v2.3.4
+    - uses: olafurpg/setup-scala@v10
+    - name: Cache scala dependencies
+      uses: coursier/cache-action@v6
+    - name: Lint code
+      run: sbt fmtCheck fixCheck
+
   build:
     runs-on: ubuntu-20.04
     timeout-minutes: 60
@@ -34,8 +45,6 @@ jobs:
         java-version: ${{ matrix.java }}
     - name: Cache scala dependencies
       uses: coursier/cache-action@v6
-    - name: Lint code
-      run: sbt fmtCheck fixCheck
     - name: Mima Checks
       run: sbt ++${{ matrix.scala }}! mimaChecks
     - name: Run JVM tests
@@ -88,7 +97,7 @@ jobs:
   publish:
     runs-on: ubuntu-20.04
     timeout-minutes: 60
-    needs: [build, benchmark, scala211, scala3]
+    needs: [lint, build, benchmark, scala211, scala3]
     if: github.event_name != 'pull_request'
     steps:
       - uses: actions/checkout@v2.3.4
