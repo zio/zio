@@ -54,10 +54,10 @@ jobs:
       if: ${{ matrix.scala != env.SCALA_211 && matrix.scala != env.SCALA_3 && matrix.platform == 'JVM' }}
       run: sbt ++${{ matrix.scala }}! mimaChecks
     - name: Test 2.11.x
-      if: ${{ matrix.scala == env.SCALA_211 && matrix.java == env.JAVA8 }}
+      if: ${{ matrix.scala == env.SCALA_211 && matrix.java == env.JAVA8 && matrix.platform != 'Native' }}
       run: sbt ++${{ matrix.scala }}! test${{ matrix.platform }}211
     - name: Test 2.12.x and 2.13.x
-      if: ${{ matrix.scala == env.SCALA_212 || matrix.scala == env.SCALA_213 }}
+      if: ${{ matrix.scala == env.SCALA_212 || matrix.scala == env.SCALA_213 && matrix.platform != 'Native' }}
       run: sbt ++${{ matrix.scala }}! test${{ matrix.platform }}
     - name: Test 3.x (JVM only)
       if: ${{ matrix.scala == env.SCALA_3 && matrix.java == env.JAVA8 && matrix.platform == 'JVM' }}
