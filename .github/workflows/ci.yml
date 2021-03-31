@@ -53,7 +53,7 @@ jobs:
     - name: Mima Checks
       if: ${{ matrix.scala != env.SCALA_211 && matrix.scala != env.SCALA_3 && matrix.platform == 'JVM' }}
       run: sbt ++${{ matrix.scala }}! mimaChecks
-    - name: Test 2.11.x (JVM only)
+    - name: Test 2.11.x
       if: ${{ matrix.scala == env.SCALA_211 && matrix.java == env.JAVA8 }}
       run: sbt ++${{ matrix.scala }}! test${{ matrix.platform }}211
     - name: Test 2.12.x and 2.13.x
