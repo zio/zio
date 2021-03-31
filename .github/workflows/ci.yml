@@ -38,8 +38,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        java: [env.JAVA8, env.JAVA11]
-        scala: [env.SCALA_211, env.SCALA_212, env.SCALA_213, env.SCALA_3]
+        java: ['adopt@1.8', 'adopt@1.11']
+        scala: ['2.11.12', '2.12.13', '2.13.5', '3.0.0-RC1']
         platform: ['JVM', 'JS']
     steps:
     - name: Checkout current branch
