@@ -35,6 +35,7 @@ const siteConfig = {
   headerLinks: [
     { doc: 'overview/overview_index', label: 'Overview' },
     { doc: 'datatypes/index', label: 'Data Types' }, 
+    { doc: 'services/index', label: 'Services' }, 
     { doc: 'interop/interop_index', label: 'Interop' },
     { doc: 'usecases/usecases_index', label: 'Use Cases' },
     { doc: 'howto/howto_index', label: 'How to' }, 
