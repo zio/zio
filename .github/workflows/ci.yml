@@ -32,6 +32,19 @@ jobs:
     - name: Lint code
       run: sbt fmtCheck fixCheck
 
+  mdoc:
+    runs-on: ubuntu-20.04
+    timeout-minutes: 60
+    steps:
+      - name: Checkout current branch
+        uses: actions/checkout@v2.3.4
+      - name: Setup Scala and Java
+        uses: olafurpg/setup-scala@v10
+      - name: Cache scala dependencies
+        uses: coursier/cache-action@v6
+      - name: Check Document Generation
+        run: sbt mdoc
+        
   test:
     runs-on: ubuntu-20.04
     timeout-minutes: 60
@@ -69,7 +82,7 @@ jobs:
   publish:
     runs-on: ubuntu-20.04
     timeout-minutes: 60
-    needs: [lint, test]
+    needs: [lint, mdoc, test]
     if: github.event_name != 'pull_request'
     steps:
       - name: Checkout current branch
