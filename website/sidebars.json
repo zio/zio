@@ -65,7 +65,6 @@
       "datatypes/resource/index",
       "datatypes/resource/managed"
     ],
-    "Runtime": [],
     "Streaming": [
       "datatypes/stream/index",
       "datatypes/stream/stream",
