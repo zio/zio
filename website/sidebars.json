@@ -75,7 +75,8 @@
       "datatypes/misc/index",
       "datatypes/misc/chunk",
       "datatypes/misc/schedule",
-      "datatypes/module/has"
+      "datatypes/module/has",
+      "datatypes/misc/supervisor"
     ]
   },
   "services-sidebar": {
