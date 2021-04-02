@@ -75,7 +75,7 @@
       "datatypes/misc/index",
       "datatypes/misc/chunk",
       "datatypes/misc/schedule",
-      "datatypes/module/has",
+      "datatypes/misc/has",
       "datatypes/misc/supervisor"
     ]
   },
