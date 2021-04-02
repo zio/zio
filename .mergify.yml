@@ -14,6 +14,7 @@ pull_request_rules:
       - "body~=(labels: library-update, semver-minor)|(labels: library-update, semver-patch)|(labels: sbt-plugin-update, semver-minor)|(labels: sbt-plugin-update, semver-patch)|(labels: scalafix-rule-update, semver-minor)|(labels: scalafix-rule-update, semver-patch)|(labels: test-library-update, semver-minor)|(labels: test-library-update, semver-patch)"
       - "status-success=license/cla"
       - "status-success=lint"
+      - "status-success=mdoc"
       - "status-success=test (adopt@1.8, 2.11.12, JVM)"
       - "status-success=test (adopt@1.8, 2.11.12, JS)"
       - "status-success=test (adopt@1.8, 2.11.12, Native)"
