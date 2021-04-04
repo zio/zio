@@ -333,7 +333,7 @@ lazy val testRefined = crossProject(JVMPlatform, JSPlatform)
     crossScalaVersions --= Seq(Scala211),
     libraryDependencies ++=
       Seq(
-        ("eu.timepit" %% "refined" % "0.9.21")
+        ("eu.timepit" %% "refined" % "0.9.23")
           .withDottyCompat(scalaVersion.value)
       )
   )
