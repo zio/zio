@@ -3077,26 +3077,28 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   def foreachParN[R, E, A, B, Collection[+Element] <: Iterable[Element]](n: Int)(
     as: Collection[A]
-  )(fn: A => ZIO[R, E, B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZIO[R, E, Collection[B]] = {
-    val size = as.size
-    if (size == 0) ZIO.succeedNow(bf.newBuilder(as).result())
+  )(fn: A => ZIO[R, E, B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZIO[R, E, Collection[B]] =
+    if (n < 1) ZIO.dieMessage(s"Unexpected nonpositive value `$n` passed to foreachParN.")
     else {
+      val size = as.size
+      if (size == 0) ZIO.succeedNow(bf.newBuilder(as).result())
+      else {
 
-      def worker(queue: Queue[(A, Int)], array: Array[AnyRef]): ZIO[R, E, Unit] =
-        queue.poll.flatMap {
-          case Some((a, n)) =>
-            fn(a).tap(b => ZIO.effectTotal(array(n) = b.asInstanceOf[AnyRef])) *> worker(queue, array)
-          case None => ZIO.unit
-        }
+        def worker(queue: Queue[(A, Int)], array: Array[AnyRef]): ZIO[R, E, Unit] =
+          queue.poll.flatMap {
+            case Some((a, n)) =>
+              fn(a).tap(b => ZIO.effectTotal(array(n) = b.asInstanceOf[AnyRef])) *> worker(queue, array)
+            case None => ZIO.unit
+          }
 
-      for {
-        array <- ZIO.effectTotal(Array.ofDim[AnyRef](size))
-        queue <- Queue.bounded[(A, Int)](size)
-        _     <- queue.offerAll(as.zipWithIndex)
-        _     <- ZIO.collectAllPar_(ZIO.replicate(n)(worker(queue, array)))
-      } yield bf.fromSpecific(as)(array.asInstanceOf[Array[B]])
-    }.refailWithTrace
-  }
+        for {
+          array <- ZIO.effectTotal(Array.ofDim[AnyRef](size))
+          queue <- Queue.bounded[(A, Int)](size)
+          _     <- queue.offerAll(as.zipWithIndex)
+          _     <- ZIO.collectAllPar_(ZIO.replicate(n)(worker(queue, array)))
+        } yield bf.fromSpecific(as)(array.asInstanceOf[Array[B]])
+      }.refailWithTrace
+    }
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` and runs
