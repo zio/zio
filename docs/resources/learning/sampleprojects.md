@@ -25,3 +25,4 @@ title:  "Sample Projects"
 - [ZIO Quill, H2 Database with FlyWay migrations Explained](https://github.com/Neurodyne/h2db-quill-demo) by [Boris V.Kuznetsov](https://github.com/tampler)
 - [ZIO Tapir Http4s Integration](https://github.com/Neurodyne/zio-tapir) by [Boris V.Kuznetsov](https://github.com/tampler)
 - [Akka Microservice using DDD with ZIO Streams Tapir AkkaHTTP Integration](https://github.com/mvillafuertem/scalcite) by [Miguel Villafuerte](https://github.com/mvillafuertem)
+- [Simple ZIO ScalaJS Skeleton](https://github.com/sb-dev/zio-scalajs) by [Samir Benzenine](https://github.com/sb-dev)
