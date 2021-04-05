@@ -1,5 +1,5 @@
 ---
-id: interop_reactivestreams
+id: reactivestreams
 title:  "Reactive Streams"
 ---
 

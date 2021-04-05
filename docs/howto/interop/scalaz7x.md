@@ -1,5 +1,5 @@
 ---
-id: interop_scalaz7x
+id: scalaz7x
 title:  "Scalaz 7.x"
 ---
 

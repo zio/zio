@@ -1,5 +1,5 @@
 ---
-id: interop_twitter
+id: twitter
 title: "Twitter"
 ---
 

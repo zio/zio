@@ -1,5 +1,5 @@
 ---
-id: interop_future
+id: future
 title:  "Future"
 ---
 

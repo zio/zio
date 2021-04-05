@@ -1,5 +1,5 @@
 ---
-id: interop_monix
+id: monix
 title:  "Monix"
 ---
 

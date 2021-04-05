@@ -1,5 +1,5 @@
 ---
-id: interop_java
+id: java
 title:  "Java"
 ---
 

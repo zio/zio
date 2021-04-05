@@ -1,5 +1,5 @@
 ---
-id: interop_javascript
+id: javascript
 title:  "JavaScript"
 ---
 

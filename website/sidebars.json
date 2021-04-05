@@ -88,19 +88,6 @@
       "services/system"
     ]
   },
-  "interop-sidebar": {
-    "Interop": [
-      "interop/interop_index",
-      "interop/interop_catseffect",
-      "interop/interop_future",
-      "interop/interop_java",
-      "interop/interop_javascript",
-      "interop/interop_monix",
-      "interop/interop_scalaz7x",
-      "interop/interop_reactivestreams",
-      "interop/interop_twitter"
-    ]
-  },
   "usecases-sidebar": {
     "Use Cases": [
       "usecases/usecases_index",
@@ -125,6 +112,16 @@
       "howto/howto_access_system_information",
       "howto/howto_macros",
       "howto/migrating_from_monix"
+    ],
+    "Interop": [
+      "howto/interop/catseffect",
+      "howto/interop/future",
+      "howto/interop/java",
+      "howto/interop/javascript",
+      "howto/interop/monix",
+      "howto/interop/scalaz7x",
+      "howto/interop/reactivestreams",
+      "howto/interop/twitter"
     ]
   },
   "resources-sidebar": {

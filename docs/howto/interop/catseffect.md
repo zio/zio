@@ -1,5 +1,5 @@
 ---
-id: interop_catseffect
+id: catseffect
 title:  "Cats Effect"
 ---
 
