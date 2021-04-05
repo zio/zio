@@ -142,9 +142,9 @@
       "resources/learning/poweredbyzio"
     ],
     "Ecosystem": [
-      "resources/ecosystem/index",
       "resources/ecosystem/officials",
-      "resources/ecosystem/directsupport",
+      "resources/ecosystem/community",
+      "resources/ecosystem/compatible",
       "resources/ecosystem/tools",
       "resources/ecosystem/templates"
     ]

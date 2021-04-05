@@ -1,22 +1,17 @@
 ---
-id: directsupport
-title:  "Libraries with ZIO Support"
+id: community 
+title:  "Community ZIO Libraries"
 ---
 
-If you know a useful library that has direct support for ZIO, please consider [submitting a pull request](https://github.com/zio/zio/pulls) to add it to this list.
+List of first-class ZIO support libraries from the community:
 
-- [cakeless](https://github.com/itkpi/cakeless): Wire your cakes automatically into zio environment
 - [caliban](https://github.com/ghostdogpr/caliban): Functional GraphQL backend in Scala
-- [d4s](https://github.com/PlayQ/d4s): "Dynamo DB Database done Scala way". A library that allows accessing the DynamoDB in a purely functional way
+- [cakeless](https://github.com/itkpi/cakeless): Wire your cakes automatically into zio environment
 - [distage](https://github.com/7mind/izumi): Staged, transparent and debuggable runtime & compile-time Dependency Injection Framework
-- [elastic4s](https://github.com/sksamuel/elastic4s): Elasticsearch Scala Client - Reactive, Non Blocking, Type Safe, HTTP Client
-- [idealingua](https://github.com/7mind/izumi): API Definition, Data Modeling and RPC Language, optimized for fast prototyping – like gRPC, but with a human face
-- [logstage](https://github.com/7mind/izumi): Automatic structural logs from Scala string interpolations
-- [neotypes](https://github.com/neotypes/neotypes): A Scala lightweight, type-safe & asynchronous driver for neo4j
+- [idealingua](https://izumi.7mind.io/idealingua/): API Definition, Data Modeling and RPC Language, optimized for fast prototyping – like gRPC, but with a human face
+- [logstage](https://izumi.7mind.io/logstage/): Automatic structural logs from Scala string interpolations
 - [rezilience](https://github.com/svroonland/rezilience): Utilities for resilience and handling of transient errors
-- [scanamo](https://github.com/scanamo/scanamo): Simpler DynamoDB access for Scala
 - [slf4zio](https://github.com/mlangc/slf4zio): Simple convenience layer on top of SLF4J for ZIO
-- [sttp](https://github.com/softwaremill/sttp): The Scala HTTP client you always wanted!
 - [tranzactio](https://github.com/gaelrenoux/tranzactio): ZIO wrapper for data access libraries like Doobie or Anorm
 - [ZIO Arrow](https://github.com/Neurodyne/zio-arrow) : Haskell Arrow meets ZIO. A deep composition and high performance applications
 - [zio-amqp](https://github.com/svroonland/zio-amqp): ZIO Streams based RabbitMQ client
@@ -33,3 +28,5 @@ If you know a useful library that has direct support for ZIO, please consider [s
 - [zio-slf4j](https://github.com/NeQuissimus/zio-slf4j): Referentially transparent logging with slf4j
 - [zio-slick](https://github.com/rleibman/zio-slick): Bridge library between ZIO and Slick Functional Relational Mapping Library
 - [zio-test-akka-http](https://github.com/senia-psm/zio-test-akka-http): Akka-HTTP Route TestKit for zio-test
+
+If you know a useful library that has first-class ZIO support, please consider [submitting a pull request](https://github.com/zio/zio/pulls) to add it to this list.
