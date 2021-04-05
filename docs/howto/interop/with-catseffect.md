@@ -1,6 +1,6 @@
 ---
-id: catseffect
-title:  "Cats Effect"
+id: with-catseffect
+title: "How to Interop with Cats Effect?"
 ---
 
 The `interop-cats` module provides interoperability for the Cats Effect ecosystem.

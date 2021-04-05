@@ -113,14 +113,14 @@
       "howto/use-zio-macros"
     ],
     "Interop": [
-      "howto/interop/catseffect",
-      "howto/interop/future",
-      "howto/interop/java",
-      "howto/interop/javascript",
-      "howto/interop/monix",
-      "howto/interop/scalaz7x",
-      "howto/interop/reactivestreams",
-      "howto/interop/twitter"
+      "howto/interop/with-cats-effect",
+      "howto/interop/with-future",
+      "howto/interop/with-java",
+      "howto/interop/with-javascript",
+      "howto/interop/with-monix",
+      "howto/interop/with-scalaz-7x",
+      "howto/interop/with-reactive-streams",
+      "howto/interop/with-twitter"
     ],
     "Migrate": [
       "howto/migrate/from-monix"

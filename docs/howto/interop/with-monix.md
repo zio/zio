@@ -1,6 +1,6 @@
 ---
-id: monix
-title:  "Monix"
+id: with-monix
+title: "How to Interop with Monix?"
 ---
 
 Checkout `interop-monix` module for inter-operation support.

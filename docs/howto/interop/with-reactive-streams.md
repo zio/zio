@@ -1,6 +1,6 @@
 ---
-id: reactivestreams
-title:  "Reactive Streams"
+id: with-reactive-streams
+title: "How to Interop with Reactive Streams?"
 ---
 
 Checkout the `interop-reactive-streams` module for inter-operation support.
