@@ -7,7 +7,7 @@ If you find a new great library, talk, resource, slides or project, related to Z
 
 ## Learning
 - [Articles](learning/articles.md)
-- [Talks](learning/talks.md)
+- [Videos](learning/videos.md)
 - [Cookbooks](learning/cookbooks.md)
 - [Cheat Sheets](learning/cheatsheets.md)
 - [Sample Projects](learning/sampleprojects.md)

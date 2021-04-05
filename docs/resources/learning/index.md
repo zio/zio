@@ -6,7 +6,7 @@ title:  "Summary"
 If you find a new great talk, resource, slides or project, related to ZIO, consider adding to the list with your PR.
 
 - [Articles](articles.md)
-- [Talks](talks.md)
+- [Talks](videos.md)
 - [Cookbooks](cookbooks.md)
 - [Cheat Sheets](cheatsheets.md)
 - [Sample Projects](sampleprojects.md)

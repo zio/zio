@@ -1,6 +1,6 @@
 ---
-id: talks 
-title:  "Talks"
+id: videos 
+title:  "Videos"
 ---
 
 - [Acting Lessons for Scala Engineers with Akka and ZIO](https://www.youtube.com/watch?v=AQXBlbkf9wc) by [Salar Rahmanian](https://wwww.softinio.com) (November 2020)
