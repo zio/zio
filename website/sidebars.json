@@ -129,7 +129,6 @@
       "resources/index"
     ],
     "Learning": [
-      "resources/learning/index",
       "resources/learning/articles",
       "resources/learning/videos",
       "resources/learning/cookbooks",
