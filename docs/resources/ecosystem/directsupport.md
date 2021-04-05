@@ -1,6 +1,6 @@
 ---
 id: directsupport
-title:  "Libraries with Direct ZIO Support"
+title:  "Libraries with ZIO Support"
 ---
 
 If you know a useful library that has direct support for ZIO, please consider [submitting a pull request](https://github.com/zio/zio/pulls) to add it to this list.
