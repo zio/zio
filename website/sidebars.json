@@ -102,8 +102,8 @@
     ]
   },
   "howto-sidebar": {
+    "Overview": ["howto/index"],
     "How to": [
-      "howto/howto_index",
       "howto/howto_use_layers",
       "howto/howto_test_assertions",
       "howto/howto_test_effects",
