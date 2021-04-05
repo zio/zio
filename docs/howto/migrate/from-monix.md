@@ -1,5 +1,5 @@
 ---
-id: migrate-from-monix
+id: from-monix
 title:  "How to Migrate from Monix to ZIO?"
 ---
 
