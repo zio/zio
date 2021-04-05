@@ -1,7 +1,7 @@
 name: CI
 
 env:
-  JDK_JAVA_OPTIONS: -Xms2048M -Xmx3072M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
+  JDK_JAVA_OPTIONS: -Xms2G -Xmx4G -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
 
 on:
   pull_request:
