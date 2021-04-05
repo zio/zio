@@ -1,14 +1,7 @@
 name: CI
 
 env:
-  JAVA8: adopt@1.8
-  JAVA11: adopt@1.11
-  SCALA_211: 2.11.12
-  SCALA_212: 2.12.13
-  SCALA_213: 2.13.5
-  SCALA_3: 3.0.0-RC1
-  JAVA_OPTS: -Xms2048M -Xmx3072M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
-  JVM_OPTS:  -Xms2048M -Xmx3072M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
+  JDK_JAVA_OPTIONS: -Xms2048M -Xmx3072M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
 
 on:
   pull_request:
@@ -30,7 +23,7 @@ jobs:
     - name: Cache scala dependencies
       uses: coursier/cache-action@v6
     - name: Lint code
-      run: sbt fmtCheck fixCheck
+      run: sbt check
 
   mdoc:
     runs-on: ubuntu-20.04
@@ -64,25 +57,32 @@ jobs:
     - name: Cache scala dependencies
       uses: coursier/cache-action@v6
     - name: Mima Checks
-      if: ${{ matrix.scala != env.SCALA_211 && matrix.scala != env.SCALA_3 && matrix.platform == 'JVM' }}
+      if: ${{ !startsWith(matrix.scala, '2.11.') && !startsWith(matrix.scala, '3.0.') && matrix.platform == 'JVM' }}
       run: sbt ++${{ matrix.scala }}! mimaChecks
     - name: Test 2.11.x
-      if: ${{ matrix.scala == env.SCALA_211 && matrix.java == env.JAVA8 && matrix.platform != 'Native' }}
+      if: ${{ startsWith(matrix.scala, '2.11.') && contains(matrix.java, '1.8') && matrix.platform != 'Native' }}
       run: sbt ++${{ matrix.scala }}! test${{ matrix.platform }}211
     - name: Test 2.12.x and 2.13.x
-      if: ${{ matrix.scala != env.SCALA_211 && matrix.scala != env.SCALA_3 && matrix.platform != 'Native' }}
+      if: ${{ !startsWith(matrix.scala, '2.11.') && !startsWith(matrix.scala, '3.0.') && matrix.platform != 'Native' }}
       run: sbt ++${{ matrix.scala }}! test${{ matrix.platform }}
     - name: Test 3.x (JVM only)
-      if: ${{ matrix.scala == env.SCALA_3 && matrix.java == env.JAVA8 && matrix.platform == 'JVM' }}
+      if: ${{ startsWith(matrix.scala, '3.0.') && contains(matrix.java, '1.8') && matrix.platform == 'JVM' }}
       run: sbt ++${{ matrix.scala }}! testJVMDotty
     - name: Test native
-      if: ${{ matrix.scala != env.SCALA_3 && matrix.platform == 'Native' }}
+      if: ${{ !startsWith(matrix.scala, '3.0.') && matrix.platform == 'Native' }}
       run: sbt ++${{ matrix.scala }}! testNative
+
+  ci:
+    runs-on: ubuntu-20.04
+    needs: [lint, mdoc, test]
+    steps:
+      - name: Aggregate of lint, mdoc and all tests
+        run: echo "ci passed"
 
   publish:
     runs-on: ubuntu-20.04
     timeout-minutes: 60
-    needs: [lint, mdoc, test]
+    needs: [ci]
     if: github.event_name != 'pull_request'
     steps:
       - name: Checkout current branch
