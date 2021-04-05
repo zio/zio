@@ -120,7 +120,8 @@
       "howto/interop/with-monix",
       "howto/interop/with-scalaz-7x",
       "howto/interop/with-reactive-streams",
-      "howto/interop/with-twitter"
+      "howto/interop/with-twitter",
+      "howto/interop/with-guava"
     ],
     "Migrate": [
       "howto/migrate/from-monix"

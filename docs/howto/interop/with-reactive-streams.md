@@ -3,7 +3,7 @@ id: with-reactive-streams
 title: "How to Interop with Reactive Streams?"
 ---
 
-Checkout the `interop-reactive-streams` module for inter-operation support.
+Checkout the [`interop-reactive-streams`](https://github.com/zio/interop-reactive-streams) module for inter-operation support.
 
 ## Reactive Streams `Producer` and `Subscriber`
 

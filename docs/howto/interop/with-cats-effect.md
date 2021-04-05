@@ -1,9 +1,9 @@
 ---
-id: with-catseffect
+id: with-cats-effect
 title: "How to Interop with Cats Effect?"
 ---
 
-The `interop-cats` module provides interoperability for the Cats Effect ecosystem.
+[`interop-cats`](https://github.com/zio/interop-cats) has instances for the [Cats](https://typelevel.org/cats/), [Cats MTL](https://github.com/typelevel/cats-mtl) and [Cats Effect](https://typelevel.org/cats-effect/) libraries, which allow you to use ZIO with any libraries that rely on these, like [Doobie](https://github.com/tpolecat/doobie), [Http4s](https://github.com/http4s/http4s), [FS2](https://github.com/functional-streams-for-scala/fs2) or [Circe](https://github.com/circe/circe)
 
 To use this module, add the following to your `build.sbt`:
 

@@ -5,7 +5,7 @@ title: "How to Interop with Scalaz 7.x?"
 
 ## `ZIO` Instances
 
-If you are a happy Scalaz 7.2 user `interop-scala7x` module offers `ZIO` instances for several typeclasses, check out [the source code](https://github.com/scalaz/scalaz-zio/interop-scalaz7x/jvm/src/main/scala/scalaz/zio/interop/scalaz72.scala) for more details.
+If you are a happy Scalaz 7.2 user [`interop-scala7x`](https://github.com/zio/interop-scalaz) module offers `ZIO` instances for several typeclasses.
 
 ### Example
 

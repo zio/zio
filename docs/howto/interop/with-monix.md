@@ -3,7 +3,7 @@ id: with-monix
 title: "How to Interop with Monix?"
 ---
 
-Checkout `interop-monix` module for inter-operation support.
+Checkout [`interop-monix`](https://github.com/zio/interop-monix) module for inter-operation support.
 
 ## `Task` conversions
 
