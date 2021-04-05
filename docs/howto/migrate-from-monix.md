@@ -1,6 +1,6 @@
 ---
-id: migrating_from_monix
-title:  "How to migrate from Monix to ZIO"
+id: migrate-from-monix
+title:  "How to Migrate from Monix to ZIO?"
 ---
 
 Monix's `Task[A]` can be easily replaced with ZIO's `Task[A]` (an alias for `ZIO[Any, Throwable, A]`).

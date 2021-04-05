@@ -104,14 +104,14 @@
   "howto-sidebar": {
     "Overview": ["howto/index"],
     "How to": [
-      "howto/howto_use_layers",
-      "howto/howto_test_assertions",
-      "howto/howto_test_effects",
-      "howto/howto_mock_services",
-      "howto/howto_handle_errors",
-      "howto/howto_access_system_information",
-      "howto/howto_macros",
-      "howto/migrating_from_monix"
+      "howto/use-modules-and-layers",
+      "howto/use-test-assertions",
+      "howto/test-effects",
+      "howto/mock-services",
+      "howto/handle-errors",
+      "howto/access-system-information",
+      "howto/use-zio-macros",
+      "howto/migrate-from-monix"
     ],
     "Interop": [
       "howto/interop/catseffect",
