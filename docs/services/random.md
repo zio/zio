@@ -1,6 +1,6 @@
 ---
-id: clock 
-title: "Clock"
+id: random 
+title: "Random"
 ---
 
 Random service provides utilities to generate random numbers. It's a functional wrapper of `scala.util.Random`. This service contains various different pseudo-random generators like `nextInt`, `nextBolean` and `nextDouble`. Each random number generator functions return a `URIO[Random, T]` value.
