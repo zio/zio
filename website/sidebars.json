@@ -145,7 +145,8 @@
       "resources/ecosystem/index",
       "resources/ecosystem/officials",
       "resources/ecosystem/directsupport",
-      "resources/ecosystem/tools"
+      "resources/ecosystem/tools",
+      "resources/ecosystem/templates"
     ]
   },
   "about-sidebar": {
