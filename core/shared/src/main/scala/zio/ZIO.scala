@@ -1915,6 +1915,13 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     ZIO.flatten(timeoutTo(ZIO.fail(e))(ZIO.succeedNow)(d))
 
   /**
+   * The same as [[timeout]], but instead of producing a `None` in the event
+   * of timeout, it will produce the specified failure.
+   */
+  final def timeoutHalt[E1 >: E](cause: Cause[E1])(d: Duration): ZIO[R with Clock, E1, A] =
+    ZIO.flatten(timeoutTo(ZIO.halt(cause))(ZIO.succeedNow)(d))
+
+  /**
    * Returns an effect that will timeout this effect, returning either the
    * default value if the timeout elapses before the effect has produced a
    * value; and or returning the result of applying the function `f` to the
@@ -3147,6 +3154,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   def fromEither[E, A](v: => Either[E, A]): IO[E, A] =
     effectTotal(v).flatMap(_.fold(fail(_), succeedNow))
+
+  /**
+   * Lifts an `Either` into a `ZIO` value.
+   */
+  def fromEitherCause[E, A](v: => Either[Cause[E], A]): IO[E, A] =
+    effectTotal(v).flatMap(_.fold(halt(_), succeedNow))
 
   /**
    * Creates a `ZIO` value that represents the exit value of the specified

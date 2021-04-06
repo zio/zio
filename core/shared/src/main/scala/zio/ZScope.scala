@@ -208,6 +208,8 @@ object ZScope {
       if (result eq null) UIO(false) else result as true
     }
 
+    def child: UIO[Either[A, ZScope.Open[A]]] = UIO(unsafeChild())
+
     def released: UIO[Boolean] = UIO(unsafeReleased())
 
     private[this] def finalizers(mode: ZScope.Mode): Map[Key, OrderedFinalizer] =
@@ -254,6 +256,18 @@ object ZScope {
     private[zio] def unsafeEmpty(): Boolean =
       Sync(self) {
         (weakFinalizers.size() == 0) && (strongFinalizers.size() == 0)
+      }
+
+    private[zio] def unsafeChild(): Either[A, ZScope.Open[A]] =
+      Sync(self) {
+        val childScope = unsafeMake[A]()
+        unsafeEnsure(a => childScope.close(a), Mode.Strong) match {
+          case Left(a) =>
+            Left(a)
+          case Right(key) =>
+            childScope.scope.unsafeEnsure(_ => UIO(unsafeDeny(key)), Mode.Strong)
+            Right(childScope)
+        }
       }
 
     private[zio] def unsafeExtend(that: ZScope[Any]): Boolean =
