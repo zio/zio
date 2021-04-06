@@ -159,7 +159,7 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert((a, b, c))(equalTo((0, 0, 0)))
       }
     ),
-    suite("cachedWith")(
+    suite("cachedInvalidate")(
       testM("returns new instances after duration") {
         def incrementAndGet(ref: Ref[Int]): UIO[Int] = ref.updateAndGet(_ + 1)
         for {

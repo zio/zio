@@ -95,7 +95,6 @@ protected[zio] abstract class MutableConcurrentQueue[A] {
    */
   def pollUpTo(n: Int): Iterable[A] = {
     val builder = ChunkBuilder.make[A]()
-    builder.sizeHint(n)
     val default = null.asInstanceOf[A]
     var i       = n
     while (i > 0) {

@@ -6,7 +6,7 @@ import com.typesafe.tools.mima.core._
 import com.typesafe.tools.mima.core.ProblemFilters._
 
 object MimaSettings {
-  lazy val bincompatVersionToCompare = "1.0.1"
+  lazy val bincompatVersionToCompare = "1.0.5"
 
   def mimaSettings(failOnProblem: Boolean) =
     Seq(
@@ -24,7 +24,11 @@ object MimaSettings {
         exclude[ReversedMissingMethodProblem](
           "zio.clock.PlatformSpecific.zio$clock$PlatformSpecific$_setter_$globalTimer_="
         ),
-        exclude[ReversedMissingMethodProblem]("zio.clock.PlatformSpecific.globalTimer")
+        exclude[ReversedMissingMethodProblem]("zio.clock.PlatformSpecific.globalTimer"),
+        exclude[ReversedMissingMethodProblem](
+          "zio.ZManagedPlatformSpecific.zio$ZManagedPlatformSpecific$_setter_$blocking_="
+        ),
+        exclude[ReversedMissingMethodProblem]("zio.ZManagedPlatformSpecific.blocking")
       ),
       mimaFailOnProblem := failOnProblem
     )
