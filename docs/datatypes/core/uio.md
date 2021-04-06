@@ -5,6 +5,18 @@ title: "UIO"
 
 `UIO[A]` is a type alias for `ZIO[Any, Nothing, A]`, which represents an **Unexceptional** effect that doesn't require any specific environment, and cannot fail, but can succeed with an `A`.
 
+Let's see how the `UIO` type alias is defined:
+
+```scala mdoc:invisible
+import zio.ZIO
+```
+
+```scala mdoc:silent
+type UIO[+A] = ZIO[Any, Nothing, A]
+```
+
+So the `UIO` just equal to `ZIO` which doesn't need any requirement and cannot fail because in the Scala the `Nothing` type has no inhabitant, we can't create an instance of type `Nothing`.
+
 `ZIO` values of type `UIO[A]` (where the error type is `Nothing`) are considered _infallible_,
 because the `Nothing` type is _uninhabitable_, i.e. there can be no actual values of type `Nothing`. Values of this type may produce an `A`, but will never fail with an `E`.
 
