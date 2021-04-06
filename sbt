@@ -34,12 +34,11 @@
 
 set -o pipefail
 
-declare -r sbt_release_version="1.3.13"
-declare -r sbt_unreleased_version="1.4.0-M1"
+declare -r sbt_release_version="1.4.9"
+declare -r sbt_unreleased_version="1.5.0-M2"
 
-declare -r latest_dotty="3.0.0-M1"
-declare -r latest_213="2.13.3"
-declare -r latest_212="2.12.12"
+declare -r latest_213="2.13.5"
+declare -r latest_212="2.12.13"
 declare -r latest_211="2.11.12"
 declare -r latest_210="2.10.7"
 declare -r latest_29="2.9.3"
@@ -49,7 +48,7 @@ declare -r buildProps="project/build.properties"
 
 declare -r sbt_launch_ivy_release_repo="https://repo.typesafe.com/typesafe/ivy-releases"
 declare -r sbt_launch_ivy_snapshot_repo="https://repo.scala-sbt.org/scalasbt/ivy-snapshots"
-declare -r sbt_launch_mvn_release_repo="https://repo.scala-sbt.org/scalasbt/maven-releases"
+declare -r sbt_launch_mvn_release_repo="https://repo1.maven.org/maven2"
 declare -r sbt_launch_mvn_snapshot_repo="https://repo.scala-sbt.org/scalasbt/maven-snapshots"
 
 declare -r default_jvm_opts_common="-Xms512m -Xss2m -XX:MaxInlineLevel=18"
@@ -248,11 +247,18 @@ java_version() {
   echo "$version"
 }
 
+is_apple_silicon() { [[ "$(uname -s)" == "Darwin" && "$(uname -m)" == "arm64" ]]; }
+
 # MaxPermSize critical on pre-8 JVMs but incurs noisy warning on 8+
 default_jvm_opts() {
   local -r v="$(java_version)"
   if [[ $v -ge 10 ]]; then
-    echo "$default_jvm_opts_common -XX:+UnlockExperimentalVMOptions -XX:+UseJVMCICompiler"
+    if is_apple_silicon; then
+      # As of Dec 2020, JVM for Apple Silicon (M1) doesn't support JVMCI
+      echo "$default_jvm_opts_common"
+    else
+      echo "$default_jvm_opts_common -XX:+UnlockExperimentalVMOptions -XX:+UseJVMCICompiler"
+    fi
   elif [[ $v -ge 8 ]]; then
     echo "$default_jvm_opts_common"
   else
@@ -418,7 +424,6 @@ are not special.
   -211                       use $latest_211
   -212                       use $latest_212
   -213                       use $latest_213
-  -dotty                     use dotty $latest_dotty
   -scala-home <path>         use the scala build at the specified directory
   -scala-version <version>   use the specified version of scala
   -binary-version <version>  use the specified scala version when searching for dependencies
@@ -473,7 +478,7 @@ process_args() {
       -trace)       require_arg integer "$1" "$2" && trace_level="$2" && shift 2 ;;
       -debug-inc)   addJava "-Dxsbt.inc.debug=true" && shift ;;
 
-      -no-colors)   addJava "-Dsbt.log.noformat=true" && shift ;;
+      -no-colors)   addJava "-Dsbt.log.noformat=true" && addJava "-Dsbt.color=false" && shift ;;
       -sbt-create)  sbt_create=true && shift ;;
       -sbt-dir)     require_arg path "$1" "$2" && sbt_dir="$2" && shift 2 ;;
       -sbt-boot)    require_arg path "$1" "$2" && addJava "-Dsbt.boot.directory=$2" && shift 2 ;;
@@ -498,7 +503,6 @@ process_args() {
       -211)         setScalaVersion "$latest_211" && shift ;;
       -212)         setScalaVersion "$latest_212" && shift ;;
       -213)         setScalaVersion "$latest_213" && shift ;;
-      -dotty)       setScalaVersion "$latest_dotty" && shift ;;
 
       -scala-version) require_arg version "$1" "$2" && setScalaVersion "$2" && shift 2 ;;
       -binary-version) require_arg version "$1" "$2" && setThisBuild scalaBinaryVersion "\"$2\"" && shift 2 ;;

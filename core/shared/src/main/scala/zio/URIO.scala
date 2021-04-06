@@ -105,6 +105,12 @@ object URIO {
     ZIO.collectAll(in)
 
   /**
+   * @see See [[[zio.ZIO.collectAll[R,E,A](in:Option*]]]
+   */
+  def collectAll[R, A](in: Option[URIO[R, A]]): URIO[R, Option[A]] =
+    ZIO.collectAll(in)
+
+  /**
    * @see See [[[zio.ZIO.collectAll[R,E,A](in:zio\.NonEmptyChunk*]]]
    */
   def collectAll[R, A](in: NonEmptyChunk[URIO[R, A]]): URIO[R, NonEmptyChunk[A]] =

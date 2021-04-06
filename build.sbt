@@ -2,8 +2,6 @@ import BuildHelper._
 import MimaSettings.mimaSettings
 import explicitdeps.ExplicitDepsPlugin.autoImport.moduleFilterRemoveValue
 import sbt.Keys
-// shadow sbt-scalajs' crossProject from Scala.js 0.6.x
-import sbtcrossproject.CrossPlugin.autoImport.crossProject
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
@@ -21,10 +19,7 @@ inThisBuild(
         "john@degoes.net",
         url("http://degoes.net")
       )
-    ),
-    pgpPassphrase := sys.env.get("PGP_PASSPHRASE").map(_.toArray),
-    pgpPublicRing := file("/tmp/public.asc"),
-    pgpSecretRing := file("/tmp/secret.asc")
+    )
   )
 )
 
@@ -42,7 +37,7 @@ addCommandAlias("fmt", "all root/scalafmtSbt root/scalafmtAll")
 addCommandAlias("fmtCheck", "all root/scalafmtSbtCheck root/scalafmtCheckAll")
 addCommandAlias(
   "compileJVM",
-  ";coreTestsJVM/test:compile;stacktracerJVM/test:compile;streamsTestsJVM/test:compile;testTestsJVM/test:compile;testMagnoliaTestsJVM/test:compile;testRefinedJVM/test:compile;testRunnerJVM/test:compile;examplesJVM/test:compile;macrosJVM/test:compile"
+  ";coreTestsJVM/test:compile;stacktracerJVM/test:compile;streamsTestsJVM/test:compile;testTestsJVM/test:compile;testMagnoliaTestsJVM/test:compile;testRefinedJVM/test:compile;testRunnerJVM/test:compile;examplesJVM/test:compile;macrosTestsJVM/test:compile"
 )
 addCommandAlias(
   "testNative",
@@ -50,7 +45,7 @@ addCommandAlias(
 )
 addCommandAlias(
   "testJVM",
-  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRefinedJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile;benchmarks/test:compile;macrosJVM/test;testJunitRunnerTestsJVM/test"
+  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRefinedJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile;benchmarks/test:compile;macrosTestsJVM/test;testJunitRunnerTestsJVM/test"
 )
 addCommandAlias(
   "testJVMNoBenchmarks",
@@ -62,11 +57,11 @@ addCommandAlias(
 )
 addCommandAlias(
   "testJVM211",
-  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile;macrosJVM/test"
+  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile;macrosTestsJVM/test"
 )
 addCommandAlias(
   "testJS",
-  ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/test;testMagnoliaTestsJS/test;testRefinedJS/test;examplesJS/test:compile;macrosJS/test"
+  ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/test;testMagnoliaTestsJS/test;testRefinedJS/test;examplesJS/test:compile;macrosTestsJS/test"
 )
 addCommandAlias(
   "testJS211",
@@ -130,7 +125,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(stdSettings("zio"))
   .settings(crossProjectSettings)
   .settings(buildInfoSettings("zio"))
-  .settings(scalaReflectSettings)
+  .settings(libraryDependencies += "dev.zio" %%% "izumi-reflect" % "1.0.0-M16")
   .enablePlugins(BuildInfoPlugin)
 
 lazy val coreJVM = core.jvm
@@ -177,11 +172,25 @@ lazy val macros = crossProject(JSPlatform, JVMPlatform)
   .settings(crossProjectSettings)
   .settings(macroDefinitionSettings)
   .settings(macroExpansionSettings)
+
+lazy val macrosJVM = macros.jvm
+lazy val macrosJS  = macros.js
+
+lazy val macrosTests = crossProject(JSPlatform, JVMPlatform)
+  .in(file("macros-tests"))
+  .dependsOn(macros)
+  .settings(stdSettings("macros-tests"))
+  .settings(crossProjectSettings)
+  .settings(macroDefinitionSettings)
+  .settings(macroExpansionSettings)
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
   .dependsOn(testRunner)
+  .settings(buildInfoSettings("zio"))
+  .settings(skip in publish := true)
+  .enablePlugins(BuildInfoPlugin)
 
-lazy val macrosJVM = macros.jvm.settings(dottySettings)
-lazy val macrosJS  = macros.js
+lazy val macrosTestsJVM = macrosTests.jvm
+lazy val macrosTestsJS  = macrosTests.js
 
 lazy val streams = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("streams"))
@@ -232,7 +241,7 @@ lazy val test = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(macroExpansionSettings)
   .settings(
     libraryDependencies ++= Seq(
-      ("org.portable-scala" %%% "portable-scala-reflect" % "1.1.0")
+      ("org.portable-scala" %%% "portable-scala-reflect" % "1.1.1")
         .withDottyCompat(scalaVersion.value)
     )
   )
@@ -244,13 +253,13 @@ lazy val testJVM = test.jvm
 lazy val testJS = test.js
   .settings(
     libraryDependencies ++= List(
-      "io.github.cquiroz" %%% "scala-java-time"      % "2.1.0",
-      "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.1.0"
+      "io.github.cquiroz" %%% "scala-java-time"      % "2.2.1",
+      "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.2.1"
     )
   )
 lazy val testNative = test.native
   .settings(nativeSettings)
-  .settings(libraryDependencies += "org.ekrich" %%% "sjavatime" % "1.1.1")
+  .settings(libraryDependencies += "org.ekrich" %%% "sjavatime" % "1.1.2")
 
 lazy val testTests = crossProject(JSPlatform, JVMPlatform)
   .in(file("test-tests"))
@@ -324,7 +333,7 @@ lazy val testRefined = crossProject(JVMPlatform, JSPlatform)
     crossScalaVersions --= Seq(Scala211),
     libraryDependencies ++=
       Seq(
-        ("eu.timepit" %% "refined" % "0.9.21")
+        ("eu.timepit" %% "refined" % "0.9.23")
           .withDottyCompat(scalaVersion.value)
       )
   )
@@ -359,7 +368,6 @@ lazy val testRunner = crossProject(JSPlatform, JVMPlatform, NativePlatform)
 
 lazy val testRunnerJVM = testRunner.jvm
   .settings(dottySettings)
-  .settings(scalaReflectTestSettings)
   .settings(libraryDependencies ++= Seq("org.scala-sbt" % "test-interface" % "1.0"))
 lazy val testRunnerJS = testRunner.js
   .settings(libraryDependencies ++= Seq("org.scala-js" %% "scalajs-test-interface" % scalaJSVersion))
@@ -394,9 +402,9 @@ lazy val testJunitRunnerTests = crossProject(JVMPlatform)
       "junit"                   % "junit"     % "4.13.2" % Test,
       "org.scala-lang.modules" %% "scala-xml" % "1.3.0"  % Test,
       // required to run embedded maven in the tests
-      "org.apache.maven"       % "maven-embedder"         % "3.6.3"  % Test,
-      "org.apache.maven"       % "maven-compat"           % "3.6.3"  % Test,
-      "org.apache.maven.wagon" % "wagon-http"             % "3.4.2"  % Test,
+      "org.apache.maven"       % "maven-embedder"         % "3.8.1"  % Test,
+      "org.apache.maven"       % "maven-compat"           % "3.8.1"  % Test,
+      "org.apache.maven.wagon" % "wagon-http"             % "3.4.3"  % Test,
       "org.eclipse.aether"     % "aether-connector-basic" % "1.1.0"  % Test,
       "org.eclipse.aether"     % "aether-transport-wagon" % "1.1.0"  % Test,
       "org.slf4j"              % "slf4j-simple"           % "1.7.30" % Test
@@ -429,6 +437,7 @@ lazy val examples = crossProject(JVMPlatform, JSPlatform)
   .settings(stdSettings("examples"))
   .settings(crossProjectSettings)
   .settings(macroExpansionSettings)
+  .settings(scalacOptions += "-Xfatal-warnings")
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
   .dependsOn(macros, testRunner)
 
@@ -451,17 +460,17 @@ lazy val benchmarks = project.module
         "co.fs2"                    %% "fs2-core"       % "2.5.0",
         "com.google.code.findbugs"   % "jsr305"         % "3.0.2",
         "com.twitter"               %% "util-core"      % "21.2.0",
-        "com.typesafe.akka"         %% "akka-stream"    % "2.6.12",
+        "com.typesafe.akka"         %% "akka-stream"    % "2.6.13",
         "io.monix"                  %% "monix"          % "3.3.0",
-        "io.projectreactor"          % "reactor-core"   % "3.4.3",
+        "io.projectreactor"          % "reactor-core"   % "3.4.4",
         "io.reactivex.rxjava2"       % "rxjava"         % "2.2.21",
-        "org.jctools"                % "jctools-core"   % "3.2.0",
+        "org.jctools"                % "jctools-core"   % "3.3.0",
         "org.ow2.asm"                % "asm"            % "9.1",
         "org.scala-lang"             % "scala-compiler" % scalaVersion.value % Provided,
         "org.scala-lang"             % "scala-reflect"  % scalaVersion.value,
-        "org.typelevel"             %% "cats-effect"    % "2.3.3",
+        "org.typelevel"             %% "cats-effect"    % "2.4.0",
         "org.scalacheck"            %% "scalacheck"     % "1.15.3",
-        "qa.hedgehog"               %% "hedgehog-core"  % "0.6.2",
+        "qa.hedgehog"               %% "hedgehog-core"  % "0.6.5",
         "com.github.japgolly.nyaya" %% "nyaya-gen"      % "0.9.2"
       ),
     unusedCompileDependenciesFilter -= libraryDependencies.value
@@ -500,14 +509,17 @@ lazy val docs = project.module
     scalacOptions ~= { _ filterNot (_ startsWith "-Ywarn") },
     scalacOptions ~= { _ filterNot (_ startsWith "-Xlint") },
     libraryDependencies ++= Seq(
-      "commons-io"          % "commons-io"                  % "2.7"    % "provided",
-      "org.jsoup"           % "jsoup"                       % "1.13.1" % "provided",
-      "org.reactivestreams" % "reactive-streams-examples"   % "1.0.3"  % "provided",
-      "dev.zio"            %% "zio-interop-cats"            % "2.3.1.0",
-      "dev.zio"            %% "zio-interop-monix"           % "3.0.0.0-RC7",
-      "dev.zio"            %% "zio-interop-scalaz7x"        % "7.2.27.0-RC9",
-      "dev.zio"            %% "zio-interop-reactivestreams" % "1.3.0.7-2",
-      "dev.zio"            %% "zio-interop-twitter"         % "20.10.0.0"
+      "commons-io"          % "commons-io"                % "2.7"    % "provided",
+      "org.jsoup"           % "jsoup"                     % "1.13.1" % "provided",
+      "org.reactivestreams" % "reactive-streams-examples" % "1.0.3"  % "provided",
+      /* to evict 1.3.0 brought in by mdoc-js */
+      "org.scala-js"  % "scalajs-compiler"            % scalaJSVersion cross CrossVersion.full,
+      "org.scala-js" %% "scalajs-linker"              % scalaJSVersion,
+      "dev.zio"      %% "zio-interop-cats"            % "2.4.0.0",
+      "dev.zio"      %% "zio-interop-monix"           % "3.0.0.0-RC7",
+      "dev.zio"      %% "zio-interop-scalaz7x"        % "7.2.27.0-RC9",
+      "dev.zio"      %% "zio-interop-reactivestreams" % "1.3.0.7-2",
+      "dev.zio"      %% "zio-interop-twitter"         % "20.10.0.0"
     )
   )
   .settings(macroExpansionSettings)

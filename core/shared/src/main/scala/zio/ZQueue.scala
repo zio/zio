@@ -190,7 +190,7 @@ sealed abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { 
       def awaitShutdown: UIO[Unit] = self.awaitShutdown *> that.awaitShutdown
       def size: UIO[Int]           = self.size.zipWithPar(that.size)(math.max)
       def shutdown: UIO[Unit]      = self.shutdown.zipWithPar(that.shutdown)((_, _) => ())
-      def isShutdown: UIO[Boolean] = self.isShutdown
+      def isShutdown: UIO[Boolean] = self.isShutdown.zipWithPar(that.isShutdown)(_ || _)
       def take: ZIO[R3, E3, D]     = self.take.zipPar(that.take).flatMap(f.tupled)
 
       def takeAll: ZIO[R3, E3, List[D]] =

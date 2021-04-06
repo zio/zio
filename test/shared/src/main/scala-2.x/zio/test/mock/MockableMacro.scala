@@ -33,13 +33,16 @@ private[mock] object MockableMacro {
     def log(msg: String)   = c.info(c.enclosingPosition, msg, true)
     def abort(msg: String) = c.abort(c.enclosingPosition, msg)
 
-    val mockName: TermName = annottees.head match {
-      case m: ModuleDef => m.name
+    val (mockName: TermName, body: List[Tree]) = annottees.head match {
+      case m: ModuleDef => (m.name, m.impl.body)
       case _            => abort("@mockable macro should only be applied to objects.")
     }
 
     val service: Type = c.typecheck(q"(??? : ${c.prefix.tree})").tpe.typeArgs.head
     if (service == definitions.NothingTpe) abort(s"@mockable macro requires type parameter: @mockable[Module.Service]")
+
+    val serviceBaseTypeParameters         = service.baseType(service.typeSymbol).typeConstructor.typeParams.map(_.asType)
+    val serviceTypeParameterSubstitutions = serviceBaseTypeParameters.zip(service.typeArgs).toMap
 
     val env: Type        = c.typecheck(tq"_root_.zio.Has[$service]", c.TYPEmode).tpe
     val any: Type        = definitions.AnyTpe
@@ -134,9 +137,11 @@ private[mock] object MockableMacro {
           if (symbol.isVal) unit
           else c.typecheck(tq"(..${params.map(paramTypeToTupleType(_))})", c.TYPEmode).tpe
 
+        def substituteServiceTypeParam(t: Type) = serviceTypeParameterSubstitutions.getOrElse(t.typeSymbol.asType, t)
+
         val dealiased = symbol.returnType.dealias
         val capability =
-          (dealiased.typeArgs, dealiased.typeSymbol.fullName) match {
+          (dealiased.typeArgs.map(substituteServiceTypeParam(_)), dealiased.typeSymbol.fullName) match {
             case (r :: e :: a :: Nil, "zio.ZIO")                     => Capability.Effect(r, e, a)
             case (r :: e :: a0 :: a :: b :: Nil, "zio.stream.ZSink") => Capability.Sink(r, e, a0, a, b)
             case (r :: e :: a :: Nil, "zio.stream.ZStream")          => Capability.Stream(r, e, a)
@@ -307,6 +312,8 @@ private[mock] object MockableMacro {
                 new $serviceClassName
               }
             }
+
+          ..$body
         }
       """
 

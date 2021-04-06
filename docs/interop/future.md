@@ -15,7 +15,7 @@ Scala's `Future` can be converted into a ZIO effect with `ZIO.fromFuture`:
 def loggedFuture[A](future: ExecutionContext => Future[A]): UIO[Task[A]] = {
   ZIO.fromFuture { implicit ec =>
     future(ec).flatMap { result =>
-      Future("Future succeeded with " + result).map(_ => result)
+      Future(println("Future succeeded with " + result)).map(_ => result)
     }
   }
 }
