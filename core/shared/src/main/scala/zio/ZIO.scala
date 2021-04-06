@@ -61,7 +61,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   /**
    * Returns an effect that executes both this effect and the specified effect,
    * in parallel, returning result of provided effect. If either side fails,
-   * then the other side will be interrupted, interrupted the result.
+   * then the other side will be interrupted.
    */
   final def &>[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, B] =
     self.zipWithPar(that)((_, b) => b)
@@ -89,7 +89,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   /**
    * Returns an effect that executes both this effect and the specified effect,
    * in parallel, this effect result returned. If either side fails,
-   * then the other side will be interrupted, interrupted the result.
+   * then the other side will be interrupted.
    */
   final def <&[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, A] =
     self.zipWithPar(that)((a, _) => a)
@@ -97,7 +97,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   /**
    * Returns an effect that executes both this effect and the specified effect,
    * in parallel, combining their results into a tuple. If either side fails,
-   * then the other side will be interrupted, interrupted the result.
+   * then the other side will be interrupted.
    */
   final def <&>[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, (A, B)] =
     self.zipWithPar(that)((a, b) => (a, b))
@@ -454,6 +454,25 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     self.flatMap(v => pf.applyOrElse[A, ZIO[R1, E1, B]](v, _ => ZIO.fail(e)))
 
   final def compose[R1, E1 >: E](that: ZIO[R1, E1, R]): ZIO[R1, E1, A] = self <<< that
+
+  /**
+   * Taps the effect, printing the result of calling `.toString` on the value
+   */
+  final def debug: ZIO[R, E, A] =
+    self.tapBoth(
+      error => UIO(println(s"<FAIL> $error")),
+      value => UIO(println(value))
+    )
+
+  /**
+   * Taps the effect, printing the result of calling `.toString` on the value.
+   * Prefixes the output with the given message.
+   */
+  final def debug(prefix: => String): ZIO[R, E, A] =
+    self.tapBoth(
+      error => UIO(println(s"<FAIL> $prefix: $error")),
+      value => UIO(println(s"$prefix: $value"))
+    )
 
   /**
    * Returns an effect that is delayed from this effect by the specified
@@ -2097,14 +2116,14 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
 
   /**
    * Sequentially zips the this result with the specified result. Combines both
-   * `Cause[E1]` when both both effects fail.
+   * `Cause[E1]` when both effects fail.
    */
   final def validate[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, (A, B)] =
     validateWith(that)((_, _))
 
   /**
    * Returns an effect that executes both this effect and the specified effect,
-   * in parallel. Combines both Cause[E1]` when both both effects fail.
+   * in parallel. Combines both Cause[E1]` when both effects fail.
    */
   final def validatePar[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, (A, B)] =
     validateWithPar(that)((_, _))
@@ -2365,6 +2384,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * results. For a parallel version, see `collectAllPar`.
    */
   def collectAll[R, E, A: ClassTag](in: Array[ZIO[R, E, A]]): ZIO[R, E, Array[A]] =
+    foreach(in)(ZIO.identityFn)
+
+  /**
+   * Evaluate effect if present, and return its result as `Option[A]`.
+   */
+  def collectAll[R, E, A](in: Option[ZIO[R, E, A]]): ZIO[R, E, Option[A]] =
     foreach(in)(ZIO.identityFn)
 
   /**
@@ -3077,26 +3102,28 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   def foreachParN[R, E, A, B, Collection[+Element] <: Iterable[Element]](n: Int)(
     as: Collection[A]
-  )(fn: A => ZIO[R, E, B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZIO[R, E, Collection[B]] = {
-    val size = as.size
-    if (size == 0) ZIO.succeedNow(bf.newBuilder(as).result())
+  )(fn: A => ZIO[R, E, B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZIO[R, E, Collection[B]] =
+    if (n < 1) ZIO.dieMessage(s"Unexpected nonpositive value `$n` passed to foreachParN.")
     else {
+      val size = as.size
+      if (size == 0) ZIO.succeedNow(bf.newBuilder(as).result())
+      else {
 
-      def worker(queue: Queue[(A, Int)], array: Array[AnyRef]): ZIO[R, E, Unit] =
-        queue.poll.flatMap {
-          case Some((a, n)) =>
-            fn(a).tap(b => ZIO.effectTotal(array(n) = b.asInstanceOf[AnyRef])) *> worker(queue, array)
-          case None => ZIO.unit
-        }
+        def worker(queue: Queue[(A, Int)], array: Array[AnyRef]): ZIO[R, E, Unit] =
+          queue.poll.flatMap {
+            case Some((a, n)) =>
+              fn(a).tap(b => ZIO.effectTotal(array(n) = b.asInstanceOf[AnyRef])) *> worker(queue, array)
+            case None => ZIO.unit
+          }
 
-      for {
-        array <- ZIO.effectTotal(Array.ofDim[AnyRef](size))
-        queue <- Queue.bounded[(A, Int)](size)
-        _     <- queue.offerAll(as.zipWithIndex)
-        _     <- ZIO.collectAllPar_(ZIO.replicate(n)(worker(queue, array)))
-      } yield bf.fromSpecific(as)(array.asInstanceOf[Array[B]])
-    }.refailWithTrace
-  }
+        for {
+          array <- ZIO.effectTotal(Array.ofDim[AnyRef](size))
+          queue <- Queue.bounded[(A, Int)](size)
+          _     <- queue.offerAll(as.zipWithIndex)
+          _     <- ZIO.collectAllPar_(ZIO.replicate(n)(worker(queue, array)))
+        } yield bf.fromSpecific(as)(array.asInstanceOf[Array[B]])
+      }.refailWithTrace
+    }
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` and runs

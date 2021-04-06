@@ -484,7 +484,7 @@ abstract class RingBuffer[A](override final val capacity: Int) extends MutableQu
       // ownership of each space until we publish our changes. Dequeue the
       // elements sequentially and publish our changes as we go.
       val builder = ChunkBuilder.make[A]()
-      builder.sizeHint(n)
+      builder.sizeHint((deqTail - deqHead).toInt)
       while (deqHead < deqTail) {
         curIdx = posToIdx(deqHead, aCapacity)
         val a = buf(curIdx).asInstanceOf[A]
