@@ -2053,6 +2053,15 @@ object ZIOSpec extends ZIOBaseSpec {
         val io = (clock.sleep(5.seconds) *> IO.succeed(true)).timeout(10.millis)
         assertM(Live.live(io))(isNone)
       },
+      testM("timeout a long computation with an error") {
+        val io = (clock.sleep(5.seconds) *> IO.succeed(true)).timeoutFail(false)(10.millis)
+        assertM(Live.live(io.run))(fails(equalTo(false)))
+      },
+      testM("timeout a long computation with a cause") {
+        val cause = Cause.die(new Error("BOOM"))
+        val io    = (clock.sleep(5.seconds) *> IO.succeed(true)).timeoutHalt(cause)(10.millis)
+        assertM(Live.live(io.sandbox.flip))(equalTo(cause))
+      },
       testM("timeout repetition of uninterruptible effect") {
         val effect = ZIO.unit.uninterruptible.forever
 

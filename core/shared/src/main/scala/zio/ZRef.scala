@@ -187,7 +187,10 @@ object ZRef extends Serializable {
    * Creates a new `ZRef` with the specified value.
    */
   def make[A](a: A): UIO[Ref[A]] =
-    UIO.effectTotal(Atomic(new AtomicReference(a)))
+    UIO.effectTotal(unsafeMake(a))
+
+  private[zio] def unsafeMake[A](a: A): Ref[A] =
+    Atomic(new AtomicReference(a))
 
   /**
    * Creates a new managed `ZRef` with the specified value

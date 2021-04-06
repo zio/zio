@@ -124,7 +124,9 @@ object Semaphore extends Serializable {
   /**
    * Creates a new `Sempahore` with the specified number of permits.
    */
-  def make(permits: Long): UIO[Semaphore] = Ref.make[State](Right(permits)).map(new Semaphore(_))
+  def make(permits: Long): UIO[Semaphore] = UIO(unsafeMake(permits))
+
+  private[zio] def unsafeMake(permits: Long): Semaphore = new Semaphore(ZRef.unsafeMake[State](Right(permits)))
 }
 
 private object internals {

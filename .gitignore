@@ -12,6 +12,9 @@ project/metals.sbt
 .idea
 coursier
 .DS_Store
+.bsp/
+project/project/
+*.iml
 
 # if you are here to add your IDE's files please read this instead:
 # https://stackoverflow.com/questions/7335420/global-git-ignore#22885996
