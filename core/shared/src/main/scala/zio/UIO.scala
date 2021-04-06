@@ -88,6 +88,12 @@ object UIO {
     ZIO.collectAll(in)
 
   /**
+   * @see See [[[zio.ZIO.collectAll[R,E,A](in:Option*]]]
+   */
+  def collectAll[A](in: Option[UIO[A]]): UIO[Option[A]] =
+    ZIO.collectAll(in)
+
+  /**
    * @see See [[[zio.ZIO.collectAll[R,E,A](in:zio\.NonEmptyChunk*]]]
    */
   def collectAll[A](in: NonEmptyChunk[UIO[A]]): UIO[NonEmptyChunk[A]] =

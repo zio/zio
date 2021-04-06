@@ -19,4 +19,4 @@ import zio.test.environment.TestEnvironment
  * }
  * }}}
  */
-class DefaultMutableRunnableSpec extends MutableRunnableSpec(ZLayer.identity[TestEnvironment])
+class DefaultMutableRunnableSpec extends MutableRunnableSpec(ZLayer.identity[TestEnvironment], TestAspect.identity)
