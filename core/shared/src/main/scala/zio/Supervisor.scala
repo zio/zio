@@ -18,6 +18,7 @@ package zio
 
 import zio.internal.{Platform, Sync}
 
+import java.util.concurrent.atomic.AtomicReference
 import scala.collection.immutable.SortedSet
 
 /**
@@ -164,12 +165,14 @@ object Supervisor {
   /**
    * Creates a new supervisor that tracks children in a set.
    */
-  def fibersIn(ref: Ref[SortedSet[Fiber.Runtime[Any, Any]]]): UIO[Supervisor[SortedSet[Fiber.Runtime[Any, Any]]]] =
+  def fibersIn(
+    ref: AtomicReference[SortedSet[Fiber.Runtime[Any, Any]]]
+  ): UIO[Supervisor[SortedSet[Fiber.Runtime[Any, Any]]]] =
     UIO {
 
       new Supervisor[SortedSet[Fiber.Runtime[Any, Any]]] {
         def value: UIO[SortedSet[Fiber.Runtime[Any, Any]]] =
-          ref.get
+          ZIO.effectTotal(ref.get)
 
         def unsafeOnStart[R, E, A](
           environment: R,
@@ -177,12 +180,20 @@ object Supervisor {
           parent: Option[Fiber.Runtime[Any, Any]],
           fiber: Fiber.Runtime[E, A]
         ): Propagation = {
-          ref.unsafeUpdate(_ + fiber)
+          var loop = true
+          while (loop) {
+            val set = ref.get
+            loop = !ref.compareAndSet(set, set + fiber)
+          }
           Propagation.Continue
         }
 
         def unsafeOnEnd[R, E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A]): Propagation = {
-          ref.unsafeUpdate(_ - fiber)
+          var loop = true
+          while (loop) {
+            val set = ref.get
+            loop = !ref.compareAndSet(set, set - fiber)
+          }
 
           Propagation.Continue
         }

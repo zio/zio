@@ -46,11 +46,12 @@ package object zio extends BuildFromCompat with EitherCompat with PlatformSpecif
    */
   type Dequeue[+A] = ZQueue[Nothing, Any, Any, Nothing, Nothing, A]
 
-  type Ref[A]      = ZRef[Nothing, Nothing, A, A]
-  type ERef[+E, A] = ZRef[E, E, A, A]
+  type Ref[A]      = ZRef[Any, Any, Nothing, Nothing, A, A]
+  type ERef[+E, A] = ZRef[Any, Any, E, E, A, A]
 
-  type RefM[A]      = ZRefM[Any, Any, Nothing, Nothing, A, A]
-  type ERefM[+E, A] = ZRefM[Any, Any, E, E, A, A]
+  type ZRefM[-RA, -RB, +EA, +EB, -A, +B] = ZRef.ZRefM[RA, RB, EA, EB, A, B]
+  type RefM[A]                           = ZRefM[Any, Any, Nothing, Nothing, A, A]
+  type ERefM[+E, A]                      = ZRefM[Any, Any, E, E, A, A]
 
   object <*> {
     def unapply[A, B](ab: (A, B)): Some[(A, B)] =

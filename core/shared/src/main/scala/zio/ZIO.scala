@@ -305,7 +305,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     def get(cache: RefM[Option[(Long, Promise[E, A])]]): ZIO[R with Clock, E, A] =
       ZIO.uninterruptibleMask { restore =>
         clock.nanoTime.flatMap { time =>
-          cache.updateSomeAndGet {
+          cache.updateSomeAndGetM {
             case None                              => compute(time)
             case Some((end, _)) if end - time <= 0 => compute(time)
           }.flatMap(a => restore(a.get._2.await))
@@ -3567,7 +3567,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def memoize[R, E, A, B](f: A => ZIO[R, E, B]): UIO[A => ZIO[R, E, B]] =
     RefM.make(Map.empty[A, Promise[E, B]]).map { ref => a =>
       for {
-        promise <- ref.modify { map =>
+        promise <- ref.modifyM { map =>
                      map.get(a) match {
                        case Some(promise) => ZIO.succeedNow((promise, map))
                        case None =>
