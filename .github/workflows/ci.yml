@@ -22,8 +22,6 @@ jobs:
       uses: olafurpg/setup-scala@v10
     - name: Cache scala dependencies
       uses: coursier/cache-action@v6
-    - name: Print used Java options
-      run: 'echo "$JDK_JAVA_OPTIONS"'
     - name: Lint code
       run: sbt check
 
