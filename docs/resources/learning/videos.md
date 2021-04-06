@@ -48,5 +48,8 @@ title:  "Videos"
 ## ZIO Actors
 - [Acting Lessons for Scala Engineers with Akka and ZIO](https://www.youtube.com/watch?v=AQXBlbkf9wc) by [Salar Rahmanian](https://wwww.softinio.com) (November 2020)
 
+## Use Cases
+- [Search Hacker News with ZIO with Scala, ZIO, Sttp and magic](https://www.youtube.com/watch?v=3P2Gi--dG9A&list=PL-G8WBFTPSVpCcFq6O7czfx9m9T21Cz24&index=11) — A practical look at building a ZIO program. + [Source Code](https://github.com/justinhj/magic-rate-limiter) by [Justin Heyes-Jones](https://twitter.com/justinhj) (April 2021)
+
 ## Others
 - [Redis Streams with ZIO](https://youtu.be/jJnco6sMZQY) by [Leszek Gruchała](https://twitter.com/leszekgruchala) (October 2020)
