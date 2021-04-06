@@ -5,6 +5,18 @@ title: "IO"
 
 `IO[E, A]` is a type alias for `ZIO[Any, E, A]`, which represents an effect that has no requirements, and may fail with an `E`, or succeed with an `A`.
 
+Let's see how the `IO` type alias is defined:
+
+```scala mdoc:invisible
+import zio.ZIO
+```
+
+```scala mdoc:silent
+type IO[+E, +A] = ZIO[Any, E, A]
+```
+
+So the `IO` just equal to `ZIO` which doesn't need any requirement.
+
 ## Unproductive IO
 
 `ZIO` values of type `IO[E, Nothing]` (where the value type is `Nothing`) are considered _unproductive_,
