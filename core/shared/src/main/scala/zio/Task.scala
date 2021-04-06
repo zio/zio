@@ -93,6 +93,12 @@ object Task extends TaskPlatformSpecific {
     ZIO.collectAll(in)
 
   /**
+   * @see See [[[zio.ZIO.collectAll[R,E,A](in:Option*]]]
+   */
+  def collectAll[A](in: Option[Task[A]]): Task[Option[A]] =
+    ZIO.collectAll(in)
+
+  /**
    * @see See [[[zio.ZIO.collectAll[R,E,A](in:zio\.NonEmptyChunk*]]]
    */
   def collectAll[A](in: NonEmptyChunk[Task[A]]): Task[NonEmptyChunk[A]] =

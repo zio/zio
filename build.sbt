@@ -253,8 +253,8 @@ lazy val testJVM = test.jvm
 lazy val testJS = test.js
   .settings(
     libraryDependencies ++= List(
-      "io.github.cquiroz" %%% "scala-java-time"      % "2.2.0",
-      "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.2.0"
+      "io.github.cquiroz" %%% "scala-java-time"      % "2.2.1",
+      "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.2.1"
     )
   )
 lazy val testNative = test.native
@@ -333,7 +333,7 @@ lazy val testRefined = crossProject(JVMPlatform, JSPlatform)
     crossScalaVersions --= Seq(Scala211),
     libraryDependencies ++=
       Seq(
-        ("eu.timepit" %% "refined" % "0.9.21")
+        ("eu.timepit" %% "refined" % "0.9.23")
           .withDottyCompat(scalaVersion.value)
       )
   )
@@ -402,8 +402,8 @@ lazy val testJunitRunnerTests = crossProject(JVMPlatform)
       "junit"                   % "junit"     % "4.13.2" % Test,
       "org.scala-lang.modules" %% "scala-xml" % "1.3.0"  % Test,
       // required to run embedded maven in the tests
-      "org.apache.maven"       % "maven-embedder"         % "3.6.3"  % Test,
-      "org.apache.maven"       % "maven-compat"           % "3.6.3"  % Test,
+      "org.apache.maven"       % "maven-embedder"         % "3.8.1"  % Test,
+      "org.apache.maven"       % "maven-compat"           % "3.8.1"  % Test,
       "org.apache.maven.wagon" % "wagon-http"             % "3.4.3"  % Test,
       "org.eclipse.aether"     % "aether-connector-basic" % "1.1.0"  % Test,
       "org.eclipse.aether"     % "aether-transport-wagon" % "1.1.0"  % Test,
@@ -468,7 +468,7 @@ lazy val benchmarks = project.module
         "org.ow2.asm"                % "asm"            % "9.1",
         "org.scala-lang"             % "scala-compiler" % scalaVersion.value % Provided,
         "org.scala-lang"             % "scala-reflect"  % scalaVersion.value,
-        "org.typelevel"             %% "cats-effect"    % "2.3.3",
+        "org.typelevel"             %% "cats-effect"    % "2.4.0",
         "org.scalacheck"            %% "scalacheck"     % "1.15.3",
         "qa.hedgehog"               %% "hedgehog-core"  % "0.6.5",
         "com.github.japgolly.nyaya" %% "nyaya-gen"      % "0.9.2"
@@ -515,7 +515,7 @@ lazy val docs = project.module
       /* to evict 1.3.0 brought in by mdoc-js */
       "org.scala-js"  % "scalajs-compiler"            % scalaJSVersion cross CrossVersion.full,
       "org.scala-js" %% "scalajs-linker"              % scalaJSVersion,
-      "dev.zio"      %% "zio-interop-cats"            % "2.3.1.0",
+      "dev.zio"      %% "zio-interop-cats"            % "2.4.0.0",
       "dev.zio"      %% "zio-interop-monix"           % "3.0.0.0-RC7",
       "dev.zio"      %% "zio-interop-scalaz7x"        % "7.2.27.0-RC9",
       "dev.zio"      %% "zio-interop-reactivestreams" % "1.3.0.7-2",
