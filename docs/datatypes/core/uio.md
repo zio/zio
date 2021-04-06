@@ -17,6 +17,10 @@ type UIO[+A] = ZIO[Any, Nothing, A]
 
 So the `UIO` just equal to `ZIO` which doesn't need any requirement and cannot fail because in the Scala the `Nothing` type has no inhabitant, we can't create an instance of type `Nothing`.
 
+> **_Note:_**
+>
+> In Scala, the _type alias_ is a way to give a name to another type, to avoid having to repeat the original type again and again. It doesn't affect the type-checking process. It just helps us to have an expressive API design.
+
 `ZIO` values of type `UIO[A]` (where the error type is `Nothing`) are considered _infallible_,
 because the `Nothing` type is _uninhabitable_, i.e. there can be no actual values of type `Nothing`. Values of this type may produce an `A`, but will never fail with an `E`.
 

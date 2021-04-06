@@ -17,6 +17,10 @@ type URIO[-R, +A] = ZIO[R, Nothing, A]
 
 So the `URIO` just equal to `ZIO` which requires `R` and cannot fail because in the Scala the `Nothing` type has no inhabitant, we can't create an instance of type `Nothing`. It succeeds with `A`.
 
+> **_Note:_**
+>
+> In Scala, the _type alias_ is a way to give a name to another type, to avoid having to repeat the original type again and again. It doesn't affect the type-checking process. It just helps us to have an expressive API design.
+
 In following example, the type of `putStrLn` is `URIO[Console, Unit]` which means, it requires `Console` service as an environment, and it succeeds with `Unit` value:
 
 ```scala mdoc:invisible:reset
