@@ -50,13 +50,23 @@ package object zio
   /**
    * A queue that can only be dequeued.
    */
-  type Dequeue[+A] = ZQueue[Nothing, Any, Any, Nothing, Nothing, A]
+  type ZDequeue[-R, +E, +A] = ZQueue[Nothing, R, Any, E, Nothing, A]
+  type Dequeue[+A]          = ZQueue[Nothing, Any, Any, Nothing, Nothing, A]
+
+  /**
+   * A queue that can only be enqueued.
+   */
+  type ZEnqueue[-R, +E, -A] = ZQueue[R, Nothing, E, Any, A, Any]
+  type Enqueue[-A]          = ZQueue[Any, Nothing, Nothing, Any, A, Any]
 
   type Ref[A]      = ZRef[Nothing, Nothing, A, A]
   type ERef[+E, A] = ZRef[E, E, A, A]
 
   type RefM[A]      = ZRefM[Any, Any, Nothing, Nothing, A, A]
   type ERefM[+E, A] = ZRefM[Any, Any, E, E, A, A]
+
+  type Hub[A] = ZHub[Any, Any, Nothing, Nothing, A, A]
+  val Hub: ZHub.type = ZHub
 
   object <*> {
     def unapply[A, B](ab: (A, B)): Some[(A, B)] =

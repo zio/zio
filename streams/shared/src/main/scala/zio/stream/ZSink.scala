@@ -812,6 +812,19 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
       b.foldM(Push.fail(_, leftover), z => Push.emit(z, leftover))
     }
 
+  /**
+   * Create a sink which publishes each element to the specified hub.
+   */
+  def fromHub[R, E, I](hub: ZHub[R, Nothing, E, Any, I, Any]): ZSink[R, E, I, Nothing, Unit] =
+    fromQueue(hub.toQueue)
+
+  /**
+   * Create a sink which publishes each element to the specified hub.
+   * The hub will be shutdown once the stream is closed.
+   */
+  def fromHubWithShutdown[R, E, I](hub: ZHub[R, Nothing, E, Any, I, Any]): ZSink[R, E, I, Nothing, Unit] =
+    fromQueueWithShutdown(hub.toQueue)
+
   def fromPush[R, E, I, L, Z](sink: Push[R, E, I, L, Z]): ZSink[R, E, I, L, Z] =
     ZSink(Managed.succeed(sink))
 

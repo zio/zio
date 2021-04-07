@@ -247,7 +247,7 @@ abstract class RingBuffer[A](override final val capacity: Int) extends MutableQu
     }
   }
 
-  override final def offerAll(as: Iterable[A]): Iterable[A] = {
+  override final def offerAll(as: Iterable[A]): Chunk[A] = {
     val aCapacity = capacity
 
     val aSeq   = seq
@@ -325,7 +325,7 @@ abstract class RingBuffer[A](override final val capacity: Int) extends MutableQu
     } else {
       // There was no space in the queue or the original collection was empty.
       // Just return the original collection unchanged.
-      as
+      Chunk.fromIterable(as)
     }
   }
 
@@ -419,7 +419,7 @@ abstract class RingBuffer[A](override final val capacity: Int) extends MutableQu
     }
   }
 
-  override final def pollUpTo(n: Int): Iterable[A] = {
+  override final def pollUpTo(n: Int): Chunk[A] = {
     val aCapacity = capacity
 
     val aSeq   = seq
