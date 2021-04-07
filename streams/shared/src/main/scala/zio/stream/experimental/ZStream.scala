@@ -2884,8 +2884,15 @@ object ZStream {
    * the unfolding of the state. This is useful for embedding paginated APIs,
    * hence the name.
    */
-  def paginateChunk[A, S](s: S)(f: S => (Chunk[A], Option[S])): ZStream[Any, Nothing, A] =
-    paginateChunkM(s)(s => ZIO.succeedNow(f(s)))
+  def paginateChunk[A, S](s: S)(f: S => (Chunk[A], Option[S])): ZStream[Any, Nothing, A] = {
+    def loop(s: S): ZChannel[Any, Any, Any, Any, Nothing, Chunk[A], Any] =
+      f(s) match {
+        case (as, Some(s)) => ZChannel.write(as) *> loop(s)
+        case (as, None)    => ZChannel.write(as) *> ZChannel.end(())
+      }
+
+    new ZStream(loop(s))
+  }
 
   /**
    * Like [[unfoldChunkM]], but allows the emission of values to end one step further than
