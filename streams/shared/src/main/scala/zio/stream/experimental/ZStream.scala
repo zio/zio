@@ -2869,7 +2869,10 @@ object ZStream {
    * hence the name.
    */
   def paginate[R, E, A, S](s: S)(f: S => (A, Option[S])): ZStream[Any, Nothing, A] =
-    paginateM(s)(s => ZIO.succeedNow(f(s)))
+    paginateChunk(s) { s =>
+      val page = f(s)
+      Chunk.single(page._1) -> page._2
+    }
 
   /**
    * Like [[unfoldM]], but allows the emission of values to end one step further than
@@ -2884,8 +2887,15 @@ object ZStream {
    * the unfolding of the state. This is useful for embedding paginated APIs,
    * hence the name.
    */
-  def paginateChunk[A, S](s: S)(f: S => (Chunk[A], Option[S])): ZStream[Any, Nothing, A] =
-    paginateChunkM(s)(s => ZIO.succeedNow(f(s)))
+  def paginateChunk[A, S](s: S)(f: S => (Chunk[A], Option[S])): ZStream[Any, Nothing, A] = {
+    def loop(s: S): ZChannel[Any, Any, Any, Any, Nothing, Chunk[A], Any] =
+      f(s) match {
+        case (as, Some(s)) => ZChannel.write(as) *> loop(s)
+        case (as, None)    => ZChannel.write(as) *> ZChannel.end(())
+      }
+
+    new ZStream(loop(s))
+  }
 
   /**
    * Like [[unfoldChunkM]], but allows the emission of values to end one step further than
@@ -2895,9 +2905,9 @@ object ZStream {
   def paginateChunkM[R, E, A, S](s: S)(f: S => ZIO[R, E, (Chunk[A], Option[S])]): ZStream[R, E, A] = {
     def loop(s: S): ZChannel[R, Any, Any, Any, E, Chunk[A], Any] =
       ZChannel.unwrap {
-        f(s).map { case (as, s) =>
-          ZChannel.write(as) *>
-            s.fold[ZChannel[R, Any, Any, Any, E, Chunk[A], Any]](ZChannel.end(()))(loop)
+        f(s).map {
+          case (as, Some(s)) => ZChannel.write(as) *> loop(s)
+          case (as, None)    => ZChannel.write(as) *> ZChannel.end(())
         }
       }
 
