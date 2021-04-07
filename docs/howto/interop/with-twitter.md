@@ -1,9 +1,9 @@
 ---
-id: interop_twitter
-title: "Twitter"
+id: with-twitter
+title: "How to Interop with Twitter?"
 ---
 
-`interop-twitter` module provides capability to convert Twitter `Future` into ZIO `Task`.
+[`interop-twitter`](https://github.com/zio/interop-twitter) module provides capability to convert [Twitter `Future`](https://twitter.github.io/util/docs/com/twitter/util/Future.html) into ZIO `Task`.
 
 ### Example
 

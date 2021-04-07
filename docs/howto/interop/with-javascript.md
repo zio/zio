@@ -1,6 +1,6 @@
 ---
-id: interop_javascript
-title:  "JavaScript"
+id: with-javascript
+title: "How to Interop with JavaScript?"
 ---
 
 Include ZIO in your Scala.js project by adding the following to your `build.sbt`:

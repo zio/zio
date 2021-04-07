@@ -1,6 +1,6 @@
 ---
-id: howto_mock_services
-title:  "Mock services"
+id: mock-services
+title: "How to Mock Services?"
 ---
 
 ## How to test interactions between services?
@@ -476,8 +476,8 @@ You can find more examples in the `examples` and `test-tests` subproject:
 - [ComposedEmptyMockSpec][link-gh-composed-empty-mock-spec]
 - [PolyMockSpec][link-gh-poly-mock-spec]
 
-[doc-use-modules-and-layers]: use_modules_and_layers.md
-[doc-macros]: howto_macros.md
+[doc-use-modules-and-layers]: use-modules-and-layers.md
+[doc-macros]: howto-macros.md
 [link-sls-6.26.1]: https://scala-lang.org/files/archive/spec/2.13/06-expressions.html#value-conversions
 [link-test-doubles]: https://martinfowler.com/articles/mocksArentStubs.html
 [link-gh-mock-example-spec]: https://github.com/zio/zio/blob/master/examples/shared/src/test/scala/zio/examples/test/MockExampleSpec.scala
