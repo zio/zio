@@ -3019,7 +3019,7 @@ object ZStream {
    * Creates a stream by peeling off the "layers" of a value of type `S`
    */
   def unfold[S, A](s: S)(f: S => Option[(A, S)]): ZStream[Any, Nothing, A] =
-    unfoldM(s)(s => ZIO.succeedNow(f(s)))
+    unfoldChunk(s)(f(_).map { case (a, s) => Chunk.single(a) -> s })
 
   /**
    * Creates a stream by effectfully peeling off the "layers" of a value of type `S`
