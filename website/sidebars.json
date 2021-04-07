@@ -21,6 +21,7 @@
       "datatypes/datatypes_fiber",
       "datatypes/datatypes_fiberref",
       "datatypes/datatypes_has",
+      "datatypes/datatypes_hub",
       "datatypes/datatypes_io",
       "datatypes/datatypes_managed",
       "datatypes/datatypes_promise",
