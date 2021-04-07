@@ -3029,21 +3029,26 @@ object ZStream {
    * Creates a stream by peeling off the "layers" of a value of type `S`
    */
   def unfold[S, A](s: S)(f: S => Option[(A, S)]): ZStream[Any, Nothing, A] =
-    unfoldM(s)(s => ZIO.succeedNow(f(s)))
+    unfoldChunk(s)(f(_).map { case (a, s) => Chunk.single(a) -> s })
 
   /**
    * Creates a stream by effectfully peeling off the "layers" of a value of type `S`
    */
   def unfoldM[R, E, A, S](s: S)(f: S => ZIO[R, E, Option[(A, S)]]): ZStream[R, E, A] =
-    unfoldChunkM(s)(f(_).map(_.map { case (a, s) =>
-      Chunk.single(a) -> s
-    }))
+    unfoldChunkM(s)(f(_).map(_.map { case (a, s) => Chunk.single(a) -> s }))
 
   /**
    * Creates a stream by peeling off the "layers" of a value of type `S`.
    */
-  def unfoldChunk[S, A](s: S)(f: S => Option[(Chunk[A], S)]): ZStream[Any, Nothing, A] =
-    unfoldChunkM(s)(s => ZIO.succeedNow(f(s)))
+  def unfoldChunk[S, A](s: S)(f: S => Option[(Chunk[A], S)]): ZStream[Any, Nothing, A] = {
+    def loop(s: S): ZChannel[Any, Any, Any, Any, Nothing, Chunk[A], Any] =
+      f(s) match {
+        case Some((as, s)) => ZChannel.write(as) *> loop(s)
+        case None          => ZChannel.end(())
+      }
+
+    new ZStream(loop(s))
+  }
 
   /**
    * Creates a stream by effectfully peeling off the "layers" of a value of type `S`
