@@ -3025,9 +3025,7 @@ object ZStream {
    * Creates a stream by effectfully peeling off the "layers" of a value of type `S`
    */
   def unfoldM[R, E, A, S](s: S)(f: S => ZIO[R, E, Option[(A, S)]]): ZStream[R, E, A] =
-    unfoldChunkM(s)(f(_).map(_.map { case (a, s) =>
-      Chunk.single(a) -> s
-    }))
+    unfoldChunkM(s)(f(_).map(_.map { case (a, s) => Chunk.single(a) -> s }))
 
   /**
    * Creates a stream by peeling off the "layers" of a value of type `S`.
