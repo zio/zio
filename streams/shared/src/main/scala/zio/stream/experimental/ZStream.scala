@@ -2869,7 +2869,10 @@ object ZStream {
    * hence the name.
    */
   def paginate[R, E, A, S](s: S)(f: S => (A, Option[S])): ZStream[Any, Nothing, A] =
-    paginateM(s)(s => ZIO.succeedNow(f(s)))
+    paginateChunk(s) { s =>
+      val page = f(s)
+      Chunk.single(page._1) -> page._2
+    }
 
   /**
    * Like [[unfoldM]], but allows the emission of values to end one step further than
