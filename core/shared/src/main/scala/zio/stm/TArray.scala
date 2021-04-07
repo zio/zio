@@ -17,7 +17,6 @@
 package zio.stm
 
 import zio.Chunk
-import zio.stm.ZSTM.internal._
 
 /**
  * Wraps array of [[TRef]] and adds methods for convenience.
@@ -81,7 +80,7 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
    * Find the first element in the array matching a predicate.
    */
   def find(p: A => Boolean): USTM[Option[A]] =
-    new ZSTM((journal, _, _, _) => {
+    ZSTM.Effect { (journal, _, _) =>
       var i   = 0
       var res = Option.empty[A]
 
@@ -94,14 +93,14 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
         i += 1
       }
 
-      TExit.Succeed(res)
-    })
+      res
+    }
 
   /**
    * Find the last element in the array matching a predicate.
    */
   def findLast(p: A => Boolean): USTM[Option[A]] =
-    new ZSTM((journal, _, _, _) => {
+    ZSTM.Effect { (journal, _, _) =>
       var i   = array.length - 1
       var res = Option.empty[A]
 
@@ -114,8 +113,8 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
         i -= 1
       }
 
-      TExit.Succeed(res)
-    })
+      res
+    }
 
   /**
    * Find the last element in the array matching a transactional predicate.
@@ -157,7 +156,7 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
    * Atomically folds using a pure function.
    */
   def fold[Z](zero: Z)(op: (Z, A) => Z): USTM[Z] =
-    new ZSTM((journal, _, _, _) => {
+    ZSTM.Effect { (journal, _, _) =>
       var res = zero
       var i   = 0
 
@@ -167,8 +166,8 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
         i += 1
       }
 
-      TExit.Succeed(res)
-    })
+      res
+    }
 
   /**
    * Atomically folds using a transactional function.
@@ -220,7 +219,7 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
     if (from < 0)
       STM.succeedNow(-1)
     else
-      new ZSTM((journal, _, _, _) => {
+      ZSTM.Effect { (journal, _, _) =>
         var i     = from
         var found = false
 
@@ -230,8 +229,8 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
           i += 1
         }
 
-        if (found) TExit.Succeed(i - 1) else TExit.Succeed(-1)
-      })
+        if (found) i - 1 else -1
+      }
 
   /**
    * Get the index of the first entry in the array matching a transactional
@@ -267,7 +266,7 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
     if (end >= array.length)
       STM.succeedNow(-1)
     else
-      new ZSTM((journal, _, _, _) => {
+      ZSTM.Effect { (journal, _, _) =>
         var i     = end
         var found = false
 
@@ -276,8 +275,8 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
           i -= 1
         }
 
-        if (found) TExit.Succeed(i + 1) else TExit.Succeed(-1)
-      })
+        if (found) i + 1 else -1
+      }
 
   /**
    * The last entry in the array, if it exists.
@@ -301,7 +300,7 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
    * Atomically reduce the array, if non-empty, by a binary operator.
    */
   def reduceOption(op: (A, A) => A): USTM[Option[A]] =
-    new ZSTM((journal, _, _, _) => {
+    ZSTM.Effect { (journal, _, _) =>
       var i   = 0
       var res = null.asInstanceOf[A]
 
@@ -316,8 +315,8 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
         i += 1
       }
 
-      TExit.Succeed(Option(res))
-    })
+      Option(res)
+    }
 
   /**
    * Atomically reduce the non-empty array using a transactional binary operator.
@@ -352,7 +351,7 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
    * Atomically updates all elements using a pure function.
    */
   def transform(f: A => A): USTM[Unit] =
-    new ZSTM((journal, _, _, _) => {
+    ZSTM.Effect { (journal, _, _) =>
       var i = 0
 
       while (i < array.length) {
@@ -361,15 +360,15 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
         i += 1
       }
 
-      TExit.Succeed(())
-    })
+      ()
+    }
 
   /**
    * Atomically updates all elements using a transactional effect.
    */
   def transformM[E](f: A => STM[E, A]): STM[E, Unit] =
     STM.foreach(Chunk.fromArray(array))(_.get.flatMap(f)).flatMap { newData =>
-      new ZSTM((journal, _, _, _) => {
+      ZSTM.Effect { (journal, _, _) =>
         var i  = 0
         val it = newData.iterator
 
@@ -378,8 +377,8 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
           i += 1
         }
 
-        TExit.Succeed(())
-      })
+        ()
+      }
     }
 
   /**

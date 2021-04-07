@@ -16,21 +16,18 @@
 
 package zio.stm
 
-import zio.stm.ZSTM.internal.TExit
-
 final class TSemaphore private (val permits: TRef[Long]) extends AnyVal {
   def acquire: USTM[Unit] = acquireN(1L)
 
   def acquireN(n: Long): USTM[Unit] =
-    new ZSTM((journal, _, _, _) => {
+    ZSTM.Effect((journal, _, _) => {
       assertNonNegative(n)
 
       val value = permits.unsafeGet(journal)
 
-      if (value < n) TExit.Retry
+      if (value < n) throw ZSTM.RetryException
       else {
         permits.unsafeSet(journal, value - n)
-        TExit.unit
       }
     })
 
@@ -39,13 +36,11 @@ final class TSemaphore private (val permits: TRef[Long]) extends AnyVal {
   def release: USTM[Unit] = releaseN(1L)
 
   def releaseN(n: Long): USTM[Unit] =
-    new ZSTM((journal, _, _, _) => {
+    ZSTM.Effect((journal, _, _) => {
       assertNonNegative(n)
 
       val current = permits.unsafeGet(journal)
       permits.unsafeSet(journal, current + n)
-
-      TExit.unit
     })
 
   def withPermit[E, B](stm: STM[E, B]): STM[E, B] =
