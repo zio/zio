@@ -15,32 +15,78 @@
     ]
   },
   "datatypes-sidebar": {
-    "Data Types": [
-      "datatypes/datatypes_index",
-      "datatypes/datatypes_chunk",
-      "datatypes/datatypes_fiber",
-      "datatypes/datatypes_fiberref",
-      "datatypes/datatypes_has",
-      "datatypes/datatypes_hub",
-      "datatypes/datatypes_io",
-      "datatypes/datatypes_managed",
-      "datatypes/datatypes_promise",
-      "datatypes/datatypes_queue",
-      "datatypes/datatypes_ref",
-      "datatypes/datatypes_schedule",
-      "datatypes/datatypes_semaphore",
-      "datatypes/datatypes_sink",
-      "datatypes/datatypes_stream",
-      "datatypes/datatypes_tarray",
-      "datatypes/datatypes_tmap",
-      "datatypes/datatypes_tpriorityqueue",
-      "datatypes/datatypes_tpromise",
-      "datatypes/datatypes_tqueue",
-      "datatypes/datatypes_treentrantlock",
-      "datatypes/datatypes_tref",
-      "datatypes/datatypes_tsemaphore",
-      "datatypes/datatypes_tset",
-      "datatypes/datatypes_zlayer"
+    "Overview": [
+      "datatypes/index"
+    ],
+    "Core Data Types": [
+      "datatypes/core/index",
+      "datatypes/core/zio",
+      "datatypes/core/uio",
+      "datatypes/core/urio",
+      "datatypes/core/task",
+      "datatypes/core/rio",
+      "datatypes/core/io",
+      "datatypes/core/exit",
+      "datatypes/core/cause",
+      "datatypes/core/runtime",
+      "datatypes/core/zlayer"
+    ],
+    "Fiber Primitives": [
+      "datatypes/fiber/index",
+      "datatypes/fiber/fiber",
+      "datatypes/fiber/fiberref",
+      "datatypes/fiber/fiberid",
+      "datatypes/fiber/fiberstatus"
+    ],
+    "Concurrency Primitives": [
+      "datatypes/concurrency/index",
+      "datatypes/concurrency/hub",
+      "datatypes/concurrency/promise",
+      "datatypes/concurrency/semaphore",
+      "datatypes/concurrency/zref",
+      "datatypes/concurrency/ref",
+      "datatypes/concurrency/zrefm",
+      "datatypes/concurrency/refm",
+      "datatypes/concurrency/queue"
+    ],
+    "STM": [
+      "datatypes/stm/index",
+      "datatypes/stm/stm",
+      "datatypes/stm/tarray",
+      "datatypes/stm/tset",
+      "datatypes/stm/tmap",
+      "datatypes/stm/tref",
+      "datatypes/stm/tpriorityqueue",
+      "datatypes/stm/tpromise",
+      "datatypes/stm/tqueue",
+      "datatypes/stm/treentrantlock",
+      "datatypes/stm/tsemaphore"
+    ],
+    "Resource Safety": [
+      "datatypes/resource/index",
+      "datatypes/resource/managed"
+    ],
+    "Runtime": [],
+    "Streaming": [
+      "datatypes/stream/index",
+      "datatypes/stream/stream",
+      "datatypes/stream/sink"
+    ],
+    "Miscellaneous": [
+      "datatypes/misc/index",
+      "datatypes/misc/chunk",
+      "datatypes/misc/schedule",
+      "datatypes/module/has"
+    ]
+  },
+  "services-sidebar": {
+    "Services": [
+      "services/index",
+      "services/console",
+      "services/clock",
+      "services/random",
+      "services/blocking",
+      "services/system"
     ]
   },
   "interop-sidebar": {
@@ -79,17 +125,28 @@
       "howto/howto_mock_services",
       "howto/howto_handle_errors",
       "howto/howto_access_system_information",
-      "howto/howto_macros"
+      "howto/howto_macros",
+      "howto/migrating_from_monix"
     ]
   },
   "resources-sidebar": {
-    "Resources": [
-      "resources/resources"
-    ]
-  },
-  "ecosystem-sidebar": {
+    "Overview": [
+      "resources/index"
+    ],
+    "Learning": [
+      "resources/learning/index",
+      "resources/learning/articles",
+      "resources/learning/talks",
+      "resources/learning/cookbooks",
+      "resources/learning/cheatsheets",
+      "resources/learning/sampleprojects",
+      "resources/learning/poweredbyzio"
+    ],
     "Ecosystem": [
-      "ecosystem/ecosystem"
+      "resources/ecosystem/index",
+      "resources/ecosystem/officials",
+      "resources/ecosystem/directsupport",
+      "resources/ecosystem/tools"
     ]
   },
   "about-sidebar": {

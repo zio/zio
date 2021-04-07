@@ -35,9 +35,10 @@ addCommandAlias(
 )
 addCommandAlias("fmt", "all root/scalafmtSbt root/scalafmtAll")
 addCommandAlias("fmtCheck", "all root/scalafmtSbtCheck root/scalafmtCheckAll")
+addCommandAlias("check", "; scalafmtSbtCheck; scalafmtCheckAll; compile:scalafix --check; test:scalafix --check")
 addCommandAlias(
   "compileJVM",
-  ";coreTestsJVM/test:compile;stacktracerJVM/test:compile;streamsTestsJVM/test:compile;testTestsJVM/test:compile;testMagnoliaTestsJVM/test:compile;testRefinedJVM/test:compile;testRunnerJVM/test:compile;examplesJVM/test:compile;macrosJVM/test:compile"
+  ";coreTestsJVM/test:compile;stacktracerJVM/test:compile;streamsTestsJVM/test:compile;testTestsJVM/test:compile;testMagnoliaTestsJVM/test:compile;testRefinedJVM/test:compile;testRunnerJVM/test:compile;examplesJVM/test:compile;macrosTestsJVM/test:compile"
 )
 addCommandAlias(
   "testNative",
@@ -45,7 +46,7 @@ addCommandAlias(
 )
 addCommandAlias(
   "testJVM",
-  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRefinedJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile;benchmarks/test:compile;macrosJVM/test;testJunitRunnerTestsJVM/test"
+  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRefinedJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile;benchmarks/test:compile;macrosTestsJVM/test;testJunitRunnerTestsJVM/test"
 )
 addCommandAlias(
   "testJVMNoBenchmarks",
@@ -57,11 +58,11 @@ addCommandAlias(
 )
 addCommandAlias(
   "testJVM211",
-  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile;macrosJVM/test"
+  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile;macrosTestsJVM/test"
 )
 addCommandAlias(
   "testJS",
-  ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/test;testMagnoliaTestsJS/test;testRefinedJS/test;examplesJS/test:compile;macrosJS/test"
+  ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/test;testMagnoliaTestsJS/test;testRefinedJS/test;examplesJS/test:compile;macrosTestsJS/test"
 )
 addCommandAlias(
   "testJS211",
@@ -125,7 +126,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(stdSettings("zio"))
   .settings(crossProjectSettings)
   .settings(buildInfoSettings("zio"))
-  .settings(libraryDependencies += "dev.zio" %%% "izumi-reflect" % "1.0.0-M16")
+  .settings(libraryDependencies += "dev.zio" %%% "izumi-reflect" % "1.0.0-M17")
   .enablePlugins(BuildInfoPlugin)
 
 lazy val coreJVM = core.jvm
@@ -172,11 +173,25 @@ lazy val macros = crossProject(JSPlatform, JVMPlatform)
   .settings(crossProjectSettings)
   .settings(macroDefinitionSettings)
   .settings(macroExpansionSettings)
+
+lazy val macrosJVM = macros.jvm
+lazy val macrosJS  = macros.js
+
+lazy val macrosTests = crossProject(JSPlatform, JVMPlatform)
+  .in(file("macros-tests"))
+  .dependsOn(macros)
+  .settings(stdSettings("macros-tests"))
+  .settings(crossProjectSettings)
+  .settings(macroDefinitionSettings)
+  .settings(macroExpansionSettings)
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
   .dependsOn(testRunner)
+  .settings(buildInfoSettings("zio"))
+  .settings(skip in publish := true)
+  .enablePlugins(BuildInfoPlugin)
 
-lazy val macrosJVM = macros.jvm.settings(dottySettings)
-lazy val macrosJS  = macros.js
+lazy val macrosTestsJVM = macrosTests.jvm
+lazy val macrosTestsJS  = macrosTests.js
 
 lazy val streams = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("streams"))
@@ -239,13 +254,13 @@ lazy val testJVM = test.jvm
 lazy val testJS = test.js
   .settings(
     libraryDependencies ++= List(
-      "io.github.cquiroz" %%% "scala-java-time"      % "2.2.0",
-      "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.2.0"
+      "io.github.cquiroz" %%% "scala-java-time"      % "2.2.1",
+      "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.2.1"
     )
   )
 lazy val testNative = test.native
   .settings(nativeSettings)
-  .settings(libraryDependencies += "org.ekrich" %%% "sjavatime" % "1.1.2")
+  .settings(libraryDependencies += "org.ekrich" %%% "sjavatime" % "1.1.3")
 
 lazy val testTests = crossProject(JSPlatform, JVMPlatform)
   .in(file("test-tests"))
@@ -319,7 +334,7 @@ lazy val testRefined = crossProject(JVMPlatform, JSPlatform)
     crossScalaVersions --= Seq(Scala211),
     libraryDependencies ++=
       Seq(
-        ("eu.timepit" %% "refined" % "0.9.21")
+        ("eu.timepit" %% "refined" % "0.9.23")
           .withDottyCompat(scalaVersion.value)
       )
   )
@@ -378,7 +393,9 @@ lazy val testJunitRunnerTests = crossProject(JVMPlatform)
   .settings(javaOptions in Test ++= {
     Seq(
       s"-Dproject.dir=${baseDirectory.value}",
-      s"-Dproject.version=${version.value}"
+      s"-Dproject.version=${version.value}",
+      s"-Dscala.version=${scalaVersion.value}",
+      s"-Dscala.compat.version=${scalaBinaryVersion.value}"
     )
   })
   .settings(skip in publish := true)
@@ -388,8 +405,8 @@ lazy val testJunitRunnerTests = crossProject(JVMPlatform)
       "junit"                   % "junit"     % "4.13.2" % Test,
       "org.scala-lang.modules" %% "scala-xml" % "1.3.0"  % Test,
       // required to run embedded maven in the tests
-      "org.apache.maven"       % "maven-embedder"         % "3.6.3"  % Test,
-      "org.apache.maven"       % "maven-compat"           % "3.6.3"  % Test,
+      "org.apache.maven"       % "maven-embedder"         % "3.8.1"  % Test,
+      "org.apache.maven"       % "maven-compat"           % "3.8.1"  % Test,
       "org.apache.maven.wagon" % "wagon-http"             % "3.4.3"  % Test,
       "org.eclipse.aether"     % "aether-connector-basic" % "1.1.0"  % Test,
       "org.eclipse.aether"     % "aether-transport-wagon" % "1.1.0"  % Test,
@@ -443,19 +460,19 @@ lazy val benchmarks = project.module
     skip in publish := true,
     libraryDependencies ++=
       Seq(
-        "co.fs2"                    %% "fs2-core"       % "2.5.0",
+        "co.fs2"                    %% "fs2-core"       % "2.5.4",
         "com.google.code.findbugs"   % "jsr305"         % "3.0.2",
-        "com.twitter"               %% "util-core"      % "21.2.0",
+        "com.twitter"               %% "util-core"      % "21.3.0",
         "com.typesafe.akka"         %% "akka-stream"    % "2.6.13",
         "io.github.timwspence"      %% "cats-stm"       % "0.8.0",
         "io.monix"                  %% "monix"          % "3.3.0",
-        "io.projectreactor"          % "reactor-core"   % "3.4.3",
+        "io.projectreactor"          % "reactor-core"   % "3.4.4",
         "io.reactivex.rxjava2"       % "rxjava"         % "2.2.21",
         "org.jctools"                % "jctools-core"   % "3.3.0",
         "org.ow2.asm"                % "asm"            % "9.1",
         "org.scala-lang"             % "scala-compiler" % scalaVersion.value % Provided,
         "org.scala-lang"             % "scala-reflect"  % scalaVersion.value,
-        "org.typelevel"             %% "cats-effect"    % "2.3.3",
+        "org.typelevel"             %% "cats-effect"    % "2.4.1",
         "org.scalacheck"            %% "scalacheck"     % "1.15.3",
         "qa.hedgehog"               %% "hedgehog-core"  % "0.6.5",
         "com.github.japgolly.nyaya" %% "nyaya-gen"      % "0.9.2"
@@ -502,7 +519,7 @@ lazy val docs = project.module
       /* to evict 1.3.0 brought in by mdoc-js */
       "org.scala-js"  % "scalajs-compiler"            % scalaJSVersion cross CrossVersion.full,
       "org.scala-js" %% "scalajs-linker"              % scalaJSVersion,
-      "dev.zio"      %% "zio-interop-cats"            % "2.3.1.0",
+      "dev.zio"      %% "zio-interop-cats"            % "2.4.0.0",
       "dev.zio"      %% "zio-interop-monix"           % "3.0.0.0-RC7",
       "dev.zio"      %% "zio-interop-scalaz7x"        % "7.2.27.0-RC9",
       "dev.zio"      %% "zio-interop-reactivestreams" % "1.3.0.7-2",

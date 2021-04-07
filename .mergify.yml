@@ -6,25 +6,21 @@ pull_request_rules:
       assign:
         users: [adamgfraser]
       label:
-        add: [dependency-update]
+        add: ["type: dependencies"]
+  - name: label scala-steward's breaking PRs
+    conditions:
+      - author=scala-steward
+      - "body~=(labels: library-update, semver-major)|(labels: sbt-plugin-update, semver-major)"
+    actions:
+      label:
+        add: ["type: breaking"]
   - name: merge Scala Steward's PRs
     conditions:
       - base=master
       - author=scala-steward
-      - "body~=(labels: library-update, semver-minor)|(labels: library-update, semver-patch)|(labels: sbt-plugin-update, semver-minor)|(labels: sbt-plugin-update, semver-patch)|(labels: scalafix-rule-update, semver-minor)|(labels: scalafix-rule-update, semver-patch)|(labels: test-library-update, semver-minor)|(labels: test-library-update, semver-patch)"
+      - "body~=(labels: library-update, semver-minor)|(labels: library-update, semver-patch)|(labels: sbt-plugin-update, semver-minor)|(labels: sbt-plugin-update, semver-patch)|(labels: scalafix-rule-update)|(labels: test-library-update)"
       - "status-success=license/cla"
-      - "status-success=ci/circleci: mdoc"
-      - "status-success=ci/circleci: mima_212"
-      - "status-success=ci/circleci: mima_213"
-      - "status-success=ci/circleci: test_211_jdk8_js"
-      - "status-success=ci/circleci: test_211_jdk8_jvm"
-      - "status-success=ci/circleci: test_211_jdk8_native"
-      - "status-success=ci/circleci: test_212_jdk11_jvm"
-      - "status-success=ci/circleci: test_212_jdk8_js"
-      - "status-success=ci/circleci: test_212_jdk8_jvm"
-      - "status-success=ci/circleci: test_213_jdk8_js"
-      - "status-success=ci/circleci: test_213_jdk8_jvm"
-      - "status-success=ci/circleci: test_dotty_jdk8_jvm"
+      - "status-success=ci"
     actions:
       merge:
         method: squash

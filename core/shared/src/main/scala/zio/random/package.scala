@@ -1,5 +1,7 @@
 package zio
 
+import java.util.UUID
+
 package object random {
   type Random = Has[Random.Service]
 
@@ -20,6 +22,7 @@ package object random {
       def nextLongBounded(n: Long): UIO[Long]
       def nextPrintableChar: UIO[Char]
       def nextString(length: Int): UIO[String]
+      def nextUUID: UIO[UUID] = nextUUIDWith(nextLong)
       def setSeed(seed: Long): UIO[Unit]
       def shuffle[A, Collection[+Element] <: Iterable[Element]](collection: Collection[A])(implicit
         bf: BuildFrom[Collection[A], A, Collection[A]]
@@ -144,6 +147,15 @@ package object random {
         }
       }
 
+    private[zio] def nextUUIDWith(nextLong: UIO[Long]): UIO[UUID] =
+      for {
+        mostSigBits  <- nextLong
+        leastSigBits <- nextLong
+      } yield new UUID(
+        (mostSigBits & ~0x0000f000) | 0x00004000,
+        (leastSigBits & ~(0xc0000000L << 32)) | (0x80000000L << 32)
+      )
+
     private[zio] def shuffleWith[A, Collection[+Element] <: Iterable[Element]](
       nextIntBounded: Int => UIO[Int],
       collection: Collection[A]
@@ -246,6 +258,12 @@ package object random {
    */
   def nextLongBounded(n: => Long): URIO[Random, Long] =
     ZIO.accessM(_.get.nextLongBounded(n))
+
+  /**
+   * Generates psuedo-random universally unique identifiers.
+   */
+  val nextUUID: URIO[Random, UUID] =
+    ZIO.accessM(_.get.nextUUID)
 
   /**
    * Generates a pseudo-random character from the ASCII range 33-126.

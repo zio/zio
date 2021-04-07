@@ -16,6 +16,8 @@
 
 package zio
 
+import zio.internal.FiberContext
+
 /**
  * The entry point for a purely-functional application on the JVM.
  *
@@ -55,9 +57,18 @@ trait App extends BootstrapRuntime {
         for {
           fiber <- run(args0.toList).fork
           _ <- IO.effectTotal(java.lang.Runtime.getRuntime.addShutdownHook(new Thread {
-                 override def run() = {
-                   val _ = unsafeRunSync(fiber.interrupt)
-                 }
+                 override def run() =
+                   if (FiberContext.fatal.get) {
+                     println(
+                       "**** WARNING ***\n" +
+                         "Catastrophic JVM error encountered. " +
+                         "Application not safely interrupted. " +
+                         "Resources may be leaked. " +
+                         "Check the logs for more details and consider overriding `Platform.reportFatal` to capture context."
+                     )
+                   } else {
+                     val _ = unsafeRunSync(fiber.interrupt)
+                   }
                }))
           result <- fiber.join
           _      <- fiber.interrupt

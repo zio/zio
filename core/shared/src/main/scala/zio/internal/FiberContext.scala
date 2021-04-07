@@ -650,13 +650,14 @@ private[zio] final class FiberContext[E, A](
           // either a bug in the interpreter or a bug in the user's code. Let the
           // fiber die but attempt finalization & report errors.
           case t: Throwable =>
-            curZio =
-              if (platform.fatal(t)) platform.reportFatal(t)
-              else {
-                setInterrupting(true)
+            curZio = if (platform.fatal(t)) {
+              fatal.set(true)
+              platform.reportFatal(t)
+            } else {
+              setInterrupting(true)
 
-                ZIO.die(t)
-              }
+              ZIO.die(t)
+            }
         }
       }
     } finally Fiber._currentFiber.remove()
@@ -1066,7 +1067,6 @@ private[zio] final class FiberContext[E, A](
     // For improved fairness, we resume in order of submission:
     observers.reverse.foreach(k => k(result))
   }
-
 }
 private[zio] object FiberContext {
   sealed abstract class FiberState[+E, +A] extends Serializable with Product {
@@ -1103,4 +1103,7 @@ private[zio] object FiberContext {
 
   private val noop: Option[Any => Unit] =
     Some(_ => ())
+
+  val fatal: AtomicBoolean =
+    new AtomicBoolean(false)
 }

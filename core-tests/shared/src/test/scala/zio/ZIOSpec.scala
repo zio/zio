@@ -159,7 +159,7 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert((a, b, c))(equalTo((0, 0, 0)))
       }
     ),
-    suite("cachedWith")(
+    suite("cachedInvalidate")(
       testM("returns new instances after duration") {
         def incrementAndGet(ref: Ref[Int]): UIO[Int] = ref.updateAndGet(_ + 1)
         for {
@@ -1302,6 +1302,41 @@ object ZIOSpec extends ZIOBaseSpec {
       testM("on false returns true") {
         assertM(ZIO.succeed(false).negate)(equalTo(true))
       }
+    ),
+    suite("noneOrFail")(
+      testM("on None succeeds with Unit") {
+        val option: Option[String] = None
+        for {
+          value <- ZIO.noneOrFail(option)
+        } yield {
+          assert(value)(equalTo(()))
+        }
+      },
+      testM("on Some fails") {
+        for {
+          value <- ZIO.noneOrFail(Some("v")).catchAll(e => ZIO.succeed(e))
+        } yield {
+          assert(value)(equalTo("v"))
+        }
+      } @@ zioTag(errors)
+    ),
+    suite("noneOrFailWith")(
+      testM("on None succeeds with Unit") {
+        val option: Option[String]       = None
+        val adaptError: String => String = identity
+        for {
+          value <- ZIO.noneOrFailWith(option)(adaptError)
+        } yield {
+          assert(value)(equalTo(()))
+        }
+      },
+      testM("on Some fails") {
+        for {
+          value <- ZIO.noneOrFailWith(Some("value"))((v: String) => v + v).catchAll(e => ZIO.succeed(e))
+        } yield {
+          assert(value)(equalTo("valuevalue"))
+        }
+      } @@ zioTag(errors)
     ),
     suite("once")(
       testM("returns an effect that will only be executed once") {

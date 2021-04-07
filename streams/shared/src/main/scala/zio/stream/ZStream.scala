@@ -549,6 +549,36 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     catchAllCause(pf.applyOrElse[Cause[E], ZStream[R1, E1, O1]](_, ZStream.halt(_)))
 
   /**
+   * Returns a new stream that only emits elements that are not equal to the
+   * previous element emitted, using natural equality to determine whether two
+   * elements are equal.
+   */
+  def changes: ZStream[R, E, O] =
+    changesWith(_ == _)
+
+  /**
+   * Returns a new stream that only emits elements that are not equal to the
+   * previous element emitted, using the specified function to determine
+   * whether two elements are equal.
+   */
+  def changesWith(f: (O, O) => Boolean): ZStream[R, E, O] =
+    ZStream {
+      for {
+        ref <- Ref.makeManaged[Option[O]](None)
+        p   <- self.process
+        pull = for {
+                 z0 <- ref.get
+                 c  <- p
+                 (z1, chunk) = c.foldLeft[(Option[O], Chunk[O])]((z0, Chunk.empty)) {
+                                 case ((Some(o), os), o1) if (f(o, o1)) => (Some(o1), os)
+                                 case ((_, os), o1)                     => (Some(o1), os :+ o1)
+                               }
+                 _ <- ref.set(z1)
+               } yield chunk
+      } yield pull
+    }
+
+  /**
    * Re-chunks the elements of the stream into chunks of
    * `n` elements each.
    * The last chunk might contain less than `n` elements

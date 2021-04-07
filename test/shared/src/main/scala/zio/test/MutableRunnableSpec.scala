@@ -10,7 +10,7 @@ import scala.util.control.NoStackTrace
 /**
  * Syntax for writing test like
  * {{{
- * object MySpec extends MutableRunnableSpec(layer) {
+ * object MySpec extends MutableRunnableSpec(layer, aspect) {
  *   suite("foo") {
  *     testM("name") {
  *     } @@ ignore
@@ -23,8 +23,10 @@ import scala.util.control.NoStackTrace
  * }
  * }}}
  */
-class MutableRunnableSpec[R <: Has[_]](layer: ZLayer[TestEnvironment, Throwable, R])
-    extends RunnableSpec[TestEnvironment, Any] {
+class MutableRunnableSpec[R <: Has[_]](
+  layer: ZLayer[TestEnvironment, Throwable, R],
+  aspect: TestAspect[R, R, Any, Any]
+) extends RunnableSpec[TestEnvironment, Any] {
   self =>
 
   private class InAnotherTestException(`type`: String, label: String)
@@ -127,7 +129,7 @@ class MutableRunnableSpec[R <: Has[_]](layer: ZLayer[TestEnvironment, Throwable,
 
   final override def spec: ZSpec[Environment, Failure] = {
     specBuilt = true
-    stack.head.toSpec.provideLayerShared(layer.mapError(TestFailure.fail))
+    (stack.head @@ aspect).toSpec.provideLayerShared(layer.mapError(TestFailure.fail))
   }
 
   override def aspects: List[TestAspect[Nothing, TestEnvironment, Nothing, Any]] =

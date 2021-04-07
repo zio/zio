@@ -333,14 +333,14 @@ package object environment extends PlatformSpecific {
       def sleep(duration: Duration): UIO[Unit] =
         for {
           promise <- Promise.make[Nothing, Unit]
-          await <- clockState.modify { data =>
-                     val end = data.duration + duration
-                     if (end > data.duration)
-                       (true, data.copy(sleeps = (end, promise) :: data.sleeps))
-                     else
-                       (false, data)
-                   }
-          _ <- if (await) warningStart *> promise.await else promise.succeed(())
+          shouldAwait <- clockState.modify { data =>
+                           val end = data.duration + duration
+                           if (end > data.duration)
+                             (true, data.copy(sleeps = (end, promise) :: data.sleeps))
+                           else
+                             (false, data)
+                         }
+          _ <- if (shouldAwait) warningStart *> promise.await else promise.succeed(())
         } yield ()
 
       /**

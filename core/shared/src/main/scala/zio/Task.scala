@@ -93,6 +93,12 @@ object Task extends TaskPlatformSpecific {
     ZIO.collectAll(in)
 
   /**
+   * @see See [[[zio.ZIO.collectAll[R,E,A](in:Option*]]]
+   */
+  def collectAll[A](in: Option[Task[A]]): Task[Option[A]] =
+    ZIO.collectAll(in)
+
+  /**
    * @see See [[[zio.ZIO.collectAll[R,E,A](in:zio\.NonEmptyChunk*]]]
    */
   def collectAll[A](in: NonEmptyChunk[Task[A]]): Task[NonEmptyChunk[A]] =
@@ -724,6 +730,18 @@ object Task extends TaskPlatformSpecific {
    * @see See [[zio.ZIO.none]]
    */
   val none: Task[Option[Nothing]] = ZIO.none
+
+  /**
+   * @see See [[zio.ZIO.noneOrFail]]
+   */
+  def noneOrFail(o: Option[Throwable]): Task[Unit] =
+    ZIO.noneOrFail(o)
+
+  /**
+   * @see See [[zio.ZIO.noneOrFailWith]]
+   */
+  def noneOrFailWith[O](o: Option[O])(f: O => Throwable): Task[Unit] =
+    ZIO.noneOrFailWith(o)(f)
 
   /**
    *  @see See [[zio.ZIO.not]]

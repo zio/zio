@@ -199,6 +199,13 @@ object ZQueueSpec extends ZIOBaseSpec {
         chunk <- queue.takeUpTo(-1)
       } yield assert(chunk.isEmpty)(isTrue)
     },
+    testM("takeUpTo Int.MaxValue") {
+      for {
+        queue <- Queue.bounded[Int](100)
+        _     <- queue.offer(10)
+        chunk <- queue.takeUpTo(Int.MaxValue)
+      } yield assert(chunk)(equalTo(Chunk(10)))
+    },
     testM("multiple takeUpTo") {
       for {
         queue  <- Queue.bounded[Int](100)

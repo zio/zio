@@ -138,7 +138,7 @@ class CSVStreamBenchmarks {
 
   @Benchmark
   def fs2CsvTokenize(): Unit = {
-    val chunks = genCsvChunks.map(FS2Chunk.array)
+    val chunks = genCsvChunks.map(FS2Chunk.array(_))
     val stream = FS2Stream(chunks.toIndexedSeq: _*)
       .flatMap(FS2Stream.chunk)
       .mapAccumulate(Vector.empty[Char]) { case (acc, char) =>
