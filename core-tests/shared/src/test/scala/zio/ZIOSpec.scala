@@ -1303,6 +1303,41 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(ZIO.succeed(false).negate)(equalTo(true))
       }
     ),
+    suite("noneOrFail")(
+      testM("on None succeeds with Unit") {
+        val option: Option[String] = None
+        for {
+          value <- ZIO.noneOrFail(option)
+        } yield {
+          assert(value)(equalTo(()))
+        }
+      },
+      testM("on Some fails") {
+        for {
+          value <- ZIO.noneOrFail(Some("v")).catchAll(e => ZIO.succeed(e))
+        } yield {
+          assert(value)(equalTo("v"))
+        }
+      } @@ zioTag(errors)
+    ),
+    suite("noneOrFailWith")(
+      testM("on None succeeds with Unit") {
+        val option: Option[String]       = None
+        val adaptError: String => String = identity
+        for {
+          value <- ZIO.noneOrFailWith(option)(adaptError)
+        } yield {
+          assert(value)(equalTo(()))
+        }
+      },
+      testM("on Some fails") {
+        for {
+          value <- ZIO.noneOrFailWith(Some("value"))((v: String) => v + v).catchAll(e => ZIO.succeed(e))
+        } yield {
+          assert(value)(equalTo("valuevalue"))
+        }
+      } @@ zioTag(errors)
+    ),
     suite("once")(
       testM("returns an effect that will only be executed once") {
         for {
