@@ -3,11 +3,11 @@ package zio.test
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test.environment.TestEnvironment
-import zio.{Ref, ZIO}
+import zio.{Has, Ref, ZIO, ZLayer}
 
 object MutableRunnableSpecSpec
-    extends MutableRunnableSpec(
-      TestEnvironment.any ++ Ref.make(0).toLayer,
+    extends MutableRunnableSpec[MutableRunnableSpecSpecCompat.Environment](
+      TestEnvironment.any ++ ZLayer.fromEffect(Ref.make(0)),
       sequential >>> samples(10) >>> before(ZIO.service[Ref[Int]].flatMap(_.update(_ + 1)))
     ) {
   testM("ref 1") {
@@ -25,4 +25,8 @@ object MutableRunnableSpecSpec
       value <- ref.get
     } yield assert(value)(equalTo(13))
   }
+}
+
+object MutableRunnableSpecSpecCompat {
+  type Environment = TestEnvironment with Has[Ref[Int]]
 }
