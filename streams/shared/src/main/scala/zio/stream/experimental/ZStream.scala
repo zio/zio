@@ -2902,9 +2902,9 @@ object ZStream {
   def paginateChunkM[R, E, A, S](s: S)(f: S => ZIO[R, E, (Chunk[A], Option[S])]): ZStream[R, E, A] = {
     def loop(s: S): ZChannel[R, Any, Any, Any, E, Chunk[A], Any] =
       ZChannel.unwrap {
-        f(s).map { case (as, s) =>
-          ZChannel.write(as) *>
-            s.fold[ZChannel[R, Any, Any, Any, E, Chunk[A], Any]](ZChannel.end(()))(loop)
+        f(s).map {
+          case (as, Some(s)) => ZChannel.write(as) *> loop(s)
+          case (as, None)    => ZChannel.write(as) *> ZChannel.end(())
         }
       }
 
