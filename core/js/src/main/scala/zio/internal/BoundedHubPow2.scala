@@ -63,6 +63,7 @@ private final class BoundedHubPow2[A](requestedCapacity: Int) extends Hub[A] {
         val a     = iterator.next()
         val index = (publisherIndex & mask).toInt
         array(index) = a.asInstanceOf[AnyRef]
+        subscribers(index) = subscriberCount
         publisherIndex += 1
       }
       Chunk.fromIterator(iterator)
@@ -122,6 +123,11 @@ private final class BoundedHubPow2[A](requestedCapacity: Int) extends Hub[A] {
             while (subscriberIndex < pollUpToIndex) {
               val index = (subscriberIndex & mask).toInt
               val a     = array(index).asInstanceOf[A]
+              subscribers(index) -= 1
+              if (subscribers(index) == 0) {
+                array(index) = null
+                subscribersIndex += 1
+              }
               builder += a
               subscriberIndex += 1
             }

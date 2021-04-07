@@ -654,16 +654,16 @@ object HubSpec extends ZIOBaseSpec {
         assert(value3)(equalTo(-3))
       },
       test("publish and poll a chunk of values") {
-        val hub          = Hub.bounded[Int](32)
-        val subscription = hub.subscribe()
-        hub.publishAll(Chunk(1, 2, 3))
-        hub.publishAll(Chunk(4, 5, 6))
-        val a = subscription.pollUpTo(2)
-        val b = subscription.pollUpTo(2)
-        val c = subscription.pollUpTo(2)
+        val hub           = Hub.bounded[Int](32)
+        val subscription1 = hub.subscribe()
+        val subscription2 = hub.subscribe()
+        hub.publishAll(Chunk(1, 2))
+        val a = subscription1.pollUpTo(2)
+        val b = subscription2.pollUpTo(2)
+        val c = hub.publishAll(Chunk(3, 4))
         assert(a)(equalTo(Chunk(1, 2))) &&
-        assert(b)(equalTo(Chunk(3, 4))) &&
-        assert(c)(equalTo(Chunk(5, 6)))
+        assert(b)(equalTo(Chunk(1, 2))) &&
+        assert(c)(equalTo(Chunk.empty))
       }
     )
 
