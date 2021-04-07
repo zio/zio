@@ -1912,7 +1912,10 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * See also [[ZStream#scanM]].
    */
   def scanReduceM[R1 <: R, E1 >: E, A1 >: A](f: (A1, A) => ZIO[R1, E1, A1]): ZStream[R1, E1, A1] =
-    ???
+    mapAccumM[R1, E1, Option[A1], A1](Option.empty[A1]) {
+      case (Some(a1), a) => f(a1, a).map(a2 => Some(a2) -> a2)
+      case (None, a) => ZIO.succeedNow(Some(a) -> a)
+    }
 
   /**
    * Schedules the output of the stream using the provided `schedule`.
