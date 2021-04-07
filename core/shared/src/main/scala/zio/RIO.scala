@@ -771,6 +771,18 @@ object RIO {
   val none: UIO[Option[Nothing]] = ZIO.none
 
   /**
+   * @see See [[zio.ZIO.noneOrFail]]
+   */
+  def noneOrFail(o: Option[Throwable]): RIO[Nothing, Unit] =
+    ZIO.noneOrFail(o)
+
+  /**
+   * @see See [[zio.ZIO.noneOrFailWith]]
+   */
+  def noneOrFailWith[O](o: Option[O])(f: O => Throwable): RIO[Nothing, Unit] =
+    ZIO.noneOrFailWith(o)(f)
+
+  /**
    *  @see See [[zio.ZIO.not]]
    */
   def not[R](effect: RIO[R, Boolean]): RIO[R, Boolean] =

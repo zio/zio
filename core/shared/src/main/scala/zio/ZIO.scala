@@ -3664,7 +3664,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * If the option is empty it succeeds with Unit.
    * If the option is defined it fails with an error adapted with f.
    */
-  def noneOrFailWith[E, O](o: Option[O], f: O => E): IO[E, Unit] =
+  def noneOrFailWith[E, O](o: Option[O])(f: O => E): IO[E, Unit] =
     getOrFailUnit(o).flip.mapError(f)
 
   /**

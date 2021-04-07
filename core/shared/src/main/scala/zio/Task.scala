@@ -732,6 +732,18 @@ object Task extends TaskPlatformSpecific {
   val none: Task[Option[Nothing]] = ZIO.none
 
   /**
+   * @see See [[zio.ZIO.noneOrFail]]
+   */
+  def noneOrFail(o: Option[Throwable]): Task[Unit] =
+    ZIO.noneOrFail(o)
+
+  /**
+   * @see See [[zio.ZIO.noneOrFailWith]]
+   */
+  def noneOrFailWith[O](o: Option[O])(f: O => Throwable): Task[Unit] =
+    ZIO.noneOrFailWith(o)(f)
+
+  /**
    *  @see See [[zio.ZIO.not]]
    */
   def not(effect: Task[Boolean]): Task[Boolean] =

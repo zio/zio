@@ -739,8 +739,8 @@ object IO {
   /**
    * @see See [[zio.ZIO.noneOrFailWith]]
    */
-  def noneOrFailWith[E, O](o: Option[O], f: O => E): IO[E, Unit] =
-    ZIO.noneOrFailWith(o, f)
+  def noneOrFailWith[E, O](o: Option[O])(f: O => E): IO[E, Unit] =
+    ZIO.noneOrFailWith(o)(f)
 
   /**
    *  @see See [[zio.ZIO.not]]

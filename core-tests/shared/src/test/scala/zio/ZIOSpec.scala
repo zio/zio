@@ -1325,14 +1325,14 @@ object ZIOSpec extends ZIOBaseSpec {
         val option: Option[String]       = None
         val adaptError: String => String = identity
         for {
-          value <- ZIO.noneOrFailWith(option, adaptError)
+          value <- ZIO.noneOrFailWith(option)(adaptError)
         } yield {
           assert(value)(equalTo(()))
         }
       },
       testM("on Some fails") {
         for {
-          value <- ZIO.noneOrFailWith(Some("value"), (v: String) => v + v).catchAll(e => ZIO.succeed(e))
+          value <- ZIO.noneOrFailWith(Some("value"))((v: String) => v + v).catchAll(e => ZIO.succeed(e))
         } yield {
           assert(value)(equalTo("valuevalue"))
         }
