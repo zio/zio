@@ -1417,7 +1417,17 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * new elements.
    */
   final def mapAccumM[R1 <: R, E1 >: E, S, A1](s: S)(f: (S, A) => ZIO[R1, E1, (S, A1)]): ZStream[R1, E1, A1] =
-    ???
+    ZStream.unwrap(
+      for {
+        state <- Ref.make(s)
+      } yield
+        loopOnPartialChunksElements((a, emit: A1 => UIO[Unit]) =>
+          for {
+            s <- state.get
+            t <- f(s, a)
+            _ <- state.set(t._1) *> emit(t._2)
+          } yield ()
+        ))
 
   /**
    * Transforms the chunks emitted by this stream.
