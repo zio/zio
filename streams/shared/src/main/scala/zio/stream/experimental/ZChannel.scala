@@ -1187,6 +1187,11 @@ object ZChannel {
   ): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
     ZChannel.concatAllWith(managedOut(channel))((d, _) => d, (d, _) => d)
 
+  def fromHub[Err, Done, Elem](
+    hub: Hub[Exit[Either[Err, Done], Elem]]
+  ): ZChannel[Any, Any, Any, Any, Err, Elem, Done] =
+    ZChannel.managed(hub.subscribe)(fromQueue)
+
   def fromInput[Err, Elem, Done](
     input: AsyncInputConsumer[Err, Elem, Done]
   ): ZChannel[Any, Any, Any, Any, Err, Elem, Done] =
@@ -1210,8 +1215,13 @@ object ZChannel {
         }
     }
 
+  def toHub[Err, Done, Elem](
+    hub: Hub[Exit[Either[Err, Done], Elem]]
+  ): ZChannel[Any, Err, Elem, Done, Nothing, Nothing, Any] =
+    toQueue(hub.toQueue)
+
   def toQueue[Err, Done, Elem](
-    queue: Queue[Exit[Either[Err, Done], Elem]]
+    queue: Enqueue[Exit[Either[Err, Done], Elem]]
   ): ZChannel[Any, Err, Elem, Done, Nothing, Nothing, Any] =
     ZChannel.readWithCause(
       (in: Elem) => ZChannel.fromEffect(queue.offer(Exit.succeed(in))) *> toQueue(queue),
