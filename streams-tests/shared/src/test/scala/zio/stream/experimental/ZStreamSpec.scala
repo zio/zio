@@ -3708,6 +3708,16 @@ object ZStreamSpec extends ZIOBaseSpec {
               .runCollect
           )(equalTo(Chunk.fromIterable(0 to 9)))
         },
+        testM("unfoldChunkM") {
+          assertM(
+            ZStream
+              .unfoldChunkM(0) { i =>
+                if (i < 10) IO.succeed(Some((Chunk(i, i + 1), i + 2)))
+                else IO.succeed(None)
+              }
+              .runCollect
+          )(equalTo(Chunk.fromIterable(0 to 9)))
+        },
         testM("unfoldM") {
           assertM(
             ZStream
