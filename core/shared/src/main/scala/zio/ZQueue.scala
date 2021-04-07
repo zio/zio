@@ -30,7 +30,7 @@ import scala.collection.mutable.ListBuffer
  * type `EA`. The dequeueing operations may utilize an environment of type `RB` and may fail
  * with errors of type `EB`.
  */
-sealed abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { self =>
+abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { self =>
 
   /**
    * Waits until the queue is shutdown.

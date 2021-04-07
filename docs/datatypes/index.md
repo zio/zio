@@ -33,6 +33,7 @@ ZIO contains a few data types that can help you solve complex problems in asynch
  - **[Fiber.Id](fiber/fiberid.md)** — `Fiber.Id` describe the unique identity of a Fiber.
  
 ## Concurrency Primitives
+ - **[Hub](concurrency/hub.md)** - A `Hub` is an asynchronous message hub that allows publishers to efficiently broadcast values to many subscribers.
  - **[Promise](concurrency/promise.md)** — A `Promise` is a model of a variable that may be set a single time, and awaited on by many fibers.
  - **[Semaphore](concurrency/semaphore.md)** — A `Semaphore` is an asynchronous (non-blocking) semaphore that plays well with ZIO's interruption.
 - **[ZRef](concurrency/zref.md)** — A `ZRef[EA, EB, A, B]` is a polymorphic, purely functional description of a mutable reference. The fundamental operations of a `ZRef` are `set` and `get`.
