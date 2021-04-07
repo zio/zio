@@ -1,6 +1,6 @@
 package zio.internal
 
-import zio.random.Random
+import zio.Random
 import zio.test.Assertion._
 import zio.test._
 import zio.test.environment._
@@ -63,7 +63,7 @@ object HubSpec extends ZIOBaseSpec {
       )
     )
 
-  val smallInt: Gen[Random, Int] =
+  val smallInt: Gen[Has[Random], Int] =
     Gen.int(1, 10)
 
   def offerAll[A](hub: Hub[A], values: List[A]): UIO[Unit] =

@@ -20,6 +20,7 @@ import zio.duration.Duration
 
 import java.time.{Instant, LocalDateTime, OffsetDateTime}
 import java.util.concurrent.TimeUnit
+import java.lang.{System => JSystem}
 
 trait Clock extends Serializable {
 
@@ -59,7 +60,7 @@ object Clock extends ClockPlatformSpecific with Serializable {
         }
       }
 
-    val nanoTime: UIO[Long] = IO.effectTotal(java.lang.System.nanoTime)
+    val nanoTime: UIO[Long] = IO.effectTotal(JSystem.nanoTime)
 
     def sleep(duration: Duration): UIO[Unit] =
       UIO.effectAsyncInterrupt { cb =>

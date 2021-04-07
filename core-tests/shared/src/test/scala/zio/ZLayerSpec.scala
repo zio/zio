@@ -77,12 +77,12 @@ object ZLayerSpec extends ZIOBaseSpec {
       },
       testM("Size of Test layers") {
         for {
-          r1 <- testSize(Annotations.live, 1, "Has[Annotations].live")
-          r2 <- testSize(ZEnv.live >>> Live.default >>> TestConsole.debug, 2, "Has[TestConsole].default")
-          r3 <- testSize(ZEnv.live >>> Live.default, 1, "Has[Live].default")
+          r1 <- testSize(Annotations.live, 1, "Annotations.live")
+          r2 <- testSize(ZEnv.live >>> Live.default >>> TestConsole.debug, 2, "TestConsole.default")
+          r3 <- testSize(ZEnv.live >>> Live.default, 1, "Live.default")
           r4 <- testSize(ZEnv.live >>> TestRandom.deterministic, 2, "TestRandom.live")
-          r5 <- testSize(Sized.live(100), 1, "Has[Sized].live(100)")
-          r6 <- testSize(TestSystem.default, 2, "Has[TestSystem].default")
+          r5 <- testSize(Sized.live(100), 1, "Sized.live(100)")
+          r6 <- testSize(TestSystem.default, 2, "TestSystem.default")
         } yield r1 && r2 && r3 && r4 && r5 && r6
       },
       testM("Size of >>> (9)") {

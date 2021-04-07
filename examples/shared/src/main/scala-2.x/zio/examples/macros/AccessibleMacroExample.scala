@@ -108,16 +108,16 @@ object AccessibleMacroExample {
       .map(console =>
         new Service {
           val foo: UIO[Unit]                                              = UIO.unit
-          def foo2: UIO[Unit]                                     = UIO.unit
-          def foo3(): UIO[Unit]                                   = UIO.unit
+          def foo2: UIO[Unit]                                             = UIO.unit
+          def foo3(): UIO[Unit]                                           = UIO.unit
           def bar(n: Int): UIO[Unit]                                      = console.printLine(s"bar $n")
           def baz(x: Int, y: Int): IO[String, Int]                        = UIO.succeed(x + y)
           def poly[A](a: A): IO[Long, A]                                  = UIO.succeed(a)
           def poly2[A <: Foo](a: Wrapped[A]): IO[String, List[A]]         = UIO.succeed(List(a.value))
           def dependent(n: Int): ZIO[Has[Random], Long, Int]              = Random.nextIntBounded(n)
           val value: String                                               = "foo"
-          def value2: String                                      = "foo2"
-          def value3(): String                                    = "foo3"
+          def value2: String                                              = "foo2"
+          def value3(): String                                            = "foo3"
           def function(n: Int): String                                    = s"foo $n"
           def stream(n: Int): ZStream[Any, String, Int]                   = ZStream.fromIterable(List(1, 2, 3))
           def sink(n: Int): ZSink[Any, Nothing, Int, Nothing, Chunk[Int]] = ZSink.collectAll
@@ -153,15 +153,16 @@ object AccessibleMacroExample {
 
   // sanity check
   val _foo: URIO[AccessibleMacroExample, Unit]                                        = AccessibleMacroExample.foo
-  def _foo2                           : URIO[AccessibleMacroExample, Unit]                               = AccessibleMacroExample.foo2
-  def _foo3()                         : URIO[AccessibleMacroExample, Unit]                               = AccessibleMacroExample.foo3()
+  def _foo2: URIO[AccessibleMacroExample, Unit]                                       = AccessibleMacroExample.foo2
+  def _foo3(): URIO[AccessibleMacroExample, Unit]                                     = AccessibleMacroExample.foo3()
   def _bar(n: Int): URIO[AccessibleMacroExample, Unit]                                = AccessibleMacroExample.bar(n)
   def _baz(x: Int, y: Int): ZIO[AccessibleMacroExample, String, Int]                  = AccessibleMacroExample.baz(x, y)
   def _poly[A](a: A): ZIO[AccessibleMacroExample, Long, A]                            = AccessibleMacroExample.poly(a)
   def _poly2[A <: Foo](a: Wrapped[A]): ZIO[AccessibleMacroExample, String, List[A]]   = AccessibleMacroExample.poly2(a)
   def _dependent(n: Int): ZIO[AccessibleMacroExample with Has[Random], Long, Int]     = AccessibleMacroExample.dependent(n)
-  val _value: URIO[AccessibleMacroExample, String]                                     = AccessibleMacroExample.valuedef _value2                         : URIO[AccessibleMacroExample, String]                                   = AccessibleMacroExample.value2
-  def _value3(): URIO[AccessibleMacroExample, String]                              = AccessibleMacroExample.value3()
+  val _value: URIO[AccessibleMacroExample, String]                                     = AccessibleMacroExample.value
+  def _value2: URIO[AccessibleMacroExample, String]                                    = AccessibleMacroExample.value2
+  def _value3(): URIO[AccessibleMacroExample, String]                                  = AccessibleMacroExample.value3()
   def _function(n: Int): URIO[AccessibleMacroExample, String]                          = AccessibleMacroExample.function(n)
   def _stream(n: Int): ZStream[AccessibleMacroExample, String, Int]                   = AccessibleMacroExample.stream(n)
   def _sink(n: Int): ZSink[AccessibleMacroExample, Nothing, Int, Nothing, Chunk[Int]] = AccessibleMacroExample.sink(n)def _withEx(): RIO[AccessibleMacroExample, String]                                  = AccessibleMacroExample.withEx()

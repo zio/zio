@@ -227,13 +227,7 @@ object Has {
   /**
    * Constructs a new environment holding the specified services.
    */
-  @deprecated("use `many` instead, passing in a ZIO.fail", "2.0.0")
   def allOf[A: Tag, B: Tag](a: A, b: B): Has[A] with Has[B] = Has(a).add(b)
-
-  /**
-   * Constructs a new environment holding the specified services.
-   */
-  def many[A: Tag, B: Tag](a: A, b: B): Has[A] with Has[B] = Has(a).add(b)
 
   /**
    * Constructs a new environment holding the specified services.

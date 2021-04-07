@@ -1,5 +1,7 @@
 package zio
 
+import java.util.UUID
+
 trait Random extends Serializable {
   def nextBoolean: UIO[Boolean]
   def nextBytes(length: Int): UIO[Chunk[Byte]]
@@ -16,6 +18,7 @@ trait Random extends Serializable {
   def nextLongBounded(n: Long): UIO[Long]
   def nextPrintableChar: UIO[Char]
   def nextString(length: Int): UIO[String]
+  def nextUUID: UIO[UUID] = Random.nextUUIDWith(nextLong)
   def setSeed(seed: Long): UIO[Unit]
   def shuffle[A, Collection[+Element] <: Iterable[Element]](collection: Collection[A])(implicit
     bf: BuildFrom[Collection[A], A, Collection[A]]
@@ -139,6 +142,15 @@ object Random extends Serializable {
       }
     }
 
+  private[zio] def nextUUIDWith(nextLong: UIO[Long]): UIO[UUID] =
+    for {
+      mostSigBits  <- nextLong
+      leastSigBits <- nextLong
+    } yield new UUID(
+      (mostSigBits & ~0x0000f000) | 0x00004000,
+      (leastSigBits & ~(0xc0000000L << 32)) | (0x80000000L << 32)
+    )
+
   private[zio] def shuffleWith[A, Collection[+Element] <: Iterable[Element]](
     nextIntBounded: Int => UIO[Int],
     collection: Collection[A]
@@ -165,105 +177,111 @@ object Random extends Serializable {
    * generates a pseudo-random boolean.
    */
   val nextBoolean: URIO[Has[Random], Boolean] =
-    ZIO.accessM(_.get.nextBoolean)
+    ZIO.serviceWith(_.nextBoolean)
 
   /**
    * Generates a pseudo-random chunk of bytes of the specified length.
    */
   def nextBytes(length: => Int): ZIO[Has[Random], Nothing, Chunk[Byte]] =
-    ZIO.accessM(_.get.nextBytes(length))
+    ZIO.serviceWith(_.nextBytes(length))
 
   /**
    * Generates a pseudo-random, uniformly distributed double between 0.0 and
    * 1.0.
    */
-  val nextDouble: URIO[Has[Random], Double] = ZIO.accessM(_.get.nextDouble)
+  val nextDouble: URIO[Has[Random], Double] = ZIO.serviceWith(_.nextDouble)
 
   /**
    * Generates a pseudo-random double in the specified range.
    */
   def nextDoubleBetween(minInclusive: Double, maxExclusive: Double): URIO[Has[Random], Double] =
-    ZIO.accessM(_.get.nextDoubleBetween(minInclusive, maxExclusive))
+    ZIO.serviceWith(_.nextDoubleBetween(minInclusive, maxExclusive))
 
   /**
    * Generates a pseudo-random, uniformly distributed float between 0.0 and
    * 1.0.
    */
   val nextFloat: URIO[Has[Random], Float] =
-    ZIO.accessM(_.get.nextFloat)
+    ZIO.serviceWith(_.nextFloat)
 
   /**
    * Generates a pseudo-random float in the specified range.
    */
   def nextFloatBetween(minInclusive: Float, maxExclusive: Float): URIO[Has[Random], Float] =
-    ZIO.accessM(_.get.nextFloatBetween(minInclusive, maxExclusive))
+    ZIO.serviceWith(_.nextFloatBetween(minInclusive, maxExclusive))
 
   /**
    * Generates a pseudo-random double from a normal distribution with mean 0.0
    * and standard deviation 1.0.
    */
   val nextGaussian: URIO[Has[Random], Double] =
-    ZIO.accessM(_.get.nextGaussian)
+    ZIO.serviceWith(_.nextGaussian)
 
   /**
    * Generates a pseudo-random integer.
    */
   val nextInt: URIO[Has[Random], Int] =
-    ZIO.accessM(_.get.nextInt)
+    ZIO.serviceWith(_.nextInt)
 
   /**
    * Generates a pseudo-random integer in the specified range.
    */
   def nextIntBetween(minInclusive: Int, maxExclusive: Int): URIO[Has[Random], Int] =
-    ZIO.accessM(_.get.nextIntBetween(minInclusive, maxExclusive))
+    ZIO.serviceWith(_.nextIntBetween(minInclusive, maxExclusive))
 
   /**
    * Generates a pseudo-random integer between 0 (inclusive) and the specified
    * value (exclusive).
    */
   def nextIntBounded(n: => Int): URIO[Has[Random], Int] =
-    ZIO.accessM(_.get.nextIntBounded(n))
+    ZIO.serviceWith(_.nextIntBounded(n))
 
   /**
    * Generates a pseudo-random long.
    */
   val nextLong: URIO[Has[Random], Long] =
-    ZIO.accessM(_.get.nextLong)
+    ZIO.serviceWith(_.nextLong)
 
   /**
    * Generates a pseudo-random long in the specified range.
    */
   def nextLongBetween(minInclusive: Long, maxExclusive: Long): URIO[Has[Random], Long] =
-    ZIO.accessM(_.get.nextLongBetween(minInclusive, maxExclusive))
+    ZIO.serviceWith(_.nextLongBetween(minInclusive, maxExclusive))
 
   /**
    * Generates a pseudo-random long between 0 (inclusive) and the specified
    * value (exclusive).
    */
   def nextLongBounded(n: => Long): URIO[Has[Random], Long] =
-    ZIO.accessM(_.get.nextLongBounded(n))
+    ZIO.serviceWith(_.nextLongBounded(n))
+
+  /**
+   * Generates psuedo-random universally unique identifiers.
+   */
+  val nextUUID: URIO[Has[Random], UUID] =
+    ZIO.serviceWith(_.nextUUID)
 
   /**
    * Generates a pseudo-random character from the ASCII range 33-126.
    */
   val nextPrintableChar: URIO[Has[Random], Char] =
-    ZIO.accessM(_.get.nextPrintableChar)
+    ZIO.serviceWith(_.nextPrintableChar)
 
   /**
    * Generates a pseudo-random string of the specified length.
    */
   def nextString(length: => Int): URIO[Has[Random], String] =
-    ZIO.accessM(_.get.nextString(length))
+    ZIO.serviceWith(_.nextString(length))
 
   /**
    * Sets the seed of this random number generator.
    */
   def setSeed(seed: Long): URIO[Has[Random], Unit] =
-    ZIO.accessM(_.get.setSeed(seed))
+    ZIO.serviceWith(_.setSeed(seed))
 
   /**
    * Randomly shuffles the specified list.
    */
   def shuffle[A](list: => List[A]): ZIO[Has[Random], Nothing, List[A]] =
-    ZIO.accessM(_.get.shuffle(list))
+    ZIO.serviceWith(_.shuffle(list))
 }

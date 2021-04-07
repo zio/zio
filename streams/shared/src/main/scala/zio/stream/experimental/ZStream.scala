@@ -1,7 +1,6 @@
 package zio.stream.experimental
 
 import zio._
-import zio.clock._
 import zio.duration._
 import zio.internal.UniqueKey
 import zio.stm._
@@ -102,7 +101,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def aggregateAsync[R1 <: R, E1 >: E, E2, A1 >: A, B](
     sink: ZSink[R1, E1, A1, E2, A1, B]
-  ): ZStream[R1 with Clock, E2, B] =
+  ): ZStream[R1 with Has[Clock], E2, B] =
     aggregateAsyncWithin(sink, Schedule.forever)
 
   /**
@@ -110,12 +109,12 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    *
    * @param sink used for the aggregation
    * @param schedule signalling for when to stop the aggregation
-   * @return `ZStream[R1 with Clock, E2, B]`
+   * @return `ZStream[R1 with Has[Clock], E2, B]`
    */
   final def aggregateAsyncWithin[R1 <: R, E1 >: E, E2, A1 >: A, B](
     sink: ZSink[R1, E1, A1, E2, A1, B],
     schedule: Schedule[R1, Option[B], Any]
-  ): ZStream[R1 with Clock, E2, B] =
+  ): ZStream[R1 with Has[Clock], E2, B] =
     aggregateAsyncWithinEither(sink, schedule).collect { case Right(v) =>
       v
     }
@@ -134,12 +133,12 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    *
    * @param sink used for the aggregation
    * @param schedule signalling for when to stop the aggregation
-   * @return `ZStream[R1 with Clock, E2, Either[C, B]]`
+   * @return `ZStream[R1 with Has[Clock], E2, Either[C, B]]`
    */
   def aggregateAsyncWithinEither[R1 <: R, E1 >: E, A1 >: A, E2, B, C](
     sink: ZSink[R1, E1, A1, E2, A1, B],
     schedule: Schedule[R1, Option[B], C]
-  ): ZStream[R1 with Clock, E2, Either[C, B]] = {
+  ): ZStream[R1 with Has[Clock], E2, Either[C, B]] = {
     type HandoffSignal = ZStream.HandoffSignal[C, E1, A]
     import ZStream.HandoffSignal._
     type SinkEndReason = ZStream.SinkEndReason[C]
@@ -177,7 +176,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
 
       def scheduledAggregator(
         lastB: Option[B]
-      ): ZChannel[R1 with Clock, Any, Any, Any, E2, Chunk[Either[C, B]], Any] = {
+      ): ZChannel[R1 with Has[Clock], Any, Any, Any, E2, Chunk[Either[C, B]], Any] = {
         val timeout =
           scheduleDriver
             .next(lastB)
@@ -1029,7 +1028,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Emits elements of this stream with a fixed delay in between, regardless of how long it
    * takes to produce a value.
    */
-  final def fixed(duration: Duration): ZStream[R with Clock, E, A] =
+  final def fixed(duration: Duration): ZStream[R with Has[Clock], E, A] =
     schedule(Schedule.fixed(duration))
 
   /**
@@ -1271,8 +1270,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * An element in the process of being pulled will not be interrupted when the
    * given duration completes. See `interruptAfter` for this behavior.
    */
-  final def haltAfter(duration: Duration): ZStream[R with Clock, E, A] =
-    haltWhen(clock.sleep(duration))
+  final def haltAfter(duration: Duration): ZStream[R with Has[Clock], E, A] =
+    haltWhen(Clock.sleep(duration))
 
   /**
    * Halts the evaluation of this stream when the provided promise resolves.
@@ -1379,8 +1378,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Specialized version of interruptWhen which interrupts the evaluation of this stream
    * after the given duration.
    */
-  final def interruptAfter(duration: Duration): ZStream[R with Clock, E, A] =
-    interruptWhen(clock.sleep(duration))
+  final def interruptAfter(duration: Duration): ZStream[R with Has[Clock], E, A] =
+    interruptWhen(Clock.sleep(duration))
 
   /**
    * Enqueues elements of this stream into a queue. Stream failure and ending will also be
@@ -1811,11 +1810,11 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * specified layer and leaving the remainder `R0`.
    *
    * {{{
-   * val clockLayer: ZLayer[Any, Nothing, Clock] = ???
+   * val clockLayer: ZLayer[Any, Nothing, Has[Clock]] = ???
    *
-   * val stream: ZStream[Clock with Random, Nothing, Unit] = ???
+   * val stream: ZStream[Has[Clock] with Has[Random], Nothing, Unit] = ???
    *
-   * val stream2 = stream.provideSomeLayer[Random](clockLayer)
+   * val stream2 = stream.provideSomeLayer[Has[Random]](clockLayer)
    * }}}
    */
   final def provideSomeLayer[R0 <: Has[_]]: ZStream.ProvideSomeLayer[R0, R, E, A] =
@@ -1849,7 +1848,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Repeats the entire stream using the specified schedule. The stream will execute normally,
    * and then repeat again according to the provided schedule.
    */
-  final def repeat[R1 <: R, B](schedule: Schedule[R1, Any, B]): ZStream[R1 with Clock, E, A] =
+  final def repeat[R1 <: R, B](schedule: Schedule[R1, Any, B]): ZStream[R1 with Has[Clock], E, A] =
     repeatEither(schedule) collect { case Right(a) => a }
 
   /**
@@ -1857,7 +1856,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * and then repeat again according to the provided schedule. The schedule output will be emitted at
    * the end of each repetition.
    */
-  final def repeatEither[R1 <: R, B](schedule: Schedule[R1, Any, B]): ZStream[R1 with Clock, E, Either[B, A]] =
+  final def repeatEither[R1 <: R, B](schedule: Schedule[R1, Any, B]): ZStream[R1 with Has[Clock], E, Either[B, A]] =
     repeatWith(schedule)(Right(_), Left(_))
 
   /**
@@ -1866,7 +1865,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * the original effect, plus an additional recurrence, for a total of two repetitions of each
    * value in the stream.
    */
-  final def repeatElements[R1 <: R](schedule: Schedule[R1, A, Any]): ZStream[R1 with Clock, E, A] =
+  final def repeatElements[R1 <: R](schedule: Schedule[R1, A, Any]): ZStream[R1 with Has[Clock], E, A] =
     repeatElementsEither(schedule).collect { case Right(a) => a }
 
   /**
@@ -1878,7 +1877,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def repeatElementsEither[R1 <: R, E1 >: E, B](
     schedule: Schedule[R1, A, B]
-  ): ZStream[R1 with Clock, E1, Either[B, A]] =
+  ): ZStream[R1 with Has[Clock], E1, Either[B, A]] =
     repeatElementsWith(schedule)(Right.apply, Left.apply)
 
   /**
@@ -1894,7 +1893,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def repeatElementsWith[R1 <: R, E1 >: E, B, C](
     schedule: Schedule[R1, A, B]
-  )(f: A => C, g: B => C): ZStream[R1 with Clock, E1, C] = new ZStream(self.channel >>> ZChannel.unwrap {
+  )(f: A => C, g: B => C): ZStream[R1 with Has[Clock], E1, C] = new ZStream(self.channel >>> ZChannel.unwrap {
     for {
       driver <- schedule.driver
     } yield {
@@ -1929,7 +1928,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def repeatWith[R1 <: R, B, C](
     schedule: Schedule[R1, Any, B]
-  )(f: A => C, g: B => C): ZStream[R1 with Clock, E, C] =
+  )(f: A => C, g: B => C): ZStream[R1 with Has[Clock], E, C] =
     ???
 
   /**
@@ -2032,7 +2031,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   /**
    * Schedules the output of the stream using the provided `schedule`.
    */
-  final def schedule[R1 <: R](schedule: Schedule[R1, A, Any]): ZStream[R1 with Clock, E, A] =
+  final def schedule[R1 <: R](schedule: Schedule[R1, A, Any]): ZStream[R1 with Has[Clock], E, A] =
     scheduleEither(schedule).collect { case Right(a) => a }
 
   /**
@@ -2041,7 +2040,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def scheduleEither[R1 <: R, E1 >: E, B](
     schedule: Schedule[R1, A, B]
-  ): ZStream[R1 with Clock, E1, Either[B, A]] =
+  ): ZStream[R1 with Has[Clock], E1, Either[B, A]] =
     scheduleWith(schedule)(Right.apply, Left.apply)
 
   /**
@@ -2051,7 +2050,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def scheduleWith[R1 <: R, E1 >: E, B, C](
     schedule: Schedule[R1, A, B]
-  )(f: A => C, g: B => C): ZStream[R1 with Clock, E1, C] =
+  )(f: A => C, g: B => C): ZStream[R1 with Has[Clock], E1, C] =
     ZStream.unwrap(
       schedule.driver.map(driver =>
         loopOnPartialChunksElements((a: A, emit: C => UIO[Unit]) =>
@@ -2180,7 +2179,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def throttleEnforce(units: Long, duration: Duration, burst: Long = 0)(
     costFn: Chunk[A] => Long
-  ): ZStream[R with Clock, E, A] =
+  ): ZStream[R with Has[Clock], E, A] =
     throttleEnforceM(units, duration, burst)(as => UIO.succeedNow(costFn(as)))
 
   /**
@@ -2191,7 +2190,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def throttleEnforceM[R1 <: R, E1 >: E](units: Long, duration: Duration, burst: Long = 0)(
     costFn: Chunk[A] => ZIO[R1, E1, Long]
-  ): ZStream[R1 with Clock, E1, A] = {
+  ): ZStream[R1 with Has[Clock], E1, A] = {
     def loop(tokens: Long, timestamp: Long): ZChannel[R1 with Clock, E1, Chunk[A], Any, E1, Chunk[A], Unit] =
       ZChannel.readWith[R1 with Clock, E1, Chunk[A], Any, E1, Chunk[A], Unit](
         (in: Chunk[A]) =>
@@ -2228,7 +2227,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def throttleShape(units: Long, duration: Duration, burst: Long = 0)(
     costFn: Chunk[A] => Long
-  ): ZStream[R with Clock, E, A] =
+  ): ZStream[R with Has[Clock], E, A] =
     throttleShapeM(units, duration, burst)(os => UIO.succeedNow(costFn(os)))
 
   /**
@@ -2239,7 +2238,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def throttleShapeM[R1 <: R, E1 >: E](units: Long, duration: Duration, burst: Long = 0)(
     costFn: Chunk[A] => ZIO[R1, E1, Long]
-  ): ZStream[R1 with Clock, E1, A] = {
+  ): ZStream[R1 with Has[Clock], E1, A] = {
     def loop(tokens: Long, timestamp: Long): ZChannel[R1 with Clock, E1, Chunk[A], Any, E1, Chunk[A], Unit] =
       ZChannel.readWith(
         (in: Chunk[A]) =>
@@ -2277,13 +2276,13 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     new ZStream(ZChannel.fromEffect(clock.nanoTime).flatMap(self.channel >>> loop(units, _)))
   }
 
-  final def debounce[E1 >: E, A2 >: A](d: Duration): ZStream[R with Clock, E1, A2] =
+  final def debounce[E1 >: E, A2 >: A](d: Duration): ZStream[R with Has[Clock], E1, A2] =
     ???
 
   /**
    * Ends the stream if it does not produce a value after d duration.
    */
-  final def timeout(d: Duration): ZStream[R with Clock, E, A] =
+  final def timeout(d: Duration): ZStream[R with Has[Clock], E, A] =
     ZStream.fromPull {
       self.toPull.map(pull => pull.timeoutFail(None)(d))
     }
@@ -2291,13 +2290,13 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   /**
    * Fails the stream with given error if it does not produce a value after d duration.
    */
-  final def timeoutFail[E1 >: E](e: => E1)(d: Duration): ZStream[R with Clock, E1, A] =
+  final def timeoutFail[E1 >: E](e: => E1)(d: Duration): ZStream[R with Has[Clock], E1, A] =
     timeoutHalt(Cause.fail(e))(d)
 
   /**
    * Halts the stream with given cause if it does not produce a value after d duration.
    */
-  final def timeoutHalt[E1 >: E](cause: Cause[E1])(d: Duration): ZStream[R with Clock, E1, A] =
+  final def timeoutHalt[E1 >: E](cause: Cause[E1])(d: Duration): ZStream[R with Has[Clock], E1, A] =
     ZStream.fromPull {
       self.toPull.map(pull => pull.timeoutHalt(cause.map(Some(_)))(d))
     }
@@ -2307,7 +2306,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def timeoutTo[R1 <: R, E1 >: E, A2 >: A](
     d: Duration
-  )(that: ZStream[R1, E1, A2]): ZStream[R1 with Clock, E1, A2] = {
+  )(that: ZStream[R1, E1, A2]): ZStream[R1 with Has[Clock], E1, A2] = {
     final case class StreamTimeout() extends Throwable
     self.timeoutHalt(Cause.die(StreamTimeout()))(d).catchSomeCause { case Cause.Die(StreamTimeout()) => that }
   }
@@ -3062,7 +3061,7 @@ object ZStream {
    * input. The stream will emit an element for each value output from the
    * schedule, continuing for as long as the schedule continues.
    */
-  def fromSchedule[R, A](schedule: Schedule[R, Any, A]): ZStream[R with Clock, Nothing, A] =
+  def fromSchedule[R, A](schedule: Schedule[R, Any, A]): ZStream[R with Has[Clock], Nothing, A] =
     unwrap(schedule.driver.map(driver => repeatEffectOption(driver.next(()))))
 
   /**
@@ -3219,7 +3218,7 @@ object ZStream {
    * Creates a stream from an effect producing a value of type `A`, which is repeated using the
    * specified schedule.
    */
-  def repeatEffectWith[R, E, A](effect: ZIO[R, E, A], schedule: Schedule[R, A, Any]): ZStream[R with Clock, E, A] =
+  def repeatEffectWith[R, E, A](effect: ZIO[R, E, A], schedule: Schedule[R, A, Any]): ZStream[R with Has[Clock], E, A] =
     ZStream.fromEffect(effect zip schedule.driver).flatMap { case (a, driver) =>
       ZStream.succeed(a) ++
         ZStream.unfoldM(a)(driver.next(_).foldM(ZIO.succeed(_), _ => effect.map(nextA => Some(nextA -> nextA))))
@@ -3228,7 +3227,7 @@ object ZStream {
   /**
    * Repeats the value using the provided schedule.
    */
-  def repeatWith[R, A](a: => A, schedule: Schedule[R, A, _]): ZStream[R with Clock, Nothing, A] =
+  def repeatWith[R, A](a: => A, schedule: Schedule[R, A, _]): ZStream[R with Has[Clock], Nothing, A] =
     repeatEffectWith(UIO.succeed(a), schedule)
 
   /**
@@ -3265,7 +3264,7 @@ object ZStream {
   /**
    * A stream that emits Unit values spaced by the specified duration.
    */
-  def tick(interval: Duration): ZStream[Clock, Nothing, Unit] =
+  def tick(interval: Duration): ZStream[Has[Clock], Nothing, Unit] =
     repeatWith((), Schedule.spaced(interval))
 
   /**

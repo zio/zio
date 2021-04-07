@@ -488,7 +488,7 @@ package object environment extends PlatformSpecific {
           ref         <- Ref.make(data).toManaged_
           refM        <- RefM.make(WarningData.start).toManaged_
           test        <- Managed.make(UIO(Test(ref, live, annotations, refM)))(_.warningDone)
-        } yield Has.many(test: Clock, test: TestClock)
+        } yield Has.allOf(test: Clock, test: TestClock)
       }
 
 //    case class FooLive(int: Int, string: String)
@@ -794,7 +794,7 @@ package object environment extends PlatformSpecific {
           ref      <- Ref.make(data)
           debugRef <- FiberRef.make(debug)
           test      = Test(ref, live, debugRef)
-        } yield Has.many[Console, TestConsole](test, test)
+        } yield Has.allOf[Console, TestConsole](test, test)
       }
 
     val any: ZLayer[Has[Console] with Has[TestConsole], Nothing, Has[Console] with Has[TestConsole]] =
@@ -1523,7 +1523,7 @@ package object environment extends PlatformSpecific {
         data   <- Ref.make(data)
         buffer <- Ref.make(Buffer())
         test    = Test(data, buffer)
-      } yield Has.many[Random, TestRandom](test, test))
+      } yield Has.allOf[Random, TestRandom](test, test))
 
     val any: ZLayer[Has[Random] with Has[TestRandom], Nothing, Has[Random] with Has[TestRandom]] =
       ZLayer.requires[Has[Random] with Has[TestRandom]]
@@ -1539,7 +1539,7 @@ package object environment extends PlatformSpecific {
             testRandom <- ZIO.service[TestRandom]
             time       <- Clock.nanoTime
             _          <- TestRandom.setSeed(time)
-          } yield Has.many[Random, TestRandom](random, testRandom)
+          } yield Has.allOf[Random, TestRandom](random, testRandom)
         }
 
     /**
@@ -1720,7 +1720,7 @@ package object environment extends PlatformSpecific {
      */
     def live(data: Data): Layer[Nothing, Has[System] with Has[TestSystem]] =
       ZLayer.many(
-        Ref.make(data).map(ref => Has.many[System, TestSystem](Test(ref), Test(ref)))
+        Ref.make(data).map(ref => Has.allOf[System, TestSystem](Test(ref), Test(ref)))
       )
 
     val any: ZLayer[Has[System] with Has[TestSystem], Nothing, Has[System] with Has[TestSystem]] =

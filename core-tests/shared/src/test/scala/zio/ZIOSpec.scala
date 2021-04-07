@@ -8,7 +8,6 @@ import zio.test.Assertion._
 import zio.test.TestAspect.{flaky, forked, ignore, jvm, jvmOnly, nonFlaky, scala2Only}
 import zio.test._
 import zio.test.environment.{Live, TestClock}
-import zio.{Clock, Random}
 
 import scala.annotation.tailrec
 import scala.util.{Failure, Success, Try}
@@ -2088,12 +2087,12 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(Live.live(io))(isNone)
       },
       testM("timeout a long computation with an error") {
-        val io = (clock.sleep(5.seconds) *> IO.succeed(true)).timeoutFail(false)(10.millis)
+        val io = (Clock.sleep(5.seconds) *> IO.succeed(true)).timeoutFail(false)(10.millis)
         assertM(Live.live(io.run))(fails(equalTo(false)))
       },
       testM("timeout a long computation with a cause") {
         val cause = Cause.die(new Error("BOOM"))
-        val io    = (clock.sleep(5.seconds) *> IO.succeed(true)).timeoutHalt(cause)(10.millis)
+        val io    = (Clock.sleep(5.seconds) *> IO.succeed(true)).timeoutHalt(cause)(10.millis)
         assertM(Live.live(io.sandbox.flip))(equalTo(cause))
       },
       testM("timeout repetition of uninterruptible effect") {

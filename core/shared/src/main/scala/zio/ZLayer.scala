@@ -21,14 +21,6 @@ import zio.duration.Duration
 import zio.internal.Platform
 
 /**
- * TODO: Move `fromServices` to `toLayer` on Function 1-22
- *
- * ZLayer.wire[Has[WhatYouWant]]()
- *
- * effect.inject()
- */
-
-/**
  * A `ZLayer[A, E, B]` describes a layer of an application: every layer in an
  * application requires some services (the input) and produces some services
  * (the output).

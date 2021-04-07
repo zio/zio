@@ -293,7 +293,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * addition, returns an effect that can be used to invalidate the current
    * cached value before the `timeToLive` duration expires.
    */
-  final def cachedInvalidate(timeToLive: Duration): ZIO[R with Clock, Nothing, (IO[E, A], UIO[Unit])] = {
+  final def cachedInvalidate(timeToLive: Duration): ZIO[R with Has[Clock], Nothing, (IO[E, A], UIO[Unit])] = {
 
     def compute(start: Long): ZIO[R with Has[Clock], Nothing, Option[(Long, Promise[E, A])]] =
       for {
@@ -1936,7 +1936,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * The same as [[timeout]], but instead of producing a `None` in the event
    * of timeout, it will produce the specified failure.
    */
-  final def timeoutHalt[E1 >: E](cause: Cause[E1])(d: Duration): ZIO[R with Clock, E1, A] =
+  final def timeoutHalt[E1 >: E](cause: Cause[E1])(d: Duration): ZIO[R with Has[Clock], E1, A] =
     ZIO.flatten(timeoutTo(ZIO.halt(cause))(ZIO.succeedNow)(d))
 
   /**

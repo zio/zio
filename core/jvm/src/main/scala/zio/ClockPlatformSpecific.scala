@@ -19,7 +19,7 @@ package zio
 import zio.duration.Duration
 import zio.internal.{NamedThreadFactory, Scheduler}
 
-import java.util.concurrent.{ScheduledExecutorService, ScheduledThreadPoolExecutor, TimeUnit}
+import java.util.concurrent._
 
 private[zio] trait ClockPlatformSpecific {
   import Scheduler.CancelToken

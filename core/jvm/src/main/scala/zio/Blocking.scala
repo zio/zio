@@ -202,7 +202,7 @@ object Blocking extends Serializable {
    * Retrieves the executor for all blocking tasks.
    */
   def effectBlocking[A](effect: => A): RIO[Has[Blocking], A] =
-    ZIO.accessM(_.get.effectBlocking(effect))
+    ZIO.serviceWith(_.effectBlocking(effect))
 
   /**
    * Imports a synchronous effect that does blocking IO into a pure value, with
@@ -212,7 +212,7 @@ object Blocking extends Serializable {
    * synchronous effect will be interrupted via the cancel effect.
    */
   def effectBlockingCancelable[A](effect: => A)(cancel: UIO[Unit]): RIO[Has[Blocking], A] =
-    ZIO.accessM(_.get.effectBlockingCancelable(effect)(cancel))
+    ZIO.serviceWith(_.effectBlockingCancelable(effect)(cancel))
 
   /**
    * Imports a synchronous effect that does blocking IO into a pure value.
@@ -224,12 +224,12 @@ object Blocking extends Serializable {
    * applications consider using `effectBlocking` or `effectBlockingCancel`.
    */
   def effectBlockingInterrupt[A](effect: => A): RIO[Has[Blocking], A] =
-    ZIO.accessM(_.get.effectBlockingInterrupt(effect))
+    ZIO.serviceWith(_.effectBlockingInterrupt(effect))
 
   /**
    * Imports a synchronous effect that does blocking IO into a pure value,
    * refining the error type to `[[java.io.IOException]]`.
    */
   def effectBlockingIO[A](effect: => A): ZIO[Has[Blocking], IOException, A] =
-    ZIO.accessM(_.get.effectBlockingIO(effect))
+    ZIO.serviceWith(_.effectBlockingIO(effect))
 }

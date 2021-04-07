@@ -178,7 +178,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A generator of alpha characters.
    */
-  val alphaChar: Gen[Random, Char] =
+  val alphaChar: Gen[Has[Random], Char] =
     weighted(char(65, 90) -> 26, char(97, 122) -> 26)
 
   /**
@@ -605,7 +605,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A generator of numeric characters. Shrinks toward '0'.
    */
-  val numericChar: Gen[Random, Char] =
+  val numericChar: Gen[Has[Random], Char] =
     weighted(char(48, 57) -> 10)
 
   /**

@@ -646,7 +646,7 @@ object ScheduleSpec extends ZIOBaseSpec {
     loop(schedule.step, inputs, Nil)
   }
 
-  def checkRepeat[B](schedule: Schedule[Any, Int, B], expected: B): ZIO[Any with Has[Clock], Nothing, TestResult] =
+  def checkRepeat[B](schedule: Schedule[Any, Int, B], expected: B): ZIO[Has[Clock], Nothing, TestResult] =
     assertM(repeat(schedule))(equalTo(expected))
 
   /**
