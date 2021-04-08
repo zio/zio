@@ -41,7 +41,7 @@ private final class UnboundedHub[A] extends Hub[A] {
   def publish(a: A): Boolean = {
     assert(a != null)
     val subscribers = publisherTail.subscribers
-    if (subscribers > 0) {
+    if (subscribers != 0) {
       publisherTail.next = new Node(a, subscribers, null)
       publisherTail = publisherTail.next
       publisherIndex += 1
@@ -62,7 +62,7 @@ private final class UnboundedHub[A] extends Hub[A] {
     (publisherIndex - subscribersIndex).toInt
 
   def slide(): Unit =
-    if (publisherHead != publisherTail) {
+    if (publisherHead ne publisherTail) {
       publisherHead = publisherHead.next
       publisherHead.value = null.asInstanceOf[A]
       subscribersIndex += 1
@@ -70,9 +70,9 @@ private final class UnboundedHub[A] extends Hub[A] {
 
   def subscribe(): Hub.Subscription[A] =
     new Hub.Subscription[A] {
-      var subscriberHead  = publisherTail
-      var subscriberIndex = publisherIndex
-      var unsubscribed    = false
+      private[this] var subscriberHead  = publisherTail
+      private[this] var subscriberIndex = publisherIndex
+      private[this] var unsubscribed    = false
       publisherTail.subscribers += 1
 
       def isEmpty(): Boolean =
@@ -81,7 +81,7 @@ private final class UnboundedHub[A] extends Hub[A] {
           var empty = true
           var loop  = true
           while (loop) {
-            if (subscriberHead == publisherTail) {
+            if (subscriberHead eq publisherTail) {
               loop = false
             } else {
               if (subscriberHead.next.value != null) {
@@ -102,7 +102,7 @@ private final class UnboundedHub[A] extends Hub[A] {
           var loop   = true
           var polled = default
           while (loop) {
-            if (subscriberHead == publisherTail) {
+            if (subscriberHead eq publisherTail) {
               loop = false
             } else {
               val a = subscriberHead.next.value
@@ -127,7 +127,7 @@ private final class UnboundedHub[A] extends Hub[A] {
         val builder = ChunkBuilder.make[A]()
         val default = null.asInstanceOf[A]
         var i       = 0
-        while (i < n) {
+        while (i != n) {
           val a = poll(default)
           if (a == default) {
             i = n
@@ -147,7 +147,7 @@ private final class UnboundedHub[A] extends Hub[A] {
         if (!unsubscribed) {
           unsubscribed = true
           publisherTail.subscribers -= 1
-          while (subscriberHead != publisherTail) {
+          while (subscriberHead ne publisherTail) {
             if (subscriberHead.next.value != null) {
               subscriberHead.subscribers -= 1
               if (subscriberHead.subscribers == 0) {

@@ -40,7 +40,7 @@ private final class BoundedHubArb[A](requestedCapacity: Int) extends Hub[A] {
   def publish(a: A): Boolean =
     if (publisherIndex == subscribersIndex + capacity) false
     else {
-      if (subscriberCount > 0) {
+      if (subscriberCount != 0) {
         val index = (publisherIndex % capacity).toInt
         array(index) = a.asInstanceOf[AnyRef]
         subscribers(index) = subscriberCount
@@ -54,11 +54,11 @@ private final class BoundedHubArb[A](requestedCapacity: Int) extends Hub[A] {
     val size      = (publisherIndex - subscribersIndex).toInt
     val available = capacity - size
     val forHub    = math.min(n, available)
-    if (forHub <= 0) Chunk.fromIterable(as)
+    if (forHub == 0) Chunk.fromIterable(as)
     else {
       val iterator        = as.iterator
       val publishAllIndex = publisherIndex + forHub
-      while (publisherIndex < publishAllIndex) {
+      while (publisherIndex != publishAllIndex) {
         val a     = iterator.next()
         val index = (publisherIndex % capacity).toInt
         array(index) = a.asInstanceOf[AnyRef]
@@ -73,7 +73,7 @@ private final class BoundedHubArb[A](requestedCapacity: Int) extends Hub[A] {
     (publisherIndex - subscribersIndex).toInt
 
   def slide(): Unit =
-    if (subscribersIndex < publisherIndex) {
+    if (subscribersIndex != publisherIndex) {
       val index = (subscribersIndex % capacity).toInt
       array(index) = null
       subscribers(index) = 0
@@ -82,19 +82,18 @@ private final class BoundedHubArb[A](requestedCapacity: Int) extends Hub[A] {
 
   def subscribe(): Hub.Subscription[A] =
     new Hub.Subscription[A] {
-      var subscriberIndex = publisherIndex
-      var unsubscribed    = false
+      private[this] var subscriberIndex = publisherIndex
+      private[this] var unsubscribed    = false
       subscriberCount += 1
 
       def isEmpty(): Boolean =
-        if (unsubscribed) true
-        else publisherIndex == math.max(subscriberIndex, subscribersIndex)
+        unsubscribed || publisherIndex == subscriberIndex || publisherIndex == subscribersIndex
 
       def poll(default: A): A =
         if (unsubscribed) default
         else {
           subscriberIndex = math.max(subscriberIndex, subscribersIndex)
-          if (subscriberIndex < publisherIndex) {
+          if (subscriberIndex != publisherIndex) {
             val index = (subscriberIndex % capacity).toInt
             val a     = array(index).asInstanceOf[A]
             subscribers(index) -= 1
@@ -119,7 +118,7 @@ private final class BoundedHubArb[A](requestedCapacity: Int) extends Hub[A] {
           else {
             val builder       = ChunkBuilder.make[A]()
             val pollUpToIndex = subscriberIndex + toPoll
-            while (subscriberIndex < pollUpToIndex) {
+            while (subscriberIndex != pollUpToIndex) {
               val index = (subscriberIndex % capacity).toInt
               val a     = array(index).asInstanceOf[A]
               subscribers(index) -= 1
@@ -143,7 +142,7 @@ private final class BoundedHubArb[A](requestedCapacity: Int) extends Hub[A] {
           unsubscribed = true
           subscriberCount -= 1
           subscriberIndex = math.max(subscriberIndex, subscribersIndex)
-          while (subscriberIndex < publisherIndex) {
+          while (subscriberIndex != publisherIndex) {
             val index = (subscriberIndex % capacity).toInt
             subscribers(index) -= 1
             if (subscribers(index) == 0) {

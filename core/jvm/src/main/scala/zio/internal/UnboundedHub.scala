@@ -40,9 +40,9 @@ private final class UnboundedHub[A] extends Hub[A] {
       val currentPublisherHead = publisherHead.get
       val currentPublisherTail = publisherTail.get
       val currentNode          = currentPublisherHead.pointer.get.node
-      if (currentPublisherHead == publisherHead.get) {
-        if (currentPublisherHead == currentPublisherTail) {
-          if (currentNode == null) {
+      if (currentPublisherHead eq publisherHead.get) {
+        if (currentPublisherHead eq currentPublisherTail) {
+          if (currentNode eq null) {
             loop = false
           } else {
             publisherTail.compareAndSet(currentPublisherTail, currentNode)
@@ -71,12 +71,10 @@ private final class UnboundedHub[A] extends Hub[A] {
       val currentPointer       = currentPublisherTail.pointer.get
       val currentNode          = currentPointer.node
       val currentSubscribers   = currentPointer.subscribers
-      if (currentPublisherTail == publisherTail.get) {
-        if (currentNode == null) {
+      if (currentPublisherTail eq publisherTail.get) {
+        if (currentNode eq null) {
           if (currentSubscribers == 0) {
-            if (currentPointer == currentPublisherTail.pointer.get) {
-              loop = false
-            }
+            loop = false
           } else {
             val updatedNode    = new Node[A](a, new AtomicReference(Pointer(null, currentSubscribers)))
             val updatedPointer = Pointer[A](updatedNode, currentSubscribers)
@@ -106,7 +104,7 @@ private final class UnboundedHub[A] extends Hub[A] {
     var currentNode = publisherHead.get.pointer.get.node
     var loop        = true
     var size        = 0
-    while (currentNode != null) {
+    while (currentNode ne null) {
       if (currentNode.value != null) {
         size += 1
         if (size == Int.MaxValue) {
@@ -124,9 +122,9 @@ private final class UnboundedHub[A] extends Hub[A] {
       val currentPublisherHead = publisherHead.get
       val currentPublisherTail = publisherTail.get
       val currentNode          = currentPublisherHead.pointer.get.node
-      if (currentPublisherHead == publisherHead.get) {
-        if (currentPublisherHead == currentPublisherTail) {
-          if (currentNode == null) {
+      if (currentPublisherHead eq publisherHead.get) {
+        if (currentPublisherHead eq currentPublisherTail) {
+          if (currentNode eq null) {
             loop = false
           } else {
             publisherHead.compareAndSet(currentPublisherHead, currentNode)
@@ -147,14 +145,14 @@ private final class UnboundedHub[A] extends Hub[A] {
 
   def subscribe(): Hub.Subscription[A] =
     new Hub.Subscription[A] {
-      var currentPublisherTail = null.asInstanceOf[Node[A]]
-      var loop                 = true
+      private[this] var currentPublisherTail = null.asInstanceOf[Node[A]]
+      private[this] var loop                 = true
       while (loop) {
         currentPublisherTail = publisherTail.get
         val currentPointer = currentPublisherTail.pointer.get
         val currentNode    = currentPointer.node
-        if (currentPublisherTail == publisherTail.get) {
-          if (currentNode == null) {
+        if (currentPublisherTail eq publisherTail.get) {
+          if (currentNode eq null) {
             val updatedPointer = currentPointer.copy(subscribers = currentPointer.subscribers + 1)
             if (currentPublisherTail.pointer.compareAndSet(currentPointer, updatedPointer)) {
               loop = false
@@ -164,8 +162,8 @@ private final class UnboundedHub[A] extends Hub[A] {
           }
         }
       }
-      val subscriberHead = new AtomicReference(currentPublisherTail)
-      val unsubscribed   = new AtomicBoolean(false)
+      private[this] val subscriberHead = new AtomicReference(currentPublisherTail)
+      private[this] val unsubscribed   = new AtomicBoolean(false)
 
       def isEmpty(): Boolean = {
         var empty = true
@@ -174,9 +172,9 @@ private final class UnboundedHub[A] extends Hub[A] {
           val currentSubscriberHead = subscriberHead.get
           val currentPublisherTail  = publisherTail.get
           val currentNode           = currentSubscriberHead.pointer.get.node
-          if (currentSubscriberHead == subscriberHead.get) {
-            if (currentSubscriberHead == currentPublisherTail) {
-              if (currentNode == null) {
+          if (currentSubscriberHead eq subscriberHead.get) {
+            if (currentSubscriberHead eq currentPublisherTail) {
+              if (currentNode eq null) {
                 loop = false
               } else {
                 publisherTail.compareAndSet(currentPublisherTail, currentNode)
@@ -201,9 +199,9 @@ private final class UnboundedHub[A] extends Hub[A] {
           val currentSubscriberHead = subscriberHead.get
           val currentPublisherTail  = publisherTail.get
           val currentNode           = currentSubscriberHead.pointer.get.node
-          if (currentSubscriberHead == subscriberHead.get) {
-            if (currentSubscriberHead == currentPublisherTail) {
-              if (currentNode == null) {
+          if (currentSubscriberHead eq subscriberHead.get) {
+            if (currentSubscriberHead eq currentPublisherTail) {
+              if (currentNode eq null) {
                 loop = false
               } else {
                 publisherTail.compareAndSet(currentPublisherTail, currentNode)
@@ -236,7 +234,7 @@ private final class UnboundedHub[A] extends Hub[A] {
         val builder = ChunkBuilder.make[A]()
         val default = null.asInstanceOf[A]
         var i       = 0
-        while (i < n) {
+        while (i != n) {
           val a = poll(default)
           if (a == default) {
             i = n
@@ -252,7 +250,7 @@ private final class UnboundedHub[A] extends Hub[A] {
         var currentNode = subscriberHead.get.pointer.get.node
         var loop        = true
         var size        = 0
-        while (currentNode != null) {
+        while (currentNode ne null) {
           if (currentNode.value != null) {
             size += 1
             if (size == Int.MaxValue) {
@@ -273,8 +271,8 @@ private final class UnboundedHub[A] extends Hub[A] {
             currentPublisherTail = publisherTail.get
             val currentPointer = currentPublisherTail.pointer.get
             val currentNode    = currentPointer.node
-            if (currentPublisherTail == publisherTail.get) {
-              if (currentNode == null) {
+            if (currentPublisherTail eq publisherTail.get) {
+              if (currentNode eq null) {
                 val updatedPointer = currentPointer.copy(subscribers = currentPointer.subscribers - 1)
                 if (currentPublisherTail.pointer.compareAndSet(currentPointer, updatedPointer)) {
                   loop = false
@@ -284,7 +282,7 @@ private final class UnboundedHub[A] extends Hub[A] {
               }
             }
           }
-          while (currentSubscriberHead != currentPublisherTail) {
+          while (currentSubscriberHead ne currentPublisherTail) {
             val currentPointer = currentSubscriberHead.pointer.updateAndGet { currentPointer =>
               currentPointer.copy(subscribers = currentPointer.subscribers - 1)
             }
