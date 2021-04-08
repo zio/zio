@@ -1,3 +1,8 @@
+---
+id: use-test-assertions
+title: "How to Use Test Assertions"
+---
+
 Using the `Assertion` type effectively often involves finding the best fitting
 function for the type of assumptions you would like to verify.
 

@@ -1,5 +1,6 @@
 {
   "automerge": true,
+  "rebaseWhen": "conflicted",
   "labels": ["type: dependencies"],
   "packageRules": [
     {

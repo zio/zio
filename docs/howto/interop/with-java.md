@@ -1,10 +1,12 @@
 ---
-id: interop_java
-title:  "Java"
+id: with-java
+title: "How to Interop with Java?"
 ---
 
 ZIO has full interoperability with foreign Java code. Let me show you how it works and then *BOOM*, tomorrow you can show off your purely functional Java at work.
 
+ZIO has built-in conversion between ZIO data types (like `ZIO` and `Fiber`) and Java concurrent data types like [`CompletionStage`](https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletionStage.html), [`Future`](https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/Future.html) and [`CompletionHandler`](https://docs.oracle.com/javase/8/docs/api/java/nio/channels/CompletionHandler.html).
+ 
 ## From Java CompletionStage and back
 
 `CompletionStage` is the interface that comes closest to emulate a functional asynchronous effects API like ZIO's, so we start with it. It's a breeze:

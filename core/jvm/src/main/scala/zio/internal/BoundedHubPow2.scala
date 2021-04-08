@@ -103,7 +103,7 @@ private final class BoundedHubPow2[A](requestedCapacity: Int) extends Hub[A] {
       val size                    = currentPublisherIndex - currentSubscribersIndex
       val available               = capacity - size
       val forHub                  = math.min(remaining, available)
-      if (forHub <= 0) {
+      if (forHub == 0) {
         loop = false
       } else {
         var continue        = true
@@ -186,10 +186,10 @@ private final class BoundedHubPow2[A](requestedCapacity: Int) extends Hub[A] {
 
   def subscribe(): Hub.Subscription[A] =
     new Hub.Subscription[A] {
-      val currentState          = state.getAndIncrement()
-      val currentPublisherIndex = (currentState >> 32).toInt
-      val subscriberIndex       = new AtomicInteger(currentPublisherIndex)
-      val unsubscribed          = new AtomicBoolean(false)
+      private[this] val currentState          = state.getAndIncrement()
+      private[this] val currentPublisherIndex = (currentState >> 32).toInt
+      private[this] val subscriberIndex       = new AtomicInteger(currentPublisherIndex)
+      private[this] val unsubscribed          = new AtomicBoolean(false)
 
       def isEmpty(): Boolean =
         if (unsubscribed.get) true

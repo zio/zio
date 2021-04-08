@@ -1,6 +1,6 @@
 ---
-id: howto_macros
-title:  "Macros"
+id: use-zio-macros
+title: "How to use ZIO Macros?"
 ---
 
 ## Scrapping the boilerplate with macros

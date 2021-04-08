@@ -8,6 +8,8 @@
 // See https://docusaurus.io/docs/site-config for all the possible
 // site configuration options.
 
+const repoUrl = "https://github.com/zio/zio";
+
 // List of projects/orgs using your project for the users page.
 const users = [
   /*
@@ -36,9 +38,8 @@ const siteConfig = {
     { doc: 'overview/overview_index', label: 'Overview' },
     { doc: 'datatypes/index', label: 'Data Types' }, 
     { doc: 'services/index', label: 'Services' }, 
-    { doc: 'interop/interop_index', label: 'Interop' },
     { doc: 'usecases/usecases_index', label: 'Use Cases' },
-    { doc: 'howto/howto_index', label: 'How to' }, 
+    { doc: 'howto/index', label: 'How to' }, 
     { doc: 'resources/index', label: 'Resources' },
     { doc: 'about/about_index', label: 'About' },
   ],
@@ -114,6 +115,9 @@ const siteConfig = {
   },
   
   docsSideNavCollapsible: true,
+  
+  editUrl: `${repoUrl}/edit/master/docs/`, 
+  
 };
 
 module.exports = siteConfig;

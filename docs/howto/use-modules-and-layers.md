@@ -1,6 +1,6 @@
 ---
-id: howto_use_layers
-title:  "Use modules and layers"
+id: use-modules-and-layers
+title: "How to Use Modules and Layers?"
 ---
 
 # Unleash ZIO environment with `ZLayer`

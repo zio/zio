@@ -40,7 +40,7 @@ private final class BoundedHubSingle[A] extends Hub[A] {
   def isFull(): Boolean = {
     val currentState       = state.get
     val currentSubscribers = currentState.subscribers
-    currentSubscribers > 0
+    currentSubscribers != 0
   }
 
   def publish(a: A): Boolean = {
@@ -50,7 +50,7 @@ private final class BoundedHubSingle[A] extends Hub[A] {
       val currentState           = state.get
       val currentSubscriberCount = currentState.subscriberCount
       val currentSubscribers     = currentState.subscribers
-      if (currentSubscribers > 0) {
+      if (currentSubscribers != 0) {
         loop = false
         published = false
       } else if (currentSubscriberCount == 0) {
@@ -97,8 +97,8 @@ private final class BoundedHubSingle[A] extends Hub[A] {
 
   def subscribe(): Hub.Subscription[A] =
     new Hub.Subscription[A] {
-      var currentPublisherIndex = 0
-      var loop                  = true
+      private[this] var currentPublisherIndex = 0
+      private[this] var loop                  = true
       while (loop) {
         val currentState           = state.get
         val currentSubscriberCount = currentState.subscriberCount
@@ -108,8 +108,8 @@ private final class BoundedHubSingle[A] extends Hub[A] {
           loop = false
         }
       }
-      val subscriberIndex = new AtomicInteger(currentPublisherIndex)
-      val unsubscribed    = new AtomicBoolean(false)
+      private[this] val subscriberIndex = new AtomicInteger(currentPublisherIndex)
+      private[this] val unsubscribed    = new AtomicBoolean(false)
 
       def isEmpty(): Boolean =
         if (unsubscribed.get) true

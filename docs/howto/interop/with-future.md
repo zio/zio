@@ -1,6 +1,6 @@
 ---
-id: interop_future
-title:  "Future"
+id: with-future
+title: "How to Interop with Future?"
 ---
 
 ## Scala Future

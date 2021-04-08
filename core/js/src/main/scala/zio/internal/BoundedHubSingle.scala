@@ -39,7 +39,7 @@ private final class BoundedHubSingle[A] extends Hub[A] {
   def publish(a: A): Boolean =
     if (isFull()) false
     else {
-      if (subscriberCount > 0) {
+      if (subscriberCount != 0) {
         value = a
         subscribers = subscriberCount
         publisherIndex += 1
@@ -65,8 +65,8 @@ private final class BoundedHubSingle[A] extends Hub[A] {
 
   def subscribe(): Hub.Subscription[A] =
     new Hub.Subscription[A] {
-      var subscriberIndex = publisherIndex
-      var unsubscribed    = false
+      private[this] var subscriberIndex = publisherIndex
+      private[this] var unsubscribed    = false
       subscriberCount += 1
 
       def isEmpty(): Boolean =
