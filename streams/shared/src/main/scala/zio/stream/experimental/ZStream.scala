@@ -1912,7 +1912,13 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def scheduleWith[R1 <: R, E1 >: E, B, C](
     schedule: Schedule[R1, A, B]
   )(f: A => C, g: B => C): ZStream[R1 with Clock, E1, C] =
-    ???
+    ZStream.unwrap(
+      schedule.driver.map(driver =>
+        loopOnPartialChunksElements((a: A, emit: C => UIO[Unit]) =>
+          driver.next(a).zipRight(emit(f(a))) orElse (driver.last.orDie.flatMap(b => emit(f(a)) *> emit(g(b))) <* driver.reset)
+        )
+      )
+    )
 
   /**
    * Converts an option on values into an option on errors.

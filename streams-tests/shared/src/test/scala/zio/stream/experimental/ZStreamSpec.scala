@@ -2348,25 +2348,25 @@ object ZStreamSpec extends ZIOBaseSpec {
         //         } yield assert(streamResult)(equalTo(chunkResult))
         //       })
         //     ),
-        //     suite("schedule")(
-        //       testM("scheduleWith")(
-        //         assertM(
-        //           ZStream("A", "B", "C", "A", "B", "C")
-        //             .scheduleWith(Schedule.recurs(2) *> Schedule.fromFunction((_) => "Done"))(
-        //               _.toLowerCase,
-        //               identity
-        //             )
-        //             .runCollect
-        //         )(equalTo(Chunk("a", "b", "c", "Done", "a", "b", "c", "Done")))
-        //       ),
-        //       testM("scheduleEither")(
-        //         assertM(
-        //           ZStream("A", "B", "C")
-        //             .scheduleEither(Schedule.recurs(2) *> Schedule.fromFunction((_) => "!"))
-        //             .runCollect
-        //         )(equalTo(Chunk(Right("A"), Right("B"), Right("C"), Left("!"))))
-        //       )
-        //     ),
+             suite("schedule")(
+               testM("scheduleWith")(
+                 assertM(
+                   ZStream("A", "B", "C", "A", "B", "C")
+                     .scheduleWith(Schedule.recurs(2) *> Schedule.fromFunction((_) => "Done"))(
+                       _.toLowerCase,
+                       identity
+                     )
+                     .runCollect
+                 )(equalTo(Chunk("a", "b", "c", "Done", "a", "b", "c", "Done")))
+               ),
+               testM("scheduleEither")(
+                 assertM(
+                   ZStream("A", "B", "C")
+                     .scheduleEither(Schedule.recurs(2) *> Schedule.fromFunction((_) => "!"))
+                     .runCollect
+                 )(equalTo(Chunk(Right("A"), Right("B"), Right("C"), Left("!"))))
+               )
+             ),
         //     suite("repeatElements")(
         //       testM("repeatElementsWith")(
         //         assertM(
