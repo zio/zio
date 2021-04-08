@@ -1,4 +1,3 @@
-import dotty.tools.sbtplugin.DottyPlugin.autoImport._
 import explicitdeps.ExplicitDepsPlugin.autoImport._
 import sbt.Keys._
 import sbt._
@@ -67,28 +66,28 @@ object BuildHelper {
   val dottySettings = Seq(
     crossScalaVersions += ScalaDotty,
     scalacOptions ++= {
-      if (isDotty.value)
+      if (scalaVersion.value == ScalaDotty)
         Seq("-noindent")
       else
         Seq()
     },
     scalacOptions --= {
-      if (isDotty.value)
+      if (scalaVersion.value == ScalaDotty)
         Seq("-Xfatal-warnings")
       else
         Seq()
     },
-    sources in (Compile, doc) := {
+    Compile / doc / sources := {
       val old = (Compile / doc / sources).value
-      if (isDotty.value) {
+      if (scalaVersion.value == ScalaDotty) {
         Nil
       } else {
         old
       }
     },
-    parallelExecution in Test := {
+    Test / parallelExecution := {
       val old = (Test / parallelExecution).value
-      if (isDotty.value) {
+      if (scalaVersion.value == ScalaDotty) {
         false
       } else {
         old
@@ -124,7 +123,7 @@ object BuildHelper {
     // One of -Ydelambdafy:inline or -Yrepl-class-based must be given to
     // avoid deadlocking on parallel operations, see
     //   https://issues.scala-lang.org/browse/SI-9076
-    scalacOptions in Compile in console := Seq(
+    Compile / console / scalacOptions := Seq(
       "-Ypartial-unification",
       "-language:higherKinds",
       "-language:existentials",
@@ -132,12 +131,12 @@ object BuildHelper {
       "-Xsource:2.13",
       "-Yrepl-class-based"
     ),
-    initialCommands in Compile in console := initialCommandsStr
+    Compile / console / initialCommands := initialCommandsStr
   )
 
-  def extraOptions(scalaVersion: String, isDotty: Boolean, optimize: Boolean) =
+  def extraOptions(scalaVersion: String, optimize: Boolean) =
     CrossVersion.partialVersion(scalaVersion) match {
-      case _ if isDotty =>
+      case Some((3, 0)) =>
         Seq(
           "-language:implicitConversions",
           "-Xignore-scala2-macros"
@@ -189,7 +188,7 @@ object BuildHelper {
     if result.exists
   } yield result
 
-  def crossPlatformSources(scalaVer: String, platform: String, conf: String, baseDir: File, isDotty: Boolean) = {
+  def crossPlatformSources(scalaVer: String, platform: String, conf: String, baseDir: File) = {
     val versions = CrossVersion.partialVersion(scalaVer) match {
       case Some((2, 11)) =>
         List("2.11", "2.11+", "2.11-2.12", "2.x")
@@ -197,7 +196,7 @@ object BuildHelper {
         List("2.12", "2.11+", "2.12+", "2.11-2.12", "2.12-2.13", "2.x")
       case Some((2, 13)) =>
         List("2.13", "2.11+", "2.12+", "2.13+", "2.12-2.13", "2.x")
-      case _ if isDotty =>
+      case Some((3, 0)) =>
         List("dotty", "2.11+", "2.12+", "2.13+", "3.x")
       case _ =>
         List()
@@ -211,8 +210,7 @@ object BuildHelper {
         scalaVersion.value,
         crossProjectPlatform.value.identifier,
         "main",
-        baseDirectory.value,
-        isDotty.value
+        baseDirectory.value
       )
     },
     Test / unmanagedSourceDirectories ++= {
@@ -220,8 +218,7 @@ object BuildHelper {
         scalaVersion.value,
         crossProjectPlatform.value.identifier,
         "test",
-        baseDirectory.value,
-        isDotty.value
+        baseDirectory.value
       )
     }
   )
@@ -229,13 +226,12 @@ object BuildHelper {
   def stdSettings(prjName: String) = Seq(
     name := s"$prjName",
     crossScalaVersions := Seq(Scala211, Scala212, Scala213),
-    scalaVersion in ThisBuild := Scala213,
-    scalacOptions := stdOptions ++ extraOptions(scalaVersion.value, isDotty.value, optimize = !isSnapshot.value),
+    ThisBuild / scalaVersion := Scala213,
+    scalacOptions := stdOptions ++ extraOptions(scalaVersion.value, optimize = !isSnapshot.value),
     libraryDependencies ++= {
-      if (isDotty.value)
+      if (scalaVersion.value == ScalaDotty)
         Seq(
-          ("com.github.ghik" % s"silencer-lib_$Scala213" % SilencerVersion % Provided)
-            .withDottyCompat(scalaVersion.value)
+          "com.github.ghik" % s"silencer-lib_$Scala213" % SilencerVersion % Provided
         )
       else
         Seq(
@@ -243,7 +239,7 @@ object BuildHelper {
           compilerPlugin("com.github.ghik" % "silencer-plugin" % SilencerVersion cross CrossVersion.full)
         )
     },
-    semanticdbEnabled := !isDotty.value, // enable SemanticDB
+    semanticdbEnabled := scalaVersion.value != ScalaDotty, // enable SemanticDB
     semanticdbOptions += "-P:semanticdb:synthetics:on",
     semanticdbVersion := scalafixSemanticdb.revision, // use Scalafix compatible version
     ThisBuild / scalafixScalaBinaryVersion := CrossVersion.binaryScalaVersion(scalaVersion.value),
@@ -251,7 +247,7 @@ object BuildHelper {
       "com.github.liancheng" %% "organize-imports" % "0.5.0",
       "com.github.vovapolu"  %% "scaluzzi"         % "0.1.16"
     ),
-    parallelExecution in Test := true,
+    Test / parallelExecution := true,
     incOptions ~= (_.withLogRecompileOnMacro(false)),
     autoAPIMappings := true,
     unusedCompileDependenciesFilter -= moduleFilter("org.scala-js", "scalajs-library")
@@ -276,7 +272,7 @@ object BuildHelper {
   def macroDefinitionSettings = Seq(
     scalacOptions += "-language:experimental.macros",
     libraryDependencies ++= {
-      if (isDotty.value) Seq()
+      if (scalaVersion.value == ScalaDotty) Seq()
       else
         Seq(
           "org.scala-lang" % "scala-reflect"  % scalaVersion.value % "provided",
@@ -288,9 +284,6 @@ object BuildHelper {
   def nativeSettings = Seq(
     Test / skip := true,
     doc / skip := true,
-    SettingKey[Boolean](
-      "ide-skip-project" // Exclude from Intellij because Scala Native projects break it - https://github.com/scala-native/scala-native/issues/1007#issuecomment-370402092
-    ) := true,
     Compile / doc / sources := Seq.empty
   )
 
