@@ -29,7 +29,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  * messages can require an environment of type `RB` and fail with an error of
  * type `EB`.
  */
-sealed trait ZHub[-RA, -RB, +EA, +EB, -A, +B] { self =>
+sealed trait ZHub[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { self =>
 
   /**
    * Waits for the hub to be shut down.

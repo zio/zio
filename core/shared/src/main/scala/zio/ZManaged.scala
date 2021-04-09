@@ -1227,7 +1227,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * The design of `ReleaseMap` is inspired by ResourceT, written by Michael Snoyman @snoyberg.
    * (https://github.com/snoyberg/conduit/blob/master/resourcet/Control/Monad/Trans/Resource/Internal.hs)
    */
-  abstract class ReleaseMap {
+  abstract class ReleaseMap extends Serializable {
 
     /**
      * An opaque identifier for a finalizer stored in the map.

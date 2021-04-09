@@ -24,7 +24,7 @@ import zio.Chunk
  * guarantee that all subscribers will receive all values published to the hub
  * while they are subscribed.
  */
-abstract class Hub[A] {
+abstract class Hub[A] extends Serializable {
 
   /**
    * The maximum capacity of the hub.
@@ -92,7 +92,7 @@ object Hub {
    * The guarantee is that a subscriber will receive all values published to
    * hub while it is subscribed.
    */
-  abstract class Subscription[A] {
+  abstract class Subscription[A] extends Serializable {
 
     /**
      * Checks whether there are values available to take from the hub.
