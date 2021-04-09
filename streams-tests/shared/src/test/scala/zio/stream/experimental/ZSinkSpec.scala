@@ -20,6 +20,14 @@ object ZSinkSpec extends ZIOBaseSpec {
   def spec: ZSpec[Environment, Failure] = {
     suite("ZSinkSpec")(
       suite("Constructors")(
+        suite("collectAllN")(
+          testM("respects the given limit") {
+            assertM(ZStream(1, 2, 3, 4).run(ZSink.collectAllN[Nothing, Int](3)))(equalTo(Chunk(1, 2, 3)))
+          },
+          testM("handles empty input") {
+            assertM(ZStream.empty.run(ZSink.collectAllN[Nothing, Int](3)))(equalTo(Chunk.empty))
+          }
+        ),
         testM("collectAllToSet")(
           assertM(
             ZStream(1, 2, 3, 3, 4)
