@@ -216,6 +216,7 @@ private[macros] abstract class AccessibleMacroBase(val c: whitebox.Context) {
       }
     }
 
+    @silent("pattern var [^\\s]+ in method unapply is never used")
     private def withThrowing(mods: Modifiers, tree: Tree) = {
       val isThrowing = mods.annotations.exists {
         case q"new $name" => name.toString == classOf[throwing].getSimpleName()
@@ -243,7 +244,7 @@ private[macros] abstract class AccessibleMacroBase(val c: whitebox.Context) {
               isVal = false
             )
 
-          case v @ ValDef(mods, termName, tree: Tree, _) =>
+          case ValDef(_, termName, tree: Tree, _) =>
             makeAccessor(termName, typeInfo(tree), moduleInfo.serviceTypeParams, Nil, Nil, isVal = true)
         }
 
