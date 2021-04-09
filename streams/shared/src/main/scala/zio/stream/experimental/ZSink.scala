@@ -219,9 +219,19 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    * Returns the sink that executes this one and times its execution.
    */
   final def timed: ZSink[R with Clock, InErr, In, OutErr, L, (Z, Duration)] =
-    ???
+    summarized(clock.nanoTime)((start, end) => Duration.fromNanos(end - start))
 
   def repeat: ZSink[R, InErr, In, OutErr, L, Chunk[Z]] = ???
+
+  /**
+   * Summarize a sink by running an effect when the sink starts and again when it completes
+   */
+  final def summarized[R1 <: R, E1 >: OutErr, B, C](summary: ZIO[R1, E1, B])(f: (B, B) => C) =
+    new ZSink[R1, InErr, In, E1, L, (Z, C)](for {
+      start    <- ZChannel.fromEffect(summary)
+      done     <- self.channel
+      end      <- ZChannel.fromEffect(summary)
+    } yield (done, f(start, end)))
 
   def orElse[R1 <: R, InErr1 <: InErr, In1 <: In, OutErr2 >: OutErr, L1 >: L, Z1 >: Z](
     that: => ZSink[R1, InErr1, In1, OutErr2, L1, Z1]
@@ -900,7 +910,7 @@ object ZSink {
       )
     }
 
-  def timed[Err]: ZSink[Clock, Err, Nothing, Err, Nothing, Duration] = ZSink.drain.timed.map(_._2)
+  def timed[Err]: ZSink[Clock, Err, Any, Err, Nothing, Duration] = ZSink.drain.timed.map(_._2)
 
   final class AccessSinkPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[InErr, In, OutErr, L, Z](f: R => ZSink[R, InErr, In, OutErr, L, Z]): ZSink[R, InErr, In, OutErr, L, Z] =

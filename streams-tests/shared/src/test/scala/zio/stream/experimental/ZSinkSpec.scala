@@ -1,9 +1,10 @@
 package zio.stream.experimental
 
-//import zio.duration._
+import zio.duration._
 //import zio.stream.SinkUtils.{findSink, sinkRaceLaw}
 //import zio.stream.ZStreamGen._
 import zio.test.Assertion._
+import zio.test.environment.TestClock
 //import zio.test.environment.TestClock
 //import zio.test.{assertM, _}
 //import zio.{ZIOBaseSpec, _}
@@ -507,14 +508,14 @@ object ZSinkSpec extends ZIOBaseSpec {
               }
               .useNow
           }
-        ) //,
-        //      testM("timed") {
-        //        for {
-        //          f <- ZStream.fromIterable(1 to 10).mapM(i => clock.sleep(10.millis).as(i)).run(ZSink.timed).fork
-        //          _ <- TestClock.adjust(100.millis)
-        //          r <- f.join
-        //        } yield assert(r)(isGreaterThanEqualTo(100.millis))
-        //      }
+        ),
+        testM("timed") {
+          for {
+            f <- ZStream.fromIterable(1 to 10).mapM(i => clock.sleep(10.millis).as(i)).run(ZSink.timed).fork
+            _ <- TestClock.adjust(100.millis)
+            r <- f.join
+          } yield assert(r)(isGreaterThanEqualTo(100.millis))
+        }
       )
     )
   }
