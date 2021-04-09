@@ -487,6 +487,7 @@ object ZRefM {
    * Creates a new `RefM` and a `Dequeue` that will emit every change to the
    * `RefM`.
    */
+  @deprecated("use SubscriptionRef", "2.0.0")
   def dequeueRef[A](a: A): UIO[(RefM[A], Dequeue[A])] =
     for {
       ref   <- make(a)
