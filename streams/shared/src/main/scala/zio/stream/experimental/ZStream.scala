@@ -1217,6 +1217,21 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     self.groupBy(a => ZIO.succeedNow((f(a), a)), buffer)
 
   /**
+   * Partitions the stream with specified chunkSize
+   * @param chunkSize size of the chunk
+   */
+  def grouped(chunkSize: Int): ZStream[R, E, Chunk[A]] =
+    ???
+
+  /**
+   * Partitions the stream with the specified chunkSize or until the specified
+   * duration has passed, whichever is satisfied first.
+   */
+  def groupedWithin(chunkSize: Int, within: Duration): ZStream[R with Clock, E, Chunk[A]] =
+    ???
+
+
+  /**
    * Halts the evaluation of this stream when the provided IO completes. The given IO
    * will be forked as part of the returned stream, and its success will be discarded.
    *
@@ -1237,20 +1252,6 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def haltAfter(duration: Duration): ZStream[R with Clock, E, A] =
     haltWhen(clock.sleep(duration))
-
-  /**
-   * Partitions the stream with specified chunkSize
-   * @param chunkSize size of the chunk
-   */
-  def grouped(chunkSize: Int): ZStream[R, E, Chunk[A]] =
-    ???
-
-  /**
-   * Partitions the stream with the specified chunkSize or until the specified
-   * duration has passed, whichever is satisfied first.
-   */
-  def groupedWithin(chunkSize: Int, within: Duration): ZStream[R with Clock, E, Chunk[A]] =
-    ???
 
   /**
    * Halts the evaluation of this stream when the provided promise resolves.
