@@ -1221,7 +1221,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * @param chunkSize size of the chunk
    */
   def grouped(chunkSize: Int): ZStream[R, E, Chunk[A]] =
-    ???
+    transduce(ZSink.collectAllN[E, A](chunkSize))
 
   /**
    * Partitions the stream with the specified chunkSize or until the specified

@@ -11,7 +11,7 @@ import zio.duration._
 // import zio.stream.ZSink.Push
 import zio.stream.experimental.ZStreamGen._
 import zio.test.Assertion._
-import zio.test.TestAspect.{ flaky, timeout }
+import zio.test.TestAspect.{flaky, timeout}
 import zio.test._
 import zio.test.environment.TestClock
 
@@ -1579,17 +1579,17 @@ object ZStreamSpec extends ZIOBaseSpec {
         //         } yield assert(result)(equalTo(Chunk(1)))
         //       }
         //     ),
-        //     suite("grouped")(
-        //       testM("sanity") {
-        //         assertM(ZStream(1, 2, 3, 4, 5).grouped(2).runCollect)(equalTo(Chunk(Chunk(1, 2), Chunk(3, 4), Chunk(5))))
-        //       },
-        //       testM("group size is correct") {
-        //         assertM(ZStream.range(0, 100).grouped(10).map(_.size).runCollect)(equalTo(Chunk.fill(10)(10)))
-        //       },
-        //       testM("doesn't emit empty chunks") {
-        //         assertM(ZStream.fromIterable(List.empty[Int]).grouped(5).runCollect)(equalTo(Chunk.empty))
-        //       }
-        //     ),
+        suite("grouped")(
+          testM("sanity") {
+            assertM(ZStream(1, 2, 3, 4, 5).grouped(2).runCollect)(equalTo(Chunk(Chunk(1, 2), Chunk(3, 4), Chunk(5))))
+          },
+          testM("group size is correct") {
+            assertM(ZStream.range(0, 100).grouped(10).map(_.size).runCollect)(equalTo(Chunk.fill(10)(10)))
+          },
+          testM("doesn't emit empty chunks") {
+            assertM(ZStream.fromIterable(List.empty[Int]).grouped(5).runCollect)(equalTo(Chunk.empty))
+          }
+        ),
         suite("groupedWithin")(
           testM("group based on time passed") {
             assertWithChunkCoordination(List(Chunk(1, 2), Chunk(3, 4), Chunk.single(5))) { c =>
