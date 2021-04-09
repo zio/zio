@@ -19,11 +19,11 @@ package zio
 import zio.internal.Platform
 
 trait BootstrapRuntime extends Runtime[ZEnv] {
-  lazy val environment: ZEnv = ZEnv.Services.live
+  def environment: ZEnv = ZEnv.Services.live
 
   /**
    * The platform of the runtime, which provides the essential capabilities
    * necessary to bootstrap execution of tasks.
    */
-  lazy val platform: Platform = Platform.default
+  def platform: Platform = Platform.default
 }
