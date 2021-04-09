@@ -29,7 +29,7 @@ import scala.util.NotGiven
     "However, your effect has Any for the environment type, which means it " +
     "has no requirement, so there is no need to provide the environment."
 )
-sealed abstract class NeedsEnv[+R]
+sealed abstract class NeedsEnv[+R] extends Serializable
 
 object NeedsEnv extends NeedsEnv[Nothing] {
 
