@@ -3392,7 +3392,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Returns an effect that is interrupted as if by the fiber calling this
    * method.
    */
-  val interrupt: UIO[Nothing] = ZIO.fiberId.flatMap(fiberId => interruptAs(fiberId))
+  lazy val interrupt: UIO[Nothing] = ZIO.fiberId.flatMap(fiberId => interruptAs(fiberId))
 
   /**
    * Returns an effect that is interrupted as if by the specified fiber.
@@ -3668,7 +3668,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * Returns an effect with the empty value.
    */
-  val none: UIO[Option[Nothing]] = succeedNow(None)
+  lazy val none: UIO[Option[Nothing]] = succeedNow(None)
 
   /**
    * Lifts an Option into a IO.
@@ -3734,7 +3734,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * running this effect are automatically garbage collected on the JVM,
    * because they cannot be reactivated.
    */
-  val never: UIO[Nothing] = effectAsync[Any, Nothing, Nothing](_ => ())
+  lazy val never: UIO[Nothing] = effectAsync[Any, Nothing, Nothing](_ => ())
 
   /**
    * Races an `IO[E, A]` against zero or more other effects. Yields either the
@@ -3968,7 +3968,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * An effect that succeeds with a unit value.
    */
-  val unit: UIO[Unit] = succeedNow(())
+  lazy val unit: UIO[Unit] = succeedNow(())
 
   /**
    * Prefix form of `ZIO#uninterruptible`.
@@ -4103,11 +4103,11 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * stack. Manual use of this method can improve fairness, at the cost of
    * overhead.
    */
-  val yieldNow: UIO[Unit] = ZIO.Yield
+  lazy val yieldNow: UIO[Unit] = ZIO.Yield
 
   def apply[A](a: => A): Task[A] = effect(a)
 
-  private val _IdentityFn: Any => Any = (a: Any) => a
+  private lazy val _IdentityFn: Any => Any = (a: Any) => a
 
   private[zio] def identityFn[A]: A => A = _IdentityFn.asInstanceOf[A => A]
 

@@ -24,8 +24,10 @@ object SerializableSpec extends ZIOBaseSpec {
     },
     testM("Clock is serializable") {
       for {
-        time1 <- Clock.nanoTime
-        time2 <- serializeAndBack(Clock.nanoTime).flatten
+        clock       <- Live.live(ZIO.service[Clock])
+        time1       <- clock.nanoTime
+        returnClock <- serializeAndBack(clock)
+        time2       <- returnClock.nanoTime
       } yield assert(time1)(isLessThanEqualTo(time2))
     },
     testM("Queue is serializable") {
@@ -229,7 +231,7 @@ object SerializableSpec extends ZIOBaseSpec {
     testM("TracingStatus.Untraced is serializable") {
       Live.live(for {
         system <- ZIO.serviceWith[System](serializeAndBack(_))
-        result <- System.property("notpresent")
+        result <- system.property("notpresent")
       } yield assert(result)(equalTo(Option.empty[String])))
     }
   )
