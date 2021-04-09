@@ -218,8 +218,8 @@ private[macros] abstract class AccessibleMacroBase(val c: whitebox.Context) {
 
     private def withThrowing(mods: Modifiers, tree: Tree) = {
       val isThrowing = mods.annotations.exists {
-        case q"new $name" => name.toString == classOf[throwing].getSimpleName()
-        case _            => true
+        case _ @ q"new $name" => name.toString == classOf[throwing].getSimpleName()
+        case _                => true
       }
       val info = typeInfo(tree)
       info.capability match {
@@ -243,7 +243,7 @@ private[macros] abstract class AccessibleMacroBase(val c: whitebox.Context) {
               isVal = false
             )
 
-          case v @ ValDef(mods, termName, tree: Tree, _) =>
+          case ValDef(_, termName, tree: Tree, _) =>
             makeAccessor(termName, typeInfo(tree), moduleInfo.serviceTypeParams, Nil, Nil, isVal = true)
         }
 
