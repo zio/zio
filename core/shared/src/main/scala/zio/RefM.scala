@@ -5,6 +5,7 @@ object RefM {
   /**
    * @see [[zio.ZRefM.dequeueRef]]
    */
+  @deprecated("use SubscriptionRef", "2.0.0")
   def dequeueRef[A](a: A): UIO[(RefM[A], Dequeue[A])] =
     ZRefM.dequeueRef(a)
 
