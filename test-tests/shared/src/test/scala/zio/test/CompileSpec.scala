@@ -18,8 +18,8 @@ object CompileSpec extends ZIOBaseSpec {
       case class Left(s: Nothing)
       case class Right(s: Nothing)
       val assertRight = assertM(typeCheck("1 + 1"))(isRight(anything))
-      val assertLeft = assertM(typeCheck("1 ++ 1"))(isLeft(anything))
-      (assertLeft <*> assertRight).map{ case (l, r) => l && r }
+      val assertLeft  = assertM(typeCheck("1 ++ 1"))(isLeft(anything))
+      (assertLeft <*> assertRight).map { case (l, r) => l && r }
     }
   )
 }
