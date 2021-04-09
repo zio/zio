@@ -29,7 +29,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  * messages can require an environment of type `RB` and fail with an error of
  * type `EB`.
  */
-sealed trait ZHub[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { self =>
+sealed abstract class ZHub[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { self =>
 
   /**
    * Waits for the hub to be shut down.
@@ -438,7 +438,7 @@ object ZHub {
    * A `Strategy[A]` describes the protocol for how publishers and subscribers
    * will communicate with each other through the hub.
    */
-  private trait Strategy[A] {
+  private sealed abstract class Strategy[A] {
 
     /**
      * Describes how publishers should signal to subscribers that they are
