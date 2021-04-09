@@ -1790,8 +1790,33 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def repeatElementsWith[R1 <: R, E1 >: E, B, C](
     schedule: Schedule[R1, A, B]
-  )(f: A => C, g: B => C): ZStream[R1 with Clock, E1, C] =
-    ???
+  )(f: A => C, g: B => C): ZStream[R1 with Clock, E1, C] = new ZStream(self.channel >>> ZChannel.unwrap {
+    for {
+      driver <- schedule.driver
+    } yield {
+      def feed(in: Chunk[A]): ZChannel[R1 with Clock, E1, Chunk[A], Any, E1, Chunk[C], Unit] =
+        in.headOption.fold(loop)(a => ZChannel.write(Chunk.single(f(a))) *> step(in.drop(1), a))
+
+      def step(in: Chunk[A], a: A): ZChannel[R1 with Clock, E1, Chunk[A], Any, E1, Chunk[C], Unit] = {
+        val advance = driver.next(a).as(ZChannel.write(Chunk.single(f(a))) *> step(in, a))
+        val reset: ZIO[R1 with Clock, Nothing, ZChannel[R1 with Clock, E1, Chunk[A], Any, E1, Chunk[C], Unit]] = for {
+          b <- driver.last.orDie
+          _ <- driver.reset
+        } yield ZChannel.write(Chunk.single(g(b))) *> feed(in)
+
+        ZChannel.unwrap(advance orElse reset)
+      }
+
+      lazy val loop: ZChannel[R1 with Clock, E1, Chunk[A], Any, E1, Chunk[C], Unit] =
+        ZChannel.readWith(
+          feed,
+          ZChannel.fail(_),
+          (_: Any) => ZChannel.unit
+        )
+
+      loop
+    }
+  })
 
   /**
    * Repeats the entire stream using the specified schedule. The stream will execute normally,
