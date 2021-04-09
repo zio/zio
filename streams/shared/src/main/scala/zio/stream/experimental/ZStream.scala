@@ -2059,8 +2059,37 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def throttleEnforceM[R1 <: R, E1 >: E](units: Long, duration: Duration, burst: Long = 0)(
     costFn: Chunk[A] => ZIO[R1, E1, Long]
-  ): ZStream[R1 with Clock, E1, A] =
-    ???
+  ): ZStream[R1 with Clock, E1, A] = {
+    def loop(tokens: Long, timestamp: Long): ZChannel[R1 with Clock, E1, Chunk[A], Any, E1, Chunk[A], Unit] =
+      ZChannel.readWith[R1 with Clock, E1, Chunk[A], Any, E1, Chunk[A], Unit](
+        (in: Chunk[A]) => {
+          ZChannel.unwrap(
+            (costFn(in) <*> clock.nanoTime).map {
+              case (weight, current) =>
+                val elapsed = current - timestamp
+                val cycles = elapsed.toDouble / duration.toNanos
+                val available = {
+                  val sum = tokens + (cycles * units).toLong
+                  val max =
+                    if (units + burst < 0) Long.MaxValue
+                    else units + burst
+
+                  if (sum < 0) max
+                  else math.min(sum, max)
+                }
+
+                if (weight <= available)
+                  ZChannel.write(in) *> loop(available - weight, current)
+                else
+                  loop(available, current)
+            })
+        },
+        (e: E1) => ZChannel.fail(e),
+        (_: Any) => ZChannel.unit
+      )
+
+    new ZStream(ZChannel.fromEffect(clock.nanoTime).flatMap(self.channel >>> loop(units, _)))
+  }
 
   /**
    * Delays the chunks of this stream according to the given bandwidth parameters using the token bucket
@@ -2081,8 +2110,44 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def throttleShapeM[R1 <: R, E1 >: E](units: Long, duration: Duration, burst: Long = 0)(
     costFn: Chunk[A] => ZIO[R1, E1, Long]
-  ): ZStream[R1 with Clock, E1, A] =
-    ???
+  ): ZStream[R1 with Clock, E1, A] = {
+    def loop(tokens: Long, timestamp: Long): ZChannel[R1 with Clock, E1, Chunk[A], Any, E1, Chunk[A], Unit] =
+      ZChannel.readWith(
+        (in: Chunk[A]) => {
+          ZChannel.unwrap(for {
+            weight <- costFn(in)
+            current <- clock.nanoTime
+          } yield {
+            val elapsed = current - timestamp
+            val cycles = elapsed.toDouble / duration.toNanos
+            val available = {
+              val sum = tokens + (cycles * units).toLong
+              val max =
+                if (units + burst < 0) Long.MaxValue
+                else units + burst
+
+              if (sum < 0) max
+              else math.min(sum, max)
+            }
+
+            val remaining = available - weight
+            val waitCycles =
+              if (remaining >= 0) 0
+              else -remaining.toDouble / units
+
+            val delay = Duration.Finite((waitCycles * duration.toNanos).toLong)
+
+            if (delay > Duration.Zero) ZChannel.fromEffect(clock.sleep(delay)) *> ZChannel.write(in) *> loop(remaining, current)
+            else ZChannel.write(in) *> loop(remaining, current)
+          })
+        },
+        (e: E1) => ZChannel.fail(e),
+        (_: Any) => ZChannel.unit
+      )
+
+
+    new ZStream(ZChannel.fromEffect(clock.nanoTime).flatMap(self.channel >>> loop(units, _)))
+  }
 
   final def debounce[E1 >: E, A2 >: A](d: Duration): ZStream[R with Clock, E1, A2] =
     ???

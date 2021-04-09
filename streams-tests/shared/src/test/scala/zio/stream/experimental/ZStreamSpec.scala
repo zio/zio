@@ -1,7 +1,7 @@
 package zio.stream.experimental
 
 // import java.io.{ ByteArrayInputStream, IOException }
-// import java.util.concurrent.TimeUnit
+ import java.util.concurrent.TimeUnit
 
 import scala.concurrent.ExecutionContext
 import zio._
@@ -2533,102 +2533,102 @@ object ZStreamSpec extends ZIOBaseSpec {
         //         )
         //       }
         //     ),
-        //     suite("throttleEnforce")(
-        //       testM("free elements") {
-        //         assertM(
-        //           ZStream(1, 2, 3, 4)
-        //             .throttleEnforce(0, Duration.Infinity)(_ => 0)
-        //             .runCollect
-        //         )(equalTo(Chunk(1, 2, 3, 4)))
-        //       },
-        //       testM("no bandwidth") {
-        //         assertM(
-        //           ZStream(1, 2, 3, 4)
-        //             .throttleEnforce(0, Duration.Infinity)(_ => 1)
-        //             .runCollect
-        //         )(equalTo(Chunk.empty))
-        //       }
-        //     ),
-        //     suite("throttleShape")(
-        //       testM("throttleShape") {
-        //         for {
-        //           fiber <- Queue
-        //                      .bounded[Int](10)
-        //                      .flatMap { queue =>
-        //                        ZStream
-        //                          .fromQueue(queue)
-        //                          .throttleShape(1, 1.second)(_.fold(0)(_ + _).toLong)
-        //                          .process
-        //                          .use { pull =>
-        //                            for {
-        //                              _    <- queue.offer(1)
-        //                              res1 <- pull
-        //                              _    <- queue.offer(2)
-        //                              res2 <- pull
-        //                              _    <- clock.sleep(4.seconds)
-        //                              _    <- queue.offer(3)
-        //                              res3 <- pull
-        //                            } yield assert(Chunk(res1, res2, res3))(
-        //                              equalTo(Chunk(Chunk(1), Chunk(2), Chunk(3)))
-        //                            )
-        //                          }
-        //                      }
-        //                      .fork
-        //           _    <- TestClock.adjust(8.seconds)
-        //           test <- fiber.join
-        //         } yield test
-        //       },
-        //       testM("infinite bandwidth") {
-        //         Queue.bounded[Int](10).flatMap { queue =>
-        //           ZStream.fromQueue(queue).throttleShape(1, 0.seconds)(_ => 100000L).process.use { pull =>
-        //             for {
-        //               _       <- queue.offer(1)
-        //               res1    <- pull
-        //               _       <- queue.offer(2)
-        //               res2    <- pull
-        //               elapsed <- clock.currentTime(TimeUnit.SECONDS)
-        //             } yield assert(elapsed)(equalTo(0L)) && assert(Chunk(res1, res2))(
-        //               equalTo(Chunk(Chunk(1), Chunk(2)))
-        //             )
-        //           }
-        //         }
-        //       },
-        //       testM("with burst") {
-        //         for {
-        //           fiber <- Queue
-        //                      .bounded[Int](10)
-        //                      .flatMap { queue =>
-        //                        ZStream
-        //                          .fromQueue(queue)
-        //                          .throttleShape(1, 1.second, 2)(_.fold(0)(_ + _).toLong)
-        //                          .process
-        //                          .use { pull =>
-        //                            for {
-        //                              _    <- queue.offer(1)
-        //                              res1 <- pull
-        //                              _    <- TestClock.adjust(2.seconds)
-        //                              _    <- queue.offer(2)
-        //                              res2 <- pull
-        //                              _    <- TestClock.adjust(4.seconds)
-        //                              _    <- queue.offer(3)
-        //                              res3 <- pull
-        //                            } yield assert(Chunk(res1, res2, res3))(
-        //                              equalTo(Chunk(Chunk(1), Chunk(2), Chunk(3)))
-        //                            )
-        //                          }
-        //                      }
-        //                      .fork
-        //           test <- fiber.join
-        //         } yield test
-        //       },
-        //       testM("free elements") {
-        //         assertM(
-        //           ZStream(1, 2, 3, 4)
-        //             .throttleShape(1, Duration.Infinity)(_ => 0)
-        //             .runCollect
-        //         )(equalTo(Chunk(1, 2, 3, 4)))
-        //       }
-        //     ),
+        suite("throttleEnforce")(
+          testM("free elements") {
+            assertM(
+              ZStream(1, 2, 3, 4)
+                .throttleEnforce(0, Duration.Infinity)(_ => 0)
+                .runCollect
+            )(equalTo(Chunk(1, 2, 3, 4)))
+          },
+          testM("no bandwidth") {
+            assertM(
+              ZStream(1, 2, 3, 4)
+                .throttleEnforce(0, Duration.Infinity)(_ => 1)
+                .runCollect
+            )(equalTo(Chunk.empty))
+          }
+        ),
+        suite("throttleShape")(
+          testM("throttleShape") {
+            for {
+              fiber <- Queue
+                .bounded[Int](10)
+                .flatMap { queue =>
+                  ZStream
+                    .fromQueue(queue)
+                    .throttleShape(1, 1.second)(_.sum.toLong)
+                    .toPull
+                    .use { pull =>
+                      for {
+                        _ <- queue.offer(1)
+                        res1 <- pull
+                        _ <- queue.offer(2)
+                        res2 <- pull
+                        _ <- clock.sleep(4.seconds)
+                        _ <- queue.offer(3)
+                        res3 <- pull
+                      } yield assert(Chunk(res1, res2, res3))(
+                        equalTo(Chunk(Chunk(1), Chunk(2), Chunk(3)))
+                      )
+                    }
+                }
+                .fork
+              _ <- TestClock.adjust(8.seconds)
+              test <- fiber.join
+            } yield test
+          },
+          testM("infinite bandwidth") {
+            Queue.bounded[Int](10).flatMap { queue =>
+              ZStream.fromQueue(queue).throttleShape(1, 0.seconds)(_ => 100000L).toPull.use { pull =>
+                for {
+                  _ <- queue.offer(1)
+                  res1 <- pull
+                  _ <- queue.offer(2)
+                  res2 <- pull
+                  elapsed <- clock.currentTime(TimeUnit.SECONDS)
+                } yield assert(elapsed)(equalTo(0L)) && assert(Chunk(res1, res2))(
+                  equalTo(Chunk(Chunk(1), Chunk(2)))
+                )
+              }
+            }
+          },
+          testM("with burst") {
+            for {
+              fiber <- Queue
+                .bounded[Int](10)
+                .flatMap { queue =>
+                  ZStream
+                    .fromQueue(queue)
+                    .throttleShape(1, 1.second, 2)(_.sum.toLong)
+                    .toPull
+                    .use { pull =>
+                      for {
+                        _ <- queue.offer(1)
+                        res1 <- pull
+                        _ <- TestClock.adjust(2.seconds)
+                        _ <- queue.offer(2)
+                        res2 <- pull
+                        _ <- TestClock.adjust(4.seconds)
+                        _ <- queue.offer(3)
+                        res3 <- pull
+                      } yield assert(Chunk(res1, res2, res3))(
+                        equalTo(Chunk(Chunk(1), Chunk(2), Chunk(3)))
+                      )
+                    }
+                }
+                .fork
+              test <- fiber.join
+            } yield test
+          },
+          testM("free elements") {
+            assertM(
+              ZStream(1, 2, 3, 4)
+                .throttleShape(1, Duration.Infinity)(_ => 0)
+                .runCollect
+            )(equalTo(Chunk(1, 2, 3, 4)))
+          }
+        ),
         //     suite("debounce")(
         //       testM("should drop earlier chunks within waitTime") {
         //         assertWithChunkCoordination(List(Chunk(1), Chunk(3, 4), Chunk(5), Chunk(6, 7))) { c =>
