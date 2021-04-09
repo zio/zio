@@ -1416,8 +1416,33 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Statefully and effectfully maps over the elements of this stream to produce
    * new elements.
    */
-  final def mapAccumM[R1 <: R, E1 >: E, S, A1](s: S)(f: (S, A) => ZIO[R1, E1, (S, A1)]): ZStream[R1, E1, A1] =
-    ???
+  final def mapAccumM[R1 <: R, E1 >: E, S, A1](s: S)(f: (S, A) => ZIO[R1, E1, (S, A1)]): ZStream[R1, E1, A1] = {
+    def accumulator(s: S): ZChannel[R1, E, Chunk[A], Any, E1, Chunk[A1], Unit] =
+      ZChannel.readWith(
+        (in: Chunk[A]) => {
+          ZChannel.unwrap(
+            ZIO.effectSuspendTotal {
+              val outputChunk = ChunkBuilder.make[A1](in.size)
+              val emit: A1 => UIO[Unit] = (a: A1) => UIO(outputChunk += a).unit
+              ZIO.foldLeft[R1, E1, S, A](in)(s)((s1, a) => f(s1, a).flatMap(sa => emit(sa._2) as sa._1))
+                .fold(
+                  failure => {
+                    val partialResult = outputChunk.result()
+                    if (partialResult.nonEmpty)
+                      ZChannel.write(partialResult) *> ZChannel.fail(failure)
+                    else
+                      ZChannel.fail(failure)
+                  },
+                  ZChannel.write(outputChunk.result()) *> accumulator(_))
+            }
+          )
+        },
+        ZChannel.fail(_),
+        (_: Any) => ZChannel.unit
+      )
+
+    new ZStream(self.channel >>> accumulator(s))
+  }
 
   /**
    * Transforms the chunks emitted by this stream.
@@ -1463,13 +1488,13 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Transforms the errors emitted by this stream using `f`.
    */
   def mapError[E2](f: E => E2): ZStream[R, E2, A] =
-    ???
+    new ZStream(self.channel.mapError(f))
 
   /**
    * Transforms the full causes of failures emitted by this stream.
    */
   def mapErrorCause[E2](f: Cause[E] => Cause[E2]): ZStream[R, E2, A] =
-    ???
+    new ZStream(self.channel.mapErrorCause(f))
 
   /**
    * Maps over elements of the stream with the specified effectful function.
@@ -1887,7 +1912,10 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * See also [[ZStream#scanM]].
    */
   def scanReduceM[R1 <: R, E1 >: E, A1 >: A](f: (A1, A) => ZIO[R1, E1, A1]): ZStream[R1, E1, A1] =
-    ???
+    mapAccumM[R1, E1, Option[A1], A1](Option.empty[A1]) {
+      case (Some(a1), a) => f(a1, a).map(a2 => Some(a2) -> a2)
+      case (None, a) => ZIO.succeedNow(Some(a) -> a)
+    }
 
   /**
    * Schedules the output of the stream using the provided `schedule`.

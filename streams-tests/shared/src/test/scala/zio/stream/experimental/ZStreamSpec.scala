@@ -1845,33 +1845,33 @@ object ZStreamSpec extends ZIOBaseSpec {
             equalTo(Chunk(1, 2, 3))
           )
         },
-        //     suite("mapAccumM")(
-        //       testM("mapAccumM happy path") {
-        //         assertM(
-        //           ZStream(1, 1, 1)
-        //             .mapAccumM[Any, Nothing, Int, Int](0)((acc, el) => IO.succeed((acc + el, acc + el)))
-        //             .runCollect
-        //         )(equalTo(Chunk(1, 2, 3)))
-        //       },
-        //       testM("mapAccumM error") {
-        //         ZStream(1, 1, 1)
-        //           .mapAccumM(0)((_, _) => IO.fail("Ouch"))
-        //           .runCollect
-        //           .either
-        //           .map(assert(_)(isLeft(equalTo("Ouch"))))
-        //       } @@ zioTag(errors),
-        //       testM("laziness on chunks") {
-        //         assertM(
-        //           ZStream(1, 2, 3)
-        //             .mapAccumM(()) {
-        //               case (_, 3) => ZIO.fail("boom")
-        //               case (_, x) => UIO.succeed(((), x))
-        //             }
-        //             .either
-        //             .runCollect
-        //         )(equalTo(Chunk(Right(1), Right(2), Left("boom"))))
-        //       }
-        //     ),
+        suite("mapAccumM")(
+          testM("mapAccumM happy path") {
+            assertM(
+              ZStream(1, 1, 1)
+                .mapAccumM[Any, Nothing, Int, Int](0)((acc, el) => IO.succeed((acc + el, acc + el)))
+                .runCollect
+            )(equalTo(Chunk(1, 2, 3)))
+          },
+          testM("mapAccumM error") {
+            ZStream(1, 1, 1)
+              .mapAccumM(0)((_, _) => IO.fail("Ouch"))
+              .runCollect
+              .either
+              .map(assert(_)(isLeft(equalTo("Ouch"))))
+          } @@ zioTag(errors),
+          testM("laziness on chunks") {
+            assertM(
+              ZStream(1, 2, 3)
+                .mapAccumM(()) {
+                  case (_, 3) => ZIO.fail("boom")
+                  case (_, x) => UIO.succeed(((), x))
+                }
+                .either
+                .runCollect
+            )(equalTo(Chunk(Right(1), Right(2), Left("boom"))))
+          }
+        ),
         //     testM("mapConcat")(checkM(pureStreamOfInts, Gen.function(Gen.listOf(Gen.anyInt))) { (s, f) =>
         //       for {
         //         res1 <- s.mapConcat(f).runCollect
@@ -1918,22 +1918,22 @@ object ZStreamSpec extends ZIOBaseSpec {
         //           .map(assert(_)(equalTo(Left("Ouch"))))
         //       }
         //     ),
-        //     testM("mapError") {
-        //       ZStream
-        //         .fail("123")
-        //         .mapError(_.toInt)
-        //         .runCollect
-        //         .either
-        //         .map(assert(_)(isLeft(equalTo(123))))
-        //     },
-        //     testM("mapErrorCause") {
-        //       ZStream
-        //         .halt(Cause.fail("123"))
-        //         .mapErrorCause(_.map(_.toInt))
-        //         .runCollect
-        //         .either
-        //         .map(assert(_)(isLeft(equalTo(123))))
-        //     },
+        testM("mapError") {
+          ZStream
+            .fail("123")
+            .mapError(_.toInt)
+            .runCollect
+            .either
+            .map(assert(_)(isLeft(equalTo(123))))
+        },
+        testM("mapErrorCause") {
+          ZStream
+            .halt(Cause.fail("123"))
+            .mapErrorCause(_.map(_.toInt))
+            .runCollect
+            .either
+            .map(assert(_)(isLeft(equalTo(123))))
+        },
         suite("mapM")(
           testM("ZIO#foreach equivalence") {
             checkM(Gen.small(Gen.listOfN(_)(Gen.anyByte)), Gen.function(Gen.successes(Gen.anyByte))) { (data, f) =>
@@ -2332,22 +2332,22 @@ object ZStreamSpec extends ZIOBaseSpec {
         //         }
         //       )
         //     ),
-        //     suite("scan")(
-        //       testM("scan")(checkM(pureStreamOfInts) { s =>
-        //         for {
-        //           streamResult <- s.scan(0)(_ + _).runCollect
-        //           chunkResult  <- s.runCollect.map(_.scan(0)(_ + _))
-        //         } yield assert(streamResult)(equalTo(chunkResult))
-        //       })
-        //     ),
-        //     suite("scanReduce")(
-        //       testM("scanReduce")(checkM(pureStreamOfInts) { s =>
-        //         for {
-        //           streamResult <- s.scanReduce(_ + _).runCollect
-        //           chunkResult  <- s.runCollect.map(_.scan(0)(_ + _).tail)
-        //         } yield assert(streamResult)(equalTo(chunkResult))
-        //       })
-        //     ),
+             suite("scan")(
+               testM("scan")(checkM(pureStreamOfInts) { s =>
+                 for {
+                   streamResult <- s.scan(0)(_ + _).runCollect
+                   chunkResult  <- s.runCollect.map(_.scan(0)(_ + _))
+                 } yield assert(streamResult)(equalTo(chunkResult))
+               })
+             ),
+             suite("scanReduce")(
+               testM("scanReduce")(checkM(pureStreamOfInts) { s =>
+                 for {
+                   streamResult <- s.scanReduce(_ + _).runCollect
+                   chunkResult  <- s.runCollect.map(_.scan(0)(_ + _).tail)
+                 } yield assert(streamResult)(equalTo(chunkResult))
+               })
+             ),
              suite("schedule")(
                testM("scheduleWith")(
                  assertM(

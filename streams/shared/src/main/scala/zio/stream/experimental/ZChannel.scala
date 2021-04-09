@@ -454,7 +454,13 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
    * channel is created by applying the specified function to the failure value of this channel.
    */
   final def mapError[OutErr2](f: OutErr => OutErr2): ZChannel[Env, InErr, InElem, InDone, OutErr2, OutElem, OutDone] =
-    catchAllCause((cause: Cause[OutErr]) => cause.failureOrCause.fold(err => ZChannel.fail(f(err)), ZChannel.halt(_)))
+    mapErrorCause(_.map(f))
+
+  /**
+   * A more powerful version of [[mapError]] which also surfaces the [[Cause]] of the channel failure
+   */
+  final def mapErrorCause[OutErr2](f: Cause[OutErr] => Cause[OutErr2]): ZChannel[Env, InErr, InElem, InDone, OutErr2, OutElem, OutDone] =
+    catchAllCause((cause: Cause[OutErr]) => ZChannel.halt(f(cause)))
 
   /**
    * Returns a new channel, which is the same as this one, except the terminal value of the
