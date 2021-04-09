@@ -3580,15 +3580,9 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       } yield pull
     }
 
-  /**
-   * Creates a stream from a [[zio.ZHub]]. The hub will be shutdown once the stream is closed.
-   */
   def fromChunkHub[R, E, O](hub: ZHub[Nothing, R, Any, E, Nothing, Chunk[O]]): ZStream[R, E, O] =
     managed(hub.subscribe).flatMap(queue => fromChunkQueue(queue))
 
-  /**
-   * Creates a stream from a [[zio.ZHub]] of values. The hub will be shutdown once the stream is closed.
-   */
   def fromChunkHubWithShutdown[R, E, O](hub: ZHub[Nothing, R, Any, E, Nothing, Chunk[O]]): ZStream[R, E, O] =
     fromChunkHub(hub).ensuringFirst(hub.shutdown)
 
