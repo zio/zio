@@ -362,9 +362,9 @@ object ZSink {
     }
 
   /**
-   * A sink that collects all of its inputs into a map of up to `n` keys. The
-   * keys are extracted from inputs using the keying function `key`; if multiple
-   * inputs use the same key, they are merged using the `f` function.
+   * A sink that collects first `n` keys into a map. The keys are calculated
+   * from inputs using the keying function `key`; if multiple inputs use the
+   * the same key, they are merged using the `f` function.
    */
   def collectAllToMapN[Err, In, K](n: Long)(key: In => K)(f: (In, In) => In): ZSink[Any, Err, In, Err, In, Map[K, In]] =
     foldWeighted[Err, In, Map[K, In]](Map())((acc, in) => if (acc.contains(key(in))) 0 else 1, n) { (acc, in) =>
