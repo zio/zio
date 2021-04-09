@@ -321,7 +321,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
         _.map(
           ZStream
             .fromQueueWithShutdown(_)
-            .flattenExitOption
+            .flattenTake
         )
       )
 
@@ -332,49 +332,43 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    */
   final def broadcastDynamic(
     maximumLag: Int
-  ): ZManaged[R, Nothing, UIO[ZStream[Any, E, O]]] =
-    distributedWithDynamic(maximumLag, _ => ZIO.succeedNow(_ => true), _ => ZIO.unit)
-      .map(_.map(_._2))
+  ): ZManaged[R, Nothing, ZManaged[Any, Nothing, ZStream[Any, E, O]]] =
+    self
+      .broadcastedQueuesDynamic(maximumLag)
       .map(
         _.map(
           ZStream
             .fromQueueWithShutdown(_)
-            .flattenExitOption
+            .flattenTake
         )
       )
 
   /**
    * Converts the stream to a managed list of queues. Every value will be replicated to every queue with the
    * slowest queue being allowed to buffer `maximumLag` chunks before the driver is backpressured.
-   * The downstream queues will be provided with chunks in the same order they are returned, so
-   * the fastest queue might have seen up to (`maximumLag` + 1) chunks more than the slowest queue if it
-   * has a lower index than the slowest queue.
    *
    * Queues can unsubscribe from upstream by shutting down.
    */
   final def broadcastedQueues(
     n: Int,
     maximumLag: Int
-  ): ZManaged[R, Nothing, List[Dequeue[Exit[Option[E], O]]]] = {
-    val decider = ZIO.succeedNow((_: Int) => true)
-    distributedWith(n, maximumLag, _ => decider)
-  }
+  ): ZManaged[R, Nothing, List[Dequeue[Take[E, O]]]] =
+    for {
+      hub    <- Hub.bounded[Take[E, O]](maximumLag).toManaged_
+      queues <- ZManaged.collectAll(List.fill(n)(hub.subscribe))
+      _      <- self.intoHubManaged(hub).fork
+    } yield queues
 
   /**
    * Converts the stream to a managed dynamic amount of queues. Every chunk will be replicated to every queue with the
    * slowest queue being allowed to buffer `maximumLag` chunks before the driver is backpressured.
-   * The downstream queues will be provided with chunks in the same order they are returned, so
-   * the fastest queue might have seen up to (`maximumLag` + 1) chunks more than the slowest queue if it
-   * has a lower index than the slowest queue.
    *
    * Queues can unsubscribe from upstream by shutting down.
    */
   final def broadcastedQueuesDynamic(
     maximumLag: Int
-  ): ZManaged[R, Nothing, UIO[Dequeue[Exit[Option[E], O]]]] = {
-    val decider = ZIO.succeedNow((_: UniqueKey) => true)
-    distributedWithDynamic(maximumLag, _ => decider, _ => ZIO.unit).map(_.map(_._2))
-  }
+  ): ZManaged[R, Nothing, ZManaged[Any, Nothing, Dequeue[Take[E, O]]]] =
+    toHub(maximumLag).map(_.subscribe)
 
   /**
    * Allows a faster producer to progress independently of a slower consumer by buffering
@@ -1866,6 +1860,24 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     intoManaged(queue).use_(UIO.unit)
 
   /**
+   * Publishes elements of this stream to a hub. Stream failure and ending will also be
+   * signalled.
+   */
+  final def intoHub[R1 <: R, E1 >: E](
+    hub: ZHub[R1, Nothing, Nothing, Any, Take[E1, O], Any]
+  ): ZIO[R1, E1, Unit] =
+    into(hub.toQueue)
+
+  /**
+   * Like [[ZStream#intoHub]], but provides the result as a [[ZManaged]] to allow for scope
+   * composition.
+   */
+  final def intoHubManaged[R1 <: R, E1 >: E](
+    hub: ZHub[R1, Nothing, Nothing, Any, Take[E1, O], Any]
+  ): ZManaged[R1, E1, Unit] =
+    intoManaged(hub.toQueue)
+
+  /**
    * Like [[ZStream#into]], but provides the result as a [[ZManaged]] to allow for scope
    * composition.
    */
@@ -2975,6 +2987,16 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   }
 
   /**
+   * Converts the stream to a managed hub of chunks. After the managed hub is used,
+   * the hub will never again produce values and should be discarded.
+   */
+  def toHub(capacity: Int): ZManaged[R, Nothing, ZHub[Nothing, Any, Any, Nothing, Nothing, Take[E, O]]] =
+    for {
+      hub <- Hub.bounded[Take[E, O]](capacity).toManaged(_.shutdown)
+      _   <- self.intoHubManaged(hub).fork
+    } yield hub
+
+  /**
    * Converts this stream of bytes into a `java.io.InputStream` wrapped in a [[ZManaged]].
    * The returned input stream will only be valid within the scope of the ZManaged.
    */
@@ -3559,6 +3581,18 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     }
 
   /**
+   * Creates a stream from a [[zio.ZHub]]. The hub will be shutdown once the stream is closed.
+   */
+  def fromChunkHub[R, E, O](hub: ZHub[Nothing, R, Any, E, Nothing, Chunk[O]]): ZStream[R, E, O] =
+    managed(hub.subscribe).flatMap(queue => fromChunkQueue(queue))
+
+  /**
+   * Creates a stream from a [[zio.ZHub]] of values. The hub will be shutdown once the stream is closed.
+   */
+  def fromChunkHubWithShutdown[R, E, O](hub: ZHub[Nothing, R, Any, E, Nothing, Chunk[O]]): ZStream[R, E, O] =
+    fromChunkHub(hub).ensuringFirst(hub.shutdown)
+
+  /**
    * Creates a stream from a [[zio.ZQueue]] of values
    */
   def fromChunkQueue[R, E, O](queue: ZQueue[Nothing, R, Any, E, Nothing, Chunk[O]]): ZStream[R, E, O] =
@@ -3603,6 +3637,18 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
                }.flatten
       } yield pull
     }
+
+  /**
+   * Creates a stream from a subscription to a hub.
+   */
+  def fromHub[R, E, A](hub: ZHub[Nothing, R, Any, E, Nothing, A]): ZStream[R, E, A] =
+    managed(hub.subscribe).flatMap(queue => fromQueue(queue))
+
+  /**
+   * Creates a stream from a subscription to a hub.
+   */
+  def fromHubWithShutdown[R, E, A](hub: ZHub[Nothing, R, Any, E, Nothing, A]): ZStream[R, E, A] =
+    fromHub(hub).ensuringFirst(hub.shutdown)
 
   /**
    * Creates a stream from an iterable collection of values

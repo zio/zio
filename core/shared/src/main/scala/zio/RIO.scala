@@ -110,6 +110,12 @@ object RIO {
     ZIO.collectAll(in)
 
   /**
+   * @see See [[[zio.ZIO.collectAll[R,E,A](in:Option*]]]
+   */
+  def collectAll[R, A](in: Option[RIO[R, A]]): RIO[R, Option[A]] =
+    ZIO.collectAll(in)
+
+  /**
    * @see See [[[zio.ZIO.collectAll[R,E,A](in:zio\.NonEmptyChunk*]]]
    */
   def collectAll[R, A](in: NonEmptyChunk[RIO[R, A]]): RIO[R, NonEmptyChunk[A]] =
@@ -763,6 +769,18 @@ object RIO {
    * @see See [[zio.ZIO.none]]
    */
   val none: UIO[Option[Nothing]] = ZIO.none
+
+  /**
+   * @see See [[zio.ZIO.noneOrFail]]
+   */
+  def noneOrFail(o: Option[Throwable]): RIO[Nothing, Unit] =
+    ZIO.noneOrFail(o)
+
+  /**
+   * @see See [[zio.ZIO.noneOrFailWith]]
+   */
+  def noneOrFailWith[O](o: Option[O])(f: O => Throwable): RIO[Nothing, Unit] =
+    ZIO.noneOrFailWith(o)(f)
 
   /**
    *  @see See [[zio.ZIO.not]]

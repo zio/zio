@@ -19,8 +19,8 @@ While ZIO is a zero dependency library, some basic capabilities of the platform 
 
 ```scala
 libraryDependencies ++= Seq(
-  "io.github.cquiroz" %%% "scala-java-time" % "2.0.0"
-  "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.0.0"
+  "io.github.cquiroz" %%% "scala-java-time" % "2.2.0"
+  "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.2.0"
 )
 ```
 

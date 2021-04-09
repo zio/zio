@@ -65,15 +65,24 @@ object MavenJunitSpec extends DefaultRunnableSpec {
               "when running from IDE put this into `VM Parameters`: `-Dproject.version=<current zio version>`"
           )
         )
-  } yield new MavenDriver(projectDir, projectVer)
+    scalaVersion       = sys.props.get("scala.version").getOrElse("2.12.10")
+    scalaCompatVersion = sys.props.get("scala.compat.version").getOrElse("2.12")
+  } yield new MavenDriver(projectDir, projectVer, scalaVersion, scalaCompatVersion)
 
-  class MavenDriver(projectDir: String, projectVersion: String) {
+  class MavenDriver(projectDir: String, projectVersion: String, scalaVersion: String, scalaCompatVersion: String) {
     val mvnRoot: String = new File(s"$projectDir/../maven").getCanonicalPath
     private val cli     = new MavenCli
     System.setProperty("maven.multiModuleProjectDirectory", mvnRoot)
 
     def clean(): RIO[Blocking, Int] = run("clean")
-    def test(): RIO[Blocking, Int]  = run("test", s"-Dzio.version=${projectVersion}", s"-ssettings.xml")
+
+    def test(): RIO[Blocking, Int] = run(
+      "test",
+      s"-Dzio.version=$projectVersion",
+      s"-Dscala.version=$scalaVersion",
+      s"-Dscala.compat.version=$scalaCompatVersion",
+      s"-ssettings.xml"
+    )
     def run(command: String*): RIO[Blocking, Int] = effectBlocking(
       cli.doMain(command.toArray, mvnRoot, System.out, System.err)
     )
