@@ -2360,10 +2360,10 @@ object ZStreamSpec extends ZIOBaseSpec {
         ),
         suite("runLast")(
           testM("nonempty stream")(
-            assertM(ZStream(1, 2, 3, 4).runLast)(equalTo(Some(4)))
+            assertM(ZStream(1, 2, 3, 4).runLast)(isSome(equalTo(4)))
           ),
           testM("empty stream")(
-            assertM(ZStream.empty.runLast)(equalTo(None))
+            assertM(ZStream.empty.runLast)(isNone)
           )
         ),
         suite("runManaged")(

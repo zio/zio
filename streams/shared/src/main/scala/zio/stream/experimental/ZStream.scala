@@ -939,18 +939,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Returns a Managed value that represents the scope of the stream.
    * Stops the fold early when the condition is not fulfilled.
    */
-  def runFoldWhileManaged[S](s: S)(cont: S => Boolean)(f: (S, A) => S): ZManaged[R, E, S] = {
-    def fold(s1: S): ZChannel[R, E, Chunk[A], Any, E, Nothing, S] =
-      if (!cont(s1)) ZChannel.succeed(s1)
-      else
-        ZChannel.readWithCause(
-          (in: Chunk[A]) => fold(in.foldWhile(s1)(cont)(f)),
-          (halt: Cause[E]) => ZChannel.halt(halt),
-          _ => ZChannel.end(s1)
-        )
-
-    (channel >>> fold(s)).runManaged
-  }
+  def runFoldWhileManaged[S](s: S)(cont: S => Boolean)(f: (S, A) => S): ZManaged[R, E, S] =
+    runManaged(ZSink.fold(s)(cont)(f))
 
   /**
    * Executes an effectful fold over the stream of values.
@@ -968,18 +958,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def runFoldWhileManagedM[R1 <: R, E1 >: E, S](
     s: S
-  )(cont: S => Boolean)(f: (S, A) => ZIO[R1, E1, S]): ZManaged[R1, E1, S] = {
-    def fold(s1: S): ZChannel[R1, E, Chunk[A], Any, E1, Nothing, S] =
-      if (!cont(s1)) ZChannel.succeed(s1)
-      else
-        ZChannel.readWithCause[R1, E, Chunk[A], Any, E1, Nothing, S](
-          in => ZChannel.fromEffect(in.foldM(s1)(f)).flatMap(fold),
-          halt => ZChannel.halt(halt),
-          _ => ZChannel.end(s1)
-        )
-
-    (channel >>> fold(s)).runManaged
-  }
+  )(cont: S => Boolean)(f: (S, A) => ZIO[R1, E1, S]): ZManaged[R1, E1, S] =
+    runManaged(ZSink.foldM(s)(cont)(f))
 
   /**
    * Consumes all elements of the stream, passing them to the specified callback.
@@ -991,27 +971,27 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Consumes all elements of the stream, passing them to the specified callback.
    */
   final def runForeach[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Any]): ZIO[R1, E1, Unit] =
-    channel.mapOutM(chunk => ZIO.foreach_(chunk)(f)).runDrain.unit
+    run(ZSink.foreach(f))
 
   /**
    * Consumes all elements of the stream, passing them to the specified callback.
    */
   final def runForeachChunk[R1 <: R, E1 >: E](f: Chunk[A] => ZIO[R1, E1, Any]): ZIO[R1, E1, Unit] =
-    channel.mapOutM(f).runDrain.unit
+    run(ZSink.foreachChunk(f))
 
   /**
    * Like [[ZStream#foreachChunk]], but returns a `ZManaged` so the finalization order
    * can be controlled.
    */
   final def runForeachChunkManaged[R1 <: R, E1 >: E](f: Chunk[A] => ZIO[R1, E1, Any]): ZManaged[R1, E1, Unit] =
-    channel.mapOutM(f).drain.runManaged.unit
+    runManaged(ZSink.foreachChunk(f))
 
   /**
    * Like [[ZStream#foreach]], but returns a `ZManaged` so the finalization order
    * can be controlled.
    */
   final def runForeachManaged[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Any]): ZManaged[R1, E1, Unit] =
-    channel.mapOutM(chunk => ZIO.foreach_(chunk)(f)).drain.runManaged.unit
+    runManaged(ZSink.foreach(f))
 
   /**
    * Consumes elements of the stream, passing them to the specified callback,
@@ -1847,14 +1827,15 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Runs the stream and collects all of its elements to a chunk.
    */
   def runCollect: ZIO[R, E, Chunk[A]] =
-    channel.runCollect.map(_._1.flatten)
+    run(ZSink.collectAll)
 
   /**
    * Runs the stream and emits the number of elements processed
    *
    * Equivalent to `run(ZSink.count)`
    */
-  final def runCount: ZIO[R, E, Long] = self.run(???)
+  final def runCount: ZIO[R, E, Long] =
+    run(ZSink.count)
 
   /**
    * Runs the stream only for its effects. The emitted elements are discarded.
@@ -1874,14 +1855,15 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * discarding the rest of the elements.
    */
   def runLast: ZIO[R, E, Option[A]] =
-    run(???)
+    run(ZSink.last)
 
   /**
    * Runs the stream to a sink which sums elements, provided they are Numeric.
    *
    * Equivalent to `run(Sink.sum[A])`
    */
-  final def runSum[A1 >: A](implicit ev: Numeric[A1]): ZIO[R, E, A1] = run(???)
+  final def runSum[A1 >: A](implicit ev: Numeric[A1]): ZIO[R, E, A1] =
+    run(ZSink.sum[E, A1])
 
   /**
    * Statefully maps over the elements of this stream to produce all intermediate results
