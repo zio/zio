@@ -2,7 +2,9 @@ package zio.stream
 
 import zio._
 import zio.blocking.{Blocking, effectBlockingIO}
+import zio.duration._
 import zio.test.Assertion._
+import zio.test.TestAspect._
 import zio.test._
 
 import java.io.{FileNotFoundException, FileReader, IOException, OutputStream, Reader}
@@ -315,7 +317,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
           val data  = Array.tabulate[Byte](ZStream.DefaultChunkSize * 5 / 2)(_.toByte)
           val write = (out: OutputStream) => { out.write(data); out.close() }
           ZStream.fromOutputStreamWriter(write).runCollect.map(assert(_)(equalTo(Chunk.fromArray(data))))
-        },
+        } @@ timeout(10.seconds) @@ flaky,
         testM("is interruptable") {
           val latch = new CountDownLatch(1)
           val write = (out: OutputStream) => { latch.await(); out.write(42); }
