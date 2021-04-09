@@ -467,7 +467,7 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
 
     def loop(s: S, iterator: Iterator[Array[A]], array: Array[A], i: Int, length: Int): ZIO[R, E, S] =
       if (i < length) {
-        if (pred(s)) f(s, self(i)).flatMap(loop(_, iterator, array, i + 1, length))
+        if (pred(s)) f(s, array(i)).flatMap(loop(_, iterator, array, i + 1, length))
         else IO.succeedNow(s)
       } else if (iterator.hasNext) {
         val array  = iterator.next()
