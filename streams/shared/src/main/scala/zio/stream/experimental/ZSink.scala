@@ -343,7 +343,8 @@ object ZSink {
   }
 
   /**
-   * A sink that collects all of its inputs into chunks of maximum size `n`.
+   * A sink that collects all of its inputs into chunks of maximum size `n`. Note
+   * that the chunks are preallocated and must fit in memory.
    */
   def collectAllN[Err, In](n: Int): ZSink[Any, Err, In, Err, In, Chunk[In]] =
     fromEffect(UIO(ChunkBuilder.make[In](n)))
