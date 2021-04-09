@@ -33,6 +33,16 @@ object ZSinkSpec extends ZIOBaseSpec {
               .run(ZSink.collectAllToMap((_: Int) % 3)(_ + _))
           )(equalTo(Map[Int, Int](0 -> 18, 1 -> 12, 2 -> 15)))
         ),
+        suite("collectAllToMapN")(
+          testM("respect the given limit") {
+            assertM(
+              ZStream(1, 1, 2, 2, 3, 2, 4, 5).run(ZSink.collectAllToMapN(2)((_: Int) % 3)(_ + _))
+            )(equalTo(Map(1 -> 2, 2 -> 4)))
+          },
+          testM("handles empty input") {
+            assertM(ZStream.empty.run(ZSink.collectAllToMapN(2)((_: Int) % 3)(_ + _)))(equalTo(Map.empty[Int, Int]))
+          }
+        ),
         suite("accessSink")(
           testM("accessSink") {
             assertM(
