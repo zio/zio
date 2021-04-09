@@ -1228,8 +1228,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * duration has passed, whichever is satisfied first.
    */
   def groupedWithin(chunkSize: Int, within: Duration): ZStream[R with Clock, E, Chunk[A]] =
-    ???
-
+    aggregateAsyncWithin(ZSink.collectAllN[E, A](chunkSize), Schedule.spaced(within))
 
   /**
    * Halts the evaluation of this stream when the provided IO completes. The given IO

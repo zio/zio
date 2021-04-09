@@ -11,7 +11,7 @@ import zio.duration._
 // import zio.stream.ZSink.Push
 import zio.stream.experimental.ZStreamGen._
 import zio.test.Assertion._
-// import zio.test.TestAspect.{ exceptJS, flaky, nonFlaky, scala2Only, timeout }
+import zio.test.TestAspect.{ flaky, timeout }
 import zio.test._
 import zio.test.environment.TestClock
 
@@ -1590,31 +1590,31 @@ object ZStreamSpec extends ZIOBaseSpec {
         //         assertM(ZStream.fromIterable(List.empty[Int]).grouped(5).runCollect)(equalTo(Chunk.empty))
         //       }
         //     ),
-        //     suite("groupedWithin")(
-        //       testM("group based on time passed") {
-        //         assertWithChunkCoordination(List(Chunk(1, 2), Chunk(3, 4), Chunk.single(5))) { c =>
-        //           val stream = ZStream
-        //             .fromQueue(c.queue)
-        //             .collectWhileSuccess
-        //             .flattenChunks
-        //             .groupedWithin(10, 2.seconds)
-        //             .tap(_ => c.proceed)
+        suite("groupedWithin")(
+          testM("group based on time passed") {
+            assertWithChunkCoordination(List(Chunk(1, 2), Chunk(3, 4), Chunk.single(5))) { c =>
+              val stream = ZStream
+                .fromQueue(c.queue)
+                .collectWhileSuccess
+                .flattenChunks
+                .groupedWithin(10, 2.seconds)
+                .tap(_ => c.proceed)
 
-        //           assertM(for {
-        //             f      <- stream.runCollect.fork
-        //             _      <- c.offer *> TestClock.adjust(2.seconds) *> c.awaitNext
-        //             _      <- c.offer *> TestClock.adjust(2.seconds) *> c.awaitNext
-        //             _      <- c.offer
-        //             result <- f.join
-        //           } yield result)(equalTo(Chunk(Chunk(1, 2), Chunk(3, 4), Chunk(5))))
-        //         }
-        //       } @@ timeout(10.seconds) @@ flaky,
-        //       testM("group immediately when chunk size is reached") {
-        //         assertM(ZStream(1, 2, 3, 4).groupedWithin(2, 10.seconds).runCollect)(
-        //           equalTo(Chunk(Chunk(1, 2), Chunk(3, 4)))
-        //         )
-        //       }
-        //     ),
+              assertM(for {
+                f      <- stream.runCollect.fork
+                _      <- c.offer *> TestClock.adjust(2.seconds) *> c.awaitNext
+                _      <- c.offer *> TestClock.adjust(2.seconds) *> c.awaitNext
+                _      <- c.offer
+                result <- f.join
+              } yield result)(equalTo(Chunk(Chunk(1, 2), Chunk(3, 4), Chunk(5))))
+            }
+          } @@ timeout(10.seconds) @@ flaky,
+          testM("group immediately when chunk size is reached") {
+            assertM(ZStream(1, 2, 3, 4).groupedWithin(2, 10.seconds).runCollect)(
+              equalTo(Chunk(Chunk(1, 2), Chunk(3, 4)))
+            )
+          }
+        ),
         //     testM("interleave") {
         //       val s1 = ZStream(2, 3)
         //       val s2 = ZStream(5, 6, 7)
