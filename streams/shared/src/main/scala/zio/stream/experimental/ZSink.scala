@@ -346,7 +346,7 @@ object ZSink {
    * A sink that collects all of its inputs into chunks of maximum size `n`.
    */
   def collectAllN[Err, In](n: Int): ZSink[Any, Err, In, Err, In, Chunk[In]] =
-    foldUntil(Chunk.empty: Chunk[In], n.toLong)(_ :+ _)
+    foldUntil[Err, In, ChunkBuilder[In]](ChunkBuilder.make[In](n), n.toLong)(_ += _).map(_.result())
 
   /**
    * A sink that collects all of its inputs into a map. The keys are extracted from inputs
