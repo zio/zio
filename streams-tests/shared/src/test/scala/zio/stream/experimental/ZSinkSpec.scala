@@ -26,6 +26,14 @@ object ZSinkSpec extends ZIOBaseSpec {
               .run(ZSink.collectAllToSet[Nothing, Int])
           )(equalTo(Set(1, 2, 3, 4)))
         ),
+        suite("collectAllToSetN")(
+          testM("respect the given limit") {
+            assertM(ZStream(1, 1, 2, 3, 4, 5).run(ZSink.collectAllToSetN(2)))(equalTo(Set(1, 2)))
+          },
+          testM("handles empty input") {
+            assertM(ZStream.empty.run(ZSink.collectAllToSetN(2)))(isEmpty)
+          }
+        ),
         testM("collectAllToMap")(
           assertM(
             ZStream
