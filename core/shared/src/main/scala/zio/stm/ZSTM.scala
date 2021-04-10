@@ -832,7 +832,7 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
 
       while (!contStack.isEmpty && (result eq null)) {
         contStack.pop() match {
-          case OnFailure(_, onFailure) => if (!isRetry) result = onFailure(error)
+          case OnFailure(_, onFailure) => if (!isRetry) result = onFailure.asInstanceOf[Cont].apply(error)
           case OnRetry(_, onRetry)     => if (isRetry) result = onRetry
           case _                       =>
         }
