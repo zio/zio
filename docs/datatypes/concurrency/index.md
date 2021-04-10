@@ -74,14 +74,23 @@ Here we are going to enumerate some points that why the ZIO concurrency model he
 
 ## Concurrent Primitives
 
-Let's take a quick look at ZIO concurrent primitives, what are they and why they exist:
+Let's take a quick look at ZIO concurrent primitives, what are they and why they exist.
+
+### Basic Operations
+
+`Ref` and `Promise` are the two simple concurrency primitives which provide an orthogonal basis for building concurrency structures. They are assembly language of other concurrent data structures:
 
 - **[Ref](ref.md)** — `Ref` and all its variant like [`ZRef`](zref.md), [`ZRefM`](zrefm.md) and [`RefM`](refm.md) are building blocks for writing concurrent stateful applications. Anytime we need to share information between multiple fibers, and those fibers have to update the same information, they need to communicate through something that provides the guarantee of atomicity. So all of these `Ref` primitives are atomic and thread-safe. They provide us a reliable foundation for synchronizing concurrent programs.
 
 - **[Promise](promise.md)** — A `Promise` is a model of a variable that may be set a single time, and awaited on by many fibers. This primitive is very useful when we need some point of synchronization between two or multiple fibers.
 
+By using these two simple primitives, we can build lots of other asynchronous concurrent data structures like `Semaphore`, `Queue` and `Hub`.
+
+### Others
+
 - **[Semaphore](semaphore.md)** — A `Semaphore` is an asynchronous (non-blocking) semaphore that plays well with ZIO's interruption. `Semahore` is a generalization of a mutex. It has a certain number of permits, which can be held and released concurrently by different parties. Attempts to acquire more permits than available result in the acquiring fiber being suspended until the specified number of permits become available.
+
+- **[Queue](queue.md)** — A `Queue` is an asynchronous queue that never blocks, which is safe for multiple concurrent producers and consumers.
 
 - **[Hub](hub.md)** - A `Hub` is an asynchronous message hub that allows publishers to efficiently broadcast values to many subscribers.
   
-- **[Queue](queue.md)** — A `Queue` is an asynchronous queue that never blocks, which is safe for multiple concurrent producers and consumers.
