@@ -193,7 +193,7 @@ val hub: Hub[Int] = ???
 
 val hubWithLogging: ZHub[Any, Clock with Console, Nothing, Nothing, Int, Int] =
   hub.mapM { n =>
-    clock.currentDateTime.orDie.flatMap { currentDateTime =>
+    clock.currentDateTime.flatMap { currentDateTime =>
       console.putStrLn(s"Took message $n from the hub at $currentDateTime")
     }.as(n)
   }

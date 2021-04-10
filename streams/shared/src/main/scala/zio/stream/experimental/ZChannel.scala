@@ -2,7 +2,13 @@ package zio.stream.experimental
 
 import zio.ZManaged.ReleaseMap
 import zio._
-import zio.stream.experimental.internal.{ AsyncInputConsumer, AsyncInputProducer, SingleProducerAsyncInput, ChannelExecutor }
+import zio.stream.experimental.internal.{
+  AsyncInputConsumer,
+  AsyncInputProducer,
+  ChannelExecutor,
+  SingleProducerAsyncInput
+}
+
 import ChannelExecutor.ChannelState
 
 /**
@@ -90,7 +96,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
    * The returned channel has the input type of this channel, and the output type of the specified
    * channel, terminating with the value of the specified channel.
    *
-   * This is a symbolic operator for [[ZChannel##pipeTo]].
+   * This is a symbolic operator for [[ZChannel#pipeTo]].
    */
   final def >>>[Env1 <: Env, OutErr2, OutElem2, OutDone2](
     that: => ZChannel[Env1, OutErr, OutElem, OutDone, OutErr2, OutElem2, OutDone2]
@@ -385,7 +391,6 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     self.flatMap(ev)
 
   /**
-   *
    */
   final def foldM[
     Env1 <: Env,
@@ -408,7 +413,6 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     )
 
   /**
-   *
    */
   final def foldCauseM[
     Env1 <: Env,
@@ -459,7 +463,9 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
   /**
    * A more powerful version of [[mapError]] which also surfaces the [[Cause]] of the channel failure
    */
-  final def mapErrorCause[OutErr2](f: Cause[OutErr] => Cause[OutErr2]): ZChannel[Env, InErr, InElem, InDone, OutErr2, OutElem, OutDone] =
+  final def mapErrorCause[OutErr2](
+    f: Cause[OutErr] => Cause[OutErr2]
+  ): ZChannel[Env, InErr, InElem, InDone, OutErr2, OutElem, OutDone] =
     catchAllCause((cause: Cause[OutErr]) => ZChannel.halt(f(cause)))
 
   /**
@@ -491,17 +497,8 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     leftDone: Exit[OutErr, OutDone] => ZChannel.MergeDecision[Env1, OutErr2, OutDone2, OutErr3, OutDone3],
     rightDone: Exit[OutErr2, OutDone2] => ZChannel.MergeDecision[Env1, OutErr, OutDone, OutErr3, OutDone3]
   ): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr3, OutElem1, OutDone3] = {
-    sealed trait MergeState
-    case class BothRunning(
-      left: Fiber[Either[OutErr, OutDone], OutElem1],
-      right: Fiber[Either[OutErr2, OutDone2], OutElem1]
-    ) extends MergeState
-    case class LeftDone(
-      f: Exit[OutErr2, OutDone2] => ZIO[Env1, OutErr3, OutDone3]
-    ) extends MergeState
-    case class RightDone(
-      f: Exit[OutErr, OutDone] => ZIO[Env1, OutErr3, OutDone3]
-    ) extends MergeState
+    type MergeState = ZChannel.MergeState[Env1, OutErr, OutErr2, OutErr3, OutElem1, OutDone, OutDone2, OutDone3]
+    import ZChannel.MergeState._
 
     val m =
       for {
@@ -516,7 +513,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
           pull: ZIO[Env1, Either[Err, Done], OutElem1]
         )(
           done: Exit[Err, Done] => ZChannel.MergeDecision[Env1, Err2, Done2, OutErr3, OutDone3],
-          both: (Fiber[Either[Err, Done], OutElem1], Fiber[Either[Err2, Done2], OutElem1]) => BothRunning,
+          both: (Fiber[Either[Err, Done], OutElem1], Fiber[Either[Err2, Done2], OutElem1]) => MergeState,
           single: (Exit[Err2, Done2] => ZIO[Env1, OutErr3, OutDone3]) => MergeState
         ) =
           exit match {
@@ -574,7 +571,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
               }
           }
 
-        ZChannel.fromEffect(pullL.fork.zipWith(pullR.fork)(BothRunning(_, _))).flatMap(go).embedInput(input)
+        ZChannel.fromEffect(pullL.fork.zipWith(pullR.fork)(BothRunning(_, _): MergeState)).flatMap(go).embedInput(input)
       }
 
     ZChannel.unwrapManaged(m)
@@ -961,7 +958,7 @@ object ZChannel {
   )(release: Acquired => URIO[Env, Any])(
     use: Acquired => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem2, OutDone]
   ): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem2, OutDone] =
-    bracketExit(acquire)((a, (_: Exit[OutErr, OutDone])) => release(a))(use)
+    bracketExit[Env, InErr, InElem, InDone, OutErr, Acquired, OutElem2, OutDone](acquire)((a, _) => release(a))(use)
 
   def bracketExit[Env, InErr, InElem, InDone, OutErr, Acquired, OutElem2, OutDone](
     acquire: ZIO[Env, OutErr, Acquired]
@@ -1234,4 +1231,19 @@ object ZChannel {
       (cause: Cause[Err]) => ZChannel.fromEffect(queue.offer(Exit.halt(cause.map(Left(_))))),
       (done: Done) => ZChannel.fromEffect(queue.offer(Exit.fail(Right(done))))
     )
+
+  private[zio] sealed trait MergeState[Env, Err, Err1, Err2, Elem, Done, Done1, Done2]
+  private[zio] object MergeState {
+    case class BothRunning[Env, Err, Err1, Err2, Elem, Done, Done1, Done2](
+      left: Fiber[Either[Err, Done], Elem],
+      right: Fiber[Either[Err1, Done1], Elem]
+    ) extends MergeState[Env, Err, Err1, Err2, Elem, Done, Done1, Done2]
+    case class LeftDone[Env, Err, Err1, Err2, Elem, Done, Done1, Done2](
+      f: Exit[Err1, Done1] => ZIO[Env, Err2, Done2]
+    ) extends MergeState[Env, Err, Err1, Err2, Elem, Done, Done1, Done2]
+    case class RightDone[Env, Err, Err1, Err2, Elem, Done, Done1, Done2](
+      f: Exit[Err, Done] => ZIO[Env, Err2, Done2]
+    ) extends MergeState[Env, Err, Err1, Err2, Elem, Done, Done1, Done2]
+  }
+
 }

@@ -20,7 +20,7 @@ final class TSemaphore private (val permits: TRef[Long]) extends AnyVal {
   def acquire: USTM[Unit] = acquireN(1L)
 
   def acquireN(n: Long): USTM[Unit] =
-    ZSTM.Effect((journal, _, _) => {
+    ZSTM.Effect { (journal, _, _) =>
       assertNonNegative(n)
 
       val value = permits.unsafeGet(journal)
@@ -29,19 +29,19 @@ final class TSemaphore private (val permits: TRef[Long]) extends AnyVal {
       else {
         permits.unsafeSet(journal, value - n)
       }
-    })
+    }
 
   def available: USTM[Long] = permits.get
 
   def release: USTM[Unit] = releaseN(1L)
 
   def releaseN(n: Long): USTM[Unit] =
-    ZSTM.Effect((journal, _, _) => {
+    ZSTM.Effect { (journal, _, _) =>
       assertNonNegative(n)
 
       val current = permits.unsafeGet(journal)
       permits.unsafeSet(journal, current + n)
-    })
+    }
 
   def withPermit[E, B](stm: STM[E, B]): STM[E, B] =
     acquire *> stm <* release

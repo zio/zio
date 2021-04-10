@@ -202,7 +202,7 @@ object ZPipeline {
    * Creates a transducer that folds elements of type `I` into a structure
    * of type `O` until `max` elements have been folded.
    *
-   * Like [[foldWeighted]], but with a constant cost function of 1.
+   * Like foldWeighted, but with a constant cost function of 1.
    */
   def foldUntil[I, O](z: O, max: Long)(f: (O, I) => O): ZPipeline[Any, Nothing, I, O] =
     fold[I, (O, Long)]((z, 0))(_._2 < max) { case ((o, count), i) =>
@@ -213,7 +213,7 @@ object ZPipeline {
    * Creates a transducer that effectfully folds elements of type `I` into a structure
    * of type `O` until `max` elements have been folded.
    *
-   * Like [[foldWeightedM]], but with a constant cost function of 1.
+   * Like foldWeightedM, but with a constant cost function of 1.
    */
   def foldUntilM[R, E, I, O](z: O, max: Long)(f: (O, I) => ZIO[R, E, O]): ZPipeline[R, E, I, O] =
     foldM[R, E, I, (O, Long)]((z, 0))(_._2 < max) { case ((o, count), i) =>

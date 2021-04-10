@@ -1,11 +1,10 @@
 package zio.stream.experimental
 
 import zio.random.Random
-import zio.stream.experimental.ZChannelSimulatedChecks.Simulation.{ opsToDoneChannel, opsToEffect, opsToOutChannel }
-import zio.stream.experimental.ZChannel
+import zio.stream.experimental.ZChannelSimulatedChecks.Simulation.{opsToDoneChannel, opsToEffect, opsToOutChannel}
 import zio.test.Assertion._
 import zio.test._
-import zio.{ Chunk, IO, ZIO, ZIOBaseSpec }
+import zio.{Chunk, IO, ZIO, ZIOBaseSpec}
 
 object ZChannelSimulatedChecks extends ZIOBaseSpec {
   override def spec =
@@ -46,7 +45,7 @@ object ZChannelSimulatedChecks extends ZIOBaseSpec {
 
       val nonRecursive = Seq(
         Gen.const(Succeed),
-        genErr.map(Fail),
+        genErr.map(Fail(_)),
         genRes.map(value => Map(value))
       )
 
@@ -121,7 +120,7 @@ object ZChannelSimulatedChecks extends ZIOBaseSpec {
     def asEffect(f: IO[Err, Res]): IO[Err, Res]
     def writeOutChannelString(sb: StringBuilder): Unit
   }
-  final case object Succeed extends Op {
+  case object Succeed extends Op {
     override def asChannel(
       ch: ZChannel[Any, Err, Any, Res, Err, Nothing, Res]
     ): ZChannel[Any, Err, Any, Res, Err, Nothing, Res] = ch
