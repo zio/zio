@@ -2682,112 +2682,112 @@ object ZStreamSpec extends ZIOBaseSpec {
             )(equalTo(Chunk(1, 2, 3, 4)))
           }
         ),
-        //     suite("debounce")(
-        //       testM("should drop earlier chunks within waitTime") {
-        //         assertWithChunkCoordination(List(Chunk(1), Chunk(3, 4), Chunk(5), Chunk(6, 7))) { c =>
-        //           val stream = ZStream
-        //             .fromQueue(c.queue)
-        //             .collectWhileSuccess
-        //             .debounce(1.second)
-        //             .tap(_ => c.proceed)
+        suite("debounce")(
+          testM("should drop earlier chunks within waitTime") {
+            assertWithChunkCoordination(List(Chunk(1), Chunk(3, 4), Chunk(5), Chunk(6, 7))) { c =>
+              val stream = ZStream
+                .fromQueue(c.queue)
+                .collectWhileSuccess
+                .debounce(1.second)
+                .tap(_ => c.proceed)
 
-        //           assertM(for {
-        //             fiber  <- stream.runCollect.fork
-        //             _      <- c.offer.fork
-        //             _      <- (clock.sleep(500.millis) *> c.offer).fork
-        //             _      <- (clock.sleep(2.seconds) *> c.offer).fork
-        //             _      <- (clock.sleep(2500.millis) *> c.offer).fork
-        //             _      <- TestClock.adjust(3500.millis)
-        //             result <- fiber.join
-        //           } yield result)(equalTo(Chunk(Chunk(3, 4), Chunk(6, 7))))
-        //         }
-        //       },
-        //       testM("should take latest chunk within waitTime") {
-        //         assertWithChunkCoordination(List(Chunk(1, 2), Chunk(3, 4), Chunk(5, 6))) { c =>
-        //           val stream = ZStream
-        //             .fromQueue(c.queue)
-        //             .collectWhileSuccess
-        //             .debounce(1.second)
-        //             .tap(_ => c.proceed)
+              assertM(for {
+                fiber <- stream.runCollect.fork
+                _ <- c.offer.fork
+                _ <- (clock.sleep(500.millis) *> c.offer).fork
+                _ <- (clock.sleep(2.seconds) *> c.offer).fork
+                _ <- (clock.sleep(2500.millis) *> c.offer).fork
+                _ <- TestClock.adjust(3500.millis)
+                result <- fiber.join
+              } yield result)(equalTo(Chunk(Chunk(3, 4), Chunk(6, 7))))
+            }
+          },
+          testM("should take latest chunk within waitTime") {
+            assertWithChunkCoordination(List(Chunk(1, 2), Chunk(3, 4), Chunk(5, 6))) { c =>
+              val stream = ZStream
+                .fromQueue(c.queue)
+                .collectWhileSuccess
+                .debounce(1.second)
+                .tap(_ => c.proceed)
 
-        //           assertM(for {
-        //             fiber  <- stream.runCollect.fork
-        //             _      <- c.offer *> c.offer *> c.offer
-        //             _      <- TestClock.adjust(1.second)
-        //             result <- fiber.join
-        //           } yield result)(equalTo(Chunk(Chunk(5, 6))))
-        //         }
-        //       },
-        //       testM("should work properly with parallelization") {
-        //         assertWithChunkCoordination(List(Chunk(1), Chunk(2), Chunk(3))) { c =>
-        //           val stream = ZStream
-        //             .fromQueue(c.queue)
-        //             .collectWhileSuccess
-        //             .debounce(1.second)
-        //             .tap(_ => c.proceed)
+              assertM(for {
+                fiber <- stream.runCollect.fork
+                _ <- c.offer *> c.offer *> c.offer
+                _ <- TestClock.adjust(1.second)
+                result <- fiber.join
+              } yield result)(equalTo(Chunk(Chunk(5, 6))))
+            }
+          },
+          testM("should work properly with parallelization") {
+            assertWithChunkCoordination(List(Chunk(1), Chunk(2), Chunk(3))) { c =>
+              val stream = ZStream
+                .fromQueue(c.queue)
+                .collectWhileSuccess
+                .debounce(1.second)
+                .tap(_ => c.proceed)
 
-        //           assertM(for {
-        //             fiber  <- stream.runCollect.fork
-        //             _      <- ZIO.collectAllPar_(List(c.offer, c.offer, c.offer))
-        //             _      <- TestClock.adjust(1.second)
-        //             result <- fiber.join
-        //           } yield result)(hasSize(equalTo(1)))
-        //         }
-        //       },
-        //       testM("should handle empty chunks properly") {
-        //         for {
-        //           fiber  <- ZStream(1, 2, 3).fixed(500.millis).debounce(1.second).runCollect.fork
-        //           _      <- TestClock.adjust(3.seconds)
-        //           result <- fiber.join
-        //         } yield assert(result)(equalTo(Chunk(3)))
-        //       },
-        //       testM("should fail immediately") {
-        //         val stream = ZStream.fromEffect(IO.fail(None)).debounce(Duration.Infinity)
-        //         assertM(stream.runCollect.either)(isLeft(equalTo(None)))
-        //       },
-        //       testM("should work with empty streams") {
-        //         val stream = ZStream.empty.debounce(5.seconds)
-        //         assertM(stream.runCollect)(isEmpty)
-        //       },
-        //       testM("should pick last element from every chunk") {
-        //         assertM(for {
-        //           fiber  <- ZStream(1, 2, 3).debounce(1.second).runCollect.fork
-        //           _      <- TestClock.adjust(1.second)
-        //           result <- fiber.join
-        //         } yield result)(equalTo(Chunk(3)))
-        //       },
-        //       testM("should interrupt fibers properly") {
-        //         assertWithChunkCoordination(List(Chunk(1), Chunk(2), Chunk(3))) { c =>
-        //           for {
-        //             fib <- ZStream
-        //                      .fromQueue(c.queue)
-        //                      .tap(_ => c.proceed)
-        //                      .flatMap(ex => ZStream.fromEffectOption(ZIO.done(ex)))
-        //                      .flattenChunks
-        //                      .debounce(200.millis)
-        //                      .interruptWhen(ZIO.never)
-        //                      .take(1)
-        //                      .runCollect
-        //                      .fork
-        //             _       <- (c.offer *> TestClock.adjust(100.millis) *> c.awaitNext).repeatN(3)
-        //             _       <- TestClock.adjust(100.millis)
-        //             results <- fib.join
-        //           } yield assert(results)(equalTo(Chunk(3)))
-        //         }
-        //       },
-        //       testM("should interrupt children fiber on stream interruption") {
-        //         for {
-        //           ref <- Ref.make(false)
-        //           fiber <- (ZStream.fromEffect(ZIO.unit) ++ ZStream.fromEffect(ZIO.never.onInterrupt(ref.set(true))))
-        //                      .debounce(800.millis)
-        //                      .runDrain
-        //                      .fork
-        //           _     <- TestClock.adjust(1.minute)
-        //           _     <- fiber.interrupt
-        //           value <- ref.get
-        //         } yield assert(value)(equalTo(true))
-        //       }
-        //     ),
+              assertM(for {
+                fiber <- stream.runCollect.fork
+                _ <- ZIO.collectAllPar_(List(c.offer, c.offer, c.offer))
+                _ <- TestClock.adjust(1.second)
+                result <- fiber.join
+              } yield result)(hasSize(equalTo(1)))
+            }
+          },
+          testM("should handle empty chunks properly") {
+            for {
+              fiber <- ZStream(1, 2, 3).fixed(500.millis).debounce(1.second).runCollect.fork
+              _ <- TestClock.adjust(3.seconds)
+              result <- fiber.join
+            } yield assert(result)(equalTo(Chunk(3)))
+          },
+          testM("should fail immediately") {
+            val stream = ZStream.fromEffect(IO.fail(None)).debounce(Duration.Infinity)
+            assertM(stream.runCollect.either)(isLeft(equalTo(None)))
+          },
+          testM("should work with empty streams") {
+            val stream = ZStream.empty.debounce(5.seconds)
+            assertM(stream.runCollect)(isEmpty)
+          },
+          testM("should pick last element from every chunk") {
+            assertM(for {
+              fiber <- ZStream(1, 2, 3).debounce(1.second).runCollect.fork
+              _ <- TestClock.adjust(1.second)
+              result <- fiber.join
+            } yield result)(equalTo(Chunk(3)))
+          },
+          testM("should interrupt fibers properly") {
+            assertWithChunkCoordination(List(Chunk(1), Chunk(2), Chunk(3))) { c =>
+              for {
+                fib <- ZStream
+                  .fromQueue(c.queue)
+                  .tap(_ => c.proceed)
+                  .flatMap(ex => ZStream.fromEffectOption(ZIO.done(ex)))
+                  .flattenChunks
+                  .debounce(200.millis)
+                  .interruptWhen(ZIO.never)
+                  .take(1)
+                  .runCollect
+                  .fork
+                _ <- (c.offer *> TestClock.adjust(100.millis) *> c.awaitNext).repeatN(3)
+                _ <- TestClock.adjust(100.millis)
+                results <- fib.join
+              } yield assert(results)(equalTo(Chunk(3)))
+            }
+          },
+          testM("should interrupt children fiber on stream interruption") {
+            for {
+              ref <- Ref.make(false)
+              fiber <- (ZStream.fromEffect(ZIO.unit) ++ ZStream.fromEffect(ZIO.never.onInterrupt(ref.set(true))))
+                .debounce(800.millis)
+                .runDrain
+                .fork
+              _ <- TestClock.adjust(1.minute)
+              _ <- fiber.interrupt
+              value <- ref.get
+            } yield assert(value)(equalTo(true))
+          }
+        ) @@ TestAspect.timeout(15.seconds),
         suite("timeout")(
           testM("succeed") {
             assertM(

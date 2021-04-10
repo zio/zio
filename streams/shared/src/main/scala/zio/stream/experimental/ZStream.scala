@@ -2277,8 +2277,81 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     new ZStream(ZChannel.fromEffect(clock.nanoTime).flatMap(self.channel >>> loop(units, _)))
   }
 
-  final def debounce[E1 >: E, A2 >: A](d: Duration): ZStream[R with Clock, E1, A2] =
-    ???
+  final def debounce[E1 >: E, A2 >: A](d: Duration): ZStream[R with Clock, E1, A2] = {
+    sealed trait Signal
+    case class Emit(last: A2) extends Signal
+    case class Halt(error: Cause[E1]) extends Signal
+    case object End extends Signal
+
+    sealed trait State
+    case object NotStarted extends State
+    case class Previous(fiber: Fiber[Nothing, A2]) extends State
+    case class Current(fiber: Fiber[E1, Signal]) extends State
+
+    ZStream.unwrap(
+      for {
+        scope <- ZIO.forkScope
+        handoff <- ZStream.Handoff.make[Signal]
+      } yield {
+        def enqueue(last: A2) =
+          for {
+            f <- clock.sleep(d).as(last).forkIn(scope)
+          } yield consumer(Previous(f))
+
+        lazy val producer: ZChannel[R with Clock, E, Chunk[A2], Any, E1, Nothing, Any] =
+          ZChannel.readWithCause(
+            (in: Chunk[A2]) => in.lastOption.fold(producer) { last =>
+              ZChannel.fromEffect(handoff.offer(Emit(last))) *> producer
+            },
+            (cause: Cause[E]) => ZChannel.fromEffect(handoff.offer(Halt(cause))),
+            (_: Any) => ZChannel.fromEffect(handoff.offer(End))
+          )
+
+        def consumer(state: State): ZChannel[R with Clock, Any, Any, Any, E1, Chunk[A2], Any] =
+          ZChannel.unwrap(
+            state match {
+              case NotStarted =>
+                handoff.take.map {
+                  case Emit(last) =>
+                    ZChannel.unwrap(enqueue(last))
+                  case Halt(error) =>
+                    ZChannel.halt(error)
+                  case End =>
+                    ZChannel.unit
+                }
+              case Current(fiber) =>
+                fiber.join.map {
+                  case Emit(last) => ZChannel.unwrap(enqueue(last))
+                  case Halt(error) => ZChannel.halt(error)
+                  case End => ZChannel.unit
+                }
+              case Previous(fiber) =>
+                fiber.join.raceWith[R with Clock, E1, E1, Signal, ZChannel[R with Clock, Any, Any, Any, E1, Chunk[A2], Any]](handoff.take)(
+                  {
+                    case (Exit.Success(a), current) =>
+                      ZIO.succeedNow(ZChannel.write(Chunk.single(a)) *> consumer(Current(current)))
+                    case (Exit.Failure(cause), current) =>
+                      current.interrupt as ZChannel.halt(cause)
+                  },
+                  {
+                    case (Exit.Success(Emit(last)), previous) =>
+                      previous.interrupt *> enqueue(last)
+                    case (Exit.Success(Halt(cause)), previous) =>
+                      previous.interrupt as ZChannel.halt(cause)
+                    case (Exit.Success(End), previous) =>
+                      previous.join.map(c => ZChannel.write(Chunk.single(c)) *> ZChannel.unit)
+                    case (Exit.Failure(cause), previous) =>
+                      previous.interrupt as ZChannel.halt(cause)
+                  }
+                )
+            }
+          )
+
+        ZStream.managed((self.channel >>> producer).runManaged.fork) *>
+          new ZStream(consumer(NotStarted))
+      }
+    )
+  }
 
   /**
    * Ends the stream if it does not produce a value after d duration.
