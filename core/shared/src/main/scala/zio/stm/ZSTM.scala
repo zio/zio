@@ -1425,6 +1425,12 @@ object ZSTM {
     ZSTM.access(r => (r.get[A], r.get[B], r.get[C], r.get[D]))
 
   /**
+   * Effectfully accesses the specified service in the environment of the effect.
+   */
+  def serviceWith[Service]: ServiceWithPartiallyApplied[Service] =
+    new ServiceWithPartiallyApplied[Service]
+
+  /**
    * Returns an effect with the optional value.
    */
   def some[A](a: => A): USTM[Option[A]] =
@@ -1524,6 +1530,11 @@ object ZSTM {
   final class AccessMPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[E, A](f: R => ZSTM[R, E, A]): ZSTM[R, E, A] =
       ZSTM.environment.flatMap(f)
+  }
+
+  final class ServiceWithPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
+    def apply[E, A](f: Service => ZSTM[Has[Service], E, A])(implicit tag: Tag[Service]): ZSTM[Has[Service], E, A] =
+      ZSTM.service[Service].flatMap(f)
   }
 
   final class IfM[R, E](private val b: ZSTM[R, E, Boolean]) {
