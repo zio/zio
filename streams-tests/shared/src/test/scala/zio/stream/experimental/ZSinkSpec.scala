@@ -588,7 +588,94 @@ object ZSinkSpec extends ZIOBaseSpec {
             _ <- TestClock.adjust(100.millis)
             r <- f.join
           } yield assert(r)(isGreaterThanEqualTo(100.millis))
-        }
+        },
+        suite("utf8Decode")(
+          testM("running with regular strings") {
+            checkM(Gen.anyString.map(s => Chunk.fromArray(s.getBytes("UTF-8")))) { bytes =>
+              ZStream
+                .fromChunk(bytes)
+                .run(ZSink.utf8Decode)
+                .map(result =>
+                  assert(bytes)(isNonEmpty) implies assert(result)(
+                    isSome(equalTo(new String(bytes.toArray[Byte], "UTF-8")))
+                  )
+                )
+            }
+          },
+          testM("transducing with regular strings") {
+            checkM(Gen.anyString.map(s => Chunk.fromArray(s.getBytes("UTF-8")).map(Chunk.single(_)))) { byteChunks =>
+              ZStream.fromChunks(byteChunks.toList: _*)
+                .transduce(ZSink.utf8Decode.map(_.getOrElse("")))
+                .run(ZSink.mkString)
+                .map { result =>
+                  assert(byteChunks.flatten)(equalTo(Chunk.fromArray(result.getBytes("UTF-8"))))
+                }
+            }
+          },
+          testM("empty byte chunk results with None") {
+            val bytes = Chunk()
+            ZStream
+              .fromChunk(bytes)
+              .run(ZSink.utf8Decode)
+              .map(assert(_)(isNone))
+          },
+          testM("incomplete chunk 1") {
+            val bom  = Chunk.fromArray(Array[Byte](-17, -69, -65))
+            val data = Array(0xc2.toByte, 0xa2.toByte)
+
+            ZStream
+              .fromChunks(bom, Chunk(data(0)), Chunk(data(1)))
+              .run(ZSink.utf8Decode.exposeLeftover)
+              .map { case (string, bytes) =>
+                assert(string)(isSome(equalTo(new String(data, "UTF-8")))) &&
+                  assert(bytes)(isEmpty)
+              }
+          },
+          testM("incomplete chunk 2") {
+            val bom  = Chunk.fromArray(Array[Byte](-17, -69, -65))
+            val data = Array(0xe0.toByte, 0xa4.toByte, 0xb9.toByte)
+
+            ZStream
+              .fromChunks(bom, Chunk(data(0), data(1)), Chunk(data(2)))
+              .run(ZSink.utf8Decode.exposeLeftover)
+              .map { case (string, bytes) =>
+                assert(string)(isSome(equalTo(new String(data, "UTF-8")))) &&
+                  assert(bytes)(isEmpty)
+              }
+          },
+          testM("incomplete chunk 3") {
+            val bom  = Chunk.fromArray(Array[Byte](-17, -69, -65))
+            val data = Array(0xf0.toByte, 0x90.toByte, 0x8d.toByte, 0x88.toByte)
+
+            ZStream
+              .fromChunks(bom, Chunk(data(0), data(1), data(2)), Chunk(data(3)))
+              .run(ZSink.utf8Decode.exposeLeftover)
+              .map { case (string, bytes) =>
+                assert(string)(isSome(equalTo(new String(data, "UTF-8")))) &&
+                  assert(bytes)(isEmpty)
+              }
+          },
+          testM("chunk with leftover") {
+            ZStream
+              .fromChunk(Chunk(0xf0.toByte, 0x90.toByte, 0x8d.toByte, 0x88.toByte, 0xf0.toByte, 0x90.toByte))
+              .run(ZSink.utf8Decode)
+              .map { result =>
+                assert(result.map(s => Chunk.fromArray(s.getBytes)))(
+                  isSome(equalTo(Chunk.fromArray(Array(0xf0.toByte, 0x90.toByte, 0x8d.toByte, 0x88.toByte)))))
+              }
+          },
+          testM("handle byte order mark") {
+            checkM(Gen.anyString) { s =>
+              ZStream
+                .fromChunk(Chunk[Byte](-17, -69, -65) ++ Chunk.fromArray(s.getBytes("UTF-8")))
+                .transduce(ZSink.utf8Decode)
+                .runCollect
+                .map { result =>
+                  assert(result.collect { case Some(s) => s }.mkString)(equalTo(s))
+                }
+            }
+          }
+        )
       )
     )
   }
