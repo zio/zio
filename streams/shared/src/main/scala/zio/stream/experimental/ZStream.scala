@@ -807,19 +807,24 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
         self.interruptWhen(bgDied)
     }
 
+  /**
+   * Drops the specified number of elements from this stream.
+   */
   def drop(n: Int): ZStream[R, E, A] = {
-    def loop(n: Int): ZChannel[R, E, Chunk[A], Any, E, Chunk[A], Any] =
+    def loop(r: Int): ZChannel[R, E, Chunk[A], Any, E, Chunk[A], Any] =
       ZChannel
-        .read[Chunk[A]]
-        .map(chunk => (true, chunk))
-        .catchAll(_ => ZChannel.succeed((false, Chunk.empty)))
-        .flatMap { case (notEnded, chunk) =>
-          val dropped  = chunk.drop(n)
-          val leftover = (n - dropped.length).min(0)
-          val more     = notEnded && leftover > 0
+        .readWith(
+          (in: Chunk[A]) => {
+            val dropped  = in.drop(r)
+            val leftover = (r - in.length).max(0)
+            val more     = in.isEmpty || leftover > 0
 
-          if (more) loop(leftover) else ZChannel.write(dropped) *> ZChannel.identity[E, Chunk[A], Any]
-        }
+            if (more) loop(leftover) else ZChannel.write(dropped) *> ZChannel.identity[E, Chunk[A], Any]
+          },
+          (e: E) => ZChannel.fail(e),
+          (_: Any) => ZChannel.unit
+        )
+
     new ZStream(channel >>> loop(n))
   }
 
@@ -828,18 +833,18 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * evaluates to `true`.
    */
   final def dropWhile(f: A => Boolean): ZStream[R, E, A] = {
-    def loop(f: A => Boolean): ZChannel[R, E, Chunk[A], Any, E, Chunk[A], Any] =
-      ZChannel
-        .read[Chunk[A]]
-        .map(chunk => (true, chunk))
-        .catchAll(_ => ZChannel.succeed((false, Chunk.empty)))
-        .flatMap { case (notEnded, chunk) =>
-          val leftover = chunk.dropWhile(f)
-          val more     = notEnded && (leftover.length == 0)
+    def loop: ZChannel[R, E, Chunk[A], Any, E, Chunk[A], Any] =
+      ZChannel.readWith(
+        (in: Chunk[A]) => {
+          val leftover = in.dropWhile(f)
+          val more     = leftover.isEmpty
 
-          if (more) loop(f) else ZChannel.write(leftover) *> ZChannel.identity[E, Chunk[A], Any]
-        }
-    new ZStream(channel >>> loop(f))
+          if (more) loop else ZChannel.write(leftover) *> ZChannel.identity[E, Chunk[A], Any]
+        },
+        (e: E) => ZChannel.fail(e),
+        (_: Any) => ZChannel.unit
+      )
+    new ZStream(channel >>> loop)
   }
 
   /**

@@ -871,41 +871,51 @@ object ZStreamSpec extends ZIOBaseSpec {
 //                 assertM(ZStream.never.drainFork(ZStream.die(ex)).runDrain.run)(dies(equalTo(ex)))
 //               } @@ zioTag(errors)
 //             ),
-        //     testM("drop")(checkM(streamOfInts, Gen.anyInt) { (s, n) =>
-        //       for {
-        //         dropStreamResult <- s.drop(n.toLong).runCollect.run
-        //         dropListResult   <- s.runCollect.map(_.drop(n)).run
-        //       } yield assert(dropListResult.succeeded)(isTrue) implies assert(dropStreamResult)(
-        //         equalTo(dropListResult)
-        //       )
-        //     }),
-        //     testM("dropUntil") {
-        //       checkM(pureStreamOfInts, Gen.function(Gen.boolean)) { (s, p) =>
-        //         for {
-        //           res1 <- s.dropUntil(p).runCollect
-        //           res2 <- s.runCollect.map(_.dropWhile(!p(_)).drop(1))
-        //         } yield assert(res1)(equalTo(res2))
-        //       }
-        //     },
-        //     suite("dropWhile")(
-        //       testM("dropWhile")(
-        //         checkM(pureStreamOfInts, Gen.function(Gen.boolean)) { (s, p) =>
-        //           for {
-        //             res1 <- s.dropWhile(p).runCollect
-        //             res2 <- s.runCollect.map(_.dropWhile(p))
-        //           } yield assert(res1)(equalTo(res2))
-        //         }
-        //       ),
-        //       testM("short circuits") {
-        //         assertM(
-        //           (ZStream(1) ++ ZStream.fail("Ouch"))
-        //             .take(1)
-        //             .dropWhile(_ => true)
-        //             .runDrain
-        //             .either
-        //         )(isRight(isUnit))
-        //       }
-        //     ),
+        suite("drop")(
+          testM("drop")(checkM(streamOfInts, Gen.anyInt) { (s, n) =>
+            for {
+              dropStreamResult <- s.drop(n).runCollect.run
+              dropListResult   <- s.runCollect.map(_.drop(n)).run
+            } yield assert(dropListResult.succeeded)(isTrue) implies assert(dropStreamResult)(
+              equalTo(dropListResult)
+            )
+          }),
+          testM("doesn't swallow errors")(
+            assertM(
+              (ZStream.fail("Ouch") ++ ZStream(1))
+                .drop(1)
+                .runDrain
+                .either
+            )(isLeft(equalTo("Ouch")))
+          )
+        ),
+        testM("dropUntil") {
+          checkM(pureStreamOfInts, Gen.function(Gen.boolean)) { (s, p) =>
+            for {
+              res1 <- s.dropUntil(p).runCollect
+              res2 <- s.runCollect.map(_.dropWhile(!p(_)).drop(1))
+            } yield assert(res1)(equalTo(res2))
+          }
+        },
+        suite("dropWhile")(
+          testM("dropWhile")(
+            checkM(pureStreamOfInts, Gen.function(Gen.boolean)) { (s, p) =>
+              for {
+                res1 <- s.dropWhile(p).runCollect
+                res2 <- s.runCollect.map(_.dropWhile(p))
+              } yield assert(res1)(equalTo(res2))
+            }
+          ),
+          testM("short circuits") {
+            assertM(
+              (ZStream(1) ++ ZStream.fail("Ouch"))
+                .take(1)
+                .dropWhile(_ => true)
+                .runDrain
+                .either
+            )(isRight(isUnit))
+          }
+        ),
         testM("either") {
           val s = ZStream(1, 2, 3) ++ ZStream.fail("Boom")
           s.either.runCollect
