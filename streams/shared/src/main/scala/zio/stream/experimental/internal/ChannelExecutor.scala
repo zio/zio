@@ -38,7 +38,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
         case Nil                        => Nil
         case ZChannel.Fold.K(_, _) :: _ => stack
         case (finalizer @ ZChannel.Fold.Finalizer(_)) :: rest =>
-          builder += finalizer
+          builder += finalizer.asInstanceOf[ZChannel.Fold.Finalizer[Env, Any, Any]]
           go(rest)
       }
 
@@ -181,10 +181,10 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
               else UIO.unit
             }
 
-            currentChannel = right()
+            currentChannel = right().asInstanceOf[Channel[Env]]
 
           case read @ ZChannel.Read(_, _) =>
-            result = runRead(read)
+            result = runRead(read.asInstanceOf[ZChannel.Read[Env, Any, Any, Any, Any, Any, Any, Any, Any, Any]])
 
           case ZChannel.Done(terminal) =>
             result = doneSucceed(terminal)
@@ -218,13 +218,19 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
             result = ChannelState.Emit
 
           case ensuring @ ZChannel.Ensuring(_, _) =>
-            runEnsuring(ensuring)
+            runEnsuring(ensuring.asInstanceOf[ZChannel.Ensuring[Env, Any, Any, Any, Any, Any, Any]])
 
           case ZChannel.ConcatAll(combineSubK, combineSubKAndInner, value, k) =>
             val exec: ErasedExecutor[Env] = new ChannelExecutor(() => value, providedEnv)
             exec.input = input
 
-            subexecutorStack = SubexecutorStack.Inner(exec, k, lastDone = null, combineSubK, combineSubKAndInner)
+            subexecutorStack = SubexecutorStack.Inner(
+              exec,
+              k.asInstanceOf[Any => Channel[Env]],
+              lastDone = null,
+              combineSubK.asInstanceOf[(Any, Any) => Any],
+              combineSubKAndInner.asInstanceOf[(Any, Any) => Any]
+            )
             currentChannel = null
 
           case ZChannel.Fold(value, k) =>
@@ -232,12 +238,12 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
             currentChannel = value
 
           case bracketOut @ ZChannel.BracketOut(_, _) =>
-            result = runBracketOut(bracketOut)
+            result = runBracketOut(bracketOut.asInstanceOf[ZChannel.BracketOut[Env, Any, Any]])
 
           case ZChannel.Provide(env, inner) =>
             val previousEnv = providedEnv
             providedEnv = env
-            currentChannel = inner
+            currentChannel = inner.asInstanceOf[Channel[Env]]
 
             addFinalizer { _ =>
               URIO {

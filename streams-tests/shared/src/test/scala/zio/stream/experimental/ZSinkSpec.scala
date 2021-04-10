@@ -300,7 +300,7 @@ object ZSinkSpec extends ZIOBaseSpec {
       testM("foldUntilM")(
         assertM(
           ZStream[Long](1, 1, 1, 1, 1, 1)
-            .transduce(ZSink.foldUntilM(0L, 3)((s, (a: Long)) => UIO.succeedNow(s + a)))
+            .transduce(ZSink.foldUntilM(0L, 3)((s, a: Long) => UIO.succeedNow(s + a)))
             .runCollect
         )(equalTo(Chunk(3L, 3L, 0L)))
       ),
@@ -335,7 +335,7 @@ object ZSinkSpec extends ZIOBaseSpec {
           assertM(
             ZStream.empty
               .transduce(
-                ZSink.foldWeightedDecompose(0)((_, (x: Int)) => x.toLong, 1000, Chunk.single(_: Int))(_ + _)
+                ZSink.foldWeightedDecompose(0)((_, x: Int) => x.toLong, 1000, Chunk.single(_: Int))(_ + _)
               )
               .runCollect
           )(equalTo(Chunk(0)))

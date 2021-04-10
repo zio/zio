@@ -139,16 +139,10 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     sink: ZSink[R1, E1, A1, E2, A1, B],
     schedule: Schedule[R1, Option[B], C]
   ): ZStream[R1 with Clock, E2, Either[C, B]] = {
-    sealed trait SinkEndReason
-    case object SinkEnd          extends SinkEndReason
-    case object ScheduleTimeout  extends SinkEndReason
-    case class ScheduleEnd(c: C) extends SinkEndReason
-    case object UpstreamEnd      extends SinkEndReason
-
-    sealed trait HandoffSignal
-    case class Emit(els: Chunk[A])        extends HandoffSignal
-    case class Halt(error: Cause[E1])     extends HandoffSignal
-    case class End(reason: SinkEndReason) extends HandoffSignal
+    type HandoffSignal = ZStream.HandoffSignal[C, E1, A]
+    import ZStream.HandoffSignal._
+    type SinkEndReason = ZStream.SinkEndReason[C]
+    import ZStream.SinkEndReason._
 
     val deps =
       ZIO.mapN(
@@ -3415,5 +3409,20 @@ object ZStream {
       } else {
         ZChannel.unit
       }
+  }
+
+  private[zio] sealed trait SinkEndReason[+C]
+  private[zio] object SinkEndReason {
+    case object SinkEnd             extends SinkEndReason[Nothing]
+    case object ScheduleTimeout     extends SinkEndReason[Nothing]
+    case class ScheduleEnd[C](c: C) extends SinkEndReason[C]
+    case object UpstreamEnd         extends SinkEndReason[Nothing]
+  }
+
+  private[zio] sealed trait HandoffSignal[C, E, A]
+  private[zio] object HandoffSignal {
+    case class Emit[C, E, A](els: Chunk[A])           extends HandoffSignal[C, E, A]
+    case class Halt[C, E, A](error: Cause[E])         extends HandoffSignal[C, E, A]
+    case class End[C, E, A](reason: SinkEndReason[C]) extends HandoffSignal[C, E, A]
   }
 }

@@ -82,7 +82,7 @@ object ZStreamSpec extends ZIOBaseSpec {
         suite("aggregateAsync")(
           testM("simple example") {
             ZStream(1, 1, 1, 1)
-              .aggregateAsync(ZSink.foldUntil(List[Int](), 3)((acc, (el: Int)) => el :: acc))
+              .aggregateAsync(ZSink.foldUntil(List[Int](), 3)((acc, el: Int) => el :: acc))
               .runCollect
               .map { result =>
                 assert(result.toList.flatten)(equalTo(List(1, 1, 1, 1))) &&
@@ -102,7 +102,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             val e = new RuntimeException("Boom")
             assertM(
               ZStream(1, 1)
-                .aggregateAsync(ZSink.foldLeftM(Nil)((_, (_: Any)) => ZIO.die(e)))
+                .aggregateAsync(ZSink.foldLeftM(Nil)((_, _: Any) => ZIO.die(e)))
                 .runCollect
                 .run
             )(dies(equalTo(e)))
@@ -205,7 +205,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                      .range(1, 10)
                      .tap(i => ZIO.fail("BOOM!").when(i == 6) *> queue.offer(i))
                      .aggregateAsyncWithin(
-                       ZSink.foldUntil[String, Int, Unit]((), 5)((_, (_: Int)) => ()),
+                       ZSink.foldUntil[String, Int, Unit]((), 5)((_, _: Int) => ()),
                        Schedule.forever
                      )
                      .runDrain
