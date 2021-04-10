@@ -27,14 +27,15 @@ The `fibersIn` creates a new supervisor with an initial sorted set of fibers.
 In the following example we are creating a new supervisor from an initial set of fibers:
 
 ```scala mdoc:invisible
-import zio.{Ref, Fiber}
+import java.util.concurrent.atomic.AtomicReference
+import zio.{ Fiber, UIO }
 import scala.collection.immutable.SortedSet
 def fibers: Seq[Fiber.Runtime[Any, Any]] = ???
 ```
 
 ```scala mdoc
 def fiberListSupervisor = for { 
-  ref <- Ref.make(SortedSet.from(fibers))
+  ref <- UIO(new AtomicReference(SortedSet.from(fibers)))
   s <- Supervisor.fibersIn(ref)
 } yield (s)
 ```
