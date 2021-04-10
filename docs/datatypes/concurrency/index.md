@@ -68,6 +68,10 @@ Here we are going to enumerate some points that why the ZIO concurrency model he
 
 1. **Composable** — Due to the use of the lock-free concurrency model, ZIO brings us a composable concurrent primitive and lots of great combinators in a declarative style.
 
+> **Note:** `Ref` and `Promise` and subsequently all other ZIO concurrent primitives that are on top of these two basic primitives **are not transactionally composable**.
+>
+> We cannot do transactional changes across two or more such concurrent primitives. They are susceptible to race conditions and deadlocks. **So don't use them if you need to perform an atomic operation on top of a composed sequence of multiple state-changing operations. use [`STM`](../stm/index.md) instead**. 
+
 2. **Non-blocking** — All of the ZIO primitives are a hundred percent asynchronous and nonblocking.
 
 3. **Resource Safety** — ZIO concurrency model comes with strong guarantees of resource safety. If any interruption occurs in between concurrent operations, it won't leak any resource. So it allows us to write compositional operators like timeout and racing without worrying about any leaks.
