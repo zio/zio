@@ -421,8 +421,6 @@ object ZSink {
    * A sink that folds its inputs with the provided function, termination predicate and initial state.
    */
   def fold[Err, In, S](z: S)(contFn: S => Boolean)(f: (S, In) => S): ZSink[Any, Err, In, Err, In, S] = {
-
-    /** Folds a chunk with a stopping condition and returns the leftover. */
     def foldChunkSplit(z: S, chunk: Chunk[In])(
       contFn: S => Boolean
     )(f: (S, In) => S): (S, Option[Chunk[In]]) = {
