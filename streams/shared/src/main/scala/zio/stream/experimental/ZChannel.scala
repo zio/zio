@@ -96,7 +96,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
    * The returned channel has the input type of this channel, and the output type of the specified
    * channel, terminating with the value of the specified channel.
    *
-   * This is a symbolic operator for [[ZChannel##pipeTo]].
+   * This is a symbolic operator for [[ZChannel#pipeTo]].
    */
   final def >>>[Env1 <: Env, OutErr2, OutElem2, OutDone2](
     that: => ZChannel[Env1, OutErr, OutElem, OutDone, OutErr2, OutElem2, OutDone2]
