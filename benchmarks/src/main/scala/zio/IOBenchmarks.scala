@@ -1,7 +1,7 @@
 package zio
 
 import cats._
-import cats.effect.{ContextShift, Fiber => CFiber, IO => CIO}
+import cats.effect.{Fiber => CFiber, IO => CIO}
 import monix.eval.{Task => MTask}
 import zio.internal._
 
