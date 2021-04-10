@@ -2511,7 +2511,6 @@ object ZStreamSpec extends ZIOBaseSpec {
               streamFib <- stream
                              .retry(Schedule.exponential(1.second))
                              .take(2)
-                             .tap(e => UIO(println(s"Got element ${e}")))
                              .runDrain
                              .fork
               _       <- TestClock.adjust(1.second)
