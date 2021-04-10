@@ -1,7 +1,7 @@
 package zio.stream.experimental
 
 // import java.io.{ ByteArrayInputStream, IOException }
- import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeUnit
 
 import scala.concurrent.ExecutionContext
 import zio._
@@ -2332,41 +2332,41 @@ object ZStreamSpec extends ZIOBaseSpec {
         //         }
         //       )
         //     ),
-             suite("scan")(
-               testM("scan")(checkM(pureStreamOfInts) { s =>
-                 for {
-                   streamResult <- s.scan(0)(_ + _).runCollect
-                   chunkResult  <- s.runCollect.map(_.scan(0)(_ + _))
-                 } yield assert(streamResult)(equalTo(chunkResult))
-               })
-             ),
-             suite("scanReduce")(
-               testM("scanReduce")(checkM(pureStreamOfInts) { s =>
-                 for {
-                   streamResult <- s.scanReduce(_ + _).runCollect
-                   chunkResult  <- s.runCollect.map(_.scan(0)(_ + _).tail)
-                 } yield assert(streamResult)(equalTo(chunkResult))
-               })
-             ),
-             suite("schedule")(
-               testM("scheduleWith")(
-                 assertM(
-                   ZStream("A", "B", "C", "A", "B", "C")
-                     .scheduleWith(Schedule.recurs(2) *> Schedule.fromFunction((_) => "Done"))(
-                       _.toLowerCase,
-                       identity
-                     )
-                     .runCollect
-                 )(equalTo(Chunk("a", "b", "c", "Done", "a", "b", "c", "Done")))
-               ),
-               testM("scheduleEither")(
-                 assertM(
-                   ZStream("A", "B", "C")
-                     .scheduleEither(Schedule.recurs(2) *> Schedule.fromFunction((_) => "!"))
-                     .runCollect
-                 )(equalTo(Chunk(Right("A"), Right("B"), Right("C"), Left("!"))))
-               )
-             ),
+        suite("scan")(
+          testM("scan")(checkM(pureStreamOfInts) { s =>
+            for {
+              streamResult <- s.scan(0)(_ + _).runCollect
+              chunkResult  <- s.runCollect.map(_.scan(0)(_ + _))
+            } yield assert(streamResult)(equalTo(chunkResult))
+          })
+        ),
+        suite("scanReduce")(
+          testM("scanReduce")(checkM(pureStreamOfInts) { s =>
+            for {
+              streamResult <- s.scanReduce(_ + _).runCollect
+              chunkResult  <- s.runCollect.map(_.scan(0)(_ + _).tail)
+            } yield assert(streamResult)(equalTo(chunkResult))
+          })
+        ),
+        suite("schedule")(
+          testM("scheduleWith")(
+            assertM(
+              ZStream("A", "B", "C", "A", "B", "C")
+                .scheduleWith(Schedule.recurs(2) *> Schedule.fromFunction((_) => "Done"))(
+                  _.toLowerCase,
+                  identity
+                )
+                .runCollect
+            )(equalTo(Chunk("a", "b", "c", "Done", "a", "b", "c", "Done")))
+          ),
+          testM("scheduleEither")(
+            assertM(
+              ZStream("A", "B", "C")
+                .scheduleEither(Schedule.recurs(2) *> Schedule.fromFunction((_) => "!"))
+                .runCollect
+            )(equalTo(Chunk(Right("A"), Right("B"), Right("C"), Left("!"))))
+          )
+        ),
         //     suite("repeatElements")(
         //       testM("repeatElementsWith")(
         //         assertM(
@@ -2553,28 +2553,28 @@ object ZStreamSpec extends ZIOBaseSpec {
           testM("throttleShape") {
             for {
               fiber <- Queue
-                .bounded[Int](10)
-                .flatMap { queue =>
-                  ZStream
-                    .fromQueue(queue)
-                    .throttleShape(1, 1.second)(_.sum.toLong)
-                    .toPull
-                    .use { pull =>
-                      for {
-                        _ <- queue.offer(1)
-                        res1 <- pull
-                        _ <- queue.offer(2)
-                        res2 <- pull
-                        _ <- clock.sleep(4.seconds)
-                        _ <- queue.offer(3)
-                        res3 <- pull
-                      } yield assert(Chunk(res1, res2, res3))(
-                        equalTo(Chunk(Chunk(1), Chunk(2), Chunk(3)))
-                      )
-                    }
-                }
-                .fork
-              _ <- TestClock.adjust(8.seconds)
+                         .bounded[Int](10)
+                         .flatMap { queue =>
+                           ZStream
+                             .fromQueue(queue)
+                             .throttleShape(1, 1.second)(_.sum.toLong)
+                             .toPull
+                             .use { pull =>
+                               for {
+                                 _    <- queue.offer(1)
+                                 res1 <- pull
+                                 _    <- queue.offer(2)
+                                 res2 <- pull
+                                 _    <- clock.sleep(4.seconds)
+                                 _    <- queue.offer(3)
+                                 res3 <- pull
+                               } yield assert(Chunk(res1, res2, res3))(
+                                 equalTo(Chunk(Chunk(1), Chunk(2), Chunk(3)))
+                               )
+                             }
+                         }
+                         .fork
+              _    <- TestClock.adjust(8.seconds)
               test <- fiber.join
             } yield test
           },
@@ -2582,10 +2582,10 @@ object ZStreamSpec extends ZIOBaseSpec {
             Queue.bounded[Int](10).flatMap { queue =>
               ZStream.fromQueue(queue).throttleShape(1, 0.seconds)(_ => 100000L).toPull.use { pull =>
                 for {
-                  _ <- queue.offer(1)
-                  res1 <- pull
-                  _ <- queue.offer(2)
-                  res2 <- pull
+                  _       <- queue.offer(1)
+                  res1    <- pull
+                  _       <- queue.offer(2)
+                  res2    <- pull
                   elapsed <- clock.currentTime(TimeUnit.SECONDS)
                 } yield assert(elapsed)(equalTo(0L)) && assert(Chunk(res1, res2))(
                   equalTo(Chunk(Chunk(1), Chunk(2)))
@@ -2596,28 +2596,28 @@ object ZStreamSpec extends ZIOBaseSpec {
           testM("with burst") {
             for {
               fiber <- Queue
-                .bounded[Int](10)
-                .flatMap { queue =>
-                  ZStream
-                    .fromQueue(queue)
-                    .throttleShape(1, 1.second, 2)(_.sum.toLong)
-                    .toPull
-                    .use { pull =>
-                      for {
-                        _ <- queue.offer(1)
-                        res1 <- pull
-                        _ <- TestClock.adjust(2.seconds)
-                        _ <- queue.offer(2)
-                        res2 <- pull
-                        _ <- TestClock.adjust(4.seconds)
-                        _ <- queue.offer(3)
-                        res3 <- pull
-                      } yield assert(Chunk(res1, res2, res3))(
-                        equalTo(Chunk(Chunk(1), Chunk(2), Chunk(3)))
-                      )
-                    }
-                }
-                .fork
+                         .bounded[Int](10)
+                         .flatMap { queue =>
+                           ZStream
+                             .fromQueue(queue)
+                             .throttleShape(1, 1.second, 2)(_.sum.toLong)
+                             .toPull
+                             .use { pull =>
+                               for {
+                                 _    <- queue.offer(1)
+                                 res1 <- pull
+                                 _    <- TestClock.adjust(2.seconds)
+                                 _    <- queue.offer(2)
+                                 res2 <- pull
+                                 _    <- TestClock.adjust(4.seconds)
+                                 _    <- queue.offer(3)
+                                 res3 <- pull
+                               } yield assert(Chunk(res1, res2, res3))(
+                                 equalTo(Chunk(Chunk(1), Chunk(2), Chunk(3)))
+                               )
+                             }
+                         }
+                         .fork
               test <- fiber.join
             } yield test
           },

@@ -228,9 +228,9 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    */
   final def summarized[R1 <: R, E1 >: OutErr, B, C](summary: ZIO[R1, E1, B])(f: (B, B) => C) =
     new ZSink[R1, InErr, In, E1, L, (Z, C)](for {
-      start    <- ZChannel.fromEffect(summary)
-      done     <- self.channel
-      end      <- ZChannel.fromEffect(summary)
+      start <- ZChannel.fromEffect(summary)
+      done  <- self.channel
+      end   <- ZChannel.fromEffect(summary)
     } yield (done, f(start, end)))
 
   def orElse[R1 <: R, InErr1 <: InErr, In1 <: In, OutErr2 >: OutErr, L1 >: L, Z1 >: Z](

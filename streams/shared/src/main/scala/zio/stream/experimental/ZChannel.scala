@@ -2,7 +2,13 @@ package zio.stream.experimental
 
 import zio.ZManaged.ReleaseMap
 import zio._
-import zio.stream.experimental.internal.{ AsyncInputConsumer, AsyncInputProducer, SingleProducerAsyncInput, ChannelExecutor }
+import zio.stream.experimental.internal.{
+  AsyncInputConsumer,
+  AsyncInputProducer,
+  ChannelExecutor,
+  SingleProducerAsyncInput
+}
+
 import ChannelExecutor.ChannelState
 
 /**
@@ -385,7 +391,6 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     self.flatMap(ev)
 
   /**
-   *
    */
   final def foldM[
     Env1 <: Env,
@@ -408,7 +413,6 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     )
 
   /**
-   *
    */
   final def foldCauseM[
     Env1 <: Env,
@@ -459,7 +463,9 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
   /**
    * A more powerful version of [[mapError]] which also surfaces the [[Cause]] of the channel failure
    */
-  final def mapErrorCause[OutErr2](f: Cause[OutErr] => Cause[OutErr2]): ZChannel[Env, InErr, InElem, InDone, OutErr2, OutElem, OutDone] =
+  final def mapErrorCause[OutErr2](
+    f: Cause[OutErr] => Cause[OutErr2]
+  ): ZChannel[Env, InErr, InElem, InDone, OutErr2, OutElem, OutDone] =
     catchAllCause((cause: Cause[OutErr]) => ZChannel.halt(f(cause)))
 
   /**

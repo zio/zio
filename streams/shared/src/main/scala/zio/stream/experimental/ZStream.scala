@@ -1,6 +1,5 @@
 package zio.stream.experimental
 
-import scala.reflect.ClassTag
 import zio._
 import zio.clock._
 import zio.duration._
@@ -8,6 +7,8 @@ import zio.internal.UniqueKey
 import zio.stm._
 import zio.stream.experimental.ZStream.BufferedPull
 import zio.stream.experimental.internal.Utils.zipChunks
+
+import scala.reflect.ClassTag
 
 class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], Any]) { self =>
 
@@ -1399,12 +1400,13 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def mapAccumM[R1 <: R, E1 >: E, S, A1](s: S)(f: (S, A) => ZIO[R1, E1, (S, A1)]): ZStream[R1, E1, A1] = {
     def accumulator(s: S): ZChannel[R1, E, Chunk[A], Any, E1, Chunk[A1], Unit] =
       ZChannel.readWith(
-        (in: Chunk[A]) => {
+        (in: Chunk[A]) =>
           ZChannel.unwrap(
             ZIO.effectSuspendTotal {
-              val outputChunk = ChunkBuilder.make[A1](in.size)
+              val outputChunk           = ChunkBuilder.make[A1](in.size)
               val emit: A1 => UIO[Unit] = (a: A1) => UIO(outputChunk += a).unit
-              ZIO.foldLeft[R1, E1, S, A](in)(s)((s1, a) => f(s1, a).flatMap(sa => emit(sa._2) as sa._1))
+              ZIO
+                .foldLeft[R1, E1, S, A](in)(s)((s1, a) => f(s1, a).flatMap(sa => emit(sa._2) as sa._1))
                 .fold(
                   failure => {
                     val partialResult = outputChunk.result()
@@ -1413,10 +1415,10 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
                     else
                       ZChannel.fail(failure)
                   },
-                  ZChannel.write(outputChunk.result()) *> accumulator(_))
+                  ZChannel.write(outputChunk.result()) *> accumulator(_)
+                )
             }
-          )
-        },
+          ),
         ZChannel.fail(_),
         (_: Any) => ZChannel.unit
       )
@@ -1896,7 +1898,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   def scanReduceM[R1 <: R, E1 >: E, A1 >: A](f: (A1, A) => ZIO[R1, E1, A1]): ZStream[R1, E1, A1] =
     mapAccumM[R1, E1, Option[A1], A1](Option.empty[A1]) {
       case (Some(a1), a) => f(a1, a).map(a2 => Some(a2) -> a2)
-      case (None, a) => ZIO.succeedNow(Some(a) -> a)
+      case (None, a)     => ZIO.succeedNow(Some(a) -> a)
     }
 
   /**
@@ -1925,7 +1927,9 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     ZStream.unwrap(
       schedule.driver.map(driver =>
         loopOnPartialChunksElements((a: A, emit: C => UIO[Unit]) =>
-          driver.next(a).zipRight(emit(f(a))) orElse (driver.last.orDie.flatMap(b => emit(f(a)) *> emit(g(b))) <* driver.reset)
+          driver.next(a).zipRight(emit(f(a))) orElse (driver.last.orDie.flatMap(b =>
+            emit(f(a)) *> emit(g(b))
+          ) <* driver.reset)
         )
       )
     )
@@ -2062,28 +2066,25 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   ): ZStream[R1 with Clock, E1, A] = {
     def loop(tokens: Long, timestamp: Long): ZChannel[R1 with Clock, E1, Chunk[A], Any, E1, Chunk[A], Unit] =
       ZChannel.readWith[R1 with Clock, E1, Chunk[A], Any, E1, Chunk[A], Unit](
-        (in: Chunk[A]) => {
-          ZChannel.unwrap(
-            (costFn(in) <*> clock.nanoTime).map {
-              case (weight, current) =>
-                val elapsed = current - timestamp
-                val cycles = elapsed.toDouble / duration.toNanos
-                val available = {
-                  val sum = tokens + (cycles * units).toLong
-                  val max =
-                    if (units + burst < 0) Long.MaxValue
-                    else units + burst
+        (in: Chunk[A]) =>
+          ZChannel.unwrap((costFn(in) <*> clock.nanoTime).map { case (weight, current) =>
+            val elapsed = current - timestamp
+            val cycles  = elapsed.toDouble / duration.toNanos
+            val available = {
+              val sum = tokens + (cycles * units).toLong
+              val max =
+                if (units + burst < 0) Long.MaxValue
+                else units + burst
 
-                  if (sum < 0) max
-                  else math.min(sum, max)
-                }
+              if (sum < 0) max
+              else math.min(sum, max)
+            }
 
-                if (weight <= available)
-                  ZChannel.write(in) *> loop(available - weight, current)
-                else
-                  loop(available, current)
-            })
-        },
+            if (weight <= available)
+              ZChannel.write(in) *> loop(available - weight, current)
+            else
+              loop(available, current)
+          }),
         (e: E1) => ZChannel.fail(e),
         (_: Any) => ZChannel.unit
       )
@@ -2113,13 +2114,13 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   ): ZStream[R1 with Clock, E1, A] = {
     def loop(tokens: Long, timestamp: Long): ZChannel[R1 with Clock, E1, Chunk[A], Any, E1, Chunk[A], Unit] =
       ZChannel.readWith(
-        (in: Chunk[A]) => {
+        (in: Chunk[A]) =>
           ZChannel.unwrap(for {
-            weight <- costFn(in)
+            weight  <- costFn(in)
             current <- clock.nanoTime
           } yield {
             val elapsed = current - timestamp
-            val cycles = elapsed.toDouble / duration.toNanos
+            val cycles  = elapsed.toDouble / duration.toNanos
             val available = {
               val sum = tokens + (cycles * units).toLong
               val max =
@@ -2137,14 +2138,13 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
 
             val delay = Duration.Finite((waitCycles * duration.toNanos).toLong)
 
-            if (delay > Duration.Zero) ZChannel.fromEffect(clock.sleep(delay)) *> ZChannel.write(in) *> loop(remaining, current)
+            if (delay > Duration.Zero)
+              ZChannel.fromEffect(clock.sleep(delay)) *> ZChannel.write(in) *> loop(remaining, current)
             else ZChannel.write(in) *> loop(remaining, current)
-          })
-        },
+          }),
         (e: E1) => ZChannel.fail(e),
         (_: Any) => ZChannel.unit
       )
-
 
     new ZStream(ZChannel.fromEffect(clock.nanoTime).flatMap(self.channel >>> loop(units, _)))
   }
