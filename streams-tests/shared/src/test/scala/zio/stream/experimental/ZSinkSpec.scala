@@ -22,10 +22,31 @@ object ZSinkSpec extends ZIOBaseSpec {
       suite("Constructors")(
         suite("collectAllN")(
           testM("respects the given limit") {
-            assertM(ZStream(1, 2, 3, 4).run(ZSink.collectAllN[Nothing, Int](3)))(equalTo(Chunk(1, 2, 3)))
+            ZStream
+              .fromChunk(Chunk(1, 2, 3, 4))
+              .transduce(ZSink.collectAllN[Nothing, Int](3))
+              .runCollect
+              .map { chunks =>
+                assert(chunks)(equalTo(Chunk(Chunk(1, 2, 3), Chunk(4))))
+              }
+          },
+          testM("produces empty trailing chunks") {
+            ZStream
+              .fromChunk(Chunk(1, 2, 3, 4))
+              .transduce(ZSink.collectAllN[Nothing, Int](4))
+              .runCollect
+              .map { chunks =>
+                assert(chunks)(equalTo(Chunk(Chunk(1, 2, 3, 4), Chunk())))
+              }
           },
           testM("handles empty input") {
-            assertM(ZStream.empty.run(ZSink.collectAllN[Nothing, Int](3)))(equalTo(Chunk.empty))
+            ZStream
+              .fromChunk(Chunk.empty: Chunk[Int])
+              .transduce(ZSink.collectAllN[Nothing, Int](3))
+              .runCollect
+              .map { chunks =>
+                assert(chunks)(equalTo(Chunk(Chunk())))
+              }
           }
         ),
         testM("collectAllToSet")(

@@ -2243,31 +2243,33 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Applies the transducer to the stream and emits its outputs.
    */
   def transduce[R1 <: R, E1, A1 >: A, Z](sink: ZSink[R1, E, A1, E1, A1, Z]): ZStream[R1, E1, Z] =
-    new ZStream(ZChannel.fromEffect(Ref.make[Chunk[A1]](Chunk.empty).zip(Ref.make(false))).flatMap {
-      case (leftovers, upstreamDone) =>
-        val buffer = ZChannel.bufferChunk[E, A1, Any](leftovers)
-        lazy val upstreamMarker: ZChannel[Any, E, Chunk[A], Any, E, Chunk[A], Any] =
-          ZChannel.readWith(
-            (in: Chunk[A]) => ZChannel.write(in) *> upstreamMarker,
-            (err: E) => ZChannel.fail(err),
-            (done: Any) => ZChannel.fromEffect(upstreamDone.set(true)) *> ZChannel.end(done)
-          )
+    new ZStream(
+      ZChannel.fromEffect(Ref.make[Chunk[A1]](Chunk.empty).zip(Ref.make(false))).flatMap {
+        case (leftovers, upstreamDone) =>
+          val buffer = ZChannel.bufferChunk[E, A1, Any](leftovers)
+          lazy val upstreamMarker: ZChannel[Any, E, Chunk[A], Any, E, Chunk[A], Any] =
+            ZChannel.readWith(
+              (in: Chunk[A]) => ZChannel.write(in) *> upstreamMarker,
+              (err: E) => ZChannel.fail(err),
+              (done: Any) => ZChannel.fromEffect(upstreamDone.set(true)) *> ZChannel.end(done)
+            )
 
-        lazy val transducer: ZChannel[R1, E, Chunk[A1], Any, E1, Chunk[Z], Unit] =
-          sink.channel.doneCollect.flatMap { case (leftover, z) =>
-            ZChannel.fromEffect(leftovers.set(leftover.flatten)) *>
-              ZChannel.write(Chunk.single(z)) *>
-              ZChannel.fromEffect(upstreamDone.get).flatMap { done =>
-                if (done) ZChannel.end(())
-                else transducer
-              }
-          }
+          lazy val transducer: ZChannel[R1, E, Chunk[A1], Any, E1, Chunk[Z], Unit] =
+            sink.channel.doneCollect.flatMap { case (leftover, z) =>
+              ZChannel.fromEffect(leftovers.set(leftover.flatten)) *>
+                ZChannel.write(Chunk.single(z)) *>
+                ZChannel.fromEffect(upstreamDone.get).flatMap { done =>
+                  if (done) ZChannel.end(())
+                  else transducer
+                }
+            }
 
-        channel >>>
-          upstreamMarker >>>
-          buffer >>>
-          transducer
-    })
+          channel >>>
+            upstreamMarker >>>
+            buffer >>>
+            transducer
+      }
+    )
 
   /**
    * Updates a service in the environment of this effect.
