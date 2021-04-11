@@ -3630,7 +3630,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
               if (maxChunkSize <= 1) {
                 if (iterator.isEmpty) Pull.end else Pull.emit(iterator.next())
               } else {
-                val builder = ChunkBuilder.make[A]()
+                val builder = ChunkBuilder.make[A](maxChunkSize)
                 var i       = 0
                 while (i < maxChunkSize && iterator.hasNext) {
                   val a = iterator.next()
@@ -3668,7 +3668,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
           if (maxChunkSize <= 1) {
             if (iterator.isEmpty) Pull.end else Pull.emit(iterator.next())
           } else {
-            val builder = ChunkBuilder.make[A]()
+            val builder = ChunkBuilder.make[A](maxChunkSize)
             var i       = 0
             while (i < maxChunkSize && iterator.hasNext) {
               val a = iterator.next()
