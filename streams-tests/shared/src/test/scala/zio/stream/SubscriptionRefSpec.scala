@@ -39,6 +39,19 @@ object SubscriptionRefSpec extends DefaultRunnableSpec {
           values2         <- subscriber2.join
         } yield assert(values1)(isInterrupted) &&
           assert(values2)(equalTo(Chunk(1, 2)))
+      },
+      testM("concurrent subscribes and unsubscribes are handled correctly") {
+        def subscriber(subscriptionRef: SubscriptionRef[Long]) =
+          for {
+            n  <- random.nextLongBetween(1, 200)
+            as <- subscriptionRef.changes.take(n).runCollect
+          } yield as
+        for {
+          subscriptionRef <- SubscriptionRef.make(0L)
+          fiber           <- subscriptionRef.ref.updateAndGet(n => UIO(n + 1)).forever.fork
+          values          <- ZIO.collectAllPar(List.fill(5000)(subscriber(subscriptionRef)))
+          _               <- fiber.interrupt
+        } yield assert(values)(forall(isSorted))
       }
     )
 }
