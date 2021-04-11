@@ -26,27 +26,21 @@ object ZSinkSpec extends ZIOBaseSpec {
               .fromChunk(Chunk(1, 2, 3, 4))
               .transduce(ZSink.collectAllN[Nothing, Int](3))
               .runCollect
-              .map { chunks =>
-                assert(chunks)(equalTo(Chunk(Chunk(1, 2, 3), Chunk(4))))
-              }
+              .map(assert(_)(equalTo(Chunk(Chunk(1, 2, 3), Chunk(4)))))
           },
           testM("produces empty trailing chunks") {
             ZStream
               .fromChunk(Chunk(1, 2, 3, 4))
               .transduce(ZSink.collectAllN[Nothing, Int](4))
               .runCollect
-              .map { chunks =>
-                assert(chunks)(equalTo(Chunk(Chunk(1, 2, 3, 4), Chunk())))
-              }
+              .map(assert(_)(equalTo(Chunk(Chunk(1, 2, 3, 4), Chunk()))))
           },
           testM("handles empty input") {
             ZStream
               .fromChunk(Chunk.empty: Chunk[Int])
               .transduce(ZSink.collectAllN[Nothing, Int](3))
               .runCollect
-              .map { chunks =>
-                assert(chunks)(equalTo(Chunk(Chunk())))
-              }
+              .map(assert(_)(equalTo(Chunk(Chunk()))))
           }
         ),
         testM("collectAllToSet")(
