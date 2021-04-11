@@ -701,9 +701,8 @@ object ZSink {
 
           val (nextS, nextCost, nextDirty, leftovers) = fold(in, s, dirty, cost, 0)
 
-          if (cost >= max && leftovers.nonEmpty) ZChannel.write(leftovers) *> ZChannel.end(nextS)
-          else if (cost <= max && leftovers.nonEmpty) ZChannel.write(leftovers) *> ZChannel.end(nextS)
-          else if (cost >= max && leftovers.isEmpty) ZChannel.end(nextS)
+          if (leftovers.nonEmpty) ZChannel.write(leftovers) *> ZChannel.end(nextS)
+          else if (cost > max) ZChannel.end(nextS)
           else go(nextS, nextCost, nextDirty)
         },
         (err: Err) => ZChannel.fail(err),
