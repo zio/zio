@@ -1659,12 +1659,48 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   def peel[R1 <: R, E1 >: E, A1 >: A, Z](
     sink: ZSink[R1, E1, A1, E1, A1, Z]
-  ): ZManaged[R1, E1, (Z, ZStream[R1, E1, A1])] =
-    self.toPull.flatMap { pull =>
-      val stream = ZStream.repeatEffectChunkOption(pull)
-      val s      = sink.exposeLeftover
-      stream.run(s).toManaged_.map(e => (e._1, ZStream.fromChunk(e._2) ++ stream))
-    }
+  ): ZManaged[R1, E1, (Z, ZStream[R1, E1, A1])] = {
+    sealed trait Signal
+    case class Emit(els: Chunk[A1])   extends Signal
+    case class Halt(cause: Cause[E1]) extends Signal
+    case object End                   extends Signal
+
+    (for {
+      p       <- Promise.makeManaged[E1, Z]
+      handoff <- ZStream.Handoff.make[Signal].toManaged_
+    } yield {
+      val consumer: ZSink[R1, E, A1, E1, A1, Unit] = sink.exposeLeftover
+        .foldM(
+          e => ZSink.fromEffect(p.fail(e)) *> ZSink.fail(e),
+          { case (z1, leftovers) =>
+            lazy val loop: ZChannel[Any, E, Chunk[A1], Any, E1, Chunk[A1], Unit] = ZChannel.readWithCause(
+              (in: Chunk[A1]) => ZChannel.fromEffect(handoff.offer(Emit(in))) *> loop,
+              (e: Cause[E1]) => ZChannel.fromEffect(handoff.offer(Halt(e))) *> ZChannel.halt(e),
+              (_: Any) => ZChannel.fromEffect(handoff.offer(End)) *> ZChannel.unit
+            )
+
+            new ZSink(
+              ZChannel.fromEffect(p.succeed(z1)) *>
+                ZChannel.fromEffect(handoff.offer(Emit(leftovers))) *>
+                loop
+            )
+          }
+        )
+
+      lazy val producer: ZChannel[Any, Any, Any, Any, E1, Chunk[A1], Unit] = ZChannel.unwrap(
+        handoff.take.map {
+          case Emit(els)   => ZChannel.write(els) *> producer
+          case Halt(cause) => ZChannel.halt(cause)
+          case End         => ZChannel.unit
+        }
+      )
+
+      for {
+        _ <- self.runManaged(consumer).fork
+        z <- p.await.toManaged_
+      } yield (z, new ZStream(producer))
+    }).flatten
+  }
 
   /**
    * Provides the stream with its required environment, which eliminates
