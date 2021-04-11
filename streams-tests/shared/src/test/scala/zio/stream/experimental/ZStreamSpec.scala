@@ -2174,51 +2174,46 @@ object ZStreamSpec extends ZIOBaseSpec {
         //           }
         //       }
         //     ),
-        //     testM("peel") {
-        //       val sink: ZSink[Any, Nothing, Int, Nothing, Chunk[Int]] = ZSink {
-        //         ZManaged.succeed {
-        //           case Some(inputs) => Push.emit(inputs, Chunk.empty)
-        //           case None         => Push.emit(Chunk.empty, Chunk.empty)
-        //         }
-        //       }
+        testM("peel") {
+          val sink: ZSink[Any, Nothing, Int, Nothing, Int, Any] = ZSink.take(3)
 
-        //       ZStream.fromChunks(Chunk(1, 2, 3), Chunk(4, 5, 6)).peel(sink).use { case (chunk, rest) =>
-        //         rest.runCollect.map { rest =>
-        //           assert(chunk)(equalTo(Chunk(1, 2, 3))) &&
-        //           assert(rest)(equalTo(Chunk(4, 5, 6)))
-        //         }
-        //       }
-        //     },
-        //     testM("onError") {
-        //       for {
-        //         flag   <- Ref.make(false)
-        //         exit   <- ZStream.fail("Boom").onError(_ => flag.set(true)).runDrain.run
-        //         called <- flag.get
-        //       } yield assert(called)(isTrue) && assert(exit)(fails(equalTo("Boom")))
-        //     } @@ zioTag(errors),
-        //     testM("orElse") {
-        //       val s1 = ZStream(1, 2, 3) ++ ZStream.fail("Boom")
-        //       val s2 = ZStream(4, 5, 6)
-        //       s1.orElse(s2).runCollect.map(assert(_)(equalTo(Chunk(1, 2, 3, 4, 5, 6))))
-        //     },
-        //     testM("orElseEither") {
-        //       val s1 = ZStream.succeed(1) ++ ZStream.fail("Boom")
-        //       val s2 = ZStream.succeed(2)
-        //       s1.orElseEither(s2).runCollect.map(assert(_)(equalTo(Chunk(Left(1), Right(2)))))
-        //     },
-        //     testM("orElseFail") {
-        //       val s1 = ZStream.succeed(1) ++ ZStream.fail("Boom")
-        //       s1.orElseFail("Boomer").runCollect.either.map(assert(_)(isLeft(equalTo("Boomer"))))
-        //     },
-        //     testM("orElseOptional") {
-        //       val s1 = ZStream.succeed(1) ++ ZStream.fail(None)
-        //       val s2 = ZStream.succeed(2)
-        //       s1.orElseOptional(s2).runCollect.map(assert(_)(equalTo(Chunk(1, 2))))
-        //     },
-        //     testM("orElseSucceed") {
-        //       val s1 = ZStream.succeed(1) ++ ZStream.fail("Boom")
-        //       s1.orElseSucceed(2).runCollect.map(assert(_)(equalTo(Chunk(1, 2))))
-        //     },
+          ZStream.fromChunks(Chunk(1, 2, 3), Chunk(4, 5, 6)).peel(sink).use { case (chunk, rest) =>
+            rest.runCollect.map { rest =>
+              assert(chunk)(equalTo(Chunk(1, 2, 3))) &&
+              assert(rest)(equalTo(Chunk(4, 5, 6)))
+            }
+          }
+        },
+        testM("onError") {
+          for {
+            flag   <- Ref.make(false)
+            exit   <- ZStream.fail("Boom").onError(_ => flag.set(true)).runDrain.run
+            called <- flag.get
+          } yield assert(called)(isTrue) && assert(exit)(fails(equalTo("Boom")))
+        } @@ zioTag(errors),
+        testM("orElse") {
+          val s1 = ZStream(1, 2, 3) ++ ZStream.fail("Boom")
+          val s2 = ZStream(4, 5, 6)
+          s1.orElse(s2).runCollect.map(assert(_)(equalTo(Chunk(1, 2, 3, 4, 5, 6))))
+        },
+        testM("orElseEither") {
+          val s1 = ZStream.succeed(1) ++ ZStream.fail("Boom")
+          val s2 = ZStream.succeed(2)
+          s1.orElseEither(s2).runCollect.map(assert(_)(equalTo(Chunk(Left(1), Right(2)))))
+        },
+        testM("orElseFail") {
+          val s1 = ZStream.succeed(1) ++ ZStream.fail("Boom")
+          s1.orElseFail("Boomer").runCollect.either.map(assert(_)(isLeft(equalTo("Boomer"))))
+        },
+        testM("orElseOptional") {
+          val s1 = ZStream.succeed(1) ++ ZStream.fail(None)
+          val s2 = ZStream.succeed(2)
+          s1.orElseOptional(s2).runCollect.map(assert(_)(equalTo(Chunk(1, 2))))
+        },
+        testM("orElseSucceed") {
+          val s1 = ZStream.succeed(1) ++ ZStream.fail("Boom")
+          s1.orElseSucceed(2).runCollect.map(assert(_)(equalTo(Chunk(1, 2))))
+        },
         //     suite("repeat")(
         //       testM("repeat")(
         //         assertM(
