@@ -1930,7 +1930,25 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def repeatWith[R1 <: R, B, C](
     schedule: Schedule[R1, Any, B]
   )(f: A => C, g: B => C): ZStream[R1 with Clock, E, C] =
-    ???
+    ZStream.unwrap(
+      for {
+        driver <- schedule.driver
+      } yield {
+        val scheduleOutput = driver.last.orDie.map(g)
+        val process        = self.map(f).channel
+        lazy val loop: ZChannel[R1 with Clock, Any, Any, Any, E, Chunk[C], Unit] =
+          ZChannel.unwrap(
+            driver
+              .next(())
+              .fold(
+                _ => ZChannel.unit,
+                _ => process *> ZChannel.unwrap(scheduleOutput.map(o => ZChannel.write(Chunk.single(o)))) *> loop
+              )
+          )
+
+        new ZStream(process *> loop)
+      }
+    )
 
   /**
    * Fails with the error `None` if value is `Left`.
