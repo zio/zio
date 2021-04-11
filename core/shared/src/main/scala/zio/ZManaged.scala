@@ -1181,6 +1181,13 @@ object ZManaged extends ZManagedPlatformSpecific {
       ZManaged.environment.flatMap(f)
   }
 
+  final class ServiceWithPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
+    def apply[E, A](f: Service => ZIO[Has[Service], E, A])(implicit
+      tag: Tag[Service]
+    ): ZManaged[Has[Service], E, A] =
+      ZManaged.fromEffect(ZIO.serviceWith[Service](f))
+  }
+
   /**
    * A finalizer used in a [[ReleaseMap]]. The [[Exit]] value passed to
    * it is the result of executing [[ZManaged#use]] or an arbitrary value
@@ -1227,7 +1234,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * The design of `ReleaseMap` is inspired by ResourceT, written by Michael Snoyman @snoyberg.
    * (https://github.com/snoyberg/conduit/blob/master/resourcet/Control/Monad/Trans/Resource/Internal.hs)
    */
-  abstract class ReleaseMap {
+  abstract class ReleaseMap extends Serializable {
 
     /**
      * An opaque identifier for a finalizer stored in the map.
@@ -2310,6 +2317,16 @@ object ZManaged extends ZManagedPlatformSpecific {
   def services[A: Tag, B: Tag, C: Tag, D: Tag]
     : ZManaged[Has[A] with Has[B] with Has[C] with Has[D], Nothing, (A, B, C, D)] =
     ZManaged.access(r => (r.get[A], r.get[B], r.get[C], r.get[D]))
+
+  /**
+   * Effectfully accesses the specified service in the environment of the effect.
+   *
+   * {{{
+   * def foo(int: Int) = ZManaged.serviceWith[Foo](_.foo(int))
+   * }}}
+   */
+  def serviceWith[Service]: ServiceWithPartiallyApplied[Service] =
+    new ServiceWithPartiallyApplied[Service]
 
   /**
    *  Returns an effect with the optional value.

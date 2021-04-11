@@ -901,6 +901,12 @@ object RIO {
     ZIO.services[A, B, C, D]
 
   /**
+   * @see See [[zio.ZIO.serviceWith]]
+   */
+  def serviceWith[Service]: ZIO.ServiceWithPartiallyApplied[Service] =
+    ZIO.serviceWith[Service]
+
+  /**
    * @see See [[zio.ZIO.sleep]]
    */
   def sleep(duration: => Duration): RIO[Clock, Unit] =

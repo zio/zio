@@ -184,7 +184,7 @@ private final class UnboundedHub[A] extends Hub[A] {
                 empty = false
                 loop = false
               } else {
-                publisherHead.compareAndSet(currentSubscriberHead, currentNode)
+                subscriberHead.compareAndSet(currentSubscriberHead, currentNode)
               }
             }
           }

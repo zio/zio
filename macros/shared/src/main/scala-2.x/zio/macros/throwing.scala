@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2019 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,16 +14,8 @@
  * limitations under the License.
  */
 
-package zio
+package zio.macros
 
-import zio.internal.Platform
+import scala.annotation.StaticAnnotation
 
-trait BootstrapRuntime extends Runtime[ZEnv] {
-  def environment: ZEnv = ZEnv.Services.live
-
-  /**
-   * The platform of the runtime, which provides the essential capabilities
-   * necessary to bootstrap execution of tasks.
-   */
-  def platform: Platform = Platform.default
-}
+class throwing extends StaticAnnotation

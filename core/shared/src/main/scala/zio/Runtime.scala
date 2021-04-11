@@ -29,13 +29,13 @@ trait Runtime[+R] {
   /**
    * The environment of the runtime.
    */
-  val environment: R
+  def environment: R
 
   /**
    * The platform of the runtime, which provides the essential capabilities
    * necessary to bootstrap execution of tasks.
    */
-  val platform: Platform
+  def platform: Platform
 
   /**
    * Constructs a new `Runtime` by mapping the environment.

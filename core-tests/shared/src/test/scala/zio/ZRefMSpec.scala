@@ -1,5 +1,6 @@
 package zio
 
+import com.github.ghik.silencer.silent
 import zio.test.Assertion._
 import zio.test._
 
@@ -478,7 +479,7 @@ object ZRefMSpec extends ZIOBaseSpec {
     suite("combinators")(
       testM("dequeueRef") {
         for {
-          data        <- RefM.dequeueRef(0)
+          data        <- RefM.dequeueRef(0): @silent("deprecated")
           (ref, queue) = data
           _           <- ZIO.collectAllPar(ZIO.replicate(100)(ref.update(_ + 1)))
           value       <- ZIO.collectAll(ZIO.replicate(100)(queue.take))

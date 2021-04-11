@@ -3555,15 +3555,9 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       } yield pull
     }
 
-  /**
-   * Creates a stream from a [[zio.ZHub]]. The hub will be shutdown once the stream is closed.
-   */
   def fromChunkHub[R, E, O](hub: ZHub[Nothing, R, Any, E, Nothing, Chunk[O]]): ZStream[R, E, O] =
     managed(hub.subscribe).flatMap(queue => fromChunkQueue(queue))
 
-  /**
-   * Creates a stream from a [[zio.ZHub]] of values. The hub will be shutdown once the stream is closed.
-   */
   def fromChunkHubWithShutdown[R, E, O](hub: ZHub[Nothing, R, Any, E, Nothing, Chunk[O]]): ZStream[R, E, O] =
     fromChunkHub(hub).ensuringFirst(hub.shutdown)
 
@@ -3970,6 +3964,12 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     ZStream.access(r => (r.get[A], r.get[B], r.get[C], r.get[D]))
 
   /**
+   * Effectfully accesses the specified service in the environment of the effect.
+   */
+  def serviceWith[Service]: ServiceWithPartiallyApplied[Service] =
+    new ServiceWithPartiallyApplied[Service]
+
+  /**
    * Creates a single-valued pure stream
    */
   def succeed[A](a: => A): ZStream[Any, Nothing, A] =
@@ -4115,6 +4115,13 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   final class AccessStreamPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[E, A](f: R => ZStream[R, E, A]): ZStream[R, E, A] =
       ZStream.environment[R].flatMap(f)
+  }
+
+  final class ServiceWithPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
+    def apply[E, A](f: Service => ZIO[Has[Service], E, A])(implicit
+      tag: Tag[Service]
+    ): ZStream[Has[Service], E, A] =
+      ZStream.fromEffect(ZIO.serviceWith(f))
   }
 
   /**

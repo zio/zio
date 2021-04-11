@@ -3069,6 +3069,12 @@ object ZIOSpec extends ZIOBaseSpec {
         io.lock(executor)
       } @@ jvm(nonFlaky(100))
     ),
+    suite("serviceWith")(
+      testM("effectfully accesses a service in the environment") {
+        val zio = ZIO.serviceWith[Int](int => UIO(int + 3))
+        assertM(zio.provideLayer(ZLayer.succeed(0)))(equalTo(3))
+      }
+    ),
     suite("schedule")(
       testM("runs effect for each recurrence of the schedule") {
         for {
