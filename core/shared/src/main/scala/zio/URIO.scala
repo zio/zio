@@ -805,6 +805,12 @@ object URIO {
     ZIO.services[A, B, C, D]
 
   /**
+   * @see See [[zio.ZIO.serviceWith]]
+   */
+  def serviceWith[Service]: ZIO.ServiceWithPartiallyApplied[Service] =
+    new ZIO.ServiceWithPartiallyApplied[Service]
+
+  /**
    * @see [[zio.ZIO.sleep]]
    */
   def sleep(duration: => Duration): URIO[Clock, Unit] = ZIO.sleep(duration)

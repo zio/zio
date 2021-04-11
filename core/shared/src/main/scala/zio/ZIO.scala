@@ -3866,6 +3866,18 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     ZIO.access(r => (r.get[A], r.get[B], r.get[C], r.get[D]))
 
   /**
+   * Effectfully accesses the specified service in the environment of the effect.
+   *
+   * Especially useful for creating "accessor" methods on Services' companion objects.
+   *
+   * {{{
+   * def foo(int: Int) = ZIO.serviceWith[Foo](_.foo(int))
+   * }}}
+   */
+  def serviceWith[Service]: ServiceWithPartiallyApplied[Service] =
+    new ServiceWithPartiallyApplied[Service]
+
+  /**
    * Returns an effect that shifts execution to the specified executor. This
    * is useful to specify a default executor that effects sequenced after this
    * one will be run on if they are not shifted somewhere else. It can also be
@@ -4229,6 +4241,11 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   final class AccessMPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[E, A](f: R => ZIO[R, E, A]): ZIO[R, E, A] =
       new ZIO.Read(f)
+  }
+
+  final class ServiceWithPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
+    def apply[E, A](f: Service => ZIO[Has[Service], E, A])(implicit tag: Tag[Service]): ZIO[Has[Service], E, A] =
+      new ZIO.Read(r => f(r.get))
   }
 
   @inline
