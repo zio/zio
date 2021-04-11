@@ -2109,7 +2109,23 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Takes the last specified number of elements from this stream.
    */
   def takeRight(n: Int): ZStream[R, E, A] =
-    ???
+    if (n <= 0) ZStream.empty
+    else
+      new ZStream(
+        ZChannel.unwrap(
+          for {
+            queue <- Queue.sliding[A](n)
+          } yield {
+            lazy val reader: ZChannel[Any, E, Chunk[A], Any, E, Chunk[A], Unit] = ZChannel.readWith(
+              (in: Chunk[A]) => ZChannel.fromEffect(queue.offerAll(in)) *> reader,
+              ZChannel.fail(_),
+              (_: Any) => ZChannel.unwrap(queue.takeAll.map(ZChannel.write)) *> ZChannel.unit
+            )
+
+            (self.channel >>> reader)
+          }
+        )
+      )
 
   /**
    * Takes all elements of the stream until the specified predicate evaluates
