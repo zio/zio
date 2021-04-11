@@ -390,6 +390,12 @@ object ZSink {
     foldLeftChunks(Set[In]())((acc, as) => as.foldLeft(acc)(_ + _))
 
   /**
+   * A sink that collects first `n` distinct inputs into a set.
+   */
+  def collectAllToSetN[Err, In](n: Long): ZSink[Any, Err, In, Err, In, Set[In]] =
+    foldWeighted[Err, In, Set[In]](Set())((acc, in) => if (acc.contains(in)) 0 else 1, n)(_ + _)
+
+  /**
    * Accumulates incoming elements into a chunk as long as they verify predicate `p`.
    */
   def collectAllWhile[Err, In](p: In => Boolean): ZSink[Any, Err, In, Err, In, Chunk[In]] =

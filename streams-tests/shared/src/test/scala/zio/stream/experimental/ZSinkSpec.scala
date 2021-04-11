@@ -49,6 +49,22 @@ object ZSinkSpec extends ZIOBaseSpec {
               .run(ZSink.collectAllToSet[Nothing, Int])
           )(equalTo(Set(1, 2, 3, 4)))
         ),
+        suite("collectAllToSetN")(
+          testM("respect the given limit") {
+            ZStream
+              .fromChunks(Chunk(1, 2, 1), Chunk(2, 3, 3, 4))
+              .transduce(ZSink.collectAllToSetN[Nothing, Int](3))
+              .runCollect
+              .map(assert(_)(equalTo(Chunk(Set(1, 2, 3), Set(4)))))
+          },
+          testM("handles empty input") {
+            ZStream
+              .fromChunk(Chunk.empty: Chunk[Int])
+              .transduce(ZSink.collectAllToSetN[Nothing, Int](3))
+              .runCollect
+              .map(assert(_)(equalTo(Chunk(Set.empty[Int]))))
+          }
+        ),
         testM("collectAllToMap")(
           assertM(
             ZStream
