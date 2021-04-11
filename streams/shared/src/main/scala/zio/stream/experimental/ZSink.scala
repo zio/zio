@@ -782,9 +782,8 @@ object ZSink {
             }
 
           ZChannel.fromEffect(fold(in, s, dirty, cost, 0)).flatMap { case (nextS, nextCost, nextDirty, leftovers) =>
-            if (cost >= max && leftovers.nonEmpty) ZChannel.write(leftovers) *> ZChannel.end(nextS)
-            else if (cost <= max && leftovers.nonEmpty) ZChannel.write(leftovers) *> ZChannel.end(nextS)
-            else if (cost >= max && leftovers.isEmpty) ZChannel.end(nextS)
+            if (leftovers.nonEmpty) ZChannel.write(leftovers) *> ZChannel.end(nextS)
+            else if (cost > max) ZChannel.end(nextS)
             else go(nextS, nextCost, nextDirty)
           }
         },
