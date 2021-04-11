@@ -15,7 +15,7 @@ trait SubscriptionRef[A] {
 }
 ```
 
-The `ref` allows us to access a `RefM` containing the current value. We can use all the normal methods on `RefM` to `get`, `set`, or `modify` the current value
+The `ref` allows us to access a `RefM` containing the current value. We can use all the normal methods on `RefM` to `get`, `set`, or `modify` the current value.
 
 The `changes` stream can be consumed to observe the current value as well as all changes to that value. Since `changes` is just a description of a stream, each time we run the stream we will observe the current value as of that point in time as well as all changes after that.
 
