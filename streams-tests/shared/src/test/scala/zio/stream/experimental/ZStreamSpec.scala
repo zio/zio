@@ -2377,60 +2377,60 @@ object ZStreamSpec extends ZIOBaseSpec {
             )(equalTo(Chunk(Right("A"), Right("B"), Right("C"), Left("!"))))
           )
         ),
-        //     suite("repeatElements")(
-        //       testM("repeatElementsWith")(
-        //         assertM(
-        //           ZStream("A", "B", "C")
-        //             .repeatElementsWith(Schedule.recurs(0) *> Schedule.fromFunction((_) => 123))(
-        //               identity,
-        //               _.toString
-        //             )
-        //             .runCollect
-        //         )(equalTo(Chunk("A", "123", "B", "123", "C", "123")))
-        //       ),
-        //       testM("repeatElementsEither")(
-        //         assertM(
-        //           ZStream("A", "B", "C")
-        //             .repeatElementsEither(Schedule.recurs(0) *> Schedule.fromFunction((_) => 123))
-        //             .runCollect
-        //         )(equalTo(Chunk(Right("A"), Left(123), Right("B"), Left(123), Right("C"), Left(123))))
-        //       ),
-        //       testM("repeated && assertspaced")(
-        //         assertM(
-        //           ZStream("A", "B", "C")
-        //             .repeatElements(Schedule.once)
-        //             .runCollect
-        //         )(equalTo(Chunk("A", "A", "B", "B", "C", "C")))
-        //       ),
-        //       testM("short circuits in schedule")(
-        //         assertM(
-        //           ZStream("A", "B", "C")
-        //             .repeatElements(Schedule.once)
-        //             .take(4)
-        //             .runCollect
-        //         )(equalTo(Chunk("A", "A", "B", "B")))
-        //       ),
-        //       testM("short circuits after schedule")(
-        //         assertM(
-        //           ZStream("A", "B", "C")
-        //             .repeatElements(Schedule.once)
-        //             .take(3)
-        //             .runCollect
-        //         )(equalTo(Chunk("A", "A", "B")))
-        //       )
-        //     ),
-        //     testM("some") {
-        //       val s1 = ZStream.succeed(Some(1)) ++ ZStream.succeed(None)
-        //       s1.some.runCollect.either.map(assert(_)(isLeft(equalTo(None))))
-        //     },
-        //     testM("someOrElse") {
-        //       val s1 = ZStream.succeed(Some(1)) ++ ZStream.succeed(None)
-        //       s1.someOrElse(-1).runCollect.map(assert(_)(equalTo(Chunk(1, -1))))
-        //     },
-        //     testM("someOrFail") {
-        //       val s1 = ZStream.succeed(Some(1)) ++ ZStream.succeed(None)
-        //       s1.someOrFail(-1).runCollect.either.map(assert(_)(isLeft(equalTo(-1))))
-        //     },
+        suite("repeatElements")(
+          testM("repeatElementsWith")(
+            assertM(
+              ZStream("A", "B", "C")
+                .repeatElementsWith(Schedule.recurs(0) *> Schedule.fromFunction((_) => 123))(
+                  identity,
+                  _.toString
+                )
+                .runCollect
+            )(equalTo(Chunk("A", "123", "B", "123", "C", "123")))
+          ),
+          testM("repeatElementsEither")(
+            assertM(
+              ZStream("A", "B", "C")
+                .repeatElementsEither(Schedule.recurs(0) *> Schedule.fromFunction((_) => 123))
+                .runCollect
+            )(equalTo(Chunk(Right("A"), Left(123), Right("B"), Left(123), Right("C"), Left(123))))
+          ),
+          testM("repeated && assertspaced")(
+            assertM(
+              ZStream("A", "B", "C")
+                .repeatElements(Schedule.once)
+                .runCollect
+            )(equalTo(Chunk("A", "A", "B", "B", "C", "C")))
+          ),
+          testM("short circuits in schedule")(
+            assertM(
+              ZStream("A", "B", "C")
+                .repeatElements(Schedule.once)
+                .take(4)
+                .runCollect
+            )(equalTo(Chunk("A", "A", "B", "B")))
+          ),
+          testM("short circuits after schedule")(
+            assertM(
+              ZStream("A", "B", "C")
+                .repeatElements(Schedule.once)
+                .take(3)
+                .runCollect
+            )(equalTo(Chunk("A", "A", "B")))
+          )
+        ),
+        testM("some") {
+          val s1 = ZStream.succeed(Some(1)) ++ ZStream.succeed(None)
+          s1.some.runCollect.either.map(assert(_)(isLeft(isNone)))
+        },
+        testM("someOrElse") {
+          val s1 = ZStream.succeed(Some(1)) ++ ZStream.succeed(None)
+          s1.someOrElse(-1).runCollect.map(assert(_)(equalTo(Chunk(1, -1))))
+        },
+        testM("someOrFail") {
+          val s1 = ZStream.succeed(Some(1)) ++ ZStream.succeed(None)
+          s1.someOrFail(-1).runCollect.either.map(assert(_)(isLeft(equalTo(-1))))
+        },
         suite("take")(
           testM("take")(checkM(streamOfInts, Gen.anyInt) { (s, n) =>
             for {
