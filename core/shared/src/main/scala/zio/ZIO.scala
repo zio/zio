@@ -3868,7 +3868,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * Effectfully accesses the specified service in the environment of the effect.
    *
-   * Especially, useful for creating "accessor" methods on Services' companion objects.
+   * Especially useful for creating "accessor" methods on Services' companion objects.
    *
    * {{{
    * def foo(int: Int) = ZIO.serviceWith[Foo](_.foo(int))
