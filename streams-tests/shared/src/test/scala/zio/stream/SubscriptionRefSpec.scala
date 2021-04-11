@@ -48,7 +48,7 @@ object SubscriptionRefSpec extends DefaultRunnableSpec {
           } yield as
         for {
           subscriptionRef <- SubscriptionRef.make(0L)
-          fiber           <- subscriptionRef.ref.updateAndGet(n => UIO(n + 1)).forever.fork
+          fiber           <- subscriptionRef.ref.updateAndGet(n => ZIO.succeed(n + 1)).forever.fork
           values          <- ZIO.collectAllPar(List.fill(5000)(subscriber(subscriptionRef)))
           _               <- fiber.interrupt
         } yield assert(values)(forall(isSorted))
