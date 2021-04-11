@@ -41,6 +41,13 @@ object ZSinkSpec extends ZIOBaseSpec {
               .runCollect
               .map(assert(_)(equalTo(Chunk(Map(1 -> 2, 2 -> 4), Map(0 -> 3, 2 -> 2), Map(1 -> 4, 2 -> 5)))))
           },
+          testM("collects as long as map size doesn't exceed the limit") {
+            ZStream
+              .fromChunks(Chunk(0, 1, 2), Chunk(3, 4, 5), Chunk(6, 7, 8, 9))
+              .transduce(ZSink.collectAllToMapN(3)((_: Int) % 3)(_ + _))
+              .runCollect
+              .map(assert(_)(equalTo(Chunk(Map(0 -> 18, 1 -> 12, 2 -> 15)))))
+          },
           testM("handles empty input") {
             ZStream
               .fromChunk(Chunk.empty: Chunk[Int])
