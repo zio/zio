@@ -69,7 +69,8 @@
     "Streaming": [
       "datatypes/stream/index",
       "datatypes/stream/stream",
-      "datatypes/stream/sink"
+      "datatypes/stream/sink",
+      "datatypes/stream/subscriptionref"
     ],
     "Miscellaneous": [
       "datatypes/misc/index",

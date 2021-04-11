@@ -256,15 +256,14 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def broadcastDynamic(
     maximumLag: Int
-  ): ZManaged[R, Nothing, ZManaged[Any, Nothing, ZStream[Any, E, A]]] =
+  ): ZManaged[R, Nothing, ZStream[Any, E, A]] =
     self
       .broadcastedQueuesDynamic(maximumLag)
       .map(
-        _.map(
-          ZStream
-            .fromQueueWithShutdown(_)
-            .flattenTake
-        )
+        ZStream
+          .managed(_)
+          .flatMap(queue => ZStream.fromQueue(queue))
+          .flattenTake
       )
 
   /**
