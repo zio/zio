@@ -332,15 +332,14 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    */
   final def broadcastDynamic(
     maximumLag: Int
-  ): ZManaged[R, Nothing, ZManaged[Any, Nothing, ZStream[Any, E, O]]] =
+  ): ZManaged[R, Nothing, ZStream[Any, E, O]] =
     self
       .broadcastedQueuesDynamic(maximumLag)
       .map(
-        _.map(
-          ZStream
-            .fromQueueWithShutdown(_)
-            .flattenTake
-        )
+        ZStream
+          .managed(_)
+          .flatMap(queue => ZStream.fromQueue(queue))
+          .flattenTake
       )
 
   /**
