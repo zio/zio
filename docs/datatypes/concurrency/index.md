@@ -17,7 +17,7 @@ The _Shared Memory_ model has two main solutions:
 
 1. **Lock-Based** — In the locking model, the general primitives for synchronization are ـlocksـ, that control access to critical sections. When a thread wants to modify the critical section, it acquires the lock and says I'm the only thread that is allowed to modify the state right now, after it's work finished it unlocks the critical section and says I'm done, all other threads can modify this memory section.
 
-2. **Lock-Free** — Non-blocking algorithms usually use hardware-intrinsic atomic operations like `compare-and-swap` (CAS), without using any locks. This method follows an optimistic design with a transactional memory mechanism to roll back in conflict situations.
+2. **Non-blocking** — Non-blocking algorithms usually use hardware-intrinsic atomic operations like `compare-and-swap` (CAS), without using any locks. This method follows an optimistic design with a transactional memory mechanism to roll back in conflict situations.
 
 ## Implication of Locking Mechanism
 
@@ -35,7 +35,7 @@ There are lots of drawback with lock-based concurrency:
 
 ## Lock-free Concurrency Model
 
-As the lock-based concurrency model does not compose and has lots of drawbacks, ZIO uses a _lock-free concurrency model_. The magic behind all of ZIO concurrency primitives is that they use CAS (_compare-and-setـ) operation. 
+As the lock-oriented programming does not compose and has lots of drawbacks, ZIO uses a _lock-free concurrency model_ which is a variation of non-blocking algorithms. The magic behind all of ZIO concurrency primitives is that they use CAS (_compare-and-set_) operation. 
 
 Let's see how the `modify` function of `Ref` is implemented without any locking mechanism:
 
