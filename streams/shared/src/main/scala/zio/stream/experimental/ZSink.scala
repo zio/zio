@@ -371,6 +371,19 @@ object ZSink {
     }
 
   /**
+   * A sink that collects first `n` keys into a map. The keys are calculated
+   * from inputs using the keying function `key`; if multiple inputs use the
+   * the same key, they are merged using the `f` function.
+   */
+  def collectAllToMapN[Err, In, K](n: Long)(key: In => K)(f: (In, In) => In): ZSink[Any, Err, In, Err, In, Map[K, In]] =
+    foldWeighted[Err, In, Map[K, In]](Map())((acc, in) => if (acc.contains(key(in))) 0 else 1, n) { (acc, in) =>
+      val k = key(in)
+      val v = if (acc.contains(k)) f(acc(k), in) else in
+
+      acc.updated(k, v)
+    }
+
+  /**
    * A sink that collects all of its inputs into a set.
    */
   def collectAllToSet[Err, In]: ZSink[Any, Err, In, Err, Nothing, Set[In]] =
@@ -697,9 +710,8 @@ object ZSink {
 
           val (nextS, nextCost, nextDirty, leftovers) = fold(in, s, dirty, cost, 0)
 
-          if (cost >= max && leftovers.nonEmpty) ZChannel.write(leftovers) *> ZChannel.end(nextS)
-          else if (cost <= max && leftovers.nonEmpty) ZChannel.write(leftovers) *> ZChannel.end(nextS)
-          else if (cost >= max && leftovers.isEmpty) ZChannel.end(nextS)
+          if (leftovers.nonEmpty) ZChannel.write(leftovers) *> ZChannel.end(nextS)
+          else if (cost > max) ZChannel.end(nextS)
           else go(nextS, nextCost, nextDirty)
         },
         (err: Err) => ZChannel.fail(err),
@@ -779,9 +791,8 @@ object ZSink {
             }
 
           ZChannel.fromEffect(fold(in, s, dirty, cost, 0)).flatMap { case (nextS, nextCost, nextDirty, leftovers) =>
-            if (cost >= max && leftovers.nonEmpty) ZChannel.write(leftovers) *> ZChannel.end(nextS)
-            else if (cost <= max && leftovers.nonEmpty) ZChannel.write(leftovers) *> ZChannel.end(nextS)
-            else if (cost >= max && leftovers.isEmpty) ZChannel.end(nextS)
+            if (leftovers.nonEmpty) ZChannel.write(leftovers) *> ZChannel.end(nextS)
+            else if (cost > max) ZChannel.end(nextS)
             else go(nextS, nextCost, nextDirty)
           }
         },
