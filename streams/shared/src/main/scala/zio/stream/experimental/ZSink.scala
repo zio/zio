@@ -343,6 +343,15 @@ object ZSink {
   }
 
   /**
+   * A sink that collects first `n` elements into a chunk. Note that the chunk
+   * is preallocated and must fit in memory.
+   */
+  def collectAllN[Err, In](n: Int): ZSink[Any, Err, In, Err, In, Chunk[In]] =
+    fromEffect(UIO(ChunkBuilder.make[In](n)))
+      .flatMap(cb => foldUntil[Err, In, ChunkBuilder[In]](cb, n.toLong)(_ += _))
+      .map(_.result())
+
+  /**
    * A sink that collects all of its inputs into a map. The keys are extracted from inputs
    * using the keying function `key`; if multiple inputs use the same key, they are merged
    * using the `f` function.

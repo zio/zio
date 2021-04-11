@@ -20,6 +20,29 @@ object ZSinkSpec extends ZIOBaseSpec {
   def spec: ZSpec[Environment, Failure] = {
     suite("ZSinkSpec")(
       suite("Constructors")(
+        suite("collectAllN")(
+          testM("respects the given limit") {
+            ZStream
+              .fromChunk(Chunk(1, 2, 3, 4))
+              .transduce(ZSink.collectAllN[Nothing, Int](3))
+              .runCollect
+              .map(assert(_)(equalTo(Chunk(Chunk(1, 2, 3), Chunk(4)))))
+          },
+          testM("produces empty trailing chunks") {
+            ZStream
+              .fromChunk(Chunk(1, 2, 3, 4))
+              .transduce(ZSink.collectAllN[Nothing, Int](4))
+              .runCollect
+              .map(assert(_)(equalTo(Chunk(Chunk(1, 2, 3, 4), Chunk()))))
+          },
+          testM("handles empty input") {
+            ZStream
+              .fromChunk(Chunk.empty: Chunk[Int])
+              .transduce(ZSink.collectAllN[Nothing, Int](3))
+              .runCollect
+              .map(assert(_)(equalTo(Chunk(Chunk()))))
+          }
+        ),
         testM("collectAllToSet")(
           assertM(
             ZStream(1, 2, 3, 3, 4)
