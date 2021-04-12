@@ -1,0 +1,122 @@
+<!DOCTYPE html><html lang="en"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>How to Interop with Cats Effect? · ZIO</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="[`interop-cats`](https://github.com/zio/interop-cats) has instances for the [Cats](https://typelevel.org/cats/), [Cats MTL](https://github.com/typelevel/cats-mtl) and [Cats Effect](https://typelevel.org/cats-effect/) libraries, which allow you to use ZIO with any libraries that rely on these, like [Doobie](https://github.com/tpolecat/doobie), [Http4s](https://github.com/http4s/http4s), [FS2](https://github.com/functional-streams-for-scala/fs2) or [Circe](https://github.com/circe/circe)"/><meta name="docsearch:language" content="en"/><meta property="og:title" content="How to Interop with Cats Effect? · ZIO"/><meta property="og:type" content="website"/><meta property="og:url" content="https://zio.dev/"/><meta property="og:description" content="[`interop-cats`](https://github.com/zio/interop-cats) has instances for the [Cats](https://typelevel.org/cats/), [Cats MTL](https://github.com/typelevel/cats-mtl) and [Cats Effect](https://typelevel.org/cats-effect/) libraries, which allow you to use ZIO with any libraries that rely on these, like [Doobie](https://github.com/tpolecat/doobie), [Http4s](https://github.com/http4s/http4s), [FS2](https://github.com/functional-streams-for-scala/fs2) or [Circe](https://github.com/circe/circe)"/><meta name="twitter:card" content="summary"/><link rel="shortcut icon" href="/img/favicon.png"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/default.min.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script src="https://unpkg.com/vanilla-back-to-top@7.1.14/dist/vanilla-back-to-top.min.js"></script><script>
+        document.addEventListener('DOMContentLoaded', function() {
+          addBackToTop(
+            {"zIndex":100,"cornerOffset":100}
+          )
+        });
+        </script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/"><img class="logo" src="/img/navbar_brand.png" alt="ZIO"/><h2 class="headerTitleWithLogo">ZIO</h2></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class=""><a href="/docs/overview/overview_index" target="_self">Overview</a></li><li class=""><a href="/docs/datatypes/" target="_self">Data Types</a></li><li class=""><a href="/docs/services/" target="_self">Services</a></li><li class=""><a href="/docs/usecases/usecases_index" target="_self">Use Cases</a></li><li class="siteNavGroupActive"><a href="/docs/howto/" target="_self">How to</a></li><li class=""><a href="/docs/resources/" target="_self">Resources</a></li><li class=""><a href="/docs/about/about_index" target="_self">About</a></li><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Interop</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle collapsible">Overview<span class="arrow"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="#565656" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"></path><path d="M0 0h24v24H0z" fill="none"></path></svg></span></h3><ul class="hide"><li class="navListItem"><a class="navItem" href="/docs/howto/">Summary</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle collapsible">How to<span class="arrow"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="#565656" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"></path><path d="M0 0h24v24H0z" fill="none"></path></svg></span></h3><ul class="hide"><li class="navListItem"><a class="navItem" href="/docs/howto/use-modules-and-layers">How to Use Modules and Layers?</a></li><li class="navListItem"><a class="navItem" href="/docs/howto/use-test-assertions">How to Use Test Assertions</a></li><li class="navListItem"><a class="navItem" href="/docs/howto/test-effects">How to Test effects?</a></li><li class="navListItem"><a class="navItem" href="/docs/howto/mock-services">How to Mock Services?</a></li><li class="navListItem"><a class="navItem" href="/docs/howto/handle-errors">How to Handle Errors?</a></li><li class="navListItem"><a class="navItem" href="/docs/howto/access-system-information">How to Access System Information?</a></li><li class="navListItem"><a class="navItem" href="/docs/howto/use-zio-macros">How to use ZIO Macros?</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle collapsible">Interop<span class="arrow"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="#565656" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"></path><path d="M0 0h24v24H0z" fill="none"></path></svg></span></h3><ul class="hide"><li class="navListItem navListItemActive"><a class="navItem" href="/docs/howto/interop/with-cats-effect">How to Interop with Cats Effect?</a></li><li class="navListItem"><a class="navItem" href="/docs/howto/interop/with-future">How to Interop with Future?</a></li><li class="navListItem"><a class="navItem" href="/docs/howto/interop/with-java">How to Interop with Java?</a></li><li class="navListItem"><a class="navItem" href="/docs/howto/interop/with-javascript">How to Interop with JavaScript?</a></li><li class="navListItem"><a class="navItem" href="/docs/howto/interop/with-monix">How to Interop with Monix?</a></li><li class="navListItem"><a class="navItem" href="/docs/howto/interop/with-scalaz-7x">How to Interop with Scalaz 7.x?</a></li><li class="navListItem"><a class="navItem" href="/docs/howto/interop/with-reactive-streams">How to Interop with Reactive Streams?</a></li><li class="navListItem"><a class="navItem" href="/docs/howto/interop/with-twitter">How to Interop with Twitter?</a></li><li class="navListItem"><a class="navItem" href="/docs/howto/interop/with-guava">How to Interop with Guava?</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle collapsible">Migrate<span class="arrow"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="#565656" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"></path><path d="M0 0h24v24H0z" fill="none"></path></svg></span></h3><ul class="hide"><li class="navListItem"><a class="navItem" href="/docs/howto/migrate/from-monix">How to Migrate from Monix to ZIO?</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://github.com/zio/zio/edit/master/docs/howto/interop/with-cats-effect.md" target="_blank" rel="noreferrer noopener">Edit</a><h1 id="__docusaurus" class="postHeaderTitle">How to Interop with Cats Effect?</h1></header><article><div><span><p><a href="https://github.com/zio/interop-cats"><code>interop-cats</code></a> has instances for the <a href="https://typelevel.org/cats/">Cats</a>, <a href="https://github.com/typelevel/cats-mtl">Cats MTL</a> and <a href="https://typelevel.org/cats-effect/">Cats Effect</a> libraries, which allow you to use ZIO with any libraries that rely on these, like <a href="https://github.com/tpolecat/doobie">Doobie</a>, <a href="https://github.com/http4s/http4s">Http4s</a>, <a href="https://github.com/functional-streams-for-scala/fs2">FS2</a> or <a href="https://github.com/circe/circe">Circe</a></p>
+<p>To use this module, add the following to your <code>build.sbt</code>:</p>
+<pre><code class="hljs css language-scala">libraryDependencies += <span class="hljs-string">"dev.zio"</span> %% <span class="hljs-string">"zio-interop-cats"</span> % <span class="hljs-string">"&lt;version&gt;"</span>
+</code></pre>
+<p>Most of the interop functionality resides in the following package:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> zio.interop.catz._
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="cats-effect-instances"></a><a href="#cats-effect-instances" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Cats Effect Instances</h2>
+<p>ZIO integrates with Typelevel libraries by providing instances of Cats Effect type classes. These type classes are used by <code>fs2</code>, <code>doobie</code> and <code>http4s</code>, and a variety of other libraries in the functional Scala ecosystem.</p>
+<p>Due to limitations of Cats Effect, ZIO cannot provide instances for arbitrary error types. Instead, you can obtain instances only for effects whose error type extends <code>Throwable</code>.</p>
+<p>For convenience, ZIO includes the <code>Task</code> and <code>RIO</code> type aliases, which fix the error type to <code>Throwable</code>, and may be useful for interop with Cats Effect:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-class"><span class="hljs-keyword">type</span> <span class="hljs-title">Task</span>[   +<span class="hljs-type">A</span>] </span>= <span class="hljs-type">ZIO</span>[<span class="hljs-type">Any</span>, <span class="hljs-type">Throwable</span>, <span class="hljs-type">A</span>]
+<span class="hljs-class"><span class="hljs-keyword">type</span> <span class="hljs-title">RIO</span>[-<span class="hljs-type">R</span>, +<span class="hljs-type">A</span>] </span>= <span class="hljs-type">ZIO</span>[  <span class="hljs-type">R</span>, <span class="hljs-type">Throwable</span>, <span class="hljs-type">A</span>]
+</code></pre>
+<p>In order to use Cats Effect instances for these types, you should have an implicit <code>Runtime[R]</code> in scope for the environment type of your effects. The following code snippet creates an implicit <code>Runtime</code> for all the modules built into ZIO:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">implicit</span> <span class="hljs-keyword">val</span> runtime: <span class="hljs-type">Runtime</span>[<span class="hljs-type">ZEnv</span>] = <span class="hljs-type">Runtime</span>.<span class="hljs-keyword">default</span>
+</code></pre>
+<p>If you are using <code>RIO</code> for a custom environment <code>R</code>, then you will have to create your own <code>Runtime[R]</code>, and ensure that implicit wherever you need Cats Effect instances.</p>
+<h3><a class="anchor" aria-hidden="true" id="cats-app"></a><a href="#cats-app" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Cats App</h3>
+<p>As a convenience, your application can extend <code>CatsApp</code>, which automatically brings an implicit <code>Runtime[Environment]</code> into scope.</p>
+<h3><a class="anchor" aria-hidden="true" id="timer"></a><a href="#timer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Timer</h3>
+<p>In order to get a <code>cats.effect.Timer[Task]</code> instance, we need an extra import:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> zio.interop.catz.implicits._
+</code></pre>
+<p>The reason why a <code>Timer[Task]</code> is not provided by the default &quot;interop&quot; import is that it makes testing programs that require timing capabilities very difficult. The extra import (wherever needed) makes reasoning about timing-related effects much easier.
+If you are using <code>RIO</code> for a custom environment then your environment must use the <code>Clock</code> service, e.g. <code>R &lt;: Clock</code> to get a timer.</p>
+<h2><a class="anchor" aria-hidden="true" id="example"></a><a href="#example" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Example</h2>
+<p>The following example shows how to use ZIO with Doobie (a library for JDBC access) and FS2 (a streaming library), which both rely on Cats Effect instances:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> doobie.imports._
+<span class="hljs-keyword">import</span> fs2.<span class="hljs-type">Stream</span>
+<span class="hljs-keyword">import</span> zio.<span class="hljs-type">Task</span>
+<span class="hljs-keyword">import</span> zio.interop.catz._
+
+<span class="hljs-keyword">val</span> xa: <span class="hljs-type">Transactor</span>[<span class="hljs-type">Task</span>] = <span class="hljs-type">Transactor</span>.fromDriverManager[<span class="hljs-type">Task</span>](...)
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">loadUsers</span></span>: <span class="hljs-type">Stream</span>[<span class="hljs-type">Task</span>, <span class="hljs-type">User</span>] =
+  <span class="hljs-string">sql""</span><span class="hljs-string">"SELECT * FROM users"</span><span class="hljs-string">""</span>.query[<span class="hljs-type">User</span>].stream.transact(xa)
+
+<span class="hljs-keyword">val</span> allUsers: <span class="hljs-type">List</span>[<span class="hljs-type">User</span>] = unsafeRun(loadUsers.compile.toList)
+</code></pre>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/howto/use-zio-macros"><span class="arrow-prev">← </span><span>How to use ZIO Macros?</span></a><a class="docs-next button" href="/docs/howto/interop/with-future"><span>How to Interop with Future?</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#cats-effect-instances">Cats Effect Instances</a><ul class="toc-headings"><li><a href="#cats-app">Cats App</a></li><li><a href="#timer">Timer</a></li></ul></li><li><a href="#example">Example</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="sitemap"><a href="/" class="nav-home"><img src="/img/navbar_brand.png" alt="ZIO"/></a><div><h5>GitHub</h5><a href="https://github.com/zio/zio"><img src="https://img.shields.io/github/stars/zio/zio?style=social" alt="github"/></a></div><div><h5>Chat with us on Discord</h5><a href="https://discord.gg/2ccFBr4"><img src="https://img.shields.io/discord/629491597070827530?logo=discord&amp;style=social" alt="discord"/></a></div><div><h5>Follow us on Twitter</h5><a href="https://twitter.com/zioscala"><img src="https://img.shields.io/twitter/follow/zioscala?label=Follow&amp;style=social" alt="twitter"/></a></div><div><h5>Additional resources</h5><a href="https://javadoc.io/doc/dev.zio/zio_2.12/">Scaladoc of zio</a></div><div><a href="https://www.netlify.com"><img src="https://www.netlify.com/img/global/badges/netlify-color-accent.svg" alt="Deploys by Netlify"/></a></div></section><section class="copyright">Copyright © 2021 ZIO Maintainers</section></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: '0c94b59071da7001757d08ab43d9e033',
+                indexName: 'zio',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {}
+              });
+            </script></body></html>

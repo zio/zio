@@ -1,0 +1,145 @@
+<!DOCTYPE html><html lang="en"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Videos · ZIO</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="## Functional Programming"/><meta name="docsearch:language" content="en"/><meta property="og:title" content="Videos · ZIO"/><meta property="og:type" content="website"/><meta property="og:url" content="https://zio.dev/"/><meta property="og:description" content="## Functional Programming"/><meta name="twitter:card" content="summary"/><link rel="shortcut icon" href="/img/favicon.png"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/default.min.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script src="https://unpkg.com/vanilla-back-to-top@7.1.14/dist/vanilla-back-to-top.min.js"></script><script>
+        document.addEventListener('DOMContentLoaded', function() {
+          addBackToTop(
+            {"zIndex":100,"cornerOffset":100}
+          )
+        });
+        </script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/"><img class="logo" src="/img/navbar_brand.png" alt="ZIO"/><h2 class="headerTitleWithLogo">ZIO</h2></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class=""><a href="/docs/overview/overview_index" target="_self">Overview</a></li><li class=""><a href="/docs/datatypes/" target="_self">Data Types</a></li><li class=""><a href="/docs/services/" target="_self">Services</a></li><li class=""><a href="/docs/usecases/usecases_index" target="_self">Use Cases</a></li><li class=""><a href="/docs/howto/" target="_self">How to</a></li><li class="siteNavGroupActive"><a href="/docs/resources/" target="_self">Resources</a></li><li class=""><a href="/docs/about/about_index" target="_self">About</a></li><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Learning</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle collapsible">Overview<span class="arrow"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="#565656" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"></path><path d="M0 0h24v24H0z" fill="none"></path></svg></span></h3><ul class="hide"><li class="navListItem"><a class="navItem" href="/docs/resources/">Summary</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle collapsible">Learning<span class="arrow"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="#565656" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"></path><path d="M0 0h24v24H0z" fill="none"></path></svg></span></h3><ul class="hide"><li class="navListItem"><a class="navItem" href="/docs/resources/learning/articles">Articles</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/docs/resources/learning/videos">Videos</a></li><li class="navListItem"><a class="navItem" href="/docs/resources/learning/cookbooks">Cookbooks</a></li><li class="navListItem"><a class="navItem" href="/docs/resources/learning/cheatsheets">Cheat Sheets</a></li><li class="navListItem"><a class="navItem" href="/docs/resources/learning/sampleprojects">Sample Projects</a></li><li class="navListItem"><a class="navItem" href="/docs/resources/learning/poweredbyzio">Projects using ZIO</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle collapsible">Ecosystem<span class="arrow"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="#565656" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"></path><path d="M0 0h24v24H0z" fill="none"></path></svg></span></h3><ul class="hide"><li class="navListItem"><a class="navItem" href="/docs/resources/ecosystem/officials">Official ZIO Libraries</a></li><li class="navListItem"><a class="navItem" href="/docs/resources/ecosystem/community">Community ZIO Libraries</a></li><li class="navListItem"><a class="navItem" href="/docs/resources/ecosystem/compatible">ZIO Compatible Libraries</a></li><li class="navListItem"><a class="navItem" href="/docs/resources/ecosystem/tools">Tools for ZIO</a></li><li class="navListItem"><a class="navItem" href="/docs/resources/ecosystem/templates">Project Templates</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://github.com/zio/zio/edit/master/docs/resources/learning/videos.md" target="_blank" rel="noreferrer noopener">Edit</a><h1 id="__docusaurus" class="postHeaderTitle">Videos</h1></header><article><div><span><h2><a class="anchor" aria-hidden="true" id="functional-programming"></a><a href="#functional-programming" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Functional Programming</h2>
+<ul>
+<li><a href="https://www.youtube.com/watch?v=sxudIMiOo68">FP to the Max</a> by John De Goes (July 2018)</li>
+<li><a href="https://www.youtube.com/watch?v=mrHphQT4RpU">FP to the Min</a> by John De Goes (July 2020)</li>
+</ul>
+<h2><a class="anchor" aria-hidden="true" id="zio-core"></a><a href="#zio-core" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>ZIO Core</h2>
+<ul>
+<li><a href="https://www.youtube.com/watch?v=p98W4bUtbO8">The Death of Tagless Final</a> by John De Goes (February 2019)</li>
+<li><a href="https://www.youtube.com/watch?v=TWdC7DhvD8M">A Tour of ZIO</a> by John De Goes (January 2020)</li>
+<li><a href="https://www.youtube.com/watch?v=USgfku1h7Hw">Upgrade Your Future</a> by John De Goes (September 2019)</li>
+<li><a href="https://www.youtube.com/watch?v=POUEz8XHMhE">One Monad to Rule Them All</a> by John De Goes (August 2019)</li>
+<li><a href="https://www.youtube.com/watch?v=m5nas4Hndqo">Functional Concurrency in Scala with ZIO</a> by Itamar Ravid (June 2019)</li>
+<li><a href="https://www.youtube.com/watch?v=-KA3BSdqYug">Thinking Functionally</a> by John De Goes (March 2019)</li>
+<li><a href="https://www.youtube.com/watch?v=5s0GOA3WQnY&amp;t=1405s">Tour of ZIO</a> by Oleksandra Holubitska (March 2019)</li>
+<li><a href="https://www.youtube.com/watch?v=mkSHhsJXjdc&amp;t=6s">ZIO: Next-Generation Effects in Scala</a> by John De Goes (October 2018)</li>
+<li><a href="https://www.youtube.com/watch?v=4EeL8-chAR8">Functional Effects in ZIO</a> by  Wiem Zine El Abidine</li>
+</ul>
+<h2><a class="anchor" aria-hidden="true" id="error-management"></a><a href="#error-management" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Error Management</h2>
+<ul>
+<li><a href="https://www.youtube.com/watch?v=mGxcaQs3JWI">Error Management: Future vs ZIO</a> by John De Goes and Kai (May 2019), <a href="https://www.slideshare.net/jdegoes/error-management-future-vs-zio">slide</a></li>
+<li>Systematic error management in application - We ported Rudder to ZIO: <a href="https://www.youtube.com/watch?v=q0PlcgR5M1Q">video in French</a>, <a href="https://speakerdeck.com/fanf42/systematic-error-management-we-ported-rudder-to-zio">slides in English</a> by François Armand (Scala.io, October 2019)</li>
+</ul>
+<h2><a class="anchor" aria-hidden="true" id="zio-module-pattern"></a><a href="#zio-module-pattern" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>ZIO Module Pattern</h2>
+<ul>
+<li><a href="https://www.youtube.com/watch?v=u5IrfkAo6nk">ZLayers by example</a> by Wiem Zine El Abidine (December 2020)</li>
+<li><a href="https://www.youtube.com/watch?v=vNQFlq1SvaE">ZIO inception: Journey through layers and intersection types</a> by Vladimir Pavkin (July 2020)</li>
+</ul>
+<h2><a class="anchor" aria-hidden="true" id="zio-schedule"></a><a href="#zio-schedule" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>ZIO Schedule</h2>
+<ul>
+<li><a href="https://www.youtube.com/watch?v=onQSHiafAY8&amp;t=1s">ZIO Schedule: Conquering Flakiness and Recurrence with Pure Functional Programming</a> by John De Goes (October 2018)</li>
+</ul>
+<h2><a class="anchor" aria-hidden="true" id="zio-concurrency-primitives"></a><a href="#zio-concurrency-primitives" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>ZIO Concurrency Primitives</h2>
+<ul>
+<li><a href="https://www.youtube.com/watch?v=d6WWmia0BPM">Atomically { Delete Your Actors }</a> by John De Goes and Wiem Zine El Abidine (April 2019)</li>
+<li><a href="https://www.youtube.com/watch?v=lBYkLc-j7Vo">ZIO Queue</a> by Wiem Zine El Abidine (January 2019)</li>
+<li><a href="https://www.youtube.com/watch?v=8JLprl34xEw&amp;t=2437s">ZIO Queue: A new Queue for a new Era</a> by John De Goes (September 2018)</li>
+</ul>
+<h2><a class="anchor" aria-hidden="true" id="zio-stm"></a><a href="#zio-stm" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>ZIO STM</h2>
+<ul>
+<li><a href="https://www.youtube.com/watch?v=MEH7hQmGK5M">Declarative Concurrency with ZIO STM</a> by Dejan Mijic (June 2020)</li>
+</ul>
+<h2><a class="anchor" aria-hidden="true" id="zio-test"></a><a href="#zio-test" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>ZIO Test</h2>
+<ul>
+<li><a href="https://www.youtube.com/watch?v=qDFfVinjDPQ">0 to 100 with ZIO Test</a> by Adam Fraser</li>
+</ul>
+<h2><a class="anchor" aria-hidden="true" id="zio-streams"></a><a href="#zio-streams" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>ZIO Streams</h2>
+<ul>
+<li><a href="https://youtu.be/bbss7elSfxs">Modern Data Driven Applications with ZIO Streams</a> by Itamar Ravid (December 2019)</li>
+<li><a href="https://www.youtube.com/watch?v=mLJYODobz44&amp;t=15s">ZIO Stream: Rebirth</a> by John De Goes and Itamar Ravid (November 2018)</li>
+<li><a href="https://www.youtube.com/watch?v=XIIX2YSg7M0">The Joys of (Z)Streams</a> by Itamar Ravid</li>
+</ul>
+<h2><a class="anchor" aria-hidden="true" id="zio-actors"></a><a href="#zio-actors" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>ZIO Actors</h2>
+<ul>
+<li><a href="https://www.youtube.com/watch?v=AQXBlbkf9wc">Acting Lessons for Scala Engineers with Akka and ZIO</a> by <a href="https://wwww.softinio.com">Salar Rahmanian</a> (November 2020)</li>
+</ul>
+<h2><a class="anchor" aria-hidden="true" id="use-cases"></a><a href="#use-cases" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Use Cases</h2>
+<ul>
+<li><a href="https://www.youtube.com/watch?v=3P2Gi--dG9A&amp;list=PL-G8WBFTPSVpCcFq6O7czfx9m9T21Cz24&amp;index=11">Search Hacker News with ZIO with Scala, ZIO, Sttp and magic</a> — A practical look at building a ZIO program. + <a href="https://github.com/justinhj/magic-rate-limiter">Source Code</a> by <a href="https://twitter.com/justinhj">Justin Heyes-Jones</a> (April 2021)</li>
+</ul>
+<h2><a class="anchor" aria-hidden="true" id="others"></a><a href="#others" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Others</h2>
+<ul>
+<li><a href="https://youtu.be/jJnco6sMZQY">Redis Streams with ZIO</a> by <a href="https://twitter.com/leszekgruchala">Leszek Gruchała</a> (October 2020)</li>
+</ul>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/resources/learning/articles"><span class="arrow-prev">← </span><span>Articles</span></a><a class="docs-next button" href="/docs/resources/learning/cookbooks"><span>Cookbooks</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#functional-programming">Functional Programming</a></li><li><a href="#zio-core">ZIO Core</a></li><li><a href="#error-management">Error Management</a></li><li><a href="#zio-module-pattern">ZIO Module Pattern</a></li><li><a href="#zio-schedule">ZIO Schedule</a></li><li><a href="#zio-concurrency-primitives">ZIO Concurrency Primitives</a></li><li><a href="#zio-stm">ZIO STM</a></li><li><a href="#zio-test">ZIO Test</a></li><li><a href="#zio-streams">ZIO Streams</a></li><li><a href="#zio-actors">ZIO Actors</a></li><li><a href="#use-cases">Use Cases</a></li><li><a href="#others">Others</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="sitemap"><a href="/" class="nav-home"><img src="/img/navbar_brand.png" alt="ZIO"/></a><div><h5>GitHub</h5><a href="https://github.com/zio/zio"><img src="https://img.shields.io/github/stars/zio/zio?style=social" alt="github"/></a></div><div><h5>Chat with us on Discord</h5><a href="https://discord.gg/2ccFBr4"><img src="https://img.shields.io/discord/629491597070827530?logo=discord&amp;style=social" alt="discord"/></a></div><div><h5>Follow us on Twitter</h5><a href="https://twitter.com/zioscala"><img src="https://img.shields.io/twitter/follow/zioscala?label=Follow&amp;style=social" alt="twitter"/></a></div><div><h5>Additional resources</h5><a href="https://javadoc.io/doc/dev.zio/zio_2.12/">Scaladoc of zio</a></div><div><a href="https://www.netlify.com"><img src="https://www.netlify.com/img/global/badges/netlify-color-accent.svg" alt="Deploys by Netlify"/></a></div></section><section class="copyright">Copyright © 2021 ZIO Maintainers</section></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: '0c94b59071da7001757d08ab43d9e033',
+                indexName: 'zio',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {}
+              });
+            </script></body></html>
