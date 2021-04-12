@@ -1,15 +1,10 @@
 package zio.stream.experimental
 
-import zio.duration._
-//import zio.stream.SinkUtils.{findSink, sinkRaceLaw}
-//import zio.stream.ZStreamGen._
-import zio.test.Assertion._
-import zio.test.environment.TestClock
-//import zio.test.environment.TestClock
-//import zio.test.{assertM, _}
-//import zio.{ZIOBaseSpec, _}
-import zio.test._
 import zio._
+import zio.duration._
+import zio.test.Assertion._
+import zio.test._
+import zio.test.environment.TestClock
 
 //import scala.util.Random
 
