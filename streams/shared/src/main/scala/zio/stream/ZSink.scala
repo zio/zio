@@ -16,8 +16,8 @@
 
 package zio.stream
 
+import zio._
 import zio.duration._
-import zio.{Clock, _}
 
 // Important notes while writing sinks and combinators:
 // - What return values for sinks mean:

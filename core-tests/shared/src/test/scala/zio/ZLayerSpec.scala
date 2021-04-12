@@ -1,6 +1,5 @@
 package zio
 
-import zio.Clock._
 import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect.nonFlaky
@@ -64,14 +63,14 @@ object ZLayerSpec extends ZIOBaseSpec {
   def spec: ZSpec[Environment, Failure] =
     suite("ZLayerSpec")(
       testM("Size of >>> (1)") {
-        val layer = ZLayer.succeed(1) >>> ZLayer.fromService((i: Int) => i.toString)
+        val layer = ZLayer.succeed(1) >>> ((i: Int) => i.toString).toLayer
 
         testSize(layer, 1)
       },
       testM("Size of >>> (2)") {
         val layer = ZLayer.succeed(1) >>>
-          (ZLayer.fromService((i: Int) => i.toString) ++
-            ZLayer.fromService((i: Int) => i % 2 == 0))
+          (((i: Int) => i.toString).toLayer ++
+            ((i: Int) => i % 2 == 0).toLayer)
 
         testSize(layer, 2)
       },
@@ -86,10 +85,10 @@ object ZLayerSpec extends ZIOBaseSpec {
         } yield r1 && r2 && r3 && r4 && r5 && r6
       },
       testM("Size of >>> (9)") {
-        val layer = (ZEnv.live >>>
+        val layer = ZEnv.live >>>
           (Annotations.live ++ (Live.default >>> TestConsole.debug) ++
             Live.default ++ TestRandom.deterministic ++ Sized.live(100)
-            ++ TestSystem.default))
+            ++ TestSystem.default)
 
         testSize(layer, 9)
       },

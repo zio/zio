@@ -43,7 +43,7 @@ object SystemSpec extends ZIOBaseSpec {
       }
     ),
     suite("Fetch the system's line separator and check that")(
-      testM("it is identical to Has[System].lineSeparator") {
+      testM("it is identical to System.lineSeparator") {
         assertM(live(System.lineSeparator))(equalTo(java.lang.System.lineSeparator))
       }
     )

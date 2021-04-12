@@ -129,13 +129,13 @@ package object duration {
       case _                 => JavaDuration.ofNanos(duration.toNanos)
     }
 
-    final def max(other: Duration): Duration = if (duration > other) duration else other
+    def max(other: Duration): Duration = if (duration > other) duration else other
 
-    final def min(other: Duration): Duration = if (duration < other) duration else other
+    def min(other: Duration): Duration = if (duration < other) duration else other
 
     def compare(other: Duration): Int = duration.toNanos compare other.toNanos
 
-    final def fold[Z](infinity: => Z, finite: Duration => Z): Z = duration match {
+    def fold[Z](infinity: => Z, finite: Duration => Z): Z = duration match {
       case Duration.Infinity => infinity
       case f: Duration       => finite(f)
     }

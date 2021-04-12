@@ -16,7 +16,6 @@
 
 package zio
 
-import zio.Blocking
 import zio.interop.javaz
 
 import java.nio.channels.CompletionHandler

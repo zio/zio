@@ -1,6 +1,5 @@
 package zio.examples
 import zio._
-import zio.console.Console
 
 object LayerDefinitionExample extends App {
   trait Foo {
@@ -8,11 +7,11 @@ object LayerDefinitionExample extends App {
   }
 
   object Foo {
-    val live: URLayer[Console with Has[String] with Has[Int], Has[Foo]] =
+    val live: URLayer[Has[Console] with Has[String] with Has[Int], Has[Foo]] =
       (FooLive.apply _).toLayer
 
-    case class FooLive(console: Console.Service, string: String, int: Int) extends Foo {
-      override def bar: UIO[Unit] = console.putStrLn(s"$string and $int")
+    case class FooLive(console: Console, string: String, int: Int) extends Foo {
+      override def bar: UIO[Unit] = console.printLine(s"$string and $int")
     }
   }
 

@@ -10,7 +10,6 @@ object NeedsEnvSpec extends ZIOBaseSpec {
       val result = typeCheck {
         """
             import zio._
-            import zio.Console._
             val sayHello = Console.printLine("Hello, World!")
             sayHello.provideLayer(Console.live)
             """
@@ -21,7 +20,6 @@ object NeedsEnvSpec extends ZIOBaseSpec {
       val result = typeCheck {
         """
             import zio._
-            import zio.Console._
             val uio = UIO.succeed("Hello, World!")
             uio.provideLayer(Console.live)
             """

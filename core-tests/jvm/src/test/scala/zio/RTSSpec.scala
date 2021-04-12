@@ -1,6 +1,5 @@
 package zio
 
-import zio.Clock
 import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect.{nonFlaky, silent}
@@ -14,9 +13,8 @@ object RTSSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 
-  def spec: ZSpec[Environment, Failure] = suite("Has[Blocking] specs (to be migrated to ZIOSpecJvm)")(
+  def spec: ZSpec[Environment, Failure] = suite("Blocking specs (to be migrated to ZIOSpecJvm)")(
     testM("blocking caches threads") {
-      import zio.Blocking
 
       def runAndTrack(ref: Ref[Set[Thread]]): ZIO[Has[Blocking] with Has[Clock], Nothing, Boolean] =
         Blocking.blocking {
