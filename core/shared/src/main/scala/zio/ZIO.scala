@@ -18,8 +18,8 @@ package zio
 
 import zio.duration._
 import zio.internal.tracing.{ZIOFn, ZIOFn1, ZIOFn2}
-import zio.internal.{Executor, Platform}
-import zio.{Clock, Console, TracingStatus => TracingS}
+import zio.internal.{Executor, OneShot, Platform}
+import zio.{TracingStatus => TracingS}
 
 import scala.annotation.implicitNotFound
 import scala.collection.mutable.Builder
@@ -2646,8 +2646,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     blockingOn: List[Fiber.Id] = Nil
   ): ZIO[R, E, A] = {
     import java.util.concurrent.atomic.AtomicBoolean
-
-    import internal.OneShot
 
     effectTotal((new AtomicBoolean(false), OneShot.make[Canceler[R]])).flatMap { case (started, cancel) =>
       flatten {

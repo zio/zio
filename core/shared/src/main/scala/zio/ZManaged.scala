@@ -16,7 +16,6 @@
 
 package zio
 
-import zio.Clock
 import zio.ZManaged.ReleaseMap
 import zio.duration.Duration
 import zio.internal.Executor

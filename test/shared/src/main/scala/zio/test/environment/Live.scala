@@ -11,7 +11,7 @@ import zio.{Has, IO, ZEnv, ZIO, ZLayer, ZManaged}
  * with an effect that would otherwise access the test environment.
  *
  * {{{
- * import zio.clock
+ * import zio.Clock
  * import zio.test.environment._
  *
  * val realTime = live(Clock.nanoTime)

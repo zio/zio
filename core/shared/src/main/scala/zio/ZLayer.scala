@@ -169,7 +169,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    * function.
    */
   final def mapError[E1](f: E => E1)(implicit ev: CanFail[E]): ZLayer[RIn, E1, ROut] =
-    catchAll(ZLayer.second >>> ZLayer.fromFunctionManyM(e => ZIO.fail(f(e))))
+    catchAll(ZLayer.second_ >>> ZLayer.fromFunctionManyM(e => ZIO.fail(f(e))))
 
   /**
    * Returns a managed effect that, if evaluated, will return the lazily
@@ -183,7 +183,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    * unchecked and not a part of the type of the layer.
    */
   final def orDie(implicit ev1: E <:< Throwable, ev2: CanFail[E]): ZLayer[RIn, Nothing, ROut] =
-    catchAll(ZLayer.second >>> ZLayer.fromFunctionManyM(ZIO.die(_)))
+    catchAll(ZLayer.second_ >>> ZLayer.fromFunctionManyM(ZIO.die(_)))
 
   /**
    * Executes this layer and returns its output, if it succeeds, but otherwise
@@ -192,7 +192,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
   final def orElse[RIn1 <: RIn, E1, ROut1 >: ROut](
     that: ZLayer[RIn1, E1, ROut1]
   )(implicit ev: CanFail[E]): ZLayer[RIn1, E1, ROut1] =
-    catchAll(ZLayer.first >>> that)
+    catchAll(ZLayer.first_ >>> that)
 
   /**
    * Retries constructing this layer according to the specified schedule.
@@ -204,7 +204,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
     type S = StepFunction[RIn1, E, Any]
 
     lazy val loop: ZLayer[(RIn1, S), E, ROut] =
-      (ZLayer.first >>> self).catchAll {
+      (ZLayer.first_ >>> self).catchAll {
         val update: ZLayer[((RIn1, S), E), E, (RIn1, S)] =
           ZLayer.fromFunctionManyM {
             case ((r, s), e) =>
@@ -324,7 +324,6 @@ object ZLayer {
   /**
    * Constructs a layer from a managed resource.
    */
-  // Todo: DoesntHasHas
   def apply[R, E, A: Tag](managed: ZManaged[R, E, A]): ZLayer[R, E, Has[A]] =
     many(managed.asService)
 
@@ -356,8 +355,11 @@ object ZLayer {
   /**
    * A layer that passes along the first element of a tuple.
    */
-  @deprecated("use `ZLayer.apply` instead, passing in a ZIO", "zio 2.0.0")
+  @deprecated("use `ZLayer.fromFunctionMany(_._1)` instead", "zio 2.0.0")
   def first[A]: ZLayer[(A, Any), Nothing, A] =
+    ZLayer.fromFunctionMany(_._1)
+
+  private def first_[A]: ZLayer[(A, Any), Nothing, A] =
     ZLayer.fromFunctionMany(_._1)
 
   /**
@@ -380,9 +382,8 @@ object ZLayer {
   /**
    * Constructs a layer from the specified effect.
    */
-  @deprecated("use `ZLayer.apply` instead, passing in a ZIO", "zio 2.0.0")
   def fromEffect[R, E, A: Tag](zio: ZIO[R, E, A]): ZLayer[R, E, Has[A]] =
-    fromEffectMany(zio.asService)
+    ZLayer(zio)
 
   /**
    * Constructs a layer from the specified effect, which must return one or
@@ -419,7 +420,6 @@ object ZLayer {
    * Constructs a layer from the environment using the specified function,
    * which must return one or more services.
    */
-  @deprecated("use `ZLayer.apply` instead, passing in a ZIO", "zio 2.0.0")
   def fromFunctionMany[A, B](f: A => B): ZLayer[A, Nothing, B] =
     fromFunctionManyM(a => ZIO.succeedNow(f(a)))
 
@@ -427,9 +427,8 @@ object ZLayer {
    * Constructs a layer from the environment using the specified effectful
    * function, which must return one or more services.
    */
-  @deprecated("use `ZLayer.apply` instead, passing in a ZIO", "zio 2.0.0")
   def fromFunctionManyM[A, E, B](f: A => IO[E, B]): ZLayer[A, E, B] =
-    fromFunctionManyManaged(a => f(a).toManaged_)
+    ZLayer.many(ZManaged.fromFunctionM((a: A) => f(a).toManaged_))
 
   /**
    * Constructs a layer from the environment using the specified effectful
@@ -987,6 +986,7 @@ object ZLayer {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
+  @deprecated("use `ZLayer.apply` instead, passing in a ZManaged", "zio 2.0.0")
   def fromServicesManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6], E, Has[B]] = {
@@ -2315,7 +2315,6 @@ object ZLayer {
   /**
    * Constructs a layer from a managed resource.
    */
-  @deprecated("use `ZLayer.apply` instead", "zio 2.0.0")
   def fromManaged[R, E, A: Tag](m: ZManaged[R, E, A]): ZLayer[R, E, Has[A]] =
     ZLayer(m)
 
@@ -2343,7 +2342,11 @@ object ZLayer {
   /**
    * A layer that passes along the second element of a tuple.
    */
+  @deprecated("use `ZLayer.fromFunctionMany(_._2)` instead", "zio 2.0.0")
   def second[A]: ZLayer[(Any, A), Nothing, A] =
+    ZLayer.fromFunctionMany(_._2)
+
+  private def second_[A]: ZLayer[(Any, A), Nothing, A] =
     ZLayer.fromFunctionMany(_._2)
 
   /**

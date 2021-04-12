@@ -16,7 +16,7 @@
 
 package zio.test.mock
 
-import zio.{Has, IO, System, UIO, URLayer, ZLayer}
+import zio.{Has, IO, System, UIO, URLayer, ZIO}
 
 object MockSystem extends Mock[Has[System]] {
 
@@ -31,27 +31,30 @@ object MockSystem extends Mock[Has[System]] {
   object LineSeparator    extends Effect[Unit, Nothing, String]
 
   val compose: URLayer[Has[Proxy], Has[System]] =
-    ZLayer.fromService(proxy =>
-      new System {
-        def env(variable: String): IO[SecurityException, Option[String]] =
-          proxy(Env, variable)
-        def envOrElse(variable: String, alt: => String): IO[SecurityException, String] =
-          proxy(EnvOrElse, variable, alt)
-        def envOrOption(variable: String, alt: => Option[String]): IO[SecurityException, Option[String]] =
-          proxy(EnvOrOption, variable, alt)
-        val envs: IO[SecurityException, Map[String, String]] =
-          proxy(Envs)
-        val lineSeparator: UIO[String] =
-          proxy(LineSeparator)
-        val properties: IO[Throwable, Map[String, String]] =
-          proxy(Properties)
-        def property(prop: String): IO[Throwable, Option[String]] =
-          proxy(Property, prop)
-        def propertyOrElse(prop: String, alt: => String): IO[Throwable, String] =
-          proxy(PropertyOrElse, prop, alt)
-        def propertyOrOption(prop: String, alt: => Option[String]): IO[Throwable, Option[String]] =
-          proxy(PropertyOrOption, prop, alt)
+    ZIO
+      .service[Proxy]
+      .map(proxy =>
+        new System {
+          def env(variable: String): IO[SecurityException, Option[String]] =
+            proxy(Env, variable)
+          def envOrElse(variable: String, alt: => String): IO[SecurityException, String] =
+            proxy(EnvOrElse, variable, alt)
+          def envOrOption(variable: String, alt: => Option[String]): IO[SecurityException, Option[String]] =
+            proxy(EnvOrOption, variable, alt)
+          val envs: IO[SecurityException, Map[String, String]] =
+            proxy(Envs)
+          val lineSeparator: UIO[String] =
+            proxy(LineSeparator)
+          val properties: IO[Throwable, Map[String, String]] =
+            proxy(Properties)
+          def property(prop: String): IO[Throwable, Option[String]] =
+            proxy(Property, prop)
+          def propertyOrElse(prop: String, alt: => String): IO[Throwable, String] =
+            proxy(PropertyOrElse, prop, alt)
+          def propertyOrOption(prop: String, alt: => Option[String]): IO[Throwable, Option[String]] =
+            proxy(PropertyOrOption, prop, alt)
 
-      }
-    )
+        }
+      )
+      .toLayer
 }

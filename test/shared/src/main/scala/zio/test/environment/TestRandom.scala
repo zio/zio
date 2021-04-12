@@ -1,12 +1,8 @@
 package zio.test.environment
 
-import zio.duration._
-import zio.{Clock, Console, PlatformSpecific => _, Random, System, _}
+import zio.{PlatformSpecific => _, _}
 
-import java.io.{EOFException, IOException}
-import java.time.{Instant, LocalDateTime, OffsetDateTime, ZoneId}
-import java.util.concurrent.TimeUnit
-import scala.collection.immutable.{Queue, SortedSet}
+import scala.collection.immutable.Queue
 import scala.math.{log, sqrt}
 
 /**

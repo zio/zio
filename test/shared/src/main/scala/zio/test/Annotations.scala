@@ -1,12 +1,8 @@
 package zio.test
 
-import zio.duration.Duration
-import zio.stream.{ZSink, ZStream}
-import zio.test.environment.{TestClock, TestConsole, TestEnvironment, TestRandom, TestSystem, testEnvironment}
-import zio.{Console, _}
+import zio._
 
 import scala.collection.immutable.SortedSet
-import scala.util.Try
 
 /**
  * The `Has[Annotations]` trait provides access to an annotation map that tests

@@ -16,7 +16,6 @@
 
 package zio
 
-import zio.Clock
 import zio.Random._
 import zio.duration._
 

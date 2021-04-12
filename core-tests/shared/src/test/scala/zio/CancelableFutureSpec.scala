@@ -1,6 +1,5 @@
 package zio
 
-import zio.Clock
 import zio.Console._
 import zio.duration._
 import zio.test.Assertion._

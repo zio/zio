@@ -17,7 +17,7 @@
 package zio.test.mock
 
 import zio.duration.Duration
-import zio.{Clock, Has, UIO, URLayer, ZIO, ZLayer}
+import zio.{Clock, Has, UIO, URLayer, ZIO}
 
 import java.time.OffsetDateTime
 import java.util.concurrent.TimeUnit
