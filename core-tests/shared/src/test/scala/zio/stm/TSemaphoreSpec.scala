@@ -1,9 +1,10 @@
 package zio.stm
 
-import zio.ZIOBaseSpec
 import zio.random.Random
 import zio.test.Assertion._
+import zio.test.TestAspect._
 import zio.test._
+import zio.{ZIOBaseSpec, _}
 
 object TSemaphoreSpec extends ZIOBaseSpec {
   override def spec: ZSpec[Environment, Failure] = suite("TSemaphore")(
@@ -65,16 +66,17 @@ object TSemaphoreSpec extends ZIOBaseSpec {
           }
         }
       },
-      testM("withPermit automatically acquires and releases a permit once an action completes") {
-        val expected = 1L
-        STM.atomically {
-          for {
-            sem    <- TSemaphore.make(expected)
-            _      <- sem.withPermit(STM.unit)
-            actual <- sem.available
-          } yield assert(actual)(equalTo(expected))
-        }
-      }
+      testM("withPermit automatically releases the permit if the effect is interrupted") {
+        for {
+          promise   <- Promise.make[Nothing, Unit]
+          semaphore <- TSemaphore.make(1).commit
+          effect     = semaphore.withPermit(promise.succeed(()) *> ZIO.never)
+          fiber     <- effect.fork
+          _         <- promise.await
+          _         <- fiber.interrupt
+          permits   <- semaphore.permits.get.commit
+        } yield assert(permits)(equalTo(1L))
+      } @@ nonFlaky
     )
   )
 

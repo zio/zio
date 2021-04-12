@@ -1565,7 +1565,7 @@ object ZSTM {
       final val OnRetry     = 6
     }
 
-    class Versioned[A](val value: A)
+    class Versioned[A](val value: A) extends Serializable
 
     type TxnId = Long
 
