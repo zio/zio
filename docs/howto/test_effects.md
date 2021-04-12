@@ -115,7 +115,7 @@ import Assertion._
 testM("Semaphore should expose available number of permits") {
   for {
     s         <- Semaphore.make(1L)
-    permits   <- s.available
+    permits   <- s.available.commit
   } yield assert(permits)(equalTo(1L))
 }
 ```
