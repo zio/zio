@@ -76,6 +76,14 @@ object TSemaphoreSpec extends ZIOBaseSpec {
           _         <- fiber.interrupt
           permits   <- semaphore.permits.get.commit
         } yield assert(permits)(equalTo(1L))
+      } @@ nonFlaky,
+      testM("withPermit acquire is interruptible") {
+        for {
+          semaphore <- TSemaphore.make(0L).commit
+          effect     = semaphore.withPermit(ZIO.unit)
+          fiber     <- effect.fork
+          _         <- fiber.interrupt
+        } yield assertCompletes
       } @@ nonFlaky
     )
   )

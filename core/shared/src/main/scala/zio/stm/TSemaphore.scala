@@ -113,7 +113,7 @@ final class TSemaphore private (val permits: TRef[Long]) extends Serializable {
    * failure, or interruption.
    */
   def withPermits[R, E, A](n: Long)(zio: ZIO[R, E, A]): ZIO[R, E, A] =
-    ZIO.bracket(acquireN(n).commit)(_ => releaseN(n).commit)(_ => zio)
+    ZIO.bracket(acquireN(n).commit.interruptible)(_ => releaseN(n).commit)(_ => zio)
 
   /**
    * Returns a managed effect that describes acquiring the specified number of
@@ -121,7 +121,7 @@ final class TSemaphore private (val permits: TRef[Long]) extends Serializable {
    * action.
    */
   def withPermitsManaged(n: Long): ZManaged[Any, Nothing, Unit] =
-    ZManaged.make_(acquireN(n).commit)(release.commit)
+    ZManaged.makeInterruptible_(acquireN(n).commit)(release.commit)
 
   private def assertNonNegative(n: Long): Unit =
     require(n >= 0, s"Unexpected negative value `$n` passed to acquireN or releaseN.")
