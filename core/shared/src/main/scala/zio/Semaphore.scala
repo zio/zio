@@ -23,6 +23,6 @@ object Semaphore {
   /**
    * Creates a new `Semaphore` with the specified number of permits.
    */
-  def make(n: Long): UIO[Semaphore] =
-    TSemaphore.make(n).commit
+  def make(permits: Long): UIO[Semaphore] =
+    TSemaphore.make(permits).commit
 }

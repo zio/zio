@@ -2019,7 +2019,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * The release step will be performed uninterruptibly as usual.
    *
    * This two-phase acquisition allows for resource acquisition flows that can be
-   * safely interrupted and released. For an example, see [[Semaphore#withPermitsManaged]].
+   * safely interrupted and released.
    */
   def makeReserve[R, E, A](reservation: ZIO[R, E, Reservation[R, E, A]]): ZManaged[R, E, A] =
     ZManaged {

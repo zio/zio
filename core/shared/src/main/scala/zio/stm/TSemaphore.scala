@@ -113,7 +113,7 @@ final class TSemaphore private (val permits: TRef[Long]) extends Serializable {
    * failure, or interruption.
    */
   def withPermits[R, E, A](n: Long)(zio: ZIO[R, E, A]): ZIO[R, E, A] =
-    ZIO.bracket(acquireN(n).commit.interruptible)(_ => releaseN(n).commit)(_ => zio)
+    withPermitsManaged(n).use_(zio)
 
   /**
    * Returns a managed effect that describes acquiring the specified number of
@@ -132,13 +132,13 @@ object TSemaphore {
   /**
    * Constructs a new `TSemaphore` with the specified number of permits.
    */
-  def make(n: Long): USTM[TSemaphore] =
-    TRef.make(n).map(v => new TSemaphore(v))
+  def make(permits: Long): USTM[TSemaphore] =
+    TRef.make(permits).map(v => new TSemaphore(v))
 
   /**
    * Constructs a new `TSemaphore` with the specified number of permits,
    * immediately committing the transaction.
    */
-  def makeCommit(n: Long): UIO[TSemaphore] =
-    make(n).commit
+  def makeCommit(permits: Long): UIO[TSemaphore] =
+    make(permits).commit
 }
