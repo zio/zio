@@ -3,7 +3,7 @@ package zio.stream.experimental
 import zio._
 import zio.clock._
 import zio.duration._
-import zio.internal.UniqueKey
+import zio.internal.{SingleThreadedRingBuffer, UniqueKey}
 import zio.stm._
 import zio.stream.experimental.ZStream.BufferedPull
 import zio.stream.experimental.internal.Utils.zipChunks
@@ -2114,12 +2114,15 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
       new ZStream(
         ZChannel.unwrap(
           for {
-            queue <- Queue.sliding[A](n)
+            queue <- UIO(SingleThreadedRingBuffer[A](n))
           } yield {
             lazy val reader: ZChannel[Any, E, Chunk[A], Any, E, Chunk[A], Unit] = ZChannel.readWith(
-              (in: Chunk[A]) => ZChannel.fromEffect(queue.offerAll(in)) *> reader,
+              (in: Chunk[A]) => {
+                in.foreach(queue.put)
+                reader
+              },
               ZChannel.fail(_),
-              (_: Any) => ZChannel.unwrap(queue.takeAll.map(ZChannel.write)) *> ZChannel.unit
+              (_: Any) => ZChannel.write(queue.toChunk) *> ZChannel.unit
             )
 
             (self.channel >>> reader)
