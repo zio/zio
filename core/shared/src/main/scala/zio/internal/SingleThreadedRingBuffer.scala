@@ -16,13 +16,15 @@
 
 package zio.internal
 
-private[zio] final class SingleThreadedRingBuffer[A <: AnyRef](capacity: Int) {
+import zio.Chunk
+
+private[zio] final class SingleThreadedRingBuffer[A](capacity: Int) {
   private[this] val array   = new Array[AnyRef](capacity)
   private[this] var size    = 0
   private[this] var current = 0
 
   def put(value: A): Unit = {
-    array(current) = value
+    array(current) = value.asInstanceOf[AnyRef]
     increment()
   }
 
@@ -31,6 +33,18 @@ private[zio] final class SingleThreadedRingBuffer[A <: AnyRef](capacity: Int) {
       decrement()
       array(current) = null
     }
+
+  def toChunk: Chunk[A] = {
+    val begin = current - size
+
+    val newArray = if (begin < 0) {
+      array.slice(capacity + begin, capacity) ++ array.slice(0, current)
+    } else {
+      array.slice(begin, current)
+    }
+
+    Chunk.fromArray(newArray).asInstanceOf[Chunk[A]]
+  }
 
   def toReversedList: List[A] = {
     val begin = current - size
@@ -72,5 +86,5 @@ private[zio] final class SingleThreadedRingBuffer[A <: AnyRef](capacity: Int) {
 }
 
 object SingleThreadedRingBuffer {
-  def apply[A <: AnyRef](capacity: Int): SingleThreadedRingBuffer[A] = new SingleThreadedRingBuffer[A](capacity)
+  def apply[A](capacity: Int): SingleThreadedRingBuffer[A] = new SingleThreadedRingBuffer[A](capacity)
 }
