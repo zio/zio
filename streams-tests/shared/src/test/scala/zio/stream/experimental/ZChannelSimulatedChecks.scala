@@ -1,10 +1,9 @@
 package zio.stream.experimental
 
-import zio.random.Random
 import zio.stream.experimental.ZChannelSimulatedChecks.Simulation.{opsToDoneChannel, opsToEffect, opsToOutChannel}
 import zio.test.Assertion._
 import zio.test._
-import zio.{Chunk, IO, ZIO, ZIOBaseSpec}
+import zio.{Chunk, Has, IO, Random, ZIO, ZIOBaseSpec}
 
 object ZChannelSimulatedChecks extends ZIOBaseSpec {
   override def spec: ZSpec[Environment, Failure] =
@@ -30,8 +29,9 @@ object ZChannelSimulatedChecks extends ZIOBaseSpec {
   type Err = String
   type Res = Int
 
-  private val genErr: Gen[Sized with Random, Err] = Gen.oneOf(Gen.const("err1"), Gen.const("err2"), Gen.const("err3"))
-  private val genRes: Gen[Sized with Random, Res] = Gen.int(0, 100)
+  private val genErr: Gen[Has[Sized] with Has[Random], Err] =
+    Gen.oneOf(Gen.const("err1"), Gen.const("err2"), Gen.const("err3"))
+  private val genRes: Gen[Has[Sized] with Has[Random], Res] = Gen.int(0, 100)
 
   private def cutAtFailure(ops: List[Op]): List[Op] =
     ops.reverse.dropWhile {
@@ -39,7 +39,7 @@ object ZChannelSimulatedChecks extends ZIOBaseSpec {
       case _       => true
     }.reverse
 
-  private def genOps(currentDepth: Int = 1): Gen[Sized with Random, Op] =
+  private def genOps(currentDepth: Int = 1): Gen[Has[Sized] with Has[Random], Op] =
     Gen.double(0.0, 1.0).flatMap { n =>
       val r = (1.0 / currentDepth)
 
@@ -62,7 +62,7 @@ object ZChannelSimulatedChecks extends ZIOBaseSpec {
       }
     }
 
-  val gen: Gen[Sized with Random, Simulation] =
+  val gen: Gen[Has[Sized] with Has[Random], Simulation] =
     for {
       first <- genRes
       rest  <- Gen.listOf1(genOps()).map(cutAtFailure)

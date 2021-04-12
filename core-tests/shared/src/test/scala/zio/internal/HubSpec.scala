@@ -1,10 +1,9 @@
 package zio.internal
 
-import zio.Random
 import zio.test.Assertion._
 import zio.test._
 import zio.test.environment._
-import zio.{Hub => _, _}
+import zio.{Hub => _, Random, _}
 
 object HubSpec extends ZIOBaseSpec {
 

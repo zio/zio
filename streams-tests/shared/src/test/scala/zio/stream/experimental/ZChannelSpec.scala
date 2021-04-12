@@ -1,19 +1,14 @@
 package zio.stream.experimental
 
 import zio._
-import zio.random.Random
 import zio.test.Assertion._
 import zio.test._
-import zio.test.environment.{TestClock, TestConsole, TestRandom, TestSystem}
+import zio.test.environment._
 
 object ZChannelSpec extends ZIOBaseSpec {
   import ZIOTag._
 
-  def spec: Spec[Has[Random.Service] with Has[TestClock.Service] with Has[TestConsole.Service] with Has[
-    TestRandom.Service
-  ] with Has[TestSystem.Service] with Has[Annotations.Service] with Has[TestConfig.Service], TestFailure[
-    Any
-  ], TestSuccess] = suite("ZChannelSpec")(
+  def spec = suite("ZChannelSpec")(
     suite("interpreter")(
       testM("ZChannel.succeed") {
         for {
@@ -506,7 +501,7 @@ object ZChannelSpec extends ZIOBaseSpec {
           testM("simple concurrent reads") {
             val capacity = 128
 
-            ZIO.collectAll(List.fill(capacity)(random.nextInt)).flatMap { data =>
+            ZIO.collectAll(List.fill(capacity)(Random.nextInt)).flatMap { data =>
               Ref.make(data).zip(Ref.make(List[Int]())).flatMap { case (source, dest) =>
                 val twoWriters = refWriter(dest).mergeWith(refWriter(dest))(
                   _ => ZChannel.MergeDecision.awaitConst(ZIO.unit),
@@ -528,7 +523,7 @@ object ZChannelSpec extends ZIOBaseSpec {
             val capacity      = 128
             val f: Int => Int = _ + 1
 
-            ZIO.collectAll(List.fill(capacity)(random.nextInt)).flatMap { data =>
+            ZIO.collectAll(List.fill(capacity)(Random.nextInt)).flatMap { data =>
               Ref.make(data).zip(Ref.make(List[Int]())).flatMap { case (source, dest) =>
                 val twoWriters = (mapper(f) >>> refWriter(dest)).mergeWith((mapper(f) >>> refWriter(dest)))(
                   _ => ZChannel.MergeDecision.awaitConst(ZIO.unit),

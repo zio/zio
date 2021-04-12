@@ -20,7 +20,7 @@ import eu.timepit.refined.api.Refined
 import eu.timepit.refined.boolean.Or
 import zio.test.magnolia.DeriveGen
 import zio.test.{Gen, Sized}
-import zio.Has
+import zio.{Has, Random}
 
 object boolean extends BooleanInstances
 

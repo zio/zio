@@ -29,43 +29,43 @@ trait NumericInstances {
 
   def intGreaterThanGen[N](implicit
     wn: WitnessAs[N, Int]
-  ): Gen[Random, Refined[Int, Greater[N]]] = Gen.int(wn.snd, Int.MaxValue).map(Refined.unsafeApply)
+  ): Gen[Has[Random], Refined[Int, Greater[N]]] = Gen.int(wn.snd, Int.MaxValue).map(Refined.unsafeApply)
 
   def longGreaterThanGen[N](implicit
     wn: WitnessAs[N, Long]
-  ): Gen[Random, Refined[Long, Greater[N]]] = Gen.long(wn.snd, Long.MaxValue).map(Refined.unsafeApply)
+  ): Gen[Has[Random], Refined[Long, Greater[N]]] = Gen.long(wn.snd, Long.MaxValue).map(Refined.unsafeApply)
 
   def shortGreaterThanGen[N](implicit
     wn: WitnessAs[N, Short]
-  ): Gen[Random, Refined[Short, Greater[N]]] = Gen.short(wn.snd, Short.MaxValue).map(Refined.unsafeApply)
+  ): Gen[Has[Random], Refined[Short, Greater[N]]] = Gen.short(wn.snd, Short.MaxValue).map(Refined.unsafeApply)
 
   def byteGreaterThanGen[N](implicit
     wn: WitnessAs[N, Byte]
-  ): Gen[Random, Refined[Byte, Greater[N]]] = Gen.byte(wn.snd, Byte.MaxValue).map(Refined.unsafeApply)
+  ): Gen[Has[Random], Refined[Byte, Greater[N]]] = Gen.byte(wn.snd, Byte.MaxValue).map(Refined.unsafeApply)
 
   def doubleGreaterThanGen[N](implicit
     wn: WitnessAs[N, Double]
-  ): Gen[Random, Refined[Double, Greater[N]]] = Gen.double(wn.snd, Double.MaxValue).map(Refined.unsafeApply)
+  ): Gen[Has[Random], Refined[Double, Greater[N]]] = Gen.double(wn.snd, Double.MaxValue).map(Refined.unsafeApply)
 
   def intLessThanGen[N](implicit
     wn: WitnessAs[N, Int]
-  ): Gen[Random, Refined[Int, Less[N]]] = Gen.int(Int.MinValue, wn.snd).map(Refined.unsafeApply)
+  ): Gen[Has[Random], Refined[Int, Less[N]]] = Gen.int(Int.MinValue, wn.snd).map(Refined.unsafeApply)
 
   def longLessThanGen[N](implicit
     wn: WitnessAs[N, Long]
-  ): Gen[Random, Refined[Long, Less[N]]] = Gen.long(Long.MinValue, wn.snd).map(Refined.unsafeApply)
+  ): Gen[Has[Random], Refined[Long, Less[N]]] = Gen.long(Long.MinValue, wn.snd).map(Refined.unsafeApply)
 
   def shortLessThanGen[N](implicit
     wn: WitnessAs[N, Short]
-  ): Gen[Random, Refined[Short, Less[N]]] = Gen.short(Short.MinValue, wn.snd).map(Refined.unsafeApply)
+  ): Gen[Has[Random], Refined[Short, Less[N]]] = Gen.short(Short.MinValue, wn.snd).map(Refined.unsafeApply)
 
   def byteLessThanGen[N](implicit
     wn: WitnessAs[N, Byte]
-  ): Gen[Random, Refined[Byte, Less[N]]] = Gen.byte(Byte.MinValue, wn.snd).map(Refined.unsafeApply)
+  ): Gen[Has[Random], Refined[Byte, Less[N]]] = Gen.byte(Byte.MinValue, wn.snd).map(Refined.unsafeApply)
 
   def doubleLessThanGen[N](implicit
     wn: WitnessAs[N, Double]
-  ): Gen[Random, Refined[Double, Less[N]]] = Gen.double(Double.MinValue, wn.snd).map(Refined.unsafeApply)
+  ): Gen[Has[Random], Refined[Double, Less[N]]] = Gen.double(Double.MinValue, wn.snd).map(Refined.unsafeApply)
 
   implicit def intGreaterThan[N](implicit
     wn: WitnessAs[N, Int]

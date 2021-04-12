@@ -350,7 +350,6 @@ object ZLayer {
   /**
    * Constructs a layer that fails with the specified value.
    */
-  @deprecated("use `ZLayer.many` instead, passing in a ZIO.fail", "zio 2.0.0")
   def fail[E](e: E): Layer[E, Nothing] =
     ZLayer.many(ZManaged.fail(e))
 

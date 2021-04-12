@@ -43,7 +43,7 @@ object SubscriptionRefSpec extends DefaultRunnableSpec {
       testM("concurrent subscribes and unsubscribes are handled correctly") {
         def subscriber(subscriptionRef: SubscriptionRef[Long]) =
           for {
-            n  <- random.nextLongBetween(1, 200)
+            n  <- Random.nextLongBetween(1, 200)
             as <- subscriptionRef.changes.take(n).runCollect
           } yield as
         for {

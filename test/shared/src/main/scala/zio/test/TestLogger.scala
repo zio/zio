@@ -1,6 +1,6 @@
 package zio.test
 
-import zio.{Console, UIO, URIO, ZIO, ZLayer, Has}
+import zio.{Console, Has, UIO, URIO, ZIO, ZLayer}
 
 trait TestLogger extends Serializable {
   def logLine(line: String): UIO[Unit]
@@ -9,11 +9,14 @@ trait TestLogger extends Serializable {
 object TestLogger {
 
   def fromConsole: ZLayer[Has[Console], Nothing, Has[TestLogger]] =
-    ZLayer.fromService { (console: Console) =>
-      new TestLogger {
-        def logLine(line: String): UIO[Unit] = console.putStrLn(line)
+    ZIO
+      .service[Console]
+      .map { console =>
+        new TestLogger {
+          def logLine(line: String): UIO[Unit] = console.printLine(line)
+        }
       }
-    }
+      .toLayer
 
   def logLine(line: String): URIO[Has[TestLogger], Unit] =
     ZIO.accessM(_.get.logLine(line))

@@ -1226,7 +1226,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Partitions the stream with the specified chunkSize or until the specified
    * duration has passed, whichever is satisfied first.
    */
-  def groupedWithin(chunkSize: Int, within: Duration): ZStream[R with Clock, E, Chunk[A]] =
+  def groupedWithin(chunkSize: Int, within: Duration): ZStream[R with Has[Clock], E, Chunk[A]] =
     aggregateAsyncWithin(ZSink.collectAllN[E, A](chunkSize), Schedule.spaced(within))
 
   /**
@@ -1897,20 +1897,22 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     for {
       driver <- schedule.driver
     } yield {
-      def feed(in: Chunk[A]): ZChannel[R1 with Clock, E1, Chunk[A], Any, E1, Chunk[C], Unit] =
+      def feed(in: Chunk[A]): ZChannel[R1 with Has[Clock], E1, Chunk[A], Any, E1, Chunk[C], Unit] =
         in.headOption.fold(loop)(a => ZChannel.write(Chunk.single(f(a))) *> step(in.drop(1), a))
 
-      def step(in: Chunk[A], a: A): ZChannel[R1 with Clock, E1, Chunk[A], Any, E1, Chunk[C], Unit] = {
+      def step(in: Chunk[A], a: A): ZChannel[R1 with Has[Clock], E1, Chunk[A], Any, E1, Chunk[C], Unit] = {
         val advance = driver.next(a).as(ZChannel.write(Chunk.single(f(a))) *> step(in, a))
-        val reset: ZIO[R1 with Clock, Nothing, ZChannel[R1 with Clock, E1, Chunk[A], Any, E1, Chunk[C], Unit]] = for {
-          b <- driver.last.orDie
-          _ <- driver.reset
-        } yield ZChannel.write(Chunk.single(g(b))) *> feed(in)
+        val reset
+          : ZIO[R1 with Has[Clock], Nothing, ZChannel[R1 with Has[Clock], E1, Chunk[A], Any, E1, Chunk[C], Unit]] =
+          for {
+            b <- driver.last.orDie
+            _ <- driver.reset
+          } yield ZChannel.write(Chunk.single(g(b))) *> feed(in)
 
         ZChannel.unwrap(advance orElse reset)
       }
 
-      lazy val loop: ZChannel[R1 with Clock, E1, Chunk[A], Any, E1, Chunk[C], Unit] =
+      lazy val loop: ZChannel[R1 with Has[Clock], E1, Chunk[A], Any, E1, Chunk[C], Unit] =
         ZChannel.readWith(
           feed,
           ZChannel.fail(_),
@@ -2191,10 +2193,10 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def throttleEnforceM[R1 <: R, E1 >: E](units: Long, duration: Duration, burst: Long = 0)(
     costFn: Chunk[A] => ZIO[R1, E1, Long]
   ): ZStream[R1 with Has[Clock], E1, A] = {
-    def loop(tokens: Long, timestamp: Long): ZChannel[R1 with Clock, E1, Chunk[A], Any, E1, Chunk[A], Unit] =
-      ZChannel.readWith[R1 with Clock, E1, Chunk[A], Any, E1, Chunk[A], Unit](
+    def loop(tokens: Long, timestamp: Long): ZChannel[R1 with Has[Clock], E1, Chunk[A], Any, E1, Chunk[A], Unit] =
+      ZChannel.readWith[R1 with Has[Clock], E1, Chunk[A], Any, E1, Chunk[A], Unit](
         (in: Chunk[A]) =>
-          ZChannel.unwrap((costFn(in) <*> clock.nanoTime).map { case (weight, current) =>
+          ZChannel.unwrap((costFn(in) <*> Clock.nanoTime).map { case (weight, current) =>
             val elapsed = current - timestamp
             val cycles  = elapsed.toDouble / duration.toNanos
             val available = {
@@ -2216,7 +2218,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
         (_: Any) => ZChannel.unit
       )
 
-    new ZStream(ZChannel.fromEffect(clock.nanoTime).flatMap(self.channel >>> loop(units, _)))
+    new ZStream(ZChannel.fromEffect(Clock.nanoTime).flatMap(self.channel >>> loop(units, _)))
   }
 
   /**
@@ -2239,12 +2241,12 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def throttleShapeM[R1 <: R, E1 >: E](units: Long, duration: Duration, burst: Long = 0)(
     costFn: Chunk[A] => ZIO[R1, E1, Long]
   ): ZStream[R1 with Has[Clock], E1, A] = {
-    def loop(tokens: Long, timestamp: Long): ZChannel[R1 with Clock, E1, Chunk[A], Any, E1, Chunk[A], Unit] =
+    def loop(tokens: Long, timestamp: Long): ZChannel[R1 with Has[Clock], E1, Chunk[A], Any, E1, Chunk[A], Unit] =
       ZChannel.readWith(
         (in: Chunk[A]) =>
           ZChannel.unwrap(for {
             weight  <- costFn(in)
-            current <- clock.nanoTime
+            current <- Clock.nanoTime
           } yield {
             val elapsed = current - timestamp
             val cycles  = elapsed.toDouble / duration.toNanos
@@ -2266,14 +2268,14 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
             val delay = Duration.Finite((waitCycles * duration.toNanos).toLong)
 
             if (delay > Duration.Zero)
-              ZChannel.fromEffect(clock.sleep(delay)) *> ZChannel.write(in) *> loop(remaining, current)
+              ZChannel.fromEffect(Clock.sleep(delay)) *> ZChannel.write(in) *> loop(remaining, current)
             else ZChannel.write(in) *> loop(remaining, current)
           }),
         (e: E1) => ZChannel.fail(e),
         (_: Any) => ZChannel.unit
       )
 
-    new ZStream(ZChannel.fromEffect(clock.nanoTime).flatMap(self.channel >>> loop(units, _)))
+    new ZStream(ZChannel.fromEffect(Clock.nanoTime).flatMap(self.channel >>> loop(units, _)))
   }
 
   final def debounce[E1 >: E, A2 >: A](d: Duration): ZStream[R with Has[Clock], E1, A2] =

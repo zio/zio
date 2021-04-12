@@ -21,7 +21,7 @@ import eu.timepit.refined.collection.{NonEmpty, Size}
 import zio.test.Gen.{listOfN, vectorOfN}
 import zio.test.magnolia.DeriveGen
 import zio.test.{Gen, Sized}
-import zio.{Chunk, NonEmptyChunk, Has}
+import zio.{Chunk, Has, NonEmptyChunk, Random}
 
 object collection extends CollectionInstances
 

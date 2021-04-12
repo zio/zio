@@ -1902,7 +1902,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def timed: ZIO[R with Has[Clock], E, (Duration, A)] = timedWith(Clock.nanoTime)
 
   /**
-   * A more powerful variation of `timed` that allows specifying the clock.
+   * A more powerful variation of `timed` that allows specifying the Clock.
    */
   final def timedWith[R1 <: R, E1 >: E](nanoTime: ZIO[R1, E1, Long]): ZIO[R1, E1, (Duration, A)] =
     summarized(nanoTime)((start, end) => Duration.fromNanos(end - start))
@@ -3865,18 +3865,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   def service[A: Tag]: URIO[Has[A], A] =
     ZIO.access(_.get[A])
-
-  /**
-   * Effectfully accesses the specified service in the environment of the effect.
-   * Often used with the Service pattern to define effectful accessors on the
-   * companion object.
-   *
-   * {{{
-   *   val foo : ZIO[Has[Foo], Nothing, Bar] = ZIO.serviceWith(_.bar)
-   * }}}
-   */
-  def serviceWith[A]: ServiceWithPartiallyApplied[A] =
-    new ServiceWithPartiallyApplied[A]
 
   /**
    * Accesses the specified services in the environment of the effect.

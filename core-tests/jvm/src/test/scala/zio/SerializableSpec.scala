@@ -25,7 +25,7 @@ object SerializableSpec extends ZIOBaseSpec {
     testM("Clock is serializable") {
       for {
         clock       <- Live.live(ZIO.service[Clock])
-        time1       <- clock.nanoTime
+        time1       <- Clock.nanoTime
         returnClock <- serializeAndBack(clock)
         time2       <- returnClock.nanoTime
       } yield assert(time1)(isLessThanEqualTo(time2))

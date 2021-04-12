@@ -226,7 +226,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    * Returns the sink that executes this one and times its execution.
    */
   final def timed: ZSink[R with Has[Clock], InErr, In, OutErr, L, (Z, Duration)] =
-    summarized(clock.nanoTime)((start, end) => Duration.fromNanos(end - start))
+    summarized(Clock.nanoTime)((start, end) => Duration.fromNanos(end - start))
 
   def repeat: ZSink[R, InErr, In, OutErr, L, Chunk[Z]] = ???
 

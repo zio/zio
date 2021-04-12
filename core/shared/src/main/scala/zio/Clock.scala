@@ -18,9 +18,9 @@ package zio
 
 import zio.duration.Duration
 
+import java.lang.{System => JSystem}
 import java.time.{Instant, LocalDateTime, OffsetDateTime}
 import java.util.concurrent.TimeUnit
-import java.lang.{System => JSystem}
 
 trait Clock extends Serializable {
 
@@ -28,9 +28,9 @@ trait Clock extends Serializable {
 
   def currentDateTime: UIO[OffsetDateTime]
 
-  def instant: UIO[java.time.Instant]
+  def instant: UIO[Instant]
 
-  def localDateTime: UIO[java.time.LocalDateTime]
+  def localDateTime: UIO[LocalDateTime]
 
   def nanoTime: UIO[Long]
 
@@ -92,7 +92,7 @@ object Clock extends ClockPlatformSpecific with Serializable {
   val currentDateTime: URIO[Has[Clock], OffsetDateTime] =
     ZIO.serviceWith(_.currentDateTime)
 
-  val instant: ZIO[Has[Clock], Nothing, java.time.Instant] =
+  val instant: ZIO[Has[Clock], Nothing, Instant] =
     ZIO.serviceWith(_.instant)
 
   /**
