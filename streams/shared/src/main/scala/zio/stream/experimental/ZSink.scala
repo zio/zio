@@ -908,7 +908,7 @@ object ZSink {
   def managed[R, InErr, In, OutErr >: InErr, A, L <: In, Z](resource: ZManaged[R, OutErr, A])(
     fn: A => ZSink[R, InErr, In, OutErr, L, Z]
   ): ZSink[R, InErr, In, OutErr, In, Z] =
-    ???
+    new ZSink(ZChannel.managed(resource)(fn(_).channel))
 
   val never: ZSink[Any, Any, Any, Nothing, Nothing, Nothing] = new ZSink(ZChannel.fromEffect(ZIO.never))
 

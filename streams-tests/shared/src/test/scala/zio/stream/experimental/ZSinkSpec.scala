@@ -137,30 +137,31 @@ object ZSinkSpec extends ZIOBaseSpec {
             val lastOpt = ZStream.fromChunks(chunks: _*).run(ZSink.last)
             assertM(lastOpt)(equalTo(chunks.flatMap(_.toSeq).lastOption))
           }
+        ),
+        suite("managed")(
+          testM("happy path") {
+            for {
+              closed <- Ref.make[Boolean](false)
+              res     = ZManaged.make(ZIO.succeed(100))(_ => closed.set(true))
+              sink = ZSink.managed[Any, Any, Any, Any, Int, Nothing, (Long, Boolean)](res)(m =>
+                       ZSink.count.mapM(cnt => closed.get.map(cl => (cnt + m, cl)))
+                     )
+              resAndState <- ZStream(1, 2, 3).run(sink)
+              finalState  <- closed.get
+            } yield {
+              assert(resAndState._1)(equalTo(103L)) && assert(resAndState._2)(isFalse) && assert(finalState)(isTrue)
+            }
+          },
+          testM("sad path") {
+            for {
+              closed     <- Ref.make[Boolean](false)
+              res         = ZManaged.make(ZIO.succeed(100))(_ => closed.set(true))
+              sink        = ZSink.managed[Any, String, Any, String, Int, Nothing, String](res)(_ => ZSink.succeed("ok"))
+              r          <- ZStream.fail("fail").run(sink).either
+              finalState <- closed.get
+            } yield assert(r)(equalTo(Left("fail"))) && assert(finalState)(isTrue)
+          }
         )
-        //      suite("managed")(
-        //        testM("happy path") {
-        //          for {
-        //            closed <- Ref.make[Boolean](false)
-        //            res     = ZManaged.make(ZIO.succeed(100))(_ => closed.set(true))
-        //            sink: ZSink[Any, Nothing, Int, Int, (Long, Boolean)] =
-        //              ZSink.managed(res)(m => ZSink.count.mapM(cnt => closed.get.map(cl => (cnt + m, cl))))
-        //            resAndState <- ZStream(1, 2, 3).run(sink)
-        //            finalState  <- closed.get
-        //          } yield {
-        //            assert(resAndState._1)(equalTo(103L)) && assert(resAndState._2)(isFalse) && assert(finalState)(isTrue)
-        //          }
-        //        },
-        //        testM("sad path") {
-        //          for {
-        //            closed     <- Ref.make[Boolean](false)
-        //            res         = ZManaged.make(ZIO.succeed(100))(_ => closed.set(true))
-        //            sink        = ZSink.managed(res)(_ => ZSink.succeed[Int, String]("ok"))
-        //            r          <- ZStream.fail("fail").run(sink).either
-        //            finalState <- closed.get
-        //          } yield assert(r)(equalTo(Left("fail"))) && assert(finalState)(isTrue)
-        //        }
-        //      ),
       ),
       testM("map")(
         assertM(ZStream.range(1, 10).run(ZSink.succeed(1).map(_.toString)))(
