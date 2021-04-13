@@ -1,7 +1,7 @@
 package zio.stm
 
 import org.openjdk.jcstress.annotations._
-import org.openjdk.jcstress.infra.results.{I_Result, II_Result}
+import org.openjdk.jcstress.infra.results.{II_Result, I_Result}
 import zio._
 
 object ZSTMConcurrencyTests {
@@ -26,9 +26,9 @@ object ZSTMConcurrencyTests {
   )
   @State
   class ConcurrentAcquireAndInterruptDone {
-    val promise   = Promise.unsafeMake[Nothing, Unit](Fiber.Id.None)
-    val semaphore = runtime.unsafeRun(Semaphore.make(1L))
-    var fiber     = null.asInstanceOf[Fiber[Nothing, Unit]]
+    val promise: Promise[Nothing,Unit]   = Promise.unsafeMake[Nothing, Unit](Fiber.Id.None)
+    val semaphore: Semaphore = runtime.unsafeRun(Semaphore.make(1L))
+    var fiber: Fiber[Nothing,Unit]     = null.asInstanceOf[Fiber[Nothing, Unit]]
 
     @Actor
     def actor1(): Unit = {
@@ -72,9 +72,9 @@ object ZSTMConcurrencyTests {
   )
   @State
   class ConcurrentAcquireAndInterruptSuspend {
-    val promise   = Promise.unsafeMake[Nothing, Unit](Fiber.Id.None)
-    val semaphore = runtime.unsafeRun(Semaphore.make(0L))
-    var fiber     = null.asInstanceOf[Fiber[Nothing, Unit]]
+    val promise: Promise[Nothing,Unit]   = Promise.unsafeMake[Nothing, Unit](Fiber.Id.None)
+    val semaphore: Semaphore = runtime.unsafeRun(Semaphore.make(0L))
+    var fiber: Fiber[Nothing,Unit]     = null.asInstanceOf[Fiber[Nothing, Unit]]
 
     @Actor
     def actor1(): Unit = {
@@ -122,9 +122,9 @@ object ZSTMConcurrencyTests {
   )
   @State
   class ConcurrentWithPermit {
-    val promise   = Promise.unsafeMake[Nothing, Unit](Fiber.Id.None)
-    val semaphore = runtime.unsafeRun(Semaphore.make(1L))
-    var fiber     = null.asInstanceOf[Fiber[Nothing, Unit]]
+    val promise: Promise[Nothing,Unit]   = Promise.unsafeMake[Nothing, Unit](Fiber.Id.None)
+    val semaphore: Semaphore = runtime.unsafeRun(Semaphore.make(1L))
+    var fiber: Fiber[Nothing,Unit]     = null.asInstanceOf[Fiber[Nothing, Unit]]
 
     @Actor
     def actor1(): Unit = {
@@ -162,9 +162,9 @@ object ZSTMConcurrencyTests {
   )
   @State
   class ConcurrentWithPermitManaged {
-    val promise   = Promise.unsafeMake[Nothing, Unit](Fiber.Id.None)
-    val semaphore = runtime.unsafeRun(Semaphore.make(1L))
-    var fiber     = null.asInstanceOf[Fiber[Nothing, Unit]]
+    val promise: Promise[Nothing,Unit]   = Promise.unsafeMake[Nothing, Unit](Fiber.Id.None)
+    val semaphore: Semaphore = runtime.unsafeRun(Semaphore.make(1L))
+    var fiber: Fiber[Nothing,Unit]     = null.asInstanceOf[Fiber[Nothing, Unit]]
 
     @Actor
     def actor1(): Unit = {
