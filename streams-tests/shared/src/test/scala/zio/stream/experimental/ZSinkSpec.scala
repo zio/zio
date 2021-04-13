@@ -1,17 +1,10 @@
 package zio.stream.experimental
 
-import zio.duration._
-//import zio.stream.SinkUtils.{findSink, sinkRaceLaw}
-//import zio.stream.ZStreamGen._
-import zio.test.Assertion._
-import zio.test.environment.TestClock
-//import zio.test.environment.TestClock
-//import zio.test.{assertM, _}
-//import zio.{ZIOBaseSpec, _}
-import zio.test._
 import zio._
-
-//import scala.util.Random
+import zio.duration._
+import zio.test.Assertion._
+import zio.test._
+import zio.test.environment.TestClock
 
 object ZSinkSpec extends ZIOBaseSpec {
 
@@ -159,7 +152,7 @@ object ZSinkSpec extends ZIOBaseSpec {
               sink        = ZSink.managed[Any, String, Any, String, Int, Nothing, String](res)(_ => ZSink.succeed("ok"))
               r          <- ZStream.fail("fail").run(sink).either
               finalState <- closed.get
-            } yield assert(r)(equalTo(Left("fail"))) && assert(finalState)(isTrue)
+            } yield assert(r)(equalTo(Right("ok"))) && assert(finalState)(isTrue)
           }
         )
       ),
