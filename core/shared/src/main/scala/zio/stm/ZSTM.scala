@@ -1965,39 +1965,37 @@ object ZSTM {
       final case class Done[+E, +A](io: IO[E, A]) extends TryCommit[E, A]
       final case class Suspend(journal: Journal)  extends TryCommit[Nothing, Nothing]
     }
+
+    sealed abstract class State[+E, +A] { self =>
+
+      final def isRunning: Boolean =
+        self match {
+          case State.Running => true
+          case _             => false
+        }
+
+      final def toDone[E1 >: E, A1 >: A](exit: TExit[E1, A1]): State[E1, A1] =
+        self match {
+          case State.Running =>
+            exit match {
+              case TExit.Succeed(a) => State.Done(Right(a))
+              case TExit.Fail(e)    => State.Done(Left(e))
+              case TExit.Retry      => throw new Error("Defect: toDone being called on TExit.Retry")
+            }
+          case state => state
+        }
+
+      final def toInterrupted: State[E, A] =
+        self match {
+          case State.Running => State.Interrupted
+          case state         => state
+        }
+    }
+
+    object State {
+      final case class Done[+E, +A](result: Either[E, A]) extends State[E, A]
+      case object Running                                 extends State[Nothing, Nothing]
+      case object Interrupted                             extends State[Nothing, Nothing]
+    }
   }
-
-  private sealed abstract class State[+E, +A] { self =>
-
-    final def isRunning: Boolean =
-      self match {
-        case State.Running => true
-        case _             => false
-      }
-
-    final def toDone[E1 >: E, A1 >: A](exit: TExit[E1, A1]): State[E1, A1] =
-      self match {
-        case State.Running =>
-          exit match {
-            case TExit.Succeed(a) => State.Done(Right(a))
-            case TExit.Fail(e)    => State.Done(Left(e))
-            case TExit.Retry      => throw new Error("Defect: toDone being called on TExit.Retry")
-          }
-        case state => state
-      }
-
-    final def toInterrupted: State[E, A] =
-      self match {
-        case State.Running => State.Interrupted
-        case state         => state
-      }
-
-  }
-
-  private object State {
-    final case class Done[+E, +A](result: Either[E, A]) extends State[E, A]
-    case object Running                                 extends State[Nothing, Nothing]
-    case object Interrupted                             extends State[Nothing, Nothing]
-  }
-
 }
