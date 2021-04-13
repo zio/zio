@@ -113,7 +113,7 @@ final class TSemaphore private (val permits: TRef[Long]) extends Serializable {
    * failure, or interruption.
    */
   def withPermits[R, E, A](n: Long)(zio: ZIO[R, E, A]): ZIO[R, E, A] =
-    withPermitsManaged(n).use_(zio)
+    ZIO.uninterruptibleMask(restore => restore(acquireN(n).commit) *> restore(zio).ensuring(releaseN(n).commit))
 
   /**
    * Returns a managed effect that describes acquiring the specified number of
