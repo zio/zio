@@ -16,7 +16,9 @@ object MimaSettings {
         exclude[ReversedMissingMethodProblem](
           "zio.ZManagedPlatformSpecific.zio$ZManagedPlatformSpecific$_setter_$blocking_="
         ),
-        exclude[ReversedMissingMethodProblem]("zio.ZManagedPlatformSpecific.blocking")
+        exclude[ReversedMissingMethodProblem]("zio.ZManagedPlatformSpecific.blocking"),
+        exclude[MissingTypesProblem]("zio.clock.package$Clock$"),
+        exclude[MissingClassProblem]("zio.clock.PlatformSpecific")
       ),
       mimaFailOnProblem := failOnProblem
     )

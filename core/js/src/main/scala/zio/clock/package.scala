@@ -17,15 +17,18 @@
 package zio
 
 import zio.duration.Duration
+import zio.internal.Scheduler
 
 import java.time.{DateTimeException, Instant, LocalDateTime, OffsetDateTime}
 import java.util.concurrent.TimeUnit
+import scala.scalajs.js
 
 package object clock {
 
   type Clock = Has[Clock.Service]
 
-  object Clock extends PlatformSpecific with Serializable {
+  object Clock {
+
     trait Service extends Serializable {
 
       def currentTime(unit: TimeUnit): UIO[Long]
@@ -115,4 +118,25 @@ package object clock {
   def sleep(duration: => Duration): URIO[Clock, Unit] =
     ZIO.accessM(_.get.sleep(duration))
 
+  private[clock] val globalScheduler = new Scheduler {
+    import Scheduler.CancelToken
+
+    private[this] val ConstFalse = () => false
+
+    override def schedule(task: Runnable, duration: Duration): CancelToken = (duration: @unchecked) match {
+      case Duration.Infinity => ConstFalse
+      case Duration.Finite(_) =>
+        var completed = false
+
+        val handle = js.timers.setTimeout(duration.toMillis.toDouble) {
+          completed = true
+
+          task.run()
+        }
+        () => {
+          js.timers.clearTimeout(handle)
+          !completed
+        }
+    }
+  }
 }
