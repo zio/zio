@@ -936,7 +936,7 @@ object ZSTM {
             case TryCommit.Done(io) => io // TODO: Interruptible in Suspend
             case TryCommit.Suspend(journal) =>
               val txnId     = makeTxnId()
-              val interrupt = ZIO.effectTotal(state.getAndUpdate(_.toInterrupted))
+              val interrupt = ZIO.effectTotal(state.compareAndSet(State.Running, State.Interrupted))
               val async     = ZIO.effectAsync(tryCommitAsync(journal, platform, fiberId, stm, txnId, state, r))
 
               restore(async).onInterrupt(interrupt).run.flatMap {
@@ -1818,8 +1818,8 @@ object ZSTM {
         if (retries > MaxRetries) {
           Sync(globalLock) {
             value = stm.run(journal, fiberId, r)
-            val currentState = state.getAndUpdate(_.toDone(value))
-            if (currentState.isRunning) {
+            val isRunning = state.compareAndSet(State.Running, State.done(value))
+            if (isRunning) {
               commitJournal(journal)
             }
 
@@ -1838,8 +1838,8 @@ object ZSTM {
                 if (analysis eq JournalAnalysis.ReadWrite) {
                   Sync(globalLock) {
                     if (isValid(journal)) {
-                      val currentState = state.getAndUpdate(_.toDone(value))
-                      if (currentState.isRunning) {
+                      val isRunning = state.compareAndSet(State.Running, State.done(value))
+                      if (isRunning) {
                         commitJournal(journal)
                       }
 
@@ -1967,35 +1967,24 @@ object ZSTM {
     }
 
     sealed abstract class State[+E, +A] { self =>
-
       final def isRunning: Boolean =
         self match {
           case State.Running => true
           case _             => false
         }
-
-      final def toDone[E1 >: E, A1 >: A](exit: TExit[E1, A1]): State[E1, A1] =
-        self match {
-          case State.Running =>
-            exit match {
-              case TExit.Succeed(a) => State.Done(Right(a))
-              case TExit.Fail(e)    => State.Done(Left(e))
-              case TExit.Retry      => throw new Error("Defect: toDone being called on TExit.Retry")
-            }
-          case state => state
-        }
-
-      final def toInterrupted: State[E, A] =
-        self match {
-          case State.Running => State.Interrupted
-          case state         => state
-        }
     }
 
     object State {
       final case class Done[+E, +A](result: Either[E, A]) extends State[E, A]
-      case object Running                                 extends State[Nothing, Nothing]
       case object Interrupted                             extends State[Nothing, Nothing]
+      case object Running                                 extends State[Nothing, Nothing]
+
+      def done[E, A](exit: TExit[E, A]): State[E, A] =
+        exit match {
+          case TExit.Succeed(a) => State.Done(Right(a))
+          case TExit.Fail(e)    => State.Done(Left(e))
+          case TExit.Retry      => throw new Error("Defect: toDone being called on TExit.Retry")
+        }
     }
   }
 }
