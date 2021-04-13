@@ -186,8 +186,8 @@ Everything done within a transaction to other transactions looks like it happens
 
 
 ## STM Data Types
+There are a variety of transactional data structures that can take part in an STM transaction:
 
-- **[STM](stm.md)** - An `STM` represents an effect that can be performed transactionally resulting in a failure or success.
 - **[TArray](tarray.md)** - A `TArray[A]` is an array of mutable references that can participate in transactions.
 - **[TSet](tset.md)** - A `TSet` is a mutable set that can participate in transactions.
 - **[TMap](tmap.md)** - A `TMap[A]` is a mutable map that can participate in transactions.
@@ -197,6 +197,8 @@ Everything done within a transaction to other transactions looks like it happens
 - **[TQueue](tqueue.md)** - A `TQueue` is a mutable queue that can participate in transactions.
 - **[TReentrantLock](treentrantlock.md)** - A `TReentrantLock` is a reentrant read / write lock that can be composed.
 - **[TSemaphore](tsemaphore.md)** - A `TSemaphore` is a semaphore that can participate in transactions.
+
+Since STM places a great emphasis on compositionality, we can build upon these data structures and define our very own concurrent data structures. For example, we can build a transactional priority queue using `TRef`, `TMap` and `TQueue`.
 
 ## Advantage of Using STM
 

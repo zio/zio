@@ -21,21 +21,6 @@ more locks are introduced into the equation.
 Transactional memory eliminates many of the difficulties that affect low-level lock-based programming since transactional
 data structures are lock-free.
 
-## Transactional data structures
-
-There are a variety of transactional data structures that can take part in an STM transaction:
-* [TRef](tref.md): A mutable reference to an immutable value
-* [TPromise](tpromise.md): A mutable reference that can be set exactly once 
-* [TArray](tarray.md): An array of mutable references
-* [TMap](tmap.md): A mutable map
-* [TQueue](tqueue.md): A mutable queue
-* [TSet](tset.md): A mutable set
-* [TSemaphore](tsemaphore.md): A semaphore 
-* [TReentrantLock](treentrantlock.md): A reentrant lock
-
-Since STM places a great emphasis on compositionality, you can build upon these data structures and define your very 
-own concurrent data structures. For example, you can build a transactional priority queue using `TRef`, `TMap` and `TQueue`.
-
 ## The STM datatype
 
 An `STM[E, A]` represents an effect that can be performed transactionally resulting in a failure `E` or a success `A`.
