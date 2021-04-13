@@ -46,9 +46,6 @@ Whenever we need to supervise a ZIO effect, we can call `ZIO#supervised` functio
 
 ```scala mdoc:invisible
 import zio._
-import zio.console._
-import zio.clock._
-import zio.duration._
 def fib(n: Int): ZIO[Any, Nothing, Int] = ???
 ```
 
@@ -75,20 +72,20 @@ object SupervisorExample extends zio.App {
       .repeat(policy).fork
     _ <- logger.join
     result <- fiber.join
-    _ <- putStrLn(s"fibonacci result: $result")
+    _ <- Console.printLine(s"fibonacci result: $result")
   } yield ()
 
   def monitorFibers(supervisor: Supervisor[Chunk[Fiber.Runtime[Any, Any]]]) = for {
     length <- supervisor.value.map(_.length)
-    _ <- putStrLn(s"number of fibers: $length")
+    _ <- Console.printLine(s"number of fibers: $length")
   } yield ()
 
-  def fib(n: Int): ZIO[Clock, Nothing, Int] =
+  def fib(n: Int): ZIO[Has[Clock], Nothing, Int] =
     if (n <= 1) {
       ZIO.succeed(1)
     } else {
       for {
-        _ <- sleep(500.milliseconds)
+        _ <- ZIO.sleep(500.milliseconds)
         fiber1 <- fib(n - 2).fork
         fiber2 <- fib(n - 1).fork
         v2 <- fiber2.join

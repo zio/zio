@@ -18,7 +18,6 @@ From there the fastest way to start writing tests is to extend `DefaultRunnableS
 
 ```scala mdoc:silent
 import zio._
-import zio.console._
 import zio.test._
 import zio.test.Assertion._
 import zio.test.environment._
@@ -26,8 +25,8 @@ import zio.test.environment._
 import HelloWorld._
 
 object HelloWorld {
-  def sayHello: URIO[Console, Unit] =
-    console.putStrLn("Hello, World!")
+  def sayHello: URIO[Has[Console], Unit] =
+    Console.printLine("Hello, World!")
 }
 
 object HelloWorldSpec extends DefaultRunnableSpec {
@@ -64,19 +63,19 @@ If a property fails, the failure will be automatically shrunk to the smallest fa
 ZIO Test also supports automatic derivation of generators using the ZIO Test Magnolia module:
 
 ```scala mdoc:silent:nest
-import zio.random.Random
+import zio.Random
 import zio.test.magnolia._
 
 final case class Point(x: Double, y: Double)
 
-val genPoint: Gen[Random with Sized, Point] = DeriveGen[Point]
+val genPoint: Gen[Has[Random] with Has[Sized], Point] = DeriveGen[Point]
  
 sealed trait Color
 case object Red   extends Color
 case object Green extends Color
 case object Blue  extends Color
  
-val genColor: Gen[Random with Sized, Color] = DeriveGen[Color]
+val genColor: Gen[Has[Random] with Has[Sized], Color] = DeriveGen[Color]
 ```
 
 **Results Reporting**

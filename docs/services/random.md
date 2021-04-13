@@ -6,15 +6,15 @@ title: "Random"
 Random service provides utilities to generate random numbers. It's a functional wrapper of `scala.util.Random`. This service contains various different pseudo-random generators like `nextInt`, `nextBolean` and `nextDouble`. Each random number generator functions return a `URIO[Random, T]` value.
 
 ```scala mdoc:silent
-import zio.random._
-import zio.console._
+import zio.Random._
+import zio.Console._
 for {
   randomInt <- nextInt
-  _ <- putStrLn(s"A random Int: $randomInt")
+  _ <- printLine(s"A random Int: $randomInt")
   randomChar <- nextPrintableChar
-  _ <- putStrLn(s"A random Char: $randomChar")
+  _ <- printLine(s"A random Char: $randomChar")
   randomDouble <- nextDoubleBetween(1.0, 5.0)
-  _ <- putStrLn(s"A random double between 1.0 and 5.0: $randomDouble")
+  _ <- printLine(s"A random double between 1.0 and 5.0: $randomDouble")
 } yield ()
 ```
 

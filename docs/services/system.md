@@ -11,13 +11,13 @@ Environment variables are global operating system level variables available to a
 The `env` function retrieve the value of an environment variable:
 
 ```scala mdoc:silent
-import zio.console._
-import zio.system._
+import zio.Console._
+import zio.System._
 for {
   user <- env("USER")
   _ <- user match {
-    case Some(value) => putStr(s"The USER env is: $value")
-    case None => putStr("Oops! The USER env is not set")
+    case Some(value) => printLine(s"The USER env is: $value")
+    case None => printLine("Oops! The USER env is not set")
   }
 } yield ()
 ```
@@ -29,8 +29,8 @@ Also, the System service has a `property function to retrieve the value of a sys
 for {
   user <- property("LOG_LEVEL")
   _ <- user match {
-    case Some(value) => putStr(s"The LOG_LEVEL property is: $value")
-    case None => putStr("Oops! The LOG_LEVEL property is not set")
+    case Some(value) => printLine(s"The LOG_LEVEL property is: $value")
+    case None => printLine("Oops! The LOG_LEVEL property is not set")
   }
 } yield ()
 ```

@@ -11,14 +11,15 @@ We can call `run` on our effect to determine the Success or Failure of our fiber
 
 ```scala mdoc:silent
 import zio._
-import zio.console._
+import zio.Console._
+
 for {
   successExit <- ZIO.succeed(1).run
   _ <- successExit match {
     case Exit.Success(value) =>
-      putStrLn(s"exited with success value: ${value}")
+      printLine(s"exited with success value: ${value}")
     case Exit.Failure(cause) =>
-      putStrLn(s"exited with failure state: $cause")
+      printLine(s"exited with failure state: $cause")
   }
 } yield ()
 ```

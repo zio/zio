@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2021 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,7 +40,7 @@ trait Clock extends Serializable {
 object Clock extends ClockPlatformSpecific with Serializable {
 
   val any: ZLayer[Has[Clock], Nothing, Has[Clock]] =
-    ZLayer.requires[Has[Clock]]
+    ZLayer.service[Clock]
 
   val live: Layer[Nothing, Has[Clock]] =
     ZLayer.succeed(ClockLive)

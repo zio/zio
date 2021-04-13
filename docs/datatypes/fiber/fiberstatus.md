@@ -15,7 +15,7 @@ In the following example, we are going to `await` on a never-ending fiber and de
 
 ```scala mdoc:silent
 import zio._
-import zio.console._
+
 for {
   f1 <- ZIO.never.fork
   f2 <- f1.await.fork

@@ -1,7 +1,6 @@
 package zio
 
 import zio.SerializableSpecHelpers._
-import zio.System
 import zio.internal.stacktracer.ZTraceElement
 import zio.test.Assertion._
 import zio.test.TestAspect.scala2Only

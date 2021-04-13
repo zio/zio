@@ -3,7 +3,6 @@ package zio.stream.experimental
 import zio._
 import zio.test.Assertion._
 import zio.test._
-import zio.test.environment._
 
 object ZChannelSpec extends ZIOBaseSpec {
   import ZIOTag._

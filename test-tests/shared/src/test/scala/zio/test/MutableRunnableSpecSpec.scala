@@ -3,7 +3,7 @@ package zio.test
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test.environment.TestEnvironment
-import zio.{Has, Ref, ZIO, ZLayer}
+import zio.{Has, Ref, ZIO}
 
 object MutableRunnableSpecSpec
     extends MutableRunnableSpec[MutableRunnableSpecSpecCompat.Environment](

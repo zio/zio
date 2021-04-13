@@ -18,7 +18,7 @@ object LiveSpec extends ZIOBaseSpec {
     },
     testM("withLive provides real environment to single effect") {
       for {
-        _      <- Live.withLive(Console.printLine("woot"))(_.delay(1.nanosecond))
+        _      <- Live.withLive(Console.print("woot"))(_.delay(1.nanosecond))
         result <- TestConsole.output
       } yield assert(result)(equalTo(Vector("woot")))
     }

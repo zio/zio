@@ -24,17 +24,16 @@ The `ZIO[R, E, A]` data type has three type parameters:
  - **`E` - Failure Type**. The effect may fail with a value of type `E`. Some applications will use `Throwable`. If this type parameter is `Nothing`, it means the effect cannot fail, because there are no values of type `Nothing`.
  - **`A` - Success Type**. The effect may succeed with a value of type `A`. If this type parameter is `Unit`, it means the effect produces no useful information, while if it is `Nothing`, it means the effect runs forever (or until failure).
 
-In the following example, the `getStrLn` function requires the `Console` service, it may fail with value of type `IOException`, or may succeed with a value of type `String`:
+In the following example, the `readLine` function requires the `Console` service, it may fail with value of type `IOException`, or may succeed with a value of type `String`:
 
 ```scala mdoc:invisible
-import zio.{ZIO, IO, URIO, UIO, Task, RIO, Schedule}
-import zio.console._
+import zio._
 import java.io.IOException
 ```
 
 ```scala mdoc:silent
-val getStrLn: ZIO[Console, IOException, String] =
-  ZIO.accessM(_.get.getStrLn)
+val readLine: ZIO[Has[Console], IOException, String] =
+  ZIO.serviceWith(_.readLine)
 ```
 
 `ZIO` values are immutable, and all `ZIO` functions produce new `ZIO` values, enabling `ZIO` to be reasoned about and used like any ordinary Scala immutable data structure.
@@ -107,7 +106,7 @@ val s2: Task[Int] = Task.succeed(42)
 > The `succeed` is nothing different than `effectTotal` they are the same but for different purposes for clarity. The `succeed` method takes a by-name parameter to make sure that any accidental side effects from constructing the value can be properly managed by the ZIO Runtime. However, `succeed` is intended for values which do not have any side effects. If we know that our value does have side effects, we should consider using `ZIO.effectTotal` for clarity.
 
 ```scala mdoc:silent
-val now = ZIO.effectTotal(System.currentTimeMillis())
+val now = ZIO.effectTotal(java.lang.System.currentTimeMillis())
 ```
 
 The value inside a successful effect constructed with `ZIO.effectTotal` will only be constructed if absolutely required.
@@ -276,7 +275,7 @@ for {
     }
   }.fork
   value <- ZIO.fromPromiseScala(promise)
-  _ <- putStrLn(s"Hello World in UpperCase: $value")
+  _ <- Console.printLine(s"Hello World in UpperCase: $value")
 } yield ()
 ```
 
@@ -311,7 +310,7 @@ A synchronous side-effect can be converted into a ZIO effect using `ZIO.effect`:
 ```scala mdoc:silent
 import scala.io.StdIn
 
-val getStrLine: Task[String] =
+val getLine: Task[String] =
   ZIO.effect(StdIn.readLine())
 ```
 
@@ -320,11 +319,11 @@ The error type of the resulting effect will always be `Throwable`, because side-
 If a given side-effect is known to not throw any exceptions, then the side-effect can be converted into a ZIO effect using `ZIO.effectTotal`:
 
 ```scala mdoc:silent
-def putStrLine(line: String): UIO[Unit] =
+def printLine(line: String): UIO[Unit] =
   ZIO.effectTotal(println(line))
 
 val effectTotalTask: UIO[Long] =
-  ZIO.effectTotal(System.nanoTime())
+  ZIO.effectTotal(java.lang.System.nanoTime())
 ```
 
 We should be careful when using `ZIO.effectTotal`—when in doubt about whether or not a side-effect is total, prefer `ZIO.effect` to convert the effect.
@@ -355,7 +354,7 @@ ZIO provides the `zio.blocking` package, which can be used to safely convert suc
 A blocking side-effect can be converted directly into a ZIO effect blocking with the `effectBlocking` method:
 
 ```scala mdoc:silent
-import zio.blocking._
+import zio.Blocking._
 
 val sleeping =
   effectBlocking(Thread.sleep(Long.MaxValue))
@@ -437,8 +436,8 @@ Asynchronous ZIO effects are much easier to use than callback-based APIs, and th
 A `RIO[R, A]` effect can be suspended using `effectSuspend` function:
 
 ```scala mdoc:silent
-val suspendedEffect: RIO[Any, URIO[Console, Unit]] =
-  ZIO.effectSuspend(ZIO.effect(putStrLn("Suspended Hello World!")))
+val suspendedEffect: RIO[Any, URIO[Has[Console], Unit]] =
+  ZIO.effectSuspend(ZIO.effect(Console.printLine("Suspended Hello World!")))
 ```
 
 ## Mapping
@@ -494,9 +493,9 @@ Because the `ZIO` data type supports both `flatMap` and `map`, we can use Scala'
 ```scala mdoc:silent
 val program = 
   for {
-    _    <- putStrLn("Hello! What is your name?")
-    name <- getStrLn
-    _    <- putStrLn(s"Hello, ${name}, welcome to ZIO!")
+    _    <- Console.printLine("Hello! What is your name?")
+    name <- Console.readLine
+    _    <- Console.printLine(s"Hello, ${name}, welcome to ZIO!")
   } yield ()
 ```
 
@@ -521,15 +520,15 @@ Sometimes, when the success value of an effect is not useful (or example, it is 
 
 ```scala mdoc:silent
 val zipRight1 = 
-  putStrLn("What is your name?").zipRight(getStrLn)
+  Console.printLine("What is your name?").zipRight(readLine)
 ```
 
 The `zipRight` and `zipLeft` functions have symbolic aliases, known as `*>` and `<*`, respectively. Some developers find these operators easier to read:
 
 ```scala mdoc:silent
 val zipRight2 = 
-  putStrLn("What is your name?") *>
-  getStrLn
+  Console.printLine("What is your name?") *>
+  Console.readLine
 ```
 
 ## Parallelism
@@ -720,10 +719,10 @@ val urls: UIO[Content] =
 
 | Function            | Input Type                                                           | Output Type                            |
 |---------------------|----------------------------------------------------------------------|----------------------------------------|
-| `retry`             | `Schedule[R1, E, S]`                                                 | `ZIO[R1 with Clock, E, A]`             |
+| `retry`             | `Schedule[R1, E, S]`                                                 | `ZIO[R1 with Has[Clock], E, A]`             |
 | `retryN`            | `n: Int`                                                             | `ZIO[R, E, A]`                         |
-| `retryOrElse`       | `policy: Schedule[R1, E, S], orElse: (E, S) => ZIO[R1, E1, A1]`      | `ZIO[R1 with Clock, E1, A1]`           |
-| `retryOrElseEither` | `schedule: Schedule[R1, E, Out], orElse: (E, Out) => ZIO[R1, E1, B]` | `ZIO[R1 with Clock, E1, Either[B, A]]` |
+| `retryOrElse`       | `policy: Schedule[R1, E, S], orElse: (E, S) => ZIO[R1, E1, A1]`      | `ZIO[R1 with Has[Clock], E1, A1]`           |
+| `retryOrElseEither` | `schedule: Schedule[R1, E, Out], orElse: (E, Out) => ZIO[R1, E1, B]` | `ZIO[R1 with Has[Clock], E1, Either[B, A]]` |
 | `retryUntil`        | `E => Boolean`                                                       | `ZIO[R, E, A]`                         |
 | `retryUntilEquals`  | `E1`                                                                 | `ZIO[R, E1, A]`                        |
 | `retryUntilM`       | `E => URIO[R1, Boolean]`                                             | `ZIO[R1, E, A]`                        |
@@ -738,9 +737,7 @@ There are a number of useful methods on the ZIO data type for retrying failed ef
 The most basic of these is `ZIO#retry`, which takes a `Schedule` and returns a new effect that will retry the first effect if it fails, according to the specified policy:
 
 ```scala mdoc:silent
-import zio.clock._
-
-val retriedOpenFile: ZIO[Clock, IOException, Array[Byte]] = 
+val retriedOpenFile: ZIO[Has[Clock], IOException, Array[Byte]] = 
   readFile("primary.data").retry(Schedule.recurs(5))
 ```
 
@@ -867,15 +864,15 @@ Brackets have compositional semantics, so if a bracket is nested inside another 
 Let's look at a full working example on using brackets:
 
 ```scala mdoc:silent
-import zio.{ ExitCode, Task, UIO }
+import zio._
 import java.io.{ File, FileInputStream }
 import java.nio.charset.StandardCharsets
 
-object Main extends App {
+object Main extends zio.App {
 
   // run my bracket
   def run(args: List[String]) =
-    mybracket.orDie.as(ExitCode.success)
+    mybracket.exitCode
 
   def closeStream(is: FileInputStream) =
     UIO(is.close())
@@ -925,7 +922,7 @@ Let's write a ZIO version:
 IO.fail("e1")
   .ensuring(IO.effectTotal(throw new Exception("e2")))
   .catchAll {
-    case "e1" => putStrLn("e1")
-    case "e2" => putStrLn("e2")
+    case "e1" => Console.printLine("e1")
+    case "e2" => Console.printLine("e2")
   }
 ```

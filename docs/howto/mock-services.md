@@ -46,10 +46,9 @@ trait Event
 
 ```scala mdoc:silent
 import zio._
-import zio.console.Console
 
-def processEvent(event: Event): URIO[Console, Unit] =
-  console.putStrLn(s"Got $event")
+def processEvent(event: Event): URIO[Has[Console], Unit] =
+  Console.printLine(s"Got $event")
 ```
 
 With ZIO, we've regained to ability to reason about the effects called. We know that `processEvent` can only call on _capabilities_ of `Console`, so even though we still have `Unit` as the result, we have narrowed the possible effects space to a few.
@@ -61,7 +60,7 @@ With ZIO, we've regained to ability to reason about the effects called. We know 
 However, the same method could be implemented as:
 
 ```scala mdoc:silent
-def processEvent2(event: Event): URIO[Console, Unit] =
+def processEvent2(event: Event): URIO[Has[Console], Unit] =
   ZIO.unit
 ```
 
@@ -193,7 +192,6 @@ trait AccountEvent
 // main sources
 
 import zio._
-import zio.console.Console
 import zio.test.mock._
 
 type AccountObserver = Has[AccountObserver.Service]
@@ -210,20 +208,20 @@ object AccountObserver {
   def runCommand() =
     ZIO.accessM[AccountObserver](_.get.runCommand)
 
-  val live: ZLayer[Console, Nothing, AccountObserver] =
-    ZLayer.fromService[Console.Service, Service] { console =>
+  val live: ZLayer[Has[Console], Nothing, AccountObserver] =
+    { (console: Console) =>
       new Service {
         def processEvent(event: AccountEvent): UIO[Unit] =
           for {
-            _    <- console.putStrLn(s"Got $event")
-            line <- console.getStrLn.orDie
-            _    <- console.putStrLn(s"You entered: $line")
+            _    <- console.printLine(s"Got $event")
+            line <- console.readLine.orDie
+            _    <- console.printLine(s"You entered: $line")
           } yield ()
 
         def runCommand(): UIO[Unit] =
-          console.putStrLn("Done!")
+          console.printLine("Done!")
       }
-    }
+    }.toLayer
 }
 ```
 
@@ -250,10 +248,10 @@ object AccountObserverMock extends Mock[AccountObserver] {
 ## Provided ZIO services
 
 For each built-in ZIO service you will find their mockable counterparts in `zio.test.mock` package:
-- `MockClock` for `zio.clock.Clock`
-- `MockConsole` for `zio.console.Console`
-- `MockRandom` for `zio.random.Random`
-- `MockSystem` for `zio.system.System`
+- `MockClock` for `zio.Clock`
+- `MockConsole` for `zio.Console`
+- `MockRandom` for `zio.Random`
+- `MockSystem` for `zio.System`
 
 ## Setting up expectations
 
@@ -312,8 +310,8 @@ For methods that may return `Unit`, we may skip the predefined result (it will d
 ```scala mdoc:silent
 import zio.test.mock.MockConsole
 
-val exp03 = MockConsole.PutStrLn(equalTo("Welcome to ZIO!"))
-val exp04 = MockConsole.PutStrLn(equalTo("Welcome to ZIO!"), unit)
+val exp03 = MockConsole.PrintLine(equalTo("Welcome to ZIO!"))
+val exp04 = MockConsole.PrintLine(equalTo("Welcome to ZIO!"), unit)
 ```
 
 For methods that may return `Unit` and take no input we can skip both:
@@ -329,10 +327,10 @@ import zio.test._
 
 val event = new AccountEvent {}
 val app: URIO[AccountObserver, Unit] = AccountObserver.processEvent(event)
-val mockEnv: ULayer[Console] = (
-  MockConsole.PutStrLn(equalTo(s"Got $event"), unit) ++
-  MockConsole.GetStrLn(value("42")) ++
-  MockConsole.PutStrLn(equalTo("You entered: 42"))
+val mockEnv: ULayer[Has[Console]] = (
+  MockConsole.PrintLine(equalTo(s"Got $event"), unit) ++
+  MockConsole.ReadLine(value("42")) ++
+  MockConsole.PrintLine(equalTo("You entered: 42"))
 )
 ```
 
@@ -351,7 +349,7 @@ We can combine our expectation to build complex scenarios using combinators defi
 ```scala mdoc:silent
 object AccountObserverSpec extends DefaultRunnableSpec {
   def spec = suite("processEvent")(
-    testM("calls putStrLn > getStrLn > putStrLn and returns unit") {
+    testM("calls printLine > readLine > printLine and returns unit") {
       val result = app.provideLayer(mockEnv >>> AccountObserver.live)
       assertM(result)(isUnit)
     }
@@ -368,10 +366,10 @@ object MaybeConsoleSpec extends DefaultRunnableSpec {
   def spec = suite("processEvent")(
     testM("expect no call") {
       def maybeConsole(invokeConsole: Boolean) =
-        ZIO.when(invokeConsole)(console.putStrLn("foo"))
+        ZIO.when(invokeConsole)(Console.printLine("foo"))
 
       val maybeTest1 = maybeConsole(false).provideLayer(MockConsole.empty)
-      val maybeTest2 = maybeConsole(true).provideLayer(MockConsole.PutStrLn(equalTo("foo")))
+      val maybeTest2 = maybeConsole(true).provideLayer(MockConsole.PrintLine(equalTo("foo")))
       assertM(maybeTest1)(isUnit) *> assertM(maybeTest2)(isUnit)
     }
   )
@@ -383,23 +381,21 @@ object MaybeConsoleSpec extends DefaultRunnableSpec {
 In some cases we have more than one collaborating service being called. You can create mocks for rich environments and as you enrich the environment by using _capability tags_ from another service, the underlaying mocked layer will be updated.
 
 ```scala mdoc:silent
-import zio.console.Console
-import zio.random.Random
 import zio.test.mock.MockRandom
 
-val combinedEnv: ULayer[Console with Random] = (
-  MockConsole.PutStrLn(equalTo("What is your name?")) ++
-  MockConsole.GetStrLn(value("Mike")) ++
+val combinedEnv: ULayer[Has[Console] with Has[Random]] = (
+  MockConsole.PrintLine(equalTo("What is your name?")) ++
+  MockConsole.ReadLine(value("Mike")) ++
   MockRandom.NextInt(value(42)) ++
-  MockConsole.PutStrLn(equalTo("Mike, your lucky number today is 42!"))
+  MockConsole.PrintLine(equalTo("Mike, your lucky number today is 42!"))
 )
 
 val combinedApp =
   for {
-    _    <- console.putStrLn("What is your name?")
-    name <- console.getStrLn.orDie
-    num  <- random.nextInt
-    _    <- console.putStrLn(s"$name, your lucky number today is $num!")
+    _    <- Console.printLine("What is your name?")
+    name <- Console.readLine.orDie
+    num  <- Random.nextInt
+    _    <- Console.printLine(s"$name, your lucky number today is $num!")
   } yield ()
 
 val result = combinedApp.provideLayer(combinedEnv)

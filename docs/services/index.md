@@ -33,27 +33,27 @@ object terminal {
 
   object Terminal {
     trait Service {
-      def putStr(line: String): UIO[Unit]
+      def print(line: String): UIO[Unit]
 
-      def putStrLn(line: String): UIO[Unit]
+      def printLine(line: String): UIO[Unit]
     }
 
     val live: Layer[Nothing, Terminal] = ZLayer.succeed {
       new Service {
-        override def putStr(line: String): UIO[Unit] =
+        override def print(line: String): UIO[Unit] =
           ZIO.effectTotal(print(line))
 
-        override def putStrLn(line: String): UIO[Unit] =
+        override def printLine(line: String): UIO[Unit] =
           ZIO.effectTotal(println(line))
       }
     }
   }
 
-  def putStr(line: => String): URIO[Terminal, Unit] =
-    ZIO.accessM(_.get.putStr(line))
+  def print(line: => String): URIO[Terminal, Unit] =
+    ZIO.accessM(_.get.print(line))
 
-  def putStrLn(line: => String): URIO[Terminal, Unit] =
-    ZIO.accessM(_.get.putStrLn(line))
+  def printLine(line: => String): URIO[Terminal, Unit] =
+    ZIO.accessM(_.get.printLine(line))
 }
 ```
 
@@ -64,7 +64,7 @@ object TerminalExample extends zio.App {
   import zio.RIO
   import terminal._
  
-  private val application: RIO[Terminal, Unit] = putStrLn("Hello, World!") 
+  private val application: RIO[Terminal, Unit] = printLine("Hello, World!") 
 
   override def run(args: List[String]) = 
     application.provideLayer(Terminal.live).exitCode

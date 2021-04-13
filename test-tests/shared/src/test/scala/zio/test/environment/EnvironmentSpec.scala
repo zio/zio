@@ -1,6 +1,5 @@
 package zio.test.environment
 
-import zio.Clock._
 import zio._
 import zio.duration._
 import zio.test.Assertion._

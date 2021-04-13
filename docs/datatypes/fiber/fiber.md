@@ -103,16 +103,15 @@ In the following example, we are going to run sleep and printing on a separate f
 
 ```scala mdoc:silent
 import zio._
-import zio.console._
-import zio.clock._
+import zio.Console._
 import zio.duration._
 for {
-  fiber <- (sleep(3.seconds) *>
-    putStrLn("Hello, after 3 second") *>
+  fiber <- (ZIO.sleep(3.seconds) *>
+    printLine("Hello, after 3 second") *>
     ZIO.succeed(10)).fork
-  _ <- putStrLn(s"Hello, World!")
+  _ <- printLine(s"Hello, World!")
   res <- fiber.join
-  _ <- putStrLn(s"Our fiber succeeded with $res")
+  _ <- printLine(s"Our fiber succeeded with $res")
 } yield ()
 ```
 
@@ -126,15 +125,15 @@ Whenever we want to get rid of our fiber, we can simply call interrupt on that. 
 To inspect whether our fiber succeeded or failed, we can call `await` on fiber. if we call `await` it will wait for that fiber to terminate, and it will give us back the fiber's value as an `Exit`. That exit value could be failure or success. 
 
 ```scala mdoc:silent
-import zio.console._
-import zio.random._
+import zio.Console._
+
 for {
-  b <- nextBoolean
+  b <- Random.nextBoolean
   fiber <- (if (b) ZIO.succeed(10) else ZIO.fail("The boolean was not true")).fork
   exitValue <- fiber.await
   _ <- exitValue match {
-    case Exit.Success(value) => putStrLn(s"Fiber succeeded with $value")
-    case Exit.Failure(cause) => putStrLn(s"Fiber failed")
+    case Exit.Success(value) => printLine(s"Fiber succeeded with $value")
+    case Exit.Failure(cause) => printLine(s"Fiber failed")
   }
 } yield ()
 ```

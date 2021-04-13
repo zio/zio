@@ -23,13 +23,13 @@ will need to add that library as a dependency to your `build.sbt`.
 import org.scalajs.dom.{document, raw}
 import zio._
 import zio.duration._
-import zio.clock._
+import zio.Clock._
 
 object Main extends App {
 
   def run(args: List[String]) = {
     for {
-      _      <- putStrLn("Starting progress bar demo.")  // Outputs on browser console log.
+      _      <- Console.printLine("Starting progress bar demo.")  // Outputs on browser console log.
       target <- IO.effectTotal(document.createElement("pre"))
       _      <- update(target).repeat(Schedule.spaced(1.seconds))
       _      <- IO.effectTotal(node.appendChild(target)) // "node" is provided in this page by mdoc.

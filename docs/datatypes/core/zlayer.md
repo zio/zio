@@ -45,16 +45,16 @@ object Example extends zio.App {
 ### ZLayer application with dependencies 
 
  In the following example, our ZIO application has several dependencies:
- - `zio.clock.Clock`
- - `zio.console.Console`
+ - `zio.Clock`
+ - `zio.Console`
  - `ModuleB`
 
  `ModuleB` in turn depends upon `ModuleA`.
 
 ```scala mdoc:silent
 import zio._
-import zio.clock._
-import zio.console._
+import zio.Clock._
+import zio.Console._
 import zio.duration.Duration._
 import java.io.IOException
 
@@ -93,12 +93,12 @@ object moduleB {
     val any: ZLayer[ModuleB, Nothing, ModuleB] =
       ZLayer.requires[ModuleB]
 
-    val live: ZLayer[ModuleA, Nothing, ModuleB] = ZLayer.fromService { (moduleA: ModuleA.Service) =>
+    val live: ZLayer[ModuleA, Nothing, ModuleB] = { (moduleA: ModuleA.Service) =>
       new Service {
         def letsGoB(v: Int): UIO[String] =
           moduleA.letsGoA(v)
       }
-    }
+    }.toLayer
   }
 
   def letsGoB(v: Int): URIO[ModuleB, String] =
@@ -110,12 +110,12 @@ object ZLayerApp0 extends zio.App {
   import moduleB._
 
   val env = Console.live ++ Clock.live ++ (ModuleA.live >>> ModuleB.live)
-  val program: ZIO[Console with Clock with moduleB.ModuleB, IOException, Unit] =
+  val program: ZIO[Has[Console] with Has[Clock] with moduleB.ModuleB, IOException, Unit] =
     for {
-      _ <- putStrLn(s"Welcome to ZIO!")
+      _ <- printLine(s"Welcome to ZIO!")
       _ <- sleep(Finite(1000))
       r <- letsGoB(10)
-      _ <- putStrLn(r)
+      _ <- printLine(r)
     } yield ()
 
   def run(args: List[String]) =
@@ -135,7 +135,7 @@ object ZLayerApp0 extends zio.App {
 
 ```scala mdoc:silent
 import zio._
-import zio.clock._
+import zio.Clock._
 
 object ZLayerApp1 extends scala.App {
   val rt = Runtime.default
@@ -177,7 +177,7 @@ object ZLayerApp1 extends scala.App {
     val any: ZLayer[ModuleC, Nothing, ModuleC] =
       ZLayer.requires[ModuleC]
 
-    val live: ZLayer[ModuleA with ModuleB with Clock, Nothing, ModuleC] =
+    val live: ZLayer[ModuleA with ModuleB with Has[Clock], Nothing, ModuleC] =
       ZLayer.succeed {
         new Service {
           val foo: UIO[Int] = UIO.succeed(42)
@@ -188,7 +188,7 @@ object ZLayerApp1 extends scala.App {
       ZIO.accessM(_.get.foo)
   }
 
-  val env = (ModuleA.live ++ ModuleB.live ++ ZLayer.identity[Clock]) >>> ModuleC.live
+  val env = (ModuleA.live ++ ModuleB.live ++ Clock.any) >>> ModuleC.live
 
   val res = ModuleC.foo.provideCustomLayer(env)
 

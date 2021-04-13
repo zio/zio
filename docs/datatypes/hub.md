@@ -183,18 +183,15 @@ The `mapM` operator works the same way except it allows us to perform an effect 
 
 ```scala mdoc:reset:invisible
 import zio._
-import zio.console._
 ```
 
 ```scala mdoc:compile-only
-import zio.clock._
-
 val hub: Hub[Int] = ???
 
-val hubWithLogging: ZHub[Any, Clock with Console, Nothing, Nothing, Int, Int] =
+val hubWithLogging: ZHub[Any, Has[Clock] with Has[Console], Nothing, Nothing, Int, Int] =
   hub.mapM { n =>
-    clock.currentDateTime.flatMap { currentDateTime =>
-      console.putStrLn(s"Took message $n from the hub at $currentDateTime")
+    Clock.currentDateTime.flatMap { currentDateTime =>
+      Console.printLine(s"Took message $n from the hub at $currentDateTime")
     }.as(n)
   }
 ```
@@ -220,12 +217,9 @@ Using these operators, we could describe a hub that validates its inputs, allowi
 
 ```scala mdoc:reset:invisible
 import zio._
-import zio.console._
 ```
 
 ```scala mdoc:compile-only
-import zio.clock._
-
 val hub: Hub[Int] = ???
 
 val hubWithLogging: ZHub[Any, Any, String, Nothing, String, Int] =

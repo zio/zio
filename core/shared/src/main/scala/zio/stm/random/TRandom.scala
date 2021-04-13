@@ -28,7 +28,7 @@ trait TRandom {
 object TRandom extends Serializable {
 
   val any: ZLayer[Has[TRandom], Nothing, Has[TRandom]] =
-    ZLayer.requires[Has[TRandom]]
+    ZLayer.service[TRandom]
 
   val live: ZLayer[Has[Random], Nothing, Has[TRandom]] =
     ZLayer.apply {

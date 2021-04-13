@@ -11,10 +11,10 @@ By default, ZIO is asynchronous and all effects will be executed on a default pr
 In the following example, we create 20 blocking tasks to run parallel on the primary async thread pool. Assume we have a machine with an 8 CPU core, so the ZIO creates a thread pool of size 16 (2 * 8). If we run this program, all of our threads got stuck, and the remaining 4 blocking tasks (20 - 16) haven't any chance to run on our thread pool:
 
 ```scala mdoc:silent
-import zio.{ZIO, URIO}
-import zio.console._
-def blockingTask(n: Int): URIO[Console, Unit] =
-  putStrLn(s"running blocking task number $n") *>
+import zio._
+import zio.Console._
+def blockingTask(n: Int): URIO[Has[Console], Unit] =
+  printLine(s"running blocking task number $n") *>
     ZIO.effectTotal(Thread.sleep(3000)) *>
     blockingTask(n)
 
@@ -29,7 +29,7 @@ and continuously create new threads as necessary.
 The `blocking` operator takes a ZIO effect and return another effect that is going to run on a blocking thread pool:
 
 ```scala mdoc:invisible:nest
-import zio.blocking._
+import zio.Blocking._
 val program = ZIO.foreachPar((1 to 100).toArray)(t => blocking(blockingTask(t)))
 ```
 

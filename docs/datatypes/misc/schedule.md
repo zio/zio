@@ -6,7 +6,6 @@ title: "Schedule"
 ```scala mdoc:invisible
 import zio._
 import zio.duration._
-import zio.console._
 ```
 
 A `Schedule[Env, In, Out]` is an **immutable value** that **describes** a recurring effectful schedule, which runs in some environment `Env`, after consuming values of type `In` (errors in the case of `retry`, or values in the case of `repeat`) produces values of type `Out`, and in every step based on input values and the internal state decides to halt or continue after some delay **d**.
@@ -314,7 +313,7 @@ Whenever we need to effectfully process each schedule input/output, we can use `
 We can use these two functions for logging purposes:
 
 ```scala mdoc:silent
-val tappedSchedule = Schedule.count.whileOutput(_ < 5).tapOutput(o => putStrLn(s"retrying $o"))
+val tappedSchedule = Schedule.count.whileOutput(_ < 5).tapOutput(o => Console.printLine(s"retrying $o"))
 ```
 
 

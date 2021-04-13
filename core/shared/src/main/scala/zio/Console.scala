@@ -52,7 +52,7 @@ object Console extends Serializable {
   // Layer Definitions
 
   val any: ZLayer[Has[Console], Nothing, Has[Console]] =
-    ZLayer.requires[Has[Console]]
+    ZLayer.service[Console]
 
   val live: Layer[Nothing, Has[Console]] =
     ZLayer.succeed(ConsoleLive)

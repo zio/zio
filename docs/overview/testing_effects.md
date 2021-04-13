@@ -9,7 +9,7 @@ This section introduces environmental effects and shows you how to write testabl
 
 ```scala mdoc:invisible
 import zio._
-import zio.console._
+import zio.Console._
 ```
 
 ## Environments
@@ -21,7 +21,7 @@ ZIO effects can access the environment using `ZIO.environment`, which provides d
 ```scala mdoc:silent
 for {
   env <- ZIO.environment[Int]
-  _   <- putStrLn(s"The value of the environment is: $env")
+  _   <- printLine(s"The value of the environment is: $env")
 } yield env
 ```
 

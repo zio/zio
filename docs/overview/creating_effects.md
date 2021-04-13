@@ -151,7 +151,7 @@ A synchronous side-effect can be converted into a ZIO effect using `ZIO.effect`:
 ```scala mdoc:silent
 import scala.io.StdIn
 
-val getStrLn: Task[String] =
+val readLine: Task[String] =
   ZIO.effect(StdIn.readLine())
 ```
 
@@ -160,7 +160,7 @@ The error type of the resulting effect will always be `Throwable`, because side-
 If a given side-effect is known to not throw any exceptions, then the side-effect can be converted into a ZIO effect using `ZIO.effectTotal`:
 
 ```scala mdoc:silent
-def putStrLn(line: String): UIO[Unit] =
+def printLine(line: String): UIO[Unit] =
   ZIO.effectTotal(println(line))
 ```
 
@@ -171,7 +171,7 @@ If you wish to refine the error type of an effect (by treating other errors as f
 ```scala mdoc:silent
 import java.io.IOException
 
-val getStrLn2: IO[IOException, String] =
+val readLine2: IO[IOException, String] =
   ZIO.effect(StdIn.readLine()).refineToOrDie[IOException]
 ```
 
@@ -208,12 +208,12 @@ Asynchronous ZIO effects are much easier to use than callback-based APIs, and th
 
 Some side-effects use blocking IO or otherwise put a thread into a waiting state. If not carefully managed, these side-effects can deplete threads from your application's main thread pool, resulting in work starvation.
 
-ZIO provides the `zio.blocking` package, which can be used to safely convert such blocking side-effects into ZIO effects.
+ZIO provides `zio.Blocking`, which can be used to safely convert such blocking side-effects into ZIO effects.
 
 A blocking side-effect can be converted directly into a ZIO effect blocking with the `effectBlocking` method:
 
 ```scala mdoc:silent
-import zio.blocking._
+import zio.Blocking._
 
 val sleeping =
   effectBlocking(Thread.sleep(Long.MaxValue))

@@ -2,7 +2,7 @@ package zio.test.mock.module
 
 import zio.stream.ZSink
 import zio.test.mock.{Mock, Proxy}
-import zio.{Has, UIO, URLayer, ZIO, ZLayer}
+import zio.{Has, UIO, URLayer, ZIO}
 
 /**
  * Example module used for testing ZIO Mock framework.

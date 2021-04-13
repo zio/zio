@@ -46,7 +46,7 @@ object System extends Serializable {
   // Layer Definitions
 
   val any: ZLayer[Has[System], Nothing, Has[System]] =
-    ZLayer.requires[Has[System]]
+    ZLayer.service[System]
 
   val live: Layer[Nothing, Has[System]] =
     ZLayer.succeed(SystemLive)

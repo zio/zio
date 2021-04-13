@@ -16,8 +16,6 @@
 
 package zio
 
-import zio.{Clock, Console, Random, System}
-
 private[zio] trait PlatformSpecific {
   type ZEnv = Has[Clock] with Has[Console] with Has[System] with Has[Random]
 

@@ -152,7 +152,7 @@ object Blocking extends Serializable {
   // Layer Definitions
 
   val any: ZLayer[Has[Blocking], Nothing, Has[Blocking]] =
-    ZLayer.requires[Has[Blocking]]
+    ZLayer.service[Blocking]
 
   val live: Layer[Nothing, Has[Blocking]] =
     ZLayer.succeed(BlockingLive)

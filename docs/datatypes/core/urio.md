@@ -21,16 +21,16 @@ type URIO[-R, +A] = ZIO[R, Nothing, A]
 
 So the `URIO` just equal to `ZIO` which requires `R` and cannot fail because in the Scala the `Nothing` type has no inhabitant, we can't create an instance of type `Nothing`. It succeeds with `A`.
 
-In following example, the type of `putStrLn` is `URIO[Console, Unit]` which means, it requires `Console` service as an environment, and it succeeds with `Unit` value:
+In following example, the type of `printLine` is `URIO[Console, Unit]` which means, it requires `Console` service as an environment, and it succeeds with `Unit` value:
 
 ```scala mdoc:invisible:reset
 import zio._
-import zio.console._
+import zio.Console._
 ```
 
 ```scala mdoc:silent
-def putStrLn(line: => String): URIO[Console, Unit] =
-  ZIO.accessM(_.get putStrLn line)
+def printLine(line: => String): URIO[Has[Console], Unit] =
+  ZIO.serviceWith(_.printLine(line))
 ```
 
 > **Note:** _Principle of The Least Power_

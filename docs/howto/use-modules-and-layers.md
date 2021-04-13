@@ -16,10 +16,7 @@ To access the DB we need a `DBConnection`, and each step in our program represen
 The result is a program that, in turn, depends on the `DBConnection`.
 
 ```scala mdoc:invisible
-import zio.{ Has, IO, Layer, UIO, URIO, ZEnv, ZIO, ZLayer }
-import zio.clock.Clock
-import zio.console.Console
-import zio.random.Random
+import zio._
 
 trait DBError
 trait Product
@@ -92,10 +89,7 @@ object UserRepo {
 ```
 
 ```scala mdoc:reset:invisible
-import zio.{ Has, IO, Layer, UIO, URIO, ZEnv, ZIO, ZLayer }
-import zio.clock.Clock
-import zio.console.Console
-import zio.random.Random
+import zio._
 
 trait DBError
 trait Product
@@ -211,13 +205,12 @@ object Logging {
     def error(s: String): UIO[Unit]
   }
 
-  import zio.console.Console
-  val consoleLogger: ZLayer[Console, Nothing, Logging] = ZLayer.fromFunction( console =>
+  val consoleLogger: ZLayer[Has[Console], Nothing, Logging] = ( (console: Console) =>
     new Service {
-      def info(s: String): UIO[Unit]  = console.get.putStrLn(s"info - $s")
-      def error(s: String): UIO[Unit] = console.get.putStrLn(s"error - $s")
+      def info(s: String): UIO[Unit]  = console.printLine(s"info - $s")
+      def error(s: String): UIO[Unit] = console.printLine(s"error - $s")
     }
-  )
+  ).toLayer
 
   //accessor methods
   def info(s: String): URIO[Logging, Unit] =
@@ -243,7 +236,7 @@ val makeUser: ZIO[Logging with UserRepo, DBError, Unit] = for {
 Given a program with these requirements, we can build the required layer:
 ```scala mdoc:silent
 // compose horizontally
-val horizontal: ZLayer[Console, Nothing, Logging with UserRepo] = Logging.consoleLogger ++ UserRepo.inMemory
+val horizontal: ZLayer[Has[Console], Nothing, Logging with UserRepo] = Logging.consoleLogger ++ UserRepo.inMemory
 
 // fulfill missing deps, composing vertically
 val fullLayer: Layer[Nothing, Logging with UserRepo] = Console.live >>> horizontal
@@ -256,9 +249,9 @@ makeUser.provideLayer(fullLayer)
 Let's add some extra logic to our program that creates a user:
 
 ```scala mdoc:silent
-val makeUser2: ZIO[Logging with UserRepo with Clock with Random, DBError, Unit] = for {
-    uId       <- zio.random.nextLong.map(UserId)
-    createdAt <- zio.clock.currentDateTime
+val makeUser2: ZIO[Logging with UserRepo with Has[Clock] with Has[Random], DBError, Unit] = for {
+    uId       <- Random.nextLong.map(UserId)
+    createdAt <- Clock.currentDateTime
     _         <- Logging.info(s"inserting user")
     _         <- UserRepo.createUser(User(uId, "Chet"))
     _         <- Logging.info(s"user inserted, created at $createdAt")
