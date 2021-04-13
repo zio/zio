@@ -6,7 +6,6 @@ import zio.duration._
 import zio.internal.OneShot
 import zio.test.Assertion._
 import zio.test._
-import zio.test.environment._
 
 import java.util.concurrent.TimeUnit
 
