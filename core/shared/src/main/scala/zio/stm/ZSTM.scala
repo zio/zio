@@ -1822,7 +1822,6 @@ object ZSTM {
             if (isRunning) {
               commitJournal(journal)
             }
-
             loop = false
           }
         } else {
@@ -1842,7 +1841,6 @@ object ZSTM {
                       if (isRunning) {
                         commitJournal(journal)
                       }
-
                     } else {
                       loop = true
                     }
