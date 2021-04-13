@@ -3,26 +3,6 @@ id: stm
 title: "STM"
 ---
 
-Software Transactional Memory (STM) is a technique which allows composition of arbitrary atomic operations. It is the 
-software analog of transactions in database systems. STM can perform groups of memory operations in an atomic fashion. 
-The API is inspired by Haskell's [STM library](http://hackage.haskell.org/package/stm-2.5.0.0/docs/Control-Concurrent-STM.html) 
-although the implementation in ZIO is completely different.
-
-STM brings several advantages over traditional low-level locking mechanisms:
-* **Compositionality**
-* Freedom from deadlocks
-* Automatic rollback on exceptions or timeouts
-* Freedom from tension between lock granularity and concurrency
-
-The main problem with traditional concurrent programs using locks is that they do not compose and correct fragments
-can fail when they are combined as the order in which locks are acquired and released can easily cause deadlocks as 
-more locks are introduced into the equation.
-
-Transactional memory eliminates many of the difficulties that affect low-level lock-based programming since transactional
-data structures are lock-free.
-
-## The STM datatype
-
 An `STM[E, A]` represents an effect that can be performed transactionally resulting in a failure `E` or a success `A`.
 There is a more powerful variant `ZSTM[R, E, A]` which supports an environment type `R` like `ZIO[R, E, A]`. The `STM` 
 (and `ZSTM` variant) data-type is _not_ as powerful as the `ZIO[R, E, A]` datatype as it does not allow you to perform 

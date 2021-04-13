@@ -19,6 +19,8 @@ In transactional memory we get these aspects of ACID properties:
 
 - **Isolated** — If we have multiple updates, we need to perform these updates in isolated transactions. So each transaction doesn't affect other concurrent transactions. No matter how many fibers are running any number of transactions. None of them have to worry about what is happening in the other transactions.
 
+The ZIO STM API is inspired by Haskell's [STM library](http://hackage.haskell.org/package/stm-2.5.0.0/docs/Control-Concurrent-STM.html) although the implementation in ZIO is completely different.
+
 ## The Problem
 
 Let's start from a simple `inc` function, which takes a mutable reference of `Int` and increase it by `amount`:
