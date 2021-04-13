@@ -40,14 +40,14 @@
     ],
     "Concurrency Primitives": [
       "datatypes/concurrency/index",
-      "datatypes/concurrency/hub",
-      "datatypes/concurrency/promise",
-      "datatypes/concurrency/semaphore",
       "datatypes/concurrency/zref",
       "datatypes/concurrency/ref",
       "datatypes/concurrency/zrefm",
       "datatypes/concurrency/refm",
-      "datatypes/concurrency/queue"
+      "datatypes/concurrency/promise",
+      "datatypes/concurrency/queue",
+      "datatypes/concurrency/hub",
+      "datatypes/concurrency/semaphore"
     ],
     "STM": [
       "datatypes/stm/index",

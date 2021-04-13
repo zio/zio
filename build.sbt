@@ -465,7 +465,7 @@ lazy val benchmarks = project.module
         "com.typesafe.akka"         %% "akka-stream"    % "2.6.14",
         "io.github.timwspence"      %% "cats-stm"       % "0.8.0",
         "io.monix"                  %% "monix"          % "3.3.0",
-        "io.projectreactor"          % "reactor-core"   % "3.4.4",
+        "io.projectreactor"          % "reactor-core"   % "3.4.5",
         "io.reactivex.rxjava2"       % "rxjava"         % "2.2.21",
         "org.jctools"                % "jctools-core"   % "3.3.0",
         "org.ow2.asm"                % "asm"            % "9.1",
@@ -521,7 +521,7 @@ lazy val docs = project.module
       "dev.zio"      %% "zio-interop-cats"            % "2.4.0.0",
       "dev.zio"      %% "zio-interop-monix"           % "3.0.0.0-RC7",
       "dev.zio"      %% "zio-interop-scalaz7x"        % "7.2.27.0-RC9",
-      "dev.zio"      %% "zio-interop-reactivestreams" % "1.3.0.7-2",
+      "dev.zio"      %% "zio-interop-reactivestreams" % "1.3.2",
       "dev.zio"      %% "zio-interop-twitter"         % "20.10.0.0"
     )
   )
