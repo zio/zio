@@ -17,7 +17,7 @@
 package zio
 
 import com.github.ghik.silencer.silent
-import zio.stm.USTM
+import zio.stm.ZSTM
 
 import java.util.concurrent.atomic.AtomicReference
 
@@ -370,9 +370,7 @@ object ZRef extends Serializable {
    */
   sealed abstract class ZRefM[-RA, -RB, +EA, +EB, -A, +B] extends ZRef[RA, RB, EA, EB, A, B] { self =>
 
-    protected def acquire: USTM[Unit]
-
-    protected def release: USTM[Unit]
+    protected def semaphores: Set[Semaphore]
 
     protected def unsafeGet: ZIO[RB, EB, B]
 
@@ -530,7 +528,7 @@ object ZRef extends Serializable {
      * the state in transforming the `set` value. This is a more powerful version
      * of `foldM` but requires unifying the environment and error types.
      */
-    def foldAllM[RC <: RA with RB, RD <: RB, EC, ED, C, D](
+    final def foldAllM[RC <: RA with RB, RD <: RB, EC, ED, C, D](
       ea: EA => EC,
       eb: EB => ED,
       ec: EB => EC,
@@ -538,10 +536,8 @@ object ZRef extends Serializable {
       bd: B => ZIO[RD, ED, D]
     ): ZRefM[RC, RD, EC, ED, C, D] =
       new ZRefM[RC, RD, EC, ED, C, D] {
-        def acquire: USTM[Unit] =
-          self.acquire
-        def release: USTM[Unit] =
-          self.release
+        def semaphores =
+          self.semaphores
         def unsafeGet: ZIO[RD, ED, D] =
           self.get.foldM(e => ZIO.fail(eb(e)), bd)
         def unsafeSet(c: C): ZIO[RC, EC, Unit] =
@@ -564,17 +560,15 @@ object ZRef extends Serializable {
      * ergonomic but this method is extremely useful for implementing new
      * combinators.
      */
-    def foldM[RC <: RA, RD <: RB, EC, ED, C, D](
+    final def foldM[RC <: RA, RD <: RB, EC, ED, C, D](
       ea: EA => EC,
       eb: EB => ED,
       ca: C => ZIO[RC, EC, A],
       bd: B => ZIO[RD, ED, D]
     ): ZRefM[RC, RD, EC, ED, C, D] =
       new ZRefM[RC, RD, EC, ED, C, D] {
-        def acquire: USTM[Unit] =
-          self.acquire
-        def release: USTM[Unit] =
-          self.release
+        def semaphores: Set[Semaphore] =
+          self.semaphores
         def unsafeGet: ZIO[RD, ED, D] =
           self.unsafeGet.foldM(e => ZIO.fail(eb(e)), bd)
         def unsafeSetAsync(c: C): ZIO[RC, EC, Unit] =
@@ -586,8 +580,8 @@ object ZRef extends Serializable {
     /**
      * Reads the value from the `ZRef`.
      */
-    def get: ZIO[RB, EB, B] =
-      unsafeGet
+    final def get: ZIO[RB, EB, B] =
+      if (semaphores.size == 1) unsafeGet else withPermit(unsafeGet)
 
     /**
      * Transforms the `get` value of the `ZRefM` with the specified function.
@@ -657,21 +651,22 @@ object ZRef extends Serializable {
     final def zip[RA1 <: RA, RB1 <: RB, EA1 >: EA, EB1 >: EB, A2, B2](
       that: ZRefM[RA1, RB1, EA1, EB1, A2, B2]
     ): ZRef[RA1, RB1, EA1, EB1, (A, A2), (B, B2)] =
-      new ZRefM.Zip[RA1, RB1, EA1, EB1, (A, A2), (B, B2)] {
-        val acquire: USTM[Unit] =
-          self.acquire *> that.acquire
+      new ZRefM[RA1, RB1, EA1, EB1, (A, A2), (B, B2)] {
+        val semaphores: Set[Semaphore] =
+          self.semaphores | that.semaphores
         def unsafeGet: ZIO[RB1, EB1, (B, B2)] =
           self.get <*> that.get
         def unsafeSetAsync(a: (A, A2)): ZIO[RA1, EA1, Unit] =
           self.unsafeSetAsync(a._1) *> that.unsafeSetAsync(a._2)
         def unsafeSet(a: (A, A2)): ZIO[RA1, EA1, Unit] =
           self.unsafeSet(a._1) *> that.unsafeSet(a._2)
-        val release: USTM[Unit] =
-          that.release *> self.release
       }
 
-    final protected def withPermit[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
-      ZIO.uninterruptibleMask(restore => restore(acquire.commit) *> restore(zio).ensuring(release.commit))
+    private final def withPermit[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+      ZIO.uninterruptibleMask { restore =>
+        restore(ZSTM.foreach(semaphores)(_.acquire).commit) *>
+          restore(zio).ensuring(ZSTM.foreach(semaphores)(_.release).commit)
+      }
   }
 
   object ZRefM {
@@ -695,16 +690,14 @@ object ZRef extends Serializable {
         ref       <- Ref.make(a)
         semaphore <- Semaphore.make(1)
       } yield new RefM[A] {
-        def acquire: USTM[Unit] =
-          semaphore.acquire
-        def release: USTM[Unit] =
-          semaphore.release
+        val semaphores: Set[Semaphore] =
+          Set(semaphore)
         def unsafeGet: ZIO[Any, Nothing, A] =
           ref.get
-        def unsafeSetAsync(a: A): ZIO[Any, Nothing, Unit] =
-          ref.setAsync(a)
         def unsafeSet(a: A): ZIO[Any, Nothing, Unit] =
           ref.set(a)
+        def unsafeSetAsync(a: A): ZIO[Any, Nothing, Unit] =
+          ref.setAsync(a)
       }
 
     /**
@@ -775,57 +768,6 @@ object ZRef extends Serializable {
        */
       def updateSomeAndGetM[R1 <: R, E1 >: E](pf: PartialFunction[A, ZIO[R1, E1, A]]): ZIO[R1, E1, A] =
         modifyM(v => pf.applyOrElse[A, ZIO[R1, E1, A]](v, ZIO.succeedNow).map(result => (result, result)))
-    }
-
-    private abstract class Zip[-RA, -RB, +EA, +EB, -A, +B] extends ZRefM[RA, RB, EA, EB, A, B] { self =>
-
-      override final def foldAllM[RC <: RA with RB, RD <: RB, EC, ED, C, D](
-        ea: EA => EC,
-        eb: EB => ED,
-        ec: EB => EC,
-        ca: C => B => ZIO[RC, EC, A],
-        bd: B => ZIO[RD, ED, D]
-      ): ZRefM[RC, RD, EC, ED, C, D] =
-        new ZRefM.Zip[RC, RD, EC, ED, C, D] {
-          def acquire: USTM[Unit] =
-            self.acquire
-          def release: USTM[Unit] =
-            self.release
-          def unsafeGet: ZIO[RD, ED, D] =
-            self.get.foldM(e => ZIO.fail(eb(e)), bd)
-          def unsafeSet(c: C): ZIO[RC, EC, Unit] =
-            self.get.foldM(
-              e => ZIO.fail(ec(e)),
-              b => ca(c)(b).flatMap(a => self.unsafeSet(a).mapError(ea))
-            )
-          def unsafeSetAsync(c: C): ZIO[RC, EC, Unit] =
-            self.get.foldM(
-              e => ZIO.fail(ec(e)),
-              b => ca(c)(b).flatMap(a => self.unsafeSetAsync(a).mapError(ea))
-            )
-        }
-
-      override final def foldM[RC <: RA, RD <: RB, EC, ED, C, D](
-        ea: EA => EC,
-        eb: EB => ED,
-        ca: C => ZIO[RC, EC, A],
-        bd: B => ZIO[RD, ED, D]
-      ): ZRefM[RC, RD, EC, ED, C, D] =
-        new ZRefM.Zip[RC, RD, EC, ED, C, D] {
-          def acquire: USTM[Unit] =
-            self.acquire
-          def release: USTM[Unit] =
-            self.release
-          def unsafeGet: ZIO[RD, ED, D] =
-            self.unsafeGet.foldM(e => ZIO.fail(eb(e)), bd)
-          def unsafeSetAsync(c: C): ZIO[RC, EC, Unit] =
-            ca(c).flatMap(self.unsafeSetAsync(_).mapError(ea))
-          def unsafeSet(c: C): ZIO[RC, EC, Unit] =
-            ca(c).flatMap(self.unsafeSet(_).mapError(ea))
-        }
-
-      override final def get: ZIO[RB, EB, B] =
-        withPermit(unsafeGet)
     }
   }
 
