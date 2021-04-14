@@ -17,7 +17,7 @@
 package zio
 
 import com.github.ghik.silencer.silent
-import zio.stm.ZSTM
+import zio.stm.STM
 
 import java.util.concurrent.atomic.AtomicReference
 
@@ -664,8 +664,8 @@ object ZRef extends Serializable {
 
     private final def withPermit[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
       ZIO.uninterruptibleMask { restore =>
-        restore(ZSTM.foreach(semaphores)(_.acquire).commit) *>
-          restore(zio).ensuring(ZSTM.foreach(semaphores)(_.release).commit)
+        restore(STM.foreach(semaphores)(_.acquire).commit) *>
+          restore(zio).ensuring(STM.foreach(semaphores)(_.release).commit)
       }
   }
 
