@@ -21,8 +21,8 @@ import java.util.UUID
 
 import scala.compiletime.{erasedValue, summonInline}
 import scala.deriving._
-import zio.Random
-import zio.test.{Gen, Has[Sized]}
+import zio._
+import zio.test.{Gen, Sized}
 
 trait DeriveGen[A] {
     def derive: Gen[Has[Random] with Has[Sized], A]

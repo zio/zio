@@ -3,13 +3,14 @@ package zio.test
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test.environment.TestEnvironment
-import zio.{Has, Ref, ZIO}
+import zio.{Has, Ref, ZIO, ZLayer}
 
 object MutableRunnableSpecSpec
     extends MutableRunnableSpec[MutableRunnableSpecSpecCompat.Environment](
-      TestEnvironment.any ++ Ref.make(0).toLayer,
+      TestEnvironment.any ++ ZLayer.fromEffect(Ref.make(0)),
       sequential >>> samples(10) >>> before(ZIO.service[Ref[Int]].flatMap(_.update(_ + 1)))
     ) {
+
   testM("ref 1") {
     assertM(ZIO.service[Ref[Int]].flatMap(_.get))(equalTo(1))
   }

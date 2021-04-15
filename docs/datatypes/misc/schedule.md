@@ -5,7 +5,6 @@ title: "Schedule"
 
 ```scala mdoc:invisible
 import zio._
-import zio.duration._
 ```
 
 A `Schedule[Env, In, Out]` is an **immutable value** that **describes** a recurring effectful schedule, which runs in some environment `Env`, after consuming values of type `In` (errors in the case of `retry`, or values in the case of `repeat`) produces values of type `Out`, and in every step based on input values and the internal state decides to halt or continue after some delay **d**.

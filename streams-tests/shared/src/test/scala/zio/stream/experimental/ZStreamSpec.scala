@@ -2,7 +2,6 @@ package zio.stream.experimental
 
 // import java.io.ByteArrayInputStream
 import zio._
-import zio.duration._
 import zio.stream.experimental.ZStreamGen._
 import zio.test.Assertion._
 import zio.test.TestAspect.{flaky, scala2Only, timeout}

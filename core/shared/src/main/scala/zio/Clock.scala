@@ -16,8 +16,6 @@
 
 package zio
 
-import zio.duration.Duration
-
 import java.lang.{System => JSystem}
 import java.time.{Instant, LocalDateTime, OffsetDateTime}
 import java.util.concurrent.TimeUnit

@@ -1,6 +1,5 @@
 package zio.stream
 
-import zio.duration._
 import zio.stm.TQueue
 import zio.stream.ZSink.Push
 import zio.stream.ZStreamGen._

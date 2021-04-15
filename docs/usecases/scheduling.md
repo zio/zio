@@ -36,7 +36,7 @@ The above schedule retries immediately after failing.
 Typically, you will want to space out your requests a bit to give the endpoint a chance to stabilize.
 There are many rates which you can use such as `spaced`, `exponential`, `fibonacci`, `forever`. For simplicity, we will retry the request every second.
 ```scala mdoc:silent
-import zio.duration.durationInt
+import zio.durationInt
 import zio.Schedule
 
 Schedule.spaced(1.second)
@@ -65,7 +65,6 @@ You've now created a retry strategy that will attempt an effect every second for
 ```scala mdoc:silent
 import zio._
 import zio.Console._
-import zio.duration._
 import ScheduleUtil._
 import API._
 

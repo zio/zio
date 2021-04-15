@@ -1,7 +1,6 @@
 package zio
 
 import zio.Blocking
-import zio.duration._
 import zio.internal.stacktracer.ZTraceElement
 import zio.internal.stacktracer.ZTraceElement.{NoLocation, SourceLocation}
 import zio.test.Assertion._

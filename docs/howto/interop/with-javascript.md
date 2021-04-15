@@ -22,7 +22,6 @@ will need to add that library as a dependency to your `build.sbt`.
 ```scala
 import org.scalajs.dom.{document, raw}
 import zio._
-import zio.duration._
 import zio.Clock._
 
 object Main extends App {

@@ -176,7 +176,6 @@ It is easy to accidentally use different test instances at the same time.
 import zio.test._
 import zio.test.environment.TestClock
 import Assertion._
-import zio.duration._
 
 testM("`acquire` doesn't leak permits upon cancellation") {
   for {
@@ -194,7 +193,6 @@ testM("`acquire` doesn't leak permits upon cancellation") {
 Above code doesn't work. We created a new `TestClock` instance and are correctly adjusting its time. What might be surprising is that call to `timeout` will use the `TestClock` provided by the `TestEnvironment` not our `testClock` instance. It easy to know why when you look at the signature of `timeout`:
 
 ```scala mdoc
-import zio.duration.Duration
 import zio.Clock
 
 sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
@@ -276,7 +274,6 @@ Thanks to the call to `TestClock.adjust(1.minute)` we moved the time instantly 1
 ```scala mdoc
 import java.util.concurrent.TimeUnit
 import zio.Clock.currentTime
-import zio.duration._
 import zio.test.Assertion.isGreaterThanEqualTo
 import zio.test._
 import zio.test.environment.TestClock
@@ -295,7 +292,6 @@ testM("One can move time very fast") {
 `TestClock` affects also all code running asynchronously that is scheduled to run after a certain time.
 
 ```scala mdoc
-import zio.duration._
 import zio.test.Assertion.equalTo
 import zio.test._
 import zio.test.environment.TestClock
@@ -317,7 +313,6 @@ The above code creates a write once cell that will be set to "1" after 10 second
 A more complex example leveraging layers and multiple services is shown below. 
 
 ```scala mdoc:reset
-import zio.duration._
 import zio.test.Assertion._
 import zio.test._
 import zio.test.environment.{ TestClock, TestEnvironment }
@@ -370,7 +365,6 @@ the test environment.
 The pattern with `Promise` and `await` can be generalized when we need to wait for multiple values using a `Queue`. We simply need to put multiple values into the queue and progress the clock multiple times and there is no need to create multiple promises. Even if you have a non-trivial flow of data from multiple streams that can produce at different intervals and would like to test snapshots of data in particular point in time `Queue` can help with that.
 
 ```scala mdoc
-import zio.duration._
 import zio.test.Assertion.equalTo
 import zio.test._
 import zio.test.environment.TestClock
@@ -452,7 +446,7 @@ applied to a test or suite using the `@@` operator. This is an example test suit
 test behaviour:
 
 ```scala mdoc:reset
-import zio.duration._
+import zio._
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test._

@@ -16,7 +16,6 @@
 
 package zio
 
-import zio.duration._
 import zio.internal.tracing.{ZIOFn, ZIOFn1, ZIOFn2}
 import zio.internal.{Executor, OneShot, Platform}
 import zio.{TracingStatus => TracingS}
@@ -475,7 +474,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
 
   /**
    * Returns an effect that is delayed from this effect by the specified
-   * [[zio.duration.Duration]].
+   * [[zio.Duration]].
    */
   final def delay(duration: Duration): ZIO[R with Has[Clock], E, A] =
     Clock.sleep(duration) *> self

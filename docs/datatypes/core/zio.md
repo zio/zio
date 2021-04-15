@@ -569,8 +569,6 @@ If we want the first success or failure, rather than the first success, then we 
 ZIO lets us timeout any effect using the `ZIO#timeout` method, which returns a new effect that succeeds with an `Option`. A value of `None` indicates the timeout elapsed before the effect completed.
 
 ```scala mdoc:silent
-import zio.duration._
-
 IO.succeed("Hello").timeout(10.seconds)
 ```
 

@@ -104,7 +104,6 @@ In the following example, we are going to run sleep and printing on a separate f
 ```scala mdoc:silent
 import zio._
 import zio.Console._
-import zio.duration._
 for {
   fiber <- (ZIO.sleep(3.seconds) *>
     printLine("Hello, after 3 second") *>

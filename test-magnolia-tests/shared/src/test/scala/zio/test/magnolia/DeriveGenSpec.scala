@@ -1,10 +1,8 @@
 package zio.test.magnolia
 
-import zio.Has
-
 import java.time.{Instant, LocalDate, LocalDateTime}
 import java.util.UUID
-import zio.Random
+import zio._
 import zio.test.Assertion._
 import zio.test.GenUtils._
 import zio.test.Sized

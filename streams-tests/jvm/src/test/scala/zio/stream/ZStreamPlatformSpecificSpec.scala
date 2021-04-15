@@ -2,7 +2,6 @@ package zio.stream
 
 import zio.Blocking.effectBlockingIO
 import zio._
-import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test._

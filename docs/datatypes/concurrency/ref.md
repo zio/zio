@@ -309,7 +309,6 @@ object S {
 Let's rock these crocodile boots we found the other day at the market and test our semaphore at the night club, yiihaa:
 
 ```scala mdoc:silent
-import zio.duration.Duration
 import zio.Console._
 
 val party = for {

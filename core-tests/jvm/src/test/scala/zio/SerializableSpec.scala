@@ -88,7 +88,6 @@ object SerializableSpec extends ZIOBaseSpec {
       }
     },
     testM("Duration is serializable") {
-      import zio.duration.Duration
       val duration = Duration.fromNanos(1)
       for {
         returnDuration <- serializeAndBack(duration)

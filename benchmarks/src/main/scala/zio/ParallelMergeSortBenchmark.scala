@@ -15,9 +15,9 @@ import org.openjdk.jmh.annotations.{
   Warmup
 }
 
+import java.lang.{System => JSystem}
 import java.util.concurrent.TimeUnit
 import scala.collection.Iterable
-import scala.util.Random
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
@@ -42,7 +42,7 @@ class ParallelMergeSortBenchmark {
   def setup(): Unit =
     sortInput = 1
       .to(samples)
-      .map(_ => Random.shuffle(1.to(size).toVector))
+      .map(_ => scala.util.Random.shuffle(1.to(size).toVector))
       .toList
 
   @Benchmark
@@ -104,7 +104,7 @@ class ParallelMergeSortBenchmark {
     val ie = i + middle - start
     var j  = middle
     var k  = start
-    java.lang.System.arraycopy(is, start, buf, i, middle - start)
+    JSystem.arraycopy(is, start, buf, i, middle - start)
 
     while (i < ie && j < end) {
       val (a, b) = (buf(i), is(j))
@@ -120,7 +120,7 @@ class ParallelMergeSortBenchmark {
     }
 
     if (i < ie) {
-      java.lang.System.arraycopy(buf, i, is, k, ie - i)
+      JSystem.arraycopy(buf, i, is, k, ie - i)
     }
   }
 

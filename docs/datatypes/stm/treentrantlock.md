@@ -110,7 +110,6 @@ the fiber attempting to acquire the write lock) have released their hold on the 
 import zio._
 import zio.Console._
 import zio.stm._
-import zio.duration._
 
 val writeLockDemoProgram: URIO[Has[Console] with Has[Clock], Unit] = for {
   l  <- TReentrantLock.make.commit
@@ -137,7 +136,6 @@ don't hold onto any resources once we are done using the reentrant lock.
 import zio._
 import zio.Console._
 import zio.stm._
-import zio.duration._
 
 val saferProgram: URIO[Has[Console] with Has[Clock], Unit] = for {
   lock <- TReentrantLock.make.commit

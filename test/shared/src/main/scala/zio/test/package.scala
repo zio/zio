@@ -16,7 +16,6 @@
 
 package zio
 
-import zio.duration.Duration
 import zio.stream.{ZSink, ZStream}
 import zio.test.environment._
 

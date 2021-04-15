@@ -1,7 +1,6 @@
 package zio
 
 import zio.ZQueueSpecUtil.waitForSize
-import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect.{jvm, nonFlaky}
 import zio.test._

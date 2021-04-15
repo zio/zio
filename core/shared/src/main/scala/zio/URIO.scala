@@ -16,7 +16,6 @@
 
 package zio
 
-import zio.duration.Duration
 import zio.internal.{Executor, Platform}
 
 import scala.reflect.ClassTag

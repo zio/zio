@@ -17,7 +17,6 @@
 package zio
 
 import zio.ZManaged.ReleaseMap
-import zio.duration.Duration
 import zio.internal.Platform
 
 /**

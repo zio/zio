@@ -1,6 +1,5 @@
 package zio.test.environment
 
-import zio.duration._
 import zio.test.{Annotations, TestAnnotation}
 import zio.{Clock, Console, PlatformSpecific => _, _}
 
@@ -22,7 +21,6 @@ import scala.collection.immutable.SortedSet
  *
  * {{{
  *  import zio.ZIO
- *  import zio.duration._
  *  import zio.test.environment.TestClock
  *
  *  for {
@@ -45,7 +43,6 @@ import scala.collection.immutable.SortedSet
  *
  * {{{
  *  import zio.Queue
- *  import zio.duration._
  *  import zio.test.environment.TestClock
  *
  *  for {

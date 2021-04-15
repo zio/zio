@@ -60,7 +60,6 @@ In the following example we are going to periodically monitor the number of fibe
 
 ```scala mdoc:silent
 object SupervisorExample extends zio.App {
-  import zio.duration._
 
   val program = for {
     supervisor <- Supervisor.track(true)

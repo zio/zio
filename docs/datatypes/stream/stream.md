@@ -96,7 +96,6 @@ every chunk consists of 30 elements and is produced every 3 seconds.
 ```scala mdoc:silent
 import zio._
 import zio.stream._
-import zio.duration._
 import zio.Clock
 
 val groupedWithinResult: ZStream[Any with Has[Clock], Nothing, Chunk[Int]] =

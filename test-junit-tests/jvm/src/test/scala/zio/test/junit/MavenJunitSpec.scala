@@ -1,9 +1,9 @@
 package zio.test.junit
 
 import org.apache.maven.cli.MavenCli
+import zio._
 import zio.test.Assertion._
 import zio.test.{DefaultRunnableSpec, ZSpec, _}
-import zio.{Blocking, Has, RIO, ZIO}
 
 import java.io.File
 import scala.collection.immutable
@@ -71,7 +71,7 @@ object MavenJunitSpec extends DefaultRunnableSpec {
   class MavenDriver(projectDir: String, projectVersion: String, scalaVersion: String, scalaCompatVersion: String) {
     val mvnRoot: String = new File(s"$projectDir/../maven").getCanonicalPath
     private val cli     = new MavenCli
-    System.setProperty("maven.multiModuleProjectDirectory", mvnRoot)
+    java.lang.System.setProperty("maven.multiModuleProjectDirectory", mvnRoot)
 
     def clean(): RIO[Has[Blocking], Int] = run("clean")
 
@@ -83,7 +83,7 @@ object MavenJunitSpec extends DefaultRunnableSpec {
       s"-ssettings.xml"
     )
     def run(command: String*): RIO[Has[Blocking], Int] = Blocking.effectBlocking(
-      cli.doMain(command.toArray, mvnRoot, System.out, System.err)
+      cli.doMain(command.toArray, mvnRoot, java.lang.System.out, java.lang.System.err)
     )
 
     def parseSurefireReport(testFQN: String): ZIO[Has[Blocking], Throwable, immutable.Seq[TestCase]] =

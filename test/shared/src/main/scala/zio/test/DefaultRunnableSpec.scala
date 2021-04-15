@@ -16,9 +16,8 @@
 
 package zio.test
 
-import zio.duration._
+import zio._
 import zio.test.environment.TestEnvironment
-import zio.{Clock, Has, URIO, ZIO}
 
 /**
  * A default runnable spec that provides testable versions of all of the

@@ -17,7 +17,6 @@
 package zio.test
 
 import zio._
-import zio.duration._
 import zio.test.Assertion.{equalTo, hasMessage, isCase, isSubtype}
 import zio.test.environment.{Live, Restorable, TestClock, TestConsole, TestRandom, TestSystem}
 

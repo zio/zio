@@ -1,7 +1,6 @@
 package zio.test
 
-import zio.Has
-import zio.duration._
+import zio._
 import zio.test.environment.Live
 
 trait ZIOBaseSpec extends DefaultRunnableSpec {

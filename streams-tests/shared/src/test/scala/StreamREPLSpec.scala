@@ -9,7 +9,6 @@ object StreamREPLSpec extends DefaultRunnableSpec {
       import zio.Runtime.default._
       import zio._
       import zio.Console._
-      import zio.duration._
       import zio.stream._
       @silent("never used")
       implicit class RunSyntax[A](io: ZIO[ZEnv, Any, A]) {

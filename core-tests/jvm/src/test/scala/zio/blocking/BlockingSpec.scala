@@ -1,7 +1,6 @@
 package zio
 
 import zio.Blocking._
-import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect.nonFlaky
 import zio.test._

@@ -17,7 +17,6 @@ is placed in internal suspended fibers queue and will be awaken when `permits` v
 import java.util.concurrent.TimeUnit
 import zio._
 import zio.Console._
-import zio.duration.Duration
 
 val task = for {
   _ <- printLine("start")

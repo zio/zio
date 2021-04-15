@@ -16,10 +16,11 @@
 
 package zio
 
-import zio.duration.Duration
 import zio.internal.Scheduler
+import zio.{DurationSyntax => _}
 
-import scala.concurrent.duration._
+import java.util.concurrent.TimeUnit
+import scala.concurrent.duration.FiniteDuration
 import scala.scalanative.loop._
 
 private[zio] trait ClockPlatformSpecific {
@@ -29,11 +30,11 @@ private[zio] trait ClockPlatformSpecific {
     private[this] val ConstFalse = () => false
 
     override def schedule(task: Runnable, duration: Duration): CancelToken = (duration: @unchecked) match {
-      case Duration.Infinity => ConstFalse
-      case Duration.Finite(nanos) =>
+      case zio.Duration.Infinity => ConstFalse
+      case zio.Duration.Finite(nanos) =>
         var completed = false
 
-        val handle = Timer.timeout(nanos.nanos) { () =>
+        val handle = Timer.timeout(FiniteDuration(nanos, TimeUnit.NANOSECONDS)) { () =>
           completed = true
 
           task.run()

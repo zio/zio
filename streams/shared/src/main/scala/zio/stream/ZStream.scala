@@ -16,7 +16,6 @@
 
 package zio.stream
 
-import zio.duration._
 import zio.internal.UniqueKey
 import zio.stm.TQueue
 import zio.stream.internal.Utils.zipChunks

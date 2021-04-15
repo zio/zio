@@ -17,7 +17,6 @@
 package zio
 
 import zio.Random._
-import zio.duration._
 
 import java.time.OffsetDateTime
 import java.time.temporal.ChronoField._

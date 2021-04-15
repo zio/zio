@@ -1,6 +1,5 @@
 package zio
 
-import zio.duration._
 import zio.test._
 import zio.test.environment.Live
 

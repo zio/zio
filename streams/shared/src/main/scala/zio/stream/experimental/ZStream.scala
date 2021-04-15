@@ -1,7 +1,6 @@
 package zio.stream.experimental
 
 import zio._
-import zio.duration._
 import zio.internal.UniqueKey
 import zio.stm._
 import zio.stream.experimental.ZStream.BufferedPull

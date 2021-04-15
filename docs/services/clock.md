@@ -8,7 +8,6 @@ Clock service contains some functionality related to time and scheduling.
 To get the current time in a specific time unit, the `currentTime` function takes a unit as `TimeUnit` and returns `UIO[Long]`:
 
 ```scala mdoc:invisible
-import zio.duration._
 import zio._
 import java.util.concurrent.TimeUnit
 import java.time.DateTimeException

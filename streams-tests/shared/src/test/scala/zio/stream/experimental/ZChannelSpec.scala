@@ -3,11 +3,14 @@ package zio.stream.experimental
 import zio._
 import zio.test.Assertion._
 import zio.test._
+import zio.test.environment.{TestClock, TestConsole, TestRandom, TestSystem}
 
 object ZChannelSpec extends ZIOBaseSpec {
   import ZIOTag._
 
-  def spec = suite("ZChannelSpec")(
+  def spec: Spec[Has[Random] with Has[TestClock] with Has[TestConsole] with Has[TestRandom] with Has[
+    TestSystem
+  ] with Has[Annotations], TestFailure[Any], TestSuccess] = suite("ZChannelSpec")(
     suite("interpreter")(
       testM("ZChannel.succeed") {
         for {

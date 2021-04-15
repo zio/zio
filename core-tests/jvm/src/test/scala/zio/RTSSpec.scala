@@ -1,6 +1,5 @@
 package zio
 
-import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect.{nonFlaky, silent}
 import zio.test._

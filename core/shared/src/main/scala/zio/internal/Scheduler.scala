@@ -16,7 +16,7 @@
 
 package zio.internal
 
-import zio.duration.Duration
+import zio.Duration
 import zio.internal.Scheduler.CancelToken
 
 import java.util.concurrent.{ScheduledExecutorService, TimeUnit}

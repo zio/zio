@@ -1,9 +1,8 @@
 package zio.test.environment
 
 import zio.Clock._
+import zio.Duration._
 import zio._
-import zio.duration.Duration._
-import zio.duration._
 import zio.stream._
 import zio.test.Assertion._
 import zio.test.TestAspect._

@@ -1,6 +1,5 @@
 package zio
 
-import zio.duration._
 import zio.stream.ZStream
 import zio.test.Assertion._
 import zio.test.TestAspect.{failing, timeout}

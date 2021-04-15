@@ -55,7 +55,7 @@ object Example extends zio.App {
 import zio._
 import zio.Clock._
 import zio.Console._
-import zio.duration.Duration._
+import zio.Duration._
 import java.io.IOException
 
 object moduleA {

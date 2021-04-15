@@ -224,8 +224,6 @@ To complete this example, we could combine this queue with `mapM` to
 compute the time that the elements stayed in the queue:
 
 ```scala mdoc:silent
-import zio.duration._
-
 val timeQueued: UIO[ZQueue[Has[Clock], Has[Clock], Nothing, Nothing, String, (Duration, String)]] =
   for {
     queue <- Queue.bounded[(Long, String)](3)

@@ -1,7 +1,6 @@
 package zio.stream.experimental
 
 import zio._
-import zio.duration.Duration
 
 class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Chunk[In], Any, OutErr, Chunk[L], Z])
     extends AnyVal { self =>

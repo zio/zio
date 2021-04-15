@@ -97,7 +97,6 @@ Here is a scenario where we use a `Promise` to hand-off a value between two `Fib
 
 ```scala mdoc:silent
 import java.io.IOException
-import zio.duration._
 
 val program: ZIO[Has[Console] with Has[Clock], IOException, Unit] = 
   for {

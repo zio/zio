@@ -1,9 +1,8 @@
 package zio.test.environment
 
-import zio.duration._
+import zio._
 import zio.test.Assertion._
 import zio.test._
-import zio.{Clock, Console}
 
 import java.util.concurrent.TimeUnit
 

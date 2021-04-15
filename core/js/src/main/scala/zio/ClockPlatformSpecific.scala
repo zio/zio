@@ -16,7 +16,6 @@
 
 package zio
 
-import zio.duration.Duration
 import zio.internal.Scheduler
 
 import scala.scalajs.js
