@@ -859,6 +859,11 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
               curr = unwindStack(e, false)
 
               if (curr eq null) exit = TExit.Fail(e)
+
+            case ZSTM.DieException(t) =>
+              curr = unwindStack(t, false)
+
+              if (curr eq null) exit = TExit.Die(t)
           }
 
         case Tags.OnSuccess =>
@@ -1004,7 +1009,7 @@ object ZSTM {
    * Kills the fiber running the effect.
    */
   def die(t: => Throwable): USTM[Nothing] =
-    succeed(throw t)
+    Effect((_, _, _) => throw DieException(t))
 
   /**
    * Kills the fiber running the effect with a `RuntimeException` that contains
@@ -1520,6 +1525,8 @@ object ZSTM {
 
   private[stm] final case class FailException[E](e: E) extends Throwable(null, null, false, false)
 
+  private[stm] final case class DieException(t: Throwable) extends Throwable(null, null, false, false)
+
   private[stm] case object RetryException extends Throwable(null, null, false, false)
 
   private[stm] final case class Effect[R, E, A](f: (Journal, Fiber.Id, R) => A) extends ZSTM[R, E, A] {
@@ -1862,6 +1869,7 @@ object ZSTM {
       value match {
         case TExit.Succeed(a) => completeTodos(IO.succeedNow(a), journal, platform)
         case TExit.Fail(e)    => completeTodos(IO.fail(e), journal, platform)
+        case TExit.Die(t)     => completeTodos(IO.die(t), journal, platform)
         case TExit.Retry      => TryCommit.Suspend(journal)
       }
     }
@@ -1877,6 +1885,7 @@ object ZSTM {
       val unit: TExit[Nothing, Unit] = Succeed(())
 
       final case class Fail[+A](value: A)    extends TExit[A, Nothing]
+      final case class Die(error: Throwable) extends TExit[Nothing, Nothing]
       final case class Succeed[+B](value: B) extends TExit[Nothing, B]
       case object Retry                      extends TExit[Nothing, Nothing]
     }
