@@ -948,8 +948,8 @@ object ZSTM {
                 case Exit.Success(a) => ZIO.succeedNow(a)
                 case Exit.Failure(cause) =>
                   state.get match {
-                    case State.Done(result) => ZIO.fromEither(result)
-                    case _                  => ZIO.halt(cause)
+                    case State.Done(exit) => ZIO.done(exit)
+                    case _                => ZIO.halt(cause)
                   }
               }
           }
@@ -1982,14 +1982,15 @@ object ZSTM {
     }
 
     object State {
-      final case class Done[+E, +A](result: Either[E, A]) extends State[E, A]
-      case object Interrupted                             extends State[Nothing, Nothing]
-      case object Running                                 extends State[Nothing, Nothing]
+      final case class Done[+E, +A](exit: Exit[E, A]) extends State[E, A]
+      case object Interrupted                         extends State[Nothing, Nothing]
+      case object Running                             extends State[Nothing, Nothing]
 
       def done[E, A](exit: TExit[E, A]): State[E, A] =
         exit match {
-          case TExit.Succeed(a) => State.Done(Right(a))
-          case TExit.Fail(e)    => State.Done(Left(e))
+          case TExit.Succeed(a) => State.Done(Exit.succeed(a))
+          case TExit.Die(t)     => State.Done(Exit.die(t))
+          case TExit.Fail(e)    => State.Done(Exit.fail(e))
           case TExit.Retry      => throw new Error("Defect: toDone being called on TExit.Retry")
         }
     }
