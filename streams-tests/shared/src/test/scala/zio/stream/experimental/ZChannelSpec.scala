@@ -523,7 +523,7 @@ object ZChannelSpec extends ZIOBaseSpec {
 
               }
             }
-          } @@ TestAspect.flaky,
+          } @@ TestAspect.nonFlaky(50),
           testM("nested concurrent reads") {
             val capacity      = 128
             val f: Int => Int = _ + 1
@@ -545,7 +545,7 @@ object ZChannelSpec extends ZIOBaseSpec {
                 }
               }
             }
-          } @@ TestAspect.flaky
+          } @@ TestAspect.nonFlaky(50)
         ),
         suite("ZChannel#mapError") {
           testM("mapError structure confusion") {

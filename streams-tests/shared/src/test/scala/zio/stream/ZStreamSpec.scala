@@ -3648,14 +3648,16 @@ object ZStreamSpec extends ZIOBaseSpec {
         testM("fromIterableM")(checkM(Gen.small(Gen.chunkOfN(_)(Gen.anyInt))) { l =>
           assertM(ZStream.fromIterableM(UIO.effectTotal(l)).runCollect)(equalTo(l))
         }),
-        testM("fromIterator")(checkM(Gen.small(Gen.chunkOfN(_)(Gen.anyInt))) { l =>
-          def lazyIt = l.iterator
-          assertM(ZStream.fromIterator(lazyIt).runCollect)(equalTo(l))
-        }),
-        testM("fromIteratorTotal")(checkM(Gen.small(Gen.chunkOfN(_)(Gen.anyInt))) { l =>
-          def lazyIt = l.iterator
-          assertM(ZStream.fromIteratorTotal(lazyIt).runCollect)(equalTo(l))
-        }),
+        testM("fromIterator") {
+          checkM(Gen.small(Gen.chunkOfN(_)(Gen.anyInt)), Gen.small(Gen.const(_), 1)) { (chunk, maxChunkSize) =>
+            assertM(ZStream.fromIterator(chunk.iterator, maxChunkSize).runCollect)(equalTo(chunk))
+          }
+        },
+        testM("fromIteratorTotal") {
+          checkM(Gen.small(Gen.chunkOfN(_)(Gen.anyInt)), Gen.small(Gen.const(_), 1)) { (chunk, maxChunkSize) =>
+            assertM(ZStream.fromIteratorTotal(chunk.iterator, maxChunkSize).runCollect)(equalTo(chunk))
+          }
+        },
         suite("fromIteratorManaged")(
           testM("is safe to pull again after success") {
             for {
