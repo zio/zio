@@ -537,9 +537,9 @@ lazy val benchmarks = project.module
 lazy val jsdocs = project
   .settings(libraryDependencies += "org.scala-js" %%% "scalajs-dom" % "1.0.0")
   .enablePlugins(ScalaJSPlugin)
-  
+
 val http4s = "0.21.22"
-  
+
 lazy val docs = project.module
   .in(file("zio-docs"))
   .settings(
@@ -568,7 +568,7 @@ lazy val docs = project.module
       "org.tpolecat" %% "doobie-hikari"               % "0.12.1",
       "org.http4s"   %% "http4s-blaze-server"         % http4s,
       "org.http4s"   %% "http4s-blaze-client"         % http4s,
-      "org.http4s"   %% "http4s-dsl"                  % http4s,
+      "org.http4s"   %% "http4s-dsl"                  % http4s
     )
   )
   .settings(macroExpansionSettings)
