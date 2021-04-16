@@ -565,6 +565,7 @@ lazy val docs = project.module
       "dev.zio"      %% "zio-zmx"                     % "0.0.6",
       "org.tpolecat" %% "doobie-core"                 % "0.12.1",
       "org.tpolecat" %% "doobie-h2"                   % "0.12.1",
+      "org.tpolecat" %% "doobie-hikari"               % "0.12.1",
       "org.http4s"   %% "http4s-blaze-server"         % http4s,
       "org.http4s"   %% "http4s-blaze-client"         % http4s,
       "org.http4s"   %% "http4s-dsl"                  % http4s,

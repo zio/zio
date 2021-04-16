@@ -254,7 +254,7 @@ Currently, the `interop-cats` support `TRef`, `TPromise`,  `TQueue` and `TSemaph
 
 Cats Effect and Type-Level libraries are older than the ZIO ecosystem. So there are very nice libraries like doobie and http4s, that a ZIO user would like to use in its application.
 
-We provide some full working example of using these important libraries:
+We have provided some full working example of using these important libraries:
 
 ### Doobie and FS2
 The following example shows how to use ZIO with Doobie (a library for JDBC access) and FS2 (a streaming library), which both rely on Cats Effect instances:
@@ -304,6 +304,41 @@ val run: Stream[Task, User] = doobieApp.transact(xa)
 
 val allUsers: List[User] =
   Runtime.default.unsafeRun(run.compile.toList)
+```
+
+Sounds good, but what about managing blocking operations? How they managed? We shouldn't run blocking JDBC operations on the main thread pool. ZIO provides a specific blocking thread pool for blocking operations. The `doobie-hikari` module helps us create a transactor with two separated executors, one for blocking operations like JDBC operations, and the other one for non-blocking operations like performing awaiting connections to the database.
+
+So let's fix this issue in the previous example. In the following snippet we are going to create a `ZMHikari` of Hikari transactor:
+
+```scala mdoc:silent:nest
+import zio.ZManaged
+import zio.blocking.Blocking
+import zio.{ Runtime, Task, ZIO, ZManaged }
+import doobie.hikari.HikariTransactor
+import cats.effect.Blocker
+
+def transactor: ZManaged[Blocking, Throwable, HikariTransactor[Task]] =
+  for {
+    rt <- ZIO.runtime[Any].toManaged_
+    be <- zio.blocking.blockingExecutor.toManaged_ // our blocking EC
+    xa <- HikariTransactor
+            .newHikariTransactor[Task](
+              "org.h2.Driver",                      // driver classname
+              "jdbc:h2:mem:test;DB_CLOSE_DELAY=-1", // connect URL
+              "sa",                                 // username
+              "",                                   // password
+              rt.platform.executor.asEC,            // await connection here
+              Blocker.liftExecutionContext(be.asEC) // execute JDBC operations here
+            )
+            .toManagedZIO
+  } yield xa
+```
+
+Now we can `transact` our `doobieApp` with this `transactor` and convert that to the `ZIO` effect:
+
+```scala mdoc:silent:nest
+val zioApp: ZIO[Blocking, Throwable, List[User]] =
+  transactor.use(xa => doobieApp.transact(xa).compile.toList)
 ```
 
 ### Http4s
