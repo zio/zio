@@ -222,6 +222,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
   def collectM[R1 <: R, E1 >: E, B](pf: PartialFunction[A, ZSTM[R1, E1, B]]): ZSTM[R1, E1, B] =
     self.continueWithM {
       case TExit.Fail(e)    => ZSTM.fail(e)
+      case TExit.Die(t)     => ZSTM.die(t)
       case TExit.Succeed(a) => if (pf.isDefinedAt(a)) pf(a) else ZSTM.retry
       case TExit.Retry      => ZSTM.retry
     }
@@ -327,6 +328,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
     self.continueWithM {
       case TExit.Succeed(a) => f(a)
       case TExit.Fail(e)    => ZSTM.fail(e)
+      case TExit.Die(t)     => ZSTM.die(t)
       case TExit.Retry      => ZSTM.retry
     }
 
@@ -370,6 +372,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
   def fold[B](f: E => B, g: A => B)(implicit ev: CanFail[E]): URSTM[R, B] =
     self.continueWithM {
       case TExit.Fail(e)    => ZSTM.succeedNow(f(e))
+      case TExit.Die(t)     => ZSTM.die(t)
       case TExit.Succeed(a) => ZSTM.succeedNow(g(a))
       case TExit.Retry      => ZSTM.retry
     }
@@ -383,6 +386,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
   ): ZSTM[R1, E1, B] =
     self.continueWithM {
       case TExit.Fail(e)    => f(e)
+      case TExit.Die(t)     => ZSTM.die(t)
       case TExit.Succeed(a) => g(a)
       case TExit.Retry      => ZSTM.retry
     }
@@ -475,6 +479,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
     self.continueWithM {
       case TExit.Succeed(a) => ZSTM.succeedNow(f(a))
       case TExit.Fail(e)    => ZSTM.fail(e)
+      case TExit.Die(t)     => ZSTM.die(t)
       case TExit.Retry      => ZSTM.retry
     }
 
@@ -485,6 +490,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
     self.continueWithM {
       case TExit.Succeed(a) => ZSTM.succeedNow(a)
       case TExit.Fail(e)    => ZSTM.fail(f(e))
+      case TExit.Die(t)     => ZSTM.die(t)
       case TExit.Retry      => ZSTM.retry
     }
 
@@ -583,6 +589,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
 
       val continueM: TExit[E, A] => STM[E1, A1] = {
         case TExit.Fail(_)    => { reset(); that.provide(r) }
+        case TExit.Die(t)     => ZSTM.die(t)
         case TExit.Succeed(a) => ZSTM.succeedNow(a)
         case TExit.Retry      => { reset(); that.provide(r) }
       }
@@ -644,6 +651,7 @@ final class ZSTM[-R, +E, +A] private[stm] (
   def orTry[R1 <: R, E1 >: E, A1 >: A](that: => ZSTM[R1, E1, A1]): ZSTM[R1, E1, A1] =
     continueWithM {
       case TExit.Fail(e)    => ZSTM.fail(e)
+      case TExit.Die(t)     => ZSTM.die(t)
       case TExit.Succeed(a) => ZSTM.succeedNow(a)
       case TExit.Retry      => that
     }
@@ -1037,7 +1045,7 @@ object ZSTM {
    * Kills the fiber running the effect.
    */
   def die(t: => Throwable): USTM[Nothing] =
-    succeed(throw t)
+    new ZSTM((_, _, _, _) => TExit.Die(t))
 
   /**
    * Kills the fiber running the effect with a `RuntimeException` that contains
@@ -1840,6 +1848,7 @@ object ZSTM {
       value match {
         case TExit.Succeed(a) => completeTodos(IO.succeedNow(a), journal, platform)
         case TExit.Fail(e)    => completeTodos(IO.fail(e), journal, platform)
+        case TExit.Die(t)     => completeTodos(IO.die(t), journal, platform)
         case TExit.Retry      => TryCommit.Suspend(journal)
       }
     }
@@ -1855,6 +1864,7 @@ object ZSTM {
       val unit: TExit[Nothing, Unit] = Succeed(())
 
       final case class Fail[+A](value: A)    extends TExit[A, Nothing]
+      final case class Die(error: Throwable) extends TExit[Nothing, Nothing]
       final case class Succeed[+B](value: B) extends TExit[Nothing, B]
       case object Retry                      extends TExit[Nothing, Nothing]
     }
