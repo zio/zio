@@ -936,21 +936,19 @@ object ZSTM {
     ZIO.uninterruptibleMask { restore =>
       ZIO.accessM[R] { r =>
         ZIO.effectSuspendTotalWith { (platform, fiberId) =>
-          val state = new AtomicReference[State[E, A]](State.Running)
-          tryCommit(platform, fiberId, stm, state, r) match {
+          tryCommitSync(platform, fiberId, stm, r) match {
             case TryCommit.Done(io) => io // TODO: Interruptible in Suspend
             case TryCommit.Suspend(journal) =>
-              val txnId     = makeTxnId()
-              val interrupt = ZIO.effectTotal(state.compareAndSet(State.Running, State.Interrupted))
-              val async     = ZIO.effectAsync(tryCommitAsync(journal, platform, fiberId, stm, txnId, state, r))
+              val txnId = makeTxnId()
+              val state = new AtomicReference[State[E, A]](State.Running)
+              val async = ZIO.effectAsync(tryCommitAsync(journal, platform, fiberId, stm, txnId, state, r))
 
-              restore(async).onInterrupt(interrupt).run.flatMap {
-                case Exit.Success(a) => ZIO.succeedNow(a)
-                case Exit.Failure(cause) =>
-                  state.get match {
-                    case State.Done(exit) => ZIO.done(exit)
-                    case _                => ZIO.halt(cause)
-                  }
+              restore(async).catchAllCause { cause =>
+                state.compareAndSet(State.Running, State.Interrupted)
+                state.get match {
+                  case State.Done(exit) => ZIO.done(exit)
+                  case _                => ZIO.halt(cause)
+                }
               }
           }
         }
@@ -1762,6 +1760,67 @@ object ZSTM {
       }
 
       untracked
+    }
+
+    def tryCommitSync[R, E, A](
+      platform: Platform,
+      fiberId: Fiber.Id,
+      stm: ZSTM[R, E, A],
+      r: R
+    ): TryCommit[E, A] = {
+      var journal = null.asInstanceOf[MutableMap[ZTRef.Atomic[_], Entry]]
+      var value   = null.asInstanceOf[TExit[E, A]]
+
+      var loop    = true
+      var retries = 0
+
+      while (loop) {
+        journal = allocJournal(journal)
+
+        if (retries > MaxRetries) {
+          Sync(globalLock) {
+            value = stm.run(journal, fiberId, r)
+            commitJournal(journal)
+            loop = false
+          }
+        } else {
+          value = stm.run(journal, fiberId, r)
+
+          val analysis = analyzeJournal(journal)
+
+          if (analysis ne JournalAnalysis.Invalid) {
+            loop = false
+
+            value match {
+              case _: TExit.Succeed[_] =>
+                if (analysis eq JournalAnalysis.ReadWrite) {
+                  Sync(globalLock) {
+                    if (isValid(journal)) {
+                      commitJournal(journal)
+                    } else {
+                      loop = true
+                    }
+                  }
+                } else {
+                  Sync(globalLock) {
+                    if (isInvalid(journal)) loop = true
+                  }
+                }
+
+              case _ =>
+            }
+          }
+        }
+
+        retries += 1
+      }
+
+      value match {
+        case TExit.Succeed(a) => completeTodos(IO.succeedNow(a), journal, platform)
+        case TExit.Fail(e)    => completeTodos(IO.fail(e), journal, platform)
+        case TExit.Die(t)     => completeTodos(IO.die(t), journal, platform)
+        case TExit.Retry      => TryCommit.Suspend(journal)
+      }
     }
 
     def tryCommitAsync[R, E, A](
