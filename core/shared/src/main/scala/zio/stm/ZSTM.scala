@@ -1780,11 +1780,18 @@ object ZSTM {
         journal = allocJournal(journal)
 
         if (retries > MaxRetries) {
-          Sync(globalLock) {
-            value = stm.run(journal, fiberId, r)
-            commitJournal(journal)
-            loop = false
+          value = stm.run(journal, fiberId, r)
+
+          value match {
+            case _: TExit.Succeed[_] =>
+              Sync(globalLock) {
+                commitJournal(journal)
+              }
+
+            case _ =>
           }
+
+          loop = false
         } else {
           value = stm.run(journal, fiberId, r)
 
@@ -1884,14 +1891,22 @@ object ZSTM {
         journal = allocJournal(journal)
 
         if (retries > MaxRetries) {
-          Sync(globalLock) {
-            value = stm.run(journal, fiberId, r)
-            val isRunning = state.compareAndSet(State.Running, State.done(value))
-            if (isRunning) {
-              commitJournal(journal)
-            }
-            loop = false
+          value = stm.run(journal, fiberId, r)
+
+          value match {
+            case _: TExit.Succeed[_] =>
+              Sync(globalLock) {
+                val isRunning = state.compareAndSet(State.Running, State.done(value))
+                if (isRunning) {
+                  commitJournal(journal)
+                }
+              }
+
+            case _ =>
+
           }
+
+          loop = false
         } else {
           value = stm.run(journal, fiberId, r)
 
@@ -2052,7 +2067,7 @@ object ZSTM {
           case TExit.Succeed(a) => State.Done(Exit.succeed(a))
           case TExit.Die(t)     => State.Done(Exit.die(t))
           case TExit.Fail(e)    => State.Done(Exit.fail(e))
-          case TExit.Retry      => throw new Error("Defect: toDone being called on TExit.Retry")
+          case TExit.Retry      => throw new Error("Defect: done being called on TExit.Retry")
         }
     }
   }
