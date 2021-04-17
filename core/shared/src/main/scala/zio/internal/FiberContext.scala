@@ -581,6 +581,18 @@ private[zio] final class FiberContext[E, A](
 
                     curZio = k(platform, fiberId)
 
+                  case ZIO.Tags.EffectSuspendMaybeWith =>
+                    val zio = curZio.asInstanceOf[ZIO.EffectSuspendMaybeWith[Any, E, Any]]
+
+                    zio.f(platform, fiberId) match {
+                      case Left(exit) =>
+                        exit match {
+                          case Exit.Success(value) => curZio = nextInstr(value)
+                          case Exit.Failure(cause) => curZio = ZIO.halt(cause)
+                        }
+                      case Right(zio) => curZio = zio
+                    }
+
                   case ZIO.Tags.Trace =>
                     curZio = nextInstr(captureTrace(null))
 
