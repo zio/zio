@@ -300,8 +300,10 @@ package object random {
     ZIO.accessM(_.get.setSeed(seed))
 
   /**
-   * Randomly shuffles the specified list.
+   * Randomly shuffles the specified collection.
    */
-  def shuffle[A](list: => List[A]): ZIO[Random, Nothing, List[A]] =
-    ZIO.accessM(_.get.shuffle(list))
+  def shuffle[A, Collection[+Element] <: Iterable[Element]](collection: Collection[A])(implicit
+    bf: BuildFrom[Collection[A], A, Collection[A]]
+  ): URIO[Random, Collection[A]] =
+    ZIO.accessM(_.get.shuffle(collection))
 }
