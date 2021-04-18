@@ -1238,8 +1238,30 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    *
    * If the IO completes with a failure, the stream will emit that failure.
    */
-  final def haltWhen[R1 <: R, E1 >: E](io: ZIO[R1, E1, Any]): ZStream[R1, E1, A] =
-    ???
+  final def haltWhen[R1 <: R, E1 >: E](io: ZIO[R1, E1, Any]): ZStream[R1, E1, A] = {
+    def writer(fiber: Fiber[E1, Any]): ZChannel[R1, E1, Chunk[A], Any, E1, Chunk[A], Unit] =
+      ZChannel.unwrap {
+        fiber.poll.map {
+          case None =>
+            ZChannel.readWith[R1, E1, Chunk[A], Any, E1, Chunk[A], Unit](
+              in => ZChannel.write(in) *> writer(fiber),
+              err => ZChannel.fail(err),
+              _ => ZChannel.unit
+            )
+
+          case Some(exit) =>
+            exit.fold(ZChannel.halt(_), _ => ZChannel.unit)
+        }
+      }
+
+    new ZStream(
+      ZChannel.unwrap {
+        io.fork.map { fiber =>
+          self.channel >>> writer(fiber)
+        }
+      }
+    )
+  }
 
   /**
    * Specialized version of haltWhen which halts the evaluation of this stream
@@ -1256,8 +1278,24 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    *
    * If the promise completes with a failure, the stream will emit that failure.
    */
-  final def haltWhen[E1 >: E](p: Promise[E1, _]): ZStream[R, E1, A] =
-    ???
+  final def haltWhen[E1 >: E](p: Promise[E1, _]): ZStream[R, E1, A] = {
+    lazy val writer: ZChannel[R, E1, Chunk[A], Any, E1, Chunk[A], Unit] =
+      ZChannel.unwrap {
+        p.poll.map {
+          case None =>
+            ZChannel.readWith[R, E1, Chunk[A], Any, E1, Chunk[A], Unit](
+              in => ZChannel.write(in) *> writer,
+              err => ZChannel.fail(err),
+              _ => ZChannel.unit
+            )
+
+          case Some(io) =>
+            ZChannel.unwrap(io.fold(ZChannel.fail(_), _ => ZChannel.unit))
+        }
+      }
+
+    new ZStream(self.channel >>> writer)
+  }
 
   /**
    * Interleaves this stream and the specified stream deterministically by
