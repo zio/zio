@@ -1324,8 +1324,86 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def interleaveWith[R1 <: R, E1 >: E, A1 >: A](
     that: ZStream[R1, E1, A1]
-  )(b: ZStream[R1, E1, Boolean]): ZStream[R1, E1, A1] =
-    ???
+  )(b: ZStream[R1, E1, Boolean]): ZStream[R1, E1, A1] = {
+
+    def writer(
+      idx: Int,
+      outs: Chunk[A1],
+      len: Int,
+      handoff: ZStream.Handoff[Take[E1, A1]]
+    ): ZChannel[Any, Any, Any, Any, Nothing, Nothing, Unit] =
+      if (idx == len) ZChannel.unit
+      else ZChannel.fromEffect(handoff.offer(Take.single(outs(idx)))) *> writer(idx + 1, outs, len, handoff)
+
+    def producer(handoff: ZStream.Handoff[Take[E1, A1]]): ZChannel[R1, E1, Chunk[A1], Any, Nothing, Nothing, Unit] =
+      ZChannel.readWithCause[R1, E1, Chunk[A1], Any, Nothing, Nothing, Unit](
+        chunk => writer(0, chunk, chunk.size, handoff) *> producer(handoff),
+        cause => ZChannel.fromEffect(handoff.offer(Take.halt(cause))),
+        _ => ZChannel.fromEffect(handoff.offer(Take.end))
+      )
+
+    new ZStream(
+      ZChannel.managed {
+        for {
+          left  <- ZStream.Handoff.make[Take[E1, A1]].toManaged_
+          right <- ZStream.Handoff.make[Take[E1, A1]].toManaged_
+          _     <- (self.channel >>> producer(left)).runManaged.fork
+          _     <- (that.channel >>> producer(right)).runManaged.fork
+        } yield (left, right)
+      } { case (left, right) =>
+        def pullElement(
+          take: UIO[Take[E1, A1]],
+          otherDone: Boolean
+        ): ZChannel[Any, Any, Any, Any, E1, Chunk[A1], Option[Boolean]] =
+          ZChannel.fromEffect(take).flatMap { take =>
+            take.fold(
+              if (otherDone) ZChannel.end(None) else ZChannel.end(Some(true)),
+              cause => ZChannel.halt(cause),
+              chunk => ZChannel.write(chunk) *> ZChannel.end(Some(false))
+            )
+          }
+
+        def reader(
+          idx: Int,
+          outs: Chunk[Boolean],
+          len: Int,
+          leftDone: Boolean,
+          rightDone: Boolean
+        ): ZChannel[Any, Any, Any, Any, E1, Chunk[A1], Option[(Boolean, Boolean)]] =
+          if (idx == len)
+            ZChannel.end(Some((leftDone, rightDone)))
+          else {
+            (outs(idx), leftDone, rightDone) match {
+              case (true, false, _) =>
+                pullElement(left.take, rightDone).flatMap {
+                  case Some(newL) => reader(idx + 1, outs, len, newL, rightDone)
+                  case None       => ZChannel.end(None)
+                }
+              case (false, _, false) =>
+                pullElement(right.take, leftDone).flatMap {
+                  case Some(newR) => reader(idx + 1, outs, len, leftDone, newR)
+                  case None       => ZChannel.end(None)
+                }
+              case _ =>
+                reader(idx + 1, outs, len, leftDone, rightDone)
+            }
+          }
+
+        def process(leftDone: Boolean, rightDone: Boolean): ZChannel[R1, E1, Chunk[Boolean], Any, E1, Chunk[A1], Unit] =
+          ZChannel.readWithCause[R1, E1, Chunk[Boolean], Any, E1, Chunk[A1], Unit](
+            chunk =>
+              reader(0, chunk, chunk.size, leftDone, rightDone).flatMap {
+                case Some((newL, newR)) => process(newL, newR)
+                case None               => ZChannel.unit
+              },
+            cause => ZChannel.halt(cause),
+            _ => ZChannel.unit
+          )
+
+        b.channel >>> process(false, false)
+      }
+    )
+  }
 
   /**
    * Intersperse stream with provided element similar to <code>List.mkString</code>.
