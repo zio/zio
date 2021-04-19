@@ -2,6 +2,7 @@ package zio
 
 import com.github.ghik.silencer.silent
 import zio.test.Assertion._
+import zio.test.TestAspect.nonFlaky
 import zio.test._
 
 object ZRefMSpec extends ZIOBaseSpec {
@@ -476,6 +477,30 @@ object ZRefMSpec extends ZIOBaseSpec {
         } yield assert(value)(fails(equalTo(failure)))
       } @@ zioTag(errors)
     ),
+    suite("zip")(
+      testM("updates can be performed atomically") {
+        for {
+          left    <- RefM.make(0)
+          right   <- RefM.make(1)
+          composed = left <*> right
+          effect   = composed.update { case (a, b) => (b, a + b) }
+          _       <- ZIO.collectAllPar_(ZIO.replicate(20)(effect))
+          tuple   <- composed.get
+          (a, b)   = tuple
+        } yield assert(a)(equalTo(6765)) && assert(b)(equalTo(10946))
+      },
+      testM("partial writes cannot be observed by other fibers") {
+        for {
+          left    <- RefM.make(0)
+          right   <- RefM.make(0)
+          composed = left <*> right
+          effect   = composed.getAndUpdate { case (a, b) => (a + 1, b + 1) }
+          _       <- ZIO.forkAll_(ZIO.replicate(100)(effect))
+          tuple   <- composed.get
+          (a, b)   = tuple
+        } yield assert(a)(equalTo(b))
+      }
+    ) @@ nonFlaky,
     suite("combinators")(
       testM("dequeueRef") {
         for {

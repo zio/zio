@@ -556,7 +556,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
           tp                   <- ZIO.environment[(R1, ReleaseMap)]
           (r1, outerReleaseMap) = tp
           innerReleaseMap      <- ReleaseMap.make
-          exitEA               <- restore(zio.map(_._2)).run.provide(r1 -> innerReleaseMap)
+          exitEA               <- restore(zio).run.map(_.map(_._2)).provide(r1 -> innerReleaseMap)
           releaseMapEntry <- outerReleaseMap.add { e =>
                                cleanup(exitEA)
                                  .provide(r1)
@@ -1040,7 +1040,8 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
   def use[R1 <: R, E1 >: E, B](f: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
     ZManaged.ReleaseMap.make.bracketExit(
       (relMap, exit: Exit[E1, B]) => relMap.releaseAll(exit, ExecutionStrategy.Sequential),
-      relMap => zio.provideSome[R]((_, relMap)).flatMap { case (_, a) => f(a) }
+      relMap =>
+        ZIO.uninterruptibleMask(restore => restore(zio).provideSome[R]((_, relMap))).flatMap { case (_, a) => f(a) }
     )
 
   /**
@@ -1779,7 +1780,9 @@ object ZManaged extends ZManagedPlatformSpecific {
    * effect will be performed interruptibly.
    */
   def fromEffect[R, E, A](fa: ZIO[R, E, A]): ZManaged[R, E, A] =
-    ZManaged(fa.provideSome[(R, ReleaseMap)](_._1).map((Finalizer.noop, _)))
+    ZManaged(
+      ZIO.uninterruptibleMask(restore => restore(fa).provideSome[(R, ReleaseMap)](_._1).map((Finalizer.noop, _)))
+    )
 
   /**
    * Lifts a ZIO[R, E, A] into ZManaged[R, E, A] with no release action. The
@@ -2019,7 +2022,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * The release step will be performed uninterruptibly as usual.
    *
    * This two-phase acquisition allows for resource acquisition flows that can be
-   * safely interrupted and released. For an example, see [[Semaphore#withPermitsManaged]].
+   * safely interrupted and released.
    */
   def makeReserve[R, E, A](reservation: ZIO[R, E, Reservation[R, E, A]]): ZManaged[R, E, A] =
     ZManaged {

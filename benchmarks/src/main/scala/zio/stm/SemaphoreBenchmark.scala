@@ -22,18 +22,10 @@ class SemaphoreBenchmark {
   var ops: Int = _
 
   @Benchmark
-  def semaphoreContention(): Unit =
-    unsafeRun(for {
-      sem   <- Semaphore.make(fibers / 2L)
-      fiber <- ZIO.forkAll(List.fill(fibers)(repeat(ops)(sem.withPermit(ZIO.succeedNow(1)))))
-      _     <- fiber.join
-    } yield ())
-
-  @Benchmark
   def tsemaphoreContention(): Unit =
     unsafeRun(for {
       sem   <- TSemaphore.make(fibers / 2L).commit
-      fiber <- ZIO.forkAll(List.fill(fibers)(repeat(ops)(sem.withPermit(STM.succeedNow(1)).commit)))
+      fiber <- ZIO.forkAll(List.fill(fibers)(repeat(ops)(sem.withPermit(ZIO.succeedNow(1)))))
       _     <- fiber.join
     } yield ())
 

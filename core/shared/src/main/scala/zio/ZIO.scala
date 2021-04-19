@@ -2710,6 +2710,13 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def effectSuspend[R, A](rio: => RIO[R, A]): RIO[R, A] = new ZIO.EffectSuspendPartialWith((_, _) => rio)
 
   /**
+   * A variant of `effectiveSuspendTotalWith` that allows optionally returning
+   * an `Exit` value immediately instead of constructing an effect.
+   */
+  def effectSuspendMaybeWith[R, E, A](f: (Platform, Fiber.Id) => Either[Exit[E, A], ZIO[R, E, A]]): ZIO[R, E, A] =
+    new ZIO.EffectSuspendMaybeWith(f)
+
+  /**
    * Returns a lazily constructed effect, whose construction may itself require
    * effects. The effect must not throw any exceptions. When no environment is required (i.e., when R == Any)
    * it is conceptually equivalent to `flatten(effectTotal(zio))`. If you wonder if the effect throws exceptions,
@@ -4399,6 +4406,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     final val SetForkSupervision       = 25
     final val GetForkScope             = 26
     final val OverrideForkScope        = 27
+    final val EffectSuspendMaybeWith   = 28
   }
   private[zio] final class FlatMap[R, E, A0, A](val zio: ZIO[R, E, A0], val k: A0 => ZIO[R, E, A])
       extends ZIO[R, E, A] {
@@ -4484,6 +4492,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
   private[zio] final class Provide[R, E, A](val r: R, val next: ZIO[R, E, A]) extends IO[E, A] {
     override def tag = Tags.Provide
+  }
+
+  private[zio] final class EffectSuspendMaybeWith[R, E, A](
+    val f: (Platform, Fiber.Id) => Either[Exit[E, A], ZIO[R, E, A]]
+  ) extends ZIO[R, E, A] {
+    override def tag = Tags.EffectSuspendMaybeWith
   }
 
   private[zio] final class EffectSuspendPartialWith[R, A](val f: (Platform, Fiber.Id) => RIO[R, A]) extends RIO[R, A] {
