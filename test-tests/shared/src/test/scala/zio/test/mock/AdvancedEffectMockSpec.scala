@@ -158,7 +158,15 @@ object AdvancedEffectMockSpec extends ZIOBaseSpec with MockSpecUtils[PureModule]
             hasUnexpectedCall(PureModuleMock.SingleParam, 1)
           )
         )
-      }, {
+      },
+      suite("combinators with atMost 0")(
+        testValue("(A && B).atMost(0)")((A && B).atMost(0), ZIO.unit, isUnit),
+        testValue("A.atMost(0) && B.atMost(0)")(A.atMost(0) && B.atMost(0), ZIO.unit, isUnit),
+        testValue("(A ++ B).atMost(0)")((A ++ B).atMost(0), ZIO.unit, isUnit),
+        testValue("A.atMost(0) ++ B.atMost(0)")(A.atMost(0) ++ B.atMost(0), ZIO.unit, isUnit),
+        testValue("(A || B).atMost(0)")((A || B).atMost(0), ZIO.unit, isUnit),
+        testValue("A.atMost(0) || B.atMost(0)")(A.atMost(0) || B.atMost(0), ZIO.unit, isUnit)
+      ), {
         val expectation = A atLeast 3
 
         suite("A atLeast 3")(
