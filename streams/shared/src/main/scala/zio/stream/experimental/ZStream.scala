@@ -7,6 +7,7 @@ import zio.internal.UniqueKey
 import zio.stm._
 import zio.stream.experimental.ZStream.BufferedPull
 import zio.stream.experimental.internal.Utils.zipChunks
+import zio.stream.internal.{ZInputStream, ZReader}
 
 import scala.reflect.ClassTag
 
@@ -2281,14 +2282,33 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * The returned input stream will only be valid within the scope of the ZManaged.
    */
   def toInputStream(implicit ev0: E <:< Throwable, ev1: A <:< Byte): ZManaged[R, E, java.io.InputStream] =
-    ???
+    for {
+      runtime <- ZIO.runtime[R].toManaged_
+      pull    <- toPull.asInstanceOf[ZManaged[R, Nothing, ZIO[R, Option[Throwable], Chunk[Byte]]]]
+    } yield ZInputStream.fromPull(runtime, pull)
 
   /**
    * Converts this stream into a `scala.collection.Iterator` wrapped in a [[ZManaged]].
    * The returned iterator will only be valid within the scope of the ZManaged.
    */
   def toIterator: ZManaged[R, Nothing, Iterator[Either[E, A]]] =
-    ???
+    for {
+      runtime <- ZIO.runtime[R].toManaged_
+      pull    <- toPull
+    } yield {
+      def unfoldPull: Iterator[Either[E, A]] =
+        runtime.unsafeRunSync(pull) match {
+          case Exit.Success(chunk) => chunk.iterator.map(Right(_)) ++ unfoldPull
+          case Exit.Failure(cause) =>
+            cause.failureOrCause match {
+              case Left(None)    => Iterator.empty
+              case Left(Some(e)) => Iterator.single(Left(e))
+              case Right(c)      => throw FiberFailure(c)
+            }
+        }
+
+      unfoldPull
+    }
 
   def toPull: ZManaged[R, Nothing, ZIO[R, Option[E], Chunk[A]]] =
     channel.toPull.map { pull =>
@@ -2300,7 +2320,11 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * The returned reader will only be valid within the scope of the ZManaged.
    */
   def toReader(implicit ev0: E <:< Throwable, ev1: A <:< Char): ZManaged[R, E, java.io.Reader] =
-    ???
+    for {
+      runtime <- ZIO.runtime[R].toManaged_
+      pull    <- toPull.asInstanceOf[ZManaged[R, Nothing, ZIO[R, Option[Throwable], Chunk[Char]]]]
+    } yield ZReader.fromPull(runtime, pull)
+
 
   /**
    * Converts the stream to a managed queue of chunks. After the managed queue is used,
