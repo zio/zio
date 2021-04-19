@@ -1826,7 +1826,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def refineOrDie[E1](
     pf: PartialFunction[E, E1]
   )(implicit ev1: E <:< Throwable, ev2: CanFail[E]): ZStream[R, E1, A] =
-    ???
+    refineOrDieWith(pf)(identity(_))
 
   /**
    * Keeps some of the errors, and terminates the fiber with the rest, using
@@ -1835,7 +1835,14 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def refineOrDieWith[E1](
     pf: PartialFunction[E, E1]
   )(f: E => Throwable)(implicit ev: CanFail[E]): ZStream[R, E1, A] =
-    ???
+    new ZStream(
+      channel.catchAll(e =>
+        if (pf.isDefinedAt(e))
+          ZChannel.fail(pf.apply(e))
+        else
+          ZChannel.halt(Cause.die(f(e)))
+      )
+    )
 
   /**
    * Repeats the entire stream using the specified schedule. The stream will execute normally,

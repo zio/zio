@@ -6,7 +6,7 @@ import zio.clock.Clock
 import zio.duration._
 import zio.stream.experimental.ZStreamGen._
 import zio.test.Assertion._
-import zio.test.TestAspect.{flaky, timeout}
+import zio.test.TestAspect.{flaky, scala2Only, timeout}
 import zio.test._
 import zio.test.environment.TestClock
 
@@ -3251,21 +3251,21 @@ object ZStreamSpec extends ZIOBaseSpec {
               } yield assert(result0)(equalTo(result1))
             }
           }
-        ) @@ TestAspect.jvmOnly
-//             suite("refineToOrDie")(
-//               testM("does not compile when refine type is not a subtype of error type") {
-//                 val result = typeCheck {
-//                   """
-//                   ZIO
-//                     .fail(new RuntimeException("BOO!"))
-//                     .refineToOrDie[Error]
-//                     """
-//                 }
-//                 val expected =
-//                   "type arguments [Error] do not conform to method refineToOrDie's type parameter bounds [E1 <: RuntimeException]"
-//                 assertM(result)(isLeft(equalTo(expected)))
-//               } @@ scala2Only
-//             )
+        ) @@ TestAspect.jvmOnly,
+        suite("refineToOrDie")(
+          testM("does not compile when refine type is not a subtype of error type") {
+            val result = typeCheck {
+              """
+               ZIO
+                 .fail(new RuntimeException("BOO!"))
+                 .refineToOrDie[Error]
+                 """
+            }
+            val expected =
+              "type arguments [Error] do not conform to method refineToOrDie's type parameter bounds [E1 <: RuntimeException]"
+            assertM(result)(isLeft(equalTo(expected)))
+          } @@ scala2Only
+        )
       ),
       suite("Constructors")(
         testM("access") {
