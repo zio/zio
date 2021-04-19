@@ -6,7 +6,7 @@ import zio.clock.Clock
 import zio.duration._
 import zio.stream.experimental.ZStreamGen._
 import zio.test.Assertion._
-import zio.test.TestAspect.{flaky, scala2Only, timeout}
+import zio.test.TestAspect.{flaky, nonFlaky, scala2Only, timeout}
 import zio.test._
 import zio.test.environment.TestClock
 
@@ -2129,33 +2129,33 @@ object ZStreamSpec extends ZIOBaseSpec {
         //         } yield assert(result)(isEmpty)
         //       }
         //     ),
-        //     suite("mergeWith")(
-        //       testM("equivalence with set union")(checkM(streamOfInts, streamOfInts) {
-        //         (s1: ZStream[Any, String, Int], s2: ZStream[Any, String, Int]) =>
-        //           for {
-        //             mergedStream <- (s1 merge s2).runCollect.map(_.toSet).run
-        //             mergedLists <- s1.runCollect
-        //                              .zipWith(s2.runCollect)((left, right) => left ++ right)
-        //                              .map(_.toSet)
-        //                              .run
-        //           } yield assert(!mergedStream.succeeded && !mergedLists.succeeded)(isTrue) || assert(
-        //             mergedStream
-        //           )(
-        //             equalTo(mergedLists)
-        //           )
-        //       }),
-        //       testM("fail as soon as one stream fails") {
-        //         assertM(ZStream(1, 2, 3).merge(ZStream.fail(())).runCollect.run.map(_.succeeded))(
-        //           equalTo(false)
-        //         )
-        //       } @@ nonFlaky(20),
-        //       testM("prioritizes failure") {
-        //         val s1 = ZStream.never
-        //         val s2 = ZStream.fail("Ouch")
+        suite("mergeWith")(
+          testM("equivalence with set union")(checkM(streamOfInts, streamOfInts) {
+            (s1: ZStream[Any, String, Int], s2: ZStream[Any, String, Int]) =>
+              for {
+                mergedStream <- (s1 merge s2).runCollect.map(_.toSet).run
+                mergedLists <- s1.runCollect
+                                 .zipWith(s2.runCollect)((left, right) => left ++ right)
+                                 .map(_.toSet)
+                                 .run
+              } yield assert(!mergedStream.succeeded && !mergedLists.succeeded)(isTrue) || assert(
+                mergedStream
+              )(
+                equalTo(mergedLists)
+              )
+          }),
+          testM("fail as soon as one stream fails") {
+            assertM(ZStream(1, 2, 3).merge(ZStream.fail(())).runCollect.run.map(_.succeeded))(
+              equalTo(false)
+            )
+          } @@ nonFlaky(20),
+          testM("prioritizes failure") {
+            val s1 = ZStream.never
+            val s2 = ZStream.fail("Ouch")
 
-        //         assertM(s1.mergeWith(s2)(_ => (), _ => ()).runCollect.either)(isLeft(equalTo("Ouch")))
-        //       }
-        //     ),
+            assertM(s1.mergeWith(s2)(_ => (), _ => ()).runCollect.either)(isLeft(equalTo("Ouch")))
+          }
+        ),
         //     suite("partitionEither")(
         //       testM("allows repeated runs without hanging") {
         //         val stream = ZStream

@@ -1623,8 +1623,23 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def mergeWith[R1 <: R, E1 >: E, A2, A3](
     that: ZStream[R1, E1, A2],
     strategy: TerminationStrategy = TerminationStrategy.Both
-  )(l: A => A3, r: A2 => A3): ZStream[R1, E1, A3] =
-    ???
+  )(l: A => A3, r: A2 => A3): ZStream[R1, E1, A3] = {
+    import TerminationStrategy.{Left, Right, Either}
+
+    def handler(terminate: Boolean)(exit: Exit[E1, Any]): ZChannel.MergeDecision[R1, E1, Any, E1, Any] =
+      if (terminate || !exit.succeeded) ZChannel.MergeDecision.done(ZIO.done(exit))
+      else ZChannel.MergeDecision.await(ZIO.done(_))
+
+    new ZStream(
+      self
+        .map(l)
+        .channel
+        .mergeWith(that.map(r).channel)(
+          handler(strategy == Either || strategy == Left),
+          handler(strategy == Either || strategy == Right)
+        )
+    )
+  }
 
   /**
    * Runs the specified effect if this stream fails, providing the error to the effect if it exists.
