@@ -195,10 +195,8 @@ This is where the `ZManaged` provides us a composable and flexible way of alloca
 
 `ZManaged` has several type aliases, each of which is useful for a specific workflow:
 
-```scala mdoc:silent:nest
-type Managed[+E, +A]   = ZManaged[Any, E, A]         //Manage an `A`, may fail with `E`        , no requirements
-type TaskManaged[+A]   = ZManaged[Any, Throwable, A] //Manage an `A`, may fail with `Throwable`, no requirements
-type RManaged[-R, +A]  = ZManaged[R, Throwable, A]   //Manage an `A`, may fail with `Throwable`, requires an `R`
-type UManaged[+A]      = ZManaged[Any, Nothing, A]   //Manage an `A`, cannot fail              , no requirements
-type URManaged[-R, +A] = ZManaged[R, Nothing, A]     //Manage an `A`, cannot fail              , requires an `R`
-```
+- **[Managed](managed.md)**— `Managed[E, A]` is a type alias for `Managed[Any, E, A]`.
+- **[TaskManaged](task-managed.md)**— `TaskManaged[A]` is a type alias for `ZManaged[Any, Throwable, A]`.
+- **[RManaged](rmanaged.md)**— `RManaged[R, A]` is a type alias for `ZManaged[R, Throwable, A]`.
+- **[UManaged](umanaged.md)**— `UManaged[A]` is a type alias for `ZManaged[Any, Nothing, A]`.
+- **[URManaged](urmanaged.md)**— `URManaged[R, A]` is a type alias for `ZManaged[R, Nothing, A]`.
