@@ -3251,7 +3251,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               } yield assert(result0)(equalTo(result1))
             }
           }
-        ) @@ TestAspect.jvmOnly
+        ) @@ TestAspect.jvmOnly,
 //             suite("refineToOrDie")(
 //               testM("does not compile when refine type is not a subtype of error type") {
 //                 val result = typeCheck {
@@ -3266,6 +3266,16 @@ object ZStreamSpec extends ZIOBaseSpec {
 //                 assertM(result)(isLeft(equalTo(expected)))
 //               } @@ scala2Only
 //             )
+        testM("refineOrDie") {
+          val error = new Exception
+
+          ZStream
+            .fail(error)
+            .refineOrDie { case e: IllegalArgumentException => e }
+            .runDrain
+            .run
+            .map(assert(_)(dies(equalTo(error))))
+        }
       ),
       suite("Constructors")(
         testM("access") {
