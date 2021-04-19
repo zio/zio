@@ -2555,8 +2555,26 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   /**
    * Zips each element with the next element if present.
    */
-  final def zipWithNext: ZStream[R, E, (A, Option[A])] =
-    ???
+  final def zipWithNext: ZStream[R, E, (A, Option[A])] = {
+    def process(last: Option[A]): ZChannel[Any, E, Chunk[A], Any, E, Chunk[(A, Option[A])], Unit] =
+      ZChannel.readWith(
+        in => {
+          val (newLast, chunk) = in.mapAccum(last)((prev, curr) => (Some(curr), prev.map((_, curr))))
+          val out              = chunk.collect { case Some((prev, curr)) => (prev, Some(curr)) }
+          ZChannel.write(out) *> process(newLast)
+        },
+        err => ZChannel.fail(err),
+        _ =>
+          last match {
+            case Some(value) =>
+              ZChannel.write(Chunk.single((value, None))) *> ZChannel.unit
+            case None =>
+              ZChannel.unit
+          }
+      )
+
+    new ZStream(self.channel >>> process(None))
+  }
 
   /**
    * Zips each element with the previous element. Initially accompanied by `None`.
