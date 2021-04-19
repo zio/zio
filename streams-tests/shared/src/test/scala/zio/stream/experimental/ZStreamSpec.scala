@@ -1490,93 +1490,93 @@ object ZStreamSpec extends ZIOBaseSpec {
         //         )(isLeft(equalTo("Boom")))
         //       }
         //     ) @@ TestAspect.jvmOnly,
-        //     suite("haltWhen")(
-        //       suite("haltWhen(Promise)")(
-        //         testM("halts after the current element") {
-        //           for {
-        //             interrupted <- Ref.make(false)
-        //             latch       <- Promise.make[Nothing, Unit]
-        //             halt        <- Promise.make[Nothing, Unit]
-        //             _ <- ZStream
-        //                    .fromEffect(latch.await.onInterrupt(interrupted.set(true)))
-        //                    .haltWhen(halt)
-        //                    .runDrain
-        //                    .fork
-        //             _      <- halt.succeed(())
-        //             _      <- latch.succeed(())
-        //             result <- interrupted.get
-        //           } yield assert(result)(isFalse)
-        //         },
-        //         testM("propagates errors") {
-        //           for {
-        //             halt <- Promise.make[String, Nothing]
-        //             _    <- halt.fail("Fail")
-        //             result <- ZStream(1)
-        //                         .haltWhen(halt)
-        //                         .runDrain
-        //                         .either
-        //           } yield assert(result)(isLeft(equalTo("Fail")))
-        //         } @@ zioTag(errors)
-        //       ),
-        //       suite("haltWhen(IO)")(
-        //         testM("halts after the current element") {
-        //           for {
-        //             interrupted <- Ref.make(false)
-        //             latch       <- Promise.make[Nothing, Unit]
-        //             halt        <- Promise.make[Nothing, Unit]
-        //             _ <- ZStream
-        //                    .fromEffect(latch.await.onInterrupt(interrupted.set(true)))
-        //                    .haltWhen(halt.await)
-        //                    .runDrain
-        //                    .fork
-        //             _      <- halt.succeed(())
-        //             _      <- latch.succeed(())
-        //             result <- interrupted.get
-        //           } yield assert(result)(isFalse)
-        //         },
-        //         testM("propagates errors") {
-        //           for {
-        //             halt <- Promise.make[String, Nothing]
-        //             _    <- halt.fail("Fail")
-        //             result <- ZStream(0).forever
-        //                         .haltWhen(halt.await)
-        //                         .runDrain
-        //                         .either
-        //           } yield assert(result)(isLeft(equalTo("Fail")))
-        //         } @@ zioTag(errors)
-        //       )
-        //     ),
-        //     suite("haltAfter")(
-        //       testM("halts after given duration") {
-        //         assertWithChunkCoordination(List(Chunk(1), Chunk(2), Chunk(3), Chunk(4))) { c =>
-        //           assertM(
-        //             for {
-        //               fiber <- ZStream
-        //                          .fromQueue(c.queue)
-        //                          .collectWhileSuccess
-        //                          .haltAfter(5.seconds)
-        //                          .tap(_ => c.proceed)
-        //                          .runCollect
-        //                          .fork
-        //               _      <- c.offer *> TestClock.adjust(3.seconds) *> c.awaitNext
-        //               _      <- c.offer *> TestClock.adjust(3.seconds) *> c.awaitNext
-        //               _      <- c.offer *> TestClock.adjust(3.seconds) *> c.awaitNext
-        //               _      <- c.offer
-        //               result <- fiber.join
-        //             } yield result
-        //           )(equalTo(Chunk(Chunk(1), Chunk(2), Chunk(3))))
-        //         }
-        //       },
-        //       testM("will process first chunk") {
-        //         for {
-        //           queue  <- Queue.unbounded[Int]
-        //           fiber  <- ZStream.fromQueue(queue).haltAfter(5.seconds).runCollect.fork
-        //           _      <- TestClock.adjust(6.seconds)
-        //           _      <- queue.offer(1)
-        //           result <- fiber.join
-        //         } yield assert(result)(equalTo(Chunk(1)))
-        //       }
-        //     ),
+        suite("haltWhen")(
+          suite("haltWhen(Promise)")(
+            testM("halts after the current element") {
+              for {
+                interrupted <- Ref.make(false)
+                latch       <- Promise.make[Nothing, Unit]
+                halt        <- Promise.make[Nothing, Unit]
+                _ <- ZStream
+                       .fromEffect(latch.await.onInterrupt(interrupted.set(true)))
+                       .haltWhen(halt)
+                       .runDrain
+                       .fork
+                _      <- halt.succeed(())
+                _      <- latch.succeed(())
+                result <- interrupted.get
+              } yield assert(result)(isFalse)
+            },
+            testM("propagates errors") {
+              for {
+                halt <- Promise.make[String, Nothing]
+                _    <- halt.fail("Fail")
+                result <- ZStream(1)
+                            .haltWhen(halt)
+                            .runDrain
+                            .either
+              } yield assert(result)(isLeft(equalTo("Fail")))
+            } @@ zioTag(errors)
+          ),
+          suite("haltWhen(IO)")(
+            testM("halts after the current element") {
+              for {
+                interrupted <- Ref.make(false)
+                latch       <- Promise.make[Nothing, Unit]
+                halt        <- Promise.make[Nothing, Unit]
+                _ <- ZStream
+                       .fromEffect(latch.await.onInterrupt(interrupted.set(true)))
+                       .haltWhen(halt.await)
+                       .runDrain
+                       .fork
+                _      <- halt.succeed(())
+                _      <- latch.succeed(())
+                result <- interrupted.get
+              } yield assert(result)(isFalse)
+            },
+            testM("propagates errors") {
+              for {
+                halt <- Promise.make[String, Nothing]
+                _    <- halt.fail("Fail")
+                result <- ZStream(0).forever
+                            .haltWhen(halt.await)
+                            .runDrain
+                            .either
+              } yield assert(result)(isLeft(equalTo("Fail")))
+            } @@ zioTag(errors)
+          )
+        ),
+        suite("haltAfter")(
+          testM("halts after given duration") {
+            assertWithChunkCoordination(List(Chunk(1), Chunk(2), Chunk(3), Chunk(4))) { c =>
+              assertM(
+                for {
+                  fiber <- ZStream
+                             .fromQueue(c.queue)
+                             .collectWhileSuccess
+                             .haltAfter(5.seconds)
+                             .tap(_ => c.proceed)
+                             .runCollect
+                             .fork
+                  _      <- c.offer *> TestClock.adjust(3.seconds) *> c.awaitNext
+                  _      <- c.offer *> TestClock.adjust(3.seconds) *> c.awaitNext
+                  _      <- c.offer *> TestClock.adjust(3.seconds) *> c.awaitNext
+                  _      <- c.offer
+                  result <- fiber.join
+                } yield result
+              )(equalTo(Chunk(Chunk(1), Chunk(2), Chunk(3))))
+            }
+          },
+          testM("will process first chunk") {
+            for {
+              queue  <- Queue.unbounded[Int]
+              fiber  <- ZStream.fromQueue(queue).haltAfter(5.seconds).runCollect.fork
+              _      <- TestClock.adjust(6.seconds)
+              _      <- queue.offer(1)
+              result <- fiber.join
+            } yield assert(result)(equalTo(Chunk(1)))
+          }
+        ),
         suite("grouped")(
           testM("sanity") {
             assertM(ZStream(1, 2, 3, 4, 5).grouped(2).runCollect)(equalTo(Chunk(Chunk(1, 2), Chunk(3, 4), Chunk(5))))
