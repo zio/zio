@@ -3,9 +3,11 @@ id: index
 title: "Introduction"
 ---
 
-When we are writing a long-lived application, resource management is very important. Proper resource management is vital to any large-scale application. We need to make sure that our application is resource-safe, and it doesn't leak any resource. Leaking socket connections, database connections or file descriptors is not acceptable in a web application. ZIO provides some good construct to make sure about this concern.
+When we are writing a long-lived application, resource management is very important. Proper resource management is vital to any large-scale application. We need to make sure that our application is resource-safe, and it doesn't leak any resource.
 
-To make our program resource-safe, we need to make sure whenever we are opening a resource, we have a mechanism to close that resource whether we use that resource completely or not, for example, an exception occurred during resource usage.
+Leaking socket connections, database connections or file descriptors is not acceptable in a web application. ZIO provides some good construct to make sure about this concern.
+
+To write a resource-safe application, we need to make sure whenever we are opening a resource, we have a mechanism to close that resource whether we use that resource completely or not, for example, an exception occurred during resource usage.
 
 ### try / finally
 Before we dive into the ZIO solution, it's better to review the `try` / `finally` which is the standard approach in the Scala language to manage resources.
