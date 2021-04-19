@@ -9,7 +9,7 @@ Leaking socket connections, database connections or file descriptors is not acce
 
 To write a resource-safe application, we need to make sure whenever we are opening a resource, we have a mechanism to close that resource whether we use that resource completely or not, for example, an exception occurred during resource usage.
 
-## try / finally
+## Try / Finally
 Before we dive into the ZIO solution, it's better to review the `try` / `finally` which is the standard approach in the Scala language to manage resources.
 
 Scala has a `try` / `finally` construct which helps us to make sure we don't leak resources because no matter what happens in the try, the `finally` block will be executed. So we can open files in the try block, and then we can close them in the `finally` block, and that gives us the guarantee that we will not leak resources.
