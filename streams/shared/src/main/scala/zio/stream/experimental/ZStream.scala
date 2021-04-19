@@ -1284,8 +1284,31 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   /**
    * Intersperse stream with provided element similar to <code>List.mkString</code>.
    */
-  final def intersperse[A1 >: A](middle: A1): ZStream[R, E, A1] =
-    ???
+  final def intersperse[A1 >: A](middle: A1): ZStream[R, E, A1] = {
+    def writer(isFirst: Boolean): ZChannel[R, E, Chunk[A1], Any, E, Chunk[A1], Unit] =
+      ZChannel.readWith[R, E, Chunk[A1], Any, E, Chunk[A1], Unit](
+        chunk => {
+          val builder    = ChunkBuilder.make[A1]()
+          var flagResult = isFirst
+
+          chunk.foreach { o =>
+            if (flagResult) {
+              flagResult = false
+              builder += o
+            } else {
+              builder += middle
+              builder += o
+            }
+          }
+
+          ZChannel.write(builder.result()) *> writer(flagResult)
+        },
+        err => ZChannel.fail(err),
+        _ => ZChannel.unit
+      )
+
+    new ZStream(self.channel >>> writer(true))
+  }
 
   /**
    * Intersperse and also add a prefix and a suffix
