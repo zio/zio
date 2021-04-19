@@ -3169,6 +3169,25 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assert(chunk1)(equalTo(List((0, 0), (0, 1)))) && assert(chunk2)(equalTo(List((1, 1), (2, 1))))
           },
           testM("handle empty pulls properly") {
+            val stream0 = ZStream.fromChunks(Chunk(), Chunk(), Chunk(2))
+            val stream1 = ZStream.fromChunks(Chunk(1), Chunk(1))
+
+            assertM(
+              for {
+                promise <- Promise.make[Nothing, Int]
+                latch   <- Promise.make[Nothing, Unit]
+                fiber <- (stream0 ++ ZStream.fromEffect(promise.await) ++ ZStream(2))
+                           .zipWithLatest(ZStream(1, 1).ensuring(latch.succeed(())) ++ stream1)((_, x) => x)
+                           .take(3)
+                           .runCollect
+                           .fork
+                _      <- latch.await
+                _      <- promise.succeed(2)
+                result <- fiber.join
+              } yield result
+            )(equalTo(Chunk(1, 1, 1)))
+          },
+          testM("handle empty pulls properly (JVM Only)") {
             assertM(
               ZStream
                 .unfold(0)(n => Some((if (n < 3) Chunk.empty else Chunk.single(2), n + 1)))
@@ -3178,7 +3197,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 .take(3)
                 .runCollect
             )(equalTo(Chunk(1, 1, 1)))
-          }
+          } @@ TestAspect.jvmOnly
         ),
         suite("zipWithNext")(
           testM("should zip with next element for a single chunk") {
