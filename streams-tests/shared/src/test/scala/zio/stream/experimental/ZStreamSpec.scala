@@ -3154,32 +3154,32 @@ object ZStreamSpec extends ZIOBaseSpec {
 //                 res2 <- (s.runCollect.map(_.zipWithIndex.map(t => (t._1, t._2.toLong))))
 //               } yield assert(res1)(equalTo(res2))
 //             }),
-//             suite("zipWithLatest")(
-//               testM("succeed") {
-//                 for {
-//                   left   <- Queue.unbounded[Chunk[Int]]
-//                   right  <- Queue.unbounded[Chunk[Int]]
-//                   out    <- Queue.bounded[Take[Nothing, (Int, Int)]](1)
-//                   _      <- ZStream.fromChunkQueue(left).zipWithLatest(ZStream.fromChunkQueue(right))((_, _)).runInto(out).fork
-//                   _      <- left.offer(Chunk(0))
-//                   _      <- right.offerAll(List(Chunk(0), Chunk(1)))
-//                   chunk1 <- ZIO.collectAll(ZIO.replicate(2)(out.take.flatMap(_.done))).map(_.flatten)
-//                   _      <- left.offerAll(List(Chunk(1), Chunk(2)))
-//                   chunk2 <- ZIO.collectAll(ZIO.replicate(2)(out.take.flatMap(_.done))).map(_.flatten)
-//                 } yield assert(chunk1)(equalTo(List((0, 0), (0, 1)))) && assert(chunk2)(equalTo(List((1, 1), (2, 1))))
-//               },
-//               testM("handle empty pulls properly") {
-//                 assertM(
-//                   ZStream
-//                     .unfold(0)(n => Some((if (n < 3) Chunk.empty else Chunk.single(2), n + 1)))
-//                     .flattenChunks
-//                     .forever
-//                     .zipWithLatest(ZStream(1).forever)((_, x) => x)
-//                     .take(3)
-//                     .runCollect
-//                 )(equalTo(Chunk(1, 1, 1)))
-//               }
-//             ),
+        suite("zipWithLatest")(
+          testM("succeed") {
+            for {
+              left   <- Queue.unbounded[Chunk[Int]]
+              right  <- Queue.unbounded[Chunk[Int]]
+              out    <- Queue.bounded[Take[Nothing, (Int, Int)]](1)
+              _      <- ZStream.fromChunkQueue(left).zipWithLatest(ZStream.fromChunkQueue(right))((_, _)).runInto(out).fork
+              _      <- left.offer(Chunk(0))
+              _      <- right.offerAll(List(Chunk(0), Chunk(1)))
+              chunk1 <- ZIO.collectAll(ZIO.replicate(2)(out.take.flatMap(_.done))).map(_.flatten)
+              _      <- left.offerAll(List(Chunk(1), Chunk(2)))
+              chunk2 <- ZIO.collectAll(ZIO.replicate(2)(out.take.flatMap(_.done))).map(_.flatten)
+            } yield assert(chunk1)(equalTo(List((0, 0), (0, 1)))) && assert(chunk2)(equalTo(List((1, 1), (2, 1))))
+          },
+          testM("handle empty pulls properly") {
+            assertM(
+              ZStream
+                .unfold(0)(n => Some((if (n < 3) Chunk.empty else Chunk.single(2), n + 1)))
+                .flattenChunks
+                .forever
+                .zipWithLatest(ZStream(1).forever)((_, x) => x)
+                .take(3)
+                .runCollect
+            )(equalTo(Chunk(1, 1, 1)))
+          }
+        ),
         suite("zipWithNext")(
           testM("should zip with next element for a single chunk") {
             for {

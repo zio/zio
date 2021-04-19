@@ -2572,8 +2572,65 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def zipWithLatest[R1 <: R, E1 >: E, A2, A3](
     that: ZStream[R1, E1, A2]
-  )(f: (A, A2) => A3): ZStream[R1, E1, A3] =
-    ???
+  )(f: (A, A2) => A3): ZStream[R1, E1, A3] = {
+    val mergedChannel: ZChannel[R1, Any, Any, Any, E1, Option[Either[A, A2]], Any] =
+      self.channel
+        .mapOut(_.lastOption.map(Left(_)))
+        .mergeWith(that.channel.mapOut(_.lastOption.map(Right(_))))(
+          exit => ZChannel.MergeDecision.done(ZIO.done(exit)),
+          exit => ZChannel.MergeDecision.done(ZIO.done(exit))
+        )
+
+    def producer(
+      handoff: ZStream.Handoff[Take[E1, A3]],
+      lastLeft: Option[A],
+      lastRight: Option[A2]
+    ): ZChannel[R1, E1, Option[Either[A, A2]], Any, Nothing, Nothing, Any] =
+      ZChannel.readWith[R1, E1, Option[Either[A, A2]], Any, Nothing, Nothing, Any](
+        {
+          case Some(Left(a1)) =>
+            lastRight match {
+              case Some(a2) =>
+                ZChannel.fromEffect(handoff.offer(Take.single(f(a1, a2)))) *> producer(handoff, Some(a1), lastRight)
+              case None =>
+                producer(handoff, Some(a1), lastRight)
+            }
+          case Some(Right(a2)) =>
+            lastLeft match {
+              case Some(a1) =>
+                ZChannel.fromEffect(handoff.offer(Take.single(f(a1, a2)))) *> producer(handoff, lastLeft, Some(a2))
+              case None =>
+                producer(handoff, lastLeft, Some(a2))
+            }
+          case None =>
+            producer(handoff, lastLeft, lastRight)
+        },
+        err => ZChannel.fromEffect(handoff.offer(Take.fail(err))),
+        _ => ZChannel.fromEffect(handoff.offer(Take.end))
+      )
+
+    def consumer(handoff: ZStream.Handoff[Take[E1, A3]]): ZChannel[R1, Any, Any, Any, E1, Chunk[A3], Unit] =
+      ZChannel.unwrap {
+        handoff.take.map { take =>
+          take.fold(
+            ZChannel.unit,
+            cause => ZChannel.halt(cause),
+            chunk => ZChannel.write(chunk) *> consumer(handoff)
+          )
+        }
+      }
+
+    new ZStream(
+      ZChannel.managed {
+        for {
+          handoff <- ZStream.Handoff.make[Take[E1, A3]].toManaged_
+          _       <- (mergedChannel >>> producer(handoff, None, None)).runManaged.fork
+        } yield handoff
+      } { handoff =>
+        consumer(handoff)
+      }
+    )
+  }
 
   /**
    * Zips each element with the next element if present.
