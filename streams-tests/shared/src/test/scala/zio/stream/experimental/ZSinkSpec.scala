@@ -173,6 +173,23 @@ object ZSinkSpec extends ZIOBaseSpec {
           )
         )
       ),
+      testM("filterInput")(
+        assertM(ZStream.range(1, 10).run(ZSink.collectAll.filterInput(_ % 2 == 0)))(
+          equalTo(Chunk(2, 4, 6, 8))
+        )
+      ),
+      suite("filterInputM")(
+        testM("happy path")(
+          assertM(ZStream.range(1, 10).run(ZSink.collectAll.filterInputM(i => ZIO.succeed(i % 2 == 0))))(
+            equalTo(Chunk(2, 4, 6, 8))
+          )
+        ),
+        testM("failure")(
+          assertM(ZStream.range(1, 10).run(ZSink.collectAll.filterInputM(_ => ZIO.fail("fail"))).flip)(
+            equalTo("fail")
+          )
+        )
+      ),
       testM("mapError")(
         assertM(ZStream.range(1, 10).run(ZSink.fail("fail").mapError(s => s + "!")).either)(
           equalTo(Left("fail!"))

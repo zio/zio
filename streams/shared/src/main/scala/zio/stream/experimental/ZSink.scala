@@ -154,6 +154,14 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
   ): ZSink[R1, InErr1, In1, OutErr1, L, Z1] =
     contramapChunksM(f).mapM(g)
 
+  def filterInput[In1 <: In](p: In1 => Boolean): ZSink[R, InErr, In1, OutErr, L, Z] =
+    contramapChunks(_.filter(p))
+
+  def filterInputM[R1 <: R, InErr1 <: InErr, In1 <: In](
+    p: In1 => ZIO[R1, InErr1, Boolean]
+  ): ZSink[R1, InErr1, In1, OutErr, L, Z] =
+    contramapChunksM(_.filterM(p))
+
   /**
    * Runs this sink until it yields a result, then uses that result to create another
    * sink from the provided function which will continue to run until it yields a result.
