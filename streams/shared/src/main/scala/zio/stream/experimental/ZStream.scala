@@ -7,12 +7,13 @@ import zio.internal.UniqueKey
 import zio.stm._
 import zio.stream.experimental.ZStream.BufferedPull
 import zio.stream.experimental.internal.Utils.zipChunks
+import zio.stream.experimental.internal.ZReader
 
 import scala.reflect.ClassTag
 
 class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], Any]) { self =>
 
-  import ZStream.TerminationStrategy
+  import ZStream.{Pull, TerminationStrategy}
 
   /**
    * Symbolic alias for [[ZStream#cross]].
@@ -2338,7 +2339,11 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * The returned reader will only be valid within the scope of the ZManaged.
    */
   def toReader(implicit ev0: E <:< Throwable, ev1: A <:< Char): ZManaged[R, E, java.io.Reader] =
-    ???
+    for {
+      runtime <- ZIO.runtime[R].toManaged_
+      pull    <- self.toPull
+      reader   = ZReader.fromPull(runtime, pull.asInstanceOf[Pull[R, Throwable, Char]])
+    } yield reader
 
   /**
    * Converts the stream to a managed queue of chunks. After the managed queue is used,

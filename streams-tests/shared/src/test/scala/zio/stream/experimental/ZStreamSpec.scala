@@ -10,6 +10,7 @@ import zio.test.TestAspect.{flaky, timeout}
 import zio.test._
 import zio.test.environment.TestClock
 
+import java.io.IOException
 import java.util.concurrent.TimeUnit
 import scala.concurrent.ExecutionContext
 
@@ -2963,129 +2964,129 @@ object ZStreamSpec extends ZIOBaseSpec {
         //         )
         //       })
         //     ),
-        //     suite("toReader")(
-        //       testM("read one-by-one") {
-        //         checkM(tinyListOf(Gen.chunkOf(Gen.anyChar))) { chunks =>
-        //           val content = chunks.flatMap(_.toList)
-        //           ZStream.fromChunks(chunks: _*).toReader.use[Any, Throwable, TestResult] { reader =>
-        //             ZIO.succeedNow(
-        //               assert(Iterator.continually(reader.read()).takeWhile(_ != -1).map(_.toChar).toList)(
-        //                 equalTo(content)
-        //               )
-        //             )
-        //           }
-        //         }
-        //       },
-        //       testM("read in batches") {
-        //         checkM(tinyListOf(Gen.chunkOf(Gen.anyChar))) { chunks =>
-        //           val content = chunks.flatMap(_.toList)
-        //           ZStream.fromChunks(chunks: _*).toReader.use[Any, Throwable, TestResult] { reader =>
-        //             val batches: List[(Array[Char], Int)] = Iterator.continually {
-        //               val buf = new Array[Char](10)
-        //               val res = reader.read(buf, 0, 4)
-        //               (buf, res)
-        //             }.takeWhile(_._2 != -1).toList
-        //             val combined = batches.flatMap { case (buf, size) => buf.take(size) }
-        //             ZIO.succeedNow(assert(combined)(equalTo(content)))
-        //           }
-        //         }
-        //       },
-        //       testM("Throws mark not supported") {
-        //         assertM(
-        //           ZStream
-        //             .fromChunk(Chunk.fromArray("Lorem ipsum".toArray))
-        //             .toReader
-        //             .use(reader =>
-        //               Task {
-        //                 reader.mark(0)
-        //               }
-        //             )
-        //             .run
-        //         )(fails(isSubtype[IOException](anything)))
-        //       },
-        //       testM("Throws reset not supported") {
-        //         assertM(
-        //           ZStream
-        //             .fromChunk(Chunk.fromArray("Lorem ipsum".toArray))
-        //             .toReader
-        //             .use(reader =>
-        //               Task {
-        //                 reader.reset()
-        //               }
-        //             )
-        //             .run
-        //         )(fails(isSubtype[IOException](anything)))
-        //       },
-        //       testM("Does not support mark") {
-        //         assertM(
-        //           ZStream
-        //             .fromChunk(Chunk.fromArray("Lorem ipsum".toArray))
-        //             .toReader
-        //             .use(reader => ZIO.succeed(reader.markSupported()))
-        //         )(equalTo(false))
-        //       },
-        //       testM("Ready is false") {
-        //         assertM(
-        //           ZStream
-        //             .fromChunk(Chunk.fromArray("Lorem ipsum".toArray))
-        //             .toReader
-        //             .use(reader => ZIO.succeed(reader.ready()))
-        //         )(equalTo(false))
-        //       },
-        //       testM("Preserves errors") {
-        //         assertM(
-        //           ZStream
-        //             .fail(new Exception("boom"))
-        //             .toReader
-        //             .use(reader =>
-        //               Task {
-        //                 reader.read
-        //               }
-        //             )
-        //             .run
-        //         )(
-        //           fails(hasMessage(equalTo("boom")))
-        //         )
-        //       },
-        //       testM("Be completely lazy") {
-        //         assertM(
-        //           ZStream
-        //             .fail(new Exception("boom"))
-        //             .toReader
-        //             .use(_ => ZIO.succeed("ok"))
-        //         )(equalTo("ok"))
-        //       },
-        //       testM("Preserves errors in the middle") {
-        //         val chars: Seq[Char] = (1 to 5).map(_.toChar)
-        //         val str: ZStream[Any, Throwable, Char] =
-        //           ZStream.fromIterable(chars) ++ ZStream.fail(new Exception("boom"))
-        //         assertM(
-        //           str.toReader
-        //             .use(reader =>
-        //               Task {
-        //                 val buf = new Array[Char](50)
-        //                 reader.read(buf)
-        //                 "ok"
-        //               }
-        //             )
-        //             .run
-        //         )(fails(hasMessage(equalTo("boom"))))
-        //       },
-        //       testM("Allows reading something even in case of error") {
-        //         val chars: Seq[Char] = (1 to 5).map(_.toChar)
-        //         val str: ZStream[Any, Throwable, Char] =
-        //           ZStream.fromIterable(chars) ++ ZStream.fail(new Exception("boom"))
-        //         assertM(
-        //           str.toReader.use(reader =>
-        //             Task {
-        //               val buf = new Array[Char](5)
-        //               reader.read(buf)
-        //               buf.toList
-        //             }
-        //           )
-        //         )(equalTo(chars))
-        //       }
-        //     ),
+        suite("toReader")(
+          testM("read one-by-one") {
+            checkM(tinyListOf(Gen.chunkOf(Gen.anyChar))) { chunks =>
+              val content = chunks.flatMap(_.toList)
+              ZStream.fromChunks(chunks: _*).toReader.use[Any, Throwable, TestResult] { reader =>
+                ZIO.succeedNow(
+                  assert(Iterator.continually(reader.read()).takeWhile(_ != -1).map(_.toChar).toList)(
+                    equalTo(content)
+                  )
+                )
+              }
+            }
+          },
+          testM("read in batches") {
+            checkM(tinyListOf(Gen.chunkOf(Gen.anyChar))) { chunks =>
+              val content = chunks.flatMap(_.toList)
+              ZStream.fromChunks(chunks: _*).toReader.use[Any, Throwable, TestResult] { reader =>
+                val batches: List[(Array[Char], Int)] = Iterator.continually {
+                  val buf = new Array[Char](10)
+                  val res = reader.read(buf, 0, 4)
+                  (buf, res)
+                }.takeWhile(_._2 != -1).toList
+                val combined = batches.flatMap { case (buf, size) => buf.take(size) }
+                ZIO.succeedNow(assert(combined)(equalTo(content)))
+              }
+            }
+          },
+          testM("Throws mark not supported") {
+            assertM(
+              ZStream
+                .fromChunk(Chunk.fromArray("Lorem ipsum".toArray))
+                .toReader
+                .use(reader =>
+                  Task {
+                    reader.mark(0)
+                  }
+                )
+                .run
+            )(fails(isSubtype[IOException](anything)))
+          },
+          testM("Throws reset not supported") {
+            assertM(
+              ZStream
+                .fromChunk(Chunk.fromArray("Lorem ipsum".toArray))
+                .toReader
+                .use(reader =>
+                  Task {
+                    reader.reset()
+                  }
+                )
+                .run
+            )(fails(isSubtype[IOException](anything)))
+          },
+          testM("Does not support mark") {
+            assertM(
+              ZStream
+                .fromChunk(Chunk.fromArray("Lorem ipsum".toArray))
+                .toReader
+                .use(reader => ZIO.succeed(reader.markSupported()))
+            )(equalTo(false))
+          },
+          testM("Ready is false") {
+            assertM(
+              ZStream
+                .fromChunk(Chunk.fromArray("Lorem ipsum".toArray))
+                .toReader
+                .use(reader => ZIO.succeed(reader.ready()))
+            )(equalTo(false))
+          },
+          testM("Preserves errors") {
+            assertM(
+              ZStream
+                .fail(new Exception("boom"))
+                .toReader
+                .use(reader =>
+                  Task {
+                    reader.read
+                  }
+                )
+                .run
+            )(
+              fails(hasMessage(equalTo("boom")))
+            )
+          },
+          testM("Be completely lazy") {
+            assertM(
+              ZStream
+                .fail(new Exception("boom"))
+                .toReader
+                .use(_ => ZIO.succeed("ok"))
+            )(equalTo("ok"))
+          },
+          testM("Preserves errors in the middle") {
+            val chars: Seq[Char] = (1 to 5).map(_.toChar)
+            val str: ZStream[Any, Throwable, Char] =
+              ZStream.fromIterable(chars) ++ ZStream.fail(new Exception("boom"))
+            assertM(
+              str.toReader
+                .use(reader =>
+                  Task {
+                    val buf = new Array[Char](50)
+                    reader.read(buf)
+                    "ok"
+                  }
+                )
+                .run
+            )(fails(hasMessage(equalTo("boom"))))
+          },
+          testM("Allows reading something even in case of error") {
+            val chars: Seq[Char] = (1 to 5).map(_.toChar)
+            val str: ZStream[Any, Throwable, Char] =
+              ZStream.fromIterable(chars) ++ ZStream.fail(new Exception("boom"))
+            assertM(
+              str.toReader.use(reader =>
+                Task {
+                  val buf = new Array[Char](5)
+                  reader.read(buf)
+                  buf.toList
+                }
+              )
+            )(equalTo(chars))
+          }
+        ),
         suite("zipWith")(
           testM("zip doesn't pull too much when one of the streams is done") {
             val l = ZStream.fromChunks(Chunk(1, 2), Chunk(3, 4), Chunk(5)) ++ ZStream.fail(
