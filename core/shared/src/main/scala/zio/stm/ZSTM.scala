@@ -1780,18 +1780,19 @@ object ZSTM {
         journal = allocJournal(journal)
 
         if (retries > MaxRetries) {
-          value = stm.run(journal, fiberId, r)
+          Sync(globalLock) {
+            value = stm.run(journal, fiberId, r)
 
-          value match {
-            case _: TExit.Succeed[_] =>
-              Sync(globalLock) {
+            value match {
+              case _: TExit.Succeed[_] =>
                 commitJournal(journal)
-              }
+                loop = false
 
-            case _ =>
+              case _ =>
+                retries = 0
+            }
           }
 
-          loop = false
         } else {
           value = stm.run(journal, fiberId, r)
 
@@ -1891,22 +1892,22 @@ object ZSTM {
         journal = allocJournal(journal)
 
         if (retries > MaxRetries) {
-          value = stm.run(journal, fiberId, r)
+          Sync(globalLock) {
+            value = stm.run(journal, fiberId, r)
 
-          value match {
-            case _: TExit.Succeed[_] =>
-              Sync(globalLock) {
+            value match {
+              case _: TExit.Succeed[_] =>
                 val isRunning = state.compareAndSet(State.Running, State.done(value))
                 if (isRunning) {
                   commitJournal(journal)
                 }
-              }
+                loop = false
 
-            case _ =>
-
+              case _ =>
+                retries = 0
+            }
           }
 
-          loop = false
         } else {
           value = stm.run(journal, fiberId, r)
 
