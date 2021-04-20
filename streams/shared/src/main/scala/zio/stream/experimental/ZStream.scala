@@ -1570,7 +1570,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * @note This combinator destroys the chunking structure. It's recommended to use chunkN afterwards.
    */
   final def mapMPar[R1 <: R, E1 >: E, A2](n: Int)(f: A => ZIO[R1, E1, A2]): ZStream[R1, E1, A2] =
-    new ZStream(self.chunkN(1).channel.mapOutMPar[R1, E1, Chunk[A2]](n)(chunk => f(chunk.head).map(Chunk.single(_))))
+    new ZStream(self.channel.concatMap(ZChannel.writeChunk(_)).mapOutMPar[R1, E1, A2](n)(f).mapOut(Chunk.single))
 
   /**
    * Maps over elements of the stream with the specified effectful function,
