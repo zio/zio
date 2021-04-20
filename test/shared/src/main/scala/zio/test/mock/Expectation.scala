@@ -177,7 +177,12 @@ object Expectation {
   private[test] object And {
 
     def apply[R <: Has[_]: Tag](compose: URLayer[Has[Proxy], R])(children: List[Expectation[_]]): And[R] =
-      And(children.asInstanceOf[List[Expectation[R]]], Unsatisfied, List.empty, Mock.Composed(compose))
+      And(
+        children.asInstanceOf[List[Expectation[R]]],
+        if (children.forall(_.state == Satisfied)) Satisfied else Unsatisfied,
+        List.empty,
+        Mock.Composed(compose)
+      )
 
     object Items {
 
@@ -223,7 +228,12 @@ object Expectation {
   private[test] object Chain {
 
     def apply[R <: Has[_]: Tag](compose: URLayer[Has[Proxy], R])(children: List[Expectation[_]]): Chain[R] =
-      Chain(children.asInstanceOf[List[Expectation[R]]], Unsatisfied, List.empty, Mock.Composed(compose))
+      Chain(
+        children.asInstanceOf[List[Expectation[R]]],
+        if (children.forall(_.state == Satisfied)) Satisfied else Unsatisfied,
+        List.empty,
+        Mock.Composed(compose)
+      )
 
     object Items {
 
@@ -254,7 +264,12 @@ object Expectation {
   private[test] object Or {
 
     def apply[R <: Has[_]: Tag](compose: URLayer[Has[Proxy], R])(children: List[Expectation[_]]): Or[R] =
-      Or(children.asInstanceOf[List[Expectation[R]]], Unsatisfied, List.empty, Mock.Composed(compose))
+      Or(
+        children.asInstanceOf[List[Expectation[R]]],
+        if (children.exists(_.state == Satisfied)) Satisfied else Unsatisfied,
+        List.empty,
+        Mock.Composed(compose)
+      )
 
     object Items {
 
