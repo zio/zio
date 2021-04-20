@@ -621,6 +621,62 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     self >>> reader
   }
 
+  def mapOutMPar[Env1 <: Env, OutErr1 >: OutErr, OutElem2](n: Int)(
+    f: OutElem => ZIO[Env1, OutErr1, OutElem2]
+  ): ZChannel[Env1, InErr, InElem, InDone, OutErr1, OutElem2, OutDone] = {
+
+    def producer(
+      queue: Queue[ZIO[Env1, Either[OutErr1, OutDone], OutElem2]],
+      pull: ZIO[Env1, Either[OutErr, OutDone], OutElem]
+    ): ZManaged[Env1, Nothing, Unit] =
+      for {
+        errorSignal <- Promise.makeManaged[OutErr1, Nothing]
+        permits     <- Semaphore.make(n.toLong).toManaged_
+        _ <- pull
+               .foldM(
+                 either => queue.offer(ZIO.fail(either)),
+                 outElem =>
+                   for {
+                     p     <- Promise.make[OutErr1, OutElem2]
+                     latch <- Promise.make[Nothing, Unit]
+                     _     <- queue.offer(p.await.mapError(Left(_)))
+                     _ <- permits.withPermit {
+                            latch.succeed(()) *>
+                              (errorSignal.await raceFirst f(outElem))
+                                .tapCause(errorSignal.halt)
+                                .to(p)
+                          }.fork
+                     _ <- latch.await
+                   } yield ()
+               )
+               .forever
+               .toManaged_
+      } yield ()
+
+    def consumer(
+      queue: Queue[ZIO[Env1, Either[OutErr1, OutDone], OutElem2]]
+    ): ZChannel[Env1, Any, Any, Any, OutErr1, OutElem2, OutDone] =
+      ZChannel.unwrap[Env1, Any, Any, Any, OutErr1, OutElem2, OutDone] {
+        queue.take.flatten.fold(
+          {
+            case Right(outDone) => ZChannel.end(outDone)
+            case Left(outErr)   => ZChannel.fail(outErr)
+          },
+          outElem => ZChannel.write(outElem) *> consumer(queue)
+        )
+      }
+
+    ZChannel.managed {
+      for {
+        queue <- Queue.bounded[ZIO[Env1, Either[OutErr1, OutDone], OutElem2]](n).toManaged(_.shutdown)
+        pull  <- self.toPull
+        _     <- producer(queue, pull).fork
+      } yield queue
+    } { queue =>
+      consumer(queue)
+    }
+  }
+
   def mergeOut[Env1 <: Env, InErr1 <: InErr, InElem1 <: InElem, InDone1 <: InDone, OutErr1 >: OutErr, OutElem2](
     n: Long
   )(implicit

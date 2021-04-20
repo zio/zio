@@ -6,7 +6,7 @@ import zio.clock.Clock
 import zio.duration._
 import zio.stream.experimental.ZStreamGen._
 import zio.test.Assertion._
-import zio.test.TestAspect.{flaky, timeout}
+import zio.test.TestAspect.{flaky, nonFlaky, timeout}
 import zio.test._
 import zio.test.environment.TestClock
 
@@ -1962,71 +1962,81 @@ object ZStreamSpec extends ZIOBaseSpec {
             )(equalTo(Chunk(Right(1), Right(2), Left("boom"))))
           }
         ),
-        //     suite("mapMPar")(
-        //       testM("foreachParN equivalence") {
-        //         checkNM(10)(Gen.small(Gen.listOfN(_)(Gen.anyByte)), Gen.function(Gen.successes(Gen.anyByte))) { (data, f) =>
-        //           val s = ZStream.fromIterable(data)
+        suite("mapMPar")(
+          testM("foreachParN equivalence") {
+            checkNM(10)(Gen.small(Gen.listOfN(_)(Gen.anyByte)), Gen.function(Gen.successes(Gen.anyByte))) { (data, f) =>
+              val s = ZStream.fromIterable(data)
 
-        //           for {
-        //             l <- s.mapMPar(8)(f).runCollect
-        //             r <- IO.foreachParN(8)(data)(f)
-        //           } yield assert(l.toList)(equalTo(r))
-        //         }
-        //       },
-        //       testM("order when n = 1") {
-        //         for {
-        //           queue  <- Queue.unbounded[Int]
-        //           _      <- ZStream.range(0, 9).mapMPar(1)(queue.offer).runDrain
-        //           result <- queue.takeAll
-        //         } yield assert(result)(equalTo(result.sorted))
-        //       },
-        //       testM("interruption propagation") {
-        //         for {
-        //           interrupted <- Ref.make(false)
-        //           latch       <- Promise.make[Nothing, Unit]
-        //           fib <- ZStream(())
-        //                    .mapMPar(1)(_ => (latch.succeed(()) *> ZIO.infinity).onInterrupt(interrupted.set(true)))
-        //                    .runDrain
-        //                    .fork
-        //           _      <- latch.await
-        //           _      <- fib.interrupt
-        //           result <- interrupted.get
-        //         } yield assert(result)(isTrue)
-        //       },
-        //       testM("guarantee ordering")(checkM(Gen.int(1, 4096), Gen.listOf(Gen.anyInt)) { (n: Int, m: List[Int]) =>
-        //         for {
-        //           mapM    <- ZStream.fromIterable(m).mapM(UIO.succeedNow).runCollect
-        //           mapMPar <- ZStream.fromIterable(m).mapMPar(n)(UIO.succeedNow).runCollect
-        //         } yield assert(n)(isGreaterThan(0)) implies assert(mapM)(equalTo(mapMPar))
-        //       }),
-        //       testM("awaits children fibers properly") {
-        //         assertM(
-        //           ZStream
-        //             .fromIterable((0 to 100))
-        //             .interruptWhen(ZIO.never)
-        //             .mapMPar(8)(_ => ZIO(1).repeatN(2000))
-        //             .runDrain
-        //             .run
-        //             .map(_.interrupted)
-        //         )(equalTo(false))
-        //       } @@ nonFlaky(10) @@ TestAspect.jvmOnly,
-        //       testM("interrupts pending tasks when one of the tasks fails") {
-        //         for {
-        //           interrupted <- Ref.make(0)
-        //           latch1      <- Promise.make[Nothing, Unit]
-        //           latch2      <- Promise.make[Nothing, Unit]
-        //           result <- ZStream(1, 2, 3)
-        //                       .mapMPar(3) {
-        //                         case 1 => (latch1.succeed(()) *> ZIO.never).onInterrupt(interrupted.update(_ + 1))
-        //                         case 2 => (latch2.succeed(()) *> ZIO.never).onInterrupt(interrupted.update(_ + 1))
-        //                         case 3 => latch1.await *> latch2.await *> ZIO.fail("Boom")
-        //                       }
-        //                       .runDrain
-        //                       .run
-        //           count <- interrupted.get
-        //         } yield assert(count)(equalTo(2)) && assert(result)(fails(equalTo("Boom")))
-        //       } @@ nonFlaky
-        //     ),
+              for {
+                l <- s.mapMPar(8)(f).runCollect
+                r <- IO.foreachParN(8)(data)(f)
+              } yield assert(l.toList)(equalTo(r))
+            }
+          },
+          testM("order when n = 1") {
+            for {
+              queue  <- Queue.unbounded[Int]
+              _      <- ZStream.range(0, 9).mapMPar(1)(queue.offer).runDrain
+              result <- queue.takeAll
+            } yield assert(result)(equalTo(result.sorted))
+          },
+          testM("interruption propagation") {
+            for {
+              interrupted <- Ref.make(false)
+              latch       <- Promise.make[Nothing, Unit]
+              fib <- ZStream(())
+                       .mapMPar(1)(_ => (latch.succeed(()) *> ZIO.infinity).onInterrupt(interrupted.set(true)))
+                       .runDrain
+                       .fork
+              _      <- latch.await
+              _      <- fib.interrupt
+              result <- interrupted.get
+            } yield assert(result)(isTrue)
+          },
+          testM("guarantee ordering")(checkM(Gen.int(1, 4096), Gen.listOf(Gen.anyInt)) { (n: Int, m: List[Int]) =>
+            for {
+              mapM    <- ZStream.fromIterable(m).mapM(UIO.succeedNow).runCollect
+              mapMPar <- ZStream.fromIterable(m).mapMPar(n)(UIO.succeedNow).runCollect
+            } yield assert(n)(isGreaterThan(0)) implies assert(mapM)(equalTo(mapMPar))
+          }),
+          testM("awaits children fibers properly") {
+            assertM(
+              ZStream
+                .fromIterable((0 to 100))
+                .interruptWhen(ZIO.never)
+                .mapMPar(8)(_ => ZIO(1).repeatN(2000))
+                .runDrain
+                .run
+                .map(_.interrupted)
+            )(equalTo(false))
+          } @@ nonFlaky(10) @@ TestAspect.jvmOnly,
+          testM("interrupts pending tasks when one of the tasks fails") {
+            for {
+              interrupted <- Ref.make(0)
+              latch1      <- Promise.make[Nothing, Unit]
+              latch2      <- Promise.make[Nothing, Unit]
+              result <- ZStream(1, 2, 3)
+                          .mapMPar(3) {
+                            case 1 => (latch1.succeed(()) *> ZIO.never).onInterrupt(interrupted.update(_ + 1))
+                            case 2 => (latch2.succeed(()) *> ZIO.never).onInterrupt(interrupted.update(_ + 1))
+                            case 3 => latch1.await *> latch2.await *> ZIO.fail("Boom")
+                          }
+                          .runDrain
+                          .run
+              count <- interrupted.get
+            } yield assert(count)(equalTo(2)) && assert(result)(fails(equalTo("Boom")))
+          } @@ nonFlaky,
+          testM("propagates correct error with subsequent mapMPar call (#4514)") {
+            assertM(
+              ZStream
+                .fromIterable(1 to 50)
+                .mapMPar(20)(i => if (i < 10) UIO(i) else ZIO.fail("Boom"))
+                .mapMPar(20)(UIO(_))
+                .runCollect
+                .either
+            )(isLeft(equalTo("Boom")))
+          } @@ nonFlaky
+        ),
         //     suite("mergeTerminateLeft")(
         //       testM("terminates as soon as the first stream terminates") {
         //         for {
