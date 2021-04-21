@@ -2390,6 +2390,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     new ZStream(ZChannel.fromEffect(Ref.make[Chunk[A1]](Chunk.empty).zip(Ref.make(false))).flatMap {
       case (leftovers, upstreamDone) =>
         val buffer = ZChannel.bufferChunk[E, A1, Any](leftovers)
+
         lazy val upstreamMarker: ZChannel[Any, E, Chunk[A], Any, E, Chunk[A], Any] =
           ZChannel.readWith(
             (in: Chunk[A]) => ZChannel.write(in) *> upstreamMarker,
@@ -2399,12 +2400,14 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
 
         lazy val transducer: ZChannel[R1, E, Chunk[A1], Any, E1, Chunk[Z], Unit] =
           sink.channel.doneCollect.flatMap { case (leftover, z) =>
-            ZChannel.fromEffect(leftovers.set(leftover.flatten)) *>
-              ZChannel.write(Chunk.single(z)) *>
-              ZChannel.fromEffect(upstreamDone.get).flatMap { done =>
-                if (done) ZChannel.end(())
-                else transducer
-              }
+            ZChannel.fromEffect(upstreamDone.get <*> leftovers.updateAndGet(_ ++ leftover.flatten)).flatMap {
+              case (done, newLeftovers) =>
+                val nextChannel =
+                  if (done && newLeftovers.isEmpty) ZChannel.end(())
+                  else transducer
+
+                ZChannel.write(Chunk.single(z)) *> nextChannel
+            }
           }
 
         channel >>>
