@@ -18,7 +18,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
   /**
    * Operator alias for [[zip]].
    */
-  final def <*>[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, A0, In1 <: In, L1 >: L, Z1](
+  final def <*>[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, A0, In1 <: In, L1 >: L <: In1, Z1](
     that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
   )(implicit ev: L <:< In1): ZSink[R1, InErr1, In1, OutErr1, L1, (Z, Z1)] =
     zip(that)
@@ -28,13 +28,13 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    */
   final def <&>[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, A0, In1 <: In, L1 >: L, Z1](
     that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
-  )(implicit ev: L <:< In1): ZSink[R1, InErr1, In1, OutErr1, L1, (Z, Z1)] =
+  ): ZSink[R1, InErr1, In1, OutErr1, L1, (Z, Z1)] =
     zipPar(that)
 
   /**
    * Operator alias for [[zipRight]].
    */
-  final def *>[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, A0, In1 <: In, L1 >: L, Z1](
+  final def *>[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, A0, In1 <: In, L1 >: L <: In1, Z1](
     that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
   )(implicit ev: L <:< In1): ZSink[R1, InErr1, In1, OutErr1, L1, Z1] =
     zipRight(that)
@@ -50,7 +50,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
   /**
    * Operator alias for [[zipLeft]].
    */
-  final def <*[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, A0, In1 <: In, L1 >: L, Z1](
+  final def <*[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, A0, In1 <: In, L1 >: L <: In1, Z1](
     that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
   )(implicit ev: L <:< In1): ZSink[R1, InErr1, In1, OutErr1, L1, Z] =
     zipLeft(that)
@@ -168,12 +168,12 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    *
    * This function essentially runs sinks in sequence.
    */
-  def flatMap[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, In1 <: In, L1 >: L, Z1](
+  def flatMap[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, In1 <: In, L1 >: L <: In1, Z1](
     f: Z => ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
   )(implicit ev: L <:< In1): ZSink[R1, InErr1, In1, OutErr1, L1, Z1] =
     foldM(ZSink.fail(_), f)
 
-  def foldM[R1 <: R, InErr1 <: InErr, OutErr2, In1 <: In, L1 >: L, Z1](
+  def foldM[R1 <: R, InErr1 <: InErr, OutErr2, In1 <: In, L1 >: L <: In1, Z1](
     failure: OutErr => ZSink[R1, InErr1, In1, OutErr2, L1, Z1],
     success: Z => ZSink[R1, InErr1, In1, OutErr2, L1, Z1]
   )(implicit ev: L <:< In1): ZSink[R1, InErr1, In1, OutErr2, L1, Z1] =
@@ -181,9 +181,23 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
       channel.doneCollect.foldM(
         failure(_).channel,
         { case (leftovers, z) =>
-          (ZChannel.write(leftovers.flatMap(_.map(ev))) *> ZChannel.identity[InErr1, Chunk[In1], Any]) >>> success(
-            z
-          ).channel
+          ZChannel.fromEffect(Ref.make(leftovers.flatten)).flatMap { leftoversRef =>
+            val refReader = ZChannel.fromEffect(leftoversRef.getAndSet(Chunk.empty)).flatMap { chunk =>
+              // This cast is safe because of the L1 >: L <: In1 bound. It follows that
+              // L <: In1 and therefore Chunk[L] can be safely cast to Chunk[In1].
+              val widenedChunk = chunk.asInstanceOf[Chunk[In1]]
+              ZChannel.write(widenedChunk)
+            }
+
+            val passthrough      = ZChannel.identity[InErr1, Chunk[In1], Any]
+            val continuationSink = (refReader *> passthrough) >>> success(z).channel
+
+            continuationSink.doneCollect.flatMap { case (newLeftovers, z1) =>
+              val allLeftovers = leftoversRef.get.map(_ ++ newLeftovers.flatten)
+
+              ZChannel.fromEffect(allLeftovers).flatMap(ZChannel.write(_)).as(z1)
+            }
+          }
         }
       )
     )
@@ -246,7 +260,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
   ): ZSink[R1, InErr1, In1, OutErr2, L1, Z1] =
     new ZSink[R1, InErr1, In1, OutErr2, L1, Z1](self.channel.orElse(that.channel))
 
-  def zip[R1 <: R, InErr1 <: InErr, In1 <: In, OutErr1 >: OutErr, L1 >: L, Z1](
+  def zip[R1 <: R, InErr1 <: InErr, In1 <: In, OutErr1 >: OutErr, L1 >: L <: In1, Z1](
     that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
   )(implicit ev: L <:< In1): ZSink[R1, InErr1, In1, OutErr1, L1, (Z, Z1)] =
     zipWith(that)((_, _))
@@ -254,7 +268,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
   /**
    * Like [[zip]], but keeps only the result from the `that` sink.
    */
-  final def zipLeft[R1 <: R, InErr1 <: InErr, In1 <: In, OutErr1 >: OutErr, L1 >: L, Z1](
+  final def zipLeft[R1 <: R, InErr1 <: InErr, In1 <: In, OutErr1 >: OutErr, L1 >: L <: In1, Z1](
     that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
   )(implicit ev: L <:< In1): ZSink[R1, InErr1, In1, OutErr1, L1, Z] =
     zipWith(that)((z, _) => z)
@@ -286,7 +300,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
   /**
    * Like [[zip]], but keeps only the result from this sink.
    */
-  final def zipRight[R1 <: R, InErr1 <: InErr, In1 <: In, OutErr1 >: OutErr, L1 >: L, Z1](
+  final def zipRight[R1 <: R, InErr1 <: InErr, In1 <: In, OutErr1 >: OutErr, L1 >: L <: In1, Z1](
     that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
   )(implicit ev: L <:< In1): ZSink[R1, InErr1, In1, OutErr1, L1, Z1] =
     zipWith(that)((_, z1) => z1)
@@ -295,7 +309,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    * Feeds inputs to this sink until it yields a result, then switches over to the
    * provided sink until it yields a result, finally combining the two results with `f`.
    */
-  final def zipWith[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, In1 <: In, L1 >: L, Z1, Z2](
+  final def zipWith[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, In1 <: In, L1 >: L <: In1, Z1, Z2](
     that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
   )(f: (Z, Z1) => Z2)(implicit ev: L <:< In1): ZSink[R1, InErr1, In1, OutErr1, L1, Z2] =
     flatMap(z => that.map(f(z, _)))

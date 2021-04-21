@@ -3,6 +3,8 @@ package zio.stream.experimental
 import zio._
 import zio.duration._
 import zio.test.Assertion._
+import zio.test.TestAspect.jvmOnly
+import zio.test.environment.TestClock
 import zio.test._
 import zio.test.environment.TestClock
 
@@ -566,21 +568,79 @@ object ZSinkSpec extends ZIOBaseSpec {
                 }
               }
             }
-          }
-        ),
-        testM("take")(
-          checkM(Gen.chunkOf(Gen.small(Gen.chunkOfN(_)(Gen.anyInt))), Gen.anyInt) { (chunks, n) =>
-            ZStream
-              .fromChunks(chunks: _*)
-              .peel(ZSink.take[Nothing, Int](n))
-              .flatMap { case (chunk, stream) =>
-                stream.runCollect.toManaged_.map { leftover =>
-                  assert(chunk)(equalTo(chunks.flatten.take(n))) &&
-                  assert(leftover)(equalTo(chunks.flatten.drop(n)))
+          },
+          testM("leftovers are kept in order") {
+            Ref.make(Chunk[Chunk[Int]]()).flatMap { readData =>
+              def takeN(n: Int) =
+                ZSink.take[Nothing, Int](n).mapM(c => readData.update(_ :+ c))
+
+              def taker(data: Chunk[Chunk[Int]], n: Int): (Chunk[Int], Chunk[Chunk[Int]], Boolean) = {
+                import scala.collection.mutable
+                val buffer   = mutable.Buffer(data: _*)
+                val builder  = mutable.Buffer[Int]()
+                var wasSplit = false
+
+                while (builder.size < n && buffer.nonEmpty) {
+                  val popped = buffer.remove(0)
+
+                  if ((builder.size + popped.size) <= n) builder ++= popped
+                  else {
+                    val splitIndex  = n - builder.size
+                    val (take, ret) = popped.splitAt(splitIndex)
+                    builder ++= take
+                    buffer.prepend(ret)
+
+                    if (splitIndex > 0)
+                      wasSplit = true
+                  }
+                }
+
+                (Chunk.fromIterable(builder), Chunk.fromIterable(buffer), wasSplit)
+              }
+
+              val gen =
+                for {
+                  sequenceSize <- Gen.int(1, 500)
+                  takers       <- Gen.int(1, 10)
+                  takeSizes    <- Gen.listOfN(takers)(Gen.int(1, sequenceSize))
+                  inputs       <- Gen.chunkOfN(sequenceSize)(Gen.chunkOf(Gen.anyInt))
+                  (expectedTakes, leftoverInputs, wasSplit) = takeSizes.foldLeft((Chunk[Chunk[Int]](), inputs, false)) {
+                                                                case ((takenChunks, leftover, _), takeSize) =>
+                                                                  val (taken, rest, wasSplit) =
+                                                                    taker(leftover, takeSize)
+                                                                  (takenChunks :+ taken, rest, wasSplit)
+                                                              }
+                  expectedLeftovers = if (wasSplit) leftoverInputs.head
+                                      else Chunk()
+                } yield (inputs, takeSizes, expectedTakes, expectedLeftovers)
+
+              checkM(gen) { case (inputs, takeSizes, expectedTakes, expectedLeftovers) =>
+                val takingSinks = takeSizes.map(takeN(_)).reduce(_ *> _).channel.doneCollect
+                val channel     = ZChannel.writeAll(inputs: _*) >>> takingSinks
+
+                (channel.run <*> readData.getAndSet(Chunk())).map { case ((leftovers, _), takenChunks) =>
+                  assert(leftovers.flatten)(equalTo(expectedLeftovers)) &&
+                    assert(takenChunks)(equalTo(expectedTakes))
                 }
               }
-              .useNow
-          }
+            }
+          } @@ jvmOnly
+        ),
+        suite("take")(
+          testM("take")(
+            checkM(Gen.chunkOf(Gen.small(Gen.chunkOfN(_)(Gen.anyInt))), Gen.anyInt) { (chunks, n) =>
+              ZStream
+                .fromChunks(chunks: _*)
+                .peel(ZSink.take[Nothing, Int](n))
+                .flatMap { case (chunk, stream) =>
+                  stream.runCollect.toManaged_.map { leftover =>
+                    assert(chunk)(equalTo(chunks.flatten.take(n))) &&
+                    assert(leftover)(equalTo(chunks.flatten.drop(n)))
+                  }
+                }
+                .useNow
+            }
+          )
         ),
         testM("timed") {
           for {
@@ -604,7 +664,8 @@ object ZSinkSpec extends ZIOBaseSpec {
           },
           testM("transducing with regular strings") {
             checkM(Gen.anyString.map(s => Chunk.fromArray(s.getBytes("UTF-8")).map(Chunk.single(_)))) { byteChunks =>
-              ZStream.fromChunks(byteChunks.toList: _*)
+              ZStream
+                .fromChunks(byteChunks.toList: _*)
                 .transduce(ZSink.utf8Decode.map(_.getOrElse("")))
                 .run(ZSink.mkString)
                 .map { result =>
@@ -661,7 +722,8 @@ object ZSinkSpec extends ZIOBaseSpec {
               .run(ZSink.utf8Decode)
               .map { result =>
                 assert(result.map(s => Chunk.fromArray(s.getBytes)))(
-                  isSome(equalTo(Chunk.fromArray(Array(0xf0.toByte, 0x90.toByte, 0x8d.toByte, 0x88.toByte)))))
+                  isSome(equalTo(Chunk.fromArray(Array(0xf0.toByte, 0x90.toByte, 0x8d.toByte, 0x88.toByte))))
+                )
               }
           },
           testM("handle byte order mark") {
