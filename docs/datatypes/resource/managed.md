@@ -3,9 +3,19 @@ id: managed
 title: "Managed"
 ---
 
-`Managed` is a data structure that encapsulates the acquisition and the release of a resource.
+`Managed[E, A]` is a type alias for `Managed[Any, E, A]`, which represents a managed resource that has no requirements, and may fail with an `E`, or succeed with an `A`.
 
-A `Managed[E, A]` is a managed resource of type `A`, which may be used by invoking the `use` method of the resource. The resource will be automatically acquired before the resource is used, and automatically released after the resource is used.
+```scala mdoc:invisible
+import zio.ZManaged
+```
+
+The `Managed` type alias is defined as follows:
+
+```scala mdoc:silent:nest
+type Managed[+E, +A] = ZManaged[Any, E, A]
+```
+
+`Managed` is a data structure that encapsulates the acquisition and the release of a resource, which may be used by invoking the `use` method of the resource. The resource will be automatically acquired before the resource is used, and automatically released after the resource is used.
 
 Resources do not survive the scope of `use`, meaning that if you attempt to capture the resource, leak it from `use`, and then use it after the resource has been consumed, the resource will not be valid anymore and may fail with some checked error, as per the type of the functions provided by the resource.
 
@@ -57,7 +67,7 @@ It is possible to combine multiple `Managed` using `flatMap` to obtain a single 
 import zio._
 ```
 
-```scala mdoc:invisible
+```scala mdoc:invisible:nest
 import java.io.{ File, IOException }
 
 def openFile(s: String): IO[IOException, File] = IO.effect(???).refineToOrDie[IOException]
