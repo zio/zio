@@ -913,6 +913,14 @@ object ZSink {
   def leftover[L](c: Chunk[L]): ZSink[Any, Any, Any, Nothing, L, Unit] =
     new ZSink(ZChannel.write(c))
 
+  def mkString[Err]: ZSink[Any, Err, Any, Err, Nothing, String] =
+    fromEffect(UIO(new StringBuilder()))
+      .flatMap(cb =>
+        foldLeftChunks[Err, Any, Unit](())((_, els: Chunk[Any]) => els.foreach(el => cb.append(el.toString))).map(_ =>
+          cb.result()
+        )
+      )
+
   def managed[R, InErr, In, OutErr >: InErr, A, L <: In, Z](resource: ZManaged[R, OutErr, A])(
     fn: A => ZSink[R, InErr, In, OutErr, L, Z]
   ): ZSink[R, InErr, In, OutErr, In, Z] =
