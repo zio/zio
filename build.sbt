@@ -334,7 +334,7 @@ lazy val testRefined = crossProject(JVMPlatform, JSPlatform)
     crossScalaVersions --= Seq(Scala211),
     libraryDependencies ++=
       Seq(
-        ("eu.timepit" %% "refined" % "0.9.23").cross(CrossVersion.for3Use2_13)
+        ("eu.timepit" %% "refined" % "0.9.24").cross(CrossVersion.for3Use2_13)
       )
   )
 
