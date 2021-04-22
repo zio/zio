@@ -3,11 +3,15 @@ id: zlayer
 title: "ZLayer"
 ---
 
-`ZLayer[A, E, B]` describes a layer of an application: every layer in an application requires some services (the input) and produces some services (the output). Layers can be thought of as recipes for producing bundles of services, given their dependencies (other services).
+A `ZLayer[A, E, B]` describes a layer of an application: every layer in an application requires some services (the input) and produces some services (the output). 
+
+Layers can be thought of as recipes for producing bundles of services, given their dependencies (other services).
 
 Construction of layers can be effectful and utilize resources that must be acquired and safely released when the services are done being utilized.
 
-Layers are shared by default, meaning that if the same layer is used twice, the layer will only be allocated a single time. Because of their excellent composition properties, layers are the idiomatic way in ZIO to create services that depend on other services.
+Layers are shared by default, meaning that if the same layer is used twice, the layer will only be allocated a single time. 
+
+Because of their excellent composition properties, layers are the idiomatic way in ZIO to create services that depend on other services.
 
 ### The simplest ZLayer application
 
