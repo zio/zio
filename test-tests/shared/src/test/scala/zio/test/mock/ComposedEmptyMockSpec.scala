@@ -23,7 +23,7 @@ object ComposedEmptyMockSpec extends ZIOBaseSpec with MockSpecUtils[ComposedEmpt
 
   def spec: ZSpec[Environment, Failure] = suite("ComposedEmptyMockSpec")(
     suite("expect no calls on empty mocks")(
-      testValue("should succeed when no calls on Has[Console]")(
+      testValue("should succeed when no calls on Console")(
         MockConsole.empty ++ MockClock.NanoTime(value(42L)),
         branchingProgram(false),
         isUnit
@@ -31,7 +31,7 @@ object ComposedEmptyMockSpec extends ZIOBaseSpec with MockSpecUtils[ComposedEmpt
         type M = Capability[Has[Console], Unit, IOException, String]
         type X = UnexpectedCallException[Has[Console], Unit, IOException, String]
 
-        testDied("should fail when call on Has[Console] happened")(
+        testDied("should fail when call on Console happened")(
           MockConsole.empty ++ MockClock.NanoTime(value(42L)),
           branchingProgram(true),
           isSubtype[X](

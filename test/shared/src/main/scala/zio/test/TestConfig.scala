@@ -1,9 +1,25 @@
+/*
+ * Copyright 2019-2021 John A. De Goes and the ZIO Contributors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package zio.test
 
 import zio.{Has, URIO, ZIO, ZLayer}
 
 /**
- * The `Has[TestConfig]` service provides access to default configuation settings
+ * The `TestConfig` service provides access to default configuration settings
  * used by ZIO Test, including the number of times to repeat tests to ensure
  * they are stable, the number of times to retry flaky tests, the sufficient
  * number of samples to check from a random variable, and the maximum number
@@ -35,7 +51,7 @@ trait TestConfig extends Serializable {
 object TestConfig {
 
   /**
-   * Constructs a new `Has[TestConfig]` service with the specified settings.
+   * Constructs a new `TestConfig` service with the specified settings.
    */
   def live(repeats0: Int, retries0: Int, samples0: Int, shrinks0: Int): ZLayer[Any, Nothing, Has[TestConfig]] =
     ZLayer.succeed {

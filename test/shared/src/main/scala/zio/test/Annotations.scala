@@ -5,10 +5,10 @@ import zio._
 import scala.collection.immutable.SortedSet
 
 /**
- * The `Has[Annotations]` trait provides access to an annotation map that tests
+ * The `Annotations` trait provides access to an annotation map that tests
  * can add arbitrary annotations to. Each annotation consists of a string
  * identifier, an initial value, and a function for combining two values.
- * Has[Annotations] form monoids and you can think of `Has[Annotations]` as a more
+ * Annotations form monoids and you can think of `Annotations` as a more
  * structured logging service or as a super polymorphic version of the writer
  * monad effect.
  */
@@ -22,14 +22,14 @@ trait Annotations extends Serializable {
 object Annotations {
 
   /**
-   * Accesses an `Has[Annotations]` instance in the environment and appends the
+   * Accesses an `Annotations` instance in the environment and appends the
    * specified annotation to the annotation map.
    */
   def annotate[V](key: TestAnnotation[V], value: V): URIO[Has[Annotations], Unit] =
     ZIO.accessM(_.get.annotate(key, value))
 
   /**
-   * Accesses an `Has[Annotations]` instance in the environment and retrieves the
+   * Accesses an `Annotations` instance in the environment and retrieves the
    * annotation of the specified type, or its default value if there is none.
    */
   def get[V](key: TestAnnotation[V]): URIO[Has[Annotations], V] =
@@ -42,7 +42,7 @@ object Annotations {
     ZIO.accessM(_.get.supervisedFibers)
 
   /**
-   * Constructs a new `Has[Annotations]` service.
+   * Constructs a new `Annotations` service.
    */
   val live: Layer[Nothing, Has[Annotations]] =
     ZLayer.apply(FiberRef.make(TestAnnotationMap.empty).map { fiberRef =>
@@ -70,7 +70,7 @@ object Annotations {
     })
 
   /**
-   * Accesses an `Has[Annotations]` instance in the environment and executes the
+   * Accesses an `Annotations` instance in the environment and executes the
    * specified effect with an empty annotation map, returning the annotation
    * map along with the result of execution.
    */

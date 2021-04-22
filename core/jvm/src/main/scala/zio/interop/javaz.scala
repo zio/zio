@@ -18,7 +18,7 @@ package zio.interop
 
 import _root_.java.nio.channels.CompletionHandler
 import _root_.java.util.concurrent.{CompletableFuture, CompletionException, CompletionStage, Future}
-import zio.{Blocking, _}
+import zio._
 
 import scala.concurrent.ExecutionException
 

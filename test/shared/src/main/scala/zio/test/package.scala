@@ -39,7 +39,7 @@ import scala.util.Try
  *  object MyTest extends DefaultRunnableSpec {
  *    def spec = suite("clock")(
  *      testM("time is non-zero") {
- *        assertM(Has[Live].live(nanoTime))(isGreaterThan(0))
+ *        assertM(Live.live(nanoTime))(isGreaterThan(0))
  *      }
  *    )
  *  }

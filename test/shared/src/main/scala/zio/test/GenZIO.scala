@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.{Random, _}
+import zio._
 
 trait GenZIO {
 

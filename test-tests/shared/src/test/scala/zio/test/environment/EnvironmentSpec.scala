@@ -16,21 +16,21 @@ object EnvironmentSpec extends ZIOBaseSpec {
         time <- Clock.currentTime(TimeUnit.MILLISECONDS)
       } yield assert(time)(equalTo(1L))
     },
-    testM("Has[Console] writes line to output") {
+    testM("Console writes line to output") {
       for {
         _      <- Console.printLine("First line")
         _      <- Console.printLine("Second line")
         output <- TestConsole.output
       } yield assert(output)(equalTo(Vector("First line\n", "Second line\n")))
     } @@ silent,
-    testM("Has[Console] writes error line to error console") {
+    testM("Console writes error line to error console") {
       for {
         _      <- Console.printLineError("First line")
         _      <- Console.printLineError("Second line")
         output <- TestConsole.outputErr
       } yield assert(output)(equalTo(Vector("First line\n", "Second line\n")))
     } @@ silent,
-    testM("Has[Console] reads line from input") {
+    testM("Console reads line from input") {
       for {
         _      <- TestConsole.feedLines("Input 1", "Input 2")
         input1 <- Console.readLine
@@ -40,31 +40,31 @@ object EnvironmentSpec extends ZIOBaseSpec {
         assert(input2)(equalTo("Input 2"))
       }
     },
-    testM("Has[Random] returns next pseudorandom integer") {
+    testM("Random returns next pseudorandom integer") {
       for {
         i <- Random.nextInt
         j <- Random.nextInt
       } yield !assert(i)(equalTo(j))
     },
-    testM("Has[Random] is deterministic") {
+    testM("Random is deterministic") {
       for {
         i <- Random.nextInt.provideLayer(testEnvironment)
         j <- Random.nextInt.provideLayer(testEnvironment)
       } yield assert(i)(equalTo(j))
     },
-    testM("Has[System] returns an environment variable when it is set") {
+    testM("System returns an environment variable when it is set") {
       for {
         _   <- TestSystem.putEnv("k1", "v1")
         env <- System.env("k1")
       } yield assert(env)(isSome(equalTo("v1")))
     },
-    testM("Has[System] returns a property when it is set") {
+    testM("System returns a property when it is set") {
       for {
         _   <- TestSystem.putProperty("k1", "v1")
         env <- System.property("k1")
       } yield assert(env)(isSome(equalTo("v1")))
     },
-    testM("Has[System] returns the line separator when it is set") {
+    testM("System returns the line separator when it is set") {
       for {
         _       <- TestSystem.setLineSeparator(",")
         lineSep <- System.lineSeparator

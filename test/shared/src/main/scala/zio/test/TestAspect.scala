@@ -238,7 +238,7 @@ object TestAspect extends TimeoutVariants {
     }
 
   /**
-   * An aspect that runs each test with the `Has[TestConsole]` instance in the
+   * An aspect that runs each test with the `TestConsole` instance in the
    * environment set to debug mode so that console output is rendered to
    * standard output in addition to being written to the output buffer.
    */
@@ -637,7 +637,7 @@ object TestAspect extends TimeoutVariants {
 
   /**
    * An aspect that restores a given
-   * [[zio.test.environment.Restorable Restorable]]'s state to its starting
+   * [[Restorable]]'s state to its starting
    * state after the test is run. Note that this is only useful when repeating
    * tests.
    */
@@ -646,7 +646,7 @@ object TestAspect extends TimeoutVariants {
 
   /**
    * An aspect that restores the
-   * [[zio.test.environment.TestClock Has[TestClock]]]'s state to its starting
+   * [[TestClock]]'s state to its starting
    * state after the test is run. Note that this is only useful when repeating
    * tests.
    */
@@ -655,7 +655,7 @@ object TestAspect extends TimeoutVariants {
 
   /**
    * An aspect that restores the
-   * [[zio.test.environment.TestConsole Has[TestConsole]]]'s state to its starting
+   * [[TestConsole]]'s state to its starting
    * state after the test is run. Note that this is only useful when repeating
    * tests.
    */
@@ -664,7 +664,7 @@ object TestAspect extends TimeoutVariants {
 
   /**
    * An aspect that restores the
-   * [[zio.test.environment.TestRandom TestRandom]]'s state to its starting
+   * [[TestRandom]]'s state to its starting
    * state after the test is run. Note that this is only useful when repeating
    * tests.
    */
@@ -673,7 +673,7 @@ object TestAspect extends TimeoutVariants {
 
   /**
    * An aspect that restores the
-   * [[zio.test.environment.TestSystem Has[TestSystem]]]'s state to its starting
+   * [[TestSystem]]'s state to its starting
    * state after the test is run. Note that this is only useful when repeating
    * tests.
    */
@@ -682,10 +682,10 @@ object TestAspect extends TimeoutVariants {
 
   /**
    * An aspect that restores all state in the standard provided test
-   * environments ([[zio.test.environment.TestClock Has[TestClock]]],
-   * [[zio.test.environment.TestConsole Has[TestConsole]]],
-   * [[zio.test.environment.TestRandom TestRandom]] and
-   * [[zio.test.environment.TestSystem Has[TestSystem]]]) to their starting state
+   * environments ([[TestClock]],
+   * [[TestConsole]],
+   * [[TestRandom]], and
+   * [[TestSystem]]) to their starting state
    * after the test is run. Note that this is only useful when repeating tests.
    */
   def restoreTestEnvironment: TestAspectAtLeastR[ZTestEnv] =
@@ -816,7 +816,7 @@ object TestAspect extends TimeoutVariants {
     before(TestRandom.setSeed(seed))
 
   /**
-   * An aspect that runs each test with the `Has[TestConsole]` instance in the
+   * An aspect that runs each test with the [[TestConsole]] instance in the
    * environment set to silent mode so that console output is only written to
    * the output buffer and not rendered to standard output.
    */

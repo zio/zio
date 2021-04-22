@@ -14,7 +14,7 @@ object MockableSpec extends DefaultRunnableSpec {
 
   def spec: ZSpec[Environment, Failure] = suite("MockableSpec")(
     suite("Mockable macro")(
-      test("compiles when applied to object with empty Random") {
+      test("compiles when applied to object with empty Service") {
         assert({
           @mockable[EmptyModule.Service]
           object ModuleMock
@@ -56,10 +56,10 @@ object MockableSpec extends DefaultRunnableSpec {
         assertM(typeCheck {
           """
             object Module {
-              trait Random
+              trait Service
             }
 
-            @mockable[Module.Random]
+            @mockable[Module.Service]
             trait ModuleMock
           """
         })(isLeft(anything))
@@ -68,10 +68,10 @@ object MockableSpec extends DefaultRunnableSpec {
         assertM(typeCheck {
           """
             object Module {
-              trait Random
+              trait Service
             }
 
-            @mockable[Module.Random]
+            @mockable[Module.Service]
             class ModuleMock
           """
         })(isLeft(anything))

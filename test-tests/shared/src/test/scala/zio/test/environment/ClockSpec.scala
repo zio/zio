@@ -115,7 +115,7 @@ object ClockSpec extends ZIOBaseSpec {
         setTimeZone(ZoneId.of("UTC+11")) *>
           assertM(sleeps)(isEmpty)
       },
-      testM("timeout example from Has[TestClock] documentation works correctly") {
+      testM("timeout example from TestClock documentation works correctly") {
         val example = for {
           fiber  <- ZIO.sleep(5.minutes).timeout(1.minute).fork
           _      <- TestClock.adjust(1.minute)
@@ -123,7 +123,7 @@ object ClockSpec extends ZIOBaseSpec {
         } yield result == None
         assertM(example)(isTrue)
       } @@ forked @@ nonFlaky,
-      testM("recurrence example from Has[TestClock] documentation works correctly") {
+      testM("recurrence example from TestClock documentation works correctly") {
         val example = for {
           q <- Queue.unbounded[Unit]
           _ <- q.offer(()).delay(60.minutes).forever.fork
@@ -144,7 +144,7 @@ object ClockSpec extends ZIOBaseSpec {
           _         <- adjust(3.nanos)
         } yield assert(clockTime)(equalTo(0.millis.toNanos))
       ) @@ forked @@ nonFlaky(3),
-      testM("Has[TestClock] interacts correctly with Scheduled.fixed") {
+      testM("TestClock interacts correctly with Scheduled.fixed") {
         for {
           latch    <- Promise.make[Nothing, Unit]
           ref      <- Ref.make(3)

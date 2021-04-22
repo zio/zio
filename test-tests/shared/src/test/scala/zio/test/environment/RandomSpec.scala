@@ -4,7 +4,7 @@ import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test._
 import zio.test.environment.TestRandom.{DefaultData, Test => ZRandom}
-import zio.{Random, _}
+import zio._
 
 import scala.util.{Random => SRandom}
 
@@ -63,8 +63,8 @@ object RandomSpec extends ZIOBaseSpec {
     testM("check fed ints do not survive repeating tests") {
       for {
         _      <- TestRandom.setSeed(5)
-        value  <- zio.Random.nextInt
-        value2 <- zio.Random.nextInt
+        value  <- Random.nextInt
+        value2 <- Random.nextInt
         _      <- TestRandom.feedInts(1, 2)
       } yield assert(value)(equalTo(-1157408321)) && assert(value2)(equalTo(758500184))
     } @@ nonFlaky,

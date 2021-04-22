@@ -2,7 +2,7 @@ package zio.stream
 
 import zio.test.Assertion._
 import zio.test._
-import zio.{Random, _}
+import zio._
 
 import java.nio.charset.StandardCharsets
 import scala.io.Source

@@ -143,7 +143,7 @@ object ZManagedSpec extends ZIOBaseSpec {
         }
       } @@ TestAspect.nonFlaky
     ),
-    suite("apply")(
+    suite("fromEffect")(
       testM("Performed interruptibly") {
         assertM(ZManaged.fromEffect(ZIO.checkInterruptible(ZIO.succeed(_))).use(ZIO.succeed(_)))(
           equalTo(InterruptStatus.interruptible)
