@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2021 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,13 @@
  * limitations under the License.
  */
 
-package object zio extends BuildFromCompat with EitherCompat with PlatformSpecific with VersionSpecific {
+package object zio
+    extends BuildFromCompat
+    with EitherCompat
+    with FunctionToLayerOps
+    with IntersectionTypeCompat
+    with PlatformSpecific
+    with VersionSpecific {
   private[zio] type Callback[E, A] = Exit[E, A] => Any
 
   type Canceler[-R] = URIO[R, Any]
@@ -44,13 +50,23 @@ package object zio extends BuildFromCompat with EitherCompat with PlatformSpecif
   /**
    * A queue that can only be dequeued.
    */
-  type Dequeue[+A] = ZQueue[Nothing, Any, Any, Nothing, Nothing, A]
+  type ZDequeue[-R, +E, +A] = ZQueue[Nothing, R, Any, E, Nothing, A]
+  type Dequeue[+A]          = ZQueue[Nothing, Any, Any, Nothing, Nothing, A]
+
+  /**
+   * A queue that can only be enqueued.
+   */
+  type ZEnqueue[-R, +E, -A] = ZQueue[R, Nothing, E, Any, A, Any]
+  type Enqueue[-A]          = ZQueue[Any, Nothing, Nothing, Any, A, Any]
 
   type Ref[A]      = ZRef[Nothing, Nothing, A, A]
   type ERef[+E, A] = ZRef[E, E, A, A]
 
   type RefM[A]      = ZRefM[Any, Any, Nothing, Nothing, A, A]
   type ERefM[+E, A] = ZRefM[Any, Any, E, E, A, A]
+
+  type Hub[A] = ZHub[Any, Any, Nothing, Nothing, A, A]
+  val Hub: ZHub.type = ZHub
 
   object <*> {
     def unapply[A, B](ab: (A, B)): Some[(A, B)] =

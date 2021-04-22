@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2021 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@ import scala.annotation.implicitAmbiguous
  * environment type `R` needs an environment, that is, that `R` is not equal to
  * `Any`.
  */
-sealed abstract class NeedsEnv[+R]
+sealed abstract class NeedsEnv[+R] extends Serializable
 
 object NeedsEnv extends NeedsEnv[Nothing] {
 

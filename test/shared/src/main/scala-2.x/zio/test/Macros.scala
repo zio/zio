@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 John A. De Goes and the ZIO Contributors
+ * Copyright 2021 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,9 +26,9 @@ private[test] object Macros {
     import c.universe._
     try {
       c.typecheck(c.parse(c.eval(c.Expr[String](c.untypecheck(code.tree)))))
-      c.Expr(q"zio.UIO.succeed(Right(()))")
+      c.Expr(q"zio.UIO.succeed(scala.util.Right(()))")
     } catch {
-      case e: TypecheckException => c.Expr(q"zio.UIO.succeed(Left(${e.getMessage}))")
+      case e: TypecheckException => c.Expr(q"zio.UIO.succeed(scala.util.Left(${e.getMessage}))")
       case t: Throwable          => c.Expr(q"""zio.UIO.die(new RuntimeException("Compilation failed: " + ${t.getMessage}))""")
     }
   }

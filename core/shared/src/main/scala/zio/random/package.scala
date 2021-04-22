@@ -1,4 +1,22 @@
+/*
+ * Copyright 2017-2021 John A. De Goes and the ZIO Contributors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package zio
+
+import java.util.UUID
 
 package object random {
   type Random = Has[Random.Service]
@@ -20,6 +38,7 @@ package object random {
       def nextLongBounded(n: Long): UIO[Long]
       def nextPrintableChar: UIO[Char]
       def nextString(length: Int): UIO[String]
+      def nextUUID: UIO[UUID] = nextUUIDWith(nextLong)
       def setSeed(seed: Long): UIO[Unit]
       def shuffle[A, Collection[+Element] <: Iterable[Element]](collection: Collection[A])(implicit
         bf: BuildFrom[Collection[A], A, Collection[A]]
@@ -144,6 +163,15 @@ package object random {
         }
       }
 
+    private[zio] def nextUUIDWith(nextLong: UIO[Long]): UIO[UUID] =
+      for {
+        mostSigBits  <- nextLong
+        leastSigBits <- nextLong
+      } yield new UUID(
+        (mostSigBits & ~0x0000f000) | 0x00004000,
+        (leastSigBits & ~(0xc0000000L << 32)) | (0x80000000L << 32)
+      )
+
     private[zio] def shuffleWith[A, Collection[+Element] <: Iterable[Element]](
       nextIntBounded: Int => UIO[Int],
       collection: Collection[A]
@@ -246,6 +274,12 @@ package object random {
    */
   def nextLongBounded(n: => Long): URIO[Random, Long] =
     ZIO.accessM(_.get.nextLongBounded(n))
+
+  /**
+   * Generates psuedo-random universally unique identifiers.
+   */
+  val nextUUID: URIO[Random, UUID] =
+    ZIO.accessM(_.get.nextUUID)
 
   /**
    * Generates a pseudo-random character from the ASCII range 33-126.

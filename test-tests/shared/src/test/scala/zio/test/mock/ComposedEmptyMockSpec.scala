@@ -8,7 +8,7 @@ import zio.{ZIO, clock, console}
 
 import java.io.IOException
 
-object ComposedEmptyMockSpec extends ZIOBaseSpec with MockSpecUtils[Console with Clock] {
+object ComposedEmptyMockSpec extends ZIOBaseSpec with MockSpecUtils[ComposedEmptyMockSpecCompat.Environment] {
 
   import Assertion._
   import Expectation._
@@ -62,4 +62,8 @@ object ComposedEmptyMockSpec extends ZIOBaseSpec with MockSpecUtils[Console with
       }
     )
   )
+}
+
+object ComposedEmptyMockSpecCompat {
+  type Environment = Console with Clock
 }

@@ -39,6 +39,19 @@ object SerializableSpec extends ZIOBaseSpec {
       } yield assert(v1)(equalTo(10)) &&
         assert(v2)(equalTo(20))
     },
+    testM("Hub is serializable") {
+      for {
+        hub                     <- Hub.bounded[Int](100)
+        queue                   <- hub.subscribe.reserve.flatMap(_.acquire)
+        _                       <- hub.publish(10)
+        tuple                   <- serializeAndBack((hub, queue))
+        (returnHub, returnQueue) = tuple
+        v1                      <- returnQueue.take
+        _                       <- returnHub.publish(20)
+        v2                      <- returnQueue.take
+      } yield assert(v1)(equalTo(10)) &&
+        assert(v2)(equalTo(20))
+    },
     testM("Ref is serializable") {
       val current = "This is some value"
       for {

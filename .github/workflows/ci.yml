@@ -1,0 +1,101 @@
+name: CI
+
+env:
+  JDK_JAVA_OPTIONS: -XX:+PrintCommandLineFlags -Xmx3G # JDK_JAVA_OPTIONS is _the_ env. variable to use for modern Java
+  JVM_OPTS: -XX:+PrintCommandLineFlags -Xmx3G # for Java 8 only (sadly, it is not modern enough for JDK_JAVA_OPTIONS)
+
+on:
+  pull_request:
+  push:
+    branches: ['master']
+  release:
+    types:
+      - published
+
+jobs:
+  lint:
+    runs-on: ubuntu-20.04
+    timeout-minutes: 60
+    steps:
+    - name: Checkout current branch
+      uses: actions/checkout@v2.3.4
+    - name: Setup Scala and Java
+      uses: olafurpg/setup-scala@v10
+    - name: Cache scala dependencies
+      uses: coursier/cache-action@v6
+    - name: Lint code
+      run: sbt check
+
+  mdoc:
+    runs-on: ubuntu-20.04
+    timeout-minutes: 60
+    steps:
+      - name: Checkout current branch
+        uses: actions/checkout@v2.3.4
+      - name: Setup Scala and Java
+        uses: olafurpg/setup-scala@v10
+      - name: Cache scala dependencies
+        uses: coursier/cache-action@v6
+      - name: Check Document Generation
+        run: sbt mdoc
+        
+  test:
+    runs-on: ubuntu-20.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        java: ['adopt@1.8', 'adopt@1.11']
+        scala: ['2.11.12', '2.12.13', '2.13.5', '3.0.0-RC3']
+        platform: ['JVM', 'JS', 'Native']
+    steps:
+    - name: Checkout current branch
+      uses: actions/checkout@v2.3.4
+    - name: Setup Scala and Java
+      uses: olafurpg/setup-scala@v10
+      with:
+        java-version: ${{ matrix.java }}
+    - name: Cache scala dependencies
+      uses: coursier/cache-action@v6
+    - name: Mima Checks
+      if: ${{ !startsWith(matrix.scala, '2.11.') && !startsWith(matrix.scala, '3.0.') && matrix.platform == 'JVM' }}
+      run: sbt ++${{ matrix.scala }}! mimaChecks
+    - name: Test 2.11.x
+      if: ${{ startsWith(matrix.scala, '2.11.') && contains(matrix.java, '1.8') && matrix.platform != 'Native' }}
+      run: sbt ++${{ matrix.scala }}! test${{ matrix.platform }}211
+    - name: Test 2.12.x and 2.13.x
+      if: ${{ !startsWith(matrix.scala, '2.11.') && !startsWith(matrix.scala, '3.0.') && matrix.platform != 'Native' }}
+      run: sbt ++${{ matrix.scala }}! test${{ matrix.platform }}
+    - name: Test 3.x (JVM only)
+      if: ${{ startsWith(matrix.scala, '3.0.') && contains(matrix.java, '1.8') && matrix.platform == 'JVM' }}
+      run: sbt ++${{ matrix.scala }}! testJVMDotty
+    - name: Test native
+      if: ${{ !startsWith(matrix.scala, '3.0.') && matrix.platform == 'Native' }}
+      run: sbt ++${{ matrix.scala }}! testNative
+
+  ci:
+    runs-on: ubuntu-20.04
+    needs: [lint, mdoc, test]
+    steps:
+      - name: Aggregate of lint, mdoc and all tests
+        run: echo "ci passed"
+
+  publish:
+    runs-on: ubuntu-20.04
+    timeout-minutes: 60
+    needs: [ci]
+    if: github.event_name != 'pull_request'
+    steps:
+      - name: Checkout current branch
+        uses: actions/checkout@v2.3.4
+        with:
+          fetch-depth: 0
+      - name: Setup Scala and Java
+        uses: olafurpg/setup-scala@v10
+      - name: Release
+        run: sbt ci-release
+        env:
+          PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
+          PGP_SECRET: ${{ secrets.PGP_SECRET }}
+          SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
+          SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}

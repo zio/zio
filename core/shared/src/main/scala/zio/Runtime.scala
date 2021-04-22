@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2021 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,13 +29,13 @@ trait Runtime[+R] {
   /**
    * The environment of the runtime.
    */
-  val environment: R
+  def environment: R
 
   /**
    * The platform of the runtime, which provides the essential capabilities
    * necessary to bootstrap execution of tasks.
    */
-  val platform: Platform
+  def platform: Platform
 
   /**
    * Constructs a new `Runtime` by mapping the environment.

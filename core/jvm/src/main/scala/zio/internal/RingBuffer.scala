@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
+ * Copyright 2018-2021 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -247,7 +247,7 @@ abstract class RingBuffer[A](override final val capacity: Int) extends MutableQu
     }
   }
 
-  override final def offerAll(as: Iterable[A]): Iterable[A] = {
+  override final def offerAll(as: Iterable[A]): Chunk[A] = {
     val aCapacity = capacity
 
     val aSeq   = seq
@@ -325,7 +325,7 @@ abstract class RingBuffer[A](override final val capacity: Int) extends MutableQu
     } else {
       // There was no space in the queue or the original collection was empty.
       // Just return the original collection unchanged.
-      as
+      Chunk.fromIterable(as)
     }
   }
 
@@ -419,7 +419,7 @@ abstract class RingBuffer[A](override final val capacity: Int) extends MutableQu
     }
   }
 
-  override final def pollUpTo(n: Int): Iterable[A] = {
+  override final def pollUpTo(n: Int): Chunk[A] = {
     val aCapacity = capacity
 
     val aSeq   = seq
@@ -484,7 +484,7 @@ abstract class RingBuffer[A](override final val capacity: Int) extends MutableQu
       // ownership of each space until we publish our changes. Dequeue the
       // elements sequentially and publish our changes as we go.
       val builder = ChunkBuilder.make[A]()
-      builder.sizeHint(n)
+      builder.sizeHint((deqTail - deqHead).toInt)
       while (deqHead < deqTail) {
         curIdx = posToIdx(deqHead, aCapacity)
         val a = buf(curIdx).asInstanceOf[A]

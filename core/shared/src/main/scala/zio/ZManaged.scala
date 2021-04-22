@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
+ * Copyright 2018-2021 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1181,6 +1181,13 @@ object ZManaged extends ZManagedPlatformSpecific {
       ZManaged.environment.flatMap(f)
   }
 
+  final class ServiceWithPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
+    def apply[E, A](f: Service => ZIO[Has[Service], E, A])(implicit
+      tag: Tag[Service]
+    ): ZManaged[Has[Service], E, A] =
+      ZManaged.fromEffect(ZIO.serviceWith[Service](f))
+  }
+
   /**
    * A finalizer used in a [[ReleaseMap]]. The [[Exit]] value passed to
    * it is the result of executing [[ZManaged#use]] or an arbitrary value
@@ -1227,7 +1234,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * The design of `ReleaseMap` is inspired by ResourceT, written by Michael Snoyman @snoyberg.
    * (https://github.com/snoyberg/conduit/blob/master/resourcet/Control/Monad/Trans/Resource/Internal.hs)
    */
-  abstract class ReleaseMap {
+  abstract class ReleaseMap extends Serializable {
 
     /**
      * An opaque identifier for a finalizer stored in the map.
@@ -1800,6 +1807,22 @@ object ZManaged extends ZManagedPlatformSpecific {
   def fromFunctionM[R, E, A](f: R => ZManaged[Any, E, A]): ZManaged[R, E, A] = flatten(fromFunction(f))
 
   /**
+   * Lifts an `Option` into a `ZManaged` but preserves the error as an option in the error channel, making it easier to compose
+   * in some scenarios.
+   */
+  def fromOption[A](v: => Option[A]): ZManaged[Any, Option[Nothing], A] =
+    effectTotal(v).flatMap(_.fold[Managed[Option[Nothing], A]](fail(None))(succeedNow))
+
+  /**
+   * Lifts a `Try` into a `ZManaged`.
+   */
+  def fromTry[A](value: => scala.util.Try[A]): TaskManaged[A] =
+    effect(value).flatMap {
+      case scala.util.Success(v) => succeedNow(v)
+      case scala.util.Failure(t) => fail(t)
+    }
+
+  /**
    * Returns an effect that models failure with the specified `Cause`.
    */
   def halt[E](cause: => Cause[E]): ZManaged[Any, E, Nothing] =
@@ -2294,6 +2317,16 @@ object ZManaged extends ZManagedPlatformSpecific {
   def services[A: Tag, B: Tag, C: Tag, D: Tag]
     : ZManaged[Has[A] with Has[B] with Has[C] with Has[D], Nothing, (A, B, C, D)] =
     ZManaged.access(r => (r.get[A], r.get[B], r.get[C], r.get[D]))
+
+  /**
+   * Effectfully accesses the specified service in the environment of the effect.
+   *
+   * {{{
+   * def foo(int: Int) = ZManaged.serviceWith[Foo](_.foo(int))
+   * }}}
+   */
+  def serviceWith[Service]: ServiceWithPartiallyApplied[Service] =
+    new ServiceWithPartiallyApplied[Service]
 
   /**
    *  Returns an effect with the optional value.

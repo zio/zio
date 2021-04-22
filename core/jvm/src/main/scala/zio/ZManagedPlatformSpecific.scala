@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
+ * Copyright 2020-2021 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,6 +24,14 @@ import java.net.{URI, URL}
 import java.nio.file.Path
 
 private[zio] trait ZManagedPlatformSpecific {
+
+  /**
+   * Returns a managed effect that describes shifting to the blocking executor
+   * as the `acquire` action and shifting back to the original executor as the
+   * `release` action.
+   */
+  val blocking: ZManaged[Blocking, Nothing, Unit] =
+    blockingExecutor.toManaged_.flatMap(executor => ZManaged.lock(executor))
 
   def readFile(path: Path): ZManaged[Blocking, IOException, ZInputStream] =
     readFile(path.toString())

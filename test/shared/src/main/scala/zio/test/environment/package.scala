@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2021 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -321,14 +321,14 @@ package object environment extends PlatformSpecific {
       def sleep(duration: Duration): UIO[Unit] =
         for {
           promise <- Promise.make[Nothing, Unit]
-          await <- clockState.modify { data =>
-                     val end = data.duration + duration
-                     if (end > data.duration)
-                       (true, data.copy(sleeps = (end, promise) :: data.sleeps))
-                     else
-                       (false, data)
-                   }
-          _ <- if (await) warningStart *> promise.await else promise.succeed(())
+          shouldAwait <- clockState.modify { data =>
+                           val end = data.duration + duration
+                           if (end > data.duration)
+                             (true, data.copy(sleeps = (end, promise) :: data.sleeps))
+                           else
+                             (false, data)
+                         }
+          _ <- if (shouldAwait) warningStart *> promise.await else promise.succeed(())
         } yield ()
 
       /**
