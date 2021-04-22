@@ -133,6 +133,26 @@ def release(resource: Closeable) = ZIO.effectTotal(resource.close())
 val inputStreamLayer = ZLayer.fromAcquireRelease(acquire)(release)
 ```
 
+### From ZIO Effects
+
+We can create `ZLayer` from any `ZIO` effect by using `ZLayer.fromEffect` constructor, or calling `ZIO#toLayer` method:
+
+```scala mdoc
+val layer = ZLayer.fromEffect(ZIO.succeed("Hello, World!"))
+val layer_ = ZIO.succeed("Hello, World!").toLayer
+```
+
+Assume we have a `ZIO` effect that read the application config from a file, we can create a layer from that:
+
+```scala mdoc:invisible
+trait AppConfig
+```
+
+```scala mdoc:nest
+def loadConfig: Task[AppConfig] = Task.effect(???)
+val configLayer = ZLayer.fromEffect(loadConfig)
+```
+
 ## Examples
 
 ### The simplest ZLayer application
