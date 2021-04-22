@@ -254,8 +254,8 @@ lazy val testJVM = test.jvm
 lazy val testJS = test.js
   .settings(
     libraryDependencies ++= List(
-      "io.github.cquiroz" %%% "scala-java-time"      % "2.2.1",
-      "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.2.1"
+      "io.github.cquiroz" %%% "scala-java-time"      % "2.2.2",
+      "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.2.2"
     )
   )
 lazy val testNative = test.native
