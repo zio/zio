@@ -13,6 +13,60 @@ Layers are shared by default, meaning that if the same layer is used twice, the 
 
 Because of their excellent composition properties, layers are the idiomatic way in ZIO to create services that depend on other services.
 
+For example, the `ZLayer[Blocking with Logging with Database, Throwable, UserRepoService]` is a recipe for building a service that requires `Blocking`, `Logging` and `Database` service, and it produces a `UserRepoService` service.
+
+## Creation
+
+### succeed
+
+With `ZLayer.succeed` we can construct a `ZLayer` from a value. It returns a `ULayer[Has[A]]` value, which represents a layer of application that _has_ a service of type `A`:
+
+```scala
+def succeed[A: Tag](a: A): ULayer[Has[A]]
+```
+
+In the following example, we are going to create a `nameLayer` that provides us the name of `Adam`.
+
+```scala mdoc:invisible
+import zio._
+```
+
+```scala mdoc:silent
+val nameLayer: ULayer[Has[String]] = ZLayer.succeed("Adam")
+```
+
+In most cases, we use `ZLayer.succeed` to provide a layer of service of type `A`.
+
+For example, assume we have written the following service:
+
+```scala mdoc:silent
+object terminal {
+  type Terminal = Has[Terminal.Service]
+
+  object Terminal {
+    trait Service {
+      def putStrLn(line: String): UIO[Unit]
+    }
+
+    object Service {
+      val live: Service = new Service {
+        override def putStrLn(line: String): UIO[Unit] =
+          ZIO.effectTotal(println(line))
+      }
+    }
+  }
+}
+```
+
+Now we can create a `ZLayer` from the `live` version of this service:
+
+```scala mdoc:silent
+import terminal._
+val live: ZLayer[Any, Nothing, Terminal] = ZLayer.succeed(Terminal.Service.live)
+```
+
+## Examples
+
 ### The simplest ZLayer application
 
 This application demonstrates a ZIO program with a single dependency on a simple string value:
