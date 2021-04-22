@@ -119,18 +119,18 @@ def userRepository: ZManaged[Blocking with Console, Throwable, UserRepository] =
 
 We can convert that to `ZLayer` with `ZLayer.fromManaged` or `ZManaged#toLayer`:
 
-```scala mdoc:silent:nest
+```scala mdoc:nest
 val usersLayer  = userRepository.toLayer
 val usersLayer_ = ZLayer.fromManaged(userRepository)
 ```
 
 Also, we can create a `ZLayer` directly from `acquire` and `release` actions of a managed resource:
 
-```scala mdoc:silent:nest
+```scala mdoc:nest
 def acquire = ZIO.effect(new FileInputStream("file.txt"))
 def release(resource: Closeable) = ZIO.effectTotal(resource.close())
 
-val inputStreamLayer: ZLayer[Any, Throwable, Has[FileInputStream]] = ZLayer.fromAcquireRelease(acquire)(release)
+val inputStreamLayer = ZLayer.fromAcquireRelease(acquire)(release)
 ```
 
 ## Examples
