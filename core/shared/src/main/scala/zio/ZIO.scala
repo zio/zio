@@ -52,6 +52,12 @@ import scala.util.{Failure, Success}
 sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E, A] { self =>
 
   /**
+   * Syntax for adding aspects.
+   */
+  final def @@[R1 <: R, E1 >: E](aspect: ZAspect[R1, E1]): ZIO[R1, E1, A] =
+    aspect(self)
+
+  /**
    * Sequentially zips this effect with the specified effect, combining the
    * results into a tuple.
    */

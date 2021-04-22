@@ -77,6 +77,12 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   import ZStream.{BufferedPull, Pull, TerminationStrategy}
 
   /**
+   * Syntax for adding aspects.
+   */
+  final def @@[R1 <: R, E1 >: E](aspect: StreamAspect[R1, E1]): ZStream[R1, E1, O] =
+    aspect(self)
+
+  /**
    * Symbolic alias for [[ZStream#cross]].
    */
   final def <*>[R1 <: R, E1 >: E, O2](that: ZStream[R1, E1, O2]): ZStream[R1, E1, (O, O2)] =

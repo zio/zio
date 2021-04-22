@@ -58,6 +58,12 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
   def zio: ZIO[(R, ZManaged.ReleaseMap), E, (ZManaged.Finalizer, A)]
 
   /**
+   * Syntax for adding aspects.
+   */
+  final def @@[R1 <: R, E1 >: E](aspect: ManagedAspect[R1, E1]): ZManaged[R1, E1, A] =
+    aspect(self)
+
+  /**
    * Symbolic alias for zip.
    */
   def &&&[R1 <: R, E1 >: E, B](that: ZManaged[R1, E1, B]): ZManaged[R1, E1, (A, B)] =
