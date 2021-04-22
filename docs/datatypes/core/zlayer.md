@@ -153,6 +153,45 @@ def loadConfig: Task[AppConfig] = Task.effect(???)
 val configLayer = ZLayer.fromEffect(loadConfig)
 ```
 
+### From another Service
+
+Every `ZLayer` describes an application that requires some services as input and produces some services as output. Sometimes when we are writing a new layer, we may need to access and depend on one or several services.
+
+The `ZLayer.fromService` construct a layer that purely depends on the specified service:
+
+```scala
+def fromService[A: Tag, B: Tag](f: A => B): ZLayer[Has[A], Nothing, Has[B]]
+```
+
+Assume we want to write a `live` version of the following logging service:
+
+```scala mdoc:silent:nest
+object logging {
+  type Logging = Has[Logging.Service]
+
+  object Logging {
+    trait Service {
+      def log(msg: String): UIO[Unit]
+    }
+  }
+}
+```
+
+We can create that by using `ZLayer.fromService` constructor, which depends on `Console` service:
+
+```scala mdoc:invisible
+import logging.Logging
+import logging.Logging._
+```
+
+```scala mdoc:silent:nest
+val live: ZLayer[Console, Nothing, Logging] = ZLayer.fromService(console =>
+  new Service {
+    override def log(msg: String): UIO[Unit] = console.putStrLn(msg)
+  }
+)
+```
+
 ## Examples
 
 ### The simplest ZLayer application
