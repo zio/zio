@@ -7,11 +7,11 @@ trait StreamAspect[-R, +E] {
 object StreamAspect {
 
   /**
-    * An aspect that rechunks the stream into chunks of the specified size.
-    */
+   * An aspect that rechunks the stream into chunks of the specified size.
+   */
   def chunkN(n: Int): StreamAspect[Any, Nothing] =
     new StreamAspect[Any, Nothing] {
-      def apply[R1, E1, A](stream: ZStream[R1,E1,A]): ZStream[R1,E1,A] =
+      def apply[R1, E1, A](stream: ZStream[R1, E1, A]): ZStream[R1, E1, A] =
         stream.chunkN(n)
     }
 }

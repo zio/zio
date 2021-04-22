@@ -10,9 +10,9 @@ trait ZAspect[-R, +E] {
 object ZAspect {
 
   /**
-    * An aspect that prints the results of effects to the console for debugging
-    * purposes.
-    */
+   * An aspect that prints the results of effects to the console for debugging
+   * purposes.
+   */
   val debug: ZAspect[Any, Nothing] =
     new ZAspect[Any, Nothing] {
       def apply[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
@@ -20,8 +20,8 @@ object ZAspect {
     }
 
   /**
-    * As aspect that runs effects on the specified `Executor`.
-    */
+   * As aspect that runs effects on the specified `Executor`.
+   */
   def lock(executor: Executor): ZAspect[Any, Nothing] =
     new ZAspect[Any, Nothing] {
       def apply[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
@@ -29,8 +29,8 @@ object ZAspect {
     }
 
   /**
-    * As aspect that runs effects on the specified `ExecutionContext`.
-    */
+   * As aspect that runs effects on the specified `ExecutionContext`.
+   */
   def on(ec: ExecutionContext): ZAspect[Any, Nothing] =
     new ZAspect[Any, Nothing] {
       def apply[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
@@ -38,8 +38,8 @@ object ZAspect {
     }
 
   /**
-    * As aspect that enables tracing for effects.
-    */
+   * As aspect that enables tracing for effects.
+   */
   val traced: ZAspect[Any, Nothing] =
     new ZAspect[Any, Nothing] {
       def apply[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
@@ -47,8 +47,8 @@ object ZAspect {
     }
 
   /**
-    * As aspect that disables tracing for effects.
-    */
+   * As aspect that disables tracing for effects.
+   */
   val untraced: ZAspect[Any, Nothing] =
     new ZAspect[Any, Nothing] {
       def apply[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
