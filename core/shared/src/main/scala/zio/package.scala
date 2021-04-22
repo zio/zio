@@ -66,6 +66,9 @@ package object zio
   type RefM[A]                           = ZRefM[Any, Any, Nothing, Nothing, A, A]
   type ERefM[+E, A]                      = ZRefM[Any, Any, E, E, A, A]
 
+  type FiberRef[A] = ZFiberRef[Nothing, Nothing, A, A]
+  val FiberRef: ZFiberRef.type = ZFiberRef
+
   type Hub[A] = ZHub[Any, Any, Nothing, Nothing, A, A]
   val Hub: ZHub.type = ZHub
 

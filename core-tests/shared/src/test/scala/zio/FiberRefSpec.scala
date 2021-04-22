@@ -3,7 +3,7 @@ package zio
 import zio.FiberRefSpecUtil._
 import zio.duration._
 import zio.test.Assertion._
-import zio.test.TestAspect._
+import zio.test.TestAspect.flaky
 import zio.test._
 import zio.test.environment.Live
 
@@ -345,6 +345,20 @@ object FiberRefSpec extends ZIOBaseSpec {
           value1   <- fiberRef.get
           value2   <- UIO(handle.get())
         } yield assert((value1, value2))(equalTo((initial, initial)))
+      },
+      testM("it can be transformed polymorphically") {
+        final case class Person(name: String, age: Int)
+        def getAge(person: Person): Either[Nothing, Int] =
+          Right(person.age)
+        def setAge(age: Int)(person: Person): Either[Nothing, Person] =
+          Right(person.copy(age = age))
+        for {
+          personRef <- FiberRef.make(Person("Jane Doe", 42))
+          ageRef     = personRef.foldAll(identity, identity, identity, setAge, getAge)
+          fiber     <- ageRef.update(_ + 1).fork
+          _         <- fiber.join
+          person    <- personRef.get
+        } yield assert(person)(equalTo(Person("Jane Doe", 43)))
       }
     )
   )
@@ -356,7 +370,7 @@ object FiberRefSpecUtil {
     (ZIO.yieldNow <* clock.sleep(1.nano)).repeatN(100)
   }
 
-  def setRefOrHandle(fiberRef: FiberRef[Int], value: Int): UIO[Unit] =
+  def setRefOrHandle(fiberRef: FiberRef.Runtime[Int], value: Int): UIO[Unit] =
     if (value % 2 == 0) fiberRef.set(value)
     else fiberRef.unsafeAsThreadLocal.flatMap(h => UIO(h.set(value)))
 
