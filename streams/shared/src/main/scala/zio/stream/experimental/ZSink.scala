@@ -263,7 +263,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
   def zip[R1 <: R, InErr1 <: InErr, In1 <: In, OutErr1 >: OutErr, L1 >: L <: In1, Z1](
     that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
   )(implicit ev: L <:< In1): ZSink[R1, InErr1, In1, OutErr1, L1, (Z, Z1)] =
-    zipWith(that)((_, _))
+    zipWith[R1, InErr1, OutErr1, In1, L1, Z1, (Z, Z1)](that)((_, _))
 
   /**
    * Like [[zip]], but keeps only the result from the `that` sink.
@@ -271,7 +271,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
   final def zipLeft[R1 <: R, InErr1 <: InErr, In1 <: In, OutErr1 >: OutErr, L1 >: L <: In1, Z1](
     that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
   )(implicit ev: L <:< In1): ZSink[R1, InErr1, In1, OutErr1, L1, Z] =
-    zipWith(that)((z, _) => z)
+    zipWith[R1, InErr1, OutErr1, In1, L1, Z1, Z](that)((z, _) => z)
 
   /**
    * Runs both sinks in parallel on the input and combines the results in a tuple.
@@ -303,7 +303,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
   final def zipRight[R1 <: R, InErr1 <: InErr, In1 <: In, OutErr1 >: OutErr, L1 >: L <: In1, Z1](
     that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
   )(implicit ev: L <:< In1): ZSink[R1, InErr1, In1, OutErr1, L1, Z1] =
-    zipWith(that)((_, z1) => z1)
+    zipWith[R1, InErr1, OutErr1, In1, L1, Z1, Z1](that)((_, z1) => z1)
 
   /**
    * Feeds inputs to this sink until it yields a result, then switches over to the
