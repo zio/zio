@@ -16,6 +16,7 @@
 
 package zio.test
 
+import izumi.reflect.Tag
 import zio.clock.Clock
 import zio.duration._
 import zio.test.environment.TestEnvironment
@@ -39,25 +40,27 @@ import scala.util.control.NoStackTrace
  * }
  * }}}
  */
-class MutableRunnableSpec[R <: Has[_]](
+class MutableRunnableSpec[R <: Has[_]: Tag](
   layer: ZLayer[TestEnvironment, Throwable, R],
-  aspect: TestAspect[R, R, Any, Any]
+  aspect: TestAspect[R with TestEnvironment, R with TestEnvironment, Any, Any] = TestAspect.identity
 ) extends RunnableSpec[TestEnvironment, Any] {
   self =>
+
+  type RT = R with TestEnvironment
 
   private class InAnotherTestException(`type`: String, label: String)
       extends Exception(s"${`type`} `${label}` is in another test")
       with NoStackTrace
 
   sealed trait SpecBuilder {
-    def toSpec: ZSpec[R, Any]
+    def toSpec: ZSpec[RT, Any]
     def label: String
   }
 
   sealed case class SuiteBuilder(label: String) extends SpecBuilder {
 
-    private[test] var nested: Chunk[SpecBuilder]                   = Chunk.empty
-    private var aspects: Chunk[TestAspect[R, R, Failure, Failure]] = Chunk.empty
+    private[test] var nested: Chunk[SpecBuilder]                     = Chunk.empty
+    private var aspects: Chunk[TestAspect[RT, RT, Failure, Failure]] = Chunk.empty
 
     /**
      * Syntax for adding aspects.
@@ -66,13 +69,13 @@ class MutableRunnableSpec[R <: Has[_]](
      * }}}
      */
     final def @@(
-      aspect: TestAspect[R, R, Failure, Failure]
+      aspect: TestAspect[RT, RT, Failure, Failure]
     ): SuiteBuilder = {
       aspects = aspects :+ aspect
       this
     }
 
-    def toSpec: ZSpec[R, Any] =
+    def toSpec: ZSpec[RT, Any] =
       aspects.foldLeft(
         zio.test.suite(label)(
           nested.map(_.toSpec): _*
@@ -80,7 +83,7 @@ class MutableRunnableSpec[R <: Has[_]](
       )((spec, aspect) => spec @@ aspect)
   }
 
-  sealed case class TestBuilder(label: String, var toSpec: ZSpec[R, Any]) extends SpecBuilder {
+  sealed case class TestBuilder(label: String, var toSpec: ZSpec[RT, Any]) extends SpecBuilder {
 
     /**
      * Syntax for adding aspects.
@@ -89,7 +92,7 @@ class MutableRunnableSpec[R <: Has[_]](
      * }}}
      */
     final def @@(
-      aspect: TestAspect[R, R, Failure, Failure]
+      aspect: TestAspect[RT, RT, Failure, Failure]
     ): TestBuilder = {
       toSpec = toSpec @@ aspect
       this
@@ -134,7 +137,7 @@ class MutableRunnableSpec[R <: Has[_]](
    */
   final def testM(
     label: String
-  )(assertion: => ZIO[R, Failure, TestResult])(implicit loc: SourceLocation): TestBuilder = {
+  )(assertion: => ZIO[RT, Failure, TestResult])(implicit loc: SourceLocation): TestBuilder = {
     if (specBuilt)
       throw new InAnotherTestException("Test", label)
     val test    = zio.test.testM(label)(assertion)
@@ -145,7 +148,7 @@ class MutableRunnableSpec[R <: Has[_]](
 
   final override def spec: ZSpec[Environment, Failure] = {
     specBuilt = true
-    (stack.head @@ aspect).toSpec.provideLayerShared(layer.mapError(TestFailure.fail))
+    (stack.head @@ aspect).toSpec.provideCustomLayerShared(layer.mapError(TestFailure.fail))
   }
 
   override def aspects: List[TestAspect[Nothing, TestEnvironment, Nothing, Any]] =

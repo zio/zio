@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.ZLayer
+import zio.{Has, ZLayer}
 import zio.test.environment.TestEnvironment
 
 /**
@@ -35,5 +35,4 @@ import zio.test.environment.TestEnvironment
  * }
  * }}}
  */
-class DefaultMutableRunnableSpec
-    extends MutableRunnableSpec[TestEnvironment](ZLayer.identity[TestEnvironment], TestAspect.identity)
+class DefaultMutableRunnableSpec extends MutableRunnableSpec[Has[Any]](ZLayer.succeed[Any](()), TestAspect.identity)
