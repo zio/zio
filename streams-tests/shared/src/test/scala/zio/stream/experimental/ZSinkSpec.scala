@@ -603,7 +603,7 @@ object ZSinkSpec extends ZIOBaseSpec {
                   sequenceSize <- Gen.int(1, 500)
                   takers       <- Gen.int(1, 10)
                   takeSizes    <- Gen.listOfN(takers)(Gen.int(1, sequenceSize))
-                  inputs       <- Gen.chunkOfN(sequenceSize)(Gen.chunkOf(Gen.anyInt))
+                  inputs       <- Gen.chunkOfN(sequenceSize)(ZStreamGen.tinyChunkOf(Gen.anyInt))
                   (expectedTakes, leftoverInputs, wasSplit) = takeSizes.foldLeft((Chunk[Chunk[Int]](), inputs, false)) {
                                                                 case ((takenChunks, leftover, _), takeSize) =>
                                                                   val (taken, rest, wasSplit) =
