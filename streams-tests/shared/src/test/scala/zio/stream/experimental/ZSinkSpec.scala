@@ -599,8 +599,8 @@ object ZSinkSpec extends ZIOBaseSpec {
 
               val gen =
                 for {
-                  sequenceSize <- Gen.int(1, 500)
-                  takers       <- Gen.int(1, 10)
+                  sequenceSize <- Gen.int(1, 50)
+                  takers       <- Gen.int(1, 5)
                   takeSizes    <- Gen.listOfN(takers)(Gen.int(1, sequenceSize))
                   inputs       <- Gen.chunkOfN(sequenceSize)(ZStreamGen.tinyChunkOf(Gen.anyInt))
                   (expectedTakes, leftoverInputs, wasSplit) = takeSizes.foldLeft((Chunk[Chunk[Int]](), inputs, false)) {
