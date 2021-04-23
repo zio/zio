@@ -6,7 +6,6 @@ import zio.test.Assertion._
 import zio.test.TestAspect.jvmOnly
 import zio.test.environment.TestClock
 import zio.test._
-import zio.test.environment.TestClock
 
 object ZSinkSpec extends ZIOBaseSpec {
 
