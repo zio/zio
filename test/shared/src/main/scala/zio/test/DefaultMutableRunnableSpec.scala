@@ -17,7 +17,6 @@
 package zio.test
 
 import zio.{Has, ZLayer}
-import zio.test.environment.TestEnvironment
 
 /**
  * Syntax for writing test like
