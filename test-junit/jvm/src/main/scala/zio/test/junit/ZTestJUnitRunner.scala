@@ -21,13 +21,14 @@ import org.junit.runner.notification.{Failure, RunNotifier}
 import org.junit.runner.{Description, RunWith, Runner}
 import zio.ZIO.effectTotal
 import zio._
-import zio.test.FailureRenderer.FailureMessage.Message
-import zio.test.RenderedResult.CaseType.Test
-import zio.test.RenderedResult.Status.Failed
+import zio.test.DefaultTestReporter.rendered
 import zio.test.Spec.{SpecCase, SuiteCase, TestCase}
 import zio.test.TestFailure.{Assertion, Runtime}
 import zio.test.TestSuccess.{Ignored, Succeeded}
 import zio.test._
+import zio.test.render.ExecutionResult.ResultType.Test
+import zio.test.render.ExecutionResult.Status.Failed
+import zio.test.render.LogLine.Message
 
 /**
  * Custom JUnit 4 runner for ZIO Test Specs.<br/>
@@ -89,7 +90,7 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable with Boot
     label: String,
     cause: Cause[E]
   ): UIO[Unit] = {
-    val rendered = renderToString(FailureRenderer.renderCause(cause, 0))
+    val rendered = renderToString(DefaultTestReporter.renderCause(cause, 0))
     notifier.fireTestFailure(label, path, rendered, cause.dieOption.orNull)
   }
 
@@ -106,10 +107,14 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable with Boot
   private def renderFailureDetails(label: String, result: TestResult) =
     Message(
       result
-        .fold(failures =>
-          RenderedResult(Test, label, Failed, 0, FailureRenderer.renderFailureDetails(failures, 0).lines)
-        )(_ && _, _ || _, !_)
-        .rendered
+        .fold(details =>
+          rendered(Test, label, Failed, 0, DefaultTestReporter.renderFailureDetails(details, 0).lines: _*)
+        )(
+          _ && _,
+          _ || _,
+          !_
+        )
+        .lines
     )
 
   private def testDescription(label: String, path: Vector[String]) = {
