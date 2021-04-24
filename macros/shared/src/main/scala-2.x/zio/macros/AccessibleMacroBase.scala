@@ -208,8 +208,6 @@ private[macros] abstract class AccessibleMacroBase(val c: whitebox.Context) {
             q"def $name[..$allTypeParams](implicit ev: _root_.izumi.reflect.Tag[Service[..$serviceTypeArgs]]): $returnType = $returnValue"
           case List(Nil) =>
             q"def $name[..$allTypeParams]()(implicit ev: _root_.izumi.reflect.Tag[Service[..$serviceTypeArgs]]): $returnType = $returnValue"
-          case first :+ last if last.forall(_.mods.hasFlag(Flag.IMPLICIT)) =>
-            q"def $name[..$allTypeParams](...$first)(implicit ..$last, ev: _root_.izumi.reflect.Tag[Service[..$serviceTypeArgs]]): $returnType = $returnValue"
           case _ =>
             q"def $name[..$allTypeParams](...$paramLists)(implicit ev: _root_.izumi.reflect.Tag[Service[..$serviceTypeArgs]]): $returnType = $returnValue"
         }

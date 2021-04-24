@@ -126,7 +126,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(stdSettings("zio"))
   .settings(crossProjectSettings)
   .settings(buildInfoSettings("zio"))
-  .settings(libraryDependencies += "dev.zio" %%% "izumi-reflect" % "1.1.0")
+  .settings(libraryDependencies += "dev.zio" %%% "izumi-reflect" % "1.1.1")
   .enablePlugins(BuildInfoPlugin)
 
 lazy val coreJVM = core.jvm
@@ -254,8 +254,8 @@ lazy val testJVM = test.jvm
 lazy val testJS = test.js
   .settings(
     libraryDependencies ++= List(
-      "io.github.cquiroz" %%% "scala-java-time"      % "2.2.1",
-      "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.2.1"
+      "io.github.cquiroz" %%% "scala-java-time"      % "2.2.2",
+      "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.2.2"
     )
   )
 lazy val testNative = test.native
@@ -334,7 +334,7 @@ lazy val testRefined = crossProject(JVMPlatform, JSPlatform)
     crossScalaVersions --= Seq(Scala211),
     libraryDependencies ++=
       Seq(
-        ("eu.timepit" %% "refined" % "0.9.23").cross(CrossVersion.for3Use2_13)
+        ("eu.timepit" %% "refined" % "0.9.24").cross(CrossVersion.for3Use2_13)
       )
   )
 
@@ -459,7 +459,7 @@ lazy val benchmarks = project.module
     publish / skip := true,
     libraryDependencies ++=
       Seq(
-        "co.fs2"                    %% "fs2-core"       % "2.5.4",
+        "co.fs2"                    %% "fs2-core"       % "2.5.5",
         "com.google.code.findbugs"   % "jsr305"         % "3.0.2",
         "com.twitter"               %% "util-core"      % "21.3.0",
         "com.typesafe.akka"         %% "akka-stream"    % "2.6.14",
@@ -470,9 +470,9 @@ lazy val benchmarks = project.module
         "org.ow2.asm"                % "asm"            % "9.1",
         "org.scala-lang"             % "scala-compiler" % scalaVersion.value % Provided,
         "org.scala-lang"             % "scala-reflect"  % scalaVersion.value,
-        "org.typelevel"             %% "cats-effect"    % "2.4.1",
+        "org.typelevel"             %% "cats-effect"    % "2.5.0",
         "org.scalacheck"            %% "scalacheck"     % "1.15.3",
-        "qa.hedgehog"               %% "hedgehog-core"  % "0.6.5",
+        "qa.hedgehog"               %% "hedgehog-core"  % "0.6.6",
         "com.github.japgolly.nyaya" %% "nyaya-gen"      % "0.9.2"
       ),
     unusedCompileDependenciesFilter -= libraryDependencies.value
@@ -517,10 +517,10 @@ lazy val docs = project.module
       /* to evict 1.3.0 brought in by mdoc-js */
       "org.scala-js"  % "scalajs-compiler"            % scalaJSVersion cross CrossVersion.full,
       "org.scala-js" %% "scalajs-linker"              % scalaJSVersion,
-      "dev.zio"      %% "zio-interop-cats"            % "2.4.0.0",
+      "dev.zio"      %% "zio-interop-cats"            % "2.4.1.0",
       "dev.zio"      %% "zio-interop-monix"           % "3.0.0.0-RC7",
       "dev.zio"      %% "zio-interop-scalaz7x"        % "7.2.27.0-RC9",
-      "dev.zio"      %% "zio-interop-reactivestreams" % "1.3.2",
+      "dev.zio"      %% "zio-interop-reactivestreams" % "1.3.3",
       "dev.zio"      %% "zio-interop-twitter"         % "20.10.0.0"
     )
   )
