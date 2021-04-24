@@ -28,8 +28,12 @@
       "datatypes/core/io",
       "datatypes/core/exit",
       "datatypes/core/cause",
-      "datatypes/core/runtime",
-      "datatypes/core/zlayer"
+      "datatypes/core/runtime"
+    ],
+    "Contextual Types": [
+      "datatypes/contextual/index",
+      "datatypes/contextual/zlayer",
+      "datatypes/contextual/has"
     ],
     "Fiber Primitives": [
       "datatypes/fiber/index",
@@ -81,7 +85,6 @@
       "datatypes/misc/index",
       "datatypes/misc/chunk",
       "datatypes/misc/schedule",
-      "datatypes/misc/has",
       "datatypes/misc/supervisor"
     ]
   },
