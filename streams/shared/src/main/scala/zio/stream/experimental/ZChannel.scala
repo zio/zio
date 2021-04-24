@@ -867,6 +867,11 @@ object ZChannel {
   private[zio] final case class Effect[Env, OutErr, OutDone](zio: ZIO[Env, OutErr, OutDone])
       extends ZChannel[Env, Any, Any, Any, OutErr, Nothing, OutDone]
   private[zio] final case class Emit[OutElem](out: OutElem) extends ZChannel[Any, Any, Any, Any, Nothing, OutElem, Unit]
+  private[zio] final case class EffectTotal[OutDone](effect: () => OutDone)
+      extends ZChannel[Any, Any, Any, Any, Nothing, Nothing, OutDone]
+  private[zio] final case class EffectSuspendTotal[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
+    effect: () => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]
+  ) extends ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]
   private[zio] final case class Ensuring[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
     channel: ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone],
     finalizer: Exit[OutErr, OutDone] => ZIO[Env, Nothing, Any]
@@ -1030,6 +1035,14 @@ object ZChannel {
     g: (OutDone, OutDone2) => OutDone3
   ): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone3] =
     ConcatAll(f, g, channels, (channel: ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]) => channel)
+
+  private[zio] def effectTotal[OutDone](effect: => OutDone): ZChannel[Any, Any, Any, Any, Nothing, Nothing, OutDone] =
+    EffectTotal(() => effect)
+
+  private[zio] def effectSuspendTotal[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
+    effect: => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]
+  ): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
+    EffectSuspendTotal(() => effect)
 
   def end[Z](result: => Z): ZChannel[Any, Any, Any, Any, Nothing, Nothing, Z] =
     Done(result)

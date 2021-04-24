@@ -192,6 +192,12 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
           case ZChannel.Halt(error) =>
             result = doneHalt(error())
 
+          case ZChannel.EffectTotal(effect) =>
+            result = doneSucceed(effect())
+
+          case ZChannel.EffectSuspendTotal(effect) =>
+            currentChannel = effect()
+
           case ZChannel.Effect(zio) =>
             val pzio = (if (providedEnv == null) zio else zio.provide(providedEnv.asInstanceOf[Env]))
               .asInstanceOf[ZIO[Env, OutErr, OutDone]]
