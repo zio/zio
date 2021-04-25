@@ -3,6 +3,7 @@ package zio.stream.experimental
 import zio._
 import zio.clock.Clock
 import zio.duration.Duration
+import java.util.concurrent.atomic.AtomicReference
 
 class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Chunk[In], Any, OutErr, Chunk[L], Z])
     extends AnyVal { self =>
@@ -181,8 +182,9 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
       channel.doneCollect.foldM(
         failure(_).channel,
         { case (leftovers, z) =>
-          ZChannel.fromEffect(Ref.make(leftovers.flatten)).flatMap { leftoversRef =>
-            val refReader = ZChannel.fromEffect(leftoversRef.getAndSet(Chunk.empty)).flatMap { chunk =>
+          ZChannel.effectSuspendTotal {
+            val leftoversRef = new AtomicReference(leftovers)
+            val refReader = ZChannel.effectTotal(leftoversRef.getAndSet(Chunk.empty)).flatMap { chunk =>
               // This cast is safe because of the L1 >: L <: In1 bound. It follows that
               // L <: In1 and therefore Chunk[L] can be safely cast to Chunk[In1].
               val widenedChunk = chunk.asInstanceOf[Chunk[In1]]
@@ -193,9 +195,9 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
             val continuationSink = (refReader *> passthrough) >>> success(z).channel
 
             continuationSink.doneCollect.flatMap { case (newLeftovers, z1) =>
-              val allLeftovers = leftoversRef.get.map(_ ++ newLeftovers.flatten)
+              val prevLeftovers = leftoversRef.get
 
-              ZChannel.fromEffect(allLeftovers).flatMap(ZChannel.write(_)).as(z1)
+              ZChannel.writeAll(prevLeftovers) *> ZChannel.writeAll(newLeftovers).as(z1)
             }
           }
         }
@@ -863,8 +865,8 @@ object ZSink {
       else
         ZChannel
           .fromEffect(f(chunk(idx)))
-          .flatMap(b => if (b) go(chunk, idx + 1, len, cont) else ZChannel.writeAll(chunk.drop(idx)))
-          .catchAll(e => ZChannel.writeAll(chunk.drop(idx)) *> ZChannel.fail(e))
+          .flatMap(b => if (b) go(chunk, idx + 1, len, cont) else ZChannel.write(chunk.drop(idx)))
+          .catchAll(e => ZChannel.write(chunk.drop(idx)) *> ZChannel.fail(e))
 
     lazy val process: ZChannel[R, Err, Chunk[In], Any, Err, Chunk[In], Unit] =
       ZChannel.readWithCause[R, Err, Chunk[In], Any, Err, Chunk[In], Unit](
@@ -1018,7 +1020,8 @@ object ZSink {
           val (toConvert, newLeftovers) = concat.splitAt(computeSplit(concat))
 
           if (toConvert.isEmpty) channel(newLeftovers.materialize)
-          else ZChannel.write(newLeftovers) *> ZChannel.end(Some(new String(toConvert.toArray[Byte], "UTF-8")))
+          else if (newLeftovers.isEmpty) ZChannel.end(Some(new String(toConvert.toArray[Byte], "UTF-8")))
+          else ZChannel.write(newLeftovers).as(Some(new String(toConvert.toArray[Byte], "UTF-8")))
         },
         (err: Err) => ZChannel.fail(err),
         (_: Any) =>
@@ -1030,8 +1033,10 @@ object ZSink {
               // Upstream has ended and all we read was an incomplete chunk, so we fallback to the
               // String constructor behavior.
               ZChannel.end(Some(new String(newLeftovers.toArray[Byte], "UTF-8")))
-            else
+            else if (newLeftovers.nonEmpty)
               ZChannel.write(newLeftovers.materialize).as(Some(new String(toConvert.toArray[Byte], "UTF-8")))
+            else
+              ZChannel.end(Some(new String(toConvert.toArray[Byte], "UTF-8")))
           }
       )
 

@@ -9,6 +9,8 @@ import zio.stream.experimental.ZStream.BufferedPull
 import zio.stream.experimental.internal.Utils.zipChunks
 import zio.stream.internal.{ZInputStream, ZReader}
 
+import java.util.concurrent.atomic.{AtomicReference, AtomicBoolean}
+
 import scala.reflect.ClassTag
 
 class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], Any]) { self =>
@@ -2387,26 +2389,44 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Applies the transducer to the stream and emits its outputs.
    */
   def transduce[R1 <: R, E1, A1 >: A, Z](sink: ZSink[R1, E, A1, E1, A1, Z]): ZStream[R1, E1, Z] =
-    new ZStream(ZChannel.fromEffect(Ref.make[Chunk[A1]](Chunk.empty).zip(Ref.make(false))).flatMap {
-      case (leftovers, upstreamDone) =>
-        val buffer = ZChannel.bufferChunk[E, A1, Any](leftovers)
+    new ZStream(
+      ZChannel.effectSuspendTotal {
+        val leftovers: AtomicReference[Chunk[Chunk[A1]]] = new AtomicReference(Chunk.empty)
+        val upstreamDone: AtomicBoolean                  = new AtomicBoolean(false)
+
+        lazy val buffer: ZChannel[Any, E, Chunk[A1], Any, E, Chunk[A1], Any] =
+          ZChannel.effectSuspendTotal {
+            val l = leftovers.get
+
+            if (l.isEmpty) ZChannel.identity[E, Chunk[A1], Any]
+            else {
+              leftovers.set(Chunk.empty)
+              ZChannel.writeAll(l) *> buffer
+            }
+          }
+
+        def concatAndGet(c: Chunk[Chunk[A1]]): Chunk[Chunk[A1]] = {
+          val ls     = leftovers.get
+          val concat = ls ++ c.filter(_.nonEmpty)
+          leftovers.set(concat)
+          concat
+        }
 
         lazy val upstreamMarker: ZChannel[Any, E, Chunk[A], Any, E, Chunk[A], Any] =
           ZChannel.readWith(
             (in: Chunk[A]) => ZChannel.write(in) *> upstreamMarker,
             (err: E) => ZChannel.fail(err),
-            (done: Any) => ZChannel.fromEffect(upstreamDone.set(true)) *> ZChannel.end(done)
+            (done: Any) => ZChannel.effectTotal(upstreamDone.set(true)) *> ZChannel.end(done)
           )
 
         lazy val transducer: ZChannel[R1, E, Chunk[A1], Any, E1, Chunk[Z], Unit] =
           sink.channel.doneCollect.flatMap { case (leftover, z) =>
-            ZChannel.fromEffect(upstreamDone.get <*> leftovers.updateAndGet(_ ++ leftover.flatten)).flatMap {
-              case (done, newLeftovers) =>
-                val nextChannel =
-                  if (done && newLeftovers.isEmpty) ZChannel.end(())
-                  else transducer
+            ZChannel.effectTotal((upstreamDone.get, concatAndGet(leftover))).flatMap { case (done, newLeftovers) =>
+              val nextChannel =
+                if (done && newLeftovers.isEmpty) ZChannel.end(())
+                else transducer
 
-                ZChannel.write(Chunk.single(z)) *> nextChannel
+              ZChannel.write(Chunk.single(z)) *> nextChannel
             }
           }
 
@@ -2414,7 +2434,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
           upstreamMarker >>>
           buffer >>>
           transducer
-    })
+      }
+    )
 
   /**
    * Updates a service in the environment of this effect.
@@ -2839,7 +2860,7 @@ object ZStream {
    * @return a finite stream of values
    */
   def fromChunk[O](c: => Chunk[O]): ZStream[Any, Nothing, O] =
-    new ZStream(ZChannel.unwrap(ZIO.effectTotal(ZChannel.write(c))))
+    new ZStream(ZChannel.effectSuspendTotal(ZChannel.write(c)))
 
   /**
    * Creates a stream from a [[zio.ZHub]]. The hub will be shutdown once the stream is closed.

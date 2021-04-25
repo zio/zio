@@ -269,19 +269,17 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
    * number of values.
    */
   def doneCollect: ZChannel[Env, InErr, InElem, InDone, OutErr, Nothing, (Chunk[OutElem], OutDone)] =
-    ZChannel.unwrap {
-      UIO {
-        val builder = ChunkBuilder.make[OutElem]()
+    ZChannel.effectSuspendTotal {
+      val builder = ChunkBuilder.make[OutElem]()
 
-        lazy val reader: ZChannel[Env, OutErr, OutElem, OutDone, OutErr, Nothing, OutDone] =
-          ZChannel.readWith(
-            (out: OutElem) => ZChannel.fromEffect(UIO(builder += out)) *> reader,
-            (e: OutErr) => ZChannel.fail(e),
-            (z: OutDone) => ZChannel.end(z)
-          )
+      lazy val reader: ZChannel[Env, OutErr, OutElem, OutDone, OutErr, Nothing, OutDone] =
+        ZChannel.readWith(
+          (out: OutElem) => ZChannel.effectTotal(builder += out) *> reader,
+          (e: OutErr) => ZChannel.fail(e),
+          (z: OutDone) => ZChannel.end(z)
+        )
 
-        (self pipeTo reader).mapM(z => UIO((builder.result(), z)))
-      }
+      (self pipeTo reader).flatMap(z => ZChannel.effectTotal((builder.result(), z)))
     }
 
   /**
@@ -1057,6 +1055,15 @@ object ZChannel {
     outs.foldRight(ZChannel.end(()): ZChannel[Any, Any, Any, Any, Nothing, Out, Unit])((out, conduit) =>
       write(out) *> conduit
     )
+
+  def writeAll[Out](outs: Chunk[Out]): ZChannel[Any, Any, Any, Any, Nothing, Out, Unit] = {
+    def writer(idx: Int, len: Int): ZChannel[Any, Any, Any, Any, Nothing, Out, Unit] =
+      if (idx == len) ZChannel.unit
+      else ZChannel.write(outs(idx)) *> writer(idx + 1, len)
+    
+
+    writer(0, outs.size)
+  }
 
   def fail[E](e: => E): ZChannel[Any, Any, Any, Any, E, Nothing, Nothing] =
     halt(Cause.fail(e))
