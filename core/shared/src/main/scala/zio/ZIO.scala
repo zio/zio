@@ -2331,7 +2331,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   ): ZIO[R, E, B] =
     ZIO.uninterruptibleMask[R, E, B](restore =>
       acquire.flatMap(ZIOFn(traceAs = use) { a =>
-        restore(ZIO.effectSuspendTotal(use(a))).run.flatMap(ZIOFn(traceAs = release) { e =>
+        ZIO.effectSuspendTotal(restore(use(a))).run.flatMap(ZIOFn(traceAs = release) { e =>
           ZIO
             .effectSuspendTotal(release(a, e))
             .foldCauseM(
