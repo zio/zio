@@ -12,6 +12,7 @@ import zio.stream.internal.{ZInputStream, ZReader}
 import java.util.concurrent.atomic.{AtomicReference, AtomicBoolean}
 
 import scala.reflect.ClassTag
+import java.util.function.UnaryOperator
 
 class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], Any]) { self =>
 
@@ -2396,21 +2397,16 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
 
         lazy val buffer: ZChannel[Any, E, Chunk[A1], Any, E, Chunk[A1], Any] =
           ZChannel.effectSuspendTotal {
-            val l = leftovers.get
+            val l = leftovers.getAndSet(Chunk.empty)
 
             if (l.isEmpty) ZChannel.identity[E, Chunk[A1], Any]
-            else {
-              leftovers.set(Chunk.empty)
-              ZChannel.writeAll(l) *> buffer
-            }
+            else ZChannel.writeAll(l) *> buffer
           }
 
-        def concatAndGet(c: Chunk[Chunk[A1]]): Chunk[Chunk[A1]] = {
-          val ls     = leftovers.get
-          val concat = ls ++ c.filter(_.nonEmpty)
-          leftovers.set(concat)
-          concat
-        }
+        def concatAndGet(c: Chunk[Chunk[A1]]): Chunk[Chunk[A1]] =
+          leftovers.updateAndGet(new UnaryOperator[Chunk[Chunk[A1]]] {
+            def apply(data: Chunk[Chunk[A1]]) = data ++ c.filter(_.nonEmpty)
+          })
 
         lazy val upstreamMarker: ZChannel[Any, E, Chunk[A], Any, E, Chunk[A], Any] =
           ZChannel.readWith(

@@ -1019,7 +1019,7 @@ object ZSink {
           val concat                    = acc ++ chopBOM(in)
           val (toConvert, newLeftovers) = concat.splitAt(computeSplit(concat))
 
-          if (toConvert.isEmpty) channel(newLeftovers.materialize)
+          if (toConvert.isEmpty) channel(newLeftovers)
           else if (newLeftovers.isEmpty) ZChannel.end(Some(new String(toConvert.toArray[Byte], "UTF-8")))
           else ZChannel.write(newLeftovers).as(Some(new String(toConvert.toArray[Byte], "UTF-8")))
         },
@@ -1034,7 +1034,7 @@ object ZSink {
               // String constructor behavior.
               ZChannel.end(Some(new String(newLeftovers.toArray[Byte], "UTF-8")))
             else if (newLeftovers.nonEmpty)
-              ZChannel.write(newLeftovers.materialize).as(Some(new String(toConvert.toArray[Byte], "UTF-8")))
+              ZChannel.write(newLeftovers).as(Some(new String(toConvert.toArray[Byte], "UTF-8")))
             else
               ZChannel.end(Some(new String(toConvert.toArray[Byte], "UTF-8")))
           }
