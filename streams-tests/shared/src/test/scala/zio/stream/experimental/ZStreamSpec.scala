@@ -1608,6 +1608,55 @@ object ZStreamSpec extends ZIOBaseSpec {
               } yield result)(equalTo(Chunk(Chunk(1, 2), Chunk(3, 4), Chunk(5))))
             }
           } @@ timeout(10.seconds) @@ flaky,
+          testM("group based on time passed (#5013)") {
+            val chunkResult = Chunk(
+              Chunk(1, 2, 3),
+              Chunk(4, 5, 6),
+              Chunk(7, 8, 9),
+              Chunk(10, 11, 12, 13, 14, 15, 16, 17, 18, 19),
+              Chunk(20, 21, 22, 23, 24, 25, 26, 27, 28, 29)
+            )
+
+            assertWithChunkCoordination((1 to 29).map(Chunk.single).toList) { c =>
+              for {
+                latch <- ZStream.Handoff.make[Unit]
+                ref   <- Ref.make(0)
+                fiber <- ZStream
+                           .fromQueue(c.queue)
+                           .collectWhileSuccess
+                           .flattenChunks
+                           .tap(_ => c.proceed)
+                           .groupedWithin(10, 3.seconds)
+                           .tap(chunk => ref.update(_ + chunk.size) *> latch.offer(()))
+                           .run(ZSink.take(5))
+                           .fork
+                _       <- c.offer *> TestClock.adjust(1.second) *> c.awaitNext
+                _       <- c.offer *> TestClock.adjust(1.second) *> c.awaitNext
+                _       <- c.offer *> TestClock.adjust(1.second) *> c.awaitNext
+                result0 <- latch.take *> ref.get
+                _       <- c.offer *> TestClock.adjust(1.second) *> c.awaitNext
+                _       <- c.offer *> TestClock.adjust(1.second) *> c.awaitNext
+                _       <- c.offer *> TestClock.adjust(1.second) *> c.awaitNext
+                result1 <- latch.take *> ref.get
+                _       <- c.offer *> TestClock.adjust(1.second) *> c.awaitNext
+                _       <- c.offer *> TestClock.adjust(1.second) *> c.awaitNext
+                _       <- c.offer *> TestClock.adjust(1.second) *> c.awaitNext
+                result2 <- latch.take *> ref.get
+                // This part is to make sure schedule clock is being restarted
+                // when the specified amount of elements has been reached
+                _       <- TestClock.adjust(2.second) *> (c.offer *> c.awaitNext).repeatN(9)
+                result3 <- latch.take *> ref.get
+                _       <- c.offer *> c.awaitNext *> TestClock.adjust(2.second) *> (c.offer *> c.awaitNext).repeatN(8)
+                result4 <- latch.take *> ref.get
+                result  <- fiber.join
+              } yield assert(result)(equalTo(chunkResult)) &&
+                assert(result0)(equalTo(3)) &&
+                assert(result1)(equalTo(6)) &&
+                assert(result2)(equalTo(9)) &&
+                assert(result3)(equalTo(19)) &&
+                assert(result4)(equalTo(29))
+            }
+          },
           testM("group immediately when chunk size is reached") {
             assertM(ZStream(1, 2, 3, 4).groupedWithin(2, 10.seconds).runCollect)(
               equalTo(Chunk(Chunk(1, 2), Chunk(3, 4), Chunk()))
