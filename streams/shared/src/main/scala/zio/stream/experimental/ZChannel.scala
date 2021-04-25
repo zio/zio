@@ -1058,7 +1058,6 @@ object ZChannel {
     def writer(idx: Int, len: Int): ZChannel[Any, Any, Any, Any, Nothing, Out, Unit] =
       if (idx == len) ZChannel.unit
       else ZChannel.write(outs(idx)) *> writer(idx + 1, len)
-    
 
     writer(0, outs.size)
   }

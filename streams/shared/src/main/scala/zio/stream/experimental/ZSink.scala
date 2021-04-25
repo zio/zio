@@ -3,6 +3,7 @@ package zio.stream.experimental
 import zio._
 import zio.clock.Clock
 import zio.duration.Duration
+
 import java.util.concurrent.atomic.AtomicReference
 
 class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Chunk[In], Any, OutErr, Chunk[L], Z])
