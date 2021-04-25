@@ -264,7 +264,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
    * Returns a new channel, which is the same as this one, except that all the outputs are
    * collected and bundled into a tuple together with the terminal value of this channel.
    *
-   * As the channel returned from this channel collects all of this channel's output into an in-
+   * As the channel returned from this channel collect's all of this channel's output into an in-
    * memory chunk, it is not safe to call this method on channels that output a large or unbounded
    * number of values.
    */
@@ -1054,7 +1054,7 @@ object ZChannel {
   def writeAll[Out](outs: Out*): ZChannel[Any, Any, Any, Any, Nothing, Out, Unit] =
     writeAll(Chunk.fromIterable(outs))
 
-  def writeAll[Out](outs: Chunk[Out]): ZChannel[Any, Any, Any, Any, Nothing, Out, Unit] = {
+  def writeChunk[Out](outs: Chunk[Out]): ZChannel[Any, Any, Any, Any, Nothing, Out, Unit] = {
     def writer(idx: Int, len: Int): ZChannel[Any, Any, Any, Any, Nothing, Out, Unit] =
       if (idx == len) ZChannel.unit
       else ZChannel.write(outs(idx)) *> writer(idx + 1, len)

@@ -9,7 +9,7 @@ import zio.stream.experimental.ZStream.BufferedPull
 import zio.stream.experimental.internal.Utils.zipChunks
 import zio.stream.internal.{ZInputStream, ZReader}
 
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
+import java.util.concurrent.atomic.{AtomicReference, AtomicBoolean}
 import scala.reflect.ClassTag
 
 class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], Any]) { self =>
@@ -2395,23 +2395,25 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
 
         lazy val buffer: ZChannel[Any, E, Chunk[A1], Any, E, Chunk[A1], Any] =
           ZChannel.effectSuspendTotal {
-            val l = leftovers.getAndSet(Chunk.empty)
+            val l = leftovers.get
 
-            if (l.isEmpty) ZChannel.identity[E, Chunk[A1], Any]
-            else ZChannel.writeAll(l) *> buffer
+            if (l.isEmpty)
+              ZChannel.readWith(
+                (c: Chunk[A1]) => ZChannel.write(c) *> buffer,
+                (e: E) => ZChannel.fail(e),
+                (done: Any) => ZChannel.end(done)
+              )
+            else {
+              leftovers.set(Chunk.empty)
+              ZChannel.writeChunk(l) *> buffer
+            }
           }
 
         def concatAndGet(c: Chunk[Chunk[A1]]): Chunk[Chunk[A1]] = {
-          // Inlined from ZRef.Atomic until we make that private[zio]
-          var loop                   = true
-          var next: Chunk[Chunk[A1]] = null.asInstanceOf[Chunk[Chunk[A1]]]
-          while (loop) {
-            val current = leftovers.get
-            next = current ++ c.filter(_.nonEmpty)
-            loop = !leftovers.compareAndSet(current, next)
-          }
-
-          next
+          val ls     = leftovers.get
+          val concat = ls ++ c.filter(_.nonEmpty)
+          leftovers.set(concat)
+          concat
         }
 
         lazy val upstreamMarker: ZChannel[Any, E, Chunk[A], Any, E, Chunk[A], Any] =

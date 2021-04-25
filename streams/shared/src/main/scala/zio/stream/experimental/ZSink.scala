@@ -184,21 +184,20 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
         failure(_).channel,
         { case (leftovers, z) =>
           ZChannel.effectSuspendTotal {
-            val leftoversRef = new AtomicReference(leftovers)
+            val leftoversRef = new AtomicReference(leftovers.filter(_.nonEmpty))
             val refReader = ZChannel.effectTotal(leftoversRef.getAndSet(Chunk.empty)).flatMap { chunk =>
               // This cast is safe because of the L1 >: L <: In1 bound. It follows that
               // L <: In1 and therefore Chunk[L] can be safely cast to Chunk[In1].
-              val widenedChunk = chunk.asInstanceOf[Chunk[In1]]
-              ZChannel.write(widenedChunk)
+              val widenedChunk = chunk.asInstanceOf[Chunk[Chunk[In1]]]
+              ZChannel.writeChunk(widenedChunk)
             }
 
             val passthrough      = ZChannel.identity[InErr1, Chunk[In1], Any]
             val continuationSink = (refReader *> passthrough) >>> success(z).channel
 
             continuationSink.doneCollect.flatMap { case (newLeftovers, z1) =>
-              val prevLeftovers = leftoversRef.get
-
-              ZChannel.writeAll(prevLeftovers) *> ZChannel.writeAll(newLeftovers).as(z1)
+              ZChannel.effectTotal(leftoversRef.get).flatMap(ZChannel.writeChunk(_)) *>
+                ZChannel.writeChunk(newLeftovers).as(z1)
             }
           }
         }
@@ -425,7 +424,8 @@ object ZSink {
    */
   def collectAllWhile[Err, In](p: In => Boolean): ZSink[Any, Err, In, Err, In, Chunk[In]] =
     fold[Err, In, (List[In], Boolean)]((Nil, true))(_._2) { case ((as, _), a) =>
-      if (p(a)) (a :: as, true) else (as, false)
+      if (p(a)) (a :: as, true)
+      else (as, false)
     }.map { case (is, _) =>
       Chunk.fromIterable(is.reverse)
     }
@@ -466,6 +466,20 @@ object ZSink {
     new ZSink(ZChannel.read[Any].unit.repeated.catchAll(_ => ZChannel.unit))
 
   /**
+   * Returns a lazily constructed sink that may require effects for its creation.
+   */
+  def effectSuspendTotal[Env, InErr, In, OutErr, Leftover, Done](
+    sink: => ZSink[Env, InErr, In, OutErr, Leftover, Done]
+  ): ZSink[Env, InErr, In, OutErr, Leftover, Done] =
+    new ZSink(ZChannel.effectSuspendTotal(sink.channel))
+
+  /**
+   * Returns a sink that executes a total effect and ends with its result.
+   */
+  def effectTotal[A](a: => A): ZSink[Any, Any, Any, Nothing, Nothing, A] =
+    new ZSink(ZChannel.effectTotal(a))
+
+  /**
    * A sink that always fails with the specified error.
    */
   def fail[E](e: => E): ZSink[Any, Any, Any, E, Nothing, Nothing] = new ZSink(ZChannel.fail(e))
@@ -476,16 +490,16 @@ object ZSink {
   def fold[Err, In, S](z: S)(contFn: S => Boolean)(f: (S, In) => S): ZSink[Any, Err, In, Err, In, S] = {
     def foldChunkSplit(z: S, chunk: Chunk[In])(
       contFn: S => Boolean
-    )(f: (S, In) => S): (S, Option[Chunk[In]]) = {
-      def fold(s: S, chunk: Chunk[In], idx: Int, len: Int): (S, Option[Chunk[In]]) =
+    )(f: (S, In) => S): (S, Chunk[In]) = {
+      def fold(s: S, chunk: Chunk[In], idx: Int, len: Int): (S, Chunk[In]) =
         if (idx == len) {
-          (s, None)
+          (s, Chunk.empty)
         } else {
           val s1 = f(s, chunk(idx))
           if (contFn(s1)) {
             fold(s1, chunk, idx + 1, len)
           } else {
-            (s1, Some(chunk.drop(idx + 1)))
+            (s1, chunk.drop(idx + 1))
           }
         }
 
@@ -493,23 +507,20 @@ object ZSink {
     }
 
     def reader(s: S): ZChannel[Any, Err, Chunk[In], Any, Err, Chunk[In], S] =
-      ZChannel.readWith(
-        (in: Chunk[In]) => {
-          val (nextS, leftovers) = foldChunkSplit(s, in)(contFn)(f)
+      if (!contFn(s)) ZChannel.end(s)
+      else
+        ZChannel.readWith(
+          (in: Chunk[In]) => {
+            val (nextS, leftovers) = foldChunkSplit(s, in)(contFn)(f)
 
-          leftovers match {
-            case Some(l) => ZChannel.write(l).as(nextS)
-            case None    => reader(nextS)
-          }
-        },
-        (err: Err) => ZChannel.fail(err),
-        (_: Any) => ZChannel.end(s)
-      )
+            if (leftovers.nonEmpty) ZChannel.write(leftovers).as(nextS)
+            else reader(nextS)
+          },
+          (err: Err) => ZChannel.fail(err),
+          (_: Any) => ZChannel.end(s)
+        )
 
-    new ZSink(
-      if (contFn(z)) reader(z)
-      else ZChannel.end(z)
-    )
+    new ZSink(reader(z))
   }
 
   /**
@@ -931,12 +942,13 @@ object ZSink {
     new ZSink(ZChannel.write(c))
 
   def mkString[Err]: ZSink[Any, Err, Any, Err, Nothing, String] =
-    fromEffect(UIO(new StringBuilder()))
-      .flatMap(cb =>
-        foldLeftChunks[Err, Any, Unit](())((_, els: Chunk[Any]) => els.foreach(el => cb.append(el.toString))).map(_ =>
-          cb.result()
-        )
+    ZSink.effectSuspendTotal {
+      val builder = new StringBuilder()
+
+      foldLeftChunks[Err, Any, Unit](())((_, els: Chunk[Any]) => els.foreach(el => builder.append(el.toString))).map(
+        _ => builder.result()
       )
+    }
 
   def managed[R, InErr, In, OutErr >: InErr, A, L <: In, Z](resource: ZManaged[R, OutErr, A])(
     fn: A => ZSink[R, InErr, In, OutErr, L, Z]
@@ -1020,7 +1032,7 @@ object ZSink {
           val concat                    = acc ++ chopBOM(in)
           val (toConvert, newLeftovers) = concat.splitAt(computeSplit(concat))
 
-          if (toConvert.isEmpty) channel(newLeftovers)
+          if (toConvert.isEmpty) channel(newLeftovers.materialize)
           else if (newLeftovers.isEmpty) ZChannel.end(Some(new String(toConvert.toArray[Byte], "UTF-8")))
           else ZChannel.write(newLeftovers).as(Some(new String(toConvert.toArray[Byte], "UTF-8")))
         },
@@ -1035,7 +1047,7 @@ object ZSink {
               // String constructor behavior.
               ZChannel.end(Some(new String(newLeftovers.toArray[Byte], "UTF-8")))
             else if (newLeftovers.nonEmpty)
-              ZChannel.write(newLeftovers).as(Some(new String(toConvert.toArray[Byte], "UTF-8")))
+              ZChannel.write(newLeftovers.materialize).as(Some(new String(toConvert.toArray[Byte], "UTF-8")))
             else
               ZChannel.end(Some(new String(toConvert.toArray[Byte], "UTF-8")))
           }
