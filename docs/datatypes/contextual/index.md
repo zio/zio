@@ -221,3 +221,72 @@ val effect: ZIO[Has[Logging] with Has[Database], Throwable, Unit] = ZIO.effect(?
 ```scala mdoc:silent
 effect.provideLayer(myLayer) 
 ```
+
+## Defining ZIO Services
+ZIO has two patterns to write services. The first version of Module Pattern has some boilerplate, but the second version is very concise and straightforward. ZIO doesn't mandate any of them, you can use whichever you like.
+
+### Module Pattern 1.0
+
+Let's see how the `Console` service is defined and implemented in ZIO:
+
+1. **Wrapping Service Definition with Has** — At the first step, we create a package object of `console`, and inside that we define the `Console` module as a type alias for `Has[Console.Service]`.
+
+2. **Service Definition** — Then we create the `Console` companion object. Inside the companion object, we define the service definition with a trait named `Service`. Traits are how we define services. A service could be all the stuff that is related to one concept with singular responsibility.
+
+3. **Service Implementation** — After that, we implement our service by creating a new Service and then lifting that entire implementation into the `ZLayer` data type by using the `succeed` constructor.
+
+4. **Accessor Helper** — Finally, to create the API more ergonomic, it's better to write accessor methods for all of our service methods. 
+
+Accessor methods allow us to utilize all the features inside the service through the ZIO Environment. That means, if we call `putStrLn`, we don't need to pull out the `putStrLn` from the ZIO Environment. The `accessM` method helps us to access the environment of effect and reduce the redundant operation, every time.
+
+```scala mdoc:invisible
+import zio.{Has, UIO, Layer, ZLayer, ZIO, URIO}
+```
+
+```scala mdoc:silent
+object console {
+  type Console = Has[Console.Service]
+
+  // Companion object exists to hold service definition and also the live implementation.
+  object Console {
+    trait Service {
+      def putStr(line: String): UIO[Unit]
+
+      def putStrLn(line: String): UIO[Unit]
+    }
+
+    val live: Layer[Nothing, Console] = ZLayer.succeed {
+      new Service {
+        override def putStr(line: String): UIO[Unit] =
+          ZIO.effectTotal(print(line))
+
+        override def putStrLn(line: String): UIO[Unit] =
+          ZIO.effectTotal(println(line))
+      }
+    }
+  }
+
+  // Accessor Methods
+  def putStr(line: => String): URIO[Console, Unit] =
+    ZIO.accessM(_.get.putStr(line))
+
+  def putStrLn(line: => String): URIO[Console, Unit] =
+    ZIO.accessM(_.get.putStrLn(line))
+}
+```
+
+This is how ZIO services are created. Let's use the `Console` service in our application:
+
+```scala mdoc:silent
+object ConsoleExample extends zio.App {
+  import zio.RIO
+  import console._
+ 
+  private val application: RIO[Console, Unit] = putStrLn("Hello, World!") 
+
+  override def run(args: List[String]) = 
+    application.provideLayer(Console.live).exitCode
+}
+```
+
+During writing an application we don't care which implementation version of the `Console` service will be injected into our `application`, later at the end of the day, it will be provided by methods like `provideLayer`.
