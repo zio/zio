@@ -1,5 +1,5 @@
 ---
-id: stream
+id: subscription-ref
 title: "SubscriptionRef"
 ---
 
