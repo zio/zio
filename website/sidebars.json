@@ -75,7 +75,7 @@
       "datatypes/stream/index",
       "datatypes/stream/stream",
       "datatypes/stream/sink",
-      "datatypes/stream/subscriptionref"
+      "datatypes/stream/subscription-ref"
     ],
     "Miscellaneous": [
       "datatypes/misc/index",
