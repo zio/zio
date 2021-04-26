@@ -646,7 +646,7 @@ object TestAspect extends TimeoutVariants {
 
   /**
    * An aspect that restores the
-   * [[TestClock]]'s state to its starting
+   * [[zio.test.environment.TestClock TestClock]]'s state to its starting
    * state after the test is run. Note that this is only useful when repeating
    * tests.
    */
@@ -655,7 +655,7 @@ object TestAspect extends TimeoutVariants {
 
   /**
    * An aspect that restores the
-   * [[TestConsole]]'s state to its starting
+   * [[zio.test.environment.TestConsole TestConsole]]'s state to its starting
    * state after the test is run. Note that this is only useful when repeating
    * tests.
    */
@@ -664,7 +664,7 @@ object TestAspect extends TimeoutVariants {
 
   /**
    * An aspect that restores the
-   * [[TestRandom]]'s state to its starting
+   * [[zio.test.environment.TestRandom TestRandom]]'s state to its starting
    * state after the test is run. Note that this is only useful when repeating
    * tests.
    */
@@ -673,7 +673,7 @@ object TestAspect extends TimeoutVariants {
 
   /**
    * An aspect that restores the
-   * [[TestSystem]]'s state to its starting
+   * [[zio.test.environment.TestSystem TestSystem]]'s state to its starting
    * state after the test is run. Note that this is only useful when repeating
    * tests.
    */
@@ -682,10 +682,10 @@ object TestAspect extends TimeoutVariants {
 
   /**
    * An aspect that restores all state in the standard provided test
-   * environments ([[TestClock]],
-   * [[TestConsole]],
-   * [[TestRandom]], and
-   * [[TestSystem]]) to their starting state
+   * environments ([[zio.test.environment.TestClock TestClock]],
+   * [[zio.test.environment.TestConsole TestConsole]],
+   * [[zio.test.environment.TestRandom TestRandom]], and
+   * [[zio.test.environment.TestSystem TestSystem]]) to their starting state
    * after the test is run. Note that this is only useful when repeating tests.
    */
   def restoreTestEnvironment: TestAspectAtLeastR[ZTestEnv] =

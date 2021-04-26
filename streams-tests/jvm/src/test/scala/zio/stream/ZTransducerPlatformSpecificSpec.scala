@@ -1,8 +1,8 @@
 package zio.stream
 
+import zio._
 import zio.test.Assertion._
 import zio.test._
-import zio._
 
 import java.io.{IOException, InputStream}
 import java.nio.charset.Charset

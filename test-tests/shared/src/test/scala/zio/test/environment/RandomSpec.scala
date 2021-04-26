@@ -1,10 +1,10 @@
 package zio.test.environment
 
+import zio._
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test._
 import zio.test.environment.TestRandom.{DefaultData, Test => ZRandom}
-import zio._
 
 import scala.util.{Random => SRandom}
 

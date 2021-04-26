@@ -59,13 +59,13 @@ object Console extends Serializable {
 
   object ConsoleLive extends Console {
 
-    def print(line: String): UIO[Unit] = putStr(SConsole.out)(line)
+    def print(line: String): UIO[Unit] = print(SConsole.out)(line)
 
-    def printError(line: String): UIO[Unit] = putStr(SConsole.err)(line)
+    def printError(line: String): UIO[Unit] = print(SConsole.err)(line)
 
-    def printLine(line: String): UIO[Unit] = putStrLn(SConsole.out)(line)
+    def printLine(line: String): UIO[Unit] = printLine(SConsole.out)(line)
 
-    def printLineError(line: String): UIO[Unit] = putStrLn(SConsole.err)(line)
+    def printLineError(line: String): UIO[Unit] = printLine(SConsole.err)(line)
 
     def readLine: IO[IOException, String] =
       IO.effect {
@@ -75,10 +75,10 @@ object Console extends Serializable {
         else throw new EOFException("There is no more input left to read")
       }.refineToOrDie[IOException]
 
-    private def putStr(stream: PrintStream)(line: String): UIO[Unit] =
+    private def print(stream: PrintStream)(line: String): UIO[Unit] =
       IO.effectTotal(SConsole.withOut(stream)(SConsole.print(line)))
 
-    private def putStrLn(stream: PrintStream)(line: String): UIO[Unit] =
+    private def printLine(stream: PrintStream)(line: String): UIO[Unit] =
       IO.effectTotal(SConsole.withOut(stream)(SConsole.println(line)))
   }
 

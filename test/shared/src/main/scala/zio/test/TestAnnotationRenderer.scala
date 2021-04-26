@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.DurationOps
+import zio.duration2DurationOps
 import zio.test.TestAnnotationRenderer._
 
 /**

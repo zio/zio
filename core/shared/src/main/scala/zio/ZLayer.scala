@@ -354,7 +354,6 @@ object ZLayer {
   /**
    * A layer that passes along the first element of a tuple.
    */
-  @deprecated("use `ZLayer.fromFunctionMany(_._1)` instead", "zio 2.0.0")
   def first[A]: ZLayer[(A, Any), Nothing, A] =
     ZLayer.fromFunctionMany(_._1)
 
@@ -365,7 +364,6 @@ object ZLayer {
    * Constructs a layer from acquire and release actions. The acquire and
    * release actions will be performed uninterruptibly.
    */
-  @deprecated("use `ZLayer.apply` instead, passing in a ZManaged", "zio 2.0.0")
   def fromAcquireRelease[R, E, A: Tag](acquire: ZIO[R, E, A])(release: A => URIO[R, Any]): ZLayer[R, E, Has[A]] =
     fromManaged(ZManaged.make(acquire)(release))
 
@@ -374,7 +372,6 @@ object ZLayer {
    * or more services. The acquire and release actions will be performed
    * uninterruptibly.
    */
-  @deprecated("use `ZLayer.many` instead, passing in a ZManaged", "zio 2.0.0")
   def fromAcquireReleaseMany[R, E, A](acquire: ZIO[R, E, A])(release: A => URIO[R, Any]): ZLayer[R, E, A] =
     fromManagedMany(ZManaged.make(acquire)(release))
 

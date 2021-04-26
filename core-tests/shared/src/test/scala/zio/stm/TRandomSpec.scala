@@ -1,7 +1,8 @@
-package zio.stm.random
+package zio.stm
 
-import zio.test.Assertion._
-import zio.test._
+import zio.stm.TRandom._
+import zio.test.Assertion.{isGreaterThanEqualTo, isLessThan}
+import zio.test.{Gen, ZSpec, assert, checkM}
 import zio.{Has, Random, ZIOBaseSpec}
 
 object TRandomSpec extends ZIOBaseSpec {
