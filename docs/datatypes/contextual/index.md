@@ -77,6 +77,8 @@ ZIO environment facility enables us to:
 
 ## Defining Services in OOP
 
+Before diving into writing services in ZIO style, let's review how we define them in object-oriented fashion:
+
 1. **Defining a Service** — In object-oriented programming, we define services with traits. A service is a bundle of related functionality which are defined in a trait:
 
 ```scala mdoc:silent:nest
