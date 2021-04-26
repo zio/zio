@@ -1978,14 +1978,14 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Constructs a layer from this effect.
    */
   final def toLayer[A1 >: A](implicit ev: Tag[A1]): ZLayer[R, E, Has[A1]] =
-    ZLayer.apply(self)
+    ZLayer.fromEffect(self)
 
   /**
    * Constructs a layer from this effect, which must return one or more
    * services.
    */
   final def toLayerMany[A1](implicit ev: A <:< A1): ZLayer[R, E, A1] =
-    ZLayer.many(ZManaged.fromEffect(self.map(ev)))
+    ZLayer(ZManaged.fromEffect(self.map(ev)))
 
   /**
    * Converts this ZIO to [[zio.Managed]]. This ZIO and the provided release action

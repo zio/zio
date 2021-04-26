@@ -10,7 +10,7 @@ trait Sized extends Serializable {
 object Sized {
 
   def live(size: Int): Layer[Nothing, Has[Sized]] =
-    ZLayer.apply(FiberRef.make(size).map { fiberRef =>
+    ZLayer.fromEffect(FiberRef.make(size).map { fiberRef =>
       new Sized {
         val size: UIO[Int] =
           fiberRef.get

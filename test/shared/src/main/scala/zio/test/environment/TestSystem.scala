@@ -155,9 +155,7 @@ object TestSystem extends Serializable {
    * requires a `Console`, such as with `ZIO#provide`.
    */
   def live(data: Data): Layer[Nothing, Has[System] with Has[TestSystem]] =
-    ZLayer.many(
-      Ref.make(data).map(ref => Has.allOf[System, TestSystem](Test(ref), Test(ref)))
-    )
+    Ref.make(data).map(ref => Has.allOf[System, TestSystem](Test(ref), Test(ref))).toLayerMany
 
   val any: ZLayer[Has[System] with Has[TestSystem], Nothing, Has[System] with Has[TestSystem]] =
     ZLayer.requires[Has[System] with Has[TestSystem]]

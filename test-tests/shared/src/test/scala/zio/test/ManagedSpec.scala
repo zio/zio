@@ -15,13 +15,15 @@ object ManagedSpec extends ZIOBaseSpec {
     }
 
     val live: Layer[Nothing, Counter] =
-      ZLayer.apply {
-        Ref.make(1).toManaged(_.set(-10)).map { ref =>
+      Ref
+        .make(1)
+        .toManaged(_.set(-10))
+        .map { ref =>
           new Counter.Service {
             val incrementAndGet: UIO[Int] = ref.updateAndGet(_ + 1)
           }
         }
-      }
+        .toLayer
 
     val incrementAndGet: URIO[Counter, Int] =
       ZIO.accessM[Counter](_.get[Counter.Service].incrementAndGet)

@@ -662,12 +662,13 @@ object TestRandom extends Serializable {
    * be useful for providing the required environment to an effect that
    * requires a `Random`, such as with `ZIO#provide`.
    */
-  def make(data: Data): Layer[Nothing, Has[Random] with Has[TestRandom]] =
-    ZLayer.many(for {
+  def make(data: Data): Layer[Nothing, Has[Random] with Has[TestRandom]] = {
+    for {
       data   <- Ref.make(data)
       buffer <- Ref.make(Buffer())
       test    = Test(data, buffer)
-    } yield Has.allOf[Random, TestRandom](test, test))
+    } yield Has.allOf[Random, TestRandom](test, test)
+  }.toLayerMany
 
   val any: ZLayer[Has[Random] with Has[TestRandom], Nothing, Has[Random] with Has[TestRandom]] =
     ZLayer.requires[Has[Random] with Has[TestRandom]]
@@ -676,15 +677,14 @@ object TestRandom extends Serializable {
     make(DefaultData)
 
   val random: ZLayer[Has[Clock], Nothing, Has[Random] with Has[TestRandom]] =
-    (ZLayer.service[Clock] ++ deterministic) >>>
-      ZLayer.many {
-        for {
-          random     <- ZIO.service[Random]
-          testRandom <- ZIO.service[TestRandom]
-          time       <- Clock.nanoTime
-          _          <- TestRandom.setSeed(time)
-        } yield Has.allOf[Random, TestRandom](random, testRandom)
-      }
+    (ZLayer.service[Clock] ++ deterministic) >>> {
+      for {
+        random     <- ZIO.service[Random]
+        testRandom <- ZIO.service[TestRandom]
+        time       <- Clock.nanoTime
+        _          <- TestRandom.setSeed(time)
+      } yield Has.allOf[Random, TestRandom](random, testRandom)
+    }.toLayerMany
 
   /**
    * Constructs a new `Test` object that implements the `TestRandom` interface.

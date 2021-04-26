@@ -36,15 +36,14 @@ object Live {
    * environment type.
    */
   def default: ZLayer[ZEnv, Nothing, Has[Live]] =
-    ZLayer {
-      ZManaged
-        .access[ZEnv] { zenv =>
-          new Live {
-            def provide[E, A](zio: ZIO[ZEnv, E, A]): IO[E, A] =
-              zio.provide(zenv)
-          }
+    ZManaged
+      .access[ZEnv] { zenv =>
+        new Live {
+          def provide[E, A](zio: ZIO[ZEnv, E, A]): IO[E, A] =
+            zio.provide(zenv)
         }
-    }
+      }
+      .toLayer
 
   /**
    * Provides an effect with the "live" environment.

@@ -1,5 +1,3 @@
-import scala.language.implicitConversions
-
 /*
  * Copyright 2017-2021 John A. De Goes and the ZIO Contributors
  *

@@ -335,16 +335,15 @@ object TestClock extends Serializable {
    * interface. This can be useful for mixing in with implementations of
    * other interfaces.
    */
-  def live(data: Data): ZLayer[Has[Annotations] with Has[Live], Nothing, Has[Clock] with Has[TestClock]] =
-    ZLayer.many {
-      for {
-        live        <- ZManaged.service[Live]
-        annotations <- ZManaged.service[Annotations]
-        ref         <- Ref.make(data).toManaged_
-        refM        <- RefM.make(WarningData.start).toManaged_
-        test        <- Managed.make(UIO(Test(ref, live, annotations, refM)))(_.warningDone)
-      } yield Has.allOf(test: Clock, test: TestClock)
-    }
+  def live(data: Data): ZLayer[Has[Annotations] with Has[Live], Nothing, Has[Clock] with Has[TestClock]] = {
+    for {
+      live        <- ZManaged.service[Live]
+      annotations <- ZManaged.service[Annotations]
+      ref         <- Ref.make(data).toManaged_
+      refM        <- RefM.make(WarningData.start).toManaged_
+      test        <- Managed.make(UIO(Test(ref, live, annotations, refM)))(_.warningDone)
+    } yield Has.allOf(test: Clock, test: TestClock)
+  }.toLayerMany
 
   //    case class FooLive(int: Int, string: String)
 

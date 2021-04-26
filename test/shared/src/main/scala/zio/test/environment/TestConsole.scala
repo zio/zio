@@ -192,15 +192,14 @@ object TestConsole extends Serializable {
    * interface. This can be useful for mixing in with implementations of other
    * interfaces.
    */
-  def make(data: Data, debug: Boolean = true): ZLayer[Has[Live], Nothing, Has[Console] with Has[TestConsole]] =
-    ZLayer.many {
-      for {
-        live     <- ZIO.service[Live]
-        ref      <- Ref.make(data)
-        debugRef <- FiberRef.make(debug)
-        test      = Test(ref, live, debugRef)
-      } yield Has.allOf[Console, TestConsole](test, test)
-    }
+  def make(data: Data, debug: Boolean = true): ZLayer[Has[Live], Nothing, Has[Console] with Has[TestConsole]] = {
+    for {
+      live     <- ZIO.service[Live]
+      ref      <- Ref.make(data)
+      debugRef <- FiberRef.make(debug)
+      test      = Test(ref, live, debugRef)
+    } yield Has.allOf[Console, TestConsole](test, test)
+  }.toLayerMany
 
   val any: ZLayer[Has[Console] with Has[TestConsole], Nothing, Has[Console] with Has[TestConsole]] =
     ZLayer.requires[Has[Console] with Has[TestConsole]]
