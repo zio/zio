@@ -237,77 +237,110 @@ We have a similar analogy in Module Pattern, except instead of using _constructo
 
 ### Module Pattern 1.0
 
-Let's see how the `Console` service is defined and implemented in ZIO:
+Let's start learning this pattern by writing a `Logging` service:
 
-1. **Wrapping Service Definition with Has** — At the first step, we create a package object of `console`, and inside that we define the `Console` module as a type alias for `Has[Console.Service]`.
+1. **Wrapping Service Definition with Has** — At the first step, we create a package object of `logging`, and inside that we define the `Logging` module as a type alias for `Has[Logging.Service]`.
 
-2. **Service Definition** — Then we create the `Console` companion object. Inside the companion object, we define the service definition with a trait named `Service`. Traits are how we define services. A service could be all the stuff that is related to one concept with singular responsibility.
+2. **Service Definition** — Then we create the `Logging` companion object. Inside the companion object, we define the service definition with a trait named `Service`. Traits are how we define services. A service could be all the stuff that is related to one concept with singular responsibility.
 
-3. **Service Implementation** — After that, we implement our service by creating a new Service and then lifting that entire implementation into the `ZLayer` data type by using the `succeed` constructor.
+3. **Service Implementation** — After that, we implement our service by creating a new Service and then lifting that entire implementation into the `ZLayer` data type by using the `ZIO.succeed` constructor.
 
 4. **Defining Dependencies** — If our service has a dependency on other services, we should use constructors like `ZLayer.fromService` and `ZLayer.fromServices`.
 
 5. **Accessor Methods** — Finally, to create the API more ergonomic, it's better to write accessor methods for all of our service methods. 
 
-Accessor methods allow us to utilize all the features inside the service through the ZIO Environment. That means, if we call `putStrLn`, we don't need to pull out the `putStrLn` from the ZIO Environment. The `accessM` method helps us to access the environment of effect and reduce the redundant operation, every time.
+Accessor methods allow us to utilize all the features inside the service through the ZIO Environment. That means, if we call `log`, we don't need to pull out the `log` function from the ZIO Environment. The `accessM` method helps us to access the environment of effect and reduce the redundant operation, every time.
+
+```scala mdoc:invisible:reset
+import zio._
+import zio.console._
+```
 
 ```scala mdoc:invisible
 import zio.{Has, UIO, Layer, ZLayer, ZIO, URIO}
 ```
 
-```scala mdoc:silent
-object console {
-  type Console = Has[Console.Service]
+```scala mdoc:silent:nest
+object logging {
+  type Logging = Has[Logging.Service]
 
   // Companion object exists to hold service definition and also the live implementation.
-  object Console {
+  object Logging {
     trait Service {
-      def putStr(line: String): UIO[Unit]
-
-      def putStrLn(line: String): UIO[Unit]
+      def log(line: String): UIO[Unit]
     }
 
-    val live: Layer[Nothing, Console] = ZLayer.succeed {
+    val live: ULayer[Logging] = ZLayer.succeed {
       new Service {
-        override def putStr(line: String): UIO[Unit] =
-          ZIO.effectTotal(print(line))
-
-        override def putStrLn(line: String): UIO[Unit] =
+        override def log(line: String): UIO[Unit] =
           ZIO.effectTotal(println(line))
       }
     }
   }
 
   // Accessor Methods
-  def putStr(line: => String): URIO[Console, Unit] =
-    ZIO.accessM(_.get.putStr(line))
-
-  def putStrLn(line: => String): URIO[Console, Unit] =
-    ZIO.accessM(_.get.putStrLn(line))
+  def log(line: => String): URIO[Logging, Unit] =
+    ZIO.accessM(_.get.log(line))
 }
 ```
 
-This is how ZIO services are created. Let's use the `Console` service in our application:
+We might need `Console` and `Clock` services to implement the `Logging` service. In this case, we use `ZLayer.fromServices` constructor:
 
-```scala mdoc:silent
-object ConsoleExample extends zio.App {
+```scala mdoc:invisible
+import zio.clock.Clock
+```
+
+```scala mdoc:silent:nest
+object logging {
+  type Logging = Has[Logging.Service]
+
+  // Companion object exists to hold service definition and also the live implementation.
+  object Logging {
+    trait Service {
+      def log(line: String): UIO[Unit]
+    }
+
+    val live: URLayer[Clock with Console, Logging] =
+      ZLayer.fromServices[Clock.Service, Console.Service, Logging.Service] {
+        (clock: Clock.Service, console: Console.Service) =>
+          new Service {
+            override def log(line: String): UIO[Unit] =
+              for {
+                current <- clock.currentDateTime.orDie
+                _ <- console.putStrLn(current.toString + "--" + line)
+              } yield ()
+          }
+      }
+  }
+
+  // Accessor Methods
+  def log(line: => String): URIO[Logging, Unit] =
+    ZIO.accessM(_.get.log(line))
+}
+```
+
+
+This is how ZIO services are created. Let's use the `Logging` service in our application:
+
+```scala mdoc:silent:nest
+object LoggingExample extends zio.App {
   import zio.RIO
-  import console._
+  import logging._
  
-  private val application: RIO[Console, Unit] = putStrLn("Hello, World!") 
+  private val app: RIO[Logging, Unit] = log("Hello, World!") 
 
   override def run(args: List[String]) = 
-    application.provideLayer(Console.live).exitCode
+    app.provideLayer(Logging.live).exitCode
 }
 ```
 
-During writing an application we don't care which implementation version of the `Console` service will be injected into our `application`, later at the end of the day, it will be provided by methods like `provideLayer`.
+During writing an application we don't care which implementation version of the `Logging` service will be injected into our `app`, later at the end of the day, it will be provided by methods like `provideLayer`.
 
 ### Module Pattern 2.0
 
-Writing services with Module Pattern 2.0 is much easier than the previous one. It removes some level of indirection from the previous version, and much more similar to the object-oriented approach in writing services.
+Writing services with _Module Pattern 2.0_ is much easier than the previous one. It removes some level of indirection from the previous version, and much more similar to the object-oriented approach in writing services.
 
-Module Pattern 2.0 has more similarity with object-oriented way of defining services. We use classes to implement services, and we use constructors to define service dependencies. But at the end of the day, we lift class constructor into the ZLayer.
+_Module Pattern 2.0_ has more similarity with object-oriented way of defining services. We use classes to implement services, and we use constructors to define service dependencies; At the end of the day, we lift class constructor into the `ZLayer`.
 
 1. **Service Definition** — Defining service in this version has changed slightly compared to the previous version. We would take the service definition and pull it out into the top-level:
 
