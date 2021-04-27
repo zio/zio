@@ -75,54 +75,6 @@ ZIO environment facility enables us to:
 
 2. **Write a Testable Code** — By coding to an interface, whenever we want to test our effects, we can easily mock any external services, by providing a _test_ version of those instead of the `live` version.
 
-## Defining Services in OOP
-
-Before diving into writing services in ZIO style, let's review how we define them in object-oriented fashion:
-
-1. **Service Definition** — In object-oriented programming, we define services with traits. A service is a bundle of related functionality which are defined in a trait:
-
-```scala mdoc:silent:nest
-trait FooService {
-
-}
-```
-
-2. **Service Implementation** — We implement these services by using classes:
-
-```scala mdoc:silent:nest
-class FooServiceImpl extends FooService {
-    
-}
-```
-
-3. **Defining Dependencies** — If the creation of a service depends on other services, we can define these dependencies by using constructors:
-
-```scala mdoc:silent:nest
-trait ServiceA {
-
-}
-
-trait ServiceB {
-
-}
-
-class FooServiceImpl(a: ServiceA, b: ServiceB) {
-
-}
-```
-
-In object-oriented programming, the best practice is to _program to an interface, not an implementation_. So in the previous example, `ServiceA` and `ServiceB` are interfaces, not concrete classes. 
-
-4. **Injecting Dependencies** — Now, the client of `FooServiceImpl` service can provide its own implementation of `ServiceA` and `ServiceB`, and inject them to the `FooServiceImpl` constructor:
-
-```scala mdoc:silent:nest
-class ServiceAImpl extends ServiceA
-class ServiceBImpl extends ServiceB
-val fooService = new FooServiceImpl(new ServiceAImpl, new ServiceBImpl)
-```
-
-Sometimes, as the number of dependent services grows and the dependency graph of our application becomes complicated, we need an automatic way of wiring and providing dependencies into the services of our application. In these situations, we might use a dependency injection framework to do all its magic machinery for us.
-
 ## Contextual Data Types
 
 Defining service in ZIO is not very different from object-oriented style, it has the same principle; coding to an interface, not an implementation. But the way ZIO encourages us to implement this principle differs somewhat from the object-oriented style. 
@@ -224,7 +176,55 @@ val effect: ZIO[Has[Logging] with Has[Database], Throwable, Unit] = ZIO.effect(?
 effect.provideLayer(myLayer) 
 ```
 
-## Defining ZIO Services
+## Defining Services in OOP
+
+Before diving into writing services in ZIO style, let's review how we define them in object-oriented fashion:
+
+1. **Service Definition** — In object-oriented programming, we define services with traits. A service is a bundle of related functionality which are defined in a trait:
+
+```scala mdoc:silent:nest
+trait FooService {
+
+}
+```
+
+2. **Service Implementation** — We implement these services by using classes:
+
+```scala mdoc:silent:nest
+class FooServiceImpl extends FooService {
+    
+}
+```
+
+3. **Defining Dependencies** — If the creation of a service depends on other services, we can define these dependencies by using constructors:
+
+```scala mdoc:silent:nest
+trait ServiceA {
+
+}
+
+trait ServiceB {
+
+}
+
+class FooServiceImpl(a: ServiceA, b: ServiceB) {
+
+}
+```
+
+In object-oriented programming, the best practice is to _program to an interface, not an implementation_. So in the previous example, `ServiceA` and `ServiceB` are interfaces, not concrete classes. 
+
+4. **Injecting Dependencies** — Now, the client of `FooServiceImpl` service can provide its own implementation of `ServiceA` and `ServiceB`, and inject them to the `FooServiceImpl` constructor:
+
+```scala mdoc:silent:nest
+class ServiceAImpl extends ServiceA
+class ServiceBImpl extends ServiceB
+val fooService = new FooServiceImpl(new ServiceAImpl, new ServiceBImpl)
+```
+
+Sometimes, as the number of dependent services grows and the dependency graph of our application becomes complicated, we need an automatic way of wiring and providing dependencies into the services of our application. In these situations, we might use a dependency injection framework to do all its magic machinery for us.
+
+## Defining Services in ZIO
 ZIO has two patterns to write services. The first version of Module Pattern has some boilerplate, but the second version is very concise and straightforward. ZIO doesn't mandate any of them, you can use whichever you like.
 
 In object-oriented programming:
