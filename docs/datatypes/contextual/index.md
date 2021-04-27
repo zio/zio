@@ -339,18 +339,12 @@ import zio._
 trait Logging {
   def log(line: String): UIO[Unit]
 }
-
-trait Clock {
-  def currentDateTime: IO[DateTimeException, OffsetDateTime]
-}
-
-trait Console {
-  def putStrLn(line: String): UIO[Unit] 
-}
 ```
 
 ```scala mdoc:silent
-case class LoggingLive(console: Console, clock: Clock) extends Logging {
+import zio.console.Console
+import zio.clock.Clock
+case class LoggingLive(console: Console.Service, clock: Clock.Service) extends Logging {
   override def log(line: String): UIO[Unit] = 
     for {
       current <- clock.currentDateTime.orDie
@@ -363,8 +357,7 @@ case class LoggingLive(console: Console, clock: Clock) extends Logging {
 
 ```scala mdoc
 object LoggingLive {
-  val live: URLayer[Has[Console] with Has[Clock], Has[LoggingLive]] = 
-    (LoggingLive(_, _)).toLayer
+  val layer = (LoggingLive(_, _)).toLayer
 }
 ```
 
@@ -377,3 +370,13 @@ object Logging {
 ```
 
 That's it! Very simple! ZIO encourages us to follow some of the best practices in object-oriented programming. So it doesn't require us to throw away all our object-oriented knowledge. 
+
+Finally, we provide required layers to our `app` effect:
+
+```scala
+ val app = Logging.log("Application Started")
+
+ zio.Runtime.default.unsafeRun(
+   app.provideLayer(LoggingLive.layer)
+ )
+```
