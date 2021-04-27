@@ -79,7 +79,7 @@ ZIO environment facility enables us to:
 
 Before diving into writing services in ZIO style, let's review how we define them in object-oriented fashion:
 
-1. **Defining a Service** — In object-oriented programming, we define services with traits. A service is a bundle of related functionality which are defined in a trait:
+1. **Service Definition** — In object-oriented programming, we define services with traits. A service is a bundle of related functionality which are defined in a trait:
 
 ```scala mdoc:silent:nest
 trait FooService {
@@ -87,7 +87,7 @@ trait FooService {
 }
 ```
 
-2. **Implementation** — We implement these services by using classes:
+2. **Service Implementation** — We implement these services by using classes:
 
 ```scala mdoc:silent:nest
 class FooServiceImpl extends FooService {
@@ -136,9 +136,9 @@ Let's review each of them.
 
 ### ZLayer
 
-A `ZLayer[RIn, E, ROut]` data type describes how to construct `ROut` services by using `RIn` services. 
+A `ZLayer[-RIn, +E, +ROut]` data type describes how to construct `ROut` services by using `RIn` services. 
 
-We can think of `ZLayer` as a more powerful version of a constructor, it is an alternative way to represent a constructor. Like a constructor, it allows us to build the `ROut` service in terms of its dependencies (`RInt`).
+We can think of `ZLayer` as a more powerful version of a constructor, it is an alternative way to represent a constructor. Like a constructor, it allows us to build the `ROut` service in terms of its dependencies (`RIn`).
 
 For example, a `ZLayer[Blocking with Logging, Throwable, Database]` can be thought of as a function that map `Blocking` and `Logging` services into `Database` service: 
 
@@ -227,6 +227,14 @@ effect.provideLayer(myLayer)
 ## Defining ZIO Services
 ZIO has two patterns to write services. The first version of Module Pattern has some boilerplate, but the second version is very concise and straightforward. ZIO doesn't mandate any of them, you can use whichever you like.
 
+In object-oriented programming:
+
+- **Service Definition** is done by using _interfaces_ (Scala trait or Java Interface).
+- **Service Implementation** is done by implementing interfaces using _classes_ or creating _new object_ of the interface.
+- **Defining Dependencies** is done by using _constructors_. They allow us to build classes, give their dependencies. This is called constructor-based dependency injection.
+
+We have a similar analogy in Module Pattern, except instead of using _constructors_ we use **`ZLayer`** to define dependencies. So in ZIO fashion, we can think of `ZLayer` as a service constructor.
+
 ### Module Pattern 1.0
 
 Let's see how the `Console` service is defined and implemented in ZIO:
@@ -237,7 +245,9 @@ Let's see how the `Console` service is defined and implemented in ZIO:
 
 3. **Service Implementation** — After that, we implement our service by creating a new Service and then lifting that entire implementation into the `ZLayer` data type by using the `succeed` constructor.
 
-4. **Accessor Helper** — Finally, to create the API more ergonomic, it's better to write accessor methods for all of our service methods. 
+4. **Defining Dependencies** — If our service has a dependency on other services, we should use constructors like `ZLayer.fromService` and `ZLayer.fromServices`.
+
+5. **Accessor Helper** — Finally, to create the API more ergonomic, it's better to write accessor methods for all of our service methods. 
 
 Accessor methods allow us to utilize all the features inside the service through the ZIO Environment. That means, if we call `putStrLn`, we don't need to pull out the `putStrLn` from the ZIO Environment. The `accessM` method helps us to access the environment of effect and reduce the redundant operation, every time.
 
@@ -296,6 +306,8 @@ During writing an application we don't care which implementation version of the 
 ### Module Pattern 2.0
 
 Writing services with Module Pattern 2.0 is much easier than the previous one. It removes some level of indirection from the previous version, and much more similar to the object-oriented approach in writing services.
+
+Module Pattern 2.0 has more similarity with object-oriented way of defining services. We use classes to implement services, and we use constructors to define service dependencies. But at the end of the day, we lift class constructor into the ZLayer.
 
 1. **Service Definition** — Defining service in this version has changed slightly compared to the previous version. We would take the service definition and pull it out into the top-level:
 
