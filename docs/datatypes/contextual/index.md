@@ -292,3 +292,68 @@ object ConsoleExample extends zio.App {
 ```
 
 During writing an application we don't care which implementation version of the `Console` service will be injected into our `application`, later at the end of the day, it will be provided by methods like `provideLayer`.
+
+### Module Pattern 2.0
+
+Writing services with Module Pattern 2.0 is much easier than the previous one. It removes some level of indirection from the previous version, and much more similar to the object-oriented approach in writing services.
+
+1. **Service Definition** — Defining service in this version has changed slightly compared to the previous version. We would take the service definition and pull it out into the top-level:
+
+```scala mdoc:invisible:reset
+import zio._
+```
+
+```scala mdoc:silent
+trait Logging {
+  def log(line: String): UIO[Unit]
+}
+```
+
+2. **Service Implementation** — It is the same as what we did in object-oriented fashion. We implement the service with Scala class. By convention, we name the live version of its implementation as `LoggingLive`:
+
+```scala mdoc:silent:nest
+case class LoggingLive() extends Logging {
+  override def log(line: String): UIO[Unit] = 
+    ZIO.effectTotal(print(line))
+}
+```
+
+3. **Define Service Dependencies** — We might need `Console` and `Clock` services to implement the `Logging` service. In this case, we put its dependencies into its constructor. All the dependencies are just interfaces, not implementation. Just like what we did in object-oriented style:
+
+```scala mdoc:invisible:reset
+import java.time._
+import zio._
+
+trait Logging {
+  def log(line: String): UIO[Unit]
+}
+
+trait Clock {
+  def currentDateTime: IO[DateTimeException, OffsetDateTime]
+}
+
+trait Console {
+  def putStrLn(line: String): UIO[Unit] 
+}
+```
+
+```scala mdoc:silent
+case class LoggingLive(console: Console, clock: Clock) extends Logging {
+  override def log(line: String): UIO[Unit] = 
+    for {
+      current <- clock.currentDateTime.orDie
+      _       <- console.putStrLn(current.toString + "--" + line)
+    } yield ()
+}
+```
+
+4. **Defining ZLayer** — Now, we create a companion object for `LoggingLive` data type and lift the service implementation into the `ZLayer`:
+
+```scala mdoc
+object LoggingLive {
+  val live: URLayer[Has[Console] with Has[Clock], Has[LoggingLive]] = 
+    (LoggingLive(_, _)).toLayer
+}
+```
+
+That's it! Very simple! ZIO encourages us to follow some of the best practices in object-oriented programming. So it doesn't require us to throw away all our object-oriented knowledge. 
