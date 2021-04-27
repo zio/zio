@@ -247,7 +247,7 @@ Let's see how the `Console` service is defined and implemented in ZIO:
 
 4. **Defining Dependencies** — If our service has a dependency on other services, we should use constructors like `ZLayer.fromService` and `ZLayer.fromServices`.
 
-5. **Accessor Helper** — Finally, to create the API more ergonomic, it's better to write accessor methods for all of our service methods. 
+5. **Accessor Methods** — Finally, to create the API more ergonomic, it's better to write accessor methods for all of our service methods. 
 
 Accessor methods allow us to utilize all the features inside the service through the ZIO Environment. That means, if we call `putStrLn`, we don't need to pull out the `putStrLn` from the ZIO Environment. The `accessM` method helps us to access the environment of effect and reduce the redundant operation, every time.
 
@@ -365,6 +365,14 @@ case class LoggingLive(console: Console, clock: Clock) extends Logging {
 object LoggingLive {
   val live: URLayer[Has[Console] with Has[Clock], Has[LoggingLive]] = 
     (LoggingLive(_, _)).toLayer
+}
+```
+
+5. **Accessor Methods** — Finally, to create the API more ergonomic, it's better to write accessor methods for all of our service methods. Just like what we did in Module Pattern 1.0, but with a slight change, in this case, instead of using `ZIO.accessM` we use `ZIO.serviceWith` method to define accessors inside the service companion object:
+
+```scala mdoc:silent
+object Logging {
+  def log(line: String): URIO[Has[Logging], Unit] = ZIO.serviceWith[Logging](_.log(line))
 }
 ```
 
