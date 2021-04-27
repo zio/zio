@@ -131,6 +131,22 @@ object ZIOSpec extends ZIOBaseSpec {
           cause <- exit.foldM(cause => ZIO.succeed(cause), _ => ZIO.fail("effect should have failed"))
         } yield assert(cause.failures)(equalTo(List("use failed"))) &&
           assert(cause.defects)(equalTo(List(releaseDied)))
+      } @@ zioTag(errors),
+      testM("bracketExit beast mode error handling") {
+        val releaseDied: Throwable = new RuntimeException("release died")
+        for {
+          released <- ZRef.make(false)
+          exit <- ZIO
+                    .bracketExit[Any, String, Int, Int](
+                      ZIO.succeed(42),
+                      (_, _) => released.set(true),
+                      _ => throw releaseDied
+                    )
+                    .disconnect
+                    .run
+          cause      <- exit.foldM(cause => ZIO.succeed(cause), _ => ZIO.fail("effect should have failed"))
+          isReleased <- released.get
+        } yield assert(cause.defects)(equalTo(List(releaseDied))) && assert(isReleased)(isTrue)
       } @@ zioTag(errors)
     ),
     suite("cached")(

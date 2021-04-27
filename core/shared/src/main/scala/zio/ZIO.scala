@@ -2331,12 +2331,17 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   ): ZIO[R, E, B] =
     ZIO.uninterruptibleMask[R, E, B](restore =>
       acquire.flatMap(ZIOFn(traceAs = use) { a =>
-        restore(use(a)).run.flatMap(ZIOFn(traceAs = release) { e =>
-          release(a, e).foldCauseM(
-            cause2 => ZIO.halt(e.fold(_ ++ cause2, _ => cause2)),
-            _ => ZIO.done(e)
-          )
-        })
+        ZIO
+          .effectSuspendTotal(restore(use(a)))
+          .run
+          .flatMap(ZIOFn(traceAs = release) { e =>
+            ZIO
+              .effectSuspendTotal(release(a, e))
+              .foldCauseM(
+                cause2 => ZIO.halt(e.fold(_ ++ cause2, _ => cause2)),
+                _ => ZIO.done(e)
+              )
+          })
       })
     )
 
