@@ -80,6 +80,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Evo](https://evo.company)
 * [Flipp](https://flipp.com/)
 * [Fugo.ai](https://www.fugo.ai)
+* [Glean](https://www.gleancompany.com)
 * [GrandParade](https://grandparade.co.uk)
 * [greyflower.media GmbH](https://greyflower.media)
 * [Hunters.AI](https://hunters.ai)
