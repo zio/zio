@@ -514,7 +514,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
   final def none[B](implicit ev: A IsSubtypeOfOutput Option[B]): ZManaged[R, Option[E], Unit] =
     self.foldM(
       e => ZManaged.fail(Some(e)),
-      a => a.fold[ZManaged[R, Option[E], Unit]](ZManaged.succeedNow(()))(_ => ZManaged.fail(None))
+      a => ev(a).fold[ZManaged[R, Option[E], Unit]](ZManaged.succeedNow(()))(_ => ZManaged.fail(None))
     )
 
   /**
@@ -585,7 +585,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
    */
   final def optional[E1](implicit ev: E IsSubtypeOfError Option[E1]): ZManaged[R, E1, Option[A]] =
     self.foldM(
-      e => e.fold[ZManaged[R, E1, Option[A]]](ZManaged.succeedNow(Option.empty[A]))(ZManaged.fail(_)),
+      e => ev(e).fold[ZManaged[R, E1, Option[A]]](ZManaged.succeedNow(Option.empty[A]))(ZManaged.fail(_)),
       a => ZManaged.succeedNow(Some(a))
     )
 
@@ -862,14 +862,14 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
   final def some[B](implicit ev: A IsSubtypeOfOutput Option[B]): ZManaged[R, Option[E], B] =
     self.foldM(
       e => ZManaged.fail(Some(e)),
-      a => a.fold[ZManaged[R, Option[E], B]](ZManaged.fail(Option.empty[E]))(ZManaged.succeedNow)
+      a => ev(a).fold[ZManaged[R, Option[E], B]](ZManaged.fail(Option.empty[E]))(ZManaged.succeedNow)
     )
 
   /**
    * Extracts the optional value, or returns the given 'default'.
    */
   final def someOrElse[B](default: => B)(implicit ev: A IsSubtypeOfOutput Option[B]): ZManaged[R, E, B] =
-    map(_.getOrElse(default))
+    map(a => ev(a).getOrElse(default))
 
   /**
    * Extracts the optional value, or executes the effect 'default'.

@@ -601,7 +601,9 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
   /**
    * Keeps some of the errors, and terminates the fiber with the rest.
    */
-  def refineOrDie[E1](pf: PartialFunction[E, E1])(implicit ev1: E IsSubtypeOfError Throwable, ev2: CanFail[E]): ZSTM[R, E1, A] =
+  def refineOrDie[E1](
+    pf: PartialFunction[E, E1]
+  )(implicit ev1: E IsSubtypeOfError Throwable, ev2: CanFail[E]): ZSTM[R, E1, A] =
     refineOrDieWith(pf)(ev1)
 
   /**
