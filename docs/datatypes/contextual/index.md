@@ -225,7 +225,16 @@ val fooService = new FooServiceImpl(new ServiceAImpl, new ServiceBImpl)
 Sometimes, as the number of dependent services grows and the dependency graph of our application becomes complicated, we need an automatic way of wiring and providing dependencies into the services of our application. In these situations, we might use a dependency injection framework to do all its magic machinery for us.
 
 ## Defining Services in ZIO
-ZIO has two patterns to write services. The first version of Module Pattern has some boilerplate, but the second version is very concise and straightforward. ZIO doesn't mandate any of them, you can use whichever you like.
+
+In the functional Scala as well as in object-oriented programming the best practice is to _Program to an Interface, Not an Implementation_. This is the most important design principle in software development and helps us to write maintainable code by:
+
+* Allowing the client to hold an interface as a contract and don't worry about the implementation. The interface signature determines all operations that should be done. 
+
+* Enabling a developer to write more testable programs. When we write a test for our business logic we don't have to run and interact with real services like databases which makes our test run very slow. If our code is correct our test code should always pass, there should be no hidden variables or depend on outside sources. We can't know that the database is always running correctly. We don't want to fail our tests because of the failure of external service.
+
+* Providing the ability to write more modular applications. So we can plug in different implementations for different purposes without a major modification.
+
+It is not mandatory but ZIO encourages us to follow this principle by bundling related functionality as an interface by using _Module Pattern_. 
 
 In object-oriented programming:
 
@@ -234,6 +243,8 @@ In object-oriented programming:
 - **Defining Dependencies** is done by using _constructors_. They allow us to build classes, give their dependencies. This is called constructor-based dependency injection.
 
 We have a similar analogy in Module Pattern, except instead of using _constructors_ we use **`ZLayer`** to define dependencies. So in ZIO fashion, we can think of `ZLayer` as a service constructor.
+
+ZIO has two patterns to write services. The first version of _Module Pattern_ has some boilerplate, but the second version is very concise and straightforward. ZIO doesn't mandate any of them, you can use whichever you like.
 
 ### Module Pattern 1.0
 
