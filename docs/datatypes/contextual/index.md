@@ -231,6 +231,10 @@ Sometimes, as the number of dependent services grows and the dependency graph of
 
 ## Defining Services in ZIO
 
+A service is a group of functions that deals with only one concern. Keeping the scope of each service limited to a single responsibility improves our ability to understand code, in that we need to focus only on one topic at a time without juggling too many concepts together in our head.
+
+`ZIO` itself provides the basic capabilities through modules, e.g. see how `ZEnv` is defined.
+
 In the functional Scala as well as in object-oriented programming the best practice is to _Program to an Interface, Not an Implementation_. This is the most important design principle in software development and helps us to write maintainable code by:
 
 * Allowing the client to hold an interface as a contract and don't worry about the implementation. The interface signature determines all operations that should be done. 
