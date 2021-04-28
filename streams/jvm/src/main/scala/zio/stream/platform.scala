@@ -361,7 +361,6 @@ trait ZStreamPlatformSpecificConstructors {
     chunkSize: Int = ZStream.DefaultChunkSize
   ): ZStream[Blocking, Throwable, Byte] = {
     def from(in: InputStream, out: OutputStream, err: Promise[Throwable, None.type]) = {
-      val readIn = fromInputStream(in, chunkSize).ensuring(ZIO.effectTotal(in.close()))
       val writeOut = ZStream.fromEffect {
         blocking
           .effectBlockingInterrupt(write(out))
@@ -371,12 +370,12 @@ trait ZStreamPlatformSpecificConstructors {
       }
 
       val handleError = ZStream.fromEffectOption(err.await.some)
-      readIn.drainFork(writeOut) ++ handleError
+      fromInputStream(in, chunkSize).drainFork(writeOut) ++ handleError
     }
 
     for {
       out    <- ZStream.fromEffect(ZIO.effectTotal(new PipedOutputStream()))
-      in     <- ZStream.fromEffect(ZIO.effectTotal(new PipedInputStream(out)))
+      in     <- ZStream.managed(Managed.fromAutoCloseable(ZIO.effectTotal(new PipedInputStream(out))))
       err    <- ZStream.fromEffect(Promise.make[Throwable, None.type])
       result <- from(in, out, err)
     } yield result
