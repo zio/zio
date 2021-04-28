@@ -474,8 +474,9 @@ We said that the `ZLayer` can be thought of as a more powerful _constructor_. Wh
 
 Let's get into an example, assume we have these services with their implementations:
 
-```scala mdoc:invisible
+```scala mdoc:invisible:reset
 import zio.blocking.Blocking
+import zio.console.Console
 ```
 
 ```scala mdoc:silent:nest
@@ -485,8 +486,8 @@ trait BlobStorage { }
 trait UserRepo { }
 trait DocRepo { }
 
-case class LoggerImpl(console: Console) extends Logging { }
-case class DatabaseImp(blocking: Blocking) extends Database { }
+case class LoggerImpl(console: Console.Service) extends Logging { }
+case class DatabaseImp(blocking: Blocking.Service) extends Database { }
 case class UserRepoImpl(logging: Logging, database: Database) extends UserRepo { } 
 case class BlobStorageImpl(logging: Logging) extends BlobStorage { }
 case class DocRepoImpl(logging: Logging, database: Database, blobStorage: BlobStorage) extends DocRepo { }
@@ -519,4 +520,86 @@ And then we can compose the `newLayer` with `userRepo` vertically:
 
 ```scala
 val myLayer: ZLayer[Has[Console] with Has[Blocking], Throwable, Has[UserRepo]] = newLayer >>> userRepo
+```
+
+### Dependency Propagation
+
+During the development of an application, we don't care about implementations. Incrementally, when we use various effects with different requirements on their environment, all part of our application composed together, and at the end of the day we have a ZIO effect which requires some services as an environment. Before running this effect by `unsafeRun` we should provide an implementation of these services into the ZIO Environment of that effect.
+
+ZIO has some facilities for doing this. `ZIO#provide` is the core function that allows us to _feed_ an `R` to an effect that requires an `R`. This eliminates the effect's requirement by changing the environment type-parameter from an `R` to `Any`.
+
+#### Using `provide` Method
+
+```scala mdoc:invisible:reset
+import zio._
+```
+
+Assume we have the following services:
+
+```scala mdoc:silent:nest
+trait Logging {
+  def log(str: String): UIO[Unit]
+}
+
+object Logging {
+  def log(line: String) = ZIO.serviceWith[Logging](_.log(line))
+}
+```
+
+Let's write a simple program using `Logging` service:
+
+```scala mdoc:silent:nest
+val app: ZIO[Has[Logging], Nothing, Unit] = Logging.log("Application Started!")
+```
+
+We can `provide` implementation of `Logging` service into the `app` effect:
+
+```scala mdoc:silent:nest
+val loggingImpl = Has(new Logging {
+  override def log(line: String): UIO[Unit] =
+    UIO.effectTotal(println(line))
+})
+
+val effect = app.provide(loggingImpl)
+```
+
+Most of the time, we don't use `Has` directly to implement our services, instead; we use `ZLyaer` to construct the dependency graph of our application, then we use methods like `ZIO#provideLayer` to propagate dependencies into the environment of our ZIO effect.
+
+#### Using `provideLayer` Method
+
+Assume we have the following implementation for `Logging` service:
+
+```scala mdoc:invisible:reset
+```
+
+```scala mdoc:invisible
+import zio._
+trait Logging {
+  def log(str: String): UIO[Unit]
+}
+
+object Logging {
+  def log(line: String) = ZIO.serviceWith[Logging](_.log(line))
+}
+```
+
+```scala mdoc:silent
+case class LoggingLive() extends Logging {
+  override def log(line: String): UIO[Unit] =
+    UIO.effectTotal(println(line))
+}
+```
+
+Let's lift this implementation into a `ZLayer` data type:
+
+```scala
+object LoggingLive {
+  val layer = (LoggingLive.apply _).toLayer
+}
+```
+
+Now, we can use `ZIO#provideLayer` method to provide the live layer of `Logging` service into the environment of the `app` effect:
+
+```scala
+val effect = app.provideLayer(LoggingLive.layer)
 ```
