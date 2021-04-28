@@ -255,15 +255,17 @@ ZIO has two patterns to write services. The first version of _Module Pattern_ ha
 
 Let's start learning this pattern by writing a `Logging` service:
 
-1. **Wrapping Service Definition with Has** — At the first step, we create a package object of `logging`, and inside that we define the `Logging` module as a type alias for `Has[Logging.Service]`.
+1. **Bundling** — Define an object that gives the name to the module, this can be (not necessarily) a package object. We create a `logging` object, all the definitions and implementations will be included in this object.
 
-2. **Service Definition** — Then we create the `Logging` companion object. Inside the companion object, we define the service definition with a trait named `Service`. Traits are how we define services. A service could be all the stuff that is related to one concept with singular responsibility.
+2. **Wrapping Service Type Definition with `Has[_]` Data Type** — At the first step, we create a package object of `logging`, and inside that we define the `Logging` module as a type alias for `Has[Logging.Service]`.
 
-3. **Service Implementation** — After that, we implement our service by creating a new Service and then lifting that entire implementation into the `ZLayer` data type by using the `ZIO.succeed` constructor.
+3. **Service Definition** — Then we create the `Logging` companion object. Inside the companion object, we define the service definition with a trait named `Service`. Traits are how we define services. A service could be all the stuff that is related to one concept with singular responsibility.
 
-4. **Defining Dependencies** — If our service has a dependency on other services, we should use constructors like `ZLayer.fromService` and `ZLayer.fromServices`.
+4. **Service Implementation** — After that, we implement our service by creating a new Service and then lifting that entire implementation into the `ZLayer` data type by using the `ZIO.succeed` constructor.
 
-5. **Accessor Methods** — Finally, to create the API more ergonomic, it's better to write accessor methods for all of our service methods. 
+5. **Defining Dependencies** — If our service has a dependency on other services, we should use constructors like `ZLayer.fromService` and `ZLayer.fromServices`.
+
+6. **Accessor Methods** — Finally, to create the API more ergonomic, it's better to write accessor methods for all of our service methods. 
 
 Accessor methods allow us to utilize all the features inside the service through the ZIO Environment. That means, if we call `log`, we don't need to pull out the `log` function from the ZIO Environment. The `accessM` method helps us to access the environment of effect and reduce the redundant operation, every time.
 
