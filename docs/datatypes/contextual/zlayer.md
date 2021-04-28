@@ -216,6 +216,12 @@ val live: ZLayer[Console, Nothing, Logging] = ZLayer.fromService(console =>
 )
 ```
 
+## Layer Memoization
+
+One important feature of `ZIO` layers is that they are acquired in parallel wherever possible, and they are shared. For every layer in our dependency graph, there is only one instance of it that is shared between all the layers that depend on it. 
+
+If we don't want to share a module, we should create a fresh, non-shared version of it through [`ZLayer#fresh`][ZLayer#fresh].
+
 ## Examples
 
 ### The simplest ZLayer application
