@@ -18,8 +18,13 @@ object LayerMacros {
     val deferredRequirements = getRequirements[In]("Specified Remainder")
     val requirements     = getRequirements[Out](s"Target Environment")
 
-    val zEnvLayer = Node(List.empty, deferredRequirements, '{ZLayer.requires[In]})
-    val nodes     = (zEnvLayer +: getNodes(layers)).toList
+    val zEnvLayer: List[Node[ctx.reflect.TypeRepr, LayerExpr]] =
+      if (deferredRequirements.nonEmpty)
+        List(Node(List.empty, deferredRequirements, '{ZLayer.requires[In]}))
+      else
+        List.empty
+
+    val nodes = zEnvLayer ++ getNodes(layers)
 
     buildMemoizedLayer(ctx)(ZLayerExprBuilder.fromNodes(ctx)(nodes), requirements)
       .asInstanceOf[Expr[ZLayer[In,E,Out]]]

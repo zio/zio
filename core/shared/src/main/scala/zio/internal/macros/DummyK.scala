@@ -3,7 +3,7 @@ package zio.internal.macros
 /**
  * DummyK is used to pull `WeakTypeTag` information into a Macro when
  * there is otherwise no value to extract it from.
- * See: [[WireMacros.fromAutoImpl]]
+ * See: [[WireMacros.wireImpl]]
  */
 private[zio] final case class DummyK[A]()
 

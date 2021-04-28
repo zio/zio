@@ -361,7 +361,7 @@ object AccessibleSpec extends DefaultRunnableSpec {
           }
         }
         def layer = ZLayer.succeed(new Module.Service {})
-        assertM(Module.test().flip.provideLayer(layer))(hasField("message", _.getMessage, equalTo("ups")))
+        assertM(Module.test().flip.inject(layer))(hasField("message", _.getMessage, equalTo("ups")))
       }
     )
   )

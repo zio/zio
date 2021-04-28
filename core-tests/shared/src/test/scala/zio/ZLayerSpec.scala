@@ -275,8 +275,8 @@ object ZLayerSpec extends ZIOBaseSpec {
           memoized = makeLayer1(ref).memoize
           _ <- memoized.use { layer =>
                  for {
-                   _ <- ZIO.environment[Module1].inject(layer)
-                   _ <- ZIO.environment[Module1].inject(layer)
+                   _ <- ZIO.environment[Module1].provideLayerManual(layer)
+                   _ <- ZIO.environment[Module1].provideLayerManual(layer)
                  } yield ()
                }
           actual <- ref.get

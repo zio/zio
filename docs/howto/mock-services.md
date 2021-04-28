@@ -370,8 +370,8 @@ object MaybeConsoleSpec extends DefaultRunnableSpec {
       def maybeConsole(invokeConsole: Boolean) =
         ZIO.when(invokeConsole)(console.putStrLn("foo"))
 
-      val maybeTest1 = maybeConsole(false).provideLayer(MockConsole.empty)
-      val maybeTest2 = maybeConsole(true).provideLayer(MockConsole.PutStrLn(equalTo("foo")))
+      val maybeTest1 = maybeConsole(false).provideLayerManual(MockConsole.empty)
+      val maybeTest2 = maybeConsole(true).provideLayerManual(MockConsole.PutStrLn(equalTo("foo")))
       assertM(maybeTest1)(isUnit) *> assertM(maybeTest2)(isUnit)
     }
   )

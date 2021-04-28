@@ -45,13 +45,13 @@ object CleanCodePrinterSpec extends ZIOBaseSpec {
   object Service { def live = 0 }
 
   object AppliedObject {
-    def apply(int: Int) = 0
-    def apply           = 0
+    def apply(int: Int): Int = int
+    def apply                = 0
   }
 
-  val regularVal                    = 0
-  val `backtick enclosed`           = 0
-  def unaryFunction(string: String) = 0
+  val regularVal                            = 0
+  val `backtick enclosed`                   = 0
+  def unaryFunction(string: String): String = string
 }
 
 package nested {

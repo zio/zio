@@ -62,10 +62,13 @@ private[zio] trait ZManagedVersionSpecific[-R, +E, +A] { self: ZManaged[R, E, A]
 
 private final class ProvideSomeLayerManagedPartiallyApplied[R0 <: Has[_], -R, +E, +A](val self: ZManaged[R, E, A])
     extends AnyVal {
-  final def provideLayerManual[E1 >: E, R1](
+  def provideLayerManual[E1 >: E, R1](
     layer: ZLayer[R0, E1, R1]
   )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R]): ZManaged[R0, E1, A] =
     self.provideLayerManual(layer)
+
+  def provideSomeLayerManual[R0 <: Has[_]]: ZManaged.ProvideSomeLayer[R0, R, E, A] =
+    new ZManaged.ProvideSomeLayer[R0, R, E, A](self)
 
   def apply[E1 >: E](layers: ZLayer[_, E1, _]*): ZManaged[R0, E1, A] =
     macro LayerMacros.injectSomeImpl[ZManaged, R0, R, E1, A]

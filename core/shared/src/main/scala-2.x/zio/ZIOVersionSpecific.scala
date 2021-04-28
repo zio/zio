@@ -61,10 +61,13 @@ private[zio] trait ZIOVersionSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
 }
 
 private final class ProvideSomeLayerPartiallyApplied[R0 <: Has[_], -R, +E, +A](val self: ZIO[R, E, A]) extends AnyVal {
-  final def provideLayerManual[E1 >: E, R1](
+  def provideLayerManual[E1 >: E, R1](
     layer: ZLayer[R0, E1, R1]
   )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R]): ZIO[R0, E1, A] =
     self.provideLayerManual(layer)
+
+  def provideSomeLayerManual[R0 <: Has[_]]: ZIO.ProvideSomeLayer[R0, R, E, A] =
+    new ZIO.ProvideSomeLayer[R0, R, E, A](self)
 
   def apply[E1 >: E](layers: ZLayer[_, E1, _]*): ZIO[R0, E1, A] =
     macro LayerMacros.injectSomeImpl[ZIO, R0, R, E1, A]

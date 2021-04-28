@@ -39,6 +39,26 @@ object AutoLayerSpec extends ZIOBaseSpec {
               result <- ref.get
             } yield assert(result)(equalTo(1))
           },
+          testM("reports duplicate layers") {
+            val checked =
+              typeCheck("ZIO.service[Int].inject(ZLayer.succeed(12), ZLayer.succeed(13))")
+            assertM(checked)(
+              isLeft(
+                containsStringWithoutAnsi("Int is provided by multiple layers") &&
+                  containsStringWithoutAnsi("ZLayer.succeed(12)") &&
+                  containsStringWithoutAnsi("ZLayer.succeed(13)")
+              )
+            )
+          } @@ TestAspect.exceptDotty,
+          testM("reports unused, extra layers") {
+            val someLayer: URLayer[Has[Double], Has[String]] = ZLayer.succeed("hello")
+            val doubleLayer: ULayer[Has[Double]]             = ZLayer.succeed(1.0)
+            val _                                            = (someLayer, doubleLayer)
+
+            val checked =
+              typeCheck("ZIO.service[Int].inject(ZLayer.succeed(12), doubleLayer, someLayer)")
+            assertM(checked)(isLeft(containsStringWithoutAnsi("unused")))
+          } @@ TestAspect.exceptDotty,
           testM("reports missing top-level layers") {
             val program: URIO[Has[String] with Has[Int], String] = UIO("test")
             val _                                                = program
@@ -267,27 +287,6 @@ object AutoLayerSpec extends ZIOBaseSpec {
           }
         )
       )
-//      suite("MacroUnitTestUtils") {
-//        suite(".getRequirements")(
-//          test("retrieves a list of Strings representing the types in a compound Has type") {
-//            type FunctionTypeHas          = Has[String => UUID]
-//            type NestedHas                = Has[FunctionTypeHas with Has[Task[Double]]]
-//            type ListAlias[A]             = List[A]
-//            type TypeFunction[F[_, _], A] = F[String, A]
-//            type Env =
-//              Has[Int] with FunctionTypeHas with NestedHas with Has[TypeFunction[Either, ListAlias[Int]]]
-//
-//            val result = MacroUnitTestUtils.getRequirements[Env]
-//            val expected = List(
-//              "Int",
-//              "String => java.util.UUID",
-//              "zio.Has[String => java.util.UUID] with zio.Has[zio.ZIO[Any,Throwable,Double]]",
-//              "scala.util.Either[String,List[Int]]"
-//            )
-//            assert(result)(equalTo(expected))
-//          }
-//        )
-//      }
     )
 
   object TestLayers {

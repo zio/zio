@@ -16,7 +16,12 @@ private[zio] trait LayerMacroUtils {
 
   def generateExprGraph(nodes: List[Node[c.Type, LayerExpr]]): ZLayerExprBuilder[c.Type, LayerExpr] =
     ZLayerExprBuilder[c.Type, LayerExpr](
-      graph = Graph(nodes, _ =:= _),
+      graph = Graph(
+        nodes = nodes,
+        // The types must be `.toString`-ed as a backup in the case of refinement
+        // types.
+        keyEquals = (t1, t2) => t1 =:= t2 || (t1.toString == t2.toString)
+      ),
       showKey = tpe => tpe.toString,
       showExpr = expr => CleanCodePrinter.show(c)(expr.tree),
       abort = c.abort(c.enclosingPosition, _),
@@ -24,6 +29,27 @@ private[zio] trait LayerMacroUtils {
       composeH = (lhs, rhs) => c.Expr(q"""$lhs +!+ $rhs"""),
       composeV = (lhs, rhs) => c.Expr(q"""$lhs >>> $rhs""")
     )
+
+  def buildSomeMemoizedLayer[R0: c.WeakTypeTag, R: c.WeakTypeTag, E](
+    layers: Seq[c.Expr[ZLayer[_, E, _]]]
+  ): c.Expr[ZLayer[R0, E, R]] = {
+    assertEnvIsNotNothing[R]()
+    assertProperVarArgs(layers)
+
+    val deferredRequirements = getRequirements[R0]
+    val requirements         = getRequirements[R] diff deferredRequirements
+
+    val deferredLayer =
+      if (deferredRequirements.nonEmpty) Seq(Node(List.empty, deferredRequirements, reify(ZLayer.requires[R0])))
+      else Nil
+
+    val nodes = (deferredLayer ++ layers.map(getNode)).toList
+
+    val exprGraph = generateExprGraph(nodes)
+
+    buildMemoizedLayer(exprGraph, requirements)
+      .asInstanceOf[c.Expr[ZLayer[R0, E, R]]]
+  }
 
   def buildMemoizedLayer(exprGraph: ZLayerExprBuilder[c.Type, LayerExpr], requirements: List[c.Type]): LayerExpr = {
     // This is run for its side effects: Reporting compile errors with the original source names.
@@ -39,7 +65,9 @@ private[zio] trait LayerMacroUtils {
     val definitions = memoizedNodes.zip(nodes).map { case (memoizedNode, node) =>
       ValDef(Modifiers(), TermName(memoizedNode.value.tree.toString()), TypeTree(), node.value.tree)
     }
-    val layerExpr = exprGraph.copy(graph = Graph[c.Type, LayerExpr](memoizedNodes, _ =:= _)).buildLayerFor(requirements)
+    val layerExpr = exprGraph
+      .copy(graph = Graph[c.Type, LayerExpr](memoizedNodes, exprGraph.graph.keyEquals))
+      .buildLayerFor(requirements)
 
     c.Expr(q"""
     ..$definitions
@@ -47,9 +75,30 @@ private[zio] trait LayerMacroUtils {
     """)
   }
 
+  /**
+   * Ensures the macro has been annotated with the intended result type.
+   * The macro will not behave correctly otherwise.
+   */
+  def assertEnvIsNotNothing[Out: c.WeakTypeTag](): Unit = {
+    val outType     = weakTypeOf[Out]
+    val nothingType = weakTypeOf[Nothing]
+    if (outType == nothingType) {
+      val errorMessage =
+        s"""
+${"  ZLayer Wiring Error  ".red.bold.inverted}
+
+You must provide a type to ${"wire".cyan.bold} (e.g. ${"ZLayer.wire".cyan.bold}${"[A with B]".cyan.bold.underlined}${"(A.live, B.live)".cyan.bold})
+
+"""
+      c.abort(c.enclosingPosition, errorMessage)
+    }
+  }
+
   def getNode(layer: LayerExpr): Node[c.Type, LayerExpr] = {
-    val tpe                   = layer.actualType.dealias
-    val in :: _ :: out :: Nil = tpe.typeArgs
+    val tpeArgs = layer.actualType.dealias.typeArgs
+    // ZLayer[in, _, out]
+    val in  = tpeArgs.head
+    val out = tpeArgs(2)
     Node(getRequirements(in), getRequirements(out), layer)
   }
 
@@ -67,7 +116,7 @@ private[zio] trait LayerMacroUtils {
       case nonHasTypes =>
         c.abort(
           c.enclosingPosition,
-          s"\nContains non-Has types:\n- ${nonHasTypes.map(_.toString.white).mkString("\n- ")}"
+          s"\nContains non-Has types:\n- ${nonHasTypes.map(_.toString.cyan.bold).mkString("\n- ")}"
         )
     }
 
@@ -77,13 +126,14 @@ private[zio] trait LayerMacroUtils {
       .distinct
   }
 
-  def assertProperVarArgs(layers: Seq[c.Expr[_]]): Unit =
-    layers.map(_.tree) collect { case Typed(_, Ident(typeNames.WILDCARD_STAR)) =>
+  def assertProperVarArgs(layers: Seq[c.Expr[_]]): Unit = {
+    val _ = layers.map(_.tree) collect { case Typed(_, Ident(typeNames.WILDCARD_STAR)) =>
       c.abort(
         c.enclosingPosition,
         "Auto-construction cannot work with `someList: _*` syntax.\nPlease pass the layers themselves into this method."
       )
     }
+  }
 
   implicit class TypeOps(self: Type) {
     def isHas: Boolean = self.dealias.typeSymbol == typeOf[Has[_]].typeSymbol
@@ -91,7 +141,7 @@ private[zio] trait LayerMacroUtils {
     def isAny: Boolean = self.dealias.typeSymbol == typeOf[Any].typeSymbol
 
     /**
-     * Given a type `A with B with C` You'll get back List[A,B,C]
+     * Given a type `A with B with C`, you'll get back `List(A,B,C)`
      */
     def intersectionTypes: List[Type] =
       self.dealias match {

@@ -45,13 +45,16 @@ private [zio] object LayerMacroUtils {
       case Varargs(args) =>
         args.map {
           case '{$layer: ZLayer[in, e, out]} =>
-          val inputs = getRequirements[in]("Input for " + layer.show.white)
-          val outputs = getRequirements[out]("Output for " + layer.show.white)
+          val inputs = getRequirements[in]("Input for " + layer.show.cyan.bold)
+          val outputs = getRequirements[out]("Output for " + layer.show.cyan.bold)
           Node(inputs, outputs, layer)
         }.toList
 
       case other =>
-        report.throwError("Auto-construction cannot work with `someList: _*` syntax.\nPlease pass the layers themselves into this method.")
+        report.throwError(
+          "  ZLayer Wiring Error  ".yellow.inverted + "\n" +
+          "Auto-construction cannot work with `someList: _*` syntax.\nPlease pass the layers themselves into this method."
+        )
     }
   }
 
@@ -64,7 +67,7 @@ private [zio] object LayerMacroUtils {
       }
 
     if (nonHasTypes.nonEmpty) report.throwError(
-      "ZLayer Construction Error".yellow.black + "\n" +
+      "  ZLayer Wiring Error  ".yellow.inverted + "\n" +
       s"${description} contains non-Has types:\n- ${nonHasTypes.mkString("\n- ")}"
     )
 
@@ -75,7 +78,7 @@ private [zio] object LayerMacroUtils {
     import ctx.reflect._
 
     def go(tpe: TypeRepr): List[TypeRepr] =
-      tpe.dealias. match {
+      tpe.dealias.simplified match {
         case AndType(lhs, rhs) =>
           go(lhs) ++ go(rhs)
 
@@ -85,7 +88,7 @@ private [zio] object LayerMacroUtils {
         case other if other =:= TypeRepr.of[Any] =>
           List.empty
 
-        case other if other.dealias != other =>
+        case other if other.dealias.simplified != other =>
           go(other)
 
         case other =>

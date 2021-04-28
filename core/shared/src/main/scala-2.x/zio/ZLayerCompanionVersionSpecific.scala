@@ -49,12 +49,12 @@ private[zio] trait ZLayerCompanionVersionSpecific {
 
 private[zio] final class WirePartiallyApplied[R <: Has[_]](val dummy: Boolean = true) extends AnyVal {
   def apply[E](layers: ZLayer[_, E, _]*)(implicit dummyKRemainder: DummyK[Any], dummyK: DummyK[R]): ZLayer[Any, E, R] =
-    macro WireMacros.fromAutoImpl[E, Any, R]
+    macro WireMacros.wireImpl[E, Any, R]
 }
 
 private[zio] final class WireSomePartiallyApplied[R0 <: Has[_], R <: Has[_]](
   val dummy: Boolean = true
 ) extends AnyVal {
   def apply[E](layers: ZLayer[_, E, _]*)(implicit dummyKRemainder: DummyK[R0], dummyK: DummyK[R]): ZLayer[R0, E, R] =
-    macro WireMacros.fromAutoImpl[E, R0, R]
+    macro WireMacros.wireImpl[E, R0, R]
 }

@@ -4,7 +4,8 @@ import zio.console._
 import zio.internal.macros.LayerMacros
 import zio.internal.macros.LayerMacroUtils
 
-object Cool extends App {
+object Example extends App {
+
   val boolLayer =
     ZLayer.succeed(true)
 
@@ -14,20 +15,22 @@ object Cool extends App {
   val program: ZIO[Has[String] with Has[Int] with Console, Nothing, Unit] =
     ZIO.services[String, Int].flatMap(in => putStrLn(in.toString()))
 
-  type ++[A,B] <: Has[_] = (A,B) match {
-    case (Has[_], Has[_]) => A & B & Has[_]
-    case (_, Has[_]) => Has[A] & B
-    case (Has[_], _) => A & Has[B]
-    case (_,_) => Has[A] & Has[B] 
-  }
 
-  val nice : ZLayer[Int ++ String, Nothing, Has[ServiceLive]] = 
-    ZLayer.fromServices(ServiceLive.apply)
+
+
+  //  val nice : ZLayer[Int ++ String, Nothing, Has[ServiceLive]] =
+//    (ServiceLive.apply _).toLayer
 
   case class ServiceLive(int: Int, string: String)
 
-  val layer12: ULayer[Console ++ String ++ Int] = 
-    ZLayer.wire[Console ++ String ++ Int](layer, boolLayer, Console.live)
+//  type Fun = Console ++ Has[String] ++ Has[Boolean]
+
+//  val equal = implicitly[(Console & Has[String] & Has[Boolean]) =:= Fun]
+
+//  val program2: URIO[Double ++ Console ++ Int ++ String ++ Boolean ++ Unit, Unit] = ZIO.unit
+//  val program2: URIO[Double ++ Console ++ Int, Unit] = ZIO.unit
+
+//  val layer12 = program2.inject()
 
   def run(args: List[String]) =
     program.injectCustom(layer, boolLayer).exitCode

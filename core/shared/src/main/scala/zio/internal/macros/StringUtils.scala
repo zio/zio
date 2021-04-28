@@ -8,7 +8,7 @@ private[zio] object StringUtils {
       self.replaceAll("\u001B\\[[;\\d]*m", "")
 
     def maxLineWidth: Int =
-      Try(removingAnsiCodes.linesIterator.map(_.length).max).getOrElse(0)
+      Try(removingAnsiCodes.split("\n").map(_.length).max).getOrElse(0)
 
     /**
      * Joins strings line-wise
@@ -22,8 +22,9 @@ private[zio] object StringUtils {
      * }}}
      */
     def +++(that: String): String =
-      self.linesIterator
-        .zipAll(that.linesIterator, "", "")
+      self
+        .split("\n")
+        .zipAll(that.split("\n"), "", "")
         .map { case (a, b) => a ++ b }
         .mkString("\n")
   }
