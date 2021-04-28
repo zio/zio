@@ -222,6 +222,10 @@ One important feature of `ZIO` layers is that they are acquired in parallel wher
 
 If we don't want to share a module, we should create a fresh, non-shared version of it through [`ZLayer#fresh`][ZLayer#fresh].
 
+## Cyclic Dependencies
+
+The [`ZLayer`][ZLayer] mechanism makes it impossible to build cyclic dependencies, making the initialization process very linear, by construction.
+
 ## Examples
 
 ### The simplest ZLayer application
