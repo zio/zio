@@ -435,25 +435,19 @@ trait ZStreamPlatformSpecificConstructors {
     write: OutputStream => Unit,
     chunkSize: Int = ZStream.DefaultChunkSize
   ): ZStream[Blocking, Throwable, Byte] = {
-    def from(in: InputStream, out: OutputStream, err: Promise[Throwable, None.type]) = {
-      val readIn = fromInputStream(in, chunkSize).ensuring(ZIO.effectTotal(in.close()))
-      val writeOut = ZStream.fromEffect {
-        blocking
-          .effectBlockingInterrupt(write(out))
-          .run
-          .tap(exit => err.done(exit.as(None)))
-          .ensuring(ZIO.effectTotal(out.close()))
-      }
-
-      val handleError = ZStream.fromEffectOption(err.await.some)
-      readIn.drainFork(writeOut) ++ handleError
-    }
+    def from(in: InputStream, out: OutputStream, done: Promise[None.type, Nothing]) =
+      (fromInputStream(in, chunkSize) ++ fromEffectOption(done.await)).drainFork(
+        fromEffect(blocking.effectBlockingInterrupt {
+          try write(out)
+          finally out.close()
+        }) ++ fromEffect(done.fail(None))
+      )
 
     for {
-      out    <- ZStream.fromEffect(ZIO.effectTotal(new PipedOutputStream()))
-      in     <- ZStream.fromEffect(ZIO.effectTotal(new PipedInputStream(out)))
-      err    <- ZStream.fromEffect(Promise.make[Throwable, None.type])
-      result <- from(in, out, err)
+      out    <- fromEffect(ZIO.effect(new PipedOutputStream()))
+      in     <- managed(ZManaged.fromAutoCloseable(ZIO.effect(new PipedInputStream(out))))
+      done   <- fromEffect(Promise.make[None.type, Nothing])
+      result <- from(in, out, done)
     } yield result
   }
 
