@@ -126,9 +126,6 @@ We can compose `layerA` and `layerB` _horizontally_ to build a layer that has th
 We can also compose layers _vertically_, meaning the output of one layer is used as input for the subsequent layer to build the next layer, resulting in one layer with the requirement of the first, and the output of the second layer: `layerA >>> layerB`. When doing this, the first layer must output all the services required by the second layer, but we can defer creating some of these services and require them as part of the input of the final layer using [`ZLayer.identity`][ZLayer.identity].  
 
 ### Has
-A `Has[A]` data type is a wrapper that we usually used for wrapping services. .
-
-
 `Has[A]` represents a dependency on a service of type `A`, e.g. Has[Logging]. Some components in an application might depend upon more than one service. 
 
 ZIO wrap services with `Has` data type to:
