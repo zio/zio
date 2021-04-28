@@ -106,13 +106,16 @@ For example, a `ZLayer[Blocking with Logging, Throwable, Database]` can be thoug
 So we can say that the `Database` service has two dependencies: `Blocking` and `Logging` services.
 
 ### Has
-A `Has[A]` data type is a wrapper that we usually used for wrapping services. (e.g. Has[UserRepo] or Has[Logging]).
+A `Has[A]` data type is a wrapper that we usually used for wrapping services. .
+
+
+`Has[A]` represents a dependency on a service of type `A`, e.g. Has[Logging]. Some components in an application might depend upon more than one service. 
 
 ZIO wrap services with `Has` data type to:
 
 1. **Wire/bind** services into their implementations. This data type has an internal map to maintain this binding. 
 
-2. **Combine** multiple services together. ZIO uses `++` operator to combine services and mix them to create a bigger dependency object.
+2. **Combine** multiple services together. Two or more `Has[_]` elements can be combined _horizontally_ using their `++` operator.
 
 Let's combine `Has[Database]` and `Has[Logging]` services with `++` operator:
 
@@ -127,17 +130,23 @@ trait Logging
 val hasDatabase: Has[Database] = Has(new Database {})
 val hasLogging: Has[Logging]   = Has(new Logging {})
 
+// Note the use of the infix `++` operator on `Has` to combine two `Has` elements:
 val combined: Has[Database] with Has[Logging] = hasDatabase ++ hasLogging
 ```
 
-ZIO internally ask `combined` using `get` method to determine wiring configurations:
+At this point you might ask: what's the use of [`Has`][Has] if the resulting type is just a mix of two traits? Why aren't we just relying on trait mixins?
+
+The extra power given by [`Has`][Has] is that the resulting data structure is backed by an _heterogeneous map_ from service type to service implementation, that collects each instance that is mixed in so that the instances can be accessed/extracted/modified individually, all while still guaranteeing supreme type safety.
+
+ZIO internally can ask `combined` using `get` method to determine wiring configurations:
 
 ```scala mdoc:silent
+// get back the Database service from the combined values:
 val database: Database = combined.get[Database]
 val logging: Logging   = combined.get[Logging]
 ```
 
-These are implementation details, and we don't care about them. We usually don't create directly any `Has` data type.
+These are implementation details, and we don't care about them. Usually we don't create a [`Has`][Has] directly. Instead, we create a [`Has`][Has] via [`ZLayer`][ZLayer].
 
 Whenever we lift a service value into `ZLayer` with the `ZLayer.succeed` constructor, ZIO will wrap our service with `Has` data type:
 
