@@ -3,14 +3,9 @@ id: use-modules-and-layers
 title: "How to Use Modules and Layers?"
 ---
 
-# Unleash ZIO environment with `ZLayer`
-
-`ZIO` is designed around 3 parameters, `R, E, A`. `R` represents the _requirement_ for the effect to run, meaning we need to fulfill
-the requirement in order to make the effect _runnable_. Put another way, `R` represents dependencies; whatever services, config, or
-wiring a part of a ZIO program depends upon to work. We will explore what we can do with `R`, as it plays a crucial role in `ZIO`.
-
 ## A simple case for `ZIO` environment
 Let's build a simple program for user management, that can retrieve a user (if they exist), and create a user. 
+
 To access the DB we need a `DBConnection`, and each step in our program represents this through the environment type. We can then combine the two (small) steps through `flatMap`, or more conveniently through a `for` comprehension.
 
 The result is a program that, in turn, depends on the `DBConnection`.
