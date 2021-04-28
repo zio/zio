@@ -17,6 +17,30 @@ For example, the `ZLayer[Blocking with Logging with Database, Throwable, UserRep
 
 ## Creation
 
+`ZLayer` is an alternative to a class constructor, a recipe to create a service. This recipe may contain the following information:
+
+1. **Dependencies** — To create a service, we need to indicate what other service we are depending on. For example, a `Database` service might need `Socket` and `Blocking` services to perform its operations.
+
+2. **Acquisition/Release Action** — It may contain how to initialize a service. For example, if we are creating a recipe for a `Database` service, we should provide how the `Database` will be initialized, via acquisition action. Also, it may contain how to release a service. For example, how the `Database` releases its connection pools.
+
+In some cases, a [`ZLayer`][ZLayer] may not have any dependencies or requirements from the environment. In this case, we can specify `Any` for the `RIn` type parameter. 
+The [`Layer`][Layer] type alias provided by ZIO is a convenient way to define a layer without requirements.
+
+There are many ways to create a [`ZLayer`][ZLayer]. Here's an incomplete list:
+ - [`ZLayer.succeed`][ZLayer.succeed] or `ZIO#asService` to create a layer from an existing service
+ - [`ZLayer.succeedMany`][ZLayer.succeedMany] to create a layer from a value that's one or more services
+ - [`ZLayer.fromFunction`][ZLayer.fromFunction] to create a layer from a function from the requirement to the service
+ - [`ZLayer.fromEffect`][ZLayer.fromEffect] to lift a `ZIO` effect to a layer requiring the effect environment
+ - [`ZLayer.fromAcquireRelease`][ZLayer.fromAcquireRelease] for a layer based on resource acquisition/release. The idea is the same as `ZManaged`.
+ - [`ZLayer.fromService`][ZLayer.fromService] to build a layer from a service
+ - [`ZLayer.fromServices`][ZLayer.fromServices] to build a layer from a number of required services
+ - [`ZLayer.identity`][ZLayer.identity] to express the requirement for a layer
+ - `ZIO#toLayer` or `ZManaged#toLayer` to construct a layer from an effect
+
+Where it makes sense, these methods have also variants to build a service effectfully (suffixed by `M`), resourcefully (suffixed by `Managed`), or to create a combination of services (suffixed by `Many`).
+
+Let's review some of the `ZLayer`'s most useful constructors:
+
 ### From Simple Values
 
 With `ZLayer.succeed` we can construct a `ZLayer` from a value. It returns a `ULayer[Has[A]]` value, which represents a layer of application that _has_ a service of type `A`:
