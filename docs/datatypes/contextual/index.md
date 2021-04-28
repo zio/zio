@@ -456,8 +456,18 @@ Finally, we provide required layers to our `app` effect:
 
 ZLayers combined with the ZIO environment, allow us to use ZIO for dependency injection. There are two parts for dependency injection:
 
-1. **Wiring-up Dependencies** — Assume we have several services with their dependencies, and we need a way to compose and wiring up these dependencies and create the dependency graph of our application. `ZLayer` is a ZIO solution for this problem, it allows us to build up the whole application dependency graph.
+1. **Dependency Graph Construction** — Assume we have several services with their dependencies, and we need a way to compose and wiring up these dependencies and create the dependency graph of our application. `ZLayer` is a ZIO solution for this problem, it allows us to build up the whole application dependency graph.
 
 2. **Dependency Propagation** — When we write an application, our application has a lot of dependencies. We need a way to provide implementations and feeding and propagating all dependencies throughout the whole application. We can solve the propagation problem by using _ZIO environment_.
 
 ZIO has a full solution to dependency injection problem. By using ZLayer and ZIO environment we can solve the propagation and wire-up problems in dependency injection. But it doesn't necessary to use it, we can still use things like [Guice](https://github.com/google/guice) with ZIO, or we might like to use [izumi distage](https://izumi.7mind.io/distage/index.html) solution for dependency injection.
+
+### Building Dependency Graph
+
+We said that the `ZLayer` can be thought of as a more powerful _constructor_. While a constructor is not composable, the `ZLayer` has a nice facility to compose with other `ZLayer`s. Constructors are not values, so they can't compose. So we can say a `Zlayer` turns a constructor into values.
+
+`ZLayer`s can be composed together horizontally or vertically:
+
+1. **Horizontal Composition** — They can be composed together horizontally with the `++` operator. When we compose two layers horizontally, the new layer that this layer requires all the services that both of them require, also this layer produces all services that both of them produces. Horizontal composition is a way of composing two layers side-by-side. It is useful when we combine two layers that they don't have any relationship with each other. 
+
+2. **Vertical Composition** — If we have a layer that requires `A` and produces `B`, we can compose this layer with another layer that requires `B` and produces `C`; this composition produces a layer that requires `A` and produces `C`. The feed operator, `>>>`, stack them on top of each other by using vertical composition. This sort of composition is like _function composition_, feeding an output of one layer to an input of another.
