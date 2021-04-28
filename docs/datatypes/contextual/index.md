@@ -451,3 +451,13 @@ Finally, we provide required layers to our `app` effect:
    app.provideLayer(LoggingLive.layer)
  )
 ```
+
+## Dependency Injection in ZIO
+
+ZLayers combined with the ZIO environment, allow us to use ZIO for dependency injection. There are two parts for dependency injection:
+
+1. **Wiring-up Dependencies** — Assume we have several services with their dependencies, and we need a way to compose and wiring up these dependencies and create the dependency graph of our application. `ZLayer` is a ZIO solution for this problem, it allows us to build up the whole application dependency graph.
+
+2. **Dependency Propagation** — When we write an application, our application has a lot of dependencies. We need a way to provide implementations and feeding and propagating all dependencies throughout the whole application. We can solve the propagation problem by using _ZIO environment_.
+
+ZIO has a full solution to dependency injection problem. By using ZLayer and ZIO environment we can solve the propagation and wire-up problems in dependency injection. But it doesn't necessary to use it, we can still use things like [Guice](https://github.com/google/guice) with ZIO, or we might like to use [izumi distage](https://izumi.7mind.io/distage/index.html) solution for dependency injection.
