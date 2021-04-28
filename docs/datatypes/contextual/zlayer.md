@@ -91,6 +91,10 @@ val live: ZLayer[Any, Nothing, Terminal] = ZLayer.succeed(Terminal.Service.live)
 
 ### From Managed Resources
 
+Some components of our applications need to be managed, meaning they undergo a resource acquisition phase before usage, and a resource release phase after usage (e.g. when the application shuts down).
+
+[`ZLayer`][ZLayer] relies on the powerful [`ZManaged`][ZManaged] data type and this makes this process extremely simple.
+
 We can lift any `ZManaged` to `ZLayer` by providing a managed resource to the `ZIO.fromManaged` constructor:
 
 ```scala mdoc:invisible
