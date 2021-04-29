@@ -526,7 +526,9 @@ val myLayer: ZLayer[Has[Console] with Has[Blocking], Throwable, Has[UserRepo]] =
 
 During the development of an application, we don't care about implementations. Incrementally, when we use various effects with different requirements on their environment, all part of our application composed together, and at the end of the day we have a ZIO effect which requires some services as an environment. Before running this effect by `unsafeRun` we should provide an implementation of these services into the ZIO Environment of that effect.
 
-ZIO has some facilities for doing this. `ZIO#provide` is the core function that allows us to _feed_ an `R` to an effect that requires an `R`. This eliminates the effect's requirement by changing the environment type-parameter from an `R` to `Any`.
+ZIO has some facilities for doing this. `ZIO#provide` is the core function that allows us to _feed_ an `R` to an effect that requires an `R`. 
+
+Notice that the act of `provide`ing an effect with its environment, eliminates the environment dependency in the resulting effect type, represented by type `Any` of the resulting environment.
 
 #### Using `provide` Method
 
