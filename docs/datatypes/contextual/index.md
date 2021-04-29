@@ -562,7 +562,7 @@ val mainEffect: ZIO[Random with Clock, Nothing, Unit] =
 
 #### Using `provideCustomLayer` Method
 
-[`ZEnv`][ZEnv] is a convenient type alias that provides several built-in ZIO layers that are useful in most applications.
+`ZEnv` is a convenient type alias that provides several built-in ZIO layers that are useful in most applications.
 
 Sometimes we have written a program that contains ZIO built-in services and some other services that are not part of `ZEnv`.  
 
@@ -602,7 +602,7 @@ val myApp: ZIO[Has[Logging] with Console with Clock, Nothing, Unit] = for {
 } yield ()
 ```
 
-This program uses two ZIO built-in services, `Console` and `Clock`. We don't need to provide `Console` and `Clock` manually, to reduce some boilerplate, we use [`ZEnv`][ZEnv] to satisfy some common base requirements.
+This program uses two ZIO built-in services, `Console` and `Clock`. We don't need to provide `Console` and `Clock` manually, to reduce some boilerplate, we use `ZEnv` to satisfy some common base requirements.
 
 By using `ZIO#provideCustomLayer` we only provide the `Logging` layer, and it returns a `ZIO` effect which only requires `ZEnv`:
 
