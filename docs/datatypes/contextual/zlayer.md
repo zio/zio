@@ -230,6 +230,31 @@ If we don't want to share a module, we should create a fresh, non-shared version
 
 The [`ZLayer`][ZLayer] mechanism makes it impossible to build cyclic dependencies, making the initialization process very linear, by construction.
 
+## Updating Local Dependencies
+
+Given a layer, it is possible to update one or more components it provides. We update a dependency in two ways:
+
+1. **Using the `update` Method** — This method allows us to replace one requirement with a different implementation:
+
+```scala
+val withPostgresService = horizontal.update[UserRepo.Service]{ oldRepo  => new UserRepo.Service {
+      override def getUser(userId: UserId): IO[DBError, Option[User]] = UIO(???)
+      override def createUser(user: User): IO[DBError, Unit] = UIO(???)
+    }
+  }
+```
+
+2. **Using Horizontal Composition** — Another way to update a requirement is to horizontally compose in a layer that provides the updated service. The resulting composition will replace the old layer with the new one:
+
+```scala
+val dbLayer: Layer[Nothing, UserRepo] = ZLayer.succeed(new UserRepo.Service {
+    override def getUser(userId: UserId): IO[DBError, Option[User]] = ???
+    override def createUser(user: User): IO[DBError, Unit] = ???
+  })
+
+val updatedHorizontal2 = horizontal ++ dbLayer
+```
+
 ## Examples
 
 ### The simplest ZLayer application
