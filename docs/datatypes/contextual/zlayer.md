@@ -15,7 +15,7 @@ ZLayers are:
 
 4. **Effectful and Resourceful** — The construction of ZIO layers can be effectful and resourceful, they can be acquired and safely released when the services are done being utilized.
 
-5. **Utilize ZIO Concurrency**
+5. **Asynchronous** — Unlike class constructors which are blocking, ZLayer is fully asynchronous and non-blocking.
 
 For example, a `ZLayer[Blocking with Logging, Throwable, Database]` can be thought of as a function that map `Blocking` and `Logging` services into `Database` service: 
 
@@ -327,6 +327,16 @@ val dbLayer: Layer[Nothing, UserRepo] = ZLayer.succeed(new UserRepo.Service {
 
 val updatedHorizontal2 = horizontal ++ dbLayer
 ```
+
+## Asynchronous Service Construction
+
+Another important note about `ZLayer` is that, unlike constructors which are synchronous, `ZLayer` is _asynchronous_. Constructors in classes are always synchronous. This is a drawback for non-blocking applications. Because sometimes we might want to use something that is blocking the inside constructor.
+
+For example, when we are constructing some sort of Kafka streaming service, we might want to connect to the Kafka cluster in the constructor of our service, which takes some time. So that wouldn't be a good idea to blocking inside a constructor. There are some workarounds for fixing this issue, but they are not perfect as the ZIO solution.
+
+Well, with ZIO ZLayer, our constructor could be asynchronous, and they also can block definitely. And that is because `ZLayer` has the full power of ZIO. And as a result, we have strictly more power on our constructors with ZLayer. 
+
+We can acquire resources asynchronously or in a blocking fashion, and spend some time doing that, and we don't need to worry about it. That is not an anti-pattern. This is the best practice with ZIO.
 
 ## Examples
 
