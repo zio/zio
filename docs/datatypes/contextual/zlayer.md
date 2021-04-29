@@ -35,17 +35,17 @@ Let's see how we can create a layer:
 
 2. **Acquisition/Release Action** — It may contain how to initialize a service. For example, if we are creating a recipe for a `Database` service, we should provide how the `Database` will be initialized, via acquisition action. Also, it may contain how to release a service. For example, how the `Database` releases its connection pools.
 
-In some cases, a [`ZLayer`][ZLayer] may not have any dependencies or requirements from the environment. In this case, we can specify `Any` for the `RIn` type parameter. The [`Layer`][Layer] type alias provided by ZIO is a convenient way to define a layer without requirements.
+In some cases, a `ZLayer` may not have any dependencies or requirements from the environment. In this case, we can specify `Any` for the `RIn` type parameter. The `Layer` type alias provided by ZIO is a convenient way to define a layer without requirements.
 
-There are many ways to create a [`ZLayer`][ZLayer]. Here's an incomplete list:
- - [`ZLayer.succeed`][ZLayer.succeed] to create a layer from an existing service
- - [`ZLayer.succeedMany`][ZLayer.succeedMany] to create a layer from a value that's one or more services
- - [`ZLayer.fromFunction`][ZLayer.fromFunction] to create a layer from a function from the requirement to the service
- - [`ZLayer.fromEffect`][ZLayer.fromEffect] to lift a `ZIO` effect to a layer requiring the effect environment
- - [`ZLayer.fromAcquireRelease`][ZLayer.fromAcquireRelease] for a layer based on resource acquisition/release. The idea is the same as `ZManaged`.
- - [`ZLayer.fromService`][ZLayer.fromService] to build a layer from a service
- - [`ZLayer.fromServices`][ZLayer.fromServices] to build a layer from a number of required services
- - [`ZLayer.identity`][ZLayer.identity] to express the requirement for a layer
+There are many ways to create a ZLayer. Here's an incomplete list:
+ - `ZLayer.succeed` to create a layer from an existing service
+ - `ZLayer.succeedMany` to create a layer from a value that's one or more services
+ - `ZLayer.fromFunction` to create a layer from a function from the requirement to the service
+ - `ZLayer.fromEffect` to lift a `ZIO` effect to a layer requiring the effect environment
+ - `ZLayer.fromAcquireRelease` for a layer based on resource acquisition/release. The idea is the same as `ZManaged`.
+ - `ZLayer.fromService` to build a layer from a service
+ - `ZLayer.fromServices` to build a layer from a number of required services
+ - `ZLayer.identity` to express the requirement for a layer
  - `ZIO#toLayer` or `ZManaged#toLayer` to construct a layer from an effect
 
 Where it makes sense, these methods have also variants to build a service effectfully (suffixed by `M`), resourcefully (suffixed by `Managed`), or to create a combination of services (suffixed by `Many`).
@@ -106,7 +106,7 @@ Some components of our applications need to be managed, meaning they undergo a r
 
 Fortunately, the construction of ZIO layers can be effectful and resourceful, this means they can be acquired and safely released when the services are done being utilized.
 
-[`ZLayer`][ZLayer] relies on the powerful [`ZManaged`][ZManaged] data type and this makes this process extremely simple.
+`ZLayer` relies on the powerful `ZManaged` data type and this makes this process extremely simple.
 
 We can lift any `ZManaged` to `ZLayer` by providing a managed resource to the `ZIO.fromManaged` constructor:
 
@@ -297,11 +297,11 @@ val myLayer: ZLayer[Has[Console] with Has[Blocking], Throwable, Has[UserRepo]] =
 
 One important feature of `ZIO` layers is that they are acquired in parallel wherever possible, and they are shared. For every layer in our dependency graph, there is only one instance of it that is shared between all the layers that depend on it. 
 
-If we don't want to share a module, we should create a fresh, non-shared version of it through [`ZLayer#fresh`][ZLayer#fresh].
+If we don't want to share a module, we should create a fresh, non-shared version of it through `ZLayer#fresh`.
 
 ## Cyclic Dependencies
 
-The [`ZLayer`][ZLayer] mechanism makes it impossible to build cyclic dependencies, making the initialization process very linear, by construction.
+The `ZLayer` mechanism makes it impossible to build cyclic dependencies, making the initialization process very linear, by construction.
 
 ## Updating Local Dependencies
 
