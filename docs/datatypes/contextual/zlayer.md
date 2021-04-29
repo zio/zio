@@ -3,7 +3,7 @@ id: zlayer
 title: "ZLayer"
 ---
 
-A `ZLayer[A, E, B]` describes a layer of an application: every layer in an application requires some services (the input) and produces some services (the output). 
+A `ZLayer[-RIn, +E, +ROut]` describes a layer of an application: every layer in an application requires some services as input `RIn` and produces some services as the output `ROut`. 
 
 Layers can be thought of as recipes for producing bundles of services, given their dependencies (other services).
 
