@@ -255,6 +255,8 @@ In the functional Scala as well as in object-oriented programming the best pract
 
 It is not mandatory but ZIO encourages us to follow this principle by bundling related functionality as an interface by using _Module Pattern_. 
 
+The core idea is that a layer depends upon the interfaces exposed by the layers immediately below itself, but is completely unaware of its dependencies' internal implementations.
+
 In object-oriented programming:
 
 - **Service Definition** is done by using _interfaces_ (Scala trait or Java Interface).
@@ -459,6 +461,9 @@ ZLayers combined with the ZIO environment, allow us to use ZIO for dependency in
 1. **Building Dependency Graph** — Assume we have several services with their dependencies, and we need a way to compose and wiring up these dependencies and create the dependency graph of our application. `ZLayer` is a ZIO solution for this problem, it allows us to build up the whole application dependency graph.
 
 2. **Dependency Propagation** — When we write an application, our application has a lot of dependencies. We need a way to provide implementations and feeding and propagating all dependencies throughout the whole application. We can solve the propagation problem by using _ZIO environment_.
+
+
+This formulation of Module Pattern is _the way_ ZIO manages dependencies between application components, giving extreme power in terms of compositionality and offering the capability to easily change different implementations. This is particularly useful during _testing_ and _mocking_.
 
 ZIO has a full solution to dependency injection problem. By using ZLayer and ZIO environment we can solve the propagation and wire-up problems in dependency injection. But it doesn't necessary to use it, we can still use things like [Guice](https://github.com/google/guice) with ZIO, or we might like to use [izumi distage](https://izumi.7mind.io/distage/index.html) solution for dependency injection.
 
