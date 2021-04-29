@@ -427,14 +427,13 @@ val dbLayer: Layer[Nothing, UserRepo] = ZLayer.succeed(new UserRepo.Service {
 val updatedHorizontal2 = horizontal ++ dbLayer
 ```
 
-
 ## Hidden Versus Passed Through Dependencies
 
 One design decision regarding building dependency graphs is whether to hide or pass through the upstream dependencies of a service. `ZLayer` defaults to hidden dependencies but makes it easy to pass through dependencies as well.
 
 To illustrate this, consider the Postgres-based repository discussed above:
 
-```scala mdoc:silent
+```scala mdoc:silent:nest
 val connection: ZLayer[Any, Nothing, Has[Connection]] = connectionLayer
 val userRepo: ZLayer[Has[Connection], Nothing, UserRepo] = postgresLayer
 val layer: ZLayer[Any, Nothing, UserRepo] = connection >>> userRepo
@@ -444,7 +443,7 @@ Notice that in `layer`, the dependency `UserRepo` has on `Connection` has been "
 
 To provide only some inputs, we need to explicitly define what inputs still need to be provided:
 
-```scala mdoc:silent
+```scala mdoc:silent:nest
 trait Configuration
 
 val userRepoWithConfig: ZLayer[Has[Configuration] with Has[Connection], Nothing, UserRepo] = 
@@ -457,7 +456,7 @@ In this example the requirement for a `Connection` has been satisfied, but `Conf
 
 This achieves an encapsulation of services and can make it easier to refactor code. For example, say we want to refactor our application to use an in-memory database:
 
-```scala mdoc:silent
+```scala mdoc:silent:nest
 val updatedLayer: ZLayer[Any, Nothing, UserRepo] = dbLayer
 ```
 
@@ -466,8 +465,8 @@ No other code will need to be changed, because the previous implementation's dep
 However, if an upstream dependency is used by many other services, it can be convenient to "pass through" that dependency, and include it in the output of a layer. This can be done with the `>+>` operator, which provides the output of one layer to another layer, returning a new layer that outputs the services of _both_ layers.
 
 
-```scala
-val layer: ZLayer[Any, Nothing, Connection with UserRepo] = connection >+> userRepo
+```scala mdoc:silent:nest
+val layer: ZLayer[Any, Nothing, Has[Connection] with UserRepo] = connection >+> userRepo
 ```
 
 Here, the `Connection` dependency has been passed through, and is available to all downstream services. This allows a style of composition where the `>+>` operator is used to build a progressively larger set of services, with each new service able to depend on all the services before it.
