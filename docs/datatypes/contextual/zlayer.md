@@ -35,11 +35,10 @@ Let's see how we can create a layer:
 
 2. **Acquisition/Release Action** — It may contain how to initialize a service. For example, if we are creating a recipe for a `Database` service, we should provide how the `Database` will be initialized, via acquisition action. Also, it may contain how to release a service. For example, how the `Database` releases its connection pools.
 
-In some cases, a [`ZLayer`][ZLayer] may not have any dependencies or requirements from the environment. In this case, we can specify `Any` for the `RIn` type parameter. 
-The [`Layer`][Layer] type alias provided by ZIO is a convenient way to define a layer without requirements.
+In some cases, a [`ZLayer`][ZLayer] may not have any dependencies or requirements from the environment. In this case, we can specify `Any` for the `RIn` type parameter. The [`Layer`][Layer] type alias provided by ZIO is a convenient way to define a layer without requirements.
 
 There are many ways to create a [`ZLayer`][ZLayer]. Here's an incomplete list:
- - [`ZLayer.succeed`][ZLayer.succeed] or `ZIO#asService` to create a layer from an existing service
+ - [`ZLayer.succeed`][ZLayer.succeed] to create a layer from an existing service
  - [`ZLayer.succeedMany`][ZLayer.succeedMany] to create a layer from a value that's one or more services
  - [`ZLayer.fromFunction`][ZLayer.fromFunction] to create a layer from a function from the requirement to the service
  - [`ZLayer.fromEffect`][ZLayer.fromEffect] to lift a `ZIO` effect to a layer requiring the effect environment
