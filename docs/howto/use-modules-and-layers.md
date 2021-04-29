@@ -139,31 +139,6 @@ val log = mix.get[Logger.Service].log("Hello modules!")
 As per the recipe above, it is extremely convenient to define a type alias for `Has[Service]`.
 Usually we don't create a [`Has`][Has] directly. Instead, we create a [`Has`][Has] via [`ZLayer`][ZLayer].
 
-### The `ZLayer` data type
-
-`ZLayer[-RIn, +E, +ROut <: Has[_]]` is a recipe to build an environment of type `ROut`, starting from a value `RIn`, and possibly producing an error `E` during creation.
-
-In some cases, a [`ZLayer`][ZLayer] may not have any dependencies or requirements from the environment. In this case, we can specify `Any` for the `RIn` type parameter. 
-The [`Layer`][Layer] type alias provided by ZIO is a convenient way to define a layer without requirements.
-
-There are many ways to create a [`ZLayer`][ZLayer]. Here's an incomplete list:
- - [`ZLayer.succeed`][ZLayer.succeed] or `ZIO#asService` to create a layer from an existing service
- - [`ZLayer.succeedMany`][ZLayer.succeedMany] to create a layer from a value that's one or more services
- - [`ZLayer.fromFunction`][ZLayer.fromFunction] to create a layer from a function from the requirement to the service
- - [`ZLayer.fromEffect`][ZLayer.fromEffect] to lift a `ZIO` effect to a layer requiring the effect environment
- - [`ZLayer.fromAcquireRelease`][ZLayer.fromAcquireRelease] for a layer based on resource acquisition/release. The idea is the same as `ZManaged`.
- - [`ZLayer.fromService`][ZLayer.fromService] to build a layer from a service
- - [`ZLayer.fromServices`][ZLayer.fromServices] to build a layer from a number of required services
- - [`ZLayer.identity`][ZLayer.identity] to express the requirement for a layer
- - `ZIO#toLayer` or `ZManaged#toLayer` to construct a layer from an effect
-
-Where it makes sense, these methods have also variants to build a service effectfully (suffixed by `M`), resourcefully (suffixed by `Managed`), or to create a combination of services (suffixed by `Many`).
-
-We can compose `layerA` and `layerB` _horizontally_ to build a layer that has the requirements of both layers, to provide the capabilities of both layers, through `layerA ++ layerB`
-
-We can also compose layers _vertically_, meaning the output of one layer is used as input for the subsequent layer to build the next layer, resulting in one layer with the requirement of the first, and the output of the second layer: `layerA >>> layerB`.
-When doing this, the first layer must output all the services required by the second layer, but we can defer creating some of these services and require them as part of the input of the final layer using [`ZLayer.identity`][ZLayer.identity].  
-
 ## Wiring modules together
 Here we define a module to cope with CRUD operations for the `User` domain object. We provide also an in-memory implementation of the module:
 
