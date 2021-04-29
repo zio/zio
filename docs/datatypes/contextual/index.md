@@ -577,39 +577,25 @@ Most of the time, we don't use `Has` directly to implement our services, instead
 
 #### Using `provideLayer` Method
 
-Assume we have the following implementation for `Logging` service:
+Unlike the `ZIO#provide` which takes and an `R`, the `ZIO#provideLayer` takes a `ZLayer` to the ZIO effect and translates it to another level. 
 
-```scala mdoc:invisible:reset
+Assume we have written this piece of program that requires Clock and Console services:
+
+```scala mdoc:silent:nest
+import zio.clock._
+import zio.console._
+
+val myApp: ZIO[Console with Clock, Nothing, Unit] = for {
+  current <- currentDateTime.orDie
+  _ <- putStrLn(s"Current Data Time: ${current.toString}")
+} yield ()
 ```
 
-```scala mdoc:invisible
-import zio._
-trait Logging {
-  def log(str: String): UIO[Unit]
-}
+We can compose the live implementation of `Console` and `Clock` services horizontally and then provide them to the `myApp` effect by using `ZIO#provideLayer` method:
 
-object Logging {
-  def log(line: String) = ZIO.serviceWith[Logging](_.log(line))
-}
+```scala mdoc:silent:nest
+val mainEffect: ZIO[Any, Nothing, Unit] = 
+  myApp.provideLayer(Console.live ++ Clock.live)
 ```
 
-```scala mdoc:silent
-case class LoggingLive() extends Logging {
-  override def log(line: String): UIO[Unit] =
-    UIO.effectTotal(println(line))
-}
-```
-
-Let's lift this implementation into a `ZLayer` data type:
-
-```scala
-object LoggingLive {
-  val layer = (LoggingLive.apply _).toLayer
-}
-```
-
-Now, we can use `ZIO#provideLayer` method to provide the live layer of `Logging` service into the environment of the `app` effect:
-
-```scala
-val effect = app.provideLayer(LoggingLive.layer)
-```
+As we see, the type of our effect converted from `ZIO[Console with Clock, Nothing, Unit]` which requires two services to `ZIO[Any, Nothing, Unit]` effect which doesn't require any services.
