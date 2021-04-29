@@ -248,6 +248,7 @@ Let's get into an example, assume we have these services with their implementati
 ```scala mdoc:invisible:reset
 import zio.blocking.Blocking
 import zio.console.Console
+import zio._
 ```
 
 ```scala mdoc:silent:nest
@@ -268,29 +269,29 @@ We can't compose these services together, because their constructors are not val
 
 Let's assume we have lifted these services into `ZLayer`s:
 
-```scala
-val logging: ZLayer[Has[Console], Nothing, Has[Logging]] = 
-  LoggerImpl(_).toLayer
-val database: ZLayer[Has[Blocking], Throwable, Has[Database]] = 
-  DatabaseImp(_).toLayer
-val userRepo: ZLayer[Has[Logging] with Has[Database], Throwable, Has[UserRepo]] = 
-  UserRepoImpl(_, _).toLayer
-val blobStorage: ZLayer[Has[Logging], Throwable, Has[Blocking]] = 
-  BlobStorageImpl(_).toLayer
-val docRepo: ZLayer[Has[Logging] with Has[Database] with Has[BlobStorage], Throwable, Has[DocRepo]] = 
-  DocRepoImpl(_, _, _).toLayer
+```scala mdoc:silent
+val logging: URLayer[Has[Console.Service], Has[Logging]] = 
+  (LoggerImpl.apply _).toLayer
+val database: URLayer[Has[Blocking.Service], Has[Database]] = 
+  (DatabaseImp(_)).toLayer
+val userRepo: URLayer[Has[Logging] with Has[Database], Has[UserRepo]] = 
+  (UserRepoImpl(_, _)).toLayer
+val blobStorage: URLayer[Has[Logging], Has[BlobStorage]] = 
+  (BlobStorageImpl(_)).toLayer
+val docRepo: URLayer[Has[Logging] with Has[Database] with Has[BlobStorage], Has[DocRepo]] = 
+  (DocRepoImpl(_, _, _)).toLayer
 ```
 
 Now, we can compose logging and database horizontally:
 
-```scala
-val newLayer: ZLayer[Has[Console] with Has[Blocking], Throwable, Has[Logging] with Has[Database]] = logging ++ database
+```scala mdoc:silent
+val newLayer: ZLayer[Has[Console.Service] with Has[Blocking.Service], Throwable, Has[Logging] with Has[Database]] = logging ++ database
 ```
 
 And then we can compose the `newLayer` with `userRepo` vertically:
 
-```scala
-val myLayer: ZLayer[Has[Console] with Has[Blocking], Throwable, Has[UserRepo]] = newLayer >>> userRepo
+```scala mdoc:silent
+val myLayer: ZLayer[Has[Console.Service] with Has[Blocking.Service], Throwable, Has[UserRepo]] = newLayer >>> userRepo
 ```
 
 ## Layer Memoization
