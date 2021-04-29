@@ -114,7 +114,6 @@
   "howto-sidebar": {
     "Overview": ["howto/index"],
     "How to": [
-      "howto/use-modules-and-layers",
       "howto/use-test-assertions",
       "howto/test-effects",
       "howto/mock-services",
