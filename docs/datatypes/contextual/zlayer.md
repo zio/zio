@@ -174,37 +174,6 @@ def release(resource: Closeable) = ZIO.effectTotal(resource.close())
 val inputStreamLayer = ZLayer.fromAcquireRelease(acquire)(release)
 ```
 
-Here is another example; When we are going to build a Postgres-based repository we might need a `java.sql.Connection` to be opened at start-up, and closed in the release phase:
-
-```scala mdoc:invisible
-import zio.{ Has, IO, Layer, UIO, URIO, ZEnv, ZIO, ZLayer }
-import zio.clock.Clock
-import zio.console.Console
-import zio.random.Random
-
-trait DBError
-trait Product
-trait ProductId
-trait DBConnection
-case class UserId(value: Long)
-```
-
-```scala
-import java.sql.Connection
-def makeConnection: UIO[Connection] = UIO(???)
-val connectionLayer: Layer[Nothing, Has[Connection]] =
-    ZLayer.fromAcquireRelease(makeConnection)(c => UIO(c.close()))
-val postgresLayer: ZLayer[Has[Connection], Nothing, UserRepo] =
-  ZLayer.fromFunction { hasC =>
-    new UserRepo.Service {
-      override def getUser(userId: UserId): IO[DBError, Option[User]] = UIO(???)
-      override def createUser(user: User): IO[DBError, Unit] = UIO(???)
-    }
-  }
-
-val fullRepo: Layer[Nothing, UserRepo] = connectionLayer >>> postgresLayer
-```
-
 ### From ZIO Effects
 
 We can create `ZLayer` from any `ZIO` effect by using `ZLayer.fromEffect` constructor, or calling `ZIO#toLayer` method:
