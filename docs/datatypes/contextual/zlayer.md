@@ -233,6 +233,66 @@ val live: ZLayer[Console, Nothing, Logging] = ZLayer.fromService(console =>
 )
 ```
 
+## Vertical and Horizontal Composition
+
+We said that we can think of the `ZLayer` as a more powerful _constructor_. Constructors are not composable, because they are not values. While a constructor is not composable, `ZLayer` has a nice facility to compose with other `ZLayer`s. So we can say that a `Zlayer` turns a constructor into values.
+
+`ZLayer`s can be composed together horizontally or vertically:
+
+1. **Horizontal Composition** — They can be composed together horizontally with the `++` operator. When we compose two layers horizontally, the new layer that this layer requires all the services that both of them require, also this layer produces all services that both of them produces. Horizontal composition is a way of composing two layers side-by-side. It is useful when we combine two layers that they don't have any relationship with each other. 
+
+2. **Vertical Composition** — If we have a layer that requires `A` and produces `B`, we can compose this layer with another layer that requires `B` and produces `C`; this composition produces a layer that requires `A` and produces `C`. The feed operator, `>>>`, stack them on top of each other by using vertical composition. This sort of composition is like _function composition_, feeding an output of one layer to an input of another.
+
+Let's get into an example, assume we have these services with their implementations:
+
+```scala mdoc:invisible:reset
+import zio.blocking.Blocking
+import zio.console.Console
+```
+
+```scala mdoc:silent:nest
+trait Logging { }
+trait Database { }
+trait BlobStorage { }
+trait UserRepo { }
+trait DocRepo { }
+
+case class LoggerImpl(console: Console.Service) extends Logging { }
+case class DatabaseImp(blocking: Blocking.Service) extends Database { }
+case class UserRepoImpl(logging: Logging, database: Database) extends UserRepo { } 
+case class BlobStorageImpl(logging: Logging) extends BlobStorage { }
+case class DocRepoImpl(logging: Logging, database: Database, blobStorage: BlobStorage) extends DocRepo { }
+```
+
+We can't compose these services together, because their constructors are not value. `ZLayer` can convert these services into values, then we can compose them together.
+
+Let's assume we have lifted these services into `ZLayer`s:
+
+```scala
+val logging: ZLayer[Has[Console], Nothing, Has[Logging]] = 
+  LoggerImpl(_).toLayer
+val database: ZLayer[Has[Blocking], Throwable, Has[Database]] = 
+  DatabaseImp(_).toLayer
+val userRepo: ZLayer[Has[Logging] with Has[Database], Throwable, Has[UserRepo]] = 
+  UserRepoImpl(_, _).toLayer
+val blobStorage: ZLayer[Has[Logging], Throwable, Has[Blocking]] = 
+  BlobStorageImpl(_).toLayer
+val docRepo: ZLayer[Has[Logging] with Has[Database] with Has[BlobStorage], Throwable, Has[DocRepo]] = 
+  DocRepoImpl(_, _, _).toLayer
+```
+
+Now, we can compose logging and database horizontally:
+
+```scala
+val newLayer: ZLayer[Has[Console] with Has[Blocking], Throwable, Has[Logging] with Has[Database]] = logging ++ database
+```
+
+And then we can compose the `newLayer` with `userRepo` vertically:
+
+```scala
+val myLayer: ZLayer[Has[Console] with Has[Blocking], Throwable, Has[UserRepo]] = newLayer >>> userRepo
+```
+
 ## Layer Memoization
 
 One important feature of `ZIO` layers is that they are acquired in parallel wherever possible, and they are shared. For every layer in our dependency graph, there is only one instance of it that is shared between all the layers that depend on it. 

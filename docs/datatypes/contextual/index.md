@@ -447,77 +447,22 @@ Finally, we provide required layers to our `app` effect:
 ## Dependency Injection in ZIO
 
 ZLayers combined with the ZIO environment, allow us to use ZIO for dependency injection. There are two parts for dependency injection:
+1. **Building Dependency Graph**
+2. **Dependency Propagation**
 
-1. **Building Dependency Graph** — Assume we have several services with their dependencies, and we need a way to compose and wiring up these dependencies and create the dependency graph of our application. `ZLayer` is a ZIO solution for this problem, it allows us to build up the whole application dependency graph.
+ZIO has a full solution to the dependency injection problem. It solves the first problem by using compositional properties of `ZLayer`, and solves the second by using ZIO Environment facilities like `ZIO#provide`. 
 
-2. **Dependency Propagation** — When we write an application, our application has a lot of dependencies. We need a way to provide implementations and feeding and propagating all dependencies throughout the whole application. We can solve the propagation problem by using _ZIO environment_.
+The way ZIO manages dependencies between application components gives us extreme power in terms of compositionality and offering the capability to easily change different implementations. This is particularly useful during _testing_ and _mocking_.
 
-
-This formulation of Module Pattern is _the way_ ZIO manages dependencies between application components, giving extreme power in terms of compositionality and offering the capability to easily change different implementations. This is particularly useful during _testing_ and _mocking_.
-
-ZIO has a full solution to dependency injection problem. By using ZLayer and ZIO environment we can solve the propagation and wire-up problems in dependency injection. But it doesn't necessary to use it, we can still use things like [Guice](https://github.com/google/guice) with ZIO, or we might like to use [izumi distage](https://izumi.7mind.io/distage/index.html) solution for dependency injection.
+By using ZLayer and ZIO Environment we can solve the propagation and wire-up problems in dependency injection. But it doesn't necessary to use it, we can still use things like [Guice](https://github.com/google/guice) with ZIO, or we might like to use [izumi distage](https://izumi.7mind.io/distage/index.html) solution for dependency injection.
 
 ### Building Dependency Graph
 
-We said that the `ZLayer` can be thought of as a more powerful _constructor_. While a constructor is not composable, the `ZLayer` has a nice facility to compose with other `ZLayer`s. Constructors are not values, so they can't compose. So we can say a `Zlayer` turns a constructor into values.
-
-`ZLayer`s can be composed together horizontally or vertically:
-
-1. **Horizontal Composition** — They can be composed together horizontally with the `++` operator. When we compose two layers horizontally, the new layer that this layer requires all the services that both of them require, also this layer produces all services that both of them produces. Horizontal composition is a way of composing two layers side-by-side. It is useful when we combine two layers that they don't have any relationship with each other. 
-
-2. **Vertical Composition** — If we have a layer that requires `A` and produces `B`, we can compose this layer with another layer that requires `B` and produces `C`; this composition produces a layer that requires `A` and produces `C`. The feed operator, `>>>`, stack them on top of each other by using vertical composition. This sort of composition is like _function composition_, feeding an output of one layer to an input of another.
-
-Let's get into an example, assume we have these services with their implementations:
-
-```scala mdoc:invisible:reset
-import zio.blocking.Blocking
-import zio.console.Console
-```
-
-```scala mdoc:silent:nest
-trait Logging { }
-trait Database { }
-trait BlobStorage { }
-trait UserRepo { }
-trait DocRepo { }
-
-case class LoggerImpl(console: Console.Service) extends Logging { }
-case class DatabaseImp(blocking: Blocking.Service) extends Database { }
-case class UserRepoImpl(logging: Logging, database: Database) extends UserRepo { } 
-case class BlobStorageImpl(logging: Logging) extends BlobStorage { }
-case class DocRepoImpl(logging: Logging, database: Database, blobStorage: BlobStorage) extends DocRepo { }
-```
-
-We can't compose these services together, because their constructors are not value. `ZLayer` can convert these services into values, then we can compose them together.
-
-Let's assume we have lifted these services into `ZLayer`s:
-
-```scala
-val logging: ZLayer[Has[Console], Nothing, Has[Logging]] = 
-  LoggerImpl(_).toLayer
-val database: ZLayer[Has[Blocking], Throwable, Has[Database]] = 
-  DatabaseImp(_).toLayer
-val userRepo: ZLayer[Has[Logging] with Has[Database], Throwable, Has[UserRepo]] = 
-  UserRepoImpl(_, _).toLayer
-val blobStorage: ZLayer[Has[Logging], Throwable, Has[Blocking]] = 
-  BlobStorageImpl(_).toLayer
-val docRepo: ZLayer[Has[Logging] with Has[Database] with Has[BlobStorage], Throwable, Has[DocRepo]] = 
-  DocRepoImpl(_, _, _).toLayer
-```
-
-Now, we can compose logging and database horizontally:
-
-```scala
-val newLayer: ZLayer[Has[Console] with Has[Blocking], Throwable, Has[Logging] with Has[Database]] = logging ++ database
-```
-
-And then we can compose the `newLayer` with `userRepo` vertically:
-
-```scala
-val myLayer: ZLayer[Has[Console] with Has[Blocking], Throwable, Has[UserRepo]] = newLayer >>> userRepo
-```
+Assume we have several services with their dependencies, and we need a way to compose and wiring up these dependencies and create the dependency graph of our application. `ZLayer` is a ZIO solution for this problem, it allows us to build up the whole application dependency graph by composing layers horizontally and vertically. More information about how to compose layers is on the [ZLayer](ZLayer.md) page.
 
 ### Dependency Propagation
+
+When we write an application, our application has a lot of dependencies. We need a way to provide implementations and feeding and propagating all dependencies throughout the whole application. We can solve the propagation problem by using _ZIO environment_.When we write an application, our application has a lot of dependencies. We need a way to provide implementations and feeding and propagating all dependencies throughout the whole application. We can solve the propagation problem by using _ZIO environment_.
 
 During the development of an application, we don't care about implementations. Incrementally, when we use various effects with different requirements on their environment, all part of our application composed together, and at the end of the day we have a ZIO effect which requires some services as an environment. Before running this effect by `unsafeRun` we should provide an implementation of these services into the ZIO Environment of that effect.
 
