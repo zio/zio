@@ -584,18 +584,86 @@ Assume we have written this piece of program that requires Clock and Console ser
 ```scala mdoc:silent:nest
 import zio.clock._
 import zio.console._
+import zio.random._
 
-val myApp: ZIO[Console with Clock, Nothing, Unit] = for {
+val myApp: ZIO[Random with Console with Clock, Nothing, Unit] = for {
+  random  <- nextInt 
+  _       <- putStrLn(s"A random number: ${random.toString}")
   current <- currentDateTime.orDie
-  _ <- putStrLn(s"Current Data Time: ${current.toString}")
+  _       <- putStrLn(s"Current Data Time: ${current.toString}")
 } yield ()
 ```
 
-We can compose the live implementation of `Console` and `Clock` services horizontally and then provide them to the `myApp` effect by using `ZIO#provideLayer` method:
+We can compose the live implementation of `Random`, `Console` and `Clock` services horizontally and then provide them to the `myApp` effect by using `ZIO#provideLayer` method:
 
 ```scala mdoc:silent:nest
 val mainEffect: ZIO[Any, Nothing, Unit] = 
-  myApp.provideLayer(Console.live ++ Clock.live)
+  myApp.provideLayer(Random.live ++ Console.live ++ Clock.live)
 ```
 
-As we see, the type of our effect converted from `ZIO[Console with Clock, Nothing, Unit]` which requires two services to `ZIO[Any, Nothing, Unit]` effect which doesn't require any services.
+As we see, the type of our effect converted from `ZIO[Random with Console with Clock, Nothing, Unit]` which requires two services to `ZIO[Any, Nothing, Unit]` effect which doesn't require any services.
+
+#### Using `provideSomeLayer` Method
+
+Sometimes we have written a program, and we don't want to provide all its requirements. In these cases, we can use `ZIO#provideSomeLayer` to partially apply some layers to the `ZIO` effect.
+
+In the previous example, if we just want to provide the `Console`, we should use `ZIO#provideSomeLayer`:
+
+```scala mdoc:silent:nest
+val mainEffect: ZIO[Random with Clock, Nothing, Unit] = 
+  myApp.provideSomeLayer[Random with Clock](Console.live)
+```
+
+> **Note:**
+>
+> When using `ZIO#provideSomeLayer[R0 <: Has[_]]`, we should provide the remaining type as `R0` type parameter. This workaround helps the compiler to infer the proper types.
+
+#### Using `provideCustomLayer` Method
+
+[`ZEnv`][ZEnv] is a convenient type alias that provides several built-in ZIO layers that are useful in most applications.
+
+Sometimes we have written a program that contains ZIO built-in services and some other services that are not part of `ZEnv`.  
+
+ As `ZEnv` provides us the implementation of built-in services, we just need to provide layers for those services that are not part of the `ZEnv`. 
+
+`ZIO#provideCustomLayer` helps us to do so and returns an effect that only depends on `ZEnv`.
+
+Let's write an effect that has some built-in services and also has a `Logging` service:
+
+```scala mdoc:invisible:reset
+import zio._
+import zio.console._
+import zio.clock._
+```
+
+```scala mdoc:silent
+trait Logging {
+  def log(str: String): UIO[Unit]
+}
+
+object Logging {
+  def log(line: String) = ZIO.serviceWith[Logging](_.log(line))
+}
+
+object LoggingLive {
+  val layer: ULayer[Has[Logging]] = ZLayer.succeed {
+    new Logging {
+      override def log(str: String): UIO[Unit] = ???
+    }
+  }
+}
+
+val myApp: ZIO[Has[Logging] with Console with Clock, Nothing, Unit] = for {
+  _       <- Logging.log("Application Started!")
+  current <- currentDateTime.orDie
+  _       <- putStrLn(s"Current Data Time: ${current.toString}")
+} yield ()
+```
+
+This program uses two ZIO built-in services, `Console` and `Clock`. We don't need to provide `Console` and `Clock` manually, to reduce some boilerplate, we use [`ZEnv`][ZEnv] to satisfy some common base requirements.
+
+By using `ZIO#provideCustomLayer` we only provide the `Logging` layer, and it returns a `ZIO` effect which only requires `ZEnv`:
+
+```scala mdoc:silent
+val mainEffect: ZIO[ZEnv, Nothing, Unit] = myApp.provideCustomLayer(LoggingLive.layer)
+```
