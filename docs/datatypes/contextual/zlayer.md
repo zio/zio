@@ -5,19 +5,31 @@ title: "ZLayer"
 
 A `ZLayer[-RIn, +E, +ROut]` describes a layer of an application: every layer in an application requires some services as input `RIn` and produces some services as the output `ROut`. 
 
-Layers can be thought of as **recipes for producing bundles of services**, given their dependencies (other services).
+ZLayers are:
 
-Layers **are shared by default**, meaning that if the same layer is used twice, the layer will only be allocated a single time. 
+1. **Recipes for Creating Services** — They describe how a given dependencies produces another services. For example, the `ZLayer[Logging with Database, Throwable, UserRepo]` is a recipe for building a service that requires `Logging` and `Database` service, and it produces a `UserRepo` service.
 
-Because of their excellent **composition properties**, layers are the idiomatic way in ZIO to create services that depend on other services.
+2. **An Alternative to Constructors** — We can think of `ZLayer` as a more powerful version of a constructor, it is an alternative way to represent a constructor. Like a constructor, it allows us to build the `ROut` service in terms of its dependencies (`RIn`).
 
-For example, the `ZLayer[Blocking with Logging with Database, Throwable, UserRepo]` is a recipe for building a service that requires `Blocking`, `Logging` and `Database` service, and it produces a `UserRepoService` service.
+3. **Composable** — Because of their excellent **composition properties**, layers are the idiomatic way in ZIO to create services that depend on other services. We can define layers that are relying on each other. 
 
-Let's see how we can create a layer.
+4. **Effectful and Resourceful** — The construction of ZIO layers can be effectful and resourceful, they can be acquired and safely released when the services are done being utilized.
+
+5. **Utilize ZIO Concurrency**
+
+For example, a `ZLayer[Blocking with Logging, Throwable, Database]` can be thought of as a function that map `Blocking` and `Logging` services into `Database` service: 
+
+```scala
+(Blocking, Logging) => Database
+```
+
+So we can say that the `Database` service has two dependencies: `Blocking` and `Logging` services.
+
+Let's see how we can create a layer:
 
 ## Creation
 
-`ZLayer` is an alternative to a class constructor, a recipe to create a service. This recipe may contain the following information:
+`ZLayer` is an **alternative to a class constructor**, a recipe to create a service. This recipe may contain the following information:
 
 1. **Dependencies** — To create a service, we need to indicate what other service we are depending on. For example, a `Database` service might need `Socket` and `Blocking` services to perform its operations.
 
