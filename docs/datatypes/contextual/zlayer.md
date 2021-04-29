@@ -5,14 +5,15 @@ title: "ZLayer"
 
 A `ZLayer[-RIn, +E, +ROut]` describes a layer of an application: every layer in an application requires some services as input `RIn` and produces some services as the output `ROut`. 
 
-Layers can be thought of as recipes for producing bundles of services, given their dependencies (other services).
+Layers can be thought of as **recipes for producing bundles of services**, given their dependencies (other services).
 
+Layers **are shared by default**, meaning that if the same layer is used twice, the layer will only be allocated a single time. 
 
-Layers are shared by default, meaning that if the same layer is used twice, the layer will only be allocated a single time. 
+Because of their excellent **composition properties**, layers are the idiomatic way in ZIO to create services that depend on other services.
 
-Because of their excellent composition properties, layers are the idiomatic way in ZIO to create services that depend on other services.
+For example, the `ZLayer[Blocking with Logging with Database, Throwable, UserRepo]` is a recipe for building a service that requires `Blocking`, `Logging` and `Database` service, and it produces a `UserRepoService` service.
 
-For example, the `ZLayer[Blocking with Logging with Database, Throwable, UserRepoService]` is a recipe for building a service that requires `Blocking`, `Logging` and `Database` service, and it produces a `UserRepoService` service.
+Let's see how we can create a layer.
 
 ## Creation
 
