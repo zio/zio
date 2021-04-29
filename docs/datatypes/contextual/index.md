@@ -530,6 +530,16 @@ ZIO has some facilities for doing this. `ZIO#provide` is the core function that 
 
 #### Using `provide` Method
 
+The `ZIO#provide` takes an `R` environment and provides it to the `ZIO` effect which eliminates its dependency on `R`:
+
+```scala
+trait ZIO[-R, +E, +A] {
+  def provide(r: R)(implicit ev: NeedsEnv[R]): IO[E, A]
+}
+```
+
+This is similar to dependency injection, and the `provide` function can be thought of as `inject`.
+
 ```scala mdoc:invisible:reset
 import zio._
 ```
