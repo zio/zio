@@ -183,53 +183,6 @@ val fullLayer: Layer[Nothing, Logging with UserRepo] = Console.live >>> horizont
 makeUser.provideLayer(fullLayer)
 ```
 
-## Providing partial environments
-Let's add some extra logic to our program that creates a user:
-
-```scala mdoc:silent
-val makeUser2: ZIO[Logging with UserRepo with Clock with Random, DBError, Unit] = for {
-    uId       <- zio.random.nextLong.map(UserId)
-    createdAt <- zio.clock.currentDateTime.orDie
-    _         <- Logging.info(s"inserting user")
-    _         <- UserRepo.createUser(User(uId, "Chet"))
-    _         <- Logging.info(s"user inserted, created at $createdAt")
-  } yield ()
-```
-
-[`ZEnv`][ZEnv] is a convenient type alias which provides a number of standard ZIO layers that are useful in most applications.
-Now the requirements of our program are more complex, we can reduce some boilerplate by using [`ZEnv`][ZEnv] to satisfy
-some common base requirements, along with our custom requirements, in a single line of code:
-
-```scala mdoc:silent
-  val zEnvMakeUser: ZIO[ZEnv, DBError, Unit] = makeUser2.provideCustomLayer(fullLayer)
-```
-
-Notice that `provideCustomLayer` is just a special case of `provideSomeLayer`.
-
-## Updating local dependencies
-Given a layer, it is possible to update one or more components it provides. The `update` method allows us to replace one
-requirement with a different implementation:
-
-```scala mdoc:silent
-val withPostgresService = horizontal.update[UserRepo.Service]{ oldRepo  => new UserRepo.Service {
-      override def getUser(userId: UserId): IO[DBError, Option[User]] = UIO(???)
-      override def createUser(user: User): IO[DBError, Unit] = UIO(???)
-    }
-  }
-```
-
-Another way to update a requirement is to horizontally compose in a layer that provides the updated service. The resulting
-composition will replace the old layer with the new one:
-
-```scala mdoc:silent
-val dbLayer: Layer[Nothing, UserRepo] = ZLayer.succeed(new UserRepo.Service {
-    override def getUser(userId: UserId): IO[DBError, Option[User]] = ???
-    override def createUser(user: User): IO[DBError, Unit] = ???
-  })
-
-val updatedHorizontal2 = horizontal ++ dbLayer
-```
-
 ## Dealing with managed dependencies
 Some components of our applications need to be managed, meaning they undergo a resource acquisition phase before usage, and a resource release phase after usage (e.g. when the application shuts down).
 [`ZLayer`][ZLayer] relies on the powerful [`ZManaged`][ZManaged] data type and this makes this process extremely simple.
@@ -250,105 +203,8 @@ val postgresLayer: ZLayer[Has[Connection], Nothing, UserRepo] =
   }
 
 val fullRepo: Layer[Nothing, UserRepo] = connectionLayer >>> postgresLayer
-
 ```
 
-## Layers are shared in the dependency graph
-One important feature of `ZIO` layers is that they are acquired in parallel wherever possible, and they are shared. For every layer in our dependency graph, there is only one instance of it that is shared between all the layers that depend on it. If you don't want to share a module, create a fresh, non-shared version of it through [`ZLayer#fresh`][ZLayer#fresh].
-
-Notice also that the [`ZLayer`][ZLayer] mechanism makes it impossible to build cyclic dependencies, making the initialization process very linear, by construction.
-
-# Hidden Versus Passed Through Dependencies
-One design decision regarding building dependency graphs is whether to hide or pass through the upstream dependencies of a service. [`ZLayer`][ZLayer] defaults to hidden dependencies but makes it easy to pass through dependencies as well.
-
-To illustrate this, consider the Postgres-based repository discussed above:
-
-```scala mdoc:silent
-val connection: ZLayer[Any, Nothing, Has[Connection]] = connectionLayer
-val userRepo: ZLayer[Has[Connection], Nothing, UserRepo] = postgresLayer
-val layer: ZLayer[Any, Nothing, UserRepo] = connection >>> userRepo
-```
-
-Notice that in `layer`, the dependency `UserRepo` has on `Connection` has been "hidden", and is no longer expressed in the type signature. From the perspective of a caller, `layer` just outputs a `UserRepo` and requires no inputs. The caller does not need to be concerned with the internal implementation details of how the `UserRepo` is constructed.
-
-To provide only some inputs, we need to explicitly define what inputs still need to be provided:
-```scala mdoc:silent
-trait Configuration
-
-val userRepoWithConfig: ZLayer[Has[Configuration] with Has[Connection], Nothing, UserRepo] = 
-  ZLayer.succeed(new Configuration{}) ++ postgresLayer
-val partialLayer: ZLayer[Has[Configuration], Nothing, UserRepo] = 
-  (ZLayer.identity[Has[Configuration]] ++ connection) >>> userRepoWithConfig
-``` 
-
-In this example the requirement for a `Connection` has been satisfied, but `Configuration` is still required by `partialLayer`.
-
-This achieves an encapsulation of services and can make it easier to refactor code. For example, say we want to refactor our application to use an in-memory database:
-
-```scala mdoc:silent
-val updatedLayer: ZLayer[Any, Nothing, UserRepo] = dbLayer
-```
-
-No other code will need to be changed, because the previous implementation's dependency upon a `Connection` was hidden from users, and so they were not able to rely on it.
-
-However, if an upstream dependency is used by many other services, it can be convenient to "pass through" that dependency, and include it in the output of a layer. This can be done with the `>+>` operator, which provides the output of one layer to another layer, returning a new layer that outputs the services of _both_ layers.
-
-```scala
-val layer: ZLayer[Any, Nothing, Connection with UserRepo] = connection >+> userRepo
-```
-
-Here, the `Connection` dependency has been passed through, and is available to all downstream services. This allows a style of composition where the `>+>` operator is used to build a progressively larger set of services, with each new service able to depend on all the services before it.
-
-```scala mdoc:invisible
-type Baker = Has[Baker.Service]
-type Ingredients = Has[Ingredients.Service]
-type Oven = Has[Oven.Service]
-type Dough = Has[Dough.Service]
-type Cake = Has[Cake.Service]
-
-object Baker {
-  trait Service
-}
-
-object Ingredients {
-  trait Service
-}
-
-object Oven {
-  trait Service
-}
-
-object Dough {
-  trait Service
-}
-
-object Cake {
-  trait Service
-}
-```
-
-```scala mdoc
-lazy val baker: ZLayer[Any, Nothing, Baker] = ???
-lazy val ingredients: ZLayer[Any, Nothing, Ingredients] = ???
-lazy val oven: ZLayer[Any, Nothing, Oven] = ???
-lazy val dough: ZLayer[Baker with Ingredients, Nothing, Dough] = ???
-lazy val cake: ZLayer[Baker with Oven with Dough, Nothing, Cake] = ???
-
-lazy val all: ZLayer[Any, Nothing, Baker with Ingredients with Oven with Dough with Cake] =
-  baker >+>       // Baker
-  ingredients >+> // Baker with Ingredients
-  oven >+>        // Baker with Ingredients with Oven
-  dough >+>       // Baker with Ingredients with Oven with Dough
-  cake            // Baker with Ingredients with Oven with Dough with Cake
-```
-
-[`ZLayer`][ZLayer] makes it easy to mix and match these styles. If you pass through dependencies and later want to hide them you can do so through a simple type ascription:
-
-```scala mdoc:silent
-lazy val hidden: ZLayer[Any, Nothing, Cake] = all
-```
-
-And if you do build your dependency graph more explicitly, you can be confident that layers used in multiple parts of the dependency graph will only be created once due to memoization and sharing.
 
 [Has]: https://github.com/zio/zio/blob/master/core/shared/src/main/scala/zio/Has.scala
 [Layer]: https://github.com/zio/zio/blob/master/core/shared/src/main/scala/zio/package.scala#L38
