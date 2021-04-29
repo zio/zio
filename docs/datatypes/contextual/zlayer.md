@@ -7,7 +7,6 @@ A `ZLayer[A, E, B]` describes a layer of an application: every layer in an appli
 
 Layers can be thought of as recipes for producing bundles of services, given their dependencies (other services).
 
-Construction of layers can be effectful and utilize resources that must be acquired and safely released when the services are done being utilized.
 
 Layers are shared by default, meaning that if the same layer is used twice, the layer will only be allocated a single time. 
 
@@ -91,7 +90,9 @@ val live: ZLayer[Any, Nothing, Terminal] = ZLayer.succeed(Terminal.Service.live)
 
 ### From Managed Resources
 
-Some components of our applications need to be managed, meaning they undergo a resource acquisition phase before usage, and a resource release phase after usage (e.g. when the application shuts down).
+Some components of our applications need to be managed, meaning they undergo a resource acquisition phase before usage, and a resource release phase after usage (e.g. when the application shuts down). 
+
+Fortunately, the construction of ZIO layers can be effectful and resourceful, this means they can be acquired and safely released when the services are done being utilized.
 
 [`ZLayer`][ZLayer] relies on the powerful [`ZManaged`][ZManaged] data type and this makes this process extremely simple.
 
