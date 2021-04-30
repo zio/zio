@@ -8,13 +8,12 @@ The trait `Has[A]` is used with the ZIO environment to express an effect's depen
 For example,`RIO[Has[Console.Service], Unit]` is an effect that requires a `Console.Service` service.
 
 ## Overview
-ZIO wrap services with `Has` data type to:
+ZIO Wrap services with `Has` data type to:
 
-1. **Wire/bind** services into their implementations. This data type has an internal map to maintain this binding. 
+1. **Combine** multiple services together. 
+2. **Bind** services into their implementations. 
 
-2. **Combine** multiple services together. Two or more `Has[_]` elements can be combined _horizontally_ using their `++` operator.
-
-
+### Combining Services
 Two or more `Has[_]` elements can be combined _horizontally_ using their `++` operator:
 
 ```scala mdoc:invisible
@@ -32,11 +31,11 @@ val random: Has[RandomInt] = Has(new RandomInt{})
 val combined: Has[Logging] with Has[RandomInt] = logger ++ random 
 ```
 
-You might ask: what's the use of `Has` if the resulting type is just a mix of two traits? Why aren't we just relying on trait mixins?
+### Binding Services
 
-The extra power that is given by `Has` is that the resulting data structure is backed by an _heterogeneous map_ from service type to service implementation, that collects each instance that is mixed in so that the instances can be accessed/extracted/modified individually, all while still guaranteeing supreme type safety.
+The extra power that is given by `Has` is that the resulting data structure is backed by an _heterogeneous map_. `Has` can be thought of as a `Map[K, V]` which keys are _service types_ and values are _service implementations_. from service type to service implementation, that collects each instance that is mixed in so that the instances can be accessed/extracted/modified individually, all while still guaranteeing supreme type safety.
 
-ZIO internally can ask `combined` using `get` method to determine wiring configurations:
+ZIO internally can ask `combined` using `get` method to determine binding configurations:
 
 ```scala mdoc:silent:nest
 // get back the Logging and RandomInt services from the combined values:
@@ -44,7 +43,7 @@ val logger: Logging   = combined.get[Logging]
 val random: RandomInt = combined.get[RandomInt]
 ```
 
-These are implementation details. Usually, we don't create a `Has` directly. Instead, we create a `Has` via `ZLayer`.
+These are implementation details. Usually, we don't create a `Has` directly. Instead, we create a `Has` using `ZLayer`.
 
 ## Motivation
 Some components in an application might depend upon more than one service, so we might need to combine multiple services and feed them to the ZIO Environment. Services cannot directly be combined, they can be combined if they first wrapped in the `Has` data type. 
