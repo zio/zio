@@ -5,7 +5,19 @@ title: "Has"
 
 The trait `Has[A]` is used with ZIO environment to express an effect's dependency on a service of type `A`.
 
-For example,`RIO[Has[Console.Service], Unit]` is an effect that requires a `Console.Service` service
+For example,`RIO[Has[Console.Service], Unit]` is an effect that requires a `Console.Service` service.
+
+One of the most use-cases of `Has` data type is for wrapping service definition in _Module Pattern 1.0_. Inside the ZIO library, type aliases are provided as shorthands for common services, e.g.:
+
+```scala mdoc:silent
+type Console = Has[Console.Service]
+
+object Console {
+  trait Service {
+    def putStrLn(line: String): UIO[Unit]
+  }
+}
+```
 
 Some components in an application might depend upon more than one service. Two or more `Has[_]` elements can be combined _horizontally_ using their `++` operator:
 
