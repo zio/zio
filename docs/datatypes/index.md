@@ -24,7 +24,6 @@ ZIO contains a few data types that can help you solve complex problems in asynch
  - **[Exit](core/exit.md)** — An `Exit[E, A]` describes the result of executing an `IO` value.
  - **[Cause](core/cause.md)** - `Cause[E]` is a description of a full story of a fiber failure. 
  - **[Runtime](core/runtime.md)** — A `Runtime[R]` is capable of executing tasks within an environment `R`.
- - **[ZLayer](core/zlayer.md)** - A `ZLayer` describes a layer of an application.
  
 ## Fiber Primitives
  - **[Fiber](fiber/fiber.md)** — A fiber value models an `IO` value that has started running, and is the moral equivalent of a green thread.
@@ -69,6 +68,5 @@ The following datatypes can be found in ZIO streams library:
 ## Miscellaneous
  - **[Chunk](misc/chunk.md)** — ZIO `Chunk`: Fast, Pure Alternative to Arrays
  - **[Schedule](misc/schedule.md)** — A `Schedule` is a model of a recurring schedule, which can be used for repeating successful `IO` values, or retrying failed `IO` values.
- - **[Has](misc/has.md)** - A `Has` is used to express an effect's dependency on a service of type `A`.
 
 To learn more about these data types, please explore the pages above, or check out the Scaladoc documentation.

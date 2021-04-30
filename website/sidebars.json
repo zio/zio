@@ -28,8 +28,17 @@
       "datatypes/core/io",
       "datatypes/core/exit",
       "datatypes/core/cause",
-      "datatypes/core/runtime",
-      "datatypes/core/zlayer"
+      "datatypes/core/runtime"
+    ],
+    "Contextual Types": [
+      "datatypes/contextual/index",
+      "datatypes/contextual/has",
+      "datatypes/contextual/zlayer",
+      "datatypes/contextual/rlayer",
+      "datatypes/contextual/ulayer",
+      "datatypes/contextual/layer",
+      "datatypes/contextual/urlayer",
+      "datatypes/contextual/tasklayer"
     ],
     "Fiber Primitives": [
       "datatypes/fiber/index",
@@ -81,7 +90,6 @@
       "datatypes/misc/index",
       "datatypes/misc/chunk",
       "datatypes/misc/schedule",
-      "datatypes/misc/has",
       "datatypes/misc/supervisor"
     ]
   },
@@ -111,7 +119,6 @@
   "howto-sidebar": {
     "Overview": ["howto/index"],
     "How to": [
-      "howto/use-modules-and-layers",
       "howto/use-test-assertions",
       "howto/test-effects",
       "howto/mock-services",
