@@ -82,24 +82,16 @@ ZIO environment facility enables us to:
 
 ## Contextual Data Types
 
-Defining service in ZIO is not very different from object-oriented style, it has the same principle; coding to an interface, not an implementation. But the way ZIO encourages us to implement this principle differs somewhat from the object-oriented style. 
+Defining service in ZIO is not very different from object-oriented style, it has the same principle; coding to an interface, not an implementation. But the way ZIO encourages us to implement this principle by using _Module Pattern_ which doesn't very differ from the object-oriented style. 
 
-ZIO encourages us to write service with _Module Pattern_. Before diving into introducing this technique, let's get to know more about ZIO contextual types. ZIO have two data type that plays a key role in writing ZIO services using Module Pattern: 
+ZIO have two data type that plays a key role in writing ZIO services using _Module Pattern_: 
+1. Has
+2. ZLayer
 
-1. ZLayer
-2. Has
-
-Let's review each of them.
-
-### ZLayer
-
-`ZLayer[-RIn, +E, +ROut]` is a recipe to build an environment of type `ROut`, starting from a value `RIn`, and possibly producing an error `E` during creation.
-
-We can compose `layerA` and `layerB` _horizontally_ to build a layer that has the requirements of both layers, to provide the capabilities of both layers, through `layerA ++ layerB`
-
-We can also compose layers _vertically_, meaning the output of one layer is used as input for the subsequent layer to build the next layer, resulting in one layer with the requirement of the first, and the output of the second layer: `layerA >>> layerB`. When doing this, the first layer must output all the services required by the second layer, but we can defer creating some of these services and require them as part of the input of the final layer using [`ZLayer.identity`][ZLayer.identity].  
+So, before diving into the _Module Patter_, We need to learn more about ZIO Contextual Data Types. Let's review each of them:
 
 ### Has
+
 `Has[A]` represents a dependency on a service of type `A`, e.g. Has[Logging]. Some components in an application might depend upon more than one service. 
 
 ZIO wrap services with `Has` data type to:
@@ -108,78 +100,14 @@ ZIO wrap services with `Has` data type to:
 
 2. **Combine** multiple services together. Two or more `Has[_]` elements can be combined _horizontally_ using their `++` operator.
 
-Let's combine `Has[Database]` and `Has[Logging]` services with `++` operator:
 
-```scala mdoc:invisible
-import zio._
-```
+### ZLayer
 
-```scala mdoc:silent
-trait Database
-trait Logging
+`ZLayer[-RIn, +E, +ROut]` is a recipe to build an environment of type `ROut`, starting from a value `RIn`, and possibly producing an error `E` during creation.
 
-val hasDatabase: Has[Database] = Has(new Database {})
-val hasLogging: Has[Logging]   = Has(new Logging {})
+We can compose `layerA` and `layerB` _horizontally_ to build a layer that has the requirements of both layers, to provide the capabilities of both layers, through `layerA ++ layerB`
 
-// Note the use of the infix `++` operator on `Has` to combine two `Has` elements:
-val combined: Has[Database] with Has[Logging] = hasDatabase ++ hasLogging
-```
-
-At this point you might ask: what's the use of [`Has`][Has] if the resulting type is just a mix of two traits? Why aren't we just relying on trait mixins?
-
-The extra power given by [`Has`][Has] is that the resulting data structure is backed by an _heterogeneous map_ from service type to service implementation, that collects each instance that is mixed in so that the instances can be accessed/extracted/modified individually, all while still guaranteeing supreme type safety.
-
-ZIO internally can ask `combined` using `get` method to determine wiring configurations:
-
-```scala mdoc:silent
-// get back the Database service from the combined values:
-val database: Database = combined.get[Database]
-val logging: Logging   = combined.get[Logging]
-```
-
-These are implementation details, and we don't care about them. Usually we don't create a [`Has`][Has] directly. Instead, we create a [`Has`][Has] via [`ZLayer`][ZLayer].
-
-Whenever we lift a service value into `ZLayer` with the `ZLayer.succeed` constructor, ZIO will wrap our service with `Has` data type:
-
-```scala mdoc:silent:nest
-trait Logging {
-  def log(line: String): UIO[Unit]
-}
-
-val logging: ULayer[Has[Logging]] = ZLayer.succeed(new Logging {
-  override def log(line: String): UIO[Unit] = ZIO.effectTotal(println(line))
-})
-```
-
-Let's write a layer for `Database` service:
-
-```scala mdoc:silent:nest
-trait Database {
-   def putInt(key: String): UIO[Unit]
-   def getInt(key: String): UIO[Int]
-}
-
-val database: ULayer[Has[Database]] = ZLayer.succeed(new Database {
-  override def putInt(key: String): UIO[Unit] = ???
-  override def getInt(key: String): UIO[Int] = ???
-})
-```
-
-Now, when we combine multiple layer together, these services will combined via `with` intersection type:
-
-```scala mdoc:silent:nest
-val myLayer: ZLayer[Any, Nothing, Has[Logging] with Has[Database]] = logging ++ database
-```
-
-Finally, when we provide our layer into the ZIO effect, ZIO can access the binding configuration and extract each service. ZIO does internally these pieces of wiring machinery, we don't care about them:
-
-```scala mdoc:invisible
-val effect: ZIO[Has[Logging] with Has[Database], Throwable, Unit] = ZIO.effect(???)
-```
-
-```scala mdoc:silent
-effect.provideLayer(myLayer) 
-```
+We can also compose layers _vertically_, meaning the output of one layer is used as input for the subsequent layer to build the next layer, resulting in one layer with the requirement of the first, and the output of the second layer: `layerA >>> layerB`. When doing this, the first layer must output all the services required by the second layer, but we can defer creating some of these services and require them as part of the input of the final layer using `ZLayer.identity`.  
 
 ## Defining Services in OOP
 
