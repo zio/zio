@@ -38,7 +38,7 @@
       "datatypes/contextual/ulayer",
       "datatypes/contextual/layer",
       "datatypes/contextual/urlayer",
-      "datatypes/contextual/tasklayer",
+      "datatypes/contextual/tasklayer"
     ],
     "Fiber Primitives": [
       "datatypes/fiber/index",
