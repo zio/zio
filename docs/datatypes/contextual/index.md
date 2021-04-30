@@ -412,9 +412,10 @@ case class LoggingLive(console: Console.Service, clock: Clock.Service) extends L
 
 4. **Defining ZLayer** — Now, we create a companion object for `LoggingLive` data type and lift the service implementation into the `ZLayer`:
 
-```scala mdoc
+```scala mdoc:silent
 object LoggingLive {
-  val layer = (LoggingLive(_, _)).toLayer
+  val layer: URLayer[Has[Console.Service] with Has[Clock.Service], Has[Logging]] =
+    (LoggingLive(_, _)).toLayer
 }
 ```
 
@@ -436,7 +437,8 @@ That's it! Very simple! ZIO encourages us to follow some of the best practices i
 
 Finally, we provide required layers to our `app` effect:
 
-```scala
+```scala mdoc:silent:nest
+ import zio._
  val app = Logging.log("Application Started")
 
  zio.Runtime.default.unsafeRun(
