@@ -388,7 +388,7 @@ By using ZLayer and ZIO Environment we can solve the propagation and wire-up pro
 
 ### Building Dependency Graph
 
-Assume we have several services with their dependencies, and we need a way to compose and wiring up these dependencies and create the dependency graph of our application. `ZLayer` is a ZIO solution for this problem, it allows us to build up the whole application dependency graph by composing layers horizontally and vertically. More information about how to compose layers is on the [ZLayer](ZLayer.md) page.
+Assume we have several services with their dependencies, and we need a way to compose and wiring up these dependencies and create the dependency graph of our application. `ZLayer` is a ZIO solution for this problem, it allows us to build up the whole application dependency graph by composing layers horizontally and vertically. More information about how to compose layers is on the [ZLayer](zlayer.md) page.
 
 ### Dependency Propagation
 
