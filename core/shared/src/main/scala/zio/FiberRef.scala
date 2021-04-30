@@ -135,6 +135,31 @@ final class FiberRef[A] private[zio] (
   }
 
   /**
+   * Returns an `IO` that runs with result of calling the specified function
+   * bound to the current fiber.
+   *
+   * Guarantees that fiber data is properly restored via `bracket`.
+   */
+  def updateLocally[R, E, B](f: A => A)(use: ZIO[R, E, B]): ZIO[R, E, B] =
+    for {
+      oldValue <- get
+      b        <- set(f(oldValue)).bracket_(set(oldValue))(use)
+    } yield b
+
+  /**
+   * Returns an `IO` that runs with result of calling the specified partial
+   * function bound to the current fiber.
+   *
+   * Guarantees that fiber data is properly restored via `bracket`.
+   */
+  def updateSomeLocally[R, E, B](pf: PartialFunction[A, A])(use: ZIO[R, E, B]): ZIO[R, E, B] =
+    for {
+      oldValue <- get
+      value     = pf.applyOrElse[A, A](oldValue, identity)
+      b        <- set(value).bracket_(set(oldValue))(use)
+    } yield b
+
+  /**
    * Atomically modifies the `FiberRef` with the specified partial function.
    * If the function is undefined on the current value it doesn't change it.
    */
