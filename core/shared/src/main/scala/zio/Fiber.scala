@@ -21,7 +21,6 @@ import zio.internal.stacktracer.ZTraceElement
 import zio.internal.{Executor, FiberRenderer}
 
 import java.io.IOException
-
 import scala.concurrent.Future
 
 /**
