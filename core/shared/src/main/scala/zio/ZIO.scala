@@ -4511,11 +4511,11 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   }
 
   private[zio] final class FiberRefNew[A](val initial: A, private[zio] val onFork: A => A, val onJoin: (A, A) => A)
-      extends UIO[FiberRef[A]] {
+      extends UIO[FiberRef.Runtime[A]] {
     override def tag = Tags.FiberRefNew
   }
 
-  private[zio] final class FiberRefModify[A, B](val fiberRef: FiberRef[A], val f: A => (B, A)) extends UIO[B] {
+  private[zio] final class FiberRefModify[A, B](val fiberRef: FiberRef.Runtime[A], val f: A => (B, A)) extends UIO[B] {
     override def tag = Tags.FiberRefModify
   }
 

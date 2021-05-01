@@ -599,7 +599,7 @@ private[zio] final class FiberContext[E, A](
                   case ZIO.Tags.FiberRefNew =>
                     val zio = curZio.asInstanceOf[ZIO.FiberRefNew[Any]]
 
-                    val fiberRef = new FiberRef[Any](zio.initial, zio.onFork, zio.onJoin)
+                    val fiberRef = new FiberRef.Runtime[Any](zio.initial, zio.onFork, zio.onJoin)
                     fiberRefLocals.put(fiberRef, zio.initial)
 
                     curZio = nextInstr(fiberRef)
@@ -814,7 +814,7 @@ private[zio] final class FiberContext[E, A](
     }
   }
 
-  def getRef[A](ref: FiberRef[A]): UIO[A] = UIO {
+  def getRef[A](ref: FiberRef.Runtime[A]): UIO[A] = UIO {
     val oldValue = Option(fiberRefLocals.get(ref))
 
     oldValue.asInstanceOf[Option[A]].getOrElse(ref.initial)
@@ -834,7 +834,7 @@ private[zio] final class FiberContext[E, A](
     if (locals.isEmpty) UIO.unit
     else
       UIO.foreach_(locals) { case (fiberRef, value) =>
-        val ref = fiberRef.asInstanceOf[FiberRef[Any]]
+        val ref = fiberRef.asInstanceOf[FiberRef.Runtime[Any]]
         ref.update(old => ref.join(old, value))
       }
   }
@@ -1111,7 +1111,7 @@ private[zio] object FiberContext {
     def initial[E, A]: Executing[E, A] = Executing[E, A](Status.Running(false), Nil, Cause.empty)
   }
 
-  type FiberRefLocals = java.util.Map[FiberRef[Any], Any]
+  type FiberRefLocals = java.util.Map[FiberRef.Runtime[Any], Any]
 
   private val noop: Option[Any => Unit] =
     Some(_ => ())
