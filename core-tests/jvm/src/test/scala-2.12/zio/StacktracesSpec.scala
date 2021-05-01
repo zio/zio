@@ -138,7 +138,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
         assert(cause.traces.head.stackTrace.size)(equalTo(7)) &&
         assert(cause.traces.head.stackTrace(4).prettyPrint.contains("uploadUsers"))(isTrue) &&
         assert(cause.traces(1).stackTrace.size)(equalTo(5)) &&
-        assert(cause.traces(1).executionTrace.size)(equalTo(6)) &&
+        assert(cause.traces(1).executionTrace.size)(equalTo(7)) &&
         assert(cause.traces(1).executionTrace.head.prettyPrint.contains("uploadTo"))(isTrue) &&
         assert(cause.traces(1).parentTrace.isEmpty)(isFalse) &&
         assert(

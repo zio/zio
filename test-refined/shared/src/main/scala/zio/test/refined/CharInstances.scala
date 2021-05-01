@@ -32,9 +32,8 @@ trait CharInstances {
     Gen.alphaChar.map(value => Refined.unsafeApply(value.toLower))
   val upperCaseGen: Gen[Random, Refined[Char, UpperCase]] =
     Gen.alphaChar.map(value => Refined.unsafeApply(value.toUpper))
-  val whitespaceGen: Gen[Random, Refined[Char, Whitespace]] = Gen
-    .oneOf[Random, Char](Gen.whitespaceChars.map(Gen.const(_)): _*)
-    .map(char => Refined.unsafeApply(char))
+  val whitespaceGen: Gen[Random, Refined[Char, Whitespace]] =
+    Gen.whitespaceChars.map(char => Refined.unsafeApply(char))
 
   implicit def digitArbitrary: DeriveGen[Refined[Char, Digit]] =
     DeriveGen.instance(Gen.numericChar.map(value => Refined.unsafeApply(value)))

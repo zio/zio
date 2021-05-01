@@ -798,8 +798,8 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A generator of whitespace characters.
    */
-  val whitespaceChars: Seq[Char] =
-    (Char.MinValue to Char.MaxValue).filter(_.isWhitespace)
+  val whitespaceChars: Gen[Random, Char] =
+    Gen.elements((Char.MinValue to Char.MaxValue).filter(_.isWhitespace): _*)
 
   /**
    * Zips the specified generators together pairwise. The new generator will

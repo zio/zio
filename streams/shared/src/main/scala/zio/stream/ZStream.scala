@@ -237,15 +237,15 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   ): ZStream[R1 with Clock, E1, Either[Q, P]] =
     ZStream {
       for {
-        pull         <- self.process
-        push         <- transducer.push
-        handoff      <- ZStream.Handoff.make[Take[E1, O]].toManaged_
-        raceNextTime <- ZRef.makeManaged(false)
-        waitingFiber <- ZRef
-                          .makeManaged[Option[Fiber[Nothing, Take[E1, O]]]](None)
-        sdriver   <- schedule.driver.toManaged_
-        lastChunk <- ZRef.makeManaged[Chunk[P]](Chunk.empty)
-        producer   = Take.fromPull(pull).repeatWhileM(take => handoff.offer(take).as(take.isSuccess))
+        pull          <- self.process
+        push          <- transducer.push
+        handoff       <- ZStream.Handoff.make[Take[E1, O]].toManaged_
+        raceNextTime  <- ZRef.makeManaged(false)
+        waitingFiber  <- ZRef.makeManaged[Option[Fiber[Nothing, Take[E1, O]]]](None)
+        scheduleFiber <- ZRef.makeManaged[Option[Fiber[Nothing, Option[Q]]]](None)
+        sdriver       <- schedule.driver.toManaged_
+        lastChunk     <- ZRef.makeManaged[Chunk[P]](Chunk.empty)
+        producer       = Take.fromPull(pull).repeatWhileM(take => handoff.offer(take).as(take.isSuccess))
         consumer = {
           // Advances the state of the schedule, which may or may not terminate
           val updateSchedule: URIO[R1 with Clock, Option[Q]] =
@@ -258,25 +258,52 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
               case Some(fib) => fib.join
             }
 
-          def updateLastChunk(take: Take[_, P]): UIO[Unit] = take.tap(lastChunk.set(_))
+          // Waiting for the scheduler
+          val waitForSchedule: URIO[R1 with Clock, Option[Q]] =
+            scheduleFiber.getAndSet(None).flatMap {
+              case None      => updateSchedule
+              case Some(fib) => fib.join
+            }
 
-          def handleTake(take: Take[E1, O]): Pull[R1, E1, Take[E1, Either[Nothing, P]]] =
+          def updateLastChunk(take: Take[_, P]): UIO[Unit] =
+            take.tap(lastChunk.set(_))
+
+          def setScheduleOnEmptyChunk(
+            take: Take[E1, P],
+            optFiber: Option[Fiber[Nothing, Option[Q]]]
+          ): UIO[Unit] =
+            optFiber.fold(ZIO.unit) { scheduleWaiting =>
+              if (take.exit.fold(_ => true, _.nonEmpty))
+                scheduleWaiting.interrupt.unit
+              else
+                scheduleFiber.set(Some(scheduleWaiting))
+            }
+
+          def handleTake(
+            take: Take[E1, O],
+            scheduleWaiting: Option[Fiber[Nothing, Option[Q]]]
+          ): Pull[R1, E1, Take[E1, Either[Nothing, P]]] =
             take
               .foldM(
-                push(None).map(ps => Chunk(Take.chunk(ps.map(Right(_))), Take.end)),
+                scheduleWaiting.fold(ZIO.unit)(_.interrupt.unit) *> push(None).map(ps =>
+                  Chunk(Take.chunk(ps.map(Right(_))), Take.end)
+                ),
                 cause => ZIO.halt(cause),
                 os =>
                   Take
                     .fromPull(push(Some(os)).asSomeError)
-                    .flatMap(take => updateLastChunk(take).as(Chunk.single(take.map(Right(_)))))
+                    .flatMap { take =>
+                      setScheduleOnEmptyChunk(take, scheduleWaiting) *>
+                        updateLastChunk(take).as(Chunk.single(take.map(Right(_))))
+                    }
               )
               .mapError(Some(_))
 
           def go(race: Boolean): ZIO[R1 with Clock, Option[E1], Chunk[Take[E1, Either[Q, P]]]] =
             if (!race)
-              waitForProducer.flatMap(handleTake) <* raceNextTime.set(true)
+              waitForProducer.flatMap(handleTake(_, None)) <* raceNextTime.set(true)
             else
-              updateSchedule.raceWith[R1 with Clock, Nothing, Option[E1], Take[E1, O], Chunk[Take[E1, Either[Q, P]]]](
+              waitForSchedule.raceWith[R1 with Clock, Nothing, Option[E1], Take[E1, O], Chunk[Take[E1, Either[Q, P]]]](
                 waitForProducer
               )(
                 (scheduleDone, producerWaiting) =>
@@ -297,15 +324,19 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                         _  <- waitingFiber.set(Some(producerWaiting))
                       } yield Chunk.single(ps.map(Right(_)))
                   },
-                (producerDone, scheduleWaiting) =>
-                  scheduleWaiting.interrupt *> handleTake(Take(producerDone.flatMap(_.exit))),
+                (
+                  producerDone,
+                  scheduleWaiting
+                ) => handleTake(Take(producerDone.flatMap(_.exit)), Some(scheduleWaiting)),
                 Some(ZScope.global)
               )
 
           raceNextTime.get
             .flatMap(go)
-            .onInterrupt(waitingFiber.get.flatMap(_.map(_.interrupt).getOrElse(ZIO.unit)))
-
+            .onInterrupt {
+              waitingFiber.get.flatMap(_.map(_.interrupt).getOrElse(ZIO.unit)) *>
+                scheduleFiber.get.flatMap(_.map(_.interrupt).getOrElse(ZIO.unit))
+            }
         }
 
         _ <- producer.forkManaged
