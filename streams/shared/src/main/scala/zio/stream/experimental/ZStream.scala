@@ -3,7 +3,7 @@ package zio.stream.experimental
 import zio._
 import zio.clock._
 import zio.duration._
-import zio.internal.UniqueKey
+import zio.internal.{SingleThreadedRingBuffer, UniqueKey}
 import zio.stm._
 import zio.stream.experimental.ZStream.BufferedPull
 import zio.stream.experimental.internal.Utils.zipChunks
@@ -2127,7 +2127,26 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Takes the last specified number of elements from this stream.
    */
   def takeRight(n: Int): ZStream[R, E, A] =
-    ???
+    if (n <= 0) ZStream.empty
+    else
+      new ZStream(
+        ZChannel.unwrap(
+          for {
+            queue <- UIO(SingleThreadedRingBuffer[A](n))
+          } yield {
+            lazy val reader: ZChannel[Any, E, Chunk[A], Any, E, Chunk[A], Unit] = ZChannel.readWith(
+              (in: Chunk[A]) => {
+                in.foreach(queue.put)
+                reader
+              },
+              ZChannel.fail(_),
+              (_: Any) => ZChannel.write(queue.toChunk) *> ZChannel.unit
+            )
+
+            (self.channel >>> reader)
+          }
+        )
+      )
 
   /**
    * Takes all elements of the stream until the specified predicate evaluates
