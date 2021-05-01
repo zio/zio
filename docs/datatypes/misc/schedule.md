@@ -314,7 +314,7 @@ Whenever we need to effectfully process each schedule input/output, we can use `
 We can use these two functions for logging purposes:
 
 ```scala mdoc:silent
-val tappedSchedule = Schedule.count.whileOutput(_ < 5).tapOutput(o => putStrLn(s"retrying $o"))
+val tappedSchedule = Schedule.count.whileOutput(_ < 5).tapOutput(o => putStrLn(s"retrying $o").orDie)
 ```
 
 

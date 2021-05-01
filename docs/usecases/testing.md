@@ -23,10 +23,12 @@ import zio.test._
 import zio.test.Assertion._
 import zio.test.environment._
 
+import java.io.IOException
+
 import HelloWorld._
 
 object HelloWorld {
-  def sayHello: URIO[Console, Unit] =
+  def sayHello: ZIO[Console, IOException, Unit] =
     console.putStrLn("Hello, World!")
 }
 

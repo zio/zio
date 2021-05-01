@@ -49,7 +49,7 @@ import zio._
 import zio.console.Console
 
 def processEvent(event: Event): URIO[Console, Unit] =
-  console.putStrLn(s"Got $event")
+  console.putStrLn(s"Got $event").orDie
 ```
 
 With ZIO, we've regained to ability to reason about the effects called. We know that `processEvent` can only call on _capabilities_ of `Console`, so even though we still have `Unit` as the result, we have narrowed the possible effects space to a few.
@@ -215,13 +215,13 @@ object AccountObserver {
       new Service {
         def processEvent(event: AccountEvent): UIO[Unit] =
           for {
-            _    <- console.putStrLn(s"Got $event")
+            _    <- console.putStrLn(s"Got $event").orDie
             line <- console.getStrLn.orDie
-            _    <- console.putStrLn(s"You entered: $line")
+            _    <- console.putStrLn(s"You entered: $line").orDie
           } yield ()
 
         def runCommand(): UIO[Unit] =
-          console.putStrLn("Done!")
+          console.putStrLn("Done!").orDie
       }
     }
 }
