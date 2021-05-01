@@ -459,7 +459,7 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
    * throw exceptions but is otherwise pure, translating any thrown exceptions
    * into typed failed effects.
    */
-  def mapPartial[B](f: A => B)(implicit ev: E <:< Throwable): ZSTM[R, Throwable, B] =
+  def mapPartial[B](f: A => B)(implicit ev: E IsSubtypeOfError Throwable): ZSTM[R, Throwable, B] =
     foldM(e => ZSTM.fail(ev(e)), a => ZSTM.partial(f(a)))
 
   /**
@@ -529,7 +529,7 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
    * Translates `STM` effect failure into death of the fiber, making all failures unchecked and
    * not a part of the type of the effect.
    */
-  def orDie(implicit ev1: E <:< Throwable, ev2: CanFail[E]): URSTM[R, A] =
+  def orDie(implicit ev1: E IsSubtypeOfError Throwable, ev2: CanFail[E]): URSTM[R, A] =
     orDieWith(ev1)
 
   /**
@@ -601,7 +601,9 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
   /**
    * Keeps some of the errors, and terminates the fiber with the rest.
    */
-  def refineOrDie[E1](pf: PartialFunction[E, E1])(implicit ev1: E <:< Throwable, ev2: CanFail[E]): ZSTM[R, E1, A] =
+  def refineOrDie[E1](
+    pf: PartialFunction[E, E1]
+  )(implicit ev1: E IsSubtypeOfError Throwable, ev2: CanFail[E]): ZSTM[R, E1, A] =
     refineOrDieWith(pf)(ev1)
 
   /**
