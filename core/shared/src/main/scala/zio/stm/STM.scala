@@ -16,7 +16,7 @@
 
 package zio.stm
 
-import zio.{BuildFrom, CanFail, Fiber, IO}
+import zio.{BuildFrom, CanFail, Fiber, IO, NonEmptyChunk}
 
 import scala.util.Try
 
@@ -359,6 +359,14 @@ object STM {
   def validate[E, A, B, Collection[+Element] <: Iterable[Element]](in: Collection[A])(
     f: A => STM[E, B]
   )(implicit bf: BuildFrom[Collection[A], B, Collection[B]], ev: CanFail[E]): STM[::[E], Collection[B]] =
+    ZSTM.validate(in)(f)
+
+  /**
+   * @see See [[zio.stm.ZSTM.validate]]
+   */
+  def validate[E, A, B](in: NonEmptyChunk[A])(
+    f: A => STM[E, B]
+  )(implicit ev: CanFail[E]): STM[::[E], NonEmptyChunk[B]] =
     ZSTM.validate(in)(f)
 
   /**

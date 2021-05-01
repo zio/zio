@@ -911,11 +911,27 @@ object IO {
     ZIO.validate(in)(f)
 
   /**
+   * @see See [[zio.ZIO.validate]]
+   */
+  def validate[E, A, B](in: NonEmptyChunk[A])(
+    f: A => IO[E, B]
+  )(implicit ev: CanFail[E]): IO[::[E], NonEmptyChunk[B]] =
+    ZIO.validate(in)(f)
+
+  /**
    * @see See [[zio.ZIO.validatePar]]
    */
   def validatePar[E, A, B, Collection[+Element] <: Iterable[Element]](in: Collection[A])(
     f: A => IO[E, B]
   )(implicit bf: BuildFrom[Collection[A], B, Collection[B]], ev: CanFail[E]): IO[::[E], Collection[B]] =
+    ZIO.validatePar(in)(f)
+
+  /**
+   * @see See [[zio.ZIO.validatePar]]
+   */
+  def validatePar[E, A, B](in: NonEmptyChunk[A])(
+    f: A => IO[E, B]
+  )(implicit ev: CanFail[E]): IO[::[E], NonEmptyChunk[B]] =
     ZIO.validatePar(in)(f)
 
   /**

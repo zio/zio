@@ -1495,6 +1495,21 @@ object ZSTM {
     }
 
   /**
+   * Feeds elements of type `A` to `f` and accumulates all errors in error
+   * channel or successes in success channel.
+   *
+   * This combinator is lossy meaning that if there are errors all successes
+   * will be lost. To retain all information please use [[partition]].
+   */
+  def validate[R, E, A, B](in: NonEmptyChunk[A])(
+    f: A => ZSTM[R, E, B]
+  )(implicit ev: CanFail[E]): ZSTM[R, ::[E], NonEmptyChunk[B]] =
+    partition(in)(f).flatMap {
+      case (e :: es, _) => fail(::(e, es))
+      case (_, bs)      => succeedNow(NonEmptyChunk.nonEmpty(Chunk.fromIterable(bs)))
+    }
+
+  /**
    * Feeds elements of type `A` to `f` until it succeeds. Returns first success
    * or the accumulation of all errors.
    */

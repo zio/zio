@@ -4003,6 +4003,21 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     }
 
   /**
+   * Feeds elements of type `A` to `f` and accumulates all errors in error
+   * channel or successes in success channel.
+   *
+   * This combinator is lossy meaning that if there are errors all successes
+   * will be lost. To retain all information please use [[partition]].
+   */
+  def validate[R, E, A, B](in: NonEmptyChunk[A])(
+    f: A => ZIO[R, E, B]
+  )(implicit ev: CanFail[E]): ZIO[R, ::[E], NonEmptyChunk[B]] =
+    partition(in)(f).flatMap { case (es, bs) =>
+      if (es.isEmpty) ZIO.succeedNow(NonEmptyChunk.nonEmpty(Chunk.fromIterable(bs)))
+      else ZIO.fail(::(es.head, es.tail.toList))
+    }
+
+  /**
    * Feeds elements of type `A` to `f `and accumulates, in parallel, all errors
    * in error channel or successes in success channel.
    *
@@ -4014,6 +4029,21 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   )(implicit bf: BuildFrom[Collection[A], B, Collection[B]], ev: CanFail[E]): ZIO[R, ::[E], Collection[B]] =
     partitionPar(in)(f).flatMap { case (es, bs) =>
       if (es.isEmpty) ZIO.succeedNow(bf.fromSpecific(in)(bs))
+      else ZIO.fail(::(es.head, es.tail.toList))
+    }
+
+  /**
+   * Feeds elements of type `A` to `f `and accumulates, in parallel, all errors
+   * in error channel or successes in success channel.
+   *
+   * This combinator is lossy meaning that if there are errors all successes
+   * will be lost. To retain all information please use [[partitionPar]].
+   */
+  def validatePar[R, E, A, B](in: NonEmptyChunk[A])(
+    f: A => ZIO[R, E, B]
+  )(implicit ev: CanFail[E]): ZIO[R, ::[E], NonEmptyChunk[B]] =
+    partitionPar(in)(f).flatMap { case (es, bs) =>
+      if (es.isEmpty) ZIO.succeedNow(NonEmptyChunk.nonEmpty(Chunk.fromIterable(bs)))
       else ZIO.fail(::(es.head, es.tail.toList))
     }
 
