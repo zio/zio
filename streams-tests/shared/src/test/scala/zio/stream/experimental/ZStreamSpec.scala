@@ -2272,66 +2272,66 @@ object ZStreamSpec extends ZIOBaseSpec {
           val s1 = ZStream.succeed(1) ++ ZStream.fail("Boom")
           s1.orElseSucceed(2).runCollect.map(assert(_)(equalTo(Chunk(1, 2))))
         },
-        //     suite("repeat")(
-        //       testM("repeat")(
-        //         assertM(
-        //           ZStream(1)
-        //             .repeat(Schedule.recurs(4))
-        //             .runCollect
-        //         )(equalTo(Chunk(1, 1, 1, 1, 1)))
-        //       ),
-        //       testM("short circuits")(
-        //         for {
-        //           ref <- Ref.make[List[Int]](Nil)
-        //           fiber <- ZStream
-        //                      .fromEffect(ref.update(1 :: _))
-        //                      .repeat(Schedule.spaced(10.millis))
-        //                      .take(2)
-        //                      .runDrain
-        //                      .fork
-        //           _      <- TestClock.adjust(50.millis)
-        //           _      <- fiber.join
-        //           result <- ref.get
-        //         } yield assert(result)(equalTo(List(1, 1)))
-        //       )
-        //     ),
-        //     suite("repeatEither")(
-        //       testM("emits schedule output")(
-        //         assertM(
-        //           ZStream(1L)
-        //             .repeatEither(Schedule.recurs(4))
-        //             .runCollect
-        //         )(
-        //           equalTo(
-        //             Chunk(
-        //               Right(1L),
-        //               Right(1L),
-        //               Left(0L),
-        //               Right(1L),
-        //               Left(1L),
-        //               Right(1L),
-        //               Left(2L),
-        //               Right(1L),
-        //               Left(3L)
-        //             )
-        //           )
-        //         )
-        //       ),
-        //       testM("short circuits") {
-        //         for {
-        //           ref <- Ref.make[List[Int]](Nil)
-        //           fiber <- ZStream
-        //                      .fromEffect(ref.update(1 :: _))
-        //                      .repeatEither(Schedule.spaced(10.millis))
-        //                      .take(3) // take one schedule output
-        //                      .runDrain
-        //                      .fork
-        //           _      <- TestClock.adjust(50.millis)
-        //           _      <- fiber.join
-        //           result <- ref.get
-        //         } yield assert(result)(equalTo(List(1, 1)))
-        //       }
-        //     ),
+        suite("repeat")(
+          testM("repeat")(
+            assertM(
+              ZStream(1)
+                .repeat(Schedule.recurs(4))
+                .runCollect
+            )(equalTo(Chunk(1, 1, 1, 1, 1)))
+          ),
+          testM("short circuits")(
+            for {
+              ref <- Ref.make[List[Int]](Nil)
+              fiber <- ZStream
+                         .fromEffect(ref.update(1 :: _))
+                         .repeat(Schedule.spaced(10.millis))
+                         .take(2)
+                         .runDrain
+                         .fork
+              _      <- TestClock.adjust(50.millis)
+              _      <- fiber.join
+              result <- ref.get
+            } yield assert(result)(equalTo(List(1, 1)))
+          )
+        ),
+        suite("repeatEither")(
+          testM("emits schedule output")(
+            assertM(
+              ZStream(1L)
+                .repeatEither(Schedule.recurs(4))
+                .runCollect
+            )(
+              equalTo(
+                Chunk(
+                  Right(1L),
+                  Right(1L),
+                  Left(0L),
+                  Right(1L),
+                  Left(1L),
+                  Right(1L),
+                  Left(2L),
+                  Right(1L),
+                  Left(3L)
+                )
+              )
+            )
+          ),
+          testM("short circuits") {
+            for {
+              ref <- Ref.make[List[Int]](Nil)
+              fiber <- ZStream
+                         .fromEffect(ref.update(1 :: _))
+                         .repeatEither(Schedule.spaced(10.millis))
+                         .take(3) // take one schedule output
+                         .runDrain
+                         .fork
+              _      <- TestClock.adjust(50.millis)
+              _      <- fiber.join
+              result <- ref.get
+            } yield assert(result)(equalTo(List(1, 1)))
+          }
+        ),
         //     testM("right") {
         //       val s1 = ZStream.succeed(Right(1)) ++ ZStream.succeed(Left(0))
         //       s1.right.runCollect.either.map(assert(_)(isLeft(equalTo(None))))
