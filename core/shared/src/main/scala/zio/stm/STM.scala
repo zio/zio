@@ -354,7 +354,7 @@ object STM {
     ZSTM.unlessM(b)
 
   /**
-   * @see See [[zio.stm.ZSTM.validate]]
+   * @see See [[[zio.stm.ZSTM.validate[R,E,A,B,Collection[+Element]<:Iterable[Element]]*]]]
    */
   def validate[E, A, B, Collection[+Element] <: Iterable[Element]](in: Collection[A])(
     f: A => STM[E, B]
@@ -362,7 +362,7 @@ object STM {
     ZSTM.validate(in)(f)
 
   /**
-   * @see See [[zio.stm.ZSTM.validate]]
+   * @see See [[[zio.stm.ZSTM.validate[R,E,A,B](in:zio\.NonEmptyChunk*]]]
    */
   def validate[E, A, B](in: NonEmptyChunk[A])(
     f: A => STM[E, B]
