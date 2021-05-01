@@ -37,18 +37,15 @@ private[zio] trait LayerMacroUtils {
     assertProperVarArgs(layers)
 
     val deferredRequirements = getRequirements[R0]
-    val requirements         = getRequirements[R] diff deferredRequirements
 
     val deferredLayer =
-      if (deferredRequirements.nonEmpty) Seq(Node(List.empty, deferredRequirements, reify(ZLayer.requires[R0])))
+      if (deferredRequirements.nonEmpty) List(Node(List.empty, deferredRequirements, reify(ZLayer.requires[R0])))
       else Nil
 
-    val nodes = (deferredLayer ++ layers.map(getNode)).toList
-
+    val nodes     = deferredLayer ++ layers.map(getNode)
     val exprGraph = generateExprGraph(nodes)
 
-    buildMemoizedLayer(exprGraph, requirements)
-      .asInstanceOf[c.Expr[ZLayer[R0, E, R]]]
+    buildMemoizedLayer(exprGraph, getRequirements[R]).asInstanceOf[c.Expr[ZLayer[R0, E, R]]]
   }
 
   def buildMemoizedLayer(exprGraph: ZLayerExprBuilder[c.Type, LayerExpr], requirements: List[c.Type]): LayerExpr = {

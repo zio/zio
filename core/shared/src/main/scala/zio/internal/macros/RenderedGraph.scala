@@ -41,10 +41,8 @@ private[macros] object RenderedGraph {
           idx += 1
 
           val isNested = idx < childCount
-
-          val symbol = if (isNested) "├─" else "╰─"
-
-          val lines = g.render(depth + 1).split("\n")
+          val symbol   = if (isNested) "├─" else "╰─"
+          val lines    = g.render(depth + 1).split("\n")
 
           val child = (lines.head +: lines.tail.map { line =>
             if (isNested)
