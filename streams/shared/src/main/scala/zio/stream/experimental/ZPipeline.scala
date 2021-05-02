@@ -47,7 +47,11 @@ trait ZPipeline[-Env, +Err, -In, +Out] { self =>
    */
   final def <<<[Env1 <: Env, Err1 >: Err, In2](
     that: ZPipeline[Env1, Err1, In2, In]
-  ): ZPipeline[Env1, Err1, In2, Out] = self.compose(that)
+  ): ZPipeline[Env1, Err1, In2, Out] =
+    new ZPipeline[Env1, Err1, In2, Out] {
+      def apply[Env0 <: Env1, Err0 >: Err1](stream: ZStream[Env0, Err0, In2]): ZStream[Env0, Err0, Out] =
+        self(that(stream))
+    }
 
   /**
    * A named version of the `>>>` operator.
@@ -55,7 +59,7 @@ trait ZPipeline[-Env, +Err, -In, +Out] { self =>
   final def andThen[Env1 <: Env, Err1 >: Err, Out2](
     that: ZPipeline[Env1, Err1, Out, Out2]
   ): ZPipeline[Env1, Err1, In, Out2] =
-    (self andThen that)
+    self >>> that
 
   def apply[Env1 <: Env, Err1 >: Err](stream: ZStream[Env1, Err1, In]): ZStream[Env1, Err1, Out]
 
@@ -65,10 +69,7 @@ trait ZPipeline[-Env, +Err, -In, +Out] { self =>
   final def compose[Env1 <: Env, Err1 >: Err, In2](
     that: ZPipeline[Env1, Err1, In2, In]
   ): ZPipeline[Env1, Err1, In2, Out] =
-    new ZPipeline[Env1, Err1, In2, Out] {
-      def apply[Env0 <: Env1, Err0 >: Err1](stream: ZStream[Env0, Err0, In2]): ZStream[Env0, Err0, Out] =
-        self(that(stream))
-    }
+    self <<< that
 }
 object ZPipeline {
 

@@ -4,6 +4,8 @@ import zio._
 import zio.clock.Clock
 import zio.duration.Duration
 
+import java.util.concurrent.atomic.AtomicReference
+
 class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Chunk[In], Any, OutErr, Chunk[L], Z])
     extends AnyVal { self =>
 
@@ -18,7 +20,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
   /**
    * Operator alias for [[zip]].
    */
-  final def <*>[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, A0, In1 <: In, L1 >: L, Z1](
+  final def <*>[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, A0, In1 <: In, L1 >: L <: In1, Z1](
     that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
   )(implicit ev: L <:< In1): ZSink[R1, InErr1, In1, OutErr1, L1, (Z, Z1)] =
     zip(that)
@@ -26,15 +28,15 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
   /**
    * Operator alias for [[zipPar]].
    */
-  final def <&>[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, A0, In1 <: In, L1 >: L, Z1](
+  final def <&>[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, A0, In1 <: In, L1 >: L <: In1, Z1](
     that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
-  )(implicit ev: L <:< In1): ZSink[R1, InErr1, In1, OutErr1, L1, (Z, Z1)] =
+  ): ZSink[R1, InErr1, In1, OutErr1, L1, (Z, Z1)] =
     zipPar(that)
 
   /**
    * Operator alias for [[zipRight]].
    */
-  final def *>[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, A0, In1 <: In, L1 >: L, Z1](
+  final def *>[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, A0, In1 <: In, L1 >: L <: In1, Z1](
     that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
   )(implicit ev: L <:< In1): ZSink[R1, InErr1, In1, OutErr1, L1, Z1] =
     zipRight(that)
@@ -42,7 +44,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
   /**
    * Operator alias for [[zipParRight]].
    */
-  final def &>[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, A0, In1 <: In, L1 >: L, Z1](
+  final def &>[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, A0, In1 <: In, L1 >: L <: In1, Z1](
     that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
   )(implicit ev: L <:< In1): ZSink[R1, InErr1, In1, OutErr1, L1, Z1] =
     zipParRight(that)
@@ -50,7 +52,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
   /**
    * Operator alias for [[zipLeft]].
    */
-  final def <*[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, A0, In1 <: In, L1 >: L, Z1](
+  final def <*[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, A0, In1 <: In, L1 >: L <: In1, Z1](
     that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
   )(implicit ev: L <:< In1): ZSink[R1, InErr1, In1, OutErr1, L1, Z] =
     zipLeft(that)
@@ -58,7 +60,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
   /**
    * Operator alias for [[zipParLeft]].
    */
-  final def <&[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, A0, In1 <: In, L1 >: L, Z1](
+  final def <&[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, A0, In1 <: In, L1 >: L <: In1, Z1](
     that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
   )(implicit ev: L <:< In1): ZSink[R1, InErr1, In1, OutErr1, L1, Z] =
     zipParLeft(that)
@@ -168,12 +170,12 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    *
    * This function essentially runs sinks in sequence.
    */
-  def flatMap[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, In1 <: In, L1 >: L, Z1](
+  def flatMap[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, In1 <: In, L1 >: L <: In1, Z1](
     f: Z => ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
   )(implicit ev: L <:< In1): ZSink[R1, InErr1, In1, OutErr1, L1, Z1] =
     foldM(ZSink.fail(_), f)
 
-  def foldM[R1 <: R, InErr1 <: InErr, OutErr2, In1 <: In, L1 >: L, Z1](
+  def foldM[R1 <: R, InErr1 <: InErr, OutErr2, In1 <: In, L1 >: L <: In1, Z1](
     failure: OutErr => ZSink[R1, InErr1, In1, OutErr2, L1, Z1],
     success: Z => ZSink[R1, InErr1, In1, OutErr2, L1, Z1]
   )(implicit ev: L <:< In1): ZSink[R1, InErr1, In1, OutErr2, L1, Z1] =
@@ -181,9 +183,23 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
       channel.doneCollect.foldM(
         failure(_).channel,
         { case (leftovers, z) =>
-          (ZChannel.write(leftovers.flatMap(_.map(ev))) *> ZChannel.identity[InErr1, Chunk[In1], Any]) >>> success(
-            z
-          ).channel
+          ZChannel.effectSuspendTotal {
+            val leftoversRef = new AtomicReference(leftovers.filter(_.nonEmpty))
+            val refReader = ZChannel.effectTotal(leftoversRef.getAndSet(Chunk.empty)).flatMap { chunk =>
+              // This cast is safe because of the L1 >: L <: In1 bound. It follows that
+              // L <: In1 and therefore Chunk[L] can be safely cast to Chunk[In1].
+              val widenedChunk = chunk.asInstanceOf[Chunk[Chunk[In1]]]
+              ZChannel.writeChunk(widenedChunk)
+            }
+
+            val passthrough      = ZChannel.identity[InErr1, Chunk[In1], Any]
+            val continuationSink = (refReader *> passthrough) >>> success(z).channel
+
+            continuationSink.doneCollect.flatMap { case (newLeftovers, z1) =>
+              ZChannel.effectTotal(leftoversRef.get).flatMap(ZChannel.writeChunk(_)) *>
+                ZChannel.writeChunk(newLeftovers).as(z1)
+            }
+          }
         }
       )
     )
@@ -246,56 +262,56 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
   ): ZSink[R1, InErr1, In1, OutErr2, L1, Z1] =
     new ZSink[R1, InErr1, In1, OutErr2, L1, Z1](self.channel.orElse(that.channel))
 
-  def zip[R1 <: R, InErr1 <: InErr, In1 <: In, OutErr1 >: OutErr, L1 >: L, Z1](
+  def zip[R1 <: R, InErr1 <: InErr, In1 <: In, OutErr1 >: OutErr, L1 >: L <: In1, Z1](
     that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
   )(implicit ev: L <:< In1): ZSink[R1, InErr1, In1, OutErr1, L1, (Z, Z1)] =
-    zipWith(that)((_, _))
+    zipWith[R1, InErr1, OutErr1, In1, L1, Z1, (Z, Z1)](that)((_, _))
 
   /**
    * Like [[zip]], but keeps only the result from the `that` sink.
    */
-  final def zipLeft[R1 <: R, InErr1 <: InErr, In1 <: In, OutErr1 >: OutErr, L1 >: L, Z1](
+  final def zipLeft[R1 <: R, InErr1 <: InErr, In1 <: In, OutErr1 >: OutErr, L1 >: L <: In1, Z1](
     that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
   )(implicit ev: L <:< In1): ZSink[R1, InErr1, In1, OutErr1, L1, Z] =
-    zipWith(that)((z, _) => z)
+    zipWith[R1, InErr1, OutErr1, In1, L1, Z1, Z](that)((z, _) => z)
 
   /**
    * Runs both sinks in parallel on the input and combines the results in a tuple.
    */
-  final def zipPar[R1 <: R, InErr1 <: InErr, In1 <: In, OutErr1 >: OutErr, L1 >: L, Z1](
+  final def zipPar[R1 <: R, InErr1 <: InErr, In1 <: In, OutErr1 >: OutErr, L1 >: L <: In1, Z1](
     that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
   ): ZSink[R1, InErr1, In1, OutErr1, L1, (Z, Z1)] =
-    zipWithPar(that)((_, _))
+    zipWithPar[R1, InErr1, OutErr1, In1, L1, Z1, (Z, Z1)](that)((_, _))
 
   /**
    * Like [[zipPar]], but keeps only the result from this sink.
    */
-  final def zipParLeft[R1 <: R, InErr1 <: InErr, In1 <: In, OutErr1 >: OutErr, L1 >: L, Z1](
+  final def zipParLeft[R1 <: R, InErr1 <: InErr, In1 <: In, OutErr1 >: OutErr, L1 >: L <: In1, Z1](
     that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
   ): ZSink[R1, InErr1, In1, OutErr1, L1, Z] =
-    zipWithPar(that)((b, _) => b)
+    zipWithPar[R1, InErr1, OutErr1, In1, L1, Z1, Z](that)((b, _) => b)
 
   /**
    * Like [[zipPar]], but keeps only the result from the `that` sink.
    */
-  final def zipParRight[R1 <: R, InErr1 <: InErr, In1 <: In, OutErr1 >: OutErr, L1 >: L, Z1](
+  final def zipParRight[R1 <: R, InErr1 <: InErr, In1 <: In, OutErr1 >: OutErr, L1 >: L <: In1, Z1](
     that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
   ): ZSink[R1, InErr1, In1, OutErr1, L1, Z1] =
-    zipWithPar(that)((_, c) => c)
+    zipWithPar[R1, InErr1, OutErr1, In1, L1, Z1, Z1](that)((_, c) => c)
 
   /**
    * Like [[zip]], but keeps only the result from this sink.
    */
-  final def zipRight[R1 <: R, InErr1 <: InErr, In1 <: In, OutErr1 >: OutErr, L1 >: L, Z1](
+  final def zipRight[R1 <: R, InErr1 <: InErr, In1 <: In, OutErr1 >: OutErr, L1 >: L <: In1, Z1](
     that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
   )(implicit ev: L <:< In1): ZSink[R1, InErr1, In1, OutErr1, L1, Z1] =
-    zipWith(that)((_, z1) => z1)
+    zipWith[R1, InErr1, OutErr1, In1, L1, Z1, Z1](that)((_, z1) => z1)
 
   /**
    * Feeds inputs to this sink until it yields a result, then switches over to the
    * provided sink until it yields a result, finally combining the two results with `f`.
    */
-  final def zipWith[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, In1 <: In, L1 >: L, Z1, Z2](
+  final def zipWith[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, In1 <: In, L1 >: L <: In1, Z1, Z2](
     that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
   )(f: (Z, Z1) => Z2)(implicit ev: L <:< In1): ZSink[R1, InErr1, In1, OutErr1, L1, Z2] =
     flatMap(z => that.map(f(z, _)))
@@ -304,7 +320,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    * Runs both sinks in parallel on the input and combines the results
    * using the provided function.
    */
-  final def zipWithPar[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, In1 <: In, L1 >: L, Z1, Z2](
+  final def zipWithPar[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, In1 <: In, L1 >: L <: In1, Z1, Z2](
     that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
   )(f: (Z, Z1) => Z2): ZSink[R1, InErr1, In1, OutErr1, L1, Z2] =
     ???
@@ -408,7 +424,8 @@ object ZSink {
    */
   def collectAllWhile[Err, In](p: In => Boolean): ZSink[Any, Err, In, Err, In, Chunk[In]] =
     fold[Err, In, (List[In], Boolean)]((Nil, true))(_._2) { case ((as, _), a) =>
-      if (p(a)) (a :: as, true) else (as, false)
+      if (p(a)) (a :: as, true)
+      else (as, false)
     }.map { case (is, _) =>
       Chunk.fromIterable(is.reverse)
     }
@@ -449,6 +466,20 @@ object ZSink {
     new ZSink(ZChannel.read[Any].unit.repeated.catchAll(_ => ZChannel.unit))
 
   /**
+   * Returns a lazily constructed sink that may require effects for its creation.
+   */
+  def effectSuspendTotal[Env, InErr, In, OutErr, Leftover, Done](
+    sink: => ZSink[Env, InErr, In, OutErr, Leftover, Done]
+  ): ZSink[Env, InErr, In, OutErr, Leftover, Done] =
+    new ZSink(ZChannel.effectSuspendTotal(sink.channel))
+
+  /**
+   * Returns a sink that executes a total effect and ends with its result.
+   */
+  def effectTotal[A](a: => A): ZSink[Any, Any, Any, Nothing, Nothing, A] =
+    new ZSink(ZChannel.effectTotal(a))
+
+  /**
    * A sink that always fails with the specified error.
    */
   def fail[E](e: => E): ZSink[Any, Any, Any, E, Nothing, Nothing] = new ZSink(ZChannel.fail(e))
@@ -459,16 +490,16 @@ object ZSink {
   def fold[Err, In, S](z: S)(contFn: S => Boolean)(f: (S, In) => S): ZSink[Any, Err, In, Err, In, S] = {
     def foldChunkSplit(z: S, chunk: Chunk[In])(
       contFn: S => Boolean
-    )(f: (S, In) => S): (S, Option[Chunk[In]]) = {
-      def fold(s: S, chunk: Chunk[In], idx: Int, len: Int): (S, Option[Chunk[In]]) =
+    )(f: (S, In) => S): (S, Chunk[In]) = {
+      def fold(s: S, chunk: Chunk[In], idx: Int, len: Int): (S, Chunk[In]) =
         if (idx == len) {
-          (s, None)
+          (s, Chunk.empty)
         } else {
           val s1 = f(s, chunk(idx))
           if (contFn(s1)) {
             fold(s1, chunk, idx + 1, len)
           } else {
-            (s1, Some(chunk.drop(idx + 1)))
+            (s1, chunk.drop(idx + 1))
           }
         }
 
@@ -476,23 +507,20 @@ object ZSink {
     }
 
     def reader(s: S): ZChannel[Any, Err, Chunk[In], Any, Err, Chunk[In], S] =
-      ZChannel.readWith(
-        (in: Chunk[In]) => {
-          val (nextS, leftovers) = foldChunkSplit(s, in)(contFn)(f)
+      if (!contFn(s)) ZChannel.end(s)
+      else
+        ZChannel.readWith(
+          (in: Chunk[In]) => {
+            val (nextS, leftovers) = foldChunkSplit(s, in)(contFn)(f)
 
-          leftovers match {
-            case Some(l) => ZChannel.write(l).as(nextS)
-            case None    => reader(nextS)
-          }
-        },
-        (err: Err) => ZChannel.fail(err),
-        (_: Any) => ZChannel.end(s)
-      )
+            if (leftovers.nonEmpty) ZChannel.write(leftovers).as(nextS)
+            else reader(nextS)
+          },
+          (err: Err) => ZChannel.fail(err),
+          (_: Any) => ZChannel.end(s)
+        )
 
-    new ZSink(
-      if (contFn(z)) reader(z)
-      else ZChannel.end(z)
-    )
+    new ZSink(reader(z))
   }
 
   /**
@@ -849,8 +877,8 @@ object ZSink {
       else
         ZChannel
           .fromEffect(f(chunk(idx)))
-          .flatMap(b => if (b) go(chunk, idx + 1, len, cont) else ZChannel.writeAll(chunk.drop(idx)))
-          .catchAll(e => ZChannel.writeAll(chunk.drop(idx)) *> ZChannel.fail(e))
+          .flatMap(b => if (b) go(chunk, idx + 1, len, cont) else ZChannel.write(chunk.drop(idx)))
+          .catchAll(e => ZChannel.write(chunk.drop(idx)) *> ZChannel.fail(e))
 
     lazy val process: ZChannel[R, Err, Chunk[In], Any, Err, Chunk[In], Unit] =
       ZChannel.readWithCause[R, Err, Chunk[In], Any, Err, Chunk[In], Unit](
@@ -913,6 +941,15 @@ object ZSink {
   def leftover[L](c: Chunk[L]): ZSink[Any, Any, Any, Nothing, L, Unit] =
     new ZSink(ZChannel.write(c))
 
+  def mkString[Err]: ZSink[Any, Err, Any, Err, Nothing, String] =
+    ZSink.effectSuspendTotal {
+      val builder = new StringBuilder()
+
+      foldLeftChunks[Err, Any, Unit](())((_, els: Chunk[Any]) => els.foreach(el => builder.append(el.toString))).map(
+        _ => builder.result()
+      )
+    }
+
   def managed[R, InErr, In, OutErr >: InErr, A, L <: In, Z](resource: ZManaged[R, OutErr, A])(
     fn: A => ZSink[R, InErr, In, OutErr, L, Z]
   ): ZSink[R, InErr, In, OutErr, In, Z] =
@@ -947,5 +984,75 @@ object ZSink {
   final class AccessSinkPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[InErr, In, OutErr, L, Z](f: R => ZSink[R, InErr, In, OutErr, L, Z]): ZSink[R, InErr, In, OutErr, L, Z] =
       new ZSink(ZChannel.unwrap(ZIO.access[R](f(_).channel)))
+  }
+
+  def utf8Decode[Err]: ZSink[Any, Err, Byte, Err, Byte, Option[String]] = {
+    def is2ByteSequenceStart(b: Byte) = (b & 0xe0) == 0xc0
+    def is3ByteSequenceStart(b: Byte) = (b & 0xf0) == 0xe0
+    def is4ByteSequenceStart(b: Byte) = (b & 0xf8) == 0xf0
+    def computeSplit(chunk: Chunk[Byte]) = {
+      // There are 3 bad patterns we need to check to detect an incomplete chunk:
+      // - 2/3/4 byte sequences that start on the last byte
+      // - 3/4 byte sequences that start on the second-to-last byte
+      // - 4 byte sequences that start on the third-to-last byte
+      //
+      // Otherwise, we can convert the entire concatenated chunk to a string.
+      val len = chunk.length
+
+      if (
+        len >= 1 &&
+        (is2ByteSequenceStart(chunk(len - 1)) ||
+          is3ByteSequenceStart(chunk(len - 1)) ||
+          is4ByteSequenceStart(chunk(len - 1)))
+      )
+        len - 1
+      else if (
+        len >= 2 &&
+        (is3ByteSequenceStart(chunk(len - 2)) ||
+          is4ByteSequenceStart(chunk(len - 2)))
+      )
+        len - 2
+      else if (len >= 3 && is4ByteSequenceStart(chunk(len - 3)))
+        len - 3
+      else len
+    }
+
+    def chopBOM(bytes: Chunk[Byte]): Chunk[Byte] =
+      if (
+        bytes.length >= 3 &&
+        bytes.byte(0) == -17 &&
+        bytes.byte(1) == -69 &&
+        bytes.byte(2) == -65
+      ) bytes.drop(3)
+      else bytes
+
+    def channel(acc: Chunk[Byte]): ZChannel[Any, Err, Chunk[Byte], Any, Err, Chunk[Byte], Option[String]] =
+      ZChannel.readWith(
+        (in: Chunk[Byte]) => {
+          val concat                    = acc ++ chopBOM(in)
+          val (toConvert, newLeftovers) = concat.splitAt(computeSplit(concat))
+
+          if (toConvert.isEmpty) channel(newLeftovers.materialize)
+          else if (newLeftovers.isEmpty) ZChannel.end(Some(new String(toConvert.toArray[Byte], "UTF-8")))
+          else ZChannel.write(newLeftovers).as(Some(new String(toConvert.toArray[Byte], "UTF-8")))
+        },
+        (err: Err) => ZChannel.fail(err),
+        (_: Any) =>
+          if (acc.isEmpty) ZChannel.end(None)
+          else {
+            val (toConvert, newLeftovers) = acc.splitAt(computeSplit(acc))
+
+            if (toConvert.isEmpty)
+              // Upstream has ended and all we read was an incomplete chunk, so we fallback to the
+              // String constructor behavior.
+              ZChannel.end(Some(new String(newLeftovers.toArray[Byte], "UTF-8")))
+            else if (newLeftovers.nonEmpty)
+              ZChannel.write(newLeftovers.materialize).as(Some(new String(toConvert.toArray[Byte], "UTF-8")))
+            else
+              ZChannel.end(Some(new String(toConvert.toArray[Byte], "UTF-8")))
+          }
+      )
+
+    new ZSink(channel(Chunk.empty))
   }
 }
