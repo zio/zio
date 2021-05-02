@@ -832,20 +832,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Drops all elements of the stream for as long as the specified predicate
    * evaluates to `true`.
    */
-  final def dropWhile(f: A => Boolean): ZStream[R, E, A] = {
-    def loop: ZChannel[R, E, Chunk[A], Any, E, Chunk[A], Any] =
-      ZChannel.readWith(
-        (in: Chunk[A]) => {
-          val leftover = in.dropWhile(f)
-          val more     = leftover.isEmpty
-
-          if (more) loop else ZChannel.write(leftover) *> ZChannel.identity[E, Chunk[A], Any]
-        },
-        (e: E) => ZChannel.fail(e),
-        (_: Any) => ZChannel.unit
-      )
-    new ZStream(channel >>> loop)
-  }
+  final def dropWhile(f: A => Boolean): ZStream[R, E, A] =
+    new ZStream(channel >>> ZSink.dropWhile(f).channel)
 
   /**
    * Drops all elements of the stream until the specified predicate evaluates
