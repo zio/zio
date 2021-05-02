@@ -95,10 +95,10 @@ object BoolAlgebraSpec extends ZIOBaseSpec {
       assert(failure1 <==> failure2)(isSuccess)
     },
     test("isFailure returns whether result is failure") {
-      assert(!success1.isFailure && failure1.isFailure)(isTrue)
+      assert(!success1.isFailure && failure1.isFailure)
     },
     test("isSuccess returns whether result is success") {
-      assert(success1.isSuccess && !failure1.isSuccess)(isTrue)
+      assert(success1.isSuccess && !failure1.isSuccess)
     },
     test("map transforms values") {
       val actual   = (success1 && failure1 && failure2).map(_.split(" ").head)

@@ -50,7 +50,7 @@ object CancelableFutureSpec extends ZIOBaseSpec {
           f        = runtime.unsafeRunToFuture(UIO.never)
           _       <- UIO(f.cancel())
           r       <- ZIO.fromFuture(_ => f).run
-        } yield assert(r.succeeded)(isFalse) // not interrupted, as the Future fails when the effect in interrupted.
+        } yield assert(!r.succeeded) // not interrupted, as the Future fails when the effect in interrupted.
       } @@ nonFlaky @@ zioTag(interruption),
       testM("roundtrip preserves interruptibility") {
         for {
@@ -93,7 +93,7 @@ object CancelableFutureSpec extends ZIOBaseSpec {
           _  <- Fiber.fromFuture(f2).await
           e1 <- ZIO.fromFuture(_ => f1.cancel())
           e2 <- ZIO.fromFuture(_ => f2.cancel())
-        } yield assert(e1.succeeded)(isTrue) && assert(e2.succeeded)(isFalse)
+        } yield assert(e1.succeeded) && assert(!e2.succeeded)
       } @@ nonFlaky,
       testM("is a scala.concurrent.Future") {
         for {

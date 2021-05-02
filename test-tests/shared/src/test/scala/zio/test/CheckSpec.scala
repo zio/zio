@@ -41,7 +41,7 @@ object CheckSpec extends ZIOBaseSpec {
                for {
                  _ <- ref.update(_ + 1)
                  p <- random.nextIntBounded(10).map(_ != 0)
-               } yield assert(p)(isTrue)
+               } yield assert(p)
              }
         result <- ref.get
       } yield assert(result)(isLessThan(1200))
@@ -66,13 +66,13 @@ object CheckSpec extends ZIOBaseSpec {
           case Some(BoolAlgebra.Value(details)) => details.gen.fold(false)(_.shrunkenInput == 0)
           case _                                => false
         }
-      }.map(assert(_)(isTrue))
+      }.map(assert(_))
     },
     testM("implication works correctly") {
       check(Gen.listOf1(Gen.int(-10, 10))) { ns =>
         val nss      = ns.sorted
         val nonEmpty = assert(nss)(hasSize(isGreaterThan(0)))
-        val sorted   = assert(nss.zip(nss.tail).exists { case (a, b) => a > b })(isFalse)
+        val sorted   = assert(!nss.zip(nss.tail).exists { case (a, b) => a > b })
         nonEmpty ==> sorted
       }
     },

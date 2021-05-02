@@ -79,7 +79,7 @@ object ZSinkSpec extends ZIOBaseSpec {
             resAndState <- ZStream(1, 2, 3).run(sink)
             finalState  <- closed.get
           } yield {
-            assert(resAndState._1)(equalTo(103L)) && assert(resAndState._2)(isFalse) && assert(finalState)(isTrue)
+            assert(resAndState._1 == 103L) && assert(!resAndState._2) && assert(finalState)
           }
         },
         testM("sad path") {
@@ -89,7 +89,7 @@ object ZSinkSpec extends ZIOBaseSpec {
             sink        = ZSink.managed(res)(_ => ZSink.succeed[Int, String]("ok"))
             r          <- ZStream.fail("fail").run(sink).either
             finalState <- closed.get
-          } yield assert(r)(equalTo(Left("fail"))) && assert(finalState)(isTrue)
+          } yield assert(r)(equalTo(Left("fail"))) && assert(finalState)
         }
       ),
       testM("foldLeft")(
@@ -139,7 +139,7 @@ object ZSinkSpec extends ZIOBaseSpec {
                               .map(_.reverse)
                               .flatMap(_.foldLeft(z)((acc, el) => acc.flatMap(f(_, el))))
                               .run
-            } yield assert(foldResult.succeeded)(isTrue) implies assert(foldResult)(succeeds(equalTo(sinkResult)))
+            } yield assert(foldResult.succeeded) implies assert(foldResult)(succeeds(equalTo(sinkResult)))
           }
         }
       ),
@@ -218,7 +218,7 @@ object ZSinkSpec extends ZIOBaseSpec {
               _                   <- streamCompleted.await
               targetQueueShutdown <- targetQueue.isShutdown
             } yield assert(queueElements)(equalTo(elements)) &&
-              assert(targetQueueShutdown)(isTrue)
+              assert(targetQueueShutdown)
           }
         },
         testM("fails if offering to the queue fails") {
@@ -240,7 +240,7 @@ object ZSinkSpec extends ZIOBaseSpec {
             result     <- stream.run(queueSink).either
             isShutdown <- queue.isShutdown
           } yield assert(result)(isLeft(equalTo(exception))) &&
-            assert(isShutdown)(isTrue)
+            assert(isShutdown)
         }
       )
     ),

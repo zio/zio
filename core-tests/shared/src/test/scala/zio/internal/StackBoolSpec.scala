@@ -22,8 +22,8 @@ object StackBoolSpec extends ZIOBaseSpec {
 
         list.foreach(stack.push)
 
-        list.reverse.foldLeft(assert(true)(equalTo(true))) { case (result, flag) =>
-          result && assert(stack.popOrElse(!flag))(equalTo(flag))
+        list.reverse.foldLeft(assert(true)) { case (result, flag) =>
+          result && assert(stack.popOrElse(!flag) == flag)
         }
       }
     },
@@ -33,18 +33,18 @@ object StackBoolSpec extends ZIOBaseSpec {
 
         list.foreach(stack.push)
 
-        list.reverse.foldLeft(assert(true)(equalTo(true))) { case (result, flag) =>
+        list.reverse.foldLeft(assert(true)) { case (result, flag) =>
           val peeked = stack.peekOrElse(!flag)
           val popped = stack.popOrElse(!flag)
 
-          result && assert(peeked)(equalTo(popped))
+          result && assert(peeked == popped)
         }
       }
     },
     test("GetOrElse index out of bounds") {
       val stack  = StackBool()
       val result = stack.getOrElse(100, true)
-      assert(result)(equalTo(true))
+      assert(result)
     }
   )
 

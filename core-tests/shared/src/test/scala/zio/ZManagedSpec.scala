@@ -420,7 +420,7 @@ object ZManagedSpec extends ZIOBaseSpec {
                  .fork
                  .use_(latch.await)
           result <- finalized.get
-        } yield assert(result)(isTrue)
+        } yield assert(result)
       },
       testM("Acquires interruptibly") {
         for {
@@ -441,7 +441,7 @@ object ZManagedSpec extends ZIOBaseSpec {
           _      <- useLatch.await
           _      <- fib.interrupt
           result <- finalized.get
-        } yield assert(result)(isTrue)
+        } yield assert(result)
       } @@ zioTag(interruption)
     ),
     suite("fromAutoCloseable")(
@@ -1156,7 +1156,7 @@ object ZManagedSpec extends ZIOBaseSpec {
           result <- ZManaged.dieMessage("die").tapCause(_ => ref.set(true).toManaged_).run
           effect <- ref.get.toManaged_
         } yield assert(result)(dies(hasMessage(equalTo("die")))) &&
-          assert(effect)(isTrue)).use(ZIO.succeed(_))
+          assert(effect)).use(ZIO.succeed(_))
       }
     ) @@ zioTag(errors),
     suite("tapError")(
@@ -1266,7 +1266,7 @@ object ZManagedSpec extends ZIOBaseSpec {
           result <- managed.use { case (canceler, _) =>
                       canceler *> ref.get
                     }
-        } yield assert(result)(isTrue)
+        } yield assert(result)
       },
       testM("The canceler should run uninterruptibly") {
         for {
@@ -1299,7 +1299,7 @@ object ZManagedSpec extends ZIOBaseSpec {
           managed = ZManaged.makeExit(ZIO.unit)((_, e) => ref.set(e.interrupted))
           _      <- managed.withEarlyRelease.use(_._1)
           result <- ref.get
-        } yield assert(result)(isTrue)
+        } yield assert(result)
       },
       testM("The canceler disposes of all resources on a composite ZManaged") {
         for {
@@ -1320,7 +1320,7 @@ object ZManagedSpec extends ZIOBaseSpec {
           managed = ZManaged.makeExit(ZIO.unit)((_, e) => ref.set(e.succeeded))
           _      <- managed.withEarlyReleaseExit(Exit.unit).use(_._1)
           result <- ref.get
-        } yield assert(result)(isTrue)
+        } yield assert(result)
       }
     ),
     suite("zipPar")(
@@ -1494,7 +1494,7 @@ object ZManagedSpec extends ZIOBaseSpec {
           managed   = Managed.make(ZIO.unit)(_ => released.set(true) *> latch.succeed(()))
           v1       <- managed.memoize.use(memoized => memoized.use_(ZIO.dieMessage(darn))).run
           v2       <- released.get
-        } yield assert(v1)(dies(hasMessage(equalTo(darn)))) && assert(v2)(isTrue)
+        } yield assert(v1)(dies(hasMessage(equalTo(darn)))) && assert(v2)
       },
       testM("behaves properly if use is interrupted") {
         for {

@@ -23,7 +23,7 @@ object ClockSpec extends ZIOBaseSpec {
           _      <- ref.set(true).delay(10.hours).fork
           _      <- adjust(11.hours)
           result <- ref.get
-        } yield assert(result)(isTrue)
+        } yield assert(result)
       } @@ forked @@ nonFlaky,
       testM("sleep delays effect until time is adjusted") {
         for {
@@ -31,7 +31,7 @@ object ClockSpec extends ZIOBaseSpec {
           _      <- ref.set(true).delay(10.hours).fork
           _      <- adjust(9.hours)
           result <- ref.get
-        } yield assert(result)(isFalse)
+        } yield assert(!result)
       } @@ forked @@ nonFlaky,
       testM("sleep correctly handles multiple sleeps") {
         for {
@@ -48,7 +48,7 @@ object ClockSpec extends ZIOBaseSpec {
           _      <- ref.set(true).delay(10.hours).fork
           _      <- setTime(11.hours)
           result <- ref.get
-        } yield assert(result)(isTrue)
+        } yield assert(result)
       } @@ forked @@ nonFlaky,
       testM("adjust correctly advances nanotime") {
         for {

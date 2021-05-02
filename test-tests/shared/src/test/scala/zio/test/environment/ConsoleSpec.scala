@@ -47,7 +47,7 @@ object ConsoleSpec extends ZIOBaseSpec {
           failed <- getStrLn.either
           message = failed.fold(_.getMessage, identity)
         } yield {
-          assert(failed.isLeft)(isTrue) &&
+          assert(failed.isLeft) &&
           assert(message)(equalTo("There is no more input left to read"))
         }
       },
@@ -68,7 +68,7 @@ object ConsoleSpec extends ZIOBaseSpec {
           failed <- getStrLn.either
           message = failed.fold(_.getMessage, identity)
         } yield {
-          assert(failed.isLeft)(isTrue) &&
+          assert(failed.isLeft) &&
           assert(message)(equalTo("There is no more input left to read"))
         }
       },

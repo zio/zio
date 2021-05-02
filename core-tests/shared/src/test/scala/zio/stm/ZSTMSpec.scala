@@ -174,13 +174,12 @@ object ZSTMSpec extends ZIOBaseSpec {
       } @@ zioTag(errors),
       testM("flatten") {
         checkM(Gen.alphaNumericString) { str =>
-          val tx =
-            for {
-              flatten1 <- STM.succeed(STM.succeed(str)).flatten
-              flatten2 <- STM.flatten(STM.succeed(STM.succeed(str)))
-            } yield flatten1 == flatten2
+          val stm = for {
+            flatten1 <- STM.succeed(STM.succeed(str)).flatten
+            flatten2 <- STM.flatten(STM.succeed(STM.succeed(str)))
+          } yield assert(flatten1 == flatten2)
 
-          assertM(tx.commit)(isTrue)
+          stm.commit
         }
       },
       suite("flattenErrorOption")(
@@ -1021,7 +1020,7 @@ object ZSTMSpec extends ZIOBaseSpec {
           tvar <- TRef.makeCommit(false)
           e    <- (tvar.set(true) *> STM.fail("Error!")).commitEither.flip
           v    <- tvar.get.commit
-        } yield assert(e)(equalTo("Error!")) && assert(v)(isTrue)
+        } yield assert(e)(equalTo("Error!")) && assert(v)
       }
     ),
     suite("orElse")(
@@ -1211,13 +1210,13 @@ object ZSTMSpec extends ZIOBaseSpec {
         for {
           ref    <- TRef.make(false).commit
           result <- (STM.when(true)(ref.set(true)) *> ref.get).commit
-        } yield assert(result)(equalTo(true))
+        } yield assert(result)
       },
       testM("when false") {
         for {
           ref    <- TRef.make(false).commit
           result <- (STM.when(false)(ref.set(true)) *> ref.get).commit
-        } yield assert(result)(equalTo(false))
+        } yield assert(!result)
       },
       testM("whenCase executes correct branch only") {
         val tx = for {

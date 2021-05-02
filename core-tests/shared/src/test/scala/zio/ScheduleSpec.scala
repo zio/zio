@@ -117,7 +117,7 @@ object ScheduleSpec extends ZIOBaseSpec {
           _          <- r.update(_ + 2).repeat(Schedule.recurs(2)).ensuring(p.succeed(()))
           v          <- r.get
           finalizerV <- p.poll
-        } yield assert(v)(equalTo(6)) && assert(finalizerV.isDefined)(equalTo(true))
+        } yield assert(v)(equalTo(6)) && assert(finalizerV.isDefined)
       }
     ),
     suite("Simulate a schedule")(
@@ -478,7 +478,7 @@ object ScheduleSpec extends ZIOBaseSpec {
           p          <- Promise.make[Nothing, Unit]
           v          <- IO.fail("oh no").retry(Schedule.recurs(2)).ensuring(p.succeed(())).option
           finalizerV <- p.poll
-        } yield assert(v.isEmpty)(equalTo(true)) && assert(finalizerV.isDefined)(equalTo(true))
+        } yield assert(v.isEmpty) && assert(finalizerV.isDefined)
       }
     ) @@ zioTag(errors),
     // testM("`ensuring` should only call finalizer once.") {

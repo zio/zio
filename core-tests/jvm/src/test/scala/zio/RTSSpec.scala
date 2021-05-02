@@ -25,12 +25,10 @@ object RTSSpec extends ZIOBaseSpec {
             .sleep(1.millis)
         }
 
-      val io =
-        for {
-          accum <- Ref.make(Set.empty[Thread])
-          b     <- runAndTrack(accum).repeatUntil(_ == true)
-        } yield b
-      assertM(Live.live(io))(isTrue)
+      Live.live(for {
+        accum <- Ref.make(Set.empty[Thread])
+        b     <- runAndTrack(accum).repeatUntil(_ == true)
+      } yield assert(b))
     },
     testM("blocking IO is effect blocking") {
       for {
@@ -42,23 +40,20 @@ object RTSSpec extends ZIOBaseSpec {
         _     <- start.await
         res   <- fiber.interrupt
         value <- done.get
-      } yield assert(res)(isInterrupted) && assert(value)(isTrue)
+      } yield assert(res)(isInterrupted) && assert(value)
     } @@ nonFlaky,
     testM("cancelation is guaranteed") {
-      val io =
-        for {
-          release <- Promise.make[Nothing, Int]
-          latch   <- Promise.make[Nothing, Unit]
-          async = IO.effectAsyncInterrupt[Nothing, Unit] { _ =>
-                    latch.unsafeDone(IO.unit); Left(release.succeed(42).unit)
-                  }
-          fiber  <- async.fork
-          _      <- latch.await
-          _      <- fiber.interrupt.fork
-          result <- release.await
-        } yield result == 42
-
-      assertM(io)(isTrue)
+      for {
+        release <- Promise.make[Nothing, Int]
+        latch   <- Promise.make[Nothing, Unit]
+        async = IO.effectAsyncInterrupt[Nothing, Unit] { _ =>
+                  latch.unsafeDone(IO.unit); Left(release.succeed(42).unit)
+                }
+        fiber  <- async.fork
+        _      <- latch.await
+        _      <- fiber.interrupt.fork
+        result <- release.await
+      } yield assert(result == 42)
     } @@ nonFlaky,
     testM("Fiber dump looks correct") {
       for {
@@ -78,23 +73,20 @@ object RTSSpec extends ZIOBaseSpec {
       } yield assert(rez)(anything)
     } @@ zioTag(interruption) @@ silent,
     testM("interruption of unending bracket") {
-      val io =
-        for {
-          startLatch <- Promise.make[Nothing, Int]
-          exitLatch  <- Promise.make[Nothing, Int]
-          bracketed = IO
-                        .succeed(21)
-                        .bracketExit((r: Int, exit: Exit[Any, Any]) =>
-                          if (exit.interrupted) exitLatch.succeed(r)
-                          else IO.die(new Error("Unexpected case"))
-                        )(a => startLatch.succeed(a) *> IO.never *> IO.succeed(1))
-          fiber      <- bracketed.fork
-          startValue <- startLatch.await
-          _          <- fiber.interrupt.fork
-          exitValue  <- exitLatch.await
-        } yield (startValue + exitValue) == 42
-
-      assertM(io)(isTrue)
+      for {
+        startLatch <- Promise.make[Nothing, Int]
+        exitLatch  <- Promise.make[Nothing, Int]
+        bracketed = IO
+                      .succeed(21)
+                      .bracketExit((r: Int, exit: Exit[Any, Any]) =>
+                        if (exit.interrupted) exitLatch.succeed(r)
+                        else IO.die(new Error("Unexpected case"))
+                      )(a => startLatch.succeed(a) *> IO.never *> IO.succeed(1))
+        fiber      <- bracketed.fork
+        startValue <- startLatch.await
+        _          <- fiber.interrupt.fork
+        exitValue  <- exitLatch.await
+      } yield assert((startValue + exitValue) == 42)
     } @@ zioTag(interruption) @@ nonFlaky,
     testM("deadlock regression 1") {
       import java.util.concurrent.Executors

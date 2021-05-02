@@ -45,7 +45,17 @@ trait CompileVariants {
   /**
    * Checks the assertion holds for the given value.
    */
+  def assert(expr: Boolean): TestResult = macro SmartAssertMacros.assertImpl
+
+  /**
+   * Checks the assertion holds for the given value.
+   */
   def assert[A](expr: => A)(assertion: Assertion[A]): TestResult = macro Macros.assert_impl
+
+  /**
+   * Checks the assertion holds for the given value.
+   */
+  private[zio] def assertDummy[A](expr: => A)(assertion: Assertion[A]): TestResult = macro Macros.assert_impl
 
   /**
    * Checks the assertion holds for the given effectfully-computed value.
