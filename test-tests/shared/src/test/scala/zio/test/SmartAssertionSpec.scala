@@ -8,7 +8,6 @@ import scala.collection.immutable.SortedSet
 import scala.util.{Failure, Success}
 
 object SmartAssertionSpec extends ZIOBaseSpec {
-
   def spec: Spec[Annotations, TestFailure[Any], TestSuccess] = suite("AssertionSpec")(
     test("and must succeed when both assertions are satisfied") {
 //       assert(sampleUser)(nameStartsWithU && ageGreaterThan20)
@@ -27,12 +26,10 @@ object SmartAssertionSpec extends ZIOBaseSpec {
 //      assert(p.check(approximatelyEquals(5.0, 3.0))
 //    },
     test("contains must succeed when iterable contains specified element") {
-      val seq = Seq("zio", "scala")
-      assert(seq.contains("scala"))
+      assert(Seq("zio", "scala").contains("scala"))
     },
     test("contains must fail when iterable does not contain specified element") {
-      val seq = Seq("zio", "scala")
-      assert(seq.contains("java"))
+      assert(Seq("zio", "scala").contains("java"))
     } @@ failing,
     test("containsString must succeed when string is found") {
       assert("this is a value".contains("a value"))
@@ -47,12 +44,10 @@ object SmartAssertionSpec extends ZIOBaseSpec {
 //      assert(Exit.die(new RuntimeException("Bam!")))(dies(equalTo(someException)))
 //    } @@ failing,
     test("endWith must succeed when the supplied value ends with the specified sequence") {
-      val list = List(1, 2, 3, 4, 3)
-      assert(list.endsWith(List(3, 4, 3)))
+      assert(List(1, 2, 3, 4, 3).endsWith(List(3, 4, 3)))
     },
     test("startsWith must fail when the supplied value does not end with the specified sequence") {
-      val list = List(1, 2, 3, 4, 5)
-      assert(list.endsWith(List(1, 2, 3)))
+      assert(List(1, 2, 3, 4, 5).endsWith(List(1, 2, 3)))
     } @@ failing,
     test("endsWithString must succeed when the supplied value ends with the specified string") {
       assert("zio".endsWith("o"))
@@ -73,12 +68,9 @@ object SmartAssertionSpec extends ZIOBaseSpec {
     test("equalTo must fail when value does not equal specified value") {
       assert(0 == 42)
     } @@ failing,
-    // TODO: Talk to the experts
-    //    test("equalTo must succeed when array equals specified array") {
-    //      val array: Array[Int] = Array(1, 2, 3)
-    //      val array2 = Array(1, 2, 3)
-    //      assert(array.sameElements(array2))
-    //    },
+    test("equalTo must succeed when array equals specified array") {
+      assert(Array(1, 2, 3).sameElements(Array(1, 2, 3)))
+    },
 //    test("equalTo must fail when array does not equal specified array") {
 //      val array = Array(1, 2, 3)
 //      assert(array.sameElements(Array(1, 2, 4)))
@@ -100,34 +92,34 @@ object SmartAssertionSpec extends ZIOBaseSpec {
 //      assert(123 == "hoeu")
 //    } ,
     test("exists must succeed when at least one element of iterable satisfy specified assertion") {
-      val seq = Seq(1, 42, 5)
-      assert(seq.exists(_ == 42))
+      assert(Seq(1, 42, 5).exists(_ == 42))
     },
     test("exists must fail when all elements of iterable do not satisfy specified assertion") {
-      val seq = Seq(1, 42, 5)
-      assert(seq.exists(_ == 428))
+      assert(Seq(1, 42, 5).exists(_ == 428))
     } @@ failing,
     test("exists must fail when iterable is empty") {
       assert(Seq[String]())(exists(hasField("length", _.length, isWithin(0, 3))))
-    } @@ failing
+    } @@ failing,
 //    test("fails must succeed when error value satisfy specified assertion") {
 //      assert(Exit.fail("Some Error"))(fails(equalTo("Some Error")))
 //    },
 //    test("fails must fail when error value does not satisfy specified assertion") {
 //      assert(Exit.fail("Other Error"))(fails(equalTo("Some Error")))
 //    } @@ failing,
-//    test("forall must succeed when all elements of iterable satisfy specified assertion") {
+    test("forall must succeed when all elements of iterable satisfy specified assertion") {
 //      assert(Seq("a", "bb", "ccc"))(forall(hasField("length", _.length, isWithin(0, 3))))
-//    },
-//    test("forall must fail when one element of iterable do not satisfy specified assertion") {
-//      assert(Seq("a", "bb", "dddd"))(forall(hasField("length", _.length, isWithin(0, 3))))
-//    } @@ failing,
-//    test("forall must succeed when an iterable is empty") {
-//      assert(Seq[String]())(forall(hasField("length", _.length, isWithin(0, 3))))
-//    },
-//    test("forall must work with iterables that are not lists") {
-//      assert(SortedSet(1, 2, 3))(forall(isGreaterThan(0)))
-//    },
+//      assert(Seq("a", "bb", "ccc").forall(hasField("length", _.length, isWithin(0, 3))))
+      assert(Seq("a", "bb", "ccc").forall(l => l.nonEmpty && l.length <= 3))
+    },
+    test("forall must fail when one element of iterable do not satisfy specified assertion") {
+      assert(Seq("a", "bb", "ccccc").forall(l => l.nonEmpty && l.length <= 3))
+    } @@ failing,
+    test("forall must succeed when an iterable is empty") {
+      assert(Seq.empty[String].forall(l => l.nonEmpty && l.length <= 3))
+    },
+    test("forall must work with iterables that are not lists") {
+      assert(SortedSet(1, 2, 3).forall(_ > 0))
+    },
 //    test("hasSameElementsDistinct must succeed when iterable contains the specified elements") {
 //      assert(Seq(1, 2, 3))(hasSameElementsDistinct(Set(1, 2, 3)))
 //    },
@@ -147,18 +139,19 @@ object SmartAssertionSpec extends ZIOBaseSpec {
 //    test("hasSameElementsDistinct must fail when iterable contains unspecified elements") {
 //      assert(Seq(1, 2, 3, 4))(hasSameElementsDistinct(Set(1, 2, 3)))
 //    } @@ failing,
-//    test("hasAt must fail when an index is outside of a sequence range") {
-//      assert(Seq(1, 2, 3))(hasAt(-1)(anything))
-//    } @@ failing,
-//    test("hasAt must fail when an index is outside of a sequence range 2") {
-//      assert(Seq(1, 2, 3))(hasAt(3)(anything))
-//    } @@ failing,
-//    test("hasAt must fail when a value is not equal to a specific assertion") {
-//      assert(Seq(1, 2, 3))(hasAt(1)(equalTo(1)))
-//    } @@ failing,
-//    test("hasAt must succeed when a value is equal to a specific assertion") {
+    test("hasAt must fail when an index is outside of a sequence range") {
+      assert(Seq(1, 2, 3)(2) == 5)
+    } @@ failing,
+    test("has at contains") {
+      assert(Seq(List(5), List(1, 2, 3), List(1, 2, 3))(2).contains(12))
+    } @@ failing,
+    test("head") {
+      assert(Seq(1, 2, 3, 19).head == 1)
+    },
+    test("hasAt must succeed when a value is equal to a specific assertion") {
 //      assert(Seq(1, 2, 3))(hasAt(1)(equalTo(2)))
-//    },
+      assert(Seq(1, 2, 3)(1) == 2)
+    },
 //    test("hasAtLeastOneOf must succeed when iterable contains one of the specified elements") {
 //      assert(Seq("zio", "scala"))(hasAtLeastOneOf(Set("zio", "test", "java")))
 //    },
@@ -177,24 +170,26 @@ object SmartAssertionSpec extends ZIOBaseSpec {
 //    test("hasAtMostOneOf must fail when iterable contains more than one of the specified elements") {
 //      assert(Seq("zio", "scala"))(hasAtMostOneOf(Set("zio", "test", "scala")))
 //    } @@ failing,
-//    test("hasField must succeed when field value satisfy specified assertion") {
+    test("hasField must succeed when field value satisfy specified assertion") {
 //      assert(SampleUser("User", 23))(hasField[SampleUser, Int]("age", _.age, isWithin(0, 99)))
-//    },
-//    test("hasFirst must fail when an iterable is empty") {
-//      assert(Seq())(hasFirst(anything))
-//    } @@ failing,
-//    test("hasFirst must succeed when a head is equal to a specific assertion") {
-//      assert(Seq(1, 2, 3))(hasFirst(equalTo(1)))
-//    },
-//    test("hasFirst must fail when a head is not equal to a specific assertion") {
-//      assert(Seq(1, 2, 3))(hasFirst(equalTo(100)))
-//    } @@ failing,
-//    test("hasIntersection must succeed when intersection satisfies specified assertion") {
+      assert(SampleUser("User", 55).age.withAssertion(isWithin(0, 99)))
+    },
+    test("hasFirst must fail when an iterable is empty") {
+      assert(Seq.empty[Int].head.withAssertion(anything))
+    } @@ failing,
+    test("hasFirst must succeed when a head is equal to a specific assertion") {
+      assert(Seq(1, 2, 3).head == 1)
+    },
+    test("hasFirst must fail when a head is not equal to a specific assertion") {
+      assert(Seq(1, 2, 3).head == 100)
+    } @@ failing,
+    test("hasIntersection must succeed when intersection satisfies specified assertion") {
 //      assert(Seq(1, 2, 3))(hasIntersection(Seq(3, 4, 5))(hasSize(equalTo(1))))
-//    },
-//    test("hasIntersection must succeed when empty intersection satisfies specified assertion") {
-//      assert(Seq(1, 2, 3))(hasIntersection(Seq(4, 5, 6))(isEmpty))
-//    },
+      assert((Seq(1, 2, 3, 4) intersect Seq(4, 5, 6, 7, 8)).length == 1)
+    },
+    test("hasIntersection must succeed when empty intersection satisfies specified assertion") {
+      assert((Seq(1, 2, 3, 4) intersect Seq(5, 6, 7)).isEmpty)
+    }
 //    test("hasIntersection must fail when intersection does not satisfy specified assertion") {
 //      assert(Seq(1, 2, 3))(hasIntersection(Seq(3, 4, 5))(isEmpty))
 //    } @@ failing,

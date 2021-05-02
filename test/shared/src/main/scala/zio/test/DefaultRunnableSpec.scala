@@ -64,4 +64,9 @@ abstract class DefaultRunnableSpec extends RunnableSpec[TestEnvironment, Any] {
    */
   def testM[R, E](label: String)(assertion: => ZIO[R, E, TestResult])(implicit loc: SourceLocation): ZSpec[R, E] =
     zio.test.testM(label)(assertion)
+
+  implicit final class AssertionOps[A](val self: A) {
+    def withAssertion(assertion: Assertion[A]): Boolean =
+      throw new Error("THIS MUST BE CALLED WITHIN `assert`!!!")
+  }
 }
