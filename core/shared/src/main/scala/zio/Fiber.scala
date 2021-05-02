@@ -20,6 +20,7 @@ import zio.console.Console
 import zio.internal.stacktracer.ZTraceElement
 import zio.internal.{Executor, FiberRenderer}
 
+import java.io.IOException
 import scala.concurrent.Future
 
 /**
@@ -750,7 +751,7 @@ object Fiber extends FiberPlatformSpecific {
    * Collects a complete dump of the specified fibers and all children of the
    * fibers and renders it to the console.
    */
-  def putDumpStr(label: String, fibers: Fiber.Runtime[_, _]*): URIO[Console, Unit] =
+  def putDumpStr(label: String, fibers: Fiber.Runtime[_, _]*): ZIO[Console, IOException, Unit] =
     dumpStr(fibers: _*).flatMap(str => console.putStrLn(s"$label: ${str}"))
 
   /**
