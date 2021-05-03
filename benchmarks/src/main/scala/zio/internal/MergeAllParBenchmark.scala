@@ -3,7 +3,7 @@ package zio.internal
 import org.openjdk.jmh.annotations._
 import zio.IOBenchmarks._
 import zio.ZIO.succeedNow
-import zio._
+import zio.{State => _, _}
 
 import java.util.concurrent.TimeUnit
 

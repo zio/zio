@@ -3,7 +3,7 @@ package zio.stm
 import org.openjdk.jmh.annotations.{Benchmark, Group, GroupThreads, _}
 import org.openjdk.jmh.infra.Blackhole
 import zio.IOBenchmarks._
-import zio._
+import zio.{State => _, _}
 
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.locks.StampedLock
