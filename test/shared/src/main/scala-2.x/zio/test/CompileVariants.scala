@@ -46,7 +46,8 @@ trait CompileVariants {
   /**
    * Checks the assertion holds for the given value.
    */
-  def assert(expr: Boolean): TestResult = macro SmartAssertMacros.assertImpl
+  def assert(expr: Boolean, exprs: Boolean*): TestResult = macro SmartAssertMacros.assertImpl
+  def assert(expr: Boolean): TestResult = macro SmartAssertMacros.assertSingle
 
   /**
    * Checks the assertion holds for the given value.

@@ -61,7 +61,8 @@ object DefaultTestReporter {
             else Seq(renderSuccessLabel(label, depth))
           val renderedAnnotations = testAnnotationRenderer.run(ancestors, annotations)
           val rest                = specs.flatMap(loop(_, depth + tabSize, annotations :: ancestors))
-          rendered(Suite, label, status, depth, (renderedLabel): _*).withAnnotations(renderedAnnotations) +: rest
+          rendered(Suite, label, status, depth, renderedLabel: _*).withAnnotations(renderedAnnotations) +: rest
+
         case ExecutedSpec.TestCase(label, result, annotations) =>
           val renderedAnnotations = testAnnotationRenderer.run(ancestors, annotations)
           val renderedResult = result match {
@@ -81,7 +82,7 @@ object DefaultTestReporter {
                 label,
                 Failed,
                 depth,
-                (Seq(renderFailureLabel(label, depth)) ++ Seq(renderCause(cause, depth)).filter(_ => includeCause)): _*
+                Seq(renderFailureLabel(label, depth)) ++ Seq(renderCause(cause, depth)).filter(_ => includeCause): _*
               )
           }
           Seq(renderedResult.withAnnotations(renderedAnnotations))
@@ -179,18 +180,19 @@ case class RenderedResult[T](caseType: CaseType, label: String, status: Status, 
 
   def &&(that: RenderedResult[T]): RenderedResult[T] =
     (self.status, that.status) match {
-      case (Ignored, _)     => that
-      case (_, Ignored)     => self
-      case (Failed, Failed) => self.copy(rendered = self.rendered ++ that.rendered.tail)
-      case (Passed, _)      => that
-      case (_, Passed)      => self
+      case (Ignored, _) => that
+      case (_, Ignored) => self
+      case (Failed, Failed) =>
+        self.copy(rendered = self.rendered ++ Seq("").asInstanceOf[Seq[T]] ++ that.rendered.tail)
+      case (Passed, _) => that
+      case (_, Passed) => self
     }
 
   def ||(that: RenderedResult[T]): RenderedResult[T] =
     (self.status, that.status) match {
       case (Ignored, _)     => that
       case (_, Ignored)     => self
-      case (Failed, Failed) => self.copy(rendered = self.rendered ++ that.rendered.tail)
+      case (Failed, Failed) => self.copy(rendered = self.rendered ++ Seq("").asInstanceOf[Seq[T]] ++ that.rendered.tail)
       case (Passed, _)      => self
       case (_, Passed)      => that
     }
@@ -259,29 +261,42 @@ object FailureRenderer {
       renderAssertionFailureDetails(failureDetails.assertion, offset)
 
   private def renderAssertionFailureDetails(failureDetails: ::[AssertionValue], offset: Int): Message = {
-    // assert(company)(hasField("people", _.people, hasFirst(hasField("name", (_: Person).name, startsWithString("Z")))))
-    // assert(company.people.head)
-    // assert(company.people.hasFirst)
-    // company.people(0).age > 30
-
     val last = failureDetails.last
     val head = failureDetails.head
 
-    // val context =
-    //   Fragment(last.expression.get) + Fragment(failureDetails.map(_.renderField.renderMethod).reverse.mkString(""))
-    val context =
-      last.smartExpression.map(ex => cyan(ex) + cyan("")) getOrElse
-        cyan(s"assert(${last.expression.get})(${last.printAssertion})") + cyan("")
+    val matched = failureDetails.take(2).map(_.renderField.toString).reverse.mkString("")
+    val expr    = last.smartExpression.getOrElse("")
+    println(expr)
+    println(matched)
+    println(expr.indexOf(matched))
+    println("————")
 
-    val errorMessage = blue(head.value.toString) + Fragment(" does not satisfy ") + cyan(head.printAssertion)
+    val context: Line =
+      last.smartExpression.map { ex =>
+        highlight(
+          bold(ex),
+          failureDetails.take(2).map(_.renderField.toString).reverse.mkString("")
+        )
+      } getOrElse
+        bold(s"assert(${last.expression.get})(${last.printAssertion})") + bold("")
+
+    val errorMessage =
+      red("› ") +
+        blue(head.value.toString) + Fragment(" does not satisfy ") + cyan(head.printAssertion)
 
     val lines = failureDetails.zip(failureDetails.tail).map { case (first, next) =>
-      dim(next.renderField.toString + " = ") + blue(first.value.toString)
+      dim(next.renderField.toString) + dim(" = ") + blue(first.value.toString)
     }
-    val lastMessage = dim(last.expression.get + " = ") + blue(last.value.toString)
+    val finalExpression = dim(last.expression.get) + dim(" = ") + blue(last.value.toString)
 
-    (context +: errorMessage +: Message(lines) :+ lastMessage)
-      .withOffset(offset + tabSize) // :+ lastMessage)//.map(Message(_)).reduce(_ ++ _)
+    val allLines =
+      if (last.expression.get.exists(Set('"', '.', ',')))
+        lines
+      else
+        lines :+ finalExpression
+
+    (errorMessage +: context +: (Message(allLines) ++ renderAssertionLocation(last, offset)))
+      .withOffset(offset + tabSize)
   }
 
   final case class LabeledValue[A](field: String, value: A)
@@ -343,20 +358,24 @@ object FailureRenderer {
   }
 
   private def renderAssertionLocation(av: AssertionValue, offset: Int) = av.sourceLocation.fold(Message()) { location =>
-    blue(s"at $location").toLine
-      .withOffset(offset + 2 * tabSize)
-      .toMessage
+    blue(s"at $location").toLine.toMessage
   }
 
-  private def highlight(fragment: Fragment, substring: String, colorCode: String = AnsiColor.YELLOW): Line = {
-    val parts = fragment.text.split(Pattern.quote(substring))
-    if (parts.size == 1) fragment.toLine
+  private def highlight(
+    fragment: Fragment,
+    substring: String,
+    colorCode: String = AnsiColor.YELLOW + scala.Console.BOLD
+  ): Line = {
+    val text  = fragment.text
+    val start = text.indexOf(substring)
+    val end   = start + substring.length
+
+    if (start > 0)
+      Fragment(text.take(start), fragment.ansiColorCode) +
+        Fragment(text.slice(start, end), colorCode) +
+        Fragment(text.drop(end), fragment.ansiColorCode)
     else
-      parts.foldLeft(Line.empty) { (line, part) =>
-        if (line.fragments.size < parts.size * 2 - 2)
-          line + Fragment(part, fragment.ansiColorCode) + Fragment(substring, colorCode)
-        else line + Fragment(part, fragment.ansiColorCode)
-      }
+      fragment.toLine
   }
 
   private def renderSatisfied(assertionValue: AssertionValue): Fragment =
@@ -465,7 +484,7 @@ object FailureRenderer {
               s"repeated $completed times not in range $min to $max by ${range.step}",
               ident
             )
-          val unsatisfied = (ident + tabSize -> child)
+          val unsatisfied = ident + tabSize -> child
           loop(unsatisfied :: tail, lines :+ title)
 
         case _ :: tail =>
@@ -506,6 +525,7 @@ object FailureRenderer {
 
   private def red(s: String)                                      = FailureMessage.Fragment(s, AnsiColor.RED)
   private def blue(s: String)                                     = FailureMessage.Fragment(s, AnsiColor.BLUE)
+  private def bold(s: String)                                     = FailureMessage.Fragment(s, scala.Console.BOLD)
   private def cyan(s: String)                                     = FailureMessage.Fragment(s, AnsiColor.CYAN)
   private def dim(s: String)                                      = FailureMessage.Fragment(s, "\u001b[2m")
   private def withOffset(i: Int)(line: FailureMessage.Line): Line = line.withOffset(i)

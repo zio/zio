@@ -28,117 +28,102 @@ import zio.duration._
  *   - how to handle multi-statement blocks
  */
 object SmartAssertionSpec extends ZIOBaseSpec {
-  def spec = suite("AssertionSpec")(
-    test(".hasCase") {
-      case class Person(name: String, age: Int)
-      val result = Right(Person("Kit", 3000))
-      assert(result.toOption.get.name == "Kitty")
-    },
-    test("Basic equality") {
-      val result = 3
-      assert(result.withAssertion(Assertion.isWithin(4, 10)))
-    },
-    test(".get") {
-      case class Person(name: String, age: Int)
-      val result = Some(Person("Kit", 30))
-      assert(result.get.name == "Kitty")
-    },
-    test("calling a method with args") {
-      case class Person(name: String = "Fred", age: Int = 42) {
-        def say(words: String*): String = words.mkString(" ")
-      }
-      val person = Person()
-      assert {
-        person.say("ping", "pong") == "pong pong!"
-      }
-    },
-    test("calling a method with args") {
-      case class Person(name: String = "Fred", age: Int = 42) {
-        def say(words: String*): String = words.mkString(" ")
-      }
-      assert {
-        Person().say("ping", "pong") == "pong pong!"
-      }
-    },
-    test("contains") {
-      val list = Some(List(1, 8, 132, 83))
-      assert(list.get.contains(77))
-    },
-    testM("sleep delays effect until time is adjusted") {
-      for {
-        ref    <- zio.Ref.make(false)
-        _      <- ref.set(true).delay(10.hours).fork
-        _      <- TestClock.adjust(9.hours)
-        result <- ref.get
-      } yield assert(!result)
-    }, // @@ forked @@ nonFlaky,
-    test("contains must succeed when iterable contains specified element") {
-      assert(Seq("zio1", "scala").contains("scala"))
-    },
-    test("contains array") {
-      assert(Array(1, 2, 3, 4, 8, 9, 1).toList.contains(10))
-    },
-    test("contains iterable") {
-      assert(Seq(1, 2, 3, 4, 8, 10, 1, 1).contains(9))
-    },
-    test("contains string") {
-      assert("Howdy".contains("no"))
-    },
-    test("endsWith iterable") {
-      assert(Seq(1, 2, 3, 4, 8, 10, 1, 1).endsWith(List(9, 10)))
-    },
-    test("endsWith string") {
-      assert("Howdy".endsWith("no"))
-    },
-    test("contains must succeed when iterable contains specified element") {
-      assert(zio.duration.Duration.fromNanos(1000) == zio.duration.Duration.Zero)
-    },
-    test("contains must succeed when iterable contains specified element") {
-      assert("FUNNY HOUSE".contains("OH NO"))
-    },
-    test("nested access") {
-      case class Ziverge(people: Seq[Person])
-      case class Person(name: String, age: Int)
-      val person  = Person("Vigoo", 21)
-      val company = Ziverge(Seq(person))
-//      assert(company)(hasField("people", _.people, hasFirst(hasField("name", (_: Person).name, startsWithString("Z")))))
-      // company.people(0).age > 30
-      // age = 21 is not greater than 30
-      // age = 21 is not greater than 30
-      // "Vigoo" != "Zigoo"
-      // V |igoo| != Z |igoo|
+  def spec =
+    other
+//    test("nested access") {
+//      case class Ziverge(people: Seq[Person]) {
+//        def isValid = true
+//      }
+//      case class Pet(name: String = "Spike")
+//      case class Person(name: String, age: Int, pet: Pet)
+//      val person  = Person("Vigoo", 23, Pet())
+//      val company = Ziverge(Seq())
+//
+//      assert(
+//        company.people.length > 3,
+//        company.people.head.age > 33,
+//        person.pet.name != "Spike",
+//        !company.isValid
+//      )
+//    }
 
-      // the failing test name and breadcrumbs
-      // the rendered code of the whole assertion
-      // a custom message/diff of the failing assertion
-      // code location
-      // a list of relevant values
-
-      // company.people(0).age > 30
-      // assert(company)(zoom(_.people, hasAt(0)(zoom(_.age, isGreaterThan(30))))
-      // age = 21 is not greater than 30
-
-      /**
-       *    21 did not satisfy isGreaterThan(30)
-       *    Person(Vigoo,21) did not satisfy hasField("age", _.age, isGreaterThan(30))
-       *    List(Person(Vigoo,21)) did not satisfy hasAt(hasField("age", _.age, isGreaterThan(30)))
-       *   `house` = Ziverge(List(Person(Vigoo,21))) did not satisfy hasField("people", _.people, hasAt(hasField("age", _.age, isGreaterThan(30))))
-       *
-       *    21 is not <= 30
-       *    age = 21
-       *    vigoo = 21
-       */
-
-      assert(company.people(0).age > 30)
-    },
-    test("and must succeed when both assertions are satisfied") {
+  val other = {
+    suite("AssertionSpec")(
+      test(".hasCase") {
+        case class Person(name: String, age: Int)
+        val result = Right(Person("Kit", 3000))
+        assert(result.toOption.get.name == "Kitty")
+      },
+      test("Basic equality") {
+        val result = 3
+        assert(result.withAssertion(Assertion.isWithin(4, 10)))
+      },
+      test(".get") {
+        case class Person(name: String, age: Int)
+        val result = Some(Person("Kit", 30))
+        assert(result.get.name == "Kitty")
+      },
+      test("calling a method with args") {
+        case class Person(name: String = "Fred", age: Int = 42) {
+          def say(words: String*): String = words.mkString(" ")
+        }
+        val person = Person()
+        assert {
+          person.say("ping", "pong") == "pong pong!"
+        }
+      },
+      test("calling a method with args") {
+        case class Person(name: String = "Fred", age: Int = 42) {
+          def say(words: String*): String = words.mkString(" ")
+        }
+        assert {
+          Person().say("ping", "pong") == "pong pong!"
+        }
+      },
+      test("contains") {
+        val list = Some(List(1, 8, 132, 83))
+        assert(list.get.contains(77))
+      },
+      testM("sleep delays effect until time is adjusted") {
+        for {
+          ref    <- zio.Ref.make(false)
+          _      <- ref.set(true).delay(10.hours).fork
+          _      <- TestClock.adjust(9.hours)
+          result <- ref.get
+        } yield assert(!result)
+      }, // @@ forked @@ nonFlaky,
+      test("contains must succeed when iterable contains specified element") {
+        assert(Seq("zio1", "scala").contains("scala"))
+      },
+      test("contains array") {
+        assert(Array(1, 2, 3, 4, 8, 9, 1).toList.contains(10))
+      },
+      test("contains iterable") {
+        assert(Seq(1, 2, 3, 4, 8, 10, 1, 1).contains(9))
+      },
+      test("contains string") {
+        assert("Howdy".contains("no"))
+      },
+      test("endsWith iterable") {
+        assert(Seq(1, 2, 3, 4, 8, 10, 1, 1).endsWith(List(9, 10)))
+      },
+      test("endsWith string") {
+        assert("Howdy".endsWith("no"))
+      },
+      test("contains must succeed when iterable contains specified element") {
+        assert(zio.duration.Duration.fromNanos(1000) == zio.duration.Duration.Zero)
+      },
+      test("contains must succeed when iterable contains specified element") {
+        assert("FUNNY HOUSE".contains("OH NO"))
+      },
+      test("and must succeed when both assertions are satisfied") {
 //       assert(sampleUser)(nameStartsWithU && ageGreaterThan20)
-      assert(sampleUser.name.startsWith("U")) && assert(sampleUser.age > 20)
-    },
-    test("and must fail when one of assertions is not satisfied") {
+        assert(sampleUser.name.startsWith("U")) && assert(sampleUser.age > 20)
+      },
+      test("and must fail when one of assertions is not satisfied") {
 //      assert(sampleUser)(nameStartsWithA && ageGreaterThan20)
-      assert(sampleUser.name.startsWith("A")) && assert(sampleUser.age > 20)
-    } @@ failing,
+        assert(sampleUser.name.startsWith("A")) && assert(sampleUser.age > 20)
+      } @@ failing,
 //    test("anything must always succeeds") {
 //      assert(42)(anything)
 //    },
@@ -147,58 +132,58 @@ object SmartAssertionSpec extends ZIOBaseSpec {
 //      val p = Person(42.182378)
 //      assert(p.check(approximatelyEquals(5.0, 3.0))
 //    },
-    test("contains must succeed when iterable contains specified element") {
-      assert(Seq("zio", "scala").contains("scala"))
-    },
-    test("contains must fail when iterable does not contain specified element") {
-      assert(Seq("zio", "scala").contains("java"))
-    } @@ failing,
-    test("containsString must succeed when string is found") {
-      assert("this is a value".contains("a value"))
-    },
-    test("containsString must return false when the string is not contained") {
-      assert("this is a value".contains("_NOTHING_"))
-    },
+      test("contains must succeed when iterable contains specified element") {
+        assert(Seq("zio", "scala").contains("scala"))
+      },
+      test("contains must fail when iterable does not contain specified element") {
+        assert(Seq("zio", "scala").contains("java"))
+      } @@ failing,
+      test("containsString must succeed when string is found") {
+        assert("this is a value".contains("a value"))
+      },
+      test("containsString must return false when the string is not contained") {
+        assert("this is a value".contains("_NOTHING_"))
+      },
 //    test("dies must succeed when exception satisfy specified assertion") {
 //      assert(Exit.die(someException))(dies(equalTo(someException)))
 //    },
 //    test("dies must fail when exception does not satisfy specified assertion") {
 //      assert(Exit.die(new RuntimeException("Bam!")))(dies(equalTo(someException)))
 //    } @@ failing,
-    test("endWith must succeed when the supplied value ends with the specified sequence") {
-      assert(List(1, 2, 3, 4, 3).endsWith(List(3, 4, 3)))
-    },
-    test("startsWith must fail when the supplied value does not end with the specified sequence") {
-      assert(List(1, 2, 3, 4, 5).endsWith(List(1, 2, 3)))
-    },
-    test("endsWithString must succeed when the supplied value ends with the specified string") {
-      assert("zio".endsWith("o"))
-    },
-    test("endsWithString must fail when the supplied value does not end with the specified string") {
-      // TODO: USE ENDS WITH STRING
-      assert("zio".endsWith("z"))
-    },
-    test("equalsIgnoreCase must succeed when the supplied value matches") {
-      assert("Some String".toLowerCase == "some string")
-    },
-    test("equalsIgnoreCase must fail when the supplied value does not match") {
-      assert("Some Other String".toLowerCase == "some string")
-    },
-    test("equalTo must succeed when value equals specified value") {
-      assert(42 == 42)
-    },
-    test("equalTo must fail when value does not equal specified value") {
-      assert(0 == 42)
-    },
-    test("equalTo must succeed when array equals specified array") {
-      assert(Array(1, 2, 3).sameElements(Array(1, 2, 3)))
-    },
+      test("endWith must succeed when the supplied value ends with the specified sequence") {
+        assert(List(1, 2, 3, 4, 3).endsWith(List(3, 4, 3)))
+      },
+      test("startsWith must fail when the supplied value does not end with the specified sequence") {
+        assert(List(1, 2, 3, 4, 5).endsWith(List(1, 2, 3)))
+      },
+      test("endsWithString must succeed when the supplied value ends with the specified string") {
+        assert("zio".endsWith("o"))
+      },
+      test("endsWithString must fail when the supplied value does not end with the specified string") {
+        // TODO: USE ENDS WITH STRING
+        assert("zio".endsWith("z"))
+      },
+      test("equalsIgnoreCase must succeed when the supplied value matches") {
+        assert("Some String".toLowerCase == "some string")
+      },
+      test("equalsIgnoreCase must fail when the supplied value does not match") {
+        assert("Some Other String".toLowerCase == "some stringg")
+      },
+      test("equalTo must succeed when value equals specified value") {
+        assert(42 == 42)
+      },
+      test("equalTo must fail when value does not equal specified value") {
+        assert(0 == 42)
+      },
+      test("equalTo must succeed when array equals specified array") {
+        assert(Array(1, 2, 3).sameElements(Array(1, 2, 3)))
+      },
 //    test("equalTo must fail when array does not equal specified array") {
 //      val array = Array(1, 2, 3)
 //      assert(array.sameElements(Array(1, 2, 4)))
 //    } @@ failing,
-    test("equalTo must not have type inference issues") {
-      val list: List[Int] = List(1, 2, 3, 4)
+      test("equalTo must not have type inference issues") {
+        val list: List[Int] = List(1, 2, 3, 4)
 
 //      val nice = zio.test.assertDummy(list)(
 //        hasField(
@@ -207,41 +192,41 @@ object SmartAssertionSpec extends ZIOBaseSpec {
 //          equalTo(List.empty: List[Int])
 //        )
 //      )
-      // TODO: Can we remove the explicit type ascription
-      assert(list.filter(_ => false) == List.empty[Int])
-    },
+        // TODO: Can we remove the explicit type ascription
+        assert(list.filter(_ => false) == List.empty[Int])
+      },
 //    test("equalTo must not compile when comparing two unrelated types") {
 //      assert(123 == "hoeu")
 //    } ,
-    test("exists must succeed when at least one element of iterable satisfy specified assertion") {
-      assert(Seq(1, 42, 5).exists(_ == 42))
-    },
-    test("exists must fail when all elements of iterable do not satisfy specified assertion") {
-      assert(Seq(1, 42, 5).exists(_ == 428))
-    } @@ failing,
-    test("exists must fail when iterable is empty") {
-      assert(Seq[String]())(exists(hasField("length", _.length, isWithin(0, 3))))
-    } @@ failing,
+      test("exists must succeed when at least one element of iterable satisfy specified assertion") {
+        assert(Seq(1, 42, 5).exists(_ == 42))
+      },
+      test("exists must fail when all elements of iterable do not satisfy specified assertion") {
+        assert(Seq(1, 42, 5).exists(_ == 428))
+      } @@ failing,
+      test("exists must fail when iterable is empty") {
+        assert(Seq[String]())(exists(hasField("length", _.length, isWithin(0, 3))))
+      } @@ failing,
 //    test("fails must succeed when error value satisfy specified assertion") {
 //      assert(Exit.fail("Some Error"))(fails(equalTo("Some Error")))
 //    },
 //    test("fails must fail when error value does not satisfy specified assertion") {
 //      assert(Exit.fail("Other Error"))(fails(equalTo("Some Error")))
 //    } @@ failing,
-    test("forall must succeed when all elements of iterable satisfy specified assertion") {
+      test("forall must succeed when all elements of iterable satisfy specified assertion") {
 //      assert(Seq("a", "bb", "ccc"))(forall(hasField("length", _.length, isWithin(0, 3))))
 //      assert(Seq("a", "bb", "ccc").forall(hasField("length", _.length, isWithin(0, 3))))
-      assert(Seq("a", "bb", "ccc").forall(l => l.nonEmpty && l.length <= 3))
-    },
-    test("forall must fail when one element of iterable do not satisfy specified assertion") {
-      assert(Seq("a", "bb", "ccccc").forall(l => l.nonEmpty && l.length <= 3))
-    } @@ failing,
-    test("forall must succeed when an iterable is empty") {
-      assert(Seq.empty[String].forall(l => l.nonEmpty && l.length <= 3))
-    },
-    test("forall must work with iterables that are not lists") {
-      assert(SortedSet(1, 2, 3).forall(_ > 0))
-    },
+        assert(Seq("a", "bb", "ccc").forall(l => l.nonEmpty && l.length <= 3))
+      },
+      test("forall must fail when one element of iterable do not satisfy specified assertion") {
+        assert(Seq("a", "bb", "ccccc").forall(l => l.nonEmpty && l.length <= 3))
+      } @@ failing,
+      test("forall must succeed when an iterable is empty") {
+        assert(Seq.empty[String].forall(l => l.nonEmpty && l.length <= 3))
+      },
+      test("forall must work with iterables that are not lists") {
+        assert(SortedSet(1, 2, 3).forall(_ > 0))
+      },
 //    test("hasSameElementsDistinct must succeed when iterable contains the specified elements") {
 //      assert(Seq(1, 2, 3))(hasSameElementsDistinct(Set(1, 2, 3)))
 //    },
@@ -261,19 +246,19 @@ object SmartAssertionSpec extends ZIOBaseSpec {
 //    test("hasSameElementsDistinct must fail when iterable contains unspecified elements") {
 //      assert(Seq(1, 2, 3, 4))(hasSameElementsDistinct(Set(1, 2, 3)))
 //    } @@ failing,
-    test("hasAt must fail when an index is outside of a sequence range") {
-      assert(Seq(1, 2, 3)(2) == 5)
-    },
-    test("has at contains") {
-      assert(Seq(List(5), List(1, 2, 3), List(1, 2, 3))(2).contains(12))
-    } @@ failing,
-    test("head") {
-      assert(Seq(1, 2, 3, 19).head == 1)
-    },
-    test("hasAt must succeed when a value is equal to a specific assertion") {
+      test("hasAt must fail when an index is outside of a sequence range") {
+        assert(Seq(1, 2, 3)(2) == 5)
+      },
+      test("has at contains") {
+        assert(Seq(List(5), List(1, 2, 3), List(1, 2, 3))(2).contains(12))
+      } @@ failing,
+      test("head") {
+        assert(Seq(1, 2, 3, 19).head == 1)
+      },
+      test("hasAt must succeed when a value is equal to a specific assertion") {
 //      assert(Seq(1, 2, 3))(hasAt(1)(equalTo(2)))
-      assert(Seq(1, 2, 3)(1) == 2)
-    },
+        assert(Seq(1, 2, 3)(1) == 2)
+      },
 //    test("hasAtLeastOneOf must succeed when iterable contains one of the specified elements") {
 //      assert(Seq("zio", "scala"))(hasAtLeastOneOf(Set("zio", "test", "java")))
 //    },
@@ -292,34 +277,35 @@ object SmartAssertionSpec extends ZIOBaseSpec {
 //    test("hasAtMostOneOf must fail when iterable contains more than one of the specified elements") {
 //      assert(Seq("zio", "scala"))(hasAtMostOneOf(Set("zio", "test", "scala")))
 //    } @@ failing,
-    test("hasField must succeed when field value satisfy specified assertion") {
+      test("hasField must succeed when field value satisfy specified assertion") {
 //      assert(SampleUser("User", 23))(hasField[SampleUser, Int]("age", _.age, isWithin(0, 99)))
-      assert(SampleUser("User", 55).age.withAssertion(isWithin(0, 99)))
-    },
-    test("hasFirst must fail when an iterable is empty") {
-      assert(Seq.empty[Int].head.withAssertion(anything))
-    } @@ failing,
-    test("hasFirst must succeed when a head is equal to a specific assertion") {
-      assert(Seq(1, 2, 3).head == 1)
-    },
-    test("hasFirst must fail when a head is not equal to a specific assertion") {
-      assert(Seq(1, 2, 3).head == 100)
-    } @@ failing,
-    test("hasIntersection must succeed when intersection satisfies specified assertion") {
+        assert(SampleUser("User", 55).age.withAssertion(isWithin(0, 99)))
+      },
+      test("hasFirst must fail when an iterable is empty") {
+        assert(Seq.empty[Int].head.withAssertion(anything))
+      } @@ failing,
+      test("hasFirst must succeed when a head is equal to a specific assertion") {
+        assert(Seq(1, 2, 3).head == 1)
+      },
+      test("hasFirst must fail when a head is not equal to a specific assertion") {
+        assert(Seq(1, 2, 3).head == 100)
+      } @@ failing,
+      test("hasIntersection must succeed when intersection satisfies specified assertion") {
 //      assert(Seq(1, 2, 3))(hasIntersection(Seq(3, 4, 5))(hasSize(equalTo(1))))
-      assert((Seq(1, 2, 3, 4) intersect Seq(4, 5, 6, 7, 8)).length == 1)
-    },
-    test("hasIntersection must succeed when empty intersection satisfies specified assertion") {
-      assert((Seq(1, 2, 3, 4) intersect Seq(5, 6, 7)).isEmpty)
-    },
-    test("Basic equality") {
-      val result = 1
-      // assert(result == 1)
-      assert {
-        def cool(int: Int) = int * 3
-        cool(result) > 400
+        assert((Seq(1, 2, 3, 4) intersect Seq(4, 5, 6, 7, 8)).length == 1)
+      },
+      test("hasIntersection must succeed when empty intersection satisfies specified assertion") {
+        assert((Seq(1, 2, 3, 4) intersect Seq(5, 6, 7)).isEmpty)
+      },
+      test("Basic equality") {
+        val result = 1
+        // assert(result == 1)
+        assert {
+          def cool(int: Int) = int * 3
+          cool(result) > 400
+        }
       }
-    }
+
 //    test("hasIntersection must fail when intersection does not satisfy specified assertion") {
 //      assert(Seq(1, 2, 3))(hasIntersection(Seq(3, 4, 5))(isEmpty))
 //    } @@ failing,
@@ -708,7 +694,8 @@ object SmartAssertionSpec extends ZIOBaseSpec {
 //      assert(assertion.equals(assertionM))(isFalse ?? "assertion != assertionM") &&
 //      assert(assertionM.equals(assertion))(isFalse ?? "assertionM != assertion")
 //    }
-  )
+    )
+  }
 
   case class SampleUser(name: String, age: Int)
   val sampleUser: SampleUser = SampleUser("User", 42)

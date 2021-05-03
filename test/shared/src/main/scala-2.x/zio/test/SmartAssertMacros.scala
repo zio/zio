@@ -3,10 +3,6 @@ package zio.test
 import scala.annotation.tailrec
 import scala.reflect.macros.blackbox
 
-object Expect {
-  def assert(expr: Boolean): TestResult = macro SmartAssertMacros.assertImpl
-}
-
 class SmartAssertMacros(val c: blackbox.Context) {
   import c.universe._
 
@@ -18,35 +14,116 @@ class SmartAssertMacros(val c: blackbox.Context) {
     (path, line)
   }
 
-  def assertImpl(expr: c.Tree): Expr[TestResult] = {
-//        println(s"NEW $expr")
-//        println(s"NEW ${showRaw(expr)}")
-    val (target, assertion) = expr match {
-      case q"$lhs > $rhs"  => generateAssertion(lhs, q"$Assertion.isGreaterThan($rhs)")
-      case q"$lhs < $rhs"  => generateAssertion(lhs, q"$Assertion.isLessThan($rhs)")
-      case q"$lhs == $rhs" => generateAssertion(lhs, q"$Assertion.equalTo($rhs)")
-      case q"$lhs == $rhs" => generateAssertion(lhs, q"$Assertion.equalTo($rhs)")
-      case q"$lhs != $rhs" => generateAssertion(lhs, q"$Assertion.equalTo($rhs).negate")
-      case q"!$lhs"        => generateAssertion(lhs, q"$Assertion.isFalse")
-      case lhs             => generateAssertion(lhs, q"$Assertion.isTrue")
-    }
-
-    val (fileName, line) = location(c)
-    val srcLocation      = s"$fileName:$line"
-    val targetCode       = CleanCodePrinter.show(c)(target)
-    val exprCode         = CleanCodePrinter.show(c)(expr)
-
-    c.Expr[TestResult](
-      q"_root_.zio.test.CompileVariants.smartAssertProxy($target, $targetCode, $exprCode, $srcLocation)($assertion)"
-    )
-
-//        println("HEY")
-//        println(showCode(tree))
-//        println(showRaw(tree))
-    // c.Expr[TestResult](q"zio.test.assertDummy($target)($assertion)")
+  // Pilfered with immense gratitude from https://github.com/com-lihaoyi/sourcecode
+  def text[T: c.WeakTypeTag](tree: c.Tree): String = {
+    val fileContent = new String(tree.pos.source.content)
+    val start = tree.collect { case treeVal =>
+      treeVal.pos match {
+        case NoPosition => Int.MaxValue
+        case p          => p.startOrPoint
+      }
+    }.min
+    val g      = c.asInstanceOf[reflect.macros.runtime.Context].global
+    val parser = g.newUnitParser(fileContent.drop(start))
+    parser.expr()
+    val end = parser.in.lastOffset
+    val txt = fileContent.slice(start, start + end)
+//    c.Expr[String](q"$txt")
+    txt
   }
 
-  def generateAssertion(expr: c.Tree, assertion: c.Tree): (c.Tree, c.Tree) =
+  private[this] def getText(expr: Tree): String = getPosition(expr) match {
+    case p: scala.reflect.internal.util.RangePosition =>
+      p.lineContent.slice(p.start, p.end)
+    case p: Position =>
+      p.lineContent
+  }
+
+  private[this] def getPosition(expr: Tree) = expr.pos.asInstanceOf[scala.reflect.internal.util.Position]
+
+  def assertImpl(expr: c.Tree, exprs: c.Tree*): Expr[TestResult] =
+    exprs.map(assertSingle).foldLeft(assertSingle(expr)) { (acc, assert) =>
+      c.Expr(q"$acc && $assert")
+    }
+
+  def assertSingle(expr: c.Tree): Expr[TestResult] = {
+    val (stmts, expr0) = expr match {
+      case Block(others, expr) => (others, expr)
+      case other               => (List.empty, other)
+    }
+
+    implicit val renderContext =
+      RenderContext(text(expr0), expr0.pos.start)
+
+    val result = composeAssertions(expr0)
+    c.Expr[TestResult](
+      q"""
+      ..$stmts
+      $result
+      """
+    )
+  }
+
+  def composeAssertions(expr: c.Tree)(implicit renderContext: RenderContext): c.Expr[TestResult] = expr match {
+    case q"$lhs && $rhs" =>
+      val lhsAssertion = composeAssertions(lhs)
+      val rhsAssertion = composeAssertions(rhs)
+      c.Expr(q"$lhsAssertion && $rhsAssertion")
+    case q"$lhs || $rhs" =>
+      val lhsAssertion = composeAssertions(lhs)
+      val rhsAssertion = composeAssertions(rhs)
+      c.Expr(q"$lhsAssertion || $rhsAssertion")
+    case q"!$lhs" =>
+      val lhsAssertion = composeAssertions(lhs)
+      c.Expr(q"!$lhsAssertion")
+
+    case other =>
+      subAssertion(other)
+  }
+
+  case class RenderContext(fullText: String, startPos: Int) {
+    def text(tree: c.Tree): String = {
+      val exprSize = tree.pos.end - tree.pos.start
+      val start    = tree.pos.start - startPos
+      fullText.slice(start, start + exprSize)
+    }
+
+    def textAfter(t1: c.Tree, t2: c.Tree): String = {
+      val exprSize = (t1.pos.end - t1.pos.start) - (t2.pos.end - t2.pos.start)
+      val start    = t2.pos.end - startPos
+      fullText.slice(start, start + exprSize)
+    }
+  }
+
+  private def subAssertion(expr: c.Tree)(implicit renderContext: RenderContext): c.Expr[TestResult] = {
+    val (fileName, line) = location(c)
+    val srcLocation      = s"$fileName:${expr.pos.line}"
+
+    val text = renderContext.text(expr)
+
+    val (target, assertion) = expr match {
+      case q"$lhs > $rhs" =>
+        val text = renderContext.text(rhs)
+        generateAssertion(lhs, q"$Assertion.isGreaterThan($rhs).withField(${s" > $text"})")
+      case q"$lhs < $rhs" =>
+        val text = renderContext.text(rhs)
+        generateAssertion(lhs, q"$Assertion.isLessThan($rhs).withField(${s" < $text"})")
+      case q"$lhs == $rhs" =>
+        val text = renderContext.text(rhs)
+        generateAssertion(lhs, q"$Assertion.equalTo($rhs).withField(${s" == $text"})")
+      case q"$lhs != $rhs" =>
+        generateAssertion(lhs, q"$Assertion.equalTo($rhs).negate")
+      case lhs => generateAssertion(lhs, q"$Assertion.isTrue")
+    }
+
+    val targetCode = CleanCodePrinter.show(c)(target)
+
+    c.Expr[TestResult](
+      q"_root_.zio.test.CompileVariants.smartAssertProxy($target, $targetCode, $text, $srcLocation)($assertion)"
+    )
+  }
+
+  def generateAssertion(expr: c.Tree, assertion: c.Tree)(implicit renderContext: RenderContext): (c.Tree, c.Tree) =
     expr match {
       // TODO: Improve safety. Unwrap AssertionOps
       case Method.withAssertion(lhs, assertion) =>
@@ -76,13 +153,15 @@ class SmartAssertMacros(val c: blackbox.Context) {
         val newAssertion = q"$Assertion.endsWithString($value)"
         generateAssertion(lhs, newAssertion)
       case Method.hasAt(lhs, value) =>
-        val newAssertion = q"$Assertion.hasAt($value)($assertion)"
+        val text         = renderContext.textAfter(expr, lhs)
+        val newAssertion = q"$Assertion.hasAt($value)($assertion).withField($text)"
         generateAssertion(lhs, newAssertion)
       case Method.intersect(lhs, value) =>
         val newAssertion = q"$Assertion.hasIntersection($value)($assertion)"
         generateAssertion(lhs, newAssertion)
       case Method.length(lhs, _) =>
-        val newAssertion = q"$Assertion.hasSize($assertion)"
+        val text         = renderContext.textAfter(expr, lhs)
+        val newAssertion = q"$Assertion.hasSize($assertion).withField($text)"
         generateAssertion(lhs, newAssertion)
       case Method.isEmpty(lhs, _) =>
         val newAssertion = q"$Assertion.isEmpty"
@@ -91,7 +170,8 @@ class SmartAssertMacros(val c: blackbox.Context) {
         val newAssertion = q"$Assertion.isNonEmpty"
         generateAssertion(lhs, newAssertion)
       case Method.head(lhs, _) =>
-        val newAssertion = q"$Assertion.hasFirst($assertion)"
+        val text         = renderContext.textAfter(expr, lhs)
+        val newAssertion = q"$Assertion.hasFirst($assertion).withField($text)"
         generateAssertion(lhs, newAssertion)
       case q"$lhs.get" =>
         val newAssertion = q"$Assertion.isSome($assertion)"
@@ -100,13 +180,15 @@ class SmartAssertMacros(val c: blackbox.Context) {
         val tpe          = lhs.tpe.finalResultType.widen
         val nameString   = name.toString
         val select       = q"(x: $tpe) => x.${TermName(nameString)}"
-        val newAssertion = q"$Assertion.hasField($nameString, $select, $assertion)"
+        val text         = renderContext.textAfter(expr, lhs)
+        val newAssertion = q"$Assertion.hasField($nameString, $select, $assertion).withField($text)"
         generateAssertion(lhs, newAssertion)
       case IsConstructor(_) =>
         (expr, assertion)
       case MethodCall(lhs, name, args) =>
+        val text         = renderContext.textAfter(expr, lhs)
         val newAssertion = makeApplyAssertion(assertion, lhs, name, args)
-        generateAssertion(lhs, newAssertion)
+        generateAssertion(lhs, q"$newAssertion.withField($text)")
       case _ =>
         (expr, assertion)
     }

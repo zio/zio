@@ -30,7 +30,7 @@ object SummaryBuilder {
     val failures = extractFailures(executedSpec)
     val rendered = failures
       .flatMap(DefaultTestReporter.render(_, TestAnnotationRenderer.silent, false))
-      .flatMap(_.rendered)
+      .flatMap(_.rendered.appended(""))
       .mkString("\n")
     Summary(success, fail, ignore, rendered)
   }
