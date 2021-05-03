@@ -1,6 +1,7 @@
 package zio
 
 import zio.test.Assertion._
+import zio.test.TestAspect._
 import zio.test._
 
 object StateSpec extends DefaultRunnableSpec {
@@ -15,5 +16,5 @@ object StateSpec extends DefaultRunnableSpec {
         } yield count
         assertM(zio.provideLayer(State.make(MyState(0)).toLayer))(equalTo(1))
       }
-    )
+    ) @@ exceptDotty
 }
