@@ -10,17 +10,19 @@ object Expect {
 class SmartAssertMacros(val c: blackbox.Context) {
   import c.universe._
 
+  private val Assertion = q"zio.test.Assertion"
+
   def assertImpl(expr: c.Tree): Expr[TestResult] = {
 //        println(s"NEW $expr")
 //        println(s"NEW ${showRaw(expr)}")
     val (target, assertion) = expr match {
-      case q"$lhs > $rhs"  => generateAssertion(lhs, q"zio.test.Assertion.isGreaterThan($rhs)")
-      case q"$lhs < $rhs"  => generateAssertion(lhs, q"zio.test.Assertion.isLessThan($rhs)")
-      case q"$lhs == $rhs" => generateAssertion(lhs, q"zio.test.Assertion.equalTo($rhs)")
-      case q"$lhs == $rhs" => generateAssertion(lhs, q"zio.test.Assertion.equalTo($rhs)")
-      case q"$lhs != $rhs" => generateAssertion(lhs, q"zio.test.Assertion.equalTo($rhs).negate")
-      case q"!$lhs"        => generateAssertion(lhs, q"zio.test.Assertion.isFalse")
-      case lhs             => generateAssertion(lhs, q"zio.test.Assertion.isTrue")
+      case q"$lhs > $rhs"  => generateAssertion(lhs, q"$Assertion.isGreaterThan($rhs)")
+      case q"$lhs < $rhs"  => generateAssertion(lhs, q"$Assertion.isLessThan($rhs)")
+      case q"$lhs == $rhs" => generateAssertion(lhs, q"$Assertion.equalTo($rhs)")
+      case q"$lhs == $rhs" => generateAssertion(lhs, q"$Assertion.equalTo($rhs)")
+      case q"$lhs != $rhs" => generateAssertion(lhs, q"$Assertion.equalTo($rhs).negate")
+      case q"!$lhs"        => generateAssertion(lhs, q"$Assertion.isFalse")
+      case lhs             => generateAssertion(lhs, q"$Assertion.isTrue")
     }
 //        println("HEY")
 //        println(showCode(tree))
@@ -33,47 +35,56 @@ class SmartAssertMacros(val c: blackbox.Context) {
       // TODO: Improve safety. Unwrap AssertionOps
       case Method.withAssertion(lhs, assertion) =>
         lhs match {
-          case q"$assertionOps($lhs)" => generateAssertion(lhs, assertion)
-          case _                      => c.abort(c.enclosingPosition, "FATAL ERROR")
+          case q"$_($lhs)" => generateAssertion(lhs, assertion)
+          case _           => c.abort(c.enclosingPosition, "FATAL ERROR")
         }
       case Method.containsIterable(lhs, value) =>
-        val newAssertion = q"zio.test.Assertion.contains($value)"
+        val newAssertion = q"$Assertion.contains($value)"
         generateAssertion(lhs, newAssertion)
       case Method.containsString(lhs, value) =>
-        val newAssertion = q"zio.test.Assertion.containsString($value)"
+        val newAssertion = q"$Assertion.containsString($value)"
         generateAssertion(lhs, newAssertion)
       case Method.containsString(lhs, value) =>
-        val newAssertion = q"zio.test.Assertion.containsString($value)"
+        val newAssertion = q"$Assertion.containsString($value)"
+        generateAssertion(lhs, newAssertion)
+      case Method.startsWithSeq(lhs, value) =>
+        val newAssertion = q"$Assertion.startsWith($value)"
+        generateAssertion(lhs, newAssertion)
+      case Method.startsWithString(lhs, value) =>
+        val newAssertion = q"$Assertion.startsWithString($value)"
         generateAssertion(lhs, newAssertion)
       case Method.endsWithSeq(lhs, value) =>
-        val newAssertion = q"zio.test.Assertion.endsWith($value)"
+        val newAssertion = q"$Assertion.endsWith($value)"
         generateAssertion(lhs, newAssertion)
       case Method.endsWithString(lhs, value) =>
-        val newAssertion = q"zio.test.Assertion.endsWithString($value)"
+        val newAssertion = q"$Assertion.endsWithString($value)"
         generateAssertion(lhs, newAssertion)
       case Method.hasAt(lhs, value) =>
-        val newAssertion = q"zio.test.Assertion.hasAt($value)($assertion)"
+        val newAssertion = q"$Assertion.hasAt($value)($assertion)"
         generateAssertion(lhs, newAssertion)
       case Method.intersect(lhs, value) =>
-        val newAssertion = q"zio.test.Assertion.hasIntersection($value)($assertion)"
+        val newAssertion = q"$Assertion.hasIntersection($value)($assertion)"
         generateAssertion(lhs, newAssertion)
       case Method.length(lhs, _) =>
-        val newAssertion = q"zio.test.Assertion.hasSize($assertion)"
+        val newAssertion = q"$Assertion.hasSize($assertion)"
         generateAssertion(lhs, newAssertion)
       case Method.isEmpty(lhs, _) =>
-        val newAssertion = q"zio.test.Assertion.isEmpty"
+        val newAssertion = q"$Assertion.isEmpty"
         generateAssertion(lhs, newAssertion)
       case Method.nonEmpty(lhs, _) =>
-        val newAssertion = q"zio.test.Assertion.isNonEmpty"
+        val newAssertion = q"$Assertion.isNonEmpty"
+        generateAssertion(lhs, newAssertion)
+      case Method.head(lhs, _) =>
+        val newAssertion = q"$Assertion.hasFirst($assertion)"
         generateAssertion(lhs, newAssertion)
       case q"$lhs.get" =>
-        val newAssertion = q"zio.test.Assertion.isSome($assertion)"
+        val newAssertion = q"$Assertion.isSome($assertion)"
         generateAssertion(lhs, newAssertion)
       case Select(lhs, name) =>
         val tpe          = lhs.tpe.finalResultType.widen
         val nameString   = name.toString
-        val select       = q"((a: $tpe) => a.${TermName(nameString)})"
-        val newAssertion = q"zio.test.Assertion.hasField($nameString, $select, $assertion)"
+        val select       = q"(x: $tpe) => x.${TermName(nameString)}"
+        val newAssertion = q"$Assertion.hasField($nameString, $select, $assertion)"
         generateAssertion(lhs, newAssertion)
       case IsConstructor(_) =>
         (expr, assertion)
@@ -105,8 +116,10 @@ class SmartAssertMacros(val c: blackbox.Context) {
     val containsIterable: Method[Iterable[_]] = Method[Iterable[_]]("contains")
     val containsString: Method[String]        = Method[String]("contains")
 
-    val endsWithSeq: Method[Seq[_]]    = Method[Seq[_]]("endsWith")
-    val endsWithString: Method[String] = Method[String]("endsWith")
+    val startsWithSeq: Method[Seq[_]]    = Method[Seq[_]]("startsWith")
+    val startsWithString: Method[String] = Method[String]("startsWith")
+    val endsWithSeq: Method[Seq[_]]      = Method[Seq[_]]("endsWith")
+    val endsWithString: Method[String]   = Method[String]("endsWith")
 
     val hasAt: Method[Seq[_]] = Method[Seq[_]]("apply")
 
@@ -131,18 +144,20 @@ class SmartAssertMacros(val c: blackbox.Context) {
   object IsConstructor {
     def unapply(tree: c.Tree): Option[c.Tree] =
       tree match {
-        case Apply(_, _) | TypeApply(_, _) if isModuleApply(tree) => Some(tree)
+        case Apply(_, _) | TypeApply(_, _) if isConstructor(tree) => Some(tree)
         case _                                                    => None
       }
 
     @tailrec
-    def isModuleApply(tree: c.Tree): Boolean =
+    def isConstructor(tree: c.Tree): Boolean =
       tree match {
         case x: Select if x.symbol.isModule => true
-        case Select(s, _)                   => isModuleApply(s)
-        case TypeApply(s, _)                => isModuleApply(s)
-        case Apply(s, _)                    => isModuleApply(s)
-        case _                              => false
+        // Matches Case Class constructors
+        case x: Select if x.symbol.isSynthetic => true
+        case Select(s, _)                      => isConstructor(s)
+        case TypeApply(s, _)                   => isConstructor(s)
+        case Apply(s, _)                       => isConstructor(s)
+        case _                                 => false
       }
   }
 
@@ -152,7 +167,7 @@ class SmartAssertMacros(val c: blackbox.Context) {
 
     val select       = q"((a: $tpe) => a.${TermName(nameString)}(..$args))"
     val applyString  = s"$nameString(${args.toList.map(showCode(_)).mkString(", ")})"
-    val newAssertion = q"zio.test.Assertion.hasField($applyString, $select, $assertion)"
+    val newAssertion = q"$Assertion.hasField($applyString, $select, $assertion)"
     newAssertion
   }
 }

@@ -9,6 +9,41 @@ import scala.util.{Failure, Success}
 
 object SmartAssertionSpec extends ZIOBaseSpec {
   def spec: Spec[Annotations, TestFailure[Any], TestSuccess] = suite("AssertionSpec")(
+    test("nested access") {
+      case class Ziverge(people: Seq[Person])
+      case class Person(name: String, age: Int)
+      val person  = Person("Vigoo", 21)
+      val company = Ziverge(Seq(person))
+//      assert(company)(hasField("people", _.people, hasFirst(hasField("name", (_: Person).name, startsWithString("Z")))))
+      // company.people(0).age > 30
+      // age = 21 is not greater than 30
+      // age = 21 is not greater than 30
+      // "Vigoo" != "Zigoo"
+      // V |igoo| != Z |igoo|
+
+      // the failing test name and breadcrumbs
+      // the rendered code of the whole assertion
+      // a custom message/diff of the failing assertion
+      // code location
+      // a list of relevant values
+
+      // company.people(0).age > 30
+      // assert(company)(zoom(_.people, hasAt(0)(zoom(_.age, isGreaterThan(30))))
+      // age = 21 is not greater than 30
+
+      /**
+       *    21 did not satisfy isGreaterThan(30)
+       *    Person(Vigoo,21) did not satisfy hasField("age", _.age, isGreaterThan(30))
+       *    List(Person(Vigoo,21)) did not satisfy hasAt(hasField("age", _.age, isGreaterThan(30)))
+       *   `house` = Ziverge(List(Person(Vigoo,21))) did not satisfy hasField("people", _.people, hasAt(hasField("age", _.age, isGreaterThan(30))))
+       *
+       *    21 is not <= 30
+       *    age = 21
+       *    vigoo = 21
+       */
+
+      assert(company.people(0).age > 30)
+    },
     test("and must succeed when both assertions are satisfied") {
 //       assert(sampleUser)(nameStartsWithU && ageGreaterThan20)
       assert(sampleUser.name.startsWith("U")) && assert(sampleUser.age > 20)
