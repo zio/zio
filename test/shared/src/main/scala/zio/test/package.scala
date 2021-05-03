@@ -131,6 +131,7 @@ package object test extends CompileVariants {
     assertResult: AssertResult,
     assertion: AssertionM[A],
     expression: Option[String],
+    smartExpression: Option[String],
     sourceLocation: Option[String]
   ): TestResult =
     assertResult.flatMap { fragment =>
@@ -147,7 +148,9 @@ package object test extends CompileVariants {
 
       loop(
         fragment,
-        FailureDetails(::(AssertionValue(assertion, value, assertResult, expression, sourceLocation), Nil))
+        FailureDetails(
+          ::(AssertionValue(assertion, value, assertResult, expression, smartExpression, sourceLocation), Nil)
+        )
       )
     }
 
@@ -157,12 +160,13 @@ package object test extends CompileVariants {
   override private[test] def assertImpl[A](
     value: => A,
     expression: Option[String] = None,
+    smartExpression: Option[String] = None,
     sourceLocation: Option[String] = None
   )(
     assertion: Assertion[A]
   ): TestResult = {
     lazy val tryValue = Try(value)
-    traverseResult(tryValue.get, assertion.run(tryValue.get), assertion, expression, sourceLocation)
+    traverseResult(tryValue.get, assertion.run(tryValue.get), assertion, expression, smartExpression, sourceLocation)
   }
 
   /**
@@ -186,7 +190,7 @@ package object test extends CompileVariants {
     for {
       value        <- effect
       assertResult <- assertion.runM(value).run
-    } yield traverseResult(value, assertResult, assertion, None, sourceLocation)
+    } yield traverseResult(value, assertResult, assertion, None, None, sourceLocation)
 
   /**
    * Checks the test passes for "sufficient" numbers of samples from the

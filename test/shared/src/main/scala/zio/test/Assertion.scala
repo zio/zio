@@ -96,6 +96,12 @@ final class Assertion[-A] private (
    */
   override def toString: String =
     render.toString
+
+  override def withInfixField(fieldName: String, arg: String): Assertion[A] =
+    new Assertion(render.withField(AssertionM.Field.Infix(fieldName, arg)), run)
+
+  override def withField(fieldName: String, args: String*): Assertion[A] =
+    new Assertion(render.withField(AssertionM.Field.Select(fieldName, args.toList)), run)
 }
 
 object Assertion extends AssertionVariants {
@@ -283,13 +289,15 @@ object Assertion extends AssertionVariants {
    * satisfying the given assertion on the given position
    */
   def hasAt[A](pos: Int)(assertion: Assertion[A]): Assertion[Seq[A]] =
-    Assertion.assertionRec("hasAt")(param(assertion))(assertion) { actual =>
-      if (pos >= 0 && pos < actual.size) {
-        Some(actual.apply(pos))
-      } else {
-        None
+    Assertion
+      .assertionRec[Seq[A], A]("hasAt")(param(pos), param(assertion))(assertion) { actual =>
+        if (pos >= 0 && pos < actual.size) {
+          Some(actual.apply(pos))
+        } else {
+          None
+        }
       }
-    }
+      .withField(s"apply($pos)")
 
   /**
    * Makes a new assertion that requires an Iterable contain at least one of the
@@ -313,9 +321,11 @@ object Assertion extends AssertionVariants {
    * }}}
    */
   def hasField[A, B](name: String, proj: A => B, assertion: Assertion[B]): Assertion[A] =
-    Assertion.assertionRec("hasField")(param(quoted(name)), param(field(name)), param(assertion))(assertion) { actual =>
-      Some(proj(actual))
-    }
+    Assertion
+      .assertionRec[A, B]("hasField")(param(field(name)), param(assertion))(assertion) { actual =>
+        Some(proj(actual))
+      }
+      .withField(name)
 
   /**
    * Makes a new assertion that requires an Iterable to contain the first
@@ -485,7 +495,9 @@ object Assertion extends AssertionVariants {
    * specified reference value.
    */
   def isGreaterThan[A](reference: A)(implicit ord: Ordering[A]): Assertion[A] =
-    Assertion.assertion("isGreaterThan")(param(reference))(actual => ord.gt(actual, reference))
+    Assertion
+      .assertion[A]("isGreaterThan")(param(reference))(actual => ord.gt(actual, reference))
+      .withInfixField(">", reference.toString)
 
   /**
    * Makes a new assertion that requires the value be greater than or equal to

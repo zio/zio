@@ -12,6 +12,12 @@ class SmartAssertMacros(val c: blackbox.Context) {
 
   private val Assertion = q"zio.test.Assertion"
 
+  private[test] def location(c: blackbox.Context): (String, Int) = {
+    val path = c.enclosingPosition.source.path
+    val line = c.enclosingPosition.line
+    (path, line)
+  }
+
   def assertImpl(expr: c.Tree): Expr[TestResult] = {
 //        println(s"NEW $expr")
 //        println(s"NEW ${showRaw(expr)}")
@@ -24,10 +30,20 @@ class SmartAssertMacros(val c: blackbox.Context) {
       case q"!$lhs"        => generateAssertion(lhs, q"$Assertion.isFalse")
       case lhs             => generateAssertion(lhs, q"$Assertion.isTrue")
     }
+
+    val (fileName, line) = location(c)
+    val srcLocation      = s"$fileName:$line"
+    val targetCode       = CleanCodePrinter.show(c)(target)
+    val exprCode         = CleanCodePrinter.show(c)(expr)
+
+    c.Expr[TestResult](
+      q"_root_.zio.test.CompileVariants.smartAssertProxy($target, $targetCode, $exprCode, $srcLocation)($assertion)"
+    )
+
 //        println("HEY")
 //        println(showCode(tree))
 //        println(showRaw(tree))
-    c.Expr[TestResult](q"zio.test.assertDummy($target)($assertion)")
+    // c.Expr[TestResult](q"zio.test.assertDummy($target)($assertion)")
   }
 
   def generateAssertion(expr: c.Tree, assertion: c.Tree): (c.Tree, c.Tree) =

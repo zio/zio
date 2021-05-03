@@ -25,9 +25,13 @@ sealed abstract class AssertionValue {
   type Value
   def value: Value
   def expression: Option[String]
+  def smartExpression: Option[String]
   def sourceLocation: Option[String]
   protected def assertion: AssertionM[Value]
   def result: AssertResult
+
+  def renderField: AssertionM.Field =
+    assertion.render.renderField
 
   def printAssertion: String = assertion.toString
   def label(string: String): AssertionValue =
@@ -45,6 +49,7 @@ object AssertionValue {
     value: => A,
     result: => AssertResult,
     expression: Option[String] = None,
+    smartExpression: Option[String] = None,
     sourceLocation: Option[String] = None
   ): AssertionValue = {
     def inner(
@@ -52,16 +57,18 @@ object AssertionValue {
       value0: => A,
       result0: => AssertResult,
       expression0: Option[String],
+      smartExpression0: Option[String],
       sourceLocation0: Option[String]
     ) =
       new AssertionValue {
         type Value = A
-        protected val assertion: AssertionM[Value]  = assertion0
-        lazy val value: Value                       = value0
-        lazy val result: AssertResult               = result0
-        override val expression: Option[String]     = expression0
-        override val sourceLocation: Option[String] = sourceLocation0
+        protected val assertion: AssertionM[Value]   = assertion0
+        lazy val value: Value                        = value0
+        lazy val result: AssertResult                = result0
+        override val expression: Option[String]      = expression0
+        override val smartExpression: Option[String] = smartExpression0
+        override val sourceLocation: Option[String]  = sourceLocation0
       }
-    inner(assertion, value, result, expression, sourceLocation)
+    inner(assertion, value, result, expression, smartExpression, sourceLocation)
   }
 }

@@ -67,6 +67,6 @@ abstract class DefaultRunnableSpec extends RunnableSpec[TestEnvironment, Any] {
 
   implicit final class AssertionOps[A](val self: A) {
     def withAssertion(assertion: Assertion[A]): Boolean =
-      throw new Error("THIS MUST BE CALLED WITHIN `assert`!!!")
+      assertion.test(self)
   }
 }

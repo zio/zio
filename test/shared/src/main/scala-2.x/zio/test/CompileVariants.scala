@@ -32,6 +32,7 @@ trait CompileVariants {
   private[test] def assertImpl[A](
     value: => A,
     expression: Option[String] = None,
+    smartExpression: Option[String] = None,
     sourceLocation: Option[String] = None
   )(assertion: Assertion[A]): TestResult
 
@@ -74,7 +75,12 @@ trait CompileVariants {
 object CompileVariants {
 
   def assertProxy[A](value: => A, expression: String, sourceLocation: String)(assertion: Assertion[A]): TestResult =
-    zio.test.assertImpl(value, Some(expression), Some(sourceLocation))(assertion)
+    zio.test.assertImpl(value, Some(expression), None, Some(sourceLocation))(assertion)
+
+  def smartAssertProxy[A](value: => A, expression: String, smartExpression: String, sourceLocation: String)(
+    assertion: Assertion[A]
+  ): TestResult =
+    zio.test.assertImpl(value, Some(expression), Some(smartExpression), Some(sourceLocation))(assertion)
 
   def assertMProxy[R, E, A](effect: ZIO[R, E, A], sourceLocation: String)(
     assertion: AssertionM[A]

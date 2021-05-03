@@ -2,13 +2,100 @@ package zio.test
 
 import zio.test.Assertion._
 import zio.test.TestAspect._
+import zio.test.environment.TestClock
 import zio.{Chunk, Exit}
 
 import scala.collection.immutable.SortedSet
 import scala.util.{Failure, Success}
+import zio.duration._
 
+/**
+ * - Scala 3
+ * - Refactor to make Scala 3 easy.
+ * - Create some data structure that allows us to list out
+ *   - Method Name, Method
+ * - Fix up rendering issues.
+ *   - Do not list value for literals
+ *   - Add spaces around infix with code show.
+ *   - Special case apply.
+ *   - Use the actual written showCode(expr) for the withField for the macro code
+ * - Add all the methods we want
+ * - Improve rendering for all the existing assertions
+ * - Add a prose, human-readable error message for assertions (instead of 'does not satisfy hasAt(0)')
+ * - Diff Stuff. Strings, case classes, maps, anything. User customizable.
+ * - conjunction/disjunction/negation, break apart at top level in macro.
+ * - exposing bugs. try to break in as many ways as possible, and add helpful error messages
+ *   - how to handle multi-statement blocks
+ */
 object SmartAssertionSpec extends ZIOBaseSpec {
-  def spec: Spec[Annotations, TestFailure[Any], TestSuccess] = suite("AssertionSpec")(
+  def spec = suite("AssertionSpec")(
+    test(".hasCase") {
+      case class Person(name: String, age: Int)
+      val result = Right(Person("Kit", 3000))
+      assert(result.toOption.get.name == "Kitty")
+    },
+    test("Basic equality") {
+      val result = 3
+      assert(result.withAssertion(Assertion.isWithin(4, 10)))
+    },
+    test(".get") {
+      case class Person(name: String, age: Int)
+      val result = Some(Person("Kit", 30))
+      assert(result.get.name == "Kitty")
+    },
+    test("calling a method with args") {
+      case class Person(name: String = "Fred", age: Int = 42) {
+        def say(words: String*): String = words.mkString(" ")
+      }
+      val person = Person()
+      assert {
+        person.say("ping", "pong") == "pong pong!"
+      }
+    },
+    test("calling a method with args") {
+      case class Person(name: String = "Fred", age: Int = 42) {
+        def say(words: String*): String = words.mkString(" ")
+      }
+      assert {
+        Person().say("ping", "pong") == "pong pong!"
+      }
+    },
+    test("contains") {
+      val list = Some(List(1, 8, 132, 83))
+      assert(list.get.contains(77))
+    },
+    testM("sleep delays effect until time is adjusted") {
+      for {
+        ref    <- zio.Ref.make(false)
+        _      <- ref.set(true).delay(10.hours).fork
+        _      <- TestClock.adjust(9.hours)
+        result <- ref.get
+      } yield assert(!result)
+    }, // @@ forked @@ nonFlaky,
+    test("contains must succeed when iterable contains specified element") {
+      assert(Seq("zio1", "scala").contains("scala"))
+    },
+    test("contains array") {
+      assert(Array(1, 2, 3, 4, 8, 9, 1).toList.contains(10))
+    },
+    test("contains iterable") {
+      assert(Seq(1, 2, 3, 4, 8, 10, 1, 1).contains(9))
+    },
+    test("contains string") {
+      assert("Howdy".contains("no"))
+    },
+    test("endsWith iterable") {
+      assert(Seq(1, 2, 3, 4, 8, 10, 1, 1).endsWith(List(9, 10)))
+    },
+    test("endsWith string") {
+      assert("Howdy".endsWith("no"))
+    },
+    test("contains must succeed when iterable contains specified element") {
+      assert(zio.duration.Duration.fromNanos(1000) == zio.duration.Duration.Zero)
+    },
+    test("contains must succeed when iterable contains specified element") {
+      assert("FUNNY HOUSE".contains("OH NO"))
+    },
     test("nested access") {
       case class Ziverge(people: Seq[Person])
       case class Person(name: String, age: Int)
@@ -71,7 +158,7 @@ object SmartAssertionSpec extends ZIOBaseSpec {
     },
     test("containsString must return false when the string is not contained") {
       assert("this is a value".contains("_NOTHING_"))
-    } @@ failing,
+    },
 //    test("dies must succeed when exception satisfy specified assertion") {
 //      assert(Exit.die(someException))(dies(equalTo(someException)))
 //    },
@@ -83,26 +170,26 @@ object SmartAssertionSpec extends ZIOBaseSpec {
     },
     test("startsWith must fail when the supplied value does not end with the specified sequence") {
       assert(List(1, 2, 3, 4, 5).endsWith(List(1, 2, 3)))
-    } @@ failing,
+    },
     test("endsWithString must succeed when the supplied value ends with the specified string") {
       assert("zio".endsWith("o"))
     },
     test("endsWithString must fail when the supplied value does not end with the specified string") {
       // TODO: USE ENDS WITH STRING
       assert("zio".endsWith("z"))
-    } @@ failing,
+    },
     test("equalsIgnoreCase must succeed when the supplied value matches") {
       assert("Some String".toLowerCase == "some string")
     },
     test("equalsIgnoreCase must fail when the supplied value does not match") {
       assert("Some Other String".toLowerCase == "some string")
-    } @@ failing,
+    },
     test("equalTo must succeed when value equals specified value") {
       assert(42 == 42)
     },
     test("equalTo must fail when value does not equal specified value") {
       assert(0 == 42)
-    } @@ failing,
+    },
     test("equalTo must succeed when array equals specified array") {
       assert(Array(1, 2, 3).sameElements(Array(1, 2, 3)))
     },
@@ -176,7 +263,7 @@ object SmartAssertionSpec extends ZIOBaseSpec {
 //    } @@ failing,
     test("hasAt must fail when an index is outside of a sequence range") {
       assert(Seq(1, 2, 3)(2) == 5)
-    } @@ failing,
+    },
     test("has at contains") {
       assert(Seq(List(5), List(1, 2, 3), List(1, 2, 3))(2).contains(12))
     } @@ failing,
@@ -224,6 +311,14 @@ object SmartAssertionSpec extends ZIOBaseSpec {
     },
     test("hasIntersection must succeed when empty intersection satisfies specified assertion") {
       assert((Seq(1, 2, 3, 4) intersect Seq(5, 6, 7)).isEmpty)
+    },
+    test("Basic equality") {
+      val result = 1
+      // assert(result == 1)
+      assert {
+        def cool(int: Int) = int * 3
+        cool(result) > 400
+      }
     }
 //    test("hasIntersection must fail when intersection does not satisfy specified assertion") {
 //      assert(Seq(1, 2, 3))(hasIntersection(Seq(3, 4, 5))(isEmpty))

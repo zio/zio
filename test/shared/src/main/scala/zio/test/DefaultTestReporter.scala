@@ -259,18 +259,39 @@ object FailureRenderer {
       renderAssertionFailureDetails(failureDetails.assertion, offset)
 
   private def renderAssertionFailureDetails(failureDetails: ::[AssertionValue], offset: Int): Message = {
-    def loop(failureDetails: List[AssertionValue], rendered: Message): Message =
-      failureDetails match {
-        case fragment :: whole :: failureDetails =>
-          loop(whole :: failureDetails, rendered :+ renderWhole(fragment, whole, offset))
-        case _ =>
-          rendered
-      }
+    // assert(company)(hasField("people", _.people, hasFirst(hasField("name", (_: Person).name, startsWithString("Z")))))
+    // assert(company.people.head)
+    // assert(company.people.hasFirst)
+    // company.people(0).age > 30
 
-    renderFragment(failureDetails.head, offset).toMessage ++ loop(
-      failureDetails,
-      Message.empty
-    ) ++ renderAssertionLocation(failureDetails.last, offset)
+    val last = failureDetails.last
+    val head = failureDetails.head
+
+    // val context =
+    //   Fragment(last.expression.get) + Fragment(failureDetails.map(_.renderField.renderMethod).reverse.mkString(""))
+    val context =
+      last.smartExpression.map(ex => cyan(ex) + cyan("")) getOrElse
+        cyan(s"assert(${last.expression.get})(${last.printAssertion})") + cyan("")
+
+    val errorMessage = blue(head.value.toString) + Fragment(" does not satisfy ") + cyan(head.printAssertion)
+
+    val lines = failureDetails.zip(failureDetails.tail).map { case (first, next) =>
+      dim(next.renderField.toString + " = ") + blue(first.value.toString)
+    }
+    val lastMessage = dim(last.expression.get + " = ") + blue(last.value.toString)
+
+    (context +: errorMessage +: Message(lines) :+ lastMessage)
+      .withOffset(offset + tabSize) // :+ lastMessage)//.map(Message(_)).reduce(_ ++ _)
+  }
+
+  final case class LabeledValue[A](field: String, value: A)
+
+  def generateLabeledValues(failureDetails: ::[AssertionValue]): Unit = {
+    val last = failureDetails.last
+    failureDetails.zip(failureDetails.tail).foreach { case (first, next) =>
+      println((next.renderField, first.value))
+    }
+    println((last.expression, last.value))
   }
 
   private def renderGenFailureDetails[A](failureDetails: Option[GenFailureDetails], offset: Int): Message =
@@ -338,8 +359,8 @@ object FailureRenderer {
       }
   }
 
-  private def renderSatisfied(fragment: AssertionValue): Fragment =
-    if (fragment.result.isSuccess) Fragment(" satisfied ")
+  private def renderSatisfied(assertionValue: AssertionValue): Fragment =
+    if (assertionValue.result.isSuccess) Fragment(" satisfied ")
     else Fragment(" did not satisfy ")
 
   def renderCause(cause: Cause[Any], offset: Int): Message =
@@ -486,6 +507,7 @@ object FailureRenderer {
   private def red(s: String)                                      = FailureMessage.Fragment(s, AnsiColor.RED)
   private def blue(s: String)                                     = FailureMessage.Fragment(s, AnsiColor.BLUE)
   private def cyan(s: String)                                     = FailureMessage.Fragment(s, AnsiColor.CYAN)
+  private def dim(s: String)                                      = FailureMessage.Fragment(s, "\u001b[2m")
   private def withOffset(i: Int)(line: FailureMessage.Line): Line = line.withOffset(i)
 
 }

@@ -20,6 +20,7 @@ import zio.{UIO, ZIO}
 
 import scala.reflect.ClassTag
 import scala.util.Try
+import zio.test.AssertionM.Field.Select
 
 /**
  * An `AssertionM[A]` is capable of producing assertion results on an `A`. As a
@@ -77,6 +78,12 @@ abstract class AssertionM[-A] { self =>
    */
   override def toString: String =
     render.toString
+
+  def withInfixField(fieldName: String, rhs: String): AssertionM[A] =
+    AssertionM(render.withField(AssertionM.Field.Infix(fieldName, rhs)), runM)
+
+  def withField(fieldName: String, args: String*): AssertionM[A] =
+    AssertionM(render.withField(AssertionM.Field.Select(fieldName, args.toList)), runM)
 }
 
 object AssertionM {
@@ -93,15 +100,27 @@ object AssertionM {
    */
   sealed abstract class Render {
     override final def toString: String = this match {
-      case Render.Function(name, paramLists) =>
+      case Render.Function(name, paramLists, _) =>
         name + paramLists.map(_.mkString("(", ", ", ")")).mkString
-      case Render.Infix(left, op, right) =>
+      case Render.Infix(left, op, right, _) =>
         "(" + left + " " + op + " " + right + ")"
     }
+    def withField(fieldName: Field): Render =
+      this match {
+        case Function(name, paramLists, _) => Function(name, paramLists, Some(fieldName))
+        case Infix(left, op, right, _)     => Infix(left, op, right, Some(fieldName))
+      }
+    def renderField: Field =
+      this match {
+        case Function(name, args, field) => field.getOrElse(Field.Select(name, args.map(_.toString).toList))
+        case Infix(_, op, rhs, field)    => field.getOrElse(Field.Infix(op, rhs.toString))
+      }
   }
   object Render {
-    final case class Function(name: String, paramLists: List[List[RenderParam]]) extends Render
-    final case class Infix(left: RenderParam, op: String, right: RenderParam)    extends Render
+    final case class Function(name: String, paramLists: List[List[RenderParam]], field: Option[Field] = None)
+        extends Render
+    final case class Infix(left: RenderParam, op: String, right: RenderParam, field: Option[Field] = None)
+        extends Render
 
     /**
      * Creates a string representation of a class name.
@@ -169,6 +188,26 @@ object AssertionM {
   object RenderParam {
     final case class AssertionM[A](assertion: zio.test.AssertionM[A]) extends RenderParam
     final case class Value(value: Any)                                extends RenderParam
+  }
+
+  sealed abstract class Field { self =>
+    override def toString: String =
+      self match {
+        case Field.Infix(name, _)  => name
+        case Field.Select(name, _) => name
+      }
+
+    def renderMethod: String =
+      self match {
+        case Field.Infix(name, arg)     => s" $name $arg"
+        case Field.Select(name, List()) => s".$name"
+        case Field.Select(name, args)   => s".$name(${args.mkString(", ")})"
+      }
+  }
+
+  object Field {
+    final case class Select(name: String, arguments: List[String]) extends Field
+    final case class Infix(name: String, right: String)            extends Field
   }
 
   /**
