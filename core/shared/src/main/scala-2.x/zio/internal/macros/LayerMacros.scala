@@ -12,7 +12,7 @@ private[zio] class LayerMacros(val c: blackbox.Context) extends LayerMacroUtils 
   ): c.Expr[F[Any, E, A]] = {
     assertProperVarArgs(layers)
     val expr = buildMemoizedLayer(generateExprGraph(layers), getRequirements[R])
-    c.Expr[F[Any, E, A]](q"${c.prefix}.provideLayerManual(${expr.tree})")
+    c.Expr[F[Any, E, A]](q"${c.prefix}.provideLayer(${expr.tree})")
   }
 
   def injectSomeImpl[F[_, _, _], R0: c.WeakTypeTag, R: c.WeakTypeTag, E, A](
@@ -20,7 +20,7 @@ private[zio] class LayerMacros(val c: blackbox.Context) extends LayerMacroUtils 
   ): c.Expr[F[R0, E, A]] = {
     assertProperVarArgs(layers)
     val layerExpr: LayerExpr = buildSomeMemoizedLayer[R0, R, E](layers)
-    c.Expr[F[R0, E, A]](q"${c.prefix}.provideSomeLayerManual[${weakTypeOf[R0]}](${layerExpr.tree})")
+    c.Expr[F[R0, E, A]](q"${c.prefix}.provideSomeLayer[${weakTypeOf[R0]}](${layerExpr.tree})")
   }
 
   def debugGetRequirements[R: c.WeakTypeTag]: c.Expr[List[String]] =

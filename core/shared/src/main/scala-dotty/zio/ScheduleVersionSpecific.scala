@@ -35,7 +35,7 @@ object ScheduleMacros {
   Expr[Schedule[R0, In, Out]] = {
     val layerExpr = LayerMacros.fromAutoImpl[R0, R, Nothing](layers)
     '{
-      $schedule.provideLayerManual($layerExpr.asInstanceOf[ZLayer[R0, Nothing, R]])
+      $schedule.provideLayer($layerExpr.asInstanceOf[ZLayer[R0, Nothing, R]])
     }
   }
 }

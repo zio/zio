@@ -41,7 +41,7 @@ abstract class BaseTestTask(
     try {
       Runtime((), specInstance.platform).unsafeRun {
         run(eventHandler)
-          .provideLayerManual(sbtTestLayer(loggers))
+          .provideLayer(sbtTestLayer(loggers))
           .onError(e => UIO(println(e.prettyPrint)))
       }
       Array()

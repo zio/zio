@@ -43,7 +43,7 @@ import scala.math.{log, sqrt}
  * {{{
  * import zio.test.environment._
  *
- * myProgram.provideLayerManual(testEnvironment)
+ * myProgram.provideLayer(testEnvironment)
  * }}}
  *
  * Then all environmental effects, such as printing to the console or

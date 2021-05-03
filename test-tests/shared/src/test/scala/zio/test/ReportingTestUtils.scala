@@ -54,7 +54,7 @@ object ReportingTestUtils {
     for {
       _ <- TestTestRunner(testEnvironment)
              .run(spec)
-             .provideLayerManual[Nothing, TestEnvironment, TestLogger with Clock](
+             .provideLayer[Nothing, TestEnvironment, TestLogger with Clock](
                TestLogger.fromConsole ++ TestClock.default
              )
       output <- TestConsole.output
@@ -64,7 +64,7 @@ object ReportingTestUtils {
     for {
       results <- TestTestRunner(testEnvironment)
                    .run(spec)
-                   .provideLayerManual[Nothing, TestEnvironment, TestLogger with Clock](
+                   .provideLayer[Nothing, TestEnvironment, TestLogger with Clock](
                      TestLogger.fromConsole ++ TestClock.default
                    )
       actualSummary = SummaryBuilder.buildSummary(results)

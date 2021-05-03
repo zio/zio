@@ -1168,18 +1168,18 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    *
    * val zio: ZIO[ZEnv with Logging, Nothing, Unit] = ???
    *
-   * val zio2 = zio.provideCustomLayerManual(loggingLayer)
+   * val zio2 = zio.provideCustomLayer(loggingLayer)
    * }}}
    */
-  final def provideCustomLayerManual[E1 >: E, R1 <: Has[_]](
+  final def provideCustomLayer[E1 >: E, R1 <: Has[_]](
     layer: ZLayer[ZEnv, E1, R1]
   )(implicit ev: ZEnv with R1 <:< R, tagged: Tag[R1]): ZIO[ZEnv, E1, A] =
-    provideSomeLayerManual[ZEnv](layer)
+    provideSomeLayer[ZEnv](layer)
 
   /**
    * Provides a layer to the ZIO effect, which translates it to another level.
    */
-  final def provideLayerManual[E1 >: E, R0, R1](
+  final def provideLayer[E1 >: E, R0, R1](
     layer: ZLayer[R0, E1, R1]
   )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R]): ZIO[R0, E1, A] =
     layer.build.map(ev1).use(self.provide)
@@ -1189,7 +1189,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * leaving the remainder `R0`.
    *
    * If your environment has the type `Has[_]`,
-   * please see [[zio.ZIO.provideSomeLayerManual]]
+   * please see [[zio.ZIO.provideSomeLayer]]
    *
    * {{{
    * val effect: ZIO[Console with Logging, Nothing, Unit] = ???
@@ -1216,10 +1216,10 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    *
    * val zio: ZIO[Clock with Random, Nothing, Unit] = ???
    *
-   * val zio2 = zio.provideSomeLayerManual[Random](clockLayer)
+   * val zio2 = zio.provideSomeLayer[Random](clockLayer)
    * }}}
    */
-  final def provideSomeLayerManual[R0 <: Has[_]]: ZIO.ProvideSomeLayer[R0, R, E, A] =
+  final def provideSomeLayer[R0 <: Has[_]]: ZIO.ProvideSomeLayer[R0, R, E, A] =
     new ZIO.ProvideSomeLayer[R0, R, E, A](self)
 
   /**
@@ -4158,7 +4158,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     def apply[E1 >: E, R1 <: Has[_]](
       layer: ZLayer[R0, E1, R1]
     )(implicit ev1: R0 with R1 <:< R, ev2: NeedsEnv[R], tagged: Tag[R1]): ZIO[R0, E1, A] =
-      self.provideLayerManual[E1, R0, R0 with R1](ZLayer.identity[R0] ++ layer)
+      self.provideLayer[E1, R0, R0 with R1](ZLayer.identity[R0] ++ layer)
   }
 
   final class UpdateService[-R, +E, +A, M](private val self: ZIO[R, E, A]) extends AnyVal {

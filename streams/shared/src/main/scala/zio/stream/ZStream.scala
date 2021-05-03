@@ -2285,18 +2285,18 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    *
    * val stream: ZStream[ZEnv with Logging, Nothing, Unit] = ???
    *
-   * val stream2 = stream.provideCustomLayerManual(loggingLayer)
+   * val stream2 = stream.provideCustomLayer(loggingLayer)
    * }}}
    */
-  def provideCustomLayerManual[E1 >: E, R1 <: Has[_]](
+  def provideCustomLayer[E1 >: E, R1 <: Has[_]](
     layer: ZLayer[ZEnv, E1, R1]
   )(implicit ev: ZEnv with R1 <:< R, tagged: Tag[R1]): ZStream[ZEnv, E1, O] =
-    provideSomeLayerManual[ZEnv](layer)
+    provideSomeLayer[ZEnv](layer)
 
   /**
    * Provides a layer to the stream, which translates it to another level.
    */
-  final def provideLayerManual[E1 >: E, R0, R1](
+  final def provideLayer[E1 >: E, R0, R1](
     layer: ZLayer[R0, E1, R1]
   )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R]): ZStream[R0, E1, O] =
     ZStream.managed {
@@ -2327,10 +2327,10 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    *
    * val stream: ZStream[Clock with Random, Nothing, Unit] = ???
    *
-   * val stream2 = stream.provideSomeLayerManual[Random](clockLayer)
+   * val stream2 = stream.provideSomeLayer[Random](clockLayer)
    * }}}
    */
-  final def provideSomeLayerManual[R0 <: Has[_]]: ZStream.ProvideSomeLayer[R0, R, E, O] =
+  final def provideSomeLayer[R0 <: Has[_]]: ZStream.ProvideSomeLayer[R0, R, E, O] =
     new ZStream.ProvideSomeLayer[R0, R, E, O](self)
 
   /**
@@ -4226,7 +4226,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     def apply[E1 >: E, R1 <: Has[_]](
       layer: ZLayer[R0, E1, R1]
     )(implicit ev1: R0 with R1 <:< R, ev2: NeedsEnv[R], tagged: Tag[R1]): ZStream[R0, E1, A] =
-      self.provideLayerManual[E1, R0, R0 with R1](ZLayer.identity[R0] ++ layer)
+      self.provideLayer[E1, R0, R0 with R1](ZLayer.identity[R0] ++ layer)
   }
 
   final class UpdateService[-R, +E, +O, M](private val self: ZStream[R, E, O]) extends AnyVal {

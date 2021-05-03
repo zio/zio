@@ -268,13 +268,13 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    *
    * val spec: ZSpec[TestEnvironment with Logging, Nothing] = ???
    *
-   * val spec2 = spec.provideCustomLayerManual(loggingLayer)
+   * val spec2 = spec.provideCustomLayer(loggingLayer)
    * }}}
    */
-  def provideCustomLayerManual[E1 >: E, R1 <: Has[_]](
+  def provideCustomLayer[E1 >: E, R1 <: Has[_]](
     layer: ZLayer[TestEnvironment, E1, R1]
   )(implicit ev: TestEnvironment with R1 <:< R, tagged: Tag[R1]): Spec[TestEnvironment, E1, T] =
-    provideSomeLayerManual[TestEnvironment](layer)
+    provideSomeLayer[TestEnvironment](layer)
 
   /**
    * Provides all tests with a shared version of the part of the environment
@@ -286,10 +286,10 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    *
    * val spec: ZSpec[TestEnvironment with Logging, Nothing] = ???
    *
-   * val spec2 = spec.provideCustomLayerManualShared(loggingLayer)
+   * val spec2 = spec.provideCustomLayerShared(loggingLayer)
    * }}}
    */
-  def provideCustomLayerManualShared[E1 >: E, R1 <: Has[_]](
+  def provideCustomLayerShared[E1 >: E, R1 <: Has[_]](
     layer: ZLayer[TestEnvironment, E1, R1]
   )(implicit ev: TestEnvironment with R1 <:< R, tagged: Tag[R1]): Spec[TestEnvironment, E1, T] =
     provideSomeLayerShared[TestEnvironment](layer)
@@ -297,29 +297,29 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
   /**
    * Provides a layer to the spec, translating it up a level.
    */
-  final def provideLayerManual[E1 >: E, R0, R1](
+  final def provideLayer[E1 >: E, R0, R1](
     layer: ZLayer[R0, E1, R1]
   )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R]): Spec[R0, E1, T] =
     transform[R0, E1, T] {
-      case SuiteCase(label, specs, exec)      => SuiteCase(label, specs.provideLayerManual(layer), exec)
-      case TestCase(label, test, annotations) => TestCase(label, test.provideLayerManual(layer), annotations)
+      case SuiteCase(label, specs, exec)      => SuiteCase(label, specs.provideLayer(layer), exec)
+      case TestCase(label, test, annotations) => TestCase(label, test.provideLayer(layer), annotations)
     }
 
   /**
    * Provides a layer to the spec, sharing services between all tests.
    */
-  final def provideLayerManualShared[E1 >: E, R0, R1](
+  final def provideLayerShared[E1 >: E, R0, R1](
     layer: ZLayer[R0, E1, R1]
   )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R]): Spec[R0, E1, T] =
     caseValue match {
       case SuiteCase(label, specs, exec) =>
         Spec.suite(
           label,
-          layer.memoize.flatMap(layer => specs.map(_.map(_.provideLayerManual(layer))).provideLayerManual(layer)),
+          layer.memoize.flatMap(layer => specs.map(_.map(_.provideLayer(layer))).provideLayer(layer)),
           exec
         )
       case TestCase(label, test, annotations) =>
-        Spec.test(label, test.provideLayerManual(layer), annotations)
+        Spec.test(label, test.provideLayer(layer), annotations)
     }
 
   /**
@@ -341,10 +341,10 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    *
    * val spec: ZSpec[Clock with Random, Nothing] = ???
    *
-   * val spec2 = spec.provideSomeLayerManual[Random](clockLayer)
+   * val spec2 = spec.provideSomeLayer[Random](clockLayer)
    * }}}
    */
-  final def provideSomeLayerManual[R0 <: Has[_]]: Spec.ProvideSomeLayer[R0, R, E, T] =
+  final def provideSomeLayer[R0 <: Has[_]]: Spec.ProvideSomeLayer[R0, R, E, T] =
     new Spec.ProvideSomeLayer[R0, R, E, T](self)
 
   /**
@@ -476,7 +476,7 @@ object Spec {
     def apply[E1 >: E, R1 <: Has[_]](
       layer: ZLayer[R0, E1, R1]
     )(implicit ev1: R0 with R1 <:< R, ev2: NeedsEnv[R], tagged: Tag[R1]): Spec[R0, E1, T] =
-      self.provideLayerManual[E1, R0, R0 with R1](ZLayer.identity[R0] ++ layer)
+      self.provideLayer[E1, R0, R0 with R1](ZLayer.identity[R0] ++ layer)
   }
 
   final class ProvideSomeLayerShared[R0 <: Has[_], -R, +E, +T](private val self: Spec[R, E, T]) extends AnyVal {
@@ -487,13 +487,11 @@ object Spec {
         case SuiteCase(label, specs, exec) =>
           Spec.suite(
             label,
-            layer.memoize.flatMap(layer =>
-              specs.map(_.map(_.provideSomeLayerManual(layer))).provideSomeLayerManual(layer)
-            ),
+            layer.memoize.flatMap(layer => specs.map(_.map(_.provideSomeLayer(layer))).provideSomeLayer(layer)),
             exec
           )
         case TestCase(label, test, annotations) =>
-          Spec.test(label, test.provideSomeLayerManual(layer), annotations)
+          Spec.test(label, test.provideSomeLayer(layer), annotations)
       }
   }
 

@@ -10,7 +10,7 @@ object SpecLayerMacros {
   def injectImpl[R: Type, E: Type, T: Type]
   (spec: Expr[Spec[R,E,T]], layers: Expr[Seq[ZLayer[_,E,_]]])(using Quotes): Expr[Spec[Any,E,T]] = {
     val expr = buildLayerFor[R](layers)
-    '{$spec.provideLayerManual($expr.asInstanceOf[ZLayer[Any, E, R]])}
+    '{$spec.provideLayer($expr.asInstanceOf[ZLayer[Any, E, R]])}
   }
 
   def provideCustomLayerImpl[R <: Has[?], E, T]
@@ -25,13 +25,13 @@ object SpecLayerMacros {
 
     val expr = buildMemoizedLayer(ctx)(ZLayerExprBuilder.fromNodes(ctx)(nodes), requirements)
 
-    '{$spec.asInstanceOf[Spec[Has[Unit], E, T]].provideLayerManual(TestEnvironment.any >>> $expr.asInstanceOf[ZLayer[TestEnvironment, E, Has[Unit]]])}
+    '{$spec.asInstanceOf[Spec[Has[Unit], E, T]].provideLayer(TestEnvironment.any >>> $expr.asInstanceOf[ZLayer[TestEnvironment, E, Has[Unit]]])}
   }
 
   def injectSharedImpl[R: Type, E: Type, T: Type]
     (spec: Expr[Spec[R,E,T]], layers: Expr[Seq[ZLayer[_,E,_]]])(using Quotes): Expr[Spec[Any,E,T]] = {
     val expr = buildLayerFor[R](layers)
-    '{$spec.provideLayerManualShared($expr.asInstanceOf[ZLayer[Any, E, R]])}
+    '{$spec.provideLayerShared($expr.asInstanceOf[ZLayer[Any, E, R]])}
   }
 
   def injectCustomSharedImpl[R <: Has[?], E, T]
@@ -47,6 +47,6 @@ object SpecLayerMacros {
     val expr = buildMemoizedLayer(ctx)(ZLayerExprBuilder.fromNodes(ctx)(nodes), requirements)
 
     '{$spec.asInstanceOf[Spec[Has[Unit], E, T]]
-      .provideLayerManualShared(TestEnvironment.any >>> $expr.asInstanceOf[ZLayer[TestEnvironment, E, Has[Unit]]])}
+      .provideLayerShared(TestEnvironment.any >>> $expr.asInstanceOf[ZLayer[TestEnvironment, E, Has[Unit]]])}
   }
 }

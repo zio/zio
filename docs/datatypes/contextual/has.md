@@ -266,6 +266,6 @@ val myLayer: ZLayer[Any, Nothing, Has[Logging] with Has[RandomInt]] =
 Finally, when we provide our layer into the ZIO effect, ZIO can access the binding configuration and extract each service. ZIO does internally these pieces of wiring machinery, we don't care about the implementation detail:
 
 ```scala mdoc:nest
-val mainApp: ZIO[Any, Nothing, Unit] = myApp.provideLayerManual(myLayer) 
+val mainApp: ZIO[Any, Nothing, Unit] = myApp.provideLayer(myLayer) 
 ```
 

@@ -1254,7 +1254,7 @@ object ZManagedSpec extends ZIOBaseSpec {
         val managed = ZEnv.live.build
         val layer   = managed.toLayerMany
         val zio1    = ZIO.environment[ZEnv]
-        val zio2    = zio1.provideLayerManual(layer)
+        val zio2    = zio1.provideLayer(layer)
         assertM(zio2)(anything)
       }
     ),

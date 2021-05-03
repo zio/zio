@@ -559,7 +559,7 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
   /**
    * Provides a layer to the schedule, which translates it to another level.
    */
-  def provideLayerManual[Env0, Env1](
+  def provideLayer[Env0, Env1](
     layer: ZLayer[Env0, Nothing, Env1]
   )(implicit ev1: Env1 <:< Env, ev2: NeedsEnv[Env]): Schedule[Env0, In, Out] = {
     def loop(self: StepFunction[Env, In, Out]): StepFunction[Env0, In, Out] =
@@ -567,7 +567,7 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
         self(now, in).map {
           case Done(out)                     => Done(out)
           case Continue(out, interval, next) => Continue(out, interval, loop(next))
-        }.provideLayerManual(layer)
+        }.provideLayer(layer)
 
     Schedule(loop(step))
   }
@@ -591,16 +591,16 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
    * Provides the part of the environment that is not part of the `ZEnv`,
    * leaving a schedule that only depends on the `ZEnv`.
    */
-  final def provideCustomLayerManual[Env1 <: Has[_]](
+  final def provideCustomLayer[Env1 <: Has[_]](
     layer: ZLayer[ZEnv, Nothing, Env1]
   )(implicit ev: ZEnv with Env1 <:< Env, tagged: Tag[Env1]): Schedule[ZEnv, In, Out] =
-    provideSomeLayerManual[ZEnv](layer)
+    provideSomeLayer[ZEnv](layer)
 
   /**
    * Splits the environment into two parts, providing one part using the
    * specified layer and leaving the remainder `Env0`.
    */
-  final def provideSomeLayerManual[Env0 <: Has[_]]: Schedule.ProvideSomeLayer[Env0, Env, In, Out] =
+  final def provideSomeLayer[Env0 <: Has[_]]: Schedule.ProvideSomeLayer[Env0, Env, In, Out] =
     new Schedule.ProvideSomeLayer[Env0, Env, In, Out](self)
 
   /**
@@ -1408,6 +1408,6 @@ object Schedule {
     def apply[Env1 <: Has[_]](
       layer: ZLayer[Env0, Nothing, Env1]
     )(implicit ev1: Env0 with Env1 <:< Env, ev2: NeedsEnv[Env], tagged: Tag[Env1]): Schedule[Env0, In, Out] =
-      self.provideLayerManual[Env0, Env0 with Env1](ZLayer.identity[Env0] ++ layer)
+      self.provideLayer[Env0, Env0 with Env1](ZLayer.identity[Env0] ++ layer)
   }
 }

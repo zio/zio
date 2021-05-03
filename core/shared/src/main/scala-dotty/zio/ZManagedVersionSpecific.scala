@@ -56,7 +56,7 @@ object ZManagedMacros {
   Expr[ZManaged[R0, E, A]] = {
     val layerExpr = LayerMacros.fromAutoImpl[R0, R, E](layers)
     '{
-      $schedule.provideLayerManual($layerExpr.asInstanceOf[ZLayer[R0, E, R]])
+      $schedule.provideLayer($layerExpr.asInstanceOf[ZLayer[R0, E, R]])
     }
   }
 }

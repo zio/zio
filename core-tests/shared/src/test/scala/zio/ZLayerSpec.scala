@@ -275,8 +275,8 @@ object ZLayerSpec extends ZIOBaseSpec {
           memoized = makeLayer1(ref).memoize
           _ <- memoized.use { layer =>
                  for {
-                   _ <- ZIO.environment[Module1].provideLayerManual(layer)
-                   _ <- ZIO.environment[Module1].provideLayerManual(layer)
+                   _ <- ZIO.environment[Module1].provideLayer(layer)
+                   _ <- ZIO.environment[Module1].provideLayer(layer)
                  } yield ()
                }
           actual <- ref.get
@@ -375,7 +375,7 @@ object ZLayerSpec extends ZIOBaseSpec {
         val layer3 = ZLayer.succeed("baz")
         val layer4 = ZLayer.fromAcquireRelease(sleep)(_ => sleep)
         val env    = layer1 ++ ((layer2 ++ layer3) >+> layer4)
-        assertM(ZIO.unit.provideCustomLayerManual(env).run)(fails(equalTo("foo")))
+        assertM(ZIO.unit.provideCustomLayer(env).run)(fails(equalTo("foo")))
       },
       testM("project") {
         final case class Person(name: String, age: Int)

@@ -33,7 +33,7 @@ object TestExecutor {
   ): TestExecutor[R, E] = new TestExecutor[R, E] {
     def run(spec: ZSpec[R, E], defExec: ExecutionStrategy): UIO[ExecutedSpec[E]] =
       spec.annotated
-        .provideLayerManual(environment)
+        .provideLayer(environment)
         .foreachExec(defExec)(
           e =>
             e.failureOrCause.fold(

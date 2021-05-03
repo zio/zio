@@ -37,16 +37,16 @@ object GenUtils {
   def equalShrink[A](left: Gen[Random, A], right: Gen[Random, A]): UIO[Boolean] = {
     val testRandom = TestRandom.deterministic
     for {
-      leftShrinks  <- ZIO.collectAll(List.fill(100)(shrinks(left))).provideLayerManual(testRandom)
-      rightShrinks <- ZIO.collectAll(List.fill(100)(shrinks(right))).provideLayerManual(testRandom)
+      leftShrinks  <- ZIO.collectAll(List.fill(100)(shrinks(left))).provideLayer(testRandom)
+      rightShrinks <- ZIO.collectAll(List.fill(100)(shrinks(right))).provideLayer(testRandom)
     } yield leftShrinks == rightShrinks
   }
 
   def equalSample[A](left: Gen[Random, A], right: Gen[Random, A]): UIO[Boolean] = {
     val testRandom = TestRandom.deterministic
     for {
-      leftSample  <- sample100(left).provideLayerManual(testRandom)
-      rightSample <- sample100(right).provideLayerManual(testRandom)
+      leftSample  <- sample100(left).provideLayer(testRandom)
+      rightSample <- sample100(right).provideLayer(testRandom)
     } yield leftSample == rightSample
   }
 
@@ -67,7 +67,7 @@ object GenUtils {
     }
 
   def provideSize[A](zio: ZIO[Random with Sized, Nothing, A])(n: Int): URIO[Random, A] =
-    zio.provideLayerManual[Nothing, Random, Random with Sized](Random.any ++ Sized.live(n))
+    zio.provideLayer[Nothing, Random, Random with Sized](Random.any ++ Sized.live(n))
 
   val random: Gen[Any, Gen[Random, Int]] =
     Gen.const(Gen.int(-10, 10))

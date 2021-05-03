@@ -352,7 +352,7 @@ We can combine our expectation to build complex scenarios using combinators defi
 object AccountObserverSpec extends DefaultRunnableSpec {
   def spec = suite("processEvent")(
     testM("calls putStrLn > getStrLn > putStrLn and returns unit") {
-      val result = app.provideLayerManual(mockEnv >>> AccountObserver.live)
+      val result = app.provideSomeLayer(mockEnv >>> AccountObserver.live)
       assertM(result)(isUnit)
     }
   )
@@ -370,8 +370,8 @@ object MaybeConsoleSpec extends DefaultRunnableSpec {
       def maybeConsole(invokeConsole: Boolean) =
         ZIO.when(invokeConsole)(console.putStrLn("foo"))
 
-      val maybeTest1 = maybeConsole(false).provideLayerManual(MockConsole.empty)
-      val maybeTest2 = maybeConsole(true).provideLayerManual(MockConsole.PutStrLn(equalTo("foo")))
+      val maybeTest1 = maybeConsole(false).provideSomeLayer(MockConsole.empty)
+      val maybeTest2 = maybeConsole(true).provideSomeLayer(MockConsole.PutStrLn(equalTo("foo")))
       assertM(maybeTest1)(isUnit) *> assertM(maybeTest2)(isUnit)
     }
   )
@@ -402,7 +402,7 @@ val combinedApp =
     _    <- console.putStrLn(s"$name, your lucky number today is $num!")
   } yield ()
 
-val result = combinedApp.provideLayerManual(combinedEnv)
+val result = combinedApp.provideSomeLayer(combinedEnv)
 assertM(result)(isUnit)
 ```
 
