@@ -95,41 +95,41 @@ package object clock {
    * Get the current time, represented in the current timezone.
    */
   val currentDateTime: URIO[Clock, OffsetDateTime] =
-    ZIO.serviceWith(_.currentDateTime)
+    ZIO.accessM(_.get.currentDateTime)
 
   /**
    * Returns the current time, relative to the Unix epoch.
    */
   def currentTime(unit: => TimeUnit): URIO[Clock, Long] =
-    ZIO.serviceWith(_.currentTime(unit))
+    ZIO.accessM(_.get.currentTime(unit))
 
   /**
    * Returns the current instant.
    */
   val instant: URIO[Clock, Instant] =
-    ZIO.serviceWith(_.instant)
+    ZIO.accessM(_.get.instant)
 
   /**
    * Returns the current date time.
    */
   val localDateTime: URIO[Clock, LocalDateTime] =
-    ZIO.serviceWith(_.localDateTime)
+    ZIO.accessM(_.get.localDateTime)
 
   /**
    * Returns the system nano time, which is not relative to any date.
    */
   val nanoTime: URIO[Clock, Long] =
-    ZIO.serviceWith(_.nanoTime)
+    ZIO.accessM(_.get.nanoTime)
 
   /**
    * Returns the scheduler used for scheduling effects.
    */
   val scheduler: URIO[Clock, Scheduler] =
-    ZIO.serviceWith(_.scheduler)
+    ZIO.accessM(_.get.scheduler)
 
   /**
    * Sleeps for the specified duration. This is always asynchronous.
    */
   def sleep(duration: => Duration): URIO[Clock, Unit] =
-    ZIO.serviceWith(_.sleep(duration))
+    ZIO.accessM(_.get.sleep(duration))
 }
