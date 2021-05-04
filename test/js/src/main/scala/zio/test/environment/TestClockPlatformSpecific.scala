@@ -18,7 +18,6 @@ package zio.test.environment
 
 import zio.duration._
 import zio.internal.Scheduler
-import zio.test.environment.TestClock
 import zio.{UIO, ZIO}
 
 trait TestClockPlatformSpecific { self: TestClock.Test =>
