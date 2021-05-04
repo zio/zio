@@ -16,11 +16,13 @@
 
 package zio.test
 
+import zio.test.AssertionM.Field.Select
+import zio.test.FailureRenderer.FailureMessage
+import zio.test.FailureRenderer.FailureMessage.Message
 import zio.{UIO, ZIO}
 
 import scala.reflect.ClassTag
 import scala.util.Try
-import zio.test.AssertionM.Field.Select
 
 /**
  * An `AssertionM[A]` is capable of producing assertion results on an `A`. As a
@@ -30,14 +32,17 @@ import zio.test.AssertionM.Field.Select
 abstract class AssertionM[-A] { self =>
   import zio.test.AssertionM.Render._
 
-  def render: AssertionM.Render
+  def render: AssertionM.Render[A]
   def runM: (=> A) => AssertResultM
 
   /**
    * Returns a new assertion that succeeds only if both assertions succeed.
    */
   def &&[A1 <: A](that: => AssertionM[A1]): AssertionM[A1] =
-    AssertionM(infix(param(self), "&&", param(that)), actual => self.runM(actual) && that.runM(actual))
+    AssertionM(
+      infix((_, _) => Message("<NOT IMPLEMENTED FOR AND (&&)>"), param(self), "&&", param(that)),
+      actual => self.runM(actual) && that.runM(actual)
+    )
 
   /**
    * A symbolic alias for `label`.
@@ -49,7 +54,10 @@ abstract class AssertionM[-A] { self =>
    * Returns a new assertion that succeeds if either assertion succeeds.
    */
   def ||[A1 <: A](that: => AssertionM[A1]): AssertionM[A1] =
-    AssertionM(infix(param(self), "||", param(that)), actual => self.runM(actual) || that.runM(actual))
+    AssertionM(
+      infix((_, _) => Message("<NOT IMPLEMENTED FOR OR (||) >"), param(self), "||", param(that)),
+      actual => self.runM(actual) || that.runM(actual)
+    )
 
   def canEqual(that: AssertionM[_]): Boolean = that != null
 
@@ -65,7 +73,7 @@ abstract class AssertionM[-A] { self =>
    * Labels this assertion with the specified string.
    */
   def label(string: String): AssertionM[A] =
-    AssertionM(infix(param(self), "??", param(quoted(string))), runM)
+    AssertionM(infix(render.render, param(self), "??", param(quoted(string))), runM)
 
   /**
    * Returns the negation of this assertion.
@@ -89,8 +97,8 @@ abstract class AssertionM[-A] { self =>
 object AssertionM {
   import zio.test.AssertionM.Render._
 
-  def apply[A](_render: Render, _runM: (=> A) => AssertResultM): AssertionM[A] = new AssertionM[A] {
-    val render: Render                = _render
+  def apply[A](_render: Render[A], _runM: (=> A) => AssertResultM): AssertionM[A] = new AssertionM[A] {
+    val render: Render[A]             = _render
     val runM: (=> A) => AssertResultM = _runM
   }
 
@@ -98,29 +106,54 @@ object AssertionM {
    * `Render` captures both the name of an assertion as well as the parameters
    * to the assertion combinator for pretty-printing.
    */
-  sealed abstract class Render {
-    override final def toString: String = this match {
-      case Render.Function(name, paramLists, _) =>
-        name + paramLists.map(_.mkString("(", ", ", ")")).mkString
-      case Render.Infix(left, op, right, _) =>
-        "(" + left + " " + op + " " + right + ")"
+  sealed abstract class Render[-A] {
+
+    def render(result: A, isSuccess: Boolean): FailureMessage.Message = this match {
+      case Smart(renderErrorMessage, lensRender, _) => renderErrorMessage(result, isSuccess)
     }
-    def withField(fieldName: Field): Render =
+
+    override final def toString: String = this match {
+      case Smart(renderErrorMessage, lensRender, field) => lensRender.toString
+    }
+
+    def withField(fieldName: Field): Render[A] =
       this match {
-        case Function(name, paramLists, _) => Function(name, paramLists, Some(fieldName))
-        case Infix(left, op, right, _)     => Infix(left, op, right, Some(fieldName))
+        case Smart(renderErrorMessage, lensRender, _) => Smart(renderErrorMessage, lensRender, Some(fieldName))
       }
+
     def renderField: Field =
       this match {
-        case Function(name, args, field) => field.getOrElse(Field.Select(name, args.map(_.toString).toList))
-        case Infix(_, op, rhs, field)    => field.getOrElse(Field.Infix(op, rhs.toString))
+        case Smart(_, lensRender, field) => field.getOrElse(Field.Select(lensRender.name, List.empty))
       }
+
   }
   object Render {
-    final case class Function(name: String, paramLists: List[List[RenderParam]], field: Option[Field] = None)
-        extends Render
-    final case class Infix(left: RenderParam, op: String, right: RenderParam, field: Option[Field] = None)
-        extends Render
+    final case class Smart[A](
+      renderErrorMessage: (A, Boolean) => FailureRenderer.FailureMessage.Message,
+      lensRender: LensRender,
+      field: Option[Field] = None
+    ) extends Render[A]
+
+    sealed trait LensRender { self =>
+
+      def name: String = self match {
+        case LensRender.Function(name, _) => name
+        case LensRender.Infix(_, op, _)   => op
+      }
+
+      override final def toString: String = this match {
+        case LensRender.Function(name, paramLists) =>
+          name + paramLists.map(_.mkString("(", ", ", ")")).mkString
+        case LensRender.Infix(left, op, right) =>
+          "(" + left + " " + op + " " + right + ")"
+      }
+    }
+
+    object LensRender {
+      final case class Function(name0: String, paramLists: List[List[RenderParam]]) extends LensRender
+
+      final case class Infix(left: RenderParam, op: String, right: RenderParam) extends LensRender
+    }
 
     /**
      * Creates a string representation of a class name.
@@ -144,15 +177,24 @@ object AssertionM {
      * Create a `Render` from an assertion combinator that should be rendered
      * using standard function notation.
      */
-    def function(name: String, paramLists: List[List[RenderParam]]): Render =
-      Render.Function(name, paramLists)
+    def function[A](
+      render: (A, Boolean) => FailureMessage.Message,
+      name: String,
+      paramLists: List[List[RenderParam]]
+    ): Render[A] =
+      Render.Smart(render, LensRender.Function(name, paramLists))
 
     /**
      * Create a `Render` from an assertion combinator that should be rendered
      * using infix function notation.
      */
-    def infix(left: RenderParam, op: String, right: RenderParam): Render =
-      Render.Infix(left, op, right)
+    def infix[A](
+      render: (A, Boolean) => FailureMessage.Message,
+      left: RenderParam,
+      op: String,
+      right: RenderParam
+    ): Render[A] =
+      Render.Smart(render, LensRender.Infix(left, op, right))
 
     /**
      * Construct a `RenderParam` from an `AssertionM`.
@@ -214,9 +256,10 @@ object AssertionM {
    * Makes a new `AssertionM` from a pretty-printing and a function.
    */
   def assertionM[R, E, A](
-    name: String
+    name: String,
+    render: (A, Boolean) => FailureMessage.Message
   )(params: RenderParam*)(run: (=> A) => UIO[Boolean]): AssertionM[A] = {
-    lazy val assertion: AssertionM[A] = assertionDirect(name)(params: _*) { actual =>
+    lazy val assertion: AssertionM[A] = assertionDirect(name, render)(params: _*) { actual =>
       lazy val tryActual = Try(actual)
       BoolAlgebraM.fromEffect(run(tryActual.get)).flatMap { p =>
         lazy val result: AssertResult =
@@ -232,19 +275,21 @@ object AssertionM {
    * Makes a new `AssertionM` from a pretty-printing and a function.
    */
   def assertionDirect[A](
-    name: String
+    name: String,
+    render: (A, Boolean) => Message = (a: A, success: Boolean) => Message("NOT IMPLEMENTED")
   )(params: RenderParam*)(run: (=> A) => AssertResultM): AssertionM[A] =
-    AssertionM(function(name, List(params.toList)), run)
+    AssertionM(function(render, name, List(params.toList)), run)
 
   def assertionRecM[R, E, A, B](
-    name: String
+    name: String,
+    render: (A, Boolean) => FailureMessage.Message
   )(params: RenderParam*)(
     assertion: AssertionM[B]
   )(
     get: (=> A) => ZIO[Any, Nothing, Option[B]],
     orElse: AssertionMData => AssertResultM = _.asFailureM
   ): AssertionM[A] = {
-    lazy val resultAssertion: AssertionM[A] = assertionDirect(name)(params: _*) { a =>
+    lazy val resultAssertion: AssertionM[A] = assertionDirect(name, render)(params: _*) { a =>
       lazy val tryA = Try(a)
       BoolAlgebraM.fromEffect(get(tryA.get)).flatMap {
         case Some(b) =>
@@ -265,6 +310,6 @@ object AssertionM {
    * Makes a new assertion that negates the specified assertion.
    */
   def not[A](assertion: AssertionM[A]): AssertionM[A] =
-    AssertionM.assertionDirect("not")(param(assertion))(!assertion.runM(_))
+    AssertionM.assertionDirect[A]("not")(param(assertion))(!assertion.runM(_))
 
 }

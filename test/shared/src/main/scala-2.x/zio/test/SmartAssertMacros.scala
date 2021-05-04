@@ -27,16 +27,7 @@ class SmartAssertMacros(val c: blackbox.Context) {
     val parser = g.newUnitParser(fileContent.drop(start))
     parser.expr()
     val end = parser.in.lastOffset
-    val txt = fileContent.slice(start, start + end)
-//    c.Expr[String](q"$txt")
-    txt
-  }
-
-  private[this] def getText(expr: Tree): String = getPosition(expr) match {
-    case p: scala.reflect.internal.util.RangePosition =>
-      p.lineContent.slice(p.start, p.end)
-    case p: Position =>
-      p.lineContent
+    fileContent.slice(start, start + end)
   }
 
   private[this] def getPosition(expr: Tree) = expr.pos.asInstanceOf[scala.reflect.internal.util.Position]
@@ -52,10 +43,11 @@ class SmartAssertMacros(val c: blackbox.Context) {
       case other               => (List.empty, other)
     }
 
-    implicit val renderContext =
+    implicit val renderContext: RenderContext =
       RenderContext(text(expr0), expr0.pos.start)
 
-    val result = composeAssertions(expr0)
+    val result = composeAssertions(expr0, false)
+
     c.Expr[TestResult](
       q"""
       ..$stmts
@@ -64,28 +56,33 @@ class SmartAssertMacros(val c: blackbox.Context) {
     )
   }
 
-  def composeAssertions(expr: c.Tree)(implicit renderContext: RenderContext): c.Expr[TestResult] = expr match {
+  def composeAssertions(expr: c.Tree, negated: Boolean)(implicit
+    renderContext: RenderContext
+  ): c.Expr[TestResult] = expr match {
     case q"$lhs && $rhs" =>
-      val lhsAssertion = composeAssertions(lhs)
-      val rhsAssertion = composeAssertions(rhs)
+      val lhsAssertion = composeAssertions(lhs, negated)
+      val rhsAssertion = composeAssertions(rhs, negated)
       c.Expr(q"$lhsAssertion && $rhsAssertion")
     case q"$lhs || $rhs" =>
-      val lhsAssertion = composeAssertions(lhs)
-      val rhsAssertion = composeAssertions(rhs)
+      val lhsAssertion = composeAssertions(lhs, negated)
+      val rhsAssertion = composeAssertions(rhs, negated)
       c.Expr(q"$lhsAssertion || $rhsAssertion")
     case q"!$lhs" =>
-      val lhsAssertion = composeAssertions(lhs)
-      c.Expr(q"!$lhsAssertion")
-
+      val lhsAssertion = composeAssertions(lhs, !negated)(renderContext.shift(expr, lhs))
+      c.Expr(q"$lhsAssertion")
     case other =>
-      subAssertion(other)
+      subAssertion(other, negated)
   }
 
-  case class RenderContext(fullText: String, startPos: Int) {
+  case class RenderContext(fullText: String, startPos: Int, shiftStart: Int = 0, shiftEnd: Int = 0) {
+    def shift(start: Int, end: Int): RenderContext = copy(shiftStart = shiftStart + start, shiftEnd = shiftEnd + end)
+    def shift(outer: c.Tree, inner: c.Tree): RenderContext =
+      shift(outer.pos.start - inner.pos.start, outer.pos.end - inner.pos.end)
+
     def text(tree: c.Tree): String = {
       val exprSize = tree.pos.end - tree.pos.start
       val start    = tree.pos.start - startPos
-      fullText.slice(start, start + exprSize)
+      fullText.slice(start + shiftStart, start + exprSize + shiftEnd)
     }
 
     def textAfter(t1: c.Tree, t2: c.Tree): String = {
@@ -95,24 +92,34 @@ class SmartAssertMacros(val c: blackbox.Context) {
     }
   }
 
-  private def subAssertion(expr: c.Tree)(implicit renderContext: RenderContext): c.Expr[TestResult] = {
-    val (fileName, line) = location(c)
-    val srcLocation      = s"$fileName:${expr.pos.line}"
+  private def subAssertion(expr: c.Tree, negated: Boolean)(implicit
+    renderContext: RenderContext
+  ): c.Expr[TestResult] = {
+    val (fileName, _) = location(c)
+    val srcLocation   = s"$fileName:${expr.pos.line}"
 
     val text = renderContext.text(expr)
+
+    def negate(tree: c.Tree) = if (negated) q"$tree.negate" else tree
 
     val (target, assertion) = expr match {
       case q"$lhs > $rhs" =>
         val text = renderContext.text(rhs)
-        generateAssertion(lhs, q"$Assertion.isGreaterThan($rhs).withField(${s" > $text"})")
+        generateAssertion(lhs, negate(q"$Assertion.isGreaterThan($rhs).withField(${s" > $text"})"))
       case q"$lhs < $rhs" =>
         val text = renderContext.text(rhs)
-        generateAssertion(lhs, q"$Assertion.isLessThan($rhs).withField(${s" < $text"})")
+        generateAssertion(lhs, negate(q"$Assertion.isLessThan($rhs).withField(${s" < $text"})"))
+      case q"$lhs >= $rhs" =>
+        val text = renderContext.text(rhs)
+        generateAssertion(lhs, negate(q"$Assertion.isGreaterThanOrEqualTo($rhs).withField(${s" >= $text"})"))
+      case q"$lhs <= $rhs" =>
+        val text = renderContext.text(rhs)
+        generateAssertion(lhs, negate(q"$Assertion.isLessThanOrEqualTo($rhs).withField(${s" <= $text"})"))
       case q"$lhs == $rhs" =>
         val text = renderContext.text(rhs)
-        generateAssertion(lhs, q"$Assertion.equalTo($rhs).withField(${s" == $text"})")
+        generateAssertion(lhs, negate(q"$Assertion.equalTo($rhs).withField(${s" == $text"})"))
       case q"$lhs != $rhs" =>
-        generateAssertion(lhs, q"$Assertion.equalTo($rhs).negate")
+        generateAssertion(lhs, negate(q"$Assertion.equalTo($rhs).negate"))
       case lhs => generateAssertion(lhs, q"$Assertion.isTrue")
     }
 
@@ -123,7 +130,10 @@ class SmartAssertMacros(val c: blackbox.Context) {
     )
   }
 
-  def generateAssertion(expr: c.Tree, assertion: c.Tree)(implicit renderContext: RenderContext): (c.Tree, c.Tree) =
+  @tailrec
+  private def generateAssertion(expr: c.Tree, assertion: c.Tree)(implicit
+    renderContext: RenderContext
+  ): (c.Tree, c.Tree) =
     expr match {
       // TODO: Improve safety. Unwrap AssertionOps
       case Method.withAssertion(lhs, assertion) =>
@@ -174,7 +184,8 @@ class SmartAssertMacros(val c: blackbox.Context) {
         val newAssertion = q"$Assertion.hasFirst($assertion).withField($text)"
         generateAssertion(lhs, newAssertion)
       case q"$lhs.get" =>
-        val newAssertion = q"$Assertion.isSome($assertion)"
+        val text         = renderContext.textAfter(expr, lhs)
+        val newAssertion = q"$Assertion.isSome($assertion).withField($text)"
         generateAssertion(lhs, newAssertion)
       case Select(lhs, name) =>
         val tpe          = lhs.tpe.finalResultType.widen

@@ -148,8 +148,8 @@ object BoolAlgebraSpec extends ZIOBaseSpec {
   val failure1: BoolAlgebra[String] = BoolAlgebra.failure(value3)
   val failure2: BoolAlgebra[String] = BoolAlgebra.failure(value4)
 
-  val isSuccess: Assertion[BoolAlgebra[Any]] = assertion("isSuccess")()(_.isSuccess)
-  val isFailure: Assertion[BoolAlgebra[Any]] = assertion("isFailure")()(_.isFailure)
+  val isSuccess: Assertion[BoolAlgebra[Any]] = assertion[BoolAlgebra[Any]]("isSuccess")()(_.isSuccess)
+  val isFailure: Assertion[BoolAlgebra[Any]] = assertion[BoolAlgebra[Any]]("isFailure")()(_.isFailure)
 
   def boolAlgebra: Gen[Random with Sized, BoolAlgebra[Int]] = Gen.small(s => boolAlgebraOfSize(s), 1)
 

@@ -27,6 +27,8 @@ import zio.test.mock.internal.{InvalidCall, MockException}
 import zio.{Cause, Has}
 
 import java.util.regex.Pattern
+import scala.+:
+import scala.annotation.tailrec
 import scala.io.AnsiColor
 import scala.util.Try
 
@@ -221,6 +223,10 @@ object FailureRenderer {
 
   object FailureMessage {
     case class Message(lines: Vector[Line] = Vector.empty) {
+      def +:(fragment: Fragment) = Message(lines match {
+        case line +: lines => (fragment +: line) +: lines
+        case _             => Vector(fragment.toLine)
+      })
       def +:(line: Line)                   = Message(line +: lines)
       def :+(line: Line)                   = Message(lines :+ line)
       def ++(message: Message)             = Message(lines ++ message.lines)
@@ -234,6 +240,7 @@ object FailureRenderer {
       val empty: Message                   = Message()
     }
     case class Line(fragments: Vector[Fragment] = Vector.empty, offset: Int = 0) {
+      def +:(fragment: Fragment)             = Line(fragment +: fragments)
       def :+(fragment: Fragment)             = Line(fragments :+ fragment)
       def +(fragment: Fragment)              = Line(fragments :+ fragment)
       def prepend(message: Message): Message = Message(this +: message.lines)
@@ -260,42 +267,55 @@ object FailureRenderer {
     renderGenFailureDetails(failureDetails.gen, offset) ++
       renderAssertionFailureDetails(failureDetails.assertion, offset)
 
-  private def renderAssertionFailureDetails(failureDetails: ::[AssertionValue], offset: Int): Message = {
-    val last = failureDetails.last
-    val head = failureDetails.head
+  private def renderAssertionFailureDetails(failureDetails: ::[AssertionValue], offset: Int): Message =
+    failureDetails.last.smartExpression match {
+      case Some(smartExpression) => renderSmartAssertionFailureDetails(smartExpression, failureDetails, offset)
+      case None                  => renderLensAssertionFailureDetails(failureDetails, offset)
+    }
 
-    val matched = failureDetails.take(2).map(_.renderField.toString).reverse.mkString("")
-    val expr    = last.smartExpression.getOrElse("")
-    println(expr)
-    println(matched)
-    println(expr.indexOf(matched))
-    println("————")
+  private def renderLensAssertionFailureDetails(failureDetails: ::[AssertionValue], offset: Int): Message = {
+    @tailrec
+    def loop(failureDetails: List[AssertionValue], rendered: Message): Message =
+      failureDetails match {
+        case fragment :: whole :: failureDetails =>
+          loop(whole :: failureDetails, rendered :+ renderWhole(fragment, whole, offset))
+        case _ =>
+          rendered
+      }
+
+    renderFragment(failureDetails.head, offset).toMessage ++ loop(
+      failureDetails,
+      Message.empty
+    ) ++ renderAssertionLocation(failureDetails.last, offset)
+  }
+
+  private def renderSmartAssertionFailureDetails(
+    smartExpression: String,
+    failureDetails0: ::[AssertionValue],
+    offset: Int
+  ): Message = {
+
+    val last           = failureDetails0.last
+    val failureDetails = failureDetails0.filterNot(_.renderField.toString == "not")
+    val head           = failureDetails.head
 
     val context: Line =
-      last.smartExpression.map { ex =>
-        highlight(
-          bold(ex),
-          failureDetails.take(2).map(_.renderField.toString).reverse.mkString("")
-        )
-      } getOrElse
-        bold(s"assert(${last.expression.get})(${last.printAssertion})") + bold("")
+      highlight(bold(smartExpression), failureDetails.take(2).map(_.renderField.toString).reverse.mkString(""))
 
-    val errorMessage =
-      red("› ") +
-        blue(head.value.toString) + Fragment(" does not satisfy ") + cyan(head.printAssertion)
+    val errorMessage: Message = red("› ") +: head.renderErrorMessage
 
     val lines = failureDetails.zip(failureDetails.tail).map { case (first, next) =>
       dim(next.renderField.toString) + dim(" = ") + blue(first.value.toString)
     }
-    val finalExpression = dim(last.expression.get) + dim(" = ") + blue(last.value.toString)
+
+    val finalExpression =
+      dim(last.expression.get) + dim(" = ") + blue(last.value.toString)
 
     val allLines =
-      if (last.expression.get.exists(Set('"', '.', ',')))
-        lines
-      else
-        lines :+ finalExpression
+      if (last.expression.get.exists(Set('"', '.', ','))) lines
+      else lines :+ finalExpression
 
-    (errorMessage +: context +: (Message(allLines) ++ renderAssertionLocation(last, offset)))
+    (errorMessage ++ context.toMessage ++ (Message(allLines) ++ renderAssertionLocation(last, offset)))
       .withOffset(offset + tabSize)
   }
 
@@ -337,7 +357,7 @@ object FailureRenderer {
 
   private def renderFragment(fragment: AssertionValue, offset: Int): Line =
     withOffset(offset + tabSize) {
-      blue(renderValue(fragment)) +
+      red("› ") + blue(renderValue(fragment)) +
         renderSatisfied(fragment) +
         cyan(fragment.printAssertion)
     }
@@ -523,11 +543,12 @@ object FailureRenderer {
   private def renderFailureLabel(label: String, offset: Int): Line =
     withOffset(offset)(red("- " + label).toLine)
 
-  private def red(s: String)                                      = FailureMessage.Fragment(s, AnsiColor.RED)
-  private def blue(s: String)                                     = FailureMessage.Fragment(s, AnsiColor.BLUE)
-  private def bold(s: String)                                     = FailureMessage.Fragment(s, scala.Console.BOLD)
-  private def cyan(s: String)                                     = FailureMessage.Fragment(s, AnsiColor.CYAN)
-  private def dim(s: String)                                      = FailureMessage.Fragment(s, "\u001b[2m")
+  def red(s: String): Fragment                                              = FailureMessage.Fragment(s, AnsiColor.RED)
+  def green(s: String): Fragment                                            = FailureMessage.Fragment(s, AnsiColor.GREEN)
+  def blue(s: String): Fragment                                             = FailureMessage.Fragment(s, AnsiColor.BLUE)
+  def bold(s: String): Fragment                                             = FailureMessage.Fragment(s, scala.Console.BOLD)
+  def cyan(s: String): Fragment                                             = FailureMessage.Fragment(s, AnsiColor.CYAN)
+  def dim(s: String): Fragment                                              = FailureMessage.Fragment(s, "\u001b[2m")
   private def withOffset(i: Int)(line: FailureMessage.Line): Line = line.withOffset(i)
 
 }

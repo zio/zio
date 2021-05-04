@@ -16,22 +16,28 @@
 
 package zio.test
 
+import zio.test.FailureRenderer.FailureMessage
+
 /**
  * An `AssertionValue` keeps track of a assertion and a value, existentially
  * hiding the type. This is used internally by the library to provide useful
  * error messages in the event of test failures.
  */
+
 sealed abstract class AssertionValue {
   type Value
   def value: Value
   def expression: Option[String]
-  def smartExpression: Option[String]
   def sourceLocation: Option[String]
   protected def assertion: AssertionM[Value]
   def result: AssertResult
 
   def renderField: AssertionM.Field =
     assertion.render.renderField
+
+  def smartExpression: Option[String]
+  def renderErrorMessage: FailureMessage.Message =
+    assertion.render.render(value, result.isSuccess)
 
   def printAssertion: String = assertion.toString
   def label(string: String): AssertionValue =

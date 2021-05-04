@@ -17,6 +17,8 @@
 package zio.test
 
 import zio.test.AssertionM.RenderParam
+import zio.test.FailureRenderer.FailureMessage.{Fragment, Message}
+import zio.test.FailureRenderer.{FailureMessage, red}
 import zio.{Cause, Exit, ZIO}
 
 import scala.reflect.ClassTag
@@ -28,7 +30,7 @@ import scala.util.{Failure, Success, Try}
  * and can be negated.
  */
 final class Assertion[-A] private (
-  val render: Assertion.Render,
+  val render: Assertion.Render[A],
   val run: (=> A) => AssertResult
 ) extends AssertionM[A]
     with ((=> A) => AssertResult) { self =>
@@ -40,7 +42,10 @@ final class Assertion[-A] private (
    * Returns a new assertion that succeeds only if both assertions succeed.
    */
   def &&[A1 <: A](that: => Assertion[A1]): Assertion[A1] =
-    new Assertion(infix(param(self), "&&", param(that)), actual => self.run(actual) && that.run(actual))
+    new Assertion(
+      infix((a: A1, b: Boolean) => Message("&&"), param(self), "&&", param(that)),
+      actual => self.run(actual) && that.run(actual)
+    )
 
   /**
    * A symbolic alias for `label`.
@@ -52,7 +57,10 @@ final class Assertion[-A] private (
    * Returns a new assertion that succeeds if either assertion succeeds.
    */
   def ||[A1 <: A](that: => Assertion[A1]): Assertion[A1] =
-    new Assertion(infix(param(self), "||", param(that)), actual => self.run(actual) || that.run(actual))
+    new Assertion(
+      infix((a: A1, b: Boolean) => Message("||"), param(self), "||", param(that)),
+      actual => self.run(actual) || that.run(actual)
+    )
 
   /**
    * Evaluates the assertion with the specified value.
@@ -77,7 +85,7 @@ final class Assertion[-A] private (
    * Labels this assertion with the specified string.
    */
   override def label(string: String): Assertion[A] =
-    new Assertion(infix(param(self), "??", param(quoted(string))), run)
+    new Assertion(infix((a: A, b: Boolean) => Message(s"[$string]"), param(self), "??", param(quoted(string))), run)
 
   /**
    * Returns the negation of this assertion.
@@ -105,7 +113,7 @@ final class Assertion[-A] private (
 }
 
 object Assertion extends AssertionVariants {
-  type Render = AssertionM.Render
+  type Render[-A] = AssertionM.Render[A]
   val Render = AssertionM.Render
   import Render._
 
@@ -118,8 +126,13 @@ object Assertion extends AssertionVariants {
   /**
    * Makes a new `Assertion` from a pretty-printing and a function.
    */
-  def assertion[A](name: String)(params: RenderParam*)(run: (=> A) => Boolean): Assertion[A] = {
-    lazy val assertion: Assertion[A] = assertionDirect(name)(params: _*) { actual =>
+  def assertion[A](
+    name: String,
+    render: (A, Boolean) => Message = (a: A, b: Boolean) => Message(s"$a NOT IMPLEMENTED")
+  )(
+    params: RenderParam*
+  )(run: (=> A) => Boolean): Assertion[A] = {
+    lazy val assertion: Assertion[A] = assertionDirect(name, render)(params: _*) { actual =>
       lazy val tryActual = Try(actual)
       lazy val result: AssertResult =
         if (run(tryActual.get)) BoolAlgebra.success(AssertionValue(assertion, tryActual.get, result))
@@ -133,9 +146,10 @@ object Assertion extends AssertionVariants {
    * Makes a new `Assertion` from a pretty-printing and a function.
    */
   def assertionDirect[A](
-    name: String
+    name: String,
+    render: (A, Boolean) => Message = (a: A, boolean: Boolean) => Message(s"$a NOT IMPLEMENTED")
   )(params: RenderParam*)(run: (=> A) => AssertResult): Assertion[A] =
-    new Assertion(function(name, List(params.toList)), run)
+    new Assertion(function(render, name, List(params.toList)), run)
 
   /**
    * Makes a new `Assertion[A]` from a pretty-printing, a function
@@ -148,11 +162,12 @@ object Assertion extends AssertionVariants {
    * whether the assertion is satisfied.
    */
   def assertionRec[A, B](
-    name: String
+    name: String,
+    render: (A, Boolean) => Message = (a: A, b: Boolean) => Message("NOT IMPLEMENTED")
   )(params: RenderParam*)(
     assertion: Assertion[B]
   )(get: (=> A) => Option[B], orElse: AssertionData => AssertResult = _.asFailure): Assertion[A] = {
-    lazy val resultAssertion: Assertion[A] = assertionDirect(name)(params: _*) { a =>
+    lazy val resultAssertion: Assertion[A] = assertionDirect[A](name, render)(params: _*) { a =>
       lazy val tryA = Try(a)
       get(tryA.get) match {
         case Some(b) =>
@@ -172,7 +187,7 @@ object Assertion extends AssertionVariants {
    * Makes a new assertion that requires a given numeric value to match a value with some tolerance.
    */
   def approximatelyEquals[A: Numeric](reference: A, tolerance: A): Assertion[A] =
-    Assertion.assertion("approximatelyEquals")(param(reference), param(tolerance)) { actual =>
+    Assertion.assertion[A]("approximatelyEquals")(param(reference), param(tolerance)) { actual =>
       val referenceType = implicitly[Numeric[A]]
       val max           = referenceType.plus(reference, tolerance)
       val min           = referenceType.minus(reference, tolerance)
@@ -186,20 +201,20 @@ object Assertion extends AssertionVariants {
    * satisfying an assertion.
    */
   def contains[A](element: A): Assertion[Iterable[A]] =
-    Assertion.assertion("contains")(param(element))(_.exists(_ == element))
+    Assertion.assertion[Iterable[A]]("contains")(param(element))(_.exists(_ == element))
 
   /**
    * Makes a new assertion that requires a `Cause` contain the specified
    * cause.
    */
   def containsCause[E](cause: Cause[E]): Assertion[Cause[E]] =
-    Assertion.assertion("containsCause")(param(cause))(_.contains(cause))
+    Assertion.assertion[Cause[E]]("containsCause")(param(cause))(_.contains(cause))
 
   /**
    * Makes a new assertion that requires a substring to be present.
    */
   def containsString(element: String): Assertion[String] =
-    Assertion.assertion("containsString")(param(element))(_.contains(element))
+    Assertion.assertion[String]("containsString")(param(element))(_.contains(element))
 
   /**
    * Makes a new assertion that requires an exit value to die.
@@ -214,31 +229,31 @@ object Assertion extends AssertionVariants {
    * Makes a new assertion that requires an exception to have a certain message.
    */
   def hasMessage(message: Assertion[String]): Assertion[Throwable] =
-    Assertion.assertionRec("hasMessage")(param(message))(message)(th => Some(th.getMessage))
+    Assertion.assertionRec[Throwable, String]("hasMessage")(param(message))(message)(th => Some(th.getMessage))
 
   /**
    * Makes a new assertion that requires an exception to have a certain cause.
    */
   def hasThrowableCause(cause: Assertion[Throwable]): Assertion[Throwable] =
-    Assertion.assertionRec("hasThrowableCause")(param(cause))(cause)(th => Some(th.getCause))
+    Assertion.assertionRec[Throwable, Throwable]("hasThrowableCause")(param(cause))(cause)(th => Some(th.getCause))
 
   /**
    * Makes a new assertion that requires a given string to end with the specified suffix.
    */
   def endsWith[A](suffix: Seq[A]): Assertion[Seq[A]] =
-    Assertion.assertion("endsWith")(param(suffix))(_.endsWith(suffix))
+    Assertion.assertion[Seq[A]]("endsWith")(param(suffix))(_.endsWith(suffix))
 
   /**
    * Makes a new assertion that requires a given string to end with the specified suffix.
    */
   def endsWithString(suffix: String): Assertion[String] =
-    Assertion.assertion("endsWithString")(param(suffix))(_.endsWith(suffix))
+    Assertion.assertion[String]("endsWithString")(param(suffix))(_.endsWith(suffix))
 
   /**
    * Makes a new assertion that requires a given string to equal another ignoring case.
    */
   def equalsIgnoreCase(other: String): Assertion[String] =
-    Assertion.assertion("equalsIgnoreCase")(param(other))(_.equalsIgnoreCase(other))
+    Assertion.assertion[String]("equalsIgnoreCase")(param(other))(_.equalsIgnoreCase(other))
 
   /**
    * Makes a new assertion that requires an Iterable contain an element
@@ -246,13 +261,13 @@ object Assertion extends AssertionVariants {
    * to contain a given element.
    */
   def exists[A](assertion: Assertion[A]): Assertion[Iterable[A]] =
-    Assertion.assertionRec("exists")(param(assertion))(assertion)(_.find(assertion.test))
+    Assertion.assertionRec[Iterable[A], A]("exists")(param(assertion))(assertion)(_.find(assertion.test))
 
   /**
    * Makes a new assertion that requires an exit value to fail.
    */
   def fails[E](assertion: Assertion[E]): Assertion[Exit[E, Any]] =
-    Assertion.assertionRec("fails")(param(assertion))(assertion) {
+    Assertion.assertionRec[Exit[E, Any], E]("fails")(param(assertion))(assertion) {
       case Exit.Failure(cause) => cause.failures.headOption
       case _                   => None
     }
@@ -262,7 +277,7 @@ object Assertion extends AssertionVariants {
    * that meets the specified assertion.
    */
   def failsCause[E](assertion: Assertion[Cause[E]]): Assertion[Exit[E, Any]] =
-    Assertion.assertionRec("failsCause")(param(assertion))(assertion) {
+    Assertion.assertionRec[Exit[E, Any], Cause[E]]("failsCause")(param(assertion))(assertion) {
       case Exit.Failure(cause) => Some(cause)
       case _                   => None
     }
@@ -272,7 +287,7 @@ object Assertion extends AssertionVariants {
    * satisfying the given assertion.
    */
   def forall[A](assertion: Assertion[A]): Assertion[Iterable[A]] =
-    Assertion.assertionRec("forall")(param(assertion))(assertion)(
+    Assertion.assertionRec[Iterable[A], A]("forall")(param(assertion))(assertion)(
       _.find(!assertion.test(_)),
       _.asSuccess
     )
@@ -282,7 +297,7 @@ object Assertion extends AssertionVariants {
    * as the other Iterable, though not necessarily in the same order.
    */
   def hasSameElementsDistinct[A](other: Iterable[A]): Assertion[Iterable[A]] =
-    Assertion.assertion("hasSameElementsDistinct")(param(other))(actual => actual.toSet == other.toSet)
+    Assertion.assertion[Iterable[A]]("hasSameElementsDistinct")(param(other))(actual => actual.toSet == other.toSet)
 
   /**
    * Makes a new assertion that requires a sequence to contain an element
@@ -322,7 +337,13 @@ object Assertion extends AssertionVariants {
    */
   def hasField[A, B](name: String, proj: A => B, assertion: Assertion[B]): Assertion[A] =
     Assertion
-      .assertionRec[A, B]("hasField")(param(field(name)), param(assertion))(assertion) { actual =>
+      .assertionRec[A, B]( //
+        "hasField",
+        errorMessage(name, "field", "has", "does not have")
+      )(
+        param(field(name)),
+        param(assertion)
+      )(assertion) { actual =>
         Some(proj(actual))
       }
       .withField(name)
@@ -332,14 +353,14 @@ object Assertion extends AssertionVariants {
    * element satisfying the given assertion.
    */
   def hasFirst[A](assertion: Assertion[A]): Assertion[Iterable[A]] =
-    Assertion.assertionRec("hasFirst")(param(assertion))(assertion)(actual => actual.headOption)
+    Assertion.assertionRec[Iterable[A], A]("hasFirst")(param(assertion))(assertion)(actual => actual.headOption)
 
   /**
    * Makes a new assertion that requires the intersection of two Iterables
    * satisfy the given assertion.
    */
   def hasIntersection[A](other: Iterable[A])(assertion: Assertion[Iterable[A]]): Assertion[Iterable[A]] =
-    Assertion.assertionRec("hasIntersection")(param(other))(assertion) { actual =>
+    Assertion.assertionRec[Iterable[A], Iterable[A]]("hasIntersection")(param(other))(assertion) { actual =>
       val actualSeq = actual.toSeq
       val otherSeq  = other.toSeq
 
@@ -351,7 +372,7 @@ object Assertion extends AssertionVariants {
    * with value satisfying the specified assertion.
    */
   def hasKey[K, V](key: K, assertion: Assertion[V]): Assertion[Map[K, V]] =
-    Assertion.assertionRec("hasKey")(param(key))(assertion)(_.get(key))
+    Assertion.assertionRec[Map[K, V], V]("hasKey")(param(key))(assertion)(_.get(key))
 
   /**
    * Makes a new assertion that requires a Map to have the specified key.
@@ -364,14 +385,14 @@ object Assertion extends AssertionVariants {
    * specified assertion.
    */
   def hasKeys[K, V](assertion: Assertion[Iterable[K]]): Assertion[Map[K, V]] =
-    Assertion.assertionRec("hasKeys")()(assertion)(actual => Some(actual.keys))
+    Assertion.assertionRec[Map[K, V], Iterable[K]]("hasKeys")()(assertion)(actual => Some(actual.keys))
 
   /**
    * Makes a new assertion that requires an Iterable to contain the last
    * element satisfying the given assertion.
    */
   def hasLast[A](assertion: Assertion[A]): Assertion[Iterable[A]] =
-    Assertion.assertionRec("hasLast")(param(assertion))(assertion)(actual => actual.lastOption)
+    Assertion.assertionRec[Iterable[A], A]("hasLast")(param(assertion))(assertion)(actual => actual.lastOption)
 
   /**
    * Makes a new assertion that requires an Iterable contain none of the
@@ -392,7 +413,7 @@ object Assertion extends AssertionVariants {
    * as the specified Iterable, though not necessarily in the same order.
    */
   def hasSameElements[A](other: Iterable[A]): Assertion[Iterable[A]] =
-    Assertion.assertion("hasSameElements")(param(other)) { actual =>
+    Assertion.assertion[Iterable[A]]("hasSameElements")(param(other)) { actual =>
       val actualSeq = actual.toSeq
       val otherSeq  = other.toSeq
 
@@ -404,14 +425,14 @@ object Assertion extends AssertionVariants {
    * by the specified assertion.
    */
   def hasSize[A](assertion: Assertion[Int]): Assertion[Iterable[A]] =
-    Assertion.assertionRec("hasSize")(param(assertion))(assertion)(actual => Some(actual.size))
+    Assertion.assertionRec[Iterable[A], Int]("hasSize")(param(assertion))(assertion)(actual => Some(actual.size))
 
   /**
    * Makes a new assertion that requires the size of a string be satisfied by
    * the specified assertion.
    */
   def hasSizeString(assertion: Assertion[Int]): Assertion[String] =
-    Assertion.assertionRec("hasSizeString")(param(assertion))(assertion)(actual => Some(actual.size))
+    Assertion.assertionRec[String, Int]("hasSizeString")(param(assertion))(assertion)(actual => Some(actual.size))
 
   /**
    * Makes a new assertion that requires the specified Iterable to be a subset of the
@@ -425,7 +446,7 @@ object Assertion extends AssertionVariants {
    * specified assertion.
    */
   def hasValues[K, V](assertion: Assertion[Iterable[V]]): Assertion[Map[K, V]] =
-    Assertion.assertionRec("hasValues")()(assertion)(actual => Some(actual.values))
+    Assertion.assertionRec[Map[K, V], Iterable[V]]("hasValues")()(assertion)(actual => Some(actual.values))
 
   /**
    * Makes a new assertion that requires the sum type be a specified term.
@@ -439,7 +460,9 @@ object Assertion extends AssertionVariants {
     term: Sum => Option[Proj],
     assertion: Assertion[Proj]
   ): Assertion[Sum] =
-    Assertion.assertionRec("isCase")(param(termName), param(unapply(termName)), param(assertion))(assertion)(term(_))
+    Assertion.assertionRec[Sum, Proj]("isCase")(param(termName), param(unapply(termName)), param(assertion))(assertion)(
+      term(_)
+    )
 
   /**
    * Makes a new assertion that requires an Iterable is distinct.
@@ -453,33 +476,33 @@ object Assertion extends AssertionVariants {
         if (seen.contains(x)) false else loop(iterator, seen + x)
     }
 
-    Assertion.assertion("isDistinct")()(actual => loop(actual.iterator, Set.empty))
+    Assertion.assertion[Iterable[Any]]("isDistinct")()(actual => loop(actual.iterator, Set.empty))
   }
 
   /**
    * Makes a new assertion that requires an Iterable to be empty.
    */
   val isEmpty: Assertion[Iterable[Any]] =
-    Assertion.assertion("isEmpty")()(_.isEmpty)
+    Assertion.assertion[Iterable[Any]]("isEmpty")()(_.isEmpty)
 
   /**
    * Makes a new assertion that requires a given string to be empty.
    */
   val isEmptyString: Assertion[String] =
-    Assertion.assertion("isEmptyString")()(_.isEmpty)
+    Assertion.assertion[String]("isEmptyString")()(_.isEmpty)
 
   /**
    * Makes a new assertion that requires a value be false.
    */
   def isFalse: Assertion[Boolean] =
-    Assertion.assertion("isFalse")()(!_)
+    Assertion.assertion[Boolean]("isFalse")()(!_)
 
   /**
    * Makes a new assertion that requires a Failure value satisfying the specified
    * assertion.
    */
   def isFailure(assertion: Assertion[Throwable]): Assertion[Try[Any]] =
-    Assertion.assertionRec("isSuccess")(param(assertion))(assertion) {
+    Assertion.assertionRec[Any, Throwable]("isSuccess")(param(assertion))(assertion) {
       case Failure(a) => Some(a)
       case Success(_) => None
     }
@@ -496,21 +519,34 @@ object Assertion extends AssertionVariants {
    */
   def isGreaterThan[A](reference: A)(implicit ord: Ordering[A]): Assertion[A] =
     Assertion
-      .assertion[A]("isGreaterThan")(param(reference))(actual => ord.gt(actual, reference))
+      .assertion[A](
+        "isGreaterThan",
+        errorMessage(reference, "greater than", "is", "is not")
+      )(param(reference))(actual => ord.gt(actual, reference))
       .withInfixField(">", reference.toString)
+
+  private def errorMessage[A](that: A, explanation: String, yes: String, no: String)(
+    a: A,
+    isSuccess: Boolean
+  ): Message = {
+    val condition = if (isSuccess) yes else no
+    (FailureRenderer.blue(a.toString + " ") + red(s"${condition} ${explanation}") + FailureRenderer.blue(
+      " " + that.toString
+    )).toMessage
+  }
 
   /**
    * Makes a new assertion that requires the value be greater than or equal to
    * the specified reference value.
    */
   def isGreaterThanEqualTo[A](reference: A)(implicit ord: Ordering[A]): Assertion[A] =
-    Assertion.assertion("isGreaterThanEqualTo")(param(reference))(actual => ord.gteq(actual, reference))
+    Assertion.assertion[A]("isGreaterThanEqualTo")(param(reference))(actual => ord.gteq(actual, reference))
 
   /**
    * Makes a new assertion that requires an exit value to be interrupted.
    */
   def isInterrupted: Assertion[Exit[Any, Any]] =
-    Assertion.assertion("isInterrupted")() {
+    Assertion.assertion[Exit[Any, Any]]("isInterrupted")() {
       case Exit.Failure(cause) => cause.interrupted
       case _                   => false
     }
@@ -520,7 +556,7 @@ object Assertion extends AssertionVariants {
    * assertion.
    */
   def isLeft[A](assertion: Assertion[A]): Assertion[Either[A, Any]] =
-    Assertion.assertionRec("isLeft")(param(assertion))(assertion) {
+    Assertion.assertionRec[Either[A, Any], A]("isLeft")(param(assertion))(assertion) {
       case Left(a)  => Some(a)
       case Right(_) => None
     }
@@ -536,14 +572,16 @@ object Assertion extends AssertionVariants {
    * reference value.
    */
   def isLessThan[A](reference: A)(implicit ord: Ordering[A]): Assertion[A] =
-    Assertion.assertion("isLessThan")(param(reference))(actual => ord.lt(actual, reference))
+    Assertion.assertion[A]("isLessThan", errorMessage(reference, "less than", "is", "is not"))(param(reference))(
+      actual => ord.lt(actual, reference)
+    )
 
   /**
    * Makes a new assertion that requires the value be less than or equal to the
    * specified reference value.
    */
   def isLessThanEqualTo[A](reference: A)(implicit ord: Ordering[A]): Assertion[A] =
-    Assertion.assertion("isLessThanEqualTo")(param(reference))(actual => ord.lteq(actual, reference))
+    Assertion.assertion[A]("isLessThanEqualTo")(param(reference))(actual => ord.lteq(actual, reference))
 
   /**
    * Makes a new assertion that requires a numeric value is negative.
@@ -555,31 +593,31 @@ object Assertion extends AssertionVariants {
    * Makes a new assertion that requires a None value.
    */
   val isNone: Assertion[Option[Any]] =
-    Assertion.assertion("isNone")()(_.isEmpty)
+    Assertion.assertion[Option[Any]]("isNone")()(_.isEmpty)
 
   /**
    * Makes a new assertion that requires an Iterable to be non empty.
    */
   val isNonEmpty: Assertion[Iterable[Any]] =
-    Assertion.assertion("isNonEmpty")()(_.nonEmpty)
+    Assertion.assertion[Iterable[Any]]("isNonEmpty")()(_.nonEmpty)
 
   /**
    * Makes a new assertion that requires a given string to be non empty.
    */
   val isNonEmptyString: Assertion[String] =
-    Assertion.assertion("isNonEmptyString")()(_.nonEmpty)
+    Assertion.assertion[String]("isNonEmptyString")()(_.nonEmpty)
 
   /**
    * Makes a new assertion that requires a null value.
    */
   val isNull: Assertion[Any] =
-    Assertion.assertion("isNull")()(_ == null)
+    Assertion.assertion[Any]("isNull")()(_ == null)
 
   /**
    * Makes a new assertion that requires a value to be equal to one of the specified values.
    */
   def isOneOf[A](values: Iterable[A]): Assertion[A] =
-    Assertion.assertion("isOneOf")(param(values))(actual => values.exists(_ == actual))
+    Assertion.assertion[A]("isOneOf")(param(values))(actual => values.exists(_ == actual))
 
   /**
    * Makes a new assertion that requires a numeric value is positive.
@@ -652,7 +690,7 @@ object Assertion extends AssertionVariants {
    * assertion.
    */
   def isRight[A](assertion: Assertion[A]): Assertion[Either[Any, A]] =
-    Assertion.assertionRec("isRight")(param(assertion))(assertion) {
+    Assertion.assertionRec[Either[Any, A], A]("isRight")(param(assertion))(assertion) {
       case Right(a) => Some(a)
       case Left(_)  => None
     }
@@ -668,7 +706,7 @@ object Assertion extends AssertionVariants {
    * assertion.
    */
   def isSome[A](assertion: Assertion[A]): Assertion[Option[A]] =
-    Assertion.assertionRec("isSome")(param(assertion))(assertion)(identity(_))
+    Assertion.assertionRec[Option[A], A]("isSome")(param(assertion))(assertion)(identity(_))
 
   /**
    * Makes a new assertion that requires an Option is Some.
@@ -693,7 +731,7 @@ object Assertion extends AssertionVariants {
         }
     }
 
-    Assertion.assertion("isSorted")()(actual => loop(actual.iterator))
+    Assertion.assertion[Iterable[A]]("isSorted")()(actual => loop(actual.iterator))
   }
 
   /**
@@ -718,7 +756,7 @@ object Assertion extends AssertionVariants {
    * assertion.
    */
   def isSuccess[A](assertion: Assertion[A]): Assertion[Try[A]] =
-    Assertion.assertionRec("isSuccess")(param(assertion))(assertion) {
+    Assertion.assertionRec[Try[A], A]("isSuccess")(param(assertion))(assertion) {
       case Success(a) => Some(a)
       case Failure(_) => None
     }
@@ -733,20 +771,20 @@ object Assertion extends AssertionVariants {
    * Makes a new assertion that requires a value be true.
    */
   def isTrue: Assertion[Boolean] =
-    Assertion.assertion("isTrue")()(identity(_))
+    Assertion.assertion[Boolean]("isTrue")()(identity(_))
 
   /**
    * Makes a new assertion that requires the value be unit.
    */
   val isUnit: Assertion[Unit] =
-    Assertion.assertion("isUnit")()(_ => true)
+    Assertion.assertion[Unit]("isUnit")()(_ => true)
 
   /**
    * Makes a new assertion that requires a value to fall within a
    * specified min and max (inclusive).
    */
   def isWithin[A](min: A, max: A)(implicit ord: Ordering[A]): Assertion[A] =
-    Assertion.assertion("isWithin")(param(min), param(max))(actual => ord.gteq(actual, min) && ord.lteq(actual, max))
+    Assertion.assertion[A]("isWithin")(param(min), param(max))(actual => ord.gteq(actual, min) && ord.lteq(actual, max))
 
   /**
    * Makes a new assertion that requires a numeric value is zero.
@@ -758,7 +796,7 @@ object Assertion extends AssertionVariants {
    * Makes a new assertion that requires a given string to match the specified regular expression.
    */
   def matchesRegex(regex: String): Assertion[String] =
-    Assertion.assertion("matchesRegex")(param(regex))(_.matches(regex))
+    Assertion.assertion[String]("matchesRegex")(param(regex))(_.matches(regex))
 
   /**
    * Makes a new assertion that requires a numeric value is non negative.
@@ -776,7 +814,7 @@ object Assertion extends AssertionVariants {
    * Makes a new assertion that negates the specified assertion.
    */
   def not[A](assertion: Assertion[A]): Assertion[A] =
-    Assertion.assertionDirect("not")(param(assertion))(!assertion.run(_))
+    Assertion.assertionDirect[A]("not", assertion.render.render)(param(assertion))(!assertion.run(_))
 
   /**
    * Makes a new assertion that always fails.
@@ -789,19 +827,24 @@ object Assertion extends AssertionVariants {
    * specified prefix.
    */
   def startsWith[A](prefix: Seq[A]): Assertion[Seq[A]] =
-    Assertion.assertion("startsWith")(param(prefix))(_.startsWith(prefix))
+    Assertion.assertion[Seq[A]]("startsWith")(param(prefix))(_.startsWith(prefix))
 
   /**
    * Makes a new assertion that requires a given string to start with a specified prefix.
    */
   def startsWithString(prefix: String): Assertion[String] =
-    Assertion.assertion("startsWithString")(param(prefix))(_.startsWith(prefix))
+    Assertion.assertion[String](
+      "startsWithString",
+      errorMessage(prefix, "start with", "does", "does not")
+    )(param(prefix))(
+      _.startsWith(prefix)
+    )
 
   /**
    * Makes a new assertion that requires an exit value to succeed.
    */
   def succeeds[A](assertion: Assertion[A]): Assertion[Exit[Any, A]] =
-    Assertion.assertionRec("succeeds")(param(assertion))(assertion) {
+    Assertion.assertionRec[Exit[Any, A], A]("succeeds")(param(assertion))(assertion) {
       case Exit.Success(a) => Some(a)
       case _               => None
     }
@@ -810,7 +853,7 @@ object Assertion extends AssertionVariants {
    * Makes a new assertion that requires the expression to throw.
    */
   def throws[A](assertion: Assertion[Throwable]): Assertion[A] =
-    Assertion.assertionRec("throws")(param(assertion))(assertion) { actual =>
+    Assertion.assertionRec[A, Throwable]("throws")(param(assertion))(assertion) { actual =>
       try {
         val _ = actual
         None
