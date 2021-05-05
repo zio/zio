@@ -20,6 +20,7 @@ import zio._
 import zio.clock.Clock
 import zio.console.Console
 import zio.internal.Platform
+import zio.test.render.TestRenderer
 
 /**
  * A `TestRunner[R, E]` encapsulates all the logic necessary to run specs that
@@ -29,7 +30,7 @@ import zio.internal.Platform
 final case class TestRunner[R <: Has[_], E](
   executor: TestExecutor[R, E],
   platform: Platform = Platform.makeDefault().withReportFailure(_ => ()),
-  reporter: TestReporter[E] = DefaultTestReporter(TestAnnotationRenderer.default),
+  reporter: TestReporter[E] = DefaultTestReporter(TestRenderer.default, TestAnnotationRenderer.default),
   bootstrap: Layer[Nothing, TestLogger with Clock] = ((Console.live >>> TestLogger.fromConsole) ++ Clock.live)
 ) { self =>
 
