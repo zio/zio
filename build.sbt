@@ -116,7 +116,10 @@ lazy val root = project
     testMagnoliaJVM,
     testMagnoliaJS,
     testRefinedJVM,
-    testRefinedJS
+    testRefinedJS,
+    testScalaCheckJVM,
+    testScalaCheckJS,
+    testScalaCheckNative
   )
   .enablePlugins(ScalaJSPlugin)
 
@@ -341,6 +344,21 @@ lazy val testRefined = crossProject(JVMPlatform, JSPlatform)
 lazy val testRefinedJVM = testRefined.jvm
   .settings(dottySettings)
 lazy val testRefinedJS = testRefined.js
+
+lazy val testScalaCheck = crossProject(JSPlatform, JVMPlatform, NativePlatform)
+  .in(file("test-scalacheck"))
+  .dependsOn(test)
+  .settings(stdSettings("zio-test-scalacheck"))
+  .settings(crossProjectSettings)
+  .settings(
+    libraryDependencies ++= Seq(
+      ("org.scalacheck" %%% "scalacheck" % "1.15.4")
+    )
+  )
+
+lazy val testScalaCheckJVM    = test.jvm.settings(dottySettings)
+lazy val testScalaCheckJS     = test.js
+lazy val testScalaCheckNative = test.native.settings(nativeSettings)
 
 lazy val stacktracer = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("stacktracer"))
