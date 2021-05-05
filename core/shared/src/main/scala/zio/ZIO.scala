@@ -3374,6 +3374,19 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     })
 
   /**
+   * Gets a state from the environment.
+   */
+  def getState[S: Tag]: ZIO[Has[ZState[S]], Nothing, S] =
+    ZIO.serviceWith(_.get)
+
+  /**
+   * Gets a state from the environment and uses it to run the specified
+   * function.
+   */
+  def getStateWith[S]: ZIO.GetStateWithPartiallyApplied[S] =
+    new ZIO.GetStateWithPartiallyApplied[S]
+
+  /**
    * Returns an effect that models failure with the specified `Cause`.
    */
   def halt[E](cause: => Cause[E]): IO[E, Nothing] =
@@ -3877,6 +3890,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     fromFunction(_._2)
 
   /**
+   * Sets a state in the environment to the specified value.
+   */
+  def setState[S: Tag](s: S): ZIO[Has[ZState[S]], Nothing, Unit] =
+    ZIO.serviceWith(_.set(s))
+
+  /**
    * Accesses the specified service in the environment of the effect.
    */
   def service[A: Tag]: URIO[Has[A], A] =
@@ -4016,6 +4035,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   def untraced[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
     zio.untraced
+
+  /**
+   * Updates a state in the environment with the specified function.
+   */
+  def updateState[S: Tag](f: S => S): ZIO[Has[ZState[S]], Nothing, Unit] =
+    ZIO.serviceWith(_.update(f))
 
   /**
    * Feeds elements of type `A` to `f` and accumulates all errors in error
@@ -4282,6 +4307,11 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   final class ServiceWithPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
     def apply[E, A](f: Service => ZIO[Has[Service], E, A])(implicit tag: Tag[Service]): ZIO[Has[Service], E, A] =
       new ZIO.Read(r => f(r.get))
+  }
+
+  final class GetStateWithPartiallyApplied[S](private val dummy: Boolean = true) extends AnyVal {
+    def apply[A](f: S => A)(implicit tag: Tag[S]): ZIO[Has[ZState[S]], Nothing, A] =
+      ZIO.serviceWith(_.get.map(f))
   }
 
   @inline
