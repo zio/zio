@@ -3,6 +3,7 @@ package zio.test
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.{Chunk, Exit}
+import zio.test.{MessageDesc => M}
 
 import scala.collection.immutable.SortedSet
 import scala.util.{Failure, Success}
@@ -563,8 +564,8 @@ object AssertionSpec extends ZIOBaseSpec {
 //      assert(!nameStartsWithU.equals(new Object))
 //    },
     test("should never be equal to AssertionM") {
-      val assertion  = Assertion.assertionDirect[Unit]("sameName")()(_ => ???)
-      val assertionM = AssertionM.assertionDirect[Unit]("sameName")()(_ => ???)
+      val assertion  = Assertion.assertionDirect[Unit]("sameName", M.result)()(_ => ???)
+      val assertionM = AssertionM.assertionDirect[Unit]("sameName", M.result)()(_ => ???)
       assert(!assertion.equals(assertionM)) && //(isFalse ?? "assertion != assertionM") &&
       assert(!assertionM.equals(assertion))    //(isFalse ?? "assertionM != assertion")
     }

@@ -18,6 +18,7 @@ package zio.test
 
 import zio.test.FailureRenderer.FailureMessage
 import zio.test.FailureRenderer.FailureMessage.Message
+import zio.test.{MessageDesc => M}
 import zio.{UIO, ZIO}
 
 import scala.reflect.ClassTag
@@ -252,7 +253,7 @@ object AssertionM {
    */
   def assertionDirect[A](
     name: String,
-    render: (A, Boolean) => Message = (a: A, success: Boolean) => Message("NOT IMPLEMENTED")
+    render: (A, Boolean) => Message
   )(params: RenderParam*)(run: (=> A) => AssertResultM): AssertionM[A] =
     AssertionM(function(render, name, List(params.toList)), run)
 
@@ -286,6 +287,6 @@ object AssertionM {
    * Makes a new assertion that negates the specified assertion.
    */
   def not[A](assertion: AssertionM[A]): AssertionM[A] =
-    AssertionM.assertionDirect[A]("not")(param(assertion))(!assertion.runM(_))
+    AssertionM.assertionDirect[A]("not", M.result + M.is + "not")(param(assertion))(!assertion.runM(_))
 
 }

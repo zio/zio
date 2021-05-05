@@ -1,12 +1,5 @@
 package zio.test
 
-import zio.duration._
-import zio.test.Assertion._
-import zio.test.TestAspect._
-import zio.test.environment.TestClock
-
-import scala.collection.immutable.SortedSet
-
 /**
  * - Scala 3
  * - Refactor to make Scala 3 easy.

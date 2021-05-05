@@ -3,10 +3,8 @@ package zio.test
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test.environment.TestClock
-import zio.{Chunk, Exit}
 
 import scala.collection.immutable.SortedSet
-import scala.util.{Failure, Success}
 import zio.duration._
 
 /**

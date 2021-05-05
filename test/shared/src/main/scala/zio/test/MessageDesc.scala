@@ -5,7 +5,7 @@ import zio.test.FailureRenderer.{blue, green, red}
 
 import scala.language.implicitConversions
 
-private object MessageDesc {
+object MessageDesc {
   val result: MessageDesc                                   = Result
   def choice(success: String, failure: String): MessageDesc = Choice(success, failure)
   def text(string: String): MessageDesc                     = choice(string, string)
@@ -14,6 +14,7 @@ private object MessageDesc {
   val is: MessageDesc   = choice("is", "is not")
   val does: MessageDesc = choice("does", "does not")
   val did: MessageDesc  = choice("did", "did not")
+  val was: MessageDesc  = choice("was", "was not")
 
   implicit def messageDesc2Render[A](messageDesc: MessageDesc): (A, Boolean) => Message = messageDesc.render
 
@@ -23,7 +24,7 @@ private object MessageDesc {
   private final case class Combine(lhs: MessageDesc, rhs: MessageDesc) extends MessageDesc
 }
 
-private sealed trait MessageDesc { self =>
+sealed trait MessageDesc { self =>
   def +(that: MessageDesc): MessageDesc = MessageDesc.Combine(self, that)
   def +(that: String): MessageDesc      = MessageDesc.Combine(self, MessageDesc.text(that))
 

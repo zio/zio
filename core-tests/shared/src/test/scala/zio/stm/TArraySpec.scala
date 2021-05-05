@@ -1,8 +1,8 @@
 package zio.stm
 
 import zio.test.Assertion._
-import zio.test._
 import zio.{Chunk, ZIOBaseSpec}
+import zio.test._
 
 object TArraySpec extends ZIOBaseSpec {
 
