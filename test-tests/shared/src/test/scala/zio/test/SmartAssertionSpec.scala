@@ -1,6 +1,7 @@
 package zio.test
 
 import zio.test.TestAspect.failing
+import SmartTestTypes._
 
 import java.time.LocalDateTime
 
@@ -29,9 +30,6 @@ import java.time.LocalDateTime
  */
 
 object SmartAssertionSpec extends ZIOBaseSpec {
-  case class Post(title: String, publishDate: Option[LocalDateTime] = None)
-  case class User(name: String, posts: List[Post])
-  case class Company(name: String, users: List[User])
 
   val company: Company = Company("Ziverge", List(User("Bobo", List.tabulate(2)(n => Post(s"Post #$n")))))
 
@@ -82,6 +80,25 @@ object SmartAssertionSpec extends ZIOBaseSpec {
       test("Option") {
         assert(company.users.head.posts.head.publishDate.contains(LocalDateTime.MAX))
       }
+    ),
+    suite("helpers")(
+      test("as") {
+        val someColor: Color = Red("hello")
+        assert(someColor.as[Red].name == "cool")
+      },
+      test("as") {
+        val someColor: Color = Red("hello")
+        assert(someColor.as[Blue].brightness > 38)
+      },
+      test("asInstanceOf") {
+        val someColor: Color = Red("hello")
+        assert(someColor.asInstanceOf[Red].name == "cool")
+      },
+      test("asInstanceOf") {
+        val someColor: Color = Red("hello")
+        assert(someColor.asInstanceOf[Blue].brightness > 38)
+      }
     )
   ) // @@ failing
+
 }

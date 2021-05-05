@@ -565,6 +565,17 @@ object Assertion extends AssertionVariants {
       term(_)
     )
 
+  def smartIsCase[Case](
+    termName: String,
+    term: Any => Option[Case],
+    assertion: Assertion[Case]
+  ): Assertion[Case] =
+    Assertion.assertionRec[Any, Case]("isCase", M.result + M.is + "an instance of" + M.value(termName))(
+      param(termName)
+    )(assertion)(
+      term(_)
+    )
+
   /**
    * Makes a new assertion that requires an Iterable is distinct.
    */

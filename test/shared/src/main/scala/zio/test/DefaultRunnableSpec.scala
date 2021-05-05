@@ -74,5 +74,8 @@ object AssertionSyntax {
   implicit final class AssertionOps[A](private val self: A) extends AnyVal {
     def withAssertion(assertion: Assertion[A]): Boolean =
       assertion.test(self)
+
+    def as[Case <: A]: Case =
+      throw new Error("OH NO")
   }
 }

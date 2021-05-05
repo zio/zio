@@ -149,6 +149,20 @@ class SmartAssertMacros(val c: blackbox.Context) {
         val text         = renderContext.textAfter(expr, lhs)
         val newAssertion = q"$Assertion.smartExists($args).withCode($text)"
         generateAssertion(lhs, newAssertion)
+      case q"$lhs.asInstanceOf[$tpe]" =>
+        val lhsTpe = lhs.tpe.widen
+        val text   = renderContext.textAfter(expr, lhs)
+        val newAssertion =
+          q"$Assertion.isCase[$lhsTpe, $tpe](${tpe.toString}, ((c: $lhsTpe) => scala.util.Try(c.asInstanceOf[$tpe]).toOption), $assertion).withCode($text)"
+        generateAssertion(lhs, newAssertion)
+      case q"$lhs.as[$tpe]" =>
+        val lhsTpe = lhs match {
+          case q"$_($rhs)" => rhs.tpe.widen
+        }
+        val text = renderContext.textAfter(expr, lhs)
+        val newAssertion =
+          q"$Assertion.isCase[$lhsTpe, $tpe](${tpe.toString}, ((c: $lhsTpe) => scala.util.Try(c.asInstanceOf[$tpe]).toOption), $assertion).withCode($text)"
+        generateAssertion(lhs, newAssertion)
 //      case Method.exists(lhs, args) =>
 //        val text = renderContext.textAfter(expr, lhs)
 //        val body = args match {
@@ -346,11 +360,12 @@ class SmartAssertMacros(val c: blackbox.Context) {
       println("")
 
       tree match {
-//        case Select(s, _) => false
+        case Select(Literal(_), _) => false
         case Select(Select(s, _), TermName("apply"))
             if s.symbol.isModule || s.symbol.isSynthetic || s.symbol.isClass || s.symbol.isStatic =>
           true
-        case Select(s, _) if s.symbol.isModule || s.symbol.isSynthetic || s.symbol.isClass || s.symbol.isStatic =>
+        case Select(s, _)
+            if s != null && (s.symbol.isModule || s.symbol.isSynthetic || s.symbol.isClass || s.symbol.isStatic) =>
           true
         case TypeApply(s, _) => isConstructor(s)
         case Apply(s, _)     => isConstructor(s)
