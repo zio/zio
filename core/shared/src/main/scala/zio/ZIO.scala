@@ -3376,7 +3376,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * Gets a state from the environment.
    */
-  def getState[S: Tag]: ZIO[Has[State[S]], Nothing, S] =
+  def getState[S: Tag]: ZIO[Has[ZState[S]], Nothing, S] =
     ZIO.serviceWith(_.get)
 
   /**
@@ -3892,7 +3892,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * Sets a state in the environment to the specified value.
    */
-  def setState[S: Tag](s: S): ZIO[Has[State[S]], Nothing, Unit] =
+  def setState[S: Tag](s: S): ZIO[Has[ZState[S]], Nothing, Unit] =
     ZIO.serviceWith(_.set(s))
 
   /**
@@ -4039,7 +4039,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * Updates a state in the environment with the specified function.
    */
-  def updateState[S: Tag](f: S => S): ZIO[Has[State[S]], Nothing, Unit] =
+  def updateState[S: Tag](f: S => S): ZIO[Has[ZState[S]], Nothing, Unit] =
     ZIO.serviceWith(_.update(f))
 
   /**
@@ -4310,7 +4310,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   }
 
   final class GetStateWithPartiallyApplied[S](private val dummy: Boolean = true) extends AnyVal {
-    def apply[A](f: S => A)(implicit tag: Tag[S]): ZIO[Has[State[S]], Nothing, A] =
+    def apply[A](f: S => A)(implicit tag: Tag[S]): ZIO[Has[ZState[S]], Nothing, A] =
       ZIO.serviceWith(_.get.map(f))
   }
 

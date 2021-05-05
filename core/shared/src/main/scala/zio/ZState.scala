@@ -17,8 +17,8 @@
 package zio
 
 /**
- * `State[S]` models a value of type `S` that can be read from and written to
- * during the execution of an effect. The idiomatic way to work with `State`
+ * `ZState[S]` models a value of type `S` that can be read from and written to
+ * during the execution of an effect. The idiomatic way to work with `ZState`
  * is as part of the environment using operators defined on `ZIO`. For
  * example:
  *
@@ -31,7 +31,7 @@ package zio
  * } yield count
  * }}}
  *
- * Because `State` is typically used as part of the environment, it is
+ * Because `ZState` is typically used as part of the environment, it is
  * recommended to define your own state type `S` such as `MyState` above
  * rather than using a type such as `Int` to avoid the risk of ambiguity.
  *
@@ -39,7 +39,7 @@ package zio
  * the `make` constructor and then use `toLayer` to convert it into a layer
  * that you can provide along with your application's other dependencies.
  */
-sealed trait State[S] {
+sealed trait ZState[S] {
 
   /**
    * Gets the current state.
@@ -57,14 +57,14 @@ sealed trait State[S] {
   def update(f: S => S): UIO[Unit]
 }
 
-object State {
+object ZState {
 
   /**
    * Creates an initial state with the specified value.
    */
-  def make[S](s: S): UIO[State[S]] =
+  def make[S](s: S): UIO[ZState[S]] =
     FiberRef.make(s).map { fiberRef =>
-      new State[S] {
+      new ZState[S] {
         def get: UIO[S] =
           fiberRef.get
         def set(s: S): UIO[Unit] =
@@ -73,4 +73,10 @@ object State {
           fiberRef.update(f)
       }
     }
+
+  /**
+   * Creates a layer that outputs an initial state with the specified value.
+   */
+  def makeLayer[S: Tag](s: S): ZLayer[Any, Nothing, Has[ZState[S]]] =
+    make(s).toLayer
 }

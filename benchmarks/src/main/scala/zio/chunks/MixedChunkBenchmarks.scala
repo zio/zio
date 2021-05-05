@@ -1,7 +1,7 @@
 package zio.chunks
 
 import org.openjdk.jmh.annotations._
-import zio.{State => _, _}
+import zio._
 
 import java.util.concurrent.TimeUnit
 

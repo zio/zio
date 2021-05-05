@@ -2,7 +2,7 @@ package zio.stm
 
 import org.openjdk.jcstress.annotations._
 import org.openjdk.jcstress.infra.results.{II_Result, I_Result}
-import zio.{State => _, _}
+import zio._
 
 object ZSTMConcurrencyTests {
 
