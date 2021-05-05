@@ -73,7 +73,7 @@ val getStrLn: ZIO[Console, IOException, String] =
 - [Timeout](#timeout)
 - [Resource Management](#resource-management)
   * [Finalizing](#finalizing)
-    + [Asynchronous Try / Finally](#asynchronous-try---finally)
+    + [Asynchronous Try / Finally](#asynchronous-try--finally)
     + [Unstoppable Finalizers](#unstoppable-finalizers)
   * [Brackets](#brackets)
 - [Unswallowed Exceptions](#unswallowed-exceptions)
