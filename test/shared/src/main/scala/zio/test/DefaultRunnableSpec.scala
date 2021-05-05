@@ -21,6 +21,8 @@ import zio.duration._
 import zio.test.environment.TestEnvironment
 import zio.{URIO, ZIO}
 
+import scala.language.implicitConversions
+
 /**
  * A default runnable spec that provides testable versions of all of the
  * modules in ZIO (Clock, Random, etc).
@@ -65,7 +67,11 @@ abstract class DefaultRunnableSpec extends RunnableSpec[TestEnvironment, Any] {
   def testM[R, E](label: String)(assertion: => ZIO[R, E, TestResult])(implicit loc: SourceLocation): ZSpec[R, E] =
     zio.test.testM(label)(assertion)
 
-  implicit final class AssertionOps[A](val self: A) {
+  implicit def any2AssertionOps[A](a: A): AssertionSyntax.AssertionOps[A] = AssertionSyntax.AssertionOps(a)
+}
+
+object AssertionSyntax {
+  implicit final class AssertionOps[A](val self: A) extends AnyVal {
     def withAssertion(assertion: Assertion[A]): Boolean =
       assertion.test(self)
   }

@@ -16,7 +16,6 @@
 
 package zio.test
 
-import zio.test.AssertionM.Field.Select
 import zio.test.FailureRenderer.FailureMessage
 import zio.test.FailureRenderer.FailureMessage.Message
 import zio.{UIO, ZIO}
@@ -87,11 +86,8 @@ abstract class AssertionM[-A] { self =>
   override def toString: String =
     render.toString
 
-  def withInfixField(fieldName: String, rhs: String): AssertionM[A] =
-    AssertionM(render.withField(AssertionM.Field.Infix(fieldName, rhs)), runM)
-
-  def withField(fieldName: String, args: String*): AssertionM[A] =
-    AssertionM(render.withField(AssertionM.Field.Select(fieldName, args.toList)), runM)
+  def withCode(code: String, args: String*): AssertionM[A] =
+    AssertionM(render.withCode(code), runM)
 }
 
 object AssertionM {
@@ -116,14 +112,15 @@ object AssertionM {
       case Smart(renderErrorMessage, lensRender, field) => lensRender.toString
     }
 
-    def withField(fieldName: Field): Render[A] =
+    def withCode(code: String): Render[A] =
       this match {
-        case Smart(renderErrorMessage, lensRender, _) => Smart(renderErrorMessage, lensRender, Some(fieldName))
+        case Smart(renderErrorMessage, lensRender, _) =>
+          Smart(renderErrorMessage, lensRender, Some(code))
       }
 
-    def renderField: Field =
+    def codeString: String =
       this match {
-        case Smart(_, lensRender, field) => field.getOrElse(Field.Select(lensRender.name, List.empty))
+        case Smart(_, lensRender, code) => code.getOrElse("<NO CODE>")
       }
 
   }
@@ -131,7 +128,7 @@ object AssertionM {
     final case class Smart[A](
       renderErrorMessage: (A, Boolean) => FailureRenderer.FailureMessage.Message,
       lensRender: LensRender,
-      field: Option[Field] = None
+      code: Option[String] = None
     ) extends Render[A]
 
     sealed trait LensRender { self =>
@@ -151,8 +148,7 @@ object AssertionM {
 
     object LensRender {
       final case class Function(name0: String, paramLists: List[List[RenderParam]]) extends LensRender
-
-      final case class Infix(left: RenderParam, op: String, right: RenderParam) extends LensRender
+      final case class Infix(left: RenderParam, op: String, right: RenderParam)     extends LensRender
     }
 
     /**
@@ -230,26 +226,6 @@ object AssertionM {
   object RenderParam {
     final case class AssertionM[A](assertion: zio.test.AssertionM[A]) extends RenderParam
     final case class Value(value: Any)                                extends RenderParam
-  }
-
-  sealed abstract class Field { self =>
-    override def toString: String =
-      self match {
-        case Field.Infix(name, _)  => name
-        case Field.Select(name, _) => name
-      }
-
-    def renderMethod: String =
-      self match {
-        case Field.Infix(name, arg)     => s" $name $arg"
-        case Field.Select(name, List()) => s".$name"
-        case Field.Select(name, args)   => s".$name(${args.mkString(", ")})"
-      }
-  }
-
-  object Field {
-    final case class Select(name: String, arguments: List[String]) extends Field
-    final case class Infix(name: String, right: String)            extends Field
   }
 
   /**

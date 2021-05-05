@@ -32,8 +32,8 @@ sealed abstract class AssertionValue {
   protected def assertion: AssertionM[Value]
   def result: AssertResult
 
-  def renderField: AssertionM.Field =
-    assertion.render.renderField
+  def codeString: String =
+    assertion.render.codeString
 
   def smartExpression: Option[String]
   def renderErrorMessage: FailureMessage.Message =

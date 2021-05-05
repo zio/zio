@@ -30,54 +30,6 @@ import zio.duration._
  */
 
 object SmartAssertionSpec extends ZIOBaseSpec {
-  def spec =
-    suite("SmartAssertionSpec")(
-      other,
-      test("nested access") {
-        case class Ziverge(people: Seq[Person]) {
-          def isValid = true
-        }
-        case class Pet(name: String = "Spike")
-        case class Person(name: String, age: Int, pet: Pet)
-        val person  = Person("Vigoo", 23, Pet())
-        val company = Ziverge(Seq(person))
-
-        /**
-         *  - age > 33
-         *  X 20 > 33
-         *  23 is not greater than 33
-         *  23 was not greater than 33
-         *  23 was greater than 33
-         *
-         *  > "Bile" was not equal to "Bill"
-         *  > "Bil-e"
-         *  > "Bil+l"
-         *  company.people.head.name == "Bill"
-         *
-         *  - .isEmpty
-         *  List() was empty
-         *  List() was not empty
-         *
-         *  - .isEmpty
-         *  List() was empty
-         *  List() was not empty
-         */
-        // assert(company)(hasField("people", _.people, hasSize(isGreaterThan(3)))) &&
-        val string = "hello"
-//        assert(!company.isValid) &&
-//        assert(!(string == "hello")) &&
-        assert(!(person.age > 1)) // &&
-//        assert(person)(hasField("age", (_: Person).age, isGreaterThan(0)).negate)
-//        assert(person.age > 10000) &&
-//        assert(company)(hasField("people", _.people, hasFirst(hasField("age", (_: Person).age, equalTo(33)))))
-
-        def isCool(ziverge: Ziverge): Boolean = true
-
-        // TODO: LOOK INTO THIS
-        assert(!(isCool(company)))
-      }
-    )
-
   val other = {
     suite("AssertionSpec")(
       test(".hasCase") {
@@ -118,12 +70,14 @@ object SmartAssertionSpec extends ZIOBaseSpec {
 
         val person = Person()
 
-        assert(person.say("ping", "pong") != "ping pong") &&
-        assert(!(person.say("ping", "pong") == "ping pong"))
+        assert( //
+          person.say("ping", "pong") != "ping pong",
+          !(person.say("ping", "pong") == "ping pong")
+        )
       },
       test("contains") {
         val list = Some(List(1, 8, 132, 83))
-        assert(list.get.contains(77))
+        assert(list.get.contains(78))
       },
       testM("sleep delays effect until time is adjusted") {
         for {
@@ -243,8 +197,28 @@ object SmartAssertionSpec extends ZIOBaseSpec {
         assert(Seq(1, 42, 5).exists(_ == 42))
       },
       test("exists must fail when all elements of iterable do not satisfy specified assertion") {
-        assert(Seq(1, 42, 5).exists(_ == 428))
-      } @@ failing,
+//        _root_.zio.test.CompileVariants.smartAssertProxy(
+//          Seq.apply[Int](1, 2, 3, 4),
+//          "Seq(1, 2, 3, 4)",
+//          "Seq(1, 2, 3, 4) intersect Seq(5, 6, 7)",
+//          "/Users/kit/code/open-source/zio/test-tests/shared/src/test/scala/zio/test/SmartAssertionSpec.scala:353"
+//        )(zio.test.Assertion.hasIntersection(Seq.apply[Int](5, 6, 7))(zio.test.Assertion.isEmpty))
+//
+//        _root_.zio.test.CompileVariants.smartAssertProxy(
+//          Seq.apply[Int](1, 2, 3, 4),
+//          "Seq(1, 2, 3, 4)",
+//          "Seq(1, 2, 3, 4) intersect Seq(4, 5, 6, 7, 8)",
+//          "/Users/kit/code/open-source/zio/test-tests/shared/src/test/scala/zio/test/SmartAssertionSpec.scala:336"
+//        )(
+//          zio.test.Assertion.hasIntersection(Seq.apply[Int](4, 5, 6, 7, 8))(
+//            zio.test.Assertion
+//              .hasField("length", ((x: Seq[Int]) => x.length), zio.test.Assertion.equalTo(1).withField(" == "))
+//              .withField("")
+//          )
+//        )
+        val value = Seq(1, 42, 5)
+        assert(value.exists(_ == 423))
+      } @@ TestAspect.tag("IMPORTANT"),
       test("exists must fail when iterable is empty") {
         assert(Seq[String]())(exists(hasField("length", _.length, isWithin(0, 3))))
       } @@ failing,
@@ -333,14 +307,21 @@ object SmartAssertionSpec extends ZIOBaseSpec {
       },
       test("hasIntersection must succeed when intersection satisfies specified assertion") {
 //      assert(Seq(1, 2, 3))(hasIntersection(Seq(3, 4, 5))(hasSize(equalTo(1))))
-        assert((Seq(1, 2, 3, 4) intersect Seq(4, 5, 6, 7, 8)).length == 1)
-      },
+        val seq = Seq(1, 2, 3, 4, 5)
+        assert((seq intersect Seq(4, 5, 6, 7, 8)).length == 105)
+      } @@ TestAspect.tag("IMPORTANT"),
+      test("hasIntersection must succeed when intersection satisfies specified assertion") {
+        val seq = Seq(1, 2, 3, 4, 5)
+
+        assert {
+          seq.intersect(Seq(4, 5, 6, 7, 8)).length == 108
+        }
+      } @@ TestAspect.tag("IMPORTANT"),
       test("hasIntersection must succeed when empty intersection satisfies specified assertion") {
         assert((Seq(1, 2, 3, 4) intersect Seq(5, 6, 7)).isEmpty)
       },
       test("Basic equality") {
         val result = 1
-        // assert(result == 1)
         assert {
           def cool(int: Int) = int * 3
           cool(result) > 400
@@ -737,23 +718,74 @@ object SmartAssertionSpec extends ZIOBaseSpec {
 //    }
     )
   }
-
-  case class SampleUser(name: String, age: Int)
-  val sampleUser: SampleUser = SampleUser("User", 42)
-  val sampleException        = new Exception
-
+  val sampleUser: SampleUser                  = SampleUser("User", 42)
+  val sampleException                         = new Exception
   val nameStartsWithA: Assertion[SampleUser]  = hasField("name", _.name.startsWith("A"), isTrue)
   val nameStartsWithU: Assertion[SampleUser]  = hasField("name", _.name.startsWith("U"), isTrue)
   val ageLessThan20: Assertion[SampleUser]    = hasField("age", _.age, isLessThan(20))
   val ageGreaterThan20: Assertion[SampleUser] = hasField("age", _.age, isGreaterThan(20))
+  val someException                           = new RuntimeException("Boom!")
+  val animal: Animal                          = new Animal {}
+  val dog: Dog                                = new Dog {}
+  val cat: Cat                                = new Cat {}
 
-  val someException = new RuntimeException("Boom!")
+  def spec =
+    suite("SmartAssertionSpec")(
+      other,
+      test("nested access") {
+        case class Ziverge(people: Seq[Person]) {
+          def isValid = true
+        }
+        case class Pet(name: String = "Spike")
+        case class Person(name: String, age: Int, pet: Pet)
+        val person  = Person("Vigoo", 23, Pet())
+        val company = Ziverge(Seq(person))
+
+        /**
+         *  - age > 33
+         *  X 20 > 33
+         *  23 is not greater than 33
+         *  23 was not greater than 33
+         *  23 was greater than 33
+         *
+         *  > "Bile" was not equal to "Bill"
+         *  > "Bil-e"
+         *  > "Bil+l"
+         *  company.people.head.name == "Bill"
+         *
+         *  - .isEmpty
+         *  List() was empty
+         *  List() was not empty
+         *
+         *  - .isEmpty
+         *  List() was empty
+         *  List() was not empty
+         */
+        // assert(company)(hasField("people", _.people, hasSize(isGreaterThan(3)))) &&
+        val string = "hello"
+        assert(!company.isValid) &&
+        assert(!(string == "hello")) &&
+        assert(person.age == 2) &&
+//        assert(person)(hasField("age", (_: Person).age, isGreaterThan(0)).negate) &&
+        assert(person.age > 10700)
+//        assert(company)(hasField("people", _.people, hasFirst(hasField("age", (_: Person).age, equalTo(33)))))
+
+      },
+      test("with assertion") {
+        //      assert(SampleUser("User", 23))(hasField[SampleUser, Int]("age", _.age, isWithin(0, 99)))
+        val sampleUser = SampleUser("User", 108)
+        assert(sampleUser.age.withAssertion(isWithin(0, 99)))
+      },
+      test("hasAt must fail when an index is outside of a sequence range") {
+        assert(!(Seq(1, 2, 3)(2) == 3))
+      }
+    )
 
   trait Animal
+
   trait Dog extends Animal
+
   trait Cat extends Animal
 
-  val animal: Animal = new Animal {}
-  val dog: Dog       = new Dog {}
-  val cat: Cat       = new Cat {}
+  case class SampleUser(name: String, age: Int)
 }

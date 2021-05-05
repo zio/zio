@@ -1,5 +1,7 @@
 package zio.test
 
+import zio.test.AssertionSyntax.AssertionOps
+
 import scala.annotation.tailrec
 import scala.reflect.macros.blackbox
 
@@ -14,24 +16,6 @@ class SmartAssertMacros(val c: blackbox.Context) {
     (path, line)
   }
 
-  // Pilfered with immense gratitude from https://github.com/com-lihaoyi/sourcecode
-  def text[T: c.WeakTypeTag](tree: c.Tree): String = {
-    val fileContent = new String(tree.pos.source.content)
-    val start = tree.collect { case treeVal =>
-      treeVal.pos match {
-        case NoPosition => Int.MaxValue
-        case p          => p.startOrPoint
-      }
-    }.min
-    val g      = c.asInstanceOf[reflect.macros.runtime.Context].global
-    val parser = g.newUnitParser(fileContent.drop(start))
-    parser.expr()
-    val end = parser.in.lastOffset
-    fileContent.slice(start, start + end)
-  }
-
-  private[this] def getPosition(expr: Tree) = expr.pos.asInstanceOf[scala.reflect.internal.util.Position]
-
   def assertImpl(expr: c.Tree, exprs: c.Tree*): Expr[TestResult] =
     exprs.map(assertSingle).foldLeft(assertSingle(expr)) { (acc, assert) =>
       c.Expr(q"$acc && $assert")
@@ -43,10 +27,14 @@ class SmartAssertMacros(val c: blackbox.Context) {
       case other               => (List.empty, other)
     }
 
+    val (delta, start, codeString) = text(expr0)
     implicit val renderContext: RenderContext =
-      RenderContext(text(expr0), expr0.pos.start)
+      RenderContext(codeString, start).shift(-delta, delta)
 
     val result = composeAssertions(expr0, false)
+
+    println("RESULT")
+    println(showCode(result.tree))
 
     c.Expr[TestResult](
       q"""
@@ -68,6 +56,7 @@ class SmartAssertMacros(val c: blackbox.Context) {
       val rhsAssertion = composeAssertions(rhs, negated)
       c.Expr(q"$lhsAssertion || $rhsAssertion")
     case q"!$lhs" =>
+      // TODO: Reset render context after recursive calle. renderContext.shift() { subtree }
       val lhsAssertion = composeAssertions(lhs, !negated)(renderContext.shift(expr, lhs))
       c.Expr(q"$lhsAssertion")
     case other =>
@@ -100,27 +89,29 @@ class SmartAssertMacros(val c: blackbox.Context) {
 
     val text = renderContext.text(expr)
 
-    def negate(tree: c.Tree) = if (negated) q"$tree.negate" else tree
+    def negate(tree: c.Tree) = if (negated) q"$tree.smartNegate" else tree
 
     val (target, assertion) = expr match {
       case q"$lhs > $rhs" =>
-        val text = renderContext.text(rhs)
-        generateAssertion(lhs, negate(q"$Assertion.isGreaterThan($rhs).withField(${s" > $text"})"))
+        val text = renderContext.textAfter(expr, lhs)
+        generateAssertion(lhs, negate(q"$Assertion.isGreaterThan($rhs).withCode($text)"))
       case q"$lhs < $rhs" =>
-        val text = renderContext.text(rhs)
-        generateAssertion(lhs, negate(q"$Assertion.isLessThan($rhs).withField(${s" < $text"})"))
+        val text = renderContext.textAfter(expr, lhs)
+        generateAssertion(lhs, negate(q"$Assertion.isLessThan($rhs).withCode($text)"))
       case q"$lhs >= $rhs" =>
-        val text = renderContext.text(rhs)
-        generateAssertion(lhs, negate(q"$Assertion.isGreaterThanOrEqualTo($rhs).withField(${s" >= $text"})"))
+        val text = renderContext.textAfter(expr, lhs)
+        generateAssertion(lhs, negate(q"$Assertion.isGreaterThanOrEqualTo($rhs).withCode($text)"))
       case q"$lhs <= $rhs" =>
-        val text = renderContext.text(rhs)
-        generateAssertion(lhs, negate(q"$Assertion.isLessThanOrEqualTo($rhs).withField(${s" <= $text"})"))
+        val text = renderContext.textAfter(expr, lhs)
+        generateAssertion(lhs, negate(q"$Assertion.isLessThanOrEqualTo($rhs).withCode($text)"))
       case q"$lhs == $rhs" =>
-        val text = renderContext.text(rhs)
-        generateAssertion(lhs, negate(q"$Assertion.equalTo($rhs).withField(${s" == $text"})"))
+        val text = renderContext.textAfter(expr, lhs)
+        generateAssertion(lhs, negate(q"$Assertion.equalTo($rhs).withCode($text)"))
       case q"$lhs != $rhs" =>
-        generateAssertion(lhs, negate(q"$Assertion.equalTo($rhs).negate"))
-      case lhs => generateAssertion(lhs, q"$Assertion.isTrue")
+        val text = renderContext.textAfter(expr, lhs)
+        generateAssertion(lhs, negate(q"$Assertion.equalTo($rhs).withCode($text).smartNegate"))
+      case lhs =>
+        generateAssertion(lhs, negate(q"$Assertion.isTrue.withCode(${""})"))
     }
 
     val targetCode = CleanCodePrinter.show(c)(target)
@@ -133,110 +124,159 @@ class SmartAssertMacros(val c: blackbox.Context) {
   @tailrec
   private def generateAssertion(expr: c.Tree, assertion: c.Tree)(implicit
     renderContext: RenderContext
-  ): (c.Tree, c.Tree) =
+  ): (c.Tree, c.Tree) = {
+    val LensMatcher = Method.Matcher(assertion, renderContext)
+
     expr match {
-      // TODO: Improve safety. Unwrap AssertionOps
+      // Unwrap implicit conversions/classes
+      case q"$lhs($rhs)" if lhs.symbol.isImplicit =>
+        generateAssertion(rhs, assertion)
       case Method.withAssertion(lhs, assertion) =>
-        lhs match {
-          case q"$_($lhs)" => generateAssertion(lhs, assertion)
-          case _           => c.abort(c.enclosingPosition, "FATAL ERROR")
-        }
-      case Method.containsIterable(lhs, value) =>
-        val newAssertion = q"$Assertion.contains($value)"
-        generateAssertion(lhs, newAssertion)
-      case Method.containsString(lhs, value) =>
-        val newAssertion = q"$Assertion.containsString($value)"
-        generateAssertion(lhs, newAssertion)
-      case Method.containsString(lhs, value) =>
-        val newAssertion = q"$Assertion.containsString($value)"
-        generateAssertion(lhs, newAssertion)
-      case Method.startsWithSeq(lhs, value) =>
-        val newAssertion = q"$Assertion.startsWith($value)"
-        generateAssertion(lhs, newAssertion)
-      case Method.startsWithString(lhs, value) =>
-        val newAssertion = q"$Assertion.startsWithString($value)"
-        generateAssertion(lhs, newAssertion)
-      case Method.endsWithSeq(lhs, value) =>
-        val newAssertion = q"$Assertion.endsWith($value)"
-        generateAssertion(lhs, newAssertion)
-      case Method.endsWithString(lhs, value) =>
-        val newAssertion = q"$Assertion.endsWithString($value)"
-        generateAssertion(lhs, newAssertion)
-      case Method.hasAt(lhs, value) =>
-        val text         = renderContext.textAfter(expr, lhs)
-        val newAssertion = q"$Assertion.hasAt($value)($assertion).withField($text)"
-        generateAssertion(lhs, newAssertion)
-      case Method.intersect(lhs, value) =>
-        val newAssertion = q"$Assertion.hasIntersection($value)($assertion)"
-        generateAssertion(lhs, newAssertion)
-      case Method.length(lhs, _) =>
-        val text         = renderContext.textAfter(expr, lhs)
-        val newAssertion = q"$Assertion.hasSize($assertion).withField($text)"
-        generateAssertion(lhs, newAssertion)
-      case Method.isEmpty(lhs, _) =>
-        val newAssertion = q"$Assertion.isEmpty"
-        generateAssertion(lhs, newAssertion)
-      case Method.nonEmpty(lhs, _) =>
-        val newAssertion = q"$Assertion.isNonEmpty"
-        generateAssertion(lhs, newAssertion)
-      case Method.head(lhs, _) =>
-        val text         = renderContext.textAfter(expr, lhs)
-        val newAssertion = q"$Assertion.hasFirst($assertion).withField($text)"
-        generateAssertion(lhs, newAssertion)
-      case q"$lhs.get" =>
-        val text         = renderContext.textAfter(expr, lhs)
-        val newAssertion = q"$Assertion.isSome($assertion).withField($text)"
+        generateAssertion(lhs, assertion)
+      case LensMatcher(lhs, newAssertion) =>
         generateAssertion(lhs, newAssertion)
       case Select(lhs, name) =>
-        val tpe          = lhs.tpe.finalResultType.widen
+        val tpe = lhs match {
+          case q"$lhs($rhs)" if lhs.symbol.isImplicit => rhs.tpe.widen.finalResultType.widen
+          case _                                      => lhs.tpe.widen.finalResultType.widen
+        }
         val nameString   = name.toString
-        val select       = q"(x: $tpe) => x.${TermName(nameString)}"
+        val select       = q"((x: $tpe) => x.${TermName(nameString)})"
         val text         = renderContext.textAfter(expr, lhs)
-        val newAssertion = q"$Assertion.hasField($nameString, $select, $assertion).withField($text)"
+        val newAssertion = q"$Assertion.hasField($nameString, $select, $assertion).withCode($text)"
         generateAssertion(lhs, newAssertion)
       case IsConstructor(_) =>
         (expr, assertion)
       case MethodCall(lhs, name, args) =>
         val text         = renderContext.textAfter(expr, lhs)
         val newAssertion = makeApplyAssertion(assertion, lhs, name, args)
-        generateAssertion(lhs, q"$newAssertion.withField($text)")
+        generateAssertion(lhs, q"$newAssertion.withCode($text)")
       case _ =>
         (expr, assertion)
     }
+  }
 
-  case class Method[T: c.WeakTypeTag](name: String) {
+  /**
+   * # Terminal assertions
+   * - isEmpty
+   *   - lhs.isEmpty
+   *   - isEmpty
+   *
+   * # Nullary assertions
+   * - get
+   *   - lhs.get
+   *   - isSome(assertion)
+   *
+   * # Unary assertions
+   * - intersect(arg)
+   *   - lhs.intersect(that)
+   *   - hasIntersection(arg)(assertion)
+   * - containsIterable
+   * - containsString
+   * - startsWithSeq
+   * - startsWithString
+   * - endsWithSeq
+   * - endsWithString
+   *
+   * Method[T]("isEmpty")
+   */
+
+  case class Method[T](
+    name: String,
+    assertionName: String,
+    hasArgs: Boolean,
+    isRecursive: Boolean
+  )(implicit tpe: WeakTypeTag[T]) {
+    self =>
+
+    def use(assertion: c.Tree, renderContext: RenderContext): PartialFunction[c.Tree, (c.Tree, c.Tree)] = {
+      case expr @ self(lhs, args) =>
+        val text              = renderContext.textAfter(expr, lhs)
+        val assertionNameTree = TermName(assertionName)
+        val newAssertion =
+          (hasArgs, isRecursive) match {
+            case (true, true)   => q"$Assertion.$assertionNameTree($args)($assertion).withCode($text)"
+            case (false, true)  => q"$Assertion.$assertionNameTree($assertion).withCode($text)"
+            case (true, false)  => q"$Assertion.$assertionNameTree($args).withCode($text)"
+            case (false, false) => q"$Assertion.$assertionNameTree.withCode($text)"
+          }
+        (lhs, newAssertion)
+    }
+
     def unapply(tree: c.Tree): Option[(c.Tree, c.Tree)] = tree match {
-      case q"$lhs.$name0($value)" if name0.toString == name && lhs.tpe <:< weakTypeOf[T] =>
+      case q"$lhs.$name0($value)" if name0.toString == name && lhs.tpe <:< tpe.tpe =>
         Some((lhs, value))
-      case q"$lhs.$name0[..$_]($value)" if name0.toString == name && lhs.tpe <:< weakTypeOf[T] =>
+      case q"$lhs.$name0[..$_]($value)" if name0.toString == name && lhs.tpe <:< tpe.tpe =>
         Some((lhs, value))
-      case q"$lhs.$name0[..$_]" if name0.toString == name && lhs.tpe <:< weakTypeOf[T] =>
+      case q"$lhs.$name0[..$_]" if name0.toString == name && lhs.tpe <:< tpe.tpe =>
         Some((lhs, q"()"))
-      case q"$lhs.$name0" if name0.toString == name && lhs.tpe <:< weakTypeOf[T] =>
+      case q"$lhs.$name0" if name0.toString == name && lhs.tpe <:< tpe.tpe =>
         Some((lhs, q"()"))
-      case _ =>
+      case lhs =>
         None
     }
   }
 
   object Method {
-    val withAssertion: Method[Any] = Method[Any]("withAssertion")
+    def apply[T: c.WeakTypeTag](name: String, hasArgs: Boolean = false, isRecursive: Boolean = false) =
+      new Method[T](name, name, hasArgs, isRecursive)
 
-    val containsIterable: Method[Iterable[_]] = Method[Iterable[_]]("contains")
-    val containsString: Method[String]        = Method[String]("contains")
+    case class Matcher(assertion: c.Tree, renderContext: RenderContext) {
+      def unapply(expr: c.Tree): Option[(c.Tree, c.Tree)] = {
+        val result = Method.methods.find { value =>
+          value.use(assertion, renderContext).isDefinedAt(expr)
+        }.flatMap(_.use(assertion, renderContext).lift(expr))
 
-    val startsWithSeq: Method[Seq[_]]    = Method[Seq[_]]("startsWith")
-    val startsWithString: Method[String] = Method[String]("startsWith")
-    val endsWithSeq: Method[Seq[_]]      = Method[Seq[_]]("endsWith")
-    val endsWithString: Method[String]   = Method[String]("endsWith")
+        result
+      }
+    }
 
-    val hasAt: Method[Seq[_]] = Method[Seq[_]]("apply")
+    lazy val withAssertion: Method[AssertionOps[_]] = Method[AssertionOps[_]]("withAssertion", true, false)
 
-    val isEmpty: Method[Iterable[_]]   = Method[Iterable[_]]("isEmpty")
-    val nonEmpty: Method[Iterable[_]]  = Method[Iterable[_]]("nonEmpty")
-    val head: Method[Iterable[_]]      = Method[Iterable[_]]("head")
-    val length: Method[Iterable[_]]    = Method[Iterable[_]]("length")
-    val intersect: Method[Iterable[_]] = Method[Iterable[_]]("intersect")
+    lazy val containsIterable: Method[Iterable[_]] = Method[Iterable[_]]("contains", true, false)
+    lazy val containsString: Method[String]        = Method[String]("contains", "containsString", true, false)
+
+    lazy val startsWithSeq: Method[Seq[_]]    = Method[Seq[_]]("startsWith", true, false)
+    lazy val startsWithString: Method[String] = Method[String]("startsWith", "startsWithString", true, false)
+    lazy val endsWithSeq: Method[Seq[_]]      = Method[Seq[_]]("endsWith", true, false)
+    lazy val endsWithString: Method[String]   = Method[String]("endsWith", "endsWithString", true, false)
+
+    lazy val hasAt: Method[Seq[_]] = Method[Seq[_]]("apply", "hasAt", true, true)
+
+    lazy val isEmpty: Method[Iterable[_]] =
+      Method[Iterable[_]]("isEmpty", false, false)
+
+    lazy val nonEmpty: Method[Iterable[_]] =
+      Method[Iterable[_]]("nonEmpty", "isNonEmpty", false, false)
+
+    lazy val head: Method[Iterable[_]] =
+      Method[Iterable[_]]("head", "hasFirst", false, true)
+
+    lazy val get: Method[Option[_]] =
+      Method[Option[_]]("get", "isSome", false, true)
+
+    lazy val length: Method[Iterable[_]] =
+      Method[Iterable[_]]("length", "hasSize", false, true)
+
+    lazy val intersect: Method[Iterable[_]] =
+      Method[Iterable[_]]("intersect", "hasIntersection", true, true)
+
+    lazy val methods: List[Method[_]] =
+      List(
+        length,
+        withAssertion,
+        containsString,
+        containsIterable,
+        startsWithSeq,
+        startsWithString,
+        endsWithSeq,
+        endsWithString,
+        hasAt,
+        isEmpty,
+        nonEmpty,
+        head,
+        intersect
+      )
   }
 
   object MethodCall {
@@ -258,20 +298,24 @@ class SmartAssertMacros(val c: blackbox.Context) {
       }
 
     @tailrec
-    def isConstructor(tree: c.Tree): Boolean =
+    def isConstructor(tree: c.Tree, depth: Int = 2): Boolean =
       tree match {
         case x: Select if x.symbol.isModule => true
         // Matches Case Class constructors
         case x: Select if x.symbol.isSynthetic => true
-        case Select(s, _)                      => isConstructor(s)
+        case q"$s.apply" if depth > 0          => isConstructor(s, depth - 1)
+        case Select(s, _) if depth > 0         => isConstructor(s, depth - 1)
         case TypeApply(s, _)                   => isConstructor(s)
         case Apply(s, _)                       => isConstructor(s)
         case _                                 => false
       }
   }
 
-  private def makeApplyAssertion(assertion: c.Tree, lhs: c.Tree, name: TermName, args: Seq[c.Tree]) = {
-    val tpe        = lhs.tpe.finalResultType.widen
+  private def makeApplyAssertion(assertion: c.Tree, lhs: c.Tree, name: TermName, args: Seq[c.Tree]): c.Tree = {
+    val tpe = lhs match {
+      case q"$lhs($rhs)" if lhs.symbol.isImplicit => rhs.tpe.widen.finalResultType.widen
+      case _                                      => lhs.tpe.widen.finalResultType.widen
+    }
     val nameString = name.toString
 
     val select       = q"((a: $tpe) => a.${TermName(nameString)}(..$args))"
@@ -279,4 +323,30 @@ class SmartAssertMacros(val c: blackbox.Context) {
     val newAssertion = q"$Assertion.hasField($applyString, $select, $assertion)"
     newAssertion
   }
+
+  // Pilfered (with immense gratitude & minor modifications)
+  // from https://github.com/com-lihaoyi/sourcecode
+  private def text[T: c.WeakTypeTag](tree: c.Tree): (Int, Int, String) = {
+    val fileContent = new String(tree.pos.source.content)
+    var start = tree.collect { case treeVal =>
+      treeVal.pos match {
+        case NoPosition => Int.MaxValue
+        case p          => p.startOrPoint
+      }
+    }.min
+    val initialStart = start
+
+    // Moves to the true beginning of the expression, in the case where the
+    // internal expression is wrapped in parens.
+    while ((start - 2) >= 0 && fileContent(start - 2) == '(') {
+      start -= 1
+    }
+
+    val g      = c.asInstanceOf[reflect.macros.runtime.Context].global
+    val parser = g.newUnitParser(fileContent.drop(start))
+    parser.expr()
+    val end = parser.in.lastOffset
+    (initialStart - start, start, fileContent.slice(start, start + end))
+  }
+
 }

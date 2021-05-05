@@ -185,7 +185,7 @@ case class RenderedResult[T](caseType: CaseType, label: String, status: Status, 
       case (Ignored, _) => that
       case (_, Ignored) => self
       case (Failed, Failed) =>
-        self.copy(rendered = self.rendered ++ Seq("").asInstanceOf[Seq[T]] ++ that.rendered.tail)
+        self.copy(rendered = self.rendered ++ that.rendered.tail)
       case (Passed, _) => that
       case (_, Passed) => self
     }
@@ -194,7 +194,7 @@ case class RenderedResult[T](caseType: CaseType, label: String, status: Status, 
     (self.status, that.status) match {
       case (Ignored, _)     => that
       case (_, Ignored)     => self
-      case (Failed, Failed) => self.copy(rendered = self.rendered ++ Seq("").asInstanceOf[Seq[T]] ++ that.rendered.tail)
+      case (Failed, Failed) => self.copy(rendered = self.rendered ++ that.rendered.tail)
       case (Passed, _)      => self
       case (_, Passed)      => that
     }
@@ -223,13 +223,13 @@ object FailureRenderer {
 
   object FailureMessage {
     case class Message(lines: Vector[Line] = Vector.empty) {
-      def +:(fragment: Fragment) = Message(lines match {
+      def +:(fragment: Fragment): Message = Message(lines match {
         case line +: lines => (fragment +: line) +: lines
         case _             => Vector(fragment.toLine)
       })
-      def +:(line: Line)                   = Message(line +: lines)
-      def :+(line: Line)                   = Message(lines :+ line)
-      def ++(message: Message)             = Message(lines ++ message.lines)
+      def +:(line: Line): Message          = Message(line +: lines)
+      def :+(line: Line): Message          = Message(lines :+ line)
+      def ++(message: Message): Message    = Message(lines ++ message.lines)
       def drop(n: Int): Message            = Message(lines.drop(n))
       def map(f: Line => Line): Message    = Message(lines = lines.map(f))
       def withOffset(offset: Int): Message = Message(lines.map(_.withOffset(offset)))
@@ -240,12 +240,12 @@ object FailureRenderer {
       val empty: Message                   = Message()
     }
     case class Line(fragments: Vector[Fragment] = Vector.empty, offset: Int = 0) {
-      def +:(fragment: Fragment)             = Line(fragment +: fragments)
-      def :+(fragment: Fragment)             = Line(fragments :+ fragment)
-      def +(fragment: Fragment)              = Line(fragments :+ fragment)
+      def +:(fragment: Fragment): Line       = Line(fragment +: fragments)
+      def :+(fragment: Fragment): Line       = Line(fragments :+ fragment)
+      def +(fragment: Fragment): Line        = Line(fragments :+ fragment)
       def prepend(message: Message): Message = Message(this +: message.lines)
-      def +(line: Line)                      = Message(Vector(this, line))
-      def ++(line: Line)                     = copy(fragments = fragments ++ line.fragments)
+      def +(line: Line): Message             = Message(Vector(this, line))
+      def ++(line: Line): Line               = copy(fragments = fragments ++ line.fragments)
       def withOffset(shift: Int): Line       = copy(offset = offset + shift)
       def toMessage: Message                 = Message(Vector(this))
     }
@@ -254,9 +254,9 @@ object FailureRenderer {
       val empty: Line                                     = Line()
     }
     case class Fragment(text: String, ansiColorCode: String = "") {
-      def +:(line: Line)            = prepend(line)
+      def +:(line: Line): Line      = prepend(line)
       def prepend(line: Line): Line = Line(this +: line.fragments, line.offset)
-      def +(f: Fragment)            = Line(Vector(this, f))
+      def +(f: Fragment): Line      = Line(Vector(this, f))
       def toLine: Line              = Line(Vector(this))
     }
   }
@@ -295,17 +295,23 @@ object FailureRenderer {
     offset: Int
   ): Message = {
 
+    val debug = failureDetails0.map { value =>
+      cyan(value.codeString).toLine + red(value.printAssertion).toLine ++ blue(
+        value.toString
+      ).toLine.toMessage
+    }.fold(Message.empty)(_ ++ _)
+
     val last           = failureDetails0.last
-    val failureDetails = failureDetails0.filterNot(_.renderField.toString == "not")
+    val failureDetails = failureDetails0.filterNot(_.codeString == "not")
     val head           = failureDetails.head
 
-    val context: Line =
-      highlight(bold(smartExpression), failureDetails.take(2).map(_.renderField.toString).reverse.mkString(""))
+    val highlighted   = failureDetails0.map(_.codeString).filterNot(_.isEmpty).take(1).reverse.mkString("")
+    val context: Line = highlight(bold(smartExpression), highlighted)
 
     val errorMessage: Message = red("› ") +: head.renderErrorMessage
 
     val lines = failureDetails.zip(failureDetails.tail).map { case (first, next) =>
-      dim(next.renderField.toString) + dim(" = ") + blue(first.value.toString)
+      dim(next.codeString) + dim(" = ") + blue(first.value.toString)
     }
 
     val finalExpression =
@@ -315,7 +321,12 @@ object FailureRenderer {
       if (last.expression.get.exists(Set('"', '.', ','))) lines
       else lines :+ finalExpression
 
-    (errorMessage ++ context.toMessage ++ (Message(allLines) ++ renderAssertionLocation(last, offset)))
+    (errorMessage ++ context.toMessage ++ (Message(
+      allLines
+    ) ++ renderAssertionLocation(
+      last,
+      offset
+    )) ++ Message(""))
       .withOffset(offset + tabSize)
   }
 
@@ -324,7 +335,7 @@ object FailureRenderer {
   def generateLabeledValues(failureDetails: ::[AssertionValue]): Unit = {
     val last = failureDetails.last
     failureDetails.zip(failureDetails.tail).foreach { case (first, next) =>
-      println((next.renderField, first.value))
+      println((next.codeString, first.value))
     }
     println((last.expression, last.value))
   }
@@ -390,7 +401,7 @@ object FailureRenderer {
     val start = text.indexOf(substring)
     val end   = start + substring.length
 
-    if (start > 0)
+    if (start >= 0)
       Fragment(text.take(start), fragment.ansiColorCode) +
         Fragment(text.slice(start, end), colorCode) +
         Fragment(text.drop(end), fragment.ansiColorCode)
@@ -543,12 +554,12 @@ object FailureRenderer {
   private def renderFailureLabel(label: String, offset: Int): Line =
     withOffset(offset)(red("- " + label).toLine)
 
-  def red(s: String): Fragment                                              = FailureMessage.Fragment(s, AnsiColor.RED)
-  def green(s: String): Fragment                                            = FailureMessage.Fragment(s, AnsiColor.GREEN)
-  def blue(s: String): Fragment                                             = FailureMessage.Fragment(s, AnsiColor.BLUE)
-  def bold(s: String): Fragment                                             = FailureMessage.Fragment(s, scala.Console.BOLD)
-  def cyan(s: String): Fragment                                             = FailureMessage.Fragment(s, AnsiColor.CYAN)
-  def dim(s: String): Fragment                                              = FailureMessage.Fragment(s, "\u001b[2m")
+  def red(s: String): Fragment                                    = FailureMessage.Fragment(s, AnsiColor.RED)
+  def green(s: String): Fragment                                  = FailureMessage.Fragment(s, AnsiColor.GREEN)
+  def blue(s: String): Fragment                                   = FailureMessage.Fragment(s, AnsiColor.BLUE)
+  def bold(s: String): Fragment                                   = FailureMessage.Fragment(s, scala.Console.BOLD)
+  def cyan(s: String): Fragment                                   = FailureMessage.Fragment(s, AnsiColor.CYAN)
+  def dim(s: String): Fragment                                    = FailureMessage.Fragment(s, "\u001b[2m")
   private def withOffset(i: Int)(line: FailureMessage.Line): Line = line.withOffset(i)
 
 }
