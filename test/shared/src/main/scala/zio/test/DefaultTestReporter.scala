@@ -291,27 +291,19 @@ object FailureRenderer {
 
   private def renderSmartAssertionFailureDetails(
     smartExpression: String,
-    failureDetails0: ::[AssertionValue],
+    failureDetails: ::[AssertionValue],
     offset: Int
   ): Message = {
-
-    val debug = failureDetails0.map { value =>
-      cyan(value.codeString).toLine + red(value.printAssertion).toLine ++ blue(
-        value.toString
-      ).toLine.toMessage
-    }.fold(Message.empty)(_ ++ _)
-
-    val last           = failureDetails0.last
-    val failureDetails = failureDetails0.filterNot(_.codeString == "not")
-    val head           = failureDetails.head
-
-    val highlighted   = failureDetails0.map(_.codeString).filterNot(_.isEmpty).take(1).reverse.mkString("")
-    val context: Line = highlight(bold(smartExpression), highlighted)
+    println(failureDetails.map(_.printAssertion).mkString("\n"))
+    val last = failureDetails.last
+    val head = failureDetails.head
+//    val highlighted   = failureDetails.map(_.codeString).filterNot(_.isEmpty).take(1).mkString("")
+    val context: Line = highlight(bold(smartExpression), head.codeString)
 
     val errorMessage: Message = red("› ") +: head.renderErrorMessage
 
     val lines = failureDetails.zip(failureDetails.tail).map { case (first, next) =>
-      dim(next.codeString) + dim(" = ") + blue(first.value.toString)
+      dim(next.codeString.trim.dropWhile(_ == ')')) + dim(" = ") + blue(first.value.toString)
     }
 
     val finalExpression =
@@ -555,6 +547,7 @@ object FailureRenderer {
     withOffset(offset)(red("- " + label).toLine)
 
   def red(s: String): Fragment                                    = FailureMessage.Fragment(s, AnsiColor.RED)
+  def magenta(s: String): Fragment                                = FailureMessage.Fragment(s, AnsiColor.MAGENTA)
   def green(s: String): Fragment                                  = FailureMessage.Fragment(s, AnsiColor.GREEN)
   def blue(s: String): Fragment                                   = FailureMessage.Fragment(s, AnsiColor.BLUE)
   def bold(s: String): Fragment                                   = FailureMessage.Fragment(s, scala.Console.BOLD)

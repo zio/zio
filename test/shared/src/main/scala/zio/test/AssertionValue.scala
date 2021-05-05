@@ -16,7 +16,8 @@
 
 package zio.test
 
-import zio.test.FailureRenderer.FailureMessage
+import zio.test.FailureRenderer.FailureMessage.{Fragment, Message}
+import zio.test.FailureRenderer.{FailureMessage, bold, red}
 
 /**
  * An `AssertionValue` keeps track of a assertion and a value, existentially
@@ -31,22 +32,34 @@ sealed abstract class AssertionValue {
   def sourceLocation: Option[String]
   protected def assertion: AssertionM[Value]
   def result: AssertResult
+  def error: Option[Throwable]
 
   def codeString: String =
     assertion.render.codeString
 
   def smartExpression: Option[String]
   def renderErrorMessage: FailureMessage.Message =
-    assertion.render.render(value, result.isSuccess)
+    error match {
+      case Some(value) =>
+        (red("ERROR: ") + bold(value.toString)).toMessage ++
+          Message(
+            value.getStackTrace
+              .takeWhile(!_.getClassName.startsWith("zio.test.Assertion"))
+              .map(line => Fragment(line.toString).toLine)
+          )
+      case None =>
+        assertion.render.render(value, result.isSuccess)
+    }
 
   def printAssertion: String = assertion.toString
   def label(string: String): AssertionValue =
-    AssertionValue(assertion.label(string), value, result, expression, sourceLocation)
+    AssertionValue(assertion.label(string), value, result, expression, sourceLocation, error = error)
   def sameAssertion(that: AssertionValue): Boolean = assertion == that.assertion
 
-  def negate: AssertionValue = AssertionValue(assertion.negate, value, !result, expression, sourceLocation)
+  def negate: AssertionValue =
+    AssertionValue(assertion.negate, value, !result, expression, sourceLocation, error = error)
   def withContext(expr: Option[String], sourceLocation: Option[String]): AssertionValue =
-    AssertionValue(assertion, value, result, expr, sourceLocation)
+    AssertionValue(assertion, value, result, expr, sourceLocation, error = error)
 }
 
 object AssertionValue {
@@ -56,7 +69,8 @@ object AssertionValue {
     result: => AssertResult,
     expression: Option[String] = None,
     smartExpression: Option[String] = None,
-    sourceLocation: Option[String] = None
+    sourceLocation: Option[String] = None,
+    error: Option[Throwable] = None
   ): AssertionValue = {
     def inner(
       assertion0: AssertionM[A],
@@ -64,7 +78,8 @@ object AssertionValue {
       result0: => AssertResult,
       expression0: Option[String],
       smartExpression0: Option[String],
-      sourceLocation0: Option[String]
+      sourceLocation0: Option[String],
+      error0: Option[Throwable] = None
     ) =
       new AssertionValue {
         type Value = A
@@ -74,7 +89,8 @@ object AssertionValue {
         override val expression: Option[String]      = expression0
         override val smartExpression: Option[String] = smartExpression0
         override val sourceLocation: Option[String]  = sourceLocation0
+        lazy val error: Option[Throwable]            = error0
       }
-    inner(assertion, value, result, expression, smartExpression, sourceLocation)
+    inner(assertion, value, result, expression, smartExpression, sourceLocation, error)
   }
 }

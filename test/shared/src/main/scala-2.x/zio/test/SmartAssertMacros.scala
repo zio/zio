@@ -121,7 +121,7 @@ class SmartAssertMacros(val c: blackbox.Context) {
     )
   }
 
-  @tailrec
+//  @tailrec
   private def generateAssertion(expr: c.Tree, assertion: c.Tree)(implicit
     renderContext: RenderContext
   ): (c.Tree, c.Tree) = {
@@ -132,7 +132,26 @@ class SmartAssertMacros(val c: blackbox.Context) {
       case q"$lhs($rhs)" if lhs.symbol.isImplicit =>
         generateAssertion(rhs, assertion)
       case Method.withAssertion(lhs, assertion) =>
-        generateAssertion(lhs, assertion)
+        val text         = renderContext.textAfter(expr, lhs)
+        val newAssertion = q"$assertion.withCode($text)"
+        generateAssertion(lhs, newAssertion)
+      // TODO: Add custom error message for `forall` and `exists`
+      case Method.exists(lhs, args) =>
+        val text         = renderContext.textAfter(expr, lhs)
+        val newAssertion = q"$Assertion.smartExists($args).withCode($text)"
+        generateAssertion(lhs, newAssertion)
+//      case Method.exists(lhs, args) =>
+//        val text = renderContext.textAfter(expr, lhs)
+//        val body = args match {
+//          case q"($a => $b)" => b
+//        }
+//        val (lhs2, nested) = generateAssertion(body, assertion)
+//        println("____")
+//        println(lhs2)
+//        println("____")
+//        println(nested)
+//        val newAssertion = q"$Assertion.exists($nested).withCode($text)"
+//        generateAssertion(lhs, newAssertion)
       case LensMatcher(lhs, newAssertion) =>
         generateAssertion(lhs, newAssertion)
       case Select(lhs, name) =>
@@ -193,6 +212,7 @@ class SmartAssertMacros(val c: blackbox.Context) {
       case expr @ self(lhs, args) =>
         val text              = renderContext.textAfter(expr, lhs)
         val assertionNameTree = TermName(assertionName)
+
         val newAssertion =
           (hasArgs, isRecursive) match {
             case (true, true)   => q"$Assertion.$assertionNameTree($args)($assertion).withCode($text)"
@@ -243,6 +263,9 @@ class SmartAssertMacros(val c: blackbox.Context) {
 
     lazy val hasAt: Method[Seq[_]] = Method[Seq[_]]("apply", "hasAt", true, true)
 
+    lazy val exists: Method[Iterable[_]] =
+      Method[Iterable[_]]("exists", false, true)
+
     lazy val isEmpty: Method[Iterable[_]] =
       Method[Iterable[_]]("isEmpty", false, false)
 
@@ -255,6 +278,9 @@ class SmartAssertMacros(val c: blackbox.Context) {
     lazy val get: Method[Option[_]] =
       Method[Option[_]]("get", "isSome", false, true)
 
+    lazy val rightGet: Method[Either[_, _]] =
+      Method[Either[_, _]]("right.get", "isRight", false, true)
+
     lazy val length: Method[Iterable[_]] =
       Method[Iterable[_]]("length", "hasSize", false, true)
 
@@ -263,6 +289,8 @@ class SmartAssertMacros(val c: blackbox.Context) {
 
     lazy val methods: List[Method[_]] =
       List(
+        get,
+        rightGet,
         length,
         withAssertion,
         containsString,

@@ -1,40 +1,43 @@
 package zio.test
 
 import zio.test.FailureRenderer.FailureMessage.{Line, Message}
-import zio.test.FailureRenderer.{blue, green, red}
+import zio.test.FailureRenderer.{blue, green, magenta, red}
 
 import scala.language.implicitConversions
 
 object MessageDesc {
-  val result: MessageDesc                                   = Result
-  def choice(success: String, failure: String): MessageDesc = Choice(success, failure)
-  def text(string: String): MessageDesc                     = choice(string, string)
-  def value[A](value: A): MessageDesc                       = Value(value)
 
-  val is: MessageDesc   = choice("is", "is not")
-  val does: MessageDesc = choice("does", "does not")
-  val did: MessageDesc  = choice("did", "did not")
-  val was: MessageDesc  = choice("was", "was not")
+  val result: MessageDesc[Any]                                   = Result(_.toString)
+  def result[A](render: A => String): MessageDesc[A]             = Result(render)
+  def choice(success: String, failure: String): MessageDesc[Any] = Choice(success, failure)
+  def text(string: String): MessageDesc[Any]                     = choice(string, string)
+  def value(value: Any): MessageDesc[Any]                        = Value(value)
 
-  implicit def messageDesc2Render[A](messageDesc: MessageDesc): (A, Boolean) => Message = messageDesc.render
+  val is: MessageDesc[Any]    = choice("is", "is not")
+  val does: MessageDesc[Any]  = choice("does", "does not")
+  val did: MessageDesc[Any]   = choice("did", "did not")
+  val was: MessageDesc[Any]   = choice("was", "was not")
+  val valid: MessageDesc[Any] = choice("Valid", "Invalid")
 
-  private final case object Result                                     extends MessageDesc
-  private final case class Choice(success: String, failure: String)    extends MessageDesc
-  private final case class Value[A](value: A)                          extends MessageDesc
-  private final case class Combine(lhs: MessageDesc, rhs: MessageDesc) extends MessageDesc
+  implicit def messageDesc2Render[A](messageDesc: MessageDesc[A]): (A, Boolean) => Message = messageDesc.render
+
+  private final case class Result[-A](render: A => String)                       extends MessageDesc[A]
+  private final case class Choice[-A](success: String, failure: String)          extends MessageDesc[A]
+  private final case class Value(value: Any)                                     extends MessageDesc[Any]
+  private final case class Combine[-A](lhs: MessageDesc[A], rhs: MessageDesc[A]) extends MessageDesc[A]
 }
 
-sealed trait MessageDesc { self =>
-  def +(that: MessageDesc): MessageDesc = MessageDesc.Combine(self, that)
-  def +(that: String): MessageDesc      = MessageDesc.Combine(self, MessageDesc.text(that))
+sealed trait MessageDesc[-A] { self =>
+  def +[A1 <: A](that: MessageDesc[A1]): MessageDesc[A1] = MessageDesc.Combine(self, that)
+  def +(that: String): MessageDesc[A]                    = MessageDesc.Combine(self, MessageDesc.text(that))
 
-  def render[A](a: A, isSuccess: Boolean): Message = renderLine(a, isSuccess).toMessage
+  def render(a: A, isSuccess: Boolean): Message = renderLine(a, isSuccess).toMessage
 
-  private def renderLine[A](a: A, isSuccess: Boolean): Line =
+  private def renderLine(a: A, isSuccess: Boolean): Line =
     self match {
-      case MessageDesc.Result => blue(a.toString).toLine
+      case MessageDesc.Result(f) => blue(f(a)).toLine
       case MessageDesc.Choice(success, failure) =>
-        if (isSuccess) green(success).toLine
+        if (isSuccess) magenta(success).toLine
         else red(failure).toLine
       case MessageDesc.Value(value) => blue(value.toString).toLine
       case MessageDesc.Combine(lhs, rhs) =>

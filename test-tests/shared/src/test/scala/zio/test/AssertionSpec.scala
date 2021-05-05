@@ -2,8 +2,8 @@ package zio.test
 
 import zio.test.Assertion._
 import zio.test.TestAspect._
-import zio.{Chunk, Exit}
 import zio.test.{MessageDesc => M}
+import zio.{Chunk, Exit}
 
 import scala.collection.immutable.SortedSet
 import scala.util.{Failure, Success}

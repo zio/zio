@@ -71,7 +71,7 @@ abstract class DefaultRunnableSpec extends RunnableSpec[TestEnvironment, Any] {
 }
 
 object AssertionSyntax {
-  implicit final class AssertionOps[A](val self: A) extends AnyVal {
+  implicit final class AssertionOps[A](private val self: A) extends AnyVal {
     def withAssertion(assertion: Assertion[A]): Boolean =
       assertion.test(self)
   }

@@ -18,7 +18,7 @@ package zio.test
 
 import zio.test.Assertion.Render._
 import zio.test.FailureRenderer.FailureMessage.{Fragment, Message}
-import zio.test.FailureRenderer.{blue, red}
+import zio.test.FailureRenderer.{blue, green, magenta, red}
 
 trait AssertionVariants {
 
@@ -32,7 +32,8 @@ trait AssertionVariants {
       (b, success) =>
         diff.value match {
           case Some(diff) if !success => diff.diff(b, expected)
-          case _                      => (blue(b.toString) + red(if (success) " == " else " != ") + blue(expected.toString)).toMessage
+          case _ =>
+            (blue(b.toString) + (if (success) magenta(" == ") else red(" != ")) + blue(expected.toString)).toMessage
         }
     )(param(expected)) { actual =>
       (actual, expected) match {

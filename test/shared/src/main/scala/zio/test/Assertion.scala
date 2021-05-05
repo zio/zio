@@ -18,11 +18,11 @@ package zio.test
 
 import zio.test.AssertionM.RenderParam
 import zio.test.FailureRenderer.FailureMessage.Message
+import zio.test.{MessageDesc => M}
 import zio.{Cause, Exit, ZIO}
 
 import scala.reflect.ClassTag
 import scala.util.{Failure, Success, Try}
-import zio.test.{MessageDesc => M}
 
 /**
  * An `Assertion[A]` is capable of producing assertion results on an `A`. As a
@@ -109,7 +109,7 @@ final class Assertion[-A] private (
   override def toString: String =
     render.toString
 
-  override def withCode(code: String, args: String*): Assertion[A] =
+  override def withCode(code: String): Assertion[A] =
     new Assertion(render.withCode(code), run)
 }
 
@@ -172,13 +172,19 @@ object Assertion extends AssertionVariants {
       lazy val tryA = Try(a)
       get(tryA.get) match {
         case Some(b) =>
-          val innerResult = assertion.run(b)
-          lazy val result: AssertResult =
-            if (innerResult.isSuccess) BoolAlgebra.success(AssertionValue(resultAssertion, tryA.get, result))
-            else BoolAlgebra.failure(AssertionValue(assertion, b, innerResult))
-          result
+          Try(assertion.run(b)) match {
+            case Success(innerResult) =>
+              lazy val result: AssertResult =
+                if (innerResult.isSuccess) BoolAlgebra.success(AssertionValue(resultAssertion, tryA.get, result))
+                else BoolAlgebra.failure(AssertionValue(assertion, b, innerResult))
+              result
+            case Failure(exception) =>
+              lazy val result =
+                AssertionData(assertion, ().asInstanceOf[B], Some(exception)).asFailure
+              result
+          }
         case None =>
-          orElse(AssertionData(resultAssertion, tryA.get))
+          orElse(AssertionData(resultAssertion, tryA.get, None))
       }
     }
     resultAssertion
@@ -190,7 +196,7 @@ object Assertion extends AssertionVariants {
   def approximatelyEquals[A: Numeric](reference: A, tolerance: A): Assertion[A] =
     Assertion.assertion[A](
       "approximatelyEquals",
-      M.result + M.does + "approximately equal" + M.value(reference) + "with tolerance" + M.value(tolerance)
+      M.result + M.does + "equal" + M.value(reference) + "with a tolerance of" + M.value(tolerance)
     )(param(reference), param(tolerance)) { actual =>
       val referenceType = implicitly[Numeric[A]]
       val max           = referenceType.plus(reference, tolerance)
@@ -292,9 +298,21 @@ object Assertion extends AssertionVariants {
    * to contain a given element.
    */
   def exists[A](assertion: Assertion[A]): Assertion[Iterable[A]] =
-    Assertion.assertionRec[Iterable[A], A]("exists", M.result + M.does + "exist")(param(assertion))(assertion)(
+    Assertion.assertionRec[Iterable[A], A](
+      "exists",
+//      M.result + M.does + "exist"
+      M.result + M.does + "not exist" + M.text(assertion.toString)
+//      assertion.render.render(_, _)
+    )(param(assertion))(assertion)(
       _.find(assertion.test)
     )
+
+  def smartExists[A](f: A => Boolean): Assertion[Iterable[A]] =
+    Assertion.assertion(
+      "exists",
+      M.choice("At least one", "No") + "element in the" +
+        M.result[Iterable[A]](_.toString.takeWhile(_ != '(')) + "satisfies the predicate"
+    )()(_.exists(f))
 
   /**
    * Makes a new assertion that requires an exit value to fail.
@@ -337,13 +355,19 @@ object Assertion extends AssertionVariants {
       M.result + M.does + "have the same distinct elements as" + M.value(other)
     )(param(other))(actual => actual.toSet == other.toSet)
 
+  def ord(n: Int): String = n + { if (n % 100 / 10 == 1) "th" else (("thstndrd" + "th" * 6).sliding(2, 2).toSeq(n % 10)) }
+
   /**
    * Makes a new assertion that requires a sequence to contain an element
    * satisfying the given assertion on the given position
    */
   def hasAt[A](pos: Int)(assertion: Assertion[A]): Assertion[Seq[A]] =
     Assertion
-      .assertionRec[Seq[A], A]("hasAt", M.result + M.does + "have position" + M.value(pos))(
+      .assertionRec[Seq[A], A](
+        "hasAt",
+        M.valid + "index" + M.value(pos) + "for" + M.result[Seq[A]](_.toString.takeWhile(_ != '(')) + "of size" + M
+          .result[Seq[A]](_.length.toString)
+      )(
         param(pos),
         param(assertion)
       )(assertion) { actual =>
@@ -392,7 +416,11 @@ object Assertion extends AssertionVariants {
    * element satisfying the given assertion.
    */
   def hasFirst[A](assertion: Assertion[A]): Assertion[Iterable[A]] =
-    Assertion.assertionRec[Iterable[A], A]("hasFirst", M.result + M.does + "have a first element")(param(assertion))(
+    Assertion.assertionRec[Iterable[A], A](
+      "hasFirst",
+      M.result +
+        M.choice("has at least one element", "is empty")
+    )(param(assertion))(
       assertion
     )(actual => actual.headOption)
 
@@ -773,7 +801,7 @@ object Assertion extends AssertionVariants {
    * assertion.
    */
   def isSome[A](assertion: Assertion[A]): Assertion[Option[A]] =
-    Assertion.assertionRec[Option[A], A]("isSome", M.result + M.is + "an instance of Some")(param(assertion))(
+    Assertion.assertionRec[Option[A], A]("isSome", M.result + M.is + "Some")(param(assertion))(
       assertion
     )(
       identity(_)
@@ -846,7 +874,11 @@ object Assertion extends AssertionVariants {
    * Makes a new assertion that requires a value be true.
    */
   def isTrue: Assertion[Boolean] =
-    Assertion.assertion[Boolean]("isTrue", M.result + M.is + M.value(true))()(identity(_))
+    Assertion.assertion[Boolean](
+      "isTrue",
+//      M.result + M.is + M.value(true)
+      M.choice("Was true", "Was false")
+    )()(identity(_))
 
   /**
    * Makes a new assertion that requires the value be unit.
@@ -897,7 +929,7 @@ object Assertion extends AssertionVariants {
       .withCode(assertion.render.codeString)
 
   private def smartNot[A](assertion: Assertion[A]): Assertion[A] =
-    new Assertion(assertion.render, !assertion.run(_))
+    new Assertion(assertion.render.negate, !assertion.run(_))
 
   /**
    * Makes a new assertion that always fails.

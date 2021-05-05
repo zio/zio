@@ -87,7 +87,7 @@ abstract class AssertionM[-A] { self =>
   override def toString: String =
     render.toString
 
-  def withCode(code: String, args: String*): AssertionM[A] =
+  def withCode(code: String): AssertionM[A] =
     AssertionM(render.withCode(code), runM)
 }
 
@@ -104,13 +104,17 @@ object AssertionM {
    * to the assertion combinator for pretty-printing.
    */
   sealed abstract class Render[-A] {
+    def negate: Assertion.Render[A] = this match {
+      case Smart(renderErrorMessage, lensRender, code) =>
+        Smart((a: A, b: Boolean) => renderErrorMessage(a, !b), lensRender, code)
+    }
 
     def render(result: A, isSuccess: Boolean): FailureMessage.Message = this match {
-      case Smart(renderErrorMessage, lensRender, _) => renderErrorMessage(result, isSuccess)
+      case Smart(renderErrorMessage, _, _) => renderErrorMessage(result, isSuccess)
     }
 
     override final def toString: String = this match {
-      case Smart(renderErrorMessage, lensRender, field) => lensRender.toString
+      case Smart(_, lensRender, _) => lensRender.toString
     }
 
     def withCode(code: String): Render[A] =
@@ -121,7 +125,7 @@ object AssertionM {
 
     def codeString: String =
       this match {
-        case Smart(_, lensRender, code) => code.getOrElse("<NO CODE>")
+        case Smart(_, _, code) => code.getOrElse("<NO CODE>")
       }
 
   }
