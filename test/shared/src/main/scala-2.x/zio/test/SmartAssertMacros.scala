@@ -27,6 +27,9 @@ class SmartAssertMacros(val c: blackbox.Context) {
       case other               => (List.empty, other)
     }
 
+    println("RAW")
+    println(showRaw(expr))
+
     val (delta, start, codeString) = text(expr0)
     implicit val renderContext: RenderContext =
       RenderContext(codeString, start).shift(-delta, delta)
@@ -326,17 +329,20 @@ class SmartAssertMacros(val c: blackbox.Context) {
       }
 
     @tailrec
-    def isConstructor(tree: c.Tree, depth: Int = 2): Boolean =
+    def isConstructor(tree: c.Tree): Boolean = {
+      println(s"HEY $tree")
+      println(showRaw(tree))
+
       tree match {
-        case x: Select if x.symbol.isModule => true
-        // Matches Case Class constructors
-        case x: Select if x.symbol.isSynthetic => true
-        case q"$s.apply" if depth > 0          => isConstructor(s, depth - 1)
-        case Select(s, _) if depth > 0         => isConstructor(s, depth - 1)
-        case TypeApply(s, _)                   => isConstructor(s)
-        case Apply(s, _)                       => isConstructor(s)
-        case _                                 => false
+        case Select(Select(s, _), TermName("apply")) if s.symbol.isModule || s.symbol.isSynthetic || s.symbol.isClass =>
+          true
+        case Select(s, TermName("apply")) if s.symbol.isModule || s.symbol.isSynthetic || s.symbol.isClass => true
+
+        case TypeApply(s, _) => isConstructor(s)
+        case Apply(s, _)     => isConstructor(s)
+        case _               => false
       }
+    }
   }
 
   private def makeApplyAssertion(assertion: c.Tree, lhs: c.Tree, name: TermName, args: Seq[c.Tree]): c.Tree = {

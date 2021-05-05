@@ -355,7 +355,9 @@ object Assertion extends AssertionVariants {
       M.result + M.does + "have the same distinct elements as" + M.value(other)
     )(param(other))(actual => actual.toSet == other.toSet)
 
-  def ord(n: Int): String = n + { if (n % 100 / 10 == 1) "th" else (("thstndrd" + "th" * 6).sliding(2, 2).toSeq(n % 10)) }
+  def ord(n: Int): String = n + {
+    if (n % 100 / 10 == 1) "th" else (("thstndrd" + "th" * 6).sliding(2, 2).toSeq(n % 10))
+  }
 
   /**
    * Makes a new assertion that requires a sequence to contain an element

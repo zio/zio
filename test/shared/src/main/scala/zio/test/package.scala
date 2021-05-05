@@ -164,10 +164,29 @@ package object test extends CompileVariants {
     sourceLocation: Option[String] = None
   )(
     assertion: Assertion[A]
-  ): TestResult = {
-    lazy val tryValue = Try(value)
-    traverseResult(tryValue.get, assertion.run(tryValue.get), assertion, expression, smartExpression, sourceLocation)
-  }
+  ): TestResult =
+    try {
+      lazy val tryValue = Try(value)
+      traverseResult(tryValue.get, assertion.run(tryValue.get), assertion, expression, smartExpression, sourceLocation)
+    } catch {
+      case (e: Throwable) =>
+        BoolAlgebra.failure(
+          FailureDetails(
+            ::(
+              AssertionValue(
+                assertion,
+                ().asInstanceOf[A],
+                AssertionData(assertion, ().asInstanceOf[A], Some(e)).asFailure,
+                expression = expression,
+                smartExpression = smartExpression,
+                sourceLocation = sourceLocation,
+                error = Some(e)
+              ),
+              List.empty
+            )
+          )
+        )
+    }
 
   /**
    * Asserts that the given test was completed.
