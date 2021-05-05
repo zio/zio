@@ -759,7 +759,7 @@
 //      test("hasAt must fail when an index is outside of a sequence range") {
 //        assert(!(Seq(1, 2, 3)(2) == 3))
 //      }
-//    )
+//    ) @@ failing
 //
 //  trait Animal
 //

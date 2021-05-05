@@ -1,5 +1,7 @@
 package zio.test
 
+import zio.test.TestAspect.failing
+
 import java.time.LocalDateTime
 
 /**
@@ -47,8 +49,11 @@ object SmartAssertionSpec extends ZIOBaseSpec {
       val company = Company("Cool Company", List.empty)
       assert(company.users.head.posts.exists(_.title == "hi"))
     },
-    test("get") {
+    test("boolean method") {
       assert(company.users.head.posts.head.publishDate.isDefined)
+    },
+    test("boolean method with args") {
+      assert(company.users.head.posts.head.publishDate.contains(LocalDateTime.MAX))
     },
     test("right.get") {
       val myEither: Either[String, Int] = Left("string")
@@ -57,16 +62,26 @@ object SmartAssertionSpec extends ZIOBaseSpec {
     },
     test("string contains") {
       val myString = "something"
-      assert(myString.contains("nice"))
+      assert(myString.contains("aoseunth"))
     },
-    test("not equal") {
-      assert((List(10, 23, 8, 8) intersect List(23)).head + 31 == 3)
-    },
-    test("not equal") {
-      assert(Company("Niceeee", List.empty).name.isBlank)
-    },
-    test("array") {
-      assert(Array(1, 2, 3, 8).head == 3)
-    }
-  )
+    suite("referencing literals")(
+      test("List") {
+        assert((List(10, 23, 8, 8) intersect List(23)).head + 31 == 3)
+      },
+      test("Case Class") {
+        assert(Company("Niceeee", List.empty).name.contains("aoeu"))
+      },
+      test("Array") {
+        assert(Array(1, 2, 3, 9, 8).head == 3)
+      },
+      test("Object constructor") {
+        assert(zio.duration.Duration.fromNanos(1000) == zio.duration.Duration.Zero)
+      }
+    ),
+    suite("contains")(
+      test("Option") {
+        assert(company.users.head.posts.head.publishDate.contains(LocalDateTime.MAX))
+      }
+    )
+  ) // @@ failing
 }

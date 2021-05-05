@@ -238,6 +238,14 @@ object Assertion extends AssertionVariants {
       param(element)
     )(_.contains(element))
 
+  def containsOption[A](element: A): Assertion[Option[A]] =
+    Assertion.assertion[Option[A]](
+      "containsOption",
+      M.result + M.does + "contain" + M.value(element)
+    )(
+      param(element)
+    )(_.contains(element))
+
   /**
    * Makes a new assertion that requires an exit value to die.
    */

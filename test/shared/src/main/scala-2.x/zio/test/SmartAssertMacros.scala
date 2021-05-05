@@ -113,8 +113,14 @@ class SmartAssertMacros(val c: blackbox.Context) {
       case q"$lhs != $rhs" =>
         val text = renderContext.textAfter(expr, lhs)
         generateAssertion(lhs, negate(q"$Assertion.equalTo($rhs).withCode($text).smartNegate"))
-      case lhs =>
-        generateAssertion(lhs, negate(q"$Assertion.isTrue.withCode(${""})"))
+      case q"$lhs.$_" =>
+        val text = renderContext.textAfter(expr, lhs)
+        generateAssertion(expr, negate(q"$Assertion.isTrue.withCode($text)"))
+      case MethodCall(lhs, _, _) =>
+        val text = renderContext.textAfter(expr, lhs)
+        generateAssertion(expr, negate(q"$Assertion.isTrue.withCode($text)"))
+      case _ =>
+        generateAssertion(expr, negate(q"$Assertion.isTrue.withCode($text)"))
     }
 
     val targetCode = CleanCodePrinter.show(c)(target)
@@ -258,6 +264,8 @@ class SmartAssertMacros(val c: blackbox.Context) {
 
     lazy val containsIterable: Method[Iterable[_]] = Method[Iterable[_]]("contains", true, false)
     lazy val containsString: Method[String]        = Method[String]("contains", "containsString", true, false)
+    lazy val containsOption: Method[Option[_]] =
+      Method[Option[_]]("contains", "containsOption", true, false)
 
     lazy val startsWithSeq: Method[Seq[_]]    = Method[Seq[_]]("startsWith", true, false)
     lazy val startsWithString: Method[String] = Method[String]("startsWith", "startsWithString", true, false)
@@ -298,6 +306,7 @@ class SmartAssertMacros(val c: blackbox.Context) {
         withAssertion,
         containsString,
         containsIterable,
+        containsOption,
         startsWithSeq,
         startsWithString,
         endsWithSeq,
@@ -330,14 +339,19 @@ class SmartAssertMacros(val c: blackbox.Context) {
 
     @tailrec
     def isConstructor(tree: c.Tree): Boolean = {
+      println("")
       println(s"HEY $tree")
       println(showRaw(tree))
+      println(tree.symbol.isClass)
+      println("")
 
       tree match {
-        case Select(Select(s, _), TermName("apply")) if s.symbol.isModule || s.symbol.isSynthetic || s.symbol.isClass =>
+//        case Select(s, _) => false
+        case Select(Select(s, _), TermName("apply"))
+            if s.symbol.isModule || s.symbol.isSynthetic || s.symbol.isClass || s.symbol.isStatic =>
           true
-        case Select(s, TermName("apply")) if s.symbol.isModule || s.symbol.isSynthetic || s.symbol.isClass => true
-
+        case Select(s, _) if s.symbol.isModule || s.symbol.isSynthetic || s.symbol.isClass || s.symbol.isStatic =>
+          true
         case TypeApply(s, _) => isConstructor(s)
         case Apply(s, _)     => isConstructor(s)
         case _               => false
