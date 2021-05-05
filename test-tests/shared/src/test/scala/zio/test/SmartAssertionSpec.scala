@@ -81,6 +81,16 @@ object SmartAssertionSpec extends ZIOBaseSpec {
         assert(company.users.head.posts.head.publishDate.contains(LocalDateTime.MAX))
       }
     ),
+    suite("Either")(
+      test("right.get") {
+        val myEither: Either[String, Int] = Left("string")
+        assert(myEither.right.get + 1 > 11237)
+      },
+      test("toOption.get") {
+        val myEither: Either[String, Int] = Left("string")
+        assert(myEither.toOption.get + 1 > 11237)
+      }
+    ),
     suite("helpers")(
       test("as") {
         val someColor: Color = Red("hello")

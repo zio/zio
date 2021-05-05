@@ -1,11 +1,12 @@
 package zio.test
 
 import zio.test.AssertionSyntax.AssertionOps
+import zio.test.internal.Scala2MacroUtils
 
 import scala.annotation.tailrec
 import scala.reflect.macros.blackbox
 
-class SmartAssertMacros(val c: blackbox.Context) {
+class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
   import c.universe._
 
   private val Assertion = q"zio.test.Assertion"
@@ -130,16 +131,31 @@ class SmartAssertMacros(val c: blackbox.Context) {
     )
   }
 
-//  @tailrec
+  val Matchers = Cross.Matchers
+
+  //  @tailrec
   private def generateAssertion(expr: c.Tree, assertion: c.Tree)(implicit
     renderContext: RenderContext
   ): (c.Tree, c.Tree) = {
     val LensMatcher = Method.Matcher(assertion, renderContext)
 
+//    println(s"HEY $expr")
+//    println(s"HEY $assertion")
+//    println("---")
+
     expr match {
-      // Unwrap implicit conversions/classes
       case q"$lhs($rhs)" if lhs.symbol.isImplicit =>
         generateAssertion(rhs, assertion)
+      case expr @ q"${Matchers.leftGet(te)}" =>
+        val lhs          = te
+        val text         = renderContext.textAfter(expr, lhs)
+        val newAssertion = q"${Matchers.isLeft(assertion)}.withCode($text)"
+        generateAssertion(lhs, newAssertion)
+      case expr @ q"${Matchers.rightGet(te)}" =>
+        val lhs          = te
+        val text         = renderContext.textAfter(expr, lhs)
+        val newAssertion = q"${Matchers.isRight(assertion)}.withCode($text)"
+        generateAssertion(lhs, newAssertion)
       case Method.withAssertion(lhs, assertion) =>
         val text         = renderContext.textAfter(expr, lhs)
         val newAssertion = q"$assertion.withCode($text)"
@@ -352,13 +368,12 @@ class SmartAssertMacros(val c: blackbox.Context) {
       }
 
     @tailrec
-    def isConstructor(tree: c.Tree): Boolean = {
-      println("")
-      println(s"HEY $tree")
-      println(showRaw(tree))
-      println(tree.symbol.isClass)
-      println("")
-
+    def isConstructor(tree: c.Tree): Boolean =
+//      println("")
+//      println(s"HEY $tree")
+//      println(showRaw(tree))
+//      println(tree.symbol.isClass)
+//      println("")
       tree match {
         case Select(Literal(_), _) => false
         case Select(Select(s, _), TermName("apply"))
@@ -371,7 +386,6 @@ class SmartAssertMacros(val c: blackbox.Context) {
         case Apply(s, _)     => isConstructor(s)
         case _               => false
       }
-    }
   }
 
   private def makeApplyAssertion(assertion: c.Tree, lhs: c.Tree, name: TermName, args: Seq[c.Tree]): c.Tree = {

@@ -664,7 +664,7 @@ object Assertion extends AssertionVariants {
    * assertion.
    */
   def isLeft[A](assertion: Assertion[A]): Assertion[Either[A, Any]] =
-    Assertion.assertionRec[Either[A, Any], A]("isLeft", M.result + M.is + "an instance of Left")(param(assertion))(
+    Assertion.assertionRec[Either[A, Any], A]("isLeft", M.result + M.is + "Left")(param(assertion))(
       assertion
     ) {
       case Left(a)  => Some(a)
@@ -804,7 +804,7 @@ object Assertion extends AssertionVariants {
    * assertion.
    */
   def isRight[A](assertion: Assertion[A]): Assertion[Either[Any, A]] =
-    Assertion.assertionRec[Either[Any, A], A]("isRight", M.result + M.is + "an instance of Right")(param(assertion))(
+    Assertion.assertionRec[Either[Any, A], A]("isRight", M.result + M.is + "Right")(param(assertion))(
       assertion
     ) {
       case Right(a) => Some(a)
