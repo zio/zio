@@ -16,14 +16,8 @@ object LayerSpec extends DefaultRunnableSpec {
             @layer[Bar]
             class Foo(int: Int, string: String) extends Bar
             
-            trait Baz
-            
-            @layer[Baz]
-            class X extends Baz
-            
             object Test {
               val bar: ZLayer[Has[Int] with Has[String], Nothing, Has[Bar]] = Foo.layer
-              val baz: ZLayer[Any, Nothing, Has[Baz]] = X.layer
             }
           """
         })(isRight(anything))

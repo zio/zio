@@ -14,19 +14,16 @@ object LayerGenMacroTest extends DefaultRunnableSpec {
               import zio._
               
               trait Bar
-              trait Baz
-              trait Qux
               
-              final class Foo(int: Int, string: String) extends Bar with Baz with Qux
+              final class Foo(int: Int, string: String) extends Bar
+              
+              trait Baz
               
               final class X extends Baz
               
               object Test {
                 val bar: zio.ZLayer[Has[Int] with Has[String], Nothing, Has[Bar]] = 
                  ZLayer.fromConstructor[Foo, Bar]
-                
-                val qux: zio.ZLayer[Has[Int] with Has[String], Nothing, Has[Qux]] = 
-                 ZLayer.fromConstructor[Foo, Qux]
                   
                 val baz: ZLayer[Any, Nothing, Has[Baz]] = 
                  ZLayer.fromConstructor[X, Baz]
