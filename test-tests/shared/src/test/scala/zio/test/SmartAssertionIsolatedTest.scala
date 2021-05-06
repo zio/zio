@@ -33,13 +33,9 @@ object SmartAssertionIsolatedTest extends ZIOBaseSpec {
   val company: Company = Company("Ziverge", List(User("Bobo", List.tabulate(2)(n => Post(s"Post #$n")))))
 
   def spec: ZSpec[Environment, Failure] = suite("SmartAssertionSpec")(
-    // test("right.get") {
-    //   val myEither: Either[String, Int] = Right(12)
-    //   assert(myEither.swap.toOption.get + "!!!" startsWith "helaoeulaoeulo")
-    // },
     test("right.get") {
       val cool: Either[String, Int] = Right(1)
-      assert(cool.right.get == 3)
+      assert(cool.right.get == 7)
     }
   )
 

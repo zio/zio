@@ -62,9 +62,9 @@ trait CompileVariants {
 
   inline def assert[A](inline value: => A)(inline assertion: Assertion[A]): TestResult = ${Macros.assert_impl('value)('assertion)}
 
-  inline def assert(inline expr: => Boolean): TestResult = ${Macros.smartAssertSingle_impl('expr)}
+  inline def assert(inline expr: => Boolean): TestResult = ${SmartAssertMacros.smartAssertSingle('expr)}
 
-  inline def assert(inline expr: => Boolean, exprs: => Boolean*): TestResult = ${Macros.smartAssert_impl('expr, 'exprs)}
+  inline def assert(inline expr: => Boolean, exprs: => Boolean*): TestResult = ${SmartAssertMacros.smartAssert('expr, 'exprs)}
 
   inline def assertM[R, E, A](effect: ZIO[R, E, A])(assertion: AssertionM[A]): ZIO[R, E, TestResult] = ${Macros.assertM_impl('effect)('assertion)}
 

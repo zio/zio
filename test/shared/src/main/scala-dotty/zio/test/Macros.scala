@@ -20,9 +20,100 @@ import zio.{UIO, ZIO}
 import zio.test.internal.CrossVersionSmartAssertionMacroUtils
 import scala.quoted._
 
+object SmartAssertMacros {
+  def smartAssertSingle(expr: Expr[Boolean])(using ctx: Quotes): Expr[TestResult] =
+    new SmartAssertMacros(ctx).smartAssertSingle_impl(expr)
+
+  def smartAssert(expr: Expr[Boolean], exprs: Expr[Seq[Boolean]])(using ctx: Quotes): Expr[TestResult] =
+    new SmartAssertMacros(ctx).smartAssert_impl(expr, exprs)
+}
+
+class SmartAssertMacros(val ctx: Quotes) extends Scala3 {
+  given Quotes = ctx
+  import quotes.reflect._
+
+  // inline def assert[A](inline value: => A)(inline assertion: Assertion[A]): TestResult = ${Macros.assert_impl('value)('assertion)}
+  def smartAssertSingle_impl(value: Expr[Boolean]): Expr[TestResult] = {
+    import quotes.reflect._
+    println("SINGLE")
+    println(value.show)
+
+
+    val (path, line) = Macros.location(ctx)
+    val code = Macros.showExpr(value)
+    val srcLocation = s"$path:$line"
+
+    val (lhs, assertion) = generateAssertion(value.asTerm, '{zio.test.Assertion.isTrue}.asTerm)
+
+    val result = lhs.tpe.widen.asType match {
+      case '[a] => 
+        '{_root_.zio.test.CompileVariants.smartAssertProxy(${lhs.asExprOf[a]}, ${Expr(code)}, ${Expr(code)}, ${Expr(srcLocation)})(${assertion.asExprOf[Assertion[a]]})}
+    }
+
+    println(result.show)
+    result
+  }
+
+  object Unseal {
+    def unapply(expr: Expr[_]): Option[Term] = Some(expr.asTerm)
+  }
+
+  def generateAssertion(expr: Term, assertion: Term): (Term, Term) = {
+
+
+    val M = Cross.Matchers
+    val rightGet = M.rightGet
+    println("RECURSING")
+    println(expr.show)
+    println(assertion.show)
+    println(Macros.showExpr(expr.asExpr))
+    println("")
+
+    expr match {
+      case Inlined(_, _, lhs) => generateAssertion(lhs, assertion)
+      case rightGet(lhs) => 
+        println(lhs)
+        // throw new Error("GREAT SUCCESS!")
+        (expr, assertion)
+
+      case app @ Apply(s @ Select(lhs, ident), args) => 
+        val lhsText = Macros.showExpr(lhs.asExpr)
+        val rhsText = Macros.showExpr(expr.asExpr)
+        val text = rhsText.drop(lhsText.length)
+
+
+        val newAssertion = (lhs.tpe.widen.asType, app.tpe.widen.asType) match {
+          case ('[a], '[b]) =>
+            val select = '{(x: a) => ${Apply(Select.copy(s)('x.asTerm, ident), args).asExprOf[b]}}
+           '{
+zio.test.Assertion.hasField[a,b](${Expr(ident)}, ${select.asExprOf[a => b]}, ${assertion.asExprOf[Assertion[b]]}.withCode(${Expr(text)})).withCode(${Expr(text)})
+  }
+        }
+
+        generateAssertion(lhs, newAssertion.asTerm)
+      case _ => (expr, assertion)
+    }
+  }
+
+  // inline def assert[A](inline value: => A)(inline assertion: Assertion[A]): TestResult = ${Macros.assert_impl('value)('assertion)}
+  def smartAssert_impl(value: Expr[Boolean], values: Expr[Seq[Boolean]]): Expr[TestResult] = {
+    import quotes.reflect._
+
+    val term = value.asTerm
+    val treeType = Cross.getTreeType(term)
+    println("HOWDY")
+    println(treeType)
+
+    val (path, line) = Macros.location(ctx)
+    val code = Macros.showExpr(value)
+    val srcLocation = s"$path:$line"
+    '{_root_.zio.test.CompileVariants.smartAssertProxy($value, ${Expr(code)}, ${Expr(code)}, ${Expr(srcLocation)})(_root_.zio.test.Assertion.isTrue)}
+  }
+}
+
 object Macros {
 
-  private def location(ctx: Quotes): (String, Int) = {
+  def location(ctx: Quotes): (String, Int) = {
     import ctx.reflect._
     val path = Position.ofMacroExpansion.sourceFile.jpath.toString
     val line = Position.ofMacroExpansion.startLine + 1
@@ -46,107 +137,8 @@ object Macros {
     '{_root_.zio.test.CompileVariants.assertProxy($value, ${Expr(code)}, ${Expr(srcLocation)})($assertion)}
   }
 
-  // inline def assert[A](inline value: => A)(inline assertion: Assertion[A]): TestResult = ${Macros.assert_impl('value)('assertion)}
-  def smartAssertSingle_impl(value: Expr[Boolean])(using ctx0: Quotes): Expr[TestResult] = {
-    import quotes.reflect._
 
-    println("SINGLE")
-    println(value.show)
-
-    generateAssertion(value.asTerm, '{zio.test.Assertion.isTrue}.asTerm)
-
-    // value match {
-    //               // Inlined(_, _, Apply(Select(Select(Select(Ident(cool),right),get),_),_))
-    //   case Unseal(Inlined(_, _, Apply(Select(rightGet(expr), _), rhs))) => 
-    //     println("HUZZAH")
-    //     println(expr.show)
-    //     println(rhs.map(_.show).mkString("\n"))
-    //   case '{($expr: Either[a, Int]).right.get == 3} => 
-    //     println("OKAY")
-    //     println(value.asTerm)
-    //     println(expr.asTerm)
-    //   case _ => ()
-    //     println("FAILED TO MATCH")
-    //     println(value.show)
-    // }
-
-    val (path, line) = location(ctx0)
-    val code = showExpr(value)
-    val srcLocation = s"$path:$line"
-
-    // throw new Error("OH NO")
-    '{_root_.zio.test.CompileVariants.smartAssertProxy($value, ${Expr(code)}, ${Expr(code)}, ${Expr(srcLocation)})(_root_.zio.test.Assertion.isTrue)}
-  }
-
-  def generateAssertion(using c: Quotes)(expr: c.reflect.Tree, assertion: c.reflect.Tree): (c.reflect.Tree, c.reflect.Tree) = {
-    import c.reflect._
-    val Matchers = new Scala3[c.type] {
-      val ctx = c
-    }
-
-    object Unseal {
-      def unapply(expr: Expr[_]): Option[Term] = Some(expr.asTerm)
-    }
-
-    val M = Matchers.Cross.Matchers
-    val rightGet = M.rightGet
-    println("RECURSING")
-    println(expr.show)
-    println(assertion.show)
-    println(showExpr(expr.asExpr))
-    println("")
-
-    expr match {
-      case Inlined(_, _, lhs) => generateAssertion(lhs, assertion)
-      case rightGet(lhs) => 
-        println(lhs)
-        // throw new Error("GREAT SUCCESS!")
-        (expr, assertion)
-
-      case Apply(Select(lhs, ident), args) => 
-        val lhsText = showExpr(lhs.asExpr)
-        val rhsText = showExpr(expr.asExpr)
-        val text = rhsText.drop(lhsText.length)
-
-        // // val select       = q"((a: $tpe) => a.${TermName(nameString)}(..$args))"
-        // val select = lhs.tpe.asType match {
-        //   // case '[t] => '{(a: t) => ${Unseal(Apply(Select(a, ident), args))}}
-        //   case '[t] => '{(a: t) => }
-        // }
-        // val applyString  = s"$nameString(${args.toList.map(showCode(_)).mkString(", ")})"
-        // val newAssertion = q"$Assertion.hasField($applyString, $select, $assertion)"
-
-        // generateAssertion(lhs, newAssertion)
-        generateAssertion(lhs, assertion)
-              // case MethodCall(lhs, name, args) =>
-              // case MethodCall(lhs, name, args) =>
-        // val text         = renderContext.textAfter(expr, lhs)
-        // val newAssertion = makeApplyAssertion(assertion, lhs, name, args)
-        // generateAssertion(lhs, q"$newAssertion.withCode($text)")
-      case _ => (expr, assertion)
-    }
-  }
-
-  // inline def assert[A](inline value: => A)(inline assertion: Assertion[A]): TestResult = ${Macros.assert_impl('value)('assertion)}
-  def smartAssert_impl(value: Expr[Boolean], values: Expr[Seq[Boolean]])(using ctx0: Quotes): Expr[TestResult] = {
-    import quotes.reflect._
-
-    val Matchers = new Scala3[ctx0.type] {
-      val ctx = ctx0
-    }
-
-    val term = value.asTerm
-    val treeType = Matchers.Cross.getTreeType(term)
-    println("HOWDY")
-    println(treeType)
-
-    val (path, line) = location(ctx0)
-    val code = showExpr(value)
-    val srcLocation = s"$path:$line"
-    '{_root_.zio.test.CompileVariants.smartAssertProxy($value, ${Expr(code)}, ${Expr(code)}, ${Expr(srcLocation)})(_root_.zio.test.Assertion.isTrue)}
-  }
-
-  private def showExpr[A](expr: Expr[A])(using ctx: Quotes): String = {
+  def showExpr[A](expr: Expr[A])(using ctx: Quotes): String = {
     import quotes.reflect._
     expr.asTerm.pos.sourceCode.get
   }
@@ -168,10 +160,10 @@ object Macros {
   }
 }
 
-trait Scala3[Q <: Quotes] {
-  val ctx: Q
-  import ctx.reflect._
-  given Q = ctx
+trait Scala3 { this: SmartAssertMacros =>
+  // val ctx: Quotes
+  import quotes.reflect._
+  // given Quotes = ctx
   
   object Cross extends CrossVersionSmartAssertionMacroUtils[Term, TypeRepr] { 
     val AnyType: TypeRepr = TypeRepr.of[Any]
