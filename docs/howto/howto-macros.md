@@ -180,7 +180,7 @@ object DefaultFoo {
 
 If you don't want to pollute a companion object with generated methods you can use `ZLayer.fromConstructor` syntax.
 
-```
+```scala
 import zio.macros._
 
 trait Foo
