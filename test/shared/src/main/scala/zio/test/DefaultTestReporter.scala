@@ -294,7 +294,7 @@ object FailureRenderer {
     failureDetails: ::[AssertionValue],
     offset: Int
   ): Message = {
-    println(failureDetails.map(_.printAssertion).mkString("\n"))
+    // println(failureDetails.map(_.printAssertion).mkString("\n"))
     val last = failureDetails.last
     val head = failureDetails.head
 //    val highlighted   = failureDetails.map(_.codeString).filterNot(_.isEmpty).take(1).mkString("")
