@@ -1,25 +1,27 @@
-package zio.macros.annotation
+package zio.macros
 
-import scala.annotation.nowarn
 import scala.reflect.macros.whitebox
 
 private[macros] object LayerMacro {
   def impl(c: whitebox.Context)(annottees: c.Expr[Any]*): c.Expr[Any] = {
     import c.universe._
 
+    def abort(msg: String) =
+      c.abort(c.enclosingPosition, msg)
+
     val outTpe = c.macroApplication match {
       case Apply(Select(Apply(Select(New(AppliedTypeTree(_, out :: Nil)), _), _), _), _) =>
         out
+      case _ =>
+        abort("Missing output type")
     }
 
-    @nowarn
     def makeLayer(tpname: TypeName) =
       q"""
-          def layer(implicit gen: _root_.zio.macros.LayerFromConstructor[$tpname, $outTpe]): _root_.zio.ZLayer[gen.In, Nothing, _root_.zio.Has[$outTpe]] = 
+          def layer(implicit gen: _root_.zio.macros.ZLayerFromConstructor[$tpname, $outTpe]): _root_.zio.ZLayer[gen.In, Nothing, _root_.zio.Has[$outTpe]] = 
             gen.layer
         """
 
-    @nowarn
     def result =
       annottees.map(_.tree) match {
         case (classDef @ q"$mods class $tpname[..$_] $_(..$_) extends { ..$_ } with ..$_ { $_ => ..$_ }")

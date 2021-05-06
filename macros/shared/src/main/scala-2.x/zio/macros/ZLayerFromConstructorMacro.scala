@@ -1,10 +1,8 @@
 package zio.macros
 
-import scala.annotation.nowarn
 import scala.reflect.macros.whitebox
 
-object LayerFromConstructorMacro {
-  @nowarn
+private[macros] object ZLayerFromConstructorMacro {
   def materialize[From <: Out: c.WeakTypeTag, Out: c.WeakTypeTag, In: c.WeakTypeTag](
     c: whitebox.Context
   ): c.universe.Tree = {
@@ -17,12 +15,17 @@ object LayerFromConstructorMacro {
     val outTpe  = weakTypeOf[Out]
 
     val constructor = fromTpe.decls.collectFirst {
-      case x if x.isMethod && x.isConstructor => x.asMethod
-    }
-      .getOrElse(abort(s"Can't find constructor of $fromTpe"))
+      case x if x.isMethod && x.asMethod.isPrimaryConstructor =>
+        x.asMethod
+    }.getOrElse(abort(s"Can't find constructor of $fromTpe"))
 
     val nameTypePairs = constructor.paramLists.headOption.getOrElse(List.empty).map { p =>
       (p.name, p.asTerm.typeSignature)
+    }
+
+    nameTypePairs.groupBy(_._2).foreach { case (tpe, pairs) =>
+      if (pairs.size != 1)
+        abort(s"Parameters ${pairs.map(_._1)} has the same type $tpe")
     }
 
     val inTpe =
@@ -43,13 +46,13 @@ object LayerFromConstructorMacro {
 
     val clsName = TypeName(c.freshName("anon$"))
     q"""
-      final class $clsName extends _root_.zio.macros.LayerFromConstructor[$fromTpe, $outTpe] {
+      final class $clsName extends _root_.zio.macros.ZLayerFromConstructor[$fromTpe, $outTpe] {
         type In = $inTpe
         def layer: _root_.zio.ZLayer[In, Nothing, _root_.zio.Has[$outTpe]] = {
           for (..$extractors) yield new $fromTpe(..$constructorParams)
         }.toLayer
       }
-      new $clsName(): _root_.zio.macros.LayerFromConstructor.Aux[$fromTpe, $outTpe, $inTpe]
+      new $clsName(): _root_.zio.macros.ZLayerFromConstructor.Aux[$fromTpe, $outTpe, $inTpe]
     """
   }
 }

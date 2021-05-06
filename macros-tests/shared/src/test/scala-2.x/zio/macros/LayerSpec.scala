@@ -1,6 +1,5 @@
 package zio.macros
 
-import zio._
 import zio.test.Assertion._
 import zio.test._
 
@@ -10,12 +9,14 @@ object LayerSpec extends DefaultRunnableSpec {
       testM("generates a companion object with a layer method") {
         assertM(typeCheck {
           """
+            import zio._
+            
             trait Bar
-            trait Baz
-            trait Qux
             
             @layer[Bar]
-            class Foo(int: Int, string: String) extends Bar with Baz with Qux
+            class Foo(int: Int, string: String) extends Bar
+            
+            trait Baz
             
             @layer[Baz]
             class X extends Baz
@@ -30,12 +31,12 @@ object LayerSpec extends DefaultRunnableSpec {
       testM("generates a layer method and preserves the contents of existing companion") {
         assertM(typeCheck {
           """
+            import zio._
+            
             trait Bar
-            trait Baz
-            trait Qux
             
             @layer[Bar]
-            class Foo(int: Int, string: String) extends Bar with Baz with Qux
+            class Foo(int: Int, string: String) extends Bar
             
             object Foo {
                def unit: Unit = ()

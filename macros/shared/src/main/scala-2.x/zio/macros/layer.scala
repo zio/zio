@@ -1,4 +1,4 @@
-package zio.macros.annotation
+package zio.macros
 
 import scala.annotation.{compileTimeOnly, StaticAnnotation}
 

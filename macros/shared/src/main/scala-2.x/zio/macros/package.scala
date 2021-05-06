@@ -7,7 +7,7 @@ package object macros {
   implicit final class ZLayerFromConstructorSyntax(@unused private val self: ZLayer.type) extends AnyVal {
 
     /**
-     * Generates a layer of [[Out]] from constructor of type [[From]].
+     * Generates a [[ZLayer]] of type [[Out]] from primary constructor of type [[From]].
      *
      * All parameters of the constructor become the layer input.
      *
@@ -16,7 +16,7 @@ package object macros {
      * @tparam Out resulting layer output
      */
     def fromConstructor[From <: Out, Out](implicit
-      gen: LayerFromConstructor[From, Out]
+      gen: ZLayerFromConstructor[From, Out]
     ): ZLayer[gen.In, Nothing, Has[Out]] =
       gen.layer
   }
