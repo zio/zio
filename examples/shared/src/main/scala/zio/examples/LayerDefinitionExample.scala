@@ -22,7 +22,9 @@ object LayerDefinitionExample extends App {
 
     ZIO
       .accessM[Has[Foo]](_.get.bar)
-      .provideLayer(liveLayer)
+      .inject(liveLayer)
       .exitCode
   }
+
+
 }

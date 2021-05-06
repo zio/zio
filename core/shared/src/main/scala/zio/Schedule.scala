@@ -51,7 +51,8 @@ import java.util.concurrent.TimeUnit
  */
 sealed abstract class Schedule[-Env, -In, +Out] private (
   private[zio] val step: Schedule.StepFunction[Env, In, Out]
-) extends Serializable { self =>
+) extends ScheduleVersionSpecific[Env, In, Out]
+    with Serializable { self =>
   import Schedule.Decision._
   import Schedule._
 

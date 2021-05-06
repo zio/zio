@@ -49,7 +49,8 @@ import scala.util.{Failure, Success}
  * To run an effect, you need a `Runtime`, which is capable of executing effects.
  * Runtimes bundle a thread pool together with the environment that effects need.
  */
-sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E, A] { self =>
+sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E, A] with ZIOVersionSpecific[R, E, A] {
+  self =>
 
   /**
    * Sequentially zips this effect with the specified effect, combining the

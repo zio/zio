@@ -3315,9 +3315,9 @@ object ZStreamSpec extends ZIOBaseSpec {
               _      <- ZStream.fromChunkQueue(left).zipWithLatest(ZStream.fromChunkQueue(right))((_, _)).into(out).fork
               _      <- left.offer(Chunk(0))
               _      <- right.offerAll(List(Chunk(0), Chunk(1)))
-              chunk1 <- ZIO.collectAll(ZIO.replicate(2)(out.take.flatMap(_.done))).map(_.flatten)
+              chunk1 <- ZIO.replicateM(2)(out.take.flatMap(_.done)).map(_.flatten)
               _      <- left.offerAll(List(Chunk(1), Chunk(2)))
-              chunk2 <- ZIO.collectAll(ZIO.replicate(2)(out.take.flatMap(_.done))).map(_.flatten)
+              chunk2 <- ZIO.replicateM(2)(out.take.flatMap(_.done)).map(_.flatten)
             } yield assert(chunk1)(equalTo(List((0, 0), (0, 1)))) && assert(chunk2)(equalTo(List((1, 1), (2, 1))))
           },
           testM("handle empty pulls properly") {

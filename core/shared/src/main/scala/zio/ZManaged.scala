@@ -44,7 +44,7 @@ final case class Reservation[-R, +E, +A](acquire: ZIO[R, E, A], release: Exit[An
  * has been consumed, the resource will not be valid anymore and may fail with
  * some checked error, as per the type of the functions provided by the resource.
  */
-sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
+sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E, A] with Serializable { self =>
 
   /**
    * The ZIO value that underlies this ZManaged value. To evaluate it, a ReleaseMap is

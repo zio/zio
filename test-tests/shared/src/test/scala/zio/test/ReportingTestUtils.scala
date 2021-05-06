@@ -55,7 +55,9 @@ object ReportingTestUtils {
     for {
       _ <- TestTestRunner(testEnvironment)
              .run(spec)
-             .provideLayer[Nothing, TestEnvironment, TestLogger with Clock](TestLogger.fromConsole ++ TestClock.default)
+             .provideLayer[Nothing, TestEnvironment, TestLogger with Clock](
+               TestLogger.fromConsole ++ TestClock.default
+             )
       output <- TestConsole.output
     } yield output.mkString.withNoLineNumbers
 

@@ -402,7 +402,7 @@ val horizontal: ZLayer[Console, Nothing, Logging with UserRepo] = Logging.consol
 val fullLayer: Layer[Nothing, Logging with UserRepo] = Console.live >>> horizontal
 
 // provide the layer to the program
-makeUser.provideLayer(fullLayer)
+makeUser.provideSomeLayer(fullLayer)
 ```
 
 Given a layer, it is possible to update one or more components it provides. We update a dependency in two ways:
@@ -560,7 +560,7 @@ object Example extends zio.App {
 
   // Run the program, providing the `nameLayer`
   def run(args: List[String]): URIO[ZEnv, ExitCode] =
-    zio.provideLayer(nameLayer).as(ExitCode.success)
+    zio.provideSomeLayer(nameLayer).as(ExitCode.success)
 }
 
 ```
@@ -642,7 +642,7 @@ object ZLayerApp0 extends zio.App {
     } yield ()
 
   def run(args: List[String]) =
-    program.provideLayer(env).exitCode
+    program.provideSomeLayer(env).exitCode
 
 }
 
