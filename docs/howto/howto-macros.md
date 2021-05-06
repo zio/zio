@@ -177,3 +177,20 @@ object DefaultFoo {
 ```
 
 > **Note:** the instance of `ZLayerFromConstructor` will be provided by a macro
+
+If you don't want to pollute a companion object with generated methods you can use `ZLayer.fromConstructor` syntax.
+
+```
+import zio.macros._
+
+trait Foo
+
+final class DefaultFoo(int: Int, string: String) extends Foo
+
+object Wiring {
+  val layer: ULayer[Has[Foo]] = 
+    (ZLayer.succeed(0) ++ ZLayer.succeed("")) >>>
+        ZLayer.fromConstructor[DefaultFoo, Foo] 
+}
+
+```
