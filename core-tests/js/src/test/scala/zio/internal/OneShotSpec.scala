@@ -28,7 +28,7 @@ object OneShotSpec extends ZIOBaseSpec {
 
         val resultAfterSet = oneShot.isSet
 
-        assert(!resultBeforeSet) && assert(resultAfterSet)
+        assert(!resultBeforeSet && resultAfterSet)
       },
       test("get must fail if no value is set") {
         val oneShot = OneShot.make[Object]

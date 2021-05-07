@@ -1,10 +1,9 @@
 package zio.test
 
-import zio.test.TestAspect.{ignore, failing}
+import zio.test.SmartTestTypes._
+import zio.test.TestAspect.ignore
 
 import java.time.LocalDateTime
-
-import SmartTestTypes._
 
 /**
  * - Scala 3
@@ -110,6 +109,6 @@ object SmartAssertionSpec extends ZIOBaseSpec {
         assert(someColor.asInstanceOf[Blue].brightness > 38)
       }
     )
-  ) @@ ignore // @@ failing
+  ) @@ TestAspect.ignore // @@ failing
 
 }

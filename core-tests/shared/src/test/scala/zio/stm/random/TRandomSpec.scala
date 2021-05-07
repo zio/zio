@@ -18,32 +18,28 @@ object TRandomSpec extends ZIOBaseSpec {
       checkM(genDoubles) { case (min, max) =>
         for {
           n <- nextDoubleBetween(min, max).commit
-        } yield assert(n)(isGreaterThanEqualTo(min)) &&
-          assert(n)(isLessThan(max))
+        } yield assert(n >= min && n < max)
       }
     },
     testM("nextFloatBetween generates floats in specified range") {
       checkM(genFloats) { case (min, max) =>
         for {
           n <- nextFloatBetween(min, max).commit
-        } yield assert(n)(isGreaterThanEqualTo(min)) &&
-          assert(n)(isLessThan(max))
+        } yield assert(n >= min && n < max)
       }
     },
     testM("nextIntBetween generates integers in specified range") {
       checkM(genInts) { case (min, max) =>
         for {
           n <- nextIntBetween(min, max).commit
-        } yield assert(n)(isGreaterThanEqualTo(min)) &&
-          assert(n)(isLessThan(max))
+        } yield assert(n >= min && n < max)
       }
     },
     testM("nextLongBetween generates longs in specified range") {
       checkM(genLongs) { case (min, max) =>
         for {
           n <- nextLongBetween(min, max).commit
-        } yield assert(n)(isGreaterThanEqualTo(min)) &&
-          assert(n)(isLessThan(max))
+        } yield assert(n >= min && n < max)
       }
     }
   ).provideCustomLayer(TRandom.live)

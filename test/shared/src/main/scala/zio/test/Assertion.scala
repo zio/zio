@@ -43,7 +43,7 @@ final class Assertion[-A] private (
    */
   def &&[A1 <: A](that: => Assertion[A1]): Assertion[A1] =
     new Assertion(
-      infix((a: A1, b: Boolean) => Message("&&"), param(self), "&&", param(that)),
+      infix((_: A1, _: Boolean) => Message("&&"), param(self), "&&", param(that)),
       actual => self.run(actual) && that.run(actual)
     )
 
@@ -58,7 +58,7 @@ final class Assertion[-A] private (
    */
   def ||[A1 <: A](that: => Assertion[A1]): Assertion[A1] =
     new Assertion(
-      infix((a: A1, b: Boolean) => Message("||"), param(self), "||", param(that)),
+      infix((_: A1, _: Boolean) => Message("||"), param(self), "||", param(that)),
       actual => self.run(actual) || that.run(actual)
     )
 
@@ -85,7 +85,7 @@ final class Assertion[-A] private (
    * Labels this assertion with the specified string.
    */
   override def label(string: String): Assertion[A] =
-    new Assertion(infix((a: A, b: Boolean) => Message(s"[$string]"), param(self), "??", param(quoted(string))), run)
+    new Assertion(infix((_: A, _: Boolean) => Message(s"[$string]"), param(self), "??", param(quoted(string))), run)
 
   /**
    * Returns the negation of this assertion.
@@ -308,9 +308,7 @@ object Assertion extends AssertionVariants {
   def exists[A](assertion: Assertion[A]): Assertion[Iterable[A]] =
     Assertion.assertionRec[Iterable[A], A](
       "exists",
-//      M.result + M.does + "exist"
       M.result + M.does + "not exist" + M.text(assertion.toString)
-//      assertion.render.render(_, _)
     )(param(assertion))(assertion)(
       _.find(assertion.test)
     )
@@ -369,10 +367,6 @@ object Assertion extends AssertionVariants {
       "hasSameElementsDistinct",
       M.result + M.does + "have the same distinct elements as" + M.value(other)
     )(param(other))(actual => actual.toSet == other.toSet)
-
-  def ord(n: Int): String = n + {
-    if (n % 100 / 10 == 1) "th" else (("thstndrd" + "th" * 6).sliding(2, 2).toSeq(n % 10))
-  }
 
   /**
    * Makes a new assertion that requires a sequence to contain an element
@@ -627,7 +621,7 @@ object Assertion extends AssertionVariants {
       param(assertion)
     )(assertion) {
       case Failure(a) => Some(a)
-      case Success(_) => None
+      case _          => None
     }
 
   /**

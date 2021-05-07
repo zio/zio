@@ -43,7 +43,7 @@ sealed abstract class AssertionValue {
       case Some(value) =>
         (red("ERROR: ") + bold(value.toString)).toMessage ++
           Message(
-            value.getStackTrace
+            value.getStackTrace.toIndexedSeq
               .takeWhile(!_.getClassName.startsWith("zio.test.Assertion"))
               .map(line => Fragment(line.toString).toLine)
           )
@@ -79,7 +79,7 @@ object AssertionValue {
       expression0: Option[String],
       smartExpression0: Option[String],
       sourceLocation0: Option[String],
-      error0: Option[Throwable] = None
+      error0: Option[Throwable]
     ) =
       new AssertionValue {
         type Value = A

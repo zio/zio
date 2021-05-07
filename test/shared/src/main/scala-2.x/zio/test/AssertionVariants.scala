@@ -17,8 +17,7 @@
 package zio.test
 
 import zio.test.Assertion.Render._
-import zio.test.FailureRenderer.FailureMessage.{Fragment, Message}
-import zio.test.FailureRenderer.{blue, green, magenta, red}
+import zio.test.FailureRenderer.{blue, magenta, red}
 
 trait AssertionVariants {
 

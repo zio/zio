@@ -1,6 +1,6 @@
 package zio.test
 
-import zio.test.FailureRenderer.FailureMessage.{Fragment, Message}
+import zio.test.FailureRenderer.FailureMessage.Message
 import zio.test.FailureRenderer.{blue, red}
 
 trait OptionalImplicit[A] {

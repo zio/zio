@@ -1,7 +1,5 @@
 package zio.test.macros
 
-import zio.test.macros.CrossVersionSmartAssertionMacroUtils
-
 import scala.reflect.macros.blackbox
 
 trait Scala2MacroUtils {
@@ -39,8 +37,8 @@ trait Scala2MacroUtils {
     override def unapplyApply[A](desc: c.Tree => Option[A], tree: c.Tree): Option[(A, Seq[c.Tree])] = {
       val unApplyDesc = UnapplyF(desc)
       tree match {
-        case q"${unApplyDesc(a)}(..$args)"       => Some(a, args)
-        case q"${unApplyDesc(a)}[..$_](..$args)" => Some(a, args)
+        case q"${unApplyDesc(a)}(..$args)"       => Some(a -> args)
+        case q"${unApplyDesc(a)}[..$_](..$args)" => Some(a -> args)
         case _                                   => None
       }
     }

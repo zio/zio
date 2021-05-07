@@ -69,7 +69,8 @@ trait CrossVersionSmartAssertionMacroUtils[Tree, Tpe] {
 
     case class XWildcard(tpe: Tpe) extends MethodDesc[Tree] {
       override def unapply(tree: Tree): Option[Tree] =
-        Option.when(isSubtype(getTreeType(tree), tpe))(tree)
+        if (isSubtype(getTreeType(tree), tpe)) Some(tree)
+        else None
 
       override def apply(a: Tree): Tree = a
     }

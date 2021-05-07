@@ -1,7 +1,7 @@
 package zio.test
 
 import zio.test.FailureRenderer.FailureMessage.{Line, Message}
-import zio.test.FailureRenderer.{blue, green, magenta, red}
+import zio.test.FailureRenderer.{blue, magenta, red}
 
 import scala.language.implicitConversions
 

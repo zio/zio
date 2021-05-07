@@ -1,5 +1,6 @@
 package zio.test
 
+import zio.Chunk
 import zio.test.SmartTestTypes._
 
 import java.time.LocalDateTime
@@ -32,18 +33,10 @@ object SmartAssertionIsolatedTest extends ZIOBaseSpec {
 
   val company: Company = Company("Ziverge", List(User("Bobo", List.tabulate(2)(n => Post(s"Post #$n")))))
 
-  def spec = suite("SmartAssertionSpec")(
-    test("nested access") {
-      assert(company.users.forall(user => user.name == "COOOOOL"))
-    },
-    test("nested access") {
-      val list = List(Some(10))
-      assert(list.head.contains(30))
-//      assert(company.users.forall(user => user.name == "COOOOOL"))
+  def spec: ZSpec[Annotations, Any] = suite("SmartAssertionSpec")(
+    test("filterConstFalseResultsInEmptyChunk") {
+      assert(Chunk.fromArray(Array(1, 2, 3)).filter(_ => false) == Chunk.empty)
     }
-//    test("nested accesss II") {
-//      assert(company.users.map(_.name).withAssertion(Assertion.forall(Assertion.equalTo("BILLL"))))
-//    }
   ) @@ TestAspect.ignore
 
 }

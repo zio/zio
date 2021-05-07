@@ -2,23 +2,23 @@ package zio.platform
 
 import zio.ZIOBaseSpec
 import zio.internal.Platform
-import zio.test.Assertion._
 import zio.test._
 
 object PlatformSpec extends ZIOBaseSpec {
+  val default = Platform.default
 
   def spec: ZSpec[Environment, Failure] = suite("PlatformSpec")(
     suite("PlatformLive fatal:")(
-//      test("Platform.fatal should identify a nonFatal exception") {
-//        val nonFatal = new Exception
-//        // TODO: FIX
-//        assert(!Platform.default.fatal(nonFatal))
-//      },
-//      test("Platform.fatal should identify a fatal exception") {
-//        val fatal = new OutOfMemoryError
-//        // TODO: FIX
-//        assert(Platform.default.fatal(fatal))
-//      }
+      test("Platform.fatal should identify a nonFatal exception") {
+        val nonFatal = new Exception
+        // TODO: FIX
+        assert(!default.fatal(nonFatal))
+      },
+      test("Platform.fatal should identify a fatal exception") {
+        val fatal = new OutOfMemoryError
+        // TODO: FIX
+        assert(default.fatal(fatal))
+      }
     )
   )
 }

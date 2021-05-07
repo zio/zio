@@ -26,8 +26,6 @@ import zio.test.mock.Expectation
 import zio.test.mock.internal.{InvalidCall, MockException}
 import zio.{Cause, Has}
 
-import java.util.regex.Pattern
-import scala.+:
 import scala.annotation.tailrec
 import scala.io.AnsiColor
 import scala.util.Try
@@ -286,7 +284,7 @@ object FailureRenderer {
     renderFragment(failureDetails.head, offset).toMessage ++ loop(
       failureDetails,
       Message.empty
-    ) ++ renderAssertionLocation(failureDetails.last, offset)
+    ) ++ renderAssertionLocation(failureDetails.last)
   }
 
   private def renderSmartAssertionFailureDetails(
@@ -313,12 +311,7 @@ object FailureRenderer {
       if (last.expression.get.exists(Set('"', '.', ','))) lines
       else lines :+ finalExpression
 
-    (errorMessage ++ context.toMessage ++ (Message(
-      allLines
-    ) ++ renderAssertionLocation(
-      last,
-      offset
-    )) ++ Message(""))
+    (errorMessage ++ context.toMessage ++ (Message(allLines) ++ renderAssertionLocation(last)) ++ Message(""))
       .withOffset(offset + tabSize)
   }
 
@@ -380,7 +373,7 @@ object FailureRenderer {
     strip(valueStr) == strip(expression)
   }
 
-  private def renderAssertionLocation(av: AssertionValue, offset: Int) = av.sourceLocation.fold(Message()) { location =>
+  private def renderAssertionLocation(av: AssertionValue) = av.sourceLocation.fold(Message()) { location =>
     blue(s"at $location").toLine.toMessage
   }
 

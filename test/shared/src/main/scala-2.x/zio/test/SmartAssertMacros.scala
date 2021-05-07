@@ -1,5 +1,6 @@
 package zio.test
 
+import com.github.ghik.silencer.silent
 import zio.test.AssertionSyntax.AssertionOps
 import zio.test.macros.Scala2MacroUtils
 
@@ -85,6 +86,14 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
     }
   }
 
+  sealed trait AssertCompose
+
+  object AssertCompose {
+    case class EqualTo(lhs: c.Tree, rhs: c.Tree)
+    case class GreaterThan(lhs: c.Tree, rhs: c.Tree)
+    case class LessThan(lhs: c.Tree, rhs: c.Tree)
+  }
+
   private def subAssertion(expr: c.Tree, negated: Boolean)(implicit
     renderContext: RenderContext
   ): c.Expr[TestResult] = {
@@ -93,9 +102,21 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
 
     val text = renderContext.text(expr)
 
+    val (target, assertion) = terminalAssertion(expr, negated)
+
+    val targetCode = CleanCodePrinter.show(c)(target)
+
+    c.Expr[TestResult](
+      q"_root_.zio.test.CompileVariants.smartAssertProxy($target, $targetCode, $text, $srcLocation)($assertion)"
+    )
+  }
+
+  private def terminalAssertion(expr: c.Tree, negated: Boolean)(implicit
+    renderContext: RenderContext
+  ): (c.Tree, c.Tree) = {
     def negate(tree: c.Tree) = if (negated) q"$tree.smartNegate" else tree
 
-    val (target, assertion) = expr match {
+    expr match {
       case q"$lhs > $rhs" =>
         val text = renderContext.textAfter(expr, lhs)
         generateAssertion(lhs, negate(q"$Assertion.isGreaterThan($rhs).withCode($text)"))
@@ -104,16 +125,18 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
         generateAssertion(lhs, negate(q"$Assertion.isLessThan($rhs).withCode($text)"))
       case q"$lhs >= $rhs" =>
         val text = renderContext.textAfter(expr, lhs)
-        generateAssertion(lhs, negate(q"$Assertion.isGreaterThanOrEqualTo($rhs).withCode($text)"))
+        generateAssertion(lhs, negate(q"$Assertion.isGreaterThanEqualTo($rhs).withCode($text)"))
       case q"$lhs <= $rhs" =>
         val text = renderContext.textAfter(expr, lhs)
-        generateAssertion(lhs, negate(q"$Assertion.isLessThanOrEqualTo($rhs).withCode($text)"))
+        generateAssertion(lhs, negate(q"$Assertion.isLessThanEqualTo($rhs).withCode($text)"))
       case q"$lhs == $rhs" =>
-        val text = renderContext.textAfter(expr, lhs)
-        generateAssertion(lhs, negate(q"$Assertion.equalTo($rhs).withCode($text)"))
+        val text   = renderContext.textAfter(expr, lhs)
+        val lhsTpe = lhs.tpe.widen
+        generateAssertion(lhs, negate(q"$Assertion.equalTo[$lhsTpe, $lhsTpe]($rhs).withCode($text)"))
       case q"$lhs != $rhs" =>
-        val text = renderContext.textAfter(expr, lhs)
-        generateAssertion(lhs, negate(q"$Assertion.equalTo($rhs).withCode($text).smartNegate"))
+        val text   = renderContext.textAfter(expr, lhs)
+        val lhsTpe = lhs.tpe.widen
+        generateAssertion(lhs, negate(q"$Assertion.equalTo[$lhsTpe, $lhsTpe]($rhs).withCode($text).smartNegate"))
       case q"$lhs.$_" =>
         val text = renderContext.textAfter(expr, lhs)
         generateAssertion(expr, negate(q"$Assertion.isTrue.withCode($text)"))
@@ -121,14 +144,9 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
         val text = renderContext.textAfter(expr, lhs)
         generateAssertion(expr, negate(q"$Assertion.isTrue.withCode($text)"))
       case _ =>
+        val text = renderContext.text(expr)
         generateAssertion(expr, negate(q"$Assertion.isTrue.withCode($text)"))
     }
-
-    val targetCode = CleanCodePrinter.show(c)(target)
-
-    c.Expr[TestResult](
-      q"_root_.zio.test.CompileVariants.smartAssertProxy($target, $targetCode, $text, $srcLocation)($assertion)"
-    )
   }
 
   val Matchers = Cross.Matchers
@@ -143,15 +161,18 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
 //    println(s"HEY $assertion")
 //    println("---")
 
+    val leftGet  = Matchers.leftGet
+    val rightGet = Matchers.rightGet
+
     expr match {
       case q"$lhs($rhs)" if lhs.symbol.isImplicit =>
         generateAssertion(rhs, assertion)
-      case expr @ q"${Matchers.leftGet(te)}" =>
+      case leftGet(te) =>
         val lhs          = te
         val text         = renderContext.textAfter(expr, lhs)
         val newAssertion = q"${Matchers.isLeft(assertion)}.withCode($text)"
         generateAssertion(lhs, newAssertion)
-      case expr @ q"${Matchers.rightGet(te)}" =>
+      case rightGet(te) =>
         val lhs          = te
         val text         = renderContext.textAfter(expr, lhs)
         val newAssertion = q"${Matchers.isRight(assertion)}.withCode($text)"
@@ -203,6 +224,7 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
       case q"$lhs.as[$tpe]" =>
         val lhsTpe = lhs match {
           case q"$_($rhs)" => rhs.tpe.widen
+          case _           => lhs.tpe.widen
         }
         val text = renderContext.textAfter(expr, lhs)
         val newAssertion =
@@ -212,8 +234,8 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
         generateAssertion(lhs, newAssertion)
       case Select(lhs, name) =>
         val tpe = lhs match {
-          case q"$lhs($rhs)" if lhs.symbol.isImplicit => rhs.tpe.widen.finalResultType.widen
-          case _                                      => lhs.tpe.widen.finalResultType.widen
+          case q"$lhs($rhs)" if lhs.symbol.isImplicit => rhs.tpe.widen
+          case _                                      => lhs.tpe.widen
         }
         val nameString   = name.toString
         val select       = q"((x: $tpe) => x.${TermName(nameString)})"
@@ -388,7 +410,7 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
       }
 
     @tailrec
-    def isConstructor(tree: c.Tree): Boolean =
+    private def isConstructor(tree: c.Tree): Boolean =
 //      println("")
 //      println(s"HEY $tree")
 //      println(showRaw(tree))
@@ -410,11 +432,12 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
 
   private def makeApplyAssertion(assertion: c.Tree, lhs: c.Tree, name: TermName, args: Seq[c.Tree]): c.Tree = {
     val tpe = lhs match {
-      case q"$lhs($rhs)" if lhs.symbol.isImplicit => rhs.tpe.widen.finalResultType.widen
-      case _                                      => lhs.tpe.widen.finalResultType.widen
+      case q"$lhs($rhs)" if lhs.symbol.isImplicit => rhs.tpe.widen
+      case _                                      => lhs.tpe.widen
     }
     val nameString = name.toString
 
+//    val lhsTpe       = lhs.tpe.widen
     val select       = q"((a: $tpe) => a.${TermName(nameString)}(..$args))"
     val applyString  = s"$nameString(${args.toList.map(showCode(_)).mkString(", ")})"
     val newAssertion = q"$Assertion.hasField($applyString, $select, $assertion)"
@@ -423,12 +446,13 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
 
   // Pilfered (with immense gratitude & minor modifications)
   // from https://github.com/com-lihaoyi/sourcecode
+  @silent("Using a deprecated method on purpose")
   private def text[T: c.WeakTypeTag](tree: c.Tree): (Int, Int, String) = {
     val fileContent = new String(tree.pos.source.content)
     var start = tree.collect { case treeVal =>
       treeVal.pos match {
         case NoPosition => Int.MaxValue
-        case p          => p.startOrPoint
+        case p          => p.start
       }
     }.min
     val initialStart = start
