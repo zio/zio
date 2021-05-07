@@ -17,7 +17,8 @@
 package zio.test
 
 import zio.{UIO, ZIO}
-import zio.test.internal.CrossVersionSmartAssertionMacroUtils
+import zio.test.macros._
+
 import scala.quoted._
 
 object SmartAssertMacros {

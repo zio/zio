@@ -744,8 +744,7 @@ object HubSpec extends ZIOBaseSpec {
         hub.publish(2)
         hub.publish(3)
         subscription1.unsubscribe()
-        assert(hub.isEmpty()) &&
-        assert(hub.size())(equalTo(2))
+        assert(!hub.isEmpty() && hub.size() == 2)
       },
       test("publish and poll a chunk of values") {
         val hub          = Hub.unbounded[Int]

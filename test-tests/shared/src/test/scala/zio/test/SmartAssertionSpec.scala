@@ -1,6 +1,6 @@
 package zio.test
 
-import zio.test.TestAspect.failing
+import zio.test.TestAspect.{ignore, failing}
 
 import java.time.LocalDateTime
 
@@ -110,6 +110,6 @@ object SmartAssertionSpec extends ZIOBaseSpec {
         assert(someColor.asInstanceOf[Blue].brightness > 38)
       }
     )
-  ) // @@ failing
+  ) @@ ignore // @@ failing
 
 }

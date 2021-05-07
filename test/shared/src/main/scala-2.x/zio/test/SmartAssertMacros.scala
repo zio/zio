@@ -1,7 +1,7 @@
 package zio.test
 
 import zio.test.AssertionSyntax.AssertionOps
-import zio.test.internal.Scala2MacroUtils
+import zio.test.macros.Scala2MacroUtils
 
 import scala.annotation.tailrec
 import scala.reflect.macros.blackbox
@@ -160,27 +160,27 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
         val text         = renderContext.textAfter(expr, lhs)
         val newAssertion = q"$assertion.withCode($text)"
         generateAssertion(lhs, newAssertion)
-      // TODO: Add custom error message for `forall` and `exists`
-      case Method.exists(lhs, args) =>
-        val text         = renderContext.textAfter(expr, lhs)
-        val newAssertion = q"$Assertion.smartExists($args).withCode($text)"
-        generateAssertion(lhs, newAssertion)
-      case Method.forall(lhs, args) =>
-        val text = renderContext.textAfter(expr, lhs)
-        val newAssertion = args match {
-//          case q"($a => $body)" if a.symbol.isParameter =>
-//            val (lhs2, nested) = generateAssertion(body, assertion)
-//            println("PARSED FORALL")
-//            println(a, lhs2, nested, lhs2.symbol.isParameter)
-//            if (lhs2.symbol.isParameter)
-//              q"$Assertion.forall($nested).withCode($text)"
-//            else
-//              q"$Assertion.smartForall($args).withCode($text)"
-          case args =>
-//            println("PARSED SMART FORALL")
-//            println(args)
-            q"$Assertion.smartForall($args).withCode($text)"
-        }
+        // TODO: Add custom error message for `forall` and `exists`
+//      case Method.exists(lhs, args) =>
+//        val text         = renderContext.textAfter(expr, lhs)
+//        val newAssertion = q"$Assertion.smartExists($args).withCode($text)"
+//        generateAssertion(lhs, newAssertion)
+//      case Method.forall(lhs, args) =>
+//        val text = renderContext.textAfter(expr, lhs)
+//        val newAssertion = args match {
+////          case q"($a => $body)" if a.symbol.isParameter =>
+////            val (lhs2, nested) = generateAssertion(body, assertion)
+////            println("PARSED FORALL")
+////            println(a, lhs2, nested, lhs2.symbol.isParameter)
+////            if (lhs2.symbol.isParameter)
+////              q"$Assertion.forall($nested).withCode($text)"
+////            else
+////              q"$Assertion.smartForall($args).withCode($text)"
+//          case args =>
+////            println("PARSED SMART FORALL")
+////            println(args)
+//            q"$Assertion.smartForall($args).withCode($text)"
+//        }
         generateAssertion(lhs, newAssertion)
       //      case Method.exists(lhs, args) =>
       //        val text = renderContext.textAfter(expr, lhs)

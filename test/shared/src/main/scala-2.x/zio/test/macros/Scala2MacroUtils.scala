@@ -1,6 +1,6 @@
-package zio.test.internal
+package zio.test.macros
 
-import zio.test.internal.CrossVersionSmartAssertionMacroUtils
+import zio.test.macros.CrossVersionSmartAssertionMacroUtils
 
 import scala.reflect.macros.blackbox
 

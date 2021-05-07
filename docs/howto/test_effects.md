@@ -462,25 +462,25 @@ import zio.test._
 object MySpec extends DefaultRunnableSpec {
   def spec = suite("A Suite")(
     test("A passing test") {
-      assert(true)(isTrue)
+      assert(true)
     },
     test("A passing test run for JVM only") {
-      assert(true)(isTrue)
+      assert(true)
     } @@ jvmOnly, //@@ jvmOnly only runs tests on the JVM
     test("A passing test run for JS only") {
-      assert(true)(isTrue)
+      assert(true)
     } @@ jsOnly, //@@ jsOnly only runs tests on Scala.js
     test("A passing test with a timeout") {
-      assert(true)(isTrue)
+      assert(true)
     } @@ timeout(10.nanos), //@@ timeout will fail a test that doesn't pass within the specified time
     test("A failing test... that passes") {
-      assert(true)(isFalse)
+      assert(false)
     } @@ failing, //@@ failing turns a failing test into a passing test
     test("A ignored test") {
-      assert(false)(isTrue)
+      assert(false)
     } @@ ignore, //@@ ignore marks test as ignored
     test("A flaky test that only works on the JVM and sometimes fails; let's compose some aspects!") {
-      assert(false)(isTrue)
+      assert(false)
     } @@ jvmOnly           // only run on the JVM
       @@ eventually        //@@ eventually retries a test indefinitely until it succeeds
       @@ timeout(20.nanos) //it's a good idea to compose `eventually` with `timeout`, or the test may never end

@@ -1,4 +1,4 @@
-package zio.test.internal
+package zio.test.macros
 
 trait CrossVersionSmartAssertionMacroUtils[Tree, Tpe] {
   // q"zio.test.Assertion"
