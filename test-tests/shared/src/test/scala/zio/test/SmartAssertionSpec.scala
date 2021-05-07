@@ -1,9 +1,10 @@
 package zio.test
 
 import zio.test.TestAspect.failing
-import SmartTestTypes._
 
 import java.time.LocalDateTime
+
+import SmartTestTypes._
 
 /**
  * - Scala 3
@@ -88,7 +89,7 @@ object SmartAssertionSpec extends ZIOBaseSpec {
       },
       test("toOption.get") {
         val myEither: Either[String, Int] = Left("string")
-        assert(myEither.toOption.get + 1 > 11237)
+        assert(myEither.toOption.get + 1 > 11238)
       }
     ),
     suite("helpers")(

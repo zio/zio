@@ -33,10 +33,17 @@ object SmartAssertionIsolatedTest extends ZIOBaseSpec {
   val company: Company = Company("Ziverge", List(User("Bobo", List.tabulate(2)(n => Post(s"Post #$n")))))
 
   def spec: ZSpec[Environment, Failure] = suite("SmartAssertionSpec")(
-    test("right.get") {
-      val cool: Either[String, Int] = Right(1)
-      assert(cool.right.get == 7)
+    test("nested access") {
+      assert(company.users.forall(user => user.name == "COOOOOL"))
+    },
+    test("nested access") {
+      val list = List(Some(10))
+      assert(list.head.contains(30))
+//      assert(company.users.forall(user => user.name == "COOOOOL"))
     }
+//    test("nested accesss II") {
+//      assert(company.users.map(_.name).withAssertion(Assertion.forall(Assertion.equalTo("BILLL"))))
+//    }
   )
 
 }

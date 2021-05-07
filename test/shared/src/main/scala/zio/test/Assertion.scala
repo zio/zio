@@ -353,6 +353,13 @@ object Assertion extends AssertionVariants {
       _.asSuccess
     )
 
+  def smartForall[A](f: A => Boolean): Assertion[Iterable[A]] =
+    Assertion.assertion(
+      "forall",
+      M.choice("All", "Not all") + "elements in the" +
+        M.result[Iterable[A]](_.toString.takeWhile(_ != '(')) + "satisfy the predicate"
+    )()(_.forall(f))
+
   /**
    * Makes a new assertion that requires an Iterable to have the same distinct elements
    * as the other Iterable, though not necessarily in the same order.

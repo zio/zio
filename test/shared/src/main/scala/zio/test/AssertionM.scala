@@ -183,7 +183,9 @@ object AssertionM {
       name: String,
       paramLists: List[List[RenderParam]]
     ): Render[A] =
-      Render.Smart(render, LensRender.Function(name, paramLists))
+      Render
+        .Smart(render, LensRender.Function(name, paramLists))
+        .withCode(name)
 
     /**
      * Create a `Render` from an assertion combinator that should be rendered
@@ -195,7 +197,9 @@ object AssertionM {
       op: String,
       right: RenderParam
     ): Render[A] =
-      Render.Smart(render, LensRender.Infix(left, op, right))
+      Render
+        .Smart(render, LensRender.Infix(left, op, right))
+        .withCode(op)
 
     /**
      * Construct a `RenderParam` from an `AssertionM`.

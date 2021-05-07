@@ -753,7 +753,7 @@ object SmartAssertionCompatabilitySpec extends ZIOBaseSpec {
       },
       test("with assertion") {
         //      assert(SampleUser("User", 23))(hasField[SampleUser, Int]("age", _.age, isWithin(0, 99)))
-        val sampleUser = SampleUser("User", 1008)
+        val sampleUser = SampleUser("User", 188008)
         assert(sampleUser.age.withAssertion(isWithin(0, 99)))
       },
       test("hasAt must fail when an index is outside of a sequence range") {

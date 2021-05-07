@@ -28,8 +28,8 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
       case other               => (List.empty, other)
     }
 
-    println("RAW")
-    println(showRaw(expr))
+//    println("RAW")
+//    println(showRaw(expr))
 
     val (delta, start, codeString) = text(expr0)
     implicit val renderContext: RenderContext =
@@ -37,8 +37,8 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
 
     val result = composeAssertions(expr0, false)
 
-    println("RESULT")
-    println(showCode(result.tree))
+//    println("RESULT")
+//    println(showCode(result.tree))
 
     c.Expr[TestResult](
       q"""
@@ -165,6 +165,35 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
         val text         = renderContext.textAfter(expr, lhs)
         val newAssertion = q"$Assertion.smartExists($args).withCode($text)"
         generateAssertion(lhs, newAssertion)
+      case Method.forall(lhs, args) =>
+        val text = renderContext.textAfter(expr, lhs)
+        val newAssertion = args match {
+//          case q"($a => $body)" if a.symbol.isParameter =>
+//            val (lhs2, nested) = generateAssertion(body, assertion)
+//            println("PARSED FORALL")
+//            println(a, lhs2, nested, lhs2.symbol.isParameter)
+//            if (lhs2.symbol.isParameter)
+//              q"$Assertion.forall($nested).withCode($text)"
+//            else
+//              q"$Assertion.smartForall($args).withCode($text)"
+          case args =>
+//            println("PARSED SMART FORALL")
+//            println(args)
+            q"$Assertion.smartForall($args).withCode($text)"
+        }
+        generateAssertion(lhs, newAssertion)
+      //      case Method.exists(lhs, args) =>
+      //        val text = renderContext.textAfter(expr, lhs)
+      //        val body = args match {
+      //          case q"($a => $b)" => b
+      //        }
+      //        val (lhs2, nested) = generateAssertion(body, assertion)
+      //        println("____")
+      //        println(lhs2)
+      //        println("____")
+      //        println(nested)
+      //        val newAssertion = q"$Assertion.exists($nested).withCode($text)"
+      //        generateAssertion(lhs, newAssertion)
       case q"$lhs.asInstanceOf[$tpe]" =>
         val lhsTpe = lhs.tpe.widen
         val text   = renderContext.textAfter(expr, lhs)
@@ -179,18 +208,6 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
         val newAssertion =
           q"$Assertion.isCase[$lhsTpe, $tpe](${tpe.toString}, ((c: $lhsTpe) => scala.util.Try(c.asInstanceOf[$tpe]).toOption), $assertion).withCode($text)"
         generateAssertion(lhs, newAssertion)
-//      case Method.exists(lhs, args) =>
-//        val text = renderContext.textAfter(expr, lhs)
-//        val body = args match {
-//          case q"($a => $b)" => b
-//        }
-//        val (lhs2, nested) = generateAssertion(body, assertion)
-//        println("____")
-//        println(lhs2)
-//        println("____")
-//        println(nested)
-//        val newAssertion = q"$Assertion.exists($nested).withCode($text)"
-//        generateAssertion(lhs, newAssertion)
       case LensMatcher(lhs, newAssertion) =>
         generateAssertion(lhs, newAssertion)
       case Select(lhs, name) =>
@@ -306,6 +323,9 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
 
     lazy val exists: Method[Iterable[_]] =
       Method[Iterable[_]]("exists", false, true)
+
+    lazy val forall: Method[Iterable[_]] =
+      Method[Iterable[_]]("forall", false, true)
 
     lazy val isEmpty: Method[Iterable[_]] =
       Method[Iterable[_]]("isEmpty", false, false)
