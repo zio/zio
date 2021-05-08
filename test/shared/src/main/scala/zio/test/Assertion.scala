@@ -615,13 +615,13 @@ object Assertion extends AssertionVariants {
    * Makes a new assertions that requires a double value is finite.
    */
   def isFiniteDouble: Assertion[Double] =
-    Assertion.assertion("isFiniteDouble")()(_.isFinite)
+    Assertion.assertion("isFiniteDouble")()(_.abs <= Double.MaxValue)
 
   /**
    * Makes a new assertions that requires a float value is finite.
    */
   def isFiniteFloat: Assertion[Float] =
-    Assertion.assertion("isFiniteFloat")()(_.isFinite)
+    Assertion.assertion("isFiniteFloat")()(_.abs <= Float.MaxValue)
 
   /**
    * Makes a new assertions that requires a double value is infinite.
