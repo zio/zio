@@ -57,8 +57,9 @@ class MutableRunnableSpec[R <: Has[_]: Tag](
 
   sealed case class SuiteBuilder(label: String) extends SpecBuilder {
 
-    private[test] var nested: Chunk[SpecBuilder]                     = Chunk.empty
-    private var aspects: Chunk[TestAspect[R with TestEnvironment, R with TestEnvironment, Failure, Failure]] = Chunk.empty
+    private[test] var nested: Chunk[SpecBuilder] = Chunk.empty
+    private var aspects: Chunk[TestAspect[R with TestEnvironment, R with TestEnvironment, Failure, Failure]] =
+      Chunk.empty
 
     /**
      * Syntax for adding aspects.
