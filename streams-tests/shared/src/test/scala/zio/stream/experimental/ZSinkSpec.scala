@@ -91,24 +91,26 @@ object ZSinkSpec extends ZIOBaseSpec {
         testM("dropWhile")(
           assertM(
             ZStream(1, 2, 3, 4, 5, 1, 2, 3, 4, 5)
-              .run(ZSink.dropWhile[Nothing, Int](_ < 3) *> ZSink.collectAll[Nothing, Int])
+              .pipeThrough(ZSink.dropWhile[Nothing, Int](_ < 3))
+              .runCollect
           )(equalTo(Chunk(3, 4, 5, 1, 2, 3, 4, 5)))
         ),
         suite("dropWhileM")(
           testM("happy path")(
             assertM(
               ZStream(1, 2, 3, 4, 5, 1, 2, 3, 4, 5)
-                .run(ZSink.dropWhileM[Any, Nothing, Int](x => UIO(x < 3)) *> ZSink.collectAll[Nothing, Int])
+                .dropWhileM(x => UIO(x < 3))
+                .runCollect
             )(equalTo(Chunk(3, 4, 5, 1, 2, 3, 4, 5)))
+          ),
+          testM("error")(
+            assertM {
+              (ZStream(1, 2, 3) ++ ZStream.fail("Aie") ++ ZStream(5, 1, 2, 3, 4, 5))
+                .pipeThrough(ZSink.dropWhileM[Any, String, Int](x => UIO(x < 3)))
+                .either
+                .runCollect
+            }(equalTo(Chunk(Right(3), Left("Aie"))))
           )
-          // testM("error")(
-          //   assertM {
-          //     (ZStream(1,2,3) ++ ZStream.fail("Aie") ++ ZStream(5,1,2,3,4,5))
-          //       .aggregate(ZTransducer.dropWhileM(x => UIO(x < 3)))
-          //       .either
-          //       .runCollect
-          //   }(equalTo(Chunk(Right(3),Left("Aie"),Right(5),Right(1),Right(2),Right(3),Right(4),Right(5))))
-          // )
         ),
         suite("accessSink")(
           testM("accessSink") {
