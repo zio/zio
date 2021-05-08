@@ -5,7 +5,7 @@ title:  "Hub"
 
 A `Hub[A]` is an asynchronous message hub. Publishers can publish messages of type `A` to the hub and subscribers can subscribe to receive messages of type `A` from the hub.
 
-Unlike a `Queue`, where each value offered to the queue can be taken by _one_ poller, each value published to a hub can be received by _all_ subscribers. Whereas a `Queue` represents the optimal solution to the problem of how to _distribute_ values, a `Hub` represents the optimal solution to the problem of how to _broadcast_ them.
+Unlike a `Queue`, where each value offered to the queue can be taken by _one_ taker, each value published to a hub can be received by _all_ subscribers. Whereas a `Queue` represents the optimal solution to the problem of how to _distribute_ values, a `Hub` represents the optimal solution to the problem of how to _broadcast_ them.
 
 The fundamental operators on a `Hub` are `publish` and `subscribe`:
 
@@ -21,6 +21,26 @@ trait Hub[A] {
 The `publish` operator returns a `ZIO` effect that publishes a message of type `A` to the hub and succeeds with a value describing whether the message was successfully published to the hub.
 
 The `subscribe` operator returns a `ZManaged` effect where the `acquire` action of the `ZManaged` subscribes to the hub and the `release` action unsubscribes from the hub. Within the context of the `ZManaged` we have access to a `Dequeue`, which is a `Queue` that can only be dequeued from, that allows us to take messages published to the hub.
+
+For example, we can use a hub to broadcast a message to multiple subscribers like this:
+
+```scala mdoc:silent
+Hub.bounded[String](2).flatMap { hub =>
+  hub.subscribe.zip(hub.subscribe).use { case (left, right) =>
+    for {
+      _ <- hub.publish("Hello from a hub!")
+      _ <- left.take.flatMap(console.putStrLn(_))
+      _ <- right.take.flatMap(console.putStrLn(_))
+    } yield ()
+  }
+}
+```
+
+A subscriber will only receive messages that are published to the hub while it is subscribed. So if we want to make sure that a particular message is received by a subscriber we must take care that the subscription has completed before publishing the message to the hub.
+
+We can do this by publishing a message to the hub within the scope of the subscription as in the example above or by using other coordination mechanisms such as completing a `Promise`  when the `acquire` action of the `ZManaged` has completed.
+
+Of course, in many cases such as subscribing to receive real time data we may not care about this because we are happy to just pick up with the most recent messages after we have subscribed. But for testing and simple applications this can be an important point to keep in mind.
 
 ## Constructing Hubs
 
@@ -125,7 +145,9 @@ For example, say we are using the `into` operator on `ZStream` to send all eleme
 import zio.stream._
 
 trait ZStream[-R, +E, +O] {
-  def into[R1 <: R, E1 >: E](queue: ZEnqueue[R1, Nothing, Take[E1, O]]): ZIO[R1, E1, Unit]
+  def into[R1 <: R, E1 >: E](
+    queue: ZEnqueue[R1, Nothing, Take[E1, O]]
+  ): ZIO[R1, E1, Unit]
 }
 ```
 
@@ -207,8 +229,12 @@ For this we can use the `contramap` and `contramapM` operators defined on `ZHub`
 
 ```scala mdoc:nest
 trait ZHub[-RA, -RB, +EA, +EB, -A, +B] {
-  def contramap[C](f: C => A): ZHub[RA, RB, EA, EB, C, B]
-  def contramapM[RC <: RA, EC >: EA, C](f: C => ZIO[RC, EC, A]): ZHub[RC, RB, EC, EB, C, B]
+  def contramap[C](
+    f: C => A
+  ): ZHub[RA, RB, EA, EB, C, B]
+  def contramapM[RC <: RA, EC >: EA, C](
+    f: C => ZIO[RC, EC, A]
+  ): ZHub[RC, RB, EC, EB, C, B]
 }
 ```
 
@@ -297,12 +323,39 @@ We can create a `ZStream` from a subscription to a hub using the `fromHub` opera
 import zio.stream._
 
 object ZStream {
-  def fromHub[R, E, O](hub: ZHub[Nothing, R, Any, E, Nothing, O]): ZStream[R, E, O] =
+  def fromHub[R, E, O](
+    hub: ZHub[Nothing, R, Any, E, Nothing, O]
+  ): ZManaged[Any, Nothing, ZStream[R, E, O]] =
     ???
 }
 ```
 
-This will return a stream that subscribes to receive values from a hub and then emits every value published to the hub while the subscription is active. When the stream ends the subscriber will automatically be unsubscribed from the hub.
+The outer managed effect here describes subscribing to receive messages from the hub, while the inner stream describes taking messages from the hub. When the stream ends the subscriber will automatically be unsubscribed from the hub.
+
+Here is an example of using it:
+
+```scala mdoc:reset:invisible
+import zio._
+import zio.stream._
+```
+
+```scala mdoc:silent
+for {
+  promise <- Promise.make[Nothing, Unit]
+  hub     <- Hub.bounded[String](2)
+  managed  = ZStream.fromHub(hub).tapM(_ => promise.succeed(()))
+  stream   = ZStream.unwrapManaged(managed)
+  fiber   <- stream.take(2).runCollect.fork
+  _       <- promise.await
+  _       <- hub.publish("Hello")
+  _       <- hub.publish("World")
+  _       <- fiber.join
+} yield ()
+```
+
+Notice that in this case we used a `Promise` to ensure that the subscription had completed before publishing to the hub. The outer `ZManaged` in the return type of `fromHub` made it easy for us to signal when the subscription had occurred by using `tapM` and completing the `Promise`.
+
+Of course in many real applications we don't need this kind of sequencing and just want to subscribe to receive new messages. In this case we can use the `unwrapManaged` operator to return a `ZStream` that will automatically handle subscribing and unsubscribing for us.
 
 There is also a `fromHubWithShutdown` variant that shuts down the hub itself when the stream ends. This is useful when the stream represents your main application logic and you want to shut down other subscriptions to the hub when the stream ends.
 
@@ -314,7 +367,9 @@ The simplest of these is the `toHub` operator, which constructs a new hub and pu
 
 ```scala mdoc
 trait ZStream[-R, +E, +O] {
-  def toHub(capacity: Int): ZManaged[R, Nothing, ZHub[Nothing, Any, Any, Nothing, Nothing, Take[E, O]]]
+  def toHub(
+    capacity: Int
+  ): ZManaged[R, Nothing, ZHub[Nothing, Any, Any, Nothing, Nothing, Take[E, O]]]
 }
 ```
 
@@ -336,7 +391,9 @@ You can also create a sink that sends values to a hub.
 
 ```scala mdoc
 object ZSink {
-  def fromHub[R, E, I](hub: ZHub[R, Nothing, E, Any, I, Any]): ZSink[R, E, I, Nothing, Unit] =
+  def fromHub[R, E, I](
+    hub: ZHub[R, Nothing, E, Any, I, Any]
+  ): ZSink[R, E, I, Nothing, Unit] =
     ???
 }
 ```
@@ -347,7 +404,10 @@ Finally, `ZHub` is used internally to provide a highly efficient implementation 
 
 ```scala mdoc:nest
 trait ZStream[-R, +E, +O] {
-  def broadcast(n: Int, maximumLag: Int): ZManaged[R, Nothing, List[ZStream[Any, E, O]]]
+  def broadcast(
+    n: Int,
+    maximumLag: Int
+  ): ZManaged[R, Nothing, List[ZStream[Any, E, O]]]
   def broadcastDynamic(
     maximumLag: Int
   ): ZManaged[R, Nothing, ZManaged[Any, Nothing, ZStream[Any, E, O]]]
