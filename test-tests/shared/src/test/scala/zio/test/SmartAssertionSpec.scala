@@ -102,13 +102,17 @@ object SmartAssertionSpec extends ZIOBaseSpec {
       },
       test("asInstanceOf") {
         val someColor: Color = Red("hello")
-        assert(someColor.asInstanceOf[Red].name == "cool")
+        case class Bomb(name: String) {
+          def getName: String = throw new Error("SPLODE")
+        }
+        val bomb = Bomb("boomy")
+        assert(bomb.getName.contains("HI"))
       },
       test("asInstanceOf") {
         val someColor: Color = Red("hello")
         assert(someColor.asInstanceOf[Blue].brightness > 38)
       }
     )
-  ) @@ TestAspect.ignore // @@ failing
+  ) // @@ failing
 
 }

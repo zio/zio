@@ -11,6 +11,7 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
   import c.universe._
 
   private val Assertion = q"zio.test.Assertion"
+  private val ZAssert   = q"zio.test.ZAssert"
 
   private[test] def location(c: blackbox.Context): (String, Int) = {
     val path = c.enclosingPosition.source.path
@@ -23,11 +24,69 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
       c.Expr(q"$acc && $assert")
     }
 
+  sealed trait AST
+
+  object AST {
+    case class And(lhs: AST, rhs: AST)                                                        extends AST
+    case class Or(lhs: AST, rhs: AST)                                                         extends AST
+    case class EqualTo(lhs: AST, rhs: AST)                                                    extends AST
+    case class Select(lhs: AST, lhsTpe: Type, rhsTpe: Type, name: String)                     extends AST
+    case class Method(lhs: AST, lhsTpe: Type, rhsTpe: Type, name: String, args: List[c.Tree]) extends AST
+    case class Function(lhs: c.Tree, rhs: c.Tree)                                             extends AST
+    case class Raw(ast: c.Tree)                                                               extends AST
+  }
+
+  def astToAssertion(ast: AST): c.Tree = ast match {
+    case AST.And(lhs, rhs) =>
+      q"${astToAssertion(lhs)} && ${astToAssertion(rhs)}"
+    case AST.Or(lhs, rhs) =>
+      q"${astToAssertion(lhs)} || ${astToAssertion(rhs)}"
+    case AST.EqualTo(lhs, rhs) =>
+      q"${astToAssertion(lhs)} == ${astToAssertion(rhs)}"
+    case AST.Select(lhs, lhsTpe, rhsTpe, name) =>
+      val select = q"{ (a) => a.${TermName(name)} }"
+      q"${astToAssertion(lhs)} >>> $ZAssert.transform($select)"
+    case AST.Method(lhs, lhsTpe, rhsTpe, name, args) =>
+      val select = q"{ (a) => a.${TermName(name)}(..$args) }"
+      q"${astToAssertion(lhs)} >>> $ZAssert.transform($select)"
+//    case AST.Function(lhs, rhs) => q"$ZAssert.transform($rhs)"
+    case AST.Raw(ast) => q"ZAssert.succeed($ast)"
+  }
+
+  def parseExpr(expr: c.Tree): AST =
+    expr match {
+      case q"$lhs && $rhs" => AST.And(parseExpr(lhs), parseExpr(rhs))
+      case q"$lhs || $rhs" => AST.Or(parseExpr(lhs), parseExpr(rhs))
+      case q"$lhs == $rhs" => AST.EqualTo(parseExpr(lhs), parseExpr(rhs))
+      case q"$lhs.$name" if !expr.symbol.isModule =>
+        AST.Select(parseExpr(lhs), lhs.tpe.widen, expr.tpe.widen, name.toString)
+      case MethodCall(lhs, name, args) =>
+        AST.Method(parseExpr(lhs), lhs.tpe.widen, expr.tpe.widen, name.toString, args)
+//        AST.Method(parseExpr(lhs), lhs.tpe.widen, expr.tpe.widen, name.toString, args.map(parseExpr))
+//      case q"($a) => $b" =>
+//        AST.Function(a, parseExpr(b))
+      case other => AST.Raw(other)
+    }
+
+//  EqualTo(
+//    Other(zio.Chunk.fromArray[Int](scala.Array.apply(1, 2, 3, 4)).filter(((x$1: Int) => false))),
+//    Other(zio.Chunk.apply[Int](1))
+//  )
+
   def assertSingle(expr: c.Tree): Expr[TestResult] = {
     val (stmts, expr0) = expr match {
       case Block(others, expr) => (others, expr)
       case other               => (List.empty, other)
     }
+
+    println("")
+    val parsed = parseExpr(expr0)
+    println(scala.Console.CYAN + parsed + scala.Console.RESET)
+    println("")
+    val ast = astToAssertion(parsed)
+    println(scala.Console.BLUE + ast + scala.Console.RESET)
+    println("")
+    throw new Error("OH")
 
 //    println("RAW")
 //    println(showRaw(expr))

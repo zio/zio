@@ -1,6 +1,7 @@
 package zio.test
 
 import zio.Chunk
+import zio.duration.Duration
 import zio.test.SmartTestTypes._
 
 import java.time.LocalDateTime
@@ -35,8 +36,24 @@ object SmartAssertionIsolatedTest extends ZIOBaseSpec {
 
   def spec: ZSpec[Annotations, Any] = suite("SmartAssertionSpec")(
     test("filterConstFalseResultsInEmptyChunk") {
-      assert(Chunk.fromArray(Array(1, 2, 3)).filter(_ => false) == Chunk.empty)
+      val za = Zoom.succeed(Duration.fromNanos(100L)) >>> Zoom.zoom(_.isZero)
+
+      println(za.run)
+
+      val ten = 10
+
+      val lhs = Zoom.succeed(Duration) >>> Zoom.zoom(_.fromNanos(100L)) >>> Zoom.zoom(_.isZero)
+
+      val rhs = Zoom.succeed(ten) >>> zio.test.Zoom.zoom(_ + 10) >>> Zoom.equalTo(20)
+
+      val both = lhs && rhs
+
+      println(both.run)
+      assertCompletes
+//      assert(Duration.fromNanos(100).isZero)
+//      assert(Duration.fromNanos(100).isZero && (ten + 10) == 20)
+//      assert(company.users.forall(_.name == "bob"))
     }
-  ) @@ TestAspect.ignore
+  ) @@ TestAspect.identity
 
 }
