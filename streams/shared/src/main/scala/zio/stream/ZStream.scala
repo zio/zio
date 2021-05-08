@@ -487,7 +487,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   final def bufferDropping(capacity: Int): ZStream[R, E, O] =
     ZStream {
       for {
-        queue <- Queue.dropping[(Take[E, O], Promise[Nothing, Unit])](capacity).toManaged(_.shutdown)
+        queue <- Queue.droppingManaged[(Take[E, O], Promise[Nothing, Unit])](capacity)
         pull  <- bufferSignal(queue)
       } yield pull
     }
@@ -501,7 +501,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   final def bufferSliding(capacity: Int): ZStream[R, E, O] =
     ZStream {
       for {
-        queue <- Queue.sliding[(Take[E, O], Promise[Nothing, Unit])](capacity).toManaged(_.shutdown)
+        queue <- Queue.slidingManaged[(Take[E, O], Promise[Nothing, Unit])](capacity)
         pull  <- bufferSignal(queue)
       } yield pull
     }
@@ -1418,7 +1418,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     ZStream[R1, E1, O2] {
       ZManaged.withChildren { getChildren =>
         for {
-          out          <- Queue.bounded[ZIO[R1, Option[E1], Chunk[O2]]](outputBuffer).toManaged(_.shutdown)
+          out          <- Queue.boundedManaged[ZIO[R1, Option[E1], Chunk[O2]]](outputBuffer)
           permits      <- Semaphore.make(n.toLong).toManaged_
           innerFailure <- Promise.make[Cause[E1], Nothing].toManaged_
 
@@ -1488,10 +1488,10 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
       ZManaged.withChildren { getChildren =>
         for {
           // Modeled after flatMapPar.
-          out          <- Queue.bounded[ZIO[R1, Option[E1], Chunk[O2]]](bufferSize).toManaged(_.shutdown)
+          out          <- Queue.boundedManaged[ZIO[R1, Option[E1], Chunk[O2]]](bufferSize)
           permits      <- Semaphore.make(n.toLong).toManaged_
           innerFailure <- Promise.make[Cause[E1], Nothing].toManaged_
-          cancelers    <- Queue.bounded[Promise[Nothing, Unit]](n).toManaged(_.shutdown)
+          cancelers    <- Queue.boundedManaged[Promise[Nothing, Unit]](n)
           _ <- self.foreachManaged { a =>
                  for {
                    canceler <- Promise.make[Nothing, Unit]
@@ -1630,9 +1630,8 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
       for {
         decider <- Promise.make[Nothing, (K, V) => UIO[UniqueKey => Boolean]].toManaged_
         out <- Queue
-                 .bounded[Exit[Option[E1], (K, Dequeue[Exit[Option[E1], V]])]](buffer)
-                 .toManaged(_.shutdown)
-        ref <- Ref.make[Map[K, UniqueKey]](Map()).toManaged_
+                 .boundedManaged[Exit[Option[E1], (K, Dequeue[Exit[Option[E1], V]])]](buffer)
+        ref <- Ref.makeManaged[Map[K, UniqueKey]](Map())
         add <- self
                  .mapM(f)
                  .distributedWithDynamic(
@@ -2055,7 +2054,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   final def mapMPar[R1 <: R, E1 >: E, O2](n: Int)(f: O => ZIO[R1, E1, O2]): ZStream[R1, E1, O2] =
     ZStream[R1, E1, O2] {
       for {
-        out         <- Queue.bounded[ZIO[R1, Option[E1], O2]](n).toManaged(_.shutdown)
+        out         <- Queue.boundedManaged[ZIO[R1, Option[E1], O2]](n)
         errorSignal <- Promise.make[E1, Nothing].toManaged_
         permits     <- Semaphore.make(n.toLong).toManaged_
         _ <- self.foreachManaged { a =>
@@ -2728,7 +2727,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
       ZStream {
         for {
           pull  <- self.process.mapM(BufferedPull.make(_))
-          queue <- ZQueue.sliding[O](n).toManaged_
+          queue <- ZQueue.slidingManaged[O](n)
           done  <- Ref.makeManaged(false)
         } yield done.get.flatMap {
           if (_) Pull.end
@@ -3038,7 +3037,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    */
   def toHub(capacity: Int): ZManaged[R, Nothing, ZHub[Nothing, Any, Any, Nothing, Nothing, Take[E, O]]] =
     for {
-      hub <- Hub.bounded[Take[E, O]](capacity).toManaged(_.shutdown)
+      hub <- Hub.boundedManaged[Take[E, O]](capacity)
       _   <- self.intoHubManaged(hub).fork
     } yield hub
 
@@ -3091,7 +3090,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    */
   final def toQueue(capacity: Int = 2): ZManaged[R, Nothing, Dequeue[Take[E, O]]] =
     for {
-      queue <- Queue.bounded[Take[E, O]](capacity).toManaged(_.shutdown)
+      queue <- Queue.boundedManaged[Take[E, O]](capacity)
       _     <- self.intoManaged(queue).fork
     } yield queue
 
@@ -3101,7 +3100,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    */
   final def toQueueUnbounded: ZManaged[R, Nothing, Dequeue[Take[E, O]]] =
     for {
-      queue <- Queue.unbounded[Take[E, O]].toManaged(_.shutdown)
+      queue <- Queue.unboundedManaged[Take[E, O]]
       _     <- self.intoManaged(queue).fork
     } yield queue
 

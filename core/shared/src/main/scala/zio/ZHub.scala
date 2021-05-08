@@ -240,6 +240,14 @@ object ZHub {
     ZIO.effectTotal(internal.Hub.bounded[A](requestedCapacity)).flatMap(makeHub(_, Strategy.BackPressure()))
 
   /**
+   * Managed version of [[zio.ZHub.bounded]] that shuts down the queue on release
+   *
+   * @return `UManaged[Hub[A]]
+   */
+  def boundedManaged[A](requestedCapacity: Int): UManaged[Hub[A]] =
+    bounded(requestedCapacity).toManaged(_.shutdown)
+
+  /**
    * Creates a bounded hub with the dropping strategy. The hub will drop new
    * messages if the hub is at capacity.
    *
@@ -247,6 +255,14 @@ object ZHub {
    */
   def dropping[A](requestedCapacity: Int): UIO[Hub[A]] =
     ZIO.effectTotal(internal.Hub.bounded[A](requestedCapacity)).flatMap(makeHub(_, Strategy.Dropping()))
+
+  /**
+   * Managed version of [[zio.ZHub.dropping]] that shuts down the queue on release
+   *
+   * @return `UManaged[Hub[A]]
+   */
+  def droppingManaged[A](requestedCapacity: Int): UManaged[Hub[A]] =
+    dropping(requestedCapacity).toManaged(_.shutdown)
 
   /**
    * Creates a bounded hub with the sliding strategy. The hub will add new
@@ -258,10 +274,26 @@ object ZHub {
     ZIO.effectTotal(internal.Hub.bounded[A](requestedCapacity)).flatMap(makeHub(_, Strategy.Sliding()))
 
   /**
+   * Managed version of [[zio.ZHub.sliding]] that shuts down the queue on release
+   *
+   * @return `UManaged[Hub[A]]
+   */
+  def slidingManaged[A](requestedCapacity: Int): UManaged[Hub[A]] =
+    sliding(requestedCapacity).toManaged(_.shutdown)
+
+  /**
    * Creates an unbounded hub.
    */
   def unbounded[A]: UIO[Hub[A]] =
     ZIO.effectTotal(internal.Hub.unbounded[A]).flatMap(makeHub(_, Strategy.Dropping()))
+
+  /**
+   * Managed version of [[zio.ZHub.unbounded]] that shuts down the queue on release
+   *
+   * @return `UManaged[Hub[A]]
+   */
+  def unboundedManaged[A]: UManaged[Hub[A]] =
+    unbounded.toManaged(_.shutdown)
 
   /**
    * Creates a hub with the specified strategy.

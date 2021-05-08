@@ -3123,9 +3123,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
         for {
           array <- ZIO.effectTotal(Array.ofDim[AnyRef](size))
-          queue <- Queue.bounded[(A, Int)](size)
-          _     <- queue.offerAll(as.zipWithIndex)
-          _     <- ZIO.collectAllPar_(ZIO.replicate(n)(worker(queue, array)))
+          _ <- Queue.boundedManaged[(A, Int)](size).use { queue =>
+                 queue.offerAll(as.zipWithIndex) *> ZIO.collectAllPar_(ZIO.replicate(n)(worker(queue, array)))
+               }
         } yield bf.fromSpecific(as)(array.asInstanceOf[Array[B]])
       }.refailWithTrace
     }
@@ -3147,11 +3147,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
           case None    => ZIO.unit
         }
 
-      for {
-        queue <- Queue.bounded[A](size)
-        _     <- queue.offerAll(as)
-        _     <- ZIO.collectAllPar_(ZIO.replicate(n)(worker(queue)))
-      } yield ()
+      Queue.boundedManaged[A](size).use { queue =>
+        queue.offerAll(as) *> ZIO.collectAllPar_(ZIO.replicate(n)(worker(queue)))
+      }
     }.refailWithTrace
   }
 

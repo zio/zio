@@ -716,6 +716,14 @@ object ZQueue {
     IO.effectTotal(MutableConcurrentQueue.bounded[A](requestedCapacity)).flatMap(createQueue(_, BackPressure()))
 
   /**
+   * Managed version of [[zio.ZQueue.bounded]] that shuts down the queue on release
+   *
+   * @return `UManaged[Queue[A]]
+   */
+  def boundedManaged[A](requestedCapacity: Int): UManaged[Queue[A]] =
+    bounded(requestedCapacity).toManaged(_.shutdown)
+
+  /**
    * Makes a new bounded queue with the dropping strategy.
    * When the capacity of the queue is reached, new elements will be dropped.
    *
@@ -729,6 +737,14 @@ object ZQueue {
    */
   def dropping[A](requestedCapacity: Int): UIO[Queue[A]] =
     IO.effectTotal(MutableConcurrentQueue.bounded[A](requestedCapacity)).flatMap(createQueue(_, Dropping()))
+
+  /**
+   * Managed version of [[zio.ZQueue.dropping]] that shuts down the queue on release
+   *
+   * @return `UManaged[Queue[A]]
+   */
+  def droppingManaged[A](requestedCapacity: Int): UManaged[Queue[A]] =
+    dropping(requestedCapacity).toManaged(_.shutdown)
 
   /**
    * Makes a new bounded queue with sliding strategy.
@@ -747,6 +763,14 @@ object ZQueue {
     IO.effectTotal(MutableConcurrentQueue.bounded[A](requestedCapacity)).flatMap(createQueue(_, Sliding()))
 
   /**
+   * Managed version of [[zio.ZQueue.sliding]] that shuts down the queue on release
+   *
+   * @return `UManaged[Queue[A]]
+   */
+  def slidingManaged[A](requestedCapacity: Int): UManaged[Queue[A]] =
+    sliding(requestedCapacity).toManaged(_.shutdown)
+
+  /**
    * Makes a new unbounded queue.
    *
    * @tparam A type of the `Queue`
@@ -754,6 +778,14 @@ object ZQueue {
    */
   def unbounded[A]: UIO[Queue[A]] =
     IO.effectTotal(MutableConcurrentQueue.unbounded[A]).flatMap(createQueue(_, Dropping()))
+
+  /**
+   * Managed version of [[zio.ZQueue.unbounded]] that shuts down the queue on release
+   *
+   * @return `UManaged[Queue[A]]
+   */
+  def unboundedManaged[A]: UManaged[Queue[A]] =
+    unbounded[A].toManaged(_.shutdown)
 
   private def createQueue[A](queue: MutableConcurrentQueue[A], strategy: Strategy[A]): UIO[Queue[A]] =
     Promise

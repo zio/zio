@@ -54,7 +54,7 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
   ): ZStream[R, E, A] =
     ZStream {
       for {
-        output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).toManaged(_.shutdown)
+        output  <- Queue.boundedManaged[stream.Take[E, A]](outputBuffer)
         runtime <- ZIO.runtime[R].toManaged_
         eitherStream <- ZManaged.effectTotal {
                           register(k =>
@@ -91,7 +91,7 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
   ): ZStream[R, E, A] =
     managed {
       for {
-        output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).toManaged(_.shutdown)
+        output  <- Queue.boundedManaged[stream.Take[E, A]](outputBuffer)
         runtime <- ZIO.runtime[R].toManaged_
         _ <- register { k =>
                try {
@@ -123,7 +123,7 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
   ): ZStream[R, E, A] =
     ZStream {
       for {
-        output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).toManaged(_.shutdown)
+        output  <- Queue.boundedManaged[stream.Take[E, A]](outputBuffer)
         runtime <- ZIO.runtime[R].toManaged_
         maybeStream <- ZManaged.effectTotal {
                          register { k =>
