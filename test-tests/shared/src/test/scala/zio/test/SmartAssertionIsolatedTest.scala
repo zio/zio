@@ -5,7 +5,6 @@ import zio.duration.Duration
 import zio.test.AssertionSyntax.AssertionOps
 import zio.test.SmartAssertionIsolatedTest.{BadError, CoolError, debugNode}
 import zio.test.SmartTestTypes._
-import zio.test.examples.Node
 
 import java.time.LocalDateTime
 
@@ -74,6 +73,6 @@ object ExampleZoo {
 
     val (node, result) = zoom.run
     if (result.contains(true)) println("SUCCEESS")
-    else println(examples.render(node, List.empty, 0, true).mkString("\n"))
+    else println(Node.render(node, List.empty, 0, true).mkString("\n"))
   }
 }
