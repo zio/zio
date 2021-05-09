@@ -3998,8 +3998,10 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     }
 
   def validate_[R, E, A](in: Iterable[A])(f: A => ZIO[R, E, Any])(implicit ev: CanFail[E]): ZIO[R, ::[E], Unit] =
-    validate(in)(f).unit
-
+    partition(in)(f).flatMap { case (es, _) =>
+      if (es.isEmpty) ZIO.unit
+      else ZIO.fail(::(es.head, es.tail.toList))
+    }
   /**
    * Feeds elements of type `A` to `f `and accumulates, in parallel, all errors
    * in error channel or successes in success channel.
@@ -4019,8 +4021,10 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * @see See [[zio.ZIO.validatePar]]
    */
   def validatePar_[R, E, A](in: Iterable[A])(f: A => ZIO[R, E, Any])(implicit ev: CanFail[E]): ZIO[R, ::[E], Unit] =
-    validatePar(in)(f).unit
-
+    partitionPar(in)(f).flatMap { case (es, _) =>
+      if (es.isEmpty) ZIO.unit
+      else ZIO.fail(::(es.head, es.tail.toList))
+    }
   /**
    * Feeds elements of type `A` to `f` until it succeeds. Returns first success
    * or the accumulation of all errors.
