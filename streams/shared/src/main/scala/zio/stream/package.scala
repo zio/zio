@@ -16,7 +16,7 @@
 
 package zio
 
-package object stream {
+package object stream extends ZStreamOps {
   type Stream[+E, +A] = ZStream[Any, E, A]
   val Stream = ZStream
 
