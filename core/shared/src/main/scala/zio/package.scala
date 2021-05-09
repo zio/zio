@@ -46,6 +46,7 @@ package object zio
   type TaskLayer[+ROut]     = ZLayer[Any, Throwable, ROut]
 
   type Queue[A] = ZQueue[Any, Any, Nothing, Nothing, A, A]
+  val Queue: ZQueue.type = ZQueue
 
   /**
    * A queue that can only be dequeued.
