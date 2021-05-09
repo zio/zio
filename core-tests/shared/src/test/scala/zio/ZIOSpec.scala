@@ -3364,9 +3364,9 @@ object ZIOSpec extends ZIOBaseSpec {
       }
     ),
     suite("validatePar_")(testM("returns all errors if never valid") {
-      val in                            = List.fill(10)(0)
+      val in                      = List.fill(10)(0)
       def fail[A](a: A): IO[A, Nothing] = IO.fail(a)
-      val res                           = IO.validatePar_(in)(fail).flip
+      val res                     = IO.validatePar_(in)(fail).flip
       assertM(res)(equalTo(in))
     } @@ zioTag(errors)),
     suite("validateFirst")(
