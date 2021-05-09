@@ -3,6 +3,7 @@ package zio.test
 import zio.Chunk
 import zio.duration.Duration
 import zio.test.SmartTestTypes._
+import zio.test.examples.Node
 
 import java.time.LocalDateTime
 
@@ -34,25 +35,21 @@ object SmartAssertionIsolatedTest extends ZIOBaseSpec {
 
   val company: Company = Company("Ziverge", List(User("Bobo", List.tabulate(2)(n => Post(s"Post #$n")))))
 
+  def debugNode(node: Node, indent: Int): Unit = {
+    println(" " * indent + node.copy(fullCode = "", children = Nil))
+    node.children.foreach(debugNode(_, indent + 2))
+  }
+
   def spec: ZSpec[Annotations, Any] = suite("SmartAssertionSpec")(
     test("filterConstFalseResultsInEmptyChunk") {
-      val za = Zoom.succeed(Duration.fromNanos(100L)) >>> Zoom.zoom(_.isZero)
+      val listOfWords = List(None, Some("Howdy"), Some("Cool"))
 
-      println(za.run)
+      val zoom: Zoom[Any, Boolean] = assertZoom(listOfWords.head.get == "123")
 
-      val ten = 10
+      val (node, _) = zoom.run
+      println(examples.render(node, List.empty, 0, true).mkString("\n"))
 
-      val lhs = Zoom.succeed(Duration) >>> Zoom.zoom(_.fromNanos(100L)) >>> Zoom.zoom(_.isZero)
-
-      val rhs = Zoom.succeed(ten) >>> zio.test.Zoom.zoom(_ + 10) >>> Zoom.equalTo(20)
-
-      val both = lhs && rhs
-
-      println(both.run)
       assertCompletes
-//      assert(Duration.fromNanos(100).isZero)
-//      assert(Duration.fromNanos(100).isZero && (ten + 10) == 20)
-//      assert(company.users.forall(_.name == "bob"))
     }
   ) @@ TestAspect.identity
 

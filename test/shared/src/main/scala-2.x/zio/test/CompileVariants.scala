@@ -48,6 +48,7 @@ trait CompileVariants {
    */
   def assert(expr: Boolean, exprs: Boolean*): TestResult = macro SmartAssertMacros.assertImpl
   def assert(expr: Boolean): TestResult = macro SmartAssertMacros.assertSingle
+  def assertZoom(expr: Boolean): Zoom[Any, Boolean] = macro SmartAssertMacros.assertZoom
 
   /**
    * Checks the assertion holds for the given value.

@@ -35,4 +35,10 @@ private[test] object ConsoleUtils {
   def cyan(s: String): String =
     SConsole.CYAN + s + SConsole.RESET
 
+  def dim(s: String): String =
+    "\u001b[2m" + s + SConsole.RESET
+
+  def bold(s: String): String =
+    SConsole.BOLD + s + SConsole.RESET
+
 }
