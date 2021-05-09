@@ -4002,6 +4002,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       if (es.isEmpty) ZIO.unit
       else ZIO.fail(::(es.head, es.tail.toList))
     }
+
   /**
    * Feeds elements of type `A` to `f `and accumulates, in parallel, all errors
    * in error channel or successes in success channel.
@@ -4025,6 +4026,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       if (es.isEmpty) ZIO.unit
       else ZIO.fail(::(es.head, es.tail.toList))
     }
+
   /**
    * Feeds elements of type `A` to `f` until it succeeds. Returns first success
    * or the accumulation of all errors.
