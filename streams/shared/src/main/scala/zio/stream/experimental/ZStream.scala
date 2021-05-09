@@ -2849,7 +2849,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     zipWithPrevious.zipWithNext.map { case ((prev, curr), next) => (prev, curr, next.map(_._2)) }
 }
 
-object ZStream {
+object ZStream extends ZStreamPlatformSpecificConstructors {
   def fromPull[R, E, A](zio: ZManaged[R, Nothing, ZIO[R, Option[E], Chunk[A]]]): ZStream[R, E, A] =
     ZStream.unwrapManaged(zio.map(pull => repeatEffectChunkOption(pull)))
 
