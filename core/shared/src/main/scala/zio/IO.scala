@@ -895,6 +895,12 @@ object IO {
     ZIO.validate(in)(f)
 
   /**
+   * @see See [[zio.ZIO.validate_]]
+   */
+  def validate_[E, A](in: Iterable[A])(f: A => IO[E, Any])(implicit ev: CanFail[E]): IO[::[E], Unit] =
+    ZIO.validate_(in)(f)
+
+  /**
    * @see See [[zio.ZIO.validatePar]]
    */
   def validatePar[E, A, B, Collection[+Element] <: Iterable[Element]](in: Collection[A])(
@@ -905,9 +911,7 @@ object IO {
   /**
    * @see See [[zio.ZIO.validatePar_]]
    */
-  def validatePar_[E, A, Collection[+Element] <: Iterable[Element]](in: Collection[A])(
-    f: A => IO[E, Any]
-  )(implicit bf: BuildFrom[Collection[A], Any, Collection[Any]], ev: CanFail[E]): IO[::[E], Unit] =
+  def validatePar_[E, A](in: Iterable[A])(f: A => IO[E, Any])(implicit ev: CanFail[E]): IO[::[E], Unit] =
     ZIO.validatePar_(in)(f)
 
   /**
