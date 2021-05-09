@@ -4013,6 +4013,14 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     }
 
   /**
+   * @see See [[zio.ZIO.validatePar]]
+   */
+  def validatePar_[R, E, A, Collection[+Element] <: Iterable[Element]](in: Collection[A])(
+    f: A => ZIO[R, E, Any]
+  )(implicit bf: BuildFrom[Collection[A], Any, Collection[Any]], ev: CanFail[E]): ZIO[R, ::[E], Unit] =
+    validatePar(in)(f).unit
+
+  /**
    * Feeds elements of type `A` to `f` until it succeeds. Returns first success
    * or the accumulation of all errors.
    */
