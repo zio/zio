@@ -5,6 +5,7 @@ import zio.test.FailureRenderer.FailureMessage.{Fragment, Message}
 import zio.test.{MessageDesc => M}
 
 import scala.io.AnsiColor
+import scala.language.existentials
 import scala.reflect.ClassTag
 import scala.util.Try
 
@@ -35,40 +36,41 @@ trait LowPriPrinter0 {
   }
 }
 
+/**
+ * TODO:
+ *  - Allow Boolean Logic
+ *  - Improve forall-type nodes, have internal children.
+ */
 sealed trait Zoom[-In, +Out] { self =>
   def run(implicit ev: Any <:< In): (Node, Result[Out]) = run(Right(ev(())))
 
+//  def transform(f: (Zoom.Arr[i, o] => Zoom.Arr[i, o]) forSome { type i; type o }): Zoom[In, Out] = self match {
+//    case arr: Zoom.Arr[_, _]    => f(arr)
+//    case Zoom.AndThen(lhs, rhs) => Zoom.AndThen(lhs, rhs.transform(f))
+//  }
+
   def pos(start: Int, end: Int): Zoom[In, Out] =
     self match {
-      case arr: Zoom.Arr[_, _] => arr.copy(pos = (start, end))
-      case _                   => self
+      case Zoom.Arr(f, renderer, _, fullCode) =>
+        Zoom.Arr(f, renderer, (start, end), fullCode)
+      case Zoom.AndThen(lhs, rhs) =>
+        Zoom.AndThen(lhs, rhs.pos(start, end))
+      case suspend: Zoom.Suspend[_, _] =>
+        suspend
+
     }
 
-  def withCode(string: String): Zoom[In, Out] = self match {
+  def withCode(code: String): Zoom[In, Out] = self match {
     case arr @ Zoom.Arr(_, _, _, _) =>
-      arr.copy(fullCode = string)
-    case Zoom.AndThen(lhs, rhs) => Zoom.AndThen(lhs.withCode(string), rhs.withCode(string))
-//    case either: Zoom.ZEither[_, _] =>
-//      either.copy(zoom = either.zoom.withCode(string)).asInstanceOf[Zoom[In, Out]]
-//    case _ => self
+      arr.copy(fullCode = code)
+    case Zoom.AndThen(lhs, rhs) =>
+      Zoom.AndThen(lhs.withCode(code), rhs.withCode(code))
+    case Zoom.Suspend(f, _) =>
+      Zoom.Suspend(f, code)
   }
-//    new Zoom[In, Out] {
-//      override def run(in: In): (Node, Result[Out]) = {
-//        val (node, out) = self.run(in)
-//        val newNode     = node.withCode(string)
-//        newNode -> out
-//      }
-//    }
 
   def andThen[Out2](that: Zoom[Out, Out2]): Zoom[In, Out2] =
     self >>> that
-
-  // TODO: Rearrange AndThens from left to right using an unapply
-//  def either: Zoom[In, Either[Throwable, Out]] =
-//    self match {
-//      case Zoom.AndThen(lhs, rhs) => Zoom.AndThen(lhs, rhs.either)
-////      case _                      => Zoom.ZEither(self)
-//    }
 
   def >>>[Out2](that: Zoom[Out, Out2]): Zoom[In, Out2] =
     self match {
@@ -127,7 +129,7 @@ object Result {
 
 object Zoom {
 
-  def throwsSubtype[E <: Throwable](start: Int, end: Int)(implicit
+  def throwsSubtype[E <: Throwable](implicit
     classTag: ClassTag[E]
   ): Zoom[Any, Boolean] =
     zoomResult[Any, Boolean](
@@ -139,60 +141,71 @@ object Zoom {
       M.switch(
         e => M.value(e) + M.was + M.text("a subtype of ") + M.value(classTag.toString()),
         a => M.value(a) + M.did + M.text("throw")
-      ),
-      (start, end)
+      )
     )
 
-  def throwsError(start: Int, end: Int): Zoom[Any, Throwable] =
+  def throwsError: Zoom[Any, Throwable] =
     zoomResult(
       {
         case Left(err) => Result.succeed(err)
         case _         => Result.Stop
       },
-      MessageDesc.text("Did not throw"),
-      (start, end)
+      MessageDesc.text("Did not throw")
     )
 
-  //  def forall[A](f: Zoom[A, Boolean], start: Int, end: Int): Zoom[Iterable[A], Boolean] =
-//        val results      = in.map(f.run)
-//        val bool         = results.forall(_._2.contains(true))
-//        val nodes        = results.filter(!_._2.contains(true)).map(_._1).toList
-//        val errorMessage = renderMessage(MessageDesc.text(s"${nodes.length} elements failed the predicate"), in)
-//        Node(
-//          input = in,
-//          fullCode = "",
-//          pos = (start, end),
-//          result = bool,
-//          errorMessage = errorMessage,
-//          children = nodes
-//        ) -> Result(Right(bool))
-//    }
+  def isSome[A]: Zoom[Option[A], A] =
+    zoomResult(
+      {
+        case Right(Some(a)) => Result.succeed(a)
+        case Left(e)        => Result.fail(e)
+        case _              => Result.Stop
+      },
+      M.choice("was Some", "was None")
+    )
+
+  def forall[A](f: Zoom[A, Boolean]): Zoom[Iterable[A], Boolean] =
+    Arr(
+      { case Right(in) =>
+        val results      = in.map(a => f.run(Right(a)))
+        val bool         = results.forall(_._2.contains(true))
+        val nodes        = results.filter(!_._2.contains(true)).map(_._1).toList
+        val errorMessage = renderMessage(MessageDesc.text(s"${nodes.length} elements failed the predicate"), Right(in))
+        Node(
+          input = in,
+          fullCode = "",
+          pos = (0, 0),
+          result = bool,
+          errorMessage = errorMessage,
+          children = Children.Many(nodes)
+        ) -> Result.succeed(bool)
+      }
+    )
 
   def main(args: Array[String]): Unit =
     println("HOWDY")
 
-  def zoom[A, B: Printer](f: A => B, start: Int, end: Int): Arr[A, B] = {
+  def zoom[A, B: Printer](f: A => B): Arr[A, B] = {
     def fr(r: Either[Throwable, A]): Result[B] = r match {
       case Right(value) => Result.attempt(f(value))
       case _            => Result.Stop
     }
 
-    zoomResult(fr, pos = (start, end))
+    zoomResult(fr)
   }
 
-  def zoomEither[A, B: Printer](f: Either[Throwable, A] => B, start: Int, end: Int): Arr[A, B] = {
+  def zoomEither[A, B: Printer](f: Either[Throwable, A] => B): Arr[A, B] = {
     def fr(r: Either[Throwable, A]): Result[B] = r match {
       case Left(err)    => Result.attempt(f(Left(err)))
       case Right(value) => Result.attempt(f(Right(value)))
     }
 
-    zoomResult(fr, pos = (start, end))
+    zoomResult(fr)
   }
 
-  def succeed[A: Printer](a: => A, start: Int, end: Int): Zoom[Any, A] = zoom(_ => a, start, end)
+  def succeed[A: Printer](a: => A): Zoom[Any, A] = zoom(_ => a)
 
-  def equalTo[A](value: A, start: Int, end: Int)(implicit printer: Printer[A]): Zoom[A, Boolean] =
-    zoom[A, Boolean](in => in == value, start, end)
+  def equalTo[A](value: A)(implicit printer: Printer[A]): Zoom[A, Boolean] =
+    zoom[A, Boolean](in => in == value)
       .withRenderer(M.result((a: A) => printer(a)) + M.choice("==", "!=") + M.value(printer(value)))
 
   private def printStack(e: Throwable): MessageDesc[Any] =
@@ -202,35 +215,55 @@ object Zoom {
 
   def zoomResult[A, B: Printer](
     f: Either[Throwable, A] => Result[B],
-    renderer: MessageDesc[A] = M.switch[A](e => printStack(e), a => M.text("Failed with input:") + M.value(a)),
-    pos: (Int, Int),
-    fullCode: String = ""
-  ): Arr[A, B] = Arr(f, renderer, pos, fullCode)
-
-  case class Arr[-A, +B](
-    f: Either[Throwable, A] => Result[B],
-    renderer: MessageDesc[A],
-    pos: (Int, Int),
-    fullCode: String
-  )(implicit printer: Printer[B])
-      extends Zoom[A, B] { self =>
-
-    def withRenderer[A1 <: A](renderer0: MessageDesc[A1]): Arr[A1, B] =
-      copy(renderer = renderer0)
-
-    override def run(in: Either[Throwable, A]): (Node, Result[B]) = {
+    renderer: MessageDesc[A] = M.switch[A](e => printStack(e), a => M.text("Failed with input:") + M.value(a))
+  ): Arr[A, B] = {
+    val fr = { (in: Either[Throwable, A]) =>
       val out = f(in)
       (
         Node(
           input = in,
-          fullCode = fullCode,
-          pos = pos,
-          result = out.fold(_.toString, printer(_)),
-          errorMessage = renderMessage(renderer, in),
-          children = List.empty
+          fullCode = "",
+          pos = (0, 0),
+          result = out,
+          errorMessage = "",
+          children = Children.Empty
         ),
         out
       )
+    }
+    Arr(fr, Some(renderer))
+  }
+
+  def suspend[A, B](f: A => Zoom[Any, B]): Zoom[A, B] = Suspend(f)
+
+  case class Suspend[A, B](f: A => Zoom[Any, B], code: String = "") extends Zoom[A, B] {
+    override def run(in: Either[Throwable, A]): (Node, Result[B]) =
+      in match {
+        case Left(value)  => throw new Error(value)
+        case Right(value) => f(value).withCode(code).run
+      }
+  }
+
+  case class Arr[-A, +B](
+    f: Either[Throwable, A] => (Node, Result[B]),
+    renderer: Option[MessageDesc[A]] = None,
+    pos: (Int, Int) = (0, 0),
+    fullCode: String = ""
+  )(implicit printer: Printer[B])
+      extends Zoom[A, B] { self =>
+
+    def withRenderer[A1 <: A](renderer0: MessageDesc[A1]): Arr[A1, B] =
+      copy(renderer = Some(renderer0))
+
+    override def run(in: Either[Throwable, A]): (Node, Result[B]) = {
+      val (node, out) = f(in)
+      node
+        .copy(
+          pos = pos,
+          result = out.fold(_.toString, printer(_)),
+          errorMessage = renderer.map(r => renderMessage(r, in)).getOrElse(node.errorMessage)
+        )
+        .withCode(fullCode) -> out
     }
   }
 
@@ -241,7 +274,7 @@ object Zoom {
         case Result.Stop => nodeB -> Result.Stop
         case Result.ToEither(either) =>
           val (nodeC, c) = rhs.run(either)
-          val node       = nodeB.copy(children = List(nodeC))
+          val node       = nodeB.copy(children = Children.Next(nodeC))
           (node, c)
       }
     }
@@ -261,9 +294,46 @@ object Zoom {
     renderToString(message.render(either, isSuccess = false))
 
   def debug(node: Node, indent: Int): Unit = {
-    println(" " * indent + node.copy(fullCode = "", children = Nil))
+    println(" " * indent + node.copy(fullCode = "", children = Children.Empty))
     node.children.foreach(debug(_, indent + 2))
   }
+}
+
+sealed trait Children { self =>
+  def toList: List[Node] = self match {
+    case Children.Empty       => List.empty
+    case Children.Next(node)  => List(node)
+    case Children.Many(nodes) => nodes
+  }
+
+  def foreach(f: Node => Unit): Unit = self match {
+    case Children.Empty => ()
+    case Children.Next(node) =>
+      f(node)
+      node.children.foreach(f)
+    case Children.Many(nodes) =>
+      nodes.foreach { node =>
+        f(node)
+        node.children.foreach(f)
+      }
+  }
+
+  def transform(f: Node => Node): Children = self match {
+    case Children.Empty =>
+      Children.Empty
+    case Children.Next(node) =>
+      Children.Next(f(node).copy(children = node.children.transform(f)))
+    case Children.Many(nodes) =>
+      val newNodes = nodes.map(node => f(node).copy(children = node.children.transform(f)))
+      Children.Many(newNodes)
+  }
+}
+
+object Children {
+  case object Empty                  extends Children
+  case class Next(node: Node)        extends Children
+  case class Many(nodes: List[Node]) extends Children
+
 }
 
 final case class Node(
@@ -272,25 +342,27 @@ final case class Node(
   pos: (Int, Int),
   result: Any,
   errorMessage: String,
-  children: List[Node]
+  children: Children
 ) {
+  def clipOutput: Node = {
+    val (start, _)  = pos
+    val newChildren = children.transform(n => n.withCode(label).copy(pos = (n.pos._1 - start, n.pos._2 - start)))
+    copy(children = newChildren)
+  }
 
-  def appendChild(node: Node): Node =
-    copy(children = children match {
-      case Nil      => List(node)
-      case children => children.map(_.appendChild(node))
-    })
+  //  def appendChild(node: Node): Node =
+//    copy(children = children match {
+//      case Children.Empty =>
+//      case Children.Next(node) =>
+//      case Children.Many(nodes) =>
+//      case Nil => List(node)
+//      case children => children.map(_.appendChild(node))
+//    })
 
   def withCode(string: String): Node =
-    copy(fullCode = string, children = children.map(_.withCode(string)))
+    copy(fullCode = string, children = children.transform(_.withCode(string)))
 
   def label: String = Try(fullCode.substring(pos._1, pos._2)).getOrElse("<code>")
-
-  def firstErrorMessage: String =
-    if (children.isEmpty || errorMessage.trim.nonEmpty)
-      errorMessage
-    else
-      children.collectFirst { case node if node.firstErrorMessage.nonEmpty => node.firstErrorMessage }.getOrElse("")
 }
 
 object Node {
@@ -300,7 +372,7 @@ object Node {
   def render(node: Node, acc: List[String], indent: Int, isTop: Boolean = false): List[String] = {
     val spaces = " " * indent
     node.children match {
-      case Nil =>
+      case Children.Empty =>
         val errorMessage =
           (node.errorMessage.linesIterator.take(1) ++ node.errorMessage.linesIterator.drop(1).map(spaces + _))
             .mkString("\n")
@@ -308,16 +380,17 @@ object Node {
         s"$spaces${red("›")} $errorMessage" ::
           s"$spaces${highlight(node.fullCode, node.pos._1, node.pos._2)}" :: acc
 
-      case head :: Nil =>
+      case Children.Next(next) =>
         val result = Option(node.result).getOrElse("null")
-        render(head, s"$spaces${dim(node.label)} = ${blue(result.toString)}" :: acc, indent)
+        render(next, s"$spaces${dim(node.label)} = ${blue(result.toString)}" :: acc, indent)
 
-      case children if isTop =>
+      case Children.Many(children) if isTop =>
         children.foldLeft(acc) { (acc, node) =>
           render(node, acc, indent)
         }
 
-      case children =>
+      case Children.Many(children0) =>
+        val children = node.clipOutput.children.toList
         s"$spaces${red("›")} ${node.errorMessage}" :: highlight(node.fullCode, node.pos._1, node.pos._2) ::
           //        s"$spaces${node.label} = ${node.result}" ::
           children.foldRight(acc) { (node, acc) =>
