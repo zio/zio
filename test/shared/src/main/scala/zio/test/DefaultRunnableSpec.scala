@@ -22,6 +22,7 @@ import zio.test.environment.TestEnvironment
 import zio.{URIO, ZIO}
 
 import scala.language.implicitConversions
+import scala.reflect.ClassTag
 
 /**
  * A default runnable spec that provides testable versions of all of the
@@ -77,5 +78,9 @@ object AssertionSyntax {
 
     def as[Case <: A]: Case =
       throw new Error("OH NO")
+
+    def throwsA[E <: Throwable]: Boolean = throw new Error("OH NO")
+
+    def throws: Throwable = throw new Error("OH NO")
   }
 }

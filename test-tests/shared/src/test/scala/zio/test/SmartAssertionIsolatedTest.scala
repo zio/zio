@@ -2,6 +2,8 @@ package zio.test
 
 import zio.Chunk
 import zio.duration.Duration
+import zio.test.AssertionSyntax.AssertionOps
+import zio.test.SmartAssertionIsolatedTest.{BadError, CoolError, debugNode}
 import zio.test.SmartTestTypes._
 import zio.test.examples.Node
 
@@ -40,17 +42,38 @@ object SmartAssertionIsolatedTest extends ZIOBaseSpec {
     node.children.foreach(debugNode(_, indent + 2))
   }
 
+  sealed trait NiceError extends Throwable
+
+  case class CoolError() extends NiceError
+  case class BadError()  extends NiceError
+
   def spec: ZSpec[Annotations, Any] = suite("SmartAssertionSpec")(
     test("filterConstFalseResultsInEmptyChunk") {
-      val listOfWords = List(None, Some("Howdy"), Some("Cool"))
-
-      val zoom: Zoom[Any, Boolean] = assertZoom(listOfWords.head.get == "123")
-
-      val (node, _) = zoom.run
-      println(examples.render(node, List.empty, 0, true).mkString("\n"))
-
       assertCompletes
     }
   ) @@ TestAspect.identity
 
+}
+
+object ExampleZoo {
+
+  def main(args: Array[String]): Unit = {
+    val listOfWords = List(None, Some("Howdy"), Some("Cooooool"), None, None)
+
+    case class Thing() {
+      def blowUp: Int = 13 //throw CoolError()
+    }
+
+    def blowUp: Int = throw CoolError()
+
+    val thing = Thing()
+
+//    val zoom: Zoom[Any, Boolean] = assertZoom(thing.blowUp.throwsA[BadError])
+//    val zoom: Zoom[Any, Boolean] = assertZoom(!(thing.blowUp > 10))
+    val zoom: Zoom[Any, Boolean] = assertZoom(thing.blowUp < 10)
+
+    val (node, result) = zoom.run
+    if (result.contains(true)) println("SUCCEESS")
+    else println(examples.render(node, List.empty, 0, true).mkString("\n"))
+  }
 }

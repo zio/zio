@@ -30,31 +30,51 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
   }
 
   object AST {
-    case class And(lhs: AST, rhs: AST, start: Int, end: Int)                                    extends AST
-    case class Or(lhs: AST, rhs: AST, start: Int, end: Int)                                     extends AST
-    case class EqualTo(lhs: AST, rhs: c.Tree, start: Int, end: Int)                             extends AST
-    case class Select(lhs: AST, lhsTpe: Type, rhsTpe: Type, name: String, start: Int, end: Int) extends AST
+    case class And(lhs: AST, rhs: AST, start: Int, end: Int)        extends AST
+    case class Or(lhs: AST, rhs: AST, start: Int, end: Int)         extends AST
+    case class EqualTo(lhs: AST, rhs: c.Tree, start: Int, end: Int) extends AST
+    case class Select(lhs: AST, lhsTpe: Type, rhsTpe: Type, tpes: List[Tree], name: String, start: Int, end: Int)
+        extends AST
     case class Method(lhs: AST, lhsTpe: Type, rhsTpe: Type, name: String, args: List[c.Tree], start: Int, end: Int)
         extends AST
-    case class Function(lhs: c.Tree, rhs: c.Tree, start: Int, end: Int) extends AST
-    case class Raw(ast: c.Tree, start: Int, end: Int)                   extends AST
+    case class Function(lhs: c.Tree, rhs: c.Tree, lhsTpe: Type, start: Int, end: Int) extends AST
+    case class Raw(ast: c.Tree, start: Int, end: Int)                                 extends AST
   }
 
-  def astToAssertion(ast: AST): c.Tree = ast match {
+  def astToAssertion(ast: AST)(implicit positionContext: PositionContext): c.Tree = ast match {
     case AST.And(lhs, rhs, _, _) =>
       q"${astToAssertion(lhs)} && ${astToAssertion(rhs)}"
     case AST.Or(lhs, rhs, _, _) =>
       q"${astToAssertion(lhs)} || ${astToAssertion(rhs)}"
     case AST.EqualTo(lhs, rhs, start, end) =>
       q"${astToAssertion(lhs)} >>> Zoom.equalTo(${rhs}, $start, $end)"
-    case AST.Select(lhs, lhsTpe, rhsTpe, name, start, end) =>
-      val select = q"{ (a) => a.${TermName(name)} }"
+
+    case AST.Select(lhs, lhsTpe, rhsTpe, List(tpe), "throwsA", start, end) =>
+      q"${astToAssertion(lhs)} >>> Zoom.throwsSubtype[$tpe]($start, $end)"
+
+    case AST.Select(lhs, lhsTpe, rhsTpe, _, "throws", start, end) =>
+      q"${astToAssertion(lhs)} >>> Zoom.throwsError($start, $end)"
+
+    case AST.Select(lhs, lhsTpe, rhsTpe, _, name, start, end) =>
+      val select = c.untypecheck(q"{ (a) => a.${TermName(name)} }")
       q"${astToAssertion(lhs)} >>> Zoom.zoom($select, $start, $end)"
+
+    case AST.Method(lhs, lhsTpe, rhsTpe, "forall", args, start, end) if lhsTpe <:< weakTypeOf[Iterable[_]] =>
+      val zoom = astToAssertion(parseExpr(args.head))
+      q"${astToAssertion(lhs)} >>> Zoom.forall($zoom, $start, $end)"
+
     case AST.Method(lhs, lhsTpe, rhsTpe, name, args, start, end) =>
-      val select = q"{ (a) => a.${TermName(name)}(..$args) }"
+      val select = c.untypecheck(q"{ (a) => a.${TermName(name)}(..$args) }")
       q"${astToAssertion(lhs)} >>> Zoom.zoom($select, $start, $end)"
-//    case AST.Function(lhs, rhs) => q"$ZAssert.transform($rhs)"
-    case AST.Raw(ast, start, end) => q"$Zoom.succeed($ast, $start, $end)"
+
+    case AST.Function(lhs, rhs, lhsTpe, start, end) =>
+      val tnl    = (lhs.pos.end - lhs.pos.start) max 1
+      val id     = c.untypecheck(q"{ (a: $lhsTpe) => a }")
+      val select = c.untypecheck(q"{ ($lhs) => $rhs }")
+      q"$Zoom.zoom($id, $start, ${start + tnl}) >>> $Zoom.zoom($select, ${start + tnl}, $end)"
+
+    case AST.Raw(ast, start, end) =>
+      q"$Zoom.succeed($ast, $start, $end)"
   }
 
   case class PositionContext(start: Int) {
@@ -65,16 +85,24 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
   def parseExpr(tree: c.Tree)(implicit pos: PositionContext): AST = {
     val end = pos.getEnd(tree)
     tree match {
+      case q"$lhs($rhs)" if lhs.symbol.isImplicit =>
+        parseExpr(rhs)
       case q"$lhs && $rhs" => AST.And(parseExpr(lhs), parseExpr(rhs), pos.getEnd(lhs), end)
       case q"$lhs || $rhs" => AST.Or(parseExpr(lhs), parseExpr(rhs), pos.getEnd(lhs), end)
       case q"$lhs == $rhs" => AST.EqualTo(parseExpr(lhs), rhs, pos.getEnd(lhs), end)
-      case q"$lhs.$name" if !tree.symbol.isModule && !tree.symbol.isStatic =>
-        AST.Select(parseExpr(lhs), lhs.tpe.widen, tree.tpe.widen, name.toString, pos.getEnd(lhs), end)
+      case q"$lhs.$name" if !(tree.symbol.isModule || tree.symbol.isStatic || tree.symbol.isClass) =>
+        println(name)
+        AST.Select(parseExpr(lhs), lhs.tpe.widen, tree.tpe.widen, List.empty, name.toString, pos.getEnd(lhs), end)
+      case q"$lhs.$name[..$tpes]" if !(tree.symbol.isModule || tree.symbol.isStatic || tree.symbol.isClass) =>
+        println("METHOD CALL")
+        AST.Select(parseExpr(lhs), lhs.tpe.widen, tree.tpe.widen, tpes, name.toString, pos.getEnd(lhs), end)
       case MethodCall(lhs, name, args) =>
+        println(name)
         AST.Method(parseExpr(lhs), lhs.tpe.widen, tree.tpe.widen, name.toString, args, pos.getEnd(lhs), end)
 //        AST.Method(parseExpr(lhs), lhs.tpe.widen, expr.tpe.widen, name.toString, args.map(parseExpr))
-//      case q"($a) => $b" =>
-//        AST.Function(a, parseExpr(b))
+      case x @ q"($a) => $b" =>
+        val inType = x.tpe.widen.typeArgs.head
+        AST.Function(a, b, inType, pos.getStart(tree), end)
       case other => AST.Raw(other, pos.getStart(tree), end)
     }
   }
@@ -97,14 +125,14 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
     println(scala.Console.CYAN + parsed + scala.Console.RESET)
     println("")
     val ast = astToAssertion(parsed)
-    println(scala.Console.BLUE + ast + scala.Console.RESET)
-    println("")
 
     val block =
       q"""
 ..$stmts
 $ast.withCode($codeString)
         """
+    println(scala.Console.BLUE + block + scala.Console.RESET)
+    println("")
     c.Expr[Zoom[Any, Boolean]](block)
   }
 
