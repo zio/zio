@@ -696,6 +696,18 @@ object ZStreamSpec extends ZIOBaseSpec {
         //         n
         //       }.runCollect)(equalTo(Chunk(2)))
         //     },
+        testM("changes") {
+          checkM(pureStreamOfInts) { stream =>
+            for {
+              actual <- stream.changes.runCollect.map(_.toList)
+              expected <- stream.runCollect.map { as =>
+                            as.foldLeft[List[Int]](Nil) { (s, n) =>
+                              if (s.isEmpty || s.head != n) n :: s else s
+                            }.reverse
+                          }
+            } yield assert(actual)(equalTo(expected))
+          }
+        },
         suite("collectM")(
           testM("collectM") {
             assertM(
