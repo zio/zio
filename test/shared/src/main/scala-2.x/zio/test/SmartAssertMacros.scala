@@ -24,97 +24,124 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
       c.Expr(q"$acc && $assert")
     }
 
-  sealed trait AST {
-    def start: Int
-    def end: Int
+  sealed trait AST { self =>
+    def span: (Int, Int)
+    def withSpan(span0: (Int, Int)): AST =
+      self match {
+        case not: AST.Not           => not.copy(span = span0)
+        case and: AST.And           => and.copy(span = span0)
+        case or: AST.Or             => or.copy(span = span0)
+        case to: AST.EqualTo        => to.copy(span = span0)
+        case select: AST.Select     => select.copy(span = span0)
+        case method: AST.Method     => method.copy(span = span0)
+        case function: AST.Function => function.copy(span = span0)
+        case raw: AST.Raw           => raw.copy(span = span0)
+      }
   }
 
   object AST {
-    case class And(lhs: AST, rhs: AST, start: Int, end: Int)        extends AST
-    case class Or(lhs: AST, rhs: AST, start: Int, end: Int)         extends AST
-    case class EqualTo(lhs: AST, rhs: c.Tree, start: Int, end: Int) extends AST
-    case class Select(lhs: AST, lhsTpe: Type, rhsTpe: Type, tpes: List[Tree], name: String, start: Int, end: Int)
+    case class Not(ast: AST, span: (Int, Int), innerSpan: (Int, Int))                                 extends AST
+    case class And(lhs: AST, rhs: AST, span: (Int, Int), leftSpan: (Int, Int), rightSpan: (Int, Int)) extends AST
+    case class Or(lhs: AST, rhs: AST, span: (Int, Int), leftSpan: (Int, Int), rightSpan: (Int, Int))  extends AST
+    case class EqualTo(lhs: AST, rhs: c.Tree, span: (Int, Int))                                       extends AST
+    case class Select(lhs: AST, lhsTpe: Type, rhsTpe: Type, tpes: List[Tree], name: String, span: (Int, Int))
         extends AST
-    case class Method(lhs: AST, lhsTpe: Type, rhsTpe: Type, name: String, args: List[c.Tree], start: Int, end: Int)
+    case class Method(lhs: AST, lhsTpe: Type, rhsTpe: Type, name: String, args: List[c.Tree], span: (Int, Int))
         extends AST
-    case class Function(lhs: c.Tree, rhs: AST, lhsTpe: Type, start: Int, end: Int) extends AST
-    case class Raw(ast: c.Tree, start: Int, end: Int)                              extends AST
+    case class Function(lhs: c.Tree, rhs: AST, lhsTpe: Type, span: (Int, Int)) extends AST
+    case class Raw(ast: c.Tree, span: (Int, Int))                              extends AST
   }
 
   def astToAssertion(ast: AST)(implicit positionContext: PositionContext): c.Tree = {
     println(ast)
     ast match {
-      case AST.And(lhs, rhs, _, _) =>
-        q"${astToAssertion(lhs)} && ${astToAssertion(rhs)}"
-      case AST.Or(lhs, rhs, _, _) =>
-        q"${astToAssertion(lhs)} || ${astToAssertion(rhs)}"
-      case AST.EqualTo(lhs, rhs, start, end) =>
-        q"${astToAssertion(lhs)} >>> $Zoom.equalTo($rhs).pos($start, $end)"
+      case AST.Not(ast, span, innerSpan) =>
+        q"$Zoom.not(${astToAssertion(ast)}, $span, $innerSpan)"
 
-      case AST.Select(lhs, lhsTpe, rhsTpe, List(tpe), "throwsA", start, end) =>
-        q"${astToAssertion(lhs)} >>> $Zoom.throwsSubtype[$tpe].pos($start, $end)"
+      case AST.And(lhs, rhs, pos, ls, rs) =>
+        q"$Zoom.and(${astToAssertion(lhs)}, ${astToAssertion(rhs)}, $pos, $ls, $rs)"
 
-      case AST.Select(lhs, lhsTpe, rhsTpe, _, "throws", start, end) =>
-        q"${astToAssertion(lhs)} >>> $Zoom.throwsError.pos($start, $end)"
+      case AST.Or(lhs, rhs, pos, ls, rs) =>
+        q"$Zoom.or(${astToAssertion(lhs)}, ${astToAssertion(rhs)}, $pos, $ls, $rs)"
 
-      case AST.Select(lhs, lhsTpe, rhsTpe, _, "get", start, end) =>
+      case AST.EqualTo(lhs, rhs, span) =>
+        q"${astToAssertion(lhs)} >>> $Zoom.equalTo($rhs).span($span)"
+
+      case AST.Select(lhs, lhsTpe, rhsTpe, List(tpe), "throwsA", span) =>
+        q"${astToAssertion(lhs)} >>> $Zoom.throwsSubtype[$tpe].span($span)"
+
+      case AST.Select(lhs, lhsTpe, rhsTpe, _, "throws", span) =>
+        q"${astToAssertion(lhs)} >>> $Zoom.throwsError.span($span)"
+
+      case AST.Select(lhs, lhsTpe, rhsTpe, _, "get", span) =>
         println("GET")
-        q"${astToAssertion(lhs)} >>> $Zoom.isSome.pos($start, $end)"
+        q"${astToAssertion(lhs)} >>> $Zoom.isSome.span($span)"
 
-      case AST.Select(lhs, lhsTpe, rhsTpe, _, name, start, end) =>
+      case AST.Select(lhs, lhsTpe, rhsTpe, _, name, span) =>
         val select = c.untypecheck(q"{ (a) => a.${TermName(name)} }")
-        q"${astToAssertion(lhs)} >>> $Zoom.zoom[$lhsTpe, $rhsTpe]($select).pos($start, $end)"
+        q"${astToAssertion(lhs)} >>> $Zoom.zoom[$lhsTpe, $rhsTpe]($select).span($span)"
 
-      case AST.Method(lhs, lhsTpe, rhsTpe, "get", args, start, end) =>
-        q"${astToAssertion(lhs)} >>> $Zoom.isSome.pos($start, $end)"
+      case AST.Method(lhs, lhsTpe, rhsTpe, "get", args, span) =>
+        q"${astToAssertion(lhs)} >>> $Zoom.isSome.span($span)"
 
-      case AST.Method(lhs, lhsTpe, rhsTpe, "forall", args, start, end) if lhsTpe <:< weakTypeOf[Iterable[_]] =>
+      case AST.Method(lhs, lhsTpe, rhsTpe, "forall", args, span) if lhsTpe <:< weakTypeOf[Iterable[_]] =>
         val zoom = astToAssertion(parseExpr(args.head))
-        q"${astToAssertion(lhs)} >>> $Zoom.forall($zoom).pos($start, $end)"
+        q"${astToAssertion(lhs)} >>> $Zoom.forall($zoom).span($span)"
 
-      case AST.Method(lhs, lhsTpe, rhsTpe, name, args, start, end) =>
+      case AST.Method(lhs, lhsTpe, rhsTpe, name, args, span) =>
         val select = c.untypecheck(q"{ (a: $lhsTpe) => a.${TermName(name)}(..$args) }")
-        q"${astToAssertion(lhs)} >>> $Zoom.zoom($select).pos($start, $end)"
+        q"${astToAssertion(lhs)} >>> $Zoom.zoom($select).span($span)"
 
-      case AST.Function(lhs, rhs, lhsTpe, start, end) =>
-//        val tnl       = (lhs.pos.end - lhs.pos.start) max 1
+      case AST.Function(lhs, rhs, lhsTpe, span) =>
+//        val tnl       = (lhs.span.end - lhs.span.start) max 1
 //        val id        = c.untypecheck(q"{ (a: $lhsTpe) => a }")
         val rhsAssert = astToAssertion(rhs)
         val select    = c.untypecheck(q"{ ($lhs) => $rhsAssert }")
         q"$Zoom.suspend($select)"
 
-      case AST.Raw(ast, start, end) =>
-        q"$Zoom.succeed($ast).pos($start, $end)"
+      case AST.Raw(ast, span) =>
+        q"$Zoom.succeed($ast).span($span)"
     }
   }
 
-  case class PositionContext(start: Int) {
-    def getEnd(tree: c.Tree): Int   = tree.pos.end - start
-    def getStart(tree: c.Tree): Int = tree.pos.start - start
+  case class PositionContext(start: Int, codeString: String) {
+    def getPos(tree: c.Tree): (Int, Int) = (getStart(tree), getEnd(tree))
+    def getEnd(tree: c.Tree): Int        = tree.pos.end - start
+    def getStart(tree: c.Tree): Int      = tree.pos.start - start
   }
 
   def parseExpr(tree: c.Tree)(implicit pos: PositionContext): AST = {
     val end = pos.getEnd(tree)
     tree match {
+      // unwrap implicit conversions-they'll be re-triggered post-macro-expansion
       case q"$lhs($rhs)" if lhs.symbol.isImplicit =>
         parseExpr(rhs)
-      case q"$lhs && $rhs" => AST.And(parseExpr(lhs), parseExpr(rhs), pos.getEnd(lhs), end)
-      case q"$lhs || $rhs" => AST.Or(parseExpr(lhs), parseExpr(rhs), pos.getEnd(lhs), end)
-      case q"$lhs == $rhs" => AST.EqualTo(parseExpr(lhs), rhs, pos.getEnd(lhs), end)
+
+      case q"!($inner)" =>
+        AST.Not(parseExpr(inner), pos.getPos(tree), pos.getPos(inner))
+
+      case q"$lhs && $rhs" =>
+        AST.And(parseExpr(lhs), parseExpr(rhs), pos.getPos(tree), pos.getPos(lhs), pos.getPos(rhs))
+
+      case q"$lhs || $rhs" =>
+        AST.Or(parseExpr(lhs), parseExpr(rhs), pos.getPos(tree), pos.getPos(lhs), pos.getPos(rhs))
+
+      case q"$lhs == $rhs" =>
+        AST.EqualTo(parseExpr(lhs), rhs, (pos.getEnd(lhs), end))
+
       case q"$lhs.$name" if !(tree.symbol.isModule || tree.symbol.isStatic || tree.symbol.isClass) =>
-        println(name)
-        AST.Select(parseExpr(lhs), lhs.tpe.widen, tree.tpe.widen, List.empty, name.toString, pos.getEnd(lhs), end)
+        AST.Select(parseExpr(lhs), lhs.tpe.widen, tree.tpe.widen, List.empty, name.toString, (pos.getEnd(lhs), end))
+
       case q"$lhs.$name[..$tpes]" if !(tree.symbol.isModule || tree.symbol.isStatic || tree.symbol.isClass) =>
-        println("METHOD CALL")
-        AST.Select(parseExpr(lhs), lhs.tpe.widen, tree.tpe.widen, tpes, name.toString, pos.getEnd(lhs), end)
+        AST.Select(parseExpr(lhs), lhs.tpe.widen, tree.tpe.widen, tpes, name.toString, (pos.getEnd(lhs), end))
+
       case MethodCall(lhs, name, args) =>
-        println(name)
-        AST.Method(parseExpr(lhs), lhs.tpe.widen, tree.tpe.widen, name.toString, args, pos.getEnd(lhs), end)
-//        AST.Method(parseExpr(lhs), lhs.tpe.widen, expr.tpe.widen, name.toString, args.map(parseExpr))
+        AST.Method(parseExpr(lhs), lhs.tpe.widen, tree.tpe.widen, name.toString, args, (pos.getEnd(lhs), end))
+
       case x @ q"($a) => $b" =>
         val inType = x.tpe.widen.typeArgs.head
-        AST.Function(a, parseExpr(b), inType, pos.getStart(tree), end)
-      case other => AST.Raw(other, pos.getStart(tree), end)
+        AST.Function(a, parseExpr(b), inType, (pos.getStart(tree), end))
+      case other => AST.Raw(other, (pos.getStart(tree), end))
     }
   }
 
@@ -125,7 +152,7 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
     }
 
     val (_, start, codeString) = text(tree)
-    implicit val pos           = PositionContext(start)
+    implicit val pos           = PositionContext(start, codeString)
     println("")
     val parsed = parseExpr(tree)
     println(scala.Console.CYAN + parsed + scala.Console.RESET)
