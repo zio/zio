@@ -31,7 +31,7 @@ This is done to help the compiler infer types;
 
 5. Regular traits and sealed trait that do not form ADTs should extend `Serializable` but not `Product`;
 
-6. Traits should always extend `Serializable`. (i.e. `ZIO`).
+6. Traits should always extend `Serializable`. (e.g. `ZIO`).
 
 ### Final and private modifiers 
 
