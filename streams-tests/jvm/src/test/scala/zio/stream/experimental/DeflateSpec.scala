@@ -1,26 +1,11 @@
 package zio.stream.experimental
 
 import zio._
-import zio.stream.experimental._
 import zio.stream.compression.TestData._
 import zio.test.Assertion._
 import zio.test._
 
-import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
-import java.nio.charset.StandardCharsets
-import java.util.Arrays
-
-import scala.annotation.tailrec
-
-import java.util.zip.{
-  CRC32,
-  Deflater,
-  DeflaterInputStream,
-  GZIPInputStream,
-  GZIPOutputStream,
-  Inflater,
-  InflaterInputStream
-}
+import java.util.zip.Deflater
 
 object DeflateSpec extends DefaultRunnableSpec {
   override def spec: ZSpec[Environment, Failure] =
@@ -49,22 +34,26 @@ object DeflateSpec extends DefaultRunnableSpec {
         )(
           equalTo(Chunk.fromArray(jdkDeflate(longText, new Deflater(-1, false))))
         )
+      ),
+      testM("deflates same as JDK, nowrap")(
+        assertM(
+          (ZStream.fromIterable(longText).chunkN(128).channel >>> Deflate.makeDeflater(256, true)).runCollect
+            .map(_._1.flatten))(
+          equalTo(Chunk.fromArray(jdkDeflate(longText, new Deflater(-1, true))))
+        )
       )
-//      testM("deflates same as JDK, nowrap")(
-//        assertM(Stream.fromIterable(longText).chunkN(128).transduce(deflate(256, true)).runCollect)(
-//          equalTo(Chunk.fromArray(jdkDeflate(longText, new Deflater(-1, true))))
-//        )
-//      ),
-//      testM("deflates same as JDK, small buffer")(
-//        assertM(Stream.fromIterable(longText).chunkN(64).transduce(deflate(1, false)).runCollect)(
-//          equalTo(Chunk.fromArray(jdkDeflate(longText, new Deflater(-1, false))))
-//        )
-//      ),
-//      testM("deflates same as JDK, nowrap, small buffer ")(
-//        assertM(Stream.fromIterable(longText).chunkN(64).transduce(deflate(1, true)).runCollect)(
-//          equalTo(Chunk.fromArray(jdkDeflate(longText, new Deflater(-1, true))))
-//        )
-//      )
+      ,
+      testM("deflates same as JDK, small buffer")(
+        assertM(
+          (ZStream.fromIterable(longText).chunkN(64).channel >>> Deflate.makeDeflater(1, false)).runCollect.map(_._1.flatten))(
+          equalTo(Chunk.fromArray(jdkDeflate(longText, new Deflater(-1, false))))
+        )
+      ),
+      testM("deflates same as JDK, nowrap, small buffer ")(
+        assertM((ZStream.fromIterable(longText).chunkN(64).channel >>> Deflate.makeDeflater(1, true)).runCollect.map(_._1.flatten))(
+          equalTo(Chunk.fromArray(jdkDeflate(longText, new Deflater(-1, true))))
+        )
+      )
     )
 
 }
