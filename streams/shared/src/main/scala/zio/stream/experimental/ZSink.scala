@@ -337,8 +337,38 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    */
   def untilOutputM[R1 <: R, OutErr1 >: OutErr](
     f: Z => ZIO[R1, OutErr1, Boolean]
-  )(implicit ev: L <:< In): ZSink[R1, InErr, In, OutErr1, L, Option[Z]] =
-    ???
+  )(implicit ev: L <:< In): ZSink[R1, InErr, In, OutErr1, L, Option[Z]] = {
+
+    def processChunk(in: Chunk[In]): ZChannel[R1, InErr, Chunk[In], Any, OutErr1, Chunk[L], Option[Z]] =
+      (ZChannel.write(in) >>> self.channel).doneCollect.map { case (chunks, z) =>
+        (chunks.flatten, z)
+      }.flatMap { case (leftover, z) =>
+        ZChannel.unwrap(
+          f(z).map(endNow =>
+            if (endNow)
+              ZChannel.end(Some(z))
+            else if (leftover.isEmpty) {
+              loop
+            } else {
+              processChunk(leftover.asInstanceOf[Chunk[In]])
+            }
+          )
+        )
+      }
+
+    def loop: ZChannel[R1, InErr, Chunk[In], Any, OutErr1, Chunk[L], Option[Z]] =
+      ZChannel.readWith(
+        in =>
+          processChunk(in).flatMap {
+            case Some(value) => ZChannel.end(Some(value))
+            case None        => loop
+          },
+        e => ZChannel.fail(e) >>> self.channel.map(Some(_)),
+        _ => ZChannel.succeed(None)
+      )
+
+    new ZSink(loop)
+  }
 
   /**
    * Provides the sink with its required environment, which eliminates
