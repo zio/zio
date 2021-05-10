@@ -12,7 +12,7 @@ object LayerDefinitionExample extends App {
       (FooLive.apply _).toLayer
 
     case class FooLive(console: Console.Service, string: String, int: Int) extends Foo {
-      override def bar: UIO[Unit] = console.putStrLn(s"$string and $int")
+      override def bar: UIO[Unit] = console.putStrLn(s"$string and $int").orDie
     }
   }
 

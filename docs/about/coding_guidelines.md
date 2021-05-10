@@ -31,7 +31,7 @@ This is done to help the compiler infer types;
 
 5. Regular traits and sealed trait that do not form ADTs should extend `Serializable` but not `Product`;
 
-6. Traits should always extend `Serializable`. (i.e. `ZIO`).
+6. Traits should always extend `Serializable`. (e.g. `ZIO`).
 
 ### Final and private modifiers 
 
@@ -56,6 +56,7 @@ This is done to help the compiler infer types;
 
 2. All type annotations should use the least powerful type alias. This means, that, let us say, a `ZIO` effect that has 
    no dependencies but throws an arbitrary error, should be defined as `IO`.
+3. Use `def` in place of `val` for an abstract data member to avoid `NullPointerException` risk.
 
 ### Understanding naming of parameters or values
 

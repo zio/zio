@@ -571,7 +571,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def exitCode: URIO[R with console.Console, ExitCode] =
     self.foldCauseM(
-      cause => console.putStrLnErr(cause.prettyPrint) as ExitCode.failure,
+      cause => console.putStrLnErr(cause.prettyPrint).ignore as ExitCode.failure,
       _ => ZIO.succeedNow(ExitCode.success)
     )
 
@@ -4058,6 +4058,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       else ZIO.fail(::(es.head, es.tail.toList))
     }
 
+  def validate_[R, E, A](in: Iterable[A])(f: A => ZIO[R, E, Any])(implicit ev: CanFail[E]): ZIO[R, ::[E], Unit] =
+    partition(in)(f).flatMap { case (es, _) =>
+      if (es.isEmpty) ZIO.unit
+      else ZIO.fail(::(es.head, es.tail.toList))
+    }
+
   /**
    * Feeds elements of type `A` to `f `and accumulates, in parallel, all errors
    * in error channel or successes in success channel.
@@ -4070,6 +4076,15 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   )(implicit bf: BuildFrom[Collection[A], B, Collection[B]], ev: CanFail[E]): ZIO[R, ::[E], Collection[B]] =
     partitionPar(in)(f).flatMap { case (es, bs) =>
       if (es.isEmpty) ZIO.succeedNow(bf.fromSpecific(in)(bs))
+      else ZIO.fail(::(es.head, es.tail.toList))
+    }
+
+  /**
+   * @see See [[zio.ZIO.validatePar]]
+   */
+  def validatePar_[R, E, A](in: Iterable[A])(f: A => ZIO[R, E, Any])(implicit ev: CanFail[E]): ZIO[R, ::[E], Unit] =
+    partitionPar(in)(f).flatMap { case (es, _) =>
+      if (es.isEmpty) ZIO.unit
       else ZIO.fail(::(es.head, es.tail.toList))
     }
 

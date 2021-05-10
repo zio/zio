@@ -67,7 +67,7 @@ object ProvideLayerAutoExample extends App {
     def live: URLayer[Console, Has[Fly]] = {
       println("FLY")
 
-      console.putStrLn("Bzzzzzzzzzz...").as(new Fly {}).toLayer
+      console.putStrLn("Bzzzzzzzzzz...").orDie.as(new Fly {}).toLayer
     }
   }
 }

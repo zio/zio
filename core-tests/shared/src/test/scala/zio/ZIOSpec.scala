@@ -3360,6 +3360,14 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(res)(equalTo(in))
       }
     ),
+    suite("validate_")(
+      testM("returns all errors if never valid") {
+        val in                            = List.fill(10)(0)
+        def fail[A](a: A): IO[A, Nothing] = IO.fail(a)
+        val res                           = IO.validate(in)(fail).flip
+        assertM(res)(equalTo(in))
+      } @@ zioTag(errors)
+    ),
     suite("validatePar")(
       testM("returns all errors if never valid") {
         val in                      = List.fill(1000)(0)
@@ -3380,6 +3388,12 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(res)(equalTo(in))
       }
     ),
+    suite("validatePar_")(testM("returns all errors if never valid") {
+      val in                            = List.fill(10)(0)
+      def fail[A](a: A): IO[A, Nothing] = IO.fail(a)
+      val res                           = IO.validatePar_(in)(fail).flip
+      assertM(res)(equalTo(in))
+    } @@ zioTag(errors)),
     suite("validateFirst")(
       testM("returns all errors if never valid") {
         val in  = List.fill(10)(0)

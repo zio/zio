@@ -10,7 +10,7 @@ object ProvideLayerAutoExampleSpec extends DefaultRunnableSpec {
 
   private val exampleZio: ZIO[Console with Has[OldLady], Nothing, Unit] =
     OldLady.contentsOfStomach.flatMap { contents =>
-      console.putStrLn(s"There was an old who lady swallowed:\n- ${contents.mkString("\n- ")}")
+      console.putStrLn(s"There was an old who lady swallowed:\n- ${contents.mkString("\n- ")}").orDie
     }
 
   def spec =

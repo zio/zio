@@ -587,9 +587,9 @@ package object environment extends PlatformSpecific {
 
     object WarningData {
 
-      case object Start                                     extends WarningData
-      final case class Pending(fiber: Fiber[Nothing, Unit]) extends WarningData
-      case object Done                                      extends WarningData
+      case object Start                                         extends WarningData
+      final case class Pending(fiber: Fiber[IOException, Unit]) extends WarningData
+      case object Done                                          extends WarningData
 
       /**
        * State indicating that a test has not used time.
@@ -601,7 +601,7 @@ package object environment extends PlatformSpecific {
        * `TestClock` with a reference to the fiber that will display the
        * warning message.
        */
-      def pending(fiber: Fiber[Nothing, Unit]): WarningData = Pending(fiber)
+      def pending(fiber: Fiber[IOException, Unit]): WarningData = Pending(fiber)
 
       /**
        * State indicating that a test has used time or the warning message has
@@ -737,7 +737,7 @@ package object environment extends PlatformSpecific {
       /**
        * Writes the specified string to the output buffer.
        */
-      override def putStr(line: String): UIO[Unit] =
+      override def putStr(line: String): IO[IOException, Unit] =
         consoleState.update { data =>
           Data(data.input, data.output :+ line, data.errOutput)
         } *> live.provide(console.putStr(line)).whenM(debugState.get)
@@ -745,7 +745,7 @@ package object environment extends PlatformSpecific {
       /**
        * Writes the specified string to the error buffer.
        */
-      override def putStrErr(line: String): UIO[Unit] =
+      override def putStrErr(line: String): IO[IOException, Unit] =
         consoleState.update { data =>
           Data(data.input, data.output, data.errOutput :+ line)
         } *> live.provide(console.putStr(line)).whenM(debugState.get)
@@ -754,7 +754,7 @@ package object environment extends PlatformSpecific {
        * Writes the specified string to the output buffer followed by a newline
        * character.
        */
-      override def putStrLn(line: String): UIO[Unit] =
+      override def putStrLn(line: String): IO[IOException, Unit] =
         consoleState.update { data =>
           Data(data.input, data.output :+ s"$line\n", data.errOutput)
         } *> live.provide(console.putStrLn(line)).whenM(debugState.get)
@@ -763,7 +763,7 @@ package object environment extends PlatformSpecific {
        * Writes the specified string to the error buffer followed by a newline
        * character.
        */
-      override def putStrLnErr(line: String): UIO[Unit] =
+      override def putStrLnErr(line: String): IO[IOException, Unit] =
         consoleState.update { data =>
           Data(data.input, data.output, data.errOutput :+ s"$line\n")
         } *> live.provide(console.putStrLn(line)).whenM(debugState.get)
