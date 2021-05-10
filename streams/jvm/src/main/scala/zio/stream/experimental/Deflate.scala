@@ -30,21 +30,17 @@ object Deflate {
         def loop(): ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[Byte], Done] =
           ZChannel.readWithCause(
             chunk =>
-              ZChannel.fromEffect {
-                ZIO.effectTotal {
-                  deflater.setInput(chunk.toArray)
-                  pullOutput(deflater, buffer, flushMode)
-                }
+              ZChannel.effectTotal {
+                deflater.setInput(chunk.toArray)
+                pullOutput(deflater, buffer, flushMode)
               }.flatMap(chunk => ZChannel.write(chunk) *> loop()),
             ZChannel.halt(_),
             done =>
-              ZChannel.fromEffect {
-                ZIO.effectTotal {
-                  deflater.finish()
-                  val out = pullOutput(deflater, buffer, flushMode)
-                  deflater.reset()
-                  out
-                }
+              ZChannel.effectTotal {
+                deflater.finish()
+                val out = pullOutput(deflater, buffer, flushMode)
+                deflater.reset()
+                out
               }.flatMap(chunk => ZChannel.write(chunk).as(done))
           )
 

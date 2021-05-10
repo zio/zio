@@ -38,19 +38,24 @@ object DeflateSpec extends DefaultRunnableSpec {
       testM("deflates same as JDK, nowrap")(
         assertM(
           (ZStream.fromIterable(longText).chunkN(128).channel >>> Deflate.makeDeflater(256, true)).runCollect
-            .map(_._1.flatten))(
+            .map(_._1.flatten)
+        )(
           equalTo(Chunk.fromArray(jdkDeflate(longText, new Deflater(-1, true))))
         )
-      )
-      ,
+      ),
       testM("deflates same as JDK, small buffer")(
         assertM(
-          (ZStream.fromIterable(longText).chunkN(64).channel >>> Deflate.makeDeflater(1, false)).runCollect.map(_._1.flatten))(
+          (ZStream.fromIterable(longText).chunkN(64).channel >>> Deflate.makeDeflater(1, false)).runCollect
+            .map(_._1.flatten)
+        )(
           equalTo(Chunk.fromArray(jdkDeflate(longText, new Deflater(-1, false))))
         )
       ),
       testM("deflates same as JDK, nowrap, small buffer ")(
-        assertM((ZStream.fromIterable(longText).chunkN(64).channel >>> Deflate.makeDeflater(1, true)).runCollect.map(_._1.flatten))(
+        assertM(
+          (ZStream.fromIterable(longText).chunkN(64).channel >>> Deflate.makeDeflater(1, true)).runCollect
+            .map(_._1.flatten)
+        )(
           equalTo(Chunk.fromArray(jdkDeflate(longText, new Deflater(-1, true))))
         )
       )
