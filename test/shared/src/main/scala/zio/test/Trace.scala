@@ -5,7 +5,8 @@ import zio.Chunk
 import scala.annotation.tailrec
 
 sealed trait Trace[+A] { self =>
-  def removingConsecutiveErrors(err: Throwable): Option[Trace[A]] = self match {
+
+  final def removingConsecutiveErrors(err: Throwable): Option[Trace[A]] = self match {
     case Trace.Node(Result.Fail(e), _, _) if e == err => None
     case node: Trace.Node[_]                          => Some(node)
     case Trace.Then(left, right) =>
@@ -14,12 +15,6 @@ sealed trait Trace[+A] { self =>
         case (_, b)             => b
       }
     case both: Trace.Both[_, _] => Some(both)
-  }
-
-  def lastNode: Option[Trace.Node[_]] = self match {
-    case node: Trace.Node[_]  => Some(node)
-    case Trace.Then(_, right) => right.lastNode
-    case _: Trace.Both[_, _]  => None
   }
 
   @tailrec
@@ -50,7 +45,13 @@ sealed trait Trace[+A] { self =>
       left.debug
       println("-->")
       right.debug
-    case _ =>
+    case both: Trace.Both[_, _] =>
+      println("(")
+      println("LEFT")
+      both.left.debug
+      println("RIGHT")
+      both.left.debug
+      println(")")
   }
 }
 
@@ -97,34 +98,35 @@ object Trace {
   }
 }
 
-sealed trait TraceTree { self =>
-  final def >>>(that: TraceTree): TraceTree =
-    (self, that) match {
-      case (TraceTree.Empty, that)      => that
-      case (self, TraceTree.Empty)      => self
-      case (TraceTree.Next(n1, n2), n3) => TraceTree.Next(n1, n2 >>> n3)
-    }
-
-  final def ++(that: TraceTree): TraceTree =
-    (self, that) match {
-      case (TraceTree.Empty, that)                          => that
-      case (self, TraceTree.Empty)                          => self
-      case (TraceTree.Many(nodes1), TraceTree.Many(nodes2)) => TraceTree.Many(nodes1 ++ nodes2)
-      case (TraceTree.Many(nodes1), n2: TraceTree.Next)     => TraceTree.Many(nodes1 :+ n2)
-      case (n1: TraceTree.Next, TraceTree.Many(nodes2))     => TraceTree.Many(n1 +: nodes2)
-    }
-}
-
-object TraceTree {
-  case object Empty                                     extends TraceTree
-  case class Next(node: Trace.Node[_], next: TraceTree) extends TraceTree
-  case class Many(nodes: Chunk[TraceTree])              extends TraceTree
-
-  def fromTrace(trace: Trace[_]): TraceTree = trace match {
-    case node: Trace.Node[_] => TraceTree.Next(node, TraceTree.Empty)
-    case Trace.Both(left, right) =>
-      fromTrace(left) ++ fromTrace(right)
-    case Trace.Then(left, right) =>
-      fromTrace(left) >>> fromTrace(right)
-  }
-}
+//sealed trait TraceTree { self =>
+//  final def >>>(that: TraceTree): TraceTree =
+//    (self, that) match {
+//      case (TraceTree.Empty, that)      => that
+//      case (self, TraceTree.Empty)      => self
+//      case (TraceTree.Next(n1, n2), n3) => TraceTree.Next(n1, n2 >>> n3)
+//    }
+//
+//  final def ++(that: TraceTree): TraceTree =
+//    (self, that) match {
+//      case (TraceTree.Empty, that)                          => that
+//      case (self, TraceTree.Empty)                          => self
+//      case (TraceTree.Many(nodes1), TraceTree.Many(nodes2)) => TraceTree.Many(nodes1 ++ nodes2)
+//      case (TraceTree.Many(nodes1), n2: TraceTree.Next)     => TraceTree.Many(nodes1 :+ n2)
+//      case (n1: TraceTree.Next, TraceTree.Many(nodes2))     => TraceTree.Many(n1 +: nodes2)
+//      case (n1, n2)                                         => TraceTree.Many(Chunk(n1, n2))
+//    }
+//}
+//
+//object TraceTree {
+//  case object Empty                                     extends TraceTree
+//  case class Next(node: Trace.Node[_], next: TraceTree) extends TraceTree
+//  case class Many(nodes: Chunk[TraceTree])              extends TraceTree
+//
+//  def fromTrace(trace: Trace[_]): TraceTree = trace match {
+//    case node: Trace.Node[_] => TraceTree.Next(node, TraceTree.Empty)
+//    case Trace.Both(left, right) =>
+//      fromTrace(left) ++ fromTrace(right)
+//    case Trace.Then(left, right) =>
+//      fromTrace(left) >>> fromTrace(right)
+//  }
+//}

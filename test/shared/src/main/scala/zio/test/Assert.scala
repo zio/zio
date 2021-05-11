@@ -2,67 +2,56 @@ package zio.test
 
 import zio.Chunk
 
-import scala.annotation.tailrec
 import scala.util.Try
 
-object AssertExamples {
-  def optionExample = {
-    val option = Assert.succeed(Option.empty[Int]).label("maybeInt") >>>
-      Assertions.get[Int] >>> Assert.fromFunction((_: Int) > 10).label(" > 10")
-    Assert.run(option, ())
-  }
+object Assertions {
+  def get[A]: Assert[Option[A], A] =
+    Assert
+      .make[Option[A], A] {
+        case Some(value) => Trace.succeed(value)
+        case None        => Trace.halt("Option was None")
+      }
+      .label(".get")
 
-  def main(args: Array[String]): Unit = {
-    val a = (Assert.succeed[Int](10) >>>
-      Assert.fromFunction[Int, Int](_ + 10).label(" + 10") >>>
-      Assert.fromFunction[Any, Int](_ => throw new Error("BANG")).label("BOOM") >>>
-      Assert.fromFunction((_: Int) % 2 == 0).label(" % 2 == 0") >>>
-      Assert.fromFunction((_: Boolean) == true).label(" == true")).fails
-    val result = Assert.run(a, 10)
-
-    println(result)
-    println("")
-    result.debug
-    println("")
-    val tree = TraceTree.fromTrace(result)
-    println(tree)
-  }
+  val throws: Assert[Any, Throwable] = Assert.makeEither(
+    Trace.succeed,
+    _ => Trace.halt("Expected failure")
+  )
 }
 
 sealed trait Assert[-A, +B] { self =>
+
   import Assert._
 
   def label(label: String): Assert[A, B] =
     Label(self, label)
 
-  def >>>[C](that: Assert[B, C]): Assert[A, C] = AndThen[A, B, C](self, rethrow, that)
+  def >>>[C](that: Assert[B, C]): Assert[A, C] = AndThen[A, B, C](self, that)
 
-  def fold[C](handle: Assert[Throwable, C], that: Assert[B, C]): Assert[A, C] = AndThen[A, B, C](self, handle, that)
+  def ++[A1 <: A, C](that: Assert[A1, C]): Assert[A1, (B, C)] = Zip(self, that)
 
-  def fails: Assert[A, Throwable] = fold(Assert.identityA, Assert.Arrow(_ => Trace.halt("Expected failure")))
-}
-
-object Assertions {
-  def get[A]: Assert[Option[A], A] =
-    Assert
-      .Arrow[Option[A], A] {
-        case Some(value) => Trace.succeed(value)
-        case None =>
-          Trace.halt("Option was None")
-      }
-      .label(".get")
+  def &&(that: Assert[Any, Boolean])(implicit ev: Any <:< A, ev2: B <:< Boolean): Assert[Any, Boolean] =
+    (self.asInstanceOf[Assert[Any, Boolean]] ++ that) >>>
+      make { case (a, b) => Trace.succeed(a && b).label("AND") }
 }
 
 object Assert {
-  def succeed[A](value: A): Assert[Any, A]        = Arrow(_ => Trace.succeed(value))
-  def fromFunction[A, B](f: A => B): Assert[A, B] = Arrow(f andThen Trace.succeed)
+  def succeed[A](value: A): Assert[Any, A] = Arrow(_ => Trace.succeed(value))
 
-  val rethrow: Assert[Throwable, Nothing]     = Arrow(Trace.fail)
-  val identityA: Assert[Throwable, Throwable] = Arrow(a => Trace.succeed(a))
+  def fromFunction[A, B](f: A => B): Assert[A, B] = make(f andThen Trace.succeed)
+
+  def make[A, B](f: A => Trace[B]): Assert[A, B] =
+    makeEither(Trace.fail, f)
+
+  def makeEither[A, B](onFail: Throwable => Trace[B], onSucceed: A => Trace[B]): Assert[A, B] =
+    Arrow {
+      case Left(error)  => onFail(error)
+      case Right(value) => onSucceed(value)
+    }
 
   private def attempt[A](f: => Trace[A]): Trace[A] = Try(f).fold(e => Trace.fail(e), identity)
 
-  def run[A, B](assert: Assert[A, B], in: A): Trace[B] = attempt {
+  def run[A, B](assert: Assert[A, B], in: Either[Throwable, A]): Trace[B] = attempt {
     println("RUNNING")
     println(assert)
     println(in)
@@ -72,17 +61,17 @@ object Assert {
       case Arrow(f) =>
         f(in)
 
-      case AndThen(f, handler, g) =>
+      case AndThen(f, g) =>
         val t1 = run(f, in)
         t1 match {
           case Trace.Halt() => t1.asInstanceOf[Trace[B]]
           case Trace.Fail(err) =>
-            val t2 = run(handler, err)
+            val t2 = run(g, Left(err))
             t2.removingConsecutiveErrors(err) match {
               case Some(t2) => t1 >>> t2
               case None     => t1.asInstanceOf[Trace[B]]
             }
-          case Trace.Succeed(value) => t1 >>> run(g, value)
+          case Trace.Succeed(value) => t1 >>> run(g, Right(value))
         }
 
       case Zip(lhs, rhs) =>
@@ -95,8 +84,8 @@ object Assert {
   }
 
   case class Label[-A, +B](assert: Assert[A, B], label: String) extends Assert[A, B]
-  case class Arrow[-A, +B](f: A => Trace[B])                    extends Assert[A, B] {}
+  case class Arrow[-A, +B](f: Either[Throwable, A] => Trace[B]) extends Assert[A, B] {}
 
-  case class AndThen[A, B, C](f: Assert[A, B], fail: Assert[Throwable, C], g: Assert[B, C]) extends Assert[A, C]
-  case class Zip[A, B, C](lhs: Assert[A, B], rhs: Assert[A, C])                             extends Assert[A, (B, C)]
+  case class AndThen[A, B, C](f: Assert[A, B], g: Assert[B, C]) extends Assert[A, C]
+  case class Zip[A, B, C](lhs: Assert[A, B], rhs: Assert[A, C]) extends Assert[A, (B, C)]
 }
