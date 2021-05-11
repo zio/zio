@@ -19,7 +19,7 @@ package zio.stream
 import zio._
 import zio.clock.Clock
 import zio.duration._
-import zio.internal.UniqueKey
+import zio.internal.{Executor, UniqueKey}
 import zio.stm.TQueue
 import zio.stream.internal.Utils.zipChunks
 import zio.stream.internal.{ZInputStream, ZReader}
@@ -1945,6 +1945,17 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
       }
       _ <- pull.toManaged_
     } yield ()
+
+  /**
+   * Locks the execution of this stream to the specified executor. Any streams
+   * that are composed after this one will automatically be shifted back to the
+   * previous executor.
+   */
+  def lock(executor: Executor): ZStream[R, E, O] =
+    ZStream.fromEffect(ZIO.descriptor).flatMap { descriptor =>
+      ZStream.managed(ZManaged.lock(executor)) *>
+        self <* ZStream.fromEffect(ZIO.shift(descriptor.executor))
+    }
 
   /**
    * Transforms the elements of this stream using the supplied function.
