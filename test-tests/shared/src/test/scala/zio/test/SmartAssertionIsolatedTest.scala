@@ -52,7 +52,7 @@ object ExampleZoo {
     val listOfWords = List(None, Some("Vanilla"), Some("Strawberry"), Some("Chocolate"))
 
     case class Thing() {
-      def blowUp: Int = throw CoolError()
+      def blowUp: Int = 11 // throw CoolError()
     }
 
     def blowUp: Int = throw CoolError()
@@ -80,11 +80,11 @@ object ExampleZoo {
 
 //    val zoom = assertZoom(listOfWords.forall(word => word.isEmpty && word.get.length == 9))
 
-//    val zoom: Zoom[Any, Boolean] = assertZoom(thing.blowUp.throws.getMessage.length < 5)
+    val zoom: Zoom[Any, Boolean] = assertZoom(thing.blowUp.throws.getMessage.length < 5)
 
     val num = 10
-    val zoom: Zoom[Any, Boolean] =
-      assertZoom((thing.blowUp > 10 && listOfWords(2).get == "Nice") || !(num == 10)) // && listOfWords.length == 3)
+//    val zoom: Zoom[Any, Boolean] =
+//      assertZoom((thing.blowUp > 10 && listOfWords(2).get == "Nice") || !(num == 10)) // && listOfWords.length == 3)
 //    val zoom: Zoom[Any, Boolean] =
 //      assertZoom(thing.blowUp < 10 || (listOfWords.isEmpty && thing.blowUp < 10) && false)
     val age = 30
