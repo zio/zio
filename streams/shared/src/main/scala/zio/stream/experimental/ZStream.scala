@@ -2739,59 +2739,61 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   def zipWith[R1 <: R, E1 >: E, A2, A3](
     that: ZStream[R1, E1, A2]
   )(f: (A, A2) => A3): ZStream[R1, E1, A3] = {
-    sealed trait State[+W1, +W2]
-    case class Running[W1, W2](excess: Either[Chunk[W1], Chunk[W2]]) extends State[W1, W2]
-    case class LeftDone[W1](excessL: NonEmptyChunk[W1])              extends State[W1, Nothing]
-    case class RightDone[W2](excessR: NonEmptyChunk[W2])             extends State[Nothing, W2]
-    case object End                                                  extends State[Nothing, Nothing]
+    def producer[X](
+      handoff: ZStream.Handoff[Exit[Option[E1], X]],
+      latch: ZStream.Handoff[Unit]
+    ): ZChannel[R1, E1, X, Any, Nothing, Nothing, Any] =
+      ZChannel.readWithCause[R1, E1, X, Any, Nothing, Nothing, Any](
+        value => ZChannel.fromEffect(handoff.offer(Exit.succeed(value)) <* latch.take) *> producer(handoff, latch),
+        cause => ZChannel.fromEffect(handoff.offer(Exit.halt(cause.map(Some(_))))),
+        _ => ZChannel.fromEffect(handoff.offer(Exit.fail(None)))
+      )
 
-    def handleSuccess(
-      leftUpd: Option[Chunk[A]],
-      rightUpd: Option[Chunk[A2]],
-      excess: Either[Chunk[A], Chunk[A2]]
-    ): Exit[Option[Nothing], (Chunk[A3], State[A, A2])] = {
-      val (left, right) = {
-        val (leftExcess, rightExcess) = excess.fold(l => (l, Chunk.empty), r => (Chunk.empty, r))
-        val l                         = leftUpd.fold(leftExcess)(upd => leftExcess ++ upd)
-        val r                         = rightUpd.fold(rightExcess)(upd => rightExcess ++ upd)
-        (l, r)
-      }
-      val (emit, newExcess): (Chunk[A3], Either[Chunk[A], Chunk[A2]]) = zipChunks(left, right, f)
-      (leftUpd.isDefined, rightUpd.isDefined) match {
-        case (true, true)   => Exit.succeed((emit, Running(newExcess)))
-        case (false, false) => Exit.fail(None)
-        case _ => {
-          val newState = newExcess match {
-            case Left(l)  => l.nonEmptyOrElse[State[A, A2]](End)(LeftDone(_))
-            case Right(r) => r.nonEmptyOrElse[State[A, A2]](End)(RightDone(_))
+    new ZStream(
+      ZChannel.managed {
+        for {
+          left   <- ZStream.Handoff.make[Exit[Option[E1], A]].toManaged_
+          right  <- ZStream.Handoff.make[Exit[Option[E1], A2]].toManaged_
+          latchL <- ZStream.Handoff.make[Unit].toManaged_
+          latchR <- ZStream.Handoff.make[Unit].toManaged_
+          _      <- (self.channel.concatMap(ZChannel.writeChunk(_)) >>> producer(left, latchL)).runManaged.fork
+          _      <- (that.channel.concatMap(ZChannel.writeChunk(_)) >>> producer(right, latchR)).runManaged.fork
+        } yield (left, right, latchL, latchR)
+      } { case (left, right, latchL, latchR) =>
+        def terminate(cause: Cause[Option[E1]]): ZChannel[R, Any, Any, Any, E1, Nothing, Unit] =
+          Cause.flipCauseOption(cause) match {
+            case Some(c) => ZChannel.halt(c)
+            case None    => ZChannel.unit
           }
-          Exit.succeed((emit, newState))
-        }
-      }
-    }
 
-    combineChunks(that)(Running(Left(Chunk.empty)): State[A, A2]) { (st, p1, p2) =>
-      st match {
-        case Running(excess) =>
-          {
-            p1.optional.zipWithPar(p2.optional) { case (l, r) =>
-              handleSuccess(l, r, excess)
-            }
-          }.catchAllCause(e => UIO.succeedNow(Exit.halt(e.map(Some(_)))))
-        case LeftDone(excessL) =>
-          {
-            p2.optional.map(handleSuccess(None, _, Left(excessL)))
-          }.catchAllCause(e => UIO.succeedNow(Exit.halt(e.map(Some(_)))))
-        case RightDone(excessR) => {
-          p1.optional
-            .map(handleSuccess(_, None, Right(excessR)))
-            .catchAllCause(e => UIO.succeedNow(Exit.halt(e.map(Some(_)))))
-        }
-        case End => {
-          UIO.succeedNow(Exit.fail(None))
-        }
+        def onDone[X, Y](exit: Exit[Option[E1], X], fiber: Fiber[Option[E1], Y])(
+          f: (X, Y) => A3
+        ): UIO[ZChannel[R, Any, Any, Any, E1, Chunk[A3], Unit]] =
+          exit match {
+            case Exit.Failure(cause) =>
+              fiber.interrupt.as(terminate(cause))
+            case Exit.Success(value) =>
+              (for {
+                other  <- fiber.join
+                channel = ZChannel.write(Chunk.single(f(value, other))) *> consumer
+                _      <- latchL.offer(())
+                _      <- latchR.offer(())
+              } yield channel).catchAllCause(cause => ZIO.succeedNow(terminate(cause)))
+          }
+
+        lazy val consumer: ZChannel[R, Any, Any, Any, E1, Chunk[A3], Unit] =
+          ZChannel.unwrap {
+            left.take
+              .flatMap(ZIO.done(_))
+              .raceWith(right.take.flatMap(ZIO.done(_)))(
+                onDone[A, A2](_, _) { case (a1, a2) => f(a1, a2) },
+                onDone[A2, A](_, _) { case (a2, a1) => f(a1, a2) }
+              )
+          }
+
+        consumer
       }
-    }
+    )
   }
 
   /**
