@@ -24,7 +24,7 @@ object Tree {
     case node: Trace.Node[_] => Value(node)
 
     // Flatten AND
-    case Trace.Then(left, Trace.Node(_, Some("AND"), _)) =>
+    case Trace.Then(left, Trace.Node(_, _, _, Trace.Annotation.BooleanLogic())) =>
       fromTrace(left)
 
     case Trace.Both(left, right) =>

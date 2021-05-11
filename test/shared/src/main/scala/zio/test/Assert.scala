@@ -1,6 +1,7 @@
 package zio.test
 
 import zio.Chunk
+import zio.test.Trace.Annotation
 
 import scala.util.Try
 
@@ -32,7 +33,7 @@ sealed trait Assert[-A, +B] { self =>
 
   def &&(that: Assert[Any, Boolean])(implicit ev: Any <:< A, ev2: B <:< Boolean): Assert[Any, Boolean] =
     (self.asInstanceOf[Assert[Any, Boolean]] ++ that) >>>
-      make { case (a, b) => Trace.succeed(a && b).label("AND") }
+      make { case (a, b) => Trace.succeed(a && b).annotate(Annotation.BooleanLogic) }
 }
 
 object Assert {

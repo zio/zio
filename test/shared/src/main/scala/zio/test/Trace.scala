@@ -1,14 +1,13 @@
 package zio.test
 
-import zio.Chunk
-
 import scala.annotation.tailrec
 
 sealed trait Trace[+A] { self =>
 
+  // TODO: Beautify
   final def removingConsecutiveErrors(err: Throwable): Option[Trace[A]] = self match {
-    case Trace.Node(Result.Fail(e), _, _) if e == err => None
-    case node: Trace.Node[_]                          => Some(node)
+    case Trace.Node(Result.Fail(e), _, _, _) if e == err => None
+    case node: Trace.Node[_]                             => Some(node)
     case Trace.Then(left, right) =>
       (left.removingConsecutiveErrors(err), right.removingConsecutiveErrors(err)) match {
         case (Some(a), Some(b)) => Some(Trace.Then(a, b))
@@ -25,6 +24,14 @@ sealed trait Trace[+A] { self =>
       case both                 => both
     }
 
+  @tailrec
+  final def annotate(annotation: Trace.Annotation*): Trace[A] =
+    self match {
+      case node: Trace.Node[_]  => node.copy(annotations = node.annotations ++ annotation.toSet)
+      case Trace.Then(_, right) => right.annotate(annotation: _*)
+      case both                 => both
+    }
+
   final def <*>[B](that: Trace[B]): Trace[(A, B)] =
     Trace.Both(self, that)
 
@@ -32,33 +39,24 @@ sealed trait Trace[+A] { self =>
     Trace.Then(self, that)
 
   def result: Result[A]
-
-  final def debug: Unit = self match {
-    case Trace.Node(result, label, message) =>
-      println {
-        s"""label: ${label.getOrElse("N/A")}
-           |result: $result
-           |message: $message
-           |""".stripMargin.trim
-      }
-    case Trace.Then(left, right) =>
-      left.debug
-      println("-->")
-      right.debug
-    case both: Trace.Both[_, _] =>
-      println("(")
-      println("LEFT")
-      both.left.debug
-      println("RIGHT")
-      both.left.debug
-      println(")")
-  }
 }
 
 object Trace {
 
-  private[test] case class Node[+A](result: Result[A], label: Option[String] = None, message: Option[String] = None)
-      extends Trace[A]
+  sealed trait Annotation
+
+  object Annotation {
+    case object BooleanLogic extends Annotation {
+      def unapply(value: Set[Annotation]): Boolean = value.contains(BooleanLogic)
+    }
+  }
+
+  private[test] case class Node[+A](
+    result: Result[A],
+    label: Option[String] = None,
+    message: Option[String] = None,
+    annotations: Set[Annotation] = Set.empty
+  ) extends Trace[A]
 
   private[test] case class Both[+A, +B](left: Trace[A], right: Trace[B]) extends Trace[(A, B)] {
     override def result: Result[(A, B)] = left.result <*> right.result
@@ -97,36 +95,3 @@ object Trace {
       }
   }
 }
-
-//sealed trait TraceTree { self =>
-//  final def >>>(that: TraceTree): TraceTree =
-//    (self, that) match {
-//      case (TraceTree.Empty, that)      => that
-//      case (self, TraceTree.Empty)      => self
-//      case (TraceTree.Next(n1, n2), n3) => TraceTree.Next(n1, n2 >>> n3)
-//    }
-//
-//  final def ++(that: TraceTree): TraceTree =
-//    (self, that) match {
-//      case (TraceTree.Empty, that)                          => that
-//      case (self, TraceTree.Empty)                          => self
-//      case (TraceTree.Many(nodes1), TraceTree.Many(nodes2)) => TraceTree.Many(nodes1 ++ nodes2)
-//      case (TraceTree.Many(nodes1), n2: TraceTree.Next)     => TraceTree.Many(nodes1 :+ n2)
-//      case (n1: TraceTree.Next, TraceTree.Many(nodes2))     => TraceTree.Many(n1 +: nodes2)
-//      case (n1, n2)                                         => TraceTree.Many(Chunk(n1, n2))
-//    }
-//}
-//
-//object TraceTree {
-//  case object Empty                                     extends TraceTree
-//  case class Next(node: Trace.Node[_], next: TraceTree) extends TraceTree
-//  case class Many(nodes: Chunk[TraceTree])              extends TraceTree
-//
-//  def fromTrace(trace: Trace[_]): TraceTree = trace match {
-//    case node: Trace.Node[_] => TraceTree.Next(node, TraceTree.Empty)
-//    case Trace.Both(left, right) =>
-//      fromTrace(left) ++ fromTrace(right)
-//    case Trace.Then(left, right) =>
-//      fromTrace(left) >>> fromTrace(right)
-//  }
-//}
