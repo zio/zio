@@ -221,7 +221,10 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
    */
   final def foreachExec[R1 <: R, E1, A](
     defExec: ExecutionStrategy
-  )(failure: Cause[E] => ZIO[R1, E1, A], success: T => ZIO[R1, E1, A]): ZManaged[R1, Nothing, Spec[R1, E1, A]] =
+  )(
+    failure: Cause[E] => ZIO[R1, E1, A],
+    success: T => ZIO[R1, E1, A]
+  ): ZManaged[R1, Nothing, Spec[R1, E1, A]] =
     foldM[R1, Nothing, Spec[R1, E1, A]](defExec) {
       case ExecCase(exec, spec)     => ZManaged.succeedNow(Spec.exec(exec, spec))
       case LabeledCase(label, spec) => ZManaged.succeedNow(Spec.labeled(label, spec))
@@ -233,7 +236,10 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
       case MultipleCase(specs) => ZManaged.succeedNow(Spec.multiple(specs))
       case TestCase(test, annotations) =>
         test
-          .foldCause(e => Spec.test(failure(e), annotations), t => Spec.test(success(t), annotations))
+          .foldCause(
+            e => Spec.test(failure(e), annotations),
+            t => Spec.test(success(t), annotations)
+          )
           .toManaged_
     }
 
