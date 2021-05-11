@@ -1325,19 +1325,9 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def interleaveWith[R1 <: R, E1 >: E, A1 >: A](
     that: ZStream[R1, E1, A1]
   )(b: ZStream[R1, E1, Boolean]): ZStream[R1, E1, A1] = {
-
-    def writer(
-      idx: Int,
-      outs: Chunk[A1],
-      len: Int,
-      handoff: ZStream.Handoff[Take[E1, A1]]
-    ): ZChannel[Any, Any, Any, Any, Nothing, Nothing, Unit] =
-      if (idx == len) ZChannel.unit
-      else ZChannel.fromEffect(handoff.offer(Take.single(outs(idx)))) *> writer(idx + 1, outs, len, handoff)
-
-    def producer(handoff: ZStream.Handoff[Take[E1, A1]]): ZChannel[R1, E1, Chunk[A1], Any, Nothing, Nothing, Unit] =
-      ZChannel.readWithCause[R1, E1, Chunk[A1], Any, Nothing, Nothing, Unit](
-        chunk => writer(0, chunk, chunk.size, handoff) *> producer(handoff),
+    def producer(handoff: ZStream.Handoff[Take[E1, A1]]): ZChannel[R1, E1, A1, Any, Nothing, Nothing, Unit] =
+      ZChannel.readWithCause[R1, E1, A1, Any, Nothing, Nothing, Unit](
+        value => ZChannel.fromEffect(handoff.offer(Take.single(value))) *> producer(handoff),
         cause => ZChannel.fromEffect(handoff.offer(Take.halt(cause))),
         _ => ZChannel.fromEffect(handoff.offer(Take.end))
       )
@@ -1347,60 +1337,38 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
         for {
           left  <- ZStream.Handoff.make[Take[E1, A1]].toManaged_
           right <- ZStream.Handoff.make[Take[E1, A1]].toManaged_
-          _     <- (self.channel >>> producer(left)).runManaged.fork
-          _     <- (that.channel >>> producer(right)).runManaged.fork
+          _     <- (self.channel.concatMap(ZChannel.writeChunk(_)) >>> producer(left)).runManaged.fork
+          _     <- (that.channel.concatMap(ZChannel.writeChunk(_)) >>> producer(right)).runManaged.fork
         } yield (left, right)
       } { case (left, right) =>
-        def pullElement(
-          take: UIO[Take[E1, A1]],
-          otherDone: Boolean
-        ): ZChannel[Any, Any, Any, Any, E1, Chunk[A1], Option[Boolean]] =
-          ZChannel.fromEffect(take).flatMap { take =>
-            take.fold(
-              if (otherDone) ZChannel.end(None) else ZChannel.end(Some(true)),
-              cause => ZChannel.halt(cause),
-              chunk => ZChannel.write(chunk) *> ZChannel.end(Some(false))
-            )
-          }
-
-        def reader(
-          idx: Int,
-          outs: Chunk[Boolean],
-          len: Int,
-          leftDone: Boolean,
-          rightDone: Boolean
-        ): ZChannel[Any, Any, Any, Any, E1, Chunk[A1], Option[(Boolean, Boolean)]] =
-          if (idx == len)
-            ZChannel.end(Some((leftDone, rightDone)))
-          else {
-            (outs(idx), leftDone, rightDone) match {
-              case (true, false, _) =>
-                pullElement(left.take, rightDone).flatMap {
-                  case Some(newL) => reader(idx + 1, outs, len, newL, rightDone)
-                  case None       => ZChannel.end(None)
-                }
-              case (false, _, false) =>
-                pullElement(right.take, leftDone).flatMap {
-                  case Some(newR) => reader(idx + 1, outs, len, leftDone, newR)
-                  case None       => ZChannel.end(None)
-                }
-              case _ =>
-                reader(idx + 1, outs, len, leftDone, rightDone)
-            }
-          }
-
-        def process(leftDone: Boolean, rightDone: Boolean): ZChannel[R1, E1, Chunk[Boolean], Any, E1, Chunk[A1], Unit] =
-          ZChannel.readWithCause[R1, E1, Chunk[Boolean], Any, E1, Chunk[A1], Unit](
-            chunk =>
-              reader(0, chunk, chunk.size, leftDone, rightDone).flatMap {
-                case Some((newL, newR)) => process(newL, newR)
-                case None               => ZChannel.unit
+        def process(leftDone: Boolean, rightDone: Boolean): ZChannel[R1, E1, Boolean, Any, E1, Chunk[A1], Unit] =
+          ZChannel.readWithCause[R1, E1, Boolean, Any, E1, Chunk[A1], Unit](
+            bool =>
+              (bool, leftDone, rightDone) match {
+                case (true, false, _) =>
+                  ZChannel.fromEffect(left.take).flatMap { take =>
+                    take.fold(
+                      if (rightDone) ZChannel.unit else process(true, rightDone),
+                      cause => ZChannel.halt(cause),
+                      chunk => ZChannel.write(chunk) *> process(leftDone, rightDone)
+                    )
+                  }
+                case (false, _, false) =>
+                  ZChannel.fromEffect(right.take).flatMap { take =>
+                    take.fold(
+                      if (leftDone) ZChannel.unit else process(leftDone, true),
+                      cause => ZChannel.halt(cause),
+                      chunk => ZChannel.write(chunk) *> process(leftDone, rightDone)
+                    )
+                  }
+                case _ =>
+                  process(leftDone, rightDone)
               },
             cause => ZChannel.halt(cause),
             _ => ZChannel.unit
           )
 
-        b.channel >>> process(false, false)
+        b.channel.concatMap(ZChannel.writeChunk(_)) >>> process(false, false)
       }
     )
   }
