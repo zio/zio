@@ -3,6 +3,7 @@ package zio.test
 import zio.Chunk
 import zio.test.ConsoleUtils._
 import zio.test.FailureRenderer.FailureMessage.{Fragment, Message}
+import zio.test.Node.highlight
 import zio.test.{MessageDesc => M}
 
 import scala.annotation.tailrec
@@ -11,46 +12,17 @@ import scala.language.existentials
 import scala.reflect.ClassTag
 import scala.util.Try
 
-// Result >>> (Result && Result)
-
-trait Printer[-A] {
-  def apply(a: A): String
-}
-
-object Printer extends LowPriPrinter1 {
-  implicit val stringPrinter: Printer[String] =
-    (a: String) => '"' + a + '"'
-}
-
-trait LowPriPrinter1 extends LowPriPrinter0 {
-  implicit def optionPrinter[A](implicit printer: Printer[A]): Printer[Option[A]] = {
-    case Some(value) => s"Some(${printer(value)})"
-    case None        => "None"
-  }
-
-  implicit def listPrinter[A](implicit printer: Printer[A]): Printer[List[A]] = list =>
-    "List(" + list.map(printer(_)).mkString(", ") + ")"
-}
-
-trait LowPriPrinter0 {
-  implicit def anyPrinter[A]: Printer[A] = new Printer[A] {
-    override def apply(a: A): String = a.toString
-  }
-}
-
 /**
  * TODO:
  *  - Allow Boolean Logic
  *  - Improve forall-type nodes, have internal children.
  *  - Cross-Scala (2 & 3) combinator macros
  */
-sealed trait Zoom[-In, +Out] { self =>
-  def run(implicit ev: Any <:< In): (Node, Result[Out]) = run(Right(ev(())))
 
-//  def transform(f: (Zoom.Arr[i, o] => Zoom.Arr[i, o]) forSome { type i; type o }): Zoom[In, Out] = self match {
-//    case arr: Zoom.Arr[_, _]    => f(arr)
-//    case Zoom.AndThen(lhs, rhs) => Zoom.AndThen(lhs, rhs.transform(f))
-//  }
+sealed trait Zoom[-In, +Out] { self =>
+  private[test] def run(in: Either[Throwable, In]): (Node, Result[Out])
+
+  def run(implicit ev: Any <:< In): (Node, Result[Out]) = run(Right(ev(())))
 
   def span(span0: (Int, Int)): Zoom[In, Out] =
     self match {
@@ -83,15 +55,13 @@ sealed trait Zoom[-In, +Out] { self =>
       case Zoom.AndThen(lhs, rhs) => Zoom.AndThen(lhs, rhs >>> that)
       case _                      => Zoom.AndThen(self, that)
     }
-
-  def run(in: Either[Throwable, In]): (Node, Result[Out])
 }
 
 sealed trait Result[+A] { self =>
   def fold(identity: Throwable => String, toString: A => String): String =
     self match {
       case Result.Succeed(value) => toString(value)
-      case Result.Fail(err)      => identity(err)
+      case Result.Throw(err)     => identity(err)
       case Result.Stop           => identity(new Error("STOPPED"))
     }
 
@@ -100,34 +70,26 @@ sealed trait Result[+A] { self =>
       case Result.Succeed(value) if value == a => true
       case _                                   => false
     }
-
-//  def flatMap[B](f: A => Result[B]): Result[B] = either match {
-//    case Left(e)      => Result(Left(e))
-//    case Right(value) => f(value)
-//  }
 }
 
 object Result {
   def attempt[A](a: => A): Result[A] =
     Try(a).toEither.fold(fail, succeed)
 
-  def fromEither[A](either: Either[Throwable, A]): Result[A] =
-    either.fold(fail, succeed)
-
-  case object Stop                 extends Result[Nothing]
-  case class Fail(err: Throwable)  extends Result[Nothing]
-  case class Succeed[+A](value: A) extends Result[A]
-
   def fail(throwable: Throwable): Result[Nothing] =
-    Fail(throwable)
+    Throw(throwable)
 
   def succeed[A](value: A): Result[A] =
     Succeed(value)
 
+  case object Stop                 extends Result[Nothing]
+  case class Throw(err: Throwable) extends Result[Nothing]
+  case class Succeed[+A](value: A) extends Result[A]
+
   object ToEither {
     def unapply[A](value: Result[A]): Option[Either[Throwable, A]] = value match {
       case Stop           => None
-      case Fail(err)      => Some(Left(err))
+      case Throw(err)     => Some(Left(err))
       case Succeed(value) => Some(Right(value))
     }
   }
@@ -169,13 +131,15 @@ object Zoom {
       M.choice("was Some", "was None")
     )
 
+  // forall >>> (=== false)
   def forall[A](f: Zoom[A, Boolean]): Zoom[Iterable[A], Boolean] =
     Arr(
       { case Right(in) =>
-        val results      = in.map(a => f.run(Right(a)))
-        val bool         = results.forall(_._2.contains(true))
-        val nodes        = Chunk.fromIterable(results.filter(!_._2.contains(true)).map(_._1))
-        val errorMessage = renderMessage(MessageDesc.text(s"${nodes.length} elements failed the predicate"), Right(in))
+        val results = in.map(a => f.run(Right(a)))
+        val bool    = results.forall(_._2.contains(true))
+        val nodes   = Chunk.fromIterable(results.filter(!_._2.contains(true)).map(_._1))
+        val errorMessage =
+          renderMessage(M.value(nodes.length) + M.text("elements failed the predicate"), Right(in))
         Node(
           input = in,
           result = bool,
@@ -185,10 +149,7 @@ object Zoom {
       }
     )
 
-  def main(args: Array[String]): Unit =
-    println("HOWDY")
-
-  def zoom[A, B: Printer](f: A => B): Arr[A, B] = {
+  def zoom[A, B](f: A => B): Arr[A, B] = {
     def fr(r: Either[Throwable, A]): Result[B] = r match {
       case Right(value) => Result.attempt(f(value))
       case _            => Result.Stop
@@ -197,7 +158,7 @@ object Zoom {
     zoomResult(fr)
   }
 
-  def zoomEither[A, B: Printer](f: Either[Throwable, A] => B): Arr[A, B] = {
+  def zoomEither[A, B](f: Either[Throwable, A] => B): Arr[A, B] = {
     def fr(r: Either[Throwable, A]): Result[B] = r match {
       case Left(err)    => Result.attempt(f(Left(err)))
       case Right(value) => Result.attempt(f(Right(value)))
@@ -206,18 +167,18 @@ object Zoom {
     zoomResult(fr)
   }
 
-  def succeed[A: Printer](a: => A): Zoom[Any, A] = zoom(_ => a)
+  def succeed[A](a: => A): Zoom[Any, A] = zoom(_ => a)
 
-  def equalTo[A](value: A)(implicit printer: Printer[A]): Zoom[A, Boolean] =
+  def equalTo[A](value: A): Zoom[A, Boolean] =
     zoom[A, Boolean](in => in == value)
-      .withRenderer(M.result((a: A) => printer(a)) + M.choice("==", "!=") + M.value(printer(value)))
+      .withRenderer(M.result((a: A) => a.toString) + M.choice("==", "!=") + M.value(value))
 
   private def printStack(e: Throwable): MessageDesc[Any] =
     M.text(
       (e.toString +: e.getStackTrace.toIndexedSeq.takeWhile(!_.getClassName.startsWith("zio.test.Zoom"))).mkString("\n")
     )
 
-  def zoomResult[A, B: Printer](
+  def zoomResult[A, B](
     f: Either[Throwable, A] => Result[B],
     renderer: MessageDesc[A] = M.switch[A](e => printStack(e), a => M.text("Failed with input:") + M.value(a))
   ): Arr[A, B] = {
@@ -253,8 +214,7 @@ object Zoom {
     renderer: Option[MessageDesc[A]] = None,
     span: (Int, Int) = (0, 0),
     fullCode: String = ""
-  )(implicit printer: Printer[B])
-      extends Zoom[A, B] { self =>
+  ) extends Zoom[A, B] { self =>
 
     def withRenderer[A1 <: A](renderer0: MessageDesc[A1]): Arr[A1, B] =
       copy(renderer = Some(renderer0))
@@ -264,13 +224,48 @@ object Zoom {
       node
         .copy(
           span = span,
-          result = out.fold(_.toString, printer(_)),
+          result = out.fold(_.toString, _.toString),
           errorMessage = renderer.map(r => renderMessage(r, in)).getOrElse(node.errorMessage)
         )
         .withCode(fullCode) -> out
     }
   }
 
+//  zio.either
+//  Fold(self, handler)
+//  zio >>> throws >>> getMessage >>> length >>> (> 10)
+//  AndThen(zio, throws)
+//  AndThen(1, AndThen(2, AndThen(3, AndThen(4, 5))))
+//  Either(1, AndThen(2, AndThen(3, AndThen(4, 5))))
+
+//  zio >>> forall >>> getMessage >>> length >>> (> 10)
+//          | | |
+//
+
+// forall
+// Arrow[In, Out]
+//    Tree[Boolean](children: Tree[Boolean], next: None)
+
+// Fold(arr, left)
+  //
+  case class Tree[A](result: Result[A], fork: Tree[A], next: Option[Tree[A]])
+
+//case class Res[A](value: Either[Throwable, A], )
+//  zio >> (> 10)
+// foreach.fold(...)
+// ->  ->
+//    |||
+
+// next: Option[Tree]
+// internal: List[Tree]
+//  forall
+//   Result(true)
+  //   - Result(true)
+  //   - Result(false)
+  //   - Result(false)
+  //   - Result(true)
+  //   - Result(true)
+  // AndThen(AndThen(lhs, rhs), rhs)
   case class AndThen[A, B, C](lhs: Zoom[A, B], rhs: Zoom[B, C]) extends Zoom[A, C] { self =>
     override def run(in: Either[Throwable, A]): (Node, Result[C]) = {
       val (nodeB, result) = lhs.run(in)
@@ -341,7 +336,8 @@ object Zoom {
     span: (Int, Int),
     leftSpan: (Int, Int),
     rightSpan: (Int, Int),
-    op: (Boolean, Boolean) => Boolean
+    op: (Boolean, Boolean) => Boolean,
+    fullCode: String = ""
   ) extends Zoom[Any, Boolean] {
 
     override def run(in: Either[Throwable, Any]): (Node, Result[Boolean]) = {
@@ -353,29 +349,26 @@ object Zoom {
         case (Succeed(l), Succeed(r)) => Succeed(op(l, r))
         case (Stop, _)                => Stop
         case (_, Stop)                => Stop
-        case (Fail(err), _)           => Fail(err)
-        case (_, Fail(err))           => Fail(err)
+        case (Throw(err), _)          => Throw(err)
+        case (_, Throw(err))          => Throw(err)
       }
-
-      val leftCode  = Try(node1.fullCode.substring(leftSpan._1, leftSpan._2)).getOrElse(node1.fullCode)
-      val rightCode = Try(node2.fullCode.substring(rightSpan._1, rightSpan._2)).getOrElse(node2.fullCode)
-      println(leftCode, leftSpan, rightSpan)
-      println(rightCode, leftSpan, rightSpan)
 
       val newChildren = (lhs, rhs) match {
-        case (_: And, _: And) => node1.children ++ node2.children
-        case (_: And, _)      => node1.children ++ Children.Next(node2.clip(rightSpan))
-        case (_, _: And)      => Children.Next(node1.clip(leftSpan)) ++ node2.children
-        case (_, _)           => Children.Many(Chunk(node1.clip(leftSpan), node2.clip(rightSpan)))
+        case (_: And | _: Not, _: And | _: Not) => node1.children ++ node2.children
+        case (_: And | _: Not, _)               => node1.children ++ Children.Next(node2.clip(rightSpan))
+        case (_, _: And | _: Not)               => Children.Next(node1.clip(leftSpan)) ++ node2.children
+        case (_, _)                             => Children.Many(Chunk(node1.clip(leftSpan), node2.clip(rightSpan)))
       }
 
-      println(node1.label)
+      val label = if (op(true, false)) "OR" else "AND"
+
       Node(
-        if (op(true, false)) "OR" else "AND",
+        label,
         result,
-        errorMessage = "",
+        errorMessage = "*AND*",
         children = newChildren,
-        span = span
+        span = leftSpan._1 -> span._2,
+        fullCode = node1.fullCode
       ) -> result
     }
   }
@@ -383,6 +376,12 @@ object Zoom {
 }
 
 sealed trait Children { self =>
+  def map(f: Node => Node): Children = self match {
+    case Children.Empty       => Children.Empty
+    case Children.Next(node)  => Children.Next(f(node))
+    case Children.Many(nodes) => Children.Many(nodes.map(f))
+  }
+
   import Children._
   def ++(that: Children): Children =
     Many(self.toChunk ++ that.toChunk)
@@ -420,7 +419,6 @@ object Children {
   case object Empty                   extends Children
   case class Next(node: Node)         extends Children
   case class Many(nodes: Chunk[Node]) extends Children
-
 }
 
 final case class Node(
@@ -429,35 +427,38 @@ final case class Node(
   errorMessage: String,
   children: Children,
   fullCode: String = "",
-  span: (Int, Int) = (0, 0)
+  span: (Int, Int) = (0, 0),
+  visible: Option[(Int, Int)] = None
 ) {
 
-  def adjustSpan(amt: Int): Node =
-    copy(span = (span._1 + amt, span._2 + amt))
-      .copy(children = children.transform(_.adjustSpan(amt)))
+  def visibleCode: String =
+    visible.map { case (s, e) => fullCode.substring(s, e) }.getOrElse(fullCode)
 
   def clip(span: (Int, Int)): Node =
-    withCode(fullCode.substring(span._1, span._2)).adjustSpan(-span._1)
+    copy(visible = visible.orElse(Some(span)), children = children.map(_.clip(span)))
 
-  def clipOutput: Node = {
-    val (start, _)  = span
-    val newChildren = children.transform(n => n.withCode(label).copy(span = (n.span._1 - start, n.span._2 - start)))
-    copy(children = newChildren)
-  }
+  def clipOutput: Node =
+    copy(children = children.map(_.clip(span)))
+//    this
+  //    val (start, _) = span
+//    val newChildren =
+//      children.map(n => n.withCode(label).adjustSpan(-start))
+//    copy(children = newChildren).withCode(label)
 
   def withCode(string: String): Node =
-    copy(fullCode = string, children = children.transform(_.withCode(string)))
+    copy(fullCode = string, children = children.map(_.withCode(string)))
 
   def label: String =
     Try(fullCode.substring(span._1, span._2)).getOrElse("<code>")
 }
 
-case class FailureCase( //
+case class FailureCase(
   errorMessage: String,
   codeString: String,
   path: Chunk[(String, String)],
   span: (Int, Int),
-  nestedFailures: Chunk[FailureCase]
+  nestedFailures: Chunk[FailureCase],
+  result: Any
 )
 
 object FailureCase {
@@ -477,71 +478,74 @@ object FailureCase {
 
   def fromNode(node: Node): FailureCase = {
     val lastNode = getLastNode(node)
+    val highlightedCode = highlight(
+      node.visibleCode,
+      node.visible.map { case (s, e) =>
+        (lastNode.span._1 - s, lastNode.span._2 - s)
+      }.getOrElse(lastNode.span)
+    )
     FailureCase(
       lastNode.errorMessage,
-      lastNode.fullCode,
+      highlightedCode,
       getPath(node),
       lastNode.span,
-      lastNode.clipOutput.children.toChunk.map(fromNode)
+      lastNode.clipOutput.children.toChunk.map(fromNode),
+      lastNode.result
     )
   }
 }
 
 object Node {
-  def debug(node: Node, indent: Int): Unit =
-    println(node.children.toChunk.map(n => FailureCase.fromNode(n)).mkString("\n"))
-//    println(FailureCase.fromNode(node))
-  //    println((" " * indent) + node.label + " " + node.copy(children = Children.Empty))
-//    node.children.toList.foreach(debug(_, indent + 2))
+  def debug(node: Node): Unit = println(FailureCase.fromNode(node))
 
   def highlight(string: String, span: (Int, Int)): String =
     bold(string.take(span._1)) + bold(yellow(string.slice(span._1, span._2))) + bold(string.drop(span._2))
 
-  def renderFailureCase(failureCase: FailureCase, indent: Int): Chunk[String] = failureCase match {
-    case FailureCase(errorMessage, codeString, path, span, nested) =>
-      val lines = Chunk(s"${red("›")} $errorMessage", highlight(codeString, span)) ++
-        nested.flatMap(renderFailureCase(_, indent + 2)) ++
-        Chunk.fromIterable(path.map { case (label, value) => dim(s"$label = ") + blue(value) }) ++ Chunk("")
-      lines.map(" " * 2 + _)
-  }
+  def renderFailureCase(failureCase: FailureCase): Chunk[String] =
+//    println("FAIL")
+//    println(failureCase.result)
+    failureCase match {
+      case FailureCase(_, _, _, _, _, result) if result.toString == "true" =>
+        Chunk.empty
+      case FailureCase(errorMessage, _, _, _, nested, _) if errorMessage == "*AND*" =>
+        nested.flatMap(renderFailureCase).map("  " + _)
+      case FailureCase(errorMessage, codeString, path, span, nested, _) =>
+        val lines = Chunk(s"${red("›")} $errorMessage", codeString) ++
+          nested.flatMap(renderFailureCase).map("  " + _) ++
+          Chunk.fromIterable(path.map { case (label, value) => dim(s"$label = ") + blue(value) }) ++ Chunk("")
+        lines
+    }
 
   def render(node: Node, acc: Chunk[String], indent: Int, isTop: Boolean = false): Chunk[String] =
     node.children match {
       case Children.Many(nodes) if isTop =>
-        nodes.map(FailureCase.fromNode).flatMap(renderFailureCase(_, indent))
+        nodes.map(FailureCase.fromNode).flatMap(renderFailureCase)
       case _ =>
-        renderFailureCase(FailureCase.fromNode(node), indent)
+        renderFailureCase(FailureCase.fromNode(node))
     }
-
-  def rend(node: Node, acc: Chunk[String], indent: Int, isTop: Boolean = false): Chunk[String] = {
-    val spaces = " " * indent
-    node.children match {
-      case Children.Empty =>
-        val errorMessage =
-          (node.errorMessage.linesIterator.take(1) ++ node.errorMessage.linesIterator.drop(1).map(spaces + _))
-            .mkString("\n")
-
-        s"$spaces${red("›")} $errorMessage" +:
-          s"$spaces${highlight(node.fullCode, node.span)}" +: acc
-
-      case Children.Next(next) =>
-        val result = Option(node.result).getOrElse("null")
-        rend(next, s"$spaces${dim(node.label)} = ${blue(result.toString)}" +: acc, indent)
-
-      case Children.Many(children) if isTop =>
-        println(s"TOP ${children.map(_.label)}")
-//        val children = children0.map(_.clipOutput)
-        children
-          .foldLeft(acc) { (acc, node) =>
-            rend(node, acc, indent)
-          }
-
-      case Children.Many(children0) =>
-        val children = node.clipOutput.children.toChunk
-        s"$spaces${red("›")} ${node.errorMessage}" +: highlight(node.fullCode, node.span) +:
-          children.foldRight(acc) { (node, acc) =>
-            rend(node, acc, indent + 2)
-          }
-    }
-  }
 }
+
+//trait Printer[-A] {
+//  def apply(a: A): String
+//}
+//
+//object Printer extends LowPriPrinter1 {
+//  implicit val stringPrinter[String] =
+//  (a: String) => '"' + a + '"'
+//}
+//
+//trait LowPriPrinter1 extends LowPriPrinter0 {
+//  implicit def optionPrinter[A](implicit printer[A])[Option[A]] = {
+//    case Some(value) => s"Some(${printer(value)})"
+//    case None        => "None"
+//  }
+//
+//  implicit def listPrinter[A](implicit printer[A])[List[A]] = list =>
+//    "List(" + list.map(printer(_)).mkString(", ") + ")"
+//}
+//
+//trait LowPriPrinter0 {
+//  implicit def anyPrinter[A][A] = new Printer[A] {
+//    override def apply(a: A): String = a.toString
+//  }
+//}

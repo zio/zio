@@ -1,7 +1,8 @@
 package zio.test
 
 import zio.Chunk
-import zio.test.SmartAssertionIsolatedTest.CoolError
+import zio.test.AssertionSyntax.AssertionOps
+import zio.test.SmartAssertionIsolatedTest.{BadError, CoolError}
 import zio.test.SmartTestTypes._
 
 /**
@@ -48,30 +49,52 @@ object SmartAssertionIsolatedTest extends ZIOBaseSpec {
 
 object ExampleZoo {
   def main(args: Array[String]): Unit = {
-    object nice {
-      val listOfWords = List(None, Some("Vanilla"), Some("Strawberry"), Some("Chocolate"))
-    }
+    val listOfWords = List(None, Some("Vanilla"), Some("Strawberry"), Some("Chocolate"))
 
     case class Thing() {
-      def blowUp: Int = 17 //throw CoolError()
+      def blowUp: Int = throw CoolError()
     }
 
     def blowUp: Int = throw CoolError()
 
     val thing = Thing()
 
-    val zoom = assertZoom(nice.listOfWords.forall(word => word.get.length == 9))
+    /**
+     * ERROR: Age
+     * person.(age) < 10
+     * person = Person(...)
+     *
+     * (Any -> Person) >>> (Person -> Int) >>> (Int -> Boolean)
+     *
+     * (Any -> Person) >>> (Person -> Int) >>> (Int -> Boolean)
+     *
+     * person.get.age > 10
+     *
+     * (Any -> Person) >>> (Person -> Int) >>> (Throwable -> Thing) >>> (Int -> Boolean)
+     *
+     * person.blowUp.throws
+     *
+     * Zoom[In, Out]
+     * def run(): Result[...]
+     */
 
-//    val zoom: Zoom[Any, Boolean] = assertZoom(thing.blowUp.throwsA[BadError])
-//    val num = 10
+//    val zoom = assertZoom(listOfWords.forall(word => word.isEmpty && word.get.length == 9))
+
+//    val zoom: Zoom[Any, Boolean] = assertZoom(thing.blowUp.throws.getMessage.length < 5)
+
+    val num = 10
+    val zoom: Zoom[Any, Boolean] =
+      assertZoom((thing.blowUp > 10 && listOfWords(2).get == "Nice") || !(num == 10)) // && listOfWords.length == 3)
 //    val zoom: Zoom[Any, Boolean] =
-//      assertZoom((thing.blowUp > 10 && listOfWords(2).get == "Nice") || !(num == 10)) // && listOfWords.length == 3)
-//    val zoom: Zoom[Any, Boolean] = assertZoom(!(thing.blowUp < 10 || !listOfWords.isEmpty) && thing.blowUp < 10)
+//      assertZoom(thing.blowUp < 10 || (listOfWords.isEmpty && thing.blowUp < 10) && false)
+    val age = 30
+
+//    val zoom = assertZoom(age > 40 && age < 80)
 
     val (node, result) = zoom.run
-    Node.debug(node, 0)
+//    Node.debug(node)
     println("")
-    println("")
+//    println("")
 
     if (result.contains(true)) println("SUCCEooEoSS")
     else println(Node.render(node, Chunk.empty, 0, true).mkString("\n"))
