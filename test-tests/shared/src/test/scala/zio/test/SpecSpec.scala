@@ -132,7 +132,6 @@ object SpecSpec extends ZIOBaseSpec {
         ).provideSomeLayerShared[TestEnvironment](layer) @@ silent
         assertM(succeeded(spec))(isTrue)
       },
-      // TODO: BZ: add same test for CustomRunnableSpec
       testM("releases resources as soon as possible") {
         for {
           ref    <- Ref.make[List[String]](List.empty)
