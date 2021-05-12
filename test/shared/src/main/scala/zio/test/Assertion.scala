@@ -647,7 +647,7 @@ object Assertion extends AssertionVariants {
    */
   def isGreaterThanEqualTo[A](reference: A)(implicit ord: Ordering[A]): Assertion[A] =
     Assertion.assertion[A](
-      "isGreaterThanEqualTo",
+      "isGreaterThanEqualToEqualTo",
       M.result + M.is + "is greater than or equal to" + M.value(reference)
     )(param(reference))(actual => ord.gteq(actual, reference))
 

@@ -7,7 +7,7 @@ sealed trait Tree { self =>
 
   def debugImpl: Chunk[String] = self match {
     case Tree.Value(node) =>
-      Chunk(node.toString)
+      Chunk(s"${node.result} ${node.message}")
     case Tree.Branch(nodes) =>
       nodes.flatMap(_.debugImpl ++ Chunk("&&")) //.dropRight(1)
     case Tree.Linear(nodes) =>
@@ -24,17 +24,18 @@ object Tree {
     case node: Trace.Node[_] => Value(node)
 
     // Flatten AND
-    case Trace.Then(left, Trace.Node(_, _, _, Trace.Annotation.BooleanLogic())) =>
+    case Trace.AndThen(left, Trace.Node(_, _, _, _, _, Trace.Annotation.BooleanLogic())) =>
       fromTrace(left)
 
-    case Trace.Both(left, right) =>
+    case Trace.Zip(left, right) =>
       (fromTrace(left), fromTrace(right)) match {
         case (Branch(ts1), Branch(ts2)) => Branch(ts1 ++ ts2)
         case (Branch(ts1), t2)          => Branch(ts1 :+ t2)
         case (t1, Branch(ts2))          => Branch(t1 +: ts2)
         case (t1, t2)                   => Branch(Chunk(t1, t2))
       }
-    case Trace.Then(left, right) =>
+
+    case Trace.AndThen(left, right) =>
       (fromTrace(left), fromTrace(right)) match {
         case (Linear(ts1), Linear(ts2)) => Linear(ts1 ++ ts2)
         case (Linear(ts1), t2)          => Linear(ts1 :+ t2)

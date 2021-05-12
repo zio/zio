@@ -1,53 +1,93 @@
 package zio.test
 
+import zio.test.Assert.Span
+
 import scala.annotation.tailrec
 
 sealed trait Trace[+A] { self =>
 
-  // TODO: Beautify
-  final def removingConsecutiveErrors(err: Throwable): Option[Trace[A]] = self match {
-    case Trace.Node(Result.Fail(e), _, _, _) if e == err => None
-    case node: Trace.Node[_]                             => Some(node)
-    case Trace.Then(left, right) =>
-      (left.removingConsecutiveErrors(err), right.removingConsecutiveErrors(err)) match {
-        case (Some(a), Some(b)) => Some(Trace.Then(a, b))
-        case (_, b)             => b
-      }
-    case both: Trace.Both[_, _] => Some(both)
-  }
-
-  @tailrec
-  final def label(label0: String): Trace[A] =
+  /**
+   * Apply the metadata to the rightmost node in the trace.
+   */
+  final def meta(label: Option[String] = None, span: Option[Span] = None): Trace[A] =
     self match {
-      case node: Trace.Node[_]  => node.copy(label = Some(label0))
-      case Trace.Then(_, right) => right.label(label0)
-      case both                 => both
+      case node: Trace.Node[_]        => node.copy(label = label, span = span)
+      case Trace.AndThen(left, right) => Trace.AndThen(left, right.meta(label, span))
+      case zip                        => zip
+    }
+
+  /**
+   * Apply the code to every node in the tree.
+   */
+  final def withCode(code: Option[String]): Trace[A] =
+    self match {
+      case node: Trace.Node[_] => node.copy(code = code)
+      case Trace.AndThen(left, right) =>
+        Trace.AndThen(left.withCode(code), right.withCode(code))
+      case zip: Trace.Zip[_, _] =>
+        Trace.Zip(zip.left.withCode(code), zip.right.withCode(code)).asInstanceOf[Trace[A]]
     }
 
   @tailrec
   final def annotate(annotation: Trace.Annotation*): Trace[A] =
     self match {
-      case node: Trace.Node[_]  => node.copy(annotations = node.annotations ++ annotation.toSet)
-      case Trace.Then(_, right) => right.annotate(annotation: _*)
-      case both                 => both
+      case node: Trace.Node[_]     => node.copy(annotations = node.annotations ++ annotation.toSet)
+      case Trace.AndThen(_, right) => right.annotate(annotation: _*)
+      case zip                     => zip
     }
 
-  final def <*>[B](that: Trace[B]): Trace[(A, B)] =
-    Trace.Both(self, that)
+  final def zip[B](that: Trace[B]): Trace[(A, B)] =
+    Trace.Zip(self, that)
 
   final def >>>[B](that: Trace[B]): Trace[B] =
-    Trace.Then(self, that)
+    Trace.AndThen(self, that)
 
   def result: Result[A]
 }
 
 object Trace {
+  def markFailures[A](trace: Trace[A], negated: Boolean): Trace[A] = trace match {
+    case node @ Node(Result.Succeed(bool: Boolean), _, _, _, _, _) if bool == negated =>
+      node.annotate(Annotation.Failure)
+    case AndThen(left, right @ Node(_, _, _, _, _, Annotation.Not())) =>
+      AndThen(markFailures(left, !negated), right)
+    case AndThen(left, right) =>
+      AndThen(markFailures(left, negated), markFailures(right, negated))
+    case Zip(left, right) =>
+      Zip(markFailures(left, negated), markFailures(right, negated))
+    case other => other
+  }
 
   sealed trait Annotation
 
   object Annotation {
-    case object BooleanLogic extends Annotation {
-      def unapply(value: Set[Annotation]): Boolean = value.contains(BooleanLogic)
+
+    case object And extends Annotation {
+      def unapply(annotations: Set[Annotation]): Boolean =
+        annotations.contains(And)
+    }
+
+    case object Or extends Annotation {
+      def unapply(annotations: Set[Annotation]): Boolean =
+        annotations.contains(Or)
+    }
+
+    case object Not extends Annotation {
+      def unapply(annotations: Set[Annotation]): Boolean =
+        annotations.contains(Not)
+    }
+
+    object BooleanLogic {
+      def unapply(annotations: Set[Annotation]): Boolean =
+        Set[Annotation](And, Or, Not).intersect(annotations).nonEmpty
+    }
+
+    case object Rethrow extends Annotation {
+      def unapply(value: Set[Annotation]): Boolean = value.contains(Rethrow)
+    }
+
+    case object Failure extends Annotation {
+      def unapply(value: Set[Annotation]): Boolean = value.contains(Failure)
     }
   }
 
@@ -55,14 +95,16 @@ object Trace {
     result: Result[A],
     label: Option[String] = None,
     message: Option[String] = None,
+    span: Option[Span] = None,
+    code: Option[String] = None,
     annotations: Set[Annotation] = Set.empty
   ) extends Trace[A]
 
-  private[test] case class Both[+A, +B](left: Trace[A], right: Trace[B]) extends Trace[(A, B)] {
-    override def result: Result[(A, B)] = left.result <*> right.result
+  private[test] case class Zip[+A, +B](left: Trace[A], right: Trace[B]) extends Trace[(A, B)] {
+    override def result: Result[(A, B)] = left.result zip right.result
   }
 
-  private[test] case class Then[A, +B](left: Trace[A], right: Trace[B]) extends Trace[B] {
+  private[test] case class AndThen[A, +B](left: Trace[A], right: Trace[B]) extends Trace[B] {
     override def result: Result[B] = right.result
   }
 

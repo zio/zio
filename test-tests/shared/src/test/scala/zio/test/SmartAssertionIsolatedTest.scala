@@ -40,7 +40,7 @@ object SmartAssertionIsolatedTest extends ZIOBaseSpec {
 
   def spec: ZSpec[Annotations, Any] = suite("SmartAssertionSpec")(
     test("filterConstFalseResultsInEmptyChunk") {
-      ExampleZoo.main(Array())
+      AssertExamples.main(Array())
       assertCompletes
     }
   ) @@ TestAspect.identity
@@ -58,45 +58,25 @@ object ExampleZoo {
     def blowUp: Int = throw CoolError()
 
     val thing = Thing()
-
-    /**
-     * ERROR: Age
-     * person.(age) < 10
-     * person = Person(...)
-     *
-     * (Any -> Person) >>> (Person -> Int) >>> (Int -> Boolean)
-     *
-     * (Any -> Person) >>> (Person -> Int) >>> (Int -> Boolean)
-     *
-     * person.get.age > 10
-     *
-     * (Any -> Person) >>> (Person -> Int) >>> (Throwable -> Thing) >>> (Int -> Boolean)
-     *
-     * person.blowUp.throws
-     *
-     * Zoom[In, Out]
-     * def run(): Result[...]
-     */
-
 //    val zoom = assertZoom(listOfWords.forall(word => word.isEmpty && word.get.length == 9))
 
-    val zoom: Zoom[Any, Boolean] = assertZoom(thing.blowUp.throws.getMessage.length < 5)
+//    val zoom: Zoom[Any, Boolean] = assertZoom(thing.blowUp.throws.getMessage.length < 5)
 
     val num = 10
 //    val zoom: Zoom[Any, Boolean] =
 //      assertZoom((thing.blowUp > 10 && listOfWords(2).get == "Nice") || !(num == 10)) // && listOfWords.length == 3)
 //    val zoom: Zoom[Any, Boolean] =
-//      assertZoom(thing.blowUp < 10 || (listOfWords.isEmpty && thing.blowUp < 10) && false)
+//      val assertZoom(thing.blowUp < 10 || (listOfWords.isEmpty && thing.blowUp < 10) && false)
     val age = 30
 
-//    val zoom = assertZoom(age > 40 && age < 80)
+    val zoom = assertZoom(age > 40)
 
-    val (node, result) = zoom.run
+    val result = Assert.run(zoom, Right(()))
 //    Node.debug(node)
-    println("")
+    println(result)
 //    println("")
 
-    if (result.contains(true)) println("SUCCEooEoSS")
-    else println(Node.render(node, Chunk.empty, 0, true).mkString("\n"))
+//    if (result.contains(true)) println("SUCCEooEoSS")
+//    else println(Node.render(node, Chunk.empty, 0, true).mkString("\n"))
   }
 }
