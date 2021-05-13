@@ -1,24 +1,24 @@
 package zio.test
 
 object AssertExamples {
-  def optionExample = {
-    val option = Assert.succeed(Option.empty[Int]).label("maybeInt") >>>
-      Assert.get[Int] >>> Assert.fromFunction((_: Int) > 10).label(" > 10")
-    Assert.run(option, Right(()))
-  }
+//  def optionExample = {
+//    val option = Assert.succeed(Option.empty[Int]).label("maybeInt") >>>
+//      Assert.get[Int] >>> Assert.fromFunction((_: Int) > 10).label(" > 10")
+//    Assert.run(option, Right(()))
+//  }
+//
+//  lazy val throwingExample = {
+//    val a = Assert.succeed[Int](10).label("10") >>>
+//      Assert.fromFunction((_: Int) + 10).label(" + 10") >>>
+//      Assert.fromFunction((_: Any) => throw new Error("BANG")).label("BOOM") >>>
+//      Assert.fromFunction((_: Int) % 2 == 0).label(" % 2 == 0") >>>
+//      Assert.fromFunction((_: Boolean) == true).label(" == true") >>>
+//      Assert.throws
+//
+//    Assert.run(a, Right(10))
+//  }
 
-  val throwingExample = {
-    val a = Assert.succeed[Int](10).label("10") >>>
-      Assert.fromFunction((_: Int) + 10).label(" + 10") >>>
-      Assert.fromFunction((_: Any) => throw new Error("BANG")).label("BOOM") >>>
-      Assert.fromFunction((_: Int) % 2 == 0).label(" % 2 == 0") >>>
-      Assert.fromFunction((_: Boolean) == true).label(" == true") >>>
-      Assert.throws
-
-    Assert.run(a, Right(10))
-  }
-
-  val booleanLogic = {
+  lazy val booleanLogic = {
 //    val a      = Assert.succeed(10) >>> Assert.fromFunction(_ > 11)
 //    val b      = Assert.succeed("hello") >>> Assert.fromFunction(_.isEmpty)
 //    val c      = Assert.succeed(Some(12)) >>> Assertions.get >>> Assert.fromFunction(_ == 10)
@@ -26,9 +26,13 @@ object AssertExamples {
     val ten   = 10
     val hello = "hello"
 
-    val assert = assertZoom(ten > 19 || hello.length == 5)
-    val trace  = Assert.run(assert, Right(()))
-    Trace.markFailures(trace, false)
+    // val assert = ??? //assertZoom(ten > 19 || hello.length == 5)
+    val assert = assertZoom(ten > 11 || hello.length > 8 || hello.length > 100)
+    // val assert = assertZoom(!(ten > 19 || hello.length == 5) && ten > 11)
+    var result = Assert.run(assert, Right(()))
+    result = Trace.prune(result, false).get
+
+    result
   }
 
   def main(args: Array[String]): Unit = {
@@ -37,13 +41,20 @@ object AssertExamples {
     println("")
     println(Pretty(result))
     println("")
+
     val tree = Tree.fromTrace(result)
-
-    case class Succeed(any: Any)
-
     println(Pretty(tree))
     println("")
     println(tree.render)
+
+    val failure = FailureCase.fromTrace(result)
+    println(Pretty(failure))
+    println("")
+    println(
+      failure.map { f =>
+        FailureCase.renderFailureCase(f).mkString("\n")
+      }.mkString("\n\n")
+    )
   }
 }
 

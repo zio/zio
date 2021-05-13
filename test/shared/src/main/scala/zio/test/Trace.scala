@@ -1,18 +1,24 @@
 package zio.test
 
+import zio.Chunk
 import zio.test.Assert.Span
 
 import scala.annotation.tailrec
 
 sealed trait Trace[+A] { self =>
 
+  def isSuccess = self.result match {
+    case Result.Succeed(true) => true
+    case _                    => false
+  }
+
   /**
    * Apply the metadata to the rightmost node in the trace.
    */
-  final def meta(label: Option[String] = None, span: Option[Span] = None): Trace[A] =
+  final def withSpan(span: Option[Span] = None): Trace[A] =
     self match {
-      case node: Trace.Node[_]        => node.copy(label = label, span = span)
-      case Trace.AndThen(left, right) => Trace.AndThen(left, right.meta(label, span))
+      case node: Trace.Node[_]        => node.copy(span = span)
+      case Trace.AndThen(left, right) => Trace.AndThen(left, right.withSpan(span))
       case zip                        => zip
     }
 
@@ -21,11 +27,15 @@ sealed trait Trace[+A] { self =>
    */
   final def withCode(code: Option[String]): Trace[A] =
     self match {
-      case node: Trace.Node[_] => node.copy(code = code)
+      case node: Trace.Node[_] => node.copy(fullCode = code)
       case Trace.AndThen(left, right) =>
         Trace.AndThen(left.withCode(code), right.withCode(code))
-      case zip: Trace.Zip[_, _] =>
-        Trace.Zip(zip.left.withCode(code), zip.right.withCode(code)).asInstanceOf[Trace[A]]
+      case and: Trace.And =>
+        Trace.And(and.left.withCode(code), and.right.withCode(code)).asInstanceOf[Trace[A]]
+      case or: Trace.Or =>
+        Trace.Or(or.left.withCode(code), or.right.withCode(code)).asInstanceOf[Trace[A]]
+      case not: Trace.Not =>
+        Trace.Not(not.trace.withCode(code)).asInstanceOf[Trace[A]]
     }
 
   @tailrec
@@ -36,8 +46,14 @@ sealed trait Trace[+A] { self =>
       case zip                     => zip
     }
 
-  final def zip[B](that: Trace[B]): Trace[(A, B)] =
-    Trace.Zip(self, that)
+  final def &&[B](that: Trace[Boolean])(implicit ev: A <:< Boolean): Trace[Boolean] =
+    Trace.And(ev.liftCo(self), that)
+
+  final def ||[B](that: Trace[Boolean])(implicit ev: A <:< Boolean): Trace[Boolean] =
+    Trace.Or(ev.liftCo(self), that)
+
+  final def unary_![B](implicit ev: A <:< Boolean): Trace[Boolean] =
+    Trace.Not(ev.liftCo(self))
 
   final def >>>[B](that: Trace[B]): Trace[B] =
     Trace.AndThen(self, that)
@@ -46,77 +62,106 @@ sealed trait Trace[+A] { self =>
 }
 
 object Trace {
-  def markFailures[A](trace: Trace[A], negated: Boolean): Trace[A] = trace match {
-    case node @ Node(Result.Succeed(bool: Boolean), _, _, _, _, _) if bool == negated =>
-      node.annotate(Annotation.Failure)
-    case AndThen(left, right @ Node(_, _, _, _, _, Annotation.Not())) =>
-      AndThen(markFailures(left, !negated), right)
-    case AndThen(left, right) =>
-      AndThen(markFailures(left, negated), markFailures(right, negated))
-    case Zip(left, right) =>
-      Zip(markFailures(left, negated), markFailures(right, negated))
-    case other => other
-  }
+
+  /**
+   * 1. Scala Code
+   * 2. parsed into Assert. (Any -> String) >>> (String -> Int)
+   * 3. parsed into Trace. (Any -> String) >>> (String -> Int)
+   * 4. ???
+   * 5. PROFIT
+   */
+
+  def prune(trace: Trace[Boolean], negated: Boolean): Option[Trace[Boolean]] =
+    trace match {
+      case Trace.Node(Result.Succeed(bool), _, _, _, _) if bool == negated =>
+        Some(trace)
+
+      case Trace.Node(Result.Succeed(_), _, _, _, _) =>
+        None
+
+      case Trace.Node(Result.Die(_) | Result.Fail, _, _, _, _) =>
+        Some(trace)
+
+      case Trace.AndThen(left, right) =>
+        prune(right, negated).map { next =>
+          Trace.AndThen(left, next)
+        }
+
+      case and: Trace.And =>
+        (prune(and.left, negated), prune(and.right, negated)) match {
+          case (None, right)             => right
+          case (left, None)              => left
+          case (Some(left), Some(right)) => Some(Trace.And(left, right))
+        }
+
+      case or: Trace.Or =>
+        (prune(or.left, negated), prune(or.right, negated)) match {
+          case (Some(left), Some(right))   => Some(Trace.Or(left, right))
+          case (Some(left), _) if negated  => Some(left)
+          case (_, Some(right)) if negated => Some(right)
+          case (_, _)                      => None
+        }
+
+      case not: Trace.Not =>
+        prune(not.trace, !negated)
+    }
 
   sealed trait Annotation
 
   object Annotation {
-
-    case object And extends Annotation {
-      def unapply(annotations: Set[Annotation]): Boolean =
-        annotations.contains(And)
-    }
-
-    case object Or extends Annotation {
-      def unapply(annotations: Set[Annotation]): Boolean =
-        annotations.contains(Or)
-    }
-
-    case object Not extends Annotation {
-      def unapply(annotations: Set[Annotation]): Boolean =
-        annotations.contains(Not)
-    }
-
-    object BooleanLogic {
-      def unapply(annotations: Set[Annotation]): Boolean =
-        Set[Annotation](And, Or, Not).intersect(annotations).nonEmpty
-    }
-
     case object Rethrow extends Annotation {
       def unapply(value: Set[Annotation]): Boolean = value.contains(Rethrow)
-    }
-
-    case object Failure extends Annotation {
-      def unapply(value: Set[Annotation]): Boolean = value.contains(Failure)
     }
   }
 
   private[test] case class Node[+A](
     result: Result[A],
-    label: Option[String] = None,
     message: Option[String] = None,
+    // child: Option[Node] = None,
     span: Option[Span] = None,
-    code: Option[String] = None,
+    fullCode: Option[String] = None,
     annotations: Set[Annotation] = Set.empty
-  ) extends Trace[A]
+  ) extends Trace[A] {
 
-  private[test] case class Zip[+A, +B](left: Trace[A], right: Trace[B]) extends Trace[(A, B)] {
-    override def result: Result[(A, B)] = left.result zip right.result
+    def renderResult: String =
+      result match {
+        case Result.Fail           => "<FAIL>"
+        case Result.Die(err)       => err.toString
+        case Result.Succeed(value) => value.toString
+      }
+
+    def code: String =
+      span.getOrElse(Span(0, 0)).substring(fullCode.getOrElse(""))
   }
 
   private[test] case class AndThen[A, +B](left: Trace[A], right: Trace[B]) extends Trace[B] {
     override def result: Result[B] = right.result
   }
 
-  def halt: Trace[Nothing]                       = Node(Result.Halt)
-  def halt(message: String): Trace[Nothing]      = Node(Result.Halt, message = Some(message))
+  private[test] case class And(left: Trace[Boolean], right: Trace[Boolean]) extends Trace[Boolean] {
+    override def result: Result[Boolean] = left.result.zipWith(right.result)(_ && _)
+  }
+
+  private[test] case class Or(left: Trace[Boolean], right: Trace[Boolean]) extends Trace[Boolean] {
+    override def result: Result[Boolean] = left.result.zipWith(right.result)(_ || _)
+  }
+
+  private[test] case class Not(trace: Trace[Boolean]) extends Trace[Boolean] {
+    override def result: Result[Boolean] = trace.result match {
+      case Result.Succeed(value) => Result.Succeed(!value)
+      case other                 => other
+    }
+  }
+
+  def halt: Trace[Nothing]                       = Node(Result.Fail)
+  def halt(message: String): Trace[Nothing]      = Node(Result.Fail, message = Some(message))
   def succeed[A](value: A): Trace[A]             = Node(Result.succeed(value))
-  def fail(throwable: Throwable): Trace[Nothing] = Node(Result.fail(throwable))
+  def fail(throwable: Throwable): Trace[Nothing] = Node(Result.die(throwable))
 
   object Halt {
     def unapply[A](trace: Trace[A]): Boolean =
       trace.result match {
-        case Result.Halt => true
+        case Result.Fail => true
         case _           => false
       }
   }
@@ -124,8 +169,8 @@ object Trace {
   object Fail {
     def unapply[A](trace: Trace[A]): Option[Throwable] =
       trace.result match {
-        case Result.Fail(err) => Some(err)
-        case _                => None
+        case Result.Die(err) => Some(err)
+        case _               => None
       }
   }
 

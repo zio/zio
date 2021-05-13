@@ -1,8 +1,10 @@
 package zio.test
 
 import zio.Chunk
+import zio.test.Assert.Span
 import zio.test.ConsoleUtils.{blue, bold, dim, red, yellow}
 
+import scala.annotation.tailrec
 import scala.language.existentials
 import scala.util.Try
 
@@ -18,11 +20,11 @@ sealed trait Result[+A] { self =>
 
   def zipWith[B, C](that: Result[B])(f: (A, B) => C): Result[C] =
     (self, that) match {
-      case (Result.Succeed(a), Result.Succeed(b)) => Result.Succeed(f(a, b))
-      case (Result.Halt, _)                       => Result.Halt
-      case (_, Result.Halt)                       => Result.Halt
-      case (Result.Fail(err), _)                  => Result.fail(err)
-      case (_, Result.Fail(err))                  => Result.fail(err)
+      case (Result.Succeed(a), Result.Succeed(b)) => Result.succeed(f(a, b))
+      case (Result.Fail, _)                       => Result.fail
+      case (_, Result.Fail)                       => Result.fail
+      case (Result.Die(err), _)                   => Result.die(err)
+      case (_, Result.Die(err))                   => Result.die(err)
     }
 
   def contains[A1 >: A](a: A1): Boolean =
@@ -33,69 +35,77 @@ sealed trait Result[+A] { self =>
 }
 
 object Result {
-  def attempt[A](a: => A): Result[A] =
-    Try(a).toEither.fold(fail, succeed)
-
-  def fail(throwable: Throwable): Result[Nothing] =
-    Fail(throwable)
-
   def succeed[A](value: A): Result[A] =
     Succeed(value)
 
-  case object Halt                 extends Result[Nothing]
-  case class Fail(err: Throwable)  extends Result[Nothing]
+  def fail: Result[Nothing] = Fail
+
+  def die(throwable: Throwable): Result[Nothing] =
+    Die(throwable)
+
+  case object Fail                 extends Result[Nothing]
+  case class Die(err: Throwable)   extends Result[Nothing]
   case class Succeed[+A](value: A) extends Result[A]
 }
-
-//final case class Node(
-//  input: Any,
-//  result: Any,
-//  errorMessage: String,
-//  children: Children,
-//  fullCode: String = "",
-//  span: (Int, Int) = (0, 0),
-//  visible: Option[(Int, Int)] = None
-//) {
-//
-//  def visibleCode: String =
-//    visible.map { case (s, e) => fullCode.substring(s, e) }.getOrElse(fullCode)
-//
-//  def clip(span: (Int, Int)): Node =
-//    copy(visible = visible.orElse(Some(span)), children = children.map(_.clip(span)))
-//
-//  def clipOutput: Node =
-//    copy(children = children.map(_.clip(span)))
-////    this
-//  //    val (start, _) = span
-////    val newChildren =
-////      children.map(n => n.withCode(label).adjustSpan(-start))
-////    copy(children = newChildren).withCode(label)
-//
-//  def withCode(string: String): Node =
-//    copy(fullCode = string, children = children.map(_.withCode(string)))
-//
-//  def label: String =
-//    Try(fullCode.substring(span._1, span._2)).getOrElse("<code>")
-//}
 
 case class FailureCase(
   errorMessage: String,
   codeString: String,
   path: Chunk[(String, String)],
-  span: (Int, Int),
+  span: Span,
   nestedFailures: Chunk[FailureCase],
   result: Any
 )
 
 object FailureCase {
-//  def debug(node: Trace[_]): Unit = println(FailureCase.fromNode(node))
+  def highlight(string: String, span: Span): String =
+    bold(string.take(span.start)) + bold(yellow(string.slice(span.start, span.end))) + bold(string.drop(span.end))
 
-  def highlight(string: String, span: (Int, Int)): String =
-    bold(string.take(span._1)) + bold(yellow(string.slice(span._1, span._2))) + bold(string.drop(span._2))
+  @tailrec
+  def rightmostNode(trace: Trace[Boolean]): Trace.Node[Boolean] = trace match {
+    case node: Trace.Node[Boolean] => node
+    case Trace.AndThen(_, right)   => rightmostNode(right)
+    case Trace.And(_, right)       => rightmostNode(right)
+    case Trace.Or(_, right)        => rightmostNode(right)
+    case Trace.Not(trace)          => rightmostNode(trace)
+  }
+
+  def getPath(trace: Trace[_]): Chunk[(String, String)] =
+    trace match {
+      case node: Trace.Node[_] =>
+        Chunk(node.code -> node.renderResult)
+      case Trace.AndThen(left, right) =>
+        getPath(left) ++ getPath(right)
+      case _ => Chunk.empty
+    }
+
+  def fromTrace(trace: Trace[Boolean]): Chunk[FailureCase] =
+    trace match {
+      case node: Trace.Node[Boolean] =>
+        Chunk(fromNode(node, Chunk.empty))
+      case andThen @ Trace.AndThen(_, right) =>
+        val node = rightmostNode(right)
+        val path = getPath(andThen).reverse.drop(1)
+        Chunk(fromNode(node, path))
+      case Trace.And(left, right) =>
+        fromTrace(left) ++ fromTrace(right)
+      case Trace.Or(left, right) =>
+        fromTrace(left) ++ fromTrace(right)
+      case Trace.Not(trace) =>
+        fromTrace(trace)
+    }
+
+  private def fromNode(node: Trace.Node[Boolean], path: Chunk[(String, String)] = Chunk.empty): FailureCase =
+    FailureCase(
+      node.message.getOrElse("<ERROR>"),
+      highlight(node.fullCode.getOrElse("<CODE>"), node.span.getOrElse(Span(0, 0))),
+      path,
+      node.span.getOrElse(Span(0, 0)),
+      Chunk.empty,
+      node.result
+    )
 
   def renderFailureCase(failureCase: FailureCase): Chunk[String] =
-//    println("FAIL")
-//    println(failureCase.result)
     failureCase match {
       case FailureCase(_, _, _, _, _, result) if result.toString == "true" =>
         Chunk.empty
@@ -107,38 +117,4 @@ object FailureCase {
           Chunk.fromIterable(path.map { case (label, value) => dim(s"$label = ") + blue(value) }) ++ Chunk("")
         lines
     }
-
-  def render(node: Trace[_], acc: Chunk[String], indent: Int, isTop: Boolean = false): Chunk[String] =
-    ???
-//    node.children match {
-//      case Children.Many(nodes) if isTop =>
-//        nodes.map(FailureCase.fromNode).flatMap(renderFailureCase)
-//      case _ =>
-//        renderFailureCase(FailureCase.fromNode(node))
-//    }
 }
-
-//trait Printer[-A] {
-//  def apply(a: A): String
-//}
-//
-//object Printer extends LowPriPrinter1 {
-//  implicit val stringPrinter[String] =
-//  (a: String) => '"' + a + '"'
-//}
-//
-//trait LowPriPrinter1 extends LowPriPrinter0 {
-//  implicit def optionPrinter[A](implicit printer[A])[Option[A]] = {
-//    case Some(value) => s"Some(${printer(value)})"
-//    case None        => "None"
-//  }
-//
-//  implicit def listPrinter[A](implicit printer[A])[List[A]] = list =>
-//    "List(" + list.map(printer(_)).mkString(", ") + ")"
-//}
-//
-//trait LowPriPrinter0 {
-//  implicit def anyPrinter[A][A] = new Printer[A] {
-//    override def apply(a: A): String = a.toString
-//  }
-//}

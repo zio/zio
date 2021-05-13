@@ -1,7 +1,5 @@
 package zio.test
 
-import zio.test.Trace.Annotation
-
 import scala.util.Try
 
 trait StandardAssertions {
@@ -11,15 +9,12 @@ trait StandardAssertions {
         case Some(value) => Trace.succeed(value)
         case None        => Trace.halt("Option was None")
       }
-      .label(".get")
 
   def greaterThan[A](that: A)(implicit numeric: Numeric[A]): Assert[A, Boolean] =
     Assert
       .make[A, Boolean] { (a: A) =>
         Trace.succeed(numeric.gt(a, that))
-//        else Trace.halt(s"$a is not greater than $that")
       }
-      .label("greaterThan")
 
   def equalTo[A](that: A): Assert[A, Boolean] =
     Assert
@@ -27,7 +22,6 @@ trait StandardAssertions {
         if (a == that) Trace.succeed(true)
         else Trace.halt(s"$a is not equal to $that")
       }
-      .label("equalTo")
 
   val throws: Assert[Any, Throwable] = Assert.makeEither(
     Trace.succeed,
@@ -40,11 +34,8 @@ sealed trait Assert[-A, +B] { self =>
 
   import Assert._
 
-  def label(label: String): Assert[A, B] =
-    meta(label = Some(label))
-
-  def meta(label: Option[String] = None, span: Option[Span] = None, code: Option[String] = None): Assert[A, B] =
-    Meta(assert = self, label = label, span = span, code = code)
+  def meta(span: Option[Span] = None, code: Option[String] = None): Assert[A, B] =
+    Meta(assert = self, span = span, code = code)
 
   def span(span0: (Int, Int)): Assert[A, B] =
     meta(span = Some(Span(span0._1, span0._2)))
@@ -54,22 +45,14 @@ sealed trait Assert[-A, +B] { self =>
 
   def >>>[C](that: Assert[B, C]): Assert[A, C] = AndThen[A, B, C](self, that)
 
-  def zip[A1 <: A, C](that: Assert[A1, C]): Assert[A1, (B, C)] = Zip(self, that)
-
   def &&(that: Assert[Any, Boolean])(implicit ev: Any <:< A, ev2: B <:< Boolean): Assert[Any, Boolean] =
-    (self.asInstanceOf[Assert[Any, Boolean]] zip that) >>>
-      make { case (a, b) => Trace.succeed(a && b).annotate(Annotation.And) }
+    And(self.asInstanceOf[Assert[Any, Boolean]], that)
 
   def ||(that: Assert[Any, Boolean])(implicit ev: Any <:< A, ev2: B <:< Boolean): Assert[Any, Boolean] =
-    (self.asInstanceOf[Assert[Any, Boolean]] zip that) >>>
-      make { case (a, b) => Trace.succeed(a || b).annotate(Annotation.Or) }
+    Or(self.asInstanceOf[Assert[Any, Boolean]], that)
 
-  def debug: String = self match {
-    case Meta(assert, label, _, _) => s"($label ${assert.debug})"
-    case Arrow(_)                  => s"*"
-    case AndThen(f, g)             => s"${f.debug} >>> ${g.debug}"
-    case and: Zip[_, _, _]         => s"(${and.left}) && (${and.right})"
-  }
+  def unary_!(implicit ev: Any <:< A, ev2: B <:< Boolean): Assert[Any, Boolean] =
+    Not(self.asInstanceOf[Assert[Any, Boolean]])
 }
 
 object Assert extends StandardAssertions {
@@ -101,21 +84,29 @@ object Assert extends StandardAssertions {
           case Trace.Succeed(value) => t1 >>> run(g, Right(value))
         }
 
-      case Zip(lhs, rhs) =>
-        run(lhs, in) zip run(rhs, in)
+      case And(lhs, rhs) =>
+        run(lhs, in) && run(rhs, in)
 
-      case Meta(assert, label, span, code) =>
-        run(assert, in).meta(label, span).withCode(code)
+      case Or(lhs, rhs) =>
+        run(lhs, in) || run(rhs, in)
 
+      case Not(assert) =>
+        !run(assert, in)
+
+      case Meta(assert, span, code) =>
+        run(assert, in).withSpan(span).withCode(code)
     }
   }
 
-  case class Span(start: Int, end: Int)
+  case class Span(start: Int, end: Int) {
+    def substring(str: String): String = str.substring(start, end)
 
-  case class Meta[-A, +B](assert: Assert[A, B], label: Option[String], span: Option[Span], code: Option[String])
-      extends Assert[A, B]
-  case class Arrow[-A, +B](f: Either[Throwable, A] => Trace[B]) extends Assert[A, B] {}
+  }
 
-  case class AndThen[A, B, C](f: Assert[A, B], g: Assert[B, C])    extends Assert[A, C]
-  case class Zip[A, B, C](left: Assert[A, B], right: Assert[A, C]) extends Assert[A, (B, C)]
+  case class Meta[-A, +B](assert: Assert[A, B], span: Option[Span], code: Option[String]) extends Assert[A, B]
+  case class Arrow[-A, +B](f: Either[Throwable, A] => Trace[B])                           extends Assert[A, B] {}
+  case class AndThen[A, B, C](f: Assert[A, B], g: Assert[B, C])                           extends Assert[A, C]
+  case class And(left: Assert[Any, Boolean], right: Assert[Any, Boolean])                 extends Assert[Any, Boolean]
+  case class Or(left: Assert[Any, Boolean], right: Assert[Any, Boolean])                  extends Assert[Any, Boolean]
+  case class Not(assert: Assert[Any, Boolean])                                            extends Assert[Any, Boolean]
 }

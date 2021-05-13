@@ -9,13 +9,14 @@ sealed trait Tree { self =>
     case Tree.Value(node) =>
       Chunk(s"${node.result} ${node.message}")
     case Tree.Branch(nodes) =>
-      nodes.flatMap(_.debugImpl ++ Chunk("&&")) //.dropRight(1)
+      nodes.flatMap(_.debugImpl ++ Chunk("&&")).dropRight(1)
     case Tree.Linear(nodes) =>
       nodes.flatMap(_.debugImpl).map("- " + _)
   }
 }
 
 object Tree {
+
   case class Value(node: Trace.Node[_]) extends Tree
   case class Branch(nodes: Chunk[Tree]) extends Tree
   case class Linear(nodes: Chunk[Tree]) extends Tree
@@ -23,17 +24,24 @@ object Tree {
   def fromTrace(trace: Trace[_]): Tree = trace match {
     case node: Trace.Node[_] => Value(node)
 
-    // Flatten AND
-    case Trace.AndThen(left, Trace.Node(_, _, _, _, _, Trace.Annotation.BooleanLogic())) =>
-      fromTrace(left)
-
-    case Trace.Zip(left, right) =>
+    case Trace.And(left, right) =>
       (fromTrace(left), fromTrace(right)) match {
         case (Branch(ts1), Branch(ts2)) => Branch(ts1 ++ ts2)
         case (Branch(ts1), t2)          => Branch(ts1 :+ t2)
         case (t1, Branch(ts2))          => Branch(t1 +: ts2)
         case (t1, t2)                   => Branch(Chunk(t1, t2))
       }
+
+    case Trace.Or(left, right) =>
+      (fromTrace(left), fromTrace(right)) match {
+        case (Branch(ts1), Branch(ts2)) => Branch(ts1 ++ ts2)
+        case (Branch(ts1), t2)          => Branch(ts1 :+ t2)
+        case (t1, Branch(ts2))          => Branch(t1 +: ts2)
+        case (t1, t2)                   => Branch(Chunk(t1, t2))
+      }
+
+    case Trace.Not(trace) =>
+      fromTrace(trace)
 
     case Trace.AndThen(left, right) =>
       (fromTrace(left), fromTrace(right)) match {
@@ -43,5 +51,4 @@ object Tree {
         case (t1, t2)                   => Linear(Chunk(t1, t2))
       }
   }
-
 }
