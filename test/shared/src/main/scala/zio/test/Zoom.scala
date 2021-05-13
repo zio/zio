@@ -14,6 +14,11 @@ import scala.annotation.tailrec
  */
 
 sealed trait Result[+A] { self =>
+  def isDie: Boolean = self match {
+    case Result.Die(_) => true
+    case _             => false
+  }
+
   def zip[B](that: Result[B]): Result[(A, B)] = zipWith(that)(_ -> _)
 
   def zipWith[B, C](that: Result[B])(f: (A, B) => C): Result[C] =
@@ -56,7 +61,7 @@ case class FailureCase(
 )
 
 object FailureCase {
-  def highlight(string: String, span: Span, parentSpan: Option[Span] = None): String =
+  def highlight(string: String, span: Span, parentSpan: Option[Span] = None, color: String => String): String =
     parentSpan match {
       case Some(Span(pStart, pEnd)) if pStart <= span.start && pEnd >= span.end =>
         val part1 = string.take(pStart)
@@ -64,9 +69,9 @@ object FailureCase {
         val part3 = string.slice(span.start, span.end)
         val part4 = string.slice(span.end, pEnd)
         val part5 = string.drop(pEnd)
-        part1 + bold(part2) + bold(yellow(part3)) + bold(part4) + part5
+        part1 + bold(part2) + bold(color(part3)) + bold(part4) + part5
       case None =>
-        bold(string.take(span.start)) + bold(yellow(string.slice(span.start, span.end))) + bold(string.drop(span.end))
+        bold(string.take(span.start)) + bold(color(string.slice(span.start, span.end))) + bold(string.drop(span.end))
     }
 
   @tailrec
@@ -103,15 +108,21 @@ object FailureCase {
         fromTrace(trace)
     }
 
-  private def fromNode(node: Trace.Node[Boolean], path: Chunk[(String, String)] = Chunk.empty): FailureCase =
+  private def fromNode(node: Trace.Node[Boolean], path: Chunk[(String, String)] = Chunk.empty): FailureCase = {
+    val color = node.result match {
+      case Result.Die(_) => red _
+      case _             => yellow _
+    }
+
     FailureCase(
       node.message.render(node.isSuccess),
-      highlight(node.fullCode.getOrElse("<CODE>"), node.span.getOrElse(Span(0, 0)), node.parentSpan),
+      highlight(node.fullCode.getOrElse("<CODE>"), node.span.getOrElse(Span(0, 0)), node.parentSpan, color),
       path,
       node.span.getOrElse(Span(0, 0)),
       Chunk.empty,
       node.result
     )
+  }
 
   def renderFailureCase(failureCase: FailureCase): Chunk[String] =
     failureCase match {

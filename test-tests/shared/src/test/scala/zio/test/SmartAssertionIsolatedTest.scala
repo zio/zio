@@ -69,34 +69,34 @@ object AssertExamples {
     val ten   = 10
     val hello = "hello"
 
-    case class Person(age: Int, name: String) {
+    case class Person(age: Int, name: String, nickname: Option[String]) {
       def boom: Int = throw new Error("BOOM")
     }
 
-    val person = Person(42, "Bobby")
+    val person = Person(42, "Bobby", None)
 
-    val assert                        = assertZoom(person.age == 3 || person.name == "Booobby")
-    val assert2: Assert[Any, Boolean] = assertZoom(ten > 11 || hello.length > 8 || hello.length > 100)
+    val a = assertZoom(person.nickname.get == "Bill") // || person.name == "Bobby")
+//    val b         = assertZoom(ten > 11 || hello.length > 8 || hello.length > 100)
+    val assertion = a // && b
 
-    var result = Assert.run(assert && assert2, Right(()))
+    var result = Assert.run(assertion, Right(()))
     result = Trace.prune(result, false).getOrElse(Trace.Node(Result.Succeed(true)))
     result
   }
 
   def main(args: Array[String]): Unit = {
     val result = booleanLogic
-    println(result)
-    println("")
-    println(Pretty(result))
-    println("")
+//    println(result)
+//    println("")
+//    println(Pretty(result))
+//    println("")
 
-    val tree = Tree.fromTrace(result)
-    println(Pretty(tree))
-    println("")
-    println(tree.render)
+//    val tree = Tree.fromTrace(result)
+//    println(Pretty(tree))
+//    println("")
+//    println(tree.render)
 
     val failure = FailureCase.fromTrace(result)
-    println(Pretty(failure))
     println("")
     println(
       failure.map { f =>

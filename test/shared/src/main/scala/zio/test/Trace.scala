@@ -32,7 +32,7 @@ sealed trait Trace[+A] { self =>
   def withParentSpan(span: Option[Span]): Trace[A] = if (span.isDefined) {
     self match {
       case node: Trace.Node[_] =>
-        node.copy(parentSpan = span)
+        node.copy(parentSpan = node.parentSpan.orElse(span))
       case Trace.AndThen(left, right) =>
         Trace.AndThen(left.withParentSpan(span), right.withParentSpan(span))
       case and: Trace.And =>
@@ -98,6 +98,9 @@ object Trace {
       case Trace.Node(Result.Die(_) | Result.Fail, _, _, _, _, _) =>
         Some(trace)
 
+      case Trace.AndThen(left, node: Trace.Node[_]) if node.annotations.contains(Trace.Annotation.Rethrow) =>
+        prune(left.asInstanceOf[Trace[Boolean]], negated)
+
       case Trace.AndThen(left, right) =>
         prune(right, negated).map { next =>
           Trace.AndThen(left, next)
@@ -112,10 +115,10 @@ object Trace {
 
       case or: Trace.Or =>
         (prune(or.left, negated), prune(or.right, negated)) match {
-          case (Some(left), Some(right))   => Some(Trace.Or(left, right))
-          case (Some(left), _) if negated  => Some(left)
-          case (_, Some(right)) if negated => Some(right)
-          case (_, _)                      => None
+          case (Some(left), Some(right))                         => Some(Trace.Or(left, right))
+          case (Some(left), _) if negated || left.result.isDie   => Some(left)
+          case (_, Some(right)) if negated || right.result.isDie => Some(right)
+          case (_, _)                                            => None
         }
 
       case not: Trace.Not =>
@@ -175,7 +178,8 @@ object Trace {
   def halt(message: ErrorMessage): Trace[Nothing]                    = Node(Result.Fail, message = message)
   def succeed[A](value: A): Trace[A]                                 = Node(Result.succeed(value))
   def boolean(value: Boolean)(message: ErrorMessage): Trace[Boolean] = Node(Result.succeed(value), message = message)
-  def fail(throwable: Throwable): Trace[Nothing]                     = Node(Result.die(throwable))
+  def fail(throwable: Throwable): Trace[Nothing] =
+    Node(Result.die(throwable), message = ErrorMessage.throwable(throwable))
 
   object Halt {
     def unapply[A](trace: Trace[A]): Boolean =

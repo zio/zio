@@ -5,7 +5,7 @@ import scala.util.Try
 trait StandardAssertions {
   import zio.test.{ErrorMessage => M}
 
-  def get[A]: Assert[Option[A], A] =
+  def isSome[A]: Assert[Option[A], A] =
     Assert
       .make[Option[A], A] {
         case Some(value) => Trace.succeed(value)
@@ -77,7 +77,8 @@ object Assert extends StandardAssertions {
       case Right(value) => onSucceed(value)
     }
 
-  private def attempt[A](f: => Trace[A]): Trace[A] = Try(f).fold(e => Trace.fail(e), identity)
+  private def attempt[A](f: => Trace[A]): Trace[A] =
+    Try(f).fold(e => Trace.fail(e), identity)
 
   def run[A, B](assert: Assert[A, B], in: Either[Throwable, A]): Trace[B] = attempt {
     assert match {
@@ -102,8 +103,6 @@ object Assert extends StandardAssertions {
         !run(assert, in)
 
       case Meta(assert, span, parentSpan, code) =>
-        println("META")
-        println(parentSpan)
         run(assert, in).withSpan(span).withCode(code).withParentSpan(parentSpan)
     }
   }

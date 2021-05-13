@@ -31,7 +31,6 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
         case not: AST.Not           => not.copy(span = span0)
         case and: AST.And           => and.copy(span = span0)
         case or: AST.Or             => or.copy(span = span0)
-        case to: AST.EqualTo        => to.copy(span = span0)
         case select: AST.Select     => select.copy(span = span0)
         case method: AST.Method     => method.copy(span = span0)
         case function: AST.Function => function.copy(span = span0)
@@ -43,7 +42,6 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
     case class Not(ast: AST, span: (Int, Int), innerSpan: (Int, Int))                                 extends AST
     case class And(lhs: AST, rhs: AST, span: (Int, Int), leftSpan: (Int, Int), rightSpan: (Int, Int)) extends AST
     case class Or(lhs: AST, rhs: AST, span: (Int, Int), leftSpan: (Int, Int), rightSpan: (Int, Int))  extends AST
-    case class EqualTo(lhs: AST, rhs: c.Tree, span: (Int, Int))                                       extends AST
     case class Select(lhs: AST, lhsTpe: Type, rhsTpe: Type, tpes: List[Tree], name: String, span: (Int, Int))
         extends AST
     case class Method(lhs: AST, lhsTpe: Type, rhsTpe: Type, name: String, args: List[c.Tree], span: (Int, Int))
@@ -64,9 +62,6 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
       case AST.Or(lhs, rhs, pos, ls, rs) =>
         q"${astToAssertion(lhs)}.withParentSpan($ls) || ${astToAssertion(rhs)}.withParentSpan($rs)"
 
-      case AST.EqualTo(lhs, rhs, span) =>
-        q"${astToAssertion(lhs)} >>> $Assert.equalTo($rhs).span($span)"
-
       case AST.Select(lhs, lhsTpe, rhsTpe, List(tpe), "throwsA", span) =>
         q"${astToAssertion(lhs)} >>> $Assert.throwsSubtype[$tpe].span($span)"
 
@@ -84,10 +79,10 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
         q"${astToAssertion(lhs)} >>> $Assert.isSome.span($span)"
 
       case AST.Method(lhs, lhsTpe, rhsTpe, "$greater", args, span) =>
-        q"${astToAssertion(lhs)} >>> $Assert.greaterThan(${args.head}).span($span)"
+        q"${astToAssertion(lhs)} >>> $Assert.greaterThan[$lhsTpe](${args.head}).span($span)"
 
-      case AST.Method(lhs, lhsTpe, rhsTpe, "$equal", args, span) =>
-        q"${astToAssertion(lhs)} >>> $Assert.equalTo(${args.head}).span($span)"
+      case AST.Method(lhs, lhsTpe, rhsTpe, "$eq$eq", args, span) =>
+        q"${astToAssertion(lhs)} >>> $Assert.equalTo[$lhsTpe](${args.head}).span($span)"
 
       case AST.Method(lhs, lhsTpe, rhsTpe, "forall", args, span) if lhsTpe <:< weakTypeOf[Iterable[_]] =>
         val assert = astToAssertion(parseExpr(args.head))
@@ -131,9 +126,6 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
 
       case q"$lhs || $rhs" =>
         AST.Or(parseExpr(lhs), parseExpr(rhs), pos.getPos(tree), pos.getPos(lhs), pos.getPos(rhs))
-
-      case q"$lhs == $rhs" =>
-        AST.EqualTo(parseExpr(lhs), rhs, (pos.getEnd(lhs), end))
 
       case q"$lhs.$name" if !(tree.symbol.isModule || tree.symbol.isStatic || tree.symbol.isClass) =>
         AST.Select(parseExpr(lhs), lhs.tpe.widen, tree.tpe.widen, List.empty, name.toString, (pos.getEnd(lhs), end))
