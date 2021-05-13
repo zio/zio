@@ -67,7 +67,7 @@ trait TimeVariants {
       hour   <- Gen.int(0, 23)
       minute <- Gen.int(0, 59)
       second <- Gen.int(0, 59)
-      nanos  <- Gen.int(0, 999_999_999)
+      nanos  <- Gen.int(0, 999999999)
     } yield LocalTime.of(hour, minute, second, nanos)
 
   /**
