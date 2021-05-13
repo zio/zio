@@ -16,7 +16,6 @@
 
 package zio.test
 
-import zio.blocking.Blocking
 import zio.test.environment._
 import zio.{ZEnv, ZLayer}
 
@@ -37,7 +36,6 @@ private[test] abstract class PlatformSpecific {
       ZLayer.requires[TestEnvironment]
     lazy val live: ZLayer[ZEnv, Nothing, TestEnvironment] =
       Annotations.live ++
-        Blocking.live ++
         Live.default ++
         Sized.live(100) ++
         ((Live.default ++ Annotations.live) >>> TestClock.default) ++

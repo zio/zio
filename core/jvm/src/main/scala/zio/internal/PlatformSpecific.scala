@@ -78,6 +78,8 @@ private[internal] trait PlatformSpecific {
    */
   final def fromExecutor(executor0: Executor): Platform =
     new Platform {
+      val blockingExecutor = Executor.blocking
+
       val executor = executor0
 
       val tracing = Tracing(Tracer.globallyCached(new AkkaLineNumbersTracer), TracingConfig.enabled)
