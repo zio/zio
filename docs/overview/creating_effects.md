@@ -213,10 +213,8 @@ ZIO provides the `zio.blocking` package, which can be used to safely convert suc
 A blocking side-effect can be converted directly into a ZIO effect blocking with the `effectBlocking` method:
 
 ```scala mdoc:silent
-import zio.blocking._
-
 val sleeping =
-  effectBlocking(Thread.sleep(Long.MaxValue))
+  ZIO.effectBlocking(Thread.sleep(Long.MaxValue))
 ```
 
 The resulting effect will be executed on a separate thread pool designed specifically for blocking effects.
@@ -230,7 +228,7 @@ import java.net.ServerSocket
 import zio.UIO
 
 def accept(l: ServerSocket) =
-  effectBlockingCancelable(l.accept())(UIO.effectTotal(l.close()))
+  ZIO.effectBlockingCancelable(l.accept())(UIO.effectTotal(l.close()))
 ```
 
 If a side-effect has already been converted into a ZIO effect, then instead of `effectBlocking`, the `blocking` method can be used to ensure the effect will be executed on the blocking thread pool:
@@ -244,7 +242,7 @@ def download(url: String) =
   }
 
 def safeDownload(url: String) =
-  blocking(download(url))
+  ZIO.blocking(download(url))
 ```
 
 ## Next Steps
