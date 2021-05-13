@@ -2,11 +2,9 @@ package zio.test
 
 import zio.Chunk
 import zio.test.Assert.Span
-import zio.test.ConsoleUtils.{blue, bold, dim, red, yellow}
+import zio.test.ConsoleUtils._
 
 import scala.annotation.tailrec
-import scala.language.existentials
-import scala.util.Try
 
 /**
  * TODO:
@@ -111,7 +109,7 @@ object FailureCase {
         Chunk.empty
       case FailureCase(errorMessage, _, _, _, nested, _) if errorMessage == "*AND*" =>
         nested.flatMap(renderFailureCase).map("  " + _)
-      case FailureCase(errorMessage, codeString, path, span, nested, _) =>
+      case FailureCase(errorMessage, codeString, path, _, nested, _) =>
         val lines = Chunk(s"${red("›")} $errorMessage", codeString) ++
           nested.flatMap(renderFailureCase).map("  " + _) ++
           Chunk.fromIterable(path.map { case (label, value) => dim(s"$label = ") + blue(value) }) ++ Chunk("")
