@@ -6,13 +6,6 @@ import zio.test.FailureRenderer.{blue, magenta, red}
 import scala.language.implicitConversions
 
 object MessageDesc {
-
-  def switch[A](fail: Throwable => MessageDesc[Any], success: A => MessageDesc[A]): MessageDesc[A] =
-    Wrap[A] {
-      case Left(throwable) => fail.apply(throwable)
-      case Right(value)    => success.apply(value)
-    }
-
   val result: MessageDesc[Any] = Result(_.toString)
 
   def result[A](render: A => String): MessageDesc[A] = Result {
@@ -57,5 +50,4 @@ sealed trait MessageDesc[-A] { self =>
       case MessageDesc.Combine(lhs, rhs) =>
         lhs.renderLine(a, isSuccess) ++ Line.fromString(" ") ++ rhs.renderLine(a, isSuccess)
     }
-
 }

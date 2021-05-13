@@ -3,6 +3,8 @@ package zio.test
 import scala.util.Try
 
 trait StandardAssertions {
+  import zio.test.{ErrorMessage => M}
+
   def get[A]: Assert[Option[A], A] =
     Assert
       .make[Option[A], A] {
@@ -13,14 +15,17 @@ trait StandardAssertions {
   def greaterThan[A](that: A)(implicit numeric: Numeric[A]): Assert[A, Boolean] =
     Assert
       .make[A, Boolean] { (a: A) =>
-        Trace.succeed(numeric.gt(a, that))
+        Trace.boolean(numeric.gt(a, that)) {
+          M.value(a) + M.was + "greater than" + M.value(that)
+        }
       }
 
   def equalTo[A](that: A): Assert[A, Boolean] =
     Assert
       .make[A, Boolean] { (a: A) =>
-        if (a == that) Trace.succeed(true)
-        else Trace.halt(s"$a is not equal to $that")
+        Trace.boolean(a == that) {
+          M.value(a) + M.equals + M.value(that)
+        }
       }
 
   val throws: Assert[Any, Throwable] = Assert.makeEither(

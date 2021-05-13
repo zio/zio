@@ -95,7 +95,7 @@ object FailureCase {
 
   private def fromNode(node: Trace.Node[Boolean], path: Chunk[(String, String)] = Chunk.empty): FailureCase =
     FailureCase(
-      node.message.getOrElse("<ERROR>"),
+      node.message.render(node.isSuccess),
       highlight(node.fullCode.getOrElse("<CODE>"), node.span.getOrElse(Span(0, 0))),
       path,
       node.span.getOrElse(Span(0, 0)),
