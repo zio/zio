@@ -16,12 +16,35 @@ sealed trait Trace[+A] { self =>
   /**
    * Apply the metadata to the rightmost node in the trace.
    */
-  final def withSpan(span: Option[Span] = None): Trace[A] =
+  final def withSpan(span: Option[Span] = None): Trace[A] = if (span.isDefined) {
     self match {
       case node: Trace.Node[_]        => node.copy(span = span)
       case Trace.AndThen(left, right) => Trace.AndThen(left, right.withSpan(span))
       case zip                        => zip
     }
+  } else {
+    self
+  }
+
+  /**
+   * Apply the parent span to every node in the tree.
+   */
+  def withParentSpan(span: Option[Span]): Trace[A] = if (span.isDefined) {
+    self match {
+      case node: Trace.Node[_] =>
+        node.copy(parentSpan = span)
+      case Trace.AndThen(left, right) =>
+        Trace.AndThen(left.withParentSpan(span), right.withParentSpan(span))
+      case and: Trace.And =>
+        Trace.And(and.left.withParentSpan(span), and.right.withParentSpan(span)).asInstanceOf[Trace[A]]
+      case or: Trace.Or =>
+        Trace.Or(or.left.withParentSpan(span), or.right.withParentSpan(span)).asInstanceOf[Trace[A]]
+      case not: Trace.Not =>
+        Trace.Not(not.trace.withParentSpan(span)).asInstanceOf[Trace[A]]
+    }
+  } else {
+    self
+  }
 
   /**
    * Apply the code to every node in the tree.
@@ -66,13 +89,13 @@ object Trace {
 
   def prune(trace: Trace[Boolean], negated: Boolean): Option[Trace[Boolean]] =
     trace match {
-      case Trace.Node(Result.Succeed(bool), _, _, _, _) if bool == negated =>
+      case Trace.Node(Result.Succeed(bool), _, _, _, _, _) if bool == negated =>
         Some(trace)
 
-      case Trace.Node(Result.Succeed(_), _, _, _, _) =>
+      case Trace.Node(Result.Succeed(_), _, _, _, _, _) =>
         None
 
-      case Trace.Node(Result.Die(_) | Result.Fail, _, _, _, _) =>
+      case Trace.Node(Result.Die(_) | Result.Fail, _, _, _, _, _) =>
         Some(trace)
 
       case Trace.AndThen(left, right) =>
@@ -112,6 +135,7 @@ object Trace {
     message: ErrorMessage = ErrorMessage.choice("Succeeded", "Failed"),
     // child: Option[Node] = None,
     span: Option[Span] = None,
+    parentSpan: Option[Span] = None,
     fullCode: Option[String] = None,
     annotations: Set[Annotation] = Set.empty
   ) extends Trace[A] {

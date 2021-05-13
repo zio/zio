@@ -39,14 +39,17 @@ sealed trait Assert[-A, +B] { self =>
 
   import Assert._
 
-  def meta(span: Option[Span] = None, code: Option[String] = None): Assert[A, B] =
-    Meta(assert = self, span = span, code = code)
+  def meta(span: Option[Span] = None, parentSpan: Option[Span] = None, code: Option[String] = None): Assert[A, B] =
+    Meta(assert = self, span = span, parentSpan = parentSpan, code = code)
 
-  def span(span0: (Int, Int)): Assert[A, B] =
-    meta(span = Some(Span(span0._1, span0._2)))
+  def span(span: (Int, Int)): Assert[A, B] =
+    meta(span = Some(Span(span._1, span._2)))
 
   def withCode(code: String): Assert[A, B] =
     meta(code = Some(code))
+
+  def withParentSpan(span: (Int, Int)): Assert[A, B] =
+    meta(parentSpan = Some(Span(span._1, span._2)))
 
   def >>>[C](that: Assert[B, C]): Assert[A, C] = AndThen[A, B, C](self, that)
 
@@ -98,8 +101,10 @@ object Assert extends StandardAssertions {
       case Not(assert) =>
         !run(assert, in)
 
-      case Meta(assert, span, code) =>
-        run(assert, in).withSpan(span).withCode(code)
+      case Meta(assert, span, parentSpan, code) =>
+        println("META")
+        println(parentSpan)
+        run(assert, in).withSpan(span).withCode(code).withParentSpan(parentSpan)
     }
   }
 
@@ -108,10 +113,11 @@ object Assert extends StandardAssertions {
 
   }
 
-  case class Meta[-A, +B](assert: Assert[A, B], span: Option[Span], code: Option[String]) extends Assert[A, B]
-  case class Arrow[-A, +B](f: Either[Throwable, A] => Trace[B])                           extends Assert[A, B] {}
-  case class AndThen[A, B, C](f: Assert[A, B], g: Assert[B, C])                           extends Assert[A, C]
-  case class And(left: Assert[Any, Boolean], right: Assert[Any, Boolean])                 extends Assert[Any, Boolean]
-  case class Or(left: Assert[Any, Boolean], right: Assert[Any, Boolean])                  extends Assert[Any, Boolean]
-  case class Not(assert: Assert[Any, Boolean])                                            extends Assert[Any, Boolean]
+  case class Meta[-A, +B](assert: Assert[A, B], span: Option[Span], parentSpan: Option[Span], code: Option[String])
+      extends Assert[A, B]
+  case class Arrow[-A, +B](f: Either[Throwable, A] => Trace[B])           extends Assert[A, B] {}
+  case class AndThen[A, B, C](f: Assert[A, B], g: Assert[B, C])           extends Assert[A, C]
+  case class And(left: Assert[Any, Boolean], right: Assert[Any, Boolean]) extends Assert[Any, Boolean]
+  case class Or(left: Assert[Any, Boolean], right: Assert[Any, Boolean])  extends Assert[Any, Boolean]
+  case class Not(assert: Assert[Any, Boolean])                            extends Assert[Any, Boolean]
 }

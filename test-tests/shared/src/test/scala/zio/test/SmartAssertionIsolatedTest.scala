@@ -75,10 +75,10 @@ object AssertExamples {
 
     val person = Person(42, "Bobby")
 
-    val assert = assertZoom(person.age == 3 || person.name == "Boobby")
-//    val assert: Assert[Any, Boolean] = assertZoom(ten > 11 || hello.length > 8 || hello.length > 100)
+    val assert                        = assertZoom(person.age == 3 || person.name == "Booobby")
+    val assert2: Assert[Any, Boolean] = assertZoom(ten > 11 || hello.length > 8 || hello.length > 100)
 
-    var result = Assert.run(assert, Right(()))
+    var result = Assert.run(assert && assert2, Right(()))
     result = Trace.prune(result, false).getOrElse(Trace.Node(Result.Succeed(true)))
     result
   }

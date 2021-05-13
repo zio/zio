@@ -56,8 +56,18 @@ case class FailureCase(
 )
 
 object FailureCase {
-  def highlight(string: String, span: Span): String =
-    bold(string.take(span.start)) + bold(yellow(string.slice(span.start, span.end))) + bold(string.drop(span.end))
+  def highlight(string: String, span: Span, parentSpan: Option[Span] = None): String =
+    parentSpan match {
+      case Some(Span(pStart, pEnd)) if pStart <= span.start && pEnd >= span.end =>
+        val part1 = string.take(pStart)
+        val part2 = string.slice(pStart, span.start)
+        val part3 = string.slice(span.start, span.end)
+        val part4 = string.slice(span.end, pEnd)
+        val part5 = string.drop(pEnd)
+        part1 + bold(part2) + bold(yellow(part3)) + bold(part4) + part5
+      case None =>
+        bold(string.take(span.start)) + bold(yellow(string.slice(span.start, span.end))) + bold(string.drop(span.end))
+    }
 
   @tailrec
   def rightmostNode(trace: Trace[Boolean]): Trace.Node[Boolean] = trace match {
@@ -96,7 +106,7 @@ object FailureCase {
   private def fromNode(node: Trace.Node[Boolean], path: Chunk[(String, String)] = Chunk.empty): FailureCase =
     FailureCase(
       node.message.render(node.isSuccess),
-      highlight(node.fullCode.getOrElse("<CODE>"), node.span.getOrElse(Span(0, 0))),
+      highlight(node.fullCode.getOrElse("<CODE>"), node.span.getOrElse(Span(0, 0)), node.parentSpan),
       path,
       node.span.getOrElse(Span(0, 0)),
       Chunk.empty,

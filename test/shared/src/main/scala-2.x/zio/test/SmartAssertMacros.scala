@@ -59,10 +59,10 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
         q"!${astToAssertion(ast)}"
 
       case AST.And(lhs, rhs, pos, ls, rs) =>
-        q"${astToAssertion(lhs)} && ${astToAssertion(rhs)}"
+        q"${astToAssertion(lhs)}.withParentSpan($ls) && ${astToAssertion(rhs)}.withParentSpan($rs)"
 
       case AST.Or(lhs, rhs, pos, ls, rs) =>
-        q"${astToAssertion(lhs)} || ${astToAssertion(rhs)}"
+        q"${astToAssertion(lhs)}.withParentSpan($ls) || ${astToAssertion(rhs)}.withParentSpan($rs)"
 
       case AST.EqualTo(lhs, rhs, span) =>
         q"${astToAssertion(lhs)} >>> $Assert.equalTo($rhs).span($span)"
