@@ -972,6 +972,28 @@ object ZStreamSpec extends ZIOBaseSpec {
             execution <- log.get
           } yield assert(execution)(equalTo(List("Release", "Ensuring", "Use", "Acquire")))
         },
+        suite("find")(
+          testM("fist element matching")(
+            assertM(ZStream(1, 2, 3, 4).find(_ > 0))(equalTo(Some(1)))
+          ),
+          testM("empty stream")(
+            assertM(ZStream[Int]().find(_ > 0))(equalTo(None))
+          ),
+          testM("Matching element is not the first") {
+            assertM(ZStream(1, 2, 3, 4).find(_ > 1))(equalTo(Some(2)))
+          }
+        ),
+        suite("findM")(
+          testM("fist element matching")(
+            assertM(ZStream(1, 2, 3, 4).findM(i => ZIO.succeed(i > 0)))(equalTo(Some(1)))
+          ),
+          testM("empty stream")(
+            assertM(ZStream[Int]().findM(i => ZIO.succeed(i > 0)))(equalTo(None))
+          ),
+          testM("Matching element is not the first") {
+            assertM(ZStream(1, 2, 3, 4).findM(i => ZIO.succeed(i > 1)))(equalTo(Some(2)))
+          }
+        ),
         testM("filter")(checkM(pureStreamOfInts, Gen.function(Gen.boolean)) { (s, p) =>
           for {
             res1 <- s.filter(p).runCollect

@@ -1126,6 +1126,18 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     ZStream(self.process.ensuringFirst(fin))
 
   /**
+   * Yields the first element matching the provided predicate or `None` if no element satisfies the predicate
+   */
+  final def find(pred: O => Boolean): ZIO[R, E, Option[O]] =
+    self.filter(pred).runHead
+
+  /**
+   * Effecfully yields the first element matching the provided predicate or `None` if no element satisfies the predicate
+   */
+  final def findM[R1 <: R, E1 >: E](pred: O => ZIO[R1, E1, Boolean]): ZIO[R1, E1, Option[O]] =
+    self.filterM(pred).runHead
+
+  /**
    * Executes a pure fold over the stream of values - reduces all elements in the stream to a value of type `S`.
    */
   final def fold[S](s: S)(f: (S, O) => S): ZIO[R, E, S] =
