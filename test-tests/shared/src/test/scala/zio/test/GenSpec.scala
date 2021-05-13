@@ -122,9 +122,6 @@ object GenSpec extends ZIOBaseSpec {
       testM("anyDayOfWeek generates java.time.DayOfWeek values") {
         checkSample(Gen.anyDayOfWeek)(isTrue, ds => ds.forall(DayOfWeek.values().contains))
       },
-      testM("anyDuration generates java.time.Duration values") {
-        checkSample(Gen.anyDuration)(isNonEmpty)
-      },
       testM("anyFiniteDuration generates Duration values") {
         checkSample(Gen.anyFiniteDuration)(isNonEmpty)
       },
@@ -440,8 +437,23 @@ object GenSpec extends ZIOBaseSpec {
       testM("anyLong shrinks to zero") {
         checkShrink(Gen.anyLong)(0)
       },
+      testM("anyLocalDate shrinks to LocalDate.MIN") {
+        checkShrink(Gen.anyLocalDate)(LocalDate.MIN)
+      },
+      testM("anyLocalTime shrinks to LocalTime.MIN") {
+        checkShrink(Gen.anyLocalTime)(LocalTime.MIN)
+      },
+      testM("anyMonthDay shrinks to MonthDay.of(Month.JANUARY, 1)") {
+        checkShrink(Gen.anyMonthDay)(MonthDay.of(Month.JANUARY, 1))
+      },
       testM("anyOffsetDateTime shrinks to OffsetDateTime.MIN") {
         checkShrink(Gen.anyOffsetDateTime)(OffsetDateTime.MIN)
+      },
+      testM("anyOffsetTime shrinks to OffsetTime.MIN") {
+        checkShrink(Gen.anyOffsetTime)(OffsetTime.MIN)
+      },
+      testM("anyPeriod shrinks to Period.ZERO") {
+        checkShrink(Gen.anyPeriod)(Period.ZERO)
       },
       testM("anyShort shrinks to zero") {
         checkShrink(Gen.anyShort)(0)
@@ -451,6 +463,15 @@ object GenSpec extends ZIOBaseSpec {
       },
       testM("anyUnicodeChar shrinks to zero") {
         checkShrink(Gen.anyUnicodeChar)(0)
+      },
+      testM("anyYear shrinks to Year.MIN_VALUE") {
+        checkShrink(Gen.anyYear)(Year.of(Year.MIN_VALUE))
+      },
+      testM("anyYearMonth shrinks to YearMonth.of(Year.MIN_VALUE, Month.JANUARY)") {
+        checkShrink(Gen.anyYearMonth)(YearMonth.of(Year.MIN_VALUE, Month.JANUARY))
+      },
+      testM("anyZoneOffset shrinks to ZoneOffset.MIN") {
+        checkShrink(Gen.anyZoneOffset)(ZoneOffset.MIN)
       },
       testM("boolean shrinks to false") {
         checkShrink(Gen.boolean)(false)
