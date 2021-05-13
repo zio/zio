@@ -119,6 +119,12 @@ object GenSpec extends ZIOBaseSpec {
       testM("alphaNumericStringBounded generates strings whose size is in bounds") {
         checkSample(Gen.alphaNumericStringBounded(2, 10))(forall(hasSizeString(isWithin(2, 10))))
       },
+      testM("anyDayOfWeek generates java.time.DayOfWeek values") {
+        checkSample(Gen.anyDayOfWeek)(isTrue, ds => ds.forall(DayOfWeek.values().contains))
+      },
+      testM("anyDuration generates java.time.Duration values") {
+        checkSample(Gen.anyDuration)(isNonEmpty)
+      },
       testM("anyFiniteDuration generates Duration values") {
         checkSample(Gen.anyFiniteDuration)(isNonEmpty)
       },
@@ -128,8 +134,41 @@ object GenSpec extends ZIOBaseSpec {
       testM("anyLocalDateTime generates LocalDateTime values") {
         checkSample(Gen.anyLocalDateTime)(isNonEmpty)
       },
+      testM("anyLocalDate generates java.time.LocalDate values") {
+        checkSample(Gen.anyLocalDate)(isNonEmpty)
+      },
+      testM("anyLocalTime generates java.time.LocalTime values") {
+        checkSample(Gen.anyLocalTime)(isNonEmpty)
+      },
+      testM("anyMonth generates java.time.Month values") {
+        checkSample(Gen.anyMonth)(isTrue, ms => ms.forall(Month.values().contains))
+      },
+      testM("anyMonthDay generates java.time.MonthDay values") {
+        checkSample(Gen.anyMonthDay)(isNonEmpty)
+      },
       testM("anyOffsetDateTime generates OffsetDateTime values") {
         checkSample(Gen.anyOffsetDateTime)(isNonEmpty)
+      },
+      testM("anyOffsetTime generates java.time.OffsetTime values") {
+        checkSample(Gen.anyOffsetTime)(isNonEmpty)
+      },
+      testM("anyPeriod generates java.time.Period values") {
+        checkSample(Gen.anyPeriod)(isNonEmpty)
+      },
+      testM("anyYear generates java.time.Year values") {
+        checkSample(Gen.anyYear)(isNonEmpty)
+      },
+      testM("anyYearMonth generates java.time.YearMonth values") {
+        checkSample(Gen.anyYearMonth)(isNonEmpty)
+      },
+      testM("anyZonedDateTime generates java.time.ZonedDateTime values") {
+        checkSample(Gen.anyZonedDateTime)(isNonEmpty)
+      },
+      testM("anyZoneId generates java.time.ZoneId values") {
+        checkSample(Gen.anyZoneId)(isNonEmpty)
+      },
+      testM("anyZoneOffset generates java.time.ZoneOffset values") {
+        checkSample(Gen.anyZoneOffset)(isNonEmpty)
       },
       testM("bigDecimal generates values in range") {
         val min        = BigDecimal("1.414213562373095048801688724209698")
