@@ -1,8 +1,6 @@
 package zio.test
 
-import zio.Chunk
-import zio.test.Assert.Span
-import zio.test.ConsoleUtils.blue
+import zio.test.Arrow.Span
 
 import scala.annotation.tailrec
 
@@ -87,6 +85,9 @@ sealed trait Trace[+A] { self =>
 
 object Trace {
 
+  /**
+   * Prune all non-failures from the trace.
+   */
   def prune(trace: Trace[Boolean], negated: Boolean): Option[Trace[Boolean]] =
     trace match {
       case Trace.Node(Result.Succeed(bool), _, _, _, _, _) if bool == negated =>
@@ -115,10 +116,10 @@ object Trace {
 
       case or: Trace.Or =>
         (prune(or.left, negated), prune(or.right, negated)) match {
-          case (Some(left), Some(right))                         => Some(Trace.Or(left, right))
-          case (Some(left), _) if negated || left.result.isDie   => Some(left)
-          case (_, Some(right)) if negated || right.result.isDie => Some(right)
-          case (_, _)                                            => None
+          case (Some(left), Some(right))                               => Some(Trace.Or(left, right))
+          case (Some(left), _) if negated || left.result.isFailOrDie   => Some(left)
+          case (_, Some(right)) if negated || right.result.isFailOrDie => Some(right)
+          case (_, _)                                                  => None
         }
 
       case not: Trace.Not =>
@@ -143,11 +144,11 @@ object Trace {
     annotations: Set[Annotation] = Set.empty
   ) extends Trace[A] {
 
-    def renderResult: String =
+    def renderResult: Any =
       result match {
         case Result.Fail           => "<FAIL>"
-        case Result.Die(err)       => err.toString
-        case Result.Succeed(value) => value.toString
+        case Result.Die(err)       => err
+        case Result.Succeed(value) => value
       }
 
     def code: String =

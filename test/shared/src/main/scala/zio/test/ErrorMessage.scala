@@ -40,7 +40,7 @@ sealed trait ErrorMessage { self =>
       case ErrorMessage.ThrowableM(throwable) =>
         (red("ERROR: ") + bold(throwable.toString)) + "\n" +
           throwable.getStackTrace.toIndexedSeq
-            .takeWhile(!_.getClassName.startsWith("zio.test.Assert$"))
+            .takeWhile(!_.getClassName.startsWith("zio.test.Arrow$"))
             .map(dim("› ") + _)
             .mkString("\n")
 

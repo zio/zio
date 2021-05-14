@@ -10,8 +10,9 @@ import scala.reflect.macros.blackbox
 class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
   import c.universe._
 
-  private val Assertion = q"zio.test.Assertion"
-  private val Assert    = q"zio.test.Assert"
+  private val Assertions = q"_root_.zio.test.Assertions"
+  private val Arrow      = q"_root_.zio.test.Arrow"
+  private val Assert     = q"_root_.zio.test.Assert"
 
   private[test] def location(c: blackbox.Context): (String, Int) = {
     val path = c.enclosingPosition.source.path
@@ -19,8 +20,8 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
     (path, line)
   }
 
-  def assertImpl(expr: c.Tree, exprs: c.Tree*): Expr[TestResult] =
-    exprs.map(assertSingle).foldLeft(assertSingle(expr)) { (acc, assert) =>
+  def assert_impl(expr: c.Expr[Boolean], exprs: c.Expr[Boolean]*): Expr[Assert] =
+    exprs.map(assertOne_impl).foldLeft(assertOne_impl(expr)) { (acc, assert) =>
       c.Expr(q"$acc && $assert")
     }
 
@@ -53,55 +54,53 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
   def astToAssertion(ast: AST)(implicit positionContext: PositionContext): c.Tree = {
     println(ast)
     ast match {
-      case AST.Not(ast, span, innerSpan) =>
+      case AST.Not(ast, _, _) =>
         q"!${astToAssertion(ast)}"
 
-      case AST.And(lhs, rhs, pos, ls, rs) =>
+      case AST.And(lhs, rhs, _, ls, rs) =>
         q"${astToAssertion(lhs)}.withParentSpan($ls) && ${astToAssertion(rhs)}.withParentSpan($rs)"
 
-      case AST.Or(lhs, rhs, pos, ls, rs) =>
+      case AST.Or(lhs, rhs, _, ls, rs) =>
         q"${astToAssertion(lhs)}.withParentSpan($ls) || ${astToAssertion(rhs)}.withParentSpan($rs)"
 
-      case AST.Select(lhs, lhsTpe, rhsTpe, List(tpe), "throwsA", span) =>
-        q"${astToAssertion(lhs)} >>> $Assert.throwsSubtype[$tpe].span($span)"
+      case AST.Select(lhs, _, _, List(tpe), "throwsA", span) =>
+        q"${astToAssertion(lhs)} >>> $Assertions.throwsSubtype[$tpe].span($span)"
 
-      case AST.Select(lhs, lhsTpe, rhsTpe, _, "throws", span) =>
-        q"${astToAssertion(lhs)} >>> $Assert.throwsError.span($span)"
+      case AST.Select(lhs, _, _, _, "throws", span) =>
+        q"${astToAssertion(lhs)} >>> $Assertions.throwsError.span($span)"
 
-      case AST.Select(lhs, lhsTpe, rhsTpe, _, "get", span) =>
-        q"${astToAssertion(lhs)} >>> $Assert.isSome.span($span)"
+      case AST.Select(lhs, _, _, _, "get", span) =>
+        q"${astToAssertion(lhs)} >>> $Assertions.isSome.span($span)"
 
       case AST.Select(lhs, lhsTpe, rhsTpe, _, name, span) =>
         val select = c.untypecheck(q"{ (a) => a.${TermName(name)} }")
-        q"${astToAssertion(lhs)} >>> $Assert.fromFunction[$lhsTpe, $rhsTpe]($select).span($span)"
+        q"${astToAssertion(lhs)} >>> $Arrow.fromFunction[$lhsTpe, $rhsTpe]($select).span($span)"
 
-      case AST.Method(lhs, lhsTpe, rhsTpe, "get", args, span) =>
-        q"${astToAssertion(lhs)} >>> $Assert.isSome.span($span)"
+      case AST.Method(lhs, _, _, "get", _, span) =>
+        q"${astToAssertion(lhs)} >>> $Assertions.isSome.span($span)"
 
-      case AST.Method(lhs, lhsTpe, rhsTpe, "$greater", args, span) =>
-        q"${astToAssertion(lhs)} >>> $Assert.greaterThan[$lhsTpe](${args.head}).span($span)"
+      case AST.Method(lhs, lhsTpe, _, "$greater", args, span) =>
+        q"${astToAssertion(lhs)} >>> $Assertions.greaterThan[$lhsTpe](${args.head}).span($span)"
 
-      case AST.Method(lhs, lhsTpe, rhsTpe, "$eq$eq", args, span) =>
-        q"${astToAssertion(lhs)} >>> $Assert.equalTo[$lhsTpe](${args.head}).span($span)"
+      case AST.Method(lhs, lhsTpe, _, "$eq$eq", args, span) =>
+        q"${astToAssertion(lhs)} >>> $Assertions.equalTo[$lhsTpe](${args.head}).span($span)"
 
-      case AST.Method(lhs, lhsTpe, rhsTpe, "forall", args, span) if lhsTpe <:< weakTypeOf[Iterable[_]] =>
+      case AST.Method(lhs, lhsTpe, _, "forall", args, span) if lhsTpe <:< weakTypeOf[Iterable[_]] =>
         val assert = astToAssertion(parseExpr(args.head))
-        q"${astToAssertion(lhs)} >>> $Assert.forall($assert).span($span)"
+        q"${astToAssertion(lhs)} >>> $Assertions.forall($assert).span($span)"
 
-      case AST.Method(lhs, lhsTpe, rhsTpe, name, args, span) =>
+      case AST.Method(lhs, lhsTpe, _, name, args, span) =>
         println(s"FROM FUNCTION: ${name}")
         val select = c.untypecheck(q"{ (a: $lhsTpe) => a.${TermName(name)}(..$args) }")
-        q"${astToAssertion(lhs)} >>> $Assert.fromFunction($select).span($span)"
+        q"${astToAssertion(lhs)} >>> $Arrow.fromFunction($select).span($span)"
 
-      case AST.Function(lhs, rhs, lhsTpe, span) =>
-//        val tnl       = (lhs.span.end - lhs.span.start) max 1
-//        val id        = c.untypecheck(q"{ (a: $lhsTpe) => a }")
+      case AST.Function(lhs, rhs, _, span) =>
         val rhsAssert = astToAssertion(rhs)
         val select    = c.untypecheck(q"{ ($lhs) => $rhsAssert }")
-        q"$Assert.suspend($select)"
+        q"$Arrow.suspend($select).span($span)"
 
       case AST.Raw(ast, span) =>
-        q"$Assert.succeed($ast).span($span)"
+        q"$Arrow.succeed($ast).span($span)"
     }
   }
 
@@ -143,7 +142,7 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
     }
   }
 
-  def assertZoom(expr: Expr[Boolean]): Expr[Assert[Any, Boolean]] = {
+  def assertOne_impl(expr: Expr[Boolean]): Expr[Assert] = {
     val (stmts, tree) = expr.tree match {
       case Block(others, expr) => (others, expr)
       case other               => (List.empty, other)
@@ -151,6 +150,7 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
 
     val (_, start, codeString) = text(tree)
     implicit val pos           = PositionContext(start, codeString)
+
     println("")
     val parsed = parseExpr(tree)
     println(scala.Console.CYAN + parsed + scala.Console.RESET)
@@ -160,379 +160,13 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
     val block =
       q"""
 ..$stmts
-$ast.withCode($codeString)
+$Assert($ast.withCode($codeString))
         """
+
     println(scala.Console.BLUE + block + scala.Console.RESET)
     println("")
-    c.Expr[Assert[Any, Boolean]](block)
-  }
 
-  def assertSingle(expr: c.Tree): Expr[TestResult] = {
-    val (stmts, expr0) = expr match {
-      case Block(others, expr) => (others, expr)
-      case other               => (List.empty, other)
-    }
-
-//    println("RAW")
-//    println(showRaw(expr))
-
-    val (delta, start, codeString) = text(expr0)
-    implicit val renderContext: RenderContext =
-      RenderContext(codeString, start).shift(-delta, delta)
-
-    val result = composeAssertions(expr0, false)
-
-//    println("RESULT")
-//    println(showCode(result.tree))
-
-    c.Expr[TestResult](
-      q"""
-      ..$stmts
-      $result
-      """
-    )
-  }
-
-  def composeAssertions(expr: c.Tree, negated: Boolean)(implicit
-    renderContext: RenderContext
-  ): c.Expr[TestResult] = expr match {
-    case q"$lhs && $rhs" =>
-      val lhsAssertion = composeAssertions(lhs, negated)
-      val rhsAssertion = composeAssertions(rhs, negated)
-      c.Expr(q"$lhsAssertion && $rhsAssertion")
-    case q"$lhs || $rhs" =>
-      val lhsAssertion = composeAssertions(lhs, negated)
-      val rhsAssertion = composeAssertions(rhs, negated)
-      c.Expr(q"$lhsAssertion || $rhsAssertion")
-    case q"!$lhs" =>
-      // TODO: Reset render context after recursive calle. renderContext.shift() { subtree }
-      val lhsAssertion = composeAssertions(lhs, !negated)(renderContext.shift(expr, lhs))
-      c.Expr(q"$lhsAssertion")
-    case other =>
-      subAssertion(other, negated)
-  }
-
-  case class RenderContext(fullText: String, startPos: Int, shiftStart: Int = 0, shiftEnd: Int = 0) {
-    def shift(start: Int, end: Int): RenderContext = copy(shiftStart = shiftStart + start, shiftEnd = shiftEnd + end)
-    def shift(outer: c.Tree, inner: c.Tree): RenderContext =
-      shift(outer.pos.start - inner.pos.start, outer.pos.end - inner.pos.end)
-
-    def text(tree: c.Tree): String = {
-      val exprSize = tree.pos.end - tree.pos.start
-      val start    = tree.pos.start - startPos
-      fullText.slice(start + shiftStart, start + exprSize + shiftEnd)
-    }
-
-    def textAfter(t1: c.Tree, t2: c.Tree): String = {
-      val exprSize = (t1.pos.end - t1.pos.start) - (t2.pos.end - t2.pos.start)
-      val start    = t2.pos.end - startPos
-      fullText.slice(start, start + exprSize)
-    }
-  }
-
-  sealed trait AssertCompose
-
-  object AssertCompose {
-    case class EqualTo(lhs: c.Tree, rhs: c.Tree)
-    case class GreaterThan(lhs: c.Tree, rhs: c.Tree)
-    case class LessThan(lhs: c.Tree, rhs: c.Tree)
-  }
-
-  private def subAssertion(expr: c.Tree, negated: Boolean)(implicit
-    renderContext: RenderContext
-  ): c.Expr[TestResult] = {
-    val (fileName, _) = location(c)
-    val srcLocation   = s"$fileName:${expr.pos.line}"
-
-    val text = renderContext.text(expr)
-
-    val (target, assertion) = terminalAssertion(expr, negated)
-
-    val targetCode = CleanCodePrinter.show(c)(target)
-
-    c.Expr[TestResult](
-      q"_root_.zio.test.CompileVariants.smartAssertProxy($target, $targetCode, $text, $srcLocation)($assertion)"
-    )
-  }
-
-  private def terminalAssertion(expr: c.Tree, negated: Boolean)(implicit
-    renderContext: RenderContext
-  ): (c.Tree, c.Tree) = {
-    def negate(tree: c.Tree) = if (negated) q"$tree.smartNegate" else tree
-
-    expr match {
-      case q"$lhs > $rhs" =>
-        val text = renderContext.textAfter(expr, lhs)
-        generateAssertion(lhs, negate(q"$Assertion.isGreaterThan($rhs).withCode($text)"))
-      case q"$lhs < $rhs" =>
-        val text = renderContext.textAfter(expr, lhs)
-        generateAssertion(lhs, negate(q"$Assertion.isLessThan($rhs).withCode($text)"))
-      case q"$lhs >= $rhs" =>
-        val text = renderContext.textAfter(expr, lhs)
-        generateAssertion(lhs, negate(q"$Assertion.isGreaterThanEqualTo($rhs).withCode($text)"))
-      case q"$lhs <= $rhs" =>
-        val text = renderContext.textAfter(expr, lhs)
-        generateAssertion(lhs, negate(q"$Assertion.isLessThanEqualTo($rhs).withCode($text)"))
-      case q"$lhs == $rhs" =>
-        val text   = renderContext.textAfter(expr, lhs)
-        val lhsTpe = lhs.tpe.widen
-        generateAssertion(lhs, negate(q"$Assertion.equalTo[$lhsTpe, $lhsTpe]($rhs).withCode($text)"))
-      case q"$lhs != $rhs" =>
-        val text   = renderContext.textAfter(expr, lhs)
-        val lhsTpe = lhs.tpe.widen
-        generateAssertion(lhs, negate(q"$Assertion.equalTo[$lhsTpe, $lhsTpe]($rhs).withCode($text).smartNegate"))
-      case q"$lhs.$_" =>
-        val text = renderContext.textAfter(expr, lhs)
-        generateAssertion(expr, negate(q"$Assertion.isTrue.withCode($text)"))
-      case MethodCall(lhs, _, _) =>
-        val text = renderContext.textAfter(expr, lhs)
-        generateAssertion(expr, negate(q"$Assertion.isTrue.withCode($text)"))
-      case _ =>
-        val text = renderContext.text(expr)
-        generateAssertion(expr, negate(q"$Assertion.isTrue.withCode($text)"))
-    }
-  }
-
-  val Matchers = Cross.Matchers
-
-  //  @tailrec
-  private def generateAssertion(expr: c.Tree, assertion: c.Tree)(implicit
-    renderContext: RenderContext
-  ): (c.Tree, c.Tree) = {
-    val LensMatcher = Method.Matcher(assertion, renderContext)
-
-//    println(s"HEY $expr")
-//    println(s"HEY $assertion")
-//    println("---")
-
-    val leftGet  = Matchers.leftGet
-    val rightGet = Matchers.rightGet
-
-    expr match {
-      case q"$lhs($rhs)" if lhs.symbol.isImplicit =>
-        generateAssertion(rhs, assertion)
-      case leftGet(te) =>
-        val lhs          = te
-        val text         = renderContext.textAfter(expr, lhs)
-        val newAssertion = q"${Matchers.isLeft(assertion)}.withCode($text)"
-        generateAssertion(lhs, newAssertion)
-      case rightGet(te) =>
-        val lhs          = te
-        val text         = renderContext.textAfter(expr, lhs)
-        val newAssertion = q"${Matchers.isRight(assertion)}.withCode($text)"
-        generateAssertion(lhs, newAssertion)
-      case Method.withAssertion(lhs, assertion) =>
-        val text         = renderContext.textAfter(expr, lhs)
-        val newAssertion = q"$assertion.withCode($text)"
-        generateAssertion(lhs, newAssertion)
-        // TODO: Add custom error message for `forall` and `exists`
-//      case Method.exists(lhs, args) =>
-//        val text         = renderContext.textAfter(expr, lhs)
-//        val newAssertion = q"$Assertion.smartExists($args).withCode($text)"
-//        generateAssertion(lhs, newAssertion)
-//      case Method.forall(lhs, args) =>
-//        val text = renderContext.textAfter(expr, lhs)
-//        val newAssertion = args match {
-////          case q"($a => $body)" if a.symbol.isParameter =>
-////            val (lhs2, nested) = generateAssertion(body, assertion)
-////            println("PARSED FORALL")
-////            println(a, lhs2, nested, lhs2.symbol.isParameter)
-////            if (lhs2.symbol.isParameter)
-////              q"$Assertion.forall($nested).withCode($text)"
-////            else
-////              q"$Assertion.smartForall($args).withCode($text)"
-//          case args =>
-////            println("PARSED SMART FORALL")
-////            println(args)
-//            q"$Assertion.smartForall($args).withCode($text)"
-//        }
-        generateAssertion(lhs, newAssertion)
-      //      case Method.exists(lhs, args) =>
-      //        val text = renderContext.textAfter(expr, lhs)
-      //        val body = args match {
-      //          case q"($a => $b)" => b
-      //        }
-      //        val (lhs2, nested) = generateAssertion(body, assertion)
-      //        println("____")
-      //        println(lhs2)
-      //        println("____")
-      //        println(nested)
-      //        val newAssertion = q"$Assertion.exists($nested).withCode($text)"
-      //        generateAssertion(lhs, newAssertion)
-      case q"$lhs.asInstanceOf[$tpe]" =>
-        val lhsTpe = lhs.tpe.widen
-        val text   = renderContext.textAfter(expr, lhs)
-        val newAssertion =
-          q"$Assertion.isCase[$lhsTpe, $tpe](${tpe.toString}, ((c: $lhsTpe) => scala.util.Try(c.asInstanceOf[$tpe]).toOption), $assertion).withCode($text)"
-        generateAssertion(lhs, newAssertion)
-      case q"$lhs.as[$tpe]" =>
-        val lhsTpe = lhs match {
-          case q"$_($rhs)" => rhs.tpe.widen
-          case _           => lhs.tpe.widen
-        }
-        val text = renderContext.textAfter(expr, lhs)
-        val newAssertion =
-          q"$Assertion.isCase[$lhsTpe, $tpe](${tpe.toString}, ((c: $lhsTpe) => scala.util.Try(c.asInstanceOf[$tpe]).toOption), $assertion).withCode($text)"
-        generateAssertion(lhs, newAssertion)
-      case LensMatcher(lhs, newAssertion) =>
-        generateAssertion(lhs, newAssertion)
-      case Select(lhs, name) =>
-        val tpe = lhs match {
-          case q"$lhs($rhs)" if lhs.symbol.isImplicit => rhs.tpe.widen
-          case _                                      => lhs.tpe.widen
-        }
-        val nameString   = name.toString
-        val select       = q"((x: $tpe) => x.${TermName(nameString)})"
-        val text         = renderContext.textAfter(expr, lhs)
-        val newAssertion = q"$Assertion.hasField($nameString, $select, $assertion).withCode($text)"
-        generateAssertion(lhs, newAssertion)
-      case IsConstructor(_) =>
-        (expr, assertion)
-      case MethodCall(lhs, name, args) =>
-        val text         = renderContext.textAfter(expr, lhs)
-        val newAssertion = makeApplyAssertion(assertion, lhs, name, args)
-        generateAssertion(lhs, q"$newAssertion.withCode($text)")
-      case _ =>
-        (expr, assertion)
-    }
-  }
-
-  /**
-   * # Terminal assertions
-   * - isEmpty
-   *   - lhs.isEmpty
-   *   - isEmpty
-   *
-   * # Nullary assertions
-   * - get
-   *   - lhs.get
-   *   - isSome(assertion)
-   *
-   * # Unary assertions
-   * - intersect(arg)
-   *   - lhs.intersect(that)
-   *   - hasIntersection(arg)(assertion)
-   * - containsIterable
-   * - containsString
-   * - startsWithSeq
-   * - startsWithString
-   * - endsWithSeq
-   * - endsWithString
-   *
-   * Method[T]("isEmpty")
-   */
-
-  case class Method[T](
-    name: String,
-    assertionName: String,
-    hasArgs: Boolean,
-    isRecursive: Boolean
-  )(implicit tpe: WeakTypeTag[T]) {
-    self =>
-
-    def use(assertion: c.Tree, renderContext: RenderContext): PartialFunction[c.Tree, (c.Tree, c.Tree)] = {
-      case expr @ self(lhs, args) =>
-        val text              = renderContext.textAfter(expr, lhs)
-        val assertionNameTree = TermName(assertionName)
-
-        val newAssertion =
-          (hasArgs, isRecursive) match {
-            case (true, true)   => q"$Assertion.$assertionNameTree($args)($assertion).withCode($text)"
-            case (false, true)  => q"$Assertion.$assertionNameTree($assertion).withCode($text)"
-            case (true, false)  => q"$Assertion.$assertionNameTree($args).withCode($text)"
-            case (false, false) => q"$Assertion.$assertionNameTree.withCode($text)"
-          }
-        (lhs, newAssertion)
-    }
-
-    def unapply(tree: c.Tree): Option[(c.Tree, c.Tree)] = tree match {
-      case q"$lhs.$name0($value)" if name0.toString == name && lhs.tpe <:< tpe.tpe =>
-        Some((lhs, value))
-      case q"$lhs.$name0[..$_]($value)" if name0.toString == name && lhs.tpe <:< tpe.tpe =>
-        Some((lhs, value))
-      case q"$lhs.$name0[..$_]" if name0.toString == name && lhs.tpe <:< tpe.tpe =>
-        Some((lhs, q"()"))
-      case q"$lhs.$name0" if name0.toString == name && lhs.tpe <:< tpe.tpe =>
-        Some((lhs, q"()"))
-      case lhs =>
-        None
-    }
-  }
-
-  object Method {
-    def apply[T: c.WeakTypeTag](name: String, hasArgs: Boolean = false, isRecursive: Boolean = false) =
-      new Method[T](name, name, hasArgs, isRecursive)
-
-    case class Matcher(assertion: c.Tree, renderContext: RenderContext) {
-      def unapply(expr: c.Tree): Option[(c.Tree, c.Tree)] = {
-        val result = Method.methods.find { value =>
-          value.use(assertion, renderContext).isDefinedAt(expr)
-        }.flatMap(_.use(assertion, renderContext).lift(expr))
-
-        result
-      }
-    }
-
-    lazy val withAssertion: Method[AssertionOps[_]] = Method[AssertionOps[_]]("withAssertion", true, false)
-
-    lazy val containsIterable: Method[Iterable[_]] = Method[Iterable[_]]("contains", true, false)
-    lazy val containsString: Method[String]        = Method[String]("contains", "containsString", true, false)
-    lazy val containsOption: Method[Option[_]] =
-      Method[Option[_]]("contains", "containsOption", true, false)
-
-    lazy val startsWithSeq: Method[Seq[_]]    = Method[Seq[_]]("startsWith", true, false)
-    lazy val startsWithString: Method[String] = Method[String]("startsWith", "startsWithString", true, false)
-    lazy val endsWithSeq: Method[Seq[_]]      = Method[Seq[_]]("endsWith", true, false)
-    lazy val endsWithString: Method[String]   = Method[String]("endsWith", "endsWithString", true, false)
-
-    lazy val hasAt: Method[Seq[_]] = Method[Seq[_]]("apply", "hasAt", true, true)
-
-    lazy val exists: Method[Iterable[_]] =
-      Method[Iterable[_]]("exists", false, true)
-
-    lazy val forall: Method[Iterable[_]] =
-      Method[Iterable[_]]("forall", false, true)
-
-    lazy val isEmpty: Method[Iterable[_]] =
-      Method[Iterable[_]]("isEmpty", false, false)
-
-    lazy val nonEmpty: Method[Iterable[_]] =
-      Method[Iterable[_]]("nonEmpty", "isNonEmpty", false, false)
-
-    lazy val head: Method[Iterable[_]] =
-      Method[Iterable[_]]("head", "hasFirst", false, true)
-
-    lazy val get: Method[Option[_]] =
-      Method[Option[_]]("get", "isSome", false, true)
-
-    lazy val rightGet: Method[Either[_, _]] =
-      Method[Either[_, _]]("right.get", "isRight", false, true)
-
-    lazy val length: Method[Iterable[_]] =
-      Method[Iterable[_]]("length", "hasSize", false, true)
-
-    lazy val intersect: Method[Iterable[_]] =
-      Method[Iterable[_]]("intersect", "hasIntersection", true, true)
-
-    lazy val methods: List[Method[_]] =
-      List(
-        get,
-        rightGet,
-        length,
-        withAssertion,
-        containsString,
-        containsIterable,
-        containsOption,
-        startsWithSeq,
-        startsWithString,
-        endsWithSeq,
-        endsWithString,
-        hasAt,
-        isEmpty,
-        nonEmpty,
-        head,
-        intersect
-      )
+    c.Expr[Assert](block)
   }
 
   object MethodCall {
@@ -555,11 +189,6 @@ $ast.withCode($codeString)
 
     @tailrec
     private def isConstructor(tree: c.Tree): Boolean =
-//      println("")
-//      println(s"HEY $tree")
-//      println(showRaw(tree))
-//      println(tree.symbol.isClass)
-//      println("")
       tree match {
         case Select(Literal(_), _) => false
         case Select(Select(s, _), TermName("apply"))
@@ -572,20 +201,6 @@ $ast.withCode($codeString)
         case Apply(s, _)     => isConstructor(s)
         case _               => false
       }
-  }
-
-  private def makeApplyAssertion(assertion: c.Tree, lhs: c.Tree, name: TermName, args: Seq[c.Tree]): c.Tree = {
-    val tpe = lhs match {
-      case q"$lhs($rhs)" if lhs.symbol.isImplicit => rhs.tpe.widen
-      case _                                      => lhs.tpe.widen
-    }
-    val nameString = name.toString
-
-//    val lhsTpe       = lhs.tpe.widen
-    val select       = q"((a: $tpe) => a.${TermName(nameString)}(..$args))"
-    val applyString  = s"$nameString(${args.toList.map(showCode(_)).mkString(", ")})"
-    val newAssertion = q"$Assertion.hasField($applyString, $select, $assertion)"
-    newAssertion
   }
 
   // Pilfered (with immense gratitude & minor modifications)

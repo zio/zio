@@ -29,6 +29,9 @@ trait CrossVersionSmartAssertionMacroUtils[Tree, Tpe] {
 
     def isRight(assertion: Tree): Tree =
       MethodDesc.select(EitherType, "isRight").call.apply((Assertion, List(assertion)))
+
+    val hasIndex =
+      MethodDesc.select(EitherType, "apply").call
   }
 
   sealed trait MethodDesc[A] { self =>

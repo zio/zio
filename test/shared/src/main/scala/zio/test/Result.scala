@@ -1,25 +1,22 @@
 package zio.test
 
 import zio.Chunk
-import zio.test.Assert.Span
+import zio.test.Arrow.Span
 import zio.test.ConsoleUtils._
 
 import scala.annotation.tailrec
 
-/**
- * TODO:
- *  - Allow Boolean Logic
- *  - Improve forall-type nodes, have internal children.
- *  - Cross-Scala (2 & 3) combinator macros
- */
-
 sealed trait Result[+A] { self =>
+  def isFailOrDie: Boolean = self match {
+    case Result.Fail       => true
+    case Result.Die(_)     => true
+    case Result.Succeed(_) => false
+  }
+
   def isDie: Boolean = self match {
     case Result.Die(_) => true
     case _             => false
   }
-
-  def zip[B](that: Result[B]): Result[(A, B)] = zipWith(that)(_ -> _)
 
   def zipWith[B, C](that: Result[B])(f: (A, B) => C): Result[C] =
     (self, that) match {
@@ -29,22 +26,14 @@ sealed trait Result[+A] { self =>
       case (Result.Die(err), _)                   => Result.die(err)
       case (_, Result.Die(err))                   => Result.die(err)
     }
-
-  def contains[A1 >: A](a: A1): Boolean =
-    self match {
-      case Result.Succeed(value) if value == a => true
-      case _                                   => false
-    }
 }
 
 object Result {
-  def succeed[A](value: A): Result[A] =
-    Succeed(value)
+  def succeed[A](value: A): Result[A] = Succeed(value)
 
   def fail: Result[Nothing] = Fail
 
-  def die(throwable: Throwable): Result[Nothing] =
-    Die(throwable)
+  def die(throwable: Throwable): Result[Nothing] = Die(throwable)
 
   case object Fail                 extends Result[Nothing]
   case class Die(err: Throwable)   extends Result[Nothing]
@@ -54,7 +43,7 @@ object Result {
 case class FailureCase(
   errorMessage: String,
   codeString: String,
-  path: Chunk[(String, String)],
+  path: Chunk[(String, Any)],
   span: Span,
   nestedFailures: Chunk[FailureCase],
   result: Any
@@ -83,7 +72,7 @@ object FailureCase {
     case Trace.Not(trace)          => rightmostNode(trace)
   }
 
-  def getPath(trace: Trace[_]): Chunk[(String, String)] =
+  def getPath(trace: Trace[_]): Chunk[(String, Any)] =
     trace match {
       case node: Trace.Node[_] =>
         Chunk(node.code -> node.renderResult)
@@ -108,7 +97,7 @@ object FailureCase {
         fromTrace(trace)
     }
 
-  private def fromNode(node: Trace.Node[Boolean], path: Chunk[(String, String)] = Chunk.empty): FailureCase = {
+  private def fromNode(node: Trace.Node[Boolean], path: Chunk[(String, Any)] = Chunk.empty): FailureCase = {
     val color = node.result match {
       case Result.Die(_) => red _
       case _             => yellow _
@@ -133,7 +122,50 @@ object FailureCase {
       case FailureCase(errorMessage, codeString, path, _, nested, _) =>
         val lines = Chunk(s"${red("›")} $errorMessage", codeString) ++
           nested.flatMap(renderFailureCase).map("  " + _) ++
-          Chunk.fromIterable(path.map { case (label, value) => dim(s"$label = ") + blue(value) }) ++ Chunk("")
+          Chunk.fromIterable(path.map { case (label, value) => dim(s"$label = ") + blue(Pretty(value)) }) ++ Chunk("")
         lines
+    }
+}
+
+object Pretty {
+
+  /**
+   * Pretty prints a Scala value similar to its source representation.
+   * Particularly useful for case classes.
+   * @param a - The value to pretty print.
+   * @return
+   */
+  def apply(a: Any): String =
+    a match {
+      // Make Strings look similar to their literal form.
+      case s: String =>
+        val replaceMap = Seq(
+          "\n" -> "\\n",
+          "\r" -> "\\r",
+          "\t" -> "\\t",
+          "\"" -> "\\\""
+        )
+        '"' + replaceMap.foldLeft(s) { case (acc, (c, r)) => acc.replace(c, r) } + '"'
+      case xs: Seq[_] => xs.map(apply).toString()
+      case p: Product =>
+        val prefix = p.productPrefix
+        // We'll use reflection to get the constructor arg names and values.
+        val cls    = p.getClass
+        val fields = cls.getDeclaredFields.filterNot(_.isSynthetic).map(_.getName)
+        val values = p.productIterator.toSeq
+        // If we weren't able to match up fields/values, fall back to toString.
+        if (fields.length != values.length) return p.toString
+        fields.zip(values).toList match {
+          // If there are no fields, just use the normal String representation.
+          case Nil => p.toString
+          // If there is just one field, let's just print it as a wrapper.
+          case (_, value) :: Nil => s"$prefix(${apply(value)})"
+          // If there is more than one field, build up the field names and values.
+          case kvs =>
+            val prettyFields = kvs.map { case (k, v) => s"$k = ${apply(v)}" }
+            s"$prefix(${prettyFields.mkString(", ")})"
+        }
+      // If we haven't specialized this type, just use its toString.
+      case _ => a.toString
     }
 }
