@@ -1,61 +1,60 @@
 package zio.test
 
-import zio.clock.Clock
-import zio.test.Assertion._
+import zio.test.Assertion.equalTo
 import zio.test.ReportingTestUtils._
 import zio.test.TestAspect.silent
 import zio.test.environment.{TestClock, TestConsole, TestEnvironment, testEnvironment}
 import zio.test.render.IntelliJRenderer
-import zio.{Layer, ZIO}
+import zio.{Clock, Has, Layer, ZIO}
 
 object IntellijRendererSpec extends ZIOBaseSpec {
   import IntelliJRenderUtils._
 
   def spec: ZSpec[Environment, Failure] =
     suite("IntelliJ Renderer")(
-      testM("correctly reports a successful test") {
+      test("correctly reports a successful test") {
         assertM(runLog(test1))(equalTo(test1Expected.mkString))
       },
-      testM("correctly reports a failed test") {
+      test("correctly reports a failed test") {
         assertM(runLog(test3))(equalTo(test3Expected.mkString))
       },
-      testM("correctly reports an error in a test") {
+      test("correctly reports an error in a test") {
         assertM(runLog(test4))(equalTo(test4Expected.mkString))
       },
-      testM("correctly reports successful test suite") {
+      test("correctly reports successful test suite") {
         assertM(runLog(suite1))(equalTo(suite1Expected.mkString))
       },
-      testM("correctly reports failed test suite") {
+      test("correctly reports failed test suite") {
         assertM(runLog(suite2))(equalTo(suite2Expected.mkString))
       },
-      testM("correctly reports multiple test suites") {
+      test("correctly reports multiple test suites") {
         assertM(runLog(suite3))(equalTo(suite3Expected.mkString))
       },
-      testM("correctly reports empty test suite") {
+      test("correctly reports empty test suite") {
         assertM(runLog(suite4))(equalTo(suite4Expected.mkString))
       },
-      testM("correctly reports failure of simple assertion") {
+      test("correctly reports failure of simple assertion") {
         assertM(runLog(test5))(equalTo(test5Expected.mkString))
       },
-      testM("correctly reports multiple nested failures") {
+      test("correctly reports multiple nested failures") {
         assertM(runLog(test6))(equalTo(test6Expected.mkString))
       },
-      testM("correctly reports labeled failures") {
+      test("correctly reports labeled failures") {
         assertM(runLog(test7))(equalTo(test7Expected.mkString))
       },
-      testM("correctly reports negated failures") {
+      test("correctly reports negated failures") {
         assertM(runLog(test8))(equalTo(test8Expected.mkString))
       },
-      testM("correctly reports mock failure of invalid call") {
+      test("correctly reports mock failure of invalid call") {
         assertM(runLog(mock1))(equalTo(mock1Expected.mkString))
       },
-      testM("correctly reports mock failure of unmet expectations") {
+      test("correctly reports mock failure of unmet expectations") {
         assertM(runLog(mock2))(equalTo(mock2Expected.mkString))
       },
-      testM("correctly reports mock failure of unexpected call") {
+      test("correctly reports mock failure of unexpected call") {
         assertM(runLog(mock3))(equalTo(mock3Expected.mkString))
       },
-      testM("correctly reports mock failure of invalid range") {
+      test("correctly reports mock failure of invalid range") {
         assertM(runLog(mock4))(equalTo(mock4Expected.mkString))
       }
     ) @@ silent
@@ -79,12 +78,12 @@ object IntellijRendererSpec extends ZIOBaseSpec {
         withOffset(2)(
           s"${blue("52")} did not satisfy ${cyan("(") + yellow("equalTo(42)") + cyan(" || (isGreaterThan(5) && isLessThan(10)))")}\n"
         ),
-        withOffset(4)(assertSourceLocation() + "\n"),
+        withOffset(2)(assertSourceLocation() + "\n"),
         withOffset(2)(s"${blue("52")} did not satisfy ${cyan("isLessThan(10)")}\n"),
         withOffset(2)(
           s"${blue("52")} did not satisfy ${cyan("(equalTo(42) || (isGreaterThan(5) && ") + yellow("isLessThan(10)") + cyan("))")}\n"
         ),
-        withOffset(4)(assertSourceLocation())
+        withOffset(2)(assertSourceLocation())
       )
     )
   )
@@ -135,7 +134,7 @@ object IntellijRendererSpec extends ZIOBaseSpec {
         withOffset(2)(
           s"${blue(expressionIfNotRedundant(showExpression(1 + 1), 2))} did not satisfy ${cyan("equalTo(3)")}\n"
         ),
-        withOffset(4)(assertSourceLocation())
+        withOffset(2)(assertSourceLocation())
       )
     )
   )
@@ -152,7 +151,7 @@ object IntellijRendererSpec extends ZIOBaseSpec {
         withOffset(2)(
           s"${blue(s"Right(Some(3))")} did not satisfy ${cyan("isRight(") + yellow("isSome(isGreaterThan(4))") + cyan(")")}\n"
         ),
-        withOffset(4)(assertSourceLocation())
+        withOffset(2)(assertSourceLocation())
       )
     )
   )
@@ -166,7 +165,7 @@ object IntellijRendererSpec extends ZIOBaseSpec {
         withOffset(2)(
           s"${blue("`c` = Some(0)")} did not satisfy ${cyan("(isSome(") + yellow("equalTo(1)") + cyan(") ?? \"third\")")}\n"
         ),
-        withOffset(4)(assertSourceLocation())
+        withOffset(2)(assertSourceLocation())
       )
     )
   )
@@ -180,7 +179,7 @@ object IntellijRendererSpec extends ZIOBaseSpec {
         withOffset(2)(
           s"${blue("100")} did not satisfy ${cyan("not(") + yellow("equalTo(100)") + cyan(")")}\n"
         ),
-        withOffset(4)(assertSourceLocation())
+        withOffset(2)(assertSourceLocation())
       )
     )
   )
@@ -263,7 +262,7 @@ object IntelliJRenderUtils {
     for {
       _ <- IntelliJTestRunner(testEnvironment)
              .run(spec)
-             .provideLayer[Nothing, TestEnvironment, TestLogger with Clock](
+             .provideLayer[Nothing, TestEnvironment, Has[TestLogger] with Has[Clock]](
                TestLogger.fromConsole ++ TestClock.default
              )
       output <- TestConsole.output

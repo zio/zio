@@ -49,12 +49,10 @@ object DefaultTestReporter {
             case _                              => false
           }
 
-          val annotations = executedSpec.fold[TestAnnotationMap] { es =>
-            es match {
-              case ExecutedSpec.LabeledCase(_, annotations) => annotations
-              case ExecutedSpec.MultipleCase(annotations)   => annotations.foldLeft(TestAnnotationMap.empty)(_ ++ _)
-              case ExecutedSpec.TestCase(_, annotations)    => annotations
-            }
+          val annotations = executedSpec.fold[TestAnnotationMap] {
+            case ExecutedSpec.LabeledCase(_, annotations) => annotations
+            case ExecutedSpec.MultipleCase(annotations)   => annotations.foldLeft(TestAnnotationMap.empty)(_ ++ _)
+            case ExecutedSpec.TestCase(_, annotations)    => annotations
           }
 
           val (status, renderedLabel) =
@@ -139,20 +137,18 @@ object DefaultTestReporter {
   }
 
   private def logStats[E](duration: Duration, executedSpec: ExecutedSpec[E]): ExecutionResult = {
-    val (success, ignore, failure) = executedSpec.fold[(Int, Int, Int)] { es =>
-      es match {
-        case ExecutedSpec.LabeledCase(_, stats) => stats
-        case ExecutedSpec.MultipleCase(stats) =>
-          stats.foldLeft((0, 0, 0)) { case ((x1, x2, x3), (y1, y2, y3)) =>
-            (x1 + y1, x2 + y2, x3 + y3)
-          }
-        case ExecutedSpec.TestCase(result, _) =>
-          result match {
-            case Left(_)                         => (0, 0, 1)
-            case Right(TestSuccess.Succeeded(_)) => (1, 0, 0)
-            case Right(TestSuccess.Ignored)      => (0, 1, 0)
-          }
-      }
+    val (success, ignore, failure) = executedSpec.fold[(Int, Int, Int)] {
+      case ExecutedSpec.LabeledCase(_, stats) => stats
+      case ExecutedSpec.MultipleCase(stats) =>
+        stats.foldLeft((0, 0, 0)) { case ((x1, x2, x3), (y1, y2, y3)) =>
+          (x1 + y1, x2 + y2, x3 + y3)
+        }
+      case ExecutedSpec.TestCase(result, _) =>
+        result match {
+          case Left(_)                         => (0, 0, 1)
+          case Right(TestSuccess.Succeeded(_)) => (1, 0, 0)
+          case Right(TestSuccess.Ignored)      => (0, 1, 0)
+        }
     }
     val total = success + ignore + failure
     val stats = detail(
@@ -224,7 +220,7 @@ object DefaultTestReporter {
 
         errorMessageLines ++ Chunk(Line.fromString(codeString, offset)) ++ (nested
           .flatMap(renderFailureCase(_, offset, true))
-          .map(_.withOffset(offset + tabSize)) ++
+          .map(_.withOffset(offset + 1)) ++
           Chunk.fromIterable(path.map { case (label, value) => dim(s"$label = ") + primary(value.toString) }) ++
           Chunk(detail(s"☛ $location").toLine))
     }
@@ -247,7 +243,7 @@ object DefaultTestReporter {
 
   private def renderAssertionLocation(av: AssertionValue, offset: Int) = av.sourceLocation.fold(Message()) { location =>
     detail(s"☛ $location").toLine
-      .withOffset(offset + 2)
+      .withOffset(offset + 1)
       .toMessage
   }
 
@@ -261,7 +257,7 @@ object DefaultTestReporter {
       Message(message)
     }
     val mockExceptions = defects.collect { case exception: MockException =>
-        renderMockException(exception).map(withOffset(offset + 1))
+      renderMockException(exception).map(withOffset(offset + 1))
     }
     val remaining =
       cause.stripSomeDefects {
