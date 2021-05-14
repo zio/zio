@@ -26,7 +26,7 @@ import java.util.concurrent.{
 
 private[internal] abstract class DefaultExecutors {
 
-  def makeBlocking(): Executor =
+  lazy val defaultBlocking: Executor =
     Executor.fromThreadPoolExecutor(_ => Int.MaxValue) {
       val corePoolSize  = 0
       val maxPoolSize   = 1000
