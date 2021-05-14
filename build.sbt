@@ -463,7 +463,7 @@ lazy val benchmarks = project.module
         "com.google.code.findbugs"   % "jsr305"         % "3.0.2",
         "com.twitter"               %% "util-core"      % "21.4.0",
         "com.typesafe.akka"         %% "akka-stream"    % "2.6.14",
-        "io.monix"                  %% "monix"          % "3.3.0",
+        "io.monix"                  %% "monix"          % "3.4.0",
         "io.projectreactor"          % "reactor-core"   % "3.4.6",
         "io.reactivex.rxjava2"       % "rxjava"         % "2.2.21",
         "org.jctools"                % "jctools-core"   % "3.3.0",
