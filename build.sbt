@@ -260,7 +260,7 @@ lazy val testJS = test.js
   )
 lazy val testNative = test.native
   .settings(nativeSettings)
-  .settings(libraryDependencies += "org.ekrich" %%% "sjavatime" % "1.1.4")
+  .settings(libraryDependencies += "org.ekrich" %%% "sjavatime" % "1.1.5")
 
 lazy val testTests = crossProject(JSPlatform, JVMPlatform)
   .in(file("test-tests"))
