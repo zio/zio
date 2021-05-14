@@ -78,7 +78,7 @@ private[internal] trait PlatformSpecific {
    */
   final def fromExecutor(executor0: Executor): Platform =
     new Platform {
-      val blockingExecutor = Executor.defaultBlocking
+      val blockingExecutor = Blocking.blockingExecutor
 
       val executor = executor0
 
