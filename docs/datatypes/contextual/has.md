@@ -109,7 +109,7 @@ val RandomIntLive: RandomInt = new RandomInt {
 Great! Now, we are ready to inject these two dependencies into our application `myApp` through `ZIO.provide` function.  
 
 ```scala mdoc:silent:nest
-val mainApp = myApp.provide(???) //What to provide?
+lazy val mainApp = myApp.provide(???) //What to provide?
 ```
 
 As the type of `myApp` effect is `ZIO[Logging with RandomInt, Nothing, Unit]`, we should provide an object with a type of `Logging with RandomInt`. Oh! How can we combine `LoggingLive` and `RandomIntLive` objects together? Unfortunately, we don't have a way to combine these two objects to create a required service (`Logging with RandomInt`).
