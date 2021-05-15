@@ -151,8 +151,7 @@ object TestAspect extends TimeoutVariants {
         ): ZIO[R, TestFailure[E], TestSuccess] =
           before.mapError(TestFailure.fail).bracket(after)(_ => test)
         spec.caseValue match {
-          case Spec.SuiteCase(label, specs, exec)      => Spec.suite(label, aroundAll(specs), exec)
-          case Spec.TestCase(label, test, annotations) => Spec.test(label, around(test), annotations)
+          case _ => ???
         }
       }
     }
@@ -225,10 +224,8 @@ object TestAspect extends TimeoutVariants {
           }
         def dump[E, A](label: String): URIO[Live with Annotations, Unit] =
           Annotations.supervisedFibers.flatMap(fibers => Live.live(Fiber.putDumpStr(label, fibers.toSeq: _*).orDie))
-        spec.transform[R, TestFailure[E], TestSuccess] {
-          case c @ Spec.SuiteCase(_, _, _) => c
-          case Spec.TestCase(label, test, annotations) =>
-            Spec.TestCase(label, if (predicate(label)) diagnose(label, test) else test, annotations)
+        spec.transform[R, TestFailure[E], TestSuccess] { case _ =>
+          ???
         }
       }
     }
@@ -324,9 +321,8 @@ object TestAspect extends TimeoutVariants {
   def executionStrategy(exec: ExecutionStrategy): TestAspectPoly =
     new TestAspectPoly {
       def some[R, E](predicate: String => Boolean, spec: ZSpec[R, E]): ZSpec[R, E] =
-        spec.transform[R, TestFailure[E], TestSuccess] {
-          case Spec.SuiteCase(label, specs, None) if (predicate(label)) => Spec.SuiteCase(label, specs, Some(exec))
-          case c                                                        => c
+        spec.transform[R, TestFailure[E], TestSuccess] { case _ =>
+          ???
         }
     }
 
@@ -886,10 +882,8 @@ object TestAspect extends TimeoutVariants {
       predicate: String => Boolean,
       spec: ZSpec[R, E]
     ): ZSpec[R, E] =
-      spec.transform[R, TestFailure[E], TestSuccess] {
-        case c @ Spec.SuiteCase(_, _, _) => c
-        case Spec.TestCase(label, test, annotations) =>
-          Spec.TestCase(label, if (predicate(label)) perTest(test) else test, annotations)
+      spec.transform[R, TestFailure[E], TestSuccess] { case _ =>
+        ???
       }
   }
   object PerTest {

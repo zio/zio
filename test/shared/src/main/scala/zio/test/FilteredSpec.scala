@@ -22,9 +22,8 @@ package zio.test
  */
 private[zio] object FilteredSpec {
   def apply[R, E](spec: ZSpec[R, E], args: TestArgs): ZSpec[R, E] = {
-    def filtered: Option[ZSpec[R, E]] =
       (args.testSearchTerms, args.tagSearchTerms) match {
-        case (Nil, Nil) => None
+        case (Nil, Nil) => spec
         case (testSearchTerms, Nil) =>
           spec.filterLabels(label => testSearchTerms.exists(term => label.contains(term)))
         case (Nil, tagSearchTerms) =>
@@ -32,9 +31,7 @@ private[zio] object FilteredSpec {
         case (testSearchTerms, tagSearchTerms) =>
           spec
             .filterTags(tag => testSearchTerms.contains(tag))
-            .flatMap(_.filterLabels(label => tagSearchTerms.exists(term => label.contains(term))))
+            .filterLabels(label => tagSearchTerms.exists(term => label.contains(term)))
       }
-
-    filtered.getOrElse(spec)
   }
 }
