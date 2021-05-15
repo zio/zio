@@ -108,7 +108,7 @@ val RandomIntLive: RandomInt = new RandomInt {
 
 Great! Now, we are ready to inject these two dependencies into our application `myApp` through `ZIO.provide` function.  
 
-```scala mddoc:silent:nest
+```scala mdoc:silent:nest
 val mainApp = myApp.provide(???) //What to provide?
 ```
 

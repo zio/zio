@@ -51,7 +51,7 @@ As the above program runs 10 concurrent fibers to increase the counter value. Ho
 
 To fix this issue, we need to perform the `get` and `set` operation atomically. The `Ref` data type some other api like `update` and `modify` which perform the reading and writing atomically:
 
-```scama mdoc:silent
+```scala mdoc:silent
 def inc(counter: Ref[Int], amount: Int) = counter.update(_ + amount)
 ```
 

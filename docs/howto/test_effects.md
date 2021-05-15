@@ -451,7 +451,7 @@ no impact on other parts of the system.
 
 Test aspects are used to modify existing tests or even entire suites that you have already created. Test aspects are
 applied to a test or suite using the `@@` operator. This is an example test suite showing the use of aspects to modify 
-test behaviour:
+test behavior:
 
 ```scala mdoc:reset
 import zio.duration._
