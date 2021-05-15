@@ -78,10 +78,10 @@ object AssertExamples {
     val person  = Person(42, "Bobby", None)
     val company = Company(List(person, person))
 
-    val a = assertZ(company.people(2).age == 12)
+    val a = assertZ(company.people.isEmpty && person.nickname.get == "Cool")
 
-//    val b         = assertZoom(ten > 11 || hello.length > 8 || hello.length > 100)
-    val assertion = a // && b
+    val b         = assertZ(ten >= 13 && hello.length == 8 && hello.length <= -130)
+    val assertion = a && b
 
     var result = Arrow.run(assertion.arrow, Right(()))
     result = Trace.prune(result, false).getOrElse(Trace.Node(Result.Succeed(true)))
@@ -89,12 +89,7 @@ object AssertExamples {
   }
 
   def main(args: Array[String]): Unit = {
-    val result = booleanLogic
-//    println(result)
-//    println("")
-//    println(Pretty(result))
-//    println("")
-
+    val result  = booleanLogic
     val failure = FailureCase.fromTrace(result)
     println("")
     println(

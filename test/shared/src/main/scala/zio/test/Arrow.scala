@@ -1,19 +1,27 @@
 package zio.test
 
+import scala.reflect.ClassTag
 import scala.util.Try
 
 case class Assert private (val arrow: Arrow[Any, Boolean]) {
-
   def &&(that: Assert): Assert = Assert(arrow && that.arrow)
 
   def ||(that: Assert): Assert = Assert(arrow || that.arrow)
 
   def unary_! : Assert = Assert(!arrow)
+}
 
+object Assert {
+  def all(asserts: Assert*): Assert = asserts.reduce(_ && _)
+
+  def any(asserts: Assert*): Assert = asserts.reduce(_ || _)
 }
 
 private[test] object Assertions {
   import zio.test.{ErrorMessage => M}
+
+  private def className[A](a: Iterable[A]) =
+    M.text(a.toString().takeWhile(_ != '('))
 
   def isSome[A]: Arrow[Option[A], A] =
     Arrow
@@ -22,11 +30,52 @@ private[test] object Assertions {
         case None        => Trace.halt("Option was None")
       }
 
+  def isEmptyIterable[A]: Arrow[Iterable[A], Boolean] =
+    Arrow
+      .make[Iterable[A], Boolean] { a =>
+        Trace.boolean(a.isEmpty) {
+          className(a) + M.was + "empty"
+        }
+      }
+
+  def hasAt[A](index: Int): Arrow[Seq[A], A] =
+    Arrow
+      .make[Seq[A], A] { as =>
+        Try(as(index)).toOption match {
+          case Some(value) => Trace.succeed(value)
+          case None        => Trace.halt(s"Index $index is not within ${as.length}")
+        }
+      }
+
   def greaterThan[A](that: A)(implicit numeric: Numeric[A]): Arrow[A, Boolean] =
     Arrow
       .make[A, Boolean] { (a: A) =>
         Trace.boolean(numeric.gt(a, that)) {
           M.value(a) + M.was + "greater than" + M.value(that)
+        }
+      }
+
+  def greaterThanOrEqualTo[A](that: A)(implicit numeric: Numeric[A]): Arrow[A, Boolean] =
+    Arrow
+      .make[A, Boolean] { (a: A) =>
+        Trace.boolean(numeric.gteq(a, that)) {
+          M.value(a) + M.was + "greater than or equal to" + M.value(that)
+        }
+      }
+
+  def lessThan[A](that: A)(implicit numeric: Numeric[A]): Arrow[A, Boolean] =
+    Arrow
+      .make[A, Boolean] { (a: A) =>
+        Trace.boolean(numeric.lt(a, that)) {
+          M.value(a) + M.was + "less than" + M.value(that)
+        }
+      }
+
+  def lessThanOrEqualTo[A](that: A)(implicit numeric: Numeric[A]): Arrow[A, Boolean] =
+    Arrow
+      .make[A, Boolean] { (a: A) =>
+        Trace.boolean(numeric.lteq(a, that)) {
+          M.value(a) + M.was + "less than or equal to" + M.value(that)
         }
       }
 
@@ -38,10 +87,11 @@ private[test] object Assertions {
         }
       }
 
-  val throws: Arrow[Any, Throwable] = Arrow.makeEither(
-    Trace.succeed,
-    _ => Trace.halt("Expected failure")
-  )
+  val throws: Arrow[Any, Throwable] =
+    Arrow.makeEither(
+      Trace.succeed,
+      _ => Trace.halt("Expected failure")
+    )
 
 }
 

@@ -22,6 +22,7 @@ import zio.stream.{ZSink, ZStream}
 import zio.test.environment.{TestClock, TestConsole, TestEnvironment, TestRandom, TestSystem, testEnvironment}
 
 import scala.collection.immutable.SortedSet
+import scala.language.implicitConversions
 import scala.util.Try
 
 /**
@@ -589,8 +590,25 @@ package object test extends CompileVariants {
   /**
    * Builds a spec with a single pure test.
    */
-  def test(label: String)(assertion: => TestResult)(implicit loc: SourceLocation): ZSpec[Any, Nothing] =
+  def test(label: String)(assertion: => TestReturnValue)(implicit loc: SourceLocation): ZSpec[Any, Nothing] =
     testM(label)(ZIO.effectTotal(assertion))
+
+  sealed trait TestReturnValue
+
+  object TestReturnValue {
+    implicit def testResult2Return(testResult: TestResult): TestReturnValue = TestResultReturn(testResult)
+
+    implicit def return2TestResult(testResult: TestReturnValue): TestResult = testResult match {
+      case AssertReturn(assert)         => throw new Error("OOPS")
+      case TestResultReturn(testResult) => testResult
+    }
+
+    case class AssertReturn(assert: Assert)             extends TestReturnValue
+    case class TestResultReturn(testResult: TestResult) extends TestReturnValue
+  }
+
+//  def test(label: String)(assertion: => Assert)(implicit loc: SourceLocation): ZSpec[Any, Nothing] =
+//    testM(label)(ZIO.effectTotal(assertCompletes))
 
   /**
    * Builds a spec with a single effectful test.

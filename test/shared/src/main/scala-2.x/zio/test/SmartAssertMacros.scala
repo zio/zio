@@ -1,7 +1,6 @@
 package zio.test
 
 import com.github.ghik.silencer.silent
-import zio.test.AssertionSyntax.AssertionOps
 import zio.test.macros.Scala2MacroUtils
 
 import scala.annotation.tailrec
@@ -45,10 +44,33 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
     case class Or(lhs: AST, rhs: AST, span: (Int, Int), leftSpan: (Int, Int), rightSpan: (Int, Int))  extends AST
     case class Select(lhs: AST, lhsTpe: Type, rhsTpe: Type, tpes: List[Tree], name: String, span: (Int, Int))
         extends AST
-    case class Method(lhs: AST, lhsTpe: Type, rhsTpe: Type, name: String, args: List[c.Tree], span: (Int, Int))
-        extends AST
+    case class Method(
+      lhs: AST,
+      lhsTpe: Type,
+      rhsTpe: Type,
+      name: String,
+      tpes: List[Type],
+      args: List[c.Tree],
+      span: (Int, Int)
+    )                                                                          extends AST
     case class Function(lhs: c.Tree, rhs: AST, lhsTpe: Type, span: (Int, Int)) extends AST
     case class Raw(ast: c.Tree, span: (Int, Int))                              extends AST
+  }
+
+  case class AssertAST(name: String, tpes: List[Type] = List.empty, args: List[c.Tree] = List.empty)
+
+  object AssertAST {
+
+    def toTree(assertAST: AssertAST): c.Tree = assertAST match {
+      case AssertAST(name, List(), List()) =>
+        q"$Assertions.${TermName(name)}"
+      case AssertAST(name, List(), args) =>
+        q"$Assertions.${TermName(name)}(..$args)"
+      case AssertAST(name, tpes, List()) =>
+        q"$Assertions.${TermName(name)}[..$tpes]"
+      case AssertAST(name, tpes, args) =>
+        q"$Assertions.${TermName(name)}[..$tpes](..$args)"
+    }
   }
 
   def astToAssertion(ast: AST)(implicit positionContext: PositionContext): c.Tree = {
@@ -69,29 +91,29 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
       case AST.Select(lhs, _, _, _, "throws", span) =>
         q"${astToAssertion(lhs)} >>> $Assertions.throwsError.span($span)"
 
+      case ASTConverter.Matcher(lhs, ast, span) =>
+        val tree = AssertAST.toTree(ast)
+        q"${astToAssertion(lhs)} >>> $tree.span($span)"
+
       case AST.Select(lhs, _, _, _, "get", span) =>
         q"${astToAssertion(lhs)} >>> $Assertions.isSome.span($span)"
 
       case AST.Select(lhs, lhsTpe, rhsTpe, _, name, span) =>
         val select = c.untypecheck(q"{ (a) => a.${TermName(name)} }")
         q"${astToAssertion(lhs)} >>> $Arrow.fromFunction[$lhsTpe, $rhsTpe]($select).span($span)"
+//
+//      case AST.Method(lhs, _, _, "get", _, _, span) =>
+//        q"${astToAssertion(lhs)} >>> $Assertions.isSome.span($span)"
 
-      case AST.Method(lhs, _, _, "get", _, span) =>
-        q"${astToAssertion(lhs)} >>> $Assertions.isSome.span($span)"
-
-      case AST.Method(lhs, lhsTpe, _, "$greater", args, span) =>
-        q"${astToAssertion(lhs)} >>> $Assertions.greaterThan[$lhsTpe](${args.head}).span($span)"
-
-      case AST.Method(lhs, lhsTpe, _, "$eq$eq", args, span) =>
-        q"${astToAssertion(lhs)} >>> $Assertions.equalTo[$lhsTpe](${args.head}).span($span)"
-
-      case AST.Method(lhs, lhsTpe, _, "forall", args, span) if lhsTpe <:< weakTypeOf[Iterable[_]] =>
+      case AST.Method(lhs, lhsTpe, _, "forall", _, args, span) if lhsTpe <:< weakTypeOf[Iterable[_]] =>
         val assert = astToAssertion(parseExpr(args.head))
         q"${astToAssertion(lhs)} >>> $Assertions.forall($assert).span($span)"
 
-      case AST.Method(lhs, lhsTpe, _, name, args, span) =>
-        println(s"FROM FUNCTION: ${name}")
-        val select = c.untypecheck(q"{ (a: $lhsTpe) => a.${TermName(name)}(..$args) }")
+      case AST.Method(lhs, lhsTpe, _, name, _, args, span) =>
+        val select =
+          if (args.isEmpty) c.untypecheck(q"{ (a: $lhsTpe) => a.${TermName(name)} }")
+          else c.untypecheck(q"{ (a: $lhsTpe) => a.${TermName(name)}(..$args) }")
+
         q"${astToAssertion(lhs)} >>> $Arrow.fromFunction($select).span($span)"
 
       case AST.Function(lhs, rhs, _, span) =>
@@ -127,13 +149,37 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
         AST.Or(parseExpr(lhs), parseExpr(rhs), pos.getPos(tree), pos.getPos(lhs), pos.getPos(rhs))
 
       case q"$lhs.$name" if !(tree.symbol.isModule || tree.symbol.isStatic || tree.symbol.isClass) =>
-        AST.Select(parseExpr(lhs), lhs.tpe.widen, tree.tpe.widen, List.empty, name.toString, (pos.getEnd(lhs), end))
+        AST.Method(
+          parseExpr(lhs),
+          lhs.tpe.widen,
+          tree.tpe.widen,
+          name.toString,
+          List.empty,
+          List.empty,
+          (pos.getEnd(lhs), end)
+        )
 
       case q"$lhs.$name[..$tpes]" if !(tree.symbol.isModule || tree.symbol.isStatic || tree.symbol.isClass) =>
-        AST.Select(parseExpr(lhs), lhs.tpe.widen, tree.tpe.widen, tpes, name.toString, (pos.getEnd(lhs), end))
+        AST.Method(
+          parseExpr(lhs),
+          lhs.tpe.widen,
+          tree.tpe.widen,
+          name.toString,
+          tpes.map(_.tpe),
+          List.empty,
+          (pos.getEnd(lhs), end)
+        )
 
-      case MethodCall(lhs, name, args) =>
-        AST.Method(parseExpr(lhs), lhs.tpe.widen, tree.tpe.widen, name.toString, args, (pos.getEnd(lhs), end))
+      case MethodCall(lhs, name, tpes, args) =>
+        AST.Method(
+          parseExpr(lhs),
+          lhs.tpe.widen,
+          tree.tpe.widen,
+          name.toString,
+          tpes,
+          args,
+          (pos.getEnd(lhs), end)
+        )
 
       case x @ q"($a) => $b" =>
         val inType = x.tpe.widen.typeArgs.head
@@ -170,12 +216,12 @@ $Assert($ast.withCode($codeString))
   }
 
   object MethodCall {
-    def unapply(tree: c.Tree): Option[(c.Tree, TermName, List[c.Tree])] =
+    def unapply(tree: c.Tree): Option[(c.Tree, TermName, List[Type], List[c.Tree])] =
       tree match {
         case q"$lhs.$name(..$args)" =>
-          Some((lhs, name, args))
-        case q"$lhs.$name[..$_](..$args)" =>
-          Some((lhs, name, args))
+          Some((lhs, name, List.empty, args))
+        case q"$lhs.$name[..$tpes](..$args)" =>
+          Some((lhs, name, tpes.map(_.tpe), args))
         case _ => None
       }
   }
@@ -205,7 +251,6 @@ $Assert($ast.withCode($codeString))
 
   // Pilfered (with immense gratitude & minor modifications)
   // from https://github.com/com-lihaoyi/sourcecode
-  @silent("Using a deprecated method on purpose")
   private def text[T: c.WeakTypeTag](tree: c.Tree): (Int, Int, String) = {
     val fileContent = new String(tree.pos.source.content)
     var start = tree.collect { case treeVal =>
@@ -229,4 +274,90 @@ $Assert($ast.withCode($codeString))
     (initialStart - start, start, fileContent.slice(start, start + end))
   }
 
+  sealed trait ASTConverter { self =>
+    def matches: PartialFunction[AST.Method, AssertAST]
+
+    final def orElse(that: ASTConverter): ASTConverter = new ASTConverter {
+      override val matches: PartialFunction[AST.Method, AssertAST] =
+        self.matches.orElse(that.matches)
+    }
+
+    final def unapply(method: AST.Method): Option[(AST, AssertAST, (Int, Int))] =
+      matches.lift(method).map { ast =>
+        (method.lhs, ast, method.span)
+      }
+  }
+
+  object ASTConverter {
+    def apply(pf: PartialFunction[AST.Method, AssertAST]): ASTConverter = new ASTConverter {
+      lazy val matches: PartialFunction[AST.Method, AssertAST] = pf
+    }
+
+    object Matcher {
+      def unapply(method: AST.Method): Option[(AST, AssertAST, (Int, Int))] =
+        all.reduce(_ orElse _).unapply(method)
+    }
+
+    lazy val all = List(
+      equalTo,
+      get,
+      greaterThan,
+      greaterThanOrEqualTo,
+      lessThan,
+      lessThanOrEqualTo,
+      hasAt,
+      isEmpty,
+      isSome
+    )
+
+    lazy val equalTo =
+      ASTConverter { case AST.Method(_, lhsTpe, _, "$eq$eq", _, args, _) =>
+        AssertAST("equalTo", List(lhsTpe), args)
+      }
+
+    lazy val get =
+      ASTConverter {
+        case AST.Method(_, lhsTpe, _, "get", _, _, _) if lhsTpe <:< weakTypeOf[Option[_]] =>
+          AssertAST("isSome")
+      }
+
+    lazy val greaterThan =
+      ASTConverter { case AST.Method(_, lhsTpe, _, "$greater", _, args, _) =>
+        AssertAST("greaterThan", List(lhsTpe), args)
+      }
+
+    lazy val greaterThanOrEqualTo =
+      ASTConverter { case AST.Method(_, lhsTpe, _, "$greater$eq", _, args, _) =>
+        AssertAST("greaterThanOrEqualTo", List(lhsTpe), args)
+      }
+
+    lazy val lessThan =
+      ASTConverter { case AST.Method(_, lhsTpe, _, "$less", _, args, _) =>
+        AssertAST("lessThan", List(lhsTpe), args)
+      }
+
+    lazy val lessThanOrEqualTo =
+      ASTConverter { case AST.Method(_, lhsTpe, _, "$less$eq", _, args, _) =>
+        AssertAST("lessThanOrEqualTo", List(lhsTpe), args)
+      }
+
+    lazy val hasAt =
+      ASTConverter {
+        case AST.Method(_, lhsTpe, _, "apply", _, args, _) if lhsTpe <:< weakTypeOf[Seq[_]] =>
+          AssertAST("hasAt", args = args)
+      }
+
+    lazy val isEmpty =
+      ASTConverter {
+        case AST.Method(_, lhsTpe, _, "isEmpty", _, _, _) if lhsTpe <:< weakTypeOf[Iterable[_]] =>
+          AssertAST("isEmptyIterable")
+      }
+
+    lazy val isSome =
+      ASTConverter {
+        case AST.Method(_, lhsTpe, _, "get", _, _, _) if lhsTpe <:< weakTypeOf[Option[_]] =>
+          AssertAST("isSome")
+      }
+
+  }
 }
