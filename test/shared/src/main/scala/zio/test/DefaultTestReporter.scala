@@ -71,11 +71,24 @@ object DefaultTestReporter {
             case Right(TestSuccess.Ignored) =>
               rendered(Test, label, Ignored, depth, withOffset(depth)(yellow("-") + " " + yellow(label)))
             case Left(TestFailure.Assertion(result)) =>
-              result.fold(details => rendered(Test, label, Failed, depth, renderFailure(label, depth, details): _*))(
-                _ && _,
-                _ || _,
-                !_
-              )
+              result match {
+                case TestReturnValue.SmartResult(trace) =>
+                  val failureCase = FailureCase.fromTrace(trace)
+                  val strings =
+                    renderFailureLabel(label, depth) +:
+                      failureCase.flatMap(FailureCase.renderFailureCase).map(" " * (depth + 2) + _)
+
+                  rendered(Test, label, Failed, depth, strings: _*)
+                case TestReturnValue.LensResult(result) =>
+                  result.fold(details =>
+                    rendered(Test, label, Failed, depth, renderFailure(label, depth, details): _*)
+                  )(
+                    _ && _,
+                    _ || _,
+                    !_
+                  )
+
+              }
             case Left(TestFailure.Runtime(cause)) =>
               rendered(
                 Test,

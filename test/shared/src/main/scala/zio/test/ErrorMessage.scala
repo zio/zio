@@ -10,7 +10,7 @@ object ErrorMessage {
   def text(string: String): ErrorMessage                     = choice(string, string)
   def value(value: Any): ErrorMessage                        = Value(value)
 
-  val equals: ErrorMessage = choice("is equal to", "is not equal to")
+  val equals: ErrorMessage = choice("was equal to", "was not equal to")
   val is: ErrorMessage     = choice("is", "is not")
   val does: ErrorMessage   = choice("does", "does not")
   val did: ErrorMessage    = choice("did", "did not")
@@ -32,7 +32,7 @@ sealed trait ErrorMessage { self =>
       case ErrorMessage.Choice(success, failure) =>
         if (isSuccess) magenta(success) else red(failure)
 
-      case ErrorMessage.Value(value) => blue(value.toString)
+      case ErrorMessage.Value(value) => bold(blue(value.toString))
 
       case ErrorMessage.Combine(lhs, rhs) =>
         lhs.render(isSuccess) + " " + rhs.render(isSuccess)
@@ -41,7 +41,6 @@ sealed trait ErrorMessage { self =>
         (red("ERROR: ") + bold(throwable.toString)) + "\n" +
           throwable.getStackTrace.toIndexedSeq
             .takeWhile(!_.getClassName.startsWith("zio.test.Arrow$"))
-            .map(dim("› ") + _)
             .mkString("\n")
 
     }

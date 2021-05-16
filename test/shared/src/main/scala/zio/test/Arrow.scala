@@ -1,6 +1,5 @@
 package zio.test
 
-import scala.reflect.ClassTag
 import scala.util.Try
 
 case class Assert private (val arrow: Arrow[Any, Boolean]) {
@@ -17,7 +16,7 @@ object Assert {
   def any(asserts: Assert*): Assert = asserts.reduce(_ || _)
 }
 
-private[test] object Assertions {
+object Assertions {
   import zio.test.{ErrorMessage => M}
 
   private def className[A](a: Iterable[A]) =
@@ -28,6 +27,20 @@ private[test] object Assertions {
       .make[Option[A], A] {
         case Some(value) => Trace.succeed(value)
         case None        => Trace.halt("Option was None")
+      }
+
+  def asRight[A, B]: Arrow[Either[A, B], B] =
+    Arrow
+      .make[Either[A, B], B] {
+        case Right(value) => Trace.succeed(value)
+        case Left(_)      => Trace.halt("Either was Left")
+      }
+
+  def asLeft[A, B]: Arrow[Either[A, B], A] =
+    Arrow
+      .make[Either[A, B], A] {
+        case Left(value) => Trace.succeed(value)
+        case Right(_)    => Trace.halt("Either was Right")
       }
 
   def isEmptyIterable[A]: Arrow[Iterable[A], Boolean] =
@@ -98,14 +111,31 @@ private[test] object Assertions {
 sealed trait Arrow[-A, +B] { self =>
   import Arrow._
 
-  def meta(span: Option[Span] = None, parentSpan: Option[Span] = None, code: Option[String] = None): Arrow[A, B] =
-    Meta(assert = self, span = span, parentSpan = parentSpan, code = code)
+  def meta(
+    span: Option[Span] = None,
+    parentSpan: Option[Span] = None,
+    code: Option[String] = None,
+    location: Option[String] = None
+  ): Arrow[A, B] = self match {
+    case meta: Meta[A, B] =>
+      meta.copy(
+        span = meta.span.orElse(span),
+        parentSpan = meta.parentSpan.orElse(parentSpan),
+        code = meta.code.orElse(code),
+        location = meta.location.orElse(location)
+      )
+    case _ =>
+      Meta(assert = self, span = span, parentSpan = parentSpan, code = code, location = location)
+  }
 
   def span(span: (Int, Int)): Arrow[A, B] =
     meta(span = Some(Span(span._1, span._2)))
 
   def withCode(code: String): Arrow[A, B] =
     meta(code = Some(code))
+
+  def withLocation(location: String): Arrow[A, B] =
+    meta(location = Some(location))
 
   def withParentSpan(span: (Int, Int)): Arrow[A, B] =
     meta(parentSpan = Some(Span(span._1, span._2)))
@@ -161,8 +191,12 @@ object Arrow {
       case Not(assert) =>
         !run(assert, in)
 
-      case Meta(assert, span, parentSpan, code) =>
-        run(assert, in).withSpan(span).withCode(code).withParentSpan(parentSpan)
+      case Meta(assert, span, parentSpan, code, location) =>
+        run(assert, in)
+          .withSpan(span)
+          .withCode(code)
+          .withParentSpan(parentSpan)
+          .withLocation(location)
     }
   }
 
@@ -171,8 +205,13 @@ object Arrow {
 
   }
 
-  case class Meta[-A, +B](assert: Arrow[A, B], span: Option[Span], parentSpan: Option[Span], code: Option[String])
-      extends Arrow[A, B]
+  case class Meta[-A, +B](
+    assert: Arrow[A, B],
+    span: Option[Span],
+    parentSpan: Option[Span],
+    code: Option[String],
+    location: Option[String]
+  )                                                                     extends Arrow[A, B]
   case class ArrowF[-A, +B](f: Either[Throwable, A] => Trace[B])        extends Arrow[A, B] {}
   case class AndThen[A, B, C](f: Arrow[A, B], g: Arrow[B, C])           extends Arrow[A, C]
   case class And(left: Arrow[Any, Boolean], right: Arrow[Any, Boolean]) extends Arrow[Any, Boolean]

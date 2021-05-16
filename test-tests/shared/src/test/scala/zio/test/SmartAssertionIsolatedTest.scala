@@ -1,7 +1,7 @@
 package zio.test
 
 import zio.Chunk
-import zio.test.AssertionSyntax.AssertionOps
+import zio.test.AssertionSyntax.{AssertionOps, EitherAssertionOps}
 import zio.test.SmartAssertionIsolatedTest.{BadError, CoolError}
 import zio.test.SmartTestTypes._
 
@@ -31,71 +31,73 @@ import zio.test.SmartTestTypes._
 
 object SmartAssertionIsolatedTest extends ZIOBaseSpec {
 
-  val company: Company = Company("Ziverge", List(User("Bobo", List.tabulate(2)(n => Post(s"Post #$n")))))
-
   sealed trait NiceError extends Throwable
 
   case class CoolError() extends NiceError
   case class BadError()  extends NiceError
 
+  case class Company(people: List[Person])
+
+  case class Person(age: Int, name: String, nickname: Option[String], children: List[Int] = List()) {
+    def boom: Int = throw new Error("BOOM")
+  }
+
   def spec: ZSpec[Annotations, Any] = suite("SmartAssertionSpec")(
     test("filterConstFalseResultsInEmptyChunk") {
-      AssertExamples.main(Array())
-      assertCompletes
+
+      val person  = Person(42, "Bobby", None)
+      val company = Company(List(person, person))
+
+      val eitherPerson: Either[String, Person] = Left("hiii")
+
+      assert(eitherPerson.$asRight.nickname.get == "Woof.") &&
+      assert(eitherPerson.isRight)
     }
   ) @@ TestAspect.identity
 
 }
 
-object AssertExamples {
-  //  def optionExample = {
-  //    val option = Assert.succeed(Option.empty[Int]).label("maybeInt") >>>
-  //      Assert.get[Int] >>> Assert.fromFunction((_: Int) > 10).label(" > 10")
-  //    Assert.run(option, Right(()))
-  //  }
-  //
-  //  lazy val throwingExample = {
-  //    val a = Assert.succeed[Int](10).label("10") >>>
-  //      Assert.fromFunction((_: Int) + 10).label(" + 10") >>>
-  //      Assert.fromFunction((_: Any) => throw new Error("BANG")).label("BOOM") >>>
-  //      Assert.fromFunction((_: Int) % 2 == 0).label(" % 2 == 0") >>>
-  //      Assert.fromFunction((_: Boolean) == true).label(" == true") >>>
-  //      Assert.throws
-  //
-  //    Assert.run(a, Right(10))
-  //  }
-
-  lazy val booleanLogic = {
-    val ten   = 10
-    val hello = "hello"
-
-    case class Company(people: List[Person])
-
-    case class Person(age: Int, name: String, nickname: Option[String], children: List[Int] = List()) {
-      def boom: Int = throw new Error("BOOM")
-    }
-
-    val person  = Person(42, "Bobby", None)
-    val company = Company(List(person, person))
-
-    val a = assertZ(company.people.isEmpty && person.nickname.get == "Cool")
-
-    val b         = assertZ(ten >= 13 && hello.length == 8 && hello.length <= -130)
-    val assertion = a && b
-
-    var result = Arrow.run(assertion.arrow, Right(()))
-    result = Trace.prune(result, false).getOrElse(Trace.Node(Result.Succeed(true)))
-    result
-  }
-
-  def main(args: Array[String]): Unit = {
-    val result  = booleanLogic
-    val failure = FailureCase.fromTrace(result)
-    println("")
-    println(
-      failure.map { f =>
-        FailureCase.renderFailureCase(f).mkString("\n")
-      }.mkString("\n\n")
-    )
-  }
-}
+//object AssertExamples {
+//  //  def optionExample = {
+//  //    val option = Assert.succeed(Option.empty[Int]).label("maybeInt") >>>
+//  //      Assert.get[Int] >>> Assert.fromFunction((_: Int) > 10).label(" > 10")
+//  //    Assert.run(option, Right(()))
+//  //  }
+//  //
+//  //  lazy val throwingExample = {
+//  //    val a = Assert.succeed[Int](10).label("10") >>>
+//  //      Assert.fromFunction((_: Int) + 10).label(" + 10") >>>
+//  //      Assert.fromFunction((_: Any) => throw new Error("BANG")).label("BOOM") >>>
+//  //      Assert.fromFunction((_: Int) % 2 == 0).label(" % 2 == 0") >>>
+//  //      Assert.fromFunction((_: Boolean) == true).label(" == true") >>>
+//  //      Assert.throws
+//  //
+//  //    Assert.run(a, Right(10))
+//  //  }
+//
+//  lazy val booleanLogic = {
+//    val ten   = 10
+//    val hello = "hello"
+//
+//
+////    val b0 = assertZ(company.people.head.nickname.$.getRight)
+//
+////    val b         = assertZ(ten >= 13 && hello.length == 8 && hello.length <= -130)
+//    val assertion = a // && b
+//
+//    var result = Arrow.run(assertion.arrow, Right(()))
+//    result = Trace.prune(result, false).getOrElse(Trace.Node(Result.Succeed(true)))
+//    result
+//  }
+//
+//  def main(args: Array[String]): Unit = {
+//    val result  = booleanLogic
+//    val failure = FailureCase.fromTrace(result)
+//    println("")
+//    println(
+//      failure.map { f =>
+//        FailureCase.renderFailureCase(f).mkString("\n")
+//      }.mkString("\n\n")
+//    )
+//  }
+//}

@@ -1,6 +1,7 @@
 package zio.test
 
 import com.github.ghik.silencer.silent
+import zio.test.AssertionSyntax.EitherAssertionOps
 import zio.test.macros.Scala2MacroUtils
 
 import scala.annotation.tailrec
@@ -19,9 +20,9 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
     (path, line)
   }
 
-  def assert_impl(expr: c.Expr[Boolean], exprs: c.Expr[Boolean]*): Expr[Assert] =
+  def assert_impl(expr: c.Expr[Boolean], exprs: c.Expr[Boolean]*): c.Tree =
     exprs.map(assertOne_impl).foldLeft(assertOne_impl(expr)) { (acc, assert) =>
-      c.Expr(q"$acc && $assert")
+      q"$acc && $assert"
     }
 
   sealed trait AST { self =>
@@ -73,8 +74,7 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
     }
   }
 
-  def astToAssertion(ast: AST)(implicit positionContext: PositionContext): c.Tree = {
-    println(ast)
+  def astToAssertion(ast: AST)(implicit positionContext: PositionContext): c.Tree =
     ast match {
       case AST.Not(ast, _, _) =>
         q"!${astToAssertion(ast)}"
@@ -105,9 +105,9 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
 //      case AST.Method(lhs, _, _, "get", _, _, span) =>
 //        q"${astToAssertion(lhs)} >>> $Assertions.isSome.span($span)"
 
-      case AST.Method(lhs, lhsTpe, _, "forall", _, args, span) if lhsTpe <:< weakTypeOf[Iterable[_]] =>
-        val assert = astToAssertion(parseExpr(args.head))
-        q"${astToAssertion(lhs)} >>> $Assertions.forall($assert).span($span)"
+//      case AST.Method(lhs, lhsTpe, _, "forall", _, args, span) if lhsTpe <:< weakTypeOf[Iterable[_]] =>
+//        val assert = astToAssertion(parseExpr(args.head))
+//        q"${astToAssertion(lhs)} >>> $Assertions.forall($assert).span($span)"
 
       case AST.Method(lhs, lhsTpe, _, name, _, args, span) =>
         val select =
@@ -124,7 +124,6 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
       case AST.Raw(ast, span) =>
         q"$Arrow.succeed($ast).span($span)"
     }
-  }
 
   case class PositionContext(start: Int, codeString: String) {
     def getPos(tree: c.Tree): (Int, Int) = (getStart(tree), getEnd(tree))
@@ -135,10 +134,6 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
   def parseExpr(tree: c.Tree)(implicit pos: PositionContext): AST = {
     val end = pos.getEnd(tree)
     tree match {
-      // unwrap implicit conversions-they'll be re-triggered post-macro-expansion
-      case q"$lhs($rhs)" if lhs.symbol.isImplicit =>
-        parseExpr(rhs)
-
       case q"!($inner)" =>
         AST.Not(parseExpr(inner), pos.getPos(tree), pos.getPos(inner))
 
@@ -147,28 +142,6 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
 
       case q"$lhs || $rhs" =>
         AST.Or(parseExpr(lhs), parseExpr(rhs), pos.getPos(tree), pos.getPos(lhs), pos.getPos(rhs))
-
-      case q"$lhs.$name" if !(tree.symbol.isModule || tree.symbol.isStatic || tree.symbol.isClass) =>
-        AST.Method(
-          parseExpr(lhs),
-          lhs.tpe.widen,
-          tree.tpe.widen,
-          name.toString,
-          List.empty,
-          List.empty,
-          (pos.getEnd(lhs), end)
-        )
-
-      case q"$lhs.$name[..$tpes]" if !(tree.symbol.isModule || tree.symbol.isStatic || tree.symbol.isClass) =>
-        AST.Method(
-          parseExpr(lhs),
-          lhs.tpe.widen,
-          tree.tpe.widen,
-          name.toString,
-          tpes.map(_.tpe),
-          List.empty,
-          (pos.getEnd(lhs), end)
-        )
 
       case MethodCall(lhs, name, tpes, args) =>
         AST.Method(
@@ -188,7 +161,7 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
     }
   }
 
-  def assertOne_impl(expr: Expr[Boolean]): Expr[Assert] = {
+  def assertOne_impl(expr: Expr[Boolean]): c.Tree = {
     val (stmts, tree) = expr.tree match {
       case Block(others, expr) => (others, expr)
       case other               => (List.empty, other)
@@ -197,30 +170,49 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
     val (_, start, codeString) = text(tree)
     implicit val pos           = PositionContext(start, codeString)
 
-    println("")
+    val (file, line)   = location(c)
+    val locationString = s"$file:$line"
+
+//    println("")
     val parsed = parseExpr(tree)
-    println(scala.Console.CYAN + parsed + scala.Console.RESET)
-    println("")
+//    println(scala.Console.CYAN + parsed + scala.Console.RESET)
+//    println("")
+
     val ast = astToAssertion(parsed)
 
     val block =
       q"""
 ..$stmts
-$Assert($ast.withCode($codeString))
+$Assert($ast.withCode($codeString).withLocation($locationString))
         """
 
-    println(scala.Console.BLUE + block + scala.Console.RESET)
-    println("")
+//    println(scala.Console.BLUE + block + scala.Console.RESET)
 
-    c.Expr[Assert](block)
+//    println("")
+
+    block
+  }
+
+  object UnwrapImplicit {
+    def unapply(tree: c.Tree): Option[c.Tree] =
+      tree match {
+        case q"$wrapper($lhs)" if wrapper.symbol.isImplicit => Some(lhs)
+        case _                                              => Some(tree)
+      }
   }
 
   object MethodCall {
     def unapply(tree: c.Tree): Option[(c.Tree, TermName, List[Type], List[c.Tree])] =
       tree match {
-        case q"$lhs.$name(..$args)" =>
+        case q"${UnwrapImplicit(lhs)}.$name[..$tpes]"
+            if !(tree.symbol.isModule || tree.symbol.isStatic || tree.symbol.isClass) =>
+          Some((lhs, name, tpes.map(_.tpe), List.empty))
+        case q"${UnwrapImplicit(lhs)}.$name"
+            if !(tree.symbol.isModule || tree.symbol.isStatic || tree.symbol.isClass) =>
+          Some((lhs, name, List.empty, List.empty))
+        case q"${UnwrapImplicit(lhs)}.$name(..$args)" =>
           Some((lhs, name, List.empty, args))
-        case q"$lhs.$name[..$tpes](..$args)" =>
+        case q"${UnwrapImplicit(lhs)}.$name[..$tpes](..$args)" =>
           Some((lhs, name, tpes.map(_.tpe), args))
         case _ => None
       }
@@ -307,7 +299,9 @@ $Assert($ast.withCode($codeString))
       lessThanOrEqualTo,
       hasAt,
       isEmpty,
-      isSome
+      asSome,
+      asRight,
+      asLeft
     )
 
     lazy val equalTo =
@@ -353,11 +347,24 @@ $Assert($ast.withCode($codeString))
           AssertAST("isEmptyIterable")
       }
 
-    lazy val isSome =
+    // Option
+    lazy val asSome =
       ASTConverter {
         case AST.Method(_, lhsTpe, _, "get", _, _, _) if lhsTpe <:< weakTypeOf[Option[_]] =>
           AssertAST("isSome")
       }
 
+    // Either
+    lazy val asRight =
+      ASTConverter {
+        case AST.Method(_, lhsTpe, _, "$asRight", _, _, _) if lhsTpe <:< weakTypeOf[Either[_, _]] =>
+          AssertAST("asRight")
+      }
+
+    lazy val asLeft =
+      ASTConverter {
+        case AST.Method(_, lhsTpe, _, "$asLeft", _, _, _) if lhsTpe <:< weakTypeOf[Either[_, _]] =>
+          AssertAST("asLeft")
+      }
   }
 }

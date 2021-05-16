@@ -59,28 +59,38 @@ abstract class DefaultRunnableSpec extends RunnableSpec[TestEnvironment, Any] {
   /**
    * Builds a spec with a single pure test.
    */
-  def test(label: String)(assertion: => TestResult)(implicit loc: SourceLocation): ZSpec[Any, Nothing] =
+  def test(label: String)(assertion: => TestReturnValue)(implicit loc: SourceLocation): ZSpec[Any, Nothing] =
     zio.test.test(label)(assertion)
 
   /**
    * Builds a spec with a single effectful test.
    */
-  def testM[R, E](label: String)(assertion: => ZIO[R, E, TestResult])(implicit loc: SourceLocation): ZSpec[R, E] =
+  def testM[R, E](label: String)(assertion: => ZIO[R, E, TestReturnValue])(implicit loc: SourceLocation): ZSpec[R, E] =
     zio.test.testM(label)(assertion)
 
   implicit def any2AssertionOps[A](a: A): AssertionSyntax.AssertionOps[A] = AssertionSyntax.AssertionOps(a)
 }
 
 object AssertionSyntax {
+  def assertionError(name: String) =
+    throw new Error(s"`$name` may only be called within the body of `assert`")
+
+  implicit final class EitherAssertionOps[A, B](private val self: Either[A, B]) extends AnyVal {
+    def $asLeft: A = assertionError("$asLeft")
+
+    def $asRight: B = assertionError("$asRight")
+  }
+
   implicit final class AssertionOps[A](private val self: A) extends AnyVal {
     def withAssertion(assertion: Assertion[A]): Boolean =
       assertion.test(self)
 
-    def as[Case <: A]: Case =
-      throw new Error("OH NO")
+    def $is[Case <: A]: Case = assertionError("$is")
 
-    def throwsA[E <: Throwable]: Boolean = throw new Error("OH NO")
+    def $as[Case <: A]: Case = assertionError("$as")
 
-    def throws: Throwable = throw new Error("OH NO")
+    def $throwsA[E <: Throwable]: Boolean = assertionError("$throwsA")
+
+    def $throws: Throwable = assertionError("$throws")
   }
 }

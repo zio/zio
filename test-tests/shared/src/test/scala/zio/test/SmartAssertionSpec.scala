@@ -60,7 +60,7 @@ object SmartAssertionSpec extends ZIOBaseSpec {
     },
     test("string contains") {
       val myString = "something"
-      assert(myString.contains("aoseunth"))
+      assert(myString.contains("aoseunoth"))
     },
     suite("referencing literals")(
       test("List") {
@@ -94,11 +94,11 @@ object SmartAssertionSpec extends ZIOBaseSpec {
     suite("helpers")(
       test("as") {
         val someColor: Color = Red("hello")
-        assert(someColor.as[Red].name == "cool")
+        assert(someColor.$as[Red].name == "cool")
       },
       test("as") {
         val someColor: Color = Red("hello")
-        assert(someColor.as[Blue].brightness > 38)
+        assert(someColor.$as[Blue].brightness > 38)
       },
       test("asInstanceOf") {
         val someColor: Color = Red("hello")
@@ -106,7 +106,7 @@ object SmartAssertionSpec extends ZIOBaseSpec {
           def getName: String = throw new Error("SPLODE")
         }
         val bomb = Bomb("boomy")
-        assert(bomb.getName.contains("HI"))
+        assert(bomb.getName.contains("HII"))
       },
       test("asInstanceOf") {
         val someColor: Color = Red("hello")

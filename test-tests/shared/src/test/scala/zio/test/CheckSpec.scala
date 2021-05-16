@@ -61,8 +61,8 @@ object CheckSpec extends ZIOBaseSpec {
       check(Gen.anyInt.filter(_ > 0), Gen.anyInt.filter(_ > 0))((a, b) => assert(a)(equalTo(b)))
     } @@ failing,
     testM("failing tests contain gen failure details") {
-      check(Gen.anyInt)(a => assert(a)(isGreaterThan(0))).map {
-        _.failures match {
+      check(Gen.anyInt)(a => assert(a)(isGreaterThan(0))).map { case TestReturnValue.LensResult(result) =>
+        result.failures match {
           case Some(BoolAlgebra.Value(details)) => details.gen.fold(false)(_.shrunkenInput == 0)
           case _                                => false
         }

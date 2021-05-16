@@ -8,7 +8,7 @@ object LawsSpec extends ZIOBaseSpec {
     Assertion.assertion[A]("equalTo", M.result)(Assertion.Render.param(expected))(_ === expected)
 
   implicit class AssertEqualToSyntax[A](private val self: A) extends AnyVal {
-    def <->(that: A)(implicit eq: Equal[A]): TestResult =
+    def <->(that: A)(implicit eq: Equal[A]): TestReturnValue =
       assert(self)(equalTo(that))
   }
 

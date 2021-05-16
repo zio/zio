@@ -21,13 +21,13 @@ import zio.Cause
 sealed abstract class TestFailure[+E]
 
 object TestFailure {
-  final case class Assertion(result: TestResult) extends TestFailure[Nothing]
-  final case class Runtime[+E](cause: Cause[E])  extends TestFailure[E]
+  final case class Assertion(result: TestReturnValue) extends TestFailure[Nothing]
+  final case class Runtime[+E](cause: Cause[E])       extends TestFailure[E]
 
   /**
    * Constructs an assertion failure with the specified result.
    */
-  def assertion(result: TestResult): TestFailure[Nothing] =
+  def assertion(result: TestReturnValue): TestFailure[Nothing] =
     Assertion(result)
 
   /**

@@ -6,7 +6,9 @@ import scala.annotation.tailrec
 
 sealed trait Trace[+A] { self =>
 
-  def isSuccess = self.result match {
+  def isFailure: Boolean = !isSuccess
+
+  def isSuccess: Boolean = self.result match {
     case Result.Succeed(true) => true
     case _                    => false
   }
@@ -45,6 +47,26 @@ sealed trait Trace[+A] { self =>
   }
 
   /**
+   * Apply the location to every node in the tree.
+   */
+  def withLocation(location: Option[String]): Trace[A] = if (location.isDefined) {
+    self match {
+      case node: Trace.Node[_] =>
+        node.copy(location = location)
+      case Trace.AndThen(left, right) =>
+        Trace.AndThen(left.withLocation(location), right.withLocation(location))
+      case and: Trace.And =>
+        Trace.And(and.left.withLocation(location), and.right.withLocation(location)).asInstanceOf[Trace[A]]
+      case or: Trace.Or =>
+        Trace.Or(or.left.withLocation(location), or.right.withLocation(location)).asInstanceOf[Trace[A]]
+      case not: Trace.Not =>
+        Trace.Not(not.trace.withLocation(location)).asInstanceOf[Trace[A]]
+    }
+  } else {
+    self
+  }
+
+  /**
    * Apply the code to every node in the tree.
    */
   final def withCode(code: Option[String]): Trace[A] =
@@ -68,13 +90,22 @@ sealed trait Trace[+A] { self =>
       case zip                     => zip
     }
 
-  final def &&[B](that: Trace[Boolean])(implicit ev: A <:< Boolean): Trace[Boolean] =
+  final def implies(that: Trace[Boolean])(implicit ev: A <:< Boolean): Trace[Boolean] =
+    !self || that
+
+  final def ==>(that: Trace[Boolean])(implicit ev: A <:< Boolean): Trace[Boolean] =
+    implies(that)
+
+  final def <==>(that: Trace[Boolean])(implicit ev: A <:< Boolean): Trace[Boolean] =
+    self ==> that && that ==> self.asInstanceOf[Trace[Boolean]]
+
+  final def &&(that: Trace[Boolean])(implicit ev: A <:< Boolean): Trace[Boolean] =
     Trace.And(ev.liftCo(self), that)
 
-  final def ||[B](that: Trace[Boolean])(implicit ev: A <:< Boolean): Trace[Boolean] =
+  final def ||(that: Trace[Boolean])(implicit ev: A <:< Boolean): Trace[Boolean] =
     Trace.Or(ev.liftCo(self), that)
 
-  final def unary_![B](implicit ev: A <:< Boolean): Trace[Boolean] =
+  final def unary_!(implicit ev: A <:< Boolean): Trace[Boolean] =
     Trace.Not(ev.liftCo(self))
 
   final def >>>[B](that: Trace[B]): Trace[B] =
@@ -90,13 +121,13 @@ object Trace {
    */
   def prune(trace: Trace[Boolean], negated: Boolean): Option[Trace[Boolean]] =
     trace match {
-      case Trace.Node(Result.Succeed(bool), _, _, _, _, _) if bool == negated =>
+      case Trace.Node(Result.Succeed(bool), _, _, _, _, _, _) if bool == negated =>
         Some(trace)
 
-      case Trace.Node(Result.Succeed(_), _, _, _, _, _) =>
+      case Trace.Node(Result.Succeed(_), _, _, _, _, _, _) =>
         None
 
-      case Trace.Node(Result.Die(_) | Result.Fail, _, _, _, _, _) =>
+      case Trace.Node(Result.Die(_) | Result.Fail, _, _, _, _, _, _) =>
         Some(trace)
 
       case Trace.AndThen(left, node: Trace.Node[_]) if node.annotations.contains(Trace.Annotation.Rethrow) =>
@@ -141,6 +172,7 @@ object Trace {
     span: Option[Span] = None,
     parentSpan: Option[Span] = None,
     fullCode: Option[String] = None,
+    location: Option[String] = None,
     annotations: Set[Annotation] = Set.empty
   ) extends Trace[A] {
 

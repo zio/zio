@@ -8,7 +8,7 @@ object LawsFSpec extends ZIOBaseSpec {
     Assertion.assertion[A]("equalTo", M.result)(Assertion.Render.param(expected))(_ === expected)
 
   implicit class AssertEqualToSyntax[A](private val self: A) extends AnyVal {
-    def <->(that: A)(implicit eq: Equal[A]): TestResult =
+    def <->(that: A)(implicit eq: Equal[A]): TestReturnValue =
       assert(self)(equalTo(that))
   }
 
@@ -65,13 +65,17 @@ object LawsFSpec extends ZIOBaseSpec {
 
     val identityLaw: LawsF.Covariant[CovariantEqualF, Equal] =
       new LawsF.Covariant.Law1[CovariantEqualF, Equal]("identityLaw") {
-        def apply[F[+_]: CovariantEqualF, A: Equal](fa: F[A]): TestResult =
+        def apply[F[+_]: CovariantEqualF, A: Equal](fa: F[A]): TestReturnValue =
           fa.map(identity) <-> fa
       }
 
     val compositionLaw: LawsF.Covariant[CovariantEqualF, Equal] =
       new ZLawsF.Covariant.ComposeLaw[CovariantEqualF, Equal]("compositionLaw") {
-        def apply[F[+_]: CovariantEqualF, A: Equal, B: Equal, C: Equal](fa: F[A], f: A => B, g: B => C): TestResult =
+        def apply[F[+_]: CovariantEqualF, A: Equal, B: Equal, C: Equal](
+          fa: F[A],
+          f: A => B,
+          g: B => C
+        ): TestReturnValue =
           fa.map(f).map(g) <-> fa.map(f andThen g)
       }
 

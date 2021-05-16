@@ -85,7 +85,7 @@ object RandomSpec extends ZIOBaseSpec {
 
   def checkClear[A, B <: Random](generate: SRandom => A)(feed: (ZRandom, List[A]) => UIO[Unit])(
     clear: ZRandom => UIO[Unit]
-  )(extract: ZRandom => UIO[A]): URIO[Random with TestConfig, TestResult] =
+  )(extract: ZRandom => UIO[A]): URIO[Random with TestConfig, TestReturnValue] =
     checkM(Gen.anyLong) { seed =>
       for {
         sRandom    <- ZIO.effectTotal(new SRandom(seed))
@@ -101,7 +101,7 @@ object RandomSpec extends ZIOBaseSpec {
 
   def checkFeed[A, B >: Random](generate: SRandom => A)(
     feed: (ZRandom, List[A]) => UIO[Unit]
-  )(extract: ZRandom => UIO[A]): URIO[Random with TestConfig, TestResult] =
+  )(extract: ZRandom => UIO[A]): URIO[Random with TestConfig, TestReturnValue] =
     checkM(Gen.anyLong) { seed =>
       for {
         sRandom    <- ZIO.effectTotal(new SRandom(seed))
@@ -126,7 +126,7 @@ object RandomSpec extends ZIOBaseSpec {
 
   def forAllEqual[A](
     f: ZRandom => UIO[A]
-  )(g: SRandom => A): URIO[Random with TestConfig, TestResult] =
+  )(g: SRandom => A): URIO[Random with TestConfig, TestReturnValue] =
     checkM(Gen.anyLong) { seed =>
       for {
         sRandom    <- ZIO.effectTotal(new SRandom(seed))
@@ -137,7 +137,7 @@ object RandomSpec extends ZIOBaseSpec {
       } yield assert(actual)(equalTo(expected))
     }
 
-  def forAllEqualBytes: URIO[Random with TestConfig, TestResult] =
+  def forAllEqualBytes: URIO[Random with TestConfig, TestReturnValue] =
     checkM(Gen.anyLong) { seed =>
       for {
         sRandom    <- ZIO.effectTotal(new SRandom(seed))
@@ -151,7 +151,7 @@ object RandomSpec extends ZIOBaseSpec {
       } yield assert(actual)(equalTo(expected))
     }
 
-  def forAllEqualGaussian: URIO[Random with TestConfig, TestResult] =
+  def forAllEqualGaussian: URIO[Random with TestConfig, TestReturnValue] =
     checkM(Gen.anyLong) { seed =>
       for {
         sRandom    <- ZIO.effectTotal(new SRandom(seed))
@@ -164,7 +164,7 @@ object RandomSpec extends ZIOBaseSpec {
 
   def forAllEqualN[A](
     f: (ZRandom, Int) => UIO[A]
-  )(g: (SRandom, Int) => A): URIO[Random with TestConfig, TestResult] =
+  )(g: (SRandom, Int) => A): URIO[Random with TestConfig, TestReturnValue] =
     checkM(Gen.anyLong, Gen.int(1, 100)) { (seed, size) =>
       for {
         sRandom    <- ZIO.effectTotal(new SRandom(seed))
@@ -177,7 +177,7 @@ object RandomSpec extends ZIOBaseSpec {
 
   def forAllEqualShuffle(
     f: (ZRandom, List[Int]) => UIO[List[Int]]
-  )(g: (SRandom, List[Int]) => List[Int]): ZIO[Random with Sized with TestConfig, Nothing, TestResult] =
+  )(g: (SRandom, List[Int]) => List[Int]): ZIO[Random with Sized with TestConfig, Nothing, TestReturnValue] =
     checkM(Gen.anyLong, Gen.listOf(Gen.anyInt)) { (seed, testList) =>
       for {
         sRandom    <- ZIO.effectTotal(new SRandom(seed))
@@ -190,7 +190,7 @@ object RandomSpec extends ZIOBaseSpec {
 
   def forAllBounded[A: Numeric](gen: Gen[Random, A])(
     next: (Random.Service, A) => UIO[A]
-  ): URIO[Random with TestConfig, TestResult] = {
+  ): URIO[Random with TestConfig, TestReturnValue] = {
     val num = implicitly[Numeric[A]]
     import num._
     checkM(gen.map(num.abs(_))) { upper =>
@@ -203,7 +203,7 @@ object RandomSpec extends ZIOBaseSpec {
 
   def forAllBetween[A: Numeric](gen: Gen[Random, A])(
     between: (Random.Service, A, A) => UIO[A]
-  ): URIO[Random with TestConfig, TestResult] = {
+  ): URIO[Random with TestConfig, TestReturnValue] = {
     val num = implicitly[Numeric[A]]
     import num._
     val genMinMax = for {

@@ -41,29 +41,24 @@ trait CompileVariants {
    */
   private[test] def assertMImpl[R, E, A](effect: ZIO[R, E, A], sourceLocation: Option[String] = None)(
     assertion: AssertionM[A]
-  ): ZIO[R, E, TestResult]
+  ): ZIO[R, E, TestReturnValue]
 
   /**
    * Checks the assertion holds for the given value.
    */
-  def assertZ(expr: Boolean, exprs: Boolean*): Assert = macro SmartAssertMacros.assert_impl
-  def assertZ(expr: Boolean): Assert = macro SmartAssertMacros.assertOne_impl
+  def assert(expr: Boolean, exprs: Boolean*): Assert = macro SmartAssertMacros.assert_impl
+  def assert(expr: Boolean): Assert = macro SmartAssertMacros.assertOne_impl
 
   /**
    * Checks the assertion holds for the given value.
    */
-  def assert[A](expr: => A)(assertion: Assertion[A]): TestResult = macro Macros.assert_impl
-  def assert(expr: Boolean): TestResult = assert[Boolean](expr)(Assertion.isTrue)
-
-  /**
-   * Checks the assertion holds for the given value.
-   */
-  private[zio] def assertDummy[A](expr: => A)(assertion: Assertion[A]): TestResult = macro Macros.assert_impl
+  def assert[A](expr: => A)(assertion: Assertion[A]): TestReturnValue = macro Macros.assert_impl
+//  def assert(expr: Boolean): TestResult = assert[Boolean](expr)(Assertion.isTrue)
 
   /**
    * Checks the assertion holds for the given effectfully-computed value.
    */
-  def assertM[R, E, A](effect: ZIO[R, E, A])(assertion: AssertionM[A]): ZIO[R, E, TestResult] =
+  def assertM[R, E, A](effect: ZIO[R, E, A])(assertion: AssertionM[A]): ZIO[R, E, TestReturnValue] =
     macro Macros.assertM_impl
 
   private[zio] def sourcePath: String = macro Macros.sourcePath_impl
@@ -76,16 +71,13 @@ trait CompileVariants {
  */
 object CompileVariants {
 
-  def assertProxy[A](value: => A, expression: String, sourceLocation: String)(assertion: Assertion[A]): TestResult =
-    zio.test.assertImpl(value, Some(expression), None, Some(sourceLocation))(assertion)
-
-  def smartAssertProxy[A](value: => A, expression: String, smartExpression: String, sourceLocation: String)(
+  def assertProxy[A](value: => A, expression: String, sourceLocation: String)(
     assertion: Assertion[A]
-  ): TestResult =
-    zio.test.assertImpl(value, Some(expression), Some(smartExpression), Some(sourceLocation))(assertion)
+  ): TestReturnValue =
+    zio.test.assertImpl(value, Some(expression), None, Some(sourceLocation))(assertion)
 
   def assertMProxy[R, E, A](effect: ZIO[R, E, A], sourceLocation: String)(
     assertion: AssertionM[A]
-  ): ZIO[R, E, TestResult] =
+  ): ZIO[R, E, TestReturnValue] =
     zio.test.assertMImpl(effect, Some(sourceLocation))(assertion)
 }

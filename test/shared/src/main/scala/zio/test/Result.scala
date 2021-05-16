@@ -43,6 +43,7 @@ object Result {
 case class FailureCase(
   errorMessage: String,
   codeString: String,
+  location: String,
   path: Chunk[(String, Any)],
   span: Span,
   nestedFailures: Chunk[FailureCase],
@@ -106,6 +107,7 @@ object FailureCase {
     FailureCase(
       node.message.render(node.isSuccess),
       highlight(node.fullCode.getOrElse("<CODE>"), node.span.getOrElse(Span(0, 0)), node.parentSpan, color),
+      node.location.getOrElse("<LOCATION>"),
       path,
       node.span.getOrElse(Span(0, 0)),
       Chunk.empty,
@@ -115,14 +117,17 @@ object FailureCase {
 
   def renderFailureCase(failureCase: FailureCase): Chunk[String] =
     failureCase match {
-      case FailureCase(_, _, _, _, _, result) if result.toString == "true" =>
+      case FailureCase(_, _, _, _, _, _, result) if result.toString == "true" =>
         Chunk.empty
-      case FailureCase(errorMessage, _, _, _, nested, _) if errorMessage == "*AND*" =>
+      case FailureCase(errorMessage, _, _, _, _, nested, _) if errorMessage == "*AND*" =>
         nested.flatMap(renderFailureCase).map("  " + _)
-      case FailureCase(errorMessage, codeString, path, _, nested, _) =>
-        val lines = Chunk(s"${red("›")} $errorMessage", codeString) ++
-          nested.flatMap(renderFailureCase).map("  " + _) ++
-          Chunk.fromIterable(path.map { case (label, value) => dim(s"$label = ") + blue(Pretty(value)) }) ++ Chunk("")
+      case FailureCase(errorMessage, codeString, location, path, _, nested, _) =>
+        val errorMessageLines = Chunk.fromIterable(errorMessage.split("\n")).map(red("› ") + _)
+
+        val lines: Chunk[String] =
+          errorMessageLines ++ Chunk(codeString) ++ nested.flatMap(renderFailureCase).map("  " + _) ++
+            Chunk.fromIterable(path.map { case (label, value) => dim(s"$label = ") + blue(Pretty(value)) }) ++
+            Chunk((s"☛ $location")) ++ Chunk("")
         lines
     }
 }

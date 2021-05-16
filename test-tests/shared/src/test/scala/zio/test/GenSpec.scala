@@ -19,12 +19,12 @@ object GenSpec extends ZIOBaseSpec {
       testM("with bogus even property") {
         val gen = Gen.int(0, 100)
 
-        def test(n: Int): TestResult = {
+        def test(n: Int): TestReturnValue = {
           val p = n % 2 == 0
           if (p) assert(())(Assertion.anything) else assert(n)(Assertion.nothing)
         }
 
-        assertM(CheckN(100)(gen)(test).map { result =>
+        assertM(CheckN(100)(gen)(test).map { case TestReturnValue.LensResult(result) =>
           result.failures.fold(false) {
             case BoolAlgebra.Value(failureDetails) =>
               failureDetails.assertion.head.value.toString == "1"
@@ -38,12 +38,12 @@ object GenSpec extends ZIOBaseSpec {
           bs <- Gen.int(0, 100).flatMap(Gen.listOfN(_)(Gen.anyInt))
         } yield (as, bs)
 
-        def test(a: (List[Int], List[Int])): TestResult = a match {
+        def test(a: (List[Int], List[Int])): TestReturnValue = a match {
           case (as, bs) =>
             val p = (as ++ bs).reverse == (as.reverse ++ bs.reverse)
             if (p) assert(())(Assertion.anything) else assert((as, bs))(Assertion.nothing)
         }
-        assertM(CheckN(100)(gen)(test).map { result =>
+        assertM(CheckN(100)(gen)(test).map { case TestReturnValue.LensResult(result) =>
           result.failures.fold(false) {
             case BoolAlgebra.Value(failureDetails) =>
               failureDetails.assertion.head.value.toString == "(List(0),List(1))" ||
@@ -75,9 +75,9 @@ object GenSpec extends ZIOBaseSpec {
       testM("with shrinking nonempty list") {
         val gen = Gen.int(1, 100).flatMap(Gen.listOfN(_)(Gen.anyInt))
 
-        def test(a: List[Int]): TestResult = assert(a)(Assertion.nothing)
+        def test(a: List[Int]): TestReturnValue = assert(a)(Assertion.nothing)
 
-        assertM(CheckN(100)(gen)(test).map { result =>
+        assertM(CheckN(100)(gen)(test).map { case TestReturnValue.LensResult(result) =>
           result.failures.fold(false) {
             case BoolAlgebra.Value(failureDetails) =>
               failureDetails.assertion.head.value.toString == "List(0)"
