@@ -42,10 +42,10 @@ private[zio] trait ZIOCompanionPlatformSpecific { self: ZIO.type =>
    */
   def fromPromiseJS[A](promise: => JSPromise[A]): Task[A] =
     self.effectAsync { callback =>
-      val onFulfilled: Function1[A, Unit | Thenable[Unit]] = new Function1[A, Unit | Thenable[Unit]] {
+      val onFulfilled: Function1[A, Unit | Thenable[Unit]] = new scala.Function1[A, Unit | Thenable[Unit]] {
         def apply(a: A): Unit | Thenable[Unit] = callback(UIO.succeedNow(a))
       }
-      val onRejected: Function1[Any, Unit | Thenable[Unit]] = new Function1[Any, Unit | Thenable[Unit]] {
+      val onRejected: Function1[Any, Unit | Thenable[Unit]] = new scala.Function1[Any, Unit | Thenable[Unit]] {
         def apply(e: Any): Unit | Thenable[Unit] =
           callback(IO.fail(e match {
             case t: Throwable => t
