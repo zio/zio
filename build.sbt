@@ -57,6 +57,10 @@ addCommandAlias(
   ";coreTestsJVM/test;stacktracerJVM/test:compile;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRefinedJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile"
 )
 addCommandAlias(
+  "testJSDotty",
+  ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/test;testRefinedJS/test;examplesJS/test:compile"
+)
+addCommandAlias(
   "testJVM211",
   ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile;macrosTestsJVM/test"
 )
@@ -126,7 +130,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(stdSettings("zio"))
   .settings(crossProjectSettings)
   .settings(buildInfoSettings("zio"))
-  .settings(libraryDependencies += "dev.zio" %%% "izumi-reflect" % "1.1.1")
+  .settings(libraryDependencies += "dev.zio" %%% "izumi-reflect" % "1.1.2")
   .enablePlugins(BuildInfoPlugin)
 
 lazy val coreJVM = core.jvm
@@ -135,6 +139,7 @@ lazy val coreJVM = core.jvm
   .settings(mimaSettings(failOnProblem = true))
 
 lazy val coreJS = core.js
+  .settings(dottySettings)
 
 lazy val coreNative = core.native
   .settings(nativeSettings)
@@ -165,6 +170,7 @@ lazy val coreTestsJVM = coreTests.jvm
   .settings(replSettings)
 
 lazy val coreTestsJS = coreTests.js
+  .settings(dottySettings)
 
 lazy val macros = crossProject(JSPlatform, JVMPlatform)
   .in(file("macros"))
@@ -208,6 +214,7 @@ lazy val streamsJVM = streams.jvm
   .settings(mimaSettings(failOnProblem = false))
 
 lazy val streamsJS = streams.js
+  .settings(dottySettings)
 
 lazy val streamsNative = streams.native
   .settings(nativeSettings)
@@ -232,6 +239,7 @@ lazy val streamsTestsJVM = streamsTests.jvm
   .settings(dottySettings)
 
 lazy val streamsTestsJS = streamsTests.js
+  .settings(dottySettings)
 
 lazy val test = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("test"))
@@ -252,10 +260,11 @@ lazy val testJVM = test.jvm
   // No bincompat on zio-test yet
   .settings(mimaSettings(failOnProblem = false))
 lazy val testJS = test.js
+  .settings(dottySettings)
   .settings(
     libraryDependencies ++= List(
-      "io.github.cquiroz" %%% "scala-java-time"      % "2.2.2",
-      "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.2.2"
+      "io.github.cquiroz" %%% "scala-java-time"      % "2.3.0",
+      "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.3.0"
     )
   )
 lazy val testNative = test.native
@@ -275,7 +284,7 @@ lazy val testTests = crossProject(JSPlatform, JVMPlatform)
   .enablePlugins(BuildInfoPlugin)
 
 lazy val testTestsJVM = testTests.jvm.settings(dottySettings)
-lazy val testTestsJS  = testTests.js
+lazy val testTestsJS  = testTests.js.settings(dottySettings)
 
 lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-magnolia"))
@@ -341,6 +350,7 @@ lazy val testRefined = crossProject(JVMPlatform, JSPlatform)
 lazy val testRefinedJVM = testRefined.jvm
   .settings(dottySettings)
 lazy val testRefinedJS = testRefined.js
+  .settings(dottySettings)
 
 lazy val stacktracer = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("stacktracer"))
@@ -350,6 +360,7 @@ lazy val stacktracer = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .enablePlugins(BuildInfoPlugin)
 
 lazy val stacktracerJS = stacktracer.js
+  .settings(dottySettings)
 lazy val stacktracerJVM = stacktracer.jvm
   .settings(dottySettings)
   .settings(replSettings)
@@ -444,6 +455,7 @@ lazy val examples = crossProject(JVMPlatform, JSPlatform)
   .dependsOn(macros, testRunner)
 
 lazy val examplesJS = examples.js
+  .settings(dottySettings)
 lazy val examplesJVM = examples.jvm
   .settings(dottySettings)
   .dependsOn(testJunitRunnerJVM)
