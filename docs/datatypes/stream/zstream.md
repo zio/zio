@@ -1,6 +1,6 @@
 ---
-id: stream
-title: "Stream"
+id: zstream
+title: "ZStream"
 ---
 
 A `Stream[E, A]` represents an effectful stream that can produce values of

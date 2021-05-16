@@ -82,7 +82,7 @@
     ],
     "Streaming": [
       "datatypes/stream/index",
-      "datatypes/stream/stream",
+      "datatypes/stream/zstream",
       "datatypes/stream/sink",
       "datatypes/stream/subscription-ref"
     ],

@@ -76,7 +76,7 @@ ZIO Streams let us just concentrate on our business problem, and not on how much
 
 To define a stream workflow there are three core abstraction in ZIO Stream; Streams, Sinks, and transducers:
 
-1. **[Stream](stream.md)** — Streams act as _sources_ of values. We get elements from them, they're producers they produce values.
+1. **[ZStream](zstream.md)** — Streams act as _sources_ of values. We get elements from them, they're producers they produce values.
 
 2. **[Sink](sink.md)** — Sinks act as _receptacles_ or sinks for values. They consume values.
 

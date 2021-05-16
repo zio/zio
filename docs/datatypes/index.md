@@ -57,7 +57,7 @@ ZIO contains a few data types that can help you solve complex problems in asynch
  
 ## Streaming
 The following datatypes can be found in ZIO streams library:
- - **[Stream](stream/stream.md)** — A `Stream` is a lazy, concurrent, asynchronous source of values.
+ - **[ZStream](stream/zstream.md)** — A `ZStream` is a lazy, concurrent, asynchronous source of values.
  - **[Sink](stream/sink.md)** — A `Sink` is a consumer of values from a `Stream`, which may produces a value when it has consumed enough.
  
 ## Miscellaneous
