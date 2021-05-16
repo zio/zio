@@ -35,7 +35,7 @@ object SmartAssertionSpec extends ZIOBaseSpec {
 
   def spec: ZSpec[Environment, Failure] = suite("SmartAssertionSpec")(
     test("OH") {
-      assert(!(Array(1, 8, 2, 3, 88)(0) == 1))
+      assert(!(Array(1, 8, 2, 3, 888)(0) == 1))
     },
     test("missing element") {
       assert(company.users(8).posts.exists(_.title == "hi"))

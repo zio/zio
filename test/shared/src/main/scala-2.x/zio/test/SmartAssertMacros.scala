@@ -298,7 +298,10 @@ $Assert($ast.withCode($codeString).withLocation($locationString))
       lessThan,
       lessThanOrEqualTo,
       hasAt,
-      isEmpty,
+      isEmptyIterable,
+      isEmptyOption,
+      containsIterable,
+      containsOption,
       asSome,
       asRight,
       asLeft
@@ -341,10 +344,28 @@ $Assert($ast.withCode($codeString).withLocation($locationString))
           AssertAST("hasAt", args = args)
       }
 
-    lazy val isEmpty =
+    lazy val isEmptyIterable =
       ASTConverter {
         case AST.Method(_, lhsTpe, _, "isEmpty", _, _, _) if lhsTpe <:< weakTypeOf[Iterable[_]] =>
           AssertAST("isEmptyIterable")
+      }
+
+    lazy val isEmptyOption =
+      ASTConverter {
+        case AST.Method(_, lhsTpe, _, "isEmpty", _, _, _) if lhsTpe <:< weakTypeOf[Option[_]] =>
+          AssertAST("isEmptyOption")
+      }
+
+    lazy val containsIterable =
+      ASTConverter {
+        case AST.Method(_, lhsTpe, _, "contains", _, args, _) if lhsTpe <:< weakTypeOf[Iterable[_]] =>
+          AssertAST("containsIterable", args = args)
+      }
+
+    lazy val containsOption =
+      ASTConverter {
+        case AST.Method(_, lhsTpe, _, "contains", _, args, _) if lhsTpe <:< weakTypeOf[Option[_]] =>
+          AssertAST("containsOption", args = args)
       }
 
     // Option

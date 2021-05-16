@@ -1,5 +1,7 @@
 package zio.test
 
+import zio.test.ConsoleUtils.{bold, blue}
+
 import scala.util.Try
 
 case class Assert private (val arrow: Arrow[Any, Boolean]) {
@@ -20,7 +22,10 @@ object Assertions {
   import zio.test.{ErrorMessage => M}
 
   private def className[A](a: Iterable[A]) =
-    M.text(a.toString().takeWhile(_ != '('))
+    M.value(a.toString.takeWhile(_ != '('))
+
+  private def className[A](a: Option[A]) =
+    M.value(a.toString.takeWhile(_ != '('))
 
   def isSome[A]: Arrow[Option[A], A] =
     Arrow
@@ -51,12 +56,31 @@ object Assertions {
         }
       }
 
+  def isEmptyOption[A]: Arrow[Option[A], Boolean] =
+    Arrow
+      .make[Option[A], Boolean] { a =>
+        Trace.boolean(a.isEmpty) {
+          className(a) + M.was + "empty"
+        }
+      }
+
+  def containsOption[A](value: A): Arrow[Option[A], Boolean] =
+    Arrow
+      .make[Option[A], Boolean] { a =>
+        Trace.boolean(a.contains(value)) {
+          className(a) + M.did + "contain" + M.value(value)
+        }
+      }
+
   def hasAt[A](index: Int): Arrow[Seq[A], A] =
     Arrow
       .make[Seq[A], A] { as =>
         Try(as(index)).toOption match {
           case Some(value) => Trace.succeed(value)
-          case None        => Trace.halt(s"Index $index is not within ${as.length}")
+          case None =>
+            Trace.halt(
+              M.text("Invalid index") + M.value(index) + "for" + className(as) + "of size" + M.value(as.length)
+            )
         }
       }
 
@@ -72,7 +96,7 @@ object Assertions {
     Arrow
       .make[A, Boolean] { (a: A) =>
         Trace.boolean(numeric.gteq(a, that)) {
-          M.value(a) + M.was + "greater than or equal to" + M.value(that)
+          M.value(a) + M.was + s"greater than or equal to ${that}" //+ M.value(that)
         }
       }
 

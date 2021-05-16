@@ -127,7 +127,7 @@ object FailureCase {
         val lines: Chunk[String] =
           errorMessageLines ++ Chunk(codeString) ++ nested.flatMap(renderFailureCase).map("  " + _) ++
             Chunk.fromIterable(path.map { case (label, value) => dim(s"$label = ") + blue(Pretty(value)) }) ++
-            Chunk((s"☛ $location")) ++ Chunk("")
+            Chunk(cyan(s"☛ $location")) ++ Chunk("")
         lines
     }
 }

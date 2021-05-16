@@ -22,7 +22,6 @@ import zio.test.environment.TestEnvironment
 import zio.{URIO, ZIO}
 
 import scala.language.implicitConversions
-import scala.reflect.ClassTag
 
 /**
  * A default runnable spec that provides testable versions of all of the
