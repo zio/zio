@@ -381,7 +381,11 @@ lazy val testRunnerJVM = testRunner.jvm
   .settings(dottySettings)
   .settings(libraryDependencies ++= Seq("org.scala-sbt" % "test-interface" % "1.0"))
 lazy val testRunnerJS = testRunner.js
-  .settings(libraryDependencies ++= Seq("org.scala-js" %% "scalajs-test-interface" % scalaJSVersion))
+  .settings(
+    libraryDependencies ++= Seq(
+      ("org.scala-js" %% "scalajs-test-interface" % scalaJSVersion).cross(CrossVersion.for3Use2_13)
+    )
+  )
 lazy val testRunnerNative = testRunner.native
   .settings(nativeSettings)
   .settings(libraryDependencies ++= Seq("org.scala-native" %%% "test-interface" % nativeVersion))
