@@ -445,7 +445,7 @@ val loggingImpl = Has(new Logging {
 val effect = app.provide(loggingImpl)
 ```
 
-Most of the time, we don't use `Has` directly to implement our services, instead; we use `ZLyaer` to construct the dependency graph of our application, then we use methods like `ZIO#provideLayer` to propagate dependencies into the environment of our ZIO effect.
+Most of the time, we don't use `Has` directly to implement our services, instead; we use `ZLayer` to construct the dependency graph of our application, then we use methods like `ZIO#provideLayer` to propagate dependencies into the environment of our ZIO effect.
 
 #### Using `provideLayer` Method
 
