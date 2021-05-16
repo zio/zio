@@ -17,7 +17,7 @@
 package zio
 
 import scala.scalajs.js
-import scala.scalajs.js.{Function1, Thenable, |, Promise => JSPromise}
+import scala.scalajs.js.{Function1, Promise => JSPromise, Thenable, |}
 
 private[zio] trait TaskPlatformSpecific { self: Task.type =>
 
