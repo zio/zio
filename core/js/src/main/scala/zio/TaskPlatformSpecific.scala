@@ -17,7 +17,7 @@
 package zio
 
 import scala.scalajs.js
-import scala.scalajs.js.{Promise => JSPromise}
+import scala.scalajs.js.{Function1, Thenable, |, Promise => JSPromise}
 
 private[zio] trait TaskPlatformSpecific { self: Task.type =>
 
@@ -26,14 +26,16 @@ private[zio] trait TaskPlatformSpecific { self: Task.type =>
    */
   def fromPromiseJS[A](promise: => JSPromise[A]): Task[A] =
     self.effectAsync { callback =>
-      promise.`then`[Unit](
-        a => callback(UIO.succeedNow(a)),
-        js.defined { (e: Any) =>
+      val onFulfilled: Function1[A, Unit | Thenable[Unit]] = new Function1[A, Unit | Thenable[Unit]] {
+        def apply(a: A): Unit | Thenable[Unit] = callback(UIO.succeedNow(a))
+      }
+      val onRejected: Function1[Any, Unit | Thenable[Unit]] = new Function1[Any, Unit | Thenable[Unit]] {
+        def apply(e: Any): Unit | Thenable[Unit] =
           callback(IO.fail(e match {
             case t: Throwable => t
             case _            => js.JavaScriptException(e)
           }))
-        }
-      )
+      }
+      promise.`then`[Unit](onFulfilled, js.defined(onRejected))
     }
 }
