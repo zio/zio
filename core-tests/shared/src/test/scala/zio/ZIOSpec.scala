@@ -3175,8 +3175,8 @@ object ZIOSpec extends ZIOBaseSpec {
         for {
           ref <- Ref.make(0)
           _ <- Task(42).tapEither {
-                 case Left(value) => ref.set(-1)
-                 case Right(_)    => ref.set(42)
+                 case Left(_)      => ref.set(-1)
+                 case Right(value) => ref.set(value)
                }.run
           effect <- ref.get
         } yield assert(effect)(equalTo(42))
