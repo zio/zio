@@ -34,20 +34,37 @@ val infiniteIntStream   : ZStream[Any, Nothing, Int]       = ZStream.iterate(1)(
 
 Another example of a stream is when we're pulling a Kafka topic or reading from a socket. There is no inherent definition of an end there. Stream elements arrive at some point, or even they might never arrive at any point.
 
-## Creating a Stream
+## Creation
 
-```scala mdoc:silent
-import zio.stream._
+There are several ways to create ZIO Stream. In this section, we are going to enumerate some of the important ways of creating `ZStream`. 
 
-val stream: Stream[Nothing, Int] = Stream(1,2,3)
+### Common Constructors
+
+**ZStream.apply** — Creates a pure stream from a variable list of values:
+
+```scala mdoc:silent:nest
+val stream: ZStream[Any, Nothing, Int] = ZStream(1, 2, 3)
 ```
 
-Or from an Iterable :
+**ZStream.unit** — A stream that contains a single `Unit` value:
 
-```scala mdoc:silent
-import zio.stream._
+```scala mdoc:silent:nest
+val unit: ZStream[Any, Nothing, Unit] = ZStream.unit
+```
 
-val streamFromIterable: Stream[Nothing, Int] = Stream.fromIterable(0 to 100)
+**ZStream.never** — A stream that produces no value or fails with an error:
+
+```scala mdoc:silent:nest
+val never: ZStream[Any, Nothing, Nothing] = ZStream.never
+```
+
+### From Success and Failure
+
+Similar to `ZIO` data type, we can create a `ZStream` using `fail` and `succeed` methods:
+
+```scala mdoc:nest
+val s1: ZStream[Any, String, Nothing] = ZStream.fail("Uh oh!")
+val s2: ZStream[Any, Nothing, Int]    = ZStream.succeed(5)
 ```
 
 ## Transforming a Stream
