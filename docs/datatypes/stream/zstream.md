@@ -65,6 +65,12 @@ val nats: ZStream[Any, Nothing, Int] =
   ZStream.iterate(1)(_ + 1) // 1, 2, 3, ...
 ```
 
+**ZStream.range** — A stream from a range of integers `[min, max)`:
+
+```scala mdoc:silent:nest
+val range: ZStream[Any, Nothing, Int] = ZStream.range(1, 5) // 1, 2, 3, 4
+```
+
 ### From Success and Failure
 
 Similar to `ZIO` data type, we can create a `ZStream` using `fail` and `succeed` methods:
