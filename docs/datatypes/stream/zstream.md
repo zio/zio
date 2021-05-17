@@ -58,6 +58,13 @@ val unit: ZStream[Any, Nothing, Unit] = ZStream.unit
 val never: ZStream[Any, Nothing, Nothing] = ZStream.never
 ```
 
+**ZStream.repeat** — Takes an initial value and applies the given function to the initial value iteratively. The initial value is the first value produced by the stream, followed by f(init), f(f(init)), ...
+
+```scala mdoc:silent:nest
+val nats: ZStream[Any, Nothing, Int] = 
+  ZStream.iterate(1)(_ + 1) // 1, 2, 3, ...
+```
+
 ### From Success and Failure
 
 Similar to `ZIO` data type, we can create a `ZStream` using `fail` and `succeed` methods:
@@ -74,6 +81,10 @@ val s2: ZStream[Any, Nothing, Int]    = ZStream.succeed(5)
 ```scala mdoc:silent:nest
 val stream: ZStream[Any, Throwable, Int] = ZStream.fromIterator(Iterator(1, 2, 3))
 ```
+
+### From Repetition
+
+
 
 ## Transforming a Stream
 
