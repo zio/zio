@@ -9,7 +9,7 @@ import java.util.zip.Deflater
 
 object DeflateSpec extends DefaultRunnableSpec {
   override def spec: ZSpec[Environment, Failure] =
-    suite("CompressionSpec")(
+    suite("DeflateSpec")(
       testM("JDK inflates what was deflated")(
         checkM(Gen.listOfBounded(0, `1K`)(Gen.anyByte).zip(Gen.int(1, `1K`)).zip(Gen.int(1, `1K`))) {
           case ((input, n), bufferSize) =>
