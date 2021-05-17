@@ -110,6 +110,7 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
         q"${astToAssertion(lhs)} >>> $Arrow.fromFunction[$lhsTpe, $rhsTpe]($select).span($span)"
 
       case AST.Method(lhs, lhsTpe, _, name, _, args, span) =>
+        println(s"METHOD ${name}")
         val select =
           if (args.isEmpty) c.untypecheck(q"{ (a: $lhsTpe) => a.${TermName(name)} }")
           else c.untypecheck(q"{ (a: $lhsTpe) => a.${TermName(name)}(..$args) }")
@@ -304,7 +305,9 @@ $Assert($ast.withCode($codeString).withLocation($locationString))
         all.reduce(_ orElse _).unapply(method)
     }
 
-    lazy val all = List(
+    lazy val all: List[ASTConverter] = List(
+      isEven,
+      isOdd,
       equalTo,
       get,
       greaterThan,
@@ -328,7 +331,7 @@ $Assert($ast.withCode($codeString).withLocation($locationString))
       asInstance
     )
 
-    lazy val asInstance =
+    lazy val asInstance: ASTConverter =
       ASTConverter.make {
         case AST.Method(_, lhsTpe, _, "asInstanceOf", List(tpe), _, _) =>
           AssertAST("as", List(lhsTpe, tpe))
@@ -337,119 +340,147 @@ $Assert($ast.withCode($codeString).withLocation($locationString))
           AssertAST("as", List(lhsTpe, tpe))
       }
 
-    lazy val equalTo =
+    lazy val equalTo: ASTConverter =
       ASTConverter.make { case AST.Method(_, lhsTpe, _, "$eq$eq", _, args, _) =>
         AssertAST("equalTo", List(lhsTpe), args)
       }
 
-    lazy val get =
+    lazy val get: ASTConverter =
       ASTConverter.make {
         case AST.Method(_, lhsTpe, _, "get", _, _, _) if lhsTpe <:< weakTypeOf[Option[_]] =>
           AssertAST("isSome")
       }
 
-    lazy val greaterThan =
+    lazy val isEven: ASTConverter =
+      ASTConverter.makeCustom { //
+        case AST.Method(
+              AST.Method(lhs, lhsTpe, _, "$percent", _, List(q"2"), span0),
+              _,
+              _,
+              "$eq$eq",
+              _,
+              List(q"0"),
+              span
+            ) =>
+          (lhs, AssertAST("isEven", List(lhsTpe)), span0._1 -> span._2)
+      }
+
+    lazy val isOdd: ASTConverter =
+      ASTConverter.makeCustom { //
+        case AST.Method(
+              AST.Method(lhs, lhsTpe, _, "$percent", _, List(q"2"), span0),
+              _,
+              _,
+              "$eq$eq",
+              _,
+              List(q"1"),
+              span
+            ) =>
+          (lhs, AssertAST("isOdd", List(lhsTpe)), span0._1 -> span._2)
+      }
+
+    lazy val greaterThan: ASTConverter =
       ASTConverter.make { case AST.Method(_, lhsTpe, _, "$greater", _, args, _) =>
         AssertAST("greaterThan", List(lhsTpe), args)
       }
 
-    lazy val greaterThanOrEqualTo =
+    lazy val greaterThanOrEqualTo: ASTConverter =
       ASTConverter.make { case AST.Method(_, lhsTpe, _, "$greater$eq", _, args, _) =>
         AssertAST("greaterThanOrEqualTo", List(lhsTpe), args)
       }
 
-    lazy val lessThan =
+    lazy val lessThan: ASTConverter =
       ASTConverter.make { case AST.Method(_, lhsTpe, _, "$less", _, args, _) =>
         AssertAST("lessThan", List(lhsTpe), args)
       }
 
-    lazy val lessThanOrEqualTo =
+    lazy val lessThanOrEqualTo: ASTConverter =
       ASTConverter.make { case AST.Method(_, lhsTpe, _, "$less$eq", _, args, _) =>
         AssertAST("lessThanOrEqualTo", List(lhsTpe), args)
       }
 
-    lazy val head =
+    lazy val head: ASTConverter =
       ASTConverter.make {
         case AST.Method(_, lhsTpe, _, "head", _, _, _) if lhsTpe <:< weakTypeOf[Iterable[_]] =>
           AssertAST("head")
       }
 
-    lazy val hasAt =
+    lazy val hasAt: ASTConverter =
       ASTConverter.make {
         case AST.Method(_, lhsTpe, _, "apply", _, args, _) if lhsTpe <:< weakTypeOf[Seq[_]] =>
           AssertAST("hasAt", args = args)
       }
 
-    lazy val isEmptyIterable =
+    lazy val isEmptyIterable: ASTConverter =
       ASTConverter.make {
         case AST.Method(_, lhsTpe, _, "isEmpty", _, _, _) if lhsTpe <:< weakTypeOf[Iterable[_]] =>
           AssertAST("isEmptyIterable")
       }
 
-    lazy val isNonEmptyIterable =
+    lazy val isNonEmptyIterable: ASTConverter =
       ASTConverter.make {
         case AST.Method(_, lhsTpe, _, "nonEmpty", _, _, _) if lhsTpe <:< weakTypeOf[Iterable[_]] =>
           AssertAST("isNonEmptyIterable")
       }
 
-    lazy val isEmptyOption =
+    lazy val isEmptyOption: ASTConverter =
       ASTConverter.make {
         case AST.Method(_, lhsTpe, _, "isEmpty", _, _, _) if lhsTpe <:< weakTypeOf[Option[_]] =>
           AssertAST("isEmptyOption")
       }
 
-    lazy val isDefinedOption =
+    lazy val isDefinedOption: ASTConverter =
       ASTConverter.make {
         case AST.Method(_, lhsTpe, _, "isDefined", _, _, _) if lhsTpe <:< weakTypeOf[Option[_]] =>
           AssertAST("isDefinedOption")
       }
 
-    lazy val containsSeq =
+    lazy val containsSeq: ASTConverter =
       ASTConverter.make {
         case AST.Method(_, lhsTpe, _, "contains", _, args, _) if lhsTpe <:< weakTypeOf[Seq[_]] =>
           AssertAST("containsSeq", args = args)
       }
 
-    lazy val containsOption =
+    lazy val containsOption: ASTConverter =
       ASTConverter.make {
         case AST.Method(_, lhsTpe, _, "contains", _, args, _) if lhsTpe <:< weakTypeOf[Option[_]] =>
           AssertAST("containsOption", args = args)
       }
 
-    lazy val containsString =
+    lazy val containsString: ASTConverter =
       ASTConverter.make {
         case AST.Method(_, lhsTpe, _, "contains", _, args, _) if lhsTpe <:< weakTypeOf[String] =>
           AssertAST("containsString", args = args)
       }
 
     // Option
-    lazy val asSome =
+    lazy val asSome: ASTConverter =
       ASTConverter.make {
         case AST.Method(_, lhsTpe, _, "get", _, _, _) if lhsTpe <:< weakTypeOf[Option[_]] =>
           AssertAST("isSome")
       }
 
     // Either
-    lazy val asRight =
+    lazy val asRight: ASTConverter =
       ASTConverter.make {
         case AST.Method(_, lhsTpe, _, "$asRight", _, _, _) if lhsTpe <:< weakTypeOf[Either[_, _]] =>
           AssertAST("asRight")
       }
 
-    lazy val rightGet =
+    lazy val rightGet: ASTConverter =
       ASTConverter.makeCustom {
         case AST.Method(AST.Method(lhs, lhsTpe, _, "right", _, _, lhsSpan), _, _, "get", _, _, span)
             if lhsTpe <:< weakTypeOf[Either[_, _]] =>
           (lhs, AssertAST("asRight"), lhsSpan._1 -> span._2)
       }
 
-    lazy val asLeft =
+    lazy val asLeft: ASTConverter =
       ASTConverter.make {
         case AST.Method(_, lhsTpe, _, "$asLeft", _, _, _) if lhsTpe <:< weakTypeOf[Either[_, _]] =>
           AssertAST("asLeft")
       }
 
-    lazy val leftGet =
+    lazy val leftGet: ASTConverter =
       ASTConverter.makeCustom {
         case AST.Method(AST.Method(lhs, lhsTpe, _, "left", _, _, lhsSpan), _, _, "get", _, _, span)
             if lhsTpe <:< weakTypeOf[Either[_, _]] =>

@@ -46,10 +46,8 @@ object SmartAssertionIsolatedTest extends ZIOBaseSpec {
 
   def spec: ZSpec[Annotations, Any] = suite("SmartAssertionSpec")(
     test("asInstanceOf") {
-//      assert(Array(1, 8, 2, 3, 88888).head == 12668)
-
-//      assert(Company(List.empty).people.head.name.contains("aoeu"))
-      assert((List(8, 8, 9, 10).forall(number => number * 2 == 16)))
+      val list = List(8, 9, 8, 10, 13)
+      assert(list.exists(number => number * 2 == 16))
     }
   ) @@ TestAspect.identity
 

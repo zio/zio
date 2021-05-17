@@ -144,6 +144,22 @@ object Assertions {
         }
       }
 
+  def isEven[A](implicit integral: Integral[A]): Arrow[A, Boolean] =
+    Arrow
+      .make[A, Boolean] { (a: A) =>
+        Trace.boolean(integral.rem(a, integral.fromInt(2)) == integral.fromInt(0)) {
+          M.value(a) + M.was + "even"
+        }
+      }
+
+  def isOdd[A](implicit integral: Integral[A]): Arrow[A, Boolean] =
+    Arrow
+      .make[A, Boolean] { (a: A) =>
+        Trace.boolean(integral.rem(a, integral.fromInt(2)) == integral.fromInt(1)) {
+          M.value(a) + M.was + "odd"
+        }
+      }
+
   def greaterThan[A](that: A)(implicit numeric: Numeric[A]): Arrow[A, Boolean] =
     Arrow
       .make[A, Boolean] { (a: A) =>

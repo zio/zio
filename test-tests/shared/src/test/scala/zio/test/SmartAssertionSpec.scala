@@ -1,5 +1,6 @@
 package zio.test
 
+import zio.test.AssertionSyntax.EitherAssertionOps
 import zio.test.SmartTestTypes._
 import zio.test.TestAspect.ignore
 
@@ -53,6 +54,10 @@ object SmartAssertionSpec extends ZIOBaseSpec {
     test("boolean method with args") {
       assert(company.users.head.posts.head.publishDate.contains(LocalDateTime.MAX))
     },
+    test("forall") {
+      val list = List(10, 5, 8, 3, 4)
+      assert(list.forall(_ % 2 == 0))
+    },
     test("right.get") {
       val myEither: Either[String, Int] = Left("string")
       case class Cool(int: Int)
@@ -67,7 +72,7 @@ object SmartAssertionSpec extends ZIOBaseSpec {
         assert((List(10, 23, 8, 8) intersect List(23)).head + 31 == 3)
       },
       test("Case Class") {
-        assert(Company("Niceeee", List.empty).name.contains("aoeu"))
+        assert(Company("Nice", List.empty).name.contains("aoeu"))
       },
       test("Array") {
         assert(Array(1, 2, 3, 9, 8).head == 3)
@@ -85,6 +90,10 @@ object SmartAssertionSpec extends ZIOBaseSpec {
       test("right.get") {
         val myEither: Either[String, Int] = Left("string")
         assert(myEither.right.get + 1 > 11233)
+      },
+      test("$asRight") {
+        val myEither: Either[String, Int] = Left("string")
+        assert(myEither.$asRight + 1 > 11233)
       },
       test("toOption.get") {
         val myEither: Either[String, Int] = Left("string")
