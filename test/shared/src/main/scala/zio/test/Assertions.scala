@@ -1,0 +1,135 @@
+package zio.test
+
+import scala.reflect.ClassTag
+import scala.util.Try
+
+object Assertions {
+  import zio.test.{ErrorMessage => M}
+
+  def isSome[A]: Arrow[Option[A], A] =
+    Arrow
+      .make[Option[A], A] {
+        case Some(value) => Trace.succeed(value)
+        case None        => Trace.halt("Option was None")
+      }
+
+  def asRight[A, B]: Arrow[Either[A, B], B] =
+    Arrow
+      .make[Either[A, B], B] {
+        case Right(value) => Trace.succeed(value)
+        case Left(_)      => Trace.halt("Either was Left")
+      }
+
+  def asLeft[A, B]: Arrow[Either[A, B], A] =
+    Arrow
+      .make[Either[A, B], A] {
+        case Left(value) => Trace.succeed(value)
+        case Right(_)    => Trace.halt("Either was Right")
+      }
+
+  def isEmptyIterable[A]: Arrow[Iterable[A], Boolean] =
+    Arrow
+      .make[Iterable[A], Boolean] { as =>
+        Trace.boolean(as.isEmpty) {
+          className(as) + M.was + "empty"
+        }
+      }
+
+  def isEmptyOption[A]: Arrow[Option[A], Boolean] =
+    Arrow
+      .make[Option[A], Boolean] { option =>
+        Trace.boolean(option.isEmpty) {
+          className(option) + M.was + "empty"
+        }
+      }
+
+  def containsOption[A](value: A): Arrow[Option[A], Boolean] =
+    Arrow
+      .make[Option[A], Boolean] { option =>
+        Trace.boolean(option.contains(value)) {
+          className(option) + M.did + "contain" + M.value(value)
+        }
+      }
+
+  def hasAt[A](index: Int): Arrow[Seq[A], A] =
+    Arrow
+      .make[Seq[A], A] { as =>
+        Try(as(index)).toOption match {
+          case Some(value) => Trace.succeed(value)
+          case None =>
+            Trace.halt(
+              M.text("Invalid index") + M.value(index) + "for" + className(as) + "of size" + M.value(as.length)
+            )
+        }
+      }
+
+  def greaterThan[A](that: A)(implicit numeric: Numeric[A]): Arrow[A, Boolean] =
+    Arrow
+      .make[A, Boolean] { (a: A) =>
+        Trace.boolean(numeric.gt(a, that)) {
+          M.value(a) + M.was + "greater than" + M.value(that)
+        }
+      }
+
+  def greaterThanOrEqualTo[A](that: A)(implicit numeric: Numeric[A]): Arrow[A, Boolean] =
+    Arrow
+      .make[A, Boolean] { a =>
+        Trace.boolean(numeric.gteq(a, that)) {
+          M.value(a) + M.was + s"greater than or equal to $that"
+        }
+      }
+
+  def lessThan[A](that: A)(implicit numeric: Numeric[A]): Arrow[A, Boolean] =
+    Arrow
+      .make[A, Boolean] { a =>
+        Trace.boolean(numeric.lt(a, that)) {
+          M.value(a) + M.was + "less than" + M.value(that)
+        }
+      }
+
+  def lessThanOrEqualTo[A](that: A)(implicit numeric: Numeric[A]): Arrow[A, Boolean] =
+    Arrow
+      .make[A, Boolean] { a =>
+        Trace.boolean(numeric.lteq(a, that)) {
+          M.value(a) + M.was + "less than or equal to" + M.value(that)
+        }
+      }
+
+  def equalTo[A](that: A): Arrow[A, Boolean] =
+    Arrow
+      .make[A, Boolean] { a =>
+        Trace.boolean(a == that) {
+          M.value(a) + M.equals + M.value(that)
+        }
+      }
+
+  val throws: Arrow[Any, Throwable] =
+    Arrow.makeEither(
+      Trace.succeed,
+      _ => Trace.halt("Expected failure")
+    )
+
+  def as[A, B](implicit CA: ClassTag[A], CB: ClassTag[B]): Arrow[A, B] =
+    Arrow
+      .make[A, B] { a =>
+        CB.unapply(a) match {
+          case Some(value) => Trace.succeed(value)
+          case None        => Trace.halt(M.value(a.getClass.getSimpleName) + "is not a subtype of" + M.value(className(CB)))
+        }
+      }
+
+  private def className[A](C: ClassTag[A]): String =
+    try {
+      C.runtimeClass.getSimpleName
+    } catch {
+      // See https://github.com/scala/bug/issues/2034.
+      case t: InternalError if t.getMessage == "Malformed class name" =>
+        C.runtimeClass.getName
+    }
+
+  private def className[A](a: Iterable[A]) =
+    M.value(a.toString.takeWhile(_ != '('))
+
+  private def className[A](a: Option[A]) =
+    M.value(a.toString.takeWhile(_ != '('))
+}

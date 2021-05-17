@@ -42,16 +42,33 @@ object SmartAssertionIsolatedTest extends ZIOBaseSpec {
     def boom: Int = throw new Error("BOOM")
   }
 
+  val someColor: Color = Red("hello")
+
+  val nice = _root_.zio.test.Assert(
+    _root_.zio.test.Arrow
+      .succeed(someColor)
+      .span(scala.Tuple2(0, 9))
+      .$greater$greater$greater(
+        _root_.zio.test.Assertions
+          .as[zio.test.SmartTestTypes.Color, zio.test.SmartTestTypes.Blue]
+          .span(scala.Tuple2(9, 28))
+      )
+      .$greater$greater$greater(
+        _root_.zio.test.Arrow
+          .fromFunction(((a: zio.test.SmartTestTypes.Blue) => a.brightness))
+          .span(scala.Tuple2(28, 39))
+      )
+      .$greater$greater$greater(_root_.zio.test.Assertions.greaterThan[Int](33).span(scala.Tuple2(39, 44)))
+      .withCode("someColor.asInstanceOf[Blue].brightness > 33")
+      .withLocation(
+        "/Users/kit/code/open-source/zio/test-tests/shared/src/test/scala/zio/test/SmartAssertionIsolatedTest.scala:48"
+      )
+  )
+
   def spec: ZSpec[Annotations, Any] = suite("SmartAssertionSpec")(
-    test("filterConstFalseResultsInEmptyChunk") {
-
-      val person  = Person(42, "Bobby", None)
-      val company = Company(List(person, person))
-
-      val eitherPerson: Either[String, Person] = Left("hiii")
-
-      assert(eitherPerson.$asRight.nickname.get == "Woof.") &&
-      assert(eitherPerson.isRight)
+    test("asInstanceOf") {
+//      assert(someColor.asInstanceOf[Blue].brightness > 33)
+      nice
     }
   ) @@ TestAspect.identity
 

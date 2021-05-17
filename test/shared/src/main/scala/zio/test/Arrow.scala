@@ -1,8 +1,7 @@
 package zio.test
 
-import zio.test.ConsoleUtils.{bold, blue}
-
-import scala.util.Try
+import scala.reflect.ClassTag
+import scala.util.{Failure, Success, Try}
 
 case class Assert private (val arrow: Arrow[Any, Boolean]) {
   def &&(that: Assert): Assert = Assert(arrow && that.arrow)
@@ -16,120 +15,6 @@ object Assert {
   def all(asserts: Assert*): Assert = asserts.reduce(_ && _)
 
   def any(asserts: Assert*): Assert = asserts.reduce(_ || _)
-}
-
-object Assertions {
-  import zio.test.{ErrorMessage => M}
-
-  private def className[A](a: Iterable[A]) =
-    M.value(a.toString.takeWhile(_ != '('))
-
-  private def className[A](a: Option[A]) =
-    M.value(a.toString.takeWhile(_ != '('))
-
-  def isSome[A]: Arrow[Option[A], A] =
-    Arrow
-      .make[Option[A], A] {
-        case Some(value) => Trace.succeed(value)
-        case None        => Trace.halt("Option was None")
-      }
-
-  def asRight[A, B]: Arrow[Either[A, B], B] =
-    Arrow
-      .make[Either[A, B], B] {
-        case Right(value) => Trace.succeed(value)
-        case Left(_)      => Trace.halt("Either was Left")
-      }
-
-  def asLeft[A, B]: Arrow[Either[A, B], A] =
-    Arrow
-      .make[Either[A, B], A] {
-        case Left(value) => Trace.succeed(value)
-        case Right(_)    => Trace.halt("Either was Right")
-      }
-
-  def isEmptyIterable[A]: Arrow[Iterable[A], Boolean] =
-    Arrow
-      .make[Iterable[A], Boolean] { a =>
-        Trace.boolean(a.isEmpty) {
-          className(a) + M.was + "empty"
-        }
-      }
-
-  def isEmptyOption[A]: Arrow[Option[A], Boolean] =
-    Arrow
-      .make[Option[A], Boolean] { a =>
-        Trace.boolean(a.isEmpty) {
-          className(a) + M.was + "empty"
-        }
-      }
-
-  def containsOption[A](value: A): Arrow[Option[A], Boolean] =
-    Arrow
-      .make[Option[A], Boolean] { a =>
-        Trace.boolean(a.contains(value)) {
-          className(a) + M.did + "contain" + M.value(value)
-        }
-      }
-
-  def hasAt[A](index: Int): Arrow[Seq[A], A] =
-    Arrow
-      .make[Seq[A], A] { as =>
-        Try(as(index)).toOption match {
-          case Some(value) => Trace.succeed(value)
-          case None =>
-            Trace.halt(
-              M.text("Invalid index") + M.value(index) + "for" + className(as) + "of size" + M.value(as.length)
-            )
-        }
-      }
-
-  def greaterThan[A](that: A)(implicit numeric: Numeric[A]): Arrow[A, Boolean] =
-    Arrow
-      .make[A, Boolean] { (a: A) =>
-        Trace.boolean(numeric.gt(a, that)) {
-          M.value(a) + M.was + "greater than" + M.value(that)
-        }
-      }
-
-  def greaterThanOrEqualTo[A](that: A)(implicit numeric: Numeric[A]): Arrow[A, Boolean] =
-    Arrow
-      .make[A, Boolean] { (a: A) =>
-        Trace.boolean(numeric.gteq(a, that)) {
-          M.value(a) + M.was + s"greater than or equal to ${that}" //+ M.value(that)
-        }
-      }
-
-  def lessThan[A](that: A)(implicit numeric: Numeric[A]): Arrow[A, Boolean] =
-    Arrow
-      .make[A, Boolean] { (a: A) =>
-        Trace.boolean(numeric.lt(a, that)) {
-          M.value(a) + M.was + "less than" + M.value(that)
-        }
-      }
-
-  def lessThanOrEqualTo[A](that: A)(implicit numeric: Numeric[A]): Arrow[A, Boolean] =
-    Arrow
-      .make[A, Boolean] { (a: A) =>
-        Trace.boolean(numeric.lteq(a, that)) {
-          M.value(a) + M.was + "less than or equal to" + M.value(that)
-        }
-      }
-
-  def equalTo[A](that: A): Arrow[A, Boolean] =
-    Arrow
-      .make[A, Boolean] { (a: A) =>
-        Trace.boolean(a == that) {
-          M.value(a) + M.equals + M.value(that)
-        }
-      }
-
-  val throws: Arrow[Any, Throwable] =
-    Arrow.makeEither(
-      Trace.succeed,
-      _ => Trace.halt("Expected failure")
-    )
-
 }
 
 sealed trait Arrow[-A, +B] { self =>
