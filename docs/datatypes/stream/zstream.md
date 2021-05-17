@@ -10,25 +10,29 @@ One way to think of `ZStream` is as a `ZIO` program that could emit multiple val
 ```scala mdoc:silent:nest
 import zio.ZIO
 val failedEffect: ZIO[Any, String, Nothing]       = ZIO.fail("fail!")
-val oneIntValue : ZIO[Any, Nothing, Int]          = ZIO.succeed(4)
+val oneIntValue : ZIO[Any, Nothing, Int]          = ZIO.succeed(3)
 val oneListValue: ZIO[Any, Nothing, List[Int]]    = ZIO.succeed(List(1, 2, 3))
 val oneOption   : ZIO[Any, Nothing , Option[Int]] = ZIO.succeed(None)
 ```
 
 A functional stream is pretty similar, it is a description of a program that requires an environment of type `R` and it may signal with errors of type `E` and it yields `O`, but the difference is that it will yield zero or more values. 
 
-So a `ZStream` represents a stream that contains one of the following values:
-- **Empty** — It might end up empty; which represent an empty stream.
-- **One Element** — It can represent a stream with just one value.
-- **Multiple or Infinite Elements** — It can even represent a stream that _never ends_
+So a `ZStream` represents one of the following cases in terms of its elements:
+- **An Empty Stream** — It might end up empty; which represent an empty stream, e.g. `ZStream.empty`.
+- **One Element Stream** — It can represent a stream with just one value, e.g. `ZStream.succeed(3)`.
+- **Multiple Finite Element Stream** — It can represent a stream of finite values, e.g. `ZStream.range(1, 10)`
+- **Multiple Infinite Element Stream** — It can even represent a stream that _never ends_ as an infinite stream, e.g. `ZStream.iterate(1)(_ + 1)`.
 
 ```scala mdoc:silent:nest
 import zio.stream.ZStream
-val oneIntValue    : ZStream[Any, Nothing, Int]       = ZStream.succeed(4)
-val oneListValue   : ZStream[Any, Nothing, List[Int]] = ZStream.succeed(List(1, 2, 3))
-val infiniteInValue: ZStream[Any, Nothing, Int]       = ZStream.repeat(5)
-val emptyStream    : ZStream[Any, Nothing, Nothing]   = ZStream.empty
+val emptyStream         : ZStream[Any, Nothing, Nothing]   = ZStream.empty
+val oneIntValueStream   : ZStream[Any, Nothing, Int]       = ZStream.succeed(4)
+val oneListValueStream  : ZStream[Any, Nothing, List[Int]] = ZStream.succeed(List(1, 2, 3))
+val finiteIntStream     : ZStream[Any, Nothing, Int]       = ZStream.range(1, 10)
+val infiniteIntStream   : ZStream[Any, Nothing, Int]       = ZStream.iterate(1)(_ + 1)
 ```
+
+Another example of a stream is when we're pulling a Kafka topic or reading from a socket. There is no inherent definition of an end there. Stream elements arrive at some point, or even they might never arrive at any point.
 
 ## Creating a Stream
 
