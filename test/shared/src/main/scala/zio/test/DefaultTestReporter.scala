@@ -76,7 +76,7 @@ object DefaultTestReporter {
                   val failureCase = FailureCase.fromTrace(trace)
                   val strings =
                     renderFailureLabel(label, depth) +:
-                      failureCase.flatMap(FailureCase.renderFailureCase).map(" " * (depth + 2) + _)
+                      failureCase.flatMap(FailureCase.renderFailureCase(_)).map(" " * (depth + 2) + _)
 
                   rendered(Test, label, Failed, depth, strings: _*)
                 case TestReturnValue.LensResult(result) =>

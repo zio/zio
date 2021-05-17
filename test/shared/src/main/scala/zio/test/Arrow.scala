@@ -62,9 +62,12 @@ sealed trait Arrow[-A, +B] { self =>
 }
 
 object Arrow {
+
   def succeed[A](value: A): Arrow[Any, A] = ArrowF(_ => Trace.succeed(value))
 
   def fromFunction[A, B](f: A => B): Arrow[A, B] = make(f andThen Trace.succeed)
+
+  def suspend[A, B](f: A => Arrow[Any, B]): Arrow[A, B] = Arrow.Suspend(f)
 
   def make[A, B](f: A => Trace[B]): Arrow[A, B] =
     makeEither(e => Trace.fail(e).annotate(Trace.Annotation.Rethrow), f)
@@ -100,6 +103,14 @@ object Arrow {
       case Not(assert) =>
         !run(assert, in)
 
+      case Suspend(f) =>
+        in match {
+          case Left(_) =>
+            ???
+          case Right(value) =>
+            run(f(value), in)
+        }
+
       case Meta(assert, span, parentSpan, code, location) =>
         run(assert, in)
           .withSpan(span)
@@ -126,4 +137,5 @@ object Arrow {
   case class And(left: Arrow[Any, Boolean], right: Arrow[Any, Boolean]) extends Arrow[Any, Boolean]
   case class Or(left: Arrow[Any, Boolean], right: Arrow[Any, Boolean])  extends Arrow[Any, Boolean]
   case class Not(assert: Arrow[Any, Boolean])                           extends Arrow[Any, Boolean]
+  case class Suspend[A, B](f: A => Arrow[Any, B])                       extends Arrow[A, B]
 }

@@ -59,6 +59,53 @@ object Assertions {
         }
       }
 
+  def forallIterable[A](predicate: Arrow[A, Boolean]): Arrow[Iterable[A], Boolean] =
+    Arrow
+      .make[Iterable[A], Boolean] { seq =>
+        val results = seq.map(a => Arrow.run(predicate, Right(a)))
+
+        val failures = results.filter(_.isFailure)
+        val elements = if (failures.size == 1) "element" else "elements"
+
+        Trace.Node(
+          Result.succeed(failures.isEmpty),
+          M.value(failures.size) + M.choice(s"$elements failed the predicate", s"$elements failed the predicate"),
+          children = if (failures.isEmpty) None else Some(failures.reduce(_ && _))
+        )
+      }
+
+  def existsIterable[A](predicate: Arrow[A, Boolean]): Arrow[Iterable[A], Boolean] =
+    Arrow
+      .make[Iterable[A], Boolean] { seq =>
+        val results = seq.map(a => Arrow.run(predicate, Right(a)))
+
+        val successes = results.filter(_.isSuccess)
+        val elements  = if (successes.size == 1) "element" else "elements"
+
+        Trace.Node(
+          Result.succeed(successes.nonEmpty),
+          M.value(successes.size) + M
+            .choice(s"$elements satisfied the predicate", s"$elements satisfied the predicate"),
+          children = if (successes.isEmpty) None else Some(successes.reduce(_ && _))
+        )
+      }
+
+//  def existsIterable[A](predicate: A => Boolean): Arrow[Iterable[A], Boolean] =
+//    Arrow
+//      .make[Iterable[A], Boolean] { seq =>
+//        Trace.boolean(seq.exists(predicate)) {
+//          className(seq) + M.did + "contain a value matching the predicate"
+//        }
+//      }
+
+  def containsSeq[A](value: A): Arrow[Seq[A], Boolean] =
+    Arrow
+      .make[Seq[A], Boolean] { seq =>
+        Trace.boolean(seq.contains(value)) {
+          className(seq) + M.did + "contain" + M.value(value)
+        }
+      }
+
   def containsOption[A](value: A): Arrow[Option[A], Boolean] =
     Arrow
       .make[Option[A], Boolean] { option =>

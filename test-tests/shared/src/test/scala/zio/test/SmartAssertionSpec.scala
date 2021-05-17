@@ -45,7 +45,7 @@ object SmartAssertionSpec extends ZIOBaseSpec {
     },
     test("nested access") {
       val company = Company("Cool Company", List.empty)
-      assert(company.users.head.posts.exists(_.title == "hi"))
+      assert(company.users.head.posts.exists(_.title == "hii"))
     },
     test("boolean method") {
       assert(company.users.head.posts.head.publishDate.isDefined)
@@ -60,7 +60,7 @@ object SmartAssertionSpec extends ZIOBaseSpec {
     },
     test("string contains") {
       val myString = "something"
-      assert(myString.contains("aoseunoth") && myString == "cool")
+      assert(myString.contains("aoseunoth") && myString == "coool")
     },
     suite("referencing literals")(
       test("List") {

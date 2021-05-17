@@ -61,7 +61,6 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
   case class AssertAST(name: String, tpes: List[Type] = List.empty, args: List[c.Tree] = List.empty)
 
   object AssertAST {
-
     def toTree(assertAST: AssertAST): c.Tree = assertAST match {
       case AssertAST(name, List(), List()) =>
         q"$Assertions.${TermName(name)}"
@@ -91,6 +90,14 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
       case AST.Select(lhs, _, _, _, "throws", span) =>
         q"${astToAssertion(lhs)} >>> $Assertions.throwsError.span($span)"
 
+      case AST.Method(lhs, lhsTpe, _, "forall", _, args, span) if lhsTpe <:< weakTypeOf[Iterable[_]] =>
+        val assertion = astToAssertion(parseExpr(args.head))
+        q"${astToAssertion(lhs)} >>> $Assertions.forallIterable($assertion).span($span)"
+
+      case AST.Method(lhs, lhsTpe, _, "exists", _, args, span) if lhsTpe <:< weakTypeOf[Iterable[_]] =>
+        val assertion = astToAssertion(parseExpr(args.head))
+        q"${astToAssertion(lhs)} >>> $Assertions.existsIterable($assertion).span($span)"
+
       case ASTConverter.Matcher(lhs, ast, span) =>
         val tree = AssertAST.toTree(ast)
         q"${astToAssertion(lhs)} >>> $tree.span($span)"
@@ -101,13 +108,6 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
       case AST.Select(lhs, lhsTpe, rhsTpe, _, name, span) =>
         val select = c.untypecheck(q"{ (a) => a.${TermName(name)} }")
         q"${astToAssertion(lhs)} >>> $Arrow.fromFunction[$lhsTpe, $rhsTpe]($select).span($span)"
-//
-//      case AST.Method(lhs, _, _, "get", _, _, span) =>
-//        q"${astToAssertion(lhs)} >>> $Assertions.isSome.span($span)"
-
-//      case AST.Method(lhs, lhsTpe, _, "forall", _, args, span) if lhsTpe <:< weakTypeOf[Iterable[_]] =>
-//        val assert = astToAssertion(parseExpr(args.head))
-//        q"${astToAssertion(lhs)} >>> $Assertions.forall($assert).span($span)"
 
       case AST.Method(lhs, lhsTpe, _, name, _, args, span) =>
         val select =
@@ -133,7 +133,14 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
 
   def parseExpr(tree: c.Tree)(implicit pos: PositionContext): AST = {
     val end = pos.getEnd(tree)
+
     tree match {
+//      case MethodCall(lhs, TermName("apply"), _, _) if lhs.symbol.isStatic =>
+//        AST.Raw(tree, (pos.getStart(tree), end))
+//
+//      case _ if tree.symbol.isStatic || tree.symbol.isConstructor =>
+//        AST.Raw(tree, (pos.getStart(tree), end))
+
       case q"!($inner)" =>
         AST.Not(parseExpr(inner), pos.getPos(tree), pos.getPos(inner))
 
@@ -157,7 +164,8 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
       case x @ q"($a) => $b" =>
         val inType = x.tpe.widen.typeArgs.head
         AST.Function(a, parseExpr(b), inType, (pos.getStart(tree), end))
-      case other => AST.Raw(other, (pos.getStart(tree), end))
+
+      case _ => AST.Raw(tree, (pos.getStart(tree), end))
     }
   }
 
@@ -187,8 +195,6 @@ $Assert($ast.withCode($codeString).withLocation($locationString))
         """
 
     println(scala.Console.BLUE + block + scala.Console.RESET)
-
-//    println("")
 
     block
   }
@@ -311,7 +317,7 @@ $Assert($ast.withCode($codeString).withLocation($locationString))
       isNonEmptyIterable,
       isEmptyOption,
       isDefinedOption,
-      containsIterable,
+      containsSeq,
       containsOption,
       containsString,
       asSome,
@@ -398,10 +404,10 @@ $Assert($ast.withCode($codeString).withLocation($locationString))
           AssertAST("isDefinedOption")
       }
 
-    lazy val containsIterable =
+    lazy val containsSeq =
       ASTConverter.make {
-        case AST.Method(_, lhsTpe, _, "contains", _, args, _) if lhsTpe <:< weakTypeOf[Iterable[_]] =>
-          AssertAST("containsIterable", args = args)
+        case AST.Method(_, lhsTpe, _, "contains", _, args, _) if lhsTpe <:< weakTypeOf[Seq[_]] =>
+          AssertAST("containsSeq", args = args)
       }
 
     lazy val containsOption =

@@ -110,31 +110,36 @@ object FailureCase {
       node.location.getOrElse("<LOCATION>"),
       path,
       node.span.getOrElse(Span(0, 0)),
-      Chunk.empty,
+      node.children.map(fromTrace).getOrElse(Chunk.empty),
       node.result
     )
   }
 
-  def renderFailureCase(failureCase: FailureCase): Chunk[String] =
+  def renderFailureCase(failureCase: FailureCase, isNested: Boolean = false): Chunk[String] =
     failureCase match {
-      case FailureCase(_, _, _, _, _, _, result) if result.toString == "true" =>
-        Chunk.empty
-      case FailureCase(errorMessage, _, _, _, _, nested, _) if errorMessage == "*AND*" =>
-        nested.flatMap(renderFailureCase).map("  " + _)
+      case FailureCase(errorMessage, codeString, location, path, _, nested, _) if isNested =>
+        val errorMessageLines =
+          Chunk.fromIterable(errorMessage.split("\n")) match {
+            case head +: tail => (red("⦿ ") + head) +: tail.map(red("  ") + _)
+            case _            => Chunk.empty
+          }
+
+        errorMessageLines ++
+          Chunk.fromIterable(path.drop(path.length - 1).map { case (label, value) =>
+            dim(s"$label = ") + blue(Pretty(value))
+          })
+
       case FailureCase(errorMessage, codeString, location, path, _, nested, _) =>
         val errorMessageLines =
           Chunk.fromIterable(errorMessage.split("\n")) match {
-            case head +: tail =>
-              (red("◘ ") + head) +: tail.map("  " + _)
-            case _ => Chunk.empty
+            case head +: tail => (red("● ") + head) +: tail.map(red("  ") + _)
+            case _            => Chunk.empty
           }
 
-        val lines: Chunk[String] =
-          errorMessageLines ++ Chunk(codeString) ++ nested.flatMap(renderFailureCase).map("  " + _) ++
-            Chunk.fromIterable(path.map { case (label, value) => dim(s"$label = ") + blue(Pretty(value)) }) ++
-            Chunk(cyan(s"☛ $location")) ++ Chunk("")
+        errorMessageLines ++ Chunk(codeString) ++ nested.flatMap(renderFailureCase(_, true)).map("  " + _) ++
+          Chunk.fromIterable(path.map { case (label, value) => dim(s"$label = ") + blue(Pretty(value)) }) ++
+          Chunk(cyan(s"☛ $location")) ++ Chunk("")
 
-        lines
     }
 }
 

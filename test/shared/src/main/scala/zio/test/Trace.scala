@@ -52,7 +52,7 @@ sealed trait Trace[+A] { self =>
   def withLocation(location: Option[String]): Trace[A] = if (location.isDefined) {
     self match {
       case node: Trace.Node[_] =>
-        node.copy(location = location)
+        node.copy(location = location, children = node.children.map(_.withLocation(location)))
       case Trace.AndThen(left, right) =>
         Trace.AndThen(left.withLocation(location), right.withLocation(location))
       case and: Trace.And =>
@@ -71,7 +71,8 @@ sealed trait Trace[+A] { self =>
    */
   final def withCode(code: Option[String]): Trace[A] =
     self match {
-      case node: Trace.Node[_] => node.copy(fullCode = code)
+      case node: Trace.Node[_] =>
+        node.copy(fullCode = code, children = node.children.map(_.withCode(code)))
       case Trace.AndThen(left, right) =>
         Trace.AndThen(left.withCode(code), right.withCode(code))
       case and: Trace.And =>
@@ -121,13 +122,13 @@ object Trace {
    */
   def prune(trace: Trace[Boolean], negated: Boolean): Option[Trace[Boolean]] =
     trace match {
-      case Trace.Node(Result.Succeed(bool), _, _, _, _, _, _) if bool == negated =>
-        Some(trace)
+      case node @ Trace.Node(Result.Succeed(bool), _, _, _, _, _, _, _) if bool == negated =>
+        Some(node.copy(children = node.children.flatMap(prune(_, negated))))
 
-      case Trace.Node(Result.Succeed(_), _, _, _, _, _, _) =>
+      case Trace.Node(Result.Succeed(_), _, _, _, _, _, _, _) =>
         None
 
-      case Trace.Node(Result.Die(_) | Result.Fail, _, _, _, _, _, _) =>
+      case Trace.Node(Result.Die(_) | Result.Fail, _, _, _, _, _, _, _) =>
         Some(trace)
 
       case Trace.AndThen(left, node: Trace.Node[_]) if node.annotations.contains(Trace.Annotation.Rethrow) =>
@@ -168,7 +169,7 @@ object Trace {
   private[test] case class Node[+A](
     result: Result[A],
     message: ErrorMessage = ErrorMessage.choice("Succeeded", "Failed"),
-    // child: Option[Node] = None,
+    children: Option[Trace[Boolean]] = None,
     span: Option[Span] = None,
     parentSpan: Option[Span] = None,
     fullCode: Option[String] = None,
@@ -206,11 +207,13 @@ object Trace {
     }
   }
 
-  def halt: Trace[Nothing]                                           = Node(Result.Fail)
-  def halt(message: String): Trace[Nothing]                          = Node(Result.Fail, message = ErrorMessage.text(message))
-  def halt(message: ErrorMessage): Trace[Nothing]                    = Node(Result.Fail, message = message)
-  def succeed[A](value: A): Trace[A]                                 = Node(Result.succeed(value))
+  def halt: Trace[Nothing]                        = Node(Result.Fail)
+  def halt(message: String): Trace[Nothing]       = Node(Result.Fail, message = ErrorMessage.text(message))
+  def halt(message: ErrorMessage): Trace[Nothing] = Node(Result.Fail, message = message)
+  def succeed[A](value: A): Trace[A]              = Node(Result.succeed(value))
+
   def boolean(value: Boolean)(message: ErrorMessage): Trace[Boolean] = Node(Result.succeed(value), message = message)
+
   def fail(throwable: Throwable): Trace[Nothing] =
     Node(Result.die(throwable), message = ErrorMessage.throwable(throwable))
 
