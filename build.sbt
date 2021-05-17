@@ -58,7 +58,7 @@ addCommandAlias(
 )
 addCommandAlias(
   "testJSDotty",
-  ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/test;testMagnoliaTestsJS/test;testRefinedJS/test;testRunnerJS/test:run;examplesJS/test:compile"
+  ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/test;testMagnoliaTestsJS/test;testRefinedJS/test;examplesJS/test:compile"
 )
 addCommandAlias(
   "testJVM211",
