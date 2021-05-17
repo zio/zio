@@ -67,6 +67,14 @@ val s1: ZStream[Any, String, Nothing] = ZStream.fail("Uh oh!")
 val s2: ZStream[Any, Nothing, Int]    = ZStream.succeed(5)
 ```
 
+### From Iterators
+
+`Iterators` are data structures that allow us to iterate over a sequence of elements. Similarly, we can think of ZIO Streams as effectual Iterators; every `ZStream` represents a collection of one or more, but effectful values. We can convert any Iterator to `ZStream` by using `ZStream.fromIterator`:
+
+```scala mdoc:silent:nest
+val stream: ZStream[Any, Throwable, Int] = ZStream.fromIterator(Iterator(1, 2, 3))
+```
+
 ## Transforming a Stream
 
 ZIO Stream supports many standard transforming functions like `map`, `partition`, `grouped`, `groupByKey`, `groupedWithin`
