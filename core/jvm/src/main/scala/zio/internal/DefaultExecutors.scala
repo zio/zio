@@ -19,6 +19,7 @@ package zio.internal
 import java.util.concurrent.{LinkedBlockingQueue, RejectedExecutionException, ThreadPoolExecutor, TimeUnit}
 
 private[internal] abstract class DefaultExecutors {
+
   final def makeDefault(yieldOpCount: Int): Executor =
     fromThreadPoolExecutor(_ => yieldOpCount) {
       val corePoolSize  = Runtime.getRuntime.availableProcessors() * 2

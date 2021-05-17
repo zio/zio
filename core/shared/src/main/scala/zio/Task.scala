@@ -41,6 +41,18 @@ object Task extends TaskPlatformSpecific {
   def apply[A](a: => A): Task[A] = ZIO.apply(a)
 
   /**
+   * @see See [[zio.ZIO.blocking]]
+   */
+  def blocking[A](zio: Task[A]): Task[A] =
+    ZIO.blocking(zio)
+
+  /**
+   * @see See [[zio.ZIO.blockingExecutor]]
+   */
+  def blockingExecutor: UIO[Executor] =
+    ZIO.blockingExecutor
+
+  /**
    * @see See bracket [[zio.ZIO]]
    */
   def bracket[A](acquire: Task[A]): ZIO.BracketAcquire[Any, Throwable, A] =
@@ -302,6 +314,24 @@ object Task extends TaskPlatformSpecific {
     blockingOn: List[Fiber.Id] = Nil
   ): Task[A] =
     ZIO.effectAsyncInterrupt(register, blockingOn)
+
+  /**
+   * @see See [[zio.ZIO.effectBlocking]]
+   */
+  def effectBlocking[A](effect: => A): Task[A] =
+    ZIO.effectBlocking(effect)
+
+  /**
+   * @see See [[zio.ZIO.effectBlockingCancelable]]
+   */
+  def effectBlockingCancelable[A](effect: => A)(cancel: UIO[Unit]): Task[A] =
+    ZIO.effectBlockingCancelable(effect)(cancel)
+
+  /**
+   * @see See [[zio.ZIO.effectBlockingInterrupt]]
+   */
+  def effectBlockingInterrupt[A](effect: => A): Task[A] =
+    ZIO.effectBlockingInterrupt(effect)
 
   /**
    * @see See [[zio.RIO.effectSuspend]]

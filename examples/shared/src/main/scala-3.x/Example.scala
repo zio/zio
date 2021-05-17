@@ -13,7 +13,7 @@ object Example extends App {
     ZLayer.succeed(1) ++ ZLayer.succeed("hello")
 
   val program: ZIO[Has[String] with Has[Int] with Console, Nothing, Unit] =
-    ZIO.services[String, Int].flatMap(in => putStrLn(in.toString()))
+    ZIO.services[String, Int].flatMap(in => putStrLn(in.toString).orDie)
 
 
 

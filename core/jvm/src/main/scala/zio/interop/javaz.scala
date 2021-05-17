@@ -19,7 +19,6 @@ package zio.interop
 import _root_.java.nio.channels.CompletionHandler
 import _root_.java.util.concurrent.{CompletableFuture, CompletionException, CompletionStage, Future}
 import zio._
-import zio.blocking.{Blocking, blocking}
 
 import scala.concurrent.ExecutionException
 
@@ -80,13 +79,13 @@ private[zio] object javaz {
     }
 
   /** WARNING: this uses the blocking Future#get, consider using `fromCompletionStage` */
-  def fromFutureJava[A](thunk: => Future[A]): RIO[Blocking, A] =
+  def fromFutureJava[A](thunk: => Future[A]): Task[A] =
     RIO.effect(thunk).flatMap { future =>
       RIO.effectSuspendTotalWith { (p, _) =>
         if (future.isDone) {
           unwrapDone(p.fatal)(future)
         } else {
-          blocking(Task.effectSuspend(unwrapDone(p.fatal)(future)))
+          ZIO.blocking(Task.effectSuspend(unwrapDone(p.fatal)(future)))
         }
       }
     }

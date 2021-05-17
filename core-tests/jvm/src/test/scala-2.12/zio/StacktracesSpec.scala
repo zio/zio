@@ -1,6 +1,5 @@
 package zio
 
-import zio.blocking.Blocking
 import zio.duration._
 import zio.internal.stacktracer.ZTraceElement
 import zio.internal.stacktracer.ZTraceElement.{NoLocation, SourceLocation}
@@ -160,7 +159,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
       }
     },
     testM("blocking trace") {
-      val io: RIO[Blocking, Unit] = for {
+      val io: Task[Unit] = for {
         trace <- blockingTrace
       } yield trace
 
@@ -462,9 +461,9 @@ object StackTracesSpec extends DefaultRunnableSpec {
       }
   }
 
-  def blockingTrace: ZIO[Blocking, Throwable, Unit] =
+  def blockingTrace: Task[Unit] =
     for {
-      _ <- blocking.effectBlockingInterrupt {
+      _ <- ZIO.effectBlockingInterrupt {
              throw new Exception()
            }
     } yield ()

@@ -132,7 +132,6 @@ Let's see another real-world example of creating a layer from managed resources.
 
 ```scala mdoc:invisible:reset
 import zio._
-import zio.blocking._
 import zio.console._
 import scala.io.Source._
 import java.io.{FileInputStream, FileOutputStream, Closeable}
@@ -142,7 +141,7 @@ trait Transactor
 
 def dbConfig: Task[DBConfig] = Task.effect(???)
 def initializeDb(config: DBConfig): Task[Unit] = Task.effect(???)
-def makeTransactor(config: DBConfig): ZManaged[Blocking, Throwable, Transactor] = ???
+def makeTransactor(config: DBConfig): ZManaged[Any, Throwable, Transactor] = ???
 
 case class UserRepository(xa: Transactor)
 object UserRepository {
@@ -151,7 +150,7 @@ object UserRepository {
 ```
 
 ```scala mdoc:silent:nest
-def userRepository: ZManaged[Blocking with Console, Throwable, UserRepository] = for {
+def userRepository: ZManaged[Console, Throwable, UserRepository] = for {
   cfg <- dbConfig.toManaged_
   _ <- initializeDb(cfg).toManaged_
   xa <- makeTransactor(cfg)
@@ -246,7 +245,6 @@ We said that we can think of the `ZLayer` as a more powerful _constructor_. Cons
 Let's get into an example, assume we have these services with their implementations:
 
 ```scala mdoc:invisible:reset
-import zio.blocking.Blocking
 import zio.console.Console
 import zio._
 ```
@@ -259,7 +257,7 @@ trait UserRepo { }
 trait DocRepo { }
 
 case class LoggerImpl(console: Console.Service) extends Logging { }
-case class DatabaseImp(blocking: Blocking.Service) extends Database { }
+case object DatabaseImp extends Database { }
 case class UserRepoImpl(logging: Logging, database: Database) extends UserRepo { } 
 case class BlobStorageImpl(logging: Logging) extends BlobStorage { }
 case class DocRepoImpl(logging: Logging, database: Database, blobStorage: BlobStorage) extends DocRepo { }
@@ -272,8 +270,8 @@ Let's assume we have lifted these services into `ZLayer`s:
 ```scala mdoc:silent
 val logging: URLayer[Has[Console.Service], Has[Logging]] = 
   (LoggerImpl.apply _).toLayer
-val database: URLayer[Has[Blocking.Service], Has[Database]] = 
-  (DatabaseImp(_)).toLayer
+val database: URLayer[Any, Has[Database]] = 
+  ZLayer.succeed(DatabaseImp)
 val userRepo: URLayer[Has[Logging] with Has[Database], Has[UserRepo]] = 
   (UserRepoImpl(_, _)).toLayer
 val blobStorage: URLayer[Has[Logging], Has[BlobStorage]] = 
@@ -285,13 +283,13 @@ val docRepo: URLayer[Has[Logging] with Has[Database] with Has[BlobStorage], Has[
 Now, we can compose logging and database horizontally:
 
 ```scala mdoc:silent
-val newLayer: ZLayer[Has[Console.Service] with Has[Blocking.Service], Throwable, Has[Logging] with Has[Database]] = logging ++ database
+val newLayer: ZLayer[Has[Console.Service], Throwable, Has[Logging] with Has[Database]] = logging ++ database
 ```
 
 And then we can compose the `newLayer` with `userRepo` vertically:
 
 ```scala mdoc:silent
-val myLayer: ZLayer[Has[Console.Service] with Has[Blocking.Service], Throwable, Has[UserRepo]] = newLayer >>> userRepo
+val myLayer: ZLayer[Has[Console.Service], Throwable, Has[UserRepo]] = newLayer >>> userRepo
 ```
 
 ## Layer Memoization

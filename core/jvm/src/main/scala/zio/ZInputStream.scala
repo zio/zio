@@ -16,14 +16,12 @@
 
 package zio
 
-import zio.blocking._
-
 import java.io.IOException
 
 abstract class ZInputStream {
-  def readN(n: Int): ZIO[Blocking, Option[IOException], Chunk[Byte]]
-  def skip(n: Long): ZIO[Blocking, IOException, Long]
-  def readAll(bufferSize: Int): ZIO[Blocking, Option[IOException], Chunk[Byte]]
+  def readN(n: Int): IO[Option[IOException], Chunk[Byte]]
+  def skip(n: Long): IO[IOException, Long]
+  def readAll(bufferSize: Int): IO[Option[IOException], Chunk[Byte]]
 }
 
 object ZInputStream {
@@ -31,8 +29,8 @@ object ZInputStream {
   def fromInputStream(is: java.io.InputStream): ZInputStream =
     new ZInputStream {
 
-      def readN(n: Int): ZIO[Blocking, Option[IOException], Chunk[Byte]] =
-        effectBlockingIO {
+      def readN(n: Int): IO[Option[IOException], Chunk[Byte]] =
+        ZIO.effectBlockingIO {
           val b: Array[Byte] = new Array[Byte](n)
           val count          = is.read(b)
           if (count == -1) ZIO.fail(None) else ZIO.succeed(Chunk.fromArray(b).take(count))
@@ -40,11 +38,11 @@ object ZInputStream {
           Some(e)
         }.flatten
 
-      def skip(n: Long): ZIO[Blocking, IOException, Long] =
-        effectBlockingIO(is.skip(n))
+      def skip(n: Long): IO[IOException, Long] =
+        ZIO.effectBlockingIO(is.skip(n))
 
-      def readAll(bufferSize: Int): ZIO[Blocking, Option[IOException], Chunk[Byte]] =
-        effectBlockingIO {
+      def readAll(bufferSize: Int): IO[Option[IOException], Chunk[Byte]] =
+        ZIO.effectBlockingIO {
           val buffer = new java.io.ByteArrayOutputStream();
           val idata  = new Array[Byte](bufferSize);
           var count  = is.read(idata, 0, idata.length)

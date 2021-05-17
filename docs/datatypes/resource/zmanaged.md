@@ -19,7 +19,6 @@ In this section, we explore some common ways to create managed resources.
 
 ```scala mdoc:invisible
 import java.io._
-import zio.blocking._
 import zio.console._
 import zio._
 import scala.io.Source._
@@ -81,7 +80,6 @@ This is useful when we want to combine `ZManaged` effects with `ZIO` effects. As
 
 ```scala mdoc:invisible:reset
 import zio._
-import zio.blocking._
 import zio.console._
 import scala.io.Source._
 import java.io.{FileInputStream, FileOutputStream, Closeable}
@@ -91,7 +89,7 @@ trait Transactor
 
 def dbConfig: Task[DBConfig] = Task.effect(???)
 def initializeDb(config: DBConfig): Task[Unit] = Task.effect(???)
-def makeTransactor(config: DBConfig): ZManaged[Blocking, Throwable, Transactor] = ???
+def makeTransactor(config: DBConfig): ZManaged[Any, Throwable, Transactor] = ???
 
 case class UserRepository(xa: Transactor)
 object UserRepository {
@@ -100,7 +98,7 @@ object UserRepository {
 ```
 
 ```scala mdoc:silent:nest
-def userRepository: ZManaged[Blocking with Console, Throwable, UserRepository] = for {
+def userRepository: ZManaged[Console, Throwable, UserRepository] = for {
   cfg <- dbConfig.toManaged_
   _ <- putStrLn("Read database config").toManaged_
   _ <- initializeDb(cfg).toManaged_

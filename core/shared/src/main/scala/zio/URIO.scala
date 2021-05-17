@@ -51,6 +51,18 @@ object URIO {
   def apply[A](a: => A): UIO[A] = ZIO.effectTotal(a)
 
   /**
+   * @see See [[zio.ZIO.blocking]]
+   */
+  def blocking[R, A](zio: URIO[R, A]): URIO[R, A] =
+    ZIO.blocking(zio)
+
+  /**
+   * @see See [[zio.ZIO.blockingExecutor]]
+   */
+  def blockingExecutor: UIO[Executor] =
+    ZIO.blockingExecutor
+
+  /**
    * @see bracket in [[zio.ZIO]]
    */
   def bracket[R, A](acquire: URIO[R, A]): ZIO.BracketAcquire[R, Nothing, A] =

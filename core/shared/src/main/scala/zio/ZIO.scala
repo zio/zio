@@ -22,6 +22,7 @@ import zio.internal.tracing.{ZIOFn, ZIOFn1, ZIOFn2}
 import zio.internal.{Executor, Platform}
 import zio.{TracingStatus => TracingS}
 
+import java.io.IOException
 import scala.annotation.implicitNotFound
 import scala.collection.mutable.Builder
 import scala.concurrent.ExecutionContext
@@ -2284,6 +2285,18 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     descriptorWith(d => if (d.interrupters.nonEmpty) interrupt else ZIO.unit)
 
   /**
+   * Locks the specified effect to the blocking thread pool.
+   */
+  def blocking[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+    ZIO.blockingExecutor.flatMap(zio.lock)
+
+  /**
+   * Retrieves the executor for all blocking tasks.
+   */
+  def blockingExecutor: UIO[Executor] =
+    ZIO.effectSuspendTotalWith((platform, _) => ZIO.succeedNow(platform.blockingExecutor))
+
+  /**
    * When this effect represents acquisition of a resource (for example,
    * opening a file, launching a thread, etc.), `bracket` can be used to ensure
    * the acquisition is not interrupted and the resource is always released.
@@ -2718,6 +2731,111 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     blockingOn: List[Fiber.Id] = Nil
   ): ZIO[R, E, A] =
     new ZIO.EffectAsync(register, blockingOn)
+
+  /**
+   * Imports a synchronous effect that does blocking IO into a pure value.
+   */
+  def effectBlocking[A](effect: => A): Task[A] =
+    blocking(ZIO.effect(effect))
+
+  /**
+   * Imports a synchronous effect that does blocking IO into a pure value,
+   * with a custom cancel effect.
+   *
+   * If the returned `ZIO` is interrupted, the blocked thread running the
+   * synchronous effect will be interrupted via the cancel effect.
+   */
+  def effectBlockingCancelable[A](effect: => A)(cancel: UIO[Unit]): Task[A] =
+    blocking(ZIO.effect(effect)).fork.flatMap(_.join).onInterrupt(cancel)
+
+  /**
+   * Imports a synchronous effect that does blocking IO into a pure value,
+   * refining the error type to `[[java.io.IOException]]`.
+   */
+  def effectBlockingIO[A](effect: => A): IO[IOException, A] =
+    effectBlocking(effect).refineToOrDie[IOException]
+
+  /**
+   * Imports a synchronous effect that does blocking IO into a pure value.
+   *
+   * If the returned `ZIO` is interrupted, the blocked thread running the
+   * synchronous effect will be interrupted via `Thread.interrupt`.
+   *
+   * Note that this adds significant overhead. For performance sensitive
+   * applications consider using `effectBlocking` or
+   * `effectBlockingCancel`.
+   */
+  def effectBlockingInterrupt[A](effect: => A): Task[A] =
+    // Reference user's lambda for the tracer
+    ZIOFn.recordTrace(() => effect) {
+      ZIO.effectSuspendTotal {
+        import java.util.concurrent.atomic.AtomicReference
+        import java.util.concurrent.locks.ReentrantLock
+
+        import zio.internal.OneShot
+
+        val lock   = new ReentrantLock()
+        val thread = new AtomicReference[Option[Thread]](None)
+        val begin  = OneShot.make[Unit]
+        val end    = OneShot.make[Unit]
+
+        def withMutex[B](b: => B): B =
+          try {
+            lock.lock(); b
+          } finally lock.unlock()
+
+        val interruptThread: UIO[Unit] =
+          ZIO.effectTotal {
+            begin.get()
+
+            var looping = true
+            var n       = 0L
+            val base    = 2L
+            while (looping) {
+              withMutex(thread.get match {
+                case None         => looping = false; ()
+                case Some(thread) => thread.interrupt()
+              })
+
+              if (looping) {
+                n += 1
+                Thread.sleep(math.min(50, base * n))
+              }
+            }
+
+            end.get()
+          }
+
+        blocking(
+          ZIO.uninterruptibleMask(restore =>
+            for {
+              fiber <- ZIO.effectSuspend {
+                         val current = Some(Thread.currentThread)
+
+                         withMutex(thread.set(current))
+
+                         begin.set(())
+
+                         try {
+                           val a = effect
+
+                           ZIO.succeedNow(a)
+                         } catch {
+                           case _: InterruptedException =>
+                             Thread.interrupted // Clear interrupt status
+                             ZIO.interrupt
+                           case t: Throwable =>
+                             ZIO.fail(t)
+                         } finally {
+                           withMutex { thread.set(None); end.set(()) }
+                         }
+                       }.forkDaemon
+              a <- restore(fiber.join.refailWithTrace).ensuring(interruptThread)
+            } yield a
+          )
+        )
+      }
+    }
 
   /**
    * Returns a lazily constructed effect, whose construction may itself require effects.

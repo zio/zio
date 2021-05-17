@@ -16,10 +16,9 @@ object RTSSpec extends ZIOBaseSpec {
 
   def spec: ZSpec[Environment, Failure] = suite("Blocking specs (to be migrated to ZIOSpecJvm)")(
     testM("blocking caches threads") {
-      import zio.blocking.Blocking
 
-      def runAndTrack(ref: Ref[Set[Thread]]): ZIO[Blocking with Clock, Nothing, Boolean] =
-        blocking.blocking {
+      def runAndTrack(ref: Ref[Set[Thread]]): ZIO[Clock, Nothing, Boolean] =
+        ZIO.blocking {
           UIO(Thread.currentThread())
             .flatMap(thread => ref.modify(set => (set.contains(thread), set + thread))) <* ZIO
             .sleep(1.millis)
@@ -36,7 +35,7 @@ object RTSSpec extends ZIOBaseSpec {
       for {
         done  <- Ref.make(false)
         start <- Promise.make[Nothing, Unit]
-        fiber <- blocking.effectBlockingInterrupt { start.unsafeDone(IO.unit); Thread.sleep(60L * 60L * 1000L) }
+        fiber <- ZIO.effectBlockingInterrupt { start.unsafeDone(IO.unit); Thread.sleep(60L * 60L * 1000L) }
                    .ensuring(done.set(true))
                    .fork
         _     <- start.await
