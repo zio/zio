@@ -3,8 +3,32 @@ id: zstream
 title: "ZStream"
 ---
 
-A `Stream[E, A]` represents an effectful stream that can produce values of
-type `A`, or potentially fail with a value of type `E`.
+A `ZStream[R, E, O]` is a description of a program that, when evaluated, may emit zero or more values of type `O`, may fail with errors of type `E`, and uses an environment of type `R`. 
+
+One way to think of `ZStream` is as a `ZIO` program that could emit multiple values. As we know, a `ZIO[R, E, A]` data type, is a functional effect which is a description of a program that needs an environment of type `R`, it may end with an error of type `E`, and in case of success, it returns a value of type `A`. The important note about `ZIO` effects is that in the case of success they always end with exactly one value. There is no optionality here, no multiple infinite values, we always get exact value:
+
+```scala mdoc:silent:nest
+import zio.ZIO
+val failedEffect: ZIO[Any, String, Nothing]       = ZIO.fail("fail!")
+val oneIntValue : ZIO[Any, Nothing, Int]          = ZIO.succeed(4)
+val oneListValue: ZIO[Any, Nothing, List[Int]]    = ZIO.succeed(List(1, 2, 3))
+val oneOption   : ZIO[Any, Nothing , Option[Int]] = ZIO.succeed(None)
+```
+
+A functional stream is pretty similar, it is a description of a program that requires an environment of type `R` and it may signal with errors of type `E` and it yields `O`, but the difference is that it will yield zero or more values. 
+
+So a `ZStream` represents a stream that contains one of the following values:
+- **Empty** — It might end up empty; which represent an empty stream.
+- **One Element** — It can represent a stream with just one value.
+- **Multiple or Infinite Elements** — It can even represent a stream that _never ends_
+
+```scala mdoc:silent:nest
+import zio.stream.ZStream
+val oneIntValue    : ZStream[Any, Nothing, Int]       = ZStream.succeed(4)
+val oneListValue   : ZStream[Any, Nothing, List[Int]] = ZStream.succeed(List(1, 2, 3))
+val infiniteInValue: ZStream[Any, Nothing, Int]       = ZStream.repeat(5)
+val emptyStream    : ZStream[Any, Nothing, Nothing]   = ZStream.empty
+```
 
 ## Creating a Stream
 
