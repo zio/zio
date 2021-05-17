@@ -58,7 +58,7 @@ addCommandAlias(
 )
 addCommandAlias(
   "testJSDotty",
-  ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/test;testRefinedJS/test;examplesJS/test:compile"
+  ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/test;testMagnoliaTestsJS/test;testRefinedJS/test;testRunnerJS/test:run;examplesJS/test:compile"
 )
 addCommandAlias(
   "testJVM211",
@@ -316,6 +316,7 @@ lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform)
 lazy val testMagnoliaJVM = testMagnolia.jvm
   .settings(dottySettings)
 lazy val testMagnoliaJS = testMagnolia.js
+  .settings(dottySettings)
 
 lazy val testMagnoliaTests = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-magnolia-tests"))
@@ -332,6 +333,7 @@ lazy val testMagnoliaTests = crossProject(JVMPlatform, JSPlatform)
 lazy val testMagnoliaTestsJVM = testMagnoliaTests.jvm
   .settings(dottySettings)
 lazy val testMagnoliaTestsJS = testMagnoliaTests.js
+  .settings(dottySettings)
 
 lazy val testRefined = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-refined"))
@@ -381,6 +383,7 @@ lazy val testRunnerJVM = testRunner.jvm
   .settings(dottySettings)
   .settings(libraryDependencies ++= Seq("org.scala-sbt" % "test-interface" % "1.0"))
 lazy val testRunnerJS = testRunner.js
+  .settings(dottySettings)
   .settings(
     libraryDependencies ++= Seq(
       ("org.scala-js" %% "scalajs-test-interface" % scalaJSVersion).cross(CrossVersion.for3Use2_13)
