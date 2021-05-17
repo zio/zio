@@ -31,7 +31,15 @@ object Assertions {
     Arrow
       .make[Iterable[A], Boolean] { as =>
         Trace.boolean(as.isEmpty) {
-          className(as) + M.was + "empty"
+          className(as) + M.was + "empty" + M.text(s"(size ${as.size})")
+        }
+      }
+
+  def isNonEmptyIterable[A]: Arrow[Iterable[A], Boolean] =
+    Arrow
+      .make[Iterable[A], Boolean] { as =>
+        Trace.boolean(as.nonEmpty) {
+          className(as) + M.choice("was not", "was") + "empty"
         }
       }
 
@@ -43,11 +51,27 @@ object Assertions {
         }
       }
 
+  def isDefinedOption[A]: Arrow[Option[A], Boolean] =
+    Arrow
+      .make[Option[A], Boolean] { option =>
+        Trace.boolean(option.isDefined) {
+          className(option) + M.was + "defined"
+        }
+      }
+
   def containsOption[A](value: A): Arrow[Option[A], Boolean] =
     Arrow
       .make[Option[A], Boolean] { option =>
         Trace.boolean(option.contains(value)) {
           className(option) + M.did + "contain" + M.value(value)
+        }
+      }
+
+  def containsString(value: String): Arrow[String, Boolean] =
+    Arrow
+      .make[String, Boolean] { str =>
+        Trace.boolean(str.contains(value)) {
+          M.value(str) + M.did + "contain" + M.value(value)
         }
       }
 
@@ -60,6 +84,16 @@ object Assertions {
             Trace.halt(
               M.text("Invalid index") + M.value(index) + "for" + className(as) + "of size" + M.value(as.length)
             )
+        }
+      }
+
+  def head[A]: Arrow[Iterable[A], A] =
+    Arrow
+      .make[Iterable[A], A] { as =>
+        as.headOption match {
+          case Some(value) => Trace.succeed(value)
+          case None =>
+            Trace.halt(className(as) + "was empty")
         }
       }
 

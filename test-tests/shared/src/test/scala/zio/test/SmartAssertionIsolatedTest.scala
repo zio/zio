@@ -44,31 +44,9 @@ object SmartAssertionIsolatedTest extends ZIOBaseSpec {
 
   val someColor: Color = Red("hello")
 
-  val nice = _root_.zio.test.Assert(
-    _root_.zio.test.Arrow
-      .succeed(someColor)
-      .span(scala.Tuple2(0, 9))
-      .$greater$greater$greater(
-        _root_.zio.test.Assertions
-          .as[zio.test.SmartTestTypes.Color, zio.test.SmartTestTypes.Blue]
-          .span(scala.Tuple2(9, 28))
-      )
-      .$greater$greater$greater(
-        _root_.zio.test.Arrow
-          .fromFunction(((a: zio.test.SmartTestTypes.Blue) => a.brightness))
-          .span(scala.Tuple2(28, 39))
-      )
-      .$greater$greater$greater(_root_.zio.test.Assertions.greaterThan[Int](33).span(scala.Tuple2(39, 44)))
-      .withCode("someColor.asInstanceOf[Blue].brightness > 33")
-      .withLocation(
-        "/Users/kit/code/open-source/zio/test-tests/shared/src/test/scala/zio/test/SmartAssertionIsolatedTest.scala:48"
-      )
-  )
-
   def spec: ZSpec[Annotations, Any] = suite("SmartAssertionSpec")(
     test("asInstanceOf") {
-//      assert(someColor.asInstanceOf[Blue].brightness > 33)
-      nice
+      assert(Array(1, 8, 2, 3, 888).head == 123)
     }
   ) @@ TestAspect.identity
 

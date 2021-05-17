@@ -122,12 +122,18 @@ object FailureCase {
       case FailureCase(errorMessage, _, _, _, _, nested, _) if errorMessage == "*AND*" =>
         nested.flatMap(renderFailureCase).map("  " + _)
       case FailureCase(errorMessage, codeString, location, path, _, nested, _) =>
-        val errorMessageLines = Chunk.fromIterable(errorMessage.split("\n")).map(red("› ") + _)
+        val errorMessageLines =
+          Chunk.fromIterable(errorMessage.split("\n")) match {
+            case head +: tail =>
+              (red("◘ ") + head) +: tail.map("  " + _)
+            case _ => Chunk.empty
+          }
 
         val lines: Chunk[String] =
           errorMessageLines ++ Chunk(codeString) ++ nested.flatMap(renderFailureCase).map("  " + _) ++
             Chunk.fromIterable(path.map { case (label, value) => dim(s"$label = ") + blue(Pretty(value)) }) ++
             Chunk(cyan(s"☛ $location")) ++ Chunk("")
+
         lines
     }
 }
@@ -152,6 +158,8 @@ object Pretty {
         )
         '"' + replaceMap.foldLeft(s) { case (acc, (c, r)) => acc.replace(c, r) } + '"'
       case xs: Seq[_] => xs.map(apply).toString()
+      case array: Array[_] =>
+        "Array" + array.toList.map(apply).toString.dropWhile(_ != '(')
       case p: Product =>
         val prefix = p.productPrefix
         // We'll use reflection to get the constructor arg names and values.

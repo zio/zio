@@ -305,11 +305,15 @@ $Assert($ast.withCode($codeString).withLocation($locationString))
       greaterThanOrEqualTo,
       lessThan,
       lessThanOrEqualTo,
+      head,
       hasAt,
       isEmptyIterable,
+      isNonEmptyIterable,
       isEmptyOption,
+      isDefinedOption,
       containsIterable,
       containsOption,
+      containsString,
       asSome,
       asRight,
       rightGet,
@@ -358,6 +362,12 @@ $Assert($ast.withCode($codeString).withLocation($locationString))
         AssertAST("lessThanOrEqualTo", List(lhsTpe), args)
       }
 
+    lazy val head =
+      ASTConverter.make {
+        case AST.Method(_, lhsTpe, _, "head", _, _, _) if lhsTpe <:< weakTypeOf[Iterable[_]] =>
+          AssertAST("head")
+      }
+
     lazy val hasAt =
       ASTConverter.make {
         case AST.Method(_, lhsTpe, _, "apply", _, args, _) if lhsTpe <:< weakTypeOf[Seq[_]] =>
@@ -370,10 +380,22 @@ $Assert($ast.withCode($codeString).withLocation($locationString))
           AssertAST("isEmptyIterable")
       }
 
+    lazy val isNonEmptyIterable =
+      ASTConverter.make {
+        case AST.Method(_, lhsTpe, _, "nonEmpty", _, _, _) if lhsTpe <:< weakTypeOf[Iterable[_]] =>
+          AssertAST("isNonEmptyIterable")
+      }
+
     lazy val isEmptyOption =
       ASTConverter.make {
         case AST.Method(_, lhsTpe, _, "isEmpty", _, _, _) if lhsTpe <:< weakTypeOf[Option[_]] =>
           AssertAST("isEmptyOption")
+      }
+
+    lazy val isDefinedOption =
+      ASTConverter.make {
+        case AST.Method(_, lhsTpe, _, "isDefined", _, _, _) if lhsTpe <:< weakTypeOf[Option[_]] =>
+          AssertAST("isDefinedOption")
       }
 
     lazy val containsIterable =
@@ -386,6 +408,12 @@ $Assert($ast.withCode($codeString).withLocation($locationString))
       ASTConverter.make {
         case AST.Method(_, lhsTpe, _, "contains", _, args, _) if lhsTpe <:< weakTypeOf[Option[_]] =>
           AssertAST("containsOption", args = args)
+      }
+
+    lazy val containsString =
+      ASTConverter.make {
+        case AST.Method(_, lhsTpe, _, "contains", _, args, _) if lhsTpe <:< weakTypeOf[String] =>
+          AssertAST("containsString", args = args)
       }
 
     // Option

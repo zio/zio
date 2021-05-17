@@ -34,14 +34,14 @@ object SmartAssertionSpec extends ZIOBaseSpec {
   val company: Company = Company("Ziverge", List(User("Bobo", List.tabulate(2)(n => Post(s"Post #$n")))))
 
   def spec: ZSpec[Environment, Failure] = suite("SmartAssertionSpec")(
-    test("OH") {
+    test("Head") {
       assert(!(Array(1, 8, 2, 3, 888)(0) == 1))
     },
     test("missing element") {
       assert(company.users(8).posts.exists(_.title == "hi"))
     },
     test("fails predicate") {
-      assert(company.users.head.posts.exists(_.title == "hi"))
+      assert(company.users.head.posts.exists(_.title == "hii"))
     },
     test("nested access") {
       val company = Company("Cool Company", List.empty)
@@ -60,7 +60,7 @@ object SmartAssertionSpec extends ZIOBaseSpec {
     },
     test("string contains") {
       val myString = "something"
-      assert(myString.contains("aoseunoth"))
+      assert(myString.contains("aoseunoth") && myString == "cool")
     },
     suite("referencing literals")(
       test("List") {
@@ -91,15 +91,17 @@ object SmartAssertionSpec extends ZIOBaseSpec {
         assert(myEither.toOption.get + 1 > 11238)
       }
     ),
-    suite("helpers")(
-      test("as") {
-        val someColor: Color = Red("hello")
-        assert(someColor.$as[Red].name == "cool")
-      },
-      test("as") {
-        val someColor: Color = Red("hello")
-        assert(someColor.$as[Blue].brightness > 38)
-      },
+    suite("Helpers")(
+      suite("$as")(
+        test("success") {
+          val someColor: Color = Red("hello")
+          assert(someColor.$as[Red].name == "cool")
+        },
+        test("fail") {
+          val someColor: Color = Red("hello")
+          assert(someColor.$as[Blue].brightness > 38)
+        }
+      ),
       test("asInstanceOf") {
         val someColor: Color = Red("hello")
         case class Bomb(name: String) {
