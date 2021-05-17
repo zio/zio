@@ -2593,8 +2593,8 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     foreach(_ => ZIO.unit)
 
   /**
-   * Runs the stream to completion and yields the first value emitted by it,
-   * discarding the rest of the elements.
+   * Runs the stream to collect the first value emitted by it without running
+   * the rest of the stream.
    */
   def runHead: ZIO[R, E, Option[O]] =
     run(ZSink.head)
