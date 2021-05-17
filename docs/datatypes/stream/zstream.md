@@ -75,7 +75,7 @@ val range: ZStream[Any, Nothing, Int] = ZStream.range(1, 5) // 1, 2, 3, 4
 
 Similar to `ZIO` data type, we can create a `ZStream` using `fail` and `succeed` methods:
 
-```scala mdoc:nest
+```scala mdoc:silent:nest
 val s1: ZStream[Any, String, Nothing] = ZStream.fail("Uh oh!")
 val s2: ZStream[Any, Nothing, Int]    = ZStream.succeed(5)
 ```
@@ -90,7 +90,33 @@ val stream: ZStream[Any, Throwable, Int] = ZStream.fromIterator(Iterator(1, 2, 3
 
 ### From Repetition
 
+**ZStream.repeat** — Repeats the provided value infinitely:
 
+```scala mdoc:silent:nest
+val repeatZero: ZStream[Any, Nothing, Int] = ZStream.repeat(0)
+```
+
+**ZStream.repeatWith** — This is another variant of `repeat`, which repeats according to the provided schedule. For example, the following stream produce zero value every second:
+
+```scala mdoc:silent:nest
+import zio.clock._
+import zio.duration._
+import zio.random._
+import zio.Schedule
+val repeatZeroEverySecond: ZStream[Clock, Nothing, Int] = 
+  ZStream.repeatWith(0, Schedule.spaced(1.seconds))
+```
+
+**ZStream.repeatEffect** — Assume we have an effectful API, and we need to call that API and create a stream from the result of that. We can create a stream from that effect that repeats forever.
+
+Let's see an example of creating a stream of random numbers:
+
+```scala mdoc:silent:nest
+val randomInts: ZStream[Random, Nothing, Int] =
+  ZStream.repeatEffect(zio.random.nextInt)
+```
+
+There are some other variant of repetition API like `repeatEffectWith`, `repeatEffectOption`, `repeatEffectChunk` and `repeatEffectChunkOption`.
 
 ## Transforming a Stream
 
