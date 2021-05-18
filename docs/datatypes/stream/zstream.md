@@ -7,8 +7,11 @@ A `ZStream[R, E, O]` is a description of a program that, when evaluated, may emi
 
 One way to think of `ZStream` is as a `ZIO` program that could emit multiple values. As we know, a `ZIO[R, E, A]` data type, is a functional effect which is a description of a program that needs an environment of type `R`, it may end with an error of type `E`, and in case of success, it returns a value of type `A`. The important note about `ZIO` effects is that in the case of success they always end with exactly one value. There is no optionality here, no multiple infinite values, we always get exact value:
 
+```scala mdoc:invisible
+import zio.{ZIO, Task, ZManaged}
+```
+
 ```scala mdoc:silent:nest
-import zio.ZIO
 val failedEffect: ZIO[Any, String, Nothing]       = ZIO.fail("fail!")
 val oneIntValue : ZIO[Any, Nothing, Int]          = ZIO.succeed(3)
 val oneListValue: ZIO[Any, Nothing, List[Int]]    = ZIO.succeed(List(1, 2, 3))
@@ -82,11 +85,47 @@ val s2: ZStream[Any, Nothing, Int]    = ZStream.succeed(5)
 
 ### From Iterators
 
-`Iterators` are data structures that allow us to iterate over a sequence of elements. Similarly, we can think of ZIO Streams as effectual Iterators; every `ZStream` represents a collection of one or more, but effectful values. We can convert any Iterator to `ZStream` by using `ZStream.fromIterator`:
+Iterators are data structures that allow us to iterate over a sequence of elements. Similarly, we can think of ZIO Streams as effectual Iterators; every `ZStream` represents a collection of one or more, but effectful values. 
+
+**ZStream.fromIteratorTotal** — We can convert an iterator that does not throw exception to `ZStream` by using `ZStream.fromIteratorTotal`:
 
 ```scala mdoc:silent:nest
 val stream: ZStream[Any, Throwable, Int] = ZStream.fromIterator(Iterator(1, 2, 3))
 ```
+
+Also, there is another constructor called **`ZStream.fromIterator`** that creates a stream from an iterator which may throw an exception.
+
+**ZStream.fromIteratorEffect** — If we have an effectful Iterator that may throw Exception, we can use `fromIteratorEffect` to convert that to the ZIO Stream:
+
+```scala mdoc:silent:nest
+import scala.io.Source
+val lines: ZStream[Any, Throwable, String] = 
+  ZStream.fromIteratorEffect(Task(Source.fromFile("file.txt").getLines()))
+```
+
+Using this method is not good for resourceful effects like above, so it's better to rewrite that using `ZStream.fromIteratorManaged` function.
+
+**ZStream.fromIteratorManaged** — Using this constructor we can convert a managed iterator to ZIO Stream:
+
+```scala mdoc:silent:nest
+val lines: ZStream[Any, Throwable, String] = 
+  ZStream.fromIteratorManaged(
+    ZManaged.fromAutoCloseable(
+      Task(scala.io.Source.fromFile("file.txt"))
+    ).map(_.getLines())
+  )
+```
+
+**ZStream.fromJavaIterator** — It is the Java version of these constructors which create a stream from Java iterator that may throw an exception. We can convert any Java collection to an iterator and then lift them to the ZIO Stream.
+
+For example, to convert the Java Stream to the ZIO Stream, `ZStream` has a `fromJavaStream` constructor which convert the Java Stream to the Java Iterator and then convert that to the ZIO Stream using `ZStream.fromJavaIterator` constructor:
+
+```scala mdoc:silent:nest
+def fromJavaStream[R, A](stream: => java.util.stream.Stream[A]): ZStream[R, Throwable, A] =
+  ZStream.fromJavaIterator(stream.iterator())
+```
+
+Similarly, `ZStream` has `ZStream.fromJavaIteratorTotal`, `ZStream.fromJavaIteratorEffect` and `ZStream.fromJavaIteratorManaged` constructors.
 
 ### From Iterables
 
