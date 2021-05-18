@@ -819,6 +819,20 @@ object ZStreamSpec extends ZIOBaseSpec {
         //         }
         //       }
         //     ),
+        suite("defaultIfEmpty")(
+          testM("produce default value if stream is empty")(
+            assertM(ZStream().defaultIfEmpty(0).runCollect)(equalTo(Chunk(0)))
+          ),
+          testM("consume default stream if stream is empty")(
+            assertM(ZStream().defaultIfEmpty(ZStream.range(0, 5)).runCollect)(equalTo(Chunk(0, 1, 2, 3, 4)))
+          ),
+          testM("ignore default value when stream is not empty")(
+            assertM(ZStream(1).defaultIfEmpty(0).runCollect)(equalTo(Chunk(1)))
+          ),
+          testM("should throw correct error from default stream")(
+            assertM(ZStream().defaultIfEmpty(ZStream.fail("Ouch")).runCollect.either)(isLeft(equalTo("Ouch")))
+          )
+        ),
         suite("drain")(
           testM("drain")(
             for {
