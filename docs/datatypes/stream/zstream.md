@@ -247,6 +247,43 @@ val inputs: ZStream[Console, IOException, String] = ZStream.unfoldM(()) { _ =>
 
 `ZStream.unfoldChunk`, and `ZStream.unfoldChunkM` are other variants of `unfold` operations but for `Chunk` data type.
 
+### From Java IO
+
+**ZStream.fromFile** — Create ZIO Stream from a file:
+
+```scala mdoc:silent:nest
+val file: ZStream[Blocking, Throwable, Byte] = 
+  ZStream.fromFile(Path.of("file.txt"))
+```
+
+**ZStream.fromInputStream** — Creates a stream from a `java.io.InputStream`:
+
+```scala mdoc:silent:nest
+val stream: ZStream[Blocking, IOException, Byte] = 
+  ZStream.fromInputStream(new FileInputStream("file.txt"))
+```
+
+Note that the InputStream will not be explicitly closed after it is exhausted. Use `ZStream.fromInputStreamManaged` instead.
+
+**ZStream.fromInputStreamManaged** — Creates a stream from a managed `java.io.InputStream` value:
+
+```scala mdoc:silent:nest
+val managed: ZManaged[Any, IOException, FileInputStream] =
+  ZManaged.fromAutoCloseable(
+    ZIO.effect(new FileInputStream("file.txt"))
+  ).refineToOrDie[IOException]
+
+val stream: ZStream[Blocking, IOException, Byte] = 
+  ZStream.fromInputStreamManaged(managed)
+```
+
+**ZStream.fromReader** — Creates a stream from a `java.io.Reader`:
+
+```scala mdoc:silent:nest
+val stream: ZStream[Blocking, IOException, Char] = 
+   ZStream.fromReader(new FileReader("file.txt"))
+```
+
 ## Transforming a Stream
 
 ZIO Stream supports many standard transforming functions like `map`, `partition`, `grouped`, `groupByKey`, `groupedWithin`
