@@ -9,6 +9,8 @@ One way to think of `ZStream` is as a `ZIO` program that could emit multiple val
 
 ```scala mdoc:invisible
 import zio.{ZIO, Task, ZManaged}
+import zio.blocking.Blocking
+import java.io.{FileReader, FileInputStream}
 ```
 
 ```scala mdoc:silent:nest
@@ -252,8 +254,9 @@ val inputs: ZStream[Console, IOException, String] = ZStream.unfoldM(()) { _ =>
 **ZStream.fromFile** — Create ZIO Stream from a file:
 
 ```scala mdoc:silent:nest
+import java.nio.file.Paths
 val file: ZStream[Blocking, Throwable, Byte] = 
-  ZStream.fromFile(Path.of("file.txt"))
+  ZStream.fromFile(Paths.get("file.txt"))
 ```
 
 **ZStream.fromInputStream** — Creates a stream from a `java.io.InputStream`:
