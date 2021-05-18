@@ -118,6 +118,42 @@ val randomInts: ZStream[Random, Nothing, Int] =
 
 There are some other variant of repetition API like `repeatEffectWith`, `repeatEffectOption`, `repeatEffectChunk` and `repeatEffectChunkOption`.
 
+### From Unfolding
+
+In functional programming, `unfold` is dual to `fold`. 
+
+With `fold` we can process a data structure and build a return value. For example, we can process a `List[Int]` and return the sum of all its elements. 
+
+The `unfold` represents an operation that takes an initial value and generates a recursive data structure, one-piece element at a time by using a given state function. For example, we can create a natural number by using `one` as the initial element and the `inc` function as the state function.
+
+`ZStream` has `unfold` function, which is defined as follows:
+
+```scala
+object ZStream {
+  def unfold[S, A](s: S)(f: S => Option[(A, S)]): ZStream[Any, Nothing, A] = ???
+}
+```
+
+- **s** — An initial state value
+- **f** — A state function `f` that will be applied to the initial state `s`. If the result of this application is `None` the stream will end, otherwise the result is `Some`, so the next element in the stream would be `A` and the current state of transformation changed to the new `S`, this new state is the basis of the next unfold process.
+
+For example, we can a stream of natural numbers using `ZStream.unfold`:
+
+```scala mdoc:silent
+val nats: ZStream[Any, Nothing, Int] = ZStream.unfold(0)(n => Some((n, n + 1)))
+```
+
+We can write `countdown` function using `unfold`:
+
+```scala mdoc:silent
+def countdown(n: Int) = ZStream.unfold(n) {
+  case 0 => None
+  case s => Some((s, s - 1))
+}
+```
+
+Running this function with an input value of 3 returns a `ZStream` which contains 3, 2, 1 values.
+
 ## Transforming a Stream
 
 ZIO Stream supports many standard transforming functions like `map`, `partition`, `grouped`, `groupByKey`, `groupedWithin`
