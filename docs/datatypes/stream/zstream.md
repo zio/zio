@@ -237,10 +237,10 @@ Let's write a stream of lines of input from a user until the user enters the `ex
 ```scala mdoc:silent
 import java.io.IOException
 import zio.console.Console
-val inputs: ZStream[Console, IOException, String] = ZStream.unfoldM(None) { _ =>
+val inputs: ZStream[Console, IOException, String] = ZStream.unfoldM(()) { _ =>
   zio.console.getStrLn.map {
     case "exit"  => None
-    case i => Some((i, None))
+    case i => Some((i, ()))
   } 
 }   
 ```
