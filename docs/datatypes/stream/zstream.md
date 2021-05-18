@@ -126,7 +126,7 @@ With `fold` we can process a data structure and build a return value. For exampl
 
 The `unfold` represents an operation that takes an initial value and generates a recursive data structure, one-piece element at a time by using a given state function. For example, we can create a natural number by using `one` as the initial element and the `inc` function as the state function.
 
-`ZStream` has `unfold` function, which is defined as follows:
+**ZStream.unfold** — `ZStream` has `unfold` function, which is defined as follows:
 
 ```scala
 object ZStream {
@@ -153,6 +153,23 @@ def countdown(n: Int) = ZStream.unfold(n) {
 ```
 
 Running this function with an input value of 3 returns a `ZStream` which contains 3, 2, 1 values.
+
+**ZStream.unfoldM** — `unfoldM` is an effectful version of `unfold`. It helps us to perform _effectful state transformation_ when doing unfold operation.
+
+Let's write a stream of lines of input from a user until the user enters the `exit` command:
+
+```scala mdoc:silent
+import java.io.IOException
+import zio.console.Console
+val inputs: ZStream[Console, IOException, String] = ZStream.unfoldM(None) { _ =>
+  zio.console.getStrLn.map {
+    case "exit"  => None
+    case i => Some((i, None))
+  } 
+}   
+```
+
+`ZStream.unfoldChunk`, and `ZStream.unfoldChunkM` are other variants of `unfold` operations but for `Chunk` data type.
 
 ## Transforming a Stream
 
