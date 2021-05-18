@@ -378,6 +378,37 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
   }
 
   /**
+   * Returns the first element that satisfies the effectful predicate.
+   */
+  final def findM[R, E](f: A => ZIO[R, E, Boolean]): ZIO[R, E, Option[A]] = {
+    val iterator = arrayIterator
+
+    def loop(iterator: Iterator[Array[A]], array: Array[A], i: Int, length: Int): ZIO[R, E, Option[A]] =
+      if (i < length) {
+        val a = array(i)
+
+        f(a).flatMap {
+          if (_) ZIO.succeedNow(Some(a))
+          else loop(iterator, array, i + 1, length)
+        }
+      } else if (iterator.hasNext) {
+        val array  = iterator.next()
+        val length = array.length
+        loop(iterator, array, 0, length)
+      } else {
+        ZIO.succeedNow(None)
+      }
+
+    if (iterator.hasNext) {
+      val array  = iterator.next()
+      val length = array.length
+      loop(iterator, array, 0, length)
+    } else {
+      ZIO.succeedNow(None)
+    }
+  }
+
+  /**
    * Flattens a chunk of chunks into a single chunk by concatenating all chunks.
    */
   final def flatten[B](implicit ev: A <:< Chunk[B]): Chunk[B] =
