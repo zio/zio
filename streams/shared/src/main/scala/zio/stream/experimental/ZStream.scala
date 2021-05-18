@@ -3,7 +3,7 @@ package zio.stream.experimental
 import zio._
 import zio.internal.{Executor, SingleThreadedRingBuffer, UniqueKey}
 import zio.stm._
-import zio.stream.experimental.ZStream.{BufferedPull, DebounceState, HandoffSignal}
+import zio.stream.experimental.ZStream.{DebounceState, HandoffSignal}
 import zio.stream.experimental.internal.Utils.zipChunks
 import zio.stream.internal.{ZInputStream, ZReader}
 
@@ -606,13 +606,35 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def combine[R1 <: R, E1 >: E, S, A2, A3](that: ZStream[R1, E1, A2])(s: S)(
     f: (S, ZIO[R, Option[E], A], ZIO[R1, Option[E1], A2]) => ZIO[R1, Nothing, Exit[Option[E1], (A3, S)]]
-  ): ZStream[R1, E1, A3] =
-    ZStream.unwrapManaged {
-      for {
-        left  <- self.toPull.mapM(BufferedPull.make[R, E, A](_)) // type annotation required for Dotty
-        right <- that.toPull.mapM(BufferedPull.make[R1, E1, A2](_))
-      } yield ZStream.unfoldM(s)(s => f(s, left.pullElement, right.pullElement).flatMap(ZIO.done(_).optional))
-    }
+  ): ZStream[R1, E1, A3] = {
+    def producer[Err, Elem](
+      handoff: ZStream.Handoff[Exit[Option[Err], Elem]],
+      latch: ZStream.Handoff[Unit]
+    ): ZChannel[R1, Err, Elem, Any, Nothing, Nothing, Any] =
+      ZChannel.fromEffect(latch.take) *>
+        ZChannel.readWithCause[R1, Err, Elem, Any, Nothing, Nothing, Any](
+          value => ZChannel.fromEffect(handoff.offer(Exit.succeed(value))) *> producer(handoff, latch),
+          cause => ZChannel.fromEffect(handoff.offer(Exit.halt(cause.map(Some(_))))),
+          _ => ZChannel.fromEffect(handoff.offer(Exit.fail(None))) *> producer(handoff, latch)
+        )
+
+    new ZStream(
+      ZChannel.managed {
+        for {
+          left   <- ZStream.Handoff.make[Exit[Option[E], A]].toManaged_
+          right  <- ZStream.Handoff.make[Exit[Option[E1], A2]].toManaged_
+          latchL <- ZStream.Handoff.make[Unit].toManaged_
+          latchR <- ZStream.Handoff.make[Unit].toManaged_
+          _      <- (self.channel.concatMap(ZChannel.writeChunk(_)) >>> producer(left, latchL)).runManaged.fork
+          _      <- (that.channel.concatMap(ZChannel.writeChunk(_)) >>> producer(right, latchR)).runManaged.fork
+        } yield (left, right, latchL, latchR)
+      } { case (left, right, latchL, latchR) =>
+        val pullLeft: IO[Option[E], A]    = latchL.offer(()) *> left.take.flatMap(ZIO.done(_))
+        val pullRight: IO[Option[E1], A2] = latchR.offer(()) *> right.take.flatMap(ZIO.done(_))
+        ZStream.unfoldM(s)(s => f(s, pullLeft, pullRight).flatMap(ZIO.done(_).optional)).channel
+      }
+    )
+  }
 
   /**
    * Combines the chunks from this stream and the specified stream by repeatedly applying the
@@ -626,13 +648,35 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
       ZIO[R, Option[E], Chunk[A]],
       ZIO[R1, Option[E1], Chunk[A2]]
     ) => ZIO[R1, Nothing, Exit[Option[E1], (Chunk[A3], S)]]
-  ): ZStream[R1, E1, A3] =
-    ZStream.unwrapManaged {
-      for {
-        pullLeft  <- self.toPull
-        pullRight <- that.toPull
-      } yield ZStream.unfoldChunkM(s)(s => f(s, pullLeft, pullRight).flatMap(ZIO.done(_).optional))
-    }
+  ): ZStream[R1, E1, A3] = {
+    def producer[Err, Elem](
+      handoff: ZStream.Handoff[Take[Err, Elem]],
+      latch: ZStream.Handoff[Unit]
+    ): ZChannel[R1, Err, Chunk[Elem], Any, Nothing, Nothing, Any] =
+      ZChannel.fromEffect(latch.take) *>
+        ZChannel.readWithCause[R1, Err, Chunk[Elem], Any, Nothing, Nothing, Any](
+          chunk => ZChannel.fromEffect(handoff.offer(Take.chunk(chunk))) *> producer(handoff, latch),
+          cause => ZChannel.fromEffect(handoff.offer(Take.halt(cause))),
+          _ => ZChannel.fromEffect(handoff.offer(Take.end)) *> producer(handoff, latch)
+        )
+
+    new ZStream(
+      ZChannel.managed {
+        for {
+          left   <- ZStream.Handoff.make[Take[E, A]].toManaged_
+          right  <- ZStream.Handoff.make[Take[E1, A2]].toManaged_
+          latchL <- ZStream.Handoff.make[Unit].toManaged_
+          latchR <- ZStream.Handoff.make[Unit].toManaged_
+          _      <- (self.channel >>> producer(left, latchL)).runManaged.fork
+          _      <- (that.channel >>> producer(right, latchR)).runManaged.fork
+        } yield (left, right, latchL, latchR)
+      } { case (left, right, latchL, latchR) =>
+        val pullLeft  = latchL.offer(()) *> left.take.flatMap(_.done)
+        val pullRight = latchR.offer(()) *> right.take.flatMap(_.done)
+        ZStream.unfoldChunkM(s)(s => f(s, pullLeft, pullRight).flatMap(ZIO.done(_).optional)).channel
+      }
+    )
+  }
 
   /**
    * Concatenates the specified stream with this stream, resulting in a stream
