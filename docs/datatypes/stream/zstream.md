@@ -312,6 +312,17 @@ val stream: ZStream[Blocking, IOException, Char] =
 
 ZIO Stream also has `ZStream.fromReaderEffect` and `ZStream.fromReaderManaged` variants.
 
+### From Java Stream
+
+We can use `ZStream.fromJavaStreamTotal` to convert a Java Stream to ZIO Stream:
+
+```scala mdoc:silent:nest
+val stream: ZStream[Any, Throwable, Int] = 
+  ZStream.fromJavaStream(java.util.stream.Stream.of(1, 2, 3))
+```
+
+ZIO Stream also has `ZStream.fromJavaStream`, `ZStream.fromJavaStreamEffect` and `ZStream.fromJavaStreamManaged` variants.
+
 ## Transforming a Stream
 
 ZIO Stream supports many standard transforming functions like `map`, `partition`, `grouped`, `groupByKey`, `groupedWithin`
