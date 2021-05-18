@@ -88,6 +88,41 @@ val s2: ZStream[Any, Nothing, Int]    = ZStream.succeed(5)
 val stream: ZStream[Any, Throwable, Int] = ZStream.fromIterator(Iterator(1, 2, 3))
 ```
 
+### From Iterables
+
+**ZStream.fromIterable** — We can create a stream from `Iterable` collection of values:
+
+```scala mdoc:silent
+val list = ZStream.fromIterable(List(1, 2, 3))
+```
+
+**ZStream.fromIterableM** — If we have an effect producing a value of type `Iterable` we can use `fromIterableM` constructor to create a stream of that effect.
+
+Assume we have a database that returns a list of users using `Task`:
+
+```scala mdoc:invisible
+import zio._
+case class User(name: String)
+```
+
+```scala mdoc:silent:nest
+trait Database {
+  def getUsers: Task[List[User]]
+}
+
+object Database {
+  def getUsers: ZIO[Has[Database], Throwable, List[User]] = 
+    ZIO.serviceWith[Database](_.getUsers)
+}
+```
+
+As this operation is effectful, we can use `ZStream.fromIterableM` to convert the result to the `ZStream`:
+
+```scala mdoc:silent:nest
+val users: ZStream[Has[Database], Throwable, User] = 
+  ZStream.fromIterableM(Database.getUsers)
+```
+
 ### From Repetition
 
 **ZStream.repeat** — Repeats the provided value infinitely:
