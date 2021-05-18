@@ -194,6 +194,13 @@ val randomInts: ZStream[Random, Nothing, Int] =
   ZStream.repeatEffect(zio.random.nextInt)
 ```
 
+**ZStream.tick** —  A stream that emits Unit values spaced by the specified duration:
+
+```scala mdoc:silent:nest
+val stream: ZStream[Clock, Nothing, Unit] = 
+  ZStream.tick(1.seconds)
+```
+
 There are some other variant of repetition API like `repeatEffectWith`, `repeatEffectOption`, `repeatEffectChunk` and `repeatEffectChunkOption`.
 
 ### From Unfolding
