@@ -68,7 +68,7 @@
 <p>To get current data time in the current timezone the <code>currentDateTime</code> function returns a ZIO effect containing <code>OffsetDateTime</code>.</p>
 <p>Also, the Clock service has a very useful functionality for sleeping and creating a delay between jobs. The <code>sleep</code> takes a <code>Duration</code> and sleep for the specified duration. It is analogous to <code>java.lang.Thread.sleep</code> function, but it doesn't block any underlying thread. It's completely non-blocking.</p>
 <p>In following example we are going to print the current time periodically by placing a one second<code>sleep</code> between each print call:</p>
-<pre><code class="hljs css language-scala"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">printTimeForever</span></span>: <span class="hljs-type">ZIO</span>[<span class="hljs-type">Console</span> <span class="hljs-keyword">with</span> <span class="hljs-type">Clock</span>, <span class="hljs-type">DateTimeException</span>, <span class="hljs-type">Nothing</span>] =
+<pre><code class="hljs css language-scala"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">printTimeForever</span></span>: <span class="hljs-type">ZIO</span>[<span class="hljs-type">Console</span> <span class="hljs-keyword">with</span> <span class="hljs-type">Clock</span>, <span class="hljs-type">Throwable</span>, <span class="hljs-type">Nothing</span>] =
   currentDateTime.flatMap(time =&gt; putStrLn(time.toString)) *&gt;
     sleep(<span class="hljs-number">1.</span>seconds) *&gt; printTimeForever
 </code></pre>

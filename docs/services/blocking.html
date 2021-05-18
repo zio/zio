@@ -67,7 +67,7 @@ blocking operations, such as thread sleeps, synchronous socket/file reads, and s
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> zio.{<span class="hljs-type">ZIO</span>, <span class="hljs-type">URIO</span>}
 <span class="hljs-keyword">import</span> zio.console._
 <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">blockingTask</span></span>(n: <span class="hljs-type">Int</span>): <span class="hljs-type">URIO</span>[<span class="hljs-type">Console</span>, <span class="hljs-type">Unit</span>] =
-  putStrLn(<span class="hljs-string">s"running blocking task number <span class="hljs-subst">$n</span>"</span>) *&gt;
+  putStrLn(<span class="hljs-string">s"running blocking task number <span class="hljs-subst">$n</span>"</span>).orDie *&gt;
     <span class="hljs-type">ZIO</span>.effectTotal(<span class="hljs-type">Thread</span>.sleep(<span class="hljs-number">3000</span>)) *&gt;
     blockingTask(n)
 

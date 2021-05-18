@@ -80,7 +80,7 @@
 <span class="hljs-keyword">import</span> zio.<span class="hljs-type">ZIO</span>
 <span class="hljs-keyword">import</span> zio.console._
 
-<span class="hljs-class"><span class="hljs-keyword">object</span> <span class="hljs-title">MyHeloApp</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">zio</span>.<span class="hljs-title">App</span> </span>{
+<span class="hljs-class"><span class="hljs-keyword">object</span> <span class="hljs-title">MyHelloApp</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">zio</span>.<span class="hljs-title">App</span> </span>{
   <span class="hljs-keyword">val</span> program: <span class="hljs-type">ZIO</span>[<span class="hljs-type">Console</span>, <span class="hljs-type">IOException</span>, <span class="hljs-type">Unit</span>] = <span class="hljs-keyword">for</span> {
     _ &lt;- putStrLn(<span class="hljs-string">"Hello, what is you name?"</span>)
     name &lt;- getStrLn

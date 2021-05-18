@@ -80,7 +80,7 @@ Example: Instead of having a service <code>Random</code> with methods <code>next
 <li><p>Sealed traits that are ADTs (Algebraic data types) should extend <code>Product</code> and <code>Serializable</code>.
 This is done to help the compiler infer types;</p></li>
 <li><p>Regular traits and sealed trait that do not form ADTs should extend <code>Serializable</code> but not <code>Product</code>;</p></li>
-<li><p>Traits should always extend <code>Serializable</code>. (i.e. <code>ZIO</code>).</p></li>
+<li><p>Traits should always extend <code>Serializable</code>. (e.g. <code>ZIO</code>).</p></li>
 </ol>
 <h3><a class="anchor" aria-hidden="true" id="final-and-private-modifiers"></a><a href="#final-and-private-modifiers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Final and private modifiers</h3>
 <ol>
@@ -98,6 +98,7 @@ Typically, it is not good practice to expose constructors and constructor parame
 <li><p>If a class has all its members <code>final</code>, the class should be declared <code>final</code> and <code>final</code> member annotations should be removed except constant expressions;</p></li>
 <li><p>All type annotations should use the least powerful type alias. This means, that, let us say, a <code>ZIO</code> effect that has
 no dependencies but throws an arbitrary error, should be defined as <code>IO</code>.</p></li>
+<li><p>Use <code>def</code> in place of <code>val</code> for an abstract data member to avoid <code>NullPointerException</code> risk.</p></li>
 </ol>
 <h3><a class="anchor" aria-hidden="true" id="understanding-naming-of-parameters-or-values"></a><a href="#understanding-naming-of-parameters-or-values" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Understanding naming of parameters or values</h3>
 <p>ZIO code often uses the following naming conventions, and you might be asked to change method parameters to follow these conventions. This guide can help you understand where the names come from.
