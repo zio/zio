@@ -3680,6 +3680,14 @@ object ZStreamSpec extends ZIOBaseSpec {
         testM("range") {
           assertM(ZStream.range(0, 10).runCollect)(equalTo(Chunk.fromIterable(Range(0, 10))))
         },
+        testM("repeat")(
+          assertM(
+            ZStream
+              .repeat(1)
+              .take(5)
+              .runCollect
+          )(equalTo(Chunk(1, 1, 1, 1, 1)))
+        ),
         testM("repeatEffect")(
           assertM(
             ZStream
