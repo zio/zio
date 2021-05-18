@@ -26,17 +26,17 @@ import java.time._
 trait TimeVariants {
 
   /**
-   * A generator of `java.time.DayOfWeek` values. Doesn't have any shrinking.
+   * A generator of `java.time.DayOfWeek` values. Shrinks toward `DayOfWeek.MONDAY`.
    */
   final def anyDayOfWeek: Gen[Random, DayOfWeek] =
-    Gen.oneOf(
-      Gen.const(DayOfWeek.MONDAY),
-      Gen.const(DayOfWeek.TUESDAY),
-      Gen.const(DayOfWeek.WEDNESDAY),
-      Gen.const(DayOfWeek.THURSDAY),
-      Gen.const(DayOfWeek.FRIDAY),
-      Gen.const(DayOfWeek.SATURDAY),
-      Gen.const(DayOfWeek.SUNDAY)
+    Gen.elements(
+      DayOfWeek.MONDAY,
+      DayOfWeek.TUESDAY,
+      DayOfWeek.WEDNESDAY,
+      DayOfWeek.THURSDAY,
+      DayOfWeek.FRIDAY,
+      DayOfWeek.SATURDAY,
+      DayOfWeek.SUNDAY
     )
 
   /**
@@ -77,22 +77,22 @@ trait TimeVariants {
   final def anyLocalDateTime: Gen[Random, LocalDateTime] = localDateTime(LocalDateTime.MIN, LocalDateTime.MAX)
 
   /**
-   * A generator of `java.time.Month` values. Doesn't have any shrinking.
+   * A generator of `java.time.Month` values. Shrinks toward `Month.JANUARY`.
    */
   final def anyMonth: Gen[Random, Month] =
-    Gen.oneOf(
-      Gen.const(Month.JANUARY),
-      Gen.const(Month.FEBRUARY),
-      Gen.const(Month.MARCH),
-      Gen.const(Month.APRIL),
-      Gen.const(Month.MAY),
-      Gen.const(Month.JUNE),
-      Gen.const(Month.JULY),
-      Gen.const(Month.AUGUST),
-      Gen.const(Month.SEPTEMBER),
-      Gen.const(Month.OCTOBER),
-      Gen.const(Month.NOVEMBER),
-      Gen.const(Month.DECEMBER)
+    Gen.elements(
+      Month.JANUARY,
+      Month.FEBRUARY,
+      Month.MARCH,
+      Month.APRIL,
+      Month.MAY,
+      Month.JUNE,
+      Month.JULY,
+      Month.AUGUST,
+      Month.SEPTEMBER,
+      Month.OCTOBER,
+      Month.NOVEMBER,
+      Month.DECEMBER
     )
 
   /**

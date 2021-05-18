@@ -417,6 +417,9 @@ object GenSpec extends ZIOBaseSpec {
       testM("anyChar shrinks to zero") {
         checkShrink(Gen.anyChar)(0)
       },
+      testM("anyDayOfWeek shrinks to DayOfWeek.MONDAY") {
+        checkShrink(Gen.anyDayOfWeek)(DayOfWeek.MONDAY)
+      },
       testM("anyFiniteDuration shrinks to Duration.Zero") {
         checkShrink(Gen.anyFiniteDuration)(Duration.Zero)
       },
@@ -442,6 +445,9 @@ object GenSpec extends ZIOBaseSpec {
       },
       testM("anyLocalTime shrinks to LocalTime.MIN") {
         checkShrink(Gen.anyLocalTime)(LocalTime.MIN)
+      },
+      testM("anyMonth shrinks to Month.JANUARY") {
+        checkShrink(Gen.anyMonth)(Month.JANUARY)
       },
       testM("anyMonthDay shrinks to MonthDay.of(Month.JANUARY, 1)") {
         checkShrink(Gen.anyMonthDay)(MonthDay.of(Month.JANUARY, 1))
