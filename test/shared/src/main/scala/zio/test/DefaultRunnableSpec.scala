@@ -71,7 +71,7 @@ abstract class DefaultRunnableSpec extends RunnableSpec[TestEnvironment, Any] {
 }
 
 object AssertionSyntax {
-  def assertionError(name: String) =
+  def assertionError(name: String): Nothing =
     throw new Error(s"`$name` may only be called within the body of `assert`")
 
   implicit final class EitherAssertionOps[A, B](private val self: Either[A, B]) extends AnyVal {

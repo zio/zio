@@ -36,7 +36,8 @@ object SmartAssertionSpec extends ZIOBaseSpec {
 
   def spec: ZSpec[Environment, Failure] = suite("SmartAssertionSpec")(
     test("Head") {
-      assert(!(Array(1, 8, 2, 3, 888)(0) == 1))
+      val array = Array(1, 8, 2, 3, 888)
+      assert(!(array(0) == 1))
     },
     test("missing element") {
       assert(company.users(8).posts.exists(_.title == "hi"))
@@ -69,13 +70,15 @@ object SmartAssertionSpec extends ZIOBaseSpec {
     },
     suite("referencing literals")(
       test("List") {
-        assert((List(10, 23, 8, 8) intersect List(23)).head + 31 == 3)
+        val list = List(10, 23, 8, 8)
+        assert((list intersect List(23)).head + 31 == 3)
       },
       test("Case Class") {
         assert(Company("Nice", List.empty).name.contains("aoeu"))
       },
       test("Array") {
-        assert(Array(1, 2, 3, 9, 8).head == 3)
+        val array = Array(1, 2, 3, 9, 8)
+        assert(array.head == 3)
       },
       test("Object constructor") {
         assert(zio.duration.Duration.fromNanos(1000) == zio.duration.Duration.Zero)

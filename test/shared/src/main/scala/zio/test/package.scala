@@ -664,7 +664,7 @@ package object test extends CompileVariants {
         case LensResult(testResult) => LensResult(testResult.map(_.copy(gen = Some(details))))
       }
 
-    def isFailure = self match {
+    def isFailure: Boolean = self match {
       case SmartResult(trace)     => trace.isFailure
       case LensResult(testResult) => testResult.isFailure
     }

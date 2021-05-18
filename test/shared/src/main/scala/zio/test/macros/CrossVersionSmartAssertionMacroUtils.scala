@@ -30,7 +30,7 @@ trait CrossVersionSmartAssertionMacroUtils[Tree, Tpe] {
     def isRight(assertion: Tree): Tree =
       MethodDesc.select(EitherType, "isRight").call.apply((Assertion, List(assertion)))
 
-    val hasIndex =
+    val hasIndex: MethodDesc[(Tree, Seq[Tree])] =
       MethodDesc.select(EitherType, "apply").call
   }
 
