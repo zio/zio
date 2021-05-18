@@ -1883,6 +1883,17 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     self.foldCauseM(new ZIO.TapErrorRefailFn(f), new ZIO.TapFn(g))
 
   /**
+   * Returns an effect that effectfully "peeks" at the result of this effect.
+   * {{{
+   * readFile("data.json").tapEither(result => log(result.fold("Error: " + _, "Success: " + _)))
+   * }}}
+   */
+  final def tapEither[R1 <: R, E1 >: E](f: Either[E, A] => ZIO[R1, E1, Any])(implicit
+    ev: CanFail[E]
+  ): ZIO[R1, E1, A] =
+    self.foldCauseM(new ZIO.TapErrorRefailFn(e => f(Left(e))), new ZIO.TapFn(a => f(Right(a))))
+
+  /**
    * Returns an effect that effectually "peeks" at the cause of the failure of
    * this effect.
    * {{{

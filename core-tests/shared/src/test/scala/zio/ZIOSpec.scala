@@ -3167,6 +3167,30 @@ object ZIOSpec extends ZIOBaseSpec {
           assert(effect)(equalTo(42))
       }
     ),
+    suite("tapEither")(
+      testM("effectually peeks at the failure of this effect") {
+        for {
+          ref <- Ref.make(0)
+          _ <- IO.fail(42)
+                 .tapEither {
+                   case Left(value) => ref.set(value)
+                   case Right(_)    => ref.set(-1)
+                 }
+                 .run
+          effect <- ref.get
+        } yield assert(effect)(equalTo(42))
+      },
+      testM("effectually peeks at the success of this effect") {
+        for {
+          ref <- Ref.make(0)
+          _ <- Task(42).tapEither {
+                 case Left(_)      => ref.set(-1)
+                 case Right(value) => ref.set(value)
+               }.run
+          effect <- ref.get
+        } yield assert(effect)(equalTo(42))
+      }
+    ),
     suite("tapCause")(
       testM("effectually peeks at the cause of the failure of this effect") {
         for {

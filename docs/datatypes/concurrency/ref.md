@@ -117,9 +117,9 @@ def update(f: A => A): IO[E, Unit]
 Assume we have a counter, we can increase its value with the `update` method:
 
 ```scala mdoc:silent:nest
-val counterInital = 0
+val counterInitial = 0
 for {
-  counterRef <- Ref.make(counterInital)
+  counterRef <- Ref.make(counterInitial)
   _          <- counterRef.update(_ + 1)
   value <- counterRef.get
 } yield assert(value == 1)
@@ -309,7 +309,7 @@ object S {
 }
 ```
 
-Let's rock these crocodile boots we found the other day at the market and test our semaphore at the night club, yiihaa:
+Let's rock these crocodile boots we found the other day at the market and test our semaphore at the night club, yee-haw:
 
 ```scala mdoc:silent
 import zio.duration.Duration

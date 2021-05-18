@@ -226,6 +226,51 @@ trait ZStreamPlatformSpecificConstructors {
     }
 
   /**
+   * Creates a stream from an blocking iterator that may throw exceptions.
+   */
+  def fromBlockingIterator[A](iterator: => Iterator[A], maxChunkSize: Int = 1): ZStream[Any, Throwable, A] =
+    ZStream {
+      ZManaged
+        .effect(iterator)
+        .fold(
+          Pull.fail,
+          iterator =>
+            ZIO.effectSuspendTotal {
+              if (maxChunkSize <= 1) {
+                if (iterator.isEmpty) Pull.end
+                else ZIO.effectBlocking(Chunk.single(iterator.next())).asSomeError
+              } else {
+                val builder  = ChunkBuilder.make[A](maxChunkSize)
+                val blocking = ZIO.effectBlocking(builder += iterator.next())
+
+                def go(i: Int): ZIO[Any, Throwable, Unit] =
+                  ZIO.when(i < maxChunkSize && iterator.hasNext)(blocking *> go(i + 1))
+
+                go(0).asSomeError.flatMap { _ =>
+                  val chunk = builder.result()
+                  if (chunk.isEmpty) Pull.end else Pull.emit(chunk)
+                }
+              }
+            }
+        )
+    }
+
+  /**
+   * Creates a stream from an blocking Java iterator that may throw exceptions.
+   */
+  def fromBlockingJavaIterator[A](
+    iter: => java.util.Iterator[A],
+    maxChunkSize: Int = 1
+  ): ZStream[Any, Throwable, A] =
+    fromBlockingIterator(
+      new Iterator[A] {
+        def next(): A        = iter.next
+        def hasNext: Boolean = iter.hasNext
+      },
+      maxChunkSize
+    )
+
+  /**
    * Creates a stream of bytes from a file at the specified path.
    */
   def fromFile(path: => Path, chunkSize: Int = ZStream.DefaultChunkSize): ZStream[Any, Throwable, Byte] =

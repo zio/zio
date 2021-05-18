@@ -48,7 +48,7 @@ jobs:
       fail-fast: false
       matrix:
         java: ['adopt@1.8', 'adopt@1.11']
-        scala: ['2.11.12', '2.12.13', '2.13.5', '3.0.0-RC3']
+        scala: ['2.11.12', '2.12.13', '2.13.5', '3.0.0']
         platform: ['JVM', 'JS', 'Native']
     steps:
     - name: Checkout current branch
@@ -68,9 +68,9 @@ jobs:
     - name: Test 2.12.x and 2.13.x
       if: ${{ !startsWith(matrix.scala, '2.11.') && !startsWith(matrix.scala, '3.0.') && matrix.platform != 'Native' }}
       run: sbt ++${{ matrix.scala }}! test${{ matrix.platform }}
-    - name: Test 3.x (JVM only)
-      if: ${{ startsWith(matrix.scala, '3.0.') && contains(matrix.java, '1.8') && matrix.platform == 'JVM' }}
-      run: sbt ++${{ matrix.scala }}! testJVMDotty
+    - name: Test 3.x
+      if: ${{ startsWith(matrix.scala, '3.0.') && contains(matrix.java, '1.8') && matrix.platform != 'Native' }}
+      run: sbt ++${{ matrix.scala }}! test${{ matrix.platform }}Dotty
     - name: Test native
       if: ${{ !startsWith(matrix.scala, '3.0.') && matrix.platform == 'Native' }}
       run: sbt ++${{ matrix.scala }}! testNative
