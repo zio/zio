@@ -263,7 +263,17 @@ val stream: ZStream[Blocking, IOException, Byte] =
   ZStream.fromInputStream(new FileInputStream("file.txt"))
 ```
 
-Note that the InputStream will not be explicitly closed after it is exhausted. Use `ZStream.fromInputStreamManaged` instead.
+Note that the InputStream will not be explicitly closed after it is exhausted. Use `ZStream.fromInputStreamEffect`, or `ZStream.fromInputStreamManaged` instead.
+
+**ZStream.fromInputStreamEffect** — Creates a stream from a `java.io.InputStream`. Ensures that the InputStream is closed after it is exhausted:
+
+```scala mdoc:silent:nest
+val stream: ZStream[Blocking, IOException, Byte] = 
+  ZStream.fromInputStreamEffect(
+    ZIO.effect(new FileInputStream("file.txt"))
+      .refineToOrDie[IOException]
+  )
+```
 
 **ZStream.fromInputStreamManaged** — Creates a stream from a managed `java.io.InputStream` value:
 
@@ -275,6 +285,12 @@ val managed: ZManaged[Any, IOException, FileInputStream] =
 
 val stream: ZStream[Blocking, IOException, Byte] = 
   ZStream.fromInputStreamManaged(managed)
+```
+
+**ZStream.fromResource** — Create a stream from resource file:
+```scala mdoc:silent:nest
+val stream: ZStream[Blocking, IOException, Byte] =
+  ZStream.fromResource("file.txt")
 ```
 
 **ZStream.fromReader** — Creates a stream from a `java.io.Reader`:
