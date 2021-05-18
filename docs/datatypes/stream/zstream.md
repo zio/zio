@@ -300,6 +300,8 @@ val stream: ZStream[Blocking, IOException, Char] =
    ZStream.fromReader(new FileReader("file.txt"))
 ```
 
+ZIO Stream also has `ZStream.fromReaderEffect` and `ZStream.fromReaderManaged` variants.
+
 ## Transforming a Stream
 
 ZIO Stream supports many standard transforming functions like `map`, `partition`, `grouped`, `groupByKey`, `groupedWithin`
