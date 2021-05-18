@@ -90,7 +90,9 @@ Iterators are data structures that allow us to iterate over a sequence of elemen
 **ZStream.fromIteratorTotal** — We can convert an iterator that does not throw exception to `ZStream` by using `ZStream.fromIteratorTotal`:
 
 ```scala mdoc:silent:nest
-val stream: ZStream[Any, Throwable, Int] = ZStream.fromIterator(Iterator(1, 2, 3))
+val s1: ZStream[Any, Throwable, Int] = ZStream.fromIterator(Iterator(1, 2, 3))
+val s2: ZStream[Any, Throwable, Int] = ZStream.fromIterator(Iterator.range(1, 4))
+val s3: ZStream[Any, Throwable, Int] = ZStream.fromIterator(Iterator.continually(0))
 ```
 
 Also, there is another constructor called **`ZStream.fromIterator`** that creates a stream from an iterator which may throw an exception.
