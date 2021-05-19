@@ -263,6 +263,20 @@ val randomInts: ZStream[Random, Nothing, Int] =
   ZStream.repeatEffect(zio.random.nextInt)
 ```
 
+**ZStream.repeatEffectOption** — We can repeatedly evaluate the given effect and terminate the stream based on some conditions. 
+
+Let's create a stream repeatedly from user inputs until user enter "EOF" string:
+
+```scala mdoc:silent:nest
+val userInputs: ZStream[Console, IOException, String] = 
+  ZStream.repeatEffectOption(
+    zio.console.getStrLn.mapError(Option(_)).flatMap {
+      case "EOF" => ZIO.fail[Option[IOException]](None)
+      case o     => ZIO.succeed(o)
+    }
+  )
+```
+
 **ZStream.tick** —  A stream that emits Unit values spaced by the specified duration:
 
 ```scala mdoc:silent:nest
