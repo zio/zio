@@ -1,7 +1,8 @@
 package zio.test.sbt
 
 import sbt.testing._
-import zio.UIO
+import zio.duration._
+import zio.test.environment.Live
 import zio.test.sbt.TestingSupport._
 import zio.test.{
   Annotations,
@@ -15,6 +16,7 @@ import zio.test.{
   TestSuccess,
   ZSpec
 }
+import zio.{UIO, ZIO}
 
 import java.util.regex.Pattern
 import scala.collection.mutable.ArrayBuffer
@@ -28,6 +30,7 @@ object ZTestFrameworkSpec {
   def tests: Seq[Try[Unit]] = Seq(
     test("should return correct fingerprints")(testFingerprints()),
     test("should report events")(testReportEvents()),
+    test("should report durations")(testReportDurations()),
     test("should log messages")(testLogMessages()),
     test("should correctly display colorized output for multi-line strings")(testColored()),
     test("should test only selected test")(testTestSelection()),
@@ -55,6 +58,13 @@ object ZTestFrameworkSpec {
 
   private def sbtEvent(fqn: String, label: String, status: Status) =
     ZTestEvent(fqn, new TestSelector(label), status, None, 0, RunnableSpecFingerprint)
+
+  def testReportDurations(): Unit = {
+    val reported = ArrayBuffer[Event]()
+    loadAndExecute(timedSpecFQN, reported.append(_))
+
+    assert(reported.forall(_.duration() > 0), s"reported events should have positive durations: $reported")
+  }
 
   def testLogMessages(): Unit = {
     val loggers = Seq.fill(3)(new MockLogger)
@@ -163,7 +173,7 @@ object ZTestFrameworkSpec {
     loggers: Seq[Logger] = Nil,
     testArgs: Array[String] = Array.empty
   ) = {
-    val taskDef = new TaskDef(fqn, RunnableSpecFingerprint, false, Array())
+    val taskDef = new TaskDef(fqn, RunnableSpecFingerprint, false, Array(new SuiteSelector))
     val task = new ZTestFramework()
       .runner(testArgs, Array(), getClass.getClassLoader)
       .tasks(Array(taskDef))
@@ -192,6 +202,13 @@ object ZTestFrameworkSpec {
         zio.test.assert(1)(Assertion.equalTo(2))
       } @@ TestAspect.ignore
     )
+  }
+
+  lazy val timedSpecFQN = TimedSpec.getClass.getName
+  object TimedSpec extends DefaultRunnableSpec {
+    override def spec: ZSpec[Environment, Failure] = test("timed passing test") {
+      zio.test.assertCompletes
+    } @@ TestAspect.before(Live.live(ZIO.sleep(5.millis))) @@ TestAspect.timed
   }
 
   lazy val multiLineSpecFQN = MultiLineSpec.getClass.getName
