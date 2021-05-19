@@ -221,6 +221,12 @@ object Task extends TaskPlatformSpecific {
     ZIO.collectAllWithParN(n)(as)(f)
 
   /**
+   * @see See [[zio.ZIO.collectFirst]]
+   */
+  def collectFirst[A, B](as: Iterable[A])(f: A => Task[Option[B]]): Task[Option[B]] =
+    ZIO.collectFirst(as)(f)
+
+  /**
    * @see See [[zio.ZIO.collectPar]]
    */
   def collectPar[A, B, Collection[+Element] <: Iterable[Element]](
@@ -335,6 +341,12 @@ object Task extends TaskPlatformSpecific {
     ZIO.executor
 
   /**
+   * @see See [[zio.ZIO.exists]]
+   */
+  def exists[A](as: Iterable[A])(f: A => Task[Boolean]): Task[Boolean] =
+    ZIO.exists(as)(f)
+
+  /**
    * @see See [[zio.ZIO.fail]]
    */
   def fail(error: => Throwable): Task[Nothing] = ZIO.fail(error)
@@ -426,6 +438,12 @@ object Task extends TaskPlatformSpecific {
    */
   def foldRight[S, A](in: Iterable[A])(zero: S)(f: (A, S) => Task[S]): Task[S] =
     ZIO.foldRight(in)(zero)(f)
+
+  /**
+   * @see See [[zio.ZIO.forall]]
+   */
+  def forall[A](as: Iterable[A])(f: A => Task[Boolean]): Task[Boolean] =
+    ZIO.forall(as)(f)
 
   /**
    * @see See [[[zio.ZIO.foreach[R,E,A,B,Collection[+Element]<:Iterable[Element]]*]]]

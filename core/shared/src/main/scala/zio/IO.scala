@@ -215,6 +215,12 @@ object IO {
     ZIO.collectAllWithParN(n)(as)(f)
 
   /**
+   * @see See [[zio.ZIO.collectFirst]]
+   */
+  def collectFirst[E, A, B](as: Iterable[A])(f: A => IO[E, Option[B]]): IO[E, Option[B]] =
+    ZIO.collectFirst(as)(f)
+
+  /**
    * @see See [[zio.ZIO.collectPar]]
    */
   def collectPar[E, A, B, Collection[+Element] <: Iterable[Element]](
@@ -330,6 +336,12 @@ object IO {
     ZIO.executor
 
   /**
+   * @see See [[zio.ZIO.exists]]
+   */
+  def exists[E, A](as: Iterable[A])(f: A => IO[E, Boolean]): IO[E, Boolean] =
+    ZIO.exists(as)(f)
+
+  /**
    * @see See [[zio.ZIO.fail]]
    */
   def fail[E](error: => E): IO[E, Nothing] = ZIO.fail(error)
@@ -420,6 +432,12 @@ object IO {
    */
   def foldRight[E, S, A](in: Iterable[A])(zero: S)(f: (A, S) => IO[E, S]): IO[E, S] =
     ZIO.foldRight(in)(zero)(f)
+
+  /**
+   * @see See [[zio.ZIO.forall]]
+   */
+  def forall[E, A](as: Iterable[A])(f: A => IO[E, Boolean]): IO[E, Boolean] =
+    ZIO.forall(as)(f)
 
   /**
    * @see See [[[zio.ZIO.foreach[R,E,A,B,Collection[+Element]<:Iterable[Element]]*]]]

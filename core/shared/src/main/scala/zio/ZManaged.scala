@@ -1507,6 +1507,18 @@ object ZManaged extends ZManagedPlatformSpecific {
     foreachParN_(n)(as)(ZIO.identityFn)
 
   /**
+   * Collects the first element of the `Iterable[A]` for which the effectual
+   * function `f` returns `Some`.
+   */
+  def collectFirst[R, E, A, B](as: Iterable[A])(f: A => ZManaged[R, E, Option[B]]): ZManaged[R, E, Option[B]] =
+    effectTotal(as.iterator).flatMap { iterator =>
+      def loop: ZManaged[R, E, Option[B]] =
+        if (iterator.hasNext) f(iterator.next()).flatMap(_.fold(loop)(some(_)))
+        else none
+      loop
+    }
+
+  /**
    * Evaluate each effect in the structure in parallel, collecting the
    * the successful values and discarding the empty cases.
    */
@@ -1575,6 +1587,18 @@ object ZManaged extends ZManagedPlatformSpecific {
     ZManaged.fromEffect(ZIO.environment)
 
   /**
+   * Determines whether any element of the `Iterable[A]` satisfies the
+   * effectual predicate `f`.
+   */
+  def exists[R, E, A](as: Iterable[A])(f: A => ZManaged[R, E, Boolean]): ZManaged[R, E, Boolean] =
+    effectTotal(as.iterator).flatMap { iterator =>
+      def loop: ZManaged[R, E, Boolean] =
+        if (iterator.hasNext) f(iterator.next()).flatMap(b => if (b) succeedNow(b) else loop)
+        else succeedNow(false)
+      loop
+    }
+
+  /**
    * Returns an effect that models failure with the specified  error.
    * The moral equivalent of `throw` for pure code.
    */
@@ -1640,6 +1664,18 @@ object ZManaged extends ZManagedPlatformSpecific {
     in: Iterable[A]
   )(zero: S)(f: (S, A) => ZManaged[R, E, S]): ZManaged[R, E, S] =
     in.foldLeft(ZManaged.succeedNow(zero): ZManaged[R, E, S])((acc, el) => acc.flatMap(f(_, el)))
+
+  /**
+   * Determines whether all elements of the `Iterable[A]` satisfy the effectual
+   * predicate `f`.
+   */
+  def forall[R, E, A](as: Iterable[A])(f: A => ZManaged[R, E, Boolean]): ZManaged[R, E, Boolean] =
+    effectTotal(as.iterator).flatMap { iterator =>
+      def loop: ZManaged[R, E, Boolean] =
+        if (iterator.hasNext) f(iterator.next()).flatMap(b => if (b) loop else succeedNow(b))
+        else succeedNow(true)
+      loop
+    }
 
   /**
    * Applies the function `f` to each element of the `Collection[A]` and
@@ -2163,6 +2199,12 @@ object ZManaged extends ZManagedPlatformSpecific {
    * Returns a `ZManaged` that never acquires a resource.
    */
   lazy val never: ZManaged[Any, Nothing, Nothing] = ZManaged.fromEffect(ZIO.never)
+
+  /**
+   * Returns a `ZManaged` with the empty value.
+   */
+  val none: Managed[Nothing, Option[Nothing]] =
+    succeedNow(None)
 
   /**
    * A scope in which resources can be safely preallocated. Passing a [[ZManaged]]

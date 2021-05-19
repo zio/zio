@@ -318,6 +318,14 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(ZIO.collectAllParN_(5)(tasks).flip)(anything)
       }
     ),
+    suite("collectFirst")(
+      testM("collects the first value for which the effectual functions returns Some") {
+        checkM(Gen.listOf(Gen.anyInt), Gen.partialFunction(Gen.anyInt)) { (as, pf) =>
+          def f(n: Int): UIO[Option[Int]] = UIO.succeed(pf.lift(n))
+          assertM(ZIO.collectFirst(as)(f))(equalTo(as.collectFirst(pf)))
+        }
+      }
+    ),
     suite("collectM")(
       testM("returns failure ignoring value") {
         val goodCase =
@@ -503,6 +511,15 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(test)(equalTo(10))
       }
     ),
+    suite("exists")(
+      testM("determines whether any element satisfies the effectual predicate") {
+        checkM(Gen.listOf(Gen.anyInt), Gen.function(Gen.boolean)) { (as, f) =>
+          val actual   = IO.exists(as)(a => IO.succeed(f(a)))
+          val expected = as.exists(f)
+          assertM(actual)(equalTo(expected))
+        }
+      }
+    ),
     suite("filter")(
       testM("filters a collection using an effectual predicate") {
         val as = Iterable(2, 4, 6, 3, 5, 6)
@@ -651,6 +668,15 @@ object ZIOSpec extends ZIOBaseSpec {
         checkM(Gen.listOf1(Gen.anyInt)) { l =>
           val res = IO.foldRight(l)(List.empty[Int])((el, acc) => IO.succeed(el :: acc))
           assertM(res)(equalTo(l))
+        }
+      }
+    ),
+    suite("forall")(
+      testM("determines whether all elements satisfy the effectual predicate") {
+        checkM(Gen.listOf(Gen.anyInt), Gen.function(Gen.boolean)) { (as, f) =>
+          val actual   = IO.forall(as)(a => IO.succeed(f(a)))
+          val expected = as.forall(f)
+          assertM(actual)(equalTo(expected))
         }
       }
     ),
