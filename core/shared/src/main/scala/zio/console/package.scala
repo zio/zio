@@ -25,32 +25,32 @@ package object console {
 
   object Console extends Serializable {
     trait Service extends Serializable {
-      def putStr(line: String): IO[IOException, Unit]
+      def putStr(line: String): UIO[Unit]
 
-      def putStrErr(line: String): IO[IOException, Unit]
+      def putStrErr(line: String): UIO[Unit]
 
-      def putStrLn(line: String): IO[IOException, Unit]
+      def putStrLn(line: String): UIO[Unit]
 
-      def putStrLnErr(line: String): IO[IOException, Unit]
+      def putStrLnErr(line: String): UIO[Unit]
 
       def getStrLn: IO[IOException, String]
     }
 
     object Service {
-      private def putStr(stream: PrintStream)(line: String): IO[IOException, Unit] =
-        IO.effect(SConsole.withOut(stream)(SConsole.print(line))).refineToOrDie[IOException]
+      private def putStr(stream: PrintStream)(line: String): UIO[Unit] =
+        IO.effectTotal(SConsole.withOut(stream)(SConsole.print(line)))
 
-      private def putStrLn(stream: PrintStream)(line: String): IO[IOException, Unit] =
-        IO.effect(SConsole.withOut(stream)(SConsole.println(line))).refineToOrDie[IOException]
+      private def putStrLn(stream: PrintStream)(line: String): UIO[Unit] =
+        IO.effectTotal(SConsole.withOut(stream)(SConsole.println(line)))
 
       val live: Service = new Service {
-        def putStr(line: String): IO[IOException, Unit] = Service.putStr(SConsole.out)(line)
+        def putStr(line: String): UIO[Unit] = Service.putStr(SConsole.out)(line)
 
-        def putStrErr(line: String): IO[IOException, Unit] = Service.putStr(SConsole.err)(line)
+        def putStrErr(line: String): UIO[Unit] = Service.putStr(SConsole.err)(line)
 
-        def putStrLnErr(line: String): IO[IOException, Unit] = Service.putStrLn(SConsole.err)(line)
+        def putStrLnErr(line: String): UIO[Unit] = Service.putStrLn(SConsole.err)(line)
 
-        def putStrLn(line: String): IO[IOException, Unit] = Service.putStrLn(SConsole.out)(line)
+        def putStrLn(line: String): UIO[Unit] = Service.putStrLn(SConsole.out)(line)
 
         val getStrLn: IO[IOException, String] =
           IO.effect {
@@ -72,25 +72,25 @@ package object console {
   /**
    * Prints text to the console.
    */
-  def putStr(line: => String): ZIO[Console, IOException, Unit] =
+  def putStr(line: => String): URIO[Console, Unit] =
     ZIO.accessM(_.get putStr line)
 
   /**
    * Prints text to the standard error console.
    */
-  def putStrErr(line: => String): ZIO[Console, IOException, Unit] =
+  def putStrErr(line: => String): URIO[Console, Unit] =
     ZIO.accessM(_.get putStrErr line)
 
   /**
    * Prints a line of text to the console, including a newline character.
    */
-  def putStrLn(line: => String): ZIO[Console, IOException, Unit] =
+  def putStrLn(line: => String): URIO[Console, Unit] =
     ZIO.accessM(_.get putStrLn line)
 
   /**
    * Prints a line of text to the standard error console, including a newline character.
    */
-  def putStrLnErr(line: => String): ZIO[Console, IOException, Unit] =
+  def putStrLnErr(line: => String): URIO[Console, Unit] =
     ZIO.accessM(_.get putStrLnErr line)
 
   /**

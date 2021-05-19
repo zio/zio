@@ -8,8 +8,6 @@ import zio.system.System
 import zio.test.{Assertion, ZIOBaseSpec, ZSpec, assertM}
 import zio.{Has, Tag, ULayer, ZIO, clock, console, random, system}
 
-import java.io.IOException
-
 object ComposedMockSpec extends ZIOBaseSpec {
 
   import Assertion._
@@ -37,7 +35,7 @@ object ComposedMockSpec extends ZIOBaseSpec {
             _    <- console.putStrLn(time.toString)
           } yield ()
 
-        testValueComposed[Clock with Console, IOException, Unit]("Console with Clock")(composed, program, isUnit)
+        testValueComposed[Clock with Console, Nothing, Unit]("Console with Clock")(composed, program, isUnit)
       }, {
         val cmd1 = MockRandom.NextInt(value(42))
         val cmd2 = MockClock.Sleep(equalTo(42.seconds))

@@ -18,7 +18,7 @@ import zio.console._
 ```
 
 ```scala mdoc:silent
-val effect: ZIO[Console, Nothing, Unit] = putStrLn("Hello, World!").orDie
+val effect: ZIO[Console, Nothing, Unit] = putStrLn("Hello, World!")
 ```
 
 So finally when we provide a live version of `Console` service to our `effect`, it will be converted to an effect that doesn't require any environmental service:
@@ -34,7 +34,7 @@ import zio.{ExitCode, ZEnv, ZIO}
 import zio.console._
 
 object MainApp extends zio.App {
-  val effect: ZIO[Console, Nothing, Unit] = putStrLn("Hello, World!").orDie
+  val effect: ZIO[Console, Nothing, Unit] = putStrLn("Hello, World!")
   val mainApp: ZIO[Any, Nothing, Unit] = effect.provideLayer(Console.live)
 
   override def run(args: List[String]): ZIO[ZEnv, Nothing, ExitCode] = 
@@ -50,7 +50,7 @@ import zio.random._
 
 val effect: ZIO[Console with Random, Nothing, Unit] = for {
   r <- nextInt
-  _ <- putStrLn(s"random number: $r").orDie
+  _ <- putStrLn(s"random number: $r")
 } yield ()
 
 val mainApp: ZIO[Any, Nothing, Unit] = effect.provideLayer(Console.live ++ Random.live)
@@ -66,7 +66,7 @@ import zio.{ExitCode, ZEnv, ZIO}
 object MainApp extends zio.App {
   val effect: ZIO[Console with Random, Nothing, Unit] = for {
     r <- nextInt
-    _ <- putStrLn(s"random number: $r").orDie
+    _ <- putStrLn(s"random number: $r")
   } yield ()
 
   override def run(args: List[String]): ZIO[ZEnv, Nothing, ExitCode] =
@@ -259,7 +259,7 @@ object logging {
             override def log(line: String): UIO[Unit] =
               for {
                 current <- clock.currentDateTime.orDie
-                _ <- console.putStrLn(current.toString + "--" + line).orDie
+                _ <- console.putStrLn(current.toString + "--" + line)
               } yield ()
           }
       }
@@ -333,7 +333,7 @@ case class LoggingLive(console: Console.Service, clock: Clock.Service) extends L
   override def log(line: String): UIO[Unit] = 
     for {
       current <- clock.currentDateTime.orDie
-      _       <- console.putStrLn(current.toString + "--" + line).orDie
+      _       <- console.putStrLn(current.toString + "--" + line)
     } yield ()
 }
 ```
@@ -460,9 +460,9 @@ import zio.random._
 
 val myApp: ZIO[Random with Console with Clock, Nothing, Unit] = for {
   random  <- nextInt 
-  _       <- putStrLn(s"A random number: ${random.toString}").orDie
+  _       <- putStrLn(s"A random number: ${random.toString}")
   current <- currentDateTime.orDie
-  _       <- putStrLn(s"Current Data Time: ${current.toString}").orDie
+  _       <- putStrLn(s"Current Data Time: ${current.toString}")
 } yield ()
 ```
 
@@ -528,7 +528,7 @@ object LoggingLive {
 val myApp: ZIO[Has[Logging] with Console with Clock, Nothing, Unit] = for {
   _       <- Logging.log("Application Started!")
   current <- currentDateTime.orDie
-  _       <- putStrLn(s"Current Data Time: ${current.toString}").orDie
+  _       <- putStrLn(s"Current Data Time: ${current.toString}")
 } yield ()
 ```
 

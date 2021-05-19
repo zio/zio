@@ -762,7 +762,7 @@ package object test extends CompileVariants {
     def fromConsole: ZLayer[Console, Nothing, TestLogger] =
       ZLayer.fromService { (console: Console.Service) =>
         new Service {
-          def logLine(line: String): UIO[Unit] = console.putStrLn(line).orDie
+          def logLine(line: String): UIO[Unit] = console.putStrLn(line)
         }
       }
 

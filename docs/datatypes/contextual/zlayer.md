@@ -228,7 +228,7 @@ import logging.Logging._
 ```scala mdoc:silent:nest
 val live: ZLayer[Console, Nothing, Logging] = ZLayer.fromService(console =>
   new Service {
-    override def log(msg: String): UIO[Unit] = console.putStrLn(msg).orDie
+    override def log(msg: String): UIO[Unit] = console.putStrLn(msg)
   }
 )
 ```
@@ -356,8 +356,8 @@ object Logging {
   import zio.console.Console
   val consoleLogger: ZLayer[Console, Nothing, Logging] = ZLayer.fromFunction( console =>
     new Service {
-      def info(s: String): UIO[Unit]  = console.get.putStrLn(s"info - $s").orDie
-      def error(s: String): UIO[Unit] = console.get.putStrLn(s"error - $s").orDie
+      def info(s: String): UIO[Unit]  = console.get.putStrLn(s"info - $s")
+      def error(s: String): UIO[Unit] = console.get.putStrLn(s"error - $s")
     }
   )
 

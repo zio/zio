@@ -5,8 +5,6 @@ import zio.test.mock.internal.MockException
 import zio.test.{Assertion, ZIOBaseSpec, ZSpec}
 import zio.{ZIO, console}
 
-import java.io.IOException
-
 object EmptyMockSpec extends ZIOBaseSpec with MockSpecUtils[Console] {
 
   import Assertion._
@@ -20,8 +18,8 @@ object EmptyMockSpec extends ZIOBaseSpec with MockSpecUtils[Console] {
         isUnit
       ), {
 
-        type M = Capability[Console, String, IOException, Unit]
-        type X = UnexpectedCallException[Console, String, IOException, Unit]
+        type M = Capability[Console, String, Nothing, Unit]
+        type X = UnexpectedCallException[Console, String, Nothing, Unit]
 
         testDied("should fail when call happened")(
           MockConsole.empty,
