@@ -46,7 +46,7 @@ object ConsoleSpec extends ZIOBaseSpec {
       },
       testM("dies on empty input") {
         for {
-          failed <- getStrLn.unrefineTo[IOException].either
+          failed <- getStrLn.either
           message = failed.fold(_.getMessage, identity)
         } yield {
           assert(failed.isLeft)(isTrue) &&
@@ -67,7 +67,7 @@ object ConsoleSpec extends ZIOBaseSpec {
         for {
           _      <- feedLines("Input 1", "Input 2")
           _      <- clearInput
-          failed <- getStrLn.unrefineTo[IOException].either
+          failed <- getStrLn.either
           message = failed.fold(_.getMessage, identity)
         } yield {
           assert(failed.isLeft)(isTrue) &&

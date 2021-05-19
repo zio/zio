@@ -25,30 +25,27 @@ package object console {
 
   object Console extends Serializable {
     trait Service extends Serializable {
-      def putStrIO(line: String): IO[IOException, Unit]
+      def putStrOrFail(line: String): IO[IOException, Unit]
 
-      def putStrErrIO(line: String): IO[IOException, Unit]
+      def putStrErrOrFail(line: String): IO[IOException, Unit]
 
-      def putStrLnIO(line: String): IO[IOException, Unit]
+      def putStrLnOrFail(line: String): IO[IOException, Unit]
 
-      def putStrLnErrIO(line: String): IO[IOException, Unit]
+      def putStrLnErrOrFail(line: String): IO[IOException, Unit]
 
-      def getStrLnIO: IO[IOException, String]
+      def getStrLn: IO[IOException, String]
 
       def putStr(line: String): UIO[Unit] =
-        putStrIO(line).orDie
+        putStrOrFail(line).orDie
 
       def putStrErr(line: String): UIO[Unit] =
-        putStrErrIO(line).orDie
+        putStrErrOrFail(line).orDie
 
       def putStrLn(line: String): UIO[Unit] =
-        putStrLnIO(line).orDie
+        putStrLnOrFail(line).orDie
 
       def putStrLnErr(line: String): UIO[Unit] =
-        putStrLnErrIO(line).orDie
-
-      def getStrLn: UIO[String] =
-        getStrLnIO.orDie
+        putStrLnErrOrFail(line).orDie
     }
 
     object Service {
@@ -59,15 +56,15 @@ package object console {
         IO.effect(SConsole.withOut(stream)(SConsole.println(line))).refineToOrDie[IOException]
 
       val live: Service = new Service {
-        def putStrIO(line: String): IO[IOException, Unit] = Service.putStr(SConsole.out)(line)
+        def putStrOrFail(line: String): IO[IOException, Unit] = Service.putStr(SConsole.out)(line)
 
-        def putStrErrIO(line: String): IO[IOException, Unit] = Service.putStr(SConsole.err)(line)
+        def putStrErrOrFail(line: String): IO[IOException, Unit] = Service.putStr(SConsole.err)(line)
 
-        def putStrLnErrIO(line: String): IO[IOException, Unit] = Service.putStrLn(SConsole.err)(line)
+        def putStrLnErrOrFail(line: String): IO[IOException, Unit] = Service.putStrLn(SConsole.err)(line)
 
-        def putStrLnIO(line: String): IO[IOException, Unit] = Service.putStrLn(SConsole.out)(line)
+        def putStrLnOrFail(line: String): IO[IOException, Unit] = Service.putStrLn(SConsole.out)(line)
 
-        val getStrLnIO: IO[IOException, String] =
+        val getStrLn: IO[IOException, String] =
           IO.effect {
             val line = StdIn.readLine()
 
@@ -93,8 +90,8 @@ package object console {
   /**
    * Prints text to the console.
    */
-  def putStrIO(line: => String): ZIO[Console, IOException, Unit] =
-    ZIO.accessM(_.get putStrIO line)
+  def putStrOrFail(line: => String): ZIO[Console, IOException, Unit] =
+    ZIO.accessM(_.get putStrOrFail line)
 
   /**
    * Prints text to the standard error console.
@@ -105,8 +102,8 @@ package object console {
   /**
    * Prints text to the standard error console.
    */
-  def putStrErrIO(line: => String): ZIO[Console, IOException, Unit] =
-    ZIO.accessM(_.get putStrErrIO line)
+  def putStrErrOrFail(line: => String): ZIO[Console, IOException, Unit] =
+    ZIO.accessM(_.get putStrErrOrFail line)
 
   /**
    * Prints a line of text to the console, including a newline character.
@@ -117,8 +114,8 @@ package object console {
   /**
    * Prints a line of text to the console, including a newline character.
    */
-  def putStrLnIO(line: => String): ZIO[Console, IOException, Unit] =
-    ZIO.accessM(_.get putStrLnIO line)
+  def putStrLnOrFail(line: => String): ZIO[Console, IOException, Unit] =
+    ZIO.accessM(_.get putStrLnOrFail line)
 
   /**
    * Prints a line of text to the standard error console, including a newline character.
@@ -129,22 +126,14 @@ package object console {
   /**
    * Prints a line of text to the standard error console, including a newline character.
    */
-  def putStrLnErrIO(line: => String): ZIO[Console, IOException, Unit] =
-    ZIO.accessM(_.get putStrLnErrIO line)
-
-  /**
-   * Retrieves a line of input from the console.
-   * Dies with an [[java.io.EOFException]] when the underlying [[java.io.Reader]]
-   * returns null.
-   */
-  val getStrLn: URIO[Console, String] =
-    ZIO.accessM(_.get.getStrLn)
+  def putStrLnErrOrFail(line: => String): ZIO[Console, IOException, Unit] =
+    ZIO.accessM(_.get putStrLnErrOrFail line)
 
   /**
    * Retrieves a line of input from the console.
    * Fails with an [[java.io.EOFException]] when the underlying [[java.io.Reader]]
    * returns null.
    */
-  val getStrLnIO: ZIO[Console, IOException, String] =
-    ZIO.accessM(_.get.getStrLnIO)
+  val getStrLn: ZIO[Console, IOException, String] =
+    ZIO.accessM(_.get.getStrLn)
 }

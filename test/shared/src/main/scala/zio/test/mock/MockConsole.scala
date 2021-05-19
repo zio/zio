@@ -32,11 +32,11 @@ object MockConsole extends Mock[Console] {
   val compose: URLayer[Has[Proxy], Console] =
     ZLayer.fromService(proxy =>
       new Console.Service {
-        def putStrIO(line: String): IO[IOException, Unit]      = proxy(PutStr, line)
-        def putStrErrIO(line: String): IO[IOException, Unit]   = proxy(PutStrErr, line)
-        def putStrLnIO(line: String): IO[IOException, Unit]    = proxy(PutStrLn, line)
-        def putStrLnErrIO(line: String): IO[IOException, Unit] = proxy(PutStrLnErr, line)
-        val getStrLnIO: IO[IOException, String]                = proxy(GetStrLn)
+        def putStrOrFail(line: String): IO[IOException, Unit]      = proxy(PutStr, line)
+        def putStrErrOrFail(line: String): IO[IOException, Unit]   = proxy(PutStrErr, line)
+        def putStrLnOrFail(line: String): IO[IOException, Unit]    = proxy(PutStrLn, line)
+        def putStrLnErrOrFail(line: String): IO[IOException, Unit] = proxy(PutStrLnErr, line)
+        val getStrLn: IO[IOException, String]                = proxy(GetStrLn)
       }
     )
 }
