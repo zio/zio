@@ -7,8 +7,6 @@ import zio.test.TestAspect.{nonFlaky, silent}
 import zio.test._
 import zio.test.environment.TestConsole._
 
-import java.io.IOException
-
 object ConsoleSpec extends ZIOBaseSpec {
 
   def spec: ZSpec[Environment, Failure] =

@@ -216,7 +216,7 @@ object AccountObserver {
         def processEvent(event: AccountEvent): UIO[Unit] =
           for {
             _    <- console.putStrLn(s"Got $event")
-            line <- console.getStrLn
+            line <- console.getStrLn.orDie
             _    <- console.putStrLn(s"You entered: $line")
           } yield ()
 
