@@ -8,7 +8,7 @@ A `ZStream[R, E, O]` is a description of a program that, when evaluated, may emi
 One way to think of `ZStream` is as a `ZIO` program that could emit multiple values. As we know, a `ZIO[R, E, A]` data type, is a functional effect which is a description of a program that needs an environment of type `R`, it may end with an error of type `E`, and in case of success, it returns a value of type `A`. The important note about `ZIO` effects is that in the case of success they always end with exactly one value. There is no optionality here, no multiple infinite values, we always get exact value:
 
 ```scala mdoc:invisible
-import zio.{ZIO, Task, ZManaged}
+import zio.{ZIO, Task, ZManaged, Chunk}
 import zio.blocking.Blocking
 import java.io.{FileReader, FileInputStream}
 ```
@@ -83,6 +83,15 @@ Similar to `ZIO` data type, we can create a `ZStream` using `fail` and `succeed`
 ```scala mdoc:silent:nest
 val s1: ZStream[Any, String, Nothing] = ZStream.fail("Uh oh!")
 val s2: ZStream[Any, Nothing, Int]    = ZStream.succeed(5)
+```
+
+### From Chunks
+
+We can create ZIO Stream from Chunks:
+
+```scala mdoc:silent:nest
+val s1: ZStream[Any, Nothing, Int] = ZStream.fromChunks(Chunk(1, 2, 3), Chunk(4, 5, 6))
+val s2: ZStream[Any, Nothing, Int] = ZStream.fromChunk(Chunk(1, 2, 3))
 ```
 
 ### From Iterators
