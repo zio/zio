@@ -304,6 +304,15 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
   def first[R1 <: R, A1 >: A]: ZManaged[R1, E, (A1, R1)] = self &&& ZManaged.identity
 
   /**
+   * Returns a managed resource that attempts to acquire this managed resource
+   * and in case of failure, attempts to acquire each of the specified managed
+   * resources in order until one of them is successfully acquired, ensuring
+   * that the acquired resource is properly released after being used.
+   */
+  final def firstSuccessOf[R1 <: R, E1 >: E, A1 >: A](rest: Iterable[ZManaged[R1, E1, A1]]): ZManaged[R1, E1, A1] =
+    ZManaged.firstSuccessOf(self, rest)
+
+  /**
    * Returns an effect that models the execution of this effect, followed by
    * the passing of its value to the specified continuation function `k`,
    * followed by the effect that it returns.
@@ -1614,6 +1623,18 @@ object ZManaged extends ZManagedPlatformSpecific {
    */
   def first[A]: ZManaged[(A, Any), Nothing, A] =
     fromFunction(_._1)
+
+  /**
+   * Returns a managed resource that attempts to acquire the first managed
+   * resource and in case of failure, attempts to acquire each of the specified
+   * managed resources in order until one of them is successfully acquired,
+   * ensuring that the acquired resource is properly released after being used.
+   */
+  def firstSuccessOf[R, E, A](
+    first: ZManaged[R, E, A],
+    rest: Iterable[ZManaged[R, E, A]]
+  ): ZManaged[R, E, A] =
+    rest.foldLeft(first)(_ <> _)
 
   /**
    * Returns an effect that performs the outer effect first, followed by the
