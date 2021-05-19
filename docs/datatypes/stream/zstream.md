@@ -12,7 +12,9 @@ One way to think of `ZStream` is as a `ZIO` program that could emit multiple val
 ```scala mdoc:invisible
 import zio.{ZIO, Task, ZManaged, Chunk}
 import zio.blocking.Blocking
-import java.io.{FileReader, FileInputStream}
+import zio.random.Random
+import java.io.{FileReader, FileInputStream, IOException}
+import zio.console.Console
 ```
 
 ```scala mdoc:silent:nest
@@ -107,6 +109,22 @@ Or from multiple `Chunks`:
 
 ```scala mdoc:nest
 val s2 = ZStream.fromChunks(Chunk(1, 2, 3), Chunk(4, 5, 6))
+```
+
+### From Effect
+
+We can create a stream from an effect by using `ZStream.fromEffect` constructor. For example, the following stream is a stream that reads a line from a user:
+
+```scala mdoc:silent:nest
+val readline: ZStream[Console, IOException, String] = 
+  ZStream.fromEffect(zio.console.getStrLn)
+```
+
+A stream that produces one random number:
+
+```scala mdoc:silent:nest
+val randomInt: ZStream[Random, Nothing, Int] = 
+  ZStream.fromEffect(zio.random.nextInt)
 ```
 
 ### From Iterators
@@ -268,8 +286,6 @@ Running this function with an input value of 3 returns a `ZStream` which contain
 Let's write a stream of lines of input from a user until the user enters the `exit` command:
 
 ```scala mdoc:silent
-import java.io.IOException
-import zio.console.Console
 val inputs: ZStream[Console, IOException, String] = ZStream.unfoldM(()) { _ =>
   zio.console.getStrLn.map {
     case "exit"  => None
