@@ -536,7 +536,7 @@ lazy val docs = project.module
       /* to evict 1.3.0 brought in by mdoc-js */
       "org.scala-js"  % "scalajs-compiler"            % scalaJSVersion cross CrossVersion.full,
       "org.scala-js" %% "scalajs-linker"              % scalaJSVersion,
-      "dev.zio"      %% "zio-interop-cats"            % "2.5.1.0",
+      "dev.zio"      %% "zio-interop-cats"            % "3.1.1.0",
       "dev.zio"      %% "zio-interop-monix"           % "3.0.0.0-RC7",
       "dev.zio"      %% "zio-interop-scalaz7x"        % "7.2.27.0-RC9",
       "dev.zio"      %% "zio-interop-reactivestreams" % "1.3.5",
