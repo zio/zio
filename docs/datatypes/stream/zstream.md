@@ -323,6 +323,62 @@ val stream: ZStream[Any, Throwable, Int] =
 
 ZIO Stream also has `ZStream.fromJavaStream`, `ZStream.fromJavaStreamEffect` and `ZStream.fromJavaStreamManaged` variants.
 
+### Resourceful Streams
+
+Most of the constructors of `ZStream` have a special variant to lift a Managed resource to a Stream (e.g. `ZStream.fromReaderManaged`). By using these constructors, we are creating streams that are resource-safe. Before creating a stream, they acquire the resource, and after usage; they close the stream.
+
+ZIO Stream also has `bracket` and `finalizer` constructors which are similar to `ZManaged`. They allow us to clean up or finalizing before the stream ends:
+
+**ZStream.bracket** — We can provide `acquire` and `release` actions to `ZStream.bracket` to create a resourceful stream:
+
+```scala
+object ZStream {
+  def bracket[R, E, A](
+    acquire: ZIO[R, E, A]
+  )(
+    release: A => URIO[R, Any]
+  ): ZStream[R, E, A] = ???
+```
+
+Let's see an example of using a bracket when reading a file. In this example, by providing `acquire` and `release` actions to `ZStream.bracket`, it gives us a managed stream of `BufferedSource`. As this stream is managed, we can convert that `BufferedSource` to a stream of its lines and then run it, without worrying about resource leakage:
+
+```scala mdoc:silent:nest
+import zio.console._
+val lines: ZStream[Console, Throwable, String] =
+  ZStream
+    .bracket(
+      ZIO.effect(Source.fromFile("file.txt")) <* putStrLn("The file was opened.")
+    )(x => URIO.effectTotal(x.close()) <* putStrLn("The file was closed.").orDie)
+    .flatMap { is =>
+      ZStream.fromIterator(is.getLines())
+    }
+```
+
+**ZStream.finalizer** — We can also create a stream that never fails and define a finalizer for it, so that finalizer will be executed before that stream ends. 
+
+```
+object ZStream {
+  def finalizer[R](
+    finalizer: URIO[R, Any]
+  ): ZStream[R, Nothing, Any] = ???
+}
+```
+
+It is useful when need to add a finalizer to an existing stream. Assume we need to clean up the temporary directory after our streaming application ends:
+
+```scala mdoc:silent:nest
+import java.nio.file.{Path, Paths}
+import zio.console._
+def application: ZStream[Console, IOException, Unit] = ZStream.fromEffect(putStrLn("Application Logic."))
+def deleteDir(dir: Path): ZIO[Console, IOException, Unit] = putStrLn("Deleting file.")
+
+val myApp: ZStream[Console, IOException, Any] =
+  application ++ ZStream.finalizer(
+    (deleteDir(Paths.get("tmp")) *>
+      putStrLn("The tmp directory was deleted.")).orDie
+  )
+```
+
 ## Transforming a Stream
 
 ZIO Stream supports many standard transforming functions like `map`, `partition`, `grouped`, `groupByKey`, `groupedWithin`
