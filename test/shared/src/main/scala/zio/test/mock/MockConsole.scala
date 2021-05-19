@@ -36,7 +36,7 @@ object MockConsole extends Mock[Console] {
         def putStrErrOrFail(line: String): IO[IOException, Unit]   = proxy(PutStrErr, line)
         def putStrLnOrFail(line: String): IO[IOException, Unit]    = proxy(PutStrLn, line)
         def putStrLnErrOrFail(line: String): IO[IOException, Unit] = proxy(PutStrLnErr, line)
-        val getStrLn: IO[IOException, String]                = proxy(GetStrLn)
+        val getStrLn: IO[IOException, String]                      = proxy(GetStrLn)
       }
     )
 }
