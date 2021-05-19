@@ -323,6 +323,25 @@ val stream: ZStream[Any, Throwable, Int] =
 
 ZIO Stream also has `ZStream.fromJavaStream`, `ZStream.fromJavaStreamEffect` and `ZStream.fromJavaStreamManaged` variants.
 
+### From Queue and Hub
+
+`Queue` and `Hub` are two asynchronous messaging data types in ZIO that can be converted into the ZIO Stream:
+
+```scala
+object ZStream {
+  def fromQueue[R, E, O](
+    queue: ZQueue[Nothing, R, Any, E, Nothing, O],
+    maxChunkSize: Int = DefaultChunkSize
+  ): ZStream[R, E, O] = ???
+
+  def fromHub[R, E, A](
+    hub: ZHub[Nothing, R, Any, E, Nothing, A]
+  ): ZStream[R, E, A] = ???
+}
+```
+
+If they contain `Chunk` of elements, we can use `ZStream.fromChunk...` constructors to create a stream from those elements (e.g. `ZStream.fromChunkQueue`). Also, If we need to shutdown a `Queue` or `Hub`, once the stream is closed, we should use `ZStream.from..Shutdown` constructors (e.g. `ZStream.fromQueueWithShutdown`).
+
 ### Resourceful Streams
 
 Most of the constructors of `ZStream` have a special variant to lift a Managed resource to a Stream (e.g. `ZStream.fromReaderManaged`). By using these constructors, we are creating streams that are resource-safe. Before creating a stream, they acquire the resource, and after usage; they close the stream.
@@ -375,7 +394,7 @@ def deleteDir(dir: Path): ZIO[Console, IOException, Unit] = putStrLn("Deleting f
 val myApp: ZStream[Console, IOException, Any] =
   application ++ ZStream.finalizer(
     (deleteDir(Paths.get("tmp")) *>
-      putStrLn("The tmp directory was deleted.")).orDie
+      putStrLn("Temporary directory was deleted.")).orDie
   )
 ```
 
