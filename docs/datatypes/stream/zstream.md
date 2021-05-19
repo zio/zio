@@ -120,7 +120,7 @@ val s2 = ZStream.fromChunks(Chunk(1, 2, 3), Chunk(4, 5, 6))
 
 ### From Effect
 
-We can create a stream from an effect by using `ZStream.fromEffect` constructor. For example, the following stream is a stream that reads a line from a user:
+**ZStream.fromEffect** — We can create a stream from an effect by using `ZStream.fromEffect` constructor. For example, the following stream is a stream that reads a line from a user:
 
 ```scala mdoc:silent:nest
 val readline: ZStream[Console, IOException, String] = 
@@ -132,6 +132,26 @@ A stream that produces one random number:
 ```scala mdoc:silent:nest
 val randomInt: ZStream[Random, Nothing, Int] = 
   ZStream.fromEffect(zio.random.nextInt)
+```
+
+**ZStream.fromEffectOption** — In some cases, depending on the result of the effect, we should decide to emit an element or return an empty stream. In these cases, we can use `fromEffectOption` constructor:
+
+```scala 
+object ZStream {
+  def fromEffectOption[R, E, A](fa: ZIO[R, Option[E], A]): ZStream[R, E, A] = ???
+}
+```
+
+Let's see an example of using this constructor. In this example, we read a string from user input, and then decide to emit that or not; If the user enters an `EOF` string, we emit an empty stream, otherwise we emit the user input:  
+
+```scala mdoc:silent:nest
+val userInput: ZStream[Console, IOException, String] = 
+  ZStream.fromEffectOption(
+    zio.console.getStrLn.mapError(Option(_)).flatMap {
+      case "EOF" => ZIO.fail[Option[IOException]](None)
+      case o     => ZIO.succeed(o)
+    }
+  ) 
 ```
 
 ### From Iterators
