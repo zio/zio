@@ -75,6 +75,12 @@ final class ZSTM[-R, +E, +A] private[stm] (
   import ZSTM.internal.{prepareResetJournal, TExit}
 
   /**
+   * A symbolic alias for `orDie`.
+   */
+  final def !(implicit ev: E <:< Throwable, ev2: CanFail[E]): ZSTM[R, Nothing, A] =
+    self.orDie
+
+  /**
    * Alias for `<*>` and `zip`.
    */
   def &&&[R1 <: R, E1 >: E, B](that: ZSTM[R1, E1, B]): ZSTM[R1, E1, (A, B)] =

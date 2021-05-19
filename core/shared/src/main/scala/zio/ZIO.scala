@@ -52,6 +52,12 @@ import scala.util.{Failure, Success}
 sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E, A] { self =>
 
   /**
+   * A symbolic alias for `orDie`.
+   */
+  final def !(implicit ev1: E <:< Throwable, ev2: CanFail[E]): ZIO[R, Nothing, A] =
+    self.orDie
+
+  /**
    * Sequentially zips this effect with the specified effect, combining the
    * results into a tuple.
    */

@@ -58,6 +58,12 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
   def zio: ZIO[(R, ZManaged.ReleaseMap), E, (ZManaged.Finalizer, A)]
 
   /**
+   * A symbolic alias for `orDie`.
+   */
+  final def !(implicit ev1: E <:< Throwable, ev2: CanFail[E]): ZManaged[R, Nothing, A] =
+    self.orDie
+
+  /**
    * Symbolic alias for zip.
    */
   def &&&[R1 <: R, E1 >: E, B](that: ZManaged[R1, E1, B]): ZManaged[R1, E1, (A, B)] =
