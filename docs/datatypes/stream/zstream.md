@@ -39,6 +39,14 @@ val infiniteIntStream   : ZStream[Any, Nothing, Int]       = ZStream.iterate(1)(
 
 Another example of a stream is when we're pulling a Kafka topic or reading from a socket. There is no inherent definition of an end there. Stream elements arrive at some point, or even they might never arrive at any point.
 
+## Stream Types
+Based on type parameters of `ZStream`, there are 4 types of streams:
+
+1. `ZStream[Any, Nothing, O]` — A stream that emits `O` values and cannot fail.
+2. `ZStream[Any, Throwable, O]` — A stream that emits `O` values and can fail with `Throwable`.
+3. `ZStream[Any, Nothing, Nothing]` — A stream that emits no elements.
+4. `ZStream[R, E, O]` — A stream that requires access to the `R` service, can fail with error of type `E` and emits `O` values.
+
 ## Creation
 
 There are several ways to create ZIO Stream. In this section, we are going to enumerate some of the important ways of creating `ZStream`. 
