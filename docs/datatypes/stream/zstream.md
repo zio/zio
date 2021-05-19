@@ -13,6 +13,7 @@ One way to think of `ZStream` is as a `ZIO` program that could emit multiple val
 import zio.{ZIO, Task, ZManaged, Chunk}
 import zio.blocking.Blocking
 import zio.random.Random
+import zio.clock.Clock
 import java.io.{FileReader, FileInputStream, IOException}
 import zio.console.Console
 ```
@@ -86,6 +87,12 @@ val nats: ZStream[Any, Nothing, Int] =
 
 ```scala mdoc:silent:nest
 val range: ZStream[Any, Nothing, Int] = ZStream.range(1, 5) // 1, 2, 3, 4
+```
+
+**ZStream.environment[R]** — Create a stream that extract the request service from the environment:
+
+```scala mdoc:silent:nest
+val clockStream: ZStream[Clock, Nothing, Clock] = ZStream.environment[Clock]
 ```
 
 ### From Success and Failure
