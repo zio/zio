@@ -87,11 +87,16 @@ val s2: ZStream[Any, Nothing, Int]    = ZStream.succeed(5)
 
 ### From Chunks
 
-We can create ZIO Stream from Chunks:
+We can create a stream from a `Chunk`:
 
-```scala mdoc:silent:nest
-val s1: ZStream[Any, Nothing, Int] = ZStream.fromChunks(Chunk(1, 2, 3), Chunk(4, 5, 6))
-val s2: ZStream[Any, Nothing, Int] = ZStream.fromChunk(Chunk(1, 2, 3))
+```scala mdoc:nest
+val s1 = ZStream.fromChunk(Chunk(1, 2, 3))
+```
+
+Or from multiple `Chunks`:
+
+```scala mdoc:nest
+val s2 = ZStream.fromChunks(Chunk(1, 2, 3), Chunk(4, 5, 6))
 ```
 
 ### From Iterators
