@@ -7,6 +7,8 @@ import zio.test.TestAspect.{nonFlaky, silent}
 import zio.test._
 import zio.test.environment.TestConsole._
 
+import java.io.IOException
+
 object ConsoleSpec extends ZIOBaseSpec {
 
   def spec: ZSpec[Environment, Failure] =
@@ -42,9 +44,9 @@ object ConsoleSpec extends ZIOBaseSpec {
           }
         }.provideLayer(TestConsole.make(Data(List("Input 1", "Input 2"), Vector.empty)))
       },
-      testM("fails on empty input") {
+      testM("dies on empty input") {
         for {
-          failed <- getStrLn.either
+          failed <- getStrLn.unrefineTo[IOException].either
           message = failed.fold(_.getMessage, identity)
         } yield {
           assert(failed.isLeft)(isTrue) &&
@@ -65,7 +67,7 @@ object ConsoleSpec extends ZIOBaseSpec {
         for {
           _      <- feedLines("Input 1", "Input 2")
           _      <- clearInput
-          failed <- getStrLn.either
+          failed <- getStrLn.unrefineTo[IOException].either
           message = failed.fold(_.getMessage, identity)
         } yield {
           assert(failed.isLeft)(isTrue) &&

@@ -117,7 +117,7 @@ object AutoLayerSpec extends ZIOBaseSpec {
         ),
         suite("injectCustom")(
           testM("automatically constructs a layer from its dependencies, leaving off ZEnv") {
-            val stringLayer = console.getStrLn.orDie.toLayer
+            val stringLayer = console.getStrLn.toLayer
             val program     = ZIO.service[String].zipWith(random.nextInt)((str, int) => s"$str $int")
             val provided = TestConsole.feedLines("Your Lucky Number is:") *>
               program.injectCustom(stringLayer)
@@ -127,7 +127,7 @@ object AutoLayerSpec extends ZIOBaseSpec {
         ),
         suite("injectSome")(
           testM("automatically constructs a layer from its dependencies, leaving off some environment") {
-            val stringLayer = console.getStrLn.orDie.toLayer
+            val stringLayer = console.getStrLn.toLayer
             val program     = ZIO.service[String].zipWith(random.nextInt)((str, int) => s"$str $int")
             val provided = TestConsole.feedLines("Your Lucky Number is:") *>
               program.injectSome[Random with Console](stringLayer)
@@ -268,7 +268,7 @@ object AutoLayerSpec extends ZIOBaseSpec {
         ),
         suite("injectCustom")(
           testM("automatically constructs a layer from its dependencies, leaving off ZEnv") {
-            val stringLayer = console.getStrLn.orDie.toLayer
+            val stringLayer = console.getStrLn.toLayer
             val program     = ZManaged.service[String].zipWith(random.nextInt.toManaged_)((str, int) => s"$str $int")
             val provided = TestConsole.feedLines("Your Lucky Number is:").toManaged_ *>
               program.injectCustom(stringLayer)
@@ -278,7 +278,7 @@ object AutoLayerSpec extends ZIOBaseSpec {
         ),
         suite("injectSome")(
           testM("automatically constructs a layer from its dependencies, leaving off some environment") {
-            val stringLayer = console.getStrLn.orDie.toLayer
+            val stringLayer = console.getStrLn.toLayer
             val program     = ZManaged.service[String].zipWith(random.nextInt.toManaged_)((str, int) => s"$str $int")
             val provided = TestConsole.feedLines("Your Lucky Number is:").toManaged_ *>
               program.injectSome[Random with Console](stringLayer)

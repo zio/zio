@@ -165,7 +165,7 @@ object CountRequests extends zio.App {
     for {
       _ <- counter.update(_ + 1)
       reqNumber <- counter.get
-      _ <- putStrLn(s"request number: $reqNumber").orDie
+      _ <- putStrLn(s"request number: $reqNumber")
     } yield ()
   }
 
@@ -175,7 +175,7 @@ object CountRequests extends zio.App {
       ref <- Ref.make(initial)
       _ <- request(ref) zipPar request(ref)
       rn <- ref.get
-      _ <- putStrLn(s"total requests performed: $rn").orDie
+      _ <- putStrLn(s"total requests performed: $rn")
     } yield ()
 
   override def run(args: List[String]) = program.exitCode
