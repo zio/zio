@@ -342,6 +342,14 @@ object ZStream {
 
 If they contain `Chunk` of elements, we can use `ZStream.fromChunk...` constructors to create a stream from those elements (e.g. `ZStream.fromChunkQueue`). Also, If we need to shutdown a `Queue` or `Hub`, once the stream is closed, we should use `ZStream.from..Shutdown` constructors (e.g. `ZStream.fromQueueWithShutdown`).
 
+Also, we can lift a `TQueue` to the ZIO Stream:
+
+```scala
+object ZStream {
+  def fromTQueue[A](queue: TQueue[A]): ZStream[Any, Nothing, A] = ???
+}
+```
+
 ### Resourceful Streams
 
 Most of the constructors of `ZStream` have a special variant to lift a Managed resource to a Stream (e.g. `ZStream.fromReaderManaged`). By using these constructors, we are creating streams that are resource-safe. Before creating a stream, they acquire the resource, and after usage; they close the stream.
