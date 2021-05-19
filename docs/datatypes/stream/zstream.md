@@ -52,7 +52,7 @@ Based on type parameters of `ZStream`, there are 4 types of streams:
 3. `ZStream[Any, Nothing, Nothing]` — A stream that emits no elements.
 4. `ZStream[R, E, O]` — A stream that requires access to the `R` service, can fail with error of type `E` and emits `O` values.
 
-## Creation
+## Creating a Stream
 
 There are several ways to create ZIO Stream. In this section, we are going to enumerate some of the important ways of creating `ZStream`. 
 
