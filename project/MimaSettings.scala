@@ -6,7 +6,7 @@ import com.typesafe.tools.mima.core._
 import com.typesafe.tools.mima.core.ProblemFilters._
 
 object MimaSettings {
-  lazy val bincompatVersionToCompare = "1.0.5"
+  lazy val bincompatVersionToCompare = "1.0.8"
 
   def mimaSettings(failOnProblem: Boolean) =
     Seq(
