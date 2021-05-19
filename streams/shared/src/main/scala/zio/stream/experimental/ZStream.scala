@@ -3,7 +3,7 @@ package zio.stream.experimental
 import zio._
 import zio.clock._
 import zio.duration._
-import zio.internal.{SingleThreadedRingBuffer, UniqueKey}
+import zio.internal.{Executor, SingleThreadedRingBuffer, UniqueKey}
 import zio.stm._
 import zio.stream.experimental.ZStream.{BufferedPull, DebounceState, HandoffSignal}
 import zio.stream.experimental.internal.Utils.zipChunks
@@ -1430,6 +1430,17 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
       .runManaged
       .unit
   }
+
+  /**
+   * Locks the execution of this stream to the specified executor. Any streams
+   * that are composed after this one will automatically be shifted back to the
+   * previous executor.
+   */
+  def lock(executor: Executor): ZStream[R, E, A] =
+    ZStream.fromEffect(ZIO.descriptor).flatMap { descriptor =>
+      ZStream.managed(ZManaged.lock(executor)) *>
+        self <* ZStream.fromEffect(ZIO.shift(descriptor.executor))
+    }
 
   /**
    * Transforms the elements of this stream using the supplied function.
@@ -2886,6 +2897,14 @@ object ZStream {
    * Creates a pure stream from a variable list of values
    */
   def apply[A](as: A*): ZStream[Any, Nothing, A] = fromIterable(as)
+
+  /**
+   * Locks the execution of the specified stream to the blocking executor. Any
+   * streams that are composed after this one will automatically be shifted
+   * back to the previous executor.
+   */
+  def blocking[R, E, A](stream: ZStream[R, E, A]): ZStream[R, E, A] =
+    ZStream.fromEffect(ZIO.blockingExecutor).flatMap(stream.lock)
 
   /**
    * Creates a stream from a single value that will get cleaned up after the
