@@ -350,6 +350,15 @@ object ZStream {
 }
 ```
 
+### From Schedule
+
+We can create a stream from a `Schedule` that does not require any further input. The stream will emit an element for each value output from the schedule, continuing for as long as the schedule continues:
+
+```scala mdoc:silent:nest
+val stream: ZStream[Clock, Nothing, Long] =
+  ZStream.fromSchedule(Schedule.spaced(1.second) >>> Schedule.recurs(10))
+```
+
 ### Resourceful Streams
 
 Most of the constructors of `ZStream` have a special variant to lift a Managed resource to a Stream (e.g. `ZStream.fromReaderManaged`). By using these constructors, we are creating streams that are resource-safe. Before creating a stream, they acquire the resource, and after usage; they close the stream.
