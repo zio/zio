@@ -2535,6 +2535,18 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     ZIO.collectAllParN[R, E, A, Iterable](n)(in).map(_.collect(f)).map(bf.fromSpecific(in))
 
   /**
+   * Collects the first element of the `Iterable[A]` for which the effectual
+   * function `f` returns `Some`.
+   */
+  def collectFirst[R, E, A, B](as: Iterable[A])(f: A => ZIO[R, E, Option[B]]): ZIO[R, E, Option[B]] =
+    effectTotal(as.iterator).flatMap { iterator =>
+      def loop: ZIO[R, E, Option[B]] =
+        if (iterator.hasNext) f(iterator.next()).flatMap(_.fold(loop)(some(_)))
+        else none
+      loop
+    }
+
+  /**
    * Evaluate each effect in the structure in parallel, collecting the
    * the successful values and discarding the empty cases.
    */
@@ -2767,6 +2779,18 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     ZIO.descriptorWith(descriptor => ZIO.succeedNow(descriptor.executor))
 
   /**
+   * Determines whether any element of the `Iterable[A]` satisfies the
+   * effectual predicate `f`.
+   */
+  def exists[R, E, A](as: Iterable[A])(f: A => ZIO[R, E, Boolean]): ZIO[R, E, Boolean] =
+    effectTotal(as.iterator).flatMap { iterator =>
+      def loop: ZIO[R, E, Boolean] =
+        if (iterator.hasNext) f(iterator.next()).flatMap(b => if (b) succeedNow(b) else loop)
+        else succeedNow(false)
+      loop
+    }
+
+  /**
    * Returns an effect that models failure with the specified error.
    * The moral equivalent of `throw` for pure code.
    */
@@ -2901,6 +2925,18 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     in.foldLeft[ZIO[R, E, Builder[B, Collection[B]]]](effectTotal(bf.newBuilder(in)))((io, a) =>
       io.zipWith(f(a))(_ += _)
     ).map(_.result())
+
+  /**
+   * Determines whether all elements of the `Iterable[A]` satisfy the effectual
+   * predicate `f`.
+   */
+  def forall[R, E, A](as: Iterable[A])(f: A => ZIO[R, E, Boolean]): ZIO[R, E, Boolean] =
+    effectTotal(as.iterator).flatMap { iterator =>
+      def loop: ZIO[R, E, Boolean] =
+        if (iterator.hasNext) f(iterator.next()).flatMap(b => if (b) loop else succeedNow(b))
+        else succeedNow(true)
+      loop
+    }
 
   /**
    * Applies the function `f` to each element of the `Set[A]` and
