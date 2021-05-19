@@ -3456,6 +3456,14 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   def apply[A](as: A*): ZStream[Any, Nothing, A] = fromIterable(as)
 
   /**
+   * Locks the execution of the specified stream to the blocking executor. Any
+   * streams that are composed after this one will automatically be shifted
+   * back to the previous executor.
+   */
+  def blocking[R, E, A](stream: ZStream[R, E, A]): ZStream[R, E, A] =
+    ZStream.fromEffect(ZIO.blockingExecutor).flatMap(stream.lock)
+
+  /**
    * Creates a stream from a single value that will get cleaned up after the
    * stream is consumed
    */
