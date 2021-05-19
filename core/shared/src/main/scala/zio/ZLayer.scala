@@ -39,6 +39,12 @@ import zio.internal.Platform
  */
 sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
 
+  /**
+   * A symbolic alias for `orDie`.
+   */
+  final def !(implicit ev1: E <:< Throwable, ev2: CanFail[E]): ZLayer[RIn, Nothing, ROut] =
+    self.orDie
+
   final def +!+[E1 >: E, RIn2, ROut1 >: ROut, ROut2](
     that: ZLayer[RIn2, E1, ROut2]
   )(implicit ev: Has.UnionAll[ROut1, ROut2]): ZLayer[RIn with RIn2, E1, ROut1 with ROut2] =
