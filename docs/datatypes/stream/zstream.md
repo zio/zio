@@ -349,6 +349,18 @@ val inputs: ZStream[Console, IOException, String] = ZStream.unfoldM(()) { _ =>
 
 `ZStream.unfoldChunk`, and `ZStream.unfoldChunkM` are other variants of `unfold` operations but for `Chunk` data type.
 
+### From Wrapped Streams
+
+Sometimes we have an effect that contains a `ZStream`, we can unwrap the embedded stream and produce a stream from those effects. If the stream is wrapped with the `ZIO` effect, we use `unwrap`, and if it is wrapped with `ZManaged` we use `unwrapManaged`:
+
+```scala mdoc:silent:nest
+val wrapedWithZIO = ZIO(ZStream(1, 2, 3))
+val unwrapped     = ZStream.unwrap(wrapedWithZIO)
+
+val wrappedWithZManaged = ZManaged.succeed(ZStream(1, 2, 3))
+val unwrapped_          = ZStream.unwrapManaged(wrappedWithZManaged)
+```
+
 ### From Java IO
 
 **ZStream.fromFile** — Create ZIO Stream from a file:
