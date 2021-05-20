@@ -298,7 +298,7 @@ val stream: ZStream[Clock, Nothing, Unit] =
 
 There are some other variant of repetition API like `repeatEffectWith`, `repeatEffectOption`, `repeatEffectChunk` and `repeatEffectChunkOption`.
 
-### From Unfolding
+### From Unfolding/Pagination
 
 In functional programming, `unfold` is dual to `fold`. 
 
@@ -348,6 +348,18 @@ val inputs: ZStream[Console, IOException, String] = ZStream.unfoldM(()) { _ =>
 ```
 
 `ZStream.unfoldChunk`, and `ZStream.unfoldChunkM` are other variants of `unfold` operations but for `Chunk` data type.
+
+**ZStream.paginated** — This is similar to `unfold`, but allows the emission of values to end one step further than the unfolding of the state:
+
+The stream in the following example, emits `0, 1, 2, 3` elements:
+
+```scala mdoc:silent:nest
+val stream = ZStream.paginate(0) { s =>
+  s -> (if (s < 3) Some(s + 1) else None)
+}
+```
+
+Similar to `unfold` API, `ZStream` has various other forms as well as `ZStream.paginateM`, `ZStream.paginateChunk` and `ZStream.paginateChunkM`.
 
 ### From Wrapped Streams
 
