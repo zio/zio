@@ -60,7 +60,9 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
   /**
    * Syntax for adding aspects.
    */
-  final def @@[R1 <: R, E1 >: E](aspect: ManagedAspect[R1, E1]): ZManaged[R1, E1, A] =
+  final def @@[LowerR <: UpperR, UpperR <: R, LowerE >: E, UpperE >: LowerE, LowerA >: A, UpperA >: LowerA](
+    aspect: ZManagedAspect[LowerR, UpperR, LowerE, UpperE, LowerA, UpperA]
+  ): ZManaged[UpperR, LowerE, LowerA] =
     aspect(self)
 
   /**

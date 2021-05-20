@@ -15,6 +15,14 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   import ZStream.TerminationStrategy
 
   /**
+   * Syntax for adding aspects.
+   */
+  final def @@[LowerR <: UpperR, UpperR <: R, LowerE >: E, UpperE >: LowerE, LowerA >: A, UpperA >: LowerA](
+    aspect: ZStreamAspect[LowerR, UpperR, LowerE, UpperE, LowerA, UpperA]
+  ): ZStream[UpperR, LowerE, LowerA] =
+    aspect(self)
+
+  /**
    * Symbolic alias for [[ZStream#cross]].
    */
   final def <*>[R1 <: R, E1 >: E, A2](that: ZStream[R1, E1, A2]): ZStream[R1, E1, (A, A2)] =
