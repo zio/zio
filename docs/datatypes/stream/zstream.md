@@ -543,9 +543,11 @@ and many others. Here are examples of how to use them.
 ```scala mdoc:silent
 import zio.stream._
 
-val intStream: Stream[Nothing, Int] = Stream.fromIterable(0 to 100)
-val stringStream: Stream[Nothing, String] = intStream.map(_.toString)
+val intStream: UStream[Int] = Stream.fromIterable(0 to 100)
+val stringStream: UStream[String] = intStream.map(_.toString)
 ```
+
+If our transformation is effectful, we can use `ZStream#mapM` instead.
 
 **mapChunk** — Each stream is backed by some `Chunk`s. By using `mapChunk` we can batch the underlying stream and map every `Chunk` at once:
 
