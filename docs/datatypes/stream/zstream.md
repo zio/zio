@@ -565,6 +565,22 @@ def runningTotal(stream: UStream[Int]): UStream[Int] =
 // output: 0, 1, 3, 6, 10, 15
 ```
 
+**mapConcat** — It is similar to `map`, but maps each element to zero or more elements with the type of `Iterable` and then flattens the whole stream:
+
+```scala mdoc:silent:nest
+val numbers: UStream[Int] = 
+  ZStream("1-2-3", "4-5", "6")
+    .mapConcat(_.split("-"))
+    .map(_.toInt)
+
+// Input:  "1-2-3", "4-5", "6"
+// Output: 1, 2, 3, 4, 5, 6
+```
+
+The effectful version of `mapConcat` is `mapConcatM`. 
+
+`ZStream` also has chunked versions of that which are `mapConcatChunk` and `mapConcatChunkM`.
+
 ### partition
 `partition` function splits the stream into tuple of streams based on predicate. The first stream contains all
 element evaluated to true and the second one contains all element evaluated to false.
