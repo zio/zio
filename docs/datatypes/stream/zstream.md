@@ -538,12 +538,33 @@ ZIO Stream supports many standard transforming functions like `map`, `partition`
 and many others. Here are examples of how to use them.   
 
 ### map
+
+**map** — Applies a given function to all element of this stream to produce another stream:
 ```scala mdoc:silent
 import zio.stream._
 
 val intStream: Stream[Nothing, Int] = Stream.fromIterable(0 to 100)
 val stringStream: Stream[Nothing, String] = intStream.map(_.toString)
 ```
+
+**mapAccum** — It is similar to a `map`, but it **transforms elements statefully**. `mapAccum` allows us to _map_ and _accumulate_ in the same operation.
+
+```scala
+abstract class ZStream[-R, +E, +O] {
+  def mapAccum[S, O1](s: S)(f: (S, O) => (S, O1)): ZStream[R, E, O1]
+}
+```
+
+Let's write a transformation, which calculate _running total_ of input stream:
+
+```scala mdoc:silent:nest
+def runningTotal(stream: UStream[Int]): UStream[Int] =
+  stream.mapAccum(0)((acc, next) => (acc + next, acc + next))
+
+// input:  0, 1, 2, 3,  4,  5
+// output: 0, 1, 3, 6, 10, 15
+```
+
 ### partition
 `partition` function splits the stream into tuple of streams based on predicate. The first stream contains all
 element evaluated to true and the second one contains all element evaluated to false.
