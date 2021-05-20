@@ -15,11 +15,11 @@ package zio
  *
  *   object FooService extends Accessor[FooService]
  *
- *   val example: ZIO[Has[FooService], Nothing, String] =
+ *   val example: ZIO[Has[FooService], Nothing, Unit] =
  *     for {
  *       int  <- FooService(_.magicNumber)
  *       bool <- FooService(_.castSpell("Oogabooga!"))
- *     } yield s"$int and $bool"
+ *     } yield ()
  * }}}
  */
 trait Accessor[R] {
