@@ -16,6 +16,7 @@ import zio.random.Random
 import zio.clock.Clock
 import java.io.{FileReader, FileInputStream, IOException}
 import zio.console.Console
+import java.net.URL
 ```
 
 ```scala mdoc:silent:nest
@@ -549,6 +550,17 @@ val stringStream: UStream[String] = intStream.map(_.toString)
 
 If our transformation is effectful, we can use `ZStream#mapM` instead.
 
+**mapMPar** —  It is similar to `mapM`, but will evaluate effects in parallel. It will emit the results downstream in the original order. The `n` argument specifies the number of concurrent running effects.
+
+Let's write a simple page downloader, which download URLs concurrently:
+
+```scala mdoc:silent:nest
+def fetchUrl(url: URL): Task[String] = Task.succeed(???)
+def getUrls: Task[List[URL]] = Task.succeed(???)
+
+val pages = ZStream.fromIterableM(getUrls).mapMPar(8)(fetchUrl)  
+```
+    
 **mapChunk** — Each stream is backed by some `Chunk`s. By using `mapChunk` we can batch the underlying stream and map every `Chunk` at once:
 
 ```scala mdoc:silent
