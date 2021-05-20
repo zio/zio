@@ -547,6 +547,21 @@ val intStream: Stream[Nothing, Int] = Stream.fromIterable(0 to 100)
 val stringStream: Stream[Nothing, String] = intStream.map(_.toString)
 ```
 
+**mapChunk** — Each stream is backed by some `Chunk`s. By using `mapChunk` we can batch the underlying stream and map every `Chunk` at once:
+
+```scala mdoc:silent
+val chunked = 
+  ZStream
+    .fromChunks(Chunk(1, 2, 3), Chunk(4, 5), Chunk(6, 7, 8, 9))
+
+val stream = chunked.mapChunks(x => x.tail)
+
+// Input:  1, 2, 3, 4, 5, 6, 7, 8, 9
+// Output:    2, 3,    5,    7, 8, 9
+```
+
+If our transformation is effectful we can use `mapChunkM` combinator.
+
 **mapAccum** — It is similar to a `map`, but it **transforms elements statefully**. `mapAccum` allows us to _map_ and _accumulate_ in the same operation.
 
 ```scala
