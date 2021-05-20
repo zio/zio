@@ -1528,24 +1528,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     schedule: Schedule[R1, A, B],
     orElse: (E, Option[B]) => ZIO[R1, E2, C]
   ): ZIO[R1 with Clock, E2, Either[C, B]] =
-    schedule.driver.flatMap { driver =>
-      def loop(a: A): ZIO[R1 with Clock, E2, Either[C, B]] =
-        driver
-          .next(a)
-          .foldM(
-            _ => driver.last.orDie.map(Right(_)),
-            b =>
-              self.foldM(
-                e => orElse(e, Some(b)).map(Left(_)),
-                a => loop(a)
-              )
-          )
-
-      self.foldM(
-        e => orElse(e, None).map(Left(_)),
-        a => loop(a)
-      )
-    }
+    clock.repeatOrElseEither(self)(schedule, orElse)
 
   /**
    * Repeats this effect until its value satisfies the specified predicate
@@ -1610,7 +1593,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * "execute `io` and in case of failure, try again once".
    */
   final def retry[R1 <: R, S](policy: Schedule[R1, E, S])(implicit ev: CanFail[E]): ZIO[R1 with Clock, E, A] =
-    retryOrElse(policy, (e: E, _: S) => ZIO.fail(e))
+    clock.retry(self)(policy)
 
   /**
    * Retries this effect the specified number of times.
@@ -1627,7 +1610,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     policy: Schedule[R1, E, S],
     orElse: (E, S) => ZIO[R1, E1, A1]
   )(implicit ev: CanFail[E]): ZIO[R1 with Clock, E1, A1] =
-    retryOrElseEither(policy, orElse).map(_.merge)
+    clock.retryOrElse[R, R1, E, E1, A, A1, S](self)(policy, orElse)
 
   /**
    * Returns an effect that retries this effect with the specified schedule when it fails, until
@@ -1637,21 +1620,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def retryOrElseEither[R1 <: R, Out, E1, B](
     schedule: Schedule[R1, E, Out],
     orElse: (E, Out) => ZIO[R1, E1, B]
-  )(implicit ev: CanFail[E]): ZIO[R1 with Clock, E1, Either[B, A]] = {
-    def loop(driver: Schedule.Driver[R1 with Clock, E, Out]): ZIO[R1 with Clock, E1, Either[B, A]] =
-      self
-        .map(Right(_))
-        .catchAll(e =>
-          driver
-            .next(e)
-            .foldM(
-              _ => driver.last.orDie.flatMap(out => orElse(e, out).map(Left(_))),
-              _ => loop(driver)
-            )
-        )
-
-    schedule.driver.flatMap(loop(_))
-  }
+  )(implicit ev: CanFail[E]): ZIO[R1 with Clock, E1, Either[B, A]] =
+    clock.retryOrElseEither(self)(schedule, orElse)
 
   /**
    * Retries this effect until its error satisfies the specified predicate.
@@ -1732,19 +1702,14 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * depend on the result of this effect.
    */
   final def schedule[R1 <: R, B](schedule: Schedule[R1, Any, B]): ZIO[R1 with Clock, E, B] =
-    scheduleFrom(())(schedule)
+    clock.schedule(self)(schedule)
 
   /**
    * Runs this effect according to the specified schedule starting from the
    * specified input value.
    */
   final def scheduleFrom[R1 <: R, A1 >: A, B](a: A1)(schedule: Schedule[R1, A1, B]): ZIO[R1 with Clock, E, B] =
-    schedule.driver.flatMap { driver =>
-      def loop(a: A1): ZIO[R1 with Clock, E, B] =
-        driver.next(a).foldM(_ => driver.last.orDie, _ => self.flatMap(loop))
-
-      loop(a)
-    }
+    clock.scheduleFrom[R, R1, E, A, A1, B](self)(a)(schedule)
 
   /**
    * Converts an option on values into an option on errors.
