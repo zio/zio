@@ -277,6 +277,18 @@ val userInputs: ZStream[Console, IOException, String] =
   )
 ```
 
+Here is another interesting example of using `repeatEffectOption`; In this example, we are draining an `Iterator` to create a stream of that iterator:
+
+```scala mdoc:silent:nest
+def drainIterator[A](it: Iterator[A]): ZStream[Any, Throwable, A] =
+  ZStream.repeatEffectOption {
+    ZIO(it.hasNext).mapError(Some(_)).flatMap { hasNext =>
+      if (hasNext) ZIO(it.next()).mapError(Some(_))
+      else ZIO.fail(None)
+    }
+  }
+```
+
 **ZStream.tick** —  A stream that emits Unit values spaced by the specified duration:
 
 ```scala mdoc:silent:nest
