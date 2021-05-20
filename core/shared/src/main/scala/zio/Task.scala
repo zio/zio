@@ -249,6 +249,12 @@ object Task extends TaskPlatformSpecific {
     ZIO.cond(predicate, result, error)
 
   /**
+   * @see See [[zio.ZIO.cond]]
+   */
+  def debug(message: String): UIO[Unit] =
+    ZIO.debug(message)
+
+  /**
    * @see See [[zio.ZIO.die]]
    */
   def die(t: => Throwable): UIO[Nothing] = ZIO.die(t)

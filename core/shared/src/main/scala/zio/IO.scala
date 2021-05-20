@@ -243,6 +243,12 @@ object IO {
     ZIO.cond(predicate, result, error)
 
   /**
+   * @see See [[zio.ZIO.cond]]
+   */
+  def debug(message: String): UIO[Unit] =
+    ZIO.debug(message)
+
+  /**
    * @see See [[zio.ZIO.descriptor]]
    */
   def descriptor: UIO[Fiber.Descriptor] = ZIO.descriptor

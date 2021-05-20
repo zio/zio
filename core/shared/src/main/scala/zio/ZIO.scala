@@ -2582,6 +2582,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     if (predicate) ZIO.succeed(result) else ZIO.fail(error)
 
   /**
+   * Prints the specified message to the console for debugging purposes.
+   */
+  def debug(message: String): UIO[Unit] =
+    ZIO.effectTotal(println(message))
+
+  /**
    * Returns information about the current fiber, such as its identity.
    */
   def descriptor: UIO[Fiber.Descriptor] = descriptorWith(succeedNow)
