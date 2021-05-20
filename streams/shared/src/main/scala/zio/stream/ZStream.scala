@@ -2044,7 +2044,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
       for {
         out         <- Queue.bounded[ZIO[R1, Option[E1], O2]](n).toManaged(_.shutdown)
         errorSignal <- Promise.make[E1, Nothing].toManaged_
-        permits     <- Semaphore.make(n.toLong).toManaged_
+        permits     <- Semaphore0.make(n.toLong).toManaged_
         _ <- self.foreachManaged { a =>
                for {
                  p     <- Promise.make[E1, O2]
