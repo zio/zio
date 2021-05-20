@@ -611,10 +611,9 @@ The effectful version of `mapConcat` is `mapConcatM`.
 `ZStream` also has chunked versions of that which are `mapConcatChunk` and `mapConcatChunkM`.
 
 ### partition
-`partition` function splits the stream into tuple of streams based on predicate. The first stream contains all
-element evaluated to true and the second one contains all element evaluated to false.
-The faster stream may advance by up to `buffer` elements further than the slower one. Two streams are 
-wrapped by `ZManaged` type. In the example below, left stream consists of even numbers only.
+`partition` function splits the stream into tuple of streams based on predicate. The first stream contains all element evaluated to true and the second one contains all element evaluated to false.
+
+The faster stream may advance by up to `buffer` elements further than the slower one. Two streams are wrapped by `ZManaged` type. In the example below, left stream consists of even numbers only.
 
 ```scala mdoc:silent
 import zio._
@@ -640,8 +639,7 @@ val groupedResult: ZStream[Any, Nothing, Chunk[Int]] =
 ```
 
 ### groupByKey
-To partition the stream by function result you can use `groupByKey` or `groupBy`. In the example below
-exam results are grouped into buckets and counted. 
+To partition the stream by function result you can use `groupByKey` or `groupBy`. In the example below exam results are grouped into buckets and counted. 
 
 ```scala mdoc:silent
 import zio._
@@ -666,8 +664,7 @@ import zio.stream._
 ```
 
 ### groupedWithin
-`groupedWithin` allows to group events by time or chunk size, whichever is satisfied first. In the example below
-every chunk consists of 30 elements and is produced every 3 seconds.
+`groupedWithin` allows to group events by time or chunk size, whichever is satisfied first. In the example below every chunk consists of 30 elements and is produced every 3 seconds.
 
 ```scala mdoc:silent
 import zio._
@@ -693,11 +690,9 @@ val result: RIO[Console, Unit] = Stream.fromIterable(0 to 100).foreach(i => putS
 
 ### Using a Sink
 
-A `Sink[E, A0, A, B]` consumes values of type `A`, ultimately producing
-either an error of type `E`, or a value of type `B` together with a remainder
-of type `A0`.
+A `Sink[E, A0, A, B]` consumes values of type `A`, ultimately producing either an error of type `E`, or a value of type `B` together with a remainder of type `A0`.
 
-You can for example reduce a `Stream` to a `ZIO` value using `Sink.foldLeft` : 
+We can for example reduce a `Stream` to a `ZIO` value using `Sink.foldLeft`: 
 
 ```scala mdoc:silent
 import zio._
@@ -709,7 +704,7 @@ val resultFromSink: UIO[Int] = Stream(1,2,3).run(Sink.foldLeft(0)(streamReduce))
 
 ## Working on several streams
 
-You can merge several streams using the `merge` method :
+We can merge several streams using the `merge` method:
 
 ```scala mdoc:silent
 import zio.stream._
@@ -717,7 +712,7 @@ import zio.stream._
 val merged: Stream[Nothing, Int] = Stream(1,2,3).merge(Stream(2,3,4))
 ```
 
-Or zipping streams : 
+Or zipping streams: 
 
 ```scala mdoc:silent
 import zio.stream._
@@ -725,7 +720,7 @@ import zio.stream._
 val zippedStream: Stream[Nothing, (Int, Int)] = Stream(1,2,3).zip(Stream(2,3,4))
 ```
 
-Then you would be able to reduce the stream into to a `ZIO` value : 
+Then we would be able to reduce the stream into to a `ZIO` value: 
 
 ```scala mdoc:silent
 import zio._
