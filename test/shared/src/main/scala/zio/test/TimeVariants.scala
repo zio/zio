@@ -16,12 +16,12 @@
 
 package zio.test
 
-import zio.ZIO
+import com.github.ghik.silencer.silent
 import zio.duration.Duration
 import zio.random.Random
-import zio.stream.ZStream
 
 import java.time._
+import scala.collection.JavaConverters._
 
 trait TimeVariants {
 
@@ -155,18 +155,9 @@ trait TimeVariants {
   /**
    * A generator of `java.time.ZoneId` values. Doesn't have any shrinking.
    */
+  @silent("JavaConverters")
   final def anyZoneId: Gen[Random, ZoneId] =
-    Gen(
-      ZStream
-        .fromJavaIteratorTotal(ZoneId.getAvailableZoneIds.iterator)
-        .mapChunksM { ids =>
-          for {
-            random   <- ZIO.service[Random.Service]
-            shuffled <- random.shuffle(ids)
-          } yield shuffled.map(ZoneId.of)
-        }
-        .map(zid => Sample(zid, ZStream.empty))
-    )
+    Gen.elements(ZoneId.getAvailableZoneIds.asScala.map(ZoneId.of).toList: _*).noShrink
 
   /**
    * A generator of `java.time.ZoneOffset` values. Shrinks toward `ZoneOffset.MIN`.
