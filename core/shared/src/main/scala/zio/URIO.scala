@@ -255,6 +255,12 @@ object URIO {
     ZIO.collectParN(n)(in)(f)
 
   /**
+   * @see See [[zio.ZIO.cond]]
+   */
+  def debug(message: String): UIO[Unit] =
+    ZIO.debug(message)
+
+  /**
    * @see [[zio.ZIO.descriptor]]
    */
   def descriptor: UIO[Fiber.Descriptor] = ZIO.descriptor
