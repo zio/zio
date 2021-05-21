@@ -610,22 +610,44 @@ The effectful version of `mapConcat` is `mapConcatM`.
 
 `ZStream` also has chunked versions of that which are `mapConcatChunk` and `mapConcatChunkM`.
 
-### partition
-`partition` function splits the stream into tuple of streams based on predicate. The first stream contains all element evaluated to true and the second one contains all element evaluated to false.
+### Partitioning
 
-The faster stream may advance by up to `buffer` elements further than the slower one. Two streams are wrapped by `ZManaged` type. In the example below, left stream consists of even numbers only.
+#### partition
+`ZStream#partition` function splits the stream into tuple of streams based on the predicate. The first stream contains all element evaluated to true, and the second one contains all element evaluated to false.
 
-```scala mdoc:silent
-import zio._
-import zio.stream._
+The faster stream may advance by up to `buffer` elements further than the slower one. Two streams are wrapped by `ZManaged` type. 
 
+In the example below, left stream consists of even numbers only:
+
+```scala mdoc:silent:nest
 val partitionResult: ZManaged[Any, Nothing, (ZStream[Any, Nothing, Int], ZStream[Any, Nothing, Int])] =
   Stream
     .fromIterable(0 to 100)
     .partition(_ % 2 == 0, buffer = 50)
 ```
 
-### Grouping Operations
+#### partitionEither
+If we need to partition a stream using an effectful predicate we can use `ZStream.partitionEither`.
+
+```scala
+abstract class ZStream[-R, +E, +O] {
+  final def partitionEither[R1 <: R, E1 >: E, O2, O3](
+    p: O => ZIO[R1, E1, Either[O2, O3]],
+    buffer: Int = 16
+  ): ZManaged[R1, E1, (ZStream[Any, E1, O2], ZStream[Any, E1, O3])]
+}
+```
+
+Here is a simple example of using this function:
+
+```scala mdoc:silent:nest
+val partitioned: ZManaged[Any, Nothing, (ZStream[Any, Nothing, Int], ZStream[Any, Nothing, Int])] =
+  ZStream
+    .fromIterable(1 to 10)
+    .partitionEither(x => ZIO.succeed(if (x < 5) Left(x) else Right(x)))
+```
+
+### Grouping
 
 #### groupByKey
 
