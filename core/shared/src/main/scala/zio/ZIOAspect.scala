@@ -10,7 +10,7 @@ trait ZIOAspect[+LowerR, -UpperR, +LowerE, -UpperE, +LowerA, -UpperA] {
   def apply[R >: LowerR <: UpperR, E >: LowerE <: UpperE, A >: LowerA <: UpperA](zio: ZIO[R, E, A]): ZIO[R, E, A]
 }
 
-object ZAspect {
+object ZIOAspect {
 
   /**
    * An aspect that prints the results of effects to the console for debugging
