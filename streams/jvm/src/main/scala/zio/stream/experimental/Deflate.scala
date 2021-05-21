@@ -27,13 +27,13 @@ object Deflate {
     } {
       case (deflater, buffer) => {
 
-        def loop(): ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[Byte], Done] =
+        lazy val loop: ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[Byte], Done] =
           ZChannel.readWithCause(
             chunk =>
               ZChannel.effectTotal {
                 deflater.setInput(chunk.toArray)
                 pullOutput(deflater, buffer, flushMode)
-              }.flatMap(chunk => ZChannel.write(chunk) *> loop()),
+              }.flatMap(chunk => ZChannel.write(chunk) *> loop),
             ZChannel.halt(_),
             done =>
               ZChannel.effectTotal {
@@ -44,7 +44,7 @@ object Deflate {
               }.flatMap(chunk => ZChannel.write(chunk).as(done))
           )
 
-        loop()
+        loop
       }
     }
 
