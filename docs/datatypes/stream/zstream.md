@@ -702,6 +702,41 @@ val counted: UStream[(Char, Long)] =
 // Output: (P, 2), (R, 2), (M, 1), (J, 3)
 ```
 
+Let's change the above example a bit into an example of classifying students. The teacher assigns the student to a specific class based on the student's talent. Note that the partitioning operation is an effectful:
+
+```scala mdoc:silent:nest
+val classifyStudents: ZStream[Console, IOException, (String, Seq[String])] =
+  ZStream.fromEffect(
+    putStrLn("Please assign each student to one of the A, B, or C classrooms.")
+  ) *> ZStream("Mary", "James", "Robert", "Patricia", "John", "Jennifer", "Rebecca", "Peter")
+    .groupBy(student =>
+      putStr(s"What is the classroom of $student? ") *>
+        getStrLn.map(classroom => (classroom, student))
+    ) { case (classroom, students) =>
+      ZStream.fromEffect(
+        students
+          .fold(Seq.empty[String])((s, e) => s :+ e)
+          .map(students => classroom -> students)
+      )
+    }
+
+// Input: 
+// Please assign each student to one of the A, B, or C classrooms.
+// What is the classroom of Mary? A
+// What is the classroom of James? B
+// What is the classroom of Robert? A
+// What is the classroom of Patricia? C
+// What is the classroom of John? B
+// What is the classroom of Jennifer? A
+// What is the classroom of Rebecca? C
+// What is the classroom of Peter? A
+//
+// Output: 
+// (B,List(James, John))
+// (A,List(Mary, Robert, Jennifer, Peter))
+// (C,List(Patricia, Rebecca))
+```
+
 ### groupedWithin
 `groupedWithin` allows to group events by time or chunk size, whichever is satisfied first. In the example below every chunk consists of 30 elements and is produced every 3 seconds.
 
