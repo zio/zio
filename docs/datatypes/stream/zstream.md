@@ -638,8 +638,20 @@ val groupedResult: ZStream[Any, Nothing, Chunk[Int]] =
     .grouped(50)
 ```
 
-### groupByKey
-To partition the stream by function result you can use `groupByKey` or `groupBy`. In the example below exam results are grouped into buckets and counted. 
+### Grouping Operations
+
+**groupByKey** — To partition the stream by function result we can use `groupBy` by providing a function of type `O => K` which determines by which keys the stream should be partitioned.
+
+```scala
+abstract class ZStream[-R, +E, +O] {
+  final def groupByKey[K](
+    f: O => K,
+    buffer: Int = 16
+  ): ZStream.GroupBy[R, E, K, O]
+}
+```
+
+In the example below, exam results are grouped into buckets and counted:
 
 ```scala mdoc:silent
 import zio._
@@ -661,6 +673,33 @@ import zio.stream._
       .groupByKey(exam => exam.score / 10 * 10) {
         case (k, s) => ZStream.fromEffect(s.runCollect.map(l => k -> l.size))
       }
+```
+
+> **Note**:
+>
+> `groupByKey` partition the stream by a simple function of type `O => K`; It is not an effectful function. In some cases we need to partition the stream by using an _effectful function_ of type `O => ZIO[R1, E1, (K, V)]`; So we can use `groupBy` which is the powerful version of `groupByKey` function.
+
+**groupBy** — It takes an effectful function of type `O => ZIO[R1, E1, (K, V)]`; ZIO Stream uses this function to partition the stream and gives us a new data type called `ZStream.GroupBy` which represent a grouped stream. `GroupBy` has an `apply` method, that takes a function of type `(K, ZStream[Any, E, V]) => ZStream[R1, E1, A]`; ZIO Runtime runs this function across all groups and then merges them in a non-deterministic fashion as a result.
+
+```scala
+abstract class ZStream[-R, +E, +O] {
+  final def groupBy[R1 <: R, E1 >: E, K, V](
+    f: O => ZIO[R1, E1, (K, V)],
+    buffer: Int = 16
+  ): ZStream.GroupBy[R1, E1, K, V]
+}
+```
+
+In the example below, we are going `groupBy` given names by their first character and then count the number of names in each group:
+
+```scala mdoc:silent:nest
+val counted: UStream[(Char, Long)] =
+  ZStream("Mary", "James", "Robert", "Patricia", "John", "Jennifer", "Rebecca", "Peter")
+    .groupBy(x => ZIO.succeed((x.head, x))) { case (char, stream) =>
+      ZStream.fromEffect(stream.runCount.map(count => char -> count))
+    }
+// Input:  Mary, James, Robert, Patricia, John, Jennifer, Rebecca, Peter
+// Output: (P, 2), (R, 2), (M, 1), (J, 3)
 ```
 
 ### groupedWithin
