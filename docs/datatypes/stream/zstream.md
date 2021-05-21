@@ -625,22 +625,11 @@ val partitionResult: ZManaged[Any, Nothing, (ZStream[Any, Nothing, Int], ZStream
     .partition(_ % 2 == 0, buffer = 50)
 ```
 
-### grouped
-To partition the stream results with the specified chunk size, you can use `grouped` function.
-
-```scala mdoc:silent
-import zio._
-import zio.stream._
-
-val groupedResult: ZStream[Any, Nothing, Chunk[Int]] =
-  Stream
-    .fromIterable(0 to 100)
-    .grouped(50)
-```
-
 ### Grouping Operations
 
-**groupByKey** — To partition the stream by function result we can use `groupBy` by providing a function of type `O => K` which determines by which keys the stream should be partitioned.
+#### groupByKey
+
+To partition the stream by function result we can use `groupBy` by providing a function of type `O => K` which determines by which keys the stream should be partitioned.
 
 ```scala
 abstract class ZStream[-R, +E, +O] {
@@ -679,7 +668,8 @@ import zio.stream._
 >
 > `groupByKey` partition the stream by a simple function of type `O => K`; It is not an effectful function. In some cases we need to partition the stream by using an _effectful function_ of type `O => ZIO[R1, E1, (K, V)]`; So we can use `groupBy` which is the powerful version of `groupByKey` function.
 
-**groupBy** — It takes an effectful function of type `O => ZIO[R1, E1, (K, V)]`; ZIO Stream uses this function to partition the stream and gives us a new data type called `ZStream.GroupBy` which represent a grouped stream. `GroupBy` has an `apply` method, that takes a function of type `(K, ZStream[Any, E, V]) => ZStream[R1, E1, A]`; ZIO Runtime runs this function across all groups and then merges them in a non-deterministic fashion as a result.
+#### groupBy
+It takes an effectful function of type `O => ZIO[R1, E1, (K, V)]`; ZIO Stream uses this function to partition the stream and gives us a new data type called `ZStream.GroupBy` which represent a grouped stream. `GroupBy` has an `apply` method, that takes a function of type `(K, ZStream[Any, E, V]) => ZStream[R1, E1, A]`; ZIO Runtime runs this function across all groups and then merges them in a non-deterministic fashion as a result.
 
 ```scala
 abstract class ZStream[-R, +E, +O] {
@@ -737,8 +727,19 @@ val classifyStudents: ZStream[Console, IOException, (String, Seq[String])] =
 // (C,List(Patricia, Rebecca))
 ```
 
-### groupedWithin
-`groupedWithin` allows to group events by time or chunk size, whichever is satisfied first. In the example below every chunk consists of 30 elements and is produced every 3 seconds.
+#### grouped
+To partition the stream results with the specified chunk size, we can use the `grouped` function.
+
+```scala mdoc:silent:nest
+val groupedResult: ZStream[Any, Nothing, Chunk[Int]] =
+  Stream.fromIterable(0 to 8).grouped(3)
+
+// Input:  0, 1, 2, 3, 4, 5, 6, 7, 8
+// Output: Chunk(0, 1, 2), Chunk(3, 4, 5), Chunk(6, 7, 8)
+```
+
+#### groupedWithin
+It allows grouping events by time or chunk size, whichever is satisfied first. In the example below every chunk consists of 30 elements and is produced every 3 seconds.
 
 ```scala mdoc:silent
 import zio._
