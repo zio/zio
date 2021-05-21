@@ -73,9 +73,9 @@ object ZIOAspect {
   /**
    * An aspect that retries effects according to the specified schedule.
    */
-  def retry[R1 <: Clock, E1](schedule: Schedule[R1, E1, Any]): ZIOAspect[Nothing, R1, E1, E1, Nothing, Any] =
-    new ZIOAspect[Nothing, R1, E1, E1, Nothing, Any] {
-      def apply[R <: R1, E >: E1 <: E1, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+  def retry[R1 <: Clock, E1](schedule: Schedule[R1, E1, Any]): ZIOAspect[Nothing, R1, Nothing, E1, Nothing, Any] =
+    new ZIOAspect[Nothing, R1, Nothing, E1, Nothing, Any] {
+      def apply[R <: R1, E <: E1, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
         zio.retry(schedule)
     }
 
