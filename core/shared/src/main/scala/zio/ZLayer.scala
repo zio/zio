@@ -2166,7 +2166,8 @@ object ZLayer {
     ZLayer(m)
 
   /**
-   * An identity layer that passes along its inputs.
+   * An identity layer that passes along its inputs. Represents an identity with respect
+   * to operator >>>. User may choose to use requires in conjunction with operator ++.
    */
   def identity[A]: ZLayer[A, Nothing, A] =
     ZLayer.requires[A]
