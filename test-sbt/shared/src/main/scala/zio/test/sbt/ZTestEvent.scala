@@ -1,6 +1,7 @@
 package zio.test.sbt
 
 import sbt.testing._
+import zio.Chunk
 import zio.test.{ExecutedSpec, TestFailure, TestSuccess}
 
 final case class ZTestEvent(
@@ -23,9 +24,9 @@ object ZTestEvent {
   ): Seq[ZTestEvent] =
     executedSpec.fold[Seq[ZTestEvent]] { c =>
       (c: @unchecked) match {
-        case ExecutedSpec.SuiteCase(_, results) => results.flatten
-        case ExecutedSpec.TestCase(label, result, _) =>
-          Seq(ZTestEvent(fullyQualifiedName, new TestSelector(label), toStatus(result), None, 0, fingerprint))
+        case ExecutedSpec.MultipleCase(results) => results.flatMap(Chunk.fromIterable)
+        case ExecutedSpec.TestCase(result, _) =>
+          Seq(ZTestEvent(fullyQualifiedName, new TestSelector(""), toStatus(result), None, 0, fingerprint))
       }
     }
 

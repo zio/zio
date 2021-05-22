@@ -21,17 +21,16 @@ package zio.test
  * If no arguments were specified, the spec returns unchanged.
  */
 private[zio] object FilteredSpec {
-  def apply[R, E](spec: ZSpec[R, E], args: TestArgs): ZSpec[R, E] = {
-      (args.testSearchTerms, args.tagSearchTerms) match {
-        case (Nil, Nil) => spec
-        case (testSearchTerms, Nil) =>
-          spec.filterLabels(label => testSearchTerms.exists(term => label.contains(term)))
-        case (Nil, tagSearchTerms) =>
-          spec.filterTags(tag => tagSearchTerms.contains(tag))
-        case (testSearchTerms, tagSearchTerms) =>
-          spec
-            .filterTags(tag => testSearchTerms.contains(tag))
-            .filterLabels(label => tagSearchTerms.exists(term => label.contains(term)))
-      }
-  }
+  def apply[R, E](spec: ZSpec[R, E], args: TestArgs): ZSpec[R, E] =
+    (args.testSearchTerms, args.tagSearchTerms) match {
+      case (Nil, Nil) => spec
+      case (testSearchTerms, Nil) =>
+        spec.filterLabels(label => testSearchTerms.exists(term => label.contains(term)))
+      case (Nil, tagSearchTerms) =>
+        spec.filterTags(tag => tagSearchTerms.contains(tag))
+      case (testSearchTerms, tagSearchTerms) =>
+        spec
+          .filterTags(tag => testSearchTerms.contains(tag))
+          .filterLabels(label => tagSearchTerms.exists(term => label.contains(term)))
+    }
 }

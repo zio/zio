@@ -107,9 +107,9 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
    * otherwise.
    */
   final def filterAnnotations[V](key: TestAnnotation[V])(f: V => Boolean): Spec[R, E, T] = {
-    val filtered =  caseValue match {
+    val filtered = caseValue match {
       case LabeledCase(label, spec) => Some(Spec.labeled(label, spec.filterAnnotations(key)(f)))
-      case ManagedCase(managed) => Some(Spec.managed(managed.map(_.filterAnnotations(key)(f))))
+      case ManagedCase(managed)     => Some(Spec.managed(managed.map(_.filterAnnotations(key)(f))))
       case MultipleCase(specs) =>
         Some(Spec.multiple(specs.map(_.filterAnnotations(key)(f))))
       case TestCase(test, annotations) =>
@@ -131,8 +131,8 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
       case LabeledCase(label, spec) =>
         if (f(label)) Spec.labeled(label, spec)
         else Spec.labeled(label, spec.filterLabels(f))
-      case ManagedCase(managed) => Spec.managed(managed.map(_.filterLabels(f)))
-      case MultipleCase(specs) => Spec.multiple(specs.map(_.filterLabels(f)))
+      case ManagedCase(managed)        => Spec.managed(managed.map(_.filterLabels(f)))
+      case MultipleCase(specs)         => Spec.multiple(specs.map(_.filterLabels(f)))
       case TestCase(test, annotations) => Spec.empty
     }
 
@@ -164,7 +164,15 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
     defExec: ExecutionStrategy
   )(f: SpecCase[R, E, T, Z] => ZManaged[R1, E1, Z]): ZManaged[R1, E1, Z] =
     caseValue match {
-      case _ => ???
+      case LabeledCase(label, spec) => spec.foldM(defExec)(f).flatMap(z => f(LabeledCase(label, z)))
+      case ManagedCase(managed) =>
+        managed.foldCauseM(
+          c => f(ManagedCase(ZManaged.halt(c))),
+          spec => spec.foldM(defExec)(f).flatMap(z => f(ManagedCase(ZManaged.succeedNow(z))))
+        )
+      case MultipleCase(specs) =>
+        ZManaged.foreachExec(specs)(defExec)(_.foldM(defExec)(f)).flatMap(zs => f(MultipleCase(zs)))
+      case t @ TestCase(_, _) => f(t)
     }
 
   /**
@@ -187,8 +195,18 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
   final def foreachExec[R1 <: R, E1, A](
     defExec: ExecutionStrategy
   )(failure: Cause[E] => ZIO[R1, E1, A], success: T => ZIO[R1, E1, A]): ZManaged[R1, Nothing, Spec[R1, E1, A]] =
-    foldM[R1, Nothing, Spec[R1, E1, A]](defExec) { case _ =>
-      ???
+    foldM[R1, Nothing, Spec[R1, E1, A]](defExec) {
+      case LabeledCase(label, spec) => ZManaged.succeedNow(Spec.labeled(label, spec))
+      case ManagedCase(managed) =>
+        managed.foldCause(
+          c => Spec.test(failure(c), TestAnnotationMap.empty),
+          t => Spec.managed(ZManaged.succeedNow(t))
+        )
+      case MultipleCase(specs) => ZManaged.succeedNow(Spec.multiple(specs))
+      case TestCase(test, annotations) =>
+        test
+          .foldCause(e => Spec.test(failure(e), annotations), t => Spec.test(success(t), annotations))
+          .toManaged_
     }
 
   /**
@@ -318,7 +336,14 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
     layer: ZLayer[R0, E1, R1]
   )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R]): Spec[R0, E1, T] =
     caseValue match {
-      case _ => ???
+      case LabeledCase(label, spec) => Spec.labeled(label, spec.provideLayerShared(layer))
+      case ManagedCase(managed) =>
+        Spec.managed(layer.memoize.flatMap(layer => managed.map(_.provideLayer(layer)).provideLayer(layer)))
+      case MultipleCase(specs) =>
+        Spec.managed(
+          layer.memoize.map(layer => Spec.multiple(specs.map(_.provideLayer(layer))))
+        )
+      case TestCase(test, annotations) => Spec.test(test.provideLayer(layer), annotations)
     }
 
   /**
@@ -397,7 +422,33 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
     f: (Z, SpecCase[R, E, T, Spec[R1, E1, T1]]) => (Z, SpecCase[R1, E1, T1, Spec[R1, E1, T1]])
   ): ZManaged[R, E, (Z, Spec[R1, E1, T1])] =
     caseValue match {
-      case _ => ???
+      case LabeledCase(label, spec) =>
+        spec.transformAccum(z0)(f).map { case (z, spec) =>
+          f(z, LabeledCase(label, spec)) match {
+            case (z, specs) => z -> Spec(specs)
+          }
+        }
+      case ManagedCase(managed) =>
+        managed.flatMap(_.transformAccum(z0)(f)).map { case (z, specs) =>
+          f(z, ManagedCase(ZManaged.succeedNow(specs))) match {
+            case (z, specs) =>
+              z -> Spec(specs)
+          }
+        }
+      case MultipleCase(specs) =>
+        ZManaged
+          .foldLeft[R, E, (Z, Chunk[Spec[R1, E1, T1]]), Spec[R, E, T]](specs)(z0 -> Chunk.empty) {
+            case ((z, vector), spec) =>
+              spec.transformAccum(z)(f).map { case (z1, spec1) => z1 -> (vector :+ spec1) }
+          }
+          .map { case (z, specs) =>
+            f(z, MultipleCase(specs)) match {
+              case (z, specs) => z -> Spec(specs)
+            }
+          }
+      case t @ TestCase(_, _) =>
+        val (z, caseValue) = f(z0, t)
+        ZManaged.succeedNow(z -> Spec(caseValue))
     }
 
   /**
