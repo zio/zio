@@ -307,6 +307,8 @@ With `fold` we can process a data structure and build a return value. For exampl
 
 The `unfold` represents an operation that takes an initial value and generates a recursive data structure, one-piece element at a time by using a given state function. For example, we can create a natural number by using `one` as the initial element and the `inc` function as the state function.
 
+#### Unfold
+
 **ZStream.unfold** — `ZStream` has `unfold` function, which is defined as follows:
 
 ```scala
@@ -321,7 +323,7 @@ object ZStream {
 For example, we can a stream of natural numbers using `ZStream.unfold`:
 
 ```scala mdoc:silent
-val nats: ZStream[Any, Nothing, Int] = ZStream.unfold(0)(n => Some((n, n + 1)))
+val nats: ZStream[Any, Nothing, Int] = ZStream.unfold(1)(n => Some((n, n + 1)))
 ```
 
 We can write `countdown` function using `unfold`:
@@ -350,9 +352,9 @@ val inputs: ZStream[Console, IOException, String] = ZStream.unfoldM(()) { _ =>
 
 `ZStream.unfoldChunk`, and `ZStream.unfoldChunkM` are other variants of `unfold` operations but for `Chunk` data type.
 
-**ZStream.paginated** — This is similar to `unfold`, but allows the emission of values to end one step further than the unfolding of the state:
+#### Pagination
 
-The stream in the following example, emits `0, 1, 2, 3` elements:
+**ZStream.paginate** — This is similar to `unfold`, but allows the emission of values to end one step further. For example the following stream emits `0, 1, 2, 3` elements:
 
 ```scala mdoc:silent:nest
 val stream = ZStream.paginate(0) { s =>
@@ -361,6 +363,58 @@ val stream = ZStream.paginate(0) { s =>
 ```
 
 Similar to `unfold` API, `ZStream` has various other forms as well as `ZStream.paginateM`, `ZStream.paginateChunk` and `ZStream.paginateChunkM`.
+
+#### Unfolding vs. Pagination
+
+One might ask what is the difference between `unfold` and `paginate` combinators? When we should prefer one over another? So, let's find the answer to this question by doing another example.
+
+Assume we have a paginated API that returns an enormous amount of data in a paginated fashion. When we call that API, it returns a data type `ResultPage` which contains the first-page result and, it also contains a flag indicating whether that result is the last one, or we have more data on the next page:
+
+```scala mdoc:invisible
+case class RowData()
+```
+
+```scala mdoc:silent:nest
+case class PageResult(results: Chunk[RowData], isLast: Boolean)
+
+def listPaginated(pageNumber: Int): ZIO[Console, String, PageResult] = ???
+```
+
+We want to convert this API to a stream of `RowData` events. For the first attempt, we might think we can do it by using `unfold` operation as below:
+
+```scala mdoc:silent
+val firstAttempt = ZStream.unfoldChunkM(0) { pageNumber =>
+  for {
+    page <- listPaginated(pageNumber)
+  } yield
+    if (page.isLast) None
+    else Some((page.results, pageNumber + 1))
+}
+```
+
+But it doesn't work properly; it doesn't include the last page result. So let's do a trick and to perform another API call to include the last page results:
+
+```scala mdoc:silent:nest
+val secondAttempt = ZStream.unfoldChunkM(Option[Int](0)) {
+  case None => ZIO.none // We already hit the last page
+  case Some(pageNumber) => // We did not hit the last page yet
+   for {
+      page <- listPaginated(pageNumber)
+    } yield Some(page.results, if (page.isLast) None else Some(pageNumber + 1))
+}
+```
+
+This works and contains all the results of returned pages. It works but as we saw, `unfold` is not friendliness to retrieve data from paginated APIs. 
+
+We need to do some hacks and extra works to include results from the last page. This is where `ZStream.paginate` operation comes to play, it helps us to convert a paginated API to ZIO stream in a more ergonomic way. Let's rewrite this solution by using `paginate`:
+
+```scala mdoc:silent:nest
+val finalAttempt = ZStream.paginateChunkM(0) { pageNumber =>
+  for {
+    page <- listPaginated(pageNumber)
+  } yield page.results -> (if (!page.isLast) Some(pageNumber + 1) else None)
+}
+```
 
 ### From Wrapped Streams
 
