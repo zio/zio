@@ -377,31 +377,33 @@ case class RowData()
 ```scala mdoc:silent:nest
 case class PageResult(results: Chunk[RowData], isLast: Boolean)
 
-def listPaginated(pageNumber: Int): ZIO[Console, String, PageResult] = ???
+def listPaginated(pageNumber: Int): ZIO[Console, Throwable, PageResult] = ???
 ```
 
 We want to convert this API to a stream of `RowData` events. For the first attempt, we might think we can do it by using `unfold` operation as below:
 
-```scala mdoc:silent
-val firstAttempt = ZStream.unfoldChunkM(0) { pageNumber =>
-  for {
-    page <- listPaginated(pageNumber)
-  } yield
-    if (page.isLast) None
-    else Some((page.results, pageNumber + 1))
-}
+```scala mdoc:silent:nest
+val firstAttempt: ZStream[Console, Throwable, RowData] = 
+  ZStream.unfoldChunkM(0) { pageNumber =>
+    for {
+      page <- listPaginated(pageNumber)
+    } yield
+      if (page.isLast) None
+      else Some((page.results, pageNumber + 1))
+  }
 ```
 
 But it doesn't work properly; it doesn't include the last page result. So let's do a trick and to perform another API call to include the last page results:
 
 ```scala mdoc:silent:nest
-val secondAttempt = ZStream.unfoldChunkM(Option[Int](0)) {
-  case None => ZIO.none // We already hit the last page
-  case Some(pageNumber) => // We did not hit the last page yet
-   for {
-      page <- listPaginated(pageNumber)
-    } yield Some(page.results, if (page.isLast) None else Some(pageNumber + 1))
-}
+val secondAttempt: ZStream[Console, Throwable, RowData] = 
+  ZStream.unfoldChunkM(Option[Int](0)) {
+    case None => ZIO.none // We already hit the last page
+    case Some(pageNumber) => // We did not hit the last page yet
+     for {
+        page <- listPaginated(pageNumber)
+      } yield Some(page.results, if (page.isLast) None else Some(pageNumber + 1))
+  }
 ```
 
 This works and contains all the results of returned pages. It works but as we saw, `unfold` is not friendliness to retrieve data from paginated APIs. 
@@ -409,11 +411,12 @@ This works and contains all the results of returned pages. It works but as we sa
 We need to do some hacks and extra works to include results from the last page. This is where `ZStream.paginate` operation comes to play, it helps us to convert a paginated API to ZIO stream in a more ergonomic way. Let's rewrite this solution by using `paginate`:
 
 ```scala mdoc:silent:nest
-val finalAttempt = ZStream.paginateChunkM(0) { pageNumber =>
-  for {
-    page <- listPaginated(pageNumber)
-  } yield page.results -> (if (!page.isLast) Some(pageNumber + 1) else None)
-}
+val finalAttempt: ZStream[Console, Throwable, RowData] = 
+  ZStream.paginateChunkM(0) { pageNumber =>
+    for {
+      page <- listPaginated(pageNumber)
+    } yield page.results -> (if (!page.isLast) Some(pageNumber + 1) else None)
+  }
 ```
 
 ### From Wrapped Streams
