@@ -38,7 +38,7 @@ object IO {
   /**
    * @see See [[zio.ZIO.apply]]
    */
-  def apply[A](a: => A): Task[A] = ZIO.apply(a)
+  def apply[A](a: => A): IO[Any, A] = ZIO.apply(a)
 
   /**
    * @see See bracket [[zio.ZIO]]
@@ -277,7 +277,7 @@ object IO {
   /**
    * @see See [[zio.ZIO.effect]]
    */
-  def effect[A](effect: => A): Task[A] = ZIO.effect(effect)
+  def effect[A](effect: => A): IO[Any, A] = ZIO.effect(effect)
 
   /**
    * @see See [[zio.ZIO.effectAsync]]
@@ -593,7 +593,7 @@ object IO {
   /**
    * @see [[zio.ZIO.fromFunctionFuture]]
    */
-  def fromFunctionFuture[A](f: Any => scala.concurrent.Future[A]): Task[A] =
+  def fromFunctionFuture[A](f: Any => scala.concurrent.Future[A]): IO[Throwable, A] =
     ZIO.fromFunctionFuture(f)
 
   /**
@@ -604,13 +604,13 @@ object IO {
   /**
    * @see See [[zio.ZIO.fromFuture]]
    */
-  def fromFuture[A](make: ExecutionContext => scala.concurrent.Future[A]): Task[A] =
+  def fromFuture[A](make: ExecutionContext => scala.concurrent.Future[A]): IO[Throwable, A] =
     ZIO.fromFuture(make)
 
   /**
    * @see See [[zio.ZIO.fromFutureInterrupt]]
    */
-  def fromFutureInterrupt[A](make: ExecutionContext => scala.concurrent.Future[A]): Task[A] =
+  def fromFutureInterrupt[A](make: ExecutionContext => scala.concurrent.Future[A]): IO[Throwable, A] =
     ZIO.fromFutureInterrupt(make)
 
   /**
@@ -626,7 +626,7 @@ object IO {
   /**
    * @see See [[zio.ZIO.fromTry]]
    */
-  def fromTry[A](value: => scala.util.Try[A]): Task[A] =
+  def fromTry[A](value: => scala.util.Try[A]): IO[Throwable, A] =
     ZIO.fromTry(value)
 
   /**

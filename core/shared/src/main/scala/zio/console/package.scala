@@ -38,10 +38,10 @@ package object console {
 
     object Service {
       private def putStr(stream: PrintStream)(line: String): IO[IOException, Unit] =
-        IO.effect(SConsole.withOut(stream)(SConsole.print(line))).refineToOrDie[IOException]
+        Task.effect(SConsole.withOut(stream)(SConsole.print(line))).refineToOrDie[IOException]
 
       private def putStrLn(stream: PrintStream)(line: String): IO[IOException, Unit] =
-        IO.effect(SConsole.withOut(stream)(SConsole.println(line))).refineToOrDie[IOException]
+        Task.effect(SConsole.withOut(stream)(SConsole.println(line))).refineToOrDie[IOException]
 
       val live: Service = new Service {
         def putStr(line: String): IO[IOException, Unit] = Service.putStr(SConsole.out)(line)
@@ -53,7 +53,7 @@ package object console {
         def putStrLn(line: String): IO[IOException, Unit] = Service.putStrLn(SConsole.out)(line)
 
         val getStrLn: IO[IOException, String] =
-          IO.effect {
+          Task.effect {
             val line = StdIn.readLine()
 
             if (line ne null) line

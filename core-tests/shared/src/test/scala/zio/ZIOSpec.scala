@@ -1978,7 +1978,7 @@ object ZIOSpec extends ZIOBaseSpec {
       },
       testM("effect, bind, map") {
         def fibIo(n: Int): Task[BigInt] =
-          if (n <= 1) IO.effect(n)
+          if (n <= 1) Task.effect(n)
           else
             for {
               a <- fibIo(n - 1)
@@ -2043,7 +2043,7 @@ object ZIOSpec extends ZIOBaseSpec {
     ),
     suite("RTS failure")(
       testM("error in sync effect") {
-        val io = IO.effect[Unit](throw ExampleError).fold[Option[Throwable]](Some(_), _ => None)
+        val io = Task.effect[Unit](throw ExampleError).fold[Option[Throwable]](Some(_), _ => None)
         assertM(io)(isSome(equalTo(ExampleError)))
       } @@ zioTag(errors),
       testM("attempt . fail") {
@@ -3791,7 +3791,7 @@ object ZIOSpec extends ZIOBaseSpec {
   }
 
   def deepErrorEffect(n: Int): Task[Unit] =
-    if (n == 0) IO.effect(throw ExampleError)
+    if (n == 0) Task.effect(throw ExampleError)
     else IO.unit *> deepErrorEffect(n - 1)
 
   def deepErrorFail(n: Int): Task[Unit] =

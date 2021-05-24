@@ -50,7 +50,7 @@ package object system {
       val live: Service = new Service {
 
         def env(variable: String): IO[SecurityException, Option[String]] =
-          IO.effect(Option(JSystem.getenv(variable))).refineToOrDie[SecurityException]
+          Task.effect(Option(JSystem.getenv(variable))).refineToOrDie[SecurityException]
 
         def envOrElse(variable: String, alt: => String): IO[SecurityException, String] =
           envOrElseWith(variable, alt)(env)
@@ -60,21 +60,21 @@ package object system {
 
         @silent("JavaConverters")
         val envs: IO[SecurityException, Map[String, String]] =
-          IO.effect(JSystem.getenv.asScala.toMap).refineToOrDie[SecurityException]
+          Task.effect(JSystem.getenv.asScala.toMap).refineToOrDie[SecurityException]
 
         val lineSeparator: UIO[String] = IO.effectTotal(JSystem.lineSeparator)
 
         @silent("JavaConverters")
-        val properties: IO[Throwable, Map[String, String]] =
-          IO.effect(JSystem.getProperties.asScala.toMap)
+        val properties: Task[Map[String, String]] =
+          Task.effect(JSystem.getProperties.asScala.toMap)
 
-        def property(prop: String): IO[Throwable, Option[String]] =
-          IO.effect(Option(JSystem.getProperty(prop)))
+        def property(prop: String): Task[Option[String]] =
+          Task.effect(Option(JSystem.getProperty(prop)))
 
-        def propertyOrElse(prop: String, alt: => String): IO[Throwable, String] =
+        def propertyOrElse(prop: String, alt: => String): Task[String] =
           propertyOrElseWith(prop, alt)(property)
 
-        def propertyOrOption(prop: String, alt: => Option[String]): IO[Throwable, Option[String]] =
+        def propertyOrOption(prop: String, alt: => Option[String]): Task[Option[String]] =
           propertyOrOptionWith(prop, alt)(property)
       }
     }
