@@ -832,6 +832,28 @@ val groupedWithinResult: ZStream[Any with Clock, Nothing, Chunk[Int]] =
     .groupedWithin(30, 10.seconds)
 ```
 
+### Concatenation
+
+We can concatenate two streams by using `ZStream#++` or `ZStream#concat` operator which returns a stream that emits the elements from the left-hand stream and then emits the elements from the right stream:
+
+```scala silent:nest
+val a = ZStream(1, 2, 3)
+val b = ZStream(4, 5)
+val c1 = a ++ b
+val c2 = a concat b
+```
+
+Also, we can use `ZStream.concatAll` constructor to concatenate given streams together:
+
+```scala mdoc:invisible
+val a = ZStream(1, 2, 3)
+val b = ZStream(4, 5)
+```
+
+```scala mdoc:silent:nest
+val c3 = ZStream.concatAll(Chunk(a, b))
+```
+
 ## Consuming a Stream
 
 ```scala mdoc:silent
