@@ -341,7 +341,9 @@ object ZStream {
 }
 ```
 
-The managed effect here describes subscribing to receive messages from the hub while the stream describes taking messages from the hub. This can be useful when we need to ensure that a consumer has subscribed before a producer begins publishing values. Here is an example of using it:
+The managed effect here describes subscribing to receive messages from the hub while the stream describes taking messages from the hub. This can be useful when we need to ensure that a consumer has subscribed before a producer begins publishing values.
+
+Here is an example of using it:
 
 ```scala mdoc:reset:invisible
 import zio._
