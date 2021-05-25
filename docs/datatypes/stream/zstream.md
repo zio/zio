@@ -895,6 +895,17 @@ val merged = s1.merge(s2, TerminationStrategy.Left)
 
 We can also use `ZStream#mergeTerminateLeft`, `ZStream#mergeTerminateRight` or `ZStream#mergeTerminateEither` operations instead of specifying manually the termination strategy.
 
+### mergeWith
+
+Sometimes we need to merge two streams and after that, unify them and convert them to new element types. We can do this by using the `ZStream#mergeWith` operation:
+
+```scala mdoc:silent:nest
+val s1 = ZStream("1", "2", "3")
+val s2 = ZStream(4.1, 5.3, 6.2)
+
+val merged = s1.mergeWith(s2)(_.toInt, _.toInt)
+```
+
 ## Consuming a Stream
 
 ```scala mdoc:silent
