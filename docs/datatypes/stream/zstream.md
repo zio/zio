@@ -933,6 +933,18 @@ val interleaved = s1.interleaveWith(s2)(ZStream(true, false, false).forever)
 
 `ZStream#interleaveWith` uses a stream of boolean to decide which stream to choose. If it reaches a true value, it will pick a value from the left-hand side stream, otherwise, it will pick from the right-hand side.
 
+## Interspersing
+
+We can intersperse any stream by using `ZStream#intersperse` operator:
+
+```scala mdoc:silent:nest
+val s1 = ZStream(1, 2, 3, 4, 5).intersperse(0)
+// Output: 1, 0, 2, 0, 3, 0, 4, 0, 5
+
+val s2 = ZStream("a", "b", "c", "d").intersperse("[", "-", "]")
+// Output: [, -, a, -, b, -, c, -, d]
+```
+
 ## Consuming a Stream
 
 ```scala mdoc:silent
