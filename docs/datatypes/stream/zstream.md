@@ -854,6 +854,21 @@ val b = ZStream(4, 5)
 val c3 = ZStream.concatAll(Chunk(a, b))
 ```
 
+### Merging
+
+Sometimes we need to interleave the emission of two streams and create another stream. `ZSstream#merge` picks elements randomly from specified streams. The newly produced stream will terminate when both specified streams terminate if no termination strategy is specified.
+
+```scala mdoc:silent:nest
+val s1 = ZStream(1, 2, 3).chunkN(1)
+val s2 = ZStream(4, 5, 6).chunkN(1)
+
+val merged = s1 merge s2
+// As the merge operation is not deterministic, it may output the following stream of numbers:
+// Output: 4, 1, 2, 5, 6, 3
+```
+
+Merge operation always try to pull one chunk from each stream, if we chunk our streams equal or over 3 elements in the last example, we encounter a new stream containing one of the `1, 2, 3, 4, 5, 6` or `4, 5, 6, 1, 2, 3` elements.
+
 ## Consuming a Stream
 
 ```scala mdoc:silent
