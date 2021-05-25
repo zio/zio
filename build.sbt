@@ -530,7 +530,7 @@ lazy val docs = project.module
     scalacOptions ~= { _ filterNot (_ startsWith "-Ywarn") },
     scalacOptions ~= { _ filterNot (_ startsWith "-Xlint") },
     libraryDependencies ++= Seq(
-      "commons-io"          % "commons-io"                % "2.7"    % "provided",
+      "commons-io"          % "commons-io"                % "2.9.0"    % "provided",
       "org.jsoup"           % "jsoup"                     % "1.13.1" % "provided",
       "org.reactivestreams" % "reactive-streams-examples" % "1.0.3"  % "provided",
       /* to evict 1.3.0 brought in by mdoc-js */
