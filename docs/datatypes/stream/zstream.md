@@ -921,6 +921,18 @@ val interleaved = s1 interleave s2
 // Output: 1, 4, 2, 5, 3, 6, 7, 8
 ```
 
+ZIO Stream also has the `interleaveWith` operator, which is a more powerful version of `interleave`. By using `ZStream#interleaveWith`, we can specify the logic of interleaving:
+
+```scala mdoc:silent:nest
+val s1 = ZStream(1, 3, 5, 7, 9)
+val s2 = ZStream(2, 4, 6, 8, 10)
+
+val interleaved = s1.interleaveWith(s2)(ZStream(true, false, false).forever)
+// Output: 1, 2, 4, 3, 6, 8, 5, 10, 7, 9
+```
+
+`ZStream#interleaveWith` uses a stream of boolean to decide which stream to choose. If it reaches a true value, it will pick a value from the left-hand side stream, otherwise, it will pick from the right-hand side.
+
 ## Consuming a Stream
 
 ```scala mdoc:silent
