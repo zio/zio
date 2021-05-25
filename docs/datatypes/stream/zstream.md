@@ -945,6 +945,37 @@ val s2 = ZStream("a", "b", "c", "d").intersperse("[", "-", "]")
 // Output: [, -, a, -, b, -, c, -, d]
 ```
 
+## Broadcasting
+
+We can broadcast a stream by using `ZStream#broadcast`, it returns a managed list of streams that have the same elements as the source stream. The `broadcast` operation emits each element to the inputs of returning streams. The upstream stream can emit events as much as `maximumLag`, then it decreases its speed by the slowest downstream stream.
+
+In the following example, we are broadcasting stream of random numbers to the two downstream streams. One of them is responsible to compute the maximum number, and the other one does some logging job with additional delay. The upstream stream decreases its speed by the logging stream:
+
+```scala mdoc:silent:nest
+val stream: ZIO[Console with Random with Clock, IOException, Unit] =
+  ZStream
+    .fromIterable(1 to 20)
+    .mapM(_ => zio.random.nextInt)
+    .map(Math.abs)
+    .map(_ % 100)
+    .tap(e => putStrLn(s"Emit $e element before broadcasting"))
+    .broadcast(2, 5)
+    .use {
+      case s1 :: s2 :: Nil =>
+        for {
+          out1 <- s1.fold(0)((acc, e) => Math.max(acc, e))
+                    .flatMap(x => putStrLn(s"Maximum: $x"))
+                    .fork
+          out2 <- s2.schedule(Schedule.spaced(1.second))
+                    .foreach(x => putStrLn(s"Logging to the Console: $x"))
+                    .fork
+          _    <- out1.join.zipPar(out2.join)
+        } yield ()
+
+      case _ => ZIO.dieMessage("unhandled case")
+    }
+```
+
 ## Consuming a Stream
 
 ```scala mdoc:silent
