@@ -323,9 +323,7 @@ We can create a `ZStream` from a subscription to a hub using the `fromHub` opera
 import zio.stream._
 
 object ZStream {
-  def fromHub[R, E, O](
-    hub: ZHub[Nothing, R, Any, E, Nothing, O]
-  ): ZStream[R, E, O] =
+  def fromHub[R, E, O](hub: ZHub[Nothing, R, Any, E, Nothing, O]): ZStream[R, E, O] =
     ???
 }
 ```
