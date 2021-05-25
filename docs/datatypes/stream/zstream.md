@@ -906,6 +906,21 @@ val s2 = ZStream(4.1, 5.3, 6.2)
 val merged = s1.mergeWith(s2)(_.toInt, _.toInt)
 ```
 
+## Interleaving
+
+When we `merge` two streams, the ZIO Stream picks elements from two streams randomly. But how to merge two streams deterministically? The answer is the `ZStream#interleave` operation. 
+
+The `ZStream#interleave` operator pulls an element from each stream, one by one, and then returns an interleaved stream. When one stream is exhausted, all remaining values in the other stream will be pulled:
+
+```scala mdoc:silent:nest
+val s1 = ZStream(1, 2, 3)
+val s2 = ZStream(4, 5, 6, 7, 8)
+
+val interleaved = s1 interleave s2
+
+// Output: 1, 4, 2, 5, 3, 6, 7, 8
+```
+
 ## Consuming a Stream
 
 ```scala mdoc:silent
