@@ -373,10 +373,10 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    */
   final def broadcastDynamic(
     maximumLag: Int
-  ): ZManaged[R, Nothing, ZManaged[Any, Nothing, ZStream[Any, E, O]]] =
+  ): ZManaged[R, Nothing, ZStream[Any, E, O]] =
     self
       .broadcastedQueuesDynamic(maximumLag)
-      .map(_.map(ZStream.fromQueueWithShutdown(_).flattenTake))
+      .map(ZStream.managed(_).flatMap(ZStream.fromQueue(_)).flattenTake)
 
   /**
    * Converts the stream to a managed list of queues. Every value will be
@@ -3620,19 +3620,40 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   /**
    * Creates a stream from a subscription to a [[zio.ZHub]].
    */
-  def fromChunkHub[R, E, O](
+  def fromChunkHub[R, E, O](hub: ZHub[Nothing, R, Any, E, Nothing, Chunk[O]]): ZStream[R, E, O] =
+    managed(hub.subscribe).flatMap(queue => fromChunkQueue(queue))
+
+  /**
+   * Creates a stream from a subscription to a [[zio.ZHub]] in the context of a
+   * managed effect. The managed effect describes subscribing to receive
+   * messages from the hub while the stream describes taking messages from the
+   * hub.
+   */
+  def fromChunkHubManaged[R, E, O](
     hub: ZHub[Nothing, R, Any, E, Nothing, Chunk[O]]
   ): ZManaged[Any, Nothing, ZStream[R, E, O]] =
     hub.subscribe.map(queue => fromChunkQueue(queue))
 
   /**
-   * Creates a stream from a subscription to a [[zio.ZHub]]. The hub will be
-   * shut down once the stream is closed.
+   * Creates a stream from a subscription to a [[zio.ZHub]].
+   *
+   * The hub will be shut down once the stream is closed.
    */
-  def fromChunkHubWithShutdown[R, E, O](
+  def fromChunkHubWithShutdown[R, E, O](hub: ZHub[Nothing, R, Any, E, Nothing, Chunk[O]]): ZStream[R, E, O] =
+    fromChunkHub(hub).ensuringFirst(hub.shutdown)
+
+  /**
+   * Creates a stream from a subscription to a [[zio.ZHub]] in the context of a
+   * managed effect. The managed effect describes subscribing to receive
+   * messages from the hub while the stream describes taking messages from the
+   * hub.
+   *
+   * The hub will be shut down once the stream is closed.
+   */
+  def fromChunkHubManagedWithShutdown[R, E, O](
     hub: ZHub[Nothing, R, Any, E, Nothing, Chunk[O]]
   ): ZManaged[Any, Nothing, ZStream[R, E, O]] =
-    fromChunkHub(hub).map(_.ensuringFirst(hub.shutdown))
+    fromChunkHubManaged(hub).map(_.ensuringFirst(hub.shutdown))
 
   /**
    * Creates a stream from a [[zio.ZQueue]] of values
@@ -3681,28 +3702,50 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     }
 
   /**
-   * Creates a stream from a subscription to a [[zio.ZHub]]. The outer managed
-   * effect describes subscribing to receive messages from the hub while the
-   * inner stream describes taking messages from the hub.
+   * Creates a stream from a subscription to a [[zio.ZHub]].
    */
   def fromHub[R, E, A](
+    hub: ZHub[Nothing, R, Any, E, Nothing, A],
+    maxChunkSize: Int = DefaultChunkSize
+  ): ZStream[R, E, A] =
+    managed(hub.subscribe).flatMap(queue => fromQueue(queue, maxChunkSize))
+
+  /**
+   * Creates a stream from a subscription to a [[zio.ZHub]] in the context of a
+   * managed effect. The managed effect describes subscribing to receive
+   * messages from the hub while the stream describes taking messages from the
+   * hub.
+   */
+  def fromHubManaged[R, E, A](
     hub: ZHub[Nothing, R, Any, E, Nothing, A],
     maxChunkSize: Int = DefaultChunkSize
   ): ZManaged[Any, Nothing, ZStream[R, E, A]] =
     hub.subscribe.map(queue => fromQueueWithShutdown(queue, maxChunkSize))
 
   /**
-   * Creates a stream from a subscription to a [[zio.ZHub]]. The outer managed
-   * effect describes subscribing to receive messages from the hub while the
-   * inner stream describes taking messages from the hub.
+   * Creates a stream from a subscription to a [[zio.ZHub]].
    *
    * The hub will be shut down once the stream is closed.
    */
   def fromHubWithShutdown[R, E, A](
     hub: ZHub[Nothing, R, Any, E, Nothing, A],
     maxChunkSize: Int = DefaultChunkSize
+  ): ZStream[R, E, A] =
+    fromHub(hub, maxChunkSize).ensuringFirst(hub.shutdown)
+
+  /**
+   * Creates a stream from a subscription to a [[zio.ZHub]] in the context of a
+   * managed effect. The managed effect describes subscribing to receive
+   * messages from the hub while the stream describes taking messages from the
+   * hub.
+   *
+   * The hub will be shut down once the stream is closed.
+   */
+  def fromHubManagedWithShutdown[R, E, A](
+    hub: ZHub[Nothing, R, Any, E, Nothing, A],
+    maxChunkSize: Int = DefaultChunkSize
   ): ZManaged[Any, Nothing, ZStream[R, E, A]] =
-    fromHub(hub, maxChunkSize).map(_.ensuringFirst(hub.shutdown))
+    fromHubManaged(hub, maxChunkSize).map(_.ensuringFirst(hub.shutdown))
 
   /**
    * Creates a stream from an iterable collection of values

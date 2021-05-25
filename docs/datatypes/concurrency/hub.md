@@ -325,14 +325,25 @@ import zio.stream._
 object ZStream {
   def fromHub[R, E, O](
     hub: ZHub[Nothing, R, Any, E, Nothing, O]
+  ): ZStream[R, E, O] =
+    ???
+}
+```
+
+This will return a stream that subscribes to receive values from a hub and then emits every value published to the hub while the subscription is active. When the stream ends the subscriber will automatically be unsubscribed from the hub.
+
+There is also a `fromHubManaged` operator that returns the stream in the context of a managed effect.
+
+```scala mdoc:nest
+object ZStream {
+  def fromHubManaged[R, E, O](
+    hub: ZHub[Nothing, R, Any, E, Nothing, O]
   ): ZManaged[Any, Nothing, ZStream[R, E, O]] =
     ???
 }
 ```
 
-The outer managed effect here describes subscribing to receive messages from the hub, while the inner stream describes taking messages from the hub. When the stream ends the subscriber will automatically be unsubscribed from the hub.
-
-Here is an example of using it:
+The managed effect here describes subscribing to receive messages from the hub while the stream describes taking messages from the hub. This can be useful when we need to ensure that a consumer has subscribed before a producer begins publishing values. Here is an example of using it:
 
 ```scala mdoc:reset:invisible
 import zio._
@@ -343,7 +354,7 @@ import zio.stream._
 for {
   promise <- Promise.make[Nothing, Unit]
   hub     <- Hub.bounded[String](2)
-  managed  = ZStream.fromHub(hub).tapM(_ => promise.succeed(()))
+  managed  = ZStream.fromHubManaged(hub).tapM(_ => promise.succeed(()))
   stream   = ZStream.unwrapManaged(managed)
   fiber   <- stream.take(2).runCollect.fork
   _       <- promise.await
@@ -353,9 +364,9 @@ for {
 } yield ()
 ```
 
-Notice that in this case we used a `Promise` to ensure that the subscription had completed before publishing to the hub. The outer `ZManaged` in the return type of `fromHub` made it easy for us to signal when the subscription had occurred by using `tapM` and completing the `Promise`.
+Notice that in this case we used a `Promise` to ensure that the subscription had completed before publishing to the hub. The `ZManaged` in the return type of `fromHubManaged` made it easy for us to signal when the subscription had occurred by using `tapM` and completing the `Promise`.
 
-Of course in many real applications we don't need this kind of sequencing and just want to subscribe to receive new messages. In this case we can use the `unwrapManaged` operator to return a `ZStream` that will automatically handle subscribing and unsubscribing for us.
+Of course in many real applications we don't need this kind of sequencing and just want to subscribe to receive new messages. In this case we can use the `fromHub` operator to return a `ZStream` that will automatically handle subscribing and unsubscribing for us.
 
 There is also a `fromHubWithShutdown` variant that shuts down the hub itself when the stream ends. This is useful when the stream represents your main application logic and you want to shut down other subscriptions to the hub when the stream ends.
 
