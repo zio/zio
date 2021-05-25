@@ -893,6 +893,8 @@ val s2 = ZStream.repeat(0).chunkN(1)
 val merged = s1.merge(s2, TerminationStrategy.Left)
 ```
 
+We can also use `ZStream#mergeTerminateLeft`, `ZStream#mergeTerminateRight` or `ZStream#mergeTerminateEither` operations instead of specifying manually the termination strategy.
+
 ## Consuming a Stream
 
 ```scala mdoc:silent
