@@ -856,7 +856,10 @@ val c3 = ZStream.concatAll(Chunk(a, b))
 
 ### Merging
 
-Sometimes we need to interleave the emission of two streams and create another stream. `ZSstream#merge` picks elements randomly from specified streams. The newly produced stream will terminate when both specified streams terminate if no termination strategy is specified.
+Sometimes we need to interleave the emission of two streams and create another stream. In these cases we can't use the `ZStream.concat` operation, we need another mechanism to pick elements from sources. ZIO Stream merge operations, do this for use. Let's discuss some variant of this operation:
+
+#### merge
+The `ZSstream#merge` picks elements randomly from specified streams:
 
 ```scala mdoc:silent:nest
 val s1 = ZStream(1, 2, 3).chunkN(1)
@@ -868,6 +871,27 @@ val merged = s1 merge s2
 ```
 
 Merge operation always try to pull one chunk from each stream, if we chunk our streams equal or over 3 elements in the last example, we encounter a new stream containing one of the `1, 2, 3, 4, 5, 6` or `4, 5, 6, 1, 2, 3` elements.
+
+### Termination Strategy
+
+When we merge two streams, we should think about the _termination strategy_ of this operation. Each stream has a specific lifetime. One stream may emit all its elements and finish its job, another stream may end after one hour of emission, one another may have a long-running lifetime and never end. So when we merge two streams with different lifetimes, what is the termination strategy of the resulting stream?
+
+By default, when we merge two streams using `ZStream#merge` operation, the newly produced stream will terminate when both specified streams terminate. We can also define the _termination strategy_ corresponding to our requirement. ZIO Stream supports four different termination strategies:
+
+- **Left** — The resulting stream will terminate when the left-hand side stream terminates.
+- **Right** — The resulting stream will terminate when the right-hand side stream finishes.
+- **Both** — The resulting stream will terminate when both streams finish.
+- **Either** — The resulting stream will terminate when one of the streams finishes.
+
+Here is an example of specifying termination strategy when merging two streams:
+
+```scala mdoc:silent:nest
+import zio.stream.ZStream.TerminationStrategy
+val s1 = ZStream.iterate(1)(_+1).take(5).chunkN(1)
+val s2 = ZStream.repeat(0).chunkN(1)
+
+val merged = s1.merge(s2, TerminationStrategy.Left)
+```
 
 ## Consuming a Stream
 
@@ -897,7 +921,7 @@ val resultFromSink: UIO[Int] = Stream(1,2,3).run(Sink.foldLeft(0)(streamReduce))
 
 We can merge several streams using the `merge` method:
 
-```scala mdoc:silent
+```scala mdoc:silent:nest
 import zio.stream._
 
 val merged: Stream[Nothing, Int] = Stream(1,2,3).merge(Stream(2,3,4))
