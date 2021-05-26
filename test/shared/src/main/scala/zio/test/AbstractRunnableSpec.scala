@@ -17,13 +17,13 @@
 package zio.test
 
 import org.portablescala.reflect.annotation.EnableReflectiveInstantiation
+import zio.URIO
 import zio.clock.Clock
-import zio.{Has, URIO}
 
 @EnableReflectiveInstantiation
 abstract class AbstractRunnableSpec {
 
-  type Environment <: Has[_]
+  type Environment
   type Failure
 
   def aspects: List[TestAspect[Nothing, Environment, Nothing, Any]]

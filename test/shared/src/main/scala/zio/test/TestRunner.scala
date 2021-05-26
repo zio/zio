@@ -27,7 +27,7 @@ import zio.test.render.TestRenderer
  * require an environment `R` and may fail with an error `E`. Test runners
  * require a test executor, a platform, and a reporter.
  */
-final case class TestRunner[R <: Has[_], E](
+final case class TestRunner[R, E](
   executor: TestExecutor[R, E],
   platform: Platform = Platform.makeDefault().withReportFailure(_ => ()),
   reporter: TestReporter[E] = DefaultTestReporter(TestRenderer.default, TestAnnotationRenderer.default),

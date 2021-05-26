@@ -288,10 +288,7 @@ object Runtime {
    * legacy code, but other applications should investigate using
    * [[ZIO.provideLayer]] directly in their application entry points.
    */
-  def unsafeFromLayer[R <: Has[_]](
-    layer: Layer[Any, R],
-    platform: Platform = Platform.default
-  ): Runtime.Managed[R] = {
+  def unsafeFromLayer[R](layer: Layer[Any, R], platform: Platform = Platform.default): Runtime.Managed[R] = {
     val runtime = Runtime((), platform)
     val (environment, shutdown) = runtime.unsafeRun {
       ZManaged.ReleaseMap.make.flatMap { releaseMap =>

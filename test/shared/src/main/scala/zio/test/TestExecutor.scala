@@ -16,13 +16,13 @@
 
 package zio.test
 
-import zio.{ExecutionStrategy, Has, Layer, UIO, ZIO}
+import zio.{ExecutionStrategy, Layer, UIO, ZIO}
 
 /**
  * A `TestExecutor[R, E]` is capable of executing specs that require an
  * environment `R` and may fail with an `E`.
  */
-abstract class TestExecutor[+R <: Has[_], E] {
+abstract class TestExecutor[+R, E] {
   def run(spec: ZSpec[R, E], defExec: ExecutionStrategy): UIO[ExecutedSpec[E]]
   def environment: Layer[Nothing, R]
 }
