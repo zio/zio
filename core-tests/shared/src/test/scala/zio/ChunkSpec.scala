@@ -84,14 +84,14 @@ object ChunkSpec extends ZIOBaseSpec {
         checkM(Gen.chunkOf(Gen.anyInt), Gen.chunkOf(Gen.anyInt)) { (as, bs) =>
           val effect   = ZIO.succeed(bs.foldLeft(as)(_ :+ _))
           val actual   = ZIO.collectAllPar(ZIO.replicate(100)(effect))
-          val expected = (as ++ bs)
+          val expected = as ++ bs
           assertM(actual)(forall(equalTo(expected)))
         }
       },
       testM("equals") {
         check(Gen.chunkOf(Gen.anyInt), Gen.chunkOf(Gen.anyInt)) { (as, bs) =>
           val actual   = bs.foldLeft(as)(_ :+ _)
-          val expected = (as ++ bs)
+          val expected = as ++ bs
           assert(actual)(equalTo(expected))
         }
       },
@@ -134,14 +134,14 @@ object ChunkSpec extends ZIOBaseSpec {
         checkM(Gen.chunkOf(Gen.anyInt), Gen.chunkOf(Gen.anyInt)) { (as, bs) =>
           val effect   = ZIO.succeed(as.foldRight(bs)(_ +: _))
           val actual   = ZIO.collectAllPar(ZIO.replicate(100)(effect))
-          val expected = (as ++ bs)
+          val expected = as ++ bs
           assertM(actual)(forall(equalTo(expected)))
         }
       },
       testM("equals") {
         check(Gen.chunkOf(Gen.anyInt), Gen.chunkOf(Gen.anyInt)) { (as, bs) =>
           val actual   = as.foldRight(bs)(_ +: _)
-          val expected = (as ++ bs)
+          val expected = as ++ bs
           assert(actual)(equalTo(expected))
         }
       },
