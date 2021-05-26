@@ -709,18 +709,16 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * val managed2 = managed.provideCustomLayer(loggingLayer)
    * }}}
    */
-  def provideCustomLayer[E1 >: E, R1 <: Has[_]](
+  final def provideCustomLayer[E1 >: E, R1](
     layer: ZLayer[ZEnv, E1, R1]
-  )(implicit ev: ZEnv with R1 <:< R, tagged: Tag[R1]): ZManaged[ZEnv, E1, A] =
+  )(implicit ev1: ZEnv with R1 <:< R, ev2: Has.Union[ZEnv, R1], tagged: Tag[R1]): ZManaged[ZEnv, E1, A] =
     provideSomeLayer[ZEnv](layer)
 
   /**
    * Provides a layer to the `ZManaged`, which translates it to another level.
    */
-  def provideLayer[E1 >: E, R0, R1](
-    layer: ZLayer[R0, E1, R1]
-  )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R]): ZManaged[R0, E1, A] =
-    layer.build.map(ev1).flatMap(self.provide)
+  final def provideLayer[E1 >: E, R0, R1](layer: ZLayer[R0, E1, R1])(implicit ev: R1 <:< R): ZManaged[R0, E1, A] =
+    layer.build.map(ev).flatMap(self.provide)
 
   /**
    * Provides some of the environment required to run this effect,
@@ -754,7 +752,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * val managed2 = managed.provideSomeLayer[Random](clockLayer)
    * }}}
    */
-  final def provideSomeLayer[R0 <: Has[_]]: ZManaged.ProvideSomeLayer[R0, R, E, A] =
+  final def provideSomeLayer[R0]: ZManaged.ProvideSomeLayer[R0, R, E, A] =
     new ZManaged.ProvideSomeLayer[R0, R, E, A](self)
 
   /**
@@ -1005,8 +1003,8 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * Constructs a layer from this managed resource, which must return one or
    * more services.
    */
-  def toLayerMany[A1 <: Has[_]](implicit ev: A IsSubtypeOfOutput A1): ZLayer[R, E, A1] =
-    ZLayer(self.map(ev))
+  final def toLayerMany[A1 >: A: Tag]: ZLayer[R, E, A1] =
+    ZLayer.fromManagedMany(self)
 
   /**
    * Return unit while running the effect
@@ -1210,10 +1208,10 @@ object ZManaged extends ZManagedPlatformSpecific {
       b.flatMap(b => if (b) onTrue else onFalse)
   }
 
-  final class ProvideSomeLayer[R0 <: Has[_], -R, +E, +A](private val self: ZManaged[R, E, A]) extends AnyVal {
-    def apply[E1 >: E, R1 <: Has[_]](
+  final class ProvideSomeLayer[R0, -R, +E, +A](private val self: ZManaged[R, E, A]) extends AnyVal {
+    def apply[E1 >: E, R1](
       layer: ZLayer[R0, E1, R1]
-    )(implicit ev1: R0 with R1 <:< R, ev2: NeedsEnv[R], tagged: Tag[R1]): ZManaged[R0, E1, A] =
+    )(implicit ev1: R0 with R1 <:< R, ev2: Has.Union[R0, R1], tagged: Tag[R1]): ZManaged[R0, E1, A] =
       self.provideLayer[E1, R0, R0 with R1](ZLayer.identity[R0] ++ layer)
   }
 

@@ -23,7 +23,7 @@ object NeedsEnvSpec extends ZIOBaseSpec {
             import zio._
             import zio.console._
             val uio = UIO.succeed("Hello, World!")
-            uio.provideLayer(Console.live)
+            uio.provideLayer(Console.Service.live)
             """
       }
       assertM(result)(isLeft(anything))
