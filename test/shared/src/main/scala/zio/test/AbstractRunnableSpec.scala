@@ -17,8 +17,8 @@
 package zio.test
 
 import org.portablescala.reflect.annotation.EnableReflectiveInstantiation
-import zio.clock.Clock
 import zio.URIO
+import zio.clock.Clock
 
 @EnableReflectiveInstantiation
 abstract class AbstractRunnableSpec {

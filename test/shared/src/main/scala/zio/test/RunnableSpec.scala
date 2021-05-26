@@ -16,8 +16,8 @@
 
 package zio.test
 
-import zio.clock.Clock
 import zio.URIO
+import zio.clock.Clock
 
 /**
  * A `RunnableSpec` has a main function and can be run by the JVM / Scala.js.
