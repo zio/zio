@@ -24,6 +24,89 @@ Before diving into ZIO Streams, let's list some of the use cases of a streaming 
 
 So streams are everywhere. We can see all of these different things as being streams. Everywhere we look we can find streams. Basically, all data-driven applications, almost all data-driven applications can benefit from streams. 
 
+## Motivation
+
+Assume, we would like to take a list of numbers and grab all the prime numbers and then do some more hard work on each of these prime numbers. We can do it using `ZIO.foreachParN` and `ZIO.filterPar` operators like this:
+
+```scala mdoc:invisible
+import zio.{ZIO, Task}
+import zio.Queue
+import zio.stream.ZStream
+```
+
+```scala mdoc:silent
+def isPrime(number: Int): Task[Boolean] = Task.succeed(???)
+def moreHardWork(i: Int): Task[Boolean] = Task.succeed(???)
+
+val numbers = 1 to 1000
+
+for {
+  primes <- ZIO.filterPar(numbers)(isPrime)
+  _      <- ZIO.foreachParN(20)(primes)(moreHardWork)
+} yield ()
+```
+
+This processes the list in parallel and filters all the prime numbers, then takes all the prime numbers and does some more hard work on them.
+
+There are two problems with this example:
+
+- **High Latency** — We are not getting any pipelining, we are doing batch processing. We need to wait for the entire list to be processed in the first step before we can continue to the next step. This can lead to a pretty severe loss of performance.
+
+- **Limited Memory** — We need to keep the entire list in memory as we process it and this doesn't work if we are working with an infinite data stream.
+
+With ZIO Stream we can change this program to the following code:
+
+```scala mdoc:silent:nest
+def prime(number: Int): Task[(Boolean, Int)] = Task.succeed(???)
+
+ZStream.fromIterable(numbers)
+  .mapMParUnordered(20)(prime(_))
+  .filter(_._1).map(_._2)
+  .mapMParUnordered(20)(moreHardWork(_))
+```
+
+We convert the list of numbers using `ZStream.fromIterable` to a `ZStream`, then we map it in parallel, twenty items at a time, and then we perform the hard work problem, twenty items of a time. This is a pipeline, and this easily works for an infinite list.
+
+One might ask, "Okay, I can get the pipelining by using fibers and queues. So should I use ZIO Streams?". It is extremely tempting to write up the pipeline look like this. We can create a bunch of queues and fibers, then we have fibers that copy information between the queues and perform the processing concurrently. It ends up something like this:
+
+```scala mdoc:silent:nest
+def writeToInput(q: Queue[Int]): Task[Unit]                            = Task.succeed(???)
+def processBetweenQueues(from: Queue[Int], to: Queue[Int]): Task[Unit] = Task.succeed(???)
+def printElements(q: Queue[Int]): Task[Unit]                           = Task.succeed(???)
+
+for {
+  input  <- Queue.bounded[Int](16)
+  middle <- Queue.bounded[Int](16)
+  output <- Queue.bounded[Int](16)
+  _      <- writeToInput(input).fork
+  _      <- processBetweenQueues(input, middle).fork
+  _      <- processBetweenQueues(middle, output).fork
+  _      <- printElements(output).fork
+} yield ()
+```
+
+We created a bunch of queues for buffering source, destination elements, and intermediate results.
+
+There are a few problems with this solution. As fibers are low-level concurrency tools, using them to create a data pipeline is not straightforward. We need to hand interruptions properly. We should care about resources and prevent them to leak. We need to shutdown the pipeline in a right way by waiting for queues to be drained.
+
+Although fibers are very efficient and more performant than threads, they are advanced concurrency tools and in most cases, and it's better to avoid using them to do manual pipelining. Instead, we can use ZIO Streams:
+
+```scala mdoc:silent:nest
+def generateElement: Task[Int]    = Task.succeed(???)
+def process(i: Int): Task[Int]    = Task.succeed(???)
+def printElem(i: Int): Task[Unit] = Task.succeed(???)
+
+ZStream
+  .repeatEffect(generateElement)
+  .buffer(16)
+  .mapM(process(_))
+  .buffer(16)
+  .mapM(process(_))
+  .buffer(16)
+  .tap(printElem(_))
+```
+
+We have a buffer in between each step; we perform our computations and this is everything we need to get that pipelining in the same fashion that it looked before.
 
 ## Why Streams?
 
