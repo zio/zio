@@ -155,6 +155,30 @@ val userInput: ZStream[Console, IOException, String] =
   ) 
 ```
 
+### From Asynchronous Callback
+
+Assume we have an asynchronous function that is based on callbacks. We would like to register a callbacks on that function and get back a stream of the results emitted by those callbacks. We have `ZStream.effectAsync` which can adapt functions that call their callbacks multiple times and emit the results over a stream:
+
+```scala mdoc:silent:nest
+// Asynchronous Callback-based API
+def registerCallback(
+    name: String,
+    onEvent: Int => Unit,
+    onError: Throwable => Unit
+): Unit = ???
+
+// Lifting an Asynchronous API to ZStream
+val stream = ZStream.effectAsync[Any, Throwable, Int] { cb =>
+  registerCallback(
+    "foo",
+    event => cb(ZIO.succeed(Chunk(event))),
+    error => cb(ZIO.fail(error).mapError(Some(_)))
+  )
+}
+```
+
+The error type of the `register` function is optional, so by setting the error to the `None` we can use it to signal the end of the stream.
+
 ### From Iterators
 
 Iterators are data structures that allow us to iterate over a sequence of elements. Similarly, we can think of ZIO Streams as effectual Iterators; every `ZStream` represents a collection of one or more, but effectful values. 
