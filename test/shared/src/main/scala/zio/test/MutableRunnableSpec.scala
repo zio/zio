@@ -122,7 +122,7 @@ class MutableRunnableSpec[R <: Has[_]: Tag](
   /**
    * Builds a spec with a single pure test.
    */
-  final def test(label: String)(assertion: => TestReturnValue)(implicit loc: SourceLocation): TestBuilder = {
+  final def test(label: String)(assertion: => TestResult)(implicit loc: SourceLocation): TestBuilder = {
     if (specBuilt)
       throw new InAnotherTestException("Test", label)
     val test    = zio.test.test(label)(assertion)
@@ -136,7 +136,7 @@ class MutableRunnableSpec[R <: Has[_]: Tag](
    */
   final def testM(
     label: String
-  )(assertion: => ZIO[R with TestEnvironment, Failure, TestReturnValue])(implicit loc: SourceLocation): TestBuilder = {
+  )(assertion: => ZIO[R with TestEnvironment, Failure, TestResult])(implicit loc: SourceLocation): TestBuilder = {
     if (specBuilt)
       throw new InAnotherTestException("Test", label)
     val test    = zio.test.testM(label)(assertion)

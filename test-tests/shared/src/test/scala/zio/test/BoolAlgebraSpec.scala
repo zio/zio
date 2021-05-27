@@ -2,7 +2,6 @@ package zio.test
 
 import zio.random.Random
 import zio.test.Assertion._
-import zio.test.{MessageDesc => M}
 
 object BoolAlgebraSpec extends ZIOBaseSpec {
 
@@ -96,10 +95,10 @@ object BoolAlgebraSpec extends ZIOBaseSpec {
       assert(failure1 <==> failure2)(isSuccess)
     },
     test("isFailure returns whether result is failure") {
-      assert(!success1.isFailure && failure1.isFailure)
+      assert(!success1.isFailure && failure1.isFailure)(isTrue)
     },
     test("isSuccess returns whether result is success") {
-      assert(success1.isSuccess && !failure1.isSuccess)
+      assert(success1.isSuccess && !failure1.isSuccess)(isTrue)
     },
     test("map transforms values") {
       val actual   = (success1 && failure1 && failure2).map(_.split(" ").head)
@@ -149,8 +148,8 @@ object BoolAlgebraSpec extends ZIOBaseSpec {
   val failure1: BoolAlgebra[String] = BoolAlgebra.failure(value3)
   val failure2: BoolAlgebra[String] = BoolAlgebra.failure(value4)
 
-  val isSuccess: Assertion[BoolAlgebra[Any]] = assertion[BoolAlgebra[Any]]("isSuccess", M.result)()(_.isSuccess)
-  val isFailure: Assertion[BoolAlgebra[Any]] = assertion[BoolAlgebra[Any]]("isFailure", M.result)()(_.isFailure)
+  val isSuccess: Assertion[BoolAlgebra[Any]] = assertion("isSuccess")()(_.isSuccess)
+  val isFailure: Assertion[BoolAlgebra[Any]] = assertion("isFailure")()(_.isFailure)
 
   def boolAlgebra: Gen[Random with Sized, BoolAlgebra[Int]] = Gen.small(s => boolAlgebraOfSize(s), 1)
 

@@ -16,14 +16,14 @@
 
 package zio.test.laws
 
-import zio.test.{Gen, TestConfig, TestReturnValue, check}
+import zio.test.{Gen, TestConfig, TestResult, check}
 import zio.{URIO, ZIO}
 
 abstract class ZLaws2[-CapsBoth[_, _], -CapsLeft[_], -CapsRight[_], -R] { self =>
 
   def run[R1 <: R with TestConfig, A: CapsLeft, B: CapsRight](left: Gen[R1, A], right: Gen[R1, B])(implicit
     CapsBoth: CapsBoth[A, B]
-  ): ZIO[R1, Nothing, TestReturnValue]
+  ): ZIO[R1, Nothing, TestResult]
 
   def +[CapsBoth1[x, y] <: CapsBoth[x, y], CapsLeft1[x] <: CapsLeft[x], CapsRight1[x] <: CapsRight[x], R1 <: R](
     that: ZLaws2[CapsBoth1, CapsLeft1, CapsRight1, R1]
@@ -39,25 +39,25 @@ object ZLaws2 {
   ) extends ZLaws2[CapsBoth, CapsLeft, CapsRight, R] {
     final def run[R1 <: R with TestConfig, A: CapsLeft, B: CapsRight](a: Gen[R1, A], b: Gen[R1, B])(implicit
       CapsBoth: CapsBoth[A, B]
-    ): ZIO[R1, Nothing, TestReturnValue] =
+    ): ZIO[R1, Nothing, TestResult] =
       left.run(a, b).zipWith(right.run(a, b))(_ && _)
   }
 
   abstract class Law1Left[-CapsBoth[_, _], -CapsLeft[_], -CapsRight[_]](label: String)
       extends ZLaws2[CapsBoth, CapsLeft, CapsRight, Any] { self =>
-    def apply[A: CapsLeft, B: CapsRight](a1: A)(implicit CapsBoth: CapsBoth[A, B]): TestReturnValue
+    def apply[A: CapsLeft, B: CapsRight](a1: A)(implicit CapsBoth: CapsBoth[A, B]): TestResult
     final def run[R <: TestConfig, A: CapsLeft, B: CapsRight](a: Gen[R, A], b: Gen[R, B])(implicit
       CapsBoth: CapsBoth[A, B]
-    ): URIO[R, TestReturnValue] =
-      check(a, b)((a, _) => apply(a).label(label))
+    ): URIO[R, TestResult] =
+      check(a, b)((a, _) => apply(a).map(_.label(label)))
   }
 
   abstract class Law1Right[-CapsBoth[_, _], -CapsLeft[_], -CapsRight[_]](label: String)
       extends ZLaws2[CapsBoth, CapsLeft, CapsRight, Any] { self =>
-    def apply[A: CapsLeft, B: CapsRight](b1: B)(implicit CapsBoth: CapsBoth[A, B]): TestReturnValue
+    def apply[A: CapsLeft, B: CapsRight](b1: B)(implicit CapsBoth: CapsBoth[A, B]): TestResult
     final def run[R <: TestConfig, A: CapsLeft, B: CapsRight](a: Gen[R, A], b: Gen[R, B])(implicit
       CapsBoth: CapsBoth[A, B]
-    ): URIO[R, TestReturnValue] =
-      check(a, b)((_, b) => apply(b).label(label))
+    ): URIO[R, TestResult] =
+      check(a, b)((_, b) => apply(b).map(_.label(label)))
   }
 }

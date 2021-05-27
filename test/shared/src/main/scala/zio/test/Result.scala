@@ -5,6 +5,7 @@ import zio.test.Arrow.Span
 import zio.test.ConsoleUtils._
 
 import scala.annotation.tailrec
+import scala.util.Try
 
 sealed trait Result[+A] { self =>
   def isFailOrDie: Boolean = self match {
@@ -120,7 +121,7 @@ object FailureCase {
       case FailureCase(errorMessage, codeString, location, path, _, nested, _) if isNested =>
         val errorMessageLines =
           Chunk.fromIterable(errorMessage.split("\n")) match {
-            case head +: tail => (red("⦿ ") + head) +: tail.map(red("  ") + _)
+            case head +: tail => (red("• ") + head) +: tail.map(red("  ") + _)
             case _            => Chunk.empty
           }
 
@@ -132,7 +133,7 @@ object FailureCase {
       case FailureCase(errorMessage, codeString, location, path, _, nested, _) =>
         val errorMessageLines =
           Chunk.fromIterable(errorMessage.split("\n")) match {
-            case head +: tail => (red("● ") + head) +: tail.map(red("  ") + _)
+            case head +: tail => (red("• ") + head) +: tail.map(red("  ") + _)
             case _            => Chunk.empty
           }
 
@@ -152,38 +153,40 @@ object Pretty {
    * @return
    */
   def apply(a: Any): String =
-    a match {
-      // Make Strings look similar to their literal form.
-      case s: String =>
-        val replaceMap = Seq(
-          "\n" -> "\\n",
-          "\r" -> "\\r",
-          "\t" -> "\\t",
-          "\"" -> "\\\""
-        )
-        '"' + replaceMap.foldLeft(s) { case (acc, (c, r)) => acc.replace(c, r) } + '"'
-      case xs: Seq[_] => xs.map(apply).toString()
-      case array: Array[_] =>
-        "Array" + array.toList.map(apply).toString.dropWhile(_ != '(')
-      case p: Product =>
-        val prefix = p.productPrefix
-        // We'll use reflection to get the constructor arg names and values.
-        val cls    = p.getClass
-        val fields = cls.getDeclaredFields.filterNot(_.isSynthetic).map(_.getName)
-        val values = p.productIterator.toSeq
-        // If we weren't able to match up fields/values, fall back to toString.
-        if (fields.length != values.length) return p.toString
-        fields.zip(values).toList match {
-          // If there are no fields, just use the normal String representation.
-          case Nil => p.toString
-          // If there is just one field, let's just print it as a wrapper.
-          case (_, value) :: Nil => s"$prefix(${apply(value)})"
-          // If there is more than one field, build up the field names and values.
-          case kvs =>
-            val prettyFields = kvs.map { case (k, v) => s"$k = ${apply(v)}" }
-            s"$prefix(${prettyFields.mkString(", ")})"
-        }
-      // If we haven't specialized this type, just use its toString.
-      case _ => a.toString
-    }
+    Try {
+      a match {
+        // Make Strings look similar to their literal form.
+        case s: String =>
+          val replaceMap = Seq(
+            "\n" -> "\\n",
+            "\r" -> "\\r",
+            "\t" -> "\\t",
+            "\"" -> "\\\""
+          )
+          '"' + replaceMap.foldLeft(s) { case (acc, (c, r)) => acc.replace(c, r) } + '"'
+        case xs: Seq[_] => xs.map(apply).toString()
+        case array: Array[_] =>
+          "Array" + array.toList.map(apply).toString.dropWhile(_ != '(')
+        case p: Product =>
+          val prefix = p.productPrefix
+          // We'll use reflection to get the constructor arg names and values.
+          val cls    = p.getClass
+          val fields = cls.getDeclaredFields.filterNot(_.isSynthetic).map(_.getName)
+          val values = p.productIterator.toSeq
+          // If we weren't able to match up fields/values, fall back to toString.
+          if (fields.length != values.length) return p.toString
+          fields.zip(values).toList match {
+            // If there are no fields, just use the normal String representation.
+            case Nil => p.toString
+            // If there is just one field, let's just print it as a wrapper.
+            case (_, value) :: Nil => s"$prefix(${apply(value)})"
+            // If there is more than one field, build up the field names and values.
+            case kvs =>
+              val prettyFields = kvs.map { case (k, v) => s"$k = ${apply(v)}" }
+              s"$prefix(${prettyFields.mkString(", ")})"
+          }
+        // If we haven't specialized this type, just use its toString.
+        case _ => a.toString
+      }
+    }.getOrElse(a.toString)
 }

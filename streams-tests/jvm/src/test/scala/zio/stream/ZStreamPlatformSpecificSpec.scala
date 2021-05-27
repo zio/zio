@@ -42,7 +42,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
                           None
                         }
                         .runCollect
-          } yield assert(result)(equalTo(Chunk.empty))
+          } yield assertTrue(result == Chunk.empty)
         },
         testM("effectAsyncMaybe Some")(checkM(Gen.chunkOf(Gen.anyInt)) { chunk =>
           val s = ZStream.effectAsyncMaybe[Any, Throwable, Int](_ => Some(ZStream.fromIterable(chunk)))
@@ -76,7 +76,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
             _      <- refCnt.get.repeatWhile(_ != 7)
             isDone <- refDone.get
             _      <- run.interrupt
-          } yield assert(!isDone)
+          } yield assertTrue(!isDone)
         }
       ),
       suite("effectAsyncM")(
@@ -94,7 +94,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
                        .fork
             _ <- latch.await
             s <- fiber.join
-          } yield assert(s)(equalTo(chunk))
+          } yield assertTrue(s == chunk)
         }),
         testM("effectAsyncM signal end stream") {
           for {
@@ -104,7 +104,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
                           UIO.unit
                         }
                         .runCollect
-          } yield assert(result)(equalTo(Chunk.empty))
+          } yield assertTrue(result == Chunk.empty)
         },
         testM("effectAsyncM back pressure") {
           for {
@@ -125,7 +125,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
             _      <- refCnt.get.repeatWhile(_ != 7)
             isDone <- refDone.get
             _      <- run.interrupt
-          } yield assert(!isDone)
+          } yield assertTrue(!isDone)
         }
       ),
       suite("effectAsyncInterrupt")(
@@ -144,7 +144,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
             _      <- latch.await
             _      <- fiber.interrupt
             result <- cancelled.get
-          } yield assert(result)
+          } yield assertTrue(result)
         },
         testM("effectAsyncInterrupt Right")(checkM(Gen.chunkOf(Gen.anyInt)) { chunk =>
           val s = ZStream.effectAsyncInterrupt[Any, Throwable, Int](_ => Right(ZStream.fromIterable(chunk)))
@@ -181,7 +181,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
             _      <- refCnt.get.repeatWhile(_ != 7)
             isDone <- refDone.get
             exit   <- run.interrupt
-          } yield assert(!isDone) &&
+          } yield assertTrue(!isDone) &&
             assert(exit.untraced)(failsCause(containsCause(Cause.interrupt(selfId))))
         }
       ),

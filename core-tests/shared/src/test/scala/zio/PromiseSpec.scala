@@ -13,7 +13,7 @@ object PromiseSpec extends ZIOBaseSpec {
         p <- Promise.make[Nothing, Int]
         s <- p.succeed(32)
         v <- p.await
-      } yield assert(s) && assert(v)(equalTo(32))
+      } yield assertTrue(s) && assert(v)(equalTo(32))
     },
     testM("complete a promise using complete") {
       for {
@@ -22,7 +22,7 @@ object PromiseSpec extends ZIOBaseSpec {
         s  <- p.complete(r.updateAndGet(_ + 1))
         v1 <- p.await
         v2 <- p.await
-      } yield assert(s) &&
+      } yield assertTrue(s) &&
         assert(v1)(equalTo(14)) &&
         assert(v2)(equalTo(14))
     },
@@ -33,7 +33,7 @@ object PromiseSpec extends ZIOBaseSpec {
         s  <- p.completeWith(r.updateAndGet(_ + 1))
         v1 <- p.await
         v2 <- p.await
-      } yield assert(s) &&
+      } yield assertTrue(s) &&
         assert(v1)(equalTo(14)) &&
         assert(v2)(equalTo(15))
     },
@@ -42,7 +42,7 @@ object PromiseSpec extends ZIOBaseSpec {
         p <- Promise.make[String, Int]
         s <- p.fail("error with fail")
         v <- p.await.run
-      } yield assert(s) && assert(v)(fails(equalTo("error with fail")))
+      } yield assertTrue(s) && assert(v)(fails(equalTo("error with fail")))
     } @@ zioTag(errors),
     testM("fail a promise using complete") {
       for {
@@ -51,7 +51,7 @@ object PromiseSpec extends ZIOBaseSpec {
         s  <- p.complete(r.modify(as => (as.head, as.tail)).flip)
         v1 <- p.await.run
         v2 <- p.await.run
-      } yield assert(s) &&
+      } yield assertTrue(s) &&
         assert(v1)(fails(equalTo("first error"))) &&
         assert(v2)(fails(equalTo("first error")))
     } @@ zioTag(errors),
@@ -62,7 +62,7 @@ object PromiseSpec extends ZIOBaseSpec {
         s  <- p.completeWith(r.modify(as => (as.head, as.tail)).flip)
         v1 <- p.await.run
         v2 <- p.await.run
-      } yield assert(s) &&
+      } yield assertTrue(s) &&
         assert(v1)(fails(equalTo("first error"))) &&
         assert(v2)(fails(equalTo("second error")))
     } @@ zioTag(errors),
@@ -72,13 +72,13 @@ object PromiseSpec extends ZIOBaseSpec {
         _ <- p.succeed(1)
         s <- p.complete(IO.succeed(9))
         v <- p.await
-      } yield assert(!s) && assert(v == 1)
+      } yield assertTrue(!s) && assertTrue(v == 1)
     },
     testM("interrupt a promise") {
       for {
         p <- Promise.make[Exception, Int]
         s <- p.interrupt
-      } yield assert(s)
+      } yield assertTrue(s)
     } @@ zioTag(interruption),
     testM("poll a promise that is not completed yet") {
       for {
@@ -112,14 +112,14 @@ object PromiseSpec extends ZIOBaseSpec {
         p <- Promise.make[String, Int]
         _ <- p.succeed(0)
         d <- p.isDone
-      } yield assert(d)
+      } yield assertTrue(d)
     },
     testM("isDone when a promise is failed") {
       for {
         p <- Promise.make[String, Int]
         _ <- p.fail("failure")
         d <- p.isDone
-      } yield assert(d)
+      } yield assertTrue(d)
     } @@ zioTag(errors)
   )
 }

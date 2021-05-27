@@ -1,6 +1,7 @@
 package zio.test
 
 import zio.test.Assertion._
+import zio.test.AssertionResult.FailureDetailsResult
 import zio.test.TestAspect.failing
 import zio.{Chunk, Ref, ZIO, random}
 
@@ -41,7 +42,7 @@ object CheckSpec extends ZIOBaseSpec {
                for {
                  _ <- ref.update(_ + 1)
                  p <- random.nextIntBounded(10).map(_ != 0)
-               } yield assert(p)
+               } yield assertTrue(p)
              }
         result <- ref.get
       } yield assert(result)(isLessThan(1200))
@@ -61,18 +62,19 @@ object CheckSpec extends ZIOBaseSpec {
       check(Gen.anyInt.filter(_ > 0), Gen.anyInt.filter(_ > 0))((a, b) => assert(a)(equalTo(b)))
     } @@ failing,
     testM("failing tests contain gen failure details") {
-      check(Gen.anyInt)(a => assert(a)(isGreaterThan(0))).map { case TestReturnValue.LensResult(result) =>
-        result.failures match {
-          case Some(BoolAlgebra.Value(details)) => details.gen.fold(false)(_.shrunkenInput == 0)
-          case _                                => false
+      check(Gen.anyInt)(a => assert(a)(isGreaterThan(0))).map {
+        _.failures match {
+          case Some(BoolAlgebra.Value(FailureDetailsResult(details))) =>
+            details.gen.fold(false)(_.shrunkenInput == 0)
+          case _ => false
         }
-      }.map(assert(_))
+      }.map(assertTrue(_))
     },
     testM("implication works correctly") {
       check(Gen.listOf1(Gen.int(-10, 10))) { ns =>
         val nss      = ns.sorted
         val nonEmpty = assert(nss)(hasSize(isGreaterThan(0)))
-        val sorted   = assert(!nss.zip(nss.tail).exists { case (a, b) => a > b })
+        val sorted   = assertTrue(!nss.zip(nss.tail).exists { case (a, b) => a > b })
         nonEmpty ==> sorted
       }
     },

@@ -177,7 +177,7 @@ object ZSTMSpec extends ZIOBaseSpec {
           val stm = for {
             flatten1 <- STM.succeed(STM.succeed(str)).flatten
             flatten2 <- STM.flatten(STM.succeed(STM.succeed(str)))
-          } yield assert(flatten1 == flatten2)
+          } yield assertTrue(flatten1 == flatten2)
 
           stm.commit
         }
@@ -1020,7 +1020,7 @@ object ZSTMSpec extends ZIOBaseSpec {
           tvar <- TRef.makeCommit(false)
           e    <- (tvar.set(true) *> STM.fail("Error!")).commitEither.flip
           v    <- tvar.get.commit
-        } yield assert(e)(equalTo("Error!")) && assert(v)
+        } yield assert(e)(equalTo("Error!")) && assertTrue(v)
       }
     ),
     suite("orElse")(
@@ -1210,13 +1210,13 @@ object ZSTMSpec extends ZIOBaseSpec {
         for {
           ref    <- TRef.make(false).commit
           result <- (STM.when(true)(ref.set(true)) *> ref.get).commit
-        } yield assert(result)
+        } yield assertTrue(result)
       },
       testM("when false") {
         for {
           ref    <- TRef.make(false).commit
           result <- (STM.when(false)(ref.set(true)) *> ref.get).commit
-        } yield assert(!result)
+        } yield assertTrue(!result)
       },
       testM("whenCase executes correct branch only") {
         val tx = for {

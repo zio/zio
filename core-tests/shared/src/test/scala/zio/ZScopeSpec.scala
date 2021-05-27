@@ -13,7 +13,7 @@ object ZScopeSpec extends ZIOBaseSpec {
         expected <- f(ref, open.scope)
         value    <- open.close(())
         actual   <- ref.get
-      } yield assert(value) && assert(actual)(equalTo(expected))
+      } yield assertTrue(value) && assert(actual)(equalTo(expected))
     }
 
   def spec: ZSpec[Environment, Failure] = suite("ZScopeSpec")(
@@ -22,28 +22,28 @@ object ZScopeSpec extends ZIOBaseSpec {
         open  <- ZScope.make[Unit]
         empty <- open.scope.empty
         value <- open.scope.closed
-      } yield assert(empty) && assert(!value)
+      } yield assertTrue(empty) && assertTrue(!value)
     },
     testM("close makes the scope closed") {
       for {
         open  <- ZScope.make[Unit]
         _     <- open.close(())
         value <- open.scope.closed
-      } yield assert(value)
+      } yield assertTrue(value)
     },
     testM("close can be called multiple times") {
       for {
         open  <- ZScope.make[Unit]
         _     <- open.close(()).repeatN(10)
         value <- open.scope.closed
-      } yield assert(value)
+      } yield assertTrue(value)
     },
     testM("ensure makes the scope non-empty") {
       for {
         open  <- ZScope.make[Unit]
         value <- open.scope.ensure(_ => IO.unit)
         empty <- open.scope.empty
-      } yield assert(!empty) && assert(value)(isRight(anything))
+      } yield assertTrue(!empty) && assert(value)(isRight(anything))
     },
     testM("ensure on closed scope returns false") {
       for {
@@ -51,7 +51,7 @@ object ZScopeSpec extends ZIOBaseSpec {
         _     <- open.close(())
         value <- open.scope.ensure(_ => IO.unit)
         empty <- open.scope.empty
-      } yield assert(empty) && assert(value)(isLeft(anything))
+      } yield assertTrue(empty) && assert(value)(isLeft(anything))
     },
     testScope("one finalizer", 0)((ref, scope) => scope.ensure(_ => ref.update(_ + 1)) as 1),
     suite("finalizer removal")(
@@ -114,8 +114,8 @@ object ZScopeSpec extends ZIOBaseSpec {
           closed   <- child.scope.closed
           released <- child.scope.released
           // TODO: Figure Out Labels
-        } yield assert(closed) && //(isTrue ?? "closed") &&
-          assert(!released)       //(isFalse ?? "released")
+        } yield assertTrue(closed) && //(isTrue ?? "closed") &&
+          assertTrue(!released)       //(isFalse ?? "released")
       },
       testM("single extension") {
         for {

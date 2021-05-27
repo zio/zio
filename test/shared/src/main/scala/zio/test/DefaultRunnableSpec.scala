@@ -58,13 +58,13 @@ abstract class DefaultRunnableSpec extends RunnableSpec[TestEnvironment, Any] {
   /**
    * Builds a spec with a single pure test.
    */
-  def test(label: String)(assertion: => TestReturnValue)(implicit loc: SourceLocation): ZSpec[Any, Nothing] =
+  def test(label: String)(assertion: => TestResult)(implicit loc: SourceLocation): ZSpec[Any, Nothing] =
     zio.test.test(label)(assertion)
 
   /**
    * Builds a spec with a single effectful test.
    */
-  def testM[R, E](label: String)(assertion: => ZIO[R, E, TestReturnValue])(implicit loc: SourceLocation): ZSpec[R, E] =
+  def testM[R, E](label: String)(assertion: => ZIO[R, E, TestResult])(implicit loc: SourceLocation): ZSpec[R, E] =
     zio.test.testM(label)(assertion)
 
   implicit def any2AssertionOps[A](a: A): AssertionSyntax.AssertionOps[A] = AssertionSyntax.AssertionOps(a)

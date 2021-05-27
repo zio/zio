@@ -43,7 +43,7 @@ object PolySpec extends DefaultRunnableSpec {
 
   def spec: ZSpec[Environment, Failure] = suite("PolySpec")(
     testM("map fusion") {
-      check(GenPoly.genPoly.flatMap(genExpr(_)))(expr => assert(eval(fuse(expr)) == eval(expr)))
+      check(GenPoly.genPoly.flatMap(genExpr(_)))(expr => assertTrue(eval(fuse(expr)) == eval(expr)))
     }
   )
 }

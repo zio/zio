@@ -119,19 +119,19 @@ object TArraySpec extends ZIOBaseSpec {
         for {
           tArray <- makeStair(n).commit
           result <- tArray.contains(3).commit
-        } yield assert(result)
+        } yield assertTrue(result)
       },
       testM("false when not in the array") {
         for {
           tArray <- makeStair(n).commit
           result <- tArray.contains(n + 1).commit
-        } yield assert(!result)
+        } yield assertTrue(!result)
       },
       testM("false for empty array") {
         for {
           tArray <- TArray.empty[Int].commit
           result <- tArray.contains(0).commit
-        } yield assert(!result)
+        } yield assertTrue(!result)
       }
     ),
     suite("count")(
@@ -179,19 +179,19 @@ object TArraySpec extends ZIOBaseSpec {
         for {
           tArray <- makeStair(n).commit
           result <- tArray.exists(_ % 2 == 0).commit
-        } yield assert(result)
+        } yield assertTrue(result)
       },
       testM("detects lack of satisfaction") {
         for {
           tArray <- makeStair(n).commit
           result <- tArray.exists(_ % 11 == 0).commit
-        } yield assert(!result)
+        } yield assertTrue(!result)
       },
       testM("false for empty") {
         for {
           tArray <- TArray.empty[Int].commit
           result <- tArray.exists(_ => true).commit
-        } yield assert(!result)
+        } yield assertTrue(!result)
       }
     ),
     suite("existsM")(
@@ -199,19 +199,19 @@ object TArraySpec extends ZIOBaseSpec {
         for {
           tArray <- makeStair(n).commit
           result <- tArray.existsM(i => STM.succeed(i % 2 == 0)).commit
-        } yield assert(result)
+        } yield assertTrue(result)
       },
       testM("detects lack of satisfaction") {
         for {
           tArray <- makeStair(n).commit
           result <- tArray.existsM(i => STM.succeed(i % 11 == 0)).commit
-        } yield assert(!result)
+        } yield assertTrue(!result)
       },
       testM("false for empty") {
         for {
           tArray <- TArray.empty[Int].commit
           result <- tArray.existsM(_ => STM.succeed(true)).commit
-        } yield assert(!result)
+        } yield assertTrue(!result)
       },
       testM("fails for errors before witness") {
         for {
@@ -410,19 +410,19 @@ object TArraySpec extends ZIOBaseSpec {
         for {
           tArray <- makeStair(n).commit
           result <- tArray.forall(_ < n + 1).commit
-        } yield assert(result)
+        } yield assertTrue(result)
       },
       testM("detects lack of satisfaction") {
         for {
           tArray <- makeStair(n).commit
           result <- tArray.forall(_ < n - 1).commit
-        } yield assert(!result)
+        } yield assertTrue(!result)
       },
       testM("true for empty") {
         for {
           tArray <- TArray.empty[Int].commit
           result <- tArray.forall(_ => false).commit
-        } yield assert(result)
+        } yield assertTrue(result)
       }
     ),
     suite("forallM")(
@@ -430,19 +430,19 @@ object TArraySpec extends ZIOBaseSpec {
         for {
           tArray <- makeStair(n).commit
           result <- tArray.forallM(i => STM.succeed(i < n + 1)).commit
-        } yield assert(result)
+        } yield assertTrue(result)
       },
       testM("detects lack of satisfaction") {
         for {
           tArray <- makeStair(n).commit
           result <- tArray.forallM(i => STM.succeed(i < n - 1)).commit
-        } yield assert(!result)
+        } yield assertTrue(!result)
       },
       testM("true for empty") {
         for {
           tArray <- TArray.empty[Int].commit
           result <- tArray.forallM(_ => STM.succeed(false)).commit
-        } yield assert(result)
+        } yield assertTrue(result)
       },
       testM("fails for errors before counterexample") {
         for {

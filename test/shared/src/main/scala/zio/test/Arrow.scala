@@ -1,5 +1,8 @@
 package zio.test
 
+import zio.ZIO
+
+import scala.language.implicitConversions
 import scala.reflect.ClassTag
 import scala.util.{Failure, Success, Try}
 
@@ -15,6 +18,16 @@ object Assert {
   def all(asserts: Assert*): Assert = asserts.reduce(_ && _)
 
   def any(asserts: Assert*): Assert = asserts.reduce(_ || _)
+
+  implicit def trace2TestResult(assert: Assert): TestResult = {
+    val trace = Arrow.run(assert.arrow, Right(()))
+    if (trace.isSuccess) BoolAlgebra.success(AssertionResult.TraceResult(trace))
+    else BoolAlgebra.failure(AssertionResult.TraceResult(trace))
+  }
+
+  implicit def traceM2TestResult[R, E](zio: ZIO[R, E, Assert]): ZIO[R, E, TestResult] =
+    zio.map(trace2TestResult)
+
 }
 
 sealed trait Arrow[-A, +B] { self =>

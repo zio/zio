@@ -11,7 +11,7 @@ import zio.test._
 import zio.test.magnolia.DeriveGen._
 
 object DeriveGenSpec extends DefaultRunnableSpec {
-  
+
   final case class Person(name: String, age: Int)
 
   val genPerson: Gen[Random with Sized, Person] = DeriveGen[Person]
@@ -40,7 +40,7 @@ object DeriveGenSpec extends DefaultRunnableSpec {
     final case class Cons[+A](head: A, tail: NonEmptyList[A]) extends NonEmptyList[A]
     final case class Single[+A](value: A)                     extends NonEmptyList[A]
 
-    implicit def deriveGen[A : DeriveGen]: DeriveGen[NonEmptyList[A]] = DeriveGen.gen
+    implicit def deriveGen[A: DeriveGen]: DeriveGen[NonEmptyList[A]] = DeriveGen.gen
   }
 
   def genNonEmptyList[A](implicit ev: DeriveGen[A]): Gen[Random with Sized, NonEmptyList[A]] =

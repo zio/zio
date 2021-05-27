@@ -17,24 +17,14 @@
 package zio.test
 
 import zio.test.Assertion.Render._
-import zio.test.FailureRenderer.{blue, magenta, red}
 
 trait AssertionVariants {
 
   /**
    * Makes a new assertion that requires a value equal the specified value.
    */
-  final def equalTo[A, B](expected: A)(implicit eql: Eql[A, B], diff: OptionalImplicit[Diff[B, A]]): Assertion[B] =
-    //    Assertion.assertionRender((b: B) => s"$b != $expected") { actual =>
-    Assertion.assertion[B](
-      "equalTo",
-      (b, success) =>
-        diff.value match {
-          case Some(diff) if !success => diff.diff(b, expected)
-          case _ =>
-            (blue(b.toString) + (if (success) magenta(" == ") else red(" != ")) + blue(expected.toString)).toMessage
-        }
-    )(param(expected)) { actual =>
+  final def equalTo[A, B](expected: A)(implicit eql: Eql[A, B]): Assertion[B] =
+    Assertion.assertion("equalTo")(param(expected)) { actual =>
       (actual, expected) match {
         case (left: Array[_], right: Array[_]) => left.sameElements[Any](right)
         case (left, right)                     => left == right

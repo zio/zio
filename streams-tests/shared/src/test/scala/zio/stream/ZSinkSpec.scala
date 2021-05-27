@@ -79,7 +79,7 @@ object ZSinkSpec extends ZIOBaseSpec {
             resAndState <- ZStream(1, 2, 3).run(sink)
             finalState  <- closed.get
           } yield {
-            assert(resAndState._1 == 103L, !resAndState._2, finalState)
+            assertTrue(resAndState._1 == 103L, !resAndState._2, finalState)
           }
         },
         testM("sad path") {
@@ -89,7 +89,7 @@ object ZSinkSpec extends ZIOBaseSpec {
             sink        = ZSink.managed(res)(_ => ZSink.succeed[Int, String]("ok"))
             r          <- ZStream.fail("fail").run(sink).either
             finalState <- closed.get
-          } yield assert(r == Left("fail") && finalState)
+          } yield assertTrue(r == Left("fail") && finalState)
         }
       ),
       testM("foldLeft")(
@@ -101,7 +101,7 @@ object ZSinkSpec extends ZIOBaseSpec {
           for {
             xs <- s.run(ZSink.foldLeft(z)(f))
             ys <- s.runCollect.map(_.foldLeft(z)(f))
-          } yield assert(xs == ys)
+          } yield assertTrue(xs == ys)
         }
       ),
       testM("mapError")(
@@ -139,7 +139,7 @@ object ZSinkSpec extends ZIOBaseSpec {
                               .map(_.reverse)
                               .flatMap(_.foldLeft(z)((acc, el) => acc.flatMap(f(_, el))))
                               .run
-            } yield assert(foldResult.succeeded) implies assert(foldResult)(succeeds(equalTo(sinkResult)))
+            } yield assert(foldResult.succeeded)(isTrue) ==> assert(foldResult)(succeeds(equalTo(sinkResult)))
           }
         }
       ),
@@ -154,7 +154,7 @@ object ZSinkSpec extends ZIOBaseSpec {
             leftover <- ZStream.fromChunks(Chunk(1, 2), Chunk(3, 4, 5)).run(sink)
             sum      <- acc.get
           } yield {
-            assert(sum == 6, leftover == Chunk(5))
+            assertTrue(sum == 6, leftover == Chunk(5))
           }
         }
       ),
@@ -182,7 +182,7 @@ object ZSinkSpec extends ZIOBaseSpec {
               queue                    <- ZQueue.unbounded[Int]
               (result, streamElements) <- stream.run(ZSink.fromQueue(queue) <&> ZSink.collectAll.map(_.toList))
               queueElements            <- queue.takeAll
-            } yield assert(result == (), queueElements == streamElements)
+            } yield assertTrue(result == (), queueElements == streamElements)
           }
         },
         testM("fails if offering to the queue fails") {
@@ -193,7 +193,7 @@ object ZSinkSpec extends ZIOBaseSpec {
             queueSink    = ZSink.fromQueue(failingQueue)
             stream       = Stream(1)
             result      <- stream.run(queueSink).either
-          } yield assert(result == Left(exception))
+          } yield assertTrue(result == Left(exception))
         }
       ),
       suite("succeed")(
@@ -218,7 +218,7 @@ object ZSinkSpec extends ZIOBaseSpec {
               _                   <- streamCompleted.await
               targetQueueShutdown <- targetQueue.isShutdown
             } yield assert(queueElements)(equalTo(elements)) &&
-              assert(targetQueueShutdown)
+              assertTrue(targetQueueShutdown)
           }
         },
         testM("fails if offering to the queue fails") {
@@ -240,7 +240,7 @@ object ZSinkSpec extends ZIOBaseSpec {
             result     <- stream.run(queueSink).either
             isShutdown <- queue.isShutdown
           } yield assert(result)(isLeft(equalTo(exception))) &&
-            assert(isShutdown)
+            assertTrue(isShutdown)
         }
       )
     ),

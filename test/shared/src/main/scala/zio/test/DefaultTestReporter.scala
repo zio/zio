@@ -26,6 +26,7 @@ import zio.test.mock.Expectation
 import zio.test.mock.internal.{InvalidCall, MockException}
 import zio.{Cause, Has}
 
+import java.util.regex.Pattern
 import scala.annotation.tailrec
 import scala.io.AnsiColor
 import scala.util.Try
@@ -67,38 +68,48 @@ object DefaultTestReporter {
           val renderedAnnotations = testAnnotationRenderer.run(ancestors, annotations)
           val renderedResult = result match {
             case Right(TestSuccess.Succeeded(_)) =>
-              rendered(Test, label, Passed, depth, withOffset(depth)(green("+") + " " + label))
+              Some(rendered(Test, label, Passed, depth, withOffset(depth)(green("+") + " " + label)))
             case Right(TestSuccess.Ignored) =>
-              rendered(Test, label, Ignored, depth, withOffset(depth)(yellow("-") + " " + yellow(label)))
+              Some(rendered(Test, label, Ignored, depth, withOffset(depth)(yellow("-") + " " + yellow(label))))
             case Left(TestFailure.Assertion(result)) =>
-              result match {
-                case TestReturnValue.SmartResult(trace) =>
-                  val failureCase = FailureCase.fromTrace(trace)
-                  val strings =
-                    renderFailureLabel(label, depth) +:
-                      failureCase.flatMap(FailureCase.renderFailureCase(_)).map(" " * (depth + 2) + _)
-
-                  rendered(Test, label, Failed, depth, strings: _*)
-                case TestReturnValue.LensResult(result) =>
-                  result.fold(details =>
-                    rendered(Test, label, Failed, depth, renderFailure(label, depth, details): _*)
-                  )(
-                    _ && _,
-                    _ || _,
-                    !_
-                  )
-
+              result.fold {
+                case result: AssertionResult.FailureDetailsResult => Some(BoolAlgebra.success(result))
+                case AssertionResult.TraceResult(trace) =>
+                  Trace.prune(trace, false).map(a => BoolAlgebra.success(AssertionResult.TraceResult(a)))
+              }(
+                {
+                  case (Some(a), Some(b)) => Some(a && b)
+                  case (Some(a), None)    => Some(a)
+                  case (None, Some(b))    => Some(b)
+                  case _                  => None
+                },
+                {
+                  case (Some(a), Some(b)) => Some(a || b)
+                  case (Some(a), None)    => Some(a)
+                  case (None, Some(b))    => Some(b)
+                  case _                  => None
+                },
+                _.map(!_)
+              ).map {
+                _.fold(details => rendered(Test, label, Failed, depth, renderFailure(label, depth, details): _*))(
+                  _ && _,
+                  _ || _,
+                  !_
+                )
               }
+
             case Left(TestFailure.Runtime(cause)) =>
-              rendered(
-                Test,
-                label,
-                Failed,
-                depth,
-                Seq(renderFailureLabel(label, depth)) ++ Seq(renderCause(cause, depth)).filter(_ => includeCause): _*
+              Some(
+                rendered(
+                  Test,
+                  label,
+                  Failed,
+                  depth,
+                  Seq(renderFailureLabel(label, depth)) ++ Seq(renderCause(cause, depth)).filter(_ => includeCause): _*
+                )
               )
           }
-          Seq(renderedResult.withAnnotations(renderedAnnotations))
+          renderedResult.map(r => Seq(r.withAnnotations(renderedAnnotations))).getOrElse(Seq.empty)
       }
     loop(executedSpec, 0, List.empty)
   }
@@ -137,14 +148,25 @@ object DefaultTestReporter {
   private def renderIgnoreLabel(label: String, offset: Int) =
     withOffset(offset)(yellow("- ") + yellow(label) + " - " + TestAnnotation.ignored.identifier + " suite")
 
-  private def renderFailure(label: String, offset: Int, details: FailureDetails): Seq[String] =
-    renderFailureLabel(label, offset) +: renderFailureDetails(details, offset)
+//  private def renderFailure(label: String, offset: Int, assertionResult: AssertionResult): Seq[String] =
+//    assertionResult match {
+//      case AssertionResult.TraceResult(trace) =>
+//        val failureCase = FailureCase.fromTrace(trace)
+//        renderFailureLabel(label, offset) +:
+//          failureCase.flatMap(FailureCase.renderFailureCase(_)).map(" " * (offset + 2) + _)
+//
+//      case AssertionResult.FailureDetailsResult(failureDetails) =>
+//        renderFailure(label, offset, failureDetails)
+//    }
 
-  private def renderFailureLabel(label: String, offset: Int): String =
+  private def renderFailure(label: String, offset: Int, details: AssertionResult): Seq[String] =
+    renderFailureLabel(label, offset) +: renderAssertionResult(details, offset)
+
+  def renderFailureLabel(label: String, offset: Int): String =
     withOffset(offset)(red("- " + label))
 
-  private def renderFailureDetails(failureDetails: FailureDetails, offset: Int): Seq[String] =
-    renderToStringLines(FailureRenderer.renderFailureDetails(failureDetails, offset))
+  private def renderAssertionResult(failureDetails: AssertionResult, offset: Int): Seq[String] =
+    renderToStringLines(FailureRenderer.renderAssertionResult(failureDetails, offset))
 
   private def renderCause(cause: Cause[Any], offset: Int): String =
     renderToStringLines(FailureRenderer.renderCause(cause, offset)).mkString("\n")
@@ -163,7 +185,7 @@ object DefaultTestReporter {
 
   private val tabSize = 2
 
-  private def rendered(
+  def rendered(
     caseType: CaseType,
     label: String,
     result: Status,
@@ -193,12 +215,11 @@ case class RenderedResult[T](caseType: CaseType, label: String, status: Status, 
 
   def &&(that: RenderedResult[T]): RenderedResult[T] =
     (self.status, that.status) match {
-      case (Ignored, _) => that
-      case (_, Ignored) => self
-      case (Failed, Failed) =>
-        self.copy(rendered = self.rendered ++ that.rendered.tail)
-      case (Passed, _) => that
-      case (_, Passed) => self
+      case (Ignored, _)     => that
+      case (_, Ignored)     => self
+      case (Failed, Failed) => self.copy(rendered = self.rendered ++ that.rendered.tail)
+      case (Passed, _)      => that
+      case (_, Passed)      => self
     }
 
   def ||(that: RenderedResult[T]): RenderedResult[T] =
@@ -274,17 +295,27 @@ object FailureRenderer {
 
   import FailureMessage._
 
+  def renderAssertionResult(assertionResult: AssertionResult, offset: Int): Message =
+    assertionResult match {
+      case AssertionResult.TraceResult(trace) =>
+        val failures = FailureCase.fromTrace(trace)
+        failures
+          .map(fc =>
+            Message(
+              FailureCase.renderFailureCase(fc).map(Line.fromString(_, offset))
+            )
+          )
+          .foldLeft(Message.empty)(_ ++ _)
+
+      case AssertionResult.FailureDetailsResult(failureDetails) =>
+        renderFailureDetails(failureDetails, offset)
+    }
+
   def renderFailureDetails(failureDetails: FailureDetails, offset: Int): Message =
     renderGenFailureDetails(failureDetails.gen, offset) ++
       renderAssertionFailureDetails(failureDetails.assertion, offset)
 
-  private def renderAssertionFailureDetails(failureDetails: ::[AssertionValue], offset: Int): Message =
-    failureDetails.last.smartExpression match {
-      case Some(smartExpression) => renderSmartAssertionFailureDetails(smartExpression, failureDetails, offset)
-      case None                  => renderLensAssertionFailureDetails(failureDetails, offset)
-    }
-
-  private def renderLensAssertionFailureDetails(failureDetails: ::[AssertionValue], offset: Int): Message = {
+  private def renderAssertionFailureDetails(failureDetails: ::[AssertionValue], offset: Int): Message = {
     @tailrec
     def loop(failureDetails: List[AssertionValue], rendered: Message): Message =
       failureDetails match {
@@ -297,45 +328,7 @@ object FailureRenderer {
     renderFragment(failureDetails.head, offset).toMessage ++ loop(
       failureDetails,
       Message.empty
-    ) ++ renderAssertionLocation(failureDetails.last)
-  }
-
-  private def renderSmartAssertionFailureDetails(
-    smartExpression: String,
-    failureDetails: ::[AssertionValue],
-    offset: Int
-  ): Message = {
-    // println(failureDetails.map(_.printAssertion).mkString("\n"))
-    val last = failureDetails.last
-    val head = failureDetails.head
-//    val highlighted   = failureDetails.map(_.codeString).filterNot(_.isEmpty).take(1).mkString("")
-    val context: Line = highlight(bold(smartExpression), head.codeString)
-
-    val errorMessage: Message = red("› ") +: head.renderErrorMessage
-
-    val lines = failureDetails.zip(failureDetails.tail).map { case (first, next) =>
-      dim(next.codeString.trim.dropWhile(_ == ')')) + dim(" = ") + blue(first.value.toString)
-    }
-
-    val finalExpression =
-      dim(last.expression.get) + dim(" = ") + blue(last.value.toString)
-
-    val allLines =
-      if (last.expression.get.exists(Set('"', '.', ','))) lines
-      else lines :+ finalExpression
-
-    (errorMessage ++ context.toMessage ++ (Message(allLines) ++ renderAssertionLocation(last)) ++ Message(""))
-      .withOffset(offset + tabSize)
-  }
-
-  final case class LabeledValue[A](field: String, value: A)
-
-  def generateLabeledValues(failureDetails: ::[AssertionValue]): Unit = {
-    val last = failureDetails.last
-    failureDetails.zip(failureDetails.tail).foreach { case (first, next) =>
-      println((next.codeString, first.value))
-    }
-    println((last.expression, last.value))
+    ) ++ renderAssertionLocation(failureDetails.last, offset)
   }
 
   private def renderGenFailureDetails[A](failureDetails: Option[GenFailureDetails], offset: Int): Message =
@@ -366,7 +359,7 @@ object FailureRenderer {
 
   private def renderFragment(fragment: AssertionValue, offset: Int): Line =
     withOffset(offset + tabSize) {
-      red("› ") + blue(renderValue(fragment)) +
+      blue(renderValue(fragment)) +
         renderSatisfied(fragment) +
         cyan(fragment.printAssertion)
     }
@@ -386,25 +379,21 @@ object FailureRenderer {
     strip(valueStr) == strip(expression)
   }
 
-  private def renderAssertionLocation(av: AssertionValue) = av.sourceLocation.fold(Message()) { location =>
-    blue(s"at $location").toLine.toMessage
+  private def renderAssertionLocation(av: AssertionValue, offset: Int) = av.sourceLocation.fold(Message()) { location =>
+    cyan(s"☛ $location").toLine
+      .withOffset(offset + tabSize)
+      .toMessage
   }
 
-  private def highlight(
-    fragment: Fragment,
-    substring: String,
-    colorCode: String = AnsiColor.YELLOW + scala.Console.BOLD
-  ): Line = {
-    val text  = fragment.text
-    val start = text.indexOf(substring)
-    val end   = start + substring.length
-
-    if (start >= 0)
-      Fragment(text.take(start), fragment.ansiColorCode) +
-        Fragment(text.slice(start, end), colorCode) +
-        Fragment(text.drop(end), fragment.ansiColorCode)
+  private def highlight(fragment: Fragment, substring: String, colorCode: String = AnsiColor.YELLOW): Line = {
+    val parts = fragment.text.split(Pattern.quote(substring))
+    if (parts.size == 1) fragment.toLine
     else
-      fragment.toLine
+      parts.foldLeft(Line.empty) { (line, part) =>
+        if (line.fragments.size < parts.size * 2 - 2)
+          line + Fragment(part, fragment.ansiColorCode) + Fragment(substring, colorCode)
+        else line + Fragment(part, fragment.ansiColorCode)
+      }
   }
 
   private def renderSatisfied(assertionValue: AssertionValue): Fragment =
@@ -480,6 +469,7 @@ object FailureRenderer {
 
   private def renderUnsatisfiedExpectations[R <: Has[_]](expectation: Expectation[R]): Message = {
 
+    @tailrec
     def loop(stack: List[(Int, Expectation[R])], lines: Vector[Line]): Vector[Line] =
       stack match {
         case Nil =>
@@ -528,7 +518,9 @@ object FailureRenderer {
     testResult.failures.fold(Message.empty) { details =>
       Message {
         details
-          .fold(failures => rendered(Test, label, Failed, 0, renderFailure(label, 0, failures).lines: _*))(
+          .fold(assertionResult =>
+            rendered(Test, label, Failed, 0, renderFailure(label, 0, assertionResult).lines: _*)
+          )(
             _ && _,
             _ || _,
             !_
@@ -546,8 +538,8 @@ object FailureRenderer {
   ): RenderedResult[T] =
     RenderedResult(caseType, label, result, offset, rendered)
 
-  private def renderFailure(label: String, offset: Int, details: FailureDetails): Message =
-    renderFailureLabel(label, offset).prepend(renderFailureDetails(details, offset))
+  private def renderFailure(label: String, offset: Int, details: AssertionResult): Message =
+    renderFailureLabel(label, offset).prepend(renderAssertionResult(details, offset))
 
   private def renderFailureLabel(label: String, offset: Int): Line =
     withOffset(offset)(red("- " + label).toLine)

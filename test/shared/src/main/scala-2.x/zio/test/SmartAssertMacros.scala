@@ -110,7 +110,7 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
         q"${astToAssertion(lhs)} >>> $Arrow.fromFunction[$lhsTpe, $rhsTpe]($select).span($span)"
 
       case AST.Method(lhs, lhsTpe, _, name, _, args, span) =>
-        println(s"METHOD ${name}")
+//        println(s"METHOD ${name}")
         val select =
           if (args.isEmpty) c.untypecheck(q"{ (a: $lhsTpe) => a.${TermName(name)} }")
           else c.untypecheck(q"{ (a: $lhsTpe) => a.${TermName(name)}(..$args) }")
@@ -195,7 +195,7 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
 $Assert($ast.withCode($codeString).withLocation($locationString))
         """
 
-    println(scala.Console.BLUE + block + scala.Console.RESET)
+//    println(scala.Console.BLUE + block + scala.Console.RESET)
 
     block
   }

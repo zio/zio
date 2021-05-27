@@ -29,7 +29,7 @@ object ZTransducerPlatformSpecificSpec extends ZIOBaseSpec {
 
   private def testEncoding(fileName: String, transducer: ZTransducer[Blocking, IOException, Byte, String]) =
     readResourceAsString(fileName, transducer)
-      .zipWith(QuickBrownTest)((l, r) => assert(l)(equalTo(r)))
+      .zipWith(QuickBrownTest)((l, r) => assertTrue(l == r))
 
   override def spec: ZSpec[Environment, Failure] = suite("ZSink JVM")(
     suite("fromFile")(
