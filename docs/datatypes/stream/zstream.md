@@ -591,7 +591,7 @@ val lines: ZStream[Console, Throwable, String] =
 
 **ZStream.finalizer** — We can also create a stream that never fails and define a finalizer for it, so that finalizer will be executed before that stream ends. 
 
-```
+```scala
 object ZStream {
   def finalizer[R](
     finalizer: URIO[R, Any]
@@ -904,6 +904,8 @@ val authors: ZStream[Any, Throwable, String] =
 val allBooks: ZStream[Any, Throwable, Book]  = 
   authors.flatMap(getAuthorBooks _)
 ```
+
+If we need to do the `flatMap` concurrently, we can use `ZStream#flatMapPar`, and also if the order of concatenation is not important for us, we can use the `ZStream#flatMapParSwitch` operator.
 
 ### Merging
 
