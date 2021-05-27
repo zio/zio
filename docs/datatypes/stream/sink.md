@@ -3,10 +3,7 @@ id: sink
 title: "Sink"
 ---
 
-A `ZSink[R, E, A, B]` is used to consume elements produced by a stream.
-You can think of this sink as a function that will consume a variable 
-amount of `A` elements (could be 0, 1, or many!), might fail with an
-error of type `E`, and will eventually yield a value of type `B`.
+A `ZSink[R, E, A, B]` is used to consume elements produced by a stream. You can think of this sink as a function that will consume a variable amount of `A` elements (could be 0, 1, or many!), might fail with an error of type `E`, and will eventually yield a value of type `B`. 
 
 A `ZSink` is passed to `ZStream#run` as an argument:
 
@@ -70,8 +67,7 @@ Running two sinks in parallel and returning the one that completed earlier:
 Sink.foldLeft[Int, Int](0)(_ + _).race(Sink.head[Int])
 ```
 
-For transforming given input into some sink we can use `contramap` which
-is `C => A` where `C` is input type and `A` is sink elements type:
+For transforming given input into some sink we can use `contramap` which is `C => A` where `C` is input type and `A` is sink elements type:
 
 ```scala mdoc:silent
 Sink.collectAll[String].contramap[Int](_.toString + "id")
