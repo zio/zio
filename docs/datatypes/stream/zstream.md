@@ -739,6 +739,16 @@ s1.zipWithLatest(s2)((a, b) => (a, b))
 // Output: (1, a), (1, b), (1, c), (1, d), (2, d), (3, d)
 ```
 
+ZIO Stream also has three useful operators for zipping element of a stream with their previous/next elements and also both of them:
+
+```scala mdoc:silent:nest
+val stream: UStream[Int] = ZStream.fromIterable(1 to 5)
+
+val s1: UStream[(Option[Int], Int)]              = stream.zipWithPrevious
+val s2: UStream[(Int, Option[Int])]              = stream.zipWithNext
+val s3: UStream[(Option[Int], Int, Option[Int])] = stream.zipWithPreviousAndNext
+```
+
 ### Partitioning
 
 #### partition
