@@ -724,6 +724,21 @@ val s2 : UStream[(Int, String)] =
 
 The new stream will end when one of the streams ends.
 
+Sometimes we want to zip stream, but we do not want to zip two elements one by one. For example, we may have two streams with two different speeds, we do not want to wait for the slower one when zipping elements, assume need to zip elements with the latest element of the slower stream. The `ZStream#zipWithLates` do this for us. It zips two streams so that when a value is emitted by either of the two streams; it is combined with the latest value from the other stream to produce a result:
+
+```scala mdoc:silent:nest
+val s1 = ZStream(1, 2, 3)
+  .schedule(Schedule.spaced(1.second))
+
+val s2 = ZStream("a", "b", "c", "d")
+  .schedule(Schedule.spaced(500.milliseconds))
+  .chunkN(3)
+
+s1.zipWithLatest(s2)((a, b) => (a, b))
+
+// Output: (1, a), (1, b), (1, c), (1, d), (2, d), (3, d)
+```
+
 ### Partitioning
 
 #### partition
