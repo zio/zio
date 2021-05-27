@@ -21,7 +21,7 @@ object TestAspectSpec extends ZIOBaseSpec {
         result <- succeeded(spec)
         after  <- ref.get
       } yield {
-        assertTrue(result) &&
+        assert(result)(isTrue) &&
         assert(after)(equalTo(-1))
       }
     },
@@ -47,7 +47,7 @@ object TestAspectSpec extends ZIOBaseSpec {
         result <- succeeded(spec)
         after  <- ref.get
       } yield {
-        assertTrue(result) &&
+        assert(result)(isTrue) &&
         assert(after)(equalTo(0))
       }
     },
@@ -60,7 +60,7 @@ object TestAspectSpec extends ZIOBaseSpec {
         result <- succeeded(spec)
         after  <- ref.get
       } yield {
-        assertTrue(!result) &&
+        assert(result)(isFalse) &&
         assert(after)(equalTo(-1))
       }
     },
@@ -73,57 +73,57 @@ object TestAspectSpec extends ZIOBaseSpec {
         result <- succeeded(spec)
         after  <- ref.get
       } yield {
-        assertTrue(!result) &&
+        assert(result)(isFalse) &&
         assert(after)(equalTo(-1))
       }
     },
     testM("dotty applies test aspect only on Dotty") {
       for {
         ref    <- Ref.make(false)
-        spec    = test("test")(assertTrue(true)) @@ dotty(after(ref.set(true)))
+        spec    = test("test")(assert(true)(isTrue)) @@ dotty(after(ref.set(true)))
         _      <- execute(spec)
         result <- ref.get
-      } yield if (TestVersion.isDotty) assertTrue(result) else assertTrue(!result)
+      } yield if (TestVersion.isDotty) assert(result)(isTrue) else assert(result)(isFalse)
     },
     testM("dottyOnly runs tests only on Dotty") {
-      val spec   = test("Dotty-only")(assertTrue(TestVersion.isDotty)) @@ dottyOnly
+      val spec   = test("Dotty-only")(assert(TestVersion.isDotty)(isTrue)) @@ dottyOnly
       val result = if (TestVersion.isDotty) succeeded(spec) else isIgnored(spec)
       assertM(result)(isTrue)
     },
     test("exceptDotty runs tests on all versions except Dotty") {
-      assertTrue(!TestVersion.isDotty)
+      assert(TestVersion.isDotty)(isFalse)
     } @@ exceptDotty,
     test("exceptJS runs tests on all platforms except ScalaJS") {
-      assertTrue(!TestPlatform.isJS)
+      assert(TestPlatform.isJS)(isFalse)
     } @@ exceptJS,
     test("exceptJVM runs tests on all platforms except the JVM") {
-      assertTrue(!TestPlatform.isJVM)
+      assert(TestPlatform.isJVM)(isFalse)
     } @@ exceptJVM,
     test("exceptNative runs tests on all platforms except ScalaNative") {
-      assertTrue(!TestPlatform.isNative)
+      assert(TestPlatform.isNative)(isFalse)
     } @@ exceptNative,
     test("exceptScala2 runs tests on all versions except Scala 2") {
-      assertTrue(!TestVersion.isScala2)
+      assert(TestVersion.isScala2)(isFalse)
     } @@ exceptScala2,
     test("failure makes a test pass if the result was a failure") {
-      assertTrue(throw new java.lang.Exception("boom"))
+      assert(throw new java.lang.Exception("boom"))(isFalse)
     } @@ failing,
     test("failure makes a test pass if it died with a specified failure") {
-      assertTrue(throw new NullPointerException())
+      assert(throw new NullPointerException())(isFalse)
     } @@ failing(diesWithSubtypeOf[NullPointerException]),
     test("failure does not make a test pass if it failed with an unexpected exception") {
-      assertTrue(throw new NullPointerException())
+      assert(throw new NullPointerException())(isFalse)
     } @@ failing(diesWithSubtypeOf[IllegalArgumentException])
       @@ failing,
     test("failure does not make a test pass if the specified failure does not match") {
-      assertTrue(throw new RuntimeException())
+      assert(throw new RuntimeException())(isFalse)
     } @@ failing(diesWith(hasMessage(equalTo("boom"))))
       @@ failing,
     test("failure makes tests pass on any assertion failure") {
-      assertTrue(false)
+      assert(true)(equalTo(false))
     } @@ failing,
     test("failure makes tests pass on an expected assertion failure") {
-      assertTrue(false)
+      assert(true)(equalTo(false))
     } @@ failing(
       isCase[TestFailure[Any], Any](
         "Assertion",
@@ -139,7 +139,7 @@ object TestAspectSpec extends ZIOBaseSpec {
                } @@ flaky
         result <- succeeded(spec)
         n      <- ref.get
-      } yield assertTrue(result) && assert(n)(equalTo(100))
+      } yield assert(result)(isTrue) && assert(n)(equalTo(100))
     },
     testM("flaky retries a test that dies") {
       for {
@@ -149,77 +149,77 @@ object TestAspectSpec extends ZIOBaseSpec {
                } @@ flaky
         result <- succeeded(spec)
         n      <- ref.get
-      } yield assertTrue(result) && assert(n)(equalTo(100))
+      } yield assert(result)(isTrue) && assert(n)(equalTo(100))
     },
     test("flaky retries a test with a limit") {
-      assertTrue(false)
+      assert(true)(isFalse)
     } @@ flaky @@ failing,
     test("ifEnv runs a test if environment variable satisfies assertion") {
-      assertTrue(true)
+      assert(true)(isTrue)
     } @@ ifEnv("PATH", containsString("bin")) @@ success @@ jvmOnly,
     test("ifEnv ignores a test if environment variable does not satisfy assertion") {
-      assertTrue(false)
+      assert(true)(isFalse)
     } @@ ifEnv("PATH", nothing) @@ jvmOnly,
     test("ifEnv ignores a test if environment variable does not exist") {
-      assertTrue(false)
+      assert(true)(isFalse)
     } @@ ifEnv("QWERTY", anything) @@ jvmOnly,
     test("ifEnvSet runs a test if environment variable is set") {
-      assertTrue(true)
+      assert(true)(isTrue)
     } @@ ifEnvSet("PATH") @@ success @@ jvmOnly,
     test("ifEnvSet ignores a test if environment variable is not set") {
-      assertTrue(false)
+      assert(true)(isFalse)
     } @@ ifEnvSet("QWERTY") @@ jvmOnly,
     test("ifProp runs a test if property satisfies assertion") {
-      assertTrue(true)
+      assert(true)(isTrue)
     } @@ ifProp("java.vm.name", containsString("VM")) @@ success @@ jvmOnly,
     test("ifProp ignores a test if property does not satisfy assertion") {
-      assertTrue(false)
+      assert(true)(isFalse)
     } @@ ifProp("java.vm.name", nothing) @@ jvmOnly,
     test("ifProp ignores a test if property does not exist") {
-      assertTrue(false)
+      assert(true)(isFalse)
     } @@ ifProp("qwerty", anything) @@ jvmOnly,
     test("ifPropSet runs a test if property is set") {
-      assertTrue(true)
+      assert(true)(isTrue)
     } @@ ifPropSet("java.vm.name") @@ success @@ jvmOnly,
     test("ifPropSet ignores a test if property is not set") {
-      assertTrue(false)
+      assert(true)(isFalse)
     } @@ ifPropSet("qwerty") @@ jvmOnly,
     testM("js applies test aspect only on ScalaJS") {
       for {
         ref    <- Ref.make(false)
-        spec    = test("test")(assertTrue(true)) @@ js(after(ref.set(true)))
+        spec    = test("test")(assert(true)(isTrue)) @@ js(after(ref.set(true)))
         _      <- execute(spec)
         result <- ref.get
-      } yield if (TestPlatform.isJS) assertTrue(result) else assertTrue(!result)
+      } yield if (TestPlatform.isJS) assert(result)(isTrue) else assert(result)(isFalse)
     },
     testM("jsOnly runs tests only on ScalaJS") {
-      val spec   = test("Javascript-only")(assertTrue(TestPlatform.isJS)) @@ jsOnly
+      val spec   = test("Javascript-only")(assert(TestPlatform.isJS)(isTrue)) @@ jsOnly
       val result = if (TestPlatform.isJS) succeeded(spec) else isIgnored(spec)
       assertM(result)(isTrue)
     },
     testM("jvm applies test aspect only on jvm") {
       for {
         ref    <- Ref.make(false)
-        spec    = test("test")(assertTrue(true)) @@ jvm(after(ref.set(true)))
+        spec    = test("test")(assert(true)(isTrue)) @@ jvm(after(ref.set(true)))
         _      <- execute(spec)
         result <- ref.get
-      } yield assertTrue(if (TestPlatform.isJVM) result else !result)
+      } yield assert(if (TestPlatform.isJVM) result else !result)(isTrue)
     },
     testM("jvmOnly runs tests only on the JVM") {
-      val spec   = test("JVM-only")(assertTrue(TestPlatform.isJVM)) @@ jvmOnly
+      val spec   = test("JVM-only")(assert(TestPlatform.isJVM)(isTrue)) @@ jvmOnly
       val result = if (TestPlatform.isJVM) succeeded(spec) else isIgnored(spec)
       assertM(result)(isTrue)
     },
     testM("native applies test aspect only on ScalaNative") {
       for {
         ref    <- Ref.make(false)
-        spec    = test("test")(assertTrue(true)) @@ native(after(ref.set(true)))
+        spec    = test("test")(assert(true)(isTrue)) @@ native(after(ref.set(true)))
         _      <- execute(spec)
         result <- ref.get
-      } yield if (TestPlatform.isNative) assertTrue(result) else assertTrue(!result)
+      } yield if (TestPlatform.isNative) assert(result)(isTrue) else assert(result)(isFalse)
     },
     testM("nativeOnly runs tests only on ScalaNative") {
-      val spec   = test("Native-only")(assertTrue(TestPlatform.isNative)) @@ nativeOnly
+      val spec   = test("Native-only")(assert(TestPlatform.isNative)(isTrue)) @@ nativeOnly
       val result = if (TestPlatform.isNative) succeeded(spec) else isIgnored(spec)
       assertM(result)(isTrue)
     },
@@ -260,13 +260,13 @@ object TestAspectSpec extends ZIOBaseSpec {
     testM("scala2 applies test aspect only on Scala 2") {
       for {
         ref    <- Ref.make(false)
-        spec    = test("test")(assertTrue(true)) @@ scala2(after(ref.set(true)))
+        spec    = test("test")(assert(true)(isTrue)) @@ scala2(after(ref.set(true)))
         _      <- execute(spec)
         result <- ref.get
-      } yield if (TestVersion.isScala2) assertTrue(result) else assertTrue(!result)
+      } yield if (TestVersion.isScala2) assert(result)(isTrue) else assert(result)(isFalse)
     },
     testM("scala2Only runs tests only on Scala 2") {
-      val spec   = test("Scala2-only")(assertTrue(TestVersion.isScala2)) @@ scala2Only
+      val spec   = test("Scala2-only")(assert(TestVersion.isScala2)(isTrue)) @@ scala2Only
       val result = if (TestVersion.isScala2) succeeded(spec) else isIgnored(spec)
       assertM(result)(isTrue)
     },
@@ -300,7 +300,7 @@ object TestAspectSpec extends ZIOBaseSpec {
                  testM("second test")(ref.set(true).as(assertCompletes))
                ) @@ sequential @@ verify(assertM(ref.get)(isTrue))
         result <- succeeded(spec)
-      } yield assertTrue(!result)
+      } yield assert(result)(isFalse)
     },
     testM("untraced disables tracing") {
       assertM(ZIO.checkTraced(ZIO.succeed(_)))(equalTo(TracingStatus.Untraced))

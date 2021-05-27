@@ -148,17 +148,6 @@ object DefaultTestReporter {
   private def renderIgnoreLabel(label: String, offset: Int) =
     withOffset(offset)(yellow("- ") + yellow(label) + " - " + TestAnnotation.ignored.identifier + " suite")
 
-//  private def renderFailure(label: String, offset: Int, assertionResult: AssertionResult): Seq[String] =
-//    assertionResult match {
-//      case AssertionResult.TraceResult(trace) =>
-//        val failureCase = FailureCase.fromTrace(trace)
-//        renderFailureLabel(label, offset) +:
-//          failureCase.flatMap(FailureCase.renderFailureCase(_)).map(" " * (offset + 2) + _)
-//
-//      case AssertionResult.FailureDetailsResult(failureDetails) =>
-//        renderFailure(label, offset, failureDetails)
-//    }
-
   private def renderFailure(label: String, offset: Int, details: AssertionResult): Seq[String] =
     renderFailureLabel(label, offset) +: renderAssertionResult(details, offset)
 
@@ -302,7 +291,7 @@ object FailureRenderer {
         failures
           .map(fc =>
             Message(
-              FailureCase.renderFailureCase(fc).map(Line.fromString(_, offset))
+              FailureCase.renderFailureCase(fc).map(Line.fromString(_, offset + tabSize))
             )
           )
           .foldLeft(Message.empty)(_ ++ _)

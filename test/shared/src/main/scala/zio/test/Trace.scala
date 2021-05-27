@@ -101,13 +101,13 @@ sealed trait Trace[+A] { self =>
     self ==> that && that ==> self.asInstanceOf[Trace[Boolean]]
 
   final def &&(that: Trace[Boolean])(implicit ev: A <:< Boolean): Trace[Boolean] =
-    Trace.And(ev.liftCo(self), that)
+    Trace.And(self.asInstanceOf[Trace[Boolean]], that)
 
   final def ||(that: Trace[Boolean])(implicit ev: A <:< Boolean): Trace[Boolean] =
-    Trace.Or(ev.liftCo(self), that)
+    Trace.Or(self.asInstanceOf[Trace[Boolean]], that)
 
   final def unary_!(implicit ev: A <:< Boolean): Trace[Boolean] =
-    Trace.Not(ev.liftCo(self))
+    Trace.Not(self.asInstanceOf[Trace[Boolean]])
 
   final def >>>[B](that: Trace[B]): Trace[B] =
     Trace.AndThen(self, that)

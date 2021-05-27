@@ -32,7 +32,7 @@ object SpecSpec extends ZIOBaseSpec {
         implicit val needsEnv = NeedsEnv
         val spec = suite("suite")(
           test("test") {
-            assertTrue(true)
+            assert(true)(isTrue)
           }
         ).provideLayerShared(ZLayer.fromEffectMany(ZIO.dieMessage("everybody dies")))
         for {
@@ -53,7 +53,7 @@ object SpecSpec extends ZIOBaseSpec {
           layer   = ZLayer.fromEffect(ref.set(false).as(ref))
           _      <- execute(spec.provideCustomLayerShared(layer) @@ ifEnvSet("foo"))
           result <- ref.get
-        } yield assertTrue(result)
+        } yield assert(result)(isTrue)
       },
       testM("is not interfered with by test level failures") {
         val spec = suite("suite")(
@@ -156,8 +156,8 @@ object SpecSpec extends ZIOBaseSpec {
                  ) @@ sequential
           succeeded <- succeeded(spec)
           log       <- ref.get.map(_.reverse)
-        } yield assertTrue(succeeded) &&
-          assertTrue(log == List("Acquiring", "Releasing", "Acquiring", "Releasing"))
+        } yield assert(succeeded)(isTrue) &&
+          assert(log)(equalTo(List("Acquiring", "Releasing", "Acquiring", "Releasing")))
       },
       testM("correctly handles nested suites") {
         val spec =

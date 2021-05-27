@@ -3,7 +3,7 @@ package zio.test
 import zio.ZIO
 
 import scala.language.implicitConversions
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 case class Assert private (val arrow: Arrow[Any, Boolean]) {
   def &&(that: Assert): Assert = Assert(arrow && that.arrow)
@@ -91,7 +91,10 @@ object Arrow {
     }
 
   private def attempt[A](f: => Trace[A]): Trace[A] =
-    Try(f).fold(e => Trace.fail(e), identity)
+    Try(f) match {
+      case Failure(exception) => Trace.fail(exception)
+      case Success(value)     => value
+    }
 
   def run[A, B](assert: Arrow[A, B], in: Either[Throwable, A]): Trace[B] = attempt {
     assert match {

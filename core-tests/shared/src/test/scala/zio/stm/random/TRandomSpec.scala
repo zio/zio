@@ -2,6 +2,7 @@ package zio.stm.random
 
 import zio.ZIOBaseSpec
 import zio.random.Random
+import zio.test.Assertion.isTrue
 import zio.test._
 
 object TRandomSpec extends ZIOBaseSpec {
@@ -17,28 +18,28 @@ object TRandomSpec extends ZIOBaseSpec {
       checkM(genDoubles) { case (min, max) =>
         for {
           n <- nextDoubleBetween(min, max).commit
-        } yield assertTrue(n >= min && n < max)
+        } yield assert(n >= min && n < max)(isTrue)
       }
     },
     testM("nextFloatBetween generates floats in specified range") {
       checkM(genFloats) { case (min, max) =>
         for {
           n <- nextFloatBetween(min, max).commit
-        } yield assertTrue(n >= min && n < max)
+        } yield assert(n >= min && n < max)(isTrue)
       }
     },
     testM("nextIntBetween generates integers in specified range") {
       checkM(genInts) { case (min, max) =>
         for {
           n <- nextIntBetween(min, max).commit
-        } yield assertTrue(n >= min && n < max)
+        } yield assert(n >= min && n < max)(isTrue)
       }
     },
     testM("nextLongBetween generates longs in specified range") {
       checkM(genLongs) { case (min, max) =>
         for {
           n <- nextLongBetween(min, max).commit
-        } yield assertTrue(n >= min && n < max)
+        } yield assert(n >= min && n < max)(isTrue)
       }
     }
   ).provideCustomLayer(TRandom.live)

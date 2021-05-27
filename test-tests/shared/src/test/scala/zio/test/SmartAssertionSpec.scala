@@ -73,10 +73,6 @@ object SmartAssertionSpec extends ZIOBaseSpec {
       test("$asRight") {
         val myEither: Either[String, Int] = Left("string")
         assertTrue(myEither.$asRight + 1 > 11233)
-      },
-      test("toOption.get") {
-        val myEither: Either[String, Int] = Left("string")
-        assertTrue(myEither.toOption.get + 1 > 11238)
       }
     ),
     suite("Helpers")(
@@ -91,7 +87,7 @@ object SmartAssertionSpec extends ZIOBaseSpec {
         }
       ),
       test("asInstanceOf") {
-        val someColor: Color = Red("hello")
+//        val someColor: Color = Red("hello")
         case class Bomb(name: String) {
           def getName: String = throw new Error("SPLODE")
         }
