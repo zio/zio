@@ -2,7 +2,6 @@ package zio.stm.random
 
 import zio.ZIOBaseSpec
 import zio.random.Random
-import zio.test.Assertion._
 import zio.test._
 
 object TRandomSpec extends ZIOBaseSpec {

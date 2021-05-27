@@ -30,7 +30,6 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
         case not: AST.Not           => not.copy(span = span0)
         case and: AST.And           => and.copy(span = span0)
         case or: AST.Or             => or.copy(span = span0)
-        case select: AST.Select     => select.copy(span = span0)
         case method: AST.Method     => method.copy(span = span0)
         case function: AST.Function => function.copy(span = span0)
         case raw: AST.Raw           => raw.copy(span = span0)
@@ -41,15 +40,13 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
     case class Not(ast: AST, span: (Int, Int), innerSpan: (Int, Int))                                 extends AST
     case class And(lhs: AST, rhs: AST, span: (Int, Int), leftSpan: (Int, Int), rightSpan: (Int, Int)) extends AST
     case class Or(lhs: AST, rhs: AST, span: (Int, Int), leftSpan: (Int, Int), rightSpan: (Int, Int))  extends AST
-    case class Select(lhs: AST, lhsTpe: Type, rhsTpe: Type, tpes: List[Tree], name: String, span: (Int, Int))
-        extends AST
     case class Method(
       lhs: AST,
       lhsTpe: Type,
       rhsTpe: Type,
       name: String,
       tpes: List[Type],
-      args: List[c.Tree],
+      args: Option[List[c.Tree]],
       span: (Int, Int)
     )                                                                          extends AST
     case class Function(lhs: c.Tree, rhs: AST, lhsTpe: Type, span: (Int, Int)) extends AST
@@ -82,17 +79,11 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
       case AST.Or(lhs, rhs, _, ls, rs) =>
         q"${astToAssertion(lhs)}.withParentSpan($ls) || ${astToAssertion(rhs)}.withParentSpan($rs)"
 
-      case AST.Select(lhs, _, _, List(tpe), "throwsA", span) =>
-        q"${astToAssertion(lhs)} >>> $Assertions.throwsSubtype[$tpe].span($span)"
-
-      case AST.Select(lhs, _, _, _, "throws", span) =>
-        q"${astToAssertion(lhs)} >>> $Assertions.throwsError.span($span)"
-
-      case AST.Method(lhs, lhsTpe, _, "forall", _, args, span) if lhsTpe <:< weakTypeOf[Iterable[_]] =>
+      case AST.Method(lhs, lhsTpe, _, "forall", _, Some(args), span) if lhsTpe <:< weakTypeOf[Iterable[_]] =>
         val assertion = astToAssertion(parseExpr(args.head))
         q"${astToAssertion(lhs)} >>> $Assertions.forallIterable($assertion).span($span)"
 
-      case AST.Method(lhs, lhsTpe, _, "exists", _, args, span) if lhsTpe <:< weakTypeOf[Iterable[_]] =>
+      case AST.Method(lhs, lhsTpe, _, "exists", _, Some(args), span) if lhsTpe <:< weakTypeOf[Iterable[_]] =>
         val assertion = astToAssertion(parseExpr(args.head))
         q"${astToAssertion(lhs)} >>> $Assertions.existsIterable($assertion).span($span)"
 
@@ -100,18 +91,15 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
         val tree = AssertAST.toTree(ast)
         q"${astToAssertion(lhs)} >>> $tree.span($span)"
 
-      case AST.Select(lhs, _, _, _, "get", span) =>
-        q"${astToAssertion(lhs)} >>> $Assertions.isSome.span($span)"
-
-      case AST.Select(lhs, lhsTpe, rhsTpe, _, name, span) =>
-        val select = c.untypecheck(q"{ (a) => a.${TermName(name)} }")
-        q"${astToAssertion(lhs)} >>> $Arrow.fromFunction[$lhsTpe, $rhsTpe]($select).span($span)"
-
       case AST.Method(lhs, lhsTpe, _, name, _, args, span) =>
 //        println(s"METHOD ${name}")
         val select =
-          if (args.isEmpty) c.untypecheck(q"{ (a: $lhsTpe) => a.${TermName(name)} }")
-          else c.untypecheck(q"{ (a: $lhsTpe) => a.${TermName(name)}(..$args) }")
+          args match {
+            case Some(args) =>
+              c.untypecheck(q"{ (a: $lhsTpe) => a.${TermName(name)}(..$args) }")
+            case None =>
+              c.untypecheck(q"{ (a: $lhsTpe) => a.${TermName(name)} }")
+          }
 
         q"${astToAssertion(lhs)} >>> $Arrow.fromFunction($select).span($span)"
 
@@ -180,7 +168,6 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
     val (file, line)   = location(c)
     val locationString = s"$file:$line"
 
-//    println("")
     val parsed = parseExpr(tree)
 //    println(scala.Console.CYAN + parsed + scala.Console.RESET)
 //    println("")
@@ -207,18 +194,18 @@ $Assert($ast.withCode($codeString).withLocation($locationString))
   }
 
   object MethodCall {
-    def unapply(tree: c.Tree): Option[(c.Tree, TermName, List[Type], List[c.Tree])] =
+    def unapply(tree: c.Tree): Option[(c.Tree, TermName, List[Type], Option[List[c.Tree]])] =
       tree match {
         case q"${UnwrapImplicit(lhs)}.$name[..$tpes]"
             if !(tree.symbol.isModule || tree.symbol.isStatic || tree.symbol.isClass) =>
-          Some((lhs, name, tpes.map(_.tpe), List.empty))
+          Some((lhs, name, tpes.map(_.tpe), None))
         case q"${UnwrapImplicit(lhs)}.$name"
             if !(tree.symbol.isModule || tree.symbol.isStatic || tree.symbol.isClass) =>
-          Some((lhs, name, List.empty, List.empty))
+          Some((lhs, name, List.empty, None))
         case q"${UnwrapImplicit(lhs)}.$name(..$args)" =>
-          Some((lhs, name, List.empty, args))
+          Some((lhs, name, List.empty, Some(args)))
         case q"${UnwrapImplicit(lhs)}.$name[..$tpes](..$args)" =>
-          Some((lhs, name, tpes.map(_.tpe), args))
+          Some((lhs, name, tpes.map(_.tpe), Some(args)))
         case _ => None
       }
   }
@@ -272,17 +259,12 @@ $Assert($ast.withCode($codeString).withLocation($locationString))
   }
 
   sealed trait ASTConverter { self =>
-//    def matches: PartialFunction[AST.Method, AssertAST]
-//
     final def orElse(that: ASTConverter): ASTConverter = new ASTConverter {
       override def unapply(method: AST.Method): Option[(AST, AssertAST, (Int, Int))] =
         self.unapply(method).orElse(that.unapply(method))
     }
 
-    def unapply(method: AST.Method): Option[(AST, AssertAST, (Int, Int))] //  =
-//      matches.lift(method).map { ast =>
-//        (method.lhs, ast, method.span)
-//      }
+    def unapply(method: AST.Method): Option[(AST, AssertAST, (Int, Int))]
   }
 
   object ASTConverter {
@@ -339,7 +321,7 @@ $Assert($ast.withCode($codeString).withLocation($locationString))
       }
 
     lazy val equalTo: ASTConverter =
-      ASTConverter.make { case AST.Method(_, lhsTpe, _, "$eq$eq", _, args, _) =>
+      ASTConverter.make { case AST.Method(_, lhsTpe, _, "$eq$eq", _, Some(args), _) =>
         AssertAST("equalTo", List(lhsTpe), args)
       }
 
@@ -352,12 +334,12 @@ $Assert($ast.withCode($codeString).withLocation($locationString))
     lazy val isEven: ASTConverter =
       ASTConverter.makeCustom { //
         case AST.Method(
-              AST.Method(lhs, lhsTpe, _, "$percent", _, List(q"2"), span0),
+              AST.Method(lhs, lhsTpe, _, "$percent", _, Some(List(q"2")), span0),
               _,
               _,
               "$eq$eq",
               _,
-              List(q"0"),
+              Some(List(q"0")),
               span
             ) =>
           (lhs, AssertAST("isEven", List(lhsTpe)), span0._1 -> span._2)
@@ -366,34 +348,34 @@ $Assert($ast.withCode($codeString).withLocation($locationString))
     lazy val isOdd: ASTConverter =
       ASTConverter.makeCustom { //
         case AST.Method(
-              AST.Method(lhs, lhsTpe, _, "$percent", _, List(q"2"), span0),
+              AST.Method(lhs, lhsTpe, _, "$percent", _, Some(List(q"2")), span0),
               _,
               _,
               "$eq$eq",
               _,
-              List(q"1"),
+              Some(List(q"1")),
               span
             ) =>
           (lhs, AssertAST("isOdd", List(lhsTpe)), span0._1 -> span._2)
       }
 
     lazy val greaterThan: ASTConverter =
-      ASTConverter.make { case AST.Method(_, lhsTpe, _, "$greater", _, args, _) =>
+      ASTConverter.make { case AST.Method(_, lhsTpe, _, "$greater", _, Some(args), _) =>
         AssertAST("greaterThan", List(lhsTpe), args)
       }
 
     lazy val greaterThanOrEqualTo: ASTConverter =
-      ASTConverter.make { case AST.Method(_, lhsTpe, _, "$greater$eq", _, args, _) =>
+      ASTConverter.make { case AST.Method(_, lhsTpe, _, "$greater$eq", _, Some(args), _) =>
         AssertAST("greaterThanOrEqualTo", List(lhsTpe), args)
       }
 
     lazy val lessThan: ASTConverter =
-      ASTConverter.make { case AST.Method(_, lhsTpe, _, "$less", _, args, _) =>
+      ASTConverter.make { case AST.Method(_, lhsTpe, _, "$less", _, Some(args), _) =>
         AssertAST("lessThan", List(lhsTpe), args)
       }
 
     lazy val lessThanOrEqualTo: ASTConverter =
-      ASTConverter.make { case AST.Method(_, lhsTpe, _, "$less$eq", _, args, _) =>
+      ASTConverter.make { case AST.Method(_, lhsTpe, _, "$less$eq", _, Some(args), _) =>
         AssertAST("lessThanOrEqualTo", List(lhsTpe), args)
       }
 
@@ -405,7 +387,7 @@ $Assert($ast.withCode($codeString).withLocation($locationString))
 
     lazy val hasAt: ASTConverter =
       ASTConverter.make {
-        case AST.Method(_, lhsTpe, _, "apply", _, args, _) if lhsTpe <:< weakTypeOf[Seq[_]] =>
+        case AST.Method(_, lhsTpe, _, "apply", _, Some(args), _) if lhsTpe <:< weakTypeOf[Seq[_]] =>
           AssertAST("hasAt", args = args)
       }
 
@@ -435,19 +417,19 @@ $Assert($ast.withCode($codeString).withLocation($locationString))
 
     lazy val containsSeq: ASTConverter =
       ASTConverter.make {
-        case AST.Method(_, lhsTpe, _, "contains", _, args, _) if lhsTpe <:< weakTypeOf[Seq[_]] =>
+        case AST.Method(_, lhsTpe, _, "contains", _, Some(args), _) if lhsTpe <:< weakTypeOf[Seq[_]] =>
           AssertAST("containsSeq", args = args)
       }
 
     lazy val containsOption: ASTConverter =
       ASTConverter.make {
-        case AST.Method(_, lhsTpe, _, "contains", _, args, _) if lhsTpe <:< weakTypeOf[Option[_]] =>
+        case AST.Method(_, lhsTpe, _, "contains", _, Some(args), _) if lhsTpe <:< weakTypeOf[Option[_]] =>
           AssertAST("containsOption", args = args)
       }
 
     lazy val containsString: ASTConverter =
       ASTConverter.make {
-        case AST.Method(_, lhsTpe, _, "contains", _, args, _) if lhsTpe <:< weakTypeOf[String] =>
+        case AST.Method(_, lhsTpe, _, "contains", _, Some(args), _) if lhsTpe <:< weakTypeOf[String] =>
           AssertAST("containsString", args = args)
       }
 

@@ -110,7 +110,7 @@ object HubSpec extends ZIOBaseSpec {
       else {
         val as        = subscription.pollUpTo(chunkSize)
         val remaining = n - as.length
-        if (remaining <= 0) ZIO.succeedNow(((as.reverse.toList) ::: acc).reverse)
+        if (remaining <= 0) ZIO.succeedNow((as.reverse.toList ::: acc).reverse)
         else ZIO.yieldNow *> takeNChunks[A](subscription, remaining, chunkSize, as.reverse.toList ::: acc)
       }
     }
@@ -270,9 +270,9 @@ object HubSpec extends ZIOBaseSpec {
           values     <- subscriber.join
         } yield assert(values)(equalTo(as)) &&
           assertTrue(hub.isEmpty()) &&
-          assert(hub.size())(equalTo(0)) &&
+          assertTrue(hub.size() == 0) &&
           assertTrue(subscription.isEmpty()) &&
-          assert(subscription.size())(equalTo(0))
+          assertTrue(subscription.size() == 0)
       }
     }
 
@@ -291,13 +291,13 @@ object HubSpec extends ZIOBaseSpec {
           values1     <- subscriber1.join
           values2     <- subscriber2.join
         } yield assert(values1)(equalTo(as)) &&
-          assert(values2)(equalTo(as)) &&
+          assertTrue(values2 == as) &&
           assertTrue(hub.isEmpty()) &&
-          assert(hub.size())(equalTo(0)) &&
+          assertTrue(hub.size() == 0) &&
           assertTrue(subscription1.isEmpty()) &&
-          assert(subscription1.size())(equalTo(0)) &&
+          assertTrue(subscription1.size() == 0) &&
           assertTrue(subscription2.isEmpty()) &&
-          assert(subscription2.size())(equalTo(0))
+          assertTrue(subscription2.size() == 0)
       }
     }
 
