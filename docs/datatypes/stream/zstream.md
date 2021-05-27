@@ -1029,10 +1029,6 @@ val stream: ZIO[Console with Random with Clock, IOException, Unit] =
     }
 ```
 
-## Parallelism
-
-
-
 ## Consuming a Stream
 
 ```scala mdoc:silent
