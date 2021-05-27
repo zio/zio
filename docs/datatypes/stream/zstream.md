@@ -705,6 +705,25 @@ The effectful version of `mapConcat` is `mapConcatM`.
 
 `ZStream` also has chunked versions of that which are `mapConcatChunk` and `mapConcatChunkM`.
 
+### Zipping
+
+We can zip two stream by using `ZStream.zipN` or `ZStream#zipWith` operator:
+
+```scala mdoc:silent:nest
+val s1: UStream[(Int, String)] =
+  ZStream.zipN(
+    ZStream(1, 2, 3, 4, 5, 6),
+    ZStream("a", "b", "c")
+  )((a, b) => (a, b))
+
+val s2 : UStream[(Int, String)] =
+  ZStream(1, 2, 3, 4, 5, 6).zipWith(ZStream("a", "b", "c"))((a, b) => (a, b))
+  
+// Output: (1, "a"), (2, "b"), (3, "c")
+``` 
+
+The new stream will end when one of the streams ends.
+
 ### Partitioning
 
 #### partition
