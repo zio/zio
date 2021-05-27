@@ -79,7 +79,7 @@ object ZTestFrameworkSpec {
           s"${reset("info:")} ${red("- some suite")} - ignored: 1",
           s"${reset("info:")}   ${red("- failing test")}",
           s"${reset("info:")}     ${blue("1")} did not satisfy ${cyan("equalTo(2)")}",
-          s"${reset("info:")}       ${blue(assertLocation)}",
+          s"${reset("info:")}     ${cyan(assertLocation)}",
           s"${reset("info:")}   ${green("+")} passing test",
           s"${reset("info:")}   ${yellow("-")} ${yellow("ignored test")} - ignored: 1"
         ).mkString("\n")
@@ -99,7 +99,7 @@ object ZTestFrameworkSpec {
           s"${red("- multi-line test")}",
           s"  ${Console.BLUE}Hello,",
           s"${blue("World!")} did not satisfy ${cyan("equalTo(Hello, World!)")}",
-          s"    ${blue(assertLocation)}"
+          s"  ${cyan(assertLocation)}"
         ).mkString("\n")
           .split('\n')
           .map(s"${reset("info:")} " + _)
@@ -219,7 +219,7 @@ object ZTestFrameworkSpec {
   }
 
   lazy val sourceFilePath: String = zio.test.sourcePath
-  lazy val assertLocation: String = s"at $sourceFilePath:XXX"
+  lazy val assertLocation: String = s"☛ $sourceFilePath:XXX"
   implicit class TestOutputOps(output: String) {
     def withNoLineNumbers: String =
       output.replaceAll(Pattern.quote(sourceFilePath + ":") + "\\d+", sourceFilePath + ":XXX")

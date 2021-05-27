@@ -75,25 +75,16 @@ object SmartAssertionSpec extends ZIOBaseSpec {
         assertTrue(myEither.$asRight + 1 > 11233)
       }
     ),
-    suite("Helpers")(
-      suite("$as")(
-        test("success") {
-          val someColor: Color = Red("hello")
-          assertTrue(someColor.$as[Red].name == "cool")
-        },
-        test("fail") {
-          val someColor: Color = Red("hello")
-          assertTrue(someColor.$as[Blue].brightness > 38)
-        }
-      ),
-      test("asInstanceOf") {
-//        val someColor: Color = Red("hello")
+    suite("Exceptions")(
+      test("throws") {
         case class Bomb(name: String) {
           def getName: String = throw new Error("SPLODE")
         }
         val bomb = Bomb("boomy")
         assertTrue(bomb.getName.contains("HIII"))
-      },
+      }
+    ),
+    suite(".asInstanceOf")(
       test("asInstanceOf") {
         val someColor: Color = Red("hello")
         assertTrue(someColor.asInstanceOf[Blue].brightness > 39)
