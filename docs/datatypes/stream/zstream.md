@@ -14,7 +14,8 @@ import zio.{ZIO, Task, ZManaged, Chunk}
 import zio.blocking.Blocking
 import zio.random.Random
 import zio.clock.Clock
-import java.io.{FileReader, FileInputStream, IOException}
+import java.io.{BufferedReader, FileReader, FileInputStream, IOException}
+import java.nio.file.{Files, Path}
 import zio.console.Console
 import java.net.URL
 ```
@@ -94,6 +95,19 @@ val range: ZStream[Any, Nothing, Int] = ZStream.range(1, 5) // 1, 2, 3, 4
 
 ```scala mdoc:silent:nest
 val clockStream: ZStream[Clock, Nothing, Clock] = ZStream.environment[Clock]
+```
+
+**ZStream.managed** — Creates a single-valued stream from a managed resource:
+
+```scala mdoc:silent:nest
+val managedStream: ZStream[Blocking, Throwable, BufferedReader] =
+  ZStream.managed(
+    ZManaged.fromAutoCloseable(
+      zio.blocking.effectBlocking(
+        Files.newBufferedReader(Path.of("file.txt"))
+      )
+    )
+  )
 ```
 
 ### From Success and Failure
