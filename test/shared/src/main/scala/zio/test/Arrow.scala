@@ -3,8 +3,7 @@ package zio.test
 import zio.ZIO
 
 import scala.language.implicitConversions
-import scala.reflect.ClassTag
-import scala.util.{Failure, Success, Try}
+import scala.util.Try
 
 case class Assert private (val arrow: Arrow[Any, Boolean]) {
   def &&(that: Assert): Assert = Assert(arrow && that.arrow)
@@ -101,10 +100,10 @@ object Arrow {
 
       case AndThen(f, g) =>
         val t1 = run(f, in)
-        t1 match {
-          case Trace.Halt()         => t1.asInstanceOf[Trace[B]]
-          case Trace.Fail(err)      => t1 >>> run(g, Left(err))
-          case Trace.Succeed(value) => t1 >>> run(g, Right(value))
+        t1.result match {
+          case Result.Fail           => t1.asInstanceOf[Trace[B]]
+          case Result.Die(err)       => t1 >>> run(g, Left(err))
+          case Result.Succeed(value) => t1 >>> run(g, Right(value))
         }
 
       case And(lhs, rhs) =>

@@ -1,7 +1,5 @@
 package zio.test
 
-import com.github.ghik.silencer.silent
-import zio.test.AssertionSyntax.EitherAssertionOps
 import zio.test.macros.Scala2MacroUtils
 
 import scala.annotation.tailrec

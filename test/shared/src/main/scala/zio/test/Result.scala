@@ -61,7 +61,7 @@ object FailureCase {
         val part4 = string.slice(span.end, pEnd)
         val part5 = string.drop(pEnd)
         part1 + bold(part2) + bold(color(part3)) + bold(part4) + part5
-      case None =>
+      case _ =>
         bold(string.take(span.start)) + bold(color(string.slice(span.start, span.end))) + bold(string.drop(span.end))
     }
 
@@ -99,7 +99,7 @@ object FailureCase {
         fromTrace(trace)
     }
 
-  private def fromNode(node: Trace.Node[Boolean], path: Chunk[(String, Any)] = Chunk.empty): FailureCase = {
+  private def fromNode(node: Trace.Node[Boolean], path: Chunk[(String, Any)]): FailureCase = {
     val color = node.result match {
       case Result.Die(_) => red _
       case _             => yellow _
@@ -163,7 +163,7 @@ object Pretty {
             "\t" -> "\\t",
             "\"" -> "\\\""
           )
-          '"' + replaceMap.foldLeft(s) { case (acc, (c, r)) => acc.replace(c, r) } + '"'
+          '"'.toString + replaceMap.foldLeft(s) { case (acc, (c, r)) => acc.replace(c, r) } + '"'.toString
         case xs: Seq[_] => xs.map(apply).toString()
         case array: Array[_] =>
           "Array" + array.toList.map(apply).toString.dropWhile(_ != '(')
@@ -174,17 +174,19 @@ object Pretty {
           val fields = cls.getDeclaredFields.filterNot(_.isSynthetic).map(_.getName)
           val values = p.productIterator.toSeq
           // If we weren't able to match up fields/values, fall back to toString.
-          if (fields.length != values.length) return p.toString
-          fields.zip(values).toList match {
-            // If there are no fields, just use the normal String representation.
-            case Nil => p.toString
-            // If there is just one field, let's just print it as a wrapper.
-            case (_, value) :: Nil => s"$prefix(${apply(value)})"
-            // If there is more than one field, build up the field names and values.
-            case kvs =>
-              val prettyFields = kvs.map { case (k, v) => s"$k = ${apply(v)}" }
-              s"$prefix(${prettyFields.mkString(", ")})"
-          }
+          if (fields.length != values.length)
+            p.toString
+          else
+            fields.zip(values).toList match {
+              // If there are no fields, just use the normal String representation.
+              case Nil => p.toString
+              // If there is just one field, let's just print it as a wrapper.
+              case (_, value) :: Nil => s"$prefix(${apply(value)})"
+              // If there is more than one field, build up the field names and values.
+              case kvs =>
+                val prettyFields = kvs.map { case (k, v) => s"$k = ${apply(v)}" }
+                s"$prefix(${prettyFields.mkString(", ")})"
+            }
         // If we haven't specialized this type, just use its toString.
         case _ => a.toString
       }

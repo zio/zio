@@ -20,7 +20,7 @@ import zio.console.Console
 import zio.duration.Duration
 import zio.stream.{ZSink, ZStream}
 import zio.test.AssertionResult.FailureDetailsResult
-import zio.test.environment.{TestClock, TestConsole, TestEnvironment, TestRandom, TestSystem, testEnvironment}
+import zio.test.environment._
 
 import scala.collection.immutable.SortedSet
 import scala.language.implicitConversions
@@ -69,29 +69,6 @@ package object test extends CompileVariants {
    * having no requirements on error or environment.
    */
   type TestAspectPoly = TestAspect[Nothing, Any, Nothing, Any]
-
-  sealed trait AssertionResult { self =>
-    def label(label: String): AssertionResult = self match {
-      case FailureDetailsResult(failureDetails) =>
-        FailureDetailsResult(failureDetails.label(label))
-      case result: AssertionResult.TraceResult =>
-        result
-    }
-
-    def setGenFailureDetails(details: GenFailureDetails): AssertionResult =
-      self match {
-        case FailureDetailsResult(failureDetails) =>
-          FailureDetailsResult(failureDetails.copy(gen = Some(details)))
-        case result: AssertionResult.TraceResult =>
-          // TODO: Add Gen Details?
-          result
-      }
-  }
-
-  object AssertionResult {
-    case class FailureDetailsResult(failureDetails: FailureDetails) extends AssertionResult
-    case class TraceResult(trace: Trace[Boolean])                   extends AssertionResult
-  }
 
   type TestResult = BoolAlgebra[AssertionResult]
 

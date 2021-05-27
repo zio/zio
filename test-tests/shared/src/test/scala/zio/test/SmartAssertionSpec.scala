@@ -103,6 +103,6 @@ object SmartAssertionSpec extends ZIOBaseSpec {
         assertTrue(someColor.asInstanceOf[Blue].brightness > 39)
       }
     )
-  ) @@ failing
+  ) // @@ failing
 
 }
