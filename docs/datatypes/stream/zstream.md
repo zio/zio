@@ -749,6 +749,15 @@ val s2: UStream[(Int, Option[Int])]              = stream.zipWithNext
 val s3: UStream[(Option[Int], Int, Option[Int])] = stream.zipWithPreviousAndNext
 ```
 
+By using `ZStream#zipWithIndex` we can index elements of a stream:
+
+```scala mdoc:silent:nest
+val indexedStream: ZStream[Any, Nothing, (String, Long)] = 
+  ZStream("Mary", "James", "Robert", "Patricia").zipWithIndex
+
+// Output: ("Mary", 0L), ("James", 1L), ("Robert", 2L), ("Patricia", 3L)
+```
+
 ### Partitioning
 
 #### partition
