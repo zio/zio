@@ -720,6 +720,15 @@ The effectful version of `mapConcat` is `mapConcatM`.
 
 `ZStream` also has chunked versions of that which are `mapConcatChunk` and `mapConcatChunkM`.
 
+**as** — The `ZStream#as` method maps the success values of this stream to the specified constant value.
+
+For example, we can map all element to the unit value:
+
+```scala mdoc:silent:nest
+val unitStream: ZStream[Any, Nothing, Unit] = 
+  ZStream.range(1, 5).as(())
+```
+
 ### Zipping
 
 We can zip two stream by using `ZStream.zipN` or `ZStream#zipWith` operator:
