@@ -26,10 +26,12 @@ In following example, the type of `putStrLn` is `URIO[Console, Unit]` which mean
 ```scala mdoc:invisible:reset
 import zio._
 import zio.console._
+
+import java.io.IOException
 ```
 
 ```scala mdoc:silent
-def putStrLn(line: => String): URIO[Console, Unit] =
+def putStrLn(line: => String): ZIO[Console, IOException, Unit] =
   ZIO.accessM(_.get putStrLn line)
 ```
 

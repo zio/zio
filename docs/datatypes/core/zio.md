@@ -73,7 +73,7 @@ val getStrLn: ZIO[Console, IOException, String] =
 - [Timeout](#timeout)
 - [Resource Management](#resource-management)
   * [Finalizing](#finalizing)
-    + [Asynchronous Try / Finally](#asynchronous-try---finally)
+    + [Asynchronous Try / Finally](#asynchronous-try--finally)
     + [Unstoppable Finalizers](#unstoppable-finalizers)
   * [Brackets](#brackets)
 - [Unswallowed Exceptions](#unswallowed-exceptions)
@@ -437,7 +437,7 @@ Asynchronous ZIO effects are much easier to use than callback-based APIs, and th
 A `RIO[R, A]` effect can be suspended using `effectSuspend` function:
 
 ```scala mdoc:silent
-val suspendedEffect: RIO[Any, URIO[Console, Unit]] =
+val suspendedEffect: RIO[Any, ZIO[Console, IOException, Unit]] =
   ZIO.effectSuspend(ZIO.effect(putStrLn("Suspended Hello World!")))
 ```
 

@@ -318,6 +318,14 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(ZIO.collectAllParN_(5)(tasks).flip)(anything)
       }
     ),
+    suite("collectFirst")(
+      testM("collects the first value for which the effectual functions returns Some") {
+        checkM(Gen.listOf(Gen.anyInt), Gen.partialFunction(Gen.anyInt)) { (as, pf) =>
+          def f(n: Int): UIO[Option[Int]] = UIO.succeed(pf.lift(n))
+          assertM(ZIO.collectFirst(as)(f))(equalTo(as.collectFirst(pf)))
+        }
+      }
+    ),
     suite("collectM")(
       testM("returns failure ignoring value") {
         val goodCase =
@@ -503,6 +511,15 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(test)(equalTo(10))
       }
     ),
+    suite("exists")(
+      testM("determines whether any element satisfies the effectual predicate") {
+        checkM(Gen.listOf(Gen.anyInt), Gen.function(Gen.boolean)) { (as, f) =>
+          val actual   = IO.exists(as)(a => IO.succeed(f(a)))
+          val expected = as.exists(f)
+          assertM(actual)(equalTo(expected))
+        }
+      }
+    ),
     suite("filter")(
       testM("filters a collection using an effectual predicate") {
         val as = Iterable(2, 4, 6, 3, 5, 6)
@@ -651,6 +668,15 @@ object ZIOSpec extends ZIOBaseSpec {
         checkM(Gen.listOf1(Gen.anyInt)) { l =>
           val res = IO.foldRight(l)(List.empty[Int])((el, acc) => IO.succeed(el :: acc))
           assertM(res)(equalTo(l))
+        }
+      }
+    ),
+    suite("forall")(
+      testM("determines whether all elements satisfy the effectual predicate") {
+        checkM(Gen.listOf(Gen.anyInt), Gen.function(Gen.boolean)) { (as, f) =>
+          val actual   = IO.forall(as)(a => IO.succeed(f(a)))
+          val expected = as.forall(f)
+          assertM(actual)(equalTo(expected))
         }
       }
     ),
@@ -3158,6 +3184,30 @@ object ZIOSpec extends ZIOBaseSpec {
           assert(effect)(equalTo(42))
       }
     ),
+    suite("tapEither")(
+      testM("effectually peeks at the failure of this effect") {
+        for {
+          ref <- Ref.make(0)
+          _ <- IO.fail(42)
+                 .tapEither {
+                   case Left(value) => ref.set(value)
+                   case Right(_)    => ref.set(-1)
+                 }
+                 .run
+          effect <- ref.get
+        } yield assert(effect)(equalTo(42))
+      },
+      testM("effectually peeks at the success of this effect") {
+        for {
+          ref <- Ref.make(0)
+          _ <- Task(42).tapEither {
+                 case Left(_)      => ref.set(-1)
+                 case Right(value) => ref.set(value)
+               }.run
+          effect <- ref.get
+        } yield assert(effect)(equalTo(42))
+      }
+    ),
     suite("tapCause")(
       testM("effectually peeks at the cause of the failure of this effect") {
         for {
@@ -3351,6 +3401,14 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(res)(equalTo(in))
       }
     ),
+    suite("validate_")(
+      testM("returns all errors if never valid") {
+        val in                            = List.fill(10)(0)
+        def fail[A](a: A): IO[A, Nothing] = IO.fail(a)
+        val res                           = IO.validate(in)(fail).flip
+        assertM(res)(equalTo(in))
+      } @@ zioTag(errors)
+    ),
     suite("validatePar")(
       testM("returns all errors if never valid") {
         val in                      = List.fill(1000)(0)
@@ -3371,6 +3429,12 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(res)(equalTo(in))
       }
     ),
+    suite("validatePar_")(testM("returns all errors if never valid") {
+      val in                            = List.fill(10)(0)
+      def fail[A](a: A): IO[A, Nothing] = IO.fail(a)
+      val res                           = IO.validatePar_(in)(fail).flip
+      assertM(res)(equalTo(in))
+    } @@ zioTag(errors)),
     suite("validateFirst")(
       testM("returns all errors if never valid") {
         val in  = List.fill(10)(0)

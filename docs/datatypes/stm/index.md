@@ -49,10 +49,10 @@ for {
 
 As the above program runs 10 concurrent fibers to increase the counter value. However, we cannot expect this program to always return 10 as a result. 
 
-To fix this issue, we need to perform the `get` and `set` operation atomically. The `Ref` data type some other api like `update` and `modify` which perform the reading and writing atomically:
+To fix this issue, we need to perform the `get` and `set` operation atomically. The `Ref` data type some other api like `update`, `updateAndGet`, and `modify` which perform the reading and writing atomically:
 
-```scama mdoc:silent
-def inc(counter: Ref[Int], amount: Int) = counter.update(_ + amount)
+```scala mdoc:nest
+def inc(counter: Ref[Int], amount: Int) = counter.updateAndGet(_ + amount)
 ```
 
 The most important note about the `modify` operation is that it doesn't use pessimistic locking. It doesn't use any locking primitives for the critical section. It has an optimistic assumption on occurring collisions.

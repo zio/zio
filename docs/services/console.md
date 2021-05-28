@@ -23,7 +23,7 @@ import java.io.IOException
 import zio.ZIO
 import zio.console._
 
-object MyHeloApp extends zio.App {
+object MyHelloApp extends zio.App {
   val program: ZIO[Console, IOException, Unit] = for {
     _ <- putStrLn("Hello, what is you name?")
     name <- getStrLn

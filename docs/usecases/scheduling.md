@@ -56,8 +56,8 @@ import zio.Schedule.Decision
 
 object ScheduleUtil {
   def schedule[A] = Schedule.spaced(1.second) && Schedule.recurs(4).onDecision({
-    case Decision.Done(_)                 => putStrLn(s"done trying")
-    case Decision.Continue(attempt, _, _) => putStrLn(s"attempt #$attempt")
+    case Decision.Done(_)                 => putStrLn(s"done trying").orDie
+    case Decision.Continue(attempt, _, _) => putStrLn(s"attempt #$attempt").orDie
   })
 }
 ```

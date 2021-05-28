@@ -215,6 +215,12 @@ object IO {
     ZIO.collectAllWithParN(n)(as)(f)
 
   /**
+   * @see See [[zio.ZIO.collectFirst]]
+   */
+  def collectFirst[E, A, B](as: Iterable[A])(f: A => IO[E, Option[B]]): IO[E, Option[B]] =
+    ZIO.collectFirst(as)(f)
+
+  /**
    * @see See [[zio.ZIO.collectPar]]
    */
   def collectPar[E, A, B, Collection[+Element] <: Iterable[Element]](
@@ -235,6 +241,12 @@ object IO {
    */
   def cond[E, A](predicate: Boolean, result: => A, error: => E): IO[E, A] =
     ZIO.cond(predicate, result, error)
+
+  /**
+   * @see See [[zio.ZIO.cond]]
+   */
+  def debug(message: String): UIO[Unit] =
+    ZIO.debug(message)
 
   /**
    * @see See [[zio.ZIO.descriptor]]
@@ -330,6 +342,12 @@ object IO {
     ZIO.executor
 
   /**
+   * @see See [[zio.ZIO.exists]]
+   */
+  def exists[E, A](as: Iterable[A])(f: A => IO[E, Boolean]): IO[E, Boolean] =
+    ZIO.exists(as)(f)
+
+  /**
    * @see See [[zio.ZIO.fail]]
    */
   def fail[E](error: => E): IO[E, Nothing] = ZIO.fail(error)
@@ -420,6 +438,12 @@ object IO {
    */
   def foldRight[E, S, A](in: Iterable[A])(zero: S)(f: (A, S) => IO[E, S]): IO[E, S] =
     ZIO.foldRight(in)(zero)(f)
+
+  /**
+   * @see See [[zio.ZIO.forall]]
+   */
+  def forall[E, A](as: Iterable[A])(f: A => IO[E, Boolean]): IO[E, Boolean] =
+    ZIO.forall(as)(f)
 
   /**
    * @see See [[[zio.ZIO.foreach[R,E,A,B,Collection[+Element]<:Iterable[Element]]*]]]
@@ -920,6 +944,13 @@ object IO {
 
   /**
    * @see See [[[zio.ZIO.validatePar[R,E,A,B,Collection[+Element]<:Iterable[Element]]*]]]
+   * @see See [[zio.ZIO.validate_]]
+   */
+  def validate_[E, A](in: Iterable[A])(f: A => IO[E, Any])(implicit ev: CanFail[E]): IO[::[E], Unit] =
+    ZIO.validate_(in)(f)
+
+  /**
+   * @see See [[zio.ZIO.validatePar]]
    */
   def validatePar[E, A, B, Collection[+Element] <: Iterable[Element]](in: Collection[A])(
     f: A => IO[E, B]
@@ -933,6 +964,12 @@ object IO {
     f: A => IO[E, B]
   )(implicit ev: CanFail[E]): IO[::[E], NonEmptyChunk[B]] =
     ZIO.validatePar(in)(f)
+
+  /**
+   * @see See [[zio.ZIO.validatePar_]]
+   */
+  def validatePar_[E, A](in: Iterable[A])(f: A => IO[E, Any])(implicit ev: CanFail[E]): IO[::[E], Unit] =
+    ZIO.validatePar_(in)(f)
 
   /**
    * @see See [[zio.ZIO.validateFirst]]

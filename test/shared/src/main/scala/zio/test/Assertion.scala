@@ -576,6 +576,66 @@ object Assertion extends AssertionVariants {
     isGreaterThan(num.zero)
 
   /**
+   * Makes a new assertions that requires a double value is not a number (NaN).
+   */
+  def isNaNDouble: Assertion[Double] =
+    Assertion.assertion("isNaNDouble")()(_.isNaN)
+
+  /**
+   * Makes a new assertions that requires a float value is not a number (NaN).
+   */
+  def isNaNFloat: Assertion[Float] =
+    Assertion.assertion("isNaNFloat")()(_.isNaN)
+
+  /**
+   * Makes a new assertions that requires a double value is positive infinity.
+   */
+  def isPosInfinityDouble: Assertion[Double] =
+    Assertion.assertion("isPosInfinityDouble")()(_.isPosInfinity)
+
+  /**
+   * Makes a new assertions that requires a float value is positive infinity.
+   */
+  def isPosInfinityFloat: Assertion[Float] =
+    Assertion.assertion("isPosInfinityFloat")()(_.isPosInfinity)
+
+  /**
+   * Makes a new assertions that requires a double value is negative infinity.
+   */
+  def isNegInfinityDouble: Assertion[Double] =
+    Assertion.assertion("isNegInfinityDouble")()(_.isNegInfinity)
+
+  /**
+   * Makes a new assertions that requires a float value is negative infinity.
+   */
+  def isNegInfinityFloat: Assertion[Float] =
+    Assertion.assertion("isNegInfinityFloat")()(_.isNegInfinity)
+
+  /**
+   * Makes a new assertions that requires a double value is finite.
+   */
+  def isFiniteDouble: Assertion[Double] =
+    Assertion.assertion("isFiniteDouble")()(_.abs <= Double.MaxValue)
+
+  /**
+   * Makes a new assertions that requires a float value is finite.
+   */
+  def isFiniteFloat: Assertion[Float] =
+    Assertion.assertion("isFiniteFloat")()(_.abs <= Float.MaxValue)
+
+  /**
+   * Makes a new assertions that requires a double value is infinite.
+   */
+  def isInfiniteDouble: Assertion[Double] =
+    Assertion.assertion("isInfiniteDouble")()(_.isInfinite)
+
+  /**
+   * Makes a new assertions that requires a float value is infinite.
+   */
+  def isInfiniteFloat: Assertion[Float] =
+    Assertion.assertion("isInfiniteFloat")()(_.isInfinite)
+
+  /**
    * Makes a new assertion that requires a Right value satisfying a specified
    * assertion.
    */

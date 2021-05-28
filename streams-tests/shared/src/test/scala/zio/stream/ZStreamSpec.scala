@@ -3,6 +3,7 @@ package zio.stream
 import zio._
 import zio.clock.Clock
 import zio.duration._
+import zio.internal.Executor
 import zio.stm.TQueue
 import zio.stream.ZSink.Push
 import zio.stream.ZStreamGen._
@@ -1906,6 +1907,20 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assert(result)(isEmpty)
           } @@ timeout(10.seconds) @@ flaky
         ) @@ zioTag(interruption),
+        testM("lock") {
+          val global = Executor.fromExecutionContext(100)(ExecutionContext.global)
+          for {
+            default   <- ZIO.executor
+            ref1      <- Ref.make[Executor](default)
+            ref2      <- Ref.make[Executor](default)
+            stream1    = ZStream.fromEffect(ZIO.executor.flatMap(ref1.set)).lock(global)
+            stream2    = ZStream.fromEffect(ZIO.executor.flatMap(ref2.set))
+            _         <- (stream1 *> stream2).runDrain
+            executor1 <- ref1.get
+            executor2 <- ref2.get
+          } yield assert(executor1)(equalTo(global)) &&
+            assert(executor2)(equalTo(default))
+        },
         suite("managed")(
           testM("preserves interruptibility of effect") {
             for {
