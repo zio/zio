@@ -628,6 +628,21 @@ val myApp: ZStream[Console, IOException, Any] =
   )
 ```
 
+
+## Tapping
+
+Tapping is an operation of running an effect on each emission of the ZIO Stream. We can think of `ZStream#tap` as an operation that allows us to observe each element of the stream, do some effectful operation and discard the result of this observation. The `tap` operation does not change elements of the stream, it does not affect the return type of the stream.
+
+For example, we can print each element of a stream by using the `tap` operation:
+
+```scala mdoc:silent:nest
+val stream: ZStream[Console, IOException, Int] =
+  ZStream(1, 2, 3)
+    .tap(x => putStrLn(s"before mapping: $x"))
+    .map(_ * 2)
+    .tap(x => putStrLn(s"after mapping: $x"))
+```
+
 ## Transforming a Stream
 
 ZIO Stream supports many standard transforming functions like `map`, `partition`, `grouped`, `groupByKey`, `groupedWithin`
@@ -704,20 +719,6 @@ val numbers: UStream[Int] =
 The effectful version of `mapConcat` is `mapConcatM`. 
 
 `ZStream` also has chunked versions of that which are `mapConcatChunk` and `mapConcatChunkM`.
-
-### Tapping
-
-Tapping is an operation of running an effect on each emission of the ZIO Stream. We can think of `ZStream#tap` as an operation that allows us to observe each element of the stream, do some effectful operation and discard the result of this observation. The `tap` operation does not change elements of the stream, it does not affect the return type of the stream.
-
-For example, we can print each element of a stream by using the `tap` operation:
-
-```scala mdoc:silent:nest
-val stream: ZStream[Console, IOException, Int] =
-  ZStream(1, 2, 3)
-    .tap(x => putStrLn(s"before mapping: $x"))
-    .map(_ * 2)
-    .tap(x => putStrLn(s"after mapping: $x"))
-```
 
 ### Zipping
 
