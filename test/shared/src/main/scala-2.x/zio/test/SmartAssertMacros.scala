@@ -1,11 +1,9 @@
 package zio.test
 
-import zio.test.macros.Scala2MacroUtils
-
 import scala.annotation.tailrec
 import scala.reflect.macros.blackbox
 
-class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
+class SmartAssertMacros(val c: blackbox.Context) {
   import c.universe._
 
   private val Assertions = q"_root_.zio.test.Assertions"
@@ -92,7 +90,6 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
         q"${astToAssertion(lhs)} >>> $tree.span($span)"
 
       case AST.Method(lhs, lhsTpe, _, name, _, args, span) =>
-//        println(s"METHOD ${name}")
         val select =
           args match {
             case Some(args) =>
@@ -122,19 +119,13 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
     val end = pos.getEnd(tree)
 
     tree match {
-//      case MethodCall(lhs, TermName("apply"), _, _) if lhs.symbol.isStatic =>
-//        AST.Raw(tree, (pos.getStart(tree), end))
-//
-//      case _ if tree.symbol.isStatic || tree.symbol.isConstructor =>
-//        AST.Raw(tree, (pos.getStart(tree), end))
-
-      case q"!($inner)" =>
+      case _ @ q"!($inner)" =>
         AST.Not(parseExpr(inner), pos.getPos(tree), pos.getPos(inner))
 
-      case q"$lhs && $rhs" =>
+      case _ @ q"$lhs && $rhs" =>
         AST.And(parseExpr(lhs), parseExpr(rhs), pos.getPos(tree), pos.getPos(lhs), pos.getPos(rhs))
 
-      case q"$lhs || $rhs" =>
+      case _ @ q"$lhs || $rhs" =>
         AST.Or(parseExpr(lhs), parseExpr(rhs), pos.getPos(tree), pos.getPos(lhs), pos.getPos(rhs))
 
       case MethodCall(lhs, name, tpes, args) =>
@@ -148,8 +139,8 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
           (pos.getEnd(lhs), end)
         )
 
-      case x @ q"($a) => $b" =>
-        val inType = x.tpe.widen.typeArgs.head
+      case fn @ q"($a) => $b" =>
+        val inType = fn.tpe.widen.typeArgs.head
         AST.Function(a, parseExpr(b), inType, (pos.getStart(tree), end))
 
       case _ => AST.Raw(tree, (pos.getStart(tree), end))
@@ -169,8 +160,6 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
     val locationString = s"$file:$line"
 
     val parsed = parseExpr(tree)
-//    println(scala.Console.CYAN + parsed + scala.Console.RESET)
-//    println("")
 
     val ast = astToAssertion(parsed)
 
@@ -180,31 +169,29 @@ class SmartAssertMacros(val c: blackbox.Context) extends Scala2MacroUtils {
 $Assert($ast.withCode($codeString).withLocation($locationString))
         """
 
-//    println(scala.Console.BLUE + block + scala.Console.RESET)
-
     block
   }
 
   object UnwrapImplicit {
     def unapply(tree: c.Tree): Option[c.Tree] =
       tree match {
-        case q"$wrapper($lhs)" if wrapper.symbol.isImplicit => Some(lhs)
-        case _                                              => Some(tree)
+        case _ @ q"$wrapper($lhs)" if wrapper.symbol.isImplicit => Some(lhs)
+        case _                                                  => Some(tree)
       }
   }
 
   object MethodCall {
     def unapply(tree: c.Tree): Option[(c.Tree, TermName, List[Type], Option[List[c.Tree]])] =
       tree match {
-        case q"${UnwrapImplicit(lhs)}.$name[..$tpes]"
+        case _ @ q"${UnwrapImplicit(lhs)}.$name[..$tpes]"
             if !(tree.symbol.isModule || tree.symbol.isStatic || tree.symbol.isClass) =>
           Some((lhs, name, tpes.map(_.tpe), None))
-        case q"${UnwrapImplicit(lhs)}.$name"
+        case _ @ q"${UnwrapImplicit(lhs)}.$name"
             if !(tree.symbol.isModule || tree.symbol.isStatic || tree.symbol.isClass) =>
           Some((lhs, name, List.empty, None))
-        case q"${UnwrapImplicit(lhs)}.$name(..$args)" =>
+        case _ @ q"${UnwrapImplicit(lhs)}.$name(..$args)" =>
           Some((lhs, name, List.empty, Some(args)))
-        case q"${UnwrapImplicit(lhs)}.$name[..$tpes](..$args)" =>
+        case _ @ q"${UnwrapImplicit(lhs)}.$name[..$tpes](..$args)" =>
           Some((lhs, name, tpes.map(_.tpe), Some(args)))
         case _ => None
       }
@@ -479,7 +466,5 @@ $Assert($ast.withCode($codeString).withLocation($locationString))
       asLeft,
       asInstance
     )
-
   }
-
 }

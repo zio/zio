@@ -5,7 +5,7 @@ import zio.ZIO
 import scala.language.implicitConversions
 import scala.util.{Failure, Success, Try}
 
-case class Assert private (val arrow: Arrow[Any, Boolean]) {
+case class Assert(arrow: Arrow[Any, Boolean]) {
   def &&(that: Assert): Assert = Assert(arrow && that.arrow)
 
   def ||(that: Assert): Assert = Assert(arrow || that.arrow)
@@ -75,7 +75,7 @@ sealed trait Arrow[-A, +B] { self =>
 
 object Arrow {
 
-  def succeed[A](value: A): Arrow[Any, A] = ArrowF(_ => Trace.succeed(value))
+  def succeed[A](value: => A): Arrow[Any, A] = ArrowF(_ => Trace.succeed(value))
 
   def fromFunction[A, B](f: A => B): Arrow[A, B] = make(f andThen Trace.succeed)
 

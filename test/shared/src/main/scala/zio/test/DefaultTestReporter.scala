@@ -72,31 +72,33 @@ object DefaultTestReporter {
             case Right(TestSuccess.Ignored) =>
               Some(rendered(Test, label, Ignored, depth, withOffset(depth)(yellow("-") + " " + yellow(label))))
             case Left(TestFailure.Assertion(result)) =>
-              result.fold {
-                case result: AssertionResult.FailureDetailsResult => Some(BoolAlgebra.success(result))
-                case AssertionResult.TraceResult(trace) =>
-                  Trace.prune(trace, false).map(a => BoolAlgebra.success(AssertionResult.TraceResult(a)))
-              }(
-                {
-                  case (Some(a), Some(b)) => Some(a && b)
-                  case (Some(a), None)    => Some(a)
-                  case (None, Some(b))    => Some(b)
-                  case _                  => None
-                },
-                {
-                  case (Some(a), Some(b)) => Some(a || b)
-                  case (Some(a), None)    => Some(a)
-                  case (None, Some(b))    => Some(b)
-                  case _                  => None
-                },
-                _.map(!_)
-              ).map {
-                _.fold(details => rendered(Test, label, Failed, depth, renderFailure(label, depth, details): _*))(
-                  _ && _,
-                  _ || _,
-                  !_
+              result
+                .fold[Option[TestResult]] {
+                  case result: AssertionResult.FailureDetailsResult => Some(BoolAlgebra.success(result))
+                  case AssertionResult.TraceResult(trace) =>
+                    Trace.prune(trace, false).map(a => BoolAlgebra.success(AssertionResult.TraceResult(a)))
+                }(
+                  {
+                    case (Some(a), Some(b)) => Some(a && b)
+                    case (Some(a), None)    => Some(a)
+                    case (None, Some(b))    => Some(b)
+                    case _                  => None
+                  },
+                  {
+                    case (Some(a), Some(b)) => Some(a || b)
+                    case (Some(a), None)    => Some(a)
+                    case (None, Some(b))    => Some(b)
+                    case _                  => None
+                  },
+                  _.map(!_)
                 )
-              }
+                .map {
+                  _.fold(details => rendered(Test, label, Failed, depth, renderFailure(label, depth, details): _*))(
+                    _ && _,
+                    _ || _,
+                    !_
+                  )
+                }
 
             case Left(TestFailure.Runtime(cause)) =>
               Some(

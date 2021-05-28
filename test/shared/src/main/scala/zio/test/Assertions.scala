@@ -13,16 +13,16 @@ object Assertions {
         case None        => Trace.halt("Option was None")
       }
 
-  def asRight[A, B]: Arrow[Either[A, B], B] =
+  def asRight[A]: Arrow[Either[_, A], A] =
     Arrow
-      .make[Either[A, B], B] {
+      .make[Either[_, A], A] {
         case Right(value) => Trace.succeed(value)
         case Left(_)      => Trace.halt("Either was Left")
       }
 
-  def asLeft[A, B]: Arrow[Either[A, B], A] =
+  def asLeft[A]: Arrow[Either[A, _], A] =
     Arrow
-      .make[Either[A, B], A] {
+      .make[Either[A, _], A] {
         case Left(value) => Trace.succeed(value)
         case Right(_)    => Trace.halt("Either was Right")
       }
@@ -160,34 +160,34 @@ object Assertions {
         }
       }
 
-  def greaterThan[A](that: A)(implicit numeric: Numeric[A]): Arrow[A, Boolean] =
+  def greaterThan[A](that: A)(implicit ordering: Ordering[A]): Arrow[A, Boolean] =
     Arrow
       .make[A, Boolean] { (a: A) =>
-        Trace.boolean(numeric.gt(a, that)) {
+        Trace.boolean(ordering.gt(a, that)) {
           M.value(a) + M.was + "greater than" + M.value(that)
         }
       }
 
-  def greaterThanOrEqualTo[A](that: A)(implicit numeric: Numeric[A]): Arrow[A, Boolean] =
+  def greaterThanOrEqualTo[A](that: A)(implicit ordering: Ordering[A]): Arrow[A, Boolean] =
     Arrow
       .make[A, Boolean] { a =>
-        Trace.boolean(numeric.gteq(a, that)) {
+        Trace.boolean(ordering.gteq(a, that)) {
           M.value(a) + M.was + s"greater than or equal to $that"
         }
       }
 
-  def lessThan[A](that: A)(implicit numeric: Numeric[A]): Arrow[A, Boolean] =
+  def lessThan[A](that: A)(implicit ordering: Ordering[A]): Arrow[A, Boolean] =
     Arrow
       .make[A, Boolean] { a =>
-        Trace.boolean(numeric.lt(a, that)) {
+        Trace.boolean(ordering.lt(a, that)) {
           M.value(a) + M.was + "less than" + M.value(that)
         }
       }
 
-  def lessThanOrEqualTo[A](that: A)(implicit numeric: Numeric[A]): Arrow[A, Boolean] =
+  def lessThanOrEqualTo[A](that: A)(implicit ordering: Ordering[A]): Arrow[A, Boolean] =
     Arrow
       .make[A, Boolean] { a =>
-        Trace.boolean(numeric.lteq(a, that)) {
+        Trace.boolean(ordering.lteq(a, that)) {
           M.value(a) + M.was + "less than or equal to" + M.value(that)
         }
       }

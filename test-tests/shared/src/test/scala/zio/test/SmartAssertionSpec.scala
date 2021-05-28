@@ -1,6 +1,5 @@
 package zio.test
 
-import zio.test.AssertionSyntax.EitherAssertionOps
 import zio.test.SmartTestTypes._
 import zio.test.TestAspect.failing
 
@@ -13,7 +12,11 @@ object SmartAssertionSpec extends ZIOBaseSpec {
   def spec: ZSpec[Environment, Failure] = suite("SmartAssertionSpec")(
     test("Head") {
       val array = Array(1, 8, 2, 3, 888)
-      assertTrue(!(array(0) == 1))
+      assertTrue(
+        !(array(0) == 1),
+        array(3) == 10,
+        array(1) < 2
+      )
     },
     test("missing element") {
       assertTrue(company.users(8).posts.exists(_.title == "hi"))
@@ -69,10 +72,6 @@ object SmartAssertionSpec extends ZIOBaseSpec {
       test("right.get") {
         val myEither: Either[String, Int] = Left("string")
         assertTrue(myEither.right.get + 1 > 11233)
-      },
-      test("$asRight") {
-        val myEither: Either[String, Int] = Left("string")
-        assertTrue(myEither.$asRight + 1 > 11233)
       }
     ),
     suite("Exceptions")(
@@ -83,13 +82,6 @@ object SmartAssertionSpec extends ZIOBaseSpec {
         val bomb = Bomb("boomy")
         assertTrue(bomb.getName.contains("HIII"))
       }
-    ),
-    suite(".asInstanceOf")(
-      test("asInstanceOf") {
-        val someColor: Color = Red("hello")
-        assertTrue(someColor.asInstanceOf[Blue].brightness > 39)
-      }
     )
   ) @@ failing
-
 }

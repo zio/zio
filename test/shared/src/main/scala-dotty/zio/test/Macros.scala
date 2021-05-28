@@ -17,103 +17,143 @@
 package zio.test
 
 import zio.{UIO, ZIO}
-import zio.test.macros._
-
 import scala.quoted._
 
 object SmartAssertMacros {
-  def smartAssertSingle(expr: Expr[Boolean])(using ctx: Quotes): Expr[TestResult] =
+  def smartAssertSingle(expr: Expr[Boolean])(using ctx: Quotes): Expr[Assert] =
     new SmartAssertMacros(ctx).smartAssertSingle_impl(expr)
 
-  def smartAssert(expr: Expr[Boolean], exprs: Expr[Seq[Boolean]])(using ctx: Quotes): Expr[TestResult] =
-    new SmartAssertMacros(ctx).smartAssert_impl(expr, exprs)
+  def smartAssert(exprs: Expr[Seq[Boolean]])(using ctx: Quotes): Expr[Assert] =
+    new SmartAssertMacros(ctx).smartAssert_impl(exprs)
 }
 
-class SmartAssertMacros(val ctx: Quotes) extends Scala3 {
+
+class SmartAssertMacros(ctx: Quotes)  {
   given Quotes = ctx
   import quotes.reflect._
 
-  // inline def assert[A](inline value: => A)(inline assertion: Assertion[A]): TestResult = ${Macros.assert_impl('value)('assertion)}
-  def smartAssertSingle_impl(value: Expr[Boolean]): Expr[TestResult] = {
-    import quotes.reflect._
-    println("SINGLE")
-    println(value.show)
+  extension (typeRepr: TypeRepr) {
+    def typeTree: TypeTree =
+      typeRepr.widen.asType match  {
+        case '[tp] => TypeTree.of[tp]
+      }
+  }
 
 
+  object MethodCall {
+    def unapply(tree: Term): Option[(Term, String, List[TypeRepr], Option[List[Term]])] =
+      tree match {
+        case Select(lhs, name) => Some((lhs, name, List.empty, None))
+        case TypeApply(Select(lhs, name), tpes) => Some((lhs, name, tpes.map(_.tpe), None))
+        case Apply(Select(lhs, name), args) => Some((lhs, name, List.empty, Some(args)))
+        case Apply(TypeApply(Select(lhs, name), tpes), args) => Some((lhs, name, tpes.map(_.tpe), Some(args)))
+        case _ => None
+      }
+  }
+
+  case class PositionContext(start: Int) 
+
+  object PositionContext {
+    def apply(term: Term) = new PositionContext(term.pos.start)
+  }
+
+  extension (term: Term)(using ctx: PositionContext) {
+    def span: Expr[(Int, Int)] = {
+      Expr(term.pos.start - ctx.start, term.pos.end - ctx.start)
+    }
+  }
+
+  def transform[A](expr: Expr[A])(using Type[A], PositionContext) : Expr[Arrow[Any, A]] =
+    expr match {
+      case Unseal(Inlined(_, _, expr)) => transform(expr.asExprOf[A])
+
+      case Unseal(Apply(Select(lhs, op @ (">" | ">=" | "<" | "<=")), List(rhs))) =>
+        val span = rhs.span
+        lhs.tpe.widen.asType match {
+          case '[l] => 
+            Expr.summon[Ordering[l]] match { 
+              case Some(ord) =>
+                op match {
+                    case ">" =>
+                      '{${transform(lhs.asExprOf[l])} >>> Assertions.greaterThan(${rhs.asExprOf[l]})($ord).span($span)}.asExprOf[Arrow[Any, A]]
+                    case ">=" =>
+                      '{${transform(lhs.asExprOf[l])} >>> Assertions.greaterThanOrEqualTo(${rhs.asExprOf[l]})($ord).span($span)}.asExprOf[Arrow[Any, A]]
+                    case "<" =>
+                      '{${transform(lhs.asExprOf[l])} >>> Assertions.lessThan(${rhs.asExprOf[l]})($ord).span($span)}.asExprOf[Arrow[Any, A]]
+                    case "<=" =>
+                      '{${transform(lhs.asExprOf[l])} >>> Assertions.lessThanOrEqualTo(${rhs.asExprOf[l]})($ord).span($span)}.asExprOf[Arrow[Any, A]]
+                }
+              case _ => throw new Error("NO")
+            }
+        }
+
+      case Unseal(MethodCall(lhs, "==", tpes, Some(List(rhs)))) =>
+        val span = rhs.span
+        lhs.tpe.widen.asType match {
+          case '[l] => 
+            '{${transform(lhs.asExprOf[l])} >>> Assertions.equalTo(${rhs.asExprOf[l]}).span($span)}.asExprOf[Arrow[Any, A]]
+        }
+
+      // case method @AST.Method(lhs, lhsTpe, rhsTpe, name, tpeArgs, args, span) =>
+      case Unseal(method @ MethodCall(lhs, name, tpeArgs, args)) =>
+        def body(param: Term) =
+          (tpeArgs, args) match {
+            case (Nil, None) => Select.unique(param, name)
+            case (tpeArgs, Some(args)) => Select.overloaded(param, name, tpeArgs, args)
+            case (tpeArgs, None) => Select.overloaded(param, name, tpeArgs, List.empty)
+          }
+
+        lhs.tpe.widen.asType match {
+          case '[l] =>
+            val selectBody = '{
+              (from: l) => ${ body('{from}.asTerm).asExprOf[A] }
+            }
+            val lhsExpr = transform(lhs.asExprOf[l]).asExprOf[Arrow[Any, l]]
+            val assertExpr = '{Arrow.fromFunction[l, A](${selectBody})}
+            val pos = summon[PositionContext]
+            val span = Expr((lhs.pos.end - pos.start, method.pos.end - pos.start))
+            '{$lhsExpr >>> $assertExpr.span($span)}
+        }
+
+
+      case Unseal(tree) =>
+        val span = tree.span
+       '{Arrow.succeed($expr).span($span)}
+    }
+
+  def smartAssertSingle_impl(value: Expr[Boolean]): Expr[Assert] = {
     val (path, line) = Macros.location(ctx)
     val code = Macros.showExpr(value)
     val srcLocation = s"$path:$line"
 
-    val (lhs, assertion) = generateAssertion(value.asTerm, '{zio.test.Assertion.isTrue}.asTerm)
+    implicit val ptx = PositionContext(value.asTerm)
 
-    val result = lhs.tpe.widen.asType match {
-      case '[a] => 
-        '{_root_.zio.test.CompileVariants.smartAssertProxy(${lhs.asExprOf[a]}, ${Expr(code)}, ${Expr(code)}, ${Expr(srcLocation)})(${assertion.asExprOf[Assertion[a]]})}
+    val ast = transform(value)
+
+    val arrow = ast.asExprOf[Arrow[Any, Boolean]]
+    '{Assert($arrow.withCode(${Expr(code)}).withLocation(${Expr(srcLocation)}))}
+  }
+
+  def smartAssert_impl(values: Expr[Seq[Boolean]]): Expr[Assert] = {
+    import quotes.reflect._
+
+    values match {
+        case Varargs(head +: tail) =>
+          tail.foldLeft(smartAssertSingle_impl(head)) { (acc, expr) =>
+            '{$acc && ${smartAssertSingle_impl(expr)}}
+        }
+
+        case other =>
+          throw new Error(s"Improper Varargs: ${other}")
     }
-
-    println(result.show)
-    result
   }
 
   object Unseal {
     def unapply(expr: Expr[_]): Option[Term] = Some(expr.asTerm)
   }
-
-  def generateAssertion(expr: Term, assertion: Term): (Term, Term) = {
-
-
-    val M = Cross.Matchers
-    val rightGet = M.rightGet
-    println("RECURSING")
-    println(expr.show)
-    println(assertion.show)
-    println(Macros.showExpr(expr.asExpr))
-    println("")
-
-    expr match {
-      case Inlined(_, _, lhs) => generateAssertion(lhs, assertion)
-      case rightGet(lhs) => 
-        println(lhs)
-        // throw new Error("GREAT SUCCESS!")
-        (expr, assertion)
-
-      case app @ Apply(s @ Select(lhs, ident), args) => 
-        val lhsText = Macros.showExpr(lhs.asExpr)
-        val rhsText = Macros.showExpr(expr.asExpr)
-        val text = rhsText.drop(lhsText.length)
-
-
-        val newAssertion = (lhs.tpe.widen.asType, app.tpe.widen.asType) match {
-          case ('[a], '[b]) =>
-            val select = '{(x: a) => ${Apply(Select.copy(s)('x.asTerm, ident), args).asExprOf[b]}}
-           '{
-zio.test.Assertion.hasField[a,b](${Expr(ident)}, ${select.asExprOf[a => b]}, ${assertion.asExprOf[Assertion[b]]}.withCode(${Expr(text)})).withCode(${Expr(text)})
-  }
-        }
-
-        generateAssertion(lhs, newAssertion.asTerm)
-      case _ => (expr, assertion)
-    }
-  }
-
-  // inline def assert[A](inline value: => A)(inline assertion: Assertion[A]): TestResult = ${Macros.assert_impl('value)('assertion)}
-  def smartAssert_impl(value: Expr[Boolean], values: Expr[Seq[Boolean]]): Expr[TestResult] = {
-    import quotes.reflect._
-
-    val term = value.asTerm
-    val treeType = Cross.getTreeType(term)
-    println("HOWDY")
-    println(treeType)
-
-    val (path, line) = Macros.location(ctx)
-    val code = Macros.showExpr(value)
-    val srcLocation = s"$path:$line"
-    '{_root_.zio.test.CompileVariants.smartAssertProxy($value, ${Expr(code)}, ${Expr(code)}, ${Expr(srcLocation)})(_root_.zio.test.Assertion.isTrue)}
-  }
 }
 
 object Macros {
-
   def location(ctx: Quotes): (String, Int) = {
     import ctx.reflect._
     val path = Position.ofMacroExpansion.sourceFile.jpath.toString
@@ -161,62 +201,5 @@ object Macros {
   }
 }
 
-trait Scala3 { this: SmartAssertMacros =>
-  // val ctx: Quotes
-  import quotes.reflect._
-  // given Quotes = ctx
-  
-  object Cross extends CrossVersionSmartAssertionMacroUtils[Term, TypeRepr] { 
-    val AnyType: TypeRepr = TypeRepr.of[Any]
 
-    val Assertion: Term = '{zio.test.Assertion}.asTerm
 
-    val EitherType: TypeRepr = TypeRepr.of[Either[_,_]]
-
-    def applyApply[A](desc: A => Term, a: (A, Seq[Term])): Term =
-      a match {
-        case (a, args) =>
-          val lhs = desc.apply(a)
-          Apply(lhs, args.toList)
-      }
-
-    def applySelect[A](desc: A => Term, a: A, name: String): Term = {
-      val lhs = desc.apply(a)
-      Select.unique(lhs, name)
-    }
-    
-
-    def getTreeType(tree: Term): TypeRepr =
-      tree.asExpr match {
-        case '{$t: tpe} => TypeRepr.of[tpe]
-      }
-
-    def isSubtype(t1: TypeRepr, t2: TypeRepr): Boolean =
-      t1 <:< t2
-
-    case class UnapplyF[A, B](f: A => Option[B]) {
-      def unapply(a: A): Option[B] = f(a)
-    }
-
-    object Unseal {
-      def unapply(expr: Expr[_]): Option[Term] = Some(expr.asTerm)
-    }
-
-    def unapplyApply[A](desc: Term => Option[A], tree: Term): Option[(A, Seq[Term])] = {
-      val unApplyDesc: UnapplyF[Term, A]= UnapplyF(desc)
-      tree.asExpr match {
-        case Unseal(Apply(unApplyDesc(a), args)) => Some(a, args)
-        case Unseal(TypeApply(Apply(unApplyDesc(a), args), _)) => Some(a, args)
-        case _ => None
-      }
-    }
-
-    def unapplySelect[A](desc: Term => Option[A], name: String, tree: Term): Option[A] = {
-      val unApplyDesc: UnapplyF[Term, A] = UnapplyF(desc)
-      tree.asExpr match {
-        case Unseal(Select(unApplyDesc(lhs), a)) if a.toString == name => Some(lhs)
-        case _ => None
-      }
-    }
-  }
-}

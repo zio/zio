@@ -140,7 +140,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
                         Left(UIO.succeedNow(()))
                       }
                       .runCollect
-        } yield assertTrue(result.asInstanceOf[Chunk[Nothing]] == Chunk.empty)
+        } yield assert(result.asInstanceOf[Chunk[Nothing]])(equalTo(Chunk.empty))
       },
       testM("effectAsyncInterrupt back pressure") {
         for {

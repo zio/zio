@@ -47,7 +47,6 @@ trait CompileVariants {
   private[test] def assertImpl[A](
     value: => A,
     expression: Option[String] = None,
-    smartExpression: Option[String] = None,
     sourceLocation: Option[String] = None
   )(
     assertion: Assertion[A]
@@ -59,12 +58,9 @@ trait CompileVariants {
   private[test] def assertMImpl[R, E, A](effect: ZIO[R, E, A], sourceLocation: Option[String] = None)
                                             (assertion: AssertionM[A]): ZIO[R, E, TestResult]
 
+  inline def assertTrue(inline exprs: => Boolean*): Assert = ${SmartAssertMacros.smartAssert('exprs)}
 
   inline def assert[A](inline value: => A)(inline assertion: Assertion[A]): TestResult = ${Macros.assert_impl('value)('assertion)}
-
-  inline def assert(inline expr: => Boolean): TestResult = ${SmartAssertMacros.smartAssertSingle('expr)}
-
-  inline def assert(inline expr: => Boolean, exprs: => Boolean*): TestResult = ${SmartAssertMacros.smartAssert('expr, 'exprs)}
 
   inline def assertM[R, E, A](effect: ZIO[R, E, A])(assertion: AssertionM[A]): ZIO[R, E, TestResult] = ${Macros.assertM_impl('effect)('assertion)}
 
@@ -81,10 +77,10 @@ object CompileVariants {
   def assertProxy[A](value: => A, expression: String, sourceLocation: String)(assertion: Assertion[A]): TestResult =
     zio.test.assertImpl(value, Some(expression), Some(sourceLocation))(assertion)
 
-  def smartAssertProxy[A](value: => A, expression: String, smartExpression: String, sourceLocation: String)(
+  def smartAssertProxy[A](value: => A, expression: String, sourceLocation: String)(
     assertion: Assertion[A]
   ): TestResult =
-    zio.test.assertImpl(value, Some(expression), Some(smartExpression), Some(sourceLocation))(assertion)
+    zio.test.assertImpl(value, Some(expression), Some(sourceLocation))(assertion)
 
   def assertMProxy[R, E, A](effect: ZIO[R, E, A], sourceLocation: String)
                               (assertion: AssertionM[A]): ZIO[R, E, TestResult] =
