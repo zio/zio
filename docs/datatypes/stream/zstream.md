@@ -1136,6 +1136,26 @@ val stream: ZIO[Console with Random with Clock, IOException, Unit] =
     }
 ```
 
+## Buffering
+
+Since the ZIO streams are pull-based, it means the consumers do not need to message the upstream to slow down. Whenever a downstream stream pulls a new element, the upstream produces a new element. So, the upstream stream is as fast as the slowest downstream stream. Sometimes we need to run producer and consumer independently, in such a situation we can use an asynchronous non-blocking queue for communication between faster producer and slower consumer; the queue can buffer elements between two streams. ZIO stream also has a built-in `ZStream#buffer` operator which does the same thing for us.
+
+The `ZStream#buffer` allows a faster producer to progress independently of a slower consumer by buffering up to `capacity` chunks in a queue.
+
+In the following example, we are going to buffer a stream. We print each element to the console as they are emitting before and after the buffering:
+
+```scala mdoc:silent:nest
+ZStream
+  .fromIterable(1 to 10)
+  .chunkN(1)
+  .tap(x => zio.console.putStrLn(s"before buffering: $x"))
+  .buffer(4)
+  .tap(x => zio.console.putStrLn(s"after buffering: $x"))
+  .schedule(Schedule.spaced(5.second))  
+```
+
+We spaced 5 seconds between each emission to show the lag between producing and consuming messages.
+
 ## Consuming a Stream
 
 ```scala mdoc:silent
