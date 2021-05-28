@@ -30,6 +30,12 @@ import scala.language.implicitConversions
 final class NonEmptyChunk[+A] private (private val chunk: Chunk[A]) { self =>
 
   /**
+   * Prepends a single element to the beginning of this `NonEmptyChunk`.
+   */
+  def +:[A1 >: A](a: A1): NonEmptyChunk[A1] =
+    nonEmpty(a +: chunk)
+
+  /**
    * Appends a single element to the end of this `NonEmptyChunk`.
    */
   def :+[A1 >: A](a: A1): NonEmptyChunk[A1] =
@@ -191,6 +197,20 @@ final class NonEmptyChunk[+A] private (private val chunk: Chunk[A]) { self =>
     chunk.mkString("NonEmptyChunk(", ", ", ")")
 
   /**
+   * Zips this `NonEmptyChunk` with the specified `NonEmptyChunk`, only
+   * keeping as many elements as are in the smaller chunk.
+   */
+  def zip[B](that: NonEmptyChunk[B]): NonEmptyChunk[(A, B)] =
+    zipWith(that)((_, _))
+
+  /**
+   * Zips this `NonEmptyChunk` with the specified `Chunk`, using `None` to
+   * "fill in" missing values if one chunk has fewer elements than the other.
+   */
+  def zipAll[B](that: Chunk[B]): NonEmptyChunk[(Option[A], Option[B])] =
+    zipAllWith(that)(a => (Some(a), None), b => (None, Some(b)))((a, b) => (Some(a), Some(b)))
+
+  /**
    * Zips this `NonEmptyChunk` with the specified `Chunk`, using the specified
    * functions to "fill in" missing values if one chunk has fewer elements
    * than the other.
@@ -201,10 +221,10 @@ final class NonEmptyChunk[+A] private (private val chunk: Chunk[A]) { self =>
     nonEmpty(chunk.zipAllWith(that)(left, right)(both))
 
   /**
-   * Zips this `NonEmptyCHunk` with the specified `NonEmptyChunk`, only
+   * Zips this `NonEmptyChunk` with the specified `NonEmptyChunk`, only
    * keeping as many elements as are in the smaller chunk.
    */
-  final def zipWith[B, C](that: NonEmptyChunk[B])(f: (A, B) => C): NonEmptyChunk[C] =
+  def zipWith[B, C](that: NonEmptyChunk[B])(f: (A, B) => C): NonEmptyChunk[C] =
     nonEmpty(chunk.zipWith(that.chunk)(f))
 
   /**
