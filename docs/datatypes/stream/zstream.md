@@ -643,6 +643,25 @@ val stream: ZStream[Console, IOException, Int] =
     .tap(x => putStrLn(s"after mapping: $x"))
 ```
 
+## Taking Elements
+
+We can take a certain number of elements from a stream:
+
+```scala mdoc:silent:nest
+val stream = ZStream.iterate(0)(_ + 1)
+val s1 = stream.take(5)
+// Output: 0, 1, 2, 3, 4
+
+val s2 = stream.takeWhile(_ < 5)
+// Output: 0, 1, 2, 3, 4
+
+val s3 = stream.takeUntil(_ == 5)
+// Output: 0, 1, 2, 3, 4, 5
+
+val s4 = s3.takeRight(3)
+// Output: 3, 4, 5
+```
+
 ## Transforming a Stream
 
 ZIO Stream supports many standard transforming functions like `map`, `partition`, `grouped`, `groupByKey`, `groupedWithin`
