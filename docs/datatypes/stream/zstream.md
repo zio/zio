@@ -15,7 +15,8 @@ import zio.blocking.Blocking
 import zio.random.Random
 import zio.clock.Clock
 import java.io.{BufferedReader, FileReader, FileInputStream, IOException}
-import java.nio.file.{Files, Path}
+import java.nio.file.{Files, Path, Paths}
+import java.nio.file.Path._
 import zio.console.Console
 import java.net.URL
 ```
@@ -104,7 +105,7 @@ val managedStream: ZStream[Blocking, Throwable, BufferedReader] =
   ZStream.managed(
     ZManaged.fromAutoCloseable(
       zio.blocking.effectBlocking(
-        Files.newBufferedReader(Path.of("file.txt"))
+        Files.newBufferedReader(java.nio.file.Path.of("file.txt"))
       )
     )
   )
@@ -616,7 +617,6 @@ object ZStream {
 It is useful when need to add a finalizer to an existing stream. Assume we need to clean up the temporary directory after our streaming application ends:
 
 ```scala mdoc:silent:nest
-import java.nio.file.{Path, Paths}
 import zio.console._
 def application: ZStream[Console, IOException, Unit] = ZStream.fromEffect(putStrLn("Application Logic."))
 def deleteDir(dir: Path): ZIO[Console, IOException, Unit] = putStrLn("Deleting file.")
