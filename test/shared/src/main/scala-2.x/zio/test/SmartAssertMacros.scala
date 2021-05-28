@@ -1,5 +1,7 @@
 package zio.test
 
+import com.github.ghik.silencer.silent
+
 import scala.annotation.tailrec
 import scala.reflect.macros.blackbox
 
@@ -115,17 +117,18 @@ class SmartAssertMacros(val c: blackbox.Context) {
     def getStart(tree: c.Tree): Int      = tree.pos.start - start
   }
 
+  @silent("never used")
   def parseExpr(tree: c.Tree)(implicit pos: PositionContext): AST = {
     val end = pos.getEnd(tree)
 
     tree match {
-      case _ @ q"!($inner)" =>
+      case q"!($inner)" =>
         AST.Not(parseExpr(inner), pos.getPos(tree), pos.getPos(inner))
 
-      case _ @ q"$lhs && $rhs" =>
+      case q"$lhs && $rhs" =>
         AST.And(parseExpr(lhs), parseExpr(rhs), pos.getPos(tree), pos.getPos(lhs), pos.getPos(rhs))
 
-      case _ @ q"$lhs || $rhs" =>
+      case q"$lhs || $rhs" =>
         AST.Or(parseExpr(lhs), parseExpr(rhs), pos.getPos(tree), pos.getPos(lhs), pos.getPos(rhs))
 
       case MethodCall(lhs, name, tpes, args) =>
@@ -173,25 +176,28 @@ $Assert($ast.withCode($codeString).withLocation($locationString))
   }
 
   object UnwrapImplicit {
+    @silent("never used")
     def unapply(tree: c.Tree): Option[c.Tree] =
       tree match {
-        case _ @ q"$wrapper($lhs)" if wrapper.symbol.isImplicit => Some(lhs)
-        case _                                                  => Some(tree)
+        case q"$wrapper($lhs)" if wrapper.symbol.isImplicit =>
+          Some(lhs)
+        case _ => Some(tree)
       }
   }
 
   object MethodCall {
+    @silent("never used")
     def unapply(tree: c.Tree): Option[(c.Tree, TermName, List[Type], Option[List[c.Tree]])] =
       tree match {
-        case _ @ q"${UnwrapImplicit(lhs)}.$name[..$tpes]"
+        case q"${UnwrapImplicit(lhs)}.$name[..$tpes]"
             if !(tree.symbol.isModule || tree.symbol.isStatic || tree.symbol.isClass) =>
           Some((lhs, name, tpes.map(_.tpe), None))
-        case _ @ q"${UnwrapImplicit(lhs)}.$name"
+        case q"${UnwrapImplicit(lhs)}.$name"
             if !(tree.symbol.isModule || tree.symbol.isStatic || tree.symbol.isClass) =>
           Some((lhs, name, List.empty, None))
-        case _ @ q"${UnwrapImplicit(lhs)}.$name(..$args)" =>
+        case q"${UnwrapImplicit(lhs)}.$name(..$args)" =>
           Some((lhs, name, List.empty, Some(args)))
-        case _ @ q"${UnwrapImplicit(lhs)}.$name[..$tpes](..$args)" =>
+        case q"${UnwrapImplicit(lhs)}.$name[..$tpes](..$args)" =>
           Some((lhs, name, tpes.map(_.tpe), Some(args)))
         case _ => None
       }

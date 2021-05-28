@@ -36,7 +36,7 @@ class SmartAssert extends SemanticRule("SmartAssert") {
         println(assertion)
         val res = processAssertion(assertion, List.empty).reverse.mkString("")
         println("Result:", res)
-        Patch.replaceTree(t, name + "(" + value + res + ")")
+        Patch.replaceTree(t, "assertTrue" + "(" + value + res + ")")
       case _ =>
         Patch.empty
     }.asPatch
