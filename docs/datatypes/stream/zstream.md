@@ -105,7 +105,7 @@ val managedStream: ZStream[Blocking, Throwable, BufferedReader] =
   ZStream.managed(
     ZManaged.fromAutoCloseable(
       zio.blocking.effectBlocking(
-        Files.newBufferedReader(java.nio.file.Path.of("file.txt"))
+        Files.newBufferedReader(java.nio.file.Paths.get("file.txt"))
       )
     )
   )
@@ -716,20 +716,37 @@ val s1: UStream[(Int, String)] =
     ZStream("a", "b", "c")
   )((a, b) => (a, b))
 
-val s2 : UStream[(Int, String)] =
+val s2: UStream[(Int, String)] =
   ZStream(1, 2, 3, 4, 5, 6).zipWith(ZStream("a", "b", "c"))((a, b) => (a, b))
+
+val s3: UStream[(Int, String)] = 
+  ZStream(1, 2, 3, 4, 5, 6).zip(ZStream("a", "b", "c"))
   
 // Output: (1, "a"), (2, "b"), (3, "c")
 ``` 
 
 The new stream will end when one of the streams ends.
 
-In case of ending one stream before another, we might need to zip with default values; the `ZStream#zipAll` takes default values of both sides to perform such mechanism for us:
+In case of ending one stream before another, we might need to zip with default values; the `ZStream#zipAll` or `ZStream#zipAllWith` takes default values of both sides to perform such mechanism for us:
 
 ```scala mdoc:silent:nest
-val stream = ZStream(1, 2, 3).zipAll(ZStream("a", "b", "c", "d", "e"))(0, "x")
+val s1 = ZStream(1, 2, 3)
+  .zipAll(ZStream("a", "b", "c", "d", "e"))(0, "x")
+val s2 = ZStream(1, 2, 3).zipAllWith(
+  ZStream("a", "b", "c", "d", "e")
+)(_ => 0, _ => "x")((a, b) => (a, b))
 
 // Output: (1, a), (2, b), (3, c), (0, d), (0, e)
+```
+
+ZIO Stream also has a `ZStream#zipAllWithExec` function, which takes `ExecutionStrategy` as an argument. The execution strategy will be used to determine whether to pull from the streams sequentially or in parallel:
+
+```scala 
+def zipAllWithExec[R1 <: R, E1 >: E, O2, O3](
+  that: ZStream[R1, E1, O2]
+)(exec: ExecutionStrategy)(
+  left: O => O3, right: O2 => O3
+)(both: (O, O2) => O3): ZStream[R1, E1, O3] = ???
 ```
 
 Sometimes we want to zip stream, but we do not want to zip two elements one by one. For example, we may have two streams with two different speeds, we do not want to wait for the slower one when zipping elements, assume need to zip elements with the latest element of the slower stream. The `ZStream#zipWithLates` do this for us. It zips two streams so that when a value is emitted by either of the two streams; it is combined with the latest value from the other stream to produce a result:
