@@ -1145,37 +1145,6 @@ def streamReduce(total: Int, element: Int): Int = total + element
 val resultFromSink: UIO[Int] = Stream(1,2,3).run(Sink.foldLeft(0)(streamReduce))
 ```
 
-## Working on several streams
-
-We can merge several streams using the `merge` method:
-
-```scala mdoc:silent:nest
-import zio.stream._
-
-val merged: Stream[Nothing, Int] = Stream(1,2,3).merge(Stream(2,3,4))
-```
-
-Or zipping streams: 
-
-```scala mdoc:silent
-import zio.stream._
-
-val zippedStream: Stream[Nothing, (Int, Int)] = Stream(1,2,3).zip(Stream(2,3,4))
-```
-
-Then we would be able to reduce the stream into to a `ZIO` value: 
-
-```scala mdoc:silent
-import zio._
-
-def tupleStreamReduce(total: Int, element: (Int, Int)) = {
-  val (a,b) = element
-  total + (a + b)
-} 
-
-val reducedResult: UIO[Int] = zippedStream.run(Sink.foldLeft(0)(tupleStreamReduce))
-```
-
 ## Compressed streams
 
 ### Decompression
