@@ -633,7 +633,7 @@ val myApp: ZStream[Console, IOException, Any] =
 ZIO Stream supports many standard transforming functions like `map`, `partition`, `grouped`, `groupByKey`, `groupedWithin`
 and many others. Here are examples of how to use them.   
 
-### map
+### Mapping
 
 **map** — Applies a given function to all element of this stream to produce another stream:
 ```scala mdoc:silent
