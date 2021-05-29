@@ -1,7 +1,7 @@
 package zio.test
 
 import zio.test.FailureRenderer.FailureMessage.Message
-import zio.test.FailureRenderer.{blue, red}
+import zio.test.FailureRenderer._
 
 trait OptionalImplicit[A] {
   def value: Option[A]
@@ -21,11 +21,11 @@ trait LowPriOptionalImplicit {
   }
 }
 
-trait Diff[A, B] {
-  def diff(lhs: A, rhs: B): Message
+trait Diff[A] {
+  def diff(lhs: A, rhs: A): Message
 }
 
 object Diff {
-  implicit def stringDiff: Diff[String, String] = (lhs: String, rhs: String) =>
+  implicit def stringDiff: Diff[String] = (lhs: String, rhs: String) => //
     (blue(lhs) + red(" != ") + blue(rhs)).toMessage
 }

@@ -184,11 +184,20 @@ object Assertions {
         }
       }
 
-  def equalTo[A](that: A): Arrow[A, Boolean] =
+  def equalTo[A](that: A)(implicit diff: OptionalImplicit[Diff[A]]): Arrow[A, Boolean] =
     Arrow
       .make[A, Boolean] { a =>
-        Trace.boolean(a == that) {
-          M.value(a) + M.equals + M.value(that)
+        val result = a == that
+        Trace.boolean(result) {
+          diff.value match {
+            case Some(diff) if !result =>
+              M.text("I HAVE A DIFF\n") +/
+                M.text {
+                  DefaultTestReporter.renderToStringLines(diff.diff(a, that)).mkString("\n")
+                }
+            case _ =>
+              M.value(a) + M.equals + M.value(that)
+          }
         }
       }
 

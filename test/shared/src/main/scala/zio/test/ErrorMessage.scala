@@ -17,15 +17,16 @@ object ErrorMessage {
   val was: ErrorMessage    = choice("was", "was not")
   val valid: ErrorMessage  = choice("Valid", "Invalid")
 
-  private final case class Value(value: Any)                             extends ErrorMessage
-  private final case class ThrowableM(throwable: Throwable)              extends ErrorMessage
-  private final case class Choice(success: String, failure: String)      extends ErrorMessage
-  private final case class Combine(lhs: ErrorMessage, rhs: ErrorMessage) extends ErrorMessage
+  private final case class Value(value: Any)                                               extends ErrorMessage
+  private final case class ThrowableM(throwable: Throwable)                                extends ErrorMessage
+  private final case class Choice(success: String, failure: String)                        extends ErrorMessage
+  private final case class Combine(lhs: ErrorMessage, rhs: ErrorMessage, spacing: Int = 1) extends ErrorMessage
 }
 
 sealed trait ErrorMessage { self =>
-  def +(that: String): ErrorMessage       = ErrorMessage.Combine(self, ErrorMessage.text(that))
-  def +(that: ErrorMessage): ErrorMessage = ErrorMessage.Combine(self, that)
+  def +(that: String): ErrorMessage        = ErrorMessage.Combine(self, ErrorMessage.text(that))
+  def +(that: ErrorMessage): ErrorMessage  = ErrorMessage.Combine(self, that)
+  def +/(that: ErrorMessage): ErrorMessage = ErrorMessage.Combine(self, that, 0)
 
   private[test] def render(isSuccess: Boolean): String =
     self match {
@@ -34,8 +35,8 @@ sealed trait ErrorMessage { self =>
 
       case ErrorMessage.Value(value) => bold(blue(value.toString))
 
-      case ErrorMessage.Combine(lhs, rhs) =>
-        lhs.render(isSuccess) + " " + rhs.render(isSuccess)
+      case ErrorMessage.Combine(lhs, rhs, spacing) =>
+        lhs.render(isSuccess) + (" " * spacing) + rhs.render(isSuccess)
 
       case ErrorMessage.ThrowableM(throwable) =>
         (red("ERROR: ") + bold(throwable.toString)) + "\n" +

@@ -2,13 +2,15 @@ package zio.test
 
 import zio.duration.durationInt
 import zio.test.SmartTestTypes._
-import zio.test.TestAspect.failing
+//import zio.test.TestAspect.failing
 import zio.test.environment.TestClock
 
 import java.time.LocalDateTime
 import scala.collection.immutable.SortedSet
 
 object SmartAssertionSpec extends ZIOBaseSpec {
+
+  val failing = TestAspect.identity
 
   val company: Company = Company("Ziverge", List(User("Bobo", List.tabulate(2)(n => Post(s"Post #$n")))))
 
@@ -235,9 +237,7 @@ object SmartAssertionSpec extends ZIOBaseSpec {
     test("hasIntersection must succeed when intersection satisfies specified assertion") {
       val seq = Seq(1, 2, 3, 4, 5)
 
-      assertTrue {
-        seq.intersect(Seq(4, 5, 6, 7, 8)).length == 108
-      }
+      assertTrue(seq.intersect(Seq(4, 5, 6, 7, 8)).length == 108)
     } @@ TestAspect.tag("IMPORTANT") @@ failing,
     test("hasIntersection must succeed when empty intersection satisfies specified assertion") {
       assertTrue((Seq(1, 2, 3, 4) intersect Seq(5, 6, 7)).isEmpty)
@@ -274,6 +274,16 @@ object SmartAssertionSpec extends ZIOBaseSpec {
       check(Gen.anyInt) { int =>
         assertTrue(int < 800)
       }
-    } @@ failing
+    } @@ failing,
+    suite("Diffing")(
+      test("No implicit Diff") {
+        val int = 100
+        assertTrue(int == 200)
+      },
+      test("With implicit Diff") {
+        val string = "Sunday"
+        assertTrue(string == "Saturday")
+      }
+    )
   )
 }

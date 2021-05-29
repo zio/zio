@@ -164,7 +164,7 @@ object DefaultTestReporter {
   private def renderCause(cause: Cause[Any], offset: Int): String =
     renderToStringLines(FailureRenderer.renderCause(cause, offset)).mkString("\n")
 
-  private def renderToStringLines(message: Message): Seq[String] = {
+  def renderToStringLines(message: Message): Seq[String] = {
     def renderFragment(f: Fragment) =
       if (f.ansiColorCode.nonEmpty) f.ansiColorCode + f.text + AnsiColor.RESET
       else f.text
