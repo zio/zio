@@ -21,8 +21,6 @@ import zio.duration._
 import zio.test.environment.TestEnvironment
 import zio.{URIO, ZIO}
 
-import scala.language.implicitConversions
-
 /**
  * A default runnable spec that provides testable versions of all of the
  * modules in ZIO (Clock, Random, etc).
@@ -66,30 +64,4 @@ abstract class DefaultRunnableSpec extends RunnableSpec[TestEnvironment, Any] {
    */
   def testM[R, E](label: String)(assertion: => ZIO[R, E, TestResult])(implicit loc: SourceLocation): ZSpec[R, E] =
     zio.test.testM(label)(assertion)
-
-  implicit def any2AssertionOps[A](a: A): AssertionSyntax.AssertionOps[A] = AssertionSyntax.AssertionOps(a)
-}
-
-object AssertionSyntax {
-  def assertionError(name: String): Nothing =
-    throw new Error(s"`$name` may only be called within the body of `assert`")
-
-  implicit final class EitherAssertionOps[A, B](private val self: Either[A, B]) extends AnyVal {
-    def $asLeft: A = assertionError("$asLeft")
-
-    def $asRight: B = assertionError("$asRight")
-  }
-
-  implicit final class AssertionOps[A](private val self: A) extends AnyVal {
-    def withAssertion(assertion: Assertion[A]): Boolean =
-      assertion.test(self)
-
-    def $is[Case <: A]: Case = assertionError("$is")
-
-    def $as[Case <: A]: Case = assertionError("$as")
-
-    def $throwsA[E <: Throwable]: Boolean = assertionError("$throwsA")
-
-    def $throws: Throwable = assertionError("$throws")
-  }
 }

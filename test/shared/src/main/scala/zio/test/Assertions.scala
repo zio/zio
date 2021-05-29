@@ -90,14 +90,6 @@ object Assertions {
         )
       }
 
-//  def existsIterable[A](predicate: A => Boolean): Arrow[Iterable[A], Boolean] =
-//    Arrow
-//      .make[Iterable[A], Boolean] { seq =>
-//        Trace.boolean(seq.exists(predicate)) {
-//          className(seq) + M.did + "contain a value matching the predicate"
-//        }
-//      }
-
   def containsSeq[A](value: A): Arrow[Seq[A], Boolean] =
     Arrow
       .make[Seq[A], Boolean] { seq =>

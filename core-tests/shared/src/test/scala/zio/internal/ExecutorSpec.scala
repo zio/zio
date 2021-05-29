@@ -67,8 +67,7 @@ object ExecutorSpec extends ZIOBaseSpec {
         assert(TestExecutor.y.asEC.execute(TestExecutor.runnable))(not(throwsA[RejectedExecutionException]))
       },
       test("When created from an EC, must not throw when fed an effect ") {
-        // TODO: How do we handle throwing?
-        assert({ Executor.fromExecutionContext(1)(TestExecutor.ec).submit(TestExecutor.runnable); 1 })(
+        assert(Executor.fromExecutionContext(1)(TestExecutor.ec).submit(TestExecutor.runnable))(
           not(throwsA[RejectedExecutionException])
         )
       },

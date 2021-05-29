@@ -474,7 +474,7 @@ object MySpec extends DefaultRunnableSpec {
       assert(true)(isTrue)
     } @@ timeout(10.nanos), //@@ timeout will fail a test that doesn't pass within the specified time
     test("A failing test... that passes") {
-      assert(false)(isFalse)
+      assert(true)(isFalse)
     } @@ failing, //@@ failing turns a failing test into a passing test
     test("A ignored test") {
       assert(false)(isTrue)

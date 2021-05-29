@@ -214,7 +214,7 @@ object Trace {
 
   def boolean(value: Boolean)(message: ErrorMessage): Trace[Boolean] = Node(Result.succeed(value), message = message)
 
-  def fail(throwable: Throwable): Trace[Nothing] =
+  def die(throwable: Throwable): Trace[Nothing] =
     Node(Result.die(throwable), message = ErrorMessage.throwable(throwable))
 
   object Halt {

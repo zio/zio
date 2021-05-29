@@ -82,7 +82,7 @@ object Arrow {
   def suspend[A, B](f: A => Arrow[Any, B]): Arrow[A, B] = Arrow.Suspend(f)
 
   def make[A, B](f: A => Trace[B]): Arrow[A, B] =
-    makeEither(e => Trace.fail(e).annotate(Trace.Annotation.Rethrow), f)
+    makeEither(e => Trace.die(e).annotate(Trace.Annotation.Rethrow), f)
 
   def makeEither[A, B](onFail: Throwable => Trace[B], onSucceed: A => Trace[B]): Arrow[A, B] =
     ArrowF {
@@ -92,7 +92,7 @@ object Arrow {
 
   private def attempt[A](f: => Trace[A]): Trace[A] =
     Try(f) match {
-      case Failure(exception) => Trace.fail(exception)
+      case Failure(exception) => Trace.die(exception)
       case Success(value)     => value
     }
 
@@ -120,8 +120,8 @@ object Arrow {
 
       case Suspend(f) =>
         in match {
-          case Left(_) =>
-            ???
+          case Left(exception) =>
+            Trace.die(exception)
           case Right(value) =>
             run(f(value), in)
         }
