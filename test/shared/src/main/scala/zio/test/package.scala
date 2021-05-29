@@ -150,7 +150,7 @@ package object test extends CompileVariants {
           val fragment = whole.result
           val result   = if (fragment.isSuccess) fragment else !fragment
           result.flatMap { fragment =>
-            loop(fragment, FailureDetails(::(whole, failureDetails.assertion), failureDetails.gen))
+            loop(fragment, FailureDetails(::(whole, failureDetails.assertion)))
           }
         }
 

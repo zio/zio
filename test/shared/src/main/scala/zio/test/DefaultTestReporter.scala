@@ -75,8 +75,10 @@ object DefaultTestReporter {
               result
                 .fold[Option[TestResult]] {
                   case result: AssertionResult.FailureDetailsResult => Some(BoolAlgebra.success(result))
-                  case AssertionResult.TraceResult(trace) =>
-                    Trace.prune(trace, false).map(a => BoolAlgebra.success(AssertionResult.TraceResult(a)))
+                  case AssertionResult.TraceResult(trace, genFailureDetails) =>
+                    Trace
+                      .prune(trace, false)
+                      .map(a => BoolAlgebra.success(AssertionResult.TraceResult(a, genFailureDetails)))
                 }(
                   {
                     case (Some(a), Some(b)) => Some(a && b)
@@ -288,23 +290,24 @@ object FailureRenderer {
 
   def renderAssertionResult(assertionResult: AssertionResult, offset: Int): Message =
     assertionResult match {
-      case AssertionResult.TraceResult(trace) =>
+      case AssertionResult.TraceResult(trace, genFailureDetails) =>
         val failures = FailureCase.fromTrace(trace)
         failures
           .map(fc =>
-            Message(
-              FailureCase.renderFailureCase(fc).map(Line.fromString(_, offset + tabSize))
-            )
+            renderGenFailureDetails(genFailureDetails, offset) ++
+              Message(
+                FailureCase.renderFailureCase(fc).map(Line.fromString(_, offset + tabSize))
+              )
           )
           .foldLeft(Message.empty)(_ ++ _)
 
-      case AssertionResult.FailureDetailsResult(failureDetails) =>
-        renderFailureDetails(failureDetails, offset)
+      case AssertionResult.FailureDetailsResult(failureDetails, genFailureDetails) =>
+        renderGenFailureDetails(genFailureDetails, offset) ++
+          renderFailureDetails(failureDetails, offset)
     }
 
   def renderFailureDetails(failureDetails: FailureDetails, offset: Int): Message =
-    renderGenFailureDetails(failureDetails.gen, offset) ++
-      renderAssertionFailureDetails(failureDetails.assertion, offset)
+    renderAssertionFailureDetails(failureDetails.assertion, offset)
 
   private def renderAssertionFailureDetails(failureDetails: ::[AssertionValue], offset: Int): Message = {
     @tailrec

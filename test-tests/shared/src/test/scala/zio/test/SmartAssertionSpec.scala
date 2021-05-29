@@ -269,6 +269,11 @@ object SmartAssertionSpec extends ZIOBaseSpec {
     } @@ failing,
     test("hasAt must fail when an index is outside of a sequence range") {
       assertTrue(!(Seq(1, 2, 3)(2) == 3))
+    } @@ failing,
+    testM("check") {
+      check(Gen.anyInt) { int =>
+        assertTrue(int < 800)
+      }
     } @@ failing
   )
 }

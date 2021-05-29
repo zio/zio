@@ -27,7 +27,7 @@ object GenSpec extends ZIOBaseSpec {
 
         assertM(CheckN(100)(gen)(test).map { result =>
           result.failures.fold(false) {
-            case BoolAlgebra.Value(FailureDetailsResult(failureDetails)) =>
+            case BoolAlgebra.Value(FailureDetailsResult(failureDetails, _)) =>
               failureDetails.assertion.head.value.toString == "1"
             case _ => false
           }
@@ -46,7 +46,7 @@ object GenSpec extends ZIOBaseSpec {
         }
         assertM(CheckN(100)(gen)(test).map { result =>
           result.failures.fold(false) {
-            case BoolAlgebra.Value(FailureDetailsResult(failureDetails)) =>
+            case BoolAlgebra.Value(FailureDetailsResult(failureDetails, _)) =>
               failureDetails.assertion.head.value.toString == "(List(0),List(1))" ||
                 failureDetails.assertion.head.value.toString == "(List(1),List(0))" ||
                 failureDetails.assertion.head.value.toString == "(List(0),List(-1))" ||
@@ -80,7 +80,7 @@ object GenSpec extends ZIOBaseSpec {
 
         assertM(CheckN(100)(gen)(test).map { result =>
           result.failures.fold(false) {
-            case BoolAlgebra.Value(FailureDetailsResult(failureDetails)) =>
+            case BoolAlgebra.Value(FailureDetailsResult(failureDetails, _)) =>
               failureDetails.assertion.head.value.toString == "List(0)"
             case _ => false
           }
