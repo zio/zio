@@ -40,8 +40,8 @@ final case class DiffResult(actions: Chunk[Action]) {
     actions
       .foldLeft((new StringBuilder(original), 0)) { case ((s, index), action) =>
         action match {
-          case Action.Delete(d) => (s.deleteCharAt(index), index)
-          case Action.Keep(k)   => (s, index + 1)
+          case Action.Delete(_) => (s.deleteCharAt(index), index)
+          case Action.Keep(_)   => (s, index + 1)
           case Action.Insert(i) => (s.insert(index, i), index + 1)
         }
       }
@@ -80,20 +80,28 @@ object MyersDiff {
       longestCommonSubstring = longestCommonSubstring.drop(1)
 
       var headOfModified = varModified(0)
-      do {
+      var loop           = true
+
+      while (loop) {
         headOfModified = varModified(0)
         varModified = varModified.drop(1)
         if (headOfModified != headOfLongestCommonSubstring)
           actions = actions :+ Action.Insert(headOfModified.toString)
-      } while (varModified.size > 0 && headOfModified != headOfLongestCommonSubstring)
+
+        loop = varModified.size > 0 && headOfModified != headOfLongestCommonSubstring
+      }
 
       var headOfOriginal = varOriginal(0)
-      do {
+      loop = true
+
+      while (loop) {
         headOfOriginal = varOriginal(0)
         varOriginal = varOriginal.drop(1)
         if (headOfOriginal != headOfLongestCommonSubstring)
           actions = actions :+ Action.Delete(headOfOriginal.toString)
-      } while (varOriginal.size > 0 && headOfOriginal != headOfLongestCommonSubstring)
+
+        loop = varOriginal.size > 0 && headOfOriginal != headOfLongestCommonSubstring
+      }
 
       actions = actions :+ Action.Keep(headOfLongestCommonSubstring.toString)
     }
@@ -124,7 +132,9 @@ object MyersDiff {
       var originalPosition = original.length()
       var modifiedPosition = modified.length()
 
-      do {
+      var loop = true
+
+      while (loop) {
         if (myersMatrix(originalPosition)(modifiedPosition) == myersMatrix(originalPosition - 1)(modifiedPosition)) {
           originalPosition -= 1
         } else if (
@@ -137,7 +147,8 @@ object MyersDiff {
           modifiedPosition -= 1
         }
 
-      } while (originalPosition > 0 && modifiedPosition > 0)
+        loop = originalPosition > 0 && modifiedPosition > 0
+      }
 
       longestCommonSubsequence.toString.reverse
     }
