@@ -2,7 +2,6 @@ package zio.test
 
 import zio.duration.durationInt
 import zio.test.SmartTestTypes._
-//import zio.test.TestAspect.failing
 import zio.test.environment.TestClock
 
 import java.time.LocalDateTime
@@ -10,7 +9,9 @@ import scala.collection.immutable.SortedSet
 
 object SmartAssertionSpec extends ZIOBaseSpec {
 
-  val failing = TestAspect.identity
+  // Switch TestAspect.failing to TestAspect.identity to easily preview
+  // the error messages.
+  val failing: TestAspectPoly = TestAspect.failing
 
   val company: Company = Company("Ziverge", List(User("Bobo", List.tabulate(2)(n => Post(s"Post #$n")))))
 
@@ -279,11 +280,11 @@ object SmartAssertionSpec extends ZIOBaseSpec {
       test("No implicit Diff") {
         val int = 100
         assertTrue(int == 200)
-      },
+      } @@ failing,
       test("With implicit Diff") {
-        val string = "Sunday"
-        assertTrue(string == "Saturday")
-      }
+        val string = "Sunday Everyday"
+        assertTrue(string == "Saturday Todays")
+      } @@ failing
     )
   )
 }

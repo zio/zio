@@ -1,6 +1,7 @@
 package zio.test
 
-import zio.test.FailureRenderer.FailureMessage.Message
+import zio.Chunk
+import zio.test.FailureRenderer.FailureMessage.{Fragment, Line, Message}
 import zio.test.FailureRenderer._
 
 trait OptionalImplicit[A] {
@@ -26,6 +27,33 @@ trait Diff[A] {
 }
 
 object Diff {
-  implicit def stringDiff: Diff[String] = (lhs: String, rhs: String) => //
-    (blue(lhs) + red(" != ") + blue(rhs)).toMessage
+  implicit def stringDiff: Diff[String] = (lhs: String, rhs: String) => {
+    val actions = MyersDiff.diff(lhs, rhs).actions
+
+    val deleted = renderColor(actions.filter {
+      case _: Action.Insert => false
+      case _                => true
+    })
+
+    val inserted = renderColor(actions.filter {
+      case _: Action.Delete => false
+      case _                => true
+    })
+
+    deleted.map(red("- ") +: _) ++ inserted.map(green("+ ") +: _)
+  }
+
+  private def renderColor(actions: Chunk[Action]) =
+    actions
+      .foldLeft(Line(Vector(Fragment(scala.Console.RESET)))) { (acc, action) =>
+        action match {
+          case Action.Delete(s) =>
+            acc :+ redUnderlined(s)
+          case Action.Insert(s) =>
+            acc :+ greenUnderlined(s)
+          case Action.Keep(s) =>
+            acc :+ Fragment(s)
+        }
+      }
+      .toMessage
 }

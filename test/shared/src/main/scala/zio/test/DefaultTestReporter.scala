@@ -545,6 +545,8 @@ object FailureRenderer {
   def bold(s: String): Fragment                                   = FailureMessage.Fragment(s, scala.Console.BOLD)
   def cyan(s: String): Fragment                                   = FailureMessage.Fragment(s, AnsiColor.CYAN)
   def dim(s: String): Fragment                                    = FailureMessage.Fragment(s, "\u001b[2m")
+  def redUnderlined(s: String): Fragment                          = FailureMessage.Fragment(s, AnsiColor.RED + scala.Console.UNDERLINED)
+  def greenUnderlined(s: String): Fragment                        = FailureMessage.Fragment(s, AnsiColor.GREEN + scala.Console.UNDERLINED)
   private def withOffset(i: Int)(line: FailureMessage.Line): Line = line.withOffset(i)
 
 }

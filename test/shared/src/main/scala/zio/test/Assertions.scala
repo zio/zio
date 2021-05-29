@@ -191,7 +191,7 @@ object Assertions {
         Trace.boolean(result) {
           diff.value match {
             case Some(diff) if !result =>
-              M.text("I HAVE A DIFF\n") +/
+              M.text("DIFF") + "\n" +/
                 M.text {
                   DefaultTestReporter.renderToStringLines(diff.diff(a, that)).mkString("\n")
                 }
