@@ -826,6 +826,34 @@ val indexedStream: ZStream[Any, Nothing, (String, Long)] =
 // Output: ("Mary", 0L), ("James", 1L), ("Robert", 2L), ("Patricia", 3L)
 ```
 
+### Cross Product
+
+ZIO stream has `ZStram#cross` and its variants to compute _Cartesian Product_ of two streams:
+
+```scala mdoc:silent:nest
+val first = ZStream(1, 2, 3)
+val second = ZStream("a", "b")
+
+val s1 = first cross second
+val s2 = first <*> second
+val s3 = first.crossWith(second)((a, b) => (a, b))
+// Output: (1,a), (1,b), (2,a), (2,b), (3,a), (3,b)
+
+val s4 = first crossLeft second 
+val s5 = first <* second
+// Keep only elements from the left stream
+// Output: 1, 1, 2, 2, 3, 3 
+
+val s6 = first crossRight second
+val s7 = first *> second
+// Keep only elements from the right stream
+// Output: a, b, a, b, a, b
+```
+
+Note that the right-hand side stream would be run multiple times, for every element in the left stream.
+
+ZIO stream also has `ZStream.crossN` which accept crossing streams up to four one.
+
 ### Partitioning
 
 #### partition
