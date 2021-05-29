@@ -30,16 +30,16 @@ import scala.language.implicitConversions
 final class NonEmptyChunk[+A] private (private val chunk: Chunk[A]) { self =>
 
   /**
-   * Prepends a single element to the beginning of this `NonEmptyChunk`.
+   * A symbolic alias for `prepended`.
    */
   def +:[A1 >: A](a: A1): NonEmptyChunk[A1] =
-    nonEmpty(a +: chunk)
+    prepended(a)
 
   /**
-   * Appends a single element to the end of this `NonEmptyChunk`.
+   * A symbolic alias for `appended`.
    */
   def :+[A1 >: A](a: A1): NonEmptyChunk[A1] =
-    nonEmpty(chunk :+ a)
+    appended(a)
 
   /**
    * Appends the specified `Chunk` to the end of this `NonEmptyChunk`.
@@ -52,6 +52,12 @@ final class NonEmptyChunk[+A] private (private val chunk: Chunk[A]) { self =>
    */
   def append[A1 >: A](that: Chunk[A1]): NonEmptyChunk[A1] =
     nonEmpty(chunk ++ that)
+
+  /**
+   * Appends a single element to the end of this `NonEmptyChunk`.
+   */
+  def appended[A1 >: A](a: A1): NonEmptyChunk[A1] =
+    nonEmpty(chunk :+ a)
 
   /**
    * Converts this `NonEmptyChunk` of bytes to a `NonEmptyChunk` of bits.
@@ -134,6 +140,12 @@ final class NonEmptyChunk[+A] private (private val chunk: Chunk[A]) { self =>
    */
   def prepend[A1 >: A](that: Chunk[A1]): NonEmptyChunk[A1] =
     nonEmpty(that ++ chunk)
+
+  /**
+   * Prepends a single element to the beginning of this `NonEmptyChunk`.
+   */
+  def prepended[A1 >: A](a: A1): NonEmptyChunk[A1] =
+    nonEmpty(a +: chunk)
 
   /**
    * Reduces the elements of this `NonEmptyChunk` from left to right using the
