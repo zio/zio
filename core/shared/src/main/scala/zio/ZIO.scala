@@ -54,6 +54,14 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   self =>
 
   /**
+   * Syntax for adding aspects.
+   */
+  final def @@[LowerR <: UpperR, UpperR <: R, LowerE >: E, UpperE >: LowerE, LowerA >: A, UpperA >: LowerA](
+    aspect: ZIOAspect[LowerR, UpperR, LowerE, UpperE, LowerA, UpperA]
+  ): ZIO[UpperR, LowerE, LowerA] =
+    aspect(self)
+
+  /**
    * Sequentially zips this effect with the specified effect, combining the
    * results into a tuple.
    */

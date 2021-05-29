@@ -58,6 +58,14 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   def zio: ZIO[(R, ZManaged.ReleaseMap), E, (ZManaged.Finalizer, A)]
 
   /**
+   * Syntax for adding aspects.
+   */
+  final def @@[LowerR <: UpperR, UpperR <: R, LowerE >: E, UpperE >: LowerE, LowerA >: A, UpperA >: LowerA](
+    aspect: ZManagedAspect[LowerR, UpperR, LowerE, UpperE, LowerA, UpperA]
+  ): ZManaged[UpperR, LowerE, LowerA] =
+    aspect(self)
+
+  /**
    * Symbolic alias for zip.
    */
   def &&&[R1 <: R, E1 >: E, B](that: ZManaged[R1, E1, B]): ZManaged[R1, E1, (A, B)] =
