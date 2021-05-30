@@ -748,6 +748,26 @@ val unitStream: ZStream[Any, Nothing, Unit] =
   ZStream.range(1, 5).as(())
 ```
 
+### Changes
+
+The `ZStream#changes` emits elements that are not equal to the previous element:
+
+```scala mdoc:silent:nest
+val changes = ZStream(1, 1, 1, 2, 2, 3, 4).changes
+// Output: 1, 2, 3, 4
+```
+
+The `ZStream#changes` operator, uses natural equality to determine whether two elements are equal. If we prefer the specialized equality checking, we can provide a function of type `(O, O) => Boolean` to the `ZStream#changesWith` operator.
+
+Assume we have a stream of events with a composite key of _partition_ and _offset_ attributes, and we know that the offset is monotonic in each partition. So, we can use the `changesWith` operator to create a stream of unique elements:
+
+```scala mdoc:silent:nest
+case class Event(partition: Long, offset: Long, metadata: String) 
+val events: ZStream[Any, Nothing, Event] = ZStream.fromIterable(???)
+
+val uniques = events.changesWith((e1, e2) => (e1.partition == e2.partition && e1.offset == e2.offset))
+```
+
 ### Collecting
 
 We can perform `filter` and `map` operations in a single step using the `ZStream#collect` operation:
