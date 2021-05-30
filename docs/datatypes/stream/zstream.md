@@ -1413,3 +1413,14 @@ val s1 = ZStream(1, 2, 3) ++ ZStream.dieMessage("Oh! Boom!") ++ ZStream(4, 5)
 val s2 = ZStream(7, 8, 9)
 val stream = s1.catchSomeCause { case Die(value) => s2 }
 ```
+
+### Recovering to ZIO Effect
+
+If our stream encounters an error, we can provide some cleanup task as ZIO effect to our stream by using the `ZStream#onError` method:
+
+```scala mdoc:silent:nest
+
+val stream = 
+  (ZStream(1, 2, 3) ++ ZStream.dieMessage("Oh! Boom!") ++ ZStream(4, 5))
+    .onError(_ => putStrLn("Stream application closed! We are doing some cleanup jobs.").orDie)
+```
