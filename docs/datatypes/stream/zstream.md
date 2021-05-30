@@ -852,7 +852,7 @@ val s7 = first *> second
 
 Note that the right-hand side stream would be run multiple times, for every element in the left stream.
 
-ZIO stream also has `ZStream.crossN` which accept crossing streams up to four one.
+ZIO stream also has `ZStream.crossN` which takes streams up to four one.
 
 ### Partitioning
 
