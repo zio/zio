@@ -748,6 +748,42 @@ val unitStream: ZStream[Any, Nothing, Unit] =
   ZStream.range(1, 5).as(())
 ```
 
+### Collecting
+
+We can perform `filter` and `map` operations in a single step using the `ZStream#collect` operation:
+
+```scala mdoc:silent:nest
+val source1 = ZStream(1, 2, 3, 4, 0, 5, 6, 7, 8)
+  
+val s1 = source1.collect { case x if x < 6 => x * 2 }
+// Output: 2, 4, 6, 8, 0, 10
+
+val s2 = source1.collectWhile { case x if x != 0 => x * 2 }
+// Output: 2, 4, 6, 8
+
+val source2 = ZStream(Left(1), Right(2), Right(3), Left(4), Right(5))
+
+val s3 = source2.collectLeft
+// Output: 1, 4
+
+val s4 = source2.collectWhileLeft
+// Output: 1
+
+val s5 = source2.collectRight
+// Output: 2, 3, 5
+
+val s6 = source2.drop(1).collectWhileRight
+// Output: 2, 3
+
+val s7 = source2.map(_.toOption).collectSome
+// Output: 2, 3, 5
+
+val s8 = source2.map(_.toOption).collectWhileSome
+// Output: empty stream
+```
+
+We can also do effectful collect using `ZStream#collectM` and `ZStream#collectWhileM`.
+
 ### Zipping
 
 We can zip two stream by using `ZStream.zipN` or `ZStream#zipWith` operator:
