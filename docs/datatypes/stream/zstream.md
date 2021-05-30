@@ -784,6 +784,24 @@ val s8 = source2.map(_.toOption).collectWhileSome
 
 We can also do effectful collect using `ZStream#collectM` and `ZStream#collectWhileM`.
 
+ZIO stream has `ZStream#collectSuccess` which helps us to perform effectful operations and just collect the success values:
+
+```scala mdoc:silent
+val urls = ZStream(
+  "dotty.epfl.ch",
+  "zio.dev",
+  "zio.github.io/zio-json",
+  "zio.github.io/zio-nio/"
+)
+
+def fetch(url: String): ZIO[Blocking, Throwable, String] = 
+  zio.blocking.effectBlocking(???)
+
+val pages = urls
+  .mapM(url => fetch(url).run)
+  .collectSuccess
+```
+
 ### Zipping
 
 We can zip two stream by using `ZStream.zipN` or `ZStream#zipWith` operator:
