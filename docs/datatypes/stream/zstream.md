@@ -19,6 +19,7 @@ import java.nio.file.{Files, Path, Paths}
 import java.nio.file.Path._
 import zio.console.Console
 import java.net.URL
+import zio.Cause.Die
 ```
 
 ```scala mdoc:silent:nest
@@ -1388,6 +1389,27 @@ If we need to recover from all causes of failures including defects we should us
 val s1 = ZStream(1, 2, 3) ++ ZStream.dieMessage("Oh! Boom!") ++ ZStream(4, 5)
 val s2 = ZStream(7, 8, 9)
 
-val res = s1.catchAllCause(_ => s2)
+val stream = s1.catchAllCause(_ => s2)
 // Output: 1, 2, 3, 7, 8, 9
+```
+
+### Recovery from Some Errors
+
+If we need to recover from specific failure we should use `ZStream#catchSome`: 
+
+```scala mdoc:silent:nest
+val s1 = ZStream(1, 2, 3) ++ ZStream.fail("Oh! Error!") ++ ZStream(4, 5)
+val s2 = ZStream(7, 8, 9)
+val stream = s1.catchSome {
+  case "Oh! Error!" => s2
+}
+// Output: 1, 2, 3, 7, 8, 9
+```
+
+And, to recover from a specific cause, we should use `ZStream#catchSomeCause` method:
+
+```scala mdoc:silent:nest
+val s1 = ZStream(1, 2, 3) ++ ZStream.dieMessage("Oh! Boom!") ++ ZStream(4, 5)
+val s2 = ZStream(7, 8, 9)
+val stream = s1.catchSomeCause { case Die(value) => s2 }
 ```
