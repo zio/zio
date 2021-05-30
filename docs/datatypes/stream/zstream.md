@@ -1365,3 +1365,15 @@ def compressWithDeflate(clearText: ZStream[Any, Nothing, Byte]): ZStream[Any, No
 def deflateWithDefaultParameters(clearText: ZStream[Any, Nothing, Byte]): ZStream[Any, Nothing, Byte] =
   clearText.transduce(deflate())
 ```
+
+## Error Handling
+
+If we have a stream that may fail, we might need to recover from the failure and run another stream, the `ZStream#catchAll` takes another stream, so when the failure occurs it will switch over to the provided stream:
+
+```scala mdoc:silent:nest
+val s1 = ZStream(1, 2, 3) ++ ZStream.fail("Oh! Error!") ++ ZStream(4, 5)
+val s2 = ZStream(7, 8, 9)
+
+val stream = s1.catchAll(_ => s2)
+// Output: 1, 2, 3, 7, 8, 9
+```
