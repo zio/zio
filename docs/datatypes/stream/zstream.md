@@ -1490,3 +1490,15 @@ We can do the opposite by exposing an error of type `ZStream[R, E, A]` as a part
 val inputs: ZStream[Console, Nothing, Either[IOException, String]] = 
   ZStream.fromEffect(zio.console.getStrLn).either
 ```
+
+### Refining Errors
+
+We can keep one or some errors and terminate the fiber with the rest by using `ZStream#refineOrDie`:
+
+```scala mdoc:silent:nest
+val stream: ZStream[Any, Throwable, Int] =
+  ZStream.fromEffect(???)
+
+val res: ZStream[Any, IllegalArgumentException, Int] =
+  stream.refineOrDie { case e: IllegalArgumentException => e }
+```
