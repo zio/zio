@@ -1374,14 +1374,33 @@ def deflateWithDefaultParameters(clearText: ZStream[Any, Nothing, Byte]): ZStrea
 
 ### Recovering from Failure
 
-If we have a stream that may fail, we might need to recover from the failure and run another stream, the `ZStream#catchAll` takes another stream, so when the failure occurs it will switch over to the provided stream:
+If we have a stream that may fail, we might need to recover from the failure and run another stream, the `ZStream#orElse` takes another stream, so when the failure occurs it will switch over to the provided stream:
 
 ```scala mdoc:silent:nest
 val s1 = ZStream(1, 2, 3) ++ ZStream.fail("Oh! Error!") ++ ZStream(4, 5)
 val s2 = ZStream(7, 8, 9)
 
-val stream = s1.catchAll(_ => s2)
+val stream = s1.orElse(s2)
 // Output: 1, 2, 3, 7, 8, 9
+```
+
+ZIO stream has `ZStream#catchAll` which is powerful version of `ZStream#orElse`. By using `catchAll` we can decide what to do based on the type and value of the failure:
+
+```scala mdoc:silent:nest
+val first =
+  ZStream(1, 2, 3) ++
+    ZStream.fail("Uh Oh!") ++
+    ZStream(4, 5) ++
+    ZStream.fail("Ouch")
+
+val second = ZStream(6, 7, 8)
+val third = ZStream(9, 10, 11)
+
+val stream = first.catchAll {
+  case "Uh Oh!" => second
+  case "Ouch"   => third
+}
+// Output: 1, 2, 3, 6, 7, 8
 ```
 
 ### Recovering from Defects
