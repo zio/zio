@@ -492,13 +492,20 @@ trait ZStreamPlatformSpecificConstructors {
     /**
      * The remote address, i.e. the connected client
      */
-    def remoteAddress: SocketAddress = socket.getRemoteAddress
+    def remoteAddress: IO[IOException, Option[SocketAddress]] = IO
+      .effect(
+        Option(socket.getRemoteAddress)
+      )
+      .refineToOrDie[IOException]
 
     /**
      * The local address, i.e. our server
-     *
      */
-    def localAddress: SocketAddress = socket.getLocalAddress
+    def localAddress: IO[IOException, Option[SocketAddress]] = IO
+      .effect(
+        Option(socket.getLocalAddress)
+      )
+      .refineToOrDie[IOException]
 
     /**
      * Read the entire `AsynchronousSocketChannel` by emitting a `Chunk[Byte]`
