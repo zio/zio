@@ -20,6 +20,8 @@ import java.nio.file.Path._
 import zio.console.Console
 import java.net.URL
 import zio.Cause.Die
+import java.lang.IllegalArgumentException
+import scala.concurrent.TimeoutException
 ```
 
 ```scala mdoc:silent:nest
@@ -1497,8 +1499,23 @@ We can keep one or some errors and terminate the fiber with the rest by using `Z
 
 ```scala mdoc:silent:nest
 val stream: ZStream[Any, Throwable, Int] =
-  ZStream.fromEffect(???)
+  ZStream.fail(new Throwable)
 
 val res: ZStream[Any, IllegalArgumentException, Int] =
   stream.refineOrDie { case e: IllegalArgumentException => e }
+```
+
+### Timing Out
+
+We can timeout a stream if it does not produce a value after some duration using `ZStream#timeout`, `ZStream#timeoutError` and `timeoutErrorCause` operators:
+
+```scala mdoc:silent:nest
+stream.timeoutError(new TimeoutException)(10.seconds)
+```
+
+Or we can switch to another stream if the first stream does not produce a value after some duration:
+
+```scala mdoc:silent:nest
+val alternative = ZStream.fromEffect(ZIO.effect(???))
+stream.timeoutTo(10.seconds)(alternative)
 ```
