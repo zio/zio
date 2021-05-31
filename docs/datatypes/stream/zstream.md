@@ -585,7 +585,9 @@ Most of the constructors of `ZStream` have a special variant to lift a Managed r
 
 ZIO Stream also has `bracket` and `finalizer` constructors which are similar to `ZManaged`. They allow us to clean up or finalizing before the stream ends:
 
-**ZStream.bracket** — We can provide `acquire` and `release` actions to `ZStream.bracket` to create a resourceful stream:
+#### Bracket
+
+We can provide `acquire` and `release` actions to `ZStream.bracket` to create a resourceful stream:
 
 ```scala
 object ZStream {
@@ -610,7 +612,9 @@ val lines: ZStream[Console, Throwable, String] =
     }
 ```
 
-**ZStream.finalizer** — We can also create a stream that never fails and define a finalizer for it, so that finalizer will be executed before that stream ends. 
+#### Finalization
+
+We can also create a stream that never fails and define a finalizer for it, so that finalizer will be executed before that stream ends. 
 
 ```scala
 object ZStream {
@@ -632,6 +636,26 @@ val myApp: ZStream[Console, IOException, Any] =
     (deleteDir(Paths.get("tmp")) *>
       putStrLn("Temporary directory was deleted.")).orDie
   )
+```
+
+#### Ensuring
+
+We might want to run some code before or after the execution of the stream's finalization. To do so, we can use `ZStream#ensuringFirst` and `ZStream#ensuring` operators:
+
+```scala mdoc:silent:nest
+ZStream
+  .finalizer(zio.console.putStrLn("Finalizing the stream").orDie)
+  .ensuringFirst(
+    putStrLn("Doing some works before stream's finalization").orDie
+  )
+  .ensuring(
+    putStrLn("Doing some other works after stream's finalization").orDie
+  )
+  
+// Output:
+// Doing some works before stream's finalization
+// Finalizing the stream
+// Doing some other works after stream's finalization
 ```
 
 
