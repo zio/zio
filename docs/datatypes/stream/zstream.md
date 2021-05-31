@@ -1445,3 +1445,27 @@ val numbers = ZStream(1, 2, 3) ++
     )
     .retry(Schedule.exponential(1.second))
 ```
+
+### From/To Either
+
+Sometimes, we might be working with legacy API which does error handling with the `Either` data type. We can _absolve_ their error types into the ZStream effect using `ZStream.absolve`:
+
+```scala mdoc:silent:nest
+def legacyFetchUrlAPI(url: URL): Either[Throwable, String] = ???
+
+def fetchUrl(
+    url: URL
+): ZStream[Blocking, Throwable, String] = 
+  ZStream.fromEffect(
+    zio.blocking.effectBlocking(legacyFetchUrlAPI(url))
+  ).absolve
+```
+
+The type of this stream before absolving is `ZStream[Blocking, Throwable, Either[Throwable, String]]`, this operation let us submerge the error case of an `Either` into the `ZStream` error type.
+
+We can do the opposite by exposing an error of type `ZStream[R, E, A]` as a part of the `Either` by using `ZStream#either`:
+
+```scala mdoc:silent:nest
+val inputs: ZStream[Console, Nothing, Either[IOException, String]] = 
+  ZStream.fromEffect(zio.console.getStrLn).either
+```
