@@ -1422,8 +1422,26 @@ val stream = s1.catchSomeCause { case Die(value) => s2 }
 If our stream encounters an error, we can provide some cleanup task as ZIO effect to our stream by using the `ZStream#onError` method:
 
 ```scala mdoc:silent:nest
-
 val stream = 
   (ZStream(1, 2, 3) ++ ZStream.dieMessage("Oh! Boom!") ++ ZStream(4, 5))
     .onError(_ => putStrLn("Stream application closed! We are doing some cleanup jobs.").orDie)
+```
+
+### Retry a Failing Stream
+
+When a stream fails, it can be retried according to the given schedule to the `ZStream#retry` operator:
+
+```scala mdoc:silent:nest
+val numbers = ZStream(1, 2, 3) ++ 
+  ZStream
+    .fromEffect(
+      zio.console.putStr("Enter a number: ") *> zio.console.getStrLn
+        .flatMap(x =>
+          x.toIntOption match {
+            case Some(value) => ZIO.succeed(value)
+            case None        => ZIO.fail("NaN")
+          }
+        )
+    )
+    .retry(Schedule.exponential(1.second))
 ```
