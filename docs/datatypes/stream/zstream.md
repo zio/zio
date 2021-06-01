@@ -1402,7 +1402,8 @@ val resultFromSink: UIO[Int] = Stream(1,2,3).run(Sink.foldLeft(0)(streamReduce))
 The `ZStream#fold` method executes the fold operation over the stream of values and returns a `ZIO` effect containing the result:
 
 ```scala mdoc:silent:nest
-val stream: ZIO[Any, Nothing, Int] = ZStream(1, 2, 3, 4, 5).fold(0)(_ + _)
+val s1: ZIO[Any, Nothing, Int] = ZStream(1, 2, 3, 4, 5).fold(0)(_ + _)
+val s2: ZIO[Any, Nothing, Int] = ZStream.iterate(1)(_ + 1).foldWhile(0)(_ <= 5)(_ + _)
 ```
 
 ## Compressed streams
