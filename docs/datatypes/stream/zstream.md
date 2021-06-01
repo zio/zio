@@ -776,7 +776,7 @@ val unitStream: ZStream[Any, Nothing, Unit] =
 
 ### Draining
 
-Assume we have an effectful stream, which contains a sequence of effects; sometimes we might want to execute its effect without emitting any element, in these situations we can `drain` the stream to remove all output values from the stream:
+Assume we have an effectful stream, which contains a sequence of effects; sometimes we might want to execute its effect without emitting any element, in these situations to discard the results we should use the `ZStream#drain` method. It removes all output values from the stream:
 
 ```scala mdoc:silent:nest
 val s1: ZStream[Any, Nothing, Nothing] = ZStream(1, 2, 3, 4, 5).drain
