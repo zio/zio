@@ -5,15 +5,13 @@ sealed trait AssertionResult { self =>
 
   def genFailureDetails: Option[GenFailureDetails]
 
-  def label(label: String): AssertionResult = {
-    println(s"label ${label}")
+  def label(label: String): AssertionResult =
     self match {
       case result: FailureDetailsResult =>
         result.copy(failureDetails = result.failureDetails.label(label))
       case result: AssertionResult.TraceResult =>
         result
     }
-  }
 
   def setGenFailureDetails(details: GenFailureDetails): AssertionResult =
     self match {
