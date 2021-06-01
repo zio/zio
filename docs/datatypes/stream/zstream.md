@@ -1406,6 +1406,14 @@ val s1: ZIO[Any, Nothing, Int] = ZStream(1, 2, 3, 4, 5).fold(0)(_ + _)
 val s2: ZIO[Any, Nothing, Int] = ZStream.iterate(1)(_ + 1).foldWhile(0)(_ <= 5)(_ + _)
 ```
 
+### Using foreach
+
+Using `ZStream#foreach` is another way of consuming elements of a stream. It takes a callback of type `O => ZIO[R1, E1, Any]` which passes each element of a stream to this callback:
+
+```scala mdoc:silent:nest
+ZStream(1, 2, 3).foreach(x => putStrLn(x.toString))
+```
+
 ## Compressed streams
 
 ### Decompression
