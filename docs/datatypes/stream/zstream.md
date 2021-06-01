@@ -1397,6 +1397,14 @@ def streamReduce(total: Int, element: Int): Int = total + element
 val resultFromSink: UIO[Int] = Stream(1,2,3).run(Sink.foldLeft(0)(streamReduce))
 ```
 
+### Using fold
+
+The `ZStream#fold` method executes the fold operation over the stream of values and returns a `ZIO` effect containing the result:
+
+```scala mdoc:silent:nest
+val stream: ZIO[Any, Nothing, Int] = ZStream(1, 2, 3, 4, 5).fold(0)(_ + _)
+```
+
 ## Compressed streams
 
 ### Decompression
