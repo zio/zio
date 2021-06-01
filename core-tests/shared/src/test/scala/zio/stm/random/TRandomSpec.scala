@@ -2,7 +2,7 @@ package zio.stm.random
 
 import zio.ZIOBaseSpec
 import zio.random.Random
-import zio.test.Assertion.isTrue
+import zio.test.Assertion._
 import zio.test._
 
 object TRandomSpec extends ZIOBaseSpec {
@@ -18,28 +18,32 @@ object TRandomSpec extends ZIOBaseSpec {
       checkM(genDoubles) { case (min, max) =>
         for {
           n <- nextDoubleBetween(min, max).commit
-        } yield assert(n >= min && n < max)(isTrue)
+        } yield assert(n)(isGreaterThanEqualTo(min)) &&
+          assert(n)(isLessThan(max))
       }
     },
     testM("nextFloatBetween generates floats in specified range") {
       checkM(genFloats) { case (min, max) =>
         for {
           n <- nextFloatBetween(min, max).commit
-        } yield assert(n >= min && n < max)(isTrue)
+        } yield assert(n)(isGreaterThanEqualTo(min)) &&
+          assert(n)(isLessThan(max))
       }
     },
     testM("nextIntBetween generates integers in specified range") {
       checkM(genInts) { case (min, max) =>
         for {
           n <- nextIntBetween(min, max).commit
-        } yield assert(n >= min && n < max)(isTrue)
+        } yield assert(n)(isGreaterThanEqualTo(min)) &&
+          assert(n)(isLessThan(max))
       }
     },
     testM("nextLongBetween generates longs in specified range") {
       checkM(genLongs) { case (min, max) =>
         for {
           n <- nextLongBetween(min, max).commit
-        } yield assert(n >= min && n < max)(isTrue)
+        } yield assert(n)(isGreaterThanEqualTo(min)) &&
+          assert(n)(isLessThan(max))
       }
     }
   ).provideCustomLayer(TRandom.live)

@@ -18,7 +18,7 @@ object FiberSpec extends ZIOBaseSpec {
           _     <- fiber.toManaged.use(_ => IO.unit)
           _     <- fiber.await
           value <- ref.get
-        } yield assertTrue(value)
+        } yield assert(value)(isTrue)
       }),
       suite("`inheritLocals` works for Fiber created using:")(
         testM("`map`") {

@@ -3,7 +3,7 @@ package zio.internal
 import zio.ZIOBaseSpec
 import zio.random.Random
 import zio.test.Assertion.equalTo
-import zio.test._
+import zio.test.{Gen, ZSpec, assert, checkAll}
 
 import scala.util.Random.nextInt
 
@@ -22,8 +22,8 @@ object StackBoolSpec extends ZIOBaseSpec {
 
         list.foreach(stack.push)
 
-        list.reverse.foldLeft(assertTrue(true)) { case (result, flag) =>
-          result && assertTrue(stack.popOrElse(!flag) == flag)
+        list.reverse.foldLeft(assert(true)(equalTo(true))) { case (result, flag) =>
+          result && assert(stack.popOrElse(!flag))(equalTo(flag))
         }
       }
     },
@@ -33,18 +33,18 @@ object StackBoolSpec extends ZIOBaseSpec {
 
         list.foreach(stack.push)
 
-        list.reverse.foldLeft(assertTrue(true)) { case (result, flag) =>
+        list.reverse.foldLeft(assert(true)(equalTo(true))) { case (result, flag) =>
           val peeked = stack.peekOrElse(!flag)
           val popped = stack.popOrElse(!flag)
 
-          result && assertTrue(peeked == popped)
+          result && assert(peeked)(equalTo(popped))
         }
       }
     },
     test("GetOrElse index out of bounds") {
       val stack  = StackBool()
       val result = stack.getOrElse(100, true)
-      assertTrue(result)
+      assert(result)(equalTo(true))
     }
   )
 

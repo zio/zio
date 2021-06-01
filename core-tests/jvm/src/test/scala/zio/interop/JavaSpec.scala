@@ -135,7 +135,7 @@ object JavaSpec extends ZIOBaseSpec {
         var evaluated                  = false
         def ftr: CompletionStage[Unit] = CompletableFuture.supplyAsync(() => evaluated = true)
         Fiber.fromCompletionStage(ftr)
-        assertTrue(!evaluated)
+        assert(evaluated)(isFalse)
       },
       testM("catch exceptions thrown by lazy block") {
         val ex                              = new Exception("no future for you!")
@@ -162,7 +162,7 @@ object JavaSpec extends ZIOBaseSpec {
         var evaluated         = false
         def ftr: Future[Unit] = CompletableFuture.supplyAsync(() => evaluated = true)
         Fiber.fromFutureJava(ftr)
-        assertTrue(!evaluated)
+        assert(evaluated)(isFalse)
       },
       testM("catch exceptions thrown by lazy block") {
         val ex                     = new Exception("no future for you!")

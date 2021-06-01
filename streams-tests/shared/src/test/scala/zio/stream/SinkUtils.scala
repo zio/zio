@@ -1,7 +1,7 @@
 package zio.stream
 
 import zio.test.Assertion.equalTo
-import zio.test._
+import zio.test.{Assertion, TestResult, assert}
 import zio.{IO, UIO}
 
 object SinkUtils {

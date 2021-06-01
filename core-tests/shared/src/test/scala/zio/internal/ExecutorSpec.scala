@@ -48,7 +48,7 @@ object ExecutorSpec extends ZIOBaseSpec {
       test("When converted to an EC, it reports Throwables to stdout") {
         val t = new CheckPrintThrowable
         TestExecutor.failing.asEC.reportFailure(t)
-        assertTrue(t.printed)
+        assert(t.printed)(isTrue)
       }
     ),
     suite("Create an executor that cannot have tasks submitted to and check that:")(

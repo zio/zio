@@ -15,7 +15,7 @@ object CauseSpec extends ZIOBaseSpec {
         check(causes)(c => assert(c.keepDefects)(if (c.died) isSome(anything) else isNone))
       },
       testM("`Cause.equals` is symmetric") {
-        check(causes, causes)((a, b) => assertTrue((a == b) == (b == a)))
+        check(causes, causes)((a, b) => assert(a == b)(equalTo(b == a)))
       },
       testM("`Cause.equals` and `Cause.hashCode` satisfy the contract") {
         check(equalCauses) { case (a, b) =>
@@ -107,7 +107,7 @@ object CauseSpec extends ZIOBaseSpec {
             case Cause.Fail(e2) => e1 == e2
             case _              => false
           }
-          assertTrue(result)
+          assert(result)(isTrue)
         }
       },
       testM("Die") {
@@ -116,7 +116,7 @@ object CauseSpec extends ZIOBaseSpec {
             case Cause.Die(t2) => t1 == t2
             case _             => false
           }
-          assertTrue(result)
+          assert(result)(isTrue)
         }
       },
       testM("Interrupt") {
@@ -125,7 +125,7 @@ object CauseSpec extends ZIOBaseSpec {
             case Cause.Interrupt(fiberId2) => fiberId1 == fiberId2
             case _                         => false
           }
-          assertTrue(result)
+          assert(result)(isTrue)
         }
       } @@ zioTag(interruption),
       testM("Traced") {
@@ -135,7 +135,7 @@ object CauseSpec extends ZIOBaseSpec {
             case Cause.Traced(cause2, trace2) => cause1 == cause2 && trace1 == trace2
             case _                            => false
           }
-          assertTrue(result)
+          assert(result)(isTrue)
         }
       },
       testM("Meta") {
@@ -150,7 +150,7 @@ object CauseSpec extends ZIOBaseSpec {
             case (Cause.Both(left1, right1), Cause.Both(left2, right2))       => left1 == left2 && right1 == right2
             case _                                                            => false
           }
-          assertTrue(result)
+          assert(result)(isTrue)
         }
       },
       testM("Then") {
@@ -163,7 +163,7 @@ object CauseSpec extends ZIOBaseSpec {
               println("WARNING!!!")
               false
           }
-          assertTrue(result)
+          assert(result)(isTrue)
         }
       },
       testM("Both") {
@@ -172,7 +172,7 @@ object CauseSpec extends ZIOBaseSpec {
             case Cause.Both(left2, right2) => left1 == left2 && right1 == right2
             case _                         => false
           }
-          assertTrue(result)
+          assert(result)(isTrue)
         }
       }
     ),

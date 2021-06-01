@@ -34,12 +34,12 @@ object MutableConcurrentQueueSpec extends ZIOBaseSpec {
       test("`offer` of 2 items succeeds, further offers fail") {
         val q = MutableConcurrentQueue.bounded[Int](2)
 
-        (assertTrue(q.offer(1))
+        (assert(q.offer(1))(isTrue)
         && assert(q.size())(equalTo(1))
-        && assertTrue(q.offer(2))
+        && assert(q.offer(2))(isTrue)
         && assert(q.size())(equalTo(2))
-        && assertTrue(!q.offer(3))
-        && assertTrue(q.isFull()))
+        && assert(q.offer(3))(isFalse)
+        && assert(q.isFull())(isTrue))
       },
       test(
         "`poll` of 2 items from full queue succeeds, further `poll`s return default value"
@@ -51,7 +51,7 @@ object MutableConcurrentQueueSpec extends ZIOBaseSpec {
         (assert(q.poll(-1))(equalTo(1))
         && assert(q.poll(-1))(equalTo(2))
         && assert(q.poll(-1))(equalTo(-1))
-        && assertTrue(q.isEmpty()))
+        && assert(q.isEmpty())(isTrue))
       }
     )
   )

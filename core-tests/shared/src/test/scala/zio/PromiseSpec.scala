@@ -72,7 +72,7 @@ object PromiseSpec extends ZIOBaseSpec {
         _ <- p.succeed(1)
         s <- p.complete(IO.succeed(9))
         v <- p.await
-      } yield assertTrue(!s) && assertTrue(v == 1)
+      } yield assert(s)(isFalse) && assert(v)(equalTo(1))
     },
     testM("interrupt a promise") {
       for {
@@ -112,14 +112,14 @@ object PromiseSpec extends ZIOBaseSpec {
         p <- Promise.make[String, Int]
         _ <- p.succeed(0)
         d <- p.isDone
-      } yield assertTrue(d)
+      } yield assert(d)(isTrue)
     },
     testM("isDone when a promise is failed") {
       for {
         p <- Promise.make[String, Int]
         _ <- p.fail("failure")
         d <- p.isDone
-      } yield assertTrue(d)
+      } yield assert(d)(isTrue)
     } @@ zioTag(errors)
   )
 }

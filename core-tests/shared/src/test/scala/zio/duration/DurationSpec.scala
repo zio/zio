@@ -13,9 +13,7 @@ object DurationSpec extends ZIOBaseSpec {
   def spec: ZSpec[Environment, Failure] = suite("DurationSpec")(
     suite("Make a Duration from positive nanos and check that: ")(
       test("The Duration is Finite") {
-        // TODO: Work out the macro issue when inlined
-        val duration = Duration.fromNanos(1)
-        assertTrue(duration != Duration.Infinity)
+        assert(Duration.fromNanos(1) == Duration.Infinity)(equalTo(false))
       },
       test("Multiplying with a negative factor returns Zero") {
         assert(Duration.fromNanos(1) * -1.0)(equalTo(Duration.Zero: Duration))
@@ -24,9 +22,7 @@ object DurationSpec extends ZIOBaseSpec {
         assert(Duration.fromNanos(2345L).asJava)(equalTo(JavaDuration.ofNanos(2345L)))
       },
       test("It identifies as 'zero'") {
-        // TODO: Work out the macro issue when inlined
-        val duration = Duration.fromNanos(0L)
-        assertTrue(duration.isZero)
+        assert(Duration.fromNanos(0L).isZero)(equalTo(true))
       },
       test("Creating it with a j.u.c.TimeUnit is identical") {
         assert(Duration(12L, TimeUnit.NANOSECONDS))(equalTo(Duration.fromNanos(12L)))
@@ -86,10 +82,9 @@ object DurationSpec extends ZIOBaseSpec {
         assert(Duration.fromNanos(Long.MaxValue) * 1)(equalTo(Duration.fromNanos(Long.MaxValue)))
       },
       test("* results in Finite Duration if the multiplication result is close to max FiniteDuration value") {
-        val factor   = 1.5
-        val nanos    = (Long.MaxValue / 1.9).round
-        val duration = Duration.fromNanos(nanos) * factor
-        assertTrue(duration != Duration.Infinity)
+        val factor = 1.5
+        val nanos  = (Long.MaxValue / 1.9).round
+        assert(Duration.fromNanos(nanos) * factor != Duration.Infinity)(equalTo(true))
       },
       test("Folding picks up the correct value") {
         assert(Duration.fromNanos(Long.MaxValue).fold("Infinity", _ => "Finite"))(equalTo("Infinity"))
@@ -130,8 +125,7 @@ object DurationSpec extends ZIOBaseSpec {
         assert(Duration.Infinity compare Duration.fromNanos(1L))(equalTo(1))
       },
       test("Infinity is not zero") {
-        val duration = Duration.Infinity.isZero
-        assertTrue(!duration)
+        assert(Duration.Infinity.isZero)(equalTo(false))
       },
       test("It converts into the infinite s.c.d.Duration") {
         assert(Duration.Infinity.asScala)(equalTo(ScalaDuration.Inf: ScalaDuration))

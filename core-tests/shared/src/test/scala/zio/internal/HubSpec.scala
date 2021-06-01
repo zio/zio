@@ -6,8 +6,6 @@ import zio.test._
 import zio.test.environment._
 import zio.{Hub => _, _}
 
-import scala.annotation.tailrec
-
 object HubSpec extends ZIOBaseSpec {
 
   def spec: ZSpec[Environment, Failure] =
@@ -110,7 +108,7 @@ object HubSpec extends ZIOBaseSpec {
       else {
         val as        = subscription.pollUpTo(chunkSize)
         val remaining = n - as.length
-        if (remaining <= 0) ZIO.succeedNow((as.reverse.toList ::: acc).reverse)
+        if (remaining <= 0) ZIO.succeedNow(((as.reverse.toList) ::: acc).reverse)
         else ZIO.yieldNow *> takeNChunks[A](subscription, remaining, chunkSize, as.reverse.toList ::: acc)
       }
     }
@@ -170,7 +168,6 @@ object HubSpec extends ZIOBaseSpec {
     Hub.bounded(1)
   }
 
-  @tailrec
   def arbHub(n: Int): Hub[Int] =
     if (n == 1 || nextPow2(n) == n) arbHub(n + 1) else Hub.bounded(n)
 
@@ -269,10 +266,10 @@ object HubSpec extends ZIOBaseSpec {
           _          <- publisher.join
           values     <- subscriber.join
         } yield assert(values)(equalTo(as)) &&
-          assertTrue(hub.isEmpty()) &&
-          assertTrue(hub.size() == 0) &&
-          assertTrue(subscription.isEmpty()) &&
-          assertTrue(subscription.size() == 0)
+          assert(hub.isEmpty())(isTrue) &&
+          assert(hub.size())(equalTo(0)) &&
+          assert(subscription.isEmpty())(isTrue) &&
+          assert(subscription.size())(equalTo(0))
       }
     }
 
@@ -291,13 +288,13 @@ object HubSpec extends ZIOBaseSpec {
           values1     <- subscriber1.join
           values2     <- subscriber2.join
         } yield assert(values1)(equalTo(as)) &&
-          assertTrue(values2 == as) &&
-          assertTrue(hub.isEmpty()) &&
-          assertTrue(hub.size() == 0) &&
-          assertTrue(subscription1.isEmpty()) &&
-          assertTrue(subscription1.size() == 0) &&
-          assertTrue(subscription2.isEmpty()) &&
-          assertTrue(subscription2.size() == 0)
+          assert(values2)(equalTo(as)) &&
+          assert(hub.isEmpty())(isTrue) &&
+          assert(hub.size())(equalTo(0)) &&
+          assert(subscription1.isEmpty())(isTrue) &&
+          assert(subscription1.size())(equalTo(0)) &&
+          assert(subscription2.isEmpty())(isTrue) &&
+          assert(subscription2.size())(equalTo(0))
       }
     }
 
@@ -321,11 +318,11 @@ object HubSpec extends ZIOBaseSpec {
           assert(values1.filter(_ < 0))(equalTo(as.map(-_))) &&
           assert(values2.filter(_ > 0))(equalTo(as)) &&
           assert(values2.filter(_ < 0))(equalTo(as.map(-_))) &&
-          assertTrue(hub.isEmpty()) &&
+          assert(hub.isEmpty())(isTrue) &&
           assert(hub.size())(equalTo(0)) &&
-          assertTrue(subscription1.isEmpty()) &&
+          assert(subscription1.isEmpty())(isTrue) &&
           assert(subscription1.size())(equalTo(0)) &&
-          assertTrue(subscription2.isEmpty()) &&
+          assert(subscription2.isEmpty())(isTrue) &&
           assert(subscription2.size())(equalTo(0))
       }
     }
@@ -353,7 +350,7 @@ object HubSpec extends ZIOBaseSpec {
           _       <- subscriber2.join
           values1 <- fiber1.join
           values2 <- fiber2.join
-        } yield assertTrue(values1) && assertTrue(values2)
+        } yield assert(values1)(isTrue) && assert(values2)(isTrue)
       }
     }
 
@@ -377,7 +374,7 @@ object HubSpec extends ZIOBaseSpec {
           _      <- subscriber1.join
           _      <- subscriber2.join
           values <- fiber.join
-        } yield assertTrue(values)
+        } yield assert(values)(isTrue)
       }
     }
 
@@ -593,8 +590,8 @@ object HubSpec extends ZIOBaseSpec {
         subscription <- ZIO.effectTotal(hub.subscribe())
         _            <- offerAll(hub, List(2, 3, 4, 5, 6)).fork
         values       <- takeN(subscription, 5)
-      } yield assertTrue(empty) &&
-        assertTrue(!full) &&
+      } yield assert(empty)(isTrue) &&
+        assert(full)(isFalse) &&
         assert(size)(equalTo(0)) &&
         assert(values)(equalTo(List(2, 3, 4, 5, 6)))
     }
@@ -615,8 +612,8 @@ object HubSpec extends ZIOBaseSpec {
         subscription <- ZIO.effectTotal(hub.subscribe())
         _            <- offerAll(hub, List(2, 3, 4, 5, 6)).fork
         values       <- takeN(subscription, 5)
-      } yield assertTrue(empty) &&
-        assertTrue(!full) &&
+      } yield assert(empty)(isTrue) &&
+        assert(full)(isFalse) &&
         assert(size)(equalTo(0)) &&
         assert(values)(equalTo(List(2, 3, 4, 5, 6)))
     }
@@ -637,8 +634,8 @@ object HubSpec extends ZIOBaseSpec {
         hub.publish(1)
         hub.publish(2)
         val after = hub.isFull()
-        assertTrue(!before) &&
-        assertTrue(after)
+        assert(before)(isFalse) &&
+        assert(after)(isTrue)
       },
       test("publishing an item to a hub that is full returns false") {
         val hub          = Hub.bounded[Int](2)
@@ -649,9 +646,9 @@ object HubSpec extends ZIOBaseSpec {
         val value        = subscription.poll(-1)
         val value2       = subscription.poll(-2)
         val value3       = subscription.poll(-3)
-        assertTrue(first) &&
-        assertTrue(second) &&
-        assertTrue(!third) &&
+        assert(first)(isTrue) &&
+        assert(second)(isTrue) &&
+        assert(third)(isFalse) &&
         assert(value)(equalTo(1)) &&
         assert(value2)(equalTo(2)) &&
         assert(value3)(equalTo(-3))
@@ -695,7 +692,8 @@ object HubSpec extends ZIOBaseSpec {
         hub.publish(1)
         hub.publish(2)
         val after = hub.isFull()
-        assertTrue(!before) && assertTrue(!after)
+        assert(before)(isFalse) &&
+        assert(after)(isFalse)
       },
       test("subscribers can progress independently") {
         val hub           = Hub.unbounded[Int]
@@ -711,8 +709,8 @@ object HubSpec extends ZIOBaseSpec {
         val size4         = hub.size()
         val value3        = subscription2.poll(-3)
         val size5         = hub.size()
-        assertTrue(first) &&
-        assertTrue(second) &&
+        assert(first)(isTrue) &&
+        assert(second)(isTrue) &&
         assert(value)(equalTo(1)) &&
         assert(value2)(equalTo(2)) &&
         assert(value3)(equalTo(2)) &&
@@ -733,7 +731,7 @@ object HubSpec extends ZIOBaseSpec {
         subscription1.poll(-2)
         subscription1.poll(-3)
         subscription2.unsubscribe()
-        assertTrue(hub.isEmpty()) &&
+        assert(hub.isEmpty())(isTrue) &&
         assert(hub.size())(equalTo(0))
       },
       test("size interacts correctly with subscribe and unsubscribe") {
@@ -744,7 +742,8 @@ object HubSpec extends ZIOBaseSpec {
         hub.publish(2)
         hub.publish(3)
         subscription1.unsubscribe()
-        assertTrue(!hub.isEmpty() && hub.size() == 2)
+        assert(hub.isEmpty())(isFalse) &&
+        assert(hub.size())(equalTo(2))
       },
       test("publish and poll a chunk of values") {
         val hub          = Hub.unbounded[Int]
@@ -792,8 +791,8 @@ object HubSpec extends ZIOBaseSpec {
         hub.subscribe()
         hub.publish(1)
         val after = hub.isFull()
-        assertTrue(!before) &&
-        assertTrue(after)
+        assert(before)(isFalse) &&
+        assert(after)(isTrue)
       },
       test("publishing an item to a hub that is full returns false") {
         val hub          = Hub.bounded[Int](1)
@@ -802,8 +801,8 @@ object HubSpec extends ZIOBaseSpec {
         val second       = hub.publish(2)
         val value        = subscription.poll(-1)
         val value2       = subscription.poll(-2)
-        assertTrue(first) &&
-        assertTrue(!second) &&
+        assert(first)(isTrue) &&
+        assert(second)(isFalse) &&
         assert(value)(equalTo(1)) &&
         assert(value2)(equalTo(-2))
       }
