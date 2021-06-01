@@ -555,7 +555,7 @@ object ZTRef {
             }
           }.absolve
         case zTRefM: ZTRefM[E, E, A, A] =>
-          self.get.flatMap(a => f(a) match { case (b, a) => self.set(a).as(b) })
+          zTRefM.get.flatMap(a => f(a) match { case (b, a) => zTRefM.set(a).as(b) })
       }
 
     def modifySome[B](default: B)(pf: PartialFunction[A, (B, A)]): STM[E, B] =
