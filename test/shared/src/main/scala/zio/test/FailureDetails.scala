@@ -19,13 +19,12 @@ package zio.test
 /**
  * `FailureDetails` keeps track of details relevant to failures.
  */
-final case class FailureDetails(assertion: ::[AssertionValue], gen: Option[GenFailureDetails] = None) {
+final case class FailureDetails(assertion: ::[AssertionValue]) {
 
   def label(string: String): FailureDetails =
     FailureDetails(
       assertion match {
         case h :: t => ::(h.label(string), t)
-      },
-      gen
+      }
     )
 }

@@ -14,6 +14,6 @@
  * limitations under the License.
  */
 
- package zio
+package zio
 
- private[zio] trait IntersectionTypeCompat
+private[zio] trait IntersectionTypeCompat
