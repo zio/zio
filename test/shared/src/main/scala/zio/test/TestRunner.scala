@@ -16,18 +16,19 @@
 
 package zio.test
 
+import zio._
 import zio.internal.Platform
-import zio.{Clock, Console, _}
+import zio.test.render.TestRenderer
 
 /**
  * A `TestRunner[R, E]` encapsulates all the logic necessary to run specs that
  * require an environment `R` and may fail with an error `E`. Test runners
  * require a test executor, a platform, and a reporter.
  */
-final case class TestRunner[R <: Has[_], E](
+final case class TestRunner[R, E](
   executor: TestExecutor[R, E],
   platform: Platform = Platform.makeDefault().withReportFailure(_ => ()),
-  reporter: TestReporter[E] = DefaultTestReporter(TestAnnotationRenderer.default),
+  reporter: TestReporter[E] = DefaultTestReporter(TestRenderer.default, TestAnnotationRenderer.default),
   bootstrap: Layer[Nothing, Has[TestLogger] with Has[Clock]] = ((Console.live >>> TestLogger.fromConsole) ++ Clock.live)
 ) { self =>
 

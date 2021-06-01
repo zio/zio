@@ -19,6 +19,7 @@ package zio.test.environment
 import zio.test.{Annotations, TestAnnotation}
 import zio.{Clock, Console, PlatformSpecific => _, _}
 
+import java.io.IOException
 import java.time.{Instant, LocalDateTime, OffsetDateTime, ZoneId}
 import java.util.concurrent.TimeUnit
 import scala.collection.immutable.SortedSet
@@ -437,9 +438,9 @@ object TestClock extends Serializable {
 
   object WarningData {
 
-    case object Start                                     extends WarningData
-    final case class Pending(fiber: Fiber[Nothing, Unit]) extends WarningData
-    case object Done                                      extends WarningData
+    case object Start                                         extends WarningData
+    final case class Pending(fiber: Fiber[IOException, Unit]) extends WarningData
+    case object Done                                          extends WarningData
 
     /**
      * State indicating that a test has not used time.
@@ -451,7 +452,7 @@ object TestClock extends Serializable {
      * `TestClock` with a reference to the fiber that will display the
      * warning message.
      */
-    def pending(fiber: Fiber[Nothing, Unit]): WarningData = Pending(fiber)
+    def pending(fiber: Fiber[IOException, Unit]): WarningData = Pending(fiber)
 
     /**
      * State indicating that a test has used time or the warning message has

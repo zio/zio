@@ -17,7 +17,7 @@
 package zio.stream
 
 import zio._
-import zio.internal.UniqueKey
+import zio.internal.{Executor, UniqueKey}
 import zio.stm.TQueue
 import zio.stream.internal.Utils.zipChunks
 import zio.stream.internal.{ZInputStream, ZReader}
@@ -70,7 +70,8 @@ import scala.reflect.ClassTag
  * Instead, recursive operators must be defined explicitly. See the definition of
  * [[ZStream#forever]] for an example. This limitation will be lifted in the future.
  */
-abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Option[E], Chunk[O]]]) { self =>
+abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Option[E], Chunk[O]]])
+    extends ZStreamVersionSpecific[R, E, O] { self =>
 
   import ZStream.{BufferedPull, Pull, TerminationStrategy}
 
@@ -235,15 +236,15 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   ): ZStream[R1 with Has[Clock], E1, Either[Q, P]] =
     ZStream {
       for {
-        pull         <- self.process
-        push         <- transducer.push
-        handoff      <- ZStream.Handoff.make[Take[E1, O]].toManaged_
-        raceNextTime <- ZRef.makeManaged(false)
-        waitingFiber <- ZRef
-                          .makeManaged[Option[Fiber[Nothing, Take[E1, O]]]](None)
-        sdriver   <- schedule.driver.toManaged_
-        lastChunk <- ZRef.makeManaged[Chunk[P]](Chunk.empty)
-        producer   = Take.fromPull(pull).repeatWhileM(take => handoff.offer(take).as(take.isSuccess))
+        pull          <- self.process
+        push          <- transducer.push
+        handoff       <- ZStream.Handoff.make[Take[E1, O]].toManaged_
+        raceNextTime  <- ZRef.makeManaged(false)
+        waitingFiber  <- ZRef.makeManaged[Option[Fiber[Nothing, Take[E1, O]]]](None)
+        scheduleFiber <- ZRef.makeManaged[Option[Fiber[Nothing, Option[Q]]]](None)
+        sdriver       <- schedule.driver.toManaged_
+        lastChunk     <- ZRef.makeManaged[Chunk[P]](Chunk.empty)
+        producer       = Take.fromPull(pull).repeatWhileM(take => handoff.offer(take).as(take.isSuccess))
         consumer = {
           // Advances the state of the schedule, which may or may not terminate
           val updateSchedule: URIO[R1 with Has[Clock], Option[Q]] =
@@ -256,25 +257,52 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
               case Some(fib) => fib.join
             }
 
-          def updateLastChunk(take: Take[_, P]): UIO[Unit] = take.tap(lastChunk.set(_))
+          // Waiting for the scheduler
+          val waitForSchedule: URIO[R1 with Has[Clock], Option[Q]] =
+            scheduleFiber.getAndSet(None).flatMap {
+              case None      => updateSchedule
+              case Some(fib) => fib.join
+            }
 
-          def handleTake(take: Take[E1, O]): Pull[R1, E1, Take[E1, Either[Nothing, P]]] =
+          def updateLastChunk(take: Take[_, P]): UIO[Unit] =
+            take.tap(lastChunk.set(_))
+
+          def setScheduleOnEmptyChunk(
+            take: Take[E1, P],
+            optFiber: Option[Fiber[Nothing, Option[Q]]]
+          ): UIO[Unit] =
+            optFiber.fold(ZIO.unit) { scheduleWaiting =>
+              if (take.exit.fold(_ => true, _.nonEmpty))
+                scheduleWaiting.interrupt.unit
+              else
+                scheduleFiber.set(Some(scheduleWaiting))
+            }
+
+          def handleTake(
+            take: Take[E1, O],
+            scheduleWaiting: Option[Fiber[Nothing, Option[Q]]]
+          ): Pull[R1, E1, Take[E1, Either[Nothing, P]]] =
             take
               .foldM(
-                push(None).map(ps => Chunk(Take.chunk(ps.map(Right(_))), Take.end)),
+                scheduleWaiting.fold(ZIO.unit)(_.interrupt.unit) *> push(None).map(ps =>
+                  Chunk(Take.chunk(ps.map(Right(_))), Take.end)
+                ),
                 cause => ZIO.halt(cause),
                 os =>
                   Take
                     .fromPull(push(Some(os)).asSomeError)
-                    .flatMap(take => updateLastChunk(take).as(Chunk.single(take.map(Right(_)))))
+                    .flatMap { take =>
+                      setScheduleOnEmptyChunk(take, scheduleWaiting) *>
+                        updateLastChunk(take).as(Chunk.single(take.map(Right(_))))
+                    }
               )
               .mapError(Some(_))
 
           def go(race: Boolean): ZIO[R1 with Has[Clock], Option[E1], Chunk[Take[E1, Either[Q, P]]]] =
             if (!race)
-              waitForProducer.flatMap(handleTake) <* raceNextTime.set(true)
+              waitForProducer.flatMap(handleTake(_, None)) <* raceNextTime.set(true)
             else
-              updateSchedule
+              waitForSchedule
                 .raceWith[R1 with Has[Clock], Nothing, Option[E1], Take[E1, O], Chunk[Take[E1, Either[Q, P]]]](
                   waitForProducer
                 )(
@@ -296,15 +324,19 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                           _  <- waitingFiber.set(Some(producerWaiting))
                         } yield Chunk.single(ps.map(Right(_)))
                     },
-                  (producerDone, scheduleWaiting) =>
-                    scheduleWaiting.interrupt *> handleTake(Take(producerDone.flatMap(_.exit))),
+                  (
+                    producerDone,
+                    scheduleWaiting
+                  ) => handleTake(Take(producerDone.flatMap(_.exit)), Some(scheduleWaiting)),
                   Some(ZScope.global)
                 )
 
           raceNextTime.get
             .flatMap(go)
-            .onInterrupt(waitingFiber.get.flatMap(_.map(_.interrupt).getOrElse(ZIO.unit)))
-
+            .onInterrupt {
+              waitingFiber.get.flatMap(_.map(_.interrupt).getOrElse(ZIO.unit)) *>
+                scheduleFiber.get.flatMap(_.map(_.interrupt).getOrElse(ZIO.unit))
+            }
         }
 
         _ <- producer.forkManaged
@@ -1890,6 +1922,17 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     } yield ()
 
   /**
+   * Locks the execution of this stream to the specified executor. Any streams
+   * that are composed after this one will automatically be shifted back to the
+   * previous executor.
+   */
+  def lock(executor: Executor): ZStream[R, E, O] =
+    ZStream.fromEffect(ZIO.descriptor).flatMap { descriptor =>
+      ZStream.managed(ZManaged.lock(executor)) *>
+        self <* ZStream.fromEffect(ZIO.shift(descriptor.executor))
+    }
+
+  /**
    * Transforms the elements of this stream using the supplied function.
    */
   def map[O2](f: O => O2): ZStream[R, E, O2] =
@@ -2255,20 +2298,18 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * val stream2 = stream.provideCustomLayer(loggingLayer)
    * }}}
    */
-  def provideCustomLayer[E1 >: E, R1 <: Has[_]](
+  def provideCustomLayer[E1 >: E, R1](
     layer: ZLayer[ZEnv, E1, R1]
-  )(implicit ev: ZEnv with R1 <:< R, tagged: Tag[R1]): ZStream[ZEnv, E1, O] =
+  )(implicit ev1: ZEnv with R1 <:< R, ev2: Has.Union[ZEnv, R1], tagged: Tag[R1]): ZStream[ZEnv, E1, O] =
     provideSomeLayer[ZEnv](layer)
 
   /**
    * Provides a layer to the stream, which translates it to another level.
    */
-  final def provideLayer[E1 >: E, R0, R1](
-    layer: ZLayer[R0, E1, R1]
-  )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R]): ZStream[R0, E1, O] =
+  final def provideLayer[E1 >: E, R0, R1](layer: ZLayer[R0, E1, R1])(implicit ev: R1 <:< R): ZStream[R0, E1, O] =
     ZStream.managed {
       for {
-        r  <- layer.build.map(ev1)
+        r  <- layer.build.map(ev)
         as <- self.process.provide(r)
       } yield as.provide(r)
     }.flatMap(ZStream.repeatEffectChunkOption)
@@ -2297,7 +2338,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * val stream2 = stream.provideSomeLayer[Has[Random]](clockLayer)
    * }}}
    */
-  final def provideSomeLayer[R0 <: Has[_]]: ZStream.ProvideSomeLayer[R0, R, E, O] =
+  final def provideSomeLayer[R0]: ZStream.ProvideSomeLayer[R0, R, E, O] =
     new ZStream.ProvideSomeLayer[R0, R, E, O](self)
 
   /**
@@ -2525,8 +2566,8 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     foreach(_ => ZIO.unit)
 
   /**
-   * Runs the stream to completion and yields the first value emitted by it,
-   * discarding the rest of the elements.
+   * Runs the stream to collect the first value emitted by it without running
+   * the rest of the stream.
    */
   def runHead: ZIO[R, E, Option[O]] =
     run(ZSink.head)
@@ -3412,6 +3453,14 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   def apply[A](as: A*): ZStream[Any, Nothing, A] = fromIterable(as)
 
   /**
+   * Locks the execution of the specified stream to the blocking executor. Any
+   * streams that are composed after this one will automatically be shifted
+   * back to the previous executor.
+   */
+  def blocking[R, E, A](stream: ZStream[R, E, A]): ZStream[R, E, A] =
+    ZStream.fromEffect(ZIO.blockingExecutor).flatMap(stream.lock)
+
+  /**
    * Creates a stream from a single value that will get cleaned up after the
    * stream is consumed
    */
@@ -4189,10 +4238,10 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       }
   }
 
-  final class ProvideSomeLayer[R0 <: Has[_], -R, +E, +A](private val self: ZStream[R, E, A]) extends AnyVal {
-    def apply[E1 >: E, R1 <: Has[_]](
+  final class ProvideSomeLayer[R0, -R, +E, +A](private val self: ZStream[R, E, A]) extends AnyVal {
+    def apply[E1 >: E, R1](
       layer: ZLayer[R0, E1, R1]
-    )(implicit ev1: R0 with R1 <:< R, ev2: NeedsEnv[R], tagged: Tag[R1]): ZStream[R0, E1, A] =
+    )(implicit ev1: R0 with R1 <:< R, ev2: Has.Union[R0, R1], tagged: Tag[R1]): ZStream[R0, E1, A] =
       self.provideLayer[E1, R0, R0 with R1](ZLayer.identity[R0] ++ layer)
   }
 

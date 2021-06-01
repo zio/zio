@@ -72,7 +72,7 @@ val readLine: ZIO[Has[Console], IOException, String] =
 - [Timeout](#timeout)
 - [Resource Management](#resource-management)
   * [Finalizing](#finalizing)
-    + [Asynchronous Try / Finally](#asynchronous-try---finally)
+    + [Asynchronous Try / Finally](#asynchronous-try--finally)
     + [Unstoppable Finalizers](#unstoppable-finalizers)
   * [Brackets](#brackets)
 - [Unswallowed Exceptions](#unswallowed-exceptions)
@@ -333,7 +333,7 @@ If this is too broad, the `refineOrDie` method of `ZIO` may be used to retain on
 ```scala mdoc:silent
 import java.io.IOException
 
-val getStrLn2: IO[IOException, String] =
+val printLine2: IO[IOException, String] =
   ZIO.effect(StdIn.readLine()).refineToOrDie[IOException]
 ```
 
@@ -354,10 +354,9 @@ ZIO provides the `zio.blocking` package, which can be used to safely convert suc
 A blocking side-effect can be converted directly into a ZIO effect blocking with the `effectBlocking` method:
 
 ```scala mdoc:silent
-import zio.Blocking._
 
 val sleeping =
-  effectBlocking(Thread.sleep(Long.MaxValue))
+  ZIO.effectBlocking(Thread.sleep(Long.MaxValue))
 ```
 
 The resulting effect will be executed on a separate thread pool designed specifically for blocking effects.
@@ -371,7 +370,7 @@ import java.net.ServerSocket
 import zio.UIO
 
 def accept(l: ServerSocket) =
-  effectBlockingCancelable(l.accept())(UIO.effectTotal(l.close()))
+  ZIO.effectBlockingCancelable(l.accept())(UIO.effectTotal(l.close()))
 ```
 
 If a side-effect has already been converted into a ZIO effect, then instead of `effectBlocking`, the `blocking` method can be used to ensure the effect will be executed on the blocking thread pool:
@@ -385,7 +384,7 @@ def download(url: String) =
   }
 
 def safeDownload(url: String) =
-  blocking(download(url))
+  ZIO.blocking(download(url))
 ```
 
 #### Asynchronous
@@ -436,7 +435,7 @@ Asynchronous ZIO effects are much easier to use than callback-based APIs, and th
 A `RIO[R, A]` effect can be suspended using `effectSuspend` function:
 
 ```scala mdoc:silent
-val suspendedEffect: RIO[Any, URIO[Has[Console], Unit]] =
+val suspendedEffect: RIO[Any, ZIO[Has[Console], IOException, Unit]] =
   ZIO.effectSuspend(ZIO.effect(Console.printLine("Suspended Hello World!")))
 ```
 

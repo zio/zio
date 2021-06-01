@@ -228,7 +228,7 @@ object TestAspect extends TimeoutVariants {
             )
           }
         def dump[E, A](label: String): URIO[Has[Live] with Has[Annotations], Unit] =
-          Annotations.supervisedFibers.flatMap(fibers => Live.live(Fiber.putDumpStr(label, fibers.toSeq: _*)))
+          Annotations.supervisedFibers.flatMap(fibers => Live.live(Fiber.putDumpStr(label, fibers.toSeq: _*).orDie))
         spec.transform[R, TestFailure[E], TestSuccess] {
           case c @ Spec.SuiteCase(_, _, _) => c
           case Spec.TestCase(label, test, annotations) =>
@@ -856,7 +856,7 @@ object TestAspect extends TimeoutVariants {
         test: ZIO[R, TestFailure[E], TestSuccess]
       ): ZIO[R, TestFailure[E], TestSuccess] =
         Live.withLive(test)(_.either.timed).flatMap { case (duration, result) =>
-          ZIO.fromEither(result) <* Annotations.annotate(TestAnnotation.timing, duration)
+          ZIO.fromEither(result).ensuring(Annotations.annotate(TestAnnotation.timing, duration))
         }
     }
 

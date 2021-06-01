@@ -180,8 +180,8 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    * Translates effect failure into death of the fiber, making all failures
    * unchecked and not a part of the type of the layer.
    */
-  final def orDie(implicit ev1: E <:< Throwable, ev2: CanFail[E]): ZLayer[RIn, Nothing, ROut] =
-    catchAll(ZLayer.second >>> ZLayer.fromFunctionManyM(ZIO.die(_)))
+  final def orDie(implicit ev1: E IsSubtypeOfError Throwable, ev2: CanFail[E]): ZLayer[RIn, Nothing, ROut] =
+    catchAll(ZLayer.second >>> ZLayer.fromFunctionManyM(e => ZIO.die(ev1(e))))
 
   /**
    * Executes this layer and returns its output, if it succeeds, but otherwise
@@ -301,7 +301,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
     }
 }
 
-object ZLayer {
+object ZLayer extends ZLayerCompanionVersionSpecific {
 
   private final case class Fold[RIn, E, E1, ROut, ROut1](
     self: ZLayer[RIn, E, ROut],

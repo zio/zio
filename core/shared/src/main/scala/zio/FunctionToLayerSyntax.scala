@@ -29,7 +29,7 @@ trait FunctionToLayerOps {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer: URLayer[Any, Has[A]] =
+    def toLayer[A1 >: A: Tag]: URLayer[Any, Has[A1]] =
       UIO(self()).toLayer
   }
 
@@ -45,7 +45,7 @@ trait FunctionToLayerOps {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer: URLayer[Has[A], Has[B]] =
+    def toLayer[B1 >: B: Tag]: URLayer[Has[A], Has[B1]] =
       ZIO.service[A].map(self).toLayer
   }
 
@@ -61,7 +61,7 @@ trait FunctionToLayerOps {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer: URLayer[Has[A] with Has[B], Has[C]] = {
+    def toLayer[C1 >: C: Tag]: URLayer[Has[A] with Has[B], Has[C1]] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]

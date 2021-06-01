@@ -264,24 +264,22 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
    * Returns a new channel, which is the same as this one, except that all the outputs are
    * collected and bundled into a tuple together with the terminal value of this channel.
    *
-   * As the channel returned from this channel collect's all of this channel's output into an in-
+   * As the channel returned from this channel collects all of this channel's output into an in-
    * memory chunk, it is not safe to call this method on channels that output a large or unbounded
    * number of values.
    */
   def doneCollect: ZChannel[Env, InErr, InElem, InDone, OutErr, Nothing, (Chunk[OutElem], OutDone)] =
-    ZChannel.unwrap {
-      UIO {
-        val builder = ChunkBuilder.make[OutElem]()
+    ZChannel.effectSuspendTotal {
+      val builder = ChunkBuilder.make[OutElem]()
 
-        lazy val reader: ZChannel[Env, OutErr, OutElem, OutDone, OutErr, Nothing, OutDone] =
-          ZChannel.readWith(
-            (out: OutElem) => ZChannel.fromEffect(UIO(builder += out)) *> reader,
-            (e: OutErr) => ZChannel.fail(e),
-            (z: OutDone) => ZChannel.end(z)
-          )
+      lazy val reader: ZChannel[Env, OutErr, OutElem, OutDone, OutErr, Nothing, OutDone] =
+        ZChannel.readWith(
+          (out: OutElem) => ZChannel.effectTotal(builder += out) *> reader,
+          (e: OutErr) => ZChannel.fail(e),
+          (z: OutDone) => ZChannel.end(z)
+        )
 
-        (self pipeTo reader).mapM(z => UIO((builder.result(), z)))
-      }
+      (self pipeTo reader).flatMap(z => ZChannel.effectTotal((builder.result(), z)))
     }
 
   /**
@@ -867,6 +865,11 @@ object ZChannel {
   private[zio] final case class Effect[Env, OutErr, OutDone](zio: ZIO[Env, OutErr, OutDone])
       extends ZChannel[Env, Any, Any, Any, OutErr, Nothing, OutDone]
   private[zio] final case class Emit[OutElem](out: OutElem) extends ZChannel[Any, Any, Any, Any, Nothing, OutElem, Unit]
+  private[zio] final case class EffectTotal[OutDone](effect: () => OutDone)
+      extends ZChannel[Any, Any, Any, Any, Nothing, Nothing, OutDone]
+  private[zio] final case class EffectSuspendTotal[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
+    effect: () => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]
+  ) extends ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]
   private[zio] final case class Ensuring[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
     channel: ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone],
     finalizer: Exit[OutErr, OutDone] => ZIO[Env, Nothing, Any]
@@ -1031,6 +1034,14 @@ object ZChannel {
   ): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone3] =
     ConcatAll(f, g, channels, (channel: ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]) => channel)
 
+  private[zio] def effectTotal[OutDone](effect: => OutDone): ZChannel[Any, Any, Any, Any, Nothing, Nothing, OutDone] =
+    EffectTotal(() => effect)
+
+  private[zio] def effectSuspendTotal[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
+    effect: => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]
+  ): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
+    EffectSuspendTotal(() => effect)
+
   def end[Z](result: => Z): ZChannel[Any, Any, Any, Any, Nothing, Nothing, Z] =
     Done(result)
 
@@ -1041,9 +1052,15 @@ object ZChannel {
     Emit(out)
 
   def writeAll[Out](outs: Out*): ZChannel[Any, Any, Any, Any, Nothing, Out, Unit] =
-    outs.foldRight(ZChannel.end(()): ZChannel[Any, Any, Any, Any, Nothing, Out, Unit])((out, conduit) =>
-      write(out) *> conduit
-    )
+    writeChunk(Chunk.fromIterable(outs))
+
+  def writeChunk[Out](outs: Chunk[Out]): ZChannel[Any, Any, Any, Any, Nothing, Out, Unit] = {
+    def writer(idx: Int, len: Int): ZChannel[Any, Any, Any, Any, Nothing, Out, Unit] =
+      if (idx == len) ZChannel.unit
+      else ZChannel.write(outs(idx)) *> writer(idx + 1, len)
+
+    writer(0, outs.size)
+  }
 
   def fail[E](e: => E): ZChannel[Any, Any, Any, Any, E, Nothing, Nothing] =
     halt(Cause.fail(e))

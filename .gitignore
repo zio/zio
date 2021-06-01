@@ -4,11 +4,12 @@ project/secrets.tar.xz
 target
 test-output/
 .sbtopts
+.bsp
 project/.sbt
 test-output/
 .bloop
 .metals
-project/metals.sbt
+metals.sbt
 .idea
 coursier
 .DS_Store

@@ -4,7 +4,7 @@ pull_request_rules:
       - author=scala-steward
     actions:
       assign:
-        users: [adamgfraser]
+        users: ["@zio/core"]
       label:
         add: ["type: dependencies"]
   - name: label scala-steward's breaking PRs

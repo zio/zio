@@ -29,7 +29,7 @@ object TestLogger {
       .service[Console]
       .map { console =>
         new TestLogger {
-          def logLine(line: String): UIO[Unit] = console.printLine(line)
+          def logLine(line: String): UIO[Unit] = console.printLine(line).orDie
         }
       }
       .toLayer

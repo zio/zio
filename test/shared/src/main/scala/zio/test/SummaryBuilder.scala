@@ -16,6 +16,8 @@
 
 package zio.test
 
+import zio.test.render.ConsoleRenderer
+
 object SummaryBuilder {
   def buildSummary[E](executedSpec: ExecutedSpec[E]): Summary = {
     val success = countTestResults(executedSpec) {
@@ -29,8 +31,8 @@ object SummaryBuilder {
     }
     val failures = extractFailures(executedSpec)
     val rendered = failures
-      .flatMap(DefaultTestReporter.render(_, TestAnnotationRenderer.silent, false))
-      .flatMap(_.rendered)
+      .flatMap(DefaultTestReporter.render(_, false))
+      .map(result => ConsoleRenderer.render(result, TestAnnotationRenderer.silent))
       .mkString("\n")
     Summary(success, fail, ignore, rendered)
   }

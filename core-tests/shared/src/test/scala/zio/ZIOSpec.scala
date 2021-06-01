@@ -128,6 +128,22 @@ object ZIOSpec extends ZIOBaseSpec {
           cause <- exit.foldM(cause => ZIO.succeed(cause), _ => ZIO.fail("effect should have failed"))
         } yield assert(cause.failures)(equalTo(List("use failed"))) &&
           assert(cause.defects)(equalTo(List(releaseDied)))
+      } @@ zioTag(errors),
+      testM("bracketExit beast mode error handling") {
+        val releaseDied: Throwable = new RuntimeException("release died")
+        for {
+          released <- ZRef.make(false)
+          exit <- ZIO
+                    .bracketExit[Any, String, Int, Int](
+                      ZIO.succeed(42),
+                      (_, _) => released.set(true),
+                      _ => throw releaseDied
+                    )
+                    .disconnect
+                    .run
+          cause      <- exit.foldM(cause => ZIO.succeed(cause), _ => ZIO.fail("effect should have failed"))
+          isReleased <- released.get
+        } yield assert(cause.defects)(equalTo(List(releaseDied))) && assert(isReleased)(isTrue)
       } @@ zioTag(errors)
     ),
     suite("cached")(
@@ -3069,7 +3085,7 @@ object ZIOSpec extends ZIOBaseSpec {
     suite("serviceWith")(
       testM("effectfully accesses a service in the environment") {
         val zio = ZIO.serviceWith[Int](int => UIO(int + 3))
-        assertM(zio.provideLayer(ZLayer.succeed(0)))(equalTo(3))
+        assertM(zio.inject(ZLayer.succeed(0)))(equalTo(3))
       }
     ),
     suite("schedule")(
@@ -3146,6 +3162,30 @@ object ZIOSpec extends ZIOBaseSpec {
           effect <- ref.get
         } yield assert(result)(equalTo(42)) &&
           assert(effect)(equalTo(42))
+      }
+    ),
+    suite("tapEither")(
+      testM("effectually peeks at the failure of this effect") {
+        for {
+          ref <- Ref.make(0)
+          _ <- IO.fail(42)
+                 .tapEither {
+                   case Left(value) => ref.set(value)
+                   case Right(_)    => ref.set(-1)
+                 }
+                 .run
+          effect <- ref.get
+        } yield assert(effect)(equalTo(42))
+      },
+      testM("effectually peeks at the success of this effect") {
+        for {
+          ref <- Ref.make(0)
+          _ <- Task(42).tapEither {
+                 case Left(_)      => ref.set(-1)
+                 case Right(value) => ref.set(value)
+               }.run
+          effect <- ref.get
+        } yield assert(effect)(equalTo(42))
       }
     ),
     suite("tapCause")(
@@ -3341,6 +3381,14 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(res)(equalTo(in))
       }
     ),
+    suite("validate_")(
+      testM("returns all errors if never valid") {
+        val in                            = List.fill(10)(0)
+        def fail[A](a: A): IO[A, Nothing] = IO.fail(a)
+        val res                           = IO.validate(in)(fail).flip
+        assertM(res)(equalTo(in))
+      } @@ zioTag(errors)
+    ),
     suite("validatePar")(
       testM("returns all errors if never valid") {
         val in                      = List.fill(1000)(0)
@@ -3361,6 +3409,12 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(res)(equalTo(in))
       }
     ),
+    suite("validatePar_")(testM("returns all errors if never valid") {
+      val in                            = List.fill(10)(0)
+      def fail[A](a: A): IO[A, Nothing] = IO.fail(a)
+      val res                           = IO.validatePar_(in)(fail).flip
+      assertM(res)(equalTo(in))
+    } @@ zioTag(errors)),
     suite("validateFirst")(
       testM("returns all errors if never valid") {
         val in  = List.fill(10)(0)

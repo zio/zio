@@ -1,6 +1,7 @@
 package zio.stream
 
 import zio._
+import zio.internal.Executor
 import zio.stm.TQueue
 import zio.stream.ZSink.Push
 import zio.stream.ZStreamGen._
@@ -1638,6 +1639,55 @@ object ZStreamSpec extends ZIOBaseSpec {
               } yield result)(equalTo(Chunk(Chunk(1, 2), Chunk(3, 4), Chunk(5))))
             }
           } @@ timeout(10.seconds) @@ flaky,
+          testM("group based on time passed (#5013)") {
+            val chunkResult = Chunk(
+              Chunk(1, 2, 3),
+              Chunk(4, 5, 6),
+              Chunk(7, 8, 9),
+              Chunk(10, 11, 12, 13, 14, 15, 16, 17, 18, 19),
+              Chunk(20, 21, 22, 23, 24, 25, 26, 27, 28, 29)
+            )
+
+            assertWithChunkCoordination((1 to 29).map(Chunk.single).toList) { c =>
+              for {
+                latch <- ZStream.Handoff.make[Unit]
+                ref   <- Ref.make(0)
+                fiber <- ZStream
+                           .fromQueue(c.queue)
+                           .collectWhileSuccess
+                           .flattenChunks
+                           .tap(_ => c.proceed)
+                           .groupedWithin(10, 3.seconds)
+                           .tap(chunk => ref.update(_ + chunk.size) *> latch.offer(()))
+                           .run(ZSink.take(5))
+                           .fork
+                _       <- c.offer *> TestClock.adjust(1.second) *> c.awaitNext
+                _       <- c.offer *> TestClock.adjust(1.second) *> c.awaitNext
+                _       <- c.offer *> TestClock.adjust(1.second) *> c.awaitNext
+                result0 <- latch.take *> ref.get
+                _       <- c.offer *> TestClock.adjust(1.second) *> c.awaitNext
+                _       <- c.offer *> TestClock.adjust(1.second) *> c.awaitNext
+                _       <- c.offer *> TestClock.adjust(1.second) *> c.awaitNext
+                result1 <- latch.take *> ref.get
+                _       <- c.offer *> TestClock.adjust(1.second) *> c.awaitNext
+                _       <- c.offer *> TestClock.adjust(1.second) *> c.awaitNext
+                _       <- c.offer *> TestClock.adjust(1.second) *> c.awaitNext
+                result2 <- latch.take *> ref.get
+                // This part is to make sure schedule clock is being restarted
+                // when the specified amount of elements has been reached
+                _       <- TestClock.adjust(2.second) *> (c.offer *> c.awaitNext).repeatN(9)
+                result3 <- latch.take *> ref.get
+                _       <- c.offer *> c.awaitNext *> TestClock.adjust(2.second) *> (c.offer *> c.awaitNext).repeatN(8)
+                result4 <- latch.take *> ref.get
+                result  <- fiber.join
+              } yield assert(result)(equalTo(chunkResult)) &&
+                assert(result0)(equalTo(3)) &&
+                assert(result1)(equalTo(6)) &&
+                assert(result2)(equalTo(9)) &&
+                assert(result3)(equalTo(19)) &&
+                assert(result4)(equalTo(29))
+            }
+          },
           testM("group immediately when chunk size is reached") {
             assertM(ZStream(1, 2, 3, 4).groupedWithin(2, 10.seconds).runCollect)(
               equalTo(Chunk(Chunk(1, 2), Chunk(3, 4)))
@@ -1855,6 +1905,20 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assert(result)(isEmpty)
           } @@ timeout(10.seconds) @@ flaky
         ) @@ zioTag(interruption),
+        testM("lock") {
+          val global = Executor.fromExecutionContext(100)(ExecutionContext.global)
+          for {
+            default   <- ZIO.executor
+            ref1      <- Ref.make[Executor](default)
+            ref2      <- Ref.make[Executor](default)
+            stream1    = ZStream.fromEffect(ZIO.executor.flatMap(ref1.set)).lock(global)
+            stream2    = ZStream.fromEffect(ZIO.executor.flatMap(ref2.set))
+            _         <- (stream1 *> stream2).runDrain
+            executor1 <- ref1.get
+            executor2 <- ref2.get
+          } yield assert(executor1)(equalTo(global)) &&
+            assert(executor2)(equalTo(default))
+        },
         suite("managed")(
           testM("preserves interruptibility of effect") {
             for {
@@ -2035,7 +2099,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 .run
                 .map(_.interrupted)
             )(equalTo(false))
-          } @@ nonFlaky(10) @@ TestAspect.jvmOnly,
+          } @@ TestAspect.jvmOnly,
           testM("interrupts pending tasks when one of the tasks fails") {
             for {
               interrupted <- Ref.make(0)
@@ -3264,9 +3328,9 @@ object ZStreamSpec extends ZIOBaseSpec {
               _      <- ZStream.fromChunkQueue(left).zipWithLatest(ZStream.fromChunkQueue(right))((_, _)).into(out).fork
               _      <- left.offer(Chunk(0))
               _      <- right.offerAll(List(Chunk(0), Chunk(1)))
-              chunk1 <- ZIO.collectAll(ZIO.replicate(2)(out.take.flatMap(_.done))).map(_.flatten)
+              chunk1 <- ZIO.replicateM(2)(out.take.flatMap(_.done)).map(_.flatten)
               _      <- left.offerAll(List(Chunk(1), Chunk(2)))
-              chunk2 <- ZIO.collectAll(ZIO.replicate(2)(out.take.flatMap(_.done))).map(_.flatten)
+              chunk2 <- ZIO.replicateM(2)(out.take.flatMap(_.done)).map(_.flatten)
             } yield assert(chunk1)(equalTo(List((0, 0), (0, 1)))) && assert(chunk2)(equalTo(List((1, 1), (2, 1))))
           },
           testM("handle empty pulls properly") {

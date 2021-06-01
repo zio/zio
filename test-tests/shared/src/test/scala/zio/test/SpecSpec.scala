@@ -29,7 +29,6 @@ object SpecSpec extends ZIOBaseSpec {
     ),
     suite("provideLayerShared")(
       testM("gracefully handles fiber death") {
-        implicit val needsEnv = NeedsEnv
         val spec = suite("suite")(
           test("test") {
             assert(true)(isTrue)

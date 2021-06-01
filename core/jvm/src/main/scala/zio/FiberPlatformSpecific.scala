@@ -40,7 +40,7 @@ private[zio] trait FiberPlatformSpecific {
           }
         }
 
-      final def getRef[A](ref: FiberRef[A]): UIO[A] = UIO(ref.initial)
+      final def getRef[A](ref: FiberRef.Runtime[A]): UIO[A] = UIO(ref.initial)
 
       final def interruptAs(id: Fiber.Id): UIO[Exit[Throwable, A]] = join.fold(Exit.fail, Exit.succeed)
 
@@ -54,7 +54,7 @@ private[zio] trait FiberPlatformSpecific {
 
     new Fiber.Synthetic.Internal[Throwable, A] {
       def await: UIO[Exit[Throwable, A]] =
-        Blocking.live.build.use(ZIO.fromFutureJava(ftr).provide(_).run)
+        ZIO.fromFutureJava(ftr).run
 
       def poll: UIO[Option[Exit[Throwable, A]]] =
         UIO.effectSuspendTotal {
@@ -68,7 +68,7 @@ private[zio] trait FiberPlatformSpecific {
           }
         }
 
-      def getRef[A](ref: FiberRef[A]): UIO[A] = UIO(ref.initial)
+      def getRef[A](ref: FiberRef.Runtime[A]): UIO[A] = UIO(ref.initial)
 
       def interruptAs(id: Fiber.Id): UIO[Exit[Throwable, A]] = join.fold(Exit.fail, Exit.succeed)
 

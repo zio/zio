@@ -72,6 +72,8 @@ private[internal] trait PlatformSpecific {
    */
   final def fromExecutor(executor0: Executor): Platform =
     new Platform {
+      val blockingExecutor = executor0
+
       val executor = executor0
 
       def fatal(t: Throwable): Boolean = false

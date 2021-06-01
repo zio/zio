@@ -195,7 +195,7 @@ object ZRef extends Serializable {
   def make[A](a: A): UIO[Ref[A]] =
     UIO.effectTotal(unsafeMake(a))
 
-  private[zio] def unsafeMake[A](a: A): Ref[A] =
+  private[zio] def unsafeMake[A](a: A): Ref.Atomic[A] =
     Atomic(new AtomicReference(a))
 
   /**
@@ -771,7 +771,7 @@ object ZRef extends Serializable {
     }
   }
 
-  private final case class Atomic[A](value: AtomicReference[A]) extends Ref[A] { self =>
+  private[zio] final case class Atomic[A](value: AtomicReference[A]) extends Ref[A] { self =>
 
     def fold[EC, ED, C, D](
       ea: Nothing => EC,

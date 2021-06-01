@@ -6,6 +6,7 @@ import zio.test.mock.Expectation._
 import zio.test.mock.internal.InvalidCall._
 import zio.test.mock.internal.MockException._
 import zio.test.mock.module.PureModuleMock
+import zio.test.render.TestRenderer
 import zio.{Cause, Clock, Has, Layer, ZIO}
 
 import java.util.regex.Pattern
@@ -22,7 +23,7 @@ object ReportingTestUtils {
     red("- " + label) + "\n"
 
   def expectedIgnored(label: String): String =
-    yellow("- ") + yellow(label) + " - " + TestAnnotation.ignored.identifier + " suite" + "\n"
+    yellow("- " + label) + " - " + TestAnnotation.ignored.identifier + " suite" + "\n"
 
   def withOffset(n: Int)(s: String): String =
     " " * n + s
@@ -72,7 +73,7 @@ object ReportingTestUtils {
   private[this] def TestTestRunner(testEnvironment: Layer[Nothing, TestEnvironment]) =
     TestRunner[TestEnvironment, String](
       executor = TestExecutor.default[TestEnvironment, String](testEnvironment),
-      reporter = DefaultTestReporter(TestAnnotationRenderer.default)
+      reporter = DefaultTestReporter(TestRenderer.default, TestAnnotationRenderer.default)
     )
 
   val test1: ZSpec[Any, Nothing] = test("Addition works fine")(assert(1 + 1)(equalTo(2)))

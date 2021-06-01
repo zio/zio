@@ -1,5 +1,5 @@
 ---
-id: usecases_queuing
+id: usecases_queueing
 title:  "Queueing"
 ---
 

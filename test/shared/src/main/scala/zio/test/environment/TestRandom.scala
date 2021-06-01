@@ -43,7 +43,7 @@ import scala.math.{log, sqrt}
  * sequence of "random" inputs.
  *
  * {{{
- * import zio.Random._
+ * import zio.Random
  * import zio.test.environment.TestRandom
  *
  * for {

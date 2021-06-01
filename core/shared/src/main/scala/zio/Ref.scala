@@ -17,6 +17,7 @@
 package zio
 
 object Ref extends Serializable {
+  private[zio] type Atomic[A] = ZRef.Atomic[A]
 
   /**
    * @see [[zio.ZRef.make]]
@@ -29,4 +30,10 @@ object Ref extends Serializable {
    */
   def makeManaged[A](a: A): UManaged[Ref[A]] =
     ZRef.makeManaged(a)
+
+  /**
+   * @see [[zio.ZRef.unsafeMake]]
+   */
+  private[zio] def unsafeMake[A](a: A): Ref.Atomic[A] =
+    ZRef.unsafeMake(a)
 }

@@ -21,27 +21,27 @@ import scala.io.StdIn
 import scala.{Console => SConsole}
 
 trait Console extends Serializable {
-  def print(line: String): UIO[Unit]
+  def print(line: String): IO[IOException, Unit]
 
-  def printError(line: String): UIO[Unit]
+  def printError(line: String): IO[IOException, Unit]
 
-  def printLine(line: String): UIO[Unit]
+  def printLine(line: String): IO[IOException, Unit]
 
-  def printLineError(line: String): UIO[Unit]
+  def printLineError(line: String): IO[IOException, Unit]
 
   def readLine: IO[IOException, String]
 
   @deprecated("use `print`", "2.0.0")
-  def putStr(line: String): UIO[Unit] = print(line)
+  def putStr(line: String): IO[IOException, Unit] = print(line)
 
   @deprecated("use `printError`", "2.0.0")
-  def putStrErr(line: String): UIO[Unit] = printError(line)
+  def putStrErr(line: String): IO[IOException, Unit] = printError(line)
 
   @deprecated("use `printLine`", "2.0.0")
-  def putStrLn(line: String): UIO[Unit] = printLine(line)
+  def putStrLn(line: String): IO[IOException, Unit] = printLine(line)
 
   @deprecated("use `printLineError`", "2.0.0")
-  def putStrLnErr(line: String): UIO[Unit] = printLineError(line)
+  def putStrLnErr(line: String): IO[IOException, Unit] = printLineError(line)
 
   @deprecated("use `readLine`", "2.0.0")
   def getStrLn: IO[IOException, String] = readLine
@@ -59,13 +59,13 @@ object Console extends Serializable {
 
   object ConsoleLive extends Console {
 
-    def print(line: String): UIO[Unit] = print(SConsole.out)(line)
+    def print(line: String): IO[IOException, Unit] = print(SConsole.out)(line)
 
-    def printError(line: String): UIO[Unit] = print(SConsole.err)(line)
+    def printError(line: String): IO[IOException, Unit] = print(SConsole.err)(line)
 
-    def printLine(line: String): UIO[Unit] = printLine(SConsole.out)(line)
+    def printLine(line: String): IO[IOException, Unit] = printLine(SConsole.out)(line)
 
-    def printLineError(line: String): UIO[Unit] = printLine(SConsole.err)(line)
+    def printLineError(line: String): IO[IOException, Unit] = printLine(SConsole.err)(line)
 
     def readLine: IO[IOException, String] =
       IO.effect {
@@ -75,11 +75,11 @@ object Console extends Serializable {
         else throw new EOFException("There is no more input left to read")
       }.refineToOrDie[IOException]
 
-    private def print(stream: PrintStream)(line: String): UIO[Unit] =
-      IO.effectTotal(SConsole.withOut(stream)(SConsole.print(line)))
+    private def print(stream: PrintStream)(line: String): IO[IOException, Unit] =
+      IO.effect(SConsole.withOut(stream)(SConsole.print(line))).refineToOrDie[IOException]
 
-    private def printLine(stream: PrintStream)(line: String): UIO[Unit] =
-      IO.effectTotal(SConsole.withOut(stream)(SConsole.println(line)))
+    private def printLine(stream: PrintStream)(line: String): IO[IOException, Unit] =
+      IO.effect(SConsole.withOut(stream)(SConsole.println(line))).refineToOrDie[IOException]
   }
 
   // Accessor Methods
@@ -87,25 +87,25 @@ object Console extends Serializable {
   /**
    * Prints text to the console.
    */
-  def print(line: => String): URIO[Has[Console], Unit] =
+  def print(line: => String): ZIO[Has[Console], IOException, Unit] =
     ZIO.serviceWith(_.print(line))
 
   /**
    * Prints text to the standard error console.
    */
-  def printError(line: => String): URIO[Has[Console], Unit] =
+  def printError(line: => String): ZIO[Has[Console], IOException, Unit] =
     ZIO.serviceWith(_.printError(line))
 
   /**
    * Prints a line of text to the console, including a newline character.
    */
-  def printLine(line: => String): URIO[Has[Console], Unit] =
+  def printLine(line: => String): ZIO[Has[Console], IOException, Unit] =
     ZIO.serviceWith(_.printLine(line))
 
   /**
    * Prints a line of text to the standard error console, including a newline character.
    */
-  def printLineError(line: => String): URIO[Has[Console], Unit] =
+  def printLineError(line: => String): ZIO[Has[Console], IOException, Unit] =
     ZIO.serviceWith(_.printLineError(line))
 
   /**
@@ -120,28 +120,28 @@ object Console extends Serializable {
    * Prints text to the console.
    */
   @deprecated("use `print`", "2.0.0")
-  def putStr(line: => String): URIO[Has[Console], Unit] =
+  def putStr(line: => String): ZIO[Has[Console], IOException, Unit] =
     print(line)
 
   /**
    * Prints text to the standard error console.
    */
   @deprecated("use `printError`", "2.0.0")
-  def putStrErr(line: => String): URIO[Has[Console], Unit] =
+  def putStrErr(line: => String): ZIO[Has[Console], IOException, Unit] =
     printError(line)
 
   /**
    * Prints a line of text to the console, including a newline character.
    */
   @deprecated("use `printLine`", "2.0.0")
-  def putStrLn(line: => String): URIO[Has[Console], Unit] =
+  def putStrLn(line: => String): ZIO[Has[Console], IOException, Unit] =
     printLine(line)
 
   /**
    * Prints a line of text to the standard error console, including a newline character.
    */
   @deprecated("use `printLineError`", "2.0.0")
-  def putStrLnErr(line: => String): URIO[Has[Console], Unit] =
+  def putStrLnErr(line: => String): ZIO[Has[Console], IOException, Unit] =
     printLineError(line)
 
   /**

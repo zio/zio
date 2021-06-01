@@ -3,6 +3,8 @@ package zio.test.mock
 import zio._
 import zio.test.{Assertion, ZIOBaseSpec, ZSpec, assertM}
 
+import java.io.IOException
+
 object ComposedMockSpec extends ZIOBaseSpec {
 
   import Assertion._
@@ -30,7 +32,7 @@ object ComposedMockSpec extends ZIOBaseSpec {
             _    <- Console.printLine(time.toString)
           } yield ()
 
-        testValueComposed[Has[Clock] with Has[Console], Nothing, Unit]("Has[Console] with Has[Clock]")(
+        testValueComposed[Has[Clock] with Has[Console], IOException, Unit]("Has[Console] with Has[Clock]")(
           composed,
           program,
           isUnit

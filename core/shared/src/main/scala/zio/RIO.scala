@@ -53,6 +53,18 @@ object RIO {
     ZIO.accessM
 
   /**
+   * @see See [[zio.ZIO.blocking]]
+   */
+  def blocking[R, A](zio: RIO[R, A]): RIO[R, A] =
+    ZIO.blocking(zio)
+
+  /**
+   * @see See [[zio.ZIO.blockingExecutor]]
+   */
+  def blockingExecutor: UIO[Executor] =
+    ZIO.blockingExecutor
+
+  /**
    * @see See bracket [[zio.ZIO]]
    */
   def bracket[R, A](acquire: RIO[R, A]): ZIO.BracketAcquire[R, Throwable, A] =
@@ -317,6 +329,24 @@ object RIO {
     blockingOn: List[Fiber.Id] = Nil
   ): RIO[R, A] =
     ZIO.effectAsyncInterrupt(register, blockingOn)
+
+  /**
+   * @see See [[zio.ZIO.effectBlocking]]
+   */
+  def effectBlocking[A](effect: => A): Task[A] =
+    ZIO.effectBlocking(effect)
+
+  /**
+   * @see See [[zio.ZIO.effectBlockingCancelable]]
+   */
+  def effectBlockingCancelable[A](effect: => A)(cancel: UIO[Unit]): Task[A] =
+    ZIO.effectBlockingCancelable(effect)(cancel)
+
+  /**
+   * @see See [[zio.ZIO.effectBlockingInterrupt]]
+   */
+  def effectBlockingInterrupt[A](effect: => A): Task[A] =
+    ZIO.effectBlockingInterrupt(effect)
 
   /**
    * Returns a lazily constructed effect, whose construction may itself require effects.
@@ -637,6 +667,18 @@ object RIO {
   def getOrFail[A](v: => Option[A]): Task[A] = ZIO.getOrFail(v)
 
   /**
+   * @see See [[zio.ZIO.getState]]
+   */
+  def getState[S: Tag]: ZIO[Has[ZState[S]], Nothing, S] =
+    ZIO.serviceWith(_.get)
+
+  /**
+   * @see See [[zio.ZIO.getStateWith]]
+   */
+  def getStateWith[S]: ZIO.GetStateWithPartiallyApplied[S] =
+    new ZIO.GetStateWithPartiallyApplied[S]
+
+  /**
    * @see See [[zio.ZIO.halt]]
    */
   def halt(cause: => Cause[Throwable]): Task[Nothing] = ZIO.halt(cause)
@@ -891,6 +933,12 @@ object RIO {
     ZIO.second
 
   /**
+   * @see See [[zio.ZIO.setState]]
+   */
+  def setState[S: Tag](s: S): ZIO[Has[ZState[S]], Nothing, Unit] =
+    ZIO.serviceWith(_.set(s))
+
+  /**
    * @see See [[zio.ZIO.service]]
    */
   def service[A: Tag]: URIO[Has[A], A] =
@@ -990,6 +1038,12 @@ object RIO {
    * @see See [[zio.ZIO.untraced]]
    */
   def untraced[R, A](zio: RIO[R, A]): RIO[R, A] = ZIO.untraced(zio)
+
+  /**
+   * @see See [[zio.ZIO.updateState]]
+   */
+  def updateState[S: Tag](f: S => S): ZIO[Has[ZState[S]], Nothing, Unit] =
+    ZIO.serviceWith(_.update(f))
 
   /**
    * @see See [[zio.ZIO.when]]

@@ -26,10 +26,12 @@ In following example, the type of `printLine` is `URIO[Console, Unit]` which mea
 ```scala mdoc:invisible:reset
 import zio._
 import zio.Console._
+
+import java.io.IOException
 ```
 
 ```scala mdoc:silent
-def printLine(line: => String): URIO[Has[Console], Unit] =
+def printLine(line: => String): ZIO[Has[Console], IOException, Unit] =
   ZIO.serviceWith(_.printLine(line))
 ```
 

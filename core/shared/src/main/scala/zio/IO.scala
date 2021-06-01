@@ -18,6 +18,7 @@ package zio
 
 import zio.internal.{Executor, Platform}
 
+import java.io.IOException
 import scala.concurrent.ExecutionContext
 import scala.reflect.ClassTag
 
@@ -39,6 +40,18 @@ object IO {
    * @see See [[zio.ZIO.apply]]
    */
   def apply[A](a: => A): Task[A] = ZIO.apply(a)
+
+  /**
+   * @see See [[zio.ZIO.blocking]]
+   */
+  def blocking[E, A](zio: IO[E, A]): IO[E, A] =
+    ZIO.blocking(zio)
+
+  /**
+   * @see See [[zio.ZIO.blockingExecutor]]
+   */
+  def blockingExecutor: UIO[Executor] =
+    ZIO.blockingExecutor
 
   /**
    * @see See bracket [[zio.ZIO]]
@@ -296,6 +309,30 @@ object IO {
     blockingOn: List[Fiber.Id] = Nil
   ): IO[E, A] =
     ZIO.effectAsyncMaybe(register, blockingOn)
+
+  /**
+   * @see See [[zio.ZIO.effectBlocking]]
+   */
+  def effectBlocking[A](effect: => A): Task[A] =
+    ZIO.effectBlocking(effect)
+
+  /**
+   * @see See [[zio.ZIO.effectBlockingCancelable]]
+   */
+  def effectBlockingCancelable[A](effect: => A)(cancel: UIO[Unit]): Task[A] =
+    ZIO.effectBlockingCancelable(effect)(cancel)
+
+  /**
+   * @see See [[zio.ZIO.effectBlockingIO]]
+   */
+  def effectBlockingIO[A](effect: => A): IO[IOException, A] =
+    ZIO.effectBlockingIO(effect)
+
+  /**
+   * @see See [[zio.ZIO.effectBlockingInterrupt]]
+   */
+  def effectBlockingInterrupt[A](effect: => A): Task[A] =
+    ZIO.effectBlockingInterrupt(effect)
 
   /**
    * @see [[zio.ZIO.effectSuspend]]
@@ -911,12 +948,24 @@ object IO {
     ZIO.validate(in)(f)
 
   /**
+   * @see See [[zio.ZIO.validate_]]
+   */
+  def validate_[E, A](in: Iterable[A])(f: A => IO[E, Any])(implicit ev: CanFail[E]): IO[::[E], Unit] =
+    ZIO.validate_(in)(f)
+
+  /**
    * @see See [[zio.ZIO.validatePar]]
    */
   def validatePar[E, A, B, Collection[+Element] <: Iterable[Element]](in: Collection[A])(
     f: A => IO[E, B]
   )(implicit bf: BuildFrom[Collection[A], B, Collection[B]], ev: CanFail[E]): IO[::[E], Collection[B]] =
     ZIO.validatePar(in)(f)
+
+  /**
+   * @see See [[zio.ZIO.validatePar_]]
+   */
+  def validatePar_[E, A](in: Iterable[A])(f: A => IO[E, Any])(implicit ev: CanFail[E]): IO[::[E], Unit] =
+    ZIO.validatePar_(in)(f)
 
   /**
    * @see See [[zio.ZIO.validateFirst]]

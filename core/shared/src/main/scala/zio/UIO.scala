@@ -40,6 +40,18 @@ object UIO {
   def apply[A](a: => A): UIO[A] = ZIO.effectTotal(a)
 
   /**
+   * @see See [[zio.ZIO.blocking]]
+   */
+  def blocking[A](zio: UIO[A]): UIO[A] =
+    ZIO.blocking(zio)
+
+  /**
+   * @see See [[zio.ZIO.blockingExecutor]]
+   */
+  def blockingExecutor: UIO[Executor] =
+    ZIO.blockingExecutor
+
+  /**
    * @see See bracket [[zio.ZIO]]
    */
   def bracket[A](acquire: UIO[A]): ZIO.BracketAcquire[Any, Nothing, A] =

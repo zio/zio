@@ -49,7 +49,8 @@ import java.util.concurrent.TimeUnit
  */
 sealed abstract class Schedule[-Env, -In, +Out] private (
   private[zio] val step: Schedule.StepFunction[Env, In, Out]
-) extends Serializable { self =>
+) extends ScheduleVersionSpecific[Env, In, Out]
+    with Serializable { self =>
   import Schedule.Decision._
   import Schedule._
 
@@ -558,7 +559,7 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
    */
   def provideLayer[Env0, Env1](
     layer: ZLayer[Env0, Nothing, Env1]
-  )(implicit ev1: Env1 <:< Env, ev2: NeedsEnv[Env]): Schedule[Env0, In, Out] = {
+  )(implicit ev: Env1 <:< Env): Schedule[Env0, In, Out] = {
     def loop(self: StepFunction[Env, In, Out]): StepFunction[Env0, In, Out] =
       (now: OffsetDateTime, in: In) =>
         self(now, in).map {
@@ -588,16 +589,16 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
    * Provides the part of the environment that is not part of the `ZEnv`,
    * leaving a schedule that only depends on the `ZEnv`.
    */
-  final def provideCustomLayer[Env1 <: Has[_]](
+  final def provideCustomLayer[Env1](
     layer: ZLayer[ZEnv, Nothing, Env1]
-  )(implicit ev: ZEnv with Env1 <:< Env, tagged: Tag[Env1]): Schedule[ZEnv, In, Out] =
+  )(implicit ev1: ZEnv with Env1 <:< Env, ev2: Has.Union[ZEnv, Env1], tagged: Tag[Env1]): Schedule[ZEnv, In, Out] =
     provideSomeLayer[ZEnv](layer)
 
   /**
    * Splits the environment into two parts, providing one part using the
    * specified layer and leaving the remainder `Env0`.
    */
-  final def provideSomeLayer[Env0 <: Has[_]]: Schedule.ProvideSomeLayer[Env0, Env, In, Out] =
+  final def provideSomeLayer[Env0]: Schedule.ProvideSomeLayer[Env0, Env, In, Out] =
     new Schedule.ProvideSomeLayer[Env0, Env, In, Out](self)
 
   /**
@@ -1400,11 +1401,10 @@ object Schedule {
     ) extends Decision[Env, In, Out]
   }
 
-  final class ProvideSomeLayer[Env0 <: Has[_], -Env, -In, +Out](private val self: Schedule[Env, In, Out])
-      extends AnyVal {
-    def apply[Env1 <: Has[_]](
+  final class ProvideSomeLayer[Env0, -Env, -In, +Out](private val self: Schedule[Env, In, Out]) extends AnyVal {
+    def apply[Env1](
       layer: ZLayer[Env0, Nothing, Env1]
-    )(implicit ev1: Env0 with Env1 <:< Env, ev2: NeedsEnv[Env], tagged: Tag[Env1]): Schedule[Env0, In, Out] =
+    )(implicit ev1: Env0 with Env1 <:< Env, ev2: Has.Union[Env0, Env1], tagged: Tag[Env1]): Schedule[Env0, In, Out] =
       self.provideLayer[Env0, Env0 with Env1](ZLayer.identity[Env0] ++ layer)
   }
 }

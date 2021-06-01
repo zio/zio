@@ -42,7 +42,7 @@ final case class Reservation[-R, +E, +A](acquire: ZIO[R, E, A], release: Exit[An
  * has been consumed, the resource will not be valid anymore and may fail with
  * some checked error, as per the type of the functions provided by the resource.
  */
-sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
+sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E, A] with Serializable { self =>
 
   /**
    * The ZIO value that underlies this ZManaged value. To evaluate it, a ReleaseMap is
@@ -54,6 +54,14 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
    * to enforce!
    */
   def zio: ZIO[(R, ZManaged.ReleaseMap), E, (ZManaged.Finalizer, A)]
+
+  /**
+   * Syntax for adding aspects.
+   */
+  final def @@[LowerR <: UpperR, UpperR <: R, LowerE >: E, UpperE >: LowerE, LowerA >: A, UpperA >: LowerA](
+    aspect: ZManagedAspect[LowerR, UpperR, LowerE, UpperE, LowerA, UpperA]
+  ): ZManaged[UpperR, LowerE, LowerA] =
+    aspect(self)
 
   /**
    * Symbolic alias for zip.
@@ -150,14 +158,14 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
    * Submerges the error case of an `Either` into the `ZManaged`. The inverse
    * operation of `ZManaged.either`.
    */
-  def absolve[E1 >: E, B](implicit ev: A <:< Either[E1, B]): ZManaged[R, E1, B] =
+  def absolve[E1 >: E, B](implicit ev: A IsSubtypeOfOutput Either[E1, B]): ZManaged[R, E1, B] =
     ZManaged.absolve(self.map(ev))
 
   /**
    * Attempts to convert defects into a failure, throwing away all information
    * about the cause of the failure.
    */
-  def absorb(implicit ev: E <:< Throwable): ZManaged[R, Throwable, A] =
+  def absorb(implicit ev: E IsSubtypeOfError Throwable): ZManaged[R, Throwable, A] =
     absorbWith(ev)
 
   /**
@@ -335,7 +343,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
    *
    * This method can be used to "flatten" nested effects.
    */
-  def flatten[R1 <: R, E1 >: E, B](implicit ev: A <:< ZManaged[R1, E1, B]): ZManaged[R1, E1, B] =
+  def flatten[R1 <: R, E1 >: E, B](implicit ev: A IsSubtypeOfOutput ZManaged[R1, E1, B]): ZManaged[R1, E1, B] =
     flatMap(ev)
 
   /**
@@ -344,7 +352,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
    *
    * This method can be used to "flatten" nested effects.
    */
-  def flattenM[R1 <: R, E1 >: E, B](implicit ev: A <:< ZIO[R1, E1, B]): ZManaged[R1, E1, B] =
+  def flattenM[R1 <: R, E1 >: E, B](implicit ev: A IsSubtypeOfOutput ZIO[R1, E1, B]): ZManaged[R1, E1, B] =
     mapM(ev)
 
   /**
@@ -414,7 +422,10 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
   /**
    * Unwraps the optional success of this effect, but can fail with None value.
    */
-  def get[B](implicit ev1: E <:< Nothing, ev2: A <:< Option[B]): ZManaged[R, Option[Nothing], B] =
+  def get[B](implicit
+    ev1: E IsSubtypeOfError Nothing,
+    ev2: A IsSubtypeOfOutput Option[B]
+  ): ZManaged[R, Option[Nothing], B] =
     ZManaged.absolve(mapError(ev1)(CanFail).map(ev2(_).toRight(None)))
 
   /**
@@ -460,7 +471,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
    * Returns an effect whose success is mapped by the specified side effecting
    * `f` function, translating any thrown exceptions into typed failed effects.
    */
-  final def mapEffect[B](f: A => B)(implicit ev: E <:< Throwable): ZManaged[R, Throwable, B] =
+  final def mapEffect[B](f: A => B)(implicit ev: E IsSubtypeOfError Throwable): ZManaged[R, Throwable, B] =
     foldM(e => ZManaged.fail(ev(e)), a => ZManaged.effect(f(a)))
 
   /**
@@ -500,16 +511,16 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
    * Returns a new effect where the error channel has been merged into the
    * success channel to their common combined type.
    */
-  def merge[A1 >: A](implicit ev1: E <:< A1, ev2: CanFail[E]): ZManaged[R, Nothing, A1] =
+  def merge[A1 >: A](implicit ev1: E IsSubtypeOfError A1, ev2: CanFail[E]): ZManaged[R, Nothing, A1] =
     self.foldM(e => ZManaged.succeedNow(ev1(e)), ZManaged.succeedNow)
 
   /**
    * Requires the option produced by this value to be `None`.
    */
-  final def none[B](implicit ev: A <:< Option[B]): ZManaged[R, Option[E], Unit] =
+  final def none[B](implicit ev: A IsSubtypeOfOutput Option[B]): ZManaged[R, Option[E], Unit] =
     self.foldM(
       e => ZManaged.fail(Some(e)),
-      a => a.fold[ZManaged[R, Option[E], Unit]](ZManaged.succeedNow(()))(_ => ZManaged.fail(None))
+      a => ev(a).fold[ZManaged[R, Option[E], Unit]](ZManaged.succeedNow(()))(_ => ZManaged.fail(None))
     )
 
   /**
@@ -578,9 +589,9 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
   /**
    * Converts an option on errors into an option on values.
    */
-  final def optional[E1](implicit ev: E <:< Option[E1]): ZManaged[R, E1, Option[A]] =
+  final def optional[E1](implicit ev: E IsSubtypeOfError Option[E1]): ZManaged[R, E1, Option[A]] =
     self.foldM(
-      e => e.fold[ZManaged[R, E1, Option[A]]](ZManaged.succeedNow(Option.empty[A]))(ZManaged.fail(_)),
+      e => ev(e).fold[ZManaged[R, E1, Option[A]]](ZManaged.succeedNow(Option.empty[A]))(ZManaged.fail(_)),
       a => ZManaged.succeedNow(Some(a))
     )
 
@@ -588,7 +599,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
    * Translates effect failure into death of the fiber, making all failures unchecked and
    * not a part of the type of the effect.
    */
-  def orDie(implicit ev1: E <:< Throwable, ev2: CanFail[E]): ZManaged[R, Nothing, A] =
+  def orDie(implicit ev1: E IsSubtypeOfError Throwable, ev2: CanFail[E]): ZManaged[R, Nothing, A] =
     orDieWith(ev1)
 
   /**
@@ -628,7 +639,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
    */
   final def orElseOptional[R1 <: R, E1, A1 >: A](
     that: => ZManaged[R1, Option[E1], A1]
-  )(implicit ev: E <:< Option[E1]): ZManaged[R1, Option[E1], A1] =
+  )(implicit ev: E IsSubtypeOfError Option[E1]): ZManaged[R1, Option[E1], A1] =
     catchAll(ev(_).fold(that)(e => ZManaged.fail(Some(e))))
 
   /**
@@ -704,18 +715,16 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
    * val managed2 = managed.provideCustomLayer(loggingLayer)
    * }}}
    */
-  def provideCustomLayer[E1 >: E, R1 <: Has[_]](
+  final def provideCustomLayer[E1 >: E, R1](
     layer: ZLayer[ZEnv, E1, R1]
-  )(implicit ev: ZEnv with R1 <:< R, tagged: Tag[R1]): ZManaged[ZEnv, E1, A] =
+  )(implicit ev1: ZEnv with R1 <:< R, ev2: Has.Union[ZEnv, R1], tagged: Tag[R1]): ZManaged[ZEnv, E1, A] =
     provideSomeLayer[ZEnv](layer)
 
   /**
    * Provides a layer to the `ZManaged`, which translates it to another level.
    */
-  def provideLayer[E1 >: E, R0, R1](
-    layer: ZLayer[R0, E1, R1]
-  )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R]): ZManaged[R0, E1, A] =
-    layer.build.map(ev1).flatMap(self.provide)
+  final def provideLayer[E1 >: E, R0, R1](layer: ZLayer[R0, E1, R1])(implicit ev: R1 <:< R): ZManaged[R0, E1, A] =
+    layer.build.map(ev).flatMap(self.provide)
 
   /**
    * Provides some of the environment required to run this effect,
@@ -749,7 +758,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
    * val managed2 = managed.provideSomeLayer[Has[Random]](clockLayer)
    * }}}
    */
-  final def provideSomeLayer[R0 <: Has[_]]: ZManaged.ProvideSomeLayer[R0, R, E, A] =
+  final def provideSomeLayer[R0]: ZManaged.ProvideSomeLayer[R0, R, E, A] =
     new ZManaged.ProvideSomeLayer[R0, R, E, A](self)
 
   /**
@@ -757,7 +766,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
    */
   def refineOrDie[E1](
     pf: PartialFunction[E, E1]
-  )(implicit ev1: E <:< Throwable, ev2: CanFail[E]): ZManaged[R, E1, A] =
+  )(implicit ev1: E IsSubtypeOfError Throwable, ev2: CanFail[E]): ZManaged[R, E1, A] =
     refineOrDieWith(pf)(ev1)
 
   /**
@@ -854,24 +863,24 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
   /**
    * Converts an option on values into an option on errors.
    */
-  final def some[B](implicit ev: A <:< Option[B]): ZManaged[R, Option[E], B] =
+  final def some[B](implicit ev: A IsSubtypeOfOutput Option[B]): ZManaged[R, Option[E], B] =
     self.foldM(
       e => ZManaged.fail(Some(e)),
-      a => a.fold[ZManaged[R, Option[E], B]](ZManaged.fail(Option.empty[E]))(ZManaged.succeedNow)
+      a => ev(a).fold[ZManaged[R, Option[E], B]](ZManaged.fail(Option.empty[E]))(ZManaged.succeedNow)
     )
 
   /**
    * Extracts the optional value, or returns the given 'default'.
    */
-  final def someOrElse[B](default: => B)(implicit ev: A <:< Option[B]): ZManaged[R, E, B] =
-    map(_.getOrElse(default))
+  final def someOrElse[B](default: => B)(implicit ev: A IsSubtypeOfOutput Option[B]): ZManaged[R, E, B] =
+    map(a => ev(a).getOrElse(default))
 
   /**
    * Extracts the optional value, or executes the effect 'default'.
    */
   final def someOrElseM[B, R1 <: R, E1 >: E](
     default: ZManaged[R1, E1, B]
-  )(implicit ev: A <:< Option[B]): ZManaged[R1, E1, B] =
+  )(implicit ev: A IsSubtypeOfOutput Option[B]): ZManaged[R1, E1, B] =
     self.flatMap(ev(_) match {
       case Some(value) => ZManaged.succeedNow(value)
       case None        => default
@@ -880,7 +889,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
   /**
    * Extracts the optional value, or fails with the given error 'e'.
    */
-  final def someOrFail[B, E1 >: E](e: => E1)(implicit ev: A <:< Option[B]): ZManaged[R, E1, B] =
+  final def someOrFail[B, E1 >: E](e: => E1)(implicit ev: A IsSubtypeOfOutput Option[B]): ZManaged[R, E1, B] =
     self.flatMap(ev(_) match {
       case Some(value) => ZManaged.succeedNow(value)
       case None        => ZManaged.fail(e)
@@ -890,7 +899,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
    * Extracts the optional value, or fails with a [[java.util.NoSuchElementException]]
    */
   final def someOrFailException[B, E1 >: E](implicit
-    ev: A <:< Option[B],
+    ev: A IsSubtypeOfOutput Option[B],
     ev2: NoSuchElementException <:< E1
   ): ZManaged[R, E1, B] =
     self.foldM(
@@ -1000,8 +1009,8 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
    * Constructs a layer from this managed resource, which must return one or
    * more services.
    */
-  def toLayerMany[A1 <: Has[_]](implicit ev: A <:< A1): ZLayer[R, E, A1] =
-    ZLayer.fromManagedMany(self.map(ev))
+  final def toLayerMany[A1 >: A: Tag]: ZLayer[R, E, A1] =
+    ZLayer.fromManagedMany(self)
 
   /**
    * Return unit while running the effect
@@ -1023,7 +1032,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
   /**
    * The inverse operation `ZManaged.sandboxed`
    */
-  def unsandbox[E1](implicit ev: E <:< Cause[E1]): ZManaged[R, E1, A] =
+  def unsandbox[E1](implicit ev: E IsSubtypeOfError Cause[E1]): ZManaged[R, E1, A] =
     ZManaged.unsandbox(mapError(ev))
 
   /**
@@ -1205,10 +1214,10 @@ object ZManaged extends ZManagedPlatformSpecific {
       b.flatMap(b => if (b) onTrue else onFalse)
   }
 
-  final class ProvideSomeLayer[R0 <: Has[_], -R, +E, +A](private val self: ZManaged[R, E, A]) extends AnyVal {
-    def apply[E1 >: E, R1 <: Has[_]](
+  final class ProvideSomeLayer[R0, -R, +E, +A](private val self: ZManaged[R, E, A]) extends AnyVal {
+    def apply[E1 >: E, R1](
       layer: ZLayer[R0, E1, R1]
-    )(implicit ev1: R0 with R1 <:< R, ev2: NeedsEnv[R], tagged: Tag[R1]): ZManaged[R0, E1, A] =
+    )(implicit ev1: R0 with R1 <:< R, ev2: Has.Union[R0, R1], tagged: Tag[R1]): ZManaged[R0, E1, A] =
       self.provideLayer[E1, R0, R0 with R1](ZLayer.identity[R0] ++ layer)
   }
 

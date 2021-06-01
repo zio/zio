@@ -17,10 +17,7 @@ object ZTransducerPlatformSpecificSpec extends ZIOBaseSpec {
     // Resource paths are always '/'
     classLoader.getResourceAsStream(path.toString.replace('\\', '/'))
 
-  private def readResourceAsString(
-    fileName: String,
-    transducer: ZTransducer[Has[Blocking], IOException, Byte, String]
-  ) =
+  private def readResourceAsString(fileName: String, transducer: ZTransducer[Any, IOException, Byte, String]) =
     ZStream
       .fromInputStream(inputStreamForResource(bomTestFilesPath.resolve(fileName)))
       .transduce(transducer)
@@ -29,7 +26,7 @@ object ZTransducerPlatformSpecificSpec extends ZIOBaseSpec {
 
   private val QuickBrownTest = readResourceAsString("quickbrown-UTF-8-no-BOM.txt", ZTransducer.utf8Decode)
 
-  private def testEncoding(fileName: String, transducer: ZTransducer[Has[Blocking], IOException, Byte, String]) =
+  private def testEncoding(fileName: String, transducer: ZTransducer[Any, IOException, Byte, String]) =
     readResourceAsString(fileName, transducer)
       .zipWith(QuickBrownTest)((l, r) => assert(l)(equalTo(r)))
 

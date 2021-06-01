@@ -79,13 +79,13 @@ private[zio] object javaz {
     }
 
   /** WARNING: this uses the blocking Future#get, consider using `fromCompletionStage` */
-  def fromFutureJava[A](thunk: => Future[A]): RIO[Has[Blocking], A] =
+  def fromFutureJava[A](thunk: => Future[A]): Task[A] =
     RIO.effect(thunk).flatMap { future =>
       RIO.effectSuspendTotalWith { (p, _) =>
         if (future.isDone) {
           unwrapDone(p.fatal)(future)
         } else {
-          Blocking.blocking(Task.effectSuspend(unwrapDone(p.fatal)(future)))
+          ZIO.blocking(Task.effectSuspend(unwrapDone(p.fatal)(future)))
         }
       }
     }

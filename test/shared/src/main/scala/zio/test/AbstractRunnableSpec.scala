@@ -22,7 +22,7 @@ import zio.{Clock, Has, URIO}
 @EnableReflectiveInstantiation
 abstract class AbstractRunnableSpec {
 
-  type Environment <: Has[_]
+  type Environment
   type Failure
 
   def aspects: List[TestAspect[Nothing, Environment, Nothing, Any]]

@@ -47,6 +47,7 @@ package object zio
   type TaskLayer[+ROut]     = ZLayer[Any, Throwable, ROut]
 
   type Queue[A] = ZQueue[Any, Any, Nothing, Nothing, A, A]
+  val Queue: ZQueue.type = ZQueue
 
   /**
    * A queue that can only be dequeued.
@@ -66,6 +67,9 @@ package object zio
   type ZRefM[-RA, -RB, +EA, +EB, -A, +B] = ZRef.ZRefM[RA, RB, EA, EB, A, B]
   type RefM[A]                           = ZRefM[Any, Any, Nothing, Nothing, A, A]
   type ERefM[+E, A]                      = ZRefM[Any, Any, E, E, A, A]
+
+  type FiberRef[A] = ZFiberRef[Nothing, Nothing, A, A]
+  val FiberRef: ZFiberRef.type = ZFiberRef
 
   type Hub[A] = ZHub[Any, Any, Nothing, Nothing, A, A]
   val Hub: ZHub.type = ZHub

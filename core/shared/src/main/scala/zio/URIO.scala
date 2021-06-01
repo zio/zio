@@ -49,6 +49,18 @@ object URIO {
   def apply[A](a: => A): UIO[A] = ZIO.effectTotal(a)
 
   /**
+   * @see See [[zio.ZIO.blocking]]
+   */
+  def blocking[R, A](zio: URIO[R, A]): URIO[R, A] =
+    ZIO.blocking(zio)
+
+  /**
+   * @see See [[zio.ZIO.blockingExecutor]]
+   */
+  def blockingExecutor: UIO[Executor] =
+    ZIO.blockingExecutor
+
+  /**
    * @see bracket in [[zio.ZIO]]
    */
   def bracket[R, A](acquire: URIO[R, A]): ZIO.BracketAcquire[R, Nothing, A] =
@@ -575,6 +587,18 @@ object URIO {
     ZIO.fromFunctionM(f)
 
   /**
+   * @see [[zio.ZIO.getState]]
+   */
+  def getState[S: Tag]: ZIO[Has[ZState[S]], Nothing, S] =
+    ZIO.serviceWith(_.get)
+
+  /**
+   * @see [[zio.ZIO.getStateWith]]
+   */
+  def getStateWith[S]: ZIO.GetStateWithPartiallyApplied[S] =
+    new ZIO.GetStateWithPartiallyApplied[S]
+
+  /**
    * @see [[zio.ZIO.halt]]
    */
   def halt(cause: => Cause[Nothing]): UIO[Nothing] = ZIO.halt(cause)
@@ -795,6 +819,12 @@ object URIO {
     ZIO.second
 
   /**
+   * @see [[zio.ZIO.setState]]
+   */
+  def setState[S: Tag](s: S): ZIO[Has[ZState[S]], Nothing, Unit] =
+    ZIO.serviceWith(_.set(s))
+
+  /**
    * @see See [[zio.ZIO.service]]
    */
   def service[A: Tag]: URIO[Has[A], A] =
@@ -891,6 +921,12 @@ object URIO {
    * @see [[zio.ZIO.untraced]]
    */
   def untraced[R, A](zio: URIO[R, A]): URIO[R, A] = ZIO.untraced(zio)
+
+  /**
+   * @see [[zio.ZIO.updateState]]
+   */
+  def updateState[S: Tag](f: S => S): ZIO[Has[ZState[S]], Nothing, Unit] =
+    ZIO.serviceWith(_.update(f))
 
   /**
    * @see [[zio.ZIO.when]]

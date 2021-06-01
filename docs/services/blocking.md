@@ -14,7 +14,7 @@ In the following example, we create 20 blocking tasks to run parallel on the pri
 import zio._
 import zio.Console._
 def blockingTask(n: Int): URIO[Has[Console], Unit] =
-  printLine(s"running blocking task number $n") *>
+  printLine(s"running blocking task number $n").orDie *>
     ZIO.effectTotal(Thread.sleep(3000)) *>
     blockingTask(n)
 
@@ -29,14 +29,13 @@ and continuously create new threads as necessary.
 The `blocking` operator takes a ZIO effect and return another effect that is going to run on a blocking thread pool:
 
 ```scala mdoc:invisible:nest
-import zio.Blocking._
-val program = ZIO.foreachPar((1 to 100).toArray)(t => blocking(blockingTask(t)))
+val program = ZIO.foreachPar((1 to 100).toArray)(t => ZIO.blocking(blockingTask(t)))
 ```
 
 Also, we can directly imports a synchronous effect that does blocking IO into ZIO effect by using `effectBlocking`:
 
 ```scala mdoc:silent:nest
-def blockingTask(n: Int) = effectBlocking {
+def blockingTask(n: Int) = ZIO.effectBlocking {
   do {
     println(s"running blocking task number $n")
     Thread.sleep(3000) 

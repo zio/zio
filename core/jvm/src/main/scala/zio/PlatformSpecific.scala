@@ -17,18 +17,17 @@
 package zio
 
 private[zio] trait PlatformSpecific {
-  type ZEnv = Has[Clock] with Has[Console] with Has[System] with Has[Random] with Has[Blocking]
+  type ZEnv = Has[Clock] with Has[Console] with Has[System] with Has[Random]
 
   object ZEnv {
 
     private[zio] object Services {
       val live: ZEnv =
-        Has.allOf[Clock, Console, System, Random, Blocking](
+        Has.allOf[Clock, Console, System, Random](
           Clock.ClockLive,
           Console.ConsoleLive,
           System.SystemLive,
-          Random.RandomLive,
-          Blocking.BlockingLive
+          Random.RandomLive
         )
     }
 
@@ -36,6 +35,6 @@ private[zio] trait PlatformSpecific {
       ZLayer.requires[ZEnv]
 
     val live: Layer[Nothing, ZEnv] =
-      Clock.live ++ Console.live ++ System.live ++ Random.live ++ Blocking.live
+      Clock.live ++ Console.live ++ System.live ++ Random.live
   }
 }

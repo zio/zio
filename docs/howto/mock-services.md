@@ -48,7 +48,7 @@ trait Event
 import zio._
 
 def processEvent(event: Event): URIO[Has[Console], Unit] =
-  Console.printLine(s"Got $event")
+  Console.printLine(s"Got $event").orDie
 ```
 
 With ZIO, we've regained to ability to reason about the effects called. We know that `processEvent` can only call on _capabilities_ of `Console`, so even though we still have `Unit` as the result, we have narrowed the possible effects space to a few.
@@ -213,13 +213,13 @@ object AccountObserver {
       new Service {
         def processEvent(event: AccountEvent): UIO[Unit] =
           for {
-            _    <- console.printLine(s"Got $event")
+            _    <- console.printLine(s"Got $event").orDie
             line <- console.readLine.orDie
-            _    <- console.printLine(s"You entered: $line")
+            _    <- console.printLine(s"You entered: $line").orDie
           } yield ()
 
         def runCommand(): UIO[Unit] =
-          console.printLine("Done!")
+          console.printLine("Done!").orDie
       }
     }.toLayer
 }
@@ -350,7 +350,7 @@ We can combine our expectation to build complex scenarios using combinators defi
 object AccountObserverSpec extends DefaultRunnableSpec {
   def spec = suite("processEvent")(
     testM("calls printLine > readLine > printLine and returns unit") {
-      val result = app.provideLayer(mockEnv >>> AccountObserver.live)
+      val result = app.provideSomeLayer(mockEnv >>> AccountObserver.live)
       assertM(result)(isUnit)
     }
   )
@@ -368,8 +368,8 @@ object MaybeConsoleSpec extends DefaultRunnableSpec {
       def maybeConsole(invokeConsole: Boolean) =
         ZIO.when(invokeConsole)(Console.printLine("foo"))
 
-      val maybeTest1 = maybeConsole(false).provideLayer(MockConsole.empty)
-      val maybeTest2 = maybeConsole(true).provideLayer(MockConsole.PrintLine(equalTo("foo")))
+      val maybeTest1 = maybeConsole(false).provideSomeLayer(MockConsole.empty)
+      val maybeTest2 = maybeConsole(true).provideSomeLayer(MockConsole.PrintLine(equalTo("foo")))
       assertM(maybeTest1)(isUnit) *> assertM(maybeTest2)(isUnit)
     }
   )
@@ -398,7 +398,7 @@ val combinedApp =
     _    <- Console.printLine(s"$name, your lucky number today is $num!")
   } yield ()
 
-val result = combinedApp.provideLayer(combinedEnv)
+val result = combinedApp.provideSomeLayer(combinedEnv)
 assertM(result)(isUnit)
 ```
 
@@ -465,8 +465,6 @@ val exp10 = PolyAll.of[Int, Throwable, String](equalTo(42), failure(new Exceptio
 You can find more examples in the `examples` and `test-tests` subproject:
 
 - [MockExampleSpec][link-gh-mock-example-spec]
-- [BasicMockSpec][link-gh-basic-mock-spec]
-- [AdvancedMockSpec][link-gh-advanced-mock-spec]
 - [EmptyMockSpec][link-gh-empty-mock-spec]
 - [ComposedMockSpec][link-gh-composed-mock-spec]
 - [ComposedEmptyMockSpec][link-gh-composed-empty-mock-spec]
@@ -477,8 +475,6 @@ You can find more examples in the `examples` and `test-tests` subproject:
 [link-sls-6.26.1]: https://scala-lang.org/files/archive/spec/2.13/06-expressions.html#value-conversions
 [link-test-doubles]: https://martinfowler.com/articles/mocksArentStubs.html
 [link-gh-mock-example-spec]: https://github.com/zio/zio/blob/master/examples/shared/src/test/scala/zio/examples/test/MockExampleSpec.scala
-[link-gh-basic-mock-spec]: https://github.com/zio/zio/blob/master/test-tests/shared/src/test/scala/zio/test/mock/BasicMockSpec.scala
-[link-gh-advanced-mock-spec]: https://github.com/zio/zio/blob/master/test-tests/shared/src/test/scala/zio/test/mock/AdvancedMockSpec.scala
 [link-gh-empty-mock-spec]: https://github.com/zio/zio/blob/master/test-tests/shared/src/test/scala/zio/test/mock/EmptyMockSpec.scala
 [link-gh-composed-mock-spec]: https://github.com/zio/zio/blob/master/test-tests/shared/src/test/scala/zio/test/mock/ComposedMockSpec.scala
 [link-gh-composed-empty-mock-spec]: https://github.com/zio/zio/blob/master/test-tests/shared/src/test/scala/zio/test/mock/ComposedEmptyMockSpec.scala

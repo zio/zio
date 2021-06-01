@@ -11,7 +11,7 @@ object LayerDefinitionExample extends App {
       (FooLive.apply _).toLayer
 
     case class FooLive(console: Console, string: String, int: Int) extends Foo {
-      override def bar: UIO[Unit] = console.printLine(s"$string and $int")
+      override def bar: UIO[Unit] = console.printLine(s"$string and $int").orDie
     }
   }
 
@@ -21,7 +21,8 @@ object LayerDefinitionExample extends App {
 
     ZIO
       .accessM[Has[Foo]](_.get.bar)
-      .provideLayer(liveLayer)
+      .inject(liveLayer)
       .exitCode
   }
+
 }
