@@ -47,7 +47,7 @@ import zio.ZIO
  *
  * {{{
  * val transitivityLaw = ZLaws.Laws3[Equal]("transitivityLaw") {
- *   def apply[A: Equal](a1: A, a2: A, a3: A): TestReturnValue =
+ *   def apply[A: Equal](a1: A, a2: A, a3: A): TestResult =
  *     ???
  * }
  * }}}
