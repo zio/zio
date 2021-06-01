@@ -658,8 +658,9 @@ ZStream
 // Doing some other works after stream's finalization
 ```
 
+## Combinators
 
-## Tapping
+### Tapping
 
 Tapping is an operation of running an effect on each emission of the ZIO Stream. We can think of `ZStream#tap` as an operation that allows us to observe each element of the stream, do some effectful operation and discard the result of this observation. The `tap` operation does not change elements of the stream, it does not affect the return type of the stream.
 
@@ -673,7 +674,7 @@ val stream: ZStream[Console, IOException, Int] =
     .tap(x => putStrLn(s"after mapping: $x"))
 ```
 
-## Taking Elements
+### Taking Elements
 
 We can take a certain number of elements from a stream:
 
@@ -691,11 +692,6 @@ val s3 = stream.takeUntil(_ == 5)
 val s4 = s3.takeRight(3)
 // Output: 3, 4, 5
 ```
-
-## Transforming a Stream
-
-ZIO Stream supports many standard transforming functions like `map`, `partition`, `grouped`, `groupByKey`, `groupedWithin`
-and many others. Here are examples of how to use them.   
 
 ### Mapping
 
@@ -1226,7 +1222,7 @@ val s2 = ZStream(4.1, 5.3, 6.2)
 val merged = s1.mergeWith(s2)(_.toInt, _.toInt)
 ```
 
-## Interleaving
+### Interleaving
 
 When we `merge` two streams, the ZIO Stream picks elements from two streams randomly. But how to merge two streams deterministically? The answer is the `ZStream#interleave` operation. 
 
@@ -1253,7 +1249,7 @@ val interleaved = s1.interleaveWith(s2)(ZStream(true, false, false).forever)
 
 `ZStream#interleaveWith` uses a stream of boolean to decide which stream to choose. If it reaches a true value, it will pick a value from the left-hand side stream, otherwise, it will pick from the right-hand side.
 
-## Interspersing
+### Interspersing
 
 We can intersperse any stream by using `ZStream#intersperse` operator:
 
@@ -1265,7 +1261,7 @@ val s2 = ZStream("a", "b", "c", "d").intersperse("[", "-", "]")
 // Output: [, -, a, -, b, -, c, -, d]
 ```
 
-## Broadcasting
+### Broadcasting
 
 We can broadcast a stream by using `ZStream#broadcast`, it returns a managed list of streams that have the same elements as the source stream. The `broadcast` operation emits each element to the inputs of returning streams. The upstream stream can emit events as much as `maximumLag`, then it decreases its speed by the slowest downstream stream.
 
@@ -1296,7 +1292,7 @@ val stream: ZIO[Console with Random with Clock, IOException, Unit] =
     }
 ```
 
-## Buffering
+### Buffering
 
 Since the ZIO streams are pull-based, it means the consumers do not need to message the upstream to slow down. Whenever a downstream stream pulls a new element, the upstream produces a new element. So, the upstream stream is as fast as the slowest downstream stream. Sometimes we need to run producer and consumer independently, in such a situation we can use an asynchronous non-blocking queue for communication between faster producer and slower consumer; the queue can buffer elements between two streams. ZIO stream also has a built-in `ZStream#buffer` operator which does the same thing for us.
 
