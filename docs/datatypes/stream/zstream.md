@@ -1521,7 +1521,7 @@ val eitherStream: ZStream[Any, Nothing, Either[String, Int]] =
   ZStream(Right(1), Right(2), Left("failed to parse"), Right(4))
 
 // A Fails with the first emission of the left value
-val stream: ZStream[Any, String, Int] = s.rightOrFail("fail")
+val stream: ZStream[Any, String, Int] = eitherStream.rightOrFail("fail")
 ```
 
 
