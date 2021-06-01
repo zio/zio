@@ -774,6 +774,61 @@ val unitStream: ZStream[Any, Nothing, Unit] =
   ZStream.range(1, 5).as(())
 ```
 
+### Draining
+
+Assume we have an effectful stream, which contains a sequence of effects; sometimes we might want to execute its effect without emitting any element, in these situations we can `drain` the stream to remove all output values from the stream:
+
+```scala mdoc:silent:nest
+val s1: ZStream[Any, Nothing, Nothing] = ZStream(1, 2, 3, 4, 5).drain
+// Emitted Elements: <empty stream, it doesn't emit any element>
+
+val s2: ZStream[Console with Random, IOException, Int] =
+  ZStream
+    .repeatEffect {
+      for {
+        nextInt <- zio.random.nextInt
+        number = Math.abs(nextInt % 10)
+        _ <- zio.console.putStrLn(s"random number: $number")
+      } yield (number)
+    }
+    .take(3)
+// Emitted Elements: 1, 4, 7
+// Result of Stream Effect on the Console:
+// random number: 1
+// random number: 4
+// random number: 7
+
+val s3: ZStream[Console with Random, IOException, Nothing] = s2.drain
+// Emitted Elements: <empty stream, it doesn't emit any element>
+// Result of Stream Effect on the Console:
+// random number: 4
+// random number: 8
+// random number: 2
+```
+
+The `ZStream#drain` often used with `ZStream#merge` to run one side of the merge for its effect while getting outputs from the opposite side of the merge:
+
+```scala mdoc:silent:nest
+val logging = ZStream.fromEffect(
+  putStrLn("Starting to merge with the next stream")
+)
+val stream = ZStream(1, 2, 3) ++ logging.drain ++ ZStream(4, 5, 6)
+
+// Emitted Elements: 1, 2, 3, 4, 5, 6
+// Result of Stream Effect on the Console:
+// Starting to merge with the next stream
+```
+
+Note that if we do not drain the `logging` stream, the emitted elements would be contained unit value:
+
+```scala mdoc:silent:nest
+val stream = ZStream(1, 2, 3) ++ logging ++ ZStream(4, 5, 6)
+
+// Emitted Elements: 1, 2, 3, (), 4, 5, 6
+// Result of Stream Effect on the Console:
+// Starting to merge with the next stream
+```
+
 ### Changes
 
 The `ZStream#changes` emits elements that are not equal to the previous element:
