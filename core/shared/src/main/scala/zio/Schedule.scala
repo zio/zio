@@ -325,29 +325,8 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
   /**
    * Returns a driver that can be used to step the schedule, appropriately handling sleeping.
    */
-  def driver: UIO[Schedule.Driver[Env with Clock, In, Out]] =
-    Ref.make[(Option[Out], StepFunction[Env with Clock, In, Out])]((None, step)).map { ref =>
-      val next = (in: In) =>
-        for {
-          step <- ref.get.map(_._2)
-          now  <- clock.currentDateTime
-          dec  <- step(now, in)
-          v <- dec match {
-                 case Done(out) => ref.set((Some(out), StepFunction.done(out))) *> ZIO.fail(None)
-                 case Continue(out, interval, next) =>
-                   ref.set((Some(out), next)) *> ZIO.sleep(Duration.fromInterval(now, interval)) as out
-               }
-        } yield v
-
-      val last = ref.get.flatMap {
-        case (None, _)    => ZIO.fail(new NoSuchElementException("There is no value left"))
-        case (Some(b), _) => ZIO.succeed(b)
-      }
-
-      val reset = ref.set((None, step))
-
-      Schedule.Driver(next, last, reset)
-    }
+  def driver: URIO[Clock, Schedule.Driver[Env, In, Out]] =
+    clock.driver(self)
 
   /**
    * A named alias for `||`.
