@@ -20,7 +20,11 @@ import zio.test.render.LogLine.Fragment.Style
 
 object LogLine {
   case class Message(lines: Vector[Line] = Vector.empty) {
-    def +:(line: Line)                   = Message(line +: lines)
+    def +:(line: Line) = Message(line +: lines)
+    def +:(fragment: Fragment): Message = Message(lines match {
+      case line +: lines => (fragment +: line) +: lines
+      case _             => Vector(fragment.toLine)
+    })
     def :+(line: Line)                   = Message(lines :+ line)
     def ++(message: Message)             = Message(lines ++ message.lines)
     def drop(n: Int): Message            = Message(lines.drop(n))
@@ -38,12 +42,12 @@ object LogLine {
     val empty: Message                   = Message()
   }
   case class Line(fragments: Vector[Fragment] = Vector.empty, offset: Int = 0) {
-    def :+(fragment: Fragment)             = Line(fragments :+ fragment)
-    def +(fragment: Fragment)              = Line(fragments :+ fragment)
+    def +:(fragment: Fragment): Line       = Line(fragment +: fragments)
+    def :+(fragment: Fragment): Line       = Line(fragments :+ fragment)
+    def +(fragment: Fragment): Line        = Line(fragments :+ fragment)
     def prepend(message: Message): Message = Message(this +: message.lines)
-    def +:(message: Message)               = prepend(message)
-    def +(line: Line)                      = Message(Vector(this, line))
-    def ++(line: Line)                     = copy(fragments = fragments ++ line.fragments)
+    def +(line: Line): Message             = Message(Vector(this, line))
+    def ++(line: Line): Line               = copy(fragments = fragments ++ line.fragments)
     def withOffset(shift: Int): Line       = copy(offset = offset + shift)
     def toMessage: Message                 = Message(Vector(this))
 
@@ -73,12 +77,13 @@ object LogLine {
   object Fragment {
     sealed trait Style
     object Style {
-      case object Primary extends Style
-      case object Default extends Style
-      case object Warning extends Style
-      case object Error   extends Style
-      case object Info    extends Style
-      case object Detail  extends Style
+      case object Primary           extends Style
+      case object Default           extends Style
+      case object Warning           extends Style
+      case object Error             extends Style
+      case object Info              extends Style
+      case object Detail            extends Style
+      case class Bold(fr: Fragment) extends Style
     }
   }
 }

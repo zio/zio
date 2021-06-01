@@ -17,17 +17,17 @@
 package zio.test
 
 import zio.test.render.LogLine.Fragment.Style
-import zio.test.render.LogLine.Line
+import zio.test.render.LogLine.{Fragment, Line}
 
 package object render {
 
-  def info(s: String): LogLine.Fragment    = LogLine.Fragment(s, Style.Info)
-  def error(s: String): LogLine.Fragment   = LogLine.Fragment(s, Style.Error)
-  def warn(s: String): LogLine.Fragment    = LogLine.Fragment(s, Style.Warning)
-  def primary(s: String): LogLine.Fragment = LogLine.Fragment(s, Style.Primary)
-  def detail(s: String): LogLine.Fragment  = LogLine.Fragment(s, Style.Detail)
-  def fr(s: String): LogLine.Fragment      = LogLine.Fragment(s, Style.Default)
-  val sp: LogLine.Fragment                 = LogLine.Fragment(" ")
+  def info(s: String): Fragment    = Fragment(s, Style.Info)
+  def error(s: String): Fragment   = Fragment(s, Style.Error)
+  def warn(s: String): Fragment    = Fragment(s, Style.Warning)
+  def primary(s: String): Fragment = Fragment(s, Style.Primary)
+  def detail(s: String): Fragment  = Fragment(s, Style.Detail)
+  def fr(s: String): Fragment      = Fragment(s, Style.Default)
+  val sp: Fragment                 = Fragment(" ")
 
   def withOffset(i: Int)(line: LogLine.Line): Line = line.withOffset(i)
 }

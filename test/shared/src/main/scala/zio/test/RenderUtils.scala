@@ -32,7 +32,16 @@ private[test] object ConsoleUtils {
   def blue(s: String): String =
     SConsole.BLUE + s + SConsole.RESET
 
+  def magenta(s: String): String =
+    SConsole.MAGENTA + s + SConsole.RESET
+
   def cyan(s: String): String =
     SConsole.CYAN + s + SConsole.RESET
+
+  def dim(s: String): String =
+    "\u001b[2m" + s + SConsole.RESET
+
+  def bold(s: String): String =
+    SConsole.BOLD + s + SConsole.RESET
 
 }

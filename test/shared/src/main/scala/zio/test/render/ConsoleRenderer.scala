@@ -55,14 +55,15 @@ trait ConsoleRenderer extends TestRenderer {
     }
 
   def renderToStringLines(message: Message): Seq[String] = {
-    def renderFragment(f: Fragment) =
+    def renderFragment(f: Fragment): String =
       f.style match {
-        case Style.Primary => ConsoleUtils.blue(f.text)
-        case Style.Warning => ConsoleUtils.yellow(f.text)
-        case Style.Error   => ConsoleUtils.red(f.text)
-        case Style.Info    => ConsoleUtils.green(f.text)
-        case Style.Detail  => ConsoleUtils.cyan(f.text)
-        case Style.Default => f.text
+        case Style.Primary  => ConsoleUtils.blue(f.text)
+        case Style.Warning  => ConsoleUtils.yellow(f.text)
+        case Style.Error    => ConsoleUtils.red(f.text)
+        case Style.Info     => ConsoleUtils.green(f.text)
+        case Style.Detail   => ConsoleUtils.cyan(f.text)
+        case Style.Bold(fr) => ConsoleUtils.bold(renderFragment(fr))
+        case Style.Default  => f.text
       }
 
     message.lines.map { line =>
