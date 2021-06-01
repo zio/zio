@@ -1517,6 +1517,18 @@ val inputs: ZStream[Console, Nothing, Either[IOException, String]] =
   ZStream.fromEffect(zio.console.getStrLn).either
 ```
 
+When we are working with streams of `Either` values, we might want to fail the stream as soon as the emission of the first `Left` value:
+
+```scala mdoc:silent:nest
+// Stream of Either values that cannot fail
+val eitherStream: ZStream[Any, Nothing, Either[String, Int]] =
+  ZStream(Right(1), Right(2), Left("failed to parse"), Right(4))
+
+// A Fails with the first emission of the left value
+val stream: ZStream[Any, String, Int] = s.rightOrFail("fail")
+```
+
+
 ### Refining Errors
 
 We can keep one or some errors and terminate the fiber with the rest by using `ZStream#refineOrDie`:
