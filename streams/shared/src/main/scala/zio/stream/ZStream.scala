@@ -3629,16 +3629,15 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     }
 
   /**
-   * Creates a stream from a subscription to a [[zio.ZHub]].
+   * Creates a stream from a subscription to a hub.
    */
   def fromChunkHub[R, E, O](hub: ZHub[Nothing, R, Any, E, Nothing, Chunk[O]]): ZStream[R, E, O] =
     managed(hub.subscribe).flatMap(queue => fromChunkQueue(queue))
 
   /**
-   * Creates a stream from a subscription to a [[zio.ZHub]] in the context of a
-   * managed effect. The managed effect describes subscribing to receive
-   * messages from the hub while the stream describes taking messages from the
-   * hub.
+   * Creates a stream from a subscription to a hub in the context of a managed
+   * effect. The managed effect describes subscribing to receive messages from
+   * the hub while the stream describes taking messages from the hub.
    */
   def fromChunkHubManaged[R, E, O](
     hub: ZHub[Nothing, R, Any, E, Nothing, Chunk[O]]
@@ -3646,7 +3645,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     hub.subscribe.map(queue => fromChunkQueue(queue))
 
   /**
-   * Creates a stream from a subscription to a [[zio.ZHub]].
+   * Creates a stream from a subscription to a hub.
    *
    * The hub will be shut down once the stream is closed.
    */
@@ -3654,10 +3653,9 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     fromChunkHub(hub).ensuringFirst(hub.shutdown)
 
   /**
-   * Creates a stream from a subscription to a [[zio.ZHub]] in the context of a
-   * managed effect. The managed effect describes subscribing to receive
-   * messages from the hub while the stream describes taking messages from the
-   * hub.
+   * Creates a stream from a subscription to a hub in the context of a managed
+   * effect. The managed effect describes subscribing to receive messages from
+   * the hub while the stream describes taking messages from the hub.
    *
    * The hub will be shut down once the stream is closed.
    */
@@ -3713,7 +3711,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     }
 
   /**
-   * Creates a stream from a subscription to a [[zio.ZHub]].
+   * Creates a stream from a subscription to a hub.
    */
   def fromHub[R, E, A](
     hub: ZHub[Nothing, R, Any, E, Nothing, A],
@@ -3722,10 +3720,9 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     managed(hub.subscribe).flatMap(queue => fromQueue(queue, maxChunkSize))
 
   /**
-   * Creates a stream from a subscription to a [[zio.ZHub]] in the context of a
-   * managed effect. The managed effect describes subscribing to receive
-   * messages from the hub while the stream describes taking messages from the
-   * hub.
+   * Creates a stream from a subscription to a hub in the context of a managed
+   * effect. The managed effect describes subscribing to receive messages from
+   * the hub while the stream describes taking messages from the hub.
    */
   def fromHubManaged[R, E, A](
     hub: ZHub[Nothing, R, Any, E, Nothing, A],
@@ -3734,7 +3731,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     hub.subscribe.map(queue => fromQueueWithShutdown(queue, maxChunkSize))
 
   /**
-   * Creates a stream from a subscription to a [[zio.ZHub]].
+   * Creates a stream from a subscription to a hub.
    *
    * The hub will be shut down once the stream is closed.
    */
@@ -3745,10 +3742,9 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     fromHub(hub, maxChunkSize).ensuringFirst(hub.shutdown)
 
   /**
-   * Creates a stream from a subscription to a [[zio.ZHub]] in the context of a
-   * managed effect. The managed effect describes subscribing to receive
-   * messages from the hub while the stream describes taking messages from the
-   * hub.
+   * Creates a stream from a subscription to a hub in the context of a managed
+   * effect. The managed effect describes subscribing to receive messages from
+   * the hub while the stream describes taking messages from the hub.
    *
    * The hub will be shut down once the stream is closed.
    */
