@@ -1,7 +1,6 @@
 package zio.test.sbt
 
 import sbt.testing._
-import zio.UIO
 import zio.test.sbt.TestingSupport._
 import zio.test.{
   Annotations,
@@ -15,6 +14,7 @@ import zio.test.{
   TestSuccess,
   ZSpec
 }
+import zio.{Has, UIO}
 
 import java.util.regex.Pattern
 import scala.collection.mutable.ArrayBuffer
@@ -181,7 +181,7 @@ object ZTestFrameworkSpec {
 
   lazy val failingSpecFQN = SimpleFailingSpec.getClass.getName
   object SimpleFailingSpec extends DefaultRunnableSpec {
-    def spec: Spec[Annotations, TestFailure[Any], TestSuccess] = zio.test.suite("some suite")(
+    def spec: Spec[Has[Annotations], TestFailure[Any], TestSuccess] = zio.test.suite("some suite")(
       test("failing test") {
         zio.test.assert(1)(Assertion.equalTo(2))
       },

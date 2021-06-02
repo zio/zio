@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.{ExecutionStrategy, Layer, UIO, ZIO}
+import zio._
 
 /**
  * A `TestExecutor[R, E]` is capable of executing specs that require an
@@ -28,7 +28,7 @@ abstract class TestExecutor[+R, E] {
 }
 
 object TestExecutor {
-  def default[R <: Annotations, E](
+  def default[R <: Has[Annotations], E](
     env: Layer[Nothing, R]
   ): TestExecutor[R, E] = new TestExecutor[R, E] {
     def run(spec: ZSpec[R, E], defExec: ExecutionStrategy): UIO[ExecutedSpec[E]] =

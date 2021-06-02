@@ -16,8 +16,8 @@
 
 package zio.test.poly
 
-import zio.random.Random
 import zio.test.{Gen, Sized}
+import zio.{Has, Random}
 
 /**
  * `GenNumericPoly` provides evidence that instances of `Gen[T]` and
@@ -34,7 +34,7 @@ object GenNumericPoly {
    * Constructs an instance of `GenIntegralPoly` using the specified `Gen`
    * and `Numeric` instances, existentially hiding the underlying type.
    */
-  def apply[A](gen: Gen[Random with Sized, A], num: Numeric[A]): GenNumericPoly =
+  def apply[A](gen: Gen[Has[Random] with Has[Sized], A], num: Numeric[A]): GenNumericPoly =
     new GenNumericPoly {
       type T = A
       val genT = gen
@@ -70,7 +70,7 @@ object GenNumericPoly {
    * A generator of polymorphic values constrainted to have a `Numeric`
    * instance.
    */
-  lazy val genNumericPoly: Gen[Random, GenNumericPoly] =
+  lazy val genNumericPoly: Gen[Has[Random], GenNumericPoly] =
     Gen.elements(
       byte,
       char,

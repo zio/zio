@@ -14,31 +14,33 @@
  * limitations under the License.
  */
 
-package zio.clock
+package zio
 
-import zio.duration.Duration
 import zio.internal.Scheduler
+import zio.{DurationSyntax => _}
 
-import scala.scalajs.js
+import java.util.concurrent.TimeUnit
+import scala.concurrent.duration.FiniteDuration
+import scala.scalanative.loop._
 
-private[clock] trait PlatformSpecific {
-  private[clock] val globalScheduler = new Scheduler {
+private[zio] trait ClockPlatformSpecific {
+  private[zio] val globalScheduler = new Scheduler {
     import Scheduler.CancelToken
 
     private[this] val ConstFalse = () => false
 
     override def schedule(task: Runnable, duration: Duration): CancelToken = (duration: @unchecked) match {
-      case Duration.Infinity => ConstFalse
-      case Duration.Finite(_) =>
+      case zio.Duration.Infinity => ConstFalse
+      case zio.Duration.Finite(nanos) =>
         var completed = false
 
-        val handle = js.timers.setTimeout(duration.toMillis.toDouble) {
+        val handle = Timer.timeout(FiniteDuration(nanos, TimeUnit.NANOSECONDS)) { () =>
           completed = true
 
           task.run()
         }
         () => {
-          js.timers.clearTimeout(handle)
+          handle.clear()
           !completed
         }
     }

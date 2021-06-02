@@ -1,8 +1,7 @@
-package zio.duration
+package zio
 
-import zio.ZIOBaseSpec
-import zio.test.Assertion._
-import zio.test._
+import zio.test.Assertion.equalTo
+import zio.test.{ZSpec, assert}
 
 import java.time.{Duration => JavaDuration}
 import java.util.concurrent.TimeUnit

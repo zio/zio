@@ -28,7 +28,6 @@ Let's try to create some of these causes:
 
 ```scala mdoc:silent
 import zio._
-import zio.duration._
 for {
   failExit <- ZIO.fail("Oh! Error!").run
   dieExit  <- ZIO.effectTotal(5 / 0).run

@@ -5,7 +5,7 @@ title:  "Basic Operations"
 
 ```scala mdoc:invisible
 import zio._
-import zio.console._
+import zio.Console._
 ```
 
 ## Mapping
@@ -33,7 +33,7 @@ You can execute two effects in sequence with the `flatMap` method, which require
 
 ```scala mdoc:silent
 val sequenced = 
-  getStrLn.flatMap(input => putStrLn(s"You entered: $input"))
+  readLine.flatMap(input => printLine(s"You entered: $input"))
 ```
 
 If the first effect fails, the callback passed to `flatMap` will never be invoked, and the composed effect returned by `flatMap` will also fail.
@@ -47,9 +47,9 @@ Because the `ZIO` data type supports both `flatMap` and `map`, you can use Scala
 ```scala mdoc:silent
 val program = 
   for {
-    _    <- putStrLn("Hello! What is your name?")
-    name <- getStrLn
-    _    <- putStrLn(s"Hello, ${name}, welcome to ZIO!")
+    _    <- printLine("Hello! What is your name?")
+    name <- readLine
+    _    <- printLine(s"Hello, ${name}, welcome to ZIO!")
   } yield ()
 ```
 
@@ -72,15 +72,15 @@ Sometimes, when the success value of an effect is not useful (or example, it is 
 
 ```scala mdoc:silent
 val zipRight1 = 
-  putStrLn("What is your name?").zipRight(getStrLn)
+  printLine("What is your name?").zipRight(readLine)
 ```
 
 The `zipRight` and `zipLeft` functions have symbolic aliases, known as `*>` and `<*`, respectively. Some developers find these operators easier to read:
 
 ```scala mdoc:silent
 val zipRight2 = 
-  putStrLn("What is your name?") *>
-  getStrLn
+  printLine("What is your name?") *>
+  readLine
 ```
 
 ## Next Step

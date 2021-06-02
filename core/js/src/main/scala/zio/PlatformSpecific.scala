@@ -16,23 +16,18 @@
 
 package zio
 
-import zio.clock.Clock
-import zio.console.Console
-import zio.random.Random
-import zio.system.System
-
 private[zio] trait PlatformSpecific {
-  type ZEnv = Clock with Console with System with Random
+  type ZEnv = Has[Clock] with Has[Console] with Has[System] with Has[Random]
 
   object ZEnv {
 
     private[zio] object Services {
       val live: ZEnv =
-        Has.allOf[Clock.Service, Console.Service, System.Service, Random.Service](
-          Clock.Service.live,
-          Console.Service.live,
-          System.Service.live,
-          Random.Service.live
+        Has.allOf[Clock, Console, System, Random](
+          Clock.ClockLive,
+          Console.ConsoleLive,
+          System.SystemLive,
+          Random.RandomLive
         )
     }
 

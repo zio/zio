@@ -1,7 +1,6 @@
 package zio
 package stm
 
-import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect.nonFlaky
 import zio.test._
@@ -1397,8 +1396,8 @@ object ZSTMSpec extends ZIOBaseSpec {
   }
 
   def unpureSuspend(ms: Long): USTM[Unit] = STM.succeed {
-    val t0 = System.currentTimeMillis()
-    while (System.currentTimeMillis() - t0 < ms) {}
+    val t0 = java.lang.System.currentTimeMillis()
+    while (java.lang.System.currentTimeMillis() - t0 < ms) {}
   }
 
   class UnpureBarrier {
@@ -1410,9 +1409,9 @@ object ZSTMSpec extends ZIOBaseSpec {
         .eventually
   }
 
-  def liveClockSleep(d: Duration): ZIO[Live, Nothing, Unit] = Live.live(ZIO.sleep(d))
+  def liveClockSleep(d: Duration): ZIO[Has[Live], Nothing, Unit] = Live.live(ZIO.sleep(d))
 
-  def incrementVarN(n: Int, tvar: TRef[Int]): ZIO[clock.Clock, Nothing, Int] =
+  def incrementVarN(n: Int, tvar: TRef[Int]): ZIO[Has[Clock], Nothing, Int] =
     STM
       .atomically(for {
         v <- tvar.get
@@ -1426,7 +1425,7 @@ object ZSTMSpec extends ZIOBaseSpec {
     tvar1: TRef[Int],
     tvar2: TRef[Int],
     tvar3: TRef[Int]
-  ): ZIO[clock.Clock, Nothing, Int] =
+  ): ZIO[Has[Clock], Nothing, Int] =
     STM
       .atomically(for {
         v1 <- tvar1.get

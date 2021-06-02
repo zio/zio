@@ -16,8 +16,7 @@
 
 package zio.test
 
-import zio.URIO
-import zio.clock.Clock
+import zio._
 
 /**
  * A `RunnableSpec` has a main function and can be run by the JVM / Scala.js.
@@ -26,7 +25,7 @@ abstract class RunnableSpec[R, E] extends AbstractRunnableSpec {
   override type Environment = R
   override type Failure     = E
 
-  private def run(spec: ZSpec[Environment, Failure]): URIO[TestLogger with Clock, Int] =
+  private def run(spec: ZSpec[Environment, Failure]): URIO[Has[TestLogger] with Has[Clock], Int] =
     for {
       results <- runSpec(spec)
       hasFailures = results.exists {

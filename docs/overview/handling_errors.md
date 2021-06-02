@@ -122,9 +122,7 @@ There are a number of useful methods on the ZIO data type for retrying failed ef
 The most basic of these is `ZIO#retry`, which takes a `Schedule` and returns a new effect that will retry the first effect if it fails, according to the specified policy:
 
 ```scala mdoc:silent
-import zio.clock._
-
-val retriedOpenFile: ZIO[Clock, IOException, Array[Byte]] = 
+val retriedOpenFile: ZIO[Has[Clock], IOException, Array[Byte]] = 
   openFile("primary.data").retry(Schedule.recurs(5))
 ```
 

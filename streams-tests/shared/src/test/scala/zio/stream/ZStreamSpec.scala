@@ -1,8 +1,6 @@
 package zio.stream
 
 import zio._
-import zio.clock.Clock
-import zio.duration._
 import zio.internal.Executor
 import zio.stm.TQueue
 import zio.stream.ZSink.Push
@@ -2136,7 +2134,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           },
           testM("interrupts pulling on finish") {
             val s1 = ZStream(1, 2, 3)
-            val s2 = ZStream.fromEffect(clock.sleep(5.seconds).as(4))
+            val s2 = ZStream.fromEffect(Clock.sleep(5.seconds).as(4))
             assertM(s1.mergeTerminateLeft(s2).runCollect)(equalTo(Chunk(1, 2, 3)))
           }
         ),
@@ -2552,7 +2550,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               times <- Ref.make(List.empty[java.time.Instant])
               stream =
                 ZStream
-                  .fromEffect(clock.instant.flatMap(time => times.update(time +: _)))
+                  .fromEffect(Clock.instant.flatMap(time => times.update(time +: _)))
                   .flatMap(_ => Stream.fail(None))
               streamFib <- stream.retry(Schedule.exponential(1.second)).take(3).runDrain.fork
               _         <- TestClock.adjust(1.second)
@@ -2567,7 +2565,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               ref   <- Ref.make(0)
               stream =
                 ZStream
-                  .fromEffect(clock.instant.flatMap(time => times.update(time +: _) *> ref.updateAndGet(_ + 1)))
+                  .fromEffect(Clock.instant.flatMap(time => times.update(time +: _) *> ref.updateAndGet(_ + 1)))
                   .flatMap { attemptNr =>
                     if (attemptNr == 3 || attemptNr == 5) Stream.succeed(attemptNr) else Stream.fail(None)
                   }
@@ -2735,7 +2733,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                                  res1 <- pull
                                  _    <- queue.offer(2)
                                  res2 <- pull
-                                 _    <- clock.sleep(4.seconds)
+                                 _    <- Clock.sleep(4.seconds)
                                  _    <- queue.offer(3)
                                  res3 <- pull
                                } yield assert(Chunk(res1, res2, res3))(
@@ -2756,7 +2754,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                   res1    <- pull
                   _       <- queue.offer(2)
                   res2    <- pull
-                  elapsed <- clock.currentTime(TimeUnit.SECONDS)
+                  elapsed <- Clock.currentTime(TimeUnit.SECONDS)
                 } yield assert(elapsed)(equalTo(0L)) && assert(Chunk(res1, res2))(
                   equalTo(Chunk(Chunk(1), Chunk(2)))
                 )
@@ -2811,9 +2809,9 @@ object ZStreamSpec extends ZIOBaseSpec {
               assertM(for {
                 fiber  <- stream.runCollect.fork
                 _      <- c.offer.fork
-                _      <- (clock.sleep(500.millis) *> c.offer).fork
-                _      <- (clock.sleep(2.seconds) *> c.offer).fork
-                _      <- (clock.sleep(2500.millis) *> c.offer).fork
+                _      <- (Clock.sleep(500.millis) *> c.offer).fork
+                _      <- (Clock.sleep(2.seconds) *> c.offer).fork
+                _      <- (Clock.sleep(2500.millis) *> c.offer).fork
                 _      <- TestClock.adjust(3500.millis)
                 result <- fiber.join
               } yield result)(equalTo(Chunk(Chunk(3, 4), Chunk(6, 7))))
@@ -4037,8 +4035,8 @@ object ZStreamSpec extends ZIOBaseSpec {
   def assertWithChunkCoordination[A](
     chunks: List[Chunk[A]]
   )(
-    assertion: ChunkCoordination[A] => ZIO[Clock with TestClock, Nothing, TestResult]
-  ): ZIO[Clock with TestClock, Nothing, TestResult] =
+    assertion: ChunkCoordination[A] => ZIO[Has[Clock] with Has[TestClock], Nothing, TestResult]
+  ): ZIO[Has[Clock] with Has[TestClock], Nothing, TestResult] =
     for {
       q  <- Queue.unbounded[Exit[Option[Nothing], Chunk[A]]]
       ps <- Queue.unbounded[Unit]

@@ -1,7 +1,6 @@
 package zio
 
 import zio.FiberRefSpecUtil._
-import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect.flaky
 import zio.test._
@@ -366,8 +365,8 @@ object FiberRefSpec extends ZIOBaseSpec {
 
 object FiberRefSpecUtil {
   val (initial, update, update1, update2) = ("initial", "update", "update1", "update2")
-  val looseTimeAndCpu: ZIO[Live, Nothing, Unit] = Live.live {
-    (ZIO.yieldNow <* clock.sleep(1.nano)).repeatN(100)
+  val looseTimeAndCpu: ZIO[Has[Live], Nothing, Unit] = Live.live {
+    (ZIO.yieldNow <* Clock.sleep(1.nano)).repeatN(100)
   }
 
   def setRefOrHandle(fiberRef: FiberRef.Runtime[Int], value: Int): UIO[Unit] =

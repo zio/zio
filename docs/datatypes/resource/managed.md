@@ -53,10 +53,10 @@ val managedFromValue: Managed[Nothing, Int] = Managed.succeed(3)
 
 ```scala mdoc:silent
 import zio._
-import zio.console._
+import zio.Console._
 
-val zManagedResource: ZManaged[Console, Nothing, Unit] = ZManaged.make(console.putStrLn("acquiring").orDie)(_ => console.putStrLn("releasing").orDie)
-val zUsedResource: URIO[Console, Unit] = zManagedResource.use { _ => console.putStrLn("running").orDie }
+val zManagedResource: ZManaged[Has[Console], Nothing, Unit] = ZManaged.make(printLine("acquiring").orDie)(_ => printLine("releasing").orDie)
+val zUsedResource: URIO[Has[Console], Unit] = zManagedResource.use { _ => printLine("running").orDie }
 ```
 
 ## Combining Managed

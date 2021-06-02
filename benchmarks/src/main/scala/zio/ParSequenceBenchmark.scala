@@ -8,7 +8,7 @@ import org.openjdk.jmh.annotations._
 import zio.IOBenchmarks.{monixScheduler, unsafeRun}
 
 import java.util.concurrent.TimeUnit
-import scala.concurrent.duration.Duration
+import scala.concurrent.duration.{Duration => ScalaDuration}
 import scala.concurrent.{Await, ExecutionContext, Future}
 
 @Measurement(iterations = 10, time = 3, timeUnit = TimeUnit.SECONDS)
@@ -99,7 +99,7 @@ class ParSequenceBenchmark {
   def futureSequence(): Long = {
     val futures         = (0 until count).map(_ => Future(1)).toList
     val f: Future[Long] = Future.sequence(futures).map(_.sum.toLong)
-    Await.result(f, Duration.Inf)
+    Await.result(f, ScalaDuration.Inf)
   }
 
 }

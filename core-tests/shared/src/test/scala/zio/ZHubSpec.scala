@@ -1,11 +1,10 @@
 package zio
 
-import zio.random._
 import zio.test.Assertion._
 import zio.test._
 object ZHubSpec extends ZIOBaseSpec {
 
-  val smallInt: Gen[Random with Sized, Int] =
+  val smallInt: Gen[Has[Random] with Has[Sized], Int] =
     Gen.small(Gen.const(_), 1)
 
   def spec: ZSpec[Environment, Failure] = suite("ZHubSpec")(

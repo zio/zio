@@ -1,7 +1,7 @@
 package fix
 
 import zio._
-import zio.clock._
+import zio.Clock._
 import zio.test._
 import zio.test.Assertion._
 

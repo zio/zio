@@ -1,6 +1,5 @@
 package zio.test
 
-import zio.clock.Clock
 import zio.test.Assertion.{equalTo, isGreaterThan, isLessThan, isRight, isSome, not}
 import zio.test.environment.{TestClock, TestConsole, TestEnvironment, testEnvironment}
 import zio.test.mock.Expectation._
@@ -8,7 +7,7 @@ import zio.test.mock.internal.InvalidCall._
 import zio.test.mock.internal.MockException._
 import zio.test.mock.module.PureModuleMock
 import zio.test.render.TestRenderer
-import zio.{Cause, Layer, ZIO}
+import zio.{Cause, Clock, Has, Layer, ZIO}
 
 import java.util.regex.Pattern
 import scala.{Console => SConsole}
@@ -55,7 +54,7 @@ object ReportingTestUtils {
     for {
       _ <- TestTestRunner(testEnvironment)
              .run(spec)
-             .provideLayer[Nothing, TestEnvironment, TestLogger with Clock](
+             .provideLayer[Nothing, TestEnvironment, Has[TestLogger] with Has[Clock]](
                TestLogger.fromConsole ++ TestClock.default
              )
       output <- TestConsole.output
@@ -65,7 +64,7 @@ object ReportingTestUtils {
     for {
       results <- TestTestRunner(testEnvironment)
                    .run(spec)
-                   .provideLayer[Nothing, TestEnvironment, TestLogger with Clock](
+                   .provideLayer[Nothing, TestEnvironment, Has[TestLogger] with Has[Clock]](
                      TestLogger.fromConsole ++ TestClock.default
                    )
       actualSummary = SummaryBuilder.buildSummary(results)

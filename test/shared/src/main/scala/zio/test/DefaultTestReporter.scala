@@ -16,7 +16,6 @@
 
 package zio.test
 
-import zio.duration.{Duration, DurationOps}
 import zio.test.mock.Expectation
 import zio.test.mock.internal.{InvalidCall, MockException}
 import zio.test.render.ExecutionResult.ResultType.{Suite, Test}
@@ -24,7 +23,7 @@ import zio.test.render.ExecutionResult.Status.{Failed, Ignored, Passed}
 import zio.test.render.ExecutionResult.{ResultType, Status}
 import zio.test.render.LogLine.{Fragment, Line, Message}
 import zio.test.render._
-import zio.{Cause, Has}
+import zio.{Cause, Has, _}
 
 import java.util.regex.Pattern
 import scala.annotation.tailrec

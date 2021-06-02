@@ -20,7 +20,7 @@ The most common and easy way to create suites is to use `suite` function. For te
 ```scala mdoc
 import zio.test._
 import zio.test.environment.Live
-import zio.clock.nanoTime
+import zio.Clock.nanoTime
 import Assertion.isGreaterThan
 
 val clockSuite = suite("clock") (
@@ -127,7 +127,7 @@ When all of our tests are constructed, we need to have a way to actually execute
 
 ```scala mdoc
 import zio.test._
-import zio.clock.nanoTime
+import zio.Clock.nanoTime
 import Assertion._
 
 val suite1 = suite("suite1") (
@@ -176,7 +176,6 @@ It is easy to accidentally use different test instances at the same time.
 import zio.test._
 import zio.test.environment.TestClock
 import Assertion._
-import zio.duration._
 
 testM("`acquire` doesn't leak permits upon cancellation") {
   for {
@@ -194,13 +193,12 @@ testM("`acquire` doesn't leak permits upon cancellation") {
 Above code doesn't work. We created a new `TestClock` instance and are correctly adjusting its time. What might be surprising is that call to `timeout` will use the `TestClock` provided by the `TestEnvironment` not our `testClock` instance. It easy to know why when you look at the signature of `timeout`:
 
 ```scala mdoc
-import zio.duration.Duration
-import zio.clock.Clock
+import zio.Clock
 
 sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     /* All other method declarations in this trait ignored to avoid clutter */
 
-    def timeout(d: Duration): ZIO[R with Clock, E, Option[A]]
+    def timeout(d: Duration): ZIO[R with Has[Clock], E, Option[A]]
 }
 ```
 
@@ -223,9 +221,9 @@ import zio.test.Assertion.equalTo
 testM("Use setSeed to generate stable values") {
   for {
     _  <- TestRandom.setSeed(27)
-    r1 <- random.nextLong
-    r2 <- random.nextLong
-    r3 <- random.nextLong
+    r1 <- Random.nextLong
+    r2 <- Random.nextLong
+    r3 <- Random.nextLong
   } yield
     assert(List(r1,r2,r3))(equalTo(List[Long](
       -4947896108136290151L,
@@ -242,15 +240,15 @@ import zio.test.environment.TestRandom
 testM("One can provide its own list of ints") {
   for {
     _  <- TestRandom.feedInts(1, 9, 2, 8, 3, 7, 4, 6, 5)
-    r1 <- random.nextInt
-    r2 <- random.nextInt
-    r3 <- random.nextInt
-    r4 <- random.nextInt
-    r5 <- random.nextInt
-    r6 <- random.nextInt
-    r7 <- random.nextInt
-    r8 <- random.nextInt
-    r9 <- random.nextInt
+    r1 <- Random.nextInt
+    r2 <- Random.nextInt
+    r3 <- Random.nextInt
+    r4 <- Random.nextInt
+    r5 <- Random.nextInt
+    r6 <- Random.nextInt
+    r7 <- Random.nextInt
+    r8 <- Random.nextInt
+    r9 <- Random.nextInt
   } yield assert(
     List(1, 9, 2, 8, 3, 7, 4, 6, 5)
   )(equalTo(List(r1, r2, r3, r4, r5, r6, r7, r8, r9)))
@@ -275,8 +273,7 @@ Thanks to the call to `TestClock.adjust(1.minute)` we moved the time instantly 1
 
 ```scala mdoc
 import java.util.concurrent.TimeUnit
-import zio.clock.currentTime
-import zio.duration._
+import zio.Clock.currentTime
 import zio.test.Assertion.isGreaterThanEqualTo
 import zio.test._
 import zio.test.environment.TestClock
@@ -295,7 +292,6 @@ testM("One can move time very fast") {
 `TestClock` affects also all code running asynchronously that is scheduled to run after a certain time.
 
 ```scala mdoc
-import zio.duration._
 import zio.test.Assertion.equalTo
 import zio.test._
 import zio.test.environment.TestClock
@@ -317,8 +313,6 @@ The above code creates a write once cell that will be set to "1" after 10 second
 A more complex example leveraging layers and multiple services is shown below. 
 
 ```scala mdoc:reset
-import zio.clock.Clock
-import zio.duration._
 import zio.test.Assertion._
 import zio.test._
 import zio.test.environment.{ TestClock, TestEnvironment }
@@ -332,7 +326,7 @@ trait LoggingService {
   def log(msg: String): ZIO[Any, Exception, Unit]
 }
 
-val schedulingLayer: ZLayer[Clock with Has[LoggingService], Nothing, Has[SchedulingService]] =
+val schedulingLayer: ZLayer[Has[Clock] with Has[LoggingService], Nothing, Has[SchedulingService]] =
   ZLayer.fromFunction { env =>
     new SchedulingService {
       def schedule(promise: Promise[Unit, Int]): ZIO[Any, Exception, Boolean] =
@@ -347,7 +341,7 @@ testM("One can control time for failing effects too") {
     override def log(msg: String): ZIO[Any, Exception, Unit] = ZIO.fail(new Exception("BOOM"))
   })
 
-  val partialLayer = (ZLayer.identity[Clock] ++ failingLogger) >>> schedulingLayer
+  val partialLayer = (Clock.any ++ failingLogger) >>> schedulingLayer
 
   val testCase =
     for {
@@ -371,7 +365,6 @@ the test environment.
 The pattern with `Promise` and `await` can be generalized when we need to wait for multiple values using a `Queue`. We simply need to put multiple values into the queue and progress the clock multiple times and there is no need to create multiple promises. Even if you have a non-trivial flow of data from multiple streams that can produce at different intervals and would like to test snapshots of data in particular point in time `Queue` can help with that.
 
 ```scala mdoc
-import zio.duration._
 import zio.test.Assertion.equalTo
 import zio.test._
 import zio.test.environment.TestClock
@@ -399,16 +392,16 @@ as writing and reading to and from internal buffers.
 
 ```scala mdoc
 import zio.test.environment.TestConsole
-import zio.console
+import zio.Console
 
 val consoleSuite = suite("ConsoleTest")(
   testM("One can test output of console") {
     for {
       _              <- TestConsole.feedLines("Jimmy", "37")
-      _              <- console.putStrLn("What is your name?")
-      name           <- console.getStrLn
-      _              <- console.putStrLn("What is your age?")
-      age            <- console.getStrLn.map(_.toInt)
+      _              <- Console.printLine("What is your name?")
+      name           <- Console.readLine
+      _              <- Console.printLine("What is your age?")
+      age            <- Console.readLine.map(_.toInt)
       questionVector <- TestConsole.output
       q1             = questionVector(0)
       q2             = questionVector(1)
@@ -423,8 +416,8 @@ val consoleSuite = suite("ConsoleTest")(
 ```
 
 Above code simulates an application that will ask for name and age of the user. To test it we prefill buffers with answers
-with call to `TestConsole.feedLines` method. Calls to `console.getStrLn` will get the value from the buffers instead of 
-interacting with the users keyboard. Also all output that our program produces by calling `console.putStrLn` (and other 
+with call to `TestConsole.feedLines` method. Calls to `Console.readLine` will get the value from the buffers instead of 
+interacting with the users keyboard. Also all output that our program produces by calling `Console.printLine` (and other 
 printing methods) is being gathered and can be accessed with call to `TestConsole.output`.
 
 ### Testing System
@@ -435,12 +428,11 @@ exposes `TestSystem` module. Additionally to setting the environment variables i
 like in the code below:
 
 ```scala mdoc
-import zio.system
 import zio.test.environment._
 
 for {
   _      <- TestSystem.putProperty("java.vm.name", "VM")
-  result <- system.property("java.vm.name")
+  result <- System.property("java.vm.name")
 } yield assert(result)(equalTo(Some("VM")))
 ```
 
@@ -454,7 +446,7 @@ applied to a test or suite using the `@@` operator. This is an example test suit
 test behavior:
 
 ```scala mdoc:reset
-import zio.duration._
+import zio._
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test._

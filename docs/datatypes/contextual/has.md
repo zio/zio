@@ -5,7 +5,7 @@ title: "Has"
 
 The trait `Has[A]` is used with the ZIO environment to express an effect's dependency on a service of type `A`. 
 
-For example,`RIO[Has[Console.Service], Unit]` is an effect that requires a `Console.Service` service.
+For example,`RIO[Has[Console], Unit]` is an effect that requires a `Console` service.
 
 ## Overview
 ZIO Wrap services with `Has` data type to:

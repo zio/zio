@@ -16,8 +16,7 @@
 
 package zio.test
 
-import zio.duration._
-import zio.{Chunk, Fiber, Tag}
+import zio._
 
 import java.util.concurrent.atomic.AtomicReference
 import scala.collection.immutable.SortedSet

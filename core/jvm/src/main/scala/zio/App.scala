@@ -23,18 +23,18 @@ import zio.internal.FiberContext
  *
  * {{{
  * import zio.App
- * import zio.console._
+ * import zio.Console._
  *
  * object MyApp extends App {
  *
  *   final def run(args: List[String]) =
  *     myAppLogic.exitCode
  *
- *   def myAppLogic =
+ *   val myAppLogic =
  *     for {
- *       _ <- putStrLn("Hello! What is your name?")
- *       n <- getStrLn
- *       _ <- putStrLn("Hello, " + n + ", good to meet you!")
+ *       _ <- printLine("Hello! What is your name?")
+ *       n <- readLine
+ *       _ <- printLine("Hello, " + n + ", good to meet you!")
  *     } yield ()
  * }
  * }}}

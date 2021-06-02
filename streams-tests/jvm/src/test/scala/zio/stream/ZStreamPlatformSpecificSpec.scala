@@ -1,12 +1,11 @@
 package zio.stream
 
 import zio._
-import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test._
 
-import java.io.{FileNotFoundException, FileReader, IOException, OutputStream, Reader}
+import java.io._
 import java.net.InetSocketAddress
 import java.nio.channels.AsynchronousSocketChannel
 import java.nio.file.{Files, NoSuchFileException, Paths}

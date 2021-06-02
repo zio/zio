@@ -14,17 +14,16 @@
  * limitations under the License.
  */
 
-package zio.clock
+package zio
 
-import zio.duration.Duration
 import zio.internal.{NamedThreadFactory, Scheduler}
 
 import java.util.concurrent._
 
-private[clock] trait PlatformSpecific {
+private[zio] trait ClockPlatformSpecific {
   import Scheduler.CancelToken
 
-  private[clock] val globalScheduler = new Scheduler {
+  private[zio] val globalScheduler = new Scheduler {
 
     private[this] val service = makeService()
 

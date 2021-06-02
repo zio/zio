@@ -10,7 +10,7 @@ import zio.IOBenchmarks._
 import zio.stream._
 
 import java.util.concurrent.TimeUnit
-import scala.concurrent.duration.Duration
+import scala.concurrent.duration.{Duration => ScalaDuration}
 import scala.concurrent.{Await, ExecutionContextExecutor}
 
 @State(Scope.Thread)
@@ -41,7 +41,7 @@ class StreamBenchmarks {
       .map(_.toLong)
       .toMat(AkkaSink.fold(0L)(_ + _))(Keep.right)
 
-    Await.result(program.run(), Duration.Inf)
+    Await.result(program.run(), ScalaDuration.Inf)
   }
 
   @Benchmark
@@ -133,7 +133,7 @@ class CSVStreamBenchmarks {
       .mapConcat(t => t._2)
       .toMat(AkkaSink.ignore)(Keep.right)
 
-    Await.result(program.run(), Duration.Inf)
+    Await.result(program.run(), ScalaDuration.Inf)
   }
 
   @Benchmark
@@ -200,7 +200,7 @@ object CSV {
   val RowSep    = '\n'
 
   def alphanumeric(random: scala.util.Random, min: Int, max: Int): String = {
-    val n = random.nextInt(max - min + 1) + min
+    val n = scala.util.Random.nextInt(max - min + 1) + min
 
     random.alphanumeric.take(n).mkString
   }

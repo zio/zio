@@ -90,19 +90,19 @@ object SpecSpec extends ZIOBaseSpec {
           spec = suite("suite")(
                    testM("test1") {
                      for {
-                       n <- random.nextInt
+                       n <- Random.nextInt
                        _ <- ref.update(_ + n)
                      } yield assertCompletes
                    },
                    testM("test2") {
                      for {
-                       n <- random.nextInt
+                       n <- Random.nextInt
                        _ <- ref.update(_ + n)
                      } yield assertCompletes
                    },
                    testM("test3") {
                      for {
-                       n <- random.nextInt
+                       n <- Random.nextInt
                        _ <- ref.update(_ + n)
                      } yield assertCompletes
                    }
@@ -115,13 +115,13 @@ object SpecSpec extends ZIOBaseSpec {
         val spec = suite("suite")(
           testM("test1") {
             for {
-              _      <- console.putStrLn("Hello, World!")
+              _      <- Console.printLine("Hello, World!")
               output <- TestConsole.output
             } yield assert(output)(equalTo(Vector("Hello, World!\n")))
           },
           testM("test2") {
             for {
-              _      <- console.putStrLn("Hello, World!")
+              _      <- Console.printLine("Hello, World!")
               output <- TestConsole.output
             } yield assert(output)(equalTo(Vector("Hello, World!\n")))
           }
@@ -134,7 +134,7 @@ object SpecSpec extends ZIOBaseSpec {
           acquire = ref.update("Acquiring" :: _)
           release = ref.update("Releasing" :: _)
           update  = ZIO.service[Ref[Int]].flatMap(_.updateAndGet(_ + 1))
-          layer   = ZLayer.fromAcquireRelease(acquire *> Ref.make(0))(_ => release)
+          layer   = ZManaged.make(acquire *> Ref.make(0))(_ => release).toLayer
           spec = suite("spec")(
                    suite("suite1")(
                      testM("test1") {
@@ -172,7 +172,7 @@ object SpecSpec extends ZIOBaseSpec {
                 }
               )
             )
-          ).provideCustomLayerShared(ZLayer.fromAcquireRelease(Ref.make(0))(_.set(-1)))
+          ).provideCustomLayerShared(ZManaged.make(Ref.make(0))(_.set(-1)).toLayer)
         assertM(succeeded(spec))(isTrue)
       }
     )

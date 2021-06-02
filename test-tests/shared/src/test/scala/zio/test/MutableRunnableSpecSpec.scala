@@ -30,6 +30,7 @@ object MutableRunnableSpecSpec
       RefInt.live,
       sequential >>> samples(10) >>> before(ZIO.service[RefInt].flatMap(_.inc))
     ) {
+
   testM("ref 1") {
     assertM(ZIO.service[RefInt].flatMap(_.get))(equalTo(1))
   }

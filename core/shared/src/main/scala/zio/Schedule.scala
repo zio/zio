@@ -16,9 +16,7 @@
 
 package zio
 
-import zio.clock.Clock
-import zio.duration._
-import zio.random._
+import zio.Random._
 
 import java.time.OffsetDateTime
 import java.time.temporal.ChronoField._
@@ -325,8 +323,8 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
   /**
    * Returns a driver that can be used to step the schedule, appropriately handling sleeping.
    */
-  def driver: URIO[Clock, Schedule.Driver[Env, In, Out]] =
-    clock.driver(self)
+  def driver: URIO[Has[Clock], Schedule.Driver[Env, In, Out]] =
+    Clock.driver(self)
 
   /**
    * A named alias for `||`.
@@ -433,13 +431,13 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
   /**
    * Returns a new schedule that randomly modifies the size of the intervals of this schedule.
    */
-  def jittered: Schedule[Env with Random, In, Out] = jittered(0.0, 1.0)
+  def jittered: Schedule[Env with Has[Random], In, Out] = jittered(0.0, 1.0)
 
   /**
    * Returns a new schedule that randomly modifies the size of the intervals of this schedule.
    */
-  def jittered(min: Double, max: Double): Schedule[Env with Random, In, Out] =
-    delayedM[Env with Random] { duration =>
+  def jittered(min: Double, max: Double): Schedule[Env with Has[Random], In, Out] =
+    delayedM[Env with Has[Random]] { duration =>
       nextDouble.map { random =>
         val d        = duration.toNanos
         val jittered = d * min * (1 - random) + d * max * random

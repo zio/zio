@@ -3,7 +3,7 @@ package zio.test.junit
 import org.apache.maven.cli.MavenCli
 import zio.test.Assertion._
 import zio.test.{DefaultRunnableSpec, ZSpec, _}
-import zio.{Task, ZIO}
+import zio.{System => _, _}
 
 import java.io.File
 import scala.collection.immutable
@@ -71,7 +71,7 @@ object MavenJunitSpec extends DefaultRunnableSpec {
   class MavenDriver(projectDir: String, projectVersion: String, scalaVersion: String, scalaCompatVersion: String) {
     val mvnRoot: String = new File(s"$projectDir/../maven").getCanonicalPath
     private val cli     = new MavenCli
-    System.setProperty("maven.multiModuleProjectDirectory", mvnRoot)
+    java.lang.System.setProperty("maven.multiModuleProjectDirectory", mvnRoot)
 
     def clean(): Task[Int] = run("clean")
 

@@ -1,7 +1,5 @@
 package zio
 
-import zio.clock.Clock
-import zio.duration._
 import zio.internal.Executor
 
 import scala.concurrent.ExecutionContext
@@ -73,7 +71,7 @@ object ZIOAspect {
   /**
    * An aspect that retries effects according to the specified schedule.
    */
-  def retry[R1 <: Clock, E1](schedule: Schedule[R1, E1, Any]): ZIOAspect[Nothing, R1, Nothing, E1, Nothing, Any] =
+  def retry[R1 <: Has[Clock], E1](schedule: Schedule[R1, E1, Any]): ZIOAspect[Nothing, R1, Nothing, E1, Nothing, Any] =
     new ZIOAspect[Nothing, R1, Nothing, E1, Nothing, Any] {
       def apply[R <: R1, E <: E1, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
         zio.retry(schedule)
@@ -82,9 +80,9 @@ object ZIOAspect {
   /**
    * An aspect that times out effects.
    */
-  def timeoutFail[E1](e: => E1)(d: Duration): ZIOAspect[Nothing, Clock, E1, Any, Nothing, Any] =
-    new ZIOAspect[Nothing, Clock, E1, Any, Nothing, Any] {
-      def apply[R <: Clock, E >: E1, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+  def timeoutFail[E1](e: => E1)(d: Duration): ZIOAspect[Nothing, Has[Clock], E1, Any, Nothing, Any] =
+    new ZIOAspect[Nothing, Has[Clock], E1, Any, Nothing, Any] {
+      def apply[R <: Has[Clock], E >: E1, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
         zio.timeoutFail(e)(d)
     }
 

@@ -20,7 +20,8 @@ package object zio
     with FunctionToLayerOps
     with IntersectionTypeCompat
     with PlatformSpecific
-    with VersionSpecific {
+    with VersionSpecific
+    with DurationModule {
   private[zio] type Callback[E, A] = Exit[E, A] => Any
 
   type Canceler[-R] = URIO[R, Any]
@@ -79,4 +80,5 @@ package object zio
     def unapply[A, B](ab: (A, B)): Some[(A, B)] =
       Some((ab._1, ab._2))
   }
+
 }
