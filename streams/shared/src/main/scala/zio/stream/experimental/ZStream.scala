@@ -2826,8 +2826,44 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def zipWithLatest[R1 <: R, E1 >: E, A2, A3](
     that: ZStream[R1, E1, A2]
-  )(f: (A, A2) => A3): ZStream[R1, E1, A3] =
-    ???
+  )(f: (A, A2) => A3): ZStream[R1, E1, A3] = {
+    val mergedChannel: ZChannel[R1, Any, Any, Any, E1, Option[Either[A, A2]], Any] =
+      self.channel
+        .mapOut(_.lastOption.map(Left(_)))
+        .mergeWith(that.channel.mapOut(_.lastOption.map(Right(_))))(
+          exit => ZChannel.MergeDecision.done(ZIO.done(exit)),
+          exit => ZChannel.MergeDecision.done(ZIO.done(exit))
+        )
+
+    def writer(
+      lastLeft: Option[A],
+      lastRight: Option[A2]
+    ): ZChannel[R1, E1, Option[Either[A, A2]], Any, E1, Chunk[A3], Unit] =
+      ZChannel.readWith[R1, E1, Option[Either[A, A2]], Any, E1, Chunk[A3], Unit](
+        {
+          case Some(Left(a1)) =>
+            lastRight match {
+              case Some(a2) =>
+                ZChannel.write(Chunk.single(f(a1, a2))) *> writer(Some(a1), lastRight)
+              case None =>
+                writer(Some(a1), lastRight)
+            }
+          case Some(Right(a2)) =>
+            lastLeft match {
+              case Some(a1) =>
+                ZChannel.write(Chunk.single(f(a1, a2))) *> writer(lastLeft, Some(a2))
+              case None =>
+                writer(lastLeft, Some(a2))
+            }
+          case None =>
+            writer(lastLeft, lastRight)
+        },
+        err => ZChannel.fail(err),
+        _ => ZChannel.unit
+      )
+
+    new ZStream((mergedChannel >>> writer(None, None)))
+  }
 
   /**
    * Zips each element with the next element if present.
