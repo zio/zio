@@ -1065,7 +1065,7 @@ val partitioned: ZManaged[Any, Nothing, (ZStream[Any, Nothing, Int], ZStream[Any
     .partitionEither(x => ZIO.succeed(if (x < 5) Left(x) else Right(x)))
 ```
 
-### Grouping
+### GroupBy
 
 #### groupByKey
 
@@ -1166,6 +1166,8 @@ val classifyStudents: ZStream[Console, IOException, (String, Seq[String])] =
 // (A,List(Mary, Robert, Jennifer, Peter))
 // (C,List(Patricia, Rebecca))
 ```
+
+### Grouping
 
 #### grouped
 To partition the stream results with the specified chunk size, we can use the `grouped` function.
