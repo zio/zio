@@ -85,6 +85,7 @@
       "datatypes/stream/zstream",
       "datatypes/stream/stream",
       "datatypes/stream/zsink",
+      "datatypes/stream/sink",
       "datatypes/stream/subscription-ref"
     ],
     "Miscellaneous": [
