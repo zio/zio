@@ -779,15 +779,18 @@ val unitStream: ZStream[Any, Nothing, Unit] =
 The `ZStream#filter` allows us to filter emitted elements:
 
 ```scala mdoc:silent:nest
-val s1 = ZStream.iterate(1)(_ + 1).take(10).filter(_ % 2 == 0)
+val s1 = ZStream.range(1, 11).filter(_ % 2 == 0)
 // Output: 2, 4, 6, 8, 10
 
 // The `ZStream#withFilter` operator enables us to write filter in for-comprehension style
 val s2 = for {
-  i <- ZStream.iterate(1)(_ + 1).take(10)
+  i <- ZStream.range(1, 11).take(10)
   if i % 2 == 0
 } yield i
 // Output: 2, 4, 6, 8, 10
+
+val s3 = ZStream.range(1, 11).filterNot(_ % 2 == 0)
+// Output: 1, 3, 5, 7, 9
 ```
 
 ### Draining
