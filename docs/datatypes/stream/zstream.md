@@ -774,6 +774,22 @@ val unitStream: ZStream[Any, Nothing, Unit] =
   ZStream.range(1, 5).as(())
 ```
 
+### Filtering
+
+The `ZStream#filter` allows us to filter emitted elements:
+
+```scala mdoc:silent:nest
+val s1 = ZStream.iterate(1)(_ + 1).take(10).filter(_ % 2 == 0)
+// Output: 2, 4, 6, 8, 10
+
+// The `ZStream#withFilter` operator enables us to write filter in for-comprehension style
+val s2 = for {
+  i <- ZStream.iterate(1)(_ + 1).take(10)
+  if i % 2 == 0
+} yield i
+// Output: 2, 4, 6, 8, 10
+```
+
 ### Draining
 
 Assume we have an effectful stream, which contains a sequence of effects; sometimes we might want to execute its effect without emitting any element, in these situations to discard the results we should use the `ZStream#drain` method. It removes all output values from the stream:
