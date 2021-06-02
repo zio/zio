@@ -1413,6 +1413,16 @@ Based on the type of underlying queue we can use one the buffering operators:
 - **Sliding Queue** — `ZStream#bufferDropping(capacity: Int)`
 - **Dropping Qeuue** `ZStream#bufferSliding(capacity: Int)`
 
+## Scheduling
+
+To schedule the output of a stream we use `ZStream#schedule` combinator.
+
+Let's space between each emission of the given stream:
+
+```scala mdoc:silent:nest
+val stream = Stream(1, 2, 3, 4, 5).schedule(Schedule.spaced(1.second))
+```
+
 ## Consuming a Stream
 
 ```scala mdoc:silent
