@@ -84,6 +84,7 @@
       "datatypes/stream/index",
       "datatypes/stream/zstream",
       "datatypes/stream/stream",
+      "datatypes/stream/ustream",
       "datatypes/stream/zsink",
       "datatypes/stream/sink",
       "datatypes/stream/subscription-ref"
