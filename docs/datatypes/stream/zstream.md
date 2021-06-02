@@ -793,6 +793,25 @@ val s3 = ZStream.range(1, 11).filterNot(_ % 2 == 0)
 // Output: 1, 3, 5, 7, 9
 ```
 
+### Scanning
+
+Scans are like folds, but with a history. Like folds, they take a binary operator with an initial value. A fold combines elements of a stream and emits every intermediary result as an output of the stream:
+
+```scala mdoc:silent:nest
+val scan = ZStream(1, 2, 3, 4, 5).scan(0)(_ + _)
+// Output: 0, 1, 3, 6, 10
+// Iterations:
+//        =>  0 (initial value)
+//  0 + 1 =>  1
+//  1 + 2 =>  3
+//  3 + 3 =>  6
+//  6 + 4 => 10
+// 10 + 5 => 15
+
+val fold = ZStream(1, 2, 3, 4, 5).fold(0)(_ + _)
+// Output: 10 (ZIO effect containing 10)
+```
+
 ### Draining
 
 Assume we have an effectful stream, which contains a sequence of effects; sometimes we might want to execute its effect without emitting any element, in these situations to discard the results we should use the `ZStream#drain` method. It removes all output values from the stream:
