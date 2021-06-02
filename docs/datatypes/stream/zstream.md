@@ -1413,6 +1413,20 @@ Based on the type of underlying queue we can use one the buffering operators:
 - **Sliding Queue** — `ZStream#bufferDropping(capacity: Int)`
 - **Dropping Qeuue** `ZStream#bufferSliding(capacity: Int)`
 
+### Debouncing
+
+The `ZStream#debounce` method debounces the stream with a minimum period of `d` between each element:
+
+```scala mdoc:silent:nest
+val stream = (
+  ZStream(1, 2, 3) ++
+    ZStream.fromEffect(ZIO.sleep(500.millis)) ++ ZStream(4, 5) ++
+    ZStream.fromEffect(ZIO.sleep(10.millis)) ++
+    ZStream(6)
+).debounce(100.millis) // emit only after a pause of at least 100 ms
+// Output: 3, 6
+```
+
 ## Scheduling
 
 To schedule the output of a stream we use `ZStream#schedule` combinator.
