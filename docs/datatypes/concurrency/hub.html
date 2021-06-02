@@ -61,7 +61,7 @@
               }
             });
         </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://github.com/zio/zio/edit/master/docs/datatypes/concurrency/hub.md" target="_blank" rel="noreferrer noopener">Edit</a><h1 id="__docusaurus" class="postHeaderTitle">Hub</h1></header><article><div><span><p>A <code>Hub[A]</code> is an asynchronous message hub. Publishers can publish messages of type <code>A</code> to the hub and subscribers can subscribe to receive messages of type <code>A</code> from the hub.</p>
-<p>Unlike a <code>Queue</code>, where each value offered to the queue can be taken by <em>one</em> poller, each value published to a hub can be received by <em>all</em> subscribers. Whereas a <code>Queue</code> represents the optimal solution to the problem of how to <em>distribute</em> values, a <code>Hub</code> represents the optimal solution to the problem of how to <em>broadcast</em> them.</p>
+<p>Unlike a <code>Queue</code>, where each value offered to the queue can be taken by <em>one</em> taker, each value published to a hub can be received by <em>all</em> subscribers. Whereas a <code>Queue</code> represents the optimal solution to the problem of how to <em>distribute</em> values, a <code>Hub</code> represents the optimal solution to the problem of how to <em>broadcast</em> them.</p>
 <p>The fundamental operators on a <code>Hub</code> are <code>publish</code> and <code>subscribe</code>:</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> zio._
 
@@ -72,6 +72,20 @@
 </code></pre>
 <p>The <code>publish</code> operator returns a <code>ZIO</code> effect that publishes a message of type <code>A</code> to the hub and succeeds with a value describing whether the message was successfully published to the hub.</p>
 <p>The <code>subscribe</code> operator returns a <code>ZManaged</code> effect where the <code>acquire</code> action of the <code>ZManaged</code> subscribes to the hub and the <code>release</code> action unsubscribes from the hub. Within the context of the <code>ZManaged</code> we have access to a <code>Dequeue</code>, which is a <code>Queue</code> that can only be dequeued from, that allows us to take messages published to the hub.</p>
+<p>For example, we can use a hub to broadcast a message to multiple subscribers like this:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-type">Hub</span>.bounded[<span class="hljs-type">String</span>](<span class="hljs-number">2</span>).flatMap { hub =&gt;
+  hub.subscribe.zip(hub.subscribe).use { <span class="hljs-keyword">case</span> (left, right) =&gt;
+    <span class="hljs-keyword">for</span> {
+      _ &lt;- hub.publish(<span class="hljs-string">"Hello from a hub!"</span>)
+      _ &lt;- left.take.flatMap(console.putStrLn(_))
+      _ &lt;- right.take.flatMap(console.putStrLn(_))
+    } <span class="hljs-keyword">yield</span> ()
+  }
+}
+</code></pre>
+<p>A subscriber will only receive messages that are published to the hub while it is subscribed. So if we want to make sure that a particular message is received by a subscriber we must take care that the subscription has completed before publishing the message to the hub.</p>
+<p>We can do this by publishing a message to the hub within the scope of the subscription as in the example above or by using other coordination mechanisms such as completing a <code>Promise</code>  when the <code>acquire</code> action of the <code>ZManaged</code> has completed.</p>
+<p>Of course, in many cases such as subscribing to receive real time data we may not care about this because we are happy to just pick up with the most recent messages after we have subscribed. But for testing and simple applications this can be an important point to keep in mind.</p>
 <h2><a class="anchor" aria-hidden="true" id="constructing-hubs"></a><a href="#constructing-hubs" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Constructing Hubs</h2>
 <p>The most common way to create a hub is with the <code>bounded</code> constructor, which returns an effect that creates a new hub with the specified requested capacity.</p>
 <pre><code class="hljs css language-scala"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">bounded</span></span>[<span class="hljs-type">A</span>](requestedCapacity: <span class="hljs-type">Int</span>): <span class="hljs-type">UIO</span>[<span class="hljs-type">Hub</span>[<span class="hljs-type">A</span>]] =
@@ -132,7 +146,9 @@
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> zio.stream._
 
 <span class="hljs-class"><span class="hljs-keyword">trait</span> <span class="hljs-title">ZStream</span>[-<span class="hljs-type">R</span>, +<span class="hljs-type">E</span>, +<span class="hljs-type">O</span>] </span>{
-  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">into</span></span>[<span class="hljs-type">R1</span> &lt;: <span class="hljs-type">R</span>, <span class="hljs-type">E1</span> &gt;: <span class="hljs-type">E</span>](queue: <span class="hljs-type">ZEnqueue</span>[<span class="hljs-type">R1</span>, <span class="hljs-type">Nothing</span>, <span class="hljs-type">Take</span>[<span class="hljs-type">E1</span>, <span class="hljs-type">O</span>]]): <span class="hljs-type">ZIO</span>[<span class="hljs-type">R1</span>, <span class="hljs-type">E1</span>, <span class="hljs-type">Unit</span>]
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">into</span></span>[<span class="hljs-type">R1</span> &lt;: <span class="hljs-type">R</span>, <span class="hljs-type">E1</span> &gt;: <span class="hljs-type">E</span>](
+    queue: <span class="hljs-type">ZEnqueue</span>[<span class="hljs-type">R1</span>, <span class="hljs-type">Nothing</span>, <span class="hljs-type">Take</span>[<span class="hljs-type">E1</span>, <span class="hljs-type">O</span>]]
+  ): <span class="hljs-type">ZIO</span>[<span class="hljs-type">R1</span>, <span class="hljs-type">E1</span>, <span class="hljs-type">Unit</span>]
 }
 </code></pre>
 <p>We would now like to have multiple downstream consumers process each of these transactions, for example to persist them and log them in addition to applying our business logic to them. With <code>Hub</code> this is easy because we can just use the <code>toQueue</code> operator to view any <code>Hub</code> as a <code>Queue</code> that can only be written to.</p>
@@ -182,8 +198,12 @@ transactionStream.into(hub.toQueue)
 <p>This can be useful if we want to, for example, observe the different times that different subscribers are taking messages from the hub as in the example above. However, it is less efficient if we want to apply a transformation once for each value published to the hub.</p>
 <p>For this we can use the <code>contramap</code> and <code>contramapM</code> operators defined on <code>ZHub</code>.</p>
 <pre><code class="hljs css language-scala"><span class="hljs-class"><span class="hljs-keyword">trait</span> <span class="hljs-title">ZHub</span>[-<span class="hljs-type">RA</span>, -<span class="hljs-type">RB</span>, +<span class="hljs-type">EA</span>, +<span class="hljs-type">EB</span>, -<span class="hljs-type">A</span>, +<span class="hljs-type">B</span>] </span>{
-  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">contramap</span></span>[<span class="hljs-type">C</span>](f: <span class="hljs-type">C</span> =&gt; <span class="hljs-type">A</span>): <span class="hljs-type">ZHub</span>[<span class="hljs-type">RA</span>, <span class="hljs-type">RB</span>, <span class="hljs-type">EA</span>, <span class="hljs-type">EB</span>, <span class="hljs-type">C</span>, <span class="hljs-type">B</span>]
-  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">contramapM</span></span>[<span class="hljs-type">RC</span> &lt;: <span class="hljs-type">RA</span>, <span class="hljs-type">EC</span> &gt;: <span class="hljs-type">EA</span>, <span class="hljs-type">C</span>](f: <span class="hljs-type">C</span> =&gt; <span class="hljs-type">ZIO</span>[<span class="hljs-type">RC</span>, <span class="hljs-type">EC</span>, <span class="hljs-type">A</span>]): <span class="hljs-type">ZHub</span>[<span class="hljs-type">RC</span>, <span class="hljs-type">RB</span>, <span class="hljs-type">EC</span>, <span class="hljs-type">EB</span>, <span class="hljs-type">C</span>, <span class="hljs-type">B</span>]
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">contramap</span></span>[<span class="hljs-type">C</span>](
+    f: <span class="hljs-type">C</span> =&gt; <span class="hljs-type">A</span>
+  ): <span class="hljs-type">ZHub</span>[<span class="hljs-type">RA</span>, <span class="hljs-type">RB</span>, <span class="hljs-type">EA</span>, <span class="hljs-type">EB</span>, <span class="hljs-type">C</span>, <span class="hljs-type">B</span>]
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">contramapM</span></span>[<span class="hljs-type">RC</span> &lt;: <span class="hljs-type">RA</span>, <span class="hljs-type">EC</span> &gt;: <span class="hljs-type">EA</span>, <span class="hljs-type">C</span>](
+    f: <span class="hljs-type">C</span> =&gt; <span class="hljs-type">ZIO</span>[<span class="hljs-type">RC</span>, <span class="hljs-type">EC</span>, <span class="hljs-type">A</span>]
+  ): <span class="hljs-type">ZHub</span>[<span class="hljs-type">RC</span>, <span class="hljs-type">RB</span>, <span class="hljs-type">EC</span>, <span class="hljs-type">EB</span>, <span class="hljs-type">C</span>, <span class="hljs-type">B</span>]
 }
 </code></pre>
 <p>The <code>contramap</code> operator allows us to transform each value published to the hub by applying the specified function. Conceptually it returns a new hub where every time we publish a value we first transform it with the specified function before publishing it to the original hub.</p>
@@ -249,12 +269,38 @@ transactionStream.into(hub.toQueue)
 }
 </code></pre>
 <p>This will return a stream that subscribes to receive values from a hub and then emits every value published to the hub while the subscription is active. When the stream ends the subscriber will automatically be unsubscribed from the hub.</p>
+<p>There is also a <code>fromHubManaged</code> operator that returns the stream in the context of a managed effect.</p>
+<pre><code class="hljs css language-scala"><span class="hljs-class"><span class="hljs-keyword">object</span> <span class="hljs-title">ZStream</span> </span>{
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">fromHubManaged</span></span>[<span class="hljs-type">R</span>, <span class="hljs-type">E</span>, <span class="hljs-type">O</span>](
+    hub: <span class="hljs-type">ZHub</span>[<span class="hljs-type">Nothing</span>, <span class="hljs-type">R</span>, <span class="hljs-type">Any</span>, <span class="hljs-type">E</span>, <span class="hljs-type">Nothing</span>, <span class="hljs-type">O</span>]
+  ): <span class="hljs-type">ZManaged</span>[<span class="hljs-type">Any</span>, <span class="hljs-type">Nothing</span>, <span class="hljs-type">ZStream</span>[<span class="hljs-type">R</span>, <span class="hljs-type">E</span>, <span class="hljs-type">O</span>]] =
+    ???
+}
+</code></pre>
+<p>The managed effect here describes subscribing to receive messages from the hub while the stream describes taking messages from the hub. This can be useful when we need to ensure that a consumer has subscribed before a producer begins publishing values.</p>
+<p>Here is an example of using it:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">for</span> {
+  promise &lt;- <span class="hljs-type">Promise</span>.make[<span class="hljs-type">Nothing</span>, <span class="hljs-type">Unit</span>]
+  hub     &lt;- <span class="hljs-type">Hub</span>.bounded[<span class="hljs-type">String</span>](<span class="hljs-number">2</span>)
+  managed  = <span class="hljs-type">ZStream</span>.fromHubManaged(hub).tapM(_ =&gt; promise.succeed(()))
+  stream   = <span class="hljs-type">ZStream</span>.unwrapManaged(managed)
+  fiber   &lt;- stream.take(<span class="hljs-number">2</span>).runCollect.fork
+  _       &lt;- promise.await
+  _       &lt;- hub.publish(<span class="hljs-string">"Hello"</span>)
+  _       &lt;- hub.publish(<span class="hljs-string">"World"</span>)
+  _       &lt;- fiber.join
+} <span class="hljs-keyword">yield</span> ()
+</code></pre>
+<p>Notice that in this case we used a <code>Promise</code> to ensure that the subscription had completed before publishing to the hub. The <code>ZManaged</code> in the return type of <code>fromHubManaged</code> made it easy for us to signal when the subscription had occurred by using <code>tapM</code> and completing the <code>Promise</code>.</p>
+<p>Of course in many real applications we don't need this kind of sequencing and just want to subscribe to receive new messages. In this case we can use the <code>fromHub</code> operator to return a <code>ZStream</code> that will automatically handle subscribing and unsubscribing for us.</p>
 <p>There is also a <code>fromHubWithShutdown</code> variant that shuts down the hub itself when the stream ends. This is useful when the stream represents your main application logic and you want to shut down other subscriptions to the hub when the stream ends.</p>
 <p>Each of these constructors also has <code>Chunk</code> variants, <code>fromChunkHub</code> and <code>fromChunkHubWithShutdown</code>, that allow you to preserve the chunked structure of data when working with hubs and streams.</p>
 <p>In addition to being able to create streams from subscriptions to hubs, there are a variety of ways to send values emitted by streams to hubs to build more complex data flow graphs.</p>
 <p>The simplest of these is the <code>toHub</code> operator, which constructs a new hub and publishes each element emitted by the stream to that hub.</p>
 <pre><code class="hljs css language-scala"><span class="hljs-class"><span class="hljs-keyword">trait</span> <span class="hljs-title">ZStream</span>[-<span class="hljs-type">R</span>, +<span class="hljs-type">E</span>, +<span class="hljs-type">O</span>] </span>{
-  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">toHub</span></span>(capacity: <span class="hljs-type">Int</span>): <span class="hljs-type">ZManaged</span>[<span class="hljs-type">R</span>, <span class="hljs-type">Nothing</span>, <span class="hljs-type">ZHub</span>[<span class="hljs-type">Nothing</span>, <span class="hljs-type">Any</span>, <span class="hljs-type">Any</span>, <span class="hljs-type">Nothing</span>, <span class="hljs-type">Nothing</span>, <span class="hljs-type">Take</span>[<span class="hljs-type">E</span>, <span class="hljs-type">O</span>]]]
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">toHub</span></span>(
+    capacity: <span class="hljs-type">Int</span>
+  ): <span class="hljs-type">ZManaged</span>[<span class="hljs-type">R</span>, <span class="hljs-type">Nothing</span>, <span class="hljs-type">ZHub</span>[<span class="hljs-type">Nothing</span>, <span class="hljs-type">Any</span>, <span class="hljs-type">Any</span>, <span class="hljs-type">Nothing</span>, <span class="hljs-type">Nothing</span>, <span class="hljs-type">Take</span>[<span class="hljs-type">E</span>, <span class="hljs-type">O</span>]]]
 }
 </code></pre>
 <p>The hub will be constructed with the <code>bounded</code> constructor using the specified capacity.</p>
@@ -268,14 +314,19 @@ transactionStream.into(hub.toQueue)
 <p>There is an <code>intoHubManaged</code> variant of this if you want to send values to the hub in the context of a <code>ZManaged</code> instead of a <code>ZIO</code> effect.</p>
 <p>You can also create a sink that sends values to a hub.</p>
 <pre><code class="hljs css language-scala"><span class="hljs-class"><span class="hljs-keyword">object</span> <span class="hljs-title">ZSink</span> </span>{
-  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">fromHub</span></span>[<span class="hljs-type">R</span>, <span class="hljs-type">E</span>, <span class="hljs-type">I</span>](hub: <span class="hljs-type">ZHub</span>[<span class="hljs-type">R</span>, <span class="hljs-type">Nothing</span>, <span class="hljs-type">E</span>, <span class="hljs-type">Any</span>, <span class="hljs-type">I</span>, <span class="hljs-type">Any</span>]): <span class="hljs-type">ZSink</span>[<span class="hljs-type">R</span>, <span class="hljs-type">E</span>, <span class="hljs-type">I</span>, <span class="hljs-type">Nothing</span>, <span class="hljs-type">Unit</span>] =
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">fromHub</span></span>[<span class="hljs-type">R</span>, <span class="hljs-type">E</span>, <span class="hljs-type">I</span>](
+    hub: <span class="hljs-type">ZHub</span>[<span class="hljs-type">R</span>, <span class="hljs-type">Nothing</span>, <span class="hljs-type">E</span>, <span class="hljs-type">Any</span>, <span class="hljs-type">I</span>, <span class="hljs-type">Any</span>]
+  ): <span class="hljs-type">ZSink</span>[<span class="hljs-type">R</span>, <span class="hljs-type">E</span>, <span class="hljs-type">I</span>, <span class="hljs-type">Nothing</span>, <span class="hljs-type">Unit</span>] =
     ???
 }
 </code></pre>
 <p>The sink will publish each value sent to the sink to the specified hub. Again there is a <code>fromHubWithShutdown</code> variant that will shut down the hub when the stream ends.</p>
 <p>Finally, <code>ZHub</code> is used internally to provide a highly efficient implementation of the <code>broadcast</code> family of operators, including <code>broadcast</code> and <code>broadcastDynamic</code>.</p>
 <pre><code class="hljs css language-scala"><span class="hljs-class"><span class="hljs-keyword">trait</span> <span class="hljs-title">ZStream</span>[-<span class="hljs-type">R</span>, +<span class="hljs-type">E</span>, +<span class="hljs-type">O</span>] </span>{
-  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">broadcast</span></span>(n: <span class="hljs-type">Int</span>, maximumLag: <span class="hljs-type">Int</span>): <span class="hljs-type">ZManaged</span>[<span class="hljs-type">R</span>, <span class="hljs-type">Nothing</span>, <span class="hljs-type">List</span>[<span class="hljs-type">ZStream</span>[<span class="hljs-type">Any</span>, <span class="hljs-type">E</span>, <span class="hljs-type">O</span>]]]
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">broadcast</span></span>(
+    n: <span class="hljs-type">Int</span>,
+    maximumLag: <span class="hljs-type">Int</span>
+  ): <span class="hljs-type">ZManaged</span>[<span class="hljs-type">R</span>, <span class="hljs-type">Nothing</span>, <span class="hljs-type">List</span>[<span class="hljs-type">ZStream</span>[<span class="hljs-type">Any</span>, <span class="hljs-type">E</span>, <span class="hljs-type">O</span>]]]
   <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">broadcastDynamic</span></span>(
     maximumLag: <span class="hljs-type">Int</span>
   ): <span class="hljs-type">ZManaged</span>[<span class="hljs-type">R</span>, <span class="hljs-type">Nothing</span>, <span class="hljs-type">ZManaged</span>[<span class="hljs-type">Any</span>, <span class="hljs-type">Nothing</span>, <span class="hljs-type">ZStream</span>[<span class="hljs-type">Any</span>, <span class="hljs-type">E</span>, <span class="hljs-type">O</span>]]]

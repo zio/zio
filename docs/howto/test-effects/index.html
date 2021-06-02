@@ -81,7 +81,7 @@ and at best wrap them in <code>scala.util.Future</code> because blocking would e
 <span class="hljs-comment">// clockSuite: Spec[Live, TestFailure[Nothing], TestSuccess] = Spec(</span>
 <span class="hljs-comment">//   caseValue = SuiteCase(</span>
 <span class="hljs-comment">//     label = "clock",</span>
-<span class="hljs-comment">//     specs = zio.ZManaged$$anon$2@1a73c694,</span>
+<span class="hljs-comment">//     specs = zio.ZManaged$$anon$2@217b4027,</span>
 <span class="hljs-comment">//     exec = None</span>
 <span class="hljs-comment">//   )</span>
 <span class="hljs-comment">// )</span>
@@ -94,7 +94,7 @@ and at best wrap them in <code>scala.util.Future</code> because blocking would e
 <span class="hljs-comment">// paymentProviderABCSuite: Spec[Any, TestFailure[Nothing], TestSuccess] = Spec(</span>
 <span class="hljs-comment">//   caseValue = SuiteCase(</span>
 <span class="hljs-comment">//     label = "ABC payment provider tests",</span>
-<span class="hljs-comment">//     specs = zio.ZManaged$$anon$2@373ecd49,</span>
+<span class="hljs-comment">//     specs = zio.ZManaged$$anon$2@7ab9da29,</span>
 <span class="hljs-comment">//     exec = None</span>
 <span class="hljs-comment">//   )</span>
 <span class="hljs-comment">// )</span>
@@ -102,7 +102,7 @@ and at best wrap them in <code>scala.util.Future</code> because blocking would e
 <span class="hljs-comment">// paymentProviderXYZSuite: Spec[Any, TestFailure[Nothing], TestSuccess] = Spec(</span>
 <span class="hljs-comment">//   caseValue = SuiteCase(</span>
 <span class="hljs-comment">//     label = "XYZ payment provider tests",</span>
-<span class="hljs-comment">//     specs = zio.ZManaged$$anon$2@c563dbd,</span>
+<span class="hljs-comment">//     specs = zio.ZManaged$$anon$2@1d670bc2,</span>
 <span class="hljs-comment">//     exec = None</span>
 <span class="hljs-comment">//   )</span>
 <span class="hljs-comment">// )</span>
@@ -110,7 +110,7 @@ and at best wrap them in <code>scala.util.Future</code> because blocking would e
 <span class="hljs-comment">// allPaymentProvidersTests: Spec[Any, TestFailure[Nothing], TestSuccess] = Spec(</span>
 <span class="hljs-comment">//   caseValue = SuiteCase(</span>
 <span class="hljs-comment">//     label = "All payment providers tests",</span>
-<span class="hljs-comment">//     specs = zio.ZManaged$$anon$2@23e01a95,</span>
+<span class="hljs-comment">//     specs = zio.ZManaged$$anon$2@7eff1298,</span>
 <span class="hljs-comment">//     exec = None</span>
 <span class="hljs-comment">//   )</span>
 <span class="hljs-comment">// )</span>
@@ -210,7 +210,7 @@ testM(<span class="hljs-string">"Semaphore should expose available number of per
 <span class="hljs-comment">// suite1: Spec[clock.package.Clock, TestFailure[Nothing], TestSuccess] = Spec(</span>
 <span class="hljs-comment">//   caseValue = SuiteCase(</span>
 <span class="hljs-comment">//     label = "suite1",</span>
-<span class="hljs-comment">//     specs = zio.ZManaged$$anon$2@5b30989d,</span>
+<span class="hljs-comment">//     specs = zio.ZManaged$$anon$2@143ed1f1,</span>
 <span class="hljs-comment">//     exec = None</span>
 <span class="hljs-comment">//   )</span>
 <span class="hljs-comment">// )</span>
@@ -222,7 +222,7 @@ testM(<span class="hljs-string">"Semaphore should expose available number of per
 <span class="hljs-comment">// suite2: Spec[clock.package.Clock, TestFailure[Nothing], TestSuccess] = Spec(</span>
 <span class="hljs-comment">//   caseValue = SuiteCase(</span>
 <span class="hljs-comment">//     label = "suite2",</span>
-<span class="hljs-comment">//     specs = zio.ZManaged$$anon$2@78a705dc,</span>
+<span class="hljs-comment">//     specs = zio.ZManaged$$anon$2@12536a3c,</span>
 <span class="hljs-comment">//     exec = None</span>
 <span class="hljs-comment">//   )</span>
 <span class="hljs-comment">// )</span>
@@ -232,7 +232,7 @@ testM(<span class="hljs-string">"Semaphore should expose available number of per
 <span class="hljs-comment">// suite3: Spec[clock.package.Clock, TestFailure[Nothing], TestSuccess] = Spec(</span>
 <span class="hljs-comment">//   caseValue = SuiteCase(</span>
 <span class="hljs-comment">//     label = "suite3",</span>
-<span class="hljs-comment">//     specs = zio.ZManaged$$anon$2@46c22624,</span>
+<span class="hljs-comment">//     specs = zio.ZManaged$$anon$2@67a0a1a1,</span>
 <span class="hljs-comment">//     exec = None</span>
 <span class="hljs-comment">//   )</span>
 <span class="hljs-comment">// )</span>
@@ -426,7 +426,7 @@ testM(<span class="hljs-string">"One can control time as he see fit"</span>) {
     }
 }
 <span class="hljs-comment">// schedulingLayer: ZLayer[Clock with Has[LoggingService], Nothing, Has[SchedulingService]] = Managed(</span>
-<span class="hljs-comment">//   self = zio.ZManaged$$anon$2@17742b2d</span>
+<span class="hljs-comment">//   self = zio.ZManaged$$anon$2@410ca2cc</span>
 <span class="hljs-comment">// )</span>
 
 testM(<span class="hljs-string">"One can control time for failing effects too"</span>) {
@@ -516,7 +516,7 @@ as writing and reading to and from internal buffers.</p>
 <span class="hljs-comment">// consoleSuite: Spec[console.package.Console with TestConsole, TestFailure[java.io.IOException], TestSuccess] = Spec(</span>
 <span class="hljs-comment">//   caseValue = SuiteCase(</span>
 <span class="hljs-comment">//     label = "ConsoleTest",</span>
-<span class="hljs-comment">//     specs = zio.ZManaged$$anon$2@48dfbd2e,</span>
+<span class="hljs-comment">//     specs = zio.ZManaged$$anon$2@235f5245,</span>
 <span class="hljs-comment">//     exec = None</span>
 <span class="hljs-comment">//   )</span>
 <span class="hljs-comment">// )</span>
@@ -537,7 +537,7 @@ like in the code below:</p>
   _      &lt;- <span class="hljs-type">TestSystem</span>.putProperty(<span class="hljs-string">"java.vm.name"</span>, <span class="hljs-string">"VM"</span>)
   result &lt;- system.property(<span class="hljs-string">"java.vm.name"</span>)
 } <span class="hljs-keyword">yield</span> assert(result)(equalTo(<span class="hljs-type">Some</span>(<span class="hljs-string">"VM"</span>)))
-<span class="hljs-comment">// res11: ZIO[TestSystem with system.package.System, Throwable, TestResult] = zio.ZIO$FlatMap@816c80c</span>
+<span class="hljs-comment">// res11: ZIO[TestSystem with system.package.System, Throwable, TestResult] = zio.ZIO$FlatMap@2ad4de98</span>
 </code></pre>
 <p>It is worth noticing that no actual environment variables or properties will be set during testing so there will be
 no impact on other parts of the system.</p>
