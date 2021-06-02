@@ -927,11 +927,19 @@ object IO {
   def untraced[E, A](zio: IO[E, A]): IO[E, A] = ZIO.untraced(zio)
 
   /**
-   * @see See [[zio.ZIO.validate]]
+   * @see See [[[zio.ZIO.validate[R,E,A,B,Collection[+Element]<:Iterable[Element]]*]]]
    */
   def validate[E, A, B, Collection[+Element] <: Iterable[Element]](in: Collection[A])(
     f: A => IO[E, B]
   )(implicit bf: BuildFrom[Collection[A], B, Collection[B]], ev: CanFail[E]): IO[::[E], Collection[B]] =
+    ZIO.validate(in)(f)
+
+  /**
+   * @see See [[[zio.ZIO.validate[R,E,A,B](in:zio\.NonEmptyChunk*]]]
+   */
+  def validate[E, A, B](in: NonEmptyChunk[A])(
+    f: A => IO[E, B]
+  )(implicit ev: CanFail[E]): IO[::[E], NonEmptyChunk[B]] =
     ZIO.validate(in)(f)
 
   /**
@@ -941,11 +949,19 @@ object IO {
     ZIO.validate_(in)(f)
 
   /**
-   * @see See [[zio.ZIO.validatePar]]
+   * @see See [[[zio.ZIO.validatePar[R,E,A,B,Collection[+Element]<:Iterable[Element]]*]]]
    */
   def validatePar[E, A, B, Collection[+Element] <: Iterable[Element]](in: Collection[A])(
     f: A => IO[E, B]
   )(implicit bf: BuildFrom[Collection[A], B, Collection[B]], ev: CanFail[E]): IO[::[E], Collection[B]] =
+    ZIO.validatePar(in)(f)
+
+  /**
+   * @see See [[[zio.ZIO.validatePar[R,E,A,B](in:zio\.NonEmptyChunk*]]]
+   */
+  def validatePar[E, A, B](in: NonEmptyChunk[A])(
+    f: A => IO[E, B]
+  )(implicit ev: CanFail[E]): IO[::[E], NonEmptyChunk[B]] =
     ZIO.validatePar(in)(f)
 
   /**
