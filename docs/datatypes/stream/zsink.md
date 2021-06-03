@@ -24,7 +24,7 @@ The `zio.stream` provides numerous kinds of sinks to use.
 
 ### Common Constructors
 
-**ZSink.head[I]** — It creates a sink containing the first element, returns `None` for empty streams:
+**ZSink.head** — It creates a sink containing the first element, returns `None` for empty streams:
 
 ```scala mdoc:silent:nest
 val sink: ZSink[Any, Nothing, Int, Int, Option[Int]] = ZSink.head[Int]
@@ -32,7 +32,7 @@ val head: ZIO[Any, Nothing, Option[Int]]             = ZStream(1, 2, 3, 4).run(s
 // Result: Some(1)
 ``` 
 
-**ZSink.last[I]** — It consumes all elements of a stream and returns the last element of the stream:
+**ZSink.last** — It consumes all elements of a stream and returns the last element of the stream:
 
 ```scala mdoc:silent:nest
 val sink: ZSink[Any, Nothing, Int, Nothing, Option[Int]] = ZSink.last[Int]
@@ -48,12 +48,20 @@ val count: ZIO[Any, Nothing, Int]                 = ZStream(1, 2, 3, 4, 5).run(s
 // Result: 5
 ```
 
-**ZSink.sum[A]** — A sink that consumes all elements of the stream and sums incoming numeric values:
+**ZSink.sum** — A sink that consumes all elements of the stream and sums incoming numeric values:
 
 ```scala mdoc:silent:nest
 val sink : ZSink[Any, Nothing, Int, Nothing, Int] = ZSink.sum[Int]
-val count: ZIO[Any, Nothing, Int]                 = ZStream(1, 2, 3, 4, 5).run(sink)
+val sum: ZIO[Any, Nothing, Int]                 = ZStream(1, 2, 3, 4, 5).run(sink)
 // Result: 15
+```
+
+**ZSink.take** — A sink that takes the specified number of values and result in a `Chunk` data type:
+
+```scala mdoc:silent:nest
+val sink  : ZSink[Any, Nothing, Int, Int, Chunk[Int]] = ZSink.take[Int](3)
+val stream: ZIO[Any, Nothing, Chunk[Int]]             = ZStream(1, 2, 3, 4, 5).run(sink)
+// Result: Chunk(1, 2, 3)
 ```
 
 ### From Success and Failure
