@@ -133,10 +133,13 @@ Basic fold accumulation of received elements:
 ZSink.foldLeft[Int, Int](0)(_ + _)
 ```
 
-A fold with short circuiting:
+A fold with short-circuiting has a termination predicate that determines the end of the folding process:
 
 ```scala mdoc:silent
-ZSink.fold(0)(sum => sum >= 10)((acc, n: Int) => acc + n)
+ZStream.iterate(0)(_ + 1).run(
+  ZSink.fold(0)(sum => sum <= 10)((acc, n: Int) => acc + n)
+)
+// Output: 15
 ```
 
 ## Transforming sinks
