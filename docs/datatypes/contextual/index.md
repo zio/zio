@@ -329,7 +329,6 @@ trait Logging {
 ```scala mdoc:silent
 import zio.console.Console
 import zio.clock.Clock
-
 case class LoggingLive(console: Console.Service, clock: Clock.Service) extends Logging {
   override def log(line: String): UIO[Unit] = 
     for {
@@ -356,8 +355,7 @@ object Logging {
   val live: URLayer[Has[Console.Service] with Has[Clock.Service], Has[Logging]] =
     (LoggingLive(_, _)).toLayer
 
-  def log(line: String): URIO[Has[Logging], Unit] =
-    ZIO.serviceWith[Logging](_.log(line))
+  def log(line: String): URIO[Has[Logging], Unit] = ZIO.serviceWith(_.log(line))
 }
 ```
 
@@ -520,15 +518,14 @@ trait Logging {
 }
 
 object Logging {
-  def log(line: String) = ZIO.serviceWith[Logging](_.log(line))
-}
 
-object LoggingLive {
-  val layer: ULayer[Has[Logging]] = ZLayer.succeed {
+  val live: ULayer[Has[Logging]] = ZLayer.succeed {
     new Logging {
       override def log(str: String): UIO[Unit] = ???
     }
   }
+
+  def log(line: String) = ZIO.serviceWith[Logging](_.log(line))
 }
 
 val myApp: ZIO[Has[Logging] with Console with Clock, Nothing, Unit] = for {
@@ -543,5 +540,5 @@ This program uses two ZIO built-in services, `Console` and `Clock`. We don't nee
 By using `ZIO#provideCustomLayer` we only provide the `Logging` layer, and it returns a `ZIO` effect which only requires `ZEnv`:
 
 ```scala mdoc:silent
-val mainEffect: ZIO[ZEnv, Nothing, Unit] = myApp.provideCustomLayer(LoggingLive.layer)
+val mainEffect: ZIO[ZEnv, Nothing, Unit] = myApp.provideCustomLayer(Logging.live)
 ```
