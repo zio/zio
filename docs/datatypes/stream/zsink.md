@@ -2,6 +2,10 @@
 id: zsink
 title: "ZSink"
 ---
+```scala mdoc:invisible
+import zio.clock.Clock
+import zio.duration._
+```
 
 ## Introduction
 
@@ -103,6 +107,22 @@ To create a sink that collects all elements of a stream into a `Chunk[A]`, we ca
 val stream    : UStream[Int]    = UStream(1, 2, 3, 4, 5)
 val collection: UIO[Chunk[Int]] = stream.run(ZSink.collectAll[Int])
 // Output: Chunk(1, 2, 3, 4, 5)
+```
+
+We can collect all elements into a `Set`:
+
+```scala mdoc:silent:nest
+val collectAllToSet: ZSink[Any, Nothing, Int, Nothing, Set[Int]] = ZSink.collectAllToSet[Int]
+val stream: ZIO[Any, Nothing, Set[Int]] = ZStream(1, 3, 2, 3, 1, 5, 1).run(collectAllToSet)
+// Output: Set(1, 3, 2, 5)
+```
+
+Or we can collect and merge them into a `Map[K, A]` using a merge function. In the following example, we use `(_:Int) % 3` to determine map keys and, we provide `_ + _` function to merge multiple elements with the same key:
+
+```scala mdoc:silent:nest
+val collectAllToMap: ZSink[Any, Nothing, Int, Nothing, Map[Int, Int]] = ZSink.collectAllToMap((_: Int) % 3)(_ + _)
+val stream: ZIO[Any, Nothing, Map[Int, Int]] = ZStream(1, 3, 2, 3, 1, 5, 1).run(collectAllToMap)
+// Output: Map(1 -> 3, 0 -> 6, 2 -> 7)
 ```
 
 ### Folding
