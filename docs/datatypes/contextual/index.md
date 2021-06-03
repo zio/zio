@@ -329,6 +329,7 @@ trait Logging {
 ```scala mdoc:silent
 import zio.console.Console
 import zio.clock.Clock
+
 case class LoggingLive(console: Console.Service, clock: Clock.Service) extends Logging {
   override def log(line: String): UIO[Unit] = 
     for {
@@ -341,17 +342,22 @@ case class LoggingLive(console: Console.Service, clock: Clock.Service) extends L
 4. **Defining ZLayer** — Now, we create a companion object for `LoggingLive` data type and lift the service implementation into the `ZLayer`:
 
 ```scala mdoc:silent
-object LoggingLive {
-  val layer: URLayer[Has[Console.Service] with Has[Clock.Service], Has[Logging]] =
+object Logging {
+  val live: URLayer[Has[Console.Service] with Has[Clock.Service], Has[Logging]] =
     (LoggingLive(_, _)).toLayer
 }
 ```
 
 5. **Accessor Methods** — Finally, to create the API more ergonomic, it's better to write accessor methods for all of our service methods. Just like what we did in Module Pattern 1.0, but with a slight change, in this case, instead of using `ZIO.accessM` we use `ZIO.serviceWith` method to define accessors inside the service companion object:
 
-```scala mdoc:silent
+```scala mdoc:silent:nest
 object Logging {
-  def log(line: String): URIO[Has[Logging], Unit] = ZIO.serviceWith[Logging](_.log(line))
+
+  val live: URLayer[Has[Console.Service] with Has[Clock.Service], Has[Logging]] =
+    (LoggingLive(_, _)).toLayer
+
+  def log(line: String): URIO[Has[Logging], Unit] =
+    ZIO.serviceWith[Logging](_.log(line))
 }
 ```
 
@@ -370,7 +376,7 @@ Finally, we provide required layers to our `app` effect:
  val app = Logging.log("Application Started")
 
  zio.Runtime.default.unsafeRun(
-   app.provideLayer(LoggingLive.layer)
+   app.provideLayer(Logging.live)
  )
 ```
 
