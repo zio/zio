@@ -1449,8 +1449,6 @@ val result: RIO[Console, Unit] = Stream.fromIterable(0 to 100).foreach(i => putS
 
 ### Using a Sink
 
-A `Sink[E, A0, A, B]` consumes values of type `A`, ultimately producing either an error of type `E`, or a value of type `B` together with a remainder of type `A0`.
-
 We can for example reduce a `Stream` to a `ZIO` value using `Sink.foldLeft`: 
 
 ```scala mdoc:silent
