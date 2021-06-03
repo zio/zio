@@ -22,10 +22,14 @@ val sum    = stream.run(sink)
 
 The `zio.stream` provides numerous kinds of sinks to use.
 
-Collecting all elements into `Chunk[A]`:
+### Collecting Elements
 
-```scala mdoc:silent
-ZSink.collectAll[Int]
+To collect all elements into a `Chunk[A]`:
+
+```scala mdoc:silent:nest
+val stream    : UStream[Int]    = UStream(1, 2, 3, 4, 5)
+val collection: UIO[Chunk[Int]] = stream.run(ZSink.collectAll[Int])
+// Output: Chunk(1, 2, 3, 4, 5)
 ```
 
 Collecting the first element into an option (returns `None` for empty streams):
