@@ -22,6 +22,20 @@ val sum    = stream.run(sink)
 
 The `zio.stream` provides numerous kinds of sinks to use.
 
+### Common Constructors
+
+**ZSink.head[I]** — It creates a sink containing the first element, returns `None` for empty streams:
+
+```scala mdoc:silent:nest
+val head: ZSink[Any, Nothing, Int, Int, Option[Int]] = ZSink.head[Int]
+``` 
+
+**ZSink.last[I]** — It consumes all elements of a stream and returns the last element of the stream:
+
+```scala mdoc:silent:nest
+val last: ZSink[Any, Nothing, Int, Nothing, Option[Int]] = ZSink.last[Int]
+```
+
 ### From Success and Failure
 
 Similar to the `ZStream` data type, we can create a `ZSink` using `fail` and `succeed` methods.
