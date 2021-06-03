@@ -355,7 +355,7 @@ object Logging {
   val live: URLayer[Has[Console.Service] with Has[Clock.Service], Has[Logging]] =
     (LoggingLive(_, _)).toLayer
 
-  def log(line: String): URIO[Has[Logging], Unit] = ZIO.serviceWith(_.log(line))
+  def log(line: String): URIO[Has[Logging], Unit] = ZIO.serviceWith[Logging](_.log(line))
 }
 ```
 
