@@ -4,7 +4,9 @@ title: "ZSink"
 ---
 ```scala mdoc:invisible
 import zio.clock.Clock
+import zio.console.Console
 import zio.duration._
+import java.io.IOException
 ```
 
 ## Introduction
@@ -81,6 +83,15 @@ val timed: ZSink[Clock, Nothing, Any, Nothing, Duration] = ZSink.timed
 val stream: ZIO[Clock, Nothing, Long] =
   ZStream(1, 2, 3, 4, 5).fixed(2.seconds).run(timed).map(_.getSeconds)
 // Result: 10
+```
+
+**ZSink.foreach** — A sink that executes the provided effectful function for every element fed to it:
+
+```scala mdoc:silent:nest
+val printer: ZSink[Console, IOException, Int, Int, Unit] =
+  ZSink.foreach((i: Int) => zio.console.putStrLn(i.toString))
+val stream : ZIO[Console, IOException, Unit]             =
+  ZStream(1, 2, 3, 4, 5).run(printer)
 ```
 
 ### From Success and Failure
