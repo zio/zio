@@ -27,13 +27,17 @@ The `zio.stream` provides numerous kinds of sinks to use.
 **ZSink.head[I]** — It creates a sink containing the first element, returns `None` for empty streams:
 
 ```scala mdoc:silent:nest
-val head: ZSink[Any, Nothing, Int, Int, Option[Int]] = ZSink.head[Int]
+val sink: ZSink[Any, Nothing, Int, Int, Option[Int]] = ZSink.head[Int]
+val head: ZIO[Any, Nothing, Option[Int]]             = ZStream(1, 2, 3, 4).run(sink)
+// Some(1)
 ``` 
 
 **ZSink.last[I]** — It consumes all elements of a stream and returns the last element of the stream:
 
 ```scala mdoc:silent:nest
-val last: ZSink[Any, Nothing, Int, Nothing, Option[Int]] = ZSink.last[Int]
+val sink: ZSink[Any, Nothing, Int, Nothing, Option[Int]] = ZSink.last[Int]
+val last: ZIO[Any, Nothing, Option[Int]]                 = ZStream(1, 2, 3, 4).run(sink)
+// Some(4)
 ```
 
 ### From Success and Failure
@@ -44,7 +48,6 @@ A sink that doesn't consume any element of type `String` from its upstream and s
 
 ```scala mdoc:silent:nest
 val succeed: ZSink[Any, Nothing, String, String, Int] = ZSink.succeed[String, Int](5)
-
 ```
 
 A sink that doesn't consume any element of type `Int` from its upstream and fails with a message of `String` type:
