@@ -64,6 +64,12 @@ val stream: ZIO[Any, Nothing, Chunk[Int]]             = ZStream(1, 2, 3, 4, 5).r
 // Result: Chunk(1, 2, 3)
 ```
 
+**ZSink.drain** — A sink that ignores its inputs:
+
+```scala mdoc:silent:nest
+val drain: ZSink[Any, Nothing, Any, Nothing, Unit] = ZSink.drain
+```
+
 ### From Success and Failure
 
 Similar to the `ZStream` data type, we can create a `ZSink` using `fail` and `succeed` methods.
