@@ -89,15 +89,15 @@ A sink that doesn't consume any element of type `String` from its upstream and s
 val succeed: ZSink[Any, Nothing, String, String, Int] = ZSink.succeed[String, Int](5)
 ```
 
-A sink that doesn't consume any element of type `Int` from its upstream and fails with a message of `String` type:
+A sink that doesn't consume any element of type `Int` from its upstream and intentionally fails with a message of `String` type:
 
 ```scala mdoc:silent:nest
 val failed : ZSink[Any, String, Int, Int, Nothing] = ZSink.fail[String, Int]("fail!")
 ```
 
-### Collecting Elements
+### Collecting
 
-To collect all elements into a `Chunk[A]`:
+To create a sink that collects all elements of a stream into a `Chunk[A]`, we can use `ZSink.collectAll`:
 
 ```scala mdoc:silent:nest
 val stream    : UStream[Int]    = UStream(1, 2, 3, 4, 5)
@@ -105,23 +105,7 @@ val collection: UIO[Chunk[Int]] = stream.run(ZSink.collectAll[Int])
 // Output: Chunk(1, 2, 3, 4, 5)
 ```
 
-Collecting the first element into an option (returns `None` for empty streams):
-
-```scala mdoc:silent
-ZSink.head[Int]
-```
-
-Ignoring all the input, used in implementation of `stream.runDrain`:
-
-```scala mdoc:silent
-ZSink.drain
-```
-
-Sink that intentionally fails with given type:
-
-```scala mdoc:silent
-ZSink.fail("Boom")
-```
+### Folding
 
 Basic fold accumulation of received elements:
 
