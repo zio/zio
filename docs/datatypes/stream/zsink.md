@@ -22,6 +22,23 @@ val sum    = stream.run(sink)
 
 The `zio.stream` provides numerous kinds of sinks to use.
 
+### From Success and Failure
+
+Similar to the `ZStream` data type, we can create a `ZSink` using `fail` and `succeed` methods.
+
+A sink that doesn't consume any element of type `String` from its upstream and successes with a value of `Int` type:
+
+```scala mdoc:silent:nest
+val succeed: ZSink[Any, Nothing, String, String, Int] = ZSink.succeed[String, Int](5)
+
+```
+
+A sink that doesn't consume any element of type `Int` from its upstream and fails with a message of `String` type:
+
+```scala mdoc:silent:nest
+val failed : ZSink[Any, String, Int, Int, Nothing] = ZSink.fail[String, Int]("fail!")
+```
+
 ### Collecting Elements
 
 To collect all elements into a `Chunk[A]`:
