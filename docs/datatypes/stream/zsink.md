@@ -29,7 +29,7 @@ The `zio.stream` provides numerous kinds of sinks to use.
 ```scala mdoc:silent:nest
 val sink: ZSink[Any, Nothing, Int, Int, Option[Int]] = ZSink.head[Int]
 val head: ZIO[Any, Nothing, Option[Int]]             = ZStream(1, 2, 3, 4).run(sink)
-// Some(1)
+// Result: Some(1)
 ``` 
 
 **ZSink.last[I]** — It consumes all elements of a stream and returns the last element of the stream:
@@ -37,7 +37,23 @@ val head: ZIO[Any, Nothing, Option[Int]]             = ZStream(1, 2, 3, 4).run(s
 ```scala mdoc:silent:nest
 val sink: ZSink[Any, Nothing, Int, Nothing, Option[Int]] = ZSink.last[Int]
 val last: ZIO[Any, Nothing, Option[Int]]                 = ZStream(1, 2, 3, 4).run(sink)
-// Some(4)
+// Result: Some(4)
+```
+
+**ZSink.count** — A sink that consumes all elements of the stream and counts the number of elements fed to it:
+
+```scala mdoc:silent:nest
+val sink : ZSink[Any, Nothing, Int, Nothing, Int] = ZSink.sum[Int]
+val count: ZIO[Any, Nothing, Int]                 = ZStream(1, 2, 3, 4, 5).run(sink)
+// Result: 5
+```
+
+**ZSink.sum[A]** — A sink that consumes all elements of the stream and sums incoming numeric values:
+
+```scala mdoc:silent:nest
+val sink : ZSink[Any, Nothing, Int, Nothing, Int] = ZSink.sum[Int]
+val count: ZIO[Any, Nothing, Int]                 = ZStream(1, 2, 3, 4, 5).run(sink)
+// Result: 15
 ```
 
 ### From Success and Failure
