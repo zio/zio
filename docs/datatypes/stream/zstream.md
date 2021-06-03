@@ -1449,14 +1449,10 @@ val result: RIO[Console, Unit] = Stream.fromIterable(0 to 100).foreach(i => putS
 
 ### Using a Sink
 
-We can for example reduce a `Stream` to a `ZIO` value using `Sink.foldLeft`: 
+To consume a stream using `ZSink` we can pass `ZSink` to the `ZStream#run` function:
 
 ```scala mdoc:silent
-import zio._
-import zio.stream._
-
-def streamReduce(total: Int, element: Int): Int = total + element
-val resultFromSink: UIO[Int] = Stream(1,2,3).run(Sink.foldLeft(0)(streamReduce))
+val sum: UIO[Int] = ZStream(1,2,3).run(Sink.sum)
 ```
 
 ### Using fold
