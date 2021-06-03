@@ -70,6 +70,15 @@ val stream: ZIO[Any, Nothing, Chunk[Int]]             = ZStream(1, 2, 3, 4, 5).r
 val drain: ZSink[Any, Nothing, Any, Nothing, Unit] = ZSink.drain
 ```
 
+**ZSink.timed** — A sink that executes the stream and times its execution:
+
+```scala mdoc:silent
+val timed: ZSink[Clock, Nothing, Any, Nothing, Duration] = ZSink.timed
+val stream: ZIO[Clock, Nothing, Long] =
+  ZStream(1, 2, 3, 4, 5).fixed(2.seconds).run(timed).map(_.getSeconds)
+// Result: 10
+```
+
 ### From Success and Failure
 
 Similar to the `ZStream` data type, we can create a `ZSink` using `fail` and `succeed` methods.
