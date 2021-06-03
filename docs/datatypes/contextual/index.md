@@ -339,7 +339,7 @@ case class LoggingLive(console: Console.Service, clock: Clock.Service) extends L
 }
 ```
 
-4. **Defining ZLayer** — Now, we create a companion object for `LoggingLive` data type and lift the service implementation into the `ZLayer`:
+4. **Defining ZLayer** — Now, we create a companion object for the `Logging` service interface and lift the service implementation into a `ZLayer`:
 
 ```scala mdoc:silent
 object Logging {
