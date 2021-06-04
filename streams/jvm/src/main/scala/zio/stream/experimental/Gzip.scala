@@ -20,12 +20,12 @@ object Gzip {
     } {
       case gzipper => {
 
-        def loop(): ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[Byte], Done] =
+        lazy val loop: ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[Byte], Done] =
           ZChannel.readWithCause(
             chunk =>
               ZChannel.fromEffect {
                 gzipper.onChunk(chunk)
-              }.flatMap(chunk => ZChannel.write(chunk) *> loop()),
+              }.flatMap(chunk => ZChannel.write(chunk) *> loop),
             ZChannel.halt(_),
             done =>
               ZChannel.fromEffect {
@@ -33,7 +33,7 @@ object Gzip {
               }.flatMap(chunk => ZChannel.write(chunk).as(done))
           )
 
-        loop()
+        loop
       }
     }
 }
