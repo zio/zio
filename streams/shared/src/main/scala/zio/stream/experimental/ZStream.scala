@@ -1696,9 +1696,11 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Maps over elements of the stream with the specified effectful function,
    * executing up to `n` invocations of `f` concurrently. Transformed elements
    * will be emitted in the original order.
+   *
+   * @note This combinator destroys the chunking structure. It's recommended to use chunkN afterwards.
    */
   final def mapMPar[R1 <: R, E1 >: E, A2](n: Int)(f: A => ZIO[R1, E1, A2]): ZStream[R1, E1, A2] =
-    ???
+    new ZStream(self.channel.concatMap(ZChannel.writeChunk(_)).mapOutMPar[R1, E1, A2](n)(f).mapOut(Chunk.single))
 
   /**
    * Maps over elements of the stream with the specified effectful function,
