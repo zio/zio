@@ -956,8 +956,36 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   /**
    * Filters the elements emitted by this stream using the provided function.
    */
-  final def filter[B](f: A => Boolean): ZStream[R, E, A] =
+  final def filter(f: A => Boolean): ZStream[R, E, A] =
     mapChunks(_.filter(f))
+
+  /**
+   * Finds the first element emitted by this stream that satisfies the provided predicate.
+   */
+  final def find(f: A => Boolean): ZStream[R, E, A] = {
+    lazy val loop: ZChannel[R, E, Chunk[A], Any, E, Chunk[A], Any] =
+      ZChannel.readWith(
+        (in: Chunk[A]) => in.find(f).fold(loop)(i => ZChannel.write(Chunk.single(i))),
+        (e: E) => ZChannel.fail(e),
+        (_: Any) => ZChannel.unit
+      )
+
+    new ZStream(self.channel >>> loop)
+  }
+
+  /**
+   * Finds the first element emitted by this stream that satisfies the provided effectful predicate.
+   */
+  final def findM[R1 <: R, E1 >: E, S](f: A => ZIO[R1, E1, Boolean]): ZStream[R1, E1, A] = {
+    lazy val loop: ZChannel[R1, E, Chunk[A], Any, E1, Chunk[A], Any] =
+      ZChannel.readWith(
+        (in: Chunk[A]) => ZChannel.unwrap(in.findM(f).map(_.fold(loop)(i => ZChannel.write(Chunk.single(i))))),
+        (e: E) => ZChannel.fail(e),
+        (_: Any) => ZChannel.unit
+      )
+
+    new ZStream(self.channel >>> loop)
+  }
 
   /**
    * Executes a pure fold over the stream of values - reduces all elements in the stream to a value of type `S`.

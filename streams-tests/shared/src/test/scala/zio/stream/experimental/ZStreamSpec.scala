@@ -975,6 +975,28 @@ object ZStreamSpec extends ZIOBaseSpec {
             )(equalTo(Chunk(Right(1), Right(2), Left("boom"))))
           }
         ),
+        testM("find")(checkM(pureStreamOfInts, Gen.function(Gen.boolean)) { (s, p) =>
+          for {
+            res1 <- s.find(p).runHead
+            res2 <- s.runCollect.map(_.find(p))
+          } yield assert(res1)(equalTo(res2))
+        }),
+        suite("findM")(
+          testM("findM")(checkM(pureStreamOfInts, Gen.function(Gen.boolean)) { (s, p) =>
+            for {
+              res1 <- s.findM(s => IO.succeed(p(s))).runHead
+              res2 <- s.runCollect.map(_.find(p))
+            } yield assert(res1)(equalTo(res2))
+          }),
+          testM("throws correct error") {
+            assertM(
+              ZStream(1, 2, 3).findM {
+                case 3 => ZIO.fail("boom")
+                case _ => UIO.succeed(false)
+              }.either.runCollect
+            )(equalTo(Chunk(Left("boom"))))
+          }
+        ),
         suite("flatMap")(
           testM("deep flatMap stack safety") {
             def fib(n: Int): ZStream[Any, Nothing, Int] =

@@ -296,6 +296,14 @@ object ChunkSpec extends ZIOBaseSpec {
       val fn = Gen.function[Has[Random] with Has[Sized], Int, Boolean](Gen.boolean)
       check(mediumChunks(intGen), fn)((chunk, p) => assert(chunk.find(p))(equalTo(chunk.toList.find(p))))
     },
+    suite("findM")(
+      testM("findM happy path")(checkM(mediumChunks(intGen), Gen.function(Gen.boolean)) { (chunk, p) =>
+        chunk.findM(s => UIO.succeed(p(s))).map(assert(_)(equalTo(chunk.find(p))))
+      }),
+      testM("findM error") {
+        Chunk(1, 2, 3).findM(_ => IO.fail("Ouch")).either.map(assert(_)(equalTo(Left("Ouch"))))
+      } @@ zioTag(errors)
+    ),
     testM("filter") {
       val fn = Gen.function[Has[Random] with Has[Sized], Int, Boolean](Gen.boolean)
       check(mediumChunks(intGen), fn)((chunk, p) => assert(chunk.filter(p).toList)(equalTo(chunk.toList.filter(p))))
