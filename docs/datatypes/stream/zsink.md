@@ -135,6 +135,20 @@ val result = ZStream("Hello", "ZIO", "World!")
   .run(fileSink(Paths.get("file.txt")))
 ```
 
+### From OutputStream
+
+The `ZSink.fromOutputStream` creates a sink that consumes byte chunks and write them to the `OutputStream`:
+
+```scala mdoc:silent:nest
+ZStream("Application", "Error", "Logs")
+  .intersperse("\n")
+  .run(
+    ZSink
+      .fromOutputStream(System.err)
+      .contramapChunks[String](_.flatMap(_.getBytes))
+  )
+```
+
 ## Operations
 
 Having created the sink, we can transform it with provided operations.
