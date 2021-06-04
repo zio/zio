@@ -725,6 +725,32 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     self.flatMap(l => that.map(r => f(l, r)))
 
   /**
+   * Produces the specified element if this stream is empty.
+   */
+  final def defaultIfEmpty[A1 >: A](a: A1): ZStream[R, E, A1] =
+    defaultIfEmpty(Chunk.single(a))
+
+  /**
+   * Produces the specified chunk if this stream is empty.
+   */
+  final def defaultIfEmpty[A1 >: A](chunk: Chunk[A1]): ZStream[R, E, A1] =
+    defaultIfEmpty(new ZStream(ZChannel.write(chunk)))
+
+  /**
+   * Switches to the provided stream in case this one is empty.
+   */
+  final def defaultIfEmpty[R1 <: R, E1 >: E, A1 >: A](stream: ZStream[R1, E1, A1]): ZStream[R1, E1, A1] = {
+    lazy val writer: ZChannel[R1, E, Chunk[A], Any, E1, Chunk[A1], Any] =
+      ZChannel.readWith(
+        (in: Chunk[A]) => if (in.isEmpty) writer else ZChannel.write(in) *> ZChannel.identity[E, Chunk[A], Any],
+        (e: E) => ZChannel.fail(e),
+        (_: Any) => stream.channel
+      )
+
+    new ZStream(self.channel >>> writer)
+  }
+
+  /**
    * More powerful version of `ZStream#broadcast`. Allows to provide a function that determines what
    * queues should receive which elements. The decide function will receive the indices of the queues
    * in the resulting list.
