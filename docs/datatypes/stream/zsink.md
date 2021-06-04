@@ -110,6 +110,41 @@ A sink that doesn't consume any element of type `Int` from its upstream and inte
 val failed : ZSink[Any, String, Int, Int, Nothing] = ZSink.fail[String, Int]("fail!")
 ```
 
+## Operations
+
+Having created the sink, we can transform it with provided operations.
+
+### contramap
+
+Contramap is a simple combinator to change the domain of an existing function. While _map_ changes the co-domain of a function, the _contramap_ changes the domain of a function. So the _contramap_ takes a function and maps over its input.
+
+This is useful when we have a fixed output, and our existing function cannot consume those outputs. So we can use _contramap_ to create a new function that can consume that fixed output. Assume we have a `ZSink.sum` that sums incoming numeric values, but we have a `ZStream` of `String` values. We can convert the `ZSink.sum` to a sink that can consume `String` values;
+
+```scala mdoc:silent:nest
+val numericSum: ZSink[Any, Nothing, Int, Nothing, Int]    = 
+  ZSink.sum[Int]
+val stringSum : ZSink[Any, Nothing, String, Nothing, Int] = 
+  numericSum.contramap((x: String) => x.toInt)
+
+val sum: ZIO[Any, Nothing, Int] =
+  ZStream("1", "2", "3", "4", "5").run(stringSum)
+// Output: 15
+```
+
+### dimap
+
+A `dimap` is an extended `contramap` that additionally transforms sink's output:
+
+```scala mdoc:silent:nest
+// Convert its input to integers, do the computation and then convert them back to a string
+val sumSink: ZSink[Any, Nothing, String, Nothing, String] =
+  numericSum.dimap[String, String](_.toInt, _.toString)
+  
+val sum: ZIO[Any, Nothing, String] =
+  ZStream("1", "2", "3", "4", "5").run(sumSink)
+// Output: 15
+```
+
 ### Collecting
 
 To create a sink that collects all elements of a stream into a `Chunk[A]`, we can use `ZSink.collectAll`:
@@ -150,41 +185,6 @@ A fold with short-circuiting has a termination predicate that determines the end
 ZStream.iterate(0)(_ + 1).run(
   ZSink.fold(0)(sum => sum <= 10)((acc, n: Int) => acc + n)
 )
-// Output: 15
-```
-
-## Transforming sinks
-
-Having created the sink, we can transform it with provided operations.
-
-### contramap
-
-Contramap is a simple combinator to change the domain of an existing function. While _map_ changes the co-domain of a function, the _contramap_ changes the domain of a function. So the _contramap_ takes a function and maps over its input.
-
-This is useful when we have a fixed output, and our existing function cannot consume those outputs. So we can use _contramap_ to create a new function that can consume that fixed output. Assume we have a `ZSink.sum` that sums incoming numeric values, but we have a `ZStream` of `String` values. We can convert the `ZSink.sum` to a sink that can consume `String` values;
-
-```scala mdoc:silent:nest
-val numericSum: ZSink[Any, Nothing, Int, Nothing, Int]    = 
-  ZSink.sum[Int]
-val stringSum : ZSink[Any, Nothing, String, Nothing, Int] = 
-  numericSum.contramap((x: String) => x.toInt)
-
-val sum: ZIO[Any, Nothing, Int] =
-  ZStream("1", "2", "3", "4", "5").run(stringSum)
-// Output: 15
-```
-
-### dimap
-
-A `dimap` is an extended `contramap` that additionally transforms sink's output:
-
-```scala mdoc:silent:nest
-// Convert its input to integers, do the computation and then convert them back to a string
-val sumSink: ZSink[Any, Nothing, String, Nothing, String] =
-  numericSum.dimap[String, String](_.toInt, _.toString)
-  
-val sum: ZIO[Any, Nothing, String] =
-  ZStream("1", "2", "3", "4", "5").run(sumSink)
 // Output: 15
 ```
 
