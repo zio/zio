@@ -154,14 +154,17 @@ ZStream("Application", "Error", "Logs")
 A queue has a finite or infinite buffer size, so they are useful in situations where we need to consume streams as fast as we can, and then do some batching operations on consumed messages. By using `ZSink.fromQueue` we can create a sink that is backed by a queue; it enqueues each element into the specified queue:
 
 ```scala mdoc:silent:nest
-val queue: ZIO[Clock, Nothing, Queue[Int]] =
+val myApp: ZIO[Console with Clock, IOException, Unit] =
   for {
-    queue <- ZQueue.unbounded[Int]
-    _ <- ZStream
+    queue <- ZQueue.bounded[Int](32)
+    producer <- ZStream
       .iterate(1)(_ + 1)
-      .fixed(100.millis)
+      .fixed(200.millis)
       .run(ZSink.fromQueue(queue))
-  } yield queue
+      .fork
+    consumer <- queue.take.flatMap(x => putStrLn(x.toString)).forever
+    _ <- producer.zip(consumer).join
+  } yield ()
 ```
 
 ### From Hub
