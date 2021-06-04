@@ -157,11 +157,6 @@ ZStream.iterate(0)(_ + 1).run(
 
 Having created the sink, we can transform it with provided operations.
 
-Running two sinks in parallel and returning the one that completed earlier:
-```scala mdoc:silent
-Sink.foldLeft[Int, Int](0)(_ + _).race(Sink.head[Int])
-```
-
 ### contramap
 
 Contramap is a simple combinator to change the domain of an existing function. While _map_ changes the co-domain of a function, the _contramap_ changes the domain of a function. So the _contramap_ takes a function and maps over its input.
@@ -183,7 +178,7 @@ val sum: ZIO[Any, Nothing, Int] =
 
 A `dimap` is an extended `contramap` that additionally transforms sink's output:
 
-```scala mdoc:silent
+```scala mdoc:silent:nest
 // Convert its input to integers, do the computation and then convert them back to a string
 val sumSink: ZSink[Any, Nothing, String, Nothing, String] =
   numericSum.dimap[String, String](_.toInt, _.toString)
@@ -191,6 +186,27 @@ val sumSink: ZSink[Any, Nothing, String, Nothing, String] =
 val sum: ZIO[Any, Nothing, String] =
   ZStream("1", "2", "3", "4", "5").run(sumSink)
 // Output: 15
+```
+
+## Concurrency
+
+### Racing
+
+We are able to `race` multiple sinks, they will run in parallel, and the one that wins will provide the result of our program:
+
+```scala mdoc:invisible
+case class Record()
+```
+
+```scala mdoc:silent
+val kafkaSink: ZSink[Any, Throwable, Record, Record, Unit] =
+  ZSink.foreach[Any, Throwable, Record](record => ZIO.effect(???))
+
+val pulsarSink: ZSink[Any, Throwable, Record, Record, Unit] =
+  ZSink.foreach[Any, Throwable, Record](record => ZIO.effect(???))
+
+val res: ZSink[Any, Throwable, Record, Record, Unit] =
+  kafkaSink race pulsarSink 
 ```
 
 ## Leftovers
