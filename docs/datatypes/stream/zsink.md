@@ -209,6 +209,8 @@ val res: ZSink[Any, Throwable, Record, Record, Unit] =
   kafkaSink race pulsarSink 
 ```
 
+To determine which one succeeded, we should use the `ZSink#raceBoth` combinator, it returns an `Either` result.
+
 ## Leftovers
 
 ### Exposing Leftovers
