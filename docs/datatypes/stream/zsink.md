@@ -164,6 +164,32 @@ val queue: ZIO[Clock, Nothing, Queue[Int]] =
   } yield queue
 ```
 
+### From Hub
+
+`Hub` is an asynchronous data type in which publisher can publish their messages to that and subscribers can subscribe to take messages from the `Hub`. The `ZSink.fromHub` takes a `ZHub` and returns a `ZSink` which publishes each element to that `ZHub`.
+
+In the following example, the `sink` consumes elements of the `producer` stream and publishes them to the `hub`. We have two consumers that are subscribed to that hub and they are taking its elements forever:
+
+```scala mdoc:silent:nest
+val myApp: ZIO[Console with Clock, IOException, Unit] =
+  for {
+    promise <- Promise.make[Nothing, Unit]
+    hub <- ZHub.bounded[Int](1)
+    sink <- ZIO.succeed(ZSink.fromHub(hub))
+    producer <- ZStream.iterate(0)(_ + 1).fixed(1.seconds).run(sink).fork
+    consumers <- hub.subscribe.zip(hub.subscribe).use { case (left, right) =>
+      for {
+        _ <- promise.succeed(())
+        f1 <- left.take.flatMap(e => putStrLn(s"Left Queue: $e")).forever.fork
+        f2 <- right.take.flatMap(e => putStrLn(s"Right Queue: $e")).forever.fork
+        _ <- f1.zip(f2).join
+      } yield ()
+    }.fork
+    _ <- promise.await
+    _ <- producer.zip(consumers).join
+  } yield ()
+```
+
 ## Operations
 
 Having created the sink, we can transform it with provided operations.
