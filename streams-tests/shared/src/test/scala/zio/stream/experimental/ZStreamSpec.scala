@@ -1710,48 +1710,48 @@ object ZStreamSpec extends ZIOBaseSpec {
             )
           }
         ),
-        //     testM("interleave") {
-        //       val s1 = ZStream(2, 3)
-        //       val s2 = ZStream(5, 6, 7)
+        testM("interleave") {
+          val s1 = ZStream(2, 3)
+          val s2 = ZStream(5, 6, 7)
 
-        //       assertM(s1.interleave(s2).runCollect)(equalTo(Chunk(2, 5, 3, 6, 7)))
-        //     },
-        //     testM("interleaveWith") {
-        //       def interleave(b: Chunk[Boolean], s1: => Chunk[Int], s2: => Chunk[Int]): Chunk[Int] =
-        //         b.headOption.map { hd =>
-        //           if (hd) s1 match {
-        //             case h +: t =>
-        //               h +: interleave(b.tail, t, s2)
-        //             case _ =>
-        //               if (s2.isEmpty) Chunk.empty
-        //               else interleave(b.tail, Chunk.empty, s2)
-        //           }
-        //           else
-        //             s2 match {
-        //               case h +: t =>
-        //                 h +: interleave(b.tail, s1, t)
-        //               case _ =>
-        //                 if (s1.isEmpty) Chunk.empty
-        //                 else interleave(b.tail, s1, Chunk.empty)
-        //             }
-        //         }.getOrElse(Chunk.empty)
+          assertM(s1.interleave(s2).runCollect)(equalTo(Chunk(2, 5, 3, 6, 7)))
+        },
+        testM("interleaveWith") {
+          def interleave(b: Chunk[Boolean], s1: => Chunk[Int], s2: => Chunk[Int]): Chunk[Int] =
+            b.headOption.map { hd =>
+              if (hd) s1 match {
+                case h +: t =>
+                  h +: interleave(b.tail, t, s2)
+                case _ =>
+                  if (s2.isEmpty) Chunk.empty
+                  else interleave(b.tail, Chunk.empty, s2)
+              }
+              else
+                s2 match {
+                  case h +: t =>
+                    h +: interleave(b.tail, s1, t)
+                  case _ =>
+                    if (s1.isEmpty) Chunk.empty
+                    else interleave(b.tail, s1, Chunk.empty)
+                }
+            }.getOrElse(Chunk.empty)
 
-        //       val int = Gen.int(0, 5)
+          val int = Gen.int(0, 5)
 
-        //       checkM(
-        //         int.flatMap(pureStreamGen(Gen.boolean, _)),
-        //         int.flatMap(pureStreamGen(Gen.anyInt, _)),
-        //         int.flatMap(pureStreamGen(Gen.anyInt, _))
-        //       ) { (b, s1, s2) =>
-        //         for {
-        //           interleavedStream <- s1.interleaveWith(s2)(b).runCollect
-        //           b                 <- b.runCollect
-        //           s1                <- s1.runCollect
-        //           s2                <- s2.runCollect
-        //           interleavedLists   = interleave(b, s1, s2)
-        //         } yield assert(interleavedStream)(equalTo(interleavedLists))
-        //       }
-        //     },
+          checkM(
+            int.flatMap(pureStreamGen(Gen.boolean, _)),
+            int.flatMap(pureStreamGen(Gen.anyInt, _)),
+            int.flatMap(pureStreamGen(Gen.anyInt, _))
+          ) { (b, s1, s2) =>
+            for {
+              interleavedStream <- s1.interleaveWith(s2)(b).runCollect
+              b                 <- b.runCollect
+              s1                <- s1.runCollect
+              s2                <- s2.runCollect
+              interleavedLists   = interleave(b, s1, s2)
+            } yield assert(interleavedStream)(equalTo(interleavedLists))
+          }
+        },
         suite("Stream.intersperse")(
           testM("intersperse several") {
             ZStream(1, 2, 3, 4)
