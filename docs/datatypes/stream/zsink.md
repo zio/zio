@@ -7,6 +7,7 @@ import zio.clock.Clock
 import zio.console.Console
 import zio.blocking.Blocking
 import zio.duration._
+import zio.console._
 import java.io.IOException
 import java.nio.file.{Path, Paths}
 ```
@@ -156,14 +157,14 @@ A queue has a finite or infinite buffer size, so they are useful in situations w
 ```scala mdoc:silent:nest
 val myApp: ZIO[Console with Clock, IOException, Unit] =
   for {
-    queue <- ZQueue.bounded[Int](32)
+    queue    <- ZQueue.bounded[Int](32)
     producer <- ZStream
       .iterate(1)(_ + 1)
       .fixed(200.millis)
       .run(ZSink.fromQueue(queue))
       .fork
     consumer <- queue.take.flatMap(x => putStrLn(x.toString)).forever
-    _ <- producer.zip(consumer).join
+    _        <- producer.zip(consumer).join
   } yield ()
 ```
 
