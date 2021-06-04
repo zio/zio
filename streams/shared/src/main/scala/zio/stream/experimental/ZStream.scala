@@ -3512,7 +3512,7 @@ object ZStream {
    * Repeats the provided value infinitely.
    */
   def repeat[A](a: => A): ZStream[Any, Nothing, A] =
-    repeatEffect(UIO.succeed(a))
+    new ZStream(ZChannel.write(Chunk.single(a)).repeated)
 
   /**
    * Creates a stream from an effect producing a value of type `A` which repeats forever.
