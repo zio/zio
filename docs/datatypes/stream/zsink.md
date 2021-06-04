@@ -5,8 +5,10 @@ title: "ZSink"
 ```scala mdoc:invisible
 import zio.clock.Clock
 import zio.console.Console
+import zio.blocking.Blocking
 import zio.duration._
 import java.io.IOException
+import java.nio.file.{Path, Paths}
 ```
 
 ## Introduction
@@ -116,6 +118,21 @@ The `ZSink.fromEffect` creates a single-value sink produced from an effect:
 
 ```scala mdoc:silent:nest
 val sink = ZSink.fromEffect(ZIO.succeed(1))
+```
+
+### From File
+
+The `ZSink.fromFile` creates a file sink that consumes byte chunks and writes them to the specified file:
+
+```scala mdoc:silent:nest
+def fileSink(path: Path): ZSink[Blocking, Throwable, String, Byte, Long] =
+  ZSink
+    .fromFile(path)
+    .contramapChunks[String](_.flatMap(_.getBytes))
+
+val result = ZStream("Hello", "ZIO", "World!")
+  .intersperse("\n")
+  .run(fileSink(Paths.get("file.txt")))
 ```
 
 ## Operations
