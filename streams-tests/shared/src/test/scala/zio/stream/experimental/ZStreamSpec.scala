@@ -3211,12 +3211,12 @@ object ZStreamSpec extends ZIOBaseSpec {
             )(isLeft(equalTo("Ouch")))
           }
         ),
-//             testM("zipWithIndex")(checkM(pureStreamOfInts) { s =>
-//               for {
-//                 res1 <- (s.zipWithIndex.runCollect)
-//                 res2 <- (s.runCollect.map(_.zipWithIndex.map(t => (t._1, t._2.toLong))))
-//               } yield assert(res1)(equalTo(res2))
-//             }),
+        testM("zipWithIndex")(checkM(pureStreamOfInts) { s =>
+          for {
+            res1 <- (s.zipWithIndex.runCollect)
+            res2 <- (s.runCollect.map(_.zipWithIndex.map(t => (t._1, t._2.toLong))))
+          } yield assert(res1)(equalTo(res2))
+        }),
         suite("zipWithLatest")(
           testM("succeed") {
             for {
