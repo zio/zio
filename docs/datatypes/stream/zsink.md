@@ -174,7 +174,9 @@ A `dimap` is an extended `contramap` that additionally transforms sink's output:
 Sink.collectAll[String].dimap[Int, Chunk[String]](_.toString + "id", _.take(10))
 ```
 
-## Exposing Leftovers
+## Leftovers
+
+### Exposing Leftovers
 
 A sink consumes a variable amount of `I` elements (zero or more) from the upstream. If the upstream is finite, we can expose leftover values by calling `ZSink#exposeLeftOver`. It returns a tuple that contains the result of the previous sink and its leftovers:
 
@@ -191,4 +193,12 @@ val s2: ZIO[Any, Nothing, (Option[Int], Chunk[Int])] =
     ZSink.head[Int].exposeLeftover
   )
 // Output: (Some(1), Chunk(2, 3, 4, 5))
+```
+
+### Dropping Leftovers
+
+If we don't need leftovers, we can drop them by using `ZSink#dropLeftover`:
+
+```scala mdoc:silent:nest
+ZSink.take[Int](3).dropLeftover
 ```
