@@ -110,6 +110,14 @@ A sink that doesn't consume any element of type `Int` from its upstream and inte
 val failed : ZSink[Any, String, Int, Int, Nothing] = ZSink.fail[String, Int]("fail!")
 ```
 
+### From Effect
+
+The `ZSink.fromEffect` creates a single-value sink produced from an effect:
+
+```scala mdoc:silent:nest
+val sink = ZSink.fromEffect(ZIO.succeed(1))
+```
+
 ## Operations
 
 Having created the sink, we can transform it with provided operations.
