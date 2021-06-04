@@ -303,11 +303,39 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
 
   /**
    * Allows a faster producer to progress independently of a slower consumer by buffering
+   * up to `capacity` elements in a queue.
+   *
+   * @note This combinator destroys the chunking structure. It's recommended to use chunkN afterwards.
+   * @note Prefer capacities that are powers of 2 for better performance.
+   */
+  final def buffer(capacity: Int): ZStream[R, E, A] = {
+    val queue = self.toQueueOfElements(capacity)
+    new ZStream(
+      ZChannel.managed(queue) { queue =>
+        lazy val process: ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit] =
+          ZChannel.fromEffect {
+            queue.take
+          }.flatMap { (exit: Exit[Option[E], A]) =>
+            exit.fold(
+              Cause
+                .flipCauseOption(_)
+                .fold[ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit]](ZChannel.end(()))(ZChannel.halt(_)),
+              value => ZChannel.write(Chunk.single(value)) *> process
+            )
+          }
+
+        process
+      }
+    )
+  }
+
+  /**
+   * Allows a faster producer to progress independently of a slower consumer by buffering
    * up to `capacity` chunks in a queue.
    *
    * @note Prefer capacities that are powers of 2 for better performance.
    */
-  final def buffer(capacity: Int): ZStream[R, E, A] = {
+  final def bufferChunks(capacity: Int): ZStream[R, E, A] = {
     val queue = self.toQueue(capacity)
     new ZStream(
       ZChannel.managed(queue) { queue =>
@@ -329,25 +357,116 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
 
   /**
    * Allows a faster producer to progress independently of a slower consumer by buffering
-   * up to `capacity` elements in a dropping queue.
+   * up to `capacity` chunks in a dropping queue.
    *
    * @note Prefer capacities that are powers of 2 for better performance.
    */
-  final def bufferDropping(capacity: Int): ZStream[R, E, A] =
-    ???
+  final def bufferChunksDropping(capacity: Int): ZStream[R, E, A] = {
+    val queue = Queue.dropping[(Take[E, A], Promise[Nothing, Unit])](capacity).toManaged(_.shutdown)
+    new ZStream(bufferSignal[R, E, A](queue, self.channel))
+  }
+
+  /**
+   * Allows a faster producer to progress independently of a slower consumer by buffering
+   * up to `capacity` chunks in a sliding queue.
+   *
+   * @note Prefer capacities that are powers of 2 for better performance.
+   */
+  final def bufferChunksSliding(capacity: Int): ZStream[R, E, A] = {
+    val queue = Queue.sliding[(Take[E, A], Promise[Nothing, Unit])](capacity).toManaged(_.shutdown)
+    new ZStream(bufferSignal[R, E, A](queue, self.channel))
+  }
+
+  /**
+   * Allows a faster producer to progress independently of a slower consumer by buffering
+   * up to `capacity` elements in a dropping queue.
+   *
+   * @note This combinator destroys the chunking structure. It's recommended to use chunkN afterwards.
+   * @note Prefer capacities that are powers of 2 for better performance.
+   */
+  final def bufferDropping(capacity: Int): ZStream[R, E, A] = {
+    val queue = Queue.dropping[(Take[E, A], Promise[Nothing, Unit])](capacity).toManaged(_.shutdown)
+    new ZStream(bufferSignal[R, E, A](queue, self.chunkN(1).channel))
+  }
 
   /**
    * Allows a faster producer to progress independently of a slower consumer by buffering
    * up to `capacity` elements in a sliding queue.
    *
+   * @note This combinator destroys the chunking structure. It's recommended to use chunkN afterwards.
    * @note Prefer capacities that are powers of 2 for better performance.
    */
-  final def bufferSliding(capacity: Int): ZStream[R, E, A] =
-    ???
+  final def bufferSliding(capacity: Int): ZStream[R, E, A] = {
+    val queue = Queue.sliding[(Take[E, A], Promise[Nothing, Unit])](capacity).toManaged(_.shutdown)
+    new ZStream(bufferSignal[R, E, A](queue, self.chunkN(1).channel))
+  }
+
+  private def bufferSignal[R1 <: R, E1 >: E, A1 >: A](
+    managed: UManaged[Queue[(Take[E1, A1], Promise[Nothing, Unit])]],
+    channel: ZChannel[R1, Any, Any, Any, E1, Chunk[A1], Any]
+  ): ZChannel[R1, Any, Any, Any, E1, Chunk[A1], Unit] = {
+    def producer(
+      queue: Queue[(Take[E1, A1], Promise[Nothing, Unit])],
+      ref: Ref[Promise[Nothing, Unit]]
+    ): ZChannel[R1, E1, Chunk[A1], Any, Nothing, Nothing, Any] = {
+      def terminate(take: Take[E1, A1]): ZChannel[R1, E1, Chunk[A1], Any, Nothing, Nothing, Any] =
+        ZChannel.fromEffect {
+          for {
+            latch <- ref.get
+            _     <- latch.await
+            p     <- Promise.make[Nothing, Unit]
+            _     <- queue.offer((take, p))
+            _     <- ref.set(p)
+            _     <- p.await
+          } yield ()
+        }
+
+      ZChannel.readWith[R1, E1, Chunk[A1], Any, Nothing, Nothing, Any](
+        in =>
+          ZChannel.fromEffect {
+            for {
+              p     <- Promise.make[Nothing, Unit]
+              added <- queue.offer((Take.chunk(in), p))
+              _     <- ref.set(p).when(added)
+            } yield ()
+          } *> producer(queue, ref),
+        err => terminate(Take.fail(err)),
+        _ => terminate(Take.end)
+      )
+    }
+
+    def consumer(
+      queue: Queue[(Take[E1, A1], Promise[Nothing, Unit])]
+    ): ZChannel[R1, Any, Any, Any, E1, Chunk[A1], Unit] = {
+      lazy val process: ZChannel[Any, Any, Any, Any, E1, Chunk[A1], Unit] =
+        ZChannel.fromEffect(queue.take).flatMap { case (take, promise) =>
+          ZChannel.fromEffect(promise.succeed(())) *>
+            take.fold(
+              ZChannel.end(()),
+              error => ZChannel.halt(error),
+              value => ZChannel.write(value) *> process
+            )
+        }
+
+      process
+    }
+
+    ZChannel.managed {
+      for {
+        queue <- managed
+        start <- Promise.makeManaged[Nothing, Unit]
+        _     <- start.succeed(()).toManaged_
+        ref   <- Ref.makeManaged(start)
+        _     <- (channel >>> producer(queue, ref)).runManaged.fork
+      } yield queue
+    } { queue =>
+      consumer(queue)
+    }
+  }
 
   /**
    * Allows a faster producer to progress independently of a slower consumer by buffering
-   * elements into an unbounded queue.
+   * chunks into an unbounded queue.
    */
   final def bufferUnbounded: ZStream[R, E, A] = {
     val queue = self.toQueueUnbounded
@@ -1613,6 +1732,31 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
       .unit
   }
 
+  /*
+   * Like [[ZStream#into]], but provides the result as a [[ZManaged]] to allow for scope
+   * composition.
+   */
+  final def runIntoElementsManaged[R1 <: R, E1 >: E](
+    queue: ZQueue[R1, Nothing, Nothing, Any, Exit[Option[E1], A], Any]
+  ): ZManaged[R1, E1, Unit] = {
+    lazy val writer: ZChannel[R1, E1, Chunk[A], Any, Nothing, Exit[Option[E1], A], Any] =
+      ZChannel.readWith[R1, E1, Chunk[A], Any, Nothing, Exit[Option[E1], A], Any](
+        in =>
+          in.foldLeft[ZChannel[R1, Any, Any, Any, Nothing, Exit[Option[E1], A], Any]](ZChannel.unit) {
+            case (channel, a) =>
+              channel *> ZChannel.write(Exit.succeed(a))
+          } *> writer,
+        err => ZChannel.write(Exit.fail(Some(err))),
+        _ => ZChannel.write(Exit.fail(None))
+      )
+
+    (self.channel >>> writer)
+      .mapOutM(queue.offer)
+      .drain
+      .runManaged
+      .unit
+  }
+
   /**
    * Locks the execution of this stream to the specified executor. Any streams
    * that are composed after this one will automatically be shifted back to the
@@ -2714,6 +2858,36 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def toQueue(capacity: Int = 2): ZManaged[R, Nothing, Dequeue[Take[E, A]]] =
     for {
       queue <- Queue.bounded[Take[E, A]](capacity).toManaged(_.shutdown)
+      _     <- self.runIntoManaged(queue).fork
+    } yield queue
+
+  /**
+   * Converts the stream to a dropping managed queue of chunks. After the managed queue is used,
+   * the queue will never again produce values and should be discarded.
+   */
+  final def toQueueDropping(capacity: Int = 2): ZManaged[R, Nothing, Dequeue[Take[E, A]]] =
+    for {
+      queue <- Queue.dropping[Take[E, A]](capacity).toManaged(_.shutdown)
+      _     <- self.runIntoManaged(queue).fork
+    } yield queue
+
+  /**
+   * Converts the stream to a managed queue of elements. After the managed queue is used,
+   * the queue will never again produce values and should be discarded.
+   */
+  final def toQueueOfElements(capacity: Int = 2): ZManaged[R, Nothing, Dequeue[Exit[Option[E], A]]] =
+    for {
+      queue <- Queue.bounded[Exit[Option[E], A]](capacity).toManaged(_.shutdown)
+      _     <- self.runIntoElementsManaged(queue).fork
+    } yield queue
+
+  /**
+   * Converts the stream to a sliding managed queue of chunks. After the managed queue is used,
+   * the queue will never again produce values and should be discarded.
+   */
+  final def toQueueSliding(capacity: Int = 2): ZManaged[R, Nothing, Dequeue[Take[E, A]]] =
+    for {
+      queue <- Queue.sliding[Take[E, A]](capacity).toManaged(_.shutdown)
       _     <- self.runIntoManaged(queue).fork
     } yield queue
 
