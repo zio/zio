@@ -377,24 +377,33 @@ ZStream.iterate(0)(_ + 1).run(
 // Output: 15
 ```
 
-## Concurrency
+## Concurrency and Parallelism
 
-### Racing
+### Parallel Zipping
 
-We are able to `race` multiple sinks, they will run in parallel, and the one that wins will provide the result of our program:
+Like `ZStream`, two `ZSink` can be zipped together. Both of them will be run in parallel, and their results will be combined in a tuple:
 
 ```scala mdoc:invisible
 case class Record()
 ```
 
-```scala mdoc:silent
+```scala mdoc:silent:nest
 val kafkaSink: ZSink[Any, Throwable, Record, Record, Unit] =
   ZSink.foreach[Any, Throwable, Record](record => ZIO.effect(???))
 
 val pulsarSink: ZSink[Any, Throwable, Record, Record, Unit] =
   ZSink.foreach[Any, Throwable, Record](record => ZIO.effect(???))
 
-val res: ZSink[Any, Throwable, Record, Record, Unit] =
+val stream: ZSink[Any, Throwable, Record, Record, (Unit, Unit)] =
+  kafkaSink zipPar pulsarSink 
+```
+
+### Racing
+
+We are able to `race` multiple sinks, they will run in parallel, and the one that wins will provide the result of our program:
+
+```scala mdoc:silent:nest
+val stream: ZSink[Any, Throwable, Record, Record, Unit] =
   kafkaSink race pulsarSink 
 ```
 
