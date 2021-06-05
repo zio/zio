@@ -10,6 +10,7 @@ import zio.duration._
 import zio.console._
 import java.io.IOException
 import java.nio.file.{Path, Paths}
+import zio.stream.ZSink.Push
 ```
 
 ## Introduction
@@ -192,6 +193,110 @@ val myApp: ZIO[Console with Clock, IOException, Unit] =
     _ <- promise.await
     _ <- producer.zip(consumers).join
   } yield ()
+```
+
+### From Push
+
+Before deepening into creating a `ZSink` using `Push` data-type, we need to learn more about the implementation details of `ZSink`. Note that this topic is for advanced users, and we do not require using `Push` data-type to create ZIO sinks, most of the time.
+
+#### ZSink's Encoding
+
+`ZSink` is a wrapper data-type around _managed_ `Push`:
+
+```scala
+abstract class ZSink[-R, +E, -I, +L, +Z] private (
+    val push: ZManaged[R, Nothing, ZSink.Push[R, E, I, L, Z]]
+) 
+
+object ZSink {
+  type Push[-R, +E, -I, +L, +Z] =
+    Option[Chunk[I]] => ZIO[R, (Either[E, Z], Chunk[L]), Unit]
+}
+```
+
+`Push` is a function from `Option[Chunk[I]]` to `ZIO[R, (Either[E, Z], Chunk[L]), Unit]`. We can create four different data-types using its smart constructors:
+
+1. **Push.more** — Using this constructor we create a `Push` data-type that requires more values to consume (`Option[Chunk[I]] => UIO[Unit]`):
+
+```scala 
+object Push {
+  val more: ZIO[Any, Nothing, Unit] = UIO.unit
+}
+```
+
+2. **Push.emit** — By providing `z` (as an _end_ value) and `leftover` arguments to this constructor we can create a `Push` data-type describing a sink that ends with `z` value and emits its leftovers (`Option[Chunk[I]] => IO[(Right[Nothing, Z], Chunk[I]), Nothing]`):
+
+```scala
+object Push {
+def emit[I, Z](
+    z: Z,
+    leftover: Chunk[I]
+): IO[(Right[Nothing, Z], Chunk[I]), Nothing] =
+  IO.fail((Right(z), leftover))
+}
+```
+
+3. **Push.fail** — By providing an error message and leftover to this constructor, we can create a `Push` data-type describing a sink that fails with `e` and emits the leftover (`Option[Chunk[I]] => IO[(Left[E, Nothing], Chunk[I]), Nothing]`):
+
+```scala
+def fail[I, E](
+    e: E,
+    leftover: Chunk[I]
+): IO[(Left[E, Nothing], Chunk[I]), Nothing] = 
+  IO.fail((Left(e), leftover))
+```
+
+4. **Push.halt** — By providing a `Cause` we can create a `Push` data-type describing a sink that halts the process of consuming elements (`Option[Chunk[I]] => ZIO[Any, (Left[E, Nothing], Chunk[Nothing]), Nothing]`):
+
+```scala
+def halt[E](
+    c: Cause[E]
+): ZIO[Any, (Left[E, Nothing], Chunk[Nothing]), Nothing] =
+  IO.halt(c).mapError(e => (Left(e), Chunk.empty))
+```
+
+Now, we are ready to see how the existing `ZSink.head` sink is implemented using `Push` data-type:
+
+```scala mdoc:silent:nest
+def head[I]: ZSink[Any, Nothing, I, I, Option[I]] =
+  ZSink[Any, Nothing, I, I, Option[I]](ZManaged.succeed({
+    case Some(ch) =>
+      if (ch.isEmpty) { // If the chunk is empty, we require more elements
+        Push.more
+      } else {
+        Push.emit(Some(ch.head), ch.drop(1))
+      }
+    case None => Push.emit(None, Chunk.empty)
+  }))
+```
+
+#### Creating ZSink using Push
+
+To create a ZSink using `Push` data-type, we should use `ZSink.fromPush` constructor. This constructor is implemented as below:
+
+```scala
+object ZSink {
+  def fromPush[R, E, I, L, Z](sink: Push[R, E, I, L, Z]): ZSink[R, E, I, L, Z] =
+    ZSink(Managed.succeed(sink))
+}
+```
+
+So nothing special, it just creates us a new `ZSink` containing a managed push. 
+
+Let's rewrite `ZSink.succeed` and `ZSink.fail` — the two existing ZIO sinks — using `fromPush`:
+
+```scala mdoc:silent:nest
+def succeed[I, Z](z: => Z): ZSink[Any, Nothing, I, I, Z] =
+  ZSink.fromPush[Any, Nothing, I, I, Z] { c =>
+    val leftover = c.fold[Chunk[I]](Chunk.empty)(identity)
+    Push.emit(z, leftover)
+  }
+  
+def fail[E, I](e: => E): ZSink[Any, E, I, I, Nothing] =
+  ZSink.fromPush[Any, E, I, I, Nothing] { c =>
+    val leftover = c.fold[Chunk[I]](Chunk.empty)(identity)
+    Push.fail(e, leftover)
+  }
 ```
 
 ## Operations
