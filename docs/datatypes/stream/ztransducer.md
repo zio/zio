@@ -3,6 +3,10 @@ id: ztransducer
 title: "ZTransducer"
 ---
 
+```scala mdoc:invisible
+import zio.stream.{UStream, ZStream, ZTransducer}
+```
+
 ## Introduction
 
 A `ZTransducer[R, E, I, O]` is a stream transformer. Transducers accept a stream as input, and return the transformed stream as output.
@@ -14,6 +18,18 @@ type ZTransducer[Env, Err, In, Out] = ZStream[R, E, O] => ZStream[R, E, O]
 ```
 
 There is no fundamental requirement for transducers to exist, because everything transducers do can be done directly on a stream. However, because transducers separate the stream transformation from the source stream itself, it becomes possible to abstract over stream transformations at the level of values, creating, storing, and passing around reusable transformation pipelines that can be applied to many different streams. 
+
+## Built-in Transducers
+
+### head and last
+
+The `ZTransducer.head` and `ZTransducer.last` are two transducers that return the _first_ and _last_ element of a stream:
+
+```scala mdoc:silent:nest
+val stream: UStream[Int] = ZStream(1, 2, 3, 4)
+val head: UStream[Option[Int]] = stream.transduce(ZTransducer.head)
+val last: UStream[Option[Int]] = stream.transduce(ZTransducer.last)
+```
 
 ## Compressed streams
 
