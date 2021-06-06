@@ -59,6 +59,18 @@ ZStream(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
 // Output: Chunk(1, 2, 3), Chunk(7, 8, 9, 10)
 ```
 
+### Dropping
+
+**ZTransducer.dropWhile** — Creates a transducer that starts consuming values as soon as one fails the given predicate:
+
+```scala mdoc:silent:nest
+ZStream(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+  .transduce(ZTransducer.dropWhile(_ <= 5))
+// Output: 6, 7, 8, 9, 10
+```
+
+The `ZTransudcer` also has `dropWhileM` which takes an effectful predicate `p: I => ZIO[R, E, Boolean]`.
+
 ## Compressed streams
 
 ### Decompression
