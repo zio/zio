@@ -71,6 +71,21 @@ ZStream(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
 
 The `ZTransudcer` also has `dropWhileM` which takes an effectful predicate `p: I => ZIO[R, E, Boolean]`.
 
+### Folding
+
+Using `ZTransudcer.fold` we can fold incoming elements until we reach the false predicate, then the transducer emits the computed value and restarts the folding process:
+
+```scala mdoc:silent:nest
+ZStream
+  .range(0, 8)
+  .transduce(
+    ZTransducer.fold[Int, Chunk[Int]](Chunk.empty)(_.length < 3)((s, i) =>
+      s ++ Chunk(i)
+    )
+  )
+// Ouput: Chunk(0, 1, 2), Chunk(3, 4, 5), Chunk(6, 7)
+```
+
 ## Compressed streams
 
 ### Decompression
