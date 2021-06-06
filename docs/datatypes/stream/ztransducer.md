@@ -5,6 +5,7 @@ title: "ZTransducer"
 
 ```scala mdoc:invisible
 import zio.stream.{UStream, ZStream, ZTransducer}
+import zio.Chunk
 ```
 
 ## Introduction
@@ -29,6 +30,33 @@ The `ZTransducer.head` and `ZTransducer.last` are two transducers that return th
 val stream: UStream[Int] = ZStream(1, 2, 3, 4)
 val head: UStream[Option[Int]] = stream.transduce(ZTransducer.head)
 val last: UStream[Option[Int]] = stream.transduce(ZTransducer.last)
+```
+
+### Splitting
+
+**ZTransducer.splitOn** — A transducer that splits strings on a delimiter:
+
+```scala mdoc:silent:nest
+ZStream("1-2-3", "4-5", "6", "7-8-9-10")
+  .transduce(ZTransducer.splitOn("-"))
+  .map(_.toInt)
+// Ouput: 1, 2, 3, 4, 5, 6, 7, 8, 9 10
+```
+
+**ZTransducer.splitLines** — A transducer that splits strings on newlines. Handles both Windows newlines (`\r\n`) and UNIX newlines (`\n`):
+
+```scala mdoc:silent:nest
+ZStream("This is the first line.\nSecond line.\nAnd the last line.")
+  .transduce(ZTransducer.splitLines)
+// Output: "This is the first line.", "Second line.", "And the last line."
+```
+
+**ZTransducer.splitOnChunk** — A transducer that splits elements on a delimiter and transforms the splits into desired output:
+
+```scala mdoc:silent:nest
+ZStream(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+  .transduce(ZTransducer.splitOnChunk(Chunk(4, 5, 6)))
+// Output: Chunk(1, 2, 3), Chunk(7, 8, 9, 10)
 ```
 
 ## Compressed streams
