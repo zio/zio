@@ -114,6 +114,28 @@ ZStream(3, 2, 4, 1, 5, 6, 2, 1, 3, 5, 6)
 // Output: Chunk(3,2,4),Chunk(1,5,6),Chunk(2,1,3),Chunk(5,6)
 ```
 
+Another example is when we want to group element which sum of them equal or less than a specific number:
+
+```scala mdoc:silent:nest
+ZStream(1, 2, 2, 4, 2, 1, 1, 1, 0, 2, 1, 2)
+  .aggregate(
+    ZTransducer
+      .foldWeighted(Chunk[Int]())(
+        (_, i: Int) => i.toLong,
+        5
+      ) { (acc, el) =>
+        acc ++ Chunk(el)
+      }
+  )
+// Output: Chunk(1,2,2),Chunk(4),Chunk(2,1,1,1,0),Chunk(2,1,2)
+```
+
+> _**Note**_
+>
+> The `ZTransducer.foldWeighted` cannot decompose elements whose weight is more than the `max` number. So elements that have an individual cost larger than `max` will force the transducer to cross the `max` cost. In the last example, if the source stream was `ZStream(1, 2, 2, 4, 2, 1, 6, 1, 0, 2, 1, 2)` the output would be `Chunk(1,2,2),Chunk(4),Chunk(2,1),Chunk(6),Chunk(1,0,2,1),Chunk(2)`. As we see, the `6` element crossed the `max` cost.
+>
+> To decompose these elements, we should use `ZTransducer.foldWeightedDecompose` function.
+
 ## Compressed streams
 
 ### Decompression
