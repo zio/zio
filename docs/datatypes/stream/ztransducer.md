@@ -180,6 +180,17 @@ val stream: ZStream[Any, Nothing, Int] =
 // Output: 10
 ```
 
+### Prepending
+
+The `ZTransducer.prepend` creates a transducer that emits the provided chunks before emitting any other values:
+
+```scala mdoc:silent:nest
+ZStream(2, 3, 4).transduce(
+  ZTransducer.prepend(Chunk(0, 1))
+)
+// Output: 0, 1, 2, 3, 4
+```
+
 ## Compressed streams
 
 ### Decompression
