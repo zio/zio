@@ -73,7 +73,7 @@ The `ZTransudcer` also has `dropWhileM` which takes an effectful predicate `p: I
 
 ### Folding
 
-Using `ZTransudcer.fold` we can fold incoming elements until we reach the false predicate, then the transducer emits the computed value and restarts the folding process:
+**ZTransudcer.fold** — Using `ZTransudcer.fold` we can fold incoming elements until we reach the false predicate, then the transducer emits the computed value and restarts the folding process:
 
 ```scala mdoc:silent:nest
 ZStream
@@ -84,6 +84,34 @@ ZStream
     )
   )
 // Ouput: Chunk(0, 1, 2), Chunk(3, 4, 5), Chunk(6, 7)
+```
+
+Note that the `ZTransducer.foldM` is like `fold`, but it folds effectfully.
+
+**ZTransducer.foldWeighted** — Creates a transducer that folds incoming elements until reaches the `max` worth of elements determined by the `costFn`, then the transducer emits the computed value and restarts the folding process:
+
+```scala
+object ZTransducer {
+  def foldWeighted[I, O](z: O)(costFn: (O, I) => Long, max: Long)(
+    f: (O, I) => O
+  ): ZTransducer[Any, Nothing, I, O] = ???
+}
+```
+
+In the following example, each time we consume a new element we return one as the weight of that element using cost function. After three times, the sum of the weights reaches to the `max` number, and the folding process restarted. So we expect this transducer to group each three elements in one `Chunk`:
+
+```scala mdoc:silent:nest
+ZStream(3, 2, 4, 1, 5, 6, 2, 1, 3, 5, 6)
+  .aggregate(
+    ZTransducer
+      .foldWeighted(Chunk[Int]())(
+        (_, _: Int) => 1,
+        3
+      ) { (acc, el) =>
+        acc ++ Chunk(el)
+      }
+  )
+// Output: Chunk(3,2,4),Chunk(1,5,6),Chunk(2,1,3),Chunk(5,6)
 ```
 
 ## Compressed streams
