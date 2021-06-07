@@ -164,6 +164,22 @@ ZStream(1, 2, 2, 2, 1, 6, 1, 7, 2, 1, 2)
 // Ouput: Chunk(1,2,2),Chunk(2,1),Chunk(5),Chunk(1,1),Chunk(5),Chunk(1,1,2,1),Chunk(2)
 ```
 
+**ZTransducer.foldUntil** — Creates a transducer that folds incoming element until specific `max` elements have been folded:
+
+```scala mdoc:silent:nest
+ZStream(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+  .transduce(ZTransducer.foldUntil(0, 3)(_ + _))
+// Output: 6, 15, 24, 10
+```
+
+**ZTransducer.foldLeft** — This transducer will fold the inputs until the stream ends, resulting in a stream with one element:
+
+```scala mdoc:silent:nest
+val stream: ZStream[Any, Nothing, Int] = 
+  ZStream(1, 2, 3, 4).transduce(ZTransducer.foldLeft(0)(_ + _))
+// Output: 10
+```
+
 ## Compressed streams
 
 ### Decompression
