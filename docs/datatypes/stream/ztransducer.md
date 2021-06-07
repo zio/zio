@@ -69,11 +69,11 @@ ZStream(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
 // Output: 6, 7, 8, 9, 10
 ```
 
-The `ZTransudcer` also has `dropWhileM` which takes an effectful predicate `p: I => ZIO[R, E, Boolean]`.
+The `ZTransducer` also has `dropWhileM` which takes an effectful predicate `p: I => ZIO[R, E, Boolean]`.
 
 ### Folding
 
-**ZTransudcer.fold** — Using `ZTransudcer.fold` we can fold incoming elements until we reach the false predicate, then the transducer emits the computed value and restarts the folding process:
+**ZTransducer.fold** — Using `ZTransudcer.fold` we can fold incoming elements until we reach the false predicate, then the transducer emits the computed value and restarts the folding process:
 
 ```scala mdoc:silent:nest
 ZStream
@@ -135,6 +135,34 @@ ZStream(1, 2, 2, 4, 2, 1, 1, 1, 0, 2, 1, 2)
 > The `ZTransducer.foldWeighted` cannot decompose elements whose weight is more than the `max` number. So elements that have an individual cost larger than `max` will force the transducer to cross the `max` cost. In the last example, if the source stream was `ZStream(1, 2, 2, 4, 2, 1, 6, 1, 0, 2, 1, 2)` the output would be `Chunk(1,2,2),Chunk(4),Chunk(2,1),Chunk(6),Chunk(1,0,2,1),Chunk(2)`. As we see, the `6` element crossed the `max` cost.
 >
 > To decompose these elements, we should use `ZTransducer.foldWeightedDecompose` function.
+
+**ZTransducer.foldWeightedDecompose** — As we saw in the previous section, we need a way to decompose elements — whose cause the output aggregate cross the `max` — into smaller elements. This version of fold takes `decompose` function and enables us to do that:
+
+```scala
+object ZTransducer {
+  def foldWeightedDecompose[I, O](
+      z: O
+  )(costFn: (O, I) => Long, max: Long, decompose: I => Chunk[I])(
+      f: (O, I) => O
+  ): ZTransducer[Any, Nothing, I, O] = ???
+}
+```
+
+In the following example, we are break down elements that are bigger than 5, using `decompose` function:
+
+```scala mdoc:silent:nest
+ZStream(1, 2, 2, 2, 1, 6, 1, 7, 2, 1, 2)
+  .aggregate(
+    ZTransducer
+      .foldWeightedDecompose(Chunk[Int]())(
+        (_, i: Int) => i.toLong,
+        5,
+        (i: Int) =>
+          if (i > 5) Chunk(i - 1, 1) else Chunk(i)
+      )((acc, el) => acc ++ Chunk.succeed(el))
+  )
+// Ouput: Chunk(1,2,2),Chunk(2,1),Chunk(5),Chunk(1,1),Chunk(5),Chunk(1,1,2,1),Chunk(2)
+```
 
 ## Compressed streams
 
