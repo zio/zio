@@ -218,6 +218,54 @@ ZStream
   .retry(Schedule.forever)
 ```
 
+### Collecting
+
+**ZTransducer.collectAllN** — Collects incoming values into chunk of maximum size of `n`:
+
+```scala mdoc:silent:nest
+ZStream(1, 2, 3, 4, 5).transduce(
+  ZTransducer.collectAllN(3)
+)
+// Output: Chunk(1,2,3), Chunk(4,5)
+```
+
+**ZTransducer.collectAllWhile** — Accumulates incoming elements into a chunk as long as they verify the given predicate:
+
+```scala mdoc:silent:nest
+ZStream(1, 2, 0, 4, 0, 6, 7).transduce(
+  ZTransducer.collectAllWhile(_ != 0)
+)
+// Output: Chunk(1,2), Chunk(4), Chunk(6,7)
+```
+
+**ZTransducer.collectAllToMapN** — Creates a transducer accumulating incoming values into maps of up to `n` keys. Elements are mapped to keys using the function `key`; elements mapped to the same key will be merged with the function `f`:
+
+```scala
+object ZTransducer {
+  def collectAllToMapN[K, I](n: Long)(key: I => K)(
+      f: (I, I) => I
+  ): ZTransducer[Any, Nothing, I, Map[K, I]] = ???
+}
+```
+
+Let's do an example:
+
+```scala mdoc:silent:nest
+ZStream(1, 2, 0, 4, 5).transduce(
+  ZTransducer.collectAllToMapN[Int, Int](10)(_ % 3)(_ + _)
+)
+// Output: Map(1 -> 5, 2 -> 7, 0 -> 0)
+```
+
+**ZTransducer.collectAllToSetN** — Creates a transducer accumulating incoming values into sets of maximum size `n`:
+
+```scala mdoc:silent:nest
+ZStream(1, 2, 1, 2, 1, 3, 0, 5, 0, 2).transduce(
+  ZTransducer.collectAllToSetN(3)
+)
+// Output: Set(1,2,3), Set(0,5,2), Set(1)
+```
+
 ## Compressed streams
 
 ### Decompression
