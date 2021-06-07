@@ -5,7 +5,8 @@ title: "ZTransducer"
 
 ```scala mdoc:invisible
 import zio.stream.{UStream, ZStream, ZTransducer}
-import zio.Chunk
+import zio.{Schedule, Chunk}
+import zio.console._
 ```
 
 ## Introduction
@@ -189,6 +190,32 @@ ZStream(2, 3, 4).transduce(
   ZTransducer.prepend(Chunk(0, 1))
 )
 // Output: 0, 1, 2, 3, 4
+```
+
+### Branching/Switching
+
+The `ZTransducer.branchAfter` takes `n` as an input and creates a transducer that reads the first `n` values from the stream and uses them to choose the transducer that will be used for the rest of the stream.
+
+In the following example, we are prompting the user to enter a series of numbers. If the sum of the first three elements is less than 5, we continue to emit the remaining elements by using `ZTransducer.identity`, otherwise, we retry prompting the user to enter another series of numbers:
+
+```scala mdoc:silent:nest
+ZStream
+  .fromEffect(
+    putStr("Enter numbers separated by comma: ") *> getStrLn
+  )
+  .mapConcat(_.split(","))
+  .map(_.trim.toInt)
+  .transduce(
+    ZTransducer.branchAfter(3) { elements =>
+      if (elements.sum < 5)
+        ZTransducer.identity
+      else
+        ZTransducer.fromEffect(
+          putStrLn(s"received elements are not applicable: $elements")
+        ) >>> ZTransducer.fail("boom")
+    }
+  )
+  .retry(Schedule.forever)
 ```
 
 ## Compressed streams
