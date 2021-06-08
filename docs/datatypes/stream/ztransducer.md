@@ -5,8 +5,9 @@ title: "ZTransducer"
 
 ```scala mdoc:invisible
 import zio.stream.{UStream, ZStream, ZTransducer, ZSink}
-import zio.{Schedule, Chunk, IO}
+import zio.{Schedule, Chunk, IO, ZIO}
 import zio.console._
+import zio.blocking.Blocking
 import java.nio.file.Paths
 ```
 
@@ -427,5 +428,36 @@ val numbers: ZStream[Any, Nothing, Int] =
     .mapConcat(_.split("-"))
     .transduce(
       ZTransducer.identity[Int].contramap[String](_.toInt)
+    )
+```
+
+### Composing
+
+We can compose transducers in two ways:
+
+1. One transducer can be composed with another transducer, resulting in a composite transducer:
+
+```scala mdoc:silent:nest
+val lines: ZStream[Blocking, Throwable, String] =
+  ZStream
+    .fromFile(Paths.get("file.txt"))
+    .transduce(
+      ZTransducer.utf8Decode >>> ZTransducer.splitLines
+    )
+```
+
+2. One transducer can be composed with a sink, resulting in a sink that processes elements by piping them through the transducer and piping the results into the sink:
+
+```scala mdoc:silent:nest
+val refine: ZIO[Blocking, Throwable, Long] =
+  ZStream
+    .fromFile(Paths.get("file.txt"))
+    .run(
+      ZTransducer.utf8Decode >>> ZTransducer.splitLines.filter(_.contains('₿')) >>>
+        ZSink
+          .fromFile(Paths.get("file.refined.txt"))
+          .contramapChunks[String](
+            _.flatMap(line => (line + System.lineSeparator()).getBytes())
+          )
     )
 ```
