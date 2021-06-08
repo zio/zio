@@ -378,7 +378,7 @@ def decompressGzipped(gzipped: ZStream[Any, Nothing, Byte]): ZStream[Any, Compre
 ZIO stream has a wide variety of transducers to decode chunks of bytes into strings:
 
 | Decoder                     | Input          | Output |
-|-----------------------------+----------------+--------|
+|-----------------------------|----------------|--------|
 | `ZTransducer.utfDecode`     | Unicode bytes  | String |
 | `ZTransducer.utf8Decode`    | UTF-8 bytes    | String |
 | `ZTransducer.utf16Decode`   | UTF-16         | String |
@@ -435,7 +435,7 @@ val numbers: ZStream[Any, Nothing, Int] =
 
 We can compose transducers in two ways:
 
-1. One transducer can be composed with another transducer, resulting in a composite transducer:
+1. **Composing Two Transducers** — One transducer can be composed with another transducer, resulting in a composite transducer:
 
 ```scala mdoc:silent:nest
 val lines: ZStream[Blocking, Throwable, String] =
@@ -446,7 +446,7 @@ val lines: ZStream[Blocking, Throwable, String] =
     )
 ```
 
-2. One transducer can be composed with a sink, resulting in a sink that processes elements by piping them through the transducer and piping the results into the sink:
+2. **Composing ZTransducer with ZSink** — One transducer can be composed with a sink, resulting in a sink that processes elements by piping them through the transducer and piping the results into the sink:
 
 ```scala mdoc:silent:nest
 val refine: ZIO[Blocking, Throwable, Long] =
