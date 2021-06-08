@@ -405,6 +405,27 @@ ZStream(1, -2, 0, 1, 3, -3, 4, 2, 0, 1, -3, 1, 1, 6)
 // Output: Chunk(4,2,1), Chunk(1,1,6)
 ```
 
-### Mapping
+### Input Transformation (Mapping)
 
-To transform the output of the transducer, we can use the `ZTransducer#map` combinator for the success channel, and the `ZTransducer#mapError` combinator for the failure channel. Also, the `ZTransducer.mapChunks` takes a function of type `Chunk[O] => Chunk[O2]` and transforms chunks emitted by the transducer.
+To transform the _outputs_ of the transducer, we can use the `ZTransducer#map` combinator for the success channel, and the `ZTransducer#mapError` combinator for the failure channel. Also, the `ZTransducer.mapChunks` takes a function of type `Chunk[O] => Chunk[O2]` and transforms chunks emitted by the transducer.
+
+### Output Transformation (Contramap)
+
+To transform the _inputs_ of the transducer, we can use the `ZTransducer#contramap` combinator. It takes a map function of type `J => I` and convert a `ZTransducer[R, E, I, O]` to `ZTransducer[R, E, J, O]`:
+
+```scala
+class ZTransducer[-R, +E, -I, +O] {
+  final def contramap[J](f: J => I): ZTransducer[R, E, J, O] = ???
+}
+```
+
+Let's create an integer parser transducer using `ZTransducer.contramap`:
+
+```scala mdoc:silent:nest
+val numbers: ZStream[Any, Nothing, Int] =
+  ZStream("1-2-3-4-5")
+    .mapConcat(_.split("-"))
+    .transduce(
+      ZTransducer.identity[Int].contramap[String](_.toInt)
+    )
+```
