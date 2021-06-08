@@ -26,6 +26,11 @@ import zio.{Cause, Supervisor}
 abstract class Platform { self =>
 
   /**
+   * Retrieves the default executor for all blocking tasks.
+   */
+  def blockingExecutor: Executor
+
+  /**
    * Retrieves the default executor.
    */
   def executor: Executor
@@ -92,6 +97,7 @@ abstract class Platform { self =>
 object Platform extends PlatformSpecific {
   abstract class Proxy(self: Platform) extends Platform {
     def executor: Executor                     = self.executor
+    def blockingExecutor: Executor             = self.blockingExecutor
     def tracing: Tracing                       = self.tracing
     def fatal(t: Throwable): Boolean           = self.fatal(t)
     def reportFatal(t: Throwable): Nothing     = self.reportFatal(t)

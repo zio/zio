@@ -1,7 +1,5 @@
 package zio
 
-import zio.clock.Clock
-import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect.{nonFlaky, silent}
 import zio.test._
@@ -16,10 +14,9 @@ object RTSSpec extends ZIOBaseSpec {
 
   def spec: ZSpec[Environment, Failure] = suite("Blocking specs (to be migrated to ZIOSpecJvm)")(
     testM("blocking caches threads") {
-      import zio.blocking.Blocking
 
-      def runAndTrack(ref: Ref[Set[Thread]]): ZIO[Blocking with Clock, Nothing, Boolean] =
-        blocking.blocking {
+      def runAndTrack(ref: Ref[Set[Thread]]): ZIO[Has[Clock], Nothing, Boolean] =
+        ZIO.blocking {
           UIO(Thread.currentThread())
             .flatMap(thread => ref.modify(set => (set.contains(thread), set + thread))) <* ZIO
             .sleep(1.millis)
@@ -36,7 +33,7 @@ object RTSSpec extends ZIOBaseSpec {
       for {
         done  <- Ref.make(false)
         start <- Promise.make[Nothing, Unit]
-        fiber <- blocking.effectBlockingInterrupt { start.unsafeDone(IO.unit); Thread.sleep(60L * 60L * 1000L) }
+        fiber <- ZIO.effectBlockingInterrupt { start.unsafeDone(IO.unit); Thread.sleep(60L * 60L * 1000L) }
                    .ensuring(done.set(true))
                    .fork
         _     <- start.await
@@ -66,7 +63,7 @@ object RTSSpec extends ZIOBaseSpec {
         fiber   <- promise.await.fork
         dump    <- fiber.dump
         dumpStr <- dump.prettyPrintM
-        _       <- console.putStrLn(dumpStr)
+        _       <- Console.printLine(dumpStr)
       } yield assert(dumpStr)(anything)
     } @@ silent,
     testM("interruption causes") {
@@ -74,7 +71,7 @@ object RTSSpec extends ZIOBaseSpec {
         queue    <- Queue.bounded[Int](100)
         producer <- queue.offer(42).forever.fork
         rez      <- producer.interrupt
-        _        <- console.putStrLn(rez.fold(_.prettyPrint, _ => ""))
+        _        <- Console.printLine(rez.fold(_.prettyPrint, _ => ""))
       } yield assert(rez)(anything)
     } @@ zioTag(interruption) @@ silent,
     testM("interruption of unending bracket") {
@@ -139,7 +136,7 @@ object RTSSpec extends ZIOBaseSpec {
       val zio =
         for {
           f <- test.fork
-          c <- (IO.effectTotal[Int](c.get) <* clock.sleep(1.millis))
+          c <- (IO.effectTotal[Int](c.get) <* Clock.sleep(1.millis))
                  .repeatUntil(_ >= 1) <* f.interrupt
         } yield c
 

@@ -1,14 +1,12 @@
 package zio.test
 
-import zio.duration.{Duration, _}
-import zio.random.Random
+import zio._
 import zio.test.Assertion._
 import zio.test.GenUtils._
 import zio.test.TestAspect.{nonFlaky, scala2Only, setSeed}
 import zio.test.{check => Check, checkN => CheckN}
-import zio.{Chunk, NonEmptyChunk, ZIO}
 
-import java.time._
+import java.time.{Duration => _, _}
 import scala.math.Numeric.DoubleIsFractional
 
 object GenSpec extends ZIOBaseSpec {
@@ -55,14 +53,14 @@ object GenSpec extends ZIOBaseSpec {
         })(isTrue)
       },
       testM("with randomly generated functions") {
-        val ints                                      = Gen.listOf(Gen.int(-10, 10))
-        val intBooleanFn: Gen[Random, Int => Boolean] = Gen.function(Gen.boolean)
+        val ints                                           = Gen.listOf(Gen.int(-10, 10))
+        val intBooleanFn: Gen[Has[Random], Int => Boolean] = Gen.function(Gen.boolean)
 
         Check(ints, intBooleanFn)((as, f) => assert(as.takeWhile(f).forall(f))(isTrue))
       },
       testM("with multiple parameter function generator") {
-        val ints                                  = Gen.anyInt
-        val genFn: Gen[Random, (Int, Int) => Int] = Gen.function2(Gen.anyInt)
+        val ints                                       = Gen.anyInt
+        val genFn: Gen[Has[Random], (Int, Int) => Int] = Gen.function2(Gen.anyInt)
 
         def swap[A, B, C](f: (A, B) => C): (B, A) => C =
           (b, a) => f(a, b)
@@ -93,17 +91,17 @@ object GenSpec extends ZIOBaseSpec {
       testM("monad right identity") {
         val n = 10
 
-        def f(n: Int): Gen[Random, Int] = Gen.int(-n, n)
+        def f(n: Int): Gen[Has[Random], Int] = Gen.int(-n, n)
 
         assertM(equal(Gen.const(n).flatMap(f), f(n)))(isTrue)
       },
       testM("monad associativity") {
         val fa = Gen.int(0, 2)
 
-        def f(p: Int): Gen[Random, (Int, Int)] =
+        def f(p: Int): Gen[Has[Random], (Int, Int)] =
           Gen.const(p) <*> Gen.int(0, 3)
 
-        def g(p: (Int, Int)): Gen[Random, (Int, Int, Int)] =
+        def g(p: (Int, Int)): Gen[Has[Random], (Int, Int, Int)] =
           Gen.const(p).zipWith(Gen.int(0, 5)) { case ((x, y), z) => (x, y, z) }
 
         assertM(equal(fa.flatMap(f).flatMap(g), fa.flatMap(a => f(a).flatMap(g))))(isTrue)
@@ -287,7 +285,7 @@ object GenSpec extends ZIOBaseSpec {
       },
       testM("partialFunction generates partial functions") {
         val gen = for {
-          f <- Gen.partialFunction[Random, String, Int](Gen.int(-10, 10))
+          f <- Gen.partialFunction[Has[Random], String, Int](Gen.int(-10, 10))
           s <- Gen.string(Gen.anyChar)
         } yield f.lift(s)
         checkSample(gen)(exists(isNone) && exists(isSome(anything)))
@@ -683,10 +681,10 @@ object GenSpec extends ZIOBaseSpec {
       case object Pop                   extends Command
       final case class Push(value: Int) extends Command
 
-      val genPop: Gen[Any, Command]     = Gen.const(Pop)
-      def genPush: Gen[Random, Command] = Gen.anyInt.map(value => Push(value))
+      val genPop: Gen[Any, Command]          = Gen.const(Pop)
+      def genPush: Gen[Has[Random], Command] = Gen.anyInt.map(value => Push(value))
 
-      val genCommands: Gen[Random with Sized, List[Command]] =
+      val genCommands: Gen[Has[Random] with Has[Sized], List[Command]] =
         Gen.unfoldGen(0) { n =>
           if (n <= 0)
             genPush.map(command => (n + 1, command))

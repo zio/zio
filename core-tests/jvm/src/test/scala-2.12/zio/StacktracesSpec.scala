@@ -1,7 +1,5 @@
 package zio
 
-import zio.blocking.Blocking
-import zio.duration._
 import zio.internal.stacktracer.ZTraceElement
 import zio.internal.stacktracer.ZTraceElement.{NoLocation, SourceLocation}
 import zio.test.Assertion._
@@ -160,7 +158,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
       }
     },
     testM("blocking trace") {
-      val io: RIO[Blocking, Unit] = for {
+      val io: UIO[Unit] = for {
         trace <- blockingTrace
       } yield trace
 
@@ -462,9 +460,9 @@ object StackTracesSpec extends DefaultRunnableSpec {
       }
   }
 
-  def blockingTrace: ZIO[Blocking, Throwable, Unit] =
+  def blockingTrace: ZIO[Any, Throwable, Unit] =
     for {
-      _ <- blocking.effectBlockingInterrupt {
+      _ <- ZIO.effectBlockingInterrupt {
              throw new Exception()
            }
     } yield ()
@@ -610,8 +608,8 @@ object StackTracesSpec extends DefaultRunnableSpec {
     } yield ()
   }
 
-  implicit final class CauseMust[R](io: ZIO[R with TestClock, Any, Any]) {
-    def causeMust(check: Cause[Any] => TestResult): URIO[R with TestClock, TestResult] =
+  implicit final class CauseMust[R](io: ZIO[R with Has[TestClock], Any, Any]) {
+    def causeMust(check: Cause[Any] => TestResult): URIO[R with Has[TestClock], TestResult] =
       io.foldCause[TestResult](
         cause => {
           show(cause)

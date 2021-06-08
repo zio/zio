@@ -16,19 +16,17 @@
 
 package zio
 
-import zio.blocking._
-
 import java.io.IOException
 
 abstract class ZOutputStream {
-  def write(chunk: Chunk[Byte]): ZIO[Blocking, IOException, Unit]
+  def write(chunk: Chunk[Byte]): IO[IOException, Unit]
 }
 
 object ZOutputStream {
 
   def fromOutputStream(os: java.io.OutputStream): ZOutputStream = new ZOutputStream {
-    def write(chunk: Chunk[Byte]): ZIO[Blocking, IOException, Unit] =
-      effectBlockingIO {
+    def write(chunk: Chunk[Byte]): IO[IOException, Unit] =
+      ZIO.effectBlockingIO {
         os.write(chunk.toArray)
       }
   }

@@ -16,9 +16,7 @@
 
 package zio
 
-import zio.clock.Clock
-import zio.duration._
-import zio.random._
+import zio.Random._
 
 import java.time.OffsetDateTime
 import java.time.temporal.ChronoField._
@@ -325,29 +323,8 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
   /**
    * Returns a driver that can be used to step the schedule, appropriately handling sleeping.
    */
-  def driver: UIO[Schedule.Driver[Env with Clock, In, Out]] =
-    Ref.make[(Option[Out], StepFunction[Env with Clock, In, Out])]((None, step)).map { ref =>
-      val next = (in: In) =>
-        for {
-          step <- ref.get.map(_._2)
-          now  <- clock.currentDateTime
-          dec  <- step(now, in)
-          v <- dec match {
-                 case Done(out) => ref.set((Some(out), StepFunction.done(out))) *> ZIO.fail(None)
-                 case Continue(out, interval, next) =>
-                   ref.set((Some(out), next)) *> ZIO.sleep(Duration.fromInterval(now, interval)) as out
-               }
-        } yield v
-
-      val last = ref.get.flatMap {
-        case (None, _)    => ZIO.fail(new NoSuchElementException("There is no value left"))
-        case (Some(b), _) => ZIO.succeed(b)
-      }
-
-      val reset = ref.set((None, step))
-
-      Schedule.Driver(next, last, reset)
-    }
+  def driver: URIO[Has[Clock], Schedule.Driver[Env, In, Out]] =
+    Clock.driver(self)
 
   /**
    * A named alias for `||`.
@@ -454,13 +431,13 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
   /**
    * Returns a new schedule that randomly modifies the size of the intervals of this schedule.
    */
-  def jittered: Schedule[Env with Random, In, Out] = jittered(0.0, 1.0)
+  def jittered: Schedule[Env with Has[Random], In, Out] = jittered(0.0, 1.0)
 
   /**
    * Returns a new schedule that randomly modifies the size of the intervals of this schedule.
    */
-  def jittered(min: Double, max: Double): Schedule[Env with Random, In, Out] =
-    delayedM[Env with Random] { duration =>
+  def jittered(min: Double, max: Double): Schedule[Env with Has[Random], In, Out] =
+    delayedM[Env with Has[Random]] { duration =>
       nextDouble.map { random =>
         val d        = duration.toNanos
         val jittered = d * min * (1 - random) + d * max * random
@@ -561,7 +538,7 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
    */
   def provideLayer[Env0, Env1](
     layer: ZLayer[Env0, Nothing, Env1]
-  )(implicit ev1: Env1 <:< Env, ev2: NeedsEnv[Env]): Schedule[Env0, In, Out] = {
+  )(implicit ev: Env1 <:< Env): Schedule[Env0, In, Out] = {
     def loop(self: StepFunction[Env, In, Out]): StepFunction[Env0, In, Out] =
       (now: OffsetDateTime, in: In) =>
         self(now, in).map {
@@ -591,16 +568,16 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
    * Provides the part of the environment that is not part of the `ZEnv`,
    * leaving a schedule that only depends on the `ZEnv`.
    */
-  final def provideCustomLayer[Env1 <: Has[_]](
+  final def provideCustomLayer[Env1](
     layer: ZLayer[ZEnv, Nothing, Env1]
-  )(implicit ev: ZEnv with Env1 <:< Env, tagged: Tag[Env1]): Schedule[ZEnv, In, Out] =
+  )(implicit ev1: ZEnv with Env1 <:< Env, ev2: Has.Union[ZEnv, Env1], tagged: Tag[Env1]): Schedule[ZEnv, In, Out] =
     provideSomeLayer[ZEnv](layer)
 
   /**
    * Splits the environment into two parts, providing one part using the
    * specified layer and leaving the remainder `Env0`.
    */
-  final def provideSomeLayer[Env0 <: Has[_]]: Schedule.ProvideSomeLayer[Env0, Env, In, Out] =
+  final def provideSomeLayer[Env0]: Schedule.ProvideSomeLayer[Env0, Env, In, Out] =
     new Schedule.ProvideSomeLayer[Env0, Env, In, Out](self)
 
   /**
@@ -1403,11 +1380,10 @@ object Schedule {
     ) extends Decision[Env, In, Out]
   }
 
-  final class ProvideSomeLayer[Env0 <: Has[_], -Env, -In, +Out](private val self: Schedule[Env, In, Out])
-      extends AnyVal {
-    def apply[Env1 <: Has[_]](
+  final class ProvideSomeLayer[Env0, -Env, -In, +Out](private val self: Schedule[Env, In, Out]) extends AnyVal {
+    def apply[Env1](
       layer: ZLayer[Env0, Nothing, Env1]
-    )(implicit ev1: Env0 with Env1 <:< Env, ev2: NeedsEnv[Env], tagged: Tag[Env1]): Schedule[Env0, In, Out] =
+    )(implicit ev1: Env0 with Env1 <:< Env, ev2: Has.Union[Env0, Env1], tagged: Tag[Env1]): Schedule[Env0, In, Out] =
       self.provideLayer[Env0, Env0 with Env1](ZLayer.identity[Env0] ++ layer)
   }
 }

@@ -13,7 +13,7 @@ This class provides Scala with a main function, so it can be called from IDEs an
 
 ```scala mdoc:silent
 import zio._
-import zio.console._
+import zio.Console._
 
 object MyApp extends zio.App {
 
@@ -22,9 +22,9 @@ object MyApp extends zio.App {
 
   val myAppLogic =
     for {
-      _    <- putStrLn("Hello! What is your name?")
-      name <- getStrLn
-      _    <- putStrLn(s"Hello, ${name}, welcome to ZIO!")
+      _    <- printLine("Hello! What is your name?")
+      name <- readLine
+      _    <- printLine(s"Hello, ${name}, welcome to ZIO!")
     } yield ()
 }
 ```

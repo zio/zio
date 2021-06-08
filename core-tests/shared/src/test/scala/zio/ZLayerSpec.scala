@@ -1,7 +1,5 @@
 package zio
 
-import zio.clock._
-import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect.nonFlaky
 import zio.test._
@@ -64,14 +62,14 @@ object ZLayerSpec extends ZIOBaseSpec {
   def spec: ZSpec[Environment, Failure] =
     suite("ZLayerSpec")(
       testM("Size of >>> (1)") {
-        val layer = ZLayer.succeed(1) >>> ZLayer.fromService((i: Int) => i.toString)
+        val layer = ZLayer.succeed(1) >>> ((i: Int) => i.toString).toLayer
 
         testSize(layer, 1)
       },
       testM("Size of >>> (2)") {
         val layer = ZLayer.succeed(1) >>>
-          (ZLayer.fromService((i: Int) => i.toString) ++
-            ZLayer.fromService((i: Int) => i % 2 == 0))
+          (((i: Int) => i.toString).toLayer ++
+            ((i: Int) => i % 2 == 0).toLayer)
 
         testSize(layer, 2)
       },
@@ -86,10 +84,10 @@ object ZLayerSpec extends ZIOBaseSpec {
         } yield r1 && r2 && r3 && r4 && r5 && r6
       },
       testM("Size of >>> (9)") {
-        val layer = (ZEnv.live >>>
+        val layer = ZEnv.live >>>
           (Annotations.live ++ (Live.default >>> TestConsole.debug) ++
             Live.default ++ TestRandom.deterministic ++ Sized.live(100)
-            ++ TestSystem.default))
+            ++ TestSystem.default)
 
         testSize(layer, 9)
       },
@@ -253,8 +251,8 @@ object ZLayerSpec extends ZIOBaseSpec {
       testM("layers can be acquired in parallel") {
         for {
           promise <- Promise.make[Nothing, Unit]
-          layer1   = ZLayer.fromManagedMany(ZManaged.never)
-          layer2   = ZLayer.fromManagedMany(Managed.make(promise.succeed(()).map(Has(_)))(_ => ZIO.unit))
+          layer1   = ZLayer(ZManaged.never)
+          layer2   = ZLayer(Managed.make(promise.succeed(()).map(Has(_)))(_ => ZIO.unit))
           env      = (layer1 ++ layer2).build
           _       <- env.use_(ZIO.unit).forkDaemon
           _       <- promise.await
@@ -296,7 +294,7 @@ object ZLayerSpec extends ZIOBaseSpec {
       } @@ nonFlaky,
       testM("passthrough") {
         val layer: ZLayer[Has[Int], Nothing, Has[String]] =
-          ZLayer.fromService(_.toString)
+          ((_: Int).toString).toLayer
         val live: ZLayer[Any, Nothing, Has[Int] with Has[String]] =
           ZLayer.succeed(1) >>> layer.passthrough
         val zio = for {
@@ -349,12 +347,12 @@ object ZLayerSpec extends ZIOBaseSpec {
       testM("preserves identity of acquired resources") {
         for {
           testRef <- Ref.make(Vector[String]())
-          layer = ZLayer.fromManagedMany(
+          layer = ZLayer {
                     for {
                       ref <- Ref.make[Vector[String]](Vector()).toManaged(ref => ref.get.flatMap(testRef.set))
                       _   <- ZManaged.unit
                     } yield ref
-                  )
+                  }
           _      <- layer.build.use(ref => ref.update(_ :+ "test"))
           result <- testRef.get
         } yield assert(result)(equalTo(Vector("test")))
@@ -373,7 +371,7 @@ object ZLayerSpec extends ZIOBaseSpec {
         val layer1 = ZLayer.fail("foo")
         val layer2 = ZLayer.succeed("bar")
         val layer3 = ZLayer.succeed("baz")
-        val layer4 = ZLayer.fromAcquireRelease(sleep)(_ => sleep)
+        val layer4 = ZManaged.make(sleep)(_ => sleep).toLayer
         val env    = layer1 ++ ((layer2 ++ layer3) >+> layer4)
         assertM(ZIO.unit.provideCustomLayer(env).run)(fails(equalTo("foo")))
       },

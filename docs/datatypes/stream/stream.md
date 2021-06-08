@@ -96,10 +96,9 @@ every chunk consists of 30 elements and is produced every 3 seconds.
 ```scala mdoc:silent
 import zio._
 import zio.stream._
-import zio.duration._
-import zio.clock.Clock
+import zio.Clock
 
-val groupedWithinResult: ZStream[Any with Clock, Nothing, Chunk[Int]] =
+val groupedWithinResult: ZStream[Any with Has[Clock], Nothing, Chunk[Int]] =
   Stream.fromIterable(0 to 10)
     .repeat(Schedule.spaced(1.seconds))
     .groupedWithin(30, 10.seconds)
@@ -109,10 +108,10 @@ val groupedWithinResult: ZStream[Any with Clock, Nothing, Chunk[Int]] =
 
 ```scala mdoc:silent
 import zio._
-import zio.console._
+import zio.Console._
 import zio.stream._
 
-val result: RIO[Console, Unit] = Stream.fromIterable(0 to 100).foreach(i => putStrLn(i.toString))
+val result: RIO[Has[Console], Unit] = Stream.fromIterable(0 to 100).foreach(i => printLine(i.toString))
 ```
 
 ### Using a Sink

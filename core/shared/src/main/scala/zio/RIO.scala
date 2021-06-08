@@ -16,8 +16,6 @@
 
 package zio
 
-import zio.clock.Clock
-import zio.duration.Duration
 import zio.internal.{Executor, Platform}
 
 import scala.concurrent.ExecutionContext
@@ -53,6 +51,18 @@ object RIO {
    */
   def accessM[R]: ZIO.AccessMPartiallyApplied[R] =
     ZIO.accessM
+
+  /**
+   * @see See [[zio.ZIO.blocking]]
+   */
+  def blocking[R, A](zio: RIO[R, A]): RIO[R, A] =
+    ZIO.blocking(zio)
+
+  /**
+   * @see See [[zio.ZIO.blockingExecutor]]
+   */
+  def blockingExecutor: UIO[Executor] =
+    ZIO.blockingExecutor
 
   /**
    * @see See bracket [[zio.ZIO]]
@@ -319,6 +329,24 @@ object RIO {
     blockingOn: List[Fiber.Id] = Nil
   ): RIO[R, A] =
     ZIO.effectAsyncInterrupt(register, blockingOn)
+
+  /**
+   * @see See [[zio.ZIO.effectBlocking]]
+   */
+  def effectBlocking[A](effect: => A): Task[A] =
+    ZIO.effectBlocking(effect)
+
+  /**
+   * @see See [[zio.ZIO.effectBlockingCancelable]]
+   */
+  def effectBlockingCancelable[A](effect: => A)(cancel: UIO[Unit]): Task[A] =
+    ZIO.effectBlockingCancelable(effect)(cancel)
+
+  /**
+   * @see See [[zio.ZIO.effectBlockingInterrupt]]
+   */
+  def effectBlockingInterrupt[A](effect: => A): Task[A] =
+    ZIO.effectBlockingInterrupt(effect)
 
   /**
    * Returns a lazily constructed effect, whose construction may itself require effects.
@@ -675,7 +703,7 @@ object RIO {
   /**
    * @see [[zio.ZIO.infinity]]
    */
-  val infinity: URIO[Clock, Nothing] = ZIO.sleep(Duration.fromNanos(Long.MaxValue)) *> ZIO.never
+  val infinity: URIO[Has[Clock], Nothing] = ZIO.sleep(Duration.fromNanos(Long.MaxValue)) *> ZIO.never
 
   /**
    * @see See [[zio.ZIO.interrupt]]
@@ -943,7 +971,7 @@ object RIO {
   /**
    * @see See [[zio.ZIO.sleep]]
    */
-  def sleep(duration: => Duration): RIO[Clock, Unit] =
+  def sleep(duration: => Duration): RIO[Has[Clock], Unit] =
     ZIO.sleep(duration)
 
   /**

@@ -17,13 +17,12 @@
 package zio.test
 
 import org.portablescala.reflect.annotation.EnableReflectiveInstantiation
-import zio.clock.Clock
-import zio.{Has, URIO}
+import zio.{Clock, Has, URIO}
 
 @EnableReflectiveInstantiation
 abstract class AbstractRunnableSpec {
 
-  type Environment <: Has[_]
+  type Environment
   type Failure
 
   def aspects: List[TestAspect[Nothing, Environment, Nothing, Any]]
@@ -33,7 +32,7 @@ abstract class AbstractRunnableSpec {
   /**
    * Returns an effect that executes the spec, producing the results of the execution.
    */
-  final def run: URIO[TestLogger with Clock, ExecutedSpec[Failure]] =
+  final def run: URIO[Has[TestLogger] with Has[Clock], ExecutedSpec[Failure]] =
     runSpec(spec)
 
   /**
@@ -41,7 +40,7 @@ abstract class AbstractRunnableSpec {
    */
   private[zio] def runSpec(
     spec: ZSpec[Environment, Failure]
-  ): URIO[TestLogger with Clock, ExecutedSpec[Failure]] =
+  ): URIO[Has[TestLogger] with Has[Clock], ExecutedSpec[Failure]] =
     runner.run(aspects.foldLeft(spec)(_ @@ _))
 
   /**

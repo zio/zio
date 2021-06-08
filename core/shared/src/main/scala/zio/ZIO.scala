@@ -16,12 +16,11 @@
 
 package zio
 
-import zio.clock.Clock
-import zio.duration._
 import zio.internal.tracing.{ZIOFn, ZIOFn1, ZIOFn2}
-import zio.internal.{Executor, Platform}
+import zio.internal.{Executor, OneShot, Platform}
 import zio.{TracingStatus => TracingS}
 
+import java.io.IOException
 import scala.annotation.implicitNotFound
 import scala.collection.mutable.Builder
 import scala.concurrent.ExecutionContext
@@ -51,6 +50,14 @@ import scala.util.{Failure, Success}
  */
 sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E, A] with ZIOVersionSpecific[R, E, A] {
   self =>
+
+  /**
+   * Syntax for adding aspects.
+   */
+  final def @@[LowerR <: UpperR, UpperR <: R, LowerE >: E, UpperE >: LowerE, LowerA >: A, UpperA >: LowerA](
+    aspect: ZIOAspect[LowerR, UpperR, LowerE, UpperE, LowerA, UpperA]
+  ): ZIO[UpperR, LowerE, LowerA] =
+    aspect(self)
 
   /**
    * Sequentially zips this effect with the specified effect, combining the
@@ -286,7 +293,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Returns an effect that, if evaluated, will return the cached result of
    * this effect. Cached results will expire after `timeToLive` duration.
    */
-  final def cached(timeToLive: Duration): ZIO[R with Clock, Nothing, IO[E, A]] =
+  final def cached(timeToLive: Duration): ZIO[R with Has[Clock], Nothing, IO[E, A]] =
     cachedInvalidate(timeToLive).map(_._1)
 
   /**
@@ -295,17 +302,17 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * addition, returns an effect that can be used to invalidate the current
    * cached value before the `timeToLive` duration expires.
    */
-  final def cachedInvalidate(timeToLive: Duration): ZIO[R with Clock, Nothing, (IO[E, A], UIO[Unit])] = {
+  final def cachedInvalidate(timeToLive: Duration): ZIO[R with Has[Clock], Nothing, (IO[E, A], UIO[Unit])] = {
 
-    def compute(start: Long): ZIO[R with Clock, Nothing, Option[(Long, Promise[E, A])]] =
+    def compute(start: Long): ZIO[R with Has[Clock], Nothing, Option[(Long, Promise[E, A])]] =
       for {
         p <- Promise.make[E, A]
         _ <- self.to(p)
       } yield Some((start + timeToLive.toNanos, p))
 
-    def get(cache: RefM[Option[(Long, Promise[E, A])]]): ZIO[R with Clock, E, A] =
+    def get(cache: RefM[Option[(Long, Promise[E, A])]]): ZIO[R with Has[Clock], E, A] =
       ZIO.uninterruptibleMask { restore =>
-        clock.nanoTime.flatMap { time =>
+        Clock.nanoTime.flatMap { time =>
           cache.updateSomeAndGetM {
             case None                              => compute(time)
             case Some((end, _)) if end - time <= 0 => compute(time)
@@ -317,7 +324,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
       cache.set(None)
 
     for {
-      r     <- ZIO.environment[R with Clock]
+      r     <- ZIO.environment[R with Has[Clock]]
       cache <- RefM.make[Option[(Long, Promise[E, A])]](None)
     } yield (get(cache).provide(r), invalidate(cache))
   }
@@ -477,10 +484,10 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
 
   /**
    * Returns an effect that is delayed from this effect by the specified
-   * [[zio.duration.Duration]].
+   * [[zio.Duration]].
    */
-  final def delay(duration: Duration): ZIO[R with Clock, E, A] =
-    clock.sleep(duration) *> self
+  final def delay(duration: Duration): ZIO[R with Has[Clock], E, A] =
+    Clock.sleep(duration) *> self
 
   /**
    * Returns an effect whose interruption will be disconnected from the
@@ -569,9 +576,9 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   /**
    * Maps this effect to the default exit codes.
    */
-  final def exitCode: URIO[R with console.Console, ExitCode] =
+  final def exitCode: URIO[R with Has[Console], ExitCode] =
     self.foldCauseM(
-      cause => console.putStrLnErr(cause.prettyPrint) as ExitCode.failure,
+      cause => Console.printLineError(cause.prettyPrint).ignore as ExitCode.failure,
       _ => ZIO.succeedNow(ExitCode.success)
     )
 
@@ -1171,18 +1178,16 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * val zio2 = zio.provideCustomLayer(loggingLayer)
    * }}}
    */
-  final def provideCustomLayer[E1 >: E, R1 <: Has[_]](
+  final def provideCustomLayer[E1 >: E, R1](
     layer: ZLayer[ZEnv, E1, R1]
-  )(implicit ev: ZEnv with R1 <:< R, tagged: Tag[R1]): ZIO[ZEnv, E1, A] =
+  )(implicit ev1: ZEnv with R1 <:< R, ev2: Has.Union[ZEnv, R1], tagged: Tag[R1]): ZIO[ZEnv, E1, A] =
     provideSomeLayer[ZEnv](layer)
 
   /**
    * Provides a layer to the ZIO effect, which translates it to another level.
    */
-  final def provideLayer[E1 >: E, R0, R1](
-    layer: ZLayer[R0, E1, R1]
-  )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R]): ZIO[R0, E1, A] =
-    layer.build.map(ev1).use(self.provide)
+  final def provideLayer[E1 >: E, R0, R1](layer: ZLayer[R0, E1, R1])(implicit ev: R1 <:< R): ZIO[R0, E1, A] =
+    layer.build.map(ev).use(self.provide)
 
   /**
    * Provides some of the environment required to run this effect,
@@ -1197,8 +1202,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * effect.provideSome[Console](env =>
    *   new Console with Logging {
    *     val console = env.console
-   *     val logging = new Logging.Service[Any] {
-   *       def log(line: String) = console.putStrLn(line)
+   *     val logging = new Logging[Any] {
+   *       def log(line: String) = Console.printLine(line)
    *     }
    *   }
    * )
@@ -1212,14 +1217,14 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * specified layer and leaving the remainder `R0`.
    *
    * {{{
-   * val clockLayer: ZLayer[Any, Nothing, Clock] = ???
+   * val clockLayer: ZLayer[Any, Nothing, Has[Clock]] = ???
    *
-   * val zio: ZIO[Clock with Random, Nothing, Unit] = ???
+   * val zio: ZIO[Has[Clock] with Has[Random], Nothing, Unit] = ???
    *
-   * val zio2 = zio.provideSomeLayer[Random](clockLayer)
+   * val zio2 = zio.provideSomeLayer[Has[Random]](clockLayer)
    * }}}
    */
-  final def provideSomeLayer[R0 <: Has[_]]: ZIO.ProvideSomeLayer[R0, R, E, A] =
+  final def provideSomeLayer[R0]: ZIO.ProvideSomeLayer[R0, R, E, A] =
     new ZIO.ProvideSomeLayer[R0, R, E, A](self)
 
   /**
@@ -1490,7 +1495,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * effect that executes `io`, and then if that succeeds, executes `io` an
    * additional time.
    */
-  final def repeat[R1 <: R, B](schedule: Schedule[R1, A, B]): ZIO[R1 with Clock, E, B] =
+  final def repeat[R1 <: R, B](schedule: Schedule[R1, A, B]): ZIO[R1 with Has[Clock], E, B] =
     repeatOrElse[R1, E, B](schedule, (e, _) => ZIO.fail(e))
 
   /**
@@ -1511,7 +1516,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def repeatOrElse[R1 <: R, E2, B](
     schedule: Schedule[R1, A, B],
     orElse: (E, Option[B]) => ZIO[R1, E2, B]
-  ): ZIO[R1 with Clock, E2, B] =
+  ): ZIO[R1 with Has[Clock], E2, B] =
     repeatOrElseEither[R1, B, E2, B](schedule, orElse).map(_.merge)
 
   /**
@@ -1526,25 +1531,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def repeatOrElseEither[R1 <: R, B, E2, C](
     schedule: Schedule[R1, A, B],
     orElse: (E, Option[B]) => ZIO[R1, E2, C]
-  ): ZIO[R1 with Clock, E2, Either[C, B]] =
-    schedule.driver.flatMap { driver =>
-      def loop(a: A): ZIO[R1 with Clock, E2, Either[C, B]] =
-        driver
-          .next(a)
-          .foldM(
-            _ => driver.last.orDie.map(Right(_)),
-            b =>
-              self.foldM(
-                e => orElse(e, Some(b)).map(Left(_)),
-                a => loop(a)
-              )
-          )
-
-      self.foldM(
-        e => orElse(e, None).map(Left(_)),
-        a => loop(a)
-      )
-    }
+  ): ZIO[R1 with Has[Clock], E2, Either[C, B]] =
+    Clock.repeatOrElseEither(self)(schedule, orElse)
 
   /**
    * Repeats this effect until its value satisfies the specified predicate
@@ -1608,8 +1596,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * `once` or `recurs` for example), so that that `io.retry(Schedule.once)` means
    * "execute `io` and in case of failure, try again once".
    */
-  final def retry[R1 <: R, S](policy: Schedule[R1, E, S])(implicit ev: CanFail[E]): ZIO[R1 with Clock, E, A] =
-    retryOrElse(policy, (e: E, _: S) => ZIO.fail(e))
+  final def retry[R1 <: R, S](policy: Schedule[R1, E, S])(implicit ev: CanFail[E]): ZIO[R1 with Has[Clock], E, A] =
+    Clock.retry(self)(policy)
 
   /**
    * Retries this effect the specified number of times.
@@ -1625,8 +1613,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def retryOrElse[R1 <: R, A1 >: A, S, E1](
     policy: Schedule[R1, E, S],
     orElse: (E, S) => ZIO[R1, E1, A1]
-  )(implicit ev: CanFail[E]): ZIO[R1 with Clock, E1, A1] =
-    retryOrElseEither(policy, orElse).map(_.merge)
+  )(implicit ev: CanFail[E]): ZIO[R1 with Has[Clock], E1, A1] =
+    Clock.retryOrElse[R, R1, E, E1, A, A1, S](self)(policy, orElse)
 
   /**
    * Returns an effect that retries this effect with the specified schedule when it fails, until
@@ -1636,21 +1624,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def retryOrElseEither[R1 <: R, Out, E1, B](
     schedule: Schedule[R1, E, Out],
     orElse: (E, Out) => ZIO[R1, E1, B]
-  )(implicit ev: CanFail[E]): ZIO[R1 with Clock, E1, Either[B, A]] = {
-    def loop(driver: Schedule.Driver[R1 with Clock, E, Out]): ZIO[R1 with Clock, E1, Either[B, A]] =
-      self
-        .map(Right(_))
-        .catchAll(e =>
-          driver
-            .next(e)
-            .foldM(
-              _ => driver.last.orDie.flatMap(out => orElse(e, out).map(Left(_))),
-              _ => loop(driver)
-            )
-        )
-
-    schedule.driver.flatMap(loop(_))
-  }
+  )(implicit ev: CanFail[E]): ZIO[R1 with Has[Clock], E1, Either[B, A]] =
+    Clock.retryOrElseEither(self)(schedule, orElse)
 
   /**
    * Retries this effect until its error satisfies the specified predicate.
@@ -1730,20 +1705,15 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * See [[scheduleFrom]] for a variant that allows the schedule's decision to
    * depend on the result of this effect.
    */
-  final def schedule[R1 <: R, B](schedule: Schedule[R1, Any, B]): ZIO[R1 with Clock, E, B] =
-    scheduleFrom(())(schedule)
+  final def schedule[R1 <: R, B](schedule: Schedule[R1, Any, B]): ZIO[R1 with Has[Clock], E, B] =
+    Clock.schedule(self)(schedule)
 
   /**
    * Runs this effect according to the specified schedule starting from the
    * specified input value.
    */
-  final def scheduleFrom[R1 <: R, A1 >: A, B](a: A1)(schedule: Schedule[R1, A1, B]): ZIO[R1 with Clock, E, B] =
-    schedule.driver.flatMap { driver =>
-      def loop(a: A1): ZIO[R1 with Clock, E, B] =
-        driver.next(a).foldM(_ => driver.last.orDie, _ => self.flatMap(loop))
-
-      loop(a)
-    }
+  final def scheduleFrom[R1 <: R, A1 >: A, B](a: A1)(schedule: Schedule[R1, A1, B]): ZIO[R1 with Has[Clock], E, B] =
+    Clock.scheduleFrom[R, R1, E, A, A1, B](self)(a)(schedule)
 
   /**
    * Converts an option on values into an option on errors.
@@ -1851,7 +1821,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Returns an effect that effectfully "peeks" at the success of this effect.
    *
    * {{{
-   * readFile("data.json").tap(putStrLn)
+   * readFile("data.json").tap(printLine)
    * }}}
    */
   final def tap[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Any]): ZIO[R1, E1, A] = self.flatMap(new ZIO.TapFn(f))
@@ -1862,7 +1832,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    *
    * {{{
    * readFile("data.json").tapSome {
-   *   case content if content.nonEmpty => putStrLn(content)
+   *   case content if content.nonEmpty => printLine(content)
    * }
    * }}}
    */
@@ -1880,6 +1850,17 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     ev: CanFail[E]
   ): ZIO[R1, E1, A] =
     self.foldCauseM(new ZIO.TapErrorRefailFn(f), new ZIO.TapFn(g))
+
+  /**
+   * Returns an effect that effectfully "peeks" at the result of this effect.
+   * {{{
+   * readFile("data.json").tapEither(result => log(result.fold("Error: " + _, "Success: " + _)))
+   * }}}
+   */
+  final def tapEither[R1 <: R, E1 >: E](f: Either[E, A] => ZIO[R1, E1, Any])(implicit
+    ev: CanFail[E]
+  ): ZIO[R1, E1, A] =
+    self.foldCauseM(new ZIO.TapErrorRefailFn(e => f(Left(e))), new ZIO.TapFn(a => f(Right(a))))
 
   /**
    * Returns an effect that effectually "peeks" at the cause of the failure of
@@ -1911,10 +1892,10 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   /**
    * Returns a new effect that executes this one and times the execution.
    */
-  final def timed: ZIO[R with Clock, E, (Duration, A)] = timedWith(clock.nanoTime)
+  final def timed: ZIO[R with Has[Clock], E, (Duration, A)] = timedWith(Clock.nanoTime)
 
   /**
-   * A more powerful variation of `timed` that allows specifying the clock.
+   * A more powerful variation of `timed` that allows specifying the Clock.
    */
   final def timedWith[R1 <: R, E1 >: E](nanoTime: ZIO[R1, E1, Long]): ZIO[R1, E1, (Duration, A)] =
     summarized(nanoTime)((start, end) => Duration.fromNanos(end - start))
@@ -1935,20 +1916,20 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * the timeout, resulting in earliest possible return, before an underlying
    * effect has been successfully interrupted.
    */
-  final def timeout(d: Duration): ZIO[R with Clock, E, Option[A]] = timeoutTo(None)(Some(_))(d)
+  final def timeout(d: Duration): ZIO[R with Has[Clock], E, Option[A]] = timeoutTo(None)(Some(_))(d)
 
   /**
    * The same as [[timeout]], but instead of producing a `None` in the event
    * of timeout, it will produce the specified error.
    */
-  final def timeoutFail[E1 >: E](e: => E1)(d: Duration): ZIO[R with Clock, E1, A] =
+  final def timeoutFail[E1 >: E](e: => E1)(d: Duration): ZIO[R with Has[Clock], E1, A] =
     ZIO.flatten(timeoutTo(ZIO.fail(e))(ZIO.succeedNow)(d))
 
   /**
    * The same as [[timeout]], but instead of producing a `None` in the event
    * of timeout, it will produce the specified failure.
    */
-  final def timeoutHalt[E1 >: E](cause: Cause[E1])(d: Duration): ZIO[R with Clock, E1, A] =
+  final def timeoutHalt[E1 >: E](cause: Cause[E1])(d: Duration): ZIO[R with Has[Clock], E1, A] =
     ZIO.flatten(timeoutTo(ZIO.halt(cause))(ZIO.succeedNow)(d))
 
   /**
@@ -1997,8 +1978,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Constructs a layer from this effect, which must return one or more
    * services.
    */
-  final def toLayerMany[A1 <: Has[_]](implicit ev: A IsSubtypeOfOutput A1): ZLayer[R, E, A1] =
-    ZLayer(ZManaged.fromEffect(self.map(ev)))
+  final def toLayerMany[A1 >: A](implicit ev: Tag[A1]): ZLayer[R, E, A1] =
+    ZLayer.fromEffectMany(self)
 
   /**
    * Converts this ZIO to [[zio.Managed]]. This ZIO and the provided release action
@@ -2282,6 +2263,18 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   def allowInterrupt: UIO[Unit] =
     descriptorWith(d => if (d.interrupters.nonEmpty) interrupt else ZIO.unit)
+
+  /**
+   * Locks the specified effect to the blocking thread pool.
+   */
+  def blocking[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+    ZIO.blockingExecutor.flatMap(zio.lock)
+
+  /**
+   * Retrieves the executor for all blocking tasks.
+   */
+  def blockingExecutor: UIO[Executor] =
+    ZIO.effectSuspendTotalWith((platform, _) => ZIO.succeedNow(platform.blockingExecutor))
 
   /**
    * When this effect represents acquisition of a resource (for example,
@@ -2614,7 +2607,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * thrown exceptions into typed failed effects creating with `ZIO.fail`.
    *
    * {{{
-   * def putStrLn(line: String): Task[Unit] = Task.effect(println(line))
+   * def printLine(line: String): Task[Unit] = Task.effect(println(line))
    * }}}
    */
   def effect[A](effect: => A): Task[A] = new ZIO.EffectPartial(() => effect)
@@ -2663,8 +2656,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     blockingOn: List[Fiber.Id] = Nil
   ): ZIO[R, E, A] = {
     import java.util.concurrent.atomic.AtomicBoolean
-
-    import internal.OneShot
 
     effectTotal((new AtomicBoolean(false), OneShot.make[Canceler[R]])).flatMap { case (started, cancel) =>
       flatten {
@@ -2718,6 +2709,111 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     blockingOn: List[Fiber.Id] = Nil
   ): ZIO[R, E, A] =
     new ZIO.EffectAsync(register, blockingOn)
+
+  /**
+   * Imports a synchronous effect that does blocking IO into a pure value.
+   */
+  def effectBlocking[A](effect: => A): Task[A] =
+    blocking(ZIO.effect(effect))
+
+  /**
+   * Imports a synchronous effect that does blocking IO into a pure value,
+   * with a custom cancel effect.
+   *
+   * If the returned `ZIO` is interrupted, the blocked thread running the
+   * synchronous effect will be interrupted via the cancel effect.
+   */
+  def effectBlockingCancelable[A](effect: => A)(cancel: UIO[Unit]): Task[A] =
+    blocking(ZIO.effect(effect)).fork.flatMap(_.join).onInterrupt(cancel)
+
+  /**
+   * Imports a synchronous effect that does blocking IO into a pure value,
+   * refining the error type to `[[java.io.IOException]]`.
+   */
+  def effectBlockingIO[A](effect: => A): IO[IOException, A] =
+    effectBlocking(effect).refineToOrDie[IOException]
+
+  /**
+   * Imports a synchronous effect that does blocking IO into a pure value.
+   *
+   * If the returned `ZIO` is interrupted, the blocked thread running the
+   * synchronous effect will be interrupted via `Thread.interrupt`.
+   *
+   * Note that this adds significant overhead. For performance sensitive
+   * applications consider using `effectBlocking` or
+   * `effectBlockingCancel`.
+   */
+  def effectBlockingInterrupt[A](effect: => A): Task[A] =
+    // Reference user's lambda for the tracer
+    ZIOFn.recordTrace(() => effect) {
+      ZIO.effectSuspendTotal {
+        import java.util.concurrent.atomic.AtomicReference
+        import java.util.concurrent.locks.ReentrantLock
+
+        import zio.internal.OneShot
+
+        val lock   = new ReentrantLock()
+        val thread = new AtomicReference[Option[Thread]](None)
+        val begin  = OneShot.make[Unit]
+        val end    = OneShot.make[Unit]
+
+        def withMutex[B](b: => B): B =
+          try {
+            lock.lock(); b
+          } finally lock.unlock()
+
+        val interruptThread: UIO[Unit] =
+          ZIO.effectTotal {
+            begin.get()
+
+            var looping = true
+            var n       = 0L
+            val base    = 2L
+            while (looping) {
+              withMutex(thread.get match {
+                case None         => looping = false; ()
+                case Some(thread) => thread.interrupt()
+              })
+
+              if (looping) {
+                n += 1
+                Thread.sleep(math.min(50, base * n))
+              }
+            }
+
+            end.get()
+          }
+
+        blocking(
+          ZIO.uninterruptibleMask(restore =>
+            for {
+              fiber <- ZIO.effectSuspend {
+                         val current = Some(Thread.currentThread)
+
+                         withMutex(thread.set(current))
+
+                         begin.set(())
+
+                         try {
+                           val a = effect
+
+                           ZIO.succeedNow(a)
+                         } catch {
+                           case _: InterruptedException =>
+                             Thread.interrupted // Clear interrupt status
+                             ZIO.interrupt
+                           case t: Throwable =>
+                             ZIO.fail(t)
+                         } finally {
+                           withMutex { thread.set(None); end.set(()) }
+                         }
+                       }.forkDaemon
+              a <- restore(fiber.join.refailWithTrace).ensuring(interruptThread)
+            } yield a
+          )
+        )
+      }
+    }
 
   /**
    * Returns a lazily constructed effect, whose construction may itself require effects.
@@ -3416,13 +3512,13 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Like [[never]], but fibers that running this effect won't be garbage
    * collected unless interrupted.
    */
-  val infinity: URIO[Clock, Nothing] = ZIO.sleep(Duration.fromNanos(Long.MaxValue)) *> ZIO.never
+  val infinity: URIO[Has[Clock], Nothing] = ZIO.sleep(Duration.fromNanos(Long.MaxValue)) *> ZIO.never
 
   /**
    * Returns an effect that is interrupted as if by the fiber calling this
    * method.
    */
-  val interrupt: UIO[Nothing] = ZIO.fiberId.flatMap(fiberId => interruptAs(fiberId))
+  lazy val interrupt: UIO[Nothing] = ZIO.fiberId.flatMap(fiberId => interruptAs(fiberId))
 
   /**
    * Returns an effect that is interrupted as if by the specified fiber.
@@ -3698,7 +3794,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * Returns an effect with the empty value.
    */
-  val none: UIO[Option[Nothing]] = succeedNow(None)
+  lazy val none: UIO[Option[Nothing]] = succeedNow(None)
 
   /**
    * Lifts an Option into a IO.
@@ -3764,7 +3860,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * running this effect are automatically garbage collected on the JVM,
    * because they cannot be reactivated.
    */
-  val never: UIO[Nothing] = effectAsync[Any, Nothing, Nothing](_ => ())
+  lazy val never: UIO[Nothing] = effectAsync[Any, Nothing, Nothing](_ => ())
 
   /**
    * Races an `IO[E, A]` against zero or more other effects. Yields either the
@@ -3946,8 +4042,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Returns an effect that suspends for the specified duration. This method is
    * asynchronous, and does not actually block the fiber executing the effect.
    */
-  def sleep(duration: => Duration): URIO[Clock, Unit] =
-    clock.sleep(duration)
+  def sleep(duration: => Duration): URIO[Has[Clock], Unit] =
+    Clock.sleep(duration)
 
   /**
    *  Returns an effect with the optional value.
@@ -3992,7 +4088,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * An effect that succeeds with a unit value.
    */
-  val unit: UIO[Unit] = succeedNow(())
+  lazy val unit: UIO[Unit] = succeedNow(())
 
   /**
    * Prefix form of `ZIO#uninterruptible`.
@@ -4058,6 +4154,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       else ZIO.fail(::(es.head, es.tail.toList))
     }
 
+  def validate_[R, E, A](in: Iterable[A])(f: A => ZIO[R, E, Any])(implicit ev: CanFail[E]): ZIO[R, ::[E], Unit] =
+    partition(in)(f).flatMap { case (es, _) =>
+      if (es.isEmpty) ZIO.unit
+      else ZIO.fail(::(es.head, es.tail.toList))
+    }
+
   /**
    * Feeds elements of type `A` to `f `and accumulates, in parallel, all errors
    * in error channel or successes in success channel.
@@ -4070,6 +4172,15 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   )(implicit bf: BuildFrom[Collection[A], B, Collection[B]], ev: CanFail[E]): ZIO[R, ::[E], Collection[B]] =
     partitionPar(in)(f).flatMap { case (es, bs) =>
       if (es.isEmpty) ZIO.succeedNow(bf.fromSpecific(in)(bs))
+      else ZIO.fail(::(es.head, es.tail.toList))
+    }
+
+  /**
+   * @see See [[zio.ZIO.validatePar]]
+   */
+  def validatePar_[R, E, A](in: Iterable[A])(f: A => ZIO[R, E, Any])(implicit ev: CanFail[E]): ZIO[R, ::[E], Unit] =
+    partitionPar(in)(f).flatMap { case (es, _) =>
+      if (es.isEmpty) ZIO.unit
       else ZIO.fail(::(es.head, es.tail.toList))
     }
 
@@ -4133,11 +4244,11 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * stack. Manual use of this method can improve fairness, at the cost of
    * overhead.
    */
-  val yieldNow: UIO[Unit] = ZIO.Yield
+  lazy val yieldNow: UIO[Unit] = ZIO.Yield
 
   def apply[A](a: => A): Task[A] = effect(a)
 
-  private val _IdentityFn: Any => Any = (a: Any) => a
+  private lazy val _IdentityFn: Any => Any = (a: Any) => a
 
   private[zio] def identityFn[A]: A => A = _IdentityFn.asInstanceOf[A => A]
 
@@ -4179,10 +4290,10 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       self.refineOrDie { case e: E1 => e }
   }
 
-  final class ProvideSomeLayer[R0 <: Has[_], -R, +E, +A](private val self: ZIO[R, E, A]) extends AnyVal {
-    def apply[E1 >: E, R1 <: Has[_]](
+  final class ProvideSomeLayer[R0, -R, +E, +A](private val self: ZIO[R, E, A]) extends AnyVal {
+    def apply[E1 >: E, R1](
       layer: ZLayer[R0, E1, R1]
-    )(implicit ev1: R0 with R1 <:< R, ev2: NeedsEnv[R], tagged: Tag[R1]): ZIO[R0, E1, A] =
+    )(implicit ev1: R0 with R1 <:< R, ev2: Has.Union[R0, R1], tagged: Tag[R1]): ZIO[R0, E1, A] =
       self.provideLayer[E1, R0, R0 with R1](ZLayer.identity[R0] ++ layer)
   }
 
@@ -4259,7 +4370,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   }
 
   final class TimeoutTo[-R, +E, +A, +B](self: ZIO[R, E, A], b: B) {
-    def apply[B1 >: B](f: A => B1)(duration: Duration): ZIO[R with Clock, E, B1] =
+    def apply[B1 >: B](f: A => B1)(duration: Duration): ZIO[R with Has[Clock], E, B1] =
       (self map f) raceFirst (ZIO.sleep(duration).interruptible as b)
   }
 

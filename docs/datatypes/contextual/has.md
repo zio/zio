@@ -5,7 +5,7 @@ title: "Has"
 
 The trait `Has[A]` is used with the ZIO environment to express an effect's dependency on a service of type `A`. 
 
-For example,`RIO[Has[Console.Service], Unit]` is an effect that requires a `Console.Service` service.
+For example,`RIO[Has[Console], Unit]` is an effect that requires a `Console` service.
 
 ## Overview
 ZIO Wrap services with `Has` data type to:
@@ -108,8 +108,8 @@ val RandomIntLive: RandomInt = new RandomInt {
 
 Great! Now, we are ready to inject these two dependencies into our application `myApp` through `ZIO.provide` function.  
 
-```scala mddoc:silent:nest
-val mainApp = myApp.provide(???) //What to provide?
+```scala mdoc:silent:nest
+lazy val mainApp = myApp.provide(???) //What to provide?
 ```
 
 As the type of `myApp` effect is `ZIO[Logging with RandomInt, Nothing, Unit]`, we should provide an object with a type of `Logging with RandomInt`. Oh! How can we combine `LoggingLive` and `RandomIntLive` objects together? Unfortunately, we don't have a way to combine these two objects to create a required service (`Logging with RandomInt`).

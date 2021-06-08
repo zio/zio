@@ -11,14 +11,14 @@ The input type is also known as _environment type_. This type-parameter indicate
 
 `R` represents dependencies; whatever services, config, or wiring a part of a ZIO program depends upon to work. We will explore what we can do with `R`, as it plays a crucial role in `ZIO`.
 
-For example, when we have `ZIO[Console, Nothing, Unit]`, this shows that to run this effect we need to provide an implementation of the `Console` service:
+For example, when we have `ZIO[Has[Console], Nothing, Unit]`, this shows that to run this effect we need to provide an implementation of the `Console` service:
 ```scala mdoc:invisible
-import zio.ZIO
-import zio.console._
+import zio._
+import zio.Console._
 ```
 
 ```scala mdoc:silent
-val effect: ZIO[Console, Nothing, Unit] = putStrLn("Hello, World!")
+val effect: ZIO[Has[Console], Nothing, Unit] = printLine("Hello, World!").orDie
 ```
 
 So finally when we provide a live version of `Console` service to our `effect`, it will be converted to an effect that doesn't require any environmental service:
@@ -31,10 +31,10 @@ Finally, to run our application we can put our `mainApp` inside the `run` method
 
 ```scala mdoc:silent:nest
 import zio.{ExitCode, ZEnv, ZIO}
-import zio.console._
+import zio.Console._
 
 object MainApp extends zio.App {
-  val effect: ZIO[Console, Nothing, Unit] = putStrLn("Hello, World!")
+  val effect: ZIO[Has[Console], Nothing, Unit] = printLine("Hello, World!").orDie
   val mainApp: ZIO[Any, Nothing, Unit] = effect.provideLayer(Console.live)
 
   override def run(args: List[String]): ZIO[ZEnv, Nothing, ExitCode] = 
@@ -45,12 +45,12 @@ object MainApp extends zio.App {
 Sometimes an effect needs more than one environmental service, it doesn't matter, in these cases, we compose all dependencies by `++` operator:
 
 ```scala mdoc:silent:nest
-import zio.console._
-import zio.random._
+import zio.Console._
+import zio.Random._
 
-val effect: ZIO[Console with Random, Nothing, Unit] = for {
+val effect: ZIO[Has[Console] with Has[Random], Nothing, Unit] = for {
   r <- nextInt
-  _ <- putStrLn(s"random number: $r")
+  _ <- printLine(s"random number: $r").orDie
 } yield ()
 
 val mainApp: ZIO[Any, Nothing, Unit] = effect.provideLayer(Console.live ++ Random.live)
@@ -59,14 +59,14 @@ val mainApp: ZIO[Any, Nothing, Unit] = effect.provideLayer(Console.live ++ Rando
 We don't need to provide live layers for built-in services (don't worry, we will discuss layers later in this page). ZIO has a `ZEnv` type alias for the composition of all ZIO built-in services (Clock, Console, System, Random, and Blocking). So we can run the above `effect` as follows:
 
 ```scala mdoc:silent:nest
-import zio.console._
-import zio.random._
+import zio.Console._
+import zio.Random._
 import zio.{ExitCode, ZEnv, ZIO}
 
 object MainApp extends zio.App {
-  val effect: ZIO[Console with Random, Nothing, Unit] = for {
+  val effect: ZIO[Has[Console] with Has[Random], Nothing, Unit] = for {
     r <- nextInt
-    _ <- putStrLn(s"random number: $r")
+    _ <- printLine(s"random number: $r").orDie
   } yield ()
 
   override def run(args: List[String]): ZIO[ZEnv, Nothing, ExitCode] =
@@ -205,7 +205,7 @@ Accessor methods allow us to utilize all the features inside the service through
 
 ```scala mdoc:invisible:reset
 import zio._
-import zio.console._
+import zio.Console._
 ```
 
 ```scala mdoc:invisible
@@ -238,10 +238,6 @@ object logging {
 
 We might need `Console` and `Clock` services to implement the `Logging` service. In this case, we use `ZLayer.fromServices` constructor:
 
-```scala mdoc:invisible
-import zio.clock.Clock
-```
-
 ```scala mdoc:silent:nest
 object logging {
   type Logging = Has[Logging.Service]
@@ -252,14 +248,14 @@ object logging {
       def log(line: String): UIO[Unit]
     }
 
-    val live: URLayer[Clock with Console, Logging] =
-      ZLayer.fromServices[Clock.Service, Console.Service, Logging.Service] {
-        (clock: Clock.Service, console: Console.Service) =>
-          new Service {
+    val live: URLayer[Has[Clock] with Has[Console], Logging] =
+      ZLayer.fromServices[Clock, Console, Logging.Service] {
+        (clock: Clock, console: Console) =>
+          new Logging.Service {
             override def log(line: String): UIO[Unit] =
               for {
                 current <- clock.currentDateTime
-                _ <- console.putStrLn(current.toString + "--" + line)
+                _ <- console.printLine(current.toString + "--" + line).orDie
               } yield ()
           }
       }
@@ -318,7 +314,6 @@ case class LoggingLive() extends Logging {
 3. **Define Service Dependencies** — We might need `Console` and `Clock` services to implement the `Logging` service. In this case, we put its dependencies into its constructor. All the dependencies are just interfaces, not implementation. Just like what we did in object-oriented style:
 
 ```scala mdoc:invisible:reset
-import java.time._
 import zio._
 
 trait Logging {
@@ -327,13 +322,11 @@ trait Logging {
 ```
 
 ```scala mdoc:silent
-import zio.console.Console
-import zio.clock.Clock
-case class LoggingLive(console: Console.Service, clock: Clock.Service) extends Logging {
+case class LoggingLive(console: Console, clock: Clock) extends Logging {
   override def log(line: String): UIO[Unit] = 
     for {
       current <- clock.currentDateTime
-      _       <- console.putStrLn(current.toString + "--" + line)
+      _       <- console.printLine(current.toString + "--" + line).orDie
     } yield ()
 }
 ```
@@ -342,7 +335,7 @@ case class LoggingLive(console: Console.Service, clock: Clock.Service) extends L
 
 ```scala mdoc:silent
 object LoggingLive {
-  val layer: URLayer[Has[Console.Service] with Has[Clock.Service], Has[Logging]] =
+  val layer: URLayer[Has[Console] with Has[Clock], Has[Logging]] =
     (LoggingLive(_, _)).toLayer
 }
 ```
@@ -445,7 +438,7 @@ val loggingImpl = Has(new Logging {
 val effect = app.provide(loggingImpl)
 ```
 
-Most of the time, we don't use `Has` directly to implement our services, instead; we use `ZLyaer` to construct the dependency graph of our application, then we use methods like `ZIO#provideLayer` to propagate dependencies into the environment of our ZIO effect.
+Most of the time, we don't use `Has` directly to implement our services, instead; we use `ZLayer` to construct the dependency graph of our application, then we use methods like `ZIO#provideLayer` to propagate dependencies into the environment of our ZIO effect.
 
 #### Using `provideLayer` Method
 
@@ -454,15 +447,15 @@ Unlike the `ZIO#provide` which takes and an `R`, the `ZIO#provideLayer` takes a 
 Assume we have written this piece of program that requires Clock and Console services:
 
 ```scala mdoc:silent:nest
-import zio.clock._
-import zio.console._
-import zio.random._
+import zio.Clock._
+import zio.Console._
+import zio.Random._
 
-val myApp: ZIO[Random with Console with Clock, Nothing, Unit] = for {
+val myApp: ZIO[Has[Random] with Has[Console] with Has[Clock], Nothing, Unit] = for {
   random  <- nextInt 
-  _       <- putStrLn(s"A random number: ${random.toString}")
+  _       <- printLine(s"A random number: ${random.toString}").orDie
   current <- currentDateTime
-  _       <- putStrLn(s"Current Data Time: ${current.toString}")
+  _       <- printLine(s"Current Data Time: ${current.toString}").orDie
 } yield ()
 ```
 
@@ -482,8 +475,8 @@ Sometimes we have written a program, and we don't want to provide all its requir
 In the previous example, if we just want to provide the `Console`, we should use `ZIO#provideSomeLayer`:
 
 ```scala mdoc:silent:nest
-val mainEffect: ZIO[Random with Clock, Nothing, Unit] = 
-  myApp.provideSomeLayer[Random with Clock](Console.live)
+val mainEffect: ZIO[Has[Random] with Has[Clock], Nothing, Unit] = 
+  myApp.provideSomeLayer[Has[Random] with Has[Clock]](Console.live)
 ```
 
 > **Note:**
@@ -504,8 +497,8 @@ Let's write an effect that has some built-in services and also has a `Logging` s
 
 ```scala mdoc:invisible:reset
 import zio._
-import zio.console._
-import zio.clock._
+import zio.Console._
+import zio.Clock._
 ```
 
 ```scala mdoc:silent
@@ -525,10 +518,10 @@ object LoggingLive {
   }
 }
 
-val myApp: ZIO[Has[Logging] with Console with Clock, Nothing, Unit] = for {
+val myApp: ZIO[Has[Logging] with Has[Console] with Has[Clock], Nothing, Unit] = for {
   _       <- Logging.log("Application Started!")
   current <- currentDateTime
-  _       <- putStrLn(s"Current Data Time: ${current.toString}")
+  _       <- printLine(s"Current Data Time: ${current.toString}").orDie
 } yield ()
 ```
 

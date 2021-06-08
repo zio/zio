@@ -18,9 +18,8 @@ In this section, we explore some common ways to create managed resources.
 `ZManaged` has a `make` constructor which requires `acquire` and `release` actions:
 
 ```scala mdoc:invisible
-import java.io._
-import zio.blocking._
-import zio.console._
+import java.io.{BufferedReader, FileReader}
+import zio.Console._
 import zio._
 import scala.io.Source._
 trait Resource
@@ -36,13 +35,13 @@ val managed = ZManaged.make(acquire)(release)
 In the following example, we have a managed resource which requires `Console` as an environment to print the first line of a given file. The `BufferedReader` will be acquired before printing the first line and automatically will be released after using `BufferedReader`:
 
 ```scala mdoc:silent:nest
-import zio.console._
-def printFirstLine(file: String): ZIO[Console, Throwable, Unit] = {
+import zio.Console._
+def printFirstLine(file: String): ZIO[Has[Console], Throwable, Unit] = {
   def acquire(file: String) = ZIO.effect(new BufferedReader(new FileReader(file)))
   def release(reader: BufferedReader) = ZIO.effectTotal(reader.close())
 
   ZManaged.make(acquire(file))(release).use { reader =>
-    putStrLn(reader.readLine()) 
+    printLine(reader.readLine()) 
   }
 }
 ```
@@ -73,16 +72,15 @@ val managedBoolean = ZManaged.succeed(true)
 Every `ZIO` effect can be lifted to `ZManaged` with `ZManaged.fromEffect` or `ZIO#toZManaged_` operations:
 
 ```scala mdoc:silent:nest
-val managedHello = ZManaged.fromEffect(putStrLn("Hello, World!"))
-val managedHello_ = putStrLn("Hello, World!").toManaged_
+val managedHello = ZManaged.fromEffect(printLine("Hello, World!"))
+val managedHello_ = printLine("Hello, World!").toManaged_
 ```
 
 This is useful when we want to combine `ZManaged` effects with `ZIO` effects. Assume during creation of managed resource, we need to log some information, we can lift a `ZIO` effect to `ZManaged` world:
 
 ```scala mdoc:invisible:reset
 import zio._
-import zio.blocking._
-import zio.console._
+import zio.Console._
 import scala.io.Source._
 import java.io.{FileInputStream, FileOutputStream, Closeable}
 
@@ -91,7 +89,7 @@ trait Transactor
 
 def dbConfig: Task[DBConfig] = Task.effect(???)
 def initializeDb(config: DBConfig): Task[Unit] = Task.effect(???)
-def makeTransactor(config: DBConfig): ZManaged[Blocking, Throwable, Transactor] = ???
+def makeTransactor(config: DBConfig): ZManaged[Any, Throwable, Transactor] = ???
 
 case class UserRepository(xa: Transactor)
 object UserRepository {
@@ -100,13 +98,13 @@ object UserRepository {
 ```
 
 ```scala mdoc:silent:nest
-def userRepository: ZManaged[Blocking with Console, Throwable, UserRepository] = for {
+def userRepository: ZManaged[Has[Console], Throwable, UserRepository] = for {
   cfg <- dbConfig.toManaged_
-  _ <- putStrLn("Read database config").toManaged_
+  _ <- printLine("Read database config").toManaged_
   _ <- initializeDb(cfg).toManaged_
-  _ <- putStrLn("Database initialized").toManaged_
+  _ <- printLine("Database initialized").toManaged_
   xa <- makeTransactor(cfg)
-  _ <- putStrLn("Created new blocking transactor").toManaged_
+  _ <- printLine("Created new blocking transactor").toManaged_
 } yield new UserRepository(xa)
 ```
 
@@ -147,7 +145,7 @@ trait ZManaged[-R, +E, +A] {
 ```scala mdoc:invisible:reset
 import zio._
 import java.io.{FileInputStream, FileOutputStream, Closeable}
-import zio.console._
+import zio.Console._
 import scala.io.Source._
 ```
 
@@ -162,9 +160,9 @@ final case class Reservation[-R, +E, +A](acquire: ZIO[R, E, A], release: Exit[An
 Inside the `use` block, we can use the managed resource and return a new value. The `use` method converts a managed resource from `ZManaged` world to `ZIO` world:
 
 ```scala mdoc:silent:nest
-def firstLine(file: String): ZIO[Console, Throwable, Unit] =
+def firstLine(file: String): ZIO[Has[Console], Throwable, Unit] =
   ZManaged.fromAutoCloseable(ZIO.effect(fromFile(file))).use { reader =>
-    putStrLn(reader.bufferedReader().readLine())
+    printLine(reader.bufferedReader().readLine())
   }
 ```
 

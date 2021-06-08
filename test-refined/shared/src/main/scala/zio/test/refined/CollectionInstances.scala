@@ -18,30 +18,29 @@ package zio.test.refined
 
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.collection.{NonEmpty, Size}
-import zio.random.Random
 import zio.test.Gen.{listOfN, vectorOfN}
 import zio.test.magnolia.DeriveGen
 import zio.test.{Gen, Sized}
-import zio.{Chunk, NonEmptyChunk}
+import zio.{Chunk, Has, NonEmptyChunk, Random}
 
 object collection extends CollectionInstances
 
 trait CollectionInstances {
 
-  def nonEmptyChunkRefinedGen[R <: Random with Sized, T](implicit
+  def nonEmptyChunkRefinedGen[R <: Has[Random] with Has[Sized], T](implicit
     genT: Gen[R, T]
   ): Gen[R, Refined[NonEmptyChunk[T], NonEmpty]] =
     Gen.chunkOf1(genT).map(Refined.unsafeApply)
 
-  def nonEmptyListRefinedGen[R <: Random with Sized, T](implicit
+  def nonEmptyListRefinedGen[R <: Has[Random] with Has[Sized], T](implicit
     genT: Gen[R, T]
   ): Gen[R, Refined[List[T], NonEmpty]] = Gen.listOf1(genT).map(Refined.unsafeApply)
 
-  def nonEmptyVectorRefinedGen[R <: Random with Sized, T](implicit
+  def nonEmptyVectorRefinedGen[R <: Has[Random] with Has[Sized], T](implicit
     genT: Gen[R, T]
   ): Gen[R, Refined[Vector[T], NonEmpty]] = Gen.vectorOf1(genT).map(Refined.unsafeApply)
 
-  def sizedChunkRefinedGen[R <: Random with Sized, T, P](implicit
+  def sizedChunkRefinedGen[R <: Has[Random] with Has[Sized], T, P](implicit
     genT: Gen[R, T],
     sizeGen: Gen[R, Int Refined P]
   ): Gen[R, Refined[Chunk[T], Size[P]]] =
@@ -49,7 +48,7 @@ trait CollectionInstances {
       Gen.chunkOfN(n.value)(genT)
     }.map(r => Refined.unsafeApply(r))
 
-  def listSizeRefinedGen[R <: Random with Sized, T, P](implicit
+  def listSizeRefinedGen[R <: Has[Random] with Has[Sized], T, P](implicit
     genT: Gen[R, T],
     sizeGen: Gen[R, Int Refined P]
   ): Gen[R, Refined[List[T], Size[P]]] =
@@ -57,7 +56,7 @@ trait CollectionInstances {
       listOfN(n.value)(genT)
     }.map(Refined.unsafeApply)
 
-  def vectorSizeRefinedGen[R <: Random with Sized, T, P](implicit
+  def vectorSizeRefinedGen[R <: Has[Random] with Has[Sized], T, P](implicit
     genT: Gen[R, T],
     sizeGen: Gen[R, Int Refined P]
   ): Gen[R, Refined[Vector[T], Size[P]]] = sizeGen.flatMap { n =>

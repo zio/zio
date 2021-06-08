@@ -1,7 +1,6 @@
 package zio
 package interop
 
-import zio.blocking.Blocking
 import zio.interop.javaz._
 import zio.test.Assertion._
 import zio.test._
@@ -15,7 +14,7 @@ object JavaSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 
-  def spec: Spec[Blocking, TestFailure[Any], TestSuccess] = suite("JavaSpec")(
+  def spec: Spec[Any, TestFailure[Any], TestSuccess] = suite("JavaSpec")(
     suite("`Task.fromFutureJava` must")(
       testM("be lazy on the `Future` parameter") {
         var evaluated         = false

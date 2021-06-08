@@ -1,9 +1,8 @@
 package zio.stm
 
-import zio.random.Random
 import zio.test.Assertion._
 import zio.test._
-import zio.{Chunk, ZIOBaseSpec}
+import zio.{Chunk, Has, Random, ZIOBaseSpec}
 
 object TPriorityQueueSpec extends ZIOBaseSpec {
 
@@ -12,16 +11,16 @@ object TPriorityQueueSpec extends ZIOBaseSpec {
   implicit val eventOrdering: Ordering[Event] =
     Ordering.by(_.time)
 
-  val genEvent: Gen[Random with Sized, Event] =
+  val genEvent: Gen[Has[Random] with Has[Sized], Event] =
     for {
       time        <- Gen.int(-10, 10)
       description <- Gen.alphaNumericString
     } yield Event(time, description)
 
-  val genEvents: Gen[Random with Sized, Chunk[Event]] =
+  val genEvents: Gen[Has[Random] with Has[Sized], Chunk[Event]] =
     Gen.chunkOf(genEvent)
 
-  val genPredicate: Gen[Random, Event => Boolean] =
+  val genPredicate: Gen[Has[Random], Event => Boolean] =
     Gen.function(Gen.boolean)
 
   def spec: ZSpec[Environment, Failure] = suite("TPriorityQueueSpec")(

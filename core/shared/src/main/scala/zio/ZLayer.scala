@@ -17,7 +17,6 @@
 package zio
 
 import zio.ZManaged.ReleaseMap
-import zio.duration.Duration
 import zio.internal.Platform
 
 /**
@@ -55,7 +54,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
 
   /**
    * A symbolic alias for `zipPar`.
-  */
+   */
   final def <&>[E1 >: E, RIn2, ROut2](that: ZLayer[RIn2, E1, ROut2]): ZLayer[RIn with RIn2, E1, (ROut, ROut2)] =
     zipWithPar(that)((_, _))
 
@@ -118,12 +117,11 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
     handler: ZLayer[(RIn1, E), E1, ROut1]
   ): ZLayer[RIn1, E1, ROut1] = {
     val failureOrDie: ZLayer[(RIn1, Cause[E]), Nothing, (RIn1, E)] =
-      ZLayer.fromFunctionManyM {
-        case (r, cause) =>
-          cause.failureOrCause.fold(
-            e => ZIO.succeed((r, e)),
-            c => ZIO.halt(c)
-          )
+      ZLayer.fromFunctionManyM { case (r, cause) =>
+        cause.failureOrCause.fold(
+          e => ZIO.succeed((r, e)),
+          c => ZIO.halt(c)
+        )
       }
     fold(failureOrDie >>> handler, ZLayer.identity)
   }
@@ -146,8 +144,8 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
     ZLayer.Fresh(self)
 
   /**
-    * Returns the hash code of this layer.
-    */
+   * Returns the hash code of this layer.
+   */
   override final lazy val hashCode: Int =
     super.hashCode
 
@@ -197,7 +195,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
   /**
    * Retries constructing this layer according to the specified schedule.
    */
-  final def retry[RIn1 <: RIn with clock.Clock](schedule: Schedule[RIn1, E, Any]): ZLayer[RIn1, E, ROut] = {
+  final def retry[RIn1 <: RIn with Has[Clock]](schedule: Schedule[RIn1, E, Any]): ZLayer[RIn1, E, ROut] = {
     import Schedule.StepFunction
     import Schedule.Decision._
 
@@ -206,12 +204,15 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
     lazy val loop: ZLayer[(RIn1, S), E, ROut] =
       (ZLayer.first >>> self).catchAll {
         val update: ZLayer[((RIn1, S), E), E, (RIn1, S)] =
-          ZLayer.fromFunctionManyM {
-            case ((r, s), e) =>
-              clock.currentDateTime.flatMap(now => s(now, e).flatMap {
-                case Done(_) => ZIO.fail(e)
-                case Continue(_, interval, next) => clock.sleep(Duration.fromInterval(now, interval)) as ((r, next))
-              }).provide(r)
+          ZLayer.fromFunctionManyM { case ((r, s), e) =>
+            Clock.currentDateTime
+              .flatMap(now =>
+                s(now, e).flatMap {
+                  case Done(_)                     => ZIO.fail(e)
+                  case Continue(_, interval, next) => Clock.sleep(Duration.fromInterval(now, interval)) as ((r, next))
+                }
+              )
+              .provide(r)
           }
         update >>> ZLayer.suspend(loop.fresh)
       }
@@ -219,8 +220,8 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
   }
 
   /**
-    * Performs the specified effect if this layer succeeds.
-    */
+   * Performs the specified effect if this layer succeeds.
+   */
   final def tap[RIn1 <: RIn, E1 >: E](f: ROut => ZIO[RIn1, E1, Any]): ZLayer[RIn1, E1, ROut] =
     ZLayer.identity <&> self >>> ZLayer.fromFunctionManyM { case (in, out) => f(out).provide(in) *> ZIO.succeed(out) }
 
@@ -268,12 +269,12 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
     ZLayer.ZipWithPar(self, that, f)
 
   /**
-    * Returns whether this layer is a fresh version that will not be shared.
-    */
+   * Returns whether this layer is a fresh version that will not be shared.
+   */
   private final def isFresh: Boolean =
     self match {
       case ZLayer.Fresh(_) => true
-      case _ => false
+      case _               => false
     }
 
   private final def scope: Managed[Nothing, ZLayer.MemoMap => ZManaged[RIn, E, ROut]] =
@@ -292,9 +293,9 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
       case ZLayer.Managed(self) =>
         Managed.succeed(_ => self)
       case ZLayer.Suspend(self) =>
-         ZManaged.succeed(memoMap => memoMap.getOrElseMemoize(self()))
+        ZManaged.succeed(memoMap => memoMap.getOrElseMemoize(self()))
       case ZLayer.ZipWith(self, that, f) =>
-        ZManaged.succeed(memoMap => memoMap.getOrElseMemoize(self).zipWith(memoMap.getOrElseMemoize(that))(f))   
+        ZManaged.succeed(memoMap => memoMap.getOrElseMemoize(self).zipWith(memoMap.getOrElseMemoize(that))(f))
       case ZLayer.ZipWithPar(self, that, f) =>
         ZManaged.succeed(memoMap => memoMap.getOrElseMemoize(self).zipWithPar(memoMap.getOrElseMemoize(that))(f))
     }
@@ -306,9 +307,9 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     self: ZLayer[RIn, E, ROut],
     failure: ZLayer[(RIn, Cause[E]), E1, ROut1],
     success: ZLayer[ROut, E1, ROut1]
-  ) extends ZLayer[RIn, E1, ROut1]
-  private final case class Fresh[RIn, E, ROut](self: ZLayer[RIn, E, ROut])        extends ZLayer[RIn, E, ROut]
-  private final case class Managed[-RIn, +E, +ROut](self: ZManaged[RIn, E, ROut]) extends ZLayer[RIn, E, ROut]
+  )                                                                                   extends ZLayer[RIn, E1, ROut1]
+  private final case class Fresh[RIn, E, ROut](self: ZLayer[RIn, E, ROut])            extends ZLayer[RIn, E, ROut]
+  private final case class Managed[-RIn, +E, +ROut](self: ZManaged[RIn, E, ROut])     extends ZLayer[RIn, E, ROut]
   private final case class Suspend[-RIn, +E, +ROut](self: () => ZLayer[RIn, E, ROut]) extends ZLayer[RIn, E, ROut]
   private final case class ZipWith[-RIn, +E, ROut, ROut2, ROut3](
     self: ZLayer[RIn, E, ROut],
@@ -479,7 +480,9 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   def fromServices[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7], Nothing, Has[B]] = {
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+    A7
+  ], Nothing, Has[B]] = {
     val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
     layer
   }
@@ -489,7 +492,9 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   def fromServices[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8], Nothing, Has[B]] = {
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
+    A8
+  ], Nothing, Has[B]] = {
     val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
     layer
   }
@@ -499,7 +504,9 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   def fromServices[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9], Nothing, Has[B]] = {
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
+    A8
+  ] with Has[A9], Nothing, Has[B]] = {
     val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
     layer
   }
@@ -507,9 +514,24 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
-  def fromServices[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, B: Tag](
+  def fromServices[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    B: Tag
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10], Nothing, Has[B]] = {
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
+    A8
+  ] with Has[A9] with Has[A10], Nothing, Has[B]] = {
     val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
     layer
   }
@@ -517,9 +539,25 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
-  def fromServices[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, B: Tag](
+  def fromServices[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    B: Tag
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11], Nothing, Has[B]] = {
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
+    A8
+  ] with Has[A9] with Has[A10] with Has[A11], Nothing, Has[B]] = {
     val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
     layer
   }
@@ -527,9 +565,26 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
-  def fromServices[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, B: Tag](
+  def fromServices[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    B: Tag
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12], Nothing, Has[B]] = {
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
+    A8
+  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12], Nothing, Has[B]] = {
     val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
     layer
   }
@@ -537,9 +592,27 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
-  def fromServices[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, B: Tag](
+  def fromServices[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    B: Tag
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13], Nothing, Has[B]] = {
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
+    A8
+  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13], Nothing, Has[B]] = {
     val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
     layer
   }
@@ -547,9 +620,28 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
-  def fromServices[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, B: Tag](
+  def fromServices[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    B: Tag
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14], Nothing, Has[B]] = {
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
+    A8
+  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14], Nothing, Has[B]] = {
     val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
     layer
   }
@@ -557,9 +649,31 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
-  def fromServices[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, B: Tag](
+  def fromServices[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    B: Tag
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15], Nothing, Has[B]] = {
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
+    A8
+  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15], Nothing, Has[
+    B
+  ]] = {
     val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
     layer
   }
@@ -567,9 +681,32 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
-  def fromServices[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, B: Tag](
+  def fromServices[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    B: Tag
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16], Nothing, Has[B]] = {
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
+    A8
+  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[
+    A16
+  ], Nothing, Has[B]] = {
     val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
     layer
   }
@@ -577,9 +714,33 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
-  def fromServices[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, A17: Tag, B: Tag](
+  def fromServices[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    B: Tag
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17], Nothing, Has[B]] = {
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
+    A8
+  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[
+    A16
+  ] with Has[A17], Nothing, Has[B]] = {
     val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
     layer
   }
@@ -587,9 +748,34 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
-  def fromServices[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, A17: Tag, A18: Tag, B: Tag](
+  def fromServices[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
+    B: Tag
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18], Nothing, Has[B]] = {
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
+    A8
+  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[
+    A16
+  ] with Has[A17] with Has[A18], Nothing, Has[B]] = {
     val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
     layer
   }
@@ -597,9 +783,35 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
-  def fromServices[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, A17: Tag, A18: Tag, A19: Tag, B: Tag](
+  def fromServices[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
+    A19: Tag,
+    B: Tag
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19], Nothing, Has[B]] = {
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
+    A8
+  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[
+    A16
+  ] with Has[A17] with Has[A18] with Has[A19], Nothing, Has[B]] = {
     val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
     layer
   }
@@ -607,9 +819,36 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
-  def fromServices[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, A17: Tag, A18: Tag, A19: Tag, A20: Tag, B: Tag](
+  def fromServices[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
+    A19: Tag,
+    A20: Tag,
+    B: Tag
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19] with Has[A20], Nothing, Has[B]] = {
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
+    A8
+  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[
+    A16
+  ] with Has[A17] with Has[A18] with Has[A19] with Has[A20], Nothing, Has[B]] = {
     val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
     layer
   }
@@ -617,9 +856,37 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
-  def fromServices[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, A17: Tag, A18: Tag, A19: Tag, A20: Tag, A21: Tag, B: Tag](
+  def fromServices[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
+    A19: Tag,
+    A20: Tag,
+    A21: Tag,
+    B: Tag
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19] with Has[A20] with Has[A21], Nothing, Has[B]] = {
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
+    A8
+  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[
+    A16
+  ] with Has[A17] with Has[A18] with Has[A19] with Has[A20] with Has[A21], Nothing, Has[B]] = {
     val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
     layer
   }
@@ -695,7 +962,9 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   def fromServicesM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7], E, Has[B]] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+    A7
+  ], E, Has[B]] = {
     val layer = fromServicesManaged(andThen(f)(_.toManaged_))
     layer
   }
@@ -705,7 +974,9 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   def fromServicesM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8], E, Has[B]] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+    A7
+  ] with Has[A8], E, Has[B]] = {
     val layer = fromServicesManaged(andThen(f)(_.toManaged_))
     layer
   }
@@ -713,9 +984,25 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
-  def fromServicesM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, R, E, B: Tag](
+  def fromServicesM[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    R,
+    E,
+    B: Tag
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9], E, Has[B]] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+    A7
+  ] with Has[A8] with Has[A9], E, Has[B]] = {
     val layer = fromServicesManaged(andThen(f)(_.toManaged_))
     layer
   }
@@ -723,9 +1010,26 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
-  def fromServicesM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, R, E, B: Tag](
+  def fromServicesM[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    R,
+    E,
+    B: Tag
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10], E, Has[B]] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+    A7
+  ] with Has[A8] with Has[A9] with Has[A10], E, Has[B]] = {
     val layer = fromServicesManaged(andThen(f)(_.toManaged_))
     layer
   }
@@ -733,9 +1037,27 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
-  def fromServicesM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, R, E, B: Tag](
+  def fromServicesM[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    R,
+    E,
+    B: Tag
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11], E, Has[B]] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+    A7
+  ] with Has[A8] with Has[A9] with Has[A10] with Has[A11], E, Has[B]] = {
     val layer = fromServicesManaged(andThen(f)(_.toManaged_))
     layer
   }
@@ -743,9 +1065,28 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
-  def fromServicesM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, R, E, B: Tag](
+  def fromServicesM[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    R,
+    E,
+    B: Tag
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12], E, Has[B]] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+    A7
+  ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12], E, Has[B]] = {
     val layer = fromServicesManaged(andThen(f)(_.toManaged_))
     layer
   }
@@ -753,9 +1094,29 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
-  def fromServicesM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, R, E, B: Tag](
+  def fromServicesM[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    R,
+    E,
+    B: Tag
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13], E, Has[B]] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+    A7
+  ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13], E, Has[B]] = {
     val layer = fromServicesManaged(andThen(f)(_.toManaged_))
     layer
   }
@@ -763,9 +1124,30 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
-  def fromServicesM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, R, E, B: Tag](
+  def fromServicesM[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    R,
+    E,
+    B: Tag
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14], E, Has[B]] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+    A7
+  ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14], E, Has[B]] = {
     val layer = fromServicesManaged(andThen(f)(_.toManaged_))
     layer
   }
@@ -773,9 +1155,33 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
-  def fromServicesM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, R, E, B: Tag](
+  def fromServicesM[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    R,
+    E,
+    B: Tag
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15], E, Has[B]] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+    A7
+  ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
+    A15
+  ], E, Has[B]] = {
     val layer = fromServicesManaged(andThen(f)(_.toManaged_))
     layer
   }
@@ -783,9 +1189,34 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
-  def fromServicesM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, R, E, B: Tag](
+  def fromServicesM[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    R,
+    E,
+    B: Tag
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16], E, Has[B]] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+    A7
+  ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
+    A15
+  ] with Has[A16], E, Has[B]] = {
     val layer = fromServicesManaged(andThen(f)(_.toManaged_))
     layer
   }
@@ -793,9 +1224,35 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
-  def fromServicesM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, A17: Tag, R, E, B: Tag](
+  def fromServicesM[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    R,
+    E,
+    B: Tag
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17], E, Has[B]] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+    A7
+  ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
+    A15
+  ] with Has[A16] with Has[A17], E, Has[B]] = {
     val layer = fromServicesManaged(andThen(f)(_.toManaged_))
     layer
   }
@@ -803,9 +1260,36 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
-  def fromServicesM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, A17: Tag, A18: Tag, R, E, B: Tag](
+  def fromServicesM[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
+    R,
+    E,
+    B: Tag
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18], E, Has[B]] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+    A7
+  ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
+    A15
+  ] with Has[A16] with Has[A17] with Has[A18], E, Has[B]] = {
     val layer = fromServicesManaged(andThen(f)(_.toManaged_))
     layer
   }
@@ -813,9 +1297,37 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
-  def fromServicesM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, A17: Tag, A18: Tag, A19: Tag, R, E, B: Tag](
+  def fromServicesM[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
+    A19: Tag,
+    R,
+    E,
+    B: Tag
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19], E, Has[B]] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+    A7
+  ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
+    A15
+  ] with Has[A16] with Has[A17] with Has[A18] with Has[A19], E, Has[B]] = {
     val layer = fromServicesManaged(andThen(f)(_.toManaged_))
     layer
   }
@@ -823,9 +1335,38 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
-  def fromServicesM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, A17: Tag, A18: Tag, A19: Tag, A20: Tag, R, E, B: Tag](
+  def fromServicesM[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
+    A19: Tag,
+    A20: Tag,
+    R,
+    E,
+    B: Tag
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19] with Has[A20], E, Has[B]] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+    A7
+  ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
+    A15
+  ] with Has[A16] with Has[A17] with Has[A18] with Has[A19] with Has[A20], E, Has[B]] = {
     val layer = fromServicesManaged(andThen(f)(_.toManaged_))
     layer
   }
@@ -833,9 +1374,62 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
-  def fromServicesM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, A17: Tag, A18: Tag, A19: Tag, A20: Tag, A21: Tag, R, E, B: Tag](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19] with Has[A20] with Has[A21], E, Has[B]] = {
+  def fromServicesM[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
+    A19: Tag,
+    A20: Tag,
+    A21: Tag,
+    R,
+    E,
+    B: Tag
+  ](
+    f: (
+      A0,
+      A1,
+      A2,
+      A3,
+      A4,
+      A5,
+      A6,
+      A7,
+      A8,
+      A9,
+      A10,
+      A11,
+      A12,
+      A13,
+      A14,
+      A15,
+      A16,
+      A17,
+      A18,
+      A19,
+      A20,
+      A21
+    ) => ZIO[R, E, B]
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+    A7
+  ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
+    A15
+  ] with Has[A16] with Has[A17] with Has[A18] with Has[A19] with Has[A20] with Has[A21], E, Has[B]] = {
     val layer = fromServicesManaged(andThen(f)(_.toManaged_))
     layer
   }
@@ -919,7 +1513,9 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   def fromServicesManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7], E, Has[B]] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+    A7
+  ], E, Has[B]] = {
     val layer = fromServicesManyManaged(andThen(f)(_.asService))
     layer
   }
@@ -928,9 +1524,24 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
-  def fromServicesManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, R, E, B: Tag](
+  def fromServicesManaged[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    R,
+    E,
+    B: Tag
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8], E, Has[B]] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+    A7
+  ] with Has[A8], E, Has[B]] = {
     val layer = fromServicesManyManaged(andThen(f)(_.asService))
     layer
   }
@@ -939,9 +1550,25 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
-  def fromServicesManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, R, E, B: Tag](
+  def fromServicesManaged[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    R,
+    E,
+    B: Tag
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9], E, Has[B]] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+    A7
+  ] with Has[A8] with Has[A9], E, Has[B]] = {
     val layer = fromServicesManyManaged(andThen(f)(_.asService))
     layer
   }
@@ -950,9 +1577,26 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
-  def fromServicesManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, R, E, B: Tag](
+  def fromServicesManaged[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    R,
+    E,
+    B: Tag
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10], E, Has[B]] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+    A7
+  ] with Has[A8] with Has[A9] with Has[A10], E, Has[B]] = {
     val layer = fromServicesManyManaged(andThen(f)(_.asService))
     layer
   }
@@ -961,9 +1605,27 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
-  def fromServicesManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, R, E, B: Tag](
+  def fromServicesManaged[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    R,
+    E,
+    B: Tag
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11], E, Has[B]] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+    A7
+  ] with Has[A8] with Has[A9] with Has[A10] with Has[A11], E, Has[B]] = {
     val layer = fromServicesManyManaged(andThen(f)(_.asService))
     layer
   }
@@ -972,9 +1634,28 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
-  def fromServicesManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, R, E, B: Tag](
+  def fromServicesManaged[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    R,
+    E,
+    B: Tag
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12], E, Has[B]] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+    A7
+  ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12], E, Has[B]] = {
     val layer = fromServicesManyManaged(andThen(f)(_.asService))
     layer
   }
@@ -983,9 +1664,29 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
-  def fromServicesManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, R, E, B: Tag](
+  def fromServicesManaged[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    R,
+    E,
+    B: Tag
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13], E, Has[B]] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+    A7
+  ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13], E, Has[B]] = {
     val layer = fromServicesManyManaged(andThen(f)(_.asService))
     layer
   }
@@ -994,9 +1695,30 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
-  def fromServicesManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, R, E, B: Tag](
+  def fromServicesManaged[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    R,
+    E,
+    B: Tag
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14], E, Has[B]] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+    A7
+  ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14], E, Has[B]] = {
     val layer = fromServicesManyManaged(andThen(f)(_.asService))
     layer
   }
@@ -1005,9 +1727,33 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
-  def fromServicesManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, R, E, B: Tag](
+  def fromServicesManaged[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    R,
+    E,
+    B: Tag
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15], E, Has[B]] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+    A7
+  ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
+    A15
+  ], E, Has[B]] = {
     val layer = fromServicesManyManaged(andThen(f)(_.asService))
     layer
   }
@@ -1016,9 +1762,34 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
-  def fromServicesManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, R, E, B: Tag](
+  def fromServicesManaged[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    R,
+    E,
+    B: Tag
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16], E, Has[B]] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+    A7
+  ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
+    A15
+  ] with Has[A16], E, Has[B]] = {
     val layer = fromServicesManyManaged(andThen(f)(_.asService))
     layer
   }
@@ -1027,9 +1798,35 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
-  def fromServicesManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, A17: Tag, R, E, B: Tag](
+  def fromServicesManaged[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    R,
+    E,
+    B: Tag
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17], E, Has[B]] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+    A7
+  ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
+    A15
+  ] with Has[A16] with Has[A17], E, Has[B]] = {
     val layer = fromServicesManyManaged(andThen(f)(_.asService))
     layer
   }
@@ -1038,9 +1835,36 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
-  def fromServicesManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, A17: Tag, A18: Tag, R, E, B: Tag](
+  def fromServicesManaged[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
+    R,
+    E,
+    B: Tag
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18], E, Has[B]] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+    A7
+  ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
+    A15
+  ] with Has[A16] with Has[A17] with Has[A18], E, Has[B]] = {
     val layer = fromServicesManyManaged(andThen(f)(_.asService))
     layer
   }
@@ -1049,9 +1873,37 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
-  def fromServicesManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, A17: Tag, A18: Tag, A19: Tag, R, E, B: Tag](
+  def fromServicesManaged[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
+    A19: Tag,
+    R,
+    E,
+    B: Tag
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19], E, Has[B]] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+    A7
+  ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
+    A15
+  ] with Has[A16] with Has[A17] with Has[A18] with Has[A19], E, Has[B]] = {
     val layer = fromServicesManyManaged(andThen(f)(_.asService))
     layer
   }
@@ -1060,18 +1912,149 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
-  def fromServicesManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, A17: Tag, A18: Tag, A19: Tag, A20: Tag, R, E, B: Tag](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19] with Has[A20], E, Has[B]] =
-    fromServicesManyManaged[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, R, E, Has[B]]((a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19, a20) => f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19, a20).asService)
+  def fromServicesManaged[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
+    A19: Tag,
+    A20: Tag,
+    R,
+    E,
+    B: Tag
+  ](
+    f: (
+      A0,
+      A1,
+      A2,
+      A3,
+      A4,
+      A5,
+      A6,
+      A7,
+      A8,
+      A9,
+      A10,
+      A11,
+      A12,
+      A13,
+      A14,
+      A15,
+      A16,
+      A17,
+      A18,
+      A19,
+      A20
+    ) => ZManaged[R, E, B]
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+    A7
+  ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
+    A15
+  ] with Has[A16] with Has[A17] with Has[A18] with Has[A19] with Has[A20], E, Has[B]] =
+    fromServicesManyManaged[
+      A0,
+      A1,
+      A2,
+      A3,
+      A4,
+      A5,
+      A6,
+      A7,
+      A8,
+      A9,
+      A10,
+      A11,
+      A12,
+      A13,
+      A14,
+      A15,
+      A16,
+      A17,
+      A18,
+      A19,
+      A20,
+      R,
+      E,
+      Has[B]
+    ]((a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19, a20) =>
+      f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19, a20).asService
+    )
 
   /**
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
-  def fromServicesManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, A17: Tag, A18: Tag, A19: Tag, A20: Tag, A21: Tag, R, E, B: Tag](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19] with Has[A20] with Has[A21], E, Has[B]] = {
+  def fromServicesManaged[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
+    A19: Tag,
+    A20: Tag,
+    A21: Tag,
+    R,
+    E,
+    B: Tag
+  ](
+    f: (
+      A0,
+      A1,
+      A2,
+      A3,
+      A4,
+      A5,
+      A6,
+      A7,
+      A8,
+      A9,
+      A10,
+      A11,
+      A12,
+      A13,
+      A14,
+      A15,
+      A16,
+      A17,
+      A18,
+      A19,
+      A20,
+      A21
+    ) => ZManaged[R, E, B]
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+    A7
+  ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
+    A15
+  ] with Has[A16] with Has[A17] with Has[A18] with Has[A19] with Has[A20] with Has[A21], E, Has[B]] = {
     val layer = fromServicesManyManaged(andThen(f)(_.asService))
     layer
   }
@@ -1163,7 +2146,9 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   def fromServicesMany[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7], Nothing, B] = {
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+    A7
+  ], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
     layer
   }
@@ -1175,7 +2160,9 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   def fromServicesMany[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8], Nothing, B] = {
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
+    A8
+  ], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
     layer
   }
@@ -1187,7 +2174,9 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   def fromServicesMany[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9], Nothing, B] = {
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
+    A8
+  ] with Has[A9], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
     layer
   }
@@ -1197,9 +2186,24 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
-  def fromServicesMany[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, B](
+  def fromServicesMany[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    B
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10], Nothing, B] = {
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
+    A8
+  ] with Has[A9] with Has[A10], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
     layer
   }
@@ -1209,9 +2213,25 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
-  def fromServicesMany[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, B](
+  def fromServicesMany[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    B
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11], Nothing, B] = {
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
+    A8
+  ] with Has[A9] with Has[A10] with Has[A11], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
     layer
   }
@@ -1221,9 +2241,26 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
-  def fromServicesMany[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, B](
+  def fromServicesMany[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    B
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12], Nothing, B] = {
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
+    A8
+  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
     layer
   }
@@ -1233,9 +2270,27 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
-  def fromServicesMany[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, B](
+  def fromServicesMany[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    B
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13], Nothing, B] = {
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
+    A8
+  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
     layer
   }
@@ -1245,9 +2300,28 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
-  def fromServicesMany[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, B](
+  def fromServicesMany[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    B
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14], Nothing, B] = {
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
+    A8
+  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
     layer
   }
@@ -1257,9 +2331,29 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
-  def fromServicesMany[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, B](
+  def fromServicesMany[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    B
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15], Nothing, B] = {
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
+    A8
+  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
     layer
   }
@@ -1269,9 +2363,32 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
-  def fromServicesMany[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, B](
+  def fromServicesMany[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    B
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16], Nothing, B] = {
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
+    A8
+  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[
+    A16
+  ], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
     layer
   }
@@ -1281,9 +2398,33 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
-  def fromServicesMany[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, A17: Tag, B](
+  def fromServicesMany[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    B
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17], Nothing, B] = {
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
+    A8
+  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[
+    A16
+  ] with Has[A17], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
     layer
   }
@@ -1293,9 +2434,34 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
-  def fromServicesMany[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, A17: Tag, A18: Tag, B](
+  def fromServicesMany[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
+    B
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18], Nothing, B] = {
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
+    A8
+  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[
+    A16
+  ] with Has[A17] with Has[A18], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
     layer
   }
@@ -1305,9 +2471,35 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
-  def fromServicesMany[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, A17: Tag, A18: Tag, A19: Tag, B](
+  def fromServicesMany[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
+    A19: Tag,
+    B
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19], Nothing, B] = {
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
+    A8
+  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[
+    A16
+  ] with Has[A17] with Has[A18] with Has[A19], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
     layer
   }
@@ -1317,9 +2509,36 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
-  def fromServicesMany[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, A17: Tag, A18: Tag, A19: Tag, A20: Tag, B](
+  def fromServicesMany[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
+    A19: Tag,
+    A20: Tag,
+    B
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19] with Has[A20], Nothing, B] = {
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
+    A8
+  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[
+    A16
+  ] with Has[A17] with Has[A18] with Has[A19] with Has[A20], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
     layer
   }
@@ -1329,9 +2548,37 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
-  def fromServicesMany[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, A17: Tag, A18: Tag, A19: Tag, A20: Tag, A21: Tag, B](
+  def fromServicesMany[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
+    A19: Tag,
+    A20: Tag,
+    A21: Tag,
+    B
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19] with Has[A20] with Has[A21], Nothing, B] = {
+  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
+    A8
+  ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[
+    A16
+  ] with Has[A17] with Has[A18] with Has[A19] with Has[A20] with Has[A21], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
     layer
   }
@@ -1423,7 +2670,9 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   def fromServicesManyM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7], E, B] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+    A7
+  ], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
     layer
   }
@@ -1435,7 +2684,9 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   def fromServicesManyM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8], E, B] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+    A7
+  ] with Has[A8], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
     layer
   }
@@ -1445,9 +2696,25 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
-  def fromServicesManyM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, R, E, B](
+  def fromServicesManyM[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    R,
+    E,
+    B
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9], E, B] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+    A7
+  ] with Has[A8] with Has[A9], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
     layer
   }
@@ -1457,9 +2724,26 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
-  def fromServicesManyM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, R, E, B](
+  def fromServicesManyM[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    R,
+    E,
+    B
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10], E, B] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+    A7
+  ] with Has[A8] with Has[A9] with Has[A10], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
     layer
   }
@@ -1469,9 +2753,27 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
-  def fromServicesManyM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, R, E, B](
+  def fromServicesManyM[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    R,
+    E,
+    B
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11], E, B] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+    A7
+  ] with Has[A8] with Has[A9] with Has[A10] with Has[A11], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
     layer
   }
@@ -1481,9 +2783,28 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
-  def fromServicesManyM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, R, E, B](
+  def fromServicesManyM[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    R,
+    E,
+    B
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12], E, B] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+    A7
+  ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
     layer
   }
@@ -1493,9 +2814,29 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
-  def fromServicesManyM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, R, E, B](
+  def fromServicesManyM[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    R,
+    E,
+    B
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13], E, B] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+    A7
+  ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
     layer
   }
@@ -1505,9 +2846,30 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
-  def fromServicesManyM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, R, E, B](
+  def fromServicesManyM[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    R,
+    E,
+    B
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14], E, B] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+    A7
+  ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
     layer
   }
@@ -1517,9 +2879,33 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
-  def fromServicesManyM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, R, E, B](
+  def fromServicesManyM[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    R,
+    E,
+    B
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15], E, B] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+    A7
+  ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
+    A15
+  ], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
     layer
   }
@@ -1529,9 +2915,34 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
-  def fromServicesManyM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, R, E, B](
+  def fromServicesManyM[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    R,
+    E,
+    B
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16], E, B] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+    A7
+  ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
+    A15
+  ] with Has[A16], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
     layer
   }
@@ -1541,9 +2952,35 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
-  def fromServicesManyM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, A17: Tag, R, E, B](
+  def fromServicesManyM[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    R,
+    E,
+    B
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17], E, B] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+    A7
+  ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
+    A15
+  ] with Has[A16] with Has[A17], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
     layer
   }
@@ -1553,9 +2990,36 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
-  def fromServicesManyM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, A17: Tag, A18: Tag, R, E, B](
+  def fromServicesManyM[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
+    R,
+    E,
+    B
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18], E, B] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+    A7
+  ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
+    A15
+  ] with Has[A16] with Has[A17] with Has[A18], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
     layer
   }
@@ -1565,9 +3029,37 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
-  def fromServicesManyM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, A17: Tag, A18: Tag, A19: Tag, R, E, B](
+  def fromServicesManyM[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
+    A19: Tag,
+    R,
+    E,
+    B
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19], E, B] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+    A7
+  ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
+    A15
+  ] with Has[A16] with Has[A17] with Has[A18] with Has[A19], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
     layer
   }
@@ -1577,9 +3069,38 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
-  def fromServicesManyM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, A17: Tag, A18: Tag, A19: Tag, A20: Tag, R, E, B](
+  def fromServicesManyM[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
+    A19: Tag,
+    A20: Tag,
+    R,
+    E,
+    B
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19] with Has[A20], E, B] = {
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+    A7
+  ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
+    A15
+  ] with Has[A16] with Has[A17] with Has[A18] with Has[A19] with Has[A20], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
     layer
   }
@@ -1589,9 +3110,62 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
-  def fromServicesManyM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, A17: Tag, A18: Tag, A19: Tag, A20: Tag, A21: Tag, R, E, B](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19] with Has[A20] with Has[A21], E, B] = {
+  def fromServicesManyM[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
+    A19: Tag,
+    A20: Tag,
+    A21: Tag,
+    R,
+    E,
+    B
+  ](
+    f: (
+      A0,
+      A1,
+      A2,
+      A3,
+      A4,
+      A5,
+      A6,
+      A7,
+      A8,
+      A9,
+      A10,
+      A11,
+      A12,
+      A13,
+      A14,
+      A15,
+      A16,
+      A17,
+      A18,
+      A19,
+      A20,
+      A21
+    ) => ZIO[R, E, B]
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+    A7
+  ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
+    A15
+  ] with Has[A16] with Has[A17] with Has[A18] with Has[A19] with Has[A20] with Has[A21], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
     layer
   }
@@ -1722,7 +3296,9 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   def fromServicesManyManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7], E, B] =
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+    A7
+  ], E, B] =
     ZLayer {
       for {
         a0 <- ZManaged.environment[Has[A0]].map(_.get[A0])
@@ -1744,7 +3320,9 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   def fromServicesManyManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8], E, B] =
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+    A7
+  ] with Has[A8], E, B] =
     ZLayer {
       for {
         a0 <- ZManaged.environment[Has[A0]].map(_.get[A0])
@@ -1765,9 +3343,25 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
-  def fromServicesManyManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, R, E, B](
+  def fromServicesManyManaged[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    R,
+    E,
+    B
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9], E, B] =
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+    A7
+  ] with Has[A8] with Has[A9], E, B] =
     ZLayer {
       for {
         a0 <- ZManaged.environment[Has[A0]].map(_.get[A0])
@@ -1789,9 +3383,26 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
-  def fromServicesManyManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, R, E, B](
+  def fromServicesManyManaged[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    R,
+    E,
+    B
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10], E, B] =
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+    A7
+  ] with Has[A8] with Has[A9] with Has[A10], E, B] =
     ZLayer {
       for {
         a0  <- ZManaged.environment[Has[A0]].map(_.get[A0])
@@ -1814,9 +3425,27 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
-  def fromServicesManyManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, R, E, B](
+  def fromServicesManyManaged[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    R,
+    E,
+    B
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11], E, B] =
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+    A7
+  ] with Has[A8] with Has[A9] with Has[A10] with Has[A11], E, B] =
     ZLayer {
       for {
         a0  <- ZManaged.environment[Has[A0]].map(_.get[A0])
@@ -1840,9 +3469,28 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
-  def fromServicesManyManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, R, E, B](
+  def fromServicesManyManaged[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    R,
+    E,
+    B
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12], E, B] =
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+    A7
+  ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12], E, B] =
     ZLayer {
       for {
         a0  <- ZManaged.environment[Has[A0]].map(_.get[A0])
@@ -1867,9 +3515,29 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
-  def fromServicesManyManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, R, E, B](
+  def fromServicesManyManaged[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    R,
+    E,
+    B
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13], E, B] =
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+    A7
+  ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13], E, B] =
     ZLayer {
       for {
         a0  <- ZManaged.environment[Has[A0]].map(_.get[A0])
@@ -1895,9 +3563,30 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
-  def fromServicesManyManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, R, E, B](
+  def fromServicesManyManaged[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    R,
+    E,
+    B
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14], E, B] =
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+    A7
+  ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14], E, B] =
     ZLayer {
       for {
         a0  <- ZManaged.environment[Has[A0]].map(_.get[A0])
@@ -1924,9 +3613,33 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
-  def fromServicesManyManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, R, E, B](
+  def fromServicesManyManaged[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    R,
+    E,
+    B
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15], E, B] =
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+    A7
+  ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
+    A15
+  ], E, B] =
     ZLayer {
       for {
         a0  <- ZManaged.environment[Has[A0]].map(_.get[A0])
@@ -1954,9 +3667,34 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
-  def fromServicesManyManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, R, E, B](
+  def fromServicesManyManaged[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    R,
+    E,
+    B
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16], E, B] =
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+    A7
+  ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
+    A15
+  ] with Has[A16], E, B] =
     ZLayer {
       for {
         a0  <- ZManaged.environment[Has[A0]].map(_.get[A0])
@@ -1985,9 +3723,35 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
-  def fromServicesManyManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, A17: Tag, R, E, B](
+  def fromServicesManyManaged[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    R,
+    E,
+    B
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17], E, B] =
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+    A7
+  ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
+    A15
+  ] with Has[A16] with Has[A17], E, B] =
     ZLayer {
       for {
         a0  <- ZManaged.environment[Has[A0]].map(_.get[A0])
@@ -2017,9 +3781,36 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
-  def fromServicesManyManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, A17: Tag, A18: Tag, R, E, B](
+  def fromServicesManyManaged[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
+    R,
+    E,
+    B
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18], E, B] =
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+    A7
+  ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
+    A15
+  ] with Has[A16] with Has[A17] with Has[A18], E, B] =
     ZLayer {
       for {
         a0  <- ZManaged.environment[Has[A0]].map(_.get[A0])
@@ -2050,9 +3841,37 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
-  def fromServicesManyManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, A17: Tag, A18: Tag, A19: Tag, R, E, B](
+  def fromServicesManyManaged[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
+    A19: Tag,
+    R,
+    E,
+    B
+  ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19], E, B] =
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+    A7
+  ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
+    A15
+  ] with Has[A16] with Has[A17] with Has[A18] with Has[A19], E, B] =
     ZLayer {
       for {
         a0  <- ZManaged.environment[Has[A0]].map(_.get[A0])
@@ -2084,9 +3903,60 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
-  def fromServicesManyManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, A17: Tag, A18: Tag, A19: Tag, A20: Tag, R, E, B](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19] with Has[A20], E, B] =
+  def fromServicesManyManaged[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
+    A19: Tag,
+    A20: Tag,
+    R,
+    E,
+    B
+  ](
+    f: (
+      A0,
+      A1,
+      A2,
+      A3,
+      A4,
+      A5,
+      A6,
+      A7,
+      A8,
+      A9,
+      A10,
+      A11,
+      A12,
+      A13,
+      A14,
+      A15,
+      A16,
+      A17,
+      A18,
+      A19,
+      A20
+    ) => ZManaged[R, E, B]
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+    A7
+  ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
+    A15
+  ] with Has[A16] with Has[A17] with Has[A18] with Has[A19] with Has[A20], E, B] =
     ZLayer {
       for {
         a0  <- ZManaged.environment[Has[A0]].map(_.get[A0])
@@ -2119,9 +3989,62 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
-  def fromServicesManyManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, A10: Tag, A11: Tag, A12: Tag, A13: Tag, A14: Tag, A15: Tag, A16: Tag, A17: Tag, A18: Tag, A19: Tag, A20: Tag, A21: Tag, R, E, B](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[A16] with Has[A17] with Has[A18] with Has[A19] with Has[A20] with Has[A21], E, B] =
+  def fromServicesManyManaged[
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
+    A19: Tag,
+    A20: Tag,
+    A21: Tag,
+    R,
+    E,
+    B
+  ](
+    f: (
+      A0,
+      A1,
+      A2,
+      A3,
+      A4,
+      A5,
+      A6,
+      A7,
+      A8,
+      A9,
+      A10,
+      A11,
+      A12,
+      A13,
+      A14,
+      A15,
+      A16,
+      A17,
+      A18,
+      A19,
+      A20,
+      A21
+    ) => ZManaged[R, E, B]
+  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+    A7
+  ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
+    A15
+  ] with Has[A16] with Has[A17] with Has[A18] with Has[A19] with Has[A20] with Has[A21], E, B] =
     ZLayer {
       for {
         a0  <- ZManaged.environment[Has[A0]].map(_.get[A0])
@@ -2203,13 +4126,13 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     ZLayer(ZManaged.succeedNow(a))
 
   /**
-    * Lazily constructs a layer. This is useful to avoid infinite recursion when
-    * creating layers that refer to themselves.
-    */
-   def suspend[RIn, E, ROut](layer: => ZLayer[RIn, E, ROut]): ZLayer[RIn, E, ROut] = {
-     lazy val self = layer
-     Suspend(() => self)
-   }
+   * Lazily constructs a layer. This is useful to avoid infinite recursion when
+   * creating layers that refer to themselves.
+   */
+  def suspend[RIn, E, ROut](layer: => ZLayer[RIn, E, ROut]): ZLayer[RIn, E, ROut] = {
+    lazy val self = layer
+    Suspend(() => self)
+  }
 
   implicit final class ZLayerPassthroughOps[RIn, E, ROut](private val self: ZLayer[RIn, E, ROut]) extends AnyVal {
 
@@ -2260,15 +4183,14 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
                   map.get(layer) match {
                     case Some((acquire, release)) =>
                       val cached =
-                        ZIO.accessM[(A, ReleaseMap)] {
-                          case (_, releaseMap) =>
-                            acquire
-                              .asInstanceOf[IO[E, B]]
-                              .onExit {
-                                case Exit.Success(_) => releaseMap.add(release)
-                                case Exit.Failure(_) => UIO.unit
-                              }
-                              .map((release, _))
+                        ZIO.accessM[(A, ReleaseMap)] { case (_, releaseMap) =>
+                          acquire
+                            .asInstanceOf[IO[E, B]]
+                            .onExit {
+                              case Exit.Success(_) => releaseMap.add(release)
+                              case Exit.Failure(_) => UIO.unit
+                            }
+                            .map((release, _))
                         }
 
                       UIO.succeed((cached, map))
@@ -2280,37 +4202,43 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
                         finalizerRef <- Ref.make[ZManaged.Finalizer](ZManaged.Finalizer.noop)
 
                         resource = ZIO.uninterruptibleMask { restore =>
-                          for {
-                            env                  <- ZIO.environment[(A, ReleaseMap)]
-                            (a, outerReleaseMap) = env
-                            innerReleaseMap      <- ZManaged.ReleaseMap.make
-                            tp <- restore(layer.scope.flatMap(_.apply(self)).zio.provide((a, innerReleaseMap))).run.flatMap {
-                                   case e @ Exit.Failure(cause) =>
-                                     promise.halt(cause) *> innerReleaseMap.releaseAll(e, ExecutionStrategy.Sequential) *> ZIO
-                                       .halt(cause)
-
-                                   case Exit.Success((_, b)) =>
                                      for {
-                                       _ <- finalizerRef.set { (e: Exit[Any, Any]) =>
-                                             ZIO.whenM(observers.modify(n => (n == 1, n - 1)))(
-                                               innerReleaseMap.releaseAll(e, ExecutionStrategy.Sequential)
-                                             )
-                                           }
-                                       _              <- observers.update(_ + 1)
-                                       outerFinalizer <- outerReleaseMap.add(e => finalizerRef.get.flatMap(_.apply(e)))
-                                       _              <- promise.succeed(b)
-                                     } yield (outerFinalizer, b)
-                                 }
-                          } yield tp
-                        }
+                                       env                 <- ZIO.environment[(A, ReleaseMap)]
+                                       (a, outerReleaseMap) = env
+                                       innerReleaseMap     <- ZManaged.ReleaseMap.make
+                                       tp <- restore(
+                                               layer.scope.flatMap(_.apply(self)).zio.provide((a, innerReleaseMap))
+                                             ).run.flatMap {
+                                               case e @ Exit.Failure(cause) =>
+                                                 promise.halt(cause) *> innerReleaseMap.releaseAll(
+                                                   e,
+                                                   ExecutionStrategy.Sequential
+                                                 ) *> ZIO
+                                                   .halt(cause)
+
+                                               case Exit.Success((_, b)) =>
+                                                 for {
+                                                   _ <- finalizerRef.set { (e: Exit[Any, Any]) =>
+                                                          ZIO.whenM(observers.modify(n => (n == 1, n - 1)))(
+                                                            innerReleaseMap.releaseAll(e, ExecutionStrategy.Sequential)
+                                                          )
+                                                        }
+                                                   _ <- observers.update(_ + 1)
+                                                   outerFinalizer <-
+                                                     outerReleaseMap.add(e => finalizerRef.get.flatMap(_.apply(e)))
+                                                   _ <- promise.succeed(b)
+                                                 } yield (outerFinalizer, b)
+                                             }
+                                     } yield tp
+                                   }
 
                         memoized = (
-                          promise.await.onExit {
-                            case Exit.Failure(_) => UIO.unit
-                            case Exit.Success(_) => observers.update(_ + 1)
-                          },
-                          (exit: Exit[Any, Any]) => finalizerRef.get.flatMap(_(exit))
-                        )
+                                     promise.await.onExit {
+                                       case Exit.Failure(_) => UIO.unit
+                                       case Exit.Success(_) => observers.update(_ + 1)
+                                     },
+                                     (exit: Exit[Any, Any]) => finalizerRef.get.flatMap(_(exit))
+                                   )
                       } yield (resource, if (layer.isFresh) map else map + (layer -> memoized))
 
                   }
@@ -2332,54 +4260,147 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   private def andThen[A0, A1, A2, A3, A4, B, C](f: (A0, A1, A2, A3, A4) => B)(g: B => C): (A0, A1, A2, A3, A4) => C =
     (a0, a1, a2, a3, a4) => g(f(a0, a1, a2, a3, a4))
 
-  private def andThen[A0, A1, A2, A3, A4, A5, B, C](f: (A0, A1, A2, A3, A4, A5) => B)(g: B => C): (A0, A1, A2, A3, A4, A5) => C =
+  private def andThen[A0, A1, A2, A3, A4, A5, B, C](f: (A0, A1, A2, A3, A4, A5) => B)(
+    g: B => C
+  ): (A0, A1, A2, A3, A4, A5) => C =
     (a0, a1, a2, a3, a4, a5) => g(f(a0, a1, a2, a3, a4, a5))
 
-  private def andThen[A0, A1, A2, A3, A4, A5, A6, B, C](f: (A0, A1, A2, A3, A4, A5, A6) => B)(g: B => C): (A0, A1, A2, A3, A4, A5, A6) => C =
+  private def andThen[A0, A1, A2, A3, A4, A5, A6, B, C](f: (A0, A1, A2, A3, A4, A5, A6) => B)(
+    g: B => C
+  ): (A0, A1, A2, A3, A4, A5, A6) => C =
     (a0, a1, a2, a3, a4, a5, a6) => g(f(a0, a1, a2, a3, a4, a5, a6))
 
-  private def andThen[A0, A1, A2, A3, A4, A5, A6, A7, B, C](f: (A0, A1, A2, A3, A4, A5, A6, A7) => B)(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7) => C =
+  private def andThen[A0, A1, A2, A3, A4, A5, A6, A7, B, C](f: (A0, A1, A2, A3, A4, A5, A6, A7) => B)(
+    g: B => C
+  ): (A0, A1, A2, A3, A4, A5, A6, A7) => C =
     (a0, a1, a2, a3, a4, a5, a6, a7) => g(f(a0, a1, a2, a3, a4, a5, a6, a7))
 
-  private def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, B, C](f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => B)(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8) => C =
+  private def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, B, C](f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => B)(
+    g: B => C
+  ): (A0, A1, A2, A3, A4, A5, A6, A7, A8) => C =
     (a0, a1, a2, a3, a4, a5, a6, a7, a8) => g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8))
 
-  private def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, B, C](f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => B)(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => C =
+  private def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, B, C](f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => B)(
+    g: B => C
+  ): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => C =
     (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9) => g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9))
 
-  private def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, B, C](f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) => B)(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) => C =
+  private def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, B, C](
+    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) => B
+  )(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) => C =
     (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10) => g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10))
 
-  private def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, B, C](f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) => B)(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) => C =
+  private def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, B, C](
+    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) => B
+  )(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) => C =
     (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11) => g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11))
 
-  private def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, B, C](f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) => B)(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) => C =
-    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12) => g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12))
+  private def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, B, C](
+    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) => B
+  )(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) => C =
+    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12) =>
+      g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12))
 
-  private def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, B, C](f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) => B)(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) => C =
-    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13) => g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13))
+  private def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, B, C](
+    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) => B
+  )(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) => C =
+    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13) =>
+      g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13))
 
-  private def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, B, C](f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) => B)(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) => C =
-    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14) => g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14))
+  private def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, B, C](
+    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) => B
+  )(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) => C =
+    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14) =>
+      g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14))
 
-  private def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, B, C](f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) => B)(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) => C =
-    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15) => g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15))
+  private def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, B, C](
+    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) => B
+  )(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) => C =
+    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15) =>
+      g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15))
 
-  private def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, B, C](f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) => B)(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) => C =
-    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16) => g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16))
+  private def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, B, C](
+    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) => B
+  )(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) => C =
+    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16) =>
+      g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16))
 
-  private def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, B, C](f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) => B)(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) => C =
-    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17) => g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17))
+  private def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, B, C](
+    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) => B
+  )(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) => C =
+    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17) =>
+      g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17))
 
-  private def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, B, C](f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) => B)(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) => C =
-    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18) => g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18))
+  private def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, B, C](
+    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) => B
+  )(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) => C =
+    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18) =>
+      g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18))
 
-  private def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, B, C](f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) => B)(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) => C =
-    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19) => g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19))
+  private def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, B, C](
+    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) => B
+  )(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) => C =
+    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19) =>
+      g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19))
 
-  private def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, B, C](f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20) => B)(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20) => C =
-    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19, a20) => g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19, a20))
+  private def andThen[
+    A0,
+    A1,
+    A2,
+    A3,
+    A4,
+    A5,
+    A6,
+    A7,
+    A8,
+    A9,
+    A10,
+    A11,
+    A12,
+    A13,
+    A14,
+    A15,
+    A16,
+    A17,
+    A18,
+    A19,
+    A20,
+    B,
+    C
+  ](
+    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20) => B
+  )(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20) => C =
+    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19, a20) =>
+      g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19, a20))
 
-  private def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21, B, C](f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21) => B)(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21) => C =
-    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19, a20, a21) => g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19, a20, a21))
+  private def andThen[
+    A0,
+    A1,
+    A2,
+    A3,
+    A4,
+    A5,
+    A6,
+    A7,
+    A8,
+    A9,
+    A10,
+    A11,
+    A12,
+    A13,
+    A14,
+    A15,
+    A16,
+    A17,
+    A18,
+    A19,
+    A20,
+    A21,
+    B,
+    C
+  ](f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21) => B)(
+    g: B => C
+  ): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21) => C =
+    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19, a20, a21) =>
+      g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19, a20, a21))
 }

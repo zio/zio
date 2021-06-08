@@ -17,8 +17,6 @@
 package zio.test
 
 import zio._
-import zio.clock.Clock
-import zio.console.Console
 import zio.internal.Platform
 import zio.test.render.TestRenderer
 
@@ -27,11 +25,11 @@ import zio.test.render.TestRenderer
  * require an environment `R` and may fail with an error `E`. Test runners
  * require a test executor, a platform, and a reporter.
  */
-final case class TestRunner[R <: Has[_], E](
+final case class TestRunner[R, E](
   executor: TestExecutor[R, E],
   platform: Platform = Platform.makeDefault().withReportFailure(_ => ()),
   reporter: TestReporter[E] = DefaultTestReporter(TestRenderer.default, TestAnnotationRenderer.default),
-  bootstrap: Layer[Nothing, TestLogger with Clock] = ((Console.live >>> TestLogger.fromConsole) ++ Clock.live)
+  bootstrap: Layer[Nothing, Has[TestLogger] with Has[Clock]] = ((Console.live >>> TestLogger.fromConsole) ++ Clock.live)
 ) { self =>
 
   lazy val runtime: Runtime[Unit] = Runtime((), platform)
@@ -39,7 +37,7 @@ final case class TestRunner[R <: Has[_], E](
   /**
    * Runs the spec, producing the execution results.
    */
-  def run(spec: ZSpec[R, E]): URIO[TestLogger with Clock, ExecutedSpec[E]] =
+  def run(spec: ZSpec[R, E]): URIO[Has[TestLogger] with Has[Clock], ExecutedSpec[E]] =
     executor.run(spec, ExecutionStrategy.ParallelN(4)).timed.flatMap { case (duration, results) =>
       reporter(duration, results).as(results)
     }
@@ -85,6 +83,6 @@ final case class TestRunner[R <: Has[_], E](
   def withPlatform(f: Platform => Platform): TestRunner[R, E] =
     copy(platform = f(platform))
 
-  private[test] def buildRuntime: Managed[Nothing, Runtime[TestLogger with Clock]] =
+  private[test] def buildRuntime: Managed[Nothing, Runtime[Has[TestLogger] with Has[Clock]]] =
     bootstrap.toRuntime(platform)
 }

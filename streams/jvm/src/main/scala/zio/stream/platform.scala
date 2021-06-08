@@ -17,7 +17,6 @@
 package zio.stream
 
 import zio._
-import zio.blocking.{Blocking, effectBlockingIO}
 import zio.stream.compression._
 
 import java.io._
@@ -41,7 +40,7 @@ trait ZSinkPlatformSpecificConstructors {
    */
   final def fromOutputStream(
     os: OutputStream
-  ): ZSink[Blocking, IOException, Byte, Byte, Long] = fromOutputStreamManaged(ZManaged.succeedNow(os))
+  ): ZSink[Any, IOException, Byte, Byte, Long] = fromOutputStreamManaged(ZManaged.succeedNow(os))
 
   /**
    * Uses the provided `OutputStream` resource to create a [[ZSink]] that consumes byte chunks
@@ -50,11 +49,11 @@ trait ZSinkPlatformSpecificConstructors {
    * The `OutputStream` will be automatically closed after the stream is finished or an error occurred.
    */
   final def fromOutputStreamManaged(
-    os: ZManaged[Blocking, IOException, OutputStream]
-  ): ZSink[Blocking, IOException, Byte, Byte, Long] =
+    os: ZManaged[Any, IOException, OutputStream]
+  ): ZSink[Any, IOException, Byte, Byte, Long] =
     ZSink.managed(os) { out =>
       ZSink.foldLeftChunksM(0L) { (bytesWritten, byteChunk: Chunk[Byte]) =>
-        blocking.effectBlockingInterrupt {
+        ZIO.effectBlockingInterrupt {
           val bytes = byteChunk.toArray
           out.write(bytes)
           bytesWritten + bytes.length
@@ -72,9 +71,9 @@ trait ZSinkPlatformSpecificConstructors {
     path: => Path,
     position: Long = 0L,
     options: Set[OpenOption] = Set(WRITE, TRUNCATE_EXISTING, CREATE)
-  ): ZSink[Blocking, Throwable, Byte, Byte, Long] = {
+  ): ZSink[Any, Throwable, Byte, Byte, Long] = {
     val managedChannel = ZManaged.make(
-      blocking
+      ZIO
         .effectBlockingInterrupt(
           FileChannel
             .open(
@@ -85,11 +84,11 @@ trait ZSinkPlatformSpecificConstructors {
             )
             .position(position)
         )
-    )(chan => blocking.effectBlocking(chan.close()).orDie)
+    )(chan => ZIO.effectBlocking(chan.close()).orDie)
 
-    val writer: ZSink[Blocking, Throwable, Byte, Byte, Unit] = ZSink.managed(managedChannel) { chan =>
-      ZSink.foreachChunk[Blocking, Throwable, Byte](byteChunk =>
-        blocking.effectBlockingInterrupt {
+    val writer: ZSink[Any, Throwable, Byte, Byte, Unit] = ZSink.managed(managedChannel) { chan =>
+      ZSink.foreachChunk[Any, Throwable, Byte](byteChunk =>
+        ZIO.effectBlockingInterrupt {
           chan.write(ByteBuffer.wrap(byteChunk.toArray))
         }
       )
@@ -227,18 +226,61 @@ trait ZStreamPlatformSpecificConstructors {
     }
 
   /**
+   * Creates a stream from an blocking iterator that may throw exceptions.
+   */
+  def fromBlockingIterator[A](iterator: => Iterator[A], maxChunkSize: Int = 1): ZStream[Any, Throwable, A] =
+    ZStream {
+      ZManaged
+        .effect(iterator)
+        .fold(
+          Pull.fail,
+          iterator =>
+            ZIO.effectSuspendTotal {
+              if (maxChunkSize <= 1) {
+                if (iterator.isEmpty) Pull.end
+                else ZIO.effectBlocking(Chunk.single(iterator.next())).asSomeError
+              } else {
+                val builder  = ChunkBuilder.make[A](maxChunkSize)
+                val blocking = ZIO.effectBlocking(builder += iterator.next())
+
+                def go(i: Int): ZIO[Any, Throwable, Unit] =
+                  ZIO.when(i < maxChunkSize && iterator.hasNext)(blocking *> go(i + 1))
+
+                go(0).asSomeError.flatMap { _ =>
+                  val chunk = builder.result()
+                  if (chunk.isEmpty) Pull.end else Pull.emit(chunk)
+                }
+              }
+            }
+        )
+    }
+
+  /**
+   * Creates a stream from an blocking Java iterator that may throw exceptions.
+   */
+  def fromBlockingJavaIterator[A](
+    iter: => java.util.Iterator[A],
+    maxChunkSize: Int = 1
+  ): ZStream[Any, Throwable, A] =
+    fromBlockingIterator(
+      new Iterator[A] {
+        def next(): A        = iter.next
+        def hasNext: Boolean = iter.hasNext
+      },
+      maxChunkSize
+    )
+
+  /**
    * Creates a stream of bytes from a file at the specified path.
    */
-  def fromFile(path: => Path, chunkSize: Int = ZStream.DefaultChunkSize): ZStream[Blocking, Throwable, Byte] =
+  def fromFile(path: => Path, chunkSize: Int = ZStream.DefaultChunkSize): ZStream[Any, Throwable, Byte] =
     ZStream
-      .bracket(blocking.effectBlockingInterrupt(FileChannel.open(path)))(chan =>
-        blocking.effectBlocking(chan.close()).orDie
-      )
+      .bracket(ZIO.effectBlockingInterrupt(FileChannel.open(path)))(chan => ZIO.effectBlocking(chan.close()).orDie)
       .flatMap { channel =>
         ZStream.fromEffect(UIO(ByteBuffer.allocate(chunkSize))).flatMap { reusableBuffer =>
           ZStream.repeatEffectChunkOption(
             for {
-              bytesRead <- blocking.effectBlockingInterrupt(channel.read(reusableBuffer)).mapError(Some(_))
+              bytesRead <- ZIO.effectBlockingInterrupt(channel.read(reusableBuffer)).mapError(Some(_))
               _         <- ZIO.fail(None).when(bytesRead == -1)
               chunk <- UIO {
                          reusableBuffer.flip()
@@ -256,12 +298,12 @@ trait ZStreamPlatformSpecificConstructors {
   def fromInputStream(
     is: => InputStream,
     chunkSize: Int = ZStream.DefaultChunkSize
-  ): ZStream[Blocking, IOException, Byte] =
+  ): ZStream[Any, IOException, Byte] =
     ZStream.fromEffect(UIO(is)).flatMap { capturedIs =>
       ZStream.repeatEffectChunkOption {
         for {
           bufArray  <- UIO(Array.ofDim[Byte](chunkSize))
-          bytesRead <- blocking.effectBlockingIO(capturedIs.read(bufArray)).mapError(Some(_))
+          bytesRead <- ZIO.effectBlockingIO(capturedIs.read(bufArray)).mapError(Some(_))
           bytes <- if (bytesRead < 0)
                      ZIO.fail(None)
                    else if (bytesRead == 0)
@@ -280,10 +322,10 @@ trait ZStreamPlatformSpecificConstructors {
   final def fromResource(
     path: String,
     chunkSize: Int = ZStream.DefaultChunkSize
-  ): ZStream[Blocking, IOException, Byte] =
+  ): ZStream[Any, IOException, Byte] =
     ZStream.managed {
       ZManaged.fromAutoCloseable {
-        effectBlockingIO(getClass.getClassLoader.getResourceAsStream(path.replace('\\', '/'))).flatMap { x =>
+        ZIO.effectBlockingIO(getClass.getClassLoader.getResourceAsStream(path.replace('\\', '/'))).flatMap { x =>
           if (x == null)
             ZIO.fail(new FileNotFoundException(s"No such resource: '$path'"))
           else
@@ -299,7 +341,7 @@ trait ZStreamPlatformSpecificConstructors {
   def fromInputStreamEffect[R](
     is: ZIO[R, IOException, InputStream],
     chunkSize: Int = ZStream.DefaultChunkSize
-  ): ZStream[R with Blocking, IOException, Byte] =
+  ): ZStream[R, IOException, Byte] =
     fromInputStreamManaged(is.toManaged(is => ZIO.effectTotal(is.close())), chunkSize)
 
   /**
@@ -308,7 +350,7 @@ trait ZStreamPlatformSpecificConstructors {
   def fromInputStreamManaged[R](
     is: ZManaged[R, IOException, InputStream],
     chunkSize: Int = ZStream.DefaultChunkSize
-  ): ZStream[R with Blocking, IOException, Byte] =
+  ): ZStream[R, IOException, Byte] =
     ZStream
       .managed(is)
       .flatMap(fromInputStream(_, chunkSize))
@@ -316,12 +358,12 @@ trait ZStreamPlatformSpecificConstructors {
   /**
    * Creates a stream from `java.io.Reader`.
    */
-  def fromReader(reader: => Reader, chunkSize: Int = ZStream.DefaultChunkSize): ZStream[Blocking, IOException, Char] =
+  def fromReader(reader: => Reader, chunkSize: Int = ZStream.DefaultChunkSize): ZStream[Any, IOException, Char] =
     ZStream.fromEffect(UIO(reader)).flatMap { capturedReader =>
       ZStream.repeatEffectChunkOption {
         for {
           bufArray  <- UIO(Array.ofDim[Char](chunkSize))
-          bytesRead <- blocking.effectBlockingIO(capturedReader.read(bufArray)).mapError(Some(_))
+          bytesRead <- ZIO.effectBlockingIO(capturedReader.read(bufArray)).mapError(Some(_))
           chars <- if (bytesRead < 0)
                      ZIO.fail(None)
                    else if (bytesRead == 0)
@@ -340,7 +382,7 @@ trait ZStreamPlatformSpecificConstructors {
   def fromReaderEffect[R](
     reader: => ZIO[R, IOException, Reader],
     chunkSize: Int = ZStream.DefaultChunkSize
-  ): ZStream[R with Blocking, IOException, Char] =
+  ): ZStream[R, IOException, Char] =
     fromReaderManaged(reader.toManaged(r => ZIO.effectTotal(r.close())), chunkSize)
 
   /**
@@ -349,7 +391,7 @@ trait ZStreamPlatformSpecificConstructors {
   def fromReaderManaged[R](
     reader: => ZManaged[R, IOException, Reader],
     chunkSize: Int = ZStream.DefaultChunkSize
-  ): ZStream[R with Blocking, IOException, Char] =
+  ): ZStream[R, IOException, Char] =
     ZStream.managed(reader).flatMap(fromReader(_, chunkSize))
 
   /**
@@ -359,11 +401,11 @@ trait ZStreamPlatformSpecificConstructors {
   def fromOutputStreamWriter(
     write: OutputStream => Unit,
     chunkSize: Int = ZStream.DefaultChunkSize
-  ): ZStream[Blocking, Throwable, Byte] = {
+  ): ZStream[Any, Throwable, Byte] = {
     def from(in: InputStream, out: OutputStream, err: Promise[Throwable, None.type]) = {
       val readIn = fromInputStream(in, chunkSize).ensuring(ZIO.effectTotal(in.close()))
       val writeOut = ZStream.fromEffect {
-        blocking
+        ZIO
           .effectBlockingInterrupt(write(out))
           .run
           .tap(exit => err.done(exit.as(None)))
@@ -413,9 +455,9 @@ trait ZStreamPlatformSpecificConstructors {
   def fromSocketServer(
     port: Int,
     host: Option[String] = None
-  ): ZStream[Blocking, Throwable, Connection] =
+  ): ZStream[Any, Throwable, Connection] =
     for {
-      server <- ZStream.managed(ZManaged.fromAutoCloseable(blocking.effectBlocking {
+      server <- ZStream.managed(ZManaged.fromAutoCloseable(ZIO.effectBlocking {
                   AsynchronousServerSocketChannel
                     .open()
                     .bind(

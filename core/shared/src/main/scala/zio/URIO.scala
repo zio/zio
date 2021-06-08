@@ -16,8 +16,6 @@
 
 package zio
 
-import zio.clock.Clock
-import zio.duration.Duration
 import zio.internal.{Executor, Platform}
 
 import scala.reflect.ClassTag
@@ -49,6 +47,18 @@ object URIO {
    * @see [[zio.ZIO.apply]]
    */
   def apply[A](a: => A): UIO[A] = ZIO.effectTotal(a)
+
+  /**
+   * @see See [[zio.ZIO.blocking]]
+   */
+  def blocking[R, A](zio: URIO[R, A]): URIO[R, A] =
+    ZIO.blocking(zio)
+
+  /**
+   * @see See [[zio.ZIO.blockingExecutor]]
+   */
+  def blockingExecutor: UIO[Executor] =
+    ZIO.blockingExecutor
 
   /**
    * @see bracket in [[zio.ZIO]]
@@ -613,7 +623,7 @@ object URIO {
   /**
    * @see [[zio.ZIO.infinity]]
    */
-  val infinity: URIO[Clock, Nothing] = ZIO.sleep(Duration.fromNanos(Long.MaxValue)) *> ZIO.never
+  val infinity: URIO[Has[Clock], Nothing] = ZIO.sleep(Duration.fromNanos(Long.MaxValue)) *> ZIO.never
 
   /**
    * @see [[zio.ZIO.interrupt]]
@@ -847,7 +857,7 @@ object URIO {
   /**
    * @see [[zio.ZIO.sleep]]
    */
-  def sleep(duration: => Duration): URIO[Clock, Unit] = ZIO.sleep(duration)
+  def sleep(duration: => Duration): URIO[Has[Clock], Unit] = ZIO.sleep(duration)
 
   /**
    *  @see [[zio.ZIO.some]]

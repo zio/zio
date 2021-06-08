@@ -17,8 +17,6 @@
 package zio
 
 import zio.ZManaged.ReleaseMap
-import zio.clock.Clock
-import zio.duration.Duration
 import zio.internal.Executor
 
 import scala.collection.immutable.LongMap
@@ -56,6 +54,14 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * to enforce!
    */
   def zio: ZIO[(R, ZManaged.ReleaseMap), E, (ZManaged.Finalizer, A)]
+
+  /**
+   * Syntax for adding aspects.
+   */
+  final def @@[LowerR <: UpperR, UpperR <: R, LowerE >: E, UpperE >: LowerE, LowerA >: A, UpperA >: LowerA](
+    aspect: ZManagedAspect[LowerR, UpperR, LowerE, UpperE, LowerA, UpperA]
+  ): ZManaged[UpperR, LowerE, LowerA] =
+    aspect(self)
 
   /**
    * Symbolic alias for zip.
@@ -709,18 +715,16 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * val managed2 = managed.provideCustomLayer(loggingLayer)
    * }}}
    */
-  def provideCustomLayer[E1 >: E, R1 <: Has[_]](
+  final def provideCustomLayer[E1 >: E, R1](
     layer: ZLayer[ZEnv, E1, R1]
-  )(implicit ev: ZEnv with R1 <:< R, tagged: Tag[R1]): ZManaged[ZEnv, E1, A] =
+  )(implicit ev1: ZEnv with R1 <:< R, ev2: Has.Union[ZEnv, R1], tagged: Tag[R1]): ZManaged[ZEnv, E1, A] =
     provideSomeLayer[ZEnv](layer)
 
   /**
    * Provides a layer to the `ZManaged`, which translates it to another level.
    */
-  def provideLayer[E1 >: E, R0, R1](
-    layer: ZLayer[R0, E1, R1]
-  )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R]): ZManaged[R0, E1, A] =
-    layer.build.map(ev1).flatMap(self.provide)
+  final def provideLayer[E1 >: E, R0, R1](layer: ZLayer[R0, E1, R1])(implicit ev: R1 <:< R): ZManaged[R0, E1, A] =
+    layer.build.map(ev).flatMap(self.provide)
 
   /**
    * Provides some of the environment required to run this effect,
@@ -732,8 +736,8 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * managed.provideSome[Console](env =>
    *   new Console with Logging {
    *     val console = env.console
-   *     val logging = new Logging.Service[Any] {
-   *       def log(line: String) = console.putStrLn(line)
+   *     val logging = new Logging[Any] {
+   *       def log(line: String) = Console.printLine(line)
    *     }
    *   }
    * )
@@ -747,14 +751,14 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * specified layer and leaving the remainder `R0`.
    *
    * {{{
-   * val clockLayer: ZLayer[Any, Nothing, Clock] = ???
+   * val clockLayer: ZLayer[Any, Nothing, Has[Clock]] = ???
    *
-   * val managed: ZManaged[Clock with Random, Nothing, Unit] = ???
+   * val managed: ZManaged[Has[Clock] with Has[Random], Nothing, Unit] = ???
    *
-   * val managed2 = managed.provideSomeLayer[Random](clockLayer)
+   * val managed2 = managed.provideSomeLayer[Has[Random]](clockLayer)
    * }}}
    */
-  final def provideSomeLayer[R0 <: Has[_]]: ZManaged.ProvideSomeLayer[R0, R, E, A] =
+  final def provideSomeLayer[R0]: ZManaged.ProvideSomeLayer[R0, R, E, A] =
     new ZManaged.ProvideSomeLayer[R0, R, E, A](self)
 
   /**
@@ -819,9 +823,9 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * `once` or `recurs` for example), so that that `io.retry(Schedule.once)` means
    * "execute `io` and in case of failure, try again once".
    */
-  def retry[R1 <: R, S](policy: Schedule[R1, E, S])(implicit ev: CanFail[E]): ZManaged[R1 with Clock, E, A] =
-    ZManaged(ZIO.accessM[(R1 with Clock, ZManaged.ReleaseMap)] { case (env, releaseMap) =>
-      zio.provideSome[R1 with Clock](env => (env, releaseMap)).retry(policy).provide(env)
+  def retry[R1 <: R, S](policy: Schedule[R1, E, S])(implicit ev: CanFail[E]): ZManaged[R1 with Has[Clock], E, A] =
+    ZManaged(ZIO.accessM[(R1 with Has[Clock], ZManaged.ReleaseMap)] { case (env, releaseMap) =>
+      zio.provideSome[R1 with Has[Clock]](env => (env, releaseMap)).retry(policy).provide(env)
     })
 
   def right[R1 <: R, C]: ZManaged[Either[C, R1], E, Either[C, A]] = ZManaged.identity +++ self
@@ -946,7 +950,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   /**
    * Returns a new effect that executes this one and times the acquisition of the resource.
    */
-  def timed: ZManaged[R with Clock, E, (Duration, A)] =
+  def timed: ZManaged[R with Has[Clock], E, (Duration, A)] =
     ZManaged {
       ZIO.environment[(R, ReleaseMap)].flatMap { case (r, releaseMap) =>
         self.zio
@@ -955,7 +959,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
           .map { case (duration, (fin, a)) =>
             (fin, (duration, a))
           }
-          .provideSome[(R with Clock, ReleaseMap)](_._1)
+          .provideSome[(R with Has[Clock], ReleaseMap)](_._1)
       }
     }
 
@@ -965,11 +969,11 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * If the reservation completes successfully (even after the timeout) the release action will be run on a new fiber.
    * `Some` will be returned if acquisition and reservation complete in time
    */
-  def timeout(d: Duration): ZManaged[R with Clock, E, Option[A]] =
+  def timeout(d: Duration): ZManaged[R with Has[Clock], E, Option[A]] =
     ZManaged {
       ZIO.uninterruptibleMask { restore =>
         for {
-          env                 <- ZIO.environment[(R with Clock, ReleaseMap)]
+          env                 <- ZIO.environment[(R with Has[Clock], ReleaseMap)]
           (r, outerReleaseMap) = env
           innerReleaseMap     <- ZManaged.ReleaseMap.make
           earlyRelease        <- outerReleaseMap.add(innerReleaseMap.releaseAll(_, ExecutionStrategy.Sequential))
@@ -1005,8 +1009,8 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * Constructs a layer from this managed resource, which must return one or
    * more services.
    */
-  def toLayerMany[A1 <: Has[_]](implicit ev: A IsSubtypeOfOutput A1): ZLayer[R, E, A1] =
-    ZLayer(self.map(ev))
+  final def toLayerMany[A1 >: A: Tag]: ZLayer[R, E, A1] =
+    ZLayer.fromManagedMany(self)
 
   /**
    * Return unit while running the effect
@@ -1210,10 +1214,10 @@ object ZManaged extends ZManagedPlatformSpecific {
       b.flatMap(b => if (b) onTrue else onFalse)
   }
 
-  final class ProvideSomeLayer[R0 <: Has[_], -R, +E, +A](private val self: ZManaged[R, E, A]) extends AnyVal {
-    def apply[E1 >: E, R1 <: Has[_]](
+  final class ProvideSomeLayer[R0, -R, +E, +A](private val self: ZManaged[R, E, A]) extends AnyVal {
+    def apply[E1 >: E, R1](
       layer: ZLayer[R0, E1, R1]
-    )(implicit ev1: R0 with R1 <:< R, ev2: NeedsEnv[R], tagged: Tag[R1]): ZManaged[R0, E1, A] =
+    )(implicit ev1: R0 with R1 <:< R, ev2: Has.Union[R0, R1], tagged: Tag[R1]): ZManaged[R0, E1, A] =
       self.provideLayer[E1, R0, R0 with R1](ZLayer.identity[R0] ++ layer)
   }
 

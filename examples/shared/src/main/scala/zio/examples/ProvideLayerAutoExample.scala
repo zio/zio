@@ -1,12 +1,11 @@
 package zio.examples
 
 import zio._
-import zio.console.Console
 
 object ProvideLayerAutoExample extends App {
   val program =
     OldLady.contentsOfStomach.flatMap { contents =>
-      console.putStrLn(s"There was an old who lady swallowed:\n- ${contents.mkString("\n- ")}")
+      Console.printLine(s"There was an old who lady swallowed:\n- ${contents.mkString("\n- ")}")
     }
 
   val autoLayer: ZLayer[Any, Nothing, Has[OldLady]] =
@@ -64,10 +63,10 @@ object ProvideLayerAutoExample extends App {
 
   object Fly {
 
-    def live: URLayer[Console, Has[Fly]] = {
+    def live: URLayer[Has[Console], Has[Fly]] = {
       println("FLY")
 
-      console.putStrLn("Bzzzzzzzzzz...").as(new Fly {}).toLayer
+      Console.printLine("Bzzzzzzzzzz...").orDie.as(new Fly {}).toLayer
     }
   }
 }

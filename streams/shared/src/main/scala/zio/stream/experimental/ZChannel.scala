@@ -619,6 +619,59 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     self >>> reader
   }
 
+  def mapOutMPar[Env1 <: Env, OutErr1 >: OutErr, OutElem2](n: Int)(
+    f: OutElem => ZIO[Env1, OutErr1, OutElem2]
+  ): ZChannel[Env1, InErr, InElem, InDone, OutErr1, OutElem2, OutDone] =
+    ZChannel.managed {
+      ZManaged.withChildren { getChildren =>
+        for {
+          _           <- ZManaged.finalizer(getChildren.flatMap(Fiber.interruptAll(_)))
+          queue       <- Queue.bounded[ZIO[Env1, Either[OutErr1, OutDone], OutElem2]](n).toManaged(_.shutdown)
+          errorSignal <- Promise.makeManaged[OutErr1, Nothing]
+          permits     <- Semaphore.make(n.toLong).toManaged_
+          pull        <- self.toPull
+          _ <- pull
+                 .foldCauseM(
+                   Cause.flipCauseEither[OutErr1, OutDone](_) match {
+                     case Left(cause) =>
+                       queue.offer(ZIO.halt(cause.map(Left(_))))
+                     case Right(outDone) =>
+                       permits.withPermits(n.toLong)(ZIO.unit).interruptible *> queue.offer(ZIO.fail(Right(outDone)))
+                   },
+                   outElem =>
+                     for {
+                       p     <- Promise.make[OutErr1, OutElem2]
+                       latch <- Promise.make[Nothing, Unit]
+                       _     <- queue.offer(p.await.mapError(Left(_)))
+                       _ <- permits.withPermit {
+                              latch.succeed(()) *>
+                                (errorSignal.await raceFirst f(outElem))
+                                  .tapCause(errorSignal.halt)
+                                  .to(p)
+                            }.fork
+                       _ <- latch.await
+                     } yield ()
+                 )
+                 .forever
+                 .interruptible
+                 .forkManaged
+        } yield queue
+      }
+    } { queue =>
+      lazy val consumer: ZChannel[Env1, Any, Any, Any, OutErr1, OutElem2, OutDone] =
+        ZChannel.unwrap[Env1, Any, Any, Any, OutErr1, OutElem2, OutDone] {
+          queue.take.flatten.foldCause(
+            Cause.flipCauseEither[OutErr1, OutDone](_) match {
+              case Right(outDone) => ZChannel.end(outDone)
+              case Left(cause)    => ZChannel.halt(cause)
+            },
+            outElem => ZChannel.write(outElem) *> consumer
+          )
+        }
+
+      consumer
+    }
+
   def mergeOut[Env1 <: Env, InErr1 <: InErr, InElem1 <: InElem, InDone1 <: InDone, OutErr1 >: OutErr, OutElem2](
     n: Long
   )(implicit

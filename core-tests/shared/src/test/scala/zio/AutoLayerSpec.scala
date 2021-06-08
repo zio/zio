@@ -1,8 +1,6 @@
 package zio
 
-import zio.console.Console
 import zio.internal.macros.StringUtils.StringOps
-import zio.random.Random
 import zio.test.Assertion._
 import zio.test.AssertionM.Render.param
 import zio.test._
@@ -117,8 +115,8 @@ object AutoLayerSpec extends ZIOBaseSpec {
         ),
         suite("injectCustom")(
           testM("automatically constructs a layer from its dependencies, leaving off ZEnv") {
-            val stringLayer = console.getStrLn.orDie.toLayer
-            val program     = ZIO.service[String].zipWith(random.nextInt)((str, int) => s"$str $int")
+            val stringLayer = Console.readLine.orDie.toLayer
+            val program     = ZIO.service[String].zipWith(Random.nextInt)((str, int) => s"$str $int")
             val provided = TestConsole.feedLines("Your Lucky Number is:") *>
               program.injectCustom(stringLayer)
 
@@ -127,10 +125,10 @@ object AutoLayerSpec extends ZIOBaseSpec {
         ),
         suite("injectSome")(
           testM("automatically constructs a layer from its dependencies, leaving off some environment") {
-            val stringLayer = console.getStrLn.orDie.toLayer
-            val program     = ZIO.service[String].zipWith(random.nextInt)((str, int) => s"$str $int")
+            val stringLayer = Console.readLine.orDie.toLayer
+            val program     = ZIO.service[String].zipWith(Random.nextInt)((str, int) => s"$str $int")
             val provided = TestConsole.feedLines("Your Lucky Number is:") *>
-              program.injectSome[Random with Console](stringLayer)
+              program.injectSome[Has[Random] with Has[Console]](stringLayer)
 
             assertM(provided)(equalTo("Your Lucky Number is: -1295463240"))
           }
@@ -268,8 +266,8 @@ object AutoLayerSpec extends ZIOBaseSpec {
         ),
         suite("injectCustom")(
           testM("automatically constructs a layer from its dependencies, leaving off ZEnv") {
-            val stringLayer = console.getStrLn.orDie.toLayer
-            val program     = ZManaged.service[String].zipWith(random.nextInt.toManaged_)((str, int) => s"$str $int")
+            val stringLayer = Console.readLine.orDie.toLayer
+            val program     = ZManaged.service[String].zipWith(Random.nextInt.toManaged_)((str, int) => s"$str $int")
             val provided = TestConsole.feedLines("Your Lucky Number is:").toManaged_ *>
               program.injectCustom(stringLayer)
 
@@ -278,10 +276,10 @@ object AutoLayerSpec extends ZIOBaseSpec {
         ),
         suite("injectSome")(
           testM("automatically constructs a layer from its dependencies, leaving off some environment") {
-            val stringLayer = console.getStrLn.orDie.toLayer
-            val program     = ZManaged.service[String].zipWith(random.nextInt.toManaged_)((str, int) => s"$str $int")
+            val stringLayer = Console.readLine.orDie.toLayer
+            val program     = ZManaged.service[String].zipWith(Random.nextInt.toManaged_)((str, int) => s"$str $int")
             val provided = TestConsole.feedLines("Your Lucky Number is:").toManaged_ *>
-              program.injectSome[Random with Console](stringLayer)
+              program.injectSome[Has[Random] with Has[Console]](stringLayer)
 
             assertM(provided.useNow)(equalTo("Your Lucky Number is: -1295463240"))
           }

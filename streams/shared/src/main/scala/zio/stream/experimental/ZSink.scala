@@ -1,8 +1,6 @@
 package zio.stream.experimental
 
 import zio._
-import zio.clock.Clock
-import zio.duration.Duration
 
 import java.util.concurrent.atomic.AtomicReference
 
@@ -242,8 +240,8 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
   /**
    * Returns the sink that executes this one and times its execution.
    */
-  final def timed: ZSink[R with Clock, InErr, In, OutErr, L, (Z, Duration)] =
-    summarized(clock.nanoTime)((start, end) => Duration.fromNanos(end - start))
+  final def timed: ZSink[R with Has[Clock], InErr, In, OutErr, L, (Z, Duration)] =
+    summarized(Clock.nanoTime)((start, end) => Duration.fromNanos(end - start))
 
   def repeat: ZSink[R, InErr, In, OutErr, L, Chunk[Z]] = ???
 
@@ -1009,7 +1007,7 @@ object ZSink {
       )
     }
 
-  def timed[Err]: ZSink[Clock, Err, Any, Err, Nothing, Duration] = ZSink.drain.timed.map(_._2)
+  def timed[Err]: ZSink[Has[Clock], Err, Any, Err, Nothing, Duration] = ZSink.drain.timed.map(_._2)
 
   final class AccessSinkPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[InErr, In, OutErr, L, Z](f: R => ZSink[R, InErr, In, OutErr, L, Z]): ZSink[R, InErr, In, OutErr, L, Z] =

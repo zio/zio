@@ -53,8 +53,8 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
   /**
    * Returns a new spec with the annotation map at each node.
    */
-  final def annotated: Spec[R with Annotations, Annotated[E], Annotated[T]] =
-    transform[R with Annotations, Annotated[E], Annotated[T]] {
+  final def annotated: Spec[R with Has[Annotations], Annotated[E], Annotated[T]] =
+    transform[R with Has[Annotations], Annotated[E], Annotated[T]] {
       case Spec.SuiteCase(label, specs, exec) =>
         Spec.SuiteCase(label, specs.mapError((_, TestAnnotationMap.empty)), exec)
       case Spec.TestCase(label, test, annotations) =>
@@ -271,9 +271,11 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    * val spec2 = spec.provideCustomLayer(loggingLayer)
    * }}}
    */
-  def provideCustomLayer[E1 >: E, R1 <: Has[_]](
-    layer: ZLayer[TestEnvironment, E1, R1]
-  )(implicit ev: TestEnvironment with R1 <:< R, tagged: Tag[R1]): Spec[TestEnvironment, E1, T] =
+  def provideCustomLayer[E1 >: E, R1](layer: ZLayer[TestEnvironment, E1, R1])(implicit
+    ev1: TestEnvironment with R1 <:< R,
+    ev2: Has.Union[TestEnvironment, R1],
+    tagged: Tag[R1]
+  ): Spec[TestEnvironment, E1, T] =
     provideSomeLayer[TestEnvironment](layer)
 
   /**
@@ -289,17 +291,17 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    * val spec2 = spec.provideCustomLayerShared(loggingLayer)
    * }}}
    */
-  def provideCustomLayerShared[E1 >: E, R1 <: Has[_]](
-    layer: ZLayer[TestEnvironment, E1, R1]
-  )(implicit ev: TestEnvironment with R1 <:< R, tagged: Tag[R1]): Spec[TestEnvironment, E1, T] =
+  def provideCustomLayerShared[E1 >: E, R1](layer: ZLayer[TestEnvironment, E1, R1])(implicit
+    ev1: TestEnvironment with R1 <:< R,
+    ev2: Has.Union[TestEnvironment, R1],
+    tagged: Tag[R1]
+  ): Spec[TestEnvironment, E1, T] =
     provideSomeLayerShared[TestEnvironment](layer)
 
   /**
    * Provides a layer to the spec, translating it up a level.
    */
-  final def provideLayer[E1 >: E, R0, R1](
-    layer: ZLayer[R0, E1, R1]
-  )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R]): Spec[R0, E1, T] =
+  final def provideLayer[E1 >: E, R0, R1](layer: ZLayer[R0, E1, R1])(implicit ev: R1 <:< R): Spec[R0, E1, T] =
     transform[R0, E1, T] {
       case SuiteCase(label, specs, exec)      => SuiteCase(label, specs.provideLayer(layer), exec)
       case TestCase(label, test, annotations) => TestCase(label, test.provideLayer(layer), annotations)
@@ -308,9 +310,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
   /**
    * Provides a layer to the spec, sharing services between all tests.
    */
-  final def provideLayerShared[E1 >: E, R0, R1](
-    layer: ZLayer[R0, E1, R1]
-  )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R]): Spec[R0, E1, T] =
+  final def provideLayerShared[E1 >: E, R0, R1](layer: ZLayer[R0, E1, R1])(implicit ev: R1 <:< R): Spec[R0, E1, T] =
     caseValue match {
       case SuiteCase(label, specs, exec) =>
         Spec.suite(
@@ -339,12 +339,12 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    * {{{
    * val clockLayer: ZLayer[Any, Nothing, Clock] = ???
    *
-   * val spec: ZSpec[Clock with Random, Nothing] = ???
+   * val spec: ZSpec[Has[Clock] with Has[Random], Nothing] = ???
    *
-   * val spec2 = spec.provideSomeLayer[Random](clockLayer)
+   * val spec2 = spec.provideSomeLayer[Has[Random]](clockLayer)
    * }}}
    */
-  final def provideSomeLayer[R0 <: Has[_]]: Spec.ProvideSomeLayer[R0, R, E, T] =
+  final def provideSomeLayer[R0]: Spec.ProvideSomeLayer[R0, R, E, T] =
     new Spec.ProvideSomeLayer[R0, R, E, T](self)
 
   /**
@@ -355,12 +355,12 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    * {{{
    * val clockLayer: ZLayer[Any, Nothing, Clock] = ???
    *
-   * val spec: ZSpec[Clock with Random, Nothing] = ???
+   * val spec: ZSpec[Has[Clock] with Has[Random], Nothing] = ???
    *
-   * val spec2 = spec.provideSomeLayerShared[Random](clockLayer)
+   * val spec2 = spec.provideSomeLayerShared[Has[Random]](clockLayer)
    * }}}
    */
-  final def provideSomeLayerShared[R0 <: Has[_]]: Spec.ProvideSomeLayerShared[R0, R, E, T] =
+  final def provideSomeLayerShared[R0]: Spec.ProvideSomeLayerShared[R0, R, E, T] =
     new Spec.ProvideSomeLayerShared[R0, R, E, T](self)
 
   /**
@@ -416,7 +416,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
   /**
    * Runs the spec only if the specified predicate is satisfied.
    */
-  final def when(b: => Boolean)(implicit ev: T <:< TestSuccess): Spec[R with Annotations, E, TestSuccess] =
+  final def when(b: => Boolean)(implicit ev: T <:< TestSuccess): Spec[R with Has[Annotations], E, TestSuccess] =
     whenM(ZIO.succeedNow(b))
 
   /**
@@ -424,7 +424,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    */
   final def whenM[R1 <: R, E1 >: E](
     b: ZIO[R1, E1, Boolean]
-  )(implicit ev: T <:< TestSuccess): Spec[R1 with Annotations, E1, TestSuccess] =
+  )(implicit ev: T <:< TestSuccess): Spec[R1 with Has[Annotations], E1, TestSuccess] =
     caseValue match {
       case SuiteCase(label, specs, exec) =>
         Spec.suite(
@@ -472,17 +472,17 @@ object Spec {
   final def test[R, E, T](label: String, test: ZIO[R, E, T], annotations: TestAnnotationMap): Spec[R, E, T] =
     Spec(TestCase(label, test, annotations))
 
-  final class ProvideSomeLayer[R0 <: Has[_], -R, +E, +T](private val self: Spec[R, E, T]) extends AnyVal {
-    def apply[E1 >: E, R1 <: Has[_]](
+  final class ProvideSomeLayer[R0, -R, +E, +T](private val self: Spec[R, E, T]) extends AnyVal {
+    def apply[E1 >: E, R1](
       layer: ZLayer[R0, E1, R1]
-    )(implicit ev1: R0 with R1 <:< R, ev2: NeedsEnv[R], tagged: Tag[R1]): Spec[R0, E1, T] =
+    )(implicit ev1: R0 with R1 <:< R, ev2: Has.Union[R0, R1], tagged: Tag[R1]): Spec[R0, E1, T] =
       self.provideLayer[E1, R0, R0 with R1](ZLayer.identity[R0] ++ layer)
   }
 
-  final class ProvideSomeLayerShared[R0 <: Has[_], -R, +E, +T](private val self: Spec[R, E, T]) extends AnyVal {
-    def apply[E1 >: E, R1 <: Has[_]](
+  final class ProvideSomeLayerShared[R0, -R, +E, +T](private val self: Spec[R, E, T]) extends AnyVal {
+    def apply[E1 >: E, R1](
       layer: ZLayer[R0, E1, R1]
-    )(implicit ev1: R0 with R1 <:< R, ev2: NeedsEnv[R], tagged: Tag[R1]): Spec[R0, E1, T] =
+    )(implicit ev1: R0 with R1 <:< R, ev2: Has.Union[R0, R1], tagged: Tag[R1]): Spec[R0, E1, T] =
       self.caseValue match {
         case SuiteCase(label, specs, exec) =>
           Spec.suite(

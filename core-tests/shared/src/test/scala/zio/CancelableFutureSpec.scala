@@ -1,8 +1,5 @@
 package zio
 
-import zio.clock.Clock
-import zio.console._
-import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test._
@@ -24,7 +21,7 @@ object CancelableFutureSpec extends ZIOBaseSpec {
         val effect = ZIO.unit.delay(1.millisecond)
 
         val roundtrip = for {
-          rt <- ZIO.runtime[Console with Clock]
+          rt <- ZIO.runtime[Has[Console] with Has[Clock]]
           _  <- Task.fromFuture(_ => rt.unsafeRunToFuture(effect))
         } yield ()
 
@@ -33,10 +30,10 @@ object CancelableFutureSpec extends ZIOBaseSpec {
         assertM(Live.live(result))(equalTo(0))
       } @@ nonFlaky @@ zioTag(supervision, regression),
       testM("auto-kill regression 2") {
-        val effect = clock.nanoTime.map(_.toString()).delay(10.millisecond)
+        val effect = Clock.nanoTime.map(_.toString()).delay(10.millisecond)
 
         val roundtrip = for {
-          rt <- ZIO.runtime[Console with Clock]
+          rt <- ZIO.runtime[Has[Console] with Has[Clock]]
           _  <- Task.fromFuture(_ => rt.unsafeRunToFuture(effect))
         } yield ()
 

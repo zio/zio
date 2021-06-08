@@ -16,14 +16,12 @@
 
 package zio.test
 
-import zio.clock.Clock
-import zio.duration._
+import zio._
 import zio.test.environment.TestEnvironment
-import zio.{URIO, ZIO}
 
 /**
  * A default runnable spec that provides testable versions of all of the
- * modules in ZIO (Clock, Random, etc).
+ * modules in ZIO (Clock, Has[Random], etc).
  */
 abstract class DefaultRunnableSpec extends RunnableSpec[TestEnvironment, Any] {
 
@@ -38,7 +36,7 @@ abstract class DefaultRunnableSpec extends RunnableSpec[TestEnvironment, Any] {
    */
   private[zio] override def runSpec(
     spec: ZSpec[Environment, Failure]
-  ): URIO[TestLogger with Clock, ExecutedSpec[Failure]] =
+  ): URIO[Has[TestLogger] with Has[Clock], ExecutedSpec[Failure]] =
     runner.run(aspects.foldLeft(spec)(_ @@ _) @@ TestAspect.fibers)
 
   /**
