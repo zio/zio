@@ -4,9 +4,10 @@ title: "ZTransducer"
 ---
 
 ```scala mdoc:invisible
-import zio.stream.{UStream, ZStream, ZTransducer}
+import zio.stream.{UStream, ZStream, ZTransducer, ZSink}
 import zio.{Schedule, Chunk}
 import zio.console._
+import java.nio.file.Paths
 ```
 
 ## Introduction
@@ -277,7 +278,7 @@ ZStream(1, 2, 1, 2, 1, 3, 0, 5, 0, 2).transduce(
 
 ### Compression
 
-The `deflate` transducer compresses a stream of bytes as specified by [RFC 1951](https://tools.ietf.org/html/rfc1951).
+**ZTransducer.deflate** — The `deflate` transducer compresses a stream of bytes as specified by [RFC 1951](https://tools.ietf.org/html/rfc1951).
 
 ```scala mdoc:silent
 import zio.stream.ZStream
@@ -297,11 +298,31 @@ def deflateWithDefaultParameters(clearText: ZStream[Any, Nothing, Byte]): ZStrea
   clearText.transduce(deflate())
 ```
 
+**ZTransducer.gzip** — The `gzip` transducer compresses a stream of bytes as using _gzip_ method:
+
+```scala mdoc:silent:nest
+import zio.stream.compression._
+
+ZStream
+  .fromFile(Paths.get("file.txt"))
+  .transduce(
+    ZTransducer.gzip(
+      bufferSize = 64 * 1024,
+      level = CompressionLevel.DefaultCompression,
+      strategy = CompressionStrategy.DefaultStrategy,
+      flushMode = FlushMode.NoFlush
+    )
+  )
+  .run(
+    ZSink.fromFile(Paths.get("file.gz"))
+  )
+```
+
 ### Decompression
 
 If we are reading `Content-Encoding: deflate`, `Content-Encoding: gzip` streams, or other such streams of compressed data, the following transducers can be helpful:
 
-* `inflate` transducer allows to decompress stream of _deflated_ inputs, according to [RFC 1951](https://tools.ietf.org/html/rfc1951).
+* `inflate` transducer allows decompressing stream of _deflated_ inputs, according to [RFC 1951](https://tools.ietf.org/html/rfc1951).
 * `gunzip` transducer can be used to decompress stream of _gzipped_ inputs, according to [RFC 1952](https://tools.ietf.org/html/rfc1952).
 
 Both decompression methods will fail with `CompressionException` when input wasn't properly compressed.
