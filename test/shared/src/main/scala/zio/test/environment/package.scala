@@ -249,7 +249,8 @@ package object environment extends PlatformSpecific {
       clockState: Ref[TestClock.Data],
       live: Live.Service,
       annotations: Annotations.Service,
-      warningState: RefM[TestClock.WarningData]
+      warningState: RefM[TestClock.WarningData],
+      suspendedWarningState: RefM[TestClock.SuspendedWarningData]
     ) extends Clock.Service
         with TestClock.Service {
 
@@ -345,6 +346,15 @@ package object environment extends PlatformSpecific {
         clockState.get.map(_.timeZone)
 
       /**
+       * Cancels the warning message that is displayed if a test is advancing
+       * the `TestClock` but a fiber is not suspending.
+       */
+      private[TestClock] val suspendedWarningDone: UIO[Unit] =
+        suspendedWarningState.updateSome[Any, Nothing] { case SuspendedWarningData.Pending(fiber) =>
+          fiber.interrupt.as(SuspendedWarningData.start)
+        }
+
+      /**
        * Cancels the warning message that is displayed if a test is using time
        * but is not advancing the `TestClock`.
        */
@@ -358,11 +368,12 @@ package object environment extends PlatformSpecific {
        * Polls until all descendants of this fiber are done or suspended.
        */
       private lazy val awaitSuspended: UIO[Unit] =
-        suspended
-          .zipWith(live.provide(ZIO.sleep(10.milliseconds)) *> suspended)(_ == _)
-          .filterOrFail(identity)(())
-          .eventually
-          .unit
+        suspendedWarningStart *>
+          suspended
+            .zipWith(live.provide(ZIO.sleep(10.milliseconds)) *> suspended)(_ == _)
+            .filterOrFail(identity)(())
+            .eventually *>
+          suspendedWarningDone
 
       /**
        * Delays for a short period of time.
@@ -446,6 +457,22 @@ package object environment extends PlatformSpecific {
         OffsetDateTime.ofInstant(Instant.ofEpochMilli(duration.toMillis), timeZone)
 
       /**
+       * Forks a fiber that will display a warning message if a test is
+       * advancing the `TestClock` but a fiber is not suspending.
+       */
+      private val suspendedWarningStart: UIO[Unit] =
+        suspendedWarningState.updateSome { case SuspendedWarningData.Start =>
+          for {
+            fiber <- live.provide {
+                       console
+                         .putStrLn(suspendedWarning)
+                         .zipRight(suspendedWarningState.set(SuspendedWarningData.done))
+                         .delay(5.seconds)
+                     }.interruptible.fork
+          } yield SuspendedWarningData.pending(fiber)
+        }
+
+      /**
        * Forks a fiber that will display a warning message if a test is using
        * time but is not advancing the `TestClock`.
        */
@@ -467,9 +494,13 @@ package object environment extends PlatformSpecific {
       ZLayer.fromServicesManyManaged[Live.Service, Annotations.Service, Any, Nothing, Clock with TestClock] {
         (live: Live.Service, annotations: Annotations.Service) =>
           for {
-            ref  <- Ref.make(data).toManaged_
-            refM <- RefM.make(WarningData.start).toManaged_
-            test <- Managed.make(UIO(Test(ref, live, annotations, refM)))(_.warningDone)
+            clockState            <- Ref.make(data).toManaged_
+            warningState          <- RefM.make(WarningData.start).toManaged_
+            suspendedWarningState <- RefM.make(SuspendedWarningData.start).toManaged_
+            test <-
+              Managed.make(UIO(Test(clockState, live, annotations, warningState, suspendedWarningState))) { test =>
+                test.warningDone *> test.suspendedWarningDone
+              }
           } yield Has.allOf[Clock.Service, TestClock.Service](test, test)
       }
 
@@ -586,6 +617,32 @@ package object environment extends PlatformSpecific {
       val done: WarningData = Done
     }
 
+    sealed abstract class SuspendedWarningData
+
+    object SuspendedWarningData {
+
+      case object Start                                         extends SuspendedWarningData
+      final case class Pending(fiber: Fiber[IOException, Unit]) extends SuspendedWarningData
+      case object Done                                          extends SuspendedWarningData
+
+      /**
+       * State indicating that a test has not adjusted the clock.
+       */
+      val start: SuspendedWarningData = Start
+
+      /**
+       * State indicating that a test has adjusted the clock but a fiber is
+       * still running with a reference to the fiber that will display the
+       * warning message.
+       */
+      def pending(fiber: Fiber[IOException, Unit]): SuspendedWarningData = Pending(fiber)
+
+      /**
+       * State indicating that the warning message has already been displayed.
+       */
+      val done: SuspendedWarningData = Done
+    }
+
     /**
      * The warning message that will be displayed if a test is using time but
      * is not advancing the `TestClock`.
@@ -594,6 +651,15 @@ package object environment extends PlatformSpecific {
       "Warning: A test is using time, but is not advancing the test clock, " +
         "which may result in the test hanging. Use TestClock.adjust to " +
         "manually advance the time."
+
+    /**
+     * The warning message that will be displayed if a test is advancing the
+     * clock but a fiber is still running.
+     */
+    val suspendedWarning =
+      "Warning: A test is advancing the test clock, but a fiber is not " +
+        "suspending, which may result in the test hanging. Use " +
+        "TestAspect.diagnose to identity the fiber that is not suspending."
   }
 
   /**
