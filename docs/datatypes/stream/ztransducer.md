@@ -387,3 +387,20 @@ ZIO stream has a wide variety of transducers to decode chunks of bytes into stri
 | `ZTransducer.utf32BEDecode` | UTF-32BE bytes | String |
 | `ZTransducer.utf32LEDecode` | UTF-32LE bytes | String |
 | `ZTransducer.usASCIIDecode` | US-ASCII bytes | String |
+
+## Operations
+
+### Filtering
+
+Transducers have two types of filtering operations, the `ZTransducer#filter` used for filtering outgoing elements and the `ZTransducer#filterInput` is used for filtering incoming elements:
+
+```scala mdoc:silent:nest
+ZStream(1, -2, 0, 1, 3, -3, 4, 2, 0, 1, -3, 1, 1, 6)
+  .transduce(
+    ZTransducer
+      .collectAllN[Int](3)
+      .filterInput[Int](_ > 0)
+      .filter(_.sum > 5)
+  )
+// Output: Chunk(4,2,1), Chunk(1,1,6)
+```
