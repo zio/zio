@@ -23,6 +23,15 @@ There is no fundamental requirement for transducers to exist, because everything
 
 ## Built-in Transducers
 
+### Identity
+
+The identity transducer passes elements through without any modification:
+
+```scala mdoc:silent:nest
+ZStream(1,2,3).transduce(ZTransducer.identity)
+// Ouput: 1, 2, 3
+```
+
 ### head and last
 
 The `ZTransducer.head` and `ZTransducer.last` are two transducers that return the _first_ and _last_ element of a stream:
