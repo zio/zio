@@ -656,7 +656,7 @@ package object environment extends PlatformSpecific {
      * The warning message that will be displayed if a test is advancing the
      * clock but a fiber is still running.
      */
-    val suspendedWarning =
+    private val suspendedWarning =
       "Warning: A test is advancing the test clock, but a fiber is not " +
         "suspending, which may result in the test hanging. Use " +
         "TestAspect.diagnose to identity the fiber that is not suspending."
