@@ -1260,6 +1260,15 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     single(a)
 
   /**
+   * Extracts the elements from a `Chunk`.
+   */
+  def unapplySeq[A](seq: Seq[A]): Option[Seq[A]] =
+    seq match {
+      case chunk: Chunk[A] => Some(chunk)
+      case _               => None
+    }
+
+  /**
    * Constructs a `Chunk` by repeatedly applying the function `f` as long as it
    * returns `Some`.
    */

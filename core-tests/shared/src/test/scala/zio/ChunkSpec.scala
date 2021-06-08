@@ -633,6 +633,35 @@ object ChunkSpec extends ZIOBaseSpec {
       check(Gen.chunkOf(Gen.anyInt)) { as =>
         assert(Chunk.fromIterator(as.iterator))(equalTo(as))
       }
-    }
+    },
+    suite("unapplySeq")(
+      test("matches a nonempty chunk") {
+        val chunk = Chunk(1, 2, 3)
+        val actual = chunk match {
+          case Chunk(x, y, z) => Some((x, y, z))
+          case _              => None
+        }
+        val expected = Some((1, 2, 3))
+        assert(actual)(equalTo(expected))
+      },
+      test("matches an empty chunk") {
+        val chunk = Chunk.empty
+        val actual = chunk match {
+          case Chunk() => Some(())
+          case _       => None
+        }
+        val expected = Some(())
+        assert(actual)(equalTo(expected))
+      },
+      test("does not match another collection type") {
+        val vector = Vector(1, 2, 3)
+        val actual = vector match {
+          case Chunk(x, y, z) => Some((x, y, z))
+          case _              => None
+        }
+        val expected = None
+        assert(actual)(equalTo(expected))
+      }
+    )
   )
 }
