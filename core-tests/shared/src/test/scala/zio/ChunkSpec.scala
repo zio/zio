@@ -652,15 +652,6 @@ object ChunkSpec extends ZIOBaseSpec {
         }
         val expected = Some(())
         assert(actual)(equalTo(expected))
-      },
-      test("does not match another collection type") {
-        val vector = Vector(1, 2, 3)
-        val actual = vector match {
-          case Chunk(x, y, z) => Some((x, y, z))
-          case _              => None
-        }
-        val expected = None
-        assert(actual)(equalTo(expected))
       }
     )
   )
