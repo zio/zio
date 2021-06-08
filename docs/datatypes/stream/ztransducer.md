@@ -320,14 +320,11 @@ ZStream
 
 ### Decompression
 
-If we are reading `Content-Encoding: deflate`, `Content-Encoding: gzip` streams, or other such streams of compressed data, the following transducers can be helpful:
+If we are reading `Content-Encoding: deflate`, `Content-Encoding: gzip` streams, or other such streams of compressed data, the following transducers can be helpful. Both decompression methods will fail with `CompressionException` when input wasn't properly compressed:
 
-* `inflate` transducer allows decompressing stream of _deflated_ inputs, according to [RFC 1951](https://tools.ietf.org/html/rfc1951).
-* `gunzip` transducer can be used to decompress stream of _gzipped_ inputs, according to [RFC 1952](https://tools.ietf.org/html/rfc1952).
+**ZTransducer.inflate** — This transducer allows decompressing stream of _deflated_ inputs, according to [RFC 1951](https://tools.ietf.org/html/rfc1951).
 
-Both decompression methods will fail with `CompressionException` when input wasn't properly compressed.
-
-```scala mdoc:silent
+```scala mdoc:silent:nest
 import zio.stream.ZStream
 import zio.stream.Transducer.{ gunzip, inflate }
 import zio.stream.compression.CompressionException
@@ -337,6 +334,14 @@ def decompressDeflated(deflated: ZStream[Any, Nothing, Byte]): ZStream[Any, Comp
   val noWrap: Boolean = false     // For HTTP Content-Encoding should be false.
   deflated.transduce(inflate(bufferSize, noWrap))
 }
+```
+
+**ZTransducer.gunzip** — This transducer can be used to decompress stream of _gzipped_ inputs, according to [RFC 1952](https://tools.ietf.org/html/rfc1952):
+
+```scala mdoc:silent:nest
+import zio.stream.ZStream
+import zio.stream.Transducer.{ gunzip, inflate }
+import zio.stream.compression.CompressionException
 
 def decompressGzipped(gzipped: ZStream[Any, Nothing, Byte]): ZStream[Any, CompressionException, Byte] = {
   val bufferSize: Int = 64 * 1024 // Internal buffer size. Few times bigger than upstream chunks should work well.
