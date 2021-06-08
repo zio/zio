@@ -348,3 +348,19 @@ def decompressGzipped(gzipped: ZStream[Any, Nothing, Byte]): ZStream[Any, Compre
   gzipped.transduce(gunzip(bufferSize))
 }
 ```
+
+### Decoders
+
+ZIO stream has a wide variety of transducers to decode chunks of bytes into strings:
+
+| Decoder                     | Input          | Output |
+|-----------------------------+----------------+--------|
+| `ZTransducer.utfDecode`     | Unicode bytes  | String |
+| `ZTransducer.utf8Decode`    | UTF-8 bytes    | String |
+| `ZTransducer.utf16Decode`   | UTF-16         | String |
+| `ZTransducer.utf16BEDecode` | UTF-16BE bytes | String |
+| `ZTransducer.utf16LEDecode` | UTF-16LE bytes | String |
+| `ZTransducer.utf32Decode`   | UTF-32 bytes   | String |
+| `ZTransducer.utf32BEDecode` | UTF-32BE bytes | String |
+| `ZTransducer.utf32LEDecode` | UTF-32LE bytes | String |
+| `ZTransducer.usASCIIDecode` | US-ASCII bytes | String |
