@@ -22,6 +22,21 @@ type ZTransducer[Env, Err, In, Out] = ZStream[R, E, O] => ZStream[R, E, O]
 
 There is no fundamental requirement for transducers to exist, because everything transducers do can be done directly on a stream. However, because transducers separate the stream transformation from the source stream itself, it becomes possible to abstract over stream transformations at the level of values, creating, storing, and passing around reusable transformation pipelines that can be applied to many different streams. 
 
+## Creation
+
+### From Function
+
+By using `ZTransducer.fromFunction` we convert a function into a transducer. Let's create a transducer which converts a stream of strings into a stream of characters:
+
+```scala mdoc:silent:nest
+val chars: ZTransducer[Any, Nothing, String, Char] = 
+  ZTransducer
+    .fromFunction[String, Chunk[Char]](s => Chunk.fromArray(s.toArray))
+    .mapChunks(_.flatten)
+```
+
+There is also a `ZTransducer.fromFunctionM` which is an effecful version of this constructor.
+
 ## Built-in Transducers
 
 ### Identity
