@@ -5,7 +5,7 @@ title: "ZTransducer"
 
 ```scala mdoc:invisible
 import zio.stream.{UStream, ZStream, ZTransducer, ZSink}
-import zio.{Schedule, Chunk}
+import zio.{Schedule, Chunk, IO}
 import zio.console._
 import java.nio.file.Paths
 ```
@@ -23,6 +23,14 @@ type ZTransducer[Env, Err, In, Out] = ZStream[R, E, O] => ZStream[R, E, O]
 There is no fundamental requirement for transducers to exist, because everything transducers do can be done directly on a stream. However, because transducers separate the stream transformation from the source stream itself, it becomes possible to abstract over stream transformations at the level of values, creating, storing, and passing around reusable transformation pipelines that can be applied to many different streams. 
 
 ## Creation
+
+### From Effect
+
+The `ZTransducer.fromEffect` creates a transducer that always evaluates the specified effect. Let's write a transducer that fails with a message: 
+
+```scala mdoc:silent:nest
+val error: ZTransducer[Any, String, Any, Nothing] = ZTransducer.fromEffect(IO.fail("Ouch"))
+```
 
 ### From Function
 
