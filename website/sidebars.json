@@ -86,6 +86,7 @@
       "datatypes/stream/stream",
       "datatypes/stream/ustream",
       "datatypes/stream/ztransducer",
+      "datatypes/stream/transducer",
       "datatypes/stream/zsink",
       "datatypes/stream/sink",
       "datatypes/stream/subscription-ref"
