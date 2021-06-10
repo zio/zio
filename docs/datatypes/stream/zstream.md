@@ -1527,7 +1527,18 @@ Processing batch of events: Chunk(10,11)
 Processing batch of events: Chunk(12)
 ```
 
-The `ZStream#aggregateAsyncWithin` is another aggregator which takes a scheduler. This scheduler will consume all events produced by the given transducer. So the `aggregateAsyncWithin` will emit when the transducer emits or when the scheduler expires.
+The `ZStream#aggregateAsyncWithin` is another aggregator which takes a scheduler. This scheduler will consume all events produced by the given transducer. So the `aggregateAsyncWithin` will emit when the transducer emits or when the scheduler expires:
+
+```scala
+abstract class ZStream[-R, +E, +O] {
+  def aggregateAsyncWithin[R1 <: R, E1 >: E, P](
+    transducer: ZTransducer[R1, E1, O, P],
+    schedule: Schedule[R1, Chunk[P], Any]
+  ): ZStream[R1 with Clock, E1, P] = ???
+}
+```
+
+And here is an example of using this aggregator:
 
 ```scala mdoc:silent:nest
 val myApp = 
