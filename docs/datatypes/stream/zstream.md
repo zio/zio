@@ -658,7 +658,7 @@ ZStream
 // Doing some other works after stream's finalization
 ```
 
-## Combinators
+## Operations
 
 ### Tapping
 
