@@ -3531,7 +3531,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * stream is consumed
    *
    * {{{
-   * ZStream.bracket(ZIO(1))(a => ZIO.succeed(println(s"finish: ${a.toString}")))
+   * ZStream.bracket(ZIO(1))(a => UIO(println(s"finish: ${a.toString}")))
    * // stream values: 1
    * // printed after consumed: `finish: 1`
    * }}}
