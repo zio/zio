@@ -1427,6 +1427,116 @@ val stream = (
 // Output: 3, 6
 ```
 
+### Aggregation
+
+Aggregation is the process of converting one or more elements of type `A` into elements of type `B`. This operation takes a transducer as an aggregation unit and returns another stream that is aggregated. We have two types of aggregation:
+
+#### Synchronous Aggregation
+
+They are synchronous because the upstream emits an element when the _transducer_ emits one. To apply a synchronous aggregation to the stream we can use `ZStream#aggregate` or `ZStream#transduce` operations.
+
+Let's see an example of synchronous aggregation:
+
+```scala mdoc:silent:nest
+val stream = ZStream(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+val s1 = stream.transduce(ZTransducer.collectAllN(3))
+// Output Chunk(1,2,3), Chunk(4,5,6), Chunk(7,8,9), Chunk(10)
+
+val s2 = stream.aggregate(ZTransducer.collectAllN(3))
+// Output Chunk(1,2,3), Chunk(4,5,6), Chunk(7,8,9), Chunk(10)
+```
+
+Sometimes stream processing element by element is not efficient, specially when we are working with files or doing I/O works; so we might need to aggregate them and process them in a batch way:
+
+```scala mdoc:silent:nest
+val source =
+  ZStream
+    .iterate(1)(_ + 1)
+    .take(200)
+    .tap(x =>
+      putStrLn(s"Producing Element $x")
+        .schedule(Schedule.duration(1.second).jittered)
+    )
+
+val sink = 
+  ZSink.foreach((e: Chunk[Int]) =>
+    putStrLn(s"Processing batch of events: $e")
+      .schedule(Schedule.duration(3.seconds).jittered)
+  )
+  
+val myApp = 
+  source.aggregate(ZTransducer.collectAllN[Int](5)).run(sink)
+```
+
+Let's see one output of running this program:
+
+```
+Producing element 1
+Producing element 2
+Producing element 3
+Producing element 4
+Producing element 5
+Processing batch of events: Chunk(1,2,3,4,5)
+Producing element 6
+Producing element 7
+Producing element 8
+Producing element 9
+Producing element 10
+Processing batch of events: Chunk(6,7,8,9,10)
+Producing element 11
+Producing element 12
+Processing batch of events: Chunk(11,12)
+```
+
+Elements are grouped into Chunks of 5 elements and then processed in a batch way.
+
+#### Asynchronous Aggregation
+
+Asynchronous aggregations, aggregate elements of upstream as long as the downstream operators are busy. To apply an asynchronous aggregation to the stream, we can use `ZStream#aggregateAsync`, `ZStream#aggregateAsyncWithin`, and `ZStream#aggregateAsyncWithinEither` operations.
+
+
+For example, consider `source.aggregateAsync(ZTransducer.collectAllN(5)).mapM(processChunks)`. Whenever the downstream (`mapM(processChunks)`) is ready for consumption and pulls the upstream, the transducer `(ZTransducer.collectAllN(5))` will flush out its buffer, regardless of whether the `collectAllN` buffered all its 5 elements or not. So the `ZStream#aggregateAsync` will emit when downstream pulls:
+
+```scala mdoc:silent:nest
+val myApp = 
+  source.aggregateAsync(ZTransducer.collectAllN[Int](5)).run(sink)
+```
+
+Let's see one output of running this program:
+
+```
+Producing element 1
+Producing element 2
+Producing element 3
+Producing element 4
+Processing batch of events: Chunk(1,2)
+Processing batch of events: Chunk(3,4)
+Producing element 5
+Processing batch of events: Chunk(5)
+Producing element 6
+Processing batch of events: Chunk(6)
+Producing element 7
+Producing element 8
+Producing element 9
+Processing batch of events: Chunk(7)
+Producing element 10
+Producing element 11
+Processing batch of events: Chunk(8,9)
+Producing element 12
+Processing batch of events: Chunk(10,11)
+Processing batch of events: Chunk(12)
+```
+
+The `ZStream#aggregateAsyncWithin` is another aggregator which takes a scheduler. This scheduler will consume all events produced by the given transducer. So the `aggregateAsyncWithin` will emit when the transducer emits or when the scheduler expires.
+
+```scala mdoc:silent:nest
+val myApp = 
+ source.aggregateAsyncWithin(
+   ZTransducer.collectAllN[Int](10),
+   Schedule.duration(500.millis)
+ )
+```
+
 ## Scheduling
 
 To schedule the output of a stream we use `ZStream#schedule` combinator.
