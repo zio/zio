@@ -1267,7 +1267,7 @@ If we need to do the `flatMap` concurrently, we can use `ZStream#flatMapPar`, an
 
 ### Merging
 
-Sometimes we need to interleave the emission of two streams and create another stream. In these cases we can't use the `ZStream.concat` operation, we need another mechanism to pick elements from sources. ZIO Stream merge operations, do this for use. Let's discuss some variant of this operation:
+Sometimes we need to interleave the emission of two streams and create another stream. In these cases, we can't use the `ZStream.concat` operation because the `concat` operation waits for the first stream to finish and then consumes the second stream. So we need a non-deterministic way of picking elements from different sources. ZIO Stream's `merge` operations, do this for use. Let's discuss some variant of this operation:
 
 #### merge
 The `ZSstream#merge` picks elements randomly from specified streams:
