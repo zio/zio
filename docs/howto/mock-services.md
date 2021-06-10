@@ -78,7 +78,7 @@ ZIO Test provides a framework for mocking your modules.
 
 ## Creating a mock service
 
-We'll be assuming you've read [How to use modules and layers][doc-use-modules-and-layers] guide. In the main sources we define the _service_, a module alias and _capability accessors_. In test sources we're defining the _mock object_ which extends `zio.test.mock.Mock` which holds _capability tags_ and _compose layer_.
+We'll be assuming you've read about modules and layers in the [contextual types]][doc-contextual-types] guide. In the main sources we define the _service_, a module alias and _capability accessors_. In test sources we're defining the _mock object_ which extends `zio.test.mock.Mock` which holds _capability tags_ and _compose layer_.
 
 ```scala mdoc:silent
 // main sources
@@ -474,7 +474,7 @@ You can find more examples in the `examples` and `test-tests` subproject:
 - [ComposedEmptyMockSpec][link-gh-composed-empty-mock-spec]
 - [PolyMockSpec][link-gh-poly-mock-spec]
 
-[doc-use-modules-and-layers]: ../datatypes/contextual/index.md
+[doc-contextual-types]: ../datatypes/contextual/index.md
 [doc-macros]: howto-macros.md
 [link-sls-6.26.1]: https://scala-lang.org/files/archive/spec/2.13/06-expressions.html#value-conversions
 [link-test-doubles]: https://martinfowler.com/articles/mocksArentStubs.html
