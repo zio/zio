@@ -3544,7 +3544,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * stream is consumed
    *
    * {{{
-   * ZStream.bracketExit(ZIO(1))((a, e) => URIO(println(s"finish: $a $e")))
+   * ZStream.bracketExit(ZIO(1))((a, e) => UIO(println(s"finish: $a $e")))
    * // stream values: 1
    * // printed after consumed: `finish: 1 Success(())`
    * }}}
