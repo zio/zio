@@ -1270,6 +1270,7 @@ If we need to do the `flatMap` concurrently, we can use `ZStream#flatMapPar`, an
 Sometimes we need to interleave the emission of two streams and create another stream. In these cases, we can't use the `ZStream.concat` operation because the `concat` operation waits for the first stream to finish and then consumes the second stream. So we need a non-deterministic way of picking elements from different sources. ZIO Stream's `merge` operations, do this for use. Let's discuss some variant of this operation:
 
 #### merge
+
 The `ZSstream#merge` picks elements randomly from specified streams:
 
 ```scala mdoc:silent:nest
@@ -1305,6 +1306,37 @@ val merged = s1.merge(s2, TerminationStrategy.Left)
 ```
 
 We can also use `ZStream#mergeTerminateLeft`, `ZStream#mergeTerminateRight` or `ZStream#mergeTerminateEither` operations instead of specifying manually the termination strategy.
+
+#### mergeAll 
+
+Assume we have several streaming components:
+- An ETL process that consumes events from a Kafka topic process its events.
+- An HTTP server that listens to HTTP requests.
+- A monitoring system that constantly monitors system metrics.
+
+Using `ZStream.mergeAll` we can combine all these streaming components concurrently into one application:
+
+```scala mdoc:silent:nest
+object StreamingApp extends zio.App {
+
+  val etlProcess: ZStream[Blocking with Clock, Throwable, Unit] =
+    ZStream.fromEffect(???)
+  val httpServer: ZStream[Blocking with Clock, Throwable, Unit] =
+    ZStream.fromEffect(???)
+  val monitoringJob: ZStream[Clock, Throwable, Unit] = ZStream.fromEffect(???)
+
+  val myApp = ZStream.mergeAllUnbounded(16)(
+    etlProcess,
+    httpServer,
+    monitoringJob
+  )
+
+  override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] =
+    myApp.runDrain.exitCode
+}
+```
+
+We can use `ZStream#mergeAll` which takes the number of concurrent streams and enables us to control the number of concurrent streams in the merge process.
 
 #### mergeWith
 
