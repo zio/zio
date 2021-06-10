@@ -1418,6 +1418,36 @@ val stream: ZIO[Console with Random with Clock, IOException, Unit] =
       case _ => ZIO.dieMessage("unhandled case")
     }
 ```
+### Distribution
+
+The `ZStream#distributedWith` operator is a more powerful version of `ZStream#broadcast`. It takes a `decide` function, and based on that decide how to distribute incoming elements into the downstream streams:
+
+```scala
+abstract class ZStream[-R, +E, +O] {
+  final def distributedWith[E1 >: E](
+    n: Int,
+    maximumLag: Int,
+    decide: O => UIO[Int => Boolean]
+  ): ZManaged[R, Nothing, List[Dequeue[Exit[Option[E1], O]]]] = ???
+}
+```
+
+In the example below, we are partitioning incoming elements into three streams using `ZStream#distributedWith` operator:
+
+```scala mdoc:silent:nest
+val partitioned: ZManaged[Clock, Nothing, (UStream[Int], UStream[Int], UStream[Int])] =
+  ZStream
+    .iterate(1)(_ + 1)
+    .fixed(1.seconds)
+    .distributedWith(3, 10, x => ZIO.succeed(q => x % 3 == q))
+    .flatMap { case q1 :: q2 :: q3 :: Nil =>
+      ZManaged.succeed(
+        ZStream.fromQueue(q1).flattenExitOption,
+        ZStream.fromQueue(q2).flattenExitOption,
+        ZStream.fromQueue(q3).flattenExitOption
+      )
+    }
+```
 
 ### Buffering
 
