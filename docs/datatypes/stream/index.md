@@ -113,31 +113,43 @@ We have a buffer in between each step. We performed our computations in between.
 
 ZIO stream has super compelling advantages of using high-level streams. ZIO solution to streaming solves a lot of common streaming pain points. It shines in the following topics:
 
-1. **High-level and Declarative** — This means in a very short snippet of a fluent code we can solve very outrageously complicated problems with just a few simple lines.
+### 1. High-level and Declarative
 
-2. **Asynchronous and Non-blocking** — They're reactive streams, they don't block threads. They're super-efficient and very scalable. We can minimize our application latency and increase its performance. We can avoid wasting precious thread resources by using non-blocking and asynchronous ZIO streams. 
+This means in a very short snippet of a fluent code we can solve very outrageously complicated problems with just a few simple lines.
 
-3. **Concurrency** — Streams are concurrent. They have a lot of concurrent operators. All the operations on them are safe to use in presence of concurrency. 
+### 2. Asynchronous and Non-blocking
 
-4. **Parallelism** — Just like ZIO gives us parallel operators with everything, there are lots of parallel operators. We can use the parallel version of operators, like `mapMPar`, `flatMapPar`.
+They're reactive streams, they don't block threads. They're super-efficient and very scalable. We can minimize our application latency and increase its performance. We can avoid wasting precious thread resources by using non-blocking and asynchronous ZIO streams. 
+
+### 3. Concurrency and Parallelism
+
+Streams are concurrent. They have a lot of concurrent operators. All the operations on them are safe to use in presence of concurrency. And also just like ZIO gives us parallel operators with everything, there are lots of parallel operators. We can use the parallel version of operators, like `mapMPar`, `flatMapPar`.
 
 Parallel operators allow us to fully saturate and utilize all CPU cores of our machine. If we need to do bulk processing on a lot of data and use all the cores on our machine, so we can speed up the process by using these parallel operators. 
 
-5. **Resource Safety** — Resource safety is not a simple thing to guarantee. Assume when we have several streams, some of them are sockets and files, some of them are API calls and database queries. When we have all these streams, and we are transforming and combining them, and we are timing some out, and also some of them are doing concurrent merges; what happens when things go wrong in one part of that stream graph? ZIO streams provides the guarantee that it will never leak resources. 
+### 4. Resource Safety
+
+Resource safety is not a simple thing to guarantee. Assume when we have several streams, some of them are sockets and files, some of them are API calls and database queries. When we have all these streams, and we are transforming and combining them, and we are timing some out, and also some of them are doing concurrent merges; what happens when things go wrong in one part of that stream graph? ZIO streams provides the guarantee that it will never leak resources. 
 
 So when streams have to be terminated for error or timeout or interruption reasons or whatever, ZIO will always safely shutdown and release the resources associated with that stream usage. 
 
 We don't have to worry about resource management anymore. We can work at high-level and just declaratively describe our stream graph and then ZIO will handle the tricky job of executing that and taking care to make sure that no resources are leaked in an event of something bad happens or even just a timeout, or interruption, or just we are done with a result. So resources are always safely released without any leaks. 
 
-6. **High Performance and Efficiency** — When we are doing an I/O job, the granularity of data is not at the level of a single byte. For example, we never read or write a single element from/to a file descriptor. We always use multiple elements. So when we are doing an I/O operation it is a poor practice to read/write element by element and this decreases the performance of our program. 
+### 5. High Performance and Efficiency
+
+When we are doing an I/O job, the granularity of data is not at the level of a single byte. For example, we never read or write a single element from/to a file descriptor. We always use multiple elements. So when we are doing an I/O operation it is a poor practice to read/write element by element and this decreases the performance of our program. 
 
 In order to achieve high efficiency, ZIO stream implicitly chunks everything, but it still presents us with a nice API that is at the level of every single element. So we can always deal with streams of individual elements even though behind-the-scenes ZIO is doing some chunking to make that performant. This is one of the tricks that enables ZIO streams to have such great performance. 
 
 ZIO Streams are working at the level of chunks. Every time we are working with ZIO streams, we are also working with chunks implicitly. So there are no streams with individual elements. Streams always use chunks. Every time we pull an element out of a ZIO stream, we end up pulling a chunk of elements under the hood. 
 
-7. **Seamless Integration with ZIO** — ZIO stream has a powerful seamless integrated support for ZIO. It uses `ZManaged`, `Schedule`, and any other powerful data types in ZIO. So we can stay within the same ecosystem and get all its significant benefits.
+### 6. Seamless Integration with ZIO
 
-8. **Back-Pressure** — We get back-pressuring for free. With ZIO streams it is actually not a back-pressuring, but it is equivalent. In push-based streams like Akka Streams, streams are push-based; when an element comes in, it is pushed downward in the pipeline. That is what leads to the need for back-pressuring. Back-pressuring makes the push-based stream much more complicated than it needs to be. 
+ZIO stream has a powerful seamless integrated support for ZIO. It uses `ZManaged`, `Schedule`, and any other powerful data types in ZIO. So we can stay within the same ecosystem and get all its significant benefits.
+
+### 7. Back-Pressure
+
+We get back-pressuring for free. With ZIO streams it is actually not a back-pressuring, but it is equivalent. In push-based streams like Akka Streams, streams are push-based; when an element comes in, it is pushed downward in the pipeline. That is what leads to the need for back-pressuring. Back-pressuring makes the push-based stream much more complicated than it needs to be. 
 
 Push-based streams are good at splitting streams because we have one element, and we can push it to two different places. That is nice and elegant, but they're terrible at merging streams and that is because you end up needing to use queues, and then we run into a problem. In the case of using queues, we need back-pressuring, which leads to a complicated architecture. 
 
@@ -149,7 +161,9 @@ Using the pull-based mechanism we have no producers, and it prevents producing m
 
 So ZIO stream gives us the benefits of back-pressuring, but in a cleaner conceptual model that is very efficient and does not require all these levels of buffering.
 
-7. **Processing Infinite Data using Finite Memory** — Streams let us work on infinite data in a finite amount of memory. When we are writing streaming logic, we don't have to worry about how much data we are ultimately going to be processed.
+### 8. Infinite Data using Finite Memory
+
+Streams let us work on infinite data in a finite amount of memory. When we are writing streaming logic, we don't have to worry about how much data we are ultimately going to be processed.
 
 That is because we are just building a workflow, a description of the processing. We are not manually loading up everything into memory, into a list, and then doing our processing on a list. That doesn't work very well because we can only fit a finite amount of memory into our computer at one time. 
 
