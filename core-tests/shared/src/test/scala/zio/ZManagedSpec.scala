@@ -1618,7 +1618,8 @@ object ZManagedSpec extends ZIOBaseSpec {
       },
       testM("preserves use failures") {
         for {
-          exit <- ZManaged.make_(ZIO.succeed(2))(ZIO.dieMessage("die")).ignoreReleaseFailures.use(n => ZIO.fail(n + 3)).run
+          exit <-
+            ZManaged.make_(ZIO.succeed(2))(ZIO.dieMessage("die")).ignoreReleaseFailures.use(n => ZIO.fail(n + 3)).run
         } yield assert(exit)(fails(equalTo(5)))
       },
       testM("ignores release failures") {
