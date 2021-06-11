@@ -560,7 +560,22 @@ object ZStream {
 }
 ```
 
-If they contain `Chunk` of elements, we can use `ZStream.fromChunk...` constructors to create a stream from those elements (e.g. `ZStream.fromChunkQueue`). Also, If we need to shutdown a `Queue` or `Hub`, once the stream is closed, we should use `ZStream.from..Shutdown` constructors (e.g. `ZStream.fromQueueWithShutdown`).
+If they contain `Chunk` of elements, we can use `ZStream.fromChunk...` constructors to create a stream from those elements (e.g. `ZStream.fromChunkQueue`):
+
+```scala mdoc:silent:nest
+for {
+  promise <- Promise.make[Nothing, Unit]
+  hub     <- ZHub.unbounded[Chunk[Int]]
+  managed = ZStream.fromChunkHubManaged(hub).tapM(_ => promise.succeed(()))
+  stream  = ZStream.unwrapManaged(managed)
+  fiber   <- stream.foreach(i => putStrLn(i.toString)).fork
+  _       <- promise.await
+  _       <- hub.publish(Chunk(1, 2, 3))
+  _       <- fiber.join
+} yield ()
+```
+
+Also, If we need to shutdown a `Queue` or `Hub`, once the stream is closed, we should use `ZStream.from..Shutdown` constructors (e.g. `ZStream.fromQueueWithShutdown`).
 
 Also, we can lift a `TQueue` to the ZIO Stream:
 
