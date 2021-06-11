@@ -11,6 +11,7 @@ One way to think of `ZStream` is as a `ZIO` program that could emit multiple val
 
 ```scala mdoc:invisible
 import zio.{ZIO, Task, ZManaged, Chunk}
+import zio.stm.{STM, TQueue}
 import zio.blocking.Blocking
 import zio.random.Random
 import zio.clock.Clock
@@ -18,6 +19,7 @@ import java.io.{BufferedReader, FileReader, FileInputStream, IOException}
 import java.nio.file.{Files, Path, Paths}
 import java.nio.file.Path._
 import zio.console.Console
+import zio.console._
 import java.net.URL
 import zio.Cause.Die
 import java.lang.IllegalArgumentException
