@@ -1609,6 +1609,24 @@ object ZManagedSpec extends ZIOBaseSpec {
           "type arguments [Error] do not conform to method refineToOrDie's type parameter bounds [E1 <: RuntimeException]"
         assertM(result)(isLeft(equalTo(expected)))
       } @@ scala2Only
+    ),
+    suite("ignoreReleaseFailures")(
+      testM("preserves acquire failures") {
+        for {
+          exit <- ZManaged.make_(ZIO.fail(2))(ZIO.dieMessage("die")).ignoreReleaseFailures.use(_ => ZIO.unit).run
+        } yield assert(exit)(fails(equalTo(2)))
+      },
+      testM("preserves use failures") {
+        for {
+          exit <- ZManaged.make_(ZIO.succeed(2))(ZIO.dieMessage("die")).ignoreReleaseFailures.use(n => ZIO.fail(n + 3)).run
+        } yield assert(exit)(fails(equalTo(5)))
+      },
+      testM("ignores release failures") {
+        for {
+          exit <-
+            ZManaged.make_(ZIO.succeed(2))(ZIO.dieMessage("die")).ignoreReleaseFailures.use(n => ZIO.succeed(n + 3)).run
+        } yield assert(exit)(succeeds(equalTo(5)))
+      }
     )
   )
 
