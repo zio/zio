@@ -579,10 +579,15 @@ Also, If we need to shutdown a `Queue` or `Hub`, once the stream is closed, we s
 
 Also, we can lift a `TQueue` to the ZIO Stream:
 
-```scala
-object ZStream {
-  def fromTQueue[A](queue: TQueue[A]): ZStream[Any, Nothing, A] = ???
-}
+```scala mdoc:silent:nest
+for {
+  q <- STM.atomically(TQueue.unbounded[Int])
+  stream = ZStream.fromTQueue(q)
+  fiber <- stream.foreach(i => putStrLn(i.toString)).fork
+  _     <- STM.atomically(q.offer(1))
+  _     <- STM.atomically(q.offer(2))
+  _     <- fiber.join
+} yield ()
 ```
 
 ### From Schedule
