@@ -104,20 +104,16 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable with Boot
     notifier.fireTestFailure(label, path, renderToString(rendered))
   }
 
-  private def renderFailureDetails(label: String, result: TestResult) =
+  private def renderFailureDetails(label: String, result: TestResult): Message =
     Message(
       result
         .fold(details =>
-          rendered(Test, label, Failed, 0, DefaultTestReporter.renderFailureDetails(details, 0).lines: _*)
-        )(
-          _ && _,
-          _ || _,
-          !_
-        )
+          rendered(Test, label, Failed, 0, DefaultTestReporter.renderAssertionResult(details, 0).lines: _*)
+        )(_ && _, _ || _, !_)
         .lines
     )
 
-  private def testDescription(label: String, path: Vector[String]) = {
+  private def testDescription(label: String, path: Vector[String]): Description = {
     val uniqueId = path.mkString(":") + ":" + label
     Description.createTestDescription(className, label, uniqueId)
   }
