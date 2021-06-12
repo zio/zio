@@ -255,12 +255,12 @@ object ReportingTestUtils {
   }
 
   val mock5Expected: Vector[String] = Vector(
-    expectedFailure("Failing layer"),
-    withOffset(2)(s"${red("- unsatisfied expectations")}"),
-    withOffset(4)(s"""zio.test.mock.module.PureModuleMock.ZeroParams with arguments ${cyan("isUnit()")}"""),
-    withOffset(2)("Fiber failed."),
-    withOffset(2)("║  ╠─A checked error was not handled."),
-    withOffset(2)("║  ║ failed!")
+    """.*Failing layer.*""",
+    """.*- unsatisfied expectations.*""",
+    """\s*zio\.test\.mock\.module\.PureModuleMock\.ZeroParams with arguments.*""",
+    """\s*Fiber failed\.""",
+    """[\s║╠]*─A checked error was not handled.""",
+    """[\s║]*failed!"""
   )
 
   def assertSourceLocation(): String = cyan(s"☛ $sourceFilePath:XXX")
