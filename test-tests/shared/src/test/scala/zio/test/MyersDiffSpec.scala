@@ -10,28 +10,28 @@ object MyersDiffSpec extends ZIOBaseSpec {
       val original = ""
       val modified = "ADDITIONS"
 
-      assert(MyersDiff.diff(original, modified).applyChanges(original))(equalTo(modified))
+      assert(MyersDiff.diff(original, modified).applyChanges(original))(equalTo(modified)) &&
       assert(MyersDiff.diff(original, modified).invert.applyChanges(modified))(equalTo(original))
     },
     test("diffing works for only deletions both ways") {
       val original = "DELETIONS"
       val modified = ""
 
-      assert(MyersDiff.diff(original, modified).applyChanges(original))(equalTo(modified))
+      assert(MyersDiff.diff(original, modified).applyChanges(original))(equalTo(modified)) &&
       assert(MyersDiff.diff(original, modified).invert.applyChanges(modified))(equalTo(original))
     },
     test("diffing works for two empty strings both ways") {
       val original = ""
       val modified = ""
 
-      assert(MyersDiff.diff(original, modified).applyChanges(original))(equalTo(modified))
+      assert(MyersDiff.diff(original, modified).applyChanges(original))(equalTo(modified)) &&
       assert(MyersDiff.diff(original, modified).invert.applyChanges(modified))(equalTo(original))
     },
     test("diffing works for Myers example both ways") {
       val original = "ABCABBA"
       val modified = "CBABAC"
 
-      assert(MyersDiff.diff(original, modified).applyChanges(original))(equalTo(modified))
+      assert(MyersDiff.diff(original, modified).applyChanges(original))(equalTo(modified)) &&
       assert(MyersDiff.diff(original, modified).invert.applyChanges(modified))(equalTo(original))
     },
     test("diffing for Myers example produces a sane DiffResult") {
@@ -59,7 +59,7 @@ object MyersDiffSpec extends ZIOBaseSpec {
     },
     testM("diffing works for all random strings both ways") {
       check(Gen.anyString, Gen.anyString) { (original, modified) =>
-        assert(MyersDiff.diff(original, modified).applyChanges(original))(equalTo(modified))
+        assert(MyersDiff.diff(original, modified).applyChanges(original))(equalTo(modified)) &&
         assert(MyersDiff.diff(original, modified).invert.applyChanges(modified))(equalTo(original))
       }
     }
