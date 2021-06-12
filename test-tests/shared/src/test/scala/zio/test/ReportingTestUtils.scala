@@ -259,7 +259,7 @@ object ReportingTestUtils {
     """.*- unsatisfied expectations.*""",
     """\s*zio\.test\.mock\.module\.PureModuleMock\.ZeroParams with arguments.*""",
     """\s*Fiber failed\.""",
-    """[\s║╠]*─A checked error was not handled.""",
+    """[\s║╠─]*A checked error was not handled.""",
     """[\s║]*failed!"""
   )
 
