@@ -54,7 +54,7 @@ object DefaultTestReporterSpec extends ZIOBaseSpec {
         assertM(runLog(mock4))(equalTo(mock4Expected.mkString + reportStats(0, 0, 1)))
       },
       testM("correctly reports failures in presence of a mock") {
-        assertM(runLog(mock5).map(_.linesIterator.toSet))(
+        assertM(runLog(mock5).map(_.linesWithSeparators.map(_.stripLineEnd).toSet))(
           mock5Expected.foldLeft[Assertion[Iterable[String]]](anything) { case (a, expectedLine) =>
             a && contains(expectedLine.stripLineEnd)
           }
