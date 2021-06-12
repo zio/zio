@@ -228,6 +228,12 @@ object UIO {
     ZIO.collectAllWithParN(n)(as)(f)
 
   /**
+   * @see See [[zio.ZIO.collectFirst]]
+   */
+  def collectFirst[A, B](as: Iterable[A])(f: A => UIO[Option[B]]): UIO[Option[B]] =
+    ZIO.collectFirst(as)(f)
+
+  /**
    * @see See [[zio.ZIO.collectPar]]
    */
   def collectPar[A, B, Collection[+Element] <: Iterable[Element]](
@@ -242,6 +248,12 @@ object UIO {
     in: Collection[A]
   )(f: A => IO[Option[Nothing], B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): UIO[Collection[B]] =
     ZIO.collectParN(n)(in)(f)
+
+  /**
+   * @see See [[zio.ZIO.cond]]
+   */
+  def debug(message: String): UIO[Unit] =
+    ZIO.debug(message)
 
   /**
    * @see See [[zio.ZIO.descriptor]]
@@ -319,6 +331,12 @@ object UIO {
    */
   def executor: UIO[Executor] =
     ZIO.executor
+
+  /**
+   * @see See [[zio.ZIO.exists]]
+   */
+  def exists[A](as: Iterable[A])(f: A => UIO[Boolean]): UIO[Boolean] =
+    ZIO.exists(as)(f)
 
   /**
    * @see [[zio.ZIO.fiberId]]
@@ -403,6 +421,12 @@ object UIO {
    */
   def foldRight[S, A](in: Iterable[A])(zero: S)(f: (A, S) => UIO[S]): UIO[S] =
     ZIO.foldRight(in)(zero)(f)
+
+  /**
+   * @see See [[zio.ZIO.forall]]
+   */
+  def forall[A](as: Iterable[A])(f: A => UIO[Boolean]): UIO[Boolean] =
+    ZIO.forall(as)(f)
 
   /**
    * @see See [[zio.ZIO.forkAll]]

@@ -120,7 +120,10 @@ lazy val root = project
     testMagnoliaJVM,
     testMagnoliaJS,
     testRefinedJVM,
-    testRefinedJS
+    testRefinedJS,
+    testScalaCheckJVM,
+    testScalaCheckJS,
+    testScalaCheckNative
   )
   .enablePlugins(ScalaJSPlugin)
 
@@ -345,7 +348,7 @@ lazy val testRefined = crossProject(JVMPlatform, JSPlatform)
     crossScalaVersions --= Seq(Scala211),
     libraryDependencies ++=
       Seq(
-        ("eu.timepit" %% "refined" % "0.9.25").cross(CrossVersion.for3Use2_13)
+        ("eu.timepit" %% "refined" % "0.9.26").cross(CrossVersion.for3Use2_13)
       )
   )
 
@@ -353,6 +356,21 @@ lazy val testRefinedJVM = testRefined.jvm
   .settings(dottySettings)
 lazy val testRefinedJS = testRefined.js
   .settings(dottySettings)
+
+lazy val testScalaCheck = crossProject(JSPlatform, JVMPlatform, NativePlatform)
+  .in(file("test-scalacheck"))
+  .dependsOn(test)
+  .settings(stdSettings("zio-test-scalacheck"))
+  .settings(crossProjectSettings)
+  .settings(
+    libraryDependencies ++= Seq(
+      ("org.scalacheck" %%% "scalacheck" % "1.15.4")
+    )
+  )
+
+lazy val testScalaCheckJVM    = test.jvm.settings(dottySettings)
+lazy val testScalaCheckJS     = test.js
+lazy val testScalaCheckNative = test.native.settings(nativeSettings)
 
 lazy val stacktracer = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("stacktracer"))
@@ -480,8 +498,8 @@ lazy val benchmarks = project.module
       Seq(
         "co.fs2"                    %% "fs2-core"       % "2.5.6",
         "com.google.code.findbugs"   % "jsr305"         % "3.0.2",
-        "com.twitter"               %% "util-core"      % "21.4.0",
-        "com.typesafe.akka"         %% "akka-stream"    % "2.6.14",
+        "com.twitter"               %% "util-core"      % "21.5.0",
+        "com.typesafe.akka"         %% "akka-stream"    % "2.6.15",
         "io.github.timwspence"      %% "cats-stm"       % "0.8.0",
         "io.monix"                  %% "monix"          % "3.4.0",
         "io.projectreactor"          % "reactor-core"   % "3.4.6",
@@ -493,7 +511,7 @@ lazy val benchmarks = project.module
         "org.typelevel"             %% "cats-effect"    % "2.5.1",
         "org.scalacheck"            %% "scalacheck"     % "1.15.4",
         "qa.hedgehog"               %% "hedgehog-core"  % "0.7.0",
-        "com.github.japgolly.nyaya" %% "nyaya-gen"      % "0.9.2"
+        "com.github.japgolly.nyaya" %% "nyaya-gen"      % "0.10.0"
       ),
     unusedCompileDependenciesFilter -= libraryDependencies.value
       .map(moduleid =>
@@ -537,10 +555,10 @@ lazy val docs = project.module
       /* to evict 1.3.0 brought in by mdoc-js */
       "org.scala-js"  % "scalajs-compiler"            % scalaJSVersion cross CrossVersion.full,
       "org.scala-js" %% "scalajs-linker"              % scalaJSVersion,
-      "dev.zio"      %% "zio-interop-cats"            % "2.4.1.0",
+      "dev.zio"      %% "zio-interop-cats"            % "2.5.1.0",
       "dev.zio"      %% "zio-interop-monix"           % "3.0.0.0-RC7",
-      "dev.zio"      %% "zio-interop-scalaz7x"        % "7.2.27.0-RC9",
-      "dev.zio"      %% "zio-interop-reactivestreams" % "1.3.4",
+      "dev.zio"      %% "zio-interop-scalaz7x"        % "7.3.3.0",
+      "dev.zio"      %% "zio-interop-reactivestreams" % "1.3.5",
       "dev.zio"      %% "zio-interop-twitter"         % "20.10.0.0"
     )
   )

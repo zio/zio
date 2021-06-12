@@ -98,7 +98,8 @@ object TestClock extends Serializable {
     clockState: Ref[TestClock.Data],
     live: Live,
     annotations: Annotations,
-    warningState: RefM[TestClock.WarningData]
+    warningState: RefM[TestClock.WarningData],
+    suspendedWarningState: RefM[TestClock.SuspendedWarningData]
   ) extends Clock
       with TestClock {
 
@@ -206,6 +207,15 @@ object TestClock extends Serializable {
       clockState.get.map(_.timeZone)
 
     /**
+     * Cancels the warning message that is displayed if a test is advancing
+     * the `TestClock` but a fiber is not suspending.
+     */
+    private[TestClock] val suspendedWarningDone: UIO[Unit] =
+      suspendedWarningState.updateSomeM[Any, Nothing] { case SuspendedWarningData.Pending(fiber) =>
+        fiber.interrupt.as(SuspendedWarningData.start)
+      }
+
+    /**
      * Cancels the warning message that is displayed if a test is using time
      * but is not advancing the `TestClock`.
      */
@@ -219,11 +229,12 @@ object TestClock extends Serializable {
      * Polls until all descendants of this fiber are done or suspended.
      */
     private lazy val awaitSuspended: UIO[Unit] =
-      suspended
-        .zipWith(live.provide(ZIO.sleep(10.milliseconds)) *> suspended)(_ == _)
-        .filterOrFail(identity)(())
-        .eventually
-        .unit
+      suspendedWarningStart *>
+        suspended
+          .zipWith(live.provide(ZIO.sleep(10.milliseconds)) *> suspended)(_ == _)
+          .filterOrFail(identity)(())
+          .eventually *>
+        suspendedWarningDone
 
     /**
      * Delays for a short period of time.
@@ -319,6 +330,22 @@ object TestClock extends Serializable {
       Instant.ofEpochMilli(duration.toMillis)
 
     /**
+     * Forks a fiber that will display a warning message if a test is
+     * advancing the `TestClock` but a fiber is not suspending.
+     */
+    private val suspendedWarningStart: UIO[Unit] =
+      suspendedWarningState.updateSomeM { case SuspendedWarningData.Start =>
+        for {
+          fiber <- live.provide {
+                     Console
+                       .printLine(suspendedWarning)
+                       .zipRight(suspendedWarningState.set(SuspendedWarningData.done))
+                       .delay(5.seconds)
+                   }.interruptible.fork
+        } yield SuspendedWarningData.pending(fiber)
+      }
+
+    /**
      * Forks a fiber that will display a warning message if a test is using
      * time but is not advancing the `TestClock`.
      */
@@ -338,11 +365,15 @@ object TestClock extends Serializable {
    */
   def live(data: Data): ZLayer[Has[Annotations] with Has[Live], Nothing, Has[Clock] with Has[TestClock]] = {
     for {
-      live        <- ZManaged.service[Live]
-      annotations <- ZManaged.service[Annotations]
-      ref         <- Ref.make(data).toManaged_
-      refM        <- RefM.make(WarningData.start).toManaged_
-      test        <- Managed.make(UIO(Test(ref, live, annotations, refM)))(_.warningDone)
+      live                  <- ZManaged.service[Live]
+      annotations           <- ZManaged.service[Annotations]
+      clockState            <- Ref.make(data).toManaged_
+      warningState          <- RefM.make(WarningData.start).toManaged_
+      suspendedWarningState <- RefM.make(SuspendedWarningData.start).toManaged_
+      test <-
+        Managed.make(UIO(Test(clockState, live, annotations, warningState, suspendedWarningState))) { test =>
+          test.warningDone *> test.suspendedWarningDone
+        }
     } yield Has.allOf(test: Clock, test: TestClock)
   }.toLayerMany
 
@@ -461,6 +492,32 @@ object TestClock extends Serializable {
     val done: WarningData = Done
   }
 
+  sealed abstract class SuspendedWarningData
+
+  object SuspendedWarningData {
+
+    case object Start                                         extends SuspendedWarningData
+    final case class Pending(fiber: Fiber[IOException, Unit]) extends SuspendedWarningData
+    case object Done                                          extends SuspendedWarningData
+
+    /**
+     * State indicating that a test has not adjusted the clock.
+     */
+    val start: SuspendedWarningData = Start
+
+    /**
+     * State indicating that a test has adjusted the clock but a fiber is
+     * still running with a reference to the fiber that will display the
+     * warning message.
+     */
+    def pending(fiber: Fiber[IOException, Unit]): SuspendedWarningData = Pending(fiber)
+
+    /**
+     * State indicating that the warning message has already been displayed.
+     */
+    val done: SuspendedWarningData = Done
+  }
+
   /**
    * The warning message that will be displayed if a test is using time but
    * is not advancing the `TestClock`.
@@ -469,4 +526,13 @@ object TestClock extends Serializable {
     "Warning: A test is using time, but is not advancing the test clock, " +
       "which may result in the test hanging. Use Has[TestClock].adjust to " +
       "manually advance the time."
+
+  /**
+   * The warning message that will be displayed if a test is advancing the
+   * clock but a fiber is still running.
+   */
+  private val suspendedWarning =
+    "Warning: A test is advancing the test clock, but a fiber is not " +
+      "suspending, which may result in the test hanging. Use " +
+      "TestAspect.diagnose to identity the fiber that is not suspending."
 }

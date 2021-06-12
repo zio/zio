@@ -20,7 +20,7 @@ import zio._
 import zio.stream.compression._
 
 import java.io._
-import java.net.InetSocketAddress
+import java.net.{InetSocketAddress, SocketAddress}
 import java.nio.channels.{AsynchronousServerSocketChannel, AsynchronousSocketChannel, CompletionHandler, FileChannel}
 import java.nio.file.StandardOpenOption._
 import java.nio.file.{OpenOption, Path}
@@ -487,6 +487,24 @@ trait ZStreamPlatformSpecificConstructors {
    * Accepted connection made to a specific channel `AsynchronousServerSocketChannel`
    */
   class Connection(socket: AsynchronousSocketChannel) {
+
+    /**
+     * The remote address, i.e. the connected client
+     */
+    def remoteAddress: IO[IOException, Option[SocketAddress]] = IO
+      .effect(
+        Option(socket.getRemoteAddress)
+      )
+      .refineToOrDie[IOException]
+
+    /**
+     * The local address, i.e. our server
+     */
+    def localAddress: IO[IOException, Option[SocketAddress]] = IO
+      .effect(
+        Option(socket.getLocalAddress)
+      )
+      .refineToOrDie[IOException]
 
     /**
      * Read the entire `AsynchronousSocketChannel` by emitting a `Chunk[Byte]`

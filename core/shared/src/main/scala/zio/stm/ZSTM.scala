@@ -74,6 +74,12 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
   import ZSTM._
 
   /**
+   * A symbolic alias for `orDie`.
+   */
+  final def !(implicit ev: E <:< Throwable, ev2: CanFail[E]): ZSTM[R, Nothing, A] =
+    self.orDie
+
+  /**
    * Alias for `<*>` and `zip`.
    */
   def &&&[R1 <: R, E1 >: E, B](that: ZSTM[R1, E1, B]): ZSTM[R1, E1, (A, B)] =
@@ -1001,6 +1007,18 @@ object ZSTM {
     foreach_(in)(ZIO.identityFn)
 
   /**
+   * Collects the first element of the `Iterable[A]` for which the effectual
+   * function `f` returns `Some`.
+   */
+  def collectFirst[R, E, A, B](as: Iterable[A])(f: A => ZSTM[R, E, Option[B]]): ZSTM[R, E, Option[B]] =
+    succeedNow(as.iterator).flatMap { iterator =>
+      def loop: ZSTM[R, E, Option[B]] =
+        if (iterator.hasNext) f(iterator.next()).flatMap(_.fold(loop)(some(_)))
+        else none
+      loop
+    }
+
+  /**
    * Similar to Either.cond, evaluate the predicate,
    * return the given A as success if predicate returns true, and the given E as error otherwise
    */
@@ -1030,6 +1048,18 @@ object ZSTM {
    * Retrieves the environment inside an stm.
    */
   def environment[R]: URSTM[R, R] = Effect((_, _, r) => r)
+
+  /**
+   * Determines whether any element of the `Iterable[A]` satisfies the
+   * effectual predicate `f`.
+   */
+  def exists[R, E, A](as: Iterable[A])(f: A => ZSTM[R, E, Boolean]): ZSTM[R, E, Boolean] =
+    succeedNow(as.iterator).flatMap { iterator =>
+      def loop: ZSTM[R, E, Boolean] =
+        if (iterator.hasNext) f(iterator.next()).flatMap(b => if (b) succeedNow(b) else loop)
+        else succeedNow(false)
+      loop
+    }
 
   /**
    * Returns a value that models failure in the transaction.
@@ -1103,6 +1133,18 @@ object ZSTM {
     in: Iterable[A]
   )(zero: S)(f: (A, S) => ZSTM[R, E, S]): ZSTM[R, E, S] =
     in.foldRight(ZSTM.succeedNow(zero): ZSTM[R, E, S])((el, acc) => acc.flatMap(f(el, _)))
+
+  /**
+   * Determines whether all elements of the `Iterable[A]` satisfy the effectual
+   * predicate `f`.
+   */
+  def forall[R, E, A](as: Iterable[A])(f: A => ZSTM[R, E, Boolean]): ZSTM[R, E, Boolean] =
+    succeedNow(as.iterator).flatMap { iterator =>
+      def loop: ZSTM[R, E, Boolean] =
+        if (iterator.hasNext) f(iterator.next()).flatMap(b => if (b) loop else succeedNow(b))
+        else succeedNow(true)
+      loop
+    }
 
   /**
    * Applies the function `f` to each element of the `Collection[A]` and
@@ -1455,6 +1497,21 @@ object ZSTM {
     partition(in)(f).flatMap {
       case (e :: es, _) => fail(::(e, es))
       case (_, bs)      => succeedNow(bf.fromSpecific(in)(bs))
+    }
+
+  /**
+   * Feeds elements of type `A` to `f` and accumulates all errors in error
+   * channel or successes in success channel.
+   *
+   * This combinator is lossy meaning that if there are errors all successes
+   * will be lost. To retain all information please use [[partition]].
+   */
+  def validate[R, E, A, B](in: NonEmptyChunk[A])(
+    f: A => ZSTM[R, E, B]
+  )(implicit ev: CanFail[E]): ZSTM[R, ::[E], NonEmptyChunk[B]] =
+    partition(in)(f).flatMap {
+      case (e :: es, _) => fail(::(e, es))
+      case (_, bs)      => succeedNow(NonEmptyChunk.nonEmpty(Chunk.fromIterable(bs)))
     }
 
   /**
