@@ -3,6 +3,14 @@ id: index
 title: "Introduction"
 ---
 
+```scala mdoc:invisible
+import zio.{ZIO, Task}
+import zio.Queue
+import zio.stream.{ZStream, ZTransducer}
+import java.nio.file.{Files, Path, Paths}
+import zio.console._
+```
+
 ## Introduction
 
 The primary goal of a streaming library is to introduce **a high-level API that abstracts the mechanism of reading and writing operations using data sources and destinations**.
@@ -28,12 +36,6 @@ So streams are everywhere. We can see all of these different things as being str
 ## Motivation
 
 Assume, we would like to take a list of numbers and grab all the prime numbers and then do some more hard work on each of these prime numbers. We can do it using `ZIO.foreachParN` and `ZIO.filterPar` operators like this:
-
-```scala mdoc:invisible
-import zio.{ZIO, Task}
-import zio.Queue
-import zio.stream.ZStream
-```
 
 ```scala mdoc:silent
 def isPrime(number: Int): Task[Boolean] = Task.succeed(???)
@@ -168,6 +170,23 @@ Streams let us work on infinite data in a finite amount of memory. When we are w
 That is because we are just building a workflow, a description of the processing. We are not manually loading up everything into memory, into a list, and then doing our processing on a list. That doesn't work very well because we can only fit a finite amount of memory into our computer at one time. 
 
 ZIO streams enable us just concentrate on our business problem, and not on how much memory this program is going to consume. So we can write these computations that work over streams that are totally infinite but in a finite amount of memory and ZIO handles that for us.
+
+Assume we have the following code. This is a snippet of a code that reads a file into a string and splits the string into new lines, then iterates over lines and prints them out. It is pretty simple and easy to read and also it is simple to understand:
+
+```scala
+for (line <- FileUtils.readFileToString(new File("file.txt")).split('\n'))
+  println(line)
+```
+
+The only problem here is that if we run this code with a file that is very large which is bigger than our memory, that is not going to work. Instead, we can reach the same functionality, by using the stream API:
+
+```scala mdoc:silent:nest
+ZStream.fromFile(Paths.get("file.txt"))
+  .transduce(ZTransducer.utf8Decode >>> ZTransducer.splitLines)
+  .foreach(putStrLn(_))
+```
+
+By using ZIO streams, we do not care how big is a file, we just concentrate on the logic of our application.
 
 ## Core Abstractions
 
