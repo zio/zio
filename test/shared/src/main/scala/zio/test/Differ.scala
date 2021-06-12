@@ -1,7 +1,8 @@
 package zio.test
 
 import zio.Chunk
-import zio.test.render.LogLine.Message
+import zio.test.render.LogLine._
+import zio.test.render._
 
 trait OptionalImplicit[A] {
   def value: Option[A]
@@ -39,19 +40,19 @@ object Diff {
       case _                => true
     })
 
-    deleted.map(red("- ") +: _) ++ inserted.map(green("+ ") +: _)
+    deleted.map(error("- ") +: _) ++ inserted.map(info("+ ") +: _)
   }
 
   private def renderColor(actions: Chunk[Action]) =
     actions
-      .foldLeft(Line(Vector(Fragment(scala.Console.RESET)))) { (acc, action) =>
+      .foldLeft(Line.empty) { (acc, action) =>
         action match {
           case Action.Delete(s) =>
-            acc :+ redUnderlined(s)
+            acc :+ error(s).underlined
           case Action.Insert(s) =>
-            acc :+ greenUnderlined(s)
+            acc :+ info(s).underlined
           case Action.Keep(s) =>
-            acc :+ Fragment(s)
+            acc :+ fr(s)
         }
       }
       .toMessage

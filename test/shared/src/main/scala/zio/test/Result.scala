@@ -3,6 +3,7 @@ package zio.test
 import zio.Chunk
 import zio.test.Arrow.Span
 import zio.test.ConsoleUtils._
+import zio.test.render.LogLine.Message
 
 import scala.annotation.tailrec
 
@@ -41,7 +42,7 @@ object Result {
 }
 
 case class FailureCase(
-  errorMessage: String,
+  errorMessage: Message,
   codeString: String,
   location: String,
   path: Chunk[(String, Any)],
@@ -114,31 +115,4 @@ object FailureCase {
       node.result
     )
   }
-
-  def renderFailureCase(failureCase: FailureCase, isNested: Boolean = false): Chunk[String] =
-    failureCase match {
-      case FailureCase(errorMessage, _, _, path, _, _, _) if isNested =>
-        val errorMessageLines =
-          Chunk.fromIterable(errorMessage.split("\n")) match {
-            case head +: tail => (red("• ") + head) +: tail.map(red("  ") + _)
-            case _            => Chunk.empty
-          }
-
-        errorMessageLines ++
-          Chunk.fromIterable(path.drop(path.length - 1).map { case (label, value) =>
-            dim(s"$label = ") + blue(value.toString)
-          })
-
-      case FailureCase(errorMessage, codeString, location, path, _, nested, _) =>
-        val errorMessageLines =
-          Chunk.fromIterable(errorMessage.split("\n")) match {
-            case head +: tail => (red("• ") + head) +: tail.map(red("  ") + _)
-            case _            => Chunk.empty
-          }
-
-        errorMessageLines ++ Chunk(codeString) ++ nested.flatMap(renderFailureCase(_, true)).map("  " + _) ++
-          Chunk.fromIterable(path.map { case (label, value) => dim(s"$label = ") + blue(value.toString) }) ++
-          Chunk(cyan(s"☛ $location")) ++ Chunk("")
-
-    }
 }

@@ -21,7 +21,7 @@ import zio.test.render.LogLine.Fragment.Style
 object LogLine {
   case class Message(lines: Vector[Line] = Vector.empty) {
     def +:(line: Line) = Message(line +: lines)
-    def +:(fragment: Fragment): Message = Message(lines match {
+    def :+(fragment: Fragment): Message = Message(lines match {
       case line +: lines => (fragment +: line) +: lines
       case _             => Vector(fragment.toLine)
     })
@@ -68,22 +68,35 @@ object LogLine {
     def fromString(text: String, offset: Int = 0): Line = Fragment(text).toLine.withOffset(offset)
     val empty: Line                                     = Line()
   }
-  case class Fragment(text: String, style: Style = Style.Default) {
+  case class Fragment(text: String, style: Style = Style.Default) { self =>
     def +:(line: Line)            = prepend(line)
     def prepend(line: Line): Line = Line(this +: line.fragments, line.offset)
     def +(f: Fragment)            = Line(Vector(this, f))
     def toLine: Line              = Line(Vector(this))
+    def *(n: Int)                 = copy(text = text * n)
+
+    def bold: Fragment =
+      copy(style = Style.Bold(self))
+
+    def underlined: Fragment =
+      copy(style = Style.Underlined(self))
+
+    def ansi(ansiColor: String): Fragment =
+      copy(style = Style.Ansi(self, ansiColor))
   }
   object Fragment {
     sealed trait Style
     object Style {
-      case object Primary           extends Style
-      case object Default           extends Style
-      case object Warning           extends Style
-      case object Error             extends Style
-      case object Info              extends Style
-      case object Detail            extends Style
-      case class Bold(fr: Fragment) extends Style
+      case object Primary                                    extends Style
+      case object Default                                    extends Style
+      case object Warning                                    extends Style
+      case object Error                                      extends Style
+      case object Info                                       extends Style
+      case object Detail                                     extends Style
+      case object Dimmed                                     extends Style
+      final case class Bold(fr: Fragment)                    extends Style
+      final case class Underlined(fr: Fragment)              extends Style
+      final case class Ansi(fr: Fragment, ansiColor: String) extends Style
     }
   }
 }

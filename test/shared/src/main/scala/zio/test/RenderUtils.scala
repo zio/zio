@@ -44,4 +44,9 @@ private[test] object ConsoleUtils {
   def bold(s: String): String =
     SConsole.BOLD + s + SConsole.RESET
 
+  def underlined(s: String): String =
+    SConsole.UNDERLINED + s + SConsole.RESET
+
+  def ansi(ansiColor: String, s: String): String =
+    ansiColor + s + SConsole.RESET
 }

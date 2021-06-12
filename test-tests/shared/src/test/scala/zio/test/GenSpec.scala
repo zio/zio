@@ -3,7 +3,7 @@ package zio.test
 import zio._
 import zio.test.Assertion._
 import zio.test.AssertionResult.FailureDetailsResult
-import zio.test.GenUtils._
+import zio.test.GenUtils.{random, _}
 import zio.test.TestAspect.{nonFlaky, scala2Only, setSeed}
 import zio.test.{check => Check, checkN => CheckN}
 

@@ -1,6 +1,6 @@
 package zio.test
 
-import zio.duration.durationInt
+import zio.durationInt
 import zio.test.SmartTestTypes._
 import zio.test.environment.TestClock
 
@@ -66,7 +66,7 @@ object SmartAssertionSpec extends ZIOBaseSpec {
         assertTrue(array.head == 3)
       },
       test("Object constructor") {
-        assertTrue(zio.duration.Duration.fromNanos(1000) == zio.duration.Duration.Zero)
+        assertTrue(zio.Duration.fromNanos(1000) == zio.Duration.Zero)
       }
     ) @@ failing,
     suite("contains")(
@@ -154,7 +154,7 @@ object SmartAssertionSpec extends ZIOBaseSpec {
       assertTrue("Howdy".endsWith("no"))
     } @@ failing,
     test("duration equality") {
-      assertTrue(zio.duration.Duration.fromNanos(1000) == zio.duration.Duration.Zero)
+      assertTrue(zio.Duration.fromNanos(1000) == zio.Duration.Zero)
     } @@ failing,
     test("string contains") {
       assertTrue("FUNNY HOUSE".contains("OH NO"))

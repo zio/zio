@@ -106,9 +106,11 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable with Boot
 
   private def renderFailureDetails(label: String, result: TestResult): Message =
     Message(
-      result.fold { result =>
-        RenderedResult(Test, label, Failed, 0, DefaultTestReporter.renderAssertionResult(result, 0).lines)
-      }(_ && _, _ || _, !_).lines
+      result
+        .fold(details =>
+          rendered(Test, label, Failed, 0, DefaultTestReporter.renderAssertionResult(details, 0).lines: _*)
+        )(_ && _, _ || _, !_)
+        .lines
     )
 
   private def testDescription(label: String, path: Vector[String]): Description = {

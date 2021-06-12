@@ -96,7 +96,9 @@ object DefaultTestReporter {
                   _.map(!_)
                 )
                 .map {
-                  _.fold(details => rendered(Test, label, Failed, depth, renderFailure(label, depth, details).lines: _*))(
+                  _.fold(details =>
+                    rendered(Test, label, Failed, depth, renderFailure(label, depth, details).lines: _*)
+                  )(
                     _ && _,
                     _ || _,
                     !_
@@ -106,7 +108,7 @@ object DefaultTestReporter {
             case Left(TestFailure.Runtime(cause)) =>
               Some(renderRuntimeCause(cause, label, depth, includeCause))
           }
-      renderedResult.map(r => Seq(r.withAnnotations(annotations :: ancestors))).getOrElse(Seq.empty)
+          renderedResult.map(r => Seq(r.withAnnotations(annotations :: ancestors))).getOrElse(Seq.empty)
       }
 
     loop(executedSpec, 0, List.empty)
@@ -172,15 +174,41 @@ object DefaultTestReporter {
         failures
           .map(fc =>
             renderGenFailureDetails(genFailureDetails, offset) ++
-              Message(
-                FailureCase.renderFailureCase(fc).map(Line.fromString(_, offset + tabSize))
-              )
+              Message(renderFailureCase(fc, offset))
           )
           .foldLeft(Message.empty)(_ ++ _)
 
       case AssertionResult.FailureDetailsResult(failureDetails, genFailureDetails) =>
         renderGenFailureDetails(genFailureDetails, offset) ++
           renderFailureDetails(failureDetails, offset)
+    }
+
+  def renderFailureCase(failureCase: FailureCase, offset: Int, isNested: Boolean = false): Chunk[Line] =
+    failureCase match {
+      case FailureCase(errorMessage, _, _, path, _, _, _) if isNested =>
+        val errorMessageLines =
+          Chunk.fromIterable(errorMessage.lines) match {
+            case head +: tail => (error("• ") +: head) +: tail.map(error("  ") +: _)
+            case _            => Chunk.empty
+          }
+
+        errorMessageLines ++
+          Chunk.fromIterable(path.drop(path.length - 1).map { case (label, value) =>
+            dim(s"$label = ") + primary(value.toString)
+          })
+
+      case FailureCase(errorMessage, codeString, location, path, _, nested, _) =>
+        val errorMessageLines =
+          Chunk.fromIterable(errorMessage.lines) match {
+            case head +: tail => (error("• ") +: head) +: tail.map(error("  ") +: _)
+            case _            => Chunk.empty
+          }
+
+        errorMessageLines ++ Chunk(Line.fromString(codeString, offset)) ++ (nested
+          .flatMap(renderFailureCase(_, offset, true))
+          .map(_.withOffset(offset + tabSize)) ++
+          Chunk.fromIterable(path.map { case (label, value) => dim(s"$label = ") + primary(value.toString) }) ++
+          Chunk(detail(s"☛ $location").toLine))
     }
 
   private def renderAssertionFailureDetails(failureDetails: ::[AssertionValue], offset: Int): Message = {
@@ -200,7 +228,7 @@ object DefaultTestReporter {
   }
 
   private def renderAssertionLocation(av: AssertionValue, offset: Int) = av.sourceLocation.fold(Message()) { location =>
-    primary(s"☛ $location").toLine
+    detail(s"☛ $location").toLine
       .withOffset(offset + tabSize)
       .toMessage
   }
