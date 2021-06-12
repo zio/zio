@@ -6,8 +6,8 @@ import zio.test.environment.{TestClock, TestConsole, TestEnvironment, testEnviro
 import zio.test.mock.Expectation._
 import zio.test.mock.internal.InvalidCall._
 import zio.test.mock.internal.MockException._
-import zio.test.mock.module.PureModuleMock
-import zio.{Cause, Layer, ZIO}
+import zio.test.mock.module.{PureModule, PureModuleMock}
+import zio.{Cause, Has, Layer, ULayer, ZIO, ZLayer}
 
 import java.util.regex.Pattern
 import scala.{Console => SConsole}
@@ -244,6 +244,23 @@ object ReportingTestUtils {
   val mock4Expected: Vector[String] = Vector(
     expectedFailure("Invalid range"),
     withOffset(2)(s"""${red("- invalid repetition range 4 to 2 by -1")}\n""")
+  )
+
+  val mock5: ZSpec[Any, String] = {
+    val failingLayer: ZLayer[Any, String, Has[String]] = ZIO.fail("failed!").toLayer
+    val mock: ULayer[PureModule]                       = PureModuleMock.ZeroParams(value("mocked"))
+    val f: ZIO[Has[String] with PureModule, String, String] =
+      ZIO.serviceWith[PureModule.Service](_.zeroParams) <* ZIO.service[String]
+    testM("Failing layer")(assertM(f.provideLayer(failingLayer ++ mock).untraced)(equalTo("mocked")))
+  }
+
+  val mock5Expected: Vector[String] = Vector(
+    expectedFailure("Failing layer"),
+    withOffset(2)(s"${red("- unsatisfied expectations")}"),
+    withOffset(4)(s"""zio.test.mock.module.PureModuleMock.ZeroParams with arguments ${cyan("isUnit()")}"""),
+    withOffset(2)("Fiber failed."),
+    withOffset(2)("║  ╠─A checked error was not handled."),
+    withOffset(2)("║  ║ failed!")
   )
 
   def assertSourceLocation(): String = cyan(s"☛ $sourceFilePath:XXX")
