@@ -435,6 +435,16 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
     fold(_ => (), _ => ())
 
   /**
+   * Returns a new managed effect that ignores defects in finalizers.
+   */
+  def ignoreReleaseFailures: ZManaged[R, E, A] =
+    ZManaged(
+      ZIO
+        .environment[(R, ReleaseMap)]
+        .tap(_._2.updateAll(finalizer => exit => finalizer(exit).catchAllCause(_ => ZIO.unit))) *> zio
+    )
+
+  /**
    * Returns whether this managed effect is a failure.
    */
   def isFailure: ZManaged[R, Nothing, Boolean] =
@@ -1171,8 +1181,9 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
 object ZManaged extends ZManagedPlatformSpecific {
 
   private sealed abstract class State
-  private final case class Exited(nextKey: Long, exit: Exit[Any, Any])            extends State
-  private final case class Running(nextKey: Long, finalizers: LongMap[Finalizer]) extends State
+  private final case class Exited(nextKey: Long, exit: Exit[Any, Any], update: Finalizer => Finalizer) extends State
+  private final case class Running(nextKey: Long, finalizers: LongMap[Finalizer], update: Finalizer => Finalizer)
+      extends State
 
   final class AccessPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[A](f: R => A): ZManaged[R, Nothing, A] =
@@ -1298,6 +1309,12 @@ object ZManaged extends ZManagedPlatformSpecific {
      * finalizer will be run immediately.
      */
     def replace(key: Key, finalizer: Finalizer): UIO[Option[Finalizer]]
+
+    /**
+     * Updates the finalizers associated with this scope using the specified
+     * function.
+     */
+    def updateAll(f: Finalizer => Finalizer): UIO[Unit]
   }
 
   object ReleaseMap {
@@ -1325,7 +1342,7 @@ object ZManaged extends ZManagedPlatformSpecific {
         else if (l == Long.MinValue) Long.MaxValue
         else l - 1
 
-      Ref.make[State](Running(initialKey, LongMap.empty)).map { ref =>
+      Ref.make[State](Running(initialKey, LongMap.empty, finalizer => finalizer)).map { ref =>
         new ReleaseMap {
           type Key = Long
 
@@ -1337,52 +1354,61 @@ object ZManaged extends ZManagedPlatformSpecific {
 
           def addIfOpen(finalizer: Finalizer): UIO[Option[Key]] =
             ref.modify {
-              case Exited(nextKey, exit) =>
-                finalizer(exit).as(None) -> Exited(next(nextKey), exit)
-              case Running(nextKey, fins) =>
-                UIO.succeed(Some(nextKey)) -> Running(next(nextKey), fins + (nextKey -> finalizer))
+              case Exited(nextKey, exit, update) =>
+                finalizer(exit).as(None) -> Exited(next(nextKey), exit, update)
+              case Running(nextKey, fins, update) =>
+                UIO.succeed(Some(nextKey)) -> Running(next(nextKey), fins + (nextKey -> finalizer), update)
             }.flatten
+
+          def get(key: Key): UIO[Option[Finalizer]] =
+            ref.get.map {
+              case Exited(_, _, _)     => None
+              case Running(_, fins, _) => fins get key
+            }
 
           def release(key: Key, exit: Exit[Any, Any]): UIO[Any] =
             ref.modify {
-              case s @ Exited(_, _) => (UIO.unit, s)
-              case s @ Running(_, fins) =>
-                (fins.get(key).fold(UIO.unit: UIO[Any])(_(exit)), s.copy(finalizers = fins - key))
+              case s @ Exited(_, _, _) => (UIO.unit, s)
+              case s @ Running(_, fins, update) =>
+                (
+                  fins.get(key).fold(UIO.unit: UIO[Any])(fin => update(fin)(exit)),
+                  s.copy(finalizers = fins - key)
+                )
             }.flatten
 
           def releaseAll(exit: Exit[Any, Any], execStrategy: ExecutionStrategy): UIO[Any] =
             ref.modify {
-              case s @ Exited(_, _) => (UIO.unit, s)
-              case Running(nextKey, fins) =>
+              case s @ Exited(_, _, _) => (UIO.unit, s)
+              case Running(nextKey, fins, update) =>
                 execStrategy match {
                   case ExecutionStrategy.Sequential =>
                     (
                       ZIO
                         .foreach(fins: Iterable[(Long, Finalizer)]) { case (_, fin) =>
-                          fin.apply(exit).run
+                          update(fin).apply(exit).run
                         }
                         .flatMap(results => ZIO.done(Exit.collectAll(results) getOrElse Exit.unit)),
-                      Exited(nextKey, exit)
+                      Exited(nextKey, exit, update)
                     )
 
                   case ExecutionStrategy.Parallel =>
                     (
                       ZIO
                         .foreachPar(fins: Iterable[(Long, Finalizer)]) { case (_, finalizer) =>
-                          finalizer(exit).run
+                          update(finalizer)(exit).run
                         }
                         .flatMap(results => ZIO.done(Exit.collectAllPar(results) getOrElse Exit.unit)),
-                      Exited(nextKey, exit)
+                      Exited(nextKey, exit, update)
                     )
 
                   case ExecutionStrategy.ParallelN(n) =>
                     (
                       ZIO
                         .foreachParN(n)(fins: Iterable[(Long, Finalizer)]) { case (_, finalizer) =>
-                          finalizer(exit).run
+                          update(finalizer)(exit).run
                         }
                         .flatMap(results => ZIO.done(Exit.collectAllPar(results) getOrElse Exit.unit)),
-                      Exited(nextKey, exit)
+                      Exited(nextKey, exit, update)
                     )
 
                 }
@@ -1390,22 +1416,22 @@ object ZManaged extends ZManagedPlatformSpecific {
 
           def remove(key: Key): UIO[Option[Finalizer]] =
             ref.modify {
-              case Exited(nk, exit)  => (None, Exited(nk, exit))
-              case Running(nk, fins) => (fins get key, Running(nk, fins - key))
+              case Exited(nk, exit, update)  => (None, Exited(nk, exit, update))
+              case Running(nk, fins, update) => (fins get key, Running(nk, fins - key, update))
             }
 
           def replace(key: Key, finalizer: Finalizer): UIO[Option[Finalizer]] =
             ref.modify {
-              case Exited(nk, exit)  => (finalizer(exit).as(None), Exited(nk, exit))
-              case Running(nk, fins) => (UIO.succeed(fins get key), Running(nk, fins + (key -> finalizer)))
+              case Exited(nk, exit, update) => (finalizer(exit).as(None), Exited(nk, exit, update))
+              case Running(nk, fins, update) =>
+                (UIO.succeed(fins get key), Running(nk, fins + (key -> finalizer), update))
             }.flatten
 
-          def get(key: Key): UIO[Option[Finalizer]] =
-            ref.get.map {
-              case Exited(_, _)     => None
-              case Running(_, fins) => fins get key
+          def updateAll(f: Finalizer => Finalizer): UIO[Unit] =
+            ref.update {
+              case Exited(key, exit, update)  => Exited(key, exit, update.andThen(f))
+              case Running(key, exit, update) => Running(key, exit, update.andThen(f))
             }
-
         }
       }
     }
