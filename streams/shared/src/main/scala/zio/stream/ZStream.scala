@@ -3646,7 +3646,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     fromChunkHubManaged(hub).map(_.ensuringFirst(hub.shutdown))
 
   /**
-   * Creates a stream from a [[zio.ZQueue]] of values
+   * Creates a stream from a queue of values
    */
   def fromChunkQueue[R, E, O](queue: ZQueue[Nothing, R, Any, E, Nothing, Chunk[O]]): ZStream[R, E, O] =
     repeatEffectChunkOption {
@@ -3660,7 +3660,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     }
 
   /**
-   * Creates a stream from a [[zio.ZQueue]] of values. The queue will be shutdown once the stream is closed.
+   * Creates a stream from a queue of values. The queue will be shutdown once the stream is closed.
    */
   def fromChunkQueueWithShutdown[R, E, O](queue: ZQueue[Nothing, R, Any, E, Nothing, Chunk[O]]): ZStream[R, E, O] =
     fromChunkQueue(queue).ensuringFirst(queue.shutdown)
@@ -3852,7 +3852,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     }
 
   /**
-   * Creates a stream from a [[zio.ZQueue]] of values
+   * Creates a stream from a queue of values
    *
    * @param maxChunkSize Maximum number of queued elements to put in one chunk in the stream
    */
@@ -3873,7 +3873,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     }
 
   /**
-   * Creates a stream from a [[zio.ZQueue]] of values. The queue will be shutdown once the stream is closed.
+   * Creates a stream from a queue of values. The queue will be shutdown once the stream is closed.
    *
    * @param maxChunkSize Maximum number of queued elements to put in one chunk in the stream
    */

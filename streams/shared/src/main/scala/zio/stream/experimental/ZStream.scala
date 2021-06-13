@@ -242,41 +242,31 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     mapError(f).map(g)
 
   /**
-   * Fan out the stream, producing a list of streams that have the same elements as this stream.
-   * The driver stream will only ever advance of the `maximumLag` chunks before the
-   * slowest downstream stream.
+   * Fan out the stream, producing a list of streams that have the same
+   * elements as this stream. The driver stream will only ever advance the
+   * `maximumLag` chunks before the slowest downstream stream.
    */
   final def broadcast(n: Int, maximumLag: Int): ZManaged[R, Nothing, List[ZStream[Any, E, A]]] =
     self
       .broadcastedQueues(n, maximumLag)
-      .map(
-        _.map(
-          ZStream
-            .fromQueueWithShutdown(_)
-            .flattenTake
-        )
-      )
+      .map(_.map(ZStream.fromQueueWithShutdown(_).flattenTake))
 
   /**
-   * Fan out the stream, producing a dynamic number of streams that have the same elements as this stream.
-   * The driver stream will only ever advance of the `maximumLag` chunks before the
-   * slowest downstream stream.
+   * Fan out the stream, producing a dynamic number of streams that have the
+   * same elements as this stream. The driver stream will only ever advance the
+   * `maximumLag` chunks before the slowest downstream stream.
    */
   final def broadcastDynamic(
     maximumLag: Int
   ): ZManaged[R, Nothing, ZStream[Any, E, A]] =
     self
       .broadcastedQueuesDynamic(maximumLag)
-      .map(
-        ZStream
-          .managed(_)
-          .flatMap(queue => ZStream.fromQueue(queue))
-          .flattenTake
-      )
+      .map(ZStream.managed(_).flatMap(ZStream.fromQueue(_)).flattenTake)
 
   /**
-   * Converts the stream to a managed list of queues. Every value will be replicated to every queue with the
-   * slowest queue being allowed to buffer `maximumLag` chunks before the driver is backpressured.
+   * Converts the stream to a managed list of queues. Every value will be
+   * replicated to every queue with the slowest queue being allowed to buffer
+   * `maximumLag` chunks before the driver is back pressured.
    *
    * Queues can unsubscribe from upstream by shutting down.
    */
@@ -291,8 +281,9 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     } yield queues
 
   /**
-   * Converts the stream to a managed dynamic amount of queues. Every chunk will be replicated to every queue with the
-   * slowest queue being allowed to buffer `maximumLag` chunks before the driver is backpressured.
+   * Converts the stream to a managed dynamic amount of queues. Every chunk
+   * will be replicated to every queue with the slowest queue being allowed to
+   * buffer `maximumLag` chunks before the driver is back pressured.
    *
    * Queues can unsubscribe from upstream by shutting down.
    */
@@ -1694,8 +1685,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     runIntoManaged(queue).use_(UIO.unit)
 
   /**
-   * Publishes elements of this stream to a hub. Stream failure and ending will also be
-   * signalled.
+   * Publishes elements of this stream to a hub. Stream failure and ending will
+   * also be signalled.
    */
   final def runIntoHub[R1 <: R, E1 >: E](
     hub: ZHub[R1, Nothing, Nothing, Any, Take[E1, A], Any]
@@ -1703,8 +1694,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     runInto(hub.toQueue)
 
   /**
-   * Like [[ZStream#runIntoHub]], but provides the result as a [[ZManaged]] to allow for scope
-   * composition.
+   * Like [[ZStream#runIntoHub]], but provides the result as a [[ZManaged]] to
+   * allow for scope composition.
    */
   final def runIntoHubManaged[R1 <: R, E1 >: E](
     hub: ZHub[R1, Nothing, Nothing, Any, Take[E1, A], Any]
@@ -2794,8 +2785,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   }
 
   /**
-   * Converts the stream to a managed hub of chunks. After the managed hub is used,
-   * the hub will never again produce values and should be discarded.
+   * Converts the stream to a managed hub of chunks. After the managed hub is
+   * used, the hub will never again produce values and should be discarded.
    */
   def toHub(capacity: Int): ZManaged[R, Nothing, ZHub[Nothing, Any, Any, Nothing, Nothing, Take[E, A]]] =
     for {
@@ -3428,19 +3419,43 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     new ZStream(ZChannel.effectSuspendTotal(ZChannel.write(c)))
 
   /**
-   * Creates a stream from a [[zio.ZHub]]. The hub will be shutdown once the stream is closed.
+   * Creates a stream from a subscription to a hub.
    */
   def fromChunkHub[R, E, O](hub: ZHub[Nothing, R, Any, E, Nothing, Chunk[O]]): ZStream[R, E, O] =
     managed(hub.subscribe).flatMap(queue => fromChunkQueue(queue))
 
   /**
-   * Creates a stream from a [[zio.ZHub]] of values. The hub will be shutdown once the stream is closed.
+   * Creates a stream from a subscription to a hub in the context of a managed
+   * effect. The managed effect describes subscribing to receive messages from
+   * the hub while the stream describes taking messages from the hub.
+   */
+  def fromChunkHubManaged[R, E, O](
+    hub: ZHub[Nothing, R, Any, E, Nothing, Chunk[O]]
+  ): ZManaged[Any, Nothing, ZStream[R, E, O]] =
+    hub.subscribe.map(queue => fromChunkQueue(queue))
+
+  /**
+   * Creates a stream from a subscription to a hub.
+   *
+   * The hub will be shut down once the stream is closed.
    */
   def fromChunkHubWithShutdown[R, E, O](hub: ZHub[Nothing, R, Any, E, Nothing, Chunk[O]]): ZStream[R, E, O] =
     fromChunkHub(hub).ensuringFirst(hub.shutdown)
 
   /**
-   * Creates a stream from a [[zio.ZQueue]] of values
+   * Creates a stream from a subscription to a hub in the context of a managed
+   * effect. The managed effect describes subscribing to receive messages from
+   * the hub while the stream describes taking messages from the hub.
+   *
+   * The hub will be shut down once the stream is closed.
+   */
+  def fromChunkHubManagedWithShutdown[R, E, O](
+    hub: ZHub[Nothing, R, Any, E, Nothing, Chunk[O]]
+  ): ZManaged[Any, Nothing, ZStream[R, E, O]] =
+    fromChunkHubManaged(hub).map(_.ensuringFirst(hub.shutdown))
+
+  /**
+   * Creates a stream from a queue of values
    */
   def fromChunkQueue[R, E, O](queue: ZQueue[Nothing, R, Any, E, Nothing, Chunk[O]]): ZStream[R, E, O] =
     repeatEffectChunkOption {
@@ -3454,7 +3469,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     }
 
   /**
-   * Creates a stream from a [[zio.ZQueue]] of values. The queue will be shutdown once the stream is closed.
+   * Creates a stream from a queue of values. The queue will be shutdown once the stream is closed.
    */
   def fromChunkQueueWithShutdown[R, E, O](queue: ZQueue[Nothing, R, Any, E, Nothing, Chunk[O]]): ZStream[R, E, O] =
     fromChunkQueue(queue).ensuringFirst(queue.shutdown)
@@ -3490,14 +3505,46 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   /**
    * Creates a stream from a subscription to a hub.
    */
-  def fromHub[R, E, A](hub: ZHub[Nothing, R, Any, E, Nothing, A]): ZStream[R, E, A] =
-    managed(hub.subscribe).flatMap(queue => fromQueue(queue))
+  def fromHub[R, E, A](
+    hub: ZHub[Nothing, R, Any, E, Nothing, A],
+    maxChunkSize: Int = DefaultChunkSize
+  ): ZStream[R, E, A] =
+    managed(hub.subscribe).flatMap(queue => fromQueue(queue, maxChunkSize))
+
+  /**
+   * Creates a stream from a subscription to a hub in the context of a managed
+   * effect. The managed effect describes subscribing to receive messages from
+   * the hub while the stream describes taking messages from the hub.
+   */
+  def fromHubManaged[R, E, A](
+    hub: ZHub[Nothing, R, Any, E, Nothing, A],
+    maxChunkSize: Int = DefaultChunkSize
+  ): ZManaged[Any, Nothing, ZStream[R, E, A]] =
+    hub.subscribe.map(queue => fromQueueWithShutdown(queue, maxChunkSize))
 
   /**
    * Creates a stream from a subscription to a hub.
+   *
+   * The hub will be shut down once the stream is closed.
    */
-  def fromHubWithShutdown[R, E, A](hub: ZHub[Nothing, R, Any, E, Nothing, A]): ZStream[R, E, A] =
-    fromHub(hub).ensuringFirst(hub.shutdown)
+  def fromHubWithShutdown[R, E, A](
+    hub: ZHub[Nothing, R, Any, E, Nothing, A],
+    maxChunkSize: Int = DefaultChunkSize
+  ): ZStream[R, E, A] =
+    fromHub(hub, maxChunkSize).ensuringFirst(hub.shutdown)
+
+  /**
+   * Creates a stream from a subscription to a hub in the context of a managed
+   * effect. The managed effect describes subscribing to receive messages from
+   * the hub while the stream describes taking messages from the hub.
+   *
+   * The hub will be shut down once the stream is closed.
+   */
+  def fromHubManagedWithShutdown[R, E, A](
+    hub: ZHub[Nothing, R, Any, E, Nothing, A],
+    maxChunkSize: Int = DefaultChunkSize
+  ): ZManaged[Any, Nothing, ZStream[R, E, A]] =
+    fromHubManaged(hub, maxChunkSize).map(_.ensuringFirst(hub.shutdown))
 
   /**
    * Creates a stream from an iterable collection of values
@@ -3608,7 +3655,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     }
 
   /**
-   * Creates a stream from a [[zio.ZQueue]] of values
+   * Creates a stream from a queue of values
    *
    * @param maxChunkSize Maximum number of queued elements to put in one chunk in the stream
    */
@@ -3629,7 +3676,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     }
 
   /**
-   * Creates a stream from a [[zio.ZQueue]] of values. The queue will be shutdown once the stream is closed.
+   * Creates a stream from a queue of values. The queue will be shutdown once the stream is closed.
    *
    * @param maxChunkSize Maximum number of queued elements to put in one chunk in the stream
    */
