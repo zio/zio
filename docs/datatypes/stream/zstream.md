@@ -1630,14 +1630,33 @@ abstract class ZStream[-R, +E, +O] {
 }
 ```
 
-And here is an example of using this aggregator:
+When we are doing I/O, batching is very important. With ZIO streams, we can create user-defined batches. It is pretty easy to do that with the `ZStream#aggregateAsyncWithin` operator. Let's see the below snippet code:
+
+```scala mdoc:invisible
+case class Record()
+val dataStream: ZStream[Any, Nothing, Record] = ZStream.repeat(Record())
+```
 
 ```scala mdoc:silent:nest
-val myApp = 
- source.aggregateAsyncWithin(
-   ZTransducer.collectAllN[Int](10),
-   Schedule.duration(500.millis)
+dataStream.aggregateAsyncWithin(
+   ZTransducer.collectAllN(2000),
+   Schedule.fixed(30.seconds)
  )
+```
+
+So it will collect elements into a chunk up to 2000 elements and if we have got less than 2000 elements and 30 seconds have passed, it will pass currently collected elements down the stream whether it has collected zero, one, or 2000 elements. So this is a sort of timeout for aggregation operation. This approach aggressively favors **throughput** over **latency**. It will introduce a fixed amount of latency into a stream. We will always wait for up to 30 seconds if we haven't reached this sort of boundary value.
+
+Instead, thanks to `Schedule` we can create a much smarter **adaptive batching algorithm** that can balance between **throughput** and **latency*. So what we are doing here is that we are creating a schedule that operates on chunks of records. What the `Schedule` does is that it starts off with 30-second timeouts for as long as its input has a size that is lower than 1000, now once we see an input that has a size look higher than 1000, we will switch to a second schedule with some jittery, and we will remain with this schedule for as long as the batch size is over 1000:
+
+```scala mdoc:silent:nest
+val schedule: Schedule[Clock with Random, Chunk[Chunk[Record]], Long] =
+  // Start off with 30-second timeouts as long as the batch size is < 1000
+  Schedule.fixed(30.seconds).whileInput[Chunk[Chunk[Record]]](_.flatten.length < 100) andThen
+    // and then, switch to a shorter jittered schedule for as long as batches remain over 1000
+    Schedule.fixed(5.seconds).jittered.whileInput[Chunk[Chunk[Record]]](_.flatten.length >= 1000)
+    
+dataStream
+  .aggregateAsyncWithin(ZTransducer.collectAllN(2000), schedule)
 ```
 
 ## Scheduling
