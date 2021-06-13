@@ -9,6 +9,7 @@ import zio.Queue
 import zio.stream.{ZStream, ZTransducer}
 import java.nio.file.{Files, Path, Paths}
 import zio.console._
+import java.io.IOException
 ```
 
 ## Introduction
@@ -187,6 +188,65 @@ ZStream.fromFile(Paths.get("file.txt"))
 ```
 
 By using ZIO streams, we do not care how big is a file, we just concentrate on the logic of our application.
+
+### 9. Application Composition
+
+Usually, micro-services or long-running applications are composed of multiple components that need to run infinitely in the background and if something happens to them, or they terminate abruptly we should crash the entire application.
+
+So our main fiber should perform these three things:
+
+* **Launch and wait** — It should launch all of those background components and wait infinitely. It should not exit prematurely, because then our application won't be running.
+* **Interrupt everything** — It should interrupt all those components whenever we receive a termination signal from the operating system.
+* **Watch all fibers** — It should watch all those fibers (background components), and quickly exit if something goes wrong.
+
+So how should we do that with our main fiber? Let's try to create a long-running application:
+
+```scala 
+val main = 
+  kafkaConsumer.runDrain.fork *>
+  httpServer.fork *>
+  scheduledJobRunner.fork *>
+  ZIO.never
+```
+
+We can launch the Kafka consumer, the HTTP server, and our job runner and fork them, and then wait using `ZIO.never`. This will indeed wait, but if something happens to any of them and if they crash, nothing happens. So our application just hangs and remains up without anything working in the background. So this approach does not work properly.
+
+So another idea is to watch background components. The `ZIO#forkManaged` enables us to race all forked fibers in a `ZManaged` context. By using `ZIO.raceAll` as soon as one of those fibers terminates with either success or failure, it will interrupt all the rest components as the part of the release action of `ZManaged`:
+
+```scala mdoc:invisible
+val kafkaConsumer     : ZStream[Any, Nothing, Int] = ZStream.fromEffect(ZIO.succeed(???))
+val httpServer        : ZIO[Any, Nothing, Nothing] = ZIO.never
+val scheduledJobRunner: ZIO[Any, Nothing, Nothing] = ZIO.never
+```
+
+```scala mdoc:silent:nest
+val managedApp = for {
+  kafka <- kafkaConsumer.runDrain.forkManaged
+  http  <- httpServer.forkManaged
+  jobs  <- scheduledJobRunner.forkManaged
+} yield ZIO.raceAll(kafka.await, List(http.await, jobs.await))
+
+val mainApp = managedApp.use(identity).exitCode
+```
+
+This solution is very nice and elegant, but we can do it in a more declarative fashion with ZIO streams:
+
+```scala mdoc:silent:nest
+val managedApp =
+  for {
+  //_ <- other resources
+    _ <- ZStream
+      .mergeAllUnbounded(16)(
+        kafkaConsumer.drain,
+        ZStream.fromEffect(httpServer),
+        ZStream.fromEffect(scheduledJobRunner)
+      )
+      .runDrain
+      .toManaged_
+  } yield ()
+
+val myApp = managedApp.use_(ZIO.unit).exitCode
+```
 
 ## Core Abstractions
 
