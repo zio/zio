@@ -20,7 +20,6 @@ import zio.stream.{ZSink, ZStream}
 import zio.test.AssertionResult.FailureDetailsResult
 import zio.test.environment._
 
-import scala.collection.immutable.SortedSet
 import scala.language.implicitConversions
 import scala.util.Try
 
