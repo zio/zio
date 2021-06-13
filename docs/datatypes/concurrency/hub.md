@@ -29,8 +29,8 @@ Hub.bounded[String](2).flatMap { hub =>
   hub.subscribe.zip(hub.subscribe).use { case (left, right) =>
     for {
       _ <- hub.publish("Hello from a hub!")
-      _ <- left.take.flatMap(console.putStrLn(_))
-      _ <- right.take.flatMap(console.putStrLn(_))
+      _ <- left.take.flatMap(Console.putStrLn(_))
+      _ <- right.take.flatMap(Console.putStrLn(_))
     } yield ()
   }
 }
