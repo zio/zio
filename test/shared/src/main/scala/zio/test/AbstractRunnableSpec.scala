@@ -41,8 +41,9 @@ abstract class AbstractRunnableSpec {
    */
   private[zio] def runSpec(
     spec: ZSpec[Environment, Failure]
-  ): URIO[TestLogger with Clock, ExecutedSpec[Failure]] =
-    runner.run(aspects.foldLeft(spec)(_ @@ _))
+  ): URIO[TestLogger with Clock, ExecutedSpec[Failure]] = runner.run(
+    (aspects.foldLeft(spec)(_ @@ _) @@ TestAspect.fibers).provideSomeLayerShared[Environment](Annotations.live)
+  )
 
   /**
    * the platform used by the runner
