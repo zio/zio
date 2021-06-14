@@ -20,11 +20,29 @@ To simplify everything, we can think of a Runtime System like a black box that t
 
 ![ZIO Runtime System](assets/zio-runtime-system.svg)
 
+## Responsibilities of the Runtime System
+
+Runtime Systems have a lot of responsibilities:
+
+1. **Execute every step of the blueprint** — They have to execute every step of the blueprint in a while loop until it's done.
+
+2. **Handle unexpected errors** — They have to handle unexpected errors, not just the expected ones but also the unexpected ones. 
+
+3. **Spawn concurrent fiber** — They are actually responsible for the concurrency that effect systems have. They have to spawn a fiber every time we call `fork` on an effect to spawn off a new fiber.
+
+4. **Cooperatively yield to other fibers** — They have to cooperatively yield to other fibers so that fibers that are sort of hogging the spotlight, don't get to monopolize all the CPU resources. They have to make sure that the fibers split the CPU cores among all the fibers that are working.
+
+5. **Capture execution and stack traces** — They have to keep track of where we are in the progress of our own user-land code so the nice detailed execution traces can be captured. 
+
+6. **Ensure finalizers are run appropriately** — They have to ensure finalizers are run appropriately at the right point in all circumstances to make sure that resources are closed that clean-up logic is executed. This is the feature that powers ZManaged and all the other resource-safe constructs in ZIO.
+
+7. **Handle asynchronous callback** — They have to handle this messy job of dealing with asynchronous callbacks. So we don't have to deal with async code. When we are doing ZIO, everything is just async out of the box. 
+
 ## Running a ZIO Effect
 
 There are two ways to run ZIO effect:
-1. **Using `zio.App` Entry Point**
-2. **Using `unsafeRun` Method Directly**
+1. **Using `zio.App` entry point**
+2. **Using `unsafeRun` method directly**
 
 ### Using zio.App
 
