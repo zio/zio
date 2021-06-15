@@ -89,4 +89,4 @@ object RunZIOEffectUsingUnsafeRun extends scala.App {
 }
 ```
 
-We don't usually use this method to run our effects. One of the use cases of this method is when we are integrating the legacy (non-effectful code) with the ZIO effect. It also helps us to refactor a large legacy code base into a ZIO effect gradually; Assume we have in the middle of a legacy code, we decided to refactor a component and write that with ZIO effect. We can start rewriting that component with the ZIO effect and then integrate that component with the existing code base, using the `unsafeRun` function.
+We don't usually use this method to run our effects. One of the use cases of this method is when we are integrating the legacy (non-effectful code) with the ZIO effect. It also helps us to refactor a large legacy code base into a ZIO effect gradually; Assume we have decided to refactor a component in the middle of a legacy code and rewrite that with ZIO. We can start rewriting that component with the ZIO effect and then integrate that component with the existing code base, using the `unsafeRun` function.
