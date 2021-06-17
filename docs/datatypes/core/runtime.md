@@ -118,8 +118,10 @@ type ZEnv = Clock with Console with System with Random with Blocking
 We can easily access the default `Runtime` to run an effect:
 
 ```scala mdoc:silent:nest
-val runtime = Runtime.default
-runtime.unsafeRun(myAppLogic)
+object MainApp extends scala.App {
+  val runtime = Runtime.default
+  runtime.unsafeRun(myAppLogic)
+}
 ```
 
 ## Custom Runtime
