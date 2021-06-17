@@ -134,7 +134,7 @@ Some use-cases of custom Runtimes:
 
 The custom runtime can be used to run many different effects that all require the same environment, so we don't have to call `ZIO#provide` on all of them before we run them.
 
-For example, assume we want to create a Runtime for services that are for testing purposes, and they don't interact with real external APIs. So we can create a runtime, especially for testing.
+For example, assume we want to create a `Runtime` for services that are for testing purposes, and they don't interact with real external APIs. So we can create a runtime, especially for testing.
 
 Let's say we have defined two `Logging` and `Email` services:
 
@@ -191,7 +191,7 @@ val testableRuntime: Runtime[zio.ZEnv with Has[Logging] with Has[Email]] =
     )
 ```
 
-Now we can run our effects using this custom runtime:
+Now we can run our effects using this custom `Runtime`:
 
 ```scala mdoc:silent:nest
 testableRuntime.unsafeRun(
@@ -206,7 +206,7 @@ testableRuntime.unsafeRun(
 
 Sometimes to diagnose runtime issues and understand what is going on in our application we need to add some sort of monitoring task to the Runtime System. It helps us to track fibers and their status.
 
-By adding a supervisor to the current platform of the Runtime System we can track the activity of fibers in a program. So every time a fiber gets started, forked, or every time a fiber ends its life, all this contextual information gets reported to that supervisor.
+By adding a `Supervisor` to the current platform of the Runtime System, we can track the activity of fibers in a program. So every time a fiber gets started, forked, or every time a fiber ends its life, all these contextual pieces of information get reported to that `Supervisor`.
 
 For example, the [ZIO ZMX](https://zio.github.io/zio-zmx/) enables us to monitor our ZIO application. To include that in our project we must add the following line to our `build.sbt`:
 
@@ -214,7 +214,7 @@ For example, the [ZIO ZMX](https://zio.github.io/zio-zmx/) enables us to monitor
 libraryDependencies += "dev.zio" %% "zio-zmx" % "0.0.6"
 ```
 
-ZIO ZMX has a specialized supervisor called `ZMXSupervisor` that can be added to our existing `Runtime`:
+ZIO ZMX has a specialized `Supervisor` called `ZMXSupervisor` that can be added to our existing `Runtime`:
 
 ```scala
 import zio._
@@ -240,7 +240,7 @@ runtime.unsafeRun(program.provideCustomLayer(diagnosticsLayer))
 
 ### Application Tracing
 
-We can enable/disable execution tracing or configure its setting. Execution tracing has full of junk. There are lots of allocations that all need to be garbage collected afterward. So it has a tremendous impact on the complexity of the application runtime.
+We can enable or disable execution tracing or configure its setting. Execution tracing has full of junk. There are lots of allocations that all need to be garbage collected afterward. So it has a tremendous impact on the complexity of the application runtime.
 
 Users often turn off tracing in critical areas of their application. Also, when we are doing benchmark operation, it is better to create a `Runtime` without tracing capability:
 
@@ -266,7 +266,7 @@ val rt3 = Runtime.default.mapPlatform(_.withTracingConfig(config))
 
 ### User-defined Executor
 
-An executor is responsible for executing effects. The way how each effect will be run including detail of threading, scheduling, and so forth, is separated from the caller. So, if we need to have a specialized executor according to our requirements, we can provide that to the ZIO runtime:
+An executor is responsible for executing effects. The way how each effect will be run including detail of threading, scheduling, and so forth, is separated from the caller. So, if we need to have a specialized executor according to our requirements, we can provide that to the ZIO `Runtime`:
 
 ```scala mdoc:silent:nest
 import zio.internal.Executor
@@ -289,7 +289,7 @@ val runtime = Runtime.default.mapPlatform(
 
 ### Benchmarking
 
-To do benchmark operation, we need a `Runtime` with settings suitable for that. It would be better to disable tracing and auto-yielding. ZIO has a built-in `Platform` proper for benchmark operations, called `Platform.benchmark` which we can map the default platform to the benchmark version:
+To do benchmark operation, we need a `Runtime` with settings suitable for that. It would be better to disable tracing and auto-yielding. ZIO has a built-in `Platform` proper for benchmark operations, called `Platform.benchmark` which we can map the default `Platform` to the benchmark version:
 
 ```scala mdoc:silent:nest
 val benchmarkRuntime = Runtime.default.mapPlatform(_ => Platform.benchmark)
