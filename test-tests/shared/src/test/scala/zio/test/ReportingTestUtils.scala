@@ -6,8 +6,8 @@ import zio.test.environment.{TestClock, TestConsole, TestEnvironment, testEnviro
 import zio.test.mock.Expectation._
 import zio.test.mock.internal.InvalidCall._
 import zio.test.mock.internal.MockException._
-import zio.test.mock.module.PureModuleMock
-import zio.{Cause, Layer, ZIO}
+import zio.test.mock.module.{PureModule, PureModuleMock}
+import zio.{Cause, Has, Layer, ULayer, ZIO, ZLayer}
 
 import java.util.regex.Pattern
 import scala.{Console => SConsole}
@@ -88,12 +88,12 @@ object ReportingTestUtils {
     withOffset(2)(
       s"${blue("52")} did not satisfy ${cyan("(") + yellow("equalTo(42)") + cyan(" || (isGreaterThan(5) && isLessThan(10)))")}\n"
     ),
-    withOffset(4)(assertSourceLocation() + "\n"),
+    withOffset(2)(assertSourceLocation() + "\n"),
     withOffset(2)(s"${blue("52")} did not satisfy ${cyan("isLessThan(10)")}\n"),
     withOffset(2)(
       s"${blue("52")} did not satisfy ${cyan("(equalTo(42) || (isGreaterThan(5) && ") + yellow("isLessThan(10)") + cyan("))")}\n"
     ),
-    withOffset(4)(assertSourceLocation() + "\n")
+    withOffset(2)(assertSourceLocation() + "\n")
   )
 
   val test4: Spec[Any, TestFailure[String], Nothing] =
@@ -115,7 +115,7 @@ object ReportingTestUtils {
     withOffset(2)(
       s"${blue(expressionIfNotRedundant(showExpression(1 + 1), 2))} did not satisfy ${cyan("equalTo(3)")}\n"
     ),
-    withOffset(4)(assertSourceLocation() + "\n")
+    withOffset(2)(assertSourceLocation() + "\n")
   )
 
   val test6: ZSpec[Any, Nothing] =
@@ -129,7 +129,7 @@ object ReportingTestUtils {
     withOffset(2)(
       s"${blue(s"Right(Some(3))")} did not satisfy ${cyan("isRight(") + yellow("isSome(isGreaterThan(4))") + cyan(")")}\n"
     ),
-    withOffset(4)(assertSourceLocation() + "\n")
+    withOffset(2)(assertSourceLocation() + "\n")
   )
 
   val test7: ZSpec[Any, Nothing] = testM("labeled failures") {
@@ -149,7 +149,7 @@ object ReportingTestUtils {
     withOffset(2)(
       s"${blue("`c` = Some(0)")} did not satisfy ${cyan("(isSome(") + yellow("equalTo(1)") + cyan(") ?? \"third\")")}\n"
     ),
-    withOffset(4)(assertSourceLocation() + "\n")
+    withOffset(2)(assertSourceLocation() + "\n")
   )
 
   val test8: ZSpec[Any, Nothing] = test("Not combinator") {
@@ -161,7 +161,7 @@ object ReportingTestUtils {
     withOffset(2)(
       s"${blue("100")} did not satisfy ${cyan("not(") + yellow("equalTo(100)") + cyan(")")}\n"
     ),
-    withOffset(4)(assertSourceLocation() + "\n")
+    withOffset(2)(assertSourceLocation() + "\n")
   )
 
   val suite1: Spec[Any, TestFailure[Nothing], TestSuccess] = suite("Suite1")(test1, test2)
@@ -246,7 +246,24 @@ object ReportingTestUtils {
     withOffset(2)(s"""${red("- invalid repetition range 4 to 2 by -1")}\n""")
   )
 
-  def assertSourceLocation(): String = blue(s"at $sourceFilePath:XXX")
+  val mock5: ZSpec[Any, String] = {
+    val failingLayer: ZLayer[Any, String, Has[String]] = ZIO.fail("failed!").toLayer
+    val mock: ULayer[PureModule]                       = PureModuleMock.ZeroParams(value("mocked"))
+    val f: ZIO[Has[String] with PureModule, String, String] =
+      ZIO.serviceWith[PureModule.Service](_.zeroParams) <* ZIO.service[String]
+    testM("Failing layer")(assertM(f.provideLayer(failingLayer ++ mock).untraced)(equalTo("mocked")))
+  }
+
+  val mock5Expected: Vector[String] = Vector(
+    """.*Failing layer.*""",
+    """.*- unsatisfied expectations.*""",
+    """\s*zio\.test\.mock\.module\.PureModuleMock\.ZeroParams with arguments.*""",
+    """\s*Fiber failed\.""",
+    """[\s║╠─]*A checked error was not handled.""",
+    """[\s║]*failed!"""
+  )
+
+  def assertSourceLocation(): String = cyan(s"☛ $sourceFilePath:XXX")
   implicit class TestOutputOps(output: String) {
     def withNoLineNumbers: String =
       output.replaceAll(Pattern.quote(sourceFilePath + ":") + "\\d+", sourceFilePath + ":XXX")

@@ -19,7 +19,7 @@ package zio.stream
 import zio._
 import zio.clock.Clock
 import zio.duration._
-import zio.internal.UniqueKey
+import zio.internal.{Executor, UniqueKey}
 import zio.stm.TQueue
 import zio.stream.internal.Utils.zipChunks
 import zio.stream.internal.{ZInputStream, ZReader}
@@ -353,45 +353,36 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * Returns a stream whose failure and success channels have been mapped by
    * the specified pair of functions, `f` and `g`.
    */
+  @deprecated("use mapBoth", "2.0.0")
   def bimap[E1, O1](f: E => E1, g: O => O1)(implicit ev: CanFail[E]): ZStream[R, E1, O1] =
-    mapError(f).map(g)
+    mapBoth(f, g)
 
   /**
-   * Fan out the stream, producing a list of streams that have the same elements as this stream.
-   * The driver stream will only ever advance of the `maximumLag` chunks before the
-   * slowest downstream stream.
+   * Fan out the stream, producing a list of streams that have the same
+   * elements as this stream. The driver stream will only ever advance the
+   * `maximumLag` chunks before the slowest downstream stream.
    */
   final def broadcast(n: Int, maximumLag: Int): ZManaged[R, Nothing, List[ZStream[Any, E, O]]] =
     self
       .broadcastedQueues(n, maximumLag)
-      .map(
-        _.map(
-          ZStream
-            .fromQueueWithShutdown(_)
-            .flattenTake
-        )
-      )
+      .map(_.map(ZStream.fromQueueWithShutdown(_).flattenTake))
 
   /**
-   * Fan out the stream, producing a dynamic number of streams that have the same elements as this stream.
-   * The driver stream will only ever advance of the `maximumLag` chunks before the
-   * slowest downstream stream.
+   * Fan out the stream, producing a dynamic number of streams that have the
+   * same elements as this stream. The driver stream will only ever advance the
+   * `maximumLag` chunks before the slowest downstream stream.
    */
   final def broadcastDynamic(
     maximumLag: Int
   ): ZManaged[R, Nothing, ZStream[Any, E, O]] =
     self
       .broadcastedQueuesDynamic(maximumLag)
-      .map(
-        ZStream
-          .managed(_)
-          .flatMap(queue => ZStream.fromQueue(queue))
-          .flattenTake
-      )
+      .map(ZStream.managed(_).flatMap(ZStream.fromQueue(_)).flattenTake)
 
   /**
-   * Converts the stream to a managed list of queues. Every value will be replicated to every queue with the
-   * slowest queue being allowed to buffer `maximumLag` chunks before the driver is backpressured.
+   * Converts the stream to a managed list of queues. Every value will be
+   * replicated to every queue with the slowest queue being allowed to buffer
+   * `maximumLag` chunks before the driver is back pressured.
    *
    * Queues can unsubscribe from upstream by shutting down.
    */
@@ -406,8 +397,9 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     } yield queues
 
   /**
-   * Converts the stream to a managed dynamic amount of queues. Every chunk will be replicated to every queue with the
-   * slowest queue being allowed to buffer `maximumLag` chunks before the driver is backpressured.
+   * Converts the stream to a managed dynamic amount of queues. Every chunk
+   * will be replicated to every queue with the slowest queue being allowed to
+   * buffer `maximumLag` chunks before the driver is back pressured.
    *
    * Queues can unsubscribe from upstream by shutting down.
    */
@@ -715,7 +707,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     ZStream {
       for {
         os    <- self.process.mapM(BufferedPull.make(_))
-        pfSome = pf.andThen(_.bimap(Some(_), Chunk.single(_)))
+        pfSome = pf.andThen(_.mapBoth(Some(_), Chunk.single(_)))
         pull = {
           def go: ZIO[R1, Option[E1], Chunk[O1]] =
             os.pullElement.flatMap(o => pfSome.applyOrElse(o, (_: O) => go))
@@ -762,7 +754,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
       for {
         os   <- self.process.mapM(BufferedPull.make(_))
         done <- Ref.make(false).toManaged_
-        pfIO  = pf.andThen(_.bimap(Some(_), Chunk.single(_)))
+        pfIO  = pf.andThen(_.mapBoth(Some(_), Chunk.single(_)))
         pull = done.get.flatMap {
                  if (_) Pull.end
                  else
@@ -1906,8 +1898,8 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     intoManaged(queue).use_(UIO.unit)
 
   /**
-   * Publishes elements of this stream to a hub. Stream failure and ending will also be
-   * signalled.
+   * Publishes elements of this stream to a hub. Stream failure and ending will
+   * also be signalled.
    */
   final def intoHub[R1 <: R, E1 >: E](
     hub: ZHub[R1, Nothing, Nothing, Any, Take[E1, O], Any]
@@ -1915,8 +1907,8 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     into(hub.toQueue)
 
   /**
-   * Like [[ZStream#intoHub]], but provides the result as a [[ZManaged]] to allow for scope
-   * composition.
+   * Like [[ZStream#intoHub]], but provides the result as a [[ZManaged]] to
+   * allow for scope composition.
    */
   final def intoHubManaged[R1 <: R, E1 >: E](
     hub: ZHub[R1, Nothing, Nothing, Any, Take[E1, O], Any]
@@ -1945,6 +1937,17 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
       }
       _ <- pull.toManaged_
     } yield ()
+
+  /**
+   * Locks the execution of this stream to the specified executor. Any streams
+   * that are composed after this one will automatically be shifted back to the
+   * previous executor.
+   */
+  def lock(executor: Executor): ZStream[R, E, O] =
+    ZStream.fromEffect(ZIO.descriptor).flatMap { descriptor =>
+      ZStream.managed(ZManaged.lock(executor)) *>
+        self <* ZStream.fromEffect(ZIO.shift(descriptor.executor))
+    }
 
   /**
    * Transforms the elements of this stream using the supplied function.
@@ -2017,6 +2020,13 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     mapM(a => f(a).map(Chunk.fromIterable(_))).mapConcatChunk(identity)
 
   /**
+   * Returns a stream whose failure and success channels have been mapped by
+   * the specified pair of functions, `f` and `g`.
+   */
+  def mapBoth[E1, O1](f: E => E1, g: O => O1)(implicit ev: CanFail[E]): ZStream[R, E1, O1] =
+    mapError(f).map(g)
+
+  /**
    * Transforms the errors emitted by this stream using `f`.
    */
   def mapError[E2](f: E => E2): ZStream[R, E2, O] =
@@ -2043,7 +2053,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   def mapM[R1 <: R, E1 >: E, O2](f: O => ZIO[R1, E1, O2]): ZStream[R1, E1, O2] =
     ZStream {
       self.process.mapM(BufferedPull.make(_)).map { pull =>
-        pull.pullElement.flatMap(f(_).bimap(Some(_), Chunk.single(_)))
+        pull.pullElement.flatMap(f(_).mapBoth(Some(_), Chunk.single(_)))
       }
     }
 
@@ -2582,8 +2592,8 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     foreach(_ => ZIO.unit)
 
   /**
-   * Runs the stream to completion and yields the first value emitted by it,
-   * discarding the rest of the elements.
+   * Runs the stream to collect the first value emitted by it without running
+   * the rest of the stream.
    */
   def runHead: ZIO[R, E, Option[O]] =
     run(ZSink.head)
@@ -3033,8 +3043,8 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   }
 
   /**
-   * Converts the stream to a managed hub of chunks. After the managed hub is used,
-   * the hub will never again produce values and should be discarded.
+   * Converts the stream to a managed hub of chunks. After the managed hub is
+   * used, the hub will never again produce values and should be discarded.
    */
   def toHub(capacity: Int): ZManaged[R, Nothing, ZHub[Nothing, Any, Any, Nothing, Nothing, Take[E, O]]] =
     for {
@@ -3626,11 +3636,41 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       } yield pull
     }
 
+  /**
+   * Creates a stream from a subscription to a hub.
+   */
   def fromChunkHub[R, E, O](hub: ZHub[Nothing, R, Any, E, Nothing, Chunk[O]]): ZStream[R, E, O] =
     managed(hub.subscribe).flatMap(queue => fromChunkQueue(queue))
 
+  /**
+   * Creates a stream from a subscription to a hub in the context of a managed
+   * effect. The managed effect describes subscribing to receive messages from
+   * the hub while the stream describes taking messages from the hub.
+   */
+  def fromChunkHubManaged[R, E, O](
+    hub: ZHub[Nothing, R, Any, E, Nothing, Chunk[O]]
+  ): ZManaged[Any, Nothing, ZStream[R, E, O]] =
+    hub.subscribe.map(queue => fromChunkQueue(queue))
+
+  /**
+   * Creates a stream from a subscription to a hub.
+   *
+   * The hub will be shut down once the stream is closed.
+   */
   def fromChunkHubWithShutdown[R, E, O](hub: ZHub[Nothing, R, Any, E, Nothing, Chunk[O]]): ZStream[R, E, O] =
     fromChunkHub(hub).ensuringFirst(hub.shutdown)
+
+  /**
+   * Creates a stream from a subscription to a hub in the context of a managed
+   * effect. The managed effect describes subscribing to receive messages from
+   * the hub while the stream describes taking messages from the hub.
+   *
+   * The hub will be shut down once the stream is closed.
+   */
+  def fromChunkHubManagedWithShutdown[R, E, O](
+    hub: ZHub[Nothing, R, Any, E, Nothing, Chunk[O]]
+  ): ZManaged[Any, Nothing, ZStream[R, E, O]] =
+    fromChunkHubManaged(hub).map(_.ensuringFirst(hub.shutdown))
 
   /**
    * Creates a stream from a [[zio.ZQueue]] of values
@@ -3681,14 +3721,46 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   /**
    * Creates a stream from a subscription to a hub.
    */
-  def fromHub[R, E, A](hub: ZHub[Nothing, R, Any, E, Nothing, A]): ZStream[R, E, A] =
-    managed(hub.subscribe).flatMap(queue => fromQueue(queue))
+  def fromHub[R, E, A](
+    hub: ZHub[Nothing, R, Any, E, Nothing, A],
+    maxChunkSize: Int = DefaultChunkSize
+  ): ZStream[R, E, A] =
+    managed(hub.subscribe).flatMap(queue => fromQueue(queue, maxChunkSize))
+
+  /**
+   * Creates a stream from a subscription to a hub in the context of a managed
+   * effect. The managed effect describes subscribing to receive messages from
+   * the hub while the stream describes taking messages from the hub.
+   */
+  def fromHubManaged[R, E, A](
+    hub: ZHub[Nothing, R, Any, E, Nothing, A],
+    maxChunkSize: Int = DefaultChunkSize
+  ): ZManaged[Any, Nothing, ZStream[R, E, A]] =
+    hub.subscribe.map(queue => fromQueueWithShutdown(queue, maxChunkSize))
 
   /**
    * Creates a stream from a subscription to a hub.
+   *
+   * The hub will be shut down once the stream is closed.
    */
-  def fromHubWithShutdown[R, E, A](hub: ZHub[Nothing, R, Any, E, Nothing, A]): ZStream[R, E, A] =
-    fromHub(hub).ensuringFirst(hub.shutdown)
+  def fromHubWithShutdown[R, E, A](
+    hub: ZHub[Nothing, R, Any, E, Nothing, A],
+    maxChunkSize: Int = DefaultChunkSize
+  ): ZStream[R, E, A] =
+    fromHub(hub, maxChunkSize).ensuringFirst(hub.shutdown)
+
+  /**
+   * Creates a stream from a subscription to a hub in the context of a managed
+   * effect. The managed effect describes subscribing to receive messages from
+   * the hub while the stream describes taking messages from the hub.
+   *
+   * The hub will be shut down once the stream is closed.
+   */
+  def fromHubManagedWithShutdown[R, E, A](
+    hub: ZHub[Nothing, R, Any, E, Nothing, A],
+    maxChunkSize: Int = DefaultChunkSize
+  ): ZManaged[Any, Nothing, ZStream[R, E, A]] =
+    fromHubManaged(hub, maxChunkSize).map(_.ensuringFirst(hub.shutdown))
 
   /**
    * Creates a stream from an iterable collection of values
@@ -4398,6 +4470,14 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
      */
     def refineToOrDie[E1 <: E: ClassTag](implicit ev: CanFail[E]): ZStream[R, E1, A] =
       self.refineOrDie { case e: E1 => e }
+  }
+
+  implicit final class SyntaxOps[-R, +E, O](self: ZStream[R, E, O]) {
+    /*
+     * Collect elements of the given type flowing through the stream, and filters out others.
+     */
+    def collectType[O1 <: O](implicit tag: ClassTag[O1]): ZStream[R, E, O1] =
+      self.collect({ case o if tag.runtimeClass.isInstance(o) => o.asInstanceOf[O1] })
   }
 
 }

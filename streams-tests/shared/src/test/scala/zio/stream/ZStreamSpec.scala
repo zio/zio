@@ -3,6 +3,7 @@ package zio.stream
 import zio._
 import zio.clock.Clock
 import zio.duration._
+import zio.internal.Executor
 import zio.stm.TQueue
 import zio.stream.ZSink.Push
 import zio.stream.ZStreamGen._
@@ -772,6 +773,9 @@ object ZStreamSpec extends ZIOBaseSpec {
             res2 <- (s.runCollect.map(_.collect { case Some(x) => x }))
           } yield assert(res1)(equalTo(res2))
         }),
+        testM("collectType") {
+          assertM(ZStream(cat1, dog, cat2).collectType[Cat].runCollect)(equalTo(Chunk(cat1, cat2)))
+        },
         suite("collectWhile")(
           testM("collectWhile") {
             assertM(ZStream(Some(1), Some(2), Some(3), None, Some(4)).collectWhile { case Some(v) =>
@@ -1906,6 +1910,20 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assert(result)(isEmpty)
           } @@ timeout(10.seconds) @@ flaky
         ) @@ zioTag(interruption),
+        testM("lock") {
+          val global = Executor.fromExecutionContext(100)(ExecutionContext.global)
+          for {
+            default   <- ZIO.executor
+            ref1      <- Ref.make[Executor](default)
+            ref2      <- Ref.make[Executor](default)
+            stream1    = ZStream.fromEffect(ZIO.executor.flatMap(ref1.set)).lock(global)
+            stream2    = ZStream.fromEffect(ZIO.executor.flatMap(ref2.set))
+            _         <- (stream1 *> stream2).runDrain
+            executor1 <- ref1.get
+            executor2 <- ref2.get
+          } yield assert(executor1)(equalTo(global)) &&
+            assert(executor2)(equalTo(default))
+        },
         suite("managed")(
           testM("preserves interruptibility of effect") {
             for {
@@ -4045,4 +4063,12 @@ object ZStreamSpec extends ZIOBaseSpec {
                           }
       testResult <- assertion(chunkCoordination)
     } yield testResult
+
+  sealed trait Animal
+  case class Dog(name: String) extends Animal
+  case class Cat(name: String) extends Animal
+
+  val dog: Animal = Dog("dog1")
+  val cat1: Cat   = Cat("cat1")
+  val cat2: Cat   = Cat("cat2")
 }

@@ -19,9 +19,11 @@ package zio
 import zio.console.Console
 import zio.duration.Duration
 import zio.stream.{ZSink, ZStream}
-import zio.test.environment.{TestClock, TestConsole, TestEnvironment, TestRandom, TestSystem, testEnvironment}
+import zio.test.AssertionResult.FailureDetailsResult
+import zio.test.environment._
 
 import scala.collection.immutable.SortedSet
+import scala.language.implicitConversions
 import scala.util.Try
 
 /**
@@ -68,7 +70,15 @@ package object test extends CompileVariants {
    */
   type TestAspectPoly = TestAspect[Nothing, Any, Nothing, Any]
 
-  type TestResult = BoolAlgebra[FailureDetails]
+  type TestResult = BoolAlgebra[AssertionResult]
+
+  object TestResult {
+    implicit def trace2TestResult(assert: Assert): TestResult = {
+      val trace = Arrow.run(assert.arrow, Right(()))
+      if (trace.isSuccess) BoolAlgebra.success(AssertionResult.TraceResult(trace))
+      else BoolAlgebra.failure(AssertionResult.TraceResult(trace))
+    }
+  }
 
   /**
    * A `TestReporter[E]` is capable of reporting test results with error type
@@ -106,11 +116,10 @@ package object test extends CompileVariants {
         .effectSuspendTotal(assertion)
         .foldCauseM(
           cause => ZIO.fail(TestFailure.Runtime(cause)),
-          result =>
-            result.failures match {
-              case None           => ZIO.succeedNow(TestSuccess.Succeeded(BoolAlgebra.unit))
-              case Some(failures) => ZIO.fail(TestFailure.Assertion(failures))
-            }
+          _.failures match {
+            case None           => ZIO.succeedNow(TestSuccess.Succeeded(BoolAlgebra.unit))
+            case Some(failures) => ZIO.fail(TestFailure.Assertion(failures))
+          }
         )
   }
 
@@ -136,12 +145,12 @@ package object test extends CompileVariants {
     assertResult.flatMap { fragment =>
       def loop(whole: AssertionValue, failureDetails: FailureDetails): TestResult =
         if (whole.sameAssertion(failureDetails.assertion.head))
-          BoolAlgebra.success(failureDetails)
+          BoolAlgebra.success(FailureDetailsResult(failureDetails))
         else {
           val fragment = whole.result
           val result   = if (fragment.isSuccess) fragment else !fragment
           result.flatMap { fragment =>
-            loop(fragment, FailureDetails(::(whole, failureDetails.assertion), failureDetails.gen))
+            loop(fragment, FailureDetails(::(whole, failureDetails.assertion)))
           }
         }
 
@@ -198,7 +207,9 @@ package object test extends CompileVariants {
   /**
    * A version of `check` that accepts two random variables.
    */
-  def check[R <: TestConfig, A, B](rv1: Gen[R, A], rv2: Gen[R, B])(test: (A, B) => TestResult): URIO[R, TestResult] =
+  def check[R <: TestConfig, A, B](rv1: Gen[R, A], rv2: Gen[R, B])(
+    test: (A, B) => TestResult
+  ): URIO[R, TestResult] =
     check(rv1 <*> rv2)(test.tupled)
 
   /**
@@ -250,7 +261,9 @@ package object test extends CompileVariants {
    * Checks the effectual test passes for "sufficient" numbers of samples from
    * the given random variable.
    */
-  def checkM[R <: TestConfig, R1 <: R, E, A](rv: Gen[R, A])(test: A => ZIO[R1, E, TestResult]): ZIO[R1, E, TestResult] =
+  def checkM[R <: TestConfig, R1 <: R, E, A](rv: Gen[R, A])(
+    test: A => ZIO[R1, E, TestResult]
+  ): ZIO[R1, E, TestResult] =
     TestConfig.samples.flatMap(checkNM(_)(rv)(test))
 
   /**
@@ -317,7 +330,9 @@ package object test extends CompileVariants {
   /**
    * A version of `checkAll` that accepts two random variables.
    */
-  def checkAll[R <: TestConfig, A, B](rv1: Gen[R, A], rv2: Gen[R, B])(test: (A, B) => TestResult): URIO[R, TestResult] =
+  def checkAll[R <: TestConfig, A, B](rv1: Gen[R, A], rv2: Gen[R, B])(
+    test: (A, B) => TestResult
+  ): URIO[R, TestResult] =
     checkAll(rv1 <*> rv2)(test.tupled)
 
   /**
@@ -864,7 +879,7 @@ package object test extends CompileVariants {
         stream.zipWithIndex.mapM { case (initial, index) =>
           initial.foreach(input =>
             test(input).traced
-              .map(_.map(_.copy(gen = Some(GenFailureDetails(initial.value, input, index)))))
+              .map(_.map(_.setGenFailureDetails(GenFailureDetails(initial.value, input, index))))
               .either
           )
         }
@@ -872,7 +887,7 @@ package object test extends CompileVariants {
     }
 
   private def shrinkStream[R, R1 <: R, E, A](
-    stream: ZStream[R1, Nothing, Sample[R1, Either[E, BoolAlgebra[FailureDetails]]]]
+    stream: ZStream[R1, Nothing, Sample[R1, Either[E, TestResult]]]
   )(maxShrinks: Int): ZIO[R1 with TestConfig, E, TestResult] =
     stream
       .dropWhile(!_.value.fold(_ => true, _.isFailure)) // Drop until we get to a failure
@@ -887,8 +902,10 @@ package object test extends CompileVariants {
           .fold[ZIO[R, E, TestResult]](
             ZIO.succeedNow {
               BoolAlgebra.success {
-                FailureDetails(
-                  ::(AssertionValue(Assertion.anything, (), Assertion.anything.run(())), Nil)
+                FailureDetailsResult(
+                  FailureDetails(
+                    ::(AssertionValue(Assertion.anything, (), Assertion.anything.run(())), Nil)
+                  )
                 )
               }
             }
@@ -905,7 +922,7 @@ package object test extends CompileVariants {
           .mapMPar(parallelism) { case (initial, index) =>
             initial.foreach { input =>
               test(input).traced
-                .map(_.map(_.copy(gen = Some(GenFailureDetails(initial.value, input, index)))))
+                .map(_.map(_.setGenFailureDetails(GenFailureDetails(initial.value, input, index))))
                 .either
             // convert test failures to failures to terminate parallel tests on first failure
             }.flatMap(sample => sample.value.fold(_ => ZIO.fail(sample), _ => ZIO.succeed(sample)))

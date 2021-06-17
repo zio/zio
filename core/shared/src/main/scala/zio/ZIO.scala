@@ -52,6 +52,12 @@ import scala.util.{Failure, Success}
 sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E, A] { self =>
 
   /**
+   * A symbolic alias for `orDie`.
+   */
+  final def !(implicit ev1: E <:< Throwable, ev2: CanFail[E]): ZIO[R, Nothing, A] =
+    self.orDie
+
+  /**
    * Sequentially zips this effect with the specified effect, combining the
    * results into a tuple.
    */
@@ -221,8 +227,9 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Returns an effect whose failure and success channels have been mapped by
    * the specified pair of functions, `f` and `g`.
    */
+  @deprecated("use mapBoth", "2.0.0")
   final def bimap[E2, B](f: E => E2, g: A => B)(implicit ev: CanFail[E]): ZIO[R, E2, B] =
-    foldM(e => ZIO.fail(f(e)), a => ZIO.succeedNow(g(a)))
+    mapBoth(f, g)
 
   /**
    * Shorthand for the uncurried version of `ZIO.bracket`.
@@ -898,6 +905,13 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Returns an effect whose success is mapped by the specified `f` function.
    */
   def map[B](f: A => B): ZIO[R, E, B] = new ZIO.FlatMap(self, new ZIO.MapFn(f))
+
+  /**
+   * Returns an effect whose failure and success channels have been mapped by
+   * the specified pair of functions, `f` and `g`.
+   */
+  final def mapBoth[E2, B](f: E => E2, g: A => B)(implicit ev: CanFail[E]): ZIO[R, E2, B] =
+    foldM(e => ZIO.fail(f(e)), a => ZIO.succeedNow(g(a)))
 
   /**
    * Returns an effect whose success is mapped by the specified side effecting
@@ -1871,6 +1885,17 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     self.foldCauseM(new ZIO.TapErrorRefailFn(f), new ZIO.TapFn(g))
 
   /**
+   * Returns an effect that effectfully "peeks" at the result of this effect.
+   * {{{
+   * readFile("data.json").tapEither(result => log(result.fold("Error: " + _, "Success: " + _)))
+   * }}}
+   */
+  final def tapEither[R1 <: R, E1 >: E](f: Either[E, A] => ZIO[R1, E1, Any])(implicit
+    ev: CanFail[E]
+  ): ZIO[R1, E1, A] =
+    self.foldCauseM(new ZIO.TapErrorRefailFn(e => f(Left(e))), new ZIO.TapFn(a => f(Right(a))))
+
+  /**
    * Returns an effect that effectually "peeks" at the cause of the failure of
    * this effect.
    * {{{
@@ -2524,6 +2549,18 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     ZIO.collectAllParN[R, E, A, Iterable](n)(in).map(_.collect(f)).map(bf.fromSpecific(in))
 
   /**
+   * Collects the first element of the `Iterable[A]` for which the effectual
+   * function `f` returns `Some`.
+   */
+  def collectFirst[R, E, A, B](as: Iterable[A])(f: A => ZIO[R, E, Option[B]]): ZIO[R, E, Option[B]] =
+    effectTotal(as.iterator).flatMap { iterator =>
+      def loop: ZIO[R, E, Option[B]] =
+        if (iterator.hasNext) f(iterator.next()).flatMap(_.fold(loop)(some(_)))
+        else none
+      loop
+    }
+
+  /**
    * Evaluate each effect in the structure in parallel, collecting the
    * the successful values and discarding the empty cases.
    */
@@ -2551,6 +2588,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   def cond[E, A](predicate: Boolean, result: => A, error: => E): IO[E, A] =
     if (predicate) ZIO.succeed(result) else ZIO.fail(error)
+
+  /**
+   * Prints the specified message to the console for debugging purposes.
+   */
+  def debug(message: String): UIO[Unit] =
+    ZIO.effectTotal(println(message))
 
   /**
    * Returns information about the current fiber, such as its identity.
@@ -2756,6 +2799,18 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     ZIO.descriptorWith(descriptor => ZIO.succeedNow(descriptor.executor))
 
   /**
+   * Determines whether any element of the `Iterable[A]` satisfies the
+   * effectual predicate `f`.
+   */
+  def exists[R, E, A](as: Iterable[A])(f: A => ZIO[R, E, Boolean]): ZIO[R, E, Boolean] =
+    effectTotal(as.iterator).flatMap { iterator =>
+      def loop: ZIO[R, E, Boolean] =
+        if (iterator.hasNext) f(iterator.next()).flatMap(b => if (b) succeedNow(b) else loop)
+        else succeedNow(false)
+      loop
+    }
+
+  /**
    * Returns an effect that models failure with the specified error.
    * The moral equivalent of `throw` for pure code.
    */
@@ -2890,6 +2945,18 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     in.foldLeft[ZIO[R, E, Builder[B, Collection[B]]]](effectTotal(bf.newBuilder(in)))((io, a) =>
       io.zipWith(f(a))(_ += _)
     ).map(_.result())
+
+  /**
+   * Determines whether all elements of the `Iterable[A]` satisfy the effectual
+   * predicate `f`.
+   */
+  def forall[R, E, A](as: Iterable[A])(f: A => ZIO[R, E, Boolean]): ZIO[R, E, Boolean] =
+    effectTotal(as.iterator).flatMap { iterator =>
+      def loop: ZIO[R, E, Boolean] =
+        if (iterator.hasNext) f(iterator.next()).flatMap(b => if (b) loop else succeedNow(b))
+        else succeedNow(true)
+      loop
+    }
 
   /**
    * Applies the function `f` to each element of the `Set[A]` and
@@ -4002,6 +4069,25 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       else ZIO.fail(::(es.head, es.tail.toList))
     }
 
+  /**
+   * Feeds elements of type `A` to `f` and accumulates all errors in error
+   * channel or successes in success channel.
+   *
+   * This combinator is lossy meaning that if there are errors all successes
+   * will be lost. To retain all information please use [[partition]].
+   */
+  def validate[R, E, A, B](in: NonEmptyChunk[A])(
+    f: A => ZIO[R, E, B]
+  )(implicit ev: CanFail[E]): ZIO[R, ::[E], NonEmptyChunk[B]] =
+    partition(in)(f).flatMap { case (es, bs) =>
+      if (es.isEmpty) ZIO.succeedNow(NonEmptyChunk.nonEmpty(Chunk.fromIterable(bs)))
+      else ZIO.fail(::(es.head, es.tail.toList))
+    }
+
+  /**
+   * Feeds elements of type `A` to `f` and accumulates all errors, discarding
+   * the successes.
+   */
   def validate_[R, E, A](in: Iterable[A])(f: A => ZIO[R, E, Any])(implicit ev: CanFail[E]): ZIO[R, ::[E], Unit] =
     partition(in)(f).flatMap { case (es, _) =>
       if (es.isEmpty) ZIO.unit
@@ -4024,7 +4110,23 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     }
 
   /**
-   * @see See [[zio.ZIO.validatePar]]
+   * Feeds elements of type `A` to `f `and accumulates, in parallel, all errors
+   * in error channel or successes in success channel.
+   *
+   * This combinator is lossy meaning that if there are errors all successes
+   * will be lost. To retain all information please use [[partitionPar]].
+   */
+  def validatePar[R, E, A, B](in: NonEmptyChunk[A])(
+    f: A => ZIO[R, E, B]
+  )(implicit ev: CanFail[E]): ZIO[R, ::[E], NonEmptyChunk[B]] =
+    partitionPar(in)(f).flatMap { case (es, bs) =>
+      if (es.isEmpty) ZIO.succeedNow(NonEmptyChunk.nonEmpty(Chunk.fromIterable(bs)))
+      else ZIO.fail(::(es.head, es.tail.toList))
+    }
+
+  /**
+   * Feeds elements of type `A` to `f` in parallel and accumulates all errors,
+   * discarding the successes.
    */
   def validatePar_[R, E, A](in: Iterable[A])(f: A => ZIO[R, E, Any])(implicit ev: CanFail[E]): ZIO[R, ::[E], Unit] =
     partitionPar(in)(f).flatMap { case (es, _) =>

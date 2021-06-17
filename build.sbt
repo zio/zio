@@ -57,6 +57,10 @@ addCommandAlias(
   ";coreTestsJVM/test;stacktracerJVM/test:compile;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRefinedJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile"
 )
 addCommandAlias(
+  "testJSDotty",
+  ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/test;testMagnoliaTestsJS/test;testRefinedJS/test;examplesJS/test:compile"
+)
+addCommandAlias(
   "testJVM211",
   ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile;macrosTestsJVM/test"
 )
@@ -116,7 +120,10 @@ lazy val root = project
     testMagnoliaJVM,
     testMagnoliaJS,
     testRefinedJVM,
-    testRefinedJS
+    testRefinedJS,
+    testScalaCheckJVM,
+    testScalaCheckJS,
+    testScalaCheckNative
   )
   .enablePlugins(ScalaJSPlugin)
 
@@ -126,7 +133,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(stdSettings("zio"))
   .settings(crossProjectSettings)
   .settings(buildInfoSettings("zio"))
-  .settings(libraryDependencies += "dev.zio" %%% "izumi-reflect" % "1.1.1")
+  .settings(libraryDependencies += "dev.zio" %%% "izumi-reflect" % "1.1.2")
   .enablePlugins(BuildInfoPlugin)
 
 lazy val coreJVM = core.jvm
@@ -135,6 +142,7 @@ lazy val coreJVM = core.jvm
   .settings(mimaSettings(failOnProblem = true))
 
 lazy val coreJS = core.js
+  .settings(dottySettings)
 
 lazy val coreNative = core.native
   .settings(nativeSettings)
@@ -165,6 +173,7 @@ lazy val coreTestsJVM = coreTests.jvm
   .settings(replSettings)
 
 lazy val coreTestsJS = coreTests.js
+  .settings(dottySettings)
 
 lazy val macros = crossProject(JSPlatform, JVMPlatform)
   .in(file("macros"))
@@ -208,6 +217,7 @@ lazy val streamsJVM = streams.jvm
   .settings(mimaSettings(failOnProblem = false))
 
 lazy val streamsJS = streams.js
+  .settings(dottySettings)
 
 lazy val streamsNative = streams.native
   .settings(nativeSettings)
@@ -232,6 +242,7 @@ lazy val streamsTestsJVM = streamsTests.jvm
   .settings(dottySettings)
 
 lazy val streamsTestsJS = streamsTests.js
+  .settings(dottySettings)
 
 lazy val test = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("test"))
@@ -252,15 +263,16 @@ lazy val testJVM = test.jvm
   // No bincompat on zio-test yet
   .settings(mimaSettings(failOnProblem = false))
 lazy val testJS = test.js
+  .settings(dottySettings)
   .settings(
     libraryDependencies ++= List(
-      "io.github.cquiroz" %%% "scala-java-time"      % "2.2.2",
-      "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.2.2"
+      "io.github.cquiroz" %%% "scala-java-time"      % "2.3.0",
+      "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.3.0"
     )
   )
 lazy val testNative = test.native
   .settings(nativeSettings)
-  .settings(libraryDependencies += "org.ekrich" %%% "sjavatime" % "1.1.4")
+  .settings(libraryDependencies += "org.ekrich" %%% "sjavatime" % "1.1.5")
 
 lazy val testTests = crossProject(JSPlatform, JVMPlatform)
   .in(file("test-tests"))
@@ -275,7 +287,7 @@ lazy val testTests = crossProject(JSPlatform, JVMPlatform)
   .enablePlugins(BuildInfoPlugin)
 
 lazy val testTestsJVM = testTests.jvm.settings(dottySettings)
-lazy val testTestsJS  = testTests.js
+lazy val testTestsJS  = testTests.js.settings(dottySettings)
 
 lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-magnolia"))
@@ -307,6 +319,7 @@ lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform)
 lazy val testMagnoliaJVM = testMagnolia.jvm
   .settings(dottySettings)
 lazy val testMagnoliaJS = testMagnolia.js
+  .settings(dottySettings)
 
 lazy val testMagnoliaTests = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-magnolia-tests"))
@@ -323,6 +336,7 @@ lazy val testMagnoliaTests = crossProject(JVMPlatform, JSPlatform)
 lazy val testMagnoliaTestsJVM = testMagnoliaTests.jvm
   .settings(dottySettings)
 lazy val testMagnoliaTestsJS = testMagnoliaTests.js
+  .settings(dottySettings)
 
 lazy val testRefined = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-refined"))
@@ -334,13 +348,29 @@ lazy val testRefined = crossProject(JVMPlatform, JSPlatform)
     crossScalaVersions --= Seq(Scala211),
     libraryDependencies ++=
       Seq(
-        ("eu.timepit" %% "refined" % "0.9.24").cross(CrossVersion.for3Use2_13)
+        ("eu.timepit" %% "refined" % "0.9.26").cross(CrossVersion.for3Use2_13)
       )
   )
 
 lazy val testRefinedJVM = testRefined.jvm
   .settings(dottySettings)
 lazy val testRefinedJS = testRefined.js
+  .settings(dottySettings)
+
+lazy val testScalaCheck = crossProject(JSPlatform, JVMPlatform, NativePlatform)
+  .in(file("test-scalacheck"))
+  .dependsOn(test)
+  .settings(stdSettings("zio-test-scalacheck"))
+  .settings(crossProjectSettings)
+  .settings(
+    libraryDependencies ++= Seq(
+      ("org.scalacheck" %%% "scalacheck" % "1.15.4")
+    )
+  )
+
+lazy val testScalaCheckJVM    = test.jvm.settings(dottySettings)
+lazy val testScalaCheckJS     = test.js
+lazy val testScalaCheckNative = test.native.settings(nativeSettings)
 
 lazy val stacktracer = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("stacktracer"))
@@ -350,6 +380,7 @@ lazy val stacktracer = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .enablePlugins(BuildInfoPlugin)
 
 lazy val stacktracerJS = stacktracer.js
+  .settings(dottySettings)
 lazy val stacktracerJVM = stacktracer.jvm
   .settings(dottySettings)
   .settings(replSettings)
@@ -370,7 +401,12 @@ lazy val testRunnerJVM = testRunner.jvm
   .settings(dottySettings)
   .settings(libraryDependencies ++= Seq("org.scala-sbt" % "test-interface" % "1.0"))
 lazy val testRunnerJS = testRunner.js
-  .settings(libraryDependencies ++= Seq("org.scala-js" %% "scalajs-test-interface" % scalaJSVersion))
+  .settings(dottySettings)
+  .settings(
+    libraryDependencies ++= Seq(
+      ("org.scala-js" %% "scalajs-test-interface" % scalaJSVersion).cross(CrossVersion.for3Use2_13)
+    )
+  )
 lazy val testRunnerNative = testRunner.native
   .settings(nativeSettings)
   .settings(libraryDependencies ++= Seq("org.scala-native" %%% "test-interface" % nativeVersion))
@@ -402,7 +438,7 @@ lazy val testJunitRunnerTests = crossProject(JVMPlatform)
   .settings(
     libraryDependencies ++= Seq(
       "junit"                   % "junit"     % "4.13.2" % Test,
-      "org.scala-lang.modules" %% "scala-xml" % "1.3.0"  % Test,
+      "org.scala-lang.modules" %% "scala-xml" % "2.0.0"  % Test,
       // required to run embedded maven in the tests
       "org.apache.maven"       % "maven-embedder"         % "3.8.1"  % Test,
       "org.apache.maven"       % "maven-compat"           % "3.8.1"  % Test,
@@ -444,6 +480,7 @@ lazy val examples = crossProject(JVMPlatform, JSPlatform)
   .dependsOn(macros, testRunner)
 
 lazy val examplesJS = examples.js
+  .settings(dottySettings)
 lazy val examplesJVM = examples.jvm
   .settings(dottySettings)
   .dependsOn(testJunitRunnerJVM)
@@ -459,21 +496,21 @@ lazy val benchmarks = project.module
     publish / skip := true,
     libraryDependencies ++=
       Seq(
-        "co.fs2"                    %% "fs2-core"       % "2.5.5",
+        "co.fs2"                    %% "fs2-core"       % "2.5.6",
         "com.google.code.findbugs"   % "jsr305"         % "3.0.2",
-        "com.twitter"               %% "util-core"      % "21.4.0",
-        "com.typesafe.akka"         %% "akka-stream"    % "2.6.14",
-        "io.monix"                  %% "monix"          % "3.3.0",
+        "com.twitter"               %% "util-core"      % "21.5.0",
+        "com.typesafe.akka"         %% "akka-stream"    % "2.6.15",
+        "io.monix"                  %% "monix"          % "3.4.0",
         "io.projectreactor"          % "reactor-core"   % "3.4.6",
         "io.reactivex.rxjava2"       % "rxjava"         % "2.2.21",
         "org.jctools"                % "jctools-core"   % "3.3.0",
         "org.ow2.asm"                % "asm"            % "9.1",
         "org.scala-lang"             % "scala-compiler" % scalaVersion.value % Provided,
         "org.scala-lang"             % "scala-reflect"  % scalaVersion.value,
-        "org.typelevel"             %% "cats-effect"    % "2.5.0",
+        "org.typelevel"             %% "cats-effect"    % "2.5.1",
         "org.scalacheck"            %% "scalacheck"     % "1.15.4",
-        "qa.hedgehog"               %% "hedgehog-core"  % "0.6.7",
-        "com.github.japgolly.nyaya" %% "nyaya-gen"      % "0.9.2"
+        "qa.hedgehog"               %% "hedgehog-core"  % "0.7.0",
+        "com.github.japgolly.nyaya" %% "nyaya-gen"      % "0.10.0"
       ),
     unusedCompileDependenciesFilter -= libraryDependencies.value
       .map(moduleid =>
@@ -517,10 +554,10 @@ lazy val docs = project.module
       /* to evict 1.3.0 brought in by mdoc-js */
       "org.scala-js"  % "scalajs-compiler"            % scalaJSVersion cross CrossVersion.full,
       "org.scala-js" %% "scalajs-linker"              % scalaJSVersion,
-      "dev.zio"      %% "zio-interop-cats"            % "2.4.1.0",
+      "dev.zio"      %% "zio-interop-cats"            % "2.5.1.0",
       "dev.zio"      %% "zio-interop-monix"           % "3.0.0.0-RC7",
-      "dev.zio"      %% "zio-interop-scalaz7x"        % "7.2.27.0-RC9",
-      "dev.zio"      %% "zio-interop-reactivestreams" % "1.3.4",
+      "dev.zio"      %% "zio-interop-scalaz7x"        % "7.3.3.0",
+      "dev.zio"      %% "zio-interop-reactivestreams" % "1.3.5",
       "dev.zio"      %% "zio-interop-twitter"         % "20.10.0.0"
     )
   )

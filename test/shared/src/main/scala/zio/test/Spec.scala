@@ -62,6 +62,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
   /**
    * Returns a new spec with remapped errors and tests.
    */
+  @deprecated("use mapBoth", "2.0.0")
   final def bimap[E1, T1](f: E => E1, g: T => T1)(implicit ev: CanFail[E]): Spec[R, E1, T1] =
     transform[R, E1, T1] {
       case LabeledCase(managed, spec)  => LabeledCase(managed, spec)
@@ -240,6 +241,17 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
     n: Int
   )(failure: Cause[E] => ZIO[R1, E1, A], success: T => ZIO[R1, E1, A]): ZManaged[R1, Nothing, Spec[R1, E1, A]] =
     foreachExec(ExecutionStrategy.ParallelN(n))(failure, success)
+
+  /**
+   * Returns a new spec with remapped errors and tests.
+   */
+  final def mapBoth[E1, T1](f: E => E1, g: T => T1)(implicit ev: CanFail[E]): Spec[R, E1, T1] =
+    transform[R, E1, T1] {
+      case LabeledCase(managed, spec)  => LabeledCase(managed, spec)
+      case ManagedCase(managed)        => ManagedCase(managed.mapError(f))
+      case MultipleCase(specs)         => MultipleCase(specs)
+      case TestCase(test, annotations) => TestCase(test.mapBoth(f, g), annotations)
+    }
 
   /**
    * Returns a new spec with remapped errors.
