@@ -33,7 +33,7 @@ import zio.blocking._
 val program = ZIO.foreachPar((1 to 100).toArray)(t => blocking(blockingTask(t)))
 ```
 
-Also, we can directly imports a synchronous effect that does blocking IO into ZIO effect by using `effectBlocking`:
+Also, we can directly import a synchronous effect that does blocking IO into ZIO effect by using `effectBlocking`:
 
 ```scala mdoc:silent:nest
 def blockingTask(n: Int) = effectBlocking {
