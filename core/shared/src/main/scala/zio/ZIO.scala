@@ -1882,7 +1882,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     self.foldCauseM(new ZIO.TapCauseRefailFn(f), ZIO.succeedNow)
 
   /**
-   * Returns an effect that effect "peeks" at at the defect of this effect.
+   * Returns an effect that effectually "peeks" at the defect of this effect.
    */
   final def tapDefect[R1 <: R, E1 >: E](f: Cause[Nothing] => ZIO[R1, E1, Any]): ZIO[R1, E1, A] =
     self.foldCauseM(new ZIO.TapDefectRefailFn(f), ZIO.succeedNow)
