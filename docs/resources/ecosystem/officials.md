@@ -15,5 +15,7 @@ These libraries are hosted in the [ZIO organization](https://github.com/zio/) on
 - [ZIO Logging](https://github.com/zio/zio-logging) — An environmental effect for adding logging into any ZIO application, with choice of pluggable back-ends
 - [ZIO NIO](https://github.com/zio/zio-nio) — A performant, purely-functional, low-level, and unopinionated wrapper around Java NIO functionality
 - [ZIO Optics](https://github.com/zio/zio-optics) - Easily modify parts of larger data structures
+- [ZIO Prelude](https://github.com/zio/zio-prelude) - A lightweight, distinctly Scala take on functional abstractions, with tight ZIO integration
 - [ZIO SQS](https://github.com/zio/zio-sqs) — A ZIO-powered client for AWS SQS
 - [ZIO Telemetry](https://github.com/zio/zio-telemetry) — A ZIO-powered OpenTelemetry library 
+- [ZIO ZMX](https://github.com/zio/zio-zmx) - Monitoring, metrics and diagnostics for ZIO
