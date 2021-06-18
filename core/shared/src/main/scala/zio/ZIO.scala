@@ -2592,8 +2592,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * Prints the specified message to the console for debugging purposes.
    */
-  def debug(message: String): UIO[Unit] =
-    ZIO.effectTotal(println(message))
+  def debug(value: Any): UIO[Unit] =
+    ZIO.effectTotal(println(value))
 
   /**
    * Returns information about the current fiber, such as its identity.
