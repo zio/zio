@@ -507,7 +507,7 @@ Note that the InputStream will not be explicitly closed after it is exhausted. U
 ```scala mdoc:silent:nest
 val stream: ZStream[Any, IOException, Byte] = 
   ZStream.fromInputStreamEffect(
-    ZIO.effect(new FileInputStream("file.txt"))
+    ZIO.attempt(new FileInputStream("file.txt"))
       .refineToOrDie[IOException]
   )
 ```
@@ -517,7 +517,7 @@ val stream: ZStream[Any, IOException, Byte] =
 ```scala mdoc:silent:nest
 val managed: ZManaged[Any, IOException, FileInputStream] =
   ZManaged.fromAutoCloseable(
-    ZIO.effect(new FileInputStream("file.txt"))
+    ZIO.attempt(new FileInputStream("file.txt"))
   ).refineToOrDie[IOException]
 
 val stream: ZStream[Any, IOException, Byte] = 
@@ -633,8 +633,8 @@ import zio.Console._
 val lines: ZStream[Has[Console], Throwable, String] =
   ZStream
     .bracket(
-      ZIO.effect(Source.fromFile("file.txt")) <* printLine("The file was opened.")
-    )(x => URIO.effectTotal(x.close()) <* printLine("The file was closed.").orDie)
+      ZIO.attempt(Source.fromFile("file.txt")) <* printLine("The file was opened.")
+    )(x => URIO.succeed(x.close()) <* printLine("The file was closed.").orDie)
     .flatMap { is =>
       ZStream.fromIterator(is.getLines())
     }
@@ -966,7 +966,7 @@ def fetch(url: String): ZIO[Any, Throwable, String] =
   ZIO.effectBlocking(???)
 
 val pages = urls
-  .mapM(url => fetch(url).run)
+  .mapM(url => fetch(url).exit)
   .collectSuccess
 ```
 
@@ -1388,7 +1388,7 @@ val managedApp =
         ZStream.fromEffect(scheduledJobRunner)
       )
       .runDrain
-      .toManaged_
+      .toManaged
   } yield ()
 
 val myApp = managedApp.use_(ZIO.unit).exitCode
@@ -1888,6 +1888,6 @@ stream.timeoutError(new TimeoutException)(10.seconds)
 Or we can switch to another stream if the first stream does not produce a value after some duration:
 
 ```scala mdoc:silent:nest
-val alternative = ZStream.fromEffect(ZIO.effect(???))
+val alternative = ZStream.fromEffect(ZIO.attempt(???))
 stream.timeoutTo(10.seconds)(alternative)
 ```

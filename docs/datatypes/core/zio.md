@@ -101,16 +101,6 @@ We can also use methods in the companion objects of the `ZIO` type aliases:
 val s2: Task[Int] = Task.succeed(42)
 ```
 
-> _**Note:**_ `succeed` vs. `effectTotal`
->
-> The `succeed` is nothing different than `effectTotal` they are the same but for different purposes for clarity. The `succeed` method takes a by-name parameter to make sure that any accidental side effects from constructing the value can be properly managed by the ZIO Runtime. However, `succeed` is intended for values which do not have any side effects. If we know that our value does have side effects, we should consider using `ZIO.effectTotal` for clarity.
-
-```scala mdoc:silent
-val now = ZIO.effectTotal(java.lang.System.currentTimeMillis())
-```
-
-The value inside a successful effect constructed with `ZIO.effectTotal` will only be constructed if absolutely required.
-
 ### Failure Values
 
 | Function | Input Type | Output Type      |
@@ -268,7 +258,7 @@ import zio.Fiber
 val func: String => String = s => s.toUpperCase
 for {
   promise <- ZIO.succeed(scala.concurrent.Promise[String]())
-  _ <- ZIO.effect {
+  _ <- ZIO.attempt {
     Try(func("hello world from future")) match {
       case Success(value) => promise.success(value)
       case Failure(exception) => promise.failure(exception)
@@ -311,22 +301,22 @@ A synchronous side-effect can be converted into a ZIO effect using `ZIO.effect`:
 import scala.io.StdIn
 
 val getLine: Task[String] =
-  ZIO.effect(StdIn.readLine())
+  ZIO.attempt(StdIn.readLine())
 ```
 
 The error type of the resulting effect will always be `Throwable`, because side-effects may throw exceptions with any value of type `Throwable`. 
 
-If a given side-effect is known to not throw any exceptions, then the side-effect can be converted into a ZIO effect using `ZIO.effectTotal`:
+If a given side-effect is known to not throw any exceptions, then the side-effect can be converted into a ZIO effect using `ZIO.succeed`:
 
 ```scala mdoc:silent
 def printLine(line: String): UIO[Unit] =
-  ZIO.effectTotal(println(line))
+  ZIO.succeed(println(line))
 
 val effectTotalTask: UIO[Long] =
-  ZIO.effectTotal(java.lang.System.nanoTime())
+  ZIO.succeed(java.lang.System.nanoTime())
 ```
 
-We should be careful when using `ZIO.effectTotal`—when in doubt about whether or not a side-effect is total, prefer `ZIO.effect` to convert the effect.
+We should be careful when using `ZIO.succeed`—when in doubt about whether or not a side-effect is total, prefer `ZIO.attempt` to convert the effect.
 
 If this is too broad, the `refineOrDie` method of `ZIO` may be used to retain only certain types of exceptions, and to die on any other types of exceptions:
 
@@ -334,7 +324,7 @@ If this is too broad, the `refineOrDie` method of `ZIO` may be used to retain on
 import java.io.IOException
 
 val printLine2: IO[IOException, String] =
-  ZIO.effect(StdIn.readLine()).refineToOrDie[IOException]
+  ZIO.attempt(StdIn.readLine()).refineToOrDie[IOException]
 ```
 
 ##### Blocking Synchronous Side-Effects
@@ -370,7 +360,7 @@ import java.net.ServerSocket
 import zio.UIO
 
 def accept(l: ServerSocket) =
-  ZIO.effectBlockingCancelable(l.accept())(UIO.effectTotal(l.close()))
+  ZIO.effectBlockingCancelable(l.accept())(UIO.succeed(l.close()))
 ```
 
 If a side-effect has already been converted into a ZIO effect, then instead of `effectBlocking`, the `blocking` method can be used to ensure the effect will be executed on the blocking thread pool:
@@ -379,7 +369,7 @@ If a side-effect has already been converted into a ZIO effect, then instead of `
 import scala.io.{ Codec, Source }
 
 def download(url: String) =
-  Task.effect {
+  Task.attempt {
     Source.fromURL(url)(Codec.UTF8).mkString
   }
 
@@ -427,16 +417,16 @@ Asynchronous ZIO effects are much easier to use than callback-based APIs, and th
 
 | Function                 | Input Type                             | Output Type    |
 |--------------------------|----------------------------------------|----------------|
-| `effectSuspend`          | `RIO[R, A]`                            | `RIO[R, A]`    |
-| `effectSuspendTotal`     | `ZIO[R, E, A]`                         | `ZIO[R, E, A]` |
-| `effectSuspendTotalWith` | `(Platform, Fiber.Id) => ZIO[R, E, A]` | `ZIO[R, E, A]` |
-| `effectSuspendWith`      | `(Platform, Fiber.Id) => RIO[R, A]`    | `RIO[R, A]`    |
+| `suspend`                | `RIO[R, A]`                            | `RIO[R, A]`    |
+| `suspendSucceed`         | `ZIO[R, E, A]`                         | `ZIO[R, E, A]` |
+| `suspendSucceedWith`     | `(Platform, Fiber.Id) => ZIO[R, E, A]` | `ZIO[R, E, A]` |
+| `suspendWith`            | `(Platform, Fiber.Id) => RIO[R, A]`    | `RIO[R, A]`    |
 
-A `RIO[R, A]` effect can be suspended using `effectSuspend` function:
+A `RIO[R, A]` effect can be suspended using `suspend` function:
 
 ```scala mdoc:silent
 val suspendedEffect: RIO[Any, ZIO[Has[Console], IOException, Unit]] =
-  ZIO.effectSuspend(ZIO.effect(Console.printLine("Suspended Hello World!")))
+  ZIO.suspend(ZIO.attempt(Console.printLine("Suspended Hello World!")))
 ```
 
 ## Mapping
@@ -620,7 +610,7 @@ If we want to catch and recover from all types of errors and effectfully attempt
 ```scala mdoc:invisible
 import java.io.{ FileNotFoundException, IOException }
 def readFile(s: String): IO[IOException, Array[Byte]] = 
-  ZIO.effect(???).refineToOrDie[IOException]
+  ZIO.attempt(???).refineToOrDie[IOException]
 ```
 
 ```scala mdoc:silent
@@ -764,7 +754,7 @@ Like `try` / `finally`, the `ensuring` operation guarantees that if an effect be
 
 ```scala mdoc
 val finalizer = 
-  UIO.effectTotal(println("Finalizing!"))
+  UIO.succeed(println("Finalizing!"))
 
 val finalized: IO[String, Unit] = 
   IO.fail("Failed!").ensuring(finalizer)
@@ -782,9 +772,9 @@ Here is another example of ensuring that our clean-up action called before our e
 import zio.Task
 var i: Int = 0
 val action: Task[String] =
-  Task.effectTotal(i += 1) *>
+  Task.succeed(i += 1) *>
     Task.fail(new Throwable("Boom!"))
-val cleanupAction: UIO[Unit] = UIO.effectTotal(i -= 1)
+val cleanupAction: UIO[Unit] = UIO.succeed(i -= 1)
 val composite = action.ensuring(cleanupAction)
 ```
 
@@ -841,8 +831,8 @@ import zio.{ UIO, IO }
 ```scala mdoc:invisible
 import java.io.{ File, IOException }
 
-def openFile(s: String): IO[IOException, File] = IO.effect(???).refineToOrDie[IOException]
-def closeFile(f: File): UIO[Unit] = IO.effectTotal(???)
+def openFile(s: String): IO[IOException, File] = IO.attempt(???).refineToOrDie[IOException]
+def closeFile(f: File): UIO[Unit] = IO.succeed(???)
 def decodeData(f: File): IO[IOException, Unit] = IO.unit
 def groupData(u: Unit): IO[IOException, Unit] = IO.unit
 ```
@@ -882,8 +872,8 @@ object Main extends zio.App {
   }
 
   def convertBytes(is: FileInputStream, len: Long) =
-    Task.effect(println(new String(readAll(is, len), StandardCharsets.UTF_8))) // Java 8
-  //Task.effect(println(new String(is.readAllBytes(), StandardCharsets.UTF_8))) // Java 11+
+    Task.attempt(println(new String(readAll(is, len), StandardCharsets.UTF_8))) // Java 8
+  //Task.attempt(println(new String(is.readAllBytes(), StandardCharsets.UTF_8))) // Java 11+
 
   // mybracket is just a value. Won't execute anything here until interpreted
   val mybracket: Task[Unit] = for {
@@ -917,7 +907,7 @@ Let's write a ZIO version:
 
 ```scala mdoc:silent
 IO.fail("e1")
-  .ensuring(IO.effectTotal(throw new Exception("e2")))
+  .ensuring(IO.succeed(throw new Exception("e2")))
   .catchAll {
     case "e1" => Console.printLine("e1")
     case "e2" => Console.printLine("e2")

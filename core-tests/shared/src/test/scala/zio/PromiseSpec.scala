@@ -41,7 +41,7 @@ object PromiseSpec extends ZIOBaseSpec {
       for {
         p <- Promise.make[String, Int]
         s <- p.fail("error with fail")
-        v <- p.await.run
+        v <- p.await.exit
       } yield assert(s)(isTrue) && assert(v)(fails(equalTo("error with fail")))
     } @@ zioTag(errors),
     testM("fail a promise using complete") {
@@ -49,8 +49,8 @@ object PromiseSpec extends ZIOBaseSpec {
         p  <- Promise.make[String, Int]
         r  <- Ref.make(List("first error", "second error"))
         s  <- p.complete(r.modify(as => (as.head, as.tail)).flip)
-        v1 <- p.await.run
-        v2 <- p.await.run
+        v1 <- p.await.exit
+        v2 <- p.await.exit
       } yield assert(s)(isTrue) &&
         assert(v1)(fails(equalTo("first error"))) &&
         assert(v2)(fails(equalTo("first error")))
@@ -60,8 +60,8 @@ object PromiseSpec extends ZIOBaseSpec {
         p  <- Promise.make[String, Int]
         r  <- Ref.make(List("first error", "second error"))
         s  <- p.completeWith(r.modify(as => (as.head, as.tail)).flip)
-        v1 <- p.await.run
-        v2 <- p.await.run
+        v1 <- p.await.exit
+        v2 <- p.await.exit
       } yield assert(s)(isTrue) &&
         assert(v1)(fails(equalTo("first error"))) &&
         assert(v2)(fails(equalTo("second error")))
@@ -90,21 +90,21 @@ object PromiseSpec extends ZIOBaseSpec {
       for {
         p      <- Promise.make[String, Int]
         _      <- p.succeed(12)
-        result <- p.poll.someOrFail("fail").flatten.run
+        result <- p.poll.someOrFail("fail").flatten.exit
       } yield assert(result)(succeeds(equalTo(12)))
     },
     testM("poll a promise that is failed") {
       for {
         p      <- Promise.make[String, Int]
         _      <- p.fail("failure")
-        result <- p.poll.someOrFail("fail").flatten.run
+        result <- p.poll.someOrFail("fail").flatten.exit
       } yield assert(result)(fails(equalTo("failure")))
     },
     testM("poll a promise that is interrupted") {
       for {
         p      <- Promise.make[String, Int]
         _      <- p.interrupt
-        result <- p.poll.someOrFail("fail").flatten.run
+        result <- p.poll.someOrFail("fail").flatten.exit
       } yield assert(result)(isInterrupted)
     } @@ zioTag(interruption),
     testM("isDone when a promise is completed") {

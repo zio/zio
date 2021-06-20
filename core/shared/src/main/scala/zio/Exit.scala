@@ -112,7 +112,7 @@ sealed abstract class Exit[+E, +A] extends Product with Serializable { self =>
    * returns the result in a new `Exit`.
    */
   final def foreach[R, E1 >: E, B](f: A => ZIO[R, E1, B]): ZIO[R, Nothing, Exit[E1, B]] =
-    fold(c => ZIO.succeedNow(halt(c)), a => f(a).run)
+    fold(c => ZIO.succeedNow(halt(c)), a => f(a).exit)
 
   /**
    * Retrieves the `A` if succeeded, or else returns the specified default `A`.

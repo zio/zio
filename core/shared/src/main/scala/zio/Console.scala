@@ -68,7 +68,7 @@ object Console extends Serializable {
     def printLineError(line: String): IO[IOException, Unit] = printLine(SConsole.err)(line)
 
     def readLine: IO[IOException, String] =
-      IO.effect {
+      IO.attempt {
         val line = StdIn.readLine()
 
         if (line ne null) line
@@ -76,10 +76,10 @@ object Console extends Serializable {
       }.refineToOrDie[IOException]
 
     private def print(stream: PrintStream)(line: String): IO[IOException, Unit] =
-      IO.effect(SConsole.withOut(stream)(SConsole.print(line))).refineToOrDie[IOException]
+      IO.attempt(SConsole.withOut(stream)(SConsole.print(line))).refineToOrDie[IOException]
 
     private def printLine(stream: PrintStream)(line: String): IO[IOException, Unit] =
-      IO.effect(SConsole.withOut(stream)(SConsole.println(line))).refineToOrDie[IOException]
+      IO.attempt(SConsole.withOut(stream)(SConsole.println(line))).refineToOrDie[IOException]
   }
 
   // Accessor Methods

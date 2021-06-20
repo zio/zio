@@ -111,7 +111,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    */
   final def build: ZManaged[RIn, E, ROut] =
     for {
-      memoMap <- ZLayer.MemoMap.make.toManaged_
+      memoMap <- ZLayer.MemoMap.make.toManaged
       run     <- self.scope
       value   <- run(memoMap)
     } yield value
@@ -351,7 +351,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * release actions will be performed uninterruptibly.
    */
   def fromAcquireRelease[R, E, A: Tag](acquire: ZIO[R, E, A])(release: A => URIO[R, Any]): ZLayer[R, E, Has[A]] =
-    fromManaged(ZManaged.make(acquire)(release))
+    fromManaged(ZManaged.bracket(acquire)(release))
 
   /**
    * Constructs a layer from acquire and release actions, which must return one
@@ -359,7 +359,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * uninterruptibly.
    */
   def fromAcquireReleaseMany[R, E, A](acquire: ZIO[R, E, A])(release: A => URIO[R, Any]): ZLayer[R, E, A] =
-    fromManagedMany(ZManaged.make(acquire)(release))
+    fromManagedMany(ZManaged.bracket(acquire)(release))
 
   /**
    * Constructs a layer from the specified effect.
@@ -385,7 +385,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * function.
    */
   def fromFunctionM[A, E, B: Tag](f: A => IO[E, B]): ZLayer[A, E, Has[B]] =
-    fromFunctionManaged(a => f(a).toManaged_)
+    fromFunctionManaged(a => f(a).toManaged)
 
   /**
    * Constructs a layer from the environment using the specified effectful
@@ -406,7 +406,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * function, which must return one or more services.
    */
   def fromFunctionManyM[A, E, B](f: A => IO[E, B]): ZLayer[A, E, B] =
-    fromFunctionManyManaged(a => f(a).toManaged_)
+    fromFunctionManyManaged(a => f(a).toManaged)
 
   /**
    * Constructs a layer from the environment using the specified effectful
@@ -901,7 +901,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer that effectfully depends on the specified service.
    */
   def fromServiceM[A: Tag, R, E, B: Tag](f: A => ZIO[R, E, B]): ZLayer[R with Has[A], E, Has[B]] =
-    fromServiceManaged(a => f(a).toManaged_)
+    fromServiceManaged(a => f(a).toManaged)
 
   /**
    * Constructs a layer that effectfully depends on the specified services.
@@ -909,7 +909,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   def fromServicesM[A0: Tag, A1: Tag, R, E, B: Tag](
     f: (A0, A1) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1], E, Has[B]] = {
-    val layer = fromServicesManaged(andThen(f)(_.toManaged_))
+    val layer = fromServicesManaged(andThen(f)(_.toManaged))
     layer
   }
 
@@ -919,7 +919,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   def fromServicesM[A0: Tag, A1: Tag, A2: Tag, R, E, B: Tag](
     f: (A0, A1, A2) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2], E, Has[B]] = {
-    val layer = fromServicesManaged(andThen(f)(_.toManaged_))
+    val layer = fromServicesManaged(andThen(f)(_.toManaged))
     layer
   }
 
@@ -929,7 +929,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   def fromServicesM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3], E, Has[B]] = {
-    val layer = fromServicesManaged(andThen(f)(_.toManaged_))
+    val layer = fromServicesManaged(andThen(f)(_.toManaged))
     layer
   }
 
@@ -939,7 +939,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   def fromServicesM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4], E, Has[B]] = {
-    val layer = fromServicesManaged(andThen(f)(_.toManaged_))
+    val layer = fromServicesManaged(andThen(f)(_.toManaged))
     layer
   }
 
@@ -949,7 +949,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   def fromServicesM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4, A5) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5], E, Has[B]] = {
-    val layer = fromServicesManaged(andThen(f)(_.toManaged_))
+    val layer = fromServicesManaged(andThen(f)(_.toManaged))
     layer
   }
 
@@ -959,7 +959,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   def fromServicesM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6], E, Has[B]] = {
-    val layer = fromServicesManaged(andThen(f)(_.toManaged_))
+    val layer = fromServicesManaged(andThen(f)(_.toManaged))
     layer
   }
 
@@ -971,7 +971,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ], E, Has[B]] = {
-    val layer = fromServicesManaged(andThen(f)(_.toManaged_))
+    val layer = fromServicesManaged(andThen(f)(_.toManaged))
     layer
   }
 
@@ -983,7 +983,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8], E, Has[B]] = {
-    val layer = fromServicesManaged(andThen(f)(_.toManaged_))
+    val layer = fromServicesManaged(andThen(f)(_.toManaged))
     layer
   }
 
@@ -1009,7 +1009,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9], E, Has[B]] = {
-    val layer = fromServicesManaged(andThen(f)(_.toManaged_))
+    val layer = fromServicesManaged(andThen(f)(_.toManaged))
     layer
   }
 
@@ -1036,7 +1036,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9] with Has[A10], E, Has[B]] = {
-    val layer = fromServicesManaged(andThen(f)(_.toManaged_))
+    val layer = fromServicesManaged(andThen(f)(_.toManaged))
     layer
   }
 
@@ -1064,7 +1064,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11], E, Has[B]] = {
-    val layer = fromServicesManaged(andThen(f)(_.toManaged_))
+    val layer = fromServicesManaged(andThen(f)(_.toManaged))
     layer
   }
 
@@ -1093,7 +1093,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12], E, Has[B]] = {
-    val layer = fromServicesManaged(andThen(f)(_.toManaged_))
+    val layer = fromServicesManaged(andThen(f)(_.toManaged))
     layer
   }
 
@@ -1123,7 +1123,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13], E, Has[B]] = {
-    val layer = fromServicesManaged(andThen(f)(_.toManaged_))
+    val layer = fromServicesManaged(andThen(f)(_.toManaged))
     layer
   }
 
@@ -1154,7 +1154,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14], E, Has[B]] = {
-    val layer = fromServicesManaged(andThen(f)(_.toManaged_))
+    val layer = fromServicesManaged(andThen(f)(_.toManaged))
     layer
   }
 
@@ -1188,7 +1188,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
     A15
   ], E, Has[B]] = {
-    val layer = fromServicesManaged(andThen(f)(_.toManaged_))
+    val layer = fromServicesManaged(andThen(f)(_.toManaged))
     layer
   }
 
@@ -1223,7 +1223,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
     A15
   ] with Has[A16], E, Has[B]] = {
-    val layer = fromServicesManaged(andThen(f)(_.toManaged_))
+    val layer = fromServicesManaged(andThen(f)(_.toManaged))
     layer
   }
 
@@ -1259,7 +1259,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
     A15
   ] with Has[A16] with Has[A17], E, Has[B]] = {
-    val layer = fromServicesManaged(andThen(f)(_.toManaged_))
+    val layer = fromServicesManaged(andThen(f)(_.toManaged))
     layer
   }
 
@@ -1296,7 +1296,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
     A15
   ] with Has[A16] with Has[A17] with Has[A18], E, Has[B]] = {
-    val layer = fromServicesManaged(andThen(f)(_.toManaged_))
+    val layer = fromServicesManaged(andThen(f)(_.toManaged))
     layer
   }
 
@@ -1334,7 +1334,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
     A15
   ] with Has[A16] with Has[A17] with Has[A18] with Has[A19], E, Has[B]] = {
-    val layer = fromServicesManaged(andThen(f)(_.toManaged_))
+    val layer = fromServicesManaged(andThen(f)(_.toManaged))
     layer
   }
 
@@ -1373,7 +1373,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
     A15
   ] with Has[A16] with Has[A17] with Has[A18] with Has[A19] with Has[A20], E, Has[B]] = {
-    val layer = fromServicesManaged(andThen(f)(_.toManaged_))
+    val layer = fromServicesManaged(andThen(f)(_.toManaged))
     layer
   }
 
@@ -1436,7 +1436,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
     A15
   ] with Has[A16] with Has[A17] with Has[A18] with Has[A19] with Has[A20] with Has[A21], E, Has[B]] = {
-    val layer = fromServicesManaged(andThen(f)(_.toManaged_))
+    val layer = fromServicesManaged(andThen(f)(_.toManaged))
     layer
   }
 
@@ -2595,7 +2595,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * returns a single service see `fromServiceM`.
    */
   def fromServiceManyM[A: Tag, R, E, B](f: A => ZIO[R, E, B]): ZLayer[R with Has[A], E, B] =
-    fromServiceManyManaged(a => f(a).toManaged_)
+    fromServiceManyManaged(a => f(a).toManaged)
 
   /**
    * Constructs a layer that effectfully depends on the specified services,
@@ -2605,7 +2605,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   def fromServicesManyM[A0: Tag, A1: Tag, R, E, B](
     f: (A0, A1) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1], E, B] = {
-    val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
+    val layer = fromServicesManyManaged(andThen(f)(_.toManaged))
     layer
   }
 
@@ -2617,7 +2617,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   def fromServicesManyM[A0: Tag, A1: Tag, A2: Tag, R, E, B](
     f: (A0, A1, A2) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2], E, B] = {
-    val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
+    val layer = fromServicesManyManaged(andThen(f)(_.toManaged))
     layer
   }
 
@@ -2629,7 +2629,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   def fromServicesManyM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, R, E, B](
     f: (A0, A1, A2, A3) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3], E, B] = {
-    val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
+    val layer = fromServicesManyManaged(andThen(f)(_.toManaged))
     layer
   }
 
@@ -2641,7 +2641,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   def fromServicesManyM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4], E, B] = {
-    val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
+    val layer = fromServicesManyManaged(andThen(f)(_.toManaged))
     layer
   }
 
@@ -2653,7 +2653,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   def fromServicesManyM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4, A5) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5], E, B] = {
-    val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
+    val layer = fromServicesManyManaged(andThen(f)(_.toManaged))
     layer
   }
 
@@ -2665,7 +2665,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   def fromServicesManyM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6], E, B] = {
-    val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
+    val layer = fromServicesManyManaged(andThen(f)(_.toManaged))
     layer
   }
 
@@ -2679,7 +2679,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ], E, B] = {
-    val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
+    val layer = fromServicesManyManaged(andThen(f)(_.toManaged))
     layer
   }
 
@@ -2693,7 +2693,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8], E, B] = {
-    val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
+    val layer = fromServicesManyManaged(andThen(f)(_.toManaged))
     layer
   }
 
@@ -2721,7 +2721,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9], E, B] = {
-    val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
+    val layer = fromServicesManyManaged(andThen(f)(_.toManaged))
     layer
   }
 
@@ -2750,7 +2750,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9] with Has[A10], E, B] = {
-    val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
+    val layer = fromServicesManyManaged(andThen(f)(_.toManaged))
     layer
   }
 
@@ -2780,7 +2780,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11], E, B] = {
-    val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
+    val layer = fromServicesManyManaged(andThen(f)(_.toManaged))
     layer
   }
 
@@ -2811,7 +2811,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12], E, B] = {
-    val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
+    val layer = fromServicesManyManaged(andThen(f)(_.toManaged))
     layer
   }
 
@@ -2843,7 +2843,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13], E, B] = {
-    val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
+    val layer = fromServicesManyManaged(andThen(f)(_.toManaged))
     layer
   }
 
@@ -2876,7 +2876,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14], E, B] = {
-    val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
+    val layer = fromServicesManyManaged(andThen(f)(_.toManaged))
     layer
   }
 
@@ -2912,7 +2912,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
     A15
   ], E, B] = {
-    val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
+    val layer = fromServicesManyManaged(andThen(f)(_.toManaged))
     layer
   }
 
@@ -2949,7 +2949,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
     A15
   ] with Has[A16], E, B] = {
-    val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
+    val layer = fromServicesManyManaged(andThen(f)(_.toManaged))
     layer
   }
 
@@ -2987,7 +2987,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
     A15
   ] with Has[A16] with Has[A17], E, B] = {
-    val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
+    val layer = fromServicesManyManaged(andThen(f)(_.toManaged))
     layer
   }
 
@@ -3026,7 +3026,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
     A15
   ] with Has[A16] with Has[A17] with Has[A18], E, B] = {
-    val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
+    val layer = fromServicesManyManaged(andThen(f)(_.toManaged))
     layer
   }
 
@@ -3066,7 +3066,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
     A15
   ] with Has[A16] with Has[A17] with Has[A18] with Has[A19], E, B] = {
-    val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
+    val layer = fromServicesManyManaged(andThen(f)(_.toManaged))
     layer
   }
 
@@ -3107,7 +3107,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
     A15
   ] with Has[A16] with Has[A17] with Has[A18] with Has[A19] with Has[A20], E, B] = {
-    val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
+    val layer = fromServicesManyManaged(andThen(f)(_.toManaged))
     layer
   }
 
@@ -3172,7 +3172,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
     A15
   ] with Has[A16] with Has[A17] with Has[A18] with Has[A19] with Has[A20] with Has[A21], E, B] = {
-    val layer = fromServicesManyManaged(andThen(f)(_.toManaged_))
+    val layer = fromServicesManyManaged(andThen(f)(_.toManaged))
     layer
   }
 
@@ -4216,7 +4216,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
                                        innerReleaseMap     <- ZManaged.ReleaseMap.make
                                        tp <- restore(
                                                layer.scope.flatMap(_.apply(self)).zio.provide((a, innerReleaseMap))
-                                             ).run.flatMap {
+                                             ).exit.flatMap {
                                                case e @ Exit.Failure(cause) =>
                                                  promise.halt(cause) *> innerReleaseMap.releaseAll(
                                                    e,

@@ -72,7 +72,7 @@ object ZSinkSpec extends ZIOBaseSpec {
         testM("happy path") {
           for {
             closed <- Ref.make[Boolean](false)
-            res     = ZManaged.make(ZIO.succeed(100))(_ => closed.set(true))
+            res     = ZManaged.bracket(ZIO.succeed(100))(_ => closed.set(true))
             sink: ZSink[Any, Nothing, Int, Int, (Long, Boolean)] =
               ZSink.managed(res)(m => ZSink.count.mapM(cnt => closed.get.map(cl => (cnt + m, cl))))
             resAndState <- ZStream(1, 2, 3).run(sink)
@@ -84,7 +84,7 @@ object ZSinkSpec extends ZIOBaseSpec {
         testM("sad path") {
           for {
             closed     <- Ref.make[Boolean](false)
-            res         = ZManaged.make(ZIO.succeed(100))(_ => closed.set(true))
+            res         = ZManaged.bracket(ZIO.succeed(100))(_ => closed.set(true))
             sink        = ZSink.managed(res)(_ => ZSink.succeed[Int, String]("ok"))
             r          <- ZStream.fail("fail").run(sink).either
             finalState <- closed.get
@@ -137,7 +137,7 @@ object ZSinkSpec extends ZIOBaseSpec {
               foldResult <- s.fold(List[Int]())((acc, el) => el :: acc)
                               .map(_.reverse)
                               .flatMap(_.foldLeft(z)((acc, el) => acc.flatMap(f(_, el))))
-                              .run
+                              .exit
             } yield assert(foldResult.succeeded)(isTrue) implies assert(foldResult)(succeeds(equalTo(sinkResult)))
           }
         }
@@ -309,7 +309,7 @@ object ZSinkSpec extends ZIOBaseSpec {
             .fromChunks(chunks: _*)
             .peel(ZSink.take[Int](n))
             .flatMap { case (chunk, stream) =>
-              stream.runCollect.toManaged_.map { leftover =>
+              stream.runCollect.toManaged.map { leftover =>
                 assert(chunk)(equalTo(chunks.flatten.take(n))) &&
                 assert(leftover)(equalTo(chunks.flatten.drop(n)))
               }

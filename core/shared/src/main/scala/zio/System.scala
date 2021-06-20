@@ -53,7 +53,7 @@ object System extends Serializable {
 
   object SystemLive extends System {
     def env(variable: String): IO[SecurityException, Option[String]] =
-      IO.effect(Option(JSystem.getenv(variable))).refineToOrDie[SecurityException]
+      IO.attempt(Option(JSystem.getenv(variable))).refineToOrDie[SecurityException]
 
     def envOrElse(variable: String, alt: => String): IO[SecurityException, String] =
       envOrElseWith(variable, alt)(env)
@@ -63,16 +63,17 @@ object System extends Serializable {
 
     @silent("JavaConverters")
     val envs: IO[SecurityException, Map[String, String]] =
-      IO.effect(JSystem.getenv.asScala.toMap).refineToOrDie[SecurityException]
+      IO.attempt(JSystem.getenv.asScala.toMap).refineToOrDie[SecurityException]
 
-    val lineSeparator: UIO[String] = IO.effectTotal(JSystem.lineSeparator)
+    val lineSeparator: UIO[String] =
+      IO.succeed(JSystem.lineSeparator)
 
     @silent("JavaConverters")
     val properties: IO[Throwable, Map[String, String]] =
-      IO.effect(JSystem.getProperties.asScala.toMap)
+      IO.attempt(JSystem.getProperties.asScala.toMap)
 
     def property(prop: String): IO[Throwable, Option[String]] =
-      IO.effect(Option(JSystem.getProperty(prop)))
+      IO.attempt(Option(JSystem.getProperty(prop)))
 
     def propertyOrElse(prop: String, alt: => String): IO[Throwable, String] =
       propertyOrElseWith(prop, alt)(property)

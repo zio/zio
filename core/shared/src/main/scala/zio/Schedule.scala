@@ -1107,7 +1107,7 @@ object Schedule {
     def loop(a: A): StepFunction[Any, Any, A] =
       (now, _) => ZIO.succeed(Decision.Continue(a, now, loop(f(a))))
 
-    Schedule((now, _) => ZIO.effectTotal(a).map(a => Decision.Continue(a, now, loop(f(a)))))
+    Schedule((now, _) => ZIO.succeed(a).map(a => Decision.Continue(a, now, loop(f(a)))))
   }
 
   /**

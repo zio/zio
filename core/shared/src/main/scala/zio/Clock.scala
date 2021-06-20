@@ -158,22 +158,22 @@ object Clock extends ClockPlatformSpecific with Serializable {
         }
       }
 
-    val nanoTime: UIO[Long] = IO.effectTotal(JSystem.nanoTime)
+    val nanoTime: UIO[Long] = IO.succeed(JSystem.nanoTime)
 
     def sleep(duration: Duration): UIO[Unit] =
       UIO.effectAsyncInterrupt { cb =>
         val canceler = globalScheduler.schedule(() => cb(UIO.unit), duration)
-        Left(UIO.effectTotal(canceler()))
+        Left(UIO.succeed(canceler()))
       }
 
     def currentDateTime: UIO[OffsetDateTime] =
-      ZIO.effectTotal(OffsetDateTime.now())
+      ZIO.succeed(OffsetDateTime.now())
 
     override def instant: UIO[Instant] =
-      ZIO.effectTotal(Instant.now())
+      ZIO.succeed(Instant.now())
 
     override def localDateTime: UIO[LocalDateTime] =
-      ZIO.effectTotal(LocalDateTime.now())
+      ZIO.succeed(LocalDateTime.now())
 
   }
 

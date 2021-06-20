@@ -302,7 +302,7 @@ object ZFiberRef {
      * currently managed by ZIO, and behave like an ordinary `ThreadLocal` on all other threads.
      */
     def unsafeAsThreadLocal: UIO[ThreadLocal[A]] =
-      ZIO.effectTotal {
+      ZIO.succeed {
         new ThreadLocal[A] {
           override def get(): A = {
             val fiberContext = Fiber._currentFiber.get()

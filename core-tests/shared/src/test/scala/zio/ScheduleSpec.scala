@@ -189,7 +189,7 @@ object ScheduleSpec extends ZIOBaseSpec {
       },
       testM("fixed delay with error predicate") {
         var i = 0
-        val io = IO.effectTotal(i += 1).flatMap[Any, String, Unit] { _ =>
+        val io = IO.succeed(i += 1).flatMap[Any, String, Unit] { _ =>
           if (i < 5) IO.fail("KeepTryingError") else IO.fail("GiveUpError")
         }
         val strategy = Schedule.spaced(200.millis).whileInput[String](_ == "KeepTryingError")
@@ -258,7 +258,7 @@ object ScheduleSpec extends ZIOBaseSpec {
       testM("for up to 10 times") {
         var i        = 0
         val strategy = Schedule.recurs(10)
-        val io       = IO.effectTotal(i += 1).flatMap(_ => if (i < 5) IO.fail("KeepTryingError") else IO.succeed(i))
+        val io       = IO.succeed(i += 1).flatMap(_ => if (i < 5) IO.fail("KeepTryingError") else IO.succeed(i))
         assertM(io.retry(strategy))(equalTo(5))
       }
     ) @@ zioTag(errors),

@@ -6,7 +6,7 @@ import zio.{UIO, ZIOBaseSpec}
 object STMLazinessSpec extends ZIOBaseSpec {
 
   def assertLazy(f: (=> Nothing) => Any): UIO[TestResult] =
-    UIO.effectTotal {
+    UIO.succeed {
       val _ = f(throw new RuntimeException("not lazy"))
       assertCompletes
     }

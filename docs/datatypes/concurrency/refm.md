@@ -16,7 +16,7 @@ In the following example, we should pass in `updateEffect` to it which is the de
 import zio._
 for {
   refM   <- RefM.make("current")
-  updateEffect = IO.effectTotal("update")
+  updateEffect = IO.succeed("update")
   _ <- refM.updateM(_ => updateEffect)
   value <- refM.get
 } yield assert(value == "update")

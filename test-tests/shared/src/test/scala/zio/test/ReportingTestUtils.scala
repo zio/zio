@@ -136,10 +136,10 @@ object ReportingTestUtils {
 
   val test7: ZSpec[Any, Nothing] = testM("labeled failures") {
     for {
-      a <- ZIO.effectTotal(Some(1))
-      b <- ZIO.effectTotal(Some(1))
-      c <- ZIO.effectTotal(Some(0))
-      d <- ZIO.effectTotal(Some(1))
+      a <- ZIO.succeed(Some(1))
+      b <- ZIO.succeed(Some(1))
+      c <- ZIO.succeed(Some(0))
+      d <- ZIO.succeed(Some(1))
     } yield assert(a)(isSome(equalTo(1)).label("first")) &&
       assert(b)(isSome(equalTo(1)).label("second")) &&
       assert(c)(isSome(equalTo(1)).label("third")) &&

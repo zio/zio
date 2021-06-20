@@ -38,7 +38,7 @@ If you want to catch and recover from all types of errors and effectfully attemp
 import java.io.{ FileNotFoundException, IOException }
 
 def openFile(s: String): IO[IOException, Array[Byte]] = 
-  ZIO.effect(???).refineToOrDie[IOException]
+  ZIO.attempt(???).refineToOrDie[IOException]
 ```
 
 ```scala mdoc:silent

@@ -86,7 +86,7 @@ object terminal {
     object Service {
       val live: Service = new Service {
         override def printLine(line: String): UIO[Unit] =
-          ZIO.effectTotal(println(line))
+          ZIO.succeed(println(line))
       }
     }
   }
@@ -116,7 +116,7 @@ import scala.io.BufferedSource
 
 ```scala mdoc:silent:nest
 val managedFile = ZManaged.fromAutoCloseable(
-  ZIO.effect(scala.io.Source.fromFile("file.txt"))
+  ZIO.attempt(scala.io.Source.fromFile("file.txt"))
 )
 val fileLayer: ZLayer[Any, Throwable, Has[BufferedSource]] = 
   ZLayer.fromManaged(managedFile)
@@ -139,8 +139,8 @@ import java.io.{FileInputStream, FileOutputStream, Closeable}
 trait DBConfig
 trait Transactor
 
-def dbConfig: Task[DBConfig] = Task.effect(???)
-def initializeDb(config: DBConfig): Task[Unit] = Task.effect(???)
+def dbConfig: Task[DBConfig] = Task.attempt(???)
+def initializeDb(config: DBConfig): Task[Unit] = Task.attempt(???)
 def makeTransactor(config: DBConfig): ZManaged[Any, Throwable, Transactor] = ???
 
 case class UserRepository(xa: Transactor)
@@ -151,8 +151,8 @@ object UserRepository {
 
 ```scala mdoc:silent:nest
 def userRepository: ZManaged[Has[Console], Throwable, UserRepository] = for {
-  cfg <- dbConfig.toManaged_
-  _ <- initializeDb(cfg).toManaged_
+  cfg <- dbConfig.toManaged
+  _ <- initializeDb(cfg).toManaged
   xa <- makeTransactor(cfg)
 } yield new UserRepository(xa)
 ```
@@ -167,8 +167,8 @@ val usersLayer_ = ZLayer.fromManaged(userRepository)
 Also, we can create a `ZLayer` directly from `acquire` and `release` actions of a managed resource:
 
 ```scala mdoc:nest
-def acquire = ZIO.effect(new FileInputStream("file.txt"))
-def release(resource: Closeable) = ZIO.effectTotal(resource.close())
+def acquire = ZIO.attempt(new FileInputStream("file.txt"))
+def release(resource: Closeable) = ZIO.succeed(resource.close())
 
 val inputStreamLayer = ZLayer.fromAcquireRelease(acquire)(release)
 ```
@@ -189,7 +189,7 @@ trait AppConfig
 ```
 
 ```scala mdoc:nest
-def loadConfig: Task[AppConfig] = Task.effect(???)
+def loadConfig: Task[AppConfig] = Task.attempt(???)
 val configLayer = ZLayer.fromEffect(loadConfig)
 ```
 

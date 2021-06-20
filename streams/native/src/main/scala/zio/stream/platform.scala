@@ -54,9 +54,9 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
   ): ZStream[R, E, A] =
     ZStream {
       for {
-        output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).toManaged(_.shutdown)
-        runtime <- ZIO.runtime[R].toManaged_
-        eitherStream <- ZManaged.effectTotal {
+        output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).toManagedWith(_.shutdown)
+        runtime <- ZIO.runtime[R].toManaged
+        eitherStream <- ZManaged.succeed {
                           register(k =>
                             try {
                               runtime.unsafeRunToFuture(stream.Take.fromPull(k).flatMap(output.offer))
@@ -75,7 +75,7 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
                       else
                         output.take.flatMap(_.done).onError(_ => done.set(true) *> output.shutdown)
                     }).ensuring(canceler)
-                  case Right(stream) => output.shutdown.toManaged_ *> stream.process
+                  case Right(stream) => output.shutdown.toManaged *> stream.process
                 }
       } yield pull
     }
@@ -91,8 +91,8 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
   ): ZStream[R, E, A] =
     managed {
       for {
-        output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).toManaged(_.shutdown)
-        runtime <- ZIO.runtime[R].toManaged_
+        output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).toManagedWith(_.shutdown)
+        runtime <- ZIO.runtime[R].toManaged
         _ <- register { k =>
                try {
                  runtime.unsafeRunToFuture(stream.Take.fromPull(k).flatMap(output.offer))
@@ -100,7 +100,7 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
                  case FiberFailure(c) if c.interrupted =>
                    Future.successful(false)
                }
-             }.toManaged_
+             }.toManaged
         done <- ZRef.makeManaged(false)
         pull = done.get.flatMap {
                  if (_)
@@ -123,9 +123,9 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
   ): ZStream[R, E, A] =
     ZStream {
       for {
-        output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).toManaged(_.shutdown)
-        runtime <- ZIO.runtime[R].toManaged_
-        maybeStream <- ZManaged.effectTotal {
+        output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).toManagedWith(_.shutdown)
+        runtime <- ZIO.runtime[R].toManaged
+        maybeStream <- ZManaged.succeed {
                          register { k =>
                            try {
                              runtime.unsafeRunToFuture(stream.Take.fromPull(k).flatMap(output.offer))
@@ -136,7 +136,7 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
                          }
                        }
         pull <- maybeStream match {
-                  case Some(stream) => output.shutdown.toManaged_ *> stream.process
+                  case Some(stream) => output.shutdown.toManaged *> stream.process
                   case None =>
                     for {
                       done <- ZRef.makeManaged(false)
@@ -159,8 +159,8 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
   ): ZStream[Any, IOException, Byte] =
     ZStream {
       for {
-        done       <- Ref.make(false).toManaged_
-        capturedIs <- Managed.effectTotal(is)
+        done       <- Ref.make(false).toManaged
+        capturedIs <- Managed.succeed(is)
         pull = {
           def go: ZIO[Any, Option[IOException], Chunk[Byte]] = done.get.flatMap {
             if (_) Pull.end
@@ -194,7 +194,7 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
     is: ZIO[R, IOException, InputStream],
     chunkSize: Int = ZStream.DefaultChunkSize
   ): ZStream[R, IOException, Byte] =
-    fromInputStreamManaged(is.toManaged(is => ZIO.effectTotal(is.close())), chunkSize)
+    fromInputStreamManaged(is.toManagedWith(is => ZIO.succeed(is.close())), chunkSize)
 
   /**
    * Creates a stream from a managed [[java.io.InputStream]] value.

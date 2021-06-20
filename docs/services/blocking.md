@@ -15,7 +15,7 @@ import zio._
 import zio.Console._
 def blockingTask(n: Int): URIO[Has[Console], Unit] =
   printLine(s"running blocking task number $n").orDie *>
-    ZIO.effectTotal(Thread.sleep(3000)) *>
+    ZIO.succeed(Thread.sleep(3000)) *>
     blockingTask(n)
 
 val program = ZIO.foreachPar((1 to 100).toArray)(blockingTask)

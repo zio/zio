@@ -60,7 +60,7 @@ object FiberSpec extends ZIOBaseSpec {
           val fiberId = Fiber.Id(0L, 123L)
 
           for {
-            exit <- Fiber.interruptAs(fiberId).join.run
+            exit <- Fiber.interruptAs(fiberId).join.exit
           } yield assert(exit)(equalTo(Exit.interrupt(fiberId)))
         }
       ) @@ zioTag(interruption),
@@ -72,17 +72,17 @@ object FiberSpec extends ZIOBaseSpec {
         },
         testM("`join`") {
           for {
-            exit <- Fiber.fail("fail").zip(Fiber.never).join.run
+            exit <- Fiber.fail("fail").zip(Fiber.never).join.exit
           } yield assert(exit)(fails(equalTo("fail")))
         },
         testM("`awaitAll`") {
           for {
-            exit <- Fiber.awaitAll(Fiber.fail("fail") :: List.fill(100)(Fiber.never)).run
+            exit <- Fiber.awaitAll(Fiber.fail("fail") :: List.fill(100)(Fiber.never)).exit
           } yield assert(exit)(succeeds(isUnit))
         },
         testM("`joinAll`") {
           for {
-            exit <- Fiber.awaitAll(Fiber.fail("fail") :: List.fill(100)(Fiber.never)).run
+            exit <- Fiber.awaitAll(Fiber.fail("fail") :: List.fill(100)(Fiber.never)).exit
           } yield assert(exit)(succeeds(isUnit))
         },
         testM("shard example") {
@@ -94,7 +94,7 @@ object FiberSpec extends ZIOBaseSpec {
             queue <- Queue.unbounded[Int]
             _     <- queue.offerAll(1 to 100)
             worker = (n: Int) => if (n == 100) ZIO.fail("fail") else queue.offer(n).unit
-            exit  <- shard(queue, 4, worker).run
+            exit  <- shard(queue, 4, worker).exit
             _     <- queue.shutdown
           } yield assert(exit)(fails(equalTo("fail")))
         }

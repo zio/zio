@@ -286,7 +286,7 @@ sealed abstract class Fiber[+E, +A] { self =>
    * @return `UIO[Future[A]]`
    */
   final def toFutureWith(f: E => Throwable): UIO[CancelableFuture[A]] =
-    UIO.effectSuspendTotal {
+    UIO.suspendSucceed {
       val p: concurrent.Promise[A] = scala.concurrent.Promise[A]()
 
       def failure(cause: Cause[E]): UIO[p.type] = UIO(p.failure(cause.squashTraceWith(f)))
@@ -310,7 +310,7 @@ sealed abstract class Fiber[+E, +A] { self =>
    * @return `ZManaged[Any, Nothing, Fiber[E, A]]`
    */
   final def toManaged: ZManaged[Any, Nothing, Fiber[E, A]] =
-    ZManaged.make(UIO.succeedNow(self))(_.interrupt)
+    ZManaged.bracket(UIO.succeedNow(self))(_.interrupt)
 
   /**
    * Maps the output of this fiber to `()`.
@@ -367,7 +367,7 @@ sealed abstract class Fiber[+E, +A] { self =>
   final def zipWith[E1 >: E, B, C](that: => Fiber[E1, B])(f: (A, B) => C): Fiber.Synthetic[E1, C] =
     new Fiber.Synthetic[E1, C] {
       final def await: UIO[Exit[E1, C]] =
-        self.await.flatMap(IO.done(_)).zipWithPar(that.await.flatMap(IO.done(_)))(f).run
+        self.await.flatMap(IO.done(_)).zipWithPar(that.await.flatMap(IO.done(_)))(f).exit
 
       final def getRef[A](ref: FiberRef.Runtime[A]): UIO[A] =
         (self.getRef(ref) zipWith that.getRef(ref))(ref.join(_, _))
@@ -587,7 +587,7 @@ object Fiber extends FiberPlatformSpecific {
   )(implicit bf: BuildFrom[Collection[Fiber[E, A]], A, Collection[A]]): Fiber.Synthetic[E, Collection[A]] =
     new Fiber.Synthetic[E, Collection[A]] {
       def await: UIO[Exit[E, Collection[A]]] =
-        IO.foreachPar(fibers)(_.await.flatMap(IO.done(_))).run
+        IO.foreachPar(fibers)(_.await.flatMap(IO.done(_))).exit
       def getRef[A](ref: FiberRef.Runtime[A]): UIO[A] =
         UIO.foldLeft(fibers)(ref.initial)((a, fiber) => fiber.getRef(ref).map(ref.join(a, _)))
       def inheritRefs: UIO[Unit] =
@@ -661,7 +661,7 @@ object Fiber extends FiberPlatformSpecific {
    * @return `UIO[Fiber[E, A]]`
    */
   def fromEffect[E, A](io: IO[E, A]): UIO[Fiber.Synthetic[E, A]] =
-    io.run.map(done(_))
+    io.exit.map(done(_))
 
   /**
    * Returns a `Fiber` that is backed by the specified `Future`.
@@ -674,12 +674,12 @@ object Fiber extends FiberPlatformSpecific {
     new Fiber.Synthetic[Throwable, A] {
       lazy val ftr: Future[A] = thunk
 
-      def await: UIO[Exit[Throwable, A]] = Task.fromFuture(_ => ftr).run
+      def await: UIO[Exit[Throwable, A]] = Task.fromFuture(_ => ftr).exit
 
       def getRef[A](ref: FiberRef.Runtime[A]): UIO[A] = UIO(ref.initial)
 
       def interruptAs(id: Fiber.Id): UIO[Exit[Throwable, A]] =
-        UIO.effectSuspendTotal {
+        UIO.suspendSucceed {
           ftr match {
             case c: CancelableFuture[A] => ZIO.fromFuture(_ => c.cancel()).orDie
             case _                      => join.fold(Exit.fail, Exit.succeed)
@@ -688,7 +688,7 @@ object Fiber extends FiberPlatformSpecific {
 
       def inheritRefs: UIO[Unit] = IO.unit
 
-      def poll: UIO[Option[Exit[Throwable, A]]] = IO.effectTotal(ftr.value.map(Exit.fromTry))
+      def poll: UIO[Option[Exit[Throwable, A]]] = IO.succeed(ftr.value.map(Exit.fromTry))
     }
 
   /**

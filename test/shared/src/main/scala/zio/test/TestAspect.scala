@@ -93,8 +93,8 @@ object TestAspect extends TimeoutVariants {
   def after[R0, E0](effect: ZIO[R0, E0, Any]): TestAspect[Nothing, R0, E0, Any] =
     new TestAspect.PerTest[Nothing, R0, E0, Any] {
       def perTest[R <: R0, E >: E0](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] =
-        test.run
-          .zipWith(effect.catchAllCause(cause => ZIO.fail(TestFailure.Runtime(cause))).run)(_ <* _)
+        test.exit
+          .zipWith(effect.catchAllCause(cause => ZIO.fail(TestFailure.Runtime(cause))).exit)(_ <* _)
           .flatMap(ZIO.done(_))
     }
 
@@ -146,7 +146,7 @@ object TestAspect extends TimeoutVariants {
         def aroundAll[R <: R0, E >: E0, A](
           specs: ZManaged[R, TestFailure[E], Vector[Spec[R, TestFailure[E], TestSuccess]]]
         ): ZManaged[R, TestFailure[E], Vector[Spec[R, TestFailure[E], TestSuccess]]] =
-          ZManaged.make(before)(after).mapError(TestFailure.fail) *> specs
+          ZManaged.bracket(before)(after).mapError(TestFailure.fail) *> specs
         def around[R <: R0, E >: E0, A](
           test: ZIO[R, TestFailure[E], TestSuccess]
         ): ZIO[R, TestFailure[E], TestSuccess] =
@@ -366,13 +366,13 @@ object TestAspect extends TimeoutVariants {
       def perTest[R <: Has[Annotations], E](
         test: ZIO[R, TestFailure[E], TestSuccess]
       ): ZIO[R, TestFailure[E], TestSuccess] = {
-        val acquire = ZIO.effectTotal(new AtomicReference(SortedSet.empty[Fiber.Runtime[Any, Any]])).tap { ref =>
+        val acquire = ZIO.succeed(new AtomicReference(SortedSet.empty[Fiber.Runtime[Any, Any]])).tap { ref =>
           Annotations.annotate(TestAnnotation.fibers, Right(Chunk(ref)))
         }
         val release = Annotations.get(TestAnnotation.fibers).flatMap {
           case Right(refs) =>
             ZIO
-              .foreach(refs)(ref => ZIO.effectTotal(ref.get))
+              .foreach(refs)(ref => ZIO.succeed(ref.get))
               .map(_.foldLeft(SortedSet.empty[Fiber.Runtime[Any, Any]])(_ ++ _).size)
               .tap { n =>
                 Annotations.annotate(TestAnnotation.fibers, Left(n))

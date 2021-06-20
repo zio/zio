@@ -12,10 +12,10 @@ object Gzip {
   ): ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[Byte], Done] =
     ZChannel.managed {
       ZManaged
-        .make(
+        .bracket(
           Gzipper.make(bufferSize, level, strategy, flushMode)
         ) { gzipper =>
-          ZIO.effectTotal(gzipper.close())
+          ZIO.succeed(gzipper.close())
         }
     } {
       case gzipper => {

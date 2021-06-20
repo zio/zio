@@ -346,7 +346,7 @@ testM("One can control time for failing effects too") {
   val testCase =
     for {
       promise <- Promise.make[Unit, Int]
-      result  <- ZIO.service[SchedulingService].flatMap(_.schedule(promise)).run.fork
+      result  <- ZIO.service[SchedulingService].flatMap(_.schedule(promise)).exit.fork
       _       <- TestClock.adjust(10.seconds)
       readRef <- promise.await
       result  <- result.join

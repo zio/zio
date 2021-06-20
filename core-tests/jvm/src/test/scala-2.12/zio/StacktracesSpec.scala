@@ -337,7 +337,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
   }
 
   object foreachTraceFixture {
-    def effectTotal: UIO[Unit] = ZIO.effectTotal(())
+    def succeed: UIO[Unit] = ZIO.succeed(())
   }
 
   def foreachFail: ZIO[Any, Throwable, (ZTrace, ZTrace)] =
@@ -456,7 +456,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
         case 0 =>
           UIO(throw new Exception("oops!"))
         case _ =>
-          UIO.effectSuspendTotal(recursiveFork(i - 1)).fork.flatMap(_.join)
+          UIO.suspendSucceed(recursiveFork(i - 1)).fork.flatMap(_.join)
       }
   }
 
@@ -473,7 +473,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
     (for {
       _ <- ZIO.unit
       _ <- ZIO.unit
-      _ <- ZIO.effect(traceThis()).traced.traced.traced
+      _ <- ZIO.attempt(traceThis()).traced.traced.traced
       _ <- ZIO.unit
       _ <- ZIO.unit
       _ <- ZIO.fail("end")
@@ -601,7 +601,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
 
   object singleEffectTotalWithForCompFixture {
     def asyncDbCall(): Task[Unit] =
-      Task.effectSuspendTotal(throw new Exception)
+      Task.suspendSucceed(throw new Exception)
 
     val selectHumans: Task[Unit] = for {
       _ <- asyncDbCall()

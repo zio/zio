@@ -748,7 +748,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * when creating generators that refer to themselves.
    */
   def suspend[R, A](gen: => Gen[R, A]): Gen[R, A] =
-    fromEffect(ZIO.effectTotal(gen)).flatten
+    fromEffect(ZIO.succeed(gen)).flatten
 
   /**
    * A generator of throwables.

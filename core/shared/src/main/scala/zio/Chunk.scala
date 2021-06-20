@@ -218,7 +218,7 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
     drop(i)
   }
 
-  def dropWhileM[R, E](p: A => ZIO[R, E, Boolean]): ZIO[R, E, Chunk[A]] = ZIO.effectSuspendTotal {
+  def dropWhileM[R, E](p: A => ZIO[R, E, Boolean]): ZIO[R, E, Chunk[A]] = ZIO.suspendSucceed {
     val length  = self.length
     val builder = ChunkBuilder.make[A]()
     builder.sizeHint(length)
@@ -336,7 +336,7 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
    * Filters this chunk by the specified effectful predicate, retaining all elements for
    * which the predicate evaluates to true.
    */
-  final def filterM[R, E](f: A => ZIO[R, E, Boolean]): ZIO[R, E, Chunk[A]] = ZIO.effectSuspendTotal {
+  final def filterM[R, E](f: A => ZIO[R, E, Boolean]): ZIO[R, E, Chunk[A]] = ZIO.suspendSucceed {
     val iterator = arrayIterator
     val builder  = ChunkBuilder.make[A]()
     builder.sizeHint(length)
@@ -628,7 +628,7 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
    * new elements.
    */
   final def mapAccumM[R, E, S1, B](s1: S1)(f1: (S1, A) => ZIO[R, E, (S1, B)]): ZIO[R, E, (S1, Chunk[B])] =
-    ZIO.effectSuspendTotal {
+    ZIO.suspendSucceed {
       val iterator = arrayIterator
       val builder  = ChunkBuilder.make[B]()
       builder.sizeHint(length)
@@ -822,7 +822,7 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
    * Takes all elements so long as the effectual predicate returns true.
    */
   def takeWhileM[R, E](p: A => ZIO[R, E, Boolean]): ZIO[R, E, Chunk[A]] =
-    ZIO.effectSuspendTotal {
+    ZIO.suspendSucceed {
       val length  = self.length
       val builder = ChunkBuilder.make[A]()
       builder.sizeHint(length)
@@ -1304,7 +1304,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
    * long as it returns `Some`.
    */
   def unfoldM[R, E, A, S](s: S)(f: S => ZIO[R, E, Option[(A, S)]]): ZIO[R, E, Chunk[A]] =
-    ZIO.effectSuspendTotal {
+    ZIO.suspendSucceed {
 
       def go(s: S, builder: ChunkBuilder[A]): ZIO[R, E, Chunk[A]] =
         f(s).flatMap {
@@ -1412,7 +1412,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     override def apply(n: Int): A =
       array(n)
 
-    override def collectM[R, E, B](pf: PartialFunction[A, ZIO[R, E, B]]): ZIO[R, E, Chunk[B]] = ZIO.effectSuspendTotal {
+    override def collectM[R, E, B](pf: PartialFunction[A, ZIO[R, E, B]]): ZIO[R, E, Chunk[B]] = ZIO.suspendSucceed {
       val len     = array.length
       val builder = ChunkBuilder.make[B]()
       builder.sizeHint(len)
@@ -1457,7 +1457,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     }
 
     override def collectWhileM[R, E, B](pf: PartialFunction[A, ZIO[R, E, B]]): ZIO[R, E, Chunk[B]] =
-      ZIO.effectSuspendTotal {
+      ZIO.suspendSucceed {
         val len     = self.length
         val builder = ChunkBuilder.make[B]()
         builder.sizeHint(len)

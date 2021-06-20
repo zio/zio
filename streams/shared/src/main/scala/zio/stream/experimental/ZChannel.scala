@@ -500,7 +500,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
 
     val m =
       for {
-        input      <- SingleProducerAsyncInput.make[InErr1, InElem1, InDone1].toManaged_
+        input      <- SingleProducerAsyncInput.make[InErr1, InElem1, InDone1].toManaged
         queueReader = ZChannel.fromInput(input)
         pullL      <- (queueReader >>> self).toPull
         pullR      <- (queueReader >>> that).toPull
@@ -550,7 +550,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
 
             case LeftDone(f) =>
               ZChannel.unwrap {
-                pullR.run.map {
+                pullR.exit.map {
                   case Exit.Success(elem) => ZChannel.write(elem) *> go(LeftDone(f))
                   case Exit.Failure(cause) =>
                     ZChannel
@@ -560,7 +560,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
 
             case RightDone(f) =>
               ZChannel.unwrap {
-                pullL.run.map {
+                pullL.exit.map {
                   case Exit.Success(elem) => ZChannel.write(elem) *> go(RightDone(f))
                   case Exit.Failure(cause) =>
                     ZChannel
@@ -626,9 +626,9 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
       ZManaged.withChildren { getChildren =>
         for {
           _           <- ZManaged.finalizer(getChildren.flatMap(Fiber.interruptAll(_)))
-          queue       <- Queue.bounded[ZIO[Env1, Either[OutErr1, OutDone], OutElem2]](n).toManaged(_.shutdown)
+          queue       <- Queue.bounded[ZIO[Env1, Either[OutErr1, OutDone], OutElem2]](n).toManagedWith(_.shutdown)
           errorSignal <- Promise.makeManaged[OutErr1, Nothing]
-          permits     <- Semaphore.make(n.toLong).toManaged_
+          permits     <- Semaphore.make(n.toLong).toManaged
           pull        <- self.toPull
           _ <- pull
                  .foldCauseM(
@@ -723,7 +723,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     ev2: OutElem <:< Nothing
   ): ZManaged[Env, OutErr, OutDone] =
     ZManaged
-      .makeExit(
+      .bracketExit(
         UIO(new ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](() => self, null))
       ) { (exec, exit) =>
         val finalize = exec.close(exit)
@@ -731,7 +731,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
         else ZIO.unit
       }
       .mapM { exec =>
-        ZIO.effectSuspendTotal {
+        ZIO.suspendSucceed {
           def interpret(channelState: ChannelExecutor.ChannelState[Env, OutErr]): ZIO[Env, OutErr, OutDone] =
             channelState match {
               case ChannelState.Effect(zio) =>
@@ -761,7 +761,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
 
   def toPull: ZManaged[Env, Nothing, ZIO[Env, Either[OutErr, OutDone], OutElem]] =
     ZManaged
-      .makeExit(
+      .bracketExit(
         UIO(new ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](() => self, null))
       ) { (exec, exit) =>
         val finalize = exec.close(exit)
@@ -785,7 +785,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                 interpret(exec.run().asInstanceOf[ChannelState[Env, OutErr]])
           }
 
-        ZIO.effectSuspendTotal(interpret(exec.run().asInstanceOf[ChannelState[Env, OutErr]]))
+        ZIO.suspendSucceed(interpret(exec.run().asInstanceOf[ChannelState[Env, OutErr]]))
       }
 
   def zip[

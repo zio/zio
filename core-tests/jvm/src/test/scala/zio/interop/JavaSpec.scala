@@ -24,22 +24,22 @@ object JavaSpec extends ZIOBaseSpec {
       testM("execute the `Future` parameter only once") {
         var count            = 0
         def ftr: Future[Int] = CompletableFuture.supplyAsync { () => count += 1; count }
-        assertM(ZIO.fromFutureJava(ftr).run)(succeeds(equalTo(1)))
+        assertM(ZIO.fromFutureJava(ftr).exit)(succeeds(equalTo(1)))
       },
       testM("catch exceptions thrown by lazy block") {
         val ex                          = new Exception("no future for you!")
         lazy val noFuture: Future[Unit] = throw ex
-        assertM(ZIO.fromFutureJava(noFuture).run)(fails(equalTo(ex)))
+        assertM(ZIO.fromFutureJava(noFuture).exit)(fails(equalTo(ex)))
       } @@ zioTag(errors),
       testM("return an `IO` that fails if `Future` fails (failedFuture)") {
         val ex                         = new Exception("no value for you!")
         lazy val noValue: Future[Unit] = CompletableFuture_.failedFuture(ex)
-        assertM(ZIO.fromFutureJava(noValue).run)(fails(equalTo(ex)))
+        assertM(ZIO.fromFutureJava(noValue).exit)(fails(equalTo(ex)))
       } @@ zioTag(errors),
       testM("return an `IO` that fails if `Future` fails (supplyAsync)") {
         val ex                         = new Exception("no value for you!")
         lazy val noValue: Future[Unit] = CompletableFuture.supplyAsync(() => throw ex)
-        assertM(ZIO.fromFutureJava(noValue).run)(fails(equalTo(ex)))
+        assertM(ZIO.fromFutureJava(noValue).exit)(fails(equalTo(ex)))
       } @@ zioTag(errors),
       testM("return an `IO` that produces the value from `Future`") {
         lazy val someValue: Future[Int] = CompletableFuture.completedFuture(42)
@@ -67,17 +67,17 @@ object JavaSpec extends ZIOBaseSpec {
       testM("catch exceptions thrown by lazy block") {
         val ex                                   = new Exception("no future for you!")
         lazy val noFuture: CompletionStage[Unit] = throw ex
-        assertM(ZIO.fromCompletionStage(noFuture).run)(fails(equalTo(ex)))
+        assertM(ZIO.fromCompletionStage(noFuture).exit)(fails(equalTo(ex)))
       } @@ zioTag(errors),
       testM("return an `IO` that fails if `Future` fails (failedFuture)") {
         val ex                                  = new Exception("no value for you!")
         lazy val noValue: CompletionStage[Unit] = CompletableFuture_.failedFuture(ex)
-        assertM(ZIO.fromCompletionStage(noValue).run)(fails[Throwable](equalTo(ex)))
+        assertM(ZIO.fromCompletionStage(noValue).exit)(fails[Throwable](equalTo(ex)))
       } @@ zioTag(errors),
       testM("return an `IO` that fails if `Future` fails (supplyAsync)") {
         val ex                                  = new Exception("no value for you!")
         lazy val noValue: CompletionStage[Unit] = CompletableFuture.supplyAsync(() => throw ex)
-        assertM(ZIO.fromCompletionStage(noValue).run)(fails[Throwable](equalTo(ex)))
+        assertM(ZIO.fromCompletionStage(noValue).exit)(fails[Throwable](equalTo(ex)))
       } @@ zioTag(errors),
       testM("return an `IO` that produces the value from `Future`") {
         lazy val someValue: CompletionStage[Int] = CompletableFuture.completedFuture(42)
@@ -110,7 +110,7 @@ object JavaSpec extends ZIOBaseSpec {
         val ex                       = new Exception("IOs also can fail")
         val failedIO: Task[Unit]     = IO.fail[Throwable](ex)
         val failedFuture: Task[Unit] = failedIO.toCompletableFuture.flatMap(f => Task(f.get()))
-        assertM(failedFuture.run)(
+        assertM(failedFuture.exit)(
           fails[Throwable](hasField("message", _.getMessage, equalTo("java.lang.Exception: IOs also can fail")))
         )
       } @@ zioTag(errors),
@@ -124,7 +124,7 @@ object JavaSpec extends ZIOBaseSpec {
         val failedIO: IO[String, Unit] = IO.fail[String]("IOs also can fail")
         val failedFuture: Task[Unit] =
           failedIO.toCompletableFutureWith(new Exception(_)).flatMap(f => Task(f.get()))
-        assertM(failedFuture.run)(
+        assertM(failedFuture.exit)(
           fails[Throwable](hasField("message", _.getMessage, equalTo("java.lang.Exception: IOs also can fail")))
         )
       } @@ zioTag(errors)
@@ -139,21 +139,21 @@ object JavaSpec extends ZIOBaseSpec {
       testM("catch exceptions thrown by lazy block") {
         val ex                              = new Exception("no future for you!")
         def noFuture: CompletionStage[Unit] = throw ex
-        assertM(Fiber.fromCompletionStage(noFuture).join.run)(fails(equalTo(ex)))
+        assertM(Fiber.fromCompletionStage(noFuture).join.exit)(fails(equalTo(ex)))
       } @@ zioTag(errors),
       testM("return an `IO` that fails if `Future` fails (failedFuture)") {
         val ex                             = new Exception("no value for you!")
         def noValue: CompletionStage[Unit] = CompletableFuture_.failedFuture(ex)
-        assertM(Fiber.fromCompletionStage(noValue).join.run)(fails[Throwable](equalTo(ex)))
+        assertM(Fiber.fromCompletionStage(noValue).join.exit)(fails[Throwable](equalTo(ex)))
       } @@ zioTag(errors),
       testM("return an `IO` that fails if `Future` fails (supplyAsync)") {
         val ex                             = new Exception("no value for you!")
         def noValue: CompletionStage[Unit] = CompletableFuture.supplyAsync(() => throw ex)
-        assertM(Fiber.fromCompletionStage(noValue).join.run)(fails[Throwable](equalTo(ex)))
+        assertM(Fiber.fromCompletionStage(noValue).join.exit)(fails[Throwable](equalTo(ex)))
       } @@ zioTag(errors),
       testM("return an `IO` that produces the value from `Future`") {
         def someValue: CompletionStage[Int] = CompletableFuture.completedFuture(42)
-        assertM(Fiber.fromCompletionStage(someValue).join.run)(succeeds(equalTo(42)))
+        assertM(Fiber.fromCompletionStage(someValue).join.exit)(succeeds(equalTo(42)))
       }
     ) @@ zioTag(future),
     suite("`Fiber.fromFutureJava` must")(
@@ -166,21 +166,21 @@ object JavaSpec extends ZIOBaseSpec {
       testM("catch exceptions thrown by lazy block") {
         val ex                     = new Exception("no future for you!")
         def noFuture: Future[Unit] = throw ex
-        assertM(Fiber.fromFutureJava(noFuture).join.run)(fails(equalTo(ex)))
+        assertM(Fiber.fromFutureJava(noFuture).join.exit)(fails(equalTo(ex)))
       } @@ zioTag(errors),
       testM("return an `IO` that fails if `Future` fails (failedFuture)") {
         val ex                    = new Exception("no value for you!")
         def noValue: Future[Unit] = CompletableFuture_.failedFuture(ex)
-        assertM(Fiber.fromFutureJava(noValue).join.run)(fails[Throwable](equalTo(ex)))
+        assertM(Fiber.fromFutureJava(noValue).join.exit)(fails[Throwable](equalTo(ex)))
       } @@ zioTag(errors),
       testM("return an `IO` that fails if `Future` fails (failedFuture)") {
         val ex                    = new Exception("no value for you!")
         def noValue: Future[Unit] = CompletableFuture.supplyAsync(() => throw ex)
-        assertM(Fiber.fromFutureJava(noValue).join.run)(fails[Throwable](equalTo(ex)))
+        assertM(Fiber.fromFutureJava(noValue).join.exit)(fails[Throwable](equalTo(ex)))
       } @@ zioTag(errors),
       testM("return an `IO` that produces the value from `Future`") {
         def someValue: Future[Int] = CompletableFuture.completedFuture(42)
-        assertM(Fiber.fromFutureJava(someValue).join.run)(succeeds(equalTo(42)))
+        assertM(Fiber.fromFutureJava(someValue).join.exit)(succeeds(equalTo(42)))
       }
     ) @@ zioTag(future),
     suite("`Task.withCompletionHandler` must")(
@@ -206,10 +206,10 @@ object JavaSpec extends ZIOBaseSpec {
           fiberClient  <- taskClient.fork
           resultServer <- fiberServer.join
           resultClient <- fiberClient.join
-          _            <- ZIO.effectTotal(server.close())
+          _            <- ZIO.succeed(server.close())
         } yield (resultServer, resultClient)
 
-        assertM(task.run)(
+        assertM(task.exit)(
           succeeds[(Integer, (Integer, List[Byte]))](equalTo((Integer.valueOf(1), (Integer.valueOf(1), list))))
         )
       }

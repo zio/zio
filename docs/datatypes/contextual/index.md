@@ -225,7 +225,7 @@ object logging {
     val live: ULayer[Logging] = ZLayer.succeed {
       new Service {
         override def log(line: String): UIO[Unit] =
-          ZIO.effectTotal(println(line))
+          ZIO.succeed(println(line))
       }
     }
   }
@@ -307,7 +307,7 @@ trait Logging {
 ```scala mdoc:silent:nest
 case class LoggingLive() extends Logging {
   override def log(line: String): UIO[Unit] = 
-    ZIO.effectTotal(print(line))
+    ZIO.succeed(print(line))
 }
 ```
 
@@ -432,7 +432,7 @@ We can `provide` implementation of `Logging` service into the `app` effect:
 ```scala mdoc:silent:nest
 val loggingImpl = Has(new Logging {
   override def log(line: String): UIO[Unit] =
-    UIO.effectTotal(println(line))
+    UIO.succeed(println(line))
 })
 
 val effect = app.provide(loggingImpl)

@@ -78,7 +78,7 @@ object ClockSpec extends ZIOBaseSpec {
       },
       testM("setDateTime correctly sets currentDateTime") {
         for {
-          expected <- UIO.effectTotal(OffsetDateTime.now(ZoneId.of("UTC+9")))
+          expected <- UIO.succeed(OffsetDateTime.now(ZoneId.of("UTC+9")))
           _        <- setDateTime(expected)
           actual   <- Clock.currentDateTime
         } yield assert(actual.toInstant.toEpochMilli)(equalTo(expected.toInstant.toEpochMilli))

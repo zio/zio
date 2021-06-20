@@ -193,7 +193,7 @@ object ZRef extends Serializable {
    * Creates a new `ZRef` with the specified value.
    */
   def make[A](a: A): UIO[Ref[A]] =
-    UIO.effectTotal(unsafeMake(a))
+    UIO.succeed(unsafeMake(a))
 
   private[zio] def unsafeMake[A](a: A): Ref.Atomic[A] =
     Atomic(new AtomicReference(a))
@@ -202,7 +202,7 @@ object ZRef extends Serializable {
    * Creates a new managed `ZRef` with the specified value
    */
   def makeManaged[A](a: A): Managed[Nothing, Ref[A]] =
-    make(a).toManaged_
+    make(a).toManaged
 
   implicit class UnifiedSyntax[-R, +E, A](private val self: ZRef[R, R, E, E, A, A]) extends AnyVal {
 
@@ -705,7 +705,7 @@ object ZRef extends Serializable {
      * `Managed.`
      */
     def makeManaged[A](a: A): UManaged[RefM[A]] =
-      make(a).toManaged_
+      make(a).toManaged
 
     implicit class UnifiedSyntax[-R, +E, A](private val self: ZRefM[R, R, E, E, A, A]) extends AnyVal {
 
@@ -807,10 +807,10 @@ object ZRef extends Serializable {
       }
 
     def get: UIO[A] =
-      UIO.effectTotal(value.get)
+      UIO.succeed(value.get)
 
     def getAndSet(a: A): UIO[A] =
-      UIO.effectTotal {
+      UIO.succeed {
         var loop       = true
         var current: A = null.asInstanceOf[A]
         while (loop) {
@@ -821,7 +821,7 @@ object ZRef extends Serializable {
       }
 
     def getAndUpdate(f: A => A): UIO[A] =
-      UIO.effectTotal {
+      UIO.succeed {
         {
           var loop       = true
           var current: A = null.asInstanceOf[A]
@@ -835,7 +835,7 @@ object ZRef extends Serializable {
       }
 
     def getAndUpdateSome(pf: PartialFunction[A, A]): UIO[A] =
-      UIO.effectTotal {
+      UIO.succeed {
         var loop       = true
         var current: A = null.asInstanceOf[A]
         while (loop) {
@@ -847,7 +847,7 @@ object ZRef extends Serializable {
       }
 
     def modify[B](f: A => (B, A)): UIO[B] =
-      UIO.effectTotal {
+      UIO.succeed {
         var loop = true
         var b: B = null.asInstanceOf[B]
         while (loop) {
@@ -860,7 +860,7 @@ object ZRef extends Serializable {
       }
 
     def modifySome[B](default: B)(pf: PartialFunction[A, (B, A)]): UIO[B] =
-      UIO.effectTotal {
+      UIO.succeed {
         {
           var loop = true
           var b: B = null.asInstanceOf[B]
@@ -875,16 +875,16 @@ object ZRef extends Serializable {
       }
 
     def set(a: A): UIO[Unit] =
-      UIO.effectTotal(value.set(a))
+      UIO.succeed(value.set(a))
 
     def setAsync(a: A): UIO[Unit] =
-      UIO.effectTotal(value.lazySet(a))
+      UIO.succeed(value.lazySet(a))
 
     override def toString: String =
       s"Ref(${value.get})"
 
     def update(f: A => A): UIO[Unit] =
-      UIO.effectTotal {
+      UIO.succeed {
         var loop    = true
         var next: A = null.asInstanceOf[A]
         while (loop) {
@@ -896,7 +896,7 @@ object ZRef extends Serializable {
       }
 
     def updateAndGet(f: A => A): UIO[A] =
-      UIO.effectTotal {
+      UIO.succeed {
         var loop    = true
         var next: A = null.asInstanceOf[A]
         while (loop) {
@@ -908,7 +908,7 @@ object ZRef extends Serializable {
       }
 
     def updateSome(pf: PartialFunction[A, A]): UIO[Unit] =
-      UIO.effectTotal {
+      UIO.succeed {
         var loop    = true
         var next: A = null.asInstanceOf[A]
         while (loop) {
@@ -920,7 +920,7 @@ object ZRef extends Serializable {
       }
 
     def updateSomeAndGet(pf: PartialFunction[A, A]): UIO[A] =
-      UIO.effectTotal {
+      UIO.succeed {
         var loop    = true
         var next: A = null.asInstanceOf[A]
         while (loop) {

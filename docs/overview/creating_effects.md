@@ -23,13 +23,7 @@ You can also use methods in the companion objects of the `ZIO` type aliases:
 val s2: Task[Int] = Task.succeed(42)
 ```
 
-The `succeed` method takes a by-name parameter to make sure that any accidental side effects from constructing the value can be properly managed by the ZIO Runtime. However, `succeed` is intended for values which do not have any side effects. If you know that your value does have side effects consider using `ZIO.effectTotal` for clarity.
-
-```scala mdoc:silent
-val now = ZIO.effectTotal(System.currentTimeMillis())
-```
-
-The value inside a successful effect constructed with `ZIO.effectTotal` will only be constructed if absolutely required.
+The `succeed` method takes a by-name parameter to make sure that any accidental side effects from constructing the value can be properly managed by the ZIO Runtime.
 
 ## From Failure Values
 
@@ -152,19 +146,19 @@ A synchronous side-effect can be converted into a ZIO effect using `ZIO.effect`:
 import scala.io.StdIn
 
 val readLine: Task[String] =
-  ZIO.effect(StdIn.readLine())
+  ZIO.attempt(StdIn.readLine())
 ```
 
 The error type of the resulting effect will always be `Throwable`, because side-effects may throw exceptions with any value of type `Throwable`.
 
-If a given side-effect is known to not throw any exceptions, then the side-effect can be converted into a ZIO effect using `ZIO.effectTotal`:
+If a given side-effect is known to not throw any exceptions, then the side-effect can be converted into a ZIO effect using `ZIO.succeed`:
 
 ```scala mdoc:silent
 def printLine(line: String): UIO[Unit] =
-  ZIO.effectTotal(println(line))
+  ZIO.succeed(println(line))
 ```
 
-You should be careful when using `ZIO.effectTotal`—when in doubt about whether or not a side-effect is total, prefer `ZIO.effect` to convert the effect.
+You should be careful when using `ZIO.succeed`—when in doubt about whether or not a side-effect is total, prefer `ZIO.attempt` to convert the effect.
 
 If you wish to refine the error type of an effect (by treating other errors as fatal), then you can use the `ZIO#refineToOrDie` method:
 
@@ -172,7 +166,7 @@ If you wish to refine the error type of an effect (by treating other errors as f
 import java.io.IOException
 
 val readLine2: IO[IOException, String] =
-  ZIO.effect(StdIn.readLine()).refineToOrDie[IOException]
+  ZIO.attempt(StdIn.readLine()).refineToOrDie[IOException]
 ```
 
 ### Asynchronous Side-Effects
@@ -228,7 +222,7 @@ import java.net.ServerSocket
 import zio.UIO
 
 def accept(l: ServerSocket) =
-  ZIO.effectBlockingCancelable(l.accept())(UIO.effectTotal(l.close()))
+  ZIO.effectBlockingCancelable(l.accept())(UIO.succeed(l.close()))
 ```
 
 If a side-effect has already been converted into a ZIO effect, then instead of `effectBlocking`, the `blocking` method can be used to ensure the effect will be executed on the blocking thread pool:
@@ -237,7 +231,7 @@ If a side-effect has already been converted into a ZIO effect, then instead of `
 import scala.io.{ Codec, Source }
 
 def download(url: String) =
-  Task.effect {
+  Task.attempt {
     Source.fromURL(url)(Codec.UTF8).mkString
   }
 

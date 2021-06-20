@@ -20,7 +20,7 @@ object ZChannelSpec extends ZIOBaseSpec {
       },
       testM("ZChannel.fail") {
         for {
-          exit <- ZChannel.fail("Uh oh!").runCollect.run
+          exit <- ZChannel.fail("Uh oh!").runCollect.exit
         } yield assert(exit)(fails(equalTo("Uh oh!")))
       },
       testM("ZChannel.map") {
@@ -46,7 +46,7 @@ object ZChannelSpec extends ZIOBaseSpec {
             (ZChannel
               .write(Chunk(1, 2))
               .concatMap(chunk => ZChannel.writeAll(chunk: _*))
-              *> ZChannel.fail("hello")).runDrain.run
+              *> ZChannel.fail("hello")).runDrain.exit
           )(fails(equalTo("hello")))
         }
       ),
@@ -62,7 +62,7 @@ object ZChannelSpec extends ZIOBaseSpec {
                 ZChannel.fail("err1")
               }
               .runCollect
-              .run
+              .exit
           )(fails(equalTo("err1")))
         }
       },
@@ -85,7 +85,7 @@ object ZChannelSpec extends ZIOBaseSpec {
                 ZChannel.fromEffect(event("Acquire2")).ensuring(event("Release2"))).ensuring(event("ReleaseOuter"))
 
             channel.toPull.use { pull =>
-              pull.run *> events.get
+              pull.exit *> events.get
             }.flatMap { eventsInZManaged =>
               events.get.map { eventsAfterZManaged =>
                 assert(eventsInZManaged)(equalTo(Chunk("Acquire1", "Release11", "Release12", "Acquire2"))) &&
@@ -206,7 +206,7 @@ object ZChannelSpec extends ZIOBaseSpec {
                       .write(0)
                       .concatMap(_ => ZChannel.fail("error"))
                       .runCollect
-                      .run
+                      .exit
           } yield assert(exit)(fails(equalTo("error")))
         },
         testM("upstream bracketOut + downstream failure") {
@@ -215,7 +215,7 @@ object ZChannelSpec extends ZIOBaseSpec {
               .bracketOut(events.update(_ :+ "Acquired"))(_ => events.update(_ :+ "Released"))
               .concatMap(_ => ZChannel.fail("error"))
               .runDrain
-              .run <*> events.get
+              .exit <*> events.get
           })(equalTo((Exit.fail("error"), Chunk("Acquired", "Released"))))
         },
         testM("multiple concatMaps with failure in first") {
@@ -225,7 +225,7 @@ object ZChannelSpec extends ZIOBaseSpec {
                       .concatMap(_ => ZChannel.write(ZChannel.fail("error")))
                       .concatMap(e => e)
                       .runCollect
-                      .run
+                      .exit
           } yield assert(exit)(fails(equalTo("error")))
         },
         testM("concatMap with failure then flatMap") {
@@ -235,7 +235,7 @@ object ZChannelSpec extends ZIOBaseSpec {
                       .concatMap(_ => ZChannel.fail("error"))
                       .flatMap(_ => ZChannel.write(()))
                       .runCollect
-                      .run
+                      .exit
           } yield assert(exit)(fails(equalTo("error")))
         },
         testM("multiple concatMaps with failure in first and catchAll in second") {
@@ -245,7 +245,7 @@ object ZChannelSpec extends ZIOBaseSpec {
                       .concatMap(_ => ZChannel.write(ZChannel.fail("error")))
                       .concatMap(e => e.catchAllCause(_ => ZChannel.fail("error2")))
                       .runCollect
-                      .run
+                      .exit
           } yield assert(exit)(fails(equalTo("error2")))
         },
         testM("done value combination") {
@@ -261,7 +261,7 @@ object ZChannelSpec extends ZIOBaseSpec {
       suite("ZChannel#managedOut")(
         testM("failure") {
           for {
-            exit <- ZChannel.managedOut(ZManaged.fail("error")).runCollect.run
+            exit <- ZChannel.managedOut(ZManaged.fail("error")).runCollect.exit
           } yield assert(exit)(fails(equalTo("error")))
         }
       ),
@@ -301,7 +301,7 @@ object ZChannelSpec extends ZIOBaseSpec {
             ex2 => ZChannel.MergeDecision.await(ex => ZIO.done(ex).flip.zip(ZIO.done(ex2).flip).flip)
           )
 
-          merged.runDrain.run.map(ex => assert(ex)(fails(equalTo(("Boom", true)))))
+          merged.runDrain.exit.map(ex => assert(ex)(fails(equalTo(("Boom", true)))))
         },
         testM("interrupts losing side") {
           Promise.make[Nothing, Unit].flatMap { latch =>
@@ -551,7 +551,7 @@ object ZChannelSpec extends ZIOBaseSpec {
                 .fail("err")
                 .mapError(_ => 1)
                 .runCollect
-                .run
+                .exit
             )(fails(equalTo(1)))
           }
         }

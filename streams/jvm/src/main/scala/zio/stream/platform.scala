@@ -72,7 +72,7 @@ trait ZSinkPlatformSpecificConstructors {
     position: Long = 0L,
     options: Set[OpenOption] = Set(WRITE, TRUNCATE_EXISTING, CREATE)
   ): ZSink[Any, Throwable, Byte, Byte, Long] = {
-    val managedChannel = ZManaged.make(
+    val managedChannel = ZManaged.bracket(
       ZIO
         .effectBlockingInterrupt(
           FileChannel
@@ -129,9 +129,9 @@ trait ZStreamPlatformSpecificConstructors {
   ): ZStream[R, E, A] =
     ZStream {
       for {
-        output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).toManaged(_.shutdown)
-        runtime <- ZIO.runtime[R].toManaged_
-        eitherStream <- ZManaged.effectTotal {
+        output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).toManagedWith(_.shutdown)
+        runtime <- ZIO.runtime[R].toManaged
+        eitherStream <- ZManaged.succeed {
                           register(k =>
                             try {
                               runtime.unsafeRun(stream.Take.fromPull(k).flatMap(output.offer))
@@ -150,7 +150,7 @@ trait ZStreamPlatformSpecificConstructors {
                       else
                         output.take.flatMap(_.done).onError(_ => done.set(true) *> output.shutdown)
                     }).ensuring(canceler)
-                  case Right(stream) => output.shutdown.toManaged_ *> stream.process
+                  case Right(stream) => output.shutdown.toManaged *> stream.process
                 }
       } yield pull
     }
@@ -166,8 +166,8 @@ trait ZStreamPlatformSpecificConstructors {
   ): ZStream[R, E, A] =
     managed {
       for {
-        output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).toManaged(_.shutdown)
-        runtime <- ZIO.runtime[R].toManaged_
+        output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).toManagedWith(_.shutdown)
+        runtime <- ZIO.runtime[R].toManaged
         _ <- register { k =>
                try {
                  runtime.unsafeRun(stream.Take.fromPull(k).flatMap(output.offer))
@@ -175,7 +175,7 @@ trait ZStreamPlatformSpecificConstructors {
                } catch {
                  case FiberFailure(c) if c.interrupted =>
                }
-             }.toManaged_
+             }.toManaged
         done <- ZRef.makeManaged(false)
         pull = done.get.flatMap {
                  if (_)
@@ -198,9 +198,9 @@ trait ZStreamPlatformSpecificConstructors {
   ): ZStream[R, E, A] =
     ZStream {
       for {
-        output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).toManaged(_.shutdown)
-        runtime <- ZIO.runtime[R].toManaged_
-        maybeStream <- ZManaged.effectTotal {
+        output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).toManagedWith(_.shutdown)
+        runtime <- ZIO.runtime[R].toManaged
+        maybeStream <- ZManaged.succeed {
                          register { k =>
                            try {
                              runtime.unsafeRun(stream.Take.fromPull(k).flatMap(output.offer))
@@ -211,7 +211,7 @@ trait ZStreamPlatformSpecificConstructors {
                          }
                        }
         pull <- maybeStream match {
-                  case Some(stream) => output.shutdown.toManaged_ *> stream.process
+                  case Some(stream) => output.shutdown.toManaged *> stream.process
                   case None =>
                     for {
                       done <- ZRef.makeManaged(false)
@@ -231,11 +231,11 @@ trait ZStreamPlatformSpecificConstructors {
   def fromBlockingIterator[A](iterator: => Iterator[A], maxChunkSize: Int = 1): ZStream[Any, Throwable, A] =
     ZStream {
       ZManaged
-        .effect(iterator)
+        .attempt(iterator)
         .fold(
           Pull.fail,
           iterator =>
-            ZIO.effectSuspendTotal {
+            ZIO.suspendSucceed {
               if (maxChunkSize <= 1) {
                 if (iterator.isEmpty) Pull.end
                 else ZIO.effectBlocking(Chunk.single(iterator.next())).asSomeError
@@ -342,7 +342,7 @@ trait ZStreamPlatformSpecificConstructors {
     is: ZIO[R, IOException, InputStream],
     chunkSize: Int = ZStream.DefaultChunkSize
   ): ZStream[R, IOException, Byte] =
-    fromInputStreamManaged(is.toManaged(is => ZIO.effectTotal(is.close())), chunkSize)
+    fromInputStreamManaged(is.toManagedWith(is => ZIO.succeed(is.close())), chunkSize)
 
   /**
    * Creates a stream from a managed `java.io.InputStream` value.
@@ -383,7 +383,7 @@ trait ZStreamPlatformSpecificConstructors {
     reader: => ZIO[R, IOException, Reader],
     chunkSize: Int = ZStream.DefaultChunkSize
   ): ZStream[R, IOException, Char] =
-    fromReaderManaged(reader.toManaged(r => ZIO.effectTotal(r.close())), chunkSize)
+    fromReaderManaged(reader.toManagedWith(r => ZIO.succeed(r.close())), chunkSize)
 
   /**
    * Creates a stream from managed `java.io.Reader`.
@@ -403,13 +403,13 @@ trait ZStreamPlatformSpecificConstructors {
     chunkSize: Int = ZStream.DefaultChunkSize
   ): ZStream[Any, Throwable, Byte] = {
     def from(in: InputStream, out: OutputStream, err: Promise[Throwable, None.type]) = {
-      val readIn = fromInputStream(in, chunkSize).ensuring(ZIO.effectTotal(in.close()))
+      val readIn = fromInputStream(in, chunkSize).ensuring(ZIO.succeed(in.close()))
       val writeOut = ZStream.fromEffect {
         ZIO
           .effectBlockingInterrupt(write(out))
-          .run
+          .exit
           .tap(exit => err.done(exit.as(None)))
-          .ensuring(ZIO.effectTotal(out.close()))
+          .ensuring(ZIO.succeed(out.close()))
       }
 
       val handleError = ZStream.fromEffectOption(err.await.some)
@@ -417,8 +417,8 @@ trait ZStreamPlatformSpecificConstructors {
     }
 
     for {
-      out    <- ZStream.fromEffect(ZIO.effectTotal(new PipedOutputStream()))
-      in     <- ZStream.fromEffect(ZIO.effectTotal(new PipedInputStream(out)))
+      out    <- ZStream.fromEffect(ZIO.succeed(new PipedOutputStream()))
+      in     <- ZStream.fromEffect(ZIO.succeed(new PipedInputStream(out)))
       err    <- ZStream.fromEffect(Promise.make[Throwable, None.type])
       result <- from(in, out, err)
     } yield result
@@ -492,7 +492,7 @@ trait ZStreamPlatformSpecificConstructors {
      * The remote address, i.e. the connected client
      */
     def remoteAddress: IO[IOException, Option[SocketAddress]] = IO
-      .effect(
+      .attempt(
         Option(socket.getRemoteAddress)
       )
       .refineToOrDie[IOException]
@@ -501,7 +501,7 @@ trait ZStreamPlatformSpecificConstructors {
      * The local address, i.e. our server
      */
     def localAddress: IO[IOException, Option[SocketAddress]] = IO
-      .effect(
+      .attempt(
         Option(socket.getLocalAddress)
       )
       .refineToOrDie[IOException]
@@ -557,7 +557,7 @@ trait ZStreamPlatformSpecificConstructors {
     /**
      * Close the underlying socket
      */
-    def close(): UIO[Unit] = ZIO.effectTotal(socket.close())
+    def close(): UIO[Unit] = ZIO.succeed(socket.close())
   }
 
   object Connection {
@@ -566,7 +566,7 @@ trait ZStreamPlatformSpecificConstructors {
      * Create a `Managed` connection
      */
     def make(socket: AsynchronousSocketChannel): UManaged[Connection] =
-      Managed.make(ZIO.succeed(new Connection(socket)))(_.close())
+      Managed.bracket(ZIO.succeed(new Connection(socket)))(_.close())
   }
 
 }
@@ -603,13 +603,13 @@ trait ZTransducerPlatformSpecificConstructors {
   ): ZTransducer[Any, CompressionException, Byte, Byte] = {
     def makeInflater: ZManaged[Any, Nothing, Option[Chunk[Byte]] => ZIO[Any, CompressionException, Chunk[Byte]]] =
       ZManaged
-        .make(ZIO.effectTotal((new Array[Byte](bufferSize), new Inflater(noWrap)))) { case (_, inflater) =>
-          ZIO.effectTotal(inflater.end())
+        .bracket(ZIO.succeed((new Array[Byte](bufferSize), new Inflater(noWrap)))) { case (_, inflater) =>
+          ZIO.succeed(inflater.end())
         }
         .map {
           case (buffer, inflater) => {
             case None =>
-              ZIO.effect {
+              ZIO.attempt {
                 if (inflater.finished()) {
                   inflater.reset()
                   Chunk.empty
@@ -620,7 +620,7 @@ trait ZTransducerPlatformSpecificConstructors {
                 CompressionException(e)
               }
             case Some(chunk) =>
-              ZIO.effect {
+              ZIO.attempt {
                 inflater.setInput(chunk.toArray)
                 pullAllOutput(inflater, buffer, chunk)
               }.refineOrDie { case e: DataFormatException =>
@@ -676,7 +676,7 @@ trait ZTransducerPlatformSpecificConstructors {
   ): ZTransducer[Any, Nothing, Byte, Byte] =
     ZTransducer(
       ZManaged
-        .make(Gzipper.make(bufferSize, level, strategy, flushMode))(gzipper => ZIO.effectTotal(gzipper.close()))
+        .bracket(Gzipper.make(bufferSize, level, strategy, flushMode))(gzipper => ZIO.succeed(gzipper.close()))
         .map { gzipper =>
           {
             case None        => gzipper.onNone
@@ -693,7 +693,7 @@ trait ZTransducerPlatformSpecificConstructors {
   def gunzip(bufferSize: Int = 64 * 1024): ZTransducer[Any, CompressionException, Byte, Byte] =
     ZTransducer(
       ZManaged
-        .make(Gunzipper.make(bufferSize))(gunzipper => ZIO.effectTotal(gunzipper.close()))
+        .bracket(Gunzipper.make(bufferSize))(gunzipper => ZIO.succeed(gunzipper.close()))
         .map { gunzipper =>
           {
             case None        => gunzipper.onNone

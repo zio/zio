@@ -61,7 +61,7 @@ object Annotations {
               case Left(_) => ZIO.succeedNow(SortedSet.empty[Fiber.Runtime[Any, Any]])
               case Right(refs) =>
                 ZIO
-                  .foreach(refs)(ref => ZIO.effectTotal(ref.get))
+                  .foreach(refs)(ref => ZIO.succeed(ref.get))
                   .map(_.foldLeft(SortedSet.empty[Fiber.Runtime[Any, Any]])(_ ++ _))
                   .map(_.filter(_.id != descriptor.id))
             }

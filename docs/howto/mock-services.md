@@ -206,7 +206,7 @@ object AccountObserver {
     ZIO.accessM[AccountObserver](_.get.processEvent(event))
 
   def runCommand() =
-    ZIO.accessM[AccountObserver](_.get.runCommand)
+    ZIO.accessM[AccountObserver](_.get.runCommand())
 
   val live: ZLayer[Has[Console], Nothing, AccountObserver] =
     { (console: Console) =>

@@ -141,7 +141,7 @@ class TReentrantLockBenchmark {
   }
 
   @CompilerControl(CompilerControl.Mode.DONT_INLINE)
-  def doWorkM(): UIO[Unit] = ZIO.effectTotal(doWork())
+  def doWorkM(): UIO[Unit] = ZIO.succeed(doWork())
 
   @CompilerControl(CompilerControl.Mode.DONT_INLINE)
   def doWork(): Unit = Blackhole.consumeCPU(100L)

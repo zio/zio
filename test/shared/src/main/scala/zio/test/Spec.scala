@@ -75,7 +75,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
   final def countTests(f: T => Boolean): ZManaged[R, E, Int] =
     fold[ZManaged[R, E, Int]] {
       case SuiteCase(_, specs, _) => specs.flatMap(ZManaged.collectAll(_).map(_.sum))
-      case TestCase(_, test, _)   => test.map(t => if (f(t)) 1 else 0).toManaged_
+      case TestCase(_, test, _)   => test.map(t => if (f(t)) 1 else 0).toManaged
     }
 
   /**
@@ -90,8 +90,8 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
   final def exists[R1 <: R, E1 >: E](f: SpecCase[R, E, T, Any] => ZIO[R1, E1, Boolean]): ZManaged[R1, E1, Boolean] =
     fold[ZManaged[R1, E1, Boolean]] {
       case c @ SuiteCase(_, specs, _) =>
-        specs.flatMap(ZManaged.collectAll(_).map(_.exists(identity))).zipWith(f(c).toManaged_)(_ || _)
-      case c @ TestCase(_, _, _) => f(c).toManaged_
+        specs.flatMap(ZManaged.collectAll(_).map(_.exists(identity))).zipWith(f(c).toManaged)(_ || _)
+      case c @ TestCase(_, _, _) => f(c).toManaged
     }
 
   /**
@@ -167,8 +167,8 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
   final def forall[R1 <: R, E1 >: E](f: SpecCase[R, E, T, Any] => ZIO[R1, E1, Boolean]): ZManaged[R1, E1, Boolean] =
     fold[ZManaged[R1, E1, Boolean]] {
       case c @ SuiteCase(_, specs, _) =>
-        specs.flatMap(ZManaged.collectAll(_).map(_.forall(identity))).zipWith(f(c).toManaged_)(_ && _)
-      case c @ TestCase(_, _, _) => f(c).toManaged_
+        specs.flatMap(ZManaged.collectAll(_).map(_.forall(identity))).zipWith(f(c).toManaged)(_ && _)
+      case c @ TestCase(_, _, _) => f(c).toManaged
     }
 
   /**
@@ -188,7 +188,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
       case TestCase(label, test, annotations) =>
         test
           .foldCause(e => Spec.test(label, failure(e), annotations), t => Spec.test(label, success(t), annotations))
-          .toManaged_
+          .toManaged
     }
 
   /**
@@ -436,7 +436,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
       case SuiteCase(label, specs, exec) =>
         Spec.suite(
           label,
-          b.toManaged_.flatMap(b =>
+          b.toManaged.flatMap(b =>
             if (b) specs.asInstanceOf[ZManaged[R1, E1, Vector[Spec[R1, E1, TestSuccess]]]]
             else ZManaged.succeedNow(Vector.empty)
           ),

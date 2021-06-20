@@ -208,9 +208,9 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
   )(implicit ev: L <:< I2): ZSink[R1, E2, I2, L2, Z2] =
     ZSink {
       for {
-        switched     <- Ref.make(false).toManaged_
+        switched     <- Ref.make(false).toManaged
         thisPush     <- self.push
-        thatPush     <- Ref.make[Push[R1, E2, I2, L2, Z2]](_ => ZIO.unit).toManaged_
+        thatPush     <- Ref.make[Push[R1, E2, I2, L2, Z2]](_ => ZIO.unit).toManaged
         openThatPush <- ZManaged.switchable[R1, Nothing, Push[R1, E2, I2, L2, Z2]]
         push = (in: Option[Chunk[I2]]) => {
                  switched.get.flatMap { sw =>
@@ -302,7 +302,7 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
    */
   final def timed: ZSink[R with Has[Clock], E, I, L, (Z, Duration)] =
     ZSink {
-      self.push.zipWith(Clock.nanoTime.toManaged_) { (push, start) =>
+      self.push.zipWith(Clock.nanoTime.toManaged) { (push, start) =>
         push(_).catchAll {
           case (Left(e), leftover)  => Push.fail(e, leftover)
           case (Right(z), leftover) => Clock.nanoTime.flatMap(stop => Push.emit(z -> (stop - start).nanos, leftover))
@@ -409,7 +409,7 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
     case class RightDone[+Z1](z: Z1) extends State[Nothing, Z1]
 
     ZSink(for {
-      ref <- ZRef.make[State[Z, Z1]](BothRunning).toManaged_
+      ref <- ZRef.make[State[Z, Z1]](BothRunning).toManaged
       p1  <- self.push
       p2  <- that.push
       push: Push[R1, E1, I1, L1, Z2] = { in =>
@@ -531,8 +531,8 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     ): ZManaged[R, Nothing, (Push[R, E, I, L, Z], URIO[R, Unit])] =
       for {
         switchSink  <- ZManaged.switchable[R, Nothing, Push[R, E, I, L, Z]]
-        initialSink <- switchSink(sink).toManaged_
-        currSink    <- Ref.make(initialSink).toManaged_
+        initialSink <- switchSink(sink).toManaged
+        currSink    <- Ref.make(initialSink).toManaged
         restart      = switchSink(sink).flatMap(currSink.set)
         newPush      = (input: Option[Chunk[I]]) => currSink.get.flatMap(_.apply(input))
       } yield (newPush, restart)
@@ -552,7 +552,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    */
   def collectAll[A]: ZSink[Any, Nothing, A, Nothing, Chunk[A]] = ZSink {
     for {
-      builder    <- UIO(ChunkBuilder.make[A]()).toManaged_
+      builder    <- UIO(ChunkBuilder.make[A]()).toManaged
       foldingSink = foldLeftChunks(builder)((b, chunk: Chunk[A]) => b ++= chunk).map(_.result())
       push       <- foldingSink.push
     } yield push
@@ -636,7 +636,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     if (contFn(z))
       ZSink[Any, Nothing, I, I, S] {
         for {
-          state <- Ref.make(z).toManaged_
+          state <- Ref.make(z).toManaged
           push = (is: Option[Chunk[I]]) =>
                    is match {
                      case None => state.get.flatMap(s => Push.emit(s, Chunk.empty))
@@ -675,7 +675,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     if (contFn(z))
       ZSink {
         for {
-          state <- Ref.make(z).toManaged_
+          state <- Ref.make(z).toManaged
           push = (is: Option[Chunk[I]]) =>
                    is match {
                      case None => state.get.flatMap(s => Push.emit(s, Chunk.empty))
@@ -720,7 +720,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     if (contFn(z))
       ZSink[R, E, I, I, S] {
         for {
-          state <- Ref.make(z).toManaged_
+          state <- Ref.make(z).toManaged
           push = (is: Option[Chunk[I]]) =>
                    is match {
                      case None => state.get.flatMap(s => Push.emit(s, Chunk.empty))
@@ -853,7 +853,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * The queue will be shutdown once the stream is closed.
    */
   def fromQueueWithShutdown[R, E, I](queue: ZQueue[R, Nothing, E, Any, I, Any]): ZSink[R, E, I, Nothing, Unit] =
-    ZSink(ZManaged.make(ZIO.succeedNow(queue))(_.shutdown).map(fromQueue[R, E, I]).flatMap(_.push))
+    ZSink(ZManaged.bracket(ZIO.succeedNow(queue))(_.shutdown).map(fromQueue[R, E, I]).flatMap(_.push))
 
   /**
    * Creates a sink halting with a specified cause.
@@ -881,7 +881,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   def last[I]: ZSink[Any, Nothing, I, Nothing, Option[I]] =
     ZSink {
       for {
-        state <- Ref.make[Option[I]](None).toManaged_
+        state <- Ref.make[Option[I]](None).toManaged
         push = (is: Option[Chunk[I]]) =>
                  state.get.flatMap { last =>
                    is match {
@@ -924,7 +924,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   def take[I](n: Int): ZSink[Any, Nothing, I, I, Chunk[I]] =
     ZSink {
       for {
-        state <- Ref.make[Chunk[I]](Chunk.empty).toManaged_
+        state <- Ref.make[Chunk[I]](Chunk.empty).toManaged
         push = (is: Option[Chunk[I]]) =>
                  state.get.flatMap { take =>
                    is match {
