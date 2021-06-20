@@ -197,8 +197,9 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
    * Returns an `STM` effect whose failure and success channels have been mapped by
    * the specified pair of functions, `f` and `g`.
    */
+  @deprecated("use mapBoth", "2.0.0")
   def bimap[E2, B](f: E => E2, g: A => B)(implicit ev: CanFail[E]): ZSTM[R, E2, B] =
-    foldM(e => ZSTM.fail(f(e)), a => ZSTM.succeedNow(g(a)))
+    mapBoth(f, g)
 
   /**
    * Recovers from all errors.
@@ -453,6 +454,13 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
    * Maps the value produced by the effect.
    */
   def map[B](f: A => B): ZSTM[R, E, B] = flatMap(f andThen ZSTM.succeedNow)
+
+  /**
+   * Returns an `STM` effect whose failure and success channels have been mapped by
+   * the specified pair of functions, `f` and `g`.
+   */
+  def mapBoth[E2, B](f: E => E2, g: A => B)(implicit ev: CanFail[E]): ZSTM[R, E2, B] =
+    foldM(e => ZSTM.fail(f(e)), a => ZSTM.succeedNow(g(a)))
 
   /**
    * Maps from one error type to another.

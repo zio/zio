@@ -235,8 +235,9 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Returns an effect whose failure and success channels have been mapped by
    * the specified pair of functions, `f` and `g`.
    */
+  @deprecated("use mapBoth", "2.0.0")
   final def bimap[E2, B](f: E => E2, g: A => B)(implicit ev: CanFail[E]): ZIO[R, E2, B] =
-    foldM(e => ZIO.fail(f(e)), a => ZIO.succeedNow(g(a)))
+    mapBoth(f, g)
 
   /**
    * Shorthand for the uncurried version of `ZIO.bracket`.
@@ -917,6 +918,13 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Returns an effect whose success is mapped by the specified `f` function.
    */
   def map[B](f: A => B): ZIO[R, E, B] = new ZIO.FlatMap(self, new ZIO.MapFn(f))
+
+  /**
+   * Returns an effect whose failure and success channels have been mapped by
+   * the specified pair of functions, `f` and `g`.
+   */
+  final def mapBoth[E2, B](f: E => E2, g: A => B)(implicit ev: CanFail[E]): ZIO[R, E2, B] =
+    foldM(e => ZIO.fail(f(e)), a => ZIO.succeedNow(g(a)))
 
   /**
    * Returns an effect whose success is mapped by the specified side effecting
@@ -2584,8 +2592,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * Prints the specified message to the console for debugging purposes.
    */
-  def debug(message: String): UIO[Unit] =
-    ZIO.effectTotal(println(message))
+  def debug(value: Any): UIO[Unit] =
+    ZIO.effectTotal(println(value))
 
   /**
    * Returns information about the current fiber, such as its identity.

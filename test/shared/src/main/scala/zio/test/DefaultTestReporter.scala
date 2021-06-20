@@ -237,19 +237,38 @@ object DefaultTestReporter {
     if (assertionValue.result.isSuccess) Fragment(" satisfied ")
     else Fragment(" did not satisfy ")
 
-  def renderCause(cause: Cause[Any], offset: Int): Message =
-    cause.dieOption match {
-      case Some(TestTimeoutException(message)) => Message(message)
-      case Some(exception: MockException) =>
-        renderMockException(exception).map(withOffset(offset + tabSize))
-      case _ =>
-        Message(
-          cause.prettyPrint
+  def renderCause(cause: Cause[Any], offset: Int): Message = {
+    val defects = cause.defects
+    val timeouts = defects.collect { case TestTimeoutException(message) =>
+      Message(message)
+    }
+    val mockExceptions = defects.collect { case exception: MockException =>
+      renderMockException(exception).map(withOffset(offset + tabSize))
+    }
+    val remaining =
+      cause.stripSomeDefects {
+        case TestTimeoutException(_) => true
+        case _: MockException        => true
+      }
+    val prefix = if (timeouts.nonEmpty) {
+      // In case of timeout we don't show the mock exceptions
+      timeouts.foldLeft(Message.empty)(_ ++ _)
+    } else {
+      mockExceptions.foldLeft(Message.empty)(_ ++ _)
+    }
+
+    remaining match {
+      case Some(remainingCause) =>
+        prefix ++ Message(
+          remainingCause.prettyPrint
             .split("\n")
             .map(s => withOffset(offset + tabSize)(Line.fromString(s)))
             .toVector
         )
+      case None =>
+        prefix
     }
+  }
 
   private def renderMockException(exception: MockException): Message =
     exception match {

@@ -35,14 +35,6 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(ZIO.succeed(1).absorbWith(_ => ExampleError))(equalTo(1))
       }
     ) @@ zioTag(errors),
-    suite("bimap")(
-      testM("maps over both error and value channels") {
-        checkM(Gen.anyInt) { i =>
-          val res = IO.fail(i).bimap(_.toString, identity).either
-          assertM(res)(isLeft(equalTo(i.toString)))
-        }
-      }
-    ),
     suite("bracket")(
       testM("bracket happy path") {
         for {
@@ -1177,6 +1169,14 @@ object ZIOSpec extends ZIOBaseSpec {
           _      <- ZIO.loop_(0)(_ < 5, _ + 1)(a => ref.update(a :: _))
           result <- ref.get.map(_.reverse)
         } yield assert(result)(equalTo(List(0, 1, 2, 3, 4)))
+      }
+    ),
+    suite("mapBoth")(
+      testM("maps over both error and value channels") {
+        checkM(Gen.anyInt) { i =>
+          val res = IO.fail(i).mapBoth(_.toString, identity).either
+          assertM(res)(isLeft(equalTo(i.toString)))
+        }
       }
     ),
     suite("mapEffect")(
