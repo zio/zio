@@ -208,7 +208,7 @@ A blocking side-effect can be converted directly into a ZIO effect blocking with
 
 ```scala mdoc:silent
 val sleeping =
-  ZIO.effectBlocking(Thread.sleep(Long.MaxValue))
+  ZIO.attemptBlocking(Thread.sleep(Long.MaxValue))
 ```
 
 The resulting effect will be executed on a separate thread pool designed specifically for blocking effects.

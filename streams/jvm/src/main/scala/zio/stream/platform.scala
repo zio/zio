@@ -84,7 +84,7 @@ trait ZSinkPlatformSpecificConstructors {
             )
             .position(position)
         )
-    )(chan => ZIO.effectBlocking(chan.close()).orDie)
+    )(chan => ZIO.attemptBlocking(chan.close()).orDie)
 
     val writer: ZSink[Any, Throwable, Byte, Byte, Unit] = ZSink.managed(managedChannel) { chan =>
       ZSink.foreachChunk[Any, Throwable, Byte](byteChunk =>
@@ -238,10 +238,10 @@ trait ZStreamPlatformSpecificConstructors {
             ZIO.suspendSucceed {
               if (maxChunkSize <= 1) {
                 if (iterator.isEmpty) Pull.end
-                else ZIO.effectBlocking(Chunk.single(iterator.next())).asSomeError
+                else ZIO.attemptBlocking(Chunk.single(iterator.next())).asSomeError
               } else {
                 val builder  = ChunkBuilder.make[A](maxChunkSize)
-                val blocking = ZIO.effectBlocking(builder += iterator.next())
+                val blocking = ZIO.attemptBlocking(builder += iterator.next())
 
                 def go(i: Int): ZIO[Any, Throwable, Unit] =
                   ZIO.when(i < maxChunkSize && iterator.hasNext)(blocking *> go(i + 1))
@@ -275,7 +275,7 @@ trait ZStreamPlatformSpecificConstructors {
    */
   def fromFile(path: => Path, chunkSize: Int = ZStream.DefaultChunkSize): ZStream[Any, Throwable, Byte] =
     ZStream
-      .bracket(ZIO.effectBlockingInterrupt(FileChannel.open(path)))(chan => ZIO.effectBlocking(chan.close()).orDie)
+      .bracket(ZIO.effectBlockingInterrupt(FileChannel.open(path)))(chan => ZIO.attemptBlocking(chan.close()).orDie)
       .flatMap { channel =>
         ZStream.fromEffect(UIO(ByteBuffer.allocate(chunkSize))).flatMap { reusableBuffer =>
           ZStream.repeatEffectChunkOption(
@@ -457,7 +457,7 @@ trait ZStreamPlatformSpecificConstructors {
     host: Option[String] = None
   ): ZStream[Any, Throwable, Connection] =
     for {
-      server <- ZStream.managed(ZManaged.fromAutoCloseable(ZIO.effectBlocking {
+      server <- ZStream.managed(ZManaged.fromAutoCloseable(ZIO.attemptBlocking {
                   AsynchronousServerSocketChannel
                     .open()
                     .bind(

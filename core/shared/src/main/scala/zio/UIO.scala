@@ -792,6 +792,12 @@ object UIO {
   def succeed[A](a: => A): UIO[A] = ZIO.succeed(a)
 
   /**
+   * @see See [[zio.ZIO.succeedBlocking]]
+   */
+  def succeedBlocking[A](a: => A): UIO[A] =
+    ZIO.succeedBlocking(a)
+
+  /**
    * @see See [[zio.ZIO.suspendSucceed]]
    */
   def suspendSucceed[A](uio: => UIO[A]): UIO[A] =

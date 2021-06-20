@@ -47,7 +47,7 @@ abstract class RunnableSpec[R, E] extends AbstractRunnableSpec {
       val exitCode = runtime.unsafeRun(run(filteredSpec).provideLayer(runner.bootstrap))
       doExit(exitCode)
     } else if (TestPlatform.isJS) {
-      runtime.unsafeRunAsync[Nothing, Int](run(filteredSpec).provideLayer(runner.bootstrap)) { exit =>
+      runtime.unsafeRunAsyncWith[Nothing, Int](run(filteredSpec).provideLayer(runner.bootstrap)) { exit =>
         val exitCode = exit.getOrElse(_ => 1)
         doExit(exitCode)
       }

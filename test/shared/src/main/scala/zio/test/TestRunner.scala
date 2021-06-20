@@ -58,7 +58,7 @@ final case class TestRunner[R, E](
   )(
     k: ExecutedSpec[E] => Unit
   ): Unit =
-    runtime.unsafeRunAsync(run(spec).provideLayer(bootstrap)) {
+    runtime.unsafeRunAsyncWith(run(spec).provideLayer(bootstrap)) {
       case Exit.Success(v) => k(v)
       case Exit.Failure(c) => throw FiberFailure(c)
     }

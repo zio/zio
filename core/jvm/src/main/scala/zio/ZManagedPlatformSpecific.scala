@@ -41,7 +41,7 @@ private[zio] trait ZManagedPlatformSpecific {
           val fis = new io.FileInputStream(path)
           (fis, ZInputStream.fromInputStream(fis))
         }
-      )(tuple => ZIO.effectBlocking(tuple._1.close()).orDie)
+      )(tuple => ZIO.attemptBlocking(tuple._1.close()).orDie)
       .map(_._2)
 
   def readURL(url: URL): ZManaged[Any, IOException, ZInputStream] =
@@ -51,7 +51,7 @@ private[zio] trait ZManagedPlatformSpecific {
           val fis = url.openStream()
           (fis, ZInputStream.fromInputStream(fis))
         }
-      )(tuple => ZIO.effectBlocking(tuple._1.close()).orDie)
+      )(tuple => ZIO.attemptBlocking(tuple._1.close()).orDie)
       .map(_._2)
 
   def readURL(url: String): ZManaged[Any, IOException, ZInputStream] =
@@ -70,7 +70,7 @@ private[zio] trait ZManagedPlatformSpecific {
           val fos = new io.FileOutputStream(path)
           (fos, ZOutputStream.fromOutputStream(fos))
         }
-      )(tuple => ZIO.effectBlocking(tuple._1.close()).orDie)
+      )(tuple => ZIO.attemptBlocking(tuple._1.close()).orDie)
       .map(_._2)
 
   def writeFile(path: Path): ZManaged[Any, IOException, ZOutputStream] =

@@ -59,6 +59,12 @@ object RIO {
     ZIO.attempt(effect)
 
   /**
+   * @see See [[zio.ZIO.attemptBlocking]]
+   */
+  def attemptBlocking[A](effect: => A): Task[A] =
+    ZIO.attemptBlocking(effect)
+
+  /**
    * @see See [[zio.ZIO.blocking]]
    */
   def blocking[R, A](zio: RIO[R, A]): RIO[R, A] =
@@ -353,6 +359,7 @@ object RIO {
   /**
    * @see See [[zio.ZIO.effectBlocking]]
    */
+  @deprecated("use attemptBlocking", "2.0.0")
   def effectBlocking[A](effect: => A): Task[A] =
     ZIO.effectBlocking(effect)
 
@@ -1023,6 +1030,12 @@ object RIO {
    * @see See [[zio.ZIO.succeed]]
    */
   def succeed[A](a: => A): UIO[A] = ZIO.succeed(a)
+
+  /**
+   * @see See [[zio.ZIO.succeedBlocking]]
+   */
+  def succeedBlocking[A](a: => A): UIO[A] =
+    ZIO.succeedBlocking(a)
 
   /**
    * @see See [[zio.ZIO.suspend]]

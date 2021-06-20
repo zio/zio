@@ -149,7 +149,7 @@ object RTSSpec extends ZIOBaseSpec {
         _ <- UIO.succeed {
                val thread = new Thread("user-thread") {
                  override def run(): Unit =
-                   runtime.unsafeRunAsync_ {
+                   runtime.unsafeRunAsync {
                      UIO.succeed(Thread.currentThread.getName).to(promise)
                    }
                }

@@ -2299,6 +2299,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     new ZIO.EffectPartial(() => effect)
 
   /**
+   * Imports a synchronous effect that does blocking IO into a pure value.
+   */
+  def attemptBlocking[A](effect: => A): Task[A] =
+    blocking(ZIO.attempt(effect))
+
+  /**
    * Locks the specified effect to the blocking thread pool.
    */
   def blocking[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
@@ -2741,7 +2747,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       p <- Promise.make[E, A]
       r <- ZIO.runtime[R]
       a <- ZIO.uninterruptibleMask { restore =>
-             val f = register(k => r.unsafeRunAsync_(k.to(p)))
+             val f = register(k => r.unsafeRunAsync(k.to(p)))
 
              restore(f.catchAllCause(p.halt)).fork *> restore(p.await)
            }
@@ -2767,6 +2773,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * Imports a synchronous effect that does blocking IO into a pure value.
    */
+  @deprecated("use attemptBlocking", "2.0.0")
   def effectBlocking[A](effect: => A): Task[A] =
     blocking(ZIO.attempt(effect))
 
@@ -2785,7 +2792,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * refining the error type to `[[java.io.IOException]]`.
    */
   def effectBlockingIO[A](effect: => A): IO[IOException, A] =
-    effectBlocking(effect).refineToOrDie[IOException]
+    attemptBlocking(effect).refineToOrDie[IOException]
 
   /**
    * Imports a synchronous effect that does blocking IO into a pure value.
@@ -4140,6 +4147,13 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   def succeed[A](a: => A): UIO[A] =
     new ZIO.EffectTotal(() => a)
+
+  /**
+   * Returns a synchronous effect that does blocking and succeeds with the
+   * specified value.
+   */
+  def succeedBlocking[A](a: => A): UIO[A] =
+    blocking(ZIO.succeed(a))
 
   /**
    * Returns a lazily constructed effect, whose construction may itself require effects.

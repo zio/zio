@@ -11,11 +11,11 @@ object BlockingSpec extends ZIOBaseSpec {
   def spec: ZSpec[Environment, Failure] = suite("BlockingSpec")(
     suite("Make a Blocking Service and verify that")(
       testM("effectBlocking completes successfully") {
-        assertM(ZIO.effectBlocking(()))(isUnit)
+        assertM(ZIO.attemptBlocking(()))(isUnit)
       },
       testM("effectBlocking runs on the blocking thread pool") {
         for {
-          name <- ZIO.effectBlocking(Thread.currentThread.getName)
+          name <- ZIO.attemptBlocking(Thread.currentThread.getName)
         } yield assert(name)(containsString("zio-default-blocking"))
       },
       testM("effectBlockingCancelable completes successfully") {

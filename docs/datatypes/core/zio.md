@@ -332,7 +332,7 @@ val printLine2: IO[IOException, String] =
 | Function                   | Input Type                          | Output Type                     |
 |----------------------------|-------------------------------------|---------------------------------|
 | `blocking`                 | `ZIO[R, E, A]`                      | `ZIO[R, E, A]`                  |
-| `effectBlocking`           | `A`                                 | `RIO[Blocking, A]`              |
+| `attemptBlocking`          | `A`                                 | `RIO[Blocking, A]`              |
 | `effectBlockingCancelable` | `effect: => A`, `cancel: UIO[Unit]` | `RIO[Blocking, A]`              |
 | `effectBlockingInterrupt`  | `A`                                 | `RIO[Blocking, A]`              |
 | `effectBlockingIO`         | `A`                                 | `ZIO[Blocking, IOException, A]` |
@@ -346,7 +346,7 @@ A blocking side-effect can be converted directly into a ZIO effect blocking with
 ```scala mdoc:silent
 
 val sleeping =
-  ZIO.effectBlocking(Thread.sleep(Long.MaxValue))
+  ZIO.attemptBlocking(Thread.sleep(Long.MaxValue))
 ```
 
 The resulting effect will be executed on a separate thread pool designed specifically for blocking effects.

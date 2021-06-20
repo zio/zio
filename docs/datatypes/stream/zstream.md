@@ -113,7 +113,7 @@ val clockStream: ZStream[Has[Clock], Nothing, Has[Clock]] = ZStream.environment[
 val managedStream: ZStream[Any, Throwable, BufferedReader] =
   ZStream.managed(
     ZManaged.fromAutoCloseable(
-      ZIO.effectBlocking(
+      ZIO.attemptBlocking(
         Files.newBufferedReader(java.nio.file.Paths.get("file.txt"))
       )
     )
@@ -963,7 +963,7 @@ val urls = ZStream(
 )
 
 def fetch(url: String): ZIO[Any, Throwable, String] = 
-  ZIO.effectBlocking(???)
+  ZIO.attemptBlocking(???)
 
 val pages = urls
   .mapM(url => fetch(url).exit)
@@ -1840,7 +1840,7 @@ def fetchUrl(
     url: URL
 ): ZStream[Any, Throwable, String] = 
   ZStream.fromEffect(
-    ZIO.effectBlocking(legacyFetchUrlAPI(url))
+    ZIO.attemptBlocking(legacyFetchUrlAPI(url))
   ).absolve
 ```
 

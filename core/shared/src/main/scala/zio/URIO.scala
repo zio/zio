@@ -913,6 +913,12 @@ object URIO {
     ZIO.succeed(effect)
 
   /**
+   * @see See [[zio.ZIO.succeedBlocking]]
+   */
+  def succeedBlocking[A](a: => A): UIO[A] =
+    ZIO.succeedBlocking(a)
+
+  /**
    * @see [[zio.ZIO.swap]]
    */
   def swap[A, B]: URIO[(A, B), (B, A)] = ZIO.swap

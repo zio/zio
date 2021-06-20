@@ -2375,12 +2375,12 @@ object ZIOSpec extends ZIOBaseSpec {
           runtime         <- ZIO.runtime[Has[Live]]
           fork <- ZIO
                     .effectAsync[Any, Nothing, Unit] { k =>
-                      runtime.unsafeRunAsync_ {
+                      runtime.unsafeRunAsync {
                         step.await *> ZIO.succeed(k(unexpectedPlace.update(1 :: _)))
                       }
                     }
                     .ensuring(ZIO.effectAsync[Any, Nothing, Unit] { _ =>
-                      runtime.unsafeRunAsync_ {
+                      runtime.unsafeRunAsync {
                         step.succeed(())
                       }
                     //never complete
@@ -2401,14 +2401,14 @@ object ZIOSpec extends ZIOBaseSpec {
           runtime         <- ZIO.runtime[Has[Live]]
           fork <- ZIO
                     .effectAsyncMaybe[Any, Nothing, Unit] { k =>
-                      runtime.unsafeRunAsync_ {
+                      runtime.unsafeRunAsync {
                         step.await *> ZIO.succeed(k(unexpectedPlace.update(1 :: _)))
                       }
                       Some(IO.unit)
                     }
                     .flatMap { _ =>
                       ZIO.effectAsync[Any, Nothing, Unit] { _ =>
-                        runtime.unsafeRunAsync_ {
+                        runtime.unsafeRunAsync {
                           step.succeed(())
                         }
                       //never complete
