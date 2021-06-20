@@ -2924,7 +2924,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   @deprecated("use succeed", "2.0.0")
   def effectTotal[A](effect: => A): UIO[A] =
-    new ZIO.EffectTotal(() => effect)
+    succeed(effect)
 
   /**
    * Accesses the whole environment of the effect.

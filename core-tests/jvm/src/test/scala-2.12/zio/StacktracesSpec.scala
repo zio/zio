@@ -30,7 +30,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
         assert(trace.stackTrace.exists(_.prettyPrint.contains("foreachTest")))(isTrue) &&
         assert(trace.executionTrace.exists(_.prettyPrint.contains("foreachTest")))(isTrue) &&
         assert(trace.executionTrace.exists(_.prettyPrint.contains("foreach_")))(isTrue) &&
-        assert(trace.executionTrace.exists(_.prettyPrint.contains("effectTotal")))(isTrue)
+        assert(trace.executionTrace.exists(_.prettyPrint.contains("succeed")))(isTrue)
       }
     },
     testM("foreach fail") {
@@ -330,7 +330,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
   def foreachTest: UIO[ZTrace] = {
     import foreachTraceFixture._
     for {
-      _     <- effectTotal
+      _     <- succeed
       _     <- ZIO.foreach_(1 to 10)(_ => ZIO.unit *> ZIO.trace)
       trace <- ZIO.trace
     } yield trace
