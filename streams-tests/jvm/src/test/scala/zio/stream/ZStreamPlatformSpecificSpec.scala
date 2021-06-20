@@ -16,11 +16,11 @@ import scala.concurrent.ExecutionContext.global
 object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
 
   def socketClient(port: Int): ZManaged[Any, Throwable, AsynchronousSocketChannel] =
-    ZManaged.make(ZIO.effectBlockingIO(AsynchronousSocketChannel.open()).flatMap { client =>
+    ZManaged.bracket(ZIO.effectBlockingIO(AsynchronousSocketChannel.open()).flatMap { client =>
       ZIO
         .fromFutureJava(client.connect(new InetSocketAddress("localhost", port)))
         .map(_ => client)
-    })(c => ZIO.effectTotal(c.close()))
+    })(c => ZIO.succeed(c.close()))
 
   def spec: ZSpec[Environment, Failure] = suite("ZStream JVM")(
     suite("Constructors")(
@@ -200,7 +200,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
           }
         },
         testM("fails on a nonexistent file") {
-          assertM(ZStream.fromFile(Paths.get("nonexistent"), 24).runDrain.run)(
+          assertM(ZStream.fromFile(Paths.get("nonexistent"), 24).runDrain.exit)(
             fails(isSubtype[NoSuchFileException](anything))
           )
         }
@@ -234,7 +234,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
           ZStream
             .fromReader(new FailingReader)
             .runDrain
-            .run
+            .exit
             .map(assert(_)(fails(isSubtype[IOException](anything))))
         }
       ),
@@ -247,7 +247,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
             .map(b => assert(b.mkString)(startsWithString("Sent")))
         },
         testM("fails with FileNotFoundException if the stream does not exist") {
-          assertM(ZStream.fromResource("does_not_exist").runDrain.run)(
+          assertM(ZStream.fromResource("does_not_exist").runDrain.exit)(
             fails(isSubtype[FileNotFoundException](hasMessage(containsString("does_not_exist"))))
           )
         }
@@ -314,7 +314,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
         },
         testM("captures errors") {
           val write = (_: OutputStream) => throw new Exception("boom")
-          ZStream.fromOutputStreamWriter(write).runDrain.run.map(assert(_)(fails(hasMessage(equalTo("boom")))))
+          ZStream.fromOutputStreamWriter(write).runDrain.exit.map(assert(_)(fails(hasMessage(equalTo("boom")))))
         },
         testM("is not affected by closing the output stream") {
           val data  = Array.tabulate[Byte](ZStream.DefaultChunkSize * 5 / 2)(_.toByte)

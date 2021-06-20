@@ -53,6 +53,12 @@ object RIO {
     ZIO.accessM
 
   /**
+   * @see See [[zio.ZIO.attempt]]
+   */
+  def attempt[A](effect: => A): Task[A] =
+    ZIO.attempt(effect)
+
+  /**
    * @see See [[zio.ZIO.blocking]]
    */
   def blocking[R, A](zio: RIO[R, A]): RIO[R, A] =
@@ -310,7 +316,9 @@ object RIO {
   /**
    * @see See [[zio.ZIO.effect]]
    */
-  def effect[A](effect: => A): Task[A] = ZIO.effect(effect)
+  @deprecated("use attempt", "2.0.0")
+  def effect[A](effect: => A): Task[A] =
+    ZIO.effect(effect)
 
   /**
    * @see See [[zio.ZIO.effectAsync]]
@@ -364,29 +372,37 @@ object RIO {
    * Returns a lazily constructed effect, whose construction may itself require effects.
    * When no environment is required (i.e., when R == Any) it is conceptually equivalent to `flatten(effect(io))`.
    */
-  def effectSuspend[R, A](rio: => RIO[R, A]): RIO[R, A] = ZIO.effectSuspend(rio)
+  @deprecated("use suspend", "2.0.0")
+  def effectSuspend[R, A](rio: => RIO[R, A]): RIO[R, A] =
+    ZIO.effectSuspend(rio)
 
   /**
    * @see See [[zio.ZIO.effectSuspendTotal]]
    */
-  def effectSuspendTotal[R, A](rio: => RIO[R, A]): RIO[R, A] = ZIO.effectSuspendTotal(rio)
+  @deprecated("use suspendSucceed", "2.0.0")
+  def effectSuspendTotal[R, A](rio: => RIO[R, A]): RIO[R, A] =
+    ZIO.effectSuspendTotal(rio)
 
   /**
    * @see See [[zio.ZIO.effectSuspendTotalWith]]
    */
+  @deprecated("use suspendSucceedWith", "2.0.0")
   def effectSuspendTotalWith[R, A](p: (Platform, Fiber.Id) => RIO[R, A]): RIO[R, A] =
     ZIO.effectSuspendTotalWith(p)
 
   /**
-   * Returns a lazily constructed effect, whose construction may itself require effects.
-   * When no environment is required (i.e., when R == Any) it is conceptually equivalent to `flatten(effect(io))`.
+   * @see See [[zio.ZIO.effectSuspendWith]]
    */
-  def effectSuspendWith[R, A](p: (Platform, Fiber.Id) => RIO[R, A]): RIO[R, A] = ZIO.effectSuspendWith(p)
+  @deprecated("use suspendWith", "2.0.0")
+  def effectSuspendWith[R, A](p: (Platform, Fiber.Id) => RIO[R, A]): RIO[R, A] =
+    ZIO.effectSuspendWith(p)
 
   /**
    * @see See [[zio.ZIO.effectTotal]]
    */
-  def effectTotal[A](effect: => A): UIO[A] = ZIO.effectTotal(effect)
+  @deprecated("use succeed", "2.0.0")
+  def effectTotal[A](effect: => A): UIO[A] =
+    ZIO.effectTotal(effect)
 
   /**
    * @see See [[zio.ZIO.environment]]
@@ -1007,6 +1023,30 @@ object RIO {
    * @see See [[zio.ZIO.succeed]]
    */
   def succeed[A](a: => A): UIO[A] = ZIO.succeed(a)
+
+  /**
+   * @see See [[zio.ZIO.suspend]]
+   */
+  def suspend[R, A](rio: => RIO[R, A]): RIO[R, A] =
+    ZIO.suspend(rio)
+
+  /**
+   * @see See [[zio.ZIO.suspendSucceed]]
+   */
+  def suspendSucceed[R, A](rio: => RIO[R, A]): RIO[R, A] =
+    ZIO.suspendSucceed(rio)
+
+  /**
+   * @see See [[zio.ZIO.suspendSucceedWith]]
+   */
+  def suspendSucceedWith[R, A](p: (Platform, Fiber.Id) => RIO[R, A]): RIO[R, A] =
+    ZIO.suspendSucceedWith(p)
+
+  /**
+   * @see See [[zio.ZIO.suspendWith]]
+   */
+  def suspendWith[R, A](p: (Platform, Fiber.Id) => RIO[R, A]): RIO[R, A] =
+    ZIO.suspendWith(p)
 
   /**
    * @see See [[zio.ZIO.swap]]

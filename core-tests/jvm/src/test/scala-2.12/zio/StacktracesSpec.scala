@@ -30,7 +30,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
         assert(trace.stackTrace.exists(_.prettyPrint.contains("foreachTest")))(isTrue) &&
         assert(trace.executionTrace.exists(_.prettyPrint.contains("foreachTest")))(isTrue) &&
         assert(trace.executionTrace.exists(_.prettyPrint.contains("foreach_")))(isTrue) &&
-        assert(trace.executionTrace.exists(_.prettyPrint.contains("effectTotal")))(isTrue)
+        assert(trace.executionTrace.exists(_.prettyPrint.contains("succeed")))(isTrue)
       }
     },
     testM("foreach fail") {
@@ -330,14 +330,14 @@ object StackTracesSpec extends DefaultRunnableSpec {
   def foreachTest: UIO[ZTrace] = {
     import foreachTraceFixture._
     for {
-      _     <- effectTotal
+      _     <- succeed
       _     <- ZIO.foreach_(1 to 10)(_ => ZIO.unit *> ZIO.trace)
       trace <- ZIO.trace
     } yield trace
   }
 
   object foreachTraceFixture {
-    def effectTotal: UIO[Unit] = ZIO.effectTotal(())
+    def succeed: UIO[Unit] = ZIO.succeed(())
   }
 
   def foreachFail: ZIO[Any, Throwable, (ZTrace, ZTrace)] =
@@ -456,7 +456,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
         case 0 =>
           UIO(throw new Exception("oops!"))
         case _ =>
-          UIO.effectSuspendTotal(recursiveFork(i - 1)).fork.flatMap(_.join)
+          UIO.suspendSucceed(recursiveFork(i - 1)).fork.flatMap(_.join)
       }
   }
 
@@ -473,7 +473,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
     (for {
       _ <- ZIO.unit
       _ <- ZIO.unit
-      _ <- ZIO.effect(traceThis()).traced.traced.traced
+      _ <- ZIO.attempt(traceThis()).traced.traced.traced
       _ <- ZIO.unit
       _ <- ZIO.unit
       _ <- ZIO.fail("end")
@@ -601,7 +601,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
 
   object singleEffectTotalWithForCompFixture {
     def asyncDbCall(): Task[Unit] =
-      Task.effectSuspendTotal(throw new Exception)
+      Task.suspendSucceed(throw new Exception)
 
     val selectHumans: Task[Unit] = for {
       _ <- asyncDbCall()

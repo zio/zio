@@ -163,12 +163,12 @@ We are going to implement a live version of `Logging` service and also a mock ve
 ```scala mdoc:silent:nest
 case class LoggingLive() extends Logging {
   override def log(line: String): UIO[Unit] =
-    ZIO.effectTotal(print(line))
+    ZIO.succeed(print(line))
 }
 
 case class EmailMock() extends Email {
   override def send(user: String, content: String): Task[Unit] =
-    ZIO.effect(println(s"sending email to $user"))
+    ZIO.attempt(println(s"sending email to $user"))
 }
 ```
 

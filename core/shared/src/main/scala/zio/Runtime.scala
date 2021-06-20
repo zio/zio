@@ -298,7 +298,7 @@ object Runtime {
               releaseMap.releaseAll(Exit.unit, ExecutionStrategy.Sequential).uninterruptible.unit
             }
 
-          UIO.effectTotal(Platform.addShutdownHook(finalizer)).as((acquire, finalizer))
+          UIO.succeed(Platform.addShutdownHook(finalizer)).as((acquire, finalizer))
         }
       }
     }

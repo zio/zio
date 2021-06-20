@@ -56,7 +56,7 @@ trait App extends BootstrapRuntime {
       unsafeRun(
         for {
           fiber <- run(args0.toList).fork
-          _ <- IO.effectTotal(java.lang.Runtime.getRuntime.addShutdownHook(new Thread {
+          _ <- IO.succeed(java.lang.Runtime.getRuntime.addShutdownHook(new Thread {
                  override def run() =
                    if (FiberContext.fatal.get) {
                      println(

@@ -35,9 +35,9 @@ trait ZStreamPlatformSpecificConstructors {
     outputBuffer: Int = 16
   ): ZStream[R, E, A] =
     ZStream.unwrapManaged(for {
-      output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).toManaged(_.shutdown)
+      output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).toManagedWith(_.shutdown)
       runtime <- ZManaged.runtime[R]
-      eitherStream <- ZManaged.effectTotal {
+      eitherStream <- ZManaged.succeed {
                         register { k =>
                           try {
                             runtime.unsafeRunToFuture(stream.Take.fromPull(k).flatMap(output.offer))
@@ -78,7 +78,7 @@ trait ZStreamPlatformSpecificConstructors {
     outputBuffer: Int = 16
   ): ZStream[R, E, A] =
     new ZStream(ZChannel.unwrapManaged(for {
-      output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).toManaged(_.shutdown)
+      output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).toManagedWith(_.shutdown)
       runtime <- ZManaged.runtime[R]
       _ <- register { k =>
              try {
@@ -87,7 +87,7 @@ trait ZStreamPlatformSpecificConstructors {
                case FiberFailure(c) if c.interrupted =>
                  Future.successful(false)
              }
-           }.toManaged_
+           }.toManaged
     } yield {
       lazy val loop: ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit] = ZChannel.unwrap(
         output.take

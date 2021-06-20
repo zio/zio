@@ -155,7 +155,7 @@ object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
 object ZManagedPlatformSpecificSpecHelper {
   def tempFileResource(): ZManaged[Any, IOException, File] =
     ZManaged
-      .make(
-        ZIO.effect(File.createTempFile(ju.UUID.randomUUID().toString(), null)).refineToOrDie[IOException]
-      )(f => ZIO.effect(Files.delete(f.toPath)).orDie)
+      .bracket(
+        ZIO.attempt(File.createTempFile(ju.UUID.randomUUID().toString(), null)).refineToOrDie[IOException]
+      )(f => ZIO.attempt(Files.delete(f.toPath)).orDie)
 }

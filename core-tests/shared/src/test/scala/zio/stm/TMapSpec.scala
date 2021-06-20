@@ -334,7 +334,7 @@ object TMapSpec extends ZIOBaseSpec {
                         _ <- map.toChunk.commit
                       } yield ()
                     }
-                    .run
+                    .exit
         } yield assert(exit)(succeeds(isUnit))
       } @@ nonFlaky
     )

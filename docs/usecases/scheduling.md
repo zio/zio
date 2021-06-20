@@ -14,7 +14,7 @@ import zio.Task
 import java.util.Random
 
 object API {
-  def makeRequest = Task.effect {
+  def makeRequest = Task.attempt {
     if (new Random().nextInt(10) < 7) "some value" else throw new Exception("hi")
   }
 }

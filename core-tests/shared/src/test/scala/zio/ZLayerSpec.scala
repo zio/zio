@@ -31,7 +31,7 @@ object ZLayerSpec extends ZIOBaseSpec {
 
   def makeLayer1(ref: Ref[Vector[String]]): ZLayer[Any, Nothing, Module1] =
     ZLayer {
-      ZManaged.make(ref.update(_ :+ acquire1).as(Has(new Module1.Service {})))(_ => ref.update(_ :+ release1))
+      ZManaged.bracket(ref.update(_ :+ acquire1).as(Has(new Module1.Service {})))(_ => ref.update(_ :+ release1))
     }
 
   type Module2 = Has[Module2.Service]
@@ -42,7 +42,7 @@ object ZLayerSpec extends ZIOBaseSpec {
 
   def makeLayer2(ref: Ref[Vector[String]]): ZLayer[Any, Nothing, Module2] =
     ZLayer {
-      ZManaged.make(ref.update(_ :+ acquire2).as(Has(new Module2.Service {})))(_ => ref.update(_ :+ release2))
+      ZManaged.bracket(ref.update(_ :+ acquire2).as(Has(new Module2.Service {})))(_ => ref.update(_ :+ release2))
     }
 
   type Module3 = Has[Module3.Service]
@@ -53,7 +53,7 @@ object ZLayerSpec extends ZIOBaseSpec {
 
   def makeLayer3(ref: Ref[Vector[String]]): ZLayer[Any, Nothing, Module3] =
     ZLayer {
-      ZManaged.make(ref.update(_ :+ acquire3).as(Has(new Module3.Service {})))(_ => ref.update(_ :+ release3))
+      ZManaged.bracket(ref.update(_ :+ acquire3).as(Has(new Module3.Service {})))(_ => ref.update(_ :+ release3))
     }
 
   def makeRef: UIO[Ref[Vector[String]]] =
@@ -252,7 +252,7 @@ object ZLayerSpec extends ZIOBaseSpec {
         for {
           promise <- Promise.make[Nothing, Unit]
           layer1   = ZLayer(ZManaged.never)
-          layer2   = ZLayer(Managed.make(promise.succeed(()).map(Has(_)))(_ => ZIO.unit))
+          layer2   = ZLayer(Managed.bracket(promise.succeed(()).map(Has(_)))(_ => ZIO.unit))
           env      = (layer1 ++ layer2).build
           _       <- env.use_(ZIO.unit).forkDaemon
           _       <- promise.await
@@ -349,7 +349,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           testRef <- Ref.make(Vector[String]())
           layer = ZLayer {
                     for {
-                      ref <- Ref.make[Vector[String]](Vector()).toManaged(ref => ref.get.flatMap(testRef.set))
+                      ref <- Ref.make[Vector[String]](Vector()).toManagedWith(ref => ref.get.flatMap(testRef.set))
                       _   <- ZManaged.unit
                     } yield ref
                   }
@@ -371,9 +371,9 @@ object ZLayerSpec extends ZIOBaseSpec {
         val layer1 = ZLayer.fail("foo")
         val layer2 = ZLayer.succeed("bar")
         val layer3 = ZLayer.succeed("baz")
-        val layer4 = ZManaged.make(sleep)(_ => sleep).toLayer
+        val layer4 = ZManaged.bracket(sleep)(_ => sleep).toLayer
         val env    = layer1 ++ ((layer2 ++ layer3) >+> layer4)
-        assertM(ZIO.unit.provideCustomLayer(env).run)(fails(equalTo("foo")))
+        assertM(ZIO.unit.provideCustomLayer(env).exit)(fails(equalTo("foo")))
       },
       testM("project") {
         final case class Person(name: String, age: Int)

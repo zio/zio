@@ -250,7 +250,7 @@ val hub: Hub[Int] = ???
 
 val hubWithLogging: ZHub[Any, Any, String, Nothing, String, Int] =
   hub.contramapM { (s: String) =>
-    ZIO.effect(s.toInt).orElseFail(s"$s is not a valid message")
+    ZIO.attempt(s.toInt).orElseFail(s"$s is not a valid message")
   }
 ```
 

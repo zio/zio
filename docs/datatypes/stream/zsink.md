@@ -386,10 +386,10 @@ case class Record()
 
 ```scala mdoc:silent:nest
 val kafkaSink: ZSink[Any, Throwable, Record, Record, Unit] =
-  ZSink.foreach[Any, Throwable, Record](record => ZIO.effect(???))
+  ZSink.foreach[Any, Throwable, Record](record => ZIO.attempt(???))
 
 val pulsarSink: ZSink[Any, Throwable, Record, Record, Unit] =
-  ZSink.foreach[Any, Throwable, Record](record => ZIO.effect(???))
+  ZSink.foreach[Any, Throwable, Record](record => ZIO.attempt(???))
 
 val stream: ZSink[Any, Throwable, Record, Record, (Unit, Unit)] =
   kafkaSink zipPar pulsarSink 

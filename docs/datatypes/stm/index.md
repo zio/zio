@@ -74,7 +74,7 @@ import zio.UIO
 
 ```scala mdoc:silent:nest
   final case class Ref[A](value: AtomicReference[A]) { self =>
-    def modify[B](f: A => (B, A)): UIO[B] = UIO.effectTotal {
+    def modify[B](f: A => (B, A)): UIO[B] = UIO.succeed {
       var loop = true
       var b: B = null.asInstanceOf[B]
       while (loop) {

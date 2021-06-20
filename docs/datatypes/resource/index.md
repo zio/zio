@@ -22,7 +22,7 @@ import zio.{Task, UIO, ZIO, ZManaged}
 ```
 
 ```scala mdoc:silent:nest
-def lines(file: String): Task[Long] = Task.effect {
+def lines(file: String): Task[Long] = Task.attempt {
   def countLines(br: BufferedReader): Long = br.lines().count()
   val bufferedReader = new BufferedReader(
     new InputStreamReader(new FileInputStream("file.txt")),
@@ -39,7 +39,7 @@ What happens if after opening the file and before closing the file, an exception
 Let's rewrite the above example with `try..finally`:
 
 ```scala mdoc:silent:nest
-def lines(file: String): Task[Long] = Task.effect {
+def lines(file: String): Task[Long] = Task.attempt {
   def countLines(br: BufferedReader): Long = br.lines().count()
   val bufferedReader = new BufferedReader(
     new InputStreamReader(new FileInputStream("file.txt")),
@@ -82,9 +82,9 @@ trait Resource
 ```
 
 ```scala mdoc:silent
-def use(resource: Resource): Task[Any] = Task.effect(???)
-def release(resource: Resource): UIO[Unit] = Task.effectTotal(???)
-def acquire: Task[Resource]                = Task.effect(???)
+def use(resource: Resource): Task[Any] = Task.attempt(???)
+def release(resource: Resource): UIO[Unit] = Task.succeed(???)
+def acquire: Task[Resource]                = Task.attempt(???)
 
 val result1: Task[Any] = acquire.bracket(release, use)
 val result2: Task[Any] = acquire.bracket(release)(use) // More ergonomic API
@@ -99,9 +99,9 @@ Let's try a real example. We are going to write a function which count line numb
 
 ```scala:mdoc:silent
 def lines(file: String): Task[Long] = {
-  def countLines(reader: BufferedReader): Task[Long]    = Task.effect(reader.lines().count())
-  def releaseReader(reader: BufferedReader): UIO[Unit]  = Task.effectTotal(reader.close())
-  def acquireReader(file: String): Task[BufferedReader] = Task.effect(new BufferedReader(new FileReader(file), 2048))
+  def countLines(reader: BufferedReader): Task[Long]    = Task.attempt(reader.lines().count())
+  def releaseReader(reader: BufferedReader): UIO[Unit]  = Task.succeed(reader.close())
+  def acquireReader(file: String): Task[BufferedReader] = Task.attempt(new BufferedReader(new FileReader(file), 2048))
 
   Task.bracket(acquireReader(file), releaseReader, countLines)
 }
@@ -110,10 +110,10 @@ def lines(file: String): Task[Long] = {
 Let's write another function which copy a file from source to destination file. We can do that by nesting two brackets one for the `FileInputStream` and the other for `FileOutputStream`:
 
 ```scala mdoc:silent
-def is(file: String): Task[FileInputStream]  = Task.effect(???)
-def os(file: String): Task[FileOutputStream] = Task.effect(???)
+def is(file: String): Task[FileInputStream]  = Task.attempt(???)
+def os(file: String): Task[FileOutputStream] = Task.attempt(???)
 
-def close(resource: Closeable): UIO[Unit] = Task.effectTotal(???)
+def close(resource: Closeable): UIO[Unit] = Task.succeed(???)
 def copy(from: FileInputStream, to: FileOutputStream): Task[Unit] = ???
 
 def transfer(src: String, dst: String): ZIO[Any, Throwable, Unit] = {
@@ -133,8 +133,8 @@ def transfer(src: String, dst: String): ZIO[Any, Throwable, Unit] = {
     .zipPar(os(dst))
     .bracket { case (in, out) =>
       Task
-        .effectTotal(in.close())
-        .zipPar(Task.effectTotal(out.close()))
+        .succeed(in.close())
+        .zipPar(Task.succeed(out.close()))
     } { case (in, out) =>
       copy(in, out)
     }
@@ -156,7 +156,7 @@ Using brackets is simple and straightforward, but in the case of multiple resour
 To create a managed resource, we need to provide `acquire` and `release` action of that resource to the `make` constructor:
 
 ```scala mdoc:silent
-val managed = ZManaged.make(acquire)(release)
+val managed = ZManaged.bracket(acquire)(release)
 ```
 
 We can use managed resources by calling `use` on that. A managed resource is meant to be used only inside of the `use` block. So that resource is not available outside of the `use` block. 
@@ -168,8 +168,8 @@ Let's try to rewrite a `transfer` example with `ZManaged`:
 ```scala mdoc:silent:nest
 def transfer(from: String, to: String): ZIO[Any, Throwable, Unit] = {
   val resource = for {
-    from <- ZManaged.make(is(from))(close)
-    to   <- ZManaged.make(os(to))(close)
+    from <- ZManaged.bracket(is(from))(close)
+    to   <- ZManaged.bracket(os(to))(close)
   } yield (from, to)
 
   resource.use { case (in, out) =>
@@ -183,15 +183,15 @@ Also, we can get rid of this ceremony and treat the `Managed` like a `ZIO` effec
 ```scala mdoc:silent:nest
 def transfer(from: String, to: String): ZIO[Any, Throwable, Unit] = {
   val resource: ZManaged[Any, Throwable, Unit] = for {
-    from <- ZManaged.make(is(from))(close)
-    to   <- ZManaged.make(os(to))(close)
-    _    <- copy(from, to).toManaged_
+    from <- ZManaged.bracket(is(from))(close)
+    to   <- ZManaged.bracket(os(to))(close)
+    _    <- copy(from, to).toManaged
   } yield ()
   resource.useNow
 }
 ```
 
-This is where the `ZManaged` provides us a composable and flexible way of allocating resources.  They can be composed with any `ZIO` effect by converting them using the `ZIO#toManaged_` operator.
+This is where the `ZManaged` provides us a composable and flexible way of allocating resources.  They can be composed with any `ZIO` effect by converting them using the `ZIO#toManaged` operator.
 
 `ZManaged` has several type aliases, each of which is useful for a specific workflow:
 

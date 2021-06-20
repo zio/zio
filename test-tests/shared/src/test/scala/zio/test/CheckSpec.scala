@@ -10,7 +10,7 @@ object CheckSpec extends ZIOBaseSpec {
     testM("checkM is polymorphic in error type") {
       checkM(Gen.int(1, 100)) { n =>
         for {
-          _ <- ZIO.effect(())
+          _ <- ZIO.attempt(())
           r <- Random.nextIntBounded(n)
         } yield assert(r)(isLessThan(n))
       }

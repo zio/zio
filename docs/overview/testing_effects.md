@@ -192,7 +192,7 @@ class TestService extends Database.Service {
     Task(map(id))
 
   def update(id: UserID, profile: UserProfile): Task[Unit] = 
-    Task.effect { map = map + (id -> profile) }
+    Task.attempt { map = map + (id -> profile) }
 }
 trait TestDatabase extends Database {
   val database: TestService = new TestService

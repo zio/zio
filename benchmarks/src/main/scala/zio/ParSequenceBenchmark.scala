@@ -76,21 +76,21 @@ class ParSequenceBenchmark {
 
   @Benchmark
   def zioSequence(): Long = {
-    val tasks  = (0 until count).map(_ => ZIO.effectTotal(1)).toList
+    val tasks  = (0 until count).map(_ => ZIO.succeed(1)).toList
     val result = ZIO.collectAll(tasks).map(_.sum.toLong)
     unsafeRun(result)
   }
 
   @Benchmark
   def zioParSequence(): Long = {
-    val tasks  = (0 until count).map(_ => ZIO.effectTotal(1)).toList
+    val tasks  = (0 until count).map(_ => ZIO.succeed(1)).toList
     val result = ZIO.collectAllPar(tasks).map(_.sum.toLong)
     unsafeRun(result)
   }
 
   @Benchmark
   def zioParSequenceN(): Long = {
-    val tasks  = (0 until count).map(_ => ZIO.effectTotal(1)).toList
+    val tasks  = (0 until count).map(_ => ZIO.succeed(1)).toList
     val result = ZIO.collectAllParN(parallelism)(tasks).map(_.sum.toLong)
     unsafeRun(result)
   }

@@ -28,7 +28,7 @@ object BlockingSpec extends ZIOBaseSpec {
       },
       testM("effectBlockingCancelable can be interrupted") {
         val release = new AtomicBoolean(false)
-        val cancel  = UIO.effectTotal(release.set(true))
+        val cancel  = UIO.succeed(release.set(true))
         assertM(ZIO.effectBlockingCancelable(blockingAtomic(release))(cancel).timeout(Duration.Zero))(isNone)
       },
       testM("effectBlockingInterrupt completes successfully") {

@@ -111,10 +111,10 @@ class IONarrowFlatMapBenchmark {
 
   private[this] def zioNarrowFlatMap(runtime: Runtime[Any]): Int = {
     def loop(i: Int): UIO[Int] =
-      if (i < size) IO.effectTotal[Int](i + 1).flatMap(loop)
-      else IO.effectTotal(i)
+      if (i < size) IO.succeed[Int](i + 1).flatMap(loop)
+      else IO.succeed(i)
 
-    runtime.unsafeRun(IO.effectTotal(0).flatMap[Any, Nothing, Int](loop))
+    runtime.unsafeRun(IO.succeed(0).flatMap[Any, Nothing, Int](loop))
   }
 
   @Benchmark

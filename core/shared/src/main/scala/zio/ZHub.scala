@@ -237,7 +237,7 @@ object ZHub {
    * For best performance use capacities that are powers of two.
    */
   def bounded[A](requestedCapacity: Int): UIO[Hub[A]] =
-    ZIO.effectTotal(internal.Hub.bounded[A](requestedCapacity)).flatMap(makeHub(_, Strategy.BackPressure()))
+    ZIO.succeed(internal.Hub.bounded[A](requestedCapacity)).flatMap(makeHub(_, Strategy.BackPressure()))
 
   /**
    * Creates a bounded hub with the dropping strategy. The hub will drop new
@@ -246,7 +246,7 @@ object ZHub {
    * For best performance use capacities that are powers of two.
    */
   def dropping[A](requestedCapacity: Int): UIO[Hub[A]] =
-    ZIO.effectTotal(internal.Hub.bounded[A](requestedCapacity)).flatMap(makeHub(_, Strategy.Dropping()))
+    ZIO.succeed(internal.Hub.bounded[A](requestedCapacity)).flatMap(makeHub(_, Strategy.Dropping()))
 
   /**
    * Creates a bounded hub with the sliding strategy. The hub will add new
@@ -255,13 +255,13 @@ object ZHub {
    * For best performance use capacities that are powers of two.
    */
   def sliding[A](requestedCapacity: Int): UIO[Hub[A]] =
-    ZIO.effectTotal(internal.Hub.bounded[A](requestedCapacity)).flatMap(makeHub(_, Strategy.Sliding()))
+    ZIO.succeed(internal.Hub.bounded[A](requestedCapacity)).flatMap(makeHub(_, Strategy.Sliding()))
 
   /**
    * Creates an unbounded hub.
    */
   def unbounded[A]: UIO[Hub[A]] =
-    ZIO.effectTotal(internal.Hub.unbounded[A]).flatMap(makeHub(_, Strategy.Dropping()))
+    ZIO.succeed(internal.Hub.unbounded[A]).flatMap(makeHub(_, Strategy.Dropping()))
 
   /**
    * Creates a hub with the specified strategy.
@@ -297,9 +297,9 @@ object ZHub {
       val capacity: Int =
         hub.capacity
       val isShutdown: UIO[Boolean] =
-        ZIO.effectTotal(shutdownFlag.get)
+        ZIO.succeed(shutdownFlag.get)
       def publish(a: A): UIO[Boolean] =
-        ZIO.effectSuspendTotal {
+        ZIO.suspendSucceed {
           if (shutdownFlag.get) ZIO.interrupt
           else if (hub.publish(a)) {
             strategy.unsafeCompleteSubscribers(hub, subscribers)
@@ -309,7 +309,7 @@ object ZHub {
           }
         }
       def publishAll(as: Iterable[A]): UIO[Boolean] =
-        ZIO.effectSuspendTotal {
+        ZIO.suspendSucceed {
           if (shutdownFlag.get) ZIO.interrupt
           else {
             val surplus = unsafePublishAll(hub, as)
@@ -319,21 +319,21 @@ object ZHub {
           }
         }
       val shutdown: UIO[Unit] =
-        ZIO.effectSuspendTotalWith { (_, fiberId) =>
+        ZIO.suspendSucceedWith { (_, fiberId) =>
           shutdownFlag.set(true)
           ZIO.whenM(shutdownHook.succeed(())) {
             releaseMap.releaseAll(Exit.interrupt(fiberId), ExecutionStrategy.Parallel) *> strategy.shutdown
           }
         }.uninterruptible
       val size: UIO[Int] =
-        ZIO.effectSuspendTotal {
+        ZIO.suspendSucceed {
           if (shutdownFlag.get) ZIO.interrupt
           else ZIO.succeedNow(hub.size())
         }
       val subscribe: ZManaged[Any, Nothing, Dequeue[A]] =
         for {
-          dequeue <- makeSubscription(hub, subscribers, strategy).toManaged_
-          _       <- ZManaged.makeExit(releaseMap.add(_ => dequeue.shutdown))((finalizer, exit) => finalizer(exit))
+          dequeue <- makeSubscription(hub, subscribers, strategy).toManaged
+          _       <- ZManaged.bracketExit(releaseMap.add(_ => dequeue.shutdown))((finalizer, exit) => finalizer(exit))
         } yield dequeue
     }
 
@@ -375,26 +375,26 @@ object ZHub {
       val capacity: Int =
         hub.capacity
       val isShutdown: UIO[Boolean] =
-        ZIO.effectTotal(shutdownFlag.get)
+        ZIO.succeed(shutdownFlag.get)
       def offer(a: Nothing): ZIO[Nothing, Any, Boolean] =
         ZIO.succeedNow(false)
       def offerAll(as: Iterable[Nothing]): ZIO[Nothing, Any, Boolean] =
         ZIO.succeedNow(false)
       val shutdown: UIO[Unit] =
-        ZIO.effectSuspendTotalWith { (_, fiberId) =>
+        ZIO.suspendSucceedWith { (_, fiberId) =>
           shutdownFlag.set(true)
           ZIO.whenM(shutdownHook.succeed(())) {
             ZIO.foreachPar(unsafePollAll(pollers))(_.interruptAs(fiberId)) *>
-              ZIO.effectTotal(subscription.unsubscribe())
+              ZIO.succeed(subscription.unsubscribe())
           }
         }.uninterruptible
       val size: UIO[Int] =
-        ZIO.effectSuspendTotal {
+        ZIO.suspendSucceed {
           if (shutdownFlag.get) ZIO.interrupt
           else ZIO.succeedNow(subscription.size())
         }
       val take: UIO[A] =
-        ZIO.effectSuspendTotalWith { (_, fiberId) =>
+        ZIO.suspendSucceedWith { (_, fiberId) =>
           if (shutdownFlag.get) ZIO.interrupt
           else {
             val empty   = null.asInstanceOf[A]
@@ -402,12 +402,12 @@ object ZHub {
             message match {
               case null =>
                 val promise = Promise.unsafeMake[Nothing, A](fiberId)
-                ZIO.effectSuspendTotal {
+                ZIO.suspendSucceed {
                   pollers.offer(promise)
                   subscribers.add(subscription -> pollers)
                   strategy.unsafeCompletePollers(hub, subscribers, subscription, pollers)
                   if (shutdownFlag.get) ZIO.interrupt else promise.await
-                }.onInterrupt(ZIO.effectTotal(unsafeRemove(pollers, promise)))
+                }.onInterrupt(ZIO.succeed(unsafeRemove(pollers, promise)))
               case a =>
                 strategy.unsafeOnHubEmptySpace(hub, subscribers)
                 ZIO.succeedNow(a)
@@ -415,7 +415,7 @@ object ZHub {
           }
         }
       val takeAll: ZIO[Any, Nothing, Chunk[A]] =
-        ZIO.effectSuspendTotal {
+        ZIO.suspendSucceed {
           if (shutdownFlag.get) ZIO.interrupt
           else {
             val as = if (pollers.isEmpty()) unsafePollAll(subscription) else Chunk.empty
@@ -424,7 +424,7 @@ object ZHub {
           }
         }
       def takeUpTo(max: Int): ZIO[Any, Nothing, Chunk[A]] =
-        ZIO.effectSuspendTotal {
+        ZIO.suspendSucceed {
           if (shutdownFlag.get) ZIO.interrupt
           else {
             val as = if (pollers.isEmpty()) unsafePollN(subscription, max) else Chunk.empty
@@ -533,20 +533,20 @@ object ZHub {
         as: Iterable[A],
         isShutDown: AtomicBoolean
       ): UIO[Boolean] =
-        ZIO.effectSuspendTotalWith { (_, fiberId) =>
+        ZIO.suspendSucceedWith { (_, fiberId) =>
           val promise = Promise.unsafeMake[Nothing, Boolean](fiberId)
-          ZIO.effectSuspendTotal {
+          ZIO.suspendSucceed {
             unsafeOffer(as, promise)
             unsafeOnHubEmptySpace(hub, subscribers)
             unsafeCompleteSubscribers(hub, subscribers)
             if (isShutDown.get) ZIO.interrupt else promise.await
-          }.onInterrupt(ZIO.effectTotal(unsafeRemove(promise)))
+          }.onInterrupt(ZIO.succeed(unsafeRemove(promise)))
         }
 
       def shutdown: UIO[Unit] =
         for {
           fiberId    <- ZIO.fiberId
-          publishers <- ZIO.effectTotal(unsafePollAll(publishers))
+          publishers <- ZIO.succeed(unsafePollAll(publishers))
           _ <- ZIO.foreachPar_(publishers) { case (_, promise, last) =>
                  if (last) promise.interruptAs(fiberId) else ZIO.unit
                }
@@ -652,7 +652,7 @@ object ZHub {
             }
           }
 
-        ZIO.effectTotal {
+        ZIO.succeed {
           unsafeSlidingPublish(as)
           unsafeCompleteSubscribers(hub, subscribers)
           true

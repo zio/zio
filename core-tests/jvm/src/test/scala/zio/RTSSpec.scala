@@ -108,7 +108,7 @@ object RTSSpec extends ZIOBaseSpec {
         }
       }
 
-      assertM(ZIO.effect(e.shutdown()))(isUnit)
+      assertM(ZIO.attempt(e.shutdown()))(isUnit)
     } @@ zioTag(regression),
     testM("second callback call is ignored") {
       for {
@@ -127,7 +127,7 @@ object RTSSpec extends ZIOBaseSpec {
       val c = new AtomicInteger(0)
 
       def test =
-        IO.effect(if (c.incrementAndGet() <= 1) throw new RuntimeException("x"))
+        IO.attempt(if (c.incrementAndGet() <= 1) throw new RuntimeException("x"))
           .forever
           .ensuring(IO.unit)
           .either
@@ -136,7 +136,7 @@ object RTSSpec extends ZIOBaseSpec {
       val zio =
         for {
           f <- test.fork
-          c <- (IO.effectTotal[Int](c.get) <* Clock.sleep(1.millis))
+          c <- (IO.succeed[Int](c.get) <* Clock.sleep(1.millis))
                  .repeatUntil(_ >= 1) <* f.interrupt
         } yield c
 
@@ -146,11 +146,11 @@ object RTSSpec extends ZIOBaseSpec {
       for {
         runtime <- ZIO.runtime[Any]
         promise <- Promise.make[Nothing, String]
-        _ <- UIO.effectTotal {
+        _ <- UIO.succeed {
                val thread = new Thread("user-thread") {
                  override def run(): Unit =
                    runtime.unsafeRunAsync_ {
-                     UIO.effectTotal(Thread.currentThread.getName).to(promise)
+                     UIO.succeed(Thread.currentThread.getName).to(promise)
                    }
                }
                thread.start()

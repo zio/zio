@@ -269,7 +269,7 @@ object TestClock extends Serializable {
           case Left(_) => ZIO.succeedNow(SortedSet.empty[Fiber.Runtime[Any, Any]])
           case Right(refs) =>
             ZIO
-              .foreach(refs)(ref => ZIO.effectTotal(ref.get))
+              .foreach(refs)(ref => ZIO.succeed(ref.get))
               .map(_.foldLeft(SortedSet.empty[Fiber.Runtime[Any, Any]])(_ ++ _))
               .map(_.filter(_.id != descriptor.id))
         }
@@ -367,11 +367,11 @@ object TestClock extends Serializable {
     for {
       live                  <- ZManaged.service[Live]
       annotations           <- ZManaged.service[Annotations]
-      clockState            <- Ref.make(data).toManaged_
-      warningState          <- RefM.make(WarningData.start).toManaged_
-      suspendedWarningState <- RefM.make(SuspendedWarningData.start).toManaged_
+      clockState            <- Ref.make(data).toManaged
+      warningState          <- RefM.make(WarningData.start).toManaged
+      suspendedWarningState <- RefM.make(SuspendedWarningData.start).toManaged
       test <-
-        Managed.make(UIO(Test(clockState, live, annotations, warningState, suspendedWarningState))) { test =>
+        Managed.bracket(UIO(Test(clockState, live, annotations, warningState, suspendedWarningState))) { test =>
           test.warningDone *> test.suspendedWarningDone
         }
     } yield Has.allOf(test: Clock, test: TestClock)

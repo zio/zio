@@ -105,7 +105,7 @@ package object test extends CompileVariants {
      */
     def apply[R, E](assertion: => ZIO[R, E, TestResult]): ZIO[R, TestFailure[E], TestSuccess] =
       ZIO
-        .effectSuspendTotal(assertion)
+        .suspendSucceed(assertion)
         .foldCauseM(
           cause => ZIO.fail(TestFailure.Runtime(cause)),
           _.failures match {
@@ -573,13 +573,13 @@ package object test extends CompileVariants {
    * Builds an effectual suite containing a number of other specs.
    */
   def suiteM[R, E, T](label: String)(specs: ZIO[R, E, Iterable[Spec[R, E, T]]]): Spec[R, E, T] =
-    Spec.suite(label, specs.map(_.toVector).toManaged_, None)
+    Spec.suite(label, specs.map(_.toVector).toManaged, None)
 
   /**
    * Builds a spec with a single pure test.
    */
   def test(label: String)(assertion: => TestResult)(implicit loc: SourceLocation): ZSpec[Any, Nothing] =
-    testM(label)(ZIO.effectTotal(assertion))
+    testM(label)(ZIO.succeed(assertion))
 
   /**
    * Builds a spec with a single effectful test.

@@ -97,12 +97,12 @@ To run this program, we need to implement a live version of `Logging` and `Rando
 ```scala mdoc:silent:nest
 val LoggingLive: Logging = new Logging {
   override def log(line: String): UIO[Unit] =
-    ZIO.effectTotal(println(line))
+    ZIO.succeed(println(line))
 }
 
 val RandomIntLive: RandomInt = new RandomInt {
   override def random: UIO[Int] =
-    ZIO.effectTotal(scala.util.Random.nextInt())
+    ZIO.succeed(scala.util.Random.nextInt())
 }
 ```
 
@@ -119,10 +119,10 @@ But, there is a workaround, we can throw away these implementations and write a 
 ```scala mdoc:silent:nest
 val LoggingWithRandomIntLive = new Logging with RandomInt {
   override def log(line: String): UIO[Unit] =
-    ZIO.effectTotal(println(line))
+    ZIO.succeed(println(line))
 
   override def random: UIO[Int] =
-    ZIO.effectTotal(scala.util.Random.nextInt())
+    ZIO.succeed(scala.util.Random.nextInt())
 }
 ```
 
@@ -195,12 +195,12 @@ Let's implement `Logging` and `RandomInt` services:
 ```scala mdoc:silent:nest
 case class LoggingLive() extends Logging {
   override def log(line: String): UIO[Unit] =
-    ZIO.effectTotal(println(line))
+    ZIO.succeed(println(line))
 }
 
 case class RandomIntLive() extends RandomInt {
   override def random: UIO[Int] =
-    ZIO.effectTotal(scala.util.Random.nextInt())
+    ZIO.succeed(scala.util.Random.nextInt())
 }
 ```
 
@@ -235,12 +235,12 @@ val myApp: ZIO[Has[Logging] with Has[RandomInt], Nothing, Unit] =
 
 case class LoggingLive() extends Logging {
   override def log(line: String): UIO[Unit] =
-    ZIO.effectTotal(println(line))
+    ZIO.succeed(println(line))
 }
 
 case class RandomIntLive() extends RandomInt {
   override def random: UIO[Int] =
-    ZIO.effectTotal(scala.util.Random.nextInt())
+    ZIO.succeed(scala.util.Random.nextInt())
 }
 ```
 

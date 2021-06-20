@@ -17,7 +17,7 @@ object ManagedSpec extends ZIOBaseSpec {
     val live: Layer[Nothing, Counter] =
       Ref
         .make(1)
-        .toManaged(_.set(-10))
+        .toManagedWith(_.set(-10))
         .map { ref =>
           new Counter.Service {
             val incrementAndGet: UIO[Int] = ref.updateAndGet(_ + 1)

@@ -62,14 +62,14 @@ object CompressionSpec extends DefaultRunnableSpec {
         ),
         testM("fail eartly if header is corrupted")(
           assertM(
-            Stream.fromIterable(Seq(1, 2, 3, 4, 5).map(_.toByte)).transduce(inflate()).runCollect.run
+            Stream.fromIterable(Seq(1, 2, 3, 4, 5).map(_.toByte)).transduce(inflate()).runCollect.exit
           )(fails(anything))
         ),
         testM("inflate what JDK deflated")(
           checkM(Gen.listOfBounded(0, `1K`)(Gen.anyByte).zip(Gen.int(1, `1K`)).zip(Gen.int(1, `1K`))) {
             case ((chunk, n), bufferSize) =>
               assertM(for {
-                deflated <- ZIO.effectTotal(deflatedStream(chunk.toArray))
+                deflated <- ZIO.succeed(deflatedStream(chunk.toArray))
                 out      <- deflated.chunkN(n).transduce(inflate(bufferSize)).runCollect
               } yield out.toList)(equalTo(chunk))
           }
@@ -78,7 +78,7 @@ object CompressionSpec extends DefaultRunnableSpec {
           checkM(Gen.listOfBounded(0, `1K`)(Gen.anyByte).zip(Gen.int(1, `1K`)).zip(Gen.int(1, `1K`))) {
             case ((chunk, n), bufferSize) =>
               assertM(for {
-                deflated <- ZIO.effectTotal(noWrapDeflatedStream(chunk.toArray))
+                deflated <- ZIO.succeed(noWrapDeflatedStream(chunk.toArray))
                 out      <- deflated.chunkN(n).transduce(inflate(bufferSize, true)).runCollect
               } yield out.toList)(equalTo(chunk))
           }
@@ -86,14 +86,14 @@ object CompressionSpec extends DefaultRunnableSpec {
         testM("inflate nowrap: remaining = 0 but not all was pulled")(
           // This case shown error when not all data was pulled out of inflater
           assertM(for {
-            input    <- ZIO.effectTotal(inflateRandomExampleThatFailed)
-            deflated <- ZIO.effectTotal(noWrapDeflatedStream(input))
+            input    <- ZIO.succeed(inflateRandomExampleThatFailed)
+            deflated <- ZIO.succeed(noWrapDeflatedStream(input))
             out      <- deflated.chunkN(40).transduce(inflate(11, true)).runCollect
           } yield out.toList)(equalTo(inflateRandomExampleThatFailed.toList))
         ),
         testM("fail if input stream finished unexpected")(
           assertM(
-            jdkGzippedStream(longText).take(800).transduce(inflate()).runCollect.run
+            jdkGzippedStream(longText).take(800).transduce(inflate()).runCollect.exit
           )(fails(anything))
         )
       ),
@@ -133,24 +133,24 @@ object CompressionSpec extends DefaultRunnableSpec {
         ),
         testM("fail early if header is corrupted")(
           assertM(
-            Stream.fromIterable(1 to 10).map(_.toByte).transduce(gunzip()).runCollect.run
+            Stream.fromIterable(1 to 10).map(_.toByte).transduce(gunzip()).runCollect.exit
           )(fails(anything))
         ),
         testM("fail if input stream finished unexpected")(
           assertM(
-            jdkGzippedStream(longText).take(80).transduce(gunzip()).runCollect.run
+            jdkGzippedStream(longText).take(80).transduce(gunzip()).runCollect.exit
           )(fails(anything))
         ),
         testM("no output on very incomplete stream is not OK")(
           assertM(
-            Stream.fromIterable(1 to 5).map(_.toByte).transduce(gunzip()).runCollect.run
+            Stream.fromIterable(1 to 5).map(_.toByte).transduce(gunzip()).runCollect.exit
           )(fails(anything))
         ),
         testM("gunzip what JDK gzipped, nowrap")(
           checkM(Gen.listOfBounded(0, `1K`)(Gen.anyByte).zip(Gen.int(1, `1K`)).zip(Gen.int(1, `1K`))) {
             case ((chunk, n), bufferSize) =>
               assertM(for {
-                deflated <- ZIO.effectTotal(jdkGzippedStream(chunk.toArray))
+                deflated <- ZIO.succeed(jdkGzippedStream(chunk.toArray))
                 out      <- deflated.chunkN(n).transduce(gunzip(bufferSize)).runCollect
               } yield out.toList)(equalTo(chunk))
           }
@@ -265,7 +265,7 @@ object CompressionSpec extends DefaultRunnableSpec {
         ),
         testM("transducer is re-usable")(
           assertM(for {
-            gzipper       <- ZIO.effectTotal(gzip(64))
+            gzipper       <- ZIO.succeed(gzip(64))
             gzipped1      <- Stream.fromIterable(longText).transduce(gzipper).runCollect
             gzipped2      <- Stream.fromIterable(longText.reverse).transduce(gzipper).runCollect
             jdkGunzipped1 <- jdkGunzip(gzipped1)
@@ -302,7 +302,7 @@ object TestData {
     ZStream.fromIterable(arr)
   }
 
-  def jdkInflate(bytes: Chunk[Byte], noWrap: Boolean): UIO[List[Byte]] = ZIO.effectTotal {
+  def jdkInflate(bytes: Chunk[Byte], noWrap: Boolean): UIO[List[Byte]] = ZIO.succeed {
     val bigBuffer = new Array[Byte](1024 * 1024)
     val inflater  = new Inflater(noWrap)
     val iif       = new InflaterInputStream(new ByteArrayInputStream(bytes.toArray), inflater)
@@ -329,7 +329,7 @@ object TestData {
     baos.toByteArray()
   }
 
-  def jdkGunzip(gzipped: Chunk[Byte]): Task[List[Byte]] = ZIO.effect {
+  def jdkGunzip(gzipped: Chunk[Byte]): Task[List[Byte]] = ZIO.attempt {
     val bigBuffer = new Array[Byte](1024 * 1024)
     val bais      = new ByteArrayInputStream(gzipped.toArray)
     val gzis      = new GZIPInputStream(bais)

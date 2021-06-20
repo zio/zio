@@ -52,7 +52,7 @@ of your logic at a higher level of abstraction, with more powerful combinators a
 | `async` | `effectAsync` |
 | `cancelable` | `effectAsyncInterrupt` |
 | `deferFuture` | `fromFuture` |
-| `defer` | `effectSuspend` |
+| `defer` | `suspend` |
 | `delay` | `effect` |
 | `eval` | `effect` |
 | `fromEither` | `fromEither` |
@@ -75,7 +75,7 @@ of your logic at a higher level of abstraction, with more powerful combinators a
 | `sequence` | `collectAll` |
 | `shift` | `yield` |
 | `sleep` | `sleep` |
-| `suspend` | `effectSuspend` |
+| `suspend` | `suspend` |
 | `traverse` | `foreach` |
 | `unit` | `unit` |
 

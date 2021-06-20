@@ -46,7 +46,8 @@ object URIO {
   /**
    * @see [[zio.ZIO.apply]]
    */
-  def apply[A](a: => A): UIO[A] = ZIO.effectTotal(a)
+  def apply[A](a: => A): UIO[A] =
+    ZIO.succeed(a)
 
   /**
    * @see See [[zio.ZIO.blocking]]
@@ -329,18 +330,23 @@ object URIO {
   /**
    * @see [[zio.ZIO.effectSuspendTotal]]
    */
-  def effectSuspendTotal[R, A](rio: => URIO[R, A]): URIO[R, A] = ZIO.effectSuspendTotal(rio)
+  @deprecated("use suspendSucceed", "2.0.0")
+  def effectSuspendTotal[R, A](rio: => URIO[R, A]): URIO[R, A] =
+    ZIO.effectSuspendTotal(rio)
 
   /**
    * @see [[zio.ZIO.effectSuspendTotalWith]]
    */
+  @deprecated("use suspendSucceedWith", "2.0.0")
   def effectSuspendTotalWith[R, A](p: (Platform, Fiber.Id) => URIO[R, A]): URIO[R, A] =
     ZIO.effectSuspendTotalWith(p)
 
   /**
    * @see [[zio.ZIO.effectTotal]]
    */
-  def effectTotal[A](effect: => A): UIO[A] = ZIO.effectTotal(effect)
+  @deprecated("use succeed", "2.0.0")
+  def effectTotal[A](effect: => A): UIO[A] =
+    ZIO.effectTotal(effect)
 
   /**
    * @see [[zio.ZIO.environment]]
@@ -889,9 +895,22 @@ object URIO {
   def some[R, A](a: => A): URIO[R, Option[A]] = ZIO.some(a)
 
   /**
+   * @see [[zio.ZIO.suspendSucceed]]
+   */
+  def suspendSucceed[R, A](rio: => URIO[R, A]): URIO[R, A] =
+    ZIO.suspendSucceed(rio)
+
+  /**
+   * @see [[zio.ZIO.suspendSucceedWith]]
+   */
+  def suspendSucceedWith[R, A](p: (Platform, Fiber.Id) => URIO[R, A]): URIO[R, A] =
+    ZIO.suspendSucceedWith(p)
+
+  /**
    * @see [[zio.ZIO.succeed]]
    */
-  def succeed[A](a: => A): UIO[A] = ZIO.succeed(a)
+  def succeed[A](effect: => A): UIO[A] =
+    ZIO.succeed(effect)
 
   /**
    * @see [[zio.ZIO.swap]]

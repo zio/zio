@@ -188,7 +188,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
                         })
                         .runCollect
               result <- effects.get
-            } yield (exit, result)).run
+            } yield (exit, result)).exit
 
           (assertM(run(empty))(succeeds(equalTo((Chunk(0), Nil)))) <*>
             assertM(run(single))(succeeds(equalTo((Chunk(30), List(1))))) <*>
@@ -223,7 +223,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
                         })
                         .runCollect
               result <- effects.get
-            } yield exit -> result).run
+            } yield exit -> result).exit
 
           (assertM(run(empty))(succeeds(equalTo((Chunk(0), Nil)))) <*>
             assertM(run(single))(succeeds(equalTo((Chunk(30), List(1))))) <*>
@@ -598,7 +598,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
                   }
                 }
                 .runCollect
-            assertM(test.run)(succeeds(equalTo(data)))
+            assertM(test.exit)(succeeds(equalTo(data)))
           }
         },
         testM("finalizes transducers") {
@@ -612,7 +612,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
                       values.toList match {
                         case _ =>
                           ZTransducer {
-                            Managed.make(
+                            Managed.bracket(
                               ref
                                 .update(_ + 1)
                                 .as[Option[Chunk[Int]] => UIO[Chunk[Int]]]({
@@ -626,7 +626,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
                   }
                   .runDrain *> ref.get
               }
-            assertM(test.run)(succeeds(equalTo(0)))
+            assertM(test.exit)(succeeds(equalTo(0)))
           }
         },
         testM("finalizes transducers - inner transducer fails") {
@@ -640,7 +640,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
                       values.toList match {
                         case _ =>
                           ZTransducer {
-                            Managed.make(
+                            Managed.bracket(
                               ref
                                 .update(_ + 1)
                                 .as[Option[Chunk[Int]] => IO[String, Chunk[Int]]]({ case _ =>
@@ -654,7 +654,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
                   .runDrain
                   .ignore *> ref.get
               }
-            assertM(test.run)(succeeds(equalTo(0)))
+            assertM(test.exit)(succeeds(equalTo(0)))
           }
         },
         testM("emits data if less than n are collected") {
@@ -672,7 +672,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
                   ZTransducer.branchAfter(n)(ZTransducer.prepend)
                 }
                 .runCollect
-            assertM(test.run)(succeeds(equalTo(data)))
+            assertM(test.exit)(succeeds(equalTo(data)))
           }
         }
       ),

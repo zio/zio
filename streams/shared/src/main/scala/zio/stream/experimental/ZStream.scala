@@ -275,7 +275,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     maximumLag: Int
   ): ZManaged[R, Nothing, List[Dequeue[Take[E, A]]]] =
     for {
-      hub    <- Hub.bounded[Take[E, A]](maximumLag).toManaged_
+      hub    <- Hub.bounded[Take[E, A]](maximumLag).toManaged
       queues <- ZManaged.collectAll(List.fill(n)(hub.subscribe))
       _      <- self.runIntoHubManaged(hub).fork
     } yield queues
@@ -353,7 +353,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * @note Prefer capacities that are powers of 2 for better performance.
    */
   final def bufferChunksDropping(capacity: Int): ZStream[R, E, A] = {
-    val queue = Queue.dropping[(Take[E, A], Promise[Nothing, Unit])](capacity).toManaged(_.shutdown)
+    val queue = Queue.dropping[(Take[E, A], Promise[Nothing, Unit])](capacity).toManagedWith(_.shutdown)
     new ZStream(bufferSignal[R, E, A](queue, self.channel))
   }
 
@@ -364,7 +364,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * @note Prefer capacities that are powers of 2 for better performance.
    */
   final def bufferChunksSliding(capacity: Int): ZStream[R, E, A] = {
-    val queue = Queue.sliding[(Take[E, A], Promise[Nothing, Unit])](capacity).toManaged(_.shutdown)
+    val queue = Queue.sliding[(Take[E, A], Promise[Nothing, Unit])](capacity).toManagedWith(_.shutdown)
     new ZStream(bufferSignal[R, E, A](queue, self.channel))
   }
 
@@ -376,7 +376,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * @note Prefer capacities that are powers of 2 for better performance.
    */
   final def bufferDropping(capacity: Int): ZStream[R, E, A] = {
-    val queue = Queue.dropping[(Take[E, A], Promise[Nothing, Unit])](capacity).toManaged(_.shutdown)
+    val queue = Queue.dropping[(Take[E, A], Promise[Nothing, Unit])](capacity).toManagedWith(_.shutdown)
     new ZStream(bufferSignal[R, E, A](queue, self.chunkN(1).channel))
   }
 
@@ -388,7 +388,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * @note Prefer capacities that are powers of 2 for better performance.
    */
   final def bufferSliding(capacity: Int): ZStream[R, E, A] = {
-    val queue = Queue.sliding[(Take[E, A], Promise[Nothing, Unit])](capacity).toManaged(_.shutdown)
+    val queue = Queue.sliding[(Take[E, A], Promise[Nothing, Unit])](capacity).toManagedWith(_.shutdown)
     new ZStream(bufferSignal[R, E, A](queue, self.chunkN(1).channel))
   }
 
@@ -446,7 +446,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
       for {
         queue <- managed
         start <- Promise.makeManaged[Nothing, Unit]
-        _     <- start.succeed(()).toManaged_
+        _     <- start.succeed(()).toManaged
         ref   <- Ref.makeManaged(start)
         _     <- (channel >>> producer(queue, ref)).runManaged.fork
       } yield queue
@@ -550,7 +550,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   def chunkN(n: Int): ZStream[R, E, A] =
     ZStream.unwrap {
-      ZIO.effectTotal {
+      ZIO.succeed {
         val rechunker = new ZStream.Rechunker[A](n)
         lazy val process: ZChannel[R, E, Chunk[A], Any, E, Chunk[A], Unit] =
           ZChannel.readWithCause(
@@ -643,7 +643,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   ): ZStream[R1, E1, A1] =
     loopOnChunks(chunk =>
       ZChannel.unwrap {
-        ZIO.effectSuspendTotal {
+        ZIO.suspendSucceed {
           val outputChunk           = ChunkBuilder.make[A1](chunk.size)
           val emit: A1 => UIO[Unit] = (a: A1) => UIO(outputChunk += a).unit
           f(chunk, emit).map { continue =>
@@ -763,10 +763,10 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     new ZStream(
       ZChannel.managed {
         for {
-          left   <- ZStream.Handoff.make[Exit[Option[E], A]].toManaged_
-          right  <- ZStream.Handoff.make[Exit[Option[E1], A2]].toManaged_
-          latchL <- ZStream.Handoff.make[Unit].toManaged_
-          latchR <- ZStream.Handoff.make[Unit].toManaged_
+          left   <- ZStream.Handoff.make[Exit[Option[E], A]].toManaged
+          right  <- ZStream.Handoff.make[Exit[Option[E1], A2]].toManaged
+          latchL <- ZStream.Handoff.make[Unit].toManaged
+          latchR <- ZStream.Handoff.make[Unit].toManaged
           _      <- (self.channel.concatMap(ZChannel.writeChunk(_)) >>> producer(left, latchL)).runManaged.fork
           _      <- (that.channel.concatMap(ZChannel.writeChunk(_)) >>> producer(right, latchR)).runManaged.fork
         } yield (left, right, latchL, latchR)
@@ -805,10 +805,10 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     new ZStream(
       ZChannel.managed {
         for {
-          left   <- ZStream.Handoff.make[Take[E, A]].toManaged_
-          right  <- ZStream.Handoff.make[Take[E1, A2]].toManaged_
-          latchL <- ZStream.Handoff.make[Unit].toManaged_
-          latchR <- ZStream.Handoff.make[Unit].toManaged_
+          left   <- ZStream.Handoff.make[Take[E, A]].toManaged
+          right  <- ZStream.Handoff.make[Take[E1, A2]].toManaged
+          latchL <- ZStream.Handoff.make[Unit].toManaged
+          latchR <- ZStream.Handoff.make[Unit].toManaged
           _      <- (self.channel >>> producer(left, latchL)).runManaged.fork
           _      <- (that.channel >>> producer(right, latchR)).runManaged.fork
         } yield (left, right, latchL, latchR)
@@ -902,7 +902,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     maximumLag: Int,
     decide: A => UIO[Int => Boolean]
   ): ZManaged[R, Nothing, List[Dequeue[Exit[Option[E1], A]]]] =
-    Promise.make[Nothing, A => UIO[UniqueKey => Boolean]].toManaged_.flatMap { prom =>
+    Promise.make[Nothing, A => UIO[UniqueKey => Boolean]].toManaged.flatMap { prom =>
       distributedWithDynamic(maximumLag, (a: A) => prom.await.flatMap(_(a)), _ => ZIO.unit).flatMap { next =>
         ZIO.collectAll {
           Range(0, n).map(id => next.map { case (key, queue) => ((key -> id), queue) })
@@ -913,7 +913,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
                 (mappings + mapping, queue :: queues)
             }
           prom.succeed((a: A) => decide(a).map(f => (key: UniqueKey) => f(mappings(key)))).as(queues)
-        }.toManaged_
+        }.toManaged
       }
     }
 
@@ -933,7 +933,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     for {
       queuesRef <- Ref
                      .make[Map[UniqueKey, Queue[Exit[Option[E], A]]]](Map())
-                     .toManaged(_.get.flatMap(qs => ZIO.foreach(qs.values)(_.shutdown)))
+                     .toManagedWith(_.get.flatMap(qs => ZIO.foreach(qs.values)(_.shutdown)))
       add <- {
         val offer = (a: A) =>
           for {
@@ -958,7 +958,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
           } yield ()
 
         for {
-          queuesLock <- Semaphore.make(1).toManaged_
+          queuesLock <- Semaphore.make(1).toManaged
           newQueue <- Ref
                         .make[UIO[(UniqueKey, Queue[Exit[Option[E], A]])]] {
                           for {
@@ -967,7 +967,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
                             _     <- queuesRef.update(_ + (id -> queue))
                           } yield (id, queue)
                         }
-                        .toManaged_
+                        .toManaged
           finalize = (endTake: Exit[Option[E], Nothing]) =>
                        // we need to make sure that no queues are currently being added
                        queuesLock.withPermit {
@@ -993,8 +993,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
           _ <- self
                  .runForeachManaged(offer)
                  .foldCauseM(
-                   cause => finalize(Exit.halt(cause.map(Some(_)))).toManaged_,
-                   _ => finalize(Exit.fail(None)).toManaged_
+                   cause => finalize(Exit.halt(cause.map(Some(_)))).toManaged,
+                   _ => finalize(Exit.fail(None)).toManaged
                  )
                  .fork
         } yield queuesLock.withPermit(newQueue.get.flatten)
@@ -1022,7 +1022,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def drainFork[R1 <: R, E1 >: E](other: ZStream[R1, E1, Any]): ZStream[R1, E1, A] =
     ZStream.fromEffect(Promise.make[E1, Nothing]).flatMap { bgDied =>
       ZStream
-        .managed(other.runForeachManaged(_ => ZIO.unit).catchAllCause(bgDied.halt(_).toManaged_).fork) *>
+        .managed(other.runForeachManaged(_ => ZIO.unit).catchAllCause(bgDied.halt(_).toManaged).fork) *>
         self.interruptWhen(bgDied)
     }
 
@@ -1408,11 +1408,11 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   ): ZStream.GroupBy[R1, E1, K, V] = {
     val qstream = ZStream.unwrapManaged {
       for {
-        decider <- Promise.make[Nothing, (K, V) => UIO[UniqueKey => Boolean]].toManaged_
+        decider <- Promise.make[Nothing, (K, V) => UIO[UniqueKey => Boolean]].toManaged
         out <- Queue
                  .bounded[Exit[Option[E1], (K, Dequeue[Exit[Option[E1], V]])]](buffer)
-                 .toManaged(_.shutdown)
-        ref <- Ref.make[Map[K, UniqueKey]](Map()).toManaged_
+                 .toManagedWith(_.shutdown)
+        ref <- Ref.make[Map[K, UniqueKey]](Map()).toManaged
         add <- self
                  .mapM(f)
                  .distributedWithDynamic(
@@ -1429,7 +1429,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
                        out.offer(Exit.succeed(k -> q.map(_.map(_._2))))).as(_ == idx)
                    }
                }
-             }.toManaged_
+             }.toManaged
       } yield ZStream.fromQueueWithShutdown(out).flattenExitOption
     }
     new ZStream.GroupBy(qstream, buffer)
@@ -1575,8 +1575,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     new ZStream(
       ZChannel.managed {
         for {
-          left  <- ZStream.Handoff.make[Take[E1, A1]].toManaged_
-          right <- ZStream.Handoff.make[Take[E1, A1]].toManaged_
+          left  <- ZStream.Handoff.make[Take[E1, A1]].toManaged
+          right <- ZStream.Handoff.make[Take[E1, A1]].toManaged
           _     <- (self.channel.concatMap(ZChannel.writeChunk(_)) >>> producer(left)).runManaged.fork
           _     <- (that.channel.concatMap(ZChannel.writeChunk(_)) >>> producer(right)).runManaged.fork
         } yield (left, right)
@@ -1791,7 +1791,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
       ZChannel.readWith(
         (in: Chunk[A]) =>
           ZChannel.unwrap(
-            ZIO.effectSuspendTotal {
+            ZIO.suspendSucceed {
               val outputChunk           = ChunkBuilder.make[A1](in.size)
               val emit: A1 => UIO[Unit] = (a: A1) => UIO(outputChunk += a).unit
               ZIO
@@ -2074,7 +2074,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
 
     (for {
       p       <- Promise.makeManaged[E1, Z]
-      handoff <- ZStream.Handoff.make[Signal].toManaged_
+      handoff <- ZStream.Handoff.make[Signal].toManaged
     } yield {
       val consumer: ZSink[R1, E, A1, E1, A1, Unit] = sink.exposeLeftover
         .foldM(
@@ -2104,7 +2104,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
 
       for {
         _ <- self.runManaged(consumer).fork
-        z <- p.await.toManaged_
+        z <- p.await.toManaged
       } yield (z, new ZStream(producer))
     }).flatten
   }
@@ -2790,7 +2790,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   def toHub(capacity: Int): ZManaged[R, Nothing, ZHub[Nothing, Any, Any, Nothing, Nothing, Take[E, A]]] =
     for {
-      hub <- Hub.bounded[Take[E, A]](capacity).toManaged(_.shutdown)
+      hub <- Hub.bounded[Take[E, A]](capacity).toManagedWith(_.shutdown)
       _   <- self.runIntoHubManaged(hub).fork
     } yield hub
 
@@ -2800,7 +2800,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   def toInputStream(implicit ev0: E <:< Throwable, ev1: A <:< Byte): ZManaged[R, E, java.io.InputStream] =
     for {
-      runtime <- ZIO.runtime[R].toManaged_
+      runtime <- ZIO.runtime[R].toManaged
       pull    <- toPull.asInstanceOf[ZManaged[R, Nothing, ZIO[R, Option[Throwable], Chunk[Byte]]]]
     } yield ZInputStream.fromPull(runtime, pull)
 
@@ -2810,7 +2810,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   def toIterator: ZManaged[R, Nothing, Iterator[Either[E, A]]] =
     for {
-      runtime <- ZIO.runtime[R].toManaged_
+      runtime <- ZIO.runtime[R].toManaged
       pull    <- toPull
     } yield {
       def unfoldPull: Iterator[Either[E, A]] =
@@ -2838,7 +2838,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   def toReader(implicit ev0: E <:< Throwable, ev1: A <:< Char): ZManaged[R, E, java.io.Reader] =
     for {
-      runtime <- ZIO.runtime[R].toManaged_
+      runtime <- ZIO.runtime[R].toManaged
       pull    <- toPull.asInstanceOf[ZManaged[R, Nothing, ZIO[R, Option[Throwable], Chunk[Char]]]]
     } yield ZReader.fromPull(runtime, pull)
 
@@ -2848,7 +2848,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def toQueue(capacity: Int = 2): ZManaged[R, Nothing, Dequeue[Take[E, A]]] =
     for {
-      queue <- Queue.bounded[Take[E, A]](capacity).toManaged(_.shutdown)
+      queue <- Queue.bounded[Take[E, A]](capacity).toManagedWith(_.shutdown)
       _     <- self.runIntoManaged(queue).fork
     } yield queue
 
@@ -2858,7 +2858,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def toQueueDropping(capacity: Int = 2): ZManaged[R, Nothing, Dequeue[Take[E, A]]] =
     for {
-      queue <- Queue.dropping[Take[E, A]](capacity).toManaged(_.shutdown)
+      queue <- Queue.dropping[Take[E, A]](capacity).toManagedWith(_.shutdown)
       _     <- self.runIntoManaged(queue).fork
     } yield queue
 
@@ -2868,7 +2868,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def toQueueOfElements(capacity: Int = 2): ZManaged[R, Nothing, Dequeue[Exit[Option[E], A]]] =
     for {
-      queue <- Queue.bounded[Exit[Option[E], A]](capacity).toManaged(_.shutdown)
+      queue <- Queue.bounded[Exit[Option[E], A]](capacity).toManagedWith(_.shutdown)
       _     <- self.runIntoElementsManaged(queue).fork
     } yield queue
 
@@ -2878,7 +2878,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def toQueueSliding(capacity: Int = 2): ZManaged[R, Nothing, Dequeue[Take[E, A]]] =
     for {
-      queue <- Queue.sliding[Take[E, A]](capacity).toManaged(_.shutdown)
+      queue <- Queue.sliding[Take[E, A]](capacity).toManagedWith(_.shutdown)
       _     <- self.runIntoManaged(queue).fork
     } yield queue
 
@@ -2888,7 +2888,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def toQueueUnbounded: ZManaged[R, Nothing, Dequeue[Take[E, A]]] =
     for {
-      queue <- Queue.unbounded[Take[E, A]].toManaged(_.shutdown)
+      queue <- Queue.unbounded[Take[E, A]].toManagedWith(_.shutdown)
       _     <- self.runIntoManaged(queue).fork
     } yield queue
 
@@ -3296,7 +3296,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * stream is consumed
    */
   def bracket[R, E, A](acquire: ZIO[R, E, A])(release: A => URIO[R, Any]): ZStream[R, E, A] =
-    managed(ZManaged.make(acquire)(release))
+    managed(ZManaged.bracket(acquire)(release))
 
   /**
    * Creates a stream from a single value that will get cleaned up after the
@@ -3305,7 +3305,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   def bracketExit[R, E, A](
     acquire: ZIO[R, E, A]
   )(release: (A, Exit[Any, Any]) => URIO[R, Any]): ZStream[R, E, A] =
-    managed(ZManaged.makeExit(acquire)(release))
+    managed(ZManaged.bracketExit(acquire)(release))
 
   /**
    * Composes the specified streams to create a cartesian product of elements

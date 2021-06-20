@@ -27,7 +27,7 @@ final class ZTestRunner(val args: Array[String], val remoteArgs: Array[String], 
   val summaries: AtomicReference[Vector[Summary]] = new AtomicReference(Vector.empty)
 
   val sendSummary: SendSummary = SendSummary.fromSendM(summary =>
-    ZIO.effectTotal {
+    ZIO.succeed {
       summaries.updateAndGet(_ :+ summary)
       ()
     }

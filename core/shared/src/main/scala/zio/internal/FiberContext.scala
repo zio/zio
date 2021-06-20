@@ -157,7 +157,7 @@ private[zio] final class FiberContext[E, A](
 
         ZIO.succeedNow(v)
       } else {
-        ZIO.effectTotal(interruptStatus.popDrop(v))
+        ZIO.succeed(interruptStatus.popDrop(v))
       }
   }
 
@@ -551,11 +551,11 @@ private[zio] final class FiberContext[E, A](
                   case ZIO.Tags.Provide =>
                     val zio = curZio.asInstanceOf[ZIO.Provide[Any, E, Any]]
 
-                    val push = ZIO.effectTotal(
+                    val push = ZIO.succeed(
                       environments
                         .push(zio.r.asInstanceOf[AnyRef])
                     )
-                    val pop = ZIO.effectTotal(
+                    val pop = ZIO.succeed(
                       environments
                         .pop()
                     )
@@ -623,8 +623,8 @@ private[zio] final class FiberContext[E, A](
                     val lastSupervisor = supervisors.peek()
                     val newSupervisor  = zio.supervisor && lastSupervisor
 
-                    val push = ZIO.effectTotal(supervisors.push(newSupervisor))
-                    val pop  = ZIO.effectTotal(supervisors.pop())
+                    val push = ZIO.succeed(supervisors.push(newSupervisor))
+                    val pop  = ZIO.succeed(supervisors.pop())
 
                     curZio = push.bracket_(pop, zio.zio)
 
@@ -636,8 +636,8 @@ private[zio] final class FiberContext[E, A](
                   case ZIO.Tags.OverrideForkScope =>
                     val zio = curZio.asInstanceOf[ZIO.OverrideForkScope[Any, E, Any]]
 
-                    val push = ZIO.effectTotal(forkScopeOverride.push(zio.forkScope))
-                    val pop  = ZIO.effectTotal(forkScopeOverride.pop())
+                    val push = ZIO.succeed(forkScopeOverride.push(zio.forkScope))
+                    val pop  = ZIO.succeed(forkScopeOverride.pop())
 
                     curZio = push.bracket_(pop, zio.zio)
                 }
@@ -675,7 +675,7 @@ private[zio] final class FiberContext[E, A](
     } finally Fiber._currentFiber.remove()
 
   private[this] def shift(executor: Executor): UIO[Unit] =
-    ZIO.effectTotal { currentExecutor = executor } *> ZIO.yieldNow
+    ZIO.succeed { currentExecutor = executor } *> ZIO.yieldNow
 
   private[this] def getDescriptor(): Fiber.Descriptor =
     Fiber.Descriptor(
@@ -745,7 +745,7 @@ private[zio] final class FiberContext[E, A](
       // as soon as the key is garbage collected:
       val exitOrKey = parentScope.unsafeEnsure(
         exit =>
-          UIO.effectSuspendTotal {
+          UIO.suspendSucceed {
             val childContext = childContextRef()
 
             if (childContext ne null) {
@@ -796,7 +796,7 @@ private[zio] final class FiberContext[E, A](
       { k =>
         val cb: Callback[Nothing, Exit[E, A]] = x => k(ZIO.done(x))
         observe0(cb) match {
-          case None    => Left(ZIO.effectTotal(interruptObserver(cb)))
+          case None    => Left(ZIO.succeed(interruptObserver(cb)))
           case Some(v) => Right(v)
         }
       },
@@ -820,11 +820,11 @@ private[zio] final class FiberContext[E, A](
     oldValue.asInstanceOf[Option[A]].getOrElse(ref.initial)
   }
 
-  def poll: UIO[Option[Exit[E, A]]] = ZIO.effectTotal(poll0)
+  def poll: UIO[Option[Exit[E, A]]] = ZIO.succeed(poll0)
 
   def id: Fiber.Id = fiberId
 
-  def inheritRefs: UIO[Unit] = UIO.effectSuspendTotal {
+  def inheritRefs: UIO[Unit] = UIO.suspendSucceed {
     // The docs for `Collections.synchronizedMap` say that we must synchronize on the map itself when
     // using collection views of the map; `asScala` uses an iterator on the map, so we must
     // synchronize on the map when using it. We have to run some IO actions afterwards, so we
@@ -1021,7 +1021,7 @@ private[zio] final class FiberContext[E, A](
       }
     }
 
-    UIO.effectSuspendTotal {
+    UIO.suspendSucceed {
       setInterruptedLoop()
 
       await

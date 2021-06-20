@@ -46,7 +46,7 @@ object CancelableFutureSpec extends ZIOBaseSpec {
           runtime <- ZIO.runtime[Any]
           f        = runtime.unsafeRunToFuture(UIO.never)
           _       <- UIO(f.cancel())
-          r       <- ZIO.fromFuture(_ => f).run
+          r       <- ZIO.fromFuture(_ => f).exit
         } yield assert(r.succeeded)(isFalse) // not interrupted, as the Future fails when the effect in interrupted.
       } @@ nonFlaky @@ zioTag(interruption),
       testM("roundtrip preserves interruptibility") {

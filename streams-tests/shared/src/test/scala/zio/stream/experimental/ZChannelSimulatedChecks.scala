@@ -11,16 +11,16 @@ object ZChannelSimulatedChecks extends ZIOBaseSpec {
       testM("done channel")(
         checkM(gen) { sim =>
           for {
-            channelResult <- sim.asDoneChannel.run.run
-            effectResult  <- sim.asEffect.run
+            channelResult <- sim.asDoneChannel.run.exit
+            effectResult  <- sim.asEffect.exit
           } yield assert(channelResult)(equalTo(effectResult))
         }
       ),
       testM("out channel")(
         checkM(gen) { sim =>
           for {
-            channelResult <- sim.asOutChannel.runCollect.map(_._1).run
-            effectResult  <- sim.asEffect.run.map(_.map(Chunk.single))
+            channelResult <- sim.asOutChannel.runCollect.map(_._1).exit
+            effectResult  <- sim.asEffect.exit.map(_.map(Chunk.single))
           } yield assert(channelResult)(equalTo(effectResult))
         }
       )

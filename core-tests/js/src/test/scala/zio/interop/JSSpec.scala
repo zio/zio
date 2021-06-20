@@ -17,12 +17,12 @@ object JSSpec extends ZIOBaseSpec {
       testM("catch exceptions thrown by lazy block") {
         val ex                              = new Exception("no promise for you!")
         lazy val noPromise: JSPromise[Unit] = throw ex
-        assertM(Task.fromPromiseJS(noPromise).run)(dies(equalTo(ex)))
+        assertM(Task.fromPromiseJS(noPromise).exit)(dies(equalTo(ex)))
       },
       testM("return a Task that fails if Promise is rejected") {
         val ex                            = new Exception("no value for you!")
         lazy val noValue: JSPromise[Unit] = JSPromise.reject(ex)
-        assertM(Task.fromPromiseJS(noValue).run)(fails(equalTo(ex)))
+        assertM(Task.fromPromiseJS(noValue).exit)(fails(equalTo(ex)))
       },
       testM("return a Task that produces the value from the Promise") {
         lazy val someValue: JSPromise[Int] = JSPromise.resolve[Int](42)
@@ -42,12 +42,12 @@ object JSSpec extends ZIOBaseSpec {
       testM("catch exceptions thrown by lazy block") {
         val ex                              = new Exception("no promise for you!")
         lazy val noPromise: JSPromise[Unit] = throw ex
-        assertM(ZIO.fromPromiseJS(noPromise).run)(dies(equalTo(ex)))
+        assertM(ZIO.fromPromiseJS(noPromise).exit)(dies(equalTo(ex)))
       },
       testM("return a ZIO that fails if Promise is rejected") {
         val ex                            = new Exception("no value for you!")
         lazy val noValue: JSPromise[Unit] = JSPromise.reject(ex)
-        assertM(ZIO.fromPromiseJS(noValue).run)(fails(equalTo(ex)))
+        assertM(ZIO.fromPromiseJS(noValue).exit)(fails(equalTo(ex)))
       },
       testM("return a ZIO that produces the value from the Promise") {
         lazy val someValue: JSPromise[Int] = JSPromise.resolve[Int](42)
@@ -63,7 +63,7 @@ object JSSpec extends ZIOBaseSpec {
         val ex                          = new Exception("Ouch")
         val failedZIO: Task[Unit]       = Task.fail(ex)
         val rejectedPromise: Task[Unit] = failedZIO.toPromiseJS.flatMap(p => ZIO.fromFuture(_ => p.toFuture))
-        assertM(rejectedPromise.run)(fails(equalTo(ex)))
+        assertM(rejectedPromise.exit)(fails(equalTo(ex)))
       },
       testM("produce a resolved Promise from a successful ZIO") {
         val zio                        = Task.succeed(42)

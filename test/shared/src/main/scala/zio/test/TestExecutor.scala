@@ -50,7 +50,7 @@ object TestExecutor {
           case Spec.TestCase(label, test, staticAnnotations) =>
             test.map { case (result, dynamicAnnotations) =>
               ExecutedSpec.test(label, result, staticAnnotations ++ dynamicAnnotations)
-            }.toManaged_
+            }.toManaged
         }.useNow)
     val environment = env
   }

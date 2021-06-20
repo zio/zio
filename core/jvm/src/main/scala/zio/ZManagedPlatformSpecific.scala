@@ -29,14 +29,14 @@ private[zio] trait ZManagedPlatformSpecific {
    * `release` action.
    */
   val blocking: ZManaged[Any, Nothing, Unit] =
-    ZIO.blockingExecutor.toManaged_.flatMap(executor => ZManaged.lock(executor))
+    ZIO.blockingExecutor.toManaged.flatMap(executor => ZManaged.lock(executor))
 
   def readFile(path: Path): ZManaged[Any, IOException, ZInputStream] =
     readFile(path.toString())
 
   def readFile(path: String): ZManaged[Any, IOException, ZInputStream] =
     ZManaged
-      .make(
+      .bracket(
         ZIO.effectBlockingIO {
           val fis = new io.FileInputStream(path)
           (fis, ZInputStream.fromInputStream(fis))
@@ -46,7 +46,7 @@ private[zio] trait ZManagedPlatformSpecific {
 
   def readURL(url: URL): ZManaged[Any, IOException, ZInputStream] =
     ZManaged
-      .make(
+      .bracket(
         ZIO.effectBlockingIO {
           val fis = url.openStream()
           (fis, ZInputStream.fromInputStream(fis))
@@ -55,7 +55,7 @@ private[zio] trait ZManagedPlatformSpecific {
       .map(_._2)
 
   def readURL(url: String): ZManaged[Any, IOException, ZInputStream] =
-    ZManaged.fromEffect(ZIO.effectTotal(new URL(url))).flatMap(readURL)
+    ZManaged.fromEffect(ZIO.succeed(new URL(url))).flatMap(readURL)
 
   def readURI(uri: URI): ZManaged[Any, IOException, ZInputStream] =
     for {
@@ -65,7 +65,7 @@ private[zio] trait ZManagedPlatformSpecific {
 
   def writeFile(path: String): ZManaged[Any, IOException, ZOutputStream] =
     ZManaged
-      .make(
+      .bracket(
         ZIO.effectBlockingIO {
           val fos = new io.FileOutputStream(path)
           (fos, ZOutputStream.fromOutputStream(fos))

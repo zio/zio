@@ -19,7 +19,7 @@ package zio.test.junit
 import org.junit.runner.manipulation.{Filter, Filterable}
 import org.junit.runner.notification.{Failure, RunNotifier}
 import org.junit.runner.{Description, RunWith, Runner}
-import zio.ZIO.effectTotal
+import zio.ZIO.succeed
 import zio._
 import zio.test.DefaultTestReporter.rendered
 import zio.test.Spec.{SpecCase, SuiteCase, TestCase}
@@ -62,12 +62,12 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable with Boot
       spec.caseValue match {
         case SuiteCase(label, specs, _) =>
           val suiteDesc = Description.createSuiteDescription(label, path.mkString(":"))
-          ZManaged.effectTotal(description.addChild(suiteDesc)) *>
+          ZManaged.succeed(description.addChild(suiteDesc)) *>
             specs
               .flatMap(ZManaged.foreach(_)(traverse(_, suiteDesc, path :+ label)))
               .ignore
         case TestCase(label, _, _) =>
-          ZManaged.effectTotal(description.addChild(testDescription(label, path)))
+          ZManaged.succeed(description.addChild(testDescription(label, path)))
       }
 
     unsafeRun(
@@ -165,21 +165,21 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable with Boot
       renderedText: String,
       throwable: Throwable = null
     ): UIO[Unit] =
-      effectTotal {
+      succeed {
         notifier.fireTestFailure(
           new Failure(testDescription(label, path), new TestFailed(renderedText, throwable))
         )
       }
 
-    def fireTestStarted(label: String, path: Vector[String]): UIO[Unit] = effectTotal {
+    def fireTestStarted(label: String, path: Vector[String]): UIO[Unit] = succeed {
       notifier.fireTestStarted(testDescription(label, path))
     }
 
-    def fireTestFinished(label: String, path: Vector[String]): UIO[Unit] = effectTotal {
+    def fireTestFinished(label: String, path: Vector[String]): UIO[Unit] = succeed {
       notifier.fireTestFinished(testDescription(label, path))
     }
 
-    def fireTestIgnored(label: String, path: Vector[String]): UIO[Unit] = effectTotal {
+    def fireTestIgnored(label: String, path: Vector[String]): UIO[Unit] = succeed {
       notifier.fireTestIgnored(testDescription(label, path))
     }
   }

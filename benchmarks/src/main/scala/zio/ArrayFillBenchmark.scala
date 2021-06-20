@@ -24,7 +24,7 @@ class ArrayFillBenchmark {
 
     unsafeRun(
       for {
-        array <- IO.effectTotal[Array[Int]](createTestArray)
+        array <- IO.succeed[Array[Int]](createTestArray)
         _     <- arrayFill(array)(0)
       } yield ()
     )

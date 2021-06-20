@@ -173,7 +173,7 @@ object ZScope {
 
     Open[A](
       (a: A) =>
-        UIO.effectSuspendTotal {
+        UIO.suspendSucceed {
           val result = scope0.unsafeClose(a)
 
           if (result eq null) UIO(false) else result as true
@@ -202,7 +202,7 @@ object ZScope {
     def ensure(finalizer: A => UIO[Any], mode: ZScope.Mode = ZScope.Mode.Strong): UIO[Either[A, Key]] =
       UIO(unsafeEnsure(finalizer, mode))
 
-    def release: UIO[Boolean] = UIO.effectSuspendTotal {
+    def release: UIO[Boolean] = UIO.suspendSucceed {
       val result = unsafeRelease()
 
       if (result eq null) UIO(false) else result as true

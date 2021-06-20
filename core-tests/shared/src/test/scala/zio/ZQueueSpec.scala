@@ -758,7 +758,7 @@ object ZQueueSpec extends ZIOBaseSpec {
       for {
         q <- Queue.bounded[IO[String, Int]](100).map(_.mapM(identity))
         _ <- q.offer(IO.fail("Ouch"))
-        v <- q.take.run
+        v <- q.take.exit
       } yield assert(v)(fails(equalTo("Ouch")))
     } @@ zioTag(errors),
     testM("queue contramap") {

@@ -41,6 +41,12 @@ object Task extends TaskPlatformSpecific {
   def apply[A](a: => A): Task[A] = ZIO.apply(a)
 
   /**
+   * @see See [[zio.ZIO.attempt]]
+   */
+  def attempt[A](effect: => A): Task[A] =
+    ZIO.attempt(effect)
+
+  /**
    * @see See [[zio.ZIO.blocking]]
    */
   def blocking[A](zio: Task[A]): Task[A] =
@@ -295,7 +301,9 @@ object Task extends TaskPlatformSpecific {
   /**
    * @see See [[zio.ZIO.effect]]
    */
-  def effect[A](effect: => A): Task[A] = ZIO.effect(effect)
+  @deprecated("use attempt", "2.0.0")
+  def effect[A](effect: => A): Task[A] =
+    ZIO.effect(effect)
 
   /**
    * @see See [[zio.ZIO.effectAsync]]
@@ -348,27 +356,37 @@ object Task extends TaskPlatformSpecific {
   /**
    * @see See [[zio.RIO.effectSuspend]]
    */
-  def effectSuspend[A](task: => Task[A]): Task[A] = ZIO.effectSuspend(task)
+  @deprecated("use suspend", "2.0.0")
+  def effectSuspend[A](task: => Task[A]): Task[A] =
+    ZIO.effectSuspend(task)
 
   /**
    * @see See [[zio.ZIO.effectSuspendTotal]]
    */
-  def effectSuspendTotal[A](task: => Task[A]): Task[A] = ZIO.effectSuspendTotal(task)
+  @deprecated("use suspendSucceed", "2.0.0")
+  def effectSuspendTotal[A](task: => Task[A]): Task[A] =
+    ZIO.effectSuspendTotal(task)
 
   /**
    * @see See [[zio.ZIO.effectSuspendTotalWith]]
    */
-  def effectSuspendTotalWith[A](p: (Platform, Fiber.Id) => Task[A]): Task[A] = ZIO.effectSuspendTotalWith(p)
+  @deprecated("use suspendSucceedWith", "2.0.0")
+  def effectSuspendTotalWith[A](p: (Platform, Fiber.Id) => Task[A]): Task[A] =
+    ZIO.effectSuspendTotalWith(p)
 
   /**
    * @see See [[zio.RIO.effectSuspendWith]]
    */
-  def effectSuspendWith[A](p: (Platform, Fiber.Id) => Task[A]): Task[A] = ZIO.effectSuspendWith(p)
+  @deprecated("use suspendWith", "2.0.0")
+  def effectSuspendWith[A](p: (Platform, Fiber.Id) => Task[A]): Task[A] =
+    ZIO.effectSuspendWith(p)
 
   /**
    * @see See [[zio.ZIO.effectTotal]]
    */
-  def effectTotal[A](effect: => A): UIO[A] = ZIO.effectTotal(effect)
+  @deprecated("use succeed", "2.0.0")
+  def effectTotal[A](effect: => A): UIO[A] =
+    ZIO.effectTotal(effect)
 
   /**
    * @see See [[zio.ZIO.executor]]
@@ -896,14 +914,39 @@ object Task extends TaskPlatformSpecific {
   def runtime: UIO[Runtime[Any]] = ZIO.runtime
 
   /**
+   *  @see [[zio.ZIO.some]]
+   */
+  def some[A](a: => A): Task[Option[A]] =
+    ZIO.some(a)
+
+  /**
    * @see See [[zio.ZIO.succeed]]
    */
   def succeed[A](a: => A): UIO[A] = ZIO.succeed(a)
 
   /**
-   *  @see [[zio.ZIO.some]]
+   * @see See [[zio.ZIO.suspend]]
    */
-  def some[A](a: => A): Task[Option[A]] = ZIO.some(a)
+  def suspend[A](task: => Task[A]): Task[A] =
+    ZIO.suspend(task)
+
+  /**
+   * @see See [[zio.ZIO.suspendSucceed]]
+   */
+  def suspendSucceed[A](task: => Task[A]): Task[A] =
+    ZIO.suspendSucceed(task)
+
+  /**
+   * @see See [[zio.ZIO.suspendSucceedWith]]
+   */
+  def suspendSucceedWith[A](p: (Platform, Fiber.Id) => Task[A]): Task[A] =
+    ZIO.suspendSucceedWith(p)
+
+  /**
+   * @see See [[zio.RIO.suspendWith]]
+   */
+  def suspendWith[A](p: (Platform, Fiber.Id) => Task[A]): Task[A] =
+    ZIO.suspendWith(p)
 
   /**
    * @see See [[zio.ZIO.trace]]
