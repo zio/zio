@@ -1,7 +1,7 @@
 package zio
 
 import org.openjdk.jcstress.annotations._
-import org.openjdk.jcstress.infra.results.{IIII_Result}
+import org.openjdk.jcstress.infra.results.IIII_Result
 
 object ZHubConcurrencyTests {
 
@@ -27,32 +27,32 @@ object ZHubConcurrencyTests {
     var p4                  = 0
 
     @Actor
-    def actor1(): Unit =
+    def actor1(): Unit = {
       runtime.unsafeRun(hub.publish(1))
+      ()
+    }
 
     @Actor
-    def actor2(): Unit =
+    def actor2(): Unit = {
       runtime.unsafeRun(hub.publish(2))
+      ()
+    }
 
     @Actor
     def actor3(): Unit =
       runtime.unsafeRun {
-        left.take.zip(left.take).flatMap { case (first, last) =>
-          ZIO.succeed {
-            p1 = first
-            p2 = last
-          }
+        left.take.zipWith(left.take) { (first, last) =>
+          p1 = first
+          p2 = last
         }
       }
 
     @Actor
     def actor4(): Unit =
       runtime.unsafeRun {
-        right.take.zip(right.take).flatMap { case (first, last) =>
-          ZIO.succeed {
-            p3 = first
-            p4 = last
-          }
+        right.take.zipWith(right.take) { (first, last) =>
+          p3 = first
+          p4 = last
         }
       }
 
