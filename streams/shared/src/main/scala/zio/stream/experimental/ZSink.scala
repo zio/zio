@@ -91,7 +91,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
   def contramapM[R1 <: R, InErr1 <: InErr, In1](
     f: In1 => ZIO[R1, InErr1, In]
   ): ZSink[R1, InErr1, In1, OutErr, L, Z] =
-    contramapChunksM(_.mapM(f))
+    contramapChunksM(_.mapZIO(f))
 
   /**
    * Transforms this sink's input chunks.
@@ -160,7 +160,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
   def filterInputM[R1 <: R, InErr1 <: InErr, In1 <: In](
     p: In1 => ZIO[R1, InErr1, Boolean]
   ): ZSink[R1, InErr1, In1, OutErr, L, Z] =
-    contramapChunksM(_.filterM(p))
+    contramapChunksM(_.filterZIO(p))
 
   /**
    * Runs this sink until it yields a result, then uses that result to create another

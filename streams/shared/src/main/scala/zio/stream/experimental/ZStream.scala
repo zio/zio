@@ -1121,7 +1121,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def findM[R1 <: R, E1 >: E, S](f: A => ZIO[R1, E1, Boolean]): ZStream[R1, E1, A] = {
     lazy val loop: ZChannel[R1, E, Chunk[A], Any, E1, Chunk[A], Any] =
       ZChannel.readWith(
-        (in: Chunk[A]) => ZChannel.unwrap(in.findM(f).map(_.fold(loop)(i => ZChannel.write(Chunk.single(i))))),
+        (in: Chunk[A]) => ZChannel.unwrap(in.findZIO(f).map(_.fold(loop)(i => ZChannel.write(Chunk.single(i))))),
         (e: E) => ZChannel.fail(e),
         (_: Any) => ZChannel.unit
       )
@@ -2523,7 +2523,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   def takeUntilM[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Boolean]): ZStream[R1, E1, A] =
     loopOnPartialChunks { (chunk, emit) =>
       for {
-        taken <- chunk.takeWhileM(v => emit(v) *> f(v).map(!_))
+        taken <- chunk.takeWhileZIO(v => emit(v) *> f(v).map(!_))
         last   = chunk.drop(taken.length).take(1)
       } yield last.isEmpty
     }

@@ -1205,7 +1205,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
               case None =>
                 IO.succeedNow(s1)
             },
-            (ch: Chunk[O]) => ch.foldM(s1)(f).flatMap(loop)
+            (ch: Chunk[O]) => ch.foldZIO(s1)(f).flatMap(loop)
           )
 
       ZManaged.fromEffect(loop(s))
@@ -2758,7 +2758,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                  else
                    for {
                      chunk <- chunks
-                     taken <- chunk.takeWhileM(pred(_).map(!_)).asSomeError
+                     taken <- chunk.takeWhileZIO(pred(_).map(!_)).asSomeError
                      last   = chunk.drop(taken.length).take(1)
                      _     <- keepTakingRef.set(false).when(last.nonEmpty)
                    } yield taken ++ last

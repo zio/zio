@@ -133,7 +133,7 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
    * Effectfully transforms this sink's input elements.
    */
   def contramapM[R1 <: R, E1 >: E, I2](f: I2 => ZIO[R1, E1, I]): ZSink[R1, E1, I2, L, Z] =
-    contramapChunksM(_.mapM(f))
+    contramapChunksM(_.mapZIO(f))
 
   /**
    * Transforms this sink's input chunks.

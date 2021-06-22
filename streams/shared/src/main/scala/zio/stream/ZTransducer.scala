@@ -78,7 +78,7 @@ abstract class ZTransducer[-R, +E, -I, +O](val push: ZManaged[R, Nothing, Option
    * Effectually transforms the inputs of this transducer
    */
   final def contramapM[R1 <: R, E1 >: E, J](f: J => ZIO[R1, E1, I]): ZTransducer[R1, E1, J, O] =
-    ZTransducer[R1, E1, J, O](self.push.map(push => is => ZIO.foreach(is)(_.mapM(f)).flatMap(push)))
+    ZTransducer[R1, E1, J, O](self.push.map(push => is => ZIO.foreach(is)(_.mapZIO(f)).flatMap(push)))
 
   /**
    * Filters the outputs of this transducer.
@@ -96,7 +96,7 @@ abstract class ZTransducer[-R, +E, -I, +O](val push: ZManaged[R, Nothing, Option
    * Effectually filters the inputs of this transducer.
    */
   final def filterInputM[R1 <: R, E1 >: E, I1 <: I](p: I1 => ZIO[R1, E1, Boolean]): ZTransducer[R1, E1, I1, O] =
-    ZTransducer[R1, E1, I1, O](self.push.map(push => is => ZIO.foreach(is)(_.filterM(p)).flatMap(push)))
+    ZTransducer[R1, E1, I1, O](self.push.map(push => is => ZIO.foreach(is)(_.filterZIO(p)).flatMap(push)))
 
   /**
    * Transforms the outputs of this transducer.
@@ -132,7 +132,7 @@ abstract class ZTransducer[-R, +E, -I, +O](val push: ZManaged[R, Nothing, Option
    * Effectually transforms the outputs of this transducer
    */
   final def mapM[R1 <: R, E1 >: E, P](f: O => ZIO[R1, E1, P]): ZTransducer[R1, E1, I, P] =
-    ZTransducer[R1, E1, I, P](self.push.map(push => i => push(i).flatMap(_.mapM(f))))
+    ZTransducer[R1, E1, I, P](self.push.map(push => i => push(i).flatMap(_.mapZIO(f))))
 }
 
 object ZTransducer extends ZTransducerPlatformSpecificConstructors {
@@ -313,7 +313,7 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
             case Some(is) =>
               dropping.get.flatMap {
                 case false => UIO(is -> false)
-                case true  => is.dropWhileM(p).map(is1 => is1 -> is1.isEmpty)
+                case true  => is.dropWhileZIO(p).map(is1 => is1 -> is1.isEmpty)
               }.flatMap { case (is, pt) => dropping.set(pt) as is }
           }
         }
@@ -379,7 +379,7 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
       val initial = Some(z)
 
       def go(in: Chunk[I], state: O, progress: Boolean): ZIO[R, E, (Chunk[O], O, Boolean)] =
-        in.foldM[R, E, (Chunk[O], O, Boolean)]((Chunk.empty, state, progress)) { case ((os0, state, _), i) =>
+        in.foldZIO[R, E, (Chunk[O], O, Boolean)]((Chunk.empty, state, progress)) { case ((os0, state, _), i) =>
           f(state, i).map { o =>
             if (contFn(o))
               (os0, o, true)
@@ -568,7 +568,7 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
         state: FoldWeightedState,
         dirty: Boolean
       ): ZIO[R, E, (Chunk[O], FoldWeightedState, Boolean)] =
-        in.foldM[R, E, (Chunk[O], FoldWeightedState, Boolean)]((os, state, dirty)) { case ((os, state, _), i) =>
+        in.foldZIO[R, E, (Chunk[O], FoldWeightedState, Boolean)]((os, state, dirty)) { case ((os, state, _), i) =>
           costFn(state.result, i).flatMap { cost =>
             val total = cost + state.cost
             if (total > max)

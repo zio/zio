@@ -237,16 +237,20 @@ object ZSinkSpec extends ZIOBaseSpec {
       suite("contramapChunksM")(
         testM("happy path") {
           val parser =
-            ZSink.collectAll[Throwable, Int].contramapChunksM[Any, Throwable, String](_.mapM(a => ZIO.attempt(a.toInt)))
+            ZSink
+              .collectAll[Throwable, Int]
+              .contramapChunksM[Any, Throwable, String](_.mapZIO(a => ZIO.attempt(a.toInt)))
           assertM(ZStream("1", "2", "3").run(parser))(equalTo(Chunk(1, 2, 3)))
         },
         testM("error") {
-          val parser = ZSink.fail("Ouch").contramapChunksM[Any, Throwable, String](_.mapM(a => ZIO.attempt(a.toInt)))
+          val parser = ZSink.fail("Ouch").contramapChunksM[Any, Throwable, String](_.mapZIO(a => ZIO.attempt(a.toInt)))
           assertM(ZStream("1", "2", "3").run(parser).either)(isLeft(equalTo("Ouch")))
         } @@ zioTag(errors),
         testM("error in transformation") {
           val parser =
-            ZSink.collectAll[Throwable, Int].contramapChunksM[Any, Throwable, String](_.mapM(a => ZIO.attempt(a.toInt)))
+            ZSink
+              .collectAll[Throwable, Int]
+              .contramapChunksM[Any, Throwable, String](_.mapZIO(a => ZIO.attempt(a.toInt)))
           assertM(ZStream("1", "a").run(parser).either)(isLeft(hasMessage(equalTo("For input string: \"a\""))))
         } @@ zioTag(errors)
       ),

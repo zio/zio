@@ -2721,8 +2721,8 @@ object ZStreamSpec extends ZIOBaseSpec {
               streamTakeUntilM <- s.takeUntilM(p).runCollect.exit
               chunkTakeUntilM <- s.runCollect
                                    .flatMap(as =>
-                                     as.takeWhileM(p(_).map(!_))
-                                       .zipWith(as.dropWhileM(p(_).map(!_)).map(_.take(1)))(_ ++ _)
+                                     as.takeWhileZIO(p(_).map(!_))
+                                       .zipWith(as.dropWhileZIO(p(_).map(!_)).map(_.take(1)))(_ ++ _)
                                    )
                                    .exit
             } yield assert(chunkTakeUntilM.succeeded)(isTrue) implies assert(streamTakeUntilM)(

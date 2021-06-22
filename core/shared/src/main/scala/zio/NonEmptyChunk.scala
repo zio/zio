@@ -114,19 +114,19 @@ final class NonEmptyChunk[+A] private (private val chunk: Chunk[A]) { self =>
    * some state along the way.
    */
   def mapAccumM[R, E, S, B](s: S)(f: (S, A) => ZIO[R, E, (S, B)]): ZIO[R, E, (S, NonEmptyChunk[B])] =
-    chunk.mapAccumM(s)(f).map { case (s, chunk) => (s, nonEmpty(chunk)) }
+    chunk.mapAccumZIO(s)(f).map { case (s, chunk) => (s, nonEmpty(chunk)) }
 
   /**
    * Effectfully maps the elements of this `NonEmptyChunk`.
    */
   def mapM[R, E, B](f: A => ZIO[R, E, B]): ZIO[R, E, NonEmptyChunk[B]] =
-    chunk.mapM(f).map(nonEmpty)
+    chunk.mapZIO(f).map(nonEmpty)
 
   /**
    * Effectfully maps the elements of this `NonEmptyChunk` in parallel.
    */
   def mapMPar[R, E, B](f: A => ZIO[R, E, B]): ZIO[R, E, NonEmptyChunk[B]] =
-    chunk.mapMPar(f).map(nonEmpty)
+    chunk.mapZIOPar(f).map(nonEmpty)
 
   /**
    * Materialize the elements of this `NonEmptyChunk` into a `NonEmptyChunk`
