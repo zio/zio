@@ -501,7 +501,7 @@ lazy val benchmarks = project.module
         "com.twitter"               %% "util-core"      % "21.5.0",
         "com.typesafe.akka"         %% "akka-stream"    % "2.6.15",
         "io.monix"                  %% "monix"          % "3.4.0",
-        "io.projectreactor"          % "reactor-core"   % "3.4.6",
+        "io.projectreactor"          % "reactor-core"   % "3.4.7",
         "io.reactivex.rxjava2"       % "rxjava"         % "2.2.21",
         "org.jctools"                % "jctools-core"   % "3.3.0",
         "org.ow2.asm"                % "asm"            % "9.1",
