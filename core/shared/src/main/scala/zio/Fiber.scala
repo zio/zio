@@ -180,7 +180,7 @@ sealed abstract class Fiber[+E, +A] { self =>
    * @return `Fiber[E, B]` mapped fiber
    */
   final def map[B](f: A => B): Fiber.Synthetic[E, B] =
-    mapM(f andThen UIO.succeedNow)
+    mapZIO(f andThen UIO.succeedNow)
 
   /**
    * Passes the success of this fiber to the specified callback, and continues
@@ -196,7 +196,14 @@ sealed abstract class Fiber[+E, +A] { self =>
   /**
    * Effectually maps over the value the fiber computes.
    */
+  @deprecated("use mapZIO", "2.0.0")
   final def mapM[E1 >: E, B](f: A => IO[E1, B]): Fiber.Synthetic[E1, B] =
+    mapZIO(f)
+
+  /**
+   * Effectually maps over the value the fiber computes.
+   */
+  final def mapZIO[E1 >: E, B](f: A => IO[E1, B]): Fiber.Synthetic[E1, B] =
     new Fiber.Synthetic[E1, B] {
       final def await: UIO[Exit[E1, B]] =
         self.await.flatMap(_.foreach(f))
