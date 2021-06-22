@@ -306,3 +306,15 @@ With ZIO, we do not have to think about a callback nonetheless sometimes when we
 Every time we do one of ZIO blocking operations it doesn't actually block the underlying thread, but also it is a semantic blocking managed by ZIO. For example, every time we see something like `ZIO.sleep` or when we take something from a queue (`queue.take`) or offer something to a queue (`queue.offer`) or if we acquire a permit from a semaphore (`semaphore.withPermit`) or if we acquire a lock (`ZIO.lock`) and so forth, we are blocking semantically. If we use the same stuff in Java, like `Thread.sleep` or any of its `lock` machinery then those things are going to block a thread. So this is why we say ZIO is 100% blocking but the Java thread is not.
 
 All of the pieces of machinery ZIO gives us are 100% asynchronous and non-blocking. As they don't block and monopolize the thread, all of the async work is executed on the primary thread pool in ZIO.
+
+## Automatic Interruption
+
+If we never _cancel_ a running effect explicitly, ZIO performs automatic interruption for several reasons:
+
+**Structured Concurrency** — If a parent fiber terminates, then by default, all child fibers are interrupted. We can prevent this behavior by using `forkDaemon` instead of `fork`.
+
+**Parallelism** — If one effect fails during the execution of many effects in parallel, the others will be canceled. Examples include `foreachPar`, `zipPar`, and all other parallel operators.
+
+**Timeouts** — If a running effect being timed out has not been completed in the specified amount of time, then the execution is canceled.
+
+**Racing** — The loser of a race, if still running, is canceled.
