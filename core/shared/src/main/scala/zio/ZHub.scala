@@ -79,27 +79,46 @@ sealed abstract class ZHub[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { se
    * Transforms messages published to the hub using the specified function.
    */
   final def contramap[C](f: C => A): ZHub[RA, RB, EA, EB, C, B] =
-    contramapM(c => ZIO.succeedNow(f(c)))
+    contramapZIO(c => ZIO.succeedNow(f(c)))
 
   /**
    * Transforms messages published to the hub using the specified effectual
    * function.
    */
+  @deprecated("use contramapZIO", "2.0.0")
   final def contramapM[RC <: RA, EC >: EA, C](f: C => ZIO[RC, EC, A]): ZHub[RC, RB, EC, EB, C, B] =
-    dimapM(f, ZIO.succeedNow)
+    contramapZIO(f)
+
+  /**
+   * Transforms messages published to the hub using the specified effectual
+   * function.
+   */
+  final def contramapZIO[RC <: RA, EC >: EA, C](f: C => ZIO[RC, EC, A]): ZHub[RC, RB, EC, EB, C, B] =
+    dimapZIO(f, ZIO.succeedNow)
 
   /**
    * Transforms messages published to and taken from the hub using the
    * specified functions.
    */
   final def dimap[C, D](f: C => A, g: B => D): ZHub[RA, RB, EA, EB, C, D] =
-    dimapM(c => ZIO.succeedNow(f(c)), b => ZIO.succeedNow(g(b)))
+    dimapZIO(c => ZIO.succeedNow(f(c)), b => ZIO.succeedNow(g(b)))
 
   /**
    * Transforms messages published to and taken from the hub using the
    * specified effectual functions.
    */
+  @deprecated("use dimapZIO", "2.0.0")
   final def dimapM[RC <: RA, RD <: RB, EC >: EA, ED >: EB, C, D](
+    f: C => ZIO[RC, EC, A],
+    g: B => ZIO[RD, ED, D]
+  ): ZHub[RC, RD, EC, ED, C, D] =
+    dimapZIO(f, g)
+
+  /**
+   * Transforms messages published to and taken from the hub using the
+   * specified effectual functions.
+   */
+  final def dimapZIO[RC <: RA, RD <: RB, EC >: EA, ED >: EB, C, D](
     f: C => ZIO[RC, EC, A],
     g: B => ZIO[RD, ED, D]
   ): ZHub[RC, RD, EC, ED, C, D] =
@@ -126,13 +145,23 @@ sealed abstract class ZHub[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { se
    * Filters messages published to the hub using the specified function.
    */
   final def filterInput[A1 <: A](f: A1 => Boolean): ZHub[RA, RB, EA, EB, A1, B] =
-    filterInputM(a => ZIO.succeedNow(f(a)))
+    filterInputZIO(a => ZIO.succeedNow(f(a)))
 
   /**
    * Filters messages published to the hub using the specified effectual
    * function.
    */
+  @deprecated("use filterInputZIO", "2.0.0")
   final def filterInputM[RA1 <: RA, EA1 >: EA, A1 <: A](
+    f: A1 => ZIO[RA1, EA1, Boolean]
+  ): ZHub[RA1, RB, EA1, EB, A1, B] =
+    filterInputZIO(f)
+
+  /**
+   * Filters messages published to the hub using the specified effectual
+   * function.
+   */
+  final def filterInputZIO[RA1 <: RA, EA1 >: EA, A1 <: A](
     f: A1 => ZIO[RA1, EA1, Boolean]
   ): ZHub[RA1, RB, EA1, EB, A1, B] =
     new ZHub[RA1, RB, EA1, EB, A1, B] {
@@ -158,13 +187,23 @@ sealed abstract class ZHub[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { se
    * Filters messages taken from the hub using the specified function.
    */
   final def filterOutput(f: B => Boolean): ZHub[RA, RB, EA, EB, A, B] =
-    filterOutputM(b => ZIO.succeedNow(f(b)))
+    filterOutputZIO(b => ZIO.succeedNow(f(b)))
 
   /**
    * Filters messages taken from the hub using the specified effectual
    * function.
    */
+  @deprecated("use filterOutputZIO", "2.0.0")
   final def filterOutputM[RB1 <: RB, EB1 >: EB](
+    f: B => ZIO[RB1, EB1, Boolean]
+  ): ZHub[RA, RB1, EA, EB1, A, B] =
+    filterOutputZIO(f)
+
+  /**
+   * Filters messages taken from the hub using the specified effectual
+   * function.
+   */
+  final def filterOutputZIO[RB1 <: RB, EB1 >: EB](
     f: B => ZIO[RB1, EB1, Boolean]
   ): ZHub[RA, RB1, EA, EB1, A, B] =
     new ZHub[RA, RB1, EA, EB1, A, B] {
@@ -190,14 +229,22 @@ sealed abstract class ZHub[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { se
    * Transforms messages taken from the hub using the specified function.
    */
   final def map[C](f: B => C): ZHub[RA, RB, EA, EB, A, C] =
-    mapM(b => ZIO.succeedNow(f(b)))
+    mapZIO(b => ZIO.succeedNow(f(b)))
 
   /**
    * Transforms messages taken from the hub using the specified effectual
    * function.
    */
+  @deprecated("use mapZIO", "2.0.0")
   final def mapM[RC <: RB, EC >: EB, C](f: B => ZIO[RC, EC, C]): ZHub[RA, RC, EA, EC, A, C] =
-    dimapM(ZIO.succeedNow, f)
+    mapZIO(f)
+
+  /**
+   * Transforms messages taken from the hub using the specified effectual
+   * function.
+   */
+  final def mapZIO[RC <: RB, EC >: EB, C](f: B => ZIO[RC, EC, C]): ZHub[RA, RC, EA, EC, A, C] =
+    dimapZIO(ZIO.succeedNow, f)
 
   /**
    * Views the hub as a queue that can only be written to.
