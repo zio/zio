@@ -293,7 +293,7 @@ sealed abstract class Fiber[+E, +A] { self =>
       def success(value: A): UIO[p.type]        = UIO(p.success(value))
 
       val completeFuture =
-        self.await.flatMap(_.foldM[Any, Nothing, p.type](failure, success))
+        self.await.flatMap(_.foldZIO[Any, Nothing, p.type](failure, success))
 
       for {
         runtime <- ZIO.runtime[Any]

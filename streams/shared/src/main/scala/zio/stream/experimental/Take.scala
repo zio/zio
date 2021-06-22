@@ -49,7 +49,7 @@ case class Take[+E, +A](exit: Exit[Option[E], Chunk[A]]) extends AnyVal {
     error: Cause[E] => ZIO[R, E1, Z],
     value: Chunk[A] => ZIO[R, E1, Z]
   ): ZIO[R, E1, Z] =
-    exit.foldM(Cause.flipCauseOption(_).fold(end)(error), value)
+    exit.foldZIO(Cause.flipCauseOption(_).fold(end)(error), value)
 
   /**
    * Checks if this `take` is done (`Take.end`).

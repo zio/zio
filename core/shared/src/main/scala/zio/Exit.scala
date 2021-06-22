@@ -80,7 +80,14 @@ sealed abstract class Exit[+E, +A] extends Product with Serializable { self =>
   /**
    * Flat maps over the value type.
    */
+  @deprecated("use flatMapZIO", "2.0.0")
   final def flatMapM[E1 >: E, R, E2, A1](f: A => ZIO[R, E2, Exit[E1, A1]]): ZIO[R, E2, Exit[E1, A1]] =
+    flatMapZIO(f)
+
+  /**
+   * Flat maps over the value type.
+   */
+  final def flatMapZIO[E1 >: E, R, E2, A1](f: A => ZIO[R, E2, Exit[E1, A1]]): ZIO[R, E2, Exit[E1, A1]] =
     self match {
       case Success(a)     => f(a)
       case e @ Failure(_) => ZIO.succeedNow(e)
@@ -101,7 +108,14 @@ sealed abstract class Exit[+E, +A] extends Product with Serializable { self =>
   /**
    * Sequentially zips the this result with the specified result or else returns the failed `Cause[E1]`
    */
+  @deprecated("use foldZIO", "2.0.0")
   final def foldM[R, E1, B](failed: Cause[E] => ZIO[R, E1, B], completed: A => ZIO[R, E1, B]): ZIO[R, E1, B] =
+    foldZIO(failed, completed)
+
+  /**
+   * Sequentially zips the this result with the specified result or else returns the failed `Cause[E1]`
+   */
+  final def foldZIO[R, E1, B](failed: Cause[E] => ZIO[R, E1, B], completed: A => ZIO[R, E1, B]): ZIO[R, E1, B] =
     self match {
       case Failure(cause) => failed(cause)
       case Success(v)     => completed(v)

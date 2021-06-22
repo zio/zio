@@ -71,7 +71,7 @@ object ZIOSpec extends ZIOBaseSpec {
                       _ => ZIO.fail("use failed")
                     )
                     .exit
-          cause <- exit.foldM(cause => ZIO.succeed(cause), _ => ZIO.fail("effect should have failed"))
+          cause <- exit.foldZIO(cause => ZIO.succeed(cause), _ => ZIO.fail("effect should have failed"))
         } yield assert(cause.failures)(equalTo(List("use failed"))) &&
           assert(cause.defects)(equalTo(List(releaseDied)))
       } @@ zioTag(errors)
@@ -117,7 +117,7 @@ object ZIOSpec extends ZIOBaseSpec {
                     )
                     .disconnect
                     .exit
-          cause <- exit.foldM(cause => ZIO.succeed(cause), _ => ZIO.fail("effect should have failed"))
+          cause <- exit.foldZIO(cause => ZIO.succeed(cause), _ => ZIO.fail("effect should have failed"))
         } yield assert(cause.failures)(equalTo(List("use failed"))) &&
           assert(cause.defects)(equalTo(List(releaseDied)))
       } @@ zioTag(errors),
@@ -133,7 +133,7 @@ object ZIOSpec extends ZIOBaseSpec {
                     )
                     .disconnect
                     .exit
-          cause      <- exit.foldM(cause => ZIO.succeed(cause), _ => ZIO.fail("effect should have failed"))
+          cause      <- exit.foldZIO(cause => ZIO.succeed(cause), _ => ZIO.fail("effect should have failed"))
           isReleased <- released.get
         } yield assert(cause.defects)(equalTo(List(releaseDied))) && assert(isReleased)(isTrue)
       } @@ zioTag(errors)

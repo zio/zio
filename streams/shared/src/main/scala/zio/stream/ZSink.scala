@@ -284,12 +284,12 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
         p1(in).raceWith(p2(in))(
           (res1, fib2) =>
             res1
-              .foldM(
+              .foldZIO(
                 f => fib2.interrupt *> ZIO.halt(f.map { case (r, leftover) => (r.map(x => Left(x)), leftover) }),
                 _ => fib2.join.mapError { case (r, leftover) => (r.map(x => Right(x)), leftover) }
               ),
           (res2, fib1) =>
-            res2.foldM(
+            res2.foldZIO(
               f => fib1.interrupt *> ZIO.halt(f.map { case (r, leftover) => (r.map(x => Right(x)), leftover) }),
               _ => fib1.join.mapError { case (r, leftover) => (r.map(x => Left(x)), leftover) }
             )

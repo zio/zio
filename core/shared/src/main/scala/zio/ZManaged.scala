@@ -693,7 +693,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
       for {
         releaseMap <- ReleaseMap.make
         tp         <- restore(self.zio.provideSome[R]((_, releaseMap))).exit
-        preallocated <- tp.foldM(
+        preallocated <- tp.foldZIO(
                           c =>
                             releaseMap
                               .releaseAll(Exit.fail(c), ExecutionStrategy.Sequential) *>

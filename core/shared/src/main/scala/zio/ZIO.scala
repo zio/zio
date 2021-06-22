@@ -1362,12 +1362,12 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
         ZIO.uninterruptibleMask(interruptible => interruptible.force(zio))
       (maybeDisconnect(self) raceWith maybeDisconnect(that))(
         (exit, right) =>
-          exit.foldM[Any, E1, A1](
+          exit.foldZIO[Any, E1, A1](
             cause => right.join mapErrorCause (cause && _),
             a => (right interruptAs parentFiberId) as a
           ),
         (exit, left) =>
-          exit.foldM[Any, E1, A1](
+          exit.foldZIO[Any, E1, A1](
             cause => left.join mapErrorCause (_ && cause),
             a => (left interruptAs parentFiberId) as a
           )
@@ -1386,7 +1386,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
       promise: Promise[E1, (A1, Fiber[E1, A1])],
       fails: Ref[Int]
     )(res: Exit[E1, A1]): URIO[R1, Any] =
-      res.foldM[R1, Nothing, Unit](
+      res.foldZIO[R1, Nothing, Unit](
         e => ZIO.flatten(fails.modify((c: Int) => (if (c == 0) promise.halt(e).unit else ZIO.unit) -> (c - 1))),
         a =>
           promise
