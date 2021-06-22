@@ -3150,7 +3150,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * If you do not need the results, see `foreach_` for a more efficient implementation.
    */
   final def foreach[R, E, A, B](in: NonEmptyChunk[A])(f: A => ZIO[R, E, B]): ZIO[R, E, NonEmptyChunk[B]] =
-    in.mapM(f)
+    in.mapZIO(f)
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` and runs
@@ -3236,7 +3236,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * For a sequential version of this method, see `foreach`.
    */
   final def foreachPar[R, E, A, B](as: NonEmptyChunk[A])(fn: A => ZIO[R, E, B]): ZIO[R, E, NonEmptyChunk[B]] =
-    as.mapMPar(fn)
+    as.mapZIOPar(fn)
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` and runs
