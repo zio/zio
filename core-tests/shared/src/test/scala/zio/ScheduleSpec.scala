@@ -52,7 +52,7 @@ object ScheduleSpec extends ZIOBaseSpec {
       },
       testM("for 'recurWhileM(cond)' repeats while the effectful cond still holds") {
         def cond: Int => UIO[Boolean] = x => IO.succeed(x > 10)
-        checkRepeat(Schedule.recurWhileM(cond), expected = 1)
+        checkRepeat(Schedule.recurWhileZIO(cond), expected = 1)
       },
       testM("for 'recurWhileEquals(cond)' repeats while the cond is equal") {
         checkRepeat(Schedule.recurWhileEquals(1), expected = 2)
@@ -63,7 +63,7 @@ object ScheduleSpec extends ZIOBaseSpec {
       },
       testM("for 'recurUntilM(cond)' repeats until the effectful cond is satisfied") {
         def cond: Int => UIO[Boolean] = x => IO.succeed(x > 10)
-        checkRepeat(Schedule.recurUntilM(cond), expected = 11)
+        checkRepeat(Schedule.recurUntilZIO(cond), expected = 11)
       },
       testM("for 'recurUntilEquals(cond)' repeats until the cond is equal") {
         checkRepeat(Schedule.recurUntilEquals(1), expected = 1)
@@ -76,7 +76,7 @@ object ScheduleSpec extends ZIOBaseSpec {
       },
       testM("as long as the effectful condition f holds") {
         def cond = (x: Int) => IO.succeed(x > 10)
-        checkRepeat(Schedule.collectWhileM(cond), expected = Nil)
+        checkRepeat(Schedule.collectWhileZIO(cond), expected = Nil)
       },
       testM("until the effectful condition f fails") {
         def cond = (i: Int) => i < 10 && i > 1
@@ -84,7 +84,7 @@ object ScheduleSpec extends ZIOBaseSpec {
       },
       testM("until the effectful condition f fails") {
         def cond = (x: Int) => IO.succeed(x > 10)
-        checkRepeat(Schedule.collectUntilM(cond), expected = List(1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
+        checkRepeat(Schedule.collectUntilZIO(cond), expected = List(1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
       }
     ),
     testM("Repeat on failure does not actually repeat") {
@@ -232,7 +232,7 @@ object ScheduleSpec extends ZIOBaseSpec {
       },
       testM("modified linear delay") {
         assertM(
-          run(Schedule.linear(100.millis).modifyDelayM { case (_, d) => ZIO.succeed(d * 2) } >>> Schedule.elapsed)(
+          run(Schedule.linear(100.millis).modifyDelayZIO { case (_, d) => ZIO.succeed(d * 2) } >>> Schedule.elapsed)(
             List.fill(5)(())
           )
         )(equalTo(Chunk(0, 1, 3, 6, 10).map(i => (i * 200).millis)))
