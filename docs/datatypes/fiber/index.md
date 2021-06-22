@@ -1,6 +1,6 @@
 ---
 id: index
-title: "Summary"
+title: "Introduction"
 ---
 
 ## Introduction
