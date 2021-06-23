@@ -176,7 +176,7 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
                   f(data).push.use(_(None))
               }
             case Some(data) =>
-              stateRef.modifyM {
+              stateRef.modifyZIO {
                 case s @ State.Emitting(_, push) =>
                   push(Some(data)).map((_, s))
                 case s @ State.Collecting(collected) =>

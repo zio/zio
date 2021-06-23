@@ -211,7 +211,7 @@ object TestClock extends Serializable {
      * the `TestClock` but a fiber is not suspending.
      */
     private[TestClock] val suspendedWarningDone: UIO[Unit] =
-      suspendedWarningState.updateSomeM[Any, Nothing] { case SuspendedWarningData.Pending(fiber) =>
+      suspendedWarningState.updateSomeZIO[Any, Nothing] { case SuspendedWarningData.Pending(fiber) =>
         fiber.interrupt.as(SuspendedWarningData.start)
       }
 
@@ -220,7 +220,7 @@ object TestClock extends Serializable {
      * but is not advancing the `TestClock`.
      */
     private[TestClock] val warningDone: UIO[Unit] =
-      warningState.updateSomeM[Any, Nothing] {
+      warningState.updateSomeZIO[Any, Nothing] {
         case WarningData.Start          => ZIO.succeedNow(WarningData.done)
         case WarningData.Pending(fiber) => fiber.interrupt.as(WarningData.done)
       }
@@ -334,7 +334,7 @@ object TestClock extends Serializable {
      * advancing the `TestClock` but a fiber is not suspending.
      */
     private val suspendedWarningStart: UIO[Unit] =
-      suspendedWarningState.updateSomeM { case SuspendedWarningData.Start =>
+      suspendedWarningState.updateSomeZIO { case SuspendedWarningData.Start =>
         for {
           fiber <- live.provide {
                      Console
@@ -350,7 +350,7 @@ object TestClock extends Serializable {
      * time but is not advancing the `TestClock`.
      */
     private val warningStart: UIO[Unit] =
-      warningState.updateSomeM { case WarningData.Start =>
+      warningState.updateSomeZIO { case WarningData.Start =>
         for {
           fiber <- live.provide(Console.printLine(warning).delay(5.seconds)).interruptible.fork
         } yield WarningData.pending(fiber)

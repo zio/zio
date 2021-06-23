@@ -2150,7 +2150,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                         ZIO.succeedNow(false)
                       case _ =>
                         pull.exit.flatMap { exit =>
-                          done.modifyM { done =>
+                          done.modifyZIO { done =>
                             ((done, exit.fold(c => Left(Cause.flipCauseOption(c)), Right(_))): @unchecked) match {
                               case (state @ Some(true), _) =>
                                 ZIO.succeedNow((false, state))

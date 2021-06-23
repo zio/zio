@@ -4187,7 +4187,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
           new MemoMap { self =>
             final def getOrElseMemoize[E, A, B](layer: ZLayer[A, E, B]): ZManaged[A, E, B] =
               ZManaged {
-                ref.modifyM { map =>
+                ref.modifyZIO { map =>
                   map.get(layer) match {
                     case Some((acquire, release)) =>
                       val cached =
