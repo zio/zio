@@ -283,7 +283,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
             scheduleWaiting: Option[Fiber[Nothing, Option[Q]]]
           ): Pull[R1, E1, Take[E1, Either[Nothing, P]]] =
             take
-              .foldM(
+              .foldZIO(
                 scheduleWaiting.fold(ZIO.unit)(_.interrupt.unit) *> push(None).map(ps =>
                   Chunk(Take.chunk(ps.map(Right(_))), Take.end)
                 ),
@@ -510,7 +510,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
         pull = done.get.flatMap {
                  if (_) Pull.end
                  else
-                   queue.take.flatMap(_.foldM(done.set(true) *> Pull.end, Pull.halt, Pull.emit(_)))
+                   queue.take.flatMap(_.foldZIO(done.set(true) *> Pull.end, Pull.halt, Pull.emit(_)))
                }
       } yield pull
     }
