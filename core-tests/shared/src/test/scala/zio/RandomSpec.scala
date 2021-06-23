@@ -46,7 +46,7 @@ object RandomSpec extends ZIOBaseSpec {
       }
     },
     testM("nextUUID generates universally unique identifiers") {
-      check(Gen.fromEffect(Live.live(Random.nextUUID))) { uuid =>
+      check(Gen.fromZIO(Live.live(Random.nextUUID))) { uuid =>
         assert(uuid.variant)(equalTo(2))
       }
     }

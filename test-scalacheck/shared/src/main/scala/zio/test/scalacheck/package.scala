@@ -32,7 +32,7 @@ package object scalacheck {
       * Converts a legacy ScalaCheck `Gen` to a ZIO Test `Gen`.
       */
     def toGenZIO: Gen[Random with Sized, A] =
-      Gen.fromEffect {
+      Gen.fromZIO {
         for {
           long <- random.nextLong
           size <- Sized.size
