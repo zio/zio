@@ -4513,7 +4513,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * Returns the specified stream if the given effectful condition is satisfied, otherwise returns an empty stream.
    */
   @deprecated("use whenZIO", "2.0.0")
-  def whenM[R, E](b: ZIO[R, E, Boolean]) =
+  def whenM[R, E](b: ZIO[R, E, Boolean]): WhenM[R, E] =
     whenZIO(b)
 
   /**

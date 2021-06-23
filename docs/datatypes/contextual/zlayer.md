@@ -224,7 +224,7 @@ import logging.Logging
 import logging.Logging._
 ```
 
-```scala mdoc:silent:nest
+```scala mdoc:silent:nest:warn
 val live: ZLayer[Has[Console], Nothing, Logging] = ZLayer.fromService(console =>
   new Service {
     override def log(msg: String): UIO[Unit] = console.printLine(msg).orDie
@@ -567,7 +567,7 @@ In the following example, our ZIO application has several dependencies:
 
 `ModuleB` in turn depends upon `ModuleA`:
 
-```scala mdoc:silent
+```scala
 import zio._
 import zio.Clock._
 import zio.Console._

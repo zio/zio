@@ -238,7 +238,7 @@ object logging {
 
 We might need `Console` and `Clock` services to implement the `Logging` service. In this case, we use `ZLayer.fromServices` constructor:
 
-```scala mdoc:silent:nest
+```scala mdoc:silent:nest:warn
 object logging {
   type Logging = Has[Logging.Service]
 
