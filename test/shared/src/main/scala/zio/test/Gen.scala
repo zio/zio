@@ -115,7 +115,7 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
    * Maps an effectual function over a generator.
    */
   def mapZIO[R1 <: R, B](f: A => ZIO[R1, Nothing, B]): Gen[R1, B] =
-    Gen(sample.mapM(_.foreach(f)))
+    Gen(sample.mapZIO(_.foreach(f)))
 
   /**
    * Discards the shrinker for this generator.
@@ -520,26 +520,26 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * generator will not have any shrinking.
    */
   final def fromRandom[A](f: Random => UIO[A]): Gen[Has[Random], A] =
-    Gen(ZStream.fromEffect(ZIO.accessZIO[Has[Random]](r => f(r.get)).map(Sample.noShrink)))
+    Gen(ZStream.fromZIO(ZIO.accessZIO[Has[Random]](r => f(r.get)).map(Sample.noShrink)))
 
   /**
    * Constructs a generator from a function that uses randomness to produce a
    * sample.
    */
   final def fromRandomSample[R <: Has[Random], A](f: Random => UIO[Sample[R, A]]): Gen[R, A] =
-    Gen(ZStream.fromEffect(ZIO.accessZIO[Has[Random]](r => f(r.get))))
+    Gen(ZStream.fromZIO(ZIO.accessZIO[Has[Random]](r => f(r.get))))
 
   /**
    * Constructs a generator from an effect that constructs a value.
    */
   def fromZIO[R, A](effect: URIO[R, A]): Gen[R, A] =
-    Gen(ZStream.fromEffect(effect.map(Sample.noShrink)))
+    Gen(ZStream.fromZIO(effect.map(Sample.noShrink)))
 
   /**
    * Constructs a generator from an effect that constructs a sample.
    */
   def fromZIOSample[R, A](effect: ZIO[R, Nothing, Sample[R, A]]): Gen[R, A] =
-    Gen(ZStream.fromEffect(effect))
+    Gen(ZStream.fromZIO(effect))
 
   /**
    * A generator of integers inside the specified range: [start, end].

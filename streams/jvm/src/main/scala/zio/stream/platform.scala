@@ -184,7 +184,7 @@ trait ZStreamPlatformSpecificConstructors {
                    output.take.flatMap(_.done).onError(_ => done.set(true) *> output.shutdown)
                }
       } yield pull
-    }.flatMap(repeatEffectChunkOption(_))
+    }.flatMap(repeatZIOChunkOption(_))
 
   /**
    * Creates a stream from an asynchronous callback that can be called multiple times.
@@ -275,10 +275,12 @@ trait ZStreamPlatformSpecificConstructors {
    */
   def fromFile(path: => Path, chunkSize: Int = ZStream.DefaultChunkSize): ZStream[Any, Throwable, Byte] =
     ZStream
-      .bracket(ZIO.attemptBlockingInterrupt(FileChannel.open(path)))(chan => ZIO.attemptBlocking(chan.close()).orDie)
+      .acquireReleaseWith(ZIO.attemptBlockingInterrupt(FileChannel.open(path)))(chan =>
+        ZIO.attemptBlocking(chan.close()).orDie
+      )
       .flatMap { channel =>
-        ZStream.fromEffect(UIO(ByteBuffer.allocate(chunkSize))).flatMap { reusableBuffer =>
-          ZStream.repeatEffectChunkOption(
+        ZStream.fromZIO(UIO(ByteBuffer.allocate(chunkSize))).flatMap { reusableBuffer =>
+          ZStream.repeatZIOChunkOption(
             for {
               bytesRead <- ZIO.attemptBlockingInterrupt(channel.read(reusableBuffer)).mapError(Some(_))
               _         <- ZIO.fail(None).when(bytesRead == -1)
@@ -299,8 +301,8 @@ trait ZStreamPlatformSpecificConstructors {
     is: => InputStream,
     chunkSize: Int = ZStream.DefaultChunkSize
   ): ZStream[Any, IOException, Byte] =
-    ZStream.fromEffect(UIO(is)).flatMap { capturedIs =>
-      ZStream.repeatEffectChunkOption {
+    ZStream.fromZIO(UIO(is)).flatMap { capturedIs =>
+      ZStream.repeatZIOChunkOption {
         for {
           bufArray  <- UIO(Array.ofDim[Byte](chunkSize))
           bytesRead <- ZIO.attemptBlockingIO(capturedIs.read(bufArray)).mapError(Some(_))
@@ -359,8 +361,8 @@ trait ZStreamPlatformSpecificConstructors {
    * Creates a stream from `java.io.Reader`.
    */
   def fromReader(reader: => Reader, chunkSize: Int = ZStream.DefaultChunkSize): ZStream[Any, IOException, Char] =
-    ZStream.fromEffect(UIO(reader)).flatMap { capturedReader =>
-      ZStream.repeatEffectChunkOption {
+    ZStream.fromZIO(UIO(reader)).flatMap { capturedReader =>
+      ZStream.repeatZIOChunkOption {
         for {
           bufArray  <- UIO(Array.ofDim[Char](chunkSize))
           bytesRead <- ZIO.attemptBlockingIO(capturedReader.read(bufArray)).mapError(Some(_))
@@ -404,7 +406,7 @@ trait ZStreamPlatformSpecificConstructors {
   ): ZStream[Any, Throwable, Byte] = {
     def from(in: InputStream, out: OutputStream, err: Promise[Throwable, None.type]) = {
       val readIn = fromInputStream(in, chunkSize).ensuring(ZIO.succeed(in.close()))
-      val writeOut = ZStream.fromEffect {
+      val writeOut = ZStream.fromZIO {
         ZIO
           .attemptBlockingInterrupt(write(out))
           .exit
@@ -412,14 +414,14 @@ trait ZStreamPlatformSpecificConstructors {
           .ensuring(ZIO.succeed(out.close()))
       }
 
-      val handleError = ZStream.fromEffectOption(err.await.some)
+      val handleError = ZStream.fromZIOOption(err.await.some)
       readIn.drainFork(writeOut) ++ handleError
     }
 
     for {
-      out    <- ZStream.fromEffect(ZIO.succeed(new PipedOutputStream()))
-      in     <- ZStream.fromEffect(ZIO.succeed(new PipedInputStream(out)))
-      err    <- ZStream.fromEffect(Promise.make[Throwable, None.type])
+      out    <- ZStream.fromZIO(ZIO.succeed(new PipedOutputStream()))
+      in     <- ZStream.fromZIO(ZIO.succeed(new PipedInputStream(out)))
+      err    <- ZStream.fromZIO(Promise.make[Throwable, None.type])
       result <- from(in, out, err)
     } yield result
   }
@@ -467,7 +469,7 @@ trait ZStreamPlatformSpecificConstructors {
 
       registerConnection <- ZStream.managed(ZManaged.scope)
 
-      conn <- ZStream.repeatEffect {
+      conn <- ZStream.repeatZIO {
                 IO.async[Throwable, UManaged[Connection]] { callback =>
                   server.accept(
                     null,
@@ -511,7 +513,7 @@ trait ZStreamPlatformSpecificConstructors {
      * The caller of this function is NOT responsible for closing the `AsynchronousSocketChannel`.
      */
     def read: Stream[Throwable, Byte] =
-      ZStream.unfoldChunkM(0) {
+      ZStream.unfoldChunkZIO(0) {
         case -1 => ZIO.succeed(Option.empty)
         case _ =>
           val buff = ByteBuffer.allocate(ZStream.DefaultChunkSize)

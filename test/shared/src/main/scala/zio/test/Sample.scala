@@ -66,7 +66,7 @@ final case class Sample[-R, +A](value: A, shrink: ZStream[R, Nothing, Sample[R, 
   }
 
   def foreach[R1 <: R, B](f: A => ZIO[R1, Nothing, B]): ZIO[R1, Nothing, Sample[R1, B]] =
-    f(value).map(Sample(_, shrink.mapM(_.foreach(f))))
+    f(value).map(Sample(_, shrink.mapZIO(_.foreach(f))))
 
   def map[B](f: A => B): Sample[R, B] =
     Sample(f(value), shrink.map(_.map(f)))

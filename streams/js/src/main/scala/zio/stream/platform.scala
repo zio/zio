@@ -109,7 +109,7 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
                    output.take.flatMap(_.done).onError(_ => done.set(true) *> output.shutdown)
                }
       } yield pull
-    }.flatMap(repeatEffectChunkOption(_))
+    }.flatMap(repeatZIOChunkOption(_))
 
   /**
    * Creates a stream from an asynchronous callback that can be called multiple times.

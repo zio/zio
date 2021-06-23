@@ -64,9 +64,9 @@ With ZIO stream we can change this program to the following code:
 def prime(number: Int): Task[(Boolean, Int)] = Task.succeed(???)
 
 ZStream.fromIterable(numbers)
-  .mapMParUnordered(20)(prime(_))
+  .mapZIOParUnordered(20)(prime(_))
   .filter(_._1).map(_._2)
-  .mapMParUnordered(20)(moreHardWork(_))
+  .mapZIOParUnordered(20)(moreHardWork(_))
 ```
 
 We converted the list of numbers using `ZStream.fromIterable` into a `ZStream`, then we mapped it in parallel, twenty items at a time, and then we performed the hard work problem, twenty items of a time. This is a pipeline, and this easily works for an infinite list.
@@ -101,11 +101,11 @@ def process(i: Int): Task[Int]    = Task.succeed(???)
 def printElem(i: Int): Task[Unit] = Task.succeed(???)
 
 ZStream
-  .repeatEffect(generateElement)
+  .repeatZIO(generateElement)
   .buffer(16)
-  .mapM(process(_))
+  .mapZIO(process(_))
   .buffer(16)
-  .mapM(process(_))
+  .mapZIO(process(_))
   .buffer(16)
   .tap(printElem(_))
 ```

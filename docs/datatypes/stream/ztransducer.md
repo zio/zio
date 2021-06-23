@@ -233,7 +233,7 @@ In the following example, we are prompting the user to enter a series of numbers
 
 ```scala mdoc:silent:nest
 ZStream
-  .fromEffect(
+  .fromZIO(
     printLine("Enter numbers separated by comma: ") *> readLine
   )
   .mapConcat(_.split(","))

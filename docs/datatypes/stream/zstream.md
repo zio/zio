@@ -149,14 +149,14 @@ val s2 = ZStream.fromChunks(Chunk(1, 2, 3), Chunk(4, 5, 6))
 
 ```scala mdoc:silent:nest
 val readline: ZStream[Has[Console], IOException, String] = 
-  ZStream.fromEffect(Console.readLine)
+  ZStream.fromZIO(Console.readLine)
 ```
 
 A stream that produces one random number:
 
 ```scala mdoc:silent:nest
 val randomInt: ZStream[Has[Random], Nothing, Int] = 
-  ZStream.fromEffect(Random.nextInt)
+  ZStream.fromZIO(Random.nextInt)
 ```
 
 **ZStream.fromEffectOption** — In some cases, depending on the result of the effect, we should decide to emit an element or return an empty stream. In these cases, we can use `fromEffectOption` constructor:
@@ -171,7 +171,7 @@ Let's see an example of using this constructor. In this example, we read a strin
 
 ```scala mdoc:silent:nest
 val userInput: ZStream[Has[Console], IOException, String] = 
-  ZStream.fromEffectOption(
+  ZStream.fromZIOOption(
     Console.readLine.mapError(Option(_)).flatMap {
       case "EOF" => ZIO.fail[Option[IOException]](None)
       case o     => ZIO.succeed(o)
@@ -310,7 +310,7 @@ Let's see an example of creating a stream of random numbers:
 
 ```scala mdoc:silent:nest
 val randomInts: ZStream[Has[Random], Nothing, Int] =
-  ZStream.repeatEffect(Random.nextInt)
+  ZStream.repeatZIO(Random.nextInt)
 ```
 
 **ZStream.repeatEffectOption** — We can repeatedly evaluate the given effect and terminate the stream based on some conditions. 
@@ -319,7 +319,7 @@ Let's create a stream repeatedly from user inputs until user enter "EOF" string:
 
 ```scala mdoc:silent:nest
 val userInputs: ZStream[Has[Console], IOException, String] = 
-  ZStream.repeatEffectOption(
+  ZStream.repeatZIOOption(
     Console.readLine.mapError(Option(_)).flatMap {
       case "EOF" => ZIO.fail[Option[IOException]](None)
       case o     => ZIO.succeed(o)
@@ -331,7 +331,7 @@ Here is another interesting example of using `repeatEffectOption`; In this examp
 
 ```scala mdoc:silent:nest
 def drainIterator[A](it: Iterator[A]): ZStream[Any, Throwable, A] =
-  ZStream.repeatEffectOption {
+  ZStream.repeatZIOOption {
     ZIO(it.hasNext).mapError(Some(_)).flatMap { hasNext =>
       if (hasNext) ZIO(it.next()).mapError(Some(_))
       else ZIO.fail(None)
@@ -391,7 +391,7 @@ Running this function with an input value of 3 returns a `ZStream` which contain
 Let's write a stream of lines of input from a user until the user enters the `exit` command:
 
 ```scala mdoc:silent
-val inputs: ZStream[Has[Console], IOException, String] = ZStream.unfoldM(()) { _ =>
+val inputs: ZStream[Has[Console], IOException, String] = ZStream.unfoldZIO(()) { _ =>
   Console.readLine.map {
     case "exit"  => None
     case i => Some((i, ()))
@@ -433,7 +433,7 @@ We want to convert this API to a stream of `RowData` events. For the first attem
 
 ```scala mdoc:silent:nest
 val firstAttempt: ZStream[Has[Console], Throwable, RowData] = 
-  ZStream.unfoldChunkM(0) { pageNumber =>
+  ZStream.unfoldChunkZIO(0) { pageNumber =>
     for {
       page <- listPaginated(pageNumber)
     } yield
@@ -446,7 +446,7 @@ But it doesn't work properly; it doesn't include the last page result. So let's 
 
 ```scala mdoc:silent:nest
 val secondAttempt: ZStream[Has[Console], Throwable, RowData] = 
-  ZStream.unfoldChunkM(Option[Int](0)) {
+  ZStream.unfoldChunkZIO(Option[Int](0)) {
     case None => ZIO.none // We already hit the last page
     case Some(pageNumber) => // We did not hit the last page yet
      for {
@@ -461,7 +461,7 @@ We need to do some hacks and extra works to include results from the last page. 
 
 ```scala mdoc:silent:nest
 val finalAttempt: ZStream[Has[Console], Throwable, RowData] = 
-  ZStream.paginateChunkM(0) { pageNumber =>
+  ZStream.paginateChunkZIO(0) { pageNumber =>
     for {
       page <- listPaginated(pageNumber)
     } yield page.results -> (if (!page.isLast) Some(pageNumber + 1) else None)
@@ -632,7 +632,7 @@ import zio.Console._
 
 val lines: ZStream[Has[Console], Throwable, String] =
   ZStream
-    .bracket(
+    .acquireReleaseWith(
       ZIO.attempt(Source.fromFile("file.txt")) <* printLine("The file was opened.")
     )(x => URIO.succeed(x.close()) <* printLine("The file was closed.").orDie)
     .flatMap { is =>
@@ -657,7 +657,7 @@ It is useful when need to add a finalizer to an existing stream. Assume we need 
 ```scala mdoc:silent:nest
 import zio.Console._
 
-def application: ZStream[Has[Console], IOException, Unit] = ZStream.fromEffect(printLine("Application Logic."))
+def application: ZStream[Has[Console], IOException, Unit] = ZStream.fromZIO(printLine("Application Logic."))
 def deleteDir(dir: Path): ZIO[Has[Console], IOException, Unit] = printLine("Deleting file.")
 
 val myApp: ZStream[Has[Console], IOException, Any] =
@@ -742,7 +742,7 @@ Let's write a simple page downloader, which download URLs concurrently:
 def fetchUrl(url: URL): Task[String] = Task.succeed(???)
 def getUrls: Task[List[URL]] = Task.succeed(???)
 
-val pages = ZStream.fromIterableM(getUrls).mapMPar(8)(fetchUrl)  
+val pages = ZStream.fromIterableM(getUrls).mapZIOPar(8)(fetchUrl)  
 ```
     
 **mapChunk** — Each stream is backed by some `Chunk`s. By using `mapChunk` we can batch the underlying stream and map every `Chunk` at once:
@@ -851,7 +851,7 @@ val s1: ZStream[Any, Nothing, Nothing] = ZStream(1, 2, 3, 4, 5).drain
 
 val s2: ZStream[Has[Console] with Has[Random], IOException, Int] =
   ZStream
-    .repeatEffect {
+    .repeatZIO {
       for {
         nextInt <- Random.nextInt
         number = Math.abs(nextInt % 10)
@@ -876,7 +876,7 @@ val s3: ZStream[Has[Console] with Has[Random], IOException, Nothing] = s2.drain
 The `ZStream#drain` often used with `ZStream#merge` to run one side of the merge for its effect while getting outputs from the opposite side of the merge:
 
 ```scala mdoc:silent:nest
-val logging = ZStream.fromEffect(
+val logging = ZStream.fromZIO(
   printLine("Starting to merge with the next stream")
 )
 val stream = ZStream(1, 2, 3) ++ logging.drain ++ ZStream(4, 5, 6)
@@ -966,7 +966,7 @@ def fetch(url: String): ZIO[Any, Throwable, String] =
   ZIO.attemptBlocking(???)
 
 val pages = urls
-  .mapM(url => fetch(url).exit)
+  .mapZIO(url => fetch(url).exit)
   .collectSuccess
 ```
 
@@ -1148,7 +1148,7 @@ import zio.stream._
     Stream
       .fromIterable(examResults)
       .groupByKey(exam => exam.score / 10 * 10) {
-        case (k, s) => ZStream.fromEffect(s.runCollect.map(l => k -> l.size))
+        case (k, s) => ZStream.fromZIO(s.runCollect.map(l => k -> l.size))
       }
 ```
 
@@ -1174,7 +1174,7 @@ In the example below, we are going `groupBy` given names by their first characte
 val counted: UStream[(Char, Long)] =
   ZStream("Mary", "James", "Robert", "Patricia", "John", "Jennifer", "Rebecca", "Peter")
     .groupBy(x => ZIO.succeed((x.head, x))) { case (char, stream) =>
-      ZStream.fromEffect(stream.runCount.map(count => char -> count))
+      ZStream.fromZIO(stream.runCount.map(count => char -> count))
     }
 // Input:  Mary, James, Robert, Patricia, John, Jennifer, Rebecca, Peter
 // Output: (P, 2), (R, 2), (M, 1), (J, 3)
@@ -1184,14 +1184,14 @@ Let's change the above example a bit into an example of classifying students. Th
 
 ```scala mdoc:silent:nest
 val classifyStudents: ZStream[Has[Console], IOException, (String, Seq[String])] =
-  ZStream.fromEffect(
+  ZStream.fromZIO(
     printLine("Please assign each student to one of the A, B, or C classrooms.")
   ) *> ZStream("Mary", "James", "Robert", "Patricia", "John", "Jennifer", "Rebecca", "Peter")
     .groupBy(student =>
       printLine(s"What is the classroom of $student? ") *>
         readLine.map(classroom => (classroom, student))
     ) { case (classroom, students) =>
-      ZStream.fromEffect(
+      ZStream.fromZIO(
         students
           .fold(Seq.empty[String])((s, e) => s :+ e)
           .map(students => classroom -> students)
@@ -1360,7 +1360,7 @@ We can launch the Kafka consumer, the HTTP server, and our job runner and fork t
 So another idea is to watch background components. The `ZIO#forkManaged` enables us to race all forked fibers in a `ZManaged` context. By using `ZIO.raceAll` as soon as one of those fibers terminates with either success or failure, it will interrupt all the rest components as the part of the release action of `ZManaged`:
 
 ```scala mdoc:invisible
-val kafkaConsumer     : ZStream[Any, Nothing, Int] = ZStream.fromEffect(ZIO.succeed(???))
+val kafkaConsumer     : ZStream[Any, Nothing, Int] = ZStream.fromZIO(ZIO.succeed(???))
 val httpServer        : ZIO[Any, Nothing, Nothing] = ZIO.never
 val scheduledJobRunner: ZIO[Any, Nothing, Nothing] = ZIO.never
 ```
@@ -1384,8 +1384,8 @@ val managedApp =
     _ <- ZStream
       .mergeAllUnbounded(16)(
         kafkaConsumer.drain,
-        ZStream.fromEffect(httpServer),
-        ZStream.fromEffect(scheduledJobRunner)
+        ZStream.fromZIO(httpServer),
+        ZStream.fromZIO(scheduledJobRunner)
       )
       .runDrain
       .toManaged
@@ -1456,7 +1456,7 @@ In the following example, we are broadcasting stream of random numbers to the tw
 val stream: ZIO[Has[Console] with Has[Random] with Has[Clock], IOException, Unit] =
   ZStream
     .fromIterable(1 to 20)
-    .mapM(_ => Random.nextInt)
+    .mapZIO(_ => Random.nextInt)
     .map(Math.abs)
     .map(_ % 100)
     .tap(e => printLine(s"Emit $e element before broadcasting"))
@@ -1540,8 +1540,8 @@ The `ZStream#debounce` method debounces the stream with a minimum period of `d` 
 ```scala mdoc:silent:nest
 val stream = (
   ZStream(1, 2, 3) ++
-    ZStream.fromEffect(ZIO.sleep(500.millis)) ++ ZStream(4, 5) ++
-    ZStream.fromEffect(ZIO.sleep(10.millis)) ++
+    ZStream.fromZIO(ZIO.sleep(500.millis)) ++ ZStream(4, 5) ++
+    ZStream.fromZIO(ZIO.sleep(10.millis)) ++
     ZStream(6)
 ).debounce(100.millis) // emit only after a pause of at least 100 ms
 // Output: 3, 6
@@ -1817,7 +1817,7 @@ When a stream fails, it can be retried according to the given schedule to the `Z
 ```scala mdoc:silent:nest
 val numbers = ZStream(1, 2, 3) ++ 
   ZStream
-    .fromEffect(
+    .fromZIO(
       Console.print("Enter a number: ") *> Console.readLine
         .flatMap(x =>
           x.toIntOption match {
@@ -1839,7 +1839,7 @@ def legacyFetchUrlAPI(url: URL): Either[Throwable, String] = ???
 def fetchUrl(
     url: URL
 ): ZStream[Any, Throwable, String] = 
-  ZStream.fromEffect(
+  ZStream.fromZIO(
     ZIO.attemptBlocking(legacyFetchUrlAPI(url))
   ).absolve
 ```
@@ -1850,7 +1850,7 @@ We can do the opposite by exposing an error of type `ZStream[R, E, A]` as a part
 
 ```scala mdoc:silent:nest
 val inputs: ZStream[Has[Console], Nothing, Either[IOException, String]] = 
-  ZStream.fromEffect(Console.readLine).either
+  ZStream.fromZIO(Console.readLine).either
 ```
 
 When we are working with streams of `Either` values, we might want to fail the stream as soon as the emission of the first `Left` value:
@@ -1888,6 +1888,6 @@ stream.timeoutError(new TimeoutException)(10.seconds)
 Or we can switch to another stream if the first stream does not produce a value after some duration:
 
 ```scala mdoc:silent:nest
-val alternative = ZStream.fromEffect(ZIO.attempt(???))
+val alternative = ZStream.fromZIO(ZIO.attempt(???))
 stream.timeoutTo(10.seconds)(alternative)
 ```
