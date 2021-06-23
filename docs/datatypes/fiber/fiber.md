@@ -58,6 +58,38 @@ for {
 ### fork0
 A more powerful variant of `fork`, called `fork0`, allows specification of supervisor that will be passed any non-recoverable errors from the forked fiber, including all such errors that occur in finalizers. If this supervisor is not specified, then the supervisor of the parent fiber will be used, recursively, up to the root handler, which can be specified in `Runtime` (the default supervisor merely prints the stack trace).
 
+### forkDaemon
+
+The `ZIO#forkDaemon` forks the effect into a new fiber **attached to the global scope**. Because the new fiber is attached to the global scope, when the fiber executing the returned effect terminates, the forked fiber will continue running.
+
+In the following example, we have three effects: `inner`, `outer`, and `mainApp`. The outer effect is forking the `inner` effect using `ZIO#forkDaemon`. The `mainApp` effect is forking the `inner` fiber using `ZIO#fork` method and interrupt it after 3 seconds. Since the `inner` effect is forked in global scope, it will not be interrupted and continue its job:
+
+```scala mdoc:silent:nest
+object ForkInGlobalScopeExample extends zio.App {
+  val inner = putStrLn("Inner job is running.")
+    .delay(1.seconds)
+    .forever
+    .onInterrupt(putStrLn("Inner job interrupted.").orDie)
+
+  val outer = (
+    for {
+      f <- inner.forkDaemon
+      _ <- putStrLn("Outer job is running.").delay(1.seconds).forever
+      _ <- f.join
+    } yield ()
+  ).onInterrupt(putStrLn("Outer job interrupted.").orDie)
+
+  val myApp = for {
+    fiber <- outer.fork
+    _     <- fiber.interrupt.delay(3.seconds)
+    _     <- ZIO.never
+  } yield ()
+  
+  override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] =
+    myApp.exitCode
+}
+```
+
 ### interrupt
 Whenever we want to get rid of our fiber, we can simply call interrupt on that. The interrupt operation does not resume until the fiber has completed or has been interrupted and all its finalizers have been run. These precise semantics allow construction of programs that do not leak resources.
 
@@ -104,7 +136,7 @@ The `zipPar` combinator has resource-safe semantics. If one computation fails, t
 
 Two `IO` actions can be *raced*, which means they will be executed in parallel, and the value of the first action that completes successfully will be returned.
 
-```scala mdoc:silent
+```scala
 fib(100) race fib(200)
 ```
 
@@ -155,6 +187,91 @@ When a fiber is terminated, the reason for the termination, expressed as a `Thro
 A fiber cannot stop its own interruption. However, all finalizers will be run during termination, even when some finalizers throw non-recoverable errors. Errors thrown by finalizers are passed to the fiber's supervisor.
 
 There are no circumstances in which any errors will be "lost", which makes the `IO` error model more diagnostic-friendly than the `try`/`catch`/`finally` construct that is baked into both Scala and Java, which can easily lose errors.
+
+## Fiber Interruption
+
+In Java, a thread can be interrupted via `Thread#interrupt` via another thread, but it may don't respect the interruption request. Unlike Java, in ZIO when a fiber interrupts another fiber, we know that the interruption occurs, and it always works.
+
+When working with ZIO fibers, we should consider these notes about fiber interruptions:
+
+### Interruptible/Uninterruptible Regions
+
+All fibers are interruptible by default. To make an effect uninterruptible we can use `Fiber#uninterruptible`, `ZIO#uninterruptible` or `ZIO.uninterruptible`. We have also interruptible versions of these methods to make an uninterruptible effect, interruptible.
+
+```scala mdoc:silent:nest
+for {
+  fiber <- clock.currentDateTime
+    .flatMap(time => putStrLn(time.toString))
+    .schedule(Schedule.fixed(1.seconds))
+    .uninterruptible
+    .fork
+  _     <- fiber.interrupt // Runtime stuck here and does not go further
+} yield ()
+```
+
+Note that there is no way to stop interruption. We can only delay it, by making an effect uninterruptible.
+
+### Fiber Finalization on Interruption
+
+When a fiber done its work or even interrupted, the finalizer of that fiber is guaranteed to be executed:
+
+```scala mdoc:silent:nest
+for {
+  fiber <- putStrLn("Working on the first job")
+    .schedule(Schedule.fixed(1.seconds))
+    .ensuring {
+      (putStrLn(
+        "Finalizing or releasing a resource that is time-consuming"
+      ) *> ZIO.sleep(7.seconds)).orDie
+    }
+    .fork
+  _     <- fiber.interrupt.delay(4.seconds)
+  _     <- putStrLn(
+          "Starting another task when the interruption of the previous task finished"
+        )
+} yield ()
+```
+
+The `release` action may take some time freeing up resources. So it may slow down the fiber's interruption.
+
+### Fast Interruption
+
+As we saw in the previous section, the ZIO runtime gets stuck on interruption task until the fiber's finalizer finishes its job. We can prevent this behavior by using `ZIO#disconnect` or `Fiber#interruptFork` which perform fiber's interruption in the background or in separate daemon fiber:
+
+Let's try the `Fiber#interruptFork`:
+
+```scala mdoc:silent:nest
+for {
+  fiber <- putStrLn("Working on the first job")
+    .schedule(Schedule.fixed(1.seconds))
+    .ensuring {
+      (putStrLn(
+        "Finalizing or releasing a resource that is time-consuming"
+      ) *> ZIO.sleep(7.seconds)).orDie
+    }
+    .fork
+  _ <- fiber.interruptFork.delay(4.seconds) // fast interruption
+  _ <- putStrLn(
+    "Starting another task while interruption of the previous fiber happening in the background"
+  )
+} yield ()
+```
+
+### Interrupting Blocking Operations
+
+The `zio.blocking.effectBlocking` is interruptible by default, but its interruption will not translate to the JVM thread interruption. Instead, we can use `zio.blocking.effectBlockingInterruptible` method. By using `effectBlockingInterruptible` method if that effect is interrupted, it will translate the ZIO interruption to the JVM thread interruption. ZIO has a comprehensive guide about blocking operation at [blocking service](../../services/blocking.md) page.
+
+### Automatic Interruption
+
+If we never _cancel_ a running effect explicitly, ZIO performs **automatic interruption** for several reasons:
+
+1. **Structured Concurrency** — If a parent fiber terminates, then by default, all child fibers are interrupted, and they cannot outlive their parent. We can prevent this behavior by using `ZIO#forkDaemon` or `ZIO#forkIn` instead of `ZIO#fork`.
+
+2. **Parallelism** — If one effect fails during the execution of many effects in parallel, the others will be canceled. Examples include `foreachPar`, `zipPar`, and all other parallel operators.
+
+3. **Timeouts** — If a running effect being timed out has not been completed in the specified amount of time, then the execution is canceled.
+
+4. **Racing** — The loser of a race, if still running, is canceled.
 
 ## Thread Shifting - JVM
 By default, fibers make no guarantees as to which thread they execute on. They may shift between threads, especially as they execute for long periods of time.
@@ -250,14 +367,3 @@ Every time we do one of ZIO blocking operations it doesn't actually block the un
 
 All of the pieces of machinery ZIO gives us are 100% asynchronous and non-blocking. As they don't block and monopolize the thread, all of the async work is executed on the primary thread pool in ZIO.
 
-## Automatic Interruption
-
-If we never _cancel_ a running effect explicitly, ZIO performs automatic interruption for several reasons:
-
-**Structured Concurrency** — If a parent fiber terminates, then by default, all child fibers are interrupted. We can prevent this behavior by using `forkDaemon` instead of `fork`.
-
-**Parallelism** — If one effect fails during the execution of many effects in parallel, the others will be canceled. Examples include `foreachPar`, `zipPar`, and all other parallel operators.
-
-**Timeouts** — If a running effect being timed out has not been completed in the specified amount of time, then the execution is canceled.
-
-**Racing** — The loser of a race, if still running, is canceled.
