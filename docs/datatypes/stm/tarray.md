@@ -72,7 +72,7 @@ import zio.stm._
 
 val tArrayUpdateMElem: UIO[TArray[Int]] = (for {
   tArray <- TArray.make(1, 2, 3, 4)
-  _      <- tArray.updateM(2, el => STM.succeed(el + 10))
+  _      <- tArray.updateSTM(2, el => STM.succeed(el + 10))
 } yield tArray).commit
 ```
 
@@ -100,7 +100,7 @@ import zio.stm._
 
 val transformMTArray: UIO[TArray[Int]] = (for {
   tArray <- TArray.make(1, 2, 3, 4)
-  _      <- tArray.transformM(a => STM.succeed(a * a))
+  _      <- tArray.transformSTM(a => STM.succeed(a * a))
 } yield tArray).commit
 ```
 
@@ -124,7 +124,7 @@ import zio.stm._
 
 val foldMTArray: UIO[Int] = (for {
   tArray <- TArray.make(1, 2, 3, 4)
-  sum    <- tArray.foldM(0)((acc, el) => STM.succeed(acc + el))
+  sum    <- tArray.foldSTM(0)((acc, el) => STM.succeed(acc + el))
 } yield sum).commit
 ```
 

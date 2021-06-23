@@ -41,7 +41,7 @@ class TArrayOpsBenchmarks {
 
   @Benchmark
   def findM(): Option[Int] =
-    unsafeRun(array.findM(a => STM.succeedNow(a == size)).commit)
+    unsafeRun(array.findSTM(a => STM.succeedNow(a == size)).commit)
 
   @Benchmark
   def fold(): Int =
@@ -49,7 +49,7 @@ class TArrayOpsBenchmarks {
 
   @Benchmark
   def foldM(): Int =
-    unsafeRun(array.foldM(0)((acc, e) => STM.succeedNow(acc + e)).commit)
+    unsafeRun(array.foldSTM(0)((acc, e) => STM.succeedNow(acc + e)).commit)
 
   @Benchmark
   def indexWhere(): Int =
@@ -57,7 +57,7 @@ class TArrayOpsBenchmarks {
 
   @Benchmark
   def indexWhereM(): Int =
-    unsafeRun(array.indexWhereM(a => STM.succeedNow(a == size)).commit)
+    unsafeRun(array.indexWhereSTM(a => STM.succeedNow(a == size)).commit)
 
   @Benchmark
   def reduceOption(): Option[Int] =
@@ -65,7 +65,7 @@ class TArrayOpsBenchmarks {
 
   @Benchmark
   def reduceOptionM(): Option[Int] =
-    unsafeRun(array.reduceOptionM((a, b) => STM.succeedNow(a + b)).commit)
+    unsafeRun(array.reduceOptionSTM((a, b) => STM.succeedNow(a + b)).commit)
 
   @Benchmark
   def transform(): Unit =
@@ -73,7 +73,7 @@ class TArrayOpsBenchmarks {
 
   @Benchmark
   def transformM(): Unit =
-    unsafeRun(array.transformM(i => STM.succeedNow(i + 1)).commit)
+    unsafeRun(array.transformSTM(i => STM.succeedNow(i + 1)).commit)
 
   @Benchmark
   def update(): Unit =
@@ -81,5 +81,5 @@ class TArrayOpsBenchmarks {
 
   @Benchmark
   def updateM(): Unit =
-    unsafeRun(ZIO.foreachDiscard(calls)(_ => array.updateM(idx, i => STM.succeedNow(i + 1)).commit))
+    unsafeRun(ZIO.foreachDiscard(calls)(_ => array.updateSTM(idx, i => STM.succeedNow(i + 1)).commit))
 }

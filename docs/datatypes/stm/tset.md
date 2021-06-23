@@ -180,7 +180,7 @@ import zio.stm._
 
 val transformMTSet: UIO[TSet[Int]] = (for {
   tSet <- TSet.make(1, 2, 3, 4)
-  _    <- tSet.transformM(a => STM.succeed(a * a))
+  _    <- tSet.transformSTM(a => STM.succeed(a * a))
 } yield tSet).commit
 ```
 
@@ -204,7 +204,7 @@ import zio.stm._
 
 val foldMTSet: UIO[Int] = (for {
   tSet <- TSet.make(1, 2, 3, 4)
-  sum  <- tSet.foldM(0)((acc, el) => STM.succeed(acc + el))
+  sum  <- tSet.foldSTM(0)((acc, el) => STM.succeed(acc + el))
 } yield sum).commit
 ```
 

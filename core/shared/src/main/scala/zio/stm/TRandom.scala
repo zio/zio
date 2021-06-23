@@ -296,7 +296,7 @@ object TRandom extends Serializable {
       swap = (i1: Int, i2: Int) =>
                for {
                  tmp <- buffer(i1)
-                 _   <- buffer.updateM(i1, _ => buffer(i2))
+                 _   <- buffer.updateSTM(i1, _ => buffer(i2))
                  _   <- buffer.update(i2, _ => tmp)
                } yield ()
       _ <-
