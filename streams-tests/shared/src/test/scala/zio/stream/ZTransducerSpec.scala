@@ -612,7 +612,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
                       values.toList match {
                         case _ =>
                           ZTransducer {
-                            Managed.bracket(
+                            Managed.acquireReleaseWith(
                               ref
                                 .update(_ + 1)
                                 .as[Option[Chunk[Int]] => UIO[Chunk[Int]]]({
@@ -640,7 +640,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
                       values.toList match {
                         case _ =>
                           ZTransducer {
-                            Managed.bracket(
+                            Managed.acquireReleaseWith(
                               ref
                                 .update(_ + 1)
                                 .as[Option[Chunk[Int]] => IO[String, Chunk[Int]]]({ case _ =>

@@ -380,7 +380,8 @@ object ZHub {
       val subscribe: ZManaged[Any, Nothing, Dequeue[A]] =
         for {
           dequeue <- makeSubscription(hub, subscribers, strategy).toManaged
-          _       <- ZManaged.bracketExit(releaseMap.add(_ => dequeue.shutdown))((finalizer, exit) => finalizer(exit))
+          _ <-
+            ZManaged.acquireReleaseExitWith(releaseMap.add(_ => dequeue.shutdown))((finalizer, exit) => finalizer(exit))
         } yield dequeue
     }
 

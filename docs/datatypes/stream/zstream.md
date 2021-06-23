@@ -573,7 +573,7 @@ If they contain `Chunk` of elements, we can use `ZStream.fromChunk...` construct
 for {
   promise <- Promise.make[Nothing, Unit]
   hub     <- ZHub.unbounded[Chunk[Int]]
-  managed = ZStream.fromChunkHubManaged(hub).tapM(_ => promise.succeed(()))
+  managed = ZStream.fromChunkHubManaged(hub).tapZIO(_ => promise.succeed(()))
   stream  = ZStream.unwrapManaged(managed)
   fiber   <- stream.foreach(i => printLine(i.toString)).fork
   _       <- promise.await
@@ -1391,7 +1391,7 @@ val managedApp =
       .toManaged
   } yield ()
 
-val myApp = managedApp.use_(ZIO.unit).exitCode
+val myApp = managedApp.useDiscard(ZIO.unit).exitCode
 ```
 
 Using `ZStream.mergeAll` we can combine all these streaming components concurrently into one application.

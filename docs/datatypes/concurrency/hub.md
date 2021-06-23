@@ -348,7 +348,7 @@ import zio.stream._
 for {
   promise <- Promise.make[Nothing, Unit]
   hub     <- Hub.bounded[String](2)
-  managed  = ZStream.fromHubManaged(hub).tapM(_ => promise.succeed(()))
+  managed  = ZStream.fromHubManaged(hub).tapZIO(_ => promise.succeed(()))
   stream   = ZStream.unwrapManaged(managed)
   fiber   <- stream.take(2).runCollect.fork
   _       <- promise.await

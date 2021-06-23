@@ -706,7 +706,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   final def collectM[R1 <: R, E1 >: E, O1](pf: PartialFunction[O, ZIO[R1, E1, O1]]): ZStream[R1, E1, O1] =
     ZStream {
       for {
-        os    <- self.process.mapM(BufferedPull.make(_))
+        os    <- self.process.mapZIO(BufferedPull.make(_))
         pfSome = pf.andThen(_.mapBoth(Some(_), Chunk.single(_)))
         pull = {
           def go: ZIO[R1, Option[E1], Chunk[O1]] =
@@ -752,7 +752,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   final def collectWhileM[R1 <: R, E1 >: E, O2](pf: PartialFunction[O, ZIO[R1, E1, O2]]): ZStream[R1, E1, O2] =
     ZStream {
       for {
-        os   <- self.process.mapM(BufferedPull.make(_))
+        os   <- self.process.mapZIO(BufferedPull.make(_))
         done <- Ref.make(false).toManaged
         pfIO  = pf.andThen(_.mapBoth(Some(_), Chunk.single(_)))
         pull = done.get.flatMap {
@@ -800,8 +800,8 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   ): ZStream[R1, E1, O3] =
     ZStream[R1, E1, O3] {
       for {
-        left  <- self.process.mapM(BufferedPull.make[R, E, O](_)) // type annotation required for Dotty
-        right <- that.process.mapM(BufferedPull.make[R1, E1, O2](_))
+        left  <- self.process.mapZIO(BufferedPull.make[R, E, O](_)) // type annotation required for Dotty
+        right <- that.process.mapZIO(BufferedPull.make[R1, E1, O2](_))
         pull <- ZStream
                   .unfoldM(s)(s => f(s, left.pullElement, right.pullElement).flatMap(ZIO.done(_).optional))
                   .process
@@ -1002,7 +1002,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                        }
           _ <- self
                  .foreachManaged(offer)
-                 .foldCauseM(
+                 .foldCauseManaged(
                    cause => finalize(Exit.halt(cause.map(Some(_)))).toManaged,
                    _ => finalize(Exit.fail(None)).toManaged
                  )
@@ -1208,7 +1208,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
             (ch: Chunk[O]) => ch.foldZIO(s1)(f).flatMap(loop)
           )
 
-      ZManaged.fromEffect(loop(s))
+      ZManaged.fromZIO(loop(s))
     }
 
   /**
@@ -1286,7 +1286,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    */
   def filterM[R1 <: R, E1 >: E](f: O => ZIO[R1, E1, Boolean]): ZStream[R1, E1, O] =
     ZStream {
-      self.process.mapM(BufferedPull.make(_)).map { os =>
+      self.process.mapZIO(BufferedPull.make(_)).map { os =>
         def pull: Pull[R1, E1, O] =
           os.pullElement.flatMap { o =>
             f(o).mapError(Some(_)).flatMap {
@@ -1421,7 +1421,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                    // acquire the permits ourselves before the inners had a chance to start.
                    _ <- latch.await
                  } yield ()
-               }.foldCauseM(
+               }.foldCauseManaged(
                  cause => (getChildren.flatMap(Fiber.interruptAll(_)) *> out.offer(Pull.halt(cause)).unit).toManaged,
                  _ =>
                    innerFailure.await.interruptible
@@ -1479,7 +1479,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                    _ <- (innerStream race canceler.await).fork
                    _ <- latch.await
                  } yield ()
-               }.foldCauseM(
+               }.foldCauseManaged(
                  cause => (getChildren.flatMap(Fiber.interruptAll(_)) *> out.offer(Pull.halt(cause))).unit.toManaged,
                  _ =>
                    innerFailure.await
@@ -1507,7 +1507,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   def flattenChunks[O1](implicit ev: O <:< Chunk[O1]): ZStream[R, E, O1] =
     ZStream {
       self.process
-        .mapM(BufferedPull.make(_))
+        .mapZIO(BufferedPull.make(_))
         .map(_.pullElement.map(ev))
     }
 
@@ -1529,7 +1529,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   def flattenExitOption[E1 >: E, O1](implicit ev: O <:< Exit[Option[E1], O1]): ZStream[R, E1, O1] =
     ZStream {
       for {
-        upstream <- self.process.mapM(BufferedPull.make(_))
+        upstream <- self.process.mapZIO(BufferedPull.make(_))
         done     <- Ref.make(false).toManaged
         pull = done.get.flatMap {
                  if (_) Pull.end
@@ -1774,7 +1774,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
 
     ZStream {
       for {
-        sides <- b.process.mapM(BufferedPull.make(_))
+        sides <- b.process.mapZIO(BufferedPull.make(_))
         result <-
           self
             .combine(that)((false, false, sides.pullElement)) { case ((leftDone, rightDone, sides), left, right) =>
@@ -1870,7 +1870,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   final def into[R1 <: R, E1 >: E](
     queue: ZQueue[R1, Nothing, Nothing, Any, Take[E1, O], Any]
   ): ZIO[R1, E1, Unit] =
-    intoManaged(queue).use_(UIO.unit)
+    intoManaged(queue).useDiscard(UIO.unit)
 
   /**
    * Publishes elements of this stream to a hub. Stream failure and ending will
@@ -1944,7 +1944,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     ZStream {
       for {
         state <- Ref.make(s).toManaged
-        pull  <- self.process.mapM(BufferedPull.make(_))
+        pull  <- self.process.mapZIO(BufferedPull.make(_))
       } yield pull.pullElement.flatMap { o =>
         (for {
           s <- state.get
@@ -2027,7 +2027,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    */
   def mapM[R1 <: R, E1 >: E, O2](f: O => ZIO[R1, E1, O2]): ZStream[R1, E1, O2] =
     ZStream {
-      self.process.mapM(BufferedPull.make(_)).map { pull =>
+      self.process.mapZIO(BufferedPull.make(_)).map { pull =>
         pull.pullElement.flatMap(f(_).mapBoth(Some(_), Chunk.single(_)))
       }
     }
@@ -2056,7 +2056,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                       }.fork
                  _ <- latch.await
                } yield ()
-             }.foldCauseM(
+             }.foldCauseManaged(
                c => out.offer(Pull.halt(c)).toManaged,
                _ => (permits.withPermits(n.toLong)(ZIO.unit).interruptible *> out.offer(Pull.end)).toManaged
              ).fork
@@ -2409,7 +2409,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   )(f: O => C, g: B => C): ZStream[R1 with Has[Clock], E1, C] =
     ZStream {
       for {
-        as     <- self.process.mapM(BufferedPull.make(_))
+        as     <- self.process.mapZIO(BufferedPull.make(_))
         driver <- schedule.driver.toManaged
         state  <- Ref.make[Option[O]](None).toManaged
         pull = {
@@ -2528,7 +2528,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     runManaged(sink).useNow
 
   def runManaged[R1 <: R, E1 >: E, B](sink: ZSink[R1, E1, O, Any, B]): ZManaged[R1, E1, B] =
-    (process <*> sink.push).mapM { case (pull, push) =>
+    (process <*> sink.push).mapZIO { case (pull, push) =>
       def go: ZIO[R1, E1, B] = pull.foldCauseZIO(
         Cause
           .flipCauseOption(_)
@@ -2617,7 +2617,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     ZStream[R1, E1, O1] {
       for {
         state <- Ref.makeManaged[Option[O1]](None)
-        pull  <- self.process.mapM(BufferedPull.make(_))
+        pull  <- self.process.mapZIO(BufferedPull.make(_))
       } yield pull.pullElement.flatMap { curr =>
         state.get.flatMap {
           case Some(s) => f(s, curr).tap(o => state.set(Some(o))).map(Chunk.single).asSomeError
@@ -2651,7 +2651,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   )(f: O => C, g: B => C): ZStream[R1 with Has[Clock], E1, C] =
     ZStream[R1 with Has[Clock], E1, C] {
       for {
-        as     <- self.process.mapM(BufferedPull.make(_))
+        as     <- self.process.mapZIO(BufferedPull.make(_))
         driver <- schedule.driver.toManaged
         pull = as.pullElement.flatMap(o =>
                  driver.next(o).as(Chunk(f(o))) orElse (driver.last.orDie.map(b => Chunk(f(o), g(b))) <* driver.reset)
@@ -2710,7 +2710,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     else
       ZStream {
         for {
-          pull  <- self.process.mapM(BufferedPull.make(_))
+          pull  <- self.process.mapZIO(BufferedPull.make(_))
           queue <- ZQueue.sliding[O](n).toManaged
           done  <- Ref.makeManaged(false)
         } yield done.get.flatMap {
@@ -3464,7 +3464,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * stream is consumed
    */
   def bracket[R, E, A](acquire: ZIO[R, E, A])(release: A => URIO[R, Any]): ZStream[R, E, A] =
-    managed(ZManaged.bracket(acquire)(release))
+    managed(ZManaged.acquireReleaseWith(acquire)(release))
 
   /**
    * Creates a stream from a single value that will get cleaned up after the
@@ -3473,7 +3473,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   def bracketExit[R, E, A](
     acquire: ZIO[R, E, A]
   )(release: (A, Exit[Any, Any]) => URIO[R, Any]): ZStream[R, E, A] =
-    managed(ZManaged.bracketExit(acquire)(release))
+    managed(ZManaged.acquireReleaseExitWith(acquire)(release))
 
   /**
    * Composes the specified streams to create a cartesian product of elements

@@ -12,7 +12,7 @@ object Gzip {
   ): ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[Byte], Done] =
     ZChannel.managed {
       ZManaged
-        .bracket(
+        .acquireReleaseWith(
           Gzipper.make(bufferSize, level, strategy, flushMode)
         ) { gzipper =>
           ZIO.succeed(gzipper.close())

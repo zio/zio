@@ -317,7 +317,7 @@ sealed abstract class Fiber[+E, +A] { self =>
    * @return `ZManaged[Any, Nothing, Fiber[E, A]]`
    */
   final def toManaged: ZManaged[Any, Nothing, Fiber[E, A]] =
-    ZManaged.bracket(UIO.succeedNow(self))(_.interrupt)
+    ZManaged.acquireReleaseWith(UIO.succeedNow(self))(_.interrupt)
 
   /**
    * Maps the output of this fiber to `()`.

@@ -146,7 +146,7 @@ object TestAspect extends TimeoutVariants {
         def aroundAll[R <: R0, E >: E0, A](
           specs: ZManaged[R, TestFailure[E], Vector[Spec[R, TestFailure[E], TestSuccess]]]
         ): ZManaged[R, TestFailure[E], Vector[Spec[R, TestFailure[E], TestSuccess]]] =
-          ZManaged.bracket(before)(after).mapError(TestFailure.fail) *> specs
+          ZManaged.acquireReleaseWith(before)(after).mapError(TestFailure.fail) *> specs
         def around[R <: R0, E >: E0, A](
           test: ZIO[R, TestFailure[E], TestSuccess]
         ): ZIO[R, TestFailure[E], TestSuccess] =

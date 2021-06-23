@@ -14,7 +14,7 @@ object Inflate {
   ): ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[Byte], Done] =
     ZChannel.managed {
       ZManaged
-        .bracket(ZIO.succeed((new Array[Byte](bufferSize), new Inflater(noWrap)))) { case (_, inflater) =>
+        .acquireReleaseWith(ZIO.succeed((new Array[Byte](bufferSize), new Inflater(noWrap)))) { case (_, inflater) =>
           ZIO.succeed(inflater.end())
         }
     } { case (buffer, inflater) =>

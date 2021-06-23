@@ -200,7 +200,7 @@ object SerializableSpec extends ZIOBaseSpec {
     },
     testM("ZManaged is serializable") {
       for {
-        managed <- serializeAndBack(ZManaged.bracket(UIO.unit)(_ => UIO.unit))
+        managed <- serializeAndBack(ZManaged.acquireReleaseWith(UIO.unit)(_ => UIO.unit))
         result  <- managed.use(_ => UIO.unit)
       } yield assert(result)(equalTo(()))
     },

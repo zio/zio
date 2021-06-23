@@ -723,14 +723,14 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     ev2: OutElem <:< Nothing
   ): ZManaged[Env, OutErr, OutDone] =
     ZManaged
-      .bracketExit(
+      .acquireReleaseExitWith(
         UIO(new ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](() => self, null))
       ) { (exec, exit) =>
         val finalize = exec.close(exit)
         if (finalize ne null) finalize
         else ZIO.unit
       }
-      .mapM { exec =>
+      .mapZIO { exec =>
         ZIO.suspendSucceed {
           def interpret(channelState: ChannelExecutor.ChannelState[Env, OutErr]): ZIO[Env, OutErr, OutDone] =
             channelState match {
@@ -761,7 +761,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
 
   def toPull: ZManaged[Env, Nothing, ZIO[Env, Either[OutErr, OutDone], OutElem]] =
     ZManaged
-      .bracketExit(
+      .acquireReleaseExitWith(
         UIO(new ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](() => self, null))
       ) { (exec, exit) =>
         val finalize = exec.close(exit)

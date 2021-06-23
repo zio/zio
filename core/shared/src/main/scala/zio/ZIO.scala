@@ -2201,14 +2201,14 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * will be performed uninterruptibly.
    */
   final def toManagedWith[R1 <: R](release: A => URIO[R1, Any]): ZManaged[R1, E, A] =
-    ZManaged.bracket(this)(release)
+    ZManaged.acquireReleaseWith(this)(release)
 
   /**
    * Converts this ZIO to [[zio.ZManaged]] with no release action. It will be performed
    * interruptibly.
    */
   final def toManaged: ZManaged[R, E, A] =
-    ZManaged.fromEffect[R, E, A](this)
+    ZManaged.fromZIO[R, E, A](this)
 
   /**
    * Enables ZIO tracing for this effect. Because this is the default, this
@@ -3759,7 +3759,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
         interrupter = result.await
                         .catchAll(_ => ZIO.foreach(fibers)(_.interruptAs(parentId).fork) >>= Fiber.joinAll)
                         .forkManaged
-        _ <- interrupter.use_ {
+        _ <- interrupter.useDiscard {
                ZIO
                  .whenZIO(ZIO.foreach(fibers)(_.await).map(_.exists(!_.succeeded))) {
                    result.fail(()) *> causes.get.flatMap(ZIO.halt(_))
@@ -4560,7 +4560,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * inspecting internal / external state.
    */
   def reserve[R, E, A, B](reservation: ZIO[R, E, Reservation[R, E, A]])(use: A => ZIO[R, E, B]): ZIO[R, E, B] =
-    ZManaged.makeReserve(reservation).use(use)
+    ZManaged.fromReservationZIO(reservation).use(use)
 
   /**
    *  Returns an effect with the value on the right part.

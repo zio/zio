@@ -992,7 +992,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
                        }
           _ <- self
                  .runForeachManaged(offer)
-                 .foldCauseM(
+                 .foldCauseManaged(
                    cause => finalize(Exit.halt(cause.map(Some(_)))).toManaged,
                    _ => finalize(Exit.fail(None)).toManaged
                  )
@@ -1682,7 +1682,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def runInto[R1 <: R, E1 >: E](
     queue: ZQueue[R1, Nothing, Nothing, Any, Take[E1, A], Any]
   ): ZIO[R1, E1, Unit] =
-    runIntoManaged(queue).use_(UIO.unit)
+    runIntoManaged(queue).useDiscard(UIO.unit)
 
   /**
    * Publishes elements of this stream to a hub. Stream failure and ending will
@@ -3296,7 +3296,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * stream is consumed
    */
   def bracket[R, E, A](acquire: ZIO[R, E, A])(release: A => URIO[R, Any]): ZStream[R, E, A] =
-    managed(ZManaged.bracket(acquire)(release))
+    managed(ZManaged.acquireReleaseWith(acquire)(release))
 
   /**
    * Creates a stream from a single value that will get cleaned up after the
@@ -3305,7 +3305,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   def bracketExit[R, E, A](
     acquire: ZIO[R, E, A]
   )(release: (A, Exit[Any, Any]) => URIO[R, Any]): ZStream[R, E, A] =
-    managed(ZManaged.bracketExit(acquire)(release))
+    managed(ZManaged.acquireReleaseExitWith(acquire)(release))
 
   /**
    * Composes the specified streams to create a cartesian product of elements

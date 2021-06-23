@@ -371,8 +371,9 @@ object TestClock extends Serializable {
       warningState          <- RefM.make(WarningData.start).toManaged
       suspendedWarningState <- RefM.make(SuspendedWarningData.start).toManaged
       test <-
-        Managed.bracket(UIO(Test(clockState, live, annotations, warningState, suspendedWarningState))) { test =>
-          test.warningDone *> test.suspendedWarningDone
+        Managed.acquireReleaseWith(UIO(Test(clockState, live, annotations, warningState, suspendedWarningState))) {
+          test =>
+            test.warningDone *> test.suspendedWarningDone
         }
     } yield Has.allOf(test: Clock, test: TestClock)
   }.toLayerMany

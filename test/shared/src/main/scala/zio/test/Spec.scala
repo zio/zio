@@ -152,7 +152,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
   )(f: SpecCase[R, E, T, Z] => ZManaged[R1, E1, Z]): ZManaged[R1, E1, Z] =
     caseValue match {
       case SuiteCase(label, specs, exec) =>
-        specs.foldCauseM(
+        specs.foldCauseManaged(
           c => f(SuiteCase(label, ZManaged.halt(c), exec)),
           ZManaged
             .foreachExec(_)(exec.getOrElse(defExec))(_.foldM(defExec)(f).release)

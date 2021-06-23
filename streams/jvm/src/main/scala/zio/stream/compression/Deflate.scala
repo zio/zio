@@ -32,7 +32,7 @@ object Deflate {
     flushMode: FlushMode
   ): ZManaged[Any, Nothing, Option[Chunk[Byte]] => ZIO[Any, Nothing, Chunk[Byte]]] =
     ZManaged
-      .bracket(ZIO.succeed {
+      .acquireReleaseWith(ZIO.succeed {
         val deflater = new Deflater(level.jValue, noWrap)
         deflater.setStrategy(strategy.jValue)
         (deflater, new Array[Byte](bufferSize))

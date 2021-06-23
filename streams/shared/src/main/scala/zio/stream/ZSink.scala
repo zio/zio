@@ -853,7 +853,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * The queue will be shutdown once the stream is closed.
    */
   def fromQueueWithShutdown[R, E, I](queue: ZQueue[R, Nothing, E, Any, I, Any]): ZSink[R, E, I, Nothing, Unit] =
-    ZSink(ZManaged.bracket(ZIO.succeedNow(queue))(_.shutdown).map(fromQueue[R, E, I]).flatMap(_.push))
+    ZSink(ZManaged.acquireReleaseWith(ZIO.succeedNow(queue))(_.shutdown).map(fromQueue[R, E, I]).flatMap(_.push))
 
   /**
    * Creates a sink halting with a specified cause.

@@ -156,7 +156,7 @@ Using brackets is simple and straightforward, but in the case of multiple resour
 To create a managed resource, we need to provide `acquire` and `release` action of that resource to the `make` constructor:
 
 ```scala mdoc:silent
-val managed = ZManaged.bracket(acquire)(release)
+val managed = ZManaged.acquireReleaseWith(acquire)(release)
 ```
 
 We can use managed resources by calling `use` on that. A managed resource is meant to be used only inside of the `use` block. So that resource is not available outside of the `use` block. 
@@ -168,8 +168,8 @@ Let's try to rewrite a `transfer` example with `ZManaged`:
 ```scala mdoc:silent:nest
 def transfer(from: String, to: String): ZIO[Any, Throwable, Unit] = {
   val resource = for {
-    from <- ZManaged.bracket(is(from))(close)
-    to   <- ZManaged.bracket(os(to))(close)
+    from <- ZManaged.acquireReleaseWith(is(from))(close)
+    to   <- ZManaged.acquireReleaseWith(os(to))(close)
   } yield (from, to)
 
   resource.use { case (in, out) =>
@@ -183,8 +183,8 @@ Also, we can get rid of this ceremony and treat the `Managed` like a `ZIO` effec
 ```scala mdoc:silent:nest
 def transfer(from: String, to: String): ZIO[Any, Throwable, Unit] = {
   val resource: ZManaged[Any, Throwable, Unit] = for {
-    from <- ZManaged.bracket(is(from))(close)
-    to   <- ZManaged.bracket(os(to))(close)
+    from <- ZManaged.acquireReleaseWith(is(from))(close)
+    to   <- ZManaged.acquireReleaseWith(os(to))(close)
     _    <- copy(from, to).toManaged
   } yield ()
   resource.useNow

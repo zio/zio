@@ -289,7 +289,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
         ZManaged.succeed(memoMap =>
           memoMap
             .getOrElseMemoize(self)
-            .foldCauseM(
+            .foldCauseManaged(
               e => ZManaged.environment[RIn].flatMap(r => memoMap.getOrElseMemoize(failure).provide((r, e))),
               r => memoMap.getOrElseMemoize(success).provide(r)(NeedsEnv.needsEnv)
             )
@@ -351,7 +351,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * release actions will be performed uninterruptibly.
    */
   def fromAcquireRelease[R, E, A: Tag](acquire: ZIO[R, E, A])(release: A => URIO[R, Any]): ZLayer[R, E, Has[A]] =
-    fromManaged(ZManaged.bracket(acquire)(release))
+    fromManaged(ZManaged.acquireReleaseWith(acquire)(release))
 
   /**
    * Constructs a layer from acquire and release actions, which must return one
@@ -359,7 +359,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * uninterruptibly.
    */
   def fromAcquireReleaseMany[R, E, A](acquire: ZIO[R, E, A])(release: A => URIO[R, Any]): ZLayer[R, E, A] =
-    fromManagedMany(ZManaged.bracket(acquire)(release))
+    fromManagedMany(ZManaged.acquireReleaseWith(acquire)(release))
 
   /**
    * Constructs a layer from the specified effect.
@@ -372,7 +372,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * more services.
    */
   def fromEffectMany[R, E, A](zio: ZIO[R, E, A]): ZLayer[R, E, A] =
-    ZLayer(ZManaged.fromEffect(zio))
+    ZLayer(ZManaged.fromZIO(zio))
 
   /**
    * Constructs a layer from the environment using the specified function.
@@ -392,7 +392,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * resourceful function.
    */
   def fromFunctionManaged[A, E, B: Tag](f: A => ZManaged[Any, E, B]): ZLayer[A, E, Has[B]] =
-    fromManaged(ZManaged.fromFunctionM(f))
+    fromManaged(ZManaged.fromFunctionZIO(f))
 
   /**
    * Constructs a layer from the environment using the specified function,
@@ -413,7 +413,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * resourceful function, which must return one or more services.
    */
   def fromFunctionManyManaged[A, E, B](f: A => ZManaged[Any, E, B]): ZLayer[A, E, B] =
-    ZLayer(ZManaged.fromFunctionM(f))
+    ZLayer(ZManaged.fromFunctionZIO(f))
 
   /**
    * Constructs a layer that purely depends on the specified service.

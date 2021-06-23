@@ -2066,10 +2066,10 @@ object ZStreamSpec extends ZIOBaseSpec {
           testM("preserves interruptibility of effect") {
             for {
               interruptible <- ZStream
-                                 .managed(ZManaged.fromEffect(ZIO.checkInterruptible(UIO.succeed(_))))
+                                 .managed(ZManaged.fromZIO(ZIO.checkInterruptible(UIO.succeed(_))))
                                  .runHead
               uninterruptible <- ZStream
-                                   .managed(ZManaged.fromEffectUninterruptible(ZIO.checkInterruptible(UIO.succeed(_))))
+                                   .managed(ZManaged.fromZIOUninterruptible(ZIO.checkInterruptible(UIO.succeed(_))))
                                    .runHead
             } yield assert(interruptible)(isSome(equalTo(InterruptStatus.Interruptible))) &&
               assert(uninterruptible)(isSome(equalTo(InterruptStatus.Uninterruptible)))

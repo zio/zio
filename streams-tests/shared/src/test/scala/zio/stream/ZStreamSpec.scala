@@ -452,7 +452,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               .use {
                 case s1 :: s2 :: Nil =>
                   for {
-                    _    <- s1.process.use_(ZIO.unit).ignore
+                    _    <- s1.process.useDiscard(ZIO.unit).ignore
                     out2 <- s2.runCollect
                   } yield assert(out2)(equalTo(Chunk.fromIterable(Range(0, 5))))
                 case _ =>
@@ -1926,10 +1926,10 @@ object ZStreamSpec extends ZIOBaseSpec {
           testM("preserves interruptibility of effect") {
             for {
               interruptible <- ZStream
-                                 .managed(ZManaged.fromEffect(ZIO.checkInterruptible(UIO.succeed(_))))
+                                 .managed(ZManaged.fromZIO(ZIO.checkInterruptible(UIO.succeed(_))))
                                  .runHead
               uninterruptible <- ZStream
-                                   .managed(ZManaged.fromEffectUninterruptible(ZIO.checkInterruptible(UIO.succeed(_))))
+                                   .managed(ZManaged.fromZIOUninterruptible(ZIO.checkInterruptible(UIO.succeed(_))))
                                    .runHead
             } yield assert(interruptible)(isSome(equalTo(InterruptStatus.Interruptible))) &&
               assert(uninterruptible)(isSome(equalTo(InterruptStatus.Uninterruptible)))
@@ -2435,7 +2435,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           testM("properly closes the resources")(
             for {
               closed <- Ref.make[Boolean](false)
-              res     = ZManaged.bracket(ZIO.succeed(1))(_ => closed.set(true))
+              res     = ZManaged.acquireReleaseWith(ZIO.succeed(1))(_ => closed.set(true))
               stream  = ZStream.managed(res).flatMap(a => ZStream(a, a, a))
               collectAndCheck <- stream
                                    .runManaged(ZSink.collectAll)
@@ -3729,7 +3729,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               ref <- Ref.make(false)
               pulls <- ZStream
                          .fromIteratorManaged(
-                           Managed.bracket(UIO.succeedNow(List(1, 2).iterator))(_ => ref.set(true))
+                           Managed.acquireReleaseWith(UIO.succeedNow(List(1, 2).iterator))(_ => ref.set(true))
                          )
                          .process
                          .use(nPulls(_, 4))
@@ -3744,7 +3744,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             for {
               ref <- Ref.make(false)
               pulls <- ZStream
-                         .fromIteratorManaged(Managed.bracket(IO.fail(ex))(_ => ref.set(true)))
+                         .fromIteratorManaged(Managed.acquireReleaseWith(IO.fail(ex))(_ => ref.set(true)))
                          .process
                          .use(nPulls(_, 3))
               fin <- ref.get
@@ -3758,7 +3758,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               ref <- Ref.make(false)
               pulls <- ZStream
                          .fromIteratorManaged(
-                           Managed.bracket(UIO.succeedNow(List(1, 2).iterator))(_ => ref.set(true))
+                           Managed.acquireReleaseWith(UIO.succeedNow(List(1, 2).iterator))(_ => ref.set(true))
                          )
                          .flatMap(n =>
                            ZStream.succeed((n * 2).toString) ++ ZStream.fail(ex) ++ ZStream.succeed(

@@ -72,7 +72,7 @@ trait ZSinkPlatformSpecificConstructors {
     position: Long = 0L,
     options: Set[OpenOption] = Set(WRITE, TRUNCATE_EXISTING, CREATE)
   ): ZSink[Any, Throwable, Byte, Byte, Long] = {
-    val managedChannel = ZManaged.bracket(
+    val managedChannel = ZManaged.acquireReleaseWith(
       ZIO
         .attemptBlockingInterrupt(
           FileChannel
@@ -440,7 +440,7 @@ trait ZStreamPlatformSpecificConstructors {
    * Creates a stream from a managed Java stream
    */
   final def fromJavaStreamManaged[R, A](stream: ZManaged[R, Throwable, ju.stream.Stream[A]]): ZStream[R, Throwable, A] =
-    ZStream.fromJavaIteratorManaged(stream.mapM(s => UIO(s.iterator())))
+    ZStream.fromJavaIteratorManaged(stream.mapZIO(s => UIO(s.iterator())))
 
   /**
    * Creates a stream from a Java stream
@@ -566,7 +566,7 @@ trait ZStreamPlatformSpecificConstructors {
      * Create a `Managed` connection
      */
     def make(socket: AsynchronousSocketChannel): UManaged[Connection] =
-      Managed.bracket(ZIO.succeed(new Connection(socket)))(_.close())
+      Managed.acquireReleaseWith(ZIO.succeed(new Connection(socket)))(_.close())
   }
 
 }
@@ -603,7 +603,7 @@ trait ZTransducerPlatformSpecificConstructors {
   ): ZTransducer[Any, CompressionException, Byte, Byte] = {
     def makeInflater: ZManaged[Any, Nothing, Option[Chunk[Byte]] => ZIO[Any, CompressionException, Chunk[Byte]]] =
       ZManaged
-        .bracket(ZIO.succeed((new Array[Byte](bufferSize), new Inflater(noWrap)))) { case (_, inflater) =>
+        .acquireReleaseWith(ZIO.succeed((new Array[Byte](bufferSize), new Inflater(noWrap)))) { case (_, inflater) =>
           ZIO.succeed(inflater.end())
         }
         .map {
@@ -676,7 +676,9 @@ trait ZTransducerPlatformSpecificConstructors {
   ): ZTransducer[Any, Nothing, Byte, Byte] =
     ZTransducer(
       ZManaged
-        .bracket(Gzipper.make(bufferSize, level, strategy, flushMode))(gzipper => ZIO.succeed(gzipper.close()))
+        .acquireReleaseWith(Gzipper.make(bufferSize, level, strategy, flushMode))(gzipper =>
+          ZIO.succeed(gzipper.close())
+        )
         .map { gzipper =>
           {
             case None        => gzipper.onNone
@@ -693,7 +695,7 @@ trait ZTransducerPlatformSpecificConstructors {
   def gunzip(bufferSize: Int = 64 * 1024): ZTransducer[Any, CompressionException, Byte, Byte] =
     ZTransducer(
       ZManaged
-        .bracket(Gunzipper.make(bufferSize))(gunzipper => ZIO.succeed(gunzipper.close()))
+        .acquireReleaseWith(Gunzipper.make(bufferSize))(gunzipper => ZIO.succeed(gunzipper.close()))
         .map { gunzipper =>
           {
             case None        => gunzipper.onNone
