@@ -56,12 +56,12 @@ object ZStreamSpec extends ZIOBaseSpec {
         suite("accessM")(
           testM("accessM") {
             for {
-              result <- ZStream.accessM[String](ZIO.succeed(_)).provide("test").runHead.get
+              result <- ZStream.accessZIO[String](ZIO.succeed(_)).provide("test").runHead.get
             } yield assert(result)(equalTo("test"))
           },
           testM("accessM fails") {
             for {
-              result <- ZStream.accessM[Int](_ => ZIO.fail("fail")).provide(0).runHead.exit
+              result <- ZStream.accessZIO[Int](_ => ZIO.fail("fail")).provide(0).runHead.exit
             } yield assert(result)(fails(equalTo("fail")))
           } @@ zioTag(errors)
         ),
@@ -517,10 +517,10 @@ object ZStreamSpec extends ZIOBaseSpec {
               latch3 <- Promise.make[Nothing, Unit]
               latch4 <- Promise.make[Nothing, Unit]
               s1 = ZStream(0) ++ ZStream
-                     .fromEffect(latch1.await)
+                     .fromZIO(latch1.await)
                      .flatMap(_ => ZStream.range(1, 17).chunkN(1).ensuring(latch2.succeed(())))
               s2 = ZStream
-                     .fromEffect(latch3.await)
+                     .fromZIO(latch3.await)
                      .flatMap(_ => ZStream.range(17, 25).chunkN(1).ensuring(latch4.succeed(())))
               s = (s1 ++ s2).bufferChunksDropping(8)
               snapshots <- s.toPull.use { as =>
@@ -562,10 +562,10 @@ object ZStreamSpec extends ZIOBaseSpec {
               latch3 <- Promise.make[Nothing, Unit]
               latch4 <- Promise.make[Nothing, Unit]
               s1 = ZStream(0) ++ ZStream
-                     .fromEffect(latch1.await)
+                     .fromZIO(latch1.await)
                      .flatMap(_ => ZStream.range(1, 17).chunkN(1).ensuring(latch2.succeed(())))
               s2 = ZStream
-                     .fromEffect(latch3.await)
+                     .fromZIO(latch3.await)
                      .flatMap(_ => ZStream.range(17, 25).chunkN(1).ensuring(latch4.succeed(())))
               s = (s1 ++ s2).bufferChunksSliding(8)
               snapshots <- s.toPull.use { as =>
@@ -607,10 +607,10 @@ object ZStreamSpec extends ZIOBaseSpec {
               latch3 <- Promise.make[Nothing, Unit]
               latch4 <- Promise.make[Nothing, Unit]
               s1 = ZStream(0) ++ ZStream
-                     .fromEffect(latch1.await)
+                     .fromZIO(latch1.await)
                      .flatMap(_ => ZStream.range(1, 17).ensuring(latch2.succeed(())))
               s2 = ZStream
-                     .fromEffect(latch3.await)
+                     .fromZIO(latch3.await)
                      .flatMap(_ => ZStream.range(17, 25).ensuring(latch4.succeed(())))
               s = (s1 ++ s2).bufferDropping(8)
               snapshots <- s.toPull.use { as =>
@@ -682,10 +682,10 @@ object ZStreamSpec extends ZIOBaseSpec {
               latch3 <- Promise.make[Nothing, Unit]
               latch4 <- Promise.make[Nothing, Unit]
               s1 = ZStream(0) ++ ZStream
-                     .fromEffect(latch1.await)
+                     .fromZIO(latch1.await)
                      .flatMap(_ => ZStream.range(1, 17).ensuring(latch2.succeed(())))
               s2 = ZStream
-                     .fromEffect(latch3.await)
+                     .fromZIO(latch3.await)
                      .flatMap(_ => ZStream.range(17, 25).ensuring(latch4.succeed(())))
               s = (s1 ++ s2).bufferSliding(8)
               snapshots <- s.toPull.use { as =>
@@ -833,7 +833,7 @@ object ZStreamSpec extends ZIOBaseSpec {
         suite("collectM")(
           testM("collectM") {
             assertM(
-              ZStream(Left(1), Right(2), Left(3)).collectM { case Right(n) =>
+              ZStream(Left(1), Right(2), Left(3)).collectZIO { case Right(n) =>
                 ZIO(n * 2)
               }.runCollect
             )(equalTo(Chunk(4)))
@@ -842,7 +842,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             assertM(
               ZStream
                 .fromChunks(Chunk(Left(1), Right(2)), Chunk(Right(3), Left(4)))
-                .collectM { case Right(n) =>
+                .collectZIO { case Right(n) =>
                   ZIO(n * 10)
                 }
                 .runCollect
@@ -850,14 +850,14 @@ object ZStreamSpec extends ZIOBaseSpec {
           },
           testM("collectM fails") {
             assertM(
-              ZStream(Left(1), Right(2), Left(3)).collectM { case Right(_) =>
+              ZStream(Left(1), Right(2), Left(3)).collectZIO { case Right(_) =>
                 ZIO.fail("Ouch")
               }.runDrain.either
             )(isLeft(isNonEmptyString))
           },
           testM("laziness on chunks") {
             assertM(
-              ZStream(1, 2, 3).collectM {
+              ZStream(1, 2, 3).collectZIO {
                 case 3 => ZIO.fail("boom")
                 case x => UIO.succeed(x)
               }.either.runCollect
@@ -887,7 +887,7 @@ object ZStreamSpec extends ZIOBaseSpec {
         suite("collectWhileM")(
           testM("collectWhileM") {
             assertM(
-              ZStream(Some(1), Some(2), Some(3), None, Some(4)).collectWhileM { case Some(v) =>
+              ZStream(Some(1), Some(2), Some(3), None, Some(4)).collectWhileZIO { case Some(v) =>
                 ZIO(v * 2)
               }.runCollect
             )(equalTo(Chunk(2, 4, 6)))
@@ -895,7 +895,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           testM("collectWhileM short circuits") {
             assertM(
               (ZStream(Option(1)) ++ ZStream.fail("Ouch"))
-                .collectWhileM[Any, String, Int] { case None =>
+                .collectWhileZIO[Any, String, Int] { case None =>
                   ZIO.succeedNow(1)
                 }
                 .runDrain
@@ -904,14 +904,14 @@ object ZStreamSpec extends ZIOBaseSpec {
           },
           testM("collectWhileM fails") {
             assertM(
-              ZStream(Some(1), Some(2), Some(3), None, Some(4)).collectWhileM { case Some(_) =>
+              ZStream(Some(1), Some(2), Some(3), None, Some(4)).collectWhileZIO { case Some(_) =>
                 ZIO.fail("Ouch")
               }.runDrain.either
             )(isLeft(isNonEmptyString))
           },
           testM("laziness on chunks") {
             assertM(
-              ZStream(1, 2, 3, 4).collectWhileM {
+              ZStream(1, 2, 3, 4).collectWhileZIO {
                 case 3 => ZIO.fail("boom")
                 case x => UIO.succeed(x)
               }.either.runCollect
@@ -971,7 +971,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           testM("drain")(
             for {
               ref <- Ref.make(List[Int]())
-              _   <- ZStream.range(0, 10).mapM(i => ref.update(i :: _)).drain.runDrain
+              _   <- ZStream.range(0, 10).mapZIO(i => ref.update(i :: _)).drain.runDrain
               l   <- ref.get
             } yield assert(l.reverse)(equalTo(Range(0, 10).toList))
           ),
@@ -1071,8 +1071,8 @@ object ZStreamSpec extends ZIOBaseSpec {
           for {
             log <- Ref.make[List[String]](Nil)
             _ <- (for {
-                   _ <- ZStream.bracket(log.update("Acquire" :: _))(_ => log.update("Release" :: _))
-                   _ <- ZStream.fromEffect(log.update("Use" :: _))
+                   _ <- ZStream.acquireReleaseWith(log.update("Acquire" :: _))(_ => log.update("Release" :: _))
+                   _ <- ZStream.fromZIO(log.update("Use" :: _))
                  } yield ()).ensuring(log.update("Ensuring" :: _)).runDrain
             execution <- log.get
           } yield assert(execution)(equalTo(List("Ensuring", "Release", "Use", "Acquire")))
@@ -1096,13 +1096,13 @@ object ZStreamSpec extends ZIOBaseSpec {
         suite("filterM")(
           testM("filterM")(checkM(pureStreamOfInts, Gen.function(Gen.boolean)) { (s, p) =>
             for {
-              res1 <- s.filterM(s => IO.succeed(p(s))).runCollect
+              res1 <- s.filterZIO(s => IO.succeed(p(s))).runCollect
               res2 <- s.runCollect.map(_.filter(p))
             } yield assert(res1)(equalTo(res2))
           }),
           testM("laziness on chunks") {
             assertM(
-              ZStream(1, 2, 3).filterM {
+              ZStream(1, 2, 3).filterZIO {
                 case 3 => ZIO.fail("boom")
                 case _ => UIO.succeed(true)
               }.either.runCollect
@@ -1118,13 +1118,13 @@ object ZStreamSpec extends ZIOBaseSpec {
         suite("findM")(
           testM("findM")(checkM(pureStreamOfInts, Gen.function(Gen.boolean)) { (s, p) =>
             for {
-              res1 <- s.findM(s => IO.succeed(p(s))).runHead
+              res1 <- s.findZIO(s => IO.succeed(p(s))).runHead
               res2 <- s.runCollect.map(_.find(p))
             } yield assert(res1)(equalTo(res2))
           }),
           testM("throws correct error") {
             assertM(
-              ZStream(1, 2, 3).findM {
+              ZStream(1, 2, 3).findZIO {
                 case 3 => ZIO.fail("boom")
                 case _ => UIO.succeed(false)
               }.either.runCollect
@@ -1596,7 +1596,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           testM("foreachWhile short circuits") {
             for {
               flag <- Ref.make(true)
-              _ <- (ZStream(true, true, false) ++ ZStream.fromEffect(flag.set(false)).drain)
+              _ <- (ZStream(true, true, false) ++ ZStream.fromZIO(flag.set(false)).drain)
                      .runForeachWhile(ZIO.succeedNow)
               skipped <- flag.get
             } yield assert(skipped)(isTrue)
@@ -1668,7 +1668,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 latch       <- Promise.make[Nothing, Unit]
                 halt        <- Promise.make[Nothing, Unit]
                 _ <- ZStream
-                       .fromEffect(latch.await.onInterrupt(interrupted.set(true)))
+                       .fromZIO(latch.await.onInterrupt(interrupted.set(true)))
                        .haltWhen(halt)
                        .runDrain
                        .fork
@@ -1695,7 +1695,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 latch       <- Promise.make[Nothing, Unit]
                 halt        <- Promise.make[Nothing, Unit]
                 _ <- ZStream
-                       .fromEffect(latch.await.onInterrupt(interrupted.set(true)))
+                       .fromZIO(latch.await.onInterrupt(interrupted.set(true)))
                        .haltWhen(halt.await)
                        .runDrain
                        .fork
@@ -1933,7 +1933,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           },
           testM("intersperse several from repeat effect (#3729)") {
             ZStream
-              .repeatEffect(ZIO.succeed(42))
+              .repeatZIO(ZIO.succeed(42))
               .map(_.toString)
               .take(4)
               .intersperse("@")
@@ -1942,7 +1942,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           },
           testM("intersperse several from repeat effect chunk single element (#3729)") {
             ZStream
-              .repeatEffectChunk(ZIO.succeed(Chunk(42)))
+              .repeatZIOChunk(ZIO.succeed(Chunk(42)))
               .map(_.toString)
               .intersperse("@")
               .take(4)
@@ -2049,8 +2049,8 @@ object ZStreamSpec extends ZIOBaseSpec {
             default   <- ZIO.executor
             ref1      <- Ref.make[Executor](default)
             ref2      <- Ref.make[Executor](default)
-            stream1    = ZStream.fromEffect(ZIO.executor.flatMap(ref1.set)).lock(global)
-            stream2    = ZStream.fromEffect(ZIO.executor.flatMap(ref2.set))
+            stream1    = ZStream.fromZIO(ZIO.executor.flatMap(ref1.set)).lock(global)
+            stream2    = ZStream.fromZIO(ZIO.executor.flatMap(ref2.set))
             _         <- (stream1 *> stream2).runDrain
             executor1 <- ref1.get
             executor2 <- ref2.get
@@ -2090,13 +2090,13 @@ object ZStreamSpec extends ZIOBaseSpec {
           testM("mapAccumM happy path") {
             assertM(
               ZStream(1, 1, 1)
-                .mapAccumM[Any, Nothing, Int, Int](0)((acc, el) => IO.succeed((acc + el, acc + el)))
+                .mapAccumZIO[Any, Nothing, Int, Int](0)((acc, el) => IO.succeed((acc + el, acc + el)))
                 .runCollect
             )(equalTo(Chunk(1, 2, 3)))
           },
           testM("mapAccumM error") {
             ZStream(1, 1, 1)
-              .mapAccumM(0)((_, _) => IO.fail("Ouch"))
+              .mapAccumZIO(0)((_, _) => IO.fail("Ouch"))
               .runCollect
               .either
               .map(assert(_)(isLeft(equalTo("Ouch"))))
@@ -2104,7 +2104,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           testM("laziness on chunks") {
             assertM(
               ZStream(1, 2, 3)
-                .mapAccumM(()) {
+                .mapAccumZIO(()) {
                   case (_, 3) => ZIO.fail("boom")
                   case (_, x) => UIO.succeed(((), x))
                 }
@@ -2181,14 +2181,14 @@ object ZStreamSpec extends ZIOBaseSpec {
               val s = ZStream.fromIterable(data)
 
               for {
-                l <- s.mapM(f).runCollect
+                l <- s.mapZIO(f).runCollect
                 r <- IO.foreach(data)(f)
               } yield assert(l.toList)(equalTo(r))
             }
           },
           testM("laziness on chunks") {
             assertM(
-              ZStream(1, 2, 3).mapM {
+              ZStream(1, 2, 3).mapZIO {
                 case 3 => ZIO.fail("boom")
                 case x => UIO.succeed(x)
               }.either.runCollect
@@ -2201,7 +2201,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               val s = ZStream.fromIterable(data)
 
               for {
-                l <- s.mapMPar(8)(f).runCollect
+                l <- s.mapZIOPar(8)(f).runCollect
                 r <- IO.foreachParN(8)(data)(f)
               } yield assert(l.toList)(equalTo(r))
             }
@@ -2209,7 +2209,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           testM("order when n = 1") {
             for {
               queue  <- Queue.unbounded[Int]
-              _      <- ZStream.range(0, 9).mapMPar(1)(queue.offer).runDrain
+              _      <- ZStream.range(0, 9).mapZIOPar(1)(queue.offer).runDrain
               result <- queue.takeAll
             } yield assert(result)(equalTo(result.sorted))
           },
@@ -2218,7 +2218,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               interrupted <- Ref.make(false)
               latch       <- Promise.make[Nothing, Unit]
               fib <- ZStream(())
-                       .mapMPar(1)(_ => (latch.succeed(()) *> ZIO.infinity).onInterrupt(interrupted.set(true)))
+                       .mapZIOPar(1)(_ => (latch.succeed(()) *> ZIO.infinity).onInterrupt(interrupted.set(true)))
                        .runDrain
                        .fork
               _      <- latch.await
@@ -2228,8 +2228,8 @@ object ZStreamSpec extends ZIOBaseSpec {
           },
           testM("guarantee ordering")(checkM(Gen.int(1, 4096), Gen.listOf(Gen.anyInt)) { (n: Int, m: List[Int]) =>
             for {
-              mapM    <- ZStream.fromIterable(m).mapM(UIO.succeedNow).runCollect
-              mapMPar <- ZStream.fromIterable(m).mapMPar(n)(UIO.succeedNow).runCollect
+              mapM    <- ZStream.fromIterable(m).mapZIO(UIO.succeedNow).runCollect
+              mapMPar <- ZStream.fromIterable(m).mapZIOPar(n)(UIO.succeedNow).runCollect
             } yield assert(n)(isGreaterThan(0)) implies assert(mapM)(equalTo(mapMPar))
           }),
           testM("awaits children fibers properly") {
@@ -2237,7 +2237,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               ZStream
                 .fromIterable((0 to 100))
                 .interruptWhen(ZIO.never)
-                .mapMPar(8)(_ => ZIO(1).repeatN(2000))
+                .mapZIOPar(8)(_ => ZIO(1).repeatN(2000))
                 .runDrain
                 .exit
                 .map(_.interrupted)
@@ -2249,7 +2249,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               latch1      <- Promise.make[Nothing, Unit]
               latch2      <- Promise.make[Nothing, Unit]
               result <- ZStream(1, 2, 3)
-                          .mapMPar(3) {
+                          .mapZIOPar(3) {
                             case 1 => (latch1.succeed(()) *> ZIO.never).onInterrupt(interrupted.update(_ + 1))
                             case 2 => (latch2.succeed(()) *> ZIO.never).onInterrupt(interrupted.update(_ + 1))
                             case 3 => latch1.await *> latch2.await *> ZIO.fail("Boom")
@@ -2263,8 +2263,8 @@ object ZStreamSpec extends ZIOBaseSpec {
             assertM(
               ZStream
                 .fromIterable(1 to 50)
-                .mapMPar(20)(i => if (i < 10) UIO(i) else ZIO.fail("Boom"))
-                .mapMPar(20)(UIO(_))
+                .mapZIOPar(20)(i => if (i < 10) UIO(i) else ZIO.fail("Boom"))
+                .mapZIOPar(20)(UIO(_))
                 .runCollect
                 .either
             )(isLeft(equalTo("Boom")))
@@ -2477,7 +2477,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             for {
               ref <- Ref.make[List[Int]](Nil)
               fiber <- ZStream
-                         .fromEffect(ref.update(1 :: _))
+                         .fromZIO(ref.update(1 :: _))
                          .repeat(Schedule.spaced(10.millis))
                          .take(2)
                          .runDrain
@@ -2514,7 +2514,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             for {
               ref <- Ref.make[List[Int]](Nil)
               fiber <- ZStream
-                         .fromEffect(ref.update(1 :: _))
+                         .fromZIO(ref.update(1 :: _))
                          .repeatEither(Schedule.spaced(10.millis))
                          .take(3) // take one schedule output
                          .runDrain
@@ -2718,7 +2718,7 @@ object ZStreamSpec extends ZIOBaseSpec {
         testM("takeUntilM") {
           checkM(streamOfInts, Gen.function(Gen.successes(Gen.boolean))) { (s, p) =>
             for {
-              streamTakeUntilM <- s.takeUntilM(p).runCollect.exit
+              streamTakeUntilM <- s.takeUntilZIO(p).runCollect.exit
               chunkTakeUntilM <- s.runCollect
                                    .flatMap(as =>
                                      as.takeWhileZIO(p(_).map(!_))
@@ -2732,7 +2732,7 @@ object ZStreamSpec extends ZIOBaseSpec {
         },
         testM("takeUntilM - laziness on chunks") {
           assertM(
-            ZStream(1, 2, 3).takeUntilM {
+            ZStream(1, 2, 3).takeUntilZIO {
               case 2 => ZIO.fail("boom")
               case _ => UIO.succeed(false)
             }.either.runCollect
@@ -2935,7 +2935,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assert(result)(equalTo(Chunk(3)))
           },
           testM("should fail immediately") {
-            val stream = ZStream.fromEffect(IO.fail(None)).debounce(Duration.Infinity)
+            val stream = ZStream.fromZIO(IO.fail(None)).debounce(Duration.Infinity)
             assertM(stream.runCollect.either)(isLeft(equalTo(None)))
           },
           testM("should work with empty streams") {
@@ -2955,7 +2955,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 fib <- ZStream
                          .fromQueue(c.queue)
                          .tap(_ => c.proceed)
-                         .flatMap(ex => ZStream.fromEffectOption(ZIO.done(ex)))
+                         .flatMap(ex => ZStream.fromZIOOption(ZIO.done(ex)))
                          .flattenChunks
                          .debounce(200.millis)
                          .interruptWhen(ZIO.never)
@@ -2971,7 +2971,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           testM("should interrupt children fiber on stream interruption") {
             for {
               ref <- Ref.make(false)
-              fiber <- (ZStream.fromEffect(ZIO.unit) ++ ZStream.fromEffect(ZIO.never.onInterrupt(ref.set(true))))
+              fiber <- (ZStream.fromZIO(ZIO.unit) ++ ZStream.fromZIO(ZIO.never.onInterrupt(ref.set(true))))
                          .debounce(800.millis)
                          .runDrain
                          .fork
@@ -3177,11 +3177,11 @@ object ZStreamSpec extends ZIOBaseSpec {
           (for {
             counter  <- Ref.make(0).toManaged //Increment and get the value
             effect    = counter.updateAndGet(_ + 1)
-            iterator <- ZStream.repeatEffect(effect).toIterator
+            iterator <- ZStream.repeatZIO(effect).toIterator
             n         = 2000
             out <- ZStream
                      .fromIterator(iterator.map(_.merge))
-                     .mapConcatM(element => effect.map(newElement => List(element, newElement)))
+                     .mapConcatZIO(element => effect.map(newElement => List(element, newElement)))
                      .take(n.toLong)
                      .runCollect
                      .toManaged
@@ -3419,7 +3419,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               for {
                 promise <- Promise.make[Nothing, Int]
                 latch   <- Promise.make[Nothing, Unit]
-                fiber <- (stream0 ++ ZStream.fromEffect(promise.await) ++ ZStream(2))
+                fiber <- (stream0 ++ ZStream.fromZIO(promise.await) ++ ZStream(2))
                            .zipWithLatest(ZStream(1, 1).ensuring(latch.succeed(())) ++ stream1)((_, x) => x)
                            .take(3)
                            .runCollect
@@ -3539,7 +3539,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           testM("accessM") {
             for {
               result <- ZStream
-                          .accessM[String](ZIO.succeedNow)
+                          .accessZIO[String](ZIO.succeedNow)
                           .provide("test")
                           .runCollect
                           .map(_.head)
@@ -3547,7 +3547,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           },
           testM("accessM fails") {
             for {
-              result <- ZStream.accessM[Int](_ => ZIO.fail("fail")).provide(0).runCollect.exit
+              result <- ZStream.accessZIO[Int](_ => ZIO.fail("fail")).provide(0).runCollect.exit
             } yield assert(result)(fails(equalTo("fail")))
           }
         ),
@@ -3635,21 +3635,21 @@ object ZStreamSpec extends ZIOBaseSpec {
         // ),
         suite("fromEffect")(
           testM("failure") {
-            assertM(ZStream.fromEffect(ZIO.fail("error")).runCollect.either)(isLeft(equalTo("error")))
+            assertM(ZStream.fromZIO(ZIO.fail("error")).runCollect.either)(isLeft(equalTo("error")))
           }
         ),
         suite("fromEffectOption")(
           testM("emit one element with success") {
             val fa: ZIO[Any, Option[Int], Int] = ZIO.succeed(5)
-            assertM(ZStream.fromEffectOption(fa).runCollect)(equalTo(Chunk(5)))
+            assertM(ZStream.fromZIOOption(fa).runCollect)(equalTo(Chunk(5)))
           },
           testM("emit one element with failure") {
             val fa: ZIO[Any, Option[Int], Int] = ZIO.fail(Some(5))
-            assertM(ZStream.fromEffectOption(fa).runCollect.either)(isLeft(equalTo(5)))
+            assertM(ZStream.fromZIOOption(fa).runCollect.either)(isLeft(equalTo(5)))
           } @@ zioTag(errors),
           testM("do not emit any element") {
             val fa: ZIO[Any, Option[Int], Int] = ZIO.fail(None)
-            assertM(ZStream.fromEffectOption(fa).runCollect)(equalTo(Chunk()))
+            assertM(ZStream.fromZIOOption(fa).runCollect)(equalTo(Chunk()))
           }
         ),
         // suite("fromInputStream")(
@@ -3679,7 +3679,7 @@ object ZStreamSpec extends ZIOBaseSpec {
         // }),
         testM("fromIteratorTotal")(checkM(Gen.small(Gen.chunkOfN(_)(Gen.anyInt))) { l =>
           def lazyIt = l.iterator
-          assertM(ZStream.fromIteratorTotal(lazyIt).runCollect)(equalTo(l))
+          assertM(ZStream.fromIteratorSucceed(lazyIt).runCollect)(equalTo(l))
         }),
         // suite("fromIteratorManaged")(
         //   testM("is safe to pull again after success") {
@@ -3824,7 +3824,7 @@ object ZStreamSpec extends ZIOBaseSpec {
 
           assertM(
             ZStream
-              .paginateM(s) {
+              .paginateZIO(s) {
                 case (x, Nil)      => ZIO.succeed(x -> None)
                 case (x, x0 :: xs) => ZIO.succeed(x -> Some(x0 -> xs))
               }
@@ -3850,7 +3850,7 @@ object ZStreamSpec extends ZIOBaseSpec {
 
           assertM(
             ZStream
-              .paginateChunkM(s) {
+              .paginateChunkZIO(s) {
                 case (x, Nil) => ZIO.succeed(x -> None)
                 case (x, xs)  => ZIO.succeed(x -> Some(Chunk.fromIterable(xs.take(pageSize)) -> xs.drop(pageSize)))
               }
@@ -3871,7 +3871,7 @@ object ZStreamSpec extends ZIOBaseSpec {
         testM("repeatEffect")(
           assertM(
             ZStream
-              .repeatEffect(IO.succeed(1))
+              .repeatZIO(IO.succeed(1))
               .take(2)
               .runCollect
           )(equalTo(Chunk(1, 1)))
@@ -3880,7 +3880,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           testM("emit elements")(
             assertM(
               ZStream
-                .repeatEffectOption(IO.succeed(1))
+                .repeatZIOOption(IO.succeed(1))
                 .take(2)
                 .runCollect
             )(equalTo(Chunk(1, 1)))
@@ -3893,7 +3893,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                      res      <- if (newCount >= 5) ZIO.fail(None) else ZIO.succeed(newCount)
                    } yield res
               res <- ZStream
-                       .repeatEffectOption(fa)
+                       .repeatZIOOption(fa)
                        .take(10)
                        .runCollect
             } yield assert(res)(equalTo(Chunk(1, 2, 3, 4)))
@@ -3913,7 +3913,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             for {
               ref <- Ref.make[List[Int]](Nil)
               fiber <- ZStream
-                         .repeatEffectWith(ref.update(1 :: _), Schedule.spaced(10.millis))
+                         .repeatZIOWith(ref.update(1 :: _), Schedule.spaced(10.millis))
                          .take(2)
                          .runDrain
                          .fork
@@ -3927,16 +3927,16 @@ object ZStreamSpec extends ZIOBaseSpec {
               ref     <- Ref.make(0)
               effect   = ref.getAndUpdate(_ + 1).filterOrFail(_ <= length + 1)(())
               schedule = Schedule.identity[Int].whileOutput(_ < length)
-              result  <- ZStream.repeatEffectWith(effect, schedule).runCollect
+              result  <- ZStream.repeatZIOWith(effect, schedule).runCollect
             } yield assert(result)(equalTo(Chunk.fromIterable(0 to length)))
           }),
           testM("should perform repetitions in addition to the first execution (one repetition)") {
-            assertM(ZStream.repeatEffectWith(UIO(1), Schedule.once).runCollect)(
+            assertM(ZStream.repeatZIOWith(UIO(1), Schedule.once).runCollect)(
               equalTo(Chunk(1, 1))
             )
           },
           testM("should perform repetitions in addition to the first execution (zero repetitions)") {
-            assertM(ZStream.repeatEffectWith(UIO(1), Schedule.stop).runCollect)(
+            assertM(ZStream.repeatZIOWith(UIO(1), Schedule.stop).runCollect)(
               equalTo(Chunk(1))
             )
           },
@@ -3948,7 +3948,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               effect     = ZIO.unit
               schedule   = Schedule.spaced(interval)
               streamFiber <- ZStream
-                               .repeatEffectWith(effect, schedule)
+                               .repeatZIOWith(effect, schedule)
                                .tap(_ => collected.update(_ + 1))
                                .runDrain
                                .fork
@@ -3984,7 +3984,7 @@ object ZStreamSpec extends ZIOBaseSpec {
         testM("unfoldChunkM") {
           assertM(
             ZStream
-              .unfoldChunkM(0) { i =>
+              .unfoldChunkZIO(0) { i =>
                 if (i < 10) IO.succeed(Some((Chunk(i, i + 1), i + 2)))
                 else IO.succeed(None)
               }
@@ -3994,7 +3994,7 @@ object ZStreamSpec extends ZIOBaseSpec {
         testM("unfoldM") {
           assertM(
             ZStream
-              .unfoldM(0) { i =>
+              .unfoldZIO(0) { i =>
                 if (i < 10) IO.succeed(Some((i, i + 1)))
                 else IO.succeed(None)
               }

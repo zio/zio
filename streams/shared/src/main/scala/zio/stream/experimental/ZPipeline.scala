@@ -238,7 +238,7 @@ object ZPipeline {
     new ZPipeline[R, E, I, O] {
       def apply[Env1 <: R, Err1 >: E](stream: ZStream[Env1, Err1, I]): ZStream[Env1, Err1, O] =
         stream
-          .mapAccumM(out0) { case (o, i) =>
+          .mapAccumZIO(out0) { case (o, i) =>
             f(o, i).map { o =>
               if (contFn(o)) (o, Some(o))
               else (out0, None)
@@ -262,7 +262,7 @@ object ZPipeline {
   def fromZIO[R, E, A](zio: ZIO[R, E, A]): ZPipeline[R, E, Any, A] =
     new ZPipeline[R, E, Any, A] {
       def apply[Env1 <: R, Err1 >: E](stream: ZStream[Env1, Err1, Any]): ZStream[Env1, Err1, A] =
-        stream.mapM(_ => zio)
+        stream.mapZIO(_ => zio)
     }
 
   /**
@@ -315,7 +315,7 @@ object ZPipeline {
   def mapZIO[Env0, Err0, In, Out](f: In => ZIO[Env0, Err0, Out]): ZPipeline[Env0, Err0, In, Out] =
     new ZPipeline[Env0, Err0, In, Out] {
       def apply[Env1 <: Env0, Err1 >: Err0](stream: ZStream[Env1, Err1, In]): ZStream[Env1, Err1, Out] =
-        stream.mapM(f)
+        stream.mapZIO(f)
     }
 
   /**
