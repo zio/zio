@@ -55,14 +55,21 @@ final class TSet[A] private (private val tmap: TMap[A, Unit]) extends AnyVal {
   /**
    * Atomically folds using a transactional function.
    */
+  @deprecated("use foldSTM", "2.0.0")
   def foldM[B, E](zero: B)(op: (B, A) => STM[E, B]): STM[E, B] =
+    tmap.foldM(zero)((acc, kv) => op(acc, kv._1))
+
+  /**
+   * Atomically folds using a transactional function.
+   */
+  def foldSTM[B, E](zero: B)(op: (B, A) => STM[E, B]): STM[E, B] =
     tmap.foldM(zero)((acc, kv) => op(acc, kv._1))
 
   /**
    * Atomically performs transactional-effect for each element in set.
    */
   def foreach[E](f: A => STM[E, Unit]): STM[E, Unit] =
-    foldM(())((_, a) => f(a))
+    foldSTM(())((_, a) => f(a))
 
   /**
    * Atomically transforms the set into the intersection of itself and the
@@ -113,7 +120,14 @@ final class TSet[A] private (private val tmap: TMap[A, Unit]) extends AnyVal {
   /**
    * Atomically updates all elements using a transactional function.
    */
+  @deprecated("use transformSTM", "2.0.0")
   def transformM[E](f: A => STM[E, A]): STM[E, Unit] =
+    tmap.transformM((k, v) => f(k).map(_ -> v))
+
+  /**
+   * Atomically updates all elements using a transactional function.
+   */
+  def transformSTM[E](f: A => STM[E, A]): STM[E, Unit] =
     tmap.transformM((k, v) => f(k).map(_ -> v))
 
   /**
