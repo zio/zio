@@ -194,7 +194,7 @@ val currentTimeMillis = Clock.currentTime(TimeUnit.MILLISECONDS)
 val annotatedOut: UIO[ZQueue[Any, Has[Clock], Nothing, Nothing, String, (Long, String)]] =
   for {
     queue <- Queue.bounded[String](3)
-    mapped = queue.mapM { el =>
+    mapped = queue.mapZIO { el =>
       currentTimeMillis.map((_, el))
     }
   } yield mapped
@@ -210,7 +210,7 @@ with their enqueue timestamp:
 val annotatedIn: UIO[ZQueue[Has[Clock], Any, Nothing, Nothing, String, (Long, String)]] =
   for {
     queue <- Queue.bounded[(Long, String)](3)
-    mapped = queue.contramapM { el: String =>
+    mapped = queue.contramapZIO { el: String =>
       currentTimeMillis.map((_, el))
     }
   } yield mapped
@@ -227,10 +227,10 @@ compute the time that the elements stayed in the queue:
 val timeQueued: UIO[ZQueue[Has[Clock], Has[Clock], Nothing, Nothing, String, (Duration, String)]] =
   for {
     queue <- Queue.bounded[(Long, String)](3)
-    enqueueTimestamps = queue.contramapM { el: String =>
+    enqueueTimestamps = queue.contramapZIO { el: String =>
       currentTimeMillis.map((_, el))
     }
-    durations = enqueueTimestamps.mapM { case (enqueueTs, el) =>
+    durations = enqueueTimestamps.mapZIO { case (enqueueTs, el) =>
       currentTimeMillis
         .map(dequeueTs => ((dequeueTs - enqueueTs).millis, el))
     }

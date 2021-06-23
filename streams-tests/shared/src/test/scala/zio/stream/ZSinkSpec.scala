@@ -188,7 +188,7 @@ object ZSinkSpec extends ZIOBaseSpec {
           for {
             queue       <- ZQueue.unbounded[Int]
             exception    = new Exception
-            failingQueue = queue.contramapM[Any, Exception, Int](_ => ZIO.fail(exception))
+            failingQueue = queue.contramapZIO[Any, Exception, Int](_ => ZIO.fail(exception))
             queueSink    = ZSink.fromQueue(failingQueue)
             stream       = Stream(1)
             result      <- stream.run(queueSink).either
@@ -224,7 +224,7 @@ object ZSinkSpec extends ZIOBaseSpec {
           for {
             queue       <- ZQueue.unbounded[Int]
             exception    = new Exception
-            failingQueue = queue.contramapM[Any, Exception, Int](_ => ZIO.fail(exception))
+            failingQueue = queue.contramapZIO[Any, Exception, Int](_ => ZIO.fail(exception))
             queueSink    = ZSink.fromQueueWithShutdown(failingQueue)
             stream       = Stream(1)
             result      <- stream.run(queueSink).either

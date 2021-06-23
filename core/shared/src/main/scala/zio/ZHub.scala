@@ -138,7 +138,7 @@ sealed abstract class ZHub[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { se
       def size: UIO[Int] =
         self.size
       def subscribe: ZManaged[Any, Nothing, ZDequeue[RD, ED, D]] =
-        self.subscribe.map(_.mapM(g))
+        self.subscribe.map(_.mapZIO(g))
     }
 
   /**
@@ -222,7 +222,7 @@ sealed abstract class ZHub[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { se
       def size: UIO[Int] =
         self.size
       def subscribe: ZManaged[Any, Nothing, ZDequeue[RB1, EB1, B]] =
-        self.subscribe.map(_.filterOutputM(f))
+        self.subscribe.map(_.filterOutputZIO(f))
     }
 
   /**
