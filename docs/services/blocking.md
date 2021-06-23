@@ -19,7 +19,7 @@ In the following example, we create 20 blocking tasks to run parallel on the pri
 
 ```scala mdoc:silent
 import zio.{ZIO, URIO}
-import zio.console._
+import zio.console._ 
 def blockingTask(n: Int): URIO[Console, Unit] =
   putStrLn(s"running blocking task number $n").orDie *>
     ZIO.effectTotal(Thread.sleep(3000)) *>

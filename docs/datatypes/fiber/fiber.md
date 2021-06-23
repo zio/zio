@@ -273,6 +273,27 @@ If we never _cancel_ a running effect explicitly, ZIO performs **automatic inter
 
 4. **Racing** — The loser of a race, if still running, is canceled.
 
+### Joining an Interrupted Fiber
+
+We can join an interrupted fiber, which will cause our fiber to become interrupted. And this process does not inhibit finalization. So, **ZIO's concurrency model respect brackets even we are going to _join_ an interrupted fiber**:
+
+```scala mdoc:silent:nest
+val myApp =
+  (
+    for {
+      fiber <- putStrLn("Running a job").delay(1.seconds).forever.fork
+      _     <- fiber.interrupt.delay(3.seconds)
+      _     <- fiber.join // Joining an interrupted fiber
+    } yield ()
+  ).ensuring(
+    putStrLn(
+      "This finalizer will be executed without occurring any deadlock"
+    ).orDie
+  )
+```
+
+A fiber that is interrupted because of joining another interrupted fiber will properly finalize; this is a distinction between ZIO and the other effect systems, which _deadlock_ the joining fiber.
+
 ## Thread Shifting - JVM
 By default, fibers make no guarantees as to which thread they execute on. They may shift between threads, especially as they execute for long periods of time.
 
