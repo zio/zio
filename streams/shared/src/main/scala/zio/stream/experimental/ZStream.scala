@@ -163,9 +163,9 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     ZStream.fromEffect(deps).flatMap { case (handoff, sinkEndReason, sinkLeftovers, scheduleDriver) =>
       lazy val handoffProducer: ZChannel[Any, E1, Chunk[A], Any, Nothing, Nothing, Any] =
         ZChannel.readWithCause(
-          (in: Chunk[A]) => ZChannel.fromEffect(handoff.offer(Emit(in))) *> handoffProducer,
-          (cause: Cause[E1]) => ZChannel.fromEffect(handoff.offer(Halt(cause))),
-          (_: Any) => ZChannel.fromEffect(handoff.offer(End(UpstreamEnd)))
+          (in: Chunk[A]) => ZChannel.fromZIO(handoff.offer(Emit(in))) *> handoffProducer,
+          (cause: Cause[E1]) => ZChannel.fromZIO(handoff.offer(Halt(cause))),
+          (_: Any) => ZChannel.fromZIO(handoff.offer(End(UpstreamEnd)))
         )
 
       lazy val handoffConsumer: ZChannel[Any, Any, Any, Any, E1, Chunk[A1], Unit] =
@@ -177,7 +177,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
               handoff.take.map {
                 case Emit(chunk) => ZChannel.write(chunk) *> handoffConsumer
                 case Halt(cause) => ZChannel.halt(cause)
-                case End(reason) => ZChannel.fromEffect(sinkEndReason.set(reason))
+                case End(reason) => ZChannel.fromZIO(sinkEndReason.set(reason))
               }
           }
         )
@@ -199,7 +199,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
         ZChannel
           .managed(timeout.forkManaged) { fiber =>
             (handoffConsumer >>> sink.channel).doneCollect.flatMap { case (leftovers, b) =>
-              ZChannel.fromEffect(fiber.interrupt *> sinkLeftovers.set(leftovers.flatten)) *>
+              ZChannel.fromZIO(fiber.interrupt *> sinkLeftovers.set(leftovers.flatten)) *>
                 ZChannel.unwrap {
                   sinkEndReason.modify {
                     case ScheduleEnd(c) =>
@@ -304,7 +304,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     new ZStream(
       ZChannel.managed(queue) { queue =>
         lazy val process: ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit] =
-          ZChannel.fromEffect {
+          ZChannel.fromZIO {
             queue.take
           }.flatMap { (exit: Exit[Option[E], A]) =>
             exit.fold(
@@ -331,7 +331,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     new ZStream(
       ZChannel.managed(queue) { queue =>
         lazy val process: ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit] =
-          ZChannel.fromEffect {
+          ZChannel.fromZIO {
             queue.take
           }.flatMap { (take: Take[E, A]) =>
             take.fold(
@@ -401,7 +401,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
       ref: Ref[Promise[Nothing, Unit]]
     ): ZChannel[R1, E1, Chunk[A1], Any, Nothing, Nothing, Any] = {
       def terminate(take: Take[E1, A1]): ZChannel[R1, E1, Chunk[A1], Any, Nothing, Nothing, Any] =
-        ZChannel.fromEffect {
+        ZChannel.fromZIO {
           for {
             latch <- ref.get
             _     <- latch.await
@@ -414,7 +414,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
 
       ZChannel.readWith[R1, E1, Chunk[A1], Any, Nothing, Nothing, Any](
         in =>
-          ZChannel.fromEffect {
+          ZChannel.fromZIO {
             for {
               p     <- Promise.make[Nothing, Unit]
               added <- queue.offer((Take.chunk(in), p))
@@ -430,8 +430,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
       queue: Queue[(Take[E1, A1], Promise[Nothing, Unit])]
     ): ZChannel[R1, Any, Any, Any, E1, Chunk[A1], Unit] = {
       lazy val process: ZChannel[Any, Any, Any, Any, E1, Chunk[A1], Unit] =
-        ZChannel.fromEffect(queue.take).flatMap { case (take, promise) =>
-          ZChannel.fromEffect(promise.succeed(())) *>
+        ZChannel.fromZIO(queue.take).flatMap { case (take, promise) =>
+          ZChannel.fromZIO(promise.succeed(())) *>
             take.fold(
               ZChannel.end(()),
               error => ZChannel.halt(error),
@@ -464,7 +464,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     new ZStream(
       ZChannel.managed(queue) { queue =>
         lazy val process: ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit] =
-          ZChannel.fromEffect {
+          ZChannel.fromZIO {
             queue.take
           }.flatMap { (take: Take[E, A]) =>
             take.fold(
@@ -753,11 +753,11 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
       handoff: ZStream.Handoff[Exit[Option[Err], Elem]],
       latch: ZStream.Handoff[Unit]
     ): ZChannel[R1, Err, Elem, Any, Nothing, Nothing, Any] =
-      ZChannel.fromEffect(latch.take) *>
+      ZChannel.fromZIO(latch.take) *>
         ZChannel.readWithCause[R1, Err, Elem, Any, Nothing, Nothing, Any](
-          value => ZChannel.fromEffect(handoff.offer(Exit.succeed(value))) *> producer(handoff, latch),
-          cause => ZChannel.fromEffect(handoff.offer(Exit.halt(cause.map(Some(_))))),
-          _ => ZChannel.fromEffect(handoff.offer(Exit.fail(None))) *> producer(handoff, latch)
+          value => ZChannel.fromZIO(handoff.offer(Exit.succeed(value))) *> producer(handoff, latch),
+          cause => ZChannel.fromZIO(handoff.offer(Exit.halt(cause.map(Some(_))))),
+          _ => ZChannel.fromZIO(handoff.offer(Exit.fail(None))) *> producer(handoff, latch)
         )
 
     new ZStream(
@@ -795,11 +795,11 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
       handoff: ZStream.Handoff[Take[Err, Elem]],
       latch: ZStream.Handoff[Unit]
     ): ZChannel[R1, Err, Chunk[Elem], Any, Nothing, Nothing, Any] =
-      ZChannel.fromEffect(latch.take) *>
+      ZChannel.fromZIO(latch.take) *>
         ZChannel.readWithCause[R1, Err, Chunk[Elem], Any, Nothing, Nothing, Any](
-          chunk => ZChannel.fromEffect(handoff.offer(Take.chunk(chunk))) *> producer(handoff, latch),
-          cause => ZChannel.fromEffect(handoff.offer(Take.halt(cause))),
-          _ => ZChannel.fromEffect(handoff.offer(Take.end)) *> producer(handoff, latch)
+          chunk => ZChannel.fromZIO(handoff.offer(Take.chunk(chunk))) *> producer(handoff, latch),
+          cause => ZChannel.fromZIO(handoff.offer(Take.halt(cause))),
+          _ => ZChannel.fromZIO(handoff.offer(Take.end)) *> producer(handoff, latch)
         )
 
     new ZStream(
@@ -1567,9 +1567,9 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   )(b: ZStream[R1, E1, Boolean]): ZStream[R1, E1, A1] = {
     def producer(handoff: ZStream.Handoff[Take[E1, A1]]): ZChannel[R1, E1, A1, Any, Nothing, Nothing, Unit] =
       ZChannel.readWithCause[R1, E1, A1, Any, Nothing, Nothing, Unit](
-        value => ZChannel.fromEffect(handoff.offer(Take.single(value))) *> producer(handoff),
-        cause => ZChannel.fromEffect(handoff.offer(Take.halt(cause))),
-        _ => ZChannel.fromEffect(handoff.offer(Take.end))
+        value => ZChannel.fromZIO(handoff.offer(Take.single(value))) *> producer(handoff),
+        cause => ZChannel.fromZIO(handoff.offer(Take.halt(cause))),
+        _ => ZChannel.fromZIO(handoff.offer(Take.end))
       )
 
     new ZStream(
@@ -1586,7 +1586,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
             bool =>
               (bool, leftDone, rightDone) match {
                 case (true, false, _) =>
-                  ZChannel.fromEffect(left.take).flatMap { take =>
+                  ZChannel.fromZIO(left.take).flatMap { take =>
                     take.fold(
                       if (rightDone) ZChannel.unit else process(true, rightDone),
                       cause => ZChannel.halt(cause),
@@ -1594,7 +1594,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
                     )
                   }
                 case (false, _, false) =>
-                  ZChannel.fromEffect(right.take).flatMap { take =>
+                  ZChannel.fromZIO(right.take).flatMap { take =>
                     take.fold(
                       if (leftDone) ZChannel.unit else process(leftDone, true),
                       cause => ZChannel.halt(cause),
@@ -1717,7 +1717,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
       )
 
     (self.channel >>> writer)
-      .mapOutM(queue.offer)
+      .mapOutZIO(queue.offer)
       .drain
       .runManaged
       .unit
@@ -1742,7 +1742,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
       )
 
     (self.channel >>> writer)
-      .mapOutM(queue.offer)
+      .mapOutZIO(queue.offer)
       .drain
       .runManaged
       .unit
@@ -1825,7 +1825,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Effectfully transforms the chunks emitted by this stream.
    */
   def mapChunksM[R1 <: R, E1 >: E, A2](f: Chunk[A] => ZIO[R1, E1, Chunk[A2]]): ZStream[R1, E1, A2] =
-    new ZStream(channel.mapOutM(f))
+    new ZStream(channel.mapOutZIO(f))
 
   /**
    * Maps each element to an iterable, and flattens the iterables into the
@@ -1881,7 +1881,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * @note This combinator destroys the chunking structure. It's recommended to use chunkN afterwards.
    */
   final def mapMPar[R1 <: R, E1 >: E, A2](n: Int)(f: A => ZIO[R1, E1, A2]): ZStream[R1, E1, A2] =
-    new ZStream(self.channel.concatMap(ZChannel.writeChunk(_)).mapOutMPar[R1, E1, A2](n)(f).mapOut(Chunk.single))
+    new ZStream(self.channel.concatMap(ZChannel.writeChunk(_)).mapOutZIOPar[R1, E1, A2](n)(f).mapOut(Chunk.single))
 
   /**
    * Maps over elements of the stream with the specified effectful function,
@@ -2081,14 +2081,14 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
           e => ZSink.fromEffect(p.fail(e)) *> ZSink.fail(e),
           { case (z1, leftovers) =>
             lazy val loop: ZChannel[Any, E, Chunk[A1], Any, E1, Chunk[A1], Unit] = ZChannel.readWithCause(
-              (in: Chunk[A1]) => ZChannel.fromEffect(handoff.offer(Emit(in))) *> loop,
-              (e: Cause[E1]) => ZChannel.fromEffect(handoff.offer(Halt(e))) *> ZChannel.halt(e),
-              (_: Any) => ZChannel.fromEffect(handoff.offer(End)) *> ZChannel.unit
+              (in: Chunk[A1]) => ZChannel.fromZIO(handoff.offer(Emit(in))) *> loop,
+              (e: Cause[E1]) => ZChannel.fromZIO(handoff.offer(Halt(e))) *> ZChannel.halt(e),
+              (_: Any) => ZChannel.fromZIO(handoff.offer(End)) *> ZChannel.unit
             )
 
             new ZSink(
-              ZChannel.fromEffect(p.succeed(z1)) *>
-                ZChannel.fromEffect(handoff.offer(Emit(leftovers))) *>
+              ZChannel.fromZIO(p.succeed(z1)) *>
+                ZChannel.fromZIO(handoff.offer(Emit(leftovers))) *>
                 loop
             )
           }
@@ -2600,7 +2600,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
         (_: Any) => ZChannel.unit
       )
 
-    new ZStream(ZChannel.fromEffect(Clock.nanoTime).flatMap(self.channel >>> loop(units, _)))
+    new ZStream(ZChannel.fromZIO(Clock.nanoTime).flatMap(self.channel >>> loop(units, _)))
   }
 
   /**
@@ -2650,14 +2650,14 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
             val delay = Duration.Finite((waitCycles * duration.toNanos).toLong)
 
             if (delay > Duration.Zero)
-              ZChannel.fromEffect(Clock.sleep(delay)) *> ZChannel.write(in) *> loop(remaining, current)
+              ZChannel.fromZIO(Clock.sleep(delay)) *> ZChannel.write(in) *> loop(remaining, current)
             else ZChannel.write(in) *> loop(remaining, current)
           }),
         (e: E1) => ZChannel.fail(e),
         (_: Any) => ZChannel.unit
       )
 
-    new ZStream(ZChannel.fromEffect(Clock.nanoTime).flatMap(self.channel >>> loop(units, _)))
+    new ZStream(ZChannel.fromZIO(Clock.nanoTime).flatMap(self.channel >>> loop(units, _)))
   }
 
   /**
@@ -2689,10 +2689,10 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
           ZChannel.readWithCause(
             (in: Chunk[A]) =>
               in.lastOption.fold(producer) { last =>
-                ZChannel.fromEffect(handoff.offer(Emit(Chunk.single(last)))) *> producer
+                ZChannel.fromZIO(handoff.offer(Emit(Chunk.single(last)))) *> producer
               },
-            (cause: Cause[E]) => ZChannel.fromEffect(handoff.offer(Halt(cause))),
-            (_: Any) => ZChannel.fromEffect(handoff.offer(End(ZStream.SinkEndReason.UpstreamEnd)))
+            (cause: Cause[E]) => ZChannel.fromZIO(handoff.offer(Halt(cause))),
+            (_: Any) => ZChannel.fromZIO(handoff.offer(End(ZStream.SinkEndReason.UpstreamEnd)))
           )
 
         def consumer(state: DebounceState[E, A]): ZChannel[R with Has[Clock], Any, Any, Any, E, Chunk[A], Any] =

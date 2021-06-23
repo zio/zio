@@ -187,7 +187,7 @@ object ZChannelSimulatedChecks extends ZIOBaseSpec {
       ch: ZChannel[Any, Err, Any, Res, Err, Nothing, Res]
     ): ZChannel[Any, Err, Any, Res, Err, Nothing, Res] =
       ch.flatMap { value =>
-        ZChannel.bracket(ZIO.succeed(value))(_ => ZIO.unit)(value =>
+        ZChannel.acquireReleaseWith(ZIO.succeed(value))(_ => ZIO.unit)(value =>
           Simulation.opsToDoneChannel(ZChannel.succeed(value), ops)
         )
       }
@@ -196,7 +196,7 @@ object ZChannelSimulatedChecks extends ZIOBaseSpec {
       ch: ZChannel[Any, Err, Any, Res, Err, Res, Any]
     ): ZChannel[Any, Err, Any, Res, Err, Res, Any] =
       ch.concatMap { value =>
-        ZChannel.bracketOut(ZIO.succeed(value))(_ => ZIO.unit).concatMap { value =>
+        ZChannel.acquireReleaseOutWith(ZIO.succeed(value))(_ => ZIO.unit).concatMap { value =>
           Simulation.opsToOutChannel(ZChannel.write(value), ops)
         }
       }

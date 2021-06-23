@@ -57,7 +57,7 @@ trait ZStreamPlatformSpecificConstructors {
                 .flatMap(_.done)
                 .fold(
                   maybeError =>
-                    ZChannel.fromEffect(output.shutdown) *>
+                    ZChannel.fromZIO(output.shutdown) *>
                       maybeError
                         .fold[ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit]](ZChannel.end(()))(ZChannel.fail(_)),
                   a => ZChannel.write(a) *> loop
@@ -94,7 +94,7 @@ trait ZStreamPlatformSpecificConstructors {
           .flatMap(_.done)
           .fold(
             maybeError =>
-              ZChannel.fromEffect(output.shutdown) *>
+              ZChannel.fromZIO(output.shutdown) *>
                 maybeError.fold[ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit]](ZChannel.end(()))(ZChannel.fail(_)),
             a => ZChannel.write(a) *> loop
           )

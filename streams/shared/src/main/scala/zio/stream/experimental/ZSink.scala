@@ -116,7 +116,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
   ): ZSink[R1, InErr1, In1, OutErr, L, Z] = {
     lazy val loop: ZChannel[R1, InErr1, Chunk[In1], Any, InErr1, Chunk[In], Any] =
       ZChannel.readWith[R1, InErr1, Chunk[In1], Any, InErr1, Chunk[In], Any](
-        chunk => ZChannel.fromEffect(f(chunk)).flatMap(ZChannel.write) *> loop,
+        chunk => ZChannel.fromZIO(f(chunk)).flatMap(ZChannel.write) *> loop,
         ZChannel.fail(_),
         ZChannel.succeed(_)
       )
@@ -178,7 +178,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
     success: Z => ZSink[R1, InErr1, In1, OutErr2, L1, Z1]
   )(implicit ev: L <:< In1): ZSink[R1, InErr1, In1, OutErr2, L1, Z1] =
     new ZSink(
-      channel.doneCollect.foldM(
+      channel.doneCollect.foldChannel(
         failure(_).channel,
         { case (leftovers, z) =>
           ZChannel.effectSuspendTotal {
@@ -217,7 +217,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    * Effectfully transforms this sink's result.
    */
   def mapM[R1 <: R, OutErr1 >: OutErr, Z1](f: Z => ZIO[R1, OutErr1, Z1]): ZSink[R1, InErr, In, OutErr1, L, Z1] =
-    new ZSink(channel.mapM(f))
+    new ZSink(channel.mapZIO(f))
 
   /**
    * Runs both sinks in parallel on the input, , returning the result or the error from the
@@ -250,9 +250,9 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    */
   final def summarized[R1 <: R, E1 >: OutErr, B, C](summary: ZIO[R1, E1, B])(f: (B, B) => C) =
     new ZSink[R1, InErr, In, E1, L, (Z, C)](for {
-      start <- ZChannel.fromEffect(summary)
+      start <- ZChannel.fromZIO(summary)
       done  <- self.channel
-      end   <- ZChannel.fromEffect(summary)
+      end   <- ZChannel.fromZIO(summary)
     } yield (done, f(start, end)))
 
   def orElse[R1 <: R, InErr1 <: InErr, In1 <: In, OutErr2 >: OutErr, L1 >: L, Z1 >: Z](
@@ -557,7 +557,7 @@ object ZSink {
     def reader(s: S): ZChannel[Env, Err, Chunk[In], Any, Err, Nothing, S] =
       ZChannel.readWith(
         (in: Chunk[In]) =>
-          ZChannel.fromEffect(f(s, in)).flatMap { nextS =>
+          ZChannel.fromZIO(f(s, in)).flatMap { nextS =>
             if (contFn(nextS)) reader(nextS)
             else ZChannel.end(nextS)
           },
@@ -597,7 +597,7 @@ object ZSink {
     def reader(s: S): ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[In], S] =
       ZChannel.readWith(
         (in: Chunk[In]) =>
-          ZChannel.fromEffect(foldChunkSplitM(s, in)(contFn)(f)).flatMap { case (nextS, leftovers) =>
+          ZChannel.fromZIO(foldChunkSplitM(s, in)(contFn)(f)).flatMap { case (nextS, leftovers) =>
             leftovers match {
               case Some(l) => ZChannel.write(l).as(nextS)
               case None    => reader(nextS)
@@ -830,7 +830,7 @@ object ZSink {
               }
             }
 
-          ZChannel.fromEffect(fold(in, s, dirty, cost, 0)).flatMap { case (nextS, nextCost, nextDirty, leftovers) =>
+          ZChannel.fromZIO(fold(in, s, dirty, cost, 0)).flatMap { case (nextS, nextCost, nextDirty, leftovers) =>
             if (leftovers.nonEmpty) ZChannel.write(leftovers) *> ZChannel.end(nextS)
             else if (cost > max) ZChannel.end(nextS)
             else go(nextS, nextCost, nextDirty)
@@ -874,7 +874,7 @@ object ZSink {
         cont
       else
         ZChannel
-          .fromEffect(f(chunk(idx)))
+          .fromZIO(f(chunk(idx)))
           .flatMap(b => if (b) go(chunk, idx + 1, len, cont) else ZChannel.write(chunk.drop(idx)))
           .catchAll(e => ZChannel.write(chunk.drop(idx)) *> ZChannel.fail(e))
 
@@ -898,7 +898,7 @@ object ZSink {
     lazy val reader: ZChannel[R, Err, Chunk[In], Any, Err, Nothing, Unit] =
       ZChannel.readWith(
         (in: Chunk[In]) =>
-          ZChannel.fromEffect(f(in)).flatMap { continue =>
+          ZChannel.fromZIO(f(in)).flatMap { continue =>
             if (continue) reader
             else ZChannel.end(())
           },
@@ -913,7 +913,7 @@ object ZSink {
    * Creates a single-value sink produced from an effect
    */
   def fromEffect[R, E, Z](b: => ZIO[R, E, Z]): ZSink[R, Any, Any, E, Nothing, Z] =
-    new ZSink(ZChannel.fromEffect(b))
+    new ZSink(ZChannel.fromZIO(b))
 
   /**
    * Creates a sink halting with a specified cause.
@@ -953,7 +953,7 @@ object ZSink {
   ): ZSink[R, InErr, In, OutErr, In, Z] =
     new ZSink(ZChannel.managed(resource)(fn(_).channel))
 
-  val never: ZSink[Any, Any, Any, Nothing, Nothing, Nothing] = new ZSink(ZChannel.fromEffect(ZIO.never))
+  val never: ZSink[Any, Any, Any, Nothing, Nothing, Nothing] = new ZSink(ZChannel.fromZIO(ZIO.never))
 
   /**
    * A sink that immediately ends with the specified value.
