@@ -20,7 +20,7 @@ object LayerDefinitionExample extends App {
       (Console.live ++ ZLayer.succeed("Hello") ++ ZLayer.succeed(3)) >>> Foo.live
 
     ZIO
-      .accessM[Has[Foo]](_.get.bar)
+      .accessZIO[Has[Foo]](_.get.bar)
       .inject(liveLayer)
       .exitCode
   }

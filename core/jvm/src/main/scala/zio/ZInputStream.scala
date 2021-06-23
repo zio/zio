@@ -30,7 +30,7 @@ object ZInputStream {
     new ZInputStream {
 
       def readN(n: Int): IO[Option[IOException], Chunk[Byte]] =
-        ZIO.effectBlockingIO {
+        ZIO.attemptBlockingIO {
           val b: Array[Byte] = new Array[Byte](n)
           val count          = is.read(b)
           if (count == -1) ZIO.fail(None) else ZIO.succeed(Chunk.fromArray(b).take(count))
@@ -39,10 +39,10 @@ object ZInputStream {
         }.flatten
 
       def skip(n: Long): IO[IOException, Long] =
-        ZIO.effectBlockingIO(is.skip(n))
+        ZIO.attemptBlockingIO(is.skip(n))
 
       def readAll(bufferSize: Int): IO[Option[IOException], Chunk[Byte]] =
-        ZIO.effectBlockingIO {
+        ZIO.attemptBlockingIO {
           val buffer = new java.io.ByteArrayOutputStream();
           val idata  = new Array[Byte](bufferSize);
           var count  = is.read(idata, 0, idata.length)

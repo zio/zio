@@ -188,7 +188,7 @@ object legacy {
 }
 
 val login: IO[AuthError, User] =
-  IO.effectAsync[AuthError, User] { callback =>
+  IO.async[AuthError, User] { callback =>
     legacy.login(
       user => callback(IO.succeed(user)),
       err  => callback(IO.fail(err))
@@ -222,7 +222,7 @@ import java.net.ServerSocket
 import zio.UIO
 
 def accept(l: ServerSocket) =
-  ZIO.effectBlockingCancelable(l.accept())(UIO.succeed(l.close()))
+  ZIO.attemptBlockingCancelable(l.accept())(UIO.succeed(l.close()))
 ```
 
 If a side-effect has already been converted into a ZIO effect, then instead of `effectBlocking`, the `blocking` method can be used to ensure the effect will be executed on the blocking thread pool:

@@ -114,7 +114,7 @@ object Console extends Serializable {
    * returns null.
    */
   val readLine: ZIO[Has[Console], IOException, String] =
-    ZIO.accessM(_.get.readLine)
+    ZIO.accessZIO(_.get.readLine)
 
   /**
    * Prints text to the console.

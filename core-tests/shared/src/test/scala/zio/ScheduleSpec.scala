@@ -91,7 +91,7 @@ object ScheduleSpec extends ZIOBaseSpec {
       val failed = (for {
         ref <- Ref.make(0)
         _   <- alwaysFail(ref).repeat(Schedule.recurs(42))
-      } yield ()).foldM[Has[Clock], Int, String](
+      } yield ()).foldZIO[Has[Clock], Int, String](
         err => IO.succeed(err),
         _ => IO.succeed("it should not be a success at all")
       )
@@ -150,7 +150,7 @@ object ScheduleSpec extends ZIOBaseSpec {
           ref <- Ref.make(0)
           i   <- alwaysFail(ref).retry(Schedule.recurs(0))
         } yield i)
-          .foldM[Has[Clock], Int, String](
+          .foldZIO[Has[Clock], Int, String](
             err => IO.succeed(err),
             _ => IO.succeed("it should not be a success")
           )
@@ -169,7 +169,7 @@ object ScheduleSpec extends ZIOBaseSpec {
         val retried = (for {
           ref <- Ref.make(0)
           _   <- alwaysFail(ref).retry(Schedule.once)
-        } yield ()).foldM[Has[Clock], Int, String](
+        } yield ()).foldZIO[Has[Clock], Int, String](
           err => IO.succeed(err),
           _ => IO.succeed("A failure was expected")
         )
@@ -274,7 +274,7 @@ object ScheduleSpec extends ZIOBaseSpec {
           ref <- Ref.make(0)
           i   <- alwaysFail(ref).retryOrElse(Schedule.once, ioFail)
         } yield i)
-          .foldM[Has[Clock], Int, String](
+          .foldZIO[Has[Clock], Int, String](
             err => IO.succeed(err),
             _ => IO.succeed("it should not be a success")
           )
@@ -292,7 +292,7 @@ object ScheduleSpec extends ZIOBaseSpec {
           ref <- Ref.make(0)
           i   <- alwaysFail(ref).retryOrElseEither(Schedule.once, ioFail)
         } yield i)
-          .foldM[Has[Clock], Int, String](
+          .foldZIO[Has[Clock], Int, String](
             err => IO.succeed(err),
             _ => IO.succeed("it should not be a success")
           )
@@ -492,7 +492,7 @@ object ScheduleSpec extends ZIOBaseSpec {
       def foo[O](v: O): ZIO[Has[Clock], Error, Either[ScheduleFailure, ScheduleSuccess[O]]] =
         ZIO
           .fromFuture(_ => Future.successful(v))
-          .foldM(
+          .foldZIO(
             _ => ZIO.fail(ScheduleError("Some error")),
             ok => ZIO.succeed(Right(ScheduleSuccess(ok)))
           )
@@ -603,7 +603,7 @@ object ScheduleSpec extends ZIOBaseSpec {
             case h :: t =>
               driver
                 .next(h)
-                .foldM(
+                .foldZIO(
                   _ => driver.last.fold(_ => acc, b => acc :+ b),
                   b => loop(t, acc :+ b)
                 )

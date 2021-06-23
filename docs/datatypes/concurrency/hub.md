@@ -211,7 +211,7 @@ import zio._
 val hub: Hub[Int] = ???
 
 val hubWithLogging: ZHub[Any, Has[Clock] with Has[Console], Nothing, Nothing, Int, Int] =
-  hub.mapM { n =>
+  hub.mapZIO { n =>
     Clock.currentDateTime.flatMap { currentDateTime =>
       Console.printLine(s"Took message $n from the hub at $currentDateTime").orDie
     }.as(n)
@@ -249,7 +249,7 @@ import zio._
 val hub: Hub[Int] = ???
 
 val hubWithLogging: ZHub[Any, Any, String, Nothing, String, Int] =
-  hub.contramapM { (s: String) =>
+  hub.contramapZIO { (s: String) =>
     ZIO.attempt(s.toInt).orElseFail(s"$s is not a valid message")
   }
 ```

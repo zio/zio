@@ -86,11 +86,11 @@ def use(resource: Resource): Task[Any] = Task.attempt(???)
 def release(resource: Resource): UIO[Unit] = Task.succeed(???)
 def acquire: Task[Resource]                = Task.attempt(???)
 
-val result1: Task[Any] = acquire.bracket(release, use)
-val result2: Task[Any] = acquire.bracket(release)(use) // More ergonomic API
+val result1: Task[Any] = acquire.acquireReleaseWith(release, use)
+val result2: Task[Any] = acquire.acquireReleaseWith(release)(use) // More ergonomic API
 
-val result3: Task[Any] = Task.bracket(acquire, release, use)
-val result4: Task[Any] = Task.bracket(acquire)(release)(use) // More ergonomic API
+val result3: Task[Any] = Task.acquireReleaseWith(acquire, release, use)
+val result4: Task[Any] = Task.acquireReleaseWith(acquire)(release)(use) // More ergonomic API
 ```
 
 The bracket guarantees us that the `acquiring` and `releasing` of a resource will not be interrupted. These two guarantees ensure us that the resource will always be released.
@@ -117,8 +117,8 @@ def close(resource: Closeable): UIO[Unit] = Task.succeed(???)
 def copy(from: FileInputStream, to: FileOutputStream): Task[Unit] = ???
 
 def transfer(src: String, dst: String): ZIO[Any, Throwable, Unit] = {
-  Task.bracket(is(src))(close) { in =>
-    Task.bracket(os(dst))(close) { out =>
+  Task.acquireReleaseWith(is(src))(close) { in =>
+    Task.acquireReleaseWith(os(dst))(close) { out =>
       copy(in, out)
     }
   }
@@ -131,7 +131,7 @@ As there isn't any dependency between our two resources (`is` and `os`), it does
 def transfer(src: String, dst: String): ZIO[Any, Throwable, Unit] = {
   is(src)
     .zipPar(os(dst))
-    .bracket { case (in, out) =>
+    .acquireReleaseWith { case (in, out) =>
       Task
         .succeed(in.close())
         .zipPar(Task.succeed(out.close()))

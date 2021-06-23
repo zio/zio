@@ -16,7 +16,7 @@ import scala.concurrent.ExecutionContext.global
 object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
 
   def socketClient(port: Int): ZManaged[Any, Throwable, AsynchronousSocketChannel] =
-    ZManaged.bracket(ZIO.effectBlockingIO(AsynchronousSocketChannel.open()).flatMap { client =>
+    ZManaged.bracket(ZIO.attemptBlockingIO(AsynchronousSocketChannel.open()).flatMap { client =>
       ZIO
         .fromFutureJava(client.connect(new InetSocketAddress("localhost", port)))
         .map(_ => client)
@@ -192,11 +192,12 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
         testM("reads from an existing file") {
           val data = (0 to 100).mkString
 
-          Task(Files.createTempFile("stream", "fromFile")).bracket(path => Task(Files.delete(path)).orDie) { path =>
-            Task(Files.write(path, data.getBytes("UTF-8"))) *>
-              assertM(ZStream.fromFile(path, 24).transduce(ZTransducer.utf8Decode).runCollect.map(_.mkString))(
-                equalTo(data)
-              )
+          Task(Files.createTempFile("stream", "fromFile")).acquireReleaseWith(path => Task(Files.delete(path)).orDie) {
+            path =>
+              Task(Files.write(path, data.getBytes("UTF-8"))) *>
+                assertM(ZStream.fromFile(path, 24).transduce(ZTransducer.utf8Decode).runCollect.map(_.mkString))(
+                  equalTo(data)
+                )
           }
         },
         testM("fails on a nonexistent file") {
@@ -207,7 +208,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
       ),
       suite("fromReader")(
         testM("reads non-empty file") {
-          Task(Files.createTempFile("stream", "reader")).bracket(path => UIO(Files.delete(path))) { path =>
+          Task(Files.createTempFile("stream", "reader")).acquireReleaseWith(path => UIO(Files.delete(path))) { path =>
             for {
               data <- UIO((0 to 100).mkString)
               _    <- Task(Files.write(path, data.getBytes("UTF-8")))
@@ -216,12 +217,13 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
           }
         },
         testM("reads empty file") {
-          Task(Files.createTempFile("stream", "reader-empty")).bracket(path => UIO(Files.delete(path))) { path =>
-            ZStream
-              .fromReader(new FileReader(path.toString))
-              .runCollect
-              .map(_.mkString)
-              .map(assert(_)(isEmptyString))
+          Task(Files.createTempFile("stream", "reader-empty")).acquireReleaseWith(path => UIO(Files.delete(path))) {
+            path =>
+              ZStream
+                .fromReader(new FileReader(path.toString))
+                .runCollect
+                .map(_.mkString)
+                .map(assert(_)(isEmptyString))
           }
         },
         testM("fails on a failing reader") {
@@ -272,7 +274,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
                    .use(c => ZIO.fromFutureJava(c.write(ByteBuffer.wrap(message.getBytes))))
                    .retry(Schedule.forever)
 
-            receive <- refOut.get.repeatWhileM(s => ZIO.succeed(s.isEmpty))
+            receive <- refOut.get.repeatWhileZIO(s => ZIO.succeed(s.isEmpty))
 
             _ <- server.interrupt
           } yield assert(receive)(equalTo(message))
@@ -298,7 +300,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
                      }
                  }.retry(Schedule.forever)
 
-            receive <- refOut.get.repeatWhileM(s => ZIO.succeed(s.isEmpty))
+            receive <- refOut.get.repeatWhileZIO(s => ZIO.succeed(s.isEmpty))
 
             _ <- server.interrupt
           } yield assert(receive)(equalTo(message)))

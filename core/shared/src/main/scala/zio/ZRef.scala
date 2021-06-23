@@ -480,7 +480,7 @@ object ZRef extends Serializable {
     final def filterInputM[RC <: RA, EC >: EA, A1 <: A](
       f: A1 => ZIO[RC, EC, Boolean]
     ): ZRefM[RC, RB, Option[EC], EB, A1, B] =
-      foldM(Some(_), identity, a => ZIO.ifM(f(a).asSomeError)(ZIO.succeedNow(a), ZIO.fail(None)), ZIO.succeedNow)
+      foldM(Some(_), identity, a => ZIO.ifZIO(f(a).asSomeError)(ZIO.succeedNow(a), ZIO.fail(None)), ZIO.succeedNow)
 
     /**
      * Filters the `get` value of the `ZRefM` with the specified predicate,
@@ -496,7 +496,7 @@ object ZRef extends Serializable {
      * satisfied or else fails with `None`.
      */
     final def filterOutputM[RC <: RB, EC >: EB](f: B => ZIO[RC, EC, Boolean]): ZRefM[RA, RC, EA, Option[EC], A, B] =
-      foldM(identity, Some(_), ZIO.succeedNow, b => ZIO.ifM(f(b).asSomeError)(ZIO.succeedNow(b), ZIO.fail(None)))
+      foldM(identity, Some(_), ZIO.succeedNow, b => ZIO.ifZIO(f(b).asSomeError)(ZIO.succeedNow(b), ZIO.fail(None)))
 
     /**
      * Folds over the error and value types of the `ZRefM`.
@@ -539,14 +539,14 @@ object ZRef extends Serializable {
         def semaphores =
           self.semaphores
         def unsafeGet: ZIO[RD, ED, D] =
-          self.get.foldM(e => ZIO.fail(eb(e)), bd)
+          self.get.foldZIO(e => ZIO.fail(eb(e)), bd)
         def unsafeSet(c: C): ZIO[RC, EC, Unit] =
-          self.get.foldM(
+          self.get.foldZIO(
             e => ZIO.fail(ec(e)),
             b => ca(c)(b).flatMap(a => self.unsafeSet(a).mapError(ea))
           )
         def unsafeSetAsync(c: C): ZIO[RC, EC, Unit] =
-          self.get.foldM(
+          self.get.foldZIO(
             e => ZIO.fail(ec(e)),
             b => ca(c)(b).flatMap(a => self.unsafeSetAsync(a).mapError(ea))
           )
@@ -570,7 +570,7 @@ object ZRef extends Serializable {
         def semaphores: Set[Semaphore] =
           self.semaphores
         def unsafeGet: ZIO[RD, ED, D] =
-          self.unsafeGet.foldM(e => ZIO.fail(eb(e)), bd)
+          self.unsafeGet.foldZIO(e => ZIO.fail(eb(e)), bd)
         def unsafeSetAsync(c: C): ZIO[RC, EC, Unit] =
           ca(c).flatMap(self.unsafeSetAsync(_).mapError(ea))
         def unsafeSet(c: C): ZIO[RC, EC, Unit] =

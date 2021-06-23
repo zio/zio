@@ -598,7 +598,7 @@ object Fiber extends FiberPlatformSpecific {
       def getRef[A](ref: FiberRef.Runtime[A]): UIO[A] =
         UIO.foldLeft(fibers)(ref.initial)((a, fiber) => fiber.getRef(ref).map(ref.join(a, _)))
       def inheritRefs: UIO[Unit] =
-        UIO.foreach_(fibers)(_.inheritRefs)
+        UIO.foreachDiscard(fibers)(_.inheritRefs)
       def interruptAs(fiberId: Fiber.Id): UIO[Exit[E, Collection[A]]] =
         UIO
           .foreach[Fiber[E, A], Exit[E, A], Iterable](fibers)(_.interruptAs(fiberId))

@@ -360,7 +360,7 @@ import java.net.ServerSocket
 import zio.UIO
 
 def accept(l: ServerSocket) =
-  ZIO.effectBlockingCancelable(l.accept())(UIO.succeed(l.close()))
+  ZIO.attemptBlockingCancelable(l.accept())(UIO.succeed(l.close()))
 ```
 
 If a side-effect has already been converted into a ZIO effect, then instead of `effectBlocking`, the `blocking` method can be used to ensure the effect will be executed on the blocking thread pool:
@@ -403,7 +403,7 @@ object legacy {
 }
 
 val login: IO[AuthError, User] =
-  IO.effectAsync[AuthError, User] { callback =>
+  IO.async[AuthError, User] { callback =>
     legacy.login(
       user => callback(IO.succeed(user)),
       err  => callback(IO.fail(err))
@@ -458,7 +458,7 @@ val mappedError: IO[Exception, String] =
 Converting literal "Five" String to Int by calling `toInt` is a side effecting because it will throws `NumberFormatException` exception:
 
 ```scala mdoc:silent
-val task: RIO[Any, Int] = ZIO.succeed("hello").mapEffect(_.toInt)
+val task: RIO[Any, Int] = ZIO.succeed("hello").mapAttempt(_.toInt)
 ```   
 
 `mapEffect` converts an unchecked exception to a checked one by returning the `RIO` effect.
@@ -678,7 +678,7 @@ The second fold method, `foldM`, lets us effectfully handle both failure and suc
 
 ```scala mdoc:silent
 val primaryOrSecondaryData: IO[IOException, Array[Byte]] = 
-  readFile("primary.data").foldM(
+  readFile("primary.data").foldZIO(
     _    => readFile("secondary.data"),
     data => ZIO.succeed(data))
 ```
@@ -696,7 +696,7 @@ def fetchContent(urls: List[String]): UIO[Content] = IO.succeed(OkContent("Roger
 ```
 ```scala mdoc:silent
 val urls: UIO[Content] =
-  readUrls("urls.json").foldM(
+  readUrls("urls.json").foldZIO(
     error   => IO.succeed(NoContent(error)), 
     success => fetchContent(success)
   )
@@ -838,7 +838,7 @@ def groupData(u: Unit): IO[IOException, Unit] = IO.unit
 ```
 
 ```scala mdoc:silent
-val groupedFileData: IO[IOException, Unit] = openFile("data.json").bracket(closeFile(_)) { file =>
+val groupedFileData: IO[IOException, Unit] = openFile("data.json").acquireReleaseWith(closeFile(_)) { file =>
   for {
     data    <- decodeData(file)
     grouped <- groupData(data)
@@ -879,7 +879,7 @@ object Main extends zio.App {
   val mybracket: Task[Unit] = for {
     file   <- Task(new File("/tmp/hello"))
     len    = file.length
-    string <- Task(new FileInputStream(file)).bracket(closeStream)(convertBytes(_, len))
+    string <- Task(new FileInputStream(file)).acquireReleaseWith(closeStream)(convertBytes(_, len))
   } yield string
 }
 ```

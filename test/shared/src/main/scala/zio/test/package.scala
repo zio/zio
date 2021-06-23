@@ -106,7 +106,7 @@ package object test extends CompileVariants {
     def apply[R, E](assertion: => ZIO[R, E, TestResult]): ZIO[R, TestFailure[E], TestSuccess] =
       ZIO
         .suspendSucceed(assertion)
-        .foldCauseM(
+        .foldCauseZIO(
           cause => ZIO.fail(TestFailure.Runtime(cause)),
           _.failures match {
             case None           => ZIO.succeedNow(TestSuccess.Succeeded(BoolAlgebra.unit))

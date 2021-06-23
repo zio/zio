@@ -34,11 +34,11 @@ class TMapOpsBenchmarks {
 
   @Benchmark
   def lookup(): Unit =
-    unsafeRun(ZIO.foreach_(calls)(_ => map.get(idx).commit))
+    unsafeRun(ZIO.foreachDiscard(calls)(_ => map.get(idx).commit))
 
   @Benchmark
   def update(): Unit =
-    unsafeRun(ZIO.foreach_(calls)(_ => map.put(idx, idx).commit))
+    unsafeRun(ZIO.foreachDiscard(calls)(_ => map.put(idx, idx).commit))
 
   @Benchmark
   def transform(): Unit =
@@ -50,7 +50,7 @@ class TMapOpsBenchmarks {
 
   @Benchmark
   def removal(): Unit =
-    unsafeRun(ZIO.foreach_(calls)(_ => map.delete(idx).commit))
+    unsafeRun(ZIO.foreachDiscard(calls)(_ => map.delete(idx).commit))
 
   @Benchmark
   def fold(): Int =

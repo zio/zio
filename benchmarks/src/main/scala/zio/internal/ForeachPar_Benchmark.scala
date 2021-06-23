@@ -16,7 +16,7 @@ private[this] class ForeachPar_Benchmark {
 
   @Benchmark
   def foreachPar_(): Unit =
-    unsafeRun(ZIO.foreachPar_(as)(_ => ZIO.unit))
+    unsafeRun(ZIO.foreachParDiscard(as)(_ => ZIO.unit))
 
   @Benchmark
   def naiveForeachPar_(): Unit =

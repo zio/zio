@@ -2921,7 +2921,7 @@ object ZStreamSpec extends ZIOBaseSpec {
 
               assertM(for {
                 fiber  <- stream.runCollect.fork
-                _      <- ZIO.collectAllPar_(List(c.offer, c.offer, c.offer))
+                _      <- ZIO.collectAllParDiscard(List(c.offer, c.offer, c.offer))
                 _      <- TestClock.adjust(1.second)
                 result <- fiber.join
               } yield result)(hasSize(equalTo(1)))

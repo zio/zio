@@ -53,7 +53,7 @@ trait ZSinkPlatformSpecificConstructors {
   ): ZSink[Any, IOException, Byte, Byte, Long] =
     ZSink.managed(os) { out =>
       ZSink.foldLeftChunksM(0L) { (bytesWritten, byteChunk: Chunk[Byte]) =>
-        ZIO.effectBlockingInterrupt {
+        ZIO.attemptBlockingInterrupt {
           val bytes = byteChunk.toArray
           out.write(bytes)
           bytesWritten + bytes.length
@@ -74,7 +74,7 @@ trait ZSinkPlatformSpecificConstructors {
   ): ZSink[Any, Throwable, Byte, Byte, Long] = {
     val managedChannel = ZManaged.bracket(
       ZIO
-        .effectBlockingInterrupt(
+        .attemptBlockingInterrupt(
           FileChannel
             .open(
               path,
@@ -88,7 +88,7 @@ trait ZSinkPlatformSpecificConstructors {
 
     val writer: ZSink[Any, Throwable, Byte, Byte, Unit] = ZSink.managed(managedChannel) { chan =>
       ZSink.foreachChunk[Any, Throwable, Byte](byteChunk =>
-        ZIO.effectBlockingInterrupt {
+        ZIO.attemptBlockingInterrupt {
           chan.write(ByteBuffer.wrap(byteChunk.toArray))
         }
       )
@@ -275,12 +275,12 @@ trait ZStreamPlatformSpecificConstructors {
    */
   def fromFile(path: => Path, chunkSize: Int = ZStream.DefaultChunkSize): ZStream[Any, Throwable, Byte] =
     ZStream
-      .bracket(ZIO.effectBlockingInterrupt(FileChannel.open(path)))(chan => ZIO.attemptBlocking(chan.close()).orDie)
+      .bracket(ZIO.attemptBlockingInterrupt(FileChannel.open(path)))(chan => ZIO.attemptBlocking(chan.close()).orDie)
       .flatMap { channel =>
         ZStream.fromEffect(UIO(ByteBuffer.allocate(chunkSize))).flatMap { reusableBuffer =>
           ZStream.repeatEffectChunkOption(
             for {
-              bytesRead <- ZIO.effectBlockingInterrupt(channel.read(reusableBuffer)).mapError(Some(_))
+              bytesRead <- ZIO.attemptBlockingInterrupt(channel.read(reusableBuffer)).mapError(Some(_))
               _         <- ZIO.fail(None).when(bytesRead == -1)
               chunk <- UIO {
                          reusableBuffer.flip()
@@ -303,7 +303,7 @@ trait ZStreamPlatformSpecificConstructors {
       ZStream.repeatEffectChunkOption {
         for {
           bufArray  <- UIO(Array.ofDim[Byte](chunkSize))
-          bytesRead <- ZIO.effectBlockingIO(capturedIs.read(bufArray)).mapError(Some(_))
+          bytesRead <- ZIO.attemptBlockingIO(capturedIs.read(bufArray)).mapError(Some(_))
           bytes <- if (bytesRead < 0)
                      ZIO.fail(None)
                    else if (bytesRead == 0)
@@ -325,7 +325,7 @@ trait ZStreamPlatformSpecificConstructors {
   ): ZStream[Any, IOException, Byte] =
     ZStream.managed {
       ZManaged.fromAutoCloseable {
-        ZIO.effectBlockingIO(getClass.getClassLoader.getResourceAsStream(path.replace('\\', '/'))).flatMap { x =>
+        ZIO.attemptBlockingIO(getClass.getClassLoader.getResourceAsStream(path.replace('\\', '/'))).flatMap { x =>
           if (x == null)
             ZIO.fail(new FileNotFoundException(s"No such resource: '$path'"))
           else
@@ -363,7 +363,7 @@ trait ZStreamPlatformSpecificConstructors {
       ZStream.repeatEffectChunkOption {
         for {
           bufArray  <- UIO(Array.ofDim[Char](chunkSize))
-          bytesRead <- ZIO.effectBlockingIO(capturedReader.read(bufArray)).mapError(Some(_))
+          bytesRead <- ZIO.attemptBlockingIO(capturedReader.read(bufArray)).mapError(Some(_))
           chars <- if (bytesRead < 0)
                      ZIO.fail(None)
                    else if (bytesRead == 0)
@@ -406,7 +406,7 @@ trait ZStreamPlatformSpecificConstructors {
       val readIn = fromInputStream(in, chunkSize).ensuring(ZIO.succeed(in.close()))
       val writeOut = ZStream.fromEffect {
         ZIO
-          .effectBlockingInterrupt(write(out))
+          .attemptBlockingInterrupt(write(out))
           .exit
           .tap(exit => err.done(exit.as(None)))
           .ensuring(ZIO.succeed(out.close()))
@@ -468,7 +468,7 @@ trait ZStreamPlatformSpecificConstructors {
       registerConnection <- ZStream.managed(ZManaged.scope)
 
       conn <- ZStream.repeatEffect {
-                IO.effectAsync[Throwable, UManaged[Connection]] { callback =>
+                IO.async[Throwable, UManaged[Connection]] { callback =>
                   server.accept(
                     null,
                     new CompletionHandler[AsynchronousSocketChannel, Void]() {
@@ -516,7 +516,7 @@ trait ZStreamPlatformSpecificConstructors {
         case _ =>
           val buff = ByteBuffer.allocate(ZStream.DefaultChunkSize)
 
-          IO.effectAsync[Throwable, Option[(Chunk[Byte], Int)]] { callback =>
+          IO.async[Throwable, Option[(Chunk[Byte], Int)]] { callback =>
             socket.read(
               buff,
               null,
@@ -540,7 +540,7 @@ trait ZStreamPlatformSpecificConstructors {
      */
     def write: Sink[Throwable, Byte, Nothing, Int] =
       ZSink.foldLeftChunksM(0) { case (nbBytesWritten, c) =>
-        IO.effectAsync[Throwable, Int] { callback =>
+        IO.async[Throwable, Int] { callback =>
           socket.write(
             ByteBuffer.wrap(c.toArray),
             null,

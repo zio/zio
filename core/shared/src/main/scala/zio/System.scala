@@ -109,57 +109,57 @@ object System extends Serializable {
    * Retrieves the value of an environment variable.
    */
   def env(variable: => String): ZIO[Has[System], SecurityException, Option[String]] =
-    ZIO.accessM(_.get.env(variable))
+    ZIO.accessZIO(_.get.env(variable))
 
   /**
    * Retrieves the value of an environment variable or else returns the
    * specified fallback value.
    */
   def envOrElse(variable: String, alt: => String): ZIO[Has[System], SecurityException, String] =
-    ZIO.accessM(_.get.envOrElse(variable, alt))
+    ZIO.accessZIO(_.get.envOrElse(variable, alt))
 
   /**
    * Retrieves the value of an environment variable or else returns the
    * specified optional fallback value.
    */
   def envOrOption(variable: String, alt: => Option[String]): ZIO[Has[System], SecurityException, Option[String]] =
-    ZIO.accessM(_.get.envOrOption(variable, alt))
+    ZIO.accessZIO(_.get.envOrOption(variable, alt))
 
   /**
    * Retrieves the values of all environment variables.
    */
   val envs: ZIO[Has[System], SecurityException, Map[String, String]] =
-    ZIO.accessM(_.get.envs)
+    ZIO.accessZIO(_.get.envs)
 
   /**
    * Retrieves the values of all system properties.
    */
   val properties: ZIO[Has[System], Throwable, Map[String, String]] =
-    ZIO.accessM(_.get.properties)
+    ZIO.accessZIO(_.get.properties)
 
   /**
    * Retrieves the value of a system property.
    */
   def property(prop: => String): ZIO[Has[System], Throwable, Option[String]] =
-    ZIO.accessM(_.get.property(prop))
+    ZIO.accessZIO(_.get.property(prop))
 
   /**
    * Retrieves the value of a system property or else return the specified
    * fallback value.
    */
   def propertyOrElse(prop: String, alt: => String): RIO[Has[System], String] =
-    ZIO.accessM(_.get.propertyOrElse(prop, alt))
+    ZIO.accessZIO(_.get.propertyOrElse(prop, alt))
 
   /**
    * Retrieves the value of a system property or else return the specified
    * optional fallback value.
    */
   def propertyOrOption(prop: String, alt: => Option[String]): ZIO[Has[System], Throwable, Option[String]] =
-    ZIO.accessM(_.get.propertyOrOption(prop, alt))
+    ZIO.accessZIO(_.get.propertyOrOption(prop, alt))
 
   /**
    * Retrieves the value of the system-specific line separator.
    */
   val lineSeparator: URIO[Has[System], String] =
-    ZIO.accessM(_.get.lineSeparator)
+    ZIO.accessZIO(_.get.lineSeparator)
 }

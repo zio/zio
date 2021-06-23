@@ -123,7 +123,7 @@ object TestAspect extends TimeoutVariants {
   )(after: A0 => ZIO[R0, Nothing, Any]): TestAspect[Nothing, R0, E0, Any] =
     new TestAspect.PerTest[Nothing, R0, E0, Any] {
       def perTest[R <: R0, E >: E0](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] =
-        before.catchAllCause(c => ZIO.fail(TestFailure.Runtime(c))).bracket(after)(_ => test)
+        before.catchAllCause(c => ZIO.fail(TestFailure.Runtime(c))).acquireReleaseWith(after)(_ => test)
     }
 
   /**
@@ -150,7 +150,7 @@ object TestAspect extends TimeoutVariants {
         def around[R <: R0, E >: E0, A](
           test: ZIO[R, TestFailure[E], TestSuccess]
         ): ZIO[R, TestFailure[E], TestSuccess] =
-          before.mapError(TestFailure.fail).bracket(after)(_ => test)
+          before.mapError(TestFailure.fail).acquireReleaseWith(after)(_ => test)
         spec.caseValue match {
           case Spec.SuiteCase(label, specs, exec)      => Spec.suite(label, aroundAll(specs), exec)
           case Spec.TestCase(label, test, annotations) => Spec.test(label, around(test), annotations)
@@ -351,7 +351,7 @@ object TestAspect extends TimeoutVariants {
   def failing[E0](assertion: Assertion[TestFailure[E0]]): TestAspect[Nothing, Any, Nothing, E0] =
     new TestAspect.PerTest[Nothing, Any, Nothing, E0] {
       def perTest[R, E <: E0](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] =
-        test.foldM(
+        test.foldZIO(
           failure =>
             if (assertion.test(failure)) ZIO.succeedNow(TestSuccess.Succeeded(BoolAlgebra.unit))
             else ZIO.fail(TestFailure.assertion(assertImpl(failure)(assertion))),
@@ -379,7 +379,7 @@ object TestAspect extends TimeoutVariants {
               }
           case Left(_) => ZIO.unit
         }
-        acquire.bracket(_ => release) { ref =>
+        acquire.acquireReleaseWith(_ => release) { ref =>
           Supervisor.fibersIn(ref).flatMap(supervisor => test.supervised(supervisor))
         }
       }
@@ -602,7 +602,7 @@ object TestAspect extends TimeoutVariants {
   ): TestAspectAtLeastR[R0] = {
     val repeat = new PerTest.AtLeastR[R0] {
       def perTest[R <: R0, E](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] =
-        ZIO.accessM(r =>
+        ZIO.accessZIO(r =>
           Live.live(
             test
               .provide(r)
@@ -642,7 +642,7 @@ object TestAspect extends TimeoutVariants {
    * tests.
    */
   def restore[R0](service: R0 => Restorable): TestAspectAtLeastR[R0] =
-    around(ZIO.accessM[R0](r => service(r).save))(restore => restore)
+    around(ZIO.accessZIO[R0](r => service(r).save))(restore => restore)
 
   /**
    * An aspect that restores the
@@ -718,7 +718,7 @@ object TestAspect extends TimeoutVariants {
   ): TestAspect[Nothing, R0, Nothing, E0] = {
     val retry = new TestAspect.PerTest[Nothing, R0, Nothing, E0] {
       def perTest[R <: R0, E <: E0](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] =
-        ZIO.accessM[R](r =>
+        ZIO.accessZIO[R](r =>
           Live.live(
             test.provide(r).retry(schedule.tapOutput(_ => Annotations.annotate(TestAnnotation.retried, 1)).provide(r))
           )

@@ -141,7 +141,7 @@ object TestConsole extends Serializable {
     override def print(line: String): IO[IOException, Unit] =
       consoleState.update { data =>
         Data(data.input, data.output :+ line, data.errOutput)
-      } *> live.provide(Console.print(line)).whenM(debugState.get)
+      } *> live.provide(Console.print(line)).whenZIO(debugState.get)
 
     /**
      * Writes the specified string to the error buffer.
@@ -149,7 +149,7 @@ object TestConsole extends Serializable {
     override def printError(line: String): IO[IOException, Unit] =
       consoleState.update { data =>
         Data(data.input, data.output, data.errOutput :+ line)
-      } *> live.provide(Console.printError(line)).whenM(debugState.get)
+      } *> live.provide(Console.printError(line)).whenZIO(debugState.get)
 
     /**
      * Writes the specified string to the output buffer followed by a newline
@@ -158,7 +158,7 @@ object TestConsole extends Serializable {
     override def printLine(line: String): IO[IOException, Unit] =
       consoleState.update { data =>
         Data(data.input, data.output :+ s"$line\n", data.errOutput)
-      } *> live.provide(Console.printLine(line)).whenM(debugState.get)
+      } *> live.provide(Console.printLine(line)).whenZIO(debugState.get)
 
     /**
      * Writes the specified string to the error buffer followed by a newline
@@ -167,7 +167,7 @@ object TestConsole extends Serializable {
     override def printLineError(line: String): IO[IOException, Unit] =
       consoleState.update { data =>
         Data(data.input, data.output, data.errOutput :+ s"$line\n")
-      } *> live.provide(Console.printLineError(line)).whenM(debugState.get)
+      } *> live.provide(Console.printLineError(line)).whenZIO(debugState.get)
 
     /**
      * Saves the `TestConsole`'s current state in an effect which, when run,
@@ -215,14 +215,14 @@ object TestConsole extends Serializable {
    * buffer.
    */
   val clearInput: URIO[Has[TestConsole], Unit] =
-    ZIO.accessM(_.get.clearInput)
+    ZIO.accessZIO(_.get.clearInput)
 
   /**
    * Accesses a `TestConsole` instance in the environment and clears the output
    * buffer.
    */
   val clearOutput: URIO[Has[TestConsole], Unit] =
-    ZIO.accessM(_.get.clearOutput)
+    ZIO.accessZIO(_.get.clearOutput)
 
   /**
    * Accesses a `TestConsole` instance in the environment and runs the
@@ -231,28 +231,28 @@ object TestConsole extends Serializable {
    * written to the output buffer.
    */
   def debug[R <: Has[TestConsole], E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
-    ZIO.accessM(_.get.debug(zio))
+    ZIO.accessZIO(_.get.debug(zio))
 
   /**
    * Accesses a `TestConsole` instance in the environment and writes the
    * specified sequence of strings to the input buffer.
    */
   def feedLines(lines: String*): URIO[Has[TestConsole], Unit] =
-    ZIO.accessM(_.get.feedLines(lines: _*))
+    ZIO.accessZIO(_.get.feedLines(lines: _*))
 
   /**
    * Accesses a `TestConsole` instance in the environment and returns the
    * contents of the output buffer.
    */
   val output: ZIO[Has[TestConsole], Nothing, Vector[String]] =
-    ZIO.accessM(_.get.output)
+    ZIO.accessZIO(_.get.output)
 
   /**
    * Accesses a `TestConsole` instance in the environment and returns the
    * contents of the error buffer.
    */
   val outputErr: ZIO[Has[TestConsole], Nothing, Vector[String]] =
-    ZIO.accessM(_.get.outputErr)
+    ZIO.accessZIO(_.get.outputErr)
 
   /**
    * Accesses a `TestConsole` instance in the environment and saves the
@@ -260,7 +260,7 @@ object TestConsole extends Serializable {
    * `TestConsole` to the saved state.
    */
   val save: ZIO[Has[TestConsole], Nothing, UIO[Unit]] =
-    ZIO.accessM(_.get.save)
+    ZIO.accessZIO(_.get.save)
 
   /**
    * Accesses a `TestConsole` instance in the environment and runs the
@@ -269,7 +269,7 @@ object TestConsole extends Serializable {
    * standard output.
    */
   def silent[R <: Has[TestConsole], E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
-    ZIO.accessM(_.get.silent(zio))
+    ZIO.accessZIO(_.get.silent(zio))
 
   /**
    * The state of the `TestConsole`.

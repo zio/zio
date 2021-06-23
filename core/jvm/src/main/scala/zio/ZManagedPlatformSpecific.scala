@@ -37,7 +37,7 @@ private[zio] trait ZManagedPlatformSpecific {
   def readFile(path: String): ZManaged[Any, IOException, ZInputStream] =
     ZManaged
       .bracket(
-        ZIO.effectBlockingIO {
+        ZIO.attemptBlockingIO {
           val fis = new io.FileInputStream(path)
           (fis, ZInputStream.fromInputStream(fis))
         }
@@ -47,7 +47,7 @@ private[zio] trait ZManagedPlatformSpecific {
   def readURL(url: URL): ZManaged[Any, IOException, ZInputStream] =
     ZManaged
       .bracket(
-        ZIO.effectBlockingIO {
+        ZIO.attemptBlockingIO {
           val fis = url.openStream()
           (fis, ZInputStream.fromInputStream(fis))
         }
@@ -59,14 +59,14 @@ private[zio] trait ZManagedPlatformSpecific {
 
   def readURI(uri: URI): ZManaged[Any, IOException, ZInputStream] =
     for {
-      isAbsolute <- ZManaged.fromEffect(ZIO.effectBlockingIO(uri.isAbsolute()))
+      isAbsolute <- ZManaged.fromEffect(ZIO.attemptBlockingIO(uri.isAbsolute()))
       is         <- if (isAbsolute) readURL(uri.toURL()) else readFile(uri.toString())
     } yield is
 
   def writeFile(path: String): ZManaged[Any, IOException, ZOutputStream] =
     ZManaged
       .bracket(
-        ZIO.effectBlockingIO {
+        ZIO.attemptBlockingIO {
           val fos = new io.FileOutputStream(path)
           (fos, ZOutputStream.fromOutputStream(fos))
         }

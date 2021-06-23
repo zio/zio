@@ -168,42 +168,42 @@ object TestSystem extends Serializable {
    * name and value to the mapping of environment variables.
    */
   def putEnv(name: => String, value: => String): URIO[Has[TestSystem], Unit] =
-    ZIO.accessM(_.get.putEnv(name, value))
+    ZIO.accessZIO(_.get.putEnv(name, value))
 
   /**
    * Accesses a `TestSystem` instance in the environment and adds the specified
    * name and value to the mapping of system properties.
    */
   def putProperty(name: => String, value: => String): URIO[Has[TestSystem], Unit] =
-    ZIO.accessM(_.get.putProperty(name, value))
+    ZIO.accessZIO(_.get.putProperty(name, value))
 
   /**
    * Accesses a `TestSystem` instance in the environment and saves the system state in an effect which, when run,
    * will restore the `TestSystem` to the saved state
    */
   val save: ZIO[Has[TestSystem], Nothing, UIO[Unit]] =
-    ZIO.accessM(_.get.save)
+    ZIO.accessZIO(_.get.save)
 
   /**
    * Accesses a `TestSystem` instance in the environment and sets the line
    * separator to the specified value.
    */
   def setLineSeparator(lineSep: => String): URIO[Has[TestSystem], Unit] =
-    ZIO.accessM(_.get.setLineSeparator(lineSep))
+    ZIO.accessZIO(_.get.setLineSeparator(lineSep))
 
   /**
    * Accesses a `TestSystem` instance in the environment and clears the mapping
    * of environment variables.
    */
   def clearEnv(variable: => String): URIO[Has[TestSystem], Unit] =
-    ZIO.accessM(_.get.clearEnv(variable))
+    ZIO.accessZIO(_.get.clearEnv(variable))
 
   /**
    * Accesses a `TestSystem` instance in the environment and clears the mapping
    * of system properties.
    */
   def clearProperty(prop: => String): URIO[Has[TestSystem], Unit] =
-    ZIO.accessM(_.get.clearProperty(prop))
+    ZIO.accessZIO(_.get.clearProperty(prop))
 
   /**
    * The state of the `TestSystem`.

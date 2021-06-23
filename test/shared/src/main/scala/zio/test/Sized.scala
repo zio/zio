@@ -20,8 +20,8 @@ object Sized {
     })
 
   def size: URIO[Has[Sized], Int] =
-    ZIO.accessM[Has[Sized]](_.get.size)
+    ZIO.accessZIO[Has[Sized]](_.get.size)
 
   def withSize[R <: Has[Sized], E, A](size: Int)(zio: ZIO[R, E, A]): ZIO[R, E, A] =
-    ZIO.accessM[R](_.get.withSize(size)(zio))
+    ZIO.accessZIO[R](_.get.withSize(size)(zio))
 }

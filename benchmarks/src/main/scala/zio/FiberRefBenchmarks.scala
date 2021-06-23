@@ -46,14 +46,14 @@ class FiberRefBenchmarks {
 
   private def justYield(runtime: Runtime[Any]) = runtime.unsafeRun {
     for {
-      _ <- ZIO.foreach_(1.to(n))(_ => ZIO.yieldNow)
+      _ <- ZIO.foreachDiscard(1.to(n))(_ => ZIO.yieldNow)
     } yield ()
   }
 
   private def createFiberRefsAndYield(runtime: Runtime[Any]) = runtime.unsafeRun {
     for {
       fiberRefs <- ZIO.foreach(1.to(n))(i => FiberRef.make(i))
-      _         <- ZIO.foreach_(1.to(n))(_ => ZIO.yieldNow)
+      _         <- ZIO.foreachDiscard(1.to(n))(_ => ZIO.yieldNow)
       values    <- ZIO.foreachPar(fiberRefs)(_.get)
       _         <- verify(values == 1.to(n))(s"Got $values")
     } yield ()

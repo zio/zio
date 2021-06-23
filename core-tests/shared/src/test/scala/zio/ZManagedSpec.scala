@@ -1271,7 +1271,7 @@ object ZManagedSpec extends ZIOBaseSpec {
         for {
           ref    <- Ref.make(true)
           latch  <- Promise.make[Nothing, Unit]
-          managed = Managed.bracket(ZIO.unit)(_ => latch.succeed(()) *> ZIO.never.whenM(ref.get)).withEarlyRelease
+          managed = Managed.bracket(ZIO.unit)(_ => latch.succeed(()) *> ZIO.never.whenZIO(ref.get)).withEarlyRelease
           result <- managed.use { case (canceler, _) =>
                       for {
                         fiber        <- canceler.forkDaemon

@@ -949,14 +949,14 @@ object ZSTM {
    * Atomically performs a batch of operations in a single transaction.
    */
   def atomically[R, E, A](stm: ZSTM[R, E, A]): ZIO[R, E, A] =
-    ZIO.accessM[R] { r =>
-      ZIO.effectSuspendMaybeWith { (platform, fiberId) =>
+    ZIO.accessZIO[R] { r =>
+      ZIO.suspendMaybeWith { (platform, fiberId) =>
         tryCommitSync(platform, fiberId, stm, r) match {
           case TryCommit.Done(exit) => Left(exit)
           case TryCommit.Suspend(journal) =>
             val txnId = makeTxnId()
             val state = new AtomicReference[State[E, A]](State.Running)
-            val async = ZIO.effectAsync(tryCommitAsync(journal, platform, fiberId, stm, txnId, state, r))
+            val async = ZIO.async(tryCommitAsync(journal, platform, fiberId, stm, txnId, state, r))
 
             Right {
               ZIO.uninterruptibleMask { restore =>

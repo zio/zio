@@ -269,7 +269,7 @@ object TMapSpec extends ZIOBaseSpec {
           tmap <- TMap.make("a" -> 0).commit
           tx    = tmap.transformValues(_ + 1).commit.repeatN(999)
           n     = 2
-          _    <- URIO.collectAllPar_(List.fill(n)(tx))
+          _    <- URIO.collectAllParDiscard(List.fill(n)(tx))
           res  <- tmap.get("a").commit
         } yield assert(res)(isSome(equalTo(2000)))
       },
@@ -328,7 +328,7 @@ object TMapSpec extends ZIOBaseSpec {
           keys <- ZIO.succeed((0 to 10).toList)
           map  <- TMap.fromIterable(keys.zipWithIndex).commit
           exit <- ZIO
-                    .foreach_(keys) { k =>
+                    .foreachDiscard(keys) { k =>
                       for {
                         _ <- map.delete(k).commit.fork
                         _ <- map.toChunk.commit

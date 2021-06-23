@@ -738,7 +738,7 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
    * Effectfully maps the elements of this chunk purely for the effects.
    */
   final def mapZIODiscard[R, E](f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] =
-    ZIO.foreach_(self)(f)
+    ZIO.foreachDiscard(self)(f)
 
   /**
    * Effectfully maps the elements of this chunk in parallel.
@@ -750,7 +750,7 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
    * Effectfully maps the elements of this chunk in parallel purely for the effects.
    */
   final def mapZIOParDiscard[R, E](f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] =
-    ZIO.foreachPar_(self)(f)
+    ZIO.foreachParDiscard(self)(f)
 
   /**
    * Materializes a chunk into a chunk backed by an array. This method can

@@ -484,7 +484,7 @@ object ZRefMSpec extends ZIOBaseSpec {
           right   <- RefM.make(1)
           composed = left <*> right
           effect   = composed.update { case (a, b) => (b, a + b) }
-          _       <- ZIO.collectAllPar_(ZIO.replicate(20)(effect))
+          _       <- ZIO.collectAllParDiscard(ZIO.replicate(20)(effect))
           tuple   <- composed.get
           (a, b)   = tuple
         } yield assert(a)(equalTo(6765)) && assert(b)(equalTo(10946))
@@ -495,7 +495,7 @@ object ZRefMSpec extends ZIOBaseSpec {
           right   <- RefM.make(0)
           composed = left <*> right
           effect   = composed.getAndUpdate { case (a, b) => (a + 1, b + 1) }
-          _       <- ZIO.forkAll_(ZIO.replicate(100)(effect))
+          _       <- ZIO.forkAllDiscard(ZIO.replicate(100)(effect))
           tuple   <- composed.get
           (a, b)   = tuple
         } yield assert(a)(equalTo(b))

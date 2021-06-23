@@ -33,7 +33,7 @@ object RTSSpec extends ZIOBaseSpec {
       for {
         done  <- Ref.make(false)
         start <- Promise.make[Nothing, Unit]
-        fiber <- ZIO.effectBlockingInterrupt { start.unsafeDone(IO.unit); Thread.sleep(60L * 60L * 1000L) }
+        fiber <- ZIO.attemptBlockingInterrupt { start.unsafeDone(IO.unit); Thread.sleep(60L * 60L * 1000L) }
                    .ensuring(done.set(true))
                    .fork
         _     <- start.await
@@ -46,7 +46,7 @@ object RTSSpec extends ZIOBaseSpec {
         for {
           release <- Promise.make[Nothing, Int]
           latch   <- Promise.make[Nothing, Unit]
-          async = IO.effectAsyncInterrupt[Nothing, Unit] { _ =>
+          async = IO.asyncInterrupt[Nothing, Unit] { _ =>
                     latch.unsafeDone(IO.unit); Left(release.succeed(42).unit)
                   }
           fiber  <- async.fork
@@ -81,7 +81,7 @@ object RTSSpec extends ZIOBaseSpec {
           exitLatch  <- Promise.make[Nothing, Int]
           bracketed = IO
                         .succeed(21)
-                        .bracketExit((r: Int, exit: Exit[Any, Any]) =>
+                        .acquireReleaseExitWith((r: Int, exit: Exit[Any, Any]) =>
                           if (exit.interrupted) exitLatch.succeed(r)
                           else IO.die(new Error("Unexpected case"))
                         )(a => startLatch.succeed(a) *> IO.never *> IO.succeed(1))
@@ -101,7 +101,7 @@ object RTSSpec extends ZIOBaseSpec {
 
       (0 until 10000).foreach { _ =>
         rts.unsafeRun {
-          IO.effectAsync[Nothing, Int] { k =>
+          IO.async[Nothing, Int] { k =>
             val c: Callable[Unit] = () => k(IO.succeed(1))
             val _                 = e.submit(c)
           }
@@ -112,12 +112,12 @@ object RTSSpec extends ZIOBaseSpec {
     } @@ zioTag(regression),
     testM("second callback call is ignored") {
       for {
-        _ <- IO.effectAsync[Throwable, Int] { k =>
+        _ <- IO.async[Throwable, Int] { k =>
                k(IO.succeed(42))
                Thread.sleep(500)
                k(IO.succeed(42))
              }
-        res <- IO.effectAsync[Throwable, String] { k =>
+        res <- IO.async[Throwable, String] { k =>
                  Thread.sleep(1000)
                  k(IO.succeed("ok"))
                }

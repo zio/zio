@@ -203,7 +203,9 @@ object ZChannelSimulatedChecks extends ZIOBaseSpec {
 
     override def asEffect(f: IO[Err, Res]): IO[Err, Res] =
       f.flatMap { value =>
-        ZIO.bracket(ZIO.succeed(value))(_ => ZIO.unit)(value => Simulation.opsToEffect(ZIO.succeed(value), ops))
+        ZIO.acquireReleaseWith(ZIO.succeed(value))(_ => ZIO.unit)(value =>
+          Simulation.opsToEffect(ZIO.succeed(value), ops)
+        )
       }
 
     override def writeOutChannelString(sb: StringBuilder): Unit = {

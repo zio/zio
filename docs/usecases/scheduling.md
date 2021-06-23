@@ -72,7 +72,7 @@ object ScheduleApp extends scala.App {
 
   implicit val rt: Runtime[Has[Clock] with Has[Console]] = Runtime.default
 
-  rt.unsafeRun(makeRequest.retry(schedule).foldM(
+  rt.unsafeRun(makeRequest.retry(schedule).foldZIO(
     ex => printLine("Exception Failed"),
     v => printLine(s"Succeeded with $v"))
   )

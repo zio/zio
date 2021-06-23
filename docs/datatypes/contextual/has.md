@@ -73,11 +73,11 @@ We also provided their accessors to their companion object. We just used `ZIO.ac
 
 ```scala mdoc:silent:nest
 object Logging {
-  def log(line: String): ZIO[Logging, Nothing, Unit] = ZIO.accessM[Logging](_.log(line))
+  def log(line: String): ZIO[Logging, Nothing, Unit] = ZIO.accessZIO[Logging](_.log(line))
 }
 
 object RandomInt {
-  val random: ZIO[RandomInt, Nothing, Int] = ZIO.accessM[RandomInt](_.random)
+  val random: ZIO[RandomInt, Nothing, Int] = ZIO.accessZIO[RandomInt](_.random)
 }
 ```
 

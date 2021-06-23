@@ -256,7 +256,7 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
         (inputs: Option[Chunk[I]]) =>
           push(inputs).catchAll {
             case (Left(e), left)  => Push.fail(e, left)
-            case (Right(z), left) => f(z).foldM(e => Push.fail(e, left), z2 => Push.emit(z2, left))
+            case (Right(z), left) => f(z).foldZIO(e => Push.fail(e, left), z2 => Push.emit(z2, left))
           }
       )
     )
@@ -319,7 +319,7 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
     ZTransducer {
       ZSink.Push.restartable(push).map { case (push, restart) =>
         def go(input: Option[Chunk[I]]): ZIO[R, E, Chunk[Z]] =
-          push(input).foldM(
+          push(input).foldZIO(
             {
               case (Left(e), _) => ZIO.fail(e)
               case (Right(z), leftover) =>
@@ -417,14 +417,14 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
           val newState: ZIO[R1, (Either[E1, Z2], Chunk[L1]), State[Z, Z1]] = {
             state match {
               case BothRunning => {
-                val l: ZIO[R, (Either[E1, Z2], Chunk[L1]), Option[(Z, Chunk[L])]] = p1(in).foldM(
+                val l: ZIO[R, (Either[E1, Z2], Chunk[L1]), Option[(Z, Chunk[L])]] = p1(in).foldZIO(
                   {
                     case (Left(e), l)  => Push.fail(e, l)
                     case (Right(z), l) => ZIO.succeedNow(Some((z, l)))
                   },
                   _ => ZIO.succeedNow(None)
                 )
-                val r: ZIO[R1, (Left[E1, Nothing], Chunk[L1]), Option[(Z1, Chunk[L1])]] = p2(in).foldM(
+                val r: ZIO[R1, (Left[E1, Nothing], Chunk[L1]), Option[(Z1, Chunk[L1])]] = p2(in).foldZIO(
                   {
                     case (Left(e), l)  => Push.fail(e, l)
                     case (Right(z), l) => ZIO.succeedNow(Some((z, l)))
@@ -706,7 +706,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
       if (idx == len) {
         ZIO.succeedNow((s, None))
       } else {
-        f(s, chunk(idx)).foldM(
+        f(s, chunk(idx)).foldZIO(
           e => ZIO.fail((e, chunk.drop(idx + 1))),
           s1 =>
             if (contFn(s1)) {
@@ -726,7 +726,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
                      case None => state.get.flatMap(s => Push.emit(s, Chunk.empty))
                      case Some(is) => {
                        state.get.flatMap { s =>
-                         foldChunk(s, is, 0, is.length).foldM(
+                         foldChunk(s, is, 0, is.length).foldZIO(
                            err => Push.fail(err._1, err._2),
                            {
                              case (st, l) => {
@@ -780,7 +780,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
       if (idx == len)
         Push.more
       else
-        f(chunk(idx)).foldM(e => Push.fail(e, chunk.drop(idx + 1)), _ => go(chunk, idx + 1, len))
+        f(chunk(idx)).foldZIO(e => Push.fail(e, chunk.drop(idx + 1)), _ => go(chunk, idx + 1, len))
 
     ZSink.fromPush[R, E, I, I, Unit] {
       case Some(is) => go(is, 0, is.length)
@@ -806,7 +806,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
       if (idx == len)
         Push.more
       else
-        f(chunk(idx)).foldM(
+        f(chunk(idx)).foldZIO(
           e => Push.fail(e, chunk.drop(idx + 1)),
           b => if (b) go(chunk, idx + 1, len) else Push.emit((), chunk.drop(idx))
         )
@@ -823,7 +823,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   def fromEffect[R, E, I, Z](b: => ZIO[R, E, Z]): ZSink[R, E, I, I, Z] =
     fromPush[R, E, I, I, Z] { in =>
       val leftover = in.fold[Chunk[I]](Chunk.empty)(identity)
-      b.foldM(Push.fail(_, leftover), z => Push.emit(z, leftover))
+      b.foldZIO(Push.fail(_, leftover), z => Push.emit(z, leftover))
     }
 
   /**

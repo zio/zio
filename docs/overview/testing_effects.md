@@ -49,8 +49,8 @@ trait DatabaseOps {
 
 val tablesAndColumns: ZIO[DatabaseOps, Throwable, (List[String], List[String])] = 
   for {
-    tables  <- ZIO.accessM[DatabaseOps](_.getTableNames)
-    columns <- ZIO.accessM[DatabaseOps](_.getColumnNames("user_table"))
+    tables  <- ZIO.accessZIO[DatabaseOps](_.getTableNames)
+    columns <- ZIO.accessZIO[DatabaseOps](_.getColumnNames("user_table"))
   } yield (tables, columns)
 ```
 
@@ -116,10 +116,10 @@ In order to make it easier to access the database service as an environmental ef
 ```scala mdoc:silent
 object db {
   def lookup(id: UserID): RIO[Database, UserProfile] =
-    ZIO.accessM(_.database.lookup(id))
+    ZIO.accessZIO(_.database.lookup(id))
 
   def update(id: UserID, profile: UserProfile): RIO[Database, Unit] =
-    ZIO.accessM(_.database.update(id, profile))
+    ZIO.accessZIO(_.database.update(id, profile))
 }
 ```
 

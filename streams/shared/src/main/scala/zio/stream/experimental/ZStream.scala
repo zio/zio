@@ -188,7 +188,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
         val timeout =
           scheduleDriver
             .next(lastB)
-            .foldCauseM(
+            .foldCauseZIO(
               _.failureOrCause match {
                 case Left(_)      => handoff.offer(End(ScheduleTimeout))
                 case Right(cause) => handoff.offer(Halt(cause))
@@ -664,7 +664,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   private def loopOnPartialChunksElements[R1 <: R, E1 >: E, A1](
     f: (A, A1 => UIO[Unit]) => ZIO[R1, E1, Unit]
   ): ZStream[R1, E1, A1] =
-    loopOnPartialChunks((chunk, emit) => ZIO.foreach_(chunk)(value => f(value, emit)).as(true))
+    loopOnPartialChunks((chunk, emit) => ZIO.foreachDiscard(chunk)(value => f(value, emit)).as(true))
 
   /**
    * Performs an effectful filter and map in a single step.
@@ -944,7 +944,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
                      if (shouldProcess(id)) {
                        queue
                          .offer(Exit.succeed(a))
-                         .foldCauseM(
+                         .foldCauseZIO(
                            {
                              // we ignore all downstream queues that were shut down and remove them later
                              case c if c.interrupted => ZIO.succeedNow(id :: acc)
@@ -3851,7 +3851,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   def repeatEffectWith[R, E, A](effect: ZIO[R, E, A], schedule: Schedule[R, A, Any]): ZStream[R with Has[Clock], E, A] =
     ZStream.fromEffect(effect zip schedule.driver).flatMap { case (a, driver) =>
       ZStream.succeed(a) ++
-        ZStream.unfoldM(a)(driver.next(_).foldM(ZIO.succeed(_), _ => effect.map(nextA => Some(nextA -> nextA))))
+        ZStream.unfoldM(a)(driver.next(_).foldZIO(ZIO.succeed(_), _ => effect.map(nextA => Some(nextA -> nextA))))
     }
 
   /**
@@ -4090,7 +4090,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
 
     def update: ZIO[R, Option[E], Unit] =
       ifNotDone {
-        upstream.foldM(
+        upstream.foldZIO(
           {
             case None    => done.set(true) *> Pull.end
             case Some(e) => Pull.fail(e)

@@ -33,7 +33,7 @@ class TArrayOpsBenchmarks {
 
   @Benchmark
   def lookup(): Unit =
-    unsafeRun(ZIO.foreach_(calls)(_ => array(idx).commit))
+    unsafeRun(ZIO.foreachDiscard(calls)(_ => array(idx).commit))
 
   @Benchmark
   def find(): Option[Int] =
@@ -77,9 +77,9 @@ class TArrayOpsBenchmarks {
 
   @Benchmark
   def update(): Unit =
-    unsafeRun(ZIO.foreach_(calls)(_ => array.update(idx, _ + 1).commit))
+    unsafeRun(ZIO.foreachDiscard(calls)(_ => array.update(idx, _ + 1).commit))
 
   @Benchmark
   def updateM(): Unit =
-    unsafeRun(ZIO.foreach_(calls)(_ => array.updateM(idx, i => STM.succeedNow(i + 1)).commit))
+    unsafeRun(ZIO.foreachDiscard(calls)(_ => array.updateM(idx, i => STM.succeedNow(i + 1)).commit))
 }

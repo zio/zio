@@ -91,7 +91,7 @@ The second fold method, `foldM`, lets you effectfully handle both failure and su
 
 ```scala mdoc:silent
 val primaryOrSecondaryData: IO[IOException, Array[Byte]] = 
-  openFile("primary.data").foldM(
+  openFile("primary.data").foldZIO(
     _    => openFile("secondary.data"),
     data => ZIO.succeed(data))
 ```
@@ -109,7 +109,7 @@ def fetchContent(urls: List[String]): UIO[Content] = IO.succeed(OkContent("Roger
 ```
 ```scala mdoc:silent
 val urls: UIO[Content] =
-  readUrls("urls.json").foldM(
+  readUrls("urls.json").foldZIO(
     error   => IO.succeed(NoContent(error)), 
     success => fetchContent(success)
   )

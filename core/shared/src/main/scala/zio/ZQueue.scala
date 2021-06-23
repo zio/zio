@@ -562,8 +562,8 @@ object ZQueue {
         shutdownFlag.set(true)
 
         UIO
-          .whenM(shutdownHook.succeed(()))(
-            UIO.foreachPar_(unsafePollAll(takers))(_.interruptAs(fiberId)) *> strategy.shutdown
+          .whenZIO(shutdownHook.succeed(()))(
+            UIO.foreachParDiscard(unsafePollAll(takers))(_.interruptAs(fiberId)) *> strategy.shutdown
           )
       }.uninterruptible
 

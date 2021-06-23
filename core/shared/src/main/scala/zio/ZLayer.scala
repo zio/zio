@@ -4191,7 +4191,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
                   map.get(layer) match {
                     case Some((acquire, release)) =>
                       val cached =
-                        ZIO.accessM[(A, ReleaseMap)] { case (_, releaseMap) =>
+                        ZIO.accessZIO[(A, ReleaseMap)] { case (_, releaseMap) =>
                           acquire
                             .asInstanceOf[IO[E, B]]
                             .onExit {
@@ -4227,7 +4227,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
                                                case Exit.Success((_, b)) =>
                                                  for {
                                                    _ <- finalizerRef.set { (e: Exit[Any, Any]) =>
-                                                          ZIO.whenM(observers.modify(n => (n == 1, n - 1)))(
+                                                          ZIO.whenZIO(observers.modify(n => (n == 1, n - 1)))(
                                                             innerReleaseMap.releaseAll(e, ExecutionStrategy.Sequential)
                                                           )
                                                         }

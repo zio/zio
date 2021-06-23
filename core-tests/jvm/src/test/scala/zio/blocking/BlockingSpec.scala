@@ -19,28 +19,28 @@ object BlockingSpec extends ZIOBaseSpec {
         } yield assert(name)(containsString("zio-default-blocking"))
       },
       testM("effectBlockingCancelable completes successfully") {
-        assertM(ZIO.effectBlockingCancelable(())(UIO.unit))(isUnit)
+        assertM(ZIO.attemptBlockingCancelable(())(UIO.unit))(isUnit)
       },
       testM("effectBlockingCancelable runs on the blocking thread pool") {
         for {
-          name <- ZIO.effectBlockingCancelable(Thread.currentThread.getName)(UIO.unit)
+          name <- ZIO.attemptBlockingCancelable(Thread.currentThread.getName)(UIO.unit)
         } yield assert(name)(containsString("zio-default-blocking"))
       },
       testM("effectBlockingCancelable can be interrupted") {
         val release = new AtomicBoolean(false)
         val cancel  = UIO.succeed(release.set(true))
-        assertM(ZIO.effectBlockingCancelable(blockingAtomic(release))(cancel).timeout(Duration.Zero))(isNone)
+        assertM(ZIO.attemptBlockingCancelable(blockingAtomic(release))(cancel).timeout(Duration.Zero))(isNone)
       },
       testM("effectBlockingInterrupt completes successfully") {
-        assertM(ZIO.effectBlockingInterrupt(()))(isUnit)
+        assertM(ZIO.attemptBlockingInterrupt(()))(isUnit)
       },
       testM("effectBlockingInterrupt runs on the blocking thread pool") {
         for {
-          name <- ZIO.effectBlockingInterrupt(Thread.currentThread.getName)
+          name <- ZIO.attemptBlockingInterrupt(Thread.currentThread.getName)
         } yield assert(name)(containsString("zio-default-blocking"))
       },
       testM("effectBlockingInterrupt can be interrupted") {
-        assertM(ZIO.effectBlockingInterrupt(Thread.sleep(50000)).timeout(Duration.Zero))(isNone)
+        assertM(ZIO.attemptBlockingInterrupt(Thread.sleep(50000)).timeout(Duration.Zero))(isNone)
       } @@ nonFlaky
     )
   )

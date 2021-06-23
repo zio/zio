@@ -27,7 +27,7 @@ object ProvideLayerAutoExample extends App {
   }
 
   object OldLady {
-    def contentsOfStomach: ZIO[Has[OldLady], Nothing, List[String]] = ZIO.accessM(_.get.contentsOfStomach)
+    def contentsOfStomach: ZIO[Has[OldLady], Nothing, List[String]] = ZIO.accessZIO(_.get.contentsOfStomach)
 
     def live: URLayer[Has[Spider] with Has[Bear], Has[OldLady]] =
       (for {
@@ -42,7 +42,7 @@ object ProvideLayerAutoExample extends App {
   }
 
   object Spider {
-    def contentsOfStomach: ZIO[Has[Spider], Nothing, List[String]] = ZIO.accessM(_.get.contentsOfStomach)
+    def contentsOfStomach: ZIO[Has[Spider], Nothing, List[String]] = ZIO.accessZIO(_.get.contentsOfStomach)
 
     def live: URLayer[Has[Fly], Has[Spider]] =
       (for {

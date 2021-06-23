@@ -26,7 +26,7 @@ object ZOutputStream {
 
   def fromOutputStream(os: java.io.OutputStream): ZOutputStream = new ZOutputStream {
     def write(chunk: Chunk[Byte]): IO[IOException, Unit] =
-      ZIO.effectBlockingIO {
+      ZIO.attemptBlockingIO {
         os.write(chunk.toArray)
       }
   }

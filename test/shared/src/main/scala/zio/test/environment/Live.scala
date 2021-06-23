@@ -49,7 +49,7 @@ object Live {
    * Provides an effect with the "live" environment.
    */
   def live[E, A](zio: ZIO[ZEnv, E, A]): ZIO[Has[Live], E, A] =
-    ZIO.accessM(_.get.provide(zio))
+    ZIO.accessZIO(_.get.provide(zio))
 
   /**
    * Provides a transformation function with access to the live environment

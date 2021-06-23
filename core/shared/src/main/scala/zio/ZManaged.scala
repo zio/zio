@@ -404,7 +404,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
     failure: Cause[E] => ZManaged[R1, E1, A1],
     success: A => ZManaged[R1, E1, A1]
   ): ZManaged[R1, E1, A1] =
-    ZManaged(self.zio.foldCauseM(failure(_).zio, { case (_, a) => success(a).zio }))
+    ZManaged(self.zio.foldCauseZIO(failure(_).zio, { case (_, a) => success(a).zio }))
 
   /**
    * Recovers from errors by accepting one effect to execute for the case of an
@@ -530,7 +530,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
       for {
         promise <- Promise.make[E, A]
         complete <- ZIO
-                      .accessM[R] { r =>
+                      .accessZIO[R] { r =>
                         self.zio
                           .provide((r, finalizers))
                           .map(_._2)
@@ -701,7 +701,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
                           { case (release, a) =>
                             UIO.succeed(
                               ZManaged {
-                                ZIO.accessM[(Any, ReleaseMap)] { case (_, releaseMap) =>
+                                ZIO.accessZIO[(Any, ReleaseMap)] { case (_, releaseMap) =>
                                   releaseMap.add(release).map((_, a))
                                 }
                               }
@@ -721,7 +721,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
         (
           release,
           ZManaged {
-            ZIO.accessM[(Any, ReleaseMap)] { case (_, releaseMap) =>
+            ZIO.accessZIO[(Any, ReleaseMap)] { case (_, releaseMap) =>
               releaseMap.add(release).map((_, a))
             }
           }
@@ -857,7 +857,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * "execute `io` and in case of failure, try again once".
    */
   def retry[R1 <: R, S](policy: Schedule[R1, E, S])(implicit ev: CanFail[E]): ZManaged[R1 with Has[Clock], E, A] =
-    ZManaged(ZIO.accessM[(R1 with Has[Clock], ZManaged.ReleaseMap)] { case (env, releaseMap) =>
+    ZManaged(ZIO.accessZIO[(R1 with Has[Clock], ZManaged.ReleaseMap)] { case (env, releaseMap) =>
       zio.provideSome[R1 with Has[Clock]](env => (env, releaseMap)).retry(policy).provide(env)
     })
 
@@ -1078,7 +1078,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * Run an effect while acquiring the resource before and releasing it after
    */
   def use[R1 <: R, E1 >: E, B](f: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
-    ZManaged.ReleaseMap.make.bracketExit(
+    ZManaged.ReleaseMap.make.acquireReleaseExitWith(
       (relMap, exit: Exit[E1, B]) => relMap.releaseAll(exit, ExecutionStrategy.Sequential),
       relMap =>
         ZIO.uninterruptibleMask(restore => restore(zio).provideSome[R]((_, relMap))).flatMap { case (_, a) => f(a) }
@@ -1880,7 +1880,7 @@ object ZManaged extends ZManagedPlatformSpecific {
       val makeInnerMap =
         ReleaseMap.makeManaged(ExecutionStrategy.Sequential).zio.map(_._2).provideSome[Any]((_, parallelReleaseMap))
 
-      ZIO.foreachPar_(as)(a => makeInnerMap.flatMap(innerMap => f(a).zio.map(_._2).provideSome[R]((_, innerMap))))
+      ZIO.foreachParDiscard(as)(a => makeInnerMap.flatMap(innerMap => f(a).zio.map(_._2).provideSome[R]((_, innerMap))))
     }
 
   /**
@@ -1900,7 +1900,9 @@ object ZManaged extends ZManagedPlatformSpecific {
       val makeInnerMap =
         ReleaseMap.makeManaged(ExecutionStrategy.Sequential).zio.map(_._2).provideSome[Any]((_, parallelReleaseMap))
 
-      ZIO.foreachParN_(n)(as)(a => makeInnerMap.flatMap(innerMap => f(a).zio.map(_._2).provideSome[R]((_, innerMap))))
+      ZIO.foreachParNDiscard(n)(as)(a =>
+        makeInnerMap.flatMap(innerMap => f(a).zio.map(_._2).provideSome[R]((_, innerMap)))
+      )
     }
 
   /**

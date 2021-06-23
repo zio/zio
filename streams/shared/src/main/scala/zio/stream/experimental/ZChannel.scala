@@ -631,7 +631,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
           permits     <- Semaphore.make(n.toLong).toManaged
           pull        <- self.toPull
           _ <- pull
-                 .foldCauseM(
+                 .foldCauseZIO(
                    Cause.flipCauseEither[OutErr1, OutDone](_) match {
                      case Left(cause) =>
                        queue.offer(ZIO.halt(cause.map(Left(_))))

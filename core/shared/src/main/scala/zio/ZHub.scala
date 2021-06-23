@@ -368,7 +368,7 @@ object ZHub {
       val shutdown: UIO[Unit] =
         ZIO.suspendSucceedWith { (_, fiberId) =>
           shutdownFlag.set(true)
-          ZIO.whenM(shutdownHook.succeed(())) {
+          ZIO.whenZIO(shutdownHook.succeed(())) {
             releaseMap.releaseAll(Exit.interrupt(fiberId), ExecutionStrategy.Parallel) *> strategy.shutdown
           }
         }.uninterruptible
@@ -430,7 +430,7 @@ object ZHub {
       val shutdown: UIO[Unit] =
         ZIO.suspendSucceedWith { (_, fiberId) =>
           shutdownFlag.set(true)
-          ZIO.whenM(shutdownHook.succeed(())) {
+          ZIO.whenZIO(shutdownHook.succeed(())) {
             ZIO.foreachPar(unsafePollAll(pollers))(_.interruptAs(fiberId)) *>
               ZIO.succeed(subscription.unsubscribe())
           }
@@ -594,7 +594,7 @@ object ZHub {
         for {
           fiberId    <- ZIO.fiberId
           publishers <- ZIO.succeed(unsafePollAll(publishers))
-          _ <- ZIO.foreachPar_(publishers) { case (_, promise, last) =>
+          _ <- ZIO.foreachParDiscard(publishers) { case (_, promise, last) =>
                  if (last) promise.interruptAs(fiberId) else ZIO.unit
                }
         } yield ()

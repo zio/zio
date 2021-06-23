@@ -90,7 +90,7 @@ trait ZStreamPlatformSpecificConstructors {
       lazy val loop: ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit] = ZChannel.unwrap(
         output.take
           .flatMap(_.done)
-          .foldCauseM(
+          .foldCauseZIO(
             maybeError =>
               output.shutdown as (maybeError.failureOrCause match {
                 case Left(Some(failure)) =>
