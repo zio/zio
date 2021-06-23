@@ -1206,7 +1206,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def runFoldWhileManagedM[R1 <: R, E1 >: E, S](
     s: S
   )(cont: S => Boolean)(f: (S, A) => ZIO[R1, E1, S]): ZManaged[R1, E1, S] =
-    runManaged(ZSink.foldM(s)(cont)(f))
+    runManaged(ZSink.foldZIO(s)(cont)(f))
 
   /**
    * Consumes all elements of the stream, passing them to the specified callback.
@@ -2077,8 +2077,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
       handoff <- ZStream.Handoff.make[Signal].toManaged
     } yield {
       val consumer: ZSink[R1, E, A1, E1, A1, Unit] = sink.exposeLeftover
-        .foldM(
-          e => ZSink.fromEffect(p.fail(e)) *> ZSink.fail(e),
+        .foldSink(
+          e => ZSink.fromZIO(p.fail(e)) *> ZSink.fail(e),
           { case (z1, leftovers) =>
             lazy val loop: ZChannel[Any, E, Chunk[A1], Any, E1, Chunk[A1], Unit] = ZChannel.readWithCause(
               (in: Chunk[A1]) => ZChannel.fromZIO(handoff.offer(Emit(in))) *> loop,

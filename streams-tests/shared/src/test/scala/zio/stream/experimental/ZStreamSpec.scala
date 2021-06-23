@@ -100,7 +100,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             val e = new RuntimeException("Boom")
             assertM(
               ZStream(1, 1)
-                .aggregateAsync(ZSink.foldLeftM(Nil)((_, _: Any) => ZIO.die(e)))
+                .aggregateAsync(ZSink.foldLeftZIO(Nil)((_, _: Any) => ZIO.die(e)))
                 .runCollect
                 .exit
             )(dies(equalTo(e)))
@@ -109,7 +109,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             for {
               latch     <- Promise.make[Nothing, Unit]
               cancelled <- Ref.make(false)
-              sink = ZSink.foldM(List[Int]())(_ => true) { (acc, el: Int) =>
+              sink = ZSink.foldZIO(List[Int]())(_ => true) { (acc, el: Int) =>
                        if (el == 1) UIO.succeedNow(el :: acc)
                        else
                          (latch.succeed(()) *> ZIO.infinity)
@@ -125,7 +125,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             for {
               latch     <- Promise.make[Nothing, Unit]
               cancelled <- Ref.make(false)
-              sink = ZSink.fromEffect {
+              sink = ZSink.fromZIO {
                        (latch.succeed(()) *> ZIO.infinity)
                          .onInterrupt(cancelled.set(true))
                      }
@@ -227,7 +227,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             assertM(
               ZStream(1, 1)
                 .aggregateAsyncWithinEither(
-                  ZSink.foldM[Any, Nothing, Int, List[Int]](List[Int]())(_ => true)((_, _) => ZIO.die(e)),
+                  ZSink.foldZIO[Any, Nothing, Int, List[Int]](List[Int]())(_ => true)((_, _) => ZIO.die(e)),
                   Schedule.spaced(30.minutes)
                 )
                 .runCollect
@@ -238,7 +238,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             for {
               latch     <- Promise.make[Nothing, Unit]
               cancelled <- Ref.make(false)
-              sink = ZSink.foldM(List[Int]())(_ => true) { (acc, el: Int) =>
+              sink = ZSink.foldZIO(List[Int]())(_ => true) { (acc, el: Int) =>
                        if (el == 1) UIO.succeed(el :: acc)
                        else
                          (latch.succeed(()) *> ZIO.infinity)
@@ -258,7 +258,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             for {
               latch     <- Promise.make[Nothing, Unit]
               cancelled <- Ref.make(false)
-              sink = ZSink.fromEffect {
+              sink = ZSink.fromZIO {
                        (latch.succeed(()) *> ZIO.infinity)
                          .onInterrupt(cancelled.set(true))
                      }
