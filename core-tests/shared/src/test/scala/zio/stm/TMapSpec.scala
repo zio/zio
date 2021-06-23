@@ -238,7 +238,7 @@ object TMapSpec extends ZIOBaseSpec {
         val tx =
           for {
             tmap <- TMap.make("a" -> 1, "aa" -> 2, "aaa" -> 3)
-            _    <- tmap.transformM((k, v) => STM.succeed(k.replaceAll("a", "b") -> v * 2))
+            _    <- tmap.transformSTM((k, v) => STM.succeed(k.replaceAll("a", "b") -> v * 2))
             res  <- tmap.toList
           } yield res
 
@@ -248,7 +248,7 @@ object TMapSpec extends ZIOBaseSpec {
         val tx =
           for {
             tmap <- TMap.make("a" -> 1, "aa" -> 2, "aaa" -> 3)
-            _    <- tmap.transformM((_, v) => STM.succeed("key" -> v * 2))
+            _    <- tmap.transformSTM((_, v) => STM.succeed("key" -> v * 2))
             res  <- tmap.toList
           } yield res
 
@@ -277,7 +277,7 @@ object TMapSpec extends ZIOBaseSpec {
         val tx =
           for {
             tmap <- TMap.make("a" -> 1, "aa" -> 2, "aaa" -> 3)
-            _    <- tmap.transformValuesM(v => STM.succeed(v * 2))
+            _    <- tmap.transformValuesSTM(v => STM.succeed(v * 2))
             res  <- tmap.toList
           } yield res
 
@@ -307,7 +307,7 @@ object TMapSpec extends ZIOBaseSpec {
         val tx =
           for {
             tmap <- TMap.make("a" -> 1, "b" -> 2, "c" -> 3)
-            res  <- tmap.foldM(0)((acc, kv) => STM.succeed(acc + kv._2))
+            res  <- tmap.foldSTM(0)((acc, kv) => STM.succeed(acc + kv._2))
           } yield res
 
         assertM(tx.commit)(equalTo(6))
@@ -316,7 +316,7 @@ object TMapSpec extends ZIOBaseSpec {
         val tx =
           for {
             tmap <- TMap.empty[String, Int]
-            res  <- tmap.foldM(0)((acc, kv) => STM.succeed(acc + kv._2))
+            res  <- tmap.foldSTM(0)((acc, kv) => STM.succeed(acc + kv._2))
           } yield res
 
         assertM(tx.commit)(equalTo(0))

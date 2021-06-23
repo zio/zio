@@ -58,5 +58,5 @@ class TMapOpsBenchmarks {
 
   @Benchmark
   def foldM(): Int =
-    unsafeRun(map.foldM(0)((acc, kv) => STM.succeedNow(acc + kv._2)).commit)
+    unsafeRun(map.foldSTM(0)((acc, kv) => STM.succeedNow(acc + kv._2)).commit)
 }
