@@ -159,7 +159,7 @@ ZStream.iterate(0)(_ + 1).run(
 The `ZSink.fromEffect` creates a single-value sink produced from an effect:
 
 ```scala mdoc:silent:nest
-val sink = ZSink.fromEffect(ZIO.succeed(1))
+val sink = ZSink.fromZIO(ZIO.succeed(1))
 ```
 
 ### From File

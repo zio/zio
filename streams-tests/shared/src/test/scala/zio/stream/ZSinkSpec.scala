@@ -74,7 +74,7 @@ object ZSinkSpec extends ZIOBaseSpec {
             closed <- Ref.make[Boolean](false)
             res     = ZManaged.acquireReleaseWith(ZIO.succeed(100))(_ => closed.set(true))
             sink: ZSink[Any, Nothing, Int, Int, (Long, Boolean)] =
-              ZSink.managed(res)(m => ZSink.count.mapM(cnt => closed.get.map(cl => (cnt + m, cl))))
+              ZSink.managed(res)(m => ZSink.count.mapZIO(cnt => closed.get.map(cl => (cnt + m, cl))))
             resAndState <- ZStream(1, 2, 3).run(sink)
             finalState  <- closed.get
           } yield {
@@ -124,7 +124,7 @@ object ZSinkSpec extends ZIOBaseSpec {
           val s: ZSink[Any, Nothing, Int, Nothing, (Chunk[Int], String)] =
             ZSink
               .fail[String, Int]("boom")
-              .foldM(err => ZSink.collectAll.map(c => (c, err)), _ => sys.error("impossible"))
+              .foldSink(err => ZSink.collectAll.map(c => (c, err)), _ => sys.error("impossible"))
           assertM(ZStream(1, 2, 3).run(s))(equalTo((Chunk(1, 2, 3), "boom")))
         }
       ),
@@ -133,7 +133,7 @@ object ZSinkSpec extends ZIOBaseSpec {
           val ioGen = successes(Gen.anyString)
           checkM(Gen.small(pureStreamGen(Gen.anyInt, _)), Gen.function2(ioGen), ioGen) { (s, f, z) =>
             for {
-              sinkResult <- z.flatMap(z => s.run(ZSink.foldLeftM(z)(f)))
+              sinkResult <- z.flatMap(z => s.run(ZSink.foldLeftZIO(z)(f)))
               foldResult <- s.fold(List[Int]())((acc, el) => el :: acc)
                               .map(_.reverse)
                               .flatMap(_.foldLeft(z)((acc, el) => acc.flatMap(f(_, el))))
@@ -149,7 +149,7 @@ object ZSinkSpec extends ZIOBaseSpec {
             s    = ZSink.foreach[Any, String, Int]((i: Int) => if (i == 4) ZIO.fail("boom") else acc.update(_ + i))
             sink: ZSink[Any, Nothing, Int, Nothing, Chunk[Int]] =
               s
-                .foldM(_ => ZSink.collectAll, _ => sys.error("impossible"))
+                .foldSink(_ => ZSink.collectAll, _ => sys.error("impossible"))
             leftover <- ZStream.fromChunks(Chunk(1, 2), Chunk(3, 4, 5)).run(sink)
             sum      <- acc.get
           } yield {
@@ -168,7 +168,7 @@ object ZSinkSpec extends ZIOBaseSpec {
       ),
       suite("fromEffect")(
         testM("handles leftovers (happy)") {
-          val s = ZSink.fromEffect[Any, Nothing, Int, String](ZIO.succeed("ok"))
+          val s = ZSink.fromZIO[Any, Nothing, Int, String](ZIO.succeed("ok"))
           assertM(ZStream(1, 2, 3).run(s.exposeLeftover))(
             equalTo(("ok", Chunk(1, 2, 3)))
           )

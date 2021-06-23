@@ -52,7 +52,7 @@ trait ZSinkPlatformSpecificConstructors {
     os: ZManaged[Any, IOException, OutputStream]
   ): ZSink[Any, IOException, Byte, Byte, Long] =
     ZSink.managed(os) { out =>
-      ZSink.foldLeftChunksM(0L) { (bytesWritten, byteChunk: Chunk[Byte]) =>
+      ZSink.foldLeftChunksZIO(0L) { (bytesWritten, byteChunk: Chunk[Byte]) =>
         ZIO.attemptBlockingInterrupt {
           val bytes = byteChunk.toArray
           out.write(bytes)
@@ -539,7 +539,7 @@ trait ZStreamPlatformSpecificConstructors {
      * The sink will yield the count of bytes written.
      */
     def write: Sink[Throwable, Byte, Nothing, Int] =
-      ZSink.foldLeftChunksM(0) { case (nbBytesWritten, c) =>
+      ZSink.foldLeftChunksZIO(0) { case (nbBytesWritten, c) =>
         IO.async[Throwable, Int] { callback =>
           socket.write(
             ByteBuffer.wrap(c.toArray),

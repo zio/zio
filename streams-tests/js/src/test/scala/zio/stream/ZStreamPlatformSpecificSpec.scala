@@ -53,7 +53,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
                      },
                      5
                    )
-          run    <- stream.run(ZSink.fromEffect[Any, Nothing, Int, Nothing](ZIO.never)).fork
+          run    <- stream.run(ZSink.fromZIO[Any, Nothing, Int, Nothing](ZIO.never)).fork
           _      <- refCnt.get.repeat(Schedule.recurWhile(_ != 7))
           isDone <- refDone.get
           _      <- run.interrupt
@@ -102,7 +102,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
                      },
                      5
                    )
-          run    <- stream.run(ZSink.fromEffect[Any, Nothing, Int, Nothing](ZIO.never)).fork
+          run    <- stream.run(ZSink.fromZIO[Any, Nothing, Int, Nothing](ZIO.never)).fork
           _      <- refCnt.get.repeatWhile(_ != 7)
           isDone <- refDone.get
           _      <- run.interrupt
@@ -158,7 +158,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
                      },
                      5
                    )
-          run    <- stream.run(ZSink.fromEffect[Any, Throwable, Int, Nothing](ZIO.never)).fork
+          run    <- stream.run(ZSink.fromZIO[Any, Throwable, Int, Nothing](ZIO.never)).fork
           _      <- refCnt.get.repeatWhile(_ != 7)
           isDone <- refDone.get
           exit   <- run.interrupt
