@@ -155,7 +155,7 @@ sealed abstract class ZTRef[+EA, +EB, -A, +B] extends Serializable { self =>
       def atomic: ZTRef.Atomic[_] =
         self.atomic
       def get: STM[ED, D] =
-        self.get.foldM(e => STM.fail(eb(e)), bd)
+        self.get.foldSTM(e => STM.fail(eb(e)), bd)
       def set(c: C): STM[EC, Unit] =
         self.get.mapError(ec).flatMap(b => ca(c)(b)).flatMap(a => self.set(a).mapError(ea))
     }
@@ -177,7 +177,7 @@ sealed abstract class ZTRef[+EA, +EB, -A, +B] extends Serializable { self =>
       def atomic: ZTRef.Atomic[_] =
         self.atomic
       def get: STM[ED, D] =
-        self.get.foldM(e => STM.fail(eb(e)), bd)
+        self.get.foldSTM(e => STM.fail(eb(e)), bd)
       def set(c: C): STM[EC, Unit] =
         ca(c).flatMap(a => self.set(a).mapError(ea))
     }

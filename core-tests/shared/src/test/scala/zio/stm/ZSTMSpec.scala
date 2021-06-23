@@ -131,27 +131,27 @@ object ZSTMSpec extends ZIOBaseSpec {
       suite("filterOrElse")(
         testM("returns checked failure") {
           val stm1 = ZSTM.succeed(1)
-          assertM(stm1.filterOrElse(_ == 1)(n => ZSTM.succeed(n + 1)).commit)(equalTo(1))
+          assertM(stm1.filterOrElseWith(_ == 1)(n => ZSTM.succeed(n + 1)).commit)(equalTo(1))
         } @@ zioTag(errors),
         testM("returns held value") {
           val stm1 = ZSTM.succeed(1)
-          assertM(stm1.filterOrElse(_ != 1)(n => ZSTM.succeed(n + 1)).commit)(equalTo(2))
+          assertM(stm1.filterOrElseWith(_ != 1)(n => ZSTM.succeed(n + 1)).commit)(equalTo(2))
         },
         testM("returns error") {
           val stm1 = ZSTM.fail(ExampleError) *> ZSTM.succeed(1)
-          assertM(stm1.filterOrElse(_ == 1)(n => ZSTM.succeed(n + 1)).commit.exit)(fails(equalTo(ExampleError)))
+          assertM(stm1.filterOrElseWith(_ == 1)(n => ZSTM.succeed(n + 1)).commit.exit)(fails(equalTo(ExampleError)))
         } @@ zioTag(errors)
       ),
       suite("filterOrElse_")(
         testM("returns checked failure") {
           val stm1 = ZSTM.succeed(1)
           val stm2 = ZSTM.succeed(2)
-          assertM(stm1.filterOrElse_(_ == 1)(stm2).commit)(equalTo(1))
+          assertM(stm1.filterOrElse(_ == 1)(stm2).commit)(equalTo(1))
         } @@ zioTag(errors),
         testM("returns held value") {
           val stm1 = ZSTM.succeed(1)
           val stm2 = ZSTM.succeed(2)
-          assertM(stm1.filterOrElse_(_ != 1)(stm2).commit)(equalTo(2))
+          assertM(stm1.filterOrElse(_ != 1)(stm2).commit)(equalTo(2))
         }
       ),
       testM("filterOrFail returns failure when predicate fails") {
@@ -191,8 +191,8 @@ object ZSTMSpec extends ZIOBaseSpec {
       testM("foldM to fold over the `STM` effect, and handle failure and success") {
         implicit val canFail = CanFail
         val stm = for {
-          s <- STM.succeed("Yes!").foldM(_ => STM.succeed("No!"), STM.succeed(_))
-          f <- STM.fail("No!").foldM(STM.succeed(_), _ => STM.succeed("Yes!"))
+          s <- STM.succeed("Yes!").foldSTM(_ => STM.succeed("No!"), STM.succeed(_))
+          f <- STM.fail("No!").foldSTM(STM.succeed(_), _ => STM.succeed("Yes!"))
         } yield (s, f)
         assertM(stm.commit)(equalTo(("Yes!", "No!")))
       } @@ zioTag(errors),
@@ -258,11 +258,11 @@ object ZSTMSpec extends ZIOBaseSpec {
       ),
       suite("ifM")(
         testM("runs `onTrue` if result of `b` is `true`") {
-          val transaction = ZSTM.ifM(ZSTM.succeed(true))(ZSTM.succeed(true), ZSTM.succeed(false))
+          val transaction = ZSTM.ifSTM(ZSTM.succeed(true))(ZSTM.succeed(true), ZSTM.succeed(false))
           assertM(transaction.commit)(isTrue)
         },
         testM("runs `onFalse` if result of `b` is `false`") {
-          val transaction = ZSTM.ifM(ZSTM.succeed(false))(ZSTM.succeed(true), ZSTM.succeed(false))
+          val transaction = ZSTM.ifSTM(ZSTM.succeed(false))(ZSTM.succeed(true), ZSTM.succeed(false))
           assertM(transaction.commit)(isFalse)
         },
         testM("infers correctly") {
@@ -274,7 +274,7 @@ object ZSTMSpec extends ZIOBaseSpec {
           val b: ZSTM[R, E, Boolean]   = ZSTM.succeed(true)
           val onTrue: ZSTM[R1, E1, A]  = ZSTM.succeed(new A {})
           val onFalse: ZSTM[R1, E1, A] = ZSTM.succeed(new A {})
-          val _                        = ZSTM.ifM(b)(onTrue, onFalse)
+          val _                        = ZSTM.ifSTM(b)(onTrue, onFalse)
           ZIO.succeed(assertCompletes)
         }
       ),
@@ -516,11 +516,11 @@ object ZSTMSpec extends ZIOBaseSpec {
       ) @@ zioTag(errors),
       suite("rejectM")(
         testM("doesnt collect value") {
-          val tx = ZSTM.succeed(0).rejectM[Any, String] { case v if v != 0 => ZSTM.succeed("Partial failed!") }
+          val tx = ZSTM.succeed(0).rejectSTM[Any, String] { case v if v != 0 => ZSTM.succeed("Partial failed!") }
           assertM(tx.commit)(equalTo(0))
         },
         testM("returns failure ignoring value") {
-          val tx = ZSTM.succeed(1).rejectM[Any, String] { case v if v != 0 => ZSTM.succeed("Partial failed!") }
+          val tx = ZSTM.succeed(1).rejectSTM[Any, String] { case v if v != 0 => ZSTM.succeed("Partial failed!") }
           assertM(tx.commit.exit)(fails(equalTo("Partial failed!")))
         }
       ) @@ zioTag(errors),
@@ -595,13 +595,13 @@ object ZSTMSpec extends ZIOBaseSpec {
       ),
       suite("someOrElseM")(
         testM("extracts the value from Some") {
-          assertM(STM.succeed(Some(1)).someOrElseM(STM.succeed(2)).commit)(equalTo(1))
+          assertM(STM.succeed(Some(1)).someOrElseSTM(STM.succeed(2)).commit)(equalTo(1))
         },
         testM("falls back to the default value if None") {
-          assertM(STM.succeed(None).someOrElseM(STM.succeed(42)).commit)(equalTo(42))
+          assertM(STM.succeed(None).someOrElseSTM(STM.succeed(42)).commit)(equalTo(42))
         },
         testM("does not change failed state") {
-          assertM(STM.fail(ExampleError).someOrElseM(STM.succeed(42)).commit.exit)(fails(equalTo(ExampleError)))
+          assertM(STM.fail(ExampleError).someOrElseSTM(STM.succeed(42)).commit.exit)(fails(equalTo(ExampleError)))
         } @@ zioTag(errors)
       ),
       suite("someOrFail")(
@@ -897,7 +897,7 @@ object ZSTMSpec extends ZIOBaseSpec {
         assertM(
           STM
             .succeed((1 to 20).toList)
-            .collectM[Any, Nothing, String] { case l if l.forall(_ > 0) => STM.succeed("Positive") }
+            .collectSTM[Any, Nothing, String] { case l if l.forall(_ > 0) => STM.succeed("Positive") }
             .commit
         )(equalTo("Positive"))
       }
@@ -964,7 +964,7 @@ object ZSTMSpec extends ZIOBaseSpec {
         for {
           ref <- TRef.makeCommit(List.empty[Int])
           as   = List(1, 2, 3, 4, 5)
-          _   <- STM.foreach_(as)(a => ref.update(_ :+ a)).commit
+          _   <- STM.foreachDiscard(as)(a => ref.update(_ :+ a)).commit
           bs  <- ref.get.commit
         } yield assert(bs)(equalTo(as))
       },
@@ -972,7 +972,7 @@ object ZSTMSpec extends ZIOBaseSpec {
         for {
           ref <- TRef.makeCommit(List.empty[Int])
           as   = Chunk(1, 2, 3, 4, 5)
-          _   <- STM.foreach_(as)(a => ref.update(_ :+ a)).commit
+          _   <- STM.foreachDiscard(as)(a => ref.update(_ :+ a)).commit
           bs  <- ref.get.commit
         } yield assert(bs)(equalTo(as.toList))
       }
@@ -1216,9 +1216,9 @@ object ZSTMSpec extends ZIOBaseSpec {
       testM("whenCaseM executes condition effect and correct branch") {
         val tx = for {
           ref  <- TRef.make(false)
-          _    <- ZSTM.whenCaseM(ZSTM.succeed(Option.empty[Int])) { case Some(_) => ref.set(true) }
+          _    <- ZSTM.whenCaseSTM(ZSTM.succeed(Option.empty[Int])) { case Some(_) => ref.set(true) }
           res1 <- ref.get
-          _    <- ZSTM.whenCaseM(ZSTM.succeed(Some(0))) { case Some(_) => ref.set(true) }
+          _    <- ZSTM.whenCaseSTM(ZSTM.succeed(Some(0))) { case Some(_) => ref.set(true) }
           res2 <- ref.get
         } yield (res1, res2)
         assertM(tx.commit)(equalTo((false, true)))
@@ -1227,14 +1227,14 @@ object ZSTMSpec extends ZIOBaseSpec {
         for {
           ref    <- TRef.make(0).commit
           isZero  = ref.get.map(_ == 0)
-          result <- (STM.whenM(isZero)(ref.update(_ + 1)) *> ref.get).commit
+          result <- (STM.whenSTM(isZero)(ref.update(_ + 1)) *> ref.get).commit
         } yield assert(result)(equalTo(1))
       },
       testM("whenM false") {
         for {
           ref      <- TRef.make(0).commit
           isNotZero = ref.get.map(_ != 0)
-          result   <- (STM.whenM(isNotZero)(ref.update(_ + 1)) *> ref.get).commit
+          result   <- (STM.whenSTM(isNotZero)(ref.update(_ + 1)) *> ref.get).commit
         } yield assert(result)(equalTo(0))
       }
     ),
@@ -1254,7 +1254,7 @@ object ZSTMSpec extends ZIOBaseSpec {
         val tx =
           for {
             ref <- TRef.make(0)
-            _   <- STM.loop_(10000)(_ > 0, _ - 1)(_ => STM.retry <|> ref.getAndUpdate(_ + 1))
+            _   <- STM.loopDiscard(10000)(_ > 0, _ - 1)(_ => STM.retry <|> ref.getAndUpdate(_ + 1))
             res <- ref.get
           } yield res
 
@@ -1267,7 +1267,7 @@ object ZSTMSpec extends ZIOBaseSpec {
         assertM(chain(10000)(_.collect { case a: Int => a + 1 }))(equalTo(10000))
       },
       testM("long collectM chains") {
-        assertM(chain(10000)(_.collectM { case a: Int => STM.succeed(a + 1) }))(equalTo(10000))
+        assertM(chain(10000)(_.collectSTM { case a: Int => STM.succeed(a + 1) }))(equalTo(10000))
       },
       testM("long flatMap chains") {
         assertM(chain(10000)(_.flatMap(a => STM.succeed(a + 1))))(equalTo(10000))
@@ -1278,7 +1278,7 @@ object ZSTMSpec extends ZIOBaseSpec {
       },
       testM("long foldM chains") {
         implicit val canFail = CanFail
-        assertM(chain(10000)(_.foldM(_ => STM.succeed(0), a => STM.succeed(a + 1))))(equalTo(10000))
+        assertM(chain(10000)(_.foldSTM(_ => STM.succeed(0), a => STM.succeed(a + 1))))(equalTo(10000))
       },
       testM("long mapError chains") {
         def chain(depth: Int): IO[Int, Nothing] = {
@@ -1295,7 +1295,7 @@ object ZSTMSpec extends ZIOBaseSpec {
         val tx =
           for {
             ref <- TRef.make(0)
-            _   <- STM.loop_(10000)(_ > 0, _ - 1)(_ => STM.retry <> ref.getAndUpdate(_ + 1))
+            _   <- STM.loopDiscard(10000)(_ > 0, _ - 1)(_ => STM.retry <> ref.getAndUpdate(_ + 1))
             res <- ref.get
           } yield res
 
@@ -1308,13 +1308,13 @@ object ZSTMSpec extends ZIOBaseSpec {
     suite("STM environment")(
       testM("access environment and provide it outside transaction") {
         STMEnv.make(0).flatMap { env =>
-          ZSTM.accessM[STMEnv](_.ref.update(_ + 1)).commit.provide(env) *>
+          ZSTM.accessSTM[STMEnv](_.ref.update(_ + 1)).commit.provide(env) *>
             assertM(env.ref.get.commit)(equalTo(1))
         }
       },
       testM("access environment and provide it inside transaction") {
         STMEnv.make(0).flatMap { env =>
-          ZSTM.accessM[STMEnv](_.ref.update(_ + 1)).provide(env).commit *>
+          ZSTM.accessSTM[STMEnv](_.ref.update(_ + 1)).provide(env).commit *>
             assertM(env.ref.get.commit)(equalTo(1))
         }
       }
