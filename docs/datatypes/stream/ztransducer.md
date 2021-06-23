@@ -29,7 +29,7 @@ There is no fundamental requirement for transducers to exist, because everything
 The `ZTransducer.fromEffect` creates a transducer that always evaluates the specified effect. Let's write a transducer that fails with a message: 
 
 ```scala mdoc:silent:nest
-val error: ZTransducer[Any, String, Any, Nothing] = ZTransducer.fromEffect(IO.fail("Ouch"))
+val error: ZTransducer[Any, String, Any, Nothing] = ZTransducer.fromZIO(IO.fail("Ouch"))
 ```
 
 ### From Function
@@ -243,7 +243,7 @@ ZStream
       if (elements.sum < 5)
         ZTransducer.identity
       else
-        ZTransducer.fromEffect(
+        ZTransducer.fromZIO(
           printLine(s"received elements are not applicable: $elements")
         ) >>> ZTransducer.fail("boom")
     }
