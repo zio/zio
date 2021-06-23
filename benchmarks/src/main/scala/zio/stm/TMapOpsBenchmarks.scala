@@ -46,7 +46,7 @@ class TMapOpsBenchmarks {
 
   @Benchmark
   def transformM(): Unit =
-    unsafeRun(map.transformM((k, v) => STM.succeedNow(v).map(k -> _)).commit)
+    unsafeRun(map.transformSTM((k, v) => STM.succeedNow(v).map(k -> _)).commit)
 
   @Benchmark
   def removal(): Unit =
