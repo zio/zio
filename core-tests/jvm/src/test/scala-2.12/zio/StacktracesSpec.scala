@@ -29,7 +29,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
         assert(trace.stackTrace.size)(equalTo(3)) &&
         assert(trace.stackTrace.exists(_.prettyPrint.contains("foreachTest")))(isTrue) &&
         assert(trace.executionTrace.exists(_.prettyPrint.contains("foreachTest")))(isTrue) &&
-        assert(trace.executionTrace.exists(_.prettyPrint.contains("foreach_")))(isTrue) &&
+        assert(trace.executionTrace.exists(_.prettyPrint.contains("foreachDiscard")))(isTrue) &&
         assert(trace.executionTrace.exists(_.prettyPrint.contains("succeed")))(isTrue)
       }
     },
@@ -39,13 +39,13 @@ object StackTracesSpec extends DefaultRunnableSpec {
       } yield {
         val (trace1, trace2) = trace
 
-        assert(trace1.stackTrace.exists(_.prettyPrint.contains("foreach_")))(isTrue) &&
+        assert(trace1.stackTrace.exists(_.prettyPrint.contains("foreachDiscard")))(isTrue) &&
         assert(trace1.stackTrace.exists(_.prettyPrint.contains("foreachFail")))(isTrue) &&
-        assert(trace1.executionTrace.exists(_.prettyPrint.contains("foreach_")))(isTrue) &&
+        assert(trace1.executionTrace.exists(_.prettyPrint.contains("foreachDiscard")))(isTrue) &&
         assert(trace1.executionTrace.exists(_.prettyPrint.contains("foreachFail")))(isTrue) &&
         assert(trace2.stackTrace.size)(equalTo(3)) &&
         assert(trace2.stackTrace.exists(_.prettyPrint.contains("foreachFail")))(isTrue) &&
-        assert(trace2.executionTrace.exists(_.prettyPrint.contains("foreach_")))(isTrue) &&
+        assert(trace2.executionTrace.exists(_.prettyPrint.contains("foreachDiscard")))(isTrue) &&
         assert(trace2.executionTrace.exists(_.prettyPrint.contains("foreachFail")))(isTrue)
 
       }
@@ -331,7 +331,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
     import foreachTraceFixture._
     for {
       _     <- succeed
-      _     <- ZIO.foreach_(1 to 10)(_ => ZIO.unit *> ZIO.trace)
+      _     <- ZIO.foreachDiscard(1 to 10)(_ => ZIO.unit *> ZIO.trace)
       trace <- ZIO.trace
     } yield trace
   }
@@ -343,7 +343,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
   def foreachFail: ZIO[Any, Throwable, (ZTrace, ZTrace)] =
     for {
       t1 <- ZIO
-              .foreach_(1 to 10) { i =>
+              .foreachDiscard(1 to 10) { i =>
                 if (i == 7)
                   ZIO.unit *> ZIO.fail("Dummy error!")
                 else
