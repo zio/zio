@@ -140,26 +140,44 @@ abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { self =>
    * Transforms elements enqueued into this queue with a pure function.
    */
   final def contramap[C](f: C => A): ZQueue[RA, RB, EA, EB, C, B] =
-    contramapM(f andThen ZIO.succeedNow)
+    contramapZIO(f andThen ZIO.succeedNow)
 
   /**
    * Transforms elements enqueued into this queue with an effectful function.
    */
+  @deprecated("use contramapZIO", "2.0.0")
   final def contramapM[RA2 <: RA, EA2 >: EA, C](f: C => ZIO[RA2, EA2, A]): ZQueue[RA2, RB, EA2, EB, C, B] =
-    dimapM(f, ZIO.succeedNow)
+    contramapZIO(f)
+
+  /**
+   * Transforms elements enqueued into this queue with an effectful function.
+   */
+  final def contramapZIO[RA2 <: RA, EA2 >: EA, C](f: C => ZIO[RA2, EA2, A]): ZQueue[RA2, RB, EA2, EB, C, B] =
+    dimapZIO(f, ZIO.succeedNow)
 
   /**
    * Transforms elements enqueued into and dequeued from this queue with the
    * specified pure functions.
    */
   final def dimap[C, D](f: C => A, g: B => D): ZQueue[RA, RB, EA, EB, C, D] =
-    dimapM(f andThen ZIO.succeedNow, g andThen ZIO.succeedNow)
+    dimapZIO(f andThen ZIO.succeedNow, g andThen ZIO.succeedNow)
 
   /**
    * Transforms elements enqueued into and dequeued from this queue with the
    * specified effectual functions.
    */
+  @deprecated("use dimapZIO", "2.0.0")
   final def dimapM[RC <: RA, RD <: RB, EC >: EA, ED >: EB, C, D](
+    f: C => ZIO[RC, EC, A],
+    g: B => ZIO[RD, ED, D]
+  ): ZQueue[RC, RD, EC, ED, C, D] =
+    dimapZIO(f, g)
+
+  /**
+   * Transforms elements enqueued into and dequeued from this queue with the
+   * specified effectual functions.
+   */
+  final def dimapZIO[RC <: RA, RD <: RB, EC >: EA, ED >: EB, C, D](
     f: C => ZIO[RC, EC, A],
     g: B => ZIO[RD, ED, D]
   ): ZQueue[RC, RD, EC, ED, C, D] =
@@ -186,12 +204,19 @@ abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { self =>
    * pass the filter will be immediately dropped.
    */
   final def filterInput[A1 <: A](f: A1 => Boolean): ZQueue[RA, RB, EA, EB, A1, B] =
-    filterInputM(f andThen ZIO.succeedNow)
+    filterInputZIO(f andThen ZIO.succeedNow)
 
   /**
    * Like `filterInput`, but uses an effectful function to filter the elements.
    */
+  @deprecated("use filterInputZIO", "2.0.0")
   final def filterInputM[R2 <: RA, E2 >: EA, A1 <: A](f: A1 => ZIO[R2, E2, Boolean]): ZQueue[R2, RB, E2, EB, A1, B] =
+    filterInputZIO(f)
+
+  /**
+   * Like `filterInput`, but uses an effectful function to filter the elements.
+   */
+  final def filterInputZIO[R2 <: RA, E2 >: EA, A1 <: A](f: A1 => ZIO[R2, E2, Boolean]): ZQueue[R2, RB, E2, EB, A1, B] =
     new ZQueue[R2, RB, E2, EB, A1, B] {
       def capacity: Int = self.capacity
 
@@ -221,13 +246,21 @@ abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { self =>
    * Filters elements dequeued from the queue using the specified predicate.
    */
   final def filterOutput(f: B => Boolean): ZQueue[RA, RB, EA, EB, A, B] =
-    filterOutputM(b => ZIO.succeedNow(f(b)))
+    filterOutputZIO(b => ZIO.succeedNow(f(b)))
 
   /**
    * Filters elements dequeued from the queue using the specified effectual
    * predicate.
    */
+  @deprecated("use filterOutputZIO", "2.0.0")
   def filterOutputM[RB1 <: RB, EB1 >: EB](f: B => ZIO[RB1, EB1, Boolean]): ZQueue[RA, RB1, EA, EB1, A, B] =
+    filterOutputZIO(f)
+
+  /**
+   * Filters elements dequeued from the queue using the specified effectual
+   * predicate.
+   */
+  def filterOutputZIO[RB1 <: RB, EB1 >: EB](f: B => ZIO[RB1, EB1, Boolean]): ZQueue[RA, RB1, EA, EB1, A, B] =
     new ZQueue[RA, RB1, EA, EB1, A, B] {
       def awaitShutdown: UIO[Unit] =
         self.awaitShutdown
@@ -272,13 +305,20 @@ abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { self =>
    * Transforms elements dequeued from this queue with a function.
    */
   final def map[C](f: B => C): ZQueue[RA, RB, EA, EB, A, C] =
-    mapM(f andThen ZIO.succeedNow)
+    mapZIO(f andThen ZIO.succeedNow)
 
   /**
    * Transforms elements dequeued from this queue with an effectful function.
    */
+  @deprecated("use mapZIO", "2.0.0")
   final def mapM[R2 <: RB, E2 >: EB, C](f: B => ZIO[R2, E2, C]): ZQueue[RA, R2, EA, E2, A, C] =
-    dimapM(ZIO.succeedNow, f)
+    mapZIO(f)
+
+  /**
+   * Transforms elements dequeued from this queue with an effectful function.
+   */
+  final def mapZIO[R2 <: RB, E2 >: EB, C](f: B => ZIO[R2, E2, C]): ZQueue[RA, R2, EA, E2, A, C] =
+    dimapZIO(ZIO.succeedNow, f)
 
   /**
    * Take the head option of values in the queue.
@@ -562,8 +602,8 @@ object ZQueue {
         shutdownFlag.set(true)
 
         UIO
-          .whenM(shutdownHook.succeed(()))(
-            UIO.foreachPar_(unsafePollAll(takers))(_.interruptAs(fiberId)) *> strategy.shutdown
+          .whenZIO(shutdownHook.succeed(()))(
+            UIO.foreachParDiscard(unsafePollAll(takers))(_.interruptAs(fiberId)) *> strategy.shutdown
           )
       }.uninterruptible
 

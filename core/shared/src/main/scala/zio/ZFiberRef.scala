@@ -87,7 +87,7 @@ sealed abstract class ZFiberRef[+EA, +EB, -A, +B] extends Serializable { self =>
   /**
    * Returns an `IO` that runs with `value` bound to the current fiber.
    *
-   * Guarantees that fiber data is properly restored via `bracket`.
+   * Guarantees that fiber data is properly restored via `acquireRelease`.
    */
   def locally[R, EC >: EA, C](value: A)(use: ZIO[R, EC, C]): ZIO[R, EC, C]
 
@@ -256,7 +256,7 @@ object ZFiberRef {
     def locally[R, EC, C](value: A)(use: ZIO[R, EC, C]): ZIO[R, EC, C] =
       for {
         oldValue <- get
-        b        <- set(value).bracket_(set(oldValue))(use)
+        b        <- set(value).acquireRelease(set(oldValue))(use)
       } yield b
 
     def modify[B](f: A => (B, A)): UIO[B] =
@@ -391,7 +391,7 @@ object ZFiberRef {
       value.get.flatMap { old =>
         setEither(a).fold(
           e => ZIO.fail(e),
-          s => value.set(s).bracket_(value.set(old))(use)
+          s => value.set(s).acquireRelease(value.set(old))(use)
         )
       }
 
@@ -451,7 +451,7 @@ object ZFiberRef {
       value.get.flatMap { old =>
         setEither(a)(old).fold(
           e => ZIO.fail(e),
-          s => value.set(s).bracket_(value.set(old))(use)
+          s => value.set(s).acquireRelease(value.set(old))(use)
         )
       }
 

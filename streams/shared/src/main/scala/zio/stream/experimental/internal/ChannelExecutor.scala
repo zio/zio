@@ -145,7 +145,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
                       bridgeInput.emit(inputExecutor.getEmit) *> drainer
 
                     case ChannelState.Effect(zio) =>
-                      zio.foldCauseM(
+                      zio.foldCauseZIO(
                         cause => bridgeInput.error(cause),
                         _ => drainer
                       )
@@ -204,7 +204,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
 
             result = ChannelState.Effect(
               pzio
-                .foldCauseM(
+                .foldCauseZIO(
                   cause =>
                     doneHalt(cause) match {
                       case ChannelState.Effect(zio) => zio
@@ -372,7 +372,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
             }
 
           case ChannelState.Effect(zio) =>
-            zio.foldCauseM(
+            zio.foldCauseZIO(
               cause =>
                 UIO {
                   currentChannel = read.done.onHalt(cause)
@@ -392,7 +392,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
 
         case ChannelState.Effect(zio) =>
           ChannelState.Effect(
-            zio.foldCauseM(
+            zio.foldCauseZIO(
               cause =>
                 UIO {
                   currentChannel = read.done.onHalt(cause)
@@ -406,7 +406,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
   private def runBracketOut(bracketOut: ZChannel.BracketOut[Env, Any, Any]): ChannelState.Effect[Env, Any] =
     ChannelState.Effect {
       ZIO.uninterruptibleMask { restore =>
-        restore(bracketOut.acquire).foldCauseM(
+        restore(bracketOut.acquire).foldCauseZIO(
           cause => UIO { currentChannel = ZChannel.halt(cause) },
           out =>
             UIO {
@@ -464,7 +464,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
       state
     } else
       ChannelState.Effect(
-        closeEffect.foldCauseM(
+        closeEffect.foldCauseZIO(
           cause => finishWithExit(Exit.halt(subexecDone.fold(identity, _ => Cause.empty) ++ cause)),
           _ => finishWithExit(subexecDone)
         )
@@ -513,13 +513,13 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
               null
             } else
               ChannelState.Effect(
-                closeEffect.foldCauseM(
+                closeEffect.foldCauseZIO(
                   cause => {
                     val restClose = rest.exec.close(Exit.halt(cause))
 
                     if (restClose eq null) finishWithExit(Exit.halt(cause))
                     else
-                      restClose.foldCauseM(
+                      restClose.foldCauseZIO(
                         restCause => finishWithExit(Exit.halt(cause ++ restCause)),
                         _ => finishWithExit(Exit.halt(cause))
                       )

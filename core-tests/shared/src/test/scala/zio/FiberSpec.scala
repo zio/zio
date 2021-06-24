@@ -14,7 +14,7 @@ object FiberSpec extends ZIOBaseSpec {
       suite("Create a new Fiber and")(testM("lift it into Managed") {
         for {
           ref   <- Ref.make(false)
-          fiber <- withLatch(release => (release *> IO.unit).bracket_(ref.set(true))(IO.never).fork)
+          fiber <- withLatch(release => (release *> IO.unit).acquireRelease(ref.set(true))(IO.never).fork)
           _     <- fiber.toManaged.use(_ => IO.unit)
           _     <- fiber.await
           value <- ref.get

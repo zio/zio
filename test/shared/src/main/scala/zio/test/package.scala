@@ -106,7 +106,7 @@ package object test extends CompileVariants {
     def apply[R, E](assertion: => ZIO[R, E, TestResult]): ZIO[R, TestFailure[E], TestSuccess] =
       ZIO
         .suspendSucceed(assertion)
-        .foldCauseM(
+        .foldCauseZIO(
           cause => ZIO.fail(TestFailure.Runtime(cause)),
           _.failures match {
             case None           => ZIO.succeedNow(TestSuccess.Succeeded(BoolAlgebra.unit))
@@ -689,7 +689,7 @@ package object test extends CompileVariants {
   ): ZIO[R1 with Has[TestConfig], E, TestResult] =
     TestConfig.shrinks.flatMap {
       shrinkStream {
-        stream.zipWithIndex.mapM { case (initial, index) =>
+        stream.zipWithIndex.mapZIO { case (initial, index) =>
           initial.foreach(input =>
             test(input).traced
               .map(_.map(_.setGenFailureDetails(GenFailureDetails(initial.value, input, index))))
@@ -732,7 +732,7 @@ package object test extends CompileVariants {
     TestConfig.shrinks.flatMap {
       shrinkStream {
         stream.zipWithIndex
-          .mapMPar(parallelism) { case (initial, index) =>
+          .mapZIOPar(parallelism) { case (initial, index) =>
             initial.foreach { input =>
               test(input).traced
                 .map(_.map(_.setGenFailureDetails(GenFailureDetails(initial.value, input, index))))

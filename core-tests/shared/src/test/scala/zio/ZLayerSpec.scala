@@ -31,7 +31,9 @@ object ZLayerSpec extends ZIOBaseSpec {
 
   def makeLayer1(ref: Ref[Vector[String]]): ZLayer[Any, Nothing, Module1] =
     ZLayer {
-      ZManaged.bracket(ref.update(_ :+ acquire1).as(Has(new Module1.Service {})))(_ => ref.update(_ :+ release1))
+      ZManaged.acquireReleaseWith(ref.update(_ :+ acquire1).as(Has(new Module1.Service {})))(_ =>
+        ref.update(_ :+ release1)
+      )
     }
 
   type Module2 = Has[Module2.Service]
@@ -42,7 +44,9 @@ object ZLayerSpec extends ZIOBaseSpec {
 
   def makeLayer2(ref: Ref[Vector[String]]): ZLayer[Any, Nothing, Module2] =
     ZLayer {
-      ZManaged.bracket(ref.update(_ :+ acquire2).as(Has(new Module2.Service {})))(_ => ref.update(_ :+ release2))
+      ZManaged.acquireReleaseWith(ref.update(_ :+ acquire2).as(Has(new Module2.Service {})))(_ =>
+        ref.update(_ :+ release2)
+      )
     }
 
   type Module3 = Has[Module3.Service]
@@ -53,7 +57,9 @@ object ZLayerSpec extends ZIOBaseSpec {
 
   def makeLayer3(ref: Ref[Vector[String]]): ZLayer[Any, Nothing, Module3] =
     ZLayer {
-      ZManaged.bracket(ref.update(_ :+ acquire3).as(Has(new Module3.Service {})))(_ => ref.update(_ :+ release3))
+      ZManaged.acquireReleaseWith(ref.update(_ :+ acquire3).as(Has(new Module3.Service {})))(_ =>
+        ref.update(_ :+ release3)
+      )
     }
 
   def makeRef: UIO[Ref[Vector[String]]] =
@@ -97,7 +103,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           ref    <- makeRef
           layer1  = makeLayer1(ref)
           env     = (layer1 ++ layer1).build
-          _      <- env.use_(ZIO.unit)
+          _      <- env.useDiscard(ZIO.unit)
           actual <- ref.get
         } yield assert(actual)(equalTo(expected))
       } @@ nonFlaky,
@@ -113,7 +119,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           ref    <- makeRef
           layer1  = makeLayer1(ref)
           env     = (layer1 >>> layer1).build
-          _      <- env.use_(ZIO.unit)
+          _      <- env.useDiscard(ZIO.unit)
           actual <- ref.get
         } yield assert(actual)(equalTo(expected))
       } @@ nonFlaky,
@@ -124,7 +130,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           layer2  = makeLayer2(ref)
           layer3  = makeLayer3(ref)
           env     = ((layer1 >>> layer2) ++ (layer1 >>> layer3)).build
-          _      <- env.use_(ZIO.unit)
+          _      <- env.useDiscard(ZIO.unit)
           actual <- ref.get
         } yield assert(actual(0))(equalTo(acquire1)) &&
           assert(actual.slice(1, 3))(hasSameElements(Vector(acquire2, acquire3))) &&
@@ -137,7 +143,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           layer1  = makeLayer1(ref)
           layer2  = makeLayer2(ref)
           env     = (layer1 ++ layer2).build
-          _      <- env.use_(ZIO.unit)
+          _      <- env.useDiscard(ZIO.unit)
           actual <- ref.get
         } yield assert(actual.slice(0, 2))(hasSameElements(Vector(acquire1, acquire2))) &&
           assert(actual.slice(2, 4))(hasSameElements(Vector(release1, release2)))
@@ -149,7 +155,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           layer1  = makeLayer1(ref)
           layer2  = makeLayer2(ref)
           env     = (layer1 >>> layer2).build
-          _      <- env.use_(ZIO.unit)
+          _      <- env.useDiscard(ZIO.unit)
           actual <- ref.get
         } yield assert(actual)(equalTo(expected))
       } @@ nonFlaky,
@@ -162,7 +168,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           layer2  = makeLayer2(ref)
           layer3  = makeLayer3(ref)
           env     = (layer1 >>> layer2 >>> layer3).build
-          _      <- env.use_(ZIO.unit)
+          _      <- env.useDiscard(ZIO.unit)
           actual <- ref.get
         } yield assert(actual)(equalTo(expected))
       } @@ nonFlaky,
@@ -173,7 +179,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           layer2  = makeLayer2(ref)
           layer3  = makeLayer3(ref)
           env     = ((layer1.map(identity) >>> layer2) ++ (layer1 >>> layer3)).build
-          _      <- env.use_(ZIO.unit)
+          _      <- env.useDiscard(ZIO.unit)
           actual <- ref.get
         } yield assert(actual(0))(equalTo(acquire1)) &&
           assert(actual.slice(1, 3))(hasSameElements(Vector(acquire2, acquire3))) &&
@@ -188,7 +194,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           layer2  = makeLayer2(ref)
           layer3  = makeLayer3(ref)
           env     = ((layer1.mapError(identity) >>> layer2) ++ (layer1 >>> layer3)).build
-          _      <- env.use_(ZIO.unit)
+          _      <- env.useDiscard(ZIO.unit)
           actual <- ref.get
         } yield assert(actual(0))(equalTo(acquire1)) &&
           assert(actual.slice(1, 3))(hasSameElements(Vector(acquire2, acquire3))) &&
@@ -203,7 +209,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           layer2  = makeLayer2(ref)
           layer3  = makeLayer3(ref)
           env     = ((layer1.orDie >>> layer2) ++ (layer1 >>> layer3)).build
-          _      <- env.use_(ZIO.unit)
+          _      <- env.useDiscard(ZIO.unit)
           actual <- ref.get
         } yield assert(actual(0))(equalTo(acquire1)) &&
           assert(actual.slice(1, 3))(hasSameElements(Vector(acquire2, acquire3))) &&
@@ -216,7 +222,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           layer1  = makeLayer1(ref)
           layer2  = makeLayer2(ref)
           env     = (layer1 ++ layer2).build
-          fiber  <- env.use_(ZIO.unit).fork
+          fiber  <- env.useDiscard(ZIO.unit).fork
           _      <- fiber.interrupt
           actual <- ref.get
         } yield (assert(actual)(contains(acquire1)) ==> assert(actual)(contains(release1))) &&
@@ -228,7 +234,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           layer1  = makeLayer1(ref)
           layer2  = makeLayer2(ref)
           env     = (layer1 >>> layer2).build
-          fiber  <- env.use_(ZIO.unit).fork
+          fiber  <- env.useDiscard(ZIO.unit).fork
           _      <- fiber.interrupt
           actual <- ref.get
         } yield (assert(actual)(contains(acquire1)) ==> assert(actual)(contains(release1))) &&
@@ -241,7 +247,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           layer2  = makeLayer2(ref)
           layer3  = makeLayer3(ref)
           env     = ((layer1 >>> layer2) ++ (layer1 >>> layer3)).build
-          fiber  <- env.use_(ZIO.unit).fork
+          fiber  <- env.useDiscard(ZIO.unit).fork
           _      <- fiber.interrupt
           actual <- ref.get
         } yield (assert(actual)(contains(acquire1)) ==> assert(actual)(contains(release1))) &&
@@ -252,9 +258,9 @@ object ZLayerSpec extends ZIOBaseSpec {
         for {
           promise <- Promise.make[Nothing, Unit]
           layer1   = ZLayer(ZManaged.never)
-          layer2   = ZLayer(Managed.bracket(promise.succeed(()).map(Has(_)))(_ => ZIO.unit))
+          layer2   = ZLayer(Managed.acquireReleaseWith(promise.succeed(()).map(Has(_)))(_ => ZIO.unit))
           env      = (layer1 ++ layer2).build
-          _       <- env.use_(ZIO.unit).forkDaemon
+          _       <- env.useDiscard(ZIO.unit).forkDaemon
           _       <- promise.await
         } yield assertCompletes
       },
@@ -262,7 +268,7 @@ object ZLayerSpec extends ZIOBaseSpec {
         case class A(name: String, value: Int)
         case class B(name: String)
         val l1: Layer[Nothing, Has[A]]               = ZLayer.succeed(A("name", 1))
-        val l2: ZLayer[Has[String], Nothing, Has[B]] = ZLayer.fromService(B.apply)
+        val l2: ZLayer[Has[String], Nothing, Has[B]] = (B.apply _).toLayer
         val live: Layer[Nothing, Has[B]]             = l1.map(a => Has(a.get[A].name)) >>> l2
         assertM(ZIO.access[Has[B]](_.get).inject(live))(equalTo(B("name")))
       },
@@ -286,7 +292,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           layer1  = makeLayer1(ref)
           layer2  = makeLayer2(ref)
           env     = ((layer1 >>> ZLayer.fail("fail")) orElse layer2).build
-          fiber  <- env.use_(ZIO.unit).fork
+          fiber  <- env.useDiscard(ZIO.unit).fork
           _      <- fiber.interrupt
           actual <- ref.get
         } yield (assert(actual)(contains(acquire1)) ==> assert(actual)(contains(release1))) &&
@@ -361,7 +367,7 @@ object ZLayerSpec extends ZIOBaseSpec {
         for {
           ref    <- Ref.make(0)
           effect  = ref.update(_ + 1) *> ZIO.fail("fail")
-          layer   = ZLayer.fromEffectMany(effect).retry(Schedule.recurs(3))
+          layer   = ZLayer.fromZIOMany(effect).retry(Schedule.recurs(3))
           _      <- layer.build.useNow.ignore
           result <- ref.get
         } yield assert(result)(equalTo(4))
@@ -371,7 +377,7 @@ object ZLayerSpec extends ZIOBaseSpec {
         val layer1 = ZLayer.fail("foo")
         val layer2 = ZLayer.succeed("bar")
         val layer3 = ZLayer.succeed("baz")
-        val layer4 = ZManaged.bracket(sleep)(_ => sleep).toLayer
+        val layer4 = ZManaged.acquireReleaseWith(sleep)(_ => sleep).toLayer
         val env    = layer1 ++ ((layer2 ++ layer3) >+> layer4)
         assertM(ZIO.unit.provideCustomLayer(env).exit)(fails(equalTo("foo")))
       },

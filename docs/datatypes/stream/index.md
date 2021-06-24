@@ -64,9 +64,9 @@ With ZIO stream we can change this program to the following code:
 def prime(number: Int): Task[(Boolean, Int)] = Task.succeed(???)
 
 ZStream.fromIterable(numbers)
-  .mapMParUnordered(20)(prime(_))
+  .mapZIOParUnordered(20)(prime(_))
   .filter(_._1).map(_._2)
-  .mapMParUnordered(20)(moreHardWork(_))
+  .mapZIOParUnordered(20)(moreHardWork(_))
 ```
 
 We converted the list of numbers using `ZStream.fromIterable` into a `ZStream`, then we mapped it in parallel, twenty items at a time, and then we performed the hard work problem, twenty items of a time. This is a pipeline, and this easily works for an infinite list.
@@ -101,11 +101,11 @@ def process(i: Int): Task[Int]    = Task.succeed(???)
 def printElem(i: Int): Task[Unit] = Task.succeed(???)
 
 ZStream
-  .repeatEffect(generateElement)
+  .repeatZIO(generateElement)
   .buffer(16)
-  .mapM(process(_))
+  .mapZIO(process(_))
   .buffer(16)
-  .mapM(process(_))
+  .mapZIO(process(_))
   .buffer(16)
   .tap(printElem(_))
 ```
@@ -126,7 +126,7 @@ They're reactive streams, they don't block threads. They're super-efficient and 
 
 ### 3. Concurrency and Parallelism
 
-Streams are concurrent. They have a lot of concurrent operators. All the operations on them are safe to use in presence of concurrency. And also just like ZIO gives us parallel operators with everything, there are lots of parallel operators. We can use the parallel version of operators, like `mapMPar`, `flatMapPar`.
+Streams are concurrent. They have a lot of concurrent operators. All the operations on them are safe to use in presence of concurrency. And also just like ZIO gives us parallel operators with everything, there are lots of parallel operators. We can use the parallel version of operators, like `mapZIOPar`, `flatMapPar`.
 
 Parallel operators allow us to fully saturate and utilize all CPU cores of our machine. If we need to do bulk processing on a lot of data and use all the cores on our machine, so we can speed up the process by using these parallel operators. 
 

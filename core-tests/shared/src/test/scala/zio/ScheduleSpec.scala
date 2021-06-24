@@ -50,9 +50,9 @@ object ScheduleSpec extends ZIOBaseSpec {
         def cond: Int => Boolean = _ < 10
         checkRepeat(Schedule.recurWhile(cond), expected = 10)
       },
-      testM("for 'recurWhileM(cond)' repeats while the effectful cond still holds") {
+      testM("for 'recurWhileZIO(cond)' repeats while the effectful cond still holds") {
         def cond: Int => UIO[Boolean] = x => IO.succeed(x > 10)
-        checkRepeat(Schedule.recurWhileM(cond), expected = 1)
+        checkRepeat(Schedule.recurWhileZIO(cond), expected = 1)
       },
       testM("for 'recurWhileEquals(cond)' repeats while the cond is equal") {
         checkRepeat(Schedule.recurWhileEquals(1), expected = 2)
@@ -61,9 +61,9 @@ object ScheduleSpec extends ZIOBaseSpec {
         def cond: Int => Boolean = _ < 10
         checkRepeat(Schedule.recurUntil(cond), expected = 1)
       },
-      testM("for 'recurUntilM(cond)' repeats until the effectful cond is satisfied") {
+      testM("for 'recurUntilZIO(cond)' repeats until the effectful cond is satisfied") {
         def cond: Int => UIO[Boolean] = x => IO.succeed(x > 10)
-        checkRepeat(Schedule.recurUntilM(cond), expected = 11)
+        checkRepeat(Schedule.recurUntilZIO(cond), expected = 11)
       },
       testM("for 'recurUntilEquals(cond)' repeats until the cond is equal") {
         checkRepeat(Schedule.recurUntilEquals(1), expected = 1)
@@ -76,7 +76,7 @@ object ScheduleSpec extends ZIOBaseSpec {
       },
       testM("as long as the effectful condition f holds") {
         def cond = (x: Int) => IO.succeed(x > 10)
-        checkRepeat(Schedule.collectWhileM(cond), expected = Nil)
+        checkRepeat(Schedule.collectWhileZIO(cond), expected = Nil)
       },
       testM("until the effectful condition f fails") {
         def cond = (i: Int) => i < 10 && i > 1
@@ -84,14 +84,14 @@ object ScheduleSpec extends ZIOBaseSpec {
       },
       testM("until the effectful condition f fails") {
         def cond = (x: Int) => IO.succeed(x > 10)
-        checkRepeat(Schedule.collectUntilM(cond), expected = List(1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
+        checkRepeat(Schedule.collectUntilZIO(cond), expected = List(1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
       }
     ),
     testM("Repeat on failure does not actually repeat") {
       val failed = (for {
         ref <- Ref.make(0)
         _   <- alwaysFail(ref).repeat(Schedule.recurs(42))
-      } yield ()).foldM[Has[Clock], Int, String](
+      } yield ()).foldZIO[Has[Clock], Int, String](
         err => IO.succeed(err),
         _ => IO.succeed("it should not be a success at all")
       )
@@ -150,7 +150,7 @@ object ScheduleSpec extends ZIOBaseSpec {
           ref <- Ref.make(0)
           i   <- alwaysFail(ref).retry(Schedule.recurs(0))
         } yield i)
-          .foldM[Has[Clock], Int, String](
+          .foldZIO[Has[Clock], Int, String](
             err => IO.succeed(err),
             _ => IO.succeed("it should not be a success")
           )
@@ -169,7 +169,7 @@ object ScheduleSpec extends ZIOBaseSpec {
         val retried = (for {
           ref <- Ref.make(0)
           _   <- alwaysFail(ref).retry(Schedule.once)
-        } yield ()).foldM[Has[Clock], Int, String](
+        } yield ()).foldZIO[Has[Clock], Int, String](
           err => IO.succeed(err),
           _ => IO.succeed("A failure was expected")
         )
@@ -232,7 +232,7 @@ object ScheduleSpec extends ZIOBaseSpec {
       },
       testM("modified linear delay") {
         assertM(
-          run(Schedule.linear(100.millis).modifyDelayM { case (_, d) => ZIO.succeed(d * 2) } >>> Schedule.elapsed)(
+          run(Schedule.linear(100.millis).modifyDelayZIO { case (_, d) => ZIO.succeed(d * 2) } >>> Schedule.elapsed)(
             List.fill(5)(())
           )
         )(equalTo(Chunk(0, 1, 3, 6, 10).map(i => (i * 200).millis)))
@@ -274,7 +274,7 @@ object ScheduleSpec extends ZIOBaseSpec {
           ref <- Ref.make(0)
           i   <- alwaysFail(ref).retryOrElse(Schedule.once, ioFail)
         } yield i)
-          .foldM[Has[Clock], Int, String](
+          .foldZIO[Has[Clock], Int, String](
             err => IO.succeed(err),
             _ => IO.succeed("it should not be a success")
           )
@@ -292,7 +292,7 @@ object ScheduleSpec extends ZIOBaseSpec {
           ref <- Ref.make(0)
           i   <- alwaysFail(ref).retryOrElseEither(Schedule.once, ioFail)
         } yield i)
-          .foldM[Has[Clock], Int, String](
+          .foldZIO[Has[Clock], Int, String](
             err => IO.succeed(err),
             _ => IO.succeed("it should not be a success")
           )
@@ -492,7 +492,7 @@ object ScheduleSpec extends ZIOBaseSpec {
       def foo[O](v: O): ZIO[Has[Clock], Error, Either[ScheduleFailure, ScheduleSuccess[O]]] =
         ZIO
           .fromFuture(_ => Future.successful(v))
-          .foldM(
+          .foldZIO(
             _ => ZIO.fail(ScheduleError("Some error")),
             ok => ZIO.succeed(Right(ScheduleSuccess(ok)))
           )
@@ -603,7 +603,7 @@ object ScheduleSpec extends ZIOBaseSpec {
             case h :: t =>
               driver
                 .next(h)
-                .foldM(
+                .foldZIO(
                   _ => driver.last.fold(_ => acc, b => acc :+ b),
                   b => loop(t, acc :+ b)
                 )

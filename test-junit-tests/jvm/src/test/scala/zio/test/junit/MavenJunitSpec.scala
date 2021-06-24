@@ -82,13 +82,13 @@ object MavenJunitSpec extends DefaultRunnableSpec {
       s"-Dscala.compat.version=$scalaCompatVersion",
       s"-ssettings.xml"
     )
-    def run(command: String*): Task[Int] = ZIO.effectBlocking(
+    def run(command: String*): Task[Int] = ZIO.attemptBlocking(
       cli.doMain(command.toArray, mvnRoot, System.out, System.err)
     )
 
     def parseSurefireReport(testFQN: String): Task[immutable.Seq[TestCase]] =
       ZIO
-        .effectBlocking(
+        .attemptBlocking(
           XML.load(scala.xml.Source.fromFile(new File(s"$mvnRoot/target/surefire-reports/TEST-$testFQN.xml")))
         )
         .map { report =>

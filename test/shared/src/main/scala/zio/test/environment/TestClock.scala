@@ -211,7 +211,7 @@ object TestClock extends Serializable {
      * the `TestClock` but a fiber is not suspending.
      */
     private[TestClock] val suspendedWarningDone: UIO[Unit] =
-      suspendedWarningState.updateSomeM[Any, Nothing] { case SuspendedWarningData.Pending(fiber) =>
+      suspendedWarningState.updateSomeZIO[Any, Nothing] { case SuspendedWarningData.Pending(fiber) =>
         fiber.interrupt.as(SuspendedWarningData.start)
       }
 
@@ -220,7 +220,7 @@ object TestClock extends Serializable {
      * but is not advancing the `TestClock`.
      */
     private[TestClock] val warningDone: UIO[Unit] =
-      warningState.updateSomeM[Any, Nothing] {
+      warningState.updateSomeZIO[Any, Nothing] {
         case WarningData.Start          => ZIO.succeedNow(WarningData.done)
         case WarningData.Pending(fiber) => fiber.interrupt.as(WarningData.done)
       }
@@ -334,7 +334,7 @@ object TestClock extends Serializable {
      * advancing the `TestClock` but a fiber is not suspending.
      */
     private val suspendedWarningStart: UIO[Unit] =
-      suspendedWarningState.updateSomeM { case SuspendedWarningData.Start =>
+      suspendedWarningState.updateSomeZIO { case SuspendedWarningData.Start =>
         for {
           fiber <- live.provide {
                      Console
@@ -350,7 +350,7 @@ object TestClock extends Serializable {
      * time but is not advancing the `TestClock`.
      */
     private val warningStart: UIO[Unit] =
-      warningState.updateSomeM { case WarningData.Start =>
+      warningState.updateSomeZIO { case WarningData.Start =>
         for {
           fiber <- live.provide(Console.printLine(warning).delay(5.seconds)).interruptible.fork
         } yield WarningData.pending(fiber)
@@ -371,8 +371,9 @@ object TestClock extends Serializable {
       warningState          <- RefM.make(WarningData.start).toManaged
       suspendedWarningState <- RefM.make(SuspendedWarningData.start).toManaged
       test <-
-        Managed.bracket(UIO(Test(clockState, live, annotations, warningState, suspendedWarningState))) { test =>
-          test.warningDone *> test.suspendedWarningDone
+        Managed.acquireReleaseWith(UIO(Test(clockState, live, annotations, warningState, suspendedWarningState))) {
+          test =>
+            test.warningDone *> test.suspendedWarningDone
         }
     } yield Has.allOf(test: Clock, test: TestClock)
   }.toLayerMany
@@ -391,7 +392,7 @@ object TestClock extends Serializable {
    * before the new time in order.
    */
   def adjust(duration: => Duration): URIO[Has[TestClock], Unit] =
-    ZIO.accessM(_.get.adjust(duration))
+    ZIO.accessZIO(_.get.adjust(duration))
 
   /**
    * Accesses a `TestClock` instance in the environment and saves the clock
@@ -399,7 +400,7 @@ object TestClock extends Serializable {
    * saved state.
    */
   val save: ZIO[Has[TestClock], Nothing, UIO[Unit]] =
-    ZIO.accessM(_.get.save)
+    ZIO.accessZIO(_.get.save)
 
   /**
    * Accesses a `TestClock` instance in the environment and sets the clock
@@ -407,7 +408,7 @@ object TestClock extends Serializable {
    * for on or before the new time in order.
    */
   def setDateTime(dateTime: => OffsetDateTime): URIO[Has[TestClock], Unit] =
-    ZIO.accessM(_.get.setDateTime(dateTime))
+    ZIO.accessZIO(_.get.setDateTime(dateTime))
 
   /**
    * Accesses a `TestClock` instance in the environment and sets the clock
@@ -415,7 +416,7 @@ object TestClock extends Serializable {
    * running any actions scheduled for on or before the new time in order.
    */
   def setTime(duration: => Duration): URIO[Has[TestClock], Unit] =
-    ZIO.accessM(_.get.setTime(duration))
+    ZIO.accessZIO(_.get.setTime(duration))
 
   /**
    * Accesses a `TestClock` instance in the environment, setting the time
@@ -424,21 +425,21 @@ object TestClock extends Serializable {
    * run as a result of this effect.
    */
   def setTimeZone(zone: => ZoneId): URIO[Has[TestClock], Unit] =
-    ZIO.accessM(_.get.setTimeZone(zone))
+    ZIO.accessZIO(_.get.setTimeZone(zone))
 
   /**
    * Accesses a `TestClock` instance in the environment and returns a list
    * of times that effects are scheduled to run.
    */
   val sleeps: ZIO[Has[TestClock], Nothing, List[Duration]] =
-    ZIO.accessM(_.get.sleeps)
+    ZIO.accessZIO(_.get.sleeps)
 
   /**
    * Accesses a `TestClock` instance in the environment and returns the current
    * time zone.
    */
   val timeZone: URIO[Has[TestClock], ZoneId] =
-    ZIO.accessM(_.get.timeZone)
+    ZIO.accessZIO(_.get.timeZone)
 
   /**
    * `Data` represents the state of the `TestClock`, including the clock time

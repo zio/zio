@@ -29,7 +29,7 @@ def acquire: Task[Resource]                = Task.attempt(???)
 ```
 
 ```scala mdoc:silent:nest
-val managed = ZManaged.bracket(acquire)(release)
+val managed = ZManaged.acquireReleaseWith(acquire)(release)
 ```
 
 In the following example, we have a managed resource which requires `Console` as an environment to print the first line of a given file. The `BufferedReader` will be acquired before printing the first line and automatically will be released after using `BufferedReader`:
@@ -40,7 +40,7 @@ def printFirstLine(file: String): ZIO[Has[Console], Throwable, Unit] = {
   def acquire(file: String) = ZIO.attempt(new BufferedReader(new FileReader(file)))
   def release(reader: BufferedReader) = ZIO.succeed(reader.close())
 
-  ZManaged.bracket(acquire(file))(release).use { reader =>
+  ZManaged.acquireReleaseWith(acquire(file))(release).use { reader =>
     printLine(reader.readLine()) 
   }
 }
@@ -56,7 +56,7 @@ trait ZManaged[-R, +E, +A] {
 }
 ```
 
-Not that like `ZManaged.bracket`, both of `acquire` and `release` actions are uninterruptible in `ZManaged.makeExit`.
+Note that like `ZManaged.acquireReleaseWith`, both of `acquire` and `release` actions are uninterruptible in `ZManaged.acquireReleaseExitWith`.
 
 ### Lifting a pure value
 
@@ -72,7 +72,7 @@ val managedBoolean = ZManaged.succeed(true)
 Every `ZIO` effect can be lifted to `ZManaged` with `ZManaged.fromEffect` or `ZIO#toZManaged_` operations:
 
 ```scala mdoc:silent:nest
-val managedHello = ZManaged.fromEffect(printLine("Hello, World!"))
+val managedHello = ZManaged.fromZIO(printLine("Hello, World!"))
 val managedHello_ = printLine("Hello, World!").toManaged
 ```
 
@@ -120,11 +120,11 @@ ZManaged.fromAutoCloseable(ZIO.attempt(fromFile("file.txt")))
 
 ### Making Interruptible Acquires
 
-By default, when we create a `ZManaged` via `ZManaged.bracket` constructor, the `acquire` and `release` actions are _uninterruptible_. But what if we want to make the `acquire` action interruptible? The `makeInterruptible` constructor does that for us:
+By default, when we create a `ZManaged` via `ZManaged.acquireReleaseWith` constructor, the `acquire` and `release` actions are _uninterruptible_. But what if we want to make the `acquire` action interruptible? The `acquireReleaseInterruptibleWith` constructor does that for us:
 
 ```scala mdoc:silent:nest
 trait ZManaged[-R, +E, +A] {
-  def makeInterruptible[R, E, A](
+  def acquireReleaseInterruptibleWith[R, E, A](
     acquire: ZIO[R, E, A]
   )(release: A => URIO[R, Any]): ZManaged[R, E, A]
 }
@@ -132,11 +132,11 @@ trait ZManaged[-R, +E, +A] {
 
 Making `ZManaged` via this constructor makes the `acquire` action interruptible, the release action remains uninterruptible.
 
-If we want to decide what to do in the `release` action based on how the `acquire` action is completed, whether by success, failure, or interruption; we can use the `makeReserve` constructor. The type of `release` action is `Exit[Any, Any] => URIO[R, Any]` which provides us the `Exit` status of the `acquire` action, so we can decide what to do based on the exit status of `acquire` action:
+If we want to decide what to do in the `release` action based on how the `acquire` action is completed, whether by success, failure, or interruption; we can use the `fromReservation` constructor. The type of `release` action is `Exit[Any, Any] => URIO[R, Any]` which provides us the `Exit` status of the `acquire` action, so we can decide what to do based on the exit status of `acquire` action:
 
 ```scala mdoc:silent:nest
 trait ZManaged[-R, +E, +A] {
-  def makeReserve[R, E, A](reservation: ZIO[R, E, Reservation[R, E, A]]): ZManaged[R, E, A]
+  def fromReservation[R, E, A](reservation: ZIO[R, E, Reservation[R, E, A]]): ZManaged[R, E, A]
 }
 ```
 
@@ -185,8 +185,8 @@ def copy(from: FileInputStream, to: FileOutputStream): Task[Unit] = ???
 
 def transfer(from: String, to: String): ZIO[Any, Throwable, Unit] = {
   val resource: ZManaged[Any, Throwable, Unit] = for {
-    from <- ZManaged.bracket(is(from))(close)
-    to   <- ZManaged.bracket(os(to))(close)
+    from <- ZManaged.acquireReleaseWith(is(from))(close)
+    to   <- ZManaged.acquireReleaseWith(os(to))(close)
     _    <- copy(from, to).toManaged
   } yield ()
   resource.useNow

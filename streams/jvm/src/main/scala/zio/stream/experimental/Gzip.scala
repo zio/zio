@@ -12,7 +12,7 @@ object Gzip {
   ): ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[Byte], Done] =
     ZChannel.managed {
       ZManaged
-        .bracket(
+        .acquireReleaseWith(
           Gzipper.make(bufferSize, level, strategy, flushMode)
         ) { gzipper =>
           ZIO.succeed(gzipper.close())
@@ -23,12 +23,12 @@ object Gzip {
         lazy val loop: ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[Byte], Done] =
           ZChannel.readWithCause(
             chunk =>
-              ZChannel.fromEffect {
+              ZChannel.fromZIO {
                 gzipper.onChunk(chunk)
               }.flatMap(chunk => ZChannel.write(chunk) *> loop),
             ZChannel.halt(_),
             done =>
-              ZChannel.fromEffect {
+              ZChannel.fromZIO {
                 gzipper.onNone
               }.flatMap(chunk => ZChannel.write(chunk).as(done))
           )

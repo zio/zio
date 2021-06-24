@@ -16,7 +16,7 @@ import scala.concurrent.ExecutionContext.global
 object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
 
   def socketClient(port: Int): ZManaged[Any, Throwable, AsynchronousSocketChannel] =
-    ZManaged.bracket(ZIO.effectBlockingIO(AsynchronousSocketChannel.open()).flatMap { client =>
+    ZManaged.acquireReleaseWith(ZIO.attemptBlockingIO(AsynchronousSocketChannel.open()).flatMap { client =>
       ZIO
         .fromFutureJava(client.connect(new InetSocketAddress("localhost", port)))
         .map(_ => client)
@@ -24,42 +24,42 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
 
   def spec: ZSpec[Environment, Failure] = suite("ZStream JVM")(
     suite("Constructors")(
-      testM("effectAsync")(checkM(Gen.chunkOf(Gen.anyInt)) { chunk =>
-        val s = ZStream.effectAsync[Any, Throwable, Int] { k =>
+      testM("async")(checkM(Gen.chunkOf(Gen.anyInt)) { chunk =>
+        val s = ZStream.async[Any, Throwable, Int] { k =>
           global.execute(() => chunk.foreach(a => k(Task.succeed(Chunk.single(a)))))
         }
 
         assertM(s.take(chunk.size.toLong).runCollect)(equalTo(chunk))
       }),
-      suite("effectAsyncMaybe")(
-        testM("effectAsyncMaybe signal end stream") {
+      suite("asyncMaybe")(
+        testM("asyncMaybe signal end stream") {
           for {
             result <- ZStream
-                        .effectAsyncMaybe[Any, Nothing, Int] { k =>
+                        .asyncMaybe[Any, Nothing, Int] { k =>
                           k(IO.fail(None))
                           None
                         }
                         .runCollect
           } yield assert(result)(equalTo(Chunk.empty))
         },
-        testM("effectAsyncMaybe Some")(checkM(Gen.chunkOf(Gen.anyInt)) { chunk =>
-          val s = ZStream.effectAsyncMaybe[Any, Throwable, Int](_ => Some(ZStream.fromIterable(chunk)))
+        testM("asyncMaybe Some")(checkM(Gen.chunkOf(Gen.anyInt)) { chunk =>
+          val s = ZStream.asyncMaybe[Any, Throwable, Int](_ => Some(ZStream.fromIterable(chunk)))
 
           assertM(s.runCollect.map(_.take(chunk.size)))(equalTo(chunk))
         }),
-        testM("effectAsyncMaybe None")(checkM(Gen.chunkOf(Gen.anyInt)) { chunk =>
-          val s = ZStream.effectAsyncMaybe[Any, Throwable, Int] { k =>
+        testM("asyncMaybe None")(checkM(Gen.chunkOf(Gen.anyInt)) { chunk =>
+          val s = ZStream.asyncMaybe[Any, Throwable, Int] { k =>
             global.execute(() => chunk.foreach(a => k(Task.succeed(Chunk.single(a)))))
             None
           }
 
           assertM(s.take(chunk.size.toLong).runCollect)(equalTo(chunk))
         }),
-        testM("effectAsyncMaybe back pressure") {
+        testM("asyncMaybe back pressure") {
           for {
             refCnt  <- Ref.make(0)
             refDone <- Ref.make[Boolean](false)
-            stream = ZStream.effectAsyncMaybe[Any, Throwable, Int](
+            stream = ZStream.asyncMaybe[Any, Throwable, Int](
                        cb => {
                          global.execute { () =>
                            // 1st consumed by sink, 2-6 – in queue, 7th – back pressured
@@ -70,19 +70,19 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
                        },
                        5
                      )
-            run    <- stream.run(ZSink.fromEffect[Any, Nothing, Int, Nothing](ZIO.never)).fork
+            run    <- stream.run(ZSink.fromZIO[Any, Nothing, Int, Nothing](ZIO.never)).fork
             _      <- refCnt.get.repeatWhile(_ != 7)
             isDone <- refDone.get
             _      <- run.interrupt
           } yield assert(isDone)(isFalse)
         }
       ),
-      suite("effectAsyncM")(
-        testM("effectAsyncM")(checkM(Gen.chunkOf(Gen.anyInt).filter(_.nonEmpty)) { chunk =>
+      suite("asyncZIO")(
+        testM("asyncZIO")(checkM(Gen.chunkOf(Gen.anyInt).filter(_.nonEmpty)) { chunk =>
           for {
             latch <- Promise.make[Nothing, Unit]
             fiber <- ZStream
-                       .effectAsyncM[Any, Throwable, Int] { k =>
+                       .asyncZIO[Any, Throwable, Int] { k =>
                          global.execute(() => chunk.foreach(a => k(Task.succeed(Chunk.single(a)))))
                          latch.succeed(()) *>
                            Task.unit
@@ -94,21 +94,21 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
             s <- fiber.join
           } yield assert(s)(equalTo(chunk))
         }),
-        testM("effectAsyncM signal end stream") {
+        testM("asyncZIO signal end stream") {
           for {
             result <- ZStream
-                        .effectAsyncM[Any, Nothing, Int] { k =>
+                        .asyncZIO[Any, Nothing, Int] { k =>
                           global.execute(() => k(IO.fail(None)))
                           UIO.unit
                         }
                         .runCollect
           } yield assert(result)(equalTo(Chunk.empty))
         },
-        testM("effectAsyncM back pressure") {
+        testM("asyncZIO back pressure") {
           for {
             refCnt  <- Ref.make(0)
             refDone <- Ref.make[Boolean](false)
-            stream = ZStream.effectAsyncM[Any, Throwable, Int](
+            stream = ZStream.asyncZIO[Any, Throwable, Int](
                        cb => {
                          global.execute { () =>
                            // 1st consumed by sink, 2-6 – in queue, 7th – back pressured
@@ -119,20 +119,20 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
                        },
                        5
                      )
-            run    <- stream.run(ZSink.fromEffect[Any, Nothing, Int, Nothing](ZIO.never)).fork
+            run    <- stream.run(ZSink.fromZIO[Any, Nothing, Int, Nothing](ZIO.never)).fork
             _      <- refCnt.get.repeatWhile(_ != 7)
             isDone <- refDone.get
             _      <- run.interrupt
           } yield assert(isDone)(isFalse)
         }
       ),
-      suite("effectAsyncInterrupt")(
-        testM("effectAsyncInterrupt Left") {
+      suite("asyncInterrupt")(
+        testM("asyncInterrupt Left") {
           for {
             cancelled <- Ref.make(false)
             latch     <- Promise.make[Nothing, Unit]
             fiber <- ZStream
-                       .effectAsyncInterrupt[Any, Nothing, Unit] { offer =>
+                       .asyncInterrupt[Any, Nothing, Unit] { offer =>
                          global.execute(() => offer(ZIO.succeedNow(Chunk.unit)))
                          Left(cancelled.set(true))
                        }
@@ -144,27 +144,27 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
             result <- cancelled.get
           } yield assert(result)(isTrue)
         },
-        testM("effectAsyncInterrupt Right")(checkM(Gen.chunkOf(Gen.anyInt)) { chunk =>
-          val s = ZStream.effectAsyncInterrupt[Any, Throwable, Int](_ => Right(ZStream.fromIterable(chunk)))
+        testM("asyncInterrupt Right")(checkM(Gen.chunkOf(Gen.anyInt)) { chunk =>
+          val s = ZStream.asyncInterrupt[Any, Throwable, Int](_ => Right(ZStream.fromIterable(chunk)))
 
           assertM(s.take(chunk.size.toLong).runCollect)(equalTo(chunk))
         }),
-        testM("effectAsyncInterrupt signal end stream ") {
+        testM("asyncInterrupt signal end stream ") {
           for {
             result <- ZStream
-                        .effectAsyncInterrupt[Any, Nothing, Int] { k =>
+                        .asyncInterrupt[Any, Nothing, Int] { k =>
                           global.execute(() => k(IO.fail(None)))
                           Left(UIO.succeedNow(()))
                         }
                         .runCollect
           } yield assert(result)(equalTo(Chunk.empty))
         },
-        testM("effectAsyncInterrupt back pressure") {
+        testM("asyncInterrupt back pressure") {
           for {
             selfId  <- ZIO.fiberId
             refCnt  <- Ref.make(0)
             refDone <- Ref.make[Boolean](false)
-            stream = ZStream.effectAsyncInterrupt[Any, Throwable, Int](
+            stream = ZStream.asyncInterrupt[Any, Throwable, Int](
                        cb => {
                          global.execute { () =>
                            // 1st consumed by sink, 2-6 – in queue, 7th – back pressured
@@ -175,7 +175,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
                        },
                        5
                      )
-            run    <- stream.run(ZSink.fromEffect[Any, Throwable, Int, Nothing](ZIO.never)).fork
+            run    <- stream.run(ZSink.fromZIO[Any, Throwable, Int, Nothing](ZIO.never)).fork
             _      <- refCnt.get.repeatWhile(_ != 7)
             isDone <- refDone.get
             exit   <- run.interrupt
@@ -192,11 +192,12 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
         testM("reads from an existing file") {
           val data = (0 to 100).mkString
 
-          Task(Files.createTempFile("stream", "fromFile")).bracket(path => Task(Files.delete(path)).orDie) { path =>
-            Task(Files.write(path, data.getBytes("UTF-8"))) *>
-              assertM(ZStream.fromFile(path, 24).transduce(ZTransducer.utf8Decode).runCollect.map(_.mkString))(
-                equalTo(data)
-              )
+          Task(Files.createTempFile("stream", "fromFile")).acquireReleaseWith(path => Task(Files.delete(path)).orDie) {
+            path =>
+              Task(Files.write(path, data.getBytes("UTF-8"))) *>
+                assertM(ZStream.fromFile(path, 24).transduce(ZTransducer.utf8Decode).runCollect.map(_.mkString))(
+                  equalTo(data)
+                )
           }
         },
         testM("fails on a nonexistent file") {
@@ -207,7 +208,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
       ),
       suite("fromReader")(
         testM("reads non-empty file") {
-          Task(Files.createTempFile("stream", "reader")).bracket(path => UIO(Files.delete(path))) { path =>
+          Task(Files.createTempFile("stream", "reader")).acquireReleaseWith(path => UIO(Files.delete(path))) { path =>
             for {
               data <- UIO((0 to 100).mkString)
               _    <- Task(Files.write(path, data.getBytes("UTF-8")))
@@ -216,12 +217,13 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
           }
         },
         testM("reads empty file") {
-          Task(Files.createTempFile("stream", "reader-empty")).bracket(path => UIO(Files.delete(path))) { path =>
-            ZStream
-              .fromReader(new FileReader(path.toString))
-              .runCollect
-              .map(_.mkString)
-              .map(assert(_)(isEmptyString))
+          Task(Files.createTempFile("stream", "reader-empty")).acquireReleaseWith(path => UIO(Files.delete(path))) {
+            path =>
+              ZStream
+                .fromReader(new FileReader(path.toString))
+                .runCollect
+                .map(_.mkString)
+                .map(assert(_)(isEmptyString))
           }
         },
         testM("fails on a failing reader") {
@@ -272,7 +274,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
                    .use(c => ZIO.fromFutureJava(c.write(ByteBuffer.wrap(message.getBytes))))
                    .retry(Schedule.forever)
 
-            receive <- refOut.get.repeatWhileM(s => ZIO.succeed(s.isEmpty))
+            receive <- refOut.get.repeatWhileZIO(s => ZIO.succeed(s.isEmpty))
 
             _ <- server.interrupt
           } yield assert(receive)(equalTo(message))
@@ -298,7 +300,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
                      }
                  }.retry(Schedule.forever)
 
-            receive <- refOut.get.repeatWhileM(s => ZIO.succeed(s.isEmpty))
+            receive <- refOut.get.repeatWhileZIO(s => ZIO.succeed(s.isEmpty))
 
             _ <- server.interrupt
           } yield assert(receive)(equalTo(message)))

@@ -17,7 +17,7 @@ object Deflate {
   ): ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[Byte], Done] =
     ZChannel.managed {
       ZManaged
-        .bracket(ZIO.succeed {
+        .acquireReleaseWith(ZIO.succeed {
           val deflater = new Deflater(level.jValue, noWrap)
           deflater.setStrategy(strategy.jValue)
           (deflater, new Array[Byte](bufferSize))

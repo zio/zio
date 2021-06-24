@@ -277,7 +277,7 @@ object ZRef extends Serializable {
             }
           }.absolve
         case zRefM: ZRefM[R, R, E, E, A, A] =>
-          zRefM.modifyM(a => ZIO.succeedNow(f(a)))
+          zRefM.modifyZIO(a => ZIO.succeedNow(f(a)))
       }
 
     /**
@@ -392,7 +392,7 @@ object ZRef extends Serializable {
      * result of the partial function if it is defined or else fails with `None`.
      */
     override final def collect[C](pf: PartialFunction[B, C]): ZRefM[RA, RB, EA, Option[EB], A, C] =
-      collectM(pf.andThen(ZIO.succeedNow(_)))
+      collectZIO(pf.andThen(ZIO.succeedNow(_)))
 
     /**
      * Maps and filters the `get` value of the `ZRefM` with the specified
@@ -400,10 +400,22 @@ object ZRef extends Serializable {
      * succeeds with the result of the partial function if it is defined or else
      * fails with `None`.
      */
+    @deprecated("use collectZIO", "2.0.0")
     final def collectM[RC <: RB, EC >: EB, C](
       pf: PartialFunction[B, ZIO[RC, EC, C]]
     ): ZRefM[RA, RC, EA, Option[EC], A, C] =
-      foldM(
+      collectZIO(pf)
+
+    /**
+     * Maps and filters the `get` value of the `ZRefM` with the specified
+     * effectual partial function, returning a `ZRefM` with a `get` value that
+     * succeeds with the result of the partial function if it is defined or else
+     * fails with `None`.
+     */
+    final def collectZIO[RC <: RB, EC >: EB, C](
+      pf: PartialFunction[B, ZIO[RC, EC, C]]
+    ): ZRefM[RA, RC, EA, Option[EC], A, C] =
+      foldZIO(
         identity,
         Some(_),
         ZIO.succeedNow,
@@ -414,7 +426,7 @@ object ZRef extends Serializable {
      * Transforms the `set` value of the `ZRefM` with the specified function.
      */
     override final def contramap[C](f: C => A): ZRefM[RA, RB, EA, EB, C, B] =
-      contramapM(c => ZIO.succeedNow(f(c)))
+      contramapZIO(c => ZIO.succeedNow(f(c)))
 
     /**
      * Transforms the `set` value of the `ZRef` with the specified fallible
@@ -427,15 +439,23 @@ object ZRef extends Serializable {
      * Transforms the `set` value of the `ZRefM` with the specified effectual
      * function.
      */
+    @deprecated("use contramapZIO", "2.0.0")
     final def contramapM[RC <: RA, EC >: EA, C](f: C => ZIO[RC, EC, A]): ZRefM[RC, RB, EC, EB, C, B] =
-      dimapM(f, ZIO.succeedNow)
+      contramapZIO(f)
+
+    /**
+     * Transforms the `set` value of the `ZRefM` with the specified effectual
+     * function.
+     */
+    final def contramapZIO[RC <: RA, EC >: EA, C](f: C => ZIO[RC, EC, A]): ZRefM[RC, RB, EC, EB, C, B] =
+      dimapZIO(f, ZIO.succeedNow)
 
     /**
      * Transforms both the `set` and `get` values of the `ZRefM` with the
      * specified functions.
      */
     override final def dimap[C, D](f: C => A, g: B => D): ZRefM[RA, RB, EA, EB, C, D] =
-      dimapM(c => ZIO.succeedNow(f(c)), b => ZIO.succeedNow(g(b)))
+      dimapZIO(c => ZIO.succeedNow(f(c)), b => ZIO.succeedNow(g(b)))
 
     /**
      * Transforms both the `set` and `get` values of the `ZRef` with the
@@ -451,11 +471,22 @@ object ZRef extends Serializable {
      * Transforms both the `set` and `get` values of the `ZRefM` with the
      * specified effectual functions.
      */
+    @deprecated("use dimapZIO", "2.0.0")
     final def dimapM[RC <: RA, RD <: RB, EC >: EA, ED >: EB, C, D](
       f: C => ZIO[RC, EC, A],
       g: B => ZIO[RD, ED, D]
     ): ZRefM[RC, RD, EC, ED, C, D] =
-      foldM(identity, identity, f, g)
+      dimapZIO(f, g)
+
+    /**
+     * Transforms both the `set` and `get` values of the `ZRefM` with the
+     * specified effectual functions.
+     */
+    final def dimapZIO[RC <: RA, RD <: RB, EC >: EA, ED >: EB, C, D](
+      f: C => ZIO[RC, EC, A],
+      g: B => ZIO[RD, ED, D]
+    ): ZRefM[RC, RD, EC, ED, C, D] =
+      foldZIO(identity, identity, f, g)
 
     /**
      * Transforms both the `set` and `get` errors of the `ZRefM` with the
@@ -470,17 +501,28 @@ object ZRef extends Serializable {
      * satisfied or else fails with `None`.
      */
     override final def filterInput[A1 <: A](f: A1 => Boolean): ZRefM[RA, RB, Option[EA], EB, A1, B] =
-      filterInputM(a => ZIO.succeedNow(f(a)))
+      filterInputZIO(a => ZIO.succeedNow(f(a)))
 
     /**
      * Filters the `set` value of the `ZRefM` with the specified effectual
      * predicate, returning a `ZRefM` with a `set` value that succeeds if the
      * predicate is satisfied or else fails with `None`.
      */
+    @deprecated("use filterInputZIO", "2.0.0")
     final def filterInputM[RC <: RA, EC >: EA, A1 <: A](
       f: A1 => ZIO[RC, EC, Boolean]
     ): ZRefM[RC, RB, Option[EC], EB, A1, B] =
-      foldM(Some(_), identity, a => ZIO.ifM(f(a).asSomeError)(ZIO.succeedNow(a), ZIO.fail(None)), ZIO.succeedNow)
+      filterInputZIO(f)
+
+    /**
+     * Filters the `set` value of the `ZRefM` with the specified effectual
+     * predicate, returning a `ZRefM` with a `set` value that succeeds if the
+     * predicate is satisfied or else fails with `None`.
+     */
+    final def filterInputZIO[RC <: RA, EC >: EA, A1 <: A](
+      f: A1 => ZIO[RC, EC, Boolean]
+    ): ZRefM[RC, RB, Option[EC], EB, A1, B] =
+      foldZIO(Some(_), identity, a => ZIO.ifZIO(f(a).asSomeError)(ZIO.succeedNow(a), ZIO.fail(None)), ZIO.succeedNow)
 
     /**
      * Filters the `get` value of the `ZRefM` with the specified predicate,
@@ -488,15 +530,24 @@ object ZRef extends Serializable {
      * satisfied or else fails with `None`.
      */
     override final def filterOutput(f: B => Boolean): ZRefM[RA, RB, EA, Option[EB], A, B] =
-      filterOutputM(a => ZIO.succeedNow(f(a)))
+      filterOutputZIO(a => ZIO.succeedNow(f(a)))
 
     /**
      * Filters the `get` value of the `ZRefM` with the specified effectual predicate,
      * returning a `ZRefM` with a `get` value that succeeds if the predicate is
      * satisfied or else fails with `None`.
      */
+    @deprecated("use filterOutputZIO", "2.0.0")
     final def filterOutputM[RC <: RB, EC >: EB](f: B => ZIO[RC, EC, Boolean]): ZRefM[RA, RC, EA, Option[EC], A, B] =
-      foldM(identity, Some(_), ZIO.succeedNow, b => ZIO.ifM(f(b).asSomeError)(ZIO.succeedNow(b), ZIO.fail(None)))
+      filterOutputZIO(f)
+
+    /**
+     * Filters the `get` value of the `ZRefM` with the specified effectual predicate,
+     * returning a `ZRefM` with a `get` value that succeeds if the predicate is
+     * satisfied or else fails with `None`.
+     */
+    final def filterOutputZIO[RC <: RB, EC >: EB](f: B => ZIO[RC, EC, Boolean]): ZRefM[RA, RC, EA, Option[EC], A, B] =
+      foldZIO(identity, Some(_), ZIO.succeedNow, b => ZIO.ifZIO(f(b).asSomeError)(ZIO.succeedNow(b), ZIO.fail(None)))
 
     /**
      * Folds over the error and value types of the `ZRefM`.
@@ -507,7 +558,7 @@ object ZRef extends Serializable {
       ca: C => Either[EC, A],
       bd: B => Either[ED, D]
     ): ZRefM[RA, RB, EC, ED, C, D] =
-      foldM(ea, eb, c => ZIO.fromEither(ca(c)), b => ZIO.fromEither(bd(b)))
+      foldZIO(ea, eb, c => ZIO.fromEither(ca(c)), b => ZIO.fromEither(bd(b)))
 
     /**
      * Folds over the error and value types of the `ZRefM`, allowing access to
@@ -521,14 +572,29 @@ object ZRef extends Serializable {
       ca: C => B => Either[EC, A],
       bd: B => Either[ED, D]
     ): ZRefM[RA with RB, RB, EC, ED, C, D] =
-      foldAllM(ea, eb, ec, c => b => ZIO.fromEither(ca(c)(b)), b => ZIO.fromEither(bd(b)))
+      foldAllZIO(ea, eb, ec, c => b => ZIO.fromEither(ca(c)(b)), b => ZIO.fromEither(bd(b)))
 
     /**
      * Folds over the error and value types of the `ZRefM`, allowing access to
      * the state in transforming the `set` value. This is a more powerful version
      * of `foldM` but requires unifying the environment and error types.
      */
+    @deprecated("use foldAllZIO", "2.0.0")
     final def foldAllM[RC <: RA with RB, RD <: RB, EC, ED, C, D](
+      ea: EA => EC,
+      eb: EB => ED,
+      ec: EB => EC,
+      ca: C => B => ZIO[RC, EC, A],
+      bd: B => ZIO[RD, ED, D]
+    ): ZRefM[RC, RD, EC, ED, C, D] =
+      foldAllZIO(ea, eb, ec, ca, bd)
+
+    /**
+     * Folds over the error and value types of the `ZRefM`, allowing access to
+     * the state in transforming the `set` value. This is a more powerful version
+     * of `foldZIO` but requires unifying the environment and error types.
+     */
+    final def foldAllZIO[RC <: RA with RB, RD <: RB, EC, ED, C, D](
       ea: EA => EC,
       eb: EB => ED,
       ec: EB => EC,
@@ -539,14 +605,14 @@ object ZRef extends Serializable {
         def semaphores =
           self.semaphores
         def unsafeGet: ZIO[RD, ED, D] =
-          self.get.foldM(e => ZIO.fail(eb(e)), bd)
+          self.get.foldZIO(e => ZIO.fail(eb(e)), bd)
         def unsafeSet(c: C): ZIO[RC, EC, Unit] =
-          self.get.foldM(
+          self.get.foldZIO(
             e => ZIO.fail(ec(e)),
             b => ca(c)(b).flatMap(a => self.unsafeSet(a).mapError(ea))
           )
         def unsafeSetAsync(c: C): ZIO[RC, EC, Unit] =
-          self.get.foldM(
+          self.get.foldZIO(
             e => ZIO.fail(ec(e)),
             b => ca(c)(b).flatMap(a => self.unsafeSetAsync(a).mapError(ea))
           )
@@ -560,7 +626,24 @@ object ZRef extends Serializable {
      * ergonomic but this method is extremely useful for implementing new
      * combinators.
      */
+    @deprecated("use foldZIO", "2.0.0")
     final def foldM[RC <: RA, RD <: RB, EC, ED, C, D](
+      ea: EA => EC,
+      eb: EB => ED,
+      ca: C => ZIO[RC, EC, A],
+      bd: B => ZIO[RD, ED, D]
+    ): ZRefM[RC, RD, EC, ED, C, D] =
+      foldZIO(ea, eb, ca, bd)
+
+    /**
+     * Folds over the error and value types of the `ZRefM`. This is a highly
+     * polymorphic method that is capable of arbitrarily transforming the error
+     * and value types of the `ZRefM`. For most use cases one of the more
+     * specific combinators implemented in terms of `foldZIO` will be more
+     * ergonomic but this method is extremely useful for implementing new
+     * combinators.
+     */
+    final def foldZIO[RC <: RA, RD <: RB, EC, ED, C, D](
       ea: EA => EC,
       eb: EB => ED,
       ca: C => ZIO[RC, EC, A],
@@ -570,7 +653,7 @@ object ZRef extends Serializable {
         def semaphores: Set[Semaphore] =
           self.semaphores
         def unsafeGet: ZIO[RD, ED, D] =
-          self.unsafeGet.foldM(e => ZIO.fail(eb(e)), bd)
+          self.unsafeGet.foldZIO(e => ZIO.fail(eb(e)), bd)
         def unsafeSetAsync(c: C): ZIO[RC, EC, Unit] =
           ca(c).flatMap(self.unsafeSetAsync(_).mapError(ea))
         def unsafeSet(c: C): ZIO[RC, EC, Unit] =
@@ -587,7 +670,7 @@ object ZRef extends Serializable {
      * Transforms the `get` value of the `ZRefM` with the specified function.
      */
     override final def map[C](f: B => C): ZRefM[RA, RB, EA, EB, A, C] =
-      mapM(b => ZIO.succeedNow(f(b)))
+      mapZIO(b => ZIO.succeedNow(f(b)))
 
     /**
      * Transforms the `get` value of the `ZRef` with the specified fallible
@@ -600,8 +683,16 @@ object ZRef extends Serializable {
      * Transforms the `get` value of the `ZRefM` with the specified effectual
      * function.
      */
+    @deprecated("use mapZIO", "2.0.0")
     final def mapM[RC <: RB, EC >: EB, C](f: B => ZIO[RC, EC, C]): ZRefM[RA, RC, EA, EC, A, C] =
-      dimapM(ZIO.succeedNow, f)
+      mapZIO(f)
+
+    /**
+     * Transforms the `get` value of the `ZRefM` with the specified effectual
+     * function.
+     */
+    final def mapZIO[RC <: RB, EC >: EB, C](f: B => ZIO[RC, EC, C]): ZRefM[RA, RC, EA, EC, A, C] =
+      dimapZIO(ZIO.succeedNow, f)
 
     /**
      * Returns a read only view of the `ZRefM`.
@@ -628,14 +719,14 @@ object ZRef extends Serializable {
      * `ZRefM`.
      */
     final def tapInput[RC <: RA, EC >: EA, A1 <: A](f: A1 => ZIO[RC, EC, Any]): ZRefM[RC, RB, EC, EB, A1, B] =
-      contramapM(a => f(a).as(a))
+      contramapZIO(a => f(a).as(a))
 
     /**
      * Performs the specified effect very time a value is read from this
      * `ZRefM`.
      */
     final def tapOutput[RC <: RB, EC >: EB](f: B => ZIO[RC, EC, Any]): ZRefM[RA, RC, EA, EC, A, B] =
-      mapM(b => f(b).as(b))
+      mapZIO(b => f(b).as(b))
 
     /**
      * Returns a write only view of the `ZRefM`.
@@ -713,23 +804,49 @@ object ZRef extends Serializable {
        * Atomically modifies the `RefM` with the specified function, returning the
        * value immediately before modification.
        */
+      @deprecated("use getAndUpdateZIO", "2.0.0")
       def getAndUpdateM[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, A]): ZIO[R1, E1, A] =
-        modifyM(v => f(v).map(result => (v, result)))
+        getAndUpdateZIO(f)
+
+      /**
+       * Atomically modifies the `RefM` with the specified function, returning the
+       * value immediately before modification.
+       */
+      def getAndUpdateZIO[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, A]): ZIO[R1, E1, A] =
+        modifyZIO(v => f(v).map(result => (v, result)))
 
       /**
        * Atomically modifies the `RefM` with the specified partial function,
        * returning the value immediately before modification.
        * If the function is undefined on the current value it doesn't change it.
        */
+      @deprecated("use getAndUpdateSomeZIO", "2.0.0")
       def getAndUpdateSomeM[R1 <: R, E1 >: E](pf: PartialFunction[A, ZIO[R1, E1, A]]): ZIO[R1, E1, A] =
-        modifyM(v => pf.applyOrElse[A, ZIO[R1, E1, A]](v, ZIO.succeedNow).map(result => (v, result)))
+        getAndUpdateSomeZIO(pf)
+
+      /**
+       * Atomically modifies the `RefM` with the specified partial function,
+       * returning the value immediately before modification.
+       * If the function is undefined on the current value it doesn't change it.
+       */
+      def getAndUpdateSomeZIO[R1 <: R, E1 >: E](pf: PartialFunction[A, ZIO[R1, E1, A]]): ZIO[R1, E1, A] =
+        modifyZIO(v => pf.applyOrElse[A, ZIO[R1, E1, A]](v, ZIO.succeedNow).map(result => (v, result)))
 
       /**
        * Atomically modifies the `RefM` with the specified function, which computes
        * a return value for the modification. This is a more powerful version of
        * `update`.
        */
+      @deprecated("use modifyZIO", "2.0.0")
       def modifyM[R1 <: R, E1 >: E, B](f: A => ZIO[R1, E1, (B, A)]): ZIO[R1, E1, B] =
+        modifyZIO(f)
+
+      /**
+       * Atomically modifies the `RefM` with the specified function, which computes
+       * a return value for the modification. This is a more powerful version of
+       * `update`.
+       */
+      def modifyZIO[R1 <: R, E1 >: E, B](f: A => ZIO[R1, E1, (B, A)]): ZIO[R1, E1, B] =
         self.withPermit(self.unsafeGet.flatMap(f).flatMap { case (b, a) => self.unsafeSet(a).as(b) })
 
       /**
@@ -738,36 +855,78 @@ object ZRef extends Serializable {
        * otherwise it returns a default value.
        * This is a more powerful version of `updateSome`.
        */
+      @deprecated("use modifySomeZIO", "2.0.0")
       def modifySomeM[R1 <: R, E1 >: E, B](default: B)(pf: PartialFunction[A, ZIO[R1, E1, (B, A)]]): ZIO[R1, E1, B] =
-        modifyM(v => pf.applyOrElse[A, ZIO[R1, E1, (B, A)]](v, _ => ZIO.succeedNow((default, v))))
+        modifySomeZIO[R1, E1, B](default)(pf)
+
+      /**
+       * Atomically modifies the `RefM` with the specified function, which computes
+       * a return value for the modification if the function is defined in the current value
+       * otherwise it returns a default value.
+       * This is a more powerful version of `updateSome`.
+       */
+      def modifySomeZIO[R1 <: R, E1 >: E, B](default: B)(pf: PartialFunction[A, ZIO[R1, E1, (B, A)]]): ZIO[R1, E1, B] =
+        modifyZIO(v => pf.applyOrElse[A, ZIO[R1, E1, (B, A)]](v, _ => ZIO.succeedNow((default, v))))
 
       /**
        * Atomically modifies the `RefM` with the specified function.
        */
+      @deprecated("use updateZIO", "2.0.0")
       def updateM[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, A]): ZIO[R1, E1, Unit] =
-        modifyM(v => f(v).map(result => ((), result)))
+        updateZIO(f)
+
+      /**
+       * Atomically modifies the `RefM` with the specified function.
+       */
+      def updateZIO[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, A]): ZIO[R1, E1, Unit] =
+        modifyZIO(v => f(v).map(result => ((), result)))
 
       /**
        * Atomically modifies the `RefM` with the specified function, returning the
        * value immediately after modification.
        */
+      @deprecated("use updateAndGetZIO", "2.0.0")
       def updateAndGetM[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, A]): ZIO[R1, E1, A] =
-        modifyM(v => f(v).map(result => (result, result)))
+        updateAndGetZIO(f)
+
+      /**
+       * Atomically modifies the `RefM` with the specified function, returning the
+       * value immediately after modification.
+       */
+      def updateAndGetZIO[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, A]): ZIO[R1, E1, A] =
+        modifyZIO(v => f(v).map(result => (result, result)))
 
       /**
        * Atomically modifies the `RefM` with the specified partial function.
        * If the function is undefined on the current value it doesn't change it.
        */
+      @deprecated("use updateSomeZIO", "2.0.0")
       def updateSomeM[R1 <: R, E1 >: E](pf: PartialFunction[A, ZIO[R1, E1, A]]): ZIO[R1, E1, Unit] =
-        modifyM(v => pf.applyOrElse[A, ZIO[R1, E1, A]](v, ZIO.succeedNow).map(result => ((), result)))
+        updateSomeZIO(pf)
+
+      /**
+       * Atomically modifies the `RefM` with the specified partial function.
+       * If the function is undefined on the current value it doesn't change it.
+       */
+      def updateSomeZIO[R1 <: R, E1 >: E](pf: PartialFunction[A, ZIO[R1, E1, A]]): ZIO[R1, E1, Unit] =
+        modifyZIO(v => pf.applyOrElse[A, ZIO[R1, E1, A]](v, ZIO.succeedNow).map(result => ((), result)))
 
       /**
        * Atomically modifies the `RefM` with the specified partial function.
        * If the function is undefined on the current value it returns the old value
        * without changing it.
        */
+      @deprecated("use updateSomeAndGetZIO", "2.0.0")
       def updateSomeAndGetM[R1 <: R, E1 >: E](pf: PartialFunction[A, ZIO[R1, E1, A]]): ZIO[R1, E1, A] =
-        modifyM(v => pf.applyOrElse[A, ZIO[R1, E1, A]](v, ZIO.succeedNow).map(result => (result, result)))
+        updateSomeAndGetZIO(pf)
+
+      /**
+       * Atomically modifies the `RefM` with the specified partial function.
+       * If the function is undefined on the current value it returns the old value
+       * without changing it.
+       */
+      def updateSomeAndGetZIO[R1 <: R, E1 >: E](pf: PartialFunction[A, ZIO[R1, E1, A]]): ZIO[R1, E1, A] =
+        modifyZIO(v => pf.applyOrElse[A, ZIO[R1, E1, A]](v, ZIO.succeedNow).map(result => (result, result)))
     }
   }
 

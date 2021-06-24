@@ -98,7 +98,7 @@ This section will attempt to provide some guidelines and examples to document, g
 
 2. Methods that have the form of `List#zip` are called `zip`, and have an alias called `<*>`. The parallel version, if applicable, has the name `zipPar`, with an alias called `<&>`;
 
-3. Methods that are intended to capture side-effects, convert them into functional effects, should be prefixed by effect*. For example, `ZIO.effect`;
+3. Methods that are intended to capture side-effects, convert them into functional effects, should be prefixed by effect*. For example, `ZIO.attempt`;
 
 4. The dual of zip, which is trying either a left or right side, producing an Either of the result, should be called `orElseEither`, with alias `<+>`. 
    The simplified variant where both left and right have the same type should be called `orElse`, with alias `<>`;

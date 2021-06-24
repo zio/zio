@@ -126,21 +126,21 @@ object TSetSpec extends ZIOBaseSpec {
 
         assertM(tx.commit)(hasSameElements(List(1)))
       },
-      testM("transformM") {
+      testM("transformSTM") {
         val tx =
           for {
             tset <- TSet.make(1, 2, 3)
-            _    <- tset.transformM(a => STM.succeed(a * 2))
+            _    <- tset.transformSTM(a => STM.succeed(a * 2))
             res  <- tset.toList
           } yield res
 
         assertM(tx.commit)(hasSameElements(List(2, 4, 6)))
       },
-      testM("transformM and shrink") {
+      testM("transformSTM and shrink") {
         val tx =
           for {
             tset <- TSet.make(1, 2, 3)
-            _    <- tset.transformM(_ => STM.succeed(1))
+            _    <- tset.transformSTM(_ => STM.succeed(1))
             res  <- tset.toList
           } yield res
 
@@ -166,20 +166,20 @@ object TSetSpec extends ZIOBaseSpec {
 
         assertM(tx.commit)(equalTo(0))
       },
-      testM("foldM on non-empty set") {
+      testM("foldSTM on non-empty set") {
         val tx =
           for {
             tset <- TSet.make(1, 2, 3)
-            res  <- tset.foldM(0)((acc, a) => STM.succeed(acc + a))
+            res  <- tset.foldSTM(0)((acc, a) => STM.succeed(acc + a))
           } yield res
 
         assertM(tx.commit)(equalTo(6))
       },
-      testM("foldM on empty set") {
+      testM("foldSTM on empty set") {
         val tx =
           for {
             tset <- TSet.empty[Int]
-            res  <- tset.foldM(0)((acc, a) => STM.succeed(acc + a))
+            res  <- tset.foldSTM(0)((acc, a) => STM.succeed(acc + a))
           } yield res
 
         assertM(tx.commit)(equalTo(0))

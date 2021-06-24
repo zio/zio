@@ -740,23 +740,23 @@ object ZQueueSpec extends ZIOBaseSpec {
         v <- q.take
       } yield assert(v)(equalTo(10))
     },
-    testM("queue mapM") {
+    testM("queue mapZIO") {
       for {
-        q <- Queue.bounded[Int](100).map(_.mapM(IO.succeed(_)))
+        q <- Queue.bounded[Int](100).map(_.mapZIO(IO.succeed(_)))
         _ <- q.offer(10)
         v <- q.take
       } yield assert(v)(equalTo(10))
     },
-    testM("queue mapM with success") {
+    testM("queue mapZIO with success") {
       for {
-        q <- Queue.bounded[IO[String, Int]](100).map(_.mapM(identity))
+        q <- Queue.bounded[IO[String, Int]](100).map(_.mapZIO(identity))
         _ <- q.offer(IO.succeed(10))
         v <- q.take.sandbox.either
       } yield assert(v)(isRight(equalTo(10)))
     },
-    testM("queue mapM with failure") {
+    testM("queue mapZIO with failure") {
       for {
-        q <- Queue.bounded[IO[String, Int]](100).map(_.mapM(identity))
+        q <- Queue.bounded[IO[String, Int]](100).map(_.mapZIO(identity))
         _ <- q.offer(IO.fail("Ouch"))
         v <- q.take.exit
       } yield assert(v)(fails(equalTo("Ouch")))

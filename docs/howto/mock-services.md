@@ -155,7 +155,7 @@ def withRuntime[R]: URIO[R, Runtime[R]] = ???
 import ExampleMock._
 
 val compose: URLayer[Has[Proxy], Example] =
-  ZLayer.fromServiceM { proxy =>
+  ZIO.serviceWith[Proxy] { proxy =>
     withRuntime.map { rts =>
       new Example.Service {
         val static                                 = proxy(Static)
@@ -172,7 +172,7 @@ val compose: URLayer[Has[Proxy], Example] =
         def stream(a: Int)                         = rts.unsafeRun(proxy(Stream, a))
       }
     }
-  }
+  }.toLayer
 ```
 
 > **Note:** The `withRuntime` helper is defined in `Mock`. It accesses the Runtime via `ZIO.runtime` and if you're on JS platform, it will replace the executor to an unyielding one.
@@ -203,10 +203,10 @@ object AccountObserver {
   }
 
   def processEvent(event: AccountEvent) =
-    ZIO.accessM[AccountObserver](_.get.processEvent(event))
+    ZIO.accessZIO[AccountObserver](_.get.processEvent(event))
 
   def runCommand() =
-    ZIO.accessM[AccountObserver](_.get.runCommand())
+    ZIO.accessZIO[AccountObserver](_.get.runCommand())
 
   val live: ZLayer[Has[Console], Nothing, AccountObserver] =
     { (console: Console) =>
@@ -234,12 +234,12 @@ object AccountObserverMock extends Mock[AccountObserver] {
   object RunCommand   extends Effect[Unit, Nothing, Unit]
 
   val compose: URLayer[Has[Proxy], AccountObserver] =
-    ZLayer.fromService { proxy =>
+    ZIO.service[Proxy].map { proxy =>
       new AccountObserver.Service {
         def processEvent(event: AccountEvent) = proxy(ProcessEvent, event)
         def runCommand(): UIO[Unit]           = proxy(RunCommand)
       }
-    }
+    }.toLayer
 }
 ```
 
@@ -267,10 +267,13 @@ object Example {
 object ExampleMock extends Mock[Has[Example.Service]] {
   object ZeroArgs  extends Effect[Unit, Nothing, Int]
   object SingleArg extends Effect[Int, Nothing, String]
-  val compose: URLayer[Has[Proxy], Has[Example.Service]] = ZLayer.fromService(proxy => new Example.Service {
-    def zeroArgs             = proxy(ZeroArgs)
-    def singleArg(arg1: Int) = proxy(SingleArg, arg1)
-  })
+  val compose: URLayer[Has[Proxy], Has[Example.Service]] =
+    ZIO.service[Proxy].map { proxy =>
+      new Example.Service {
+        def zeroArgs             = proxy(ZeroArgs)
+        def singleArg(arg1: Int) = proxy(SingleArg, arg1)
+      }
+    }.toLayer
 }
 ```
 
@@ -434,7 +437,7 @@ object PolyExampleMock extends Mock[PolyExample] {
   object PolyAll    extends Poly.Effect.InputErrorOutput
 
   val compose: URLayer[Has[Proxy], PolyExample] =
-    ZLayer.fromServiceM { proxy =>
+    ZIO.serviceWith[Proxy] { proxy =>
       withRuntime.map { rts =>
         new PolyExample.Service {
           def polyInput[I: Tag](input: I)                     = proxy(PolyInput.of[I], input)
@@ -443,7 +446,7 @@ object PolyExampleMock extends Mock[PolyExample] {
           def polyAll[I: Tag, E: Tag, A: Tag](input: I) = proxy(PolyAll.of[I, E, A], input)
         }
       }
-    }
+    }.toLayer
 }
 ```
 

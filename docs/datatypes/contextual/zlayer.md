@@ -224,7 +224,7 @@ import logging.Logging
 import logging.Logging._
 ```
 
-```scala mdoc:silent:nest
+```scala mdoc:silent:nest:warn
 val live: ZLayer[Has[Console], Nothing, Logging] = ZLayer.fromService(console =>
   new Service {
     override def log(msg: String): UIO[Unit] = console.printLine(msg).orDie
@@ -332,10 +332,10 @@ object UserRepo {
 
   //accessor methods
   def getUser(userId: UserId): ZIO[UserRepo, DBError, Option[User]] =
-    ZIO.accessM(_.get.getUser(userId))
+    ZIO.accessZIO(_.get.getUser(userId))
 
   def createUser(user: User): ZIO[UserRepo, DBError, Unit] =
-    ZIO.accessM(_.get.createUser(user))
+    ZIO.accessZIO(_.get.createUser(user))
 }
 
 
@@ -356,10 +356,10 @@ object Logging {
 
   //accessor methods
   def info(s: String): URIO[Logging, Unit] =
-    ZIO.accessM(_.get.info(s))
+    ZIO.accessZIO(_.get.info(s))
 
   def error(s: String): URIO[Logging, Unit] =
-    ZIO.accessM(_.get.error(s))
+    ZIO.accessZIO(_.get.error(s))
 }
 
 
@@ -567,7 +567,7 @@ In the following example, our ZIO application has several dependencies:
 
 `ModuleB` in turn depends upon `ModuleA`:
 
-```scala mdoc:silent
+```scala
 import zio._
 import zio.Clock._
 import zio.Console._
@@ -592,7 +592,7 @@ object moduleA {
   }
 
   def letsGoA(v: Int): URIO[ModuleA, String] =
-    ZIO.accessM(_.get.letsGoA(v))
+    ZIO.accessZIO(_.get.letsGoA(v))
 }
 
 import moduleA._
@@ -617,7 +617,7 @@ object moduleB {
   }
 
   def letsGoB(v: Int): URIO[ModuleB, String] =
-    ZIO.accessM(_.get.letsGoB(v))
+    ZIO.accessZIO(_.get.letsGoB(v))
 }
 
 object ZLayerApp0 extends zio.App {
@@ -700,7 +700,7 @@ object ZLayerApp1 extends scala.App {
       }
 
     val foo: URIO[ModuleC, Int] =
-      ZIO.accessM(_.get.foo)
+      ZIO.accessZIO(_.get.foo)
   }
 
   val env = (ModuleA.live ++ ModuleB.live ++ ZLayer.identity[Has[Clock]]) >>> ModuleC.live

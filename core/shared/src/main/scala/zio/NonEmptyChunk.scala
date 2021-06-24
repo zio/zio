@@ -113,20 +113,42 @@ final class NonEmptyChunk[+A] private (private val chunk: Chunk[A]) { self =>
    * Effectfully maps over the elements of this `NonEmptyChunk`, maintaining
    * some state along the way.
    */
+  @deprecated("use mapAccumZIO", "2.0.0")
   def mapAccumM[R, E, S, B](s: S)(f: (S, A) => ZIO[R, E, (S, B)]): ZIO[R, E, (S, NonEmptyChunk[B])] =
-    chunk.mapAccumM(s)(f).map { case (s, chunk) => (s, nonEmpty(chunk)) }
+    chunk.mapAccumZIO(s)(f).map { case (s, chunk) => (s, nonEmpty(chunk)) }
+
+  /**
+   * Effectfully maps over the elements of this `NonEmptyChunk`, maintaining
+   * some state along the way.
+   */
+  def mapAccumZIO[R, E, S, B](s: S)(f: (S, A) => ZIO[R, E, (S, B)]): ZIO[R, E, (S, NonEmptyChunk[B])] =
+    chunk.mapAccumZIO(s)(f).map { case (s, chunk) => (s, nonEmpty(chunk)) }
 
   /**
    * Effectfully maps the elements of this `NonEmptyChunk`.
    */
+  @deprecated("use mapZIO", "2.0.0")
   def mapM[R, E, B](f: A => ZIO[R, E, B]): ZIO[R, E, NonEmptyChunk[B]] =
-    chunk.mapM(f).map(nonEmpty)
+    chunk.mapZIO(f).map(nonEmpty)
 
   /**
    * Effectfully maps the elements of this `NonEmptyChunk` in parallel.
    */
+  @deprecated("use mapZIOPar", "2.0.0")
   def mapMPar[R, E, B](f: A => ZIO[R, E, B]): ZIO[R, E, NonEmptyChunk[B]] =
-    chunk.mapMPar(f).map(nonEmpty)
+    chunk.mapZIOPar(f).map(nonEmpty)
+
+  /**
+   * Effectfully maps the elements of this `NonEmptyChunk`.
+   */
+  def mapZIO[R, E, B](f: A => ZIO[R, E, B]): ZIO[R, E, NonEmptyChunk[B]] =
+    chunk.mapZIO(f).map(nonEmpty)
+
+  /**
+   * Effectfully maps the elements of this `NonEmptyChunk` in parallel.
+   */
+  def mapZIOPar[R, E, B](f: A => ZIO[R, E, B]): ZIO[R, E, NonEmptyChunk[B]] =
+    chunk.mapZIOPar(f).map(nonEmpty)
 
   /**
    * Materialize the elements of this `NonEmptyChunk` into a `NonEmptyChunk`

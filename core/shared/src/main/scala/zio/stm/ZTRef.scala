@@ -144,7 +144,7 @@ sealed abstract class ZTRef[+EA, +EB, -A, +B] extends Serializable { self =>
    * the state in transforming the `set` value. This is a more powerful version
    * of `fold` but requires unifying the error types.
    */
-  def foldAllM[EC, ED, C, D](
+  def foldAllSTM[EC, ED, C, D](
     ea: EA => EC,
     eb: EB => ED,
     ec: EB => EC,
@@ -155,7 +155,7 @@ sealed abstract class ZTRef[+EA, +EB, -A, +B] extends Serializable { self =>
       def atomic: ZTRef.Atomic[_] =
         self.atomic
       def get: STM[ED, D] =
-        self.get.foldM(e => STM.fail(eb(e)), bd)
+        self.get.foldSTM(e => STM.fail(eb(e)), bd)
       def set(c: C): STM[EC, Unit] =
         self.get.mapError(ec).flatMap(b => ca(c)(b)).flatMap(a => self.set(a).mapError(ea))
     }
@@ -167,7 +167,7 @@ sealed abstract class ZTRef[+EA, +EB, -A, +B] extends Serializable { self =>
    * specific combinators implemented in terms of `fold` will be more ergonomic
    * but this method is extremely useful for implementing new combinators.
    */
-  def foldM[EC, ED, C, D](
+  def foldSTM[EC, ED, C, D](
     ea: EA => EC,
     eb: EB => ED,
     ca: C => STM[EC, A],
@@ -177,7 +177,7 @@ sealed abstract class ZTRef[+EA, +EB, -A, +B] extends Serializable { self =>
       def atomic: ZTRef.Atomic[_] =
         self.atomic
       def get: STM[ED, D] =
-        self.get.foldM(e => STM.fail(eb(e)), bd)
+        self.get.foldSTM(e => STM.fail(eb(e)), bd)
       def set(c: C): STM[EC, Unit] =
         ca(c).flatMap(a => self.set(a).mapError(ea))
     }
@@ -487,7 +487,7 @@ object ZTRef {
       ca: C => Either[EC, A],
       bd: B => Either[ED, D]
     ): ZTRef[EC, ED, C, D] =
-      foldM(ea, eb, c => STM.fromEither(ca(c)), b => STM.fromEither(bd(b)))
+      foldSTM(ea, eb, c => STM.fromEither(ca(c)), b => STM.fromEither(bd(b)))
 
     final def foldAll[EC, ED, C, D](
       ea: EA => EC,
@@ -496,7 +496,7 @@ object ZTRef {
       ca: C => (B => Either[EC, A]),
       bd: B => Either[ED, D]
     ): ZTRef[EC, ED, C, D] =
-      foldAllM(ea, eb, ec, c => b => STM.fromEither(ca(c)(b)), b => STM.fromEither(bd(b)))
+      foldAllSTM(ea, eb, ec, c => b => STM.fromEither(ca(c)(b)), b => STM.fromEither(bd(b)))
   }
 
   implicit class UnifiedSyntax[E, A](private val self: ETRef[E, A]) extends AnyVal {

@@ -26,26 +26,26 @@ object Annotations {
    * specified annotation to the annotation map.
    */
   def annotate[V](key: TestAnnotation[V], value: V): URIO[Has[Annotations], Unit] =
-    ZIO.accessM(_.get.annotate(key, value))
+    ZIO.accessZIO(_.get.annotate(key, value))
 
   /**
    * Accesses an `Annotations` instance in the environment and retrieves the
    * annotation of the specified type, or its default value if there is none.
    */
   def get[V](key: TestAnnotation[V]): URIO[Has[Annotations], V] =
-    ZIO.accessM(_.get.get(key))
+    ZIO.accessZIO(_.get.get(key))
 
   /**
    * Returns a set of all fibers in this test.
    */
   def supervisedFibers: ZIO[Has[Annotations], Nothing, SortedSet[Fiber.Runtime[Any, Any]]] =
-    ZIO.accessM(_.get.supervisedFibers)
+    ZIO.accessZIO(_.get.supervisedFibers)
 
   /**
    * Constructs a new `Annotations` service.
    */
   val live: ULayer[Has[Annotations]] =
-    ZLayer.fromEffect(FiberRef.make(TestAnnotationMap.empty).map { fiberRef =>
+    ZLayer.fromZIO(FiberRef.make(TestAnnotationMap.empty).map { fiberRef =>
       new Annotations {
         def annotate[V](key: TestAnnotation[V], value: V): UIO[Unit] =
           fiberRef.update(_.annotate(key, value))
@@ -53,7 +53,7 @@ object Annotations {
           fiberRef.get.map(_.get(key))
         def withAnnotation[R, E, A](zio: ZIO[R, E, A]): ZIO[R, Annotated[E], Annotated[A]] =
           fiberRef.locally(TestAnnotationMap.empty) {
-            zio.foldM(e => fiberRef.get.map((e, _)).flip, a => fiberRef.get.map((a, _)))
+            zio.foldZIO(e => fiberRef.get.map((e, _)).flip, a => fiberRef.get.map((a, _)))
           }
         def supervisedFibers: UIO[SortedSet[Fiber.Runtime[Any, Any]]] =
           ZIO.descriptorWith { descriptor =>
@@ -75,5 +75,5 @@ object Annotations {
    * map along with the result of execution.
    */
   def withAnnotation[R <: Has[Annotations], E, A](zio: ZIO[R, E, A]): ZIO[R, Annotated[E], Annotated[A]] =
-    ZIO.accessM(_.get.withAnnotation(zio))
+    ZIO.accessZIO(_.get.withAnnotation(zio))
 }

@@ -76,7 +76,7 @@ def readFile(file: AsynchronousFileChannel): Task[Chunk[Byte]] = for {
     buf <- ZIO.succeed(ByteBuffer.allocate(1024))
     contents <- Ref.make[Chunk[Byte]](Chunk.empty)
     def go = pos.get.flatMap { p =>
-        ZIO.effectAsyncWithCompletionHandler[Chunk[Byte]] { handler =>
+        ZIO.asyncWithCompletionHandler[Chunk[Byte]] { handler =>
             file.read(buf, p, buf, handler)
         }.flatMap {
             case -1 => contents.get

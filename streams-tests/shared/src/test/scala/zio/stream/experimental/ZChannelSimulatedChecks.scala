@@ -187,7 +187,7 @@ object ZChannelSimulatedChecks extends ZIOBaseSpec {
       ch: ZChannel[Any, Err, Any, Res, Err, Nothing, Res]
     ): ZChannel[Any, Err, Any, Res, Err, Nothing, Res] =
       ch.flatMap { value =>
-        ZChannel.bracket(ZIO.succeed(value))(_ => ZIO.unit)(value =>
+        ZChannel.acquireReleaseWith(ZIO.succeed(value))(_ => ZIO.unit)(value =>
           Simulation.opsToDoneChannel(ZChannel.succeed(value), ops)
         )
       }
@@ -196,14 +196,16 @@ object ZChannelSimulatedChecks extends ZIOBaseSpec {
       ch: ZChannel[Any, Err, Any, Res, Err, Res, Any]
     ): ZChannel[Any, Err, Any, Res, Err, Res, Any] =
       ch.concatMap { value =>
-        ZChannel.bracketOut(ZIO.succeed(value))(_ => ZIO.unit).concatMap { value =>
+        ZChannel.acquireReleaseOutWith(ZIO.succeed(value))(_ => ZIO.unit).concatMap { value =>
           Simulation.opsToOutChannel(ZChannel.write(value), ops)
         }
       }
 
     override def asEffect(f: IO[Err, Res]): IO[Err, Res] =
       f.flatMap { value =>
-        ZIO.bracket(ZIO.succeed(value))(_ => ZIO.unit)(value => Simulation.opsToEffect(ZIO.succeed(value), ops))
+        ZIO.acquireReleaseWith(ZIO.succeed(value))(_ => ZIO.unit)(value =>
+          Simulation.opsToEffect(ZIO.succeed(value), ops)
+        )
       }
 
     override def writeOutChannelString(sb: StringBuilder): Unit = {

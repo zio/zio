@@ -184,7 +184,9 @@ object Random extends Serializable {
                  buffer
                }
       _ <-
-        ZIO.foreach_((collection.size to 2 by -1).toList)((n: Int) => nextIntBounded(n).flatMap(k => swap(n - 1, k)))
+        ZIO.foreachDiscard((collection.size to 2 by -1).toList)((n: Int) =>
+          nextIntBounded(n).flatMap(k => swap(n - 1, k))
+        )
     } yield bf.fromSpecific(collection)(buffer)
 
   // Accessor Methods

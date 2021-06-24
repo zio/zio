@@ -31,7 +31,7 @@ Like `try` / `finally`, finalizers can be nested, and the failure of any inner f
 
 Unlike `try` / `finally`, `ensuring` works across all types of effects, including asynchronous and concurrent effects.
 
-## Bracket 
+## Acquire Release 
 
 A common use for `try` / `finally` is safely acquiring and releasing resources, such as new socket connections or opened files:
 
@@ -43,7 +43,7 @@ try {
 } finally closeFile(handle)
 ```
 
-ZIO encapsulates this common pattern with `ZIO#bracket`, which allows you to specify an _acquire_ effect, which acquires a resource; a _release_ effect, which releases it; and a _use_ effect, which uses the resource.
+ZIO encapsulates this common pattern with `ZIO#acquireRelease`, which allows you to specify an _acquire_ effect, which acquires a resource; a _release_ effect, which releases it; and a _use_ effect, which uses the resource.
 
 The release effect is guaranteed to be executed by the runtime system, even in the presence of errors or interruption.
 
@@ -59,7 +59,7 @@ def groupData(u: Unit): IO[IOException, Unit] = IO.unit
 
 ```scala mdoc:silent
 val groupedFileData: IO[IOException, Unit] = 
-  openFile("data.json").bracket(closeFile(_)) { file =>
+  openFile("data.json").acquireReleaseWith(closeFile(_)) { file =>
     for {
       data    <- decodeData(file)
       grouped <- groupData(data)
@@ -67,7 +67,7 @@ val groupedFileData: IO[IOException, Unit] =
   }
 ```
 
-Like `ensuring`, brackets have compositional semantics, so if one bracket is nested inside another bracket, and the outer bracket acquires a resource, then the outer bracket's release will always be called, even if, for example, the inner bracket's release fails.
+Like `ensuring`, acquire releases have compositional semantics, so if one acquire release is nested inside another acquire release, and the outer resource is acquired, then the outer release will always be called, even if, for example, the inner release fails.
 
 ## Next Steps
 

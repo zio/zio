@@ -239,7 +239,7 @@ private[zio] final class FiberContext[E, A](
     val right = fork[ER, B](race.right.asInstanceOf[IO[ER, B]], race.scope, noop)
 
     ZIO
-      .effectAsync[R, E, C](
+      .async[R, E, C](
         { cb =>
           val leftRegister = left.register0 {
             case exit0: Exit.Success[Exit[EL, A]] =>
@@ -559,7 +559,7 @@ private[zio] final class FiberContext[E, A](
                       environments
                         .pop()
                     )
-                    curZio = push.bracket_(pop, zio.next)
+                    curZio = push.acquireRelease(pop, zio.next)
 
                   case ZIO.Tags.EffectSuspendMaybeWith =>
                     val zio = curZio.asInstanceOf[ZIO.EffectSuspendMaybeWith[Any, E, Any]]
@@ -626,7 +626,7 @@ private[zio] final class FiberContext[E, A](
                     val push = ZIO.succeed(supervisors.push(newSupervisor))
                     val pop  = ZIO.succeed(supervisors.pop())
 
-                    curZio = push.bracket_(pop, zio.zio)
+                    curZio = push.acquireRelease(pop, zio.zio)
 
                   case ZIO.Tags.GetForkScope =>
                     val zio = curZio.asInstanceOf[ZIO.GetForkScope[Any, E, Any]]
@@ -639,7 +639,7 @@ private[zio] final class FiberContext[E, A](
                     val push = ZIO.succeed(forkScopeOverride.push(zio.forkScope))
                     val pop  = ZIO.succeed(forkScopeOverride.pop())
 
-                    curZio = push.bracket_(pop, zio.zio)
+                    curZio = push.acquireRelease(pop, zio.zio)
                 }
               }
             } else {
@@ -792,7 +792,7 @@ private[zio] final class FiberContext[E, A](
   final def interruptAs(fiberId: Fiber.Id): UIO[Exit[E, A]] = kill0(fiberId)
 
   def await: UIO[Exit[E, A]] =
-    ZIO.effectAsyncInterrupt[Any, Nothing, Exit[E, A]](
+    ZIO.asyncInterrupt[Any, Nothing, Exit[E, A]](
       { k =>
         val cb: Callback[Nothing, Exit[E, A]] = x => k(ZIO.done(x))
         observe0(cb) match {
@@ -833,7 +833,7 @@ private[zio] final class FiberContext[E, A](
 
     if (locals.isEmpty) UIO.unit
     else
-      UIO.foreach_(locals) { case (fiberRef, value) =>
+      UIO.foreachDiscard(locals) { case (fiberRef, value) =>
         val ref = fiberRef.asInstanceOf[FiberRef.Runtime[Any]]
         ref.update(old => ref.join(old, value))
       }

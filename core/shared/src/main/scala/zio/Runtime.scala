@@ -38,14 +38,22 @@ trait Runtime[+R] {
   def platform: Platform
 
   /**
+   * Constructs a new `Runtime` with the specified new environment.
+   */
+  def as[R1](r1: R1): Runtime[R1] =
+    map(_ => r1)
+
+  /**
    * Constructs a new `Runtime` by mapping the environment.
    */
-  def map[R1](f: R => R1): Runtime[R1] = Runtime(f(environment), platform)
+  def map[R1](f: R => R1): Runtime[R1] =
+    Runtime(f(environment), platform)
 
   /**
    * Constructs a new `Runtime` by mapping the platform.
    */
-  def mapPlatform(f: Platform => Platform): Runtime[R] = Runtime(environment, f(platform))
+  def mapPlatform(f: Platform => Platform): Runtime[R] =
+    Runtime(environment, f(platform))
 
   /**
    * Executes the effect synchronously, failing
@@ -58,41 +66,12 @@ trait Runtime[+R] {
     unsafeRunSync(zio).getOrElse(c => throw FiberFailure(c))
 
   /**
-   * Executes the Task/RIO effect synchronously, failing
-   * with the original `Throwable` on both [[Cause.Fail]] and [[Cause.Die]].
-   * In addition, appends a new element to the `Throwable`s "caused by" chain,
-   * with this `Cause` "pretty printed" (in stackless mode) as the message.
-   * May fail on Scala.js if the effect cannot be entirely run synchronously.
-   *
-   * This method is effectful and should only be done at the edges of your program.
-   */
-  final def unsafeRunTask[A](task: => RIO[R, A]): A =
-    unsafeRunSync(task).fold(cause => throw cause.squashTrace, identity)
-
-  /**
-   * Executes the effect synchronously. May
-   * fail on Scala.js if the effect cannot be entirely run synchronously.
+   * Executes the effect asynchronously, discarding the result of execution.
    *
    * This method is effectful and should only be invoked at the edges of your program.
    */
-  final def unsafeRunSync[E, A](zio: => ZIO[R, E, A]): Exit[E, A] = {
-    val result = internal.OneShot.make[Exit[E, A]]
-
-    unsafeRunWith(zio)(result.set)
-
-    result.get()
-  }
-
-  /**
-   * Executes the effect asynchronously,
-   * eventually passing the exit value to the specified callback.
-   *
-   * This method is effectful and should only be invoked at the edges of your program.
-   */
-  final def unsafeRunAsync[E, A](zio: => ZIO[R, E, A])(k: Exit[E, A] => Any): Unit = {
-    unsafeRunAsyncCancelable(zio)(k)
-    ()
-  }
+  final def unsafeRunAsync[E, A](zio: ZIO[R, E, A]): Unit =
+    unsafeRunAsyncWith(zio)(_ => ())
 
   /**
    * Executes the effect asynchronously,
@@ -112,12 +91,41 @@ trait Runtime[+R] {
   }
 
   /**
-   * Executes the effect asynchronously, discarding the result of execution.
+   * Executes the effect asynchronously,
+   * eventually passing the exit value to the specified callback.
    *
    * This method is effectful and should only be invoked at the edges of your program.
    */
-  final def unsafeRunAsync_[E, A](zio: ZIO[R, E, A]): Unit =
-    unsafeRunAsync(zio)(_ => ())
+  final def unsafeRunAsyncWith[E, A](zio: => ZIO[R, E, A])(k: Exit[E, A] => Any): Unit = {
+    unsafeRunAsyncCancelable(zio)(k)
+    ()
+  }
+
+  /**
+   * Executes the effect synchronously. May
+   * fail on Scala.js if the effect cannot be entirely run synchronously.
+   *
+   * This method is effectful and should only be invoked at the edges of your program.
+   */
+  final def unsafeRunSync[E, A](zio: => ZIO[R, E, A]): Exit[E, A] = {
+    val result = internal.OneShot.make[Exit[E, A]]
+
+    unsafeRunWith(zio)(result.set)
+
+    result.get()
+  }
+
+  /**
+   * Executes the Task/RIO effect synchronously, failing
+   * with the original `Throwable` on both [[Cause.Fail]] and [[Cause.Die]].
+   * In addition, appends a new element to the `Throwable`s "caused by" chain,
+   * with this `Cause` "pretty printed" (in stackless mode) as the message.
+   * May fail on Scala.js if the effect cannot be entirely run synchronously.
+   *
+   * This method is effectful and should only be done at the edges of your program.
+   */
+  final def unsafeRunTask[A](task: => RIO[R, A]): A =
+    unsafeRunSync(task).fold(cause => throw cause.squashTrace, identity)
 
   /**
    * Runs the IO, returning a Future that will be completed when the effect has been executed.
@@ -137,11 +145,6 @@ trait Runtime[+R] {
       }
     }
   }
-
-  /**
-   * Constructs a new `Runtime` with the specified new environment.
-   */
-  def as[R1](r1: R1): Runtime[R1] = map(_ => r1)
 
   /**
    * Constructs a new `Runtime` with the specified executor.
@@ -207,7 +210,8 @@ trait Runtime[+R] {
     context.evaluateNow(ZIOFn.recordStackTrace(() => zio)(zio.asInstanceOf[IO[E, A]]))
     context.runAsync(k)
 
-    fiberId => k => unsafeRunAsync(context.interruptAs(fiberId))((exit: Exit[Nothing, Exit[E, A]]) => k(exit.flatten))
+    fiberId =>
+      k => unsafeRunAsyncWith(context.interruptAs(fiberId))((exit: Exit[Nothing, Exit[E, A]]) => k(exit.flatten))
   }
 }
 

@@ -88,7 +88,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    * outputs of the specified layer.
    */
   final def >>>[E1 >: E, ROut2](that: ZLayer[ROut, E1, ROut2]): ZLayer[RIn, E1, ROut2] =
-    fold(ZLayer.fromFunctionManyM { case (_, cause) => ZIO.halt(cause) }, that)
+    fold(ZLayer.fromFunctionManyZIO { case (_, cause) => ZIO.halt(cause) }, that)
 
   /**
    * A named alias for `++`.
@@ -123,7 +123,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
     handler: ZLayer[(RIn1, E), E1, ROut1]
   ): ZLayer[RIn1, E1, ROut1] = {
     val failureOrDie: ZLayer[(RIn1, Cause[E]), Nothing, (RIn1, E)] =
-      ZLayer.fromFunctionManyM { case (r, cause) =>
+      ZLayer.fromFunctionManyZIO { case (r, cause) =>
         cause.failureOrCause.fold(
           e => ZIO.succeed((r, e)),
           c => ZIO.halt(c)
@@ -173,7 +173,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    * function.
    */
   final def mapError[E1](f: E => E1)(implicit ev: CanFail[E]): ZLayer[RIn, E1, ROut] =
-    catchAll(ZLayer.second >>> ZLayer.fromFunctionManyM(e => ZIO.fail(f(e))))
+    catchAll(ZLayer.second >>> ZLayer.fromFunctionManyZIO(e => ZIO.fail(f(e))))
 
   /**
    * Returns a managed effect that, if evaluated, will return the lazily
@@ -187,7 +187,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    * unchecked and not a part of the type of the layer.
    */
   final def orDie(implicit ev1: E IsSubtypeOfError Throwable, ev2: CanFail[E]): ZLayer[RIn, Nothing, ROut] =
-    catchAll(ZLayer.second >>> ZLayer.fromFunctionManyM(e => ZIO.die(ev1(e))))
+    catchAll(ZLayer.second >>> ZLayer.fromFunctionManyZIO(e => ZIO.die(ev1(e))))
 
   /**
    * Executes this layer and returns its output, if it succeeds, but otherwise
@@ -210,7 +210,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
     lazy val loop: ZLayer[(RIn1, S), E, ROut] =
       (ZLayer.first >>> self).catchAll {
         val update: ZLayer[((RIn1, S), E), E, (RIn1, S)] =
-          ZLayer.fromFunctionManyM { case ((r, s), e) =>
+          ZLayer.fromFunctionManyZIO { case ((r, s), e) =>
             Clock.currentDateTime
               .flatMap(now =>
                 s(now, e).flatMap {
@@ -222,20 +222,20 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
           }
         update >>> ZLayer.suspend(loop.fresh)
       }
-    ZLayer.identity <&> ZLayer.fromEffectMany(ZIO.succeed(schedule.step)) >>> loop
+    ZLayer.identity <&> ZLayer.fromZIOMany(ZIO.succeed(schedule.step)) >>> loop
   }
 
   /**
    * Performs the specified effect if this layer succeeds.
    */
   final def tap[RIn1 <: RIn, E1 >: E](f: ROut => ZIO[RIn1, E1, Any]): ZLayer[RIn1, E1, ROut] =
-    ZLayer.identity <&> self >>> ZLayer.fromFunctionManyM { case (in, out) => f(out).provide(in) *> ZIO.succeed(out) }
+    ZLayer.identity <&> self >>> ZLayer.fromFunctionManyZIO { case (in, out) => f(out).provide(in) *> ZIO.succeed(out) }
 
   /**
    * Performs the specified effect if this layer fails.
    */
   final def tapError[RIn1 <: RIn, E1 >: E](f: E => ZIO[RIn1, E1, Any]): ZLayer[RIn1, E1, ROut] =
-    catchAll(ZLayer.fromFunctionManyM { case (r, e) => f(e).provide(r) *> ZIO.fail(e) })
+    catchAll(ZLayer.fromFunctionManyZIO { case (r, e) => f(e).provide(r) *> ZIO.fail(e) })
 
   /**
    * A named alias for `>>>`.
@@ -289,7 +289,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
         ZManaged.succeed(memoMap =>
           memoMap
             .getOrElseMemoize(self)
-            .foldCauseM(
+            .foldCauseManaged(
               e => ZManaged.environment[RIn].flatMap(r => memoMap.getOrElseMemoize(failure).provide((r, e))),
               r => memoMap.getOrElseMemoize(success).provide(r)(NeedsEnv.needsEnv)
             )
@@ -351,7 +351,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * release actions will be performed uninterruptibly.
    */
   def fromAcquireRelease[R, E, A: Tag](acquire: ZIO[R, E, A])(release: A => URIO[R, Any]): ZLayer[R, E, Has[A]] =
-    fromManaged(ZManaged.bracket(acquire)(release))
+    fromManaged(ZManaged.acquireReleaseWith(acquire)(release))
 
   /**
    * Constructs a layer from acquire and release actions, which must return one
@@ -359,71 +359,91 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * uninterruptibly.
    */
   def fromAcquireReleaseMany[R, E, A](acquire: ZIO[R, E, A])(release: A => URIO[R, Any]): ZLayer[R, E, A] =
-    fromManagedMany(ZManaged.bracket(acquire)(release))
+    fromManagedMany(ZManaged.acquireReleaseWith(acquire)(release))
 
   /**
    * Constructs a layer from the specified effect.
    */
+  @deprecated("use fromZIO", "2.0.0")
   def fromEffect[R, E, A: Tag](zio: ZIO[R, E, A]): ZLayer[R, E, Has[A]] =
-    fromEffectMany(zio.asService)
+    fromZIO(zio)
 
   /**
    * Constructs a layer from the specified effect, which must return one or
    * more services.
    */
+  @deprecated("use fromZIOMany", "2.0.0")
   def fromEffectMany[R, E, A](zio: ZIO[R, E, A]): ZLayer[R, E, A] =
-    ZLayer(ZManaged.fromEffect(zio))
+    fromZIOMany(zio)
 
   /**
    * Constructs a layer from the environment using the specified function.
    */
   def fromFunction[A, B: Tag](f: A => B): ZLayer[A, Nothing, Has[B]] =
-    fromFunctionM(a => ZIO.succeedNow(f(a)))
+    fromFunctionZIO(a => ZIO.succeedNow(f(a)))
 
   /**
    * Constructs a layer from the environment using the specified effectful
    * function.
    */
+  @deprecated("use fromFunctionZIO", "2.0.0")
   def fromFunctionM[A, E, B: Tag](f: A => IO[E, B]): ZLayer[A, E, Has[B]] =
-    fromFunctionManaged(a => f(a).toManaged)
+    fromFunctionZIO(f)
 
   /**
    * Constructs a layer from the environment using the specified effectful
    * resourceful function.
    */
   def fromFunctionManaged[A, E, B: Tag](f: A => ZManaged[Any, E, B]): ZLayer[A, E, Has[B]] =
-    fromManaged(ZManaged.fromFunctionM(f))
+    fromManaged(ZManaged.fromFunctionManaged(f))
 
   /**
    * Constructs a layer from the environment using the specified function,
    * which must return one or more services.
    */
   def fromFunctionMany[A, B](f: A => B): ZLayer[A, Nothing, B] =
-    fromFunctionManyM(a => ZIO.succeedNow(f(a)))
+    fromFunctionManyZIO(a => ZIO.succeedNow(f(a)))
 
   /**
    * Constructs a layer from the environment using the specified effectful
    * function, which must return one or more services.
    */
+  @deprecated("use fromFunctionManyZIO", "2.0.0")
   def fromFunctionManyM[A, E, B](f: A => IO[E, B]): ZLayer[A, E, B] =
-    fromFunctionManyManaged(a => f(a).toManaged)
+    fromFunctionManyZIO(f)
 
   /**
    * Constructs a layer from the environment using the specified effectful
    * resourceful function, which must return one or more services.
    */
   def fromFunctionManyManaged[A, E, B](f: A => ZManaged[Any, E, B]): ZLayer[A, E, B] =
-    ZLayer(ZManaged.fromFunctionM(f))
+    ZLayer(ZManaged.fromFunctionManaged(f))
+
+  /**
+   * Constructs a layer from the environment using the specified effectful
+   * function, which must return one or more services.
+   */
+  def fromFunctionManyZIO[A, E, B](f: A => IO[E, B]): ZLayer[A, E, B] =
+    fromFunctionManyManaged(a => f(a).toManaged)
+
+  /**
+   * Constructs a layer from the environment using the specified effectful
+   * function.
+   */
+  def fromFunctionZIO[A, E, B: Tag](f: A => IO[E, B]): ZLayer[A, E, Has[B]] =
+    fromFunctionManaged(a => f(a).toManaged)
 
   /**
    * Constructs a layer that purely depends on the specified service.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromService[A: Tag, B: Tag](f: A => B): ZLayer[Has[A], Nothing, Has[B]] =
     fromServiceM[A, Any, Nothing, B](a => ZIO.succeedNow(f(a)))
 
   /**
    * Constructs a layer that purely depends on the specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServices[A0: Tag, A1: Tag, B: Tag](
     f: (A0, A1) => B
   ): ZLayer[Has[A0] with Has[A1], Nothing, Has[B]] = {
@@ -434,6 +454,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServices[A0: Tag, A1: Tag, A2: Tag, B: Tag](
     f: (A0, A1, A2) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2], Nothing, Has[B]] = {
@@ -444,6 +465,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServices[A0: Tag, A1: Tag, A2: Tag, A3: Tag, B: Tag](
     f: (A0, A1, A2, A3) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3], Nothing, Has[B]] = {
@@ -454,6 +476,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServices[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, B: Tag](
     f: (A0, A1, A2, A3, A4) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4], Nothing, Has[B]] = {
@@ -464,6 +487,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServices[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, B: Tag](
     f: (A0, A1, A2, A3, A4, A5) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5], Nothing, Has[B]] = {
@@ -474,6 +498,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServices[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6], Nothing, Has[B]] = {
@@ -484,6 +509,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServices[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
@@ -496,6 +522,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServices[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
@@ -508,6 +535,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServices[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
@@ -520,6 +548,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServices[
     A0: Tag,
     A1: Tag,
@@ -545,6 +574,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServices[
     A0: Tag,
     A1: Tag,
@@ -571,6 +601,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServices[
     A0: Tag,
     A1: Tag,
@@ -598,6 +629,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServices[
     A0: Tag,
     A1: Tag,
@@ -626,6 +658,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServices[
     A0: Tag,
     A1: Tag,
@@ -655,6 +688,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServices[
     A0: Tag,
     A1: Tag,
@@ -687,6 +721,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServices[
     A0: Tag,
     A1: Tag,
@@ -720,6 +755,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServices[
     A0: Tag,
     A1: Tag,
@@ -754,6 +790,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServices[
     A0: Tag,
     A1: Tag,
@@ -789,6 +826,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServices[
     A0: Tag,
     A1: Tag,
@@ -825,6 +863,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServices[
     A0: Tag,
     A1: Tag,
@@ -862,6 +901,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that purely depends on the specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServices[
     A0: Tag,
     A1: Tag,
@@ -900,12 +940,14 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that effectfully depends on the specified service.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServiceM[A: Tag, R, E, B: Tag](f: A => ZIO[R, E, B]): ZLayer[R with Has[A], E, Has[B]] =
     fromServiceManaged(a => f(a).toManaged)
 
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesM[A0: Tag, A1: Tag, R, E, B: Tag](
     f: (A0, A1) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1], E, Has[B]] = {
@@ -916,6 +958,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesM[A0: Tag, A1: Tag, A2: Tag, R, E, B: Tag](
     f: (A0, A1, A2) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2], E, Has[B]] = {
@@ -926,6 +969,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3], E, Has[B]] = {
@@ -936,6 +980,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4], E, Has[B]] = {
@@ -946,6 +991,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4, A5) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5], E, Has[B]] = {
@@ -956,6 +1002,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6], E, Has[B]] = {
@@ -966,6 +1013,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
@@ -978,6 +1026,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
@@ -990,6 +1039,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesM[
     A0: Tag,
     A1: Tag,
@@ -1016,6 +1066,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesM[
     A0: Tag,
     A1: Tag,
@@ -1043,6 +1094,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesM[
     A0: Tag,
     A1: Tag,
@@ -1071,6 +1123,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesM[
     A0: Tag,
     A1: Tag,
@@ -1100,6 +1153,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesM[
     A0: Tag,
     A1: Tag,
@@ -1130,6 +1184,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesM[
     A0: Tag,
     A1: Tag,
@@ -1161,6 +1216,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesM[
     A0: Tag,
     A1: Tag,
@@ -1195,6 +1251,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesM[
     A0: Tag,
     A1: Tag,
@@ -1230,6 +1287,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesM[
     A0: Tag,
     A1: Tag,
@@ -1266,6 +1324,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesM[
     A0: Tag,
     A1: Tag,
@@ -1303,6 +1362,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesM[
     A0: Tag,
     A1: Tag,
@@ -1341,6 +1401,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesM[
     A0: Tag,
     A1: Tag,
@@ -1380,6 +1441,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that effectfully depends on the specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesM[
     A0: Tag,
     A1: Tag,
@@ -1444,6 +1506,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified service.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServiceManaged[A: Tag, R, E, B: Tag](f: A => ZManaged[R, E, B]): ZLayer[R with Has[A], E, Has[B]] =
     fromServiceManyManaged(a => f(a).asService)
 
@@ -1451,6 +1514,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[A0: Tag, A1: Tag, R, E, B: Tag](
     f: (A0, A1) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1], E, Has[B]] = {
@@ -1462,6 +1526,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[A0: Tag, A1: Tag, A2: Tag, R, E, B: Tag](
     f: (A0, A1, A2) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2], E, Has[B]] = {
@@ -1473,6 +1538,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3], E, Has[B]] = {
@@ -1484,6 +1550,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4], E, Has[B]] = {
@@ -1495,6 +1562,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4, A5) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5], E, Has[B]] = {
@@ -1506,6 +1574,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6], E, Has[B]] = {
@@ -1517,6 +1586,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
@@ -1530,6 +1600,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[
     A0: Tag,
     A1: Tag,
@@ -1556,6 +1627,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[
     A0: Tag,
     A1: Tag,
@@ -1583,6 +1655,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[
     A0: Tag,
     A1: Tag,
@@ -1611,6 +1684,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[
     A0: Tag,
     A1: Tag,
@@ -1640,6 +1714,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[
     A0: Tag,
     A1: Tag,
@@ -1670,6 +1745,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[
     A0: Tag,
     A1: Tag,
@@ -1701,6 +1777,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[
     A0: Tag,
     A1: Tag,
@@ -1733,6 +1810,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[
     A0: Tag,
     A1: Tag,
@@ -1768,6 +1846,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[
     A0: Tag,
     A1: Tag,
@@ -1804,6 +1883,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[
     A0: Tag,
     A1: Tag,
@@ -1841,6 +1921,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[
     A0: Tag,
     A1: Tag,
@@ -1879,6 +1960,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[
     A0: Tag,
     A1: Tag,
@@ -1918,6 +2000,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[
     A0: Tag,
     A1: Tag,
@@ -2005,6 +2088,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer that resourcefully and effectfully depends on the
    * specified services.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[
     A0: Tag,
     A1: Tag,
@@ -2070,6 +2154,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromService`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServiceMany[A: Tag, B](f: A => B): ZLayer[Has[A], Nothing, B] =
     fromServiceManyM[A, Any, Nothing, B](a => ZIO.succeedNow(f(a)))
 
@@ -2078,6 +2163,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[A0: Tag, A1: Tag, B](
     f: (A0, A1) => B
   ): ZLayer[Has[A0] with Has[A1], Nothing, B] = {
@@ -2090,6 +2176,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[A0: Tag, A1: Tag, A2: Tag, B](
     f: (A0, A1, A2) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2], Nothing, B] = {
@@ -2102,6 +2189,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[A0: Tag, A1: Tag, A2: Tag, A3: Tag, B](
     f: (A0, A1, A2, A3) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3], Nothing, B] = {
@@ -2114,6 +2202,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, B](
     f: (A0, A1, A2, A3, A4) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4], Nothing, B] = {
@@ -2126,6 +2215,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, B](
     f: (A0, A1, A2, A3, A4, A5) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5], Nothing, B] = {
@@ -2138,6 +2228,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, B](
     f: (A0, A1, A2, A3, A4, A5, A6) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6], Nothing, B] = {
@@ -2150,6 +2241,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
@@ -2164,6 +2256,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
@@ -2178,6 +2271,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => B
   ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
@@ -2192,6 +2286,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[
     A0: Tag,
     A1: Tag,
@@ -2219,6 +2314,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[
     A0: Tag,
     A1: Tag,
@@ -2247,6 +2343,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[
     A0: Tag,
     A1: Tag,
@@ -2276,6 +2373,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[
     A0: Tag,
     A1: Tag,
@@ -2306,6 +2404,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[
     A0: Tag,
     A1: Tag,
@@ -2337,6 +2436,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[
     A0: Tag,
     A1: Tag,
@@ -2369,6 +2469,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[
     A0: Tag,
     A1: Tag,
@@ -2404,6 +2505,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
+    @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[
     A0: Tag,
     A1: Tag,
@@ -2440,6 +2542,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[
     A0: Tag,
     A1: Tag,
@@ -2477,6 +2580,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[
     A0: Tag,
     A1: Tag,
@@ -2515,6 +2619,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[
     A0: Tag,
     A1: Tag,
@@ -2554,6 +2659,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[
     A0: Tag,
     A1: Tag,
@@ -2594,6 +2700,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServiceM`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServiceManyM[A: Tag, R, E, B](f: A => ZIO[R, E, B]): ZLayer[R with Has[A], E, B] =
     fromServiceManyManaged(a => f(a).toManaged)
 
@@ -2602,6 +2709,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[A0: Tag, A1: Tag, R, E, B](
     f: (A0, A1) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1], E, B] = {
@@ -2614,6 +2722,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[A0: Tag, A1: Tag, A2: Tag, R, E, B](
     f: (A0, A1, A2) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2], E, B] = {
@@ -2626,6 +2735,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, R, E, B](
     f: (A0, A1, A2, A3) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3], E, B] = {
@@ -2638,6 +2748,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4], E, B] = {
@@ -2650,6 +2761,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4, A5) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5], E, B] = {
@@ -2662,6 +2774,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6], E, B] = {
@@ -2674,6 +2787,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
@@ -2688,6 +2802,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => ZIO[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
@@ -2702,6 +2817,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[
     A0: Tag,
     A1: Tag,
@@ -2730,6 +2846,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[
     A0: Tag,
     A1: Tag,
@@ -2759,6 +2876,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[
     A0: Tag,
     A1: Tag,
@@ -2789,6 +2907,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[
     A0: Tag,
     A1: Tag,
@@ -2820,6 +2939,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[
     A0: Tag,
     A1: Tag,
@@ -2852,6 +2972,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[
     A0: Tag,
     A1: Tag,
@@ -2885,6 +3006,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[
     A0: Tag,
     A1: Tag,
@@ -2921,6 +3043,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[
     A0: Tag,
     A1: Tag,
@@ -2958,6 +3081,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[
     A0: Tag,
     A1: Tag,
@@ -2996,6 +3120,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[
     A0: Tag,
     A1: Tag,
@@ -3035,6 +3160,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[
     A0: Tag,
     A1: Tag,
@@ -3075,6 +3201,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[
     A0: Tag,
     A1: Tag,
@@ -3116,6 +3243,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * which must return one or more services. For the more common variant that
    * returns a single service see `fromServicesM`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[
     A0: Tag,
     A1: Tag,
@@ -3181,6 +3309,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * specified service, which must return one or more services. For the more
    * common variant that returns a single service see `fromServiceManaged`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServiceManyManaged[A: Tag, R, E, B](f: A => ZManaged[R, E, B]): ZLayer[R with Has[A], E, B] =
     ZLayer(ZManaged.accessManaged[R with Has[A]](m => f(m.get[A])))
 
@@ -3189,6 +3318,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[A0: Tag, A1: Tag, R, E, B](
     f: (A0, A1) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1], E, B] =
@@ -3205,6 +3335,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[A0: Tag, A1: Tag, A2: Tag, R, E, B](
     f: (A0, A1, A2) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2], E, B] =
@@ -3222,6 +3353,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, R, E, B](
     f: (A0, A1, A2, A3) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3], E, B] =
@@ -3240,6 +3372,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4], E, B] =
@@ -3259,6 +3392,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4, A5) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5], E, B] =
@@ -3279,6 +3413,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6], E, B] =
@@ -3300,6 +3435,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
@@ -3324,6 +3460,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => ZManaged[R, E, B]
   ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
@@ -3349,6 +3486,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[
     A0: Tag,
     A1: Tag,
@@ -3389,6 +3527,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[
     A0: Tag,
     A1: Tag,
@@ -3431,6 +3570,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[
     A0: Tag,
     A1: Tag,
@@ -3475,6 +3615,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[
     A0: Tag,
     A1: Tag,
@@ -3521,6 +3662,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[
     A0: Tag,
     A1: Tag,
@@ -3569,6 +3711,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[
     A0: Tag,
     A1: Tag,
@@ -3619,6 +3762,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[
     A0: Tag,
     A1: Tag,
@@ -3673,6 +3817,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[
     A0: Tag,
     A1: Tag,
@@ -3729,6 +3874,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[
     A0: Tag,
     A1: Tag,
@@ -3787,6 +3933,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[
     A0: Tag,
     A1: Tag,
@@ -3847,6 +3994,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[
     A0: Tag,
     A1: Tag,
@@ -3909,6 +4057,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[
     A0: Tag,
     A1: Tag,
@@ -3995,6 +4144,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * specified services, which must return one or more services. For the more
    * common variant that returns a single service see `fromServicesManaged`.
    */
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[
     A0: Tag,
     A1: Tag,
@@ -4093,6 +4243,19 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     ZLayer(m)
 
   /**
+   * Constructs a layer from the specified effect.
+   */
+  def fromZIO[R, E, A: Tag](zio: ZIO[R, E, A]): ZLayer[R, E, Has[A]] =
+    fromZIOMany(zio.asService)
+
+  /**
+   * Constructs a layer from the specified effect, which must return one or
+   * more services.
+   */
+  def fromZIOMany[R, E, A](zio: ZIO[R, E, A]): ZLayer[R, E, A] =
+    ZLayer(ZManaged.fromZIO(zio))
+
+  /**
    * An identity layer that passes along its inputs. Note that this represents
    * an identity with respect to the `>>>` operator. It represents an identity
    * with respect to the `++` operator when the environment type is `Any`.
@@ -4187,11 +4350,11 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
           new MemoMap { self =>
             final def getOrElseMemoize[E, A, B](layer: ZLayer[A, E, B]): ZManaged[A, E, B] =
               ZManaged {
-                ref.modifyM { map =>
+                ref.modifyZIO { map =>
                   map.get(layer) match {
                     case Some((acquire, release)) =>
                       val cached =
-                        ZIO.accessM[(A, ReleaseMap)] { case (_, releaseMap) =>
+                        ZIO.accessZIO[(A, ReleaseMap)] { case (_, releaseMap) =>
                           acquire
                             .asInstanceOf[IO[E, B]]
                             .onExit {
@@ -4227,7 +4390,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
                                                case Exit.Success((_, b)) =>
                                                  for {
                                                    _ <- finalizerRef.set { (e: Exit[Any, Any]) =>
-                                                          ZIO.whenM(observers.modify(n => (n == 1, n - 1)))(
+                                                          ZIO.whenZIO(observers.modify(n => (n == 1, n - 1)))(
                                                             innerReleaseMap.releaseAll(e, ExecutionStrategy.Sequential)
                                                           )
                                                         }

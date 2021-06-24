@@ -14,14 +14,14 @@ object Inflate {
   ): ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[Byte], Done] =
     ZChannel.managed {
       ZManaged
-        .bracket(ZIO.succeed((new Array[Byte](bufferSize), new Inflater(noWrap)))) { case (_, inflater) =>
+        .acquireReleaseWith(ZIO.succeed((new Array[Byte](bufferSize), new Inflater(noWrap)))) { case (_, inflater) =>
           ZIO.succeed(inflater.end())
         }
     } { case (buffer, inflater) =>
       lazy val loop: ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[Byte], Done] =
         ZChannel.readWithCause(
           chunk =>
-            ZChannel.fromEffect {
+            ZChannel.fromZIO {
               ZIO.attempt {
                 inflater.setInput(chunk.toArray)
                 pullAllOutput(inflater, buffer, chunk)
@@ -31,7 +31,7 @@ object Inflate {
             }.flatMap(chunk => ZChannel.write(chunk) *> loop),
           ZChannel.halt(_),
           done =>
-            ZChannel.fromEffect {
+            ZChannel.fromZIO {
               ZIO.attempt {
                 if (inflater.finished()) {
                   inflater.reset()

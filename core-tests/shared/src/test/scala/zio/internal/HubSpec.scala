@@ -143,7 +143,7 @@ object HubSpec extends ZIOBaseSpec {
     }
 
   def slidingOfferAll[A](hub: Hub[A], values: List[A]): UIO[Unit] =
-    ZIO.foreach_(values)(slidingOffer(hub, _) *> ZIO.yieldNow)
+    ZIO.foreachDiscard(values)(slidingOffer(hub, _) *> ZIO.yieldNow)
 
   def slidingOfferAllChunks[A](hub: Hub[A], chunks: List[Chunk[A]]): UIO[Unit] =
     ZIO.suspendSucceed {

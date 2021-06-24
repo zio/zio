@@ -50,5 +50,5 @@ object SampleSpec extends ZIOBaseSpec {
     left: ZStream[Any, Nothing, Sample[Any, A]],
     right: ZStream[Any, Nothing, Sample[Any, B]]
   ): UIO[Boolean] =
-    left.zip(right).mapM { case (a, b) => equalSamples(a, b) }.fold(true)(_ && _)
+    left.zip(right).mapZIO { case (a, b) => equalSamples(a, b) }.fold(true)(_ && _)
 }

@@ -162,8 +162,16 @@ object ZPipeline {
    * Creates a transducer by effectfully folding over a structure of type `O`. The transducer will
    * fold the inputs until the stream ends, resulting in a stream with one element.
    */
+  @deprecated("use foldLeftZIO", "2.0.0")
   def foldLeftM[R, E, I, O](z: O)(f: (O, I) => ZIO[R, E, O]): ZPipeline[R, E, I, O] =
-    foldM(z)(_ => true)(f)
+    foldLeftZIO(z)(f)
+
+  /**
+   * Creates a transducer by effectfully folding over a structure of type `O`. The transducer will
+   * fold the inputs until the stream ends, resulting in a stream with one element.
+   */
+  def foldLeftZIO[R, E, I, O](z: O)(f: (O, I) => ZIO[R, E, O]): ZPipeline[R, E, I, O] =
+    foldZIO(z)(_ => true)(f)
 
   /**
    * A stateful fold that will emit the state and reset to the starting state every time the
@@ -186,18 +194,9 @@ object ZPipeline {
    * A stateful fold that will emit the state and reset to the starting state every time the
    * specified predicate returns false.
    */
+  @deprecated("use foldZIO", "2.0.0")
   def foldM[R, E, I, O](out0: O)(contFn: O => Boolean)(f: (O, I) => ZIO[R, E, O]): ZPipeline[R, E, I, O] =
-    new ZPipeline[R, E, I, O] {
-      def apply[Env1 <: R, Err1 >: E](stream: ZStream[Env1, Err1, I]): ZStream[Env1, Err1, O] =
-        stream
-          .mapAccumM(out0) { case (o, i) =>
-            f(o, i).map { o =>
-              if (contFn(o)) (o, Some(o))
-              else (out0, None)
-            }
-          }
-          .collect { case Some(v) => v }
-    }
+    foldZIO(out0)(contFn)(f)
 
   /**
    * Creates a transducer that folds elements of type `I` into a structure
@@ -216,19 +215,54 @@ object ZPipeline {
    *
    * Like foldWeightedM, but with a constant cost function of 1.
    */
+  @deprecated("use foldUntilZIO", "2.0.0")
   def foldUntilM[R, E, I, O](z: O, max: Long)(f: (O, I) => ZIO[R, E, O]): ZPipeline[R, E, I, O] =
-    foldM[R, E, I, (O, Long)]((z, 0))(_._2 < max) { case ((o, count), i) =>
+    foldUntilZIO(z, max)(f)
+
+  /**
+   * Creates a transducer that effectfully folds elements of type `I` into a structure
+   * of type `O` until `max` elements have been folded.
+   *
+   * Like foldWeightedM, but with a constant cost function of 1.
+   */
+  def foldUntilZIO[R, E, I, O](z: O, max: Long)(f: (O, I) => ZIO[R, E, O]): ZPipeline[R, E, I, O] =
+    foldZIO[R, E, I, (O, Long)]((z, 0))(_._2 < max) { case ((o, count), i) =>
       f(o, i).map((_, count + 1))
     } >>> ZPipeline.map(_._1)
+
+  /**
+   * A stateful fold that will emit the state and reset to the starting state every time the
+   * specified predicate returns false.
+   */
+  def foldZIO[R, E, I, O](out0: O)(contFn: O => Boolean)(f: (O, I) => ZIO[R, E, O]): ZPipeline[R, E, I, O] =
+    new ZPipeline[R, E, I, O] {
+      def apply[Env1 <: R, Err1 >: E](stream: ZStream[Env1, Err1, I]): ZStream[Env1, Err1, O] =
+        stream
+          .mapAccumZIO(out0) { case (o, i) =>
+            f(o, i).map { o =>
+              if (contFn(o)) (o, Some(o))
+              else (out0, None)
+            }
+          }
+          .collect { case Some(v) => v }
+    }
 
   /**
    * Creates a pipeline that effectfully maps elements to the specified effectfully-computed
    * value.
    */
+  @deprecated("use fromZIO", "2.0.0")
   def fromEffect[R, E, A](zio: ZIO[R, E, A]): ZPipeline[R, E, Any, A] =
+    fromZIO(zio)
+
+  /**
+   * Creates a pipeline that effectfully maps elements to the specified effectfully-computed
+   * value.
+   */
+  def fromZIO[R, E, A](zio: ZIO[R, E, A]): ZPipeline[R, E, Any, A] =
     new ZPipeline[R, E, Any, A] {
       def apply[Env1 <: R, Err1 >: E](stream: ZStream[Env1, Err1, Any]): ZStream[Env1, Err1, A] =
-        stream.mapM(_ => zio)
+        stream.mapZIO(_ => zio)
     }
 
   /**
@@ -271,10 +305,17 @@ object ZPipeline {
   /**
    * Creates a pipeline that maps elements with the specified effectful function.
    */
+  @deprecated("use mapZIO", "2.0.0")
   def mapM[Env0, Err0, In, Out](f: In => ZIO[Env0, Err0, Out]): ZPipeline[Env0, Err0, In, Out] =
+    mapZIO(f)
+
+  /**
+   * Creates a pipeline that maps elements with the specified effectful function.
+   */
+  def mapZIO[Env0, Err0, In, Out](f: In => ZIO[Env0, Err0, Out]): ZPipeline[Env0, Err0, In, Out] =
     new ZPipeline[Env0, Err0, In, Out] {
       def apply[Env1 <: Env0, Err1 >: Err0](stream: ZStream[Env1, Err1, In]): ZStream[Env1, Err1, Out] =
-        stream.mapM(f)
+        stream.mapZIO(f)
     }
 
   /**
