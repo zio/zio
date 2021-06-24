@@ -5,7 +5,7 @@ title: "Blocking"
 
 ```scala mdoc:invisible
 import zio.duration._
-import zio.{Schedule, RIO}
+import zio.{Schedule, RIO, UIO}
 ```
 
 ## Introduction
@@ -38,13 +38,13 @@ and continuously create new threads as necessary.
 The `blocking` operator takes a ZIO effect and return another effect that is going to run on a blocking thread pool:
 
 ```scala mdoc:invisible:nest
-import zio.blocking._
-val program = ZIO.foreachPar((1 to 100).toArray)(t => blocking(blockingTask(t)))
+val program = ZIO.foreachPar((1 to 100).toArray)(t => zio.blocking.blocking(blockingTask(t)))
 ```
 
 Also, we can directly import a synchronous effect that does blocking operation into ZIO effect by using `effectBlocking`:
 
 ```scala mdoc:silent:nest
+import zio.blocking._
 def blockingTask(n: Int) = effectBlocking {
   do {
     println(s"Running blocking task number $n on dedicated blocking thread pool")
@@ -114,7 +114,8 @@ Some blocking operations do not respect `Thread#interrupt` by swallowing `Interr
 The following `BloclingService` will not be interrupted in case of `Thread#interrupt` call, but it checks the `released` flag constantly. If this flag becomes true, the blocking service will finish its job:
 
 ```scala mdoc:silent:nest
-case class BlockingService() {
+import java.util.concurrent.atomic.AtomicReference
+final case class BlockingService() {
   private val released = new AtomicReference(false)
 
   def start(): Unit = {
@@ -140,16 +141,18 @@ So, to translate ZIO interruption into cancellation of these types of blocking o
 ```scala mdoc:silent:nest
 val myApp =
   for {
-    fiber <- effectBlockingCancelable(
+    service <- ZIO.effect(BlockingService())
+    fiber   <- effectBlockingCancelable(
       effect = service.start()
     )(
       cancel = UIO.effectTotal(service.close())
     ).fork
-    _ <- fiber.interrupt.schedule(
+    _       <- fiber.interrupt.schedule(
       Schedule.delayed(
         Schedule.duration(3.seconds)
       )
     )
+  } yield ()
 ```
 
 Here is another example of the cancelation of a blocking operation. When we `accept` a server socket, this blocking operation will never interrupted until we close that using `ServerSocket#close` method:
