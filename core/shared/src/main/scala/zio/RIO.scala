@@ -1337,7 +1337,7 @@ object RIO {
     ZIO.whenM(b)
 
   /**
-   * @see See [[zio.ZIO.ZIO]]
+   * @see See [[zio.ZIO.whenZIO]]
    */
   def whenZIO[R](b: RIO[R, Boolean]): ZIO.WhenZIO[R, Throwable] =
     ZIO.whenZIO(b)

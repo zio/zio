@@ -67,7 +67,7 @@ object STM {
     ZSTM.collectAll_(in)
 
   /**
-   * @see See [[zio.stm.ZSTM.Discard]]
+   * @see See [[zio.stm.ZSTM.collectAllDiscard]]
    */
   def collectAllDiscard[E, A](in: Iterable[STM[E, A]]): STM[E, Unit] =
     ZSTM.collectAllDiscard(in)

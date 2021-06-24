@@ -1222,7 +1222,7 @@ object Task extends TaskPlatformSpecific {
     ZIO.whenM(b)
 
   /**
-   * @see See [[zio.ZIO.ZIO]]
+   * @see See [[zio.ZIO.whenZIO]]
    */
   def whenZIO(b: Task[Boolean]): ZIO.WhenZIO[Any, Throwable] =
     ZIO.whenZIO(b)

@@ -1310,7 +1310,7 @@ object IO {
     ZIO.whenM(b)
 
   /**
-   * @see See [[zio.ZIO.whenZUI]]
+   * @see See [[zio.ZIO.whenZIO]]
    */
   def whenZIO[E](b: IO[E, Boolean]): ZIO.WhenZIO[Any, E] =
     ZIO.whenZIO(b)

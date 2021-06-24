@@ -1008,7 +1008,7 @@ object UIO {
     ZIO.unlessM(b)
 
   /**
-   * @see See [[zio.ZIO.ZIO]]
+   * @see See [[zio.ZIO.unlessZIO]]
    */
   def unlessZIO(b: UIO[Boolean]): ZIO.UnlessZIO[Any, Nothing] =
     ZIO.unlessZIO(b)

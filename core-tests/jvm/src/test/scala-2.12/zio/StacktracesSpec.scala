@@ -48,7 +48,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
         assert(trace2.executionTrace.exists(_.prettyPrint.contains("foreachDiscard")))(isTrue) &&
         assert(trace2.executionTrace.exists(_.prettyPrint.contains("foreachFail")))(isTrue)
 
-      }sd
+      }
     },
     testM("foreachPar fail") {
       val io = for {
@@ -599,7 +599,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
     } yield ()
   }
 
-  object singleSuspendSucceedCompFixture {
+  object singleSuspendSucceedWithForCompFixture {
     def asyncDbCall(): Task[Unit] =
       Task.suspendSucceed(throw new Exception)
 
