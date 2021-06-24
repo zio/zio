@@ -30,6 +30,11 @@ abstract class Platform { self =>
    */
   def blockingExecutor: Executor
 
+  def withBlockingExecutor(e: Executor): Platform =
+    new Platform.Proxy(self) {
+      override def blockingExecutor: Executor = e
+    }
+
   /**
    * Retrieves the default executor.
    */
