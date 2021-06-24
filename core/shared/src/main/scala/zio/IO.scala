@@ -522,6 +522,18 @@ object IO {
   def fail[E](error: => E): IO[E, Nothing] = ZIO.fail(error)
 
   /**
+   * @see See [[zio.ZIO.failCause]]
+   */
+  def failCause[E](cause: => Cause[E]): IO[E, Nothing] =
+    ZIO.failCause(cause)
+
+  /**
+   * @see See [[zio.ZIO.failCauseWith]]
+   */
+  def failCauseWith[E](function: (() => ZTrace) => Cause[E]): IO[E, Nothing] =
+    ZIO.failCauseWith(function)
+
+  /**
    * @see [[zio.ZIO.fiberId]]
    */
   val fiberId: UIO[Fiber.Id] = ZIO.fiberId
@@ -844,11 +856,14 @@ object IO {
   /**
    * @see See [[zio.ZIO.halt]]
    */
-  def halt[E](cause: => Cause[E]): IO[E, Nothing] = ZIO.halt(cause)
+  @deprecated("use failCause", "2.0.0")
+  def halt[E](cause: => Cause[E]): IO[E, Nothing] =
+    ZIO.halt(cause)
 
   /**
    * @see See [[zio.ZIO.haltWith]]
    */
+  @deprecated("use failCauseWith", "2.0.0")
   def haltWith[E](function: (() => ZTrace) => Cause[E]): IO[E, Nothing] =
     ZIO.haltWith(function)
 

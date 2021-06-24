@@ -104,7 +104,7 @@ final case class Sample[-R, +A](value: A, shrink: ZStream[R, Nothing, Sample[R, 
 
             case (Exit.Success(l), Exit.Failure(cause)) =>
               Cause.flipCauseOption(cause) match {
-                case Some(c) => Exit.halt(c)
+                case Some(c) => Exit.failCause(c)
                 case None =>
                   s2 match {
                     case Some(r) => Exit.succeed((l.zipWith(r)(f), (leftDone, rightDone, Some(l), s2)))
@@ -114,7 +114,7 @@ final case class Sample[-R, +A](value: A, shrink: ZStream[R, Nothing, Sample[R, 
 
             case (Exit.Failure(cause), Exit.Success(r)) =>
               Cause.flipCauseOption(cause) match {
-                case Some(c) => Exit.halt(c)
+                case Some(c) => Exit.failCause(c)
                 case None =>
                   s1 match {
                     case Some(l) => Exit.succeed((l.zipWith(r)(f), (leftDone, rightDone, s1, Some(r))))
@@ -130,9 +130,9 @@ final case class Sample[-R, +A](value: A, shrink: ZStream[R, Nothing, Sample[R, 
                     case (_, false, Some(l), _) => Exit.succeed((l.map(f(_, that.value)), (leftDone, true, None, s2)))
                     case _                      => Exit.fail(None)
                   }
-                case (Some(cl), Some(cr)) => Exit.halt(Cause.Both(cl, cr))
-                case (_, Some(c))         => Exit.halt(c)
-                case (Some(c), _)         => Exit.halt(c)
+                case (Some(cl), Some(cr)) => Exit.failCause(Cause.Both(cl, cr))
+                case (_, Some(c))         => Exit.failCause(c)
+                case (Some(c), _)         => Exit.failCause(c)
               }
           }
       }

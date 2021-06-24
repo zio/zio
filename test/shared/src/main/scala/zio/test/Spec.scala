@@ -82,7 +82,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    * Returns an effect that models execution of this spec.
    */
   final def execute(defExec: ExecutionStrategy): ZManaged[R, Nothing, Spec[Any, E, T]] =
-    ZManaged.accessManaged(provide(_).foreachExec(defExec)(ZIO.halt(_), ZIO.succeedNow))
+    ZManaged.accessManaged(provide(_).foreachExec(defExec)(ZIO.failCause(_), ZIO.succeedNow))
 
   /**
    * Determines if any node in the spec is satisfied by the given predicate.
@@ -163,7 +163,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
     caseValue match {
       case SuiteCase(label, specs, exec) =>
         specs.foldCauseManaged(
-          c => f(SuiteCase(label, ZManaged.halt(c), exec)),
+          c => f(SuiteCase(label, ZManaged.failCause(c), exec)),
           ZManaged
             .foreachExec(_)(exec.getOrElse(defExec))(_.foldManaged(defExec)(f).release)
             .flatMap(z => f(SuiteCase(label, ZManaged.succeedNow(z.toVector), exec)))

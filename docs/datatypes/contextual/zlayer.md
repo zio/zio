@@ -178,7 +178,7 @@ val inputStreamLayer = ZLayer.fromAcquireRelease(acquire)(release)
 We can create `ZLayer` from any `ZIO` effect by using `ZLayer.fromEffect` constructor, or calling `ZIO#toLayer` method:
 
 ```scala mdoc
-val layer = ZLayer.fromEffect(ZIO.succeed("Hello, World!"))
+val layer = ZLayer.fromZIO(ZIO.succeed("Hello, World!"))
 val layer_ = ZIO.succeed("Hello, World!").toLayer
 ```
 
@@ -190,7 +190,7 @@ trait AppConfig
 
 ```scala mdoc:nest
 def loadConfig: Task[AppConfig] = Task.attempt(???)
-val configLayer = ZLayer.fromEffect(loadConfig)
+val configLayer = ZLayer.fromZIO(loadConfig)
 ```
 
 ### From another Service

@@ -539,6 +539,18 @@ object RIO {
   def fail(error: => Throwable): Task[Nothing] = ZIO.fail(error)
 
   /**
+   * @see See [[zio.ZIO.failCause]]
+   */
+  def failCause(cause: => Cause[Throwable]): Task[Nothing] =
+    ZIO.failCause(cause)
+
+  /**
+   * @see See [[zio.ZIO.failCauseWith]]
+   */
+  def failCauseWith[R](function: (() => ZTrace) => Cause[Throwable]): RIO[R, Nothing] =
+    ZIO.failCauseWith(function)
+
+  /**
    * @see [[zio.ZIO.fiberId]]
    */
   val fiberId: UIO[Fiber.Id] = ZIO.fiberId
@@ -875,11 +887,14 @@ object RIO {
   /**
    * @see See [[zio.ZIO.halt]]
    */
-  def halt(cause: => Cause[Throwable]): Task[Nothing] = ZIO.halt(cause)
+  @deprecated("use failCause", "2.0.0")
+  def halt(cause: => Cause[Throwable]): Task[Nothing] =
+    ZIO.halt(cause)
 
   /**
    * @see See [[zio.ZIO.haltWith]]
    */
+  @deprecated("use failCauseWith", "2.0.0")
   def haltWith[R](function: (() => ZTrace) => Cause[Throwable]): RIO[R, Nothing] =
     ZIO.haltWith(function)
 

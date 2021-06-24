@@ -218,7 +218,7 @@ object ZIOSpec extends ZIOBaseSpec {
           assert(_)(isTrue)
         )
       },
-      testM("halts if cause doesn't match") {
+      testM("fails if cause doesn't match") {
         ZIO.fiberId.flatMap { fiberId =>
           ZIO.interrupt.catchSomeCause {
             case c if (!c.interrupted) => ZIO.succeed(true)
@@ -1466,8 +1466,8 @@ object ZIOSpec extends ZIOBaseSpec {
         implicit val canFail = CanFail
         for {
           plain <- (ZIO.die(ex) <> IO.unit).exit
-          both  <- (ZIO.halt(Cause.Both(interrupt(fiberId), die(ex))) <> IO.unit).exit
-          thn   <- (ZIO.halt(Cause.Then(interrupt(fiberId), die(ex))) <> IO.unit).exit
+          both  <- (ZIO.failCause(Cause.Both(interrupt(fiberId), die(ex))) <> IO.unit).exit
+          thn   <- (ZIO.failCause(Cause.Then(interrupt(fiberId), die(ex))) <> IO.unit).exit
           fail  <- (ZIO.fail(ex) <> IO.unit).exit
         } yield assert(plain)(dies(equalTo(ex))) &&
           assert(both)(dies(equalTo(ex))) &&
@@ -1496,7 +1496,7 @@ object ZIOSpec extends ZIOBaseSpec {
         val smallInts = Gen.int(0, 100)
         val causes    = Gen.causes(smallInts, Gen.throwable)
         val successes = Gen.successes(smallInts)
-        val exits     = Gen.either(causes, successes).map(_.fold(Exit.halt, Exit.succeed))
+        val exits     = Gen.either(causes, successes).map(_.fold(Exit.failCause, Exit.succeed))
         checkM(exits, exits, exits) { (exit1, exit2, exit3) =>
           val zio1  = ZIO.done(exit1)
           val zio2  = ZIO.done(exit2)
@@ -2096,7 +2096,7 @@ object ZIOSpec extends ZIOBaseSpec {
           Cause.die(InterruptCause2) ++
           Cause.die(InterruptCause3)
 
-        assertM(io.exit)(equalTo(Exit.halt(expectedCause)))
+        assertM(io.exit)(equalTo(Exit.failCause(expectedCause)))
       } @@ zioTag(errors),
       testM("catch failing finalizers with terminate") {
         val io = IO
@@ -2110,7 +2110,7 @@ object ZIOSpec extends ZIOBaseSpec {
           Cause.die(InterruptCause2) ++
           Cause.die(InterruptCause3)
 
-        assertM(io.exit)(equalTo(Exit.halt(expectedCause)))
+        assertM(io.exit)(equalTo(Exit.failCause(expectedCause)))
       } @@ zioTag(errors),
       testM("run preserves interruption status") {
         for {
@@ -2138,7 +2138,7 @@ object ZIOSpec extends ZIOBaseSpec {
       },
       testM("timeout a long computation with a cause") {
         val cause = Cause.die(new Error("BOOM"))
-        val io    = (Clock.sleep(5.seconds) *> IO.succeed(true)).timeoutHalt(cause)(10.millis)
+        val io    = (Clock.sleep(5.seconds) *> IO.succeed(true)).timeoutFailCause(cause)(10.millis)
         assertM(Live.live(io.sandbox.flip))(equalTo(cause))
       },
       testM("timeout repetition of uninterruptible effect") {
@@ -3382,7 +3382,7 @@ object ZIOSpec extends ZIOBaseSpec {
           zio.foldCauseZIO(ZIO.succeed(_), ZIO.fail)
         checkM(causes) { c =>
           for {
-            result <- cause(ZIO.halt(c).sandbox.mapErrorCause(e => e.untraced).unsandbox)
+            result <- cause(ZIO.failCause(c).sandbox.mapErrorCause(e => e.untraced).unsandbox)
           } yield assert(result)(equalTo(c)) &&
             assert(result.prettyPrint)(equalTo(c.prettyPrint))
         }

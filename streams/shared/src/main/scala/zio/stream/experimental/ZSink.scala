@@ -428,7 +428,7 @@ object ZSink {
     def loop(acc: Chunk[In]): ZChannel[Any, Err, Chunk[In], Any, Err, Nothing, Chunk[In]] =
       ZChannel.readWithCause(
         chunk => loop(acc ++ chunk),
-        ZChannel.halt(_),
+        ZChannel.failCause(_),
         _ => ZChannel.succeed(acc)
       )
     new ZSink(loop(Chunk.empty))
@@ -525,14 +525,14 @@ object ZSink {
    * Creates a sink halting with the specified `Throwable`.
    */
   def die(e: => Throwable): ZSink[Any, Any, Any, Nothing, Nothing, Nothing] =
-    ZSink.halt(Cause.die(e))
+    ZSink.failCause(Cause.die(e))
 
   /**
    * Creates a sink halting with the specified message, wrapped in a
    * `RuntimeException`.
    */
   def dieMessage(m: => String): ZSink[Any, Any, Any, Nothing, Nothing, Nothing] =
-    ZSink.halt(Cause.die(new RuntimeException(m)))
+    ZSink.failCause(Cause.die(new RuntimeException(m)))
 
   /**
    * A sink that ignores its inputs.
@@ -558,6 +558,12 @@ object ZSink {
    * A sink that always fails with the specified error.
    */
   def fail[E](e: => E): ZSink[Any, Any, Any, E, Nothing, Nothing] = new ZSink(ZChannel.fail(e))
+
+  /**
+   * Creates a sink halting with a specified cause.
+   */
+  def failCause[E](e: => Cause[E]): ZSink[Any, Any, Any, E, Nothing, Nothing] =
+    new ZSink(ZChannel.failCause(e))
 
   /**
    * A sink that folds its inputs with the provided function, termination predicate and initial state.
@@ -1048,7 +1054,7 @@ object ZSink {
     lazy val process: ZChannel[R, Err, Chunk[In], Any, Err, Chunk[In], Unit] =
       ZChannel.readWithCause[R, Err, Chunk[In], Any, Err, Chunk[In], Unit](
         in => go(in, 0, in.length, process),
-        halt => ZChannel.halt(halt),
+        halt => ZChannel.failCause(halt),
         _ => ZChannel.end(())
       )
 
@@ -1092,8 +1098,9 @@ object ZSink {
   /**
    * Creates a sink halting with a specified cause.
    */
+  @deprecated("use failCause", "2.0.0")
   def halt[E](e: => Cause[E]): ZSink[Any, Any, Any, E, Nothing, Nothing] =
-    new ZSink(ZChannel.halt(e))
+    failCause(e)
 
   /**
    * Creates a sink containing the first value.

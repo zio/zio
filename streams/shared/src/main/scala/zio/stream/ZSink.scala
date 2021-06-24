@@ -337,12 +337,12 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
           (res1, fib2) =>
             res1
               .foldZIO(
-                f => fib2.interrupt *> ZIO.halt(f.map { case (r, leftover) => (r.map(x => Left(x)), leftover) }),
+                f => fib2.interrupt *> ZIO.failCause(f.map { case (r, leftover) => (r.map(x => Left(x)), leftover) }),
                 _ => fib2.join.mapError { case (r, leftover) => (r.map(x => Right(x)), leftover) }
               ),
           (res2, fib1) =>
             res2.foldZIO(
-              f => fib1.interrupt *> ZIO.halt(f.map { case (r, leftover) => (r.map(x => Right(x)), leftover) }),
+              f => fib1.interrupt *> ZIO.failCause(f.map { case (r, leftover) => (r.map(x => Right(x)), leftover) }),
               _ => fib1.join.mapError { case (r, leftover) => (r.map(x => Left(x)), leftover) }
             )
         )
@@ -581,8 +581,11 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   object Push {
     def emit[I, Z](z: Z, leftover: Chunk[I]): IO[(Right[Nothing, Z], Chunk[I]), Nothing] = IO.fail((Right(z), leftover))
     def fail[I, E](e: E, leftover: Chunk[I]): IO[(Left[E, Nothing], Chunk[I]), Nothing]  = IO.fail((Left(e), leftover))
+    def failCause[E](c: Cause[E]): ZIO[Any, (Left[E, Nothing], Chunk[Nothing]), Nothing] =
+      IO.failCause(c).mapError(e => (Left(e), Chunk.empty))
+    @deprecated("use failCause", "2.0.0")
     def halt[E](c: Cause[E]): ZIO[Any, (Left[E, Nothing], Chunk[Nothing]), Nothing] =
-      IO.halt(c).mapError(e => (Left(e), Chunk.empty))
+      failCause(c)
     val more: UIO[Unit] = UIO.unit
 
     /**
@@ -655,14 +658,14 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * Creates a sink halting with the specified `Throwable`.
    */
   def die(e: => Throwable): ZSink[Any, Nothing, Any, Nothing, Nothing] =
-    ZSink.halt(Cause.die(e))
+    ZSink.failCause(Cause.die(e))
 
   /**
    * Creates a sink halting with the specified message, wrapped in a
    * `RuntimeException`.
    */
   def dieMessage(m: => String): ZSink[Any, Nothing, Any, Nothing, Nothing] =
-    ZSink.halt(Cause.die(new RuntimeException(m)))
+    ZSink.failCause(Cause.die(new RuntimeException(m)))
 
   /**
    * A sink that ignores its inputs.
@@ -678,6 +681,12 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
       val leftover = c.fold[Chunk[I]](Chunk.empty)(identity)
       Push.fail(e, leftover)
     }
+
+  /**
+   * Creates a sink halting with a specified cause.
+   */
+  def failCause[E](e: => Cause[E]): ZSink[Any, E, Any, Nothing, Nothing] =
+    ZSink.fromPush[Any, E, Any, Nothing, Nothing](_ => Push.failCause(e))
 
   /**
    * A sink that folds its inputs with the provided function, termination predicate and initial state.
@@ -963,8 +972,9 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   /**
    * Creates a sink halting with a specified cause.
    */
+  @deprecated("use failCause", "2.0.0")
   def halt[E](e: => Cause[E]): ZSink[Any, E, Any, Nothing, Nothing] =
-    ZSink.fromPush[Any, E, Any, Nothing, Nothing](_ => Push.halt(e))
+    failCause(e)
 
   /**
    * Creates a sink containing the first value.

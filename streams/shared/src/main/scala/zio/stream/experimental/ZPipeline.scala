@@ -104,7 +104,7 @@ object ZPipeline {
    * }}}
    */
   def die(e: => Throwable): ZPipeline[Any, Nothing, Any, Nothing] =
-    ZPipeline.halt(Cause.die(e))
+    ZPipeline.failCause(Cause.die(e))
 
   /**
    * Creates a pipeline that drops elements until the specified predicate evaluates to true.
@@ -136,7 +136,16 @@ object ZPipeline {
    * Creates a pipeline that always fails with the specified value.
    */
   def fail[E](e: => E): ZPipeline[Any, E, Any, Nothing] =
-    ZPipeline.halt(Cause.fail(e))
+    ZPipeline.failCause(Cause.fail(e))
+
+  /**
+   * Creates a transducer that always dies with the specified exception.
+   */
+  def failCause[E](cause: => Cause[E]): ZPipeline[Any, E, Any, Nothing] =
+    new ZPipeline[Any, E, Any, Nothing] {
+      def apply[Env1 <: Any, Err1 >: E](stream: ZStream[Env1, Err1, Any]): ZStream[Env1, Err1, Nothing] =
+        ZStream.failCause(cause)
+    }
 
   /**
    * Creates a pipeline that filters elements according to the specified predicate.
@@ -278,11 +287,9 @@ object ZPipeline {
   /**
    * Creates a transducer that always dies with the specified exception.
    */
+  @deprecated("use failCause", "2.0.0")
   def halt[E](cause: => Cause[E]): ZPipeline[Any, E, Any, Nothing] =
-    new ZPipeline[Any, E, Any, Nothing] {
-      def apply[Env1 <: Any, Err1 >: E](stream: ZStream[Env1, Err1, Any]): ZStream[Env1, Err1, Nothing] =
-        ZStream.halt(cause)
-    }
+    failCause(cause)
 
   /**
    * The identity pipeline, which does not modify streams in any way.

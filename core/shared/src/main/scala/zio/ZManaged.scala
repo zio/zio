@@ -257,7 +257,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   def catchSomeCause[R1 <: R, E1 >: E, A1 >: A](
     pf: PartialFunction[Cause[E], ZManaged[R1, E1, A1]]
   ): ZManaged[R1, E1, A1] =
-    foldCauseManaged(pf.applyOrElse[Cause[E], ZManaged[R1, E1, A1]](_, ZManaged.halt(_)), ZManaged.succeedNow)
+    foldCauseManaged(pf.applyOrElse[Cause[E], ZManaged[R1, E1, A1]](_, ZManaged.failCause(_)), ZManaged.succeedNow)
 
   /**
    * Fail with `e` if the supplied `PartialFunction` does not match, otherwise
@@ -454,7 +454,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
     failure: E => ZManaged[R1, E2, B],
     success: A => ZManaged[R1, E2, B]
   )(implicit ev: CanFail[E]): ZManaged[R1, E2, B] =
-    foldCauseManaged(_.failureOrCause.fold(failure, ZManaged.halt(_)), success)
+    foldCauseManaged(_.failureOrCause.fold(failure, ZManaged.failCause(_)), success)
 
   /**
    * Creates a `ZManaged` value that acquires the original resource in a fiber,
@@ -752,7 +752,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
                           c =>
                             releaseMap
                               .releaseAll(Exit.fail(c), ExecutionStrategy.Sequential) *>
-                              ZIO.halt(c),
+                              ZIO.failCause(c),
                           { case (release, a) =>
                             UIO.succeed(
                               ZManaged {
@@ -933,7 +933,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    */
   def exit: ZManaged[R, Nothing, Exit[E, A]] =
     foldCauseManaged(
-      cause => ZManaged.succeedNow(Exit.halt(cause)),
+      cause => ZManaged.succeedNow(Exit.failCause(cause)),
       succ => ZManaged.succeedNow(Exit.succeed(succ))
     )
 
@@ -1038,7 +1038,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * the acquired resource.
    */
   final def tapCause[R1 <: R, E1 >: E](f: Cause[E] => ZManaged[R1, E1, Any]): ZManaged[R1, E1, A] =
-    catchAllCause(c => f(c) *> ZManaged.halt(c))
+    catchAllCause(c => f(c) *> ZManaged.failCause(c))
 
   /**
    * Returns an effect that effectfully peeks at the failure of the acquired resource.
@@ -1845,7 +1845,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * detected in the code.
    */
   def die(t: => Throwable): ZManaged[Any, Nothing, Nothing] =
-    halt(Cause.die(t))
+    failCause(Cause.die(t))
 
   /**
    * Returns an effect that dies with a [[java.lang.RuntimeException]] having the
@@ -1899,7 +1899,13 @@ object ZManaged extends ZManagedPlatformSpecific {
    * The moral equivalent of `throw` for pure code.
    */
   def fail[E](error: => E): ZManaged[Any, E, Nothing] =
-    halt(Cause.fail(error))
+    failCause(Cause.fail(error))
+
+  /**
+   * Returns an effect that models failure with the specified `Cause`.
+   */
+  def failCause[E](cause: => Cause[E]): ZManaged[Any, E, Nothing] =
+    ZManaged.fromZIO(ZIO.failCause(cause))
 
   /**
    * Returns an effect that succeeds with the `Fiber.Id` of the caller.
@@ -2283,8 +2289,9 @@ object ZManaged extends ZManagedPlatformSpecific {
   /**
    * Returns an effect that models failure with the specified `Cause`.
    */
+  @deprecated("use failCause", "2.0.0")
   def halt[E](cause: => Cause[E]): ZManaged[Any, E, Nothing] =
-    ZManaged.fromZIO(ZIO.halt(cause))
+    failCause(cause)
 
   /**
    * Returns the identity effectful function, which performs no effects
@@ -2309,13 +2316,13 @@ object ZManaged extends ZManagedPlatformSpecific {
    * method.
    */
   lazy val interrupt: ZManaged[Any, Nothing, Nothing] =
-    ZManaged.fromZIO(ZIO.descriptor).flatMap(d => halt(Cause.interrupt(d.id)))
+    ZManaged.fromZIO(ZIO.descriptor).flatMap(d => failCause(Cause.interrupt(d.id)))
 
   /**
    * Returns an effect that is interrupted as if by the specified fiber.
    */
   def interruptAs(fiberId: => Fiber.Id): ZManaged[Any, Nothing, Nothing] =
-    halt(Cause.interrupt(fiberId))
+    failCause(Cause.interrupt(fiberId))
 
   /**
    * Iterates with the specified effectual function. The moral equivalent of:

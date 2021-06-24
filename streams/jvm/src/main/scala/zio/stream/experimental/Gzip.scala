@@ -26,7 +26,7 @@ object Gzip {
               ZChannel.fromZIO {
                 gzipper.onChunk(chunk)
               }.flatMap(chunk => ZChannel.write(chunk) *> loop),
-            ZChannel.halt(_),
+            ZChannel.failCause(_),
             done =>
               ZChannel.fromZIO {
                 gzipper.onNone

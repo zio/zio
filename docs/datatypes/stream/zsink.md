@@ -286,13 +286,13 @@ def fail[I, E](
   IO.fail((Left(e), leftover))
 ```
 
-4. **Push.halt** — By providing a `Cause` we can create a `Push` data-type describing a sink that halts the process of consuming elements (`Option[Chunk[I]] => ZIO[Any, (Left[E, Nothing], Chunk[Nothing]), Nothing]`):
+4. **Push.failCause** — By providing a `Cause` we can create a `Push` data-type describing a sink that halts the process of consuming elements (`Option[Chunk[I]] => ZIO[Any, (Left[E, Nothing], Chunk[Nothing]), Nothing]`):
 
 ```scala
-def halt[E](
+def failCause[E](
     c: Cause[E]
 ): ZIO[Any, (Left[E, Nothing], Chunk[Nothing]), Nothing] =
-  IO.halt(c).mapError(e => (Left(e), Chunk.empty))
+  IO.failCause(c).mapError(e => (Left(e), Chunk.empty))
 ```
 
 Now, we are ready to see how the existing `ZSink.head` sink is implemented using `Push` data-type:
