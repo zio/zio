@@ -161,7 +161,7 @@ object ZSinkSpec extends ZIOBaseSpec {
           equalTo("1")
         )
       ),
-      suite("mapM")(
+      suite("mapZIO")(
         testM("happy path")(
           assertM(ZStream.range(1, 10).run(ZSink.succeed(1).mapZIO(e => ZIO.succeed(e + 1))))(
             equalTo(2)
@@ -178,7 +178,7 @@ object ZSinkSpec extends ZIOBaseSpec {
           equalTo(Chunk(2, 4, 6, 8))
         )
       ),
-      suite("filterInputM")(
+      suite("filterInputZIO")(
         testM("happy path")(
           assertM(ZStream.range(1, 10).run(ZSink.collectAll.filterInputZIO(i => ZIO.succeed(i % 2 == 0))))(
             equalTo(Chunk(2, 4, 6, 8))
@@ -220,7 +220,7 @@ object ZSinkSpec extends ZIOBaseSpec {
           assertM(ZStream("1", "2", "3").run(parser).either)(isLeft(equalTo("Ouch")))
         } @@ zioTag(errors)
       ),
-      suite("contramapM")(
+      suite("contramapZIO")(
         testM("happy path") {
           val parser = ZSink.collectAll[Throwable, Int].contramapZIO[Any, Throwable, String](a => ZIO.attempt(a.toInt))
           assertM(ZStream("1", "2", "3").run(parser))(equalTo(Chunk(1, 2, 3)))
@@ -234,7 +234,7 @@ object ZSinkSpec extends ZIOBaseSpec {
           assertM(ZStream("1", "a").run(parser).either)(isLeft(hasMessage(equalTo("For input string: \"a\""))))
         } @@ zioTag(errors)
       ),
-      suite("contramapChunksM")(
+      suite("contramapChunksZIO")(
         testM("happy path") {
           val parser =
             ZSink
@@ -279,7 +279,7 @@ object ZSinkSpec extends ZIOBaseSpec {
           } yield assert(xs)(equalTo(ys))
         }
       ),
-      suite("foldM")(
+      suite("foldZIO")(
         testM("empty")(
           assertM(
             ZStream.empty
@@ -480,7 +480,7 @@ object ZSinkSpec extends ZIOBaseSpec {
       //     for {
       //       acc <- Ref.make[Int](0)
       //       s    = ZSink.foreach[Any, String, Int]((i: Int) => if (i == 4) ZIO.fail("boom") else acc.update(_ + i))
-      //       sink = s.foldM(_ => ZSink.collectAll[String, Int], _ => sys.error("impossible"))
+      //       sink = s.foldSink(_ => ZSink.collectAll[String, Int], _ => sys.error("impossible"))
       //       leftover <- ZStream.fromChunks(Chunk(1, 2), Chunk(3, 4, 5)).run(sink)
       //       sum      <- acc.get
       //     } yield {
@@ -540,9 +540,9 @@ object ZSinkSpec extends ZIOBaseSpec {
         //          )
         //        })
         //      ),
-        //      testM("untilOutputM") {
+        //      testM("untilOutputZIO") {
         //        val sink: ZSink[Any, Nothing, Int, Int, Option[Option[Int]]] =
-        //          ZSink.head[Int].untilOutputM(h => ZIO.succeed(h.fold(false)(_ >= 10)))
+        //          ZSink.head[Int].untilOutputZIO(h => ZIO.succeed(h.fold(false)(_ >= 10)))
         //        val assertions = ZIO.foreach(Chunk(1, 3, 7, 20)) { n =>
         //          assertM(Stream.fromIterable(1 to 100).chunkN(n).run(sink))(equalTo(Some(Some(10))))
         //        }

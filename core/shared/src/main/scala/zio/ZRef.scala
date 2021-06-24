@@ -592,7 +592,7 @@ object ZRef extends Serializable {
     /**
      * Folds over the error and value types of the `ZRefM`, allowing access to
      * the state in transforming the `set` value. This is a more powerful version
-     * of `foldM` but requires unifying the environment and error types.
+     * of `foldZIO` but requires unifying the environment and error types.
      */
     final def foldAllZIO[RC <: RA with RB, RD <: RB, EC, ED, C, D](
       ea: EA => EC,
@@ -639,7 +639,7 @@ object ZRef extends Serializable {
      * Folds over the error and value types of the `ZRefM`. This is a highly
      * polymorphic method that is capable of arbitrarily transforming the error
      * and value types of the `ZRefM`. For most use cases one of the more
-     * specific combinators implemented in terms of `foldM` will be more
+     * specific combinators implemented in terms of `foldZIO` will be more
      * ergonomic but this method is extremely useful for implementing new
      * combinators.
      */

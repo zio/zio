@@ -367,7 +367,7 @@ object ZLayerSpec extends ZIOBaseSpec {
         for {
           ref    <- Ref.make(0)
           effect  = ref.update(_ + 1) *> ZIO.fail("fail")
-          layer   = ZLayer.fromEffectMany(effect).retry(Schedule.recurs(3))
+          layer   = ZLayer.fromZIOMany(effect).retry(Schedule.recurs(3))
           _      <- layer.build.useNow.ignore
           result <- ref.get
         } yield assert(result)(equalTo(4))

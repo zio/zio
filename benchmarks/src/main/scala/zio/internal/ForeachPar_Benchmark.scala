@@ -10,19 +10,19 @@ import java.util.concurrent.TimeUnit
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
 @Fork(value = 1)
-private[this] class ForeachPar_Benchmark {
+private[this] class ForeachParDiscardBenchmark {
 
   private val as = 1 to 10000
 
   @Benchmark
-  def foreachPar_(): Unit =
+  def foreachParDiscard(): Unit =
     unsafeRun(ZIO.foreachParDiscard(as)(_ => ZIO.unit))
 
   @Benchmark
-  def naiveForeachPar_(): Unit =
-    unsafeRun(naiveForeachPar_(as)(_ => ZIO.unit))
+  def naiveForeachParDiscard(): Unit =
+    unsafeRun(naiveForeachParDiscard(as)(_ => ZIO.unit))
 
-  private def naiveForeachPar_[R, E, A](
+  private def naiveForeachParDiscard[R, E, A](
     as: Iterable[A]
   )(f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] =
     as.foldLeft(ZIO.unit: ZIO[R, E, Unit])((acc, a) => acc.zipParLeft(f(a))).refailWithTrace

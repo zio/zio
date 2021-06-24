@@ -234,7 +234,7 @@ object TMapSpec extends ZIOBaseSpec {
 
         assertM(tx.commit)(hasSameElements(List("key" -> 6)))
       },
-      testM("transformM") {
+      testM("transformSTM") {
         val tx =
           for {
             tmap <- TMap.make("a" -> 1, "aa" -> 2, "aaa" -> 3)
@@ -244,7 +244,7 @@ object TMapSpec extends ZIOBaseSpec {
 
         assertM(tx.commit)(hasSameElements(List("b" -> 2, "bb" -> 4, "bbb" -> 6)))
       },
-      testM("transformM and shrink") {
+      testM("transformSTM and shrink") {
         val tx =
           for {
             tmap <- TMap.make("a" -> 1, "aa" -> 2, "aaa" -> 3)
@@ -303,7 +303,7 @@ object TMapSpec extends ZIOBaseSpec {
 
         assertM(tx.commit)(equalTo(0))
       },
-      testM("foldM on non-empty map") {
+      testM("foldSTM on non-empty map") {
         val tx =
           for {
             tmap <- TMap.make("a" -> 1, "b" -> 2, "c" -> 3)
@@ -312,7 +312,7 @@ object TMapSpec extends ZIOBaseSpec {
 
         assertM(tx.commit)(equalTo(6))
       },
-      testM("foldM on empty map") {
+      testM("foldSTM on empty map") {
         val tx =
           for {
             tmap <- TMap.empty[String, Int]

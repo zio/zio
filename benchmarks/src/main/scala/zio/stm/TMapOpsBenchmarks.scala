@@ -45,7 +45,7 @@ class TMapOpsBenchmarks {
     unsafeRun(map.transform((k, v) => (k, v)).commit)
 
   @Benchmark
-  def transformM(): Unit =
+  def transformSTM(): Unit =
     unsafeRun(map.transformSTM((k, v) => STM.succeedNow(v).map(k -> _)).commit)
 
   @Benchmark
@@ -57,6 +57,6 @@ class TMapOpsBenchmarks {
     unsafeRun(map.fold(0)((acc, kv) => acc + kv._2).commit)
 
   @Benchmark
-  def foldM(): Int =
+  def foldSTM(): Int =
     unsafeRun(map.foldSTM(0)((acc, kv) => STM.succeedNow(acc + kv._2)).commit)
 }

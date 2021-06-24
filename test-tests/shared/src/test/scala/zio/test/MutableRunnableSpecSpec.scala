@@ -12,7 +12,7 @@ trait RefInt {
 }
 
 object RefInt {
-  val live: ZLayer[Any, Nothing, Has[RefInt]] = ZLayer.fromEffect(
+  val live: ZLayer[Any, Nothing, Has[RefInt]] = ZLayer.fromZIO(
     Ref
       .make(0)
       .map(ref =>

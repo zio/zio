@@ -87,7 +87,7 @@ val primaryOrDefaultData: UIO[Array[Byte]] =
     data => data)
 ```
 
-The second fold method, `foldM`, lets you effectfully handle both failure and success, by supplying an effectful (but still pure) handler for each case:
+The second fold method, `foldZIO`, lets you effectfully handle both failure and success, by supplying an effectful (but still pure) handler for each case:
 
 ```scala mdoc:silent
 val primaryOrSecondaryData: IO[IOException, Array[Byte]] = 
@@ -96,9 +96,9 @@ val primaryOrSecondaryData: IO[IOException, Array[Byte]] =
     data => ZIO.succeed(data))
 ```
 
-Nearly all error handling methods are defined in terms of `foldM`, because it is both powerful and fast.
+Nearly all error handling methods are defined in terms of `foldZIO`, because it is both powerful and fast.
 
-In the following example, `foldM` is used to handle both failure and success of the `readUrls` method:
+In the following example, `foldZIO` is used to handle both failure and success of the `readUrls` method:
 
 ```scala mdoc:invisible
 sealed trait Content

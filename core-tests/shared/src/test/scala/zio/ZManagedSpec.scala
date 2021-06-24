@@ -31,7 +31,7 @@ object ZManagedSpec extends ZIOBaseSpec {
         assertM(ZIO.succeed(1).absorbWith(_ => ExampleError))(equalTo(1))
       }
     ),
-    suite("make")(
+    suite("acquireReleaseWith")(
       testM("Invokes cleanups in reverse order of acquisition.") {
         for {
           effects <- Ref.make[List[Int]](Nil)
@@ -63,7 +63,7 @@ object ZManagedSpec extends ZIOBaseSpec {
         ZIO.succeed(assert(result)(anything))
       }
     ),
-    suite("makeEffect")(
+    suite("acquireReleaseAttemptWith")(
       testM("Invokes cleanups in reverse order of acquisition.") {
         var effects = List[Int]()
         def acquire(x: Int): Int = { effects = x :: effects; x }
@@ -77,7 +77,7 @@ object ZManagedSpec extends ZIOBaseSpec {
         } yield assert(effects)(equalTo(List(1, 2, 3, 3, 2, 1)))
       }
     ),
-    suite("reserve")(
+    suite("fromReservation")(
       testM("Interruption is possible when using this form") {
         doInterrupt(
           io => ZManaged.fromReservation(Reservation(io, _ => IO.unit)),
@@ -85,7 +85,7 @@ object ZManagedSpec extends ZIOBaseSpec {
         )
       }
     ),
-    suite("makeExit")(
+    suite("acquireReleaseExitWith")(
       testM("Invokes with the failure of the use") {
         val ex = new RuntimeException("Use died")
 
@@ -247,7 +247,7 @@ object ZManagedSpec extends ZIOBaseSpec {
         } yield assert(result)(equalTo(List("First", "Second", "Third")))
       }
     ),
-    suite("foldM")(
+    suite("foldManaged")(
       testM("Runs onFailure on failure") {
         for {
           effects <- Ref.make[List[Int]](Nil)
@@ -382,12 +382,12 @@ object ZManagedSpec extends ZIOBaseSpec {
         }
       }
     ),
-    suite("foreach_")(
+    suite("foreachDiscard")(
       testM("Runs finalizers") {
         testFinalizersPar(4, res => ZManaged.foreachDiscard(List(1, 2, 3, 4))(_ => res))
       }
     ),
-    suite("foreachPar_")(
+    suite("foreachParDiscard")(
       testM("Runs finalizers") {
         testFinalizersPar(4, res => ZManaged.foreachParDiscard(List(1, 2, 3, 4))(_ => res))
       },
@@ -398,7 +398,7 @@ object ZManagedSpec extends ZIOBaseSpec {
         testAcquirePar(4, res => ZManaged.foreachParDiscard(List(1, 2, 3, 4))(_ => res))
       }
     ),
-    suite("foreachParN_")(
+    suite("foreachParNDiscard")(
       testM("Uses at most n fibers for reservation") {
         testFinalizersPar(4, res => ZManaged.foreachParNDiscard(2)(List(1, 2, 3, 4))(_ => res))
       },
@@ -456,7 +456,7 @@ object ZManagedSpec extends ZIOBaseSpec {
         } yield assert(result)(equalTo(List("Closed")))
       }
     ),
-    suite("ifM")(
+    suite("ifManaged")(
       testM("runs `onTrue` if result of `b` is `true`") {
         val managed = ZManaged.ifManaged(ZManaged.succeed(true))(ZManaged.succeed(true), ZManaged.succeed(false))
         assertM(managed.use(ZIO.succeed(_)))(isTrue)
@@ -838,7 +838,7 @@ object ZManagedSpec extends ZIOBaseSpec {
         managed.exit.use(res => ZIO.succeed(assert(res)(fails(equalTo(ExampleError)))))
       } @@ zioTag(errors)
     ),
-    suite("someOrElseM")(
+    suite("someOrElseManaged")(
       testM("extracts the value from Some") {
         val managed: TaskManaged[Int] = Managed.succeed(Some(1)).someOrElseManaged(Managed.succeed(2))
         managed.use(res => ZIO.succeed(assert(res)(equalTo(1))))
@@ -902,7 +902,7 @@ object ZManagedSpec extends ZIOBaseSpec {
         } yield goodCaseCheck && badCaseCheck
       }
     ) @@ zioTag(errors),
-    suite("rejectM")(
+    suite("rejectManaged")(
       testM("returns failure ignoring value") {
         val goodCase =
           ZManaged
@@ -1569,7 +1569,7 @@ object ZManagedSpec extends ZIOBaseSpec {
       } @@ zioTag(errors)
     ),
     suite("collect")(
-      testM("collectM maps value, if PF matched") {
+      testM("collectManaged maps value, if PF matched") {
         val managed = ZManaged.succeed(42).collectManaged("Oh No!") { case 42 =>
           ZManaged.succeed(84)
         }
@@ -1577,7 +1577,7 @@ object ZManagedSpec extends ZIOBaseSpec {
 
         assertM(effect)(equalTo(84))
       },
-      testM("collectM produces given error, if PF not matched") {
+      testM("collectManaged produces given error, if PF not matched") {
         val managed = ZManaged.succeed(42).collectManaged("Oh No!") { case 43 =>
           ZManaged.succeed(84)
         }

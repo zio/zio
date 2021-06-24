@@ -426,7 +426,8 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
     foldCauseManaged(failure, success)
 
   /**
-   * A more powerful version of `foldM` that allows recovering from any kind of failure except interruptions.
+   * A more powerful version of `foldManaged` that allows recovering from any
+   * kind of failure except interruptions.
    */
   def foldCauseManaged[R1 <: R, E1, A1](
     failure: Cause[E] => ZManaged[R1, E1, A1],
@@ -1315,7 +1316,7 @@ object ZManaged extends ZManagedPlatformSpecific {
       ZManaged.environment.map(f)
   }
 
-  final class AccessMPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+  final class AccessZIOPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[E, A](f: R => ZIO[R, E, A]): ZManaged[R, E, A] =
       ZManaged.environment.mapZIO(f)
   }
@@ -1342,7 +1343,7 @@ object ZManaged extends ZManagedPlatformSpecific {
     val noop: Finalizer = _ => UIO.unit
   }
 
-  final class IfM[R, E](private val b: ZManaged[R, E, Boolean]) extends AnyVal {
+  final class IfManaged[R, E](private val b: ZManaged[R, E, Boolean]) extends AnyVal {
     def apply[R1 <: R, E1 >: E, A](
       onTrue: => ZManaged[R1, E1, A],
       onFalse: => ZManaged[R1, E1, A]
@@ -1357,7 +1358,7 @@ object ZManaged extends ZManagedPlatformSpecific {
       self.provideLayer[E1, R0, R0 with R1](ZLayer.identity[R0] ++ layer)
   }
 
-  final class UnlessM[R, E](private val b: ZManaged[R, E, Boolean]) extends AnyVal {
+  final class UnlessManaged[R, E](private val b: ZManaged[R, E, Boolean]) extends AnyVal {
     def apply[R1 <: R, E1 >: E](managed: => ZManaged[R1, E1, Any]): ZManaged[R1, E1, Unit] =
       b.flatMap(b => if (b) unit else managed.unit)
   }
@@ -1367,7 +1368,7 @@ object ZManaged extends ZManagedPlatformSpecific {
       self.provideSome(ev.update(_, f))
   }
 
-  final class WhenM[R, E](private val b: ZManaged[R, E, Boolean]) extends AnyVal {
+  final class WhenManaged[R, E](private val b: ZManaged[R, E, Boolean]) extends AnyVal {
     def apply[R1 <: R, E1 >: E](managed: => ZManaged[R1, E1, Any]): ZManaged[R1, E1, Unit] =
       b.flatMap(b => if (b) managed.unit else unit)
   }
@@ -1579,14 +1580,14 @@ object ZManaged extends ZManagedPlatformSpecific {
    * Create a managed that accesses the environment.
    */
   @deprecated("use accessZIO", "2.0.0")
-  def accessM[R]: AccessMPartiallyApplied[R] =
+  def accessM[R]: AccessZIOPartiallyApplied[R] =
     accessZIO
 
   /**
    * Create a managed that accesses the environment.
    */
-  def accessZIO[R]: AccessMPartiallyApplied[R] =
-    new AccessMPartiallyApplied
+  def accessZIO[R]: AccessZIOPartiallyApplied[R] =
+    new AccessZIOPartiallyApplied
 
   /**
    * Create a managed that accesses the environment.
@@ -1740,7 +1741,7 @@ object ZManaged extends ZManagedPlatformSpecific {
 
   /**
    * Evaluate each effect in the structure from left to right, and discard the
-   * results. For a parallel version, see `collectAllPar_`.
+   * results. For a parallel version, see `collectAllParDiscard`.
    */
   def collectAllDiscard[R, E, A](ms: Iterable[ZManaged[R, E, A]]): ZManaged[R, E, Unit] =
     foreachDiscard(ms)(ZIO.identityFn)
@@ -1764,7 +1765,7 @@ object ZManaged extends ZManagedPlatformSpecific {
 
   /**
    * Evaluate each effect in the structure in parallel, and discard the
-   * results. For a sequential version, see `collectAll_`.
+   * results. For a sequential version, see `collectAllDiscard`.
    */
   def collectAllParDiscard[R, E, A](as: Iterable[ZManaged[R, E, A]]): ZManaged[R, E, Unit] =
     foreachParDiscard(as)(ZIO.identityFn)
@@ -1792,9 +1793,9 @@ object ZManaged extends ZManagedPlatformSpecific {
 
   /**
    * Evaluate each effect in the structure in parallel, and discard the
-   * results. For a sequential version, see `collectAll_`.
+   * results. For a sequential version, see `collectAllDiscard`.
    *
-   * Unlike `CollectAllPar_`, this method will use at most `n` fibers.
+   * Unlike `collectAllParDiscard`, this method will use at most `n` fibers.
    */
   def collectAllParNDiscard[R, E, A](n: Int)(as: Iterable[ZManaged[R, E, A]]): ZManaged[R, E, Unit] =
     foreachParNDiscard(n)(as)(ZIO.identityFn)
@@ -2000,7 +2001,8 @@ object ZManaged extends ZManagedPlatformSpecific {
    * returns the results in a new `Collection[B]`.
    *
    * For a parallel version of this method, see `foreachPar`.
-   * If you do not need the results, see `foreach_` for a more efficient implementation.
+   * If you do not need the results, see `foreachDiscard` for a more efficient
+   * implementation.
    */
   def foreach[R, E, A1, A2, Collection[+Element] <: Iterable[Element]](in: Collection[A1])(
     f: A1 => ZManaged[R, E, A2]
@@ -2112,7 +2114,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * Applies the function `f` to each element of the `Iterable[A]` and runs
    * produced effects in parallel, discarding the results.
    *
-   * For a sequential version of this method, see `foreach_`.
+   * For a sequential version of this method, see `foreachDiscard`.
    */
   def foreachParDiscard[R, E, A](as: Iterable[A])(f: A => ZManaged[R, E, Any]): ZManaged[R, E, Unit] =
     ReleaseMap.makeManaged(ExecutionStrategy.Parallel).mapZIO { parallelReleaseMap =>
@@ -2142,7 +2144,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * Applies the function `f` to each element of the `Iterable[A]` and runs
    * produced effects in parallel, discarding the results.
    *
-   * Unlike `foreachPar_`, this method will use at most up to `n` fibers.
+   * Unlike `foreachParDiscard`, this method will use at most up to `n` fibers.
    */
   def foreachParNDiscard[R, E, A](
     n: Int
@@ -2200,15 +2202,15 @@ object ZManaged extends ZManagedPlatformSpecific {
    * Lifts an effectful function whose effect requires no environment into
    * an effect that requires the input to the function.
    */
-  @deprecated("use fromFunctionZIO", "2.0.0")
+  @deprecated("use fromFunctionManaged", "2.0.0")
   def fromFunctionM[R, E, A](f: R => ZManaged[Any, E, A]): ZManaged[R, E, A] =
-    fromFunctionZIO(f)
+    fromFunctionManaged(f)
 
   /**
    * Lifts an effectful function whose effect requires no environment into
    * an effect that requires the input to the function.
    */
-  def fromFunctionZIO[R, E, A](f: R => ZManaged[Any, E, A]): ZManaged[R, E, A] =
+  def fromFunctionManaged[R, E, A](f: R => ZManaged[Any, E, A]): ZManaged[R, E, A] =
     flatten(fromFunction(f))
 
   /**
@@ -2293,14 +2295,14 @@ object ZManaged extends ZManagedPlatformSpecific {
    * Runs `onTrue` if the result of `b` is `true` and `onFalse` otherwise.
    */
   @deprecated("use ifZManaged", "2.0.0")
-  def ifM[R, E](b: ZManaged[R, E, Boolean]): ZManaged.IfM[R, E] =
+  def ifM[R, E](b: ZManaged[R, E, Boolean]): ZManaged.IfManaged[R, E] =
     ifManaged(b)
 
   /**
    * Runs `onTrue` if the result of `b` is `true` and `onFalse` otherwise.
    */
-  def ifManaged[R, E](b: ZManaged[R, E, Boolean]): ZManaged.IfM[R, E] =
-    new ZManaged.IfM(b)
+  def ifManaged[R, E](b: ZManaged[R, E, Boolean]): ZManaged.IfManaged[R, E] =
+    new ZManaged.IfManaged(b)
 
   /**
    * Returns an effect that is interrupted as if by the fiber calling this
@@ -2852,7 +2854,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * val elements = List(1, 2, 3, 4)
    * val writingProgram =
    *   ZManaged.switchable[Any, Throwable, FileWriter].use { switchWriter =>
-   *     ZIO.foreach_(elements) { element =>
+   *     ZIO.foreachDiscard(elements) { element =>
    *       for {
    *         writer <- switchWriter(makeWriter.toManaged(_.close))
    *         _      <- writer.write(element)
@@ -2901,14 +2903,14 @@ object ZManaged extends ZManagedPlatformSpecific {
    * The moral equivalent of `if (!p) exp` when `p` has side-effects
    */
   @deprecated("use unlessManaged", "2.0.0")
-  def unlessM[R, E](b: ZManaged[R, E, Boolean]): ZManaged.UnlessM[R, E] =
+  def unlessM[R, E](b: ZManaged[R, E, Boolean]): ZManaged.UnlessManaged[R, E] =
     unlessManaged(b)
 
   /**
    * The moral equivalent of `if (!p) exp` when `p` has side-effects
    */
-  def unlessManaged[R, E](b: ZManaged[R, E, Boolean]): ZManaged.UnlessM[R, E] =
-    new ZManaged.UnlessM(b)
+  def unlessManaged[R, E](b: ZManaged[R, E, Boolean]): ZManaged.UnlessManaged[R, E] =
+    new ZManaged.UnlessManaged(b)
 
   /**
    * The inverse operation to `sandbox`. Submerges the full cause of failure.
@@ -2955,14 +2957,14 @@ object ZManaged extends ZManagedPlatformSpecific {
    * The moral equivalent of `if (p) exp` when `p` has side-effects
    */
   @deprecated("use whenManaged", "2.0.0")
-  def whenM[R, E](b: ZManaged[R, E, Boolean]): ZManaged.WhenM[R, E] =
+  def whenM[R, E](b: ZManaged[R, E, Boolean]): ZManaged.WhenManaged[R, E] =
     whenManaged(b)
 
   /**
    * The moral equivalent of `if (p) exp` when `p` has side-effects
    */
-  def whenManaged[R, E](b: ZManaged[R, E, Boolean]): ZManaged.WhenM[R, E] =
-    new ZManaged.WhenM(b)
+  def whenManaged[R, E](b: ZManaged[R, E, Boolean]): ZManaged.WhenManaged[R, E] =
+    new ZManaged.WhenManaged(b)
 
   /**
    * Locally installs a supervisor and an effect that succeeds with all the

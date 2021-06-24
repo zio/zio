@@ -140,7 +140,7 @@ These functions can be used to wrap procedural code, allowing you to seamlessly 
 
 ### Synchronous Side-Effects
 
-A synchronous side-effect can be converted into a ZIO effect using `ZIO.effect`:
+A synchronous side-effect can be converted into a ZIO effect using `ZIO.attempt`:
 
 ```scala mdoc:silent
 import scala.io.StdIn
@@ -171,7 +171,7 @@ val readLine2: IO[IOException, String] =
 
 ### Asynchronous Side-Effects
 
-An asynchronous side-effect with a callback-based API can be converted into a ZIO effect using `ZIO.effectAsync`:
+An asynchronous side-effect with a callback-based API can be converted into a ZIO effect using `ZIO.async`:
 
 ```scala mdoc:invisible
 trait User { 
@@ -204,7 +204,7 @@ Some side-effects use blocking IO or otherwise put a thread into a waiting state
 
 ZIO provides `zio.Blocking`, which can be used to safely convert such blocking side-effects into ZIO effects.
 
-A blocking side-effect can be converted directly into a ZIO effect blocking with the `effectBlocking` method:
+A blocking side-effect can be converted directly into a ZIO effect blocking with the `attemptBlocking` method:
 
 ```scala mdoc:silent
 val sleeping =
@@ -213,9 +213,9 @@ val sleeping =
 
 The resulting effect will be executed on a separate thread pool designed specifically for blocking effects.
 
-Blocking side-effects can be interrupted by invoking `Thread.interrupt` using the `effectBlockingInterrupt` method.
+Blocking side-effects can be interrupted by invoking `Thread.interrupt` using the `attemptBlockingInterrupt` method.
 
-Some blocking side-effects can only be interrupted by invoking a cancellation effect. You can convert these side-effects using the `effectBlockingCancelable` method:
+Some blocking side-effects can only be interrupted by invoking a cancellation effect. You can convert these side-effects using the `attemptBlockingCancelable` method:
 
 ```scala mdoc:silent
 import java.net.ServerSocket
@@ -225,7 +225,7 @@ def accept(l: ServerSocket) =
   ZIO.attemptBlockingCancelable(l.accept())(UIO.succeed(l.close()))
 ```
 
-If a side-effect has already been converted into a ZIO effect, then instead of `effectBlocking`, the `blocking` method can be used to ensure the effect will be executed on the blocking thread pool:
+If a side-effect has already been converted into a ZIO effect, then instead of `attemptBlocking`, the `blocking` method can be used to ensure the effect will be executed on the blocking thread pool:
 
 ```scala mdoc:silent
 import scala.io.{ Codec, Source }

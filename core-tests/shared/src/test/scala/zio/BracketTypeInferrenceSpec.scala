@@ -1,6 +1,6 @@
 package zio
 
-object BracketTypeInferenceSpec {
+object AcquireReleaseWithTypeInferenceSpec {
   class A
   class B
   class R

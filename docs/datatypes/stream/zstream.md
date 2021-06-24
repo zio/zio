@@ -181,7 +181,7 @@ val userInput: ZStream[Has[Console], IOException, String] =
 
 ### From Asynchronous Callback
 
-Assume we have an asynchronous function that is based on callbacks. We would like to register a callbacks on that function and get back a stream of the results emitted by those callbacks. We have `ZStream.effectAsync` which can adapt functions that call their callbacks multiple times and emit the results over a stream:
+Assume we have an asynchronous function that is based on callbacks. We would like to register a callbacks on that function and get back a stream of the results emitted by those callbacks. We have `ZStream.async` which can adapt functions that call their callbacks multiple times and emit the results over a stream:
 
 ```scala mdoc:silent:nest
 // Asynchronous Callback-based API
@@ -192,7 +192,7 @@ def registerCallback(
 ): Unit = ???
 
 // Lifting an Asynchronous API to ZStream
-val stream = ZStream.effectAsync[Any, Throwable, Int] { cb =>
+val stream = ZStream.async[Any, Throwable, Int] { cb =>
   registerCallback(
     "foo",
     event => cb(ZIO.succeed(Chunk(event))),
@@ -386,7 +386,7 @@ def countdown(n: Int) = ZStream.unfold(n) {
 
 Running this function with an input value of 3 returns a `ZStream` which contains 3, 2, 1 values.
 
-**ZStream.unfoldM** — `unfoldM` is an effectful version of `unfold`. It helps us to perform _effectful state transformation_ when doing unfold operation.
+**ZStream.unfoldZIO** — `unfoldZIO` is an effectful version of `unfold`. It helps us to perform _effectful state transformation_ when doing unfold operation.
 
 Let's write a stream of lines of input from a user until the user enters the `exit` command:
 
@@ -610,22 +610,22 @@ val stream: ZStream[Has[Clock], Nothing, Long] =
 
 Most of the constructors of `ZStream` have a special variant to lift a Managed resource to a Stream (e.g. `ZStream.fromReaderManaged`). By using these constructors, we are creating streams that are resource-safe. Before creating a stream, they acquire the resource, and after usage; they close the stream.
 
-ZIO Stream also has `bracket` and `finalizer` constructors which are similar to `ZManaged`. They allow us to clean up or finalizing before the stream ends:
+ZIO Stream also has `acquireRelease` and `finalizer` constructors which are similar to `ZManaged`. They allow us to clean up or finalizing before the stream ends:
 
-#### Bracket
+#### Acquire Release
 
-We can provide `acquire` and `release` actions to `ZStream.bracket` to create a resourceful stream:
+We can provide `acquire` and `release` actions to `ZStream.acquireReleaseWith` to create a resourceful stream:
 
 ```scala
 object ZStream {
-  def bracket[R, E, A](
+  def acquireReleaseWith[R, E, A](
     acquire: ZIO[R, E, A]
   )(
     release: A => URIO[R, Any]
   ): ZStream[R, E, A] = ???
 ```
 
-Let's see an example of using a bracket when reading a file. In this example, by providing `acquire` and `release` actions to `ZStream.bracket`, it gives us a managed stream of `BufferedSource`. As this stream is managed, we can convert that `BufferedSource` to a stream of its lines and then run it, without worrying about resource leakage:
+Let's see an example of using an acquire release when reading a file. In this example, by providing `acquire` and `release` actions to `ZStream.acquireReleaseWith`, it gives us a managed stream of `BufferedSource`. As this stream is managed, we can convert that `BufferedSource` to a stream of its lines and then run it, without worrying about resource leakage:
 
 ```scala mdoc:silent:nest
 import zio.Console._
@@ -732,9 +732,9 @@ val intStream: UStream[Int] = Stream.fromIterable(0 to 100)
 val stringStream: UStream[String] = intStream.map(_.toString)
 ```
 
-If our transformation is effectful, we can use `ZStream#mapM` instead.
+If our transformation is effectful, we can use `ZStream#mapZIO` instead.
 
-**mapMPar** —  It is similar to `mapM`, but will evaluate effects in parallel. It will emit the results downstream in the original order. The `n` argument specifies the number of concurrent running effects.
+**mapZIOPar** —  It is similar to `mapZIO`, but will evaluate effects in parallel. It will emit the results downstream in the original order. The `n` argument specifies the number of concurrent running effects.
 
 Let's write a simple page downloader, which download URLs concurrently:
 
@@ -950,7 +950,7 @@ val s8 = source2.map(_.toOption).collectWhileSome
 // Output: empty stream
 ```
 
-We can also do effectful collect using `ZStream#collectM` and `ZStream#collectWhileM`.
+We can also do effectful collect using `ZStream#collectZIO` and `ZStream#collectWhileZIO`.
 
 ZIO stream has `ZStream#collectSuccess` which helps us to perform effectful operations and just collect the success values:
 
@@ -1615,7 +1615,7 @@ Elements are grouped into Chunks of 5 elements and then processed in a batch way
 Asynchronous aggregations, aggregate elements of upstream as long as the downstream operators are busy. To apply an asynchronous aggregation to the stream, we can use `ZStream#aggregateAsync`, `ZStream#aggregateAsyncWithin`, and `ZStream#aggregateAsyncWithinEither` operations.
 
 
-For example, consider `source.aggregateAsync(ZTransducer.collectAllN(5)).mapM(processChunks)`. Whenever the downstream (`mapM(processChunks)`) is ready for consumption and pulls the upstream, the transducer `(ZTransducer.collectAllN(5))` will flush out its buffer, regardless of whether the `collectAllN` buffered all its 5 elements or not. So the `ZStream#aggregateAsync` will emit when downstream pulls:
+For example, consider `source.aggregateAsync(ZTransducer.collectAllN(5)).mapZIO(processChunks)`. Whenever the downstream (`mapZIO(processChunks)`) is ready for consumption and pulls the upstream, the transducer `(ZTransducer.collectAllN(5))` will flush out its buffer, regardless of whether the `collectAllN` buffered all its 5 elements or not. So the `ZStream#aggregateAsync` will emit when downstream pulls:
 
 ```scala mdoc:silent:nest
 val myApp = 

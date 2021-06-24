@@ -147,7 +147,17 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    * Effectfully folds over all nodes according to the execution strategy of
    * suites, utilizing the specified default for other cases.
    */
+  @deprecated("use foldManaged", "2.0.0")
   final def foldM[R1 <: R, E1, Z](
+    defExec: ExecutionStrategy
+  )(f: SpecCase[R, E, T, Z] => ZManaged[R1, E1, Z]): ZManaged[R1, E1, Z] =
+    foldManaged(defExec)(f)
+
+  /**
+   * Effectfully folds over all nodes according to the execution strategy of
+   * suites, utilizing the specified default for other cases.
+   */
+  final def foldManaged[R1 <: R, E1, Z](
     defExec: ExecutionStrategy
   )(f: SpecCase[R, E, T, Z] => ZManaged[R1, E1, Z]): ZManaged[R1, E1, Z] =
     caseValue match {
@@ -155,7 +165,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
         specs.foldCauseManaged(
           c => f(SuiteCase(label, ZManaged.halt(c), exec)),
           ZManaged
-            .foreachExec(_)(exec.getOrElse(defExec))(_.foldM(defExec)(f).release)
+            .foreachExec(_)(exec.getOrElse(defExec))(_.foldManaged(defExec)(f).release)
             .flatMap(z => f(SuiteCase(label, ZManaged.succeedNow(z.toVector), exec)))
         )
       case t @ TestCase(_, _, _) => f(t)
@@ -179,7 +189,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
   final def foreachExec[R1 <: R, E1, A](
     defExec: ExecutionStrategy
   )(failure: Cause[E] => ZIO[R1, E1, A], success: T => ZIO[R1, E1, A]): ZManaged[R1, Nothing, Spec[R1, E1, A]] =
-    foldM[R1, Nothing, Spec[R1, E1, A]](defExec) {
+    foldManaged[R1, Nothing, Spec[R1, E1, A]](defExec) {
       case SuiteCase(label, specs, exec) =>
         specs.foldCause(
           e => Spec.test(label, failure(e), TestAnnotationMap.empty),
@@ -424,12 +434,21 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    * Runs the spec only if the specified predicate is satisfied.
    */
   final def when(b: => Boolean)(implicit ev: T <:< TestSuccess): Spec[R with Has[Annotations], E, TestSuccess] =
-    whenM(ZIO.succeedNow(b))
+    whenZIO(ZIO.succeedNow(b))
 
   /**
    * Runs the spec only if the specified effectual predicate is satisfied.
    */
+  @deprecated("use whenZIO", "2.0.0")
   final def whenM[R1 <: R, E1 >: E](
+    b: ZIO[R1, E1, Boolean]
+  )(implicit ev: T <:< TestSuccess): Spec[R1 with Has[Annotations], E1, TestSuccess] =
+    whenZIO(b)
+
+  /**
+   * Runs the spec only if the specified effectual predicate is satisfied.
+   */
+  final def whenZIO[R1 <: R, E1 >: E](
     b: ZIO[R1, E1, Boolean]
   )(implicit ev: T <:< TestSuccess): Spec[R1 with Has[Annotations], E1, TestSuccess] =
     caseValue match {

@@ -67,7 +67,7 @@ object STM {
     ZSTM.collectAll_(in)
 
   /**
-   * @see See [[zio.stm.ZSTM.collectAll_]]
+   * @see See [[zio.stm.ZSTM.Discard]]
    */
   def collectAllDiscard[E, A](in: Iterable[STM[E, A]]): STM[E, Unit] =
     ZSTM.collectAllDiscard(in)
@@ -194,7 +194,7 @@ object STM {
     ZSTM.foreach_(in)(f)
 
   /**
-   * @see See [[zio.stm.ZSTM.foreach_]]
+   * @see See [[zio.stm.ZSTM.foreachDiscard]]
    */
   def foreachDiscard[E, A](in: Iterable[A])(f: A => STM[E, Any]): STM[E, Unit] =
     ZSTM.foreachDiscard(in)(f)
@@ -219,7 +219,7 @@ object STM {
     ZSTM.fromFunctionM(f)
 
   /**
-   * @see See [[zio.stm.ZSTM.fromFunctionM]]
+   * @see See [[zio.stm.ZSTM.fromFunctionSTM]]
    */
   def fromFunctionSTM[E, A](f: Any => STM[E, A]): STM[E, A] =
     ZSTM.fromFunctionSTM(f)
@@ -245,13 +245,13 @@ object STM {
    * @see See [[zio.stm.ZSTM.ifM]]
    */
   @deprecated("use ifSTM", "2.0.0")
-  def ifM[E](b: STM[E, Boolean]): ZSTM.IfM[Any, E] =
+  def ifM[E](b: STM[E, Boolean]): ZSTM.IfSTM[Any, E] =
     ZSTM.ifM(b)
 
   /**
-   * @see See [[zio.stm.ZSTM.ifM]]
+   * @see See [[zio.stm.ZSTM.ifSTM]]
    */
-  def ifSTM[E](b: STM[E, Boolean]): ZSTM.IfM[Any, E] =
+  def ifSTM[E](b: STM[E, Boolean]): ZSTM.IfSTM[Any, E] =
     ZSTM.ifSTM(b)
 
   /**
@@ -280,7 +280,7 @@ object STM {
     ZSTM.loop_(initial)(cont, inc)(body)
 
   /**
-   * @see See [[zio.stm.ZSTM.loop_]]
+   * @see See [[zio.stm.ZSTM.loopDiscard]]
    */
   def loopDiscard[E, S](initial: S)(cont: S => Boolean, inc: S => S)(body: S => STM[E, Any]): STM[E, Unit] =
     ZSTM.loopDiscard(initial)(cont, inc)(body)
@@ -348,27 +348,27 @@ object STM {
     ZSTM.replicate(n)(tx)
 
   /**
-   * @see See [[zio.stm.ZSTM.replicate]]
+   * @see See [[zio.stm.ZSTM.replicateM]]
    */
   @deprecated("use replicateSTM", "2.0.0")
   def replicateM[E, A](n: Int)(transaction: STM[E, A]): STM[E, Iterable[A]] =
     ZSTM.replicateM(n)(transaction)
 
   /**
-   * @see See [[zio.stm.ZSTM.replicate]]
+   * @see See [[zio.stm.ZSTM.replicateM_]]
    */
   @deprecated("use replicateSTMDiscard", "2.0.0")
   def replicateM_[E, A](n: Int)(transaction: STM[E, A]): STM[E, Unit] =
     ZSTM.replicateM_(n)(transaction)
 
   /**
-   * @see See [[zio.stm.ZSTM.replicate]]
+   * @see See [[zio.stm.ZSTM.replicateSTM]]
    */
   def replicateSTM[E, A](n: Int)(transaction: STM[E, A]): STM[E, Iterable[A]] =
     ZSTM.replicateSTM(n)(transaction)
 
   /**
-   * @see See [[zio.stm.ZSTM.replicate]]
+   * @see See [[zio.stm.ZSTM.replicateSTMDiscard]]
    */
   def replicateSTMDiscard[E, A](n: Int)(transaction: STM[E, A]): STM[E, Unit] =
     ZSTM.replicateSTMDiscard(n)(transaction)
@@ -425,13 +425,13 @@ object STM {
    * @see See [[zio.stm.ZSTM.unlessM]]
    */
   @deprecated("use unlessSTM", "2.0.0")
-  def unlessM[E](b: STM[E, Boolean]): ZSTM.UnlessM[Any, E] =
+  def unlessM[E](b: STM[E, Boolean]): ZSTM.UnlessSTM[Any, E] =
     ZSTM.unlessM(b)
 
   /**
-   * @see See [[zio.stm.ZSTM.unlessM]]
+   * @see See [[zio.stm.ZSTM.unlessSTM]]
    */
-  def unlessSTM[E](b: STM[E, Boolean]): ZSTM.UnlessM[Any, E] =
+  def unlessSTM[E](b: STM[E, Boolean]): ZSTM.UnlessSTM[Any, E] =
     ZSTM.unlessSTM(b)
 
   /**
@@ -477,7 +477,7 @@ object STM {
     ZSTM.whenCaseM(a)(pf)
 
   /**
-   * @see See [[zio.stm.ZSTM.whenCaseM]]
+   * @see See [[zio.stm.ZSTM.whenCaseSTM]]
    */
   def whenCaseSTM[E, A](a: STM[E, A])(pf: PartialFunction[A, STM[E, Any]]): STM[E, Unit] =
     ZSTM.whenCaseSTM(a)(pf)
@@ -486,13 +486,13 @@ object STM {
    * @see See [[zio.stm.ZSTM.whenM]]
    */
   @deprecated("use whenSTM", "2.0.0")
-  def whenM[E](b: STM[E, Boolean]): ZSTM.WhenM[Any, E] =
+  def whenM[E](b: STM[E, Boolean]): ZSTM.WhenSTM[Any, E] =
     ZSTM.whenM(b)
 
   /**
-   * @see See [[zio.stm.ZSTM.whenM]]
+   * @see See [[zio.stm.ZSTM.whenSTM]]
    */
-  def whenSTM[E](b: STM[E, Boolean]): ZSTM.WhenM[Any, E] =
+  def whenSTM[E](b: STM[E, Boolean]): ZSTM.WhenSTM[Any, E] =
     ZSTM.whenSTM(b)
 
   private[zio] def succeedNow[A](a: A): USTM[A] =

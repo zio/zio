@@ -190,18 +190,18 @@ Defining hubs polymorphically like this allows us to describe hubs that potentia
 
 To create a polymorphic hub we begin with a normal hub as described above and then add logic to it for transforming its inputs or outputs.
 
-We can transform the type of messages received from the hub using the `map` and `mapM` operators.
+We can transform the type of messages received from the hub using the `map` and `mapZIO` operators.
 
 ```scala mdoc:nest
 trait ZHub[-RA, -RB, +EA, +EB, -A, +B] {
   def map[C](f: B => C): ZHub[RA, RB, EA, EB, A, C]
-  def mapM[RC <: RB, EC >: EB, C](f: B => ZIO[RC, EC, C]): ZHub[RA, RC, EA, EC, A, C]
+  def mapZIO[RC <: RB, EC >: EB, C](f: B => ZIO[RC, EC, C]): ZHub[RA, RC, EA, EC, A, C]
 }
 ```
 
 The `map` operator allows us to transform the type of messages received from the hub with the specified function. Conceptually, every time a message is taken from the hub by a subscriber it will first be transformed with the function `f` before being received by the subscriber.
 
-The `mapM` operator works the same way except it allows us to perform an effect each time a value is taken from the hub. We could use this for example to log each time a message is taken from the hub.
+The `mapZIO` operator works the same way except it allows us to perform an effect each time a value is taken from the hub. We could use this for example to log each time a message is taken from the hub.
 
 ```scala mdoc:reset:invisible
 import zio._
@@ -218,18 +218,18 @@ val hubWithLogging: ZHub[Any, Has[Clock] with Has[Console], Nothing, Nothing, In
   }
 ```
 
-Note that the specified function in `map` or `mapM` will be applied each time a message is taken from the hub by a subscriber. Thus, if there are `n` subscribers to the hub the function will be evaluated `n` times for each message published to the hub.
+Note that the specified function in `map` or `mapZIO` will be applied each time a message is taken from the hub by a subscriber. Thus, if there are `n` subscribers to the hub the function will be evaluated `n` times for each message published to the hub.
 
 This can be useful if we want to, for example, observe the different times that different subscribers are taking messages from the hub as in the example above. However, it is less efficient if we want to apply a transformation once for each value published to the hub.
 
-For this we can use the `contramap` and `contramapM` operators defined on `ZHub`.
+For this we can use the `contramap` and `contramapZIO` operators defined on `ZHub`.
 
 ```scala mdoc:nest
 trait ZHub[-RA, -RB, +EA, +EB, -A, +B] {
   def contramap[C](
     f: C => A
   ): ZHub[RA, RB, EA, EB, C, B]
-  def contramapM[RC <: RA, EC >: EA, C](
+  def contramapZIO[RC <: RA, EC >: EA, C](
     f: C => ZIO[RC, EC, A]
   ): ZHub[RC, RB, EC, EB, C, B]
 }
@@ -237,7 +237,7 @@ trait ZHub[-RA, -RB, +EA, +EB, -A, +B] {
 
 The `contramap` operator allows us to transform each value published to the hub by applying the specified function. Conceptually it returns a new hub where every time we publish a value we first transform it with the specified function before publishing it to the original hub.
 
-The `contramapM` operator works the same way except it allows us to perform an effect each time a message is published to the hub.
+The `contramapZIO` operator works the same way except it allows us to perform an effect each time a message is published to the hub.
 
 Using these operators, we could describe a hub that validates its inputs, allowing publishers to publish raw data and subscribers to receive validated data while signaling to publishers when data they attempt to publish is not valid.
 
@@ -254,7 +254,7 @@ val hubWithLogging: ZHub[Any, Any, String, Nothing, String, Int] =
   }
 ```
 
-We can also transform inputs and outputs at the same time using the `dimap` or `dimapM` operators.
+We can also transform inputs and outputs at the same time using the `dimap` or `dimapZIO` operators.
 
 ```scala mdoc:nest
 trait ZHub[-RA, -RB, +EA, +EB, -A, +B] {
@@ -262,14 +262,14 @@ trait ZHub[-RA, -RB, +EA, +EB, -A, +B] {
     f: C => A,
     g: B => D
   ): ZHub[RA, RB, EA, EB, C, D]
-  def dimapM[RC <: RA, RD <: RB, EC >: EA, ED >: EB, C, D](
+  def dimapZIO[RC <: RA, RD <: RB, EC >: EA, ED >: EB, C, D](
     f: C => ZIO[RC, EC, A],
     g: B => ZIO[RD, ED, D]
   ): ZHub[RC, RD, EC, ED, C, D]
 }
 ```
 
-These correspond to transforming the inputs and outputs of a hub at the same time using the specified functions. This is the same as transforming the outputs with `map` or `mapM` and the inputs with `contramap` or `contramapM`.
+These correspond to transforming the inputs and outputs of a hub at the same time using the specified functions. This is the same as transforming the outputs with `map` or `mapZIO` and the inputs with `contramap` or `contramapZIO`.
 
 In addition to just transforming the inputs and outputs of a hub we can also filter the inputs or outputs of a hub.
 
@@ -278,13 +278,13 @@ trait ZHub[-RA, -RB, +EA, +EB, -A, +B] {
   def filterInput[A1 <: A](
     f: A1 => Boolean
   ): ZHub[RA, RB, EA, EB, A1, B]
-  def filterInputM[RA1 <: RA, EA1 >: EA, A1 <: A](
+  def filterInputZIO[RA1 <: RA, EA1 >: EA, A1 <: A](
     f: A1 => ZIO[RA1, EA1, Boolean]
   ): ZHub[RA1, RB, EA1, EB, A1, B]
   def filterOutput(
     f: B => Boolean
   ): ZHub[RA, RB, EA, EB, A, B]
-  def filterOutputM[RB1 <: RB, EB1 >: EB](
+  def filterOutputZIO[RB1 <: RB, EB1 >: EB](
     f: B => ZIO[RB1, EB1, Boolean]
   ): ZHub[RA, RB1, EA, EB1, A, B]
 }

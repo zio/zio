@@ -102,7 +102,7 @@ object TestAspect extends TimeoutVariants {
    * Constructs an aspect that runs the specified effect after all tests.
    */
   def afterAll[R0](effect: ZIO[R0, Nothing, Any]): TestAspect[Nothing, R0, Nothing, Any] =
-    aroundAll_(ZIO.unit, effect)
+    aroundAll(ZIO.unit, effect)
 
   /**
    * Annotates tests with the specified test annotation.
@@ -118,7 +118,7 @@ object TestAspect extends TimeoutVariants {
    * `before` and `after`,  where the result of `before` can be used in
    * `after`.
    */
-  def around[R0, E0, A0](
+  def aroundWith[R0, E0, A0](
     before: ZIO[R0, E0, A0]
   )(after: A0 => ZIO[R0, Nothing, Any]): TestAspect[Nothing, R0, E0, Any] =
     new TestAspect.PerTest[Nothing, R0, E0, Any] {
@@ -130,15 +130,15 @@ object TestAspect extends TimeoutVariants {
    * A less powerful variant of `around` where the result of `before` is not
    * required by after.
    */
-  def around_[R0, E0](before: ZIO[R0, E0, Any], after: ZIO[R0, Nothing, Any]): TestAspect[Nothing, R0, E0, Any] =
-    around(before)(_ => after)
+  def around[R0, E0](before: ZIO[R0, E0, Any], after: ZIO[R0, Nothing, Any]): TestAspect[Nothing, R0, E0, Any] =
+    aroundWith(before)(_ => after)
 
   /**
    * Constructs an aspect that evaluates all tests between two effects,
    * `before` and `after`, where the result of `before` can be used in
    * `after`.
    */
-  def aroundAll[R0, E0, A0](
+  def aroundAllWith[R0, E0, A0](
     before: ZIO[R0, E0, A0]
   )(after: A0 => ZIO[R0, Nothing, Any]): TestAspect[Nothing, R0, E0, Any] =
     new TestAspect[Nothing, R0, E0, Any] {
@@ -162,8 +162,8 @@ object TestAspect extends TimeoutVariants {
    * A less powerful variant of `aroundAll` where the result of `before` is not
    * required by `after`.
    */
-  def aroundAll_[R0, E0](before: ZIO[R0, E0, Any], after: ZIO[R0, Nothing, Any]): TestAspect[Nothing, R0, E0, Any] =
-    aroundAll(before)(_ => after)
+  def aroundAll[R0, E0](before: ZIO[R0, E0, Any], after: ZIO[R0, Nothing, Any]): TestAspect[Nothing, R0, E0, Any] =
+    aroundAllWith(before)(_ => after)
 
   /**
    * Constructs an aspect that evaluates every test inside the context of the
@@ -205,7 +205,7 @@ object TestAspect extends TimeoutVariants {
    * all tests.
    */
   def beforeAll[R0, E0](effect: ZIO[R0, E0, Any]): TestAspect[Nothing, R0, E0, Any] =
-    aroundAll_(effect, ZIO.unit)
+    aroundAll(effect, ZIO.unit)
 
   /**
    * An aspect that runs each test on a separate fiber and prints a fiber dump
@@ -431,7 +431,7 @@ object TestAspect extends TimeoutVariants {
   def ifEnv(env: String, assertion: Assertion[String]): TestAspectAtLeastR[Has[Live] with Has[Annotations]] =
     new TestAspectAtLeastR[Has[Live] with Has[Annotations]] {
       def some[R <: Has[Live] with Has[Annotations], E](predicate: String => Boolean, spec: ZSpec[R, E]): ZSpec[R, E] =
-        spec.whenM(Live.live(System.env(env)).orDie.map(_.fold(false)(assertion.test)))
+        spec.whenZIO(Live.live(System.env(env)).orDie.map(_.fold(false)(assertion.test)))
     }
 
   /**
@@ -448,7 +448,7 @@ object TestAspect extends TimeoutVariants {
   def ifProp(prop: String, assertion: Assertion[String]): TestAspectAtLeastR[Has[Live] with Has[Annotations]] =
     new TestAspectAtLeastR[Has[Live] with Has[Annotations]] {
       def some[R <: Has[Live] with Has[Annotations], E](predicate: String => Boolean, spec: ZSpec[R, E]): ZSpec[R, E] =
-        spec.whenM(Live.live(System.property(prop)).orDie.map(_.fold(false)(assertion.test)))
+        spec.whenZIO(Live.live(System.property(prop)).orDie.map(_.fold(false)(assertion.test)))
     }
 
   /**
@@ -642,7 +642,7 @@ object TestAspect extends TimeoutVariants {
    * tests.
    */
   def restore[R0](service: R0 => Restorable): TestAspectAtLeastR[R0] =
-    around(ZIO.accessZIO[R0](r => service(r).save))(restore => restore)
+    aroundWith(ZIO.accessZIO[R0](r => service(r).save))(restore => restore)
 
   /**
    * An aspect that restores the

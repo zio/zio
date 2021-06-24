@@ -209,7 +209,7 @@ object ZChannelSpec extends ZIOBaseSpec {
                       .exit
           } yield assert(exit)(fails(equalTo("error")))
         },
-        testM("upstream bracketOut + downstream failure") {
+        testM("upstream acquireReleaseOut + downstream failure") {
           assertM(Ref.make(Chunk[String]()).flatMap { events =>
             ZChannel
               .acquireReleaseOutWith(events.update(_ :+ "Acquired"))(_ => events.update(_ :+ "Released"))

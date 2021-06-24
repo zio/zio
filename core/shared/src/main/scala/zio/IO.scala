@@ -31,25 +31,25 @@ object IO {
     ZIO.absolve(v)
 
   /**
-   * @see See bracket [[zio.ZIO]]
+   * @see See acquireReleaseWith [[zio.ZIO]]
    */
   def acquireReleaseWith[E, A](acquire: IO[E, A]): BracketAcquire[E, A] =
     new BracketAcquire(acquire)
 
   /**
-   * @see See bracket [[zio.ZIO]]
+   * @see See acquireReleaseWith [[zio.ZIO]]
    */
   def acquireReleaseWith[E, A, B](acquire: IO[E, A], release: A => UIO[Any], use: A => IO[E, B]): IO[E, B] =
     ZIO.acquireReleaseWith(acquire, release, use)
 
   /**
-   * @see See bracketExit [[zio.ZIO]]
+   * @see See acquireReleaseExitWith [[zio.ZIO]]
    */
   def acquireReleaseExitWith[E, A](acquire: IO[E, A]): ZIO.BracketExitAcquire[Any, E, A] =
     ZIO.acquireReleaseExitWith(acquire)
 
   /**
-   * @see See bracketExit [[zio.ZIO]]
+   * @see See acquireReleaseExitWith [[zio.ZIO]]
    */
   def acquireReleaseExitWith[E, A, B](
     acquire: IO[E, A],
@@ -70,13 +70,13 @@ object IO {
   def apply[A](a: => A): Task[A] = ZIO.apply(a)
 
   /**
-   * @see See [[zio.ZIO.effectAsync]]
+   * @see See [[zio.ZIO.async]]
    */
   def async[E, A](register: (IO[E, A] => Unit) => Any, blockingOn: List[Fiber.Id] = Nil): IO[E, A] =
     ZIO.async(register, blockingOn)
 
   /**
-   * @see See [[zio.ZIO.effectAsyncInterrupt]]
+   * @see See [[zio.ZIO.asyncInterrupt]]
    */
   def asyncInterrupt[E, A](
     register: (IO[E, A] => Unit) => Either[Canceler[Any], IO[E, A]],
@@ -85,13 +85,13 @@ object IO {
     ZIO.asyncInterrupt(register, blockingOn)
 
   /**
-   * @see See [[zio.ZIO.effectAsyncM]]
+   * @see See [[zio.ZIO.asyncZIO]]
    */
   def asyncZIO[E, A](register: (IO[E, A] => Unit) => IO[E, Any]): IO[E, A] =
     ZIO.asyncZIO(register)
 
   /**
-   * @see See [[zio.ZIO.effectAsyncMaybe]]
+   * @see See [[zio.ZIO.asyncMaybe]]
    */
   def asyncMaybe[E, A](
     register: (IO[E, A] => Unit) => Option[IO[E, A]],
@@ -112,19 +112,19 @@ object IO {
     ZIO.attemptBlocking(effect)
 
   /**
-   * @see See [[zio.ZIO.effectBlockingCancelable]]
+   * @see See [[zio.ZIO.attemptBlockingCancelable]]
    */
   def attemptBlockingCancelable[A](effect: => A)(cancel: UIO[Unit]): Task[A] =
     ZIO.attemptBlockingCancelable(effect)(cancel)
 
   /**
-   * @see See [[zio.ZIO.effectBlockingIO]]
+   * @see See [[zio.ZIO.attemptBlockingIO]]
    */
   def attemptBlockingIO[A](effect: => A): IO[IOException, A] =
     ZIO.attemptBlockingIO(effect)
 
   /**
-   * @see See [[zio.ZIO.effectBlockingInterrupt]]
+   * @see See [[zio.ZIO.attemptBlockingInterrupt]]
    */
   def attemptBlockingInterrupt[A](effect: => A): Task[A] =
     ZIO.attemptBlockingInterrupt(effect)
@@ -227,7 +227,7 @@ object IO {
     ZIO.collectAll_(in)
 
   /**
-   * @see See [[[zio.ZIO.collectAll_[R,E,A](in:Iterable*]]]
+   * @see See [[[zio.ZIO.collectAllDiscard[R,E,A](in:Iterable*]]]
    */
   def collectAllDiscard[E, A](in: Iterable[IO[E, A]]): IO[E, Unit] =
     ZIO.collectAllDiscard(in)
@@ -266,7 +266,7 @@ object IO {
     ZIO.collectAllPar_(in)
 
   /**
-   * @see See [[[zio.ZIO.collectAllPar_[R,E,A](as:Iterable*]]]
+   * @see See [[[zio.ZIO.collectAllParDiscard[R,E,A](as:Iterable*]]]
    */
   def collectAllParDiscard[E, A](in: Iterable[IO[E, A]]): IO[E, Unit] =
     ZIO.collectAllParDiscard(in)
@@ -287,7 +287,7 @@ object IO {
     ZIO.collectAllParN_(n)(as)
 
   /**
-   * @see See [[zio.ZIO.collectAllParN_]]
+   * @see See [[zio.ZIO.collectAllParNDiscard]]
    */
   def collectAllParNDiscard[E, A](n: Int)(as: Iterable[IO[E, A]]): IO[E, Unit] =
     ZIO.collectAllParNDiscard(n)(as)
@@ -712,7 +712,7 @@ object IO {
     ZIO.foreach_(as)(f)
 
   /**
-   * @see See [[[zio.ZIO.foreach_[R,E,A](as:Iterable*]]]
+   * @see See [[[zio.ZIO.foreachDiscard[R,E,A](as:Iterable*]]]
    */
   def foreachDiscard[E, A](as: Iterable[A])(f: A => IO[E, Any]): IO[E, Unit] =
     ZIO.foreachDiscard(as)(f)
@@ -725,7 +725,7 @@ object IO {
     ZIO.foreachPar_(as)(f)
 
   /**
-   * @see See [[[zio.ZIO.foreachPar_[R,E,A](as:Iterable*]]]
+   * @see See [[[zio.ZIO.foreachParDiscard[R,E,A](as:Iterable*]]]
    */
   def foreachParDiscard[E, A, B](as: Iterable[A])(f: A => IO[E, Any]): IO[E, Unit] =
     ZIO.foreachParDiscard(as)(f)
@@ -738,7 +738,7 @@ object IO {
     ZIO.foreachParN_(n)(as)(f)
 
   /**
-   * @see See [[zio.ZIO.foreachParN_]]
+   * @see See [[zio.ZIO.foreachParNDiscard]]
    */
   def foreachParNDiscard[E, A, B](n: Int)(as: Iterable[A])(f: A => IO[E, Any]): IO[E, Unit] =
     ZIO.foreachParNDiscard(n)(as)(f)
@@ -759,7 +759,7 @@ object IO {
     ZIO.forkAll_(as)
 
   /**
-   * @see See [[zio.ZIO.forkAll_]]
+   * @see See [[zio.ZIO.forkAllDiscard]]
    */
   def forkAllDiscard[E, A](as: Iterable[IO[E, A]]): UIO[Unit] =
     ZIO.forkAllDiscard(as)
@@ -784,7 +784,7 @@ object IO {
     ZIO.fromFiberM(fiber)
 
   /**
-   * @see See [[zio.ZIO.fromFiberM]]
+   * @see See [[zio.ZIO.fromFiberZIO]]
    */
   def fromFiberZIO[E, A](fiber: IO[E, Fiber[E, A]]): IO[E, A] =
     ZIO.fromFiberZIO(fiber)
@@ -808,7 +808,7 @@ object IO {
     ZIO.fromFunctionM(f)
 
   /**
-   * @see [[zio.ZIO.fromFunctionM]]
+   * @see [[zio.ZIO.fromFunctionZIO]]
    */
   def fromFunctionZIO[E, A](f: Any => IO[E, A]): IO[E, A] =
     ZIO.fromFunctionZIO(f)
@@ -861,13 +861,13 @@ object IO {
    * @see [[zio.ZIO.ifM]]
    */
   @deprecated("use ifZIO", "2.0.0")
-  def ifM[E](b: IO[E, Boolean]): ZIO.IfM[Any, E] =
+  def ifM[E](b: IO[E, Boolean]): ZIO.IfZIO[Any, E] =
     ZIO.ifM(b)
 
   /**
-   * @see [[zio.ZIO.ifM]]
+   * @see [[zio.ZIO.ifZIO]]
    */
-  def ifZIO[E](b: IO[E, Boolean]): ZIO.IfM[Any, E] =
+  def ifZIO[E](b: IO[E, Boolean]): ZIO.IfZIO[Any, E] =
     ZIO.ifZIO(b)
 
   /**
@@ -923,10 +923,10 @@ object IO {
     ZIO.loop_(initial)(cont, inc)(body)
 
   /**
-   *  @see See [[zio.ZIO.loop_]]
+   *  @see See [[zio.ZIO.loopDiscard]]
    */
   def loopDiscard[E, S](initial: S)(cont: S => Boolean, inc: S => S)(body: S => IO[E, Any]): IO[E, Unit] =
-    ZIO.loop_(initial)(cont, inc)(body)
+    ZIO.loopDiscard(initial)(cont, inc)(body)
 
   /**
    *  @see [[zio.ZIO.mapN[R,E,A,B,C]*]]
@@ -1074,13 +1074,13 @@ object IO {
     ZIO.replicateM_(n)(effect)
 
   /**
-   * @see See [[zio.ZIO.replicateM]]
+   * @see See [[zio.ZIO.replicateZIO]]
    */
   def replicateZIO[E, A](n: Int)(effect: IO[E, A]): IO[E, Iterable[A]] =
     ZIO.replicateZIO(n)(effect)
 
   /**
-   * @see See [[zio.ZIO.replicateM_]]
+   * @see See [[zio.ZIO.replicateZIODiscard]]
    */
   def replicateZIODiscard[E, A](n: Int)(effect: IO[E, A]): IO[E, Unit] =
     ZIO.replicateZIODiscard(n)(effect)
@@ -1184,13 +1184,13 @@ object IO {
    * @see See [[zio.ZIO.unlessM]]
    */
   @deprecated("use unlessZIO", "2.0.0")
-  def unlessM[E](b: IO[E, Boolean]): ZIO.UnlessM[Any, E] =
+  def unlessM[E](b: IO[E, Boolean]): ZIO.UnlessZIO[Any, E] =
     ZIO.unlessM(b)
 
   /**
-   * @see See [[zio.ZIO.unlessM]]
+   * @see See [[zio.ZIO.unlessZIO]]
    */
-  def unlessZIO[E](b: IO[E, Boolean]): ZIO.UnlessM[Any, E] =
+  def unlessZIO[E](b: IO[E, Boolean]): ZIO.UnlessZIO[Any, E] =
     ZIO.unlessZIO(b)
 
   /**
@@ -1227,7 +1227,7 @@ object IO {
     ZIO.validate_(in)(f)
 
   /**
-   * @see See [[zio.ZIO.validate_]]
+   * @see See [[zio.ZIO.validateDiscard]]
    */
   def validateDiscard[E, A](in: Iterable[A])(f: A => IO[E, Any])(implicit ev: CanFail[E]): IO[::[E], Unit] =
     ZIO.validateDiscard(in)(f)
@@ -1256,7 +1256,7 @@ object IO {
     ZIO.validatePar_(in)(f)
 
   /**
-   * @see See [[zio.ZIO.validatePar_]]
+   * @see See [[zio.ZIO.validateParDiscard]]
    */
   def validateParDiscard[E, A](in: Iterable[A])(f: A => IO[E, Any])(implicit ev: CanFail[E]): IO[::[E], Unit] =
     ZIO.validateParDiscard(in)(f)
@@ -1297,7 +1297,7 @@ object IO {
     ZIO.whenCaseM(a)(pf)
 
   /**
-   * @see See [[zio.ZIO.whenCaseM]]
+   * @see See [[zio.ZIO.whenCaseZIO]]
    */
   def whenCaseZIO[E, A](a: IO[E, A])(pf: PartialFunction[A, IO[E, Any]]): IO[E, Unit] =
     ZIO.whenCaseZIO(a)(pf)
@@ -1306,13 +1306,13 @@ object IO {
    * @see See [[zio.ZIO.whenM]]
    */
   @deprecated("use whenZIO", "2.0.0")
-  def whenM[E](b: IO[E, Boolean]): ZIO.WhenM[Any, E] =
+  def whenM[E](b: IO[E, Boolean]): ZIO.WhenZIO[Any, E] =
     ZIO.whenM(b)
 
   /**
-   * @see See [[zio.ZIO.whenM]]
+   * @see See [[zio.ZIO.whenZUI]]
    */
-  def whenZIO[E](b: IO[E, Boolean]): ZIO.WhenM[Any, E] =
+  def whenZIO[E](b: IO[E, Boolean]): ZIO.WhenZIO[Any, E] =
     ZIO.whenZIO(b)
 
   /**

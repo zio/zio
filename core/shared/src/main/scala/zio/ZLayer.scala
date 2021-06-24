@@ -222,7 +222,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
           }
         update >>> ZLayer.suspend(loop.fresh)
       }
-    ZLayer.identity <&> ZLayer.fromEffectMany(ZIO.succeed(schedule.step)) >>> loop
+    ZLayer.identity <&> ZLayer.fromZIOMany(ZIO.succeed(schedule.step)) >>> loop
   }
 
   /**
@@ -364,15 +364,17 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer from the specified effect.
    */
+  @deprecated("use fromZIO", "2.0.0")
   def fromEffect[R, E, A: Tag](zio: ZIO[R, E, A]): ZLayer[R, E, Has[A]] =
-    fromEffectMany(zio.asService)
+    fromZIO(zio)
 
   /**
    * Constructs a layer from the specified effect, which must return one or
    * more services.
    */
+  @deprecated("use fromZIOMany", "2.0.0")
   def fromEffectMany[R, E, A](zio: ZIO[R, E, A]): ZLayer[R, E, A] =
-    ZLayer(ZManaged.fromZIO(zio))
+    fromZIOMany(zio)
 
   /**
    * Constructs a layer from the environment using the specified function.
@@ -393,7 +395,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * resourceful function.
    */
   def fromFunctionManaged[A, E, B: Tag](f: A => ZManaged[Any, E, B]): ZLayer[A, E, Has[B]] =
-    fromManaged(ZManaged.fromFunctionZIO(f))
+    fromManaged(ZManaged.fromFunctionManaged(f))
 
   /**
    * Constructs a layer from the environment using the specified function,
@@ -415,7 +417,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * resourceful function, which must return one or more services.
    */
   def fromFunctionManyManaged[A, E, B](f: A => ZManaged[Any, E, B]): ZLayer[A, E, B] =
-    ZLayer(ZManaged.fromFunctionZIO(f))
+    ZLayer(ZManaged.fromFunctionManaged(f))
 
   /**
    * Constructs a layer from the environment using the specified effectful
@@ -4239,6 +4241,19 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   def fromManagedMany[R, E, A](m: ZManaged[R, E, A]): ZLayer[R, E, A] =
     ZLayer(m)
+
+  /**
+   * Constructs a layer from the specified effect.
+   */
+  def fromZIO[R, E, A: Tag](zio: ZIO[R, E, A]): ZLayer[R, E, Has[A]] =
+    fromZIOMany(zio.asService)
+
+  /**
+   * Constructs a layer from the specified effect, which must return one or
+   * more services.
+   */
+  def fromZIOMany[R, E, A](zio: ZIO[R, E, A]): ZLayer[R, E, A] =
+    ZLayer(ZManaged.fromZIO(zio))
 
   /**
    * An identity layer that passes along its inputs. Note that this represents

@@ -31,8 +31,12 @@ private[zio] trait ZIOPlatformSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
 
 private[zio] trait ZIOCompanionPlatformSpecific {
 
+  def asyncWithCompletionHandler[T](op: CompletionHandler[T, Any] => Any): Task[T] =
+    javaz.asyncWithCompletionHandler(op)
+
+  @deprecated("use asyncWithCompletionHandler", "2.0.0")
   def effectAsyncWithCompletionHandler[T](op: CompletionHandler[T, Any] => Any): Task[T] =
-    javaz.effectAsyncWithCompletionHandler(op)
+    asyncWithCompletionHandler(op)
 
   def fromCompletionStage[A](cs: => CompletionStage[A]): Task[A] = javaz.fromCompletionStage(cs)
 

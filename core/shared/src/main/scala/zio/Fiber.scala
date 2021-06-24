@@ -667,8 +667,9 @@ object Fiber extends FiberPlatformSpecific {
    * @tparam A type of the fiber
    * @return `UIO[Fiber[E, A]]`
    */
+  @deprecated("use fromZIO", "2.0.0")
   def fromEffect[E, A](io: IO[E, A]): UIO[Fiber.Synthetic[E, A]] =
-    io.exit.map(done(_))
+    fromZIO(io)
 
   /**
    * Returns a `Fiber` that is backed by the specified `Future`.
@@ -697,6 +698,17 @@ object Fiber extends FiberPlatformSpecific {
 
       def poll: UIO[Option[Exit[Throwable, A]]] = IO.succeed(ftr.value.map(Exit.fromTry))
     }
+
+  /**
+   * Lifts an [[zio.IO]] into a `Fiber`.
+   *
+   * @param io `IO[E, A]` to turn into a `Fiber`
+   * @tparam E error type
+   * @tparam A type of the fiber
+   * @return `UIO[Fiber[E, A]]`
+   */
+  def fromZIO[E, A](io: IO[E, A]): UIO[Fiber.Synthetic[E, A]] =
+    io.exit.map(done(_))
 
   /**
    * Creates a `Fiber` that is halted with the specified cause.

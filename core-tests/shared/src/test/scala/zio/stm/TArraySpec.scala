@@ -60,7 +60,7 @@ object TArraySpec extends ZIOBaseSpec {
         } yield assert(result)(isSome(equalTo(largePrime.toString)) || isNone)
       }
     ),
-    suite("collectFirstM")(
+    suite("collectFirstSTM")(
       testM("finds and transforms correctly") {
         for {
           tArray <- makeStairWithHoles(n).commit
@@ -154,7 +154,7 @@ object TArraySpec extends ZIOBaseSpec {
         } yield assert(result)(equalTo(0))
       }
     ),
-    suite("countM")(
+    suite("countSTM")(
       testM("computes correct sum") {
         for {
           tArray <- makeStair(n).commit
@@ -194,7 +194,7 @@ object TArraySpec extends ZIOBaseSpec {
         } yield assert(result)(isFalse)
       }
     ),
-    suite("existsM")(
+    suite("existsSTM")(
       testM("detects satisfaction") {
         for {
           tArray <- makeStair(n).commit
@@ -282,7 +282,7 @@ object TArraySpec extends ZIOBaseSpec {
         } yield assert(result)(isSome(equalTo(largePrime * 4)) || isNone)
       }
     ),
-    suite("findLastM")(
+    suite("findLastSTM")(
       testM("finds correctly") {
         for {
           tArray <- makeStair(n).commit
@@ -322,7 +322,7 @@ object TArraySpec extends ZIOBaseSpec {
         } yield assert(result)(equalTo(boom))
       } @@ zioTag(errors)
     ),
-    suite("findM")(
+    suite("findSTM")(
       testM("finds correctly") {
         for {
           tArray <- makeStair(n).commit
@@ -386,7 +386,7 @@ object TArraySpec extends ZIOBaseSpec {
         } yield assert(sum1)(equalTo(0) || equalTo(N))
       }
     ),
-    suite("foldM")(
+    suite("foldSTM")(
       testM("is atomic") {
         for {
           tArray    <- makeTArray(N)(0).commit
@@ -425,7 +425,7 @@ object TArraySpec extends ZIOBaseSpec {
         } yield assert(result)(isTrue)
       }
     ),
-    suite("forallM")(
+    suite("forallSTM")(
       testM("detects satisfaction") {
         for {
           tArray <- makeStair(n).commit
@@ -563,7 +563,7 @@ object TArraySpec extends ZIOBaseSpec {
         } yield assert(result)(equalTo(-1))
       }
     ),
-    suite("indexWhereM")(
+    suite("indexWhereSTM")(
       testM("determines the correct index") {
         for {
           tArray <- makeStair(n).commit
@@ -703,7 +703,7 @@ object TArraySpec extends ZIOBaseSpec {
         } yield assert((first, last))(equalTo(("a+b+c", "a+b+c")) || equalTo(("a+c+b", "a+c+b")))
       }
     ),
-    suite("transformM")(
+    suite("transformSTM")(
       testM("updates values atomically") {
         for {
           tArray         <- makeTArray(N)("a").commit
@@ -813,7 +813,7 @@ object TArraySpec extends ZIOBaseSpec {
         } yield assert(result)(isSome(equalTo((N * (N + 1)) / 2)) || isSome(equalTo(N)))
       }
     ),
-    suite("reduceOptionM")(
+    suite("reduceOptionSTM")(
       testM("reduces correctly") {
         for {
           tArray <- makeStair(n).commit

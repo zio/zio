@@ -1595,7 +1595,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    *
    * For `Exit[E, O]` values that do not signal end-of-stream, prefer:
    * {{{
-   * stream.mapM(ZIO.done(_))
+   * stream.mapZIO(ZIO.done(_))
    * }}}
    */
   def flattenExitOption[E1 >: E, O1](implicit ev: O <:< Exit[Option[E1], O1]): ZStream[R, E1, O1] =
@@ -3624,14 +3624,14 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * Accesses the environment of the stream in the context of an effect.
    */
   @deprecated("use accessZIO", "2.0.0")
-  def accessM[R]: AccessMPartiallyApplied[R] =
+  def accessM[R]: AccessZIOPartiallyApplied[R] =
     accessZIO
 
   /**
    * Accesses the environment of the stream in the context of an effect.
    */
-  def accessZIO[R]: AccessMPartiallyApplied[R] =
-    new AccessMPartiallyApplied[R]
+  def accessZIO[R]: AccessZIOPartiallyApplied[R] =
+    new AccessZIOPartiallyApplied[R]
 
   /**
    * Accesses the environment of the stream in the context of a stream.
@@ -4201,7 +4201,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     ZStream(ZManaged.succeedNow(UIO.never))
 
   /**
-   * Like [[unfoldM]], but allows the emission of values to end one step further than
+   * Like [[unfold]], but allows the emission of values to end one step further than
    * the unfolding of the state. This is useful for embedding paginated APIs,
    * hence the name.
    */
@@ -4226,7 +4226,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     paginateChunkZIO(s)(f)
 
   /**
-   * Like [[unfoldChunkM]], but allows the emission of values to end one step further than
+   * Like [[unfoldChunkZIO]], but allows the emission of values to end one step further than
    * the unfolding of the state. This is useful for embedding paginated APIs,
    * hence the name.
    */
@@ -4250,7 +4250,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     paginateZIO(s)(f)
 
   /**
-   * Like [[unfoldM]], but allows the emission of values to end one step further than
+   * Like [[unfoldZIO]], but allows the emission of values to end one step further than
    * the unfolding of the state. This is useful for embedding paginated APIs,
    * hence the name.
    */
@@ -4500,27 +4500,27 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * Returns the resulting stream when the given `PartialFunction` is defined for the given effectful value, otherwise returns an empty stream.
    */
   @deprecated("use whenCaseZIO", "2.0.0")
-  def whenCaseM[R, E, A](a: ZIO[R, E, A]): WhenCaseM[R, E, A] =
+  def whenCaseM[R, E, A](a: ZIO[R, E, A]): WhenCaseZIO[R, E, A] =
     whenCaseZIO(a)
 
   /**
    * Returns the resulting stream when the given `PartialFunction` is defined for the given effectful value, otherwise returns an empty stream.
    */
-  def whenCaseZIO[R, E, A](a: ZIO[R, E, A]): WhenCaseM[R, E, A] =
-    new WhenCaseM(a)
+  def whenCaseZIO[R, E, A](a: ZIO[R, E, A]): WhenCaseZIO[R, E, A] =
+    new WhenCaseZIO(a)
 
   /**
    * Returns the specified stream if the given effectful condition is satisfied, otherwise returns an empty stream.
    */
   @deprecated("use whenZIO", "2.0.0")
-  def whenM[R, E](b: ZIO[R, E, Boolean]): WhenM[R, E] =
+  def whenM[R, E](b: ZIO[R, E, Boolean]): WhenZIO[R, E] =
     whenZIO(b)
 
   /**
    * Returns the specified stream if the given effectful condition is satisfied, otherwise returns an empty stream.
    */
   def whenZIO[R, E](b: ZIO[R, E, Boolean]) =
-    new WhenM(b)
+    new WhenZIO(b)
 
   /**
    * Zips the specified streams together with the specified function.
@@ -4560,7 +4560,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       ZStream.environment[R].map(f)
   }
 
-  final class AccessMPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+  final class AccessZIOPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[E, A](f: R => ZIO[R, E, A]): ZStream[R, E, A] =
       ZStream.environment[R].mapZIO(f)
   }
@@ -4738,12 +4738,12 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     }
   }
 
-  final class WhenM[R, E](private val b: ZIO[R, E, Boolean]) extends AnyVal {
+  final class WhenZIO[R, E](private val b: ZIO[R, E, Boolean]) extends AnyVal {
     def apply[R1 <: R, E1 >: E, O](zStream: ZStream[R1, E1, O]): ZStream[R1, E1, O] =
       fromZIO(b).flatMap(if (_) zStream else ZStream.empty)
   }
 
-  final class WhenCaseM[R, E, A](private val a: ZIO[R, E, A]) extends AnyVal {
+  final class WhenCaseZIO[R, E, A](private val a: ZIO[R, E, A]) extends AnyVal {
     def apply[R1 <: R, E1 >: E, O](pf: PartialFunction[A, ZStream[R1, E1, O]]): ZStream[R1, E1, O] =
       fromZIO(a).flatMap(pf.applyOrElse(_, (_: A) => ZStream.empty))
   }

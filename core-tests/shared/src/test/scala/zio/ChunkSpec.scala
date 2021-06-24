@@ -252,8 +252,8 @@ object ChunkSpec extends ZIOBaseSpec {
     test("mapAccum") {
       assert(Chunk(1, 1, 1).mapAccum(0)((s, el) => (s + el, s + el)))(equalTo((3, Chunk(1, 2, 3))))
     },
-    suite("mapAccumM")(
-      testM("mapAccumM happy path") {
+    suite("mapAccumZIO")(
+      testM("mapAccumZIO happy path") {
         checkM(smallChunks(Gen.anyInt), smallChunks(Gen.anyInt), Gen.anyInt, Gen.function2(Gen.anyInt <*> Gen.anyInt)) {
           (left, right, s, f) =>
             val actual = (left ++ right).mapAccumZIO[Any, Nothing, Int, Int](s)((s, a) => UIO.succeed(f(s, a)))
@@ -264,7 +264,7 @@ object ChunkSpec extends ZIOBaseSpec {
             assertM(actual)(equalTo(expected))
         }
       },
-      testM("mapAccumM error") {
+      testM("mapAccumZIO error") {
         Chunk(1, 1, 1).mapAccumZIO(0)((_, _) => IO.fail("Ouch")).either.map(assert(_)(isLeft(equalTo("Ouch"))))
       } @@ zioTag(errors)
     ),
@@ -272,11 +272,11 @@ object ChunkSpec extends ZIOBaseSpec {
       val fn = Gen.function[Has[Random] with Has[Sized], Int, Int](intGen)
       check(smallChunks(intGen), fn)((c, f) => assert(c.map(f).toList)(equalTo(c.toList.map(f))))
     },
-    suite("mapM")(
-      testM("mapM happy path")(checkM(mediumChunks(intGen), Gen.function(Gen.boolean)) { (chunk, f) =>
+    suite("mapZIO")(
+      testM("mapZIO happy path")(checkM(mediumChunks(intGen), Gen.function(Gen.boolean)) { (chunk, f) =>
         chunk.mapZIO(s => UIO.succeed(f(s))).map(assert(_)(equalTo(chunk.map(f))))
       }),
-      testM("mapM error") {
+      testM("mapZIO error") {
         Chunk(1, 2, 3).mapZIO(_ => IO.fail("Ouch")).either.map(assert(_)(equalTo(Left("Ouch"))))
       } @@ zioTag(errors)
     ),
@@ -312,11 +312,11 @@ object ChunkSpec extends ZIOBaseSpec {
       val fn = Gen.function[Has[Random] with Has[Sized], Int, Boolean](Gen.boolean)
       check(mediumChunks(intGen), fn)((chunk, p) => assert(chunk.find(p))(equalTo(chunk.toList.find(p))))
     },
-    suite("findM")(
-      testM("findM happy path")(checkM(mediumChunks(intGen), Gen.function(Gen.boolean)) { (chunk, p) =>
+    suite("findZIO")(
+      testM("findZIO happy path")(checkM(mediumChunks(intGen), Gen.function(Gen.boolean)) { (chunk, p) =>
         chunk.findZIO(s => UIO.succeed(p(s))).map(assert(_)(equalTo(chunk.find(p))))
       }),
-      testM("findM error") {
+      testM("findZIO error") {
         Chunk(1, 2, 3).findZIO(_ => IO.fail("Ouch")).either.map(assert(_)(equalTo(Left("Ouch"))))
       } @@ zioTag(errors)
     ),
@@ -324,11 +324,11 @@ object ChunkSpec extends ZIOBaseSpec {
       val fn = Gen.function[Has[Random] with Has[Sized], Int, Boolean](Gen.boolean)
       check(mediumChunks(intGen), fn)((chunk, p) => assert(chunk.filter(p).toList)(equalTo(chunk.toList.filter(p))))
     },
-    suite("filterM")(
-      testM("filterM happy path")(checkM(mediumChunks(intGen), Gen.function(Gen.boolean)) { (chunk, p) =>
+    suite("filterZIO")(
+      testM("filterZIO happy path")(checkM(mediumChunks(intGen), Gen.function(Gen.boolean)) { (chunk, p) =>
         chunk.filterZIO(s => UIO.succeed(p(s))).map(assert(_)(equalTo(chunk.filter(p))))
       }),
-      testM("filterM error") {
+      testM("filterZIO error") {
         Chunk(1, 2, 3).filterZIO(_ => IO.fail("Ouch")).either.map(assert(_)(equalTo(Left("Ouch"))))
       } @@ zioTag(errors)
     ),
@@ -345,11 +345,11 @@ object ChunkSpec extends ZIOBaseSpec {
         assert(c.dropWhile(p).toList)(equalTo(c.toList.dropWhile(p)))
       }
     },
-    suite("dropWhileM")(
-      testM("dropWhileM happy path") {
+    suite("dropWhileZIO")(
+      testM("dropWhileZIO happy path") {
         assertM(Chunk(1, 2, 3, 4, 5).dropWhileZIO(el => UIO.succeed(el % 2 == 1)))(equalTo(Chunk(2, 3, 4, 5)))
       },
-      testM("dropWhileM error") {
+      testM("dropWhileZIO error") {
         Chunk(1, 1, 1).dropWhileZIO(_ => IO.fail("Ouch")).either.map(assert(_)(isLeft(equalTo("Ouch"))))
       } @@ zioTag(errors)
     ),
@@ -358,11 +358,11 @@ object ChunkSpec extends ZIOBaseSpec {
         assert(c.takeWhile(p).toList)(equalTo(c.toList.takeWhile(p)))
       }
     },
-    suite("takeWhileM")(
-      testM("takeWhileM happy path") {
+    suite("takeWhileZIO")(
+      testM("takeWhileZIO happy path") {
         assertM(Chunk(1, 2, 3, 4, 5).takeWhileZIO(el => UIO.succeed(el % 2 == 1)))(equalTo(Chunk(1)))
       },
-      testM("takeWhileM error") {
+      testM("takeWhileZIO error") {
         Chunk(1, 1, 1).dropWhileZIO(_ => IO.fail("Ouch")).either.map(assert(_)(isLeft(equalTo("Ouch"))))
       } @@ zioTag(errors)
     ),
@@ -402,11 +402,11 @@ object ChunkSpec extends ZIOBaseSpec {
         check(mediumChunks(intGen), pfGen)((c, pf) => assert(c.collect(pf).toList)(equalTo(c.toList.collect(pf))))
       }
     ),
-    suite("collectM")(
-      testM("collectM empty Chunk") {
+    suite("collectZIO")(
+      testM("collectZIO empty Chunk") {
         assertM(Chunk.empty.collectZIO { case _ => UIO.succeed(1) })(equalTo(Chunk.empty))
       },
-      testM("collectM chunk") {
+      testM("collectZIO chunk") {
         val pfGen = Gen.partialFunction[Has[Random] with Has[Sized], Int, UIO[Int]](Gen.successes(intGen))
         checkM(mediumChunks(intGen), pfGen) { (c, pf) =>
           for {
@@ -415,7 +415,7 @@ object ChunkSpec extends ZIOBaseSpec {
           } yield assert(result)(equalTo(expected))
         }
       },
-      testM("collectM chunk that fails") {
+      testM("collectZIO chunk that fails") {
         Chunk(1, 2).collectZIO { case 2 => IO.fail("Ouch") }.either.map(assert(_)(isLeft(equalTo("Ouch"))))
       } @@ zioTag(errors)
     ),
@@ -430,11 +430,11 @@ object ChunkSpec extends ZIOBaseSpec {
         }
       }
     ),
-    suite("collectWhileM")(
-      testM("collectWhileM empty Chunk") {
+    suite("collectWhileZIO")(
+      testM("collectWhileZIO empty Chunk") {
         assertM(Chunk.empty.collectWhileZIO { case _ => UIO.succeed(1) })(equalTo(Chunk.empty))
       },
-      testM("collectWhileM chunk") {
+      testM("collectWhileZIO chunk") {
         val pfGen = Gen.partialFunction[Has[Random] with Has[Sized], Int, UIO[Int]](Gen.successes(intGen))
         checkM(mediumChunks(intGen), pfGen) { (c, pf) =>
           for {
@@ -443,7 +443,7 @@ object ChunkSpec extends ZIOBaseSpec {
           } yield assert(result)(equalTo(expected))
         }
       },
-      testM("collectWhileM chunk that fails") {
+      testM("collectWhileZIO chunk that fails") {
         Chunk(1, 2).collectWhileZIO { case _ => IO.fail("Ouch") }.either.map(assert(_)(isLeft(equalTo("Ouch"))))
       } @@ zioTag(errors)
     ),
@@ -599,7 +599,7 @@ object ChunkSpec extends ZIOBaseSpec {
       val array = chunk.toArray
       assert(array)(anything)
     },
-    testM("foldWhileM") {
+    testM("foldWhileZIO") {
       assertM(
         Chunk
           .fromIterable(List(2))
@@ -623,7 +623,7 @@ object ChunkSpec extends ZIOBaseSpec {
         Chunk.unfold(0)(n => if (n < 10) Some((n, n + 1)) else None)
       )(equalTo(Chunk.fromIterable(0 to 9)))
     },
-    testM("unfoldM") {
+    testM("unfoldZIO") {
       assertM(
         Chunk.unfoldZIO(0)(n => if (n < 10) IO.some((n, n + 1)) else IO.none)
       )(equalTo(Chunk.fromIterable(0 to 9)))

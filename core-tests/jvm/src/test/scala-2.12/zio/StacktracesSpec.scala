@@ -48,7 +48,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
         assert(trace2.executionTrace.exists(_.prettyPrint.contains("foreachDiscard")))(isTrue) &&
         assert(trace2.executionTrace.exists(_.prettyPrint.contains("foreachFail")))(isTrue)
 
-      }
+      }sd
     },
     testM("foreachPar fail") {
       val io = for {
@@ -257,14 +257,14 @@ object StackTracesSpec extends DefaultRunnableSpec {
         assert(cause.traces.head.stackTrace.head.prettyPrint.contains("catchAllWithOptimizedEffect"))(isTrue)
       }
     },
-    testM("foldM with optimized effect path") {
+    testM("foldZIO with optimized effect path") {
       for {
-        trace <- foldMWithOptimizedEffect
+        trace <- foldZIOWithOptimizedEffect
       } yield {
         show(trace)
 
         assert(trace.stackTrace.size)(equalTo(3)) &&
-        assert(trace.stackTrace.exists(_.prettyPrint.contains("foldMWithOptimizedEffect")))(isTrue) &&
+        assert(trace.stackTrace.exists(_.prettyPrint.contains("foldZIOWithOptimizedEffect")))(isTrue) &&
         assert(trace.executionTrace.size)(equalTo(3)) &&
         assert(trace.executionTrace.head.prettyPrint.contains("mkTrace"))(isTrue) &&
         assert(trace.executionTrace.exists(_.prettyPrint.contains("fail")))(isTrue)
@@ -278,15 +278,15 @@ object StackTracesSpec extends DefaultRunnableSpec {
         assert(cause.traces.head.stackTrace.head.prettyPrint.contains("selectHumans"))(isTrue)
       }
     },
-    testM("single effectTotal for-comprehension") {
+    testM("single succeed for-comprehension") {
       singleUIOForCompFixture.selectHumans causeMust { cause =>
         assert(cause.traces.size)(equalTo(1)) &&
         assert(cause.traces.head.stackTrace.size)(equalTo(3)) &&
         assert(cause.traces.head.stackTrace.exists(_.prettyPrint.contains("selectHumans")))(isTrue)
       }
     },
-    testM("single suspendWith for-comprehension") {
-      singleEffectTotalWithForCompFixture.selectHumans causeMust { cause =>
+    testM("single suspendSucceedWith for-comprehension") {
+      singleSuspendSucceedWithForCompFixture.selectHumans causeMust { cause =>
         assert(cause.traces.size)(equalTo(1)) &&
         assert(cause.traces.head.stackTrace.size)(equalTo(3)) &&
         assert(cause.traces.head.stackTrace.exists(_.prettyPrint.contains("selectHumans")))(isTrue)
@@ -349,7 +349,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
                 else
                   ZIO.unit *> ZIO.trace
               }
-              .foldCauseM(e => IO(e.traces.head), _ => ZIO.dieMessage("can't be!"))
+              .foldCauseZIO(e => IO(e.traces.head), _ => ZIO.dieMessage("can't be!"))
       t2 <- ZIO.trace
     } yield (t1, t2)
 
@@ -462,7 +462,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
 
   def blockingTrace: ZIO[Any, Throwable, Unit] =
     for {
-      _ <- ZIO.effectBlockingInterrupt {
+      _ <- ZIO.attemptBlockingInterrupt {
              throw new Exception()
            }
     } yield ()
@@ -564,17 +564,17 @@ object StackTracesSpec extends DefaultRunnableSpec {
     val refailAndLoseTrace: Any => IO[String, Nothing] = (_: Any) => ZIO.fail("bad!")
   }
 
-  def foldMWithOptimizedEffect: ZIO[Any, Nothing, ZTrace] = {
-    import foldMWithOptimizedEffectFixture._
+  def foldZIOWithOptimizedEffect: ZIO[Any, Nothing, ZTrace] = {
+    import foldZIOWithOptimizedEffectFixture._
 
     for {
       t <- Task(fail())
              .flatMap(badMethod1)
-             .foldM(mkTrace, badMethod2)
+             .foldZIO(mkTrace, badMethod2)
     } yield t
   }
 
-  object foldMWithOptimizedEffectFixture {
+  object foldZIOWithOptimizedEffectFixture {
     val mkTrace: Any => UIO[ZTrace]       = (_: Any) => ZIO.trace
     val fail: () => Nothing               = () => throw new Exception("error!")
     val badMethod1: ZTrace => UIO[ZTrace] = ZIO.succeed(_: ZTrace)
@@ -599,7 +599,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
     } yield ()
   }
 
-  object singleEffectTotalWithForCompFixture {
+  object singleSuspendSucceedCompFixture {
     def asyncDbCall(): Task[Unit] =
       Task.suspendSucceed(throw new Exception)
 

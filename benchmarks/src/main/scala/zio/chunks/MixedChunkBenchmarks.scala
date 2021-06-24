@@ -48,7 +48,7 @@ class MixedChunkBenchmarks {
   def fold(): Int = chunk.fold(0)(_ + _)
 
   @Benchmark
-  def filterM(): Chunk[Int] =
+  def filterZIO(): Chunk[Int] =
     IOBenchmarks.unsafeRun(chunk.filterZIO[Any, Nothing](n => ZIO.succeed(n % 2 == 0)))
 
   @Benchmark
@@ -61,10 +61,10 @@ class MixedChunkBenchmarks {
   def find(): Option[Int] = chunk.find(_ > 2)
 
   @Benchmark
-  def mapM(): UIO[Unit] = chunk.mapZIODiscard(_ => ZIO.unit)
+  def mapZIO(): UIO[Unit] = chunk.mapZIODiscard(_ => ZIO.unit)
 
   @Benchmark
-  def foldM(): Int =
+  def foldZIO(): Int =
     IOBenchmarks.unsafeRun(chunk.foldZIO[Any, Nothing, Int](0)((s, a) => ZIO.succeed(s + a)))
 
 }

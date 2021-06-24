@@ -33,8 +33,8 @@ class ChunkArrayBenchmarks {
   def find(): Option[Int] = chunk.find(_ > 2)
 
   @Benchmark
-  def mapM(): UIO[Unit] = chunk.mapZIODiscard(_ => ZIO.unit)
+  def mapZIO(): UIO[Unit] = chunk.mapZIODiscard(_ => ZIO.unit)
 
   @Benchmark
-  def foldM(): UIO[Int] = chunk.foldZIO(0)((s, a) => ZIO.succeed(s + a))
+  def foldZIO(): UIO[Int] = chunk.foldZIO(0)((s, a) => ZIO.succeed(s + a))
 }

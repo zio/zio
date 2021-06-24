@@ -23,7 +23,8 @@ import zio._
 import scala.concurrent.ExecutionException
 
 private[zio] object javaz {
-  def effectAsyncWithCompletionHandler[T](op: CompletionHandler[T, Any] => Any): Task[T] =
+
+  def asyncWithCompletionHandler[T](op: CompletionHandler[T, Any] => Any): Task[T] =
     Task.suspendSucceedWith[T] { (p, _) =>
       Task.async { k =>
         val handler = new CompletionHandler[T, Any] {
@@ -42,6 +43,10 @@ private[zio] object javaz {
         }
       }
     }
+
+  @deprecated("use asyncWithCompletionHandler", "2.0.0")
+  def effectAsyncWithCompletionHandler[T](op: CompletionHandler[T, Any] => Any): Task[T] =
+    asyncWithCompletionHandler(op)
 
   private def catchFromGet(isFatal: Throwable => Boolean): PartialFunction[Throwable, Task[Nothing]] = {
     case e: CompletionException =>

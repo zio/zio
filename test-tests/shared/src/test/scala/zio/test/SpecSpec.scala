@@ -33,7 +33,7 @@ object SpecSpec extends ZIOBaseSpec {
           test("test") {
             assert(true)(isTrue)
           }
-        ).provideLayerShared(ZLayer.fromEffectMany(ZIO.dieMessage("everybody dies")))
+        ).provideLayerShared(ZLayer.fromZIOMany(ZIO.dieMessage("everybody dies")))
         for {
           _ <- execute(spec)
         } yield assertCompletes
@@ -49,7 +49,7 @@ object SpecSpec extends ZIOBaseSpec {
         )
         for {
           ref    <- Ref.make(true)
-          layer   = ZLayer.fromEffect(ref.set(false).as(ref))
+          layer   = ZLayer.fromZIO(ref.set(false).as(ref))
           _      <- execute(spec.provideCustomLayerShared(layer) @@ ifEnvSet("foo"))
           result <- ref.get
         } yield assert(result)(isTrue)

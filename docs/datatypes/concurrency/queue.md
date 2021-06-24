@@ -181,7 +181,7 @@ val mapped: UIO[String] =
   } yield s
 ```
 
-### ZQueue#mapM
+### ZQueue#mapZIO
 
 We may also use an effectful function to map the output. For example,
 we could annotate each element with the timestamp at which it was dequeued:
@@ -200,9 +200,9 @@ val annotatedOut: UIO[ZQueue[Any, Has[Clock], Nothing, Nothing, String, (Long, S
   } yield mapped
 ```
 
-### ZQueue#contramapM
+### ZQueue#contramapZIO
 
-Similarly to `mapM`, we can also apply an effectful function to
+Similarly to `mapZIO`, we can also apply an effectful function to
 elements as they are enqueued. This queue will annotate the elements
 with their enqueue timestamp:
 
@@ -220,7 +220,7 @@ This queue has the same type as the previous one, but the timestamp is
 attached to the elements when they are enqueued. This is reflected in
 the type of the environment required by the queue for enqueueing.
 
-To complete this example, we could combine this queue with `mapM` to
+To complete this example, we could combine this queue with `mapZIO` to
 compute the time that the elements stayed in the queue:
 
 ```scala mdoc:silent

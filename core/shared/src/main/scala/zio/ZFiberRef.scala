@@ -87,7 +87,7 @@ sealed abstract class ZFiberRef[+EA, +EB, -A, +B] extends Serializable { self =>
   /**
    * Returns an `IO` that runs with `value` bound to the current fiber.
    *
-   * Guarantees that fiber data is properly restored via `bracket`.
+   * Guarantees that fiber data is properly restored via `acquireRelease`.
    */
   def locally[R, EC >: EA, C](value: A)(use: ZIO[R, EC, C]): ZIO[R, EC, C]
 

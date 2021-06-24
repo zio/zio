@@ -27,7 +27,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
           assertM(run(parser, List(Chunk("1"))).either)(isLeft(equalTo("Ouch")))
         } @@ zioTag(errors)
       ),
-      suite("contramapM")(
+      suite("contramapZIO")(
         testM("happy path") {
           val parser = ZTransducer.identity[Int].contramapZIO[Any, Unit, String](s => UIO.succeed(s.toInt))
           assertM(run(parser, List(Chunk("1"))))(equalTo(Chunk(1)))
@@ -47,7 +47,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
           assertM(run(parser, List(Chunk(1, 2, 3))).either)(isLeft(equalTo("Ouch")))
         } @@ zioTag(errors)
       ),
-      suite("filterInputM")(
+      suite("filterInputZIO")(
         testM("happy path") {
           val filter = ZTransducer.identity[Int].filterInputZIO[Any, String, Int](x => UIO.succeed(x > 2))
           assertM(run(filter, List(Chunk(1, 2, 3))))(equalTo(Chunk(3)))
@@ -73,7 +73,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
           assertM(run(parser, List(Chunk(1))).either)(isLeft(equalTo("Error")))
         }
       ) @@ zioTag(errors),
-      suite("mapM")(
+      suite("mapZIO")(
         testM("happy path") {
           val parser = ZTransducer.identity[Int].mapZIO[Any, Unit, String](n => UIO.succeed(n.toString))
           assertM(run(parser, List(Chunk(1))))(equalTo(Chunk("1")))
@@ -198,7 +198,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
           }
         }
       ),
-      suite("foldM")(
+      suite("foldZIO")(
         testM("empty")(
           assertM(
             ZStream.empty
@@ -340,7 +340,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
             .runCollect
         )(equalTo(Chunk(3, 4, 5, 1, 2, 3, 4, 5)))
       ),
-      suite("dropWhileM")(
+      suite("dropWhileZIO")(
         testM("happy path")(
           assertM(
             ZStream(1, 2, 3, 4, 5, 1, 2, 3, 4, 5)
@@ -351,7 +351,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
         // testM("error")(
         //   assertM {
         //     (ZStream(1,2,3) ++ ZStream.fail("Aie") ++ ZStream(5,1,2,3,4,5))
-        //       .aggregate(ZTransducer.dropWhileM(x => UIO(x < 3)))
+        //       .aggregate(ZTransducer.dropWhileZIO(x => UIO(x < 3)))
         //       .either
         //       .runCollect
         //   }(equalTo(Chunk(Right(3),Left("Aie"),Right(5),Right(1),Right(2),Right(3),Right(4),Right(5))))
@@ -364,7 +364,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
             .runCollect
         )(equalTo(Chunk("1", "2", "3", "4", "5")))
       ),
-      testM("fromFunctionM")(
+      testM("fromFunctionZIO")(
         assertM(
           ZStream("1", "2", "3", "4", "5")
             .transduce(ZTransducer.fromFunctionZIO[Any, Throwable, String, Int](s => Task(s.toInt)))

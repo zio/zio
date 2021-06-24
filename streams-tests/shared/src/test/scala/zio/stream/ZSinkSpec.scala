@@ -128,8 +128,8 @@ object ZSinkSpec extends ZIOBaseSpec {
           assertM(ZStream(1, 2, 3).run(s))(equalTo((Chunk(1, 2, 3), "boom")))
         }
       ),
-      suite("foldM")(
-        testM("foldM") {
+      suite("foldZIO")(
+        testM("foldZIO") {
           val ioGen = successes(Gen.anyString)
           checkM(Gen.small(pureStreamGen(Gen.anyInt, _)), Gen.function2(ioGen), ioGen) { (s, f, z) =>
             for {
@@ -271,9 +271,9 @@ object ZSinkSpec extends ZIOBaseSpec {
           )
         })
       ),
-      testM("untilOutputM") {
+      testM("untilOutputZIO") {
         val sink: ZSink[Any, Nothing, Int, Int, Option[Option[Int]]] =
-          ZSink.head[Int].untilOutputM(h => ZIO.succeed(h.fold(false)(_ >= 10)))
+          ZSink.head[Int].untilOutputZIO(h => ZIO.succeed(h.fold(false)(_ >= 10)))
         val assertions = ZIO.foreach(Chunk(1, 3, 7, 20)) { n =>
           assertM(Stream.fromIterable(1 to 100).chunkN(n).run(sink))(equalTo(Some(Some(10))))
         }

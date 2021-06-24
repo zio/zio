@@ -126,7 +126,7 @@ object TSetSpec extends ZIOBaseSpec {
 
         assertM(tx.commit)(hasSameElements(List(1)))
       },
-      testM("transformM") {
+      testM("transformSTM") {
         val tx =
           for {
             tset <- TSet.make(1, 2, 3)
@@ -136,7 +136,7 @@ object TSetSpec extends ZIOBaseSpec {
 
         assertM(tx.commit)(hasSameElements(List(2, 4, 6)))
       },
-      testM("transformM and shrink") {
+      testM("transformSTM and shrink") {
         val tx =
           for {
             tset <- TSet.make(1, 2, 3)
@@ -166,7 +166,7 @@ object TSetSpec extends ZIOBaseSpec {
 
         assertM(tx.commit)(equalTo(0))
       },
-      testM("foldM on non-empty set") {
+      testM("foldSTM on non-empty set") {
         val tx =
           for {
             tset <- TSet.make(1, 2, 3)
@@ -175,7 +175,7 @@ object TSetSpec extends ZIOBaseSpec {
 
         assertM(tx.commit)(equalTo(6))
       },
-      testM("foldM on empty set") {
+      testM("foldSTM on empty set") {
         val tx =
           for {
             tset <- TSet.empty[Int]

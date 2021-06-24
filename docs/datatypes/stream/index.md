@@ -126,7 +126,7 @@ They're reactive streams, they don't block threads. They're super-efficient and 
 
 ### 3. Concurrency and Parallelism
 
-Streams are concurrent. They have a lot of concurrent operators. All the operations on them are safe to use in presence of concurrency. And also just like ZIO gives us parallel operators with everything, there are lots of parallel operators. We can use the parallel version of operators, like `mapMPar`, `flatMapPar`.
+Streams are concurrent. They have a lot of concurrent operators. All the operations on them are safe to use in presence of concurrency. And also just like ZIO gives us parallel operators with everything, there are lots of parallel operators. We can use the parallel version of operators, like `mapZIOPar`, `flatMapPar`.
 
 Parallel operators allow us to fully saturate and utilize all CPU cores of our machine. If we need to do bulk processing on a lot of data and use all the cores on our machine, so we can speed up the process by using these parallel operators. 
 

@@ -69,7 +69,7 @@ trait RandomInt {
 }
 ```
 
-We also provided their accessors to their companion object. We just used `ZIO.accessM` to access environment of each service:
+We also provided their accessors to their companion object. We just used `ZIO.accessZIO` to access environment of each service:
 
 ```scala mdoc:silent:nest
 object Logging {
@@ -160,7 +160,7 @@ object RandomInt {
 }
 ```
 
-`ZIO.serviceWith` is accessor method like `ZIO.accessM`, it accesses the specified service in the environment of effect, but it returns a ZIO effect which requires a service wrapped in `Has[_]` data type.
+`ZIO.serviceWith` is accessor method like `ZIO.accessZIO`, it accesses the specified service in the environment of effect, but it returns a ZIO effect which requires a service wrapped in `Has[_]` data type.
 
 We should refactor our application to represent the correct types.
 

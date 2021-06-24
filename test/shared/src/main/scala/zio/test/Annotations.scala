@@ -45,7 +45,7 @@ object Annotations {
    * Constructs a new `Annotations` service.
    */
   val live: ULayer[Has[Annotations]] =
-    ZLayer.fromEffect(FiberRef.make(TestAnnotationMap.empty).map { fiberRef =>
+    ZLayer.fromZIO(FiberRef.make(TestAnnotationMap.empty).map { fiberRef =>
       new Annotations {
         def annotate[V](key: TestAnnotation[V], value: V): UIO[Unit] =
           fiberRef.update(_.annotate(key, value))

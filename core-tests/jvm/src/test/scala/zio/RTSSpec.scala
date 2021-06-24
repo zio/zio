@@ -74,18 +74,18 @@ object RTSSpec extends ZIOBaseSpec {
         _        <- Console.printLine(rez.fold(_.prettyPrint, _ => ""))
       } yield assert(rez)(anything)
     } @@ zioTag(interruption) @@ silent,
-    testM("interruption of unending bracket") {
+    testM("interruption of unending acquireReleaseWith") {
       val io =
         for {
           startLatch <- Promise.make[Nothing, Int]
           exitLatch  <- Promise.make[Nothing, Int]
-          bracketed = IO
-                        .succeed(21)
-                        .acquireReleaseExitWith((r: Int, exit: Exit[Any, Any]) =>
-                          if (exit.interrupted) exitLatch.succeed(r)
-                          else IO.die(new Error("Unexpected case"))
-                        )(a => startLatch.succeed(a) *> IO.never *> IO.succeed(1))
-          fiber      <- bracketed.fork
+          acquireRelease = IO
+                             .succeed(21)
+                             .acquireReleaseExitWith((r: Int, exit: Exit[Any, Any]) =>
+                               if (exit.interrupted) exitLatch.succeed(r)
+                               else IO.die(new Error("Unexpected case"))
+                             )(a => startLatch.succeed(a) *> IO.never *> IO.succeed(1))
+          fiber      <- acquireRelease.fork
           startValue <- startLatch.await
           _          <- fiber.interrupt.fork
           exitValue  <- exitLatch.await

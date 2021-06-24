@@ -533,7 +533,17 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
    * Creates a sink that produces values until one verifies
    * the predicate `f`.
    */
+  @deprecated("use untilOutputZIO", "2.0.0")
   def untilOutputM[R1 <: R, E1 >: E](
+    f: Z => ZIO[R1, E1, Boolean]
+  )(implicit ev: L <:< I): ZSink[R1, E1, I, L, Option[Z]] =
+    untilOutputZIO(f)
+
+  /**
+   * Creates a sink that produces values until one verifies
+   * the predicate `f`.
+   */
+  def untilOutputZIO[R1 <: R, E1 >: E](
     f: Z => ZIO[R1, E1, Boolean]
   )(implicit ev: L <:< I): ZSink[R1, E1, I, L, Option[Z]] =
     ZSink {

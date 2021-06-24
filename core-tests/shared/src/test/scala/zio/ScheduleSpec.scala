@@ -50,7 +50,7 @@ object ScheduleSpec extends ZIOBaseSpec {
         def cond: Int => Boolean = _ < 10
         checkRepeat(Schedule.recurWhile(cond), expected = 10)
       },
-      testM("for 'recurWhileM(cond)' repeats while the effectful cond still holds") {
+      testM("for 'recurWhileZIO(cond)' repeats while the effectful cond still holds") {
         def cond: Int => UIO[Boolean] = x => IO.succeed(x > 10)
         checkRepeat(Schedule.recurWhileZIO(cond), expected = 1)
       },
@@ -61,7 +61,7 @@ object ScheduleSpec extends ZIOBaseSpec {
         def cond: Int => Boolean = _ < 10
         checkRepeat(Schedule.recurUntil(cond), expected = 1)
       },
-      testM("for 'recurUntilM(cond)' repeats until the effectful cond is satisfied") {
+      testM("for 'recurUntilZIO(cond)' repeats until the effectful cond is satisfied") {
         def cond: Int => UIO[Boolean] = x => IO.succeed(x > 10)
         checkRepeat(Schedule.recurUntilZIO(cond), expected = 11)
       },

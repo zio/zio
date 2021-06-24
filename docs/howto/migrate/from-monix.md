@@ -16,9 +16,9 @@ of your logic at a higher level of abstraction, with more powerful combinators a
 | Monix | ZIO |
 |-------|-----|
 | `attempt` | `either` |
-| `bracketCase` | `bracketExit` |
-| `bracketE` | `bracketExit` |
-| `bracket` | `bracket` |
+| `bracketCase` | `acquireReleaseExitWith` |
+| `bracketE` | `acquireReleaseExitWith` |
+| `bracket` | `acquireReleaseWith` |
 | `delayExecution` | `delay` |
 | `dematerialize` | `absolve` |
 | `doOnCancel` | `onInterrupt` |
@@ -35,7 +35,7 @@ of your logic at a higher level of abstraction, with more powerful combinators a
 | `onErrorHandleWith` | `catchAll` |
 | `onErrorRecoverWith` | `catchSome` |
 | `onErrorRestart` | `retryN` |
-| `redeemWith` | `foldM` |
+| `redeemWith` | `foldZIO` |
 | `redeem` | `fold` |
 | `restartUntil` | `repeatUntil` |
 | `start` | `fork` |
@@ -48,13 +48,13 @@ of your logic at a higher level of abstraction, with more powerful combinators a
 | Monix  | ZIO |
 |-------|-----|
 | `apply` | `apply` |
-| `asyncF` | `effectAsyncM` |
-| `async` | `effectAsync` |
-| `cancelable` | `effectAsyncInterrupt` |
+| `asyncF` | `asyncZIO` |
+| `async` | `async` |
+| `cancelable` | `asyncInterrupt` |
 | `deferFuture` | `fromFuture` |
 | `defer` | `suspend` |
-| `delay` | `effect` |
-| `eval` | `effect` |
+| `delay` | `attempt` |
+| `eval` | `attempt` |
 | `fromEither` | `fromEither` |
 | `fromFuture` | `fromFuture` |
 | `fromTry` | `fromTry` |

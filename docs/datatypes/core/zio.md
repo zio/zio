@@ -74,7 +74,7 @@ val readLine: ZIO[Has[Console], IOException, String] =
   * [Finalizing](#finalizing)
     + [Asynchronous Try / Finally](#asynchronous-try--finally)
     + [Unstoppable Finalizers](#unstoppable-finalizers)
-  * [Brackets](#brackets)
+  * [AcquireRelease](#acquirerelease)
 - [Unswallowed Exceptions](#unswallowed-exceptions)
 
 
@@ -202,10 +202,10 @@ The error type of the resulting effect will always be `Throwable`, because `Try`
 
 #### Function
 
-| Function        | Input Type      | Output Type    |
-|-----------------|-----------------|----------------|
-| `fromFunction`  | `R => A`        | `URIO[R, A]`   |
-| `fromFunctionM` | `R => IO[E, A]` | `ZIO[R, E, A]` |
+| Function          | Input Type      | Output Type    |
+|-------------------|-----------------|----------------|
+| `fromFunction`    | `R => A`        | `URIO[R, A]`   |
+| `fromFunctionZIO` | `R => IO[E, A]` | `ZIO[R, E, A]` |
 
 A function `A => B` can be converted into a ZIO effect with `ZIO.fromFunction`:
 
@@ -271,10 +271,10 @@ for {
 
 #### Fiber
 
-| Function     | Input Type           | Output Type |
-|--------------|----------------------|-------------|
-| `fromFiber`  | `Fiber[E, A]`        | `IO[E, A]`  |
-| `fromFiberM` | `IO[E, Fiber[E, A]]` | `IO[E, A]`  |
+| Function       | Input Type           | Output Type |
+|----------------|----------------------|-------------|
+| `fromFiber`    | `Fiber[E, A]`        | `IO[E, A]`  |
+| `fromFiberZIO` | `IO[E, Fiber[E, A]]` | `IO[E, A]`  |
 
 A `Fiber` can be converted into a ZIO effect using `ZIO.fromFiber`:
 
@@ -290,12 +290,12 @@ These functions can be used to wrap procedural code, allowing us to seamlessly u
 
 #### Synchronous
 
-| Function      | Input Type | Output Type | Note                                        |
-|---------------|------------|-------------|---------------------------------------------|
-| `effectTotal` | `A`        | `UIO[A]`    | Imports a total synchronous effect          |
-| `effect`      | `A`        | Task[A]     | Imports a (partial) synchronous side-effect |
+| Function  | Input Type | Output Type | Note                                        |
+|-----------|------------|-------------|---------------------------------------------|
+| `succeed` | `A`        | `UIO[A]`    | Imports a total synchronous effect          |
+| `attempt` | `A`        | Task[A]     | Imports a (partial) synchronous side-effect |
 
-A synchronous side-effect can be converted into a ZIO effect using `ZIO.effect`:
+A synchronous side-effect can be converted into a ZIO effect using `ZIO.attempt`:
 
 ```scala mdoc:silent
 import scala.io.StdIn
@@ -312,7 +312,7 @@ If a given side-effect is known to not throw any exceptions, then the side-effec
 def printLine(line: String): UIO[Unit] =
   ZIO.succeed(println(line))
 
-val effectTotalTask: UIO[Long] =
+val succeedTask: UIO[Long] =
   ZIO.succeed(java.lang.System.nanoTime())
 ```
 
@@ -333,15 +333,15 @@ val printLine2: IO[IOException, String] =
 |----------------------------|-------------------------------------|---------------------------------|
 | `blocking`                 | `ZIO[R, E, A]`                      | `ZIO[R, E, A]`                  |
 | `attemptBlocking`          | `A`                                 | `RIO[Blocking, A]`              |
-| `effectBlockingCancelable` | `effect: => A`, `cancel: UIO[Unit]` | `RIO[Blocking, A]`              |
-| `effectBlockingInterrupt`  | `A`                                 | `RIO[Blocking, A]`              |
-| `effectBlockingIO`         | `A`                                 | `ZIO[Blocking, IOException, A]` |
+| `attemptBlockingCancelable` | `effect: => A`, `cancel: UIO[Unit]` | `RIO[Blocking, A]`              |
+| `attemptBlockingInterrupt`  | `A`                                 | `RIO[Blocking, A]`              |
+| `attemptBlockingIO`         | `A`                                 | `ZIO[Blocking, IOException, A]` |
 
 Some side-effects use blocking IO or otherwise put a thread into a waiting state. If not carefully managed, these side-effects can deplete threads from our application's main thread pool, resulting in work starvation.
 
 ZIO provides the `zio.blocking` package, which can be used to safely convert such blocking side-effects into ZIO effects.
 
-A blocking side-effect can be converted directly into a ZIO effect blocking with the `effectBlocking` method:
+A blocking side-effect can be converted directly into a ZIO effect blocking with the `attemptBlocking` method:
 
 ```scala mdoc:silent
 
@@ -351,9 +351,9 @@ val sleeping =
 
 The resulting effect will be executed on a separate thread pool designed specifically for blocking effects.
 
-Blocking side-effects can be interrupted by invoking `Thread.interrupt` using the `effectBlockingInterrupt` method.
+Blocking side-effects can be interrupted by invoking `Thread.interrupt` using the `attemptBlockingInterrupt` method.
 
-Some blocking side-effects can only be interrupted by invoking a cancellation effect. We can convert these side-effects using the `effectBlockingCancelable` method:
+Some blocking side-effects can only be interrupted by invoking a cancellation effect. We can convert these side-effects using the `attemptBlockingCancelable` method:
 
 ```scala mdoc:silent
 import java.net.ServerSocket
@@ -363,7 +363,7 @@ def accept(l: ServerSocket) =
   ZIO.attemptBlockingCancelable(l.accept())(UIO.succeed(l.close()))
 ```
 
-If a side-effect has already been converted into a ZIO effect, then instead of `effectBlocking`, the `blocking` method can be used to ensure the effect will be executed on the blocking thread pool:
+If a side-effect has already been converted into a ZIO effect, then instead of `attemptBlocking`, the `blocking` method can be used to ensure the effect will be executed on the blocking thread pool:
 
 ```scala mdoc:silent
 import scala.io.{ Codec, Source }
@@ -379,14 +379,14 @@ def safeDownload(url: String) =
 
 #### Asynchronous
 
-| Function               | Input Type                                                    | Output Type    |
-|------------------------|---------------------------------------------------------------|----------------|
-| `effectAsync`          | `(ZIO[R, E, A] => Unit) => Any`                               | `ZIO[R, E, A]` |
-| `effectAsyncM`         | `(ZIO[R, E, A] => Unit) => ZIO[R, E, Any]`                    | `ZIO[R, E, A]` |
-| `effectAsyncMaybe`     | `(ZIO[R, E, A] => Unit) => Option[ZIO[R, E, A]]`              | `ZIO[R, E, A]` |
-| `effectAsyncInterrupt` | `(ZIO[R, E, A] => Unit) => Either[Canceler[R], ZIO[R, E, A]]` | `ZIO[R, E, A]` |
+| Function         | Input Type                                                    | Output Type    |
+|------------------|---------------------------------------------------------------|----------------|
+| `async`          | `(ZIO[R, E, A] => Unit) => Any`                               | `ZIO[R, E, A]` |
+| `asyncZIO`       | `(ZIO[R, E, A] => Unit) => ZIO[R, E, Any]`                    | `ZIO[R, E, A]` |
+| `asyncMaybe`     | `(ZIO[R, E, A] => Unit) => Option[ZIO[R, E, A]]`              | `ZIO[R, E, A]` |
+| `asyncInterrupt` | `(ZIO[R, E, A] => Unit) => Either[Canceler[R], ZIO[R, E, A]]` | `ZIO[R, E, A]` |
 
-An asynchronous side-effect with a callback-based API can be converted into a ZIO effect using `ZIO.effectAsync`:
+An asynchronous side-effect with a callback-based API can be converted into a ZIO effect using `ZIO.async`:
 
 ```scala mdoc:invisible
 trait User { 
@@ -653,13 +653,13 @@ val primaryOrBackupData: IO[IOException, Array[Byte]] =
 
 ### Folding
 
-| Function     | Input Type                                                                       | Output Type      |
-|--------------|----------------------------------------------------------------------------------|------------------|
-| `fold`       | `failure: E => B, success: A => B`                                               | `URIO[R, B]`     |
-| `foldCause`  | `failure: Cause[E] => B, success: A => B`                                        | `URIO[R, B]`     |
-| `foldM`      | `failure: E => ZIO[R1, E2, B], success: A => ZIO[R1, E2, B]`                     | `ZIO[R1, E2, B]` |
-| `foldCauseM` | `failure: Cause[E] => ZIO[R1, E2, B], success: A => ZIO[R1, E2, B]`              | `ZIO[R1, E2, B]` |
-| `foldTraceM` | `failure: ((E, Option[ZTrace])) => ZIO[R1, E2, B], success: A => ZIO[R1, E2, B]` | `ZIO[R1, E2, B]` |
+| Function       | Input Type                                                                       | Output Type      |
+|----------------|----------------------------------------------------------------------------------|------------------|
+| `fold`         | `failure: E => B, success: A => B`                                               | `URIO[R, B]`     |
+| `foldCause`    | `failure: Cause[E] => B, success: A => B`                                        | `URIO[R, B]`     |
+| `foldZIO`      | `failure: E => ZIO[R1, E2, B], success: A => ZIO[R1, E2, B]`                     | `ZIO[R1, E2, B]` |
+| `foldCauseZIO` | `failure: Cause[E] => ZIO[R1, E2, B], success: A => ZIO[R1, E2, B]`              | `ZIO[R1, E2, B]` |
+| `foldTraceZIO` | `failure: ((E, Option[ZTrace])) => ZIO[R1, E2, B], success: A => ZIO[R1, E2, B]` | `ZIO[R1, E2, B]` |
 
 Scala's `Option` and `Either` data types have `fold`, which let us handle both failure and success at the same time. In a similar fashion, `ZIO` effects also have several methods that allow us to handle both failure and success.
 
@@ -674,7 +674,7 @@ val primaryOrDefaultData: UIO[Array[Byte]] =
     data => data)
 ```
 
-The second fold method, `foldM`, lets us effectfully handle both failure and success, by supplying an effectful (but still pure) handler for each case:
+The second fold method, `foldZIO`, lets us effectfully handle both failure and success, by supplying an effectful (but still pure) handler for each case:
 
 ```scala mdoc:silent
 val primaryOrSecondaryData: IO[IOException, Array[Byte]] = 
@@ -683,9 +683,9 @@ val primaryOrSecondaryData: IO[IOException, Array[Byte]] =
     data => ZIO.succeed(data))
 ```
 
-Nearly all error handling methods are defined in terms of `foldM`, because it is both powerful and fast.
+Nearly all error handling methods are defined in terms of `foldZIO`, because it is both powerful and fast.
 
-In the following example, `foldM` is used to handle both failure and success of the `readUrls` method:
+In the following example, `foldZIO` is used to handle both failure and success of the `readUrls` method:
 
 ```scala mdoc:invisible
 sealed trait Content
@@ -712,10 +712,10 @@ val urls: UIO[Content] =
 | `retryOrElseEither` | `schedule: Schedule[R1, E, Out], orElse: (E, Out) => ZIO[R1, E1, B]` | `ZIO[R1 with Has[Clock], E1, Either[B, A]]` |
 | `retryUntil`        | `E => Boolean`                                                       | `ZIO[R, E, A]`                         |
 | `retryUntilEquals`  | `E1`                                                                 | `ZIO[R, E1, A]`                        |
-| `retryUntilM`       | `E => URIO[R1, Boolean]`                                             | `ZIO[R1, E, A]`                        |
+| `retryUntilZIO`     | `E => URIO[R1, Boolean]`                                             | `ZIO[R1, E, A]`                        |
 | `retryWhile`        | `E => Boolean`                                                       | `ZIO[R, E, A]`                         |
 | `retryWhileEquals`  | `E1`                                                                 | `ZIO[R, E1, A]`                        |
-| `retryWhileM`       | `E => URIO[R1, Boolean]`                                             | `ZIO[R1, E, A]`                        |
+| `retryWhileZIO`     | `E => URIO[R1, Boolean]`                                             | `ZIO[R1, E, A]`                        |
 
 When we are building applications we want to be resilient in the face of a transient failure. This is where we need to retry to overcome these failures.
 
@@ -779,7 +779,7 @@ val composite = action.ensuring(cleanupAction)
 ```
 
 > _**Note:**
-> Finalizers offer very powerful guarantees, but they are low-level, and should generally not be used for releasing resources. For higher-level logic built on `ensuring`, see `ZIO#bracket` on the bracket section.
+> Finalizers offer very powerful guarantees, but they are low-level, and should generally not be used for releasing resources. For higher-level logic built on `ensuring`, see `ZIO#acquireReleaseWith` in the acquire release section.
 
 #### Unstoppable Finalizers
 
@@ -804,7 +804,7 @@ io.ensuring(f1)
  .ensuring(f3)
 ```
 
-### Brackets
+### AcquireRelease
 
 In Scala the `try` / `finally` is often used to manage resources. A common use for `try` / `finally` is safely acquiring and releasing resources, such as new socket connections or opened files:
 
@@ -816,13 +816,13 @@ try {
 } finally closeFile(handle)
 ```
 
-ZIO encapsulates this common pattern with `ZIO#bracket`, which allows us to specify an _acquire_ effect, which acquires a resource; a _release_ effect, which releases it; and a _use_ effect, which uses the resource. Bracket lets us open a file and close the file and no matter what happens when we are using that resource.
+ZIO encapsulates this common pattern with `ZIO#acquireRelease`, which allows us to specify an _acquire_ effect, which acquires a resource; a _release_ effect, which releases it; and a _use_ effect, which uses the resource. Acquire release lets us open a file and close the file and no matter what happens when we are using that resource.
  
 The release action is guaranteed to be executed by the runtime system, even if the utilize action throws an exception or the executing fiber is interrupted.
 
-Brackets are a built-in primitive that let us safely acquire and release resources. They are used for a similar purpose as `try/catch/finally`, only brackets work with synchronous and asynchronous actions, work seamlessly with fiber interruption, and are built on a different error model that ensures no errors are ever swallowed.
+Acquire release is a built-in primitive that let us safely acquire and release resources. It is used for a similar purpose as `try/catch/finally`, only acquire release work with synchronous and asynchronous actions, work seamlessly with fiber interruption, and is built on a different error model that ensures no errors are ever swallowed.
 
-Brackets consist of an *acquire* action, a *utilize* action (which uses the acquired resource), and a *release* action.
+Acquire release consist of an *acquire* action, a *utilize* action (which uses the acquired resource), and a *release* action.
 
 ```scala mdoc:silent
 import zio.{ UIO, IO }
@@ -846,9 +846,9 @@ val groupedFileData: IO[IOException, Unit] = openFile("data.json").acquireReleas
 }
 ```
 
-Brackets have compositional semantics, so if a bracket is nested inside another bracket, and the outer bracket acquires a resource, then the outer bracket's release will always be called, even if, for example, the inner bracket's release fails.
+Acquire releases have compositional semantics, so if an acquire release is nested inside another acquire release, and the outer resource is acquired, then the outer release will always be called, even if, for example, the inner release fails.
 
-Let's look at a full working example on using brackets:
+Let's look at a full working example on using acquire release:
 
 ```scala mdoc:silent
 import zio._
@@ -857,9 +857,9 @@ import java.nio.charset.StandardCharsets
 
 object Main extends zio.App {
 
-  // run my bracket
+  // run my acquire release
   def run(args: List[String]) =
-    mybracket.exitCode
+    myAcquireRelease.exitCode
 
   def closeStream(is: FileInputStream) =
     UIO(is.close())
@@ -875,8 +875,8 @@ object Main extends zio.App {
     Task.attempt(println(new String(readAll(is, len), StandardCharsets.UTF_8))) // Java 8
   //Task.attempt(println(new String(is.readAllBytes(), StandardCharsets.UTF_8))) // Java 11+
 
-  // mybracket is just a value. Won't execute anything here until interpreted
-  val mybracket: Task[Unit] = for {
+  // myAcquireRelease is just a value. Won't execute anything here until interpreted
+  val myAcquireRelease: Task[Unit] = for {
     file   <- Task(new File("/tmp/hello"))
     len    = file.length
     string <- Task(new FileInputStream(file)).acquireReleaseWith(closeStream)(convertBytes(_, len))

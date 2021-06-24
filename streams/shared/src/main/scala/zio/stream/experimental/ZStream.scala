@@ -1415,7 +1415,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    *
    * For `Exit[E, A]` values that do not signal end-of-stream, prefer:
    * {{{
-   * stream.mapM(ZIO.done(_))
+   * stream.mapZIO(ZIO.done(_))
    * }}}
    */
   def flattenExitOption[E1 >: E, A1](implicit ev: A <:< Exit[Option[E1], A1]): ZStream[R, E1, A1] = {
@@ -3472,14 +3472,14 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * Accesses the environment of the stream in the context of an effect.
    */
   @deprecated("use accessZIO", "2.0.0")
-  def accessM[R]: AccessMPartiallyApplied[R] =
+  def accessM[R]: AccessZIOPartiallyApplied[R] =
     accessZIO
 
   /**
    * Accesses the environment of the stream in the context of an effect.
    */
-  def accessZIO[R]: AccessMPartiallyApplied[R] =
-    new AccessMPartiallyApplied[R]
+  def accessZIO[R]: AccessZIOPartiallyApplied[R] =
+    new AccessZIOPartiallyApplied[R]
 
   /**
    * Accesses the environment of the stream in the context of a stream.
@@ -4022,7 +4022,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     ZStream.fromZIO(ZIO.never)
 
   /**
-   * Like [[unfoldM]], but allows the emission of values to end one step further than
+   * Like [[unfold]], but allows the emission of values to end one step further than
    * the unfolding of the state. This is useful for embedding paginated APIs,
    * hence the name.
    */
@@ -4057,7 +4057,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     paginateChunkZIO(s)(f)
 
   /**
-   * Like [[unfoldChunkM]], but allows the emission of values to end one step further than
+   * Like [[unfoldChunkZIO]], but allows the emission of values to end one step further than
    * the unfolding of the state. This is useful for embedding paginated APIs,
    * hence the name.
    */
@@ -4083,7 +4083,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     paginateZIO(s)(f)
 
   /**
-   * Like [[unfoldM]], but allows the emission of values to end one step further than
+   * Like [[unfoldZIO]], but allows the emission of values to end one step further than
    * the unfolding of the state. This is useful for embedding paginated APIs,
    * hence the name.
    */
@@ -4341,7 +4341,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       ZStream.environment[R].map(f)
   }
 
-  final class AccessMPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+  final class AccessZIOPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[E, A](f: R => ZIO[R, E, A]): ZStream[R, E, A] =
       ZStream.environment[R].mapZIO(f)
   }

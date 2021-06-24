@@ -191,14 +191,14 @@ object JavaSpec extends ZIOBaseSpec {
         val client           = AsynchronousSocketChannel.open()
 
         val taskServer = for {
-          c <- ZIO.effectAsyncWithCompletionHandler[AsynchronousSocketChannel](server.accept((), _))
-          w <- ZIO.effectAsyncWithCompletionHandler[Integer](c.write(ByteBuffer.wrap(list.toArray), (), _))
+          c <- ZIO.asyncWithCompletionHandler[AsynchronousSocketChannel](server.accept((), _))
+          w <- ZIO.asyncWithCompletionHandler[Integer](c.write(ByteBuffer.wrap(list.toArray), (), _))
         } yield w
 
         val taskClient = for {
-          _     <- ZIO.effectAsyncWithCompletionHandler[Void](client.connect(address, (), _))
+          _     <- ZIO.asyncWithCompletionHandler[Void](client.connect(address, (), _))
           buffer = ByteBuffer.allocate(1)
-          r     <- ZIO.effectAsyncWithCompletionHandler[Integer](client.read(buffer, (), _))
+          r     <- ZIO.asyncWithCompletionHandler[Integer](client.read(buffer, (), _))
         } yield (r, buffer.array.toList)
 
         val task = for {

@@ -56,7 +56,7 @@ trait ZManaged[-R, +E, +A] {
 }
 ```
 
-Not that like `ZManaged.bracket`, both of `acquire` and `release` actions are uninterruptible in `ZManaged.makeExit`.
+Note that like `ZManaged.acquireReleaseWith`, both of `acquire` and `release` actions are uninterruptible in `ZManaged.acquireReleaseExitWith`.
 
 ### Lifting a pure value
 
@@ -120,11 +120,11 @@ ZManaged.fromAutoCloseable(ZIO.attempt(fromFile("file.txt")))
 
 ### Making Interruptible Acquires
 
-By default, when we create a `ZManaged` via `ZManaged.bracket` constructor, the `acquire` and `release` actions are _uninterruptible_. But what if we want to make the `acquire` action interruptible? The `makeInterruptible` constructor does that for us:
+By default, when we create a `ZManaged` via `ZManaged.acquireReleaseWith` constructor, the `acquire` and `release` actions are _uninterruptible_. But what if we want to make the `acquire` action interruptible? The `acquireReleaseInterruptibleWith` constructor does that for us:
 
 ```scala mdoc:silent:nest
 trait ZManaged[-R, +E, +A] {
-  def makeInterruptible[R, E, A](
+  def acquireReleaseInterruptibleWith[R, E, A](
     acquire: ZIO[R, E, A]
   )(release: A => URIO[R, Any]): ZManaged[R, E, A]
 }
@@ -132,11 +132,11 @@ trait ZManaged[-R, +E, +A] {
 
 Making `ZManaged` via this constructor makes the `acquire` action interruptible, the release action remains uninterruptible.
 
-If we want to decide what to do in the `release` action based on how the `acquire` action is completed, whether by success, failure, or interruption; we can use the `makeReserve` constructor. The type of `release` action is `Exit[Any, Any] => URIO[R, Any]` which provides us the `Exit` status of the `acquire` action, so we can decide what to do based on the exit status of `acquire` action:
+If we want to decide what to do in the `release` action based on how the `acquire` action is completed, whether by success, failure, or interruption; we can use the `fromReservation` constructor. The type of `release` action is `Exit[Any, Any] => URIO[R, Any]` which provides us the `Exit` status of the `acquire` action, so we can decide what to do based on the exit status of `acquire` action:
 
 ```scala mdoc:silent:nest
 trait ZManaged[-R, +E, +A] {
-  def makeReserve[R, E, A](reservation: ZIO[R, E, Reservation[R, E, A]]): ZManaged[R, E, A]
+  def fromReservation[R, E, A](reservation: ZIO[R, E, Reservation[R, E, A]]): ZManaged[R, E, A]
 }
 ```
 

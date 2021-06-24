@@ -68,11 +68,11 @@ ZIO's resource management features work across synchronous, asynchronous, concur
 
 ZIO has two major mechanisms to manage resources.
 
-### bracket
+### Acquire Release
 
-ZIO generalized the pattern of `try` / `finally` and encoded it in `ZIO.bracket` or `ZIO#bracket` operations. 
+ZIO generalized the pattern of `try` / `finally` and encoded it in `ZIO.acquireRelease` or `ZIO#acquireRelease` operations. 
 
-Every bracket requires three actions:
+Every acquire release requires three actions:
 1. **Acquiring Resource**— An effect describing the acquisition of resource. For example, opening a file.
 2. **Using Resource**— An effect describing the actual process to produce a result. For example, counting the number of lines in a file.
 3. **Releasing Resource**— An effect describing the final step of releasing or cleaning up the resource. For example, closing a file.
@@ -93,7 +93,7 @@ val result3: Task[Any] = Task.acquireReleaseWith(acquire, release, use)
 val result4: Task[Any] = Task.acquireReleaseWith(acquire)(release)(use) // More ergonomic API
 ```
 
-The bracket guarantees us that the `acquiring` and `releasing` of a resource will not be interrupted. These two guarantees ensure us that the resource will always be released.
+The acquire release guarantees us that the `acquiring` and `releasing` of a resource will not be interrupted. These two guarantees ensure us that the resource will always be released.
 
 Let's try a real example. We are going to write a function which count line number of given file. As we are working with file resource, we should separate our logic into three part. At the first part, we create a `BufferedReader`. At the second, we count the file lines with given `BufferedReader` resource, and at the end we close that resource:
 
@@ -103,11 +103,11 @@ def lines(file: String): Task[Long] = {
   def releaseReader(reader: BufferedReader): UIO[Unit]  = Task.succeed(reader.close())
   def acquireReader(file: String): Task[BufferedReader] = Task.attempt(new BufferedReader(new FileReader(file), 2048))
 
-  Task.bracket(acquireReader(file), releaseReader, countLines)
+  Task.acquireReleaseWith(acquireReader(file), releaseReader, countLines)
 }
 ```
 
-Let's write another function which copy a file from source to destination file. We can do that by nesting two brackets one for the `FileInputStream` and the other for `FileOutputStream`:
+Let's write another function which copy a file from source to destination file. We can do that by nesting two acquire releases one for the `FileInputStream` and the other for `FileOutputStream`:
 
 ```scala mdoc:silent
 def is(file: String): Task[FileInputStream]  = Task.attempt(???)
@@ -125,7 +125,7 @@ def transfer(src: String, dst: String): ZIO[Any, Throwable, Unit] = {
 }
 ```
 
-As there isn't any dependency between our two resources (`is` and `os`), it doesn't make sense to use nested brackets, so let's `zip` these two acquisition into one effect, and the use one bracket on them:
+As there isn't any dependency between our two resources (`is` and `os`), it doesn't make sense to use nested acquire releases, so let's `zip` these two acquisition into one effect, and then use one acquire release on them:
 
 ```scala mdoc:silent:nest
 def transfer(src: String, dst: String): ZIO[Any, Throwable, Unit] = {
@@ -141,13 +141,13 @@ def transfer(src: String, dst: String): ZIO[Any, Throwable, Unit] = {
 }
 ```
 
-While using bracket is a nice and simple way of managing resources, but there are some cases where a bracket is not the best choice:
+While using acquire release is a nice and simple way of managing resources, but there are some cases where an acquire release is not the best choice:
 
-1. Bracket is not composable— When we have multiple resources, composing them with a bracket is not straightforward.
+1. Acquire release is not composable— When we have multiple resources, composing them with an acquire release is not straightforward.
 
-2. Messy nested brackets— In the case of multiple resources, nested brackets remind us of callback hell awkwardness. The bracket is designed with nested resource acquisition. In the case of multiple resources, we encounter inefficient nested bracket calls, and it causes refactoring a complicated process.
+2. Messy nested acquire releases — In the case of multiple resources, nested acquire releases remind us of callback hell awkwardness. The acquire release is designed with nested resource acquisition. In the case of multiple resources, we encounter inefficient nested acquire release calls, and it causes refactoring a complicated process.
 
-Using brackets is simple and straightforward, but in the case of multiple resources, it isn't a good player. This is where we need another abstraction to cover these issues.
+Using acquire releases is simple and straightforward, but in the case of multiple resources, it isn't a good player. This is where we need another abstraction to cover these issues.
 
 ### ZManaged 
 

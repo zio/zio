@@ -141,7 +141,7 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
   /**
    * Find the last element in the array matching a transactional predicate.
    */
-  @deprecated("use findLastM", "2.0.0")
+  @deprecated("use findLastSTM", "2.0.0")
   def findLastM[E](p: A => STM[E, Boolean]): STM[E, Option[A]] =
     findLastSTM(p)
 

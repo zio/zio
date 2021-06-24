@@ -1008,14 +1008,14 @@ object ZSTM {
    * Accesses the environment of the transaction to perform a transaction.
    */
   @deprecated("use accessSTM", "2.0.0")
-  def accessM[R]: AccessMPartiallyApplied[R] =
+  def accessM[R]: AccessSTMPartiallyApplied[R] =
     accessSTM
 
   /**
    * Accesses the environment of the transaction to perform a transaction.
    */
-  def accessSTM[R]: AccessMPartiallyApplied[R] =
-    new AccessMPartiallyApplied
+  def accessSTM[R]: AccessSTMPartiallyApplied[R] =
+    new AccessSTMPartiallyApplied
 
   /**
    * Atomically performs a batch of operations in a single transaction.
@@ -1345,14 +1345,14 @@ object ZSTM {
    * Runs `onTrue` if the result of `b` is `true` and `onFalse` otherwise.
    */
   @deprecated("use ifSTM", "2.0.0")
-  def ifM[R, E](b: ZSTM[R, E, Boolean]): ZSTM.IfM[R, E] =
+  def ifM[R, E](b: ZSTM[R, E, Boolean]): ZSTM.IfSTM[R, E] =
     ifSTM(b)
 
   /**
    * Runs `onTrue` if the result of `b` is `true` and `onFalse` otherwise.
    */
-  def ifSTM[R, E](b: ZSTM[R, E, Boolean]): ZSTM.IfM[R, E] =
-    new ZSTM.IfM(b)
+  def ifSTM[R, E](b: ZSTM[R, E, Boolean]): ZSTM.IfSTM[R, E] =
+    new ZSTM.IfSTM(b)
 
   /**
    * Iterates with the specified transactional function. The moral equivalent
@@ -1639,14 +1639,14 @@ object ZSTM {
    * The moral equivalent of `if (!p) exp` when `p` has side-effects
    */
   @deprecated("use unlessSTM", "2.0.0")
-  def unlessM[R, E](b: ZSTM[R, E, Boolean]): ZSTM.UnlessM[R, E] =
+  def unlessM[R, E](b: ZSTM[R, E, Boolean]): ZSTM.UnlessSTM[R, E] =
     unlessSTM(b)
 
   /**
    * The moral equivalent of `if (!p) exp` when `p` has side-effects
    */
-  def unlessSTM[R, E](b: ZSTM[R, E, Boolean]): ZSTM.UnlessM[R, E] =
-    new ZSTM.UnlessM(b)
+  def unlessSTM[R, E](b: ZSTM[R, E, Boolean]): ZSTM.UnlessSTM[R, E] =
+    new ZSTM.UnlessSTM(b)
 
   /**
    * Feeds elements of type `A` to `f` and accumulates all errors in error
@@ -1716,21 +1716,21 @@ object ZSTM {
    * The moral equivalent of `if (p) exp` when `p` has side-effects
    */
   @deprecated("use whenSTM", "2.0.0")
-  def whenM[R, E](b: ZSTM[R, E, Boolean]): ZSTM.WhenM[R, E] =
+  def whenM[R, E](b: ZSTM[R, E, Boolean]): ZSTM.WhenSTM[R, E] =
     whenSTM(b)
 
   /**
    * The moral equivalent of `if (p) exp` when `p` has side-effects
    */
-  def whenSTM[R, E](b: ZSTM[R, E, Boolean]): ZSTM.WhenM[R, E] =
-    new ZSTM.WhenM(b)
+  def whenSTM[R, E](b: ZSTM[R, E, Boolean]): ZSTM.WhenSTM[R, E] =
+    new ZSTM.WhenSTM(b)
 
   final class AccessPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[A](f: R => A): ZSTM[R, Nothing, A] =
       ZSTM.environment.map(f)
   }
 
-  final class AccessMPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+  final class AccessSTMPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[E, A](f: R => ZSTM[R, E, A]): ZSTM[R, E, A] =
       ZSTM.environment.flatMap(f)
   }
@@ -1740,12 +1740,12 @@ object ZSTM {
       ZSTM.service[Service].flatMap(f)
   }
 
-  final class IfM[R, E](private val b: ZSTM[R, E, Boolean]) {
+  final class IfSTM[R, E](private val b: ZSTM[R, E, Boolean]) {
     def apply[R1 <: R, E1 >: E, A](onTrue: => ZSTM[R1, E1, A], onFalse: => ZSTM[R1, E1, A]): ZSTM[R1, E1, A] =
       b.flatMap(b => if (b) onTrue else onFalse)
   }
 
-  final class UnlessM[R, E](private val b: ZSTM[R, E, Boolean]) {
+  final class UnlessSTM[R, E](private val b: ZSTM[R, E, Boolean]) {
     def apply[R1 <: R, E1 >: E](stm: => ZSTM[R1, E1, Any]): ZSTM[R1, E1, Unit] =
       b.flatMap(b => if (b) unit else stm.unit)
   }
@@ -1755,7 +1755,7 @@ object ZSTM {
       self.provideSome(ev.update(_, f))
   }
 
-  final class WhenM[R, E](private val b: ZSTM[R, E, Boolean]) {
+  final class WhenSTM[R, E](private val b: ZSTM[R, E, Boolean]) {
     def apply[R1 <: R, E1 >: E](stm: => ZSTM[R1, E1, Any]): ZSTM[R1, E1, Unit] =
       b.flatMap(b => if (b) stm.unit else unit)
   }
