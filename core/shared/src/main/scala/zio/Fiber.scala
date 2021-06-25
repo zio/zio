@@ -191,7 +191,7 @@ sealed abstract class Fiber[+E, +A] { self =>
    * @return `Fiber[E, B]` The continued fiber.
    */
   final def mapFiber[E1 >: E, B](f: A => Fiber[E1, B]): UIO[Fiber[E1, B]] =
-    self.await.map(_.fold(Fiber.halt(_), f))
+    self.await.map(_.fold(Fiber.failCause(_), f))
 
   /**
    * Effectually maps over the value the fiber computes.
@@ -655,6 +655,12 @@ object Fiber extends FiberPlatformSpecific {
   def fail[E](e: E): Fiber.Synthetic[E, Nothing] = done(Exit.fail(e))
 
   /**
+   * Creates a `Fiber` that has already failed with the specified cause.
+   */
+  def failCause[E](cause: Cause[E]): Fiber.Synthetic[E, Nothing] =
+    done(Exit.failCause(cause))
+
+  /**
    * A `FiberRef` that stores the name of the fiber, which defaults to `None`.
    */
   val fiberName: FiberRef.Runtime[Option[String]] = new FiberRef.Runtime(None, identity, (old, _) => old)
@@ -713,7 +719,9 @@ object Fiber extends FiberPlatformSpecific {
   /**
    * Creates a `Fiber` that is halted with the specified cause.
    */
-  def halt[E](cause: Cause[E]): Fiber.Synthetic[E, Nothing] = done(Exit.halt(cause))
+  @deprecated("use failCause", "2.0.0")
+  def halt[E](cause: Cause[E]): Fiber.Synthetic[E, Nothing] =
+    failCause(cause)
 
   /**
    * Interrupts all fibers, awaiting their interruption.

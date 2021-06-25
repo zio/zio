@@ -117,6 +117,12 @@ object Take {
     Take(Exit.fail(Some(e)))
 
   /**
+   * Creates a failing `Take[E, Nothing]` with the specified cause.
+   */
+  def failCause[E](c: Cause[E]): Take[E, Nothing] =
+    Take(Exit.failCause(c.map(Some(_))))
+
+  /**
    * Creates an effect from `ZIO[R, E,A]` that does not fail, but succeeds with the `Take[E, A]`.
    * Error from stream when pulling is converted to `Take.halt`. Creates a singleton chunk.
    */
@@ -125,24 +131,27 @@ object Take {
     fromZIO(zio)
 
   /**
-   * Creates effect from `Pull[R, E, A]` that does not fail, but succeeds with the `Take[E, A]`.
-   * Error from stream when pulling is converted to `Take.halt`, end of stream to `Take.end`.
+   * Creates effect from `Pull[R, E, A]` that does not fail, but succeeds with
+   * the `Take[E, A]`. Error from stream when pulling is converted to
+   * `Take.failCause`, end of stream to `Take.end`.
    */
   def fromPull[R, E, A](pull: ZStream.Pull[R, E, A]): URIO[R, Take[E, A]] =
-    pull.foldCause(Cause.flipCauseOption(_).fold[Take[E, Nothing]](end)(halt), chunk)
+    pull.foldCause(Cause.flipCauseOption(_).fold[Take[E, Nothing]](end)(failCause), chunk)
 
   /**
-   * Creates an effect from `ZIO[R, E,A]` that does not fail, but succeeds with the `Take[E, A]`.
-   * Error from stream when pulling is converted to `Take.halt`. Creates a singleton chunk.
+   * Creates an effect from `ZIO[R, E,A]` that does not fail, but succeeds with
+   * the `Take[E, A]`. Error from stream when pulling is converted to
+   * `Take.failCause`. Creates a singleton chunk.
    */
   def fromZIO[R, E, A](zio: ZIO[R, E, A]): URIO[R, Take[E, A]] =
-    zio.foldCause(halt, single)
+    zio.foldCause(failCause, single)
 
   /**
    * Creates a failing `Take[E, Nothing]` with the specified cause.
    */
+  @deprecated("use failCause", "2.0.0")
   def halt[E](c: Cause[E]): Take[E, Nothing] =
-    Take(Exit.halt(c.map(Some(_))))
+    Take(Exit.failCause(c.map(Some(_))))
 
   /**
    * Creates a failing `Take[Nothing, Nothing]` with the specified throwable.

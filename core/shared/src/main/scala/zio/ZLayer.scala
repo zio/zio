@@ -88,7 +88,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    * outputs of the specified layer.
    */
   final def >>>[E1 >: E, ROut2](that: ZLayer[ROut, E1, ROut2]): ZLayer[RIn, E1, ROut2] =
-    fold(ZLayer.fromFunctionManyZIO { case (_, cause) => ZIO.halt(cause) }, that)
+    fold(ZLayer.fromFunctionManyZIO { case (_, cause) => ZIO.failCause(cause) }, that)
 
   /**
    * A named alias for `++`.
@@ -126,7 +126,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
       ZLayer.fromFunctionManyZIO { case (r, cause) =>
         cause.failureOrCause.fold(
           e => ZIO.succeed((r, e)),
-          c => ZIO.halt(c)
+          c => ZIO.failCause(c)
         )
       }
     fold(failureOrDie >>> handler, ZLayer.identity)
@@ -4381,11 +4381,11 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
                                                layer.scope.flatMap(_.apply(self)).zio.provide((a, innerReleaseMap))
                                              ).exit.flatMap {
                                                case e @ Exit.Failure(cause) =>
-                                                 promise.halt(cause) *> innerReleaseMap.releaseAll(
+                                                 promise.failCause(cause) *> innerReleaseMap.releaseAll(
                                                    e,
                                                    ExecutionStrategy.Sequential
                                                  ) *> ZIO
-                                                   .halt(cause)
+                                                   .failCause(cause)
 
                                                case Exit.Success((_, b)) =>
                                                  for {

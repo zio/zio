@@ -461,7 +461,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     pf: PartialFunction[E, ZIO[R1, E1, A1]]
   )(implicit ev: CanFail[E]): ZIO[R1, E1, A1] = {
     def tryRescue(c: Cause[E]): ZIO[R1, E1, A1] =
-      c.failureOrCause.fold(t => pf.applyOrElse(t, (_: E) => ZIO.halt(c)), ZIO.halt(_))
+      c.failureOrCause.fold(t => pf.applyOrElse(t, (_: E) => ZIO.failCause(c)), ZIO.failCause(_))
 
     self.foldCauseZIO[R1, E1, A1](ZIOFn(pf)(tryRescue), new ZIO.SucceedFn(pf))
   }
@@ -473,7 +473,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     pf: PartialFunction[(E, Option[ZTrace]), ZIO[R1, E1, A1]]
   )(implicit ev: CanFail[E]): ZIO[R1, E1, A1] = {
     def tryRescue(c: Cause[E]): ZIO[R1, E1, A1] =
-      c.failureTraceOrCause.fold(t => pf.applyOrElse(t, (_: (E, Option[ZTrace])) => ZIO.halt(c)), ZIO.halt(_))
+      c.failureTraceOrCause.fold(t => pf.applyOrElse(t, (_: (E, Option[ZTrace])) => ZIO.failCause(c)), ZIO.failCause(_))
 
     self.foldCauseZIO[R1, E1, A1](ZIOFn(pf)(tryRescue), new ZIO.SucceedFn(pf))
   }
@@ -491,7 +491,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     pf: PartialFunction[Cause[E], ZIO[R1, E1, A1]]
   ): ZIO[R1, E1, A1] = {
     def tryRescue(c: Cause[E]): ZIO[R1, E1, A1] =
-      pf.applyOrElse(c, (_: Cause[E]) => ZIO.halt(c))
+      pf.applyOrElse(c, (_: Cause[E]) => ZIO.failCause(c))
 
     self.foldCauseZIO[R1, E1, A1](ZIOFn(pf)(tryRescue), new ZIO.SucceedFn(pf))
   }
@@ -623,12 +623,12 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
         .foldCauseZIO(
           cause1 =>
             finalizer.foldCauseZIO[R1, E, Nothing](
-              cause2 => ZIO.halt(cause1 ++ cause2),
-              _ => ZIO.halt(cause1)
+              cause2 => ZIO.failCause(cause1 ++ cause2),
+              _ => ZIO.failCause(cause1)
             ),
           value =>
             finalizer.foldCauseZIO[R1, E, A](
-              cause1 => ZIO.halt(cause1),
+              cause1 => ZIO.failCause(cause1),
               _ => ZIO.succeedNow(value)
             )
         )
@@ -662,7 +662,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def exit: URIO[R, Exit[E, A]] =
     new ZIO.Fold[R, E, Nothing, A, Exit[E, A]](
       self,
-      cause => ZIO.succeedNow(Exit.halt(cause)),
+      cause => ZIO.succeedNow(Exit.failCause(cause)),
       success => ZIO.succeedNow(Exit.succeed(success))
     )
 
@@ -1176,7 +1176,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def onInterrupt[R1 <: R](cleanup: Set[Fiber.Id] => URIO[R1, Any]): ZIO[R1, E, A] =
     ZIO.uninterruptibleMask { restore =>
       restore(self).foldCauseZIO(
-        cause => if (cause.interrupted) cleanup(cause.interruptors) *> ZIO.halt(cause) else ZIO.halt(cause),
+        cause => if (cause.interrupted) cleanup(cause.interruptors) *> ZIO.failCause(cause) else ZIO.failCause(cause),
         a => ZIO.succeedNow(a)
       )
     }
@@ -1309,7 +1309,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     self.foldCauseZIO(
       cause =>
         cause.failures match {
-          case Nil            => ZIO.halt(cause.asInstanceOf[Cause[Nothing]])
+          case Nil            => ZIO.failCause(cause.asInstanceOf[Cause[Nothing]])
           case ::(head, tail) => ZIO.fail(::(head, tail))
         },
       ZIO.succeedNow
@@ -1516,7 +1516,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
       fails: Ref[Int]
     )(res: Exit[E1, A1]): URIO[R1, Any] =
       res.foldZIO[R1, Nothing, Unit](
-        e => ZIO.flatten(fails.modify((c: Int) => (if (c == 0) promise.halt(e).unit else ZIO.unit) -> (c - 1))),
+        e => ZIO.flatten(fails.modify((c: Int) => (if (c == 0) promise.failCause(e).unit else ZIO.unit) -> (c - 1))),
         a =>
           promise
             .succeed(a -> winner)
@@ -1608,7 +1608,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * }}}
    */
   final def refailWithTrace: ZIO[R, E, A] =
-    foldCauseZIO(c => ZIO.haltWith(trace => Cause.traced(c, trace())), ZIO.succeedNow)
+    foldCauseZIO(c => ZIO.failCauseWith(trace => Cause.traced(c, trace())), ZIO.succeedNow)
 
   /**
    * Keeps some of the errors, and terminates the fiber with the rest
@@ -1900,7 +1900,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    *       IO.unit
    *     case cause =>
    *       // Caught unknown defects, shouldn't recover!
-   *       IO.halt(cause)
+   *       IO.failCause(cause)
    *   }
    * }}}
    */
@@ -2146,8 +2146,16 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * The same as [[timeout]], but instead of producing a `None` in the event
    * of timeout, it will produce the specified failure.
    */
+  final def timeoutFailCause[E1 >: E](cause: Cause[E1])(d: Duration): ZIO[R with Has[Clock], E1, A] =
+    ZIO.flatten(timeoutTo(ZIO.failCause(cause))(ZIO.succeedNow)(d))
+
+  /**
+   * The same as [[timeout]], but instead of producing a `None` in the event
+   * of timeout, it will produce the specified failure.
+   */
+  @deprecated("use timeoutFailCause", "2.0.0")
   final def timeoutHalt[E1 >: E](cause: Cause[E1])(d: Duration): ZIO[R with Has[Clock], E1, A] =
-    ZIO.flatten(timeoutTo(ZIO.halt(cause))(ZIO.succeedNow)(d))
+    timeoutFailCause(cause)(d)
 
   /**
    * Returns an effect that will timeout this effect, returning either the
@@ -2237,7 +2245,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
       ZIOFn(() => that) { cause =>
         cause.keepDefects match {
           case None    => that
-          case Some(c) => ZIO.halt(c)
+          case Some(c) => ZIO.failCause(c)
         }
       },
       success
@@ -2255,7 +2263,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
       val cause = ev(a)
 
       if (cause.isEmpty) ZIO.unit
-      else ZIO.halt(cause)
+      else ZIO.failCause(cause)
     }
 
   /**
@@ -2312,7 +2320,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     catchAllCause { cause =>
       cause.find {
         case Cause.Die(t) if pf.isDefinedAt(t) => pf(t)
-      }.fold(ZIO.halt(cause.map(f)))(ZIO.fail(_))
+      }.fold(ZIO.failCause(cause.map(f)))(ZIO.fail(_))
     }
 
   /**
@@ -2449,10 +2457,10 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
         case Exit.Success(a) => loser.inheritRefs *> loser.join.map(f(a, _))
         case Exit.Failure(cause) =>
           loser.interruptAs(fiberId).flatMap {
-            case Exit.Success(_) => ZIO.halt(cause)
+            case Exit.Success(_) => ZIO.failCause(cause)
             case Exit.Failure(loserCause) =>
-              if (leftWinner) ZIO.halt(cause && loserCause)
-              else ZIO.halt(loserCause && cause)
+              if (leftWinner) ZIO.failCause(cause && loserCause)
+              else ZIO.failCause(loserCause && cause)
           }
       }
 
@@ -2571,7 +2579,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
             ZIO
               .suspendSucceed(release(a, e))
               .foldCauseZIO(
-                cause2 => ZIO.halt(e.fold(_ ++ cause2, _ => cause2)),
+                cause2 => ZIO.failCause(e.fold(_ ++ cause2, _ => cause2)),
                 _ => ZIO.done(e)
               )
           })
@@ -2662,7 +2670,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       a <- ZIO.uninterruptibleMask { restore =>
              val f = register(k => r.unsafeRunAsync(k.to(p)))
 
-             restore(f.catchAllCause(p.halt)).fork *> restore(p.await)
+             restore(f.catchAllCause(p.failCause)).fork *> restore(p.await)
            }
     } yield a
 
@@ -2888,7 +2896,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
             ZIO
               .suspendSucceed(release(a, e))
               .foldCauseZIO(
-                cause2 => ZIO.halt(e.fold(_ ++ cause2, _ => cause2)),
+                cause2 => ZIO.failCause(e.fold(_ ++ cause2, _ => cause2)),
                 _ => ZIO.done(e)
               )
           })
@@ -3164,7 +3172,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * detected in the code.
    */
   def die(t: => Throwable): UIO[Nothing] =
-    haltWith(trace => Cause.Traced(Cause.Die(t), trace()))
+    failCauseWith(trace => Cause.Traced(Cause.Die(t), trace()))
 
   /**
    * Returns an effect that dies with a [[java.lang.RuntimeException]] having the
@@ -3181,7 +3189,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     ZIO.suspendSucceed {
       r match {
         case Exit.Success(b)     => succeedNow(b)
-        case Exit.Failure(cause) => halt(cause)
+        case Exit.Failure(cause) => failCause(cause)
       }
     }
 
@@ -3391,7 +3399,22 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * The moral equivalent of `throw` for pure code.
    */
   def fail[E](error: => E): IO[E, Nothing] =
-    haltWith(trace => Cause.Traced(Cause.Fail(error), trace()))
+    failCauseWith(trace => Cause.Traced(Cause.Fail(error), trace()))
+
+  /**
+   * Returns an effect that models failure with the specified `Cause`.
+   */
+  def failCause[E](cause: => Cause[E]): IO[E, Nothing] =
+    new ZIO.Fail(_ => cause)
+
+  /**
+   * Returns an effect that models failure with the specified `Cause`.
+   *
+   * This version takes in a lazily-evaluated trace that can be attached to the `Cause`
+   * via `Cause.Traced`.
+   */
+  def failCauseWith[E](function: (() => ZTrace) => Cause[E]): IO[E, Nothing] =
+    new ZIO.Fail(function)
 
   /**
    * Returns the `Fiber.Id` of the fiber executing the effect that calls this method.
@@ -3770,7 +3793,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
         _ <- interrupter.useDiscard {
                ZIO
                  .whenZIO(ZIO.foreach(fibers)(_.await).map(_.exists(!_.succeeded))) {
-                   result.fail(()) *> causes.get.flatMap(ZIO.halt(_))
+                   result.fail(()) *> causes.get.flatMap(ZIO.failCause(_))
                  }
                  .refailWithTrace
              }
@@ -3881,7 +3904,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Lifts an `Either` into a `ZIO` value.
    */
   def fromEitherCause[E, A](v: => Either[Cause[E], A]): IO[E, A] =
-    succeed(v).flatMap(_.fold(halt(_), succeedNow))
+    succeed(v).flatMap(_.fold(failCause(_), succeedNow))
 
   /**
    * Creates a `ZIO` value that represents the exit value of the specified
@@ -4078,8 +4101,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * Returns an effect that models failure with the specified `Cause`.
    */
+  @deprecated("use failCause", "2.0.0")
   def halt[E](cause: => Cause[E]): IO[E, Nothing] =
-    new ZIO.Fail(_ => cause)
+    failCause(cause)
 
   /**
    * Returns an effect that models failure with the specified `Cause`.
@@ -4087,7 +4111,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * This version takes in a lazily-evaluated trace that can be attached to the `Cause`
    * via `Cause.Traced`.
    */
-  def haltWith[E](function: (() => ZTrace) => Cause[E]): IO[E, Nothing] = new ZIO.Fail(function)
+  @deprecated("use failCauseWith", "2.0.0")
+  def haltWith[E](function: (() => ZTrace) => Cause[E]): IO[E, Nothing] =
+    failCauseWith(function)
 
   /**
    * Returns the identity effectful function, which performs no effects
@@ -4123,7 +4149,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Returns an effect that is interrupted as if by the specified fiber.
    */
   def interruptAs(fiberId: => Fiber.Id): UIO[Nothing] =
-    haltWith(trace => Cause.Traced(Cause.interrupt(fiberId), trace()))
+    failCauseWith(trace => Cause.Traced(Cause.interrupt(fiberId), trace()))
 
   /**
    * Prefix form of `ZIO#interruptible`.
@@ -5256,44 +5282,44 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
   final class MapErrorFn[R, E, E2, A](override val underlying: E => E2) extends ZIOFn1[Cause[E], ZIO[R, E2, Nothing]] {
     def apply(a: Cause[E]): ZIO[R, E2, Nothing] =
-      ZIO.halt(a.map(underlying))
+      ZIO.failCause(a.map(underlying))
   }
 
   final class MapErrorCauseFn[R, E, E2, A](override val underlying: Cause[E] => Cause[E2])
       extends ZIOFn1[Cause[E], ZIO[R, E2, Nothing]] {
     def apply(a: Cause[E]): ZIO[R, E2, Nothing] =
-      ZIO.halt(underlying(a))
+      ZIO.failCause(underlying(a))
   }
 
   final class FoldCauseZIOFailureFn[R, E, E2, A](override val underlying: E => ZIO[R, E2, A])
       extends ZIOFn1[Cause[E], ZIO[R, E2, A]] {
     def apply(c: Cause[E]): ZIO[R, E2, A] =
-      c.failureOrCause.fold(underlying, ZIO.halt(_))
+      c.failureOrCause.fold(underlying, ZIO.failCause(_))
   }
 
   final class FoldCauseZIOFailureTraceFn[R, E, E2, A](override val underlying: ((E, Option[ZTrace])) => ZIO[R, E2, A])
       extends ZIOFn1[Cause[E], ZIO[R, E2, A]] {
     def apply(c: Cause[E]): ZIO[R, E2, A] =
-      c.failureTraceOrCause.fold(underlying, ZIO.halt(_))
+      c.failureTraceOrCause.fold(underlying, ZIO.failCause(_))
   }
 
   final class TapCauseRefailFn[R, E, E1 >: E, A](override val underlying: Cause[E] => ZIO[R, E1, Any])
       extends ZIOFn1[Cause[E], ZIO[R, E1, Nothing]] {
     def apply(c: Cause[E]): ZIO[R, E1, Nothing] =
-      underlying(c) *> ZIO.halt(c)
+      underlying(c) *> ZIO.failCause(c)
   }
 
   final class TapErrorRefailFn[R, E, E1 >: E, A](override val underlying: E => ZIO[R, E1, Any])
       extends ZIOFn1[Cause[E], ZIO[R, E1, Nothing]] {
     def apply(c: Cause[E]): ZIO[R, E1, Nothing] =
-      c.failureOrCause.fold(underlying(_) *> ZIO.halt(c), _ => ZIO.halt(c))
+      c.failureOrCause.fold(underlying(_) *> ZIO.failCause(c), _ => ZIO.failCause(c))
   }
 
   final class TapErrorTraceRefailFn[R, E, E1 >: E, A](
     override val underlying: ((E, Option[ZTrace])) => ZIO[R, E1, Any]
   ) extends ZIOFn1[Cause[E], ZIO[R, E1, Nothing]] {
     def apply(c: Cause[E]): ZIO[R, E1, Nothing] =
-      c.failureTraceOrCause.fold(underlying(_) *> ZIO.halt(c), _ => ZIO.halt(c))
+      c.failureTraceOrCause.fold(underlying(_) *> ZIO.failCause(c), _ => ZIO.failCause(c))
   }
 
   private[zio] object Tags {

@@ -433,7 +433,7 @@ private[zio] final class FiberContext[E, A](
 
                       setInterrupting(true)
 
-                      curZio = done(Exit.halt(cause))
+                      curZio = done(Exit.failCause(cause))
                     } else {
                       setInterrupting(false)
 
@@ -568,7 +568,7 @@ private[zio] final class FiberContext[E, A](
                       case Left(exit) =>
                         exit match {
                           case Exit.Success(value) => curZio = nextInstr(value)
-                          case Exit.Failure(cause) => curZio = ZIO.halt(cause)
+                          case Exit.Failure(cause) => curZio = ZIO.failCause(cause)
                         }
                       case Right(zio) => curZio = zio
                     }
@@ -644,7 +644,7 @@ private[zio] final class FiberContext[E, A](
               }
             } else {
               // Fiber was interrupted
-              curZio = ZIO.halt(state.get.interrupted)
+              curZio = ZIO.failCause(state.get.interrupted)
 
               // Prevent interruption of interruption:
               setInterrupting(true)
@@ -861,7 +861,7 @@ private[zio] final class FiberContext[E, A](
         else if (shouldInterrupt()) {
           // Fiber interrupted, so go back into running state:
           exitAsync(epoch)
-          ZIO.halt(state.get.interrupted)
+          ZIO.failCause(state.get.interrupted)
         } else null
 
       case _ => throw new RuntimeException(s"Unexpected fiber completion ${fiberId}")

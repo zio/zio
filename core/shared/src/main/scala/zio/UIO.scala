@@ -433,6 +433,18 @@ object UIO {
     ZIO.exists(as)(f)
 
   /**
+   * @see See [[zio.ZIO.failCause]]
+   */
+  def failCause(cause: => Cause[Nothing]): UIO[Nothing] =
+    ZIO.failCause(cause)
+
+  /**
+   * @see [[zio.ZIO.failCauseWith]]
+   */
+  def failCauseWith(function: (() => ZTrace) => Cause[Nothing]): UIO[Nothing] =
+    ZIO.failCauseWith(function)
+
+  /**
    * @see [[zio.ZIO.fiberId]]
    */
   val fiberId: UIO[Fiber.Id] = ZIO.fiberId
@@ -718,12 +730,16 @@ object UIO {
   /**
    * @see See [[zio.ZIO.halt]]
    */
-  def halt(cause: => Cause[Nothing]): UIO[Nothing] = ZIO.halt(cause)
+  @deprecated("use failCause", "2.0.0")
+  def halt(cause: => Cause[Nothing]): UIO[Nothing] =
+    ZIO.halt(cause)
 
   /**
    * @see [[zio.ZIO.haltWith]]
    */
-  def haltWith(function: (() => ZTrace) => Cause[Nothing]): UIO[Nothing] = ZIO.haltWith(function)
+  @deprecated("use failCauseWith", "2.0.0")
+  def haltWith(function: (() => ZTrace) => Cause[Nothing]): UIO[Nothing] =
+    ZIO.haltWith(function)
 
   /**
    * @see [[zio.ZIO.identity]]

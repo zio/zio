@@ -34,7 +34,7 @@ object Deflate {
                 deflater.setInput(chunk.toArray)
                 pullOutput(deflater, buffer, flushMode)
               }.flatMap(chunk => ZChannel.write(chunk) *> loop),
-            ZChannel.halt(_),
+            ZChannel.failCause(_),
             done =>
               ZChannel.effectTotal {
                 deflater.finish()

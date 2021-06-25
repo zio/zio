@@ -15,16 +15,16 @@ object StreamLazinessSpec extends ZIOBaseSpec {
     suite("ZSink")(
       testM("die")(assertLazy(ZSink.die)),
       testM("fail")(assertLazy(ZSink.fail)),
-      testM("halt")(assertLazy(ZSink.halt)),
+      testM("failCause")(assertLazy(ZSink.failCause)),
       testM("succeed")(assertLazy(ZSink.succeed))
     ),
     suite("ZStream")(
       testM("die")(assertLazy(ZStream.die)),
       testM("dieMessage")(assertLazy(ZStream.dieMessage)),
       testM("fail")(assertLazy(ZStream.fail)),
+      testM("failCause")(assertLazy(ZStream.failCause)),
       testM("fromChunk")(assertLazy(ZStream.fromChunk)),
       testM("fromIterable")(assertLazy(ZStream.fromIterable)),
-      testM("halt")(assertLazy(ZStream.halt)),
       testM("succeed")(assertLazy(ZStream.succeed))
     )
   )

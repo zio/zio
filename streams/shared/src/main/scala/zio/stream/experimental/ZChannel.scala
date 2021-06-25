@@ -128,7 +128,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
   ](
     f: OutErr => ZChannel[Env1, InErr1, InElem1, InDone1, OutErr2, OutElem1, OutDone1]
   ): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr2, OutElem1, OutDone1] =
-    catchAllCause((cause: Cause[OutErr]) => cause.failureOrCause.fold(f(_), ZChannel.halt(_)))
+    catchAllCause((cause: Cause[OutErr]) => cause.failureOrCause.fold(f(_), ZChannel.failCause(_)))
 
   /**
    * Returns a new channel that is the same as this one, except if this channel errors for any
@@ -369,7 +369,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
   ](
     f: OutDone => ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem1, OutDone2]
   ): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem1, OutDone2] =
-    ZChannel.Fold(self, new ZChannel.Fold.K(f, ZChannel.Fold.haltIdentity[OutErr1]))
+    ZChannel.Fold(self, new ZChannel.Fold.K(f, ZChannel.Fold.failCauseIdentity[OutErr1]))
 
   /**
    * Returns a new channel, which flattens the terminal value of this channel. This function may
@@ -405,7 +405,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     foldCauseChannel(
       _.failureOrCause match {
         case Left(err)    => onErr(err)
-        case Right(cause) => ZChannel.halt(cause)
+        case Right(cause) => ZChannel.failCause(cause)
       },
       onSucc
     )
@@ -464,7 +464,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
   final def mapErrorCause[OutErr2](
     f: Cause[OutErr] => Cause[OutErr2]
   ): ZChannel[Env, InErr, InElem, InDone, OutErr2, OutElem, OutDone] =
-    catchAllCause((cause: Cause[OutErr]) => ZChannel.halt(f(cause)))
+    catchAllCause((cause: Cause[OutErr]) => ZChannel.failCause(f(cause)))
 
   /**
    * Returns a new channel, which is the same as this one, except the terminal value of the
@@ -521,7 +521,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
               }
 
             case Exit.Failure(cause) =>
-              done(Cause.flipCauseEither(cause).fold(Exit.halt(_), Exit.succeed(_))) match {
+              done(Cause.flipCauseEither(cause).fold(Exit.failCause(_), Exit.succeed(_))) match {
                 case ZChannel.MergeDecision.Done(zio) =>
                   UIO.succeed(ZChannel.fromZIO(fiber.interrupt *> zio))
                 case ZChannel.MergeDecision.Await(f) =>
@@ -529,7 +529,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                     case Exit.Success(elem) => ZChannel.write(elem) *> go(single(f))
                     case Exit.Failure(cause) =>
                       ZChannel
-                        .fromZIO(f(Cause.flipCauseEither(cause).fold(Exit.halt(_), Exit.succeed(_))))
+                        .fromZIO(f(Cause.flipCauseEither(cause).fold(Exit.failCause(_), Exit.succeed(_))))
                   }
               }
           }
@@ -554,7 +554,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                   case Exit.Success(elem) => ZChannel.write(elem) *> go(LeftDone(f))
                   case Exit.Failure(cause) =>
                     ZChannel
-                      .fromZIO(f(Cause.flipCauseEither(cause).fold(Exit.halt(_), Exit.succeed(_))))
+                      .fromZIO(f(Cause.flipCauseEither(cause).fold(Exit.failCause(_), Exit.succeed(_))))
                 }
               }
 
@@ -564,7 +564,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                   case Exit.Success(elem) => ZChannel.write(elem) *> go(RightDone(f))
                   case Exit.Failure(cause) =>
                     ZChannel
-                      .fromZIO(f(Cause.flipCauseEither(cause).fold(Exit.halt(_), Exit.succeed(_))))
+                      .fromZIO(f(Cause.flipCauseEither(cause).fold(Exit.failCause(_), Exit.succeed(_))))
                 }
               }
           }
@@ -634,7 +634,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                  .foldCauseZIO(
                    Cause.flipCauseEither[OutErr1, OutDone](_) match {
                      case Left(cause) =>
-                       queue.offer(ZIO.halt(cause.map(Left(_))))
+                       queue.offer(ZIO.failCause(cause.map(Left(_))))
                      case Right(outDone) =>
                        permits.withPermits(n.toLong)(ZIO.unit).interruptible *> queue.offer(ZIO.fail(Right(outDone)))
                    },
@@ -646,7 +646,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                        _ <- permits.withPermit {
                               latch.succeed(()) *>
                                 (errorSignal.await raceFirst f(outElem))
-                                  .tapCause(errorSignal.halt)
+                                  .tapCause(errorSignal.failCause)
                                   .to(p)
                             }.fork
                        _ <- latch.await
@@ -663,7 +663,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
           queue.take.flatten.foldCause(
             Cause.flipCauseEither[OutErr1, OutDone](_) match {
               case Right(outDone) => ZChannel.end(outDone)
-              case Left(cause)    => ZChannel.halt(cause)
+              case Left(cause)    => ZChannel.failCause(cause)
             },
             outElem => ZChannel.write(outElem) *> consumer
           )
@@ -776,7 +776,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
             case ChannelState.Done =>
               exec.getDone match {
                 case Exit.Success(done)  => ZIO.fail(Right(done))
-                case Exit.Failure(cause) => ZIO.halt(cause.map(Left(_)))
+                case Exit.Failure(cause) => ZIO.failCause(cause.map(Left(_)))
               }
             case ChannelState.Emit =>
               ZIO.succeed(exec.getEmit)
@@ -968,10 +968,10 @@ object ZChannel {
     def successIdentity[Z]: Z => ZChannel[Any, Any, Any, Any, Nothing, Nothing, Z] =
       SuccessIdentity.asInstanceOf[Z => ZChannel[Any, Any, Any, Any, Nothing, Nothing, Z]]
 
-    private[this] val HaltIdentity: Cause[Any] => ZChannel[Any, Any, Any, Any, Any, Nothing, Nothing] =
-      ZChannel.halt(_)
-    def haltIdentity[E]: Cause[E] => ZChannel[Any, Any, Any, Any, E, Nothing, Nothing] =
-      HaltIdentity.asInstanceOf[Cause[E] => ZChannel[Any, Any, Any, Any, E, Nothing, Nothing]]
+    private[this] val FailCauseIdentity: Cause[Any] => ZChannel[Any, Any, Any, Any, Any, Nothing, Nothing] =
+      ZChannel.failCause(_)
+    def failCauseIdentity[E]: Cause[E] => ZChannel[Any, Any, Any, Any, E, Nothing, Nothing] =
+      FailCauseIdentity.asInstanceOf[Cause[E] => ZChannel[Any, Any, Any, Any, E, Nothing, Nothing]]
   }
 
   private[zio] final case class Bridge[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDone](
@@ -1118,7 +1118,7 @@ object ZChannel {
   }
 
   def fail[E](e: => E): ZChannel[Any, Any, Any, Any, E, Nothing, Nothing] =
-    halt(Cause.fail(e))
+    failCause(Cause.fail(e))
 
   def fromEither[E, A](either: Either[E, A]): ZChannel[Any, Any, Any, Any, E, Nothing, A] =
     either.fold(ZChannel.fail(_), ZChannel.succeed(_))
@@ -1129,7 +1129,7 @@ object ZChannel {
   def fromZIO[R, E, A](zio: ZIO[R, E, A]): ZChannel[R, Any, Any, Any, E, Nothing, A] =
     Effect(zio)
 
-  def halt[E](cause: => Cause[E]): ZChannel[Any, Any, Any, Any, E, Nothing, Nothing] =
+  def failCause[E](cause: => Cause[E]): ZChannel[Any, Any, Any, Any, E, Nothing, Nothing] =
     Halt(() => cause)
 
   def identity[Err, Elem, Done]: ZChannel[Any, Err, Elem, Done, Err, Elem, Done] =
@@ -1140,7 +1140,7 @@ object ZChannel {
     )
 
   def interrupt(fiberId: Fiber.Id): ZChannel[Any, Any, Any, Any, Nothing, Nothing, Nothing] =
-    halt(Cause.interrupt(fiberId))
+    failCause(Cause.interrupt(fiberId))
 
   def managed[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone, A](m: ZManaged[Env, OutErr, A])(
     use: A => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]
@@ -1235,7 +1235,7 @@ object ZChannel {
     error: InErr => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone],
     done: InDone => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]
   ): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
-    readWithCause(in, (c: Cause[InErr]) => c.failureOrCause.fold(error, ZChannel.halt(_)), done)
+    readWithCause(in, (c: Cause[InErr]) => c.failureOrCause.fold(error, ZChannel.failCause(_)), done)
 
   def readOrFail[E, In](e: E): ZChannel[Any, Any, In, Any, E, Nothing, In] =
     Read[Any, Any, In, Any, Any, E, Nothing, Nothing, In, In](
@@ -1272,7 +1272,7 @@ object ZChannel {
   ): ZChannel[Any, Any, Any, Any, Err, Elem, Done] =
     ZChannel.unwrap(
       input.takeWith(
-        ZChannel.halt(_),
+        ZChannel.failCause(_),
         ZChannel.write(_) *> fromInput(input),
         ZChannel.end(_)
       )
@@ -1285,7 +1285,7 @@ object ZChannel {
       case Exit.Success(elem) => write(elem) *> fromQueue(queue)
       case Exit.Failure(cause) =>
         Cause.flipCauseEither(cause) match {
-          case Left(cause) => halt(cause)
+          case Left(cause) => failCause(cause)
           case Right(done) => end(done)
         }
     }
@@ -1300,7 +1300,7 @@ object ZChannel {
   ): ZChannel[Any, Err, Elem, Done, Nothing, Nothing, Any] =
     ZChannel.readWithCause(
       (in: Elem) => ZChannel.fromZIO(queue.offer(Exit.succeed(in))) *> toQueue(queue),
-      (cause: Cause[Err]) => ZChannel.fromZIO(queue.offer(Exit.halt(cause.map(Left(_))))),
+      (cause: Cause[Err]) => ZChannel.fromZIO(queue.offer(Exit.failCause(cause.map(Left(_))))),
       (done: Done) => ZChannel.fromZIO(queue.offer(Exit.fail(Right(done))))
     )
 

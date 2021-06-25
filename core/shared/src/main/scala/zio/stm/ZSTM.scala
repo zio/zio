@@ -1036,7 +1036,7 @@ object ZSTM {
                   state.compareAndSet(State.Running, State.Interrupted)
                   state.get match {
                     case State.Done(exit) => ZIO.done(exit)
-                    case _                => ZIO.halt(cause)
+                    case _                => ZIO.failCause(cause)
                   }
                 }
               }

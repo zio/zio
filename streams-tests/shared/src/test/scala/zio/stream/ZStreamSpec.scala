@@ -712,12 +712,12 @@ object ZStreamSpec extends ZIOBaseSpec {
         ),
         suite("catchSomeCause")(
           testM("recovery from some errors") {
-            val s1 = ZStream(1, 2) ++ ZStream.halt(Cause.Fail("Boom"))
+            val s1 = ZStream(1, 2) ++ ZStream.failCause(Cause.Fail("Boom"))
             val s2 = ZStream(3, 4)
             s1.catchSomeCause { case Cause.Fail("Boom") => s2 }.runCollect
               .map(assert(_)(equalTo(Chunk(1, 2, 3, 4))))
           },
-          testM("halts stream when partial function does not match") {
+          testM("fails stream when partial function does not match") {
             val s1 = ZStream(1, 2) ++ ZStream.fail("Boom")
             val s2 = ZStream(3, 4)
             s1.catchSomeCause { case Cause.empty => s2 }.runCollect.either
@@ -2036,7 +2036,7 @@ object ZStreamSpec extends ZIOBaseSpec {
         },
         testM("mapErrorCause") {
           ZStream
-            .halt(Cause.fail("123"))
+            .failCause(Cause.fail("123"))
             .mapErrorCause(_.map(_.toInt))
             .runCollect
             .either

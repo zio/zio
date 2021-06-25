@@ -2169,7 +2169,7 @@ object ZStreamSpec extends ZIOBaseSpec {
         },
         testM("mapErrorCause") {
           ZStream
-            .halt(Cause.fail("123"))
+            .failCause(Cause.fail("123"))
             .mapErrorCause(_.map(_.toInt))
             .runCollect
             .either
@@ -3012,13 +3012,13 @@ object ZStreamSpec extends ZIOBaseSpec {
               .map(_.merge)
           )(isFalse)
         },
-        testM("timeoutHalt") {
+        testM("timeoutFailCause") {
           val throwable = new Exception("BOOM")
           assertM(
             ZStream
               .range(0, 5)
               .tap(_ => ZIO.sleep(Duration.Infinity))
-              .timeoutHalt(Cause.die(throwable))(Duration.Zero)
+              .timeoutFailCause(Cause.die(throwable))(Duration.Zero)
               .runDrain
               .sandbox
               .either

@@ -464,6 +464,18 @@ object URIO {
     ZIO.exists(as)(f)
 
   /**
+   * @see [[zio.ZIO.failCause]]
+   */
+  def failCause(cause: => Cause[Nothing]): UIO[Nothing] =
+    ZIO.failCause(cause)
+
+  /**
+   * @see [[zio.ZIO.failCauseWith]]
+   */
+  def failCauseWith[R](function: (() => ZTrace) => Cause[Nothing]): URIO[R, Nothing] =
+    ZIO.failCauseWith(function)
+
+  /**
    * @see [[zio.ZIO.fiberId]]
    */
   val fiberId: UIO[Fiber.Id] = ZIO.fiberId
@@ -771,11 +783,14 @@ object URIO {
   /**
    * @see [[zio.ZIO.halt]]
    */
-  def halt(cause: => Cause[Nothing]): UIO[Nothing] = ZIO.halt(cause)
+  @deprecated("use failCause", "2.0.0")
+  def halt(cause: => Cause[Nothing]): UIO[Nothing] =
+    ZIO.halt(cause)
 
   /**
    * @see [[zio.ZIO.haltWith]]
    */
+  @deprecated("use failCauseWith", "2.0.0")
   def haltWith[R](function: (() => ZTrace) => Cause[Nothing]): URIO[R, Nothing] =
     ZIO.haltWith(function)
 

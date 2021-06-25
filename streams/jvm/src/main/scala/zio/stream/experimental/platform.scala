@@ -98,7 +98,7 @@ trait ZStreamPlatformSpecificConstructors {
                 case Left(None) =>
                   ZChannel.end(())
                 case Right(cause) =>
-                  ZChannel.halt(cause)
+                  ZChannel.failCause(cause)
               }),
             a => ZIO.succeedNow(ZChannel.write(a) *> loop)
           )

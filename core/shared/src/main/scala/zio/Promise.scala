@@ -142,10 +142,19 @@ final class Promise[E, A] private (
   def fail(e: E): UIO[Boolean] = completeWith(IO.fail(e))
 
   /**
+   * Fails the promise with the specified cause, which will be propagated to all
+   * fibers waiting on the value of the promise.
+   */
+  def failCause(e: Cause[E]): UIO[Boolean] =
+    completeWith(IO.failCause(e))
+
+  /**
    * Halts the promise with the specified cause, which will be propagated to all
    * fibers waiting on the value of the promise.
    */
-  def halt(e: Cause[E]): UIO[Boolean] = completeWith(IO.halt(e))
+  @deprecated("use failCause", "2.0.0")
+  def halt(e: Cause[E]): UIO[Boolean] =
+    failCause(e)
 
   /**
    * Completes the promise with interruption. This will interrupt all fibers
