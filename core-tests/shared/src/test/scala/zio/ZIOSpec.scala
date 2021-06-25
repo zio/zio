@@ -146,9 +146,9 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(zio2)(isTrue)
       },
       testM("either") {
-        val zio1                        = ZIO(Left(12))
-        val zio2: ZIO[Any, Int, String] = zio1
-        assertM(zio2.exit)(fails(equalTo(12)))
+        val zio1                        = ZIO(Right(12))
+        val zio2: ZIO[Any, String, Int] = zio1
+        assertM(zio2)(equalTo(12))
       },
       testM("eitherCause") {
         val zio1                        = ZIO(Left(Cause.fail(12)))
@@ -156,34 +156,42 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(zio2.exit)(fails(equalTo(12)))
       },
       testM("fiber") {
-        ???
-      } @@ ignore,
+        val zio1                         = ZIO(Runtime.default.unsafeRun(ZIO.succeed(12).fork))
+        val zio2: ZIO[Any, Nothing, Int] = zio1
+        assertM(zio2)(equalTo(12))
+      },
       testM("fiberZIO") {
-        ???
-      } @@ ignore,
+        val zio1                         = ZIO(ZIO.succeed(12).fork)
+        val zio2: ZIO[Any, Nothing, Int] = zio1
+        assertM(zio2)(equalTo(12))
+      },
       testM("function") {
-        val zio1                         = ZIO((x: Int) => x * x)
+        val zio1                         = ZIO((n: Int) => n * n)
         val zio2: ZIO[Int, Nothing, Int] = zio1
         assertM(zio2.provide(2))(equalTo(4))
       },
       testM("functionZIO") {
-        ???
-      } @@ ignore,
+        val zio1                         = ZIO((n: Int) => ZIO.succeed(n * n))
+        val zio2: ZIO[Int, Nothing, Int] = zio1
+        assertM(zio2.provide(2))(equalTo(4))
+      },
       testM("future") {
-        val zio1                           = ZIO { implicit ec: scala.concurrent.ExecutionContext => scala.concurrent.Future(42) }
+        val zio1                           = ZIO { implicit ec: scala.concurrent.ExecutionContext => scala.concurrent.Future(12) }
         val zio2: ZIO[Any, Throwable, Int] = zio1
-        assertM(zio2)(equalTo(42))
+        assertM(zio2)(equalTo(12))
       },
       testM("option") {
-        ???
-      } @@ ignore,
+        val zio1                              = ZIO(Some(12))
+        val zio2: ZIO[Any, Option[Unit], Int] = zio1
+        assertM(zio2)(equalTo(12))
+      },
       testM("promise") {
         val zio1                           = ZIO(scala.concurrent.Promise.failed[Int](new Exception))
         val zio2: ZIO[Any, Throwable, Int] = zio1
         assertM(zio2.exit)(fails(anything))
       },
       testM("try") {
-        val zio1                           = ZIO(Try(12))
+        val zio1                           = ZIO(scala.util.Try(12))
         val zio2: ZIO[Any, Throwable, Int] = zio1
         assertM(zio2)(equalTo(12))
       }

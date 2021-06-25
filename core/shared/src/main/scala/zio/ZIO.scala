@@ -3925,7 +3925,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Creates a `ZIO` value that represents the exit value of the specified
    * fiber.
    */
-  def fromFiberZIO[R, E, A](fiber: ZIO[R, E, Fiber[E, A]]): ZIO[R, E, A] =
+  def fromFiberZIO[E, A](fiber: IO[E, Fiber[E, A]]): IO[E, A] =
     fiber.flatMap(_.join)
 
   /**
@@ -5364,12 +5364,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       }
 
     /**
-     * Constructs a `ZIO[R, E, A]` from a `ZIO[R, E, Fiber[E, A]]`.
+     * Constructs a `IO[E, A]` from a `ZIO[R, E, Fiber[E, A]]`.
      */
-    implicit def FiberZIOConstructor[R, E, A]: WithOut[ZIO[R, E, Fiber[E, A]], ZIO[R, E, A]] =
-      new ZIOConstructor[ZIO[R, E, Fiber[E, A]]] {
-        type Out = ZIO[R, E, A]
-        def make(input: => ZIO[R, E, Fiber[E, A]]): ZIO[R, E, A] =
+    implicit def FiberZIOConstructor[E, A]: WithOut[IO[E, Fiber[E, A]], IO[E, A]] =
+      new ZIOConstructor[IO[E, Fiber[E, A]]] {
+        type Out = IO[E, A]
+        def make(input: => IO[E, Fiber[E, A]]): IO[E, A] =
           ZIO.fromFiberZIO(input)
       }
 
