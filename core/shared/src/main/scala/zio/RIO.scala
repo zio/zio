@@ -831,6 +831,12 @@ object RIO {
     ZIO.fromFunction(f)
 
   /**
+   * @see See [[zio.ZIO.fromFunctionEither]]
+   */
+  def fromFunctionEither[R, A](f: R => Either[Throwable, A]): RIO[R, A] =
+    ZIO.fromFunctionEither(f)
+
+  /**
    * @see See [[zio.ZIO.fromFunctionFuture]]
    */
   def fromFunctionFuture[R, A](f: R => scala.concurrent.Future[A]): RIO[R, A] =

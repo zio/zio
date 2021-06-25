@@ -756,6 +756,12 @@ object URIO {
     ZIO.fromFunction(f)
 
   /**
+   * @see [[zio.ZIO.fromFunctionEither]]
+   */
+  def fromFunctionEither[R, A](f: R => Either[Nothing, A]): URIO[R, A] =
+    ZIO.fromFunctionEither(f)
+
+  /**
    * @see [[zio.ZIO.fromFunctionM]]
    */
   @deprecated("use fromFunctionZIO", "2.0.0")

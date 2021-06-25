@@ -807,6 +807,12 @@ object IO {
   def fromFunction[A](f: Any => A): IO[Nothing, A] = ZIO.fromFunction(f)
 
   /**
+   * @see [[zio.ZIO.fromFunctionEither]]
+   */
+  def fromFunctionEither[E, A](f: Any => Either[E, A]): IO[E, A] =
+    ZIO.fromFunctionEither(f)
+
+  /**
    * @see [[zio.ZIO.fromFunctionFuture]]
    */
   def fromFunctionFuture[A](f: Any => scala.concurrent.Future[A]): Task[A] =

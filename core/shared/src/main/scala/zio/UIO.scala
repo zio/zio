@@ -715,6 +715,12 @@ object UIO {
   def fromFunction[A](f: Any => A): UIO[A] = ZIO.fromFunction(f)
 
   /**
+   * @see [[zio.ZIO.fromFunctionEither]]
+   */
+  def fromFunctionEither[A](f: Any => Either[Nothing, A]): UIO[A] =
+    ZIO.fromFunctionEither(f)
+
+  /**
    * @see [[zio.ZIO.fromFunctionM]]
    */
   @deprecated("use fromFunctionZIO", "2.0.0")

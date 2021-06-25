@@ -800,10 +800,10 @@ object Task extends TaskPlatformSpecific {
   def fromFunction[A](f: Any => A): Task[A] = ZIO.fromFunction(f)
 
   /**
-   * @see See [[zio.ZIO.fromFutureInterrupt]]
+   * @see [[zio.ZIO.fromFunctionEither]]
    */
-  def fromFutureInterrupt[A](make: ExecutionContext => scala.concurrent.Future[A]): Task[A] =
-    ZIO.fromFutureInterrupt(make)
+  def fromFunctionEither[A](f: Any => Either[Throwable, A]): Task[A] =
+    ZIO.fromFunctionEither(f)
 
   /**
    * @see [[zio.ZIO.fromFunctionFuture]]
@@ -829,6 +829,12 @@ object Task extends TaskPlatformSpecific {
    */
   def fromFuture[A](make: ExecutionContext => scala.concurrent.Future[A]): Task[A] =
     ZIO.fromFuture(make)
+
+  /**
+   * @see See [[zio.ZIO.fromFutureInterrupt]]
+   */
+  def fromFutureInterrupt[A](make: ExecutionContext => scala.concurrent.Future[A]): Task[A] =
+    ZIO.fromFutureInterrupt(make)
 
   /**
    * @see See [[zio.ZIO.fromTry]]

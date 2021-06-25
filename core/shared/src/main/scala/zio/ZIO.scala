@@ -3925,7 +3925,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Creates a `ZIO` value that represents the exit value of the specified
    * fiber.
    */
-  def fromFiberZIO[E, A](fiber: IO[E, Fiber[E, A]]): IO[E, A] =
+  def fromFiberZIO[R, E, A](fiber: ZIO[R, E, Fiber[E, A]]): ZIO[R, E, A] =
     fiber.flatMap(_.join)
 
   /**
@@ -3933,6 +3933,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   def fromFunction[R, A](f: R => A): URIO[R, A] =
     access(f)
+
+  /**
+   * Lifts a function `R => Either[E, A]` into a `ZIO[R, E, A]`.
+   */
+  def fromFunctionEither[R, E, A](f: R => Either[E, A]): ZIO[R, E, A] =
+    accessZIO(r => ZIO.fromEither(f(r)))
 
   /**
    * Lifts a function returning Future into an effect that requires the input to the function.
@@ -5025,7 +5031,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   lazy val yieldNow: UIO[Unit] = ZIO.Yield
 
-  def apply[Input](input: => Input)(implicit constructor: ZIOConstructor[_ >: Input]): constructor.Out =
+  def apply[Input](input: => Input)(implicit constructor: ZIOConstructor[Input]): constructor.Out =
     constructor.make(input)
 
   private lazy val _IdentityFn: Any => Any = (a: Any) => a
@@ -5354,6 +5360,26 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       }
 
     /**
+     * Constructs an `IO[E, A]` from an `Left[Cause[E], A]`.
+     */
+    implicit def EitherCauseLeftConstructor[E, A]: WithOut[Left[Cause[E], A], IO[E, A]] =
+      new ZIOConstructor[Left[Cause[E], A]] {
+        type Out = IO[E, A]
+        def make(input: => Left[Cause[E], A]): IO[E, A] =
+          ZIO.fromEitherCause(input)
+      }
+
+    /**
+     * Constructs an `IO[E, A]` from an `Right[Cause[E], A]`.
+     */
+    implicit def EitherCauseRightConstructor[E, A]: WithOut[Right[Cause[E], A], IO[E, A]] =
+      new ZIOConstructor[Right[Cause[E], A]] {
+        type Out = IO[E, A]
+        def make(input: => Right[Cause[E], A]): IO[E, A] =
+          ZIO.fromEitherCause(input)
+      }
+
+    /**
      * Constructs an `IO[E, A]` from a `Fiber[E, A].`
      */
     implicit def FiberConstructor[E, A]: WithOut[Fiber[E, A], IO[E, A]] =
@@ -5364,13 +5390,83 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       }
 
     /**
+     * Constructs an `IO[E, A]` from a `Fiber.Runtime[E, A].`
+     */
+    implicit def FiberRuntimeConstructor[E, A]: WithOut[Fiber.Runtime[E, A], IO[E, A]] =
+      new ZIOConstructor[Fiber.Runtime[E, A]] {
+        type Out = IO[E, A]
+        def make(input: => Fiber.Runtime[E, A]): IO[E, A] =
+          ZIO.fromFiber(input)
+      }
+
+    /**
+     * Constructs an `IO[E, A]` from a `Fiber.Synthetic[E, A].`
+     */
+    implicit def FiberSyntheticConstructor[E, A]: WithOut[Fiber.Synthetic[E, A], IO[E, A]] =
+      new ZIOConstructor[Fiber.Synthetic[E, A]] {
+        type Out = IO[E, A]
+        def make(input: => Fiber.Synthetic[E, A]): IO[E, A] =
+          ZIO.fromFiber(input)
+      }
+
+    /**
      * Constructs a `IO[E, A]` from a `ZIO[R, E, Fiber[E, A]]`.
      */
-    implicit def FiberZIOConstructor[E, A]: WithOut[IO[E, Fiber[E, A]], IO[E, A]] =
-      new ZIOConstructor[IO[E, Fiber[E, A]]] {
-        type Out = IO[E, A]
-        def make(input: => IO[E, Fiber[E, A]]): IO[E, A] =
+    implicit def FiberZIOConstructor[R, E, A]: WithOut[ZIO[R, E, Fiber[E, A]], ZIO[R, E, A]] =
+      new ZIOConstructor[ZIO[R, E, Fiber[E, A]]] {
+        type Out = ZIO[R, E, A]
+        def make(input: => ZIO[R, E, Fiber[E, A]]): ZIO[R, E, A] =
           ZIO.fromFiberZIO(input)
+      }
+
+    /**
+     * Constructs a `IO[E, A]` from a `ZIO[R, E, Fiber.Runtime[E, A]]`.
+     */
+    implicit def FiberZIORuntimeConstructor[R, E, A]: WithOut[ZIO[R, E, Fiber.Runtime[E, A]], ZIO[R, E, A]] =
+      new ZIOConstructor[ZIO[R, E, Fiber.Runtime[E, A]]] {
+        type Out = ZIO[R, E, A]
+        def make(input: => ZIO[R, E, Fiber.Runtime[E, A]]): ZIO[R, E, A] =
+          ZIO.fromFiberZIO(input)
+      }
+
+    /**
+     * Constructs a `IO[E, A]` from a `ZIO[R, E, Fiber.Synthetic[E, A]]`.
+     */
+    implicit def FiberZIOSyntheticConstructor[R, E, A]: WithOut[ZIO[R, E, Fiber.Synthetic[E, A]], ZIO[R, E, A]] =
+      new ZIOConstructor[ZIO[R, E, Fiber.Synthetic[E, A]]] {
+        type Out = ZIO[R, E, A]
+        def make(input: => ZIO[R, E, Fiber.Synthetic[E, A]]): ZIO[R, E, A] =
+          ZIO.fromFiberZIO(input)
+      }
+
+    /**
+     * Constructs a `ZIO[R, E, A]` from a function `R => Either[E, A]`.
+     */
+    implicit def FunctionEitherConstructor[R, E, A]: WithOut[R => Either[E, A], ZIO[R, E, A]] =
+      new ZIOConstructor[R => Either[E, A]] {
+        type Out = ZIO[R, E, A]
+        def make(input: => (R => Either[E, A])): ZIO[R, E, A] =
+          ZIO.fromFunctionEither(input)
+      }
+
+    /**
+     * Constructs a `ZIO[R, E, A]` from a function `R => Left[E, A]`.
+     */
+    implicit def FunctionEitherLeftConstructor[R, E, A]: WithOut[R => Left[E, A], ZIO[R, E, A]] =
+      new ZIOConstructor[R => Left[E, A]] {
+        type Out = ZIO[R, E, A]
+        def make(input: => (R => Left[E, A])): ZIO[R, E, A] =
+          ZIO.fromFunctionEither(input)
+      }
+
+    /**
+     * Constructs a `ZIO[R, E, A]` from a function `R => Right[E, A]`.
+     */
+    implicit def FunctionEitherRightConstructor[R, E, A]: WithOut[R => Right[E, A], ZIO[R, E, A]] =
+      new ZIOConstructor[R => Right[E, A]] {
+        type Out = ZIO[R, E, A]
+        def make(input: => (R => Right[E, A])): ZIO[R, E, A] =
+          ZIO.fromFunctionEither(input)
       }
 
     /**
@@ -5405,6 +5501,26 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       }
 
     /**
+     * Constructs an `IO[Option[Nothing], A]` from a `None`.
+     */
+    implicit def OptionNoneConstructor[A]: WithOut[None.type, IO[Option[Nothing], A]] =
+      new ZIOConstructor[None.type] {
+        type Out = IO[Option[Nothing], A]
+        def make(input: => None.type): IO[Option[Nothing], A] =
+          ZIO.fromOption(input)
+      }
+
+    /**
+     * Constructs an `IO[Option[Nothing], A]` from a `Some[A]`.
+     */
+    implicit def OptionSomeConstructor[A]: WithOut[Some[A], IO[Option[Nothing], A]] =
+      new ZIOConstructor[Some[A]] {
+        type Out = IO[Option[Nothing], A]
+        def make(input: => Some[A]): IO[Option[Nothing], A] =
+          ZIO.fromOption(input)
+      }
+
+    /**
      * Constructs a `Task[A]` from a `Promise[A]`
      */
     implicit def PromiseScalaConstructor[A]: WithOut[scala.concurrent.Promise[A], Task[A]] =
@@ -5423,6 +5539,26 @@ object ZIO extends ZIOCompanionPlatformSpecific {
         def make(input: => scala.util.Try[A]): Task[A] =
           ZIO.fromTry(input)
       }
+
+    /**
+     * Constructs a `Task[A]` from a `Failure[A]`.
+     */
+    implicit def TryFailureConstructor[A]: WithOut[scala.util.Failure[A], ZIO[Any, Throwable, A]] =
+      new ZIOConstructor[scala.util.Failure[A]] {
+        type Out = Task[A]
+        def make(input: => scala.util.Failure[A]): Task[A] =
+          ZIO.fromTry(input)
+      }
+
+    /**
+     * Constructs a `Task[A]` from a `Success[A]`.
+     */
+    implicit def TrySuccessConstructor[A]: WithOut[scala.util.Success[A], ZIO[Any, Throwable, A]] =
+      new ZIOConstructor[scala.util.Success[A]] {
+        type Out = Task[A]
+        def make(input: => scala.util.Success[A]): Task[A] =
+          ZIO.fromTry(input)
+      }
   }
 
   trait ZIOConstructorLowPriority1 extends ZIOConstructorLowPriority2 {
@@ -5434,6 +5570,26 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       new ZIOConstructor[Either[E, A]] {
         type Out = IO[E, A]
         def make(input: => Either[E, A]): IO[E, A] =
+          ZIO.fromEither(input)
+      }
+
+    /**
+     * Constructs an `IO[E, A]` from an `Either[E, A]`.
+     */
+    implicit def EitherLeftConstructor[E, A]: WithOut[Left[E, A], IO[E, A]] =
+      new ZIOConstructor[Left[E, A]] {
+        type Out = IO[E, A]
+        def make(input: => Left[E, A]): IO[E, A] =
+          ZIO.fromEither(input)
+      }
+
+    /**
+     * Constructs an `IO[E, A]` from an `Either[E, A]`.
+     */
+    implicit def EitherRightConstructor[E, A]: WithOut[Right[E, A], IO[E, A]] =
+      new ZIOConstructor[Right[E, A]] {
+        type Out = IO[E, A]
+        def make(input: => Right[E, A]): IO[E, A] =
           ZIO.fromEither(input)
       }
 
@@ -5462,6 +5618,10 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   }
 
   trait ZIOConstructorLowPriority3 {
+
+    /**
+     * The type of the `ZIOConstructor` with the type of the `ZIO` value.
+     */
     type WithOut[In, Out0] = ZIOConstructor[In] { type Out = Out0 }
 
     /**

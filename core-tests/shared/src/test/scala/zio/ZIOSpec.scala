@@ -170,6 +170,11 @@ object ZIOSpec extends ZIOBaseSpec {
         val zio2: ZIO[Int, Nothing, Int] = zio1
         assertM(zio2.provide(2))(equalTo(4))
       },
+      testM("functionEither") {
+        val zio1                         = ZIO((n: Int) => Right(n * n))
+        val zio2: ZIO[Int, Nothing, Int] = zio1
+        assertM(zio2.provide(2))(equalTo(4))
+      },
       testM("functionZIO") {
         val zio1                         = ZIO((n: Int) => ZIO.succeed(n * n))
         val zio2: ZIO[Int, Nothing, Int] = zio1
