@@ -19,7 +19,7 @@ import zio.interop.catz._
 
 ## Cats Effect Instances
 
-ZIO integrates with Type-level libraries by providing instances of Cats Effect type classes. These type classes are used by `fs2`, `doobie`, `http4s`, and a variety of other libraries in the functional Scala ecosystem.
+ZIO integrates with Typelevel libraries by providing instances of Cats Effect type classes. These type classes are used by `fs2`, `doobie`, `http4s`, and a variety of other libraries in the functional Scala ecosystem.
 
 Due to the limitations of the Cats Effect, ZIO cannot provide instances for arbitrary error types. Instead, we can obtain instances only for effects whose error type extends `Throwable`.
 
