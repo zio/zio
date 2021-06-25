@@ -147,6 +147,11 @@ trait Runtime[+R] {
   }
 
   /**
+   * Constructs a new `Runtime` with the specified blocking executor.
+   */
+  def withBlockingExecutor(e: Executor): Runtime[R] = mapPlatform(_.withBlockingExecutor(e))
+
+  /**
    * Constructs a new `Runtime` with the specified executor.
    */
   def withExecutor(e: Executor): Runtime[R] = mapPlatform(_.withExecutor(e))
