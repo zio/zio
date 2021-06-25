@@ -156,7 +156,7 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(zio2.exit)(fails(equalTo(12)))
       },
       testM("fiber") {
-        val zio1                         = ZIO(Runtime.default.unsafeRun(ZIO.succeed(12).fork))
+        val zio1                         = ZIO(Runtime.default.unsafeRun(ZIO.succeed(12).forkDaemon))
         val zio2: ZIO[Any, Nothing, Int] = zio1
         assertM(zio2)(equalTo(12))
       },
