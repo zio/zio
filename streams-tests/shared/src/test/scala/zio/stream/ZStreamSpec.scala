@@ -3717,17 +3717,17 @@ object ZStreamSpec extends ZIOBaseSpec {
           def lazyL = l
           assertM(ZStream.fromIterable(lazyL).runCollect)(equalTo(l))
         }),
-        testM("fromIterableM")(checkM(Gen.small(Gen.chunkOfN(_)(Gen.anyInt))) { l =>
-          assertM(ZStream.fromIterableM(UIO.succeed(l)).runCollect)(equalTo(l))
+        testM("fromIterableZIO")(checkM(Gen.small(Gen.chunkOfN(_)(Gen.anyInt))) { l =>
+          assertM(ZStream.fromIterableZIO(UIO.succeed(l)).runCollect)(equalTo(l))
         }),
         testM("fromIterator") {
           checkM(Gen.small(Gen.chunkOfN(_)(Gen.anyInt)), Gen.small(Gen.const(_), 1)) { (chunk, maxChunkSize) =>
             assertM(ZStream.fromIterator(chunk.iterator, maxChunkSize).runCollect)(equalTo(chunk))
           }
         },
-        testM("fromIteratorTotal") {
+        testM("fromIteratorSucceed") {
           checkM(Gen.small(Gen.chunkOfN(_)(Gen.anyInt)), Gen.small(Gen.const(_), 1)) { (chunk, maxChunkSize) =>
-            assertM(ZStream.fromIteratorTotal(chunk.iterator, maxChunkSize).runCollect)(equalTo(chunk))
+            assertM(ZStream.fromIteratorSucceed(chunk.iterator, maxChunkSize).runCollect)(equalTo(chunk))
           }
         },
         suite("fromIteratorManaged")(

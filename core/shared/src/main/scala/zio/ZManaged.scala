@@ -2989,15 +2989,6 @@ object ZManaged extends ZManagedPlatformSpecific {
       )
     })
 
-  implicit final class RefineToOrDieOps[R, E <: Throwable, A](private val self: ZManaged[R, E, A]) extends AnyVal {
-
-    /**
-     * Keeps some of the errors, and terminates the fiber with the rest.
-     */
-    def refineToOrDie[E1 <: E: ClassTag](implicit ev: CanFail[E]): ZManaged[R, E1, A] =
-      self.refineOrDie { case e: E1 => e }
-  }
-
   /**
    * A `ZManagedConstructor[Input]` knows how to construct a `ZManaged` value from an
    * input of type `Input`. This allows the type of the `ZManaged` value constructed
@@ -3192,4 +3183,13 @@ object ZManaged extends ZManagedPlatformSpecific {
 
   private[zio] def succeedNow[A](r: A): ZManaged[Any, Nothing, A] =
     ZManaged(IO.succeedNow((Finalizer.noop, r)))
+
+  implicit final class RefineToOrDieOps[R, E <: Throwable, A](private val self: ZManaged[R, E, A]) extends AnyVal {
+
+    /**
+     * Keeps some of the errors, and terminates the fiber with the rest.
+     */
+    def refineToOrDie[E1 <: E: ClassTag](implicit ev: CanFail[E]): ZManaged[R, E1, A] =
+      self.refineOrDie { case e: E1 => e }
+  }
 }

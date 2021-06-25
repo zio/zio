@@ -486,7 +486,7 @@ trait ZStreamPlatformSpecificConstructors {
    * Creates a stream from a Java stream
    */
   final def fromJavaStreamEffect[R, A](stream: ZIO[R, Throwable, ju.stream.Stream[A]]): ZStream[R, Throwable, A] =
-    ZStream.fromJavaIteratorEffect(stream.flatMap(s => UIO(s.iterator())))
+    ZStream.fromJavaIteratorZIO(stream.flatMap(s => UIO(s.iterator())))
 
   /**
    * Creates a stream from a managed Java stream
@@ -498,7 +498,7 @@ trait ZStreamPlatformSpecificConstructors {
    * Creates a stream from a Java stream
    */
   final def fromJavaStreamTotal[A](stream: => ju.stream.Stream[A]): ZStream[Any, Nothing, A] =
-    ZStream.fromJavaIteratorTotal(stream.iterator())
+    ZStream.fromJavaIteratorSucceed(stream.iterator())
 
   /**
    * Create a stream of accepted connection from server socket
