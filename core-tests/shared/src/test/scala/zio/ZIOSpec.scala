@@ -139,6 +139,39 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(cause.defects)(equalTo(List(releaseDied))) && assert(isReleased)(isTrue)
       } @@ zioTag(errors)
     ),
+    suite("apply")(
+      test("either") {
+        val either: Either[Int, String] = Left(12)
+        val zio                         = ZIO(either)
+        val _: ZIO[Any, Int, String]    = zio
+        assertCompletes
+      },
+      test("function") {
+        val zio                       = ZIO((x: Int) => x * x)
+        val _: ZIO[Int, Nothing, Int] = zio
+        assertCompletes
+      },
+      test("future") {
+        val zio                         = ZIO { implicit ec: scala.concurrent.ExecutionContext => scala.concurrent.Future(1) }
+        val _: ZIO[Any, Throwable, Int] = zio
+        assertCompletes
+      },
+      test("left") {
+        val zio                       = ZIO(Left(12))
+        val _: ZIO[Any, Int, Nothing] = zio
+        assertCompletes
+      },
+      test("promise") {
+        val zio                         = ZIO(scala.concurrent.Promise.failed[Int](new Exception))
+        val _: ZIO[Any, Throwable, Int] = zio
+        assertCompletes
+      },
+      test("try") {
+        val zio                         = ZIO(Try(42))
+        val _: ZIO[Any, Throwable, Int] = zio
+        assertCompletes
+      }
+    ),
     suite("cached")(
       testM("returns new instances after duration") {
         def incrementAndGet(ref: Ref[Int]): UIO[Int] = ref.updateAndGet(_ + 1)
