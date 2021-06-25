@@ -140,36 +140,52 @@ object ZIOSpec extends ZIOBaseSpec {
       } @@ zioTag(errors)
     ),
     suite("apply")(
-      test("either") {
-        val either: Either[Int, String] = Left(12)
-        val zio                         = ZIO(either)
-        val _: ZIO[Any, Int, String]    = zio
-        assertCompletes
+      testM("attempt") {
+        val zio1                               = ZIO(true)
+        val zio2: ZIO[Any, Throwable, Boolean] = zio1
+        assertM(zio2)(isTrue)
       },
-      test("function") {
-        val zio                       = ZIO((x: Int) => x * x)
-        val _: ZIO[Int, Nothing, Int] = zio
-        assertCompletes
+      testM("either") {
+        val zio1                        = ZIO(Left(12))
+        val zio2: ZIO[Any, Int, String] = zio1
+        assertM(zio2.exit)(fails(equalTo(12)))
       },
-      test("future") {
-        val zio                         = ZIO { implicit ec: scala.concurrent.ExecutionContext => scala.concurrent.Future(1) }
-        val _: ZIO[Any, Throwable, Int] = zio
-        assertCompletes
+      testM("eitherCause") {
+        val zio1                        = ZIO(Left(Cause.fail(12)))
+        val zio2: ZIO[Any, Int, String] = zio1
+        assertM(zio2.exit)(fails(equalTo(12)))
       },
-      test("left") {
-        val zio                       = ZIO(Left(12))
-        val _: ZIO[Any, Int, Nothing] = zio
-        assertCompletes
+      testM("fiber") {
+        ???
+      } @@ ignore,
+      testM("fiberZIO") {
+        ???
+      } @@ ignore,
+      testM("function") {
+        val zio1                         = ZIO((x: Int) => x * x)
+        val zio2: ZIO[Int, Nothing, Int] = zio1
+        assertM(zio2.provide(2))(equalTo(4))
       },
-      test("promise") {
-        val zio                         = ZIO(scala.concurrent.Promise.failed[Int](new Exception))
-        val _: ZIO[Any, Throwable, Int] = zio
-        assertCompletes
+      testM("functionZIO") {
+        ???
+      } @@ ignore,
+      testM("future") {
+        val zio1                           = ZIO { implicit ec: scala.concurrent.ExecutionContext => scala.concurrent.Future(42) }
+        val zio2: ZIO[Any, Throwable, Int] = zio1
+        assertM(zio2)(equalTo(42))
       },
-      test("try") {
-        val zio                         = ZIO(Try(42))
-        val _: ZIO[Any, Throwable, Int] = zio
-        assertCompletes
+      testM("option") {
+        ???
+      } @@ ignore,
+      testM("promise") {
+        val zio1                           = ZIO(scala.concurrent.Promise.failed[Int](new Exception))
+        val zio2: ZIO[Any, Throwable, Int] = zio1
+        assertM(zio2.exit)(fails(anything))
+      },
+      testM("try") {
+        val zio1                           = ZIO(Try(12))
+        val zio2: ZIO[Any, Throwable, Int] = zio1
+        assertM(zio2)(equalTo(12))
       }
     ),
     suite("cached")(
