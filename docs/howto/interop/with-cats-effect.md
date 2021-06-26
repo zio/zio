@@ -40,36 +40,28 @@ type Task[+A]    = ZIO[Any, Throwable, A]
 type RIO[-R, +A] = ZIO[  R, Throwable, A]
 ```
 
-In order to use Cats Effect instances for these types, we should have an implicit `Runtime[R]` in scope for the environment type of our effects. The following code snippet creates an implicit `Runtime` for all the modules built into ZIO:
+### Providing Runtime Manually
 
-```scala mdoc:invisible:reset
-import zio.Runtime
-import zio.ZEnv
-```
-
-```scala mdoc:silent
-implicit val runtime: Runtime[ZEnv] = Runtime.default
-```
+To use Cats Effect instances for these types, we should have an implicit `Runtime[R]` in scope for the environment type of our effects. The following code snippet creates an implicit `Runtime` for all the modules built into ZIO:
 
 ```scala mdoc:silent:nest
-import cats.effect.Sync
 import cats.implicits._
 import zio.interop.catz._
-import zio.{Runtime, Task, ZEnv}
 
-object ZioCatsEffectInterop extends App {
-  def catsEffectApp[F[_]: Sync]: F[Unit] = for {
-    _ <- Sync[F].delay(println("Hello from Cats Effect World!"))
-  } yield ()
-  
-  implicit val runtime: Runtime[ZEnv] = Runtime.default
-  val zioApp = catsEffectApp[Task].exitCode
-  
-  runtime.unsafeRun(zioApp)
+object ZioCatsEffectInterop extends scala.App {
+  def catsEffectApp[F[_]: cats.effect.Sync]: F[Unit] =
+    cats.effect.Sync[F].delay(
+        println("Hello from Cats Effect World!")
+      )
+      
+  implicit val runtime: zio.Runtime[zio.ZEnv] = zio.Runtime.default
+
+  val zioApp: zio.Task[Unit] = catsEffectApp[zio.Task]
+  runtime.unsafeRun(zioApp.exitCode)
 }
 ```
 
-The `val zioApp = catsEffectApp[Task].exitCode` will be expanded as if we called following code explicitly:
+If we are working with Cats Effect 3.x, the `catsEffectApp[Task]` will be expanded as if we called the following code explicitly:
 
 ```scala mdoc:invisible
 import ZioCatsEffectInterop.catsEffectApp
@@ -77,30 +69,43 @@ import ZioCatsEffectInterop.catsEffectApp
 
 ```scala mdoc:silent:nest
 object ZioCatsEffectInterop extends scala.App {
-  val runtime: Runtime[ZEnv] = Runtime.default
-  val zioApp = catsEffectApp[Task](asyncRuntimeInstance(runtime)).exitCode  // Cats Effect 3.x
-  runtime.unsafeRun(zioApp)
+  val runtime: zio.Runtime[zio.ZEnv] = zio.Runtime.default
+  
+  val zioApp: zio.Task[Unit] = catsEffectApp[zio.Task](
+    zio.interop.catz.asyncRuntimeInstance(runtime) 
+  )
+  
+  runtime.unsafeRun(zioApp.exitCode) 
+}
+```
+
+And if we are working with Cats Effect 2.x, it will be expanded as if we called following code explicitly:
+
+```scala
+object ZioCatsEffectInterop extends scala.App {
+  val runtime: zio.Runtime[zio.ZEnv] = zio.Runtime.default
+
+  val zioApp = catsEffectApp[zio.Task](zio.interop.catz.taskConcurrentInstance)
+  runtime.unsafeRun(zioApp.exitCode)
 }
 ```
 
 If we are using `RIO` for a custom environment `R`, then we will have to create our own `Runtime[R]`, and ensure that implicit wherever we need Cats Effect instances.
 
-## Cats App
+### Using `CatsApp` Runtime
 
 As a convenience, our application can extend `CatsApp`, which automatically brings an implicit `Runtime[Environment]` into our scope:
 
 ```scala mdoc:silent:nest
-import cats.effect.Sync
-import zio.{ExitCode, Task, URIO}
 import zio.interop.catz._
 import cats.implicits._
 
 object ZioCatsEffectInteropWithCatsApp extends CatsApp {
-  def catsEffectApp[F[_]: Sync]: F[Unit] =
-    Sync[F].delay(println("Hello from Cats Effect World!"))
+  def catsEffectApp[F[_]: cats.effect.Sync]: F[Unit] =
+    cats.effect.Sync[F].delay(println("Hello from Cats Effect World!"))
 
-  override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] = 
-    catsEffectApp[Task].exitCode
+  override def run(args: List[String]): zio.URIO[zio.ZEnv, zio.ExitCode] = 
+    catsEffectApp[zio.Task].exitCode
 }
 ```
 
@@ -143,20 +148,20 @@ To convert Cats Effect `Resource` into `ZManaged`, we can call `toManaged` on `R
 For example, assume we have the following `File` API:
 
 ```scala mdoc:silent
-case class File[F[_]: Sync]() {
+case class File[F[_]: cats.effect.Sync]() {
   import cats.syntax.apply._
   def read: F[String] =
-    Sync[F].delay(println("Reading file.")) *>
-      Sync[F].pure("Hello, World!")
+    cats.effect.Sync[F].delay(println("Reading file.")) *>
+      cats.effect.Sync[F].pure("Hello, World!")
   def close: F[Unit]  =
-    Sync[F].delay(println("Closing file."))
+    cats.effect.Sync[F].delay(println("Closing file."))
 }
 
 object File {
   import cats.syntax.apply._
-  def open[F[_]: Sync](name: String): F[File[F]] =
-    Sync[F].delay(println(s"opening $name file")) *>
-      Sync[F].delay(File())
+  def open[F[_]: cats.effect.Sync](name: String): F[File[F]] =
+    cats.effect.Sync[F].delay(println(s"opening $name file")) *>
+      cats.effect.Sync[F].delay(File())
 }
 ```
 
