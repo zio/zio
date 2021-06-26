@@ -113,7 +113,7 @@ This example works properly in both Cats Effect 2.x and 3.x versions.
 
 ### Cats Effect 2.x Instances
 
-### Timer
+#### Timer Instance
 
 In order to get a `cats.effect.Timer[zio.Task]` instance, we need an extra import (`zio.interop.catz.implicits._`):
 
@@ -144,7 +144,7 @@ The reason a `cats.effect.Timer[zio.Task]` instance is not provided by the defau
 
 If we're using `RIO` for a custom environment then our environment must use the `Clock` service, e.g. `R <: Clock` to get a timer.
 
-## Resource Instance
+#### Resource Instance
 
 To convert Cats Effect `Resource` into `ZManaged`, we can call `toManaged` on `Resource`.
 
@@ -170,44 +170,33 @@ object File {
 
 And, also assume we have `fileResource` defined as follows:
 
-```scala mdoc:invisible
-import cats.effect.{ Resource, Sync }
+```scala mdoc:silent:nest
+def fileResource[F[_]: cats.effect.Sync](name: String): cats.effect.Resource[F, File[F]] =
+  cats.effect.Resource.make(File.open[F](name))(_.close)
 ```
 
-```scala mdoc:silent
-def fileResource[F[_]: Sync](name: String): Resource[F, File[F]] =
-  Resource.make(File.open[F](name))(_.close)
-```
-
-We can convert that to `ZManaged`:
-
-```scala mdoc:invisible
-import zio.ZManaged
-```
+Let's convert that to `ZManaged`:
 
 ```scala
-val resource: ZManaged[ZEnv, Throwable, File[Task]] =
-  fileResource[Task]("log.txt").toManaged[ZEnv]
+val resource: zio.ZManaged[zio.ZEnv, Throwable, File[zio.Task]] =
+  fileResource[zio.Task]("log.txt").toManaged[zio.ZEnv]
 ```
 
-Let's try a complete working example:
+Here is a complete working example:
 
 ```scala
-import cats.effect.{ Resource, Sync }
-import zio.console._
 import zio.interop.catz._
-import zio.{ ExitCode, Task, URIO, ZEnv }
 
 object CatsEffectResourceInterop extends CatsApp {
-  def fileResource[F[_]: Sync](name: String): Resource[F, File[F]] =
-    Resource.make(File.open[F](name))(_.close)
+  def fileResource[F[_]: cats.effect.Sync](name: String): cats.effect.Resource[F, File[F]] =
+    cats.effect.Resource.make(File.open[F](name))(_.close)
 
-  def myApp = for {
-    c <- fileResource[Task]("log.txt").toManaged[ZEnv].use(_.read)
-    _ <- putStr(s"file content: $c")
+  def myApp: zio.ZIO[zio.ZEnv, Throwable, Unit] = for {
+    c <- fileResource[zio.Task]("log.txt").toManaged[zio.ZEnv].use(_.read)
+    _ <- zio.console.putStr(s"file content: $c")
   } yield ()
 
-  override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] =
+  override def run(args: List[String]): zio.URIO[zio.ZEnv, zio.ExitCode] =
     myApp.exitCode
 }
 ```
