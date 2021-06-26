@@ -94,7 +94,7 @@ If we are using `RIO` for a custom environment `R`, then we will have to create 
 
 ### Using `CatsApp` Runtime
 
-As a convenience, our application can extend `CatsApp`, which automatically brings an implicit `Runtime[Environment]` into our scope:
+As a convenience, our application can extend `CatsApp`, which automatically brings an implicit `Runtime[ZEnv]` into our scope:
 
 ```scala mdoc:silent:nest
 import zio.interop.catz._
@@ -108,6 +108,8 @@ object ZioCatsEffectInteropWithCatsApp extends CatsApp {
     catsEffectApp[zio.Task].exitCode
 }
 ```
+
+This example works properly in both Cats Effect 2.x and 3.x versions.
 
 ### Timer
 
