@@ -63,7 +63,7 @@ object ZioCatsEffectInterop extends App {
 }
 ```
 
-The `val zioApp = catsEffectApp[Task].exitCode` will expanded as if we called following code explicitly:
+The `val zioApp = catsEffectApp[Task].exitCode` will be expanded as if we called following code explicitly:
 
 ```scala mdoc:silent:nest
 import cats.effect.Sync
@@ -131,9 +131,9 @@ object ZioCatsEffectTimerInterop extends CatsApp {
 }
 ```
 
-The reason why a `Timer[Task]` is not provided by the default "interop" import is that it makes testing programs that require timing capabilities very difficult. The extra import (wherever needed) makes reasoning about timing-related effects much easier.
+The reason a `Timer[Task]` is not provided by the default "interop" import is that it makes testing programs that require timing capabilities very difficult. The extra import (wherever needed) makes reasoning about timing-related effects much easier.
 
-If we we using `RIO` for a custom environment then our environment must use the `Clock` service, e.g. `R <: Clock` to get a timer.
+If we're using `RIO` for a custom environment then our environment must use the `Clock` service, e.g. `R <: Clock` to get a timer.
 
 ## Resource Instance
 
@@ -229,7 +229,7 @@ The `interop-cats` library has an `import zio.interop.Queue` package to lift cre
 def bounded[F[+_], A](capacity: Int)(implicit R: Runtime[ZEnv], F: LiftIO[F]): F[Queue[F, A]]
 ```
 
-In the following example, we are going to lift the `ZQueue` creation effect to cats `IO` effect:
+In the following example, we are going to lift the `ZQueue` creation effect to Cats `IO` effect:
 
 ```scala mdoc:silent:nest
 import zio.interop.Queue
