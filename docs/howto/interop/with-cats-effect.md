@@ -83,7 +83,7 @@ If we are using `RIO` for a custom environment `R`, then we will have to create 
 
 As a convenience, our application can extend `CatsApp`, which automatically brings an implicit `Runtime[Environment]` into our scope:
 
-```scala
+```scala mdoc:silent:nest
 import cats.effect.Sync
 import zio.{ExitCode, Task, URIO}
 import zio.interop.catz._
