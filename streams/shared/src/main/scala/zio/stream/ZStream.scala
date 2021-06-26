@@ -4733,7 +4733,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     /**
      * Constructs a `ZStream[Any, Nothing, A]` from an `Iterable[Chunk[A]]`.
      */
-    implicit def ChunksConstructor[Collection[+Element] <: Iterable[Element], A]
+    implicit def ChunksConstructor[A, Collection[Element] <: Iterable[Element]]
       : WithOut[Collection[Chunk[A]], ZStream[Any, Nothing, A]] =
       new ZStreamConstructor[Collection[Chunk[A]]] {
         type Out = ZStream[Any, Nothing, A]
@@ -4744,10 +4744,11 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     /**
      * Constructs a `ZStream[R, E, A]` from a `ZIO[R, E, Iterable[A]]`.
      */
-    implicit def IterableZIOConstructor[R, E, A]: WithOut[ZIO[R, E, Iterable[A]], ZStream[R, E, A]] =
-      new ZStreamConstructor[ZIO[R, E, Iterable[A]]] {
+    implicit def IterableZIOConstructor[R, E, A, Collection[Element] <: Iterable[Element]]
+      : WithOut[ZIO[R, E, Collection[A]], ZStream[R, E, A]] =
+      new ZStreamConstructor[ZIO[R, E, Collection[A]]] {
         type Out = ZStream[R, E, A]
-        def make(input: => ZIO[R, E, Iterable[A]]): ZStream[R, E, A] =
+        def make(input: => ZIO[R, E, Collection[A]]): ZStream[R, E, A] =
           ZStream.fromIterableZIO(input)
       }
 
@@ -4865,7 +4866,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     /**
      * Constructs a `ZStream[Any, Nothing, A]` from a `Iterable[A]`.
      */
-    implicit def IterableConstructor[Collection[+Element] <: Iterable[Element], A]
+    implicit def IterableConstructor[A, Collection[+Element] <: Iterable[Element]]
       : WithOut[Collection[A], ZStream[Any, Nothing, A]] =
       new ZStreamConstructor[Collection[A]] {
         type Out = ZStream[Any, Nothing, A]
