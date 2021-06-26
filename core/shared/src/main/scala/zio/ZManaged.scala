@@ -951,6 +951,13 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
     catchAllCause(c => f(c) *> ZManaged.halt(c))
 
   /**
+   * Returns an effect that effectually "peeks" at the defect of the acquired
+   * resource.
+   */
+  final def tapDefect[R1 <: R, E1 >: E](f: Cause[Nothing] => ZManaged[R1, E1, Any]): ZManaged[R1, E1, A] =
+    catchAllCause(c => f(c.stripFailures) *> ZManaged.halt(c))
+
+  /**
    * Returns an effect that effectfully peeks at the failure of the acquired resource.
    */
   def tapError[R1 <: R, E1 >: E](f: E => ZManaged[R1, E1, Any])(implicit ev: CanFail[E]): ZManaged[R1, E1, A] =

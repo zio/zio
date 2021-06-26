@@ -1860,19 +1860,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def tap[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Any]): ZIO[R1, E1, A] = self.flatMap(new ZIO.TapFn(f))
 
   /**
-   * Returns an effect that effectfully "peeks" at the success of this effect.
-   * If the partial function isn't defined at the input, the result is equivalent to the original effect.
-   *
-   * {{{
-   * readFile("data.json").tapSome {
-   *   case content if content.nonEmpty => putStrLn(content)
-   * }
-   * }}}
-   */
-  final def tapSome[R1 <: R, E1 >: E](f: PartialFunction[A, ZIO[R1, E1, Any]]): ZIO[R1, E1, A] =
-    self.tap(f.applyOrElse(_, (_: A) => ZIO.unit))
-
-  /**
    * Returns an effect that effectfully "peeks" at the failure or success of
    * this effect.
    * {{{
@@ -1885,6 +1872,22 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     self.foldCauseM(new ZIO.TapErrorRefailFn(f), new ZIO.TapFn(g))
 
   /**
+   * Returns an effect that effectually "peeks" at the cause of the failure of
+   * this effect.
+   * {{{
+   * readFile("data.json").tapCause(logCause(_))
+   * }}}
+   */
+  final def tapCause[R1 <: R, E1 >: E](f: Cause[E] => ZIO[R1, E1, Any]): ZIO[R1, E1, A] =
+    self.foldCauseM(new ZIO.TapCauseRefailFn(f), ZIO.succeedNow)
+
+  /**
+   * Returns an effect that effectually "peeks" at the defect of this effect.
+   */
+  final def tapDefect[R1 <: R, E1 >: E](f: Cause[Nothing] => ZIO[R1, E1, Any]): ZIO[R1, E1, A] =
+    self.foldCauseM(new ZIO.TapDefectRefailFn(f), ZIO.succeedNow)
+
+  /**
    * Returns an effect that effectfully "peeks" at the result of this effect.
    * {{{
    * readFile("data.json").tapEither(result => log(result.fold("Error: " + _, "Success: " + _)))
@@ -1894,16 +1897,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     ev: CanFail[E]
   ): ZIO[R1, E1, A] =
     self.foldCauseM(new ZIO.TapErrorRefailFn(e => f(Left(e))), new ZIO.TapFn(a => f(Right(a))))
-
-  /**
-   * Returns an effect that effectually "peeks" at the cause of the failure of
-   * this effect.
-   * {{{
-   * readFile("data.json").tapCause(logCause(_))
-   * }}}
-   */
-  final def tapCause[R1 <: R, E1 >: E](f: Cause[E] => ZIO[R1, E1, Any]): ZIO[R1, E1, A] =
-    self.foldCauseM(new ZIO.TapCauseRefailFn(f), ZIO.succeedNow)
 
   /**
    * Returns an effect that effectfully "peeks" at the failure of this effect.
@@ -1921,6 +1914,19 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     f: ((E, Option[ZTrace])) => ZIO[R1, E1, Any]
   )(implicit ev: CanFail[E]): ZIO[R1, E1, A] =
     self.foldCauseM(new ZIO.TapErrorTraceRefailFn(f), ZIO.succeedNow)
+
+  /**
+   * Returns an effect that effectfully "peeks" at the success of this effect.
+   * If the partial function isn't defined at the input, the result is equivalent to the original effect.
+   *
+   * {{{
+   * readFile("data.json").tapSome {
+   *   case content if content.nonEmpty => putStrLn(content)
+   * }
+   * }}}
+   */
+  final def tapSome[R1 <: R, E1 >: E](f: PartialFunction[A, ZIO[R1, E1, Any]]): ZIO[R1, E1, A] =
+    self.tap(f.applyOrElse(_, (_: A) => ZIO.unit))
 
   /**
    * Returns a new effect that executes this one and times the execution.
@@ -4464,6 +4470,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       extends ZIOFn1[Cause[E], ZIO[R, E1, Nothing]] {
     def apply(c: Cause[E]): ZIO[R, E1, Nothing] =
       underlying(c) *> ZIO.halt(c)
+  }
+
+  final class TapDefectRefailFn[R, E, E1 >: E](override val underlying: Cause[Nothing] => ZIO[R, E, Any])
+      extends ZIOFn1[Cause[E], ZIO[R, E1, Nothing]] {
+    def apply(c: Cause[E]): ZIO[R, E1, Nothing] =
+      underlying(c.stripFailures) *> ZIO.halt(c)
   }
 
   final class TapErrorRefailFn[R, E, E1 >: E, A](override val underlying: E => ZIO[R, E1, Any])
