@@ -343,7 +343,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
       self.zio.flatMap { case (releaseSelf, a) =>
         f(a).zio.map { case (releaseThat, b) =>
           (
-            e =>
+            (e: Exit[Any, Any]) =>
               releaseThat(e).exit
                 .flatMap(e1 =>
                   releaseSelf(e).exit
@@ -2018,7 +2018,7 @@ object ZManaged extends ZManagedPlatformSpecific {
   )(implicit bf: BuildFrom[Collection[A1], A2, Collection[A2]]): ZManaged[R, E, Collection[A2]] =
     ZManaged(ZIO.foreach(in.toList)(f(_).zio).map { result =>
       val (fins, as) = result.unzip
-      (e => ZIO.foreach(fins.reverse)(_.apply(e)), bf.fromSpecific(in)(as))
+      ((e: Exit[Any, Any]) => ZIO.foreach(fins.reverse)(_.apply(e)), bf.fromSpecific(in)(as))
     })
 
   /**
@@ -2106,7 +2106,7 @@ object ZManaged extends ZManagedPlatformSpecific {
   def foreachDiscard[R, E, A](as: Iterable[A])(f: A => ZManaged[R, E, Any]): ZManaged[R, E, Unit] =
     ZManaged(ZIO.foreach(as)(f(_).zio).map { result =>
       val (fins, _) = result.unzip
-      (e => ZIO.foreach(fins.toList.reverse)(_.apply(e)), ())
+      ((e: Exit[Any, Any]) => ZIO.foreach(fins.toList.reverse)(_.apply(e)), ())
     })
 
   /**
