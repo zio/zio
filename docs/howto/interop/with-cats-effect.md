@@ -5,10 +5,16 @@ title: "How to Interop with Cats Effect?"
 
 [`interop-cats`](https://github.com/zio/interop-cats) has instances for the [Cats](https://typelevel.org/cats/), [Cats MTL](https://github.com/typelevel/cats-mtl) and [Cats Effect](https://typelevel.org/cats-effect/) libraries, which allow you to use ZIO with any libraries that rely on these, like [Doobie](https://github.com/tpolecat/doobie), [Http4s](https://github.com/http4s/http4s), [FS2](https://github.com/functional-streams-for-scala/fs2) or [Circe](https://github.com/circe/circe)
 
-To use this module, add the following to your `build.sbt`:
+Depends on which version of Cats Effect we are using, we should pick the right version of `zio-interop-cats`. In this tutorial, whenever we're working with Cats Effect 2.x, we are using:
 
 ```scala
-libraryDependencies += "dev.zio" %% "zio-interop-cats" % "<version>"
+libraryDependencies += "dev.zio" %% "zio-interop-cats" % "2.5.1.0"
+```
+
+And whenever we are using Cats Effect 3.x instances, we are using:
+
+```scala
+libraryDependencies += "dev.zio" %% "zio-interop-cats" % "3.1.1.0"
 ```
 
 Most of the interop functionality resides in the following package:
