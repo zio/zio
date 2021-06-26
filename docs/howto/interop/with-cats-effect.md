@@ -111,35 +111,36 @@ object ZioCatsEffectInteropWithCatsApp extends CatsApp {
 
 This example works properly in both Cats Effect 2.x and 3.x versions.
 
+### Cats Effect 2.x Instances
+
 ### Timer
 
-In order to get a `cats.effect.Timer[Task]` instance, we need an extra import (`zio.interop.catz.implicits._`):
+In order to get a `cats.effect.Timer[zio.Task]` instance, we need an extra import (`zio.interop.catz.implicits._`):
 
 ```scala
 import java.util.concurrent.TimeUnit
 
-import cats.effect.{ Clock, Sync, Timer }
 import cats.implicits._
 import zio.interop.catz._
-import zio.interop.catz.implicits._
+import zio.interop.catz.implicits._ // Provides `zio.Task instance` for `cats.effect.Time` type class
 import zio.{ ExitCode, Task, URIO }
 
 import scala.concurrent.duration.DurationInt
 
-object ZioCatsEffectTimerInterop extends CatsApp {
-  override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] =
-    catsEffectTimerApp[Task].exitCode
+object ZioCatsEffectTimerInterop extends zio.interop.catz.CatsApp {
+  override def run(args: List[String]): zio.URIO[zio.ZEnv, zio.ExitCode] =
+    catsEffectTimerApp[zio.Task].exitCode
 
-  def catsEffectTimerApp[F[_]: Clock: Timer: Sync]: F[Unit] = for {
-    t2 <- Clock[F].monotonic(TimeUnit.SECONDS)
-    _  <- Timer[F].sleep(2.seconds)
-    t1 <- Clock[F].monotonic(TimeUnit.SECONDS)
-    _  <- Sync[F].delay(println(t1 - t2))
+  def catsEffectTimerApp[F[_]: cats.effect.Clock: cats.effect.Timer: cats.effect.Sync]: F[Unit] = for {
+    t2 <- cats.effect.Clock[F].monotonic(TimeUnit.SECONDS)
+    _  <- cats.effect.Timer[F].sleep(2.seconds)
+    t1 <- cats.effect.Clock[F].monotonic(TimeUnit.SECONDS)
+    _  <- cats.effect.Sync[F].delay(println(t1 - t2))
   } yield ()
 }
 ```
 
-The reason a `Timer[Task]` is not provided by the default "interop" import is that it makes testing programs that require timing capabilities very difficult. The extra import (wherever needed) makes reasoning about timing-related effects much easier.
+The reason a `cats.effect.Timer[zio.Task]` instance is not provided by the default _interop_ import is that it makes testing programs that require timing capabilities very difficult. The extra import (wherever needed) makes reasoning about timing-related effects much easier.
 
 If we're using `RIO` for a custom environment then our environment must use the `Clock` service, e.g. `R <: Clock` to get a timer.
 
