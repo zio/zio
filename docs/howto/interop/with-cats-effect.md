@@ -65,19 +65,14 @@ object ZioCatsEffectInterop extends App {
 
 The `val zioApp = catsEffectApp[Task].exitCode` will be expanded as if we called following code explicitly:
 
+```scala mdoc:invisible
+import ZioCatsEffectInterop.catsEffectApp
+```
+
 ```scala mdoc:silent:nest
-import cats.effect.Sync
-import cats.implicits._
-import zio.interop.catz
-import zio.{Runtime, Task, ZEnv}
-
-object ZioCatsEffectInteropExplicitly extends App {
-  def catsEffectApp[F[_]: Sync]: F[Unit] = for {
-    _ <- Sync[F].delay(println("Hello from Cats Effect World!"))
-  } yield ()
-
+object ZioCatsEffectInterop extends scala.App {
   val runtime: Runtime[ZEnv] = Runtime.default
-  val zioApp = catsEffectApp[Task](catz.taskEffectInstance(runtime)).exitCode
+  val zioApp = catsEffectApp[Task](asyncRuntimeInstance(runtime)).exitCode  // Cats Effect 3.x
   runtime.unsafeRun(zioApp)
 }
 ```
@@ -86,9 +81,9 @@ If we are using `RIO` for a custom environment `R`, then we will have to create 
 
 ## Cats App
 
-As a convenience, our application can extend `CatsApp`, which automatically brings an implicit `Runtime[Environment]` into scope:
+As a convenience, our application can extend `CatsApp`, which automatically brings an implicit `Runtime[Environment]` into our scope:
 
-```scala mdoc:silent:nest
+```scala
 import cats.effect.Sync
 import zio.{ExitCode, Task, URIO}
 import zio.interop.catz._
@@ -107,7 +102,7 @@ object ZioCatsEffectInteropWithCatsApp extends CatsApp {
 
 In order to get a `cats.effect.Timer[Task]` instance, we need an extra import (`zio.interop.catz.implicits._`):
 
-```scala mdoc:silent:nest
+```scala
 import java.util.concurrent.TimeUnit
 
 import cats.effect.{ Clock, Sync, Timer }
@@ -176,14 +171,14 @@ We can convert that to `ZManaged`:
 import zio.ZManaged
 ```
 
-```scala mdoc:silent
+```scala
 val resource: ZManaged[ZEnv, Throwable, File[Task]] =
   fileResource[Task]("log.txt").toManaged[ZEnv]
 ```
 
 Let's try a complete working example:
 
-```scala mdoc:silent:nest
+```scala
 import cats.effect.{ Resource, Sync }
 import zio.console._
 import zio.interop.catz._
@@ -207,7 +202,7 @@ object CatsEffectResourceInterop extends CatsApp {
 
 By importing `zio.stream.interop.fs2z._` int to our application, the `toZManages` extension method converts a `fs2.Stream` to `ZStream`:
 
-```scala mdoc:silent:nest
+```scala
 import zio.stream.ZStream
 import zio.stream.interop.fs2z._
 val zstream: ZStream[Any, Throwable, Int] = fs2.Stream.range(1, 10).toZStream()
@@ -215,7 +210,7 @@ val zstream: ZStream[Any, Throwable, Int] = fs2.Stream.range(1, 10).toZStream()
 
 Also, the `ZStream#toFs2Stream` converts a ZIO Stream into FS2 Stream:
 
-```scala mdoc:silent:nest
+```scala
 import zio.stream.ZStream
 import zio.Chunk
 import zio.stream.interop.fs2z._
@@ -231,7 +226,7 @@ def bounded[F[+_], A](capacity: Int)(implicit R: Runtime[ZEnv], F: LiftIO[F]): F
 
 In the following example, we are going to lift the `ZQueue` creation effect to Cats `IO` effect:
 
-```scala mdoc:silent:nest
+```scala
 import zio.interop.Queue
 import cats.effect.IO
 
@@ -259,7 +254,7 @@ We have provided some full working example of using these important libraries:
 ### Doobie and FS2
 The following example shows how to use ZIO with Doobie (a library for JDBC access) and FS2 (a streaming library), which both rely on Cats Effect instances:
 
-```scala mdoc:reset
+```scala
 import doobie._
 import doobie.implicits._
 import fs2.Stream
@@ -310,7 +305,7 @@ Sounds good, but what about managing blocking operations? How they managed? We s
 
 So let's fix this issue in the previous example. In the following snippet we are going to create a `ZMHikari` of Hikari transactor:
 
-```scala mdoc:silent:nest
+```scala
 import zio.ZManaged
 import zio.blocking.Blocking
 import zio.{ Runtime, Task, ZIO, ZManaged }
@@ -336,7 +331,7 @@ def transactor: ZManaged[Blocking, Throwable, HikariTransactor[Task]] =
 
 Now we can `transact` our `doobieApp` with this `transactor` and convert that to the `ZIO` effect:
 
-```scala mdoc:silent:nest
+```scala
 val zioApp: ZIO[Blocking, Throwable, List[User]] =
   transactor.use(xa => doobieApp.transact(xa).compile.toList)
 ```
@@ -345,7 +340,7 @@ val zioApp: ZIO[Blocking, Throwable, List[User]] =
 
 Here is the full working example of using http4s in ZIO App:
 
-```scala mdoc:silent:nest
+```scala
 import cats.effect.{ConcurrentEffect, Sync, Timer}
 import cats.implicits._
 import fs2.Stream
