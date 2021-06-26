@@ -52,7 +52,7 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
     register: (ZIO[R, Option[E], Chunk[A]] => Future[Boolean]) => Either[Canceler[R], ZStream[R, E, A]],
     outputBuffer: Int = 16
   ): ZStream[R, E, A] =
-    ZStream {
+    ZStream.make {
       for {
         output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).toManagedWith(_.shutdown)
         runtime <- ZIO.runtime[R].toManaged
@@ -121,7 +121,7 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
     register: (ZIO[R, Option[E], Chunk[A]] => Future[Boolean]) => Option[ZStream[R, E, A]],
     outputBuffer: Int = 16
   ): ZStream[R, E, A] =
-    ZStream {
+    ZStream.make {
       for {
         output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).toManagedWith(_.shutdown)
         runtime <- ZIO.runtime[R].toManaged
@@ -207,7 +207,7 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
     is: => InputStream,
     chunkSize: Int = ZStream.DefaultChunkSize
   ): ZStream[Any, IOException, Byte] =
-    ZStream {
+    ZStream.make {
       for {
         done       <- Ref.make(false).toManaged
         capturedIs <- Managed.succeed(is)
