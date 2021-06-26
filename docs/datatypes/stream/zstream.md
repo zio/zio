@@ -1279,7 +1279,8 @@ case class Book()
 ```
 
 ```scala mdoc:silent
-def getAuthorBooks(author: String): ZStream[Any, Throwable, Book] = ZStream(???)
+def getAuthorBooks(author: String): ZStream[Any, Throwable, Book] =
+  ???
 ```
 
 If we have a stream of author's names, we can use `ZStream#flatMap` to concatenate the results of all API calls:

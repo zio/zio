@@ -4865,7 +4865,8 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     /**
      * Constructs a `ZStream[Any, Nothing, A]` from a `Iterable[A]`.
      */
-    implicit def IterableConstructor[Collection[+Element] <: Iterable[Element], A]: WithOut[Collection[A], ZStream[Any, Nothing, A]] =
+    implicit def IterableConstructor[Collection[+Element] <: Iterable[Element], A]
+      : WithOut[Collection[A], ZStream[Any, Nothing, A]] =
       new ZStreamConstructor[Collection[A]] {
         type Out = ZStream[Any, Nothing, A]
         def make(input: => Collection[A]): ZStream[Any, Nothing, A] =

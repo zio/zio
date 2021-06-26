@@ -139,8 +139,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assert(result)(isTrue)
           },
           testM("leftover handling") {
-            val data = List(1, 2, 2, 3, 2, 3)
-            val stream: ZStream[Any, Nothing, Int] = ZStream(data)
+            val data                               = List(1, 2, 2, 3, 2, 3)
             assertM(
               ZStream(data)
                 .aggregateAsync(
