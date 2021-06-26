@@ -3,6 +3,7 @@ package zio.stream.experimental
 // import java.io.ByteArrayInputStream
 import zio._
 import zio.internal.Executor
+import zio.stm.TQueue
 import zio.stream.experimental.ZStreamGen._
 import zio.test.Assertion._
 import zio.test.TestAspect.{flaky, nonFlaky, scala2Only, timeout}
@@ -3569,6 +3570,183 @@ object ZStreamSpec extends ZIOBaseSpec {
                           .runCollect
                           .exit
             } yield assert(result)(fails(equalTo("fail")))
+          }
+        ),
+        suite("apply")(
+          test("Chunk") {
+            trait A
+            lazy val chunk: Chunk[A]                    = ???
+            lazy val actual                             = ZStream(chunk)
+            lazy val expected: ZStream[Any, Nothing, A] = actual
+            lazy val _                                  = expected
+            assertCompletes
+          },
+          test("ChunkHub") {
+            trait RA
+            trait RB
+            trait EA
+            trait EB
+            trait A
+            trait B
+            lazy val hub: ZHub[RA, RB, EA, EB, A, Chunk[B]] = ???
+            lazy val actual                                 = ZStream(hub)
+            lazy val expected: ZStream[RB, EB, B]           = actual
+            lazy val _                                      = expected
+            assertCompletes
+          },
+          test("ChunkQueue") {
+            trait RA
+            trait RB
+            trait EA
+            trait EB
+            trait A
+            trait B
+            lazy val queue: ZQueue[RA, RB, EA, EB, A, Chunk[B]] = ???
+            lazy val actual                                     = ZStream(queue)
+            lazy val expected: ZStream[RB, EB, B]               = actual
+            lazy val _                                          = expected
+            assertCompletes
+          },
+          test("Chunks") {
+            trait A
+            lazy val chunks: Iterable[Chunk[A]]         = ???
+            lazy val actual                             = ZStream(chunks)
+            lazy val expected: ZStream[Any, Nothing, A] = actual
+            lazy val _                                  = expected
+            assertCompletes
+          },
+          test("Hub") {
+            trait RA
+            trait RB
+            trait EA
+            trait EB
+            trait A
+            trait B
+            lazy val hub: ZHub[RA, RB, EA, EB, A, B] = ???
+            lazy val actual                          = ZStream(hub)
+            lazy val expected: ZStream[RB, EB, B]    = actual
+            lazy val _                               = expected
+            assertCompletes
+          },
+          test("Iterable") {
+            trait A
+            lazy val iterable: Iterable[A]              = ???
+            lazy val actual                             = ZStream(iterable)
+            lazy val expected: ZStream[Any, Nothing, A] = actual
+            lazy val _                                  = expected
+            assertCompletes
+          },
+          test("IterableZIO") {
+            trait R
+            trait E
+            trait A
+            lazy val iterable: ZIO[R, E, Iterable[A]] = ???
+            lazy val actual                           = ZStream(iterable)
+            lazy val expected: ZStream[R, E, A]       = actual
+            lazy val _                                = expected
+            assertCompletes
+          },
+          test("Iterator") {
+            trait A
+            lazy val iterator: Iterator[A]                = ???
+            lazy val actual                               = ZStream(iterator)
+            lazy val expected: ZStream[Any, Throwable, A] = actual
+            lazy val _                                    = expected
+            assertCompletes
+          },
+          test("IteratorManaged") {
+            trait R
+            trait A
+            lazy val iterable: ZManaged[R, Throwable, Iterator[A]] = ???
+            lazy val actual                                        = ZStream(iterable)
+            lazy val expected: ZStream[R, Throwable, A]            = actual
+            lazy val _                                             = expected
+            assertCompletes
+          },
+          test("IteratorZIO") {
+            trait R
+            trait A
+            lazy val iterable: ZIO[R, Throwable, Iterator[A]] = ???
+            lazy val actual                                   = ZStream(iterable)
+            lazy val expected: ZStream[R, Throwable, A]       = actual
+            lazy val _                                        = expected
+            assertCompletes
+          },
+          test("JavaIterator") {
+            trait A
+            lazy val iterator: java.util.Iterator[A]      = ???
+            lazy val actual                               = ZStream(iterator)
+            lazy val expected: ZStream[Any, Throwable, A] = actual
+            lazy val _                                    = expected
+            assertCompletes
+          },
+          test("JavaIteratorManaged") {
+            trait R
+            trait A
+            lazy val iterable: ZManaged[R, Throwable, java.util.Iterator[A]] = ???
+            lazy val actual                                                  = ZStream(iterable)
+            lazy val expected: ZStream[R, Throwable, A]                      = actual
+            lazy val _                                                       = expected
+            assertCompletes
+          },
+          test("JavaIteratorZIO") {
+            trait R
+            trait A
+            lazy val iterable: ZIO[R, Throwable, java.util.Iterator[A]] = ???
+            lazy val actual                                             = ZStream(iterable)
+            lazy val expected: ZStream[R, Throwable, A]                 = actual
+            lazy val _                                                  = expected
+            assertCompletes
+          },
+          test("Queue") {
+            trait RA
+            trait RB
+            trait EA
+            trait EB
+            trait A
+            trait B
+            lazy val queue: ZQueue[RA, RB, EA, EB, A, B] = ???
+            lazy val actual                              = ZStream(queue)
+            lazy val expected: ZStream[RB, EB, B]        = actual
+            lazy val _                                   = expected
+            assertCompletes
+          },
+          test("Schedule") {
+            trait R
+            trait A
+            lazy val schedule: Schedule[R, Any, A]                    = ???
+            lazy val actual                                           = ZStream(schedule)
+            lazy val expected: ZStream[R with Has[Clock], Nothing, A] = actual
+            lazy val _                                                = expected
+            assertCompletes
+          },
+          test("TQueue") {
+            trait A
+            lazy val queue: TQueue[A]                   = ???
+            lazy val actual                             = ZStream(queue)
+            lazy val expected: ZStream[Any, Nothing, A] = actual
+            lazy val _                                  = expected
+            assertCompletes
+          },
+          test("ZIO") {
+            trait R
+            trait E
+            trait A
+            lazy val zio: ZIO[R, E, A]          = ???
+            lazy val actual                     = ZStream(zio)
+            lazy val expected: ZStream[R, E, A] = actual
+            lazy val _                          = expected
+            assertCompletes
+          },
+          test("ZIOOption") {
+            trait R
+            trait E
+            trait A
+            lazy val zio: ZIO[R, Option[E], A]  = ???
+            lazy val actual                     = ZStream(zio)
+            lazy val expected: ZStream[R, E, A] = actual
+            lazy val _                          = expected
+            assertCompletes
           }
         ),
         testM("chunkN") {
