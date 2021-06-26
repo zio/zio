@@ -16,6 +16,13 @@
 
 package zio
 
-trait BootstrapRuntime extends ZBootstrapRuntime[ZEnv] {
-  def environment: ZEnv = ZEnv.Services.live
+import zio.internal.Platform
+
+trait ZBootstrapRuntime[R] extends Runtime[R] {
+
+  /**
+   * The platform of the runtime, which provides the essential capabilities
+   * necessary to bootstrap execution of tasks.
+   */
+  def platform: Platform = Platform.default
 }
