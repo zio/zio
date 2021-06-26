@@ -3513,7 +3513,11 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   /**
    * Creates a pure stream from a variable list of values
    */
-  def apply[A](as: A*): ZStream[Any, Nothing, A] = fromIterable(as)
+  def apply[A](a1: A, a2: A, as: A*): ZStream[Any, Nothing, A] =
+    fromIterable(a1 +: a2 +: as)
+
+  def apply(): ZStream[Any, Nothing, Nothing] =
+    ZStream.empty
 
   def apply[Input](input: => Input)(implicit constructor: ZStreamConstructor[Input]): constructor.Out =
     constructor.make(input)
@@ -4601,10 +4605,10 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     /**
      * Constructs a `ZStream[Any, Nothing, A]` from a `Iterable[A]`.
      */
-    implicit def IterableConstructor[A]: WithOut[Iterable[A], ZStream[Any, Nothing, A]] =
-      new ZStreamConstructor[Iterable[A]] {
+    implicit def IterableConstructor[Collection[+Element] <: Iterable[Element], A]: WithOut[Collection[A], ZStream[Any, Nothing, A]] =
+      new ZStreamConstructor[Collection[A]] {
         type Out = ZStream[Any, Nothing, A]
-        def make(input: => Iterable[A]): ZStream[Any, Nothing, A] =
+        def make(input: => Collection[A]): ZStream[Any, Nothing, A] =
           ZStream.fromIterable(input)
       }
 

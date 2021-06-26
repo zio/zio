@@ -139,7 +139,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           testM("leftover handling") {
             val data = List(1, 2, 2, 3, 2, 3)
             assertM(
-              ZStream(data: _*)
+              ZStream(data)
                 .aggregateAsync(
                   ZSink.foldWeighted(List[Int]())((_, x: Int) => x.toLong, 4)((acc, el) => el :: acc)
                 )
@@ -294,7 +294,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             val data = List(1, 2, 2, 3, 2, 3)
             assertM(
               for {
-                f <- (ZStream(data: _*)
+                f <- (ZStream(data)
                        .aggregateAsyncWithinEither(
                          ZSink
                            .foldWeighted(List[Int]())((_, i: Int) => i.toLong, 4)((acc, el) => el :: acc)
