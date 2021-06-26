@@ -4702,12 +4702,12 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     /**
      * Constructs a `ZStream[Any, Nothing, A]` from a `Seq[Chunk[A]]`.
      */
-    implicit def ChunksConstructor[Collection[+Element] <: Seq[Element], A]
+    implicit def ChunksConstructor[Collection[+Element] <: Iterable[Element], A]
       : WithOut[Collection[Chunk[A]], ZStream[Any, Nothing, A]] =
       new ZStreamConstructor[Collection[Chunk[A]]] {
         type Out = ZStream[Any, Nothing, A]
         def make(input: => Collection[Chunk[A]]): ZStream[Any, Nothing, A] =
-          ZStream.fromChunks(input: _*)
+          ZStream.fromIterable(input).flatMap(ZStream.fromChunk(_))
       }
 
     /**
