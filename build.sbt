@@ -538,8 +538,8 @@ lazy val jsdocs = project
   .settings(libraryDependencies += "org.scala-js" %%% "scalajs-dom" % "1.0.0")
   .enablePlugins(ScalaJSPlugin)
 
-val http4sV = "0.23.0-RC1"
-val doobieV = "1.0.0-M5"
+val http4sV     = "0.23.0-RC1"
+val doobieV     = "1.0.0-M5"
 val catsEffectV = "3.1.1"
 
 lazy val docs = project.module
@@ -557,7 +557,7 @@ lazy val docs = project.module
       "org.jsoup"           % "jsoup"                     % "1.13.1" % "provided",
       "org.reactivestreams" % "reactive-streams-examples" % "1.0.3"  % "provided",
       /* to evict 1.3.0 brought in by mdoc-js */
-      "org.scala-js"  % "scalajs-compiler"             % scalaJSVersion cross CrossVersion.full,
+      "org.scala-js"   % "scalajs-compiler"            % scalaJSVersion cross CrossVersion.full,
       "org.scala-js"  %% "scalajs-linker"              % scalaJSVersion,
       "org.typelevel" %% "cats-effect"                 % catsEffectV,
       "dev.zio"       %% "zio-interop-cats"            % "3.1.1.0",
