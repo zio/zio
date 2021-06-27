@@ -4552,8 +4552,9 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
      * Constructs a `ZStream[R, Throwable, A]` from a
      * `ZIO[R, Throwable, java.util.Iterator[A]]`.
      */
-    implicit def JavaIteratorZIOConstructor[R, E <: Throwable, A, JaveIteratorLike[Element] <: java.util.Iterator[Element]]
-      : WithOut[ZIO[R, E, JaveIteratorLike[A]], ZStream[R, Throwable, A]] =
+    implicit def JavaIteratorZIOConstructor[R, E <: Throwable, A, JaveIteratorLike[Element] <: java.util.Iterator[
+      Element
+    ]]: WithOut[ZIO[R, E, JaveIteratorLike[A]], ZStream[R, Throwable, A]] =
       new ZStreamConstructor[ZIO[R, E, JaveIteratorLike[A]]] {
         type Out = ZStream[R, Throwable, A]
         def make(input: => ZIO[R, E, JaveIteratorLike[A]]): ZStream[R, Throwable, A] =
