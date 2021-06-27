@@ -4427,7 +4427,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * from an input of type `Input`. This allows the type of the `ZStream`
    * value constructed to depend on `Input`.
    */
-  sealed trait ZStreamConstructor[Input] {
+  trait ZStreamConstructor[Input] {
 
     /**
      * The type of the `ZStream` value.
@@ -4440,7 +4440,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     def make(input: => Input): Out
   }
 
-  object ZStreamConstructor extends ZStreamConstructorLowPriority1 {
+  object ZStreamConstructor extends ZStreamConstructorPlatformSpecific {
 
     /**
      * Constructs a `ZStream[RB, EB, B]` from a

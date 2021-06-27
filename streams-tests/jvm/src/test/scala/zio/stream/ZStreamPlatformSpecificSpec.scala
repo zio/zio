@@ -183,6 +183,80 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
             assert(exit.untraced)(failsCause(containsCause(Cause.interrupt(selfId))))
         }
       ),
+      suite("from")(
+        test("InputStream") {
+          lazy val inputStream: InputStream                  = ???
+          lazy val actual                                    = ZStream.from(inputStream)
+          lazy val expected: ZStream[Any, IOException, Byte] = actual
+          lazy val _                                         = expected
+          assertCompletes
+        },
+        test("InputStreamManaged") {
+          trait R
+          lazy val inputStreamManaged: ZManaged[R, IOException, InputStream] = ???
+          lazy val actual                                                    = ZStream.from(inputStreamManaged)
+          lazy val expected: ZStream[R, IOException, Byte]                   = actual
+          lazy val _                                                         = expected
+          assertCompletes
+        },
+        test("InputStreamZIO") {
+          trait R
+          lazy val inputStreamZIO: ZIO[R, IOException, InputStream] = ???
+          lazy val actual                                           = ZStream.from(inputStreamZIO)
+          lazy val expected: ZStream[R, IOException, Byte]          = actual
+          lazy val _                                                = expected
+          assertCompletes
+        },
+        test("JavaStream") {
+          trait A
+          lazy val javaStream: java.util.stream.Stream[A] = ???
+          lazy val actual                                 = ZStream.from(javaStream)
+          lazy val expected: ZStream[Any, Throwable, A]   = actual
+          lazy val _                                      = expected
+          assertCompletes
+        },
+        test("JavaStreamManaged") {
+          trait R
+          trait A
+          lazy val javaStreamManaged: ZManaged[R, Throwable, java.util.stream.Stream[A]] = ???
+          lazy val actual                                                                = ZStream.from(javaStreamManaged)
+          lazy val expected: ZStream[R, Throwable, A]                                    = actual
+          lazy val _                                                                     = expected
+          assertCompletes
+        },
+        test("JavaStreamZIO") {
+          trait R
+          trait A
+          lazy val javaStreamZIO: ZIO[R, Throwable, java.util.stream.Stream[A]] = ???
+          lazy val actual                                                       = ZStream.from(javaStreamZIO)
+          lazy val expected: ZStream[R, Throwable, A]                           = actual
+          lazy val _                                                            = expected
+          assertCompletes
+        },
+        test("Reader") {
+          lazy val reader: Reader                            = ???
+          lazy val actual                                    = ZStream.from(reader)
+          lazy val expected: ZStream[Any, IOException, Char] = actual
+          lazy val _                                         = expected
+          assertCompletes
+        },
+        test("ReaderManaged") {
+          trait R
+          lazy val readerManaged: ZManaged[R, IOException, Reader] = ???
+          lazy val actual                                          = ZStream.from(readerManaged)
+          lazy val expected: ZStream[R, IOException, Char]         = actual
+          lazy val _                                               = expected
+          assertCompletes
+        },
+        test("ReaderZIO") {
+          trait R
+          lazy val readerZIO: ZIO[R, IOException, Reader]  = ???
+          lazy val actual                                  = ZStream.from(readerZIO)
+          lazy val expected: ZStream[R, IOException, Char] = actual
+          lazy val _                                       = expected
+          assertCompletes
+        }
+      ),
       testM("fromBlockingIterator") {
         checkM(Gen.small(Gen.chunkOfN(_)(Gen.anyInt)), Gen.small(Gen.const(_), 1)) { (chunk, maxChunkSize) =>
           assertM(ZStream.fromBlockingIterator(chunk.iterator, maxChunkSize).runCollect)(equalTo(chunk))

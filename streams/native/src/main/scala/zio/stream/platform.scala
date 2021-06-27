@@ -240,7 +240,18 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
    * Creates a stream from a [[java.io.InputStream]]. Ensures that the input
    * stream is closed after it is exhausted.
    */
+  @deprecated("use fromInputStreamZIO", "2.0.0")
   def fromInputStreamEffect[R](
+    is: ZIO[R, IOException, InputStream],
+    chunkSize: Int = ZStream.DefaultChunkSize
+  ): ZStream[R, IOException, Byte] =
+    fromInputStreamZIO(is, chunkSize)
+
+  /**
+   * Creates a stream from a [[java.io.InputStream]]. Ensures that the input
+   * stream is closed after it is exhausted.
+   */
+  def fromInputStreamZIO[R](
     is: ZIO[R, IOException, InputStream],
     chunkSize: Int = ZStream.DefaultChunkSize
   ): ZStream[R, IOException, Byte] =
@@ -257,6 +268,43 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
       .managed(is)
       .flatMap(fromInputStream(_, chunkSize))
 
+  trait ZStreamConstructorPlatformSpecific extends ZStreamConstructorLowPriority1 {
+
+    /**
+     * Constructs a `ZStream[Any, IOException, Byte]` from a
+     * `java.io.InputStream`.
+     */
+    implicit val InputStreamConstructor: WithOut[InputStream, ZStream[Any, IOException, Byte]] =
+      new ZStreamConstructor[InputStream] {
+        type Out = ZStream[Any, IOException, Byte]
+        def make(input: => InputStream): ZStream[Any, IOException, Byte] =
+          ZStream.fromInputStream(input)
+      }
+
+    /**
+     * Constructs a `ZStream[Any, IOException, Byte]` from a
+     * `ZManaged[R, java.io.IOException, java.io.InputStream]`.
+     */
+    implicit def InputStreamManagedConstructor[R]
+      : WithOut[ZManaged[R, IOException, InputStream], ZStream[R, IOException, Byte]] =
+      new ZStreamConstructor[ZManaged[R, IOException, InputStream]] {
+        type Out = ZStream[R, IOException, Byte]
+        def make(input: => ZManaged[R, IOException, InputStream]): ZStream[R, IOException, Byte] =
+          ZStream.fromInputStreamManaged(input)
+      }
+
+    /**
+     * Constructs a `ZStream[Any, IOException, Byte]` from a
+     * `ZIO[R, java.io.IOException, java.io.InputStream]`.
+     */
+    implicit def InputStreamZIOConstructor[R]
+      : WithOut[ZIO[R, IOException, InputStream], ZStream[R, IOException, Byte]] =
+      new ZStreamConstructor[ZIO[R, IOException, InputStream]] {
+        type Out = ZStream[R, IOException, Byte]
+        def make(input: => ZIO[R, IOException, InputStream]): ZStream[R, IOException, Byte] =
+          ZStream.fromInputStreamZIO(input)
+      }
+  }
 }
 trait StreamPlatformSpecificConstructors
 
