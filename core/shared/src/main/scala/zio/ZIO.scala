@@ -5354,90 +5354,32 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     /**
      * Constructs a `ZIO[Any, E, A]` from an `Either[Cause[E], A]`.
      */
-    implicit def EitherCauseConstructor[E, A]: WithOut[Either[Cause[E], A], ZIO[Any, E, A]] =
-      new ZIOConstructor[Either[Cause[E], A]] {
+    implicit def EitherCauseConstructor[E, A, EitherLike[E, A] <: Either[E, A]]
+      : WithOut[EitherLike[Cause[E], A], ZIO[Any, E, A]] =
+      new ZIOConstructor[EitherLike[Cause[E], A]] {
         type Out = ZIO[Any, E, A]
-        def make(input: => Either[Cause[E], A]): ZIO[Any, E, A] =
-          ZIO.fromEitherCause(input)
-      }
-
-    /**
-     * Constructs a `ZIO[Any, E, A]` from a `Left[Cause[E], A]`.
-     */
-    implicit def EitherCauseLeftConstructor[E, A]: WithOut[Left[Cause[E], A], ZIO[Any, E, A]] =
-      new ZIOConstructor[Left[Cause[E], A]] {
-        type Out = ZIO[Any, E, A]
-        def make(input: => Left[Cause[E], A]): ZIO[Any, E, A] =
-          ZIO.fromEitherCause(input)
-      }
-
-    /**
-     * Constructs a `ZIO[Any, E, A]` from a `Right[Cause[E], A]`.
-     */
-    implicit def EitherCauseRightConstructor[E, A]: WithOut[Right[Cause[E], A], ZIO[Any, E, A]] =
-      new ZIOConstructor[Right[Cause[E], A]] {
-        type Out = ZIO[Any, E, A]
-        def make(input: => Right[Cause[E], A]): ZIO[Any, E, A] =
+        def make(input: => EitherLike[Cause[E], A]): ZIO[Any, E, A] =
           ZIO.fromEitherCause(input)
       }
 
     /**
      * Constructs a `ZIO[Any, E, A]` from a `Fiber[E, A].`
      */
-    implicit def FiberConstructor[E, A]: WithOut[Fiber[E, A], ZIO[Any, E, A]] =
-      new ZIOConstructor[Fiber[E, A]] {
+    implicit def FiberConstructor[E, A, FiberLike[E, A] <: Fiber[E, A]]: WithOut[FiberLike[E, A], ZIO[Any, E, A]] =
+      new ZIOConstructor[FiberLike[E, A]] {
         type Out = ZIO[Any, E, A]
-        def make(input: => Fiber[E, A]): ZIO[Any, E, A] =
-          ZIO.fromFiber(input)
-      }
-
-    /**
-     * Constructs a `ZIO[Any, E, A]` from a `Fiber.Runtime[E, A].`
-     */
-    implicit def FiberRuntimeConstructor[E, A]: WithOut[Fiber.Runtime[E, A], ZIO[Any, E, A]] =
-      new ZIOConstructor[Fiber.Runtime[E, A]] {
-        type Out = ZIO[Any, E, A]
-        def make(input: => Fiber.Runtime[E, A]): ZIO[Any, E, A] =
-          ZIO.fromFiber(input)
-      }
-
-    /**
-     * Constructs a `ZIO[Any, E, A]` from a `Fiber.Synthetic[E, A].`
-     */
-    implicit def FiberSyntheticConstructor[E, A]: WithOut[Fiber.Synthetic[E, A], ZIO[Any, E, A]] =
-      new ZIOConstructor[Fiber.Synthetic[E, A]] {
-        type Out = ZIO[Any, E, A]
-        def make(input: => Fiber.Synthetic[E, A]): ZIO[Any, E, A] =
+        def make(input: => FiberLike[E, A]): ZIO[Any, E, A] =
           ZIO.fromFiber(input)
       }
 
     /**
      * Constructs a `ZIO[R, E, A]` from a `ZIO[R, E, Fiber[E, A]]`.
      */
-    implicit def FiberZIOConstructor[R, E, A]: WithOut[ZIO[R, E, Fiber[E, A]], ZIO[R, E, A]] =
-      new ZIOConstructor[ZIO[R, E, Fiber[E, A]]] {
-        type Out = ZIO[R, E, A]
-        def make(input: => ZIO[R, E, Fiber[E, A]]): ZIO[R, E, A] =
-          ZIO.fromFiberZIO(input)
-      }
-
-    /**
-     * Constructs a `ZIO[R, E, A]` from a `ZIO[R, E, Fiber.Runtime[E, A]]`.
-     */
-    implicit def FiberZIORuntimeConstructor[R, E, A]: WithOut[ZIO[R, E, Fiber.Runtime[E, A]], ZIO[R, E, A]] =
-      new ZIOConstructor[ZIO[R, E, Fiber.Runtime[E, A]]] {
-        type Out = ZIO[R, E, A]
-        def make(input: => ZIO[R, E, Fiber.Runtime[E, A]]): ZIO[R, E, A] =
-          ZIO.fromFiberZIO(input)
-      }
-
-    /**
-     * Constructs a `ZIO[R, E, A]` from a `ZIO[R, E, Fiber.Synthetic[E, A]]`.
-     */
-    implicit def FiberZIOSyntheticConstructor[R, E, A]: WithOut[ZIO[R, E, Fiber.Synthetic[E, A]], ZIO[R, E, A]] =
-      new ZIOConstructor[ZIO[R, E, Fiber.Synthetic[E, A]]] {
-        type Out = ZIO[R, E, A]
-        def make(input: => ZIO[R, E, Fiber.Synthetic[E, A]]): ZIO[R, E, A] =
+    implicit def FiberZIOConstructor[R, E1 <: E3, E2 <: E3, E3, A, FiberLike[E, A] <: Fiber[E, A]]
+      : WithOut[ZIO[R, E1, FiberLike[E2, A]], ZIO[R, E3, A]] =
+      new ZIOConstructor[ZIO[R, E1, FiberLike[E2, A]]] {
+        type Out = ZIO[R, E3, A]
+        def make(input: => ZIO[R, E1, FiberLike[E2, A]]): ZIO[R, E3, A] =
           ZIO.fromFiberZIO(input)
       }
 

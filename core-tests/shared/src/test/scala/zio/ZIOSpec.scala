@@ -1125,31 +1125,37 @@ object ZIOSpec extends ZIOBaseSpec {
       test("FiberZIO") {
         trait R
         trait E
+        trait E1 extends E
+        trait E2 extends E
         trait A
-        lazy val fiberZIO: ZIO[R, E, Fiber[E, A]] = ???
-        lazy val actual                           = ZIO.from(fiberZIO)
-        lazy val expected: ZIO[R, E, A]           = actual
-        lazy val _                                = expected
+        lazy val fiberZIO: ZIO[R, E1, Fiber[E2, A]] = ???
+        lazy val actual                             = ZIO.from(fiberZIO)
+        lazy val expected: ZIO[R, E, A]             = actual
+        lazy val _                                  = expected
         assertCompletes
       },
       test("FiberZIORuntime") {
         trait R
         trait E
+        trait E1 extends E
+        trait E2 extends E
         trait A
-        lazy val fiberZIORuntime: ZIO[R, E, Fiber.Runtime[E, A]] = ???
-        lazy val actual                                          = ZIO.from(fiberZIORuntime)
-        lazy val expected: ZIO[R, E, A]                          = actual
-        lazy val _                                               = expected
+        lazy val fiberZIORuntime: ZIO[R, E1, Fiber.Runtime[E2, A]] = ???
+        lazy val actual                                            = ZIO.from(fiberZIORuntime)
+        lazy val expected: ZIO[R, E, A]                            = actual
+        lazy val _                                                 = expected
         assertCompletes
       },
       test("FiberZIOSynthetic") {
         trait R
         trait E
+        trait E1 extends E
+        trait E2 extends E
         trait A
-        lazy val fiberZIOSynthetic: ZIO[R, E, Fiber.Synthetic[E, A]] = ???
-        lazy val actual                                              = ZIO.from(fiberZIOSynthetic)
-        lazy val expected: ZIO[R, E, A]                              = actual
-        lazy val _                                                   = expected
+        lazy val fiberZIOSynthetic: ZIO[R, E1, Fiber.Synthetic[E2, A]] = ???
+        lazy val actual                                                = ZIO.from(fiberZIOSynthetic)
+        lazy val expected: ZIO[R, E, A]                                = actual
+        lazy val _                                                     = expected
         assertCompletes
       },
       test("Function") {

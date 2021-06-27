@@ -4491,10 +4491,11 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     /**
      * Constructs a `ZStream[Any, Throwable, A]` from an `Iterator[A]`.
      */
-    implicit def IteratorConstructor[A]: WithOut[Iterator[A], ZStream[Any, Throwable, A]] =
-      new ZStreamConstructor[Iterator[A]] {
+    implicit def IteratorConstructor[A, IteratorLike[Element] <: Iterator[Element]]
+      : WithOut[IteratorLike[A], ZStream[Any, Throwable, A]] =
+      new ZStreamConstructor[IteratorLike[A]] {
         type Out = ZStream[Any, Throwable, A]
-        def make(input: => Iterator[A]): ZStream[Any, Throwable, A] =
+        def make(input: => IteratorLike[A]): ZStream[Any, Throwable, A] =
           ZStream.fromIterator(input)
       }
 
@@ -4502,11 +4503,11 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
      * Constructs a `ZStream[R, Throwable, A]` from a
      * `ZManaged[R, Throwable, Iterator[A]]`.
      */
-    implicit def IteratorManagedConstructor[R, A]
-      : WithOut[ZManaged[R, Throwable, Iterator[A]], ZStream[R, Throwable, A]] =
-      new ZStreamConstructor[ZManaged[R, Throwable, Iterator[A]]] {
+    implicit def IteratorManagedConstructor[R, E <: Throwable, A, IteratorLike[Element] <: Iterator[Element]]
+      : WithOut[ZManaged[R, E, IteratorLike[A]], ZStream[R, Throwable, A]] =
+      new ZStreamConstructor[ZManaged[R, E, IteratorLike[A]]] {
         type Out = ZStream[R, Throwable, A]
-        def make(input: => ZManaged[R, Throwable, Iterator[A]]): ZStream[R, Throwable, A] =
+        def make(input: => ZManaged[R, E, IteratorLike[A]]): ZStream[R, Throwable, A] =
           ZStream.fromIteratorManaged(input)
       }
 
@@ -4514,10 +4515,11 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
      * Constructs a `ZStream[R, Throwable, A]` from a
      * `ZIO[R, Throwable, Iterator[A]]`.
      */
-    implicit def IteratorZIOConstructor[R, A]: WithOut[ZIO[R, Throwable, Iterator[A]], ZStream[R, Throwable, A]] =
-      new ZStreamConstructor[ZIO[R, Throwable, Iterator[A]]] {
+    implicit def IteratorZIOConstructor[R, E <: Throwable, A, IteratorLike[Element] <: Iterator[Element]]
+      : WithOut[ZIO[R, E, IteratorLike[A]], ZStream[R, Throwable, A]] =
+      new ZStreamConstructor[ZIO[R, E, IteratorLike[A]]] {
         type Out = ZStream[R, Throwable, A]
-        def make(input: => ZIO[R, Throwable, Iterator[A]]): ZStream[R, Throwable, A] =
+        def make(input: => ZIO[R, E, IteratorLike[A]]): ZStream[R, Throwable, A] =
           ZStream.fromIteratorZIO(input)
       }
 
@@ -4525,10 +4527,11 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
      * Constructs a `ZStream[Any, Throwable, A]` from a
      * `java.util.Iterator[A]`.
      */
-    implicit def JavaIteratorConstructor[A]: WithOut[java.util.Iterator[A], ZStream[Any, Throwable, A]] =
-      new ZStreamConstructor[java.util.Iterator[A]] {
+    implicit def JavaIteratorConstructor[A, IteratorLike[Element] <: java.util.Iterator[Element]]
+      : WithOut[IteratorLike[A], ZStream[Any, Throwable, A]] =
+      new ZStreamConstructor[IteratorLike[A]] {
         type Out = ZStream[Any, Throwable, A]
-        def make(input: => java.util.Iterator[A]): ZStream[Any, Throwable, A] =
+        def make(input: => IteratorLike[A]): ZStream[Any, Throwable, A] =
           ZStream.fromJavaIterator(input)
       }
 
@@ -4536,11 +4539,12 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
      * Constructs a `ZStream[R, Throwable, A]` from a
      * `ZManaged[R, Throwable, java.util.Iterator[A]]`.
      */
-    implicit def JavaIteratorManagedConstructor[R, A]
-      : WithOut[ZManaged[R, Throwable, java.util.Iterator[A]], ZStream[R, Throwable, A]] =
-      new ZStreamConstructor[ZManaged[R, Throwable, java.util.Iterator[A]]] {
+    implicit def JavaIteratorManagedConstructor[R, E <: Throwable, A, IteratorLike[Element] <: java.util.Iterator[
+      Element
+    ]]: WithOut[ZManaged[R, E, IteratorLike[A]], ZStream[R, Throwable, A]] =
+      new ZStreamConstructor[ZManaged[R, E, IteratorLike[A]]] {
         type Out = ZStream[R, Throwable, A]
-        def make(input: => ZManaged[R, Throwable, java.util.Iterator[A]]): ZStream[R, Throwable, A] =
+        def make(input: => ZManaged[R, E, IteratorLike[A]]): ZStream[R, Throwable, A] =
           ZStream.fromJavaIteratorManaged(input)
       }
 
@@ -4548,11 +4552,11 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
      * Constructs a `ZStream[R, Throwable, A]` from a
      * `ZIO[R, Throwable, java.util.Iterator[A]]`.
      */
-    implicit def JavaIteratorZIOConstructor[R, A]
-      : WithOut[ZIO[R, Throwable, java.util.Iterator[A]], ZStream[R, Throwable, A]] =
-      new ZStreamConstructor[ZIO[R, Throwable, java.util.Iterator[A]]] {
+    implicit def JavaIteratorZIOConstructor[R, E <: Throwable, A, IteratorLike[Element] <: java.util.Iterator[Element]]
+      : WithOut[ZIO[R, E, IteratorLike[A]], ZStream[R, Throwable, A]] =
+      new ZStreamConstructor[ZIO[R, E, IteratorLike[A]]] {
         type Out = ZStream[R, Throwable, A]
-        def make(input: => ZIO[R, Throwable, java.util.Iterator[A]]): ZStream[R, Throwable, A] =
+        def make(input: => ZIO[R, E, IteratorLike[A]]): ZStream[R, Throwable, A] =
           ZStream.fromJavaIteratorZIO(input)
       }
 
@@ -4602,7 +4606,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     /**
      * Constructs a `ZStream[Any, Nothing, A]` from a `Iterable[A]`.
      */
-    implicit def IterableConstructor[A, Collection[+Element] <: Iterable[Element]]
+    implicit def IterableConstructor[A, Collection[Element] <: Iterable[Element]]
       : WithOut[Collection[A], ZStream[Any, Nothing, A]] =
       new ZStreamConstructor[Collection[A]] {
         type Out = ZStream[Any, Nothing, A]
@@ -4627,6 +4631,26 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       new ZStreamConstructor[ZIO[R, Option[E], A]] {
         type Out = ZStream[R, E, A]
         def make(input: => ZIO[R, Option[E], A]): ZStream[R, E, A] =
+          ZStream.fromZIOOption(input)
+      }
+
+    /**
+     * Construct a `ZStream[R, E, A]` from a `ZIO[R, Option[E], A]`.
+     */
+    implicit def ZIOOptionNoneConstructor[R, A]: WithOut[ZIO[R, None.type, A], ZStream[R, Nothing, A]] =
+      new ZStreamConstructor[ZIO[R, None.type, A]] {
+        type Out = ZStream[R, Nothing, A]
+        def make(input: => ZIO[R, None.type, A]): ZStream[R, Nothing, A] =
+          ZStream.fromZIOOption(input)
+      }
+
+    /**
+     * Construct a `ZStream[R, E, A]` from a `ZIO[R, Option[E], A]`.
+     */
+    implicit def ZIOOptionSomeConstructor[R, E, A]: WithOut[ZIO[R, Some[E], A], ZStream[R, E, A]] =
+      new ZStreamConstructor[ZIO[R, Some[E], A]] {
+        type Out = ZStream[R, E, A]
+        def make(input: => ZIO[R, Some[E], A]): ZStream[R, E, A] =
           ZStream.fromZIOOption(input)
       }
   }

@@ -3092,10 +3092,11 @@ object ZManaged extends ZManagedPlatformSpecific {
     /**
      * Constructs a `ZManaged[R, E, A]` from a `Reservation[R, E, A]`.
      */
-    implicit def ReservationZIOConstructor[R, E, A]: WithOut[ZIO[R, E, Reservation[R, E, A]], ZManaged[R, E, A]] =
-      new ZManagedConstructor[ZIO[R, E, Reservation[R, E, A]]] {
-        type Out = ZManaged[R, E, A]
-        def make(input: => ZIO[R, E, Reservation[R, E, A]]): ZManaged[R, E, A] =
+    implicit def ReservationZIOConstructor[R1, R2, E1 <: E3, E2 <: E3, E3, A]
+      : WithOut[ZIO[R1, E1, Reservation[R2, E2, A]], ZManaged[R1 with R2, E3, A]] =
+      new ZManagedConstructor[ZIO[R1, E1, Reservation[R2, E2, A]]] {
+        type Out = ZManaged[R1 with R2, E3, A]
+        def make(input: => ZIO[R1, E1, Reservation[R2, E2, A]]): ZManaged[R1 with R2, E3, A] =
           ZManaged.fromReservationZIO(input)
       }
 

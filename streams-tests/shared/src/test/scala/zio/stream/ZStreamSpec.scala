@@ -3726,7 +3726,8 @@ object ZStreamSpec extends ZIOBaseSpec {
           },
           test("Iterable") {
             trait A
-            lazy val iterable: Iterable[A]              = ???
+            trait Collection[Element] extends Iterable[Element]
+            lazy val iterable: Collection[A]            = ???
             lazy val actual                             = ZStream.from(iterable)
             lazy val expected: ZStream[Any, Nothing, A] = actual
             lazy val _                                  = expected
@@ -3736,15 +3737,17 @@ object ZStreamSpec extends ZIOBaseSpec {
             trait R
             trait E
             trait A
-            lazy val iterableZIO: ZIO[R, E, Iterable[A]] = ???
-            lazy val actual                              = ZStream.from(iterableZIO)
-            lazy val expected: ZStream[R, E, A]          = actual
-            lazy val _                                   = expected
+            trait Collection[Element] extends Iterable[Element]
+            lazy val iterableZIO: ZIO[R, E, Collection[A]] = ???
+            lazy val actual                                = ZStream.from(iterableZIO)
+            lazy val expected: ZStream[R, E, A]            = actual
+            lazy val _                                     = expected
             assertCompletes
           },
           test("Iterator") {
             trait A
-            lazy val iterator: Iterator[A]                = ???
+            trait IteratorLike[Element] extends Iterator[Element]
+            lazy val iterator: IteratorLike[A]            = ???
             lazy val actual                               = ZStream.from(iterator)
             lazy val expected: ZStream[Any, Throwable, A] = actual
             lazy val _                                    = expected
@@ -3753,24 +3756,27 @@ object ZStreamSpec extends ZIOBaseSpec {
           test("IteratorManaged") {
             trait R
             trait A
-            lazy val iteratorManaged: ZManaged[R, Throwable, Iterator[A]] = ???
-            lazy val actual                                               = ZStream.from(iteratorManaged)
-            lazy val expected: ZStream[R, Throwable, A]                   = actual
-            lazy val _                                                    = expected
+            trait IteratorLike[Element] extends Iterator[Element]
+            lazy val iteratorManaged: ZManaged[R, Throwable, IteratorLike[A]] = ???
+            lazy val actual                                                   = ZStream.from(iteratorManaged)
+            lazy val expected: ZStream[R, Throwable, A]                       = actual
+            lazy val _                                                        = expected
             assertCompletes
           },
           test("IteratorZIO") {
             trait R
             trait A
-            lazy val iteratorZIO: ZIO[R, Throwable, Iterator[A]] = ???
-            lazy val actual                                      = ZStream.from(iteratorZIO)
-            lazy val expected: ZStream[R, Throwable, A]          = actual
-            lazy val _                                           = expected
+            trait IteratorLike[Element] extends Iterator[Element]
+            lazy val iteratorZIO: ZIO[R, Throwable, IteratorLike[A]] = ???
+            lazy val actual                                          = ZStream.from(iteratorZIO)
+            lazy val expected: ZStream[R, Throwable, A]              = actual
+            lazy val _                                               = expected
             assertCompletes
           },
           test("JavaIterator") {
             trait A
-            lazy val javaIterator: java.util.Iterator[A]  = ???
+            trait IteratorLike[Element] extends java.util.Iterator[Element]
+            lazy val javaIterator: IteratorLike[A]        = ???
             lazy val actual                               = ZStream.from(javaIterator)
             lazy val expected: ZStream[Any, Throwable, A] = actual
             lazy val _                                    = expected
@@ -3779,19 +3785,21 @@ object ZStreamSpec extends ZIOBaseSpec {
           test("JavaIteratorManaged") {
             trait R
             trait A
-            lazy val javaIteratorManaged: ZManaged[R, Throwable, java.util.Iterator[A]] = ???
-            lazy val actual                                                             = ZStream.from(javaIteratorManaged)
-            lazy val expected: ZStream[R, Throwable, A]                                 = actual
-            lazy val _                                                                  = expected
+            trait IteratorLike[Element] extends java.util.Iterator[Element]
+            lazy val javaIteratorManaged: ZManaged[R, Throwable, IteratorLike[A]] = ???
+            lazy val actual                                                       = ZStream.from(javaIteratorManaged)
+            lazy val expected: ZStream[R, Throwable, A]                           = actual
+            lazy val _                                                            = expected
             assertCompletes
           },
           test("JavaIteratorZIO") {
             trait R
             trait A
-            lazy val javaIteratorZIO: ZIO[R, Throwable, java.util.Iterator[A]] = ???
-            lazy val actual                                                    = ZStream.from(javaIteratorZIO)
-            lazy val expected: ZStream[R, Throwable, A]                        = actual
-            lazy val _                                                         = expected
+            trait IteratorLike[Element] extends java.util.Iterator[Element]
+            lazy val javaIteratorZIO: ZIO[R, Throwable, IteratorLike[A]] = ???
+            lazy val actual                                              = ZStream.from(javaIteratorZIO)
+            lazy val expected: ZStream[R, Throwable, A]                  = actual
+            lazy val _                                                   = expected
             assertCompletes
           },
           test("Queue") {

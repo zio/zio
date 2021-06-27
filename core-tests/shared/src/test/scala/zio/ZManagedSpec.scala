@@ -1733,13 +1733,17 @@ object ZManagedSpec extends ZIOBaseSpec {
         assertCompletes
       },
       test("ReservationZIO") {
-        trait R
+        trait R1
+        trait R2
+        trait R extends R1 with R2
         trait E
+        trait E1 extends E
+        trait E2 extends E
         trait A
-        lazy val reservationZIO: ZIO[R, E, Reservation[R, E, A]] = ???
-        lazy val actual                                          = ZManaged.from(reservationZIO)
-        lazy val expected: ZManaged[R, E, A]                     = actual
-        lazy val _                                               = expected
+        lazy val reservationZIO: ZIO[R1, E1, Reservation[R2, E2, A]] = ???
+        lazy val actual                                              = ZManaged.from(reservationZIO)
+        lazy val expected: ZManaged[R, E, A]                         = actual
+        lazy val _                                                   = expected
         assertCompletes
       },
       test("Try") {

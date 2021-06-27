@@ -285,11 +285,11 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
      * Constructs a `ZStream[Any, IOException, Byte]` from a
      * `ZManaged[R, java.io.IOException, java.io.InputStream]`.
      */
-    implicit def InputStreamManagedConstructor[R]
-      : WithOut[ZManaged[R, IOException, InputStream], ZStream[R, IOException, Byte]] =
-      new ZStreamConstructor[ZManaged[R, IOException, InputStream]] {
+    implicit def InputStreamManagedConstructor[R, E <: IOException]
+      : WithOut[ZManaged[R, E, InputStream], ZStream[R, IOException, Byte]] =
+      new ZStreamConstructor[ZManaged[R, E, InputStream]] {
         type Out = ZStream[R, IOException, Byte]
-        def make(input: => ZManaged[R, IOException, InputStream]): ZStream[R, IOException, Byte] =
+        def make(input: => ZManaged[R, E, InputStream]): ZStream[R, IOException, Byte] =
           ZStream.fromInputStreamManaged(input)
       }
 
@@ -297,11 +297,11 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
      * Constructs a `ZStream[Any, IOException, Byte]` from a
      * `ZIO[R, java.io.IOException, java.io.InputStream]`.
      */
-    implicit def InputStreamZIOConstructor[R]
-      : WithOut[ZIO[R, IOException, InputStream], ZStream[R, IOException, Byte]] =
-      new ZStreamConstructor[ZIO[R, IOException, InputStream]] {
+    implicit def InputStreamZIOConstructor[R, E <: IOException]
+      : WithOut[ZIO[R, E, InputStream], ZStream[R, IOException, Byte]] =
+      new ZStreamConstructor[ZIO[R, E, InputStream]] {
         type Out = ZStream[R, IOException, Byte]
-        def make(input: => ZIO[R, IOException, InputStream]): ZStream[R, IOException, Byte] =
+        def make(input: => ZIO[R, E, InputStream]): ZStream[R, IOException, Byte] =
           ZStream.fromInputStreamZIO(input)
       }
   }
