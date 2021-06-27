@@ -3894,6 +3894,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def forkAllDiscard[R, E, A](as: Iterable[ZIO[R, E, A]]): URIO[R, Unit] =
     as.foldRight[URIO[R, Unit]](ZIO.unit)(_.fork *> _)
 
+  /**
+   * Constructs a  `ZIO` value of the appropriate type for the specified input.
+   */
   def from[Input](input: => Input)(implicit constructor: ZIOConstructor[Input]): constructor.Out =
     constructor.make(input)
 
@@ -5446,40 +5449,44 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     /**
      * Constructs a `ZIO[R, E, A]` from a function `R => Either[E, A]`.
      */
-    implicit def FunctionEitherConstructor[R, E, A]: WithOut[R => Either[E, A], ZIO[R, E, A]] =
-      new ZIOConstructor[R => Either[E, A]] {
+    implicit def FunctionEitherConstructor[R, E, A, FunctionLike[In, Out] <: In => Out]
+      : WithOut[FunctionLike[R, Either[E, A]], ZIO[R, E, A]] =
+      new ZIOConstructor[FunctionLike[R, Either[E, A]]] {
         type Out = ZIO[R, E, A]
-        def make(input: => (R => Either[E, A])): ZIO[R, E, A] =
+        def make(input: => FunctionLike[R, Either[E, A]]): ZIO[R, E, A] =
           ZIO.fromFunctionEither(input)
       }
 
     /**
      * Constructs a `ZIO[R, E, A]` from a function `R => Left[E, A]`.
      */
-    implicit def FunctionEitherLeftConstructor[R, E, A]: WithOut[R => Left[E, A], ZIO[R, E, A]] =
-      new ZIOConstructor[R => Left[E, A]] {
+    implicit def FunctionEitherLeftConstructor[R, E, A, FunctionLike[In, Out] <: In => Out]
+      : WithOut[FunctionLike[R, Left[E, A]], ZIO[R, E, A]] =
+      new ZIOConstructor[FunctionLike[R, Left[E, A]]] {
         type Out = ZIO[R, E, A]
-        def make(input: => (R => Left[E, A])): ZIO[R, E, A] =
+        def make(input: => FunctionLike[R, Left[E, A]]): ZIO[R, E, A] =
           ZIO.fromFunctionEither(input)
       }
 
     /**
      * Constructs a `ZIO[R, E, A]` from a function `R => Right[E, A]`.
      */
-    implicit def FunctionEitherRightConstructor[R, E, A]: WithOut[R => Right[E, A], ZIO[R, E, A]] =
-      new ZIOConstructor[R => Right[E, A]] {
+    implicit def FunctionEitherRightConstructor[R, E, A, FunctionLike[In, Out] <: In => Out]
+      : WithOut[FunctionLike[R, Right[E, A]], ZIO[R, E, A]] =
+      new ZIOConstructor[FunctionLike[R, Right[E, A]]] {
         type Out = ZIO[R, E, A]
-        def make(input: => (R => Right[E, A])): ZIO[R, E, A] =
+        def make(input: => FunctionLike[R, Right[E, A]]): ZIO[R, E, A] =
           ZIO.fromFunctionEither(input)
       }
 
     /**
      * Constructs a `ZIO[R, E, A]` from a function `R => IO[E, A]`.
      */
-    implicit def FunctionZIOConstructor[R, E, A]: WithOut[R => ZIO[Any, E, A], ZIO[R, E, A]] =
-      new ZIOConstructor[R => ZIO[Any, E, A]] {
+    implicit def FunctionZIOConstructor[R, E, A, FunctionLike[In, Out] <: In => Out]
+      : WithOut[FunctionLike[R, ZIO[Any, E, A]], ZIO[R, E, A]] =
+      new ZIOConstructor[FunctionLike[R, ZIO[Any, E, A]]] {
         type Out = ZIO[R, E, A]
-        def make(input: => (R => ZIO[Any, E, A])): ZIO[R, E, A] =
+        def make(input: => FunctionLike[R, ZIO[Any, E, A]]): ZIO[R, E, A] =
           ZIO.fromFunctionZIO(input)
       }
 
@@ -5487,11 +5494,11 @@ object ZIO extends ZIOCompanionPlatformSpecific {
      * Constructs a `ZIO[Any, Throwable, A]` from a function
      * `ExecutionContext => Future[A]`.
      */
-    implicit def FutureConstructor[A]
-      : WithOut[scala.concurrent.ExecutionContext => scala.concurrent.Future[A], ZIO[Any, Throwable, A]] =
-      new ZIOConstructor[scala.concurrent.ExecutionContext => scala.concurrent.Future[A]] {
+    implicit def FutureConstructor[A, FutureLike[A] <: scala.concurrent.Future[A]]
+      : WithOut[scala.concurrent.ExecutionContext => FutureLike[A], ZIO[Any, Throwable, A]] =
+      new ZIOConstructor[scala.concurrent.ExecutionContext => FutureLike[A]] {
         type Out = ZIO[Any, Throwable, A]
-        def make(input: => (scala.concurrent.ExecutionContext => scala.concurrent.Future[A])): ZIO[Any, Throwable, A] =
+        def make(input: => (scala.concurrent.ExecutionContext => FutureLike[A])): ZIO[Any, Throwable, A] =
           ZIO.fromFuture(input)
       }
 
@@ -5528,10 +5535,11 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     /**
      * Constructs a `ZIO[Any, Throwable, A]` from a `Promise[A]`
      */
-    implicit def PromiseScalaConstructor[A]: WithOut[scala.concurrent.Promise[A], ZIO[Any, Throwable, A]] =
-      new ZIOConstructor[scala.concurrent.Promise[A]] {
+    implicit def PromiseScalaConstructor[A, PromiseLike[A] <: scala.concurrent.Promise[A]]
+      : WithOut[PromiseLike[A], ZIO[Any, Throwable, A]] =
+      new ZIOConstructor[PromiseLike[A]] {
         type Out = ZIO[Any, Throwable, A]
-        def make(input: => scala.concurrent.Promise[A]): ZIO[Any, Throwable, A] =
+        def make(input: => PromiseLike[A]): ZIO[Any, Throwable, A] =
           ZIO.fromPromiseScala(input)
       }
 
@@ -5601,10 +5609,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     /**
      * Constructs a `ZIO[R, Throwable, A]` from a function `R => Future[A]`.
      */
-    implicit def FunctionFutureConstructor[R, A]: WithOut[R => scala.concurrent.Future[A], ZIO[R, Throwable, A]] =
-      new ZIOConstructor[R => scala.concurrent.Future[A]] {
+    implicit def FunctionFutureConstructor[R, A, FunctionLike[In, Out] <: In => Out, FutureLike[
+      A
+    ] <: scala.concurrent.Future[A]]: WithOut[FunctionLike[R, FutureLike[A]], ZIO[R, Throwable, A]] =
+      new ZIOConstructor[FunctionLike[R, FutureLike[A]]] {
         type Out = ZIO[R, Throwable, A]
-        def make(input: => (R => scala.concurrent.Future[A])): ZIO[R, Throwable, A] =
+        def make(input: => FunctionLike[R, FutureLike[A]]): ZIO[R, Throwable, A] =
           ZIO.fromFunctionFuture(input)
       }
   }
@@ -5614,10 +5624,11 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     /**
      * Constructs a `ZIO[R, Nothing, A]` from a function `R => A`.
      */
-    implicit def FunctionConstructor[R, A]: WithOut[R => A, ZIO[R, Nothing, A]] =
-      new ZIOConstructor[R => A] {
+    implicit def FunctionConstructor[R, A, FunctionLike[In, Out] <: In => Out]
+      : WithOut[FunctionLike[R, A], ZIO[R, Nothing, A]] =
+      new ZIOConstructor[FunctionLike[R, A]] {
         type Out = ZIO[R, Nothing, A]
-        def make(input: => (R => A)): ZIO[R, Nothing, A] =
+        def make(input: => FunctionLike[R, A]): ZIO[R, Nothing, A] =
           ZIO.fromFunction(input)
       }
   }

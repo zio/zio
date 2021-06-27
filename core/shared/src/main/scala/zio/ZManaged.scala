@@ -2103,7 +2103,7 @@ object ZManaged extends ZManagedPlatformSpecific {
   def foreachDiscard[R, E, A](as: Iterable[A])(f: A => ZManaged[R, E, Any]): ZManaged[R, E, Unit] =
     ZManaged(ZIO.foreach(as)(f(_).zio).map { result =>
       val (fins, _) = result.unzip
-      ((e: Exit[Any, Any]) => ZIO.foreach(fins.toList.reverse)(_.apply(e)), ())
+      (e => ZIO.foreach(fins.toList.reverse)(_.apply(e)), ())
     })
 
   /**
@@ -2168,6 +2168,10 @@ object ZManaged extends ZManagedPlatformSpecific {
       )
     }
 
+  /**
+   * Constructs a  `ZManaged` value of the appropriate type for the specified
+   * input.
+   */
   def from[Input](input: => Input)(implicit constructor: ZManagedConstructor[Input]): constructor.Out =
     constructor.make(input)
 
@@ -3042,10 +3046,11 @@ object ZManaged extends ZManagedPlatformSpecific {
     /**
      * Constructs a `ZManaged[R, E, A]` from a function `R => IO[E, A]`.
      */
-    implicit def FunctionManagedConstructor[R, E, A]: WithOut[R => ZManaged[Any, E, A], ZManaged[R, E, A]] =
-      new ZManagedConstructor[R => ZManaged[Any, E, A]] {
+    implicit def FunctionManagedConstructor[R, E, A, FunctionLike[In, Out] <: In => Out]
+      : WithOut[FunctionLike[R, ZManaged[Any, E, A]], ZManaged[R, E, A]] =
+      new ZManagedConstructor[FunctionLike[R, ZManaged[Any, E, A]]] {
         type Out = ZManaged[R, E, A]
-        def make(input: => (R => ZManaged[Any, E, A])): ZManaged[R, E, A] =
+        def make(input: => FunctionLike[R, Managed[E, A]]): ZManaged[R, E, A] =
           ZManaged.fromFunctionManaged(input)
       }
 
@@ -3136,10 +3141,11 @@ object ZManaged extends ZManagedPlatformSpecific {
     /**
      * Constructs a `ZManaged[R, Nothing, A]` from a function `R => A`.
      */
-    implicit def FunctionConstructor[R, A]: WithOut[R => A, ZManaged[R, Nothing, A]] =
-      new ZManagedConstructor[R => A] {
+    implicit def FunctionConstructor[R, A, FunctionLike[In, Out] <: In => Out]
+      : WithOut[FunctionLike[R, A], ZManaged[R, Nothing, A]] =
+      new ZManagedConstructor[FunctionLike[R, A]] {
         type Out = ZManaged[R, Nothing, A]
-        def make(input: => (R => A)): ZManaged[R, Nothing, A] =
+        def make(input: => FunctionLike[R, A]): ZManaged[R, Nothing, A] =
           ZManaged.fromFunction(input)
       }
 
@@ -3183,4 +3189,5 @@ object ZManaged extends ZManagedPlatformSpecific {
     def refineToOrDie[E1 <: E: ClassTag](implicit ev: CanFail[E]): ZManaged[R, E1, A] =
       self.refineOrDie { case e: E1 => e }
   }
+
 }
