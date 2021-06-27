@@ -203,7 +203,7 @@ object CatsEffectResourceInterop extends CatsApp {
 
 ## FS2 Streams
 
-By importing `zio.stream.interop.fs2z._` int to our application, the `toZManages` extension method converts a `fs2.Stream` to `ZStream`:
+By importing `zio.stream.interop.fs2z._` int to our application, the `fs2.Stream#toZStream` extension method converts a `fs2.Stream` to `ZStream`:
 
 ```scala
 import zio.stream.ZStream
