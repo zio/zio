@@ -248,6 +248,32 @@ object ZManagedToResource extends cats.effect.IOApp {
 }
 ```
 
+## Cats Effect 3.x
+
+ZIO integrates with Cats Effect 3.x as well as 2.x. The `interop-cats` module provides `Concurrent`, `Temporal` and `Async` for `zio.Task`.
+
+An example of ZIO interoperability with CE3:
+
+```scala mdoc:silent:nest
+import cats.implicits._
+import zio.interop.catz._
+import scala.concurrent.duration.DurationInt
+
+object ZioCatsEffectInterop extends zio.interop.catz.CatsApp {
+
+  def catsEffectTimerApp[F[_]: cats.effect.Async]: F[Unit] = for {
+    t2 <- cats.effect.Clock[F].monotonic
+    _  <- cats.effect.Temporal[F].sleep(2.seconds)
+    t1 <- cats.effect.Clock[F].monotonic
+    _  <- cats.effect.Sync[F].delay(println(t1 - t2))
+  } yield ()
+  
+  override def run(args: List[String]): zio.URIO[zio.ZEnv, zio.ExitCode] = {
+    catsEffectTimerApp[zio.Task].exitCode
+  }
+}
+```
+
 ## FS2 Streams
 
 By importing `zio.stream.interop.fs2z._` int to our application, the `fs2.Stream#toZStream` extension method converts a `fs2.Stream` to `ZStream`:
