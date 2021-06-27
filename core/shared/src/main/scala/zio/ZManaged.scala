@@ -3012,16 +3012,6 @@ object ZManaged extends ZManagedPlatformSpecific {
     /**
      * Constructs a `ZManaged[Any, E, A]` from an `Either[E, A]`.
      */
-    implicit def AutoCloseableConstructor[R, E, A <: AutoCloseable]: WithOut[ZIO[R, E, A], ZManaged[R, E, A]] =
-      new ZManagedConstructor[ZIO[R, E, A]] {
-        type Out = ZManaged[R, E, A]
-        def make(input: => ZIO[R, E, A]): ZManaged[R, E, A] =
-          ZManaged.fromAutoCloseable(input)
-      }
-
-    /**
-     * Constructs a `ZManaged[Any, E, A]` from an `Either[E, A]`.
-     */
     implicit def EitherConstructor[E, A]: WithOut[Either[E, A], ZManaged[Any, E, A]] =
       new ZManagedConstructor[Either[E, A]] {
         type Out = ZManaged[Any, E, A]
@@ -3072,10 +3062,10 @@ object ZManaged extends ZManagedPlatformSpecific {
     /**
      * Constructs a `ZManaged[Any, Option[Nothing], A]` from a `None`.
      */
-    implicit def OptionNoneConstructor[A]: WithOut[None.type, ZManaged[Any, Option[Nothing], A]] =
+    implicit val OptionNoneConstructor: WithOut[None.type, ZManaged[Any, Option[Nothing], Nothing]] =
       new ZManagedConstructor[None.type] {
-        type Out = ZManaged[Any, Option[Nothing], A]
-        def make(input: => None.type): ZManaged[Any, Option[Nothing], A] =
+        type Out = ZManaged[Any, Option[Nothing], Nothing]
+        def make(input: => None.type): ZManaged[Any, Option[Nothing], Nothing] =
           ZManaged.fromOption(input)
       }
 

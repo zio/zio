@@ -3684,10 +3684,10 @@ object ZStreamSpec extends ZIOBaseSpec {
             trait EB
             trait A
             trait B
-            lazy val hub: ZHub[RA, RB, EA, EB, A, Chunk[B]] = ???
-            lazy val actual                                 = ZStream.from(hub)
-            lazy val expected: ZStream[RB, EB, B]           = actual
-            lazy val _                                      = expected
+            lazy val chunkHub: ZHub[RA, RB, EA, EB, A, Chunk[B]] = ???
+            lazy val actual                                      = ZStream.from(chunkHub)
+            lazy val expected: ZStream[RB, EB, B]                = actual
+            lazy val _                                           = expected
             assertCompletes
           },
           test("ChunkQueue") {
@@ -3697,10 +3697,10 @@ object ZStreamSpec extends ZIOBaseSpec {
             trait EB
             trait A
             trait B
-            lazy val queue: ZQueue[RA, RB, EA, EB, A, Chunk[B]] = ???
-            lazy val actual                                     = ZStream.from(queue)
-            lazy val expected: ZStream[RB, EB, B]               = actual
-            lazy val _                                          = expected
+            lazy val chunkQueue: ZQueue[RA, RB, EA, EB, A, Chunk[B]] = ???
+            lazy val actual                                          = ZStream.from(chunkQueue)
+            lazy val expected: ZStream[RB, EB, B]                    = actual
+            lazy val _                                               = expected
             assertCompletes
           },
           test("Chunks") {
@@ -3736,10 +3736,10 @@ object ZStreamSpec extends ZIOBaseSpec {
             trait R
             trait E
             trait A
-            lazy val iterable: ZIO[R, E, Iterable[A]] = ???
-            lazy val actual                           = ZStream.from(iterable)
-            lazy val expected: ZStream[R, E, A]       = actual
-            lazy val _                                = expected
+            lazy val iterableZIO: ZIO[R, E, Iterable[A]] = ???
+            lazy val actual                              = ZStream.from(iterableZIO)
+            lazy val expected: ZStream[R, E, A]          = actual
+            lazy val _                                   = expected
             assertCompletes
           },
           test("Iterator") {
@@ -3753,25 +3753,25 @@ object ZStreamSpec extends ZIOBaseSpec {
           test("IteratorManaged") {
             trait R
             trait A
-            lazy val iterable: ZManaged[R, Throwable, Iterator[A]] = ???
-            lazy val actual                                        = ZStream.from(iterable)
-            lazy val expected: ZStream[R, Throwable, A]            = actual
-            lazy val _                                             = expected
+            lazy val iteratorManaged: ZManaged[R, Throwable, Iterator[A]] = ???
+            lazy val actual                                               = ZStream.from(iteratorManaged)
+            lazy val expected: ZStream[R, Throwable, A]                   = actual
+            lazy val _                                                    = expected
             assertCompletes
           },
           test("IteratorZIO") {
             trait R
             trait A
-            lazy val iterable: ZIO[R, Throwable, Iterator[A]] = ???
-            lazy val actual                                   = ZStream.from(iterable)
-            lazy val expected: ZStream[R, Throwable, A]       = actual
-            lazy val _                                        = expected
+            lazy val iteratorZIO: ZIO[R, Throwable, Iterator[A]] = ???
+            lazy val actual                                      = ZStream.from(iteratorZIO)
+            lazy val expected: ZStream[R, Throwable, A]          = actual
+            lazy val _                                           = expected
             assertCompletes
           },
           test("JavaIterator") {
             trait A
-            lazy val iterator: java.util.Iterator[A]      = ???
-            lazy val actual                               = ZStream.from(iterator)
+            lazy val javaIterator: java.util.Iterator[A]  = ???
+            lazy val actual                               = ZStream.from(javaIterator)
             lazy val expected: ZStream[Any, Throwable, A] = actual
             lazy val _                                    = expected
             assertCompletes
@@ -3779,19 +3779,19 @@ object ZStreamSpec extends ZIOBaseSpec {
           test("JavaIteratorManaged") {
             trait R
             trait A
-            lazy val iterable: ZManaged[R, Throwable, java.util.Iterator[A]] = ???
-            lazy val actual                                                  = ZStream.from(iterable)
-            lazy val expected: ZStream[R, Throwable, A]                      = actual
-            lazy val _                                                       = expected
+            lazy val javaIteratorManaged: ZManaged[R, Throwable, java.util.Iterator[A]] = ???
+            lazy val actual                                                             = ZStream.from(javaIteratorManaged)
+            lazy val expected: ZStream[R, Throwable, A]                                 = actual
+            lazy val _                                                                  = expected
             assertCompletes
           },
           test("JavaIteratorZIO") {
             trait R
             trait A
-            lazy val iterable: ZIO[R, Throwable, java.util.Iterator[A]] = ???
-            lazy val actual                                             = ZStream.from(iterable)
-            lazy val expected: ZStream[R, Throwable, A]                 = actual
-            lazy val _                                                  = expected
+            lazy val javaIteratorZIO: ZIO[R, Throwable, java.util.Iterator[A]] = ???
+            lazy val actual                                                    = ZStream.from(javaIteratorZIO)
+            lazy val expected: ZStream[R, Throwable, A]                        = actual
+            lazy val _                                                         = expected
             assertCompletes
           },
           test("Queue") {
@@ -3818,8 +3818,8 @@ object ZStreamSpec extends ZIOBaseSpec {
           },
           test("TQueue") {
             trait A
-            lazy val queue: TQueue[A]                   = ???
-            lazy val actual                             = ZStream.from(queue)
+            lazy val tQueue: TQueue[A]                  = ???
+            lazy val actual                             = ZStream.from(tQueue)
             lazy val expected: ZStream[Any, Nothing, A] = actual
             lazy val _                                  = expected
             assertCompletes
@@ -3838,10 +3838,10 @@ object ZStreamSpec extends ZIOBaseSpec {
             trait R
             trait E
             trait A
-            lazy val zio: ZIO[R, Option[E], A]  = ???
-            lazy val actual                     = ZStream.from(zio)
-            lazy val expected: ZStream[R, E, A] = actual
-            lazy val _                          = expected
+            lazy val zioOption: ZIO[R, Option[E], A] = ???
+            lazy val actual                          = ZStream.from(zioOption)
+            lazy val expected: ZStream[R, E, A]      = actual
+            lazy val _                               = expected
             assertCompletes
           }
         ),

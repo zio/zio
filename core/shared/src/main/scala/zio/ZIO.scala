@@ -5504,12 +5504,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       }
 
     /**
-     * Constructs a `ZIO[Any, Option[Nothing], A]` from a `None`.
+     * Constructs a `ZIO[Any, Option[Nothing], Nothing]` from a `None`.
      */
-    implicit def OptionNoneConstructor[A]: WithOut[None.type, ZIO[Any, Option[Nothing], A]] =
+    implicit val OptionNoneConstructor: WithOut[None.type, ZIO[Any, Option[Nothing], Nothing]] =
       new ZIOConstructor[None.type] {
-        type Out = ZIO[Any, Option[Nothing], A]
-        def make(input: => None.type): ZIO[Any, Option[Nothing], A] =
+        type Out = ZIO[Any, Option[Nothing], Nothing]
+        def make(input: => None.type): ZIO[Any, Option[Nothing], Nothing] =
           ZIO.fromOption(input)
       }
 

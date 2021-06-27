@@ -1024,65 +1024,263 @@ object ZIOSpec extends ZIOBaseSpec {
       }
     ) @@ zioTag(errors),
     suite("from")(
-      testM("attempt") {
-        val zio1                               = ZIO.from(true)
-        val zio2: ZIO[Any, Throwable, Boolean] = zio1
-        assertM(zio2)(isTrue)
+      test("Attempt") {
+        trait A
+        lazy val a: A                             = ???
+        lazy val actual                           = ZIO.from(a)
+        lazy val expected: ZIO[Any, Throwable, A] = actual
+        lazy val _                                = expected
+        assertCompletes
       },
-      testM("either") {
-        val zio1                        = ZIO.from(Right(12))
-        val zio2: ZIO[Any, String, Int] = zio1
-        assertM(zio2)(equalTo(12))
+      test("Either") {
+        trait E
+        trait A
+        lazy val either: Either[E, A]     = ???
+        lazy val actual                   = ZIO.from(either)
+        lazy val expected: ZIO[Any, E, A] = actual
+        lazy val _                        = expected
+        assertCompletes
       },
-      testM("eitherCause") {
-        val zio1                        = ZIO.from(Left(Cause.fail(12)))
-        val zio2: ZIO[Any, Int, String] = zio1
-        assertM(zio2.exit)(fails(equalTo(12)))
+      test("EitherCause") {
+        trait E
+        trait A
+        lazy val eitherCause: Either[Cause[E], A] = ???
+        lazy val actual                           = ZIO.from(eitherCause)
+        lazy val expected: ZIO[Any, E, A]         = actual
+        lazy val _                                = expected
+        assertCompletes
       },
-      testM("fiber") {
-        val zio1                         = ZIO.from(Runtime.default.unsafeRun(ZIO.succeed(12).forkDaemon))
-        val zio2: ZIO[Any, Nothing, Int] = zio1
-        assertM(zio2)(equalTo(12))
+      test("EitherCauseLeft") {
+        trait E
+        trait A
+        lazy val eitherCauseLeft: Left[Cause[E], A] = ???
+        lazy val actual                             = ZIO.from(eitherCauseLeft)
+        lazy val expected: ZIO[Any, E, A]           = actual
+        lazy val _                                  = expected
+        assertCompletes
       },
-      testM("fiberZIO") {
-        val zio1                         = ZIO.from(ZIO.succeed(12).fork)
-        val zio2: ZIO[Any, Nothing, Int] = zio1
-        assertM(zio2)(equalTo(12))
+      test("EitherCauseRight") {
+        trait E
+        trait A
+        lazy val eitherCauseRight: Right[Cause[E], A] = ???
+        lazy val actual                               = ZIO.from(eitherCauseRight)
+        lazy val expected: ZIO[Any, E, A]             = actual
+        lazy val _                                    = expected
+        assertCompletes
       },
-      testM("function") {
-        val zio1                         = ZIO.from((n: Int) => n * n)
-        val zio2: ZIO[Int, Nothing, Int] = zio1
-        assertM(zio2.provide(2))(equalTo(4))
+      test("EitherLeft") {
+        trait E
+        trait A
+        lazy val eitherLeft: Left[E, A]   = ???
+        lazy val actual                   = ZIO.from(eitherLeft)
+        lazy val expected: ZIO[Any, E, A] = actual
+        lazy val _                        = expected
+        assertCompletes
       },
-      testM("functionEither") {
-        val zio1                         = ZIO.from((n: Int) => Right(n * n))
-        val zio2: ZIO[Int, Nothing, Int] = zio1
-        assertM(zio2.provide(2))(equalTo(4))
+      test("EitherRight") {
+        trait E
+        trait A
+        lazy val eitherRight: Right[E, A] = ???
+        lazy val actual                   = ZIO.from(eitherRight)
+        lazy val expected: ZIO[Any, E, A] = actual
+        lazy val _                        = expected
+        assertCompletes
       },
-      testM("functionZIO") {
-        val zio1                         = ZIO.from((n: Int) => ZIO.succeed(n * n))
-        val zio2: ZIO[Int, Nothing, Int] = zio1
-        assertM(zio2.provide(2))(equalTo(4))
+      test("Fiber") {
+        trait E
+        trait A
+        lazy val fiber: Fiber[E, A]       = ???
+        lazy val actual                   = ZIO.from(fiber)
+        lazy val expected: ZIO[Any, E, A] = actual
+        lazy val _                        = expected
+        assertCompletes
       },
-      testM("future") {
-        val zio1                           = ZIO.from { implicit ec: scala.concurrent.ExecutionContext => scala.concurrent.Future(12) }
-        val zio2: ZIO[Any, Throwable, Int] = zio1
-        assertM(zio2)(equalTo(12))
+      test("FiberRuntime") {
+        trait E
+        trait A
+        lazy val fiberRuntime: Fiber.Runtime[E, A] = ???
+        lazy val actual                            = ZIO.from(fiberRuntime)
+        lazy val expected: ZIO[Any, E, A]          = actual
+        lazy val _                                 = expected
+        assertCompletes
       },
-      testM("option") {
-        val zio1                              = ZIO.from(Some(12))
-        val zio2: ZIO[Any, Option[Unit], Int] = zio1
-        assertM(zio2)(equalTo(12))
+      test("FiberRuntime") {
+        trait E
+        trait A
+        lazy val fiberRuntime: Fiber.Runtime[E, A] = ???
+        lazy val actual                            = ZIO.from(fiberRuntime)
+        lazy val expected: ZIO[Any, E, A]          = actual
+        lazy val _                                 = expected
+        assertCompletes
       },
-      testM("promise") {
-        val zio1                           = ZIO.from(scala.concurrent.Promise.failed[Int](new Exception))
-        val zio2: ZIO[Any, Throwable, Int] = zio1
-        assertM(zio2.exit)(fails(anything))
+      test("FiberSynthetic") {
+        trait E
+        trait A
+        lazy val fiberSynthetic: Fiber.Runtime[E, A] = ???
+        lazy val actual                              = ZIO.from(fiberSynthetic)
+        lazy val expected: ZIO[Any, E, A]            = actual
+        lazy val _                                   = expected
+        assertCompletes
       },
-      testM("try") {
-        val zio1                           = ZIO.from(scala.util.Try(12))
-        val zio2: ZIO[Any, Throwable, Int] = zio1
-        assertM(zio2)(equalTo(12))
+      test("FiberZIO") {
+        trait R
+        trait E
+        trait A
+        lazy val fiberZIO: ZIO[R, E, Fiber[E, A]] = ???
+        lazy val actual                           = ZIO.from(fiberZIO)
+        lazy val expected: ZIO[R, E, A]           = actual
+        lazy val _                                = expected
+        assertCompletes
+      },
+      test("FiberZIORuntime") {
+        trait R
+        trait E
+        trait A
+        lazy val fiberZIORuntime: ZIO[R, E, Fiber.Runtime[E, A]] = ???
+        lazy val actual                                          = ZIO.from(fiberZIORuntime)
+        lazy val expected: ZIO[R, E, A]                          = actual
+        lazy val _                                               = expected
+        assertCompletes
+      },
+      test("FiberZIOSynthetic") {
+        trait R
+        trait E
+        trait A
+        lazy val fiberZIOSynthetic: ZIO[R, E, Fiber.Synthetic[E, A]] = ???
+        lazy val actual                                              = ZIO.from(fiberZIOSynthetic)
+        lazy val expected: ZIO[R, E, A]                              = actual
+        lazy val _                                                   = expected
+        assertCompletes
+      },
+      test("Function") {
+        trait R
+        trait A
+        lazy val function: R => A             = ???
+        lazy val actual                       = ZIO.from(function)
+        lazy val expected: ZIO[R, Nothing, A] = actual
+        lazy val _                            = expected
+        assertCompletes
+      },
+      test("FunctionFuture") {
+        trait R
+        trait A
+        lazy val functionFuture: R => scala.concurrent.Future[A] = ???
+        lazy val actual                                          = ZIO.from(functionFuture)
+        lazy val expected: ZIO[R, Throwable, A]                  = actual
+        lazy val _                                               = expected
+        assertCompletes
+      },
+      test("FunctionEither") {
+        trait R
+        trait E
+        trait A
+        lazy val functionEither: R => Either[E, A] = ???
+        lazy val actual                            = ZIO.from(functionEither)
+        lazy val expected: ZIO[R, E, A]            = actual
+        lazy val _                                 = expected
+        assertCompletes
+      },
+      test("FunctionEitherLeft") {
+        trait R
+        trait E
+        trait A
+        lazy val functionEitherLeft: R => Left[E, A] = ???
+        lazy val actual                              = ZIO.from(functionEitherLeft)
+        lazy val expected: ZIO[R, E, A]              = actual
+        lazy val _                                   = expected
+        assertCompletes
+      },
+      test("FunctionEitherRight") {
+        trait R
+        trait E
+        trait A
+        lazy val functionEitherRight: R => Right[E, A] = ???
+        lazy val actual                                = ZIO.from(functionEitherRight)
+        lazy val expected: ZIO[R, E, A]                = actual
+        lazy val _                                     = expected
+        assertCompletes
+      },
+      test("FunctionFuture") {
+        trait R
+        trait A
+        lazy val functionFuture: R => scala.concurrent.Future[A] = ???
+        lazy val actual                                          = ZIO.from(functionFuture)
+        lazy val expected: ZIO[R, Throwable, A]                  = actual
+        lazy val _                                               = expected
+        assertCompletes
+      },
+      test("FunctionZIO") {
+        trait R
+        trait E
+        trait A
+        lazy val functionZIO: R => IO[E, A] = ???
+        lazy val actual                     = ZIO.from(functionZIO)
+        lazy val expected: ZIO[R, E, A]     = actual
+        lazy val _                          = expected
+        assertCompletes
+      },
+      test("Future") {
+        trait A
+        lazy val future: scala.concurrent.ExecutionContext => scala.concurrent.Future[A] = ???
+        lazy val actual                                                                  = ZIO.from(future)
+        lazy val expected: ZIO[Any, Throwable, A]                                        = actual
+        lazy val _                                                                       = expected
+        assertCompletes
+      },
+      test("Option") {
+        trait A
+        lazy val option: Option[A]                      = ???
+        lazy val actual                                 = ZIO.from(option)
+        lazy val expected: ZIO[Any, Option[Nothing], A] = actual
+        lazy val _                                      = expected
+        assertCompletes
+      },
+      test("OptionNone") {
+        lazy val optionNone: None.type                        = ???
+        lazy val actual                                       = ZIO.from(optionNone)
+        lazy val expected: ZIO[Any, Option[Nothing], Nothing] = actual
+        lazy val _                                            = expected
+        assertCompletes
+      },
+      test("OptionSome") {
+        trait A
+        lazy val optionSome: Some[A]                    = ???
+        lazy val actual                                 = ZIO.from(optionSome)
+        lazy val expected: ZIO[Any, Option[Nothing], A] = actual
+        lazy val _                                      = expected
+        assertCompletes
+      },
+      test("PromiseScala") {
+        trait A
+        lazy val promiseScala: scala.concurrent.Promise[A] = ???
+        lazy val actual                                    = ZIO.from(promiseScala)
+        lazy val expected: ZIO[Any, Throwable, A]          = actual
+        lazy val _                                         = expected
+        assertCompletes
+      },
+      test("Try") {
+        trait A
+        lazy val tryScala: scala.util.Try[A]      = ???
+        lazy val actual                           = ZIO.from(tryScala)
+        lazy val expected: ZIO[Any, Throwable, A] = actual
+        lazy val _                                = expected
+        assertCompletes
+      },
+      test("TryFailure") {
+        trait A
+        lazy val tryFailure: scala.util.Failure[A] = ???
+        lazy val actual                            = ZIO.from(tryFailure)
+        lazy val expected: ZIO[Any, Throwable, A]  = actual
+        lazy val _                                 = expected
+        assertCompletes
+      },
+      test("TrySuccess") {
+        trait A
+        lazy val trySuccess: scala.util.Success[A] = ???
+        lazy val actual                            = ZIO.from(trySuccess)
+        lazy val expected: ZIO[Any, Throwable, A]  = actual
+        lazy val _                                 = expected
+        assertCompletes
       }
     ),
     suite("fromFutureInterrupt")(
