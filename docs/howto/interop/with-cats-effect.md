@@ -111,9 +111,9 @@ object ZioCatsEffectInteropWithCatsApp extends CatsApp {
 
 This example works properly in both Cats Effect 2.x and 3.x versions.
 
-### Cats Effect 2.x Instances
+## Cats Effect 2.x
 
-#### Timer Instance
+### Timer Instance
 
 In order to get a `cats.effect.Timer[zio.Task]` instance, we need an extra import (`zio.interop.catz.implicits._`):
 
@@ -144,7 +144,7 @@ The reason a `cats.effect.Timer[zio.Task]` instance is not provided by the defau
 
 If we're using `RIO` for a custom environment then our environment must use the `Clock` service, e.g. `R <: Clock` to get a timer.
 
-#### Resource Instance
+### Converting Resource to ZManaged
 
 To convert Cats Effect `Resource` into `ZManaged`, we can call `toManaged` on `Resource`.
 
@@ -198,6 +198,53 @@ object CatsEffectResourceInterop extends CatsApp {
 
   override def run(args: List[String]): zio.URIO[zio.ZEnv, zio.ExitCode] =
     myApp.exitCode
+}
+```
+### Converting ZManaged to Resource
+
+We have an extension method on `ZManaged` called `ZManaged#toResource` which converts a ZIO managed resource to Cats Effect resource:
+
+```scala 
+final class ZManagedSyntax[R, E, A](private val managed: ZManaged[R, E, A]) {
+  def toResource[F[_]](implicit
+      F: Async[F],
+      ev: Effect[ZIO[R, E, *]]
+  ): Resource[F, A] = ???
+}
+```
+
+Let's try an example:
+
+```scala
+import zio.interop.catz._
+
+object ZManagedToResource extends cats.effect.IOApp {
+  implicit val zioRuntime: zio.Runtime[zio.ZEnv] = zio.Runtime.default
+
+  val resource: cats.effect.Resource[cats.effect.IO, java.io.InputStream] =
+    zio.ZManaged
+      .fromAutoCloseable(
+        zio.ZIO.effect(
+          java.nio.file.Files.newInputStream(
+            java.nio.file.Paths.get("file.txt")
+          )
+        )
+      )
+      .toResource[cats.effect.IO]
+
+  val effect: cats.effect.IO[Unit] =
+    resource
+      .use { is =>
+        cats.effect.IO.delay(is.readAllBytes())
+      }
+      .flatMap(bytes =>
+        cats.effect.IO.delay(
+          println(s"file length: ${bytes.length}")
+        )
+      )
+
+  override def run(args: List[String]): cats.effect.IO[cats.effect.ExitCode] =
+    effect.as(cats.effect.ExitCode.Success)
 }
 ```
 
