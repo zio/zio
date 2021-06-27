@@ -2116,7 +2116,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * Transforms the full causes of failures emitted by this stream.
    */
   def mapErrorCause[E2](f: Cause[E] => Cause[E2]): ZStream[R, E2, O] =
-    ZStream {
+    ZStream(
       self.process.map(
         _.mapErrorCause(
           Cause.flipCauseOption(_) match {
@@ -2125,7 +2125,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
           }
         )
       )
-    }
+    )
 
   /**
    * Maps over elements of the stream with the specified effectful function.
@@ -3673,8 +3673,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   /**
    * Creates a pure stream from a variable list of values
    */
-  def apply[A](as: A*): ZStream[Any, Nothing, A] =
-    fromIterable(as)
+  def apply[A](as: A*): ZStream[Any, Nothing, A] = fromIterable(as)
 
   /**
    * Locks the execution of the specified stream to the blocking executor. Any

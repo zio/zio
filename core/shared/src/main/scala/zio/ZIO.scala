@@ -5034,8 +5034,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   lazy val yieldNow: UIO[Unit] = ZIO.Yield
 
-  def apply[A](a: => A): Task[A] =
-    attempt(a)
+  def apply[A](a: => A): Task[A] = attempt(a)
 
   private lazy val _IdentityFn: Any => Any = (a: Any) => a
 

@@ -3513,8 +3513,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   /**
    * Creates a pure stream from a variable list of values
    */
-  def apply[A](as: A*): ZStream[Any, Nothing, A] =
-    fromIterable(as)
+  def apply[A](as: A*): ZStream[Any, Nothing, A] = fromIterable(as)
 
   /**
    * Locks the execution of the specified stream to the blocking executor. Any
