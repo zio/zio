@@ -3894,6 +3894,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def forkAllDiscard[R, E, A](as: Iterable[ZIO[R, E, A]]): URIO[R, Unit] =
     as.foldRight[URIO[R, Unit]](ZIO.unit)(_.fork *> _)
 
+  def from[Input](input: => Input)(implicit constructor: ZIOConstructor[Input]): constructor.Out =
+    constructor.make(input)
+
   /**
    * Lifts an `Either` into a `ZIO` value.
    */
@@ -5031,8 +5034,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   lazy val yieldNow: UIO[Unit] = ZIO.Yield
 
-  def apply[Input](input: => Input)(implicit constructor: ZIOConstructor[Input]): constructor.Out =
-    constructor.make(input)
+  def apply[A](a: => A): Task[A] =
+    attempt(a)
 
   private lazy val _IdentityFn: Any => Any = (a: Any) => a
 

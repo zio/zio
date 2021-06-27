@@ -1706,9 +1706,6 @@ object ZManaged extends ZManagedPlatformSpecific {
       def zio = run0
     }
 
-  def apply[Input](input: => Input)(implicit constructor: ZManagedConstructor[Input]): constructor.Out =
-    constructor.make(input)
-
   /**
    * Lifts a synchronous side-effect into a `ZManaged[R, Throwable, A]`,
    * translating any thrown exceptions into typed failed effects.
@@ -2170,6 +2167,9 @@ object ZManaged extends ZManagedPlatformSpecific {
         makeInnerMap.flatMap(innerMap => f(a).zio.map(_._2).provideSome[R]((_, innerMap)))
       )
     }
+
+  def from[Input](input: => Input)(implicit constructor: ZManagedConstructor[Input]): constructor.Out =
+    constructor.make(input)
 
   /**
    * Creates a [[ZManaged]] from an `AutoCloseable` resource. The resource's `close`

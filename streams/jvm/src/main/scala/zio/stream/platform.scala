@@ -127,7 +127,7 @@ trait ZStreamPlatformSpecificConstructors {
     register: (ZIO[R, Option[E], Chunk[A]] => Unit) => Either[Canceler[R], ZStream[R, E, A]],
     outputBuffer: Int = 16
   ): ZStream[R, E, A] =
-    ZStream.make {
+    ZStream {
       for {
         output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).toManagedWith(_.shutdown)
         runtime <- ZIO.runtime[R].toManaged
@@ -196,7 +196,7 @@ trait ZStreamPlatformSpecificConstructors {
     register: (ZIO[R, Option[E], Chunk[A]] => Unit) => Option[ZStream[R, E, A]],
     outputBuffer: Int = 16
   ): ZStream[R, E, A] =
-    ZStream.make {
+    ZStream {
       for {
         output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).toManagedWith(_.shutdown)
         runtime <- ZIO.runtime[R].toManaged
@@ -279,7 +279,7 @@ trait ZStreamPlatformSpecificConstructors {
    * Creates a stream from an blocking iterator that may throw exceptions.
    */
   def fromBlockingIterator[A](iterator: => Iterator[A], maxChunkSize: Int = 1): ZStream[Any, Throwable, A] =
-    ZStream.make {
+    ZStream {
       ZManaged
         .attempt(iterator)
         .fold(

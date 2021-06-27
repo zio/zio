@@ -139,68 +139,6 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(cause.defects)(equalTo(List(releaseDied))) && assert(isReleased)(isTrue)
       } @@ zioTag(errors)
     ),
-    suite("apply")(
-      testM("attempt") {
-        val zio1                               = ZIO(true)
-        val zio2: ZIO[Any, Throwable, Boolean] = zio1
-        assertM(zio2)(isTrue)
-      },
-      testM("either") {
-        val zio1                        = ZIO(Right(12))
-        val zio2: ZIO[Any, String, Int] = zio1
-        assertM(zio2)(equalTo(12))
-      },
-      testM("eitherCause") {
-        val zio1                        = ZIO(Left(Cause.fail(12)))
-        val zio2: ZIO[Any, Int, String] = zio1
-        assertM(zio2.exit)(fails(equalTo(12)))
-      },
-      testM("fiber") {
-        val zio1                         = ZIO(Runtime.default.unsafeRun(ZIO.succeed(12).forkDaemon))
-        val zio2: ZIO[Any, Nothing, Int] = zio1
-        assertM(zio2)(equalTo(12))
-      },
-      testM("fiberZIO") {
-        val zio1                         = ZIO(ZIO.succeed(12).fork)
-        val zio2: ZIO[Any, Nothing, Int] = zio1
-        assertM(zio2)(equalTo(12))
-      },
-      testM("function") {
-        val zio1                         = ZIO((n: Int) => n * n)
-        val zio2: ZIO[Int, Nothing, Int] = zio1
-        assertM(zio2.provide(2))(equalTo(4))
-      },
-      testM("functionEither") {
-        val zio1                         = ZIO((n: Int) => Right(n * n))
-        val zio2: ZIO[Int, Nothing, Int] = zio1
-        assertM(zio2.provide(2))(equalTo(4))
-      },
-      testM("functionZIO") {
-        val zio1                         = ZIO((n: Int) => ZIO.succeed(n * n))
-        val zio2: ZIO[Int, Nothing, Int] = zio1
-        assertM(zio2.provide(2))(equalTo(4))
-      },
-      testM("future") {
-        val zio1                           = ZIO { implicit ec: scala.concurrent.ExecutionContext => scala.concurrent.Future(12) }
-        val zio2: ZIO[Any, Throwable, Int] = zio1
-        assertM(zio2)(equalTo(12))
-      },
-      testM("option") {
-        val zio1                              = ZIO(Some(12))
-        val zio2: ZIO[Any, Option[Unit], Int] = zio1
-        assertM(zio2)(equalTo(12))
-      },
-      testM("promise") {
-        val zio1                           = ZIO(scala.concurrent.Promise.failed[Int](new Exception))
-        val zio2: ZIO[Any, Throwable, Int] = zio1
-        assertM(zio2.exit)(fails(anything))
-      },
-      testM("try") {
-        val zio1                           = ZIO(scala.util.Try(12))
-        val zio2: ZIO[Any, Throwable, Int] = zio1
-        assertM(zio2)(equalTo(12))
-      }
-    ),
     suite("cached")(
       testM("returns new instances after duration") {
         def incrementAndGet(ref: Ref[Int]): UIO[Int] = ref.updateAndGet(_ + 1)
@@ -1085,6 +1023,68 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assertCompletes
       }
     ) @@ zioTag(errors),
+    suite("from")(
+      testM("attempt") {
+        val zio1                               = ZIO.from(true)
+        val zio2: ZIO[Any, Throwable, Boolean] = zio1
+        assertM(zio2)(isTrue)
+      },
+      testM("either") {
+        val zio1                        = ZIO.from(Right(12))
+        val zio2: ZIO[Any, String, Int] = zio1
+        assertM(zio2)(equalTo(12))
+      },
+      testM("eitherCause") {
+        val zio1                        = ZIO.from(Left(Cause.fail(12)))
+        val zio2: ZIO[Any, Int, String] = zio1
+        assertM(zio2.exit)(fails(equalTo(12)))
+      },
+      testM("fiber") {
+        val zio1                         = ZIO.from(Runtime.default.unsafeRun(ZIO.succeed(12).forkDaemon))
+        val zio2: ZIO[Any, Nothing, Int] = zio1
+        assertM(zio2)(equalTo(12))
+      },
+      testM("fiberZIO") {
+        val zio1                         = ZIO.from(ZIO.succeed(12).fork)
+        val zio2: ZIO[Any, Nothing, Int] = zio1
+        assertM(zio2)(equalTo(12))
+      },
+      testM("function") {
+        val zio1                         = ZIO.from((n: Int) => n * n)
+        val zio2: ZIO[Int, Nothing, Int] = zio1
+        assertM(zio2.provide(2))(equalTo(4))
+      },
+      testM("functionEither") {
+        val zio1                         = ZIO.from((n: Int) => Right(n * n))
+        val zio2: ZIO[Int, Nothing, Int] = zio1
+        assertM(zio2.provide(2))(equalTo(4))
+      },
+      testM("functionZIO") {
+        val zio1                         = ZIO.from((n: Int) => ZIO.succeed(n * n))
+        val zio2: ZIO[Int, Nothing, Int] = zio1
+        assertM(zio2.provide(2))(equalTo(4))
+      },
+      testM("future") {
+        val zio1                           = ZIO.from { implicit ec: scala.concurrent.ExecutionContext => scala.concurrent.Future(12) }
+        val zio2: ZIO[Any, Throwable, Int] = zio1
+        assertM(zio2)(equalTo(12))
+      },
+      testM("option") {
+        val zio1                              = ZIO.from(Some(12))
+        val zio2: ZIO[Any, Option[Unit], Int] = zio1
+        assertM(zio2)(equalTo(12))
+      },
+      testM("promise") {
+        val zio1                           = ZIO.from(scala.concurrent.Promise.failed[Int](new Exception))
+        val zio2: ZIO[Any, Throwable, Int] = zio1
+        assertM(zio2.exit)(fails(anything))
+      },
+      testM("try") {
+        val zio1                           = ZIO.from(scala.util.Try(12))
+        val zio2: ZIO[Any, Throwable, Int] = zio1
+        assertM(zio2)(equalTo(12))
+      }
+    ),
     suite("fromFutureInterrupt")(
       testM("running Future can be interrupted") {
         import java.util.concurrent.atomic.AtomicInteger

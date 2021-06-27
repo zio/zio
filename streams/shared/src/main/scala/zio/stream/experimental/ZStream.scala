@@ -3513,14 +3513,8 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   /**
    * Creates a pure stream from a variable list of values
    */
-  def apply[A](a1: A, a2: A, as: A*): ZStream[Any, Nothing, A] =
-    fromIterable(a1 +: a2 +: as)
-
-  def apply(): ZStream[Any, Nothing, Nothing] =
-    ZStream.empty
-
-  def apply[Input](input: => Input)(implicit constructor: ZStreamConstructor[Input]): constructor.Out =
-    constructor.make(input)
+  def apply[A](as: A*): ZStream[Any, Nothing, A] =
+    fromIterable(as)
 
   /**
    * Locks the execution of the specified stream to the blocking executor. Any
@@ -3655,6 +3649,9 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    */
   def finalizer[R](finalizer: URIO[R, Any]): ZStream[R, Nothing, Any] =
     acquireReleaseWith[R, Nothing, Unit](UIO.unit)(_ => finalizer)
+
+  def from[Input](input: => Input)(implicit constructor: ZStreamConstructor[Input]): constructor.Out =
+    constructor.make(input)
 
   /**
    * Creates a stream from a [[zio.Chunk]] of values
