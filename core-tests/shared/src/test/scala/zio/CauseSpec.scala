@@ -1,7 +1,6 @@
 package zio
 
 import zio.Cause.{Both, Then, empty}
-import zio.Random
 import zio.test.Assertion._
 import zio.test._
 
