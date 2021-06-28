@@ -11,7 +11,7 @@ These libraries are hosted in the [ZIO organization](https://github.com/zio/) on
 - [ZIO Kafka](https://github.com/zio/zio-kafka) — A Kafka client for ZIO and ZIO Streams
 - [ZIO Keeper](https://github.com/zio/zio-keeper) — A functional library for consistent replication of metadata across dynamic clusters
 - [ZIO Logging](https://github.com/zio/zio-logging) — An environmental effect for adding logging into any ZIO application, with choice of pluggable back-ends
-- [ZIO Microservice](https://github.com/zio/zio-microservice) — A ZIO-powered microservices via HTTP and other protocols
+- [ZIO Microservice](https://github.com/zio/zio-microservice) — ZIO-powered microservices via HTTP and other protocols
 - [ZIO NIO](https://github.com/zio/zio-nio) — A performant, purely-functional, low-level, and unopinionated wrapper around Java NIO functionality
 - [ZIO SQS](https://github.com/zio/zio-sqs) — A ZIO-powered client for AWS SQS
 - [ZIO Telemetry](https://github.com/zio/zio-telemetry) — A ZIO-powered OpenTelemetry library 
