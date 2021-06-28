@@ -543,20 +543,14 @@ trait ZStreamPlatformSpecificConstructors {
     /**
      * The remote address, i.e. the connected client
      */
-    def remoteAddress: IO[IOException, Option[SocketAddress]] = IO
-      .attempt(
-        Option(socket.getRemoteAddress)
-      )
-      .refineToOrDie[IOException]
+    def remoteAddress: IO[IOException, SocketAddress] =
+      ZIO.attempt(socket.getRemoteAddress).refineToOrDie[IOException]
 
     /**
      * The local address, i.e. our server
      */
-    def localAddress: IO[IOException, Option[SocketAddress]] = IO
-      .attempt(
-        Option(socket.getLocalAddress)
-      )
-      .refineToOrDie[IOException]
+    def localAddress: IO[IOException, SocketAddress] =
+      ZIO.attempt(socket.getLocalAddress).refineToOrDie[IOException]
 
     /**
      * Read the entire `AsynchronousSocketChannel` by emitting a `Chunk[Byte]`
@@ -609,7 +603,14 @@ trait ZStreamPlatformSpecificConstructors {
     /**
      * Close the underlying socket
      */
-    def close(): UIO[Unit] = ZIO.succeed(socket.close())
+    def close(): UIO[Unit] =
+      ZIO.succeed(socket.close())
+
+    /**
+     * Close only the write, so the remote end will see EOF
+     */
+    def closeWrite(): UIO[Unit] =
+      ZIO.succeed(socket.shutdownOutput()).unit
   }
 
   object Connection {

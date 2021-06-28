@@ -21,6 +21,7 @@ import zio.test.Assertion.{equalTo, hasMessage, isCase, isSubtype}
 import zio.test.environment.{Live, Restorable, TestClock, TestConsole, TestRandom, TestSystem}
 
 import java.util.concurrent.atomic.AtomicReference
+import scala.collection.immutable.SortedSet
 
 /**
  * A `TestAspect` is an aspect that can be weaved into specs. You can think of
@@ -359,9 +360,12 @@ object TestAspect extends TimeoutVariants {
         )
     }
 
-  import scala.collection.immutable.SortedSet
-
-  private[zio] lazy val fibers: TestAspect[Nothing, Has[Annotations], Nothing, Any] =
+  /**
+   * An aspect that records the state of fibers spawned by the current test in [[TestAnnotation.fibers]].
+   * Applied by default in [[DefaultRunnableSpec]] and [[MutableRunnableSpec]] but not in [[RunnableSpec]].
+   * This aspect is required for the proper functioning of `TestClock.adjust`.
+   */
+  lazy val fibers: TestAspect[Nothing, Has[Annotations], Nothing, Any] =
     new TestAspect.PerTest[Nothing, Has[Annotations], Nothing, Any] {
       def perTest[R <: Has[Annotations], E](
         test: ZIO[R, TestFailure[E], TestSuccess]
