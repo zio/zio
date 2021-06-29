@@ -313,7 +313,7 @@ For methods that may return `Unit`, we may skip the predefined result (it will d
 ```scala mdoc:silent
 import zio.test.mock.MockConsole
 
-val exp03 = MockConsole.PrintLine(equalTo("Welcome to ZIO!"))
+val exp03 = MockConsole.PrintLine(equalTo[String, Any]("Welcome to ZIO!"))
 val exp04 = MockConsole.PrintLine(equalTo("Welcome to ZIO!"), unit)
 ```
 
@@ -333,7 +333,7 @@ val app: URIO[AccountObserver, Unit] = AccountObserver.processEvent(event)
 val mockEnv: ULayer[Has[Console]] = (
   MockConsole.PrintLine(equalTo(s"Got $event"), unit) ++
   MockConsole.ReadLine(value("42")) ++
-  MockConsole.PrintLine(equalTo("You entered: 42"))
+  MockConsole.PrintLine(equalTo[String, Any]("You entered: 42"))
 )
 ```
 
@@ -372,7 +372,7 @@ object MaybeConsoleSpec extends DefaultRunnableSpec {
         ZIO.when(invokeConsole)(Console.printLine("foo"))
 
       val maybeTest1 = maybeConsole(false).provideSomeLayer(MockConsole.empty)
-      val maybeTest2 = maybeConsole(true).provideSomeLayer(MockConsole.PrintLine(equalTo("foo")))
+      val maybeTest2 = maybeConsole(true).provideSomeLayer(MockConsole.PrintLine(equalTo[String, Any]("foo")))
       assertM(maybeTest1)(isUnit) *> assertM(maybeTest2)(isUnit)
     }
   )
@@ -387,10 +387,10 @@ In some cases we have more than one collaborating service being called. You can 
 import zio.test.mock.MockRandom
 
 val combinedEnv: ULayer[Has[Console] with Has[Random]] = (
-  MockConsole.PrintLine(equalTo("What is your name?")) ++
+  MockConsole.PrintLine(equalTo[String, Any]("What is your name?")) ++
   MockConsole.ReadLine(value("Mike")) ++
   MockRandom.NextInt(value(42)) ++
-  MockConsole.PrintLine(equalTo("Mike, your lucky number today is 42!"))
+  MockConsole.PrintLine(equalTo[String, Any]("Mike, your lucky number today is 42!"))
 )
 
 val combinedApp =

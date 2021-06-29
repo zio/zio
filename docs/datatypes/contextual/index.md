@@ -255,7 +255,7 @@ object logging {
             override def log(line: String): UIO[Unit] =
               for {
                 current <- clock.currentDateTime
-                _ <- console.printLine(current.toString + "--" + line).orDie
+                _ <- console.printLine(s"$current--$line").orDie
               } yield ()
           }
       }
@@ -326,7 +326,7 @@ case class LoggingLive(console: Console, clock: Clock) extends Logging {
   override def log(line: String): UIO[Unit] = 
     for {
       current <- clock.currentDateTime
-      _       <- console.printLine(current.toString + "--" + line).orDie
+      _       <- console.printLine(s"$current--$line").orDie
     } yield ()
 }
 ```
@@ -453,9 +453,9 @@ import zio.Random._
 
 val myApp: ZIO[Has[Random] with Has[Console] with Has[Clock], Nothing, Unit] = for {
   random  <- nextInt 
-  _       <- printLine(s"A random number: ${random.toString}").orDie
+  _       <- printLine(s"A random number: $random").orDie
   current <- currentDateTime
-  _       <- printLine(s"Current Data Time: ${current.toString}").orDie
+  _       <- printLine(s"Current Data Time: $current").orDie
 } yield ()
 ```
 
@@ -521,7 +521,7 @@ object LoggingLive {
 val myApp: ZIO[Has[Logging] with Has[Console] with Has[Clock], Nothing, Unit] = for {
   _       <- Logging.log("Application Started!")
   current <- currentDateTime
-  _       <- printLine(s"Current Data Time: ${current.toString}").orDie
+  _       <- printLine(s"Current Data Time: $current").orDie
 } yield ()
 ```
 

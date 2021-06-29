@@ -23,7 +23,7 @@ object ComposedMockSpec extends ZIOBaseSpec {
     suite("mocking composed environments")(
       {
         val cmd1     = MockClock.NanoTime(value(42L))
-        val cmd2     = MockConsole.PrintLine(equalTo("42"))
+        val cmd2     = MockConsole.PrintLine(equalTo[String, Any]("42"))
         val composed = cmd1 ++ cmd2
 
         val program =
@@ -41,7 +41,7 @@ object ComposedMockSpec extends ZIOBaseSpec {
         val cmd1 = MockRandom.NextInt(value(42))
         val cmd2 = MockClock.Sleep(equalTo(42.seconds))
         val cmd3 = MockSystem.Property(equalTo("foo"), value(None))
-        val cmd4 = MockConsole.PrintLine(equalTo("None"))
+        val cmd4 = MockConsole.PrintLine(equalTo[String, Any]("None"))
 
         val composed = cmd1 ++ cmd2 ++ cmd3 ++ cmd4
 
