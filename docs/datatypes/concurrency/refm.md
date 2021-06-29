@@ -16,8 +16,8 @@ In the following example, we should pass in `updateEffect` to it which is the de
 import zio._
 for {
   refM   <- RefM.make("current")
-  updateEffect = IO.effectTotal("update")
-  _ <- refM.updateM(_ => updateEffect)
+  updateEffect = IO.succeed("update")
+  _ <- refM.updateZIO(_ => updateEffect)
   value <- refM.get
 } yield assert(value == "update")
 ```
@@ -44,7 +44,7 @@ val meanAge =
   for {
     ref <- RefM.make(0)
     _ <- IO.foreachPar(users) { user =>
-      ref.updateM(sumOfAges =>
+      ref.updateZIO(sumOfAges =>
         api.getAge(user).map(_ + sumOfAges)
       )
     }

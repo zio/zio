@@ -1,6 +1,6 @@
 package zio
 
-object BracketTypeInferenceSpec {
+object AcquireReleaseWithTypeInferenceSpec {
   class A
   class B
   class R
@@ -13,41 +13,41 @@ object BracketTypeInferenceSpec {
     val acquire: ZIO[R, E, A]      = ???
     val release: A => URIO[R, Any] = ???
     val use: A => ZIO[R, E1, B]    = ???
-    acquire.bracket(release)(use)
+    acquire.acquireReleaseWith(release)(use)
   }
 
   def infersEType2: ZIO[R, E, B] = {
     val acquire: ZIO[R, E1, A]     = ???
     val release: A => URIO[R, Any] = ???
     val use: A => ZIO[R, E, B]     = ???
-    acquire.bracket(release, use)
+    acquire.acquireReleaseWith(release, use)
   }
 
   def infersRType1: ZIO[R2, E, B] = {
     val acquire: ZIO[R, E, A]               = ???
     val release: A => ZIO[R1, Nothing, Any] = ???
     val use: A => ZIO[R2, E, B]             = ???
-    acquire.bracket(release)(use)
+    acquire.acquireReleaseWith(release)(use)
   }
 
   def infersRType2: ZIO[R2, E, B] = {
     val acquire: ZIO[R2, E, A]              = ???
     val release: A => ZIO[R1, Nothing, Any] = ???
     val use: A => ZIO[R, E, B]              = ???
-    acquire.bracket(release, use)
+    acquire.acquireReleaseWith(release, use)
   }
 
   def infersRType3: ZIO[R2, E, B] = {
     val acquire: ZIO[R1, E, A]              = ???
     val release: A => ZIO[R2, Nothing, Any] = ???
     val use: A => ZIO[R, E, B]              = ???
-    ZIO.bracket(acquire, release, use)
+    ZIO.acquireReleaseWith(acquire, release, use)
   }
 
   def infersRType4: ZIO[R2, E, B] = {
     val acquire: ZIO[R2, E, A]              = ???
     val release: A => ZIO[R1, Nothing, Any] = ???
     val use: A => ZIO[R, E, B]              = ???
-    acquire.bracket(release)(use)
+    acquire.acquireReleaseWith(release)(use)
   }
 }

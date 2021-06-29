@@ -59,7 +59,7 @@ trait FunctionVariants {
    * not implement `hashCode` in a way that is consistent with equality.
    */
   final def functionWith[R, A, B](gen: Gen[R, B])(hash: A => Int): Gen[R, A => B] =
-    Gen.fromEffect {
+    Gen.fromZIO {
       gen.sample.forever.process.use { pull =>
         for {
           lock    <- Semaphore.make(1)

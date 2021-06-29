@@ -203,9 +203,9 @@ object AutoLayerSpec extends ZIOBaseSpec {
             val layerB: URLayer[Has[String], Has[Boolean]] = ZLayer.succeed(true)
 
             (for {
-              ref    <- Ref.make(0).toManaged_
+              ref    <- Ref.make(0).toManaged
               _      <- ZManaged.services[Int, Boolean].inject(layerA, layerB, sideEffectingLayer(ref))
-              result <- ref.get.toManaged_
+              result <- ref.get.toManaged
             } yield assert(result)(equalTo(1))).useNow
           },
           testM("reports missing top-level layers") {
@@ -226,7 +226,7 @@ object AutoLayerSpec extends ZIOBaseSpec {
           } @@ TestAspect.exceptDotty,
           testM("reports missing transitive dependencies") {
             import TestLayers._
-            val program: URManaged[Has[OldLady], Boolean] = ZManaged.service[OldLady].flatMap(_.willDie.toManaged_)
+            val program: URManaged[Has[OldLady], Boolean] = ZManaged.service[OldLady].flatMap(_.willDie.toManaged)
             val _                                         = program
 
             val checked = typeCheck("program.inject(OldLady.live)")
@@ -239,7 +239,7 @@ object AutoLayerSpec extends ZIOBaseSpec {
           } @@ TestAspect.exceptDotty,
           testM("reports nested missing transitive dependencies") {
             import TestLayers._
-            val program: URManaged[Has[OldLady], Boolean] = ZManaged.service[OldLady].flatMap(_.willDie.toManaged_)
+            val program: URManaged[Has[OldLady], Boolean] = ZManaged.service[OldLady].flatMap(_.willDie.toManaged)
             val _                                         = program
 
             val checked = typeCheck("program.inject(OldLady.live, Fly.live)")
@@ -252,7 +252,7 @@ object AutoLayerSpec extends ZIOBaseSpec {
           } @@ TestAspect.exceptDotty,
           testM("reports circular dependencies") {
             import TestLayers._
-            val program: URManaged[Has[OldLady], Boolean] = ZManaged.service[OldLady].flatMap(_.willDie.toManaged_)
+            val program: URManaged[Has[OldLady], Boolean] = ZManaged.service[OldLady].flatMap(_.willDie.toManaged)
             val _                                         = program
 
             val checked = typeCheck("program.inject(OldLady.live, Fly.manEatingFly)")
@@ -267,8 +267,8 @@ object AutoLayerSpec extends ZIOBaseSpec {
         suite("injectCustom")(
           testM("automatically constructs a layer from its dependencies, leaving off ZEnv") {
             val stringLayer = Console.readLine.orDie.toLayer
-            val program     = ZManaged.service[String].zipWith(Random.nextInt.toManaged_)((str, int) => s"$str $int")
-            val provided = TestConsole.feedLines("Your Lucky Number is:").toManaged_ *>
+            val program     = ZManaged.service[String].zipWith(Random.nextInt.toManaged)((str, int) => s"$str $int")
+            val provided = TestConsole.feedLines("Your Lucky Number is:").toManaged *>
               program.injectCustom(stringLayer)
 
             assertM(provided.useNow)(equalTo("Your Lucky Number is: -1295463240"))
@@ -277,8 +277,8 @@ object AutoLayerSpec extends ZIOBaseSpec {
         suite("injectSome")(
           testM("automatically constructs a layer from its dependencies, leaving off some environment") {
             val stringLayer = Console.readLine.orDie.toLayer
-            val program     = ZManaged.service[String].zipWith(Random.nextInt.toManaged_)((str, int) => s"$str $int")
-            val provided = TestConsole.feedLines("Your Lucky Number is:").toManaged_ *>
+            val program     = ZManaged.service[String].zipWith(Random.nextInt.toManaged)((str, int) => s"$str $int")
+            val provided = TestConsole.feedLines("Your Lucky Number is:").toManaged *>
               program.injectSome[Has[Random] with Has[Console]](stringLayer)
 
             assertM(provided.useNow)(equalTo("Your Lucky Number is: -1295463240"))

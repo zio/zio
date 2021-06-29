@@ -130,12 +130,6 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
     contramapChunks(_.map(f))
 
   /**
-   * Effectfully transforms this sink's input elements.
-   */
-  def contramapM[R1 <: R, E1 >: E, I2](f: I2 => ZIO[R1, E1, I]): ZSink[R1, E1, I2, L, Z] =
-    contramapChunksM(_.mapM(f))
-
-  /**
    * Transforms this sink's input chunks.
    * `f` must preserve chunking-invariance
    */
@@ -146,7 +140,17 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
    * Effectfully transforms this sink's input chunks.
    * `f` must preserve chunking-invariance
    */
+  @deprecated("use contramapChunksZIO", "2.0.0")
   def contramapChunksM[R1 <: R, E1 >: E, I2](
+    f: Chunk[I2] => ZIO[R1, E1, Chunk[I]]
+  ): ZSink[R1, E1, I2, L, Z] =
+    contramapChunksZIO(f)
+
+  /**
+   * Effectfully transforms this sink's input chunks.
+   * `f` must preserve chunking-invariance
+   */
+  def contramapChunksZIO[R1 <: R, E1 >: E, I2](
     f: Chunk[I2] => ZIO[R1, E1, Chunk[I]]
   ): ZSink[R1, E1, I2, L, Z] =
     ZSink[R1, E1, I2, L, Z](
@@ -161,19 +165,23 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
     )
 
   /**
+   * Effectfully transforms this sink's input elements.
+   */
+  @deprecated("use contramapZIO", "2.0.0")
+  def contramapM[R1 <: R, E1 >: E, I2](f: I2 => ZIO[R1, E1, I]): ZSink[R1, E1, I2, L, Z] =
+    contramapZIO(f)
+
+  /**
+   * Effectfully transforms this sink's input elements.
+   */
+  def contramapZIO[R1 <: R, E1 >: E, I2](f: I2 => ZIO[R1, E1, I]): ZSink[R1, E1, I2, L, Z] =
+    contramapChunksZIO(_.mapZIO(f))
+
+  /**
    * Transforms both inputs and result of this sink using the provided functions.
    */
   def dimap[I2, Z2](f: I2 => I, g: Z => Z2): ZSink[R, E, I2, L, Z2] =
     contramap(f).map(g)
-
-  /**
-   * Effectfully transforms both inputs and result of this sink using the provided functions.
-   */
-  def dimapM[R1 <: R, E1 >: E, I2, Z2](
-    f: I2 => ZIO[R1, E1, I],
-    g: Z => ZIO[R1, E1, Z2]
-  ): ZSink[R1, E1, I2, L, Z2] =
-    contramapM(f).mapM(g)
 
   /**
    * Transforms both input chunks and result of this sink using the provided functions.
@@ -185,11 +193,41 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
    * Effectfully transforms both input chunks and result of this sink using the provided functions.
    * `f` and `g` must preserve chunking-invariance
    */
+  @deprecated("use dimapChunksZIO", "2.0.0")
   def dimapChunksM[R1 <: R, E1 >: E, I2, Z2](
     f: Chunk[I2] => ZIO[R1, E1, Chunk[I]],
     g: Z => ZIO[R1, E1, Z2]
   ): ZSink[R1, E1, I2, L, Z2] =
-    contramapChunksM(f).mapM(g)
+    dimapChunksZIO(f, g)
+
+  /**
+   * Effectfully transforms both input chunks and result of this sink using the provided functions.
+   * `f` and `g` must preserve chunking-invariance
+   */
+  def dimapChunksZIO[R1 <: R, E1 >: E, I2, Z2](
+    f: Chunk[I2] => ZIO[R1, E1, Chunk[I]],
+    g: Z => ZIO[R1, E1, Z2]
+  ): ZSink[R1, E1, I2, L, Z2] =
+    contramapChunksZIO(f).mapZIO(g)
+
+  /**
+   * Effectfully transforms both inputs and result of this sink using the provided functions.
+   */
+  @deprecated("use dimapZIO", "2.0.0")
+  def dimapM[R1 <: R, E1 >: E, I2, Z2](
+    f: I2 => ZIO[R1, E1, I],
+    g: Z => ZIO[R1, E1, Z2]
+  ): ZSink[R1, E1, I2, L, Z2] =
+    dimapZIO(f, g)
+
+  /**
+   * Effectfully transforms both inputs and result of this sink using the provided functions.
+   */
+  def dimapZIO[R1 <: R, E1 >: E, I2, Z2](
+    f: I2 => ZIO[R1, E1, I],
+    g: Z => ZIO[R1, E1, Z2]
+  ): ZSink[R1, E1, I2, L, Z2] =
+    contramapZIO(f).mapZIO(g)
 
   /**
    * Runs this sink until it yields a result, then uses that result to create another
@@ -200,17 +238,24 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
   def flatMap[R1 <: R, E1 >: E, I2 <: I, L2, Z2](
     f: Z => ZSink[R1, E1, I2, L2, Z2]
   )(implicit ev: L <:< I2): ZSink[R1, E1, I2, L2, Z2] =
-    foldM(e => ZSink.fail(e).asInstanceOf[ZSink[R1, E1, I2, L2, Z2]], f)
+    foldSink(e => ZSink.fail(e).asInstanceOf[ZSink[R1, E1, I2, L2, Z2]], f)
 
+  @deprecated("use foldSink", "2.0.0")
   def foldM[R1 <: R, E2, I2 <: I, L2, Z2](
+    failure: E => ZSink[R1, E2, I2, L2, Z2],
+    success: Z => ZSink[R1, E2, I2, L2, Z2]
+  )(implicit ev: L <:< I2): ZSink[R1, E2, I2, L2, Z2] =
+    foldSink(failure, success)
+
+  def foldSink[R1 <: R, E2, I2 <: I, L2, Z2](
     failure: E => ZSink[R1, E2, I2, L2, Z2],
     success: Z => ZSink[R1, E2, I2, L2, Z2]
   )(implicit ev: L <:< I2): ZSink[R1, E2, I2, L2, Z2] =
     ZSink {
       for {
-        switched     <- Ref.make(false).toManaged_
+        switched     <- Ref.make(false).toManaged
         thisPush     <- self.push
-        thatPush     <- Ref.make[Push[R1, E2, I2, L2, Z2]](_ => ZIO.unit).toManaged_
+        thatPush     <- Ref.make[Push[R1, E2, I2, L2, Z2]](_ => ZIO.unit).toManaged
         openThatPush <- ZManaged.switchable[R1, Nothing, Push[R1, E2, I2, L2, Z2]]
         push = (in: Option[Chunk[I2]]) => {
                  switched.get.flatMap { sw =>
@@ -250,13 +295,20 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
   /**
    * Effectfully transforms this sink's result.
    */
+  @deprecated("use mapZIO", "2.0.0")
   def mapM[R1 <: R, E1 >: E, Z2](f: Z => ZIO[R1, E1, Z2]): ZSink[R1, E1, I, L, Z2] =
+    mapZIO(f)
+
+  /**
+   * Effectfully transforms this sink's result.
+   */
+  def mapZIO[R1 <: R, E1 >: E, Z2](f: Z => ZIO[R1, E1, Z2]): ZSink[R1, E1, I, L, Z2] =
     ZSink(
       self.push.map(push =>
         (inputs: Option[Chunk[I]]) =>
           push(inputs).catchAll {
             case (Left(e), left)  => Push.fail(e, left)
-            case (Right(z), left) => f(z).foldM(e => Push.fail(e, left), z2 => Push.emit(z2, left))
+            case (Right(z), left) => f(z).foldZIO(e => Push.fail(e, left), z2 => Push.emit(z2, left))
           }
       )
     )
@@ -284,13 +336,13 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
         p1(in).raceWith(p2(in))(
           (res1, fib2) =>
             res1
-              .foldM(
-                f => fib2.interrupt *> ZIO.halt(f.map { case (r, leftover) => (r.map(x => Left(x)), leftover) }),
+              .foldZIO(
+                f => fib2.interrupt *> ZIO.failCause(f.map { case (r, leftover) => (r.map(x => Left(x)), leftover) }),
                 _ => fib2.join.mapError { case (r, leftover) => (r.map(x => Right(x)), leftover) }
               ),
           (res2, fib1) =>
-            res2.foldM(
-              f => fib1.interrupt *> ZIO.halt(f.map { case (r, leftover) => (r.map(x => Right(x)), leftover) }),
+            res2.foldZIO(
+              f => fib1.interrupt *> ZIO.failCause(f.map { case (r, leftover) => (r.map(x => Right(x)), leftover) }),
               _ => fib1.join.mapError { case (r, leftover) => (r.map(x => Left(x)), leftover) }
             )
         )
@@ -302,7 +354,7 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
    */
   final def timed: ZSink[R with Has[Clock], E, I, L, (Z, Duration)] =
     ZSink {
-      self.push.zipWith(Clock.nanoTime.toManaged_) { (push, start) =>
+      self.push.zipWith(Clock.nanoTime.toManaged) { (push, start) =>
         push(_).catchAll {
           case (Left(e), leftover)  => Push.fail(e, leftover)
           case (Right(z), leftover) => Clock.nanoTime.flatMap(stop => Push.emit(z -> (stop - start).nanos, leftover))
@@ -319,7 +371,7 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
     ZTransducer {
       ZSink.Push.restartable(push).map { case (push, restart) =>
         def go(input: Option[Chunk[I]]): ZIO[R, E, Chunk[Z]] =
-          push(input).foldM(
+          push(input).foldZIO(
             {
               case (Left(e), _) => ZIO.fail(e)
               case (Right(z), leftover) =>
@@ -409,7 +461,7 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
     case class RightDone[+Z1](z: Z1) extends State[Nothing, Z1]
 
     ZSink(for {
-      ref <- ZRef.make[State[Z, Z1]](BothRunning).toManaged_
+      ref <- ZRef.make[State[Z, Z1]](BothRunning).toManaged
       p1  <- self.push
       p2  <- that.push
       push: Push[R1, E1, I1, L1, Z2] = { in =>
@@ -417,14 +469,14 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
           val newState: ZIO[R1, (Either[E1, Z2], Chunk[L1]), State[Z, Z1]] = {
             state match {
               case BothRunning => {
-                val l: ZIO[R, (Either[E1, Z2], Chunk[L1]), Option[(Z, Chunk[L])]] = p1(in).foldM(
+                val l: ZIO[R, (Either[E1, Z2], Chunk[L1]), Option[(Z, Chunk[L])]] = p1(in).foldZIO(
                   {
                     case (Left(e), l)  => Push.fail(e, l)
                     case (Right(z), l) => ZIO.succeedNow(Some((z, l)))
                   },
                   _ => ZIO.succeedNow(None)
                 )
-                val r: ZIO[R1, (Left[E1, Nothing], Chunk[L1]), Option[(Z1, Chunk[L1])]] = p2(in).foldM(
+                val r: ZIO[R1, (Left[E1, Nothing], Chunk[L1]), Option[(Z1, Chunk[L1])]] = p2(in).foldZIO(
                   {
                     case (Left(e), l)  => Push.fail(e, l)
                     case (Right(z), l) => ZIO.succeedNow(Some((z, l)))
@@ -481,7 +533,17 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
    * Creates a sink that produces values until one verifies
    * the predicate `f`.
    */
+  @deprecated("use untilOutputZIO", "2.0.0")
   def untilOutputM[R1 <: R, E1 >: E](
+    f: Z => ZIO[R1, E1, Boolean]
+  )(implicit ev: L <:< I): ZSink[R1, E1, I, L, Option[Z]] =
+    untilOutputZIO(f)
+
+  /**
+   * Creates a sink that produces values until one verifies
+   * the predicate `f`.
+   */
+  def untilOutputZIO[R1 <: R, E1 >: E](
     f: Z => ZIO[R1, E1, Boolean]
   )(implicit ev: L <:< I): ZSink[R1, E1, I, L, Option[Z]] =
     ZSink {
@@ -519,8 +581,11 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   object Push {
     def emit[I, Z](z: Z, leftover: Chunk[I]): IO[(Right[Nothing, Z], Chunk[I]), Nothing] = IO.fail((Right(z), leftover))
     def fail[I, E](e: E, leftover: Chunk[I]): IO[(Left[E, Nothing], Chunk[I]), Nothing]  = IO.fail((Left(e), leftover))
+    def failCause[E](c: Cause[E]): ZIO[Any, (Left[E, Nothing], Chunk[Nothing]), Nothing] =
+      IO.failCause(c).mapError(e => (Left(e), Chunk.empty))
+    @deprecated("use failCause", "2.0.0")
     def halt[E](c: Cause[E]): ZIO[Any, (Left[E, Nothing], Chunk[Nothing]), Nothing] =
-      IO.halt(c).mapError(e => (Left(e), Chunk.empty))
+      failCause(c)
     val more: UIO[Unit] = UIO.unit
 
     /**
@@ -531,8 +596,8 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     ): ZManaged[R, Nothing, (Push[R, E, I, L, Z], URIO[R, Unit])] =
       for {
         switchSink  <- ZManaged.switchable[R, Nothing, Push[R, E, I, L, Z]]
-        initialSink <- switchSink(sink).toManaged_
-        currSink    <- Ref.make(initialSink).toManaged_
+        initialSink <- switchSink(sink).toManaged
+        currSink    <- Ref.make(initialSink).toManaged
         restart      = switchSink(sink).flatMap(currSink.set)
         newPush      = (input: Option[Chunk[I]]) => currSink.get.flatMap(_.apply(input))
       } yield (newPush, restart)
@@ -552,7 +617,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    */
   def collectAll[A]: ZSink[Any, Nothing, A, Nothing, Chunk[A]] = ZSink {
     for {
-      builder    <- UIO(ChunkBuilder.make[A]()).toManaged_
+      builder    <- UIO(ChunkBuilder.make[A]()).toManaged
       foldingSink = foldLeftChunks(builder)((b, chunk: Chunk[A]) => b ++= chunk).map(_.result())
       push       <- foldingSink.push
     } yield push
@@ -593,14 +658,14 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * Creates a sink halting with the specified `Throwable`.
    */
   def die(e: => Throwable): ZSink[Any, Nothing, Any, Nothing, Nothing] =
-    ZSink.halt(Cause.die(e))
+    ZSink.failCause(Cause.die(e))
 
   /**
    * Creates a sink halting with the specified message, wrapped in a
    * `RuntimeException`.
    */
   def dieMessage(m: => String): ZSink[Any, Nothing, Any, Nothing, Nothing] =
-    ZSink.halt(Cause.die(new RuntimeException(m)))
+    ZSink.failCause(Cause.die(new RuntimeException(m)))
 
   /**
    * A sink that ignores its inputs.
@@ -616,6 +681,12 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
       val leftover = c.fold[Chunk[I]](Chunk.empty)(identity)
       Push.fail(e, leftover)
     }
+
+  /**
+   * Creates a sink halting with a specified cause.
+   */
+  def failCause[E](e: => Cause[E]): ZSink[Any, E, Any, Nothing, Nothing] =
+    ZSink.fromPush[Any, E, Any, Nothing, Nothing](_ => Push.failCause(e))
 
   /**
    * A sink that folds its inputs with the provided function, termination predicate and initial state.
@@ -636,7 +707,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     if (contFn(z))
       ZSink[Any, Nothing, I, I, S] {
         for {
-          state <- Ref.make(z).toManaged_
+          state <- Ref.make(z).toManaged
           push = (is: Option[Chunk[I]]) =>
                    is match {
                      case None => state.get.flatMap(s => Push.emit(s, Chunk.empty))
@@ -662,20 +733,31 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * `f` and `contFn` must preserve chunking-invariance.
    */
   def foldChunks[I, S](z: S)(contFn: S => Boolean)(f: (S, Chunk[I]) => S): ZSink[Any, Nothing, I, I, S] =
-    foldChunksM(z)(contFn)((s, is) => UIO.succeedNow(f(s, is)))
+    foldChunksZIO(z)(contFn)((s, is) => UIO.succeedNow(f(s, is)))
 
   /**
    * A sink that effectfully folds its input chunks with the provided function, termination predicate and initial state.
    * `contFn` condition is checked only for the initial value and at the end of processing of each chunk.
    * `f` and `contFn` must preserve chunking-invariance.
    */
+  @deprecated("use foldChunksZIO", "2.0.0")
   def foldChunksM[R, E, I, S](
+    z: S
+  )(contFn: S => Boolean)(f: (S, Chunk[I]) => ZIO[R, E, S]): ZSink[R, E, I, I, S] =
+    foldChunksZIO(z)(contFn)(f)
+
+  /**
+   * A sink that effectfully folds its input chunks with the provided function, termination predicate and initial state.
+   * `contFn` condition is checked only for the initial value and at the end of processing of each chunk.
+   * `f` and `contFn` must preserve chunking-invariance.
+   */
+  def foldChunksZIO[R, E, I, S](
     z: S
   )(contFn: S => Boolean)(f: (S, Chunk[I]) => ZIO[R, E, S]): ZSink[R, E, I, I, S] =
     if (contFn(z))
       ZSink {
         for {
-          state <- Ref.make(z).toManaged_
+          state <- Ref.make(z).toManaged
           push = (is: Option[Chunk[I]]) =>
                    is match {
                      case None => state.get.flatMap(s => Push.emit(s, Chunk.empty))
@@ -701,12 +783,22 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * This sink may terminate in the middle of a chunk and discard the rest of it. See the discussion on the
    * ZSink class scaladoc on sinks vs. transducers.
    */
-  def foldM[R, E, I, S](z: S)(contFn: S => Boolean)(f: (S, I) => ZIO[R, E, S]): ZSink[R, E, I, I, S] = {
+  @deprecated("use foldZIO", "2.0.0")
+  def foldM[R, E, I, S](z: S)(contFn: S => Boolean)(f: (S, I) => ZIO[R, E, S]): ZSink[R, E, I, I, S] =
+    foldZIO(z)(contFn)(f)
+
+  /**
+   * A sink that effectfully folds its inputs with the provided function, termination predicate and initial state.
+   *
+   * This sink may terminate in the middle of a chunk and discard the rest of it. See the discussion on the
+   * ZSink class scaladoc on sinks vs. transducers.
+   */
+  def foldZIO[R, E, I, S](z: S)(contFn: S => Boolean)(f: (S, I) => ZIO[R, E, S]): ZSink[R, E, I, I, S] = {
     def foldChunk(s: S, chunk: Chunk[I], idx: Int, len: Int): ZIO[R, (E, Chunk[I]), (S, Option[Chunk[I]])] =
       if (idx == len) {
         ZIO.succeedNow((s, None))
       } else {
-        f(s, chunk(idx)).foldM(
+        f(s, chunk(idx)).foldZIO(
           e => ZIO.fail((e, chunk.drop(idx + 1))),
           s1 =>
             if (contFn(s1)) {
@@ -720,13 +812,13 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     if (contFn(z))
       ZSink[R, E, I, I, S] {
         for {
-          state <- Ref.make(z).toManaged_
+          state <- Ref.make(z).toManaged
           push = (is: Option[Chunk[I]]) =>
                    is match {
                      case None => state.get.flatMap(s => Push.emit(s, Chunk.empty))
                      case Some(is) => {
                        state.get.flatMap { s =>
-                         foldChunk(s, is, 0, is.length).foldM(
+                         foldChunk(s, is, 0, is.length).foldZIO(
                            err => Push.fail(err._1, err._2),
                            {
                              case (st, l) => {
@@ -763,14 +855,29 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * A sink that effectfully folds its input chunks with the provided function and initial state.
    * `f` must preserve chunking-invariance.
    */
+  @deprecated("use foldLeftChunksZIO", "2.0.0")
   def foldLeftChunksM[R, E, I, S](z: S)(f: (S, Chunk[I]) => ZIO[R, E, S]): ZSink[R, E, I, Nothing, S] =
-    foldChunksM[R, E, I, S](z: S)(_ => true)(f).dropLeftover
+    foldLeftChunksZIO(z)(f)
+
+  /**
+   * A sink that effectfully folds its input chunks with the provided function and initial state.
+   * `f` must preserve chunking-invariance.
+   */
+  def foldLeftChunksZIO[R, E, I, S](z: S)(f: (S, Chunk[I]) => ZIO[R, E, S]): ZSink[R, E, I, Nothing, S] =
+    foldChunksZIO[R, E, I, S](z: S)(_ => true)(f).dropLeftover
 
   /**
    * A sink that effectfully folds its inputs with the provided function and initial state.
    */
+  @deprecated("use foldLeftZIO", "2.0.0")
   def foldLeftM[R, E, I, S](z: S)(f: (S, I) => ZIO[R, E, S]): ZSink[R, E, I, I, S] =
-    foldM[R, E, I, S](z: S)(_ => true)(f)
+    foldLeftZIO(z)(f)
+
+  /**
+   * A sink that effectfully folds its inputs with the provided function and initial state.
+   */
+  def foldLeftZIO[R, E, I, S](z: S)(f: (S, I) => ZIO[R, E, S]): ZSink[R, E, I, I, S] =
+    foldZIO[R, E, I, S](z: S)(_ => true)(f)
 
   /**
    * A sink that executes the provided effectful function for every element fed to it.
@@ -780,7 +887,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
       if (idx == len)
         Push.more
       else
-        f(chunk(idx)).foldM(e => Push.fail(e, chunk.drop(idx + 1)), _ => go(chunk, idx + 1, len))
+        f(chunk(idx)).foldZIO(e => Push.fail(e, chunk.drop(idx + 1)), _ => go(chunk, idx + 1, len))
 
     ZSink.fromPush[R, E, I, I, Unit] {
       case Some(is) => go(is, 0, is.length)
@@ -806,7 +913,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
       if (idx == len)
         Push.more
       else
-        f(chunk(idx)).foldM(
+        f(chunk(idx)).foldZIO(
           e => Push.fail(e, chunk.drop(idx + 1)),
           b => if (b) go(chunk, idx + 1, len) else Push.emit((), chunk.drop(idx))
         )
@@ -820,11 +927,9 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   /**
    * Creates a single-value sink produced from an effect
    */
+  @deprecated("use fromZIO", "2.0.0")
   def fromEffect[R, E, I, Z](b: => ZIO[R, E, Z]): ZSink[R, E, I, I, Z] =
-    fromPush[R, E, I, I, Z] { in =>
-      val leftover = in.fold[Chunk[I]](Chunk.empty)(identity)
-      b.foldM(Push.fail(_, leftover), z => Push.emit(z, leftover))
-    }
+    fromZIO(b)
 
   /**
    * Create a sink which publishes each element to the specified hub.
@@ -853,13 +958,23 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * The queue will be shutdown once the stream is closed.
    */
   def fromQueueWithShutdown[R, E, I](queue: ZQueue[R, Nothing, E, Any, I, Any]): ZSink[R, E, I, Nothing, Unit] =
-    ZSink(ZManaged.make(ZIO.succeedNow(queue))(_.shutdown).map(fromQueue[R, E, I]).flatMap(_.push))
+    ZSink(ZManaged.acquireReleaseWith(ZIO.succeedNow(queue))(_.shutdown).map(fromQueue[R, E, I]).flatMap(_.push))
+
+  /**
+   * Creates a single-value sink produced from an effect
+   */
+  def fromZIO[R, E, I, Z](b: => ZIO[R, E, Z]): ZSink[R, E, I, I, Z] =
+    fromPush[R, E, I, I, Z] { in =>
+      val leftover = in.fold[Chunk[I]](Chunk.empty)(identity)
+      b.foldZIO(Push.fail(_, leftover), z => Push.emit(z, leftover))
+    }
 
   /**
    * Creates a sink halting with a specified cause.
    */
+  @deprecated("use failCause", "2.0.0")
   def halt[E](e: => Cause[E]): ZSink[Any, E, Any, Nothing, Nothing] =
-    ZSink.fromPush[Any, E, Any, Nothing, Nothing](_ => Push.halt(e))
+    failCause(e)
 
   /**
    * Creates a sink containing the first value.
@@ -881,7 +996,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   def last[I]: ZSink[Any, Nothing, I, Nothing, Option[I]] =
     ZSink {
       for {
-        state <- Ref.make[Option[I]](None).toManaged_
+        state <- Ref.make[Option[I]](None).toManaged
         push = (is: Option[Chunk[I]]) =>
                  state.get.flatMap { last =>
                    is match {
@@ -924,7 +1039,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   def take[I](n: Int): ZSink[Any, Nothing, I, I, Chunk[I]] =
     ZSink {
       for {
-        state <- Ref.make[Chunk[I]](Chunk.empty).toManaged_
+        state <- Ref.make[Chunk[I]](Chunk.empty).toManaged
         push = (is: Option[Chunk[I]]) =>
                  state.get.flatMap { take =>
                    is match {

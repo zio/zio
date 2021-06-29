@@ -27,13 +27,13 @@ abstract class BaseTestTask(
       summary = SummaryBuilder.buildSummary(spec)
       _      <- sendSummary.provide(summary)
       events  = ZTestEvent.from(spec, taskDef.fullyQualifiedName(), taskDef.fingerprint())
-      _      <- ZIO.foreach(events)(e => ZIO.effect(eventHandler.handle(e)))
+      _      <- ZIO.foreach(events)(e => ZIO.attempt(eventHandler.handle(e)))
     } yield ()
 
   protected def sbtTestLayer(loggers: Array[Logger]): Layer[Nothing, Has[TestLogger] with Has[Clock]] =
     ZLayer.succeed[TestLogger](new TestLogger {
       def logLine(line: String): UIO[Unit] =
-        ZIO.effect(loggers.foreach(_.info(colored(line)))).ignore
+        ZIO.attempt(loggers.foreach(_.info(colored(line)))).ignore
     }) ++ Clock.live
 
   override def execute(eventHandler: EventHandler, loggers: Array[Logger]): Array[Task] =

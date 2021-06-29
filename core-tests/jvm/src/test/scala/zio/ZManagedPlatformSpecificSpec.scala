@@ -15,7 +15,7 @@ object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
       for {
         readResult <- ZManagedPlatformSpecificSpecHelper
                         .tempFileResource()
-                        .mapEffect(f => f.toPath())
+                        .mapAttempt(f => f.toPath())
                         .use { path =>
                           for {
                             _      <- ZManaged.writeFile(path).use(fos => fos.write(fixture))
@@ -30,7 +30,7 @@ object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
       for {
         readResult <- ZManagedPlatformSpecificSpecHelper
                         .tempFileResource()
-                        .mapEffect(f => f.toPath())
+                        .mapAttempt(f => f.toPath())
                         .use { path =>
                           for {
                             _      <- ZManaged.writeFile(path).use(fos => fos.write(fixture))
@@ -45,7 +45,7 @@ object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
       for {
         readResult <- ZManagedPlatformSpecificSpecHelper
                         .tempFileResource()
-                        .mapEffect(f => f.toPath())
+                        .mapAttempt(f => f.toPath())
                         .use { path =>
                           for {
                             _      <- ZManaged.writeFile(path).use(fos => fos.write(fixture))
@@ -59,7 +59,7 @@ object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
       for {
         readResult <- ZManagedPlatformSpecificSpecHelper
                         .tempFileResource()
-                        .mapEffect(f => f.toPath())
+                        .mapAttempt(f => f.toPath())
                         .use { path =>
                           for {
                             _      <- ZManaged.writeFile(path).use(fos => fos.write(fixture))
@@ -74,7 +74,7 @@ object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
       for {
         readResult <- ZManagedPlatformSpecificSpecHelper
                         .tempFileResource()
-                        .mapEffect(f => f.toPath())
+                        .mapAttempt(f => f.toPath())
                         .use { path =>
                           for {
                             _      <- ZManaged.writeFile(path).use(fos => fos.write(fixture))
@@ -89,7 +89,7 @@ object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
       for {
         readResult <- ZManagedPlatformSpecificSpecHelper
                         .tempFileResource()
-                        .mapEffect(f => f.toPath())
+                        .mapAttempt(f => f.toPath())
                         .use { path =>
                           for {
                             _      <- ZManaged.writeFile(path).use(fos => fos.write(fixture))
@@ -103,7 +103,7 @@ object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
       for {
         readResult <- ZManagedPlatformSpecificSpecHelper
                         .tempFileResource()
-                        .mapEffect(f => f.toPath())
+                        .mapAttempt(f => f.toPath())
                         .use { path =>
                           for {
                             _ <- ZManaged.writeFile(path).use(fos => fos.write(fixture))
@@ -120,7 +120,7 @@ object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
       for {
         readResult <- ZManagedPlatformSpecificSpecHelper
                         .tempFileResource()
-                        .mapEffect(f => f.toPath())
+                        .mapAttempt(f => f.toPath())
                         .use { path =>
                           for {
                             _ <- ZManaged.writeFile(path).use(fos => fos.write(fixture))
@@ -137,7 +137,7 @@ object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
       for {
         readResult <- ZManagedPlatformSpecificSpecHelper
                         .tempFileResource()
-                        .mapEffect(f => f.toPath())
+                        .mapAttempt(f => f.toPath())
                         .use { path =>
                           for {
                             _ <- ZManaged.writeFile(path).use(fos => fos.write(fixture))
@@ -155,7 +155,7 @@ object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
 object ZManagedPlatformSpecificSpecHelper {
   def tempFileResource(): ZManaged[Any, IOException, File] =
     ZManaged
-      .make(
-        ZIO.effect(File.createTempFile(ju.UUID.randomUUID().toString(), null)).refineToOrDie[IOException]
-      )(f => ZIO.effect(Files.delete(f.toPath)).orDie)
+      .acquireReleaseWith(
+        ZIO.attempt(File.createTempFile(ju.UUID.randomUUID().toString(), null)).refineToOrDie[IOException]
+      )(f => ZIO.attempt(Files.delete(f.toPath)).orDie)
 }

@@ -110,7 +110,15 @@ sealed abstract class BoolAlgebra[+A] extends Product with Serializable { self =
    * Returns a new result, with all values mapped to new results using the
    * specified effectual function.
    */
+  @deprecated("use flatMapZIO", "2.0.0")
   final def flatMapM[R, E, B](f: A => ZIO[R, E, BoolAlgebra[B]]): ZIO[R, E, BoolAlgebra[B]] =
+    flatMapZIO(f)
+
+  /**
+   * Returns a new result, with all values mapped to new results using the
+   * specified effectual function.
+   */
+  final def flatMapZIO[R, E, B](f: A => ZIO[R, E, BoolAlgebra[B]]): ZIO[R, E, BoolAlgebra[B]] =
     fold(a => f(a))(_.zipWith(_)(_ && _), _.zipWith(_)(_ || _), _.map(!_))
 
   /**
@@ -174,8 +182,16 @@ sealed abstract class BoolAlgebra[+A] extends Product with Serializable { self =
    * Returns a new result, with all values mapped by the specified effectual
    * function.
    */
+  @deprecated("use mapZIO", "2.0.0")
   final def mapM[R, E, B](f: A => ZIO[R, E, B]): ZIO[R, E, BoolAlgebra[B]] =
-    flatMapM(a => f(a).map(success))
+    mapZIO(f)
+
+  /**
+   * Returns a new result, with all values mapped by the specified effectual
+   * function.
+   */
+  final def mapZIO[R, E, B](f: A => ZIO[R, E, B]): ZIO[R, E, BoolAlgebra[B]] =
+    flatMapZIO(a => f(a).map(success))
 
   /**
    * Negates this result, converting all successes into failures and failures

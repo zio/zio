@@ -2,6 +2,7 @@ package zio.test
 
 import zio._
 import zio.test.Assertion._
+import zio.test.AssertionResult.FailureDetailsResult
 import zio.test.GenUtils._
 import zio.test.TestAspect.{nonFlaky, scala2Only, setSeed}
 import zio.test.{check => Check, checkN => CheckN}
@@ -24,7 +25,7 @@ object GenSpec extends ZIOBaseSpec {
 
         assertM(CheckN(100)(gen)(test).map { result =>
           result.failures.fold(false) {
-            case BoolAlgebra.Value(failureDetails) =>
+            case BoolAlgebra.Value(FailureDetailsResult(failureDetails, _)) =>
               failureDetails.assertion.head.value.toString == "1"
             case _ => false
           }
@@ -43,7 +44,7 @@ object GenSpec extends ZIOBaseSpec {
         }
         assertM(CheckN(100)(gen)(test).map { result =>
           result.failures.fold(false) {
-            case BoolAlgebra.Value(failureDetails) =>
+            case BoolAlgebra.Value(FailureDetailsResult(failureDetails, _)) =>
               failureDetails.assertion.head.value.toString == "(List(0),List(1))" ||
                 failureDetails.assertion.head.value.toString == "(List(1),List(0))" ||
                 failureDetails.assertion.head.value.toString == "(List(0),List(-1))" ||
@@ -77,7 +78,7 @@ object GenSpec extends ZIOBaseSpec {
 
         assertM(CheckN(100)(gen)(test).map { result =>
           result.failures.fold(false) {
-            case BoolAlgebra.Value(failureDetails) =>
+            case BoolAlgebra.Value(FailureDetailsResult(failureDetails, _)) =>
               failureDetails.assertion.head.value.toString == "List(0)"
             case _ => false
           }
@@ -117,6 +118,9 @@ object GenSpec extends ZIOBaseSpec {
       testM("alphaNumericStringBounded generates strings whose size is in bounds") {
         checkSample(Gen.alphaNumericStringBounded(2, 10))(forall(hasSizeString(isWithin(2, 10))))
       },
+      testM("anyDayOfWeek generates java.time.DayOfWeek values") {
+        checkSample(Gen.anyDayOfWeek)(isTrue, ds => ds.forall(DayOfWeek.values().contains))
+      },
       testM("anyFiniteDuration generates Duration values") {
         checkSample(Gen.anyFiniteDuration)(isNonEmpty)
       },
@@ -126,8 +130,41 @@ object GenSpec extends ZIOBaseSpec {
       testM("anyLocalDateTime generates LocalDateTime values") {
         checkSample(Gen.anyLocalDateTime)(isNonEmpty)
       },
+      testM("anyLocalDate generates java.time.LocalDate values") {
+        checkSample(Gen.anyLocalDate)(isNonEmpty)
+      },
+      testM("anyLocalTime generates java.time.LocalTime values") {
+        checkSample(Gen.anyLocalTime)(isNonEmpty)
+      },
+      testM("anyMonth generates java.time.Month values") {
+        checkSample(Gen.anyMonth)(isTrue, ms => ms.forall(Month.values().contains))
+      },
+      testM("anyMonthDay generates java.time.MonthDay values") {
+        checkSample(Gen.anyMonthDay)(isNonEmpty)
+      },
       testM("anyOffsetDateTime generates OffsetDateTime values") {
         checkSample(Gen.anyOffsetDateTime)(isNonEmpty)
+      },
+      testM("anyOffsetTime generates java.time.OffsetTime values") {
+        checkSample(Gen.anyOffsetTime)(isNonEmpty)
+      },
+      testM("anyPeriod generates java.time.Period values") {
+        checkSample(Gen.anyPeriod)(isNonEmpty)
+      },
+      testM("anyYear generates java.time.Year values") {
+        checkSample(Gen.anyYear)(isNonEmpty)
+      },
+      testM("anyYearMonth generates java.time.YearMonth values") {
+        checkSample(Gen.anyYearMonth)(isNonEmpty)
+      },
+      testM("anyZonedDateTime generates java.time.ZonedDateTime values") {
+        checkSample(Gen.anyZonedDateTime)(isNonEmpty)
+      },
+      testM("anyZoneId generates java.time.ZoneId values") {
+        checkSample(Gen.anyZoneId)(isNonEmpty)
+      },
+      testM("anyZoneOffset generates java.time.ZoneOffset values") {
+        checkSample(Gen.anyZoneOffset)(isNonEmpty)
       },
       testM("bigDecimal generates values in range") {
         val min        = BigDecimal("1.414213562373095048801688724209698")
@@ -252,8 +289,8 @@ object GenSpec extends ZIOBaseSpec {
         val max = 2826409893363053690L
         checkSample(Gen.long(min, max))(forall(isGreaterThanEqualTo(min) && isLessThanEqualTo(max)))
       },
-      testM("mapM maps an effectual function over a generator") {
-        val gen = Gen.int(1, 6).mapM(n => ZIO.succeed(n + 6))
+      testM("mapZIO maps an effectual function over a generator") {
+        val gen = Gen.int(1, 6).mapZIO(n => ZIO.succeed(n + 6))
         checkSample(gen)(forall(Assertion.isGreaterThanEqualTo(7) && isLessThanEqualTo(12)))
       },
       testM("mapOf generates sizes in range") {
@@ -379,6 +416,9 @@ object GenSpec extends ZIOBaseSpec {
       testM("anyChar shrinks to zero") {
         checkShrink(Gen.anyChar)(0)
       },
+      testM("anyDayOfWeek shrinks to DayOfWeek.MONDAY") {
+        checkShrink(Gen.anyDayOfWeek)(DayOfWeek.MONDAY)
+      },
       testM("anyFiniteDuration shrinks to Duration.Zero") {
         checkShrink(Gen.anyFiniteDuration)(Duration.Zero)
       },
@@ -399,8 +439,26 @@ object GenSpec extends ZIOBaseSpec {
       testM("anyLong shrinks to zero") {
         checkShrink(Gen.anyLong)(0)
       },
+      testM("anyLocalDate shrinks to LocalDate.MIN") {
+        checkShrink(Gen.anyLocalDate)(LocalDate.MIN)
+      },
+      testM("anyLocalTime shrinks to LocalTime.MIN") {
+        checkShrink(Gen.anyLocalTime)(LocalTime.MIN)
+      },
+      testM("anyMonth shrinks to Month.JANUARY") {
+        checkShrink(Gen.anyMonth)(Month.JANUARY)
+      },
+      testM("anyMonthDay shrinks to MonthDay.of(Month.JANUARY, 1)") {
+        checkShrink(Gen.anyMonthDay)(MonthDay.of(Month.JANUARY, 1))
+      },
       testM("anyOffsetDateTime shrinks to OffsetDateTime.MIN") {
         checkShrink(Gen.anyOffsetDateTime)(OffsetDateTime.MIN)
+      },
+      testM("anyOffsetTime shrinks to OffsetTime.MIN") {
+        checkShrink(Gen.anyOffsetTime)(OffsetTime.MIN)
+      },
+      testM("anyPeriod shrinks to Period.ZERO") {
+        checkShrink(Gen.anyPeriod)(Period.ZERO)
       },
       testM("anyShort shrinks to zero") {
         checkShrink(Gen.anyShort)(0)
@@ -410,6 +468,15 @@ object GenSpec extends ZIOBaseSpec {
       },
       testM("anyUnicodeChar shrinks to zero") {
         checkShrink(Gen.anyUnicodeChar)(0)
+      },
+      testM("anyYear shrinks to Year.MIN_VALUE") {
+        checkShrink(Gen.anyYear)(Year.of(Year.MIN_VALUE))
+      },
+      testM("anyYearMonth shrinks to YearMonth.of(Year.MIN_VALUE, Month.JANUARY)") {
+        checkShrink(Gen.anyYearMonth)(YearMonth.of(Year.MIN_VALUE, Month.JANUARY))
+      },
+      testM("anyZoneOffset shrinks to ZoneOffset.MIN") {
+        checkShrink(Gen.anyZoneOffset)(ZoneOffset.MIN)
       },
       testM("boolean shrinks to false") {
         checkShrink(Gen.boolean)(false)

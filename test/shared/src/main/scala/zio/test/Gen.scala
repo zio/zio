@@ -86,7 +86,7 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
    * meet the specified predicate.
    */
   def filterNot(f: A => Boolean): Gen[R, A] =
-    filter(a => !(f(a)))
+    filter(a => !f(a))
 
   def withFilter(f: A => Boolean): Gen[R, A] = filter(f)
 
@@ -107,8 +107,15 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
   /**
    * Maps an effectual function over a generator.
    */
+  @deprecated("use mapZIO", "2.0.0")
   def mapM[R1 <: R, B](f: A => ZIO[R1, Nothing, B]): Gen[R1, B] =
-    Gen(sample.mapM(_.foreach(f)))
+    mapZIO(f)
+
+  /**
+   * Maps an effectual function over a generator.
+   */
+  def mapZIO[R1 <: R, B](f: A => ZIO[R1, Nothing, B]): Gen[R1, B] =
+    Gen(sample.mapZIO(_.foreach(f)))
 
   /**
    * Discards the shrinker for this generator.
@@ -216,7 +223,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * A generator of bytes. Shrinks toward '0'.
    */
   val anyByte: Gen[Has[Random], Byte] =
-    fromEffectSample {
+    fromZIOSample {
       nextIntBounded(Byte.MaxValue - Byte.MinValue + 1)
         .map(r => (Byte.MinValue + r).toByte)
         .map(Sample.shrinkIntegral(0))
@@ -226,7 +233,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * A generator of characters. Shrinks toward '0'.
    */
   val anyChar: Gen[Has[Random], Char] =
-    fromEffectSample {
+    fromZIOSample {
       nextIntBounded(Char.MaxValue - Char.MinValue + 1)
         .map(r => (Char.MinValue + r).toChar)
         .map(Sample.shrinkIntegral(0))
@@ -236,31 +243,46 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * A generator of doubles. Shrinks toward '0'.
    */
   val anyDouble: Gen[Has[Random], Double] =
-    fromEffectSample(nextDouble.map(Sample.shrinkFractional(0f)))
+    fromZIOSample(nextDouble.map(Sample.shrinkFractional(0f)))
 
   /**
    * A generator of floats. Shrinks toward '0'.
    */
   val anyFloat: Gen[Has[Random], Float] =
-    fromEffectSample(nextFloat.map(Sample.shrinkFractional(0f)))
+    fromZIOSample(nextFloat.map(Sample.shrinkFractional(0f)))
+
+  /**
+   * A generator of hex chars(0-9,a-f,A-F).
+   */
+  val anyHexChar: Gen[Has[Random], Char] = weighted(
+    char('\u0030', '\u0039') -> 10,
+    char('\u0041', '\u0046') -> 6,
+    char('\u0061', '\u0066') -> 6
+  )
 
   /**
    * A generator of integers. Shrinks toward '0'.
    */
   val anyInt: Gen[Has[Random], Int] =
-    fromEffectSample(nextInt.map(Sample.shrinkIntegral(0)))
+    fromZIOSample(nextInt.map(Sample.shrinkIntegral(0)))
 
   /**
    * A generator of longs. Shrinks toward '0'.
    */
   val anyLong: Gen[Has[Random], Long] =
-    fromEffectSample(nextLong.map(Sample.shrinkIntegral(0L)))
+    fromZIOSample(nextLong.map(Sample.shrinkIntegral(0L)))
+
+  /**
+   * A generator of lower hex chars(0-9, a-f).
+   */
+  val anyLowerHexChar: Gen[Has[Random], Char] =
+    weighted(char('\u0030', '\u0039') -> 10, char('\u0061', '\u0066') -> 6)
 
   /**
    * A generator of shorts. Shrinks toward '0'.
    */
   val anyShort: Gen[Has[Random], Short] =
-    fromEffectSample {
+    fromZIOSample {
       nextIntBounded(Short.MaxValue - Short.MinValue + 1)
         .map(r => (Short.MinValue + r).toShort)
         .map(Sample.shrinkIntegral(0))
@@ -279,11 +301,20 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     Gen.oneOf(Gen.char('\u0000', '\uD7FF'), Gen.char('\uE000', '\uFFFD'))
 
   /**
+   * A generator of upper hex chars(0-9, A-F).
+   */
+  val anyUpperHexChar: Gen[Has[Random], Char] =
+    weighted(
+      char('\u0030', '\u0039') -> 10,
+      char('\u0041', '\u0046') -> 6
+    )
+
+  /**
    * A generator of universally unique identifiers. The returned generator will
    * not have any shrinking.
    */
   val anyUUID: Gen[Has[Random], UUID] =
-    Gen.fromEffect(nextUUID)
+    Gen.fromZIO(nextUUID)
 
   /**
    * A generator of big decimals inside the specified range: [start, end].
@@ -294,7 +325,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    */
   def bigDecimal(min: BigDecimal, max: BigDecimal): Gen[Has[Random], BigDecimal] =
     if (min > max)
-      Gen.fromEffect(UIO.die(new IllegalArgumentException("invalid bounds")))
+      Gen.fromZIO(UIO.die(new IllegalArgumentException("invalid bounds")))
     else {
       val difference = max - min
       val decimals   = difference.scale max 0
@@ -307,7 +338,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * The shrinker will shrink toward the lower end of the range ("smallest").
    */
   def bigInt(min: BigInt, max: BigInt): Gen[Has[Random], BigInt] =
-    Gen.fromEffectSample {
+    Gen.fromZIOSample {
       if (min > max) UIO.die(new IllegalArgumentException("invalid bounds"))
       else {
         val bitLength  = (max - min).bitLength
@@ -375,7 +406,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
 
   /**
    * Combines the specified deterministic generators to return a new
-   * deterministic generator that generatoes all of the values generated by
+   * deterministic generator that generates all of the values generated by
    * the specified generators.
    */
   def concatAll[R, A](gens: => Iterable[Gen[R, A]]): Gen[R, A] =
@@ -391,7 +422,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * A constant generator of the specified sample.
    */
   def constSample[R, A](sample: => Sample[R, A]): Gen[R, A] =
-    fromEffectSample(ZIO.succeedNow(sample))
+    fromZIOSample(ZIO.succeedNow(sample))
 
   /**
    * Composes the specified generators to create a cartesian product of
@@ -438,7 +469,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    */
   def double(min: Double, max: Double): Gen[Has[Random], Double] =
     if (min > max)
-      Gen.fromEffect(UIO.die(new IllegalArgumentException("invalid bounds")))
+      Gen.fromZIO(UIO.die(new IllegalArgumentException("invalid bounds")))
     else
       uniform.map { r =>
         val n = min + r * (max - min)
@@ -464,21 +495,23 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * Constructs a generator from an effect that constructs a value.
    */
+  @deprecated("use fromZIO", "2.0.0")
   def fromEffect[R, A](effect: URIO[R, A]): Gen[R, A] =
-    Gen(ZStream.fromEffect(effect.map(Sample.noShrink)))
+    fromZIO(effect)
 
   /**
    * Constructs a generator from an effect that constructs a sample.
    */
+  @deprecated("use fromZIOSample", "2.0.0")
   def fromEffectSample[R, A](effect: ZIO[R, Nothing, Sample[R, A]]): Gen[R, A] =
-    Gen(ZStream.fromEffect(effect))
+    fromZIOSample(effect)
 
   /**
    * Constructs a deterministic generator that only generates the specified fixed values.
    */
   def fromIterable[R, A](
     as: Iterable[A],
-    shrinker: (A => ZStream[R, Nothing, A]) = defaultShrinker
+    shrinker: A => ZStream[R, Nothing, A] = defaultShrinker
   ): Gen[R, A] =
     Gen(ZStream.fromIterable(as).map(a => Sample.unfold(a)(a => (a, shrinker(a)))))
 
@@ -487,21 +520,33 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * generator will not have any shrinking.
    */
   final def fromRandom[A](f: Random => UIO[A]): Gen[Has[Random], A] =
-    Gen(ZStream.fromEffect(ZIO.accessM[Has[Random]](r => f(r.get)).map(Sample.noShrink)))
+    Gen(ZStream.fromZIO(ZIO.accessZIO[Has[Random]](r => f(r.get)).map(Sample.noShrink)))
 
   /**
    * Constructs a generator from a function that uses randomness to produce a
    * sample.
    */
   final def fromRandomSample[R <: Has[Random], A](f: Random => UIO[Sample[R, A]]): Gen[R, A] =
-    Gen(ZStream.fromEffect(ZIO.accessM[Has[Random]](r => f(r.get))))
+    Gen(ZStream.fromZIO(ZIO.accessZIO[Has[Random]](r => f(r.get))))
+
+  /**
+   * Constructs a generator from an effect that constructs a value.
+   */
+  def fromZIO[R, A](effect: URIO[R, A]): Gen[R, A] =
+    Gen(ZStream.fromZIO(effect.map(Sample.noShrink)))
+
+  /**
+   * Constructs a generator from an effect that constructs a sample.
+   */
+  def fromZIOSample[R, A](effect: ZIO[R, Nothing, Sample[R, A]]): Gen[R, A] =
+    Gen(ZStream.fromZIO(effect))
 
   /**
    * A generator of integers inside the specified range: [start, end].
    * The shrinker will shrink toward the lower end of the range ("smallest").
    */
   def int(min: Int, max: Int): Gen[Has[Random], Int] =
-    Gen.fromEffectSample {
+    Gen.fromZIOSample {
       if (min > max) UIO.die(new IllegalArgumentException("invalid bounds"))
       else {
         val effect =
@@ -548,7 +593,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * The shrinker will shrink toward the lower end of the range ("smallest").
    */
   def long(min: Long, max: Long): Gen[Has[Random], Long] =
-    Gen.fromEffectSample {
+    Gen.fromZIOSample {
       if (min > max) UIO.die(new IllegalArgumentException("invalid bounds"))
       else {
         val effect =
@@ -680,7 +725,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     int(min.toInt, max.toInt).map(_.toShort)
 
   def size: Gen[Has[Sized], Int] =
-    Gen.fromEffect(Sized.size)
+    Gen.fromZIO(Sized.size)
 
   /**
    * A sized generator, whose size falls within the specified bounds.
@@ -724,7 +769,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * when creating generators that refer to themselves.
    */
   def suspend[R, A](gen: => Gen[R, A]): Gen[R, A] =
-    fromEffect(ZIO.effectTotal(gen)).flatten
+    fromZIO(ZIO.succeed(gen)).flatten
 
   /**
    * A generator of throwables.
@@ -755,7 +800,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * The shrinker will shrink toward `0`.
    */
   def uniform: Gen[Has[Random], Double] =
-    fromEffectSample(nextDouble.map(Sample.shrinkFractional(0.0)))
+    fromZIOSample(nextDouble.map(Sample.shrinkFractional(0.0)))
 
   /**
    * A constant generator of the unit value.

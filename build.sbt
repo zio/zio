@@ -120,7 +120,10 @@ lazy val root = project
     testMagnoliaJVM,
     testMagnoliaJS,
     testRefinedJVM,
-    testRefinedJS
+    testRefinedJS,
+    testScalaCheckJVM,
+    testScalaCheckJS,
+    testScalaCheckNative
   )
   .enablePlugins(ScalaJSPlugin)
 
@@ -345,7 +348,7 @@ lazy val testRefined = crossProject(JVMPlatform, JSPlatform)
     crossScalaVersions --= Seq(Scala211),
     libraryDependencies ++=
       Seq(
-        ("eu.timepit" %% "refined" % "0.9.25").cross(CrossVersion.for3Use2_13)
+        ("eu.timepit" %% "refined" % "0.9.26").cross(CrossVersion.for3Use2_13)
       )
   )
 
@@ -353,6 +356,21 @@ lazy val testRefinedJVM = testRefined.jvm
   .settings(dottySettings)
 lazy val testRefinedJS = testRefined.js
   .settings(dottySettings)
+
+lazy val testScalaCheck = crossProject(JSPlatform, JVMPlatform, NativePlatform)
+  .in(file("test-scalacheck"))
+  .dependsOn(test)
+  .settings(stdSettings("zio-test-scalacheck"))
+  .settings(crossProjectSettings)
+  .settings(
+    libraryDependencies ++= Seq(
+      ("org.scalacheck" %%% "scalacheck" % "1.15.4")
+    )
+  )
+
+lazy val testScalaCheckJVM    = test.jvm.settings(dottySettings)
+lazy val testScalaCheckJS     = test.js
+lazy val testScalaCheckNative = test.native.settings(nativeSettings)
 
 lazy val stacktracer = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("stacktracer"))
@@ -427,7 +445,7 @@ lazy val testJunitRunnerTests = crossProject(JVMPlatform)
       "org.apache.maven.wagon" % "wagon-http"             % "3.4.3"  % Test,
       "org.eclipse.aether"     % "aether-connector-basic" % "1.1.0"  % Test,
       "org.eclipse.aether"     % "aether-transport-wagon" % "1.1.0"  % Test,
-      "org.slf4j"              % "slf4j-simple"           % "1.7.30" % Test
+      "org.slf4j"              % "slf4j-simple"           % "1.7.31" % Test
     )
   )
   .dependsOn(test)
@@ -480,11 +498,11 @@ lazy val benchmarks = project.module
       Seq(
         "co.fs2"                    %% "fs2-core"       % "2.5.6",
         "com.google.code.findbugs"   % "jsr305"         % "3.0.2",
-        "com.twitter"               %% "util-core"      % "21.4.0",
-        "com.typesafe.akka"         %% "akka-stream"    % "2.6.14",
+        "com.twitter"               %% "util-core"      % "21.6.0",
+        "com.typesafe.akka"         %% "akka-stream"    % "2.6.15",
         "io.github.timwspence"      %% "cats-stm"       % "0.8.0",
         "io.monix"                  %% "monix"          % "3.4.0",
-        "io.projectreactor"          % "reactor-core"   % "3.4.6",
+        "io.projectreactor"          % "reactor-core"   % "3.4.7",
         "io.reactivex.rxjava2"       % "rxjava"         % "2.2.21",
         "org.jctools"                % "jctools-core"   % "3.3.0",
         "org.ow2.asm"                % "asm"            % "9.1",
@@ -493,7 +511,7 @@ lazy val benchmarks = project.module
         "org.typelevel"             %% "cats-effect"    % "2.5.1",
         "org.scalacheck"            %% "scalacheck"     % "1.15.4",
         "qa.hedgehog"               %% "hedgehog-core"  % "0.7.0",
-        "com.github.japgolly.nyaya" %% "nyaya-gen"      % "0.9.2"
+        "com.github.japgolly.nyaya" %% "nyaya-gen"      % "0.10.0"
       ),
     unusedCompileDependenciesFilter -= libraryDependencies.value
       .map(moduleid =>
@@ -520,6 +538,11 @@ lazy val benchmarks = project.module
 lazy val jsdocs = project
   .settings(libraryDependencies += "org.scala-js" %%% "scalajs-dom" % "1.0.0")
   .enablePlugins(ScalaJSPlugin)
+
+val http4sV     = "0.23.0-RC1"
+val doobieV     = "1.0.0-M5"
+val catsEffectV = "3.1.1"
+
 lazy val docs = project.module
   .in(file("zio-docs"))
   .settings(
@@ -535,13 +558,20 @@ lazy val docs = project.module
       "org.jsoup"           % "jsoup"                     % "1.13.1" % "provided",
       "org.reactivestreams" % "reactive-streams-examples" % "1.0.3"  % "provided",
       /* to evict 1.3.0 brought in by mdoc-js */
-      "org.scala-js"  % "scalajs-compiler"            % scalaJSVersion cross CrossVersion.full,
-      "org.scala-js" %% "scalajs-linker"              % scalaJSVersion,
-      "dev.zio"      %% "zio-interop-cats"            % "2.4.1.0",
-      "dev.zio"      %% "zio-interop-monix"           % "3.0.0.0-RC7",
-      "dev.zio"      %% "zio-interop-scalaz7x"        % "7.2.27.0-RC9",
-      "dev.zio"      %% "zio-interop-reactivestreams" % "1.3.4",
-      "dev.zio"      %% "zio-interop-twitter"         % "20.10.0.0"
+      "org.scala-js"   % "scalajs-compiler"            % scalaJSVersion cross CrossVersion.full,
+      "org.scala-js"  %% "scalajs-linker"              % scalaJSVersion,
+      "org.typelevel" %% "cats-effect"                 % catsEffectV,
+      "dev.zio"       %% "zio-interop-cats"            % "3.1.1.0",
+      "dev.zio"       %% "zio-interop-scalaz7x"        % "7.3.3.0",
+      "dev.zio"       %% "zio-interop-reactivestreams" % "1.3.5",
+      "dev.zio"       %% "zio-interop-twitter"         % "20.10.0.0",
+      "dev.zio"       %% "zio-zmx"                     % "0.0.6",
+      "org.tpolecat"  %% "doobie-core"                 % doobieV,
+      "org.tpolecat"  %% "doobie-h2"                   % doobieV,
+      "org.tpolecat"  %% "doobie-hikari"               % doobieV,
+      "org.http4s"    %% "http4s-blaze-server"         % http4sV,
+      "org.http4s"    %% "http4s-blaze-client"         % http4sV,
+      "org.http4s"    %% "http4s-dsl"                  % http4sV
     )
   )
   .settings(macroExpansionSettings)

@@ -23,7 +23,7 @@ object BuildHelper {
   val Scala213: String   = versions("2.13")
   val ScalaDotty: String = versions("3.0")
 
-  val SilencerVersion = "1.7.3"
+  val SilencerVersion = "1.7.5"
 
   private val stdOptions = Seq(
     "-deprecation",
@@ -227,7 +227,7 @@ object BuildHelper {
     name := s"$prjName",
     crossScalaVersions := Seq(Scala211, Scala212, Scala213),
     ThisBuild / scalaVersion := Scala213,
-    scalacOptions := stdOptions ++ extraOptions(scalaVersion.value, optimize = !isSnapshot.value),
+    scalacOptions ++= stdOptions ++ extraOptions(scalaVersion.value, optimize = !isSnapshot.value),
     libraryDependencies ++= {
       if (scalaVersion.value == ScalaDotty)
         Seq(

@@ -76,16 +76,16 @@ trait Clock extends Serializable {
       def loop(a: A): ZIO[R1, E2, Either[C, B]] =
         driver
           .next(a)
-          .foldM(
+          .foldZIO(
             _ => driver.last.orDie.map(Right(_)),
             b =>
-              zio.foldM(
+              zio.foldZIO(
                 e => orElse(e, Some(b)).map(Left(_)),
                 a => loop(a)
               )
           )
 
-      zio.foldM(
+      zio.foldZIO(
         e => orElse(e, None).map(Left(_)),
         a => loop(a)
       )
@@ -112,7 +112,7 @@ trait Clock extends Serializable {
         .catchAll(e =>
           driver
             .next(e)
-            .foldM(
+            .foldZIO(
               _ => driver.last.orDie.flatMap(out => orElse(e, out).map(Left(_))),
               _ => loop(driver)
             )
@@ -129,7 +129,7 @@ trait Clock extends Serializable {
   )(a: A1)(schedule: Schedule[R1, A1, B]): ZIO[R1, E, B] =
     driver(schedule).flatMap { driver =>
       def loop(a: A1): ZIO[R1, E, B] =
-        driver.next(a).foldM(_ => driver.last.orDie, _ => zio.flatMap(loop))
+        driver.next(a).foldZIO(_ => driver.last.orDie, _ => zio.flatMap(loop))
 
       loop(a)
     }
@@ -158,22 +158,22 @@ object Clock extends ClockPlatformSpecific with Serializable {
         }
       }
 
-    val nanoTime: UIO[Long] = IO.effectTotal(JSystem.nanoTime)
+    val nanoTime: UIO[Long] = IO.succeed(JSystem.nanoTime)
 
     def sleep(duration: Duration): UIO[Unit] =
-      UIO.effectAsyncInterrupt { cb =>
+      UIO.asyncInterrupt { cb =>
         val canceler = globalScheduler.schedule(() => cb(UIO.unit), duration)
-        Left(UIO.effectTotal(canceler()))
+        Left(UIO.succeed(canceler()))
       }
 
     def currentDateTime: UIO[OffsetDateTime] =
-      ZIO.effectTotal(OffsetDateTime.now())
+      ZIO.succeed(OffsetDateTime.now())
 
     override def instant: UIO[Instant] =
-      ZIO.effectTotal(Instant.now())
+      ZIO.succeed(Instant.now())
 
     override def localDateTime: UIO[LocalDateTime] =
-      ZIO.effectTotal(LocalDateTime.now())
+      ZIO.succeed(LocalDateTime.now())
 
   }
 
@@ -211,7 +211,7 @@ object Clock extends ClockPlatformSpecific with Serializable {
    * additional time.
    */
   def repeat[R, R1 <: R, E, A, B](zio: ZIO[R, E, A])(schedule: Schedule[R1, A, B]): ZIO[R1 with Has[Clock], E, B] =
-    ZIO.accessM(_.get.repeat(zio)(schedule))
+    ZIO.accessZIO(_.get.repeat(zio)(schedule))
 
   /**
    * Returns a new effect that repeats this effect according to the specified
@@ -225,7 +225,7 @@ object Clock extends ClockPlatformSpecific with Serializable {
   final def repeatOrElse[R, R1 <: R, E, E2, A, B](
     zio: ZIO[R, E, A]
   )(schedule: Schedule[R1, A, B], orElse: (E, Option[B]) => ZIO[R1, E2, B]): ZIO[R1 with Has[Clock], E2, B] =
-    ZIO.accessM(_.get.repeatOrElse(zio)(schedule, orElse))
+    ZIO.accessZIO(_.get.repeatOrElse(zio)(schedule, orElse))
 
   /**
    * Returns a new effect that repeats this effect according to the specified
@@ -239,7 +239,7 @@ object Clock extends ClockPlatformSpecific with Serializable {
   final def repeatOrElseEither[R, R1 <: R, E, E2, A, B, C](
     zio: ZIO[R, E, A]
   )(schedule: Schedule[R1, A, B], orElse: (E, Option[B]) => ZIO[R1, E2, C]): ZIO[R1 with Has[Clock], E2, Either[C, B]] =
-    ZIO.accessM(_.get.repeatOrElseEither(zio)(schedule, orElse))
+    ZIO.accessZIO(_.get.repeatOrElseEither(zio)(schedule, orElse))
 
   /**
    * Retries with the specified retry policy.
@@ -250,7 +250,7 @@ object Clock extends ClockPlatformSpecific with Serializable {
   final def retry[R, R1 <: R, E, A, S](zio: ZIO[R, E, A])(policy: Schedule[R1, E, S])(implicit
     ev: CanFail[E]
   ): ZIO[R1 with Has[Clock], E, A] =
-    ZIO.accessM(_.get.retry(zio)(policy))
+    ZIO.accessZIO(_.get.retry(zio)(policy))
 
   /**
    * Retries with the specified schedule, until it fails, and then both the
@@ -261,7 +261,7 @@ object Clock extends ClockPlatformSpecific with Serializable {
     policy: Schedule[R1, E, S],
     orElse: (E, S) => ZIO[R1, E1, A1]
   )(implicit ev: CanFail[E]): ZIO[R1 with Has[Clock], E1, A1] =
-    ZIO.accessM(_.get.retryOrElse[R, R1, E, E1, A, A1, S](zio)(policy, orElse))
+    ZIO.accessZIO(_.get.retryOrElse[R, R1, E, E1, A, A1, S](zio)(policy, orElse))
 
   /**
    * Returns an effect that retries this effect with the specified schedule when it fails, until
@@ -272,7 +272,7 @@ object Clock extends ClockPlatformSpecific with Serializable {
     schedule: Schedule[R1, E, Out],
     orElse: (E, Out) => ZIO[R1, E1, B]
   )(implicit ev: CanFail[E]): ZIO[R1 with Has[Clock], E1, Either[B, A]] =
-    ZIO.accessM(_.get.retryOrElseEither(zio)(schedule, orElse))
+    ZIO.accessZIO(_.get.retryOrElseEither(zio)(schedule, orElse))
 
   /**
    * Runs this effect according to the specified schedule.
@@ -283,7 +283,7 @@ object Clock extends ClockPlatformSpecific with Serializable {
   final def schedule[R, R1 <: R, E, A, B](zio: ZIO[R, E, A])(
     schedule: Schedule[R1, Any, B]
   ): ZIO[R1 with Has[Clock], E, B] =
-    ZIO.accessM(_.get.schedule(zio)(schedule))
+    ZIO.accessZIO(_.get.schedule(zio)(schedule))
 
   /**
    * Runs this effect according to the specified schedule starting from the
@@ -292,7 +292,7 @@ object Clock extends ClockPlatformSpecific with Serializable {
   final def scheduleFrom[R, R1 <: R, E, A, A1 >: A, B](
     zio: ZIO[R, E, A]
   )(a: A1)(schedule: Schedule[R1, A1, B]): ZIO[R1 with Has[Clock], E, B] =
-    ZIO.accessM(_.get.scheduleFrom[R, R1, E, A, A1, B](zio)(a)(schedule))
+    ZIO.accessZIO(_.get.scheduleFrom[R, R1, E, A, A1, B](zio)(a)(schedule))
 
   /**
    * Sleeps for the specified duration. This is always asynchronous.

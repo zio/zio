@@ -82,7 +82,7 @@ final class TReentrantLock private (data: TRef[LockState]) {
    * Obtains a read lock in a managed context.
    */
   lazy val readLock: UManaged[Int] =
-    Managed.make(acquireRead.commit)(_ => releaseRead.commit)
+    Managed.acquireReleaseWith(acquireRead.commit)(_ => releaseRead.commit)
 
   /**
    * Retrieves the total number of acquired read locks.
@@ -132,7 +132,7 @@ final class TReentrantLock private (data: TRef[LockState]) {
    * Obtains a write lock in a managed context.
    */
   lazy val writeLock: UManaged[Int] =
-    Managed.make(acquireWrite.commit)(_ => releaseWrite.commit)
+    Managed.acquireReleaseWith(acquireWrite.commit)(_ => releaseWrite.commit)
 
   /**
    * Determines if a write lock is held by some fiber.

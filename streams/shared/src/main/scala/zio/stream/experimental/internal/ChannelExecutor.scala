@@ -21,10 +21,10 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
       conts match {
         case Nil                                => ZIO.done(acc)
         case ZChannel.Fold.K(_, _) :: rest      => unwind(acc, rest)
-        case ZChannel.Fold.Finalizer(f) :: rest => f(exit).run.flatMap(finExit => unwind(acc *> finExit, rest))
+        case ZChannel.Fold.Finalizer(f) :: rest => f(exit).exit.flatMap(finExit => unwind(acc *> finExit, rest))
       }
 
-    val effect = unwind(Exit.unit, doneStack).run
+    val effect = unwind(Exit.unit, doneStack).exit
     doneStack = Nil
     storeInProgressFinalizer(effect)
     effect
@@ -75,9 +75,9 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
             val fin2 = rest.close(ex)
 
             if ((fin1 eq null) && (fin2 eq null)) null
-            else if ((fin1 ne null) && (fin2 ne null)) fin1.run.zipWith(fin2.run)(_ *> _)
-            else if (fin1 ne null) fin1.run
-            else fin2.run
+            else if ((fin1 ne null) && (fin2 ne null)) fin1.exit.zipWith(fin2.exit)(_ *> _)
+            else if (fin1 ne null) fin1.exit
+            else fin2.exit
         }
 
     val closeSelf: URIO[Env, Exit[Any, Any]] = {
@@ -129,7 +129,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
               input = null
 
               lazy val drainer: URIO[Env, Any] =
-                ZIO.effectSuspendTotal {
+                ZIO.suspendSucceed {
                   val state = inputExecutor.run()
 
                   state match {
@@ -145,7 +145,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
                       bridgeInput.emit(inputExecutor.getEmit) *> drainer
 
                     case ChannelState.Effect(zio) =>
-                      zio.foldCauseM(
+                      zio.foldCauseZIO(
                         cause => bridgeInput.error(cause),
                         _ => drainer
                       )
@@ -156,7 +156,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
                 drainer.fork.flatMap { fiber =>
                   UIO(addFinalizer { exit =>
                     fiber.interrupt *>
-                      ZIO.effectSuspendTotal {
+                      ZIO.suspendSucceed {
                         val effect = restorePipe(exit, inputExecutor)
 
                         if (effect ne null) effect
@@ -204,7 +204,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
 
             result = ChannelState.Effect(
               pzio
-                .foldCauseM(
+                .foldCauseZIO(
                   cause =>
                     doneHalt(cause) match {
                       case ChannelState.Effect(zio) => zio
@@ -316,7 +316,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
   private[this] def doneHalt(cause: Cause[Any]): ChannelState[Env, Any] =
     doneStack match {
       case Nil =>
-        done = Exit.halt(cause)
+        done = Exit.failCause(cause)
         currentChannel = null
         ChannelState.Done
 
@@ -330,11 +330,11 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
 
         if (doneStack.isEmpty) {
           doneStack = finalizers
-          done = Exit.halt(cause)
+          done = Exit.failCause(cause)
           currentChannel = null
           ChannelState.Done
         } else {
-          val finalizerEffect = runFinalizers(finalizers.map(_.finalizer), Exit.halt(cause))
+          val finalizerEffect = runFinalizers(finalizers.map(_.finalizer), Exit.failCause(cause))
           storeInProgressFinalizer(finalizerEffect)
 
           ChannelState.Effect(
@@ -372,7 +372,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
             }
 
           case ChannelState.Effect(zio) =>
-            zio.foldCauseM(
+            zio.foldCauseZIO(
               cause =>
                 UIO {
                   currentChannel = read.done.onHalt(cause)
@@ -392,7 +392,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
 
         case ChannelState.Effect(zio) =>
           ChannelState.Effect(
-            zio.foldCauseM(
+            zio.foldCauseZIO(
               cause =>
                 UIO {
                   currentChannel = read.done.onHalt(cause)
@@ -406,8 +406,8 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
   private def runBracketOut(bracketOut: ZChannel.BracketOut[Env, Any, Any]): ChannelState.Effect[Env, Any] =
     ChannelState.Effect {
       ZIO.uninterruptibleMask { restore =>
-        restore(bracketOut.acquire).foldCauseM(
-          cause => UIO { currentChannel = ZChannel.halt(cause) },
+        restore(bracketOut.acquire).foldCauseZIO(
+          cause => UIO { currentChannel = ZChannel.failCause(cause) },
           out =>
             UIO {
               addFinalizer(bracketOut.finalizer(out, _))
@@ -429,7 +429,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
     if (finalizers.isEmpty) null
     else
       ZIO
-        .foreach(finalizers)(_.apply(ex).run)
+        .foreach(finalizers)(_.apply(ex).exit)
         .map(results => Exit.collectAll(results) getOrElse Exit.unit)
 
   private[this] def drainSubexecutor(): ChannelState[Env, Any] =
@@ -464,8 +464,8 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
       state
     } else
       ChannelState.Effect(
-        closeEffect.foldCauseM(
-          cause => finishWithExit(Exit.halt(subexecDone.fold(identity, _ => Cause.empty) ++ cause)),
+        closeEffect.foldCauseZIO(
+          cause => finishWithExit(Exit.failCause(subexecDone.fold(identity, _ => Cause.empty) ++ cause)),
           _ => finishWithExit(subexecDone)
         )
       )
@@ -477,12 +477,12 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
     def handleSubexecFailure(cause: Cause[Any]): ChannelState[Env, Any] = {
       val closeEffect = ChannelExecutor
         .maybeCloseBoth(
-          exec.close(Exit.halt(cause)),
-          rest.exec.close(Exit.halt(cause))
+          exec.close(Exit.failCause(cause)),
+          rest.exec.close(Exit.failCause(cause))
         )
 
       finishSubexecutorWithCloseEffect(
-        Exit.halt(cause),
+        Exit.failCause(cause),
         if (closeEffect ne null) closeEffect.flatMap(ZIO.done(_)) else null
       )
     }
@@ -513,15 +513,15 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
               null
             } else
               ChannelState.Effect(
-                closeEffect.foldCauseM(
+                closeEffect.foldCauseZIO(
                   cause => {
-                    val restClose = rest.exec.close(Exit.halt(cause))
+                    val restClose = rest.exec.close(Exit.failCause(cause))
 
-                    if (restClose eq null) finishWithExit(Exit.halt(cause))
+                    if (restClose eq null) finishWithExit(Exit.failCause(cause))
                     else
-                      restClose.foldCauseM(
-                        restCause => finishWithExit(Exit.halt(cause ++ restCause)),
-                        _ => finishWithExit(Exit.halt(cause))
+                      restClose.foldCauseZIO(
+                        restCause => finishWithExit(Exit.failCause(cause ++ restCause)),
+                        _ => finishWithExit(Exit.failCause(cause))
                       )
                   },
                   _ => UIO(replaceSubexecutor(nextSubExec = modifiedRest))
@@ -563,8 +563,8 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
         ChannelState.Effect(
           zio.catchAllCause(cause =>
             finishSubexecutorWithCloseEffect(
-              Exit.halt(cause),
-              inner.exec.close(Exit.halt(cause))
+              Exit.failCause(cause),
+              inner.exec.close(Exit.failCause(cause))
             ).effect
           )
         )
@@ -602,9 +602,9 @@ object ChannelExecutor {
 
   def maybeCloseBoth[Env](l: ZIO[Env, Nothing, Any], r: ZIO[Env, Nothing, Any]): URIO[Env, Exit[Nothing, Any]] =
     if ((l eq null) && (r eq null)) null
-    else if ((l ne null) && (r ne null)) l.run.zipWith(r.run)(_ *> _)
-    else if (l ne null) l.run
-    else r.run
+    else if ((l ne null) && (r ne null)) l.exit.zipWith(r.exit)(_ *> _)
+    else if (l ne null) l.exit
+    else r.exit
 
   sealed abstract class SubexecutorStack[-R]
   object SubexecutorStack {
@@ -619,7 +619,7 @@ object ChannelExecutor {
       def close(ex: Exit[Any, Any]): URIO[R, Exit[Any, Any]] = {
         val fin = exec.close(ex)
 
-        if (fin ne null) fin.run
+        if (fin ne null) fin.exit
         else null
       }
     }
@@ -717,7 +717,7 @@ private[zio] class SingleProducerAsyncInput[Err, Elem, Done](
     }
 
   def take[A]: UIO[Exit[Either[Err, Done], Elem]] =
-    takeWith(c => Exit.halt(c.map(Left(_))), Exit.succeed(_), d => Exit.fail(Right(d)))
+    takeWith(c => Exit.failCause(c.map(Left(_))), Exit.succeed(_), d => Exit.fail(Right(d)))
 
   def close: UIO[Any] =
     ZIO.fiberId.flatMap(id => error(Cause.interrupt(id)))

@@ -66,7 +66,7 @@ object SupervisorExample extends zio.App {
     fiber <- fib(20).supervised(supervisor).fork
     policy = Schedule
       .spaced(500.milliseconds)
-      .whileInputM[Any, Unit](_ => fiber.status.map(x => !x.isDone))
+      .whileInputZIO[Any, Unit](_ => fiber.status.map(x => !x.isDone))
     logger <- monitorFibers(supervisor)
       .repeat(policy).fork
     _ <- logger.join

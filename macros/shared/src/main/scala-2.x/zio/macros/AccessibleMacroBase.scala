@@ -190,9 +190,9 @@ private[macros] abstract class AccessibleMacroBase(val c: whitebox.Context) {
 
       val returnValue = (info.capability, paramLists) match {
         case (_: Capability.Effect, argLists) if argLists.flatten.nonEmpty || argLists.size == 1 =>
-          q"_root_.zio.ZIO.accessM(_.get[$serviceName[..$serviceTypeArgs]].$name[..$typeArgs](...$argNames))"
+          q"_root_.zio.ZIO.accessZIO(_.get[$serviceName[..$serviceTypeArgs]].$name[..$typeArgs](...$argNames))"
         case (_: Capability.Effect, _) =>
-          q"_root_.zio.ZIO.accessM(_.get[$serviceName[..$serviceTypeArgs]].$name)"
+          q"_root_.zio.ZIO.accessZIO(_.get[$serviceName[..$serviceTypeArgs]].$name)"
         case (_: Capability.Managed, argLists) if argLists.flatten.nonEmpty || argLists.size == 1 =>
           q"_root_.zio.ZManaged.accessManaged(_.get[$serviceName[..$serviceTypeArgs]].$name[..$typeArgs](...$argNames))"
         case (_: Capability.Managed, _) =>
@@ -207,9 +207,9 @@ private[macros] abstract class AccessibleMacroBase(val c: whitebox.Context) {
           q"_root_.zio.stream.ZSink.accessSink(_.get[$serviceName[..$serviceTypeArgs]].$name)"
         case (_: Capability.ThrowingMethod, argLists) if argLists.flatten.nonEmpty || argLists.size == 1 =>
           val argNames = argLists.map(_.map(_.name))
-          q"_root_.zio.ZIO.accessM(s => ZIO(s.get[$serviceName[..$serviceTypeArgs]].$name[..$typeArgs](...$argNames)))"
+          q"_root_.zio.ZIO.accessZIO(s => ZIO(s.get[$serviceName[..$serviceTypeArgs]].$name[..$typeArgs](...$argNames)))"
         case (_: Capability.ThrowingMethod, _) =>
-          q"_root_.zio.ZIO.accessM(s => ZIO(s.get[$serviceName[..$serviceTypeArgs]].$name))"
+          q"_root_.zio.ZIO.accessZIO(s => ZIO(s.get[$serviceName[..$serviceTypeArgs]].$name))"
         case (_, argLists) if argLists.flatten.nonEmpty || argLists.size == 1 =>
           val argNames = argLists.map(_.map(_.name))
           q"_root_.zio.ZIO.access(_.get[$serviceName[..$serviceTypeArgs]].$name[..$typeArgs](...$argNames))"

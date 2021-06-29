@@ -33,53 +33,53 @@ class TArrayOpsBenchmarks {
 
   @Benchmark
   def lookup(): Unit =
-    unsafeRun(ZIO.foreach_(calls)(_ => array(idx).commit))
+    unsafeRun(ZIO.foreachDiscard(calls)(_ => array(idx).commit))
 
   @Benchmark
   def find(): Option[Int] =
     unsafeRun(array.find(_ == size).commit)
 
   @Benchmark
-  def findM(): Option[Int] =
-    unsafeRun(array.findM(a => STM.succeedNow(a == size)).commit)
+  def findSTM(): Option[Int] =
+    unsafeRun(array.findSTM(a => STM.succeedNow(a == size)).commit)
 
   @Benchmark
   def fold(): Int =
     unsafeRun(array.fold(0)(_ + _).commit)
 
   @Benchmark
-  def foldM(): Int =
-    unsafeRun(array.foldM(0)((acc, e) => STM.succeedNow(acc + e)).commit)
+  def foldSTM(): Int =
+    unsafeRun(array.foldSTM(0)((acc, e) => STM.succeedNow(acc + e)).commit)
 
   @Benchmark
   def indexWhere(): Int =
     unsafeRun(array.indexWhere(_ == size).commit)
 
   @Benchmark
-  def indexWhereM(): Int =
-    unsafeRun(array.indexWhereM(a => STM.succeedNow(a == size)).commit)
+  def indexWhereSTM(): Int =
+    unsafeRun(array.indexWhereSTM(a => STM.succeedNow(a == size)).commit)
 
   @Benchmark
   def reduceOption(): Option[Int] =
     unsafeRun(array.reduceOption(_ + _).commit)
 
   @Benchmark
-  def reduceOptionM(): Option[Int] =
-    unsafeRun(array.reduceOptionM((a, b) => STM.succeedNow(a + b)).commit)
+  def reduceOptionSTM(): Option[Int] =
+    unsafeRun(array.reduceOptionSTM((a, b) => STM.succeedNow(a + b)).commit)
 
   @Benchmark
   def transform(): Unit =
     unsafeRun(array.transform(_ + 1).commit)
 
   @Benchmark
-  def transformM(): Unit =
-    unsafeRun(array.transformM(i => STM.succeedNow(i + 1)).commit)
+  def transformSTM(): Unit =
+    unsafeRun(array.transformSTM(i => STM.succeedNow(i + 1)).commit)
 
   @Benchmark
   def update(): Unit =
-    unsafeRun(ZIO.foreach_(calls)(_ => array.update(idx, _ + 1).commit))
+    unsafeRun(ZIO.foreachDiscard(calls)(_ => array.update(idx, _ + 1).commit))
 
   @Benchmark
-  def updateM(): Unit =
-    unsafeRun(ZIO.foreach_(calls)(_ => array.updateM(idx, i => STM.succeedNow(i + 1)).commit))
+  def updateSTM(): Unit =
+    unsafeRun(ZIO.foreachDiscard(calls)(_ => array.updateSTM(idx, i => STM.succeedNow(i + 1)).commit))
 }

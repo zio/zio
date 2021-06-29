@@ -200,7 +200,7 @@ object SerializableSpec extends ZIOBaseSpec {
     },
     testM("ZManaged is serializable") {
       for {
-        managed <- serializeAndBack(ZManaged.make(UIO.unit)(_ => UIO.unit))
+        managed <- serializeAndBack(ZManaged.acquireReleaseWith(UIO.unit)(_ => UIO.unit))
         result  <- managed.use(_ => UIO.unit)
       } yield assert(result)(equalTo(()))
     },
@@ -238,8 +238,8 @@ object SerializableSpec extends ZIOBaseSpec {
 object SerializableSpecHelpers {
   def serializeAndBack[T](a: T): IO[Any, T] =
     for {
-      obj       <- IO.effectTotal(serializeToBytes(a))
-      returnObj <- IO.effectTotal(getObjFromBytes[T](obj))
+      obj       <- IO.succeed(serializeToBytes(a))
+      returnObj <- IO.succeed(getObjFromBytes[T](obj))
     } yield returnObj
 
   def serializeToBytes[T](a: T): Array[Byte] = {

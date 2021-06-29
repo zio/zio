@@ -29,48 +29,48 @@ private[zio] trait ZManagedPlatformSpecific {
    * `release` action.
    */
   val blocking: ZManaged[Any, Nothing, Unit] =
-    ZIO.blockingExecutor.toManaged_.flatMap(executor => ZManaged.lock(executor))
+    ZIO.blockingExecutor.toManaged.flatMap(executor => ZManaged.lock(executor))
 
   def readFile(path: Path): ZManaged[Any, IOException, ZInputStream] =
     readFile(path.toString())
 
   def readFile(path: String): ZManaged[Any, IOException, ZInputStream] =
     ZManaged
-      .make(
-        ZIO.effectBlockingIO {
+      .acquireReleaseWith(
+        ZIO.attemptBlockingIO {
           val fis = new io.FileInputStream(path)
           (fis, ZInputStream.fromInputStream(fis))
         }
-      )(tuple => ZIO.effectBlocking(tuple._1.close()).orDie)
+      )(tuple => ZIO.attemptBlocking(tuple._1.close()).orDie)
       .map(_._2)
 
   def readURL(url: URL): ZManaged[Any, IOException, ZInputStream] =
     ZManaged
-      .make(
-        ZIO.effectBlockingIO {
+      .acquireReleaseWith(
+        ZIO.attemptBlockingIO {
           val fis = url.openStream()
           (fis, ZInputStream.fromInputStream(fis))
         }
-      )(tuple => ZIO.effectBlocking(tuple._1.close()).orDie)
+      )(tuple => ZIO.attemptBlocking(tuple._1.close()).orDie)
       .map(_._2)
 
   def readURL(url: String): ZManaged[Any, IOException, ZInputStream] =
-    ZManaged.fromEffect(ZIO.effectTotal(new URL(url))).flatMap(readURL)
+    ZManaged.fromZIO(ZIO.succeed(new URL(url))).flatMap(readURL)
 
   def readURI(uri: URI): ZManaged[Any, IOException, ZInputStream] =
     for {
-      isAbsolute <- ZManaged.fromEffect(ZIO.effectBlockingIO(uri.isAbsolute()))
+      isAbsolute <- ZManaged.fromZIO(ZIO.attemptBlockingIO(uri.isAbsolute()))
       is         <- if (isAbsolute) readURL(uri.toURL()) else readFile(uri.toString())
     } yield is
 
   def writeFile(path: String): ZManaged[Any, IOException, ZOutputStream] =
     ZManaged
-      .make(
-        ZIO.effectBlockingIO {
+      .acquireReleaseWith(
+        ZIO.attemptBlockingIO {
           val fos = new io.FileOutputStream(path)
           (fos, ZOutputStream.fromOutputStream(fos))
         }
-      )(tuple => ZIO.effectBlocking(tuple._1.close()).orDie)
+      )(tuple => ZIO.attemptBlocking(tuple._1.close()).orDie)
       .map(_._2)
 
   def writeFile(path: Path): ZManaged[Any, IOException, ZOutputStream] =

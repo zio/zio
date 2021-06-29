@@ -46,41 +46,41 @@ object Random extends Serializable {
     import scala.util.{Random => SRandom}
 
     val nextBoolean: UIO[Boolean] =
-      ZIO.effectTotal(SRandom.nextBoolean())
+      ZIO.succeed(SRandom.nextBoolean())
     def nextBytes(length: Int): UIO[Chunk[Byte]] =
-      ZIO.effectTotal {
+      ZIO.succeed {
         val array = Array.ofDim[Byte](length)
         SRandom.nextBytes(array)
         Chunk.fromArray(array)
       }
     val nextDouble: UIO[Double] =
-      ZIO.effectTotal(SRandom.nextDouble())
+      ZIO.succeed(SRandom.nextDouble())
     def nextDoubleBetween(minInclusive: Double, maxExclusive: Double): UIO[Double] =
       nextDoubleBetweenWith(minInclusive, maxExclusive)(nextDouble)
     val nextFloat: UIO[Float] =
-      ZIO.effectTotal(SRandom.nextFloat())
+      ZIO.succeed(SRandom.nextFloat())
     def nextFloatBetween(minInclusive: Float, maxExclusive: Float): UIO[Float] =
       nextFloatBetweenWith(minInclusive, maxExclusive)(nextFloat)
     val nextGaussian: UIO[Double] =
-      ZIO.effectTotal(SRandom.nextGaussian())
+      ZIO.succeed(SRandom.nextGaussian())
     val nextInt: UIO[Int] =
-      ZIO.effectTotal(SRandom.nextInt())
+      ZIO.succeed(SRandom.nextInt())
     def nextIntBetween(minInclusive: Int, maxExclusive: Int): UIO[Int] =
       nextIntBetweenWith(minInclusive, maxExclusive)(nextInt, nextIntBounded)
     def nextIntBounded(n: Int): UIO[Int] =
-      ZIO.effectTotal(SRandom.nextInt(n))
+      ZIO.succeed(SRandom.nextInt(n))
     val nextLong: UIO[Long] =
-      ZIO.effectTotal(SRandom.nextLong())
+      ZIO.succeed(SRandom.nextLong())
     def nextLongBetween(minInclusive: Long, maxExclusive: Long): UIO[Long] =
       nextLongBetweenWith(minInclusive, maxExclusive)(nextLong, nextLongBounded)
     def nextLongBounded(n: Long): UIO[Long] =
       Random.nextLongBoundedWith(n)(nextLong)
     val nextPrintableChar: UIO[Char] =
-      ZIO.effectTotal(SRandom.nextPrintableChar())
+      ZIO.succeed(SRandom.nextPrintableChar())
     def nextString(length: Int): UIO[String] =
-      ZIO.effectTotal(SRandom.nextString(length))
+      ZIO.succeed(SRandom.nextString(length))
     def setSeed(seed: Long): UIO[Unit] =
-      ZIO.effectTotal(SRandom.setSeed(seed))
+      ZIO.succeed(SRandom.setSeed(seed))
     def shuffle[A, Collection[+Element] <: Iterable[Element]](
       collection: Collection[A]
     )(implicit bf: BuildFrom[Collection[A], A, Collection[A]]): UIO[Collection[A]] =
@@ -172,19 +172,21 @@ object Random extends Serializable {
     collection: Collection[A]
   )(implicit bf: BuildFrom[Collection[A], A, Collection[A]]): UIO[Collection[A]] =
     for {
-      buffer <- ZIO.effectTotal {
+      buffer <- ZIO.succeed {
                   val buffer = new scala.collection.mutable.ArrayBuffer[A]
                   buffer ++= collection
                 }
       swap = (i1: Int, i2: Int) =>
-               ZIO.effectTotal {
+               ZIO.succeed {
                  val tmp = buffer(i1)
                  buffer(i1) = buffer(i2)
                  buffer(i2) = tmp
                  buffer
                }
       _ <-
-        ZIO.foreach_((collection.size to 2 by -1).toList)((n: Int) => nextIntBounded(n).flatMap(k => swap(n - 1, k)))
+        ZIO.foreachDiscard((collection.size to 2 by -1).toList)((n: Int) =>
+          nextIntBounded(n).flatMap(k => swap(n - 1, k))
+        )
     } yield bf.fromSpecific(collection)(buffer)
 
   // Accessor Methods

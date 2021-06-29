@@ -234,21 +234,21 @@ object TMapSpec extends ZIOBaseSpec {
 
         assertM(tx.commit)(hasSameElements(List("key" -> 6)))
       },
-      testM("transformM") {
+      testM("transformSTM") {
         val tx =
           for {
             tmap <- TMap.make("a" -> 1, "aa" -> 2, "aaa" -> 3)
-            _    <- tmap.transformM((k, v) => STM.succeed(k.replaceAll("a", "b") -> v * 2))
+            _    <- tmap.transformSTM((k, v) => STM.succeed(k.replaceAll("a", "b") -> v * 2))
             res  <- tmap.toList
           } yield res
 
         assertM(tx.commit)(hasSameElements(List("b" -> 2, "bb" -> 4, "bbb" -> 6)))
       },
-      testM("transformM and shrink") {
+      testM("transformSTM and shrink") {
         val tx =
           for {
             tmap <- TMap.make("a" -> 1, "aa" -> 2, "aaa" -> 3)
-            _    <- tmap.transformM((_, v) => STM.succeed("key" -> v * 2))
+            _    <- tmap.transformSTM((_, v) => STM.succeed("key" -> v * 2))
             res  <- tmap.toList
           } yield res
 
@@ -269,7 +269,7 @@ object TMapSpec extends ZIOBaseSpec {
           tmap <- TMap.make("a" -> 0).commit
           tx    = tmap.transformValues(_ + 1).commit.repeatN(999)
           n     = 2
-          _    <- URIO.collectAllPar_(List.fill(n)(tx))
+          _    <- URIO.collectAllParDiscard(List.fill(n)(tx))
           res  <- tmap.get("a").commit
         } yield assert(res)(isSome(equalTo(2000)))
       },
@@ -277,7 +277,7 @@ object TMapSpec extends ZIOBaseSpec {
         val tx =
           for {
             tmap <- TMap.make("a" -> 1, "aa" -> 2, "aaa" -> 3)
-            _    <- tmap.transformValuesM(v => STM.succeed(v * 2))
+            _    <- tmap.transformValuesSTM(v => STM.succeed(v * 2))
             res  <- tmap.toList
           } yield res
 
@@ -303,20 +303,20 @@ object TMapSpec extends ZIOBaseSpec {
 
         assertM(tx.commit)(equalTo(0))
       },
-      testM("foldM on non-empty map") {
+      testM("foldSTM on non-empty map") {
         val tx =
           for {
             tmap <- TMap.make("a" -> 1, "b" -> 2, "c" -> 3)
-            res  <- tmap.foldM(0)((acc, kv) => STM.succeed(acc + kv._2))
+            res  <- tmap.foldSTM(0)((acc, kv) => STM.succeed(acc + kv._2))
           } yield res
 
         assertM(tx.commit)(equalTo(6))
       },
-      testM("foldM on empty map") {
+      testM("foldSTM on empty map") {
         val tx =
           for {
             tmap <- TMap.empty[String, Int]
-            res  <- tmap.foldM(0)((acc, kv) => STM.succeed(acc + kv._2))
+            res  <- tmap.foldSTM(0)((acc, kv) => STM.succeed(acc + kv._2))
           } yield res
 
         assertM(tx.commit)(equalTo(0))
@@ -328,13 +328,13 @@ object TMapSpec extends ZIOBaseSpec {
           keys <- ZIO.succeed((0 to 10).toList)
           map  <- TMap.fromIterable(keys.zipWithIndex).commit
           exit <- ZIO
-                    .foreach_(keys) { k =>
+                    .foreachDiscard(keys) { k =>
                       for {
                         _ <- map.delete(k).commit.fork
                         _ <- map.toChunk.commit
                       } yield ()
                     }
-                    .run
+                    .exit
         } yield assert(exit)(succeeds(isUnit))
       } @@ nonFlaky
     )

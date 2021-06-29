@@ -52,14 +52,14 @@ object InflateSpec extends DefaultRunnableSpec {
       ),
       testM("fail early if header is corrupted")(
         assertM(
-          (ZStream.fromIterable(Seq(1, 2, 3, 4, 5).map(_.toByte)).channel >>> makeInflater()).runCollect.run
+          (ZStream.fromIterable(Seq(1, 2, 3, 4, 5).map(_.toByte)).channel >>> makeInflater()).runCollect.exit
         )(fails(anything))
       ),
       testM("inflate what JDK deflated")(
         checkM(Gen.listOfBounded(0, `1K`)(Gen.anyByte).zip(Gen.int(1, `1K`)).zip(Gen.int(1, `1K`))) {
           case ((chunk, n), bufferSize) =>
             assertM(for {
-              deflated <- ZIO.effectTotal(deflatedStream(chunk.toArray))
+              deflated <- ZIO.succeed(deflatedStream(chunk.toArray))
               out      <- (deflated.chunkN(n).channel >>> makeInflater(bufferSize)).runCollect.map(_._1.flatten)
             } yield out.toList)(equalTo(chunk))
         }
@@ -68,7 +68,7 @@ object InflateSpec extends DefaultRunnableSpec {
         checkM(Gen.listOfBounded(0, `1K`)(Gen.anyByte).zip(Gen.int(1, `1K`)).zip(Gen.int(1, `1K`))) {
           case ((chunk, n), bufferSize) =>
             assertM(for {
-              deflated <- ZIO.effectTotal(noWrapDeflatedStream(chunk.toArray))
+              deflated <- ZIO.succeed(noWrapDeflatedStream(chunk.toArray))
               out      <- (deflated.chunkN(n).channel >>> makeInflater(bufferSize, true)).runCollect.map(_._1.flatten)
             } yield out.toList)(equalTo(chunk))
         }
@@ -76,14 +76,14 @@ object InflateSpec extends DefaultRunnableSpec {
       testM("inflate nowrap: remaining = 0 but not all was pulled")(
         // This case shown error when not all data was pulled out of inflater
         assertM(for {
-          input    <- ZIO.effectTotal(inflateRandomExampleThatFailed)
-          deflated <- ZIO.effectTotal(noWrapDeflatedStream(input))
+          input    <- ZIO.succeed(inflateRandomExampleThatFailed)
+          deflated <- ZIO.succeed(noWrapDeflatedStream(input))
           out      <- (deflated.chunkN(40).channel >>> makeInflater(11, true)).runCollect.map(_._1.flatten)
         } yield out.toList)(equalTo(inflateRandomExampleThatFailed.toList))
       ),
       testM("fail if input stream finished unexpected")(
         assertM(
-          (ZStream.fromIterable(jdkGzip(longText, true)).take(800).channel >>> makeInflater()).runCollect.run
+          (ZStream.fromIterable(jdkGzip(longText, true)).take(800).channel >>> makeInflater()).runCollect.exit
         )(fails(anything))
       )
     )

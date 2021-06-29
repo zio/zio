@@ -44,13 +44,13 @@ object TestExecutor {
             ZIO.succeedNow((Right(success), annotations))
           }
         )
-        .use(_.foldM[Any, Nothing, ExecutedSpec[E]](defExec) {
+        .use(_.foldManaged[Any, Nothing, ExecutedSpec[E]](defExec) {
           case Spec.SuiteCase(label, specs, _) =>
             specs.map(specs => ExecutedSpec.suite(label, specs))
           case Spec.TestCase(label, test, staticAnnotations) =>
             test.map { case (result, dynamicAnnotations) =>
               ExecutedSpec.test(label, result, staticAnnotations ++ dynamicAnnotations)
-            }.toManaged_
+            }.toManaged
         }.useNow)
     val environment = env
   }

@@ -28,14 +28,14 @@ object MavenJunitSpec extends DefaultRunnableSpec {
             "should fail",
             s"""zio.test.junit.TestFailed:
                |11 did not satisfy equalTo(12)
-               |at ${mvn.mvnRoot}/src/test/scala/zio/test/junit/maven/FailingSpec.scala:10""".stripMargin
+               |☛ ${mvn.mvnRoot}/src/test/scala/zio/test/junit/maven/FailingSpec.scala:10""".stripMargin
           ) &&
             containsFailure(
               "should fail - isSome",
               s"""zio.test.junit.TestFailed:
                  |11 did not satisfy equalTo(12)
                  |Some(11) did not satisfy isSome(equalTo(12))
-                 |at ${mvn.mvnRoot}/src/test/scala/zio/test/junit/maven/FailingSpec.scala:13""".stripMargin
+                 |☛ ${mvn.mvnRoot}/src/test/scala/zio/test/junit/maven/FailingSpec.scala:13""".stripMargin
             ) &&
             containsSuccess("should succeed")
         )
@@ -82,13 +82,13 @@ object MavenJunitSpec extends DefaultRunnableSpec {
       s"-Dscala.compat.version=$scalaCompatVersion",
       s"-ssettings.xml"
     )
-    def run(command: String*): Task[Int] = ZIO.effectBlocking(
+    def run(command: String*): Task[Int] = ZIO.attemptBlocking(
       cli.doMain(command.toArray, mvnRoot, System.out, System.err)
     )
 
     def parseSurefireReport(testFQN: String): Task[immutable.Seq[TestCase]] =
       ZIO
-        .effectBlocking(
+        .attemptBlocking(
           XML.load(scala.xml.Source.fromFile(new File(s"$mvnRoot/target/surefire-reports/TEST-$testFQN.xml")))
         )
         .map { report =>

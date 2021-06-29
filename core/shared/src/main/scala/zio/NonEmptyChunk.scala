@@ -30,10 +30,16 @@ import scala.language.implicitConversions
 final class NonEmptyChunk[+A] private (private val chunk: Chunk[A]) { self =>
 
   /**
-   * Appends a single element to the end of this `NonEmptyChunk`.
+   * A symbolic alias for `prepended`.
+   */
+  def +:[A1 >: A](a: A1): NonEmptyChunk[A1] =
+    prepended(a)
+
+  /**
+   * A symbolic alias for `appended`.
    */
   def :+[A1 >: A](a: A1): NonEmptyChunk[A1] =
-    nonEmpty(chunk :+ a)
+    appended(a)
 
   /**
    * Appends the specified `Chunk` to the end of this `NonEmptyChunk`.
@@ -46,6 +52,12 @@ final class NonEmptyChunk[+A] private (private val chunk: Chunk[A]) { self =>
    */
   def append[A1 >: A](that: Chunk[A1]): NonEmptyChunk[A1] =
     nonEmpty(chunk ++ that)
+
+  /**
+   * Appends a single element to the end of this `NonEmptyChunk`.
+   */
+  def appended[A1 >: A](a: A1): NonEmptyChunk[A1] =
+    nonEmpty(chunk :+ a)
 
   /**
    * Converts this `NonEmptyChunk` of bytes to a `NonEmptyChunk` of bits.
@@ -101,20 +113,42 @@ final class NonEmptyChunk[+A] private (private val chunk: Chunk[A]) { self =>
    * Effectfully maps over the elements of this `NonEmptyChunk`, maintaining
    * some state along the way.
    */
+  @deprecated("use mapAccumZIO", "2.0.0")
   def mapAccumM[R, E, S, B](s: S)(f: (S, A) => ZIO[R, E, (S, B)]): ZIO[R, E, (S, NonEmptyChunk[B])] =
-    chunk.mapAccumM(s)(f).map { case (s, chunk) => (s, nonEmpty(chunk)) }
+    chunk.mapAccumZIO(s)(f).map { case (s, chunk) => (s, nonEmpty(chunk)) }
+
+  /**
+   * Effectfully maps over the elements of this `NonEmptyChunk`, maintaining
+   * some state along the way.
+   */
+  def mapAccumZIO[R, E, S, B](s: S)(f: (S, A) => ZIO[R, E, (S, B)]): ZIO[R, E, (S, NonEmptyChunk[B])] =
+    chunk.mapAccumZIO(s)(f).map { case (s, chunk) => (s, nonEmpty(chunk)) }
 
   /**
    * Effectfully maps the elements of this `NonEmptyChunk`.
    */
+  @deprecated("use mapZIO", "2.0.0")
   def mapM[R, E, B](f: A => ZIO[R, E, B]): ZIO[R, E, NonEmptyChunk[B]] =
-    chunk.mapM(f).map(nonEmpty)
+    chunk.mapZIO(f).map(nonEmpty)
 
   /**
    * Effectfully maps the elements of this `NonEmptyChunk` in parallel.
    */
+  @deprecated("use mapZIOPar", "2.0.0")
   def mapMPar[R, E, B](f: A => ZIO[R, E, B]): ZIO[R, E, NonEmptyChunk[B]] =
-    chunk.mapMPar(f).map(nonEmpty)
+    chunk.mapZIOPar(f).map(nonEmpty)
+
+  /**
+   * Effectfully maps the elements of this `NonEmptyChunk`.
+   */
+  def mapZIO[R, E, B](f: A => ZIO[R, E, B]): ZIO[R, E, NonEmptyChunk[B]] =
+    chunk.mapZIO(f).map(nonEmpty)
+
+  /**
+   * Effectfully maps the elements of this `NonEmptyChunk` in parallel.
+   */
+  def mapZIOPar[R, E, B](f: A => ZIO[R, E, B]): ZIO[R, E, NonEmptyChunk[B]] =
+    chunk.mapZIOPar(f).map(nonEmpty)
 
   /**
    * Materialize the elements of this `NonEmptyChunk` into a `NonEmptyChunk`
@@ -128,6 +162,12 @@ final class NonEmptyChunk[+A] private (private val chunk: Chunk[A]) { self =>
    */
   def prepend[A1 >: A](that: Chunk[A1]): NonEmptyChunk[A1] =
     nonEmpty(that ++ chunk)
+
+  /**
+   * Prepends a single element to the beginning of this `NonEmptyChunk`.
+   */
+  def prepended[A1 >: A](a: A1): NonEmptyChunk[A1] =
+    nonEmpty(a +: chunk)
 
   /**
    * Reduces the elements of this `NonEmptyChunk` from left to right using the
@@ -191,6 +231,20 @@ final class NonEmptyChunk[+A] private (private val chunk: Chunk[A]) { self =>
     chunk.mkString("NonEmptyChunk(", ", ", ")")
 
   /**
+   * Zips this `NonEmptyChunk` with the specified `NonEmptyChunk`, only
+   * keeping as many elements as are in the smaller chunk.
+   */
+  def zip[B](that: NonEmptyChunk[B]): NonEmptyChunk[(A, B)] =
+    zipWith(that)((_, _))
+
+  /**
+   * Zips this `NonEmptyChunk` with the specified `Chunk`, using `None` to
+   * "fill in" missing values if one chunk has fewer elements than the other.
+   */
+  def zipAll[B](that: Chunk[B]): NonEmptyChunk[(Option[A], Option[B])] =
+    zipAllWith(that)(a => (Some(a), None), b => (None, Some(b)))((a, b) => (Some(a), Some(b)))
+
+  /**
    * Zips this `NonEmptyChunk` with the specified `Chunk`, using the specified
    * functions to "fill in" missing values if one chunk has fewer elements
    * than the other.
@@ -201,10 +255,10 @@ final class NonEmptyChunk[+A] private (private val chunk: Chunk[A]) { self =>
     nonEmpty(chunk.zipAllWith(that)(left, right)(both))
 
   /**
-   * Zips this `NonEmptyCHunk` with the specified `NonEmptyChunk`, only
+   * Zips this `NonEmptyChunk` with the specified `NonEmptyChunk`, only
    * keeping as many elements as are in the smaller chunk.
    */
-  final def zipWith[B, C](that: NonEmptyChunk[B])(f: (A, B) => C): NonEmptyChunk[C] =
+  def zipWith[B, C](that: NonEmptyChunk[B])(f: (A, B) => C): NonEmptyChunk[C] =
     nonEmpty(chunk.zipWith(that.chunk)(f))
 
   /**

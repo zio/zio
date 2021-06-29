@@ -26,6 +26,14 @@ object AccessibleMSpec extends DefaultRunnableSpec {
           """
         })(isLeft(anything))
       },
+      testM("success when applied to trait") {
+        assertM(typeCheck {
+          """
+            @accessibleM[UIO]
+            trait Module[F[_]]
+          """
+        })(isRight(anything))
+      },
       testM("fails when applied to class") {
         assertM(typeCheck {
           """

@@ -36,7 +36,7 @@ object SubscriptionRef {
       hub <- Hub.unbounded[A]
       changes = ZStream.unwrapManaged {
                   ZManaged {
-                    ref.modifyM { a =>
+                    ref.modifyZIO { a =>
                       ZIO.succeedNow(a).zipWith(hub.subscribe.zio) { case (a, (finalizer, queue)) =>
                         (finalizer, ZStream(a) ++ ZStream.fromQueue(queue))
                       } <*> ZIO.succeedNow(a)

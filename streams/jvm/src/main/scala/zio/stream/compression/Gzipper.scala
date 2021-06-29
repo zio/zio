@@ -37,7 +37,7 @@ private[compression] class Gzipper(
     deflater
   }
 
-  def onNone: ZIO[Any, Nothing, Chunk[Byte]] = ZIO.effectTotal {
+  def onNone: ZIO[Any, Nothing, Chunk[Byte]] = ZIO.succeed {
     deflater.finish()
     val restAndTrailer = Deflate.pullOutput(deflater, buffer, flushMode) ++ getTrailer
     val lastChunk      = if (headerSent) restAndTrailer else header ++ restAndTrailer
@@ -48,7 +48,7 @@ private[compression] class Gzipper(
     lastChunk
   }
 
-  def onChunk(chunk: Chunk[Byte]): ZIO[Any, Nothing, Chunk[Byte]] = ZIO.effectTotal {
+  def onChunk(chunk: Chunk[Byte]): ZIO[Any, Nothing, Chunk[Byte]] = ZIO.succeed {
     val input = chunk.toArray
     inputSize += input.length
     crc.update(input)

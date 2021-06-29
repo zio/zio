@@ -36,7 +36,7 @@ object ZTransducerPlatformSpecificSpec extends ZIOBaseSpec {
         val data = (0 to 100).mkString
 
         Task(Files.createTempFile("stream", "fromFile"))
-          .bracket(path => Task(Files.delete(path)).orDie) { path =>
+          .acquireReleaseWith(path => Task(Files.delete(path)).orDie) { path =>
             for {
               bytes  <- Task(data.getBytes("UTF-8"))
               length <- ZStream.fromIterable(bytes).run(ZSink.fromFile(path))

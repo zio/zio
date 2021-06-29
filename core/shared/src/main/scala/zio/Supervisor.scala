@@ -139,7 +139,7 @@ object Supervisor {
 
     new Supervisor[Chunk[Fiber.Runtime[Any, Any]]] {
       def value: UIO[Chunk[Fiber.Runtime[Any, Any]]] =
-        UIO.effectTotal(
+        UIO.succeed(
           Sync(set)(Chunk.fromArray(set.toArray[Fiber.Runtime[Any, Any]](Array[Fiber.Runtime[Any, Any]]())))
         )
 
@@ -172,7 +172,7 @@ object Supervisor {
 
       new Supervisor[SortedSet[Fiber.Runtime[Any, Any]]] {
         def value: UIO[SortedSet[Fiber.Runtime[Any, Any]]] =
-          ZIO.effectTotal(ref.get)
+          ZIO.succeed(ref.get)
 
         def unsafeOnStart[R, E, A](
           environment: R,

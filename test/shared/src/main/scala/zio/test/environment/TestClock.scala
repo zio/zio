@@ -98,7 +98,8 @@ object TestClock extends Serializable {
     clockState: Ref[TestClock.Data],
     live: Live,
     annotations: Annotations,
-    warningState: RefM[TestClock.WarningData]
+    warningState: RefM[TestClock.WarningData],
+    suspendedWarningState: RefM[TestClock.SuspendedWarningData]
   ) extends Clock
       with TestClock {
 
@@ -206,11 +207,20 @@ object TestClock extends Serializable {
       clockState.get.map(_.timeZone)
 
     /**
+     * Cancels the warning message that is displayed if a test is advancing
+     * the `TestClock` but a fiber is not suspending.
+     */
+    private[TestClock] val suspendedWarningDone: UIO[Unit] =
+      suspendedWarningState.updateSomeZIO[Any, Nothing] { case SuspendedWarningData.Pending(fiber) =>
+        fiber.interrupt.as(SuspendedWarningData.start)
+      }
+
+    /**
      * Cancels the warning message that is displayed if a test is using time
      * but is not advancing the `TestClock`.
      */
     private[TestClock] val warningDone: UIO[Unit] =
-      warningState.updateSomeM[Any, Nothing] {
+      warningState.updateSomeZIO[Any, Nothing] {
         case WarningData.Start          => ZIO.succeedNow(WarningData.done)
         case WarningData.Pending(fiber) => fiber.interrupt.as(WarningData.done)
       }
@@ -219,11 +229,12 @@ object TestClock extends Serializable {
      * Polls until all descendants of this fiber are done or suspended.
      */
     private lazy val awaitSuspended: UIO[Unit] =
-      suspended
-        .zipWith(live.provide(ZIO.sleep(10.milliseconds)) *> suspended)(_ == _)
-        .filterOrFail(identity)(())
-        .eventually
-        .unit
+      suspendedWarningStart *>
+        suspended
+          .zipWith(live.provide(ZIO.sleep(10.milliseconds)) *> suspended)(_ == _)
+          .filterOrFail(identity)(())
+          .eventually *>
+        suspendedWarningDone
 
     /**
      * Delays for a short period of time.
@@ -258,7 +269,7 @@ object TestClock extends Serializable {
           case Left(_) => ZIO.succeedNow(SortedSet.empty[Fiber.Runtime[Any, Any]])
           case Right(refs) =>
             ZIO
-              .foreach(refs)(ref => ZIO.effectTotal(ref.get))
+              .foreach(refs)(ref => ZIO.succeed(ref.get))
               .map(_.foldLeft(SortedSet.empty[Fiber.Runtime[Any, Any]])(_ ++ _))
               .map(_.filter(_.id != descriptor.id))
         }
@@ -319,11 +330,27 @@ object TestClock extends Serializable {
       Instant.ofEpochMilli(duration.toMillis)
 
     /**
+     * Forks a fiber that will display a warning message if a test is
+     * advancing the `TestClock` but a fiber is not suspending.
+     */
+    private val suspendedWarningStart: UIO[Unit] =
+      suspendedWarningState.updateSomeZIO { case SuspendedWarningData.Start =>
+        for {
+          fiber <- live.provide {
+                     Console
+                       .printLine(suspendedWarning)
+                       .zipRight(suspendedWarningState.set(SuspendedWarningData.done))
+                       .delay(5.seconds)
+                   }.interruptible.fork
+        } yield SuspendedWarningData.pending(fiber)
+      }
+
+    /**
      * Forks a fiber that will display a warning message if a test is using
      * time but is not advancing the `TestClock`.
      */
     private val warningStart: UIO[Unit] =
-      warningState.updateSomeM { case WarningData.Start =>
+      warningState.updateSomeZIO { case WarningData.Start =>
         for {
           fiber <- live.provide(Console.printLine(warning).delay(5.seconds)).interruptible.fork
         } yield WarningData.pending(fiber)
@@ -338,11 +365,16 @@ object TestClock extends Serializable {
    */
   def live(data: Data): ZLayer[Has[Annotations] with Has[Live], Nothing, Has[Clock] with Has[TestClock]] = {
     for {
-      live        <- ZManaged.service[Live]
-      annotations <- ZManaged.service[Annotations]
-      ref         <- Ref.make(data).toManaged_
-      refM        <- RefM.make(WarningData.start).toManaged_
-      test        <- Managed.make(UIO(Test(ref, live, annotations, refM)))(_.warningDone)
+      live                  <- ZManaged.service[Live]
+      annotations           <- ZManaged.service[Annotations]
+      clockState            <- Ref.make(data).toManaged
+      warningState          <- RefM.make(WarningData.start).toManaged
+      suspendedWarningState <- RefM.make(SuspendedWarningData.start).toManaged
+      test <-
+        Managed.acquireReleaseWith(UIO(Test(clockState, live, annotations, warningState, suspendedWarningState))) {
+          test =>
+            test.warningDone *> test.suspendedWarningDone
+        }
     } yield Has.allOf(test: Clock, test: TestClock)
   }.toLayerMany
 
@@ -360,7 +392,7 @@ object TestClock extends Serializable {
    * before the new time in order.
    */
   def adjust(duration: => Duration): URIO[Has[TestClock], Unit] =
-    ZIO.accessM(_.get.adjust(duration))
+    ZIO.accessZIO(_.get.adjust(duration))
 
   /**
    * Accesses a `TestClock` instance in the environment and saves the clock
@@ -368,7 +400,7 @@ object TestClock extends Serializable {
    * saved state.
    */
   val save: ZIO[Has[TestClock], Nothing, UIO[Unit]] =
-    ZIO.accessM(_.get.save)
+    ZIO.accessZIO(_.get.save)
 
   /**
    * Accesses a `TestClock` instance in the environment and sets the clock
@@ -376,7 +408,7 @@ object TestClock extends Serializable {
    * for on or before the new time in order.
    */
   def setDateTime(dateTime: => OffsetDateTime): URIO[Has[TestClock], Unit] =
-    ZIO.accessM(_.get.setDateTime(dateTime))
+    ZIO.accessZIO(_.get.setDateTime(dateTime))
 
   /**
    * Accesses a `TestClock` instance in the environment and sets the clock
@@ -384,7 +416,7 @@ object TestClock extends Serializable {
    * running any actions scheduled for on or before the new time in order.
    */
   def setTime(duration: => Duration): URIO[Has[TestClock], Unit] =
-    ZIO.accessM(_.get.setTime(duration))
+    ZIO.accessZIO(_.get.setTime(duration))
 
   /**
    * Accesses a `TestClock` instance in the environment, setting the time
@@ -393,21 +425,21 @@ object TestClock extends Serializable {
    * run as a result of this effect.
    */
   def setTimeZone(zone: => ZoneId): URIO[Has[TestClock], Unit] =
-    ZIO.accessM(_.get.setTimeZone(zone))
+    ZIO.accessZIO(_.get.setTimeZone(zone))
 
   /**
    * Accesses a `TestClock` instance in the environment and returns a list
    * of times that effects are scheduled to run.
    */
   val sleeps: ZIO[Has[TestClock], Nothing, List[Duration]] =
-    ZIO.accessM(_.get.sleeps)
+    ZIO.accessZIO(_.get.sleeps)
 
   /**
    * Accesses a `TestClock` instance in the environment and returns the current
    * time zone.
    */
   val timeZone: URIO[Has[TestClock], ZoneId] =
-    ZIO.accessM(_.get.timeZone)
+    ZIO.accessZIO(_.get.timeZone)
 
   /**
    * `Data` represents the state of the `TestClock`, including the clock time
@@ -461,6 +493,32 @@ object TestClock extends Serializable {
     val done: WarningData = Done
   }
 
+  sealed abstract class SuspendedWarningData
+
+  object SuspendedWarningData {
+
+    case object Start                                         extends SuspendedWarningData
+    final case class Pending(fiber: Fiber[IOException, Unit]) extends SuspendedWarningData
+    case object Done                                          extends SuspendedWarningData
+
+    /**
+     * State indicating that a test has not adjusted the clock.
+     */
+    val start: SuspendedWarningData = Start
+
+    /**
+     * State indicating that a test has adjusted the clock but a fiber is
+     * still running with a reference to the fiber that will display the
+     * warning message.
+     */
+    def pending(fiber: Fiber[IOException, Unit]): SuspendedWarningData = Pending(fiber)
+
+    /**
+     * State indicating that the warning message has already been displayed.
+     */
+    val done: SuspendedWarningData = Done
+  }
+
   /**
    * The warning message that will be displayed if a test is using time but
    * is not advancing the `TestClock`.
@@ -469,4 +527,13 @@ object TestClock extends Serializable {
     "Warning: A test is using time, but is not advancing the test clock, " +
       "which may result in the test hanging. Use Has[TestClock].adjust to " +
       "manually advance the time."
+
+  /**
+   * The warning message that will be displayed if a test is advancing the
+   * clock but a fiber is still running.
+   */
+  private val suspendedWarning =
+    "Warning: A test is advancing the test clock, but a fiber is not " +
+      "suspending, which may result in the test hanging. Use " +
+      "TestAspect.diagnose to identity the fiber that is not suspending."
 }

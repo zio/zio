@@ -87,14 +87,14 @@ object RandomSpec extends ZIOBaseSpec {
   )(extract: ZRandom => UIO[A]): URIO[Has[Random] with Has[TestConfig], TestResult] =
     checkM(Gen.anyLong) { seed =>
       for {
-        sRandom    <- ZIO.effectTotal(new SRandom(seed))
+        sRandom    <- ZIO.succeed(new SRandom(seed))
         testRandom <- TestRandom.makeTest(DefaultData)
         _          <- testRandom.setSeed(seed)
-        value      <- ZIO.effectTotal(generate(sRandom))
+        value      <- ZIO.succeed(generate(sRandom))
         _          <- feed(testRandom, List(value))
         _          <- clear(testRandom)
         random     <- extract(testRandom)
-        expected   <- ZIO.effectTotal(generate(new SRandom(seed)))
+        expected   <- ZIO.succeed(generate(new SRandom(seed)))
       } yield assert(random)(equalTo(expected))
     }
 
@@ -103,14 +103,14 @@ object RandomSpec extends ZIOBaseSpec {
   )(extract: ZRandom => UIO[A]): URIO[Has[Random] with Has[TestConfig], TestResult] =
     checkM(Gen.anyLong) { seed =>
       for {
-        sRandom    <- ZIO.effectTotal(new SRandom(seed))
+        sRandom    <- ZIO.succeed(new SRandom(seed))
         testRandom <- TestRandom.makeTest(DefaultData)
         _          <- testRandom.setSeed(seed)
-        values     <- ZIO.effectTotal(List.fill(100)(generate(sRandom)))
+        values     <- ZIO.succeed(List.fill(100)(generate(sRandom)))
         _          <- feed(testRandom, values)
         results    <- UIO.foreach(List.range(0, 100))(_ => extract(testRandom))
         random     <- extract(testRandom)
-        expected   <- ZIO.effectTotal(generate(new SRandom(seed)))
+        expected   <- ZIO.succeed(generate(new SRandom(seed)))
       } yield {
         assert(results)(equalTo(values)) &&
         assert(random)(equalTo(expected))
@@ -128,22 +128,22 @@ object RandomSpec extends ZIOBaseSpec {
   )(g: SRandom => A): URIO[Has[Random] with Has[TestConfig], TestResult] =
     checkM(Gen.anyLong) { seed =>
       for {
-        sRandom    <- ZIO.effectTotal(new SRandom(seed))
+        sRandom    <- ZIO.succeed(new SRandom(seed))
         testRandom <- TestRandom.makeTest(DefaultData)
         _          <- testRandom.setSeed(seed)
         actual     <- UIO.foreach(List.fill(100)(()))(_ => f(testRandom))
-        expected   <- ZIO.effectTotal(List.fill(100)(g(sRandom)))
+        expected   <- ZIO.succeed(List.fill(100)(g(sRandom)))
       } yield assert(actual)(equalTo(expected))
     }
 
   def forAllEqualBytes: URIO[Has[Random] with Has[TestConfig], TestResult] =
     checkM(Gen.anyLong) { seed =>
       for {
-        sRandom    <- ZIO.effectTotal(new SRandom(seed))
+        sRandom    <- ZIO.succeed(new SRandom(seed))
         testRandom <- TestRandom.makeTest(DefaultData)
         _          <- testRandom.setSeed(seed)
         actual     <- UIO.foreach(List.range(0, 100))(testRandom.nextBytes(_))
-        expected <- ZIO.effectTotal(List.range(0, 100).map(new Array[Byte](_)).map { arr =>
+        expected <- ZIO.succeed(List.range(0, 100).map(new Array[Byte](_)).map { arr =>
                       sRandom.nextBytes(arr)
                       Chunk.fromArray(arr)
                     })
@@ -153,11 +153,11 @@ object RandomSpec extends ZIOBaseSpec {
   def forAllEqualGaussian: URIO[Has[Random] with Has[TestConfig], TestResult] =
     checkM(Gen.anyLong) { seed =>
       for {
-        sRandom    <- ZIO.effectTotal(new SRandom(seed))
+        sRandom    <- ZIO.succeed(new SRandom(seed))
         testRandom <- TestRandom.makeTest(DefaultData)
         _          <- testRandom.setSeed(seed)
         actual     <- testRandom.nextGaussian
-        expected   <- ZIO.effectTotal(sRandom.nextGaussian())
+        expected   <- ZIO.succeed(sRandom.nextGaussian())
       } yield assert(actual)(approximatelyEquals(expected, 0.01))
     }
 
@@ -166,11 +166,11 @@ object RandomSpec extends ZIOBaseSpec {
   )(g: (SRandom, Int) => A): URIO[Has[Random] with Has[TestConfig], TestResult] =
     checkM(Gen.anyLong, Gen.int(1, 100)) { (seed, size) =>
       for {
-        sRandom    <- ZIO.effectTotal(new SRandom(seed))
+        sRandom    <- ZIO.succeed(new SRandom(seed))
         testRandom <- TestRandom.makeTest(DefaultData)
         _          <- testRandom.setSeed(seed)
         actual     <- f(testRandom, size)
-        expected   <- ZIO.effectTotal(g(sRandom, size))
+        expected   <- ZIO.succeed(g(sRandom, size))
       } yield assert(actual)(equalTo(expected))
     }
 
@@ -179,11 +179,11 @@ object RandomSpec extends ZIOBaseSpec {
   )(g: (SRandom, List[Int]) => List[Int]): ZIO[Has[Random] with Has[Sized] with Has[TestConfig], Nothing, TestResult] =
     checkM(Gen.anyLong, Gen.listOf(Gen.anyInt)) { (seed, testList) =>
       for {
-        sRandom    <- ZIO.effectTotal(new SRandom(seed))
+        sRandom    <- ZIO.succeed(new SRandom(seed))
         testRandom <- TestRandom.makeTest(DefaultData)
         _          <- testRandom.setSeed(seed)
         actual     <- f(testRandom, testList)
-        expected   <- ZIO.effectTotal(g(sRandom, testList))
+        expected   <- ZIO.succeed(g(sRandom, testList))
       } yield assert(actual)(equalTo(expected))
     }
 

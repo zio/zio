@@ -20,7 +20,7 @@ object TestSpec extends ZIOBaseSpec {
     } @@ failing,
     testM("testM is polymorphic in error type") {
       for {
-        _      <- ZIO.effect(())
+        _      <- ZIO.attempt(())
         result <- ZIO.succeed("succeed")
       } yield assert(result)(equalTo("succeed"))
     },

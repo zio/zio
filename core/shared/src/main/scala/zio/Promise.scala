@@ -47,7 +47,7 @@ final class Promise[E, A] private (
    * until the result is available.
    */
   def await: IO[E, A] =
-    IO.effectAsyncInterrupt[E, A](
+    IO.asyncInterrupt[E, A](
       k => {
         var result = null.asInstanceOf[Either[Canceler[Any], IO[E, A]]]
         var retry  = true
@@ -110,7 +110,7 @@ final class Promise[E, A] private (
    * [[Promise.complete]].
    */
   def completeWith(io: IO[E, A]): UIO[Boolean] =
-    IO.effectTotal {
+    IO.succeed {
       var action: () => Boolean = null.asInstanceOf[() => Boolean]
       var retry                 = true
 
@@ -142,10 +142,19 @@ final class Promise[E, A] private (
   def fail(e: E): UIO[Boolean] = completeWith(IO.fail(e))
 
   /**
+   * Fails the promise with the specified cause, which will be propagated to all
+   * fibers waiting on the value of the promise.
+   */
+  def failCause(e: Cause[E]): UIO[Boolean] =
+    completeWith(IO.failCause(e))
+
+  /**
    * Halts the promise with the specified cause, which will be propagated to all
    * fibers waiting on the value of the promise.
    */
-  def halt(e: Cause[E]): UIO[Boolean] = completeWith(IO.halt(e))
+  @deprecated("use failCause", "2.0.0")
+  def halt(e: Cause[E]): UIO[Boolean] =
+    failCause(e)
 
   /**
    * Completes the promise with interruption. This will interrupt all fibers
@@ -164,7 +173,7 @@ final class Promise[E, A] private (
    * already been completed with a value or an error and false otherwise.
    */
   def isDone: UIO[Boolean] =
-    IO.effectTotal(state.get() match {
+    IO.succeed(state.get() match {
       case Done(_)    => true
       case Pending(_) => false
     })
@@ -174,7 +183,7 @@ final class Promise[E, A] private (
    * promise has already been completed or a `None` otherwise.
    */
   def poll: UIO[Option[IO[E, A]]] =
-    IO.effectTotal(state.get).flatMap {
+    IO.succeed(state.get).flatMap {
       case Pending(_) => IO.succeedNow(None)
       case Done(io)   => IO.succeedNow(Some(io))
     }
@@ -184,7 +193,7 @@ final class Promise[E, A] private (
    */
   def succeed(a: A): UIO[Boolean] = completeWith(IO.succeedNow(a))
 
-  private def interruptJoiner(joiner: IO[E, A] => Any): Canceler[Any] = IO.effectTotal {
+  private def interruptJoiner(joiner: IO[E, A] => Any): Canceler[Any] = IO.succeed {
     var retry = true
 
     while (retry) {
@@ -241,13 +250,13 @@ object Promise {
    * Makes a new promise to be completed by the fiber with the specified id.
    */
   def makeAs[E, A](fiberId: Fiber.Id): UIO[Promise[E, A]] =
-    ZIO.effectTotal(unsafeMake(fiberId))
+    ZIO.succeed(unsafeMake(fiberId))
 
   /**
    * Makes a new managed promise to be completed by the fiber creating the promise.
    */
   def makeManaged[E, A]: UManaged[Promise[E, A]] =
-    make[E, A].toManaged_
+    make[E, A].toManaged
 
   private[zio] def unsafeMake[E, A](fiberId: Fiber.Id): Promise[E, A] =
     new Promise[E, A](new AtomicReference[State[E, A]](new internal.Pending[E, A](Nil)), fiberId :: Nil)

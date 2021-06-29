@@ -29,17 +29,17 @@ object Main extends App {
   def run(args: List[String]) = {
     for {
       _      <- Console.printLine("Starting progress bar demo.")  // Outputs on browser console log.
-      target <- IO.effectTotal(document.createElement("pre"))
+      target <- IO.succeed(document.createElement("pre"))
       _      <- update(target).repeat(Schedule.spaced(1.seconds))
-      _      <- IO.effectTotal(node.appendChild(target)) // "node" is provided in this page by mdoc.
+      _      <- IO.succeed(node.appendChild(target)) // "node" is provided in this page by mdoc.
     } yield ExitCode.success
   }
 
   def update(target: raw.Element) = {
       for {
         time   <- currentTime(TimeUnit.SECONDS)
-        output <- UIO.effectTotal(progress((time % 11).toInt, 10))
-        _      <- UIO.effectTotal(target.innerHTML = output)
+        output <- UIO.succeed(progress((time % 11).toInt, 10))
+        _      <- UIO.succeed(target.innerHTML = output)
       } yield ()
   }
 

@@ -121,7 +121,7 @@ final class TSemaphore private (val permits: TRef[Long]) extends Serializable {
    * action.
    */
   def withPermitsManaged(n: Long): ZManaged[Any, Nothing, Unit] =
-    ZManaged.makeInterruptible_(acquireN(n).commit)(release.commit)
+    ZManaged.acquireReleaseInterruptible(acquireN(n).commit)(release.commit)
 
   private def assertNonNegative(n: Long): Unit =
     require(n >= 0, s"Unexpected negative value `$n` passed to acquireN or releaseN.")

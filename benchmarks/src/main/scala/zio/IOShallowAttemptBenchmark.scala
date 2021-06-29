@@ -131,8 +131,8 @@ class IOShallowAttemptBenchmark {
   def zioShallowAttempt(): BigInt = {
     def throwup(n: Int): IO[ZIOError, BigInt] =
       if (n == 0) throwup(n + 1).fold[BigInt](_ => 50, identity)
-      else if (n == depth) IO.effectTotal(1)
-      else throwup(n + 1).foldM[Any, ZIOError, BigInt](_ => IO.succeedNow(0), _ => IO.fail(ZIOError("Oh noes!")))
+      else if (n == depth) IO.succeed(1)
+      else throwup(n + 1).foldZIO[Any, ZIOError, BigInt](_ => IO.succeedNow(0), _ => IO.fail(ZIOError("Oh noes!")))
 
     unsafeRun(throwup(0))
   }
@@ -141,8 +141,8 @@ class IOShallowAttemptBenchmark {
   def zioShallowAttemptBaseline(): BigInt = {
     def throwup(n: Int): IO[Error, BigInt] =
       if (n == 0) throwup(n + 1).fold[BigInt](_ => 50, identity)
-      else if (n == depth) IO.effectTotal(1)
-      else throwup(n + 1).foldM[Any, Error, BigInt](_ => IO.succeedNow(0), _ => IO.fail(new Error("Oh noes!")))
+      else if (n == depth) IO.succeed(1)
+      else throwup(n + 1).foldZIO[Any, Error, BigInt](_ => IO.succeedNow(0), _ => IO.fail(new Error("Oh noes!")))
 
     unsafeRun(throwup(0))
   }

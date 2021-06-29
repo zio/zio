@@ -29,9 +29,9 @@ object ClockSpecJVM extends ZIOBaseSpec {
       testM("currentTime has correct time") {
         val unit = TimeUnit.MICROSECONDS
         for {
-          start  <- ZIO.effectTotal(Instant.now).map(_.toEpochMilli)
+          start  <- ZIO.succeed(Instant.now).map(_.toEpochMilli)
           time   <- Clock.currentTime(unit).map(TimeUnit.MILLISECONDS.convert(_, unit))
-          finish <- ZIO.effectTotal(Instant.now).map(_.toEpochMilli)
+          finish <- ZIO.succeed(Instant.now).map(_.toEpochMilli)
         } yield assert(time)(isGreaterThanEqualTo(start) && isLessThanEqualTo(finish))
       }.provideLayer(Clock.live)
         @@ TestAspect.nonFlaky
