@@ -269,6 +269,30 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def as[B](b: => B): ZIO[R, E, B] = self.flatMap(new ZIO.ConstZIOFn(() => b))
 
   /**
+   * Maps the success value of this effect to a left value.
+   */
+  final def asLeft: ZIO[R, E, Either[A, Nothing]] =
+    map(Left(_))
+
+  /**
+   * Maps the error value of this effect to a left value.
+   */
+  final def asLeftError: ZIO[R, Either[E, Nothing], A] =
+    mapError(Left(_))
+
+  /**
+   * Maps the success value of this effect to a right value.
+   */
+  final def asRight: ZIO[R, E, Either[Nothing, A]] =
+    map(Right(_))
+
+  /**
+   * Maps the error value of this effect to a right value.
+   */
+  final def asRightError: ZIO[R, Either[Nothing, E], A] =
+    mapError(Right(_))
+
+  /**
    * Maps the success value of this effect to a service.
    */
   final def asService[A1 >: A: Tag]: ZIO[R, E, Has[A1]] =
@@ -1869,7 +1893,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   /**
    * Converts an option on values into an option on errors.
    */
-  // <:
   final def some[B](implicit ev: A IsSubtypeOfOutput Option[B]): ZIO[R, Option[E], B] =
     self.foldZIO(
       e => ZIO.fail(Some(e)),
