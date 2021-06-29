@@ -341,7 +341,7 @@ val fs2stream = ZStream.fromChunks(Chunk(1, 2, 3, 4)).toFs2Stream
 ```
 
 ## ZQueue
-The `interop-cats` library has an `import zio.interop.Queue` package to lift creation of `ZQueue` effect from `UIO[Queue[A]]` to `F[Queue[F, A]]` which enables us to run `ZQueue` under run `ZQueue` under Cats Effect library. It supports all variants of `ZQueue` like `bounded`, `unbounded`, `sliding` and `dropping`.
+The `interop-cats` library has an `import zio.interop.Queue` package to lift creation of `ZQueue` effect from `UIO[Queue[A]]` to `F[Queue[F, A]]` which enables us to run `ZQueue` under Cats Effect runtime. It supports all variants of `ZQueue` like `bounded`, `unbounded`, `sliding` and `dropping`.
 
 ```scala
 def bounded[F[+_], A](capacity: Int)(implicit R: Runtime[ZEnv], F: LiftIO[F]): F[Queue[F, A]]
