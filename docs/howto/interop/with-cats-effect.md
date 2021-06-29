@@ -443,6 +443,50 @@ The `zio.interop.stm` provides a wrapper data type on `STM[Throwable, A]` which 
 
 Currently, the `interop-cats` support `TRef`, `TPromise`,  `TQueue` and `TSemaphore` data types.
 
+Let's try a working example using `STM` and `TRef`:
+
+```scala mdoc:silent:nest
+import cats.effect.IO
+import cats.effect.unsafe.IORuntime
+import zio.interop.stm.{STM, TRef}
+
+implicit val zioRuntime: zio.Runtime[zio.ZEnv] = zio.Runtime.default
+implicit val catsRuntime: IORuntime            = IORuntime.global
+
+def transferMoney(
+    from: TRef[IO, Long],
+    to: TRef[IO, Long],
+    amount: Long
+): STM[IO, Long] =
+  for {
+    senderBal <- from.get
+    _ <-
+      if (senderBal < amount)
+        STM.fail[IO](new Exception("Not enough money"))
+      else
+        STM.unit[IO]
+    _       <- from.update(existing => existing - amount)
+    _       <- to.update(existing => existing + amount)
+    recvBal <- to.get
+  } yield recvBal
+
+val program: IO[Long] = for {
+  sndAcc <- STM.atomically[cats.effect.IO, TRef[IO, Long]](
+    TRef.make[IO, Long](1000)
+  )
+  rcvAcc <- STM.atomically[cats.effect.IO, TRef[IO, Long]](
+    TRef.make[IO, Long](200)
+  )
+  recvAmt <- STM.atomically(transferMoney(sndAcc, rcvAcc, 500L))
+} yield recvAmt
+
+program
+  .flatMap(amount =>
+    IO.println(s"Balance of second account after transaction: $amount")
+  )
+  .unsafeRunSync()
+```
+
 ## Examples
 
 Cats Effect and Type-Level libraries are older than the ZIO ecosystem. So there are very nice libraries like doobie and http4s, that a ZIO user would like to use in its application.
