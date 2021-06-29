@@ -348,17 +348,22 @@ This package also contains utilities to support `zio.NonEmptyChunk` interoperabi
 
 ## FS2 Streams
 
-By importing `zio.stream.interop.fs2z._` int to our application, the `fs2.Stream#toZStream` extension method converts a `fs2.Stream` to `ZStream`:
+The `interop-cats` module contains extension methods to convert _FS2 Stream_ to _ZStream_ and vice versa. These methods support both FS2 series, 2.x and 3.x:
 
-```scala
+### From FS2 Stream to ZStream
+
+By importing `zio.stream.interop.fs2z._` into our application, the `fs2.Stream#toZStream` extension method converts a `fs2.Stream` to `ZStream`:
+
+```scala mdoc:silent:nest
 import zio.stream.ZStream
 import zio.stream.interop.fs2z._
 val zstream: ZStream[Any, Throwable, Int] = fs2.Stream.range(1, 10).toZStream()
 ```
+### From ZStream to FS2 Stream
 
 Also, the `ZStream#toFs2Stream` converts a ZIO Stream into FS2 Stream:
 
-```scala
+```scala mdoc:silent:nest
 import zio.stream.ZStream
 import zio.Chunk
 import zio.stream.interop.fs2z._
