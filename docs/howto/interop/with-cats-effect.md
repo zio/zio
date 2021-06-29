@@ -3,6 +3,13 @@ id: with-cats-effect
 title: "How to Interop with Cats Effect?"
 ---
 
+```scala mdoc:invisible
+\\ Contributor Note:
+\\ This page has some unchecked markdown documentation. They are related to the zio-interop-cats 
+\\ module compatible with the Cats Effect 2.x series. So before committing any change to those 
+\\ examples, please make sure they are compilable and work properly with Cat Effect 2.x.
+```
+
 [`interop-cats`](https://github.com/zio/interop-cats) has instances for the [Cats](https://typelevel.org/cats/), [Cats MTL](https://github.com/typelevel/cats-mtl) and [Cats Effect](https://typelevel.org/cats-effect/) libraries, which allow you to use ZIO with any libraries that rely on these, like [Doobie](https://github.com/tpolecat/doobie), [Http4s](https://github.com/http4s/http4s), [FS2](https://github.com/functional-streams-for-scala/fs2) or [Circe](https://github.com/circe/circe)
 
 Depends on which version of Cats Effect we are using, we should pick the right version of `zio-interop-cats`. In this tutorial, whenever we're working with Cats Effect 2.x, we are using:
