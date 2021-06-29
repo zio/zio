@@ -2,6 +2,7 @@ package zio.stream
 
 import zio.test._
 import zio.{UIO, ZIOBaseSpec}
+import zio.duration._
 
 object StreamLazinessSpec extends ZIOBaseSpec {
 
@@ -25,7 +26,12 @@ object StreamLazinessSpec extends ZIOBaseSpec {
       testM("fromChunk")(assertLazy(ZStream.fromChunk)),
       testM("fromIterable")(assertLazy(ZStream.fromIterable)),
       testM("halt")(assertLazy(ZStream.halt)),
-      testM("succeed")(assertLazy(ZStream.succeed))
+      testM("succeed")(assertLazy(ZStream.succeed)),
+      testM("timeoutError")(
+        assertLazy(
+          ZStream.succeed(1).timeoutError(_)(Duration.Infinity)
+        )
+      )
     )
   )
 }
