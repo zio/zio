@@ -344,6 +344,8 @@ object ZioInteropWithCatsCore extends cats.effect.IOApp {
 }
 ```
 
+This package also contains utilities to support `zio.NonEmptyChunk` interoperability with Cats Core module.
+
 ## FS2 Streams
 
 By importing `zio.stream.interop.fs2z._` int to our application, the `fs2.Stream#toZStream` extension method converts a `fs2.Stream` to `ZStream`:
