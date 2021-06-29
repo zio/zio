@@ -4,10 +4,10 @@ title: "How to Interop with Cats Effect?"
 ---
 
 ```scala mdoc:invisible
-\\ Contributor Note:
-\\ This page has some unchecked markdown documentation. They are related to the zio-interop-cats 
-\\ module compatible with the Cats Effect 2.x series. So before committing any change to those 
-\\ examples, please make sure they are compilable and work properly with Cat Effect 2.x.
+// Contributor Note:
+// This page has some unchecked markdown documentation. They are related to the zio-interop-cats 
+// module compatible with the Cats Effect 2.x series. So before committing any change to those 
+// examples, please make sure they are compilable and work properly with Cat Effect 2.x.
 ```
 
 [`interop-cats`](https://github.com/zio/interop-cats) has instances for the [Cats](https://typelevel.org/cats/), [Cats MTL](https://github.com/typelevel/cats-mtl) and [Cats Effect](https://typelevel.org/cats-effect/) libraries, which allow you to use ZIO with any libraries that rely on these, like [Doobie](https://github.com/tpolecat/doobie), [Http4s](https://github.com/http4s/http4s), [FS2](https://github.com/functional-streams-for-scala/fs2) or [Circe](https://github.com/circe/circe)
@@ -331,7 +331,7 @@ object ResourceToZManagedExample extends zio.App {
 
 ### Interop with Cats Core Module
 
-There is another package in `interop-cats` module called `zio.interop.catz.core._` which helps us to interop with core data types.
+There is another package in `interop-cats` module called `zio.interop.catz.core._` which helps us to interop with core data types. This package contains instances of `zio.Chunk` data type for Cats Core module like `cats.Order`, `cats.Hash`, `cats.Traverse`, and so forth.
 
 In the following example, we are going to use `zio.Chunk` in a Cats Effect application:
 
