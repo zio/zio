@@ -250,6 +250,8 @@ object ZManagedToResource extends cats.effect.IOApp {
 
 ## Cats Effect 3.x
 
+### Type class Instances for ZIO's Task
+
 ZIO integrates with Cats Effect 3.x as well as 2.x. The `interop-cats` module provides `Concurrent`, `Temporal` and `Async` for `zio.Task`.
 
 An example of ZIO interoperability with CE3:
