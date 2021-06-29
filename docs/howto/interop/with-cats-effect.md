@@ -321,6 +321,29 @@ object ResourceToZManagedExample extends zio.App {
 }
 ```
 
+### Interop with Cats Core Module
+
+There is another package in `interop-cats` module called `zio.interop.catz.core._` which helps us to interop with core data types.
+
+In the following example, we are going to use `zio.Chunk` in a Cats Effect application:
+
+```scala mdoc:silent:nest
+import cats.implicits._
+import zio.interop.catz.core._
+
+object ZioInteropWithCatsCore extends cats.effect.IOApp {
+  val chunk = zio.Chunk("1", "2", "3", "4", "5")
+
+  def parseInt(s: String): Option[Int] =
+    Either.catchOnly[NumberFormatException](s.toInt).toOption
+
+  val parseAll = cats.Traverse[zio.Chunk].traverse(chunk)(parseInt)
+
+  override def run(args: List[String]): cats.effect.IO[cats.effect.ExitCode] =
+    cats.effect.IO.println(parseAll).as(cats.effect.ExitCode.Success)
+}
+```
+
 ## FS2 Streams
 
 By importing `zio.stream.interop.fs2z._` int to our application, the `fs2.Stream#toZStream` extension method converts a `fs2.Stream` to `ZStream`:
