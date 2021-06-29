@@ -200,6 +200,7 @@ object CatsEffectResourceInterop extends CatsApp {
     myApp.exitCode
 }
 ```
+
 ### Converting ZManaged to Resource
 
 We have an extension method on `ZManaged` called `ZManaged#toResource` which converts a ZIO managed resource to Cats Effect resource:
@@ -370,14 +371,16 @@ import zio.stream.interop.fs2z._
 val fs2stream = ZStream.fromChunks(Chunk(1, 2, 3, 4)).toFs2Stream
 ```
 
-## ZQueue
+## Using ZQueue with Cats Effect
 The `interop-cats` library has an `import zio.interop.Queue` package to lift creation of `ZQueue` effect from `UIO[Queue[A]]` to `F[Queue[F, A]]` which enables us to run `ZQueue` under Cats Effect runtime. It supports all variants of `ZQueue` like `bounded`, `unbounded`, `sliding` and `dropping`.
 
 ```scala
 def bounded[F[+_], A](capacity: Int)(implicit R: Runtime[ZEnv], F: LiftIO[F]): F[Queue[F, A]]
 ```
 
-In the following example, we are going to lift the `ZQueue` creation effect to Cats `IO` effect:
+### Cats Effect 2.x
+
+In the following example, we are going to lift the `ZQueue` creation effect to Cats `IO` effect. If we are integrating with 2.x Cats Effect library, this snippet works properly:
 
 ```scala
 import zio.interop.Queue
@@ -390,6 +393,48 @@ def liftedToIO: IO[List[Int]] = for {
   _  <- q.offer(2)
   r <- q.takeAll
 } yield (r)
+```
+
+### Cats Effect 3.x
+
+To run `ZQueue` with Cats Effect 3.x we also need to provide an instance of `Dispatcher` to our contextual environment:
+
+```scala mdoc:silent:nest
+import zio.interop.Queue
+
+object ZioQueueInteropWithCats extends scala.App {
+
+  implicit val ceRuntime: cats.effect.unsafe.IORuntime =
+    cats.effect.unsafe.IORuntime.global
+
+  implicit val zioRuntime: zio.Runtime[zio.ZEnv] =
+    zio.Runtime.default
+
+  implicit val ec: scala.concurrent.ExecutionContextExecutor =
+    scala.concurrent.ExecutionContext.global
+
+  implicit val dispatcher: cats.effect.std.Dispatcher[cats.effect.IO] =
+    cats.effect.std
+      .Dispatcher[cats.effect.IO]
+      .allocated
+      .unsafeRunSync()
+      ._1
+
+  def liftedToIO: cats.effect.IO[List[Int]] = for {
+    q <- Queue.bounded[cats.effect.IO, Int](100)
+    _ <- q.offer(1)
+    _ <- q.offer(2)
+    r <- q.takeAll
+  } yield (r)
+
+  val catsApp = liftedToIO
+    .flatMap { e =>
+      cats.effect.IO.println(s"List of elements retrieved from Queue: $e")
+    }
+    .as(cats.effect.ExitCode.Success)
+
+  catsApp.unsafeRunSync()
+}
 ```
 
 ## STM
