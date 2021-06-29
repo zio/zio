@@ -444,9 +444,9 @@ object ZioQueueInteropWithCats extends scala.App {
 }
 ```
 
-## STM
+## Using STM with Cats Effect
 
-The `zio.interop.stm` provides a wrapper data type on `STM[Throwable, A]` which enables us to run `STM` in the Cats Effect library.
+The `zio.interop.stm` provides a wrapper data type on `STM[Throwable, A]` which enables us to run `STM` with the Cats Effect library.
 
 Currently, the `interop-cats` support `TRef`, `TPromise`,  `TQueue` and `TSemaphore` data types.
 
