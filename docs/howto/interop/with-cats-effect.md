@@ -274,6 +274,51 @@ object ZioCatsEffectInterop extends zio.interop.catz.CatsApp {
 }
 ```
 
+### Converting Resource to ZManaged
+
+To convert a Cats Effect's `Resource` to `ZManaged` we can use `cats.effect.Resource#toZManaged` extension method by importing `zio.interop.catz._` package and also we should provide an implicit instance of `Dispatcher`:
+ 
+```scala mdoc:silent:nest
+import zio.interop.catz._
+import scala.concurrent.ExecutionContextExecutor
+
+object ResourceToZManagedExample extends zio.App {
+  implicit val ceRuntime: cats.effect.unsafe.IORuntime =
+    cats.effect.unsafe.IORuntime.global
+  implicit val ec: ExecutionContextExecutor =
+    scala.concurrent.ExecutionContext.global
+
+  implicit val dispatcher: cats.effect.std.Dispatcher[cats.effect.IO] =
+    cats.effect.std
+      .Dispatcher[cats.effect.IO]
+      .allocated
+      .unsafeRunSync()
+      ._1
+
+  def catsResource[F[_]: cats.effect.Sync]
+      : cats.effect.Resource[F, java.io.InputStream] =
+    cats.effect.Resource
+      .fromAutoCloseable(
+        cats.effect
+          .Sync[F]
+          .delay(
+            java.nio.file.Files.newInputStream(
+              java.nio.file.Paths.get("file.txt")
+            )
+          )
+      )
+
+  val myApp: zio.ZIO[zio.console.Console, Throwable, Unit] =
+    catsResource[cats.effect.IO].toManaged
+      .use { is =>
+        zio.console.putStrLn(is.readAllBytes().length.toString)
+      }
+      
+  override def run(args: List[String]): zio.URIO[zio.ZEnv, zio.ExitCode] =
+    myApp.exitCode
+}
+```
+
 ## FS2 Streams
 
 By importing `zio.stream.interop.fs2z._` int to our application, the `fs2.Stream#toZStream` extension method converts a `fs2.Stream` to `ZStream`:
