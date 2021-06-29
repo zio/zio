@@ -1,7 +1,7 @@
 package zio.examples.test
 
 import zio.test.Assertion._
-import zio.test.mock.Expectation.{value, valueF}
+import zio.test.mock.Expectation.{unit, value, valueF}
 import zio.test.mock.{MockClock, MockConsole, MockRandom}
 import zio.test.{assertM, DefaultRunnableSpec}
 import zio.{Clock, Console, Random, ZIO}
@@ -14,7 +14,7 @@ object MockExampleSpec extends DefaultRunnableSpec {
         ZIO.when(invokeConsole)(Console.printLine("foo"))
 
       val maybeTest1 = maybeConsole(false).inject(MockConsole.empty)
-      val maybeTest2 = maybeConsole(true).inject(MockConsole.PrintLine(equalTo[String, Any]("foo")))
+      val maybeTest2 = maybeConsole(true).inject(MockConsole.PrintLine(equalTo("foo"), unit))
       assertM(maybeTest1)(isUnit) *> assertM(maybeTest2)(isUnit)
     },
     testM("expect no call on skipped branch") {
@@ -56,7 +56,7 @@ object MockExampleSpec extends DefaultRunnableSpec {
         ZIO.when(invokeConsole)(Console.printLine("foo"))
 
       val maybeTest1 = maybeConsole(true).inject(MockConsole.empty)
-      val maybeTest2 = maybeConsole(false).inject(MockConsole.PrintLine(equalTo[String, Any]("foo")))
+      val maybeTest2 = maybeConsole(false).inject(MockConsole.PrintLine(equalTo("foo"), unit))
       assertM(maybeTest1)(isUnit) *> assertM(maybeTest2)(isUnit)
     },
     testM("expect call returning output") {
@@ -67,7 +67,7 @@ object MockExampleSpec extends DefaultRunnableSpec {
     },
     testM("expect call with input satisfying assertion") {
       val app = Console.printLine("foo")
-      val env = MockConsole.PrintLine(equalTo[String, Any]("foo"))
+      val env = MockConsole.PrintLine(equalTo("foo"), unit)
       val out = app.provideLayer(env)
       assertM(out)(isUnit)
     },
@@ -96,7 +96,7 @@ object MockExampleSpec extends DefaultRunnableSpec {
           _ <- Console.printLine(n.toString)
         } yield ()
 
-      val env = MockRandom.NextInt(value(42)) andThen MockConsole.PrintLine(equalTo[String, Any]("42"))
+      val env = MockRandom.NextInt(value(42)) andThen MockConsole.PrintLine(equalTo("42"), unit)
       val out = app.provideLayer(env)
       assertM(out)(isUnit)
     },
@@ -132,7 +132,7 @@ object MockExampleSpec extends DefaultRunnableSpec {
     },
     testM("failure if invalid arguments") {
       val app = Console.printLine("foo")
-      val env = MockConsole.PrintLine(equalTo[String, Any]("bar"))
+      val env = MockConsole.PrintLine(equalTo("bar"), unit)
       val out = app.provideLayer(env)
       assertM(out)(isUnit)
     },
