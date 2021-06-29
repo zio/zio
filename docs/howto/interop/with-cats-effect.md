@@ -280,7 +280,7 @@ object ZioCatsEffectInterop extends zio.interop.catz.CatsApp {
 
 To convert a Cats Effect's `Resource` to `ZManaged` we can use `cats.effect.Resource#toZManaged` extension method by importing `zio.interop.catz._` package and also we should provide an implicit instance of `Dispatcher`:
  
-```scala mdoc:silent:nest
+```scala
 import zio.interop.catz._
 import scala.concurrent.ExecutionContextExecutor
 
