@@ -17,7 +17,7 @@
 package zio.test
 
 import zio.stream.ZStream
-import zio.{Cause, Exit, ZIO}
+import zio.{Cause, Exit, ZIO, Zippable}
 
 /**
  * A sample is a single observation from a random variable, together with a
@@ -28,21 +28,21 @@ final case class Sample[-R, +A](value: A, shrink: ZStream[R, Nothing, Sample[R, 
   /**
    * A symbolic alias for `zip`.
    */
-  def <&>[R1 <: R, B](that: Sample[R1, B]): Sample[R1, (A, B)] =
+  def <&>[R1 <: R, B](that: Sample[R1, B])(implicit zippable: Zippable[A, B]): Sample[R1, zippable.Out] =
     self.zip(that)
 
   /**
    * A symbolic alias for `cross`.
    */
-  def <*>[R1 <: R, B](that: Sample[R1, B]): Sample[R1, (A, B)] =
+  def <*>[R1 <: R, B](that: Sample[R1, B])(implicit zippable: Zippable[A, B]): Sample[R1, zippable.Out] =
     self.cross(that)
 
   /**
    * Composes this sample with the specified sample to create a cartesian
    * product of values and shrinkings.
    */
-  def cross[R1 <: R, B](that: Sample[R1, B]): Sample[R1, (A, B)] =
-    self.crossWith(that)((_, _))
+  def cross[R1 <: R, B](that: Sample[R1, B])(implicit zippable: Zippable[A, B]): Sample[R1, zippable.Out] =
+    self.crossWith(that)(zippable.zip(_, _))
 
   /**
    * Composes this sample with the specified sample to create a cartesian
@@ -86,8 +86,8 @@ final case class Sample[-R, +A](value: A, shrink: ZStream[R, Nothing, Sample[R, 
   /**
    * Zips two samples together pairwise.
    */
-  def zip[R1 <: R, B](that: Sample[R1, B]): Sample[R1, (A, B)] =
-    self.zipWith(that)((_, _))
+  def zip[R1 <: R, B](that: Sample[R1, B])(implicit zippable: Zippable[A, B]): Sample[R1, zippable.Out] =
+    self.zipWith(that)(zippable.zip(_, _))
 
   /**
    * Zips two samples together pairwise with the specified function.

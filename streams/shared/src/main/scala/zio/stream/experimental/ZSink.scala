@@ -20,7 +20,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    */
   final def <*>[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, A0, In1 <: In, L1 >: L <: In1, Z1](
     that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
-  )(implicit ev: L <:< In1): ZSink[R1, InErr1, In1, OutErr1, L1, (Z, Z1)] =
+  )(implicit zippable: Zippable[Z, Z1], ev: L <:< In1): ZSink[R1, InErr1, In1, OutErr1, L1, zippable.Out] =
     zip(that)
 
   /**
@@ -28,7 +28,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    */
   final def <&>[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, A0, In1 <: In, L1 >: L <: In1, Z1](
     that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
-  ): ZSink[R1, InErr1, In1, OutErr1, L1, (Z, Z1)] =
+  )(implicit zippable: Zippable[Z, Z1]): ZSink[R1, InErr1, In1, OutErr1, L1, zippable.Out] =
     zipPar(that)
 
   /**
@@ -322,8 +322,8 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
 
   def zip[R1 <: R, InErr1 <: InErr, In1 <: In, OutErr1 >: OutErr, L1 >: L <: In1, Z1](
     that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
-  )(implicit ev: L <:< In1): ZSink[R1, InErr1, In1, OutErr1, L1, (Z, Z1)] =
-    zipWith[R1, InErr1, OutErr1, In1, L1, Z1, (Z, Z1)](that)((_, _))
+  )(implicit zippable: Zippable[Z, Z1], ev: L <:< In1): ZSink[R1, InErr1, In1, OutErr1, L1, zippable.Out] =
+    zipWith[R1, InErr1, OutErr1, In1, L1, Z1, zippable.Out](that)(zippable.zip(_, _))
 
   /**
    * Like [[zip]], but keeps only the result from the `that` sink.
@@ -338,8 +338,8 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    */
   final def zipPar[R1 <: R, InErr1 <: InErr, In1 <: In, OutErr1 >: OutErr, L1 >: L <: In1, Z1](
     that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
-  ): ZSink[R1, InErr1, In1, OutErr1, L1, (Z, Z1)] =
-    zipWithPar[R1, InErr1, OutErr1, In1, L1, Z1, (Z, Z1)](that)((_, _))
+  )(implicit zippable: Zippable[Z, Z1]): ZSink[R1, InErr1, In1, OutErr1, L1, zippable.Out] =
+    zipWithPar[R1, InErr1, OutErr1, In1, L1, Z1, zippable.Out](that)(zippable.zip(_, _))
 
   /**
    * Like [[zipPar]], but keeps only the result from this sink.

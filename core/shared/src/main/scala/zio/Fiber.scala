@@ -74,8 +74,10 @@ sealed abstract class Fiber[+E, +A] { self =>
    * @tparam B type of that fiber
    * @return `Fiber[E1, (A, B)]` combined fiber
    */
-  final def <*>[E1 >: E, B](that: => Fiber[E1, B]): Fiber.Synthetic[E1, (A, B)] =
-    (self zipWith that)((a, b) => (a, b))
+  final def <*>[E1 >: E, B](that: => Fiber[E1, B])(implicit
+    zippable: Zippable[A, B]
+  ): Fiber.Synthetic[E1, zippable.Out] =
+    (self zipWith that)((a, b) => zippable.zip(a, b))
 
   /**
    * A symbolic alias for `orElseEither`.
@@ -334,7 +336,9 @@ sealed abstract class Fiber[+E, +A] { self =>
    * @tparam B type of that fiber
    * @return `Fiber[E1, (A, B)]` combined fiber
    */
-  final def zip[E1 >: E, B](that: => Fiber[E1, B]): Fiber.Synthetic[E1, (A, B)] =
+  final def zip[E1 >: E, B](that: => Fiber[E1, B])(implicit
+    zippable: Zippable[A, B]
+  ): Fiber.Synthetic[E1, zippable.Out] =
     self <*> that
 
   /**

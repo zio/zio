@@ -9,7 +9,7 @@ object GzipSpec extends DefaultRunnableSpec {
     suite("GzipSpec")(
       testM("JDK gunzips what was gzipped")(
         checkM(Gen.listOfBounded(0, `1K`)(Gen.anyByte).zip(Gen.int(1, `1K`)).zip(Gen.int(1, `1K`))) {
-          case ((input, n), bufferSize) =>
+          case (input, n, bufferSize) =>
             assertM(for {
               gzipped <- (ZStream.fromIterable(input).chunkN(n).channel >>> Gzip.makeGzipper(bufferSize)).runCollect
                            .map(_._1.flatten)

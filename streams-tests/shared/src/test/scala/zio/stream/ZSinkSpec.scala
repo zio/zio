@@ -2,7 +2,7 @@ package zio.stream
 
 import zio.stream.SinkUtils.{findSink, sinkRaceLaw}
 import zio.stream.ZStreamGen._
-import zio.test.Assertion.{equalTo, isFalse, isGreaterThanEqualTo, isLeft, isTrue, isUnit, succeeds}
+import zio.test.Assertion.{equalTo, isFalse, isGreaterThanEqualTo, isLeft, isTrue, succeeds}
 import zio.test.environment.TestClock
 import zio.test.{assertM, _}
 import zio.{ZIOBaseSpec, _}
@@ -178,10 +178,10 @@ object ZSinkSpec extends ZIOBaseSpec {
         testM("enqueues all elements") {
           checkM(pureStreamOfInts) { stream =>
             for {
-              queue                    <- ZQueue.unbounded[Int]
-              (result, streamElements) <- stream.run(ZSink.fromQueue(queue) <&> ZSink.collectAll)
-              queueElements            <- queue.takeAll
-            } yield assert(result)(isUnit) && assert(queueElements)(equalTo(streamElements))
+              queue          <- ZQueue.unbounded[Int]
+              streamElements <- stream.run(ZSink.fromQueue(queue) <&> ZSink.collectAll)
+              queueElements  <- queue.takeAll
+            } yield assert(queueElements)(equalTo(streamElements))
           }
         },
         testM("fails if offering to the queue fails") {

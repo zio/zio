@@ -82,7 +82,7 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
   /**
    * Alias for `<*>` and `zip`.
    */
-  def &&&[R1 <: R, E1 >: E, B](that: ZSTM[R1, E1, B]): ZSTM[R1, E1, (A, B)] =
+  def &&&[R1 <: R, E1 >: E, B](that: ZSTM[R1, E1, B])(implicit zippable: Zippable[A, B]): ZSTM[R1, E1, zippable.Out] =
     self <*> that
 
   /**
@@ -116,7 +116,9 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
   /**
    * Sequentially zips this value with the specified one.
    */
-  def <*>[R1 <: R, E1 >: E, B](that: => ZSTM[R1, E1, B]): ZSTM[R1, E1, (A, B)] =
+  def <*>[R1 <: R, E1 >: E, B](that: => ZSTM[R1, E1, B])(implicit
+    zippable: Zippable[A, B]
+  ): ZSTM[R1, E1, zippable.Out] =
     self zip that
 
   /**
@@ -877,8 +879,10 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
   /**
    * Named alias for `<*>`.
    */
-  def zip[R1 <: R, E1 >: E, B](that: => ZSTM[R1, E1, B]): ZSTM[R1, E1, (A, B)] =
-    (self zipWith that)((a, b) => a -> b)
+  def zip[R1 <: R, E1 >: E, B](that: => ZSTM[R1, E1, B])(implicit
+    zippable: Zippable[A, B]
+  ): ZSTM[R1, E1, zippable.Out] =
+    (self zipWith that)((a, b) => zippable.zip(a, b))
 
   /**
    * Named alias for `<*`.

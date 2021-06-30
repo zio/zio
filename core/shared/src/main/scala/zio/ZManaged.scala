@@ -72,8 +72,10 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   /**
    * Symbolic alias for zip.
    */
-  def &&&[R1 <: R, E1 >: E, B](that: ZManaged[R1, E1, B]): ZManaged[R1, E1, (A, B)] =
-    zipWith(that)((a, b) => (a, b))
+  def &&&[R1 <: R, E1 >: E, B](that: ZManaged[R1, E1, B])(implicit
+    zippable: Zippable[A, B]
+  ): ZManaged[R1, E1, zippable.Out] =
+    zipWith(that)((a, b) => zippable.zip(a, b))
 
   /**
    * Symbolic alias for zipParRight
@@ -108,8 +110,10 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   /**
    * Symbolic alias for zipPar
    */
-  def <&>[R1 <: R, E1 >: E, A1](that: ZManaged[R1, E1, A1]): ZManaged[R1, E1, (A, A1)] =
-    zipWithPar(that)((_, _))
+  def <&>[R1 <: R, E1 >: E, A1](that: ZManaged[R1, E1, A1])(implicit
+    zippable: Zippable[A, A1]
+  ): ZManaged[R1, E1, zippable.Out] =
+    zipWithPar(that)(zippable.zip(_, _))
 
   /**
    * Symbolic alias for zipLeft.
@@ -120,8 +124,10 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   /**
    * Symbolic alias for zip.
    */
-  def <*>[R1 <: R, E1 >: E, A1](that: ZManaged[R1, E1, A1]): ZManaged[R1, E1, (A, A1)] =
-    zipWith(that)((_, _))
+  def <*>[R1 <: R, E1 >: E, A1](that: ZManaged[R1, E1, A1])(implicit
+    zippable: Zippable[A, A1]
+  ): ZManaged[R1, E1, zippable.Out] =
+    zipWith(that)(zippable.zip(_, _))
 
   /**
    * Symbolic alias for compose
@@ -322,7 +328,8 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   /**
    * Zips this effect with its environment
    */
-  def first[R1 <: R, A1 >: A]: ZManaged[R1, E, (A1, R1)] = self &&& ZManaged.identity
+  def first[R1 <: R, A1 >: A]: ZManaged[R1, E, (A1, R1)] =
+    self &&& ZManaged.identity[R1]
 
   /**
    * Returns a managed resource that attempts to acquire this managed resource
@@ -1246,7 +1253,9 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   /**
    * Named alias for `<*>`.
    */
-  def zip[R1 <: R, E1 >: E, A1](that: ZManaged[R1, E1, A1]): ZManaged[R1, E1, (A, A1)] =
+  def zip[R1 <: R, E1 >: E, A1](that: ZManaged[R1, E1, A1])(implicit
+    zippable: Zippable[A, A1]
+  ): ZManaged[R1, E1, zippable.Out] =
     self <*> that
 
   /**
@@ -1258,7 +1267,9 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   /**
    * Named alias for `<&>`.
    */
-  def zipPar[R1 <: R, E1 >: E, A1](that: ZManaged[R1, E1, A1]): ZManaged[R1, E1, (A, A1)] =
+  def zipPar[R1 <: R, E1 >: E, A1](that: ZManaged[R1, E1, A1])(implicit
+    zippable: Zippable[A, A1]
+  ): ZManaged[R1, E1, zippable.Out] =
     self <&> that
 
   /**
@@ -1296,7 +1307,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
       val innerMap =
         ZManaged.ReleaseMap.makeManaged(ExecutionStrategy.Sequential).zio.provideSome[R1]((_, parallelReleaseMap))
 
-      (innerMap zip innerMap) flatMap { case ((_, l), (_, r)) =>
+      (innerMap zip innerMap) flatMap { case (_, l, (_, r)) =>
         self.zio
           .provideSome[R1]((_, l))
           .zipWithPar(that.zio.provideSome[R1]((_, r))) {
@@ -2587,9 +2598,7 @@ object ZManaged extends ZManagedPlatformSpecific {
     zManaged2: ZManaged[R, E, B],
     zManaged3: ZManaged[R, E, C]
   )(f: (A, B, C) => D): ZManaged[R, E, D] =
-    (zManaged1 <&> zManaged2 <&> zManaged3).map { case ((a, b), c) =>
-      f(a, b, c)
-    }
+    (zManaged1 <&> zManaged2 <&> zManaged3).map(f.tupled)
 
   /**
    * Returns an effect that executes the specified effects in parallel,
@@ -2602,9 +2611,7 @@ object ZManaged extends ZManagedPlatformSpecific {
     zManaged3: ZManaged[R, E, C],
     zManaged4: ZManaged[R, E, D]
   )(f: (A, B, C, D) => F): ZManaged[R, E, F] =
-    (zManaged1 <&> zManaged2 <&> zManaged3 <&> zManaged4).map { case (((a, b), c), d) =>
-      f(a, b, c, d)
-    }
+    (zManaged1 <&> zManaged2 <&> zManaged3 <&> zManaged4).map(f.tupled)
 
   /**
    * Merges an `Iterable[ZManaged]` to a single `ZManaged`, working sequentially.

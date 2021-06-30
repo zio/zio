@@ -713,10 +713,10 @@ object ZSTMSpec extends ZIOBaseSpec {
                      .atomically(
                        TRef.make(10000) <*> TRef.make(0) <*> TRef.make(0)
                      )
-          tvar1 <*> tvar2 <*> tvar3 = tVars
-          fiber                    <- ZIO.forkAll(List.fill(10)(compute3VarN(99, tvar1, tvar2, tvar3)))
-          _                        <- fiber.join
-          value                    <- tvar3.get.commit
+          (tvar1, tvar2, tvar3) = tVars
+          fiber                <- ZIO.forkAll(List.fill(10)(compute3VarN(99, tvar1, tvar2, tvar3)))
+          _                    <- fiber.join
+          value                <- tvar3.get.commit
         } yield assert(value)(equalTo(10000))
       }
     ),

@@ -391,7 +391,7 @@ val kafkaSink: ZSink[Any, Throwable, Record, Record, Unit] =
 val pulsarSink: ZSink[Any, Throwable, Record, Record, Unit] =
   ZSink.foreach[Any, Throwable, Record](record => ZIO.attempt(???))
 
-val stream: ZSink[Any, Throwable, Record, Record, (Unit, Unit)] =
+val stream: ZSink[Any, Throwable, Record, Record, Unit] =
   kafkaSink zipPar pulsarSink 
 ```
 

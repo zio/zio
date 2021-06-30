@@ -69,8 +69,10 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Sequentially zips this effect with the specified effect, combining the
    * results into a tuple.
    */
-  final def &&&[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, (A, B)] =
-    self.zipWith(that)((a, b) => (a, b))
+  final def &&&[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B])(implicit
+    zippable: Zippable[A, B]
+  ): ZIO[R1, E1, zippable.Out] =
+    self.zipWith(that)((a, b) => zippable.zip(a, b))
 
   /**
    * Returns an effect that executes both this effect and the specified effect,
@@ -113,8 +115,10 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * in parallel, combining their results into a tuple. If either side fails,
    * then the other side will be interrupted.
    */
-  final def <&>[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, (A, B)] =
-    self.zipWithPar(that)((a, b) => (a, b))
+  final def <&>[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B])(implicit
+    zippable: Zippable[A, B]
+  ): ZIO[R1, E1, zippable.Out] =
+    self.zipWithPar(that)((a, b) => zippable.zip(a, b))
 
   /**
    * Sequences the specified effect after this effect, but ignores the
@@ -126,7 +130,9 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   /**
    * Alias for `&&&`.
    */
-  final def <*>[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, (A, B)] =
+  final def <*>[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B])(implicit
+    zippable: Zippable[A, B]
+  ): ZIO[R1, E1, zippable.Out] =
     self &&& that
 
   /**
@@ -2406,7 +2412,9 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   /**
    * A named alias for `&&&` or `<*>`.
    */
-  final def zip[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, (A, B)] =
+  final def zip[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B])(implicit
+    zippable: Zippable[A, B]
+  ): ZIO[R1, E1, zippable.Out] =
     self &&& that
 
   /**
@@ -2418,7 +2426,9 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   /**
    * A named alias for `<&>`.
    */
-  final def zipPar[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, (A, B)] =
+  final def zipPar[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B])(implicit
+    zippable: Zippable[A, B]
+  ): ZIO[R1, E1, zippable.Out] =
     self <&> that
 
   /**
@@ -4362,9 +4372,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def mapParN[R, E, A, B, C, D](zio1: ZIO[R, E, A], zio2: ZIO[R, E, B], zio3: ZIO[R, E, C])(
     f: (A, B, C) => D
   ): ZIO[R, E, D] =
-    (zio1 <&> zio2 <&> zio3).map { case ((a, b), c) =>
-      f(a, b, c)
-    }
+    (zio1 <&> zio2 <&> zio3).map(f.tupled)
 
   /**
    * Returns an effect that executes the specified effects in parallel,
@@ -4377,9 +4385,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     zio3: ZIO[R, E, C],
     zio4: ZIO[R, E, D]
   )(f: (A, B, C, D) => F): ZIO[R, E, F] =
-    (zio1 <&> zio2 <&> zio3 <&> zio4).map { case (((a, b), c), d) =>
-      f(a, b, c, d)
-    }
+    (zio1 <&> zio2 <&> zio3 <&> zio4).map(f.tupled)
 
   /**
    * Returns a memoized version of the specified effectual function.
