@@ -3178,7 +3178,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def updateService[M] =
     new ZStream.UpdateService[R, E, A, M](self)
 
-  def utfDecode[R1 <: R, E1 >: E, A1 >: A <: Byte](implicit ev: A <:< Byte): ZStream[R1, E1, String] =
+  def utfDecode[R1 <: R, E1 >: E, A1 >: A <: Byte: ClassTag](implicit ev: A <:< Byte): ZStream[R1, E1, String] =
     ZStream.unwrapManaged(
       self.peel[R1, E1, A1, Chunk[A1]](ZSink.take(4)).map { case (bytes, rest) =>
         bytes.toList match {
@@ -3198,7 +3198,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * This transducer uses the String constructor's behavior when handling malformed byte
    * sequences.
    */
-  def utf8Decode[R1 <: R, E1 >: E, A1 >: A <: Byte](implicit ev: A <:< Byte): ZStream[R1, E1, String] = {
+  def utf8Decode[R1 <: R, E1 >: E, A1 >: A <: Byte: ClassTag](implicit ev: A <:< Byte): ZStream[R1, E1, String] = {
     def is2ByteSequenceStart(b: Byte) = (b & 0xe0) == 0xc0
     def is3ByteSequenceStart(b: Byte) = (b & 0xf0) == 0xe0
     def is4ByteSequenceStart(b: Byte) = (b & 0xf8) == 0xf0
@@ -3262,7 +3262,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * This transducer uses the endisn-specific String constructor's behavior when handling
    * malformed byte sequences.
    */
-  def utf16Decode[R1 <: R, E1 >: E, A1 >: A <: Byte](implicit ev: A <:< Byte): ZStream[R1, E1, String] =
+  def utf16Decode[R1 <: R, E1 >: E, A1 >: A <: Byte: ClassTag](implicit ev: A <:< Byte): ZStream[R1, E1, String] =
     ZStream
       .unwrapManaged(self.peel[R1, E1, A1, Chunk[A1]](ZSink.take(2)).map { case (bytes, rest) =>
         bytes.toList match {
@@ -3281,7 +3281,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * This transducer uses the String constructor's behavior when handling malformed byte
    * sequences.
    */
-  def utf16BEDecode[R1 <: R, E1 >: E, A1 >: A <: Byte](implicit ev: A <:< Byte): ZStream[R1, E1, String] =
+  def utf16BEDecode[R1 <: R, E1 >: E, A1 >: A <: Byte: ClassTag](implicit ev: A <:< Byte): ZStream[R1, E1, String] =
     utfFixedLengthDecode[R1, E1, A1](StandardCharsets.UTF_16BE, 2)
 
   /**
@@ -3290,14 +3290,14 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * This transducer uses the String constructor's behavior when handling malformed byte
    * sequences.
    */
-  def utf16LEDecode[R1 <: R, E1 >: E, A1 >: A <: Byte](implicit ev: A <:< Byte): ZStream[R1, E1, String] =
+  def utf16LEDecode[R1 <: R, E1 >: E, A1 >: A <: Byte: ClassTag](implicit ev: A <:< Byte): ZStream[R1, E1, String] =
     utfFixedLengthDecode[R1, E1, A1](StandardCharsets.UTF_16LE, 2)
 
   /**
    * Decodes chunks of UTF-32 bytes into strings.
    * If no byte order mark is found big-endianness is assumed.
    */
-  def utf32Decode[R1 <: R, E1 >: E, A1 >: A <: Byte](implicit ev: A <:< Byte): ZStream[R1, E1, String] =
+  def utf32Decode[R1 <: R, E1 >: E, A1 >: A <: Byte: ClassTag](implicit ev: A <:< Byte): ZStream[R1, E1, String] =
     ZStream
       .unwrapManaged(
         self.peel[R1, E1, A1, Chunk[A1]](ZSink.take(4)).map { case (bytes, rest) =>
@@ -3318,7 +3318,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * This transducer uses the String constructor's behavior when handling malformed byte
    * sequences.
    */
-  def utf32BEDecode[R1 <: R, E1 >: E, A1 >: A <: Byte](implicit ev: A <:< Byte): ZStream[R1, E1, String] =
+  def utf32BEDecode[R1 <: R, E1 >: E, A1 >: A <: Byte: ClassTag](implicit ev: A <:< Byte): ZStream[R1, E1, String] =
     utfFixedLengthDecode[R1, E1, A1](Charset.forName("UTF-32BE"), 4)
 
   /**
@@ -3327,21 +3327,21 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * This transducer uses the String constructor's behavior when handling malformed byte
    * sequences.
    */
-  def utf32LEDecode[R1 <: R, E1 >: E, A1 >: A <: Byte](implicit ev: A <:< Byte): ZStream[R1, E1, String] =
+  def utf32LEDecode[R1 <: R, E1 >: E, A1 >: A <: Byte: ClassTag](implicit ev: A <:< Byte): ZStream[R1, E1, String] =
     utfFixedLengthDecode[R1, E1, A1](Charset.forName("UTF-32LE"), 4)
 
-  private def utfFixedLengthDecode[R1 <: R, E1 >: E, A1 >: A <: Byte](charset: Charset, width: Int)(implicit
+  private def utfFixedLengthDecode[R1 <: R, E1 >: E, A1 >: A <: Byte: ClassTag](charset: Charset, width: Int)(implicit
     ev: A <:< Byte
   ): ZStream[R1, E1, String] =
     self.mapAccumChunkEnd[Chunk[A1], String](Chunk.empty) { (old, bytes) =>
       val data      = old ++ bytes
       val remainder = data.length % width
       if (remainder == 0) {
-        val decoded = new String(data.toArray, charset)
+        val decoded = new String(data.toArray[Byte], charset)
         (Chunk.empty, Chunk.single(decoded))
       } else {
         val (fullChunk, rest) = data.splitAt(data.length - remainder)
-        val decoded           = new String(fullChunk.toArray, charset)
+        val decoded           = new String(fullChunk.toArray[Byte], charset)
         (rest, Chunk.single(decoded))
       }
     } { leftovers =>
@@ -3355,13 +3355,13 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * This transducer uses the String constructor's behavior when handling malformed byte
    * sequences.
    */
-  def usASCIIDecode[A1 >: A <: Byte](implicit ev: A <:< Byte): ZStream[R, E, String] = {
+  def usASCIIDecode[A1 >: A <: Byte: ClassTag](implicit ev: A <:< Byte): ZStream[R, E, String] = {
 
     def mapChunks2[A2](f: Chunk[A1] => Chunk[A2]): ZStream[R, E, A2] =
       new ZStream(channel.mapOut(f))
 
     mapChunks2 { chunk =>
-      Chunk.single(new String(chunk.toArray, StandardCharsets.US_ASCII))
+      Chunk.single(new String(chunk.toArray[ByteHey], StandardCharsets.US_ASCII))
     }
   }
 
