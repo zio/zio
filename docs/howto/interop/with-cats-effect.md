@@ -560,7 +560,7 @@ Let's try doing that in each of which:
 
 ZIO provides a specific blocking thread pool for blocking operations. The `doobie-hikari` module helps us create a transactor with two separated executors, one for blocking operations like JDBC operations, and the other one for non-blocking operations like performing awaiting connections to the database. So we shouldn't run blocking JDBC operations on the main thread pool. 
 
-So let's fix this issue in the previous example. In the following snippet we are going to create a `ZMHikari` of Hikari transactor:
+So let's fix this issue in the previous example. In the following snippet we are going to create a `ZMHikari` of Hikari transactor. In this example we are using `0.13.4` version of doobie which supports CE2:
 
 ```scala
 import zio.ZManaged
@@ -598,7 +598,7 @@ val zioApp: ZIO[Blocking, Throwable, List[User]] =
 
 In Cats Effect 3.x, the `cats.effect.Blocker` has been removed. So the transactor constructor doesn't require us a blocking executor; it happens under the hood using the `Sync[F].blocking` operation.
 
-To create a `Transactor` in CE3, we need to create an instance of `Dispatcher` for `zio.Task`:
+To create a `Transactor` in CE3, we need to create an instance of `Dispatcher` for `zio.Task`. The following example is based on Doobie's `1.0.0-M5` version which supports CE3:
 
 ```scala mdoc:silent:nest
 import doobie.hikari.HikariTransactor
