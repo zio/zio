@@ -3157,7 +3157,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * Prints the specified message to the console for debugging purposes.
    */
-  def debug(value: Any): UIO[Unit] =
+  def debug(value: => Any): UIO[Unit] =
     ZIO.succeed(println(value))
 
   /**
@@ -3993,7 +3993,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Imports a [[scala.concurrent.Promise]] we generate a future from promise,
    * and we pass to [fromFuture] to transform into Task[A]
    */
-  def fromPromiseScala[A](promise: scala.concurrent.Promise[A]): Task[A] =
+  def fromPromiseScala[A](promise: => scala.concurrent.Promise[A]): Task[A] =
     ZIO.fromFuture(_ => promise.future)
 
   /**
@@ -4449,7 +4449,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * If the option is empty it succeeds with Unit.
    * If the option is defined it fails with the content.
    */
-  def noneOrFail[E](o: Option[E]): IO[E, Unit] =
+  def noneOrFail[E](o: => Option[E]): IO[E, Unit] =
     getOrFailUnit(o).flip
 
   /**
@@ -4457,7 +4457,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * If the option is empty it succeeds with Unit.
    * If the option is defined it fails with an error adapted with f.
    */
-  def noneOrFailWith[E, O](o: Option[O])(f: O => E): IO[E, Unit] =
+  def noneOrFailWith[E, O](o: => Option[O])(f: O => E): IO[E, Unit] =
     getOrFailUnit(o).flip.mapError(f)
 
   /**
@@ -4654,7 +4654,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * Sets a state in the environment to the specified value.
    */
-  def setState[S: Tag](s: S): ZIO[Has[ZState[S]], Nothing, Unit] =
+  def setState[S: Tag](s: => S): ZIO[Has[ZState[S]], Nothing, Unit] =
     ZIO.serviceWith(_.set(s))
 
   /**
