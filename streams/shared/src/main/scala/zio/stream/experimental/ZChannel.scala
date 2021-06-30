@@ -1243,7 +1243,7 @@ object ZChannel {
       new Fold.K((_: Any) => ZChannel.fail(e), (_: Any) => ZChannel.fail(e))
     )
 
-  def readOrPass[Env, Err, InElem, Done, OutElem](
+  def readOrIdentity[Env, Err, InElem, Done, OutElem](
     in: InElem => ZChannel[Any, Err, InElem, Done, Err, OutElem, Done]
   ): ZChannel[Env, Err, InElem, Done, Err, OutElem, Done] =
     readWith(in, ZChannel.fail(_), ZChannel.end(_))

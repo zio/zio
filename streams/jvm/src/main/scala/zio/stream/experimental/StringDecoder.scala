@@ -21,7 +21,7 @@ object StringDecoder {
   }
 
   def utfDecode[Err, Done]: ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[String], Done] =
-    ZChannel.readOrPass { chunk =>
+    ZChannel.readOrIdentity { chunk =>
       if (chunk.startsWith(0 :: 0 :: -2 :: -1 :: Nil) && Charset.isSupported("UTF-32BE"))
         utf32BEDecode(chunk.drop(4))
       else if (chunk.startsWith(-2 :: -1 :: 0 :: 0 :: Nil) && Charset.isSupported("UTF-32LE"))
@@ -112,7 +112,7 @@ object StringDecoder {
    * malformed byte sequences.
    */
   def utf16Decode[Err, Done]: ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[String], Done] =
-    ZChannel.readOrPass { chunk =>
+    ZChannel.readOrIdentity { chunk =>
       if (chunk.startsWith(-2 :: -1 :: Nil)) utf16BEDecode(chunk.drop(2))
       else if (chunk.startsWith(-1 :: -2 :: Nil)) utf16LEDecode(chunk.drop(2))
       else utf16BEDecode(chunk)
@@ -151,7 +151,7 @@ object StringDecoder {
    * If no byte order mark is found big-endianness is assumed.
    */
   def utf32Decode[Err, Done]: ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[String], Done] =
-    ZChannel.readOrPass { chunk =>
+    ZChannel.readOrIdentity { chunk =>
       if (chunk.startsWith(0 :: 0 :: -2 :: -1 :: Nil) && Charset.isSupported("UTF-32BE"))
         utf32BEDecode(chunk.drop(4))
       else if (chunk.startsWith(-2 :: -1 :: 0 :: 0 :: Nil) && Charset.isSupported("UTF-32LE"))
@@ -222,7 +222,7 @@ object StringDecoder {
    * sequences.
    */
   def usASCIIDecode[Err, Done]: ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[String], Done] =
-    ZChannel.readOrPass { chunk =>
+    ZChannel.readOrIdentity { chunk =>
       ZChannel.write(Chunk.single(new String(chunk.toArray[Byte], StandardCharsets.US_ASCII))) *> usASCIIDecode
     }
 
