@@ -42,7 +42,7 @@ For convenience, ZIO includes the `Task` and `RIO` type aliases, which fix the e
 import zio.{ZIO, Task, RIO}
 ```
 
-```scala mdoc:silent:nest
+```scala
 type Task[+A]    = ZIO[Any, Throwable, A]
 type RIO[-R, +A] = ZIO[  R, Throwable, A]
 ```
@@ -500,10 +500,10 @@ Cats Effect and Type-Level libraries are older than the ZIO ecosystem. So there 
 
 We have provided some full working example of using these important libraries:
 
-### Doobie and FS2
+### Using ZIO with Doobie
 The following example shows how to use ZIO with Doobie (a library for JDBC access) and FS2 (a streaming library), which both rely on Cats Effect instances:
 
-```scala
+```scala mdoc:silent:nest
 import doobie._
 import doobie.implicits._
 import fs2.Stream
