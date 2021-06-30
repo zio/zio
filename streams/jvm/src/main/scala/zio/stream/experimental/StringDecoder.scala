@@ -4,39 +4,36 @@ import java.nio.charset.Charset
 import java.nio.charset.StandardCharsets
 import zio.Chunk
 
-object UTFDecode {
+object StringDecoder {
 
   implicit class ByteStreamDecode[R, E, A](val stream: ZStream[R, E, Byte]) extends AnyVal {
 
-    def utfDecode: ZStream[R, E, String]     = new ZStream[R, E, String](stream.channel >>> UTFDecode.utfDecode)
-    def utf8Decode: ZStream[R, E, String]    = new ZStream[R, E, String](stream.channel >>> UTFDecode.utf8Decode)
-    def utf16Decode: ZStream[R, E, String]   = new ZStream[R, E, String](stream.channel >>> UTFDecode.utf16Decode)
-    def utf16BEDecode: ZStream[R, E, String] = new ZStream[R, E, String](stream.channel >>> UTFDecode.utf16BEDecode)
-    def utf16LEDecode: ZStream[R, E, String] = new ZStream[R, E, String](stream.channel >>> UTFDecode.utf16LEDecode)
-    def utf32Decode: ZStream[R, E, String]   = new ZStream[R, E, String](stream.channel >>> UTFDecode.utf32Decode)
-    def utf32BEDecode: ZStream[R, E, String] = new ZStream[R, E, String](stream.channel >>> UTFDecode.utf32BEDecode)
-    def utf32LEDecode: ZStream[R, E, String] = new ZStream[R, E, String](stream.channel >>> UTFDecode.utf32LEDecode)
-    def usASCIIDecode: ZStream[R, E, String] = new ZStream[R, E, String](stream.channel >>> UTFDecode.usASCIIDecode)
+    def utfDecode: ZStream[R, E, String]     = new ZStream[R, E, String](stream.channel >>> StringDecoder.utfDecode)
+    def utf8Decode: ZStream[R, E, String]    = new ZStream[R, E, String](stream.channel >>> StringDecoder.utf8Decode)
+    def utf16Decode: ZStream[R, E, String]   = new ZStream[R, E, String](stream.channel >>> StringDecoder.utf16Decode)
+    def utf16BEDecode: ZStream[R, E, String] = new ZStream[R, E, String](stream.channel >>> StringDecoder.utf16BEDecode)
+    def utf16LEDecode: ZStream[R, E, String] = new ZStream[R, E, String](stream.channel >>> StringDecoder.utf16LEDecode)
+    def utf32Decode: ZStream[R, E, String]   = new ZStream[R, E, String](stream.channel >>> StringDecoder.utf32Decode)
+    def utf32BEDecode: ZStream[R, E, String] = new ZStream[R, E, String](stream.channel >>> StringDecoder.utf32BEDecode)
+    def utf32LEDecode: ZStream[R, E, String] = new ZStream[R, E, String](stream.channel >>> StringDecoder.utf32LEDecode)
+    def usASCIIDecode: ZStream[R, E, String] = new ZStream[R, E, String](stream.channel >>> StringDecoder.usASCIIDecode)
 
   }
 
   def utfDecode[Err, Done]: ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[String], Done] =
-    ZChannel.readWith(
-      chunk =>
-        if (chunk.startsWith(0 :: 0 :: -2 :: -1 :: Nil) && Charset.isSupported("UTF-32BE"))
-          utf32BEDecode(chunk.drop(4))
-        else if (chunk.startsWith(-2 :: -1 :: 0 :: 0 :: Nil) && Charset.isSupported("UTF-32LE"))
-          utf32LEDecode(chunk.drop(4))
-        else if (chunk.startsWith(-17 :: -69 :: -65 :: Nil))
-          utf8Decode(chunk.drop(3))
-        else if (chunk.startsWith(-2 :: -1 :: Nil))
-          utf16BEDecode(chunk.drop(2))
-        else if (chunk.startsWith(-1 :: -2 :: Nil))
-          utf16LEDecode(chunk.drop(2))
-        else utf8Decode(chunk),
-      ZChannel.fail(_),
-      ZChannel.end(_)
-    )
+    ZChannel.readOrPass { chunk =>
+      if (chunk.startsWith(0 :: 0 :: -2 :: -1 :: Nil) && Charset.isSupported("UTF-32BE"))
+        utf32BEDecode(chunk.drop(4))
+      else if (chunk.startsWith(-2 :: -1 :: 0 :: 0 :: Nil) && Charset.isSupported("UTF-32LE"))
+        utf32LEDecode(chunk.drop(4))
+      else if (chunk.startsWith(-17 :: -69 :: -65 :: Nil))
+        utf8Decode(chunk.drop(3))
+      else if (chunk.startsWith(-2 :: -1 :: Nil))
+        utf16BEDecode(chunk.drop(2))
+      else if (chunk.startsWith(-1 :: -2 :: Nil))
+        utf16LEDecode(chunk.drop(2))
+      else utf8Decode(chunk)
+    }
 
   /**
    * Decodes chunks of UTF-8 bytes into strings.
@@ -115,14 +112,11 @@ object UTFDecode {
    * malformed byte sequences.
    */
   def utf16Decode[Err, Done]: ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[String], Done] =
-    ZChannel.readWith(
-      chunk =>
-        if (chunk.startsWith(-2 :: -1 :: Nil)) utf16BEDecode(chunk.drop(2))
-        else if (chunk.startsWith(-1 :: -2 :: Nil)) utf16LEDecode(chunk.drop(2))
-        else utf16BEDecode(chunk),
-      ZChannel.fail(_),
-      ZChannel.end(_)
-    )
+    ZChannel.readOrPass { chunk =>
+      if (chunk.startsWith(-2 :: -1 :: Nil)) utf16BEDecode(chunk.drop(2))
+      else if (chunk.startsWith(-1 :: -2 :: Nil)) utf16LEDecode(chunk.drop(2))
+      else utf16BEDecode(chunk)
+    }
 
   /**
    * Decodes chunks of UTF-16BE bytes into strings.
@@ -157,16 +151,13 @@ object UTFDecode {
    * If no byte order mark is found big-endianness is assumed.
    */
   def utf32Decode[Err, Done]: ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[String], Done] =
-    ZChannel.readWith(
-      chunk =>
-        if (chunk.startsWith(0 :: 0 :: -2 :: -1 :: Nil) && Charset.isSupported("UTF-32BE"))
-          utf32BEDecode(chunk.drop(4))
-        else if (chunk.startsWith(-2 :: -1 :: 0 :: 0 :: Nil) && Charset.isSupported("UTF-32LE"))
-          utf32LEDecode(chunk.drop(4))
-        else utf32BEDecode(chunk),
-      ZChannel.fail(_),
-      ZChannel.end(_)
-    )
+    ZChannel.readOrPass { chunk =>
+      if (chunk.startsWith(0 :: 0 :: -2 :: -1 :: Nil) && Charset.isSupported("UTF-32BE"))
+        utf32BEDecode(chunk.drop(4))
+      else if (chunk.startsWith(-2 :: -1 :: 0 :: 0 :: Nil) && Charset.isSupported("UTF-32LE"))
+        utf32LEDecode(chunk.drop(4))
+      else utf32BEDecode(chunk)
+    }
 
   /**
    * Decodes chunks of UTF-32BE bytes into strings.
@@ -231,11 +222,8 @@ object UTFDecode {
    * sequences.
    */
   def usASCIIDecode[Err, Done]: ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[String], Done] =
-    ZChannel.readWith(
-      chunk =>
-        ZChannel.write(Chunk.single(new String(chunk.toArray[Byte], StandardCharsets.US_ASCII))) *> usASCIIDecode,
-      ZChannel.fail(_),
-      ZChannel.end(_)
-    )
+    ZChannel.readOrPass { chunk =>
+      ZChannel.write(Chunk.single(new String(chunk.toArray[Byte], StandardCharsets.US_ASCII))) *> usASCIIDecode
+    }
 
 }
