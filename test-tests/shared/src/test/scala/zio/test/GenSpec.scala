@@ -657,8 +657,9 @@ object GenSpec extends ZIOBaseSpec {
         }
       },
       testM("shrink search") {
+        val gen      = shrinkable.zip(shrinkable)
         val smallInt = Gen.int(0, 9)
-        checkM(Gen.const(shrinkable.zip(shrinkable)), smallInt, smallInt) { (gen, m, n) =>
+        checkM(smallInt, smallInt) { (m, n) =>
           for {
             result <- shrinkWith(gen) { case (x, y) => x < m && y < n }
           } yield assert(result.reverse.headOption)(isSome(equalTo((m, 0)) || equalTo((0, n))))
