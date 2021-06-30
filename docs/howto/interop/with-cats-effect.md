@@ -501,14 +501,18 @@ Cats Effect and Type-Level libraries are older than the ZIO ecosystem. So there 
 We have provided some full working example of using these important libraries:
 
 ### Using ZIO with Doobie
+
 The following example shows how to use ZIO with Doobie (a library for JDBC access) and FS2 (a streaming library), which both rely on Cats Effect instances:
 
 ```scala mdoc:silent:nest
+// This snippet works with both CE2 and CE3
 import doobie._
 import doobie.implicits._
 import fs2.Stream
+import zio.Task
 import zio.interop.catz._
-import zio.{Runtime, Task}
+
+implicit val zioRuntime: zio.Runtime[zio.ZEnv] = zio.Runtime.default
 
 case class User(id: String, name: String, age: Int)
 
@@ -525,7 +529,7 @@ def createTable: doobie.ConnectionIO[Int] =
         |age  SMALLINT
         |)""".stripMargin.update.run
 
-def dropTable: doobie.ConnectionIO[Int] = 
+def dropTable: doobie.ConnectionIO[Int] =
   sql"""DROP TABLE IF EXISTS USERS""".update.run
 
 def insert(name: String, age: Int): doobie.ConnectionIO[Int] =
@@ -539,18 +543,22 @@ val doobieApp: Stream[doobie.ConnectionIO, User] = for {
   _ <- fs2.Stream.eval(createTable)
   _ <- fs2.Stream.eval(insert("Olivia", 21))
   _ <- fs2.Stream.eval(insert("Oliver", 30))
-  u <- loadUsers 
+  u <- loadUsers
 } yield u
-
-implicit val runtime: Runtime[zio.ZEnv] = Runtime.default
 
 val run: Stream[Task, User] = doobieApp.transact(xa)
 
 val allUsers: List[User] =
-  Runtime.default.unsafeRun(run.compile.toList)
+  zioRuntime.unsafeRun(run.compile.toList)
 ```
 
-Sounds good, but what about managing blocking operations? How they managed? We shouldn't run blocking JDBC operations on the main thread pool. ZIO provides a specific blocking thread pool for blocking operations. The `doobie-hikari` module helps us create a transactor with two separated executors, one for blocking operations like JDBC operations, and the other one for non-blocking operations like performing awaiting connections to the database.
+Sounds good, but how can we specify a specialized transactor than the default one? Creating a customized transactor in CE2 differs from CE3. 
+
+Let's try doing that in each of which:
+
+#### Customized Transactor (CE2)
+
+ZIO provides a specific blocking thread pool for blocking operations. The `doobie-hikari` module helps us create a transactor with two separated executors, one for blocking operations like JDBC operations, and the other one for non-blocking operations like performing awaiting connections to the database. So we shouldn't run blocking JDBC operations on the main thread pool. 
 
 So let's fix this issue in the previous example. In the following snippet we are going to create a `ZMHikari` of Hikari transactor:
 
@@ -560,6 +568,7 @@ import zio.blocking.Blocking
 import zio.{ Runtime, Task, ZIO, ZManaged }
 import doobie.hikari.HikariTransactor
 import cats.effect.Blocker
+import zio.interop.catz._
 
 def transactor: ZManaged[Blocking, Throwable, HikariTransactor[Task]] =
   for {
@@ -581,6 +590,53 @@ def transactor: ZManaged[Blocking, Throwable, HikariTransactor[Task]] =
 Now we can `transact` our `doobieApp` with this `transactor` and convert that to the `ZIO` effect:
 
 ```scala
+val zioApp: ZIO[Blocking, Throwable, List[User]] =
+  transactor.use(xa => doobieApp.transact(xa).compile.toList)
+```
+
+#### Customized Transactor (CE3)
+
+In Cats Effect 3.x, the `cats.effect.Blocker` has been removed. So the transactor constructor doesn't require us a blocking executor; it happens under the hood using the `Sync[F].blocking` operation.
+
+To create a `Transactor` in CE3, we need to create an instance of `Dispatcher` for `zio.Task`:
+
+```scala mdoc:silent:nest
+import doobie.hikari.HikariTransactor
+import zio.blocking.Blocking
+import zio.interop.catz._
+import zio.{Task, ZIO, ZManaged}
+
+implicit val zioRuntime: zio.Runtime[zio.ZEnv] =
+  zio.Runtime.default
+
+implicit val dispatcher: cats.effect.std.Dispatcher[zio.Task] =
+  zioRuntime
+    .unsafeRun(
+      cats.effect.std
+        .Dispatcher[zio.Task]
+        .allocated
+    )
+    ._1
+
+def transactor: ZManaged[Blocking, Throwable, HikariTransactor[Task]] =
+  for {
+    rt <- ZIO.runtime[Any].toManaged_
+    xa <-
+      HikariTransactor
+        .newHikariTransactor[Task](
+          "org.h2.Driver",                      // driver classname
+          "jdbc:h2:mem:test;DB_CLOSE_DELAY=-1", // connect URL
+          "sa",                                 // username
+          "",                                   // password
+          rt.platform.executor.asEC             // await connection here
+        )
+        .toManaged
+  } yield xa
+```
+
+Now we can `transact` our `doobieApp` with this `transactor` and convert that to the `ZIO` effect:
+
+```scala mdoc:silent:nest
 val zioApp: ZIO[Blocking, Throwable, List[User]] =
   transactor.use(xa => doobieApp.transact(xa).compile.toList)
 ```
