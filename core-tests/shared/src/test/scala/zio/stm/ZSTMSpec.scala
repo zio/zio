@@ -283,29 +283,13 @@ object ZSTMSpec extends ZIOBaseSpec {
           assertM(ZSTM.succeed(Left("Left")).left.commit)(equalTo("Left"))
         },
         testM("on Right value") {
-          assertM(ZSTM.succeed(Right("Right")).left.either.commit)(isLeft(isNone))
+          assertM(ZSTM.succeed(Right("Right")).left.commit.exit)(fails(isRight(equalTo("Right"))))
         },
         testM("on failure") {
-          assertM(ZSTM.fail("Fail").left.either.commit)(isLeft(isSome(equalTo("Fail"))))
+          assertM(ZSTM.fail("Fail").left.commit.exit)(fails(isLeft(equalTo("Fail"))))
         } @@ zioTag(errors),
         testM("lifting a value") {
           assertM(ZSTM.left(42).commit)(isLeft(equalTo(42)))
-        }
-      ),
-      suite("leftOrFail")(
-        testM("on Left value") {
-          assertM(ZSTM.succeed(Left(42)).leftOrFail(ExampleError).commit)(equalTo(42))
-        },
-        testM("on Right value") {
-          assertM(ZSTM.succeed(Right(12)).leftOrFail(ExampleError).flip.commit)(equalTo(ExampleError))
-        }
-      ),
-      suite("leftOrFailException")(
-        testM("on Left value") {
-          assertM(ZSTM.succeed(Left(42)).leftOrFailException.commit)(equalTo(42))
-        },
-        testM("on Right value") {
-          assertM(ZSTM.succeed(Right(2)).leftOrFailException.commit.exit)(fails(Assertion.anything))
         }
       ),
       suite("mapBoth when")(
@@ -440,15 +424,15 @@ object ZSTMSpec extends ZIOBaseSpec {
       suite("optional to convert:")(
         testM("A Some(e) in E to a e in E") {
           val ei: Either[Option[String], Int] = Left(Some("my Error"))
-          assertM(ZSTM.fromEither(ei).optional.commit.exit)(fails(equalTo("my Error")))
+          assertM(ZSTM.fromEither(ei).unoption.commit.exit)(fails(equalTo("my Error")))
         },
         testM("a None in E into None in A") {
           val ei: Either[Option[String], Int] = Left(None)
-          assertM(ZSTM.fromEither(ei).optional.commit)(isNone)
+          assertM(ZSTM.fromEither(ei).unoption.commit)(isNone)
         },
         testM("no error") {
           val ei: Either[Option[String], Int] = Right(42)
-          assertM(ZSTM.fromEither(ei).optional.commit)(isSome(equalTo(42)))
+          assertM(ZSTM.fromEither(ei).unoption.commit)(isSome(equalTo(42)))
         }
       ),
       suite("orDie")(
@@ -543,30 +527,14 @@ object ZSTMSpec extends ZIOBaseSpec {
           assertM(STM.succeed(Right("Right")).right.commit)(equalTo("Right"))
         },
         testM("on Left value") {
-          assertM(STM.succeed(Left("Left")).right.either.commit)(isLeft(isNone))
+          assertM(STM.succeed(Left("Left")).right.commit.exit)(fails(isLeft(equalTo("Left"))))
         },
         testM("on failure") {
-          assertM(STM.fail("Fail").right.either.commit)(isLeft(isSome(equalTo("Fail"))))
+          assertM(STM.fail("Fail").right.commit.exit)(fails(isRight(equalTo("Fail"))))
         },
         testM("lifting a value") {
           assertM(ZSTM.right(42).commit)(isRight(equalTo(42)))
         }
-      ),
-      suite("rightOrFail")(
-        testM("on Right value") {
-          assertM(STM.succeed(Right(42)).rightOrFail(ExampleError).commit)(equalTo(42))
-        },
-        testM("on Left value") {
-          assertM(STM.succeed(Left(1)).rightOrFail(ExampleError).flip.commit)(equalTo(ExampleError))
-        } @@ zioTag(errors)
-      ),
-      suite("rightOrFailException")(
-        testM("on Right value") {
-          assertM(STM.succeed(Right(42)).rightOrFailException.commit)(equalTo(42))
-        },
-        testM("on Left value") {
-          assertM(STM.succeed(Left(2)).rightOrFailException.commit.exit)(fails(Assertion.anything))
-        } @@ zioTag(errors)
       ),
       suite("some")(
         testM("extracts the value from Some") {

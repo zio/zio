@@ -269,6 +269,30 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def as[B](b: => B): ZIO[R, E, B] = self.flatMap(new ZIO.ConstZIOFn(() => b))
 
   /**
+   * Maps the success value of this effect to a left value.
+   */
+  final def asLeft: ZIO[R, E, Either[A, Nothing]] =
+    map(Left(_))
+
+  /**
+   * Maps the error value of this effect to a left value.
+   */
+  final def asLeftError: ZIO[R, Either[E, Nothing], A] =
+    mapError(Left(_))
+
+  /**
+   * Maps the success value of this effect to a right value.
+   */
+  final def asRight: ZIO[R, E, Either[Nothing, A]] =
+    map(Right(_))
+
+  /**
+   * Maps the error value of this effect to a right value.
+   */
+  final def asRightError: ZIO[R, Either[Nothing, E], A] =
+    mapError(Right(_))
+
+  /**
    * Maps the success value of this effect to a service.
    */
   final def asService[A1 >: A: Tag]: ZIO[R, E, Has[A1]] =
@@ -1031,6 +1055,16 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def join[R1, E1 >: E, A1 >: A](that: ZIO[R1, E1, A1]): ZIO[Either[R, R1], E1, A1] = self ||| that
 
   /**
+   * "Zooms in" on the value in the `Left` side of an `Either`, moving the
+   * possibility that the value is a `Right` to the error channel.
+   */
+  final def left[B, C](implicit ev: A IsSubtypeOfOutput Either[B, C]): ZIO[R, Either[E, C], B] =
+    self.foldZIO(
+      e => ZIO.fail(Left(e)),
+      a => ev(a).fold(b => ZIO.succeedNow(b), c => ZIO.fail(Right(c)))
+    )
+
+  /**
    * Returns an effect which is guaranteed to be executed on the specified
    * executor. The specified effect will always run on the specified executor,
    * even in the presence of asynchronous boundaries.
@@ -1226,6 +1260,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   /**
    * Converts an option on errors into an option on values.
    */
+  @deprecated("use unoption", "2.0.0")
   final def optional[E1](implicit ev: E IsSubtypeOfError Option[E1]): ZIO[R, E1, Option[A]] =
     self.foldZIO(
       e => ev(e).fold[ZIO[R, E1, Option[A]]](ZIO.succeedNow(Option.empty[A]))(ZIO.fail(_)),
@@ -1383,89 +1418,11 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     new ZIO.ProvideSomeLayer[R0, R, E, A](self)
 
   /**
-   * Returns a successful effect if the value is `Left`, or fails with the error `None`.
-   */
-  final def left[B, C](implicit ev: A IsSubtypeOfOutput Either[B, C]): ZIO[R, Option[E], B] =
-    self.foldZIO(
-      e => ZIO.fail(Some(e)),
-      a => ev(a).fold(ZIO.succeedNow, _ => ZIO.fail(None))
-    )
-
-  /**
-   * Returns a successful effect if the value is `Left`, or fails with the error e.
-   */
-  final def leftOrFail[B, C, E1 >: E](e: => E1)(implicit ev: A IsSubtypeOfOutput Either[B, C]): ZIO[R, E1, B] =
-    self.flatMap(ev(_) match {
-      case Right(_)    => ZIO.fail(e)
-      case Left(value) => ZIO.succeedNow(value)
-    })
-
-  /**
-   * Returns a successful effect if the value is `Left`, or fails with the given error function 'e'.
-   */
-  final def leftOrFailWith[B, C, E1 >: E](e: C => E1)(implicit ev: A IsSubtypeOfOutput Either[B, C]): ZIO[R, E1, B] =
-    self.flatMap(ev(_) match {
-      case Left(value) => ZIO.succeedNow(value)
-      case Right(err)  => ZIO.fail(e(err))
-    })
-
-  /**
-   * Returns a successful effect if the value is `Left`, or fails with a [[java.util.NoSuchElementException]].
-   */
-  final def leftOrFailException[B, C, E1 >: NoSuchElementException](implicit
-    ev: A IsSubtypeOfOutput Either[B, C],
-    ev2: E IsSubtypeOfError E1
-  ): ZIO[R, E1, B] =
-    self.foldZIO(
-      e => ZIO.fail(ev2(e)),
-      a => ev(a).fold(ZIO.succeedNow(_), _ => ZIO.fail(new NoSuchElementException("Either.left.get on Right")))
-    )
-
-  /**
    * Returns a new effect that will utilize the default scope (fiber scope) to
    * supervise any fibers forked within the original effect.
    */
   final def resetForkScope: ZIO[R, E, A] =
     new ZIO.OverrideForkScope(self, None)
-
-  /**
-   * Returns a successful effect if the value is `Right`, or fails with the error `None`.
-   */
-  final def right[B, C](implicit ev: A IsSubtypeOfOutput Either[B, C]): ZIO[R, Option[E], C] =
-    self.foldZIO(
-      e => ZIO.fail(Some(e)),
-      a => ev(a).fold(_ => ZIO.fail(None), ZIO.succeedNow)
-    )
-
-  /**
-   * Returns a successful effect if the value is `Right`, or fails with the given error 'e'.
-   */
-  final def rightOrFail[B, C, E1 >: E](e: => E1)(implicit ev: A IsSubtypeOfOutput Either[B, C]): ZIO[R, E1, C] =
-    self.flatMap(ev(_) match {
-      case Right(value) => ZIO.succeedNow(value)
-      case Left(_)      => ZIO.fail(e)
-    })
-
-  /**
-   * Returns a successful effect if the value is `Right`, or fails with the given error function 'e'.
-   */
-  final def rightOrFailWith[B, C, E1 >: E](e: B => E1)(implicit ev: A IsSubtypeOfOutput Either[B, C]): ZIO[R, E1, C] =
-    self.flatMap(ev(_) match {
-      case Right(value) => ZIO.succeedNow(value)
-      case Left(err)    => ZIO.fail(e(err))
-    })
-
-  /**
-   * Returns a successful effect if the value is `Right`, or fails with a [[java.util.NoSuchElementException]].
-   */
-  final def rightOrFailException[B, C, E1 >: NoSuchElementException](implicit
-    ev: A IsSubtypeOfOutput Either[B, C],
-    ev2: E IsSubtypeOfError E1
-  ): ZIO[R, E1, C] =
-    self.foldZIO(
-      e => ZIO.fail(ev2(e)),
-      a => ev(a).fold(_ => ZIO.fail(new NoSuchElementException("Either.right.get on Left")), ZIO.succeedNow(_))
-    )
 
   /**
    * Returns an effect that races this effect with the specified effect,
@@ -1874,6 +1831,16 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     retryUntilZIO(e => f(e).map(!_))
 
   /**
+   * "Zooms in" on the value in the `Right` side of an `Either`, moving the
+   * possibility that the value is a `Left` to the error channel.
+   */
+  final def right[B, C](implicit ev: A IsSubtypeOfOutput Either[B, C]): ZIO[R, Either[B, E], C] =
+    self.foldZIO(
+      e => ZIO.fail(Right(e)),
+      a => ev(a).fold(b => ZIO.fail(Left(b)), c => ZIO.succeedNow(c))
+    )
+
+  /**
    * Returns an effect that semantically runs the effect on a fiber,
    * producing an [[zio.Exit]] for the completion value of the fiber.
    */
@@ -1926,7 +1893,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   /**
    * Converts an option on values into an option on errors.
    */
-  // <:
   final def some[B](implicit ev: A IsSubtypeOfOutput Option[B]): ZIO[R, Option[E], B] =
     self.foldZIO(
       e => ZIO.fail(Some(e)),
@@ -2288,6 +2254,16 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def unit: ZIO[R, E, Unit] = as(())
 
   /**
+   * Converts a `ZIO[R, Either[E, B], A]` into a `ZIO[R, E, Either[A, B]]`. The
+   * inverse of `left`.
+   */
+  final def unleft[E1, B](implicit ev: E IsSubtypeOfError Either[E1, B]): ZIO[R, E1, Either[A, B]] =
+    self.foldZIO(
+      e => ev(e).fold(e1 => ZIO.fail(e1), b => ZIO.succeedNow(Right(b))),
+      a => ZIO.succeedNow(Left(a))
+    )
+
+  /**
    * The moral equivalent of `if (!p) exp`
    */
   final def unless(b: => Boolean): ZIO[R, E, Unit] =
@@ -2305,6 +2281,15 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def unlessZIO[R1 <: R, E1 >: E](b: ZIO[R1, E1, Boolean]): ZIO[R1, E1, Unit] =
     ZIO.unlessZIO(b)(self)
+
+  /**
+   * Converts an option on errors into an option on values.
+   */
+  final def unoption[E1](implicit ev: E IsSubtypeOfError Option[E1]): ZIO[R, E1, Option[A]] =
+    self.foldZIO(
+      e => ev(e).fold[ZIO[R, E1, Option[A]]](ZIO.succeedNow(Option.empty[A]))(ZIO.fail(_)),
+      a => ZIO.succeedNow(Some(a))
+    )
 
   /**
    * Takes some fiber failures and converts them into errors.
@@ -2328,6 +2313,16 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
         case Cause.Die(t) if pf.isDefinedAt(t) => pf(t)
       }.fold(ZIO.failCause(cause.map(f)))(ZIO.fail(_))
     }
+
+  /**
+   * Converts a `ZIO[R, Either[B, E], A]` into a `ZIO[R, E, Either[B, A]]`. The
+   * inverse of `right`.
+   */
+  final def unright[E1, B](implicit ev: E IsSubtypeOfError Either[B, E1]): ZIO[R, E1, Either[B, A]] =
+    self.foldZIO(
+      e => ev(e).fold(b => ZIO.succeedNow(Left(b)), e1 => ZIO.fail(e1)),
+      a => ZIO.succeedNow(Right(a))
+    )
 
   /**
    * Updates a service in the environment of this effect.
@@ -2930,7 +2925,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def collect[R, E, A, B, Collection[+Element] <: Iterable[Element]](
     in: Collection[A]
   )(f: A => ZIO[R, Option[E], B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZIO[R, E, Collection[B]] =
-    foreach[R, E, A, Option[B], Iterable](in)(a => f(a).optional).map(_.flatten).map(bf.fromSpecific(in))
+    foreach[R, E, A, Option[B], Iterable](in)(a => f(a).unoption).map(_.flatten).map(bf.fromSpecific(in))
 
   /**
    * Evaluate each effect in the structure from left to right, and collect the
@@ -3132,7 +3127,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def collectPar[R, E, A, B, Collection[+Element] <: Iterable[Element]](
     in: Collection[A]
   )(f: A => ZIO[R, Option[E], B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZIO[R, E, Collection[B]] =
-    foreachPar[R, E, A, Option[B], Iterable](in)(a => f(a).optional).map(_.flatten).map(bf.fromSpecific(in))
+    foreachPar[R, E, A, Option[B], Iterable](in)(a => f(a).unoption).map(_.flatten).map(bf.fromSpecific(in))
 
   /**
    * Evaluate each effect in the structure in parallel, collecting the
@@ -3143,7 +3138,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def collectParN[R, E, A, B, Collection[+Element] <: Iterable[Element]](n: Int)(
     in: Collection[A]
   )(f: A => ZIO[R, Option[E], B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZIO[R, E, Collection[B]] =
-    foreachParN[R, E, A, Option[B], Iterable](n)(in)(a => f(a).optional).map(_.flatten).map(bf.fromSpecific(in))
+    foreachParN[R, E, A, Option[B], Iterable](n)(in)(a => f(a).unoption).map(_.flatten).map(bf.fromSpecific(in))
 
   /**
    * Similar to Either.cond, evaluate the predicate,

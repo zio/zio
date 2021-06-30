@@ -817,7 +817,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
         left  <- self.process.mapZIO(BufferedPull.make[R, E, O](_)) // type annotation required for Dotty
         right <- that.process.mapZIO(BufferedPull.make[R1, E1, O2](_))
         pull <- ZStream
-                  .unfoldZIO(s)(s => f(s, left.pullElement, right.pullElement).flatMap(ZIO.done(_).optional))
+                  .unfoldZIO(s)(s => f(s, left.pullElement, right.pullElement).flatMap(ZIO.done(_).unoption))
                   .process
       } yield pull
     }
@@ -840,7 +840,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
         left  <- self.process
         right <- that.process
         pull <- ZStream
-                  .unfoldChunkZIO(s)(s => f(s, left, right).flatMap(ZIO.done(_).optional))
+                  .unfoldChunkZIO(s)(s => f(s, left, right).flatMap(ZIO.done(_).unoption))
                   .process
       } yield pull
     }
@@ -3429,20 +3429,20 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
       case ((Running, excess), pullL, pullR) =>
         exec match {
           case ExecutionStrategy.Sequential =>
-            pullL.optional
-              .zipWith(pullR.optional)(handleSuccess(_, _, excess))
+            pullL.unoption
+              .zipWith(pullR.unoption)(handleSuccess(_, _, excess))
               .catchAllCause(e => UIO.succeedNow(Exit.failCause(e.map(Some(_)))))
           case _ =>
-            pullL.optional
-              .zipWithPar(pullR.optional)(handleSuccess(_, _, excess))
+            pullL.unoption
+              .zipWithPar(pullR.unoption)(handleSuccess(_, _, excess))
               .catchAllCause(e => UIO.succeedNow(Exit.failCause(e.map(Some(_)))))
         }
       case ((LeftDone, excess), _, pullR) =>
-        pullR.optional
+        pullR.unoption
           .map(handleSuccess(None, _, excess))
           .catchAllCause(e => UIO.succeedNow(Exit.failCause(e.map(Some(_)))))
       case ((RightDone, excess), pullL, _) =>
-        pullL.optional
+        pullL.unoption
           .map(handleSuccess(_, None, excess))
           .catchAllCause(e => UIO.succeedNow(Exit.failCause(e.map(Some(_)))))
       case ((End, _), _, _) => UIO.succeedNow(Exit.fail(None))
@@ -3492,16 +3492,16 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
       st match {
         case Running(excess) =>
           {
-            p1.optional.zipWithPar(p2.optional) { case (l, r) =>
+            p1.unoption.zipWithPar(p2.unoption) { case (l, r) =>
               handleSuccess(l, r, excess)
             }
           }.catchAllCause(e => UIO.succeedNow(Exit.failCause(e.map(Some(_)))))
         case LeftDone(excessL) =>
           {
-            p2.optional.map(handleSuccess(None, _, Left(excessL)))
+            p2.unoption.map(handleSuccess(None, _, Left(excessL)))
           }.catchAllCause(e => UIO.succeedNow(Exit.failCause(e.map(Some(_)))))
         case RightDone(excessR) => {
-          p1.optional
+          p1.unoption
             .map(handleSuccess(_, None, Right(excessR)))
             .catchAllCause(e => UIO.succeedNow(Exit.failCause(e.map(Some(_)))))
         }
