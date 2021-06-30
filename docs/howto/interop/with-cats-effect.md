@@ -645,6 +645,8 @@ val zioApp: ZIO[Blocking, Throwable, List[User]] =
 
 Here is the full working example of using http4s in ZIO App:
 
+#### Cats Effect 2.x
+
 ```scala
 import cats.effect.{ConcurrentEffect, Sync, Timer}
 import cats.implicits._
@@ -683,5 +685,46 @@ object ZioHttp4sInterop extends CatsApp {
         Ok("Hello, World!")
     }
   }
+}
+```
+
+#### Cats Effect 2.x
+
+```scala mdoc:silent:reset
+import cats.Applicative
+import cats.effect.Async
+import fs2.Stream
+import org.http4s.HttpRoutes
+import org.http4s.blaze.client.BlazeClientBuilder
+import org.http4s.blaze.server.BlazeServerBuilder
+import org.http4s.dsl.Http4sDsl
+import zio.interop.catz._
+import zio.{Task, URIO}
+
+import scala.concurrent.ExecutionContext.global
+
+object ZioHttp4sInterop extends zio.interop.catz.CatsApp {
+  def stream[F[_]: Async]: Stream[F, Nothing] = {
+    import org.http4s.implicits._
+    val httpApp = helloWorldRoute[F].orNotFound
+    for {
+      _ <- BlazeClientBuilder[F](global).stream
+      exitCode <- BlazeServerBuilder[F](global)
+        .bindHttp(8080, "0.0.0.0")
+        .withHttpApp(httpApp)
+        .serve
+    } yield exitCode
+  }.drain
+
+  def helloWorldRoute[F[_]: Applicative]: HttpRoutes[F] = {
+    val dsl = new Http4sDsl[F] {}
+    import dsl._
+    HttpRoutes.strict[F] { case GET -> Root =>
+      Ok("Hello, World!")
+    }
+  }
+
+  def run(args: List[String]): URIO[zio.ZEnv, zio.ExitCode] =
+    stream[Task].compile.drain.exitCode
 }
 ```
