@@ -1759,7 +1759,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Runs this effect according to the specified schedule.
    *
    * See [[scheduleFrom]] for a variant that allows the schedule's decision to
-   * depend on the rsult of this effect.
+   * depend on the result of this effect.
    */
   final def schedule[R1 <: R, B](schedule: Schedule[R1, Any, B]): ZIO[R1 with Clock, E, B] =
     scheduleFrom(())(schedule)
