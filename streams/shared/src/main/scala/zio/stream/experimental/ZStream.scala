@@ -7,7 +7,6 @@ import zio.stream.experimental.ZStream.{DebounceState, HandoffSignal}
 import zio.stream.experimental.internal.Utils.zipChunks
 import zio.stream.internal.{ZInputStream, ZReader}
 
-import java.nio.charset.{Charset, StandardCharsets}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 import scala.reflect.ClassTag
 
