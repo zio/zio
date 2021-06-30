@@ -647,6 +647,8 @@ Here is the full working example of using http4s in ZIO App:
 
 #### Cats Effect 2.x
 
+The following example is based on http4s's `0.21.24` version which supports CE2:
+
 ```scala
 import cats.effect.{ConcurrentEffect, Sync, Timer}
 import cats.implicits._
@@ -688,7 +690,9 @@ object ZioHttp4sInterop extends CatsApp {
 }
 ```
 
-#### Cats Effect 2.x
+#### Cats Effect 3.x
+
+The following example is based on http4s's `0.23.0-RC1` version which supports CE3:
 
 ```scala mdoc:silent:reset
 import cats.Applicative
