@@ -77,7 +77,38 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
   def collectAllWhileWith[S](z: S)(p: Z => Boolean)(f: (S, Z) => S)(implicit
     ev: L <:< In
   ): ZSink[R, InErr, In, OutErr, L, S] =
-    ???
+    new ZSink(
+      ZChannel
+        .fromZIO(Ref.make(Chunk[In]()).zip(Ref.make(false)))
+        .flatMap { case (leftoversRef, upstreamDoneRef) =>
+          lazy val upstreamMarker: ZChannel[Any, InErr, Chunk[In], Any, InErr, Chunk[In], Any] =
+            ZChannel.readWith(
+              (in: Chunk[In]) => ZChannel.write(in) *> upstreamMarker,
+              ZChannel.fail(_: InErr),
+              (x: Any) => ZChannel.fromZIO(upstreamDoneRef.set(true)).as(x)
+            )
+
+          def loop(currentResult: S): ZChannel[R, InErr, Chunk[In], Any, OutErr, Chunk[L], S] =
+            channel.doneCollect
+              .foldChannel(
+                ZChannel.fail(_),
+                { case (leftovers, doneValue) =>
+                  if (p(doneValue)) {
+                    for {
+                      _                <- ZChannel.fromZIO(leftoversRef.set(leftovers.flatten.asInstanceOf[Chunk[In]]))
+                      upstreamDone     <- ZChannel.fromZIO(upstreamDoneRef.get)
+                      accumulatedResult = f(currentResult, doneValue)
+                      result <- if (upstreamDone)
+                                  ZChannel.write(leftovers.flatten).as(accumulatedResult)
+                                else loop(accumulatedResult)
+                    } yield result
+                  } else ZChannel.write(leftovers.flatten).as(currentResult)
+                }
+              )
+
+          upstreamMarker >>> ZChannel.bufferChunk(leftoversRef) >>> loop(z)
+        }
+    )
 
   /**
    * Transforms this sink's input elements.
