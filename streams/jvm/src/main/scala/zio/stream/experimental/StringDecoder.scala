@@ -38,7 +38,7 @@ object StringDecoder {
   /**
    * Decodes chunks of UTF-8 bytes into strings.
    *
-   * This transducer uses the String constructor's behavior when handling malformed byte
+   * This channel uses the String constructor's behavior when handling malformed byte
    * sequences.
    */
   def utf8Decode[Err, Done]: ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[String], Done] =
@@ -108,7 +108,7 @@ object StringDecoder {
    * Decodes chunks of UTF-16 bytes into strings.
    * If no byte order mark is found big-endianness is assumed.
    *
-   * This transducer uses the endisn-specific String constructor's behavior when handling
+   * This channel uses the endisn-specific String constructor's behavior when handling
    * malformed byte sequences.
    */
   def utf16Decode[Err, Done]: ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[String], Done] =
@@ -121,7 +121,7 @@ object StringDecoder {
   /**
    * Decodes chunks of UTF-16BE bytes into strings.
    *
-   * This transducer uses the String constructor's behavior when handling malformed byte
+   * This channel uses the String constructor's behavior when handling malformed byte
    * sequences.
    */
   def utf16BEDecode[Err, Done]: ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[String], Done] =
@@ -135,7 +135,7 @@ object StringDecoder {
   /**
    * Decodes chunks of UTF-16LE bytes into strings.
    *
-   * This transducer uses the String constructor's behavior when handling malformed byte
+   * This channel uses the String constructor's behavior when handling malformed byte
    * sequences.
    */
   def utf16LEDecode[Err, Done]: ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[String], Done] =
@@ -162,7 +162,7 @@ object StringDecoder {
   /**
    * Decodes chunks of UTF-32BE bytes into strings.
    *
-   * This transducer uses the String constructor's behavior when handling malformed byte
+   * This channel uses the String constructor's behavior when handling malformed byte
    * sequences.
    */
   def utf32BEDecode[Err, Done]: ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[String], Done] =
@@ -176,7 +176,7 @@ object StringDecoder {
   /**
    * Decodes chunks of UTF-32LE bytes into strings.
    *
-   * This transducer uses the String constructor's behavior when handling malformed byte
+   * This channel uses the String constructor's behavior when handling malformed byte
    * sequences.
    */
   def utf32LEDecode[Err, Done]: ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[String], Done] =
@@ -218,7 +218,7 @@ object StringDecoder {
   /**
    * Decodes chunks of US-ASCII bytes into strings.
    *
-   * This transducer uses the String constructor's behavior when handling malformed byte
+   * This channel uses the String constructor's behavior when handling malformed byte
    * sequences.
    */
   def usASCIIDecode[Err, Done]: ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[String], Done] =
