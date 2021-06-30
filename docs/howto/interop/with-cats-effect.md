@@ -332,7 +332,7 @@ object ResourceToZManagedExample extends zio.App {
 }
 ```
 
-### Interop with Cats Core Module
+## Cats Core
 
 There is another package in `interop-cats` module called `zio.interop.catz.core._` which helps us to interop with core data types. This package contains instances of `zio.Chunk` data type for Cats Core module like `cats.Order`, `cats.Hash`, `cats.Traverse`, and so forth.
 
