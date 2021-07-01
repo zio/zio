@@ -4,34 +4,29 @@ import java.nio.charset.Charset
 import java.nio.charset.StandardCharsets
 import zio.Chunk
 
-object StringDecoder {
+object StringCodecs {
 
   implicit class ByteStreamDecode[R, E, A](val stream: ZStream[R, E, Byte]) extends AnyVal {
 
-    def utfDecode: ZStream[R, E, String]     = new ZStream[R, E, String](stream.channel >>> StringDecoder.utfDecode)
-    def utf8Decode: ZStream[R, E, String]    = new ZStream[R, E, String](stream.channel >>> StringDecoder.utf8Decode)
-    def utf16Decode: ZStream[R, E, String]   = new ZStream[R, E, String](stream.channel >>> StringDecoder.utf16Decode)
-    def utf16BEDecode: ZStream[R, E, String] = new ZStream[R, E, String](stream.channel >>> StringDecoder.utf16BEDecode)
-    def utf16LEDecode: ZStream[R, E, String] = new ZStream[R, E, String](stream.channel >>> StringDecoder.utf16LEDecode)
-    def utf32Decode: ZStream[R, E, String]   = new ZStream[R, E, String](stream.channel >>> StringDecoder.utf32Decode)
-    def utf32BEDecode: ZStream[R, E, String] = new ZStream[R, E, String](stream.channel >>> StringDecoder.utf32BEDecode)
-    def utf32LEDecode: ZStream[R, E, String] = new ZStream[R, E, String](stream.channel >>> StringDecoder.utf32LEDecode)
-    def usASCIIDecode: ZStream[R, E, String] = new ZStream[R, E, String](stream.channel >>> StringDecoder.usASCIIDecode)
+    def utfDecode: ZStream[R, E, String]     = new ZStream[R, E, String](stream.channel >>> StringCodecs.utfDecode)
+    def utf8Decode: ZStream[R, E, String]    = new ZStream[R, E, String](stream.channel >>> StringCodecs.utf8Decode)
+    def utf16Decode: ZStream[R, E, String]   = new ZStream[R, E, String](stream.channel >>> StringCodecs.utf16Decode)
+    def utf16BEDecode: ZStream[R, E, String] = new ZStream[R, E, String](stream.channel >>> StringCodecs.utf16BEDecode)
+    def utf16LEDecode: ZStream[R, E, String] = new ZStream[R, E, String](stream.channel >>> StringCodecs.utf16LEDecode)
+    def utf32Decode: ZStream[R, E, String]   = new ZStream[R, E, String](stream.channel >>> StringCodecs.utf32Decode)
+    def utf32BEDecode: ZStream[R, E, String] = new ZStream[R, E, String](stream.channel >>> StringCodecs.utf32BEDecode)
+    def utf32LEDecode: ZStream[R, E, String] = new ZStream[R, E, String](stream.channel >>> StringCodecs.utf32LEDecode)
+    def usASCIIDecode: ZStream[R, E, String] = new ZStream[R, E, String](stream.channel >>> StringCodecs.usASCIIDecode)
 
   }
 
   def utfDecode[Err, Done]: ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[String], Done] =
     ZChannel.readOrIdentity { chunk =>
-      if (chunk.startsWith(0 :: 0 :: -2 :: -1 :: Nil) && Charset.isSupported("UTF-32BE"))
-        utf32BEDecode(chunk.drop(4))
-      else if (chunk.startsWith(-2 :: -1 :: 0 :: 0 :: Nil) && Charset.isSupported("UTF-32LE"))
-        utf32LEDecode(chunk.drop(4))
-      else if (chunk.startsWith(-17 :: -69 :: -65 :: Nil))
-        utf8Decode(chunk.drop(3))
-      else if (chunk.startsWith(-2 :: -1 :: Nil))
-        utf16BEDecode(chunk.drop(2))
-      else if (chunk.startsWith(-1 :: -2 :: Nil))
-        utf16LEDecode(chunk.drop(2))
+      if (hasUtf32BEPrefix(chunk) && Charset.isSupported("UTF-32BE")) utf32BEDecode(chunk.drop(4))
+      else if (hasUtf32LEPrefix(chunk) && Charset.isSupported("UTF-32LE")) utf32LEDecode(chunk.drop(4))
+      else if (hasUtf8Prefix(chunk)) utf8Decode(chunk.drop(3))
+      else if (hasUtf16BEPrefix(chunk)) utf16BEDecode(chunk.drop(2))
+      else if (hasUtf16LEPrefix(chunk)) utf16LEDecode(chunk.drop(2))
       else utf8Decode(chunk)
     }
 
@@ -44,7 +39,9 @@ object StringDecoder {
   def utf8Decode[Err, Done]: ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[String], Done] =
     utf8Decode(Chunk.empty)
 
-  def utf8Decode[Err, Done](initial: Chunk[Byte]): ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[String], Done] = {
+  private def utf8Decode[Err, Done](
+    initial: Chunk[Byte]
+  ): ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[String], Done] = {
     def is2ByteSequenceStart(b: Byte) = (b & 0xe0) == 0xc0
     def is3ByteSequenceStart(b: Byte) = (b & 0xf0) == 0xe0
     def is4ByteSequenceStart(b: Byte) = (b & 0xf8) == 0xf0
@@ -75,19 +72,19 @@ object StringDecoder {
       else len
     }
 
-    def writeChannel(
+    def writeAndLeftovers(
       bytes: Chunk[Byte]
     ) = {
-      val (toConvert, newLeftovers) = bytes.splitAt(computeSplit(bytes))
-      if (toConvert.isEmpty) (ZChannel.end(()), newLeftovers.materialize)
-      else (ZChannel.write(Chunk.single(new String(toConvert.toArray[Byte], "UTF-8"))), newLeftovers.materialize)
+      val (toConvert, leftovers) = bytes.splitAt(computeSplit(bytes))
+      if (toConvert.isEmpty) (ZChannel.end(()), leftovers.materialize)
+      else (ZChannel.write(Chunk.single(new String(toConvert.toArray[Byte], "UTF-8"))), leftovers.materialize)
     }
 
     def channel(leftovers: Chunk[Byte]): ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[String], Done] =
       ZChannel.readWith(
         { bytes =>
           val concat                = leftovers ++ bytes
-          val (write, newLeftovers) = writeChannel(concat)
+          val (write, newLeftovers) = writeAndLeftovers(concat)
           write *> channel(newLeftovers)
         },
         err => ZChannel.fail(err),
@@ -99,8 +96,8 @@ object StringDecoder {
       )
 
     // handle optional byte order mark
-    val chunk              = if (initial.startsWith(-17 :: -69 :: -65 :: Nil)) initial.drop(3) else initial
-    val (write, leftovers) = writeChannel(chunk)
+    val chunk              = if (hasUtf8Prefix(initial)) initial.drop(3) else initial
+    val (write, leftovers) = writeAndLeftovers(chunk)
     write *> channel(leftovers)
   }
 
@@ -113,8 +110,8 @@ object StringDecoder {
    */
   def utf16Decode[Err, Done]: ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[String], Done] =
     ZChannel.readOrIdentity { chunk =>
-      if (chunk.startsWith(-2 :: -1 :: Nil)) utf16BEDecode(chunk.drop(2))
-      else if (chunk.startsWith(-1 :: -2 :: Nil)) utf16LEDecode(chunk.drop(2))
+      if (hasUtf16BEPrefix(chunk)) utf16BEDecode(chunk.drop(2))
+      else if (hasUtf16LEPrefix(chunk)) utf16LEDecode(chunk.drop(2))
       else utf16BEDecode(chunk)
     }
 
@@ -152,10 +149,8 @@ object StringDecoder {
    */
   def utf32Decode[Err, Done]: ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[String], Done] =
     ZChannel.readOrIdentity { chunk =>
-      if (chunk.startsWith(0 :: 0 :: -2 :: -1 :: Nil) && Charset.isSupported("UTF-32BE"))
-        utf32BEDecode(chunk.drop(4))
-      else if (chunk.startsWith(-2 :: -1 :: 0 :: 0 :: Nil) && Charset.isSupported("UTF-32LE"))
-        utf32LEDecode(chunk.drop(4))
+      if (hasUtf32BEPrefix(chunk) && Charset.isSupported("UTF-32BE")) utf32BEDecode(chunk.drop(4))
+      else if (hasUtf32LEPrefix(chunk) && Charset.isSupported("UTF-32LE")) utf32LEDecode(chunk.drop(4))
       else utf32BEDecode(chunk)
     }
 
@@ -193,26 +188,26 @@ object StringDecoder {
     initial: Chunk[Byte]
   ): ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[String], Done] = {
 
-    def writeChannel(data: Chunk[Byte]) = {
-      val remainder         = data.length % width
-      val (fullChunk, rest) = data.splitAt(data.length - remainder)
-      val decoded           = new String(fullChunk.toArray[Byte], charset)
-      (rest, ZChannel.write(Chunk.single(decoded)))
+    def writeAndLeftovers(bytes: Chunk[Byte]) = {
+      val remainder              = bytes.length % width
+      val (fullChunk, leftovers) = bytes.splitAt(bytes.length - remainder)
+      val decoded                = new String(fullChunk.toArray[Byte], charset)
+      (ZChannel.write(Chunk.single(decoded)), leftovers)
     }
 
-    def channel(old: Chunk[Byte]): ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[String], Done] =
+    def channel(leftovers: Chunk[Byte]): ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[String], Done] =
       ZChannel.readWith(
         { bytes =>
-          val data          = old ++ bytes
-          val (rest, write) = writeChannel(data)
-          write *> channel(rest)
+          val data                  = leftovers ++ bytes
+          val (write, newLeftovers) = writeAndLeftovers(data)
+          write *> channel(newLeftovers)
         },
         err => ZChannel.fail(err),
-        done => ZChannel.write(Chunk.single(new String(old.toArray[Byte], charset))) >>> ZChannel.end(done)
+        done => ZChannel.write(Chunk.single(new String(leftovers.toArray[Byte], charset))) >>> ZChannel.end(done)
       )
 
-    val (rest, write) = writeChannel(initial)
-    write *> channel(rest)
+    val (write, leftovers) = writeAndLeftovers(initial)
+    write *> channel(leftovers)
   }
 
   /**
@@ -225,5 +220,20 @@ object StringDecoder {
     ZChannel.readOrIdentity { chunk =>
       ZChannel.write(Chunk.single(new String(chunk.toArray[Byte], StandardCharsets.US_ASCII))) *> usASCIIDecode
     }
+
+  private def hasUtf32BEPrefix(chunk: Chunk[Byte]): Boolean =
+    chunk.size >= 4 && chunk(0) == 0 && chunk(1) == 0 && chunk(2) == -2 && chunk(3) == -1
+
+  private def hasUtf32LEPrefix(chunk: Chunk[Byte]): Boolean =
+    chunk.size >= 4 && chunk(0) == -2 && chunk(1) == -1 && chunk(2) == 0 && chunk(3) == 0
+
+  private def hasUtf8Prefix(chunk: Chunk[Byte]): Boolean =
+    chunk.size >= 3 && chunk(0) == -17 && chunk(1) == -69 && chunk(2) == -65
+
+  private def hasUtf16BEPrefix(chunk: Chunk[Byte]): Boolean =
+    chunk.size >= 2 && chunk(0) == -2 && chunk(1) == -1
+
+  private def hasUtf16LEPrefix(chunk: Chunk[Byte]): Boolean =
+    chunk.size >= 2 && chunk(0) == -1 && chunk(1) == -2
 
 }
