@@ -96,35 +96,35 @@ object ZSinkSpec extends ZIOBaseSpec {
             )(equalTo("use this"))
           }
         ),
-        //      suite("collectAllWhileWith")(
-        //        testM("example 1") {
-        //          ZIO
-        //            .foreach(List(1, 3, 20)) { chunkSize =>
-        //              assertM(
-        //                Stream
-        //                  .fromIterable(1 to 10)
-        //                  .chunkN(chunkSize)
-        //                  .run(ZSink.sum[Int].collectAllWhileWith(-1)((s: Int) => s == s)(_ + _))
-        //              )(equalTo(54))
-        //            }
-        //            .map(_.reduce(_ && _))
-        //        },
-        //        testM("example 2") {
-        //          val sink: ZSink[Any, Nothing, Int, Int, List[Int]] = ZSink
-        //            .head[Int]
-        //            .collectAllWhileWith[List[Int]](Nil)((a: Option[Int]) => a.fold(true)(_ < 5))(
-        //              (a: List[Int], b: Option[Int]) => a ++ b.toList
-        //            )
-        //          val stream = Stream.fromIterable(1 to 100)
-        //          assertM((stream ++ stream).chunkN(3).run(sink))(equalTo(List(1, 2, 3, 4)))
-        //        }
-        //      ),
-        //      testM("head")(
-        //        checkM(Gen.listOf(Gen.small(Gen.chunkOfN(_)(Gen.anyInt)))) { chunks =>
-        //          val headOpt = ZStream.fromChunks(chunks: _*).run(ZSink.head[Int])
-        //          assertM(headOpt)(equalTo(chunks.flatMap(_.toSeq).headOption))
-        //        }
-        //      ),
+        suite("collectAllWhileWith")(
+          testM("example 1") {
+            ZIO
+              .foreach(List(1, 3, 20)) { chunkSize =>
+                assertM(
+                  ZStream
+                    .fromChunk(Chunk.fromIterable(1 to 10))
+                    .chunkN(chunkSize)
+                    .run(ZSink.sum[Nothing, Int].collectAllWhileWith(-1)((s: Int) => s == s)(_ + _))
+                )(equalTo(54))
+              }
+              .map(_.reduce(_ && _))
+          },
+          testM("example 2") {
+            val sink = ZSink
+              .head[Nothing, Int]
+              .collectAllWhileWith[List[Int]](Nil)((a: Option[Int]) => a.fold(true)(_ < 5))(
+                (a: List[Int], b: Option[Int]) => a ++ b.toList
+              )
+            val stream = ZStream.fromChunk(Chunk.fromIterable(1 to 100))
+            assertM((stream ++ stream).chunkN(3).run(sink))(equalTo(List(1, 2, 3, 4)))
+          }
+        ),
+        testM("head")(
+          checkM(Gen.listOf(Gen.small(Gen.chunkOfN(_)(Gen.anyInt)))) { chunks =>
+            val headOpt = ZStream.fromChunks(chunks: _*).run(ZSink.head[Nothing, Int])
+            assertM(headOpt)(equalTo(chunks.flatMap(_.toSeq).headOption))
+          }
+        ),
         testM("last")(
           checkM(Gen.listOf(Gen.small(Gen.chunkOfN(_)(Gen.anyInt)))) { chunks =>
             val lastOpt = ZStream.fromChunks(chunks: _*).run(ZSink.last)

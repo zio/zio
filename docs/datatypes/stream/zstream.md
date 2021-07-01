@@ -575,7 +575,7 @@ for {
   hub     <- ZHub.unbounded[Chunk[Int]]
   managed = ZStream.fromChunkHubManaged(hub).tapZIO(_ => promise.succeed(()))
   stream  = ZStream.unwrapManaged(managed)
-  fiber   <- stream.foreach(i => printLine(i.toString)).fork
+  fiber   <- stream.foreach(printLine(_)).fork
   _       <- promise.await
   _       <- hub.publish(Chunk(1, 2, 3))
   _       <- fiber.join
@@ -590,7 +590,7 @@ Also, we can lift a `TQueue` to the ZIO Stream:
 for {
   q <- STM.atomically(TQueue.unbounded[Int])
   stream = ZStream.fromTQueue(q)
-  fiber <- stream.foreach(i => printLine(i.toString)).fork
+  fiber <- stream.foreach(printLine(_)).fork
   _     <- STM.atomically(q.offer(1))
   _     <- STM.atomically(q.offer(2))
   _     <- fiber.join
@@ -1704,7 +1704,7 @@ import zio._
 import zio.Console._
 import zio.stream._
 
-val result: RIO[Has[Console], Unit] = Stream.fromIterable(0 to 100).foreach(i => printLine(i.toString))
+val result: RIO[Has[Console], Unit] = Stream.fromIterable(0 to 100).foreach(printLine(_))
 ```
 
 ### Using a Sink
@@ -1729,7 +1729,7 @@ val s2: ZIO[Any, Nothing, Int] = ZStream.iterate(1)(_ + 1).foldWhile(0)(_ <= 5)(
 Using `ZStream#foreach` is another way of consuming elements of a stream. It takes a callback of type `O => ZIO[R1, E1, Any]` which passes each element of a stream to this callback:
 
 ```scala mdoc:silent:nest
-ZStream(1, 2, 3).foreach(x => printLine(x.toString))
+ZStream(1, 2, 3).foreach(printLine(_))
 ```
 
 ## Error Handling
