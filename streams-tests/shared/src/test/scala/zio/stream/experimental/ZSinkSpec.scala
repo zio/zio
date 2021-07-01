@@ -2,7 +2,7 @@ package zio.stream.experimental
 
 import zio._
 import zio.test.Assertion._
-import zio.test.TestAspect.{ignore, jvmOnly}
+import zio.test.TestAspect.jvmOnly
 import zio.test._
 import zio.test.environment.TestClock
 
@@ -551,13 +551,19 @@ object ZSinkSpec extends ZIOBaseSpec {
           val sink = ZSink.take[Nothing, Int](4).untilOutputZIO(s => ZIO.succeed(s.sum > 10))
 
           assertM(ZStream.fromIterable(1 to 8).chunkN(2).run(sink))(equalTo(Some(Chunk(5, 6, 7, 8))))
-        } @@ ignore,
+        },
         testM("untilOutputZIO empty stream terminates with none") {
-          assertM(ZStream.fromIterable(List.empty[Int]).run(ZSink.sum[Nothing, Int].untilOutputZIO(s => ZIO.succeed(s > 0))))(equalTo(None))
-        } @@ ignore,
+          assertM(
+            ZStream.fromIterable(List.empty[Int]).run(ZSink.sum[Nothing, Int].untilOutputZIO(s => ZIO.succeed(s > 0)))
+          )(equalTo(None))
+        },
         testM("untilOutputZIO unsatisfied condition terminates with none") {
-          assertM(ZStream.fromIterable(List(1, 2)).run(ZSink.head[Nothing, Int].untilOutputZIO(h => ZIO.succeed(h.fold(false)(_ >= 3)))))(equalTo(None))
-        } @@ ignore,
+          assertM(
+            ZStream
+              .fromIterable(List(1, 2))
+              .run(ZSink.head[Nothing, Int].untilOutputZIO(h => ZIO.succeed(h.fold(false)(_ >= 3))))
+          )(equalTo(None))
+        },
         suite("flatMap")(
           testM("non-empty input") {
             assertM(
