@@ -1848,28 +1848,15 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   /**
    * Statefully maps over the elements of this stream to produce new elements.
    */
-  def mapAccum[S, A1](s: S)(f: (S, A) => (S, A1)): ZStream[R, E, A1] =
-    mapAccumChunk(s)((currS, in) => in.mapAccum(currS)(f))
-
-  /**
-   * Statefully maps over the chunks of this stream to produce new chunks.
-   */
-  def mapAccumChunk[S, A1](s: S)(f: (S, Chunk[A]) => (S, Chunk[A1])): ZStream[R, E, A1] =
-    mapAccumChunkEnd(s)(f)(_ => Chunk.empty)
-
-  /**
-   * Statefully maps over the chuinks of this stream to produce new chunks,
-   * additionally mapping the final state.
-   */
-  def mapAccumChunkEnd[S, A1](s: S)(f: (S, Chunk[A]) => (S, Chunk[A1]))(fz: S => Chunk[A1]): ZStream[R, E, A1] = {
+  def mapAccum[S, A1](s: S)(f: (S, A) => (S, A1)): ZStream[R, E, A1] = {
     def accumulator(currS: S): ZChannel[Any, E, Chunk[A], Any, E, Chunk[A1], Unit] =
       ZChannel.readWith(
         (in: Chunk[A]) => {
-          val (nextS, a1s) = f(currS, in)
+          val (nextS, a1s) = in.mapAccum(currS)(f)
           ZChannel.write(a1s) *> accumulator(nextS)
         },
         (err: E) => ZChannel.fail(err),
-        (_: Any) => ZChannel.write(fz(s)) >>> ZChannel.unit
+        (_: Any) => ZChannel.unit
       )
 
     new ZStream(self.channel >>> accumulator(s))
