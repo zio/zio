@@ -75,10 +75,4 @@ package object zio
   val Hub: ZHub.type = ZHub
 
   type Semaphore = stm.TSemaphore
-
-  object <*> {
-    def unapply[A, B](ab: (A, B)): Some[(A, B)] =
-      Some((ab._1, ab._2))
-  }
-
 }
