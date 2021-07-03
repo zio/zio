@@ -454,7 +454,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
                 ZChannel.fail(_),
                 { case (leftovers, doneValue) =>
                   for {
-                    satisfied    <- ZChannel.fromZIO(f(doneValue).fold(_ => false, identity))
+                    satisfied    <- ZChannel.fromZIO(f(doneValue))
                     _            <- ZChannel.fromZIO(leftoversRef.set(leftovers.flatten.asInstanceOf[Chunk[In]]))
                     upstreamDone <- ZChannel.fromZIO(upstreamDoneRef.get)
                     res <- if (satisfied) ZChannel.write(leftovers.flatten).as(Some(doneValue))

@@ -547,13 +547,6 @@ object ZSinkSpec extends ZIOBaseSpec {
           }
           assertions.map(tst => tst.reduce(_ && _))
         },
-        testM("untilOutputZIO failed predicate") {
-          assertM(
-            ZStream
-              .fromIterable(List(1, 2, 3, 4))
-              .run(ZSink.head[Nothing, Int].untilOutputZIO(_ => ZIO.fail("failed predicate")))
-          )(equalTo(None))
-        },
         testM("untilOutputZIO take sink across multiple chunks") {
           val sink = ZSink.take[Nothing, Int](4).untilOutputZIO(s => ZIO.succeed(s.sum > 10))
 
