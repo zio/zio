@@ -3595,6 +3595,16 @@ object ZIOSpec extends ZIOBaseSpec {
         else assertM(result)(isLeft(anything))
       }
     ),
+    test("zip is compositional") {
+      lazy val x1: Task[Int]                          = ???
+      lazy val x2: Task[Unit]                         = ???
+      lazy val x3: Task[String]                       = ???
+      lazy val x4: Task[Boolean]                      = ???
+      lazy val actual                                 = x1 <*> x2 <*> x3 <*> x4
+      lazy val expected: Task[(Int, String, Boolean)] = actual
+      lazy val _                                      = expected
+      assertCompletes
+    },
     suite("zipPar")(
       testM("does not swallow exit causes of loser") {
         ZIO.interrupt.zipPar(IO.interrupt).exit.map {

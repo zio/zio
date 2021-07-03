@@ -78,7 +78,9 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   /**
    * Symbolic alias for [[ZStream#cross]].
    */
-  final def <*>[R1 <: R, E1 >: E, O2](that: ZStream[R1, E1, O2]): ZStream[R1, E1, (O, O2)] =
+  final def <*>[R1 <: R, E1 >: E, O2](that: ZStream[R1, E1, O2])(implicit
+    zippable: Zippable[O, O2]
+  ): ZStream[R1, E1, zippable.Out] =
     self cross that
 
   /**
@@ -96,7 +98,9 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   /**
    * Symbolic alias for [[ZStream#zip]].
    */
-  final def <&>[R1 <: R, E1 >: E, O2](that: ZStream[R1, E1, O2]): ZStream[R1, E1, (O, O2)] =
+  final def <&>[R1 <: R, E1 >: E, O2](that: ZStream[R1, E1, O2])(implicit
+    zippable: Zippable[O, O2]
+  ): ZStream[R1, E1, zippable.Out] =
     self zip that
 
   /**
@@ -893,8 +897,10 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    *
    * See also [[ZStream#zip]] and [[ZStream#<&>]] for the more common point-wise variant.
    */
-  final def cross[R1 <: R, E1 >: E, O2](that: ZStream[R1, E1, O2]): ZStream[R1, E1, (O, O2)] =
-    (self crossWith that)((_, _))
+  final def cross[R1 <: R, E1 >: E, O2](that: ZStream[R1, E1, O2])(implicit
+    zippable: Zippable[O, O2]
+  ): ZStream[R1, E1, zippable.Out] =
+    (self crossWith that)(zippable.zip(_, _))
 
   /**
    * Composes this stream with the specified stream to create a cartesian product of elements,
@@ -3343,7 +3349,10 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    *
    * The new stream will end when one of the sides ends.
    */
-  def zip[R1 <: R, E1 >: E, O2](that: ZStream[R1, E1, O2]): ZStream[R1, E1, (O, O2)] = zipWith(that)((_, _))
+  def zip[R1 <: R, E1 >: E, O2](that: ZStream[R1, E1, O2])(implicit
+    zippable: Zippable[O, O2]
+  ): ZStream[R1, E1, zippable.Out] =
+    zipWith(that)(zippable.zip(_, _))
 
   /**
    * Zips this stream with another point-wise, creating a new stream of pairs of elements
@@ -4545,9 +4554,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   def zipN[R, E, A, B, C, D](zStream1: ZStream[R, E, A], zStream2: ZStream[R, E, B], zStream3: ZStream[R, E, C])(
     f: (A, B, C) => D
   ): ZStream[R, E, D] =
-    (zStream1 <&> zStream2 <&> zStream3).map { case ((a, b), c) =>
-      f(a, b, c)
-    }
+    (zStream1 <&> zStream2 <&> zStream3).map(f.tupled)
 
   /**
    * Returns an effect that executes the specified effects in parallel,
@@ -4560,9 +4567,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     zStream3: ZStream[R, E, C],
     zStream4: ZStream[R, E, D]
   )(f: (A, B, C, D) => F): ZStream[R, E, F] =
-    (zStream1 <&> zStream2 <&> zStream3 <&> zStream4).map { case (((a, b), c), d) =>
-      f(a, b, c, d)
-    }
+    (zStream1 <&> zStream2 <&> zStream3 <&> zStream4).map(f.tupled)
 
   final class AccessPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[A](f: R => A): ZStream[R, Nothing, A] =

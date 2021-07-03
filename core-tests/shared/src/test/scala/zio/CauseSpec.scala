@@ -248,7 +248,7 @@ object CauseSpec extends ZIOBaseSpec {
     Gen.causes(Gen.anyString, Gen.anyString.map(s => new RuntimeException(s)))
 
   val equalCauses: Gen[Has[Random] with Has[Sized], (Cause[String], Cause[String])] =
-    (causes <*> causes <*> causes).flatMap { case ((a, b), c) =>
+    (causes <*> causes <*> causes).flatMap { case (a, b, c) =>
       Gen.elements(
         (a, a),
         (a, Cause.traced(a, ZTrace(Fiber.Id(0L, 0L), Nil, Nil, None))),

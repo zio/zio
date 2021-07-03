@@ -67,7 +67,7 @@ object CompressionSpec extends DefaultRunnableSpec {
         ),
         testM("inflate what JDK deflated")(
           checkM(Gen.listOfBounded(0, `1K`)(Gen.anyByte).zip(Gen.int(1, `1K`)).zip(Gen.int(1, `1K`))) {
-            case ((chunk, n), bufferSize) =>
+            case (chunk, n, bufferSize) =>
               assertM(for {
                 deflated <- ZIO.succeed(deflatedStream(chunk.toArray))
                 out      <- deflated.chunkN(n).transduce(inflate(bufferSize)).runCollect
@@ -76,7 +76,7 @@ object CompressionSpec extends DefaultRunnableSpec {
         ),
         testM("inflate what JDK deflated, nowrap")(
           checkM(Gen.listOfBounded(0, `1K`)(Gen.anyByte).zip(Gen.int(1, `1K`)).zip(Gen.int(1, `1K`))) {
-            case ((chunk, n), bufferSize) =>
+            case (chunk, n, bufferSize) =>
               assertM(for {
                 deflated <- ZIO.succeed(noWrapDeflatedStream(chunk.toArray))
                 out      <- deflated.chunkN(n).transduce(inflate(bufferSize, true)).runCollect
@@ -148,7 +148,7 @@ object CompressionSpec extends DefaultRunnableSpec {
         ),
         testM("gunzip what JDK gzipped, nowrap")(
           checkM(Gen.listOfBounded(0, `1K`)(Gen.anyByte).zip(Gen.int(1, `1K`)).zip(Gen.int(1, `1K`))) {
-            case ((chunk, n), bufferSize) =>
+            case (chunk, n, bufferSize) =>
               assertM(for {
                 deflated <- ZIO.succeed(jdkGzippedStream(chunk.toArray))
                 out      <- deflated.chunkN(n).transduce(gunzip(bufferSize)).runCollect
@@ -184,7 +184,7 @@ object CompressionSpec extends DefaultRunnableSpec {
       suite("deflate")(
         testM("JDK inflates what was deflated")(
           checkM(Gen.listOfBounded(0, `1K`)(Gen.anyByte).zip(Gen.int(1, `1K`)).zip(Gen.int(1, `1K`))) {
-            case ((input, n), bufferSize) =>
+            case (input, n, bufferSize) =>
               assertM(for {
                 deflated <- Stream.fromIterable(input).chunkN(n).transduce(deflate(bufferSize, false)).runCollect
                 inflated <- jdkInflate(deflated, noWrap = false)
@@ -220,7 +220,7 @@ object CompressionSpec extends DefaultRunnableSpec {
       suite("gzip")(
         testM("JDK gunzips what was gzipped")(
           checkM(Gen.listOfBounded(0, `1K`)(Gen.anyByte).zip(Gen.int(1, `1K`)).zip(Gen.int(1, `1K`))) {
-            case ((input, n), bufferSize) =>
+            case (input, n, bufferSize) =>
               assertM(for {
                 gzipped  <- Stream.fromIterable(input).chunkN(n).transduce(gzip(bufferSize)).runCollect
                 inflated <- jdkGunzip(gzipped)

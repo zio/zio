@@ -50,8 +50,10 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     OutDone2
   ](
     that: => ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem1, OutDone2]
-  ): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem1, (OutDone, OutDone2)] =
-    self.flatMap(z => that.map(z2 => (z, z2)))
+  )(implicit
+    zippable: Zippable[OutDone, OutDone2]
+  ): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem1, zippable.Out] =
+    self.flatMap(z => that.map(z2 => zippable.zip(z, z2)))
 
   /**
    * Returns a new channel that is the sequential composition of this channel and the specified
@@ -798,8 +800,10 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     OutDone2
   ](
     that: => ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem1, OutDone2]
-  ): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem1, (OutDone, OutDone2)] =
-    self.flatMap(l => that.map(r => (l, r)))
+  )(implicit
+    zippable: Zippable[OutDone, OutDone2]
+  ): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem1, zippable.Out] =
+    self.flatMap(l => that.map(r => zippable.zip(l, r)))
 
   def zipOutWith[
     Env1 <: Env,
@@ -838,16 +842,16 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     OutDone2
   ](
     that: => ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem1, OutDone2]
-  ): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem1, (OutDone, OutDone2)] =
+  )(implicit
+    zippable: Zippable[OutDone, OutDone2]
+  ): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem1, zippable.Out] =
     self.mergeWith(that)(
       exit1 =>
-        ZChannel.MergeDecision.Await[Env1, OutErr1, OutDone2, OutErr1, (OutDone, OutDone2)](exit2 =>
+        ZChannel.MergeDecision.Await[Env1, OutErr1, OutDone2, OutErr1, zippable.Out](exit2 =>
           ZIO.done(exit1.zip(exit2))
         ),
       exit2 =>
-        ZChannel.MergeDecision.Await[Env1, OutErr1, OutDone, OutErr1, (OutDone, OutDone2)](exit1 =>
-          ZIO.done(exit1.zip(exit2))
-        )
+        ZChannel.MergeDecision.Await[Env1, OutErr1, OutDone, OutErr1, zippable.Out](exit1 => ZIO.done(exit1.zip(exit2)))
     )
 
   def zipParLeft[

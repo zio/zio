@@ -12,7 +12,7 @@ object DeflateSpec extends DefaultRunnableSpec {
     suite("DeflateSpec")(
       testM("JDK inflates what was deflated")(
         checkM(Gen.listOfBounded(0, `1K`)(Gen.anyByte).zip(Gen.int(1, `1K`)).zip(Gen.int(1, `1K`))) {
-          case ((input, n), bufferSize) =>
+          case (input, n, bufferSize) =>
             assertM(for {
               (deflated, _) <-
                 (ZStream.fromIterable(input).chunkN(n).channel >>> Deflate.makeDeflater(bufferSize)).runCollect

@@ -309,7 +309,7 @@ object ZSinkSpec extends ZIOBaseSpec {
           (assertM(run(empty))(succeeds(equalTo((Chunk(0), Nil)))) <*>
             assertM(run(single))(succeeds(equalTo((Chunk(30), List(1))))) <*>
             assertM(run(double))(succeeds(equalTo((Chunk(30), List(2, 1))))) <*>
-            assertM(run(failed))(fails(equalTo("Ouch")))).map { case (((r1, r2), r3), r4) =>
+            assertM(run(failed))(fails(equalTo("Ouch")))).map { case (r1, r2, r3, r4) =>
             r1 && r2 && r3 && r4
           }
         },
@@ -354,7 +354,7 @@ object ZSinkSpec extends ZIOBaseSpec {
           (assertM(run(empty))(succeeds(equalTo((Chunk(0), Nil)))) <*>
             assertM(run(single))(succeeds(equalTo((Chunk(30), List(1))))) <*>
             assertM(run(double))(succeeds(equalTo((Chunk(30), List(2, 1))))) <*>
-            assertM(run(failed))(fails(equalTo("Ouch")))).map { case (((r1, r2), r3), r4) =>
+            assertM(run(failed))(fails(equalTo("Ouch")))).map { case (r1, r2, r3, r4) =>
             r1 && r2 && r3 && r4
           }
         },
@@ -621,7 +621,7 @@ object ZSinkSpec extends ZIOBaseSpec {
                 val takingSinks = takeSizes.map(takeN(_)).reduce(_ *> _).channel.doneCollect
                 val channel     = ZChannel.writeAll(inputs: _*) >>> takingSinks
 
-                (channel.run <*> readData.getAndSet(Chunk())).map { case ((leftovers, _), takenChunks) =>
+                (channel.run <*> readData.getAndSet(Chunk())).map { case (leftovers, _, takenChunks) =>
                   assert(leftovers.flatten)(equalTo(expectedLeftovers)) &&
                     assert(takenChunks)(equalTo(expectedTakes))
                 }
