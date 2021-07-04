@@ -130,6 +130,12 @@ object ZIOLazinessSpec extends ZIOBaseSpec {
       testM("succeed")(assertLazy(ZManaged.succeed))
     ),
     suite("ZIO")(
+      testM("absolve")(assertLazy(ZIO.absolve)),
+      testM("acquireReleaseWith")(assertLazy(ZIO.acquireReleaseWith)),
+      testM("attempt")(assertLazy(ZIO.attempt)),
+      testM("attemptBlocking")(assertLazy(ZIO.attemptBlocking)),
+      testM("attemptBlockingInterrupt")(assertLazy(ZIO.attemptBlockingInterrupt)),
+      testM("blocking")(assertLazy(ZIO.blocking)),
       testM("debug")(assertLazy(ZIO.debug(_))),
       testM("die")(assertLazy(ZIO.die)),
       testM("dieMessage")(assertLazy(ZIO.dieMessage)),
