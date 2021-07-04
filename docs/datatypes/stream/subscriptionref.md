@@ -62,7 +62,7 @@ for {
   server          <- server(subscriptionRef.ref).fork
   chunks          <- ZIO.collectAllPar(List.fill(100)(client(subscriptionRef.changes)))
   _               <- server.interrupt
-  _               <- ZIO.foreach(chunks)(chunk => Console.printLine(chunk.toString))
+  _               <- ZIO.foreach(chunks)(chunk => Console.printLine(chunk))
 } yield ()
 ```
 

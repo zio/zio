@@ -193,7 +193,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
           (assertM(run(empty))(succeeds(equalTo((Chunk(0), Nil)))) <*>
             assertM(run(single))(succeeds(equalTo((Chunk(30), List(1))))) <*>
             assertM(run(double))(succeeds(equalTo((Chunk(30), List(2, 1))))) <*>
-            assertM(run(failed))(fails(equalTo("Ouch")))).map { case (((r1, r2), r3), r4) =>
+            assertM(run(failed))(fails(equalTo("Ouch")))).map { case (r1, r2, r3, r4) =>
             r1 && r2 && r3 && r4
           }
         }
@@ -228,7 +228,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
           (assertM(run(empty))(succeeds(equalTo((Chunk(0), Nil)))) <*>
             assertM(run(single))(succeeds(equalTo((Chunk(30), List(1))))) <*>
             assertM(run(double))(succeeds(equalTo((Chunk(30), List(2, 1))))) <*>
-            assertM(run(failed))(fails(equalTo("Ouch")))).map { case (((r1, r2), r3), r4) =>
+            assertM(run(failed))(fails(equalTo("Ouch")))).map { case (r1, r2, r3, r4) =>
             r1 && r2 && r3 && r4
           }
         }

@@ -19,8 +19,8 @@ object EmptyMockSpec extends ZIOBaseSpec with MockSpecUtils[Has[Console]] {
         isUnit
       ), {
 
-        type M = Capability[Has[Console], String, IOException, Unit]
-        type X = UnexpectedCallException[Has[Console], String, IOException, Unit]
+        type M = Capability[Has[Console], Any, IOException, Unit]
+        type X = UnexpectedCallException[Has[Console], Any, IOException, Unit]
 
         testDied("should fail when call happened")(
           MockConsole.empty,

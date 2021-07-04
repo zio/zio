@@ -20,7 +20,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    */
   final def <*>[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, A0, In1 <: In, L1 >: L <: In1, Z1](
     that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
-  )(implicit ev: L <:< In1): ZSink[R1, InErr1, In1, OutErr1, L1, (Z, Z1)] =
+  )(implicit zippable: Zippable[Z, Z1], ev: L <:< In1): ZSink[R1, InErr1, In1, OutErr1, L1, zippable.Out] =
     zip(that)
 
   /**
@@ -28,7 +28,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    */
   final def <&>[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, A0, In1 <: In, L1 >: L <: In1, Z1](
     that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
-  ): ZSink[R1, InErr1, In1, OutErr1, L1, (Z, Z1)] =
+  )(implicit zippable: Zippable[Z, Z1]): ZSink[R1, InErr1, In1, OutErr1, L1, zippable.Out] =
     zipPar(that)
 
   /**
@@ -77,7 +77,38 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
   def collectAllWhileWith[S](z: S)(p: Z => Boolean)(f: (S, Z) => S)(implicit
     ev: L <:< In
   ): ZSink[R, InErr, In, OutErr, L, S] =
-    ???
+    new ZSink(
+      ZChannel
+        .fromZIO(Ref.make(Chunk[In]()).zip(Ref.make(false)))
+        .flatMap { case (leftoversRef, upstreamDoneRef) =>
+          lazy val upstreamMarker: ZChannel[Any, InErr, Chunk[In], Any, InErr, Chunk[In], Any] =
+            ZChannel.readWith(
+              (in: Chunk[In]) => ZChannel.write(in) *> upstreamMarker,
+              ZChannel.fail(_: InErr),
+              (x: Any) => ZChannel.fromZIO(upstreamDoneRef.set(true)).as(x)
+            )
+
+          def loop(currentResult: S): ZChannel[R, InErr, Chunk[In], Any, OutErr, Chunk[L], S] =
+            channel.doneCollect
+              .foldChannel(
+                ZChannel.fail(_),
+                { case (leftovers, doneValue) =>
+                  if (p(doneValue)) {
+                    for {
+                      _                <- ZChannel.fromZIO(leftoversRef.set(leftovers.flatten.asInstanceOf[Chunk[In]]))
+                      upstreamDone     <- ZChannel.fromZIO(upstreamDoneRef.get)
+                      accumulatedResult = f(currentResult, doneValue)
+                      result <- if (upstreamDone)
+                                  ZChannel.write(leftovers.flatten).as(accumulatedResult)
+                                else loop(accumulatedResult)
+                    } yield result
+                  } else ZChannel.write(leftovers.flatten).as(currentResult)
+                }
+              )
+
+          upstreamMarker >>> ZChannel.bufferChunk(leftoversRef) >>> loop(z)
+        }
+    )
 
   /**
    * Transforms this sink's input elements.
@@ -322,8 +353,8 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
 
   def zip[R1 <: R, InErr1 <: InErr, In1 <: In, OutErr1 >: OutErr, L1 >: L <: In1, Z1](
     that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
-  )(implicit ev: L <:< In1): ZSink[R1, InErr1, In1, OutErr1, L1, (Z, Z1)] =
-    zipWith[R1, InErr1, OutErr1, In1, L1, Z1, (Z, Z1)](that)((_, _))
+  )(implicit zippable: Zippable[Z, Z1], ev: L <:< In1): ZSink[R1, InErr1, In1, OutErr1, L1, zippable.Out] =
+    zipWith[R1, InErr1, OutErr1, In1, L1, Z1, zippable.Out](that)(zippable.zip(_, _))
 
   /**
    * Like [[zip]], but keeps only the result from the `that` sink.
@@ -338,8 +369,8 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    */
   final def zipPar[R1 <: R, InErr1 <: InErr, In1 <: In, OutErr1 >: OutErr, L1 >: L <: In1, Z1](
     that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
-  ): ZSink[R1, InErr1, In1, OutErr1, L1, (Z, Z1)] =
-    zipWithPar[R1, InErr1, OutErr1, In1, L1, Z1, (Z, Z1)](that)((_, _))
+  )(implicit zippable: Zippable[Z, Z1]): ZSink[R1, InErr1, In1, OutErr1, L1, zippable.Out] =
+    zipWithPar[R1, InErr1, OutErr1, In1, L1, Z1, zippable.Out](that)(zippable.zip(_, _))
 
   /**
    * Like [[zipPar]], but keeps only the result from this sink.

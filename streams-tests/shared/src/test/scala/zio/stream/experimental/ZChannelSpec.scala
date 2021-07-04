@@ -109,7 +109,7 @@ object ZChannelSpec extends ZIOBaseSpec {
               .concatMap(j => ZChannel.write(Second(j)).ensuring(events.update(_ :+ "Second write")))
               .ensuring(events.update(_ :+ "Second concatMap"))
 
-            conduit.runCollect.zip(events.get).map { case ((elements, _), events) =>
+            conduit.runCollect.zip(events.get).map { case (elements, _, events) =>
               assert(events)(
                 equalTo(
                   Chunk(

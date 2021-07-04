@@ -82,7 +82,7 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
   /**
    * Alias for `<*>` and `zip`.
    */
-  def &&&[R1 <: R, E1 >: E, B](that: ZSTM[R1, E1, B]): ZSTM[R1, E1, (A, B)] =
+  def &&&[R1 <: R, E1 >: E, B](that: ZSTM[R1, E1, B])(implicit zippable: Zippable[A, B]): ZSTM[R1, E1, zippable.Out] =
     self <*> that
 
   /**
@@ -116,7 +116,9 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
   /**
    * Sequentially zips this value with the specified one.
    */
-  def <*>[R1 <: R, E1 >: E, B](that: => ZSTM[R1, E1, B]): ZSTM[R1, E1, (A, B)] =
+  def <*>[R1 <: R, E1 >: E, B](that: => ZSTM[R1, E1, B])(implicit
+    zippable: Zippable[A, B]
+  ): ZSTM[R1, E1, zippable.Out] =
     self zip that
 
   /**
@@ -445,34 +447,13 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
     fold(_ => false, _ => true)
 
   /**
-   * Returns a successful effect if the value is `Left`, or fails with the error `None`.
+   * "Zooms in" on the value in the `Left` side of an `Either`, moving the
+   * possibility that the value is a `Right` to the error channel.
    */
-  def left[B, C](implicit ev: A <:< Either[B, C]): ZSTM[R, Option[E], B] =
-    foldSTM(
-      e => ZSTM.fail(Some(e)),
-      a => ev(a).fold(ZSTM.succeedNow, _ => ZSTM.fail(None))
-    )
-
-  /**
-   * Returns a successful effect if the value is `Left`, or fails with the error e.
-   */
-  def leftOrFail[B, C, E1 >: E](e: => E1)(implicit ev: A <:< Either[B, C]): ZSTM[R, E1, B] =
-    flatMap(ev(_) match {
-      case Right(_)    => ZSTM.fail(e)
-      case Left(value) => ZSTM.succeedNow(value)
-    })
-
-  /**
-   * Returns a successful effect if the value is `Left`, or fails with
-   * a [[java.util.NoSuchElementException]].
-   */
-  def leftOrFailException[B, C, E1 >: NoSuchElementException](implicit
-    ev: A <:< Either[B, C],
-    ev2: E <:< E1
-  ): ZSTM[R, E1, B] =
-    foldSTM(
-      e => ZSTM.fail(ev2(e)),
-      a => ev(a).fold(ZSTM.succeedNow(_), _ => ZSTM.fail(new NoSuchElementException("Either.left.get on Right")))
+  def left[B, C](implicit ev: A IsSubtypeOfOutput Either[B, C]): ZSTM[R, Either[E, C], B] =
+    self.foldSTM(
+      e => ZSTM.fail(Left(e)),
+      a => ev(a).fold(b => ZSTM.succeedNow(b), c => ZSTM.fail(Right(c)))
     )
 
   /**
@@ -567,6 +548,7 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
   /**
    * Converts an option on errors into an option on values.
    */
+  @deprecated("use unoption", "2.0.0")
   def optional[E1](implicit ev: E <:< Option[E1]): ZSTM[R, E1, Option[A]] =
     foldSTM(
       _.fold[ZSTM[R, E1, Option[A]]](ZSTM.succeedNow(Option.empty[A]))(ZSTM.fail(_)),
@@ -707,35 +689,13 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
     }
 
   /**
-   * Returns a successful effect if the value is `Right`, or fails with the error `None`.
+   * "Zooms in" on the value in the `Right` side of an `Either`, moving the
+   * possibility that the value is a `Left` to the error channel.
    */
-  def right[B, C](implicit ev: A <:< Either[B, C]): ZSTM[R, Option[E], C] =
+  final def right[B, C](implicit ev: A IsSubtypeOfOutput Either[B, C]): ZSTM[R, Either[B, E], C] =
     self.foldSTM(
-      e => ZSTM.fail(Some(e)),
-      a => ev(a).fold(_ => ZSTM.fail(None), ZSTM.succeedNow)
-    )
-
-  /**
-   * Returns a successful effect if the value is `Right`, or fails with the
-   * given error 'e'.
-   */
-  def rightOrFail[B, C, E1 >: E](e: => E1)(implicit ev: A <:< Either[B, C]): ZSTM[R, E1, C] =
-    self.flatMap(ev(_) match {
-      case Right(value) => ZSTM.succeedNow(value)
-      case Left(_)      => ZSTM.fail(e)
-    })
-
-  /**
-   * Returns a successful effect if the value is `Right`, or fails with
-   * a [[java.util.NoSuchElementException]].
-   */
-  def rightOrFailException[B, C, E1 >: NoSuchElementException](implicit
-    ev: A <:< Either[B, C],
-    ev2: E <:< E1
-  ): ZSTM[R, E1, C] =
-    self.foldSTM(
-      e => ZSTM.fail(ev2(e)),
-      a => ev(a).fold(_ => ZSTM.fail(new NoSuchElementException("Either.right.get on Left")), ZSTM.succeedNow(_))
+      e => ZSTM.fail(Right(e)),
+      a => ev(a).fold(b => ZSTM.fail(Left(b)), c => ZSTM.succeedNow(c))
     )
 
   /**
@@ -846,6 +806,35 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
     ZSTM.unlessSTM(b)(self)
 
   /**
+   * Converts a `ZSTM[R, Either[E, B], A]` into a `ZSTM[R, E, Either[A, B]]`. The
+   * inverse of `left`.
+   */
+  final def unleft[E1, B](implicit ev: E IsSubtypeOfError Either[E1, B]): ZSTM[R, E1, Either[A, B]] =
+    self.foldSTM(
+      e => ev(e).fold(e1 => ZSTM.fail(e1), b => ZSTM.succeedNow(Right(b))),
+      a => ZSTM.succeedNow(Left(a))
+    )
+
+  /**
+   * Converts an option on errors into an option on values.
+   */
+  def unoption[E1](implicit ev: E <:< Option[E1]): ZSTM[R, E1, Option[A]] =
+    foldSTM(
+      _.fold[ZSTM[R, E1, Option[A]]](ZSTM.succeedNow(Option.empty[A]))(ZSTM.fail(_)),
+      a => ZSTM.succeedNow(Some(a))
+    )
+
+  /**
+   * Converts a `ZSTM[R, Either[B, E], A]` into a `ZSTM[R, E, Either[B, A]]`. The
+   * inverse of `right`.
+   */
+  final def unright[E1, B](implicit ev: E IsSubtypeOfError Either[B, E1]): ZSTM[R, E1, Either[B, A]] =
+    self.foldSTM(
+      e => ev(e).fold(b => ZSTM.succeedNow(Left(b)), e1 => ZSTM.fail(e1)),
+      a => ZSTM.succeedNow(Right(a))
+    )
+
+  /**
    * Updates a service in the environment of this effect.
    */
   def updateService[M] =
@@ -877,8 +866,10 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
   /**
    * Named alias for `<*>`.
    */
-  def zip[R1 <: R, E1 >: E, B](that: => ZSTM[R1, E1, B]): ZSTM[R1, E1, (A, B)] =
-    (self zipWith that)((a, b) => a -> b)
+  def zip[R1 <: R, E1 >: E, B](that: => ZSTM[R1, E1, B])(implicit
+    zippable: Zippable[A, B]
+  ): ZSTM[R1, E1, zippable.Out] =
+    (self zipWith that)((a, b) => zippable.zip(a, b))
 
   /**
    * Named alias for `<*`.
@@ -1064,7 +1055,7 @@ object ZSTM {
   def collect[R, E, A, B, Collection[+Element] <: Iterable[Element]](
     in: Collection[A]
   )(f: A => ZSTM[R, Option[E], B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZSTM[R, E, Collection[B]] =
-    foreach[R, E, A, Option[B], Iterable](in)(a => f(a).optional).map(_.flatten).map(bf.fromSpecific(in))
+    foreach[R, E, A, Option[B], Iterable](in)(a => f(a).unoption).map(_.flatten).map(bf.fromSpecific(in))
 
   /**
    * Collects all the transactional effects in a collection, returning a single

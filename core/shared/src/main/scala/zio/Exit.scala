@@ -41,7 +41,8 @@ sealed abstract class Exit[+E, +A] extends Product with Serializable { self =>
   /**
    * Parallelly zips the this result with the specified result or else returns the failed `Cause[E1]`
    */
-  final def <&>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, (A, B)] = zipWith(that)((_, _), _ && _)
+  final def <&>[E1 >: E, B](that: Exit[E1, B])(implicit zippable: Zippable[A, B]): Exit[E1, zippable.Out] =
+    zipWith(that)(zippable.zip(_, _), _ && _)
 
   /**
    * Sequentially zips the this result with the specified result discarding the second element of the tuple or else returns the failed `Cause[E1]`
@@ -51,7 +52,8 @@ sealed abstract class Exit[+E, +A] extends Product with Serializable { self =>
   /**
    * Sequentially zips the this result with the specified result or else returns the failed `Cause[E1]`
    */
-  final def <*>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, (A, B)] = zipWith(that)((_, _), _ ++ _)
+  final def <*>[E1 >: E, B](that: Exit[E1, B])(implicit zippable: Zippable[A, B]): Exit[E1, zippable.Out] =
+    zipWith(that)(zippable.zip(_, _), _ ++ _)
 
   /**
    * Replaces the success value with the one provided.
@@ -213,7 +215,8 @@ sealed abstract class Exit[+E, +A] extends Product with Serializable { self =>
   /**
    * Named alias for `<*>`.
    */
-  final def zip[E1 >: E, B](that: Exit[E1, B]): Exit[E1, (A, B)] = self <*> that
+  final def zip[E1 >: E, B](that: Exit[E1, B])(implicit zippable: Zippable[A, B]): Exit[E1, zippable.Out] =
+    self <*> that
 
   /**
    * Named alias for `<*`.
@@ -223,7 +226,8 @@ sealed abstract class Exit[+E, +A] extends Product with Serializable { self =>
   /**
    * Named alias for `<&>`.
    */
-  final def zipPar[E1 >: E, B](that: Exit[E1, B]): Exit[E1, (A, B)] = self <&> that
+  final def zipPar[E1 >: E, B](that: Exit[E1, B])(implicit zippable: Zippable[A, B]): Exit[E1, zippable.Out] =
+    self <&> that
 
   /**
    * Named alias for `<&`.

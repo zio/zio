@@ -3421,7 +3421,6 @@ object ZStreamSpec extends ZIOBaseSpec {
                 result1 <- previous
                              .zip(stream)
                              .zip(next)
-                             .map { case ((p, c), n) => (p, c, n) }
                              .runCollect
               } yield assert(result0)(equalTo(result1))
             }

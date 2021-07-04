@@ -1121,34 +1121,10 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(ZIO.succeed(Left("Left")).left)(equalTo("Left"))
       },
       testM("on Right value") {
-        assertM(ZIO.succeed(Right("Right")).left.either)(isLeft(isNone))
+        assertM(ZIO.succeed(Right("Right")).left.exit)(fails(isRight(equalTo("Right"))))
       },
       testM("on failure") {
-        assertM(ZIO.fail("Fail").left.either)(isLeft(isSome(equalTo("Fail"))))
-      } @@ zioTag(errors)
-    ),
-    suite("leftOrFail")(
-      testM("on Left value") {
-        assertM(UIO(Left(42)).leftOrFail(ExampleError))(equalTo(42))
-      },
-      testM("on Right value") {
-        assertM(UIO(Right(12)).leftOrFail(ExampleError).flip)(equalTo(ExampleError))
-      } @@ zioTag(errors)
-    ),
-    suite("leftOrFailWith")(
-      testM("on Left value") {
-        assertM(Task(Left(42)).leftOrFailWith((x: Throwable) => x))(equalTo(42))
-      },
-      testM("on Right value") {
-        assertM(Task(Right(ExampleError)).leftOrFailWith((x: Throwable) => x).flip)(equalTo(ExampleError))
-      } @@ zioTag(errors)
-    ),
-    suite("leftOrFailException")(
-      testM("on Left value") {
-        assertM(ZIO.succeed(Left(42)).leftOrFailException)(equalTo(42))
-      },
-      testM("on Right value") {
-        assertM(ZIO.succeed(Right(2)).leftOrFailException.exit)(fails(Assertion.anything))
+        assertM(ZIO.fail("Fail").left.exit)(fails(isLeft(equalTo("Fail"))))
       } @@ zioTag(errors)
     ),
     suite("loop")(
@@ -1447,15 +1423,15 @@ object ZIOSpec extends ZIOBaseSpec {
     ),
     suite("optional")(
       testM("fails when given Some error") {
-        val task: IO[String, Option[Int]] = IO.fail(Some("Error")).optional
+        val task: IO[String, Option[Int]] = IO.fail(Some("Error")).unoption
         assertM(task.exit)(fails(equalTo("Error")))
       } @@ zioTag(errors),
       testM("succeeds with None given None error") {
-        val task: IO[String, Option[Int]] = IO.fail(None).optional
+        val task: IO[String, Option[Int]] = IO.fail(None).unoption
         assertM(task)(isNone)
       } @@ zioTag(errors),
       testM("succeeds with Some given a value") {
-        val task: IO[String, Option[Int]] = IO.succeed(1).optional
+        val task: IO[String, Option[Int]] = IO.succeed(1).unoption
         assertM(task)(isSome(equalTo(1)))
       }
     ),
@@ -1798,10 +1774,10 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(ZIO.succeed(Right("Right")).right)(equalTo("Right"))
       },
       testM("on Left value") {
-        assertM(ZIO.succeed(Left("Left")).right.either)(isLeft(isNone))
+        assertM(ZIO.succeed(Left("Left")).right.exit)(fails(isLeft(equalTo("Left"))))
       },
       testM("on failure") {
-        assertM(ZIO.fail("Fail").right.either)(isLeft(isSome(equalTo("Fail"))))
+        assertM(ZIO.fail("Fail").right.exit)(fails(isRight(equalTo("Fail"))))
       } @@ zioTag(errors)
     ),
     suite("refineToOrDie")(
@@ -1818,30 +1794,6 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(result)(isLeft(equalTo(expected)))
       } @@ scala2Only
     ) @@ zioTag(errors),
-    suite("rightOrFail")(
-      testM("on Right value") {
-        assertM(UIO(Right(42)).rightOrFail(ExampleError))(equalTo(42))
-      },
-      testM("on Left value") {
-        assertM(UIO(Left(1)).rightOrFail(ExampleError).flip)(equalTo(ExampleError))
-      } @@ zioTag(errors)
-    ),
-    suite("rightOrFailWith")(
-      testM("on Right value") {
-        assertM(Task(Right(42)).rightOrFailWith((x: Throwable) => x))(equalTo(42))
-      },
-      testM("on Left value") {
-        assertM(Task(Left(ExampleError)).rightOrFailWith((x: Throwable) => x).flip)(equalTo(ExampleError))
-      } @@ zioTag(errors)
-    ),
-    suite("rightOrFailException")(
-      testM("on Right value") {
-        assertM(ZIO.succeed(Right(42)).rightOrFailException)(equalTo(42))
-      },
-      testM("on Left value") {
-        assertM(ZIO.succeed(Left(2)).rightOrFailException.exit)(fails(Assertion.anything))
-      } @@ zioTag(errors)
-    ),
     suite("some")(
       testM("extracts the value from Some") {
         val task: IO[Option[Throwable], Int] = Task(Some(1)).some
@@ -3276,6 +3228,14 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assertCompletes
       }
     ),
+    testM("unleft") {
+      checkM(Gen.oneOf(Gen.failures(Gen.anyInt), Gen.successes(Gen.either(Gen.anyInt, Gen.anyInt)))) { zio =>
+        for {
+          actual   <- zio.left.unleft.exit
+          expected <- zio.exit
+        } yield assert(actual)(equalTo(expected))
+      }
+    },
     suite("unless")(
       testM("executes correct branch only") {
         for {
@@ -3377,6 +3337,14 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(zio2.exit)(fails(isNone))
       }
     ) @@ zioTag(errors),
+    testM("right") {
+      checkM(Gen.oneOf(Gen.failures(Gen.anyInt), Gen.successes(Gen.either(Gen.anyInt, Gen.anyInt)))) { zio =>
+        for {
+          actual   <- zio.right.unright.exit
+          expected <- zio.exit
+        } yield assert(actual)(equalTo(expected))
+      }
+    },
     suite("unsandbox")(
       testM("unwraps exception") {
         val failure: IO[Cause[Exception], String] = IO.fail(fail(new Exception("fail")))
@@ -3627,6 +3595,16 @@ object ZIOSpec extends ZIOBaseSpec {
         else assertM(result)(isLeft(anything))
       }
     ),
+    test("zip is compositional") {
+      lazy val x1: Task[Int]                          = ???
+      lazy val x2: Task[Unit]                         = ???
+      lazy val x3: Task[String]                       = ???
+      lazy val x4: Task[Boolean]                      = ???
+      lazy val actual                                 = x1 <*> x2 <*> x3 <*> x4
+      lazy val expected: Task[(Int, String, Boolean)] = actual
+      lazy val _                                      = expected
+      assertCompletes
+    },
     suite("zipPar")(
       testM("does not swallow exit causes of loser") {
         ZIO.interrupt.zipPar(IO.interrupt).exit.map {

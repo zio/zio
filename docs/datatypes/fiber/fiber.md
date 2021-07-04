@@ -193,7 +193,7 @@ All fibers are interruptible by default. To make an effect uninterruptible we ca
 ```scala mdoc:silent:nest
 for {
   fiber <- Clock.currentDateTime
-    .flatMap(time => printLine(time.toString))
+    .flatMap(time => printLine(time))
     .schedule(Schedule.fixed(1.seconds))
     .uninterruptible
     .fork

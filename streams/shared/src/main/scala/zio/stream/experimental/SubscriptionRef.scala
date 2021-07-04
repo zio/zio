@@ -38,8 +38,8 @@ object SubscriptionRef {
                   ZManaged {
                     ref.modifyZIO { a =>
                       ZIO.succeedNow(a).zipWith(hub.subscribe.zio) { case (a, (finalizer, queue)) =>
-                        (finalizer, ZStream(a) ++ ZStream.fromQueue(queue))
-                      } <*> ZIO.succeedNow(a)
+                        ((finalizer, ZStream(a) ++ ZStream.fromQueue(queue)), a)
+                      }
                     }.uninterruptible
                   }
                 }

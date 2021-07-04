@@ -234,8 +234,8 @@ final class NonEmptyChunk[+A] private (private val chunk: Chunk[A]) { self =>
    * Zips this `NonEmptyChunk` with the specified `NonEmptyChunk`, only
    * keeping as many elements as are in the smaller chunk.
    */
-  def zip[B](that: NonEmptyChunk[B]): NonEmptyChunk[(A, B)] =
-    zipWith(that)((_, _))
+  def zip[B](that: NonEmptyChunk[B])(implicit zippable: Zippable[A, B]): NonEmptyChunk[zippable.Out] =
+    zipWith(that)(zippable.zip(_, _))
 
   /**
    * Zips this `NonEmptyChunk` with the specified `Chunk`, using `None` to
