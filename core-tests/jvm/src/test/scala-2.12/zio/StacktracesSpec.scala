@@ -8,7 +8,7 @@ import zio.test.environment.TestClock
 
 object StackTracesSpec extends DefaultRunnableSpec {
   def spec: ZSpec[Environment, Failure] = suite("StackTracesSpec")(
-    testM("basic test") {
+    test("basic test") {
       for {
         trace <- basicTest
       } yield {
@@ -20,7 +20,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
         assert(trace.stackTrace.count(_.prettyPrint.contains("basicTest")))(equalTo(1))
       }
     },
-    testM("foreachTrace") {
+    test("foreachTrace") {
       for {
         trace <- foreachTest
       } yield {
@@ -33,7 +33,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
         assert(trace.executionTrace.exists(_.prettyPrint.contains("succeed")))(isTrue)
       }
     },
-    testM("foreach fail") {
+    test("foreach fail") {
       for {
         trace <- foreachFail
       } yield {
@@ -50,7 +50,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
 
       }
     },
-    testM("foreachPar fail") {
+    test("foreachPar fail") {
       val io = for {
         trace <- TestClock.setTime(1.second) *> foreachParFail
       } yield trace
@@ -65,7 +65,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
         })(isTrue)
       }
     },
-    testM("foreachParN fail") {
+    test("foreachParN fail") {
       val io = for {
         _     <- TestClock.setTime(1.second)
         trace <- foreachParNFail
@@ -81,7 +81,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
         })(isTrue)
       }
     },
-    testM("left-associative fold") {
+    test("left-associative fold") {
       val inFoldExecutions               = 10
       val inFoldAssociationsPerIteration = 2
       val nonFoldExecution               = 5
@@ -98,7 +98,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
         )
       }
     },
-    testM("nested left binds") {
+    test("nested left binds") {
       for {
         trace <- nestedLeftBinds.io
       } yield {
@@ -118,7 +118,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
         assert(trace2.executionTrace.exists(_.prettyPrint.contains("io")))(isTrue)
       }
     },
-    testM("fiber ancestry") {
+    test("fiber ancestry") {
       val fiber = for {
         trace <- fiberAncestry
       } yield trace
@@ -130,7 +130,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
         assert(cause.traces.head.parentTrace.get.parentTrace.get.parentTrace.isEmpty)(isFalse)
       }
     },
-    testM("fiber ancestry example with uploads") {
+    test("fiber ancestry example with uploads") {
       fiberAncestryUploadExample
         .uploadUsers(List(new fiberAncestryUploadExample.User)) causeMust { cause =>
         assert(cause.traces.head.stackTrace.size)(equalTo(7)) &&
@@ -149,7 +149,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
         )(isTrue)
       }
     },
-    testM("fiber ancestry has a limited size") {
+    test("fiber ancestry has a limited size") {
       fiberAncestryIsLimitedFixture.recursiveFork(10000) causeMust { cause =>
         assert(cause.traces.size)(equalTo(1)) &&
         assert(cause.traces.head.parents.size)(equalTo(10)) &&
@@ -157,7 +157,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
         assert(cause.traces.head.parents.head.stackTrace.exists(_.prettyPrint.contains("recursiveFork")))(isTrue)
       }
     },
-    testM("blocking trace") {
+    test("blocking trace") {
       val io: UIO[Unit] = for {
         trace <- blockingTrace
       } yield trace
@@ -169,7 +169,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
         assert(trace.executionTrace.exists(_.prettyPrint.contains("blockingTrace")))(isTrue)
       }
     },
-    testM("tracing regions") {
+    test("tracing regions") {
       val io = for {
         trace <- tracingRegions
       } yield trace
@@ -184,7 +184,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
         assert(cause.traces.head.stackTrace.size)(equalTo(3))
       }
     },
-    testM("tracing region is inherited on fork") {
+    test("tracing region is inherited on fork") {
       val io = for {
         trace <- tracingRegionsInheritance
       } yield trace
@@ -196,7 +196,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
         assert(cause.traces.head.parentTrace.isEmpty)(isTrue)
       }
     },
-    testM("execution trace example with conditional") {
+    test("execution trace example with conditional") {
       val io = for {
         trace <- executionTraceConditionalExample
       } yield trace
@@ -209,7 +209,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
         assert(trace.stackTrace.head.prettyPrint.contains("doWork"))(isTrue)
       }
     },
-    testM("mapError fully preserves previous stack trace") {
+    test("mapError fully preserves previous stack trace") {
       val io = for {
         trace <- mapErrorPreservesTrace
       } yield trace
@@ -227,7 +227,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
         assert(cause.traces.head.stackTrace(2).prettyPrint.contains("mapErrorPreservesTrace"))(isTrue)
       }
     },
-    testM("catchSome with optimized effect path") {
+    test("catchSome with optimized effect path") {
       val io = for {
         trace <- catchSomeWithOptimizedEffect
       } yield trace
@@ -242,7 +242,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
         assert(cause.traces.head.stackTrace(2).prettyPrint.contains("catchSomeWithOptimizedEffect"))(isTrue)
       }
     },
-    testM("catchAll with optimized effect path") {
+    test("catchAll with optimized effect path") {
       val io = for {
         trace <- catchAllWithOptimizedEffect
       } yield trace
@@ -257,7 +257,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
         assert(cause.traces.head.stackTrace.head.prettyPrint.contains("catchAllWithOptimizedEffect"))(isTrue)
       }
     },
-    testM("foldZIO with optimized effect path") {
+    test("foldZIO with optimized effect path") {
       for {
         trace <- foldZIOWithOptimizedEffect
       } yield {
@@ -271,35 +271,35 @@ object StackTracesSpec extends DefaultRunnableSpec {
 
       }
     },
-    testM("single effect for-comprehension") {
+    test("single effect for-comprehension") {
       singleTaskForCompFixture.selectHumans causeMust { cause =>
         assert(cause.traces.size)(equalTo(1)) &&
         assert(cause.traces.head.stackTrace.size)(equalTo(3)) &&
         assert(cause.traces.head.stackTrace.head.prettyPrint.contains("selectHumans"))(isTrue)
       }
     },
-    testM("single succeed for-comprehension") {
+    test("single succeed for-comprehension") {
       singleUIOForCompFixture.selectHumans causeMust { cause =>
         assert(cause.traces.size)(equalTo(1)) &&
         assert(cause.traces.head.stackTrace.size)(equalTo(3)) &&
         assert(cause.traces.head.stackTrace.exists(_.prettyPrint.contains("selectHumans")))(isTrue)
       }
     },
-    testM("single suspendSucceedWith for-comprehension") {
+    test("single suspendSucceedWith for-comprehension") {
       singleSuspendSucceedWithForCompFixture.selectHumans causeMust { cause =>
         assert(cause.traces.size)(equalTo(1)) &&
         assert(cause.traces.head.stackTrace.size)(equalTo(3)) &&
         assert(cause.traces.head.stackTrace.exists(_.prettyPrint.contains("selectHumans")))(isTrue)
       }
     },
-    testM("basic option test") {
+    test("basic option test") {
       for {
         value <- ZIO.getOrFailUnit(Some("foo"))
       } yield {
         assert(value)(equalTo("foo"))
       }
     },
-    testM("side effect unit in option test") {
+    test("side effect unit in option test") {
       for {
         value <- ZIO.getOrFailUnit(None).catchAll { unit =>
                    if (unit.isInstanceOf[Unit]) {

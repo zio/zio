@@ -13,7 +13,7 @@ object RTSSpec extends ZIOBaseSpec {
   import ZIOTag._
 
   def spec: ZSpec[Environment, Failure] = suite("Blocking specs (to be migrated to ZIOSpecJvm)")(
-    testM("blocking caches threads") {
+    test("blocking caches threads") {
 
       def runAndTrack(ref: Ref[Set[Thread]]): ZIO[Has[Clock], Nothing, Boolean] =
         ZIO.blocking {
@@ -29,7 +29,7 @@ object RTSSpec extends ZIOBaseSpec {
         } yield b
       assertM(Live.live(io))(isTrue)
     },
-    testM("blocking IO is effect blocking") {
+    test("blocking IO is effect blocking") {
       for {
         done  <- Ref.make(false)
         start <- Promise.make[Nothing, Unit]
@@ -41,7 +41,7 @@ object RTSSpec extends ZIOBaseSpec {
         value <- done.get
       } yield assert(res)(isInterrupted) && assert(value)(isTrue)
     } @@ nonFlaky,
-    testM("cancelation is guaranteed") {
+    test("cancelation is guaranteed") {
       val io =
         for {
           release <- Promise.make[Nothing, Int]
@@ -57,7 +57,7 @@ object RTSSpec extends ZIOBaseSpec {
 
       assertM(io)(isTrue)
     } @@ nonFlaky,
-    testM("Fiber dump looks correct") {
+    test("Fiber dump looks correct") {
       for {
         promise <- Promise.make[Nothing, Int]
         fiber   <- promise.await.fork
@@ -66,7 +66,7 @@ object RTSSpec extends ZIOBaseSpec {
         _       <- Console.printLine(dumpStr)
       } yield assert(dumpStr)(anything)
     } @@ silent,
-    testM("interruption causes") {
+    test("interruption causes") {
       for {
         queue    <- Queue.bounded[Int](100)
         producer <- queue.offer(42).forever.fork
@@ -74,7 +74,7 @@ object RTSSpec extends ZIOBaseSpec {
         _        <- Console.printLine(rez.fold(_.prettyPrint, _ => ""))
       } yield assert(rez)(anything)
     } @@ zioTag(interruption) @@ silent,
-    testM("interruption of unending acquireReleaseWith") {
+    test("interruption of unending acquireReleaseWith") {
       val io =
         for {
           startLatch <- Promise.make[Nothing, Int]
@@ -93,7 +93,7 @@ object RTSSpec extends ZIOBaseSpec {
 
       assertM(io)(isTrue)
     } @@ zioTag(interruption) @@ nonFlaky,
-    testM("deadlock regression 1") {
+    test("deadlock regression 1") {
       import java.util.concurrent.Executors
 
       val rts = new BootstrapRuntime {}
@@ -110,7 +110,7 @@ object RTSSpec extends ZIOBaseSpec {
 
       assertM(ZIO.attempt(e.shutdown()))(isUnit)
     } @@ zioTag(regression),
-    testM("second callback call is ignored") {
+    test("second callback call is ignored") {
       for {
         _ <- IO.async[Throwable, Int] { k =>
                k(IO.succeed(42))
@@ -123,7 +123,7 @@ object RTSSpec extends ZIOBaseSpec {
                }
       } yield assert(res)(equalTo("ok"))
     },
-    testM("check interruption regression 1") {
+    test("check interruption regression 1") {
       val c = new AtomicInteger(0)
 
       def test =
@@ -142,7 +142,7 @@ object RTSSpec extends ZIOBaseSpec {
 
       assertM(Live.live(zio))(isGreaterThanEqualTo(1))
     } @@ zioTag(interruption, regression),
-    testM("unsafeRunAsync runs effects on ZIO thread pool") {
+    test("unsafeRunAsync runs effects on ZIO thread pool") {
       for {
         runtime <- ZIO.runtime[Any]
         promise <- Promise.make[Nothing, String]

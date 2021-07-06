@@ -32,36 +32,36 @@ object ManagedSpec extends ZIOBaseSpec {
   def spec: Spec[Any, TestFailure[Any], TestSuccess] = suite("ManagedSpec")(
     suite("managed shared")(
       suite("first suite")(
-        testM("first test") {
+        test("first test") {
           assertM(Counter.incrementAndGet)(equalTo(2))
         },
-        testM("second test") {
+        test("second test") {
           assertM(Counter.incrementAndGet)(equalTo(3))
         }
       ),
       suite("second suite")(
-        testM("third test") {
+        test("third test") {
           assertM(Counter.incrementAndGet)(equalTo(4))
         },
-        testM("fourth test") {
+        test("fourth test") {
           assertM(Counter.incrementAndGet)(equalTo(5))
         }
       )
     ).provideLayerShared(Counter.live) @@ sequential,
     suite("managed per test")(
       suite("first suite")(
-        testM("first test") {
+        test("first test") {
           assertM(Counter.incrementAndGet)(equalTo(2))
         },
-        testM("second test") {
+        test("second test") {
           assertM(Counter.incrementAndGet)(equalTo(2))
         }
       ),
       suite("second suite")(
-        testM("third test") {
+        test("third test") {
           assertM(Counter.incrementAndGet)(equalTo(2))
         },
-        testM("fourth test") {
+        test("fourth test") {
           assertM(Counter.incrementAndGet)(equalTo(2))
         }
       )

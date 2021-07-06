@@ -61,13 +61,13 @@ object Laws2Spec extends ZIOBaseSpec {
   def spec: ZSpec[Environment, Failure] =
     suite("Laws2Spec") {
       suite("equivalenceLaws")(
-        testM("byteList <=> byteVector") {
+        test("byteList <=> byteVector") {
           val genByteList          = Gen.listOf(Gen.anyByte)
           val genByteVector        = Gen.vectorOf(Gen.anyByte)
           implicit val equivalence = Equivalence.byteListByteVectorEquivalence
           checkAllLaws(Equivalence)(genByteList, genByteVector)
         },
-        testM("charList <=> String") {
+        test("charList <=> String") {
           val genCharList          = Gen.listOf(Gen.anyChar)
           val genString            = Gen.anyString
           implicit val equivalence = Equivalence.charListStringEquivalence
