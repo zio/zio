@@ -583,7 +583,7 @@ object ZManagedSpec extends ZIOBaseSpec {
       test("return success in Some") {
         implicit val canFail = CanFail
         val managed          = ZManaged.succeed(11).option
-        managed.use(res => ZIO.succeed(assert(res)(equalTo(Some(11)))))
+        assertM(managed.useNow)(equalTo(Some(11)))
       },
       test("return failure as None") {
         val managed = ZManaged.fail(123).option
@@ -610,7 +610,7 @@ object ZManagedSpec extends ZIOBaseSpec {
       } @@ zioTag(errors),
       test("succeeds with Some given a value") {
         val managed: Managed[String, Option[Int]] = Managed.succeed(1).optional
-        managed.use(res => ZIO.succeed(assert(res)(isSome(equalTo(1)))))
+        assertM(managed.useNow)(isSome(equalTo(1)))
       }
     ),
     suite("onExitFirst")(
@@ -812,7 +812,7 @@ object ZManagedSpec extends ZIOBaseSpec {
     suite("some")(
       test("extracts the value from Some") {
         val managed: Managed[Option[Throwable], Int] = Managed.succeed(Some(1)).some
-        managed.use(res => ZIO.succeed(assert(res)(equalTo(1))))
+        assertM(managed.useNow)(equalTo(1))
       },
       test("fails on None") {
         val managed: Managed[Option[Throwable], Int] = Managed.succeed(None).some
@@ -827,11 +827,11 @@ object ZManagedSpec extends ZIOBaseSpec {
     suite("someOrElse")(
       test("extracts the value from Some") {
         val managed: TaskManaged[Int] = Managed.succeed(Some(1)).someOrElse(2)
-        managed.use(res => ZIO.succeed(assert(res)(equalTo(1))))
+        assertM(managed.useNow)(equalTo(1))
       },
       test("falls back to the default value if None") {
         val managed: TaskManaged[Int] = Managed.succeed(None).someOrElse(42)
-        managed.use(res => ZIO.succeed(assert(res)(equalTo(42))))
+        assertM(managed.useNow)(equalTo(42))
       },
       test("does not change failed state") {
         val managed: TaskManaged[Int] = Managed.fail(ExampleError).someOrElse(42)
@@ -841,11 +841,11 @@ object ZManagedSpec extends ZIOBaseSpec {
     suite("someOrElseManaged")(
       test("extracts the value from Some") {
         val managed: TaskManaged[Int] = Managed.succeed(Some(1)).someOrElseManaged(Managed.succeed(2))
-        managed.use(res => ZIO.succeed(assert(res)(equalTo(1))))
+        assertM(managed.useNow)(equalTo(1))
       },
       test("falls back to the default value if None") {
         val managed: TaskManaged[Int] = Managed.succeed(None).someOrElseManaged(Managed.succeed(42))
-        managed.use(res => ZIO.succeed(assert(res)(equalTo(42))))
+        assertM(managed.useNow)(equalTo(42))
       },
       test("does not change failed state") {
         val managed: TaskManaged[Int] = Managed.fail(ExampleError).someOrElseManaged(Managed.succeed(42))
@@ -855,7 +855,7 @@ object ZManagedSpec extends ZIOBaseSpec {
     suite("someOrFailException")(
       test("extracts the optional value") {
         val managed = Managed.succeed(Some(42)).someOrFailException
-        managed.use(res => ZIO.succeed(assert(res)(equalTo(42))))
+        assertM(managed.useNow)(equalTo(42))
       },
       test("fails when given a None") {
         val managed = Managed.succeed(Option.empty[Int]).someOrFailException
@@ -864,7 +864,7 @@ object ZManagedSpec extends ZIOBaseSpec {
       suite("without another error type")(
         test("succeed something") {
           val managed = Managed.succeed(Option(3)).someOrFailException
-          managed.use(res => ZIO.succeed(assert(res)(equalTo(3))))
+          assertM(managed.useNow)(equalTo(3))
         },
         test("succeed nothing") {
           val managed = Managed.succeed(None: Option[Int]).someOrFailException.exit
@@ -874,13 +874,13 @@ object ZManagedSpec extends ZIOBaseSpec {
       suite("with throwable as base error type")(
         test("return something") {
           val managed = Managed.succeed(Option(3)).someOrFailException
-          managed.use(res => ZIO.succeed(assert(res)(equalTo(3))))
+          assertM(managed.useNow)(equalTo(3))
         }
       ),
       suite("with exception as base error type")(
         test("return something") {
           val managed = (Managed.succeed(Option(3)): Managed[Exception, Option[Int]]).someOrFailException
-          managed.use(res => ZIO.succeed(assert(res)(equalTo(3))))
+          assertM(managed.useNow)(equalTo(3))
         }
       )
     ),
@@ -1111,7 +1111,7 @@ object ZManagedSpec extends ZIOBaseSpec {
           .succeed(1)
           .tap(n => ZManaged.succeed(n + 1))
           .map(actual => assert(1)(equalTo(actual)))
-          .use(ZIO.succeed(_))
+          .useNow
       },
       test("Runs given effect") {
         Ref
@@ -1120,7 +1120,7 @@ object ZManagedSpec extends ZIOBaseSpec {
           .tap(_.update(_ + 1).toManaged)
           .mapZIO(_.get)
           .map(i => assert(i)(equalTo(1)))
-          .use(ZIO.succeed(_))
+          .useNow
       }
     ),
     suite("tapBoth")(
@@ -1129,7 +1129,7 @@ object ZManagedSpec extends ZIOBaseSpec {
           .fromEither(Right[String, Int](1))
           .tapBoth(_ => ZManaged.unit, n => ZManaged.succeed(n + 1))
           .map(actual => assert(1)(equalTo(actual)))
-          .use(ZIO.succeed(_))
+          .useNow
       },
       test("Runs given effect on failure") {
         (
@@ -1140,7 +1140,7 @@ object ZManagedSpec extends ZIOBaseSpec {
                    .tapBoth(e => ref.update(_ + e).toManaged, (_: Any) => ZManaged.unit)
             actual <- ref.get.toManaged
           } yield assert(actual)(equalTo(2))
-        ).fold(e => assert(e)(equalTo(1)), identity).use(ZIO.succeed(_))
+        ).fold(e => assert(e)(equalTo(1)), identity).useNow
       } @@ zioTag(errors),
       test("Runs given effect on success") {
         (
@@ -1151,7 +1151,7 @@ object ZManagedSpec extends ZIOBaseSpec {
                    .tapBoth(_ => ZManaged.unit, n => ref.update(_ + n).toManaged)
             actual <- ref.get.toManaged
           } yield assert(actual)(equalTo(3))
-        ).use(ZIO.succeed(_))
+        ).useNow
       }
     ),
     suite("tapCause")(
@@ -1161,7 +1161,7 @@ object ZManagedSpec extends ZIOBaseSpec {
           result <- ZManaged.dieMessage("die").tapCause(_ => ref.set(true).toManaged).exit
           effect <- ref.get.toManaged
         } yield assert(result)(dies(hasMessage(equalTo("die")))) &&
-          assert(effect)(isTrue)).use(ZIO.succeed(_))
+          assert(effect)(isTrue)).useNow
       }
     ) @@ zioTag(errors),
     suite("tapError")(
@@ -1170,7 +1170,7 @@ object ZManagedSpec extends ZIOBaseSpec {
           .fromEither(Right[String, Int](1))
           .tapError(str => ZManaged.succeed(str.length))
           .map(actual => assert(1)(equalTo(actual)))
-          .use(ZIO.succeed(_))
+          .useNow
       },
       test("Runs given effect on failure") {
         (
@@ -1181,7 +1181,7 @@ object ZManagedSpec extends ZIOBaseSpec {
                    .tapError(e => ref.update(_ + e).toManaged)
             actual <- ref.get.toManaged
           } yield assert(actual)(equalTo(2))
-        ).fold(e => assert(e)(equalTo(1)), identity).use(ZIO.succeed(_))
+        ).fold(e => assert(e)(equalTo(1)), identity).useNow
       } @@ zioTag(errors),
       test("Doesn't run given effect on success") {
         (
@@ -1192,7 +1192,7 @@ object ZManagedSpec extends ZIOBaseSpec {
                    .tapError(n => ref.update(_ + n).toManaged)
             actual <- ref.get.toManaged
           } yield assert(actual)(equalTo(1))
-        ).use(ZIO.succeed(_))
+        ).useNow
       }
     ),
     suite("timed")(
