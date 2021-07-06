@@ -23,7 +23,10 @@ import zio._
  * `A` and a `ZStream` that can be subscribed to in order to receive the
  * current value as well as all changes to the value.
  */
-final class SubscriptionRef[A] private (val ref: Ref.Synchronized[A], val changes: Stream[Nothing, A])
+final class SubscriptionRef[A] private (
+  val ref: ZRef.Synchronized[Any, Any, Nothing, Nothing, A, A],
+  val changes: Stream[Nothing, A]
+)
 
 object SubscriptionRef {
 

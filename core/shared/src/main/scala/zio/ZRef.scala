@@ -787,7 +787,7 @@ object ZRef extends Serializable {
     /**
      * Creates a new `ZRef.Synchronized` with the specified value.
      */
-    def make[A](a: A): UIO[Ref.Synchronized[A]] =
+    def make[A](a: A): UIO[Synchronized[Any, Any, Nothing, Nothing, A, A]] =
       for {
         ref       <- Ref.make(a)
         semaphore <- Semaphore.make(1)
@@ -806,7 +806,7 @@ object ZRef extends Serializable {
      * Creates a new `ZRef.Synchronized` with the specified value in the
      * context of a `Managed.`
      */
-    def makeManaged[A](a: A): UManaged[Ref.Synchronized[A]] =
+    def makeManaged[A](a: A): UManaged[Synchronized[Any, Any, Nothing, Nothing, A, A]] =
       make(a).toManaged
 
     implicit class UnifiedSyntax[-R, +E, A](private val self: Synchronized[R, R, E, E, A, A]) extends AnyVal {
