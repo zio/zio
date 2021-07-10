@@ -126,7 +126,7 @@ object FailureCase {
 
         errorMessageLines ++
           Chunk.fromIterable(path.drop(path.length - 1).map { case (label, value) =>
-            dim(s"$label = ") + blue(value.toString)
+            dim(s"$label = ") + blue(PrettyPrint(value))
           })
 
       case FailureCase(errorMessage, codeString, location, path, _, nested, _) =>
@@ -137,7 +137,7 @@ object FailureCase {
           }
 
         errorMessageLines ++ Chunk(codeString) ++ nested.flatMap(renderFailureCase(_, true)).map("  " + _) ++
-          Chunk.fromIterable(path.map { case (label, value) => dim(s"$label = ") + blue(value.toString) }) ++
+          Chunk.fromIterable(path.map { case (label, value) => dim(s"$label = ") + blue(PrettyPrint(value)) }) ++
           Chunk(cyan(s"☛ $location")) ++ Chunk("")
 
     }
