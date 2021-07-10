@@ -321,6 +321,15 @@ object SmartAssertionSpec extends ZIOBaseSpec {
           assertTrue(map("zero") < 3)
         } @@ failing
       )
+    ),
+    suite("subtype option")(
+      test("success") {
+        trait Parent
+        case class Child(x: String) extends Parent
+        val someParent: Option[Parent] = Some(Child("hii"))
+        val someChild                  = Child("hii")
+        assertTrue(someParent.contains(someChild))
+      }
     )
   )
 
