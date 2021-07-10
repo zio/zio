@@ -33,7 +33,7 @@ sealed trait ErrorMessage { self =>
       case ErrorMessage.Choice(success, failure) =>
         if (isSuccess) magenta(success) else red(failure)
 
-      case ErrorMessage.Value(value) => bold(blue(value.toString))
+      case ErrorMessage.Value(value) => bold(blue(PrettyPrint(value)))
 
       case ErrorMessage.Combine(lhs, rhs, spacing) =>
         lhs.render(isSuccess) + (" " * spacing) + rhs.render(isSuccess)
@@ -45,4 +45,12 @@ sealed trait ErrorMessage { self =>
             .mkString("\n")
 
     }
+
+}
+
+private[zio] object PrettyPrint {
+  def apply(any: Any): String = any match {
+    case array: Array[_] => array.mkString("Array(", ", ", ")")
+    case other           => other.toString
+  }
 }

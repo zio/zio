@@ -400,7 +400,7 @@ $Assert($ast.withCode($codeString).withLocation($locationString))
     val containsOption: ASTConverter =
       ASTConverter.make {
         case AST.Method(_, lhsTpe, _, "contains", _, Some(args), _) if lhsTpe <:< weakTypeOf[Option[_]] =>
-          AssertAST("containsOption", args = args)
+          AssertAST("containsOption", args = args, tpes = List(lhsTpe.dealias.typeArgs.head))
       }
 
     val containsString: ASTConverter =
