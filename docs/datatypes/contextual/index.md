@@ -361,7 +361,7 @@ That's it! Very simple! ZIO encourages us to follow some of the best practices i
 >
 > In _Module Pattern 2.0_ we don't use type aliases for Has wrappers, like `type Logging = Has[Logging.Service]`. So unlike the previous pattern, we encourage using explicitly the `Has` wrappers whenever we want to specify the dependency on a service.
 >
-> So instead of writing `ZLayer[Console with Clock, Nothing, Logging]`, we write `ZLayer[Has[Logging] with Has[Clock], Nothing, Has[Logging]]`.
+> So instead of writing `ZLayer[Console with Clock, Nothing, Logging]`, we write `ZLayer[Has[Console] with Has[Clock], Nothing, Has[Logging]]`.
 
 Finally, we provide required layers to our `app` effect:
 
