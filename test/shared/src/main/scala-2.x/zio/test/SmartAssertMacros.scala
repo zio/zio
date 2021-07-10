@@ -8,9 +8,9 @@ import scala.reflect.macros.blackbox
 class SmartAssertMacros(val c: blackbox.Context) {
   import c.universe._
 
-  private val Assertions = q"_root_.zio.test.Assertions"
-  private val Arrow      = q"_root_.zio.test.Arrow"
-  private val Assert     = q"_root_.zio.test.Assert"
+  private val SA     = q"_root_.zio.test.internal.SmartAssertions"
+  private val Arrow  = q"_root_.zio.test.Arrow"
+  private val Assert = q"_root_.zio.test.Assert"
 
   private[test] def location(c: blackbox.Context): (String, Int) = {
     val path = c.enclosingPosition.source.path
@@ -58,13 +58,13 @@ class SmartAssertMacros(val c: blackbox.Context) {
   object AssertAST {
     def toTree(assertAST: AssertAST): c.Tree = assertAST match {
       case AssertAST(name, List(), List()) =>
-        q"$Assertions.${TermName(name)}"
+        q"$SA.${TermName(name)}"
       case AssertAST(name, List(), args) =>
-        q"$Assertions.${TermName(name)}(..$args)"
+        q"$SA.${TermName(name)}(..$args)"
       case AssertAST(name, tpes, List()) =>
-        q"$Assertions.${TermName(name)}[..$tpes]"
+        q"$SA.${TermName(name)}[..$tpes]"
       case AssertAST(name, tpes, args) =>
-        q"$Assertions.${TermName(name)}[..$tpes](..$args)"
+        q"$SA.${TermName(name)}[..$tpes](..$args)"
     }
   }
 
@@ -81,23 +81,23 @@ class SmartAssertMacros(val c: blackbox.Context) {
 
       case AST.Method(lhs, lhsTpe, _, "forall", _, Some(args), span) if lhsTpe <:< weakTypeOf[Iterable[_]] =>
         val assertion = astToAssertion(parseExpr(args.head))
-        q"${astToAssertion(lhs)} >>> $Assertions.forallIterable($assertion).span($span)"
+        q"${astToAssertion(lhs)} >>> $SA.forallIterable($assertion).span($span)"
 
       case AST.Method(lhs, lhsTpe, _, "exists", _, Some(args), span) if lhsTpe <:< weakTypeOf[Iterable[_]] =>
         val assertion = astToAssertion(parseExpr(args.head))
-        q"${astToAssertion(lhs)} >>> $Assertions.existsIterable($assertion).span($span)"
+        q"${astToAssertion(lhs)} >>> $SA.existsIterable($assertion).span($span)"
 
       case Matcher(lhs, ast, span) =>
         val tree = AssertAST.toTree(ast)
         q"${astToAssertion(lhs)} >>> $tree.span($span)"
 
-      case AST.Method(lhs, lhsTpe, _, name, _, args, span) =>
+      case AST.Method(lhs, lhsTpe, _, name, tpes, args, span) =>
         val select =
           args match {
             case Some(args) =>
-              c.untypecheck(q"{ (a: $lhsTpe) => a.${TermName(name)}(..$args) }")
+              c.untypecheck(q"{ (a: $lhsTpe) => a.${TermName(name)}[..$tpes](..$args) }")
             case None =>
-              c.untypecheck(q"{ (a: $lhsTpe) => a.${TermName(name)} }")
+              c.untypecheck(q"{ (a: $lhsTpe) => a.${TermName(name)}[..$tpes] }")
           }
 
         q"${astToAssertion(lhs)} >>> $Arrow.fromFunction($select).span($span)"
@@ -163,8 +163,7 @@ class SmartAssertMacros(val c: blackbox.Context) {
     val locationString = s"$file:$line"
 
     val parsed = parseExpr(tree)
-
-    val ast = astToAssertion(parsed)
+    val ast    = astToAssertion(parsed)
 
     val block =
       q"""
@@ -274,12 +273,13 @@ $Assert($ast.withCode($codeString).withLocation($locationString))
       all.reduce(_ orElse _).unapply(method)
 
     val asInstance: ASTConverter =
-      ASTConverter.make {
-        case AST.Method(_, lhsTpe, _, "asInstanceOf", List(tpe), _, _) =>
-          AssertAST("as", List(lhsTpe, tpe))
+      ASTConverter.make { case AST.Method(_, lhsTpe, _, "asInstanceOf", List(tpe), _, _) =>
+        AssertAST("as", List(lhsTpe, tpe))
+      }
 
-        case AST.Method(_, lhsTpe, _, "$as", List(tpe), _, _) =>
-          AssertAST("as", List(lhsTpe, tpe))
+    val isInstance: ASTConverter =
+      ASTConverter.make { case AST.Method(_, lhsTpe, _, "isInstanceOf", List(tpe), _, _) =>
+        AssertAST("is", List(lhsTpe, tpe))
       }
 
     val equalTo: ASTConverter =
@@ -359,6 +359,12 @@ $Assert($ast.withCode($codeString).withLocation($locationString))
       ASTConverter.make {
         case AST.Method(_, lhsTpe, _, "apply", _, Some(args), _) if lhsTpe <:< weakTypeOf[Seq[_]] =>
           AssertAST("hasAt", args = args)
+      }
+
+    val hasKey: ASTConverter =
+      ASTConverter.make {
+        case AST.Method(_, lhsTpe, _, "apply", _, Some(args), _) if lhsTpe <:< weakTypeOf[Map[_, _]] =>
+          AssertAST("hasKey", args = args)
       }
 
     val isEmptyIterable: ASTConverter =
@@ -458,6 +464,7 @@ $Assert($ast.withCode($codeString).withLocation($locationString))
       lessThanOrEqualTo,
       head,
       hasAt,
+      hasKey,
       isEmptyIterable,
       isNonEmptyIterable,
       isEmptyOption,
@@ -470,7 +477,8 @@ $Assert($ast.withCode($codeString).withLocation($locationString))
       rightGet,
       leftGet,
       asLeft,
-      asInstance
+      asInstance,
+      isInstance
     )
   }
 }
