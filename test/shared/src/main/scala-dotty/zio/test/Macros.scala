@@ -101,7 +101,7 @@ class SmartAssertMacros(ctx: Quotes)  {
           (tpeArgs, args) match {
             case (Nil, None) => Select.unique(param, name)
             case (tpeArgs, Some(args)) => Select.overloaded(param, name, tpeArgs, args)
-            case (tpeArgs, None) => Select.overloaded(param, name, tpeArgs, List.empty)
+            case (tpeArgs, None) => TypeApply(Select.unique(param, name), tpeArgs.map(_.typeTree))
           }
 
         val tpe = lhs.tpe.widen
