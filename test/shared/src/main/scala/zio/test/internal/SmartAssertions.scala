@@ -1,6 +1,7 @@
 package zio.test.internal
 
 import zio.test._
+import zio.test.diff.Diff
 
 import scala.reflect.ClassTag
 import scala.util.Try

@@ -1,68 +1,9 @@
-package zio.test
+package zio.test.diff
 
-import zio.Chunk
-import zio.test.Diff.{dim, green, red}
 import zio.test.internal.myers.{Action, MyersDiff}
+import zio.{Chunk, NonEmptyChunk}
 
-sealed trait DiffResult {
-  self =>
-
-  import DiffResult._
-
-  def noDiff: Boolean = !hasDiff
-
-  def hasDiff: Boolean =
-    self match {
-      case Recursive(_, fields) => fields.exists(_._2.hasDiff)
-      case Different(_, _, _)   => true
-      case Removed(_)           => true
-      case Added(_)             => true
-      case Identical(_)         => false
-    }
-
-  def render: String = self match {
-    case Recursive(label, fields) =>
-      scala.Console.RESET + s"""
-$label(
-  ${fields
-        .filter(_._2.hasDiff)
-        .map {
-          case (Some(label), diff) => dim(label + " = ") + DiffResult.indent(diff.render)
-          case (None, diff)        => DiffResult.indent(diff.render)
-        }
-        .mkString(",\n  ")}
-)
-         """.trim
-    case Different(_, _, Some(custom)) =>
-      custom
-    case Different(oldValue, newValue, None) =>
-      s"${red(PrettyPrint(oldValue))} → ${green(PrettyPrint(newValue))}"
-    case Removed(oldValue) =>
-      red(PrettyPrint(oldValue))
-    case Added(newValue) =>
-      green(PrettyPrint(newValue))
-    case Identical(value) =>
-      PrettyPrint(value)
-  }
-}
-
-object DiffResult {
-  case class Recursive(label: String, fields: Seq[(Option[String], DiffResult)]) extends DiffResult
-
-  case class Different(oldValue: Any, newValue: Any, customRender: Option[String] = None) extends DiffResult
-
-  case class Removed(oldValue: Any) extends DiffResult
-
-  case class Added(newValue: Any) extends DiffResult
-
-  case class Identical(value: Any) extends DiffResult
-
-  def indent(string: String): String =
-    string.split("\n").toList match {
-      case head :: tail =>
-        (head +: tail.map("  " + _)).mkString("\n")
-    }
-}
+import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 
 trait Diff[-A] {
   def diff(x: A, y: A): DiffResult
@@ -74,9 +15,6 @@ object Diff extends LowPriDiff {
 
   def render[A: Diff](oldValue: A, newValue: A): String =
     (oldValue diffed newValue).render
-
-  def caseClassDiff(typeName: String, paramDiffs: List[(String, DiffResult)]): DiffResult =
-    DiffResult.Recursive(typeName, paramDiffs.map { case (s, v) => Some(s) -> v })
 
   implicit final class DiffOps[A](private val self: A)(implicit diff: Diff[A]) {
     def diffed(that: A): DiffResult = diff.diff(self, that)
@@ -104,9 +42,19 @@ object Diff extends LowPriDiff {
     DiffResult.Recursive("Map", fields)
   }
 
-  implicit def listDiff[A: Diff]: Diff[List[A]] = (x: List[A], y: List[A]) => {
-    def safeGet(list: List[A], idx: Int): Option[A] =
-      Option.when(idx < list.length)(list(idx))
+  implicit def listDiff[A: Diff]: Diff[List[A]]               = mkSeqDiff("List")(identity(_))
+  implicit def vectorDiff[A: Diff]: Diff[Vector[A]]           = mkSeqDiff("Vector")(identity(_))
+  implicit def chunkDiff[A: Diff]: Diff[Chunk[A]]             = mkSeqDiff("Chunk")(identity(_))
+  implicit def nonEmptyChunk[A: Diff]: Diff[NonEmptyChunk[A]] = mkSeqDiff("NonEmptyChunk")(identity(_))
+  implicit def arrayDiff[A: Diff]: Diff[Array[A]]             = mkSeqDiff("Array")((_: Array[A]).toIndexedSeq)
+  implicit def arrayBufferDiff[A: Diff]: Diff[ArrayBuffer[A]] =
+    mkSeqDiff("ArrayBuffer")((_: ArrayBuffer[A]).toIndexedSeq)
+  implicit def listBufferDiff[A: Diff]: Diff[ListBuffer[A]] = mkSeqDiff("ListBuffer")((_: ListBuffer[A]).toIndexedSeq)
+
+  def mkSeqDiff[F[_], A: Diff](name: String)(f: F[A] => Seq[A]): Diff[F[A]] = (x0: F[A], y0: F[A]) => {
+    val x                                          = f(x0)
+    val y                                          = f(y0)
+    def safeGet(list: Seq[A], idx: Int): Option[A] = list.lift(idx)
 
     val fields =
       (0 until (x.length max y.length)).map { idx =>
@@ -122,7 +70,7 @@ object Diff extends LowPriDiff {
         }
       }
 
-    DiffResult.Recursive("List", fields)
+    DiffResult.Recursive(name, fields)
   }
 
   implicit def setDiff[A: Diff]: Diff[Set[A]] = (x: Set[A], y: Set[A]) => {
@@ -178,8 +126,7 @@ object Diff extends LowPriDiff {
 }
 
 trait LowPriDiff {
-
-  implicit val primitiveDiff: Diff[AnyVal] = (x: AnyVal, y: AnyVal) =>
+  implicit val anyValDiff: Diff[AnyVal] = (x: AnyVal, y: AnyVal) =>
     if (x == y) DiffResult.Identical(x)
     else DiffResult.Different(x, y)
 }

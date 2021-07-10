@@ -3,6 +3,7 @@ package zio.test
 import zio.duration.durationInt
 import zio.test.SmartTestTypes._
 import zio.test.environment.TestClock
+import zio.{Chunk, NonEmptyChunk}
 
 import java.time.LocalDateTime
 import scala.collection.immutable.SortedSet
@@ -304,6 +305,22 @@ object SmartAssertionSpec extends ZIOBaseSpec {
       test("List diffs") {
         val l1 = List("Alpha", "This is a wonderful way to dance and party", "Potato")
         val l2 = List("Alpha", "This is a wonderful way to live and die", "Potato", "Bruce Lee", "Potato", "Ziverge")
+        assertTrue(l1 == l2)
+      } @@ failing,
+      test("Array diffs") {
+        val l1 = Array("Alpha", "This is a wonderful way to dance and party", "Potato")
+        val l2 = Array("Alpha", "This is a wonderful way to live and die", "Potato", "Bruce Lee", "Potato", "Ziverge")
+        assertTrue(l1 == l2)
+      } @@ failing,
+      test("Chunk diffs") {
+        val l1 = Chunk("Alpha", "This is a wonderful way to dance and party", "Potato")
+        val l2 = Chunk("Alpha", "This is a wonderful way to live and die", "Potato", "Bruce Lee", "Potato", "Ziverge")
+        assertTrue(l1 == l2)
+      } @@ failing,
+      test("NonEmptyChunk diffs") {
+        val l1 = NonEmptyChunk("Alpha", "This is a wonderful way to dance and party", "Potato")
+        val l2 =
+          NonEmptyChunk("Alpha", "This is a wonderful way to live and die", "Potato", "Bruce Lee", "Potato", "Ziverge")
         assertTrue(l1 == l2)
       } @@ failing,
       test("Set diffs") {

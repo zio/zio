@@ -1,7 +1,7 @@
 package zio.test.magnolia.diff
 
 import magnolia._
-import zio.test._
+import zio.test.diff.{Diff, DiffResult}
 
 trait DeriveDiff {
   type Typeclass[A] = Diff[A]
