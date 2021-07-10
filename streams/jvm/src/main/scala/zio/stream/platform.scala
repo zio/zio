@@ -17,11 +17,11 @@
 package zio.stream
 
 import zio._
-import zio.blocking.{Blocking, effectBlockingIO}
+import zio.blocking.{Blocking, effectBlocking, effectBlockingIO}
 import zio.stream.compression._
 
 import java.io._
-import java.net.InetSocketAddress
+import java.net.{InetSocketAddress, SocketAddress}
 import java.nio.channels.{AsynchronousServerSocketChannel, AsynchronousSocketChannel, CompletionHandler, FileChannel}
 import java.nio.file.StandardOpenOption._
 import java.nio.file.{OpenOption, Path}
@@ -85,7 +85,7 @@ trait ZSinkPlatformSpecificConstructors {
             )
             .position(position)
         )
-    )(chan => blocking.effectBlocking(chan.close()).orDie)
+    )(chan => effectBlocking(chan.close()).orDie)
 
     val writer: ZSink[Blocking, Throwable, Byte, Byte, Unit] = ZSink.managed(managedChannel) { chan =>
       ZSink.foreachChunk[Blocking, Throwable, Byte](byteChunk =>
@@ -227,13 +227,56 @@ trait ZStreamPlatformSpecificConstructors {
     }
 
   /**
+   * Creates a stream from an blocking iterator that may throw exceptions.
+   */
+  def fromBlockingIterator[A](iterator: => Iterator[A], maxChunkSize: Int = 1): ZStream[Blocking, Throwable, A] =
+    ZStream {
+      ZManaged
+        .effect(iterator)
+        .fold(
+          Pull.fail,
+          iterator =>
+            ZIO.effectSuspendTotal {
+              if (maxChunkSize <= 1) {
+                if (iterator.isEmpty) Pull.end
+                else effectBlocking(Chunk.single(iterator.next())).asSomeError
+              } else {
+                val builder  = ChunkBuilder.make[A](maxChunkSize)
+                val blocking = effectBlocking(builder += iterator.next())
+
+                def go(i: Int): ZIO[Blocking, Throwable, Unit] =
+                  ZIO.when(i < maxChunkSize && iterator.hasNext)(blocking *> go(i + 1))
+
+                go(0).asSomeError.flatMap { _ =>
+                  val chunk = builder.result()
+                  if (chunk.isEmpty) Pull.end else Pull.emit(chunk)
+                }
+              }
+            }
+        )
+    }
+
+  /**
+   * Creates a stream from an blocking Java iterator that may throw exceptions.
+   */
+  def fromBlockingJavaIterator[A](
+    iter: => java.util.Iterator[A],
+    maxChunkSize: Int = 1
+  ): ZStream[Blocking, Throwable, A] =
+    fromBlockingIterator(
+      new Iterator[A] {
+        def next(): A        = iter.next
+        def hasNext: Boolean = iter.hasNext
+      },
+      maxChunkSize
+    )
+
+  /**
    * Creates a stream of bytes from a file at the specified path.
    */
   def fromFile(path: => Path, chunkSize: Int = ZStream.DefaultChunkSize): ZStream[Blocking, Throwable, Byte] =
     ZStream
-      .bracket(blocking.effectBlockingInterrupt(FileChannel.open(path)))(chan =>
-        blocking.effectBlocking(chan.close()).orDie
-      )
+      .bracket(blocking.effectBlockingInterrupt(FileChannel.open(path)))(chan => effectBlocking(chan.close()).orDie)
       .flatMap { channel =>
         ZStream.fromEffect(UIO(ByteBuffer.allocate(chunkSize))).flatMap { reusableBuffer =>
           ZStream.repeatEffectChunkOption(
@@ -415,7 +458,7 @@ trait ZStreamPlatformSpecificConstructors {
     host: Option[String] = None
   ): ZStream[Blocking, Throwable, Connection] =
     for {
-      server <- ZStream.managed(ZManaged.fromAutoCloseable(blocking.effectBlocking {
+      server <- ZStream.managed(ZManaged.fromAutoCloseable(effectBlocking {
                   AsynchronousServerSocketChannel
                     .open()
                     .bind(
@@ -445,6 +488,20 @@ trait ZStreamPlatformSpecificConstructors {
    * Accepted connection made to a specific channel `AsynchronousServerSocketChannel`
    */
   class Connection(socket: AsynchronousSocketChannel) {
+
+    /**
+     * The remote address, i.e. the connected client
+     */
+    def remoteAddress: IO[IOException, SocketAddress] = IO
+      .effect(socket.getRemoteAddress)
+      .refineToOrDie[IOException]
+
+    /**
+     * The local address, i.e. our server
+     */
+    def localAddress: IO[IOException, SocketAddress] = IO
+      .effect(socket.getLocalAddress)
+      .refineToOrDie[IOException]
 
     /**
      * Read the entire `AsynchronousSocketChannel` by emitting a `Chunk[Byte]`
@@ -498,6 +555,11 @@ trait ZStreamPlatformSpecificConstructors {
      * Close the underlying socket
      */
     def close(): UIO[Unit] = ZIO.effectTotal(socket.close())
+
+    /**
+     * Close only the write, so the remote end will see EOF
+     */
+    def closeWrite(): UIO[Unit] = ZIO.effectTotal(socket.shutdownOutput()).unit
   }
 
   object Connection {

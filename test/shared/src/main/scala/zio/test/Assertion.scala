@@ -469,7 +469,7 @@ object Assertion extends AssertionVariants {
    * assertion.
    */
   def isFailure(assertion: Assertion[Throwable]): Assertion[Try[Any]] =
-    Assertion.assertionRec("isSuccess")(param(assertion))(assertion) {
+    Assertion.assertionRec("isFailure")(param(assertion))(assertion) {
       case Failure(a) => Some(a)
       case Success(_) => None
     }
