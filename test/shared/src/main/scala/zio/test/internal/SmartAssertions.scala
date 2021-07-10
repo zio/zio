@@ -201,7 +201,11 @@ object SmartAssertions {
   def equalTo[A](that: A)(implicit diff: OptionalImplicit[Diff[A]]): Arrow[A, Boolean] =
     Arrow
       .make[A, Boolean] { a =>
-        val result = a == that
+        val result = (a, that) match {
+          case (a: Array[_], that: Array[_]) => a.sameElements[Any](that)
+          case _                             => a == that
+        }
+
         Trace.boolean(result) {
           diff.value match {
             case Some(diff) if !result =>

@@ -19,7 +19,21 @@ object SmartAssertionSpec extends ZIOBaseSpec {
   private val company: Company = Company("Ziverge", List(User("Bobo", List.tabulate(2)(n => Post(s"Post #$n")))))
 
   def spec: ZSpec[Environment, Failure] = suite("SmartAssertionSpec")(
-    test("Head") {
+    suite("Array")(
+      suite("==")(
+        test("success") {
+          val a1 = Array(1, 2, 3)
+          val a2 = Array(1, 2, 3)
+          assertTrue(a1 == a2)
+        },
+        test("failure") {
+          val a1 = Array(1, 2, 3)
+          val a2 = Array(1, 3, 2)
+          assertTrue(a1 == a2)
+        } @@ failing
+      )
+    ),
+    test("multiple assertions") {
       val array = Array(1, 8, 2, 3, 888)
       assertTrue(
         !(array(0) == 1),
@@ -329,7 +343,14 @@ object SmartAssertionSpec extends ZIOBaseSpec {
         val someParent: Option[Parent] = Some(Child("hii"))
         val someChild                  = Child("hii")
         assertTrue(someParent.contains(someChild))
-      }
+      },
+      test("failure") {
+        trait Parent
+        case class Child(x: String) extends Parent
+        val someParent: Option[Parent] = None
+        val someChild                  = Child("hii")
+        assertTrue(someParent.contains(someChild))
+      } @@ failing
     )
   )
 
