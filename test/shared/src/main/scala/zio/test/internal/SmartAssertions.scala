@@ -1,9 +1,11 @@
-package zio.test
+package zio.test.internal
+
+import zio.test._
 
 import scala.reflect.ClassTag
 import scala.util.Try
 
-object Assertions {
+object SmartAssertions {
   import zio.test.{ErrorMessage => M}
 
   def isSome[A]: Arrow[Option[A], A] =
@@ -126,6 +128,18 @@ object Assertions {
         }
       }
 
+  def hasKey[K, V](key: K): Arrow[Map[K, V], V] =
+    Arrow
+      .make[Map[K, V], V] { mapKV =>
+        Try(mapKV(key)).toOption match {
+          case Some(value) => Trace.succeed(value)
+          case None =>
+            Trace.halt(
+              M.text("Missing key") + M.value(key)
+            )
+        }
+      }
+
   def head[A]: Arrow[Iterable[A], A] =
     Arrow
       .make[Iterable[A], A] { as =>
@@ -207,12 +221,20 @@ object Assertions {
       _ => Trace.halt("Expected failure")
     )
 
-  def as[A, B](implicit CA: ClassTag[A], CB: ClassTag[B]): Arrow[A, B] =
+  def as[A, B](implicit CB: ClassTag[B]): Arrow[A, B] =
     Arrow
       .make[A, B] { a =>
         CB.unapply(a) match {
           case Some(value) => Trace.succeed(value)
-          case None        => Trace.halt(M.value(a.getClass.getSimpleName) + "is not a subtype of" + M.value(className(CB)))
+          case None        => Trace.halt(M.value(a.getClass.getSimpleName) + "is not an instance of" + M.value(className(CB)))
+        }
+      }
+
+  def is[A, B](implicit CB: ClassTag[B]): Arrow[A, Boolean] =
+    Arrow
+      .make[A, Boolean] { a =>
+        Trace.boolean(CB.unapply(a).isDefined) {
+          M.value(a.getClass.getSimpleName) + M.is + "an instance of" + M.value(className(CB))
         }
       }
 

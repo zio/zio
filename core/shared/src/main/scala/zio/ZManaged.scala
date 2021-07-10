@@ -213,8 +213,9 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
    * Returns an effect whose failure and success channels have been mapped by
    * the specified pair of functions, `f` and `g`.
    */
+  @deprecated("use mapBoth", "2.0.0")
   def bimap[E1, A1](f: E => E1, g: A => A1)(implicit ev: CanFail[E]): ZManaged[R, E1, A1] =
-    mapError(f).map(g)
+    mapBoth(f, g)
 
   /**
    * Recovers from all errors.
@@ -472,6 +473,13 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
    */
   def map[B](f: A => B): ZManaged[R, E, B] =
     ZManaged(zio.map { case (fin, a) => (fin, f(a)) })
+
+  /**
+   * Returns an effect whose failure and success channels have been mapped by
+   * the specified pair of functions, `f` and `g`.
+   */
+  def mapBoth[E1, A1](f: E => E1, g: A => A1)(implicit ev: CanFail[E]): ZManaged[R, E1, A1] =
+    mapError(f).map(g)
 
   /**
    * Returns an effect whose success is mapped by the specified side effecting
@@ -943,6 +951,13 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
     catchAllCause(c => f(c) *> ZManaged.halt(c))
 
   /**
+   * Returns an effect that effectually "peeks" at the defect of the acquired
+   * resource.
+   */
+  final def tapDefect[R1 <: R, E1 >: E](f: Cause[Nothing] => ZManaged[R1, E1, Any]): ZManaged[R1, E1, A] =
+    catchAllCause(c => f(c.stripFailures) *> ZManaged.halt(c))
+
+  /**
    * Returns an effect that effectfully peeks at the failure of the acquired resource.
    */
   def tapError[R1 <: R, E1 >: E](f: E => ZManaged[R1, E1, Any])(implicit ev: CanFail[E]): ZManaged[R1, E1, A] =
@@ -1201,6 +1216,13 @@ object ZManaged extends ZManagedPlatformSpecific {
       tag: Tag[Service]
     ): ZManaged[Has[Service], E, A] =
       ZManaged.fromEffect(ZIO.serviceWith[Service](f))
+  }
+
+  final class ServiceWithManagedPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
+    def apply[E, A](f: Service => ZManaged[Has[Service], E, A])(implicit
+      tag: Tag[Service]
+    ): ZManaged[Has[Service], E, A] =
+      ZManaged.accessManaged[Has[Service]](hasService => f(hasService.get))
   }
 
   /**
@@ -2395,6 +2417,23 @@ object ZManaged extends ZManagedPlatformSpecific {
    * }}}
    */
   def serviceWith[Service]: ServiceWithPartiallyApplied[Service] =
+    new ServiceWithPartiallyApplied[Service]
+
+  /**
+   * Effectfully accesses the specified managed service in the environment of the effect .
+   *
+   * Especially useful for creating "accessor" methods on Services' companion objects accessing managed resources.
+   *
+   * {{{
+   * trait Foo {
+   *  def start(): ZManaged[Any, Nothing, Unit]
+   * }
+   *
+   * def start: ZManaged[Has[Foo], Nothing, Unit] =
+   *  ZManaged.serviceWithManaged[Foo](_.start())
+   * }}}
+   */
+  def serviceWithManaged[Service]: ServiceWithPartiallyApplied[Service] =
     new ServiceWithPartiallyApplied[Service]
 
   /**
