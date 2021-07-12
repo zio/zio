@@ -23,7 +23,7 @@ import zio.{Has, ZLayer}
  * {{{
  * object MySpec extends DefaultMutableRunnableSpec {
  *   suite("foo") {
- *     testM("name") {
+ *     test("name") {
  *     } @@ ignore
  *
  *     test("name 2")

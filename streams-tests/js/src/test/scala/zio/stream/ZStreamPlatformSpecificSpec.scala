@@ -9,13 +9,13 @@ import scala.concurrent.Future
 
 object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
   def spec: ZSpec[Environment, Failure] = suite("ZStream JS")(
-    testM("async")(checkM(Gen.chunkOf(Gen.anyInt)) { chunk =>
+    test("async")(checkM(Gen.chunkOf(Gen.anyInt)) { chunk =>
       val s = ZStream.async[Any, Throwable, Int](k => chunk.foreach(a => k(Task.succeed(Chunk.single(a)))))
 
       assertM(s.take(chunk.size.toLong).runCollect)(equalTo(chunk))
     }),
     suite("asyncMaybe")(
-      testM("asyncMaybe signal end stream") {
+      test("asyncMaybe signal end stream") {
         for {
           result <- ZStream
                       .asyncMaybe[Any, Nothing, Int] { k =>
@@ -25,12 +25,12 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
                       .runCollect
         } yield assert(result)(equalTo(Chunk.empty))
       },
-      testM("asyncMaybe Some")(checkM(Gen.chunkOf(Gen.anyInt)) { chunk =>
+      test("asyncMaybe Some")(checkM(Gen.chunkOf(Gen.anyInt)) { chunk =>
         val s = ZStream.asyncMaybe[Any, Throwable, Int](_ => Some(ZStream.fromIterable(chunk)))
 
         assertM(s.runCollect.map(_.take(chunk.size)))(equalTo(chunk))
       }),
-      testM("asyncMaybe None")(checkM(Gen.chunkOf(Gen.anyInt)) { chunk =>
+      test("asyncMaybe None")(checkM(Gen.chunkOf(Gen.anyInt)) { chunk =>
         val s = ZStream.asyncMaybe[Any, Throwable, Int] { k =>
           chunk.foreach(a => k(Task.succeed(Chunk.single(a))))
           None
@@ -38,7 +38,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
 
         assertM(s.take(chunk.size.toLong).runCollect)(equalTo(chunk))
       }),
-      testM("asyncMaybe back pressure") {
+      test("asyncMaybe back pressure") {
         for {
           refCnt  <- Ref.make(0)
           refDone <- Ref.make[Boolean](false)
@@ -61,7 +61,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
       }
     ),
     suite("asyncZIO")(
-      testM("asyncZIO")(checkM(Gen.chunkOf(Gen.anyInt).filter(_.nonEmpty)) { chunk =>
+      test("asyncZIO")(checkM(Gen.chunkOf(Gen.anyInt).filter(_.nonEmpty)) { chunk =>
         for {
           latch <- Promise.make[Nothing, Unit]
           fiber <- ZStream
@@ -77,7 +77,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
           s <- fiber.join
         } yield assert(s)(equalTo(chunk))
       }),
-      testM("asyncZIO signal end stream") {
+      test("asyncZIO signal end stream") {
         for {
           result <- ZStream
                       .asyncZIO[Any, Nothing, Int] { k =>
@@ -87,7 +87,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
                       .runCollect
         } yield assert(result)(equalTo(Chunk.empty))
       },
-      testM("asyncZIO back pressure") {
+      test("asyncZIO back pressure") {
         for {
           refCnt  <- Ref.make(0)
           refDone <- Ref.make[Boolean](false)
@@ -110,7 +110,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
       }
     ),
     suite("asyncInterrupt")(
-      testM("asyncInterrupt Left") {
+      test("asyncInterrupt Left") {
         for {
           cancelled <- Ref.make(false)
           latch     <- Promise.make[Nothing, Unit]
@@ -127,12 +127,12 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
           result <- cancelled.get
         } yield assert(result)(isTrue)
       },
-      testM("asyncInterrupt Right")(checkM(Gen.chunkOf(Gen.anyInt)) { chunk =>
+      test("asyncInterrupt Right")(checkM(Gen.chunkOf(Gen.anyInt)) { chunk =>
         val s = ZStream.asyncInterrupt[Any, Throwable, Int](_ => Right(ZStream.fromIterable(chunk)))
 
         assertM(s.take(chunk.size.toLong).runCollect)(equalTo(chunk))
       }),
-      testM("asyncInterrupt signal end stream ") {
+      test("asyncInterrupt signal end stream ") {
         for {
           result <- ZStream
                       .asyncInterrupt[Any, Nothing, Int] { k =>
@@ -142,7 +142,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
                       .runCollect
         } yield assert(result)(equalTo(Chunk.empty))
       },
-      testM("asyncInterrupt back pressure") {
+      test("asyncInterrupt back pressure") {
         for {
           selfId  <- ZIO.fiberId
           refCnt  <- Ref.make(0)

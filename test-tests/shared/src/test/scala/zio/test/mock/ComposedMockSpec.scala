@@ -14,7 +14,7 @@ object ComposedMockSpec extends ZIOBaseSpec {
     mock: ULayer[R1],
     app: ZIO[R1, E, A],
     check: Assertion[A]
-  ) = testM(name) {
+  ) = test(name) {
     val result = mock.build.use[R1, E, A](app.provide _)
     assertM(result)(check)
   }

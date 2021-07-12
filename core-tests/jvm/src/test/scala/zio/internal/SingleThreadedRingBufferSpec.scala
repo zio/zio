@@ -8,7 +8,7 @@ object SingleThreadedRingBufferSpec extends ZIOBaseSpec {
 
   def spec: ZSpec[Environment, Failure] =
     suite("SingleThreadedRingBufferSpec")(
-      testM("use SingleThreadedRingBuffer as a sliding buffer") {
+      test("use SingleThreadedRingBuffer as a sliding buffer") {
         check(Gen.chunkOf(Gen.anyInt), Gen.size) { (as, n) =>
           val queue = SingleThreadedRingBuffer[Int](n)
           as.foreach(queue.put)

@@ -15,7 +15,7 @@ All below code assumes that you have imported `zio.test._`
 
 The backbone of `zio-test` is the `Spec[L, T]` class. Every spec is labeled with `L` and can be a suite which contains other specs or a test of type `T`.
 
-The most common and easy way to create suites is to use `suite` function. For testing of pure functions there is `test` function and for effectful testing there is `testM`
+The most common and easy way to create suites is to use `suite` function. For testing of pure functions and for effectful testing there is `test`
 
 ```scala mdoc
 import zio.test._
@@ -24,7 +24,7 @@ import zio.Clock.nanoTime
 import Assertion.isGreaterThan
 
 val clockSuite = suite("clock") (
-  testM("time is non-zero") {
+  test("time is non-zero") {
     assertM(Live.live(nanoTime))(isGreaterThan(0L))
   }
 )
@@ -42,7 +42,7 @@ val paymentProviderXYZSuite  = suite("XYZ payment provider tests") {test("Your o
 val allPaymentProvidersTests = suite("All payment providers tests")(paymentProviderABCSuite, paymentProviderXYZSuite)
 ```
 
-Real tests that run some logic and return testing result are created mostly with `testM` function. It expects two arguments, first one that will be the label of test
+Real tests that run some logic and return testing result are created mostly with `test` function. It expects two arguments, first one that will be the label of test
 which will be used for visual reporting back to the user and an assertion of type
 `ZIO[R, E, TestResult]`. This means writing test in `zio-test` mostly gets down to creating a `ZIO` object that 
 will produce `TestResult`. There is another variant of function for creating test that are pure called simply `test`.
@@ -105,14 +105,14 @@ on console will be a nice detailed text explaining what exactly went wrong:
 
 
 Having this all in mind probably the most common and also most readable way of structuring tests is to pass
-a for-comprehension to `testM` function and yield a call to `assert` function.
+a for-comprehension to `test` function and yield a call to `assert` function.
 
 ```scala mdoc
-import zio._
+import zio.{test => _, _}
 import zio.test._
 import Assertion._
 
-testM("Semaphore should expose available number of permits") {
+test("Semaphore should expose available number of permits") {
   for {
     s         <- Semaphore.make(1L)
     permits   <- s.available.commit
@@ -131,16 +131,16 @@ import zio.Clock.nanoTime
 import Assertion._
 
 val suite1 = suite("suite1") (
-  testM("s1.t1") {assertM(nanoTime)(isGreaterThanEqualTo(0L))},
-  testM("s1.t2") {assertM(nanoTime)(isGreaterThanEqualTo(0L))}
+  test("s1.t1") {assertM(nanoTime)(isGreaterThanEqualTo(0L))},
+  test("s1.t2") {assertM(nanoTime)(isGreaterThanEqualTo(0L))}
 )
 val suite2 = suite("suite2") (
-  testM("s2.t1") {assertM(nanoTime)(isGreaterThanEqualTo(0L))},
-  testM("s2.t2") {assertM(nanoTime)(isGreaterThanEqualTo(0L))},
-  testM("s2.t3") {assertM(nanoTime)(isGreaterThanEqualTo(0L))}
+  test("s2.t1") {assertM(nanoTime)(isGreaterThanEqualTo(0L))},
+  test("s2.t2") {assertM(nanoTime)(isGreaterThanEqualTo(0L))},
+  test("s2.t3") {assertM(nanoTime)(isGreaterThanEqualTo(0L))}
 )
 val suite3 = suite("suite3") (
-  testM("s3.t1") {assertM(nanoTime)(isGreaterThanEqualTo(0L))}
+  test("s3.t1") {assertM(nanoTime)(isGreaterThanEqualTo(0L))}
 )
 
 object AllSuites extends DefaultRunnableSpec {
@@ -168,7 +168,7 @@ testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
 What we expect from tests (at least those that we consider unit tests) is to be stable i.e. consecutive runs should yield the same results and take
 more or less the same amount of time. Biggest source of complexity during testing comes from external services which we cannot control like external
 payment APIs, object storages, http APIs etc. It is normal to hide these kind of services behind an interface and provide test instances to regain
-control and determinism. However there is another source of complexity that comes from the local infrastructure that is also hard to control without building prior abstractions. Things like stdin/stdout, clocks, random generators, schedulers can make writing tests hard or even impossible. Fortunately ZIO abstracted most of it in its runtime under `Environment` type. Thanks to this design `zio-test` could easily provide its own implementation named `TestEnvironment` which gives you test implementations of mentioned infrastructure. In most of the cases when you'll be using `ZIO`s `testM` test implementations are already created and should be controlled by exposed functions on companion object. If for some reason you would like to provide custom environment or are using other testing framework but still want to use test environment there are `make` functions on companion objects of test modules where you can construct your own.
+control and determinism. However there is another source of complexity that comes from the local infrastructure that is also hard to control without building prior abstractions. Things like stdin/stdout, clocks, random generators, schedulers can make writing tests hard or even impossible. Fortunately ZIO abstracted most of it in its runtime under `Environment` type. Thanks to this design `zio-test` could easily provide its own implementation named `TestEnvironment` which gives you test implementations of mentioned infrastructure. In most of the cases when you'll be using `ZIO`s `test` test implementations are already created and should be controlled by exposed functions on companion object. If for some reason you would like to provide custom environment or are using other testing framework but still want to use test environment there are `make` functions on companion objects of test modules where you can construct your own.
 
 It is easy to accidentally use different test instances at the same time.
 
@@ -177,7 +177,7 @@ import zio.test._
 import zio.test.environment.TestClock
 import Assertion._
 
-testM("`acquire` doesn't leak permits upon cancellation") {
+test("`acquire` doesn't leak permits upon cancellation") {
   for {
       testClock <- TestClock.makeTest(TestClock.DefaultData)
       s         <- Semaphore.make(1L)
@@ -218,7 +218,7 @@ import zio.test.assert
 import zio.test.environment.TestRandom
 import zio.test.Assertion.equalTo
 
-testM("Use setSeed to generate stable values") {
+test("Use setSeed to generate stable values") {
   for {
     _  <- TestRandom.setSeed(27)
     r1 <- Random.nextLong
@@ -237,7 +237,7 @@ In second mode `TestRandom` maintains an internal buffer of values that can be "
 
 ```scala mdoc
 import zio.test.environment.TestRandom
-testM("One can provide its own list of ints") {
+test("One can provide its own list of ints") {
   for {
     _  <- TestRandom.feedInts(1, 9, 2, 8, 3, 7, 4, 6, 5)
     r1 <- Random.nextInt
@@ -278,7 +278,7 @@ import zio.test.Assertion.isGreaterThanEqualTo
 import zio.test._
 import zio.test.environment.TestClock
 
-testM("One can move time very fast") {
+test("One can move time very fast") {
   for {
     startTime <- currentTime(TimeUnit.SECONDS)
     _         <- TestClock.adjust(1.minute)
@@ -296,7 +296,7 @@ import zio.test.Assertion.equalTo
 import zio.test._
 import zio.test.environment.TestClock
 
-testM("One can control time as he see fit") {
+test("One can control time as he see fit") {
   for {
     promise <- Promise.make[Unit, Int]
     _       <- (ZIO.sleep(10.seconds) *> promise.succeed(1)).fork
@@ -316,7 +316,7 @@ A more complex example leveraging layers and multiple services is shown below.
 import zio.test.Assertion._
 import zio.test._
 import zio.test.environment.{ TestClock, TestEnvironment }
-import zio._
+import zio.{test => _, _}
 
 trait SchedulingService {
   def schedule(promise: Promise[Unit, Int]): ZIO[Any, Exception, Boolean]
@@ -336,7 +336,7 @@ val schedulingLayer: ZLayer[Has[Clock] with Has[LoggingService], Nothing, Has[Sc
     }
 }
 
-testM("One can control time for failing effects too") {
+test("One can control time for failing effects too") {
   val failingLogger = ZLayer.succeed(new LoggingService {
     override def log(msg: String): ZIO[Any, Exception, Unit] = ZIO.fail(new Exception("BOOM"))
   })
@@ -370,7 +370,7 @@ import zio.test._
 import zio.test.environment.TestClock
 import zio.stream._
 
-testM("zipWithLatest") {
+test("zipWithLatest") {
   val s1 = Stream.iterate(0)(_ + 1).fixed(100.milliseconds)
   val s2 = Stream.iterate(0)(_ + 1).fixed(70.milliseconds)
   val s3 = s1.zipWithLatest(s2)((_, _))
@@ -395,7 +395,7 @@ import zio.test.environment.TestConsole
 import zio.Console
 
 val consoleSuite = suite("ConsoleTest")(
-  testM("One can test output of console") {
+  test("One can test output of console") {
     for {
       _              <- TestConsole.feedLines("Jimmy", "37")
       _              <- Console.printLine("What is your name?")
@@ -446,7 +446,7 @@ applied to a test or suite using the `@@` operator. This is an example test suit
 test behavior:
 
 ```scala mdoc:reset
-import zio._
+import zio.{test => _, _}
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test._

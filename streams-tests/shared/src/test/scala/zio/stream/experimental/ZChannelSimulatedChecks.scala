@@ -8,7 +8,7 @@ import zio.{Chunk, Has, IO, Random, ZIO, ZIOBaseSpec}
 object ZChannelSimulatedChecks extends ZIOBaseSpec {
   override def spec: ZSpec[Environment, Failure] =
     suite("ZChannel simulated checks")(
-      testM("done channel")(
+      test("done channel")(
         checkM(gen) { sim =>
           for {
             channelResult <- sim.asDoneChannel.run.exit
@@ -16,7 +16,7 @@ object ZChannelSimulatedChecks extends ZIOBaseSpec {
           } yield assert(channelResult)(equalTo(effectResult))
         }
       ),
-      testM("out channel")(
+      test("out channel")(
         checkM(gen) { sim =>
           for {
             channelResult <- sim.asOutChannel.runCollect.map(_._1).exit

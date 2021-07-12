@@ -16,7 +16,7 @@ object DefaultMutableRunnableSpecSpec extends DefaultMutableRunnableSpec {
       assert(1)(equalTo(1))
     }
 
-    testM("effect") {
+    test("effect") {
       for {
         res <- ZIO.succeed(10)
       } yield assert(res)(equalTo(10))

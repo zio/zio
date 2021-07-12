@@ -57,7 +57,7 @@ object MyersDiffSpec extends ZIOBaseSpec {
         )
       )
     },
-    testM("diffing works for all random strings both ways") {
+    test("diffing works for all random strings both ways") {
       check(Gen.anyString, Gen.anyString) { (original, modified) =>
         assert(MyersDiff.diff(original, modified).applyChanges(original))(equalTo(modified)) &&
         assert(MyersDiff.diff(original, modified).invert.applyChanges(modified))(equalTo(original))
