@@ -10,7 +10,7 @@ import java.{util => ju}
 object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
 
   def spec: ZSpec[Environment, Failure] = suite("ZManagedPlatformSpecificSpec")(
-    testM("writeFile & readFile & OutputStream.write & InputStream.readAll") {
+    test("writeFile & readFile & OutputStream.write & InputStream.readAll") {
       val fixture = Chunk[Byte](1, 2, 3, 6, 5, 4)
       for {
         readResult <- ZManagedPlatformSpecificSpecHelper
@@ -24,7 +24,7 @@ object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
                         }
       } yield assert(readResult)(equalTo(fixture))
     },
-    testM("writeFile & readFile & OutputStream.write & InputStream.skip & InputStream.readAll") {
+    test("writeFile & readFile & OutputStream.write & InputStream.skip & InputStream.readAll") {
       val fixture       = Chunk[Byte](1, 2, 3, 6, 5, 4)
       val skipped2Bytes = Chunk[Byte](3, 6, 5, 4)
       for {
@@ -39,7 +39,7 @@ object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
                         }
       } yield assert(readResult)(equalTo(skipped2Bytes))
     },
-    testM("writeFile & readFile & OutputStream.write & InputStream.readN") {
+    test("writeFile & readFile & OutputStream.write & InputStream.readN") {
       val fixture    = Chunk[Byte](1, 2, 3, 6, 5, 4)
       val read4Bytes = Chunk[Byte](1, 2, 3, 6)
       for {
@@ -54,7 +54,7 @@ object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
                         }
       } yield assert(readResult)(equalTo(read4Bytes))
     },
-    testM("writeFile & readURI & OutputStream.write & InputStream.readAll") {
+    test("writeFile & readURI & OutputStream.write & InputStream.readAll") {
       val fixture = Chunk[Byte](1, 2, 3, 6, 5, 4)
       for {
         readResult <- ZManagedPlatformSpecificSpecHelper
@@ -68,7 +68,7 @@ object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
                         }
       } yield assert(readResult)(equalTo(fixture))
     },
-    testM("writeFile & readURI & OutputStream.write & InputStream.readN") {
+    test("writeFile & readURI & OutputStream.write & InputStream.readN") {
       val fixture    = Chunk[Byte](1, 2, 3, 6, 5, 4)
       val read4Bytes = Chunk[Byte](1, 2, 3, 6)
       for {
@@ -83,7 +83,7 @@ object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
                         }
       } yield assert(readResult)(equalTo(read4Bytes))
     },
-    testM("writeFile & readURI & OutputStream.write & InputStream.skip & InputStream.readAll") {
+    test("writeFile & readURI & OutputStream.write & InputStream.skip & InputStream.readAll") {
       val fixture    = Chunk[Byte](1, 2, 3, 6, 5, 4)
       val read4Bytes = Chunk[Byte](3, 6, 5, 4)
       for {
@@ -98,7 +98,7 @@ object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
                         }
       } yield assert(readResult)(equalTo(read4Bytes))
     },
-    testM("writeFile & readURL & OutputStream.write & InputStream.readAll") {
+    test("writeFile & readURL & OutputStream.write & InputStream.readAll") {
       val fixture = Chunk[Byte](1, 2, 3, 6, 5, 4)
       for {
         readResult <- ZManagedPlatformSpecificSpecHelper
@@ -114,7 +114,7 @@ object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
                         }
       } yield assert(readResult)(equalTo(fixture))
     },
-    testM("writeFile & readURL & OutputStream.write & InputStream.readN") {
+    test("writeFile & readURL & OutputStream.write & InputStream.readN") {
       val fixture    = Chunk[Byte](1, 2, 3, 6, 5, 4)
       val read4Bytes = Chunk[Byte](1, 2, 3, 6)
       for {
@@ -131,7 +131,7 @@ object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
                         }
       } yield assert(readResult)(equalTo(read4Bytes))
     },
-    testM("writeFile & readURL & OutputStream.write & InputStream.skip & InputStream.readAll") {
+    test("writeFile & readURL & OutputStream.write & InputStream.skip & InputStream.readAll") {
       val fixture    = Chunk[Byte](1, 2, 3, 6, 5, 4)
       val read4Bytes = Chunk[Byte](3, 6, 5, 4)
       for {

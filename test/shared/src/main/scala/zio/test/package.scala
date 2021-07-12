@@ -40,7 +40,7 @@ import scala.util.Try
  *
  *  object MyTest extends DefaultRunnableSpec {
  *    def spec = suite("clock")(
- *      testM("time is non-zero") {
+ *      test("time is non-zero") {
  *        assertM(Live.live(nanoTime))(isGreaterThan(0))
  *      }
  *    )
@@ -576,18 +576,13 @@ package object test extends CompileVariants {
     Spec.suite(label, specs.map(_.toVector).toManaged, None)
 
   /**
-   * Builds a spec with a single pure test.
+   * Builds a spec with a single test.
    */
-  def test(label: String)(assertion: => TestResult)(implicit loc: SourceLocation): ZSpec[Any, Nothing] =
-    testM(label)(ZIO.succeed(assertion))
-
-  /**
-   * Builds a spec with a single effectful test.
-   */
-  def testM[R, E](label: String)(assertion: => ZIO[R, E, TestResult])(implicit loc: SourceLocation): ZSpec[R, E] =
-    Spec
-      .test(label, ZTest(assertion), TestAnnotationMap.empty)
-      .annotate(TestAnnotation.location, loc :: Nil)
+  def test[In](label: String)(assertion: => In)(implicit
+    testConstructor: TestConstructor[Nothing, In],
+    sourceLocation: SourceLocation
+  ): testConstructor.Out =
+    testConstructor(label)(assertion)
 
   /**
    * Passes version specific information to the specified function, which will

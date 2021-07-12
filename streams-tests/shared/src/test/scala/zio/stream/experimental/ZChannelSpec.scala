@@ -12,25 +12,25 @@ object ZChannelSpec extends ZIOBaseSpec {
     TestSystem
   ] with Has[Annotations], TestFailure[Any], TestSuccess] = suite("ZChannelSpec")(
     suite("interpreter")(
-      testM("ZChannel.succeed") {
+      test("ZChannel.succeed") {
         for {
           tuple     <- ZChannel.succeed(1).runCollect
           (chunk, z) = tuple
         } yield assert(chunk)(equalTo(Chunk.empty)) && assert(z)(equalTo(1))
       },
-      testM("ZChannel.fail") {
+      test("ZChannel.fail") {
         for {
           exit <- ZChannel.fail("Uh oh!").runCollect.exit
         } yield assert(exit)(fails(equalTo("Uh oh!")))
       },
-      testM("ZChannel.map") {
+      test("ZChannel.map") {
         for {
           tuple     <- ZChannel.succeed(1).map(_ + 1).runCollect
           (chunk, z) = tuple
         } yield assert(chunk)(equalTo(Chunk.empty)) && assert(z)(equalTo(2))
       },
       suite("ZChannel#flatMap")(
-        testM("simple") {
+        test("simple") {
           val conduit = for {
             x <- ZChannel.succeed(1)
             y <- ZChannel.succeed(x * 2)
@@ -41,7 +41,7 @@ object ZChannelSpec extends ZIOBaseSpec {
             (chunk, z) = tuple
           } yield assert(chunk)(equalTo(Chunk.empty)) && assert(z)(equalTo(6))
         },
-        testM("flatMap structure confusion") {
+        test("flatMap structure confusion") {
           assertM(
             (ZChannel
               .write(Chunk(1, 2))
@@ -51,7 +51,7 @@ object ZChannelSpec extends ZIOBaseSpec {
         }
       ),
       suite("ZChannel#catchAll") {
-        testM("catchAll structure confusion") {
+        test("catchAll structure confusion") {
           assertM(
             ZChannel
               .write(8)
@@ -67,7 +67,7 @@ object ZChannelSpec extends ZIOBaseSpec {
         }
       },
       suite("ZChannel#ensuring")(
-        testM("prompt closure between continuations") {
+        test("prompt closure between continuations") {
           Ref.make(Chunk[String]()).flatMap { events =>
             (ZChannel
               .fromZIO(events.update(_ :+ "Acquire1"))
@@ -77,7 +77,7 @@ object ZChannelSpec extends ZIOBaseSpec {
               events.get.map(assert(_)(equalTo(Chunk("Acquire1", "Release11", "Release12", "Acquire2", "Release2"))))
           }
         },
-        testM("last finalizers are deferred to the ZManaged") {
+        test("last finalizers are deferred to the ZManaged") {
           Ref.make(Chunk[String]()).flatMap { events =>
             def event(label: String) = events.update(_ :+ label)
             val channel =
@@ -96,7 +96,7 @@ object ZChannelSpec extends ZIOBaseSpec {
             }
           }
         },
-        testM("mixture of concatMap and ensuring") {
+        test("mixture of concatMap and ensuring") {
           Ref.make(Chunk[String]()).flatMap { events =>
             case class First(i: Int)
             case class Second(i: First)
@@ -140,13 +140,13 @@ object ZChannelSpec extends ZIOBaseSpec {
         }
       ),
       suite("ZChannel#mapOut")(
-        testM("simple") {
+        test("simple") {
           for {
             tuple     <- ZChannel.writeAll(1, 2, 3).mapOut(_ + 1).runCollect
             (chunk, z) = tuple
           } yield assert(chunk)(equalTo(Chunk(2, 3, 4))) && assert(z)(isUnit)
         },
-        testM("mixed with flatMap") {
+        test("mixed with flatMap") {
           ZChannel
             .write(1)
             .mapOut(_.toString)
@@ -159,12 +159,12 @@ object ZChannelSpec extends ZIOBaseSpec {
         }
       ),
       suite("ZChannel.concatMap")(
-        testM("plain") {
+        test("plain") {
           ZChannel.writeAll(1, 2, 3).concatMap(i => ZChannel.writeAll(i, i)).runCollect.map { case (chunk, _) =>
             assert(chunk)(equalTo(Chunk(1, 1, 2, 2, 3, 3)))
           }
         },
-        testM("complex") {
+        test("complex") {
           case class First[A](a: A)
           case class Second[A](a: A)
           val conduit = ZChannel
@@ -190,7 +190,7 @@ object ZChannelSpec extends ZIOBaseSpec {
             assert(chunk)(equalTo(expected))
           }
         },
-        testM("read from inner conduit") {
+        test("read from inner conduit") {
           val source = ZChannel.writeAll(1, 2, 3, 4)
           val reader = ZChannel.read[Int].flatMap(ZChannel.write(_))
           val readers =
@@ -200,7 +200,7 @@ object ZChannelSpec extends ZIOBaseSpec {
             assert(chunk)(equalTo(Chunk(1, 2, 3, 4)))
           }
         },
-        testM("downstream failure") {
+        test("downstream failure") {
           for {
             exit <- ZChannel
                       .write(0)
@@ -209,7 +209,7 @@ object ZChannelSpec extends ZIOBaseSpec {
                       .exit
           } yield assert(exit)(fails(equalTo("error")))
         },
-        testM("upstream acquireReleaseOut + downstream failure") {
+        test("upstream acquireReleaseOut + downstream failure") {
           assertM(Ref.make(Chunk[String]()).flatMap { events =>
             ZChannel
               .acquireReleaseOutWith(events.update(_ :+ "Acquired"))(_ => events.update(_ :+ "Released"))
@@ -218,7 +218,7 @@ object ZChannelSpec extends ZIOBaseSpec {
               .exit <*> events.get
           })(equalTo((Exit.fail("error"), Chunk("Acquired", "Released"))))
         },
-        testM("multiple concatMaps with failure in first") {
+        test("multiple concatMaps with failure in first") {
           for {
             exit <- ZChannel
                       .write(())
@@ -228,7 +228,7 @@ object ZChannelSpec extends ZIOBaseSpec {
                       .exit
           } yield assert(exit)(fails(equalTo("error")))
         },
-        testM("concatMap with failure then flatMap") {
+        test("concatMap with failure then flatMap") {
           for {
             exit <- ZChannel
                       .write(())
@@ -238,7 +238,7 @@ object ZChannelSpec extends ZIOBaseSpec {
                       .exit
           } yield assert(exit)(fails(equalTo("error")))
         },
-        testM("multiple concatMaps with failure in first and catchAll in second") {
+        test("multiple concatMaps with failure in first and catchAll in second") {
           for {
             exit <- ZChannel
                       .write(())
@@ -248,7 +248,7 @@ object ZChannelSpec extends ZIOBaseSpec {
                       .exit
           } yield assert(exit)(fails(equalTo("error2")))
         },
-        testM("done value combination") {
+        test("done value combination") {
           assertM(
             ZChannel
               .writeAll(1, 2, 3)
@@ -259,14 +259,14 @@ object ZChannelSpec extends ZIOBaseSpec {
         }
       ),
       suite("ZChannel#managedOut")(
-        testM("failure") {
+        test("failure") {
           for {
             exit <- ZChannel.managedOut(ZManaged.fail("error")).runCollect.exit
           } yield assert(exit)(fails(equalTo("error")))
         }
       ),
       suite("ZChannel#mergeWith")(
-        testM("simple merge") {
+        test("simple merge") {
           val conduit = ZChannel
             .writeAll(1, 2, 3)
             .mergeWith(ZChannel.writeAll(4, 5, 6))(
@@ -278,7 +278,7 @@ object ZChannelSpec extends ZIOBaseSpec {
             assert(chunk.toSet)(equalTo(Set(1, 2, 3, 4, 5, 6)))
           }
         },
-        testM("merge with different types") {
+        test("merge with different types") {
           val left  = ZChannel.write(1) *> ZChannel.fromZIO(Task("Whatever").refineToOrDie[RuntimeException])
           val right = ZChannel.write(2) *> ZChannel.fromZIO(Task(true).refineToOrDie[IllegalStateException])
 
@@ -292,7 +292,7 @@ object ZChannelSpec extends ZIOBaseSpec {
               assert(result)(equalTo(("Whatever", true)))
           }
         },
-        testM("handles polymorphic failures") {
+        test("handles polymorphic failures") {
           val left  = ZChannel.write(1) *> ZChannel.fail("Boom").as(true)
           val right = ZChannel.write(2) *> ZChannel.fail(true).as(true)
 
@@ -303,7 +303,7 @@ object ZChannelSpec extends ZIOBaseSpec {
 
           merged.runDrain.exit.map(ex => assert(ex)(fails(equalTo(("Boom", true)))))
         },
-        testM("interrupts losing side") {
+        test("interrupts losing side") {
           Promise.make[Nothing, Unit].flatMap { latch =>
             Ref.make(false).flatMap { interrupted =>
               val left = ZChannel.write(1) *>
@@ -322,7 +322,7 @@ object ZChannelSpec extends ZIOBaseSpec {
       ),
       suite("ZChannel#interruptWhen")(
         suite("interruptWhen(Promise)")(
-          testM("interrupts the current element") {
+          test("interrupts the current element") {
             for {
               interrupted <- Ref.make(false)
               latch       <- Promise.make[Nothing, Unit]
@@ -340,7 +340,7 @@ object ZChannelSpec extends ZIOBaseSpec {
               result <- interrupted.get
             } yield assert(result)(isTrue)
           },
-          testM("propagates errors") {
+          test("propagates errors") {
             for {
               halt <- Promise.make[String, Nothing]
               _    <- halt.fail("Fail")
@@ -352,7 +352,7 @@ object ZChannelSpec extends ZIOBaseSpec {
           } @@ zioTag(errors)
         ) @@ zioTag(interruption),
         suite("interruptWhen(IO)")(
-          testM("interrupts the current element") {
+          test("interrupts the current element") {
             for {
               interrupted <- Ref.make(false)
               latch       <- Promise.make[Nothing, Unit]
@@ -370,7 +370,7 @@ object ZChannelSpec extends ZIOBaseSpec {
               result <- interrupted.get
             } yield assert(result)(isTrue)
           },
-          testM("propagates errors") {
+          test("propagates errors") {
             for {
               halt <- Promise.make[String, Nothing]
               _    <- halt.fail("Fail")
@@ -384,7 +384,7 @@ object ZChannelSpec extends ZIOBaseSpec {
         ) @@ zioTag(interruption)
       ),
       suite("reads")(
-        testM("simple reads") {
+        test("simple reads") {
           case class Whatever(i: Int)
 
           val left = ZChannel.writeAll(1, 2, 3)
@@ -399,7 +399,7 @@ object ZChannelSpec extends ZIOBaseSpec {
             assert(outputs)(equalTo(Chunk(1, 2, 3, 4).map(Whatever(_))))
           }
         },
-        testM("pipeline") {
+        test("pipeline") {
           lazy val identity: ZChannel[Any, Any, Int, Any, Nothing, Int, Unit] =
             ZChannel.readWith(
               (i: Int) => ZChannel.write(i) *> identity,
@@ -435,7 +435,7 @@ object ZChannelSpec extends ZIOBaseSpec {
               assert(result)(equalTo(List(2, 2, 1, 1)))
           }
         },
-        testM("another pipeline") {
+        test("another pipeline") {
           Ref.make(Chunk[Int]()).flatMap { sums =>
             val intProducer: ZChannel[Any, Any, Any, Any, Nothing, Int, Unit] = ZChannel.writeAll(1, 2, 3, 4, 5)
 
@@ -462,7 +462,7 @@ object ZChannelSpec extends ZIOBaseSpec {
               assertM(sums.get)(equalTo(Chunk(3, 7)))
           }
         },
-        testM("resources") {
+        test("resources") {
           Ref.make(Chunk[String]()).flatMap { events =>
             val left = ZChannel
               .acquireReleaseOutWith(events.update(_ :+ "Acquire outer"))(_ => events.update(_ :+ "Release outer"))
@@ -502,7 +502,7 @@ object ZChannelSpec extends ZIOBaseSpec {
           }
         },
         suite("concurrent reads")(
-          testM("simple concurrent reads") {
+          test("simple concurrent reads") {
             val capacity = 128
 
             ZIO.collectAll(List.fill(capacity)(Random.nextInt)).flatMap { data =>
@@ -523,7 +523,7 @@ object ZChannelSpec extends ZIOBaseSpec {
               }
             }
           } @@ TestAspect.nonFlaky(50),
-          testM("nested concurrent reads") {
+          test("nested concurrent reads") {
             val capacity      = 128
             val f: Int => Int = _ + 1
 
@@ -547,7 +547,7 @@ object ZChannelSpec extends ZIOBaseSpec {
           } @@ TestAspect.nonFlaky(50)
         ),
         suite("ZChannel#mapError") {
-          testM("mapError structure confusion") {
+          test("mapError structure confusion") {
             assertM(
               ZChannel
                 .fail("err")
@@ -559,7 +559,7 @@ object ZChannelSpec extends ZIOBaseSpec {
         }
       ),
       suite("provide")(
-        testM("simple provide") {
+        test("simple provide") {
           assertM(
             ZChannel
               .fromZIO(ZIO.environment[Int])
@@ -567,13 +567,13 @@ object ZChannelSpec extends ZIOBaseSpec {
               .run
           )(equalTo(100))
         },
-        testM("provide <*> provide") {
+        test("provide <*> provide") {
           assertM(
             (ZChannel.fromZIO(ZIO.environment[Int]).provide(100) <*>
               ZChannel.fromZIO(ZIO.environment[Int]).provide(200)).run
           )(equalTo((100, 200)))
         },
-        testM("concatMap(provide).provide") {
+        test("concatMap(provide).provide") {
           assertM(
             (ZChannel
               .fromZIO(ZIO.environment[Int])
@@ -589,7 +589,7 @@ object ZChannelSpec extends ZIOBaseSpec {
               .runCollect
           )(equalTo((Chunk((100, 200)), ())))
         },
-        testM("provide is modular") {
+        test("provide is modular") {
           assertM(
             (for {
               v1 <- ZChannel.fromZIO(ZIO.environment[Int])
