@@ -1,6 +1,5 @@
 package zio
 
-import com.github.ghik.silencer.silent
 import zio.test.Assertion._
 import zio.test.TestAspect.nonFlaky
 import zio.test._
