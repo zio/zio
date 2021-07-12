@@ -3461,6 +3461,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def identity[R]: URIO[R, R] = fromFunction[R, R](ZIO.identityFn[R])
 
   /**
+   * The moral equivalent of `if (p) onTrue else onFalse`
+   */
+  def ifElse[R, E, A](b: => Boolean)(onTrue: => ZIO[R, E, A], onFalse: => ZIO[R, E, A]): ZIO[R, E, A] =
+    effectSuspendTotal(if (b) onTrue else onFalse)
+
+  /**
    * Runs `onTrue` if the result of `b` is `true` and `onFalse` otherwise.
    */
   def ifM[R, E](b: ZIO[R, E, Boolean]): ZIO.IfM[R, E] =

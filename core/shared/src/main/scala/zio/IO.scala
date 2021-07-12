@@ -646,6 +646,12 @@ object IO {
   def identity: IO[Nothing, Any] = ZIO.identity
 
   /**
+   * @see [[zio.ZIO.ifElse]]
+   */
+  def ifElse[E, A](b: => Boolean)(onTrue: => IO[E, A], onFalse: => IO[E, A]): IO[E, A] =
+    ZIO.ifElse(b)(onTrue, onFalse)
+
+  /**
    * @see [[zio.ZIO.ifM]]
    */
   def ifM[E](b: IO[E, Boolean]): ZIO.IfM[Any, E] =

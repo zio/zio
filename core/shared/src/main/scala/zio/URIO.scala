@@ -617,6 +617,12 @@ object URIO {
   def identity[R]: URIO[R, R] = ZIO.identity
 
   /**
+   * @see [[zio.ZIO.ifElse]]
+   */
+  def ifElse[R, A](b: => Boolean)(onTrue: => URIO[R, A], onFalse: => URIO[R, A]): URIO[R, A] =
+    ZIO.ifElse(b)(onTrue, onFalse)
+
+  /**
    * @see [[zio.ZIO.ifM]]
    */
   def ifM[R](b: URIO[R, Boolean]): ZIO.IfM[R, Nothing] =

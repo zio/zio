@@ -215,6 +215,12 @@ object STM {
   def identity: USTM[Any] = ZSTM.identity
 
   /**
+   * @see See [[zio.stm.ZSTM.ifElse]]
+   */
+  def ifElse[E, A](b: => Boolean)(onTrue: => STM[E, A], onFalse: => STM[E, A]): STM[E, A] =
+    ZSTM.ifElse(b)(onTrue, onFalse)
+
+  /**
    * @see See [[zio.stm.ZSTM.ifM]]
    */
   def ifM[E](b: STM[E, Boolean]): ZSTM.IfM[Any, E] =

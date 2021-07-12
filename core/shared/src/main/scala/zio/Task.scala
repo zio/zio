@@ -647,6 +647,12 @@ object Task extends TaskPlatformSpecific {
   def identity: Task[Any] = ZIO.identity
 
   /**
+   * @see [[zio.ZIO.ifElse]]
+   */
+  def ifElse[A](b: => Boolean)(onTrue: => Task[A], onFalse: => Task[A]): Task[A] =
+    ZIO.ifElse(b)(onTrue, onFalse)
+
+  /**
    * @see [[zio.ZIO.ifM]]
    */
   def ifM(b: Task[Boolean]): ZIO.IfM[Any, Throwable] =

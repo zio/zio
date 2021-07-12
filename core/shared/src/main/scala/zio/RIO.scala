@@ -679,6 +679,12 @@ object RIO {
   def identity[R]: RIO[R, R] = ZIO.identity
 
   /**
+   * @see [[zio.ZIO.ifElse]]
+   */
+  def ifElse[R, A](b: => Boolean)(onTrue: => RIO[R, A], onFalse: => RIO[R, A]): RIO[R, A] =
+    ZIO.ifElse(b)(onTrue, onFalse)
+
+  /**
    * @see [[zio.ZIO.ifM]]
    */
   def ifM[R](b: RIO[R, Boolean]): ZIO.IfM[R, Throwable] =

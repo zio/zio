@@ -457,6 +457,16 @@ object ZManagedSpec extends ZIOBaseSpec {
         } yield assert(result)(equalTo(List("Closed")))
       }
     ),
+    suite("ifElse")(
+      testM("runs `onTrue` if result of `b` is `true`") {
+        val managed = ZManaged.ifElse(true)(ZManaged.succeed(true), ZManaged.succeed(false))
+        assertM(managed.use(ZIO.succeed(_)))(isTrue)
+      },
+      testM("runs `onFalse` if result of `b` is `false`") {
+        val managed = ZManaged.ifElse(false)(ZManaged.succeed(true), ZManaged.succeed(false))
+        assertM(managed.use(ZIO.succeed(_)))(isFalse)
+      }
+    ),
     suite("ifM")(
       testM("runs `onTrue` if result of `b` is `true`") {
         val managed = ZManaged.ifM(ZManaged.succeed(true))(ZManaged.succeed(true), ZManaged.succeed(false))

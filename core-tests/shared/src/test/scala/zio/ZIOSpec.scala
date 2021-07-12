@@ -1105,6 +1105,16 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(ZIO.fail("Fail").head.either)(isLeft(isSome(equalTo("Fail"))))
       } @@ zioTag(errors)
     ),
+    suite("ifElse")(
+      testM("runs `onTrue` if result of `b` is `true`") {
+        val zio = ZIO.ifElse(true)(ZIO.succeed(true), ZIO.succeed(false))
+        assertM(zio)(isTrue)
+      },
+      testM("runs `onFalse` if result of `b` is `false`") {
+        val zio = ZIO.ifElse(false)(ZIO.succeed(true), ZIO.succeed(false))
+        assertM(zio)(isFalse)
+      }
+    ),
     suite("ifM")(
       testM("runs `onTrue` if result of `b` is `true`") {
         val zio = ZIO.ifM(ZIO.succeed(true))(ZIO.succeed(true), ZIO.succeed(false))

@@ -272,6 +272,16 @@ object ZSTMSpec extends ZIOBaseSpec {
           assertM(ZSTM.fromEither(ei).head.commit.run)(fails(isSome(equalTo("my error"))))
         } @@ zioTag(errors)
       ),
+      suite("ifElse")(
+        testM("runs `onTrue` if result of `b` is `true`") {
+          val transaction = ZSTM.ifElse(true)(ZSTM.succeed(true), ZSTM.succeed(false))
+          assertM(transaction.commit)(isTrue)
+        },
+        testM("runs `onFalse` if result of `b` is `false`") {
+          val transaction = ZSTM.ifElse(false)(ZSTM.succeed(true), ZSTM.succeed(false))
+          assertM(transaction.commit)(isFalse)
+        }
+      ),
       suite("ifM")(
         testM("runs `onTrue` if result of `b` is `true`") {
           val transaction = ZSTM.ifM(ZSTM.succeed(true))(ZSTM.succeed(true), ZSTM.succeed(false))

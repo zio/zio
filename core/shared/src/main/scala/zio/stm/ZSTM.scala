@@ -1270,6 +1270,12 @@ object ZSTM {
   def identity[R]: URSTM[R, R] = fromFunction[R, R](ZIO.identityFn)
 
   /**
+   * The moral equivalent of `if (p) onTrue else onFalse`
+   */
+  def ifElse[R, E, A](b: => Boolean)(onTrue: => ZSTM[R, E, A], onFalse: => ZSTM[R, E, A]): ZSTM[R, E, A] =
+    suspend(if (b) onTrue else onFalse)
+
+  /**
    * Runs `onTrue` if the result of `b` is `true` and `onFalse` otherwise.
    */
   def ifM[R, E](b: ZSTM[R, E, Boolean]): ZSTM.IfM[R, E] =

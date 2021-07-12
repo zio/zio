@@ -1919,6 +1919,12 @@ object ZManaged extends ZManagedPlatformSpecific {
   def identity[R]: ZManaged[R, Nothing, R] = fromFunction(scala.Predef.identity)
 
   /**
+   * The moral equivalent of `if (p) onTrue else onFalse`
+   */
+  def ifElse[R, E, A](b: => Boolean)(onTrue: => ZManaged[R, E, A], onFalse: => ZManaged[R, E, A]): ZManaged[R, E, A] =
+    ZManaged.suspend(if (b) onTrue else onFalse)
+
+  /**
    * Runs `onTrue` if the result of `b` is `true` and `onFalse` otherwise.
    */
   def ifM[R, E](b: ZManaged[R, E, Boolean]): ZManaged.IfM[R, E] =
