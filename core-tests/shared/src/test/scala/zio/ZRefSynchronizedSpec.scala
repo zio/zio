@@ -503,17 +503,7 @@ object ZRefMSpec extends ZIOBaseSpec {
           (a, b)   = tuple
         } yield assert(a)(equalTo(b))
       }
-    ) @@ nonFlaky,
-    suite("combinators")(
-      test("dequeueRef") {
-        for {
-          data        <- Ref.Synchronized.dequeueRef(0): @silent("deprecated")
-          (ref, queue) = data
-          _           <- ZIO.collectAllPar(ZIO.replicate(100)(ref.update(_ + 1)))
-          value       <- ZIO.collectAll(ZIO.replicate(100)(queue.take))
-        } yield assert(value)(equalTo((1 to 100).toList))
-      }
-    )
+    ) @@ nonFlaky
   )
 
   val (current, update) = ("value", "new value")
