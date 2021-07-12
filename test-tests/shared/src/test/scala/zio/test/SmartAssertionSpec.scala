@@ -127,7 +127,7 @@ object SmartAssertionSpec extends ZIOBaseSpec {
       val list = Some(List(1, 8, 132, 83))
       assertTrue(list.get.contains(78))
     } @@ failing,
-    testM("sleep delays effect until time is adjusted") {
+    test("sleep delays effect until time is adjusted") {
       for {
         ref    <- zio.Ref.make(false)
         _      <- ref.set(true).delay(10.hours).fork
@@ -271,7 +271,7 @@ object SmartAssertionSpec extends ZIOBaseSpec {
     test("hasAt must fail when an index is outside of a sequence range") {
       assertTrue(!(Seq(1, 2, 3)(2) == 3))
     } @@ failing,
-    testM("check") {
+    test("check") {
       check(Gen.anyInt) { int =>
         assertTrue(int < 800)
       }

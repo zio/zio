@@ -6,7 +6,7 @@ import zio.test._
 object ZScopeSpec extends ZIOBaseSpec {
 
   def testScope[A](label: String, a: A)(f: (Ref[A], ZScope[Unit]) => UIO[A]): ZSpec[Any, Nothing] =
-    testM(label) {
+    test(label) {
       for {
         ref      <- Ref.make[A](a)
         open     <- ZScope.make[Unit]
@@ -17,35 +17,35 @@ object ZScopeSpec extends ZIOBaseSpec {
     }
 
   def spec: ZSpec[Environment, Failure] = suite("ZScopeSpec")(
-    testM("make returns an empty and open scope") {
+    test("make returns an empty and open scope") {
       for {
         open  <- ZScope.make[Unit]
         empty <- open.scope.empty
         value <- open.scope.closed
       } yield assert(empty)(isTrue) && assert(value)(isFalse)
     },
-    testM("close makes the scope closed") {
+    test("close makes the scope closed") {
       for {
         open  <- ZScope.make[Unit]
         _     <- open.close(())
         value <- open.scope.closed
       } yield assert(value)(isTrue)
     },
-    testM("close can be called multiple times") {
+    test("close can be called multiple times") {
       for {
         open  <- ZScope.make[Unit]
         _     <- open.close(()).repeatN(10)
         value <- open.scope.closed
       } yield assert(value)(isTrue)
     },
-    testM("ensure makes the scope non-empty") {
+    test("ensure makes the scope non-empty") {
       for {
         open  <- ZScope.make[Unit]
         value <- open.scope.ensure(_ => IO.unit)
         empty <- open.scope.empty
       } yield assert(empty)(isFalse) && assert(value)(isRight(anything))
     },
-    testM("ensure on closed scope returns false") {
+    test("ensure on closed scope returns false") {
       for {
         open  <- ZScope.make[Unit]
         _     <- open.close(())
@@ -55,7 +55,7 @@ object ZScopeSpec extends ZIOBaseSpec {
     },
     testScope("one finalizer", 0)((ref, scope) => scope.ensure(_ => ref.update(_ + 1)) as 1),
     suite("finalizer removal")(
-      testM("removal of one finalizer") {
+      test("removal of one finalizer") {
         for {
           ref  <- Ref.make[Int](0)
           open <- ZScope.make[Unit]
@@ -67,7 +67,7 @@ object ZScopeSpec extends ZIOBaseSpec {
       }
     ),
     suite("finalizer ordering")(
-      testM("ordering of interleaved weak and strong finalizers") {
+      test("ordering of interleaved weak and strong finalizers") {
         import ZScope.Mode._
 
         for {
@@ -105,7 +105,7 @@ object ZScopeSpec extends ZIOBaseSpec {
       }
     ),
     suite("scope extension")(
-      testM("closed is true but released is false for extended child") {
+      test("closed is true but released is false for extended child") {
         for {
           parent   <- ZScope.make[Any]
           child    <- ZScope.make[Any]
@@ -115,7 +115,7 @@ object ZScopeSpec extends ZIOBaseSpec {
           released <- child.scope.released
         } yield assert(closed)(isTrue ?? "closed") && assert(released)(isFalse ?? "released")
       },
-      testM("single extension") {
+      test("single extension") {
         for {
           ref    <- Ref.make(0)
           parent <- ZScope.make[Unit]
@@ -127,7 +127,7 @@ object ZScopeSpec extends ZIOBaseSpec {
           after  <- ref.get
         } yield assert(before)(equalTo(0)) && assert(after)(equalTo(1))
       },
-      testM("one parent, two children") {
+      test("one parent, two children") {
         for {
           ref    <- Ref.make(0)
           parent <- ZScope.make[Unit]

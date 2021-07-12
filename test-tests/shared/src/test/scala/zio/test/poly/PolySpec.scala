@@ -42,7 +42,7 @@ object PolySpec extends DefaultRunnableSpec {
     Gen.oneOf(genMapping(t), genValue(t))
 
   def spec: ZSpec[Environment, Failure] = suite("PolySpec")(
-    testM("map fusion") {
+    test("map fusion") {
       check(GenPoly.genPoly.flatMap(genExpr(_)))(expr => assert(eval(fuse(expr)))(equalTo(eval(expr))))
     }
   )

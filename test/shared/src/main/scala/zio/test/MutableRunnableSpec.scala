@@ -27,7 +27,7 @@ import scala.util.control.NoStackTrace
  * {{{
  * object MySpec extends MutableRunnableSpec(layer, aspect) {
  *   suite("foo") {
- *     testM("name") {
+ *     test("name") {
  *     } @@ ignore
  *
  *     test("name 2")
@@ -118,26 +118,15 @@ class MutableRunnableSpec[R <: Has[_]: Tag](
   }
 
   /**
-   * Builds a spec with a single pure test.
+   * Builds a spec with a single test.
    */
-  final def test(label: String)(assertion: => TestResult)(implicit loc: SourceLocation): TestBuilder = {
+  final def test[In](label: String)(assertion: => In)(implicit
+    testConstructor: TestConstructor[R with TestEnvironment, In],
+    sourceLocation: SourceLocation
+  ): TestBuilder = {
     if (specBuilt)
       throw new InAnotherTestException("Test", label)
     val test    = zio.test.test(label)(assertion)
-    val builder = TestBuilder(label, test)
-    stack.head.nested = stack.head.nested :+ builder
-    builder
-  }
-
-  /**
-   * Builds a spec with a single effectful test.
-   */
-  final def testM(
-    label: String
-  )(assertion: => ZIO[R with TestEnvironment, Failure, TestResult])(implicit loc: SourceLocation): TestBuilder = {
-    if (specBuilt)
-      throw new InAnotherTestException("Test", label)
-    val test    = zio.test.testM(label)(assertion)
     val builder = TestBuilder(label, test)
     stack.head.nested = stack.head.nested :+ builder
     builder

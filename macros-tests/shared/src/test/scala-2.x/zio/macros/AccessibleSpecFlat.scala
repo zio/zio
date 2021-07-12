@@ -9,7 +9,7 @@ object AccessibleSpecFlat extends DefaultRunnableSpec {
 
   def spec: ZSpec[Environment, Failure] = suite("AccessibleSpecPlain")(
     suite("Accessible macro")(
-      testM("compiles when applied to object with empty Service") {
+      test("compiles when applied to object with empty Service") {
         assertM(typeCheck {
           """
             @accessible
@@ -17,7 +17,7 @@ object AccessibleSpecFlat extends DefaultRunnableSpec {
           """
         })(isRight(anything))
       },
-      testM("fails when applied to object without a Service") {
+      test("fails when applied to object without a Service") {
         assertM(typeCheck {
           """
             @accessible
@@ -25,7 +25,7 @@ object AccessibleSpecFlat extends DefaultRunnableSpec {
           """
         })(isLeft(anything))
       },
-      testM("fails when applied to trait") {
+      test("fails when applied to trait") {
         assertM(typeCheck {
           """
             @accessible
@@ -33,7 +33,7 @@ object AccessibleSpecFlat extends DefaultRunnableSpec {
           """
         })(isRight(anything))
       },
-      testM("fails when applied to class") {
+      test("fails when applied to class") {
         assertM(typeCheck {
           """
             @accessible
@@ -41,7 +41,7 @@ object AccessibleSpecFlat extends DefaultRunnableSpec {
           """
         })(isLeft(anything))
       },
-      testM("generates accessor for values") {
+      test("generates accessor for values") {
         assertM(typeCheck {
           """
             @accessible
@@ -56,7 +56,7 @@ object AccessibleSpecFlat extends DefaultRunnableSpec {
           """
         })(isRight(anything))
       },
-      testM("generates accessor for functions") {
+      test("generates accessor for functions") {
         assertM(typeCheck {
           """
             @accessible
@@ -71,7 +71,7 @@ object AccessibleSpecFlat extends DefaultRunnableSpec {
           """
         })(isRight(anything))
       },
-      testM("generates accessor for varargs functions") {
+      test("generates accessor for varargs functions") {
         assertM(typeCheck {
           """
             @accessible
@@ -86,7 +86,7 @@ object AccessibleSpecFlat extends DefaultRunnableSpec {
           """
         })(isRight(anything))
       },
-      testM("generates accessors for members returning ZManaged") {
+      test("generates accessors for members returning ZManaged") {
         assertM(typeCheck {
           """
             @accessible
@@ -107,7 +107,7 @@ object AccessibleSpecFlat extends DefaultRunnableSpec {
           """
         })(isRight(anything))
       },
-      testM("generates accessor for service with default method implementations") {
+      test("generates accessor for service with default method implementations") {
         assertM(typeCheck {
           """
              @accessible
@@ -118,7 +118,7 @@ object AccessibleSpecFlat extends DefaultRunnableSpec {
           """.stripMargin
         })(isRight(anything))
       },
-      testM("generates accessor for service with one type param") {
+      test("generates accessor for service with one type param") {
         assertM(typeCheck {
           """
              @accessible
@@ -151,7 +151,7 @@ object AccessibleSpecFlat extends DefaultRunnableSpec {
           """
         })(isRight(anything))
       },
-      testM("generates accessor for service with contravariant type param") {
+      test("generates accessor for service with contravariant type param") {
         assertM(typeCheck {
           """
              @accessible
@@ -166,7 +166,7 @@ object AccessibleSpecFlat extends DefaultRunnableSpec {
           """
         })(isRight(anything))
       },
-      testM("generates accessor for service with two type params and type bounds") {
+      test("generates accessor for service with two type params and type bounds") {
         assertM(typeCheck {
           """
              trait Foo
@@ -202,7 +202,7 @@ object AccessibleSpecFlat extends DefaultRunnableSpec {
           """
         })(isRight(anything))
       },
-      testM("generates accessors for all capabilities") {
+      test("generates accessors for all capabilities") {
         assertM(typeCheck {
           """
             @accessible
@@ -266,7 +266,7 @@ object AccessibleSpecFlat extends DefaultRunnableSpec {
           """
         })(isRight(anything))
       },
-      testM("generates accessor for throwing values") {
+      test("generates accessor for throwing values") {
         assertM(typeCheck {
           """
             @accessible
@@ -281,7 +281,7 @@ object AccessibleSpecFlat extends DefaultRunnableSpec {
           """
         })(isRight(anything))
       },
-      testM("generates accessor for throwing methods") {
+      test("generates accessor for throwing methods") {
         assertM(typeCheck {
           """
             @accessible
@@ -296,7 +296,7 @@ object AccessibleSpecFlat extends DefaultRunnableSpec {
           """
         })(isRight(anything))
       },
-      testM("generates accessor for values") {
+      test("generates accessor for values") {
         assertM(typeCheck {
           """
             @accessible
@@ -310,7 +310,7 @@ object AccessibleSpecFlat extends DefaultRunnableSpec {
           """
         })(isRight(anything))
       },
-      testM("generates accessor for methods") {
+      test("generates accessor for methods") {
         assertM(typeCheck {
           """
             @accessible
@@ -324,7 +324,7 @@ object AccessibleSpecFlat extends DefaultRunnableSpec {
           """
         })(isRight(anything))
       },
-      testM("bubbles the error to the error channel for defs") {
+      test("bubbles the error to the error channel for defs") {
         @accessible
         trait Module {
           @throwing

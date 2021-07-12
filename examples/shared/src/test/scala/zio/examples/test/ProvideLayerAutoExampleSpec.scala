@@ -14,16 +14,16 @@ object ProvideLayerAutoExampleSpec extends DefaultRunnableSpec {
 
   def spec =
     suite("AutoLayerExampleSpec")(
-      testM("inject") {
+      test("inject") {
         assertM(exampleZio)(anything)
       }.inject(Console.live, OldLady.live, Spider.live, Fly.live, Bear.live),
-      testM("injectCustom") {
+      test("injectCustom") {
         assertM(exampleZio)(anything)
       }.injectCustom(OldLady.live, Spider.live, Fly.live, Bear.live),
-      testM("injectShared") {
+      test("injectShared") {
         assertM(exampleZio)(anything)
       }.injectShared(Console.live, OldLady.live, Spider.live, Fly.live, Bear.live),
-      testM("injectCustomShared") {
+      test("injectCustomShared") {
         assertM(exampleZio)(anything)
       }.injectCustomShared(OldLady.live, Spider.live, Fly.live, Bear.live)
     )

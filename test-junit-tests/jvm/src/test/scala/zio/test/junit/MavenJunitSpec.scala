@@ -16,7 +16,7 @@ import scala.xml.XML
 object MavenJunitSpec extends DefaultRunnableSpec {
 
   def spec: ZSpec[Environment, Failure] = suite("MavenJunitSpec")(
-    testM("FailingSpec results are properly reported") {
+    test("FailingSpec results are properly reported") {
       for {
         mvn       <- makeMaven
         mvnResult <- mvn.clean() *> mvn.test()

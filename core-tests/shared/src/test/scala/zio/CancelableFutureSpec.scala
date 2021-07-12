@@ -17,7 +17,7 @@ object CancelableFutureSpec extends ZIOBaseSpec {
 
   def spec: ZSpec[Environment, Failure] =
     suite("CancelableFutureSpec")(
-      testM("auto-kill regression") {
+      test("auto-kill regression") {
         val effect = ZIO.unit.delay(1.millisecond)
 
         val roundtrip = for {
@@ -29,7 +29,7 @@ object CancelableFutureSpec extends ZIOBaseSpec {
 
         assertM(Live.live(result))(equalTo(0))
       } @@ nonFlaky @@ zioTag(supervision, regression),
-      testM("auto-kill regression 2") {
+      test("auto-kill regression 2") {
         val effect = Clock.nanoTime.map(_.toString()).delay(10.millisecond)
 
         val roundtrip = for {
@@ -41,7 +41,7 @@ object CancelableFutureSpec extends ZIOBaseSpec {
 
         assertM(Live.live(result.timeout(1.seconds)))(isNone)
       } @@ zioTag(supervision, regression),
-      testM("unsafeRunToFuture interruptibility") {
+      test("unsafeRunToFuture interruptibility") {
         for {
           runtime <- ZIO.runtime[Any]
           f        = runtime.unsafeRunToFuture(UIO.never)
@@ -49,7 +49,7 @@ object CancelableFutureSpec extends ZIOBaseSpec {
           r       <- ZIO.fromFuture(_ => f).exit
         } yield assert(r.succeeded)(isFalse) // not interrupted, as the Future fails when the effect in interrupted.
       } @@ nonFlaky @@ zioTag(interruption),
-      testM("roundtrip preserves interruptibility") {
+      test("roundtrip preserves interruptibility") {
         for {
           start <- Promise.make[Nothing, Unit]
           end   <- Promise.make[Nothing, Int]
@@ -59,7 +59,7 @@ object CancelableFutureSpec extends ZIOBaseSpec {
           value <- end.await
         } yield assert(value)(equalTo(42))
       } @@ zioTag(interruption) @@ nonFlaky,
-      testM("survives roundtrip without being auto-killed") {
+      test("survives roundtrip without being auto-killed") {
         val exception = new Exception("Uh oh")
         val value     = 42
 
@@ -68,7 +68,7 @@ object CancelableFutureSpec extends ZIOBaseSpec {
           success <- roundtrip(ZIO.succeed(value)).either
         } yield assert(failure)(isLeft(equalTo(exception))) && assert(success)(isRight(equalTo(value)))
       } @@ zioTag(supervision) @@ nonFlaky,
-      testM("interrupts the underlying task on cancel") {
+      test("interrupts the underlying task on cancel") {
         for {
           p  <- Promise.make[Nothing, Unit]
           p2 <- Promise.make[Nothing, Int]
@@ -80,7 +80,7 @@ object CancelableFutureSpec extends ZIOBaseSpec {
           test <- p2.await
         } yield assert(test)(equalTo(42))
       } @@ zioTag(interruption) @@ nonFlaky,
-      testM("cancel returns the exit reason") {
+      test("cancel returns the exit reason") {
         val t = new Exception("test")
 
         for {
@@ -92,7 +92,7 @@ object CancelableFutureSpec extends ZIOBaseSpec {
           e2 <- ZIO.fromFuture(_ => f2.cancel())
         } yield assert(e1.succeeded)(isTrue) && assert(e2.succeeded)(isFalse)
       } @@ nonFlaky,
-      testM("is a scala.concurrent.Future") {
+      test("is a scala.concurrent.Future") {
         for {
           f <- ZIO(42).toFuture
           v <- ZIO.fromFuture(_ => f)

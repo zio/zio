@@ -76,7 +76,7 @@ object AssertionSpec extends ZIOBaseSpec {
     test("equalTo must not have type inference issues") {
       assert(List(1, 2, 3).filter(_ => false))(equalTo(List.empty))
     },
-    testM("equalTo must not compile when comparing two unrelated types") {
+    test("equalTo must not compile when comparing two unrelated types") {
       val result = typeCheck("assert(1)(equalTo(\"abc\"))")
       assertM(result)(
         isLeft(
@@ -479,7 +479,7 @@ object AssertionSpec extends ZIOBaseSpec {
     test("isUnit must succeed when supplied value is ()") {
       assert(())(isUnit)
     },
-    testM("isUnit must not compile when supplied value is not ()") {
+    test("isUnit must not compile when supplied value is not ()") {
       val result = typeCheck("assert(10)(isUnit)")
       assertM(result)(isLeft(anything))
     },
