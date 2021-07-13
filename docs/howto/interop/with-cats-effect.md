@@ -267,7 +267,7 @@ ZIO integrates with Cats Effect 3.x as well as 2.x. The `interop-cats` module pr
 
 An example of ZIO interoperability with CE3:
 
-```scala mdoc:silent:nest
+```scala
 import cats.implicits._
 import zio.interop.catz._
 import scala.concurrent.duration.DurationInt
@@ -338,7 +338,7 @@ There is another package in `interop-cats` module called `zio.interop.catz.core.
 
 In the following example, we are going to use `zio.Chunk` in a Cats Effect application:
 
-```scala mdoc:silent:nest
+```scala
 import cats.implicits._
 import zio.interop.catz.core._
 
@@ -365,7 +365,7 @@ The `interop-cats` module contains extension methods to convert _FS2 Stream_ to 
 
 By importing `zio.stream.interop.fs2z._` into our application, the `fs2.Stream#toZStream` extension method converts a `fs2.Stream` to `ZStream`:
 
-```scala mdoc:silent:nest
+```scala
 import zio.stream.ZStream
 import zio.stream.interop.fs2z._
 val zstream: ZStream[Any, Throwable, Int] = fs2.Stream.range(1, 10).toZStream()
@@ -374,7 +374,7 @@ val zstream: ZStream[Any, Throwable, Int] = fs2.Stream.range(1, 10).toZStream()
 
 Also, the `ZStream#toFs2Stream` converts a ZIO Stream into FS2 Stream:
 
-```scala mdoc:silent:nest
+```scala
 import zio.stream.ZStream
 import zio.Chunk
 import zio.stream.interop.fs2z._
@@ -409,7 +409,7 @@ def liftedToIO: IO[List[Int]] = for {
 
 To run `ZQueue` with Cats Effect 3.x we also need to provide an instance of `Dispatcher` to our contextual environment:
 
-```scala mdoc:silent:nest
+```scala
 import zio.interop.Queue
 
 object ZioQueueInteropWithCats extends scala.App {
@@ -455,7 +455,7 @@ Currently, the `interop-cats` support `TRef`, `TPromise`,  `TQueue` and `TSemaph
 
 Let's try a working example using `STM` and `TRef`:
 
-```scala mdoc:silent:nest
+```scala
 import cats.effect.IO
 import cats.effect.unsafe.IORuntime
 import zio.interop.stm.{STM, TRef}
@@ -507,7 +507,7 @@ We have provided some full working example of using these important libraries:
 
 The following example shows how to use ZIO with Doobie (a library for JDBC access) and FS2 (a streaming library), which both rely on Cats Effect instances:
 
-```scala mdoc:silent:nest
+```scala
 // This snippet works with both CE2 and CE3
 import doobie._
 import doobie.implicits._
@@ -567,16 +567,15 @@ So let's fix this issue in the previous example. In the following snippet we are
 
 ```scala
 import zio.ZManaged
-import zio.blocking.Blocking
 import zio.{ Runtime, Task, ZIO, ZManaged }
 import doobie.hikari.HikariTransactor
 import cats.effect.Blocker
 import zio.interop.catz._
 
-def transactor: ZManaged[Blocking, Throwable, HikariTransactor[Task]] =
+def transactor: ZManaged[Any, Throwable, HikariTransactor[Task]] =
   for {
-    rt <- ZIO.runtime[Any].toManaged_
-    be <- zio.blocking.blockingExecutor.toManaged_ // our blocking EC
+    rt <- ZIO.runtime[Any].toManaged
+    be <- ZIO.blockingExecutor.toManaged            // our blocking EC
     xa <- HikariTransactor
             .newHikariTransactor[Task](
               "org.h2.Driver",                      // driver classname
@@ -593,7 +592,7 @@ def transactor: ZManaged[Blocking, Throwable, HikariTransactor[Task]] =
 Now we can `transact` our `doobieApp` with this `transactor` and convert that to the `ZIO` effect:
 
 ```scala
-val zioApp: ZIO[Blocking, Throwable, List[User]] =
+val zioApp: ZIO[Any, Throwable, List[User]] =
   transactor.use(xa => doobieApp.transact(xa).compile.toList)
 ```
 
@@ -603,9 +602,8 @@ In Cats Effect 3.x, the `cats.effect.Blocker` has been removed. So the transacto
 
 To create a `Transactor` in CE3, we need to create an instance of `Dispatcher` for `zio.Task`. The following example is based on Doobie's `1.0.0-M5` version which supports CE3:
 
-```scala mdoc:silent:nest
+```scala
 import doobie.hikari.HikariTransactor
-import zio.blocking.Blocking
 import zio.interop.catz._
 import zio.{Task, ZIO, ZManaged}
 
@@ -621,9 +619,9 @@ implicit val dispatcher: cats.effect.std.Dispatcher[zio.Task] =
     )
     ._1
 
-def transactor: ZManaged[Blocking, Throwable, HikariTransactor[Task]] =
+def transactor: ZManaged[Any, Throwable, HikariTransactor[Task]] =
   for {
-    rt <- ZIO.runtime[Any].toManaged_
+    rt <- ZIO.runtime[Any].toManaged
     xa <-
       HikariTransactor
         .newHikariTransactor[Task](
@@ -639,8 +637,8 @@ def transactor: ZManaged[Blocking, Throwable, HikariTransactor[Task]] =
 
 Now we can `transact` our `doobieApp` with this `transactor` and convert that to the `ZIO` effect:
 
-```scala mdoc:silent:nest
-val zioApp: ZIO[Blocking, Throwable, List[User]] =
+```scala
+val zioApp: ZIO[Any, Throwable, List[User]] =
   transactor.use(xa => doobieApp.transact(xa).compile.toList)
 ```
 
@@ -697,7 +695,7 @@ object ZioHttp4sInterop extends CatsApp {
 
 The following example is based on http4s's `0.23.0-RC1` version which supports CE3:
 
-```scala mdoc:silent:reset
+```scala
 import cats.Applicative
 import cats.effect.Async
 import fs2.Stream
