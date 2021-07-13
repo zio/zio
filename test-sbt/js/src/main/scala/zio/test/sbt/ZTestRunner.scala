@@ -18,7 +18,7 @@ package zio.test.sbt
 
 import sbt.testing._
 import zio.test._
-import zio.{Exit, Has, Runtime, UIO}
+import zio.{Exit, Runtime, UIO}
 
 import scala.collection.mutable
 import scala.io.AnsiColor
@@ -141,24 +141,23 @@ final class ZTestTask(
               run(eventHandler).provide(env)
             }
           }
-      else if (specInstance.sharedLayer == DefaultRunnableSpec.none)
-        sbtTestLayer(loggers).build.use { sbtTestLayer =>
-          val env = Has(()).asInstanceOf[specInstance.SharedEnvironment] ++ sbtTestLayer
-          run(eventHandler).provide(env)
-        }
       else
         UIO(
           loggers.foreach(
-            _.error(
-              AnsiColor.RED +
-                s"Cannot execute ${taskDef.fullyQualifiedName()}.${AnsiColor.RESET}\n" +
+            _.warn(
+              AnsiColor.YELLOW +
+                s"WARNING: could not share layers with ${taskDef.fullyQualifiedName()}${AnsiColor.RESET}\n" +
                 "ScalaJS tests are run in several different VM instances, when " +
                 "executed in parallel, therefore it's not possible to provide them " +
-                "the same shared layer. Make sure to run ScalaJS tests that require " +
-                "a shared test environment sequentially."
+                "the same shared layer. Make sure to run ScalaJS tests sequentially " +
+                "if you want to share layers among them."
             )
           )
-        )
+        ).unless(specInstance.sharedLayer == DefaultRunnableSpec.none) *> {
+          run(eventHandler).provideLayer(
+            (zio.ZEnv.live >>> specInstance.sharedLayer) ++ sbtTestLayer(loggers)
+          )
+        }
     } { exit =>
       exit match {
         case Exit.Failure(cause) => Console.err.println(s"$runnerType failed: " + cause.prettyPrint)

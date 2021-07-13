@@ -1,7 +1,9 @@
 package zio.test.sbt
 
 import sbt.testing._
-import zio.{Ref, UIO, ZIO}
+import zio.Ref
+import zio.duration._
+import zio.test.environment.Live
 import zio.test.sbt.TestingSupport._
 import zio.test.{
   Annotations,

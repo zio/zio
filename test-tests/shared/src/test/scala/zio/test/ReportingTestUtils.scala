@@ -6,7 +6,7 @@ import zio.test.mock.Expectation._
 import zio.test.mock.internal.InvalidCall._
 import zio.test.mock.internal.MockException._
 import zio.test.mock.module.{PureModule, PureModuleMock}
-import zio.{Cause, Has, Layer, Promise, ZIO, ZLayer}
+import zio.{Cause, Has, Promise, ZIO, ZLayer}
 
 import java.util.regex.Pattern
 import scala.{Console => SConsole}

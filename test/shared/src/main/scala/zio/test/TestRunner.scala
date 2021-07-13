@@ -43,7 +43,6 @@ final case class TestRunner[R0 <: Has[_], R1 <: Has[_], E](
       reporter(duration, results).as(results)
     }
 
-  // TODO: BZ: how to test all the unsafeRun* methods?
   /**
    * An unsafe, synchronous run of the specified spec.
    */
