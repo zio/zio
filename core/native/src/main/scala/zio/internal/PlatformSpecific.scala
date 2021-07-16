@@ -18,7 +18,7 @@ package zio.internal
 
 import zio.internal.stacktracer.Tracer
 import zio.internal.tracing.TracingConfig
-import zio.{Cause, Supervisor}
+import zio.{Cause, FiberRef, LogLevel, Supervisor}
 
 import java.util.{HashMap, HashSet, Map => JMap, Set => JSet}
 import scala.concurrent.ExecutionContext
@@ -83,7 +83,15 @@ private[internal] trait PlatformSpecific {
           println(cause.prettyPrint),
       tracing = Tracing(Tracer.Empty, TracingConfig.disabled),
       supervisor = Supervisor.none,
-      enableCurrentFiber = false
+      enableCurrentFiber = false,
+      logger = (
+        level: LogLevel,
+        message: () => String,
+        context: Map[FiberRef.Runtime[_], AnyRef],
+        regions: List[String]
+      ) =>
+        // TODO: Improve me
+        println(message())
     )
 
   /**
