@@ -496,12 +496,12 @@ lazy val benchmarks = project.module
     publish / skip := true,
     libraryDependencies ++=
       Seq(
-        "co.fs2"                    %% "fs2-core"       % "2.5.8",
+        "co.fs2"                    %% "fs2-core"       % "2.5.9",
         "com.google.code.findbugs"   % "jsr305"         % "3.0.2",
         "com.twitter"               %% "util-core"      % "21.6.0",
         "com.typesafe.akka"         %% "akka-stream"    % "2.6.15",
         "io.monix"                  %% "monix"          % "3.4.0",
-        "io.projectreactor"          % "reactor-core"   % "3.4.7",
+        "io.projectreactor"          % "reactor-core"   % "3.4.8",
         "io.reactivex.rxjava2"       % "rxjava"         % "2.2.21",
         "org.jctools"                % "jctools-core"   % "3.3.0",
         "org.ow2.asm"                % "asm"            % "9.1",
@@ -554,7 +554,7 @@ lazy val docs = project.module
     scalacOptions ~= { _ filterNot (_ startsWith "-Xlint") },
     libraryDependencies ++= Seq(
       "commons-io"          % "commons-io"                % "2.7"    % "provided",
-      "org.jsoup"           % "jsoup"                     % "1.13.1" % "provided",
+      "org.jsoup"           % "jsoup"                     % "1.14.1" % "provided",
       "org.reactivestreams" % "reactive-streams-examples" % "1.0.3"  % "provided",
       /* to evict 1.3.0 brought in by mdoc-js */
       "org.scala-js"   % "scalajs-compiler"            % scalaJSVersion cross CrossVersion.full,
