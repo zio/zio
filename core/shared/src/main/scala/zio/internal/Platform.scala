@@ -17,7 +17,7 @@
 package zio.internal
 
 import zio.internal.tracing.TracingConfig
-import zio.{Cause, Supervisor}
+import zio.{Cause, FiberRef, LogLevel, Supervisor}
 
 /**
  * A `Platform` provides the minimum capabilities necessary to bootstrap
@@ -31,22 +31,32 @@ final case class Platform(
   reportFatal: Throwable => Nothing,
   reportFailure: Cause[Any] => Unit,
   supervisor: Supervisor[Any],
-  enableCurrentFiber: Boolean
+  enableCurrentFiber: Boolean,
+  logger: (LogLevel, () => String, Map[FiberRef.Runtime[_], AnyRef], List[String]) => Unit
 ) { self =>
+  @deprecated("2.0.0", "Use Platform#copy instead")
   def withBlockingExecutor(e: Executor): Platform = copy(blockingExecutor = e)
 
+  @deprecated("2.0.0", "Use Platform#copy instead")
   def withExecutor(e: Executor): Platform = copy(executor = e)
 
-  def withTracing(t: Tracing): Platform = copy(tracing = t)
-
-  def withTracingConfig(config: TracingConfig): Platform = copy(tracing = tracing.copy(tracingConfig = config))
-
+  @deprecated("2.0.0", "Use Platform#copy instead")
   def withFatal(f: Throwable => Boolean): Platform = copy(fatal = f)
 
-  def withReportFatal(f: Throwable => Nothing): Platform = copy(fatal = f)
+  @deprecated("2.0.0", "Use Platform#copy instead")
+  def withLogger(l: (LogLevel, () => String, Map[FiberRef.Runtime[_], AnyRef], List[String]) => Unit): Platform = 
+    copy(logger = l)
 
+  @deprecated("2.0.0", "Use Platform#copy instead")
+  def withReportFatal(f: Throwable => Nothing): Platform = copy(reportFatal = f)
+
+  @deprecated("2.0.0", "Use Platform#copy instead")
   def withReportFailure(f: Cause[Any] => Unit): Platform = copy(reportFailure = f)
 
+  @deprecated("2.0.0", "Use Platform#copy instead")
   def withSupervisor(s0: Supervisor[Any]): Platform = copy(supervisor = s0)
+
+  @deprecated("2.0.0", "Use Platform#copy instead")
+  def withTracing(t: Tracing): Platform = copy(tracing = t)
 }
 object Platform extends PlatformSpecific

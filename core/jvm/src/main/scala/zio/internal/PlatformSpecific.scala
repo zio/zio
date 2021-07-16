@@ -19,7 +19,7 @@ package zio.internal
 import zio.internal.stacktracer.Tracer
 import zio.internal.stacktracer.impl.AkkaLineNumbersTracer
 import zio.internal.tracing.TracingConfig
-import zio.{Cause, Supervisor}
+import zio.{Cause, FiberRef, LogLevel, Supervisor}
 
 import java.lang.ref.WeakReference
 import java.util.concurrent.ConcurrentHashMap
@@ -76,23 +76,33 @@ private[internal] trait PlatformSpecific {
   /**
    * Creates a platform from an `Executor`.
    */
-  final def fromExecutor(executor0: Executor): Platform =
-    Platform(
-      blockingExecutor = Blocking.blockingExecutor,
-      executor = executor0,
-      tracing = Tracing(Tracer.globallyCached(new AkkaLineNumbersTracer), TracingConfig.enabled),
-      fatal = (t: Throwable) => t.isInstanceOf[VirtualMachineError],
-      reportFatal = (t: Throwable) => {
-        t.printStackTrace()
-        try {
-          System.exit(-1)
-          throw t
-        } catch { case _: Throwable => throw t }
-      },
-      reportFailure = (cause: Cause[Any]) => if (cause.isDie) System.err.println(cause.prettyPrint),
-      supervisor = Supervisor.none,
-      enableCurrentFiber = false
-    )
+  final def fromExecutor(executor0: Executor): Platform = {
+    val blockingExecutor = Blocking.blockingExecutor
+
+    val executor = executor0
+
+    val fatal = (t: Throwable) => t.isInstanceOf[VirtualMachineError]
+
+    // FIXME: Make this nice
+    val logger = (level: LogLevel, message: () => String, context: Map[FiberRef.Runtime[_], AnyRef], regions: List[String]) => 
+      println(message())
+
+    val reportFailure = (cause: Cause[Any]) => if (cause.isDie) System.err.println(cause.prettyPrint)
+
+    val reportFatal = (t: Throwable) => {
+      t.printStackTrace()
+      try {
+        System.exit(-1)
+        throw t
+      } catch { case _: Throwable => throw t }
+    }
+
+    val supervisor = Supervisor.none
+
+    val tracing = Tracing(Tracer.globallyCached(new AkkaLineNumbersTracer), TracingConfig.enabled)
+
+    Platform(blockingExecutor, executor, tracing, fatal, reportFatal, reportFailure, supervisor, false, logger)
+  }
 
   /**
    * Creates a Platform from an execution context.

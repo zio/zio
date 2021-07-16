@@ -16,8 +16,6 @@
 
 package zio.internal
 
-import com.github.ghik.silencer.silent
-import zio.Exit.{Failure, Success}
 import zio.Fiber.Status
 import zio._
 import zio.internal.FiberContext.FiberRefLocals
@@ -26,7 +24,6 @@ import zio.internal.tracing.ZIOFn
 
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 import scala.annotation.{switch, tailrec}
-import scala.collection.JavaConverters._
 
 /**
  * An implementation of Fiber that maintains context necessary for evaluation.
@@ -606,28 +603,29 @@ private[zio] final class FiberContext[E, A](
                   case ZIO.Tags.Trace =>
                     curZio = nextInstr(captureTrace(null))
 
-                  case ZIO.Tags.FiberRefNew =>
-                    val zio = curZio.asInstanceOf[ZIO.FiberRefNew[Any]]
+                  case ZIO.Tags.FiberRefGetAll =>
+                    val zio = curZio.asInstanceOf[ZIO.FiberRefGetAll[Any, Any, Any]]
 
-                    val fiberRef = new FiberRef.Runtime[Any](zio.initial, zio.onFork, zio.onJoin)
-
-                    if (fiberRefLocals eq null) fiberRefLocals = Platform.newWeakHashMap[FiberRef.Runtime[Any], Any]()
-
-                    fiberRefLocals.put(fiberRef, zio.initial)
-
-                    curZio = nextInstr(fiberRef)
+                    curZio = nextInstr(zio.make(fiberRefLocals.get))
 
                   case ZIO.Tags.FiberRefModify =>
                     val zio = curZio.asInstanceOf[ZIO.FiberRefModify[Any, Any]]
 
-                    if (fiberRefLocals eq null) fiberRefLocals = Platform.newWeakHashMap[FiberRef.Runtime[Any], Any]()
-
-                    val oldValue           = Option(fiberRefLocals.get(zio.fiberRef))
-                    val (result, newValue) = zio.f(oldValue.getOrElse(zio.fiberRef.initial))
-
-                    fiberRefLocals.put(zio.fiberRef, newValue)
+                    val (result, newValue) = zio.f(getFiberRefValue(zio.fiberRef))
+                    setFiberRefValue(zio.fiberRef, newValue)
 
                     curZio = nextInstr(result)
+
+                  case ZIO.Tags.FiberRefLocally =>
+                    val zio = curZio.asInstanceOf[ZIO.FiberRefLocally[Any, Any, E, Any]]
+
+                    val fiberRef = zio.fiberRef
+
+                    val oldValue = fiberRefLocals.get.get(fiberRef)
+
+                    setFiberRefValue(fiberRef, zio.localValue)
+
+                    curZio = zio.zio.ensuring(ZIO.succeed(setFiberRefValue(fiberRef, oldValue)))
 
                   case ZIO.Tags.RaceWith =>
                     val zio = curZio.asInstanceOf[ZIO.RaceWith[Any, Any, Any, Any, Any, Any, Any]]
@@ -667,6 +665,28 @@ private[zio] final class FiberContext[E, A](
                     ensure(zio.finalizer)
 
                     curZio = zio.zio
+
+                  case ZIO.Tags.Logged => 
+                    val zio = curZio.asInstanceOf[ZIO.Logged]
+
+                    val logLevel = zio.overrideLogLevel match {
+                      case Some(level) => level 
+                      case _ => getFiberRefValue(FiberRef.currentLogLevel)
+                    }
+
+                    val spans = getFiberRefValue(FiberRef.currentLogSpan)
+
+                    val contextMap = 
+                      if (zio.overrideRef1 ne null) {
+                        val map = fiberRefLocals.get
+
+                        if (zio.overrideValue1 eq null) map - zio.overrideRef1 
+                        else map.updated(zio.overrideRef1, zio.overrideValue1)
+                      } else fiberRefLocals.get 
+
+                    platform.logger(logLevel, zio.message, contextMap, spans)
+                    
+                    curZio = nextInstr(())
                 }
               }
             } else {
@@ -689,8 +709,8 @@ private[zio] final class FiberContext[E, A](
 
           case ZIO.ZioError(exit) =>
             exit match {
-              case Success(value) => curZio = nextInstr(value)
-              case Failure(cause) => curZio = ZIO.failCause(cause)
+              case Exit.Success(value) => curZio = nextInstr(value)
+              case Exit.Failure(cause) => curZio = ZIO.failCause(cause)
             }
 
           // Catastrophic error handler. Any error thrown inside the interpreter is
@@ -737,23 +757,9 @@ private[zio] final class FiberContext[E, A](
     forkScope: Option[ZScope[Exit[Any, Any]]] = None,
     reportFailure: Option[Cause[Any] => Unit] = None
   ): FiberContext[E, A] = {
-    val childFiberRefLocals: FiberRefLocals =
-      if (fiberRefLocals eq null) null
-      else {
-        val childFiberRefLocals: FiberRefLocals = Platform.newWeakHashMap()
-
-        val iterator = fiberRefLocals.entrySet().iterator()
-
-        while (iterator.hasNext()) {
-          val entry = iterator.next()
-
-          val fiberRef = entry.getKey()
-
-          childFiberRefLocals.put(fiberRef, fiberRef.fork(entry.getValue()))
-        }
-
-        childFiberRefLocals
-      }
+    val childFiberRefLocals = fiberRefLocals.get.transform {
+      case (fiberRef, value) => fiberRef.fork(value.asInstanceOf).asInstanceOf[AnyRef]
+    }
 
     val tracingRegion = inTracingRegion
     val ancestry =
@@ -778,7 +784,7 @@ private[zio] final class FiberContext[E, A](
       InterruptStatus.fromBoolean(interruptStatus.peekOrElse(true)),
       ancestry,
       tracingRegion,
-      childFiberRefLocals,
+      new AtomicReference(childFiberRefLocals),
       currentSup,
       childScope,
       reportFailure.getOrElse(platform.reportFailure)
@@ -880,12 +886,28 @@ private[zio] final class FiberContext[E, A](
   }
 
   def getRef[A](ref: FiberRef.Runtime[A]): UIO[A] = UIO {
-    if (fiberRefLocals eq null) ref.initial
-    else {
-      val oldValue = Option(fiberRefLocals.get(ref))
+    val oldValue = fiberRefLocals.get.get(ref).asInstanceOf[Option[A]]
 
-      oldValue.asInstanceOf[Option[A]].getOrElse(ref.initial)
-    }
+    oldValue.getOrElse(ref.initial)
+  }
+
+  def getFiberRefValue[A](fiberRef: FiberRef.Runtime[A]): A = 
+    fiberRefLocals.get.get(fiberRef).asInstanceOf[Option[A]].getOrElse(fiberRef.initial)
+
+  @tailrec
+  def setFiberRefValue[A](fiberRef: FiberRef.Runtime[A], value: A): Unit = {
+    val oldState = fiberRefLocals.get 
+
+    if (!fiberRefLocals.compareAndSet(oldState, oldState.updated(fiberRef, value.asInstanceOf[AnyRef]))) setFiberRefValue(fiberRef, value)
+    else ()
+  }
+
+  @tailrec
+  def removeFiberRef[A](fiberRef: FiberRef.Runtime[A]): Unit = {
+    val oldState = fiberRefLocals.get 
+
+    if (!fiberRefLocals.compareAndSet(oldState, oldState.removed(fiberRef))) removeFiberRef(fiberRef)
+    else ()
   }
 
   def poll: UIO[Option[Exit[E, A]]] = ZIO.succeed(poll0)
@@ -893,21 +915,14 @@ private[zio] final class FiberContext[E, A](
   def id: Fiber.Id = fiberId
 
   def inheritRefs: UIO[Unit] = UIO.suspendSucceed {
-    // The docs for `Collections.synchronizedMap` say that we must synchronize on the map itself when
-    // using collection views of the map; `asScala` uses an iterator on the map, so we must
-    // synchronize on the map when using it. We have to run some IO actions afterwards, so we
-    // make a copy for use in the `foreach_` below.
-    if (fiberRefLocals eq null) UIO.unit
-    else {
-      val locals = Sync(fiberRefLocals)(fiberRefLocals.asScala.toMap): @silent("JavaConverters")
+    val locals = fiberRefLocals.get
 
-      if (locals.isEmpty) UIO.unit
-      else
-        UIO.foreachDiscard(locals) { case (fiberRef, value) =>
-          val ref = fiberRef.asInstanceOf[FiberRef.Runtime[Any]]
-          ref.update(old => ref.join(old, value))
-        }
-    }
+    if (locals.isEmpty) UIO.unit
+    else
+      UIO.foreachDiscard(locals) { case (fiberRef, value) =>
+        val ref = fiberRef.asInstanceOf[FiberRef.Runtime[Any]]
+        ref.update(old => ref.join(old, value))
+      }
   }
 
   def scope: ZScope[Exit[E, A]] = openScope.scope
@@ -1030,11 +1045,7 @@ private[zio] final class FiberContext[E, A](
     }
   }
 
-  def name: Option[String] = {
-    val ref = fiberRefLocals.get(Fiber.fiberName)
-    if (ref == null) None
-    else ref.asInstanceOf[Option[String]]
-  }
+  def name: Option[String] = fiberRefLocals.get.get(Fiber.fiberName).map(_.asInstanceOf[String])
 
   override def toString(): String =
     s"FiberContext($fiberId, $name)"
@@ -1259,7 +1270,7 @@ private[zio] object FiberContext {
     case class Registered(asyncCanceler: ZIO[Any, Any, Any]) extends CancelerState
   }
 
-  type FiberRefLocals = java.util.Map[FiberRef.Runtime[Any], Any]
+  type FiberRefLocals = AtomicReference[Map[FiberRef.Runtime[_], AnyRef]]
 
   private val noop: Option[Any => Unit] =
     Some(_ => ())

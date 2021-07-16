@@ -18,10 +18,11 @@ package zio.internal
 
 import zio.internal.stacktracer.Tracer
 import zio.internal.tracing.TracingConfig
-import zio.{Cause, Supervisor}
+import zio.{Cause, FiberRef, LogLevel, Supervisor}
 
 import java.util.{HashMap, HashSet, Map => JMap, Set => JSet}
 import scala.concurrent.ExecutionContext
+import scala.scalajs.js.Dynamic.{ global => jsglobal }
 
 private[internal] trait PlatformSpecific {
 
@@ -69,22 +70,44 @@ private[internal] trait PlatformSpecific {
   /**
    * Creates a platform from an `Executor`.
    */
-  final def fromExecutor(executor0: Executor): Platform =
-    Platform(
-      blockingExecutor = executor0,
-      executor = executor0,
-      fatal = (_: Throwable) => false,
-      reportFatal = (t: Throwable) => {
-        t.printStackTrace()
-        throw t
-      },
-      reportFailure = (cause: Cause[Any]) =>
-        if (cause.isDie)
-          println(cause.prettyPrint),
-      tracing = Tracing(Tracer.Empty, TracingConfig.disabled),
-      supervisor = Supervisor.none,
-      enableCurrentFiber = false
-    )
+  final def fromExecutor(executor0: Executor): Platform = {
+    val blockingExecutor = executor0
+
+    val executor = executor0
+
+    val fatal = (t: Throwable) => false
+
+    val logger = (level: LogLevel, message: () => String, context: Map[FiberRef[_], AnyRef], regions: List[String]) => {
+      try {
+        // TODO: Improve output & use console.group, etc.
+        val line = message()
+
+        if (level == LogLevel.Fatal) jsglobal.console.error(line)
+        else if (level == LogLevel.Error) jsglobal.console.error(line)
+        else if (level == LogLevel.Debug) jsglobal.console.debug(line)
+        else jsglobal.console.log(line)
+
+        ()
+      } catch {
+        case t if !fatal(t) => ()
+      }
+    }
+
+    val reportFatal = (t: Throwable) => {
+      t.printStackTrace()
+      throw t
+    }
+
+    val reportFailure = (cause: Cause[Any]) => if (cause.isDie) println(cause.prettyPrint)
+
+    val tracing = Tracing(Tracer.Empty, TracingConfig.disabled)
+
+    val supervisor = Supervisor.none
+
+    val enableCurrentFiber = false
+
+    Platform(blockingExecutor, executor, tracing, fatal, reportFatal, reportFailure, supervisor, false, logger)
+  }
 
   /**
    * Creates a Platform from an execution context.
