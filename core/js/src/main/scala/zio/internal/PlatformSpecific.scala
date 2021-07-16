@@ -22,7 +22,7 @@ import zio.{Cause, FiberRef, LogLevel, Supervisor}
 
 import java.util.{HashMap, HashSet, Map => JMap, Set => JSet}
 import scala.concurrent.ExecutionContext
-import scala.scalajs.js.Dynamic.{ global => jsglobal }
+import scala.scalajs.js.Dynamic.{global => jsglobal}
 
 private[internal] trait PlatformSpecific {
 
