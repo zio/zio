@@ -102,7 +102,7 @@ trait Runtime[+R] {
    * This method is effectful and should only be invoked at the edges of your program.
    */
   final def unsafeRunAsyncCancelable[E, A](zio: => ZIO[R, E, A])(k: Exit[E, A] => Any): Fiber.Id => Exit[E, A] = {
-    val canceler    = unsafeRunWith(zio)(k)
+    val canceler = unsafeRunWith(zio)(k)
     fiberId => {
       val result = internal.OneShot.make[Exit[E, A]]
       canceler(fiberId)(result.set)
