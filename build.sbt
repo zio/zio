@@ -445,7 +445,7 @@ lazy val testJunitRunnerTests = crossProject(JVMPlatform)
       "org.apache.maven.wagon" % "wagon-http"             % "3.4.3"  % Test,
       "org.eclipse.aether"     % "aether-connector-basic" % "1.1.0"  % Test,
       "org.eclipse.aether"     % "aether-transport-wagon" % "1.1.0"  % Test,
-      "org.slf4j"              % "slf4j-simple"           % "1.7.31" % Test
+      "org.slf4j"              % "slf4j-simple"           % "1.7.32" % Test
     )
   )
   .dependsOn(test)
