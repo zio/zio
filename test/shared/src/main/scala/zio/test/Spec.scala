@@ -156,7 +156,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
       case MultipleCase(specs) =>
         val filtered = specs.flatMap(_.filterLabels(f))
         if (filtered.isEmpty) None else Some(Spec.multiple(filtered))
-      case TestCase(test, annotations) =>
+      case TestCase(_, _) =>
         None
     }
 

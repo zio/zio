@@ -30,9 +30,9 @@ final case class ExecutedSpec[+E](caseValue: SpecCase[E, ExecutedSpec[E]]) { sel
   def exists(f: SpecCase[E, Boolean] => Boolean): Boolean =
     fold[Boolean] { c =>
       c match {
-        case c @ LabeledCase(label, spec) => spec || f(c)
-        case c @ MultipleCase(specs)      => specs.exists(identity) || f(c)
-        case c @ TestCase(_, _)           => f(c)
+        case c @ LabeledCase(_, spec) => spec || f(c)
+        case c @ MultipleCase(specs)  => specs.exists(identity) || f(c)
+        case c @ TestCase(_, _)       => f(c)
       }
     }
 
@@ -52,9 +52,9 @@ final case class ExecutedSpec[+E](caseValue: SpecCase[E, ExecutedSpec[E]]) { sel
   def forall(f: SpecCase[E, Boolean] => Boolean): Boolean =
     fold[Boolean] { c =>
       c match {
-        case c @ LabeledCase(label, spec) => spec && f(c)
-        case c @ MultipleCase(specs)      => specs.forall(identity) && f(c)
-        case c @ TestCase(_, _)           => f(c)
+        case c @ LabeledCase(_, spec) => spec && f(c)
+        case c @ MultipleCase(specs)  => specs.forall(identity) && f(c)
+        case c @ TestCase(_, _)       => f(c)
       }
     }
 
@@ -64,9 +64,9 @@ final case class ExecutedSpec[+E](caseValue: SpecCase[E, ExecutedSpec[E]]) { sel
   def size: Int =
     fold[Int] { c =>
       c match {
-        case LabeledCase(label, count) => count
-        case MultipleCase(counts)      => counts.sum
-        case TestCase(_, _)            => 1
+        case LabeledCase(_, count) => count
+        case MultipleCase(counts)  => counts.sum
+        case TestCase(_, _)        => 1
       }
     }
 
