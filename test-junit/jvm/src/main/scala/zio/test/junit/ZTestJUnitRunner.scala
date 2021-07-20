@@ -58,7 +58,7 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable with Boot
       path: Vector[String] = Vector.empty
     ): ZManaged[R, Any, Unit] =
       spec.caseValue match {
-        case Spec.ExecCase(exec, spec)     => traverse(spec, description, path)
+        case Spec.ExecCase(_, spec)        => traverse(spec, description, path)
         case Spec.LabeledCase(label, spec) => traverse(spec, description, path :+ label)
         case Spec.ManagedCase(managed)     => managed.flatMap(traverse(_, description, path))
         case Spec.MultipleCase(specs) =>
