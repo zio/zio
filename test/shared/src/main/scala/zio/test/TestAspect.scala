@@ -309,10 +309,8 @@ object TestAspect extends TimeoutVariants {
    */
   def executionStrategy(exec: ExecutionStrategy): TestAspectPoly =
     new TestAspectPoly {
-      def some[R, E](spec: ZSpec[R, E]): ZSpec[R, E] = {
-        val _ = exec
-        spec
-      }
+      def some[R, E](spec: ZSpec[R, E]): ZSpec[R, E] =
+        Spec.exec(exec, spec)
     }
 
   /**

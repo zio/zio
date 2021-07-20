@@ -45,6 +45,8 @@ object TestExecutor {
           }
         )
         .use(_.foldM[Any, Nothing, ExecutedSpec[E]](defExec) {
+          case Spec.ExecCase(_, spec) =>
+            ZManaged.succeedNow(spec)
           case Spec.LabeledCase(label, spec) =>
             ZManaged.succeedNow(ExecutedSpec.labeled(label, spec))
           case Spec.ManagedCase(managed) =>

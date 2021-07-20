@@ -20,15 +20,17 @@ object ZTestEvent {
     executedSpec: ExecutedSpec[E],
     fullyQualifiedName: String,
     fingerprint: Fingerprint
-  ): Seq[ZTestEvent] =
-    executedSpec.fold[Seq[ZTestEvent]] { c =>
-      (c: @unchecked) match {
-        case ExecutedSpec.MultipleCase(results) => results.flatMap(zio.Chunk.fromIterable)
+  ): Seq[ZTestEvent] = {
+
+    def loop(executedSpec: ExecutedSpec[E], labels: List[String]): Seq[ZTestEvent] =
+      executedSpec.caseValue match {
+        case ExecutedSpec.LabeledCase(label, spec) => loop(spec, label :: labels)
+        case ExecutedSpec.MultipleCase(specs)      => specs.flatMap(spec => loop(spec, labels))
         case ExecutedSpec.TestCase(result, annotations) =>
           Seq(
             ZTestEvent(
               fullyQualifiedName,
-              new TestSelector(???),
+              new TestSelector(labels.headOption.getOrElse("")),
               toStatus(result),
               None,
               annotations.get(TestAnnotation.timing).toMillis,
@@ -36,7 +38,9 @@ object ZTestEvent {
             )
           )
       }
-    }
+
+    loop(executedSpec, List.empty)
+  }
 
   private def toStatus[E](result: Either[TestFailure[E], TestSuccess]) = result match {
     case Left(_)                         => Status.Failure

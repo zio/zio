@@ -58,14 +58,15 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable with Boot
       path: Vector[String] = Vector.empty
     ): ZManaged[R, Any, Unit] =
       spec.caseValue match {
-        case Spec.LabeledCase(label, spec) => ???
-        case Spec.ManagedCase(managed)     => ???
+        case Spec.ExecCase(exec, spec)     => traverse(spec, description, path)
+        case Spec.LabeledCase(label, spec) => traverse(spec, description, path :+ label)
+        case Spec.ManagedCase(managed)     => managed.flatMap(traverse(_, description, path))
         case Spec.MultipleCase(specs) =>
-          val suiteDesc = Description.createSuiteDescription("", path.mkString(":"))
+          val suiteDesc = Description.createSuiteDescription(path.lastOption.getOrElse(""), path.mkString(":"))
           ZManaged.effectTotal(description.addChild(suiteDesc)) *>
             ZManaged.foreach(specs)(traverse(_, suiteDesc, path)).ignore
         case Spec.TestCase(_, _) =>
-          ZManaged.effectTotal(description.addChild(testDescription("", path)))
+          ZManaged.effectTotal(description.addChild(testDescription(path.lastOption.getOrElse(""), path)))
       }
 
     unsafeRun(
@@ -132,15 +133,16 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable with Boot
       )
     def loop(specCase: ZSpecCase, path: Vector[String] = Vector.empty): ZSpecCase =
       specCase match {
+        case Spec.ExecCase(exec, spec) =>
+          Spec.ExecCase(exec, Spec(loop(spec.caseValue, path)))
         case Spec.LabeledCase(label, spec) =>
-          ???
+          Spec.LabeledCase(label, Spec(loop(spec.caseValue, path :+ label)))
         case Spec.ManagedCase(managed) =>
-          ???
+          Spec.ManagedCase(managed.map(spec => Spec(loop(spec.caseValue, path))))
         case Spec.MultipleCase(specs) =>
-          val instrumented =
-            specs.map(spec => Spec(loop(spec.caseValue, path)))
-          Spec.MultipleCase(instrumented)
-        case Spec.TestCase(test, annotations) => Spec.TestCase(instrumentTest("", path, test), annotations)
+          Spec.MultipleCase(specs.map(spec => Spec(loop(spec.caseValue, path))))
+        case Spec.TestCase(test, annotations) =>
+          Spec.TestCase(instrumentTest(path.lastOption.getOrElse(""), path, test), annotations)
 
       }
     Spec(loop(zspec.caseValue))
@@ -149,6 +151,7 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable with Boot
   private def filteredSpec: ZSpec[spec.Environment, spec.Failure] =
     spec.spec
       .filterLabels(l => filter.shouldRun(testDescription(l, Vector.empty)))
+      .getOrElse(spec.spec)
 
   override def filter(filter: Filter): Unit =
     this.filter = filter

@@ -35,6 +35,7 @@ trait TimeoutVariants {
       ): ZSpec[R, E] = {
         def loop(labels: List[String], spec: ZSpec[R, E]): ZSpec[R with Live, E] =
           spec.caseValue match {
+            case Spec.ExecCase(exec, spec)     => Spec.exec(exec, loop(labels, spec))
             case Spec.LabeledCase(label, spec) => Spec.labeled(label, loop(label :: labels, spec))
             case Spec.ManagedCase(managed)     => Spec.managed(managed.map(loop(labels, _)))
             case Spec.MultipleCase(specs) =>

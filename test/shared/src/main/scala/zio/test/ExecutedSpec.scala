@@ -29,9 +29,10 @@ final case class ExecutedSpec[+E](caseValue: SpecCase[E, ExecutedSpec[E]]) { sel
    */
   def exists(f: SpecCase[E, Boolean] => Boolean): Boolean =
     fold[Boolean] { c =>
-      (c: @unchecked) match {
-        case c @ MultipleCase(specs) => specs.exists(identity) || f(c)
-        case c @ TestCase(_, _)      => f(c)
+      c match {
+        case c @ LabeledCase(label, spec) => spec || f(c)
+        case c @ MultipleCase(specs)      => specs.exists(identity) || f(c)
+        case c @ TestCase(_, _)           => f(c)
       }
     }
 
@@ -39,9 +40,10 @@ final case class ExecutedSpec[+E](caseValue: SpecCase[E, ExecutedSpec[E]]) { sel
    * Folds over all nodes to produce a final result.
    */
   def fold[Z](f: SpecCase[E, Z] => Z): Z =
-    (caseValue: @unchecked) match {
-      case MultipleCase(specs) => f(MultipleCase(specs.map(_.fold(f))))
-      case t @ TestCase(_, _)  => f(t)
+    caseValue match {
+      case LabeledCase(label, spec) => f(LabeledCase(label, spec.fold(f)))
+      case MultipleCase(specs)      => f(MultipleCase(specs.map(_.fold(f))))
+      case t @ TestCase(_, _)       => f(t)
     }
 
   /**
@@ -49,9 +51,10 @@ final case class ExecutedSpec[+E](caseValue: SpecCase[E, ExecutedSpec[E]]) { sel
    */
   def forall(f: SpecCase[E, Boolean] => Boolean): Boolean =
     fold[Boolean] { c =>
-      (c: @unchecked) match {
-        case c @ MultipleCase(specs) => specs.forall(identity) && f(c)
-        case c @ TestCase(_, _)      => f(c)
+      c match {
+        case c @ LabeledCase(label, spec) => spec && f(c)
+        case c @ MultipleCase(specs)      => specs.forall(identity) && f(c)
+        case c @ TestCase(_, _)           => f(c)
       }
     }
 
@@ -60,9 +63,10 @@ final case class ExecutedSpec[+E](caseValue: SpecCase[E, ExecutedSpec[E]]) { sel
    */
   def size: Int =
     fold[Int] { c =>
-      (c: @unchecked) match {
-        case MultipleCase(counts) => counts.sum
-        case TestCase(_, _)       => 1
+      c match {
+        case LabeledCase(label, count) => count
+        case MultipleCase(counts)      => counts.sum
+        case TestCase(_, _)            => 1
       }
     }
 
@@ -70,9 +74,10 @@ final case class ExecutedSpec[+E](caseValue: SpecCase[E, ExecutedSpec[E]]) { sel
    * Transforms the spec one layer at a time.
    */
   def transform[E1](f: SpecCase[E, ExecutedSpec[E1]] => SpecCase[E1, ExecutedSpec[E1]]): ExecutedSpec[E1] =
-    (caseValue: @unchecked) match {
-      case MultipleCase(specs) => ExecutedSpec(f(MultipleCase(specs.map(_.transform(f)))))
-      case t @ TestCase(_, _)  => ExecutedSpec(f(t))
+    caseValue match {
+      case LabeledCase(label, spec) => ExecutedSpec(f(LabeledCase(label, spec.transform(f))))
+      case MultipleCase(specs)      => ExecutedSpec(f(MultipleCase(specs.map(_.transform(f)))))
+      case t @ TestCase(_, _)       => ExecutedSpec(f(t))
     }
 
   /**
@@ -81,7 +86,14 @@ final case class ExecutedSpec[+E](caseValue: SpecCase[E, ExecutedSpec[E]]) { sel
   def transformAccum[E1, Z](
     z0: Z
   )(f: (Z, SpecCase[E, ExecutedSpec[E1]]) => (Z, SpecCase[E1, ExecutedSpec[E1]])): (Z, ExecutedSpec[E1]) =
-    (caseValue: @unchecked) match {
+    caseValue match {
+      case LabeledCase(label, spec) =>
+        spec.transformAccum(z0)(f) match {
+          case (z, spec) =>
+            f(z, LabeledCase(label, spec)) match {
+              case (z, specs) => z -> ExecutedSpec(specs)
+            }
+        }
       case MultipleCase(specs) =>
         val (z, specs1) =
           specs.foldLeft[(Z, Chunk[ExecutedSpec[E1]])](z0 -> Chunk.empty) { case ((z, vector), spec) =>
