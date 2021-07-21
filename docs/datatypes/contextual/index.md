@@ -88,7 +88,7 @@ ZIO have two data type that plays a key role in writing ZIO services using _Modu
 1. Has
 2. ZLayer
 
-So, before diving into the _Module Patter_, We need to learn more about ZIO Contextual Data Types. Let's review each of them:
+So, before diving into the _Module Pattern_, We need to learn more about ZIO Contextual Data Types. Let's review each of them:
 
 ### Has
 
