@@ -575,6 +575,7 @@ lazy val docs = project.module
       "dev.zio"            %% "zio-optics"                  % "0.1.0",
       "dev.zio"            %% "zio-prelude"                 % "1.0.0-RC5",
       "dev.zio"            %% "zio-process"                 % "0.5.0",
+      "dev.zio"            %% "zio-rocksdb"                 % "0.3.0",
       "dev.zio"            %% "zio-s3"                      % "0.3.5",
       "dev.zio"            %% "zio-schema"                  % "0.0.6",
       "dev.zio"            %% "zio-sqs"                     % "0.4.2",
