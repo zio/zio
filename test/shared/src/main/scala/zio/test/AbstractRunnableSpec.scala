@@ -20,7 +20,7 @@ import org.portablescala.reflect.annotation.EnableReflectiveInstantiation
 import zio.clock.Clock
 import zio.duration.Duration
 import zio.test.BoolAlgebra.Value
-import zio.test.ExecutedSpec.{SuiteCase, TestCase}
+import zio.test.ExecutedSpec._
 import zio.{Has, Task, UIO, URIO, ZIO}
 
 import java.nio.charset.Charset
@@ -53,7 +53,7 @@ abstract class AbstractRunnableSpec {
   class FixSnapshotsReporter(className: String) extends TestReporter[Failure] {
 
     def findSourceFile(`class`: Class[_]) = {
-      val r = `class`. getResource(".").toURI.toString.split("/")
+      val r     = `class`.getResource(".").toURI.toString.split("/")
       val start = r.takeWhile(_ != "target")
       val end =
         r.dropWhile(_ != "target")
@@ -64,7 +64,7 @@ abstract class AbstractRunnableSpec {
       println(e.toString)
     }
 
-    def fixFile(label: String, text: String): Task[Unit] = Task{
+    def fixFile(label: String, text: String): Task[Unit] = Task {
       println("sssssssssssssss")
 //      /home/fokot/projects/zio/test-tests/jvm/target/scala-2.13/test-classes  /zio/test/__snapshots__/firsta
 //      /home/fokot/projects/zio/test-tests/shared/src/test/scala               /zio/test/__snapshots__/firsta
@@ -76,18 +76,24 @@ abstract class AbstractRunnableSpec {
     }
 
     override def apply(d: Duration, e: ExecutedSpec[Failure]): URIO[TestLogger, Unit] =
-      e.caseValue match {
-        case SuiteCase(label, specs) =>
-          TestLogger.logLine(label) *> ZIO.foreach_(specs)(apply(d, _))
-        case TestCase(label, Left(TestFailure.Assertion(Value(FailureDetails(assertion :: Nil, None)))), _) =>
-          fixFile(label, assertion.value.toString).orDie *> TestLogger.logLine(s"$label snapshot updated")
-        case TestCase(label, Left(TestFailure.Assertion(_)), _) =>
-          TestLogger.logLine(s"$label weird state - should not happen - snapshot not updated")
-        case TestCase(label, Left(TestFailure.Runtime(_)), _) =>
-          TestLogger.logLine(s"Test $label failed in runtime, snapshot not updated")
-        case TestCase(label, Right(_), _) =>
-          TestLogger.logLine(s"Test $label passes, snapshot not updated")
-      }
+      TestLogger.logLine("OOPS")
+//      e.caseValue match {
+//        case LabeledCase(label, spec)    =>
+//        case MultipleCase(specs)         =>
+//        case TestCase(Left(TestFailure.Assertion(bool)), annotations) => //
+//
+//        case SuiteCase(label, specs) =>
+//          TestLogger.logLine(label) *> ZIO.foreach_(specs)(apply(d, _))
+//        case TestCase(label, Left(TestFailure.Assertion(Value(FailureDetails(assertion :: Nil, None)))), _) =>
+//          fixFile(label, assertion.value.toString).orDie *>
+//            TestLogger.logLine(s"$label snapshot updated")
+//        case TestCase(label, Left(TestFailure.Assertion(_)), _) =>
+//          TestLogger.logLine(s"$label weird state - should not happen - snapshot not updated")
+//        case TestCase(label, Left(TestFailure.Runtime(_)), _) =>
+//          TestLogger.logLine(s"Test $label failed in runtime, snapshot not updated")
+//        case TestCase(label, Right(_), _) =>
+//          TestLogger.logLine(s"Test $label passes, snapshot not updated")
+//      }
   }
 
   /**
@@ -96,12 +102,10 @@ abstract class AbstractRunnableSpec {
   private[zio] def fixSnapshot(
     spec: ZSpec[Environment, Failure],
     className: String
-  ): URIO[TestLogger with Clock, ExecutedSpec[Failure]] = {
-
+  ): URIO[TestLogger with Clock, ExecutedSpec[Failure]] =
     runner
       .withReporter(new FixSnapshotsReporter(className))
       .run(aspects.foldLeft(spec)(_ @@ _))
-  }
 
   /**
    * the platform used by the runner
