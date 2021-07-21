@@ -438,7 +438,7 @@ lazy val testJunitRunnerTests = crossProject(JVMPlatform)
   .settings(
     libraryDependencies ++= Seq(
       "junit"                   % "junit"     % "4.13.2" % Test,
-      "org.scala-lang.modules" %% "scala-xml" % "2.0.0"  % Test,
+      "org.scala-lang.modules" %% "scala-xml" % "2.0.1"  % Test,
       // required to run embedded maven in the tests
       "org.apache.maven"       % "maven-embedder"         % "3.8.1"  % Test,
       "org.apache.maven"       % "maven-compat"           % "3.8.1"  % Test,
