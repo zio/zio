@@ -134,7 +134,6 @@ object ZIOLazinessSpec extends ZIOBaseSpec {
       test("acquireReleaseWith")(assertLazy(ZIO.acquireReleaseWith)),
       test("attempt")(assertLazy(ZIO.attempt)),
       test("attemptBlocking")(assertLazy(ZIO.attemptBlocking)),
-      test("attemptBlockingInterrupt")(assertLazy(ZIO.attemptBlockingInterrupt)),
       test("blocking")(assertLazy(ZIO.blocking)),
       test("debug")(assertLazy(ZIO.debug(_))),
       test("die")(assertLazy(ZIO.die)),
