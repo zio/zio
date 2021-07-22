@@ -12,6 +12,7 @@ object ZIOLazinessSpec extends ZIOBaseSpec {
 
   def spec: ZSpec[Environment, Failure] = suite("ZIOLazinessSpec")(
     suite("IO")(
+      test("debug")(assertLazy(IO.debug(_))),
       test("die")(assertLazy(IO.die)),
       test("dieMessage")(assertLazy(IO.dieMessage)),
       test("done")(assertLazy(IO.done)),
@@ -25,6 +26,8 @@ object ZIOLazinessSpec extends ZIOBaseSpec {
       test("interruptAs")(assertLazy(IO.interruptAs)),
       test("left")(assertLazy(IO.left)),
       test("lock")(assertLazy(IO.lock)),
+      test("noneOrfail")(assertLazy(IO.noneOrFail)),
+      test("noneOrfail")(assertLazy(IO.noneOrFailWith(_)(_ => ???))),
       test("require")(assertLazy(ZIO.require)),
       test("right")(assertLazy(IO.right)),
       test("some")(assertLazy(IO.some)),
@@ -41,6 +44,7 @@ object ZIOLazinessSpec extends ZIOBaseSpec {
       test("succeed")(assertLazy(Managed.succeed))
     ),
     suite("RIO")(
+      test("debug")(assertLazy(RIO.debug(_))),
       test("die")(assertLazy(RIO.die)),
       test("dieMessage")(assertLazy(RIO.dieMessage)),
       test("done")(assertLazy(RIO.done)),
@@ -53,6 +57,8 @@ object ZIOLazinessSpec extends ZIOBaseSpec {
       test("interruptAs")(assertLazy(RIO.interruptAs)),
       test("left")(assertLazy(RIO.left)),
       test("lock")(assertLazy(RIO.lock)),
+      test("noneOrfail")(assertLazy(RIO.noneOrFail)),
+      test("noneOrfail")(assertLazy(RIO.noneOrFailWith(_)(_ => ???))),
       test("provide")(assertLazy(RIO.provide)),
       test("require")(assertLazy(RIO.require)),
       test("right")(assertLazy(RIO.right)),
@@ -61,6 +67,7 @@ object ZIOLazinessSpec extends ZIOBaseSpec {
       test("succeed")(assertLazy(RIO.succeed))
     ),
     suite("Task")(
+      test("debug")(assertLazy(Task.debug(_))),
       test("die")(assertLazy(Task.die)),
       test("dieMessage")(assertLazy(Task.dieMessage)),
       test("done")(assertLazy(Task.done)),
@@ -72,12 +79,15 @@ object ZIOLazinessSpec extends ZIOBaseSpec {
       test("interruptAs")(assertLazy(Task.interruptAs)),
       test("left")(assertLazy(Task.left)),
       test("lock")(assertLazy(Task.lock)),
+      test("noneOrfail")(assertLazy(Task.noneOrFail)),
+      test("noneOrfail")(assertLazy(Task.noneOrFailWith(_)(_ => ???))),
       test("require")(assertLazy(Task.require)),
       test("right")(assertLazy(Task.right)),
       test("some")(assertLazy(Task.some)),
       test("succeed")(assertLazy(Task.succeed))
     ),
     suite("UIO")(
+      test("debug")(assertLazy(UIO.debug(_))),
       test("die")(assertLazy(UIO.die)),
       test("dieMessage")(assertLazy(UIO.dieMessage)),
       test("done")(assertLazy(UIO.done)),
@@ -92,6 +102,7 @@ object ZIOLazinessSpec extends ZIOBaseSpec {
       test("succeed")(assertLazy(UIO.succeed))
     ),
     suite("URIO")(
+      test("debug")(assertLazy(URIO.debug(_))),
       test("die")(assertLazy(URIO.die)),
       test("dieMessage")(assertLazy(URIO.dieMessage)),
       test("done")(assertLazy(URIO.done)),
@@ -119,6 +130,12 @@ object ZIOLazinessSpec extends ZIOBaseSpec {
       test("succeed")(assertLazy(ZManaged.succeed))
     ),
     suite("ZIO")(
+      test("absolve")(assertLazy(ZIO.absolve)),
+      test("acquireReleaseWith")(assertLazy(ZIO.acquireReleaseWith)),
+      test("attempt")(assertLazy(ZIO.attempt)),
+      test("attemptBlocking")(assertLazy(ZIO.attemptBlocking)),
+      test("blocking")(assertLazy(ZIO.blocking)),
+      test("debug")(assertLazy(ZIO.debug(_))),
       test("die")(assertLazy(ZIO.die)),
       test("dieMessage")(assertLazy(ZIO.dieMessage)),
       test("done")(assertLazy(ZIO.done)),
@@ -127,11 +144,14 @@ object ZIOLazinessSpec extends ZIOBaseSpec {
       test("fromEither")(assertLazy(ZIO.fromEither)),
       test("fromFiber")(assertLazy(ZIO.fromFiber)),
       test("fromOption")(assertLazy(ZIO.fromOption)),
+      test("fromPromiseScala")(assertLazy(ZIO.fromPromiseScala)),
       test("fromTry")(assertLazy(ZIO.fromTry)),
       test("getOrFailUnit")(assertLazy(ZIO.getOrFailUnit)),
       test("interruptAs")(assertLazy(ZIO.interruptAs)),
       test("left")(assertLazy(ZIO.left)),
       test("lock")(assertLazy(ZIO.lock)),
+      test("noneOrfail")(assertLazy(ZIO.noneOrFail)),
+      test("noneOrfail")(assertLazy(ZIO.noneOrFailWith(_)(_ => ???))),
       test("provide")(assertLazy(ZIO.provide)),
       test("require")(assertLazy(ZIO.require)),
       test("right")(assertLazy(ZIO.right)),
