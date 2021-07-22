@@ -1,7 +1,7 @@
 package zio.stream
 
+import zio._
 import zio.test._
-import zio.{UIO, ZIOBaseSpec}
 
 object StreamLazinessSpec extends ZIOBaseSpec {
 
@@ -13,19 +13,24 @@ object StreamLazinessSpec extends ZIOBaseSpec {
 
   def spec: ZSpec[Environment, Failure] = suite("StreamLazinessSpec")(
     suite("ZSink")(
-      testM("die")(assertLazy(ZSink.die)),
-      testM("fail")(assertLazy(ZSink.fail)),
-      testM("failCause")(assertLazy(ZSink.failCause)),
-      testM("succeed")(assertLazy(ZSink.succeed))
+      test("die")(assertLazy(ZSink.die)),
+      test("fail")(assertLazy(ZSink.fail)),
+      test("failCause")(assertLazy(ZSink.failCause)),
+      test("succeed")(assertLazy(ZSink.succeed))
     ),
     suite("ZStream")(
-      testM("die")(assertLazy(ZStream.die)),
-      testM("dieMessage")(assertLazy(ZStream.dieMessage)),
-      testM("fail")(assertLazy(ZStream.fail)),
-      testM("failCause")(assertLazy(ZStream.failCause)),
-      testM("fromChunk")(assertLazy(ZStream.fromChunk)),
-      testM("fromIterable")(assertLazy(ZStream.fromIterable)),
-      testM("succeed")(assertLazy(ZStream.succeed))
+      test("die")(assertLazy(ZStream.die)),
+      test("dieMessage")(assertLazy(ZStream.dieMessage)),
+      test("fail")(assertLazy(ZStream.fail)),
+      test("fromChunk")(assertLazy(ZStream.fromChunk)),
+      test("fromIterable")(assertLazy(ZStream.fromIterable)),
+      test("halt")(assertLazy(ZStream.failCause)),
+      test("succeed")(assertLazy(ZStream.succeed)),
+      test("timeoutError")(
+        assertLazy(
+          ZStream.succeed(1).timeoutError(_)(Duration.Infinity)
+        )
+      )
     )
   )
 }

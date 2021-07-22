@@ -49,4 +49,12 @@ sealed trait ErrorMessage { self =>
 
         Message((error("ERROR:") + sp + bold(throwable.toString)) +: stacktrace)
     }
+
+}
+
+private[zio] object PrettyPrint {
+  def apply(any: Any): String = any match {
+    case array: Array[_] => array.mkString("Array(", ", ", ")")
+    case other           => other.toString
+  }
 }

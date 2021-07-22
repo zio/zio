@@ -66,6 +66,15 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     self.orDie
 
   /**
+   * Returns the logical conjunction of the `Boolean` value returned by this
+   * effect and the `Boolean` value returned by the specified effect. This
+   * operator has "short circuiting" behavior so if the value returned by this
+   * effect is false the specified effect will not be evaluated.
+   */
+  final def &&[R1 <: R, E1 >: E](that: => ZIO[R1, E1, Boolean])(implicit ev: A <:< Boolean): ZIO[R1, E1, Boolean] =
+    self.flatMap(a => if (ev(a)) that else ZIO.succeedNow(false))
+
+  /**
    * Sequentially zips this effect with the specified effect, combining the
    * results into a tuple.
    */
@@ -173,6 +182,22 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def >>>[E1 >: E, B](that: ZIO[A, E1, B]): ZIO[R, E1, B] =
     self.flatMap(that.provide)
+
+  /**
+   * Returns the logical negation of the `Boolean` value returned by this
+   * effect.
+   */
+  final def unary_![R1 <: R, E1 >: E](implicit ev: A <:< Boolean): ZIO[R1, E1, Boolean] =
+    self.map(a => !ev(a))
+
+  /**
+   * Returns the logical conjunction of the `Boolean` value returned by this
+   * effect and the `Boolean` value returned by the specified effect. This
+   * operator has "short circuiting" behavior so if the value returned by this
+   * effect is true the specified effect will not be evaluated.
+   */
+  final def ||[R1 <: R, E1 >: E](that: => ZIO[R1, E1, Boolean])(implicit ev: A <:< Boolean): ZIO[R1, E1, Boolean] =
+    self.flatMap(a => if (ev(a)) ZIO.succeedNow(true) else that)
 
   /**
    * Depending on provided environment returns either this one or the other effect.

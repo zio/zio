@@ -1351,6 +1351,13 @@ object ZManaged extends ZManagedPlatformSpecific {
       ZManaged.fromZIO(ZIO.serviceWith[Service](f))
   }
 
+  final class ServiceWithManagedPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
+    def apply[E, A](f: Service => ZManaged[Has[Service], E, A])(implicit
+      tag: Tag[Service]
+    ): ZManaged[Has[Service], E, A] =
+      ZManaged.accessManaged[Has[Service]](hasService => f(hasService.get))
+  }
+
   /**
    * A finalizer used in a [[ReleaseMap]]. The [[Exit]] value passed to
    * it is the result of executing [[ZManaged#use]] or an arbitrary value
@@ -2828,6 +2835,23 @@ object ZManaged extends ZManagedPlatformSpecific {
    * }}}
    */
   def serviceWith[Service]: ServiceWithPartiallyApplied[Service] =
+    new ServiceWithPartiallyApplied[Service]
+
+  /**
+   * Effectfully accesses the specified managed service in the environment of the effect .
+   *
+   * Especially useful for creating "accessor" methods on Services' companion objects accessing managed resources.
+   *
+   * {{{
+   * trait Foo {
+   *  def start(): ZManaged[Any, Nothing, Unit]
+   * }
+   *
+   * def start: ZManaged[Has[Foo], Nothing, Unit] =
+   *  ZManaged.serviceWithManaged[Foo](_.start())
+   * }}}
+   */
+  def serviceWithManaged[Service]: ServiceWithPartiallyApplied[Service] =
     new ServiceWithPartiallyApplied[Service]
 
   /**
