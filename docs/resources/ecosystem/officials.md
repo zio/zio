@@ -1097,6 +1097,8 @@ object ZIORedisExample extends zio.App {
 
 [ZIO RocksDB](https://github.com/zio/zio-rocksdb) is a ZIO-based interface to RocksDB.
 
+Rocksdb is an embeddable persistent key-value store that is optimized for fast storage. ZIO RocksDB provides us a functional ZIO wrapper around its Java API. 
+
 ### Installation
 
 In order to use this library, we need to add the following line in our `build.sbt` file:
