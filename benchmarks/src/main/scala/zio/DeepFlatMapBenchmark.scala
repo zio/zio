@@ -1,7 +1,8 @@
 package zio
 
+import cats.effect.unsafe.implicits.global
 import org.openjdk.jmh.annotations._
-import zio.IOBenchmarks._
+import zio.BenchmarkUtil._
 
 import java.util.concurrent.TimeUnit
 import scala.concurrent.Await
@@ -9,22 +10,12 @@ import scala.concurrent.Await
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
-class IODeepFlatMapBenchmark {
+class BroadFlatMapBenchmark {
   @Param(Array("20"))
   var depth: Int = _
 
   @Benchmark
-  def thunkDeepFlatMap(): BigInt = {
-    def fib(n: Int): Thunk[BigInt] =
-      if (n <= 1) Thunk(n)
-      else
-        fib(n - 1).flatMap(a => fib(n - 2).flatMap(b => Thunk(a + b)))
-
-    fib(depth).unsafeRun()
-  }
-
-  @Benchmark
-  def futureDeepFlatMap(): BigInt = {
+  def futureBroadFlatMap(): BigInt = {
     import scala.concurrent.Future
     import scala.concurrent.duration.Duration.Inf
 
@@ -37,7 +28,7 @@ class IODeepFlatMapBenchmark {
   }
 
   @Benchmark
-  def completableFutureDeepFlatMap(): BigInt = {
+  def completableFutureBroadFlatMap(): BigInt = {
     import java.util.concurrent.CompletableFuture
 
     def fib(n: Int): CompletableFuture[BigInt] =
@@ -50,7 +41,7 @@ class IODeepFlatMapBenchmark {
   }
 
   @Benchmark
-  def monoDeepFlatMap(): BigInt = {
+  def monoBroadFlatMap(): BigInt = {
     import reactor.core.publisher.Mono
 
     def fib(n: Int): Mono[BigInt] =
@@ -63,7 +54,7 @@ class IODeepFlatMapBenchmark {
   }
 
   @Benchmark
-  def rxSingleDeepFlatMap(): BigInt = {
+  def rxSingleBroadFlatMap(): BigInt = {
     import io.reactivex.Single
 
     def fib(n: Int): Single[BigInt] =
@@ -76,7 +67,7 @@ class IODeepFlatMapBenchmark {
   }
 
   @Benchmark
-  def twitterDeepFlatMap(): BigInt = {
+  def twitterBroadFlatMap(): BigInt = {
     import com.twitter.util.{Await, Future}
 
     def fib(n: Int): Future[BigInt] =
@@ -88,24 +79,12 @@ class IODeepFlatMapBenchmark {
   }
 
   @Benchmark
-  def monixDeepFlatMap(): BigInt = {
-    import monix.eval.Task
-
-    def fib(n: Int): Task[BigInt] =
-      if (n <= 1) Task.eval(n)
-      else
-        fib(n - 1).flatMap(a => fib(n - 2).flatMap(b => Task.eval(a + b)))
-
-    fib(depth).runSyncStep.fold(_ => sys.error("Either.right.get on Left"), identity)
-  }
+  def zioBroadFlatMap(): BigInt = zioBroadFlatMap(BenchmarkUtil)
 
   @Benchmark
-  def zioDeepFlatMap(): BigInt = zioDeepFlatMap(IOBenchmarks)
+  def zioTracedBroadFlatMap(): BigInt = zioBroadFlatMap(TracedRuntime)
 
-  @Benchmark
-  def zioTracedDeepFlatMap(): BigInt = zioDeepFlatMap(TracedRuntime)
-
-  private[this] def zioDeepFlatMap(runtime: Runtime[Any]): BigInt = {
+  private[this] def zioBroadFlatMap(runtime: Runtime[Any]): BigInt = {
     def fib(n: Int): UIO[BigInt] =
       if (n <= 1) ZIO.succeed[BigInt](n)
       else
@@ -115,7 +94,7 @@ class IODeepFlatMapBenchmark {
   }
 
   @Benchmark
-  def catsDeepFlatMap(): BigInt = {
+  def catsBroadFlatMap(): BigInt = {
     import cats.effect._
 
     def fib(n: Int): IO[BigInt] =

@@ -1,7 +1,8 @@
 package zio
 
+import cats.effect.unsafe.implicits.global
 import org.openjdk.jmh.annotations._
-import zio.IOBenchmarks._
+import zio.BenchmarkUtil._
 
 import java.util.concurrent.TimeUnit
 import scala.annotation.tailrec
@@ -9,19 +10,9 @@ import scala.annotation.tailrec
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
-class IOMapBenchmark {
+class MapBenchmark {
   @Param(Array("500"))
   var depth: Int = _
-
-  @Benchmark
-  def thunkMap(): BigInt = {
-    @tailrec
-    def sumTo(t: Thunk[BigInt], n: Int): Thunk[BigInt] =
-      if (n <= 1) t
-      else sumTo(t.map(_ + n), n - 1)
-
-    sumTo(Thunk(0), depth).unsafeRun()
-  }
 
   @Benchmark
   def futureMap(): BigInt = {
@@ -89,19 +80,7 @@ class IOMapBenchmark {
   }
 
   @Benchmark
-  def monixMap(): BigInt = {
-    import monix.eval.Task
-
-    @tailrec
-    def sumTo(t: Task[BigInt], n: Int): Task[BigInt] =
-      if (n <= 1) t
-      else sumTo(t.map(_ + n), n - 1)
-
-    sumTo(Task.eval(0), depth).runSyncStep.fold(_ => sys.error("Either.right.get on Left"), identity)
-  }
-
-  @Benchmark
-  def zioMap(): BigInt = zioMap(IOBenchmarks)
+  def zioMap(): BigInt = zioMap(BenchmarkUtil)
 
   @Benchmark
   def zioTracedMap(): BigInt = zioMap(TracedRuntime)

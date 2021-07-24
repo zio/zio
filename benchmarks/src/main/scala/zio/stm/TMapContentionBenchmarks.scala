@@ -12,7 +12,7 @@ import java.util.concurrent.TimeUnit
 @Warmup(iterations = 15, timeUnit = TimeUnit.SECONDS, time = 10)
 @Fork(1)
 class TMapContentionBenchmarks {
-  import IOBenchmarks.unsafeRun
+  import BenchmarkUtil.unsafeRun
 
   @Param(Array("100", "1000", "10000"))
   var repeatedUpdates: Int = _

@@ -77,6 +77,9 @@ addCommandAlias(
   "all coreJVM/mimaReportBinaryIssues streamsJVM/mimaReportBinaryIssues testJVM/mimaReportBinaryIssues"
 )
 
+val catsEffectVersion = "3.1.1"
+val fs2Version        = "3.0.4"
+
 lazy val root = project
   .in(file("."))
   .settings(
@@ -496,22 +499,22 @@ lazy val benchmarks = project.module
     publish / skip := true,
     libraryDependencies ++=
       Seq(
-        "co.fs2"                    %% "fs2-core"       % "2.5.9",
-        "com.google.code.findbugs"   % "jsr305"         % "3.0.2",
-        "com.twitter"               %% "util-core"      % "21.6.0",
-        "com.typesafe.akka"         %% "akka-stream"    % "2.6.15",
-        "io.github.timwspence"      %% "cats-stm"       % "0.8.0",
-        "io.monix"                  %% "monix"          % "3.4.0",
-        "io.projectreactor"          % "reactor-core"   % "3.4.8",
-        "io.reactivex.rxjava2"       % "rxjava"         % "2.2.21",
-        "org.jctools"                % "jctools-core"   % "3.3.0",
-        "org.ow2.asm"                % "asm"            % "9.1",
-        "org.scala-lang"             % "scala-compiler" % scalaVersion.value % Provided,
-        "org.scala-lang"             % "scala-reflect"  % scalaVersion.value,
-        "org.typelevel"             %% "cats-effect"    % "2.5.1",
-        "org.scalacheck"            %% "scalacheck"     % "1.15.4",
-        "qa.hedgehog"               %% "hedgehog-core"  % "0.7.0",
-        "com.github.japgolly.nyaya" %% "nyaya-gen"      % "0.10.0"
+        "co.fs2"                    %% "fs2-core"        % fs2Version,
+        "com.google.code.findbugs"   % "jsr305"          % "3.0.2",
+        "com.twitter"               %% "util-core"       % "21.6.0",
+        "com.typesafe.akka"         %% "akka-stream"     % "2.6.15",
+        "io.github.timwspence"      %% "cats-stm"        % "0.10.3",
+        "io.projectreactor"          % "reactor-core"    % "3.4.8",
+        "io.reactivex.rxjava2"       % "rxjava"          % "2.2.21",
+        "org.jctools"                % "jctools-core"    % "3.3.0",
+        "org.ow2.asm"                % "asm"             % "9.1",
+        "org.scala-lang"             % "scala-compiler"  % scalaVersion.value % Provided,
+        "org.scala-lang"             % "scala-reflect"   % scalaVersion.value,
+        "org.typelevel"             %% "cats-effect"     % catsEffectVersion,
+        "org.typelevel"             %% "cats-effect-std" % catsEffectVersion,
+        "org.scalacheck"            %% "scalacheck"      % "1.15.4",
+        "qa.hedgehog"               %% "hedgehog-core"   % "0.7.0",
+        "com.github.japgolly.nyaya" %% "nyaya-gen"       % "0.10.0"
       ),
     unusedCompileDependenciesFilter -= libraryDependencies.value
       .map(moduleid =>

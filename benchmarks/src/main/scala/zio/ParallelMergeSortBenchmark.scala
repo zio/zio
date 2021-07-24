@@ -46,10 +46,10 @@ class ParallelMergeSortBenchmark {
       .toList
 
   @Benchmark
-  def zioSort(): Unit = benchMergeSort(IOBenchmarks)
+  def zioSort(): Unit = benchMergeSort(BenchmarkUtil)
 
   @Benchmark
-  def zioSortTraced(): Unit = benchMergeSort(IOBenchmarks.TracedRuntime)
+  def zioSortTraced(): Unit = benchMergeSort(BenchmarkUtil.TracedRuntime)
 
   @Benchmark
   def scalaCollectionSort(): Unit = {
@@ -70,7 +70,7 @@ class ParallelMergeSortBenchmark {
       case _             => true
     }
 
-    IOBenchmarks.verify(sorted)(s"Not sorted: ${inOut._2} <-- ${inOut._1}")
+    BenchmarkUtil.verify(sorted)(s"Not sorted: ${inOut._2} <-- ${inOut._1}")
   }
 
   private def mergeSort(is: Iterable[Int]): UIO[Iterable[Int]] =
