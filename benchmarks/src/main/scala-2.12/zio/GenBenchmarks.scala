@@ -2,7 +2,8 @@ package zio
 
 import org.openjdk.jmh.annotations._
 import org.scalacheck
-import zio.IOBenchmarks.unsafeRun
+
+import zio.BenchmarkUtil.unsafeRun
 import zio.test.Gen
 
 import java.util.concurrent.TimeUnit

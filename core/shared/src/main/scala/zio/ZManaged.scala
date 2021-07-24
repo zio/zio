@@ -2372,9 +2372,15 @@ object ZManaged extends ZManagedPlatformSpecific {
    * `release` action.
    */
   def lock(executor: => Executor): ZManaged[Any, Nothing, Unit] =
-    ZManaged
-      .acquireReleaseWith(ZIO.descriptorWith(descriptor => ZIO.shift(executor).as(descriptor.executor)))(ZIO.shift)
-      .unit
+    ZManaged.acquireReleaseWith {
+      ZIO.descriptorWith { descriptor =>
+        if (descriptor.locked) ZIO.shift(executor).as(Some(descriptor.executor))
+        else ZIO.shift(executor).as(None)
+      }
+    } {
+      case Some(executor) => ZIO.shift(executor)
+      case None           => ZIO.unshift
+    }.unit
 
   /**
    * Loops with the specified effectual function, collecting the results into a

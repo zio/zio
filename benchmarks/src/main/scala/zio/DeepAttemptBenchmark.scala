@@ -1,7 +1,8 @@
 package zio
 
+import cats.effect.unsafe.implicits.global
 import org.openjdk.jmh.annotations._
-import zio.IOBenchmarks._
+import zio.BenchmarkUtil._
 
 import java.util.concurrent.TimeUnit
 import scala.concurrent.Await
@@ -9,23 +10,13 @@ import scala.concurrent.Await
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
-class IODeepAttemptBenchmark {
+class DeepAttemptBenchmark {
   case class ZIOError(message: String)
 
   @Param(Array("1000"))
   var depth: Int = _
 
   def halfway: Int = depth / 2
-
-  @Benchmark
-  def thunkDeepAttempt(): BigInt = {
-    def descend(n: Int): Thunk[BigInt] =
-      if (n == depth) Thunk.fail(new Error("Oh noes!"))
-      else if (n == halfway) descend(n + 1).attempt.map(_.fold(_ => 50, a => a))
-      else descend(n + 1).map(_ + n)
-
-    descend(0).unsafeRun()
-  }
 
   @Benchmark
   def futureDeepAttempt(): BigInt = {
@@ -101,18 +92,6 @@ class IODeepAttemptBenchmark {
       else descent(n + 1).map(_ + n)
 
     Await.result(descent(0))
-  }
-
-  @Benchmark
-  def monixDeepAttempt(): BigInt = {
-    import monix.eval.Task
-
-    def descend(n: Int): Task[BigInt] =
-      if (n == depth) Task.raiseError(new Error("Oh noes!"))
-      else if (n == halfway) descend(n + 1).attempt.map(_.fold(_ => 50, a => a))
-      else descend(n + 1).map(_ + n)
-
-    descend(0).runSyncStep.fold(_ => sys.error("Either.right.get on Left"), identity)
   }
 
   @Benchmark

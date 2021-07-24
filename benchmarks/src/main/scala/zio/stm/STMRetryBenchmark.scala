@@ -13,7 +13,7 @@ import java.util.concurrent.TimeUnit
 @Warmup(iterations = 15, timeUnit = TimeUnit.SECONDS, time = 10)
 @Fork(1)
 class STMRetryBenchmark {
-  import IOBenchmarks.unsafeRun
+  import BenchmarkUtil.unsafeRun
 
   private var long: UIO[Unit]  = _
   private var short: UIO[Unit] = _

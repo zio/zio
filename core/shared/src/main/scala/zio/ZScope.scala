@@ -182,7 +182,7 @@ object ZScope {
     )
   }
 
-  final class Local[A](
+  final case class Local[A](
     // A counter for finalizers, which is used for ordering purposes.
     private[zio] val finalizerCount: AtomicInteger,
     // The value that a scope is closed with (or `null`).

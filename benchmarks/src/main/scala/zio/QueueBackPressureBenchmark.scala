@@ -1,13 +1,12 @@
 package zio
 
-import cats.effect.{ContextShift, IO => CIO}
-import monix.eval.{Task => MTask}
+import cats.effect.unsafe.implicits.global
+import cats.effect.{IO => CIO}
 import org.openjdk.jmh.annotations._
-import zio.IOBenchmarks._
+import zio.BenchmarkUtil._
 import zio.stm._
 
 import java.util.concurrent.TimeUnit
-import scala.concurrent.ExecutionContext
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
@@ -23,19 +22,17 @@ class QueueBackPressureBenchmark {
   val totalSize   = 1000
   val parallelism = 5
 
-  implicit val contextShift: ContextShift[CIO] = CIO.contextShift(ExecutionContext.global)
-
-  var zioQ: Queue[Int]                                 = _
-  var fs2Q: fs2.concurrent.Queue[CIO, Int]             = _
-  var zioTQ: TQueue[Int]                               = _
-  var monixQ: monix.catnap.ConcurrentQueue[MTask, Int] = _
+  var zioQ: Queue[Int]                      = _
+  var fs2Q: cats.effect.std.Queue[CIO, Int] = _
+  var zioTQ: TQueue[Int]                    = _
+  // var monixQ: monix.catnap.ConcurrentQueue[MTask, Int] = _
 
   @Setup(Level.Trial)
   def createQueues(): Unit = {
     zioQ = unsafeRun(Queue.bounded[Int](queueSize))
-    fs2Q = fs2.concurrent.Queue.bounded[CIO, Int](queueSize).unsafeRunSync()
+    fs2Q = cats.effect.std.Queue.bounded[CIO, Int](queueSize).unsafeRunSync()
     zioTQ = unsafeRun(TQueue.bounded(queueSize).commit)
-    monixQ = monix.catnap.ConcurrentQueue.bounded[MTask, Int](queueSize).runSyncUnsafe()
+    // monixQ = monix.catnap.ConcurrentQueue.bounded[MTask, Int](queueSize).runSyncUnsafe()
   }
 
   @Benchmark
@@ -68,8 +65,8 @@ class QueueBackPressureBenchmark {
   def fs2Queue(): Int = {
 
     val io = for {
-      offers <- catsForkAll(List.fill(parallelism)(catsRepeat(totalSize / parallelism)(fs2Q.enqueue1(0))))
-      takes  <- catsForkAll(List.fill(parallelism)(catsRepeat(totalSize / parallelism)(fs2Q.dequeue1.map(_ => ()))))
+      offers <- catsForkAll(List.fill(parallelism)(catsRepeat(totalSize / parallelism)(fs2Q.offer(0))))
+      takes  <- catsForkAll(List.fill(parallelism)(catsRepeat(totalSize / parallelism)(fs2Q.take.void)))
       _      <- offers.join
       _      <- takes.join
     } yield 0
@@ -77,17 +74,17 @@ class QueueBackPressureBenchmark {
     io.unsafeRunSync()
   }
 
-  @Benchmark
-  def monixQueue(): Int = {
-    import IOBenchmarks.monixScheduler
+  // @Benchmark
+  // def monixQueue(): Int = {
+  //   import BenchmarkUtil.monixScheduler
 
-    val io = for {
-      offers <- monixForkAll(List.fill(parallelism)(monixRepeat(totalSize / parallelism)(monixQ.offer(0))))
-      takes  <- monixForkAll(List.fill(parallelism)(monixRepeat(totalSize / parallelism)(monixQ.poll.map(_ => ()))))
-      _      <- offers.join
-      _      <- takes.join
-    } yield 0
+  //   val io = for {
+  //     offers <- monixForkAll(List.fill(parallelism)(monixRepeat(totalSize / parallelism)(monixQ.offer(0))))
+  //     takes  <- monixForkAll(List.fill(parallelism)(monixRepeat(totalSize / parallelism)(monixQ.poll.map(_ => ()))))
+  //     _      <- offers.join
+  //     _      <- takes.join
+  //   } yield 0
 
-    io.runSyncUnsafe()
-  }
+  //   io.runSyncUnsafe()
+  // }
 }

@@ -1013,22 +1013,20 @@ object ZSTM {
    */
   def atomically[R, E, A](stm: ZSTM[R, E, A]): ZIO[R, E, A] =
     ZIO.accessZIO[R] { r =>
-      ZIO.suspendMaybeWith { (platform, fiberId) =>
+      ZIO.suspendSucceedWith { (platform, fiberId) =>
         tryCommitSync(platform, fiberId, stm, r) match {
-          case TryCommit.Done(exit) => Left(exit)
+          case TryCommit.Done(exit) => throw new ZIO.ZioError(exit)
           case TryCommit.Suspend(journal) =>
             val txnId = makeTxnId()
             val state = new AtomicReference[State[E, A]](State.Running)
             val async = ZIO.async(tryCommitAsync(journal, platform, fiberId, stm, txnId, state, r))
 
-            Right {
-              ZIO.uninterruptibleMask { restore =>
-                restore(async).catchAllCause { cause =>
-                  state.compareAndSet(State.Running, State.Interrupted)
-                  state.get match {
-                    case State.Done(exit) => ZIO.done(exit)
-                    case _                => ZIO.failCause(cause)
-                  }
+            ZIO.uninterruptibleMask { restore =>
+              restore(async).catchAllCause { cause =>
+                state.compareAndSet(State.Running, State.Interrupted)
+                state.get match {
+                  case State.Done(exit) => ZIO.done(exit)
+                  case _                => ZIO.failCause(cause)
                 }
               }
             }

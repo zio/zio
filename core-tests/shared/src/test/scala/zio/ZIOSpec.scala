@@ -1170,6 +1170,26 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(ZIO.fail("Fail").left.exit)(fails(isLeft(equalTo("Fail"))))
       } @@ zioTag(errors)
     ),
+    suite("lock")(
+      test("effects continue on current executor if no executor is specified") {
+        val global = zio.internal.Executor
+          .fromExecutionContext(Platform.defaultYieldOpCount)(scala.concurrent.ExecutionContext.global)
+        for {
+          _        <- ZIO.unit.lock(global)
+          executor <- ZIO.descriptor.map(_.executor)
+        } yield assert(executor)(equalTo(global))
+      },
+      test("effects are shifted back if executor is specified") {
+        val default = Platform.default.executor
+        val global = zio.internal.Executor
+          .fromExecutionContext(Platform.defaultYieldOpCount)(scala.concurrent.ExecutionContext.global)
+        val effect = for {
+          _        <- ZIO.unit.lock(global)
+          executor <- ZIO.descriptor.map(_.executor)
+        } yield assert(executor)(equalTo(default))
+        effect.lock(default)
+      }
+    ),
     suite("loop")(
       test("loops with the specified effectual function") {
         for {
@@ -1355,6 +1375,19 @@ object ZIOSpec extends ZIOBaseSpec {
         val task: IO[Option[Throwable], Unit] = Task.fail(ex).none
         assertM(task.exit)(fails(isSome(equalTo(ex))))
       } @@ zioTag(errors)
+    ),
+    suite("fork")(
+      test("propagates interruption") {
+        assertM(ZIO.never.fork.flatMap(_.interrupt))(isJustInterrupted)
+      },
+      test("propagates interruption with zip of defect") {
+        for {
+          latch <- Promise.make[Nothing, Unit]
+          fiber <- (latch.succeed(()) *> ZIO.die(new Error)).zipPar(ZIO.never).fork
+          _     <- latch.await
+          exit  <- fiber.interrupt.map(_.mapErrorCause(_.untraced))
+        } yield assert(exit)(isInterrupted)
+      } @@ jvm(nonFlaky)
     ),
     suite("negate")(
       test("on true returns false") {
@@ -2108,11 +2141,10 @@ object ZIOSpec extends ZIOBaseSpec {
       test("run preserves interruption status") {
         for {
           p    <- Promise.make[Nothing, Unit]
-          f    <- (p.succeed(()) *> IO.never).exit.fork
+          f    <- (p.succeed(()) *> IO.never).fork
           _    <- p.await
-          _    <- f.interrupt
-          test <- f.await.map(_.interrupted)
-        } yield assert(test)(isTrue)
+          exit <- f.interrupt
+        } yield assert(exit.mapErrorCause(_.untraced))(isJustInterrupted)
       } @@ zioTag(interruption),
       test("run swallows inner interruption") {
         for {
@@ -2190,7 +2222,7 @@ object ZIOSpec extends ZIOBaseSpec {
         val expectedCause: Cause[Throwable] =
           Cause.Then(Cause.fail(ExampleError), Cause.Then(Cause.die(e2), Cause.die(e3)))
 
-        assertM(io.sandbox.flip)(equalTo(expectedCause))
+        assertM(io.sandbox.flip.map(_.untraced))(equalTo(expectedCause))
       } @@ zioTag(errors),
       test("finalizer errors reported") {
         @volatile var reported: Exit[Nothing, Int] = null
@@ -2666,14 +2698,11 @@ object ZIOSpec extends ZIOBaseSpec {
 
         assertM(io)(isTrue)
       },
-      test("interrupt of never") {
-        val io =
-          for {
-            fiber <- IO.never.fork
-            _     <- fiber.interrupt
-          } yield 42
-
-        assertM(io)(equalTo(42))
+      test("interrupt of never is interrupted with cause") {
+        for {
+          fiber <- IO.never.fork
+          exit  <- fiber.interrupt
+        } yield assert(exit)(isJustInterrupted)
       },
       test("asyncZIO is interruptible") {
         val io =
@@ -2852,6 +2881,23 @@ object ZIOSpec extends ZIOBaseSpec {
           res <- p1.await
         } yield assert(res)(isTrue)
       },
+      test("interrupted cause persists after catching") {
+        def process(list: List[Exit[Nothing, Any]]): List[Exit[Nothing, Any]] =
+          list.map(_.mapErrorCause(_.untraced))
+
+        for {
+          latch1 <- Promise.make[Nothing, Unit]
+          latch2 <- Promise.make[Nothing, Unit]
+          exits  <- Ref.make[List[Exit[Nothing, Any]]](Nil)
+          fiber <- ZIO.uninterruptibleMask { restore =>
+                     restore(ZIO.uninterruptibleMask { restore =>
+                       restore(latch1.succeed(()) *> latch2.await).onExit(exit => exits.update(exit :: _))
+                     } *> ZIO.unit).exit.flatMap(exit => exits.update(exit :: _))
+                   }.fork
+          _    <- latch1.await *> fiber.interrupt
+          list <- exits.get.map(process)
+        } yield assert(list.length)(equalTo(2)) && assert(list)(forall(isJustInterrupted))
+      },
       test("interruption of raced") {
         for {
           ref   <- Ref.make(0)
@@ -2987,15 +3033,10 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(Live.live(io))(isTrue)
       },
       test("cause reflects interruption") {
-        val io =
-          for {
-            finished <- Ref.make(false)
-            fiber    <- withLatch(release => (release *> ZIO.fail("foo")).catchAll(_ => finished.set(true)).fork)
-            exit     <- fiber.interrupt
-            finished <- finished.get
-          } yield exit.interrupted == true || finished == true
-
-        assertM(io)(isTrue)
+        for {
+          fiber <- withLatch(release => (release *> ZIO.fail("foo")).fork)
+          exit  <- fiber.interrupt
+        } yield assert(exit)(isJustInterrupted) || assert(exit)(Assertion.fails(equalTo("foo")))
       } @@ jvm(nonFlaky),
       test("acquireRelease use inherits interrupt status") {
         val io =
@@ -3061,8 +3102,8 @@ object ZIOSpec extends ZIOBaseSpec {
           _       <- fiber.interrupt
           value   <- ref.get
         } yield assert(value)(isTrue)
-      },
-      test("asyncInterrupt cancelation") {
+      } @@ nonFlaky,
+      test("effectAsyncInterrupt cancelation") {
         for {
           ref <- ZIO.succeed(new java.util.concurrent.atomic.AtomicInteger(0))
           effect = ZIO.asyncInterrupt[Any, Nothing, Any] { _ =>
@@ -3072,7 +3113,7 @@ object ZIOSpec extends ZIOBaseSpec {
           _     <- ZIO.unit.race(effect)
           value <- ZIO.succeed(ref.get())
         } yield assert(value)(equalTo(0))
-      } @@ jvm(nonFlaky(100000))
+      } @@ jvm(nonFlaky(10000))
     ) @@ zioTag(interruption),
     suite("RTS environment")(
       test("provide is modular") {

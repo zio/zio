@@ -2001,7 +2001,11 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   def lock(executor: Executor): ZStream[R, E, O] =
     ZStream.fromZIO(ZIO.descriptor).flatMap { descriptor =>
       ZStream.managed(ZManaged.lock(executor)) *>
-        self <* ZStream.fromZIO(ZIO.shift(descriptor.executor))
+        self <*
+        ZStream.fromZIO {
+          if (descriptor.locked) ZIO.shift(descriptor.executor)
+          else ZIO.unshift
+        }
     }
 
   /**

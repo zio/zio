@@ -504,6 +504,15 @@ object Assertion extends AssertionVariants {
     }
 
   /**
+   * Makes a new assertion that requires an exit value to be interrupted.
+   */
+  def isJustInterrupted: Assertion[Exit[Any, Any]] =
+    Assertion.assertion("isJustInterrupted")() {
+      case Exit.Failure(Cause.Interrupt(_)) => true
+      case _                                => false
+    }
+
+  /**
    * Makes a new assertion that requires a Left value satisfying a specified
    * assertion.
    */

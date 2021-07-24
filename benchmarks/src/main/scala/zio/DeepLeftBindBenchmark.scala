@@ -1,33 +1,20 @@
 package zio
 
+import cats.effect.unsafe.implicits.global
 import org.openjdk.jmh.annotations._
-import zio.IOBenchmarks._
+import zio.BenchmarkUtil._
 
 import java.util.concurrent.TimeUnit
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
-class IODeepLeftBindBenchmark {
+class DeepLeftBindBenchmark {
   @Param(Array("10000"))
   var depth: Int = _
 
   @Benchmark
-  def monixDeepLeftBindBenchmark(): Int = {
-    import monix.eval.Task
-
-    var i  = 0
-    var io = Task.eval(i)
-    while (i < depth) {
-      io = io.flatMap(i => Task.eval(i))
-      i += 1
-    }
-
-    io.runSyncStep.fold(_ => sys.error("Either.right.get on Left"), identity)
-  }
-
-  @Benchmark
-  def zioDeepLeftBindBenchmark(): Int = zioDeepLeftBindBenchmark(IOBenchmarks)
+  def zioDeepLeftBindBenchmark(): Int = zioDeepLeftBindBenchmark(BenchmarkUtil)
 
   @Benchmark
   def zioTracedDeepLeftBindBenchmark(): Int = zioDeepLeftBindBenchmark(TracedRuntime)
