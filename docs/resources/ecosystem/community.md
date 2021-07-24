@@ -140,7 +140,7 @@ object CalibanExample extends zio.App {
 
 Now let's query all software developers using GraphQL query language:
 
-```json
+```graphql
 query{
   employees(role: SoftwareDeveloper){
     name
@@ -153,8 +153,11 @@ Here is the _curl_ request of this query:
 
 ```bash
 curl 'http://localhost:8088/api/graphql' --data-binary '{"query":"query{\n employees(role: SoftwareDeveloper){\n name\n role\n}\n}"}'
+```
 
-// Output:
+And the response:
+
+```json
 {
   "data" : {
     "employees" : [
