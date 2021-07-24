@@ -126,7 +126,11 @@ object Diff extends LowPriDiff {
 }
 
 trait LowPriDiff {
-  implicit val anyValDiff: Diff[AnyVal] = (x: AnyVal, y: AnyVal) =>
-    if (x == y) DiffResult.Identical(x)
-    else DiffResult.Different(x, y)
+  implicit val anyValDiff: Diff[AnyVal] = new Diff[AnyVal] {
+    override def diff(x: AnyVal, y: AnyVal): DiffResult =
+      if (x == y) DiffResult.Identical(x)
+      else DiffResult.Different(x, y)
+
+    override def isLowPriority: Boolean = true
+  }
 }

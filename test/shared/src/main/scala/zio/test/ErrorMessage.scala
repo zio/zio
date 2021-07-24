@@ -33,7 +33,7 @@ sealed trait ErrorMessage { self =>
       case ErrorMessage.Choice(success, failure) =>
         if (isSuccess) magenta(success) else red(failure)
 
-      case ErrorMessage.Value(value) => bold(blue(PrettyPrint(value)))
+      case ErrorMessage.Value(value) => bold(blue(value.toString))
 
       case ErrorMessage.Combine(lhs, rhs, spacing) =>
         lhs.render(isSuccess) + (" " * spacing) + rhs.render(isSuccess)
