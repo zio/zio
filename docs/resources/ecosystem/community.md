@@ -20,6 +20,7 @@ List of first-class ZIO support libraries from the community:
 - [zio-email](https://github.com/funcit/zio-email) — Purely functional email client
 - [zio-grpc](https://github.com/scalapb/zio-grpc) — A native gRPC support for ZIO
 - [zio-http](https://github.com/dream11/zio-http) — A scala library to write Http apps.
+- [zio-k8s](https://github.com/coralogix/zio-k8s) — An idiomatic ZIO client for the Kubernetes API
 - [zio-kinesis](https://github.com/svroonland/zio-kinesis) — ZIO Streams based AWS Kinesis client
 - [zio-magic](https://github.com/kitlangton/zio-magic/) — Construct ZLayers automagically (w/ helpful compile-time errors) 
 - [zio-saga](https://github.com/VladKopanev/zio-saga) — Purely functional transaction management with Saga pattern
