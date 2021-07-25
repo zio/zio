@@ -6,7 +6,6 @@ title:  "Community ZIO Libraries"
 List of first-class ZIO support libraries from the community:
 
 - [caliban](https://github.com/ghostdogpr/caliban) — Functional GraphQL backend in Scala
-- [cakeless](https://github.com/itkpi/cakeless) — Wire your cakes automatically into zio environment
 - [distage](https://github.com/7mind/izumi) — Staged, transparent and debuggable runtime & compile-time Dependency Injection Framework
 - [idealingua](https://izumi.7mind.io/idealingua/) — API Definition, Data Modeling and RPC Language, optimized for fast prototyping – like gRPC, but with a human face
 - [logstage](https://izumi.7mind.io/logstage/) — Automatic structural logs from Scala string interpolations
