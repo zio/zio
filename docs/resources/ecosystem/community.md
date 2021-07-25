@@ -17,7 +17,6 @@ List of first-class ZIO support libraries from the community:
 - [zio-amqp](https://github.com/svroonland/zio-amqp) — ZIO Streams based RabbitMQ client
 - [zio-aws](https://github.com/vigoo/zio-aws) — Low-level AWS wrapper for ZIO for all AWS services using the AWS Java SDK v2
 - [zio-aws-s3](https://github.com/Neurodyne/zio-aws-s3) — A lean, simple and efficient ZIO wrapper for AWS Java v2 S3 API by Boris V.Kuznetsov
-- [zio-easymock](https://github.com/egast/zio-easymock) — EasyMock mocking for zio-test
 - [zio-email](https://github.com/funcit/zio-email) — Purely functional email client
 - [zio-event-sourcing](https://github.com/holinov/zio-event-sourcing) — Purely functional concurrent and scalable persistance layer
 - [zio-grpc](https://github.com/scalapb/zio-grpc) — A native gRPC support for ZIO
