@@ -27,7 +27,6 @@ List of first-class ZIO support libraries from the community:
 - [zio-magic](https://github.com/kitlangton/zio-magic/) — Construct ZLayers automagically (w/ helpful compile-time errors) 
 - [zio-saga](https://github.com/VladKopanev/zio-saga) — Purely functional transaction management with Saga pattern
 - [zio-slf4j](https://github.com/NeQuissimus/zio-slf4j) — Referentially transparent logging with slf4j
-- [zio-slick](https://github.com/rleibman/zio-slick) — Bridge library between ZIO and Slick Functional Relational Mapping Library
 - [zio-test-akka-http](https://github.com/senia-psm/zio-test-akka-http) — Akka-HTTP Route TestKit for zio-test
 
 If you know a useful library that has first-class ZIO support, please consider [submitting a pull request](https://github.com/zio/zio/pulls) to add it to this list.
