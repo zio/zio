@@ -23,6 +23,7 @@ List of first-class ZIO support libraries from the community:
 - [zio-k8s](https://github.com/coralogix/zio-k8s) — An idiomatic ZIO client for the Kubernetes API
 - [zio-kinesis](https://github.com/svroonland/zio-kinesis) — ZIO Streams based AWS Kinesis client
 - [zio-magic](https://github.com/kitlangton/zio-magic/) — Construct ZLayers automagically (w/ helpful compile-time errors) 
+- [zio-pulsar](https://github.com/jczuchnowski/zio-pulsar) — Apache Pulsar client for Scala with ZIO and ZIO Streams integration.
 - [zio-saga](https://github.com/VladKopanev/zio-saga) — Purely functional transaction management with Saga pattern
 - [zio-slick-interop](https://github.com/ScalaConsultants/zio-slick-interop) — Slick interop for ZIO
 - [zio-test-akka-http](https://github.com/senia-psm/zio-test-akka-http) — Akka-HTTP Route TestKit for zio-test
