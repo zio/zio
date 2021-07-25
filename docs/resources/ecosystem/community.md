@@ -25,6 +25,7 @@ List of first-class ZIO support libraries from the community:
 - [zio-saga](https://github.com/VladKopanev/zio-saga) — Purely functional transaction management with Saga pattern
 - [zio-slick-interop](https://github.com/ScalaConsultants/zio-slick-interop) — Slick interop for ZIO
 - [zio-test-akka-http](https://github.com/senia-psm/zio-test-akka-http) — Akka-HTTP Route TestKit for zio-test
+- [ZparkIO](https://github.com/leobenkel/ZparkIO) — Boiler plate framework to use Spark and ZIO together
 
 If you know a useful library that has first-class ZIO support, please consider [submitting a pull request](https://github.com/zio/zio/pulls) to add it to this list.
 
