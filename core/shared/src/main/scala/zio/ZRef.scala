@@ -913,7 +913,8 @@ object ZRef extends Serializable {
         modifyZIO(v => pf.applyOrElse[A, ZIO[R1, E1, A]](v, ZIO.succeedNow).map(result => (result, result)))
     }
 
-    implicit final class ZipSyntax[RA, RB, EA, EB, A, B](private val self: ZRef.Synchronized[RA, RB, EA, EB, A, B]) extends AnyVal {
+    implicit final class ZipSyntax[RA, RB, EA, EB, A, B](private val self: ZRef.Synchronized[RA, RB, EA, EB, A, B])
+        extends AnyVal {
 
       /**
        * A symbolic alias for `zip`.
