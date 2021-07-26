@@ -39,9 +39,9 @@ class ZSchedulerBenchmarks {
       threadPool
     }
 
-  val catsRuntime     = IORuntime.global
-  val fixedThreadPool = fixedThreadPoolExecutor(Platform.defaultYieldOpCount)
-  val zScheduler      = Executor.makeDefault(Platform.defaultYieldOpCount)
+  val catsRuntime: IORuntime    = IORuntime.global
+  val fixedThreadPool: Executor = fixedThreadPoolExecutor(Platform.defaultYieldOpCount)
+  val zScheduler: Executor      = Executor.makeDefault(Platform.defaultYieldOpCount)
 
   @Benchmark
   def catsRuntimeChainedFork(): Int =
