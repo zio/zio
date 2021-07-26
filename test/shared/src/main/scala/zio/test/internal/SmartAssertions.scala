@@ -1,7 +1,7 @@
 package zio.test.internal
 
 import zio.test._
-import zio.test.render.ConsoleRenderer
+import zio.test.diff.Diff
 
 import scala.reflect.ClassTag
 import scala.util.Try
@@ -209,11 +209,10 @@ object SmartAssertions {
 
         Trace.boolean(result) {
           diff.value match {
-            case Some(diff) if !result =>
-              M.text("DIFF") + "\n" +/
-                M.text {
-                  ConsoleRenderer.renderToStringLines(diff.diff(a, that)).mkString("\n")
-                }
+            case Some(diff) if !diff.isLowPriority && !result =>
+              M.text("Expected:") + "\n" +/ M.value(PrettyPrint(that)) + "\n" +/
+                M.text("Diff:") + "\n" +/
+                M.text(diff.diff(that, a).render)
             case _ =>
               M.value(a) + M.equals + M.value(that)
           }

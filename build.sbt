@@ -351,7 +351,7 @@ lazy val testRefined = crossProject(JVMPlatform, JSPlatform)
     crossScalaVersions --= Seq(Scala211),
     libraryDependencies ++=
       Seq(
-        ("eu.timepit" %% "refined" % "0.9.26").cross(CrossVersion.for3Use2_13)
+        ("eu.timepit" %% "refined" % "0.9.27").cross(CrossVersion.for3Use2_13)
       )
   )
 
@@ -441,14 +441,14 @@ lazy val testJunitRunnerTests = crossProject(JVMPlatform)
   .settings(
     libraryDependencies ++= Seq(
       "junit"                   % "junit"     % "4.13.2" % Test,
-      "org.scala-lang.modules" %% "scala-xml" % "2.0.0"  % Test,
+      "org.scala-lang.modules" %% "scala-xml" % "2.0.1"  % Test,
       // required to run embedded maven in the tests
       "org.apache.maven"       % "maven-embedder"         % "3.8.1"  % Test,
       "org.apache.maven"       % "maven-compat"           % "3.8.1"  % Test,
       "org.apache.maven.wagon" % "wagon-http"             % "3.4.3"  % Test,
       "org.eclipse.aether"     % "aether-connector-basic" % "1.1.0"  % Test,
       "org.eclipse.aether"     % "aether-transport-wagon" % "1.1.0"  % Test,
-      "org.slf4j"              % "slf4j-simple"           % "1.7.31" % Test
+      "org.slf4j"              % "slf4j-simple"           % "1.7.32" % Test
     )
   )
   .dependsOn(test)
@@ -544,7 +544,7 @@ lazy val jsdocs = project
 
 val http4sV     = "0.23.0-RC1"
 val doobieV     = "1.0.0-M5"
-val catsEffectV = "3.1.1"
+val catsEffectV = "3.2.0"
 
 lazy val docs = project.module
   .in(file("zio-docs"))
