@@ -1,7 +1,8 @@
 package zio
 
+import cats.effect.unsafe.implicits.global
 import org.openjdk.jmh.annotations._
-import zio.IOBenchmarks._
+import zio.BenchmarkUtil._
 
 import java.util.concurrent.TimeUnit
 import scala.concurrent.Await
@@ -9,22 +10,12 @@ import scala.concurrent.Await
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
-class IOLeftBindBenchmark {
+class LeftBindBenchmark {
   @Param(Array("10000"))
   var size: Int = _
 
   @Param(Array("100"))
   var depth: Int = _
-
-  @Benchmark
-  def thunkLeftBindBenchmark(): Int = {
-    def loop(i: Int): Thunk[Int] =
-      if (i % depth == 0) Thunk(i + 1).flatMap(loop)
-      else if (i < size) loop(i + 1).flatMap(i => Thunk(i))
-      else Thunk(i)
-
-    Thunk(0).unsafeRun()
-  }
 
   @Benchmark
   def futureLeftBindBenchmark(): Int = {
@@ -100,19 +91,7 @@ class IOLeftBindBenchmark {
   }
 
   @Benchmark
-  def monixLeftBindBenchmark(): Int = {
-    import monix.eval.Task
-
-    def loop(i: Int): Task[Int] =
-      if (i % depth == 0) Task.eval(i + 1).flatMap(loop)
-      else if (i < size) loop(i + 1).flatMap(i => Task.eval(i))
-      else Task.eval(i)
-
-    Task.eval(0).flatMap(loop).runSyncStep.fold(_ => sys.error("Either.right.get on Left"), identity)
-  }
-
-  @Benchmark
-  def zioLeftBindBenchmark: Int = zioLeftBindBenchmark(IOBenchmarks)
+  def zioLeftBindBenchmark: Int = zioLeftBindBenchmark(BenchmarkUtil)
 
   @Benchmark
   def zioTracedLeftBindBenchmark(): Int = zioLeftBindBenchmark(TracedRuntime)

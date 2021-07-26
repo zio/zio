@@ -2,7 +2,7 @@ package zio.test
 
 import zio.test.Assertion._
 import zio.test.ReportingTestUtils._
-import zio.test.TestAspect.silent
+import zio.test.TestAspect._
 
 object DefaultTestReporterSpec extends ZIOBaseSpec {
 
@@ -59,6 +59,6 @@ object DefaultTestReporterSpec extends ZIOBaseSpec {
             a && exists(matchesRegex(expectedLine.stripLineEnd))
           }
         )
-      } @@ TestAspect.nonFlaky
+      } @@ ignore
     ) @@ silent
 }

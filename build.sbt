@@ -77,6 +77,9 @@ addCommandAlias(
   "all coreJVM/mimaReportBinaryIssues streamsJVM/mimaReportBinaryIssues testJVM/mimaReportBinaryIssues"
 )
 
+val catsEffectVersion = "3.1.1"
+val fs2Version        = "3.0.4"
+
 lazy val root = project
   .in(file("."))
   .settings(
@@ -348,7 +351,7 @@ lazy val testRefined = crossProject(JVMPlatform, JSPlatform)
     crossScalaVersions --= Seq(Scala211),
     libraryDependencies ++=
       Seq(
-        ("eu.timepit" %% "refined" % "0.9.26").cross(CrossVersion.for3Use2_13)
+        ("eu.timepit" %% "refined" % "0.9.27").cross(CrossVersion.for3Use2_13)
       )
   )
 
@@ -438,14 +441,14 @@ lazy val testJunitRunnerTests = crossProject(JVMPlatform)
   .settings(
     libraryDependencies ++= Seq(
       "junit"                   % "junit"     % "4.13.2" % Test,
-      "org.scala-lang.modules" %% "scala-xml" % "2.0.0"  % Test,
+      "org.scala-lang.modules" %% "scala-xml" % "2.0.1"  % Test,
       // required to run embedded maven in the tests
       "org.apache.maven"       % "maven-embedder"         % "3.8.1"  % Test,
       "org.apache.maven"       % "maven-compat"           % "3.8.1"  % Test,
       "org.apache.maven.wagon" % "wagon-http"             % "3.4.3"  % Test,
       "org.eclipse.aether"     % "aether-connector-basic" % "1.1.0"  % Test,
       "org.eclipse.aether"     % "aether-transport-wagon" % "1.1.0"  % Test,
-      "org.slf4j"              % "slf4j-simple"           % "1.7.31" % Test
+      "org.slf4j"              % "slf4j-simple"           % "1.7.32" % Test
     )
   )
   .dependsOn(test)
@@ -496,22 +499,22 @@ lazy val benchmarks = project.module
     publish / skip := true,
     libraryDependencies ++=
       Seq(
-        "co.fs2"                    %% "fs2-core"       % "2.5.6",
-        "com.google.code.findbugs"   % "jsr305"         % "3.0.2",
-        "com.twitter"               %% "util-core"      % "21.6.0",
-        "com.typesafe.akka"         %% "akka-stream"    % "2.6.15",
-        "io.github.timwspence"      %% "cats-stm"       % "0.8.0",
-        "io.monix"                  %% "monix"          % "3.4.0",
-        "io.projectreactor"          % "reactor-core"   % "3.4.7",
-        "io.reactivex.rxjava2"       % "rxjava"         % "2.2.21",
-        "org.jctools"                % "jctools-core"   % "3.3.0",
-        "org.ow2.asm"                % "asm"            % "9.1",
-        "org.scala-lang"             % "scala-compiler" % scalaVersion.value % Provided,
-        "org.scala-lang"             % "scala-reflect"  % scalaVersion.value,
-        "org.typelevel"             %% "cats-effect"    % "2.5.1",
-        "org.scalacheck"            %% "scalacheck"     % "1.15.4",
-        "qa.hedgehog"               %% "hedgehog-core"  % "0.7.0",
-        "com.github.japgolly.nyaya" %% "nyaya-gen"      % "0.10.0"
+        "co.fs2"                    %% "fs2-core"        % fs2Version,
+        "com.google.code.findbugs"   % "jsr305"          % "3.0.2",
+        "com.twitter"               %% "util-core"       % "21.6.0",
+        "com.typesafe.akka"         %% "akka-stream"     % "2.6.15",
+        "io.github.timwspence"      %% "cats-stm"        % "0.10.3",
+        "io.projectreactor"          % "reactor-core"    % "3.4.8",
+        "io.reactivex.rxjava2"       % "rxjava"          % "2.2.21",
+        "org.jctools"                % "jctools-core"    % "3.3.0",
+        "org.ow2.asm"                % "asm"             % "9.1",
+        "org.scala-lang"             % "scala-compiler"  % scalaVersion.value % Provided,
+        "org.scala-lang"             % "scala-reflect"   % scalaVersion.value,
+        "org.typelevel"             %% "cats-effect"     % catsEffectVersion,
+        "org.typelevel"             %% "cats-effect-std" % catsEffectVersion,
+        "org.scalacheck"            %% "scalacheck"      % "1.15.4",
+        "qa.hedgehog"               %% "hedgehog-core"   % "0.7.0",
+        "com.github.japgolly.nyaya" %% "nyaya-gen"       % "0.10.0"
       ),
     unusedCompileDependenciesFilter -= libraryDependencies.value
       .map(moduleid =>
@@ -541,7 +544,7 @@ lazy val jsdocs = project
 
 val http4sV     = "0.23.0-RC1"
 val doobieV     = "1.0.0-M5"
-val catsEffectV = "3.1.1"
+val catsEffectV = "3.2.0"
 
 lazy val docs = project.module
   .in(file("zio-docs"))
@@ -555,7 +558,7 @@ lazy val docs = project.module
     scalacOptions ~= { _ filterNot (_ startsWith "-Xlint") },
     libraryDependencies ++= Seq(
       "commons-io"          % "commons-io"                % "2.7"    % "provided",
-      "org.jsoup"           % "jsoup"                     % "1.13.1" % "provided",
+      "org.jsoup"           % "jsoup"                     % "1.14.1" % "provided",
       "org.reactivestreams" % "reactive-streams-examples" % "1.0.3"  % "provided",
       /* to evict 1.3.0 brought in by mdoc-js */
       "org.scala-js"   % "scalajs-compiler"            % scalaJSVersion cross CrossVersion.full,

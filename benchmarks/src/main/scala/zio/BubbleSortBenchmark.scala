@@ -1,7 +1,8 @@
 package zio
 
+import cats.effect.unsafe.implicits.global
 import org.openjdk.jmh.annotations._
-import zio.IOBenchmarks.unsafeRun
+import zio.BenchmarkUtil.unsafeRun
 
 import java.util.concurrent.TimeUnit
 import scala.collection.immutable.Range
@@ -9,7 +10,7 @@ import scala.collection.immutable.Range
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
-class BubbleSortBenchmarks {
+class BubbleSortBenchmark {
   @Param(Array("1000"))
   var size: Int = _
 
@@ -41,17 +42,5 @@ class BubbleSortBenchmarks {
       _     <- bubbleSort[Int](_ <= _)(array)
       _     <- IO(assertSorted(array))
     } yield ()).unsafeRunSync()
-  }
-  @Benchmark
-  def monixBubbleSort(): Unit = {
-    import IOBenchmarks.monixScheduler
-    import MonixIOArray._
-    import monix.eval.Task
-
-    (for {
-      array <- Task.eval(createTestArray)
-      _     <- bubbleSort[Int](_ <= _)(array)
-      _     <- Task.eval(assertSorted(array))
-    } yield ()).runSyncUnsafe(scala.concurrent.duration.Duration.Inf)
   }
 }

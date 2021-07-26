@@ -13,7 +13,7 @@ import org.openjdk.jmh.annotations.{
   Threads,
   Warmup
 }
-import zio.IOBenchmarks.verify
+import zio.BenchmarkUtil.verify
 
 import java.util.concurrent.TimeUnit
 
@@ -30,19 +30,19 @@ class FiberRefBenchmarks {
 
   @Benchmark
   def tracedCreateUpdateAndRead(): Unit =
-    createUpdateAndRead(IOBenchmarks.TracedRuntime)
+    createUpdateAndRead(BenchmarkUtil.TracedRuntime)
 
   @Benchmark
   def unTracedCreateUpdateAndRead(): Unit =
-    createUpdateAndRead(IOBenchmarks)
+    createUpdateAndRead(BenchmarkUtil)
 
   @Benchmark
   def unTracedJustYield(): Unit =
-    justYield(IOBenchmarks)
+    justYield(BenchmarkUtil)
 
   @Benchmark
   def unTracedCreateFiberRefsAndYield(): Unit =
-    createFiberRefsAndYield(IOBenchmarks)
+    createFiberRefsAndYield(BenchmarkUtil)
 
   private def justYield(runtime: Runtime[Any]) = runtime.unsafeRun {
     for {

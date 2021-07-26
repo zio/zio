@@ -16,12 +16,54 @@ object ZIOSpec extends ZIOBaseSpec {
   import ZIOTag._
 
   def spec: ZSpec[Environment, Failure] = suite("ZIOSpec")(
+    suite("&&")(
+      test("true and true is true") {
+        assertM(ZIO.succeed(true) && ZIO.succeed(true))(isTrue)
+      },
+      test("true and false is false") {
+        assertM(ZIO.succeed(true) && ZIO.succeed(false))(isFalse)
+      },
+      test("false and true is false") {
+        assertM(ZIO.succeed(false) && ZIO.succeed(true))(isFalse)
+      },
+      test("false and false is false") {
+        assertM(ZIO.succeed(false) && ZIO.succeed(false))(isFalse)
+      },
+      test("short circuiting") {
+        assertM(ZIO.succeed(false) && ZIO.fail("fail"))(isFalse)
+      }
+    ),
     suite("***")(
       test("splits the environment") {
         val zio1 = ZIO.fromFunction((n: Int) => n + 2)
         val zio2 = ZIO.fromFunction((n: Int) => n * 3)
         val zio3 = zio1 *** zio2
         assertM(zio3.provide((4, 5)))(equalTo((6, 15)))
+      }
+    ),
+    suite("unary_!")(
+      test("not true is false") {
+        assertM(!ZIO.succeed(true))(isFalse)
+      },
+      test("not false is true") {
+        assertM(!ZIO.succeed(false))(isTrue)
+      }
+    ),
+    suite("||")(
+      test("true or true is true") {
+        assertM(ZIO.succeed(true) || ZIO.succeed(true))(isTrue)
+      },
+      test("true or false is true") {
+        assertM(ZIO.succeed(true) || ZIO.succeed(false))(isTrue)
+      },
+      test("false or true is true") {
+        assertM(ZIO.succeed(false) || ZIO.succeed(true))(isTrue)
+      },
+      test("false or false is false") {
+        assertM(ZIO.succeed(false) || ZIO.succeed(false))(isFalse)
+      },
+      test("short circuiting") {
+        assertM(ZIO.succeed(true) || ZIO.fail("fail"))(isTrue)
       }
     ),
     suite("absorbWith")(
@@ -268,15 +310,14 @@ object ZIOSpec extends ZIOBaseSpec {
     ) @@ zioTag(errors),
     suite("collect")(
       test("returns failure ignoring value") {
-        val goodCase =
-          exactlyOnce(0)(_.collect(s"value was not 0")({ case v @ 0 => v })).sandbox.either
-
-        val badCase =
-          exactlyOnce(1)(_.collect(s"value was not 0")({ case v @ 0 => v })).sandbox.either
-            .map(_.left.map(_.failureOrCause))
-
-        assertM(goodCase)(isRight(equalTo(0))) &&
-        assertM(badCase)(isLeft(isLeft(equalTo("value was not 0"))))
+        for {
+          goodCase <-
+            exactlyOnce(0)(_.collect(s"value was not 0")({ case v @ 0 => v })).sandbox.either
+          badCase <-
+            exactlyOnce(1)(_.collect(s"value was not 0")({ case v @ 0 => v })).sandbox.either
+              .map(_.left.map(_.failureOrCause))
+        } yield assert(goodCase)(isRight(equalTo(0))) &&
+          assert(badCase)(isLeft(isLeft(equalTo("value was not 0"))))
       }
     ),
     suite("collectAllPar")(
@@ -318,24 +359,22 @@ object ZIOSpec extends ZIOBaseSpec {
     ),
     suite("collectZIO")(
       test("returns failure ignoring value") {
-        val goodCase =
-          exactlyOnce(0)(
-            _.collectZIO[Any, String, Int]("Predicate failed!")({ case v @ 0 => ZIO.succeed(v) })
-          ).sandbox.either
-
-        val partialBadCase =
-          exactlyOnce(0)(
-            _.collectZIO("Predicate failed!")({ case v @ 0 => ZIO.fail("Partial failed!") })
-          ).sandbox.either
-            .map(_.left.map(_.failureOrCause))
-
-        val badCase =
-          exactlyOnce(1)(_.collectZIO("Predicate failed!")({ case v @ 0 => ZIO.succeed(v) })).sandbox.either
-            .map(_.left.map(_.failureOrCause))
-
-        assertM(goodCase)(isRight(equalTo(0))) &&
-        assertM(partialBadCase)(isLeft(isLeft(equalTo("Partial failed!")))) &&
-        assertM(badCase)(isLeft(isLeft(equalTo("Predicate failed!"))))
+        for {
+          goodCase <-
+            exactlyOnce(0)(
+              _.collectZIO[Any, String, Int]("Predicate failed!")({ case v @ 0 => ZIO.succeed(v) })
+            ).sandbox.either
+          partialBadCase <-
+            exactlyOnce(0)(
+              _.collectZIO("Predicate failed!")({ case v @ 0 => ZIO.fail("Partial failed!") })
+            ).sandbox.either
+              .map(_.left.map(_.failureOrCause))
+          badCase <-
+            exactlyOnce(1)(_.collectZIO("Predicate failed!")({ case v @ 0 => ZIO.succeed(v) })).sandbox.either
+              .map(_.left.map(_.failureOrCause))
+        } yield assert(goodCase)(isRight(equalTo(0))) &&
+          assert(partialBadCase)(isLeft(isLeft(equalTo("Partial failed!")))) &&
+          assert(badCase)(isLeft(isLeft(equalTo("Predicate failed!"))))
       }
     ),
     suite("companion object method consistency")(
@@ -376,22 +415,23 @@ object ZIOSpec extends ZIOBaseSpec {
     suite("done")(
       test("Check done lifts exit result into IO") {
 
-        val fiberId                       = Fiber.Id(0L, 123L)
-        val error                         = exampleError
-        val completed                     = Exit.succeed(1)
-        val interrupted: Exit[Error, Int] = Exit.interrupt(fiberId)
-        val terminated: Exit[Error, Int]  = Exit.die(error)
-        val failed: Exit[Error, Int]      = Exit.fail(error)
+        val fiberId = Fiber.Id(0L, 123L)
+        val error   = exampleError
 
-        assertM(IO.done(completed))(equalTo(1)) &&
-        assertM(IO.done(interrupted).exit)(isInterrupted) &&
-        assertM(IO.done(terminated).exit)(dies(equalTo(error))) &&
-        assertM(IO.done(failed).exit)(fails(equalTo(error)))
+        for {
+          completed   <- IO.done(Exit.succeed(1))
+          interrupted <- IO.done(Exit.interrupt(fiberId)).exit
+          terminated  <- IO.done(Exit.die(error)).exit
+          failed      <- IO.done(Exit.fail(error)).exit
+        } yield assert(completed)(equalTo(1)) &&
+          assert(interrupted)(isInterrupted) &&
+          assert(terminated)(dies(equalTo(error))) &&
+          assert(failed)(fails(equalTo(error)))
       }
     ),
     suite("executor")(
       test("retrieves the current executor for this effect") {
-        val executor = internal.Executor.fromExecutionContext(100) {
+        val executor = zio.internal.Executor.fromExecutionContext(100) {
           scala.concurrent.ExecutionContext.Implicits.global
         }
         for {
@@ -570,43 +610,46 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(results)(equalTo(List(3, 5, 11, 15, 17, 23, 25)))
       }
     ),
-    suite("filterOrElse")(
-      test("returns checked failure ignoring value") {
-        val goodCase =
-          exactlyOnce(0)(_.filterOrElse[Any, String, Int](_ == 0)(ZIO.fail(s"Predicate failed!"))).sandbox.either
-
-        val badCase =
-          exactlyOnce(1)(_.filterOrElse[Any, String, Int](_ == 0)(ZIO.fail(s"Predicate failed!"))).sandbox.either
-            .map(_.left.map(_.failureOrCause))
-
-        assertM(goodCase)(isRight(equalTo(0))) &&
-        assertM(badCase)(isLeft(isLeft(equalTo("Predicate failed!"))))
-      }
-    ),
     suite("filterOrElseWith")(
       test("returns checked failure from held value") {
-        val goodCase =
-          exactlyOnce(0)(_.filterOrElseWith[Any, String, Int](_ == 0)(a => ZIO.fail(s"$a was not 0"))).sandbox.either
+        for {
+          goodCase <-
+            exactlyOnce(0)(_.filterOrElseWith[Any, String, Int](_ == 0)(a => ZIO.fail(s"$a was not 0"))).sandbox.either
 
-        val badCase =
-          exactlyOnce(1)(_.filterOrElseWith[Any, String, Int](_ == 0)(a => ZIO.fail(s"$a was not 0"))).sandbox.either
-            .map(_.left.map(_.failureOrCause))
+          badCase <-
+            exactlyOnce(1)(_.filterOrElseWith[Any, String, Int](_ == 0)(a => ZIO.fail(s"$a was not 0"))).sandbox.either
+              .map(_.left.map(_.failureOrCause))
 
-        assertM(goodCase)(isRight(equalTo(0))) &&
-        assertM(badCase)(isLeft(isLeft(equalTo("1 was not 0"))))
+        } yield assert(goodCase)(isRight(equalTo(0))) &&
+          assert(badCase)(isLeft(isLeft(equalTo("1 was not 0"))))
+      }
+    ),
+    suite("filterOrElse")(
+      test("returns checked failure ignoring value") {
+        for {
+          goodCase <-
+            exactlyOnce(0)(_.filterOrElse[Any, String, Int](_ == 0)(ZIO.fail(s"Predicate failed!"))).sandbox.either
+
+          badCase <-
+            exactlyOnce(1)(_.filterOrElse[Any, String, Int](_ == 0)(ZIO.fail(s"Predicate failed!"))).sandbox.either
+              .map(_.left.map(_.failureOrCause))
+
+        } yield assert(goodCase)(isRight(equalTo(0))) &&
+          assert(badCase)(isLeft(isLeft(equalTo("Predicate failed!"))))
       }
     ),
     suite("filterOrFail")(
       test("returns failure ignoring value") {
-        val goodCase =
-          exactlyOnce(0)(_.filterOrFail(_ == 0)("Predicate failed!")).sandbox.either
+        for {
+          goodCase <-
+            exactlyOnce(0)(_.filterOrFail(_ == 0)("Predicate failed!")).sandbox.either
 
-        val badCase =
-          exactlyOnce(1)(_.filterOrFail(_ == 0)("Predicate failed!")).sandbox.either
-            .map(_.left.map(_.failureOrCause))
+          badCase <-
+            exactlyOnce(1)(_.filterOrFail(_ == 0)("Predicate failed!")).sandbox.either
+              .map(_.left.map(_.failureOrCause))
 
-        assertM(goodCase)(isRight(equalTo(0))) &&
-        assertM(badCase)(isLeft(isLeft(equalTo("Predicate failed!"))))
+        } yield assert(goodCase)(isRight(equalTo(0))) &&
+          assert(badCase)(isLeft(isLeft(equalTo("Predicate failed!"))))
       }
     ) @@ zioTag(errors),
     suite("flattenErrorOption")(
@@ -1127,6 +1170,26 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(ZIO.fail("Fail").left.exit)(fails(isLeft(equalTo("Fail"))))
       } @@ zioTag(errors)
     ),
+    suite("lock")(
+      test("effects continue on current executor if no executor is specified") {
+        val global = zio.internal.Executor
+          .fromExecutionContext(Platform.defaultYieldOpCount)(scala.concurrent.ExecutionContext.global)
+        for {
+          _        <- ZIO.unit.lock(global)
+          executor <- ZIO.descriptor.map(_.executor)
+        } yield assert(executor)(equalTo(global))
+      },
+      test("effects are shifted back if executor is specified") {
+        val default = Platform.default.executor
+        val global = zio.internal.Executor
+          .fromExecutionContext(Platform.defaultYieldOpCount)(scala.concurrent.ExecutionContext.global)
+        val effect = for {
+          _        <- ZIO.unit.lock(global)
+          executor <- ZIO.descriptor.map(_.executor)
+        } yield assert(executor)(equalTo(default))
+        effect.lock(default)
+      }
+    ),
     suite("loop")(
       test("loops with the specified effectual function") {
         for {
@@ -1312,6 +1375,19 @@ object ZIOSpec extends ZIOBaseSpec {
         val task: IO[Option[Throwable], Unit] = Task.fail(ex).none
         assertM(task.exit)(fails(isSome(equalTo(ex))))
       } @@ zioTag(errors)
+    ),
+    suite("fork")(
+      test("propagates interruption") {
+        assertM(ZIO.never.fork.flatMap(_.interrupt))(isJustInterrupted)
+      },
+      test("propagates interruption with zip of defect") {
+        for {
+          latch <- Promise.make[Nothing, Unit]
+          fiber <- (latch.succeed(()) *> ZIO.die(new Error)).zipPar(ZIO.never).fork
+          _     <- latch.await
+          exit  <- fiber.interrupt.map(_.mapErrorCause(_.untraced))
+        } yield assert(exit)(isInterrupted)
+      } @@ jvm(nonFlaky)
     ),
     suite("negate")(
       test("on true returns false") {
@@ -1844,35 +1920,33 @@ object ZIOSpec extends ZIOBaseSpec {
     ),
     suite("reject")(
       test("returns failure ignoring value") {
-        val goodCase =
-          exactlyOnce(0)(_.reject({ case v if v != 0 => "Partial failed!" })).sandbox.either
-
-        val badCase =
-          exactlyOnce(1)(_.reject({ case v if v != 0 => "Partial failed!" })).sandbox.either
-            .map(_.left.map(_.failureOrCause))
-
-        assertM(goodCase)(isRight(equalTo(0))) &&
-        assertM(badCase)(isLeft(isLeft(equalTo("Partial failed!"))))
+        for {
+          goodCase <-
+            exactlyOnce(0)(_.reject({ case v if v != 0 => "Partial failed!" })).sandbox.either
+          badCase <-
+            exactlyOnce(1)(_.reject({ case v if v != 0 => "Partial failed!" })).sandbox.either
+              .map(_.left.map(_.failureOrCause))
+        } yield assert(goodCase)(isRight(equalTo(0))) &&
+          assert(badCase)(isLeft(isLeft(equalTo("Partial failed!"))))
       }
     ) @@ zioTag(errors),
     suite("rejectZIO")(
       test("Check `rejectZIO` returns failure ignoring value") {
-        val goodCase =
-          exactlyOnce(0)(
-            _.rejectZIO[Any, String]({ case v if v != 0 => ZIO.succeed("Partial failed!") })
-          ).sandbox.either
+        for {
+          goodCase <-
+            exactlyOnce(0)(
+              _.rejectZIO[Any, String]({ case v if v != 0 => ZIO.succeed("Partial failed!") })
+            ).sandbox.either
+          partialBadCase <-
+            exactlyOnce(1)(_.rejectZIO({ case v if v != 0 => ZIO.fail("Partial failed!") })).sandbox.either
+              .map(_.left.map(_.failureOrCause))
+          badCase <-
+            exactlyOnce(1)(_.rejectZIO({ case v if v != 0 => ZIO.fail("Partial failed!") })).sandbox.either
+              .map(_.left.map(_.failureOrCause))
 
-        val partialBadCase =
-          exactlyOnce(1)(_.rejectZIO({ case v if v != 0 => ZIO.fail("Partial failed!") })).sandbox.either
-            .map(_.left.map(_.failureOrCause))
-
-        val badCase =
-          exactlyOnce(1)(_.rejectZIO({ case v if v != 0 => ZIO.fail("Partial failed!") })).sandbox.either
-            .map(_.left.map(_.failureOrCause))
-
-        assertM(goodCase)(isRight(equalTo(0))) &&
-        assertM(partialBadCase)(isLeft(isLeft(equalTo("Partial failed!")))) &&
-        assertM(badCase)(isLeft(isLeft(equalTo("Partial failed!"))))
+        } yield assert(goodCase)(isRight(equalTo(0))) &&
+          assert(partialBadCase)(isLeft(isLeft(equalTo("Partial failed!")))) &&
+          assert(badCase)(isLeft(isLeft(equalTo("Partial failed!"))))
       }
     ),
     suite("RTS synchronous correctness")(
@@ -2067,11 +2141,10 @@ object ZIOSpec extends ZIOBaseSpec {
       test("run preserves interruption status") {
         for {
           p    <- Promise.make[Nothing, Unit]
-          f    <- (p.succeed(()) *> IO.never).exit.fork
+          f    <- (p.succeed(()) *> IO.never).fork
           _    <- p.await
-          _    <- f.interrupt
-          test <- f.await.map(_.interrupted)
-        } yield assert(test)(isTrue)
+          exit <- f.interrupt
+        } yield assert(exit.mapErrorCause(_.untraced))(isJustInterrupted)
       } @@ zioTag(interruption),
       test("run swallows inner interruption") {
         for {
@@ -2149,7 +2222,7 @@ object ZIOSpec extends ZIOBaseSpec {
         val expectedCause: Cause[Throwable] =
           Cause.Then(Cause.fail(ExampleError), Cause.Then(Cause.die(e2), Cause.die(e3)))
 
-        assertM(io.sandbox.flip)(equalTo(expectedCause))
+        assertM(io.sandbox.flip.map(_.untraced))(equalTo(expectedCause))
       } @@ zioTag(errors),
       test("finalizer errors reported") {
         @volatile var reported: Exit[Nothing, Int] = null
@@ -2625,14 +2698,11 @@ object ZIOSpec extends ZIOBaseSpec {
 
         assertM(io)(isTrue)
       },
-      test("interrupt of never") {
-        val io =
-          for {
-            fiber <- IO.never.fork
-            _     <- fiber.interrupt
-          } yield 42
-
-        assertM(io)(equalTo(42))
+      test("interrupt of never is interrupted with cause") {
+        for {
+          fiber <- IO.never.fork
+          exit  <- fiber.interrupt
+        } yield assert(exit)(isJustInterrupted)
       },
       test("asyncZIO is interruptible") {
         val io =
@@ -2811,6 +2881,23 @@ object ZIOSpec extends ZIOBaseSpec {
           res <- p1.await
         } yield assert(res)(isTrue)
       },
+      test("interrupted cause persists after catching") {
+        def process(list: List[Exit[Nothing, Any]]): List[Exit[Nothing, Any]] =
+          list.map(_.mapErrorCause(_.untraced))
+
+        for {
+          latch1 <- Promise.make[Nothing, Unit]
+          latch2 <- Promise.make[Nothing, Unit]
+          exits  <- Ref.make[List[Exit[Nothing, Any]]](Nil)
+          fiber <- ZIO.uninterruptibleMask { restore =>
+                     restore(ZIO.uninterruptibleMask { restore =>
+                       restore(latch1.succeed(()) *> latch2.await).onExit(exit => exits.update(exit :: _))
+                     } *> ZIO.unit).exit.flatMap(exit => exits.update(exit :: _))
+                   }.fork
+          _    <- latch1.await *> fiber.interrupt
+          list <- exits.get.map(process)
+        } yield assert(list.length)(equalTo(2)) && assert(list)(forall(isJustInterrupted))
+      },
       test("interruption of raced") {
         for {
           ref   <- Ref.make(0)
@@ -2946,15 +3033,10 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(Live.live(io))(isTrue)
       },
       test("cause reflects interruption") {
-        val io =
-          for {
-            finished <- Ref.make(false)
-            fiber    <- withLatch(release => (release *> ZIO.fail("foo")).catchAll(_ => finished.set(true)).fork)
-            exit     <- fiber.interrupt
-            finished <- finished.get
-          } yield exit.interrupted == true || finished == true
-
-        assertM(io)(isTrue)
+        for {
+          fiber <- withLatch(release => (release *> ZIO.fail("foo")).fork)
+          exit  <- fiber.interrupt
+        } yield assert(exit)(isJustInterrupted) || assert(exit)(Assertion.fails(equalTo("foo")))
       } @@ jvm(nonFlaky),
       test("acquireRelease use inherits interrupt status") {
         val io =
@@ -3020,8 +3102,8 @@ object ZIOSpec extends ZIOBaseSpec {
           _       <- fiber.interrupt
           value   <- ref.get
         } yield assert(value)(isTrue)
-      },
-      test("asyncInterrupt cancelation") {
+      } @@ nonFlaky,
+      test("effectAsyncInterrupt cancelation") {
         for {
           ref <- ZIO.succeed(new java.util.concurrent.atomic.AtomicInteger(0))
           effect = ZIO.asyncInterrupt[Any, Nothing, Any] { _ =>
@@ -3031,7 +3113,7 @@ object ZIOSpec extends ZIOBaseSpec {
           _     <- ZIO.unit.race(effect)
           value <- ZIO.succeed(ref.get())
         } yield assert(value)(equalTo(0))
-      } @@ jvm(nonFlaky(100000))
+      } @@ jvm(nonFlaky(10000))
     ) @@ zioTag(interruption),
     suite("RTS environment")(
       test("provide is modular") {
@@ -3059,7 +3141,7 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(v)(equalTo(InterruptStatus.uninterruptible))
       } @@ zioTag(interruption),
       test("executor is heritable") {
-        val executor = internal.Executor.fromExecutionContext(100) {
+        val executor = zio.internal.Executor.fromExecutionContext(100) {
           scala.concurrent.ExecutionContext.Implicits.global
         }
         val pool = ZIO.succeed(Platform.getCurrentThreadGroup)
@@ -3441,10 +3523,10 @@ object ZIOSpec extends ZIOBaseSpec {
         val f                = (a: Int) => if (a == 6) ZIO.succeed(a) else ZIO.fail(a)
 
         for {
-          counter    <- Ref.make(0)
-          res        <- ZIO.validateFirst(in)(a => counter.update(_ + 1) *> f(a))
-          assertions <- assertM(ZIO.succeed(res))(equalTo(6)) && assertM(counter.get)(equalTo(6))
-        } yield assertions
+          counter <- Ref.make(0)
+          result  <- ZIO.validateFirst(in)(a => counter.update(_ + 1) *> f(a))
+          count   <- counter.get
+        } yield assert(result)(equalTo(6)) && assert(count)(equalTo(6))
       },
       test("returns errors in correct order") {
         val as = List(2, 4, 6, 3, 5, 6)
@@ -3755,10 +3837,6 @@ object ZIOSpec extends ZIOBaseSpec {
     }
 
   val testString = "supercalifragilisticexpialadocious"
-
-  implicit class ZioOfTestResultOps[R, E](val res: ZIO[R, E, TestResult]) {
-    def &&[R1](that: ZIO[R1, E, TestResult]): ZIO[R1 with R, E, TestResult] = res.zipWith(that)(_ && _)
-  }
 
   val ExampleError    = new Throwable("Oh noes!")
   val InterruptCause1 = new Throwable("Oh noes 1!")

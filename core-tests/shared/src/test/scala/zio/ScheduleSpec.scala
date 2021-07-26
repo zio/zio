@@ -130,6 +130,12 @@ object ScheduleSpec extends ZIOBaseSpec {
         val expected  = Chunk((0L, 1.minute), (1L, 2.minute), (2L, 4.minute))
         assertM(scheduled)(equalTo(expected))
       },
+      test("respect Schedule.upTo even if more input is provided than needed") {
+        val schedule  = Schedule.spaced(1.second).upTo(5.seconds)
+        val scheduled = Clock.currentDateTime.flatMap(schedule.run(_, 1 to 10))
+        val expected  = Chunk(0L, 1L, 2L, 3L, 4L, 5L)
+        assertM(scheduled)(equalTo(expected))
+      },
       test("free from stack overflow") {
         assertM(ZStream.fromSchedule(Schedule.forever *> Schedule.recurs(100000)).runCount)(
           equalTo(100000L)

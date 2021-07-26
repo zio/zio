@@ -80,15 +80,107 @@ trait Runtime[+R] {
    *
    * This method is effectful and should only be invoked at the edges of your program.
    */
-  final def unsafeRunAsyncCancelable[E, A](zio: => ZIO[R, E, A])(k: Exit[E, A] => Any): Fiber.Id => Exit[E, A] = {
-    lazy val curZio = if (Platform.isJVM) ZIO.yieldNow *> zio else zio
-    val canceler    = unsafeRunWith(curZio)(k)
-    fiberId => {
-      val result = internal.OneShot.make[Exit[E, A]]
-      canceler(fiberId)(result.set)
-      result.get()
-    }
+  final def unsafeRunSync[E, A](zio0: => ZIO[R, E, A]): Exit[E, A] =
+    defaultUnsafeRunSync(zio0) // tryFastUnsafeRunSync(zio0, 0)
+
+  protected final def defaultUnsafeRunSync[E, A](zio: => ZIO[R, E, A]): Exit[E, A] = {
+    val result = internal.OneShot.make[Exit[E, A]]
+
+    unsafeRunWith(zio)(result.set)
+
+    result.get()
   }
+
+  protected def tryFastUnsafeRunSync[E, A](zio: ZIO[R, E, A], stack: Int): Exit[E, A] =
+    if (stack >= 50) defaultUnsafeRunSync(zio)
+    else {
+      type Erased = ZIO[Any, Any, Any]
+      def erase[R, E, A](zio: ZIO[R, E, A]): Erased = zio.asInstanceOf[ZIO[Any, Any, Any]]
+      type K = Any => Erased
+      def eraseK[R, E, A, B](f: A => ZIO[R, E, B]): K = f.asInstanceOf[K]
+
+      val nullK = null.asInstanceOf[K]
+
+      var curZio               = erase(zio)
+      var x1, x2, x3, x4       = nullK
+      var done: Exit[Any, Any] = null.asInstanceOf[Exit[Any, Any]]
+
+      while (done eq null) {
+        try {
+          curZio.tag match {
+            case ZIO.Tags.FlatMap =>
+              val zio = curZio.asInstanceOf[ZIO.FlatMap[R, E, Any, A]]
+
+              curZio = erase(zio.zio)
+
+              val k = eraseK(zio.k)
+
+              if (x1 eq null) x1 = k
+              else if (x2 eq null) {
+                x2 = x1; x1 = k
+              } else if (x3 eq null) {
+                x3 = x2; x2 = x1; x1 = k
+              } else if (x4 eq null) {
+                x4 = x3; x3 = x2; x2 = x1; x1 = k
+              } else {
+                // Our "register"-based stack can't handle it, try consuming more JVM stack:
+                val exit = tryFastUnsafeRunSync(zio, stack + 1)
+
+                curZio = exit match {
+                  case Exit.Failure(cause) => ZIO.failCause(cause)
+                  case Exit.Success(value) => ZIO.succeedNow(value)
+                }
+              }
+
+            case ZIO.Tags.Succeed =>
+              val zio = curZio.asInstanceOf[ZIO.Succeed[A]]
+
+              if (x1 ne null) {
+                val k = x1
+                x1 = x2; x2 = x3; x3 = x4; x4 = nullK
+                curZio = k(zio.value)
+              } else {
+                done = Exit.succeed(zio.value)
+              }
+
+            case ZIO.Tags.Fail =>
+              val zio = curZio.asInstanceOf[ZIO.Fail[E]]
+
+              done = Exit.failCause(zio.fill(() => null))
+
+            case ZIO.Tags.EffectTotal =>
+              val zio = curZio.asInstanceOf[ZIO.EffectTotal[A]]
+
+              if (x1 ne null) {
+                val k = x1
+                x1 = x2; x2 = x3; x3 = x4; x4 = nullK
+                curZio = k(zio.effect())
+              } else {
+                val value = zio.effect()
+
+                done = Exit.succeed(value)
+              }
+
+            case _ =>
+              val zio = curZio
+
+              // Give up, the mini-interpreter can't handle it:
+              curZio = defaultUnsafeRunSync(zio) match {
+                case Exit.Failure(cause) => ZIO.failCause(cause)
+                case Exit.Success(value) => ZIO.succeedNow(value)
+              }
+          }
+        } catch {
+          case ZIO.ZioError(e) =>
+            done = Exit.fail(e)
+
+          case t: Throwable if !platform.fatal(t) =>
+            done = Exit.die(t)
+        }
+      }
+
+      done.asInstanceOf[Exit[E, A]]
+    }
 
   /**
    * Executes the effect asynchronously,
@@ -102,17 +194,20 @@ trait Runtime[+R] {
   }
 
   /**
-   * Executes the effect synchronously. May
-   * fail on Scala.js if the effect cannot be entirely run synchronously.
+   * Executes the effect asynchronously,
+   * eventually passing the exit value to the specified callback.
+   * It returns a callback, which can be used to interrupt the running execution.
    *
    * This method is effectful and should only be invoked at the edges of your program.
    */
-  final def unsafeRunSync[E, A](zio: => ZIO[R, E, A]): Exit[E, A] = {
-    val result = internal.OneShot.make[Exit[E, A]]
-
-    unsafeRunWith(zio)(result.set)
-
-    result.get()
+  final def unsafeRunAsyncCancelable[E, A](zio: => ZIO[R, E, A])(k: Exit[E, A] => Any): Fiber.Id => Exit[E, A] = {
+    lazy val curZio = zio
+    val canceler    = unsafeRunWith(curZio)(k)
+    fiberId => {
+      val result = internal.OneShot.make[Exit[E, A]]
+      canceler(fiberId)(result.set)
+      result.get()
+    }
   }
 
   /**
@@ -197,6 +292,7 @@ trait Runtime[+R] {
       platform,
       environment.asInstanceOf[AnyRef],
       platform.executor,
+      false,
       InitialInterruptStatus,
       None,
       PlatformConstants.tracingSupported,
@@ -212,8 +308,9 @@ trait Runtime[+R] {
       context.onDone(exit => supervisor.unsafeOnEnd(exit.flatten, context))
     }
 
-    context.evaluateNow(ZIOFn.recordStackTrace(() => zio)(zio.asInstanceOf[IO[E, A]]))
-    context.runAsync(k)
+    context.nextEffect = ZIOFn.recordStackTrace(() => zio)(zio.asInstanceOf[IO[E, A]])
+    context.run()
+    context.awaitAsync(k)
 
     fiberId =>
       k => unsafeRunAsyncWith(context.interruptAs(fiberId))((exit: Exit[Nothing, Exit[E, A]]) => k(exit.flatten))

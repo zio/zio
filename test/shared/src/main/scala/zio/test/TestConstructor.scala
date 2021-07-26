@@ -24,9 +24,12 @@ trait TestConstructorLowPriority1 extends TestConstructorLowPriority2 {
     new TestConstructor[R, ZIO[R, E, A]] {
       type Out = ZSpec[R, E]
       def apply(label: String)(assertion: => ZIO[R, E, A])(implicit location: SourceLocation): ZSpec[R, E] =
-        Spec
-          .test(label, ZTest(assertion), TestAnnotationMap.empty)
-          .annotate(TestAnnotation.location, location :: Nil)
+        Spec.labeled(
+          label,
+          Spec
+            .test(ZTest(assertion), TestAnnotationMap.empty)
+            .annotate(TestAnnotation.location, location :: Nil)
+        )
     }
 
 }
@@ -46,8 +49,11 @@ trait TestConstructorLowPriority3 {
     new TestConstructor[R, ZIO[R, E, A]] {
       type Out = ZSpec[R, E]
       def apply(label: String)(assertion: => ZIO[R, E, A])(implicit location: SourceLocation): ZSpec[R, E] =
-        Spec
-          .test(label, ZTest(assertion), TestAnnotationMap.empty)
-          .annotate(TestAnnotation.location, location :: Nil)
+        Spec.labeled(
+          label,
+          Spec
+            .test(ZTest(assertion), TestAnnotationMap.empty)
+            .annotate(TestAnnotation.location, location :: Nil)
+        )
     }
 }

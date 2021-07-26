@@ -2001,7 +2001,11 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   def lock(executor: Executor): ZStream[R, E, O] =
     ZStream.fromZIO(ZIO.descriptor).flatMap { descriptor =>
       ZStream.managed(ZManaged.lock(executor)) *>
-        self <* ZStream.fromZIO(ZIO.shift(descriptor.executor))
+        self <*
+        ZStream.fromZIO {
+          if (descriptor.locked) ZIO.shift(descriptor.executor)
+          else ZIO.unshift
+        }
     }
 
   /**
@@ -2291,7 +2295,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
 
       for {
         handoff <- ZStream.Handoff.make[Take[E1, O3]].toManaged
-        done    <- RefM.makeManaged[Option[Boolean]](None)
+        done    <- Ref.Synchronized.makeManaged[Option[Boolean]](None)
         chunksL <- self.process
         chunksR <- that.process
         handler = (pull: Pull[R1, E1, O3], terminate: Boolean) =>
@@ -3190,7 +3194,9 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * Fails the stream with given error if it does not produce a value after d duration.
    */
   final def timeoutError[E1 >: E](e: => E1)(d: Duration): ZStream[R with Has[Clock], E1, O] =
-    timeoutErrorCause(Cause.fail(e))(d)
+    self
+      .timeoutErrorCause(Cause.empty)(d)
+      .mapErrorCause(_ => Cause.fail(e))
 
   /**
    * Halts the stream with given cause if it does not produce a value after d duration.

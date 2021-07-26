@@ -71,7 +71,7 @@ object Task extends TaskPlatformSpecific {
   /**
    * @see See [[zio.ZIO.async]]
    */
-  def async[A](register: (Task[A] => Unit) => Any, blockingOn: List[Fiber.Id] = Nil): Task[A] =
+  def async[A](register: (Task[A] => Unit) => Any, blockingOn: Fiber.Id = Fiber.Id.None): Task[A] =
     ZIO.async(register, blockingOn)
 
   /**
@@ -79,7 +79,7 @@ object Task extends TaskPlatformSpecific {
    */
   def asyncMaybe[A](
     register: (Task[A] => Unit) => Option[Task[A]],
-    blockingOn: List[Fiber.Id] = Nil
+    blockingOn: Fiber.Id = Fiber.Id.None
   ): Task[A] =
     ZIO.asyncMaybe(register, blockingOn)
 
@@ -94,7 +94,7 @@ object Task extends TaskPlatformSpecific {
    */
   def asyncInterrupt[A](
     register: (Task[A] => Unit) => Either[Canceler[Any], Task[A]],
-    blockingOn: List[Fiber.Id] = Nil
+    blockingOn: Fiber.Id = Fiber.Id.None
   ): Task[A] =
     ZIO.asyncInterrupt(register, blockingOn)
 
@@ -410,7 +410,7 @@ object Task extends TaskPlatformSpecific {
    * @see See [[zio.ZIO.effectAsync]]
    */
   @deprecated("use async", "2.0.0")
-  def effectAsync[A](register: (Task[A] => Unit) => Any, blockingOn: List[Fiber.Id] = Nil): Task[A] =
+  def effectAsync[A](register: (Task[A] => Unit) => Any, blockingOn: Fiber.Id = Fiber.Id.None): Task[A] =
     ZIO.effectAsync(register, blockingOn)
 
   /**
@@ -419,7 +419,7 @@ object Task extends TaskPlatformSpecific {
   @deprecated("use asyncMaybe", "2.0.0")
   def effectAsyncMaybe[A](
     register: (Task[A] => Unit) => Option[Task[A]],
-    blockingOn: List[Fiber.Id] = Nil
+    blockingOn: Fiber.Id = Fiber.Id.None
   ): Task[A] =
     ZIO.effectAsyncMaybe(register, blockingOn)
 
@@ -436,7 +436,7 @@ object Task extends TaskPlatformSpecific {
   @deprecated("use asyncInterrupt", "2.0.0")
   def effectAsyncInterrupt[A](
     register: (Task[A] => Unit) => Either[Canceler[Any], Task[A]],
-    blockingOn: List[Fiber.Id] = Nil
+    blockingOn: Fiber.Id = Fiber.Id.None
   ): Task[A] =
     ZIO.effectAsyncInterrupt(register, blockingOn)
 

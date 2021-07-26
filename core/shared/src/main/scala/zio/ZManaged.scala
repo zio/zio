@@ -1351,6 +1351,13 @@ object ZManaged extends ZManagedPlatformSpecific {
       ZManaged.fromZIO(ZIO.serviceWith[Service](f))
   }
 
+  final class ServiceWithManagedPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
+    def apply[E, A](f: Service => ZManaged[Has[Service], E, A])(implicit
+      tag: Tag[Service]
+    ): ZManaged[Has[Service], E, A] =
+      ZManaged.accessManaged[Has[Service]](hasService => f(hasService.get))
+  }
+
   /**
    * A finalizer used in a [[ReleaseMap]]. The [[Exit]] value passed to
    * it is the result of executing [[ZManaged#use]] or an arbitrary value
@@ -2365,9 +2372,15 @@ object ZManaged extends ZManagedPlatformSpecific {
    * `release` action.
    */
   def lock(executor: => Executor): ZManaged[Any, Nothing, Unit] =
-    ZManaged
-      .acquireReleaseWith(ZIO.descriptorWith(descriptor => ZIO.shift(executor).as(descriptor.executor)))(ZIO.shift)
-      .unit
+    ZManaged.acquireReleaseWith {
+      ZIO.descriptorWith { descriptor =>
+        if (descriptor.locked) ZIO.shift(executor).as(Some(descriptor.executor))
+        else ZIO.shift(executor).as(None)
+      }
+    } {
+      case Some(executor) => ZIO.shift(executor)
+      case None           => ZIO.unshift
+    }.unit
 
   /**
    * Loops with the specified effectual function, collecting the results into a
@@ -2829,6 +2842,23 @@ object ZManaged extends ZManagedPlatformSpecific {
    */
   def serviceWith[Service]: ServiceWithPartiallyApplied[Service] =
     new ServiceWithPartiallyApplied[Service]
+
+  /**
+   * Effectfully accesses the specified managed service in the environment of the effect .
+   *
+   * Especially useful for creating "accessor" methods on Services' companion objects accessing managed resources.
+   *
+   * {{{
+   * trait Foo {
+   *  def start(): ZManaged[Any, Nothing, Unit]
+   * }
+   *
+   * def start: ZManaged[Has[Foo], Nothing, Unit] =
+   *  ZManaged.serviceWithManaged[Foo](_.start())
+   * }}}
+   */
+  def serviceWithManaged[Service]: ServiceWithManagedPartiallyApplied[Service] =
+    new ServiceWithManagedPartiallyApplied[Service]
 
   /**
    *  Returns an effect with the optional value.

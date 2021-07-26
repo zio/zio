@@ -39,39 +39,53 @@ object DefaultTestReporter {
     def loop(
       executedSpec: ExecutedSpec[E],
       depth: Int,
-      ancestors: List[TestAnnotationMap]
+      ancestors: List[TestAnnotationMap],
+      labels: List[String]
     ): Seq[ExecutionResult] =
-      (executedSpec.caseValue: @unchecked) match {
-        case ExecutedSpec.SuiteCase(label, specs) =>
+      executedSpec.caseValue match {
+        case ExecutedSpec.LabeledCase(label, spec) =>
+          loop(spec, depth, ancestors, label :: labels)
+        case ExecutedSpec.MultipleCase(specs) =>
           val hasFailures = executedSpec.exists {
-            case ExecutedSpec.TestCase(_, test, _) => test.isLeft
-            case _                                 => false
+            case ExecutedSpec.TestCase(test, _) => test.isLeft
+            case _                              => false
           }
 
           val annotations = executedSpec.fold[TestAnnotationMap] { es =>
-            (es: @unchecked) match {
-              case ExecutedSpec.SuiteCase(_, annotations)   => annotations.foldLeft(TestAnnotationMap.empty)(_ ++ _)
-              case ExecutedSpec.TestCase(_, _, annotations) => annotations
+            es match {
+              case ExecutedSpec.LabeledCase(_, annotations) => annotations
+              case ExecutedSpec.MultipleCase(annotations)   => annotations.foldLeft(TestAnnotationMap.empty)(_ ++ _)
+              case ExecutedSpec.TestCase(_, annotations)    => annotations
             }
           }
 
           val (status, renderedLabel) =
-            if (specs.isEmpty) (Ignored, Seq(renderSuiteIgnored(label, depth)))
-            else if (hasFailures) (Failed, Seq(renderSuiteFailed(label, depth)))
-            else (Passed, Seq(renderSuiteSucceeded(label, depth)))
+            if (specs.isEmpty) (Ignored, Seq(renderSuiteIgnored(labels.reverse.mkString(" - "), depth)))
+            else if (hasFailures) (Failed, Seq(renderSuiteFailed(labels.reverse.mkString(" - "), depth)))
+            else (Passed, Seq(renderSuiteSucceeded(labels.reverse.mkString(" - "), depth)))
 
           val allAnnotations = annotations :: ancestors
-          val rest           = specs.flatMap(loop(_, depth + tabSize, allAnnotations))
+          val rest           = specs.flatMap(loop(_, depth + tabSize, allAnnotations, List.empty))
 
-          rendered(Suite, label, status, depth, renderedLabel.flatMap(_.lines): _*)
+          rendered(Suite, labels.reverse.mkString(" - "), status, depth, renderedLabel.flatMap(_.lines): _*)
             .withAnnotations(allAnnotations) +: rest
 
-        case ExecutedSpec.TestCase(label, result, annotations) =>
+        case ExecutedSpec.TestCase(result, annotations) =>
           val renderedResult = result match {
             case Right(TestSuccess.Succeeded(_)) =>
-              Some(rendered(Test, label, Passed, depth, fr(label).toLine))
+              Some(
+                rendered(Test, labels.reverse.mkString(" - "), Passed, depth, fr(labels.reverse.mkString(" - ")).toLine)
+              )
             case Right(TestSuccess.Ignored) =>
-              Some(rendered(Test, label, Ignored, depth, warn(label).toLine))
+              Some(
+                rendered(
+                  Test,
+                  labels.reverse.mkString(" - "),
+                  Ignored,
+                  depth,
+                  warn(labels.reverse.mkString(" - ")).toLine
+                )
+              )
             case Left(TestFailure.Assertion(result)) =>
               result
                 .fold[Option[TestResult]] {
@@ -97,7 +111,13 @@ object DefaultTestReporter {
                 )
                 .map {
                   _.fold(details =>
-                    rendered(Test, label, Failed, depth, renderFailure(label, depth, details).lines: _*)
+                    rendered(
+                      Test,
+                      labels.reverse.mkString(" - "),
+                      Failed,
+                      depth,
+                      renderFailure(labels.reverse.mkString(" - "), depth, details).lines: _*
+                    )
                   )(
                     _ && _,
                     _ || _,
@@ -106,12 +126,11 @@ object DefaultTestReporter {
                 }
 
             case Left(TestFailure.Runtime(cause)) =>
-              Some(renderRuntimeCause(cause, label, depth, includeCause))
+              Some(renderRuntimeCause(cause, labels.reverse.mkString(" - "), depth, includeCause))
           }
           renderedResult.map(r => Seq(r.withAnnotations(annotations :: ancestors))).getOrElse(Seq.empty)
       }
-
-    loop(executedSpec, 0, List.empty)
+    loop(executedSpec, 0, List.empty, List.empty)
   }
 
   def apply[E](testRenderer: TestRenderer, testAnnotationRenderer: TestAnnotationRenderer): TestReporter[E] = {
@@ -123,12 +142,13 @@ object DefaultTestReporter {
 
   private def logStats[E](duration: Duration, executedSpec: ExecutedSpec[E]): ExecutionResult = {
     val (success, ignore, failure) = executedSpec.fold[(Int, Int, Int)] { es =>
-      (es: @unchecked) match {
-        case ExecutedSpec.SuiteCase(_, stats) =>
+      es match {
+        case ExecutedSpec.LabeledCase(_, stats) => stats
+        case ExecutedSpec.MultipleCase(stats) =>
           stats.foldLeft((0, 0, 0)) { case ((x1, x2, x3), (y1, y2, y3)) =>
             (x1 + y1, x2 + y2, x3 + y3)
           }
-        case ExecutedSpec.TestCase(_, result, _) =>
+        case ExecutedSpec.TestCase(result, _) =>
           result match {
             case Left(_)                         => (0, 0, 1)
             case Right(TestSuccess.Succeeded(_)) => (1, 0, 0)
