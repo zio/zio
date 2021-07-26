@@ -247,7 +247,7 @@ val lines: ZStream[Any, Throwable, String] =
 For example, to convert the Java Stream to the ZIO Stream, `ZStream` has a `fromJavaStream` constructor which convert the Java Stream to the Java Iterator and then convert that to the ZIO Stream using `ZStream.fromJavaIterator` constructor:
 
 ```scala mdoc:silent:nest
-def fromJavaStream[R, A](stream: => java.util.stream.Stream[A]): ZStream[R, Throwable, A] =
+def fromJavaStream[A](stream: => java.util.stream.Stream[A]): ZStream[Any, Throwable, A] =
   ZStream.fromJavaIterator(stream.iterator())
 ```
 
