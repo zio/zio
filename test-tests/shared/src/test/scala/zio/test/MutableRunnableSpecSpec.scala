@@ -31,15 +31,15 @@ object MutableRunnableSpecSpec
       sequential >>> samples(10) >>> before(ZIO.service[RefInt].flatMap(_.inc))
     ) {
 
-  testM("ref 1") {
+  test("ref 1") {
     assertM(ZIO.service[RefInt].flatMap(_.get))(equalTo(1))
   }
 
-  testM("ref 2") {
+  test("ref 2") {
     assertM(ZIO.service[RefInt].flatMap(_.get))(equalTo(2))
   }
 
-  testM("check samples") {
+  test("check samples") {
     for {
       ref   <- ZIO.service[RefInt]
       _     <- checkM(Gen.anyInt.noShrink)(_ => assertM(ref.inc)(anything))

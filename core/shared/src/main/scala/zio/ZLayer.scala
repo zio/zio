@@ -159,8 +159,8 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    * Builds this layer and uses it until it is interrupted. This is useful when
    * your entire application is a layer, such as an HTTP server.
    */
-  final def launch(implicit ev: Any <:< RIn): IO[E, Nothing] =
-    build.provide(ev).useForever
+  final def launch: ZIO[RIn, E, Nothing] =
+    build.useForever
 
   /**
    * Returns a new layer whose output is mapped by the specified function.
@@ -4344,7 +4344,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
      * Constructs an empty memo map.
      */
     def make: UIO[MemoMap] =
-      RefM
+      Ref.Synchronized
         .make[Map[ZLayer[Nothing, Any, Any], (IO[Any, Any], ZManaged.Finalizer)]](Map.empty)
         .map { ref =>
           new MemoMap { self =>

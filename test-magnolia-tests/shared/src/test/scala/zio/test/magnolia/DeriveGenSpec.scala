@@ -49,13 +49,13 @@ object DeriveGenSpec extends DefaultRunnableSpec {
 
   def spec = suite("DeriveGenSpec")(
     suite("derivation")(
-      testM("case classes can be derived") {
+      test("case classes can be derived") {
         checkSample(genPerson)(isGreaterThan(1), _.distinct.length)
       },
-      testM("sealed traits can be derived") {
+      test("sealed traits can be derived") {
         checkSample(genColor)(equalTo(3), _.distinct.length)
       },
-      testM("recursive types can be derived") {
+      test("recursive types can be derived") {
         check(genNonEmptyList[Int])(as => assert(as.length)(isGreaterThan(0)))
       }
     ),
@@ -95,7 +95,7 @@ object DeriveGenSpec extends DefaultRunnableSpec {
       test("bigDecimal")(assertDeriveGen[BigDecimal])
     ),
     suite("shrinking")(
-      testM("derived generators shrink to smallest value") {
+      test("derived generators shrink to smallest value") {
         checkShrink(genPerson)(Person("", 0))
       }
     )

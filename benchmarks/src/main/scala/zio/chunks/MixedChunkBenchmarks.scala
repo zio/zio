@@ -49,7 +49,7 @@ class MixedChunkBenchmarks {
 
   @Benchmark
   def filterZIO(): Chunk[Int] =
-    IOBenchmarks.unsafeRun(chunk.filterZIO[Any, Nothing](n => ZIO.succeed(n % 2 == 0)))
+    BenchmarkUtil.unsafeRun(chunk.filterZIO[Any, Nothing](n => ZIO.succeed(n % 2 == 0)))
 
   @Benchmark
   def map(): Chunk[Int] = chunk.map(_ * 2)
@@ -65,6 +65,6 @@ class MixedChunkBenchmarks {
 
   @Benchmark
   def foldZIO(): Int =
-    IOBenchmarks.unsafeRun(chunk.foldZIO[Any, Nothing, Int](0)((s, a) => ZIO.succeed(s + a)))
+    BenchmarkUtil.unsafeRun(chunk.foldZIO[Any, Nothing, Int](0)((s, a) => ZIO.succeed(s + a)))
 
 }

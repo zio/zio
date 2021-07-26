@@ -18,7 +18,7 @@ package zio.test
 
 import zio.Random._
 import zio.stream.{Stream, ZStream}
-import zio.{Chunk, ExecutionStrategy, Has, NonEmptyChunk, Random, UIO, URIO, ZIO}
+import zio.{Chunk, ExecutionStrategy, Has, NonEmptyChunk, Random, UIO, URIO, ZIO, Zippable}
 
 import java.nio.charset.StandardCharsets
 import java.util.UUID
@@ -34,13 +34,13 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
   /**
    * A symbolic alias for `zip`.
    */
-  def <&>[R1 <: R, B](that: Gen[R1, B]): Gen[R1, (A, B)] =
+  def <&>[R1 <: R, B](that: Gen[R1, B])(implicit zippable: Zippable[A, B]): Gen[R1, zippable.Out] =
     self.zip(that)
 
   /**
    * A symbolic alias for `cross`.
    */
-  def <*>[R1 <: R, B](that: Gen[R1, B]): Gen[R1, (A, B)] =
+  def <*>[R1 <: R, B](that: Gen[R1, B])(implicit zippable: Zippable[A, B]): Gen[R1, zippable.Out] =
     self.cross(that)
 
   /**
@@ -56,8 +56,8 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
    * Composes this generator with the specified generator to create a cartesian
    * product of elements.
    */
-  def cross[R1 <: R, B](that: Gen[R1, B]): Gen[R1, (A, B)] =
-    self.crossWith(that)((_, _))
+  def cross[R1 <: R, B](that: Gen[R1, B])(implicit zippable: Zippable[A, B]): Gen[R1, zippable.Out] =
+    self.crossWith(that)(zippable.zip(_, _))
 
   /**
    * Composes this generator with the specified generator to create a cartesian
@@ -156,8 +156,8 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
    * elements as long as either generator is generating elements, running the
    * other generator multiple times if necessary.
    */
-  def zip[R1 <: R, B](that: Gen[R1, B]): Gen[R1, (A, B)] =
-    self.zipWith(that)((_, _))
+  def zip[R1 <: R, B](that: Gen[R1, B])(implicit zippable: Zippable[A, B]): Gen[R1, zippable.Out] =
+    self.zipWith(that)(zippable.zip(_, _))
 
   /**
    * Zips two generators together pairwise with the specified function. The new
@@ -868,9 +868,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * the other generators multiple times if necessary.
    */
   def zipN[R, A, B, C, D](gen1: Gen[R, A], gen2: Gen[R, B], gen3: Gen[R, C])(f: (A, B, C) => D): Gen[R, D] =
-    (gen1 <&> gen2 <&> gen3).map { case ((a, b), c) =>
-      f(a, b, c)
-    }
+    (gen1 <&> gen2 <&> gen3).map(f.tupled)
 
   /**
    * Zips the specified generators together pairwise. The new generator will
@@ -880,9 +878,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   def zipN[R, A, B, C, D, F](gen1: Gen[R, A], gen2: Gen[R, B], gen3: Gen[R, C], gen4: Gen[R, D])(
     f: (A, B, C, D) => F
   ): Gen[R, F] =
-    (gen1 <&> gen2 <&> gen3 <&> gen4).map { case (((a, b), c), d) =>
-      f(a, b, c, d)
-    }
+    (gen1 <&> gen2 <&> gen3 <&> gen4).map(f.tupled)
 
   /**
    * Zips the specified generators together pairwise. The new generator will
@@ -898,9 +894,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   )(
     fn: (A, B, C, D, F) => G
   ): Gen[R, G] =
-    (gen1 <&> gen2 <&> gen3 <&> gen4 <&> gen5).map { case ((((a, b), c), d), f) =>
-      fn(a, b, c, d, f)
-    }
+    (gen1 <&> gen2 <&> gen3 <&> gen4 <&> gen5).map(fn.tupled)
 
   /**
    * Zips the specified generators together pairwise. The new generator will
@@ -917,9 +911,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   )(
     fn: (A, B, C, D, F, G) => H
   ): Gen[R, H] =
-    (gen1 <&> gen2 <&> gen3 <&> gen4 <&> gen5 <&> gen6).map { case (((((a, b), c), d), f), g) =>
-      fn(a, b, c, d, f, g)
-    }
+    (gen1 <&> gen2 <&> gen3 <&> gen4 <&> gen5 <&> gen6).map(fn.tupled)
 
   /**
    * Zips the specified generators together pairwise. The new generator will
@@ -937,9 +929,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   )(
     fn: (A, B, C, D, F, G, H) => I
   ): Gen[R, I] =
-    (gen1 <&> gen2 <&> gen3 <&> gen4 <&> gen5 <&> gen6 <&> gen7).map { case ((((((a, b), c), d), f), g), h) =>
-      fn(a, b, c, d, f, g, h)
-    }
+    (gen1 <&> gen2 <&> gen3 <&> gen4 <&> gen5 <&> gen6 <&> gen7).map(fn.tupled)
 
   /**
    * Zips the specified generators together pairwise. The new generator will
@@ -958,10 +948,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   )(
     fn: (A, B, C, D, F, G, H, I) => J
   ): Gen[R, J] =
-    (gen1 <&> gen2 <&> gen3 <&> gen4 <&> gen5 <&> gen6 <&> gen7 <&> gen8).map {
-      case (((((((a, b), c), d), f), g), h), i) =>
-        fn(a, b, c, d, f, g, h, i)
-    }
+    (gen1 <&> gen2 <&> gen3 <&> gen4 <&> gen5 <&> gen6 <&> gen7 <&> gen8).map(fn.tupled)
 
   /**
    * Zips the specified generators together pairwise. The new generator will
@@ -981,10 +968,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   )(
     fn: (A, B, C, D, F, G, H, I, J) => K
   ): Gen[R, K] =
-    (gen1 <&> gen2 <&> gen3 <&> gen4 <&> gen5 <&> gen6 <&> gen7 <&> gen8 <&> gen9).map {
-      case ((((((((a, b), c), d), f), g), h), i), j) =>
-        fn(a, b, c, d, f, g, h, i, j)
-    }
+    (gen1 <&> gen2 <&> gen3 <&> gen4 <&> gen5 <&> gen6 <&> gen7 <&> gen8 <&> gen9).map(fn.tupled)
 
   /**
    * Zips the specified generators together pairwise. The new generator will
@@ -1005,10 +989,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   )(
     fn: (A, B, C, D, F, G, H, I, J, K) => L
   ): Gen[R, L] =
-    (gen1 <&> gen2 <&> gen3 <&> gen4 <&> gen5 <&> gen6 <&> gen7 <&> gen8 <&> gen9 <&> gen10).map {
-      case (((((((((a, b), c), d), f), g), h), i), j), k) =>
-        fn(a, b, c, d, f, g, h, i, j, k)
-    }
+    (gen1 <&> gen2 <&> gen3 <&> gen4 <&> gen5 <&> gen6 <&> gen7 <&> gen8 <&> gen9 <&> gen10).map(fn.tupled)
 
   /**
    * Restricts an integer to the specified range.

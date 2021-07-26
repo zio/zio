@@ -12,7 +12,7 @@ import java.util.concurrent.TimeUnit
 @Warmup(iterations = 15, timeUnit = TimeUnit.SECONDS, time = 3)
 @Fork(1)
 class TArrayOpsBenchmarks {
-  import IOBenchmarks.unsafeRun
+  import BenchmarkUtil.unsafeRun
 
   @Param(Array("10", "100", "1000", "10000", "100000"))
   var size: Int = _

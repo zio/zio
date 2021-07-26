@@ -3,20 +3,38 @@ package zio.test
 import zio.durationInt
 import zio.test.SmartTestTypes._
 import zio.test.environment.TestClock
+import zio.{Chunk, NonEmptyChunk}
 
 import java.time.LocalDateTime
 import scala.collection.immutable.SortedSet
 
 object SmartAssertionSpec extends ZIOBaseSpec {
 
-  // Switch TestAspect.failing to TestAspect.identity to easily preview
-  // the error messages.
+  /* Developer Note:
+   *
+   * Switch TestAspect.failing to TestAspect.identity to easily preview
+   * the error messages.
+   */
   val failing: TestAspectPoly = TestAspect.failing
 
-  val company: Company = Company("Ziverge", List(User("Bobo", List.tabulate(2)(n => Post(s"Post #$n")))))
+  private val company: Company = Company("Ziverge", List(User("Bobo", List.tabulate(2)(n => Post(s"Post #$n")))))
 
   def spec: ZSpec[Environment, Failure] = suite("SmartAssertionSpec")(
-    test("Head") {
+    suite("Array")(
+      suite("==")(
+        test("success") {
+          val a1 = Array(1, 2, 3)
+          val a2 = Array(1, 2, 3)
+          assertTrue(a1 == a2)
+        },
+        test("failure") {
+          val a1 = Array(1, 2, 3)
+          val a2 = Array(1, 3, 2)
+          assertTrue(a1 == a2)
+        } @@ failing
+      )
+    ),
+    test("multiple assertions") {
       val array = Array(1, 8, 2, 3, 888)
       assertTrue(
         !(array(0) == 1),
@@ -127,7 +145,7 @@ object SmartAssertionSpec extends ZIOBaseSpec {
       val list = Some(List(1, 8, 132, 83))
       assertTrue(list.get.contains(78))
     } @@ failing,
-    testM("sleep delays effect until time is adjusted") {
+    test("sleep delays effect until time is adjusted") {
       for {
         ref    <- zio.Ref.make(false)
         _      <- ref.set(true).delay(10.hours).fork
@@ -237,7 +255,6 @@ object SmartAssertionSpec extends ZIOBaseSpec {
     } @@ TestAspect.tag("IMPORTANT") @@ failing,
     test("hasIntersection must succeed when intersection satisfies specified assertion") {
       val seq = Seq(1, 2, 3, 4, 5)
-
       assertTrue(seq.intersect(Seq(4, 5, 6, 7, 8)).length == 108)
     } @@ TestAspect.tag("IMPORTANT") @@ failing,
     test("hasIntersection must succeed when empty intersection satisfies specified assertion") {
@@ -247,7 +264,6 @@ object SmartAssertionSpec extends ZIOBaseSpec {
       val result = 1
       assertTrue {
         def cool(int: Int) = int * 3
-
         cool(result) > 400
       }
     } @@ failing,
@@ -271,7 +287,7 @@ object SmartAssertionSpec extends ZIOBaseSpec {
     test("hasAt must fail when an index is outside of a sequence range") {
       assertTrue(!(Seq(1, 2, 3)(2) == 3))
     } @@ failing,
-    testM("check") {
+    test("check") {
       check(Gen.anyInt) { int =>
         assertTrue(int < 800)
       }
@@ -280,11 +296,97 @@ object SmartAssertionSpec extends ZIOBaseSpec {
       test("No implicit Diff") {
         val int = 100
         assertTrue(int == 200)
-      } @@ failing,
+      }
+        @@ failing,
       test("With implicit Diff") {
         val string = "Sunday Everyday"
         assertTrue(string == "Saturday Todays")
+      } @@ failing,
+      test("List diffs") {
+        val l1 = List("Alpha", "This is a wonderful way to dance and party", "Potato")
+        val l2 = List("Alpha", "This is a wonderful way to live and die", "Potato", "Bruce Lee", "Potato", "Ziverge")
+        assertTrue(l1 == l2)
+      } @@ failing,
+      test("Array diffs") {
+        val l1 = Array("Alpha", "This is a wonderful way to dance and party", "Potato")
+        val l2 = Array("Alpha", "This is a wonderful way to live and die", "Potato", "Bruce Lee", "Potato", "Ziverge")
+        assertTrue(l1 == l2)
+      } @@ failing,
+      test("Chunk diffs") {
+        val l1 = Chunk("Alpha", "This is a wonderful way to dance and party", "Potato")
+        val l2 = Chunk("Alpha", "This is a wonderful way to live and die", "Potato", "Bruce Lee", "Potato", "Ziverge")
+        assertTrue(l1 == l2)
+      } @@ failing,
+      test("NonEmptyChunk diffs") {
+        val l1 = NonEmptyChunk("Alpha", "This is a wonderful way to dance and party", "Potato")
+        val l2 =
+          NonEmptyChunk("Alpha", "This is a wonderful way to live and die", "Potato", "Bruce Lee", "Potato", "Ziverge")
+        assertTrue(l1 == l2)
+      } @@ failing,
+      test("Set diffs") {
+        val l1 = Set(1, 2, 3, 4)
+        val l2 = Set(1, 2, 8, 4, 5)
+        assertTrue(l1 == l2)
+      } @@ failing
+    ),
+    test("Package qualified identifiers") {
+      assertTrue(zio.Duration.fromNanos(0) == zio.Duration.Zero)
+    },
+    suite("isInstanceOf")(
+      test("success") {
+        val res = MyClass("coo")
+        assertTrue(res.isInstanceOf[MyClass])
+      },
+      test("failure") {
+        val res: Any = OtherClass("")
+        assertTrue(res.isInstanceOf[MyClass])
+      } @@ failing
+    ),
+    suite("asInstanceOf")(
+      test("success") {
+        val res: Color = Red(12)
+        assertTrue(res.asInstanceOf[Red].foo > 10)
+      },
+      test("failure") {
+        val res: Color = Blue("Hello")
+        assertTrue(res.asInstanceOf[Red].foo > 10)
+      } @@ failing
+    ),
+    suite("Map")(
+      suite(".apply")(
+        test("success") {
+          val map = Map("one" -> 1, "two" -> 2)
+          assertTrue(map("one") < 3)
+        },
+        test("failure") {
+          val map = Map("one" -> 1, "two" -> 2)
+          assertTrue(map("zero") < 3)
+        } @@ failing
+      )
+    ),
+    suite("subtype option")(
+      test("success") {
+        trait Parent
+        case class Child(x: String) extends Parent
+        val someParent: Option[Parent] = Some(Child("hii"))
+        val someChild                  = Child("hii")
+        assertTrue(someParent.contains(someChild))
+      },
+      test("failure") {
+        trait Parent
+        case class Child(x: String) extends Parent
+        val someParent: Option[Parent] = None
+        val someChild                  = Child("hii")
+        assertTrue(someParent.contains(someChild))
       } @@ failing
     )
   )
+
+  // Test Types
+  private sealed trait Color
+  private final case class Red(foo: Int)     extends Color
+  private final case class Blue(bar: String) extends Color
+
+  private final case class MyClass(name: String)
+  private final case class OtherClass(name: String)
 }

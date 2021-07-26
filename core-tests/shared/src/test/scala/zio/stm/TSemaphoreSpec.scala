@@ -8,7 +8,7 @@ import zio.test._
 object TSemaphoreSpec extends ZIOBaseSpec {
   override def spec: ZSpec[Environment, Failure] = suite("TSemaphore")(
     suite("factories")(
-      testM("make") {
+      test("make") {
         checkM(Gen.long(1L, Int.MaxValue)) { expected =>
           val actual = for {
             sem <- TSemaphore.make(expected)
@@ -20,7 +20,7 @@ object TSemaphoreSpec extends ZIOBaseSpec {
       }
     ),
     suite("acquire and release")(
-      testM("acquiring and releasing a permit should not change the availability") {
+      test("acquiring and releasing a permit should not change the availability") {
         checkM(Gen.long(1L, Int.MaxValue)) { expected =>
           val actual = for {
             sem <- TSemaphore.make(expected)
@@ -30,7 +30,7 @@ object TSemaphoreSpec extends ZIOBaseSpec {
           assertM(actual.commit)(equalTo(expected))
         }
       },
-      testM("used capacity must be equal to the # of acquires minus # of releases") {
+      test("used capacity must be equal to the # of acquires minus # of releases") {
         checkM(usedCapacityGen) { case (capacity, acquire, release) =>
           val actual = for {
             sem <- TSemaphore.make(capacity)
@@ -42,7 +42,7 @@ object TSemaphoreSpec extends ZIOBaseSpec {
           assertM(actual.commit)(equalTo(capacity - usedCapacity))
         }
       },
-      testM("acquireN/releaseN(n) is acquire/release repeated N times") {
+      test("acquireN/releaseN(n) is acquire/release repeated N times") {
         checkM(Gen.long(1, 100)) { capacity =>
           def acquireRelease(
             sem: TSemaphore
@@ -65,7 +65,7 @@ object TSemaphoreSpec extends ZIOBaseSpec {
           }
         }
       },
-      testM("withPermit automatically releases the permit if the effect is interrupted") {
+      test("withPermit automatically releases the permit if the effect is interrupted") {
         for {
           promise   <- Promise.make[Nothing, Unit]
           semaphore <- TSemaphore.make(1).commit
@@ -76,7 +76,7 @@ object TSemaphoreSpec extends ZIOBaseSpec {
           permits   <- semaphore.permits.get.commit
         } yield assert(permits)(equalTo(1L))
       } @@ nonFlaky,
-      testM("withPermit acquire is interruptible") {
+      test("withPermit acquire is interruptible") {
         for {
           semaphore <- TSemaphore.make(0L).commit
           effect     = semaphore.withPermit(ZIO.unit)

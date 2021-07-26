@@ -47,7 +47,7 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
    */
   final def <*>[R1 <: R, E1 >: E, I1 <: I, L1 >: L, Z1, Z2](
     that: ZSink[R1, E1, I1, L1, Z1]
-  )(implicit ev: L <:< I1): ZSink[R1, E1, I1, L1, (Z, Z1)] =
+  )(implicit zippable: Zippable[Z, Z1], ev: L <:< I1): ZSink[R1, E1, I1, L1, zippable.Out] =
     zip(that)
 
   /**
@@ -55,7 +55,7 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
    */
   final def <&>[R1 <: R, E1 >: E, I1 <: I, L1 >: L, Z1](
     that: ZSink[R1, E1, I1, L1, Z1]
-  ): ZSink[R1, E1, I1, L1, (Z, Z1)] =
+  )(implicit zippable: Zippable[Z, Z1]): ZSink[R1, E1, I1, L1, zippable.Out] =
     self.zipPar(that)
 
   /**
@@ -396,8 +396,8 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
    */
   final def zip[R1 <: R, E1 >: E, I1 <: I, L1 >: L, Z1, Z2](
     that: ZSink[R1, E1, I1, L1, Z1]
-  )(implicit ev: L <:< I1): ZSink[R1, E1, I1, L1, (Z, Z1)] =
-    zipWith(that)((_, _))
+  )(implicit zippable: Zippable[Z, Z1], ev: L <:< I1): ZSink[R1, E1, I1, L1, zippable.Out] =
+    zipWith(that)(zippable.zip(_, _))
 
   /**
    * Like [[zip]], but keeps only the result from the `that` sink.
@@ -412,8 +412,8 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
    */
   final def zipPar[R1 <: R, E1 >: E, I1 <: I, L1 >: L, Z1](
     that: ZSink[R1, E1, I1, L1, Z1]
-  ): ZSink[R1, E1, I1, L1, (Z, Z1)] =
-    zipWithPar(that)((_, _))
+  )(implicit zippable: Zippable[Z, Z1]): ZSink[R1, E1, I1, L1, zippable.Out] =
+    zipWithPar(that)(zippable.zip(_, _))
 
   /**
    * Like [[zipPar]], but keeps only the result from this sink.

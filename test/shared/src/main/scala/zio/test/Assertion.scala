@@ -469,7 +469,7 @@ object Assertion extends AssertionVariants {
    * assertion.
    */
   def isFailure(assertion: Assertion[Throwable]): Assertion[Try[Any]] =
-    Assertion.assertionRec("isSuccess")(param(assertion))(assertion) {
+    Assertion.assertionRec("isFailure")(param(assertion))(assertion) {
       case Failure(a) => Some(a)
       case Success(_) => None
     }
@@ -501,6 +501,15 @@ object Assertion extends AssertionVariants {
     Assertion.assertion("isInterrupted")() {
       case Exit.Failure(cause) => cause.interrupted
       case _                   => false
+    }
+
+  /**
+   * Makes a new assertion that requires an exit value to be interrupted.
+   */
+  def isJustInterrupted: Assertion[Exit[Any, Any]] =
+    Assertion.assertion("isJustInterrupted")() {
+      case Exit.Failure(Cause.Interrupt(_)) => true
+      case _                                => false
     }
 
   /**

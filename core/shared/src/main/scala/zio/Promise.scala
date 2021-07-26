@@ -39,7 +39,7 @@ import java.util.concurrent.atomic.AtomicReference
  */
 final class Promise[E, A] private (
   private val state: AtomicReference[Promise.internal.State[E, A]],
-  blockingOn: List[Fiber.Id]
+  blockingOn: Fiber.Id
 ) extends Serializable {
 
   /**
@@ -259,5 +259,5 @@ object Promise {
     make[E, A].toManaged
 
   private[zio] def unsafeMake[E, A](fiberId: Fiber.Id): Promise[E, A] =
-    new Promise[E, A](new AtomicReference[State[E, A]](new internal.Pending[E, A](Nil)), fiberId :: Nil)
+    new Promise[E, A](new AtomicReference[State[E, A]](new internal.Pending[E, A](Nil)), fiberId)
 }

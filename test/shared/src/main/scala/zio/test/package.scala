@@ -40,7 +40,7 @@ import scala.util.Try
  *
  *  object MyTest extends DefaultRunnableSpec {
  *    def spec = suite("clock")(
- *      testM("time is non-zero") {
+ *      test("time is non-zero") {
  *        assertM(Live.live(nanoTime))(isGreaterThan(0))
  *      }
  *    )
@@ -210,7 +210,7 @@ package object test extends CompileVariants {
   def check[R <: Has[TestConfig], A, B, C](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
     test: (A, B, C) => TestResult
   ): URIO[R, TestResult] =
-    check(rv1 <*> rv2 <*> rv3)(reassociate(test))
+    check(rv1 <*> rv2 <*> rv3)(test.tupled)
 
   /**
    * A version of `check` that accepts four random variables.
@@ -218,7 +218,7 @@ package object test extends CompileVariants {
   def check[R <: Has[TestConfig], A, B, C, D](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D])(
     test: (A, B, C, D) => TestResult
   ): URIO[R, TestResult] =
-    check(rv1 <*> rv2 <*> rv3 <*> rv4)(reassociate(test))
+    check(rv1 <*> rv2 <*> rv3 <*> rv4)(test.tupled)
 
   /**
    * A version of `check` that accepts five random variables.
@@ -232,7 +232,7 @@ package object test extends CompileVariants {
   )(
     test: (A, B, C, D, F) => TestResult
   ): URIO[R, TestResult] =
-    check(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5)(reassociate(test))
+    check(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5)(test.tupled)
 
   /**
    * A version of `check` that accepts six random variables.
@@ -247,7 +247,7 @@ package object test extends CompileVariants {
   )(
     test: (A, B, C, D, F, G) => TestResult
   ): URIO[R, TestResult] =
-    check(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6)(reassociate(test))
+    check(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6)(test.tupled)
 
   /**
    * Checks the effectual test passes for "sufficient" numbers of samples from
@@ -272,7 +272,7 @@ package object test extends CompileVariants {
   def checkM[R <: Has[TestConfig], R1 <: R, E, A, B, C](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
     test: (A, B, C) => ZIO[R1, E, TestResult]
   ): ZIO[R1, E, TestResult] =
-    checkM(rv1 <*> rv2 <*> rv3)(reassociate(test))
+    checkM(rv1 <*> rv2 <*> rv3)(test.tupled)
 
   /**
    * A version of `checkM` that accepts four random variables.
@@ -285,7 +285,7 @@ package object test extends CompileVariants {
   )(
     test: (A, B, C, D) => ZIO[R1, E, TestResult]
   ): ZIO[R1, E, TestResult] =
-    checkM(rv1 <*> rv2 <*> rv3 <*> rv4)(reassociate(test))
+    checkM(rv1 <*> rv2 <*> rv3 <*> rv4)(test.tupled)
 
   /**
    * A version of `checkM` that accepts five random variables.
@@ -299,7 +299,7 @@ package object test extends CompileVariants {
   )(
     test: (A, B, C, D, F) => ZIO[R1, E, TestResult]
   ): ZIO[R1, E, TestResult] =
-    checkM(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5)(reassociate(test))
+    checkM(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5)(test.tupled)
 
   /**
    * A version of `checkM` that accepts six random variables.
@@ -314,7 +314,7 @@ package object test extends CompileVariants {
   )(
     test: (A, B, C, D, F, G) => ZIO[R1, E, TestResult]
   ): ZIO[R1, E, TestResult] =
-    checkM(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6)(reassociate(test))
+    checkM(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6)(test.tupled)
 
   /**
    * Checks the test passes for all values from the given random variable. This
@@ -338,7 +338,7 @@ package object test extends CompileVariants {
   def checkAll[R <: Has[TestConfig], A, B, C](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
     test: (A, B, C) => TestResult
   ): URIO[R, TestResult] =
-    checkAll(rv1 <*> rv2 <*> rv3)(reassociate(test))
+    checkAll(rv1 <*> rv2 <*> rv3)(test.tupled)
 
   /**
    * A version of `checkAll` that accepts four random variables.
@@ -346,7 +346,7 @@ package object test extends CompileVariants {
   def checkAll[R <: Has[TestConfig], A, B, C, D](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D])(
     test: (A, B, C, D) => TestResult
   ): URIO[R, TestResult] =
-    checkAll(rv1 <*> rv2 <*> rv3 <*> rv4)(reassociate(test))
+    checkAll(rv1 <*> rv2 <*> rv3 <*> rv4)(test.tupled)
 
   /**
    * A version of `checkAll` that accepts five random variables.
@@ -360,7 +360,7 @@ package object test extends CompileVariants {
   )(
     test: (A, B, C, D, F) => TestResult
   ): URIO[R, TestResult] =
-    checkAll(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5)(reassociate(test))
+    checkAll(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5)(test.tupled)
 
   /**
    * A version of `checkAll` that accepts six random variables.
@@ -375,7 +375,7 @@ package object test extends CompileVariants {
   )(
     test: (A, B, C, D, F, G) => TestResult
   ): URIO[R, TestResult] =
-    checkAll(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6)(reassociate(test))
+    checkAll(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6)(test.tupled)
 
   /**
    * Checks the effectual test passes for all values from the given random
@@ -401,7 +401,7 @@ package object test extends CompileVariants {
   def checkAllM[R <: Has[TestConfig], R1 <: R, E, A, B, C](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
     test: (A, B, C) => ZIO[R1, E, TestResult]
   ): ZIO[R1, E, TestResult] =
-    checkAllM(rv1 <*> rv2 <*> rv3)(reassociate(test))
+    checkAllM(rv1 <*> rv2 <*> rv3)(test.tupled)
 
   /**
    * A version of `checkAllM` that accepts four random variables.
@@ -414,7 +414,7 @@ package object test extends CompileVariants {
   )(
     test: (A, B, C, D) => ZIO[R1, E, TestResult]
   ): ZIO[R1, E, TestResult] =
-    checkAllM(rv1 <*> rv2 <*> rv3 <*> rv4)(reassociate(test))
+    checkAllM(rv1 <*> rv2 <*> rv3 <*> rv4)(test.tupled)
 
   /**
    * A version of `checkAllM` that accepts five random variables.
@@ -428,7 +428,7 @@ package object test extends CompileVariants {
   )(
     test: (A, B, C, D, F) => ZIO[R1, E, TestResult]
   ): ZIO[R1, E, TestResult] =
-    checkAllM(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5)(reassociate(test))
+    checkAllM(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5)(test.tupled)
 
   /**
    * A version of `checkAllM` that accepts six random variables.
@@ -443,7 +443,7 @@ package object test extends CompileVariants {
   )(
     test: (A, B, C, D, F, G) => ZIO[R1, E, TestResult]
   ): ZIO[R1, E, TestResult] =
-    checkAllM(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6)(reassociate(test))
+    checkAllM(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6)(test.tupled)
 
   /**
    * Checks in parallel the effectual test passes for all values from the given random
@@ -474,7 +474,7 @@ package object test extends CompileVariants {
   )(
     test: (A, B, C) => ZIO[R1, E, TestResult]
   ): ZIO[R1, E, TestResult] =
-    checkAllMPar(rv1 <*> rv2 <*> rv3, parallelism)(reassociate(test))
+    checkAllMPar(rv1 <*> rv2 <*> rv3, parallelism)(test.tupled)
 
   /**
    * A version of `checkAllMPar` that accepts four random variables.
@@ -488,7 +488,7 @@ package object test extends CompileVariants {
   )(
     test: (A, B, C, D) => ZIO[R1, E, TestResult]
   ): ZIO[R1, E, TestResult] =
-    checkAllMPar(rv1 <*> rv2 <*> rv3 <*> rv4, parallelism)(reassociate(test))
+    checkAllMPar(rv1 <*> rv2 <*> rv3 <*> rv4, parallelism)(test.tupled)
 
   /**
    * A version of `checkAllMPar` that accepts five random variables.
@@ -503,7 +503,7 @@ package object test extends CompileVariants {
   )(
     test: (A, B, C, D, F) => ZIO[R1, E, TestResult]
   ): ZIO[R1, E, TestResult] =
-    checkAllMPar(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5, parallelism)(reassociate(test))
+    checkAllMPar(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5, parallelism)(test.tupled)
 
   /**
    * A version of `checkAllMPar` that accepts six random variables.
@@ -519,7 +519,7 @@ package object test extends CompileVariants {
   )(
     test: (A, B, C, D, F, G) => ZIO[R1, E, TestResult]
   ): ZIO[R1, E, TestResult] =
-    checkAllMPar(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6, parallelism)(reassociate(test))
+    checkAllMPar(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6, parallelism)(test.tupled)
 
   /**
    * Checks the test passes for the specified number of samples from the given
@@ -567,27 +567,22 @@ package object test extends CompileVariants {
    * Builds a suite containing a number of other specs.
    */
   def suite[R, E, T](label: String)(specs: Spec[R, E, T]*): Spec[R, E, T] =
-    Spec.suite(label, ZManaged.succeedNow(specs.toVector), None)
+    Spec.labeled(label, Spec.multiple(Chunk.fromIterable(specs)))
 
   /**
    * Builds an effectual suite containing a number of other specs.
    */
   def suiteM[R, E, T](label: String)(specs: ZIO[R, E, Iterable[Spec[R, E, T]]]): Spec[R, E, T] =
-    Spec.suite(label, specs.map(_.toVector).toManaged, None)
+    Spec.labeled(label, Spec.managed(specs.map(specs => Spec.multiple(Chunk.fromIterable(specs))).toManaged))
 
   /**
-   * Builds a spec with a single pure test.
+   * Builds a spec with a single test.
    */
-  def test(label: String)(assertion: => TestResult)(implicit loc: SourceLocation): ZSpec[Any, Nothing] =
-    testM(label)(ZIO.succeed(assertion))
-
-  /**
-   * Builds a spec with a single effectful test.
-   */
-  def testM[R, E](label: String)(assertion: => ZIO[R, E, TestResult])(implicit loc: SourceLocation): ZSpec[R, E] =
-    Spec
-      .test(label, ZTest(assertion), TestAnnotationMap.empty)
-      .annotate(TestAnnotation.location, loc :: Nil)
+  def test[In](label: String)(assertion: => In)(implicit
+    testConstructor: TestConstructor[Nothing, In],
+    sourceLocation: SourceLocation
+  ): testConstructor.Out =
+    testConstructor(label)(assertion)
 
   /**
    * Passes version specific information to the specified function, which will
@@ -611,11 +606,11 @@ package object test extends CompileVariants {
       def apply[R <: Has[TestConfig], A, B, C](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
         test: (A, B, C) => TestResult
       ): URIO[R, TestResult] =
-        checkN(n)(rv1 <*> rv2 <*> rv3)(reassociate(test))
+        checkN(n)(rv1 <*> rv2 <*> rv3)(test.tupled)
       def apply[R <: Has[TestConfig], A, B, C, D](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D])(
         test: (A, B, C, D) => TestResult
       ): URIO[R, TestResult] =
-        checkN(n)(rv1 <*> rv2 <*> rv3 <*> rv4)(reassociate(test))
+        checkN(n)(rv1 <*> rv2 <*> rv3 <*> rv4)(test.tupled)
       def apply[R <: Has[TestConfig], A, B, C, D, F](
         rv1: Gen[R, A],
         rv2: Gen[R, B],
@@ -625,7 +620,7 @@ package object test extends CompileVariants {
       )(
         test: (A, B, C, D, F) => TestResult
       ): URIO[R, TestResult] =
-        checkN(n)(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5)(reassociate(test))
+        checkN(n)(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5)(test.tupled)
       def apply[R <: Has[TestConfig], A, B, C, D, F, G](
         rv1: Gen[R, A],
         rv2: Gen[R, B],
@@ -636,7 +631,7 @@ package object test extends CompileVariants {
       )(
         test: (A, B, C, D, F, G) => TestResult
       ): URIO[R, TestResult] =
-        checkN(n)(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6)(reassociate(test))
+        checkN(n)(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6)(test.tupled)
     }
 
     final class CheckNM(private val n: Int) extends AnyVal {
@@ -650,7 +645,7 @@ package object test extends CompileVariants {
       def apply[R <: Has[TestConfig], R1 <: R, E, A, B, C](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
         test: (A, B, C) => ZIO[R1, E, TestResult]
       ): ZIO[R1, E, TestResult] =
-        checkNM(n)(rv1 <*> rv2 <*> rv3)(reassociate(test))
+        checkNM(n)(rv1 <*> rv2 <*> rv3)(test.tupled)
       def apply[R <: Has[TestConfig], R1 <: R, E, A, B, C, D](
         rv1: Gen[R, A],
         rv2: Gen[R, B],
@@ -659,7 +654,7 @@ package object test extends CompileVariants {
       )(
         test: (A, B, C, D) => ZIO[R1, E, TestResult]
       ): ZIO[R1, E, TestResult] =
-        checkNM(n)(rv1 <*> rv2 <*> rv3 <*> rv4)(reassociate(test))
+        checkNM(n)(rv1 <*> rv2 <*> rv3 <*> rv4)(test.tupled)
       def apply[R <: Has[TestConfig], R1 <: R, E, A, B, C, D, F](
         rv1: Gen[R, A],
         rv2: Gen[R, B],
@@ -669,7 +664,7 @@ package object test extends CompileVariants {
       )(
         test: (A, B, C, D, F) => ZIO[R1, E, TestResult]
       ): ZIO[R1, E, TestResult] =
-        checkNM(n)(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5)(reassociate(test))
+        checkNM(n)(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5)(test.tupled)
       def apply[R <: Has[TestConfig], R1 <: R, E, A, B, C, D, F, G](
         rv1: Gen[R, A],
         rv2: Gen[R, B],
@@ -680,7 +675,7 @@ package object test extends CompileVariants {
       )(
         test: (A, B, C, D, F, G) => ZIO[R1, E, TestResult]
       ): ZIO[R1, E, TestResult] =
-        checkNM(n)(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6)(reassociate(test))
+        checkNM(n)(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6)(test.tupled)
     }
   }
 
@@ -744,20 +739,4 @@ package object test extends CompileVariants {
           .catchAll(ZStream.succeed(_))
       }
     }
-
-  private def reassociate[A, B, C, D](fn: (A, B, C) => D): (((A, B), C)) => D = { case ((a, b), c) =>
-    fn(a, b, c)
-  }
-
-  private def reassociate[A, B, C, D, E](fn: (A, B, C, D) => E): ((((A, B), C), D)) => E = { case (((a, b), c), d) =>
-    fn(a, b, c, d)
-  }
-
-  private def reassociate[A, B, C, D, E, F](fn: (A, B, C, D, E) => F): (((((A, B), C), D), E)) => F = {
-    case ((((a, b), c), d), e) => fn(a, b, c, d, e)
-  }
-
-  private def reassociate[A, B, C, D, E, F, G](fn: (A, B, C, D, E, F) => G): ((((((A, B), C), D), E), F)) => G = {
-    case (((((a, b), c), d), e), f) => fn(a, b, c, d, e, f)
-  }
 }

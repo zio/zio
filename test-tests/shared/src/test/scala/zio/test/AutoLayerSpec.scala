@@ -16,33 +16,33 @@ object AutoLayerSpec extends ZIOBaseSpec {
           val doubleLayer = ZLayer.succeed(100.1)
           val stringLayer = ZLayer.succeed("this string is 28 chars long")
           val intLayer    = ZIO.services[String, Double].map { case (str, double) => str.length + double.toInt }.toLayer
-          testM("automatically constructs a layer from its dependencies") {
+          test("automatically constructs a layer from its dependencies") {
             val program = ZIO.service[Int]
             assertM(program)(equalTo(128))
           }.inject(doubleLayer, stringLayer, intLayer)
         },
-        testM("reports missing top-level layers") {
+        test("reports missing top-level layers") {
           val program: URIO[Has[String] with Has[Int], String] = UIO("test")
           val _                                                = program
           val checked =
-            typeCheck("""testM("foo")(assertM(program)(anything)).inject(ZLayer.succeed(3))""")
+            typeCheck("""test("foo")(assertM(program)(anything)).inject(ZLayer.succeed(3))""")
           assertM(checked)(isLeft(containsStringWithoutAnsi("missing String")))
         } @@ TestAspect.exceptDotty,
-        testM("reports multiple missing top-level layers") {
+        test("reports multiple missing top-level layers") {
           val program: URIO[Has[String] with Has[Int], String] = UIO("test")
           val _                                                = program
 
-          val checked = typeCheck("""testM("foo")(assertM(program)(anything)).inject()""")
+          val checked = typeCheck("""test("foo")(assertM(program)(anything)).inject()""")
           assertM(checked)(
             isLeft(containsStringWithoutAnsi("missing String") && containsStringWithoutAnsi("missing Int"))
           )
         } @@ TestAspect.exceptDotty,
-        testM("reports missing transitive dependencies") {
+        test("reports missing transitive dependencies") {
           import TestLayers._
           val program: URIO[Has[OldLady], Boolean] = ZIO.service[OldLady].flatMap(_.willDie)
           val _                                    = program
 
-          val checked = typeCheck("""testM("foo")(assertM(program)(anything)).inject(OldLady.live)""")
+          val checked = typeCheck("""test("foo")(assertM(program)(anything)).inject(OldLady.live)""")
           assertM(checked)(
             isLeft(
               containsStringWithoutAnsi("missing zio.test.AutoLayerSpec.TestLayers.Fly") &&
@@ -50,13 +50,13 @@ object AutoLayerSpec extends ZIOBaseSpec {
             )
           )
         } @@ TestAspect.exceptDotty,
-        testM("reports nested missing transitive dependencies") {
+        test("reports nested missing transitive dependencies") {
           import TestLayers._
           val program: URIO[Has[OldLady], Boolean] = ZIO.service[OldLady].flatMap(_.willDie)
           val _                                    = program
 
           val checked =
-            typeCheck("""testM("foo")(assertM(program)(anything)).inject(OldLady.live, Fly.live)""")
+            typeCheck("""test("foo")(assertM(program)(anything)).inject(OldLady.live, Fly.live)""")
           assertM(checked)(
             isLeft(
               containsStringWithoutAnsi("missing zio.test.AutoLayerSpec.TestLayers.Spider") &&
@@ -64,14 +64,14 @@ object AutoLayerSpec extends ZIOBaseSpec {
             )
           )
         } @@ TestAspect.exceptDotty,
-        testM("reports circular dependencies") {
+        test("reports circular dependencies") {
           import TestLayers._
           val program: URIO[Has[OldLady], Boolean] = ZIO.service[OldLady].flatMap(_.willDie)
           val _                                    = program
 
           val checked =
             typeCheck(
-              """testM("foo")(assertM(program)(anything)).inject(OldLady.live, Fly.manEatingFly)"""
+              """test("foo")(assertM(program)(anything)).inject(OldLady.live, Fly.manEatingFly)"""
             )
           assertM(checked)(
             isLeft(
@@ -87,12 +87,12 @@ object AutoLayerSpec extends ZIOBaseSpec {
 
         suite("layer is shared between tests and suites")(
           suite("suite 1")(
-            testM("test 1")(assertM(addOne)(equalTo(1))),
-            testM("test 2")(assertM(addOne)(equalTo(2)))
+            test("test 1")(assertM(addOne)(equalTo(1))),
+            test("test 2")(assertM(addOne)(equalTo(2)))
           ),
           suite("suite 2")(
-            testM("test 3")(assertM(addOne)(equalTo(3))),
-            testM("test 4")(assertM(addOne)(equalTo(4)))
+            test("test 3")(assertM(addOne)(equalTo(3))),
+            test("test 4")(assertM(addOne)(equalTo(4)))
           )
         ).injectShared(refLayer) @@ TestAspect.sequential
       }

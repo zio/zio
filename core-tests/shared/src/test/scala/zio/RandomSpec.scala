@@ -13,7 +13,7 @@ object RandomSpec extends ZIOBaseSpec {
     (l, r) => java.lang.Float.compare(l, r)
 
   def spec: ZSpec[Environment, Failure] = suite("RandomSpec")(
-    testM("nextDoubleBetween generates doubles in specified range") {
+    test("nextDoubleBetween generates doubles in specified range") {
       checkM(genDoubles) { case (min, max) =>
         for {
           n <- Live.live(Random.nextDoubleBetween(min, max))
@@ -21,7 +21,7 @@ object RandomSpec extends ZIOBaseSpec {
           assert(n)(isLessThan(max))
       }
     },
-    testM("nextFloatBetween generates floats in specified range") {
+    test("nextFloatBetween generates floats in specified range") {
       checkM(genFloats) { case (min, max) =>
         for {
           n <- Live.live(Random.nextFloatBetween(min, max))
@@ -29,7 +29,7 @@ object RandomSpec extends ZIOBaseSpec {
           assert(n)(isLessThan(max))
       }
     },
-    testM("nextIntBetween generates integers in specified range") {
+    test("nextIntBetween generates integers in specified range") {
       checkM(genInts) { case (min, max) =>
         for {
           n <- Live.live(Random.nextIntBetween(min, max))
@@ -37,7 +37,7 @@ object RandomSpec extends ZIOBaseSpec {
           assert(n)(isLessThan(max))
       }
     },
-    testM("nextLongBetween generates longs in specified range") {
+    test("nextLongBetween generates longs in specified range") {
       checkM(genLongs) { case (min, max) =>
         for {
           n <- Live.live(Random.nextLongBetween(min, max))
@@ -45,7 +45,7 @@ object RandomSpec extends ZIOBaseSpec {
           assert(n)(isLessThan(max))
       }
     },
-    testM("nextUUID generates universally unique identifiers") {
+    test("nextUUID generates universally unique identifiers") {
       check(Gen.fromZIO(Live.live(Random.nextUUID))) { uuid =>
         assert(uuid.variant)(equalTo(2))
       }

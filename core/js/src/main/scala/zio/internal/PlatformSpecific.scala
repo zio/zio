@@ -71,26 +71,21 @@ private[internal] trait PlatformSpecific {
    * Creates a platform from an `Executor`.
    */
   final def fromExecutor(executor0: Executor): Platform =
-    new Platform {
-      val blockingExecutor = executor0
-
-      val executor = executor0
-
-      def fatal(t: Throwable): Boolean = false
-
-      def reportFatal(t: Throwable): Nothing = {
+    Platform(
+      blockingExecutor = executor0,
+      executor = executor0,
+      fatal = (_: Throwable) => false,
+      reportFatal = (t: Throwable) => {
         t.printStackTrace()
         throw t
-      }
-
-      def reportFailure(cause: Cause[Any]): Unit =
+      },
+      reportFailure = (cause: Cause[Any]) =>
         if (cause.died)
-          println(cause.prettyPrint)
-
-      val tracing = Tracing(Tracer.Empty, TracingConfig.disabled)
-
-      val supervisor = Supervisor.none
-    }
+          println(cause.prettyPrint),
+      tracing = Tracing(Tracer.Empty, TracingConfig.disabled),
+      supervisor = Supervisor.none,
+      enableCurrentFiber = false
+    )
 
   /**
    * Creates a Platform from an execution context.

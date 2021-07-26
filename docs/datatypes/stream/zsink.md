@@ -90,7 +90,7 @@ val stream: ZIO[Has[Clock], Nothing, Long] =
 
 ```scala mdoc:silent:nest
 val printer: ZSink[Has[Console], IOException, Int, Int, Unit] =
-  ZSink.foreach((i: Int) => printLine(i.toString))
+  ZSink.foreach((i: Int) => printLine(i))
 val stream : ZIO[Has[Console], IOException, Unit]             =
   ZStream(1, 2, 3, 4, 5).run(printer)
 ```
@@ -204,7 +204,7 @@ val myApp: ZIO[Has[Console] with Has[Clock], IOException, Unit] =
       .fixed(200.millis)
       .run(ZSink.fromQueue(queue))
       .fork
-    consumer <- queue.take.flatMap(x => printLine(x.toString)).forever
+    consumer <- queue.take.flatMap(printLine(_)).forever
     _        <- producer.zip(consumer).join
   } yield ()
 ```
@@ -391,7 +391,7 @@ val kafkaSink: ZSink[Any, Throwable, Record, Record, Unit] =
 val pulsarSink: ZSink[Any, Throwable, Record, Record, Unit] =
   ZSink.foreach[Any, Throwable, Record](record => ZIO.attempt(???))
 
-val stream: ZSink[Any, Throwable, Record, Record, (Unit, Unit)] =
+val stream: ZSink[Any, Throwable, Record, Record, Unit] =
   kafkaSink zipPar pulsarSink 
 ```
 

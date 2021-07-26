@@ -58,7 +58,9 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
    * Returns a new schedule that performs a geometric intersection on the intervals defined
    * by both schedules.
    */
-  def &&[Env1 <: Env, In1 <: In, Out2](that: Schedule[Env1, In1, Out2]): Schedule[Env1, In1, (Out, Out2)] =
+  def &&[Env1 <: Env, In1 <: In, Out2](that: Schedule[Env1, In1, Out2])(implicit
+    zippable: Zippable[Out, Out2]
+  ): Schedule[Env1, In1, zippable.Out] =
     (self intersectWith that)((l, r) => Schedule.maxOffsetDateTime(l, r))
 
   /**
@@ -145,7 +147,9 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
   /**
    * An operator alias for `zip`.
    */
-  def <*>[Env1 <: Env, In1 <: In, Out2](that: Schedule[Env1, In1, Out2]): Schedule[Env1, In1, (Out, Out2)] =
+  def <*>[Env1 <: Env, In1 <: In, Out2](that: Schedule[Env1, In1, Out2])(implicit
+    zippable: Zippable[Out, Out2]
+  ): Schedule[Env1, In1, zippable.Out] =
     self zip that
 
   /**
@@ -180,7 +184,9 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
    * Returns a new schedule that performs a geometric union on the intervals defined
    * by both schedules.
    */
-  def ||[Env1 <: Env, In1 <: In, Out2](that: Schedule[Env1, In1, Out2]): Schedule[Env1, In1, (Out, Out2)] =
+  def ||[Env1 <: Env, In1 <: In, Out2](that: Schedule[Env1, In1, Out2])(implicit
+    zippable: Zippable[Out, Out2]
+  ): Schedule[Env1, In1, zippable.Out] =
     (self unionWith that)((l, r) => Schedule.minOffsetDateTime(l, r))
 
   /**
@@ -321,6 +327,12 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
   }
 
   /**
+   * A schedule that recurs during the given duration
+   */
+  def upTo(duration: Duration): Schedule[Env, In, Out] =
+    self <* Schedule.upTo(duration)
+
+  /**
    * Returns a new schedule with the specified effectfully computed delay added before the start
    * of each interval produced by this schedule.
    */
@@ -458,22 +470,22 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
    */
   def intersectWith[Env1 <: Env, In1 <: In, Out2](
     that: Schedule[Env1, In1, Out2]
-  )(f: (Interval, Interval) => Interval): Schedule[Env1, In1, (Out, Out2)] = {
+  )(f: (Interval, Interval) => Interval)(implicit zippable: Zippable[Out, Out2]): Schedule[Env1, In1, zippable.Out] = {
     def loop(
       self: StepFunction[Env, In1, Out],
       that: StepFunction[Env1, In1, Out2]
-    ): StepFunction[Env1, In1, (Out, Out2)] = { (now: OffsetDateTime, in: In1) =>
+    ): StepFunction[Env1, In1, zippable.Out] = { (now: OffsetDateTime, in: In1) =>
       val left  = self(now, in)
       val right = that(now, in)
 
       (left zip right).map {
-        case (Done(l), Done(r))           => Done(l -> r)
-        case (Done(l), Continue(r, _, _)) => Done(l -> r)
-        case (Continue(l, _, _), Done(r)) => Done(l -> r)
+        case (Done(l), Done(r))           => Done(zippable.zip(l, r))
+        case (Done(l), Continue(r, _, _)) => Done(zippable.zip(l, r))
+        case (Continue(l, _, _), Done(r)) => Done(zippable.zip(l, r))
         case (Continue(l, linterval, lnext), Continue(r, rinterval, rnext)) =>
           val combined = f(linterval, rinterval)
 
-          Continue(l -> r, combined, loop(lnext, rnext))
+          Continue(zippable.zip(l, r), combined, loop(lnext, rnext))
       }
     }
 
@@ -788,24 +800,24 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
    */
   def unionWith[Env1 <: Env, In1 <: In, Out2](
     that: Schedule[Env1, In1, Out2]
-  )(f: (Interval, Interval) => Interval): Schedule[Env1, In1, (Out, Out2)] = {
+  )(f: (Interval, Interval) => Interval)(implicit zippable: Zippable[Out, Out2]): Schedule[Env1, In1, zippable.Out] = {
     def loop(
       self: StepFunction[Env, In1, Out],
       that: StepFunction[Env1, In1, Out2]
-    ): StepFunction[Env1, In1, (Out, Out2)] = { (now: OffsetDateTime, in: In1) =>
+    ): StepFunction[Env1, In1, zippable.Out] = { (now: OffsetDateTime, in: In1) =>
       val left  = self(now, in)
       val right = that(now, in)
 
       (left zip right).map {
-        case (Done(l), Done(r)) => Done(l -> r)
+        case (Done(l), Done(r)) => Done(zippable.zip(l, r))
         case (Done(l), Continue(r, rinterval, rnext)) =>
-          Continue(l -> r, rinterval, loop(StepFunction.done(l), rnext))
+          Continue(zippable.zip(l, r), rinterval, loop(StepFunction.done(l), rnext))
         case (Continue(l, linterval, lnext), Done(r)) =>
-          Continue(l -> r, linterval, loop(lnext, StepFunction.done(r)))
+          Continue(zippable.zip(l, r), linterval, loop(lnext, StepFunction.done(r)))
         case (Continue(l, linterval, lnext), Continue(r, rinterval, rnext)) =>
           val combined = f(linterval, rinterval)
 
-          Continue(l -> r, combined, loop(lnext, rnext))
+          Continue(zippable.zip(l, r), combined, loop(lnext, rnext))
       }
     }
 
@@ -905,7 +917,9 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
   /**
    * A named method for `&&`.
    */
-  def zip[Env1 <: Env, In1 <: In, Out2](that: Schedule[Env1, In1, Out2]): Schedule[Env1, In1, (Out, Out2)] =
+  def zip[Env1 <: Env, In1 <: In, Out2](that: Schedule[Env1, In1, Out2])(implicit
+    zippable: Zippable[Out, Out2]
+  ): Schedule[Env1, In1, zippable.Out] =
     self && that
 
   /**
@@ -1148,6 +1162,12 @@ object Schedule {
 
     Schedule(loop(None, 0L))
   }
+
+  /**
+   * A schedule that recurs during the given duration
+   */
+  def upTo(duration: Duration): Schedule[Any, Any, Duration] =
+    elapsed.whileOutput(_ < duration)
 
   /**
    * A schedule that always recurs, producing a count of repeats: 0, 1, 2.

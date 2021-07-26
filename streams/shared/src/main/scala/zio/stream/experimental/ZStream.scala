@@ -25,7 +25,9 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   /**
    * Symbolic alias for [[ZStream#cross]].
    */
-  final def <*>[R1 <: R, E1 >: E, A2](that: ZStream[R1, E1, A2]): ZStream[R1, E1, (A, A2)] =
+  final def <*>[R1 <: R, E1 >: E, A2](that: ZStream[R1, E1, A2])(implicit
+    zippable: Zippable[A, A2]
+  ): ZStream[R1, E1, zippable.Out] =
     self cross that
 
   /**
@@ -43,7 +45,9 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   /**
    * Symbolic alias for [[ZStream#zip]].
    */
-  final def <&>[R1 <: R, E1 >: E, A2](that: ZStream[R1, E1, A2]): ZStream[R1, E1, (A, A2)] =
+  final def <&>[R1 <: R, E1 >: E, A2](that: ZStream[R1, E1, A2])(implicit
+    zippable: Zippable[A, A2]
+  ): ZStream[R1, E1, zippable.Out] =
     self zip that
 
   /**
@@ -787,7 +791,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
       } { case (left, right, latchL, latchR) =>
         val pullLeft: IO[Option[E], A]    = latchL.offer(()) *> left.take.flatMap(ZIO.done(_))
         val pullRight: IO[Option[E1], A2] = latchR.offer(()) *> right.take.flatMap(ZIO.done(_))
-        ZStream.unfoldZIO(s)(s => f(s, pullLeft, pullRight).flatMap(ZIO.done(_).optional)).channel
+        ZStream.unfoldZIO(s)(s => f(s, pullLeft, pullRight).flatMap(ZIO.done(_).unoption)).channel
       }
     )
   }
@@ -829,7 +833,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
       } { case (left, right, latchL, latchR) =>
         val pullLeft  = latchL.offer(()) *> left.take.flatMap(_.done)
         val pullRight = latchR.offer(()) *> right.take.flatMap(_.done)
-        ZStream.unfoldChunkZIO(s)(s => f(s, pullLeft, pullRight).flatMap(ZIO.done(_).optional)).channel
+        ZStream.unfoldChunkZIO(s)(s => f(s, pullLeft, pullRight).flatMap(ZIO.done(_).unoption)).channel
       }
     )
   }
@@ -847,8 +851,10 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    *
    * See also [[ZStream#zip]] and [[ZStream#<&>]] for the more common point-wise variant.
    */
-  final def cross[R1 <: R, E1 >: E, B](that: => ZStream[R1, E1, B]): ZStream[R1, E1, (A, B)] =
-    new ZStream(self.channel.concatMap(a => that.channel.mapOut(b => a.flatMap(a => b.map(b => (a, b))))))
+  final def cross[R1 <: R, E1 >: E, B](that: => ZStream[R1, E1, B])(implicit
+    zippable: Zippable[A, B]
+  ): ZStream[R1, E1, zippable.Out] =
+    new ZStream(self.channel.concatMap(a => that.channel.mapOut(b => a.flatMap(a => b.map(b => zippable.zip(a, b))))))
 
   /**
    * Composes this stream with the specified stream to create a cartesian product of elements,
@@ -1836,7 +1842,11 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   def lock(executor: Executor): ZStream[R, E, A] =
     ZStream.fromZIO(ZIO.descriptor).flatMap { descriptor =>
       ZStream.managed(ZManaged.lock(executor)) *>
-        self <* ZStream.fromZIO(ZIO.shift(descriptor.executor))
+        self <*
+        ZStream.fromZIO {
+          if (descriptor.locked) ZIO.shift(descriptor.executor)
+          else ZIO.unshift
+        }
     }
 
   /**
@@ -3194,7 +3204,10 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    *
    * The new stream will end when one of the sides ends.
    */
-  def zip[R1 <: R, E1 >: E, A2](that: ZStream[R1, E1, A2]): ZStream[R1, E1, (A, A2)] = zipWith(that)((_, _))
+  def zip[R1 <: R, E1 >: E, A2](that: ZStream[R1, E1, A2])(implicit
+    zippable: Zippable[A, A2]
+  ): ZStream[R1, E1, zippable.Out] =
+    zipWith(that)(zippable.zip(_, _))
 
   /**
    * Zips this stream with another point-wise, creating a new stream of pairs of elements
@@ -3280,20 +3293,20 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
       case ((Running, excess), pullL, pullR) =>
         exec match {
           case ExecutionStrategy.Sequential =>
-            pullL.optional
-              .zipWith(pullR.optional)(handleSuccess(_, _, excess))
+            pullL.unoption
+              .zipWith(pullR.unoption)(handleSuccess(_, _, excess))
               .catchAllCause(e => UIO.succeedNow(Exit.failCause(e.map(Some(_)))))
           case _ =>
-            pullL.optional
-              .zipWithPar(pullR.optional)(handleSuccess(_, _, excess))
+            pullL.unoption
+              .zipWithPar(pullR.unoption)(handleSuccess(_, _, excess))
               .catchAllCause(e => UIO.succeedNow(Exit.failCause(e.map(Some(_)))))
         }
       case ((LeftDone, excess), _, pullR) =>
-        pullR.optional
+        pullR.unoption
           .map(handleSuccess(None, _, excess))
           .catchAllCause(e => UIO.succeedNow(Exit.failCause(e.map(Some(_)))))
       case ((RightDone, excess), pullL, _) =>
-        pullL.optional
+        pullL.unoption
           .map(handleSuccess(_, None, excess))
           .catchAllCause(e => UIO.succeedNow(Exit.failCause(e.map(Some(_)))))
       case ((End, _), _, _) => UIO.succeedNow(Exit.fail(None))
@@ -3343,16 +3356,16 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
       st match {
         case Running(excess) =>
           {
-            p1.optional.zipWithPar(p2.optional) { case (l, r) =>
+            p1.unoption.zipWithPar(p2.unoption) { case (l, r) =>
               handleSuccess(l, r, excess)
             }
           }.catchAllCause(e => UIO.succeedNow(Exit.failCause(e.map(Some(_)))))
         case LeftDone(excessL) =>
           {
-            p2.optional.map(handleSuccess(None, _, Left(excessL)))
+            p2.unoption.map(handleSuccess(None, _, Left(excessL)))
           }.catchAllCause(e => UIO.succeedNow(Exit.failCause(e.map(Some(_)))))
         case RightDone(excessR) => {
-          p1.optional
+          p1.unoption
             .map(handleSuccess(_, None, Right(excessR)))
             .catchAllCause(e => UIO.succeedNow(Exit.failCause(e.map(Some(_)))))
         }
@@ -4334,9 +4347,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   def zipN[R, E, A, B, C, D](zStream1: ZStream[R, E, A], zStream2: ZStream[R, E, B], zStream3: ZStream[R, E, C])(
     f: (A, B, C) => D
   ): ZStream[R, E, D] =
-    (zStream1 <&> zStream2 <&> zStream3).map { case ((a, b), c) =>
-      f(a, b, c)
-    }
+    (zStream1 <&> zStream2 <&> zStream3).map(f.tupled)
 
   /**
    * Returns an effect that executes the specified effects in parallel,
@@ -4349,9 +4360,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     zStream3: ZStream[R, E, C],
     zStream4: ZStream[R, E, D]
   )(f: (A, B, C, D) => F): ZStream[R, E, F] =
-    (zStream1 <&> zStream2 <&> zStream3 <&> zStream4).map { case (((a, b), c), d) =>
-      f(a, b, c, d)
-    }
+    (zStream1 <&> zStream2 <&> zStream3 <&> zStream4).map(f.tupled)
 
   final class AccessPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[A](f: R => A): ZStream[R, Nothing, A] =

@@ -99,7 +99,7 @@ object ReportingTestUtils {
   )
 
   val test4: Spec[Any, TestFailure[String], Nothing] =
-    Spec.test("Failing test", failed(Cause.fail("Fail")), TestAnnotationMap.empty)
+    Spec.labeled("Failing test", Spec.test(failed(Cause.fail("Fail")), TestAnnotationMap.empty))
   val test4Expected: Vector[String] = Vector(
     expectedFailure("Failing test"),
     withOffset(2)("Fiber failed.\n") +
@@ -134,7 +134,7 @@ object ReportingTestUtils {
     withOffset(2)(assertSourceLocation() + "\n")
   )
 
-  val test7: ZSpec[Any, Nothing] = testM("labeled failures") {
+  val test7: ZSpec[Any, Nothing] = test("labeled failures") {
     for {
       a <- ZIO.succeed(Some(1))
       b <- ZIO.succeed(Some(1))
@@ -248,7 +248,7 @@ object ReportingTestUtils {
     withOffset(2)(s"""${red("- invalid repetition range 4 to 2 by -1")}\n""")
   )
 
-  val mock5: ZSpec[Any, String] = testM("Failing layer") {
+  val mock5: ZSpec[Any, String] = test("Failing layer") {
     for {
       promise     <- Promise.make[Nothing, Unit]
       failingLayer = (promise.await *> ZIO.fail("failed!")).toLayer[String]

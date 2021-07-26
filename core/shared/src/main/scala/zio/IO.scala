@@ -72,7 +72,7 @@ object IO {
   /**
    * @see See [[zio.ZIO.async]]
    */
-  def async[E, A](register: (IO[E, A] => Unit) => Any, blockingOn: List[Fiber.Id] = Nil): IO[E, A] =
+  def async[E, A](register: (IO[E, A] => Unit) => Any, blockingOn: Fiber.Id = Fiber.Id.None): IO[E, A] =
     ZIO.async(register, blockingOn)
 
   /**
@@ -80,7 +80,7 @@ object IO {
    */
   def asyncInterrupt[E, A](
     register: (IO[E, A] => Unit) => Either[Canceler[Any], IO[E, A]],
-    blockingOn: List[Fiber.Id] = Nil
+    blockingOn: Fiber.Id = Fiber.Id.None
   ): IO[E, A] =
     ZIO.asyncInterrupt(register, blockingOn)
 
@@ -95,7 +95,7 @@ object IO {
    */
   def asyncMaybe[E, A](
     register: (IO[E, A] => Unit) => Option[IO[E, A]],
-    blockingOn: List[Fiber.Id] = Nil
+    blockingOn: Fiber.Id = Fiber.Id.None
   ): IO[E, A] =
     ZIO.asyncMaybe(register, blockingOn)
 
@@ -411,7 +411,7 @@ object IO {
    * @see See [[zio.ZIO.effectAsync]]
    */
   @deprecated("use async", "2.0.0")
-  def effectAsync[E, A](register: (IO[E, A] => Unit) => Any, blockingOn: List[Fiber.Id] = Nil): IO[E, A] =
+  def effectAsync[E, A](register: (IO[E, A] => Unit) => Any, blockingOn: Fiber.Id = Fiber.Id.None): IO[E, A] =
     ZIO.effectAsync(register, blockingOn)
 
   /**
@@ -420,7 +420,7 @@ object IO {
   @deprecated("use asyncInterrupt", "2.0.0")
   def effectAsyncInterrupt[E, A](
     register: (IO[E, A] => Unit) => Either[Canceler[Any], IO[E, A]],
-    blockingOn: List[Fiber.Id] = Nil
+    blockingOn: Fiber.Id = Fiber.Id.None
   ): IO[E, A] =
     ZIO.effectAsyncInterrupt(register, blockingOn)
 
@@ -437,7 +437,7 @@ object IO {
   @deprecated("use asyncMaybe", "2.0.0")
   def effectAsyncMaybe[E, A](
     register: (IO[E, A] => Unit) => Option[IO[E, A]],
-    blockingOn: List[Fiber.Id] = Nil
+    blockingOn: Fiber.Id = Fiber.Id.None
   ): IO[E, A] =
     ZIO.effectAsyncMaybe(register, blockingOn)
 
