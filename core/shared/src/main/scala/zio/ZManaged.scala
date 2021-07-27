@@ -1694,7 +1694,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * access to the resource. The acquire and release actions will be performed
    * uninterruptibly.
    */
-  def acquireReleaseSucceed[A](acquire: => A)(release: => A): ZManaged[Any, Nothing, A] =
+  def acquireReleaseSucceed[A](acquire: => A)(release: => Any): ZManaged[Any, Nothing, A] =
     acquireReleaseSucceedWith(acquire)(_ => release)
 
   /**
@@ -2494,7 +2494,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * uninterruptibly.
    */
   @deprecated("use acquireReleaseSucceed", "2.0.0")
-  def makeEffectTotal_[A](acquire: => A)(release: => A): ZManaged[Any, Nothing, A] =
+  def makeEffectTotal_[A](acquire: => A)(release: => Any): ZManaged[Any, Nothing, A] =
     acquireReleaseSucceed(acquire)(release)
 
   /**

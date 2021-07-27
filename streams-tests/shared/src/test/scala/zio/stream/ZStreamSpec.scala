@@ -2143,6 +2143,13 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assert(count)(equalTo(2)) && assert(result)(fails(equalTo("Boom")))
           } @@ nonFlaky
         ),
+        suite("mapZIOParUnordered")(
+          test("mapping with failure is failure") {
+            val stream =
+              ZStream.fromIterable(0 to 3).mapZIOParUnordered(10)(_ => ZIO.fail("fail"))
+            assertM(stream.runDrain.exit)(fails(equalTo("fail")))
+          } @@ nonFlaky
+        ),
         suite("mergeTerminateLeft")(
           test("terminates as soon as the first stream terminates") {
             for {
