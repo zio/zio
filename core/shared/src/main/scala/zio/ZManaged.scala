@@ -2049,7 +2049,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * access to the resource. The acquire and release actions will be performed
    * uninterruptibly.
    */
-  def makeEffectTotal_[A](acquire: => A)(release: => A): ZManaged[Any, Nothing, A] =
+  def makeEffectTotal_[A](acquire: => A)(release: => Any): ZManaged[Any, Nothing, A] =
     makeEffectTotal(acquire)(_ => release)
 
   /**
