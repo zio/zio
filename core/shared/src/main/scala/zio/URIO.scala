@@ -1060,18 +1060,21 @@ object URIO {
   /**
    * @see See [[zio.ZIO.services[A,B]*]]
    */
+  @deprecated("use service", "2.0.0")
   def services[A: Tag, B: Tag]: URIO[Has[A] with Has[B], (A, B)] =
     ZIO.services[A, B]
 
   /**
    * @see See [[zio.ZIO.services[A,B,C]*]]
    */
+  @deprecated("use service", "2.0.0")
   def services[A: Tag, B: Tag, C: Tag]: URIO[Has[A] with Has[B] with Has[C], (A, B, C)] =
     ZIO.services[A, B, C]
 
   /**
    * @see See [[zio.ZIO.services[A,B,C,D]*]]
    */
+  @deprecated("use service", "2.0.0")
   def services[A: Tag, B: Tag, C: Tag, D: Tag]: URIO[Has[A] with Has[B] with Has[C] with Has[D], (A, B, C, D)] =
     ZIO.services[A, B, C, D]
 

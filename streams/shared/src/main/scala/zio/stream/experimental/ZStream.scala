@@ -4233,18 +4233,21 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   /**
    * Accesses the specified services in the environment of the effect.
    */
+  @deprecated("use service", "2.0.0")
   def services[A: Tag, B: Tag]: ZStream[Has[A] with Has[B], Nothing, (A, B)] =
     ZStream.access(r => (r.get[A], r.get[B]))
 
   /**
    * Accesses the specified services in the environment of the effect.
    */
+  @deprecated("use service", "2.0.0")
   def services[A: Tag, B: Tag, C: Tag]: ZStream[Has[A] with Has[B] with Has[C], Nothing, (A, B, C)] =
     ZStream.access(r => (r.get[A], r.get[B], r.get[C]))
 
   /**
    * Accesses the specified services in the environment of the effect.
    */
+  @deprecated("use service", "2.0.0")
   def services[A: Tag, B: Tag, C: Tag, D: Tag]
     : ZStream[Has[A] with Has[B] with Has[C] with Has[D], Nothing, (A, B, C, D)] =
     ZStream.access(r => (r.get[A], r.get[B], r.get[C], r.get[D]))

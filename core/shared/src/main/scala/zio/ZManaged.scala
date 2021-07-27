@@ -2824,18 +2824,21 @@ object ZManaged extends ZManagedPlatformSpecific {
   /**
    * Accesses the specified services in the environment of the effect.
    */
+  @deprecated("use service", "2.0.0")
   def services[A: Tag, B: Tag]: ZManaged[Has[A] with Has[B], Nothing, (A, B)] =
     ZManaged.access(r => (r.get[A], r.get[B]))
 
   /**
    * Accesses the specified services in the environment of the effect.
    */
+  @deprecated("use service", "2.0.0")
   def services[A: Tag, B: Tag, C: Tag]: ZManaged[Has[A] with Has[B] with Has[C], Nothing, (A, B, C)] =
     ZManaged.access(r => (r.get[A], r.get[B], r.get[C]))
 
   /**
    * Accesses the specified services in the environment of the effect.
    */
+  @deprecated("use service", "2.0.0")
   def services[A: Tag, B: Tag, C: Tag, D: Tag]
     : ZManaged[Has[A] with Has[B] with Has[C] with Has[D], Nothing, (A, B, C, D)] =
     ZManaged.access(r => (r.get[A], r.get[B], r.get[C], r.get[D]))

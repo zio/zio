@@ -500,13 +500,13 @@ val stream: ZStream[Any, IOException, Byte] =
   ZStream.fromInputStream(new FileInputStream("file.txt"))
 ```
 
-Note that the InputStream will not be explicitly closed after it is exhausted. Use `ZStream.fromInputStreamEffect`, or `ZStream.fromInputStreamManaged` instead.
+Note that the InputStream will not be explicitly closed after it is exhausted. Use `ZStream.fromInputStreamZIO`, or `ZStream.fromInputStreamManaged` instead.
 
-**ZStream.fromInputStreamEffect** — Creates a stream from a `java.io.InputStream`. Ensures that the InputStream is closed after it is exhausted:
+**ZStream.fromInputStreamZIO** — Creates a stream from a `java.io.InputStream`. Ensures that the InputStream is closed after it is exhausted:
 
 ```scala mdoc:silent:nest
 val stream: ZStream[Any, IOException, Byte] = 
-  ZStream.fromInputStreamEffect(
+  ZStream.fromInputStreamZIO(
     ZIO.attempt(new FileInputStream("file.txt"))
       .refineToOrDie[IOException]
   )
