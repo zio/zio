@@ -68,10 +68,7 @@
 <p>You can also use methods in the companion objects of the <code>ZIO</code> type aliases:</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> s2: <span class="hljs-type">Task</span>[<span class="hljs-type">Int</span>] = <span class="hljs-type">Task</span>.succeed(<span class="hljs-number">42</span>)
 </code></pre>
-<p>The <code>succeed</code> method takes a by-name parameter to make sure that any accidental side effects from constructing the value can be properly managed by the ZIO Runtime. However, <code>succeed</code> is intended for values which do not have any side effects. If you know that your value does have side effects consider using <code>ZIO.effectTotal</code> for clarity.</p>
-<pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> now = <span class="hljs-type">ZIO</span>.effectTotal(<span class="hljs-type">System</span>.currentTimeMillis())
-</code></pre>
-<p>The value inside a successful effect constructed with <code>ZIO.effectTotal</code> will only be constructed if absolutely required.</p>
+<p>The <code>succeed</code> method takes a by-name parameter to make sure that any accidental side effects from constructing the value can be properly managed by the ZIO Runtime.</p>
 <h2><a class="anchor" aria-hidden="true" id="from-failure-values"></a><a href="#from-failure-values" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>From Failure Values</h2>
 <p>Using the <code>ZIO.fail</code> method, you can create an effect that models failure:</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> f1 = <span class="hljs-type">ZIO</span>.fail(<span class="hljs-string">"Uh oh!"</span>)
@@ -100,7 +97,7 @@
   id   &lt;- maybeId
   user &lt;- getUser(id).some
   team &lt;- getTeam(user.teamId).asSomeError 
-} <span class="hljs-keyword">yield</span> (user, team)).optional 
+} <span class="hljs-keyword">yield</span> (user, team)).unoption 
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="either"></a><a href="#either" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Either</h3>
 <p>An <code>Either</code> can be converted into a ZIO effect using <code>ZIO.fromEither</code>:</p>
@@ -137,26 +134,26 @@
 <p>ZIO can convert both synchronous and asynchronous side-effects into ZIO effects (pure values).</p>
 <p>These functions can be used to wrap procedural code, allowing you to seamlessly use all features of ZIO with legacy Scala and Java code, as well as third-party libraries.</p>
 <h3><a class="anchor" aria-hidden="true" id="synchronous-side-effects"></a><a href="#synchronous-side-effects" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Synchronous Side-Effects</h3>
-<p>A synchronous side-effect can be converted into a ZIO effect using <code>ZIO.effect</code>:</p>
+<p>A synchronous side-effect can be converted into a ZIO effect using <code>ZIO.attempt</code>:</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> scala.io.<span class="hljs-type">StdIn</span>
 
-<span class="hljs-keyword">val</span> getStrLn: <span class="hljs-type">Task</span>[<span class="hljs-type">String</span>] =
-  <span class="hljs-type">ZIO</span>.effect(<span class="hljs-type">StdIn</span>.readLine())
+<span class="hljs-keyword">val</span> readLine: <span class="hljs-type">Task</span>[<span class="hljs-type">String</span>] =
+  <span class="hljs-type">ZIO</span>.attempt(<span class="hljs-type">StdIn</span>.readLine())
 </code></pre>
 <p>The error type of the resulting effect will always be <code>Throwable</code>, because side-effects may throw exceptions with any value of type <code>Throwable</code>.</p>
-<p>If a given side-effect is known to not throw any exceptions, then the side-effect can be converted into a ZIO effect using <code>ZIO.effectTotal</code>:</p>
-<pre><code class="hljs css language-scala"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">putStrLn</span></span>(line: <span class="hljs-type">String</span>): <span class="hljs-type">UIO</span>[<span class="hljs-type">Unit</span>] =
-  <span class="hljs-type">ZIO</span>.effectTotal(println(line))
+<p>If a given side-effect is known to not throw any exceptions, then the side-effect can be converted into a ZIO effect using <code>ZIO.succeed</code>:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">printLine</span></span>(line: <span class="hljs-type">String</span>): <span class="hljs-type">UIO</span>[<span class="hljs-type">Unit</span>] =
+  <span class="hljs-type">ZIO</span>.succeed(println(line))
 </code></pre>
-<p>You should be careful when using <code>ZIO.effectTotal</code>—when in doubt about whether or not a side-effect is total, prefer <code>ZIO.effect</code> to convert the effect.</p>
+<p>You should be careful when using <code>ZIO.succeed</code>—when in doubt about whether or not a side-effect is total, prefer <code>ZIO.attempt</code> to convert the effect.</p>
 <p>If you wish to refine the error type of an effect (by treating other errors as fatal), then you can use the <code>ZIO#refineToOrDie</code> method:</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> java.io.<span class="hljs-type">IOException</span>
 
-<span class="hljs-keyword">val</span> getStrLn2: <span class="hljs-type">IO</span>[<span class="hljs-type">IOException</span>, <span class="hljs-type">String</span>] =
-  <span class="hljs-type">ZIO</span>.effect(<span class="hljs-type">StdIn</span>.readLine()).refineToOrDie[<span class="hljs-type">IOException</span>]
+<span class="hljs-keyword">val</span> readLine2: <span class="hljs-type">IO</span>[<span class="hljs-type">IOException</span>, <span class="hljs-type">String</span>] =
+  <span class="hljs-type">ZIO</span>.attempt(<span class="hljs-type">StdIn</span>.readLine()).refineToOrDie[<span class="hljs-type">IOException</span>]
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="asynchronous-side-effects"></a><a href="#asynchronous-side-effects" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Asynchronous Side-Effects</h3>
-<p>An asynchronous side-effect with a callback-based API can be converted into a ZIO effect using <code>ZIO.effectAsync</code>:</p>
+<p>An asynchronous side-effect with a callback-based API can be converted into a ZIO effect using <code>ZIO.async</code>:</p>
 <pre><code class="hljs css language-scala"><span class="hljs-class"><span class="hljs-keyword">object</span> <span class="hljs-title">legacy</span> </span>{
   <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">login</span></span>(
     onSuccess: <span class="hljs-type">User</span> =&gt; <span class="hljs-type">Unit</span>,
@@ -164,7 +161,7 @@
 }
 
 <span class="hljs-keyword">val</span> login: <span class="hljs-type">IO</span>[<span class="hljs-type">AuthError</span>, <span class="hljs-type">User</span>] =
-  <span class="hljs-type">IO</span>.effectAsync[<span class="hljs-type">AuthError</span>, <span class="hljs-type">User</span>] { callback =&gt;
+  <span class="hljs-type">IO</span>.async[<span class="hljs-type">AuthError</span>, <span class="hljs-type">User</span>] { callback =&gt;
     legacy.login(
       user =&gt; callback(<span class="hljs-type">IO</span>.succeed(user)),
       err  =&gt; callback(<span class="hljs-type">IO</span>.fail(err))
@@ -174,32 +171,30 @@
 <p>Asynchronous ZIO effects are much easier to use than callback-based APIs, and they benefit from ZIO features like interruption, resource-safety, and superior error handling.</p>
 <h2><a class="anchor" aria-hidden="true" id="blocking-synchronous-side-effects"></a><a href="#blocking-synchronous-side-effects" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Blocking Synchronous Side-Effects</h2>
 <p>Some side-effects use blocking IO or otherwise put a thread into a waiting state. If not carefully managed, these side-effects can deplete threads from your application's main thread pool, resulting in work starvation.</p>
-<p>ZIO provides the <code>zio.blocking</code> package, which can be used to safely convert such blocking side-effects into ZIO effects.</p>
-<p>A blocking side-effect can be converted directly into a ZIO effect blocking with the <code>effectBlocking</code> method:</p>
-<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> zio.blocking._
-
-<span class="hljs-keyword">val</span> sleeping =
-  effectBlocking(<span class="hljs-type">Thread</span>.sleep(<span class="hljs-type">Long</span>.<span class="hljs-type">MaxValue</span>))
+<p>ZIO provides <code>zio.Blocking</code>, which can be used to safely convert such blocking side-effects into ZIO effects.</p>
+<p>A blocking side-effect can be converted directly into a ZIO effect blocking with the <code>attemptBlocking</code> method:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> sleeping =
+  <span class="hljs-type">ZIO</span>.attemptBlocking(<span class="hljs-type">Thread</span>.sleep(<span class="hljs-type">Long</span>.<span class="hljs-type">MaxValue</span>))
 </code></pre>
 <p>The resulting effect will be executed on a separate thread pool designed specifically for blocking effects.</p>
-<p>Blocking side-effects can be interrupted by invoking <code>Thread.interrupt</code> using the <code>effectBlockingInterrupt</code> method.</p>
-<p>Some blocking side-effects can only be interrupted by invoking a cancellation effect. You can convert these side-effects using the <code>effectBlockingCancelable</code> method:</p>
+<p>Blocking side-effects can be interrupted by invoking <code>Thread.interrupt</code> using the <code>attemptBlockingInterrupt</code> method.</p>
+<p>Some blocking side-effects can only be interrupted by invoking a cancellation effect. You can convert these side-effects using the <code>attemptBlockingCancelable</code> method:</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> java.net.<span class="hljs-type">ServerSocket</span>
 <span class="hljs-keyword">import</span> zio.<span class="hljs-type">UIO</span>
 
 <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">accept</span></span>(l: <span class="hljs-type">ServerSocket</span>) =
-  effectBlockingCancelable(l.accept())(<span class="hljs-type">UIO</span>.effectTotal(l.close()))
+  <span class="hljs-type">ZIO</span>.attemptBlockingCancelable(l.accept())(<span class="hljs-type">UIO</span>.succeed(l.close()))
 </code></pre>
-<p>If a side-effect has already been converted into a ZIO effect, then instead of <code>effectBlocking</code>, the <code>blocking</code> method can be used to ensure the effect will be executed on the blocking thread pool:</p>
+<p>If a side-effect has already been converted into a ZIO effect, then instead of <code>attemptBlocking</code>, the <code>blocking</code> method can be used to ensure the effect will be executed on the blocking thread pool:</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> scala.io.{ <span class="hljs-type">Codec</span>, <span class="hljs-type">Source</span> }
 
 <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">download</span></span>(url: <span class="hljs-type">String</span>) =
-  <span class="hljs-type">Task</span>.effect {
+  <span class="hljs-type">Task</span>.attempt {
     <span class="hljs-type">Source</span>.fromURL(url)(<span class="hljs-type">Codec</span>.<span class="hljs-type">UTF8</span>).mkString
   }
 
 <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">safeDownload</span></span>(url: <span class="hljs-type">String</span>) =
-  blocking(download(url))
+  <span class="hljs-type">ZIO</span>.blocking(download(url))
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="next-steps"></a><a href="#next-steps" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Next Steps</h2>
 <p>If you are comfortable creating effects from values, Scala data types, and side-effects, the next step is learning <a href="/docs/overview/overview_basic_operations">basic operations</a> on effects.</p>
