@@ -77,8 +77,8 @@ addCommandAlias(
   "all coreJVM/mimaReportBinaryIssues streamsJVM/mimaReportBinaryIssues testJVM/mimaReportBinaryIssues"
 )
 
-val catsEffectVersion = "3.1.1"
-val fs2Version        = "3.0.4"
+val catsEffectVersion = "3.2.0"
+val fs2Version        = "3.0.6"
 
 lazy val root = project
   .in(file("."))
