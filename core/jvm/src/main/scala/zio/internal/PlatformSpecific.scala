@@ -46,7 +46,7 @@ private[internal] trait PlatformSpecific {
    * optional feature and it's not valid to compare the performance of ZIO with
    * enabled Tracing with effect types _without_ a comparable feature.
    */
-  lazy val benchmark: Platform = makeDefault(Int.MaxValue).withReportFailure(_ => ()).withTracing(Tracing.disabled)
+  lazy val benchmark: Platform = makeDefault(Int.MaxValue).copy(reportFailure = _ => (), tracing = Tracing.disabled)
 
   /**
    * The default platform, configured with settings designed to work well for
@@ -84,7 +84,7 @@ private[internal] trait PlatformSpecific {
     val fatal = (t: Throwable) => t.isInstanceOf[VirtualMachineError]
 
     // FIXME: Make this nice
-    val logger = (level: LogLevel, message: () => String, context: Map[FiberRef.Runtime[_], AnyRef], regions: List[String]) => 
+    val logger = (_ : LogLevel, message: () => String, _ : Map[FiberRef.Runtime[_], AnyRef], _ : List[String]) => 
       println(message())
 
     val reportFailure = (cause: Cause[Any]) => if (cause.isDie) System.err.println(cause.prettyPrint)

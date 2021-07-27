@@ -16,7 +16,6 @@
 
 package zio.internal
 
-import zio.internal.tracing.TracingConfig
 import zio.{Cause, FiberRef, LogLevel, Supervisor}
 
 /**
