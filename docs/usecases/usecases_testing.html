@@ -70,6 +70,7 @@ testFrameworks += <span class="hljs-keyword">new</span> <span class="hljs-type">
 </code></pre>
 <p>From there the fastest way to start writing tests is to extend <code>DefaultRunnableSpec</code>, which creates a Spec that is also an executable program you can run from within SBT using <code>test:run</code> or by using <code>test</code> with the SBT test runner.</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> zio._
+<span class="hljs-keyword">import</span> zio.console._
 <span class="hljs-keyword">import</span> zio.test._
 <span class="hljs-keyword">import</span> zio.test.<span class="hljs-type">Assertion</span>._
 <span class="hljs-keyword">import</span> zio.test.environment._
@@ -79,13 +80,13 @@ testFrameworks += <span class="hljs-keyword">new</span> <span class="hljs-type">
 <span class="hljs-keyword">import</span> <span class="hljs-type">HelloWorld</span>._
 
 <span class="hljs-class"><span class="hljs-keyword">object</span> <span class="hljs-title">HelloWorld</span> </span>{
-  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">sayHello</span></span>: <span class="hljs-type">ZIO</span>[<span class="hljs-type">Has</span>[<span class="hljs-type">Console</span>], <span class="hljs-type">IOException</span>, <span class="hljs-type">Unit</span>] =
-    <span class="hljs-type">Console</span>.printLine(<span class="hljs-string">"Hello, World!"</span>)
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">sayHello</span></span>: <span class="hljs-type">ZIO</span>[<span class="hljs-type">Console</span>, <span class="hljs-type">IOException</span>, <span class="hljs-type">Unit</span>] =
+    console.putStrLn(<span class="hljs-string">"Hello, World!"</span>)
 }
 
 <span class="hljs-class"><span class="hljs-keyword">object</span> <span class="hljs-title">HelloWorldSpec</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">DefaultRunnableSpec</span> </span>{
   <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">spec</span> </span>= suite(<span class="hljs-string">"HelloWorldSpec"</span>)(
-    test(<span class="hljs-string">"sayHello correctly displays output"</span>) {
+    testM(<span class="hljs-string">"sayHello correctly displays output"</span>) {
       <span class="hljs-keyword">for</span> {
         _      &lt;- sayHello
         output &lt;- <span class="hljs-type">TestConsole</span>.output
@@ -94,7 +95,7 @@ testFrameworks += <span class="hljs-keyword">new</span> <span class="hljs-type">
   )
 }
 </code></pre>
-<p>In <strong>ZIO Test</strong>, all tests are immutable values and tests are tightly integrated with ZIO, so testing effectual programs is as natural as testing pure ones. In the example above, our test involved the effect of printing to the console but we didn't have to do anything differently in our test.</p>
+<p>In <strong>ZIO Test</strong>, all tests are immutable values and tests are tightly integrated with ZIO, so testing effectual programs is as natural as testing pure ones. In the example above, our test involved the effect of printing to the console but we didn't have to do anything differently in our test because of this other than use <code>testM</code> instead of <code>test</code>.</p>
 <p><strong>Test Environment</strong></p>
 <p>The library also includes built-in test versions of all the standard ZIO environmental effects (<code>Clock</code>, <code>Console</code>, <code>System</code>, and <code>Random</code>), so when we tested our program above the <code>helloWorld</code> method didn't actually print a String to the console but instead wrote the String to a buffer that could access for testing purposes. If you ever do need to access the &quot;live&quot; environment just use the <code>live</code> method in the <code>mock</code> package or specify the live environment in your type signature like <code>Live[Console]</code>.</p>
 <p><strong>Property Based Testing</strong></p>
@@ -106,19 +107,19 @@ testFrameworks += <span class="hljs-keyword">new</span> <span class="hljs-type">
 </code></pre>
 <p>If a property fails, the failure will be automatically shrunk to the smallest failing cases to make it easier for you to diagnose the problem. And shrinking is integrated with the generation of random variables, so you are guaranteed that any shrunk counterexample will meet the conditions of your original generator.</p>
 <p>ZIO Test also supports automatic derivation of generators using the ZIO Test Magnolia module:</p>
-<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> zio.<span class="hljs-type">Random</span>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> zio.random.<span class="hljs-type">Random</span>
 <span class="hljs-keyword">import</span> zio.test.magnolia._
 
 <span class="hljs-keyword">final</span> <span class="hljs-keyword">case</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Point</span>(<span class="hljs-params">x: <span class="hljs-type">Double</span>, y: <span class="hljs-type">Double</span></span>)</span>
 
-<span class="hljs-keyword">val</span> genPoint: <span class="hljs-type">Gen</span>[<span class="hljs-type">Has</span>[<span class="hljs-type">Random</span>] <span class="hljs-keyword">with</span> <span class="hljs-type">Has</span>[<span class="hljs-type">Sized</span>], <span class="hljs-type">Point</span>] = <span class="hljs-type">DeriveGen</span>[<span class="hljs-type">Point</span>]
+<span class="hljs-keyword">val</span> genPoint: <span class="hljs-type">Gen</span>[<span class="hljs-type">Random</span> <span class="hljs-keyword">with</span> <span class="hljs-type">Sized</span>, <span class="hljs-type">Point</span>] = <span class="hljs-type">DeriveGen</span>[<span class="hljs-type">Point</span>]
  
 <span class="hljs-keyword">sealed</span> <span class="hljs-class"><span class="hljs-keyword">trait</span> <span class="hljs-title">Color</span></span>
 <span class="hljs-keyword">case</span> <span class="hljs-class"><span class="hljs-keyword">object</span> <span class="hljs-title">Red</span>   <span class="hljs-keyword">extends</span> <span class="hljs-title">Color</span></span>
 <span class="hljs-keyword">case</span> <span class="hljs-class"><span class="hljs-keyword">object</span> <span class="hljs-title">Green</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">Color</span></span>
 <span class="hljs-keyword">case</span> <span class="hljs-class"><span class="hljs-keyword">object</span> <span class="hljs-title">Blue</span>  <span class="hljs-keyword">extends</span> <span class="hljs-title">Color</span></span>
  
-<span class="hljs-keyword">val</span> genColor: <span class="hljs-type">Gen</span>[<span class="hljs-type">Has</span>[<span class="hljs-type">Random</span>] <span class="hljs-keyword">with</span> <span class="hljs-type">Has</span>[<span class="hljs-type">Sized</span>], <span class="hljs-type">Color</span>] = <span class="hljs-type">DeriveGen</span>[<span class="hljs-type">Color</span>]
+<span class="hljs-keyword">val</span> genColor: <span class="hljs-type">Gen</span>[<span class="hljs-type">Random</span> <span class="hljs-keyword">with</span> <span class="hljs-type">Sized</span>, <span class="hljs-type">Color</span>] = <span class="hljs-type">DeriveGen</span>[<span class="hljs-type">Color</span>]
 </code></pre>
 <p><strong>Results Reporting</strong></p>
 <p>When tests do fail, it is easy to see what went wrong because the test reporter will show you the entire assertion that failed and the specific part of the assertion that failed. To facilitate this, a variety of assertion combinators are included in the <code>Assertion</code> class.</p>

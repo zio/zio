@@ -61,15 +61,15 @@
               }
             });
         </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://github.com/zio/zio/edit/master/docs/services/random.md" target="_blank" rel="noreferrer noopener">Edit</a><h1 id="__docusaurus" class="postHeaderTitle">Random</h1></header><article><div><span><p>Random service provides utilities to generate random numbers. It's a functional wrapper of <code>scala.util.Random</code>. This service contains various different pseudo-random generators like <code>nextInt</code>, <code>nextBoolean</code> and <code>nextDouble</code>. Each random number generator functions return a <code>URIO[Random, T]</code> value.</p>
-<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> zio.<span class="hljs-type">Random</span>._
-<span class="hljs-keyword">import</span> zio.<span class="hljs-type">Console</span>._
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> zio.random._
+<span class="hljs-keyword">import</span> zio.console._
 <span class="hljs-keyword">for</span> {
   randomInt &lt;- nextInt
-  _ &lt;- printLine(<span class="hljs-string">s"A random Int: <span class="hljs-subst">$randomInt</span>"</span>)
+  _ &lt;- putStrLn(<span class="hljs-string">s"A random Int: <span class="hljs-subst">$randomInt</span>"</span>)
   randomChar &lt;- nextPrintableChar
-  _ &lt;- printLine(<span class="hljs-string">s"A random Char: <span class="hljs-subst">$randomChar</span>"</span>)
+  _ &lt;- putStrLn(<span class="hljs-string">s"A random Char: <span class="hljs-subst">$randomChar</span>"</span>)
   randomDouble &lt;- nextDoubleBetween(<span class="hljs-number">1.0</span>, <span class="hljs-number">5.0</span>)
-  _ &lt;- printLine(<span class="hljs-string">s"A random double between 1.0 and 5.0: <span class="hljs-subst">$randomDouble</span>"</span>)
+  _ &lt;- putStrLn(<span class="hljs-string">s"A random double between 1.0 and 5.0: <span class="hljs-subst">$randomDouble</span>"</span>)
 } <span class="hljs-keyword">yield</span> ()
 </code></pre>
 <p>Random service has a <code>setSeed</code> which helps us to alter the state of the random generator. It is useful when writing the test version of Random service when we need a generation of the same sequence of numbers.</p>

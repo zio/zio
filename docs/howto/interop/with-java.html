@@ -103,15 +103,15 @@
 <p>Java libraries using channels from the NIO API for asynchronous, interruptible I/O can be hooked into by providing completion handlers. As in, reading the contents of a file:</p>
 <pre><code class="hljs css language-scala"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">readFile</span></span>(file: <span class="hljs-type">AsynchronousFileChannel</span>): <span class="hljs-type">Task</span>[<span class="hljs-type">Chunk</span>[<span class="hljs-type">Byte</span>]] = <span class="hljs-keyword">for</span> {
     pos &lt;- <span class="hljs-type">Ref</span>.make(<span class="hljs-number">0</span>)
-    buf &lt;- <span class="hljs-type">ZIO</span>.succeed(<span class="hljs-type">ByteBuffer</span>.allocate(<span class="hljs-number">1024</span>))
+    buf &lt;- <span class="hljs-type">ZIO</span>.effectTotal(<span class="hljs-type">ByteBuffer</span>.allocate(<span class="hljs-number">1024</span>))
     contents &lt;- <span class="hljs-type">Ref</span>.make[<span class="hljs-type">Chunk</span>[<span class="hljs-type">Byte</span>]](<span class="hljs-type">Chunk</span>.empty)
     <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">go</span> </span>= pos.get.flatMap { p =&gt;
-        <span class="hljs-type">ZIO</span>.asyncWithCompletionHandler[<span class="hljs-type">Chunk</span>[<span class="hljs-type">Byte</span>]] { handler =&gt;
+        <span class="hljs-type">ZIO</span>.effectAsyncWithCompletionHandler[<span class="hljs-type">Chunk</span>[<span class="hljs-type">Byte</span>]] { handler =&gt;
             file.read(buf, p, buf, handler)
         }.flatMap {
             <span class="hljs-keyword">case</span> <span class="hljs-number">-1</span> =&gt; contents.get
             <span class="hljs-keyword">case</span> n  =&gt;
-                <span class="hljs-type">ZIO</span>.succeed {
+                <span class="hljs-type">ZIO</span>.effectTotal {
                     <span class="hljs-keyword">val</span> arr = <span class="hljs-type">Array</span>.ofDim[<span class="hljs-type">Byte</span>](n)
                     buf.get(arr, <span class="hljs-number">0</span>, n)
                     buf.clear()
