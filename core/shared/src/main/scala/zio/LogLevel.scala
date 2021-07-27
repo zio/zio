@@ -15,24 +15,36 @@
  */
 package zio
 
-sealed trait LogLevel extends ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] { self =>
-  def ordinal: Int
-  def label: String
-  def syslog: Int
-
+/**
+ * [[LogLevel]] represents the log level associated with an individual logging
+ * operation. Log levels are used both to describe the granularity (or
+ * importance) of individual log statements, as well as to enable tuning
+ * verbosity of log output.
+ *
+ * @param ordinal  The priority of the log message. Larger values indicate
+ *                 higher priority.
+ * @param label    A label associated with the log level.
+ * @param syslog   The syslog severity level of the log level.
+ *
+ * [[LogLevel]] values are ZIO aspects, and therefore can be used with
+ * aspect syntax.
+ * {{{
+ * myEffect @@ LogLevel.Info
+ * }}}
+ */
+final case class LogLevel(ordinal: Int, label: String, syslog: Int)
+    extends ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] { self =>
   def apply[R >: Nothing <: Any, E >: Nothing <: Any, A >: Nothing <: Any](zio: ZIO[R, E, A]): ZIO[R, E, A] =
     FiberRef.currentLogLevel.locally(self)(zio)
 }
 object LogLevel {
-  final case class Value(ordinal: Int, label: String, syslog: Int) extends LogLevel
-
-  val All: Value     = Value(Int.MinValue, "ALL", -1)
-  val Fatal: Value   = Value(50000, "FATAL", 2)
-  val Error: Value   = Value(40000, "ERROR", 3)
-  val Warning: Value = Value(30000, "WARN", 4)
-  val Info: Value    = Value(20000, "INFO", 6)
-  val Debug: Value   = Value(10000, "DEBUG", 7)
-  val None: Value    = Value(Int.MaxValue, "OFF", 8)
+  val All: LogLevel     = LogLevel(Int.MinValue, "ALL", 0)
+  val Fatal: LogLevel   = LogLevel(50000, "FATAL", 2)
+  val Error: LogLevel   = LogLevel(40000, "ERROR", 3)
+  val Warning: LogLevel = LogLevel(30000, "WARN", 4)
+  val Info: LogLevel    = LogLevel(20000, "INFO", 6)
+  val Debug: LogLevel   = LogLevel(10000, "DEBUG", 7)
+  val None: LogLevel    = LogLevel(Int.MaxValue, "OFF", 7)
 
   implicit val orderingLogLevel: Ordering[LogLevel] = Ordering.by(_.ordinal)
 }

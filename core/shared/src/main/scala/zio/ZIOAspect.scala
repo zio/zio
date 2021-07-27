@@ -60,6 +60,35 @@ object ZIOAspect {
     }
 
   /**
+   * An aspect that logs values by using [[ZIO.log]].
+   */
+  val logged: ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
+    new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
+      def apply[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+        zio.tap(value => ZIO.log(String.valueOf(value)))
+    }
+
+  /**
+   * An aspect that logs values using a specified user-defined prefix label,
+   * using [[ZIO.log]].
+   */
+  def logged(label: String): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
+    new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
+      override def apply[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+        zio.tap(value => ZIO.log(label + ": " + String.valueOf(value)))
+    }
+
+  /**
+   * An aspect that logs values using a specified function that convers the value
+   * into a log message. The log message is logged using [[ZIO.log]].
+   */
+  def loggedWith[A](f: A => String): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, A] =
+    new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, A] {
+      override def apply[R, E, A0 <: A](zio: ZIO[R, E, A0]): ZIO[R, E, A0] =
+        zio.tap(value => ZIO.log(f(value)))
+    }
+
+  /**
    * As aspect that runs effects on the specified `ExecutionContext`.
    */
   def lockExecutionContext(ec: ExecutionContext): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =

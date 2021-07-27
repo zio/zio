@@ -907,7 +907,7 @@ private[zio] final class FiberContext[E, A](
   def removeFiberRef[A](fiberRef: FiberRef.Runtime[A]): Unit = {
     val oldState = fiberRefLocals.get
 
-    if (!fiberRefLocals.compareAndSet(oldState, oldState.removed(fiberRef))) removeFiberRef(fiberRef)
+    if (!fiberRefLocals.compareAndSet(oldState, oldState - fiberRef)) removeFiberRef(fiberRef)
     else ()
   }
 
