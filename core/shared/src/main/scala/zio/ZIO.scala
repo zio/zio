@@ -3831,6 +3831,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
                  }
                  .refailWithTrace
              }
+        _ <- ZIO.foreach(fibers)(_.inheritRefs)
       } yield ()
     }
 
