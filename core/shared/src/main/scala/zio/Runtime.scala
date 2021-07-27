@@ -102,7 +102,7 @@ trait Runtime[+R] {
    * This method is effectful and should only be invoked at the edges of your program.
    */
   final def unsafeRunAsyncCancelable[E, A](zio: => ZIO[R, E, A])(k: Exit[E, A] => Any): Fiber.Id => Exit[E, A] = {
-    lazy val curZio = if (Platform.isJVM) ZIO.yieldNow *> zio else zio
+    lazy val curZio = if (platform.yieldOnStart) ZIO.yieldNow *> zio else zio
     val canceler    = unsafeRunWith(curZio)(k)
     fiberId => {
       val result = internal.OneShot.make[Exit[E, A]]
@@ -167,6 +167,11 @@ trait Runtime[+R] {
    * Constructs a new `Runtime` with the specified tracer and tracing configuration.
    */
   def withTracing(t: Tracing): Runtime[R] = mapPlatform(_.withTracing(t))
+
+  /**
+   * Constructs a new `Runtime` with the specified yield strategy.
+   */
+  def withYieldOnStart(cond: Boolean): Runtime[R] = mapPlatform(_.withYieldOnStart(cond))
 
   /**
    * Constructs a new `Runtime` with the specified tracing configuration.

@@ -30,6 +30,11 @@ abstract class Platform { self =>
    */
   def executor: Executor
 
+  /**
+   * Specifies if ZIO should yield immediately or not.
+   */
+  def yieldOnStart: Boolean
+
   def withExecutor(e: Executor): Platform =
     new Platform.Proxy(self) {
       override def executor: Executor = e
@@ -48,6 +53,14 @@ abstract class Platform { self =>
   def withTracingConfig(config: TracingConfig): Platform =
     new Platform.Proxy(self) {
       override val tracing: Tracing = self.tracing.copy(tracingConfig = config)
+    }
+
+  /**
+   * Determines if the `Runtime` should yield right at the beginning of the evaluation.
+   */
+  def withYieldOnStart(cond: Boolean): Platform =
+    new Platform.Proxy(self) {
+      override val yieldOnStart: Boolean = cond
     }
 
   /**
@@ -97,5 +110,6 @@ object Platform extends PlatformSpecific {
     def reportFatal(t: Throwable): Nothing     = self.reportFatal(t)
     def reportFailure(cause: Cause[Any]): Unit = self.reportFailure(cause)
     def supervisor: Supervisor[Any]            = self.supervisor
+    def yieldOnStart: Boolean                  = self.yieldOnStart
   }
 }
