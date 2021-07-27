@@ -1431,8 +1431,22 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
           _ <- self.foreachManaged { a =>
                  for {
                    latch <- Promise.make[Nothing, Unit]
+                   // If the inner stream completed successfully, release the permit so another
+                   // stream can be executed. Otherwise, signal failure to the outer stream.
+                   withPermitManaged = ZManaged.makeReserve {
+                                         permits.withPermitManaged[Any, Nothing].reserve.map {
+                                           case Reservation(acquire, release) =>
+                                             Reservation(
+                                               acquire,
+                                               _.fold(
+                                                 cause => innerFailure.fail(cause.stripFailures),
+                                                 _ => release(Exit.unit)
+                                               )
+                                             )
+                                         }
+                                       }
                    innerStream = ZStream
-                                   .managed(permits.withPermitManaged)
+                                   .managed(withPermitManaged)
                                    .tap(_ => latch.succeed(()))
                                    .flatMap(_ => f(a))
                                    .foreachChunk(b => out.offer(UIO.succeedNow(b)).unit)
