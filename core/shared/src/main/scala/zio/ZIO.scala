@@ -5591,10 +5591,23 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       }
 
     /**
+     * Constructs a `ZIO[Any, Throwable, A]` from a `Future[A]`.
+     */
+    implicit def FutureConstructor[A, FutureLike[A] <: scala.concurrent.Future[A]]
+      : WithOut[Any, Throwable, FutureLike[A], Any, Throwable, A] =
+      new ZIOConstructor[Any, Throwable, FutureLike[A]] {
+        type OutEnvironment = Any
+        type OutError       = Throwable
+        type OutSuccess     = A
+        def make(input: => FutureLike[A]): ZIO[Any, Throwable, A] =
+          ZIO.fromFuture(_ => input)
+      }
+
+    /**
      * Constructs a `ZIO[Any, Throwable, A]` from a function
      * `ExecutionContext => Future[A]`.
      */
-    implicit def FutureConstructor[A, FutureLike[A] <: scala.concurrent.Future[A]]
+    implicit def FutureExecutionContextConstructor[A, FutureLike[A] <: scala.concurrent.Future[A]]
       : WithOut[Any, Throwable, scala.concurrent.ExecutionContext => FutureLike[A], Any, Throwable, A] =
       new ZIOConstructor[Any, Throwable, scala.concurrent.ExecutionContext => FutureLike[A]] {
         type OutEnvironment = Any

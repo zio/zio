@@ -1260,10 +1260,19 @@ object ZIOSpec extends ZIOBaseSpec {
       test("Future") {
         trait A
         trait FutureLike[A] extends scala.concurrent.Future[A]
-        lazy val future: scala.concurrent.ExecutionContext => FutureLike[A] = ???
-        lazy val actual                                                     = ZIO.from(future)
-        lazy val expected: ZIO[Any, Throwable, A]                           = actual
-        lazy val _                                                          = expected
+        lazy val future: FutureLike[A]            = ???
+        lazy val actual                           = ZIO.from(future)
+        lazy val expected: ZIO[Any, Throwable, A] = actual
+        lazy val _                                = expected
+        assertCompletes
+      },
+      test("FutureExecutionContext") {
+        trait A
+        trait FutureLike[A] extends scala.concurrent.Future[A]
+        lazy val futureExecutionContext: scala.concurrent.ExecutionContext => FutureLike[A] = ???
+        lazy val actual                                                                     = ZIO.from(futureExecutionContext)
+        lazy val expected: ZIO[Any, Throwable, A]                                           = actual
+        lazy val _                                                                          = expected
         assertCompletes
       },
       test("Option") {
