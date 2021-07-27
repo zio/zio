@@ -1947,10 +1947,11 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * Enqueues elements of this stream into a queue. Stream failure and ending will also be
    * signalled.
    */
+  @deprecated("use intoQueue", "2.0.0")
   final def into[R1 <: R, E1 >: E](
     queue: ZQueue[R1, Nothing, Nothing, Any, Take[E1, O], Any]
   ): ZIO[R1, E1, Unit] =
-    intoManaged(queue).useDiscard(UIO.unit)
+    intoQueue(queue)
 
   /**
    * Publishes elements of this stream to a hub. Stream failure and ending will
@@ -1959,7 +1960,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   final def intoHub[R1 <: R, E1 >: E](
     hub: ZHub[R1, Nothing, Nothing, Any, Take[E1, O], Any]
   ): ZIO[R1, E1, Unit] =
-    into(hub.toQueue)
+    intoQueue(hub.toQueue)
 
   /**
    * Like [[ZStream#intoHub]], but provides the result as a [[ZManaged]] to
@@ -1968,13 +1969,23 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   final def intoHubManaged[R1 <: R, E1 >: E](
     hub: ZHub[R1, Nothing, Nothing, Any, Take[E1, O], Any]
   ): ZManaged[R1, E1, Unit] =
-    intoManaged(hub.toQueue)
+    intoQueueManaged(hub.toQueue)
 
   /**
    * Like [[ZStream#into]], but provides the result as a [[ZManaged]] to allow for scope
    * composition.
    */
+  @deprecated("use intoQueueManaged", "2.0.0")
   final def intoManaged[R1 <: R, E1 >: E](
+    queue: ZQueue[R1, Nothing, Nothing, Any, Take[E1, O], Any]
+  ): ZManaged[R1, E1, Unit] =
+    intoQueueManaged(queue)
+
+  /**
+   * Like [[ZStream#into]], but provides the result as a [[ZManaged]] to allow for scope
+   * composition.
+   */
+  final def intoQueueManaged[R1 <: R, E1 >: E](
     queue: ZQueue[R1, Nothing, Nothing, Any, Take[E1, O], Any]
   ): ZManaged[R1, E1, Unit] =
     for {
@@ -1992,6 +2003,15 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
       }
       _ <- pull.toManaged
     } yield ()
+
+  /**
+   * Enqueues elements of this stream into a queue. Stream failure and ending will also be
+   * signalled.
+   */
+  final def intoQueue[R1 <: R, E1 >: E](
+    queue: ZQueue[R1, Nothing, Nothing, Any, Take[E1, O], Any]
+  ): ZIO[R1, E1, Unit] =
+    intoQueueManaged(queue).useDiscard(UIO.unit)
 
   /**
    * Locks the execution of this stream to the specified executor. Any streams

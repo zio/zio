@@ -16,6 +16,7 @@
 
 package zio
 
+import zio.ZIO.intoPromise
 import zio.internal.tracing.{ZIOFn, ZIOFn1, ZIOFn2}
 import zio.internal.{Executor, Platform}
 import zio.{TracingStatus => TracingS}
@@ -79,10 +80,11 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Sequentially zips this effect with the specified effect, combining the
    * results into a tuple.
    */
+  @deprecated("use zip", "2.0.0")
   final def &&&[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B])(implicit
     zippable: Zippable[A, B]
   ): ZIO[R1, E1, zippable.Out] =
-    self.zipWith(that)((a, b) => zippable.zip(a, b))
+    self zip that
 
   /**
    * Returns an effect that executes both this effect and the specified effect,
@@ -96,6 +98,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Splits the environment, providing the first part to this effect and the
    * second part to that effect.
    */
+  @deprecated("the Arrow combinators are deprecated", "2.0.0")
   final def ***[R1, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[(R, R1), E1, (A, B)] =
     (ZIO.first >>> self) &&& (ZIO.second >>> that)
 
@@ -109,6 +112,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Depending on provided environment, returns either this one or the other
    * effect lifted in `Left` or `Right`, respectively.
    */
+  @deprecated("the Arrow combinators are deprecated", "2.0.0")
   final def +++[R1, B, E1 >: E](that: ZIO[R1, E1, B]): ZIO[Either[R, R1], E1, Either[A, B]] =
     ZIO.accessZIO[Either[R, R1]](_.fold(self.provide(_).map(Left(_)), that.provide(_).map(Right(_))))
 
@@ -138,12 +142,12 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     self.flatMap(new ZIO.ZipLeftFn(() => that))
 
   /**
-   * Alias for `&&&`.
+   * Symbolic alias for `zip`.
    */
   final def <*>[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B])(implicit
     zippable: Zippable[A, B]
   ): ZIO[R1, E1, zippable.Out] =
-    self &&& that
+    self zip that
 
   /**
    * A symbolic alias for `orElseEither`.
@@ -160,12 +164,14 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   /**
    * Operator alias for `orElse`.
    */
+  // TODO: This usually the monoid operator
   final def <>[R1 <: R, E2, A1 >: A](that: => ZIO[R1, E2, A1])(implicit ev: CanFail[E]): ZIO[R1, E2, A1] =
     orElse(that)
 
   /**
    * A symbolic alias for `raceEither`.
    */
+  @deprecated("use raceEither", "2.0.0")
   final def <|>[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, Either[A, B]] =
     self.raceEither(that)
 
@@ -176,11 +182,13 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * val parsed = readFile("foo.txt") >>= parseFile
    * }}}
    */
+  @deprecated("use flatMap", "2.0.0")
   final def >>=[R1 <: R, E1 >: E, B](k: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] = flatMap(k)
 
   /**
    * Operator alias for `andThen`.
    */
+  @deprecated("the Arrow combinators are deprecated", "2.0.0")
   final def >>>[E1 >: E, B](that: ZIO[A, E1, B]): ZIO[R, E1, B] =
     self.flatMap(that.provide)
 
@@ -203,6 +211,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   /**
    * Depending on provided environment returns either this one or the other effect.
    */
+  @deprecated("the Arrow combinators are deprecated", "2.0.0")
   final def |||[R1, E1 >: E, A1 >: A](that: ZIO[R1, E1, A1]): ZIO[Either[R, R1], E1, A1] =
     ZIO.accessZIO(_.fold(self.provide, that.provide))
 
@@ -292,6 +301,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
       }
     )(use)
 
+  @deprecated("the Arrow combinators are deprecated", "2.0.0")
   final def andThen[E1 >: E, B](that: ZIO[A, E1, B]): ZIO[R, E1, B] =
     self >>> that
 
@@ -599,7 +609,14 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def collectZIO[R1 <: R, E1 >: E, B](e: => E1)(pf: PartialFunction[A, ZIO[R1, E1, B]]): ZIO[R1, E1, B] =
     self.flatMap(v => pf.applyOrElse[A, ZIO[R1, E1, B]](v, _ => ZIO.fail(e)))
 
+  @deprecated("the Arrow combinators are deprecated", "2.0.0")
   final def compose[R1, E1 >: E](that: ZIO[R1, E1, R]): ZIO[R1, E1, A] = self <<< that
+
+  /**
+   * Transforms the environment.
+   */
+  final def contramap[R0](f: R0 => R)(implicit ev: NeedsEnv[R]): ZIO[R0, E, A] =
+    ZIO.accessZIO(r0 => self.provide(f(r0)))
 
   /**
    * Taps the effect, printing the result of calling `.toString` on the value
@@ -733,6 +750,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   /**
    * Supplies `zio` if the predicate fails.
    */
+  // TODO: Should we have a `filterOrElseZIO` and `filterOrElse`?
   final def filterOrElse[R1 <: R, E1 >: E, A1 >: A](p: A => Boolean)(zio: => ZIO[R1, E1, A1]): ZIO[R1, E1, A1] =
     filterOrElseWith[R1, E1, A1](p)(_ => zio)
 
@@ -993,6 +1011,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   /**
    * Unwraps the optional success of this effect, but can fail with an None value.
    */
+  @deprecated("use some", "2.0.0")
   final def get[B](implicit
     ev1: E IsSubtypeOfError Nothing,
     ev2: A IsSubtypeOfOutput Option[B]
@@ -1003,6 +1022,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Returns a successful effect with the head of the list if the list is
    * non-empty or fails with the error `None` if the list is empty.
    */
+  // TODO: Should we change this to work with any Iterable?
   final def head[B](implicit ev: A IsSubtypeOfOutput List[B]): ZIO[R, Option[E], B] =
     self.foldZIO(
       e => ZIO.fail(Some(e)),
@@ -1070,6 +1090,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   /**
    * Joins this effect with the specified effect.
    */
+  @deprecated("the Arrow combinators are deprecated", "2.0.0")
   final def join[R1, E1 >: E, A1 >: A](that: ZIO[R1, E1, A1]): ZIO[Either[R, R1], E1, A1] = self ||| that
 
   /**
@@ -1180,6 +1201,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Executes the effect on the specified `ExecutionContext` and then shifts back
    * to the default one.
    */
+  // TODO: Could we use the same `lock` name?
+  //  Instead of two different names for the same (somewhat advanced) method.
   final def on(ec: ExecutionContext): ZIO[R, E, A] =
     self.lock(Executor.fromExecutionContext(Int.MaxValue)(ec))
 
@@ -1212,6 +1235,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * passes the effect input `R` along unmodified as the second element
    * of the tuple.
    */
+  @deprecated("the Arrow combinators are deprecated", "2.0.0")
   final def onFirst[R1 <: R]: ZIO[R1, E, (A, R1)] =
     self &&& ZIO.identity[R1]
 
@@ -1238,6 +1262,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * whatever is on the right unmodified. Note that the result is lifted
    * in either.
    */
+  @deprecated("the Arrow combinators are deprecated", "2.0.0")
   final def onLeft[C]: ZIO[Either[R, C], E, Either[A, C]] =
     self +++ ZIO.identity[C]
 
@@ -1246,6 +1271,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * whatever is on the left unmodified. Note that the result is lifted
    * in either.
    */
+  @deprecated("the Arrow combinators are deprecated", "2.0.0")
   final def onRight[C]: ZIO[Either[C, R], E, Either[C, A]] =
     ZIO.identity[C] +++ self
 
@@ -1254,6 +1280,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * passes the effect input `R` along unmodified as the first element
    * of the tuple.
    */
+  @deprecated("the Arrow combinators are deprecated", "2.0.0")
   final def onSecond[R1 <: R]: ZIO[R1, E, (R1, A)] =
     ZIO.identity[R1] &&& self
 
@@ -1417,6 +1444,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * )
    * }}}
    */
+  @deprecated("use contramap", "2.0.0")
   final def provideSome[R0](f: R0 => R)(implicit ev: NeedsEnv[R]): ZIO[R0, E, A] =
     ZIO.accessZIO(r0 => self.provide(f(r0)))
 
@@ -1425,9 +1453,9 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * specified layer and leaving the remainder `R0`.
    *
    * {{{
-   * val clockLayer: ZLayer[Any, Nothing, Has[Clock]] = ???
-   *
    * val zio: ZIO[Has[Clock] with Has[Random], Nothing, Unit] = ???
+   *
+   * val clockLayer: ZLayer[Any, Nothing, Has[Clock]] = ???
    *
    * val zio2 = zio.provideSomeLayer[Has[Random]](clockLayer)
    * }}}
@@ -1515,7 +1543,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
 
                inheritRefs = { (res: (A1, Fiber[E1, A1])) => res._2.inheritRefs.as(res._1) }
 
-               c <- restore(done.await >>= inheritRefs)
+               c <- restore(done.await.flatMap(inheritRefs))
                       .onInterrupt(fs.foldLeft(IO.unit)((io, f) => io <* f.interrupt))
              } yield c
            }
@@ -1549,7 +1577,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * interrupt signal, allowing the earliest possible return.
    */
   final def raceEither[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B]): ZIO[R1, E1, Either[A, B]] =
-    (self.map(Left(_)) race that.map(Right(_)))
+    self.map(Left(_)) race that.map(Right(_))
 
   /**
    * Returns an effect that races this effect with the specified effect, calling
@@ -2093,6 +2121,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * }
    * }}}
    */
+  // TODO: Not sure of the best name, but we `Some` for many Option related methods.
+  //   Is there a better postfix for these PartialFunction variants? `tapPartial`?
   final def tapSome[R1 <: R, E1 >: E](f: PartialFunction[A, ZIO[R1, E1, Any]]): ZIO[R1, E1, A] =
     self.tap(f.applyOrElse(_, (_: A) => ZIO.unit))
 
@@ -2168,8 +2198,9 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * this effect. Synchronizes interruption, so if this effect is interrupted,
    * the specified promise will be interrupted, too.
    */
+  @deprecated("use intoPromise", "2.0.0")
   final def to[E1 >: E, A1 >: A](p: Promise[E1, A1]): URIO[R, Boolean] =
-    ZIO.uninterruptibleMask(restore => restore(self).exit.flatMap(p.done(_)))
+    intoPromise(p)
 
   /**
    * Converts the effect into a [[scala.concurrent.Future]].
@@ -2422,7 +2453,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def zip[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B])(implicit
     zippable: Zippable[A, B]
   ): ZIO[R1, E1, zippable.Out] =
-    self &&& that
+    self.zipWith(that)((a, b) => zippable.zip(a, b))
 
   /**
    * A named alias for `<*`.
@@ -3513,6 +3544,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Returns an effectful function that extracts out the first element of a
    * tuple.
    */
+  @deprecated("use fromFunction(_._1)", "2.0.0")
   def first[A]: ZIO[(A, Any), Nothing, A] =
     fromFunction(_._1)
 
@@ -4203,6 +4235,14 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     checkInterruptible(flag => k(ZIO.InterruptStatusRestore(flag)).interruptible)
 
   /**
+   * Returns an effect that keeps or breaks a promise based on the result of
+   * this effect. Synchronizes interruption, so if this effect is interrupted,
+   * the specified promise will be interrupted, too.
+   */
+  final def intoPromise[E1 >: E, A1 >: A](p: Promise[E1, A1]): URIO[R, Boolean] =
+    ZIO.uninterruptibleMask(restore => restore(self).exit.flatMap(p.done(_)))
+
+  /**
    * Iterates with the specified effectual function. The moral equivalent of:
    *
    * {{{
@@ -4301,6 +4341,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * Sequentially zips the specified effects. Specialized version of mapN.
    */
+  // TODO: Rename these all `ZIO.zip`
   def tupled[R, E, A, B](zio1: ZIO[R, E, A], zio2: ZIO[R, E, B]): ZIO[R, E, (A, B)] =
     mapN(zio1, zio2)((_, _))
 
@@ -4348,6 +4389,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Sequentially zips the specified effects using the specified combiner
    * function.
    */
+  // TODO: Rename these all `ZIO.zipWith`
   def mapN[R, E, A, B, C](zio1: ZIO[R, E, A], zio2: ZIO[R, E, B])(f: (A, B) => C): ZIO[R, E, C] =
     zio1.zipWith(zio2)(f)
 
@@ -4593,6 +4635,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * using `List.fill` or similar methods, because the returned `Iterable`
    * consumes only a small amount of heap regardless of `n`.
    */
+  // TODO: Should we name this `ZIO.fill`? The doc references that method, and it would
+  //   be nice to separate this from the other replicateZIO methods.
   def replicate[R, E, A](n: Int)(effect: ZIO[R, E, A]): Iterable[ZIO[R, E, A]] =
     new Iterable[ZIO[R, E, A]] {
       override def iterator: Iterator[ZIO[R, E, A]] = Iterator.range(0, n).map(_ => effect)
@@ -4632,6 +4676,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Requires that the given `ZIO[R, E, Option[A]]` contain a value. If there is no
    * value, then the specified error will be raised.
    */
+  @deprecated("use someOrFail", "2.0.0")
   def require[R, E, A](error: => E): ZIO[R, E, Option[A]] => ZIO[R, E, A] =
     (io: ZIO[R, E, Option[A]]) => io.flatMap(_.fold[ZIO[R, E, A]](fail[E](error))(succeedNow))
 
@@ -4676,6 +4721,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Returns an effectful function that extracts out the second element of a
    * tuple.
    */
+  @deprecated("use fromFunction(_._2)", "2.0.0")
   def second[A]: URIO[(Any, A), A] =
     fromFunction(_._2)
 
@@ -4802,6 +4848,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * Returns an effectful function that merely swaps the elements in a `Tuple2`.
    */
+  @deprecated("the Arrow combinators are deprecated", "2.0.0")
   def swap[A, B]: URIO[(A, B), (B, A)] =
     fromFunction[(A, B), (B, A)](_.swap)
 
