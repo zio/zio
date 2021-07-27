@@ -2561,6 +2561,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * Sequentially zips the specified effects using the specified combiner
    * function.
    */
+  @deprecated("use zip", "2.0.0")
   def mapN[R, E, A, B, C](zManaged1: ZManaged[R, E, A], zManaged2: ZManaged[R, E, B])(
     f: (A, B) => C
   ): ZManaged[R, E, C] =
@@ -2570,6 +2571,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * Sequentially zips the specified effects using the specified combiner
    * function.
    */
+  @deprecated("use zip", "2.0.0")
   def mapN[R, E, A, B, C, D](
     zManaged1: ZManaged[R, E, A],
     zManaged2: ZManaged[R, E, B],
@@ -2585,6 +2587,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * Sequentially zips the specified effects using the specified combiner
    * function.
    */
+  @deprecated("use zip", "2.0.0")
   def mapN[R, E, A, B, C, D, F](
     zManaged1: ZManaged[R, E, A],
     zManaged2: ZManaged[R, E, B],
@@ -2603,6 +2606,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * combining their results with the specified `f` function. If any effect
    * fails, then the other effects will be interrupted.
    */
+  @deprecated("use zipPar", "2.0.0")
   def mapParN[R, E, A, B, C](zManaged1: ZManaged[R, E, A], zManaged2: ZManaged[R, E, B])(
     f: (A, B) => C
   ): ZManaged[R, E, C] =
@@ -2613,6 +2617,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * combining their results with the specified `f` function. If any effect
    * fails, then the other effects will be interrupted.
    */
+  @deprecated("use zipPar", "2.0.0")
   def mapParN[R, E, A, B, C, D](
     zManaged1: ZManaged[R, E, A],
     zManaged2: ZManaged[R, E, B],
@@ -2625,6 +2630,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * combining their results with the specified `f` function. If any effect
    * fails, then the other effects will be interrupted.
    */
+  @deprecated("use zipPar", "2.0.0")
   def mapParN[R, E, A, B, C, D, F](
     zManaged1: ZManaged[R, E, A],
     zManaged2: ZManaged[R, E, B],

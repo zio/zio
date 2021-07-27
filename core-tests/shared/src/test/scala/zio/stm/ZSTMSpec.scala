@@ -304,40 +304,6 @@ object ZSTMSpec extends ZIOBaseSpec {
       test("mapError to map from one error to another") {
         assertM(STM.fail(-1).mapError(_ => "oh no!").commit.exit)(fails(equalTo("oh no!")))
       } @@ zioTag(errors),
-      suite("mapN")(
-        test("with Tuple2") {
-          checkM(Gen.anyInt, Gen.alphaNumericString) { (int: Int, str: String) =>
-            def f(i: Int, s: String): String = i.toString + s
-
-            val actual   = STM.mapN(STM.succeed(int), STM.succeed(str))(f)
-            val expected = f(int, str)
-
-            assertM(actual.commit)(equalTo(expected))
-          }
-        },
-        test("with Tuple3") {
-          checkM(Gen.anyInt, Gen.alphaNumericString, Gen.alphaNumericString) { (int: Int, str1: String, str2: String) =>
-            def f(i: Int, s1: String, s2: String): String = i.toString + s1 + s2
-
-            val actual   = STM.mapN(STM.succeed(int), STM.succeed(str1), STM.succeed(str2))(f)
-            val expected = f(int, str1, str2)
-
-            assertM(actual.commit)(equalTo(expected))
-          }
-        },
-        test("with Tuple4") {
-          checkM(Gen.anyInt, Gen.alphaNumericString, Gen.alphaNumericString, Gen.alphaNumericString) {
-            (int: Int, str1: String, str2: String, str3: String) =>
-              def f(i: Int, s1: String, s2: String, s3: String): String = i.toString + s1 + s2 + s3
-
-              val actual =
-                STM.mapN(STM.succeed(int), STM.succeed(str1), STM.succeed(str2), STM.succeed(str3))(f)
-              val expected = f(int, str1, str2, str3)
-
-              assertM(actual.commit)(equalTo(expected))
-          }
-        }
-      ),
       suite("merge")(
         test("on error with same type") {
           assertM(STM.fromEither[Int, Int](Left(1)).merge.commit)(equalTo(1))

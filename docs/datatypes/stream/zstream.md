@@ -502,11 +502,11 @@ val stream: ZStream[Any, IOException, Byte] =
 
 Note that the InputStream will not be explicitly closed after it is exhausted. Use `ZStream.fromInputStreamEffect`, or `ZStream.fromInputStreamManaged` instead.
 
-**ZStream.fromInputStreamEffect** — Creates a stream from a `java.io.InputStream`. Ensures that the InputStream is closed after it is exhausted:
+**ZStream.fromInputStreamZIO** — Creates a stream from a `java.io.InputStream`. Ensures that the InputStream is closed after it is exhausted:
 
 ```scala mdoc:silent:nest
 val stream: ZStream[Any, IOException, Byte] = 
-  ZStream.fromInputStreamEffect(
+  ZStream.fromInputStreamZIO(
     ZIO.attempt(new FileInputStream("file.txt"))
       .refineToOrDie[IOException]
   )
@@ -972,19 +972,13 @@ val pages = urls
 
 ### Zipping
 
-We can zip two stream by using `ZStream.zipN` or `ZStream#zipWith` operator:
+We can zip two stream by using `ZStream.zip` or `ZStream#zipWith` operator:
 
 ```scala mdoc:silent:nest
 val s1: UStream[(Int, String)] =
-  ZStream.zipN(
-    ZStream(1, 2, 3, 4, 5, 6),
-    ZStream("a", "b", "c")
-  )((a, b) => (a, b))
-
-val s2: UStream[(Int, String)] =
   ZStream(1, 2, 3, 4, 5, 6).zipWith(ZStream("a", "b", "c"))((a, b) => (a, b))
 
-val s3: UStream[(Int, String)] = 
+val s2: UStream[(Int, String)] = 
   ZStream(1, 2, 3, 4, 5, 6).zip(ZStream("a", "b", "c"))
   
 // Output: (1, "a"), (2, "b"), (3, "c")

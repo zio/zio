@@ -89,13 +89,11 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
 
     if ((closeSubexecutors eq null) && (runInProgressFinalizers eq null) && (closeSelf eq null)) null
     else
-      ZIO
-        .mapN(
-          ifNotNull(closeSubexecutors),
-          ifNotNull(runInProgressFinalizers),
+      (
+        ifNotNull(closeSubexecutors) <*>
+          ifNotNull(runInProgressFinalizers) <*>
           ifNotNull(closeSelf)
-        )(_ *> _ *> _)
-        .uninterruptible
+      ).map { case (a, b, c) => a *> b *> c }.uninterruptible
   }
 
   def getDone: Exit[OutErr, OutDone] = done.asInstanceOf[Exit[OutErr, OutDone]]

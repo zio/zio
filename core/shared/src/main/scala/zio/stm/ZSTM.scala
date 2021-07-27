@@ -1427,6 +1427,7 @@ object ZSTM {
    * Sequentially zips the specified effects using the specified combiner
    * function.
    */
+  @deprecated("use zip", "2.0.0")
   def mapN[R, E, A, B, C](tx1: ZSTM[R, E, A], tx2: ZSTM[R, E, B])(f: (A, B) => C): ZSTM[R, E, C] =
     tx1.zipWith(tx2)(f)
 
@@ -1434,6 +1435,7 @@ object ZSTM {
    * Sequentially zips the specified effects using the specified combiner
    * function.
    */
+  @deprecated("use zip", "2.0.0")
   def mapN[R, E, A, B, C, D](tx1: ZSTM[R, E, A], tx2: ZSTM[R, E, B], tx3: ZSTM[R, E, C])(
     f: (A, B, C) => D
   ): ZSTM[R, E, D] =
@@ -1447,6 +1449,7 @@ object ZSTM {
    * Sequentially zips the specified effects using the specified combiner
    * function.
    */
+  @deprecated("use zip", "2.0.0")
   def mapN[R, E, A, B, C, D, F](tx1: ZSTM[R, E, A], tx2: ZSTM[R, E, B], tx3: ZSTM[R, E, C], tx4: ZSTM[R, E, D])(
     f: (A, B, C, D) => F
   ): ZSTM[R, E, F] =
