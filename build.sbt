@@ -602,7 +602,9 @@ lazy val docs = project.module
       "org.http4s"            %% "http4s-blaze-client"         % http4sV,
       "org.http4s"            %% "http4s-dsl"                  % http4sV,
       "com.github.ghostdogpr" %% "caliban"                     % "1.1.0",
-      "com.github.ghostdogpr" %% "caliban-zio-http"            % "1.1.0"
+      "com.github.ghostdogpr" %% "caliban-zio-http"            % "1.1.0",
+      "org.scalameta"         %% "munit"                       % "0.7.27",
+      "com.github.poslegm"    %% "munit-zio"                   % "0.0.2"
     )
   )
   .settings(macroExpansionSettings)
