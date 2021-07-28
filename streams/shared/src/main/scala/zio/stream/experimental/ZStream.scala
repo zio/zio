@@ -2033,7 +2033,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Maps over elements of the stream with the specified effectful function.
    */
   def mapZIO[R1 <: R, E1 >: E, A1](f: A => ZIO[R1, E1, A1]): ZStream[R1, E1, A1] =
-    loopOnPartialChunksElements((a, emit) => f(a) >>= emit)
+    loopOnPartialChunksElements((a, emit) => f(a) flatMap emit)
 
   /**
    * Maps over elements of the stream with the specified effectful function,

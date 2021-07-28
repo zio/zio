@@ -70,7 +70,7 @@ object SerializableSpec extends ZIOBaseSpec {
       } yield assert(result)(equalTo(list))
     },
     test("ZIO is serializable") {
-      val v = ZIO.fromFunction[Int, Int](_ + 1)
+      val v = ZIO.access[Int](_ + 1)
       for {
         returnZIO <- serializeAndBack(v)
         computeV  <- returnZIO.provide(9)

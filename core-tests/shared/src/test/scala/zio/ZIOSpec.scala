@@ -33,14 +33,6 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(ZIO.succeed(false) && ZIO.fail("fail"))(isFalse)
       }
     ),
-    suite("***")(
-      test("splits the environment") {
-        val zio1 = ZIO.fromFunction((n: Int) => n + 2)
-        val zio2 = ZIO.fromFunction((n: Int) => n * 3)
-        val zio3 = zio1 *** zio2
-        assertM(zio3.provide((4, 5)))(equalTo((6, 15)))
-      }
-    ),
     suite("unary_!")(
       test("not true is false") {
         assertM(!ZIO.succeed(true))(isFalse)
@@ -890,7 +882,7 @@ object ZIOSpec extends ZIOBaseSpec {
     suite("foreachParDiscard")(
       test("accumulates errors") {
         def task(started: Ref[Int], trigger: Promise[Nothing, Unit])(i: Int): IO[Int, Unit] =
-          started.updateAndGet(_ + 1) >>= { count =>
+          started.updateAndGet(_ + 1) flatMap { count =>
             IO.when(count == 3)(trigger.succeed(())) *> trigger.await *> IO.fail(i)
           }
 

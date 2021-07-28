@@ -27,13 +27,13 @@ trait ExecutorPlatformSpecific { this: Executor =>
    */
   lazy val asECES: ExecutionContextExecutorService =
     new AbstractExecutorService with ExecutionContextExecutorService {
-      override val prepare: ExecutionContext                               = asEC
+      override val prepare: ExecutionContext                               = asExecutionContext
       override val isShutdown: Boolean                                     = false
       override val isTerminated: Boolean                                   = false
       override val shutdown: Unit                                          = ()
       override val shutdownNow: ju.List[Runnable]                          = ju.Collections.emptyList[Runnable]
-      override def execute(runnable: Runnable): Unit                       = asEC execute runnable
-      override def reportFailure(t: Throwable): Unit                       = asEC reportFailure t
+      override def execute(runnable: Runnable): Unit                       = asExecutionContext execute runnable
+      override def reportFailure(t: Throwable): Unit                       = asExecutionContext reportFailure t
       override def awaitTermination(length: Long, unit: TimeUnit): Boolean = false
     }
 

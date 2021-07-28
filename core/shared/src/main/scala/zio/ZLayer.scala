@@ -4246,7 +4246,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer from the specified effect.
    */
   def fromZIO[R, E, A: Tag](zio: ZIO[R, E, A]): ZLayer[R, E, Has[A]] =
-    fromZIOMany(zio.asService)
+    fromZIOMany(zio.map(Has(_)))
 
   /**
    * Constructs a layer from the specified effect, which must return one or

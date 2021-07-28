@@ -612,12 +612,6 @@ object RIO {
     ZIO.filterNotPar(as)(f)
 
   /**
-   * @see See [[zio.ZIO.first]]
-   */
-  def first[A]: RIO[(A, Any), A] =
-    ZIO.first
-
-  /**
    * @see See [[zio.ZIO.firstSuccessOf]]
    */
   def firstSuccessOf[R, A](
@@ -825,29 +819,11 @@ object RIO {
     ZIO.fromFiberZIO(fiber)
 
   /**
-   * @see See [[zio.ZIO.fromFunction]]
-   */
-  def fromFunction[R, A](f: R => A): URIO[R, A] =
-    ZIO.fromFunction(f)
-
-  /**
-   * @see See [[zio.ZIO.fromFunctionFuture]]
-   */
-  def fromFunctionFuture[R, A](f: R => scala.concurrent.Future[A]): RIO[R, A] =
-    ZIO.fromFunctionFuture(f)
-
-  /**
    * @see See [[zio.ZIO.fromFunctionM]]
    */
-  @deprecated("use fromFunctionZIO", "2.0.0")
+  @deprecated("use accessZIO", "2.0.0")
   def fromFunctionM[R, A](f: R => Task[A]): RIO[R, A] =
     ZIO.fromFunctionM(f)
-
-  /**
-   * @see See [[zio.ZIO.fromFunctionZIO]]
-   */
-  def fromFunctionZIO[R, A](f: R => Task[A]): RIO[R, A] =
-    ZIO.fromFunctionZIO(f)
 
   /**
    * @see See [[zio.ZIO.fromFuture]]
@@ -897,11 +873,6 @@ object RIO {
   @deprecated("use failCauseWith", "2.0.0")
   def haltWith[R](function: (() => ZTrace) => Cause[Throwable]): RIO[R, Nothing] =
     ZIO.haltWith(function)
-
-  /**
-   * @see See [[zio.ZIO.identity]]
-   */
-  def identity[R]: RIO[R, R] = ZIO.identity
 
   /**
    * @see [[zio.ZIO.ifM]]
@@ -1142,8 +1113,9 @@ object RIO {
     ZIO.replicateZIODiscard(n)(effect)
 
   /**
-   * @see See [[zio.ZIO.require]]
+   * @see See [[zio.ZIO.someOrFail]]
    */
+  @deprecated("use someOrFail", "2.0.0")
   def require[A](error: => Throwable): IO[Throwable, Option[A]] => IO[Throwable, A] =
     ZIO.require[Any, Throwable, A](error)
 
@@ -1162,12 +1134,6 @@ object RIO {
    * @see See [[zio.ZIO.runtime]]
    */
   def runtime[R]: ZIO[R, Nothing, Runtime[R]] = ZIO.runtime
-
-  /**
-   * @see See [[zio.ZIO.second]]
-   */
-  def second[A]: RIO[(Any, A), A] =
-    ZIO.second
 
   /**
    * @see See [[zio.ZIO.setState]]
@@ -1250,12 +1216,6 @@ object RIO {
    */
   def suspendWith[R, A](p: (Platform, Fiber.Id) => RIO[R, A]): RIO[R, A] =
     ZIO.suspendWith(p)
-
-  /**
-   * @see See [[zio.ZIO.swap]]
-   */
-  def swap[A, B]: RIO[(A, B), (B, A)] =
-    ZIO.swap
 
   /**
    * @see See [[zio.ZIO.trace]]

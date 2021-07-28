@@ -62,10 +62,10 @@ object ZIOAspect {
   /**
    * As aspect that runs effects on the specified `ExecutionContext`.
    */
-  def on(ec: ExecutionContext): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
+  def lockExecutionContext(ec: ExecutionContext): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
     new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
       def apply[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
-        zio.on(ec)
+        zio.lockExecutionContext(ec)
     }
 
   /**

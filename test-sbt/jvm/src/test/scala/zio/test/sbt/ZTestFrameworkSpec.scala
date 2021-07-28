@@ -134,7 +134,7 @@ object ZTestFrameworkSpec {
         new ZTestTask(
           zTestTask.taskDef,
           zTestTask.testClassLoader,
-          UIO.succeed(Summary(1, 0, 0, "foo")) >>> zTestTask.sendSummary,
+          zTestTask.sendSummary.provide(Summary(1, 0, 0, "foo")),
           TestArgs.empty
         )
       }
@@ -155,7 +155,7 @@ object ZTestFrameworkSpec {
         new ZTestTask(
           zTestTask.taskDef,
           zTestTask.testClassLoader,
-          UIO.succeed(Summary(0, 0, 0, "foo")) >>> zTestTask.sendSummary,
+          zTestTask.sendSummary.provide(Summary(1, 0, 0, "foo")),
           TestArgs.empty
         )
       }

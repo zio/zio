@@ -596,7 +596,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
                         self.zio
                           .provide((r, finalizers))
                           .map(_._2)
-                          .to(promise)
+                          .intoPromise(promise)
                       }
                       .once
       } yield (complete *> promise.await).toManaged

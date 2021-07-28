@@ -25,7 +25,6 @@ object ZIOLazinessSpec extends ZIOBaseSpec {
       test("interruptAs")(assertLazy(IO.interruptAs)),
       test("left")(assertLazy(IO.left)),
       test("lock")(assertLazy(IO.lock)),
-      test("require")(assertLazy(ZIO.require)),
       test("right")(assertLazy(IO.right)),
       test("some")(assertLazy(IO.some)),
       test("succeed")(assertLazy(IO.succeed))
@@ -54,7 +53,6 @@ object ZIOLazinessSpec extends ZIOBaseSpec {
       test("left")(assertLazy(RIO.left)),
       test("lock")(assertLazy(RIO.lock)),
       test("provide")(assertLazy(RIO.provide)),
-      test("require")(assertLazy(RIO.require)),
       test("right")(assertLazy(RIO.right)),
       test("sleep")(assertLazy(RIO.sleep)),
       test("some")(assertLazy(RIO.some)),
@@ -72,7 +70,6 @@ object ZIOLazinessSpec extends ZIOBaseSpec {
       test("interruptAs")(assertLazy(Task.interruptAs)),
       test("left")(assertLazy(Task.left)),
       test("lock")(assertLazy(Task.lock)),
-      test("require")(assertLazy(Task.require)),
       test("right")(assertLazy(Task.right)),
       test("some")(assertLazy(Task.some)),
       test("succeed")(assertLazy(Task.succeed))
@@ -133,7 +130,6 @@ object ZIOLazinessSpec extends ZIOBaseSpec {
       test("left")(assertLazy(ZIO.left)),
       test("lock")(assertLazy(ZIO.lock)),
       test("provide")(assertLazy(ZIO.provide)),
-      test("require")(assertLazy(ZIO.require)),
       test("right")(assertLazy(ZIO.right)),
       test("sleep")(assertLazy(ZIO.sleep)),
       test("some")(assertLazy(ZIO.some)),

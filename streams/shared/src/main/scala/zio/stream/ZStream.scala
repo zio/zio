@@ -2226,7 +2226,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                         latch.succeed(()) *>                 // Make sure we start evaluation before moving on to the next element
                           (errorSignal.await raceFirst f(a)) // Interrupt evaluation if another task fails
                             .tapCause(errorSignal.failCause) // Notify other tasks of a failure
-                            .to(p)                           // Transfer the result to the consuming stream
+                            .intoPromise(p)                           // Transfer the result to the consuming stream
                       }.fork
                  _ <- latch.await
                } yield ()
@@ -2993,6 +2993,8 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   final def tap[R1 <: R, E1 >: E](f0: O => ZIO[R1, E1, Any]): ZStream[R1, E1, O] =
     mapZIO(o => f0(o).as(o))
 
+  // TODO: add tapError and tapCause and tapBoth
+
   /**
    * Throttles the chunks of this stream according to the given bandwidth parameters using the token bucket
    * algorithm. Allows for burst in the processing of elements by allowing the token bucket to accumulate
@@ -3180,9 +3182,9 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                 Some(ZScope.global)
               )
             case Current(fiber) =>
-              fiber.join >>= store
+              fiber.join flatMap store
             case NotStarted =>
-              chunks >>= store
+              chunks flatMap store
             case Done =>
               Pull.end
           }
@@ -3301,7 +3303,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   final def toQueue(capacity: Int = 2): ZManaged[R, Nothing, Dequeue[Take[E, O]]] =
     for {
       queue <- Queue.bounded[Take[E, O]](capacity).toManagedWith(_.shutdown)
-      _     <- self.intoManaged(queue).fork
+      _     <- self.intoQueueManaged(queue).fork
     } yield queue
 
   /**
@@ -3311,7 +3313,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   final def toQueueUnbounded: ZManaged[R, Nothing, Dequeue[Take[E, O]]] =
     for {
       queue <- Queue.unbounded[Take[E, O]].toManagedWith(_.shutdown)
-      _     <- self.intoManaged(queue).fork
+      _     <- self.intoQueueManaged(queue).fork
     } yield queue
 
   /**

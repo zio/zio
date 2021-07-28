@@ -710,29 +710,18 @@ object UIO {
     ZIO.fromFiberZIO(fiber)
 
   /**
-   * @see [[zio.ZIO.fromFunction]]
-   */
-  def fromFunction[A](f: Any => A): UIO[A] = ZIO.fromFunction(f)
-
-  /**
    * @see [[zio.ZIO.fromFunctionM]]
    */
-  @deprecated("use fromFunctionZIO", "2.0.0")
+  @deprecated("use accessZIO", "2.0.0")
   def fromFunctionM[A](f: Any => UIO[A]): UIO[A] =
-    ZIO.fromFunctionM(f)
-
-  /**
-   * @see [[zio.ZIO.fromFunctionZIO]]
-   */
-  def fromFunctionZIO[A](f: Any => UIO[A]): UIO[A] =
-    ZIO.fromFunctionZIO(f)
+    ZIO.accessZIO(f)
 
   /**
    * @see See [[zio.ZIO.halt]]
    */
   @deprecated("use failCause", "2.0.0")
   def halt(cause: => Cause[Nothing]): UIO[Nothing] =
-    ZIO.halt(cause)
+    ZIO.failCause(cause)
 
   /**
    * @see [[zio.ZIO.haltWith]]
@@ -740,11 +729,6 @@ object UIO {
   @deprecated("use failCauseWith", "2.0.0")
   def haltWith(function: (() => ZTrace) => Cause[Nothing]): UIO[Nothing] =
     ZIO.haltWith(function)
-
-  /**
-   * @see [[zio.ZIO.identity]]
-   */
-  def identity: UIO[Any] = ZIO.identity
 
   /**
    * @see [[zio.ZIO.ifM]]
