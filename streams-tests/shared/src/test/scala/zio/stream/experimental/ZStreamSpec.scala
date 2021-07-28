@@ -3420,7 +3420,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               left   <- Queue.unbounded[Chunk[Int]]
               right  <- Queue.unbounded[Chunk[Int]]
               out    <- Queue.bounded[Take[Nothing, (Int, Int)]](1)
-              _      <- ZStream.fromChunkQueue(left).zipWithLatest(ZStream.fromChunkQueue(right))((_, _)).runInto(out).fork
+              _      <- ZStream.fromChunkQueue(left).zipWithLatest(ZStream.fromChunkQueue(right))((_, _)).runIntoQueue(out).fork
               _      <- left.offer(Chunk(0))
               _      <- right.offerAll(List(Chunk(0), Chunk(1)))
               chunk1 <- ZIO.collectAll(ZIO.replicate(2)(out.take.flatMap(_.done))).map(_.flatten)

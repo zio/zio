@@ -117,6 +117,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   /**
    * Symbolic alias for flatMap
    */
+  @deprecated("use flatMap", "2.0.0")
   def >>=[R1 <: R, E1 >: E, B](k: A => ZManaged[R1, E1, B]): ZManaged[R1, E1, B] =
     flatMap(k)
 
@@ -467,6 +468,13 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
     ZManaged.lock(executor) *> self
 
   /**
+   * Runs this managed effect, as well as any managed effects that are composed
+   * sequentially after it, using the specified `ExecutionContext`.
+   */
+  final def lockExecutionContext(ec: ExecutionContext): ZManaged[R, E, A] =
+    self.lock(Executor.fromExecutionContext(Int.MaxValue)(ec))
+
+  /**
    * Returns an effect whose success is mapped by the specified `f` function.
    */
   def map[B](f: A => B): ZManaged[R, E, B] =
@@ -554,8 +562,9 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * Runs this managed effect, as well as any managed effects that are composed
    * sequentially after it, using the specified `ExecutionContext`.
    */
+  @deprecated("use onExecutionContext", "2.0.0")
   final def on(ec: ExecutionContext): ZManaged[R, E, A] =
-    self.lock(Executor.fromExecutionContext(Int.MaxValue)(ec))
+    lockExecutionContext(ec)
 
   /**
    * Ensures that a cleanup function runs when this ZManaged is finalized, after
@@ -754,21 +763,10 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
     layer.build.map(ev).flatMap(self.provide)
 
   /**
-   * Provides some of the environment required to run this effect,
-   * leaving the remainder `R0`.
-   *
-   * {{{
-   * val managed: ZManaged[Console with Logging, Nothing, Unit] = ???
-   *
-   * managed.provideSome[Console](env =>
-   *   new Console with Logging {
-   *     val console = env.console
-   *     val logging = new Logging[Any] {
-   *       def log(line: String) = Console.printLine(line)
-   *     }
-   *   }
-   * )
-   * }}}
+   * Provides some of the environment required to run this effect when the
+   * environment is not a subtype of `Has[_]`. This is useful primarily for
+   * implementing operators that are polymorphic in the environment type. When
+   * your environment is a subtype of `Has[_]` use [[zio.ZIO.injectSome]]
    */
   def provideSome[R0](f: R0 => R)(implicit ev: NeedsEnv[R]): ZManaged[R0, E, A] =
     ZManaged(zio.provideSome[(R0, ZManaged.ReleaseMap)](tp => (f(tp._1), tp._2)))

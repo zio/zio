@@ -363,7 +363,7 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
   /**
    * Unwraps the optional success of this effect, but can fail with None value.
    */
-  @deprecated("use someOrFail", "2.0.0")
+  @deprecated("use some", "2.0.0")
   def get[B](implicit ev1: E <:< Nothing, ev2: A <:< Option[B]): ZSTM[R, Option[Nothing], B] =
     foldSTM(
       ev1,
