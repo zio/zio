@@ -19,7 +19,11 @@ inThisBuild(
         "john@degoes.net",
         url("http://degoes.net")
       )
-    )
+    ),
+    versionPolicyIntention := Compatibility.BinaryAndSourceCompatible,
+    versionPolicyIgnoredInternalDependencyVersions := Some(
+      "^\\d+\\.\\d+\\.\\d+\\+\\d+".r
+    ) // See https://github.com/scalacenter/sbt-version-policy#how-to-integrate-with-sbt-dynver
   )
 )
 
@@ -67,8 +71,8 @@ addCommandAlias(
   ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/test;examplesJS/test:compile;macrosJS/test"
 )
 addCommandAlias(
-  "mimaChecks",
-  "all coreJVM/mimaReportBinaryIssues streamsJVM/mimaReportBinaryIssues testJVM/mimaReportBinaryIssues"
+  "versionPolicyChecks",
+  "all coreJVM/versionPolicyCheck streamsJVM/versionPolicyCheck testJVM/versionPolicyCheck"
 )
 
 lazy val root = project
@@ -139,7 +143,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
 lazy val coreJVM = core.jvm
   .settings(dottySettings)
   .settings(replSettings)
-  .settings(mimaSettings(failOnProblem = true))
+  .settings(mimaSettings)
 
 lazy val coreJS = core.js
   .settings(dottySettings)
@@ -214,7 +218,7 @@ lazy val streams = crossProject(JSPlatform, JVMPlatform, NativePlatform)
 lazy val streamsJVM = streams.jvm
   .settings(dottySettings)
   // No bincompat on streams yet
-  .settings(mimaSettings(failOnProblem = false))
+  .settings(mimaSettings, versionPolicyCheck / skip := true)
 
 lazy val streamsJS = streams.js
   .settings(dottySettings)
@@ -261,7 +265,7 @@ lazy val test = crossProject(JSPlatform, JVMPlatform, NativePlatform)
 lazy val testJVM = test.jvm
   .settings(dottySettings)
   // No bincompat on zio-test yet
-  .settings(mimaSettings(failOnProblem = false))
+  .settings(mimaSettings, versionPolicyCheck / skip := true)
 lazy val testJS = test.js
   .settings(dottySettings)
   .settings(

@@ -19,6 +19,8 @@ jobs:
     steps:
     - name: Checkout current branch
       uses: actions/checkout@v2.3.5
+      with:
+        fetch-depth: 0
     - name: Setup Scala and Java
       uses: olafurpg/setup-scala@v13
     - name: Cache scala dependencies
@@ -32,6 +34,8 @@ jobs:
     steps:
       - name: Checkout current branch
         uses: actions/checkout@v2.3.5
+        with:
+          fetch-depth: 0
       - name: Setup Scala and Java
         uses: olafurpg/setup-scala@v13
       - name: Cache scala dependencies
@@ -76,13 +80,15 @@ jobs:
     steps:
     - name: Checkout current branch
       uses: actions/checkout@v2.3.5
+      with:
+        fetch-depth: 0
     - name: Setup Scala and Java
       uses: olafurpg/setup-scala@v13
     - name: Cache scala dependencies
       uses: coursier/cache-action@v6
-    - name: Mima Checks
+    - name: Version Policy Checks
       if: ${{ !startsWith(matrix.scala, '3.') }}
-      run: ./sbt ++${{ matrix.scala }}! mimaChecks
+      run: ./sbt ++${{ matrix.scala }}! versionPolicyChecks
     - name: Test 2.11.x
       if: ${{ startsWith(matrix.scala, '2.11.') }}
       run: ./sbt ++${{ matrix.scala }}! test${{ matrix.platform }}211
@@ -150,7 +156,7 @@ jobs:
       - name: Setup Scala and Java
         uses: olafurpg/setup-scala@v13
       - name: Release
-        run: ./sbt ci-release
+        run: ./sbt versionCheck ci-release
         env:
           PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
           PGP_SECRET: ${{ secrets.PGP_SECRET }}
