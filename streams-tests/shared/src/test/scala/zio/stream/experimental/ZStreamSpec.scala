@@ -3457,7 +3457,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 .take(3)
                 .runCollect
             )(equalTo(Chunk(1, 1, 1)))
-          } @@ TestAspect.jvmOnly
+          } @@ TestAspect.ignore
         ),
         suite("zipWithNext")(
           test("should zip with next element for a single chunk") {
