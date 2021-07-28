@@ -4221,18 +4221,21 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * Sequentially zips the specified effects. Specialized version of mapN.
    */
+  @deprecated("use zip", "2.0.0")
   def tupled[R, E, A, B](zio1: ZIO[R, E, A], zio2: ZIO[R, E, B]): ZIO[R, E, (A, B)] =
     mapN(zio1, zio2)((_, _))
 
   /**
    * Sequentially zips the specified effects. Specialized version of mapN.
    */
+  @deprecated("use zip", "2.0.0")
   def tupled[R, E, A, B, C](zio1: ZIO[R, E, A], zio2: ZIO[R, E, B], zio3: ZIO[R, E, C]): ZIO[R, E, (A, B, C)] =
     mapN(zio1, zio2, zio3)((_, _, _))
 
   /**
    * Sequentially zips the specified effects. Specialized version of mapN.
    */
+  @deprecated("use zip", "2.0.0")
   def tupled[R, E, A, B, C, D](
     zio1: ZIO[R, E, A],
     zio2: ZIO[R, E, B],
@@ -4244,18 +4247,21 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * Zips the specified effects in parallel. Specialized version of mapParN.
    */
+  @deprecated("use zipPar", "2.0.0")
   def tupledPar[R, E, A, B](zio1: ZIO[R, E, A], zio2: ZIO[R, E, B]): ZIO[R, E, (A, B)] =
     mapParN(zio1, zio2)((_, _))
 
   /**
    * Zips the specified effects in parallel. Specialized version of mapParN.
    */
+  @deprecated("use zipPar", "2.0.0")
   def tupledPar[R, E, A, B, C](zio1: ZIO[R, E, A], zio2: ZIO[R, E, B], zio3: ZIO[R, E, C]): ZIO[R, E, (A, B, C)] =
     mapParN(zio1, zio2, zio3)((_, _, _))
 
   /**
    * Zips the specified effects in parallel. Specialized version of mapParN.
    */
+  @deprecated("use zipPar", "2.0.0")
   def tupledPar[R, E, A, B, C, D](
     zio1: ZIO[R, E, A],
     zio2: ZIO[R, E, B],
@@ -4268,6 +4274,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Sequentially zips the specified effects using the specified combiner
    * function.
    */
+  @deprecated("use zip", "2.0.0")
   def mapN[R, E, A, B, C](zio1: ZIO[R, E, A], zio2: ZIO[R, E, B])(f: (A, B) => C): ZIO[R, E, C] =
     zio1.zipWith(zio2)(f)
 
@@ -4275,6 +4282,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Sequentially zips the specified effects using the specified combiner
    * function.
    */
+  @deprecated("use zip", "2.0.0")
   def mapN[R, E, A, B, C, D](zio1: ZIO[R, E, A], zio2: ZIO[R, E, B], zio3: ZIO[R, E, C])(
     f: (A, B, C) => D
   ): ZIO[R, E, D] =
@@ -4288,6 +4296,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Sequentially zips the specified effects using the specified combiner
    * function.
    */
+  @deprecated("use zip", "2.0.0")
   def mapN[R, E, A, B, C, D, F](zio1: ZIO[R, E, A], zio2: ZIO[R, E, B], zio3: ZIO[R, E, C], zio4: ZIO[R, E, D])(
     f: (A, B, C, D) => F
   ): ZIO[R, E, F] =
@@ -4303,6 +4312,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * combining their results with the specified `f` function. If any effect
    * fails, then the other effects will be interrupted.
    */
+  @deprecated("use zipPar", "2.0.0")
   def mapParN[R, E, A, B, C](zio1: ZIO[R, E, A], zio2: ZIO[R, E, B])(f: (A, B) => C): ZIO[R, E, C] =
     zio1.zipWithPar(zio2)(f)
 
@@ -4311,6 +4321,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * combining their results with the specified `f` function. If any effect
    * fails, then the other effects will be interrupted.
    */
+  @deprecated("use zipPar", "2.0.0")
   def mapParN[R, E, A, B, C, D](zio1: ZIO[R, E, A], zio2: ZIO[R, E, B], zio3: ZIO[R, E, C])(
     f: (A, B, C) => D
   ): ZIO[R, E, D] =
@@ -4321,6 +4332,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * combining their results with the specified `f` function. If any effect
    * fails, then the other effects will be interrupted.
    */
+  @deprecated("use zipPar", "2.0.0")
   def mapParN[R, E, A, B, C, D, F](
     zio1: ZIO[R, E, A],
     zio2: ZIO[R, E, B],
@@ -4608,18 +4620,21 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * Accesses the specified services in the environment of the effect.
    */
+  @deprecated("use service", "2.0.0")
   def services[A: Tag, B: Tag]: URIO[Has[A] with Has[B], (A, B)] =
     ZIO.access(r => (r.get[A], r.get[B]))
 
   /**
    * Accesses the specified services in the environment of the effect.
    */
+  @deprecated("use service", "2.0.0")
   def services[A: Tag, B: Tag, C: Tag]: URIO[Has[A] with Has[B] with Has[C], (A, B, C)] =
     ZIO.access(r => (r.get[A], r.get[B], r.get[C]))
 
   /**
    * Accesses the specified services in the environment of the effect.
    */
+  @deprecated("use service", "2.0.0")
   def services[A: Tag, B: Tag, C: Tag, D: Tag]: URIO[Has[A] with Has[B] with Has[C] with Has[D], (A, B, C, D)] =
     ZIO.access(r => (r.get[A], r.get[B], r.get[C], r.get[D]))
 

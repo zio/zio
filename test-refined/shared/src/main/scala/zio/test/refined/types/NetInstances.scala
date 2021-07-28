@@ -17,11 +17,11 @@ trait NetInstances {
   val dynamicPortNumberGen: Gen[Has[Random], DynamicPortNumber]     = Gen.int(49152, 65535).map(Refined.unsafeApply)
   val nonSystemPortNumberGen: Gen[Has[Random], NonSystemPortNumber] = Gen.int(1024, 65535).map(Refined.unsafeApply)
   val rfc1918ClassAPrivateGen: Gen[Has[Random], Rfc1918ClassAPrivate] =
-    Gen.zipN(_0to255, _0to255, _0to255)((a, b, c) => Refined.unsafeApply(s"10.$a.$b.$c"))
+    (_0to255 <*> _0to255 <*> _0to255).map { case (a, b, c) => Refined.unsafeApply(s"10.$a.$b.$c") }
   val rfc1918ClassBPrivateGen: Gen[Has[Random], Rfc1918ClassBPrivate] =
-    Gen.zipN(Gen.int(16, 31), _0to255, _0to255)((a, b, c) => Refined.unsafeApply(s"172.$a.$b.$c"))
+    (Gen.int(16, 31) <*> _0to255 <*> _0to255).map { case (a, b, c) => Refined.unsafeApply(s"172.$a.$b.$c") }
   val rfc1918ClassCPrivateGen: Gen[Has[Random], Rfc1918ClassCPrivate] =
-    Gen.zipN(_0to255, _0to255)((a, b) => Refined.unsafeApply(s"192.168.$a.$b"))
+    (_0to255 <*> _0to255).map { case (a, b) => Refined.unsafeApply(s"192.168.$a.$b") }
   val rfc1918PrivateGen: Gen[Has[Random], Rfc1918Private] =
     Gen
       .oneOf(rfc1918ClassAPrivateGen, rfc1918ClassBPrivateGen, rfc1918ClassCPrivateGen)
@@ -33,9 +33,9 @@ trait NetInstances {
     .oneOf(rfc5737Testnet1Gen, rfc5737Testnet2Gen, rfc5737Testnet3Gen)
     .map(v => Refined.unsafeApply(v.value))
   val rfc3927LocalLinkGen: Gen[Has[Random], Rfc3927LocalLink] =
-    Gen.zipN(_0to255, _0to255)((a, b) => Refined.unsafeApply(s"169.254.$a.$b"))
+    (_0to255 <*> _0to255).map { case (a, b) => Refined.unsafeApply(s"169.254.$a.$b") }
   val rfc2544BenchmarkGen: Gen[Has[Random], Rfc2544Benchmark] =
-    Gen.zipN(Gen.int(18, 19), _0to255, _0to255)((a, b, c) => Refined.unsafeApply(s"198.$a.$b.$c"))
+    (Gen.int(18, 19) <*> _0to255 <*> _0to255).map { case (a, b, c) => Refined.unsafeApply(s"198.$a.$b.$c") }
   val privateNetworkGen: Gen[Has[Random], PrivateNetwork] =
     Gen
       .oneOf(rfc1918PrivateGen, rfc5737TestnetGen, rfc3927LocalLinkGen, rfc2544BenchmarkGen)

@@ -2505,7 +2505,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
-    @deprecated("use toLayer", "2.0.0")
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[
     A0: Tag,
     A1: Tag,

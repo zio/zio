@@ -1424,62 +1424,6 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(task.exit)(fails(isSubtype[NumberFormatException](anything)))
       }
     ),
-    suite("mapN")(
-      test("with Tuple2") {
-        checkM(Gen.anyInt, Gen.alphaNumericString) { (int: Int, str: String) =>
-          def f(i: Int, s: String): String = i.toString + s
-          val actual                       = ZIO.mapN(ZIO.succeed(int), ZIO.succeed(str))(f)
-          val expected                     = f(int, str)
-          assertM(actual)(equalTo(expected))
-        }
-      },
-      test("with Tuple3") {
-        checkM(Gen.anyInt, Gen.alphaNumericString, Gen.alphaNumericString) { (int: Int, str1: String, str2: String) =>
-          def f(i: Int, s1: String, s2: String): String = i.toString + s1 + s2
-          val actual                                    = ZIO.mapN(ZIO.succeed(int), ZIO.succeed(str1), ZIO.succeed(str2))(f)
-          val expected                                  = f(int, str1, str2)
-          assertM(actual)(equalTo(expected))
-        }
-      },
-      test("with Tuple4") {
-        checkM(Gen.anyInt, Gen.alphaNumericString, Gen.alphaNumericString, Gen.alphaNumericString) {
-          (int: Int, str1: String, str2: String, str3: String) =>
-            def f(i: Int, s1: String, s2: String, s3: String): String = i.toString + s1 + s2 + s3
-            val actual =
-              ZIO.mapN(ZIO.succeed(int), ZIO.succeed(str1), ZIO.succeed(str2), ZIO.succeed(str3))(f)
-            val expected = f(int, str1, str2, str3)
-            assertM(actual)(equalTo(expected))
-        }
-      }
-    ),
-    suite("mapParN")(
-      test("with Tuple2") {
-        checkM(Gen.anyInt, Gen.alphaNumericString) { (int: Int, str: String) =>
-          def f(i: Int, s: String): String = i.toString + s
-          val actual                       = ZIO.mapParN(ZIO.succeed(int), ZIO.succeed(str))(f)
-          val expected                     = f(int, str)
-          assertM(actual)(equalTo(expected))
-        }
-      },
-      test("with Tuple3") {
-        checkM(Gen.anyInt, Gen.alphaNumericString, Gen.alphaNumericString) { (int: Int, str1: String, str2: String) =>
-          def f(i: Int, s1: String, s2: String): String = i.toString + s1 + s2
-          val actual                                    = ZIO.mapParN(ZIO.succeed(int), ZIO.succeed(str1), ZIO.succeed(str2))(f)
-          val expected                                  = f(int, str1, str2)
-          assertM(actual)(equalTo(expected))
-        }
-      },
-      test("with Tuple4") {
-        checkM(Gen.anyInt, Gen.alphaNumericString, Gen.alphaNumericString, Gen.alphaNumericString) {
-          (int: Int, str1: String, str2: String, str3: String) =>
-            def f(i: Int, s1: String, s2: String, s3: String): String = i.toString + s1 + s2 + s3
-            val actual =
-              ZIO.mapParN(ZIO.succeed(int), ZIO.succeed(str1), ZIO.succeed(str2), ZIO.succeed(str3))(f)
-            val expected = f(int, str1, str2, str3)
-            assertM(actual)(equalTo(expected))
-        }
-      }
-    ),
     suite("memoize")(
       test("non-memoized returns new instances on repeated calls") {
         val io = Random.nextString(10)

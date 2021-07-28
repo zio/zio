@@ -2475,6 +2475,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * Sequentially zips the specified effects using the specified combiner
    * function.
    */
+  @deprecated("use zip", "2.0.0")
   def mapN[R, E, A, B, C](zManaged1: ZManaged[R, E, A], zManaged2: ZManaged[R, E, B])(
     f: (A, B) => C
   ): ZManaged[R, E, C] =
@@ -2484,6 +2485,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * Sequentially zips the specified effects using the specified combiner
    * function.
    */
+  @deprecated("use zip", "2.0.0")
   def mapN[R, E, A, B, C, D](
     zManaged1: ZManaged[R, E, A],
     zManaged2: ZManaged[R, E, B],
@@ -2499,6 +2501,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * Sequentially zips the specified effects using the specified combiner
    * function.
    */
+  @deprecated("use zip", "2.0.0")
   def mapN[R, E, A, B, C, D, F](
     zManaged1: ZManaged[R, E, A],
     zManaged2: ZManaged[R, E, B],
@@ -2517,6 +2520,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * combining their results with the specified `f` function. If any effect
    * fails, then the other effects will be interrupted.
    */
+  @deprecated("use zipPar", "2.0.0")
   def mapParN[R, E, A, B, C](zManaged1: ZManaged[R, E, A], zManaged2: ZManaged[R, E, B])(
     f: (A, B) => C
   ): ZManaged[R, E, C] =
@@ -2527,6 +2531,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * combining their results with the specified `f` function. If any effect
    * fails, then the other effects will be interrupted.
    */
+  @deprecated("use zipPar", "2.0.0")
   def mapParN[R, E, A, B, C, D](
     zManaged1: ZManaged[R, E, A],
     zManaged2: ZManaged[R, E, B],
@@ -2539,6 +2544,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * combining their results with the specified `f` function. If any effect
    * fails, then the other effects will be interrupted.
    */
+  @deprecated("use zipPar", "2.0.0")
   def mapParN[R, E, A, B, C, D, F](
     zManaged1: ZManaged[R, E, A],
     zManaged2: ZManaged[R, E, B],
@@ -2732,18 +2738,21 @@ object ZManaged extends ZManagedPlatformSpecific {
   /**
    * Accesses the specified services in the environment of the effect.
    */
+  @deprecated("use service", "2.0.0")
   def services[A: Tag, B: Tag]: ZManaged[Has[A] with Has[B], Nothing, (A, B)] =
     ZManaged.access(r => (r.get[A], r.get[B]))
 
   /**
    * Accesses the specified services in the environment of the effect.
    */
+  @deprecated("use service", "2.0.0")
   def services[A: Tag, B: Tag, C: Tag]: ZManaged[Has[A] with Has[B] with Has[C], Nothing, (A, B, C)] =
     ZManaged.access(r => (r.get[A], r.get[B], r.get[C]))
 
   /**
    * Accesses the specified services in the environment of the effect.
    */
+  @deprecated("use service", "2.0.0")
   def services[A: Tag, B: Tag, C: Tag, D: Tag]
     : ZManaged[Has[A] with Has[B] with Has[C] with Has[D], Nothing, (A, B, C, D)] =
     ZManaged.access(r => (r.get[A], r.get[B], r.get[C], r.get[D]))

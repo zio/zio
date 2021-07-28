@@ -15,7 +15,11 @@ object AutoLayerSpec extends ZIOBaseSpec {
         suite("meta-suite") {
           val doubleLayer = ZLayer.succeed(100.1)
           val stringLayer = ZLayer.succeed("this string is 28 chars long")
-          val intLayer    = ZIO.services[String, Double].map { case (str, double) => str.length + double.toInt }.toLayer
+          val intLayer =
+            (for {
+              str    <- ZIO.service[String]
+              double <- ZIO.service[Double]
+            } yield str.length + double.toInt).toLayer
           test("automatically constructs a layer from its dependencies") {
             val program = ZIO.service[Int]
             assertM(program)(equalTo(128))
