@@ -18,7 +18,11 @@ object AutoLayerSpec extends ZIOBaseSpec {
           test("automatically constructs a layer from its dependencies") {
             val doubleLayer: ULayer[Has[Double]] = ZLayer.succeed(100.1)
             val stringLayer                      = ZLayer.succeed("this string is 28 chars long")
-            val intLayer                         = ZIO.services[String, Double].map { case (str, double) => str.length + double.toInt }.toLayer
+            val intLayer =
+              (for {
+                str    <- ZIO.service[String]
+                double <- ZIO.service[Double]
+              } yield str.length + double.toInt).toLayer
 
             val program: URIO[Has[Int], Int] = ZIO.service[Int]
             val provided                     = program.inject(intLayer, stringLayer, doubleLayer)
@@ -33,7 +37,7 @@ object AutoLayerSpec extends ZIOBaseSpec {
 
             for {
               ref    <- Ref.make(0)
-              _      <- ZIO.services[Int, Boolean].inject(layerA, layerB, sideEffectingLayer(ref))
+              _      <- (ZIO.service[Int] <*> ZIO.service[Boolean]).inject(layerA, layerB, sideEffectingLayer(ref))
               result <- ref.get
             } yield assert(result)(equalTo(1))
           },
@@ -137,7 +141,9 @@ object AutoLayerSpec extends ZIOBaseSpec {
           test("automatically constructs a layer from its dependencies") {
             val doubleLayer                      = ZLayer.succeed(100.1)
             val stringLayer: ULayer[Has[String]] = ZLayer.succeed("this string is 28 chars long")
-            val intLayer                         = ZIO.services[String, Double].map { case (str, double) => str.length + double.toInt }.toLayer
+            val intLayer = (ZIO.service[String] <*> ZIO.service[Double]).map { case (str, double) =>
+              str.length + double.toInt
+            }.toLayer
 
             val layer    = ZLayer.wire[Has[Int]](intLayer, stringLayer, doubleLayer)
             val provided = ZIO.service[Int].provideLayer(layer)
@@ -174,8 +180,10 @@ object AutoLayerSpec extends ZIOBaseSpec {
         suite("`ZLayer.wireSome`")(
           test("automatically constructs a layer from its dependencies, leaving off some remainder") {
             val stringLayer = ZLayer.succeed("this string is 28 chars long")
-            val intLayer    = ZIO.services[String, Double].map { case (str, double) => str.length + double.toInt }.toLayer
-            val program     = ZIO.service[Int]
+            val intLayer = (ZIO.service[String] <*> ZIO.service[Double]).map { case (str, double) =>
+              str.length + double.toInt
+            }.toLayer
+            val program = ZIO.service[Int]
 
             val layer    = ZLayer.wireSome[Has[Double] with Has[Boolean], Has[Int]](intLayer, stringLayer)
             val provided = program.provideLayer(ZLayer.succeed(true) ++ ZLayer.succeed(100.1) >>> layer)
@@ -189,7 +197,10 @@ object AutoLayerSpec extends ZIOBaseSpec {
             val doubleLayer = ZLayer.succeed(100.1)
             val stringLayer = ZLayer.succeed("this string is 28 chars long")
             val intLayer =
-              ZManaged.services[String, Double].map { case (str, double) => str.length + double.toInt }.toLayer
+              (for {
+                str    <- ZManaged.service[String]
+                double <- ZManaged.service[Double]
+              } yield str.length + double.toInt).toLayer
 
             val program  = ZManaged.service[Int]
             val provided = program.inject(intLayer, stringLayer, doubleLayer)
@@ -204,7 +215,7 @@ object AutoLayerSpec extends ZIOBaseSpec {
 
             (for {
               ref    <- Ref.make(0).toManaged
-              _      <- ZManaged.services[Int, Boolean].inject(layerA, layerB, sideEffectingLayer(ref))
+              _      <- (ZManaged.service[Int] <*> ZManaged.service[Boolean]).inject(layerA, layerB, sideEffectingLayer(ref))
               result <- ref.get.toManaged
             } yield assert(result)(equalTo(1))).useNow
           },
