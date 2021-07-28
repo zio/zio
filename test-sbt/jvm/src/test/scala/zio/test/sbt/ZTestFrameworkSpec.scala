@@ -15,7 +15,7 @@ import zio.test.{
   TestSuccess,
   ZSpec
 }
-import zio.{Has, UIO, ZIO, durationInt}
+import zio.{Has, ZIO, durationInt}
 
 import java.util.regex.Pattern
 import scala.collection.mutable.ArrayBuffer

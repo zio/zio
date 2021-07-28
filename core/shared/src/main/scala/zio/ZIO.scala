@@ -655,7 +655,9 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * will be invoked, whether or not this effect succeeds.
    */
   def ensuringChildren[R1 <: R](children: Chunk[Fiber.Runtime[Any, Any]] => ZIO[R1, Nothing, Any]): ZIO[R1, E, A] =
-    Supervisor.track(true).flatMap(supervisor => self.supervised(supervisor).ensuring(supervisor.value flatMap children))
+    Supervisor
+      .track(true)
+      .flatMap(supervisor => self.supervised(supervisor).ensuring(supervisor.value flatMap children))
 
   /**
    * Returns an effect that ignores errors and runs repeatedly until it eventually succeeds.
@@ -961,8 +963,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   @deprecated("use some", "2.0.0")
   final def get[B](implicit
-                    ev1: E IsSubtypeOfError Nothing,
-                    ev2: A IsSubtypeOfOutput Option[B]
+    ev1: E IsSubtypeOfError Nothing,
+    ev2: A IsSubtypeOfOutput Option[B]
   ): ZIO[R, Option[Nothing], B] =
     ZIO.absolve(self.mapError(ev1)(CanFail).map(ev2(_).toRight(None)))
 
@@ -1075,7 +1077,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def lockExecutionContext(ec: ExecutionContext): ZIO[R, E, A] =
     self.lock(Executor.fromExecutionContext(Int.MaxValue)(ec))
-
 
   /**
    * Returns an effect whose success is mapped by the specified `f` function.
@@ -3857,6 +3858,14 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     as.foldRight[URIO[R, Unit]](ZIO.unit)(_.fork *> _)
 
   /**
+   * Constructs a `ZIO` value of the appropriate type for the specified input.
+   */
+  def from[Input](input: => Input)(implicit
+    constructor: ZIOConstructor[Nothing, Any, Input]
+  ): ZIO[constructor.OutEnvironment, constructor.OutError, constructor.OutSuccess] =
+    constructor.make(input)
+
+  /**
    * Lifts an `Either` into a `ZIO` value.
    */
   def fromEither[E, A](v: => Either[E, A]): IO[E, A] =
@@ -3887,7 +3896,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Creates a `ZIO` value that represents the exit value of the specified
    * fiber.
    */
-  def fromFiberZIO[E, A](fiber: IO[E, Fiber[E, A]]): IO[E, A] =
+  def fromFiberZIO[R, E, A](fiber: ZIO[R, E, Fiber[E, A]]): ZIO[R, E, A] =
     fiber.flatMap(_.join)
 
   /**
@@ -5274,6 +5283,338 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   ) extends ZIOFn1[Cause[E], ZIO[R, E1, Nothing]] {
     def apply(c: Cause[E]): ZIO[R, E1, Nothing] =
       c.failureTraceOrCause.fold(underlying(_) *> ZIO.failCause(c), _ => ZIO.failCause(c))
+  }
+
+  /**
+   * A `ZIOConstructor[Input]` knows how to construct a `ZIO` value from an
+   * input of type `Input`. This allows the type of the `ZIO` value constructed
+   * to depend on `Input`. The constructed `ZIO` value is guaranteed not to
+   * require any services not included in `Environment` or to be able to fail
+   * in any ways not described by `Error`.
+   */
+  sealed trait ZIOConstructor[-Environment, +Error, In] {
+
+    /**
+     * The environment type of the `ZIO` value
+     */
+    type OutEnvironment >: Environment
+
+    /**
+     * The error type of the `ZIO` value.
+     */
+    type OutError <: Error
+
+    /**
+     * The success type the `ZIO` value.
+     */
+    type OutSuccess
+
+    /**
+     * Constructs a `ZIO` value from the specified input.
+     */
+    def make(input: => In): ZIO[OutEnvironment, OutError, OutSuccess]
+  }
+
+  object ZIOConstructor extends ZIOConstructorLowPriority1 {
+
+    /**
+     * Constructs a `ZIO[Any, E, A]` from an `Either[Cause[E], A]`.
+     */
+    implicit def EitherCauseConstructor[E, A]: WithOut[Any, E, Either[Cause[E], A], Any, E, A] =
+      new ZIOConstructor[Any, E, Either[Cause[E], A]] {
+        type OutEnvironment = Any
+        type OutError       = E
+        type OutSuccess     = A
+        def make(input: => Either[Cause[E], A]): ZIO[Any, E, A] =
+          ZIO.fromEitherCause(input)
+      }
+
+    /**
+     * Constructs a `ZIO[Any, E, A]` from an `Either[Cause[E], A]`.
+     */
+    implicit def EitherCauseLeftConstructor[E, A]: WithOut[Any, E, Left[Cause[E], A], Any, E, A] =
+      new ZIOConstructor[Any, E, Left[Cause[E], A]] {
+        type OutEnvironment = Any
+        type OutError       = E
+        type OutSuccess     = A
+        def make(input: => Left[Cause[E], A]): ZIO[Any, E, A] =
+          ZIO.fromEitherCause(input)
+      }
+
+    /**
+     * Constructs a `ZIO[Any, E, A]` from an `Either[Cause[E], A]`.
+     */
+    implicit def EitherCauseRightConstructor[E, A]: WithOut[Any, E, Right[Cause[E], A], Any, E, A] =
+      new ZIOConstructor[Any, E, Right[Cause[E], A]] {
+        type OutEnvironment = Any
+        type OutError       = E
+        type OutSuccess     = A
+        def make(input: => Right[Cause[E], A]): ZIO[Any, E, A] =
+          ZIO.fromEitherCause(input)
+      }
+
+    /**
+     * Constructs a `ZIO[Any, E, A]` from a `Fiber[E, A].`
+     */
+    implicit def FiberConstructor[E, A]: WithOut[Any, E, Fiber[E, A], Any, E, A] =
+      new ZIOConstructor[Any, E, Fiber[E, A]] {
+        type OutEnvironment = Any
+        type OutError       = E
+        type OutSuccess     = A
+        def make(input: => Fiber[E, A]): ZIO[Any, E, A] =
+          ZIO.fromFiber(input)
+      }
+
+    /**
+     * Constructs a `ZIO[Any, E, A]` from a `Fiber[E, A].`
+     */
+    implicit def FiberRuntimeConstructor[E, A]: WithOut[Any, E, Fiber.Runtime[E, A], Any, E, A] =
+      new ZIOConstructor[Any, E, Fiber.Runtime[E, A]] {
+        type OutEnvironment = Any
+        type OutError       = E
+        type OutSuccess     = A
+        def make(input: => Fiber.Runtime[E, A]): ZIO[Any, E, A] =
+          ZIO.fromFiber(input)
+      }
+
+    /**
+     * Constructs a `ZIO[Any, E, A]` from a `Fiber[E, A].`
+     */
+    implicit def FiberSyntheticConstructor[E, A]: WithOut[Any, E, Fiber.Synthetic[E, A], Any, E, A] =
+      new ZIOConstructor[Any, E, Fiber.Synthetic[E, A]] {
+        type OutEnvironment = Any
+        type OutError       = E
+        type OutSuccess     = A
+        def make(input: => Fiber.Synthetic[E, A]): ZIO[Any, E, A] =
+          ZIO.fromFiber(input)
+      }
+
+    /**
+     * Constructs a `ZIO[R, E, A]` from a `ZIO[R, E, Fiber[E, A]]`.
+     */
+    implicit def FiberZIOConstructor[R, E1 <: E3, E2 <: E3, E3, A]: WithOut[R, E3, ZIO[R, E1, Fiber[E2, A]], R, E3, A] =
+      new ZIOConstructor[R, E3, ZIO[R, E1, Fiber[E2, A]]] {
+        type OutEnvironment = R
+        type OutError       = E3
+        type OutSuccess     = A
+        def make(input: => ZIO[R, E1, Fiber[E2, A]]): ZIO[R, E3, A] =
+          ZIO.fromFiberZIO(input)
+      }
+
+    /**
+     * Constructs a `ZIO[R, E, A]` from a `ZIO[R, E, Fiber[E, A]]`.
+     */
+    implicit def FiberZIORuntimeConstructor[R, E1 <: E3, E2 <: E3, E3, A]
+      : WithOut[R, E3, ZIO[R, E1, Fiber.Runtime[E2, A]], R, E3, A] =
+      new ZIOConstructor[R, E3, ZIO[R, E1, Fiber.Runtime[E2, A]]] {
+        type OutEnvironment = R
+        type OutError       = E3
+        type OutSuccess     = A
+        def make(input: => ZIO[R, E1, Fiber.Runtime[E2, A]]): ZIO[R, E3, A] =
+          ZIO.fromFiberZIO(input)
+      }
+
+    /**
+     * Constructs a `ZIO[R, E, A]` from a `ZIO[R, E, Fiber[E, A]]`.
+     */
+    implicit def FiberZIOSyntheticConstructor[R, E1 <: E3, E2 <: E3, E3, A]
+      : WithOut[R, E3, ZIO[R, E1, Fiber.Synthetic[E2, A]], R, E3, A] =
+      new ZIOConstructor[R, E3, ZIO[R, E1, Fiber.Synthetic[E2, A]]] {
+        type OutEnvironment = R
+        type OutError       = E3
+        type OutSuccess     = A
+        def make(input: => ZIO[R, E1, Fiber.Synthetic[E2, A]]): ZIO[R, E3, A] =
+          ZIO.fromFiberZIO(input)
+      }
+
+    /**
+     * Constructs a `ZIO[Any, Throwable, A]` from a `Future[A]`.
+     */
+    implicit def FutureConstructor[A, FutureLike[A] <: scala.concurrent.Future[A]]
+      : WithOut[Any, Throwable, FutureLike[A], Any, Throwable, A] =
+      new ZIOConstructor[Any, Throwable, FutureLike[A]] {
+        type OutEnvironment = Any
+        type OutError       = Throwable
+        type OutSuccess     = A
+        def make(input: => FutureLike[A]): ZIO[Any, Throwable, A] =
+          ZIO.fromFuture(_ => input)
+      }
+
+    /**
+     * Constructs a `ZIO[Any, Throwable, A]` from a function
+     * `ExecutionContext => Future[A]`.
+     */
+    implicit def FutureExecutionContextConstructor[A, FutureLike[A] <: scala.concurrent.Future[A]]
+      : WithOut[Any, Throwable, scala.concurrent.ExecutionContext => FutureLike[A], Any, Throwable, A] =
+      new ZIOConstructor[Any, Throwable, scala.concurrent.ExecutionContext => FutureLike[A]] {
+        type OutEnvironment = Any
+        type OutError       = Throwable
+        type OutSuccess     = A
+        def make(input: => (scala.concurrent.ExecutionContext => FutureLike[A])): ZIO[Any, Throwable, A] =
+          ZIO.fromFuture(input)
+      }
+
+    /**
+     * Constructs a `ZIO[Any, Option[Nothing], A]` from an `Option[A]`.
+     */
+    implicit def OptionConstructor[A]: WithOut[Any, Option[Nothing], Option[A], Any, Option[Nothing], A] =
+      new ZIOConstructor[Any, Option[Nothing], Option[A]] {
+        type OutEnvironment = Any
+        type OutError       = Option[Nothing]
+        type OutSuccess     = A
+        def make(input: => Option[A]): ZIO[Any, Option[Nothing], A] =
+          ZIO.fromOption(input)
+      }
+
+    /**
+     * Constructs a `ZIO[Any, Option[Nothing], Nothing]` from a `None`.
+     */
+    implicit val OptionNoneConstructor: WithOut[Any, Option[Nothing], None.type, Any, Option[Nothing], Nothing] =
+      new ZIOConstructor[Any, Option[Nothing], None.type] {
+        type OutEnvironment = Any
+        type OutError       = Option[Nothing]
+        type OutSuccess     = Nothing
+        def make(input: => None.type): ZIO[Any, Option[Nothing], Nothing] =
+          ZIO.fromOption(input)
+      }
+
+    /**
+     * Constructs a `ZIO[Any, Option[Nothing], A]` from a `Some[A]`.
+     */
+    implicit def OptionSomeConstructor[A]: WithOut[Any, Option[Nothing], Some[A], Any, Option[Nothing], A] =
+      new ZIOConstructor[Any, Option[Nothing], Some[A]] {
+        type OutEnvironment = Any
+        type OutError       = Option[Nothing]
+        type OutSuccess     = A
+        def make(input: => Some[A]): ZIO[Any, Option[Nothing], A] =
+          ZIO.fromOption(input)
+      }
+
+    /**
+     * Constructs a `ZIO[Any, Throwable, A]` from a `Promise[A]`
+     */
+    implicit def PromiseScalaConstructor[A, PromiseLike[A] <: scala.concurrent.Promise[A]]
+      : WithOut[Any, Throwable, PromiseLike[A], Any, Throwable, A] =
+      new ZIOConstructor[Any, Throwable, PromiseLike[A]] {
+        type OutEnvironment = Any
+        type OutError       = Throwable
+        type OutSuccess     = A
+        def make(input: => PromiseLike[A]): ZIO[Any, Throwable, A] =
+          ZIO.fromPromiseScala(input)
+      }
+
+    /**
+     * Constructs a `ZIO[Any, Throwable, A]` from a `Try[A]`.
+     */
+    implicit def TryConstructor[A]: WithOut[Any, Throwable, scala.util.Try[A], Any, Throwable, A] =
+      new ZIOConstructor[Any, Throwable, scala.util.Try[A]] {
+        type OutEnvironment = Any
+        type OutError       = Throwable
+        type OutSuccess     = A
+        def make(input: => scala.util.Try[A]): ZIO[Any, Throwable, A] =
+          ZIO.fromTry(input)
+      }
+
+    /**
+     * Constructs a `ZIO[Any, Throwable, A]` from a `Failure[A]`.
+     */
+    implicit def TryFailureConstructor[A]: WithOut[Any, Throwable, scala.util.Failure[A], Any, Throwable, A] =
+      new ZIOConstructor[Any, Throwable, scala.util.Failure[A]] {
+        type OutEnvironment = Any
+        type OutError       = Throwable
+        type OutSuccess     = A
+        def make(input: => scala.util.Failure[A]): ZIO[Any, Throwable, A] =
+          ZIO.fromTry(input)
+      }
+
+    /**
+     * Constructs a `ZIO[Any, Throwable, A]` from a `Success[A]`.
+     */
+    implicit def TrySuccessConstructor[A]: WithOut[Any, Throwable, scala.util.Success[A], Any, Throwable, A] =
+      new ZIOConstructor[Any, Throwable, scala.util.Success[A]] {
+        type OutEnvironment = Any
+        type OutError       = Throwable
+        type OutSuccess     = A
+        def make(input: => scala.util.Success[A]): ZIO[Any, Throwable, A] =
+          ZIO.fromTry(input)
+      }
+  }
+
+  trait ZIOConstructorLowPriority1 extends ZIOConstructorLowPriority2 {
+
+    /**
+     * Constructs a `ZIO[Any, E, A]` from an `Either[E, A]`.
+     */
+    implicit def EitherConstructor[E, A]: WithOut[Any, E, Either[E, A], Any, E, A] =
+      new ZIOConstructor[Any, E, Either[E, A]] {
+        type OutEnvironment = Any
+        type OutError       = E
+        type OutSuccess     = A
+        def make(input: => Either[E, A]): ZIO[Any, E, A] =
+          ZIO.fromEither(input)
+      }
+
+    /**
+     * Constructs a `ZIO[Any, E, A]]` from an `Either[E, A]`.
+     */
+    implicit def EitherLeftConstructor[E, A]: WithOut[Any, E, Left[E, A], Any, E, A] =
+      new ZIOConstructor[Any, E, Left[E, A]] {
+        type OutEnvironment = Any
+        type OutError       = E
+        type OutSuccess     = A
+        def make(input: => Left[E, A]): ZIO[Any, E, A] =
+          ZIO.fromEither(input)
+      }
+
+    /**
+     * Constructs a `ZIO[Any, E, A]` from an `Either[E, A]`.
+     */
+    implicit def EitherRightConstructor[E, A]: WithOut[Any, E, Right[E, A], Any, E, A] =
+      new ZIOConstructor[Any, E, Right[E, A]] {
+        type OutEnvironment = Any
+        type OutError       = E
+        type OutSuccess     = A
+        def make(input: => Right[E, A]): ZIO[Any, E, A] =
+          ZIO.fromEither(input)
+      }
+  }
+
+  trait ZIOConstructorLowPriority2 extends ZIOConstructorLowPriority3 {
+
+    /**
+     * Constructs a `ZIO[Any, Throwable, A]` from an `A`.
+     */
+    implicit def AttemptConstructor[A]: WithOut[Any, Throwable, A, Any, Throwable, A] =
+      new ZIOConstructor[Any, Throwable, A] {
+        type OutEnvironment = Any
+        type OutError       = Throwable
+        type OutSuccess     = A
+        def make(input: => A): ZIO[Any, Throwable, A] =
+          ZIO.attempt(input)
+      }
+  }
+
+  trait ZIOConstructorLowPriority3 {
+
+    /**
+     * The type of the `ZIOConstructor` with the type of the `ZIO` value.
+     */
+    type WithOut[Environment, Error, In, OutEnvironment0, OutError0, OutSuccess0] =
+      ZIOConstructor[Environment, Error, In] {
+        type OutEnvironment = OutEnvironment0; type OutError = OutError0; type OutSuccess = OutSuccess0
+      }
+
+    /**
+     * Constructs a `ZIO[Any, Throwable, A]` from an `A`.
+     */
+    implicit def SucceedConstructor[A]: WithOut[Any, Nothing, A, Any, Nothing, A] =
+      new ZIOConstructor[Any, Nothing, A] {
+        type OutEnvironment = Any
+        type OutError       = Nothing
+        type OutSuccess     = A
+        def make(input: => A): ZIO[Any, Nothing, A] =
+          ZIO.succeed(input)
+      }
   }
 
   private[zio] object Tags {

@@ -770,6 +770,14 @@ object Task extends TaskPlatformSpecific {
     ZIO.forkAllDiscard(as)
 
   /**
+   * Constructs a `Task` value of the appropriate type for the specified input.
+   */
+  def from[Input](input: => Input)(implicit
+    constructor: ZIO.ZIOConstructor[Any, Throwable, Input]
+  ): ZIO[constructor.OutEnvironment, constructor.OutError, constructor.OutSuccess] =
+    constructor.make(input)
+
+  /**
    * @see See [[zio.ZIO.fromEither]]
    */
   def fromEither[A](v: => Either[Throwable, A]): Task[A] =
@@ -795,25 +803,23 @@ object Task extends TaskPlatformSpecific {
     ZIO.fromFiberZIO(fiber)
 
   /**
-   * @see See [[zio.ZIO.fromFutureInterrupt]]
-   */
-  def fromFutureInterrupt[A](make: ExecutionContext => scala.concurrent.Future[A]): Task[A] =
-    ZIO.fromFutureInterrupt(make)
-
-
-  /**
    * @see [[zio.ZIO.fromFunctionM]]
    */
   @deprecated("use accessZIO", "2.0.0")
   def fromFunctionM[A](f: Any => Task[A]): Task[A] =
     ZIO.fromFunctionM(f)
 
-
   /**
    * @see See [[zio.ZIO.fromFuture]]
    */
   def fromFuture[A](make: ExecutionContext => scala.concurrent.Future[A]): Task[A] =
     ZIO.fromFuture(make)
+
+  /**
+   * @see See [[zio.ZIO.fromFutureInterrupt]]
+   */
+  def fromFutureInterrupt[A](make: ExecutionContext => scala.concurrent.Future[A]): Task[A] =
+    ZIO.fromFutureInterrupt(make)
 
   /**
    * @see See [[zio.ZIO.fromTry]]

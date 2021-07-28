@@ -719,6 +719,14 @@ object URIO {
     ZIO.forkAllDiscard(as)
 
   /**
+   * Constructs a `URIO` value of the appropriate type for the specified input.
+   */
+  def from[Input](input: => Input)(implicit
+    constructor: ZIO.ZIOConstructor[Nothing, Nothing, Input]
+  ): ZIO[constructor.OutEnvironment, constructor.OutError, constructor.OutSuccess] =
+    constructor.make(input)
+
+  /**
    * @see [[zio.ZIO.fromEither]]
    */
   def fromEither[A](v: => Either[Nothing, A]): UIO[A] =

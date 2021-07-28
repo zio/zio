@@ -64,7 +64,9 @@ object ExecutorSpec extends ZIOBaseSpec {
         assert(TestExecutor.y.submitOrThrow(TestExecutor.runnable))(not(throwsA[RejectedExecutionException]))
       },
       test("When converted to an ExecutionContext, it accepts Runnables") {
-        assert(TestExecutor.y.asExecutionContext.execute(TestExecutor.runnable))(not(throwsA[RejectedExecutionException]))
+        assert(TestExecutor.y.asExecutionContext.execute(TestExecutor.runnable))(
+          not(throwsA[RejectedExecutionException])
+        )
       },
       test("When created from an EC, must not throw when fed an effect ") {
         assert(Executor.fromExecutionContext(1)(TestExecutor.ec).submit(TestExecutor.runnable))(
@@ -80,7 +82,9 @@ object ExecutorSpec extends ZIOBaseSpec {
         assert(TestExecutor.u.submitOrThrow(TestExecutor.runnable))(not(throwsA[RejectedExecutionException]))
       },
       test("When converted to an ExecutionContext, it accepts Runnables") {
-        assert(TestExecutor.u.asExecutionContext.execute(TestExecutor.runnable))(not(throwsA[RejectedExecutionException]))
+        assert(TestExecutor.u.asExecutionContext.execute(TestExecutor.runnable))(
+          not(throwsA[RejectedExecutionException])
+        )
       },
       test("When converted to Java, it accepts Runnables") {
         assert(TestExecutor.u.asJava.execute(TestExecutor.runnable))(not(throwsA[RejectedExecutionException]))
