@@ -827,6 +827,13 @@ object RIO {
     ZIO.fromFiberZIO(fiber)
 
   /**
+   * @see See [[zio.ZIO.fromFunction]]
+   */
+  @deprecated("use access", "2.0.0")
+  def fromFunction[R, A](f: R => A): URIO[R, A] =
+    ZIO.fromFunction(f)
+
+  /**
    * @see See [[zio.ZIO.fromFunctionM]]
    */
   @deprecated("use accessZIO", "2.0.0")
@@ -1121,7 +1128,7 @@ object RIO {
     ZIO.replicateZIODiscard(n)(effect)
 
   /**
-   * @see See [[zio.ZIO.someOrFail]]
+   * @see See [[zio.ZIO.require]]
    */
   @deprecated("use someOrFail", "2.0.0")
   def require[A](error: => Throwable): IO[Throwable, Option[A]] => IO[Throwable, A] =

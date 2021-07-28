@@ -718,18 +718,11 @@ object UIO {
     ZIO.fromFiberZIO(fiber)
 
   /**
-   * @see [[zio.ZIO.fromFunctionM]]
-   */
-  @deprecated("use accessZIO", "2.0.0")
-  def fromFunctionM[A](f: Any => UIO[A]): UIO[A] =
-    ZIO.accessZIO(f)
-
-  /**
    * @see See [[zio.ZIO.halt]]
    */
   @deprecated("use failCause", "2.0.0")
   def halt(cause: => Cause[Nothing]): UIO[Nothing] =
-    ZIO.failCause(cause)
+    ZIO.halt(cause)
 
   /**
    * @see [[zio.ZIO.haltWith]]

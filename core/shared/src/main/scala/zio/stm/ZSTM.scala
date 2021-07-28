@@ -128,6 +128,14 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
     orTry(that)
 
   /**
+   * Feeds the value produced by this effect to the specified function,
+   * and then runs the returned effect as well to produce its results.
+   */
+  @deprecated("use flatMap", "2.0.0")
+  def >>=[R1 <: R, E1 >: E, B](f: A => ZSTM[R1, E1, B]): ZSTM[R1, E1, B] =
+    self flatMap f
+
+  /**
    * Returns an effect that submerges the error case of an `Either` into the
    * `STM`. The inverse operation of `STM.either`.
    */
@@ -1438,6 +1446,7 @@ object ZSTM {
    * Requires that the given `ZSTM[R, E, Option[A]]` contain a value. If there is no
    * value, then the specified error will be raised.
    */
+  @deprecated("use someOrFail", "2.0.0")
   def require[R, E, A](error: => E): ZSTM[R, E, Option[A]] => ZSTM[R, E, A] =
     _.flatMap(_.fold[ZSTM[R, E, A]](fail(error))(succeedNow))
 

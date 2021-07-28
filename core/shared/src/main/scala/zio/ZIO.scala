@@ -83,7 +83,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def &&&[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B])(implicit
     zippable: Zippable[A, B]
   ): ZIO[R1, E1, zippable.Out] =
-    self zip that
+    self <*> that
 
   /**
    * Returns an effect that executes both this effect and the specified effect,
@@ -125,7 +125,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     self.flatMap(new ZIO.ZipLeftFn(() => that))
 
   /**
-   * Symbolic alias for `zip`.
+   * Sequentially zips this effect with the specified effect, combining the
+   * results into a tuple.
    */
   final def <*>[R1 <: R, E1 >: E, B](that: ZIO[R1, E1, B])(implicit
     zippable: Zippable[A, B]
@@ -657,7 +658,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   def ensuringChildren[R1 <: R](children: Chunk[Fiber.Runtime[Any, Any]] => ZIO[R1, Nothing, Any]): ZIO[R1, E, A] =
     Supervisor
       .track(true)
-      .flatMap(supervisor => self.supervised(supervisor).ensuring(supervisor.value flatMap children))
+      .flatMap(supervisor => self.supervised(supervisor).ensuring(supervisor.value.flatMap(children)))
 
   /**
    * Returns an effect that ignores errors and runs repeatedly until it eventually succeeds.
@@ -3750,7 +3751,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
         fibers <- ZIO.transplant(graft => ZIO.foreach(as)(a => graft(task(a)).fork))
         interrupter = result.await
-                        .catchAll(_ => ZIO.foreach(fibers)(_.interruptAs(parentId).fork) flatMap Fiber.joinAll)
+                        .catchAll(_ => ZIO.foreach(fibers)(_.interruptAs(parentId).fork).flatMap(Fiber.joinAll))
                         .forkManaged
         _ <- interrupter.useDiscard {
                ZIO
@@ -3900,10 +3901,17 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     fiber.flatMap(_.join)
 
   /**
+   * Lifts a function `R => A` into a `URIO[R, A]`.
+   */
+  @deprecated("use access", "2.0.0")
+  def fromFunction[R, A](f: R => A): URIO[R, A] =
+    access(f)
+
+  /**
    * Lifts an effectful function whose effect requires no environment into
    * an effect that requires the input to the function.
    */
-  @deprecated("use accessM", "2.0.0")
+  @deprecated("use accessZIO", "2.0.0")
   def fromFunctionM[R, E, A](f: R => IO[E, A]): ZIO[R, E, A] =
     accessZIO(f)
 
@@ -4505,8 +4513,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * using `List.fill` or similar methods, because the returned `Iterable`
    * consumes only a small amount of heap regardless of `n`.
    */
-  // TODO: Should we name this `ZIO.fill`? The doc references that method, and it would
-  //   be nice to separate this from the other replicateZIO methods.
   def replicate[R, E, A](n: Int)(effect: ZIO[R, E, A]): Iterable[ZIO[R, E, A]] =
     new Iterable[ZIO[R, E, A]] {
       override def iterator: Iterator[ZIO[R, E, A]] = Iterator.range(0, n).map(_ => effect)

@@ -70,6 +70,15 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
     self.orDie
 
   /**
+   * Symbolic alias for zip.
+   */
+  @deprecated("use zip", "2.0.0")
+  def &&&[R1 <: R, E1 >: E, B](that: ZManaged[R1, E1, B])(implicit
+    zippable: Zippable[A, B]
+  ): ZManaged[R1, E1, zippable.Out] =
+    self <*> that
+
+  /**
    * Symbolic alias for zipParRight
    */
   def &>[R1 <: R, E1 >: E, A1](that: ZManaged[R1, E1, A1]): ZManaged[R1, E1, A1] =
@@ -2147,6 +2156,13 @@ object ZManaged extends ZManagedPlatformSpecific {
     succeed(v).flatMap(_.fold(fail(_), succeedNow))
 
   /**
+   * Lifts a function `R => A` into a `ZManaged[R, Nothing, A]`.
+   */
+  @deprecated("use access", "2.0.0")
+  def fromFunction[R, A](f: R => A): ZManaged[R, Nothing, A] =
+    ZManaged.fromZIO(ZIO.environment[R]).map(f)
+
+  /**
    * Lifts an effectful function whose effect requires no environment into
    * an effect that requires the input to the function.
    */
@@ -2648,6 +2664,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * Requires that the given `ZManaged[E, Option[A]]` contain a value. If there is no
    * value, then the specified error will be raised.
    */
+  @deprecated("use someOrFail", "2.0.0")
   def require[R, E, A](error: => E): ZManaged[R, E, Option[A]] => ZManaged[R, E, A] =
     (zManaged: ZManaged[R, E, Option[A]]) => zManaged.flatMap(_.fold[ZManaged[R, E, A]](fail(error))(succeedNow))
 

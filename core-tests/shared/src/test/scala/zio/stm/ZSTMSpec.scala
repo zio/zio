@@ -1054,18 +1054,6 @@ object ZSTMSpec extends ZIOBaseSpec {
         assertM(tx.commit.exit)(fails(equalTo(List(2, 4, 6, 3, 5, 6))))
       } @@ zioTag(errors)
     ),
-    suite("ZSTM require")(
-      test("require successful") {
-        val opt = ZSTM.fromEither[Throwable, Option[Int]](Right(Some(1)))
-        val tx  = ZSTM.require[Any, Throwable, Int](ExampleError)
-        assertM(tx(opt).commit)(equalTo(1))
-      },
-      test("reduceAll on None") {
-        val opt = ZSTM.fromEither[Throwable, Option[Int]](Right(None))
-        val tx  = ZSTM.require[Any, Throwable, Int](ExampleError)
-        assertM(tx(opt).commit.exit)(fails(equalTo(ExampleError)))
-      }
-    ),
     suite("when combinators")(
       test("when true") {
         for {

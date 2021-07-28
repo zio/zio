@@ -366,6 +366,7 @@ object STM {
   /**
    * @see See [[zio.stm.ZSTM.require]]
    */
+  @deprecated("use someOrFail", "2.0.0")
   def require[E, A](error: => E): STM[E, Option[A]] => STM[E, A] =
     ZSTM.require[Any, E, A](error)
 

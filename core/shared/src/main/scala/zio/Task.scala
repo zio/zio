@@ -803,13 +803,6 @@ object Task extends TaskPlatformSpecific {
     ZIO.fromFiberZIO(fiber)
 
   /**
-   * @see [[zio.ZIO.fromFunctionM]]
-   */
-  @deprecated("use accessZIO", "2.0.0")
-  def fromFunctionM[A](f: Any => Task[A]): Task[A] =
-    ZIO.fromFunctionM(f)
-
-  /**
    * @see See [[zio.ZIO.fromFuture]]
    */
   def fromFuture[A](make: ExecutionContext => scala.concurrent.Future[A]): Task[A] =

@@ -25,7 +25,7 @@ trait ExecutorPlatformSpecific { this: Executor =>
   /**
    * Views this `Executor` as a Scala `ExecutionContextExecutorService`.
    */
-  lazy val asECES: ExecutionContextExecutorService =
+  lazy val asExecutionContextExecutorService: ExecutionContextExecutorService =
     new AbstractExecutorService with ExecutionContextExecutorService {
       override val prepare: ExecutionContext                               = asExecutionContext
       override val isShutdown: Boolean                                     = false

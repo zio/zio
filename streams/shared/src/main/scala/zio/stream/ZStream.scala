@@ -116,6 +116,13 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     self zipRight that
 
   /**
+   * Symbolic alias for [[ZStream#flatMap]].
+   */
+  @deprecated("use flatMap", "2.0.0")
+  def >>=[R1 <: R, E1 >: E, O2](f0: O => ZStream[R1, E1, O2]): ZStream[R1, E1, O2] =
+    flatMap(f0)
+
+  /**
    * Symbolic alias for [[ZStream#transduce]].
    */
   def >>>[R1 <: R, E1 >: E, O2 >: O, O3](transducer: ZTransducer[R1, E1, O2, O3]) =
@@ -3001,8 +3008,6 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   final def tap[R1 <: R, E1 >: E](f0: O => ZIO[R1, E1, Any]): ZStream[R1, E1, O] =
     mapZIO(o => f0(o).as(o))
 
-  // TODO: add tapError and tapCause and tapBoth
-
   /**
    * Throttles the chunks of this stream according to the given bandwidth parameters using the token bucket
    * algorithm. Allows for burst in the processing of elements by allowing the token bucket to accumulate
@@ -3190,9 +3195,9 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                 Some(ZScope.global)
               )
             case Current(fiber) =>
-              fiber.join flatMap store
+              fiber.join.flatMap(store)
             case NotStarted =>
-              chunks flatMap store
+              chunks.flatMap(store)
             case Done =>
               Pull.end
           }

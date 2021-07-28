@@ -66,7 +66,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Symbolic alias for [[ZStream#flatMap]].
    */
   @deprecated("use flatMap", "2.0.0")
-  def >>=[R1 <: R, E1 >: E, A2](f0: A => ZStream[R1, E1, A2]): ZStream[R1, E1, A2] = flatMap(f0)
+  def >>=[R1 <: R, E1 >: E, A2](f0: A => ZStream[R1, E1, A2]): ZStream[R1, E1, A2] =
+    flatMap(f0)
 
   // /**
   //  * Symbolic alias for [[ZStream#transduce]].
@@ -2064,7 +2065,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Maps over elements of the stream with the specified effectful function.
    */
   def mapZIO[R1 <: R, E1 >: E, A1](f: A => ZIO[R1, E1, A1]): ZStream[R1, E1, A1] =
-    loopOnPartialChunksElements((a, emit) => f(a) flatMap emit)
+    loopOnPartialChunksElements((a, emit) => f(a).flatMap(emit))
 
   /**
    * Maps over elements of the stream with the specified effectful function,

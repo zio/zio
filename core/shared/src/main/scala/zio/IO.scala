@@ -810,13 +810,6 @@ object IO {
     ZIO.fromFiberZIO(fiber)
 
   /**
-   * @see [[zio.ZIO.fromFunctionM]]
-   */
-  @deprecated("use accessZIO", "2.0.0")
-  def fromFunctionM[E, A](f: Any => IO[E, A]): IO[E, A] =
-    ZIO.fromFunctionM(f)
-
-  /**
    * @see See [[zio.ZIO.fromFuture]]
    */
   def fromFuture[A](make: ExecutionContext => scala.concurrent.Future[A]): Task[A] =

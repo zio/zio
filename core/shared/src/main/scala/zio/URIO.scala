@@ -752,11 +752,18 @@ object URIO {
     ZIO.fromFiberZIO(fiber)
 
   /**
+   * @see [[zio.ZIO.fromFunction]]
+   */
+  @deprecated("use access", "2.0.0")
+  def fromFunction[R, A](f: R => A): URIO[R, A] =
+    ZIO.fromFunction(f)
+
+  /**
    * @see [[zio.ZIO.fromFunctionM]]
    */
   @deprecated("use accessZIO", "2.0.0")
   def fromFunctionM[R, A](f: R => UIO[A]): URIO[R, A] =
-    ZIO.accessZIO(f)
+    ZIO.fromFunctionM(f)
 
   /**
    * @see [[zio.ZIO.getState]]
