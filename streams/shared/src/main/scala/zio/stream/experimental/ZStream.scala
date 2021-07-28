@@ -157,12 +157,10 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     import ZStream.SinkEndReason._
 
     val deps =
-      ZIO.mapN(
-        ZStream.Handoff.make[HandoffSignal],
-        Ref.make[SinkEndReason](SinkEnd),
-        Ref.make(Chunk[A1]()),
+      ZStream.Handoff.make[HandoffSignal] <*>
+        Ref.make[SinkEndReason](SinkEnd) <*>
+        Ref.make(Chunk[A1]()) <*>
         schedule.driver
-      )((_, _, _, _))
 
     ZStream.fromZIO(deps).flatMap { case (handoff, sinkEndReason, sinkLeftovers, scheduleDriver) =>
       lazy val handoffProducer: ZChannel[Any, E1, Chunk[A], Any, Nothing, Nothing, Any] =
@@ -3561,6 +3559,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    *
    * See also [[ZStream#zipN[R,E,A,B,C]*]] for the more common point-wise variant.
    */
+  @deprecated("use cross", "2.0.0")
   def crossN[R, E, A, B, C](zStream1: ZStream[R, E, A], zStream2: ZStream[R, E, B])(
     f: (A, B) => C
   ): ZStream[R, E, C] =
@@ -3573,6 +3572,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    *
    * See also [[ZStream#zipN[R,E,A,B,C,D]*]] for the more common point-wise variant.
    */
+  @deprecated("use cross", "2.0.0")
   def crossN[R, E, A, B, C, D](
     zStream1: ZStream[R, E, A],
     zStream2: ZStream[R, E, B],
@@ -3593,6 +3593,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    *
    * See also [[ZStream#zipN[R,E,A,B,C,D,F]*]] for the more common point-wise variant.
    */
+  @deprecated("use cross", "2.0.0")
   def crossN[R, E, A, B, C, D, F](
     zStream1: ZStream[R, E, A],
     zStream2: ZStream[R, E, B],
@@ -4339,6 +4340,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   /**
    * Zips the specified streams together with the specified function.
    */
+  @deprecated("use zip", "2.0.0")
   def zipN[R, E, A, B, C](zStream1: ZStream[R, E, A], zStream2: ZStream[R, E, B])(
     f: (A, B) => C
   ): ZStream[R, E, C] =
@@ -4347,6 +4349,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   /**
    * Zips with specified streams together with the specified function.
    */
+  @deprecated("use zip", "2.0.0")
   def zipN[R, E, A, B, C, D](zStream1: ZStream[R, E, A], zStream2: ZStream[R, E, B], zStream3: ZStream[R, E, C])(
     f: (A, B, C) => D
   ): ZStream[R, E, D] =
@@ -4357,6 +4360,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * combining their results with the specified `f` function. If any effect
    * fails, then the other effects will be interrupted.
    */
+  @deprecated("use zip", "2.0.0")
   def zipN[R, E, A, B, C, D, F](
     zStream1: ZStream[R, E, A],
     zStream2: ZStream[R, E, B],

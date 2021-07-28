@@ -948,18 +948,21 @@ object Task extends TaskPlatformSpecific {
   /**
    *  @see [[zio.ZIO.mapN[R,E,A,B,C]*]]
    */
+  @deprecated("use zip", "2.0.0")
   def mapN[A, B, C](task1: Task[A], task2: Task[B])(f: (A, B) => C): Task[C] =
     ZIO.mapN(task1, task2)(f)
 
   /**
    *  @see [[zio.ZIO.mapN[R,E,A,B,C,D]*]]
    */
+  @deprecated("use zip", "2.0.0")
   def mapN[A, B, C, D](task1: Task[A], task2: Task[B], task3: Task[C])(f: (A, B, C) => D): Task[D] =
     ZIO.mapN(task1, task2, task3)(f)
 
   /**
    *  @see [[zio.ZIO.mapN[R,E,A,B,C,D,F]*]]
    */
+  @deprecated("use zip", "2.0.0")
   def mapN[A, B, C, D, F](task1: Task[A], task2: Task[B], task3: Task[C], task4: Task[D])(
     f: (A, B, C, D) => F
   ): Task[F] =
@@ -968,18 +971,21 @@ object Task extends TaskPlatformSpecific {
   /**
    *  @see [[zio.ZIO.mapParN[R,E,A,B,C]*]]
    */
+  @deprecated("use zipPar", "2.0.0")
   def mapParN[A, B, C](task1: Task[A], task2: Task[B])(f: (A, B) => C): Task[C] =
     ZIO.mapParN(task1, task2)(f)
 
   /**
    *  @see [[zio.ZIO.mapParN[R,E,A,B,C,D]*]]
    */
+  @deprecated("use zipPar", "2.0.0")
   def mapParN[A, B, C, D](task1: Task[A], task2: Task[B], task3: Task[C])(f: (A, B, C) => D): Task[D] =
     ZIO.mapParN(task1, task2, task3)(f)
 
   /**
    *  @see [[zio.ZIO.mapParN[R,E,A,B,C,D,F]*]]
    */
+  @deprecated("use zipPar", "2.0.0")
   def mapParN[A, B, C, D, F](task1: Task[A], task2: Task[B], task3: Task[C], task4: Task[D])(
     f: (A, B, C, D) => F
   ): Task[F] =
