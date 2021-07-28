@@ -395,7 +395,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * resourceful function.
    */
   def fromFunctionManaged[A, E, B: Tag](f: A => ZManaged[Any, E, B]): ZLayer[A, E, Has[B]] =
-    fromManaged(ZManaged.fromFunctionManaged(f))
+    fromManaged(ZManaged.accessManaged(f))
 
   /**
    * Constructs a layer from the environment using the specified function,
@@ -417,7 +417,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * resourceful function, which must return one or more services.
    */
   def fromFunctionManyManaged[A, E, B](f: A => ZManaged[Any, E, B]): ZLayer[A, E, B] =
-    ZLayer(ZManaged.fromFunctionManaged(f))
+    ZLayer(ZManaged.accessManaged(f))
 
   /**
    * Constructs a layer from the environment using the specified effectful
@@ -4233,7 +4233,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer from a managed resource.
    */
   def fromManaged[R, E, A: Tag](m: ZManaged[R, E, A]): ZLayer[R, E, Has[A]] =
-    ZLayer(m.asService)
+    ZLayer(m.map(Has(_)))
 
   /**
    * Constructs a layer from a managed resource, which must return one or more
