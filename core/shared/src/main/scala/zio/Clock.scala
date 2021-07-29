@@ -36,7 +36,7 @@ trait Clock extends Serializable {
 
   def sleep(duration: Duration): UIO[Unit]
 
-  final def driver[Env, In, Out](schedule: Schedule[Env, In, Out]): UIO[Schedule.Driver[Env, In, Out]] =
+  final def driver[Env, In, Out](schedule: Schedule[Env, In, Out]): UIO[Schedule.Driver[schedule.State, Env, In, Out]] =
     Ref.make[(Option[Out], schedule.State)]((None, schedule.initial)).map { ref =>
       val next = (in: In) =>
         for {
@@ -57,7 +57,9 @@ trait Clock extends Serializable {
 
       val reset = ref.set((None, schedule.initial))
 
-      Schedule.Driver(next, last, reset)
+      val state = ref.get.map(_._2)
+
+      Schedule.Driver(next, last, reset, state)
     }
 
   final def repeat[R, R1 <: R, E, A, B](zio: ZIO[R, E, A])(schedule: Schedule[R1, A, B]): ZIO[R1, E, B] =
@@ -105,7 +107,7 @@ trait Clock extends Serializable {
   )(schedule: Schedule[R1, E, Out], orElse: (E, Out) => ZIO[R1, E1, B])(implicit
     ev: CanFail[E]
   ): ZIO[R1, E1, Either[B, A]] = {
-    def loop(driver: Schedule.Driver[R1, E, Out]): ZIO[R1, E1, Either[B, A]] =
+    def loop(driver: Schedule.Driver[Any, R1, E, Out]): ZIO[R1, E1, Either[B, A]] =
       zio
         .map(Right(_))
         .catchAll(e =>
@@ -190,7 +192,9 @@ object Clock extends ClockPlatformSpecific with Serializable {
   val currentDateTime: URIO[Has[Clock], OffsetDateTime] =
     ZIO.serviceWith(_.currentDateTime)
 
-  def driver[Env, In, Out](schedule: Schedule[Env, In, Out]): URIO[Has[Clock], Schedule.Driver[Env, In, Out]] =
+  def driver[Env, In, Out](
+    schedule: Schedule[Env, In, Out]
+  ): URIO[Has[Clock], Schedule.Driver[schedule.State, Env, In, Out]] =
     ZIO.serviceWith(_.driver(schedule))
 
   val instant: ZIO[Has[Clock], Nothing, java.time.Instant] =

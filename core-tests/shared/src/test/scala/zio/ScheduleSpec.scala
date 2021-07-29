@@ -125,9 +125,9 @@ object ScheduleSpec extends ZIOBaseSpec {
         assertM(scheduled)(equalTo(expected))
       } @@ timeout(1.seconds),
       test("respect Schedule.recurs even if more input is provided than needed") {
-        val schedule  = Schedule.recurs(2) && Schedule.exponential(1.minute)
-        val scheduled = Clock.currentDateTime.flatMap(schedule.run(_, 1 to 10))
-        val expected  = Chunk((0L, 1.minute), (1L, 2.minute), (2L, 4.minute))
+        val schedule: Schedule[Any, Any, (Long, Duration)] = Schedule.recurs(2) && Schedule.exponential(1.minute)
+        val scheduled                                      = Clock.currentDateTime.flatMap(schedule.run(_, 1 to 10))
+        val expected                                       = Chunk((0L, 1.minute), (1L, 2.minute), (2L, 4.minute))
         assertM(scheduled)(equalTo(expected))
       },
       test("respect Schedule.upTo even if more input is provided than needed") {
@@ -553,7 +553,8 @@ object ScheduleSpec extends ZIOBaseSpec {
       }(equalTo(10))
     },
     test("union of two schedules should continue as long as either wants to continue") {
-      val schedule = Schedule.recurWhile[Boolean](_ == true) || Schedule.fixed(1.second)
+      val schedule: Schedule[Any, Boolean, (Boolean, Long)] =
+        Schedule.recurWhile[Boolean](_ == true) || Schedule.fixed(1.second)
       assertM(run(schedule >>> Schedule.elapsed)(List(true, false, false, false, false)))(
         equalTo(Chunk(0, 0, 1, 2, 3).map(_.seconds))
       )

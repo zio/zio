@@ -38,14 +38,16 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
    */
   def &&[Env1 <: Env, In1 <: In, Out2](that: Schedule[Env1, In1, Out2])(implicit
     zippable: Zippable[Out, Out2]
-  ): Schedule[Env1, In1, zippable.Out] =
+  ): Schedule.WithState[(self.State, that.State), Env1, In1, zippable.Out] =
     (self intersectWith that)((l, r) => Schedule.maxOffsetDateTime(l, r))
 
   /**
    * Returns a new schedule that has both the inputs and outputs of this and the specified
    * schedule.
    */
-  def ***[Env1 <: Env, In2, Out2](that: Schedule[Env1, In2, Out2]): Schedule[Env1, (In, In2), (Out, Out2)] =
+  def ***[Env1 <: Env, In2, Out2](
+    that: Schedule[Env1, In2, Out2]
+  ): Schedule.WithState[(self.State, that.State), Env1, (In, In2), (Out, Out2)] =
     new Schedule[Env1, (In, In2), (Out, Out2)] {
       type State = (self.State, that.State)
       val initial: State = (self.initial, that.initial)
@@ -65,13 +67,17 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
   /**
    * The same as `&&`, but ignores the left output.
    */
-  def *>[Env1 <: Env, In1 <: In, Out2](that: Schedule[Env1, In1, Out2]): Schedule[Env1, In1, Out2] =
+  def *>[Env1 <: Env, In1 <: In, Out2](
+    that: Schedule[Env1, In1, Out2]
+  ): Schedule.WithState[(self.State, that.State), Env1, In1, Out2] =
     (self && that).map(_._2)
 
   /**
    * A symbolic alias for `andThen`.
    */
-  def ++[Env1 <: Env, In1 <: In, Out2 >: Out](that: Schedule[Env1, In1, Out2]): Schedule[Env1, In1, Out2] =
+  def ++[Env1 <: Env, In1 <: In, Out2 >: Out](
+    that: Schedule[Env1, In1, Out2]
+  ): Schedule.WithState[(self.State, that.State, Boolean), Env1, In1, Out2] =
     self andThen that
 
   /**
@@ -80,7 +86,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
    */
   def +++[Env1 <: Env, In2, Out2](
     that: Schedule[Env1, In2, Out2]
-  ): Schedule[Env1, Either[In, In2], Either[Out, Out2]] =
+  ): Schedule.WithState[(self.State, that.State), Env1, Either[In, In2], Either[Out, Out2]] =
     new Schedule[Env1, Either[In, In2], Either[Out, Out2]] {
       type State = (self.State, that.State)
       val initial: State = (self.initial, that.initial)
@@ -106,13 +112,15 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
    */
   def <||>[Env1 <: Env, In1 <: In, Out2](
     that: Schedule[Env1, In1, Out2]
-  ): Schedule[Env1, In1, Either[Out, Out2]] =
+  ): Schedule.WithState[(self.State, that.State, Boolean), Env1, In1, Either[Out, Out2]] =
     self.andThenEither(that)
 
   /**
    * The same as `&&`, but ignores the right output.
    */
-  def <*[Env1 <: Env, In1 <: In, Out2](that: Schedule[Env1, In1, Out2]): Schedule[Env1, In1, Out] =
+  def <*[Env1 <: Env, In1 <: In, Out2](
+    that: Schedule[Env1, In1, Out2]
+  ): Schedule.WithState[(self.State, that.State), Env1, In1, Out] =
     (self && that).map(_._1)
 
   /**
@@ -120,13 +128,15 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
    */
   def <*>[Env1 <: Env, In1 <: In, Out2](that: Schedule[Env1, In1, Out2])(implicit
     zippable: Zippable[Out, Out2]
-  ): Schedule[Env1, In1, zippable.Out] =
+  ): Schedule.WithState[(self.State, that.State), Env1, In1, zippable.Out] =
     self zip that
 
   /**
    * A backwards version of `>>>`.
    */
-  def <<<[Env1 <: Env, In2](that: Schedule[Env1, In2, In]): Schedule[Env1, In2, Out] =
+  def <<<[Env1 <: Env, In2](
+    that: Schedule[Env1, In2, In]
+  ): Schedule.WithState[(that.State, self.State), Env1, In2, Out] =
     that >>> self
 
   /**
@@ -134,7 +144,9 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
    * this one into the input of the other. Effects described by this schedule will always be
    * executed before the effects described by the second schedule.
    */
-  def >>>[Env1 <: Env, Out2](that: Schedule[Env1, Out, Out2]): Schedule[Env1, In, Out2] =
+  def >>>[Env1 <: Env, Out2](
+    that: Schedule[Env1, Out, Out2]
+  ): Schedule.WithState[(self.State, that.State), Env1, In, Out2] =
     new Schedule[Env1, In, Out2] {
       type State = (self.State, that.State)
       val initial: State = (self.initial, that.initial)
@@ -161,7 +173,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
    */
   def ||[Env1 <: Env, In1 <: In, Out2](that: Schedule[Env1, In1, Out2])(implicit
     zippable: Zippable[Out, Out2]
-  ): Schedule[Env1, In1, zippable.Out] =
+  ): Schedule.WithState[(self.State, that.State), Env1, In1, zippable.Out] =
     (self unionWith that)((l, r) => Schedule.minOffsetDateTime(l, r))
 
   /**
@@ -175,7 +187,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
   /**
    * Returns a new schedule with the given delay added to every interval defined by this schedule.
    */
-  def addDelay(f: Out => Duration): Schedule[Env, In, Out] =
+  def addDelay(f: Out => Duration): Schedule.WithState[self.State, Env, In, Out] =
     addDelayZIO(out => ZIO.succeed(f(out)))
 
   /**
@@ -183,20 +195,22 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
    * defined by this schedule.
    */
   @deprecated("use addDelayZIO", "2.0.0")
-  def addDelayM[Env1 <: Env](f: Out => URIO[Env1, Duration]): Schedule[Env1, In, Out] =
+  def addDelayM[Env1 <: Env](f: Out => URIO[Env1, Duration]): Schedule.WithState[self.State, Env1, In, Out] =
     addDelayZIO(f)
 
   /**
    * Returns a new schedule with the given effectfully computed delay added to every interval
    * defined by this schedule.
    */
-  def addDelayZIO[Env1 <: Env](f: Out => URIO[Env1, Duration]): Schedule[Env1, In, Out] =
+  def addDelayZIO[Env1 <: Env](f: Out => URIO[Env1, Duration]): Schedule.WithState[self.State, Env1, In, Out] =
     modifyDelayZIO((out, duration) => f(out).map(duration + _))
 
   /**
    * The same as `andThenEither`, but merges the output.
    */
-  def andThen[Env1 <: Env, In1 <: In, Out2 >: Out](that: Schedule[Env1, In1, Out2]): Schedule[Env1, In1, Out2] =
+  def andThen[Env1 <: Env, In1 <: In, Out2 >: Out](
+    that: Schedule[Env1, In1, Out2]
+  ): Schedule.WithState[(self.State, that.State, Boolean), Env1, In1, Out2] =
     (self andThenEither that).map(_.merge)
 
   /**
@@ -205,7 +219,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
    */
   def andThenEither[Env1 <: Env, In1 <: In, Out2](
     that: Schedule[Env1, In1, Out2]
-  ): Schedule[Env1, In1, Either[Out, Out2]] =
+  ): Schedule.WithState[(self.State, that.State, Boolean), Env1, In1, Either[Out, Out2]] =
     new Schedule[Env1, In1, Either[Out, Out2]] {
       type State = (self.State, that.State, Boolean)
       val initial = (self.initial, that.initial, true)
@@ -229,7 +243,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
   /**
    * Returns a new schedule that maps this schedule to a constant output.
    */
-  def as[Out2](out2: => Out2): Schedule[Env, In, Out2] =
+  def as[Out2](out2: => Out2): Schedule.WithState[self.State, Env, In, Out2] =
     self.map(_ => out2)
 
   /**
@@ -237,7 +251,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
    * function, and then determines whether or not to continue based on the return value of the
    * function.
    */
-  def check[In1 <: In](test: (In1, Out) => Boolean): Schedule[Env, In1, Out] =
+  def check[In1 <: In](test: (In1, Out) => Boolean): Schedule.WithState[self.State, Env, In1, Out] =
     checkZIO((in1, out) => ZIO.succeed(test(in1, out)))
 
   /**
@@ -246,7 +260,9 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
    * function.
    */
   @deprecated("use checkZIO", "2.0.0")
-  def checkM[Env1 <: Env, In1 <: In](test: (In1, Out) => URIO[Env1, Boolean]): Schedule[Env1, In1, Out] =
+  def checkM[Env1 <: Env, In1 <: In](
+    test: (In1, Out) => URIO[Env1, Boolean]
+  ): Schedule.WithState[self.State, Env1, In1, Out] =
     checkZIO(test)
 
   /**
@@ -254,7 +270,9 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
    * function, and then determines whether or not to continue based on the return value of the
    * function.
    */
-  def checkZIO[Env1 <: Env, In1 <: In](test: (In1, Out) => URIO[Env1, Boolean]): Schedule[Env1, In1, Out] =
+  def checkZIO[Env1 <: Env, In1 <: In](
+    test: (In1, Out) => URIO[Env1, Boolean]
+  ): Schedule.WithState[self.State, Env1, In1, Out] =
     new Schedule[Env1, In1, Out] {
       type State = self.State
       val initial = self.initial
@@ -271,32 +289,34 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
   /**
    * Returns a new schedule that collects the outputs of this one into a chunk.
    */
-  def collectAll: Schedule[Env, In, Chunk[Out]] =
-    fold[Chunk[Out]](Chunk.empty)((xs, x) => xs :+ x)
+  def collectAll[Out1 >: Out]: Schedule.WithState[(self.State, Chunk[Out1]), Env, In, Chunk[Out1]] =
+    fold[Chunk[Out1]](Chunk.empty)((xs, x) => xs :+ x)
 
   /**
    * A named alias for `<<<`.
    */
-  def compose[Env1 <: Env, In2](that: Schedule[Env1, In2, In]): Schedule[Env1, In2, Out] =
+  def compose[Env1 <: Env, In2](
+    that: Schedule[Env1, In2, In]
+  ): Schedule.WithState[(that.State, self.State), Env1, In2, Out] =
     that >>> self
 
   /**
    * Returns a new schedule that deals with a narrower class of inputs than this schedule.
    */
-  def contramap[Env1 <: Env, In2](f: In2 => In): Schedule[Env, In2, Out] =
+  def contramap[Env1 <: Env, In2](f: In2 => In): Schedule.WithState[self.State, Env, In2, Out] =
     self.contramapZIO(in => ZIO.succeed(f(in)))
 
   /**
    * Returns a new schedule that deals with a narrower class of inputs than this schedule.
    */
   @deprecated("use contramapZIO", "2.0.0")
-  def contramapM[Env1 <: Env, In2](f: In2 => URIO[Env1, In]): Schedule[Env1, In2, Out] =
+  def contramapM[Env1 <: Env, In2](f: In2 => URIO[Env1, In]): Schedule.WithState[self.State, Env1, In2, Out] =
     contramapZIO(f)
 
   /**
    * Returns a new schedule that deals with a narrower class of inputs than this schedule.
    */
-  def contramapZIO[Env1 <: Env, In2](f: In2 => URIO[Env1, In]): Schedule[Env1, In2, Out] =
+  def contramapZIO[Env1 <: Env, In2](f: In2 => URIO[Env1, In]): Schedule.WithState[self.State, Env1, In2, Out] =
     new Schedule[Env1, In2, Out] {
       type State = self.State
       val initial = self.initial
@@ -307,14 +327,14 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
   /**
    * A schedule that recurs during the given duration
    */
-  def upTo(duration: Duration): Schedule[Env, In, Out] =
+  def upTo(duration: Duration): Schedule.WithState[(self.State, Option[OffsetDateTime]), Env, In, Out] =
     self <* Schedule.upTo(duration)
 
   /**
    * Returns a new schedule with the specified effectfully computed delay added before the start
    * of each interval produced by this schedule.
    */
-  def delayed(f: Duration => Duration): Schedule[Env, In, Out] =
+  def delayed(f: Duration => Duration): Schedule.WithState[self.State, Env, In, Out] =
     self.delayedZIO(d => ZIO.succeed(f(d)))
 
   /**
@@ -322,27 +342,30 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
    * of each interval produced by this schedule.
    */
   @deprecated("use delayedZIO", "2.0.0")
-  def delayedM[Env1 <: Env](f: Duration => URIO[Env1, Duration]): Schedule[Env1, In, Out] =
+  def delayedM[Env1 <: Env](f: Duration => URIO[Env1, Duration]): Schedule.WithState[self.State, Env1, In, Out] =
     delayedZIO(f)
 
   /**
    * Returns a new schedule with the specified effectfully computed delay added before the start
    * of each interval produced by this schedule.
    */
-  def delayedZIO[Env1 <: Env](f: Duration => URIO[Env1, Duration]): Schedule[Env1, In, Out] =
+  def delayedZIO[Env1 <: Env](f: Duration => URIO[Env1, Duration]): Schedule.WithState[self.State, Env1, In, Out] =
     modifyDelayZIO((_, delay) => f(delay))
 
   /**
    * Returns a new schedule that contramaps the input and maps the output.
    */
-  def dimap[In2, Out2](f: In2 => In, g: Out => Out2): Schedule[Env, In2, Out2] =
+  def dimap[In2, Out2](f: In2 => In, g: Out => Out2): Schedule.WithState[self.State, Env, In2, Out2] =
     contramap(f).map(g)
 
   /**
    * Returns a new schedule that contramaps the input and maps the output.
    */
   @deprecated("use dimapZIO", "2.0.0")
-  def dimapM[Env1 <: Env, In2, Out2](f: In2 => URIO[Env1, In], g: Out => URIO[Env1, Out2]): Schedule[Env1, In2, Out2] =
+  def dimapM[Env1 <: Env, In2, Out2](
+    f: In2 => URIO[Env1, In],
+    g: Out => URIO[Env1, Out2]
+  ): Schedule.WithState[self.State, Env1, In2, Out2] =
     dimapZIO(f, g)
 
   /**
@@ -351,19 +374,21 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
   def dimapZIO[Env1 <: Env, In2, Out2](
     f: In2 => URIO[Env1, In],
     g: Out => URIO[Env1, Out2]
-  ): Schedule[Env1, In2, Out2] =
+  ): Schedule.WithState[self.State, Env1, In2, Out2] =
     contramapZIO(f).mapZIO(g)
 
   /**
    * Returns a driver that can be used to step the schedule, appropriately handling sleeping.
    */
-  def driver: URIO[Has[Clock], Schedule.Driver[Env, In, Out]] =
+  def driver: URIO[Has[Clock], Schedule.Driver[self.State, Env, In, Out]] =
     Clock.driver(self)
 
   /**
    * A named alias for `||`.
    */
-  def either[Env1 <: Env, In1 <: In, Out2](that: Schedule[Env1, In1, Out2]): Schedule[Env1, In1, (Out, Out2)] =
+  def either[Env1 <: Env, In1 <: In, Out2](
+    that: Schedule[Env1, In1, Out2]
+  ): Schedule.WithState[(self.State, that.State), Env1, In1, (Out, Out2)] =
     self || that
 
   /**
@@ -371,7 +396,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
    */
   def eitherWith[Env1 <: Env, In1 <: In, Out2, Out3](
     that: Schedule[Env1, In1, Out2]
-  )(f: (Out, Out2) => Out3): Schedule[Env1, In1, Out3] =
+  )(f: (Out, Out2) => Out3): Schedule.WithState[(self.State, that.State), Env1, In1, Out3] =
     (self || that).map(f.tupled)
 
   /**
@@ -381,7 +406,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
    * to completion. However, if the `Schedule` ever decides not to continue, then the
    * finalizer will be run.
    */
-  def ensuring(finalizer: UIO[Any]): Schedule[Env, In, Out] =
+  def ensuring(finalizer: UIO[Any]): Schedule.WithState[self.State, Env, In, Out] =
     new Schedule[Env, In, Out] {
       type State = self.State
       val initial = self.initial
@@ -396,26 +421,26 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
    * Returns a new schedule that packs the input and output of this schedule into the first
    * element of a tuple. This allows carrying information through this schedule.
    */
-  def first[X]: Schedule[Env, (In, X), (Out, X)] =
+  def first[X]: Schedule.WithState[(self.State, Unit), Env, (In, X), (Out, X)] =
     self *** Schedule.identity[X]
 
   /**
    * Returns a new schedule that folds over the outputs of this one.
    */
-  def fold[Z](z: Z)(f: (Z, Out) => Z): Schedule[Env, In, Z] =
+  def fold[Z](z: Z)(f: (Z, Out) => Z): Schedule.WithState[(self.State, Z), Env, In, Z] =
     foldZIO(z)((z, out) => ZIO.succeed(f(z, out)))
 
   /**
    * Returns a new schedule that effectfully folds over the outputs of this one.
    */
   @deprecated("use foldZIO", "2.0.0")
-  def foldM[Env1 <: Env, Z](z: Z)(f: (Z, Out) => URIO[Env1, Z]): Schedule[Env1, In, Z] =
+  def foldM[Env1 <: Env, Z](z: Z)(f: (Z, Out) => URIO[Env1, Z]): Schedule.WithState[(self.State, Z), Env1, In, Z] =
     foldZIO(z)(f)
 
   /**
    * Returns a new schedule that effectfully folds over the outputs of this one.
    */
-  def foldZIO[Env1 <: Env, Z](z: Z)(f: (Z, Out) => URIO[Env1, Z]): Schedule[Env1, In, Z] =
+  def foldZIO[Env1 <: Env, Z](z: Z)(f: (Z, Out) => URIO[Env1, Z]): Schedule.WithState[(self.State, Z), Env1, In, Z] =
     new Schedule[Env1, In, Z] {
       type State = (self.State, Z)
       val initial = (self.initial, z)
@@ -433,7 +458,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
    * Returns a new schedule that loops this one continuously, resetting the state
    * when this schedule is done.
    */
-  def forever: Schedule[Env, In, Out] =
+  def forever: Schedule.WithState[self.State, Env, In, Out] =
     new Schedule[Env, In, Out] {
       type State = self.State
       val initial = self.initial
@@ -451,7 +476,9 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
    */
   def intersectWith[Env1 <: Env, In1 <: In, Out2](
     that: Schedule[Env1, In1, Out2]
-  )(f: (Interval, Interval) => Interval)(implicit zippable: Zippable[Out, Out2]): Schedule[Env1, In1, zippable.Out] =
+  )(
+    f: (Interval, Interval) => Interval
+  )(implicit zippable: Zippable[Out, Out2]): Schedule.WithState[(self.State, that.State), Env1, In1, zippable.Out] =
     new Schedule[Env1, In1, zippable.Out] {
       type State = (self.State, that.State)
       val initial: State =
@@ -473,13 +500,13 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
   /**
    * Returns a new schedule that randomly modifies the size of the intervals of this schedule.
    */
-  def jittered: Schedule[Env with Has[Random], In, Out] =
+  def jittered: Schedule.WithState[self.State, Env with Has[Random], In, Out] =
     jittered(0.0, 1.0)
 
   /**
    * Returns a new schedule that randomly modifies the size of the intervals of this schedule.
    */
-  def jittered(min: Double, max: Double): Schedule[Env with Has[Random], In, Out] =
+  def jittered(min: Double, max: Double): Schedule.WithState[self.State, Env with Has[Random], In, Out] =
     delayedZIO[Env with Has[Random]] { duration =>
       Random.nextDouble.map { random =>
         val d        = duration.toNanos
@@ -493,13 +520,13 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
    * Returns a new schedule that makes this schedule available on the `Left` side of an `Either`
    * input, allowing propagating some type `X` through this channel on demand.
    */
-  def left[X]: Schedule[Env, Either[In, X], Either[Out, X]] =
+  def left[X]: Schedule.WithState[(self.State, Unit), Env, Either[In, X], Either[Out, X]] =
     self +++ Schedule.identity[X]
 
   /**
    * Returns a new schedule that maps the output of this schedule through the specified function.
    */
-  def map[Out2](f: Out => Out2): Schedule[Env, In, Out2] =
+  def map[Out2](f: Out => Out2): Schedule.WithState[self.State, Env, In, Out2] =
     self.mapZIO(out => ZIO.succeed(f(out)))
 
   /**
@@ -507,14 +534,14 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
    * effectful function.
    */
   @deprecated("use mapZIO", "2.0.0")
-  def mapM[Env1 <: Env, Out2](f: Out => URIO[Env1, Out2]): Schedule[Env1, In, Out2] =
+  def mapM[Env1 <: Env, Out2](f: Out => URIO[Env1, Out2]): Schedule.WithState[self.State, Env1, In, Out2] =
     mapZIO(f)
 
   /**
    * Returns a new schedule that maps the output of this schedule through the specified
    * effectful function.
    */
-  def mapZIO[Env1 <: Env, Out2](f: Out => URIO[Env1, Out2]): Schedule[Env1, In, Out2] =
+  def mapZIO[Env1 <: Env, Out2](f: Out => URIO[Env1, Out2]): Schedule.WithState[self.State, Env1, In, Out2] =
     new Schedule[Env1, In, Out2] {
       type State = self.State
       val initial = self.initial
@@ -528,7 +555,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
    * Returns a new schedule that modifies the delay using the specified
    * function.
    */
-  def modifyDelay(f: (Out, Duration) => Duration): Schedule[Env, In, Out] =
+  def modifyDelay(f: (Out, Duration) => Duration): Schedule.WithState[self.State, Env, In, Out] =
     modifyDelayZIO((out, duration) => UIO.succeedNow(f(out, duration)))
 
   /**
@@ -536,14 +563,18 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
    * effectual function.
    */
   @deprecated("use modifyDelayZIO", "2.0.0")
-  def modifyDelayM[Env1 <: Env](f: (Out, Duration) => URIO[Env1, Duration]): Schedule[Env1, In, Out] =
+  def modifyDelayM[Env1 <: Env](
+    f: (Out, Duration) => URIO[Env1, Duration]
+  ): Schedule.WithState[self.State, Env1, In, Out] =
     modifyDelayZIO(f)
 
   /**
    * Returns a new schedule that modifies the delay using the specified
    * effectual function.
    */
-  def modifyDelayZIO[Env1 <: Env](f: (Out, Duration) => URIO[Env1, Duration]): Schedule[Env1, In, Out] =
+  def modifyDelayZIO[Env1 <: Env](
+    f: (Out, Duration) => URIO[Env1, Duration]
+  ): Schedule.WithState[self.State, Env1, In, Out] =
     new Schedule[Env1, In, Out] {
       type State = self.State
       val initial = self.initial
@@ -566,7 +597,9 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
    * for every decision of this schedule. This can be used to create schedules
    * that log failures, decisions, or computed values.
    */
-  def onDecision[Env1 <: Env](f: (State, Out, Decision) => URIO[Env1, Any]): Schedule[Env1, In, Out] =
+  def onDecision[Env1 <: Env](
+    f: (State, Out, Decision) => URIO[Env1, Any]
+  ): Schedule.WithState[self.State, Env1, In, Out] =
     new Schedule[Env1, In, Out] {
       type State = self.State
       val initial = self.initial
@@ -580,7 +613,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
    * Returns a new schedule with its environment provided to it, so the resulting
    * schedule does not require any environment.
    */
-  def provide(env: Env): Schedule[Any, In, Out] =
+  def provide(env: Env): Schedule.WithState[self.State, Any, In, Out] =
     new Schedule[Any, In, Out] {
       type State = self.State
       val initial = self.initial
@@ -592,7 +625,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
    * Returns a new schedule with part of its environment provided to it, so the
    * resulting schedule does not require any environment.
    */
-  def provideSome[Env2](f: Env2 => Env): Schedule[Env2, In, Out] =
+  def provideSome[Env2](f: Env2 => Env): Schedule.WithState[self.State, Env2, In, Out] =
     new Schedule[Env2, In, Out] {
       type State = self.State
       val initial = self.initial
@@ -604,7 +637,9 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
    * Returns a new schedule that reconsiders every decision made by this schedule, possibly
    * modifying the next interval and the output type in the process.
    */
-  def reconsider[Out2](f: (State, Out, Decision) => Either[Out2, (Out2, Interval)]): Schedule[Env, In, Out2] =
+  def reconsider[Out2](
+    f: (State, Out, Decision) => Either[Out2, (Out2, Interval)]
+  ): Schedule.WithState[self.State, Env, In, Out2] =
     reconsiderZIO { case (state, out, decision) => ZIO.succeed(f(state, out, decision)) }
 
   /**
@@ -614,7 +649,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
   @deprecated("use reconsiderZIO", "2.0.0")
   def reconsiderM[Env1 <: Env, In1 <: In, Out2](
     f: (State, Out, Decision) => URIO[Env1, Either[Out2, (Out2, Interval)]]
-  ): Schedule[Env1, In1, Out2] =
+  ): Schedule.WithState[self.State, Env1, In1, Out2] =
     reconsiderZIO(f)
 
   /**
@@ -623,7 +658,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
    */
   def reconsiderZIO[Env1 <: Env, In1 <: In, Out2](
     f: (State, Out, Decision) => URIO[Env1, Either[Out2, (Out2, Interval)]]
-  ): Schedule[Env1, In1, Out2] =
+  ): Schedule.WithState[self.State, Env1, In1, Out2] =
     new Schedule[Env1, In1, Out2] {
       type State = self.State
       val initial = self.initial
@@ -645,20 +680,20 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
   /**
    * Returns a new schedule that outputs the number of repetitions of this one.
    */
-  def repetitions: Schedule[Env, In, Int] =
+  def repetitions: Schedule.WithState[(self.State, Int), Env, In, Int] =
     fold(0)((n: Int, _: Out) => n + 1)
 
   /**
    * Return a new schedule that automatically resets the schedule to its initial state
    * after some time of inactivity defined by `duration`.
    */
-  final def resetAfter(duration: Duration): Schedule[Env, In, Out] =
+  final def resetAfter(duration: Duration): Schedule.WithState[(self.State, Option[OffsetDateTime]), Env, In, Out] =
     (self zip Schedule.elapsed).resetWhen(_._2 >= duration).map(_._1)
 
   /**
    * Resets the schedule when the specified predicate on the schedule output evaluates to true.
    */
-  final def resetWhen(f: Out => Boolean): Schedule[Env, In, Out] =
+  final def resetWhen(f: Out => Boolean): Schedule.WithState[self.State, Env, In, Out] =
     new Schedule[Env, In, Out] {
       type State = self.State
       val initial = self.initial
@@ -672,7 +707,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
    * Returns a new schedule that makes this schedule available on the `Right` side of an `Either`
    * input, allowing propagating some type `X` through this channel on demand.
    */
-  def right[X]: Schedule[Env, Either[X, In], Either[X, Out]] =
+  def right[X]: Schedule.WithState[(Unit, self.State), Env, Either[X, In], Either[X, Out]] =
     Schedule.identity[X] +++ self
 
   /**
@@ -701,13 +736,13 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
    * Returns a new schedule that packs the input and output of this schedule into the second
    * element of a tuple. This allows carrying information through this schedule.
    */
-  def second[X]: Schedule[Env, (X, In), (X, Out)] =
+  def second[X]: Schedule.WithState[(Unit, self.State), Env, (X, In), (X, Out)] =
     Schedule.identity[X] *** self
 
   /**
    * Returns a new schedule that effectfully processes every input to this schedule.
    */
-  def tapInput[Env1 <: Env, In1 <: In](f: In1 => URIO[Env1, Any]): Schedule[Env1, In1, Out] =
+  def tapInput[Env1 <: Env, In1 <: In](f: In1 => URIO[Env1, Any]): Schedule.WithState[self.State, Env1, In1, Out] =
     new Schedule[Env1, In1, Out] {
       type State = self.State
       val initial = self.initial
@@ -718,7 +753,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
   /**
    * Returns a new schedule that effectfully processes every output from this schedule.
    */
-  def tapOutput[Env1 <: Env](f: Out => URIO[Env1, Any]): Schedule[Env1, In, Out] =
+  def tapOutput[Env1 <: Env](f: Out => URIO[Env1, Any]): Schedule.WithState[self.State, Env1, In, Out] =
     new Schedule[Env1, In, Out] {
       type State = self.State
       val initial = self.initial
@@ -733,7 +768,9 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
    */
   def unionWith[Env1 <: Env, In1 <: In, Out2](
     that: Schedule[Env1, In1, Out2]
-  )(f: (Interval, Interval) => Interval)(implicit zippable: Zippable[Out, Out2]): Schedule[Env1, In1, zippable.Out] =
+  )(
+    f: (Interval, Interval) => Interval
+  )(implicit zippable: Zippable[Out, Out2]): Schedule.WithState[(self.State, that.State), Env1, In1, zippable.Out] =
     new Schedule[Env1, In1, zippable.Out] {
       type State = (self.State, that.State)
       val initial = (self.initial, that.initial)
@@ -758,14 +795,14 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
   /**
    * Returns a new schedule that maps the output of this schedule to unit.
    */
-  def unit: Schedule[Env, In, Unit] =
+  def unit: Schedule.WithState[self.State, Env, In, Unit] =
     self.as(())
 
   /**
    * Returns a new schedule that continues until the specified predicate on the input evaluates
    * to true.
    */
-  def untilInput[In1 <: In](f: In1 => Boolean): Schedule[Env, In1, Out] =
+  def untilInput[In1 <: In](f: In1 => Boolean): Schedule.WithState[self.State, Env, In1, Out] =
     check((in, _) => !f(in))
 
   /**
@@ -773,21 +810,25 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
    * evaluates to true.
    */
   @deprecated("use untilInputZIO", "2.0.0")
-  def untilInputM[Env1 <: Env, In1 <: In](f: In1 => URIO[Env1, Boolean]): Schedule[Env1, In1, Out] =
+  def untilInputM[Env1 <: Env, In1 <: In](
+    f: In1 => URIO[Env1, Boolean]
+  ): Schedule.WithState[self.State, Env1, In1, Out] =
     untilInputZIO(f)
 
   /**
    * Returns a new schedule that continues until the specified effectful predicate on the input
    * evaluates to true.
    */
-  def untilInputZIO[Env1 <: Env, In1 <: In](f: In1 => URIO[Env1, Boolean]): Schedule[Env1, In1, Out] =
+  def untilInputZIO[Env1 <: Env, In1 <: In](
+    f: In1 => URIO[Env1, Boolean]
+  ): Schedule.WithState[self.State, Env1, In1, Out] =
     checkZIO((in, _) => f(in).map(b => !b))
 
   /**
    * Returns a new schedule that continues until the specified predicate on the output evaluates
    * to true.
    */
-  def untilOutput(f: Out => Boolean): Schedule[Env, In, Out] =
+  def untilOutput(f: Out => Boolean): Schedule.WithState[self.State, Env, In, Out] =
     check((_, out) => !f(out))
 
   /**
@@ -795,21 +836,21 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
    * evaluates to true.
    */
   @deprecated("use untilOutputZIO", "2.0.0")
-  def untilOutputM[Env1 <: Env](f: Out => URIO[Env1, Boolean]): Schedule[Env1, In, Out] =
+  def untilOutputM[Env1 <: Env](f: Out => URIO[Env1, Boolean]): Schedule.WithState[self.State, Env1, In, Out] =
     untilOutputZIO(f)
 
   /**
    * Returns a new schedule that continues until the specified effectful predicate on the output
    * evaluates to true.
    */
-  def untilOutputZIO[Env1 <: Env](f: Out => URIO[Env1, Boolean]): Schedule[Env1, In, Out] =
+  def untilOutputZIO[Env1 <: Env](f: Out => URIO[Env1, Boolean]): Schedule.WithState[self.State, Env1, In, Out] =
     checkZIO((_, out) => f(out).map(b => !b))
 
   /**
    * Returns a new schedule that continues for as long the specified predicate on the input
    * evaluates to true.
    */
-  def whileInput[In1 <: In](f: In1 => Boolean): Schedule[Env, In1, Out] =
+  def whileInput[In1 <: In](f: In1 => Boolean): Schedule.WithState[self.State, Env, In1, Out] =
     check((in, _) => f(in))
 
   /**
@@ -817,21 +858,25 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
    * input evaluates to true.
    */
   @deprecated("use whileInputZIO", "2.0.0")
-  def whileInputM[Env1 <: Env, In1 <: In](f: In1 => URIO[Env1, Boolean]): Schedule[Env1, In1, Out] =
+  def whileInputM[Env1 <: Env, In1 <: In](
+    f: In1 => URIO[Env1, Boolean]
+  ): Schedule.WithState[self.State, Env1, In1, Out] =
     whileInputZIO(f)
 
   /**
    * Returns a new schedule that continues for as long the specified effectful predicate on the
    * input evaluates to true.
    */
-  def whileInputZIO[Env1 <: Env, In1 <: In](f: In1 => URIO[Env1, Boolean]): Schedule[Env1, In1, Out] =
+  def whileInputZIO[Env1 <: Env, In1 <: In](
+    f: In1 => URIO[Env1, Boolean]
+  ): Schedule.WithState[self.State, Env1, In1, Out] =
     checkZIO((in, _) => f(in))
 
   /**
    * Returns a new schedule that continues for as long the specified predicate on the output
    * evaluates to true.
    */
-  def whileOutput(f: Out => Boolean): Schedule[Env, In, Out] =
+  def whileOutput(f: Out => Boolean): Schedule.WithState[self.State, Env, In, Out] =
     check((_, out) => f(out))
 
   /**
@@ -839,14 +884,14 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
    * output evaluates to true.
    */
   @deprecated("use whileOutputZIO", "2.0.0")
-  def whileOutputM[Env1 <: Env](f: Out => URIO[Env1, Boolean]): Schedule[Env1, In, Out] =
+  def whileOutputM[Env1 <: Env](f: Out => URIO[Env1, Boolean]): Schedule.WithState[self.State, Env1, In, Out] =
     whileOutputZIO(f)
 
   /**
    * Returns a new schedule that continues for as long the specified effectful predicate on the
    * output evaluates to true.
    */
-  def whileOutputZIO[Env1 <: Env](f: Out => URIO[Env1, Boolean]): Schedule[Env1, In, Out] =
+  def whileOutputZIO[Env1 <: Env](f: Out => URIO[Env1, Boolean]): Schedule.WithState[self.State, Env1, In, Out] =
     checkZIO((_, out) => f(out))
 
   /**
@@ -854,19 +899,23 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
    */
   def zip[Env1 <: Env, In1 <: In, Out2](that: Schedule[Env1, In1, Out2])(implicit
     zippable: Zippable[Out, Out2]
-  ): Schedule[Env1, In1, zippable.Out] =
+  ): Schedule.WithState[(self.State, that.State), Env1, In1, zippable.Out] =
     self && that
 
   /**
    * The same as `&&`, but ignores the right output.
    */
-  def zipLeft[Env1 <: Env, In1 <: In, Out2](that: Schedule[Env1, In1, Out2]): Schedule[Env1, In1, Out] =
+  def zipLeft[Env1 <: Env, In1 <: In, Out2](
+    that: Schedule[Env1, In1, Out2]
+  ): Schedule.WithState[(self.State, that.State), Env1, In1, Out] =
     self <* that
 
   /**
    * The same as `&&`, but ignores the left output.
    */
-  def zipRight[Env1 <: Env, In1 <: In, Out2](that: Schedule[Env1, In1, Out2]): Schedule[Env1, In1, Out2] =
+  def zipRight[Env1 <: Env, In1 <: In, Out2](
+    that: Schedule[Env1, In1, Out2]
+  ): Schedule.WithState[(self.State, that.State), Env1, In1, Out2] =
     self *> that
 
   /**
@@ -874,28 +923,22 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
    */
   def zipWith[Env1 <: Env, In1 <: In, Out2, Out3](
     that: Schedule[Env1, In1, Out2]
-  )(f: (Out, Out2) => Out3): Schedule[Env1, In1, Out3] =
+  )(f: (Out, Out2) => Out3): Schedule.WithState[(self.State, that.State), Env1, In1, Out3] =
     (self zip that).map(f.tupled)
 }
 
 object Schedule {
 
-  // /**
-  //  * Constructs a new schedule from the specified step function.
-  //  */
-  // def apply[Env, In, Out](step: StepFunction[Env, In, Out]): Schedule[Env, In, Out] =
-  //   new Schedule(step) {}
-
   /**
    * A schedule that recurs anywhere, collecting all inputs into a list.
    */
-  def collectAll[A]: Schedule[Any, A, Chunk[A]] =
+  def collectAll[A]: Schedule.WithState[(Unit, Chunk[A]), Any, A, Chunk[A]] =
     identity[A].collectAll
 
   /**
    * A schedule that recurs as long as the condition f holds, collecting all inputs into a list.
    */
-  def collectWhile[A](f: A => Boolean): Schedule[Any, A, Chunk[A]] =
+  def collectWhile[A](f: A => Boolean): Schedule.WithState[(Unit, Chunk[A]), Any, A, Chunk[A]] =
     recurWhile(f).collectAll
 
   /**
@@ -903,20 +946,20 @@ object Schedule {
    * collecting all inputs into a list.
    */
   @deprecated("use collectWhileZIO", "2.0.0")
-  def collectWhileM[Env, A](f: A => URIO[Env, Boolean]): Schedule[Env, A, Chunk[A]] =
+  def collectWhileM[Env, A](f: A => URIO[Env, Boolean]): Schedule.WithState[(Unit, Chunk[A]), Env, A, Chunk[A]] =
     recurWhileM(f).collectAll
 
   /**
    * A schedule that recurs as long as the effectful condition holds,
    * collecting all inputs into a list.
    */
-  def collectWhileZIO[Env, A](f: A => URIO[Env, Boolean]): Schedule[Env, A, Chunk[A]] =
+  def collectWhileZIO[Env, A](f: A => URIO[Env, Boolean]): Schedule.WithState[(Unit, Chunk[A]), Env, A, Chunk[A]] =
     recurWhileZIO(f).collectAll
 
   /**
    * A schedule that recurs until the condition f fails, collecting all inputs into a list.
    */
-  def collectUntil[A](f: A => Boolean): Schedule[Any, A, Chunk[A]] =
+  def collectUntil[A](f: A => Boolean): Schedule.WithState[(Unit, Chunk[A]), Any, A, Chunk[A]] =
     recurUntil(f).collectAll
 
   /**
@@ -924,84 +967,84 @@ object Schedule {
    * all inputs into a list.
    */
   @deprecated("use collectUntilZIO", "2.0.0")
-  def collectUntilM[Env, A](f: A => URIO[Env, Boolean]): Schedule[Env, A, Chunk[A]] =
+  def collectUntilM[Env, A](f: A => URIO[Env, Boolean]): Schedule.WithState[(Unit, Chunk[A]), Env, A, Chunk[A]] =
     recurUntilM(f).collectAll
 
   /**
    * A schedule that recurs until the effectful condition f fails, collecting
    * all inputs into a list.
    */
-  def collectUntilZIO[Env, A](f: A => URIO[Env, Boolean]): Schedule[Env, A, Chunk[A]] =
+  def collectUntilZIO[Env, A](f: A => URIO[Env, Boolean]): Schedule.WithState[(Unit, Chunk[A]), Env, A, Chunk[A]] =
     recurUntilZIO(f).collectAll
 
   /**
    * Takes a schedule that produces a delay, and returns a new schedule that uses this delay to
    * further delay intervals in the resulting schedule.
    */
-  def delayed[Env, In, Out](schedule: Schedule[Env, In, Duration]): Schedule[Env, In, Duration] =
+  def delayed[Env, In](schedule: Schedule[Env, In, Duration]): Schedule.WithState[schedule.State, Env, In, Duration] =
     schedule.addDelay(x => x)
 
   /**
    * A schedule that recurs for as long as the predicate evaluates to true.
    */
-  def recurWhile[A](f: A => Boolean): Schedule[Any, A, A] =
+  def recurWhile[A](f: A => Boolean): Schedule.WithState[Unit, Any, A, A] =
     identity[A].whileInput(f)
 
   /**
    * A schedule that recurs for as long as the effectful predicate evaluates to true.
    */
   @deprecated("use recurWhileZIO", "2.0.0")
-  def recurWhileM[Env, A](f: A => URIO[Env, Boolean]): Schedule[Env, A, A] =
+  def recurWhileM[Env, A](f: A => URIO[Env, Boolean]): Schedule.WithState[Unit, Env, A, A] =
     identity[A].whileInputM(f)
 
   /**
    * A schedule that recurs for as long as the effectful predicate evaluates to true.
    */
-  def recurWhileZIO[Env, A](f: A => URIO[Env, Boolean]): Schedule[Env, A, A] =
+  def recurWhileZIO[Env, A](f: A => URIO[Env, Boolean]): Schedule.WithState[Unit, Env, A, A] =
     identity[A].whileInputZIO(f)
 
   /**
    * A schedule that recurs for as long as the predicate is equal.
    */
-  def recurWhileEquals[A](a: => A): Schedule[Any, A, A] =
+  def recurWhileEquals[A](a: => A): Schedule.WithState[Unit, Any, A, A] =
     identity[A].whileInput(_ == a)
 
   /**
    * A schedule that recurs for until the predicate evaluates to true.
    */
-  def recurUntil[A](f: A => Boolean): Schedule[Any, A, A] =
+  def recurUntil[A](f: A => Boolean): Schedule.WithState[Unit, Any, A, A] =
     identity[A].untilInput(f)
 
   /**
    * A schedule that recurs for until the predicate evaluates to true.
    */
   @deprecated("use recurUntilZIO", "2.0.0")
-  def recurUntilM[Env, A](f: A => URIO[Env, Boolean]): Schedule[Env, A, A] =
+  def recurUntilM[Env, A](f: A => URIO[Env, Boolean]): Schedule.WithState[Unit, Env, A, A] =
     identity[A].untilInputM(f)
 
   /**
    * A schedule that recurs for until the predicate evaluates to true.
    */
-  def recurUntilZIO[Env, A](f: A => URIO[Env, Boolean]): Schedule[Env, A, A] =
+  def recurUntilZIO[Env, A](f: A => URIO[Env, Boolean]): Schedule.WithState[Unit, Env, A, A] =
     identity[A].untilInputZIO(f)
 
   /**
    * A schedule that recurs for until the predicate is equal.
    */
-  def recurUntilEquals[A](a: => A): Schedule[Any, A, A] =
+  def recurUntilEquals[A](a: => A): Schedule.WithState[Unit, Any, A, A] =
     identity[A].untilInput(_ == a)
 
   /**
    * A schedule that recurs for until the input value becomes applicable to partial function
    * and then map that value with given function.
    */
-  def recurUntil[A, B](pf: PartialFunction[A, B]): Schedule[Any, A, Option[B]] =
+  def recurUntil[A, B](pf: PartialFunction[A, B]): Schedule.WithState[Unit, Any, A, Option[B]] =
     identity[A].map(pf.lift(_)).untilOutput(_.isDefined)
 
   /**
    * A schedule that can recur one time, the specified amount of time into the future.
    */
-  def duration(duration: Duration): Schedule[Any, Any, Duration] =
+  def duration(duration: Duration): Schedule.WithState[Boolean, Any, Any, Duration] =
     new Schedule[Any, Any, Duration] {
       type State = Boolean
       val initial = true
@@ -1020,7 +1063,7 @@ object Schedule {
    * A schedule that occurs everywhere, which returns the total elapsed duration since the
    * first step.
    */
-  val elapsed: Schedule[Any, Any, Duration] =
+  val elapsed: Schedule.WithState[Option[OffsetDateTime], Any, Any, Duration] =
     new Schedule[Any, Any, Duration] {
       type State = Option[OffsetDateTime]
       val initial = None
@@ -1042,16 +1085,16 @@ object Schedule {
    * repetitions, given by `base * factor.pow(n)`, where `n` is the number of
    * repetitions so far. Returns the current duration between recurrences.
    */
-  def exponential(base: Duration, factor: Double = 2.0): Schedule[Any, Any, Duration] =
-    delayed(forever.map(i => base * math.pow(factor, i.doubleValue)))
+  def exponential(base: Duration, factor: Double = 2.0): Schedule.WithState[Long, Any, Any, Duration] =
+    delayed[Any, Any](forever.map(i => base * math.pow(factor, i.doubleValue)))
 
   /**
    * A schedule that always recurs, increasing delays by summing the
    * preceding two delays (similar to the fibonacci sequence). Returns the
    * current duration between recurrences.
    */
-  def fibonacci(one: Duration): Schedule[Any, Any, Duration] =
-    delayed {
+  def fibonacci(one: Duration): Schedule.WithState[(Duration, Duration), Any, Any, Duration] =
+    delayed[Any, Any] {
       unfold[(Duration, Duration)]((one, one)) { case (a1, a2) =>
         (a2, a1 + a2)
       }.map(_._1)
@@ -1069,7 +1112,7 @@ object Schedule {
    * |---------action--------||action|-----|action|-----------|
    * </pre>
    */
-  def fixed(interval: Duration): Schedule[Any, Any, Long] =
+  def fixed(interval: Duration): Schedule.WithState[(Option[(Long, Long)], Long), Any, Any, Long] =
     new Schedule[Any, Any, Long] {
       import java.time.Duration
       type State = (Option[(Long, Long)], Long)
@@ -1098,19 +1141,19 @@ object Schedule {
   /**
    * A schedule that recurs during the given duration
    */
-  def upTo(duration: Duration): Schedule[Any, Any, Duration] =
+  def upTo(duration: Duration): Schedule.WithState[Option[OffsetDateTime], Any, Any, Duration] =
     elapsed.whileOutput(_ < duration)
 
   /**
    * A schedule that always recurs, producing a count of repeats: 0, 1, 2.
    */
-  val forever: Schedule[Any, Any, Long] =
+  val forever: Schedule.WithState[Long, Any, Any, Long] =
     unfold(0L)(_ + 1L)
 
   /**
    * A schedule that recurs once with the specified delay.
    */
-  def fromDuration(duration: Duration): Schedule[Any, Any, Duration] =
+  def fromDuration(duration: Duration): Schedule.WithState[Boolean, Any, Any, Duration] =
     Schedule.duration(duration)
 
   /**
@@ -1119,27 +1162,39 @@ object Schedule {
    * the current duration between recurrences.
    */
   def fromDurations(duration: Duration, durations: Duration*): Schedule[Any, Any, Duration] =
-    durations.foldLeft(fromDuration(duration)) { case (acc, d) =>
-      acc ++ fromDuration(d)
+    new Schedule[Any, Any, Duration] {
+      type State = (::[Duration], Boolean)
+      val initial = (::(duration, durations.toList), true)
+      def step(now: OffsetDateTime, in: Any, state: State): ZIO[Any, Nothing, (State, Duration, Decision)] = {
+        val durations = state._1
+        val continue  = state._2
+        ZIO.succeed(if (continue) {
+          val interval = now.plusNanos(durations.head.toNanos)
+          durations match {
+            case x :: y :: z => ((::(y, z), true), x, Decision.Continue(interval))
+            case x :: y      => ((::(x, y), false), x, Decision.Continue(interval))
+          }
+        } else ((durations, false), durations.head, Decision.Done))
+      }
     }
 
   /**
    * A schedule that always recurs, mapping input values through the
    * specified function.
    */
-  def fromFunction[A, B](f: A => B): Schedule[Any, A, B] =
+  def fromFunction[A, B](f: A => B): Schedule.WithState[Unit, Any, A, B] =
     identity[A].map(f)
 
   /**
    * A schedule that always recurs, which counts the number of recurrances.
    */
-  val count: Schedule[Any, Any, Long] =
+  val count: Schedule.WithState[Long, Any, Any, Long] =
     unfold(0L)(_ + 1L)
 
   /**
    * A schedule that always recurs, which returns inputs as outputs.
    */
-  def identity[A]: Schedule[Any, A, A] =
+  def identity[A]: Schedule.WithState[Unit, Any, A, A] =
     new Schedule[Any, A, A] {
       type State = Unit
       val initial = ()
@@ -1152,52 +1207,52 @@ object Schedule {
    * interval, given by `base * n` where `n` is the number of
    * repetitions so far. Returns the current duration between recurrences.
    */
-  def linear(base: Duration): Schedule[Any, Any, Duration] =
-    delayed(forever.map(i => base * (i + 1).doubleValue()))
+  def linear(base: Duration): Schedule.WithState[Long, Any, Any, Duration] =
+    delayed[Any, Any](forever.map(i => base * (i + 1).doubleValue()))
 
   /**
    * A schedule that recurs one time.
    */
-  val once: Schedule[Any, Any, Unit] =
+  val once: Schedule.WithState[Long, Any, Any, Unit] =
     recurs(1).unit
 
   /**
    * A schedule spanning all time, which can be stepped only the specified number of times before
    * it terminates.
    */
-  def recurs(n: Long): Schedule[Any, Any, Long] =
+  def recurs(n: Long): Schedule.WithState[Long, Any, Any, Long] =
     forever.whileOutput(_ < n)
 
   /**
    * A schedule spanning all time, which can be stepped only the specified number of times before
    * it terminates.
    */
-  def recurs(n: Int): Schedule[Any, Any, Long] =
+  def recurs(n: Int): Schedule.WithState[Long, Any, Any, Long] =
     recurs(n.toLong)
 
   /**
    * Returns a schedule that recurs continuously, each repetition spaced the specified duration
    * from the last run.
    */
-  def spaced(duration: Duration): Schedule[Any, Any, Long] =
+  def spaced(duration: Duration): Schedule.WithState[Long, Any, Any, Long] =
     forever.addDelay(_ => duration)
 
   /**
    * A schedule that does not recur, it just stops.
    */
-  val stop: Schedule[Any, Any, Unit] =
+  val stop: Schedule.WithState[Long, Any, Any, Unit] =
     recurs(0).unit
 
   /**
    * Returns a schedule that repeats one time, producing the specified constant value.
    */
-  def succeed[A](a: => A): Schedule[Any, Any, A] =
+  def succeed[A](a: => A): Schedule.WithState[Long, Any, Any, A] =
     forever.as(a)
 
   /**
    * Unfolds a schedule that repeats one time from the specified state and iterator.
    */
-  def unfold[A](a: => A)(f: A => A): Schedule[Any, Any, A] =
+  def unfold[A](a: => A)(f: A => A): Schedule.WithState[A, Any, Any, A] =
     new Schedule[Any, Any, A] {
       type State = A
       lazy val initial = a
@@ -1218,7 +1273,7 @@ object Schedule {
    * |action------|sleep---|act|-sleep|action----|
    * </pre>
    */
-  def windowed(interval: Duration): Schedule[Any, Any, Long] =
+  def windowed(interval: Duration): Schedule.WithState[(Option[Long], Long), Any, Any, Long] =
     new Schedule[Any, Any, Long] {
       type State = (Option[Long], Long)
       val initial = (None, 0L)
@@ -1252,7 +1307,7 @@ object Schedule {
    *
    * NOTE: `second` parameter is validated lazily. Must be in range 0...59.
    */
-  def secondOfMinute(second0: Int): Schedule[Any, Any, Long] =
+  def secondOfMinute(second0: Int): Schedule.WithState[(Long, Boolean), Any, Any, Long] =
     new Schedule[Any, Any, Long] {
       type State = (Long, Boolean)
       val initial = (0L, true)
@@ -1284,7 +1339,7 @@ object Schedule {
    *
    * NOTE: `minute` parameter is validated lazily. Must be in range 0...59.
    */
-  def minuteOfHour(minute: Int): Schedule[Any, Any, Long] =
+  def minuteOfHour(minute: Int): Schedule.WithState[(Long, Boolean), Any, Any, Long] =
     new Schedule[Any, Any, Long] {
       type State = (Long, Boolean)
       val initial = (0L, true)
@@ -1314,7 +1369,7 @@ object Schedule {
    *
    * NOTE: `hour` parameter is validated lazily. Must be in range 0...23.
    */
-  def hourOfDay(hour: Int): Schedule[Any, Any, Long] =
+  def hourOfDay(hour: Int): Schedule.WithState[(Long, Boolean), Any, Any, Long] =
     new Schedule[Any, Any, Long] {
       type State = (Long, Boolean)
       val initial = (0L, true)
@@ -1344,7 +1399,7 @@ object Schedule {
    *
    * NOTE: `day` parameter is validated lazily. Must be in range 1 (Monday)...7 (Sunday).
    */
-  def dayOfWeek(day: Int): Schedule[Any, Any, Long] =
+  def dayOfWeek(day: Int): Schedule.WithState[(Long, Boolean), Any, Any, Long] =
     new Schedule[Any, Any, Long] {
       type State = (Long, Boolean)
       val initial = (0L, true)
@@ -1377,7 +1432,7 @@ object Schedule {
    *
    * NOTE: `day` parameter is validated lazily. Must be in range 1...31.
    */
-  def dayOfMonth(day: Int): Schedule[Any, Any, Long] =
+  def dayOfMonth(day: Int): Schedule.WithState[(Long, Boolean), Any, Any, Long] =
     new Schedule[Any, Any, Long] {
       type State = (Long, Boolean)
       val initial = (0L, true)
@@ -1441,12 +1496,13 @@ object Schedule {
   def maxOffsetDateTime(l: OffsetDateTime, r: OffsetDateTime): OffsetDateTime =
     if (l.compareTo(r) >= 0) l else r
 
-  type WithState[State0, -Env, In0, +Out0] = Schedule[Env, In0, Out0] { type State = State0 }
+  type WithState[State0, -Env, -In0, +Out0] = Schedule[Env, In0, Out0] { type State = State0 }
 
-  final case class Driver[-Env, -In, +Out](
+  final case class Driver[+State, -Env, -In, +Out](
     next: In => ZIO[Env, None.type, Out],
     last: IO[NoSuchElementException, Out],
-    reset: UIO[Unit]
+    reset: UIO[Unit],
+    state: UIO[State]
   )
 
   sealed trait Decision
