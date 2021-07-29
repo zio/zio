@@ -16,7 +16,12 @@
 
 package zio.test
 
-final case class TestArgs(testSearchTerms: List[String], tagSearchTerms: List[String], testTaskPolicy: Option[String], fixSnapshots: Boolean)
+final case class TestArgs(
+  testSearchTerms: List[String],
+  tagSearchTerms: List[String],
+  testTaskPolicy: Option[String],
+  fixSnapshots: Boolean
+)
 
 object TestArgs {
   def empty: TestArgs = TestArgs(List.empty[String], List.empty[String], None, false)

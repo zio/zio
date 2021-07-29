@@ -19,15 +19,13 @@ package zio.test
 import org.portablescala.reflect.annotation.EnableReflectiveInstantiation
 import zio.clock.Clock
 import zio.duration.Duration
+import zio.test.AssertionResult.FailureDetailsResult
 import zio.test.BoolAlgebra.Value
 import zio.test.ExecutedSpec._
-import zio.{Has, Task, UIO, URIO, ZIO}
-
-import java.nio.charset.Charset
-import java.nio.file.{Files, Path, StandardOpenOption}
+import zio.{Has, URIO, ZIO}
 
 @EnableReflectiveInstantiation
-abstract class AbstractRunnableSpec {
+abstract class AbstractRunnableSpec extends FileIOPlatformSpecific {
 
   type Environment <: Has[_]
   type Failure
@@ -42,6 +40,13 @@ abstract class AbstractRunnableSpec {
   final def run: URIO[TestLogger with Clock, ExecutedSpec[Failure]] =
     runSpec(spec)
 
+  private[test] def snapshotFilePath(path: String, label: String): String = {
+    println("path", path)
+    println("label", label)
+    val lastSlash = path.lastIndexOf('/')
+    s"${path.substring(0, lastSlash)}/__snapshots__${path.substring(lastSlash + 1).stripSuffix(".scala")}/$label"
+  }
+
   /**
    * Returns an effect that executes a given spec, producing the results of the execution.
    */
@@ -52,48 +57,32 @@ abstract class AbstractRunnableSpec {
 
   class FixSnapshotsReporter(className: String) extends TestReporter[Failure] {
 
-    def findSourceFile(`class`: Class[_]) = {
-      val r     = `class`.getResource(".").toURI.toString.split("/")
-      val start = r.takeWhile(_ != "target")
-      val end =
-        r.dropWhile(_ != "target")
-          .dropWhile(_ == "target")
-          .dropWhile(_.startsWith("scala-"))
-          .dropWhile(_ == "test-classes")
-      val e = (start ++ List("src") ++ end).mkString("\\")
-      println(e.toString)
-    }
-
-    def fixFile(label: String, text: String): Task[Unit] = Task {
-      println("sssssssssssssss")
-//      /home/fokot/projects/zio/test-tests/jvm/target/scala-2.13/test-classes  /zio/test/__snapshots__/firsta
-//      /home/fokot/projects/zio/test-tests/shared/src/test/scala               /zio/test/__snapshots__/firsta
-      val `class` = Class.forName(className)
-      findSourceFile(`class`)
-      val fileUrl = `class`.getResource(s"__snapshots__/$label")
-//      Files.write(Path.of(fileUrl.toURI), text.getBytes(Charset.defaultCharset()), StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING)
-      ()
-    }
-
     override def apply(d: Duration, e: ExecutedSpec[Failure]): URIO[TestLogger, Unit] =
-      TestLogger.logLine("OOPS")
-//      e.caseValue match {
-//        case LabeledCase(label, spec)    =>
-//        case MultipleCase(specs)         =>
-//        case TestCase(Left(TestFailure.Assertion(bool)), annotations) => //
-//
-//        case SuiteCase(label, specs) =>
-//          TestLogger.logLine(label) *> ZIO.foreach_(specs)(apply(d, _))
-//        case TestCase(label, Left(TestFailure.Assertion(Value(FailureDetails(assertion :: Nil, None)))), _) =>
-//          fixFile(label, assertion.value.toString).orDie *>
-//            TestLogger.logLine(s"$label snapshot updated")
-//        case TestCase(label, Left(TestFailure.Assertion(_)), _) =>
-//          TestLogger.logLine(s"$label weird state - should not happen - snapshot not updated")
-//        case TestCase(label, Left(TestFailure.Runtime(_)), _) =>
-//          TestLogger.logLine(s"Test $label failed in runtime, snapshot not updated")
-//        case TestCase(label, Right(_), _) =>
-//          TestLogger.logLine(s"Test $label passes, snapshot not updated")
-//      }
+      fixSnapshot(e, None)
+
+    def fixSnapshot(e: ExecutedSpec[Failure], label: Option[String]): URIO[TestLogger, Unit] =
+      e.caseValue match {
+        case LabeledCase(label, spec) => fixSnapshot(spec, Some(label))
+        case MultipleCase(specs)      => ZIO.foreach_(specs)(fixSnapshot(_, None))
+        case TestCase(Right(_), _) =>
+          TestLogger.logLine(s"Test $label passes, snapshot not updated")
+        case TestCase(
+              Left(TestFailure.Assertion(Value(FailureDetailsResult(FailureDetails(assertion :: Nil), None)))),
+              _
+            ) =>
+          label match {
+            case Some(name) =>
+              writeFile(snapshotFilePath(assertion.sourceLocation.get, label.get), assertion.value.toString).orDie *>
+                TestLogger.logLine(s"$name updated snapshot")
+            case None =>
+              TestLogger.logLine(s"No label for snapshot test")
+          }
+        case TestCase(Left(TestFailure.Assertion(_)), _) =>
+          TestLogger.logLine(s"$label weird state - should not happen - snapshot not updated")
+        case TestCase(Left(TestFailure.Runtime(_)), _) =>
+          TestLogger.logLine(s"Test $label failed in runtime, snapshot not updated")
+      }
+
   }
 
   /**

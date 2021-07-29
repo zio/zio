@@ -18,6 +18,7 @@ package zio.test
 
 import zio.clock.Clock
 import zio.duration._
+import zio.test.TestAspect.tag
 import zio.test.environment.TestEnvironment
 import zio.{URIO, ZIO}
 
@@ -64,4 +65,56 @@ abstract class DefaultRunnableSpec extends RunnableSpec[TestEnvironment, Any] {
    */
   def testM[R, E](label: String)(assertion: => ZIO[R, E, TestResult])(implicit loc: SourceLocation): ZSpec[R, E] =
     zio.test.testM(label)(assertion)
+
+  final def equalToSnapshot[A, B](expected: A)(implicit eql: Eql[A, B]): Assertion[B] =
+    Assertion.assertion("equalToSnapshot")() { actual =>
+      (actual, expected) match {
+        case (left: Array[_], right: Array[_]) => left.sameElements[Any](right)
+        case (left, right)                     => left == right
+      }
+    }
+
+  def snapshotTest[Any, E >: Throwable](
+    label: String
+  )(result: String)(implicit sourceLocation: SourceLocation): ZSpec[Any, E] =
+    snapshotTestM(label)(ZIO.succeed(result))(sourceLocation)
+
+  def noSnapFileName(snapFileName: String, sourceLocation: SourceLocation): TestResult = {
+    val noSnapFileAssertion = Assertion.assertion[String](s"No snapshot $snapFileName file found")()(_ => false)
+    BoolAlgebra.failure(
+      AssertionResult.FailureDetailsResult(
+        FailureDetails(
+          ::(
+            AssertionValue(
+              noSnapFileAssertion,
+              "",
+              noSnapFileAssertion.run(""),
+              sourceLocation = Some(sourceLocation.path)
+            ),
+            Nil
+          )
+        )
+      )
+    )
+  }
+
+  val SNAPSHOT_TEST = "SNAPSHOT_TEST"
+
+  def snapshotTestM[R, E >: Throwable](
+    label: String
+  )(result: ZIO[R, E, String])(implicit sourceLocation: SourceLocation): ZSpec[R, E] =
+    testM(label)(
+      for {
+        snapFileName <- ZIO.succeed(snapshotFilePath(sourceLocation.path, label))
+        actual       <- result
+        existing     <- existsFile(snapFileName)
+        res <- if (existing)
+                 readFile(snapFileName).map { (snapshot: String) =>
+                   CompileVariants.assertProxy(actual, snapshot, sourceLocation.path)(equalToSnapshot(snapshot))
+                 }
+               else
+                 ZIO.succeed(noSnapFileName(snapFileName, sourceLocation))
+      } yield res
+    ) @@ tag(SNAPSHOT_TEST)
+
 }
