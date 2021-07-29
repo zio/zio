@@ -31,7 +31,7 @@ sealed abstract class ZTestRunner(
 ) extends Runner {
 
   var layerCache: Map[Any, Any] = Map[Any, Any]()
-  val runtime                   = Fun.withFunExecutor(Runtime.default)
+  val runtime: Runtime[ZEnv]    = Fun.withFunExecutor(Runtime.default)
 
   def sendSummary: SendSummary
 

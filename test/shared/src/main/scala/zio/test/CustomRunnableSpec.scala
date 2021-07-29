@@ -17,9 +17,9 @@
 package zio.test
 
 import zio.clock.Clock
-import zio.{Has, Tag, URIO, URLayer, ZEnv}
 import zio.duration._
 import zio.test.environment.TestEnvironment
+import zio.{Has, Tag, URIO, URLayer, ZEnv}
 
 abstract class CustomRunnableSpec[R <: Has[_]: Tag](
   override val sharedLayer: URLayer[ZEnv, R]

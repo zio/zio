@@ -1,7 +1,6 @@
 package zio.test.sbt
 
 import sbt.testing._
-import zio.{Ref, Runtime, UIO, ZIO}
 import zio.duration._
 import zio.test.environment.Live
 import zio.test.sbt.TestingSupport._
@@ -21,10 +20,12 @@ import zio.test.{
   suite,
   testM
 }
+import zio.{Ref, Runtime, UIO, ZIO}
 
 import java.util.regex.Pattern
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Try
+import zio.{Has, ZLayer}
 
 object ZTestFrameworkSpec {
 
@@ -239,11 +240,11 @@ object ZTestFrameworkSpec {
     }
   }
 
-  lazy val sharedLayer = Ref.make[Int](10).toLayer
+  lazy val sharedLayer: ZLayer[Any, Nothing, Has[Ref[Int]]] = Ref.make[Int](10).toLayer
 
   lazy val specUsingShareLayer1FQN = SpecUsingShareLayer1.getClass.getName
   object SpecUsingShareLayer1 extends CustomRunnableSpec(sharedLayer) {
-    override def spec =
+    override def spec: ZSpec[Environment with SharedEnvironment, Failure] =
       suite("foo suite")(
         testM("foo test")(
           assertM(
@@ -255,7 +256,7 @@ object ZTestFrameworkSpec {
 
   lazy val specUsingShareLayer2FQN = SpecUsingShareLayer2.getClass.getName
   object SpecUsingShareLayer2 extends CustomRunnableSpec(sharedLayer) {
-    override def spec =
+    override def spec: ZSpec[Environment with SharedEnvironment, Failure] =
       suite("bar suite")(
         testM("bar test")(
           assertM(

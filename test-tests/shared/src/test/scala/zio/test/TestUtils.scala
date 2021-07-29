@@ -1,8 +1,7 @@
 package zio.test
 
 import zio.test.environment.{TestEnvironment, testEnvironment}
-import zio.{ExecutionStrategy, Has, Tag, UIO, URLayer, ZEnv}
-import zio.ZLayer
+import zio.{ExecutionStrategy, Has, Tag, UIO, URLayer, ZEnv, ZLayer}
 
 object TestUtils {
 

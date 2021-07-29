@@ -11,7 +11,7 @@ object ShareLayersAcrossSpecs {
   private val counter = new AtomicInteger(0)
 
   final case class BoxedInt(i: Int) {
-    override def toString =
+    override def toString: String =
       s"BoxedInt($i)@${System.identityHashCode(this).toHexString}"
   }
 
@@ -19,7 +19,7 @@ object ShareLayersAcrossSpecs {
     UIO(BoxedInt(counter.getAndIncrement())).toLayer
   }
 
-  val assertWeHaveABoxedZeroInTheEnv =
+  val assertWeHaveABoxedZeroInTheEnv: ZIO[Has[BoxedInt], Nothing, TestResult] =
     assertM(
       ZIO
         .service[BoxedInt]
@@ -28,7 +28,7 @@ object ShareLayersAcrossSpecs {
 }
 
 object ShareLayersAcrossSpecsSpec1 extends CustomRunnableSpec(sharedLayer) {
-  override def spec =
+  override def spec: ZSpec[Environment with SharedEnvironment, Failure] =
     suite("Shared layer across specs - 1")(
       testM("The same BoxedInt instance should be shared across all Specs")(
         assertWeHaveABoxedZeroInTheEnv
@@ -37,7 +37,7 @@ object ShareLayersAcrossSpecsSpec1 extends CustomRunnableSpec(sharedLayer) {
 }
 
 object ShareLayersAcrossSpecsSpec2 extends CustomRunnableSpec(sharedLayer) {
-  override def spec =
+  override def spec: ZSpec[Environment with SharedEnvironment, Failure] =
     suite("Shared layer across specs - 2")(
       testM("The same BoxedInt instance should be shared across all Specs")(
         assertWeHaveABoxedZeroInTheEnv

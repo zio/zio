@@ -20,7 +20,7 @@ import izumi.reflect.Tag
 import zio.clock.Clock
 import zio.duration._
 import zio.test.environment.TestEnvironment
-import zio.{Chunk, Has, URIO, ZIO, ZLayer, ULayer}
+import zio.{Chunk, Has, ULayer, URIO, ZIO, ZLayer}
 
 import scala.util.control.NoStackTrace
 

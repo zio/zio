@@ -1,8 +1,8 @@
 package zio.test.sbt
 
-import zio.test.sbt.LayerCache.LayerCacheMap
 import zio._
 import zio.test.AbstractRunnableSpec
+import zio.test.sbt.LayerCache.LayerCacheMap
 
 case class LayerCache[R](
   private val layerMap: Ref[LayerCacheMap[R]],
@@ -39,7 +39,7 @@ case class LayerCache[R](
     // UIO(println(s"get from cache: ${layer}")) *>
     layerMap.get.map(_.apply(layer).asInstanceOf[ROut])
 
-  def debug =
+  def debug: ZIO[Any, Nothing, Unit] =
     layerMap.get.flatMap { (cache: Map[URLayer[R, Any], Any]) =>
       UIO(
         println(
