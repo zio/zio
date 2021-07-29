@@ -17,7 +17,6 @@
 package zio
 
 import zio.Schedule.Decision._
-import zio.Schedule._
 
 import java.lang.{System => JSystem}
 import java.time.{Instant, LocalDateTime, OffsetDateTime}
@@ -38,16 +37,16 @@ trait Clock extends Serializable {
   def sleep(duration: Duration): UIO[Unit]
 
   final def driver[Env, In, Out](schedule: Schedule[Env, In, Out]): UIO[Schedule.Driver[Env, In, Out]] =
-    Ref.make[(Option[Out], Schedule.StepFunction[Env, In, Out])]((None, schedule.step)).map { ref =>
+    Ref.make[(Option[Out], schedule.State)]((None, schedule.initial)).map { ref =>
       val next = (in: In) =>
         for {
-          step <- ref.get.map(_._2)
-          now  <- currentDateTime
-          dec  <- step(now, in)
+          state <- ref.get.map(_._2)
+          now   <- currentDateTime
+          dec   <- schedule.step(now, in, state)
           v <- dec match {
-                 case Done(out) => ref.set((Some(out), StepFunction.done(out))) *> ZIO.fail(None)
-                 case Continue(out, interval, next) =>
-                   ref.set((Some(out), next)) *> sleep(Duration.fromInterval(now, interval)) as out
+                 case (state, out, Done) => ref.set((Some(out), state)) *> ZIO.fail(None)
+                 case (state, out, Continue(interval)) =>
+                   ref.set((Some(out), state)) *> sleep(Duration.fromInterval(now, interval)) as out
                }
         } yield v
 
@@ -56,7 +55,7 @@ trait Clock extends Serializable {
         case (Some(b), _) => ZIO.succeed(b)
       }
 
-      val reset = ref.set((None, schedule.step))
+      val reset = ref.set((None, schedule.initial))
 
       Schedule.Driver(next, last, reset)
     }
