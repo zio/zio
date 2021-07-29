@@ -143,7 +143,7 @@ object Clock extends ClockPlatformSpecific with Serializable {
   val live: Layer[Nothing, Has[Clock]] =
     ZLayer.succeed(ClockLive)
 
-  private[zio] object ClockLive extends Clock {
+  object ClockLive extends Clock {
     def currentTime(unit: TimeUnit): UIO[Long] =
       instant.map { inst =>
         // A nicer solution without loss of precision or range would be
