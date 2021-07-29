@@ -41,8 +41,6 @@ abstract class AbstractRunnableSpec extends FileIOPlatformSpecific {
     runSpec(spec)
 
   private[test] def snapshotFilePath(path: String, label: String): String = {
-    println("path", path)
-    println("label", label)
     val lastSlash = path.lastIndexOf('/')
     s"${path.substring(0, lastSlash)}/__snapshots__${path.substring(lastSlash + 1).stripSuffix(".scala")}/$label"
   }
