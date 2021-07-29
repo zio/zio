@@ -439,7 +439,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
       val initial = self.initial
       def step(now: OffsetDateTime, in: In, state: State): ZIO[Env, Nothing, (State, Out, Decision)] =
         self.step(now, in, state).flatMap {
-          case (state, out, Done)               => step(now, in, initial)
+          case (_, _, Done)                     => step(now, in, initial)
           case (state, out, Continue(interval)) => ZIO.succeedNow((state, out, Continue(interval)))
         }
     }
