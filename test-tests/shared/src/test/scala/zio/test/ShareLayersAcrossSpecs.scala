@@ -2,9 +2,9 @@ package zio.test
 
 import zio._
 import zio.test.Assertion._
+import zio.test.ShareLayersAcrossSpecs._
 
 import java.util.concurrent.atomic.AtomicInteger
-import ShareLayersAcrossSpecs._
 
 object ShareLayersAcrossSpecs {
 
@@ -15,25 +15,23 @@ object ShareLayersAcrossSpecs {
       s"BoxedInt($i)@${System.identityHashCode(this).toHexString}"
   }
 
-  val sharedLayer: ULayer[Has[BoxedInt]] =
-    UIO(BoxedInt(counter.getAndIncrement()))
-      // .tap(boxedInt => UIO(println(s"created $boxedInt")))
-      .toLayer
+  val sharedLayer: ULayer[Has[BoxedInt]] = {
+    UIO(BoxedInt(counter.getAndIncrement())).toLayer
+  }
 
-  val checkCounter =
-    for {
-      c <- UIO(counter.get())
-      assert <- assertM(
-                  ZIO.service[BoxedInt].map(_.i)
-                )(equalTo(c - 1))
-    } yield assert
+  val assertWeHaveABoxedZeroInTheEnv =
+    assertM(
+      ZIO
+        .service[BoxedInt]
+        .map(_.i)
+    )(equalTo(0))
 }
 
 object ShareLayersAcrossSpecsSpec1 extends CustomRunnableSpec(sharedLayer) {
   override def spec =
     suite("Shared layer across specs - 1")(
       testM("The same BoxedInt instance should be shared across all Specs")(
-        checkCounter
+        assertWeHaveABoxedZeroInTheEnv
       )
     )
 }
@@ -42,7 +40,7 @@ object ShareLayersAcrossSpecsSpec2 extends CustomRunnableSpec(sharedLayer) {
   override def spec =
     suite("Shared layer across specs - 2")(
       testM("The same BoxedInt instance should be shared across all Specs")(
-        checkCounter
+        assertWeHaveABoxedZeroInTheEnv
       )
     )
 }

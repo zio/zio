@@ -1,17 +1,15 @@
 package zio.test.sbt
 
 import sbt.testing.{EventHandler, Logger, Task, TaskDef}
+import zio._
 import zio.clock.Clock
 import zio.test._
-import zio._
 
 abstract class BaseTestTask(
   val taskDef: TaskDef,
-  val testClassLoader: ClassLoader,
   val sendSummary: SendSummary,
   val args: TestArgs,
-  val specInstance: AbstractRunnableSpec,
-  private[sbt] val layerCache: CustomSpecLayerCache
+  val specInstance: AbstractRunnableSpec
 ) extends Task {
 
   protected def run(eventHandler: EventHandler): ZIO[
@@ -32,24 +30,6 @@ abstract class BaseTestTask(
       def logLine(line: String): UIO[Unit] =
         ZIO.effect(loggers.foreach(_.info(colored(line)))).ignore
     }) ++ Clock.live
-
-  override def execute(eventHandler: EventHandler, loggers: Array[Logger]): Array[Task] =
-    try {
-      Runtime((), specInstance.platform).unsafeRun {
-        layerCache.awaitAvailable *> // layerCache.debug *>
-          layerCache.getEnvironment(specInstance.sharedLayer).flatMap { env =>
-            run(eventHandler)
-              .provideSomeLayer[specInstance.SharedEnvironment](sbtTestLayer(loggers))
-              .provide(env)
-              .onError(e => UIO(println(e.prettyPrint)))
-          }
-      }
-      Array()
-    } catch {
-      case t: Throwable =>
-        t.printStackTrace()
-        throw t
-    }
 
   override def tags(): Array[String] = Array.empty
 }

@@ -18,7 +18,7 @@ package zio.test.sbt
 
 import sbt.testing._
 import zio.test._
-import zio.{Exit, Runtime, UIO}
+import zio.{Exit, Runtime, UIO, ZEnv, ZIO}
 
 import scala.collection.mutable
 import scala.io.AnsiColor
@@ -30,17 +30,14 @@ sealed abstract class ZTestRunner(
   runnerType: String
 ) extends Runner {
 
-  var layerCache: CustomSpecLayerCache = _
-  val runtime                          = Fun.withFunExecutor(Runtime.default)
+  var layerCache: Map[Any, Any] = Map[Any, Any]()
+  val runtime                   = Fun.withFunExecutor(Runtime.default)
 
   def sendSummary: SendSummary
 
   val summaries: mutable.Buffer[Summary] = mutable.Buffer.empty
 
   def done(): String = {
-    if (layerCache != null)
-      Runtime.default.unsafeRun(layerCache.release)
-
     val total  = summaries.map(_.total).sum
     val ignore = summaries.map(_.ignore).sum
 
@@ -51,14 +48,11 @@ sealed abstract class ZTestRunner(
   }
 
   def tasks(defs: Array[TaskDef]): Array[Task] = {
-    layerCache = runtime.unsafeRun(CustomSpecLayerCache.make)
-
     val (specs, tasks) =
       defs.map { taskDef =>
         val spec = lookupSpec(taskDef, testClassLoader)
         spec -> new ZTestTask(
           taskDef,
-          testClassLoader,
           runnerType,
           sendSummary,
           TestArgs.parse(args),
@@ -67,9 +61,15 @@ sealed abstract class ZTestRunner(
         )
       }.unzip
 
-    runtime.unsafeRun(
-      layerCache.cacheLayers(specs)
-    )
+    layerCache = runtime.unsafeRun {
+      ZIO
+        .foreach(specs.map(_.sharedLayer).toSet) { sharedLayer =>
+          (ZEnv.live >>> sharedLayer).build.use { sharedEnv =>
+            UIO(sharedLayer -> sharedEnv)
+          }
+        }
+        .map(_.toMap)
+    }
 
     tasks.toArray
   }
@@ -86,7 +86,6 @@ sealed abstract class ZTestRunner(
     val taskDef = deserializer(task)
     new ZTestTask(
       taskDef,
-      testClassLoader,
       runnerType,
       sendSummary,
       TestArgs.parse(args),
@@ -115,33 +114,27 @@ final class ZSlaveTestRunner(
 
 final class ZTestTask(
   taskDef: TaskDef,
-  testClassLoader: ClassLoader,
   runnerType: String,
   sendSummary: SendSummary,
   testArgs: TestArgs,
   specInstance0: AbstractRunnableSpec,
-  layerCache: CustomSpecLayerCache
+  layerCache: Map[Any, Any]
 ) extends BaseTestTask(
       taskDef,
-      testClassLoader,
       sendSummary,
       testArgs,
-      specInstance0,
-      layerCache
+      specInstance0
     ) {
-  self =>
 
   override def execute(eventHandler: EventHandler, loggers: Array[Logger], continuation: Array[Task] => Unit): Unit =
     Runtime((), specInstance.platform).unsafeRunAsync {
-      if (runnerType == "master")
-        layerCache.awaitAvailable *> // layerCache.debug *>
-          layerCache.getEnvironment(specInstance.sharedLayer).flatMap { sharedEnv =>
-            sbtTestLayer(loggers).build.use { sbtTestLayer =>
-              val env = sharedEnv ++ sbtTestLayer
-              run(eventHandler).provide(env)
-            }
-          }
-      else
+      if (runnerType == "master") {
+        val sharedEnv = layerCache(specInstance.sharedLayer).asInstanceOf[specInstance.SharedEnvironment]
+        sbtTestLayer(loggers).build.use { sbtTestLayer =>
+          val env = sharedEnv ++ sbtTestLayer
+          run(eventHandler).provide(env)
+        }
+      } else
         UIO(
           loggers.foreach(
             _.warn(
@@ -150,7 +143,10 @@ final class ZTestTask(
                 "ScalaJS tests are run in several different VM instances, when " +
                 "executed in parallel, therefore it's not possible to provide them " +
                 "the same shared layer. Make sure to run ScalaJS tests sequentially " +
-                "if you want to share layers among them."
+                "if you want to share layers among them.\n" +
+                "You may want to consider adding to your project settings in build.sbt" +
+                "the following line:\n" +
+                "Test / parallelExecution := false"
             )
           )
         ).unless(specInstance.sharedLayer == DefaultRunnableSpec.none) *> {
@@ -165,4 +161,6 @@ final class ZTestTask(
       }
       continuation(Array())
     }
+
+  override def execute(eventHandler: EventHandler, loggers: Array[Logger]): Array[Task] = ???
 }

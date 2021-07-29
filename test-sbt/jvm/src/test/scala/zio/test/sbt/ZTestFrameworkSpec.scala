@@ -1,7 +1,7 @@
 package zio.test.sbt
 
 import sbt.testing._
-import zio.Ref
+import zio.{Ref, Runtime, UIO, ZIO}
 import zio.duration._
 import zio.test.environment.Live
 import zio.test.sbt.TestingSupport._
@@ -21,7 +21,6 @@ import zio.test.{
   suite,
   testM
 }
-import zio.{UIO, ZIO}
 
 import java.util.regex.Pattern
 import scala.collection.mutable.ArrayBuffer
@@ -140,11 +139,10 @@ object ZTestFrameworkSpec {
       .map { zTestTask =>
         new ZTestTask(
           zTestTask.taskDef,
-          zTestTask.testClassLoader,
           UIO.succeed(Summary(1, 0, 0, "foo")) >>> zTestTask.sendSummary,
           TestArgs.empty,
           SimpleFailingSpec,
-          zTestTask.layerCache
+          Runtime.default.unsafeRun(CustomSpecLayerCache.make)
         )
       }
       .head
@@ -163,11 +161,10 @@ object ZTestFrameworkSpec {
       .map { zTestTask =>
         new ZTestTask(
           zTestTask.taskDef,
-          zTestTask.testClassLoader,
           UIO.succeed(Summary(0, 0, 0, "foo")) >>> zTestTask.sendSummary,
           TestArgs.empty,
           SimpleFailingSpec,
-          zTestTask.layerCache
+          Runtime.default.unsafeRun(CustomSpecLayerCache.make)
         )
       }
       .head

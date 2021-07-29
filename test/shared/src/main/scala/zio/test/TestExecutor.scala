@@ -53,18 +53,18 @@ object TestExecutor {
             }
           )
           .use(_.foldM[R1, Nothing, ExecutedSpec[E]](defExec) {
-          case Spec.ExecCase(_, spec) =>
-            ZManaged.succeedNow(spec)
-          case Spec.LabeledCase(label, spec) =>
-            ZManaged.succeedNow(ExecutedSpec.labeled(label, spec))
-          case Spec.ManagedCase(managed) =>
-            managed
-          case Spec.MultipleCase(specs) =>
-            ZManaged.succeedNow(ExecutedSpec.multiple(specs))
-          case Spec.TestCase(test, staticAnnotations) =>
-            test.map { case (result, dynamicAnnotations) =>
-              ExecutedSpec.test(result, staticAnnotations ++ dynamicAnnotations)
-            }.toManaged_
+            case Spec.ExecCase(_, spec) =>
+              ZManaged.succeedNow(spec)
+            case Spec.LabeledCase(label, spec) =>
+              ZManaged.succeedNow(ExecutedSpec.labeled(label, spec))
+            case Spec.ManagedCase(managed) =>
+              managed
+            case Spec.MultipleCase(specs) =>
+              ZManaged.succeedNow(ExecutedSpec.multiple(specs))
+            case Spec.TestCase(test, staticAnnotations) =>
+              test.map { case (result, dynamicAnnotations) =>
+                ExecutedSpec.test(result, staticAnnotations ++ dynamicAnnotations)
+              }.toManaged_
           }.useNow)
       val environment = env
     }

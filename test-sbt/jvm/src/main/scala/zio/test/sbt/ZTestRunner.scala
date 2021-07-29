@@ -18,7 +18,7 @@ package zio.test.sbt
 
 import sbt.testing._
 import zio.test.{AbstractRunnableSpec, Summary, TestArgs}
-import zio.{Runtime, ZIO}
+import zio.{Runtime, UIO, ZIO}
 
 import java.util.concurrent.atomic.AtomicReference
 
@@ -65,7 +65,6 @@ final class ZTestRunner(val args: Array[String], val remoteArgs: Array[String], 
 
         spec -> new ZTestTask(
           taskDef,
-          testClassLoader,
           sendSummary,
           testArgs,
           spec,
@@ -91,19 +90,36 @@ final class ZTestRunner(val args: Array[String], val remoteArgs: Array[String], 
 
 final class ZTestTask(
   taskDef: TaskDef,
-  testClassLoader: ClassLoader,
   sendSummary: SendSummary,
   testArgs: TestArgs,
-  specInstance: AbstractRunnableSpec,
+  specInstance0: AbstractRunnableSpec,
   layerCache: CustomSpecLayerCache
 ) extends BaseTestTask(
       taskDef,
-      testClassLoader,
       sendSummary,
       testArgs,
-      specInstance,
-      layerCache
-    )
+      specInstance0
+    ) {
+
+  override def execute(eventHandler: EventHandler, loggers: Array[Logger]): Array[Task] =
+    try {
+      Runtime((), specInstance.platform).unsafeRun {
+        layerCache.awaitAvailable *>
+          layerCache.getEnvironment(specInstance.sharedLayer).flatMap { env =>
+            run(eventHandler)
+              .provideSomeLayer[specInstance.SharedEnvironment](sbtTestLayer(loggers))
+              .provide(env)
+              .onError(e => UIO(println(e.prettyPrint)))
+          }
+      }
+      Array()
+    } catch {
+      case t: Throwable =>
+        t.printStackTrace()
+        throw t
+    }
+
+}
 
 abstract class ZTestTaskPolicy {
   def merge(zioTasks: Array[ZTestTask]): Array[Task]
