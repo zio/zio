@@ -2133,18 +2133,26 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     ZLayer.fromZIOMany(self)
 
   /**
-   * Converts this ZIO to [[zio.Managed]]. This ZIO and the provided release action
-   * will be performed uninterruptibly.
-   */
-  final def toManagedWith[R1 <: R](release: A => URIO[R1, Any]): ZManaged[R1, E, A] =
-    ZManaged.acquireReleaseWith(this)(release)
-
-  /**
-   * Converts this ZIO to [[zio.ZManaged]] with no release action. It will be performed
-   * interruptibly.
+   * Converts this ZIO to [[zio.ZManaged]] with no release action. It will be
+   * performed interruptibly.
    */
   final def toManaged: ZManaged[R, E, A] =
-    ZManaged.fromZIO[R, E, A](this)
+    ZManaged.fromZIO(self)
+
+  /**
+   * Converts this ZIO to [[zio.Managed]]. This ZIO and the provided release
+   * action will be performed uninterruptibly.
+   */
+  final def toManagedWith[R1 <: R](release: A => URIO[R1, Any]): ZManaged[R1, E, A] =
+    ZManaged.acquireReleaseWith(self)(release)
+
+  /**
+   * Converts this ZIO to [[zio.ZManaged]] with no release action. It will be
+   * performed interruptibly.
+   */
+  @deprecated("use toManaged", "2.0.0")
+  final def toManaged_ : ZManaged[R, E, A] =
+    self.toManaged
 
   /**
    * Enables ZIO tracing for this effect. Because this is the default, this
