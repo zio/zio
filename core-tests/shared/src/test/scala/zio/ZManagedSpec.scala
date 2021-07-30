@@ -1699,27 +1699,6 @@ object ZManagedSpec extends ZIOBaseSpec {
         lazy val _                             = expected
         assertCompletes
       },
-      test("Function") {
-        trait R
-        trait A
-        trait FunctionLike[In, Out] extends Function[In, Out]
-        lazy val function: FunctionLike[R, A]      = ???
-        lazy val actual                            = ZManaged.from(function)
-        lazy val expected: ZManaged[R, Nothing, A] = actual
-        lazy val _                                 = expected
-        assertCompletes
-      },
-      test("FunctionManaged") {
-        trait R
-        trait E
-        trait A
-        trait FunctionLike[In, Out] extends Function[In, Out]
-        lazy val functionManaged: FunctionLike[R, Managed[E, A]] = ???
-        lazy val actual                                          = ZManaged.from(functionManaged)
-        lazy val expected: ZManaged[R, E, A]                     = actual
-        lazy val _                                               = expected
-        assertCompletes
-      },
       test("Option") {
         trait A
         lazy val option: Option[A]                           = ???

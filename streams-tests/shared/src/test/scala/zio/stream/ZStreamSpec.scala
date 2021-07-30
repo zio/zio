@@ -51,14 +51,14 @@ object ZStreamSpec extends ZIOBaseSpec {
         ) @@ TestAspect.jvmOnly, // This is horrendously slow on Scala.js for some reason
         test("access") {
           for {
-            result <- ZStream.access[String](identity).provide("test").runHead.get
+            result <- ZStream.access[String](identity).provide("test").runHead.some
 
           } yield assert(result)(equalTo("test"))
         },
         suite("accessZIO")(
           test("accessZIO") {
             for {
-              result <- ZStream.accessZIO[String](ZIO.succeed(_)).provide("test").runHead.get
+              result <- ZStream.accessZIO[String](ZIO.succeed(_)).provide("test").runHead.some
             } yield assert(result)(equalTo("test"))
           },
           test("accessZIO fails") {
@@ -70,7 +70,7 @@ object ZStreamSpec extends ZIOBaseSpec {
         suite("accessStream")(
           test("accessStream") {
             for {
-              result <- ZStream.accessStream[String](ZStream.succeed(_)).provide("test").runHead.get
+              result <- ZStream.accessStream[String](ZStream.succeed(_)).provide("test").runHead.some
             } yield assert(result)(equalTo("test"))
           },
           test("accessStream fails") {
@@ -3358,7 +3358,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               left   <- Queue.unbounded[Chunk[Int]]
               right  <- Queue.unbounded[Chunk[Int]]
               out    <- Queue.bounded[Take[Nothing, (Int, Int)]](1)
-              _      <- ZStream.fromChunkQueue(left).zipWithLatest(ZStream.fromChunkQueue(right))((_, _)).into(out).fork
+              _      <- ZStream.fromChunkQueue(left).zipWithLatest(ZStream.fromChunkQueue(right))((_, _)).intoQueue(out).fork
               _      <- left.offer(Chunk(0))
               _      <- right.offerAll(List(Chunk(0), Chunk(1)))
               chunk1 <- ZIO.replicateZIO(2)(out.take.flatMap(_.done)).map(_.flatten)

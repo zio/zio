@@ -94,7 +94,7 @@ final class Promise[E, A] private (
    * that if you do not need to memoize the result of the specified effect.
    */
   def complete(io: IO[E, A]): UIO[Boolean] =
-    io.to(this)
+    io.intoPromise(this)
 
   /**
    * Completes the promise with the specified effect. If the promise has

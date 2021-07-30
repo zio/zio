@@ -47,7 +47,7 @@ object ExecutorSpec extends ZIOBaseSpec {
     suite("Create the default unyielding executor and check that:")(
       test("When converted to an EC, it reports Throwables to stdout") {
         val t = new CheckPrintThrowable
-        TestExecutor.failing.asEC.reportFailure(t)
+        TestExecutor.failing.asExecutionContext.reportFailure(t)
         assert(t.printed)(isTrue)
       }
     ),
@@ -64,7 +64,9 @@ object ExecutorSpec extends ZIOBaseSpec {
         assert(TestExecutor.y.submitOrThrow(TestExecutor.runnable))(not(throwsA[RejectedExecutionException]))
       },
       test("When converted to an ExecutionContext, it accepts Runnables") {
-        assert(TestExecutor.y.asEC.execute(TestExecutor.runnable))(not(throwsA[RejectedExecutionException]))
+        assert(TestExecutor.y.asExecutionContext.execute(TestExecutor.runnable))(
+          not(throwsA[RejectedExecutionException])
+        )
       },
       test("When created from an EC, must not throw when fed an effect ") {
         assert(Executor.fromExecutionContext(1)(TestExecutor.ec).submit(TestExecutor.runnable))(
@@ -80,7 +82,9 @@ object ExecutorSpec extends ZIOBaseSpec {
         assert(TestExecutor.u.submitOrThrow(TestExecutor.runnable))(not(throwsA[RejectedExecutionException]))
       },
       test("When converted to an ExecutionContext, it accepts Runnables") {
-        assert(TestExecutor.u.asEC.execute(TestExecutor.runnable))(not(throwsA[RejectedExecutionException]))
+        assert(TestExecutor.u.asExecutionContext.execute(TestExecutor.runnable))(
+          not(throwsA[RejectedExecutionException])
+        )
       },
       test("When converted to Java, it accepts Runnables") {
         assert(TestExecutor.u.asJava.execute(TestExecutor.runnable))(not(throwsA[RejectedExecutionException]))

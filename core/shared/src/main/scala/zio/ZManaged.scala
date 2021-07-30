@@ -72,10 +72,11 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   /**
    * Symbolic alias for zip.
    */
+  @deprecated("use zip", "2.0.0")
   def &&&[R1 <: R, E1 >: E, B](that: ZManaged[R1, E1, B])(implicit
     zippable: Zippable[A, B]
   ): ZManaged[R1, E1, zippable.Out] =
-    zipWith(that)((a, b) => zippable.zip(a, b))
+    self <*> that
 
   /**
    * Symbolic alias for zipParRight
@@ -84,23 +85,10 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
     zipPar(that).map(_._2)
 
   /**
-   * Splits the environment, providing the first part to this effect and the
-   * second part to that effect.
-   */
-  def ***[R1, E1 >: E, B](that: ZManaged[R1, E1, B]): ZManaged[(R, R1), E1, (A, B)] =
-    (ZManaged.first >>> self) &&& (ZManaged.second >>> that)
-
-  /**
    * Symbolic alias for zipRight
    */
   def *>[R1 <: R, E1 >: E, A1](that: ZManaged[R1, E1, A1]): ZManaged[R1, E1, A1] =
     flatMap(_ => that)
-
-  def +++[R1, B, E1 >: E](that: ZManaged[R1, E1, B]): ZManaged[Either[R, R1], E1, Either[A, B]] =
-    for {
-      e <- ZManaged.environment[Either[R, R1]]
-      r <- e.fold(map(Left(_)).provide(_), that.map(Right(_)).provide(_))
-    } yield r
 
   /**
    * Symbolic alias for zipParLeft
@@ -130,16 +118,6 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
     zipWith(that)(zippable.zip(_, _))
 
   /**
-   * Symbolic alias for compose
-   */
-  def <<<[R1, E1 >: E](that: ZManaged[R1, E1, R]): ZManaged[R1, E1, A] =
-    for {
-      r1 <- ZManaged.environment[R1]
-      r  <- that.provide(r1)
-      a  <- provide(r)
-    } yield a
-
-  /**
    * Operator alias for `orElse`.
    */
   def <>[R1 <: R, E2, A1 >: A](that: => ZManaged[R1, E2, A1])(implicit ev: CanFail[E]): ZManaged[R1, E2, A1] =
@@ -148,23 +126,9 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   /**
    * Symbolic alias for flatMap
    */
+  @deprecated("use flatMap", "2.0.0")
   def >>=[R1 <: R, E1 >: E, B](k: A => ZManaged[R1, E1, B]): ZManaged[R1, E1, B] =
     flatMap(k)
-
-  /**
-   * Symbolic alias for andThen
-   */
-  def >>>[E1 >: E, B](that: ZManaged[A, E1, B]): ZManaged[R, E1, B] =
-    self.flatMap(that.provide)
-
-  /**
-   * Symbolic alias for join
-   */
-  def |||[R1, E1 >: E, A1 >: A](that: ZManaged[R1, E1, A1]): ZManaged[Either[R, R1], E1, A1] =
-    for {
-      either <- ZManaged.environment[Either[R, R1]]
-      a1     <- either.fold(provide, that.provide)
-    } yield a1
 
   /**
    * Submerges the error case of an `Either` into the `ZManaged`. The inverse
@@ -201,6 +165,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   /**
    * Maps the success value of this effect to a service.
    */
+  @deprecated("use toLayer", "2.0.0")
   def asService[A1 >: A: Tag]: ZManaged[R, E, Has[A1]] =
     map(Has(_))
 
@@ -215,11 +180,6 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    */
   final def asSomeError: ZManaged[R, Option[E], A] =
     mapError(Some(_))
-
-  /**
-   * Executes the this effect and then provides its output as an environment to the second effect
-   */
-  def andThen[E1 >: E, B](that: ZManaged[A, E1, B]): ZManaged[R, E1, B] = self >>> that
 
   /**
    * Returns an effect whose failure and success channels have been mapped by
@@ -288,12 +248,6 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
     self.flatMap(v => pf.applyOrElse[A, ZManaged[R1, E1, B]](v, _ => ZManaged.fail(e)))
 
   /**
-   * Executes the second effect and then provides its output as an environment to this effect
-   */
-  def compose[R1, E1 >: E](that: ZManaged[R1, E1, R]): ZManaged[R1, E1, A] =
-    self <<< that
-
-  /**
    * Returns an effect whose failure and success have been lifted into an
    * `Either`.The resulting effect cannot fail
    */
@@ -324,12 +278,6 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    */
   def eventually(implicit ev: CanFail[E]): ZManaged[R, Nothing, A] =
     ZManaged(zio.eventually)
-
-  /**
-   * Zips this effect with its environment
-   */
-  def first[R1 <: R, A1 >: A]: ZManaged[R1, E, (A1, R1)] =
-    self &&& ZManaged.identity[R1]
 
   /**
    * Returns a managed resource that attempts to acquire this managed resource
@@ -485,6 +433,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   /**
    * Unwraps the optional success of this effect, but can fail with None value.
    */
+  @deprecated("use some", "2.0.0")
   def get[B](implicit
     ev1: E IsSubtypeOfError Nothing,
     ev2: A IsSubtypeOfOutput Option[B]
@@ -520,19 +469,19 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
     fold(_ => false, _ => true)
 
   /**
-   * Depending on the environment execute this or the other effect
-   */
-  def join[R1, E1 >: E, A1 >: A](that: ZManaged[R1, E1, A1]): ZManaged[Either[R, R1], E1, A1] = self ||| that
-
-  def left[R1 <: R, C]: ZManaged[Either[R1, C], E, Either[A, C]] = self +++ ZManaged.identity
-
-  /**
    * Locks this managed effect to the specified executor, guaranteeing that
    * this managed effect as well as managed effects that are composed
    * sequentially after it will be run on the specified executor.
    */
   final def lock(executor: Executor): ZManaged[R, E, A] =
     ZManaged.lock(executor) *> self
+
+  /**
+   * Runs this managed effect, as well as any managed effects that are composed
+   * sequentially after it, using the specified `ExecutionContext`.
+   */
+  final def lockExecutionContext(ec: ExecutionContext): ZManaged[R, E, A] =
+    self.lock(Executor.fromExecutionContext(Int.MaxValue)(ec))
 
   /**
    * Returns an effect whose success is mapped by the specified `f` function.
@@ -596,7 +545,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
                         self.zio
                           .provide((r, finalizers))
                           .map(_._2)
-                          .to(promise)
+                          .intoPromise(promise)
                       }
                       .once
       } yield (complete *> promise.await).toManaged
@@ -622,8 +571,9 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * Runs this managed effect, as well as any managed effects that are composed
    * sequentially after it, using the specified `ExecutionContext`.
    */
+  @deprecated("use onExecutionContext", "2.0.0")
   final def on(ec: ExecutionContext): ZManaged[R, E, A] =
-    self.lock(Executor.fromExecutionContext(Int.MaxValue)(ec))
+    lockExecutionContext(ec)
 
   /**
    * Ensures that a cleanup function runs when this ZManaged is finalized, after
@@ -822,21 +772,10 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
     layer.build.map(ev).flatMap(self.provide)
 
   /**
-   * Provides some of the environment required to run this effect,
-   * leaving the remainder `R0`.
-   *
-   * {{{
-   * val managed: ZManaged[Console with Logging, Nothing, Unit] = ???
-   *
-   * managed.provideSome[Console](env =>
-   *   new Console with Logging {
-   *     val console = env.console
-   *     val logging = new Logging[Any] {
-   *       def log(line: String) = Console.printLine(line)
-   *     }
-   *   }
-   * )
-   * }}}
+   * Provides some of the environment required to run this effect when the
+   * environment is not a subtype of `Has[_]`. This is useful primarily for
+   * implementing operators that are polymorphic in the environment type. When
+   * your environment is a subtype of `Has[_]` use [[zio.ZIO.injectSome]]
    */
   def provideSome[R0](f: R0 => R)(implicit ev: NeedsEnv[R]): ZManaged[R0, E, A] =
     ZManaged(zio.provideSome[(R0, ZManaged.ReleaseMap)](tp => (f(tp._1), tp._2)))
@@ -932,8 +871,6 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
       zio.provideSome[R1 with Has[Clock]](env => (env, releaseMap)).retry(policy).provide(env)
     })
 
-  def right[R1 <: R, C]: ZManaged[Either[C, R1], E, Either[C, A]] = ZManaged.identity +++ self
-
   /**
    * Returns an effect that semantically runs the effect on a fiber,
    * producing an [[zio.Exit]] for the completion value of the fiber.
@@ -958,11 +895,6 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
     f: ZManaged[R1, Cause[E], A] => ZManaged[R1, Cause[E2], B]
   ): ZManaged[R1, E2, B] =
     ZManaged.unsandbox(f(self.sandbox))
-
-  /**
-   * Zips this effect with its environment
-   */
-  def second[R1 <: R, A1 >: A]: ZManaged[R1, E, (R1, A1)] = ZManaged.identity[R1] &&& self
 
   /**
    * Converts an option on values into an option on errors.
@@ -1961,13 +1893,6 @@ object ZManaged extends ZManagedPlatformSpecific {
     ZManaged.acquireReleaseExitWith(Ref.make(initial))((ref, exit) => ref.get.flatMap(_.apply(exit)))
 
   /**
-   * Returns an effectful function that extracts out the first element of a
-   * tuple.
-   */
-  def first[A]: ZManaged[(A, Any), Nothing, A] =
-    fromFunction(_._1)
-
-  /**
    * Returns a managed resource that attempts to acquire the first managed
    * resource and in case of failure, attempts to acquire each of the specified
    * managed resources in order until one of them is successfully acquired,
@@ -2233,6 +2158,7 @@ object ZManaged extends ZManagedPlatformSpecific {
   /**
    * Lifts a function `R => A` into a `ZManaged[R, Nothing, A]`.
    */
+  @deprecated("use access", "2.0.0")
   def fromFunction[R, A](f: R => A): ZManaged[R, Nothing, A] =
     ZManaged.fromZIO(ZIO.environment[R]).map(f)
 
@@ -2240,16 +2166,9 @@ object ZManaged extends ZManagedPlatformSpecific {
    * Lifts an effectful function whose effect requires no environment into
    * an effect that requires the input to the function.
    */
-  @deprecated("use fromFunctionManaged", "2.0.0")
+  @deprecated("use accessManaged", "2.0.0")
   def fromFunctionM[R, E, A](f: R => ZManaged[Any, E, A]): ZManaged[R, E, A] =
-    fromFunctionManaged(f)
-
-  /**
-   * Lifts an effectful function whose effect requires no environment into
-   * an effect that requires the input to the function.
-   */
-  def fromFunctionManaged[R, E, A](f: R => ZManaged[Any, E, A]): ZManaged[R, E, A] =
-    flatten(fromFunction(f))
+    accessManaged(f)
 
   /**
    * Lifts an `Option` into a `ZManaged` but preserves the error as an option in the error channel, making it easier to compose
@@ -2324,11 +2243,6 @@ object ZManaged extends ZManagedPlatformSpecific {
   @deprecated("use failCause", "2.0.0")
   def halt[E](cause: => Cause[E]): ZManaged[Any, E, Nothing] =
     failCause(cause)
-
-  /**
-   * Returns the identity effectful function, which performs no effects
-   */
-  def identity[R]: ZManaged[R, Nothing, R] = fromFunction(scala.Predef.identity)
 
   /**
    * Runs `onTrue` if the result of `b` is `true` and `onFalse` otherwise.
@@ -2756,6 +2670,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * Requires that the given `ZManaged[E, Option[A]]` contain a value. If there is no
    * value, then the specified error will be raised.
    */
+  @deprecated("use someOrFail", "2.0.0")
   def require[R, E, A](error: => E): ZManaged[R, E, Option[A]] => ZManaged[R, E, A] =
     (zManaged: ZManaged[R, E, Option[A]]) => zManaged.flatMap(_.fold[ZManaged[R, E, A]](fail(error))(succeedNow))
 
@@ -2813,13 +2728,6 @@ object ZManaged extends ZManagedPlatformSpecific {
           } yield tp
       }
     }
-
-  /**
-   * Returns an effectful function that extracts out the second element of a
-   * tuple.
-   */
-  def second[A]: ZManaged[(Any, A), Nothing, A] =
-    fromFunction(_._2)
 
   /**
    * Accesses the specified service in the environment of the effect.
@@ -2893,11 +2801,6 @@ object ZManaged extends ZManagedPlatformSpecific {
    */
   def suspend[R, E, A](zManaged: => ZManaged[R, E, A]): ZManaged[R, E, A] =
     flatten(succeed(zManaged))
-
-  /**
-   * Returns an effectful function that merely swaps the elements in a `Tuple2`.
-   */
-  def swap[A, B]: ZManaged[(A, B), Nothing, (B, A)] = fromFunction(_.swap)
 
   /**
    * Returns a ZManaged value that represents a managed resource that can be safely
@@ -3097,17 +3000,6 @@ object ZManaged extends ZManagedPlatformSpecific {
       }
 
     /**
-     * Constructs a `ZManaged[R, E, A]` from a function `R => IO[E, A]`.
-     */
-    implicit def FunctionManagedConstructor[R, E, A, FunctionLike[In, Out] <: In => Out]
-      : WithOut[FunctionLike[R, ZManaged[Any, E, A]], ZManaged[R, E, A]] =
-      new ZManagedConstructor[FunctionLike[R, ZManaged[Any, E, A]]] {
-        type Out = ZManaged[R, E, A]
-        def make(input: => FunctionLike[R, Managed[E, A]]): ZManaged[R, E, A] =
-          ZManaged.fromFunctionManaged(input)
-      }
-
-    /**
      * Constructs a `ZManaged[Any, Option[Nothing], A]` from an `Option[A]`.
      */
     implicit def OptionConstructor[A]: WithOut[Option[A], ZManaged[Any, Option[Nothing], A]] =
@@ -3190,17 +3082,6 @@ object ZManaged extends ZManagedPlatformSpecific {
   }
 
   trait ZManagedConstructorLowPriority1 extends ZManagedConstructorLowPriority2 {
-
-    /**
-     * Constructs a `ZManaged[R, Nothing, A]` from a function `R => A`.
-     */
-    implicit def FunctionConstructor[R, A, FunctionLike[In, Out] <: In => Out]
-      : WithOut[FunctionLike[R, A], ZManaged[R, Nothing, A]] =
-      new ZManagedConstructor[FunctionLike[R, A]] {
-        type Out = ZManaged[R, Nothing, A]
-        def make(input: => FunctionLike[R, A]): ZManaged[R, Nothing, A] =
-          ZManaged.fromFunction(input)
-      }
 
     /**
      * Constructs a `ZManaged[R, E, A]` from a `ZIO[R, E, A]`.

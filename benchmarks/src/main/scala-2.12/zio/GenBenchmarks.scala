@@ -20,7 +20,7 @@ class GenBenchmarks {
   var elementSize: Int = _
   @Benchmark
   def zioDouble: List[Double] =
-    unsafeRun(Gen.listOfN(listSize)(Gen.uniform).sample.map(_.value).runHead.get.provideLayer(ZEnv.live))
+    unsafeRun(Gen.listOfN(listSize)(Gen.uniform).sample.map(_.value).runHead.some.provideLayer(ZEnv.live))
 
   @Benchmark
   def zioIntListsOfSizeN: List[List[Int]] =
@@ -30,7 +30,7 @@ class GenBenchmarks {
         .sample
         .map(_.value)
         .runHead
-        .get
+        .some
         .provideLayer(ZEnv.live)
     )
 
@@ -42,7 +42,7 @@ class GenBenchmarks {
         .sample
         .map(_.value)
         .runHead
-        .get
+        .some
         .provideLayer(ZEnv.live)
     )
 

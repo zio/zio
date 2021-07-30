@@ -803,36 +803,6 @@ object Task extends TaskPlatformSpecific {
     ZIO.fromFiberZIO(fiber)
 
   /**
-   * @see [[zio.ZIO.fromFunction]]
-   */
-  def fromFunction[A](f: Any => A): Task[A] = ZIO.fromFunction(f)
-
-  /**
-   * @see [[zio.ZIO.fromFunctionEither]]
-   */
-  def fromFunctionEither[A](f: Any => Either[Throwable, A]): Task[A] =
-    ZIO.fromFunctionEither(f)
-
-  /**
-   * @see [[zio.ZIO.fromFunctionFuture]]
-   */
-  def fromFunctionFuture[A](f: Any => scala.concurrent.Future[A]): Task[A] =
-    ZIO.fromFunctionFuture(f)
-
-  /**
-   * @see [[zio.ZIO.fromFunctionM]]
-   */
-  @deprecated("use fromFunctionZIO", "2.0.0")
-  def fromFunctionM[A](f: Any => Task[A]): Task[A] =
-    ZIO.fromFunctionM(f)
-
-  /**
-   * @see [[zio.ZIO.fromFunctionZIO]]
-   */
-  def fromFunctionZIO[A](f: Any => Task[A]): Task[A] =
-    ZIO.fromFunctionZIO(f)
-
-  /**
    * @see See [[zio.ZIO.fromFuture]]
    */
   def fromFuture[A](make: ExecutionContext => scala.concurrent.Future[A]): Task[A] =
@@ -868,11 +838,6 @@ object Task extends TaskPlatformSpecific {
   @deprecated("use failCauseWith", "2.0.0")
   def haltWith[E <: Throwable](function: (() => ZTrace) => Cause[E]): Task[Nothing] =
     ZIO.haltWith(function)
-
-  /**
-   * @see [[zio.ZIO.identity]]
-   */
-  def identity: Task[Any] = ZIO.identity
 
   /**
    * @see [[zio.ZIO.ifM]]
@@ -1108,6 +1073,7 @@ object Task extends TaskPlatformSpecific {
   /**
    * @see See [[zio.ZIO.require]]
    */
+  @deprecated("use someOrFail", "2.0.0")
   def require[A](error: => Throwable): Task[Option[A]] => Task[A] =
     ZIO.require[Any, Throwable, A](error)
 

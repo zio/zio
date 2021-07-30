@@ -65,7 +65,9 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   /**
    * Symbolic alias for [[ZStream#flatMap]].
    */
-  def >>=[R1 <: R, E1 >: E, A2](f0: A => ZStream[R1, E1, A2]): ZStream[R1, E1, A2] = flatMap(f0)
+  @deprecated("use flatMap", "2.0.0")
+  def >>=[R1 <: R, E1 >: E, A2](f0: A => ZStream[R1, E1, A2]): ZStream[R1, E1, A2] =
+    flatMap(f0)
 
   // /**
   //  * Symbolic alias for [[ZStream#transduce]].
@@ -1760,13 +1762,24 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     interruptWhen(Clock.sleep(duration))
 
   /**
-   * Enqueues elements of this stream into a queue. Stream failure and ending will also be
-   * signalled.
+   * Enqueues elements of this stream into a queue. Stream failure and ending
+   * will also be signalled.
    */
+  @deprecated("use runIntoQueue", "2.0.0")
   final def runInto[R1 <: R, E1 >: E](
     queue: ZQueue[R1, Nothing, Nothing, Any, Take[E1, A], Any]
   ): ZIO[R1, E1, Unit] =
-    runIntoManaged(queue).useDiscard(UIO.unit)
+    runIntoQueue(queue)
+
+  /**
+   * Like [[ZStream#runInto]], but provides the result as a [[ZManaged]] to
+   * allow for scope composition.
+   */
+  @deprecated("use runIntoQueueElementsManaged", "2.0.0")
+  final def runIntoElementsManaged[R1 <: R, E1 >: E](
+    queue: ZQueue[R1, Nothing, Nothing, Any, Exit[Option[E1], A], Any]
+  ): ZManaged[R1, E1, Unit] =
+    runIntoQueueElementsManaged(queue)
 
   /**
    * Publishes elements of this stream to a hub. Stream failure and ending will
@@ -1775,7 +1788,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def runIntoHub[R1 <: R, E1 >: E](
     hub: ZHub[R1, Nothing, Nothing, Any, Take[E1, A], Any]
   ): ZIO[R1, E1, Unit] =
-    runInto(hub.toQueue)
+    runIntoQueue(hub.toQueue)
 
   /**
    * Like [[ZStream#runIntoHub]], but provides the result as a [[ZManaged]] to
@@ -1784,13 +1797,32 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def runIntoHubManaged[R1 <: R, E1 >: E](
     hub: ZHub[R1, Nothing, Nothing, Any, Take[E1, A], Any]
   ): ZManaged[R1, E1, Unit] =
-    runIntoManaged(hub.toQueue)
+    runIntoQueueManaged(hub.toQueue)
 
   /**
-   * Like [[ZStream#into]], but provides the result as a [[ZManaged]] to allow for scope
-   * composition.
+   * Like [[ZStream#runInto]], but provides the result as a [[ZManaged]] to
+   * allow for scope composition.
    */
+  @deprecated("use runIntoQueueQueue", "2.0.0")
   final def runIntoManaged[R1 <: R, E1 >: E](
+    queue: ZQueue[R1, Nothing, Nothing, Any, Take[E1, A], Any]
+  ): ZManaged[R1, E1, Unit] =
+    runIntoQueueManaged(queue)
+
+  /**
+   * Enqueues elements of this stream into a queue. Stream failure and ending
+   * will also be signalled.
+   */
+  final def runIntoQueue[R1 <: R, E1 >: E](
+    queue: ZQueue[R1, Nothing, Nothing, Any, Take[E1, A], Any]
+  ): ZIO[R1, E1, Unit] =
+    runIntoQueueManaged(queue).useDiscard(UIO.unit)
+
+  /**
+   * Like [[ZStream#runIntoQueue]], but provides the result as a [[ZManaged]]
+   * to allow for scope composition.
+   */
+  final def runIntoQueueManaged[R1 <: R, E1 >: E](
     queue: ZQueue[R1, Nothing, Nothing, Any, Take[E1, A], Any]
   ): ZManaged[R1, E1, Unit] = {
     lazy val writer: ZChannel[R, E, Chunk[A], Any, E, Take[E1, A], Any] = ZChannel
@@ -1807,11 +1839,11 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
       .unit
   }
 
-  /*
-   * Like [[ZStream#into]], but provides the result as a [[ZManaged]] to allow for scope
-   * composition.
+  /**
+   * Like [[ZStream#runIntoQueue]], but provides the result as a [[ZManaged]]
+   * to allow for scope composition.
    */
-  final def runIntoElementsManaged[R1 <: R, E1 >: E](
+  final def runIntoQueueElementsManaged[R1 <: R, E1 >: E](
     queue: ZQueue[R1, Nothing, Nothing, Any, Exit[Option[E1], A], Any]
   ): ZManaged[R1, E1, Unit] = {
     lazy val writer: ZChannel[R1, E1, Chunk[A], Any, Nothing, Exit[Option[E1], A], Any] =
@@ -2031,7 +2063,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Maps over elements of the stream with the specified effectful function.
    */
   def mapZIO[R1 <: R, E1 >: E, A1](f: A => ZIO[R1, E1, A1]): ZStream[R1, E1, A1] =
-    loopOnPartialChunksElements((a, emit) => f(a) >>= emit)
+    loopOnPartialChunksElements((a, emit) => f(a).flatMap(emit))
 
   /**
    * Maps over elements of the stream with the specified effectful function,
@@ -3066,7 +3098,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def toQueue(capacity: Int = 2): ZManaged[R, Nothing, Dequeue[Take[E, A]]] =
     for {
       queue <- Queue.bounded[Take[E, A]](capacity).toManagedWith(_.shutdown)
-      _     <- self.runIntoManaged(queue).fork
+      _     <- self.runIntoQueueManaged(queue).fork
     } yield queue
 
   /**
@@ -3076,7 +3108,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def toQueueDropping(capacity: Int = 2): ZManaged[R, Nothing, Dequeue[Take[E, A]]] =
     for {
       queue <- Queue.dropping[Take[E, A]](capacity).toManagedWith(_.shutdown)
-      _     <- self.runIntoManaged(queue).fork
+      _     <- self.runIntoQueueManaged(queue).fork
     } yield queue
 
   /**
@@ -3086,7 +3118,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def toQueueOfElements(capacity: Int = 2): ZManaged[R, Nothing, Dequeue[Exit[Option[E], A]]] =
     for {
       queue <- Queue.bounded[Exit[Option[E], A]](capacity).toManagedWith(_.shutdown)
-      _     <- self.runIntoElementsManaged(queue).fork
+      _     <- self.runIntoQueueElementsManaged(queue).fork
     } yield queue
 
   /**
@@ -3096,7 +3128,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def toQueueSliding(capacity: Int = 2): ZManaged[R, Nothing, Dequeue[Take[E, A]]] =
     for {
       queue <- Queue.sliding[Take[E, A]](capacity).toManagedWith(_.shutdown)
-      _     <- self.runIntoManaged(queue).fork
+      _     <- self.runIntoQueueManaged(queue).fork
     } yield queue
 
   /**
@@ -3106,7 +3138,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def toQueueUnbounded: ZManaged[R, Nothing, Dequeue[Take[E, A]]] =
     for {
       queue <- Queue.unbounded[Take[E, A]].toManagedWith(_.shutdown)
-      _     <- self.runIntoManaged(queue).fork
+      _     <- self.runIntoQueueManaged(queue).fork
     } yield queue
 
   /**

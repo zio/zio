@@ -145,7 +145,7 @@ val s2 = ZStream.fromChunks(Chunk(1, 2, 3), Chunk(4, 5, 6))
 
 ### From Effect
 
-**ZStream.fromEffect** — We can create a stream from an effect by using `ZStream.fromEffect` constructor. For example, the following stream is a stream that reads a line from a user:
+**ZStream.fromZIO** — We can create a stream from an effect by using `ZStream.fromZIO` constructor. For example, the following stream is a stream that reads a line from a user:
 
 ```scala mdoc:silent:nest
 val readline: ZStream[Has[Console], IOException, String] = 
@@ -159,11 +159,11 @@ val randomInt: ZStream[Has[Random], Nothing, Int] =
   ZStream.fromZIO(Random.nextInt)
 ```
 
-**ZStream.fromEffectOption** — In some cases, depending on the result of the effect, we should decide to emit an element or return an empty stream. In these cases, we can use `fromEffectOption` constructor:
+**ZStream.fromZIOOption** — In some cases, depending on the result of the effect, we should decide to emit an element or return an empty stream. In these cases, we can use `fromZIOOption` constructor:
 
 ```scala 
 object ZStream {
-  def fromEffectOption[R, E, A](fa: ZIO[R, Option[E], A]): ZStream[R, E, A] = ???
+  def fromZIOOption[R, E, A](fa: ZIO[R, Option[E], A]): ZStream[R, E, A] = ???
 }
 ```
 
@@ -304,7 +304,7 @@ val repeatZeroEverySecond: ZStream[Has[Clock], Nothing, Int] =
   ZStream.repeatWith(0, Schedule.spaced(1.seconds))
 ```
 
-**ZStream.repeatEffect** — Assume we have an effectful API, and we need to call that API and create a stream from the result of that. We can create a stream from that effect that repeats forever.
+**ZStream.repeatZIO** — Assume we have an effectful API, and we need to call that API and create a stream from the result of that. We can create a stream from that effect that repeats forever.
 
 Let's see an example of creating a stream of random numbers:
 
@@ -313,7 +313,7 @@ val randomInts: ZStream[Has[Random], Nothing, Int] =
   ZStream.repeatZIO(Random.nextInt)
 ```
 
-**ZStream.repeatEffectOption** — We can repeatedly evaluate the given effect and terminate the stream based on some conditions. 
+**ZStream.repeatZIOOption** — We can repeatedly evaluate the given effect and terminate the stream based on some conditions. 
 
 Let's create a stream repeatedly from user inputs until user enter "EOF" string:
 
@@ -327,7 +327,7 @@ val userInputs: ZStream[Has[Console], IOException, String] =
   )
 ```
 
-Here is another interesting example of using `repeatEffectOption`; In this example, we are draining an `Iterator` to create a stream of that iterator:
+Here is another interesting example of using `repeatZIOOption`; In this example, we are draining an `Iterator` to create a stream of that iterator:
 
 ```scala mdoc:silent:nest
 def drainIterator[A](it: Iterator[A]): ZStream[Any, Throwable, A] =
@@ -346,7 +346,7 @@ val stream: ZStream[Has[Clock], Nothing, Unit] =
   ZStream.tick(1.seconds)
 ```
 
-There are some other variant of repetition API like `repeatEffectWith`, `repeatEffectOption`, `repeatEffectChunk` and `repeatEffectChunkOption`.
+There are some other variant of repetition API like `repeatZIOWith`, `repeatZIOOption`, `repeatZIOChunk` and `repeatZIOChunkOption`.
 
 ### From Unfolding/Pagination
 
@@ -537,7 +537,7 @@ val stream: ZStream[Any, IOException, Char] =
    ZStream.fromReader(new FileReader("file.txt"))
 ```
 
-ZIO Stream also has `ZStream.fromReaderEffect` and `ZStream.fromReaderManaged` variants.
+ZIO Stream also has `ZStream.fromReaderZIO` and `ZStream.fromReaderManaged` variants.
 
 ### From Java Stream
 
@@ -548,7 +548,7 @@ val stream: ZStream[Any, Throwable, Int] =
   ZStream.fromJavaStream(java.util.stream.Stream.of(1, 2, 3))
 ```
 
-ZIO Stream also has `ZStream.fromJavaStream`, `ZStream.fromJavaStreamEffect` and `ZStream.fromJavaStreamManaged` variants.
+ZIO Stream also has `ZStream.fromJavaStream`, `ZStream.fromJavaStreamZIO` and `ZStream.fromJavaStreamManaged` variants.
 
 ### From Queue and Hub
 

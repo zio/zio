@@ -810,36 +810,6 @@ object IO {
     ZIO.fromFiberZIO(fiber)
 
   /**
-   * @see [[zio.ZIO.fromFunction]]
-   */
-  def fromFunction[A](f: Any => A): IO[Nothing, A] = ZIO.fromFunction(f)
-
-  /**
-   * @see [[zio.ZIO.fromFunctionEither]]
-   */
-  def fromFunctionEither[E, A](f: Any => Either[E, A]): IO[E, A] =
-    ZIO.fromFunctionEither(f)
-
-  /**
-   * @see [[zio.ZIO.fromFunctionFuture]]
-   */
-  def fromFunctionFuture[A](f: Any => scala.concurrent.Future[A]): Task[A] =
-    ZIO.fromFunctionFuture(f)
-
-  /**
-   * @see [[zio.ZIO.fromFunctionM]]
-   */
-  @deprecated("use fromFunctionZIO", "2.0.0")
-  def fromFunctionM[E, A](f: Any => IO[E, A]): IO[E, A] =
-    ZIO.fromFunctionM(f)
-
-  /**
-   * @see [[zio.ZIO.fromFunctionZIO]]
-   */
-  def fromFunctionZIO[E, A](f: Any => IO[E, A]): IO[E, A] =
-    ZIO.fromFunctionZIO(f)
-
-  /**
    * @see See [[zio.ZIO.fromFuture]]
    */
   def fromFuture[A](make: ExecutionContext => scala.concurrent.Future[A]): Task[A] =
@@ -880,11 +850,6 @@ object IO {
   @deprecated("use failCauseWith", "2.0.0")
   def haltWith[E](function: (() => ZTrace) => Cause[E]): IO[E, Nothing] =
     ZIO.haltWith(function)
-
-  /**
-   * @see [[zio.ZIO.identity]]
-   */
-  def identity: IO[Nothing, Any] = ZIO.identity
 
   /**
    * @see [[zio.ZIO.ifM]]
@@ -1123,6 +1088,7 @@ object IO {
   /**
    * @see See [[zio.ZIO.require]]
    */
+  @deprecated("use someOrFail", "2.0.0")
   def require[E, A](error: => E): IO[E, Option[A]] => IO[E, A] =
     ZIO.require[Any, E, A](error)
 

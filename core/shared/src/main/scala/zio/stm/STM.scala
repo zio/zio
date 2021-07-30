@@ -208,21 +208,16 @@ object STM {
   /**
    * @see See [[zio.stm.ZSTM.fromFunction]]
    */
+  @deprecated("use access", "2.0.0")
   def fromFunction[A](f: Any => A): USTM[A] =
     ZSTM.fromFunction(f)
 
   /**
    * @see See [[zio.stm.ZSTM.fromFunctionM]]
    */
-  @deprecated("use fromFunctionSTM", "2.0.0")
+  @deprecated("use accessSTM", "2.0.0")
   def fromFunctionM[E, A](f: Any => STM[E, A]): STM[E, A] =
     ZSTM.fromFunctionM(f)
-
-  /**
-   * @see See [[zio.stm.ZSTM.fromFunctionSTM]]
-   */
-  def fromFunctionSTM[E, A](f: Any => STM[E, A]): STM[E, A] =
-    ZSTM.fromFunctionSTM(f)
 
   /**
    * @see See [[zio.stm.ZSTM.fromOption]]
@@ -235,11 +230,6 @@ object STM {
    */
   def fromTry[A](a: => Try[A]): TaskSTM[A] =
     ZSTM.fromTry(a)
-
-  /**
-   * @see See [[zio.stm.ZSTM.identity]]
-   */
-  def identity: USTM[Any] = ZSTM.identity
 
   /**
    * @see See [[zio.stm.ZSTM.ifM]]
@@ -379,6 +369,7 @@ object STM {
   /**
    * @see See [[zio.stm.ZSTM.require]]
    */
+  @deprecated("use someOrFail", "2.0.0")
   def require[E, A](error: => E): STM[E, Option[A]] => STM[E, A] =
     ZSTM.require[Any, E, A](error)
 

@@ -537,12 +537,6 @@ object URIO {
     ZIO.filterNotPar(as)(f)
 
   /**
-   * @see [[zio.ZIO.first]]
-   */
-  def first[A]: URIO[(A, Any), A] =
-    ZIO.first
-
-  /**
    * @see [[zio.ZIO.firstSuccessOf]]
    */
   def firstSuccessOf[R, A](
@@ -760,27 +754,16 @@ object URIO {
   /**
    * @see [[zio.ZIO.fromFunction]]
    */
+  @deprecated("use access", "2.0.0")
   def fromFunction[R, A](f: R => A): URIO[R, A] =
     ZIO.fromFunction(f)
 
   /**
-   * @see [[zio.ZIO.fromFunctionEither]]
-   */
-  def fromFunctionEither[R, A](f: R => Either[Nothing, A]): URIO[R, A] =
-    ZIO.fromFunctionEither(f)
-
-  /**
    * @see [[zio.ZIO.fromFunctionM]]
    */
-  @deprecated("use fromFunctionZIO", "2.0.0")
+  @deprecated("use accessZIO", "2.0.0")
   def fromFunctionM[R, A](f: R => UIO[A]): URIO[R, A] =
     ZIO.fromFunctionM(f)
-
-  /**
-   * @see [[zio.ZIO.fromFunctionZIO]]
-   */
-  def fromFunctionZIO[R, A](f: R => UIO[A]): URIO[R, A] =
-    ZIO.fromFunctionZIO(f)
 
   /**
    * @see [[zio.ZIO.getState]]
@@ -807,11 +790,6 @@ object URIO {
   @deprecated("use failCauseWith", "2.0.0")
   def haltWith[R](function: (() => ZTrace) => Cause[Nothing]): URIO[R, Nothing] =
     ZIO.haltWith(function)
-
-  /**
-   * @see [[zio.ZIO.identity]]
-   */
-  def identity[R]: URIO[R, R] = ZIO.identity
 
   /**
    * @see [[zio.ZIO.ifM]]
@@ -1046,12 +1024,6 @@ object URIO {
   def runtime[R]: URIO[R, Runtime[R]] = ZIO.runtime
 
   /**
-   * @see [[zio.ZIO.second]]
-   */
-  def second[A]: URIO[(Any, A), A] =
-    ZIO.second
-
-  /**
    * @see [[zio.ZIO.setState]]
    */
   def setState[S: Tag](s: S): ZIO[Has[ZState[S]], Nothing, Unit] =
@@ -1123,11 +1095,6 @@ object URIO {
    */
   def succeedBlocking[A](a: => A): UIO[A] =
     ZIO.succeedBlocking(a)
-
-  /**
-   * @see [[zio.ZIO.swap]]
-   */
-  def swap[A, B]: URIO[(A, B), (B, A)] = ZIO.swap
 
   /**
    * @see [[zio.ZIO.trace]]
