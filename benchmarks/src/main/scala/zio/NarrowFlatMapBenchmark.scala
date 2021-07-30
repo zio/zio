@@ -1,7 +1,8 @@
 package zio
 
+import cats.effect.unsafe.implicits.global
 import org.openjdk.jmh.annotations._
-import zio.IOBenchmarks._
+import zio.BenchmarkUtil._
 
 import java.util.concurrent.TimeUnit
 import scala.concurrent.Await
@@ -9,18 +10,9 @@ import scala.concurrent.Await
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
-class IONarrowFlatMapBenchmark {
+class NarrowFlatMapBenchmark {
   @Param(Array("10000"))
   var size: Int = _
-
-  @Benchmark
-  def thunkNarrowFlatMap(): Int = {
-    def loop(i: Int): Thunk[Int] =
-      if (i < size) Thunk(i + 1).flatMap(loop)
-      else Thunk(i)
-
-    Thunk(0).unsafeRun()
-  }
 
   @Benchmark
   def futureNarrowFlatMap(): Int = {
@@ -93,18 +85,7 @@ class IONarrowFlatMapBenchmark {
   }
 
   @Benchmark
-  def monixNarrowFlatMap(): Int = {
-    import monix.eval.Task
-
-    def loop(i: Int): Task[Int] =
-      if (i < size) Task.eval(i + 1).flatMap(loop)
-      else Task.eval(i)
-
-    Task.eval(0).flatMap(loop).runSyncStep.fold(_ => sys.error("Either.right.get on Left"), identity)
-  }
-
-  @Benchmark
-  def zioNarrowFlatMap(): Int = zioNarrowFlatMap(IOBenchmarks)
+  def zioNarrowFlatMap(): Int = zioNarrowFlatMap(BenchmarkUtil)
 
   @Benchmark
   def zioTracedNarrowFlatMap(): Int = zioNarrowFlatMap(TracedRuntime)

@@ -71,7 +71,7 @@ object UIO {
   /**
    * @see See [[zio.ZIO.async]]
    */
-  def async[A](register: (UIO[A] => Unit) => Any, blockingOn: List[Fiber.Id] = Nil): UIO[A] =
+  def async[A](register: (UIO[A] => Unit) => Any, blockingOn: Fiber.Id = Fiber.Id.None): UIO[A] =
     ZIO.async(register, blockingOn)
 
   /**
@@ -79,7 +79,7 @@ object UIO {
    */
   def asyncMaybe[A](
     register: (UIO[A] => Unit) => Option[UIO[A]],
-    blockingOn: List[Fiber.Id] = Nil
+    blockingOn: Fiber.Id = Fiber.Id.None
   ): UIO[A] =
     ZIO.asyncMaybe(register, blockingOn)
 
@@ -94,7 +94,7 @@ object UIO {
    */
   def asyncInterrupt[A](
     register: (UIO[A] => Unit) => Either[Canceler[Any], UIO[A]],
-    blockingOn: List[Fiber.Id] = Nil
+    blockingOn: Fiber.Id = Fiber.Id.None
   ): UIO[A] =
     ZIO.asyncInterrupt(register, blockingOn)
 
@@ -369,7 +369,7 @@ object UIO {
    * @see See [[zio.ZIO.effectAsync]]
    */
   @deprecated("use async", "2.0.0")
-  def effectAsync[A](register: (UIO[A] => Unit) => Any, blockingOn: List[Fiber.Id] = Nil): UIO[A] =
+  def effectAsync[A](register: (UIO[A] => Unit) => Any, blockingOn: Fiber.Id = Fiber.Id.None): UIO[A] =
     ZIO.effectAsync(register, blockingOn)
 
   /**
@@ -378,7 +378,7 @@ object UIO {
   @deprecated("use asyncMaybe", "2.0.0")
   def effectAsyncMaybe[A](
     register: (UIO[A] => Unit) => Option[UIO[A]],
-    blockingOn: List[Fiber.Id] = Nil
+    blockingOn: Fiber.Id = Fiber.Id.None
   ): UIO[A] =
     ZIO.effectAsyncMaybe(register, blockingOn)
 
@@ -395,7 +395,7 @@ object UIO {
   @deprecated("use asyncInterrupt", "2.0.0")
   def effectAsyncInterrupt[A](
     register: (UIO[A] => Unit) => Either[Canceler[Any], UIO[A]],
-    blockingOn: List[Fiber.Id] = Nil
+    blockingOn: Fiber.Id = Fiber.Id.None
   ): UIO[A] =
     ZIO.effectAsyncInterrupt(register, blockingOn)
 
@@ -685,6 +685,14 @@ object UIO {
     ZIO.foreachParNDiscard(n)(as)(f)
 
   /**
+   * Constructs a `UIO` value of the appropriate type for the specified input.
+   */
+  def from[Input](input: => Input)(implicit
+    constructor: ZIO.ZIOConstructor[Any, Nothing, Input]
+  ): ZIO[constructor.OutEnvironment, constructor.OutError, constructor.OutSuccess] =
+    constructor.make(input)
+
+  /**
    * @see See [[zio.ZIO.fromEither]]
    */
   def fromEither[A](v: => Either[Nothing, A]): UIO[A] =
@@ -710,24 +718,6 @@ object UIO {
     ZIO.fromFiberZIO(fiber)
 
   /**
-   * @see [[zio.ZIO.fromFunction]]
-   */
-  def fromFunction[A](f: Any => A): UIO[A] = ZIO.fromFunction(f)
-
-  /**
-   * @see [[zio.ZIO.fromFunctionM]]
-   */
-  @deprecated("use fromFunctionZIO", "2.0.0")
-  def fromFunctionM[A](f: Any => UIO[A]): UIO[A] =
-    ZIO.fromFunctionM(f)
-
-  /**
-   * @see [[zio.ZIO.fromFunctionZIO]]
-   */
-  def fromFunctionZIO[A](f: Any => UIO[A]): UIO[A] =
-    ZIO.fromFunctionZIO(f)
-
-  /**
    * @see See [[zio.ZIO.halt]]
    */
   @deprecated("use failCause", "2.0.0")
@@ -740,11 +730,6 @@ object UIO {
   @deprecated("use failCauseWith", "2.0.0")
   def haltWith(function: (() => ZTrace) => Cause[Nothing]): UIO[Nothing] =
     ZIO.haltWith(function)
-
-  /**
-   * @see [[zio.ZIO.identity]]
-   */
-  def identity: UIO[Any] = ZIO.identity
 
   /**
    * @see [[zio.ZIO.ifM]]
@@ -820,36 +805,42 @@ object UIO {
   /**
    *  @see [[zio.ZIO.mapN[R,E,A,B,C]*]]
    */
+  @deprecated("use zip", "2.0.0")
   def mapN[A, B, C](uio1: UIO[A], uio2: UIO[B])(f: (A, B) => C): UIO[C] =
     ZIO.mapN(uio1, uio2)(f)
 
   /**
    *  @see [[zio.ZIO.mapN[R,E,A,B,C,D]*]]
    */
+  @deprecated("use zip", "2.0.0")
   def mapN[A, B, C, D](uio1: UIO[A], uio2: UIO[B], uio3: UIO[C])(f: (A, B, C) => D): UIO[D] =
     ZIO.mapN(uio1, uio2, uio3)(f)
 
   /**
    *  @see [[zio.ZIO.mapN[R,E,A,B,C,D,F]*]]
    */
+  @deprecated("use zip", "2.0.0")
   def mapN[A, B, C, D, F](uio1: UIO[A], uio2: UIO[B], uio3: UIO[C], uio4: UIO[D])(f: (A, B, C, D) => F): UIO[F] =
     ZIO.mapN(uio1, uio2, uio3, uio4)(f)
 
   /**
    *  @see [[zio.ZIO.mapParN[R,E,A,B,C]*]]
    */
+  @deprecated("use zipPar", "2.0.0")
   def mapParN[A, B, C](uio1: UIO[A], uio2: UIO[B])(f: (A, B) => C): UIO[C] =
     ZIO.mapParN(uio1, uio2)(f)
 
   /**
    *  @see [[zio.ZIO.mapParN[R,E,A,B,C,D]*]]
    */
+  @deprecated("use zipPar", "2.0.0")
   def mapParN[A, B, C, D](uio1: UIO[A], uio2: UIO[B], uio3: UIO[C])(f: (A, B, C) => D): UIO[D] =
     ZIO.mapParN(uio1, uio2, uio3)(f)
 
   /**
    *  @see [[zio.ZIO.mapParN[R,E,A,B,C,D,F]*]]
    */
+  @deprecated("use zipPar", "2.0.0")
   def mapParN[A, B, C, D, F](uio1: UIO[A], uio2: UIO[B], uio3: UIO[C], uio4: UIO[D])(
     f: (A, B, C, D) => F
   ): UIO[F] =

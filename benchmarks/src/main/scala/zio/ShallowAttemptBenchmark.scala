@@ -1,7 +1,8 @@
 package zio
 
+import cats.effect.unsafe.implicits.global
 import org.openjdk.jmh.annotations._
-import zio.IOBenchmarks._
+import zio.BenchmarkUtil._
 
 import java.util.concurrent.TimeUnit
 import scala.concurrent.Await
@@ -9,21 +10,11 @@ import scala.concurrent.Await
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
-class IOShallowAttemptBenchmark {
+class ShallowAttemptBenchmark {
   case class ZIOError(message: String)
 
   @Param(Array("1000"))
   var depth: Int = _
-
-  @Benchmark
-  def thunkShallowAttempt(): BigInt = {
-    def throwup(n: Int): Thunk[BigInt] =
-      if (n == 0) throwup(n + 1).attempt.map(_.fold(_ => 0, a => a))
-      else if (n == depth) Thunk(1)
-      else throwup(n + 1).attempt.map(_.fold(_ => 0, a => a)).flatMap(_ => Thunk.fail(new Error("Oh noes!")))
-
-    throwup(0).unsafeRun()
-  }
 
   @Benchmark
   def futureShallowAttempt(): BigInt = {
@@ -109,22 +100,6 @@ class IOShallowAttemptBenchmark {
         }
 
     Await.result(throwup(0))
-  }
-
-  @Benchmark
-  def monixShallowAttempt(): BigInt = {
-    import monix.eval.Task
-
-    def throwup(n: Int): Task[BigInt] =
-      if (n == 0) throwup(n + 1).attempt.map(_.fold(_ => 0, a => a))
-      else if (n == depth) Task(1)
-      else
-        throwup(n + 1).attempt.flatMap {
-          case Left(_)  => Task.now(0)
-          case Right(_) => Task.raiseError(new Error("Oh noes!"))
-        }
-
-    throwup(0).runSyncStep.fold(_ => sys.error("Either.right.get on Left"), identity)
   }
 
   @Benchmark

@@ -65,7 +65,9 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   /**
    * Symbolic alias for [[ZStream#flatMap]].
    */
-  def >>=[R1 <: R, E1 >: E, A2](f0: A => ZStream[R1, E1, A2]): ZStream[R1, E1, A2] = flatMap(f0)
+  @deprecated("use flatMap", "2.0.0")
+  def >>=[R1 <: R, E1 >: E, A2](f0: A => ZStream[R1, E1, A2]): ZStream[R1, E1, A2] =
+    flatMap(f0)
 
   // /**
   //  * Symbolic alias for [[ZStream#transduce]].
@@ -157,12 +159,10 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     import ZStream.SinkEndReason._
 
     val deps =
-      ZIO.mapN(
-        ZStream.Handoff.make[HandoffSignal],
-        Ref.make[SinkEndReason](SinkEnd),
-        Ref.make(Chunk[A1]()),
+      ZStream.Handoff.make[HandoffSignal] <*>
+        Ref.make[SinkEndReason](SinkEnd) <*>
+        Ref.make(Chunk[A1]()) <*>
         schedule.driver
-      )((_, _, _, _))
 
     ZStream.fromZIO(deps).flatMap { case (handoff, sinkEndReason, sinkLeftovers, scheduleDriver) =>
       lazy val handoffProducer: ZChannel[Any, E1, Chunk[A], Any, Nothing, Nothing, Any] =
@@ -1762,13 +1762,24 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     interruptWhen(Clock.sleep(duration))
 
   /**
-   * Enqueues elements of this stream into a queue. Stream failure and ending will also be
-   * signalled.
+   * Enqueues elements of this stream into a queue. Stream failure and ending
+   * will also be signalled.
    */
+  @deprecated("use runIntoQueue", "2.0.0")
   final def runInto[R1 <: R, E1 >: E](
     queue: ZQueue[R1, Nothing, Nothing, Any, Take[E1, A], Any]
   ): ZIO[R1, E1, Unit] =
-    runIntoManaged(queue).useDiscard(UIO.unit)
+    runIntoQueue(queue)
+
+  /**
+   * Like [[ZStream#runInto]], but provides the result as a [[ZManaged]] to
+   * allow for scope composition.
+   */
+  @deprecated("use runIntoQueueElementsManaged", "2.0.0")
+  final def runIntoElementsManaged[R1 <: R, E1 >: E](
+    queue: ZQueue[R1, Nothing, Nothing, Any, Exit[Option[E1], A], Any]
+  ): ZManaged[R1, E1, Unit] =
+    runIntoQueueElementsManaged(queue)
 
   /**
    * Publishes elements of this stream to a hub. Stream failure and ending will
@@ -1777,7 +1788,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def runIntoHub[R1 <: R, E1 >: E](
     hub: ZHub[R1, Nothing, Nothing, Any, Take[E1, A], Any]
   ): ZIO[R1, E1, Unit] =
-    runInto(hub.toQueue)
+    runIntoQueue(hub.toQueue)
 
   /**
    * Like [[ZStream#runIntoHub]], but provides the result as a [[ZManaged]] to
@@ -1786,13 +1797,32 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def runIntoHubManaged[R1 <: R, E1 >: E](
     hub: ZHub[R1, Nothing, Nothing, Any, Take[E1, A], Any]
   ): ZManaged[R1, E1, Unit] =
-    runIntoManaged(hub.toQueue)
+    runIntoQueueManaged(hub.toQueue)
 
   /**
-   * Like [[ZStream#into]], but provides the result as a [[ZManaged]] to allow for scope
-   * composition.
+   * Like [[ZStream#runInto]], but provides the result as a [[ZManaged]] to
+   * allow for scope composition.
    */
+  @deprecated("use runIntoQueueQueue", "2.0.0")
   final def runIntoManaged[R1 <: R, E1 >: E](
+    queue: ZQueue[R1, Nothing, Nothing, Any, Take[E1, A], Any]
+  ): ZManaged[R1, E1, Unit] =
+    runIntoQueueManaged(queue)
+
+  /**
+   * Enqueues elements of this stream into a queue. Stream failure and ending
+   * will also be signalled.
+   */
+  final def runIntoQueue[R1 <: R, E1 >: E](
+    queue: ZQueue[R1, Nothing, Nothing, Any, Take[E1, A], Any]
+  ): ZIO[R1, E1, Unit] =
+    runIntoQueueManaged(queue).useDiscard(UIO.unit)
+
+  /**
+   * Like [[ZStream#runIntoQueue]], but provides the result as a [[ZManaged]]
+   * to allow for scope composition.
+   */
+  final def runIntoQueueManaged[R1 <: R, E1 >: E](
     queue: ZQueue[R1, Nothing, Nothing, Any, Take[E1, A], Any]
   ): ZManaged[R1, E1, Unit] = {
     lazy val writer: ZChannel[R, E, Chunk[A], Any, E, Take[E1, A], Any] = ZChannel
@@ -1809,11 +1839,11 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
       .unit
   }
 
-  /*
-   * Like [[ZStream#into]], but provides the result as a [[ZManaged]] to allow for scope
-   * composition.
+  /**
+   * Like [[ZStream#runIntoQueue]], but provides the result as a [[ZManaged]]
+   * to allow for scope composition.
    */
-  final def runIntoElementsManaged[R1 <: R, E1 >: E](
+  final def runIntoQueueElementsManaged[R1 <: R, E1 >: E](
     queue: ZQueue[R1, Nothing, Nothing, Any, Exit[Option[E1], A], Any]
   ): ZManaged[R1, E1, Unit] = {
     lazy val writer: ZChannel[R1, E1, Chunk[A], Any, Nothing, Exit[Option[E1], A], Any] =
@@ -1842,7 +1872,11 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   def lock(executor: Executor): ZStream[R, E, A] =
     ZStream.fromZIO(ZIO.descriptor).flatMap { descriptor =>
       ZStream.managed(ZManaged.lock(executor)) *>
-        self <* ZStream.fromZIO(ZIO.shift(descriptor.executor))
+        self <*
+        ZStream.fromZIO {
+          if (descriptor.locked) ZIO.shift(descriptor.executor)
+          else ZIO.unshift
+        }
     }
 
   /**
@@ -2029,7 +2063,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Maps over elements of the stream with the specified effectful function.
    */
   def mapZIO[R1 <: R, E1 >: E, A1](f: A => ZIO[R1, E1, A1]): ZStream[R1, E1, A1] =
-    loopOnPartialChunksElements((a, emit) => f(a) >>= emit)
+    loopOnPartialChunksElements((a, emit) => f(a).flatMap(emit))
 
   /**
    * Maps over elements of the stream with the specified effectful function,
@@ -3064,7 +3098,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def toQueue(capacity: Int = 2): ZManaged[R, Nothing, Dequeue[Take[E, A]]] =
     for {
       queue <- Queue.bounded[Take[E, A]](capacity).toManagedWith(_.shutdown)
-      _     <- self.runIntoManaged(queue).fork
+      _     <- self.runIntoQueueManaged(queue).fork
     } yield queue
 
   /**
@@ -3074,7 +3108,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def toQueueDropping(capacity: Int = 2): ZManaged[R, Nothing, Dequeue[Take[E, A]]] =
     for {
       queue <- Queue.dropping[Take[E, A]](capacity).toManagedWith(_.shutdown)
-      _     <- self.runIntoManaged(queue).fork
+      _     <- self.runIntoQueueManaged(queue).fork
     } yield queue
 
   /**
@@ -3084,7 +3118,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def toQueueOfElements(capacity: Int = 2): ZManaged[R, Nothing, Dequeue[Exit[Option[E], A]]] =
     for {
       queue <- Queue.bounded[Exit[Option[E], A]](capacity).toManagedWith(_.shutdown)
-      _     <- self.runIntoElementsManaged(queue).fork
+      _     <- self.runIntoQueueElementsManaged(queue).fork
     } yield queue
 
   /**
@@ -3094,7 +3128,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def toQueueSliding(capacity: Int = 2): ZManaged[R, Nothing, Dequeue[Take[E, A]]] =
     for {
       queue <- Queue.sliding[Take[E, A]](capacity).toManagedWith(_.shutdown)
-      _     <- self.runIntoManaged(queue).fork
+      _     <- self.runIntoQueueManaged(queue).fork
     } yield queue
 
   /**
@@ -3104,7 +3138,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def toQueueUnbounded: ZManaged[R, Nothing, Dequeue[Take[E, A]]] =
     for {
       queue <- Queue.unbounded[Take[E, A]].toManagedWith(_.shutdown)
-      _     <- self.runIntoManaged(queue).fork
+      _     <- self.runIntoQueueManaged(queue).fork
     } yield queue
 
   /**
@@ -3557,6 +3591,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    *
    * See also [[ZStream#zipN[R,E,A,B,C]*]] for the more common point-wise variant.
    */
+  @deprecated("use cross", "2.0.0")
   def crossN[R, E, A, B, C](zStream1: ZStream[R, E, A], zStream2: ZStream[R, E, B])(
     f: (A, B) => C
   ): ZStream[R, E, C] =
@@ -3569,6 +3604,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    *
    * See also [[ZStream#zipN[R,E,A,B,C,D]*]] for the more common point-wise variant.
    */
+  @deprecated("use cross", "2.0.0")
   def crossN[R, E, A, B, C, D](
     zStream1: ZStream[R, E, A],
     zStream2: ZStream[R, E, B],
@@ -3589,6 +3625,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    *
    * See also [[ZStream#zipN[R,E,A,B,C,D,F]*]] for the more common point-wise variant.
    */
+  @deprecated("use cross", "2.0.0")
   def crossN[R, E, A, B, C, D, F](
     zStream1: ZStream[R, E, A],
     zStream2: ZStream[R, E, B],
@@ -3657,6 +3694,9 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    */
   def finalizer[R](finalizer: URIO[R, Any]): ZStream[R, Nothing, Any] =
     acquireReleaseWith[R, Nothing, Unit](UIO.unit)(_ => finalizer)
+
+  def from[Input](input: => Input)(implicit constructor: ZStreamConstructor[Input]): constructor.Out =
+    constructor.make(input)
 
   /**
    * Creates a stream from a [[zio.Chunk]] of values
@@ -4226,18 +4266,21 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   /**
    * Accesses the specified services in the environment of the effect.
    */
+  @deprecated("use service", "2.0.0")
   def services[A: Tag, B: Tag]: ZStream[Has[A] with Has[B], Nothing, (A, B)] =
     ZStream.access(r => (r.get[A], r.get[B]))
 
   /**
    * Accesses the specified services in the environment of the effect.
    */
+  @deprecated("use service", "2.0.0")
   def services[A: Tag, B: Tag, C: Tag]: ZStream[Has[A] with Has[B] with Has[C], Nothing, (A, B, C)] =
     ZStream.access(r => (r.get[A], r.get[B], r.get[C]))
 
   /**
    * Accesses the specified services in the environment of the effect.
    */
+  @deprecated("use service", "2.0.0")
   def services[A: Tag, B: Tag, C: Tag, D: Tag]
     : ZStream[Has[A] with Has[B] with Has[C] with Has[D], Nothing, (A, B, C, D)] =
     ZStream.access(r => (r.get[A], r.get[B], r.get[C], r.get[D]))
@@ -4329,6 +4372,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   /**
    * Zips the specified streams together with the specified function.
    */
+  @deprecated("use zip", "2.0.0")
   def zipN[R, E, A, B, C](zStream1: ZStream[R, E, A], zStream2: ZStream[R, E, B])(
     f: (A, B) => C
   ): ZStream[R, E, C] =
@@ -4337,6 +4381,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   /**
    * Zips with specified streams together with the specified function.
    */
+  @deprecated("use zip", "2.0.0")
   def zipN[R, E, A, B, C, D](zStream1: ZStream[R, E, A], zStream2: ZStream[R, E, B], zStream3: ZStream[R, E, C])(
     f: (A, B, C) => D
   ): ZStream[R, E, D] =
@@ -4347,6 +4392,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * combining their results with the specified `f` function. If any effect
    * fails, then the other effects will be interrupted.
    */
+  @deprecated("use zip", "2.0.0")
   def zipN[R, E, A, B, C, D, F](
     zStream1: ZStream[R, E, A],
     zStream2: ZStream[R, E, B],
@@ -4422,6 +4468,271 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   final class UpdateService[-R, +E, +A, M](private val self: ZStream[R, E, A]) extends AnyVal {
     def apply[R1 <: R with Has[M]](f: M => M)(implicit ev: Has.IsHas[R1], tag: Tag[M]): ZStream[R1, E, A] =
       self.provideSome(ev.update(_, f))
+  }
+
+  /**
+   * A `ZStreamConstructor[Input]` knows how to construct a `ZStream` value
+   * from an input of type `Input`. This allows the type of the `ZStream`
+   * value constructed to depend on `Input`.
+   */
+  trait ZStreamConstructor[Input] {
+
+    /**
+     * The type of the `ZStream` value.
+     */
+    type Out
+
+    /**
+     * Constructs a `ZStream` value from the specified input.
+     */
+    def make(input: => Input): Out
+  }
+
+  object ZStreamConstructor extends ZStreamConstructorPlatformSpecific {
+
+    /**
+     * Constructs a `ZStream[RB, EB, B]` from a
+     * `ZHub[RA, RB, EA, EB, A, Chunk[B]]`.
+     */
+    implicit def ChunkHubConstructor[RA, RB, EA, EB, A, B]
+      : WithOut[ZHub[RA, RB, EA, EB, A, Chunk[B]], ZStream[RB, EB, B]] =
+      new ZStreamConstructor[ZHub[RA, RB, EA, EB, A, Chunk[B]]] {
+        type Out = ZStream[RB, EB, B]
+        def make(input: => ZHub[RA, RB, EA, EB, A, Chunk[B]]): ZStream[RB, EB, B] =
+          ZStream.fromChunkHub(input)
+      }
+
+    /**
+     * Constructs a `ZStream[RB, EB, B]` from a
+     * `ZQueue[RA, RB, EA, EB, A, Chunk[B]]`.
+     */
+    implicit def ChunkQueueConstructor[RA, RB, EA, EB, A, B]
+      : WithOut[ZQueue[RA, RB, EA, EB, A, Chunk[B]], ZStream[RB, EB, B]] =
+      new ZStreamConstructor[ZQueue[RA, RB, EA, EB, A, Chunk[B]]] {
+        type Out = ZStream[RB, EB, B]
+        def make(input: => ZQueue[RA, RB, EA, EB, A, Chunk[B]]): ZStream[RB, EB, B] =
+          ZStream.fromChunkQueue(input)
+      }
+
+    /**
+     * Constructs a `ZStream[Any, Nothing, A]` from an `Iterable[Chunk[A]]`.
+     */
+    implicit def ChunksConstructor[A, Collection[Element] <: Iterable[Element]]
+      : WithOut[Collection[Chunk[A]], ZStream[Any, Nothing, A]] =
+      new ZStreamConstructor[Collection[Chunk[A]]] {
+        type Out = ZStream[Any, Nothing, A]
+        def make(input: => Collection[Chunk[A]]): ZStream[Any, Nothing, A] =
+          ZStream.fromIterable(input).flatMap(ZStream.fromChunk(_))
+      }
+
+    /**
+     * Constructs a `ZStream[R, E, A]` from a `ZIO[R, E, Iterable[A]]`.
+     */
+    implicit def IterableZIOConstructor[R, E, A, Collection[Element] <: Iterable[Element]]
+      : WithOut[ZIO[R, E, Collection[A]], ZStream[R, E, A]] =
+      new ZStreamConstructor[ZIO[R, E, Collection[A]]] {
+        type Out = ZStream[R, E, A]
+        def make(input: => ZIO[R, E, Collection[A]]): ZStream[R, E, A] =
+          ZStream.fromIterableZIO(input)
+      }
+
+    /**
+     * Constructs a `ZStream[Any, Throwable, A]` from an `Iterator[A]`.
+     */
+    implicit def IteratorConstructor[A, IteratorLike[Element] <: Iterator[Element]]
+      : WithOut[IteratorLike[A], ZStream[Any, Throwable, A]] =
+      new ZStreamConstructor[IteratorLike[A]] {
+        type Out = ZStream[Any, Throwable, A]
+        def make(input: => IteratorLike[A]): ZStream[Any, Throwable, A] =
+          ZStream.fromIterator(input)
+      }
+
+    /**
+     * Constructs a `ZStream[R, Throwable, A]` from a
+     * `ZManaged[R, Throwable, Iterator[A]]`.
+     */
+    implicit def IteratorManagedConstructor[R, E <: Throwable, A, IteratorLike[Element] <: Iterator[Element]]
+      : WithOut[ZManaged[R, E, IteratorLike[A]], ZStream[R, Throwable, A]] =
+      new ZStreamConstructor[ZManaged[R, E, IteratorLike[A]]] {
+        type Out = ZStream[R, Throwable, A]
+        def make(input: => ZManaged[R, E, IteratorLike[A]]): ZStream[R, Throwable, A] =
+          ZStream.fromIteratorManaged(input)
+      }
+
+    /**
+     * Constructs a `ZStream[R, Throwable, A]` from a
+     * `ZIO[R, Throwable, Iterator[A]]`.
+     */
+    implicit def IteratorZIOConstructor[R, E <: Throwable, A, IteratorLike[Element] <: Iterator[Element]]
+      : WithOut[ZIO[R, E, IteratorLike[A]], ZStream[R, Throwable, A]] =
+      new ZStreamConstructor[ZIO[R, E, IteratorLike[A]]] {
+        type Out = ZStream[R, Throwable, A]
+        def make(input: => ZIO[R, E, IteratorLike[A]]): ZStream[R, Throwable, A] =
+          ZStream.fromIteratorZIO(input)
+      }
+
+    /**
+     * Constructs a `ZStream[Any, Throwable, A]` from a
+     * `java.util.Iterator[A]`.
+     */
+    implicit def JavaIteratorConstructor[A, JaveIteratorLike[Element] <: java.util.Iterator[Element]]
+      : WithOut[JaveIteratorLike[A], ZStream[Any, Throwable, A]] =
+      new ZStreamConstructor[JaveIteratorLike[A]] {
+        type Out = ZStream[Any, Throwable, A]
+        def make(input: => JaveIteratorLike[A]): ZStream[Any, Throwable, A] =
+          ZStream.fromJavaIterator(input)
+      }
+
+    /**
+     * Constructs a `ZStream[R, Throwable, A]` from a
+     * `ZManaged[R, Throwable, java.util.Iterator[A]]`.
+     */
+    implicit def JavaIteratorManagedConstructor[R, E <: Throwable, A, JaveIteratorLike[Element] <: java.util.Iterator[
+      Element
+    ]]: WithOut[ZManaged[R, E, JaveIteratorLike[A]], ZStream[R, Throwable, A]] =
+      new ZStreamConstructor[ZManaged[R, E, JaveIteratorLike[A]]] {
+        type Out = ZStream[R, Throwable, A]
+        def make(input: => ZManaged[R, E, JaveIteratorLike[A]]): ZStream[R, Throwable, A] =
+          ZStream.fromJavaIteratorManaged(input)
+      }
+
+    /**
+     * Constructs a `ZStream[R, Throwable, A]` from a
+     * `ZIO[R, Throwable, java.util.Iterator[A]]`.
+     */
+    implicit def JavaIteratorZIOConstructor[R, E <: Throwable, A, JaveIteratorLike[Element] <: java.util.Iterator[
+      Element
+    ]]: WithOut[ZIO[R, E, JaveIteratorLike[A]], ZStream[R, Throwable, A]] =
+      new ZStreamConstructor[ZIO[R, E, JaveIteratorLike[A]]] {
+        type Out = ZStream[R, Throwable, A]
+        def make(input: => ZIO[R, E, JaveIteratorLike[A]]): ZStream[R, Throwable, A] =
+          ZStream.fromJavaIteratorZIO(input)
+      }
+
+    /**
+     * Constructs a `ZStream[R, Nothing, A]` from a `Schedule[R, Any, A]`.
+     */
+    implicit def ScheduleConstructor[R, A]: WithOut[Schedule[R, Any, A], ZStream[R with Has[Clock], Nothing, A]] =
+      new ZStreamConstructor[Schedule[R, Any, A]] {
+        type Out = ZStream[R with Has[Clock], Nothing, A]
+        def make(input: => Schedule[R, Any, A]): ZStream[R with Has[Clock], Nothing, A] =
+          ZStream.fromSchedule(input)
+      }
+
+    /**
+     * Constructs a `ZStream[Any, Nothing, A]` from a `TQueue[A]`.
+     */
+    implicit def TQueueConstructor[A]: WithOut[TQueue[A], ZStream[Any, Nothing, A]] =
+      new ZStreamConstructor[TQueue[A]] {
+        type Out = ZStream[Any, Nothing, A]
+        def make(input: => TQueue[A]): ZStream[Any, Nothing, A] =
+          ZStream.fromTQueue(input)
+      }
+  }
+
+  trait ZStreamConstructorLowPriority1 extends ZStreamConstructorLowPriority2 {
+
+    /**
+     * Constructs a `ZStream[Any, Nothing, A]` from a `Chunk[A]`.
+     */
+    implicit def ChunkConstructor[A]: WithOut[Chunk[A], ZStream[Any, Nothing, A]] =
+      new ZStreamConstructor[Chunk[A]] {
+        type Out = ZStream[Any, Nothing, A]
+        def make(input: => Chunk[A]): ZStream[Any, Nothing, A] =
+          ZStream.fromChunk(input)
+      }
+
+    /**
+     * Constructs a `ZStream[RB, EB, B]` from a `ZHub[RA, RB, EA, EB, A, B]`.
+     */
+    implicit def HubConstructor[RA, RB, EA, EB, A, B]: WithOut[ZHub[RA, RB, EA, EB, A, B], ZStream[RB, EB, B]] =
+      new ZStreamConstructor[ZHub[RA, RB, EA, EB, A, B]] {
+        type Out = ZStream[RB, EB, B]
+        def make(input: => ZHub[RA, RB, EA, EB, A, B]): ZStream[RB, EB, B] =
+          ZStream.fromHub(input)
+      }
+
+    /**
+     * Constructs a `ZStream[Any, Nothing, A]` from a `Iterable[A]`.
+     */
+    implicit def IterableConstructor[A, Collection[Element] <: Iterable[Element]]
+      : WithOut[Collection[A], ZStream[Any, Nothing, A]] =
+      new ZStreamConstructor[Collection[A]] {
+        type Out = ZStream[Any, Nothing, A]
+        def make(input: => Collection[A]): ZStream[Any, Nothing, A] =
+          ZStream.fromIterable(input)
+      }
+
+    /**
+     * Constructs a `ZStream[RB, EB, B]` from a `ZQueue[RA, RB, EA, EB, A, B]`.
+     */
+    implicit def QueueConstructor[RA, RB, EA, EB, A, B]: WithOut[ZQueue[RA, RB, EA, EB, A, B], ZStream[RB, EB, B]] =
+      new ZStreamConstructor[ZQueue[RA, RB, EA, EB, A, B]] {
+        type Out = ZStream[RB, EB, B]
+        def make(input: => ZQueue[RA, RB, EA, EB, A, B]): ZStream[RB, EB, B] =
+          ZStream.fromQueue(input)
+      }
+
+    /**
+     * Construct a `ZStream[R, E, A]` from a `ZIO[R, Option[E], A]`.
+     */
+    implicit def ZIOOptionConstructor[R, E, A]: WithOut[ZIO[R, Option[E], A], ZStream[R, E, A]] =
+      new ZStreamConstructor[ZIO[R, Option[E], A]] {
+        type Out = ZStream[R, E, A]
+        def make(input: => ZIO[R, Option[E], A]): ZStream[R, E, A] =
+          ZStream.fromZIOOption(input)
+      }
+
+    /**
+     * Construct a `ZStream[R, E, A]` from a `ZIO[R, Option[E], A]`.
+     */
+    implicit def ZIOOptionNoneConstructor[R, A]: WithOut[ZIO[R, None.type, A], ZStream[R, Nothing, A]] =
+      new ZStreamConstructor[ZIO[R, None.type, A]] {
+        type Out = ZStream[R, Nothing, A]
+        def make(input: => ZIO[R, None.type, A]): ZStream[R, Nothing, A] =
+          ZStream.fromZIOOption(input)
+      }
+
+    /**
+     * Construct a `ZStream[R, E, A]` from a `ZIO[R, Option[E], A]`.
+     */
+    implicit def ZIOOptionSomeConstructor[R, E, A]: WithOut[ZIO[R, Some[E], A], ZStream[R, E, A]] =
+      new ZStreamConstructor[ZIO[R, Some[E], A]] {
+        type Out = ZStream[R, E, A]
+        def make(input: => ZIO[R, Some[E], A]): ZStream[R, E, A] =
+          ZStream.fromZIOOption(input)
+      }
+  }
+
+  trait ZStreamConstructorLowPriority2 extends ZStreamConstructorLowPriority3 {
+
+    /**
+     * Construct a `ZStream[R, E, A]` from a `ZIO[R, E, A]`.
+     */
+    implicit def ZIOConstructor[R, E, A]: WithOut[ZIO[R, E, A], ZStream[R, E, A]] =
+      new ZStreamConstructor[ZIO[R, E, A]] {
+        type Out = ZStream[R, E, A]
+        def make(input: => ZIO[R, E, A]): ZStream[R, E, A] =
+          ZStream.fromZIO(input)
+      }
+  }
+
+  trait ZStreamConstructorLowPriority3 {
+
+    /**
+     * The type of the `ZStreamConstructor` with the type of the `ZStream` value.
+     */
+    type WithOut[In, Out0] = ZStreamConstructor[In] { type Out = Out0 }
+
+    /**
+     * Construct a `ZStream[R, E, A]` from a `ZIO[R, E, A]`.
+     */
+    implicit def SucceedConstructor[A]: WithOut[A, ZStream[Any, Nothing, A]] =
+      new ZStreamConstructor[A] {
+        type Out = ZStream[Any, Nothing, A]
+        def make(input: => A): ZStream[Any, Nothing, A] =
+          ZStream.succeed(input)
+      }
   }
 
   type Pull[-R, +E, +A] = ZIO[R, Option[E], Chunk[A]]

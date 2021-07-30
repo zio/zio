@@ -90,7 +90,7 @@ object URIO {
   /**
    * @see [[zio.ZIO.async]]
    */
-  def async[R, A](register: (URIO[R, A] => Unit) => Any, blockingOn: List[Fiber.Id] = Nil): URIO[R, A] =
+  def async[R, A](register: (URIO[R, A] => Unit) => Any, blockingOn: Fiber.Id = Fiber.Id.None): URIO[R, A] =
     ZIO.async(register, blockingOn)
 
   /**
@@ -98,7 +98,7 @@ object URIO {
    */
   def asyncMaybe[R, A](
     register: (URIO[R, A] => Unit) => Option[URIO[R, A]],
-    blockingOn: List[Fiber.Id] = Nil
+    blockingOn: Fiber.Id = Fiber.Id.None
   ): URIO[R, A] =
     ZIO.asyncMaybe(register, blockingOn)
 
@@ -113,7 +113,7 @@ object URIO {
    */
   def asyncInterrupt[R, A](
     register: (URIO[R, A] => Unit) => Either[Canceler[R], URIO[R, A]],
-    blockingOn: List[Fiber.Id] = Nil
+    blockingOn: Fiber.Id = Fiber.Id.None
   ): URIO[R, A] =
     ZIO.asyncInterrupt(register, blockingOn)
 
@@ -395,7 +395,7 @@ object URIO {
    * @see [[zio.ZIO.effectAsync]]
    */
   @deprecated("use async", "2.0.0")
-  def effectAsync[R, A](register: (URIO[R, A] => Unit) => Any, blockingOn: List[Fiber.Id] = Nil): URIO[R, A] =
+  def effectAsync[R, A](register: (URIO[R, A] => Unit) => Any, blockingOn: Fiber.Id = Fiber.Id.None): URIO[R, A] =
     ZIO.effectAsync(register, blockingOn)
 
   /**
@@ -404,7 +404,7 @@ object URIO {
   @deprecated("use asyncMaybe", "2.0.0")
   def effectAsyncMaybe[R, A](
     register: (URIO[R, A] => Unit) => Option[URIO[R, A]],
-    blockingOn: List[Fiber.Id] = Nil
+    blockingOn: Fiber.Id = Fiber.Id.None
   ): URIO[R, A] =
     ZIO.effectAsyncMaybe(register, blockingOn)
 
@@ -421,7 +421,7 @@ object URIO {
   @deprecated("use asyncInterrupt", "2.0.0")
   def effectAsyncInterrupt[R, A](
     register: (URIO[R, A] => Unit) => Either[Canceler[R], URIO[R, A]],
-    blockingOn: List[Fiber.Id] = Nil
+    blockingOn: Fiber.Id = Fiber.Id.None
   ): URIO[R, A] =
     ZIO.effectAsyncInterrupt(register, blockingOn)
 
@@ -535,12 +535,6 @@ object URIO {
    */
   def filterNotPar[R, A](as: Set[A])(f: A => URIO[R, Boolean]): URIO[R, Set[A]] =
     ZIO.filterNotPar(as)(f)
-
-  /**
-   * @see [[zio.ZIO.first]]
-   */
-  def first[A]: URIO[(A, Any), A] =
-    ZIO.first
 
   /**
    * @see [[zio.ZIO.firstSuccessOf]]
@@ -725,6 +719,14 @@ object URIO {
     ZIO.forkAllDiscard(as)
 
   /**
+   * Constructs a `URIO` value of the appropriate type for the specified input.
+   */
+  def from[Input](input: => Input)(implicit
+    constructor: ZIO.ZIOConstructor[Nothing, Nothing, Input]
+  ): ZIO[constructor.OutEnvironment, constructor.OutError, constructor.OutSuccess] =
+    constructor.make(input)
+
+  /**
    * @see [[zio.ZIO.fromEither]]
    */
   def fromEither[A](v: => Either[Nothing, A]): UIO[A] =
@@ -752,21 +754,16 @@ object URIO {
   /**
    * @see [[zio.ZIO.fromFunction]]
    */
+  @deprecated("use access", "2.0.0")
   def fromFunction[R, A](f: R => A): URIO[R, A] =
     ZIO.fromFunction(f)
 
   /**
    * @see [[zio.ZIO.fromFunctionM]]
    */
-  @deprecated("use fromFunctionZIO", "2.0.0")
+  @deprecated("use accessZIO", "2.0.0")
   def fromFunctionM[R, A](f: R => UIO[A]): URIO[R, A] =
     ZIO.fromFunctionM(f)
-
-  /**
-   * @see [[zio.ZIO.fromFunctionZIO]]
-   */
-  def fromFunctionZIO[R, A](f: R => UIO[A]): URIO[R, A] =
-    ZIO.fromFunctionZIO(f)
 
   /**
    * @see [[zio.ZIO.getState]]
@@ -793,11 +790,6 @@ object URIO {
   @deprecated("use failCauseWith", "2.0.0")
   def haltWith[R](function: (() => ZTrace) => Cause[Nothing]): URIO[R, Nothing] =
     ZIO.haltWith(function)
-
-  /**
-   * @see [[zio.ZIO.identity]]
-   */
-  def identity[R]: URIO[R, R] = ZIO.identity
 
   /**
    * @see [[zio.ZIO.ifM]]
@@ -878,12 +870,14 @@ object URIO {
   /**
    *  @see [[zio.ZIO.mapN[R,E,A,B,C]*]]
    */
+  @deprecated("use zip", "2.0.0")
   def mapN[R, A, B, C](urio1: URIO[R, A], urio2: URIO[R, B])(f: (A, B) => C): URIO[R, C] =
     ZIO.mapN(urio1, urio2)(f)
 
   /**
    *  @see [[zio.ZIO.mapN[R,E,A,B,C,D]*]]
    */
+  @deprecated("use zip", "2.0.0")
   def mapN[R, A, B, C, D](urio1: URIO[R, A], urio2: URIO[R, B], urio3: URIO[R, C])(
     f: (A, B, C) => D
   ): URIO[R, D] =
@@ -892,6 +886,7 @@ object URIO {
   /**
    *  @see [[zio.ZIO.mapN[R,E,A,B,C,D,F]*]]
    */
+  @deprecated("use zip", "2.0.0")
   def mapN[R, A, B, C, D, F](urio1: URIO[R, A], urio2: URIO[R, B], urio3: URIO[R, C], urio4: URIO[R, D])(
     f: (A, B, C, D) => F
   ): URIO[R, F] =
@@ -900,12 +895,14 @@ object URIO {
   /**
    *  @see [[zio.ZIO.mapParN[R,E,A,B,C]*]]
    */
+  @deprecated("use zipPar", "2.0.0")
   def mapParN[R, A, B, C](urio1: URIO[R, A], urio2: URIO[R, B])(f: (A, B) => C): URIO[R, C] =
     ZIO.mapParN(urio1, urio2)(f)
 
   /**
    *  @see [[zio.ZIO.mapParN[R,E,A,B,C,D]*]]
    */
+  @deprecated("use zipPar", "2.0.0")
   def mapParN[R, A, B, C, D](urio1: URIO[R, A], urio2: URIO[R, B], urio3: URIO[R, C])(
     f: (A, B, C) => D
   ): URIO[R, D] =
@@ -914,6 +911,7 @@ object URIO {
   /**
    *  @see [[zio.ZIO.mapParN[R,E,A,B,C,D,F]*]]
    */
+  @deprecated("use zipPar", "2.0.0")
   def mapParN[R, A, B, C, D, F](urio1: URIO[R, A], urio2: URIO[R, B], urio3: URIO[R, C], urio4: URIO[R, D])(
     f: (A, B, C, D) => F
   ): URIO[R, F] =
@@ -1026,12 +1024,6 @@ object URIO {
   def runtime[R]: URIO[R, Runtime[R]] = ZIO.runtime
 
   /**
-   * @see [[zio.ZIO.second]]
-   */
-  def second[A]: URIO[(Any, A), A] =
-    ZIO.second
-
-  /**
    * @see [[zio.ZIO.setState]]
    */
   def setState[S: Tag](s: S): ZIO[Has[ZState[S]], Nothing, Unit] =
@@ -1046,18 +1038,21 @@ object URIO {
   /**
    * @see See [[zio.ZIO.services[A,B]*]]
    */
+  @deprecated("use service", "2.0.0")
   def services[A: Tag, B: Tag]: URIO[Has[A] with Has[B], (A, B)] =
     ZIO.services[A, B]
 
   /**
    * @see See [[zio.ZIO.services[A,B,C]*]]
    */
+  @deprecated("use service", "2.0.0")
   def services[A: Tag, B: Tag, C: Tag]: URIO[Has[A] with Has[B] with Has[C], (A, B, C)] =
     ZIO.services[A, B, C]
 
   /**
    * @see See [[zio.ZIO.services[A,B,C,D]*]]
    */
+  @deprecated("use service", "2.0.0")
   def services[A: Tag, B: Tag, C: Tag, D: Tag]: URIO[Has[A] with Has[B] with Has[C] with Has[D], (A, B, C, D)] =
     ZIO.services[A, B, C, D]
 
@@ -1100,11 +1095,6 @@ object URIO {
    */
   def succeedBlocking[A](a: => A): UIO[A] =
     ZIO.succeedBlocking(a)
-
-  /**
-   * @see [[zio.ZIO.swap]]
-   */
-  def swap[A, B]: URIO[(A, B), (B, A)] = ZIO.swap
 
   /**
    * @see [[zio.ZIO.trace]]

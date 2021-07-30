@@ -72,7 +72,7 @@ object IO {
   /**
    * @see See [[zio.ZIO.async]]
    */
-  def async[E, A](register: (IO[E, A] => Unit) => Any, blockingOn: List[Fiber.Id] = Nil): IO[E, A] =
+  def async[E, A](register: (IO[E, A] => Unit) => Any, blockingOn: Fiber.Id = Fiber.Id.None): IO[E, A] =
     ZIO.async(register, blockingOn)
 
   /**
@@ -80,7 +80,7 @@ object IO {
    */
   def asyncInterrupt[E, A](
     register: (IO[E, A] => Unit) => Either[Canceler[Any], IO[E, A]],
-    blockingOn: List[Fiber.Id] = Nil
+    blockingOn: Fiber.Id = Fiber.Id.None
   ): IO[E, A] =
     ZIO.asyncInterrupt(register, blockingOn)
 
@@ -95,7 +95,7 @@ object IO {
    */
   def asyncMaybe[E, A](
     register: (IO[E, A] => Unit) => Option[IO[E, A]],
-    blockingOn: List[Fiber.Id] = Nil
+    blockingOn: Fiber.Id = Fiber.Id.None
   ): IO[E, A] =
     ZIO.asyncMaybe(register, blockingOn)
 
@@ -411,7 +411,7 @@ object IO {
    * @see See [[zio.ZIO.effectAsync]]
    */
   @deprecated("use async", "2.0.0")
-  def effectAsync[E, A](register: (IO[E, A] => Unit) => Any, blockingOn: List[Fiber.Id] = Nil): IO[E, A] =
+  def effectAsync[E, A](register: (IO[E, A] => Unit) => Any, blockingOn: Fiber.Id = Fiber.Id.None): IO[E, A] =
     ZIO.effectAsync(register, blockingOn)
 
   /**
@@ -420,7 +420,7 @@ object IO {
   @deprecated("use asyncInterrupt", "2.0.0")
   def effectAsyncInterrupt[E, A](
     register: (IO[E, A] => Unit) => Either[Canceler[Any], IO[E, A]],
-    blockingOn: List[Fiber.Id] = Nil
+    blockingOn: Fiber.Id = Fiber.Id.None
   ): IO[E, A] =
     ZIO.effectAsyncInterrupt(register, blockingOn)
 
@@ -437,7 +437,7 @@ object IO {
   @deprecated("use asyncMaybe", "2.0.0")
   def effectAsyncMaybe[E, A](
     register: (IO[E, A] => Unit) => Option[IO[E, A]],
-    blockingOn: List[Fiber.Id] = Nil
+    blockingOn: Fiber.Id = Fiber.Id.None
   ): IO[E, A] =
     ZIO.effectAsyncMaybe(register, blockingOn)
 
@@ -777,6 +777,14 @@ object IO {
     ZIO.forkAllDiscard(as)
 
   /**
+   * Constructs a `IO` value of the appropriate type for the specified input.
+   */
+  def from[Input](input: => Input)(implicit
+    constructor: ZIO.ZIOConstructor[Any, Any, Input]
+  ): ZIO[constructor.OutEnvironment, constructor.OutError, constructor.OutSuccess] =
+    constructor.make(input)
+
+  /**
    * @see See [[zio.ZIO.fromEither]]
    */
   def fromEither[E, A](v: => Either[E, A]): IO[E, A] =
@@ -800,30 +808,6 @@ object IO {
    */
   def fromFiberZIO[E, A](fiber: IO[E, Fiber[E, A]]): IO[E, A] =
     ZIO.fromFiberZIO(fiber)
-
-  /**
-   * @see [[zio.ZIO.fromFunction]]
-   */
-  def fromFunction[A](f: Any => A): IO[Nothing, A] = ZIO.fromFunction(f)
-
-  /**
-   * @see [[zio.ZIO.fromFunctionFuture]]
-   */
-  def fromFunctionFuture[A](f: Any => scala.concurrent.Future[A]): Task[A] =
-    ZIO.fromFunctionFuture(f)
-
-  /**
-   * @see [[zio.ZIO.fromFunctionM]]
-   */
-  @deprecated("use fromFunctionZIO", "2.0.0")
-  def fromFunctionM[E, A](f: Any => IO[E, A]): IO[E, A] =
-    ZIO.fromFunctionM(f)
-
-  /**
-   * @see [[zio.ZIO.fromFunctionZIO]]
-   */
-  def fromFunctionZIO[E, A](f: Any => IO[E, A]): IO[E, A] =
-    ZIO.fromFunctionZIO(f)
 
   /**
    * @see See [[zio.ZIO.fromFuture]]
@@ -866,11 +850,6 @@ object IO {
   @deprecated("use failCauseWith", "2.0.0")
   def haltWith[E](function: (() => ZTrace) => Cause[E]): IO[E, Nothing] =
     ZIO.haltWith(function)
-
-  /**
-   * @see [[zio.ZIO.identity]]
-   */
-  def identity: IO[Nothing, Any] = ZIO.identity
 
   /**
    * @see [[zio.ZIO.ifM]]
@@ -946,18 +925,21 @@ object IO {
   /**
    *  @see [[zio.ZIO.mapN[R,E,A,B,C]*]]
    */
+  @deprecated("use zip", "2.0.0")
   def mapN[E, A, B, C](io1: IO[E, A], io2: IO[E, B])(f: (A, B) => C): IO[E, C] =
     ZIO.mapN(io1, io2)(f)
 
   /**
    *  @see [[zio.ZIO.mapN[R,E,A,B,C,D]*]]
    */
+  @deprecated("use zip", "2.0.0")
   def mapN[E, A, B, C, D](io1: IO[E, A], io2: IO[E, B], io3: IO[E, C])(f: (A, B, C) => D): IO[E, D] =
     ZIO.mapN(io1, io2, io3)(f)
 
   /**
    *  @see [[zio.ZIO.mapN[R,E,A,B,C,D,F]*]]
    */
+  @deprecated("use zip", "2.0.0")
   def mapN[E, A, B, C, D, F](io1: IO[E, A], io2: IO[E, B], io3: IO[E, C], io4: IO[E, D])(
     f: (A, B, C, D) => F
   ): IO[E, F] =
@@ -966,18 +948,21 @@ object IO {
   /**
    *  @see [[zio.ZIO.mapParN[R,E,A,B,C]*]]
    */
+  @deprecated("use zipPar", "2.0.0")
   def mapParN[E, A, B, C](io1: IO[E, A], io2: IO[E, B])(f: (A, B) => C): IO[E, C] =
     ZIO.mapParN(io1, io2)(f)
 
   /**
    *  @see [[zio.ZIO.mapParN[R,E,A,B,C,D]*]]
    */
+  @deprecated("use zipPar", "2.0.0")
   def mapParN[E, A, B, C, D](io1: IO[E, A], io2: IO[E, B], io3: IO[E, C])(f: (A, B, C) => D): IO[E, D] =
     ZIO.mapParN(io1, io2, io3)(f)
 
   /**
    *  @see [[zio.ZIO.mapParN[R,E,A,B,C,D,F]*]]
    */
+  @deprecated("use zipPar", "2.0.0")
   def mapParN[E, A, B, C, D, F](io1: IO[E, A], io2: IO[E, B], io3: IO[E, C], io4: IO[E, D])(
     f: (A, B, C, D) => F
   ): IO[E, F] =
@@ -1103,6 +1088,7 @@ object IO {
   /**
    * @see See [[zio.ZIO.require]]
    */
+  @deprecated("use someOrFail", "2.0.0")
   def require[E, A](error: => E): IO[E, Option[A]] => IO[E, A] =
     ZIO.require[Any, E, A](error)
 

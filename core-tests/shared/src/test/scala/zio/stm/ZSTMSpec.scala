@@ -20,12 +20,6 @@ object ZSTMSpec extends ZIOBaseSpec {
           assertM(STM.succeed(Left("oh no!")).absolve.commit.exit)(fails(equalTo("oh no!")))
         } @@ zioTag(errors)
       ),
-      test("andThen two environments") {
-        val add   = ZSTM.access[Int](_ + 1)
-        val print = ZSTM.access[Int](n => s"$n is the sum")
-        val tx    = (add >>> print).provide(1)
-        assertM(tx.commit)(equalTo("2 is the sum"))
-      },
       test("catchAll errors") {
         val tx =
           for {
@@ -59,12 +53,6 @@ object ZSTMSpec extends ZIOBaseSpec {
           assertM(tx.catchSome { case Error1 => ZSTM.succeed("gotcha") }.commit.exit)(fails(equalTo(Error2)))
         }
       ) @@ zioTag(errors),
-      test("compose two environments") {
-        val print = ZSTM.access[Int](n => s"$n is the sum")
-        val add   = ZSTM.access[Int](_ + 1)
-        val tx    = (print <<< add).provide(1)
-        assertM(tx.commit)(equalTo("2 is the sum"))
-      },
       test("repeatWhile to run effect while it satisfies predicate") {
         (for {
           a <- TQueue.bounded[Int](5)
@@ -236,14 +224,6 @@ object ZSTMSpec extends ZIOBaseSpec {
           }
         }
       ),
-      suite("get")(
-        test("extracts the value from Some") {
-          assertM(STM.succeed(Some(1)).get.commit)(equalTo(1))
-        },
-        test("fails with None on None") {
-          assertM(STM.succeed(None).get.commit.exit)(fails(isNone))
-        }
-      ),
       suite("head")(
         test("extracts the value from the List") {
           assertM(ZSTM.succeed(List(1, 2)).head.commit)(equalTo(1))
@@ -304,40 +284,6 @@ object ZSTMSpec extends ZIOBaseSpec {
       test("mapError to map from one error to another") {
         assertM(STM.fail(-1).mapError(_ => "oh no!").commit.exit)(fails(equalTo("oh no!")))
       } @@ zioTag(errors),
-      suite("mapN")(
-        test("with Tuple2") {
-          checkM(Gen.anyInt, Gen.alphaNumericString) { (int: Int, str: String) =>
-            def f(i: Int, s: String): String = i.toString + s
-
-            val actual   = STM.mapN(STM.succeed(int), STM.succeed(str))(f)
-            val expected = f(int, str)
-
-            assertM(actual.commit)(equalTo(expected))
-          }
-        },
-        test("with Tuple3") {
-          checkM(Gen.anyInt, Gen.alphaNumericString, Gen.alphaNumericString) { (int: Int, str1: String, str2: String) =>
-            def f(i: Int, s1: String, s2: String): String = i.toString + s1 + s2
-
-            val actual   = STM.mapN(STM.succeed(int), STM.succeed(str1), STM.succeed(str2))(f)
-            val expected = f(int, str1, str2)
-
-            assertM(actual.commit)(equalTo(expected))
-          }
-        },
-        test("with Tuple4") {
-          checkM(Gen.anyInt, Gen.alphaNumericString, Gen.alphaNumericString, Gen.alphaNumericString) {
-            (int: Int, str1: String, str2: String, str3: String) =>
-              def f(i: Int, s1: String, s2: String, s3: String): String = i.toString + s1 + s2 + s3
-
-              val actual =
-                STM.mapN(STM.succeed(int), STM.succeed(str1), STM.succeed(str2), STM.succeed(str3))(f)
-              val expected = f(int, str1, str2, str3)
-
-              assertM(actual.commit)(equalTo(expected))
-          }
-        }
-      ),
       suite("merge")(
         test("on error with same type") {
           assertM(STM.fromEither[Int, Int](Left(1)).merge.commit)(equalTo(1))
@@ -360,58 +306,6 @@ object ZSTMSpec extends ZIOBaseSpec {
           assertM(STM.none.commit)(isNone)
         }
       ),
-      test("onFirst returns the effect A along with the unmodified input `R` as second element in a tuple") {
-        val tx = ZSTM
-          .access[String](_.length)
-          .onFirst
-          .provide("word")
-
-        assertM(tx.commit)(equalTo((4, "word")))
-      },
-      suite("onLeft")(
-        test("returns result when environment is on the left") {
-          val tx = ZSTM
-            .access[String](_.length)
-            .onLeft[Int]
-            .provide(Left("test"))
-
-          assertM(tx.commit)(isLeft(equalTo(4)))
-        },
-        test("returns whatever is provided on the right unmodified") {
-          val tx = ZSTM
-            .access[String](_.length)
-            .onLeft[Int]
-            .provide(Right(42))
-
-          assertM(tx.commit)(isRight(equalTo(42)))
-        }
-      ),
-      suite("onRight")(
-        test("returns result when environment is on the right") {
-          val tx = ZSTM
-            .access[String](_.length)
-            .onRight[Int]
-            .provide(Right("test"))
-
-          assertM(tx.commit)(isRight(equalTo(4)))
-        },
-        test("returns whatever is provided on the left unmodified") {
-          val tx = ZSTM
-            .access[String](_.length)
-            .onRight[Int]
-            .provide(Left(42))
-
-          assertM(tx.commit)(isLeft(equalTo(42)))
-        }
-      ),
-      test("onSecond returns the effect A along with the unmodified input `R` as first element in a tuple") {
-        val tx = ZSTM
-          .access[String](_.length)
-          .onSecond
-          .provide("word")
-
-        assertM(tx.commit)(equalTo(("word", 4)))
-      },
       suite("option to convert:")(
         test("A successful computation into Some(a)") {
           implicit val canFail = CanFail
@@ -620,26 +514,6 @@ object ZSTMSpec extends ZIOBaseSpec {
             ((start, end), value) = result
           } yield (start, value, end)
           assertM(tx.commit)(equalTo((1, 2, 3)))
-        }
-      ),
-      suite("tupled environment")(
-        test("_1 should extract first") {
-          val tx  = ZSTM.first[Int]
-          val env = (42, "test")
-
-          assertM(tx.provide(env).commit)(equalTo(env._1))
-        },
-        test("_2 should extract second") {
-          val tx  = ZSTM.second[String]
-          val env = (42, "test")
-
-          assertM(tx.provide(env).commit)(equalTo(env._2))
-        },
-        test("swap") {
-          val tx  = ZSTM.swap[Int, String]
-          val env = (42, "test")
-
-          assertM(tx.provide(env).commit)(equalTo(env.swap))
         }
       ),
       test("zip to return a tuple of two computations") {
@@ -1145,18 +1019,6 @@ object ZSTMSpec extends ZIOBaseSpec {
         val tx               = STM.validateFirst(as)(STM.fail(_))
         assertM(tx.commit.exit)(fails(equalTo(List(2, 4, 6, 3, 5, 6))))
       } @@ zioTag(errors)
-    ),
-    suite("ZSTM require")(
-      test("require successful") {
-        val opt = ZSTM.fromEither[Throwable, Option[Int]](Right(Some(1)))
-        val tx  = ZSTM.require[Any, Throwable, Int](ExampleError)
-        assertM(tx(opt).commit)(equalTo(1))
-      },
-      test("reduceAll on None") {
-        val opt = ZSTM.fromEither[Throwable, Option[Int]](Right(None))
-        val tx  = ZSTM.require[Any, Throwable, Int](ExampleError)
-        assertM(tx(opt).commit.exit)(fails(equalTo(ExampleError)))
-      }
     ),
     suite("when combinators")(
       test("when true") {

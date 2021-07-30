@@ -26,9 +26,6 @@ object ZIOLazinessSpec extends ZIOBaseSpec {
       test("interruptAs")(assertLazy(IO.interruptAs)),
       test("left")(assertLazy(IO.left)),
       test("lock")(assertLazy(IO.lock)),
-      test("noneOrfail")(assertLazy(IO.noneOrFail)),
-      test("noneOrfail")(assertLazy(IO.noneOrFailWith(_)(_ => ???))),
-      test("require")(assertLazy(ZIO.require)),
       test("right")(assertLazy(IO.right)),
       test("some")(assertLazy(IO.some)),
       test("succeed")(assertLazy(IO.succeed))
@@ -40,7 +37,6 @@ object ZIOLazinessSpec extends ZIOBaseSpec {
       test("fail")(assertLazy(Managed.fail)),
       test("failCause")(assertLazy(Managed.failCause)),
       test("fromEither")(assertLazy(Managed.fromEither)),
-      test("require")(assertLazy(Managed.require)),
       test("succeed")(assertLazy(Managed.succeed))
     ),
     suite("RIO")(
@@ -60,7 +56,6 @@ object ZIOLazinessSpec extends ZIOBaseSpec {
       test("noneOrfail")(assertLazy(RIO.noneOrFail)),
       test("noneOrfail")(assertLazy(RIO.noneOrFailWith(_)(_ => ???))),
       test("provide")(assertLazy(RIO.provide)),
-      test("require")(assertLazy(RIO.require)),
       test("right")(assertLazy(RIO.right)),
       test("sleep")(assertLazy(RIO.sleep)),
       test("some")(assertLazy(RIO.some)),
@@ -79,9 +74,6 @@ object ZIOLazinessSpec extends ZIOBaseSpec {
       test("interruptAs")(assertLazy(Task.interruptAs)),
       test("left")(assertLazy(Task.left)),
       test("lock")(assertLazy(Task.lock)),
-      test("noneOrfail")(assertLazy(Task.noneOrFail)),
-      test("noneOrfail")(assertLazy(Task.noneOrFailWith(_)(_ => ???))),
-      test("require")(assertLazy(Task.require)),
       test("right")(assertLazy(Task.right)),
       test("some")(assertLazy(Task.some)),
       test("succeed")(assertLazy(Task.succeed))
@@ -126,7 +118,6 @@ object ZIOLazinessSpec extends ZIOBaseSpec {
       test("failCause")(assertLazy(ZManaged.failCause)),
       test("fromEither")(assertLazy(ZManaged.fromEither)),
       test("interruptAs")(assertLazy(ZManaged.interruptAs)),
-      test("require")(assertLazy(ZManaged.require)),
       test("succeed")(assertLazy(ZManaged.succeed))
     ),
     suite("ZIO")(
@@ -153,7 +144,6 @@ object ZIOLazinessSpec extends ZIOBaseSpec {
       test("noneOrfail")(assertLazy(ZIO.noneOrFail)),
       test("noneOrfail")(assertLazy(ZIO.noneOrFailWith(_)(_ => ???))),
       test("provide")(assertLazy(ZIO.provide)),
-      test("require")(assertLazy(ZIO.require)),
       test("right")(assertLazy(ZIO.right)),
       test("sleep")(assertLazy(ZIO.sleep)),
       test("some")(assertLazy(ZIO.some)),

@@ -39,7 +39,7 @@ object MockExampleSpec extends DefaultRunnableSpec {
         }
 
       def composedBranchingProgram(p1: Boolean, p2: Boolean) =
-        branchingProgram(p1) &&& branchingProgram(p2)
+        branchingProgram(p1) <*> branchingProgram(p2)
 
       val clockLayer = (MockClock.NanoTime(value(42L)) andThen MockClock.NanoTime(value(42L))).toLayer
       val noCallToConsole = composedBranchingProgram(false, false)

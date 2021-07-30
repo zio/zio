@@ -49,7 +49,14 @@ abstract class Executor extends ExecutorPlatformSpecific { self =>
   /**
    * Views this `Executor` as a Scala `ExecutionContext`.
    */
+  @deprecated("use asExecutionContext", "2.0.0")
   lazy val asEC: ExecutionContext =
+    asExecutionContext
+
+  /**
+   * Views this `Executor` as a Scala `ExecutionContext`.
+   */
+  lazy val asExecutionContext: ExecutionContext =
     new ExecutionContext {
       override def execute(r: Runnable): Unit =
         if (!submit(r)) throw new RejectedExecutionException("Rejected: " + r.toString)

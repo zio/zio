@@ -567,13 +567,13 @@ package object test extends CompileVariants {
    * Builds a suite containing a number of other specs.
    */
   def suite[R, E, T](label: String)(specs: Spec[R, E, T]*): Spec[R, E, T] =
-    Spec.suite(label, ZManaged.succeedNow(specs.toVector), None)
+    Spec.labeled(label, Spec.multiple(Chunk.fromIterable(specs)))
 
   /**
    * Builds an effectual suite containing a number of other specs.
    */
   def suiteM[R, E, T](label: String)(specs: ZIO[R, E, Iterable[Spec[R, E, T]]]): Spec[R, E, T] =
-    Spec.suite(label, specs.map(_.toVector).toManaged, None)
+    Spec.labeled(label, Spec.managed(specs.map(specs => Spec.multiple(Chunk.fromIterable(specs))).toManaged))
 
   /**
    * Builds a spec with a single test.

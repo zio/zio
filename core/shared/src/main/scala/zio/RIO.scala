@@ -87,7 +87,7 @@ object RIO {
   /**
    * @see See [[zio.ZIO.async]]
    */
-  def async[R, A](register: (RIO[R, A] => Unit) => Any, blockingOn: List[Fiber.Id] = Nil): RIO[R, A] =
+  def async[R, A](register: (RIO[R, A] => Unit) => Any, blockingOn: Fiber.Id = Fiber.Id.None): RIO[R, A] =
     ZIO.async(register, blockingOn)
 
   /**
@@ -95,7 +95,7 @@ object RIO {
    */
   def asyncMaybe[R, A](
     register: (RIO[R, A] => Unit) => Option[RIO[R, A]],
-    blockingOn: List[Fiber.Id] = Nil
+    blockingOn: Fiber.Id = Fiber.Id.None
   ): RIO[R, A] =
     ZIO.asyncMaybe(register, blockingOn)
 
@@ -110,7 +110,7 @@ object RIO {
    */
   def asyncInterrupt[R, A](
     register: (RIO[R, A] => Unit) => Either[Canceler[R], RIO[R, A]],
-    blockingOn: List[Fiber.Id] = Nil
+    blockingOn: Fiber.Id = Fiber.Id.None
   ): RIO[R, A] =
     ZIO.asyncInterrupt(register, blockingOn)
 
@@ -429,7 +429,7 @@ object RIO {
    * @see See [[zio.ZIO.effectAsync]]
    */
   @deprecated("use async", "2.0.0")
-  def effectAsync[R, A](register: (RIO[R, A] => Unit) => Any, blockingOn: List[Fiber.Id] = Nil): RIO[R, A] =
+  def effectAsync[R, A](register: (RIO[R, A] => Unit) => Any, blockingOn: Fiber.Id = Fiber.Id.None): RIO[R, A] =
     ZIO.effectAsync(register, blockingOn)
 
   /**
@@ -438,7 +438,7 @@ object RIO {
   @deprecated("use asyncMaybe", "2.0.0")
   def effectAsyncMaybe[R, A](
     register: (RIO[R, A] => Unit) => Option[RIO[R, A]],
-    blockingOn: List[Fiber.Id] = Nil
+    blockingOn: Fiber.Id = Fiber.Id.None
   ): RIO[R, A] =
     ZIO.effectAsyncMaybe(register, blockingOn)
 
@@ -455,7 +455,7 @@ object RIO {
   @deprecated("use asyncInterrupt", "2.0.0")
   def effectAsyncInterrupt[R, A](
     register: (RIO[R, A] => Unit) => Either[Canceler[R], RIO[R, A]],
-    blockingOn: List[Fiber.Id] = Nil
+    blockingOn: Fiber.Id = Fiber.Id.None
   ): RIO[R, A] =
     ZIO.effectAsyncInterrupt(register, blockingOn)
 
@@ -610,12 +610,6 @@ object RIO {
    */
   def filterNotPar[R, A](as: Set[A])(f: A => RIO[R, Boolean]): RIO[R, Set[A]] =
     ZIO.filterNotPar(as)(f)
-
-  /**
-   * @see See [[zio.ZIO.first]]
-   */
-  def first[A]: RIO[(A, Any), A] =
-    ZIO.first
 
   /**
    * @see See [[zio.ZIO.firstSuccessOf]]
@@ -800,6 +794,14 @@ object RIO {
     ZIO.forkAllDiscard(as)
 
   /**
+   * Constructs a `RIO` value of the appropriate type for the specified input.
+   */
+  def from[Input](input: => Input)(implicit
+    constructor: ZIO.ZIOConstructor[Nothing, Throwable, Input]
+  ): ZIO[constructor.OutEnvironment, constructor.OutError, constructor.OutSuccess] =
+    constructor.make(input)
+
+  /**
    * @see See [[zio.ZIO.fromEither]]
    */
   def fromEither[A](v: => Either[Throwable, A]): Task[A] =
@@ -827,27 +829,16 @@ object RIO {
   /**
    * @see See [[zio.ZIO.fromFunction]]
    */
+  @deprecated("use access", "2.0.0")
   def fromFunction[R, A](f: R => A): URIO[R, A] =
     ZIO.fromFunction(f)
 
   /**
-   * @see See [[zio.ZIO.fromFunctionFuture]]
-   */
-  def fromFunctionFuture[R, A](f: R => scala.concurrent.Future[A]): RIO[R, A] =
-    ZIO.fromFunctionFuture(f)
-
-  /**
    * @see See [[zio.ZIO.fromFunctionM]]
    */
-  @deprecated("use fromFunctionZIO", "2.0.0")
+  @deprecated("use accessZIO", "2.0.0")
   def fromFunctionM[R, A](f: R => Task[A]): RIO[R, A] =
     ZIO.fromFunctionM(f)
-
-  /**
-   * @see See [[zio.ZIO.fromFunctionZIO]]
-   */
-  def fromFunctionZIO[R, A](f: R => Task[A]): RIO[R, A] =
-    ZIO.fromFunctionZIO(f)
 
   /**
    * @see See [[zio.ZIO.fromFuture]]
@@ -897,11 +888,6 @@ object RIO {
   @deprecated("use failCauseWith", "2.0.0")
   def haltWith[R](function: (() => ZTrace) => Cause[Throwable]): RIO[R, Nothing] =
     ZIO.haltWith(function)
-
-  /**
-   * @see See [[zio.ZIO.identity]]
-   */
-  def identity[R]: RIO[R, R] = ZIO.identity
 
   /**
    * @see [[zio.ZIO.ifM]]
@@ -982,12 +968,14 @@ object RIO {
   /**
    *  @see [[zio.ZIO.mapN[R,E,A,B,C]*]]
    */
+  @deprecated("use zip", "2.0.0")
   def mapN[R, A, B, C](rio1: RIO[R, A], rio2: RIO[R, B])(f: (A, B) => C): RIO[R, C] =
     ZIO.mapN(rio1, rio2)(f)
 
   /**
    *  @see [[zio.ZIO.mapN[R,E,A,B,C,D]*]]
    */
+  @deprecated("use zip", "2.0.0")
   def mapN[R, A, B, C, D](rio1: RIO[R, A], rio2: RIO[R, B], rio3: RIO[R, C])(
     f: (A, B, C) => D
   ): RIO[R, D] =
@@ -996,6 +984,7 @@ object RIO {
   /**
    *  @see [[zio.ZIO.mapN[R,E,A,B,C,D,F]*]]
    */
+  @deprecated("use zip", "2.0.0")
   def mapN[R, A, B, C, D, F](rio1: RIO[R, A], rio2: RIO[R, B], rio3: RIO[R, C], rio4: RIO[R, D])(
     f: (A, B, C, D) => F
   ): RIO[R, F] =
@@ -1004,18 +993,21 @@ object RIO {
   /**
    *  @see [[zio.ZIO.mapParN[R,E,A,B,C]*]]
    */
+  @deprecated("use zipPar", "2.0.0")
   def mapParN[R, A, B, C](rio1: RIO[R, A], rio2: RIO[R, B])(f: (A, B) => C): RIO[R, C] =
     ZIO.mapParN(rio1, rio2)(f)
 
   /**
    *  @see [[zio.ZIO.mapParN[R,E,A,B,C,D]*]]
    */
+  @deprecated("use zipPar", "2.0.0")
   def mapParN[R, A, B, C, D](rio1: RIO[R, A], rio2: RIO[R, B], rio3: RIO[R, C])(f: (A, B, C) => D): RIO[R, D] =
     ZIO.mapParN(rio1, rio2, rio3)(f)
 
   /**
    *  @see [[zio.ZIO.mapParN[R,E,A,B,C,D,F]*]]
    */
+  @deprecated("use zipPar", "2.0.0")
   def mapParN[R, A, B, C, D, F](rio1: RIO[R, A], rio2: RIO[R, B], rio3: RIO[R, C], rio4: RIO[R, D])(
     f: (A, B, C, D) => F
   ): RIO[R, F] =
@@ -1144,6 +1136,7 @@ object RIO {
   /**
    * @see See [[zio.ZIO.require]]
    */
+  @deprecated("use someOrFail", "2.0.0")
   def require[A](error: => Throwable): IO[Throwable, Option[A]] => IO[Throwable, A] =
     ZIO.require[Any, Throwable, A](error)
 
@@ -1164,12 +1157,6 @@ object RIO {
   def runtime[R]: ZIO[R, Nothing, Runtime[R]] = ZIO.runtime
 
   /**
-   * @see See [[zio.ZIO.second]]
-   */
-  def second[A]: RIO[(Any, A), A] =
-    ZIO.second
-
-  /**
    * @see See [[zio.ZIO.setState]]
    */
   def setState[S: Tag](s: S): ZIO[Has[ZState[S]], Nothing, Unit] =
@@ -1184,18 +1171,21 @@ object RIO {
   /**
    * @see See [[zio.ZIO.services[A,B]*]]
    */
+  @deprecated("use service", "2.0.0")
   def services[A: Tag, B: Tag]: URIO[Has[A] with Has[B], (A, B)] =
     ZIO.services[A, B]
 
   /**
    * @see See [[zio.ZIO.services[A,B,C]*]]
    */
+  @deprecated("use service", "2.0.0")
   def services[A: Tag, B: Tag, C: Tag]: URIO[Has[A] with Has[B] with Has[C], (A, B, C)] =
     ZIO.services[A, B, C]
 
   /**
    * @see See [[zio.ZIO.services[A,B,C,D]*]]
    */
+  @deprecated("use service", "2.0.0")
   def services[A: Tag, B: Tag, C: Tag, D: Tag]: URIO[Has[A] with Has[B] with Has[C] with Has[D], (A, B, C, D)] =
     ZIO.services[A, B, C, D]
 
@@ -1250,12 +1240,6 @@ object RIO {
    */
   def suspendWith[R, A](p: (Platform, Fiber.Id) => RIO[R, A]): RIO[R, A] =
     ZIO.suspendWith(p)
-
-  /**
-   * @see See [[zio.ZIO.swap]]
-   */
-  def swap[A, B]: RIO[(A, B), (B, A)] =
-    ZIO.swap
 
   /**
    * @see See [[zio.ZIO.trace]]

@@ -435,6 +435,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * Composes the specified generators to create a cartesian product of
    * elements with the specified function.
    */
+  @deprecated("use cross", "2.0.0")
   def crossN[R, A, B, C](gen1: Gen[R, A], gen2: Gen[R, B])(f: (A, B) => C): Gen[R, C] =
     gen1.crossWith(gen2)(f)
 
@@ -442,6 +443,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * Composes the specified generators to create a cartesian product of
    * elements with the specified function.
    */
+  @deprecated("use cross", "2.0.0")
   def crossN[R, A, B, C, D](gen1: Gen[R, A], gen2: Gen[R, B], gen3: Gen[R, C])(f: (A, B, C) => D): Gen[R, D] =
     for {
       a <- gen1
@@ -453,6 +455,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * Composes the specified generators to create a cartesian product of
    * elements with the specified function.
    */
+  @deprecated("use cross", "2.0.0")
   def crossN[R, A, B, C, D, F](gen1: Gen[R, A], gen2: Gen[R, B], gen3: Gen[R, C], gen4: Gen[R, D])(
     f: (A, B, C, D) => F
   ): Gen[R, F] =
@@ -859,6 +862,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * generate elements as long as any generator is generating elements, running
    * the other generators multiple times if necessary.
    */
+  @deprecated("use zip", "2.0.0")
   def zipN[R, A, B, C](gen1: Gen[R, A], gen2: Gen[R, B])(f: (A, B) => C): Gen[R, C] =
     gen1.zipWith(gen2)(f)
 
@@ -867,6 +871,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * generate elements as long as any generator is generating elements, running
    * the other generators multiple times if necessary.
    */
+  @deprecated("use zip", "2.0.0")
   def zipN[R, A, B, C, D](gen1: Gen[R, A], gen2: Gen[R, B], gen3: Gen[R, C])(f: (A, B, C) => D): Gen[R, D] =
     (gen1 <&> gen2 <&> gen3).map(f.tupled)
 
@@ -875,6 +880,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * generate elements as long as any generator is generating elements, running
    * the other generators multiple times if necessary.
    */
+  @deprecated("use zip", "2.0.0")
   def zipN[R, A, B, C, D, F](gen1: Gen[R, A], gen2: Gen[R, B], gen3: Gen[R, C], gen4: Gen[R, D])(
     f: (A, B, C, D) => F
   ): Gen[R, F] =
@@ -885,6 +891,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * generate elements as long as any generator is generating elements, running
    * the other generators multiple times if necessary.
    */
+  @deprecated("use zip", "2.0.0")
   def zipN[R, A, B, C, D, F, G](
     gen1: Gen[R, A],
     gen2: Gen[R, B],
@@ -901,6 +908,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * generate elements as long as any generator is generating elements, running
    * the other generators multiple times if necessary.
    */
+  @deprecated("use zip", "2.0.0")
   def zipN[R, A, B, C, D, F, G, H](
     gen1: Gen[R, A],
     gen2: Gen[R, B],
@@ -918,6 +926,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * generate elements as long as any generator is generating elements, running
    * the other generators multiple times if necessary.
    */
+  @deprecated("use zip", "2.0.0")
   def zipN[R, A, B, C, D, F, G, H, I](
     gen1: Gen[R, A],
     gen2: Gen[R, B],
@@ -936,6 +945,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * generate elements as long as any generator is generating elements, running
    * the other generators multiple times if necessary.
    */
+  @deprecated("use zip", "2.0.0")
   def zipN[R, A, B, C, D, F, G, H, I, J](
     gen1: Gen[R, A],
     gen2: Gen[R, B],
@@ -955,6 +965,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * generate elements as long as any generator is generating elements, running
    * the other generators multiple times if necessary.
    */
+  @deprecated("use zip", "2.0.0")
   def zipN[R, A, B, C, D, F, G, H, I, J, K](
     gen1: Gen[R, A],
     gen2: Gen[R, B],
@@ -975,6 +986,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * generate elements as long as any generator is generating elements, running
    * the other generators multiple times if necessary.
    */
+  @deprecated("use zip", "2.0.0")
   def zipN[R, A, B, C, D, F, G, H, I, J, K, L](
     gen1: Gen[R, A],
     gen2: Gen[R, B],

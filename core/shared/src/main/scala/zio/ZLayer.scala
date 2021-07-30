@@ -395,7 +395,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * resourceful function.
    */
   def fromFunctionManaged[A, E, B: Tag](f: A => ZManaged[Any, E, B]): ZLayer[A, E, Has[B]] =
-    fromManaged(ZManaged.fromFunctionManaged(f))
+    fromManaged(ZManaged.accessManaged(f))
 
   /**
    * Constructs a layer from the environment using the specified function,
@@ -417,7 +417,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * resourceful function, which must return one or more services.
    */
   def fromFunctionManyManaged[A, E, B](f: A => ZManaged[Any, E, B]): ZLayer[A, E, B] =
-    ZLayer(ZManaged.fromFunctionManaged(f))
+    ZLayer(ZManaged.accessManaged(f))
 
   /**
    * Constructs a layer from the environment using the specified effectful
@@ -2505,7 +2505,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
-    @deprecated("use toLayer", "2.0.0")
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[
     A0: Tag,
     A1: Tag,
@@ -4233,7 +4233,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer from a managed resource.
    */
   def fromManaged[R, E, A: Tag](m: ZManaged[R, E, A]): ZLayer[R, E, Has[A]] =
-    ZLayer(m.asService)
+    ZLayer(m.map(Has(_)))
 
   /**
    * Constructs a layer from a managed resource, which must return one or more
@@ -4246,7 +4246,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer from the specified effect.
    */
   def fromZIO[R, E, A: Tag](zio: ZIO[R, E, A]): ZLayer[R, E, Has[A]] =
-    fromZIOMany(zio.asService)
+    fromZIOMany(zio.map(Has(_)))
 
   /**
    * Constructs a layer from the specified effect, which must return one or
@@ -4344,7 +4344,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
      * Constructs an empty memo map.
      */
     def make: UIO[MemoMap] =
-      RefM
+      Ref.Synchronized
         .make[Map[ZLayer[Nothing, Any, Any], (IO[Any, Any], ZManaged.Finalizer)]](Map.empty)
         .map { ref =>
           new MemoMap { self =>

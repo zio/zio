@@ -575,15 +575,15 @@ import zio.interop.catz._
 def transactor: ZManaged[Any, Throwable, HikariTransactor[Task]] =
   for {
     rt <- ZIO.runtime[Any].toManaged
-    be <- ZIO.blockingExecutor.toManaged            // our blocking EC
+    be <- ZIO.blockingExecutor.toManaged                          // our blocking EC
     xa <- HikariTransactor
             .newHikariTransactor[Task](
-              "org.h2.Driver",                      // driver classname
-              "jdbc:h2:mem:test;DB_CLOSE_DELAY=-1", // connect URL
-              "sa",                                 // username
-              "",                                   // password
-              rt.platform.executor.asEC,            // await connection here
-              Blocker.liftExecutionContext(be.asEC) // execute JDBC operations here
+              "org.h2.Driver",                                    // driver classname
+              "jdbc:h2:mem:test;DB_CLOSE_DELAY=-1",               // connect URL
+              "sa",                                               // username
+              "",                                                 // password
+              rt.platform.executor.asExecutionContext,            // await connection here
+              Blocker.liftExecutionContext(be.asExecutionContext) // execute JDBC operations here
             )
             .toManagedZIO
   } yield xa
@@ -625,11 +625,11 @@ def transactor: ZManaged[Any, Throwable, HikariTransactor[Task]] =
     xa <-
       HikariTransactor
         .newHikariTransactor[Task](
-          "org.h2.Driver",                      // driver classname
-          "jdbc:h2:mem:test;DB_CLOSE_DELAY=-1", // connect URL
-          "sa",                                 // username
-          "",                                   // password
-          rt.platform.executor.asEC             // await connection here
+          "org.h2.Driver",                        // driver classname
+          "jdbc:h2:mem:test;DB_CLOSE_DELAY=-1",   // connect URL
+          "sa",                                   // username
+          "",                                     // password
+          rt.platform.executor.asExecutionContext // await connection here
         )
         .toManaged
   } yield xa

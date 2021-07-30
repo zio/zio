@@ -1,7 +1,8 @@
 package zio
 
+import cats.effect.unsafe.implicits.global
 import org.openjdk.jmh.annotations._
-import zio.IOBenchmarks._
+import zio.BenchmarkUtil._
 
 import java.util.concurrent.TimeUnit
 
@@ -12,20 +13,9 @@ import java.util.concurrent.TimeUnit
 @Measurement(iterations = 10, time = 3, timeUnit = TimeUnit.SECONDS)
 @Fork(1)
 @Threads(1)
-class IOEmptyRaceBenchmark {
+class EmptyRaceBenchmark {
   @Param(Array("1000"))
   var size: Int = _
-
-  @Benchmark
-  def monixEmptyRace(): Int = {
-    import monix.eval.Task
-
-    def loop(i: Int): monix.eval.Task[Int] =
-      if (i < size) Task.race(Task.never, Task.eval(i + 1)).flatMap(_ => loop(i + 1))
-      else Task.pure(i)
-
-    loop(0).runSyncUnsafe()
-  }
 
   @Benchmark
   def catsEmptyRace(): Int = {
@@ -39,7 +29,7 @@ class IOEmptyRaceBenchmark {
   }
 
   @Benchmark
-  def zioEmptyRace(): Int = zioEmptyRace(IOBenchmarks)
+  def zioEmptyRace(): Int = zioEmptyRace(BenchmarkUtil)
 
   @Benchmark
   def zioTracedEmptyRace(): Int = zioEmptyRace(TracedRuntime)
