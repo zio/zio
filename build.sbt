@@ -538,7 +538,7 @@ lazy val jsdocs = project
   .settings(libraryDependencies += "org.scala-js" %%% "scalajs-dom" % "1.0.0")
   .enablePlugins(ScalaJSPlugin)
 
-val http4sV     = "0.23.0-RC1"
+val http4sV     = "0.23.0"
 val doobieV     = "1.0.0-M5"
 val catsEffectV = "3.2.0"
 
