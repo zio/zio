@@ -607,7 +607,8 @@ lazy val docs = project.module
       "com.github.poslegm"    %% "munit-zio"                   % "0.0.2",
       "nl.vroste"             %% "rezilience"                  % "0.6.2",
       "io.github.gaelrenoux"  %% "tranzactio"                  % "2.1.0",
-      "io.github.neurodyne"   %% "zio-arrow"                   % "0.2.1"
+      "io.github.neurodyne"   %% "zio-arrow"                   % "0.2.1",
+      "nl.vroste"             %% "zio-amqp"                    % "0.2.0"
     )
   )
   .settings(macroExpansionSettings)
