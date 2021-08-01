@@ -612,7 +612,9 @@ lazy val docs = project.module
       "io.github.vigoo"       %% "zio-aws-core"                % "3.17.8.4",
       "io.github.vigoo"       %% "zio-aws-ec2"                 % "3.17.8.4",
       "io.github.vigoo"       %% "zio-aws-elasticbeanstalk"    % "3.17.8.4",
-      "io.github.neurodyne"   %% "zio-aws-s3"                  % "0.4.13"
+      "io.github.vigoo"       %% "zio-aws-netty"               % "3.17.8.4",
+      "io.github.neurodyne"   %% "zio-aws-s3"                  % "0.4.13",
+      "io.d11"                %% "zhttp"                       % "1.0.0.0-RC13"
     )
   )
   .settings(macroExpansionSettings)
