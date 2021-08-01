@@ -608,7 +608,10 @@ lazy val docs = project.module
       "nl.vroste"             %% "rezilience"                  % "0.6.2",
       "io.github.gaelrenoux"  %% "tranzactio"                  % "2.1.0",
       "io.github.neurodyne"   %% "zio-arrow"                   % "0.2.1",
-      "nl.vroste"             %% "zio-amqp"                    % "0.2.0"
+      "nl.vroste"             %% "zio-amqp"                    % "0.2.0",
+      "io.github.vigoo"       %% "zio-aws-core"                % "3.17.8.4",
+      "io.github.vigoo"       %% "zio-aws-ec2"                 % "3.17.8.4",
+      "io.github.vigoo"       %% "zio-aws-elasticbeanstalk"    % "3.17.8.4"
     )
   )
   .settings(macroExpansionSettings)
