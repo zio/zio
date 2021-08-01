@@ -823,7 +823,7 @@ object ZIOAMQPExample extends zio.App {
 
 ## ZIO AWS
 
-[ZIO AWS](https://github.com/vigoo/zio-aws) is a low-level ZIO interface for all the AWS services.
+[ZIO AWS](https://github.com/vigoo/zio-aws) is a low-level AWS wrapper for ZIO for all the AWS services using the AWS Java SDK v2.
 
 ### Introduction
 
