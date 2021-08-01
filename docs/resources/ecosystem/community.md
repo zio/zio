@@ -5,28 +5,28 @@ title:  "Community ZIO Libraries"
 
 List of first-class ZIO support libraries from the community:
 
-- [caliban](https://github.com/ghostdogpr/caliban) — Functional GraphQL backend in Scala
-- [distage](https://github.com/7mind/izumi) — Staged, transparent and debuggable runtime & compile-time Dependency Injection Framework
-- [idealingua](https://izumi.7mind.io/idealingua/) — API Definition, Data Modeling and RPC Language, optimized for fast prototyping – like gRPC, but with a human face
-- [logstage](https://izumi.7mind.io/logstage/) — Automatic structural logs from Scala string interpolations
-- [munit-zio](https://github.com/poslegm/munit-zio) — Lightweight bridge between ZIO and MUnit testing library
-- [rezilience](https://github.com/svroonland/rezilience) — Utilities for resilience and handling of transient errors
+- [Caliban](https://github.com/ghostdogpr/caliban) — Functional GraphQL backend in Scala
+- [Distage](https://github.com/7mind/izumi) — Staged, transparent and debuggable runtime & compile-time Dependency Injection Framework
+- [Idealingua](https://izumi.7mind.io/idealingua/) — API Definition, Data Modeling and RPC Language, optimized for fast prototyping – like gRPC, but with a human face
+- [Logstage](https://izumi.7mind.io/logstage/) — Automatic structural logs from Scala string interpolations
+- [Munit ZIO](https://github.com/poslegm/munit-zio) — Lightweight bridge between ZIO and MUnit testing library
+- [Rezilience](https://github.com/svroonland/rezilience) — Utilities for resilience and handling of transient errors
 - [slf4zio](https://github.com/mlangc/slf4zio) — Simple convenience layer on top of SLF4J for ZIO
-- [tranzactio](https://github.com/gaelrenoux/tranzactio) — ZIO wrapper for data access libraries like Doobie or Anorm
+- [TranzactIO](https://github.com/gaelrenoux/tranzactio) — ZIO wrapper for data access libraries like Doobie or Anorm
 - [ZIO Arrow](https://github.com/zio-mesh/zio-arrow) — Haskell Arrow meets ZIO. A deep composition and high performance applications
-- [zio-amqp](https://github.com/svroonland/zio-amqp) — ZIO Streams based RabbitMQ client
-- [zio-aws](https://github.com/vigoo/zio-aws) — Low-level AWS wrapper for ZIO for all AWS services using the AWS Java SDK v2
-- [zio-aws-s3](https://github.com/Neurodyne/zio-aws-s3) — A lean, simple and efficient ZIO wrapper for AWS Java v2 S3 API by Boris V.Kuznetsov
-- [zio-email](https://github.com/funcit/zio-email) — Purely functional email client
-- [zio-grpc](https://github.com/scalapb/zio-grpc) — A native gRPC support for ZIO
-- [zio-http](https://github.com/dream11/zio-http) — A scala library to write Http apps.
-- [zio-k8s](https://github.com/coralogix/zio-k8s) — An idiomatic ZIO client for the Kubernetes API
-- [zio-kinesis](https://github.com/svroonland/zio-kinesis) — ZIO Streams based AWS Kinesis client
-- [zio-magic](https://github.com/kitlangton/zio-magic/) — Construct ZLayers automagically (w/ helpful compile-time errors) 
-- [zio-pulsar](https://github.com/jczuchnowski/zio-pulsar) — Apache Pulsar client for Scala with ZIO and ZIO Streams integration.
-- [zio-saga](https://github.com/VladKopanev/zio-saga) — Purely functional transaction management with Saga pattern
-- [zio-slick-interop](https://github.com/ScalaConsultants/zio-slick-interop) — Slick interop for ZIO
-- [zio-test-akka-http](https://github.com/senia-psm/zio-test-akka-http) — Akka-HTTP Route TestKit for zio-test
+- [ZIO AMQP](https://github.com/svroonland/zio-amqp) — ZIO Streams based RabbitMQ client
+- [ZIO AWS](https://github.com/vigoo/zio-aws) — Low-level AWS wrapper for ZIO for all AWS services using the AWS Java SDK v2
+- [ZIO AWS S3](https://github.com/Neurodyne/zio-aws-s3) — A lean, simple and efficient ZIO wrapper for AWS Java v2 S3 API by Boris V.Kuznetsov
+- [ZIO Email](https://github.com/funcit/zio-email) — Purely functional email client
+- [ZIO gRPC](https://github.com/scalapb/zio-grpc) — A native gRPC support for ZIO
+- [ZIO HTTP](https://github.com/dream11/zio-http) — A scala library to write Http apps.
+- [ZIO K8s](https://github.com/coralogix/zio-k8s) — An idiomatic ZIO client for the Kubernetes API
+- [ZIO Kinesis](https://github.com/svroonland/zio-kinesis) — ZIO Streams based AWS Kinesis client
+- [ZIO Magic](https://github.com/kitlangton/zio-magic/) — Construct ZLayers automagically (w/ helpful compile-time errors) 
+- [ZIO Pulsar](https://github.com/jczuchnowski/zio-pulsar) — Apache Pulsar client for Scala with ZIO and ZIO Streams integration.
+- [ZIO Saga](https://github.com/VladKopanev/zio-saga) — Purely functional transaction management with Saga pattern
+- [ZIO Slick Interop](https://github.com/ScalaConsultants/zio-slick-interop) — Slick interop for ZIO
+- [ZIO Test Akka HTTP](https://github.com/senia-psm/zio-test-akka-http) — Akka-HTTP Route TestKit for zio-test
 - [ZparkIO](https://github.com/leobenkel/ZparkIO) — Boiler plate framework to use Spark and ZIO together
 
 If you know a useful library that has first-class ZIO support, please consider [submitting a pull request](https://github.com/zio/zio/pulls) to add it to this list.
