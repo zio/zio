@@ -20,7 +20,7 @@ jobs:
     - name: Checkout current branch
       uses: actions/checkout@v2.3.4
     - name: Setup Scala and Java
-      uses: olafurpg/setup-scala@v12
+      uses: olafurpg/setup-scala@v13
     - name: Cache scala dependencies
       uses: coursier/cache-action@v6
     - name: Lint code
@@ -33,7 +33,7 @@ jobs:
       - name: Checkout current branch
         uses: actions/checkout@v2.3.4
       - name: Setup Scala and Java
-        uses: olafurpg/setup-scala@v12
+        uses: olafurpg/setup-scala@v13
       - name: Cache scala dependencies
         uses: coursier/cache-action@v6
       - name: Check Document Generation
@@ -52,7 +52,7 @@ jobs:
     - name: Checkout current branch
       uses: actions/checkout@v2.3.4
     - name: Setup Scala and Java
-      uses: olafurpg/setup-scala@v12
+      uses: olafurpg/setup-scala@v13
       with:
         java-version: ${{ matrix.java }}
     - name: Cache scala dependencies
@@ -91,7 +91,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup Scala and Java
-        uses: olafurpg/setup-scala@v12
+        uses: olafurpg/setup-scala@v13
       - name: Release
         run: sbt ci-release
         env:
