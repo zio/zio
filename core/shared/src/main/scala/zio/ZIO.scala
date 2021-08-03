@@ -5241,8 +5241,15 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   }
 
   final class LogSpan(val label: () => String) extends AnyVal {
+    import zio.{LogSpan => ZioLogSpan}
+
     def apply[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
-      FiberRef.currentLogSpan.get.flatMap(stack => FiberRef.currentLogSpan.locally(label() :: stack)(zio))
+      FiberRef.currentLogSpan.get.flatMap { stack =>
+        val instant = java.time.Instant.now()
+        val logSpan = ZioLogSpan(label(), instant)
+
+        FiberRef.currentLogSpan.locally(logSpan :: stack)(zio)
+      }
   }
 
   @inline
@@ -5723,6 +5730,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     final val Logged            = 28
     final val FiberRefGetAll    = 29
     final val FiberRefLocally   = 30
+    final val FiberRefDelete    = 31
   }
 
   private[zio] final case class ZioError[E, A](exit: Exit[E, A]) extends Throwable with NoStackTrace
@@ -5836,6 +5844,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     val zio: ZIO[R, E, A]
   ) extends ZIO[R, E, A] {
     override def tag = Tags.FiberRefLocally
+  }
+
+  private[zio] final class FiberRefDelete(
+    val fiberRef: FiberRef.Runtime[_]
+  ) extends UIO[Unit] {
+    override def tag = Tags.FiberRefDelete
   }
 
   private[zio] object Trace extends UIO[ZTrace] {

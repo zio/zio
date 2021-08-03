@@ -191,10 +191,10 @@ sealed abstract class ZFiberRef[+EA, +EB, -A, +B] extends Serializable { self =>
 
 object ZFiberRef {
 
-  val currentLogLevel: FiberRef.Runtime[LogLevel] =
+  lazy val currentLogLevel: FiberRef.Runtime[LogLevel] =
     FiberRef.unsafeMake(LogLevel.Info)
 
-  val currentLogSpan: FiberRef.Runtime[List[String]] =
+  lazy val currentLogSpan: FiberRef.Runtime[List[LogSpan]] =
     FiberRef.unsafeMake(Nil)
 
   /**
@@ -205,7 +205,11 @@ object ZFiberRef {
     fork: A => A = (a: A) => a,
     join: (A, A) => A = ((_: A, a: A) => a)
   ): UIO[FiberRef.Runtime[A]] =
-    ZIO.succeed(unsafeMake(initial, fork, join))
+    ZIO.suspendSucceed {
+      val ref = unsafeMake(initial, fork, join)
+
+      ref.update(identity(_)).as(ref)
+    }
 
   private[zio] def unsafeMake[A](
     initial: A,
@@ -219,6 +223,10 @@ object ZFiberRef {
     private[zio] val fork: A => A,
     private[zio] val join: (A, A) => A
   ) extends ZFiberRef[Nothing, Nothing, A, A] { self =>
+    type ValueType = A
+
+    def delete: UIO[Unit] = new ZIO.FiberRefDelete(self)
+
     def fold[EC, ED, C, D](
       ea: Nothing => EC,
       eb: Nothing => ED,
@@ -288,6 +296,8 @@ object ZFiberRef {
         pf.applyOrElse[A, (B, A)](v, _ => (default, v))
       }
 
+    def reset: UIO[Unit] = set(initial)
+
     def set(value: A): IO[Nothing, Unit] =
       modify(_ => ((), value))
 
@@ -328,7 +338,8 @@ object ZFiberRef {
           override def get(): A = {
             val fiberContext = Fiber._currentFiber.get()
 
-            fiberContext.fiberRefLocals.get.getOrElse(self, super.get()).asInstanceOf[A]
+            if (fiberContext eq null) super.get()
+            else fiberContext.fiberRefLocals.get.getOrElse(self, super.get()).asInstanceOf[A]
           }
 
           override def set(a: A): Unit = {

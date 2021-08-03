@@ -16,7 +16,7 @@
 
 package zio.internal
 
-import zio.{Cause, FiberRef, LogLevel, Supervisor}
+import zio.{Cause, Supervisor}
 
 /**
  * A `Platform` provides the minimum capabilities necessary to bootstrap
@@ -31,7 +31,7 @@ final case class Platform(
   reportFailure: Cause[Any] => Unit,
   supervisor: Supervisor[Any],
   enableCurrentFiber: Boolean,
-  logger: (LogLevel, () => String, Map[FiberRef.Runtime[_], AnyRef], List[String]) => Unit
+  logger: ZLogger
 ) { self =>
   @deprecated("2.0.0", "Use Platform#copy instead")
   def withBlockingExecutor(e: Executor): Platform = copy(blockingExecutor = e)
@@ -41,10 +41,6 @@ final case class Platform(
 
   @deprecated("2.0.0", "Use Platform#copy instead")
   def withFatal(f: Throwable => Boolean): Platform = copy(fatal = f)
-
-  @deprecated("2.0.0", "Use Platform#copy instead")
-  def withLogger(l: (LogLevel, () => String, Map[FiberRef.Runtime[_], AnyRef], List[String]) => Unit): Platform = 
-    copy(logger = l)
 
   @deprecated("2.0.0", "Use Platform#copy instead")
   def withReportFatal(f: Throwable => Nothing): Platform = copy(reportFatal = f)

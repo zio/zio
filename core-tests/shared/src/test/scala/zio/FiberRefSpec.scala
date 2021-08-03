@@ -12,6 +12,14 @@ object FiberRefSpec extends ZIOBaseSpec {
 
   def spec: ZSpec[Environment, Failure] = suite("FiberRefSpec")(
     suite("Create a new FiberRef with a specified value and check if:")(
+      test("`delete` restores the original value") {
+        for {
+          fiberRef <- FiberRef.make(initial)
+          _        <- fiberRef.set(update)
+          _        <- fiberRef.delete
+          v        <- fiberRef.get
+        } yield assert(v)(equalTo(initial))
+      },
       test("`get` returns the current value") {
         for {
           fiberRef <- FiberRef.make(initial)

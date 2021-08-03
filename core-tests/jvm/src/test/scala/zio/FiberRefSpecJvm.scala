@@ -33,6 +33,8 @@ object FiberRefSpecJvm extends ZIOBaseSpec {
         value0                  <- fiberRef.get
         values                  <- UIO(resRef.get())
         (value1, value2, value3) = values
+        _                        = println("expected: " + (update1, initial, update2, initial))
+        _                        = println("actual:   " + (value0, value1, value2, value3))
       } yield assert((value0, value1, value2, value3))(equalTo((update1, initial, update2, initial)))
     }
   )

@@ -13,30 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package zio
 
-import zio.stm.ZSTM
+import java.time.Instant
 
-package object internal {
-
-  /**
-   * Returns an effect that models success with the specified value.
-   */
-  def ZIOSucceedNow[A](a: A): UIO[A] =
-    ZIO.succeedNow(a)
-
-  /**
-   * Lifts an eager, pure value into a Managed.
-   */
-  def ZManagedSucceedNow[A](r: A): ZManaged[Any, Nothing, A] =
-    ZManaged.succeedNow(r)
-
-  /**
-   * Returns an `STM` effect that succeeds with the specified value.
-   */
-  def ZSTMSucceedNow[A](a: A): ZSTM[Any, Nothing, A] =
-    ZSTM.succeedNow(a)
-
-  type ZLogger = (Fiber.Id, LogLevel, () => String, Map[FiberRef.Runtime[_], AnyRef], List[LogSpan]) => Unit
-}
+final case class LogSpan(label: String, startTime: Instant)

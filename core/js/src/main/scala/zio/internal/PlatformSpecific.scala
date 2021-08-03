@@ -18,7 +18,7 @@ package zio.internal
 
 import zio.internal.stacktracer.Tracer
 import zio.internal.tracing.TracingConfig
-import zio.{Cause, FiberRef, LogLevel, Supervisor}
+import zio.{Cause, Fiber, FiberRef, LogLevel, LogSpan, Supervisor}
 
 import java.util.{HashMap, HashSet, Map => JMap, Set => JSet}
 import scala.concurrent.ExecutionContext
@@ -75,23 +75,24 @@ private[internal] trait PlatformSpecific {
 
     val executor = executor0
 
-    val fatal = (t: Throwable) => false
+    val fatal = (_: Throwable) => false
 
-    val logger = (level: LogLevel, message: () => String, context: Map[FiberRef[_], AnyRef], regions: List[String]) => {
-      try {
-        // TODO: Improve output & use console.group, etc.
-        val line = message()
+    val logger =
+      (_: Fiber.Id, level: LogLevel, message: () => String, _: Map[FiberRef.Runtime[_], AnyRef], _: List[LogSpan]) => {
+        try {
+          // TODO: Improve output & use console.group, etc.
+          val line = message()
 
-        if (level == LogLevel.Fatal) jsglobal.console.error(line)
-        else if (level == LogLevel.Error) jsglobal.console.error(line)
-        else if (level == LogLevel.Debug) jsglobal.console.debug(line)
-        else jsglobal.console.log(line)
+          if (level == LogLevel.Fatal) jsglobal.console.error(line)
+          else if (level == LogLevel.Error) jsglobal.console.error(line)
+          else if (level == LogLevel.Debug) jsglobal.console.debug(line)
+          else jsglobal.console.log(line)
 
-        ()
-      } catch {
-        case t if !fatal(t) => ()
+          ()
+        } catch {
+          case t if !fatal(t) => ()
+        }
       }
-    }
 
     val reportFatal = (t: Throwable) => {
       t.printStackTrace()
@@ -106,7 +107,17 @@ private[internal] trait PlatformSpecific {
 
     val enableCurrentFiber = false
 
-    Platform(blockingExecutor, executor, tracing, fatal, reportFatal, reportFailure, supervisor, false, logger)
+    Platform(
+      blockingExecutor,
+      executor,
+      tracing,
+      fatal,
+      reportFatal,
+      reportFailure,
+      supervisor,
+      enableCurrentFiber,
+      logger
+    )
   }
 
   /**

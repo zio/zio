@@ -621,11 +621,20 @@ private[zio] final class FiberContext[E, A](
 
                     val fiberRef = zio.fiberRef
 
-                    val oldValue = fiberRefLocals.get.get(fiberRef)
+                    val oldValue = getFiberRefValue(fiberRef)
 
                     setFiberRefValue(fiberRef, zio.localValue)
 
                     curZio = zio.zio.ensuring(ZIO.succeed(setFiberRefValue(fiberRef, oldValue)))
+
+                  case ZIO.Tags.FiberRefDelete =>
+                    val zio = curZio.asInstanceOf[ZIO.FiberRefDelete]
+
+                    val fiberRef = zio.fiberRef
+
+                    removeFiberRef(fiberRef)
+
+                    curZio = nextInstr(())
 
                   case ZIO.Tags.RaceWith =>
                     val zio = curZio.asInstanceOf[ZIO.RaceWith[Any, Any, Any, Any, Any, Any, Any]]
@@ -684,8 +693,8 @@ private[zio] final class FiberContext[E, A](
                         else map.updated(zio.overrideRef1, zio.overrideValue1)
                       } else fiberRefLocals.get
 
-                    platform.logger(logLevel, zio.message, contextMap, spans)
-                    
+                    platform.logger(fiberId, logLevel, zio.message, contextMap, spans)
+
                     curZio = nextInstr(())
                 }
               }
@@ -757,8 +766,8 @@ private[zio] final class FiberContext[E, A](
     forkScope: Option[ZScope[Exit[Any, Any]]] = None,
     reportFailure: Option[Cause[Any] => Unit] = None
   ): FiberContext[E, A] = {
-    val childFiberRefLocals = fiberRefLocals.get.transform { case (fiberRef, value) =>
-      fiberRef.fork(value.asInstanceOf).asInstanceOf[AnyRef]
+    val childFiberRefLocals: Map[FiberRef.Runtime[_], AnyRef] = fiberRefLocals.get.transform { case (fiberRef, value) =>
+      fiberRef.fork(value.asInstanceOf[fiberRef.ValueType]).asInstanceOf[AnyRef]
     }
 
     val tracingRegion = inTracingRegion
