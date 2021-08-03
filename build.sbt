@@ -617,7 +617,8 @@ lazy val docs = project.module
       "io.d11"                        %% "zhttp"                         % "1.0.0.0-RC13",
       "com.coralogix"                 %% "zio-k8s-client"                % "1.3.3",
       "com.softwaremill.sttp.client3" %% "async-http-client-backend-zio" % "3.1.1",
-      "nl.vroste"                     %% "zio-kinesis"                   % "0.20.0"
+      "nl.vroste"                     %% "zio-kinesis"                   % "0.20.0",
+      "com.vladkopanev"               %% "zio-saga-core"                 % "0.4.0"
     )
   )
   .settings(macroExpansionSettings)
