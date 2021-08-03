@@ -2,7 +2,7 @@ package zio.test
 
 import zio.test.Assertion.equalTo
 
-object SnapshotSpec extends ZIOBaseSpec {
+object SnapshotSpec extends SnapshotRunnableSpec {
 
   override def spec: ZSpec[Any, Any] =
     suite("matchSnapshot suite")(

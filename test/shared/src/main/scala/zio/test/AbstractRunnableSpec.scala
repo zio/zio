@@ -25,7 +25,7 @@ import zio.test.ExecutedSpec._
 import zio.{Has, URIO, ZIO}
 
 @EnableReflectiveInstantiation
-abstract class AbstractRunnableSpec extends FileIOPlatformSpecific {
+abstract class AbstractRunnableSpec {
 
   type Environment <: Has[_]
   type Failure
@@ -40,11 +40,6 @@ abstract class AbstractRunnableSpec extends FileIOPlatformSpecific {
   final def run: URIO[TestLogger with Clock, ExecutedSpec[Failure]] =
     runSpec(spec)
 
-  private[test] def snapshotFilePath(path: String, label: String): String = {
-    val lastSlash = path.lastIndexOf('/')
-    s"${path.substring(0, lastSlash)}/__snapshots__${path.substring(lastSlash + 1).stripSuffix(".scala")}/$label"
-  }
-
   /**
    * Returns an effect that executes a given spec, producing the results of the execution.
    */
@@ -52,47 +47,6 @@ abstract class AbstractRunnableSpec extends FileIOPlatformSpecific {
     spec: ZSpec[Environment, Failure]
   ): URIO[TestLogger with Clock, ExecutedSpec[Failure]] =
     runner.run(aspects.foldLeft(spec)(_ @@ _))
-
-  class FixSnapshotsReporter(className: String) extends TestReporter[Failure] {
-
-    override def apply(d: Duration, e: ExecutedSpec[Failure]): URIO[TestLogger, Unit] =
-      fixSnapshot(e, None)
-
-    def fixSnapshot(e: ExecutedSpec[Failure], label: Option[String]): URIO[TestLogger, Unit] =
-      e.caseValue match {
-        case LabeledCase(label, spec) => fixSnapshot(spec, Some(label))
-        case MultipleCase(specs)      => ZIO.foreach_(specs)(fixSnapshot(_, None))
-        case TestCase(Right(_), _) =>
-          TestLogger.logLine(s"Test $label passes, snapshot not updated")
-        case TestCase(
-              Left(TestFailure.Assertion(Value(FailureDetailsResult(FailureDetails(assertion :: Nil), None)))),
-              _
-            ) =>
-          label match {
-            case Some(name) =>
-              writeFile(snapshotFilePath(assertion.sourceLocation.get, label.get), assertion.value.toString).orDie *>
-                TestLogger.logLine(s"$name updated snapshot")
-            case None =>
-              TestLogger.logLine(s"No label for snapshot test")
-          }
-        case TestCase(Left(TestFailure.Assertion(_)), _) =>
-          TestLogger.logLine(s"$label weird state - should not happen - snapshot not updated")
-        case TestCase(Left(TestFailure.Runtime(_)), _) =>
-          TestLogger.logLine(s"Test $label failed in runtime, snapshot not updated")
-      }
-
-  }
-
-  /**
-   * Fixes snapshot file or inline snapshot
-   */
-  private[zio] def fixSnapshot(
-    spec: ZSpec[Environment, Failure],
-    className: String
-  ): URIO[TestLogger with Clock, ExecutedSpec[Failure]] =
-    runner
-      .withReporter(new FixSnapshotsReporter(className))
-      .run(aspects.foldLeft(spec)(_ @@ _))
 
   /**
    * the platform used by the runner

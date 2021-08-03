@@ -1,8 +1,8 @@
 package zio.test.sbt
 
-import sbt.testing.{EventHandler, Logger, Task, TaskDef}
+import sbt.testing.{EventHandler, Logger, Status, Task, TaskDef}
 import zio.clock.Clock
-import zio.test.{AbstractRunnableSpec, FilteredSpec, SummaryBuilder, TestArgs, TestLogger}
+import zio.test.{AbstractRunnableSpec, FilteredSpec, SnapshotRunnableSpec, SummaryBuilder, TestArgs, TestLogger}
 import zio.{Layer, Runtime, UIO, ZIO, ZLayer}
 
 abstract class BaseTestTask(
@@ -23,11 +23,18 @@ abstract class BaseTestTask(
   }
 
   protected def run(eventHandler: EventHandler): ZIO[TestLogger with Clock, Throwable, Unit] =
-    for {
-      spec   <- if(args.fixSnapshots)
-        specInstance.fixSnapshot(FilteredSpec(specInstance.spec, args), taskDef.fullyQualifiedName())
-      else
-        specInstance.runSpec(FilteredSpec(specInstance.spec, args))
+    if(args.fixSnapshots)
+        specInstance match {
+          case snapshotSpec: SnapshotRunnableSpec =>
+            for {
+              spec <- snapshotSpec.fixSnapshot(FilteredSpec(snapshotSpec.spec, args), taskDef.fullyQualifiedName())
+              events  = ZTestEvent.from(spec, taskDef.fullyQualifiedName(), taskDef.fingerprint())
+              _      <- ZIO.foreach(events)(e => ZIO.effect(eventHandler.handle(e.copy(status = Status.Success))))
+            } yield ()
+          case _ => TestLogger.logLine("Not a snapshot spec")
+        }
+    else for {
+      spec <- specInstance.runSpec(FilteredSpec(specInstance.spec, args))
       summary = SummaryBuilder.buildSummary(spec)
       _      <- sendSummary.provide(summary)
       events  = ZTestEvent.from(spec, taskDef.fullyQualifiedName(), taskDef.fingerprint())
