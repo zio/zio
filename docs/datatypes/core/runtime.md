@@ -248,8 +248,8 @@ Users often turn off tracing in critical areas of their application. Also, when 
 import zio.internal.Tracing
 import zio.internal.tracing.TracingConfig
 
-val rt1 = Runtime.default.mapPlatform(_.withTracing(Tracing.disabled))
-val rt2 = Runtime.default.mapPlatform(_.withTracing(Tracing.enabledWith(TracingConfig.stackOnly)))
+val rt1 = Runtime.default.mapPlatform(_.copy(tracing = Tracing.disabled))
+val rt2 = Runtime.default.mapPlatform(_.copy(tracing = Tracing.enabledWith(TracingConfig.stackOnly)))
 
 val config = TracingConfig(
   traceExecution = true,
@@ -273,16 +273,17 @@ import zio.internal.Executor
 import java.util.concurrent.{ThreadPoolExecutor, TimeUnit, LinkedBlockingQueue}
 
 val runtime = Runtime.default.mapPlatform(
-  _.withExecutor(
-    Executor.fromThreadPoolExecutor(_ => 1024)(
-      new ThreadPoolExecutor(
-        5,
-        10,
-        5000,
-        TimeUnit.MILLISECONDS,
-        new LinkedBlockingQueue[Runnable]()
+  _.copy(
+    executor = 
+      Executor.fromThreadPoolExecutor(_ => 1024)(
+        new ThreadPoolExecutor(
+          5,
+          10,
+          5000,
+          TimeUnit.MILLISECONDS,
+          new LinkedBlockingQueue[Runnable]()
+        )
       )
-    )
   )
 )
 ```
