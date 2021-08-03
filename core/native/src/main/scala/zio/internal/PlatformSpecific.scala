@@ -40,7 +40,7 @@ private[internal] trait PlatformSpecific {
    * optional feature and it's not valid to compare the performance of ZIO with
    * enabled Tracing with effect types _without_ a comparable feature.
    */
-  lazy val benchmark: Platform = makeDefault(Int.MaxValue).withReportFailure(_ => ()).withTracing(Tracing.disabled)
+  lazy val benchmark: Platform = makeDefault(Int.MaxValue).copy(reportFailure = _ => (), tracing = Tracing.disabled)
 
   /**
    * The default platform, configured with settings designed to work well for
@@ -85,11 +85,11 @@ private[internal] trait PlatformSpecific {
       supervisor = Supervisor.none,
       enableCurrentFiber = false,
       logger = (
-        fiberId: Fiber.Id,
-        level: LogLevel,
+        _: Fiber.Id,
+        _: LogLevel,
         message: () => String,
-        context: Map[FiberRef.Runtime[_], AnyRef],
-        regions: List[LogSpan]
+        _: Map[FiberRef.Runtime[_], AnyRef],
+        _: List[LogSpan]
       ) =>
         // TODO: Improve me
         println(message())

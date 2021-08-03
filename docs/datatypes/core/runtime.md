@@ -261,7 +261,7 @@ val config = TracingConfig(
   ancestorExecutionTraceLength = 10,
   ancestorStackTraceLength = 10
 )
-val rt3 = Runtime.default.mapPlatform(_.withTracingConfig(config))
+val rt3 = Runtime.default.mapPlatform(platform => platform.copy(tracing = platform.tracing.copy(tracingConfig = config)))
 ```
 
 ### User-defined Executor
