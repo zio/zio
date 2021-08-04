@@ -3,7 +3,7 @@ id: community
 title:  "Community ZIO Libraries"
 ---
 
-List of first-class ZIO support libraries from the community:
+In this section we are going to introduce some of the most important libraries that have first-class ZIO support from the community.
 
 If you know a useful library that has first-class ZIO support, please consider [submitting a pull request](https://github.com/zio/zio/pulls) to add it to this list.
 
