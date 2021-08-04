@@ -619,7 +619,8 @@ lazy val docs = project.module
       "com.softwaremill.sttp.client3" %% "async-http-client-backend-zio" % "3.1.1",
       "nl.vroste"                     %% "zio-kinesis"                   % "0.20.0",
       "com.vladkopanev"               %% "zio-saga-core"                 % "0.4.0",
-      "io.scalac"                     %% "zio-slick-interop"             % "0.3.0"
+      "io.scalac"                     %% "zio-slick-interop"             % "0.3.0",
+      "info.senia"                    %% "zio-test-akka-http"            % "1.0.2"
     )
   )
   .settings(macroExpansionSettings)

@@ -1439,3 +1439,40 @@ object Main extends zio.App {
     myApp.provideCustomLayer(env).exitCode
 }
 ```
+
+## ZIO Test Akka HTTP
+
+[ZIO Test Akka HTTP](https://github.com/senia-psm/zio-test-akka-http) is an Akka-HTTP Route TestKit for zio-test.
+
+### Installation
+
+In order to use this library, we need to add the following line in our `build.sbt` file:
+
+```scala
+libraryDependencies += "info.senia" %% "zio-test-akka-http" % "1.0.2"
+```
+
+### Example
+
+An example of writing Akka HTTP Route test spec:
+
+```scala mdoc:silent:nest
+import akka.http.scaladsl.model.HttpResponse
+import akka.http.scaladsl.server.Directives.complete
+import zio.test.Assertion._
+import zio.test._
+import zio.test.akkahttp.DefaultAkkaRunnableSpec
+
+object MySpec extends DefaultAkkaRunnableSpec {
+  def spec =
+    suite("MySpec")(
+      testM("my test") {
+        assertM(Get() ~> complete(HttpResponse()))(
+          handled(
+            response(equalTo(HttpResponse()))
+          )
+        )
+      }
+    )
+}
+```
