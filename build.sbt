@@ -620,7 +620,7 @@ lazy val docs = project.module
       "nl.vroste"                     %% "zio-kinesis"                   % "0.20.0",
       "com.vladkopanev"               %% "zio-saga-core"                 % "0.4.0",
       "io.scalac"                     %% "zio-slick-interop"             % "0.3.0",
-      "info.senia"                    %% "zio-test-akka-http"            % "1.0.2"
+      "info.senia"                    %% "zio-test-akka-http"            % "1.0.2",
     )
   )
   .settings(macroExpansionSettings)
