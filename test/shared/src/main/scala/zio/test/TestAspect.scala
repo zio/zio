@@ -180,10 +180,10 @@ object TestAspect extends TimeoutVariants {
   /**
    * Constructs an aspect that runs the specified effect before every test.
    */
-  def before[R0, E0](effect: ZIO[R0, Nothing, Any]): TestAspect[Nothing, R0, E0, Any] =
+  def before[R0, E0](effect: ZIO[R0, E0, Any]): TestAspect[Nothing, R0, E0, Any] =
     new TestAspect.PerTest[Nothing, R0, E0, Any] {
-      def perTest[R <: R0, E](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] =
-        effect *> test
+      def perTest[R <: R0, E >: E0](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] =
+        effect.catchAllCause(cause => ZIO.fail(TestFailure.halt(cause))) *> test
     }
 
   /**
