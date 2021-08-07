@@ -327,6 +327,11 @@ object SmartAssertionSpec extends ZIOBaseSpec {
         val l1 = Set(1, 2, 3, 4)
         val l2 = Set(1, 2, 8, 4, 5)
         assertTrue(l1 == l2)
+      } @@ failing,
+      test("Map diffs") {
+        val l1 = Map("name" -> "Kit", "age" -> "100")
+        val l2 = Map("name" -> "Bill", "rage" -> "9000")
+        assertTrue(l1 == l2)
       } @@ failing
     ),
     test("Package qualified identifiers") {
