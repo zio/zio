@@ -60,11 +60,13 @@ trait Runtime[+R] {
   /**
    * Executes the Task/RIO effect synchronously, failing
    * with the original `Throwable` on both [[Cause.Fail]] and [[Cause.Die]].
-   * In addition, appends a new element to the `Throwable`s "caused by" chain,
-   * with this `Cause` "pretty printed" (in stackless mode) as the message.
-   * May fail on Scala.js if the effect cannot be entirely run synchronously.
+   * In addition, appends a new element to the suppressed exceptions of the
+   * `Throwable`, with this `Cause` "pretty printed" (in stackless mode) as the
+   * message. May fail on Scala.js if the effect cannot be entirely run
+   * synchronously.
    *
-   * This method is effectful and should only be done at the edges of your program.
+   * This method is effectful and should only be done at the edges of your
+   * program.
    */
   final def unsafeRunTask[A](task: => RIO[R, A]): A =
     unsafeRunSync(task).fold(cause => throw cause.squashTrace, identity)

@@ -405,10 +405,10 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
       defects.headOption getOrElse (new InterruptedException)
 
   /**
-   * Squashes a `Cause` down to a single `Throwable`, chosen to be the
-   * "most important" `Throwable`.
-   * In addition, appends a new element the to `Throwable`s "caused by" chain,
-   * with this `Cause` "pretty printed" (in stackless mode) as the message.
+   * Squashes a `Cause` down to a single `Throwable`, chosen to be the "most
+   * important" `Throwable`. In addition, appends a new element to the
+   * suppressed exceptions of the `Throwable`, with this `Cause` "pretty
+   * printed" (in stackless mode) as the message.
    */
   final def squashTrace(implicit ev: E <:< Throwable): Throwable =
     squashTraceWith(ev)
