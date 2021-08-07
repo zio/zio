@@ -1211,7 +1211,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
   /**
    * Returns the empty chunk.
    */
-  val empty: Chunk[Nothing] =
+  override def empty[A]: Chunk[A] =
     Empty
 
   /**

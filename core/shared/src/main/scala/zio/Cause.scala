@@ -540,7 +540,7 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
 }
 
 object Cause extends Serializable {
-  val empty: Cause[Nothing]                               = Internal.Empty
+  def empty[A]: Cause[A]                                  = Internal.Empty
   def die(defect: Throwable): Cause[Nothing]              = Internal.Die(defect)
   def fail[E](error: E): Cause[E]                         = Internal.Fail(error)
   def interrupt(fiberId: Fiber.Id): Cause[Nothing]        = Internal.Interrupt(fiberId)
