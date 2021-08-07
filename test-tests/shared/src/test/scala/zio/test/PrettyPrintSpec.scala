@@ -45,7 +45,7 @@ Person(
           Person("Glenda", 123)
         ) == expected
       )
-    }
+    } @@ TestAspect.exceptScala211 @@ TestAspect.exceptScala212
   )
 
 }
