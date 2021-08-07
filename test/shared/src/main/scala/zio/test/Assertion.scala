@@ -208,7 +208,7 @@ object Assertion extends AssertionVariants {
    * Makes a new assertion that requires an exception to have a certain message.
    */
   def hasMessage(message: Assertion[String]): Assertion[Throwable] =
-    Assertion.assertionRec("hasMessage")(param(message))(message)(th => Option(th.getMessage))
+    Assertion.assertionRec("hasMessage")(param(message))(message)(th => Some(th.getMessage))
 
   /**
    * Makes a new assertion that requires an exception to have a certain cause.
