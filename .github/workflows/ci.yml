@@ -73,7 +73,7 @@ jobs:
       if: ${{ !startsWith(matrix.scala, '3.0.') && matrix.platform == 'Native' && matrix.java != '17' }}
       run: sbt ++${{ matrix.scala }}! testNative
     - name: Test on Java 17
-      if: ${{ startsWith(matrix.scala, '2.13.') && matrix.platform != 'JVM' && matrix.java == '17' }}
+      if: ${{ startsWith(matrix.scala, '2.13.') && matrix.platform == 'JVM' && matrix.java == '17' }}
       run: sbt ++${{ matrix.scala }}! test${{ matrix.platform }}
 
   ci:
