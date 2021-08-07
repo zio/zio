@@ -79,6 +79,9 @@ title:  "Videos"
 - [ZIO WORLD - ZIO Prelude](https://www.youtube.com/watch?v=69ngoqVXKPI) by Jorge Vasquez (March 2020) — In this talk, Jorge Vasques discusses his work bringing refined newtypes to ZIO Prelude, which are working natively on Scala 3 with a beautiful syntax and DSL.
 - [Zymposium - ZIO Prelude](https://www.youtube.com/watch?v=M3HmROwOoRU) by Adam Fraser and Kit Langton (May 2021) — We'll see how ZIO Prelude gives us the tools for solving some common problems in day-to-day development. We'll also see how ZIO Prelude provides a set of abstractions we can use for inspiration when implementing our own data types but never forces us to use these abstractions.
 
+### ZIO Query
+- [Wicked Fast API Calls with ZIO Query](https://www.youtube.com/watch?v=rUUxDXJMzJo) by Adam Fraser (July 2020) (https://www.youtube.com/watch?v=rUUxDXJMzJo)
+
 ### ZIO Cache
 - [Compositional Caching](https://www.youtube.com/watch?v=iFeTUhYpPLs) by Adam Fraser (December 2020) — In this talk, Adam will introduce ZIO Cache, a new library in the ZIO ecosystem that provides a drop-in caching solution for ZIO applications. We will see how ZIO’s support for asynchrony and concurrent lets us implement a cache in terms of a single lookup function and how we get many other things such as typed errors and compositional caching policies for free. See how easy it can be to add caching to your ZIO application!
 
