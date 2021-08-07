@@ -16,7 +16,6 @@
 
 package zio.internal
 
-import com.github.ghik.silencer.silent
 import zio.internal.stacktracer.Tracer
 import zio.internal.tracing.TracingConfig
 import zio.{Cause, Supervisor}
