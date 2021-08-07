@@ -16,10 +16,7 @@
 
 package zio
 
-import zio.internal.Platform
-
 import scala.annotation.tailrec
-import scala.util.control.NonFatal
 
 sealed abstract class Cause[+E] extends Product with Serializable { self =>
   import Cause.Internal._
@@ -520,22 +517,9 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
   }
 
   private def attachTrace(e: Throwable): Throwable = {
-    val rootCause = rootCauseOf(e)
-    val trace     = Cause.FiberTrace(Cause.stackless(this).prettyPrint)
-    try {
-      // this may fail on JVM (if cause was null and not this), but shouldn't fail on JS/Native
-      rootCause.initCause(trace)
-    } catch {
-      case NonFatal(_) => Platform.forceThrowableCause(rootCause, trace)
-    }
+    val trace = Cause.FiberTrace(Cause.stackless(this).prettyPrint)
+    e.addSuppressed(trace)
     e
-  }
-
-  @tailrec
-  private def rootCauseOf(e: Throwable): Throwable = {
-    val cause = e.getCause
-    if (cause == null || cause.eq(e)) e
-    else rootCauseOf(cause)
   }
 }
 
