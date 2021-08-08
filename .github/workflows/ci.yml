@@ -20,11 +20,11 @@ jobs:
     - name: Checkout current branch
       uses: actions/checkout@v2.3.4
     - name: Setup Scala and Java
-      uses: olafurpg/setup-scala@v12
+      uses: olafurpg/setup-scala@v13
     - name: Cache scala dependencies
       uses: coursier/cache-action@v6
     - name: Lint code
-      run: sbt check
+      run: ./sbt check
 
   mdoc:
     runs-on: ubuntu-20.04
@@ -33,11 +33,11 @@ jobs:
       - name: Checkout current branch
         uses: actions/checkout@v2.3.4
       - name: Setup Scala and Java
-        uses: olafurpg/setup-scala@v12
+        uses: olafurpg/setup-scala@v13
       - name: Cache scala dependencies
         uses: coursier/cache-action@v6
       - name: Check Document Generation
-        run: sbt mdoc
+        run: ./sbt mdoc
         
   test:
     runs-on: ubuntu-20.04
@@ -52,26 +52,26 @@ jobs:
     - name: Checkout current branch
       uses: actions/checkout@v2.3.4
     - name: Setup Scala and Java
-      uses: olafurpg/setup-scala@v12
+      uses: olafurpg/setup-scala@v13
       with:
         java-version: ${{ matrix.java }}
     - name: Cache scala dependencies
       uses: coursier/cache-action@v6
     - name: Mima Checks
       if: ${{ !startsWith(matrix.scala, '2.11.') && !startsWith(matrix.scala, '3.0.') && matrix.platform == 'JVM' }}
-      run: sbt ++${{ matrix.scala }}! mimaChecks
+      run: ./sbt ++${{ matrix.scala }}! mimaChecks
     - name: Test 2.11.x
       if: ${{ startsWith(matrix.scala, '2.11.') && contains(matrix.java, '1.8') && matrix.platform != 'Native' }}
-      run: sbt ++${{ matrix.scala }}! test${{ matrix.platform }}211
+      run: ./sbt ++${{ matrix.scala }}! test${{ matrix.platform }}211
     - name: Test 2.12.x and 2.13.x
       if: ${{ !startsWith(matrix.scala, '2.11.') && !startsWith(matrix.scala, '3.0.') && matrix.platform != 'Native' }}
-      run: sbt ++${{ matrix.scala }}! test${{ matrix.platform }}
+      run: ./sbt ++${{ matrix.scala }}! test${{ matrix.platform }}
     - name: Test 3.x
       if: ${{ startsWith(matrix.scala, '3.0.') && contains(matrix.java, '1.8') && matrix.platform != 'Native' }}
-      run: sbt ++${{ matrix.scala }}! test${{ matrix.platform }}Dotty
+      run: ./sbt ++${{ matrix.scala }}! test${{ matrix.platform }}Dotty
     - name: Test native
       if: ${{ !startsWith(matrix.scala, '3.0.') && matrix.platform == 'Native' }}
-      run: sbt ++${{ matrix.scala }}! testNative
+      run: ./sbt ++${{ matrix.scala }}! testNative
 
   ci:
     runs-on: ubuntu-20.04
@@ -91,9 +91,9 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup Scala and Java
-        uses: olafurpg/setup-scala@v12
+        uses: olafurpg/setup-scala@v13
       - name: Release
-        run: sbt ci-release
+        run: ./sbt ci-release
         env:
           PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
           PGP_SECRET: ${{ secrets.PGP_SECRET }}
