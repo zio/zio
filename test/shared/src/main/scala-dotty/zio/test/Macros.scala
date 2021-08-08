@@ -137,7 +137,7 @@ class SmartAssertMacros(ctx: Quotes)  {
     val ast = transform(value)
 
     val arrow = ast.asExprOf[Arrow[Any, Boolean]]
-    '{Assert($arrow.withCode(${Expr(code)}).withLocation(${Expr(srcLocation)}))}
+    '{Assert($arrow.withCode(${Expr(code)}).withLocation)}
   }
 
   def smartAssert_impl(values: Expr[Seq[Boolean]]): Expr[Assert] = {
