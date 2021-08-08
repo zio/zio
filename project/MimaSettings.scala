@@ -17,8 +17,7 @@ object MimaSettings {
         exclude[ReversedMissingMethodProblem](
           "zio.ZManagedPlatformSpecific.zio$ZManagedPlatformSpecific$_setter_$blocking_="
         ),
-        exclude[ReversedMissingMethodProblem]("zio.ZManagedPlatformSpecific.blocking"),
-
+        exclude[ReversedMissingMethodProblem]("zio.ZManagedPlatformSpecific.blocking")
       ),
       mimaFailOnProblem := failOnProblem
     )
