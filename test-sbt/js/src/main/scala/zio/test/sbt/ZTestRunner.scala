@@ -141,10 +141,10 @@ final class ZTestTask(
               AnsiColor.YELLOW +
                 s"WARNING: could not share layers with ${taskDef.fullyQualifiedName()}${AnsiColor.RESET}\n" +
                 "ScalaJS tests are run in several different VM instances, when " +
-                "executed in parallel, therefore it's not possible to provide them " +
+                "executed in parallel, therefore it is not possible to provide them " +
                 "the same shared layer. Make sure to run ScalaJS tests sequentially " +
                 "if you want to share layers among them.\n" +
-                "You may want to consider adding to your project settings in build.sbt" +
+                "You may want to consider adding to your project settings in build.sbt " +
                 "the following line:\n" +
                 "Test / parallelExecution := false"
             )

@@ -93,7 +93,7 @@ final class ZTestTask(
   sendSummary: SendSummary,
   testArgs: TestArgs,
   specInstance0: AbstractRunnableSpec,
-  layerCache: CustomSpecLayerCache
+  private[sbt] val layerCache: CustomSpecLayerCache
 ) extends BaseTestTask(
       taskDef,
       sendSummary,
@@ -104,13 +104,12 @@ final class ZTestTask(
   override def execute(eventHandler: EventHandler, loggers: Array[Logger]): Array[Task] =
     try {
       Runtime((), specInstance.platform).unsafeRun {
-        layerCache.awaitAvailable *>
-          layerCache.getEnvironment(specInstance.sharedLayer).flatMap { env =>
-            run(eventHandler)
-              .provideSomeLayer[specInstance.SharedEnvironment](sbtTestLayer(loggers))
-              .provide(env)
-              .onError(e => UIO(println(e.prettyPrint)))
-          }
+        layerCache.getEnvironment(specInstance.sharedLayer).flatMap { env =>
+          run(eventHandler)
+            .provideSomeLayer[specInstance.SharedEnvironment](sbtTestLayer(loggers))
+            .provide(env)
+            .onError(e => UIO(println(e.prettyPrint)))
+        }
       }
       Array()
     } catch {

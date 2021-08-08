@@ -20,12 +20,11 @@ import zio.test.{
   suite,
   testM
 }
-import zio.{Ref, Runtime, UIO, ZIO}
+import zio.{Has, Ref, UIO, ZIO, ZLayer}
 
 import java.util.regex.Pattern
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Try
-import zio.{Has, ZLayer}
 
 object ZTestFrameworkSpec {
 
@@ -143,7 +142,7 @@ object ZTestFrameworkSpec {
           UIO.succeed(Summary(1, 0, 0, "foo")) >>> zTestTask.sendSummary,
           TestArgs.empty,
           SimpleFailingSpec,
-          Runtime.default.unsafeRun(CustomSpecLayerCache.make)
+          zTestTask.layerCache
         )
       }
       .head
@@ -165,7 +164,7 @@ object ZTestFrameworkSpec {
           UIO.succeed(Summary(0, 0, 0, "foo")) >>> zTestTask.sendSummary,
           TestArgs.empty,
           SimpleFailingSpec,
-          Runtime.default.unsafeRun(CustomSpecLayerCache.make)
+          zTestTask.layerCache
         )
       }
       .head
