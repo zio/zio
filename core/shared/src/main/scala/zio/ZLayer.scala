@@ -210,10 +210,9 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    * Retries constructing this layer according to the specified schedule.
    */
   final def retry[RIn1 <: RIn with Has[Clock]](schedule: Schedule[RIn1, E, Any]): ZLayer[RIn1, E, ROut] = {
-    import Schedule.StepFunction
     import Schedule.Decision._
 
-    type S = StepFunction[RIn1, E, Any]
+    type S = schedule.State
 
     lazy val loop: ZLayer[(RIn1, S), E, ROut] =
       (ZLayer.first >>> self).catchAll {
@@ -221,16 +220,16 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
           ZLayer.fromFunctionManyZIO { case ((r, s), e) =>
             Clock.currentDateTime
               .flatMap(now =>
-                s(now, e).flatMap {
-                  case Done(_)                     => ZIO.fail(e)
-                  case Continue(_, interval, next) => Clock.sleep(Duration.fromInterval(now, interval)) as ((r, next))
+                schedule.step(now, e, s).flatMap {
+                  case (_, _, Done)                   => ZIO.fail(e)
+                  case (state, _, Continue(interval)) => Clock.sleep(Duration.fromInterval(now, interval)) as ((r, state))
                 }
               )
               .provide(r)
           }
         update >>> ZLayer.suspend(loop.fresh)
       }
-    ZLayer.identity <&> ZLayer.fromZIOMany(ZIO.succeed(schedule.step)) >>> loop
+    ZLayer.identity <&> ZLayer.fromZIOMany(ZIO.succeed(schedule.initial)) >>> loop
   }
 
   /**

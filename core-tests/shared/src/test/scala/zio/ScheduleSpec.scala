@@ -125,9 +125,9 @@ object ScheduleSpec extends ZIOBaseSpec {
         assertM(scheduled)(equalTo(expected))
       } @@ timeout(1.seconds),
       test("respect Schedule.recurs even if more input is provided than needed") {
-        val schedule  = Schedule.recurs(2) && Schedule.exponential(1.minute)
-        val scheduled = Clock.currentDateTime.flatMap(schedule.run(_, 1 to 10))
-        val expected  = Chunk((0L, 1.minute), (1L, 2.minute), (2L, 4.minute))
+        val schedule: Schedule[Any, Any, (Long, Duration)] = Schedule.recurs(2) && Schedule.exponential(1.minute)
+        val scheduled                                      = Clock.currentDateTime.flatMap(schedule.run(_, 1 to 10))
+        val expected                                       = Chunk((0L, 1.minute), (1L, 2.minute), (2L, 4.minute))
         assertM(scheduled)(equalTo(expected))
       },
       test("respect Schedule.upTo even if more input is provided than needed") {
@@ -519,7 +519,7 @@ object ScheduleSpec extends ZIOBaseSpec {
       def schedule[A](ref: Ref[Int]) =
         Schedule
           .recurs(3)
-          .onDecision(_ => ref.update(_ + 1))
+          .onDecision { case _ => ref.update(_ + 1) }
 
       for {
         ref <- Ref.make(0)
@@ -553,7 +553,8 @@ object ScheduleSpec extends ZIOBaseSpec {
       }(equalTo(10))
     },
     test("union of two schedules should continue as long as either wants to continue") {
-      val schedule = Schedule.recurWhile[Boolean](_ == true) || Schedule.fixed(1.second)
+      val schedule: Schedule[Any, Boolean, (Boolean, Long)] =
+        Schedule.recurWhile[Boolean](_ == true) || Schedule.fixed(1.second)
       assertM(run(schedule >>> Schedule.elapsed)(List(true, false, false, false, false)))(
         equalTo(Chunk(0, 0, 1, 2, 3).map(_.seconds))
       )
@@ -566,24 +567,6 @@ object ScheduleSpec extends ZIOBaseSpec {
       val scheduleIntervals = runManually(Schedule.fixed(5.seconds), inputs).map(_._1.map(_._1))
 
       assertM(scheduleIntervals)(equalTo(List(offsetDateTime(5000), offsetDateTime(10000))))
-    },
-    test("Schedule.unwrap should return a Schedule out of an effect") {
-      val effect   = ZIO.succeed(5).map(Schedule.recurs)
-      val schedule = Schedule.unwrap(effect)
-
-      checkRepeat(schedule, expected = 5)
-    },
-    zio.test.test("provideCustomLayer provides the part of the environment that is not part of the `ZEnv`") {
-      val loggingLayer: ZLayer[Any, Nothing, Logging]      = Logging.live
-      val schedule: Schedule[ZEnv with Logging, Any, Unit] = Schedule.once
-      val schedule2: Schedule[ZEnv, Any, Unit]             = schedule.provideCustomLayer(loggingLayer)
-      assert(schedule2)(anything)
-    },
-    zio.test.test("provideSomeLayer can split environment into two parts") {
-      val clockLayer: ZLayer[Any, Nothing, Has[Clock]]               = Clock.live
-      val schedule: Schedule[Has[Clock] with Has[Random], Any, Unit] = Schedule.once
-      val schedule2: Schedule[Has[Random], Any, Unit]                = schedule.provideSomeLayer[Has[Random]](clockLayer)
-      assert(schedule2)(anything)
     }
   )
 
@@ -633,21 +616,21 @@ object ScheduleSpec extends ZIOBaseSpec {
   ): ZIO[Env, Nothing, (List[(OffsetDateTime, Out)], Option[Out])] = {
 
     def loop(
-      step: Schedule.StepFunction[Env, In, Out],
+      state: schedule.State,
       inputs: List[(OffsetDateTime, In)],
       acc: List[(OffsetDateTime, Out)]
     ): ZIO[Env, Nothing, (List[(OffsetDateTime, Out)], Option[Out])] =
       inputs match {
         case Nil => UIO.succeed(acc.reverse -> None)
         case (odt, in) :: rest =>
-          step(odt, in) flatMap {
-            case Schedule.Decision.Done(out) => UIO.succeed(acc.reverse -> Some(out))
-            case Schedule.Decision.Continue(out, interval, step) =>
-              loop(step, rest, (interval -> out) :: acc)
+          schedule.step(odt, in, state) flatMap {
+            case (state, out, Schedule.Decision.Done) => UIO.succeed(acc.reverse -> Some(out))
+            case (state, out, Schedule.Decision.Continue(interval)) =>
+              loop(state, rest, (interval -> out) :: acc)
           }
       }
 
-    loop(schedule.step, inputs, Nil)
+    loop(schedule.initial, inputs, Nil)
   }
 
   def checkRepeat[B](schedule: Schedule[Any, Int, B], expected: B): ZIO[Has[Clock], Nothing, TestResult] =
