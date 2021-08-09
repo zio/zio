@@ -413,7 +413,10 @@ object ZQueue {
         isShutdown: AtomicBoolean
       ): UIO[Boolean]
 
-      def unsafeOnQueueEmptySpace(queue: MutableConcurrentQueue[A]): Unit
+      def unsafeOnQueueEmptySpace(
+        queue: MutableConcurrentQueue[A],
+        takers: MutableConcurrentQueue[Promise[Nothing, A]]
+      ): Unit
 
       def surplusSize: Int
 
@@ -437,7 +440,7 @@ object ZQueue {
                 unsafeOfferAll(takers, taker :: unsafePollAll(takers))
               case a =>
                 unsafeCompletePromise(taker, a)
-                unsafeOnQueueEmptySpace(queue)
+                unsafeOnQueueEmptySpace(queue, takers)
             }
             keepPolling = true
           }
@@ -470,7 +473,10 @@ object ZQueue {
         }
       }
 
-      def unsafeOnQueueEmptySpace(queue: MutableConcurrentQueue[A]): Unit = ()
+      def unsafeOnQueueEmptySpace(
+        queue: MutableConcurrentQueue[A],
+        takers: MutableConcurrentQueue[Promise[Nothing, A]]
+      ): Unit = ()
 
       def surplusSize: Int = 0
 
@@ -486,7 +492,10 @@ object ZQueue {
         isShutdown: AtomicBoolean
       ): UIO[Boolean] = IO.succeedNow(false)
 
-      def unsafeOnQueueEmptySpace(queue: MutableConcurrentQueue[A]): Unit = ()
+      def unsafeOnQueueEmptySpace(
+        queue: MutableConcurrentQueue[A],
+        takers: MutableConcurrentQueue[Promise[Nothing, A]]
+      ): Unit = ()
 
       def surplusSize: Int = 0
 
@@ -515,7 +524,7 @@ object ZQueue {
 
           UIO.effectSuspendTotal {
             unsafeOffer(as, p)
-            unsafeOnQueueEmptySpace(queue)
+            unsafeOnQueueEmptySpace(queue, takers)
             unsafeCompleteTakers(queue, takers)
             if (isShutdown.get) ZIO.interrupt else p.await
           }.onInterrupt(IO.effectTotal(unsafeRemove(p)))
@@ -533,7 +542,10 @@ object ZQueue {
             unsafeOffer(tail, p)
         }
 
-      def unsafeOnQueueEmptySpace(queue: MutableConcurrentQueue[A]): Unit = {
+      def unsafeOnQueueEmptySpace(
+        queue: MutableConcurrentQueue[A],
+        takers: MutableConcurrentQueue[Promise[Nothing, A]]
+      ): Unit = {
         val empty       = null.asInstanceOf[(A, Promise[Nothing, Boolean], Boolean)]
         var keepPolling = true
 
@@ -546,6 +558,7 @@ object ZQueue {
               unsafeCompletePromise(putter._2, true)
             else if (!offered)
               unsafeOfferAll(putters, putter :: unsafePollAll(putters))
+            unsafeCompleteTakers(queue, takers)
           }
         }
       }
@@ -668,7 +681,7 @@ object ZQueue {
               }.onInterrupt(removeTaker(p))
 
             case item =>
-              strategy.unsafeOnQueueEmptySpace(queue)
+              strategy.unsafeOnQueueEmptySpace(queue, takers)
               IO.succeedNow(item)
           }
         }
@@ -681,7 +694,7 @@ object ZQueue {
         else
           IO.effectTotal {
             val as = unsafePollAll(queue)
-            strategy.unsafeOnQueueEmptySpace(queue)
+            strategy.unsafeOnQueueEmptySpace(queue, takers)
             as
           }
       }
@@ -693,7 +706,7 @@ object ZQueue {
         else
           IO.effectTotal {
             val as = unsafePollN(queue, max)
-            strategy.unsafeOnQueueEmptySpace(queue)
+            strategy.unsafeOnQueueEmptySpace(queue, takers)
             as
           }
       }
