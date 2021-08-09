@@ -45,9 +45,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        java: ['adopt@1.8', 'adopt@1.11', '17']
+        java: ['8']
         scala: ['2.11.12', '2.12.13', '2.13.6', '3.0.1']
-        platform: ['JVM', 'JS', 'Native']
+        platform: ['JVM']
     steps:
     - name: Checkout current branch
       uses: actions/checkout@v2.3.4
@@ -58,23 +58,36 @@ jobs:
     - name: Cache scala dependencies
       uses: coursier/cache-action@v6
     - name: Mima Checks
-      if: ${{ !startsWith(matrix.scala, '2.11.') && !startsWith(matrix.scala, '3.0.') && matrix.platform == 'JVM' && matrix.java != '17' }}
       run: ./sbt ++${{ matrix.scala }}! mimaChecks
     - name: Test 2.11.x
-      if: ${{ startsWith(matrix.scala, '2.11.') && contains(matrix.java, '1.8') && matrix.platform != 'Native' }}
+      if: ${{ startsWith(matrix.scala, '2.11.') }}
       run: ./sbt ++${{ matrix.scala }}! test${{ matrix.platform }}211
     - name: Test 2.12.x and 2.13.x
-      if: ${{ !startsWith(matrix.scala, '2.11.') && !startsWith(matrix.scala, '3.0.') && matrix.platform != 'Native' && matrix.java != '17' }}
+      if: ${{ !startsWith(matrix.scala, '2.11.') && !startsWith(matrix.scala, '3.0.') }}
       run: ./sbt ++${{ matrix.scala }}! test${{ matrix.platform }}
     - name: Test 3.x
-      if: ${{ startsWith(matrix.scala, '3.0.') && contains(matrix.java, '1.8') && matrix.platform != 'Native' }}
+      if: ${{ startsWith(matrix.scala, '3.0.') }}
       run: ./sbt ++${{ matrix.scala }}! test${{ matrix.platform }}Dotty
-    - name: Test native
-      if: ${{ !startsWith(matrix.scala, '3.0.') && matrix.platform == 'Native' && matrix.java != '17' }}
-      run: ./sbt ++${{ matrix.scala }}! testNative
-    - name: Test on Java 17
-      if: ${{ startsWith(matrix.scala, '2.13.') && matrix.platform == 'JVM' && matrix.java == '17' }}
-      run: sbt ++${{ matrix.scala }}! test${{ matrix.platform }}
+
+  testJvmsPlatforms:
+    runs-on: ubuntu-20.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        java: ['8', '11', '17']
+        platform: ['JVM', 'JS', 'Native']
+    steps:
+      - name: Checkout current branch
+        uses: actions/checkout@v2.3.4
+      - name: Setup Scala and Java
+        uses: olafurpg/setup-scala@v13
+        with:
+          java-version: ${{ matrix.java }}
+      - name: Cache scala dependencies
+        uses: coursier/cache-action@v6
+      - name: Test on different JVM versions and Scala target platforms
+        run: ./sbt test${{ matrix.platform }}
 
   ci:
     runs-on: ubuntu-20.04
