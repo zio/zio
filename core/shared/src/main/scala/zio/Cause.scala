@@ -16,10 +16,7 @@
 
 package zio
 
-import zio.internal.Platform
-
 import scala.annotation.tailrec
-import scala.util.control.NonFatal
 
 sealed abstract class Cause[+E] extends Product with Serializable { self =>
   import Cause.Internal._
@@ -408,10 +405,10 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
       defects.headOption getOrElse (new InterruptedException)
 
   /**
-   * Squashes a `Cause` down to a single `Throwable`, chosen to be the
-   * "most important" `Throwable`.
-   * In addition, appends a new element the to `Throwable`s "caused by" chain,
-   * with this `Cause` "pretty printed" (in stackless mode) as the message.
+   * Squashes a `Cause` down to a single `Throwable`, chosen to be the "most
+   * important" `Throwable`. In addition, appends a new element to the
+   * suppressed exceptions of the `Throwable`, with this `Cause` "pretty
+   * printed" (in stackless mode) as the message.
    */
   final def squashTrace(implicit ev: E <:< Throwable): Throwable =
     squashTraceWith(ev)
@@ -520,22 +517,9 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
   }
 
   private def attachTrace(e: Throwable): Throwable = {
-    val rootCause = rootCauseOf(e)
-    val trace     = Cause.FiberTrace(Cause.stackless(this).prettyPrint)
-    try {
-      // this may fail on JVM (if cause was null and not this), but shouldn't fail on JS/Native
-      rootCause.initCause(trace)
-    } catch {
-      case NonFatal(_) => Platform.forceThrowableCause(rootCause, trace)
-    }
+    val trace = Cause.FiberTrace(Cause.stackless(this).prettyPrint)
+    e.addSuppressed(trace)
     e
-  }
-
-  @tailrec
-  private def rootCauseOf(e: Throwable): Throwable = {
-    val cause = e.getCause
-    if (cause == null || cause.eq(e)) e
-    else rootCauseOf(cause)
   }
 }
 

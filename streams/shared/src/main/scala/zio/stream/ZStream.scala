@@ -1445,14 +1445,15 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                                              )
                                          }
                                        }
-                   innerStream = ZStream
-                                   .managed(withPermitManaged)
-                                   .tap(_ => latch.succeed(()))
-                                   .flatMap(_ => f(a))
-                                   .foreachChunk(b => out.offer(UIO.succeedNow(b)).unit)
-                                   .foldCauseM(
-                                     cause => out.offer(Pull.halt(cause)) *> innerFailure.fail(cause).unit,
-                                     _ => ZIO.unit
+                   innerStream = withPermitManaged
+                                   .tap(_ => latch.succeed(()).toManaged_)
+                                   .use_(
+                                     f(a)
+                                       .foreachChunk(b => out.offer(UIO.succeedNow(b)).unit)
+                                       .foldCauseM(
+                                         cause => out.offer(Pull.halt(cause)) *> innerFailure.fail(cause),
+                                         _ => ZIO.unit
+                                       )
                                    )
                    _ <- innerStream.fork
                    // Make sure that the current inner stream has actually succeeded in acquiring
@@ -1506,14 +1507,15 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                    _ <- if (size < n) UIO.unit
                         else cancelers.take.flatMap(_.succeed(())).unit
                    _ <- cancelers.offer(canceler)
-                   innerStream = ZStream
-                                   .managed(permits.withPermitManaged)
-                                   .tap(_ => latch.succeed(()))
-                                   .flatMap(_ => f(a))
-                                   .foreachChunk(o2s => out.offer(UIO.succeedNow(o2s)).unit)
-                                   .foldCauseM(
-                                     cause => out.offer(Pull.halt(cause)) *> innerFailure.fail(cause).unit,
-                                     _ => UIO.unit
+                   innerStream = permits.withPermitManaged
+                                   .tap(_ => latch.succeed(()).toManaged_)
+                                   .use(_ =>
+                                     f(a)
+                                       .foreachChunk(o2s => out.offer(UIO.succeedNow(o2s)).unit)
+                                       .foldCauseM(
+                                         cause => out.offer(Pull.halt(cause)) *> innerFailure.fail(cause).unit,
+                                         _ => UIO.unit
+                                       )
                                    )
                    _ <- (innerStream race canceler.await).fork
                    _ <- latch.await
