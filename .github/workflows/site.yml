@@ -13,8 +13,8 @@ jobs:
       - name: Checkout current branch
         uses: actions/checkout@v2
       - name: Setup Scala and Java
-        uses: olafurpg/setup-scala@v12
+        uses: olafurpg/setup-scala@v13
       - name: Publish Github pages
-        run: sbt docs/docusaurusPublishGhpages
+        run: ./sbt docs/docusaurusPublishGhpages
         env:
           GIT_DEPLOY_KEY: ${{ secrets.GIT_DEPLOY_KEY }}
