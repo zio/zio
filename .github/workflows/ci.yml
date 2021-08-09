@@ -58,6 +58,7 @@ jobs:
     - name: Cache scala dependencies
       uses: coursier/cache-action@v6
     - name: Mima Checks
+      if: ${{ !startsWith(matrix.scala, '3.0.') }}
       run: ./sbt ++${{ matrix.scala }}! mimaChecks
     - name: Test 2.11.x
       if: ${{ startsWith(matrix.scala, '2.11.') }}
