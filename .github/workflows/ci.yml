@@ -69,13 +69,33 @@ jobs:
       if: ${{ startsWith(matrix.scala, '3.0.') }}
       run: ./sbt ++${{ matrix.scala }}! test${{ matrix.platform }}Dotty
 
-  testJvmsPlatforms:
+  testJvms:
     runs-on: ubuntu-20.04
     timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
         java: ['8', '11', '17']
+        platform: ['JVM']
+    steps:
+      - name: Checkout current branch
+        uses: actions/checkout@v2.3.4
+      - name: Setup Scala and Java
+        uses: olafurpg/setup-scala@v13
+        with:
+          java-version: ${{ matrix.java }}
+      - name: Cache scala dependencies
+        uses: coursier/cache-action@v6
+      - name: Test on different JVM versions
+        run: ./sbt test${{ matrix.platform }}
+
+  testPlatforms:
+    runs-on: ubuntu-20.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        java: ['8']
         platform: ['JVM', 'JS', 'Native']
     steps:
       - name: Checkout current branch
@@ -86,12 +106,12 @@ jobs:
           java-version: ${{ matrix.java }}
       - name: Cache scala dependencies
         uses: coursier/cache-action@v6
-      - name: Test on different JVM versions and Scala target platforms
+      - name: Test on different Scala target platforms
         run: ./sbt test${{ matrix.platform }}
 
   ci:
     runs-on: ubuntu-20.04
-    needs: [lint, mdoc, test, testJvmsPlatforms]
+    needs: [lint, mdoc, test, testJvms, testPlatforms]
     steps:
       - name: Aggregate of lint, mdoc and all tests
         run: echo "ci passed"
