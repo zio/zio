@@ -80,7 +80,7 @@ private[internal] trait PlatformSpecific {
     new Platform {
       val executor = executor0
 
-      val yieldOnStart = true
+      override val yieldOnStart = true
 
       val tracing = Tracing(Tracer.globallyCached(new AkkaLineNumbersTracer), TracingConfig.enabled)
 
