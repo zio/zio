@@ -91,7 +91,7 @@ jobs:
 
   ci:
     runs-on: ubuntu-20.04
-    needs: [lint, mdoc, test]
+    needs: [lint, mdoc, test, testJvmsPlatforms]
     steps:
       - name: Aggregate of lint, mdoc and all tests
         run: echo "ci passed"
