@@ -1540,6 +1540,59 @@ object ZManagedSpec extends ZIOBaseSpec {
         } yield res1 && res2 && res3
       } @@ zioTag(interruption)
     ),
+    suite("memoize")(
+      test("resources are properly acquired and released") {
+        for {
+          ref <- Ref.make[Map[Int, (Int, Int)]](Map.empty)
+          acquire = (n: Int) =>
+                      ref.update { map =>
+                        map.getOrElse(n, (0, 0)) match {
+                          case (acquired, released) => map + (n -> ((acquired + 1, released)))
+                        }
+                      }
+          release = (n: Int) =>
+                      ref.update { map =>
+                        map.getOrElse(n, (0, 0)) match {
+                          case (acquired, released) => map + (n -> ((acquired, released + 1)))
+                        }
+                      }
+          managed = (n: Int) => ZManaged.acquireRelease(acquire(n))(release(n))
+          _ <- ZManaged.memoize(managed).use { memoized =>
+                 ZIO.foreachParDiscard(0 to 100)(n => memoized(n % 8))
+               }
+          map <- ref.get
+        } yield assert(map.keys)(equalTo(Set(0, 1, 2, 3, 4, 5, 6, 7))) &&
+          assert(map.values.map(_._1))(forall(equalTo(1))) &&
+          assert(map.values.map(_._2))(forall(equalTo(1)))
+      },
+      test("resources are properly released in the event of interruption") {
+        for {
+          ref <- Ref.make[Map[Int, (Int, Int)]](Map.empty)
+          acquire = (n: Int) =>
+                      ref.update { map =>
+                        map.getOrElse(n, (0, 0)) match {
+                          case (acquired, released) => map + (n -> ((acquired + 1, released)))
+                        }
+                      }
+          release = (n: Int) =>
+                      ref.update { map =>
+                        map.getOrElse(n, (0, 0)) match {
+                          case (acquired, released) => map + (n -> ((acquired, released + 1)))
+                        }
+                      }
+          managed = (n: Int) => ZManaged.acquireRelease(acquire(n))(release(n))
+          fiber <- ZManaged
+                     .memoize(managed)
+                     .use { memoized =>
+                       ZIO.foreachParDiscard(0 to 100)(n => memoized(n % 8) *> ZIO.never)
+                     }
+                     .fork
+          _   <- fiber.interrupt
+          map <- ref.get
+        } yield assert(map.values.map(_._1))(forall(equalTo(1))) &&
+          assert(map.values.map(_._2))(forall(equalTo(1)))
+      }
+    ),
     suite("merge")(
       test("on flipped result") {
         val managed: Managed[Int, Int] = ZManaged.succeed(1)

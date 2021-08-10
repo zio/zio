@@ -211,6 +211,13 @@ object Assertion extends AssertionVariants {
     Assertion.assertionRec("hasMessage")(param(message))(message)(th => Some(th.getMessage))
 
   /**
+   * Makes a new assertion that requires an exception to have certain
+   * suppressed exceptions.
+   */
+  def hasSuppressed(cause: Assertion[Iterable[Throwable]]): Assertion[Throwable] =
+    Assertion.assertionRec("hasSuppressed")(param(cause))(cause)(th => Some(th.getSuppressed))
+
+  /**
    * Makes a new assertion that requires an exception to have a certain cause.
    */
   def hasThrowableCause(cause: Assertion[Throwable]): Assertion[Throwable] =

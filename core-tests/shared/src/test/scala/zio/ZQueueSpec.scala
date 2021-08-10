@@ -1,6 +1,6 @@
 package zio
 
-import zio.ZQueueSpecUtil.waitForSize
+import zio.ZQueueSpecUtil._
 import zio.test.Assertion._
 import zio.test.TestAspect.{jvm, nonFlaky}
 import zio.test._
@@ -9,7 +9,6 @@ import zio.test.environment.Live
 import scala.collection.immutable.Range
 
 object ZQueueSpec extends ZIOBaseSpec {
-
   import ZIOTag._
 
   def spec: ZSpec[Environment, Failure] = suite("ZQueueSpec")(
@@ -843,7 +842,18 @@ object ZQueueSpec extends ZIOBaseSpec {
         _ <- q.shutdown
         _ <- f.await
       } yield assertCompletes
-    } @@ jvm(nonFlaky)
+    } @@ jvm(nonFlaky),
+    test("many to many") {
+      checkM(smallInt, Gen.listOf(smallInt)) { (n, as) =>
+        for {
+          queue    <- Queue.bounded[Int](n)
+          offerors <- ZIO.foreach(as)(a => queue.offer(a).fork)
+          takers   <- ZIO.foreach(as)(_ => queue.take.fork)
+          _        <- ZIO.foreach(offerors)(_.join)
+          _        <- ZIO.foreach(takers)(_.join)
+        } yield assertCompletes
+      }
+    }
   )
 }
 
@@ -853,4 +863,7 @@ object ZQueueSpecUtil {
 
   def waitForSize[RA, EA, RB, EB, A, B](queue: ZQueue[RA, EA, RB, EB, A, B], size: Int): URIO[Has[Live], Int] =
     waitForValue(queue.size, size)
+
+  val smallInt: Gen[Has[Random] with Has[Sized], Int] =
+    Gen.small(Gen.const(_), 1)
 }

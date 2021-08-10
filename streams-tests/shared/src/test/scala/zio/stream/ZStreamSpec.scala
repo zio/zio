@@ -1188,7 +1188,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                         ).flatMapPar(2)(identity).runDrain.either
               cancelled <- substreamCancelled.get
             } yield assert(cancelled)(isTrue) && assert(result)(isLeft(equalTo("Ouch")))
-          },
+          } @@ nonFlaky,
           test("outer errors interrupt all fibers") {
             for {
               substreamCancelled <- Ref.make[Boolean](false)
@@ -1218,7 +1218,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                         ).flatMapPar(2)(identity).runDrain.exit
               cancelled <- substreamCancelled.get
             } yield assert(cancelled)(isTrue) && assert(result)(dies(equalTo(ex)))
-          },
+          } @@ nonFlaky,
           test("outer defects interrupt all fibers") {
             val ex = new RuntimeException()
 
@@ -1325,7 +1325,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                         ).flatMapParSwitch(2)(identity).runDrain.either
               cancelled <- substreamCancelled.get
             } yield assert(cancelled)(isTrue) && assert(result)(isLeft(equalTo("Ouch")))
-          } @@ flaky,
+          } @@ nonFlaky,
           test("outer errors interrupt all fibers") {
             for {
               substreamCancelled <- Ref.make[Boolean](false)
@@ -1355,7 +1355,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                         ).flatMapParSwitch(2)(identity).runDrain.exit
               cancelled <- substreamCancelled.get
             } yield assert(cancelled)(isTrue) && assert(result)(dies(equalTo(ex)))
-          },
+          } @@ nonFlaky,
           test("outer defects interrupt all fibers") {
             val ex = new RuntimeException()
 

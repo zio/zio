@@ -55,8 +55,8 @@ sealed trait Arrow[-A, +B] { self =>
   def withCode(code: String): Arrow[A, B] =
     meta(code = Some(code))
 
-  def withLocation(location: String): Arrow[A, B] =
-    meta(location = Some(location))
+  def withLocation(implicit location: SourceLocation): Arrow[A, B] =
+    meta(location = Some(s"${location.path}:${location.line}"))
 
   def withParentSpan(span: (Int, Int)): Arrow[A, B] =
     meta(parentSpan = Some(Span(span._1, span._2)))
