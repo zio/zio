@@ -2563,7 +2563,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    */
   def memoize[R, E, A, B](f: A => ZManaged[R, E, B]): ZManaged[Any, Nothing, A => ZIO[R, E, B]] =
     for {
-      fiberId <- ZIO.fiberId.toManaged_
+      fiberId <- ZIO.fiberId.toManaged
       ref     <- Ref.makeManaged[Map[A, Promise[E, B]]](Map.empty)
       scope   <- ZManaged.scope
     } yield a =>
@@ -2572,7 +2572,7 @@ object ZManaged extends ZManagedPlatformSpecific {
           case Some(promise) => (promise.await, map)
           case None =>
             val promise = Promise.unsafeMake[E, B](fiberId)
-            (scope(f(a)).map(_._2).to(promise) *> promise.await, map + (a -> promise))
+            (scope(f(a)).map(_._2).intoPromise(promise) *> promise.await, map + (a -> promise))
         }
       }.flatten
 
