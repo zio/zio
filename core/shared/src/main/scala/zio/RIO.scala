@@ -239,14 +239,14 @@ object RIO {
     ZIO.collectAll(in)
 
   /**
-   * @see See [[[zio.ZIO.collectAll_[R,E,A](in:Iterable*]]]
+   * @see See [[zio.ZIO.collectAll_]]
    */
   @deprecated("use collectAllDiscard", "2.0.0")
   def collectAll_[R, A](in: => Iterable[RIO[R, A]]): RIO[R, Unit] =
     ZIO.collectAll_(in)
 
   /**
-   * @see See [[[zio.ZIO.collectAllDiscard[R,E,A](in:Iterable*]]]
+   * @see See [[zio.ZIO.collectAllDiscard]]
    */
   def collectAllDiscard[R, A](in: => Iterable[RIO[R, A]]): RIO[R, Unit] =
     ZIO.collectAllDiscard(in)
@@ -278,14 +278,14 @@ object RIO {
     ZIO.collectAllPar(as)
 
   /**
-   * @see See [[[zio.ZIO.collectAllPar_[R,E,A](as:Iterable*]]]
+   * @see See [[zio.ZIO.collectAllPar_]]
    */
   @deprecated("use collectAllParDiscard", "2.0.0")
   def collectAllPar_[R, A](in: => Iterable[RIO[R, A]]): RIO[R, Unit] =
     ZIO.collectAllPar_(in)
 
   /**
-   * @see See [[[zio.ZIO.collectAllParDiscard[R,E,A](as:Iterable*]]]
+   * @see See [[zio.ZIO.collectAllParDiscard]]
    */
   def collectAllParDiscard[R, A](in: => Iterable[RIO[R, A]]): RIO[R, Unit] =
     ZIO.collectAllParDiscard(in)
@@ -742,27 +742,27 @@ object RIO {
     ZIO.foreachParN(n)(as)(fn)
 
   /**
-   * @see See [[[zio.ZIO.foreach_[R,E,A](as:Iterable*]]]
+   * @see See [[zio.ZIO.foreach_]]
    */
   @deprecated("use foreachDiscard", "2.0.0")
   def foreach_[R, A](as: => Iterable[A])(f: A => RIO[R, Any]): RIO[R, Unit] =
     ZIO.foreach_(as)(f)
 
   /**
-   * @see See [[[zio.ZIO.foreachDiscard[R,E,A](as:Iterable*]]]
+   * @see See [[zio.ZIO.foreachDiscard]]
    */
   def foreachDiscard[R, A](as: => Iterable[A])(f: A => RIO[R, Any]): RIO[R, Unit] =
     ZIO.foreachDiscard(as)(f)
 
   /**
-   * @see See [[[zio.ZIO.foreachPar_[R,E,A](as:Iterable*]]]
+   * @see See [[zio.ZIO.foreachPar_]]
    */
   @deprecated("use foreachParDiscard", "2.0.0")
   def foreachPar_[R, A, B](as: => Iterable[A])(f: A => RIO[R, Any]): RIO[R, Unit] =
     ZIO.foreachPar_(as)(f)
 
   /**
-   * @see See [[[zio.ZIO.foreachParDiscard[R,E,A](as:Iterable*]]]
+   * @see See [[zio.ZIO.foreachParDiscard]]
    */
   def foreachParDiscard[R, A, B](as: => Iterable[A])(f: A => RIO[R, Any]): RIO[R, Unit] =
     ZIO.foreachParDiscard(as)(f)
