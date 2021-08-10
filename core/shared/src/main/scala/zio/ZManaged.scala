@@ -2558,6 +2558,29 @@ object ZManaged extends ZManagedPlatformSpecific {
     (zManaged1 <&> zManaged2 <&> zManaged3 <&> zManaged4).map(f.tupled)
 
   /**
+   * Returns a memoized version of the specified resourceful function in the
+   * context of a managed scope. Each time the memoized function is evaluated
+   * a new resource will be acquired, if the function has not already been
+   * evaluated with that input, or else the previously acquired resource will
+   * be returned. All resources acquired by evaluating the function will be
+   * released at the end of the scope.
+   */
+  def memoize[R, E, A, B](f: A => ZManaged[R, E, B]): ZManaged[Any, Nothing, A => ZIO[R, E, B]] =
+    for {
+      fiberId <- ZIO.fiberId.toManaged
+      ref     <- Ref.makeManaged[Map[A, Promise[E, B]]](Map.empty)
+      scope   <- ZManaged.scope
+    } yield a =>
+      ref.modify { map =>
+        map.get(a) match {
+          case Some(promise) => (promise.await, map)
+          case None =>
+            val promise = Promise.unsafeMake[E, B](fiberId)
+            (scope(f(a)).map(_._2).intoPromise(promise) *> promise.await, map + (a -> promise))
+        }
+      }.flatten
+
+  /**
    * Merges an `Iterable[ZManaged]` to a single `ZManaged`, working sequentially.
    */
   def mergeAll[R, E, A, B](in: => Iterable[ZManaged[R, E, A]])(zero: => B)(f: (B, A) => B): ZManaged[R, E, B] =

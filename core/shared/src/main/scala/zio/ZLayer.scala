@@ -133,6 +133,14 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
   }
 
   /**
+   * Constructs a layer dynamically based on the output of this layer.
+   */
+  final def flatMap[RIn1 <: RIn, E1 >: E, ROut2](
+    f: ROut => ZLayer[RIn1, E1, ROut2]
+  ): ZLayer[RIn1, E1, ROut2] =
+    ZLayer.Flatten(self.map(f))
+
+  /**
    * Feeds the error or output services of this layer into the input of either
    * the specified `failure` or `success` layers, resulting in a new layer with
    * the inputs of this layer, and the error or outputs of the specified layer.
@@ -202,10 +210,9 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    * Retries constructing this layer according to the specified schedule.
    */
   final def retry[RIn1 <: RIn with Has[Clock]](schedule: Schedule[RIn1, E, Any]): ZLayer[RIn1, E, ROut] = {
-    import Schedule.StepFunction
     import Schedule.Decision._
 
-    type S = StepFunction[RIn1, E, Any]
+    type S = schedule.State
 
     lazy val loop: ZLayer[(RIn1, S), E, ROut] =
       (ZLayer.first >>> self).catchAll {
@@ -213,16 +220,16 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
           ZLayer.fromFunctionManyZIO { case ((r, s), e) =>
             Clock.currentDateTime
               .flatMap(now =>
-                s(now, e).flatMap {
-                  case Done(_)                     => ZIO.fail(e)
-                  case Continue(_, interval, next) => Clock.sleep(Duration.fromInterval(now, interval)) as ((r, next))
+                schedule.step(now, e, s).flatMap {
+                  case (_, _, Done)                   => ZIO.fail(e)
+                  case (state, _, Continue(interval)) => Clock.sleep(Duration.fromInterval(now, interval)) as ((r, state))
                 }
               )
               .provide(r)
           }
         update >>> ZLayer.suspend(loop.fresh)
       }
-    ZLayer.identity <&> ZLayer.fromZIOMany(ZIO.succeed(schedule.step)) >>> loop
+    ZLayer.identity <&> ZLayer.fromZIOMany(ZIO.succeed(schedule.initial)) >>> loop
   }
 
   /**
@@ -285,6 +292,8 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
 
   private final def scope: Managed[Nothing, ZLayer.MemoMap => ZManaged[RIn, E, ROut]] =
     self match {
+      case ZLayer.Flatten(self) =>
+        ZManaged.succeed(memoMap => memoMap.getOrElseMemoize(self).flatMap(memoMap.getOrElseMemoize))
       case ZLayer.Fold(self, failure, success) =>
         ZManaged.succeed(memoMap =>
           memoMap
@@ -309,6 +318,9 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
 
 object ZLayer extends ZLayerCompanionVersionSpecific {
 
+  private final case class Flatten[-RIn, +E, +ROut](
+    self: ZLayer[RIn, E, ZLayer[RIn, E, ROut]]
+  ) extends ZLayer[RIn, E, ROut]
   private final case class Fold[RIn, E, E1, ROut, ROut1](
     self: ZLayer[RIn, E, ROut],
     failure: ZLayer[(RIn, Cause[E]), E1, ROut1],

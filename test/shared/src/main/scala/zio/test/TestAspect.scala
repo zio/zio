@@ -182,10 +182,10 @@ object TestAspect extends TimeoutVariants {
   /**
    * Constructs an aspect that runs the specified effect before every test.
    */
-  def before[R0, E0](effect: ZIO[R0, Nothing, Any]): TestAspect[Nothing, R0, E0, Any] =
+  def before[R0, E0](effect: ZIO[R0, E0, Any]): TestAspect[Nothing, R0, E0, Any] =
     new TestAspect.PerTest[Nothing, R0, E0, Any] {
-      def perTest[R <: R0, E](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] =
-        effect *> test
+      def perTest[R <: R0, E >: E0](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] =
+        effect.catchAllCause(cause => ZIO.fail(TestFailure.failCause(cause))) *> test
     }
 
   /**
@@ -586,16 +586,14 @@ object TestAspect extends TimeoutVariants {
   ): TestAspectAtLeastR[R0] = {
     val repeat = new PerTest.AtLeastR[R0] {
       def perTest[R <: R0, E](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] =
-        ZIO.accessZIO(r =>
-          Live.live(
-            test
+        ZIO.accessZIO { r =>
+          val repeatSchedule: Schedule[Any, TestSuccess, TestSuccess] =
+            schedule
+              .zipRight(Schedule.identity[TestSuccess])
+              .tapOutput(_ => Annotations.annotate(TestAnnotation.repeated, 1))
               .provide(r)
-              .repeat(
-                (schedule *> Schedule
-                  .identity[TestSuccess]).tapOutput(_ => Annotations.annotate(TestAnnotation.repeated, 1)).provide(r)
-              )
-          )
-        )
+          Live.live(test.provide(r).repeat(repeatSchedule))
+        }
     }
     restoreTestEnvironment >>> repeat
   }
@@ -702,11 +700,13 @@ object TestAspect extends TimeoutVariants {
   ): TestAspect[Nothing, R0, Nothing, E0] = {
     val retry = new TestAspect.PerTest[Nothing, R0, Nothing, E0] {
       def perTest[R <: R0, E <: E0](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] =
-        ZIO.accessZIO[R](r =>
-          Live.live(
-            test.provide(r).retry(schedule.tapOutput(_ => Annotations.annotate(TestAnnotation.retried, 1)).provide(r))
-          )
-        )
+        ZIO.accessZIO[R] { r =>
+          val retrySchedule: Schedule[Any, TestFailure[E0], Any] =
+            schedule
+              .tapOutput(_ => Annotations.annotate(TestAnnotation.retried, 1))
+              .provide(r)
+          Live.live(test.provide(r).retry(retrySchedule))
+        }
     }
     restoreTestEnvironment >>> retry
   }

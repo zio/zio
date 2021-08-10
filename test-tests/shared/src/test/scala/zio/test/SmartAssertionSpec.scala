@@ -217,7 +217,7 @@ object SmartAssertionSpec extends ZIOBaseSpec {
     test("exists must fail when all elements of iterable do not satisfy specified assertion") {
       val value = Seq(1, 42, 5)
       assertTrue(value.exists(_ == 423))
-    } @@ TestAspect.tag("IMPORTANT") @@ failing,
+    } @@ failing,
     test("forall must succeed when all elements of iterable satisfy specified assertion") {
       assertTrue(Seq("a", "bb", "ccc").forall(l => l.nonEmpty && l.length <= 3))
     },
@@ -252,11 +252,11 @@ object SmartAssertionSpec extends ZIOBaseSpec {
     test("hasIntersection must succeed when intersection satisfies specified assertion") {
       val seq = Seq(1, 2, 3, 4, 5)
       assertTrue((seq intersect Seq(4, 5, 6, 7, 8)).length == 105)
-    } @@ TestAspect.tag("IMPORTANT") @@ failing,
+    } @@ failing,
     test("hasIntersection must succeed when intersection satisfies specified assertion") {
       val seq = Seq(1, 2, 3, 4, 5)
       assertTrue(seq.intersect(Seq(4, 5, 6, 7, 8)).length == 108)
-    } @@ TestAspect.tag("IMPORTANT") @@ failing,
+    } @@ failing,
     test("hasIntersection must succeed when empty intersection satisfies specified assertion") {
       assertTrue((Seq(1, 2, 3, 4) intersect Seq(5, 6, 7)).isEmpty)
     },
@@ -327,6 +327,11 @@ object SmartAssertionSpec extends ZIOBaseSpec {
         val l1 = Set(1, 2, 3, 4)
         val l2 = Set(1, 2, 8, 4, 5)
         assertTrue(l1 == l2)
+      } @@ failing,
+      test("Map diffs") {
+        val l1 = Map("name" -> "Kit", "age" -> "100")
+        val l2 = Map("name" -> "Bill", "rage" -> "9000")
+        assertTrue(l1 == l2)
       } @@ failing
     ),
     test("Package qualified identifiers") {
@@ -379,8 +384,18 @@ object SmartAssertionSpec extends ZIOBaseSpec {
         val someChild                  = Child("hii")
         assertTrue(someParent.contains(someChild))
       } @@ failing
+    ),
+    suite("custom assertions")(
+      test("reports source location of actual usage") {
+        customAssertion("hello")
+      } @@ failing
     )
   )
+
+  // The implicit SourceLocation will be used by assertTrue to report the
+  // actual location.
+  def customAssertion(string: String)(implicit sourceLocation: SourceLocation): Assert =
+    assertTrue(string == "coool")
 
   // Test Types
   private sealed trait Color

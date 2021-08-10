@@ -12,12 +12,6 @@ class SmartAssertMacros(val c: blackbox.Context) {
   private val Arrow  = q"_root_.zio.test.Arrow"
   private val Assert = q"_root_.zio.test.Assert"
 
-  private[test] def location(c: blackbox.Context): (String, Int) = {
-    val path = c.enclosingPosition.source.path
-    val line = c.enclosingPosition.line
-    (path, line)
-  }
-
   def assert_impl(expr: c.Expr[Boolean], exprs: c.Expr[Boolean]*): c.Tree =
     exprs.map(assertOne_impl).foldLeft(assertOne_impl(expr)) { (acc, assert) =>
       q"$acc && $assert"
@@ -159,16 +153,13 @@ class SmartAssertMacros(val c: blackbox.Context) {
     val (_, start, codeString) = text(tree)
     implicit val pos           = PositionContext(start, codeString)
 
-    val (file, line)   = location(c)
-    val locationString = s"$file:$line"
-
     val parsed = parseExpr(tree)
     val ast    = astToAssertion(parsed)
 
     val block =
       q"""
 ..$stmts
-$Assert($ast.withCode($codeString).withLocation($locationString))
+$Assert($ast.withCode($codeString).withLocation)
         """
 
     block
