@@ -16,6 +16,7 @@
 
 package zio
 
+import zio.ZQueue.internal._
 import zio.internal.MutableConcurrentQueue
 
 import java.util.concurrent.atomic.AtomicBoolean
@@ -327,75 +328,211 @@ abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { self =>
 }
 
 object ZQueue {
+  private[zio] object internal {
 
-  /**
-   * Makes a new bounded queue.
-   * When the capacity of the queue is reached, any additional calls to `offer` will be suspended
-   * until there is more room in the queue.
-   *
-   * @note when possible use only power of 2 capacities; this will
-   * provide better performance by utilising an optimised version of
-   * the underlying [[zio.internal.RingBuffer]].
-   *
-   * @param requestedCapacity capacity of the `Queue`
-   * @tparam A type of the `Queue`
-   * @return `UIO[Queue[A]]`
-   */
-  def bounded[A](requestedCapacity: Int): UIO[Queue[A]] =
-    IO.succeed(MutableConcurrentQueue.bounded[A](requestedCapacity)).flatMap(createQueue(_, Strategy.BackPressure()))
+    /**
+     * Poll all items from the queue
+     */
+    def unsafePollAll[A](q: MutableConcurrentQueue[A]): Chunk[A] =
+      q.pollUpTo(Int.MaxValue)
 
-  /**
-   * Makes a new bounded queue with the dropping strategy.
-   * When the capacity of the queue is reached, new elements will be dropped.
-   *
-   * @note when possible use only power of 2 capacities; this will
-   * provide better performance by utilising an optimised version of
-   * the underlying [[zio.internal.RingBuffer]].
-   *
-   * @param requestedCapacity capacity of the `Queue`
-   * @tparam A type of the `Queue`
-   * @return `UIO[Queue[A]]`
-   */
-  def dropping[A](requestedCapacity: Int): UIO[Queue[A]] =
-    IO.succeed(MutableConcurrentQueue.bounded[A](requestedCapacity)).flatMap(createQueue(_, Strategy.Dropping()))
+    /**
+     * Poll n items from the queue
+     */
+    def unsafePollN[A](q: MutableConcurrentQueue[A], max: Int): Chunk[A] =
+      q.pollUpTo(max)
 
-  /**
-   * Makes a new bounded queue with sliding strategy.
-   * When the capacity of the queue is reached, new elements will be added and the old elements
-   * will be dropped.
-   *
-   * @note when possible use only power of 2 capacities; this will
-   * provide better performance by utilising an optimised version of
-   * the underlying [[zio.internal.RingBuffer]].
-   *
-   * @param requestedCapacity capacity of the `Queue`
-   * @tparam A type of the `Queue`
-   * @return `UIO[Queue[A]]`
-   */
-  def sliding[A](requestedCapacity: Int): UIO[Queue[A]] =
-    IO.succeed(MutableConcurrentQueue.bounded[A](requestedCapacity)).flatMap(createQueue(_, Strategy.Sliding()))
+    /**
+     * Offer items to the queue
+     */
+    def unsafeOfferAll[A](q: MutableConcurrentQueue[A], as: Iterable[A]): Chunk[A] =
+      q.offerAll(as)
 
-  /**
-   * Makes a new unbounded queue.
-   *
-   * @tparam A type of the `Queue`
-   * @return `UIO[Queue[A]]`
-   */
-  def unbounded[A]: UIO[Queue[A]] =
-    IO.succeed(MutableConcurrentQueue.unbounded[A]).flatMap(createQueue(_, Strategy.Dropping()))
+    /**
+     * Remove an item from the queue
+     */
+    def unsafeRemove[A](q: MutableConcurrentQueue[A], a: A): Unit = {
+      unsafeOfferAll(q, unsafePollAll(q).filterNot(_ == a))
+      ()
+    }
 
-  private def createQueue[A](queue: MutableConcurrentQueue[A], strategy: Strategy[A]): UIO[Queue[A]] =
-    Promise
-      .make[Nothing, Unit]
-      .map(p =>
-        unsafeCreate(
-          queue,
-          MutableConcurrentQueue.unbounded[Promise[Nothing, A]],
-          p,
-          new AtomicBoolean(false),
-          strategy
-        )
-      )
+    def unsafeCompletePromise[A](p: Promise[Nothing, A], a: A): Unit =
+      p.unsafeDone(IO.succeedNow(a))
+
+    sealed abstract class Strategy[A] {
+      def handleSurplus(
+        as: Iterable[A],
+        queue: MutableConcurrentQueue[A],
+        takers: MutableConcurrentQueue[Promise[Nothing, A]],
+        isShutdown: AtomicBoolean
+      ): UIO[Boolean]
+
+      def unsafeOnQueueEmptySpace(
+        queue: MutableConcurrentQueue[A],
+        takers: MutableConcurrentQueue[Promise[Nothing, A]]
+      ): Unit
+
+      def surplusSize: Int
+
+      def shutdown: UIO[Unit]
+
+      final def unsafeCompleteTakers(
+        queue: MutableConcurrentQueue[A],
+        takers: MutableConcurrentQueue[Promise[Nothing, A]]
+      ): Unit = {
+        // check if there is both a taker and an item in the queue, starting by the taker
+        var keepPolling = true
+        val nullTaker   = null.asInstanceOf[Promise[Nothing, A]]
+        val empty       = null.asInstanceOf[A]
+
+        while (keepPolling && !queue.isEmpty()) {
+          val taker = takers.poll(nullTaker)
+          if (taker eq nullTaker) keepPolling = false
+          else {
+            queue.poll(empty) match {
+              case null =>
+                unsafeOfferAll(takers, taker +: unsafePollAll(takers))
+              case a =>
+                unsafeCompletePromise(taker, a)
+                unsafeOnQueueEmptySpace(queue, takers)
+            }
+            keepPolling = true
+          }
+        }
+      }
+    }
+
+    final case class Sliding[A]() extends Strategy[A] {
+      def handleSurplus(
+        as: Iterable[A],
+        queue: MutableConcurrentQueue[A],
+        takers: MutableConcurrentQueue[Promise[Nothing, A]],
+        isShutdown: AtomicBoolean
+      ): UIO[Boolean] = {
+        def unsafeSlidingOffer(as: Iterable[A]): Unit =
+          if (as.nonEmpty && queue.capacity > 0) {
+            val iterator = as.iterator
+            var a        = iterator.next()
+            var loop     = true
+            val empty    = null.asInstanceOf[A]
+            while (loop) {
+              queue.poll(empty)
+              val offered = queue.offer(a)
+              if (offered && iterator.hasNext) {
+                a = iterator.next()
+              } else if (offered && !iterator.hasNext) {
+                loop = false
+              }
+            }
+          }
+
+        IO.succeed {
+          unsafeSlidingOffer(as)
+          unsafeCompleteTakers(queue, takers)
+          true
+        }
+      }
+
+      def unsafeOnQueueEmptySpace(
+        queue: MutableConcurrentQueue[A],
+        takers: MutableConcurrentQueue[Promise[Nothing, A]]
+      ): Unit = ()
+
+      def surplusSize: Int = 0
+
+      def shutdown: UIO[Unit] = IO.unit
+    }
+
+    final case class Dropping[A]() extends Strategy[A] {
+      // do nothing, drop the surplus
+      def handleSurplus(
+        as: Iterable[A],
+        queue: MutableConcurrentQueue[A],
+        takers: MutableConcurrentQueue[Promise[Nothing, A]],
+        isShutdown: AtomicBoolean
+      ): UIO[Boolean] = IO.succeedNow(false)
+
+      def unsafeOnQueueEmptySpace(
+        queue: MutableConcurrentQueue[A],
+        takers: MutableConcurrentQueue[Promise[Nothing, A]]
+      ): Unit = ()
+
+      def surplusSize: Int = 0
+
+      def shutdown: UIO[Unit] = IO.unit
+    }
+
+    final case class BackPressure[A]() extends Strategy[A] {
+      // A is an item to add
+      // Promise[Nothing, Boolean] is the promise completing the whole offerAll
+      // Boolean indicates if it's the last item to offer (promise should be completed once this item is added)
+      private val putters = MutableConcurrentQueue.unbounded[(A, Promise[Nothing, Boolean], Boolean)]
+
+      private def unsafeRemove(p: Promise[Nothing, Boolean]): Unit = {
+        unsafeOfferAll(putters, unsafePollAll(putters).filterNot(_._2 == p))
+        ()
+      }
+
+      def handleSurplus(
+        as: Iterable[A],
+        queue: MutableConcurrentQueue[A],
+        takers: MutableConcurrentQueue[Promise[Nothing, A]],
+        isShutdown: AtomicBoolean
+      ): UIO[Boolean] =
+        UIO.suspendSucceedWith { (_, fiberId) =>
+          val p = Promise.unsafeMake[Nothing, Boolean](fiberId)
+
+          UIO.suspendSucceed {
+            unsafeOffer(as, p)
+            unsafeOnQueueEmptySpace(queue, takers)
+            unsafeCompleteTakers(queue, takers)
+            if (isShutdown.get) ZIO.interrupt else p.await
+          }.onInterrupt(IO.succeed(unsafeRemove(p)))
+        }
+
+      private def unsafeOffer(as: Iterable[A], p: Promise[Nothing, Boolean]): Unit =
+        if (as.nonEmpty) {
+          val iterator = as.iterator
+          var a        = iterator.next()
+          while (iterator.hasNext) {
+            putters.offer((a, p, false))
+            a = iterator.next()
+          }
+          putters.offer((a, p, true))
+          ()
+        }
+
+      def unsafeOnQueueEmptySpace(
+        queue: MutableConcurrentQueue[A],
+        takers: MutableConcurrentQueue[Promise[Nothing, A]]
+      ): Unit = {
+        val empty       = null.asInstanceOf[(A, Promise[Nothing, Boolean], Boolean)]
+        var keepPolling = true
+
+        while (keepPolling && !queue.isFull()) {
+          val putter = putters.poll(empty)
+          if (putter eq null) keepPolling = false
+          else {
+            val offered = queue.offer(putter._1)
+            if (offered && putter._3)
+              unsafeCompletePromise(putter._2, true)
+            else if (!offered)
+              unsafeOfferAll(putters, putter +: unsafePollAll(putters))
+            unsafeCompleteTakers(queue, takers)
+          }
+        }
+      }
+
+      def surplusSize: Int = putters.size()
+
+      def shutdown: UIO[Unit] =
+        for {
+          fiberId <- ZIO.fiberId
+          putters <- IO.succeed(unsafePollAll(putters))
+          _       <- IO.foreachPar(putters) { case (_, p, lastItem) => if (lastItem) p.interruptAs(fiberId) else IO.unit }
+        } yield ()
+    }
+  }
 
   private def unsafeCreate[A](
     queue: MutableConcurrentQueue[A],
@@ -535,209 +672,72 @@ object ZQueue {
       }
   }
 
-  private sealed abstract class Strategy[A] {
-    def handleSurplus(
-      as: Iterable[A],
-      queue: MutableConcurrentQueue[A],
-      takers: MutableConcurrentQueue[Promise[Nothing, A]],
-      isShutdown: AtomicBoolean
-    ): UIO[Boolean]
-
-    def unsafeOnQueueEmptySpace(
-      queue: MutableConcurrentQueue[A],
-      takers: MutableConcurrentQueue[Promise[Nothing, A]]
-    ): Unit
-
-    def surplusSize: Int
-
-    def shutdown: UIO[Unit]
-
-    final def unsafeCompleteTakers(
-      queue: MutableConcurrentQueue[A],
-      takers: MutableConcurrentQueue[Promise[Nothing, A]]
-    ): Unit = {
-      // check if there is both a taker and an item in the queue, starting by the taker
-      var keepPolling = true
-      val nullTaker   = null.asInstanceOf[Promise[Nothing, A]]
-      val empty       = null.asInstanceOf[A]
-
-      while (keepPolling && !queue.isEmpty()) {
-        val taker = takers.poll(nullTaker)
-        if (taker eq nullTaker) keepPolling = false
-        else {
-          queue.poll(empty) match {
-            case null =>
-              unsafeOfferAll(takers, taker +: unsafePollAll(takers))
-            case a =>
-              unsafeCompletePromise(taker, a)
-              unsafeOnQueueEmptySpace(queue, takers)
-          }
-          keepPolling = true
-        }
-      }
-    }
-  }
-
-  private object Strategy {
-
-    final case class BackPressure[A]() extends Strategy[A] {
-      // A is an item to add
-      // Promise[Nothing, Boolean] is the promise completing the whole offerAll
-      // Boolean indicates if it's the last item to offer (promise should be completed once this item is added)
-      private val putters = MutableConcurrentQueue.unbounded[(A, Promise[Nothing, Boolean], Boolean)]
-
-      private def unsafeRemove(p: Promise[Nothing, Boolean]): Unit = {
-        unsafeOfferAll(putters, unsafePollAll(putters).filterNot(_._2 == p))
-        ()
-      }
-
-      def handleSurplus(
-        as: Iterable[A],
-        queue: MutableConcurrentQueue[A],
-        takers: MutableConcurrentQueue[Promise[Nothing, A]],
-        isShutdown: AtomicBoolean
-      ): UIO[Boolean] =
-        UIO.suspendSucceedWith { (_, fiberId) =>
-          val p = Promise.unsafeMake[Nothing, Boolean](fiberId)
-
-          UIO.suspendSucceed {
-            unsafeOffer(as, p)
-            unsafeOnQueueEmptySpace(queue, takers)
-            unsafeCompleteTakers(queue, takers)
-            if (isShutdown.get) ZIO.interrupt else p.await
-          }.onInterrupt(IO.succeed(unsafeRemove(p)))
-        }
-
-      private def unsafeOffer(as: Iterable[A], p: Promise[Nothing, Boolean]): Unit =
-        if (as.nonEmpty) {
-          val iterator = as.iterator
-          var a        = iterator.next()
-          while (iterator.hasNext) {
-            putters.offer((a, p, false))
-            a = iterator.next()
-          }
-          putters.offer((a, p, true))
-          ()
-        }
-
-      def unsafeOnQueueEmptySpace(
-        queue: MutableConcurrentQueue[A],
-        takers: MutableConcurrentQueue[Promise[Nothing, A]]
-      ): Unit = {
-        val empty       = null.asInstanceOf[(A, Promise[Nothing, Boolean], Boolean)]
-        var keepPolling = true
-
-        while (keepPolling && !queue.isFull()) {
-          val putter = putters.poll(empty)
-          if (putter eq null) keepPolling = false
-          else {
-            val offered = queue.offer(putter._1)
-            if (offered && putter._3)
-              unsafeCompletePromise(putter._2, true)
-            else if (!offered)
-              unsafeOfferAll(putters, putter +: unsafePollAll(putters))
-            unsafeCompleteTakers(queue, takers)
-          }
-        }
-      }
-
-      def surplusSize: Int = putters.size()
-
-      def shutdown: UIO[Unit] =
-        for {
-          fiberId <- ZIO.fiberId
-          putters <- IO.succeed(unsafePollAll(putters))
-          _       <- IO.foreachPar(putters) { case (_, p, lastItem) => if (lastItem) p.interruptAs(fiberId) else IO.unit }
-        } yield ()
-    }
-
-    final case class Dropping[A]() extends Strategy[A] {
-      // do nothing, drop the surplus
-      def handleSurplus(
-        as: Iterable[A],
-        queue: MutableConcurrentQueue[A],
-        takers: MutableConcurrentQueue[Promise[Nothing, A]],
-        isShutdown: AtomicBoolean
-      ): UIO[Boolean] = IO.succeedNow(false)
-
-      def unsafeOnQueueEmptySpace(
-        queue: MutableConcurrentQueue[A],
-        takers: MutableConcurrentQueue[Promise[Nothing, A]]
-      ): Unit = ()
-
-      def surplusSize: Int = 0
-
-      def shutdown: UIO[Unit] = IO.unit
-    }
-
-    final case class Sliding[A]() extends Strategy[A] {
-      def handleSurplus(
-        as: Iterable[A],
-        queue: MutableConcurrentQueue[A],
-        takers: MutableConcurrentQueue[Promise[Nothing, A]],
-        isShutdown: AtomicBoolean
-      ): UIO[Boolean] = {
-        def unsafeSlidingOffer(as: Iterable[A]): Unit =
-          if (as.nonEmpty && queue.capacity > 0) {
-            val iterator = as.iterator
-            var a        = iterator.next()
-            var loop     = true
-            val empty    = null.asInstanceOf[A]
-            while (loop) {
-              queue.poll(empty)
-              val offered = queue.offer(a)
-              if (offered && iterator.hasNext) {
-                a = iterator.next()
-              } else if (offered && !iterator.hasNext) {
-                loop = false
-              }
-            }
-          }
-
-        IO.succeed {
-          unsafeSlidingOffer(as)
-          unsafeCompleteTakers(queue, takers)
-          true
-        }
-      }
-
-      def unsafeOnQueueEmptySpace(
-        queue: MutableConcurrentQueue[A],
-        takers: MutableConcurrentQueue[Promise[Nothing, A]]
-      ): Unit = ()
-
-      def surplusSize: Int = 0
-
-      def shutdown: UIO[Unit] = IO.unit
-    }
-  }
-
-  private def unsafeCompletePromise[A](p: Promise[Nothing, A], a: A): Unit =
-    p.unsafeDone(IO.succeedNow(a))
+  /**
+   * Makes a new bounded queue.
+   * When the capacity of the queue is reached, any additional calls to `offer` will be suspended
+   * until there is more room in the queue.
+   *
+   * @note when possible use only power of 2 capacities; this will
+   * provide better performance by utilising an optimised version of
+   * the underlying [[zio.internal.RingBuffer]].
+   *
+   * @param requestedCapacity capacity of the `Queue`
+   * @tparam A type of the `Queue`
+   * @return `UIO[Queue[A]]`
+   */
+  def bounded[A](requestedCapacity: Int): UIO[Queue[A]] =
+    IO.succeed(MutableConcurrentQueue.bounded[A](requestedCapacity)).flatMap(createQueue(_, BackPressure()))
 
   /**
-   * Offer items to the queue
+   * Makes a new bounded queue with the dropping strategy.
+   * When the capacity of the queue is reached, new elements will be dropped.
+   *
+   * @note when possible use only power of 2 capacities; this will
+   * provide better performance by utilising an optimised version of
+   * the underlying [[zio.internal.RingBuffer]].
+   *
+   * @param requestedCapacity capacity of the `Queue`
+   * @tparam A type of the `Queue`
+   * @return `UIO[Queue[A]]`
    */
-  private def unsafeOfferAll[A](q: MutableConcurrentQueue[A], as: Iterable[A]): Chunk[A] =
-    q.offerAll(as)
+  def dropping[A](requestedCapacity: Int): UIO[Queue[A]] =
+    IO.succeed(MutableConcurrentQueue.bounded[A](requestedCapacity)).flatMap(createQueue(_, Dropping()))
 
   /**
-   * Poll all items from the queue
+   * Makes a new bounded queue with sliding strategy.
+   * When the capacity of the queue is reached, new elements will be added and the old elements
+   * will be dropped.
+   *
+   * @note when possible use only power of 2 capacities; this will
+   * provide better performance by utilising an optimised version of
+   * the underlying [[zio.internal.RingBuffer]].
+   *
+   * @param requestedCapacity capacity of the `Queue`
+   * @tparam A type of the `Queue`
+   * @return `UIO[Queue[A]]`
    */
-  private def unsafePollAll[A](q: MutableConcurrentQueue[A]): Chunk[A] =
-    q.pollUpTo(Int.MaxValue)
+  def sliding[A](requestedCapacity: Int): UIO[Queue[A]] =
+    IO.succeed(MutableConcurrentQueue.bounded[A](requestedCapacity)).flatMap(createQueue(_, Sliding()))
 
   /**
-   * Poll n items from the queue
+   * Makes a new unbounded queue.
+   *
+   * @tparam A type of the `Queue`
+   * @return `UIO[Queue[A]]`
    */
-  private def unsafePollN[A](q: MutableConcurrentQueue[A], max: Int): Chunk[A] =
-    q.pollUpTo(max)
+  def unbounded[A]: UIO[Queue[A]] =
+    IO.succeed(MutableConcurrentQueue.unbounded[A]).flatMap(createQueue(_, Dropping()))
 
-  /**
-   * Remove an item from the queue
-   */
-  private def unsafeRemove[A](q: MutableConcurrentQueue[A], a: A): Unit = {
-    unsafeOfferAll(q, unsafePollAll(q).filterNot(_ == a))
-    ()
-  }
+  private def createQueue[A](queue: MutableConcurrentQueue[A], strategy: Strategy[A]): UIO[Queue[A]] =
+    Promise
+      .make[Nothing, Unit]
+      .map(p =>
+        unsafeCreate(
+          queue,
+          MutableConcurrentQueue.unbounded[Promise[Nothing, A]],
+          p,
+          new AtomicBoolean(false),
+          strategy
+        )
+      )
 }
