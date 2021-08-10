@@ -83,7 +83,9 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
    * Alias for `<*>` and `zip`.
    */
   @deprecated("use zip", "2.0.0")
-  def &&&[R1 <: R, E1 >: E, B](that: => ZSTM[R1, E1, B])(implicit zippable: Zippable[A, B]): ZSTM[R1, E1, zippable.Out] =
+  def &&&[R1 <: R, E1 >: E, B](that: => ZSTM[R1, E1, B])(implicit
+    zippable: Zippable[A, B]
+  ): ZSTM[R1, E1, zippable.Out] =
     self <*> that
 
   /**
@@ -1339,7 +1341,9 @@ object ZSTM {
    * }
    * }}}
    */
-  def loopDiscard[R, E, S](initial: => S)(cont: S => Boolean, inc: S => S)(body: S => ZSTM[R, E, Any]): ZSTM[R, E, Unit] =
+  def loopDiscard[R, E, S](
+    initial: => S
+  )(cont: S => Boolean, inc: S => S)(body: S => ZSTM[R, E, Any]): ZSTM[R, E, Unit] =
     if (cont(initial)) body(initial) *> loopDiscard(inc(initial))(cont, inc)(body)
     else ZSTM.unit
 
@@ -1370,7 +1374,12 @@ object ZSTM {
    * function.
    */
   @deprecated("use zip", "2.0.0")
-  def mapN[R, E, A, B, C, D, F](tx1: => ZSTM[R, E, A], tx2: => ZSTM[R, E, B], tx3: => ZSTM[R, E, C], tx4: => ZSTM[R, E, D])(
+  def mapN[R, E, A, B, C, D, F](
+    tx1: => ZSTM[R, E, A],
+    tx2: => ZSTM[R, E, B],
+    tx3: => ZSTM[R, E, C],
+    tx4: => ZSTM[R, E, D]
+  )(
     f: (A, B, C, D) => F
   ): ZSTM[R, E, F] =
     for {
