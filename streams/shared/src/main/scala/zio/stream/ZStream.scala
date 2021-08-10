@@ -1489,11 +1489,11 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                    // If the inner stream completed successfully, release the permit so another
                    // stream can be executed. Otherwise, signal failure to the outer stream.
                    withPermitManaged = ZManaged.acquireReleaseExit(permits.acquire.commit)(
-                                             _.fold(
-                                               cause => innerFailure.fail(cause.stripFailures),
-                                               _ => permits.release.commit
-                                             )
-                                           )
+                                         _.fold(
+                                           cause => innerFailure.fail(cause.stripFailures),
+                                           _ => permits.release.commit
+                                         )
+                                       )
                    innerStream = withPermitManaged
                                    .tap(_ => latch.succeed(()).toManaged)
                                    .useDiscard(
@@ -1511,8 +1511,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                    _ <- latch.await
                  } yield ()
                }.foldCauseManaged(
-                 cause =>
-                   (getChildren.flatMap(Fiber.interruptAll(_)) *> out.offer(Pull.failCause(cause))).toManaged,
+                 cause => (getChildren.flatMap(Fiber.interruptAll(_)) *> out.offer(Pull.failCause(cause))).toManaged,
                  _ =>
                    innerFailure.await.interruptible
                      // Important to use `withPermits` here because the ZManaged#fork below may interrupt
@@ -1571,8 +1570,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                    _ <- latch.await
                  } yield ()
                }.foldCauseManaged(
-                 cause =>
-                   (getChildren.flatMap(Fiber.interruptAll(_)) *> out.offer(Pull.failCause(cause))).toManaged,
+                 cause => (getChildren.flatMap(Fiber.interruptAll(_)) *> out.offer(Pull.failCause(cause))).toManaged,
                  _ =>
                    innerFailure.await
                      .raceWith(permits.withPermits(n.toLong)(UIO.unit))(

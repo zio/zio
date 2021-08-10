@@ -58,7 +58,7 @@ libraryDependencies += "dev.zio" %% "zio-actors" % "0.0.9"
 
 Let's try to implement a simple Counter Actor which receives two `Increase` and `Get` commands:
 
-```scala mdoc:silent:nest
+```scala
 import zio.actors.Actor.Stateful
 import zio.actors._
 import zio.clock.Clock
@@ -135,7 +135,7 @@ libraryDependencies += "dev.zio" %% "zio-akka-cluster" % "0.2.0" // Check the re
 
 In the following example, we are using all these three features. We have a distributed counter application that lives in the Akka Cluster using _Akka Cluster Sharding_ feature. So the location of `LiveUsers` and `TotalRequests` entities in the cluster is transparent for us. We send the result of each entity to the _Distributed PubSub_. So every node in the cluster can subscribe and listen to those results. Also, we have created a fiber that is subscribed to the cluster events. All the new events will be logged to the console:
 
-```scala mdoc:silent:nest
+```scala
 import akka.actor.ActorSystem
 import com.typesafe.config.{Config, ConfigFactory}
 import zio.akka.cluster.Cluster
@@ -235,7 +235,7 @@ case class CounterApp(port: String) {
 
 Now, let's create a cluster comprising two nodes:
 
-```scala mdoc:silent:nest
+```scala
 object CounterApp1 extends zio.App {
   override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] = 
     CounterApp("2551").counterApp.exitCode
@@ -285,7 +285,7 @@ libraryDependencies += "dev.zio" %% "zio-cache" % "0.1.0" // Check the repo for 
 
 In this example, we are calling `timeConsumingEffect` three times in parallel with the same key. The ZIO Cache runs this effect only once. So the concurrent lookups will suspend until the value being computed is available:
 
-```scala mdoc:silent:nest
+```scala
 import zio.cache.{Cache, Lookup}
 import zio.clock.Clock
 import zio.console.{Console, putStrLn}
@@ -376,7 +376,7 @@ libraryDependencies += "dev.zio" %% "zio-config-refined"  % "1.0.6"
 
 In this example we are reading from HOCON config format using type derivation:
 
-```scala mdoc:silent:nest
+```scala
 import eu.timepit.refined.W
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.collection.NonEmpty
@@ -461,7 +461,7 @@ docker run -d \
 
 Now we can run the example:
 
-```scala mdoc:silent:nest
+```scala
 import zio.blocking.Blocking
 import zio.console.putStrLn
 import zio.ftp.Ftp._
@@ -527,7 +527,7 @@ libraryDependencies += "dev.zio" %% "zio-json" % "0.1.5"
 
 Let's try a simple example of encoding and decoding JSON using ZIO JSON:
 
-```scala mdoc:nest
+```scala
 import zio.json._
 
 sealed trait Fruit                   extends Product with Serializable
@@ -603,7 +603,7 @@ services:
 
 Now, we can run our ZIO Kafka Streaming application:
 
-```scala mdoc:silent:nest
+```scala
 import zio._
 import zio.console.putStrLn
 import zio.duration.durationInt
@@ -695,7 +695,7 @@ There are also some optional dependencies:
 
 Let's try an example of ZIO Logging which demonstrates a simple application of ZIO logging along with its _Logger Context_ feature:
 
-```scala mdoc:silent:nest
+```scala
 import zio.clock.Clock
 import zio.duration.durationInt
 import zio.logging._
@@ -787,7 +787,7 @@ libraryDependencies += "dev.zio" %% "zio-metrics-statsd" % "1.0.12"
 
 In this example we are using `zio-metrics-prometheus` module. Other that initializing default exporters, we register a counter to the registry:
 
-```scala mdoc:silent:nest
+```scala
 import zio.Runtime
 import zio.console.{Console, putStrLn}
 import zio.metrics.prometheus._
@@ -857,7 +857,7 @@ libraryDependencies += "dev.zio" %% "zio-nio"      % "1.0.0-RC11"
 
 Let's try writing a simple server using `zio-nio` module: 
 
-```scala mdoc:silent:nest
+```scala
 import zio._
 import zio.console._
 import zio.nio.channels._
@@ -933,7 +933,7 @@ libraryDependencies += "dev.zio" %% "zio-optics" % "0.1.0"
 
 In this example, we are going to update a nested data structure using ZIO Optics:
 
-```scala mdoc:silent:nest
+```scala
 import zio.optics._
 
 case class Developer(name: String, manager: Manager)
@@ -1008,7 +1008,7 @@ In this example, we are going to create a simple voting application. We will use
 1. To become more type safety we are going to use _New Types_ and introducing `Topic` and `Votes` data types.
 2. Providing instance of `Associative` type class for `Votes` data type which helps us to combine `Votes` values.
 
-```scala mdoc:silent:nest
+```scala
 import zio.prelude._
 
 object VotingExample extends scala.App {
@@ -1069,7 +1069,7 @@ libraryDependencies += "dev.zio" %% "zio-process" % "0.5.0"
 
 Here is a simple example of using ZIO Process:
 
-```scala mdoc:silent:nest
+```scala
 import zio.console.putStrLn
 import zio.process.Command
 import zio.{ExitCode, URIO}
@@ -1112,7 +1112,7 @@ Some key features of ZIO Query:
 
 Assume we have the following database access layer APIs:
 
-```scala mdoc:silent:nest
+```scala
 def getAllUserIds: ZIO[Any, Nothing, List[Int]] = {
   // Get all user IDs e.g. SELECT id FROM users
   ZIO.succeed(???)
@@ -1126,7 +1126,7 @@ def getUserNameById(id: Int): ZIO[Any, Nothing, String] = {
 
 We can get their corresponding usernames from the database by the following code snippet:
 
-```scala mdoc:silent:nest
+```scala
 val userNames = for {
   ids   <- getAllUserIds
   names <- ZIO.foreachPar(ids)(getUserNameById)
@@ -1149,7 +1149,7 @@ libraryDependencies += "dev.zio" %% "zio-query" % "0.2.9"
 
 Here is an example of using ZIO Query, which optimizes multiple database queries by batching all of them in one query:
 
-```scala mdoc:silent:nest
+```scala
 import zio.console.putStrLn
 import zio.query.{CompletedRequestMap, DataSource, Request, ZQuery}
 import zio.{Chunk, ExitCode, Task, URIO, ZIO}
@@ -1355,7 +1355,7 @@ docker run -p 9000:9000 -e MINIO_ACCESS_KEY=MyKey -e MINIO_SECRET_KEY=MySecret m
 
 In this example we create a bucket and then add a JSON object to it and then retrieve that:
 
-```scala mdoc:silent:nest
+```scala
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
 import software.amazon.awssdk.regions.Region
 import zio.console.putStrLn
@@ -1426,7 +1426,7 @@ libraryDependencies += "dev.zio" %% "zio-schema" % "0.0.6"
 
 In this simple example first, we create a schema for `Person` and then run the _diff_ operation on two instances of the `Person` data type, and finally we encode a Person instance using _Protobuf_ protocol:
 
-```scala mdoc:nest
+```scala
 import zio.console.putStrLn
 import zio.schema.codec.ProtobufCodec._
 import zio.schema.{DeriveSchema, Schema}
@@ -1478,7 +1478,7 @@ libraryDependencies += "dev.zio" %% "zio-sqs" % "0.4.2"
 
 In this example we produce a stream of events to the `MyQueue` and then consume them from that queue:
 
-```scala mdoc:silent:nest
+```scala
 import io.github.vigoo.zioaws
 import io.github.vigoo.zioaws.core.config.CommonAwsConfig
 import io.github.vigoo.zioaws.sqs.Sqs
@@ -1615,7 +1615,7 @@ lazy val openTracingExample = Seq(
 
 Let's create a `ZLayer` for `OpenTracing` which provides us Jaeger tracer. Each microservice uses this layer to send its tracing data to the _Jaeger Backend_:
 
-```scala mdoc:silent:nest
+```scala
 import io.jaegertracing.Configuration
 import io.jaegertracing.internal.samplers.ConstSampler
 import io.jaegertracing.zipkin.ZipkinV2Reporter
@@ -1838,7 +1838,7 @@ libraryDependencies += "org.polynote" %% "uzhttp" % "0.2.7"
 
 In this example, we expose metric information using _Prometheus_ protocol:
 
-```scala mdoc:silent:nest
+```scala
 import uzhttp._
 import uzhttp.server.Server
 import zio._

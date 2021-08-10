@@ -85,7 +85,7 @@ If we don't want to suspend, and we only want to query the state of whether or n
 ```scala mdoc:silent
 val ioPromise4: UIO[Promise[Exception, String]] = Promise.make[Exception, String]
 val ioIsItDone: UIO[Option[IO[Exception, String]]] = ioPromise4.flatMap(p => p.poll)
-val ioIsItDone2: IO[Option[Nothing], IO[Exception, String]] = ioPromise4.flatMap(p => p.poll.get)
+val ioIsItDone2: IO[Option[Nothing], IO[Exception, String]] = ioPromise4.flatMap(p => p.poll.some)
 ```
 
 If the Promise was not completed when we called `poll` then the IO will fail with the `Unit` value otherwise, we obtain an `IO[E, A]`, where `E` represents if the Promise completed with an error and `A` indicates that the Promise successfully completed with an `A` value.
