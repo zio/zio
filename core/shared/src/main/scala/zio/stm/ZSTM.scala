@@ -1344,8 +1344,10 @@ object ZSTM {
   def loopDiscard[R, E, S](
     initial: => S
   )(cont: S => Boolean, inc: S => S)(body: S => ZSTM[R, E, Any]): ZSTM[R, E, Unit] =
-    if (cont(initial)) body(initial) *> loopDiscard(inc(initial))(cont, inc)(body)
-    else ZSTM.unit
+    ZSTM.succeed(initial).flatMap { s =>
+      if (cont(s)) body(s) *> loopDiscard(inc(s))(cont, inc)(body)
+      else ZSTM.unit
+    }
 
   /**
    * Sequentially zips the specified effects using the specified combiner
