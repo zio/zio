@@ -3716,61 +3716,63 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Additionally, interrupts all effects on any failure.
    */
   def foreachParDiscard[R, E, A](as: => Iterable[A])(f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] =
-    if (as.isEmpty) ZIO.unit
-    else {
-      val size = as.size
-      for {
-        parentId <- ZIO.fiberId
-        causes   <- Ref.make[Cause[E]](Cause.empty)
-        result   <- Promise.make[Unit, Unit]
-        status   <- Ref.make((0, 0, false))
+    ZIO.succeed(as).flatMap { as =>
+      if (as.isEmpty) ZIO.unit
+      else {
+        val size = as.size
+        for {
+          parentId <- ZIO.fiberId
+          causes   <- Ref.make[Cause[E]](Cause.empty)
+          result   <- Promise.make[Unit, Unit]
+          status   <- Ref.make((0, 0, false))
 
-        startTask = status.modify { case (started, done, failing) =>
-                      if (failing) {
-                        (false, (started, done, failing))
-                      } else {
-                        (true, (started + 1, done, failing))
+          startTask = status.modify { case (started, done, failing) =>
+                        if (failing) {
+                          (false, (started, done, failing))
+                        } else {
+                          (true, (started + 1, done, failing))
+                        }
                       }
-                    }
 
-        startFailure = status.update { case (started, done, _) =>
-                         (started, done, true)
-                       } *> result.fail(())
+          startFailure = status.update { case (started, done, _) =>
+                           (started, done, true)
+                         } *> result.fail(())
 
-        task = ZIOFn(f)((a: A) =>
+          task = ZIOFn(f)((a: A) =>
+                   ZIO
+                     .ifZIO(startTask)(
+                       ZIO
+                         .suspendSucceed(f(a))
+                         .interruptible
+                         .tapCause(c => causes.update(_ && c) *> startFailure)
+                         .ensuring {
+                           val isComplete = status.modify { case (started, done, failing) =>
+                             val newDone = done + 1
+                             ((if (failing) started else size) == newDone, (started, newDone, failing))
+                           }
+                           ZIO.whenZIO(isComplete) {
+                             result.succeed(())
+                           }
+                         },
+                       causes.update(_ && Cause.Interrupt(parentId))
+                     )
+                     .uninterruptible
+                 )
+
+          fibers <- ZIO.transplant(graft => ZIO.foreach(as)(a => graft(task(a)).fork))
+          interrupter = result.await
+                          .catchAll(_ => ZIO.foreach(fibers)(_.interruptAs(parentId).fork).flatMap(Fiber.joinAll))
+                          .forkManaged
+          _ <- interrupter.useDiscard {
                  ZIO
-                   .ifZIO(startTask)(
-                     ZIO
-                       .suspendSucceed(f(a))
-                       .interruptible
-                       .tapCause(c => causes.update(_ && c) *> startFailure)
-                       .ensuring {
-                         val isComplete = status.modify { case (started, done, failing) =>
-                           val newDone = done + 1
-                           ((if (failing) started else size) == newDone, (started, newDone, failing))
-                         }
-                         ZIO.whenZIO(isComplete) {
-                           result.succeed(())
-                         }
-                       },
-                     causes.update(_ && Cause.Interrupt(parentId))
-                   )
-                   .uninterruptible
-               )
-
-        fibers <- ZIO.transplant(graft => ZIO.foreach(as)(a => graft(task(a)).fork))
-        interrupter = result.await
-                        .catchAll(_ => ZIO.foreach(fibers)(_.interruptAs(parentId).fork).flatMap(Fiber.joinAll))
-                        .forkManaged
-        _ <- interrupter.useDiscard {
-               ZIO
-                 .whenZIO(ZIO.foreach(fibers)(_.await).map(_.exists(!_.succeeded))) {
-                   result.fail(()) *> causes.get.flatMap(ZIO.failCause(_))
-                 }
-                 .refailWithTrace
-             }
-        _ <- ZIO.foreach(fibers)(_.inheritRefs)
-      } yield ()
+                   .whenZIO(ZIO.foreach(fibers)(_.await).map(_.exists(!_.succeeded))) {
+                     result.fail(()) *> causes.get.flatMap(ZIO.failCause(_))
+                   }
+                   .refailWithTrace
+               }
+          _ <- ZIO.foreach(fibers)(_.inheritRefs)
+        } yield ()
+      }
     }
 
   /**
@@ -4998,7 +5000,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * The moral equivalent of `if (p) exp` when `p` has side-effects
    */
   def whenZIO[R, E](b: => ZIO[R, E, Boolean]): ZIO.WhenZIO[R, E] =
-    new ZIO.WhenZIO(b)
+    new ZIO.WhenZIO(() => b)
 
   /**
    * Locally installs a supervisor and an effect that succeeds with all the
@@ -5151,9 +5153,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       b.flatMap(b => if (b) unit else zio.unit)
   }
 
-  final class WhenZIO[R, E](private val b: ZIO[R, E, Boolean]) extends AnyVal {
+  final class WhenZIO[R, E](private val b: () => ZIO[R, E, Boolean]) extends AnyVal {
     def apply[R1 <: R, E1 >: E](zio: => ZIO[R1, E1, Any]): ZIO[R1, E1, Unit] =
-      b.flatMap(b => if (b) zio.unit else unit)
+      ZIO.suspendSucceed(b()).flatMap(b => if (b) zio.unit else unit)
   }
 
   final class TimeoutTo[-R, +E, +A, +B](self: ZIO[R, E, A], b: B) {
