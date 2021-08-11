@@ -16,5 +16,110 @@ libraryDependencies += "dev.zio" %% "zio-test"    % "2.0.0-M2"
 ## Automated Scalafix Rules
 TODO
 
+## Deprecated Methods
 
+In ZIO 2.0, the name of constructors and operators becomes more ergonomic and simple. They reflect more about their purpose rather than just using idiomatic jargon of category theory or functional terms in functional programming with Haskell.
 
+Here are some of the most important changes:
+
+- **Multiple ways of doing the same thing are removed** — For example, both `ZIO.succeed` and `ZIO.effectTotal` do the same thing. So in ZIO 2.0 we just have one version of these constructors which is `ZIO.succeed`.
+
+- **ZIO.attempt instead of ZIO.effect** — In ZIO 2.0 all ZIO constructors like `ZIO.effect*` that create a ZIO from a side effect are deprecated and renamed to the `ZIO.attempt*` version. For example, when we are reading from a file, it's more meaning full to say we are attempting to read from a file instead of saying we have an effect of reading from a file.
+
+- **`ZIO` instead of the `M` suffix** — In effectful operations, the `M` suffix is renamed to the `ZIO` suffix. In ZIO 1.x, the `M` suffix in an effectful operation means that the operation works with monad in a monadic context. This naming convention is the legacy of Haskell jargon. In ZIO 2.x, all these suffixes are renamed to the `ZIO`. For example, the `ifM` operator is renamed to `ifZIO`.
+
+- **`Discard` instead of the underscore `_` suffix** — The underscore suffix is another legacy naming convention from Haskell's world. In ZIO 1.x, the underscore suffix means we are going to discard the result. The underscore version works exactly like the one without the underscore, but it discards the result and returns `Unit` in the ZIO context. For example, the `collectAll_` operator renamed to `collectAllDiscard`.
+
+### ZIO
+
+| ZIO 1.x                      | ZIO 2.x                       |
+|------------------------------+-------------------------------|
+| ZIO#&&&                      | ZIO#zip                       |
+| ZIO#>>=                      | ZIO#flatMap                   |
+| ZIO#bimap                    | ZIO#mapBoth                   |
+| ZIO#mapEffect                | ZIO#mapAttempt                |
+| ZIO#filterOrElse_            | ZIO#filterOrElse              |
+| ZIO#foldCauseM               | ZIO#foldCauseZIO              |
+| ZIO#foldM                    | ZIO#foldZIO                   |
+| ZIO#foldTraceM               | ZIO#foldTraceZIO              |
+|------------------------------+-------------------------------|
+| ZIO#get                      | ZIO#some                      |
+| ZIO#optional                 | ZIO#unoption                  |
+| ZIO#someOrElseM              | ZIO#someOrElseZIO             |
+|------------------------------+-------------------------------|
+| ZIO.forkAll_                 | ZIO.forkAllDiscard            |
+| ZIO.fromFiberM               | ZIO.fromFiberZIO              |
+| ZIO.require                  | ZIO.someOrFail                |
+| ZIO#on                       | ZIO#lockExecutionContext      |
+| ZIO#rejectM                  | ZIO#rejectZIO                 |
+| ZIO#run                      | ZIO#exit                      |
+| ZIO#timeoutHalt              | ZIO#timeoutFailCause          |
+| ZIO#to                       | ZIO#intoPromise               |
+| ZIO#asService                | ZIO#toLayer                   |
+|------------------------------+-------------------------------|
+| ZIO.accessM                  | ZIO.accessZIO                 |
+| ZIO.fromFunctionM            | ZIO.accessZIO                 |
+| ZIO.fromFunction             | ZIO.access                    |
+| ZIO.services                 | ZIO.service                   |
+|------------------------------+-------------------------------|
+| ZIO.bracket                  | ZIO.acquireReleaseWith        |
+| ZIO.bracketExit              | ZIO.acquireReleaseExitWith    |
+| ZIO.bracketAuto              | ZIO.acquireReleaseWithAuto    |
+| ZIO#bracket                  | ZIO#acquireReleaseWith        |
+| ZIO#bracket_                 | ZIO#acquireRelease            |
+| ZIO#bracketExit              | ZIO#acquireReleaseExitWith    |
+| ZIO#bracketExit              | ZIO#acquireReleaseExitWith    |
+| ZIO#bracketOnError           | ZIO#acquireReleaseOnErrorWith |
+| ZIO#toManaged_               | ZIO#toManaged                 |
+|------------------------------+-------------------------------|
+| ZIO.collectAll_              | ZIO.collectAllDiscard         |
+| ZIO.collectAllPar_           | ZIO.collectAllParDiscard      |
+| ZIO.collectAllParN_          | ZIO.collectAllParNDiscard     |
+| ZIO#collectM                 | ZIO#collectZIO                |
+|------------------------------+-------------------------------|
+| ZIO.effect                   | ZIO.attempt                   |
+| ZIO.effectAsync              | ZIO.async                     |
+| ZIO.effectAsyncInterrupt     | ZIO.asyncInterrupt            |
+| ZIO.effectAsyncM             | ZIO.asyncZIO                  |
+| ZIO.effectAsyncMaybe         | ZIO.asyncMaybe                |
+| ZIO.effectBlocking           | ZIO.attemptBlocking           |
+| ZIO.effectBlockingCancelable | ZIO.attemptBlockingCancelable |
+| ZIO.effectBlockingIO         | ZIO.attemptBlockingIO         |
+| ZIO.effectBlockingInterrupt  | ZIO.attemptBlockingInterrupt  |
+| ZIO.effectSuspend            | ZIO.suspend                   |
+| ZIO.effectSuspendTotal       | ZIO.suspendSucceed            |
+| ZIO.effectSuspendTotalWith   | ZIO.suspendSucceedWith        |
+| ZIO.effectSuspendWith        | ZIO.suspendWith               |
+| ZIO.effectTotal              | ZIO.succeed                   |
+|------------------------------+-------------------------------|
+| ZIO.foreach_                 | ZIO.foreachDiscard            |
+| ZIO.foreachPar_              | ZIO.foreachParDiscard         |
+| ZIO.foreachParN_             | ZIO.foreachParNDiscard        |
+| ZIO#replicateM               | ZIO#replicateZIO              |
+| ZIO#replicateM_              | ZIO#replicateZIODiscard       |
+|------------------------------+-------------------------------|
+| ZIO.halt                     | ZIO.failCause                 |
+| ZIO.haltWith                 | ZIO.failCauseWith             |
+|------------------------------+-------------------------------|
+| ZIO.ifM                      | ZIO.ifZIO                     |
+| ZIO.loop_                    | ZIO.loopDiscard               |
+| ZIO.whenCaseM                | ZIO.whenCaseZIO               |
+| ZIO.whenM                    | ZIO.whenZIO                   |
+| ZIO.unlessM                  | ZIO.unlessZIO                 |
+| ZIO#unlessM                  | ZIO#unlessZIO                 |
+| ZIO#whenM                    | ZIO#whenZIO                   |
+| ZIO#repeatUntilM             | ZIO#repeatUntilZIO            |
+| ZIO#repeatWhileM             | ZIO#repeatWhileZIO            |
+| ZIO#retryUntilM              | ZIO#retryUntilZIO             |
+| ZIO#retryWhileM              | ZIO#retryWhileZIO             |
+| ZIO.replicateM               | ZIO.replicateZIO              |
+| ZIO.replicateM_              | ZIO.replicateZIODiscard       |
+|------------------------------+-------------------------------|
+| ZIO.tupled                   | ZIO.zip                       |
+| ZIO.tupledPar                | ZIO.zipPar                    |
+| ZIO.mapN                     | ZIO.zip                       |
+| ZIO.mapParN                  | ZIO.zipPar                    |
+|------------------------------+-------------------------------|
+| ZIO.validate_                | ZIO.validateDiscard           |
+| ZIO.validatePar_             | ZIO.validateParDiscard        |
+|------------------------------+-------------------------------|
