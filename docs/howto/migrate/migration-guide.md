@@ -42,6 +42,11 @@ Here are some of the most important changes:
 
 - **`Discard` instead of the underscore `_` suffix** — The underscore suffix is another legacy naming convention from Haskell's world. In ZIO 1.x, the underscore suffix means we are going to discard the result. The underscore version works exactly like the one without the underscore, but it discards the result and returns `Unit` in the ZIO context. For example, the `collectAll_` operator renamed to `collectAllDiscard`.
 
+- **`as`, `to`, `into` prefixes** — The `ZIO#asService` method is renamed to `ZIO#toLayer` and also the `ZIO#to` is renamed to the `ZIO#intoPromise`. So now we have three categories of conversion:
+    1. **as** — The `ZIO#as` method and its variants like `ZIO#asSome`, `ZIO#asSomeError` and `ZIO#asService` are used when transforming the `A` inside of a `ZIO`, generally as shortcuts for `map(aToFoo(_))`.
+    2. **to** — The `ZIO#to` method and its variants like `ZIO#toLayer`, `ZIO#toManaged`, and `ZIO#toFuture` are used when the `ZIO` is transformed into something else other than `ZIO` data-type.
+    3. **into** — All `into*` methods, accept secondary data-type, modify it with the result of the current effect (e.g. `ZIO#intoPromise`, `ZStream#intoHub`, `ZStream#intoQueue` and `ZStream#intoManaged`)
+
 ### ZIO
 
 | ZIO 1.x                      | ZIO 2.x                       |
@@ -66,6 +71,7 @@ Here are some of the most important changes:
 | ZIO#rejectM                  | ZIO#rejectZIO                 |
 | ZIO#run                      | ZIO#exit                      |
 | ZIO#timeoutHalt              | ZIO#timeoutFailCause          |
+|------------------------------+-------------------------------|
 | ZIO#to                       | ZIO#intoPromise               |
 | ZIO#asService                | ZIO#toLayer                   |
 |------------------------------+-------------------------------|
