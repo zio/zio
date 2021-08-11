@@ -34,7 +34,10 @@ In ZIO 2.0, the name of constructors and operators becomes more ergonomic and si
 
 Here are some of the most important changes:
 
-- **Multiple ways of doing the same thing are removed** — For example, both `ZIO.succeed` and `ZIO.effectTotal` do the same thing. So in ZIO 2.0 we just have one version of these constructors which is `ZIO.succeed`.
+- **Multiple ways of doing the same thing are removed** — For example:
+    - Both `ZIO.succeed` and `ZIO.effectTotal` do the same thing. So in ZIO 2.0 we just have one version of these constructors which is `ZIO.succeed`.
+    - The bind operator `>>=` is removed. So we just have one way to flatMap which is the `flatMap` method. Therefore, the `>>=` method doesn't surprise the non-Haskellers.
+    - The `ZIO#get` method was essentially a more constrained version of `ZIO#some`. So the `get` method is deleted.
 
 - **ZIO.attempt instead of ZIO.effect** — In ZIO 2.0 all ZIO constructors like `ZIO.effect*` that create a ZIO from a side effect are deprecated and renamed to the `ZIO.attempt*` version. For example, when we are reading from a file, it's more meaning full to say we are attempting to read from a file instead of saying we have an effect of reading from a file.
 
