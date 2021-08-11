@@ -10,6 +10,10 @@ private[zio] object PrettyPrint extends PrettyPrintVersionSpecific {
     case array: Array[_] =>
       array.map(PrettyPrint.apply).mkString("Array(", ", ", ")")
 
+    case Some(a) => s"Some(${PrettyPrint(a)})"
+    case None    => s"None"
+    case Nil     => "Nil"
+
     case iterable: Seq[_] =>
       iterable.map(PrettyPrint.apply).mkString(s"${className(iterable)}(", ", ", ")")
 
@@ -20,16 +24,23 @@ ${indent(body.mkString(",\n"))}
 )"""
 
     case product: Product =>
-      val name = product.productPrefix
-      val body = labels(product).zip(product.productIterator).map { case (key, value) =>
-        s"$key = ${PrettyPrint(value)}"
-      }
-      s"""$name(
-${indent(body.mkString(",\n"))}
-)"""
+      val name    = product.productPrefix
+      val labels0 = labels(product)
+      val body = labels0
+        .zip(product.productIterator)
+        .map { case (key, value) =>
+          s"$key = ${PrettyPrint(value)}"
+        }
+        .toList
+        .mkString(",\n")
+      val isMultiline  = body.split("\n").length > 1
+      val indentedBody = indent(body, if (isMultiline) 2 else 0)
+      val spacer       = if (isMultiline) "\n" else ""
+      s"""$name($spacer$indentedBody$spacer)"""
 
     case string: String =>
-      string.replace("\"", """\"""").mkString("\"", "", "\"")
+      val surround = if (string.split("\n").length > 1) "\"\"\"" else "\""
+      string.replace("\"", """\"""").mkString(surround, "", surround)
 
     case other => other.toString
   }

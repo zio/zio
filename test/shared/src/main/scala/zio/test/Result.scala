@@ -120,7 +120,7 @@ object FailureCase {
       case FailureCase(errorMessage, _, _, path, _, _, _) if isNested =>
         val errorMessageLines =
           Chunk.fromIterable(errorMessage.split("\n")) match {
-            case head +: tail => (red("• ") + head) +: tail.map(red("  ") + _)
+            case head +: tail => (red("• ") + head) +: tail.map("  " + _)
             case _            => Chunk.empty
           }
 
@@ -132,7 +132,7 @@ object FailureCase {
       case FailureCase(errorMessage, codeString, location, path, _, nested, _) =>
         val errorMessageLines =
           Chunk.fromIterable(errorMessage.split("\n")) match {
-            case head +: tail => (red("• ") + head) +: tail.map(red("  ") + _)
+            case head +: tail => (red("• ") + head) +: tail.map("  " + _)
             case _            => Chunk.empty
           }
 
