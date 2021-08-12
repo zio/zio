@@ -1,18 +1,19 @@
-package zio
+package zio.autowire
 
-import zio.internal.macros.StringUtils.StringOps
-import zio.test.Assertion._
+import zio.test.Assertion.{equalTo, isLeft}
 import zio.test.AssertionM.Render.param
-import zio.test._
 import zio.test.environment.TestConsole
+import zio.test._
+import zio._
+import zio.internal.macros.StringUtils.StringOps
 
-object AutoLayerSpec extends ZIOBaseSpec {
+object AutoWireSpec extends ZIOBaseSpec {
 
   def containsStringWithoutAnsi(element: String): Assertion[String] =
     Assertion.assertion("containsStringWithoutAnsi")(param(element))(_.removingAnsiCodes.contains(element))
 
   def spec: ZSpec[Environment, Failure] =
-    suite("AutoLayerSpec")(
+    suite("AutoWireSpec")(
       suite("ZIO")(
         suite("`zio.inject`")(
           test("automatically constructs a layer from its dependencies") {
@@ -24,9 +25,10 @@ object AutoLayerSpec extends ZIOBaseSpec {
                 double <- ZIO.service[Double]
               } yield str.length + double.toInt).toLayer
 
-            val program: URIO[Has[Int], Int] = ZIO.service[Int]
-            val provided                     = program.inject(intLayer, stringLayer, doubleLayer)
-            assertM(provided)(equalTo(128))
+            val program: URIO[Has[Int], Int]     = ZIO.service[Int]
+            val injected: ZIO[Any, Nothing, Int] = program.inject(intLayer, stringLayer, doubleLayer)
+
+            injected.map(result => assertTrue(result == 128))
           },
           test("automatically memoizes non-val layers") {
             def sideEffectingLayer(ref: Ref[Int]): ZLayer[Any, Nothing, Has[String]] =
@@ -39,7 +41,7 @@ object AutoLayerSpec extends ZIOBaseSpec {
               ref    <- Ref.make(0)
               _      <- (ZIO.service[Int] <*> ZIO.service[Boolean]).inject(layerA, layerB, sideEffectingLayer(ref))
               result <- ref.get
-            } yield assert(result)(equalTo(1))
+            } yield assertTrue(result == 1)
           },
           test("reports duplicate layers") {
             val checked =
@@ -85,7 +87,7 @@ object AutoLayerSpec extends ZIOBaseSpec {
             val checked = typeCheck("program.inject(OldLady.live)")
             assertM(checked)(
               isLeft(
-                containsStringWithoutAnsi("missing zio.AutoLayerSpec.TestLayers.Fly") &&
+                containsStringWithoutAnsi("missing zio.autowire.AutoWireSpec.TestLayers.Fly") &&
                   containsStringWithoutAnsi("for TestLayers.OldLady.live")
               )
             )
@@ -98,7 +100,7 @@ object AutoLayerSpec extends ZIOBaseSpec {
             val checked = typeCheck("program.inject(OldLady.live, Fly.live)")
             assertM(checked)(
               isLeft(
-                containsStringWithoutAnsi("missing zio.AutoLayerSpec.TestLayers.Spider") &&
+                containsStringWithoutAnsi("missing zio.autowire.AutoWireSpec.TestLayers.Spider") &&
                   containsStringWithoutAnsi("for TestLayers.Fly.live")
               )
             )
@@ -243,7 +245,7 @@ object AutoLayerSpec extends ZIOBaseSpec {
             val checked = typeCheck("program.inject(OldLady.live)")
             assertM(checked)(
               isLeft(
-                containsStringWithoutAnsi("missing zio.AutoLayerSpec.TestLayers.Fly") &&
+                containsStringWithoutAnsi("missing zio.autowire.AutoWireSpec.TestLayers.Fly") &&
                   containsStringWithoutAnsi("for TestLayers.OldLady.live")
               )
             )
@@ -256,7 +258,7 @@ object AutoLayerSpec extends ZIOBaseSpec {
             val checked = typeCheck("program.inject(OldLady.live, Fly.live)")
             assertM(checked)(
               isLeft(
-                containsStringWithoutAnsi("missing zio.AutoLayerSpec.TestLayers.Spider") &&
+                containsStringWithoutAnsi("missing zio.autowire.AutoWireSpec.TestLayers.Spider") &&
                   containsStringWithoutAnsi("for TestLayers.Fly.live")
               )
             )

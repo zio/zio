@@ -18,35 +18,17 @@ private[zio] trait LayerMacroUtils {
     ZLayerExprBuilder[c.Type, LayerExpr](
       graph = Graph(
         nodes = nodes,
-        // The types must be `.toString`-ed as a backup in the case of refinement
-        // types.
+        // They must be `.toString`-ed as a backup in the case of refinement
+        // types. Otherwise, [[examples.DumbExample]] will fail.
         keyEquals = (t1, t2) => t1 =:= t2 || (t1.toString == t2.toString)
       ),
       showKey = tpe => tpe.toString,
       showExpr = expr => CleanCodePrinter.show(c)(expr.tree),
       abort = c.abort(c.enclosingPosition, _),
       emptyExpr = reify(ZLayer.succeed(())),
-      composeH = (lhs, rhs) => c.Expr(q"""$lhs +!+ $rhs"""),
+      composeH = (lhs, rhs) => c.Expr(q"""$lhs ++ $rhs"""),
       composeV = (lhs, rhs) => c.Expr(q"""$lhs >>> $rhs""")
     )
-
-  def buildSomeMemoizedLayer[R0: c.WeakTypeTag, R: c.WeakTypeTag, E](
-    layers: Seq[c.Expr[ZLayer[_, E, _]]]
-  ): c.Expr[ZLayer[R0, E, R]] = {
-    assertEnvIsNotNothing[R]()
-    assertProperVarArgs(layers)
-
-    val deferredRequirements = getRequirements[R0]
-
-    val deferredLayer =
-      if (deferredRequirements.nonEmpty) List(Node(List.empty, deferredRequirements, reify(ZLayer.requires[R0])))
-      else Nil
-
-    val nodes     = deferredLayer ++ layers.map(getNode)
-    val exprGraph = generateExprGraph(nodes)
-
-    buildMemoizedLayer(exprGraph, getRequirements[R]).asInstanceOf[c.Expr[ZLayer[R0, E, R]]]
-  }
 
   def buildMemoizedLayer(exprGraph: ZLayerExprBuilder[c.Type, LayerExpr], requirements: List[c.Type]): LayerExpr = {
     // This is run for its side effects: Reporting compile errors with the original source names.
@@ -72,30 +54,11 @@ private[zio] trait LayerMacroUtils {
     """)
   }
 
-  /**
-   * Ensures the macro has been annotated with the intended result type.
-   * The macro will not behave correctly otherwise.
-   */
-  def assertEnvIsNotNothing[Out: c.WeakTypeTag](): Unit = {
-    val outType     = weakTypeOf[Out]
-    val nothingType = weakTypeOf[Nothing]
-    if (outType == nothingType) {
-      val errorMessage =
-        s"""
-${"  ZLayer Wiring Error  ".red.bold.inverted}
-
-You must provide a type to ${"wire".cyan.bold} (e.g. ${"ZLayer.wire".cyan.bold}${"[A with B]".cyan.bold.underlined}${"(A.live, B.live)".cyan.bold})
-
-"""
-      c.abort(c.enclosingPosition, errorMessage)
-    }
-  }
-
   def getNode(layer: LayerExpr): Node[c.Type, LayerExpr] = {
-    val tpeArgs = layer.actualType.dealias.typeArgs
-    // ZLayer[in, _, out]
-    val in  = tpeArgs.head
-    val out = tpeArgs(2)
+    val typeArgs = layer.actualType.dealias.typeArgs
+    // ZIO[in, _, out]
+    val in  = typeArgs.head
+    val out = typeArgs(2)
     Node(getRequirements(in), getRequirements(out), layer)
   }
 
@@ -106,20 +69,20 @@ You must provide a type to ${"wire".cyan.bold} (e.g. ${"ZLayer.wire".cyan.bold}$
     tpe.isHas || tpe.isAny
 
   def getRequirements(tpe: Type): List[c.Type] = {
-    val intersectionTypes = tpe.intersectionTypes
+    val intersectionTypes = tpe.dealias.map(_.dealias).intersectionTypes
 
     intersectionTypes.filter(!isValidHasType(_)) match {
       case Nil => ()
       case nonHasTypes =>
         c.abort(
           c.enclosingPosition,
-          s"\nContains non-Has types:\n- ${nonHasTypes.map(_.toString.cyan.bold).mkString("\n- ")}"
+          s"\nContains non-Has types:\n- ${nonHasTypes.map(_.toString.yellow).mkString("\n- ")}"
         )
     }
 
     intersectionTypes
       .filter(_.isHas)
-      .map(_.dealias.typeArgs.head)
+      .map(_.dealias.typeArgs.head.dealias)
       .distinct
   }
 
@@ -138,7 +101,7 @@ You must provide a type to ${"wire".cyan.bold} (e.g. ${"ZLayer.wire".cyan.bold}$
     def isAny: Boolean = self.dealias.typeSymbol == typeOf[Any].typeSymbol
 
     /**
-     * Given a type `A with B with C`, you'll get back `List(A,B,C)`
+     * Given a type `A with B with C` You'll get back List[A,B,C]
      */
     def intersectionTypes: List[Type] =
       self.dealias match {

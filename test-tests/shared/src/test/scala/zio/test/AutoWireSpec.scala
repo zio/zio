@@ -5,12 +5,12 @@ import zio.internal.macros.StringUtils.StringOps
 import zio.test.Assertion._
 import zio.test.AssertionM.Render.param
 
-object AutoLayerSpec extends ZIOBaseSpec {
+object AutoWireSpec extends ZIOBaseSpec {
   def containsStringWithoutAnsi(element: String): Assertion[String] =
     Assertion.assertion("containsStringWithoutAnsi")(param(element))(_.removingAnsiCodes.contains(element))
 
   def spec: ZSpec[Environment, Failure] =
-    suite("AutoLayerSpec")(
+    suite("AutoWireSpec")(
       suite("inject")(
         suite("meta-suite") {
           val doubleLayer = ZLayer.succeed(100.1)
@@ -49,7 +49,7 @@ object AutoLayerSpec extends ZIOBaseSpec {
           val checked = typeCheck("""test("foo")(assertM(program)(anything)).inject(OldLady.live)""")
           assertM(checked)(
             isLeft(
-              containsStringWithoutAnsi("missing zio.test.AutoLayerSpec.TestLayers.Fly") &&
+              containsStringWithoutAnsi("missing zio.test.AutoWireSpec.TestLayers.Fly") &&
                 containsStringWithoutAnsi("for TestLayers.OldLady.live")
             )
           )
@@ -63,7 +63,7 @@ object AutoLayerSpec extends ZIOBaseSpec {
             typeCheck("""test("foo")(assertM(program)(anything)).inject(OldLady.live, Fly.live)""")
           assertM(checked)(
             isLeft(
-              containsStringWithoutAnsi("missing zio.test.AutoLayerSpec.TestLayers.Spider") &&
+              containsStringWithoutAnsi("missing zio.test.AutoWireSpec.TestLayers.Spider") &&
                 containsStringWithoutAnsi("for TestLayers.Fly.live")
             )
           )
