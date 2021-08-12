@@ -813,18 +813,19 @@ private[zio] final class FiberContext[E, A](
   def id: Fiber.Id = fiberId
 
   def inheritRefs: UIO[Unit] = UIO.effectSuspendTotal {
-    // The docs for `Collections.synchronizedMap` say that we must synchronize on the map itself when
-    // using collection views of the map; `asScala` uses an iterator on the map, so we must
-    // synchronize on the map when using it. We have to run some IO actions afterwards, so we
-    // make a copy for use in the `foreach_` below.
-    val locals = Sync(fiberRefLocals)(fiberRefLocals.asScala.toMap): @silent("JavaConverters")
+    if (fiberRefLocals.isEmpty) UIO.unit
+    else {
+      // The docs for `Collections.synchronizedMap` say that we must synchronize on the map itself when
+      // using collection views of the map; `asScala` uses an iterator on the map, so we must
+      // synchronize on the map when using it. We have to run some IO actions afterwards, so we
+      // make a copy for use in the `foreach_` below.
+      val locals = Sync(fiberRefLocals)(fiberRefLocals.asScala.toMap): @silent("JavaConverters")
 
-    if (locals.isEmpty) UIO.unit
-    else
       UIO.foreach_(locals) { case (fiberRef, value) =>
         val ref = fiberRef.asInstanceOf[FiberRef[Any]]
         ref.update(old => ref.join(old, value))
       }
+    }
   }
 
   def scope: ZScope[Exit[E, A]] = openScope.scope
