@@ -2,6 +2,9 @@
 id: zio-2.x-migration-guide
 title: "ZIO 2.x Migration Guide"
 ---
+```scala mdoc:invisible
+import zio._
+```
 
 ## Upgrading Dependencies
 
@@ -21,6 +24,38 @@ TODO
 
 ## ZIO Streams
 TODO
+
+## Improvements
+
+### Composable Zips
+
+In ZIO 2.x, when we are zipping together different effects:
+- `Tuple`s are not nested.
+- `Unit`s do not contribute to the output.
+
+Assume we have these effects
+
+```scala mdoc:silent:nest
+val x1: Task[Int]     = Task.succeed(???)
+val x2: Task[Unit]    = Task.succeed(???)
+val x3: Task[String]  = Task.succeed(???)
+val x4: Task[Boolean] = Task.succeed(???)
+```
+
+In ZIO 1.x, the output of zipping together these effects are nested:
+
+```scala
+val zipped = x1 <*> x2 <*> x3 <*> x4
+// zipped: ZIO[Any, Throwable, (((Int, Unit), String), Boolean)] = zio.ZIO$FlatMap@3ed3c202
+```
+
+While in ZIO 2.x, we have more ergonomics result type and also the `Unit` data-type doesn't contribute to the output:
+
+```scala mdoc:nest
+val zipped = x1 <*> x2 <*> x3 <*> x4
+```
+
+This change is not only for the `ZIO` data type but also for all other data types like `ZManaged`, `ZStream`, `ZSTM`, etc.
 
 ## Removed Methods
 
