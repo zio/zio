@@ -9,27 +9,12 @@ private[zio] class LayerMacros(val c: blackbox.Context) extends LayerMacroUtils 
 
   def injectImpl[F[_, _, _], R: c.WeakTypeTag, E, A](
     layers: c.Expr[ZLayer[_, E, _]]*
-  ): c.Expr[F[Any, E, A]] = {
-    assertProperVarArgs(layers)
-    val expr = buildMemoizedLayer(generateExprGraph(layers), getRequirements[R])
-    c.Expr[F[Any, E, A]](q"${c.prefix}.provideLayer(${expr.tree})")
-  }
+  ): c.Expr[F[Any, E, A]] =
+    injectBaseImpl[F, R, E, A](layers, "provideLayer")
 
   def injectSomeImpl[F[_, _, _], R0: c.WeakTypeTag, R: c.WeakTypeTag, E, A](
     layers: c.Expr[ZLayer[_, E, _]]*
-  ): c.Expr[F[R0, E, A]] = {
-    assertProperVarArgs(layers)
-    val remainderRequirements = getRequirements[R0]
-    val remainderExpr =
-      if (weakTypeOf[R0] =:= weakTypeOf[ZEnv]) reify(ZEnv.any)
-      else reify(ZLayer.requires[R0])
-
-    val remainderNode = Node(List.empty, remainderRequirements, remainderExpr)
-    val nodes         = (remainderNode +: layers.map(getNode)).toList
-
-    val layerExpr = buildMemoizedLayer(generateExprGraph(nodes), getRequirements[R])
-    c.Expr[F[R0, E, A]](q"${c.prefix}.provideLayer(${layerExpr.tree})")
-  }
+  ): c.Expr[F[R0, E, A]] = injectSomeBaseImpl[F, R0, R, E, A](layers, "provideLayer")
 
   def debugGetRequirements[R: c.WeakTypeTag]: c.Expr[List[String]] =
     c.Expr[List[String]](q"${getRequirements[R]}")

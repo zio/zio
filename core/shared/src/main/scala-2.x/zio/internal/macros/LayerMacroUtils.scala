@@ -68,6 +68,32 @@ private[zio] trait LayerMacroUtils {
   def isValidHasType(tpe: Type): Boolean =
     tpe.isHas || tpe.isAny
 
+  def injectBaseImpl[F[_, _, _], R: c.WeakTypeTag, E, A](
+    layers: Seq[c.Expr[ZLayer[_, E, _]]],
+    method: String
+  ): c.Expr[F[Any, E, A]] = {
+    assertProperVarArgs(layers)
+    val expr = buildMemoizedLayer(generateExprGraph(layers), getRequirements[R])
+    c.Expr[F[Any, E, A]](q"${c.prefix}.${TermName(method)}(${expr.tree})")
+  }
+
+  def injectSomeBaseImpl[F[_, _, _], R0: c.WeakTypeTag, R: c.WeakTypeTag, E, A](
+    layers: Seq[c.Expr[ZLayer[_, E, _]]],
+    method: String
+  ): c.Expr[F[R0, E, A]] = {
+    assertProperVarArgs(layers)
+    val remainderRequirements = getRequirements[R0]
+    val remainderExpr =
+      if (weakTypeOf[R0] =:= weakTypeOf[ZEnv]) reify(ZEnv.any)
+      else reify(ZLayer.requires[R0])
+
+    val remainderNode = Node(List.empty, remainderRequirements, remainderExpr)
+    val nodes         = (remainderNode +: layers.map(getNode)).toList
+
+    val layerExpr = buildMemoizedLayer(generateExprGraph(nodes), getRequirements[R])
+    c.Expr[F[R0, E, A]](q"${c.prefix}.${TermName(method)}(${layerExpr.tree})")
+  }
+
   def getRequirements(tpe: Type): List[c.Type] = {
     val intersectionTypes = tpe.dealias.map(_.dealias).intersectionTypes
 
