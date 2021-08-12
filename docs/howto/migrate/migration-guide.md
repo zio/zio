@@ -57,6 +57,31 @@ val zipped = x1 <*> x2 <*> x3 <*> x4
 
 This change is not only for the `ZIO` data type but also for all other data types like `ZManaged`, `ZStream`, `ZSTM`, etc.
 
+### Either Values
+
+In ZIO 1.x, the `ZIO#left` and `ZIO#right` operators are lossy, and they don't preserve the information on the other side of `Either` after the transformation.
+
+For example, assume we have an effect of type `ZIO[Any, Throwable, Left[Int, String]]`:
+
+```scala
+val effect         = Task.effect(Left[Int, String](5))
+// effect: ZIO[Any, Throwable, Left[Int, String]]
+val leftProjection = effect.left
+// leftProjection: ZIO[Any, Option[Throwable], Int]
+```
+
+The error channel of `leftProjection` doesn't contain type information of the other side of the `Left[Int, String]`, which is `String`. So after projecting to the left, we can not go back to the original effect.
+
+In ZIO 2.x, the `ZIO#left` and `ZIO#right`, contains all type information so then we can `unleft` or `unright` to inverse that projection:
+
+```scala mdoc:nest
+val effect         = ZIO.attempt(Left[Int, String](5))
+val leftProjection = effect.left
+val unlefted       = leftProjection.map(_ * 2).unleft 
+```
+
+So the error channel of the output of `left` and `right` operators is changed from `Option` to `Either`.
+
 ## Removed Methods
 
 - **Arrow Combinators** — (`+++`, `|||`, `onSecond`, `onFirst`, `second`, `first`, `onRight`, `onLeft`, `andThen`, `>>>`, `compose`, `<<<`, `identity`, `swap`, `join`)
