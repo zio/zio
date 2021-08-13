@@ -25,6 +25,63 @@ TODO
 ## ZIO Streams
 TODO
 
+## ZIO Services
+
+There are two significant changes in ZIO Services:
+
+| ZIO 1.x                  | ZIO 2.x                 |
+|--------------------------|-------------------------|
+| zio.Clock.Service.live   | zio.Clock.ClockLive     |
+| zio.Console.Service.live | zio.Console.ConsoleLive |
+| zio.System.Service.live  | zio.System.SystemLive   |
+| zio.Random.Service.live  | zio.Random.RandomLive   |
+
+1. All ZIO services moved to the `zio` package:
+
+    | ZIO 1.x               | ZIO 2.x                       |
+    |-----------------------|-------------------------------|
+    | zio.blocking.Blocking | [Removed](#blocking-service)  |
+    | zio.clock.Clock       | zio.Clock                     |
+    | zio.console.Console   | zio.Console                   |
+    | zio.random.Random     | zio.Random                    |
+    | zio.system.System     | zio.System                    |
+
+    And their live implementations renamed and moved to a new path:
+
+    | ZIO 1.x                  | ZIO 2.x                 |
+    |--------------------------|-------------------------|
+    | zio.Clock.Service.live   | zio.Clock.ClockLive     |
+    | zio.Console.Service.live | zio.Console.ConsoleLive |
+    | zio.System.Service.live  | zio.System.SystemLive   |
+    | zio.Random.Service.live  | zio.Random.RandomLive   |
+
+
+2. In ZIO 2.0 all type aliases like `type Logging = Has[Logging.Service]` removed. So we should explicitly use `Has` wrappers when we want to specify dependencies on ZIO services.
+
+So instead of writing `ZLayer[Console with Clock, Nothing, ConsoleLogger]`, we should write `ZLayer[Has[Console] with Has[Clock], Nothing, Has[ConsoleLogger]]`.
+
+### Blocking Service
+
+Since there is rarely a need to use a separate blocking thread pool, ZIO 2.0 created _one global blocking pool_ removed the Blocking service from `ZEnv` and the built-in services.
+
+All blocking operations were moved to the `ZIO` data type:
+
+| ZIO 1.x                 | ZIO 2.x |
+|-------------------------|---------|
+| zio.blocking.Blocking.* | ZIO.*   |
+
+### Console Service
+
+Method names in the _Console_ service were renamed to the more readable names:
+
+| ZIO 1.x     | ZIO 2.x        |
+|-------------|----------------|
+| putStr      | print          |
+| putStrErr   | printError     |
+| putStrLn    | printLine      |
+| putStrLnErr | printLineError |
+| getStrLn    | readLine       |
+
 ## Improvements
 
 ### Composable Zips
@@ -109,7 +166,7 @@ Here are some of the most important changes:
     1. **as** — The `ZIO#as` method and its variants like `ZIO#asSome`, `ZIO#asSomeError` and `ZIO#asService` are used when transforming the `A` inside of a `ZIO`, generally as shortcuts for `map(aToFoo(_))`.
     2. **to** — The `ZIO#to` method and its variants like `ZIO#toLayer`, `ZIO#toManaged`, and `ZIO#toFuture` are used when the `ZIO` is transformed into something else other than `ZIO` data-type.
     3. **into** — All `into*` methods, accept secondary data-type, modify it with the result of the current effect (e.g. `ZIO#intoPromise`, `ZStream#intoHub`, `ZStream#intoQueue` and `ZStream#intoManaged`)
-
+    
 ### ZIO
 
 | ZIO 1.x                      | ZIO 2.x                       |
