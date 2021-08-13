@@ -170,7 +170,7 @@ Here are some of the most important changes:
 ### ZIO
 
 | ZIO 1.x                      | ZIO 2.x                       |
-|------------------------------+-------------------------------|
+|------------------------------|-------------------------------|
 | ZIO#&&&                      | ZIO#zip                       |
 | ZIO#>>=                      | ZIO#flatMap                   |
 | ZIO#bimap                    | ZIO#mapBoth                   |
@@ -179,11 +179,11 @@ Here are some of the most important changes:
 | ZIO#foldCauseM               | ZIO#foldCauseZIO              |
 | ZIO#foldM                    | ZIO#foldZIO                   |
 | ZIO#foldTraceM               | ZIO#foldTraceZIO              |
-|------------------------------+-------------------------------|
+|                              |                               |
 | ZIO#get                      | ZIO#some                      |
 | ZIO#optional                 | ZIO#unoption                  |
 | ZIO#someOrElseM              | ZIO#someOrElseZIO             |
-|------------------------------+-------------------------------|
+|                              |                               |
 | ZIO.forkAll_                 | ZIO.forkAllDiscard            |
 | ZIO.fromFiberM               | ZIO.fromFiberZIO              |
 | ZIO.require                  | ZIO.someOrFail                |
@@ -191,15 +191,15 @@ Here are some of the most important changes:
 | ZIO#rejectM                  | ZIO#rejectZIO                 |
 | ZIO#run                      | ZIO#exit                      |
 | ZIO#timeoutHalt              | ZIO#timeoutFailCause          |
-|------------------------------+-------------------------------|
+|                              |                               |
 | ZIO#to                       | ZIO#intoPromise               |
 | ZIO#asService                | ZIO#toLayer                   |
-|------------------------------+-------------------------------|
+|                              |                               |
 | ZIO.accessM                  | ZIO.accessZIO                 |
 | ZIO.fromFunctionM            | ZIO.accessZIO                 |
 | ZIO.fromFunction             | ZIO.access                    |
 | ZIO.services                 | ZIO.service                   |
-|------------------------------+-------------------------------|
+|                              |                               |
 | ZIO.bracket                  | ZIO.acquireReleaseWith        |
 | ZIO.bracketExit              | ZIO.acquireReleaseExitWith    |
 | ZIO.bracketAuto              | ZIO.acquireReleaseWithAuto    |
@@ -209,12 +209,12 @@ Here are some of the most important changes:
 | ZIO#bracketExit              | ZIO#acquireReleaseExitWith    |
 | ZIO#bracketOnError           | ZIO#acquireReleaseOnErrorWith |
 | ZIO#toManaged_               | ZIO#toManaged                 |
-|------------------------------+-------------------------------|
+|                              |                               |
 | ZIO.collectAll_              | ZIO.collectAllDiscard         |
 | ZIO.collectAllPar_           | ZIO.collectAllParDiscard      |
 | ZIO.collectAllParN_          | ZIO.collectAllParNDiscard     |
 | ZIO#collectM                 | ZIO#collectZIO                |
-|------------------------------+-------------------------------|
+|                              |                               |
 | ZIO.effect                   | ZIO.attempt                   |
 | ZIO.effectAsync              | ZIO.async                     |
 | ZIO.effectAsyncInterrupt     | ZIO.asyncInterrupt            |
@@ -229,16 +229,16 @@ Here are some of the most important changes:
 | ZIO.effectSuspendTotalWith   | ZIO.suspendSucceedWith        |
 | ZIO.effectSuspendWith        | ZIO.suspendWith               |
 | ZIO.effectTotal              | ZIO.succeed                   |
-|------------------------------+-------------------------------|
+|                              |                               |
 | ZIO.foreach_                 | ZIO.foreachDiscard            |
 | ZIO.foreachPar_              | ZIO.foreachParDiscard         |
 | ZIO.foreachParN_             | ZIO.foreachParNDiscard        |
 | ZIO#replicateM               | ZIO#replicateZIO              |
 | ZIO#replicateM_              | ZIO#replicateZIODiscard       |
-|------------------------------+-------------------------------|
+|                              |                               |
 | ZIO.halt                     | ZIO.failCause                 |
 | ZIO.haltWith                 | ZIO.failCauseWith             |
-|------------------------------+-------------------------------|
+|                              |                               |
 | ZIO.ifM                      | ZIO.ifZIO                     |
 | ZIO.loop_                    | ZIO.loopDiscard               |
 | ZIO.whenCaseM                | ZIO.whenCaseZIO               |
@@ -252,12 +252,11 @@ Here are some of the most important changes:
 | ZIO#retryWhileM              | ZIO#retryWhileZIO             |
 | ZIO.replicateM               | ZIO.replicateZIO              |
 | ZIO.replicateM_              | ZIO.replicateZIODiscard       |
-|------------------------------+-------------------------------|
+|                              |                               |
 | ZIO.tupled                   | ZIO.zip                       |
 | ZIO.tupledPar                | ZIO.zipPar                    |
 | ZIO.mapN                     | ZIO.zip                       |
 | ZIO.mapParN                  | ZIO.zipPar                    |
-|------------------------------+-------------------------------|
+|                              |                               |
 | ZIO.validate_                | ZIO.validateDiscard           |
 | ZIO.validatePar_             | ZIO.validateParDiscard        |
-|------------------------------+-------------------------------|
