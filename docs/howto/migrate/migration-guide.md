@@ -114,6 +114,8 @@ val zipped = x1 <*> x2 <*> x3 <*> x4
 
 This change is not only for the `ZIO` data type but also for all other data types like `ZManaged`, `ZStream`, `ZSTM`, etc.
 
+As we have compositional zips, we do not longer need higher arity zips in ZIO 1.x like `mapN`, `mapParN`, `Gen#zipN`, and `Gen#crossN`. They are deprecated in ZIO 2.x.
+
 ### Either Values
 
 In ZIO 1.x, the `ZIO#left` and `ZIO#right` operators are lossy, and they don't preserve the information on the other side of `Either` after the transformation.
