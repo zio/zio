@@ -116,6 +116,16 @@ This change is not only for the `ZIO` data type but also for all other data type
 
 As we have compositional zips, we do not longer need higher arity zips in ZIO 1.x like `mapN`, `mapParN`, `Gen#zipN`, and `Gen#crossN`. They are deprecated in ZIO 2.x.
 
+Here is the list of `zip` variants that are deprecated:
+
+| ZIO 1.x       | ZIO 2.x    |
+|---------------|------------|
+| ZIO#&&&       | ZIO#zip    |
+| ZIO.tupled    | ZIO.zip    |
+| ZIO.tupledPar | ZIO.zipPar |
+| ZIO.mapN      | ZIO.zip    |
+| ZIO.mapParN   | ZIO.zipPar |
+
 ### Either Values
 
 In ZIO 1.x, the `ZIO#left` and `ZIO#right` operators are lossy, and they don't preserve the information on the other side of `Either` after the transformation.
@@ -173,7 +183,6 @@ Here are some of the most important changes:
 
 | ZIO 1.x                      | ZIO 2.x                       |
 |------------------------------|-------------------------------|
-| ZIO#&&&                      | ZIO#zip                       |
 | ZIO#>>=                      | ZIO#flatMap                   |
 | ZIO#bimap                    | ZIO#mapBoth                   |
 | ZIO#mapEffect                | ZIO#mapAttempt                |
@@ -255,10 +264,6 @@ Here are some of the most important changes:
 | ZIO.replicateM               | ZIO.replicateZIO              |
 | ZIO.replicateM_              | ZIO.replicateZIODiscard       |
 |                              |                               |
-| ZIO.tupled                   | ZIO.zip                       |
-| ZIO.tupledPar                | ZIO.zipPar                    |
-| ZIO.mapN                     | ZIO.zip                       |
-| ZIO.mapParN                  | ZIO.zipPar                    |
 |                              |                               |
 | ZIO.validate_                | ZIO.validateDiscard           |
 | ZIO.validatePar_             | ZIO.validateParDiscard        |
