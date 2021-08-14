@@ -603,7 +603,7 @@ lazy val docs = project.module
       "org.http4s"                    %% "http4s-dsl"                    % http4sV,
       "com.github.ghostdogpr"         %% "caliban"                       % "1.1.1",
       "com.github.ghostdogpr"         %% "caliban-zio-http"              % "1.1.1",
-      "org.scalameta"                 %% "munit"                         % "0.7.27",
+      "org.scalameta"                 %% "munit"                         % "0.7.28",
       "com.github.poslegm"            %% "munit-zio"                     % "0.0.2",
       "nl.vroste"                     %% "rezilience"                    % "0.6.2",
       "io.github.gaelrenoux"          %% "tranzactio"                    % "2.1.0",
