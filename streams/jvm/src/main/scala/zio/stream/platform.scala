@@ -107,7 +107,7 @@ trait ZStreamPlatformSpecificConstructors {
    * by setting it to `None`.
    */
   def effectAsync[R, E, A](
-    register: (ZIO[R, Option[E], Chunk[A]] => Unit) => Unit,
+    register: ZStream.Register[R, E, A, Unit] => Unit,
     outputBuffer: Int = 16
   ): ZStream[R, E, A] =
     effectAsyncMaybe(
@@ -125,7 +125,7 @@ trait ZStreamPlatformSpecificConstructors {
    * setting it to `None`.
    */
   def effectAsyncInterrupt[R, E, A](
-    register: (ZIO[R, Option[E], Chunk[A]] => Unit) => Either[Canceler[R], ZStream[R, E, A]],
+    register: ZStream.Register[R, E, A, Unit] => Either[Canceler[R], ZStream[R, E, A]],
     outputBuffer: Int = 16
   ): ZStream[R, E, A] =
     ZStream {
@@ -162,7 +162,7 @@ trait ZStreamPlatformSpecificConstructors {
    * error type `E` can be used to signal the end of the stream, by setting it to `None`.
    */
   def effectAsyncM[R, E, A](
-    register: (ZIO[R, Option[E], Chunk[A]] => Unit) => ZIO[R, E, Any],
+    register: ZStream.Register[R, E, A, Unit] => ZIO[R, E, Any],
     outputBuffer: Int = 16
   ): ZStream[R, E, A] =
     managed {
@@ -194,7 +194,7 @@ trait ZStreamPlatformSpecificConstructors {
    * by setting it to `None`.
    */
   def effectAsyncMaybe[R, E, A](
-    register: (ZIO[R, Option[E], Chunk[A]] => Unit) => Option[ZStream[R, E, A]],
+    register: ZStream.Register[R, E, A, Unit] => Option[ZStream[R, E, A]],
     outputBuffer: Int = 16
   ): ZStream[R, E, A] =
     ZStream {
