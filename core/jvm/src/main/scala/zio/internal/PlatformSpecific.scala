@@ -80,6 +80,8 @@ private[internal] trait PlatformSpecific {
     new Platform {
       val executor = executor0
 
+      override val yieldOnStart = true
+
       val tracing = Tracing(Tracer.globallyCached(new AkkaLineNumbersTracer), TracingConfig.enabled)
 
       def fatal(t: Throwable): Boolean =
@@ -143,19 +145,5 @@ private[internal] trait PlatformSpecific {
     val ref = new WeakReference[A](value)
 
     () => ref.get()
-  }
-
-  /**
-   * calling `initCause()` on [[java.lang.Throwable]] may fail on the JVM if `newCause != this`,
-   * which may happen if the cause is set to null.
-   * This works around this with reflection.
-   */
-  def forceThrowableCause(throwable: Throwable, newCause: Throwable): Unit = {
-    import scala.util.control.Exception._
-    ignoring(classOf[Throwable]) {
-      val causeField = classOf[Throwable].getDeclaredField("cause")
-      causeField.setAccessible(true)
-      causeField.set(throwable, newCause)
-    }
   }
 }

@@ -2,6 +2,7 @@ package zio.test
 
 import zio.Chunk
 import zio.test.Assertion._
+import zio.test.internal.myers.{DiffResult, MyersDiff}
 
 object MyersDiffSpec extends ZIOBaseSpec {
 
@@ -10,41 +11,41 @@ object MyersDiffSpec extends ZIOBaseSpec {
       val original = ""
       val modified = "ADDITIONS"
 
-      assert(MyersDiff.diff(original, modified).applyChanges(original))(equalTo(modified)) &&
-      assert(MyersDiff.diff(original, modified).invert.applyChanges(modified))(equalTo(original))
+      assert(MyersDiff.diffSingleLine(original, modified).applyChanges(original))(equalTo(modified)) &&
+      assert(MyersDiff.diffSingleLine(original, modified).invert.applyChanges(modified))(equalTo(original))
     },
     test("diffing works for only deletions both ways") {
       val original = "DELETIONS"
       val modified = ""
 
-      assert(MyersDiff.diff(original, modified).applyChanges(original))(equalTo(modified)) &&
-      assert(MyersDiff.diff(original, modified).invert.applyChanges(modified))(equalTo(original))
+      assert(MyersDiff.diffSingleLine(original, modified).applyChanges(original))(equalTo(modified)) &&
+      assert(MyersDiff.diffSingleLine(original, modified).invert.applyChanges(modified))(equalTo(original))
     },
     test("diffing works for two empty strings both ways") {
       val original = ""
       val modified = ""
 
-      assert(MyersDiff.diff(original, modified).applyChanges(original))(equalTo(modified)) &&
-      assert(MyersDiff.diff(original, modified).invert.applyChanges(modified))(equalTo(original))
+      assert(MyersDiff.diffSingleLine(original, modified).applyChanges(original))(equalTo(modified)) &&
+      assert(MyersDiff.diffSingleLine(original, modified).invert.applyChanges(modified))(equalTo(original))
     },
     test("diffing works for Myers example both ways") {
       val original = "ABCABBA"
       val modified = "CBABAC"
 
-      assert(MyersDiff.diff(original, modified).applyChanges(original))(equalTo(modified)) &&
-      assert(MyersDiff.diff(original, modified).invert.applyChanges(modified))(equalTo(original))
+      assert(MyersDiff.diffSingleLine(original, modified).applyChanges(original))(equalTo(modified)) &&
+      assert(MyersDiff.diffSingleLine(original, modified).invert.applyChanges(modified))(equalTo(original))
     },
     test("diffing for Myers example produces a sane DiffResult") {
       val original = "ABCABBA"
       val modified = "CBABAC"
 
-      import Action._
-      assert(MyersDiff.diff(original, modified))(
-        equalTo(
+      import zio.test.internal.myers.Action._
+      assertTrue(
+        MyersDiff.diffSingleLine(original, modified) ==
           DiffResult(
             Chunk(
-              Insert("C"),
               Delete("A"),
+              Insert("C"),
               Keep("B"),
               Delete("C"),
               Keep("A"),
@@ -54,13 +55,12 @@ object MyersDiffSpec extends ZIOBaseSpec {
               Insert("C")
             )
           )
-        )
       )
     },
     testM("diffing works for all random strings both ways") {
       check(Gen.anyString, Gen.anyString) { (original, modified) =>
-        assert(MyersDiff.diff(original, modified).applyChanges(original))(equalTo(modified)) &&
-        assert(MyersDiff.diff(original, modified).invert.applyChanges(modified))(equalTo(original))
+        assert(MyersDiff.diffSingleLine(original, modified).applyChanges(original))(equalTo(modified)) &&
+        assert(MyersDiff.diffSingleLine(original, modified).invert.applyChanges(modified))(equalTo(original))
       }
     }
   )

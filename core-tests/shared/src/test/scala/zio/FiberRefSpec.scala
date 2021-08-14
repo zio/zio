@@ -277,6 +277,13 @@ object FiberRefSpec extends ZIOBaseSpec {
           value    <- fiberRef.get
         } yield assert(value)(equalTo(initial))
       } @@ zioTag(errors),
+      testM("the value of all fibers in inherited when running many ZIOs with collectAllPar") {
+        for {
+          fiberRef <- FiberRef.make[Int](0, _ => 0, _ + _)
+          _        <- ZIO.collectAllPar(List.fill(100000)(fiberRef.update(_ + 1)))
+          value    <- fiberRef.get
+        } yield assert(value)(equalTo(100000))
+      },
       testM("an unsafe handle is initialized and updated properly") {
         for {
           fiberRef <- FiberRef.make(initial)

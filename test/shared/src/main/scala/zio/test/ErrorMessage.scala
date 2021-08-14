@@ -7,6 +7,7 @@ object ErrorMessage {
   def throwable(throwable: Throwable): ErrorMessage = ThrowableM(throwable)
 
   def choice(success: String, failure: String): ErrorMessage = Choice(success, failure)
+  def custom(string: String): ErrorMessage                   = Custom(string)
   def text(string: String): ErrorMessage                     = choice(string, string)
   def value(value: Any): ErrorMessage                        = Value(value)
 
@@ -17,6 +18,7 @@ object ErrorMessage {
   val was: ErrorMessage    = choice("was", "was not")
   val valid: ErrorMessage  = choice("Valid", "Invalid")
 
+  private final case class Custom(string: String)                                          extends ErrorMessage
   private final case class Value(value: Any)                                               extends ErrorMessage
   private final case class ThrowableM(throwable: Throwable)                                extends ErrorMessage
   private final case class Choice(success: String, failure: String)                        extends ErrorMessage
@@ -30,10 +32,12 @@ sealed trait ErrorMessage { self =>
 
   private[test] def render(isSuccess: Boolean): String =
     self match {
+      case ErrorMessage.Custom(custom) => custom
+
       case ErrorMessage.Choice(success, failure) =>
         if (isSuccess) magenta(success) else red(failure)
 
-      case ErrorMessage.Value(value) => bold(blue(PrettyPrint(value)))
+      case ErrorMessage.Value(value) => bold(blue(value.toString))
 
       case ErrorMessage.Combine(lhs, rhs, spacing) =>
         lhs.render(isSuccess) + (" " * spacing) + rhs.render(isSuccess)
@@ -46,11 +50,4 @@ sealed trait ErrorMessage { self =>
 
     }
 
-}
-
-private[zio] object PrettyPrint {
-  def apply(any: Any): String = any match {
-    case array: Array[_] => array.mkString("Array(", ", ", ")")
-    case other           => other.toString
-  }
 }

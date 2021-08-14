@@ -219,12 +219,8 @@ object CauseSpec extends ZIOBaseSpec {
           assert(squashed)(
             equalTo(e) &&
               hasMessage(equalTo(throwableMessage)) &&
-              hasThrowableCause(
-                isSubtype[IllegalArgumentException](
-                  hasMessage(equalTo(causeMessage)) &&
-                    hasThrowableCause(hasMessage(equalTo(renderedCause)))
-                )
-              )
+              hasThrowableCause(isSubtype[IllegalArgumentException](hasMessage(equalTo(causeMessage)))) &&
+              hasSuppressed(exists(hasMessage(equalTo(renderedCause))))
           )
         }
       }

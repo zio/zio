@@ -68,7 +68,7 @@ Note that `zip` operates sequentially: the effect on the left side is executed b
 
 In any `zip` operation, if either the left or right hand sides fail, then the composed effect will fail, because _both_ values are required to construct the tuple.
 
-Sometimes, when the success value of an effect is not useful (or example, it is `Unit`), it can be more convenient to use the `ZIO#zipLeft` or `ZIO#zipRight` functions, which first perform a `zip`, and then map over the tuple to discard one side or the other:
+Sometimes, when the success value of an effect is not useful (for example, it is `Unit`), it can be more convenient to use the `ZIO#zipLeft` or `ZIO#zipRight` functions, which first perform a `zip`, and then map over the tuple to discard one side or the other:
 
 ```scala mdoc:silent
 val zipRight1 = 

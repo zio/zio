@@ -3,6 +3,7 @@ package zio.test
 import zio.duration.durationInt
 import zio.test.SmartTestTypes._
 import zio.test.environment.TestClock
+import zio.{Chunk, NonEmptyChunk}
 
 import java.time.LocalDateTime
 import scala.collection.immutable.SortedSet
@@ -216,7 +217,7 @@ object SmartAssertionSpec extends ZIOBaseSpec {
     test("exists must fail when all elements of iterable do not satisfy specified assertion") {
       val value = Seq(1, 42, 5)
       assertTrue(value.exists(_ == 423))
-    } @@ TestAspect.tag("IMPORTANT") @@ failing,
+    } @@ failing,
     test("forall must succeed when all elements of iterable satisfy specified assertion") {
       assertTrue(Seq("a", "bb", "ccc").forall(l => l.nonEmpty && l.length <= 3))
     },
@@ -251,11 +252,11 @@ object SmartAssertionSpec extends ZIOBaseSpec {
     test("hasIntersection must succeed when intersection satisfies specified assertion") {
       val seq = Seq(1, 2, 3, 4, 5)
       assertTrue((seq intersect Seq(4, 5, 6, 7, 8)).length == 105)
-    } @@ TestAspect.tag("IMPORTANT") @@ failing,
+    } @@ failing,
     test("hasIntersection must succeed when intersection satisfies specified assertion") {
       val seq = Seq(1, 2, 3, 4, 5)
       assertTrue(seq.intersect(Seq(4, 5, 6, 7, 8)).length == 108)
-    } @@ TestAspect.tag("IMPORTANT") @@ failing,
+    } @@ failing,
     test("hasIntersection must succeed when empty intersection satisfies specified assertion") {
       assertTrue((Seq(1, 2, 3, 4) intersect Seq(5, 6, 7)).isEmpty)
     },
@@ -295,10 +296,42 @@ object SmartAssertionSpec extends ZIOBaseSpec {
       test("No implicit Diff") {
         val int = 100
         assertTrue(int == 200)
-      } @@ failing,
+      }
+        @@ failing,
       test("With implicit Diff") {
         val string = "Sunday Everyday"
         assertTrue(string == "Saturday Todays")
+      } @@ failing,
+      test("List diffs") {
+        val l1 = List("Alpha", "This is a wonderful way to dance and party", "Potato")
+        val l2 = List("Alpha", "This is a wonderful way to live and die", "Potato", "Bruce Lee", "Potato", "Ziverge")
+        assertTrue(l1 == l2)
+      } @@ failing,
+      test("Array diffs") {
+        val l1 = Array("Alpha", "This is a wonderful way to dance and party", "Potato")
+        val l2 = Array("Alpha", "This is a wonderful way to live and die", "Potato", "Bruce Lee", "Potato", "Ziverge")
+        assertTrue(l1 == l2)
+      } @@ failing,
+      test("Chunk diffs") {
+        val l1 = Chunk("Alpha", "This is a wonderful way to dance and party", "Potato")
+        val l2 = Chunk("Alpha", "This is a wonderful way to live and die", "Potato", "Bruce Lee", "Potato", "Ziverge")
+        assertTrue(l1 == l2)
+      } @@ failing,
+      test("NonEmptyChunk diffs") {
+        val l1 = NonEmptyChunk("Alpha", "This is a wonderful way to dance and party", "Potato")
+        val l2 =
+          NonEmptyChunk("Alpha", "This is a wonderful way to live and die", "Potato", "Bruce Lee", "Potato", "Ziverge")
+        assertTrue(l1 == l2)
+      } @@ failing,
+      test("Set diffs") {
+        val l1 = Set(1, 2, 3, 4)
+        val l2 = Set(1, 2, 8, 4, 5)
+        assertTrue(l1 == l2)
+      } @@ failing,
+      test("Map diffs") {
+        val l1 = Map("name" -> "Kit", "age" -> "100")
+        val l2 = Map("name" -> "Bill", "rage" -> "9000")
+        assertTrue(l1 == l2)
       } @@ failing
     ),
     test("Package qualified identifiers") {
@@ -351,8 +384,18 @@ object SmartAssertionSpec extends ZIOBaseSpec {
         val someChild                  = Child("hii")
         assertTrue(someParent.contains(someChild))
       } @@ failing
+    ),
+    suite("custom assertions")(
+      test("reports source location of actual usage") {
+        customAssertion("hello")
+      } @@ failing
     )
   )
+
+  // The implicit SourceLocation will be used by assertTrue to report the
+  // actual location.
+  def customAssertion(string: String)(implicit sourceLocation: SourceLocation): Assert =
+    assertTrue(string == "coool")
 
   // Test Types
   private sealed trait Color

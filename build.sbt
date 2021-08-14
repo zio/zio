@@ -133,7 +133,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(stdSettings("zio"))
   .settings(crossProjectSettings)
   .settings(buildInfoSettings("zio"))
-  .settings(libraryDependencies += "dev.zio" %%% "izumi-reflect" % "1.1.2")
+  .settings(libraryDependencies += "dev.zio" %%% "izumi-reflect" % "1.1.3")
   .enablePlugins(BuildInfoPlugin)
 
 lazy val coreJVM = core.jvm
@@ -348,7 +348,7 @@ lazy val testRefined = crossProject(JVMPlatform, JSPlatform)
     crossScalaVersions --= Seq(Scala211),
     libraryDependencies ++=
       Seq(
-        ("eu.timepit" %% "refined" % "0.9.26").cross(CrossVersion.for3Use2_13)
+        ("eu.timepit" %% "refined" % "0.9.27").cross(CrossVersion.for3Use2_13)
       )
   )
 
@@ -438,14 +438,14 @@ lazy val testJunitRunnerTests = crossProject(JVMPlatform)
   .settings(
     libraryDependencies ++= Seq(
       "junit"                   % "junit"     % "4.13.2" % Test,
-      "org.scala-lang.modules" %% "scala-xml" % "2.0.0"  % Test,
+      "org.scala-lang.modules" %% "scala-xml" % "2.0.1"  % Test,
       // required to run embedded maven in the tests
-      "org.apache.maven"       % "maven-embedder"         % "3.8.1"  % Test,
-      "org.apache.maven"       % "maven-compat"           % "3.8.1"  % Test,
+      "org.apache.maven"       % "maven-embedder"         % "3.8.2"  % Test,
+      "org.apache.maven"       % "maven-compat"           % "3.8.2"  % Test,
       "org.apache.maven.wagon" % "wagon-http"             % "3.4.3"  % Test,
       "org.eclipse.aether"     % "aether-connector-basic" % "1.1.0"  % Test,
       "org.eclipse.aether"     % "aether-transport-wagon" % "1.1.0"  % Test,
-      "org.slf4j"              % "slf4j-simple"           % "1.7.31" % Test
+      "org.slf4j"              % "slf4j-simple"           % "1.7.32" % Test
     )
   )
   .dependsOn(test)
@@ -498,16 +498,16 @@ lazy val benchmarks = project.module
       Seq(
         "co.fs2"                    %% "fs2-core"       % "2.5.9",
         "com.google.code.findbugs"   % "jsr305"         % "3.0.2",
-        "com.twitter"               %% "util-core"      % "21.6.0",
+        "com.twitter"               %% "util-core"      % "21.8.0",
         "com.typesafe.akka"         %% "akka-stream"    % "2.6.15",
         "io.monix"                  %% "monix"          % "3.4.0",
-        "io.projectreactor"          % "reactor-core"   % "3.4.8",
+        "io.projectreactor"          % "reactor-core"   % "3.4.9",
         "io.reactivex.rxjava2"       % "rxjava"         % "2.2.21",
         "org.jctools"                % "jctools-core"   % "3.3.0",
         "org.ow2.asm"                % "asm"            % "9.1",
         "org.scala-lang"             % "scala-compiler" % scalaVersion.value % Provided,
         "org.scala-lang"             % "scala-reflect"  % scalaVersion.value,
-        "org.typelevel"             %% "cats-effect"    % "2.5.1",
+        "org.typelevel"             %% "cats-effect"    % "2.5.3",
         "org.scalacheck"            %% "scalacheck"     % "1.15.4",
         "qa.hedgehog"               %% "hedgehog-core"  % "0.7.0",
         "com.github.japgolly.nyaya" %% "nyaya-gen"      % "0.10.0"
@@ -538,9 +538,10 @@ lazy val jsdocs = project
   .settings(libraryDependencies += "org.scala-js" %%% "scalajs-dom" % "1.0.0")
   .enablePlugins(ScalaJSPlugin)
 
-val http4sV     = "0.23.0-RC1"
+val http4sV     = "0.23.1"
 val doobieV     = "1.0.0-M5"
-val catsEffectV = "3.1.1"
+val catsEffectV = "3.2.2"
+val zioActorsV  = "0.0.9"
 
 lazy val docs = project.module
   .in(file("zio-docs"))
@@ -553,24 +554,74 @@ lazy val docs = project.module
     scalacOptions ~= { _ filterNot (_ startsWith "-Ywarn") },
     scalacOptions ~= { _ filterNot (_ startsWith "-Xlint") },
     libraryDependencies ++= Seq(
-      "commons-io"          % "commons-io"                % "2.11.0"    % "provided",
+      "commons-io"          % "commons-io"                % "2.7"    % "provided",
+      "io.7mind.izumi"     %% "distage-core"              % "1.0.8",
+      "io.7mind.izumi"     %% "logstage-core"             % "1.0.8",
       "org.jsoup"           % "jsoup"                     % "1.14.1" % "provided",
       "org.reactivestreams" % "reactive-streams-examples" % "1.0.3"  % "provided",
       /* to evict 1.3.0 brought in by mdoc-js */
-      "org.scala-js"   % "scalajs-compiler"            % scalaJSVersion cross CrossVersion.full,
-      "org.scala-js"  %% "scalajs-linker"              % scalaJSVersion,
-      "org.typelevel" %% "cats-effect"                 % catsEffectV,
-      "dev.zio"       %% "zio-interop-cats"            % "3.1.1.0",
-      "dev.zio"       %% "zio-interop-scalaz7x"        % "7.3.3.0",
-      "dev.zio"       %% "zio-interop-reactivestreams" % "1.3.5",
-      "dev.zio"       %% "zio-interop-twitter"         % "20.10.0.0",
-      "dev.zio"       %% "zio-zmx"                     % "0.0.6",
-      "org.tpolecat"  %% "doobie-core"                 % doobieV,
-      "org.tpolecat"  %% "doobie-h2"                   % doobieV,
-      "org.tpolecat"  %% "doobie-hikari"               % doobieV,
-      "org.http4s"    %% "http4s-blaze-server"         % http4sV,
-      "org.http4s"    %% "http4s-blaze-client"         % http4sV,
-      "org.http4s"    %% "http4s-dsl"                  % http4sV
+      "org.scala-js"                   % "scalajs-compiler"              % scalaJSVersion cross CrossVersion.full,
+      "org.scala-js"                  %% "scalajs-linker"                % scalaJSVersion,
+      "org.typelevel"                 %% "cats-effect"                   % catsEffectV,
+      "dev.zio"                       %% "zio-actors"                    % zioActorsV,
+      "dev.zio"                       %% "zio-akka-cluster"              % "0.2.0",
+      "dev.zio"                       %% "zio-cache"                     % "0.1.0",
+      "dev.zio"                       %% "zio-config-magnolia"           % "1.0.6",
+      "dev.zio"                       %% "zio-config-typesafe"           % "1.0.6",
+      "dev.zio"                       %% "zio-config-refined"            % "1.0.6",
+      "dev.zio"                       %% "zio-ftp"                       % "0.3.3",
+      "dev.zio"                       %% "zio-json"                      % "0.1.5",
+      "dev.zio"                       %% "zio-kafka"                     % "0.15.0",
+      "dev.zio"                       %% "zio-logging"                   % "0.5.11",
+      "dev.zio"                       %% "zio-metrics-prometheus"        % "1.0.12",
+      "dev.zio"                       %% "zio-nio"                       % "1.0.0-RC11",
+      "dev.zio"                       %% "zio-optics"                    % "0.1.0",
+      "dev.zio"                       %% "zio-prelude"                   % "1.0.0-RC5",
+      "dev.zio"                       %% "zio-process"                   % "0.5.0",
+      "dev.zio"                       %% "zio-rocksdb"                   % "0.3.0",
+      "dev.zio"                       %% "zio-s3"                        % "0.3.5",
+      "dev.zio"                       %% "zio-schema"                    % "0.0.6",
+      "dev.zio"                       %% "zio-sqs"                       % "0.4.2",
+      "dev.zio"                       %% "zio-opentracing"               % "0.8.1",
+      "io.jaegertracing"               % "jaeger-core"                   % "1.6.0",
+      "io.jaegertracing"               % "jaeger-client"                 % "1.6.0",
+      "io.jaegertracing"               % "jaeger-zipkin"                 % "1.6.0",
+      "io.zipkin.reporter2"            % "zipkin-reporter"               % "2.16.3",
+      "io.zipkin.reporter2"            % "zipkin-sender-okhttp3"         % "2.16.3",
+      "dev.zio"                       %% "zio-interop-cats"              % "3.1.1.0",
+      "dev.zio"                       %% "zio-interop-scalaz7x"          % "7.3.3.0",
+      "dev.zio"                       %% "zio-interop-reactivestreams"   % "1.3.5",
+      "dev.zio"                       %% "zio-interop-twitter"           % "20.10.0.0",
+      "dev.zio"                       %% "zio-zmx"                       % "0.0.6",
+      "dev.zio"                       %% "zio-query"                     % "0.2.10",
+      "org.polynote"                  %% "uzhttp"                        % "0.2.7",
+      "org.tpolecat"                  %% "doobie-core"                   % doobieV,
+      "org.tpolecat"                  %% "doobie-h2"                     % doobieV,
+      "org.tpolecat"                  %% "doobie-hikari"                 % doobieV,
+      "org.http4s"                    %% "http4s-blaze-server"           % http4sV,
+      "org.http4s"                    %% "http4s-blaze-client"           % http4sV,
+      "org.http4s"                    %% "http4s-dsl"                    % http4sV,
+      "com.github.ghostdogpr"         %% "caliban"                       % "1.1.0",
+      "com.github.ghostdogpr"         %% "caliban-zio-http"              % "1.1.0",
+      "org.scalameta"                 %% "munit"                         % "0.7.27",
+      "com.github.poslegm"            %% "munit-zio"                     % "0.0.2",
+      "nl.vroste"                     %% "rezilience"                    % "0.6.2",
+      "io.github.gaelrenoux"          %% "tranzactio"                    % "2.1.0",
+      "io.github.neurodyne"           %% "zio-arrow"                     % "0.2.1",
+      "nl.vroste"                     %% "zio-amqp"                      % "0.2.0",
+      "io.github.vigoo"               %% "zio-aws-core"                  % "3.17.8.4",
+      "io.github.vigoo"               %% "zio-aws-ec2"                   % "3.17.8.4",
+      "io.github.vigoo"               %% "zio-aws-elasticbeanstalk"      % "3.17.8.4",
+      "io.github.vigoo"               %% "zio-aws-netty"                 % "3.17.8.4",
+      "io.github.neurodyne"           %% "zio-aws-s3"                    % "0.4.13",
+      "io.d11"                        %% "zhttp"                         % "1.0.0.0-RC13",
+      "com.coralogix"                 %% "zio-k8s-client"                % "1.3.3",
+      "com.softwaremill.sttp.client3" %% "async-http-client-backend-zio" % "3.1.1",
+      "nl.vroste"                     %% "zio-kinesis"                   % "0.20.0",
+      "com.vladkopanev"               %% "zio-saga-core"                 % "0.4.0",
+      "io.scalac"                     %% "zio-slick-interop"             % "0.3.0",
+      "info.senia"                    %% "zio-test-akka-http"            % "1.0.2",
+      "io.getquill"                   %% "quill-jdbc-zio"                % "3.9.0"
     )
   )
   .settings(macroExpansionSettings)

@@ -16,7 +16,6 @@
 
 package zio.internal
 
-import com.github.ghik.silencer.silent
 import zio.internal.stacktracer.Tracer
 import zio.internal.tracing.TracingConfig
 import zio.{Cause, Supervisor}
@@ -74,6 +73,8 @@ private[internal] trait PlatformSpecific {
     new Platform {
       val executor = executor0
 
+      override val yieldOnStart = false
+
       def fatal(t: Throwable): Boolean = false
 
       def reportFatal(t: Throwable): Nothing = {
@@ -126,7 +127,4 @@ private[internal] trait PlatformSpecific {
   final def newWeakHashMap[A, B](): JMap[A, B] = new HashMap[A, B]()
 
   final def newWeakReference[A](value: A): () => A = { () => value }
-
-  @silent("is never used")
-  final def forceThrowableCause(throwable: => Throwable, newCause: => Throwable): Unit = ()
 }
