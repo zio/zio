@@ -296,7 +296,7 @@ trait Runtime[+R] {
       InitialInterruptStatus,
       None,
       PlatformConstants.tracingSupported,
-      Platform.newWeakHashMap(),
+      null,
       supervisor,
       scope,
       platform.reportFailure
