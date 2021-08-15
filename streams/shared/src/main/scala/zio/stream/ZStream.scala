@@ -4508,6 +4508,8 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    */
   trait Register[+R, -E, -A, +B] extends (ZIO[R, Option[E], Chunk[A]] => B) {
 
+    def apply(v1: ZIO[R, Option[E], Chunk[A]]): B
+
     /**
      * Emits a chunk containing the specified values.
      */
@@ -4537,7 +4539,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     /**
      * Terminates with an end of stream signal.
      */
-    val end: B =
+    def end: B =
       apply(ZIO.fail(None))
 
     /**
