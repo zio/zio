@@ -4556,6 +4556,13 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       apply(zio.mapBoth(e => Some(e), a => Chunk(a)))
 
     /**
+     * Either emits the success value of this effect or terminates the stream
+     * with the failure value of this effect.
+     */
+    def fromEffectChunk(zio: ZIO[R, E, Chunk[A]]): B =
+      apply(zio.mapError(e => Some(e)))
+
+    /**
      * Terminates the stream with the specified cause.
      */
     def halt(cause: Cause[E]): B =
