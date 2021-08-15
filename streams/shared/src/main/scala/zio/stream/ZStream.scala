@@ -4499,14 +4499,14 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   }
 
   /**
-   * A `Register[R, E, A, B]` represents an asynchronous callback that can be
+   * An `Emit[R, E, A, B]` represents an asynchronous callback that can be
    * called multiple times. The callback can be called with a value of type
    * `ZIO[R, Option[E], Chunk[A]]`, where succeeding with a `Chunk[A]`
    * indicates to emit those elements, failing with `Some[E]` indicates to
    * terminate with that error, and failing with `None` indicates to terminate
    * with an end of stream signal.
    */
-  trait Register[+R, -E, -A, +B] extends (ZIO[R, Option[E], Chunk[A]] => B) {
+  trait Emit[+R, -E, -A, +B] extends (ZIO[R, Option[E], Chunk[A]] => B) {
 
     def apply(v1: ZIO[R, Option[E], Chunk[A]]): B
 
