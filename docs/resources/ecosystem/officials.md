@@ -621,7 +621,9 @@ object ZIOKafkaProducerConsumerExample extends zio.App {
         Producer.produce[Any, Long, String](
           topic = "random",
           key = random % 4,
-          value = random.toString
+          value = random.toString,
+          keySerializer = Serde.long,
+          valueSerializer = Serde.string
         )
       }
       .drain
@@ -645,9 +647,7 @@ object ZIOKafkaProducerConsumerExample extends zio.App {
 
   def producerLayer = ZLayer.fromManaged(
     Producer.make(
-      settings = ProducerSettings(List("localhost:29092")),
-      keySerializer = Serde.long,
-      valueSerializer = Serde.string
+      settings = ProducerSettings(List("localhost:29092"))
     )
   )
 
