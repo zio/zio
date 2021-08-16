@@ -3115,7 +3115,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * Prints the specified message to the console for debugging purposes.
    */
-  def debug(value: Any): UIO[Unit] =
+  def debug(value: => Any): UIO[Unit] =
     ZIO.succeed(println(value))
 
   /**
