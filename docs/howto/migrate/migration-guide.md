@@ -20,7 +20,60 @@ libraryDependencies += "dev.zio" %% "zio-test"    % "2.0.0-M2"
 TODO
 
 ## ZLayer
-TODO
+
+### Functions to Layers
+
+In ZIO 1.x, when we want to write a service that depends on other services, we need to use `ZLayer.fromSrevice*` variants with a lot of boilerplate:
+
+```scala
+val live: URLayer[Clock with Console, Logging] =
+  ZLayer.fromServices[Clock.Service, Console.Service, Logging.Service] {
+    (clock: Clock.Service, console: Console.Service) =>
+      new Service {
+        override def log(line: String): UIO[Unit] =
+          for {
+            current <- clock.currentDateTime.orDie
+            _ <- console.putStrLn(current.toString + "--" + line).orDie
+          } yield ()
+      }
+  }
+```
+
+ZIO 2.x deprecates all `ZLayer.fromService*` functions:
+
+| ZIO 1.0                        | ZIO 2.x |
+|--------------------------------|---------|
+| ZLayer.fromService             | toLayer |
+| ZLayer.fromServices            | toLayer |
+| ZLayer.fromServiceM            | toLayer |
+| ZLayer.fromServicesM           | toLayer |
+| ZLayer.fromServiceManaged      | toLayer |
+| ZLayer.fromServicesManaged     | toLayer |
+| ZLayer.fromServiceMany         | toLayer |
+| ZLayer.fromServicesMany        | toLayer |
+| ZLayer.fromServiceManyM        | toLayer |
+| ZLayer.fromServicesManyM       | toLayer |
+| ZLayer.fromServiceManyManaged  | toLayer |
+| ZLayer.fromServicesManyManaged | toLayer |
+
+Instead, it provides the `toLayer` extension methods for functions:
+
+```scala
+case class LoggingLive(console: Console, clock: Clock) extends Logging {
+  override def log(line: String): UIO[Unit] =
+    for {
+      current <- clock.currentDateTime.orDie
+      _       <- console.putStrLn(current.toString + "--" + line).orDie
+    } yield ()
+}
+
+object LoggingLive {
+  val layer: URLayer[Has[Console] with Has[Clock], Has[Logging]] =
+    (LoggingLive(_, _)).toLayer
+}
+```
+
+Note that the `LoggingLive(_, _)` is a `Function2` of type `(Console, Clock) => LoggingLive`. As the ZIO 2.x provides the `toLayer` extension method for all `Function` arities, we can call the `toLayer` on any function to convert that to the `ZLayer`. Unlike the `ZLayer.fromService*` functions, this can completely infer the input types, so it saves us from a lot of boilerplate we have had in ZIO 1.x.
 
 ## ZIO Streams
 TODO
@@ -267,3 +320,12 @@ Here are some of the most important changes:
 |                              |                               |
 | ZIO.validate_                | ZIO.validateDiscard           |
 | ZIO.validatePar_             | ZIO.validateParDiscard        |
+
+### ZLayer
+
+| ZIO 1.x                  | ZIO 2.x                    |
+|--------------------------|----------------------------|
+| ZLayer.fromEffect        | ZLayer.fromZIO             |
+| ZLayer.fromEffectMany    | ZLayer.fromZIOMany         |
+| ZLayer.fromFunctionM     | ZLayer.fromFunctionZIO     |
+| ZLayer.fromFunctionManyM | ZLayer.fromFunctionManyZIO |
