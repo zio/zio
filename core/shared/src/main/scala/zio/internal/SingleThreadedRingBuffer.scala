@@ -23,15 +23,12 @@ private[zio] final class SingleThreadedRingBuffer[A](capacity: Int) {
   private[this] var size    = 0
   private[this] var current = 0
 
+  def head: Option[A] =
+    Option(array(current)).asInstanceOf[Option[A]]
+
   def put(value: A): Unit = {
     array(current) = value.asInstanceOf[AnyRef]
     increment()
-  }
-
-  def putAndGet(value: A): Option[A] = {
-    val head = Option(array(current)).asInstanceOf[Option[A]]
-    put(value)
-    head
   }
 
   def dropLast(): Unit =
