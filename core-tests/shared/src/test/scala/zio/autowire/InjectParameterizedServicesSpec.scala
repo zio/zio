@@ -24,7 +24,7 @@ object InjectParameterizedServicesSpec extends DefaultRunnableSpec {
     test("compile using the type directly if not using wire macro") {
       ParameterizedService.something[Has[String]].as(assertCompletes)
     }.provideLayer(ParameterizedServiceWithTypeAlias.live)
-  )
+  ) @@ TestAspect.exceptDotty
 
   trait ParameterizedService[A] {
     def something: UIO[Unit]

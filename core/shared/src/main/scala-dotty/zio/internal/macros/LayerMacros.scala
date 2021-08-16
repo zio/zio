@@ -14,18 +14,18 @@ object LayerMacros {
     '{$zio.provideLayer($layerExpr.asInstanceOf[ZLayer[R0,E,R]])}
   }
 
-  def fromAutoImpl[In: Type, Out: Type, E: Type](layers: Expr[Seq[ZLayer[_,E,_]]])(using ctx: Quotes): Expr[ZLayer[In,E,Out]] = {
-    val deferredRequirements = getRequirements[In]("Specified Remainder")
-    val requirements     = getRequirements[Out](s"Target Environment")
+  def fromAutoImpl[R0: Type, R: Type, E: Type](layers: Expr[Seq[ZLayer[_,E,_]]])(using ctx: Quotes): Expr[ZLayer[R0,E,R]] = {
+    val deferredRequirements = getRequirements[R0]("Specified Remainder")
+    val requirements     = getRequirements[R](s"Target Environment")
 
     val zEnvLayer: List[Node[ctx.reflect.TypeRepr, LayerExpr]] =
-      if (deferredRequirements.nonEmpty) List(Node(List.empty, deferredRequirements, '{ZLayer.requires[In]}))
+      if (deferredRequirements.nonEmpty) List(Node(List.empty, deferredRequirements, '{ZLayer.requires[R0]}))
       else List.empty
 
     val nodes = zEnvLayer ++ getNodes(layers)
 
-    buildMemoizedLayer(ctx)(ZLayerExprBuilder.fromNodes(ctx)(nodes), requirements)
-      .asInstanceOf[Expr[ZLayer[In,E,Out]]]
+    val layer = buildMemoizedLayer(ctx)(ZLayerExprBuilder.fromNodes(ctx)(nodes), requirements)
+    '{$layer.asInstanceOf[ZLayer[R0,E,R]] }
   }
 }
 
@@ -47,10 +47,25 @@ trait ExprGraphCompileVariants { self : ZLayerExprBuilder.type =>
 
     def compileError(message: String) : Nothing = report.throwError(message)
     def empty: LayerExpr = '{ZLayer.succeed(())}
-    def composeH(lhs: LayerExpr, rhs: LayerExpr): LayerExpr =
-        '{$lhs.asInstanceOf[ZLayer[_,_,Has[_]]] +!+ $rhs.asInstanceOf[ZLayer[_,_,Has[_]]]}
+    def composeH(lhs: LayerExpr, rhs: LayerExpr): LayerExpr = 
+      lhs match {
+        case '{$lhs: ZLayer[i, e, o]} => 
+          rhs match {
+            case '{$rhs: ZLayer[i2, e2, o2]} => 
+              val has = Expr.summon[Has.Union[o, o2]].get
+              val tag = Expr.summon[Tag[o2]].get
+              '{$lhs.++($rhs)($has, $tag)}
+          }
+      }
+
     def composeV(lhs: LayerExpr, rhs: LayerExpr): LayerExpr =
-        '{$lhs.asInstanceOf[ZLayer[_,_,Has[Unit]]] >>> $rhs.asInstanceOf[ZLayer[Has[Unit],_,_]]}
+      lhs match {
+        case '{$lhs: ZLayer[i, e, o]} => 
+          rhs match {
+            case '{$rhs: ZLayer[i2, e2, o2]} => 
+              '{$lhs >>> $rhs.asInstanceOf[ZLayer[o,e2,o2]]}
+          }
+      }
 
     ZLayerExprBuilder(
       Graph(nodes, _ =:= _),
