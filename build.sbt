@@ -42,7 +42,7 @@ addCommandAlias(
 )
 addCommandAlias(
   "testNative",
-  ";coreNative/compile;stacktracerNative/compile;streamsNative/compile;testNative/compile;testRunnerNative/compile"
+  ";coreNative/test;stacktracerNative/test;streamsNative/test;testNative/test;testRunnerNative/test" // `test` currently executes only compilation, see `nativeSettings` in `BuildHelper`
 )
 addCommandAlias(
   "testJVM",
