@@ -75,6 +75,28 @@ object LoggingLive {
 
 Note that the `LoggingLive(_, _)` is a `Function2` of type `(Console, Clock) => LoggingLive`. As the ZIO 2.x provides the `toLayer` extension method for all `Function` arities, we can call the `toLayer` on any function to convert that to the `ZLayer`. Unlike the `ZLayer.fromService*` functions, this can completely infer the input types, so it saves us from a lot of boilerplate we have had in ZIO 1.x.
 
+### Accessing a Service from the Environment
+
+Assume we have a service named `IntService`:
+
+```scala
+trait IntService {
+  def abs: Int
+}
+```
+
+In ZIO 1.x, when we wanted to access a service from the environment, we used the `ZIO.access` + `Has#get` combination (`ZIO.access(_.get)`):
+
+```scala
+val abs: URIO[Has[IntService], IntService] = ZIO.access[Has[IntService]](_.get)
+```
+
+ZIO 2.x reduces one level of indirection by using `ZIO.service` operator:
+
+```scala mdoc:silent:nest
+val abs: URIO[Has[IntService], IntService] = ZIO.service[IntService]
+```
+
 ## ZIO Streams
 TODO
 
