@@ -1068,6 +1068,27 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   }
 
   /**
+   * Drops the last specified number of elements from this stream.
+   */
+  def dropRight(n: Int): ZStream[R, E, A] =
+    if (n <= 0) new ZStream(self.channel)
+    else
+      new ZStream({
+        val queue = SingleThreadedRingBuffer[A](n)
+
+        lazy val reader: ZChannel[Any, E, Chunk[A], Any, E, Chunk[A], Unit] =
+          ZChannel.readWith(
+            (in: Chunk[A]) => {
+              ZChannel.write(in.flatMap(queue.putAndGet)) *> reader
+            },
+            ZChannel.fail(_),
+            (_: Any) => ZChannel.unit
+          )
+
+        self.channel >>> reader
+      })
+
+  /**
    * Drops all elements of the stream for as long as the specified predicate
    * evaluates to `true`.
    */
