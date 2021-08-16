@@ -504,7 +504,7 @@ lazy val benchmarks = project.module
         "io.projectreactor"          % "reactor-core"   % "3.4.9",
         "io.reactivex.rxjava2"       % "rxjava"         % "2.2.21",
         "org.jctools"                % "jctools-core"   % "3.3.0",
-        "org.ow2.asm"                % "asm"            % "9.1",
+        "org.ow2.asm"                % "asm"            % "9.2",
         "org.scala-lang"             % "scala-compiler" % scalaVersion.value % Provided,
         "org.scala-lang"             % "scala-reflect"  % scalaVersion.value,
         "org.typelevel"             %% "cats-effect"    % "2.5.3",
@@ -554,7 +554,7 @@ lazy val docs = project.module
     scalacOptions ~= { _ filterNot (_ startsWith "-Ywarn") },
     scalacOptions ~= { _ filterNot (_ startsWith "-Xlint") },
     libraryDependencies ++= Seq(
-      "commons-io"          % "commons-io"                % "2.7"    % "provided",
+      "commons-io"          % "commons-io"                % "2.11.0" % "provided",
       "io.7mind.izumi"     %% "distage-core"              % "1.0.8",
       "io.7mind.izumi"     %% "logstage-core"             % "1.0.8",
       "org.jsoup"           % "jsoup"                     % "1.14.2" % "provided",
