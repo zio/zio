@@ -1036,6 +1036,24 @@ object ZStreamSpec extends ZIOBaseSpec {
             )(isLeft(equalTo("Ouch")))
           )
         ),
+        suite("dropRight")(
+          test("dropRight")(checkM(streamOfInts, Gen.int(0, 1000)) { (s, n) =>
+            for {
+              dropStreamResult <- s.dropRight(n).runCollect.exit
+              dropListResult   <- s.runCollect.map(_.dropRight(n)).exit
+            } yield assert(dropListResult.succeeded)(isTrue) implies assert(dropStreamResult)(
+              equalTo(dropListResult)
+            )
+          }),
+          test("doesn't swallow errors")(
+            assertM(
+              (ZStream(1) ++ ZStream.fail("Ouch"))
+                .drop(1)
+                .runDrain
+                .either
+            )(isLeft(equalTo("Ouch")))
+          )
+        ),
         test("dropUntil") {
           checkM(pureStreamOfInts, Gen.function(Gen.boolean)) { (s, p) =>
             for {
