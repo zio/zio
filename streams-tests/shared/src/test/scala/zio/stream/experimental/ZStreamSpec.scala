@@ -1037,7 +1037,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           )
         ),
         suite("dropRight")(
-          test("dropRight")(checkM(streamOfInts, Gen.anyInt) { (s, n) =>
+          test("dropRight")(checkM(streamOfInts, Gen.int(0, 1000)) { (s, n) =>
             for {
               dropStreamResult <- s.dropRight(n).runCollect.exit
               dropListResult   <- s.runCollect.map(_.dropRight(n)).exit
