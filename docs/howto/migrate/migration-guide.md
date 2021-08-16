@@ -73,13 +73,13 @@ object LoggingLive {
 }
 ```
 
-Note that the `LoggingLive(_, _)` is a `Function2` of type `(Console, Clock) => LoggingLive`. As the ZIO 2.x provides the `toLayer` extension method for all `Function` arities, we can call the `toLayer` on any function to convert that to the `ZLayer`. Unlike the `ZLayer.fromService*` functions, this can completely infer the input types, so it saves us from a lot of boilerplate we have had in ZIO 1.x.
+Note that the `LoggingLive(_, _)` is a `Function2` of type `(Console, Clock) => LoggingLive`. As the ZIO 2.x provides the `toLayer` extension method for all `Function` arities, we can call the `toLayer` on any function to convert that to the `ZLayer`. Unlike the `ZLayer.fromService*` functions, this can completely infer the input types, so it saves us from a lot of boilerplates we have had in ZIO 1.x.
 
 ### Accessing a Service from the Environment
 
 Assume we have a service named `Logging`:
 
-```scala
+```scala mdoc:silent
 trait Logging {
   def log(line: String): UIO[Unit]
 }
