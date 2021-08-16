@@ -42,7 +42,7 @@ addCommandAlias(
 )
 addCommandAlias(
   "testNative",
-  ";coreNative/compile;stacktracerNative/compile;streamsNative/compile;testNative/compile;testRunnerNative/compile"
+  ";coreNative/test;stacktracerNative/test;streamsNative/test;testNative/test;testRunnerNative/test" // `test` currently executes only compilation, see `nativeSettings` in `BuildHelper`
 )
 addCommandAlias(
   "testJVM",
@@ -557,7 +557,7 @@ lazy val docs = project.module
       "commons-io"          % "commons-io"                % "2.7"    % "provided",
       "io.7mind.izumi"     %% "distage-core"              % "1.0.8",
       "io.7mind.izumi"     %% "logstage-core"             % "1.0.8",
-      "org.jsoup"           % "jsoup"                     % "1.14.1" % "provided",
+      "org.jsoup"           % "jsoup"                     % "1.14.2" % "provided",
       "org.reactivestreams" % "reactive-streams-examples" % "1.0.3"  % "provided",
       /* to evict 1.3.0 brought in by mdoc-js */
       "org.scala-js"                   % "scalajs-compiler"              % scalaJSVersion cross CrossVersion.full,
@@ -601,9 +601,9 @@ lazy val docs = project.module
       "org.http4s"                    %% "http4s-blaze-server"           % http4sV,
       "org.http4s"                    %% "http4s-blaze-client"           % http4sV,
       "org.http4s"                    %% "http4s-dsl"                    % http4sV,
-      "com.github.ghostdogpr"         %% "caliban"                       % "1.1.0",
-      "com.github.ghostdogpr"         %% "caliban-zio-http"              % "1.1.0",
-      "org.scalameta"                 %% "munit"                         % "0.7.27",
+      "com.github.ghostdogpr"         %% "caliban"                       % "1.1.1",
+      "com.github.ghostdogpr"         %% "caliban-zio-http"              % "1.1.1",
+      "org.scalameta"                 %% "munit"                         % "0.7.28",
       "com.github.poslegm"            %% "munit-zio"                     % "0.0.2",
       "nl.vroste"                     %% "rezilience"                    % "0.6.2",
       "io.github.gaelrenoux"          %% "tranzactio"                    % "2.1.0",
@@ -614,9 +614,9 @@ lazy val docs = project.module
       "io.github.vigoo"               %% "zio-aws-elasticbeanstalk"      % "3.17.8.4",
       "io.github.vigoo"               %% "zio-aws-netty"                 % "3.17.8.4",
       "io.github.neurodyne"           %% "zio-aws-s3"                    % "0.4.13",
-      "io.d11"                        %% "zhttp"                         % "1.0.0.0-RC17",
-      "com.coralogix"                 %% "zio-k8s-client"                % "1.3.3",
-      "com.softwaremill.sttp.client3" %% "async-http-client-backend-zio" % "3.1.1",
+      "io.d11"                        %% "zhttp"                         % "1.0.0.0-RC13",
+      "com.coralogix"                 %% "zio-k8s-client"                % "1.3.4",
+      "com.softwaremill.sttp.client3" %% "async-http-client-backend-zio" % "3.3.13",
       "nl.vroste"                     %% "zio-kinesis"                   % "0.20.0",
       "com.vladkopanev"               %% "zio-saga-core"                 % "0.4.0",
       "io.scalac"                     %% "zio-slick-interop"             % "0.3.0",
