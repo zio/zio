@@ -157,6 +157,8 @@ All blocking operations were moved to the `ZIO` data type:
 |-------------------------|---------|
 | zio.blocking.Blocking.* | ZIO.*   |
 
+We can also provide a user-defined blocking executor in ZIO 2.x with the `Runtime#withBlockingExecutor` operator that constructs a new `Runtime` with the specified blocking executor.
+
 ### Console Service
 
 Method names in the _Console_ service were renamed to the more readable names:
