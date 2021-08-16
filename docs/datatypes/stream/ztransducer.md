@@ -18,7 +18,7 @@ A `ZTransducer[R, E, I, O]` is a stream transformer. Transducers accept a stream
 ZTransducers can be thought of as a recipe for calling a bunch of methods on a source stream, to yield a new (transformed) stream. A nice mental model is the following type alias:
 
 ```scala
-type ZTransducer[Env, Err, In, Out] = ZStream[R, E, O] => ZStream[R, E, O]
+type ZTransducer[Env, Err, In, Out] = ZStream[Env, Err, In] => ZStream[Env, Err, Out]
 ```
 
 There is no fundamental requirement for transducers to exist, because everything transducers do can be done directly on a stream. However, because transducers separate the stream transformation from the source stream itself, it becomes possible to abstract over stream transformations at the level of values, creating, storing, and passing around reusable transformation pipelines that can be applied to many different streams. 
