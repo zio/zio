@@ -87,14 +87,26 @@ trait IntService {
 
 In ZIO 1.x, when we wanted to access a service from the environment, we used the `ZIO.access` + `Has#get` combination (`ZIO.access(_.get)`):
 
-```scala
+```scala mdoc:silent:nest
 val abs: URIO[Has[IntService], IntService] = ZIO.access[Has[IntService]](_.get)
+```
+
+Also, to create accessor methods, we used the following code:
+
+```scala mdoc:silent:nest
+val abs: URIO[Has[IntService], Int] = ZIO.access[Has[IntService]](_.get.abs)
 ```
 
 ZIO 2.x reduces one level of indirection by using `ZIO.service` operator:
 
 ```scala mdoc:silent:nest
 val abs: URIO[Has[IntService], IntService] = ZIO.service[IntService]
+```
+
+And to write the accessor method in ZIO 2.x, we can use `ZIO.serviceWith` operator:
+
+```scala mdoc:silent:nest
+val abs: URIO[Has[IntService], Int] = ZIO.serviceWith[IntService](_.abs)
 ```
 
 ## ZIO Streams
