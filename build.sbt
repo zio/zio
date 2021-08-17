@@ -77,8 +77,8 @@ addCommandAlias(
   "all coreJVM/mimaReportBinaryIssues streamsJVM/mimaReportBinaryIssues testJVM/mimaReportBinaryIssues"
 )
 
-val catsEffectVersion = "3.2.0"
-val fs2Version        = "3.0.6"
+val catsEffectVersion = "3.2.3"
+val fs2Version        = "3.1.0"
 
 lazy val root = project
   .in(file("."))
@@ -136,7 +136,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(stdSettings("zio"))
   .settings(crossProjectSettings)
   .settings(buildInfoSettings("zio"))
-  .settings(libraryDependencies += "dev.zio" %%% "izumi-reflect" % "1.1.3")
+  .settings(libraryDependencies += "dev.zio" %%% "izumi-reflect" % "2.0.0")
   .enablePlugins(BuildInfoPlugin)
   .settings(macroDefinitionSettings)
 
