@@ -109,6 +109,230 @@ And to write the accessor method in ZIO 2.x, we can use `ZIO.serviceWith` operat
 def log(line: String): URIO[Has[Logging], Unit] = ZIO.serviceWith(_.log(line))
 ```
 
+### Building the Dependency Graph
+
+To create the dependency graph in ZIO 1.x, we should compose the required layers manually. As the ordering of layer compositions matters, and also we should care about composing layers in both vertical and horizontal manner, it would be a cumbersome job to create a dependency graph with a lot of boilerplates.
+
+Assume we have the following dependency graph with two top-level dependencies:
+
+```
+           DocRepo                ++          UserRepo
+      ____/   |   \____                       /     \
+     /        |        \                     /       \
+ Logging  Database  BlobStorage          Logging   Database
+    |                    |                  |
+ Console              Logging            Console
+                         |       
+                      Console    
+```
+
+In ZIO 1.x, we had to compose these different layers together to create the whole application dependency graph:
+
+```scala mdoc:invisible:nest
+trait Logging {}
+
+trait Database {}
+
+trait BlobStorage {}
+
+trait UserRepo {}
+
+trait DocRepo {}
+
+case class LoggerImpl(console: Console) extends Logging {}
+
+case class DatabaseImp() extends Database {}
+
+case class UserRepoImpl(logging: Logging, database: Database) extends UserRepo {}
+
+case class BlobStorageImpl(logging: Logging) extends BlobStorage {}
+
+case class DocRepoImpl(logging: Logging, database: Database, blobStorage: BlobStorage) extends DocRepo {}
+
+object Logging {
+  val live: URLayer[Has[Console], Has[Logging]] =
+    LoggerImpl.toLayer
+}
+
+object Database {
+  val live: URLayer[Any, Has[Database]] =
+    DatabaseImp.toLayer
+}
+
+object UserRepo {
+  val live: URLayer[Has[Logging] with Has[Database], Has[UserRepo]] =
+    (UserRepoImpl(_, _)).toLayer
+}
+
+
+object BlobStorage {
+  val live: URLayer[Has[Logging], Has[BlobStorage]] =
+    BlobStorageImpl.toLayer
+}
+
+object DocRepo {
+  val live: URLayer[Has[Logging] with Has[Database] with Has[BlobStorage], Has[DocRepo]] =
+    (DocRepoImpl(_, _, _)).toLayer
+}
+  
+val myApp: ZIO[Has[DocRepo] with Has[UserRepo], Nothing, Unit] = ZIO.succeed(???)
+```
+
+```scala mdoc:silent:nest
+val appLayer: URLayer[Any, Has[DocRepo] with Has[UserRepo]] =
+  (((Console.live >>> Logging.live) ++ Database.live ++ (Console.live >>> Logging.live >>> BlobStorage.live)) >>> DocRepo.live) ++
+    (((Console.live >>> Logging.live) ++ Database.live) >>> UserRepo.live)
+    
+val res: ZIO[Any, Nothing, Unit] = myApp.provideLayer(appLayer)
+```
+
+As the development of our application progress, the number of layers will grow, and maintaining the dependency graph would be tedious and hard to debug.
+
+For example, if we miss the `Logging.live` dependency, the compile-time error would be very messy:
+
+```
+type mismatch;
+ found   : zio.URLayer[zio.Has[Logging] with zio.Has[Database] with zio.Has[BlobStorage],zio.Has[DocRepo]]
+    (which expands to)  zio.ZLayer[zio.Has[Logging] with zio.Has[Database] with zio.Has[BlobStorage],Nothing,zio.Has[DocRepo]]
+ required: zio.ZLayer[zio.Has[zio.Console] with zio.Has[Database] with zio.Has[BlobStorage],?,?]
+    ((Console.live ++ Database.live ++ (Console.live >>> Logging.live >>> BlobStorage.live)) >>> DocRepo.live) ++
+```
+
+In ZIO 2.x, we can automatically construct layers with friendly compile-time hints, using `ZIO#inject` operator:
+
+```scala mdoc:silent:nest
+val res: ZIO[Any, Nothing, Unit] =
+  myApp.inject(
+    Console.live,
+    Logging.live,
+    Database.live,
+    BlobStorage.live,
+    DocRepo.live,
+    UserRepo.live
+  )
+```
+
+The order of dependencies doesn't matter:
+
+```scala mdoc:silent:nest
+val res: ZIO[Any, Nothing, Unit] =
+  myApp.inject(
+    DocRepo.live,
+    BlobStorage.live,
+    Logging.live,
+    Database.live,
+    UserRepo.live,
+    Console.live
+  )
+```
+
+If we miss some dependencies, it doesn't compile, and the compiler gives us the clue:
+
+```scala
+val app: ZIO[Any, Nothing, Unit] =
+  myApp.inject(
+    DocRepo.live,
+    BlobStorage.live,
+//    Logging.live,
+    Database.live,
+    UserRepo.live,
+    Console.live
+  )
+```
+
+```
+  ZLayer Wiring Error  
+
+❯ missing Logging
+❯     for DocRepo.live
+
+❯ missing Logging
+❯     for UserRepo.live
+```
+
+We can also directly construct a layer using `ZLayer.wire`:
+
+```scala mdoc:silent:nest
+val layer = ZLayer.wire[Has[DocRepo] with Has[UserRepo]](
+  Console.live,
+  Logging.live,
+  DocRepo.live,
+  Database.live,
+  BlobStorage.live,
+  UserRepo.live
+)
+```
+
+And also the `ZLayer.wireSome` helps us to construct a layer which requires on some service and produces some other services (`URLayer[Int, Out]`) using `ZLayer.wireSome[In, Out]`:
+
+```scala mdoc:silent:nest
+val layer = ZLayer.wireSome[Has[Console], Has[DocRepo] with Has[UserRepo]](
+  Logging.live,
+  DocRepo.live,
+  Database.live,
+  BlobStorage.live,
+  UserRepo.live
+)
+```
+
+In ZIO 1.x, the `ZIO#provideSomeLayer` provides environment partially:
+
+```scala mdoc:silent:nest
+val app: ZIO[Has[Console], Nothing, Unit] =
+  myApp.provideSomeLayer[Has[Console]](
+    ((Logging.live ++ Database.live ++ (Console.live >>> Logging.live >>> BlobStorage.live)) >>> DocRepo.live) ++
+      (((Console.live >>> Logging.live) ++ Database.live) >>> UserRepo.live)
+  )
+```
+
+In ZIO 2.x, we have a similar functionality but for injection, which is the `ZIO#injectSome[Rest](l1, l2, ...)` operator:
+
+```scala mdoc:silent:nest
+val app: ZIO[Has[Console], Nothing, Unit] =
+  myApp.injectSome[Has[Console]](
+    Logging.live,
+    DocRepo.live,
+    Database.live,
+    BlobStorage.live,
+    UserRepo.live
+  )
+```
+
+In ZIO 1.x, the `ZIO#provideCustomLayer` takes the part of the environment that is not part of `ZEnv` and gives us an effect that only depends on the `ZEnv`:
+
+```scala mdoc:silent:nest
+val app: ZIO[zio.ZEnv, Nothing, Unit] = 
+  myApp.provideCustomLayer(
+    ((Logging.live ++ Database.live ++ (Logging.live >>> BlobStorage.live)) >>> DocRepo.live) ++
+      ((Logging.live ++ Database.live) >>> UserRepo.live)
+  )
+```
+
+In ZIO 2.x, the `ZIO#injectCustom` does the similar but for the injection:
+
+```scala mdoc:silent:nest
+val app: ZIO[zio.ZEnv, Nothing, Unit] =
+  myApp.injectCustom(
+    Logging.live,
+    DocRepo.live,
+    Database.live,
+    BlobStorage.live,
+    UserRepo.live
+  )
+```
+
+> Note:
+> All `provide*` methods are not deprecated, and they are still necessary and useful for low-level and custom cases. But, in ZIO 2.x, in most cases, it's easier to use `inject`/`wire` methods.
+
+
+| ZIO 1.x and 2.x (manually)                    | ZIO 2.x (automatically) |
+|-----------------------------------------------|-------------------------|
+| `ZIO#provide`                                 | `ZIO#inject`            |
+| `ZIO#provideSomeLayer`                        | `ZIO#injectSome`        |
+| `ZIO#provideCustomLayer`                      | `ZIO#injectCustom`      |
+| Composing manually using `ZLayer` combinators | `ZLayer#wire`           |
+| Composing manually using `ZLayer` combinators | `ZLayer#wireSome`       |
+
 ## ZIO Streams
 TODO
 
