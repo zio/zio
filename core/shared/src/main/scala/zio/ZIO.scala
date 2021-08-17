@@ -3115,7 +3115,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * Prints the specified message to the console for debugging purposes.
    */
-  def debug(value: Any): UIO[Unit] =
+  def debug(value: => Any): UIO[Unit] =
     ZIO.succeed(println(value))
 
   /**
@@ -3401,8 +3401,10 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     filter[R, E, A, Iterable](as)(f).map(_.toSet)
 
   /**
-   * Filters the collection in parallel using the specified effectual predicate.
-   * See [[filter[R,E,A,Collection*]] for a sequential version of it.
+   * Filters the collection in parallel using the specified effectual
+   * predicate.
+   *
+   * See [[[zio.ZIO.filter[R,E,A,Collection*]]] for a sequential version.
    */
   def filterPar[R, E, A, Collection[+Element] <: Iterable[Element]](
     as: Collection[A]
@@ -3414,7 +3416,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
   /**
    * Filters the Set[A] in parallel using the specified effectual predicate.
-   * See [[filter[R,E,A,Collection*]] for a sequential version of it.
+   *
+   * See [[[zio.ZIO.filter[R,E,A,Collection*]]] for a sequential version.
    */
   def filterPar[R, E, A](as: Set[A])(f: A => ZIO[R, E, Boolean]): ZIO[R, E, Set[A]] =
     filterPar[R, E, A, Iterable](as)(f).map(_.toSet)
@@ -3436,9 +3439,10 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     filterNot[R, E, A, Iterable](as)(f).map(_.toSet)
 
   /**
-   * Filters the collection in parallel using the specified effectual predicate,
-   * removing all elements that satisfy the predicate.
-   * See [[filterNot[R,E,A,Collection*]] for a sequential version of it.
+   * Filters the collection in parallel using the specified effectual
+   * predicate, emoving all elements that satisfy the predicate.
+   *
+   * See [[[zio.ZIO.filterNot[R,E,A,Collection*]]] for a sequential version.
    */
   def filterNotPar[R, E, A, Collection[+Element] <: Iterable[Element]](
     as: Collection[A]
@@ -3448,7 +3452,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * Filters the Set[A] in parallel using the specified effectual predicate,
    * removing all elements that satisfy the predicate.
-   * See [[filterNot[R,E,A](as:Set*]] for a sequential version of it.
+   *
+   * See [[[zio.ZIO.filterNot[R,E,A](as:Set*]]] for a sequential version.
    */
   def filterNotPar[R, E, A](as: Set[A])(f: A => ZIO[R, E, Boolean]): ZIO[R, E, Set[A]] =
     filterNotPar[R, E, A, Iterable](as)(f).map(_.toSet)
