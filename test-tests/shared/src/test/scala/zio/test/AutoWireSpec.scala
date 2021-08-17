@@ -5,12 +5,12 @@ import zio.internal.macros.StringUtils.StringOps
 import zio.test.Assertion._
 import zio.test.AssertionM.Render.param
 
-object AutoLayerSpec extends ZIOBaseSpec {
+object AutoWireSpec extends ZIOBaseSpec {
   def containsStringWithoutAnsi(element: String): Assertion[String] =
     Assertion.assertion("containsStringWithoutAnsi")(param(element))(_.removingAnsiCodes.contains(element))
 
   def spec: ZSpec[Environment, Failure] =
-    suite("AutoLayerSpec")(
+    suite("AutoWireSpec")(
       suite("inject")(
         suite("meta-suite") {
           val doubleLayer = ZLayer.succeed(100.1)
@@ -49,7 +49,7 @@ object AutoLayerSpec extends ZIOBaseSpec {
           val checked = typeCheck("""test("foo")(assertM(program)(anything)).inject(OldLady.live)""")
           assertM(checked)(
             isLeft(
-              containsStringWithoutAnsi("missing zio.test.AutoLayerSpec.TestLayers.Fly") &&
+              containsStringWithoutAnsi("missing zio.test.AutoWireSpec.TestLayers.Fly") &&
                 containsStringWithoutAnsi("for TestLayers.OldLady.live")
             )
           )
@@ -63,7 +63,7 @@ object AutoLayerSpec extends ZIOBaseSpec {
             typeCheck("""test("foo")(assertM(program)(anything)).inject(OldLady.live, Fly.live)""")
           assertM(checked)(
             isLeft(
-              containsStringWithoutAnsi("missing zio.test.AutoLayerSpec.TestLayers.Spider") &&
+              containsStringWithoutAnsi("missing zio.test.AutoWireSpec.TestLayers.Spider") &&
                 containsStringWithoutAnsi("for TestLayers.Fly.live")
             )
           )
@@ -99,7 +99,61 @@ object AutoLayerSpec extends ZIOBaseSpec {
             test("test 4")(assertM(addOne)(equalTo(4)))
           )
         ).injectShared(refLayer) @@ TestAspect.sequential
-      }
+      },
+      suite(".injectCustomShared") {
+        case class IntService(ref: Ref[Int]) {
+          def add(int: Int): UIO[Int] = ref.getAndUpdate(_ + int)
+        }
+
+        val addOne: ZIO[Has[IntService] with Has[Random], Nothing, Int] =
+          ZIO
+            .service[IntService]
+            .zip(Random.nextIntBounded(2))
+            .flatMap { case (ref, int) => ref.add(int) }
+
+        val refLayer: ULayer[Has[IntService]] = Ref.make(1).map(IntService(_)).toLayer
+
+        suite("layer is shared between tests and suites")(
+          suite("suite 1")(
+            test("test 1")(assertM(addOne)(equalTo(1))),
+            test("test 2")(assertM(addOne)(equalTo(2)))
+          ),
+          suite("suite 2")(
+            test("test 3")(assertM(addOne)(equalTo(2))),
+            test("test 4")(assertM(addOne)(equalTo(3)))
+          )
+        ).injectCustomShared(refLayer) @@ TestAspect.sequential
+      } @@ TestAspect.exceptDotty,
+      suite(".injectSomeShared") {
+        val addOne =
+          ZIO.service[Ref[Int]].zip(Random.nextIntBounded(2)).flatMap { case (ref, int) => ref.getAndUpdate(_ + int) }
+        val refLayer = Ref.make(1).toLayer
+
+        suite("layer is shared between tests and suites")(
+          suite("suite 1")(
+            test("test 1")(assertM(addOne)(equalTo(1))),
+            test("test 2")(assertM(addOne)(equalTo(2)))
+          ),
+          suite("suite 2")(
+            test("test 3")(assertM(addOne)(equalTo(2))),
+            test("test 4")(assertM(addOne)(equalTo(3)))
+          )
+        ).injectSomeShared[Has[Random]](refLayer) @@ TestAspect.sequential
+      },
+      suite(".injectSome") {
+        test("automatically constructs a layer from its dependencies, leaving off TestEnvironment") {
+          for {
+            result <- ZIO.service[String].zipWith(Random.nextInt)((str, int) => s"$str $int")
+          } yield assertTrue(result == "Your Lucky Number is -1295463240")
+        }.injectSome[Has[Random]](ZLayer.succeed("Your Lucky Number is"))
+      },
+      suite(".injectCustom") {
+        test("automatically constructs a layer from its dependencies, leaving off TestEnvironment") {
+          for {
+            result <- ZIO.service[String].zipWith(Random.nextInt)((str, int) => s"$str $int")
+          } yield assertTrue(result == "Your Lucky Number is -1295463240")
+        }.injectCustom(ZLayer.succeed("Your Lucky Number is"))
+      } @@ TestAspect.exceptDotty
     )
 
   object TestLayers {
