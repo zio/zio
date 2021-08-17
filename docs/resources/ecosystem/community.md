@@ -305,7 +305,7 @@ libraryDependencies += "io.7mind.izumi" %% "distage-core" % "1.0.8"
 
 In this example we create a `RandomApp` comprising two `Random` and `Logger` services. By using `ModuleDef` we _bind_ services to their implementations:
 
-```scala mdoc:silent:nest
+```scala
 import distage.{Activation, Injector, ModuleDef, Roots}
 import izumi.distage.model.Locator
 import izumi.distage.model.definition.Lifecycle
@@ -406,7 +406,7 @@ libraryDependencies ++= Seq(
 
 Let's try a simple example of using _LogStage_:
 
-```scala mdoc:silent:nest
+```scala
 import izumi.fundamentals.platform.uuid.UUIDGen
 import logstage.LogZIO.log
 import logstage.{IzLogger, LogIO2, LogZIO}
@@ -468,7 +468,7 @@ testFrameworks += new TestFramework("munit.Framework")
 
 Here is a simple MUnit spec that is integrated with the `ZIO` effect:
 
-```scala mdoc:silent:nest
+```scala
 import munit._
 import zio._
 
@@ -510,7 +510,7 @@ libraryDependencies += "com.github.ghostdogpr" %% "caliban" % "1.1.0"
 
 Let's try an example of writing _Circuit Breaker_ policy for calling an external API:
 
-```scala mdoc:silent:nest
+```scala
 import nl.vroste.rezilience.CircuitBreaker.{CircuitBreakerCallError, State}
 import nl.vroste.rezilience._
 import zio._
@@ -578,7 +578,7 @@ libraryDependencies += "org.tpolecat" %% "doobie-h2"   % "0.13.4"
 
 Let's try an example of simple _Doobie_ program:
 
-```scala mdoc:silent:nest
+```scala
 import doobie.implicits._
 import io.github.gaelrenoux.tranzactio.doobie
 import io.github.gaelrenoux.tranzactio.doobie.{Connection, Database, TranzactIO, tzio}
@@ -675,7 +675,7 @@ libraryDependencies += "io.github.neurodyne" %% "zio-arrow" % "0.2.1"
 
 In this example we are going to write a repetitive task of reading a number from standard input and then power by 2 and then print the result:
 
-```scala mdoc:silent:nest
+```scala
 import zio.arrow.ZArrow
 import zio.arrow.ZArrow._
 import zio.console._
@@ -749,7 +749,7 @@ Then we need to create `my_exchange` and `my_queue` and bind the queue to the ex
 
 Now we can run the example below:
 
-```scala mdoc:silent:reset
+```scala
 import nl.vroste.zio.amqp._
 import zio._
 import zio.blocking._
@@ -832,7 +832,7 @@ libraryDependencies += "io.github.vigoo" %% "zio-aws-netty"            % "3.17.8
 
 And here is the example code:
 
-```scala mdoc:silent:reset
+```scala
 import io.github.vigoo.zioaws.core.AwsError
 import io.github.vigoo.zioaws.ec2.Ec2
 import io.github.vigoo.zioaws.ec2.model._
@@ -957,7 +957,7 @@ libraryDependencies += "io.github.neurodyne" %% "zio-aws-s3" % "0.4.13"
 
 ### Example
 
-```scala mdoc:silent:reset
+```scala
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.s3.S3AsyncClient
 import zio.{ExitCode, URIO, _}
@@ -1003,7 +1003,7 @@ libraryDependencies += "io.d11" %% "zhttp-test" % "1.0.0.0-RC13" % Test
 
 ### Example
 
-```scala mdoc:silent:reset
+```scala
 import zhttp.http._
 import zhttp.service.Server
 import zio._
@@ -1119,7 +1119,7 @@ libraryDependencies += "nl.vroste" %% "zio-kinesis" % "0.20.0"
 
 This is an example of consuming a stream from Amazon Kinesis:
 
-```scala mdoc:silent:reset
+```scala
 import nl.vroste.zio.kinesis.client.serde.Serde
 import nl.vroste.zio.kinesis.client.zionative.Consumer
 import zio.clock.Clock
@@ -1261,7 +1261,7 @@ libraryDependencies += "com.vladkopanev" %% "zio-saga-core" % "0.4.0"
 
 In the following example, all API requests have a compensating action. We compose all them together and then run the whole as one transaction:
 
-```scala mdoc:invisible:reset
+```scala
 import zio.{IO, UIO, URIO, ZIO}
 def bookHotel: UIO[Unit] = IO.unit
 def cancelHotel: UIO[Unit] = IO.unit
@@ -1273,7 +1273,7 @@ def bookFlight: IO[String, Unit] = IO.unit
 def cancelFlight: IO[String, Unit] = IO.unit
 ```
 
-```scala mdoc:silent:nest
+```scala
 import com.vladkopanev.zio.saga.Saga
 import zio.{IO, UIO, URIO, ZIO}
 
@@ -1305,7 +1305,7 @@ libraryDependencies += "io.scalac" %% "zio-slick-interop" % "0.3.0"
 
 Here is a full working example of creating database-agnostic Slick repository:
 
-```scala mdoc:silent:nest
+```scala
 import com.typesafe.config.ConfigFactory
 import slick.interop.zio.DatabaseProvider
 import slick.interop.zio.syntax._
@@ -1432,7 +1432,7 @@ libraryDependencies += "info.senia" %% "zio-test-akka-http" % "1.0.2"
 
 An example of writing Akka HTTP Route test spec:
 
-```scala mdoc:silent:nest
+```scala
 import akka.http.scaladsl.model.HttpResponse
 import akka.http.scaladsl.server.Directives.complete
 import zio.test.Assertion._
@@ -1549,7 +1549,7 @@ myH2DB {
 
 Now we are ready to run the example below:
 
-```scala mdoc:silent:nest
+```scala
 import io.getquill._
 import io.getquill.context.ZioJdbc._
 import zio.console.{Console, putStrLn}
