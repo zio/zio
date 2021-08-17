@@ -61,11 +61,11 @@ import java.io.{EOFException, IOException}
 trait TestConsole extends Restorable {
   def clearInput: UIO[Unit]
   def clearOutput: UIO[Unit]
-  def debug[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A]
+  def debug[R, E, A](zio: => ZIO[R, E, A]): ZIO[R, E, A]
   def feedLines(lines: String*): UIO[Unit]
   def output: UIO[Vector[String]]
   def outputErr: UIO[Vector[String]]
-  def silent[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A]
+  def silent[R, E, A](zio: => ZIO[R, E, A]): ZIO[R, E, A]
 }
 
 object TestConsole extends Serializable {
@@ -94,7 +94,7 @@ object TestConsole extends Serializable {
      * so that console output is rendered to standard output in addition to
      * being written to the output buffer.
      */
-    def debug[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+    def debug[R, E, A](zio: => ZIO[R, E, A]): ZIO[R, E, A] =
       debugState.locally(true)(zio)
 
     /**
@@ -138,7 +138,7 @@ object TestConsole extends Serializable {
     /**
      * Writes the specified string to the output buffer.
      */
-    override def print(line: Any): IO[IOException, Unit] =
+    override def print(line: => Any): IO[IOException, Unit] =
       consoleState.update { data =>
         Data(data.input, data.output :+ line.toString, data.errOutput)
       } *> live.provide(Console.print(line)).whenZIO(debugState.get)
@@ -146,7 +146,7 @@ object TestConsole extends Serializable {
     /**
      * Writes the specified string to the error buffer.
      */
-    override def printError(line: Any): IO[IOException, Unit] =
+    override def printError(line: => Any): IO[IOException, Unit] =
       consoleState.update { data =>
         Data(data.input, data.output, data.errOutput :+ line.toString)
       } *> live.provide(Console.printError(line)).whenZIO(debugState.get)
@@ -155,7 +155,7 @@ object TestConsole extends Serializable {
      * Writes the specified string to the output buffer followed by a newline
      * character.
      */
-    override def printLine(line: Any): IO[IOException, Unit] =
+    override def printLine(line: => Any): IO[IOException, Unit] =
       consoleState.update { data =>
         Data(data.input, data.output :+ s"$line\n", data.errOutput)
       } *> live.provide(Console.printLine(line)).whenZIO(debugState.get)
@@ -164,7 +164,7 @@ object TestConsole extends Serializable {
      * Writes the specified string to the error buffer followed by a newline
      * character.
      */
-    override def printLineError(line: Any): IO[IOException, Unit] =
+    override def printLineError(line: => Any): IO[IOException, Unit] =
       consoleState.update { data =>
         Data(data.input, data.output, data.errOutput :+ s"$line\n")
       } *> live.provide(Console.printLineError(line)).whenZIO(debugState.get)
@@ -183,7 +183,7 @@ object TestConsole extends Serializable {
      * so that console output is only written to the output buffer and not
      * rendered to standard output.
      */
-    def silent[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+    def silent[R, E, A](zio: => ZIO[R, E, A]): ZIO[R, E, A] =
       debugState.locally(false)(zio)
   }
 
@@ -192,7 +192,7 @@ object TestConsole extends Serializable {
    * interface. This can be useful for mixing in with implementations of other
    * interfaces.
    */
-  def make(data: Data, debug: Boolean = true): ZLayer[Has[Live], Nothing, Has[Console] with Has[TestConsole]] = {
+  def make(data: => Data, debug: => Boolean = true): ZLayer[Has[Live], Nothing, Has[Console] with Has[TestConsole]] = {
     for {
       live     <- ZIO.service[Live]
       ref      <- Ref.make(data)
@@ -230,7 +230,7 @@ object TestConsole extends Serializable {
    * console output is rendered to standard output in addition to being
    * written to the output buffer.
    */
-  def debug[R <: Has[TestConsole], E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+  def debug[R <: Has[TestConsole], E, A](zio: => ZIO[R, E, A]): ZIO[R, E, A] =
     ZIO.accessZIO(_.get.debug(zio))
 
   /**
@@ -268,7 +268,7 @@ object TestConsole extends Serializable {
    * console output is only written to the output buffer and not rendered to
    * standard output.
    */
-  def silent[R <: Has[TestConsole], E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+  def silent[R <: Has[TestConsole], E, A](zio: => ZIO[R, E, A]): ZIO[R, E, A] =
     ZIO.accessZIO(_.get.silent(zio))
 
   /**

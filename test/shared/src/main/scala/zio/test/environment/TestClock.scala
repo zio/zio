@@ -84,10 +84,10 @@ import scala.collection.immutable.SortedSet
  * another 60 minutes exactly one more value is placed in the queue.
  */
 trait TestClock extends Restorable {
-  def adjust(duration: Duration): UIO[Unit]
-  def setDateTime(dateTime: OffsetDateTime): UIO[Unit]
-  def setTime(duration: Duration): UIO[Unit]
-  def setTimeZone(zone: ZoneId): UIO[Unit]
+  def adjust(duration: => Duration): UIO[Unit]
+  def setDateTime(dateTime: => OffsetDateTime): UIO[Unit]
+  def setTime(duration: => Duration): UIO[Unit]
+  def setTimeZone(zone: => ZoneId): UIO[Unit]
   def sleeps: UIO[List[Duration]]
   def timeZone: UIO[ZoneId]
 }
@@ -108,7 +108,7 @@ object TestClock extends Serializable {
      * effects that were scheduled to occur on or before the new time will be
      * run in order.
      */
-    def adjust(duration: Duration): UIO[Unit] =
+    def adjust(duration: => Duration): UIO[Unit] =
       warningDone *> run(_ + duration)
 
     /**
@@ -120,7 +120,7 @@ object TestClock extends Serializable {
     /**
      * Returns the current clock time in the specified time unit.
      */
-    def currentTime(unit: TimeUnit): UIO[Long] =
+    def currentTime(unit: => TimeUnit): UIO[Long] =
       clockState.get.map(data => unit.convert(data.duration.toMillis, TimeUnit.MILLISECONDS))
 
     /**
@@ -155,7 +155,7 @@ object TestClock extends Serializable {
      * effects that were scheduled to occur on or before the new time will
      * be run in order.
      */
-    def setDateTime(dateTime: OffsetDateTime): UIO[Unit] =
+    def setDateTime(dateTime: => OffsetDateTime): UIO[Unit] =
       setTime(fromDateTime(dateTime))
 
     /**
@@ -163,7 +163,7 @@ object TestClock extends Serializable {
      * since the epoch. Any effects that were scheduled to occur on or before
      * the new time will immediately be run in order.
      */
-    def setTime(duration: Duration): UIO[Unit] =
+    def setTime(duration: => Duration): UIO[Unit] =
       warningDone *> run(_ => duration)
 
     /**
@@ -171,7 +171,7 @@ object TestClock extends Serializable {
      * terms of nanoseconds since the epoch will not be adjusted and no
      * scheduled effects will be run as a result of this method.
      */
-    def setTimeZone(zone: ZoneId): UIO[Unit] =
+    def setTimeZone(zone: => ZoneId): UIO[Unit] =
       clockState.update(_.copy(timeZone = zone))
 
     /**
@@ -180,7 +180,7 @@ object TestClock extends Serializable {
      * adjusted to on or after the duration, the fiber will automatically be
      * resumed.
      */
-    def sleep(duration: Duration): UIO[Unit] =
+    def sleep(duration: => Duration): UIO[Unit] =
       for {
         promise <- Promise.make[Nothing, Unit]
         shouldAwait <- clockState.modify { data =>

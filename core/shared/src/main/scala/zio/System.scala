@@ -22,11 +22,11 @@ import java.lang.{System => JSystem}
 import scala.collection.JavaConverters._
 
 trait System extends Serializable {
-  def env(variable: String): IO[SecurityException, Option[String]]
+  def env(variable: => String): IO[SecurityException, Option[String]]
 
-  def envOrElse(variable: String, alt: => String): IO[SecurityException, String]
+  def envOrElse(variable: => String, alt: => String): IO[SecurityException, String]
 
-  def envOrOption(variable: String, alt: => Option[String]): IO[SecurityException, Option[String]]
+  def envOrOption(variable: => String, alt: => Option[String]): IO[SecurityException, Option[String]]
 
   def envs: IO[SecurityException, Map[String, String]]
 
@@ -34,11 +34,11 @@ trait System extends Serializable {
 
   def properties: IO[Throwable, Map[String, String]]
 
-  def property(prop: String): IO[Throwable, Option[String]]
+  def property(prop: => String): IO[Throwable, Option[String]]
 
-  def propertyOrElse(prop: String, alt: => String): IO[Throwable, String]
+  def propertyOrElse(prop: => String, alt: => String): IO[Throwable, String]
 
-  def propertyOrOption(prop: String, alt: => Option[String]): IO[Throwable, Option[String]]
+  def propertyOrOption(prop: => String, alt: => Option[String]): IO[Throwable, Option[String]]
 }
 
 object System extends Serializable {
@@ -52,14 +52,14 @@ object System extends Serializable {
     ZLayer.succeed(SystemLive)
 
   object SystemLive extends System {
-    def env(variable: String): IO[SecurityException, Option[String]] =
+    def env(variable: => String): IO[SecurityException, Option[String]] =
       IO.attempt(Option(JSystem.getenv(variable))).refineToOrDie[SecurityException]
 
-    def envOrElse(variable: String, alt: => String): IO[SecurityException, String] =
-      envOrElseWith(variable, alt)(env)
+    def envOrElse(variable: => String, alt: => String): IO[SecurityException, String] =
+      envOrElseWith(variable, alt)(env(_))
 
-    def envOrOption(variable: String, alt: => Option[String]): IO[SecurityException, Option[String]] =
-      envOrOptionWith(variable, alt)(env)
+    def envOrOption(variable: => String, alt: => Option[String]): IO[SecurityException, Option[String]] =
+      envOrOptionWith(variable, alt)(env(_))
 
     @silent("JavaConverters")
     val envs: IO[SecurityException, Map[String, String]] =
@@ -72,14 +72,14 @@ object System extends Serializable {
     val properties: IO[Throwable, Map[String, String]] =
       IO.attempt(JSystem.getProperties.asScala.toMap)
 
-    def property(prop: String): IO[Throwable, Option[String]] =
+    def property(prop: => String): IO[Throwable, Option[String]] =
       IO.attempt(Option(JSystem.getProperty(prop)))
 
-    def propertyOrElse(prop: String, alt: => String): IO[Throwable, String] =
-      propertyOrElseWith(prop, alt)(property)
+    def propertyOrElse(prop: => String, alt: => String): IO[Throwable, String] =
+      propertyOrElseWith(prop, alt)(property(_))
 
-    def propertyOrOption(prop: String, alt: => Option[String]): IO[Throwable, Option[String]] =
-      propertyOrOptionWith(prop, alt)(property)
+    def propertyOrOption(prop: => String, alt: => Option[String]): IO[Throwable, Option[String]] =
+      propertyOrOptionWith(prop, alt)(property(_))
 
   }
 

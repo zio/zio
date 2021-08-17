@@ -20,23 +20,23 @@ import java.util.UUID
 
 trait Random extends Serializable {
   def nextBoolean: UIO[Boolean]
-  def nextBytes(length: Int): UIO[Chunk[Byte]]
+  def nextBytes(length: => Int): UIO[Chunk[Byte]]
   def nextDouble: UIO[Double]
-  def nextDoubleBetween(minInclusive: Double, maxExclusive: Double): UIO[Double]
+  def nextDoubleBetween(minInclusive: => Double, maxExclusive: => Double): UIO[Double]
   def nextFloat: UIO[Float]
-  def nextFloatBetween(minInclusive: Float, maxExclusive: Float): UIO[Float]
+  def nextFloatBetween(minInclusive: => Float, maxExclusive: => Float): UIO[Float]
   def nextGaussian: UIO[Double]
   def nextInt: UIO[Int]
-  def nextIntBetween(minInclusive: Int, maxExclusive: Int): UIO[Int]
-  def nextIntBounded(n: Int): UIO[Int]
+  def nextIntBetween(minInclusive: => Int, maxExclusive: => Int): UIO[Int]
+  def nextIntBounded(n: => Int): UIO[Int]
   def nextLong: UIO[Long]
-  def nextLongBetween(minInclusive: Long, maxExclusive: Long): UIO[Long]
-  def nextLongBounded(n: Long): UIO[Long]
+  def nextLongBetween(minInclusive: => Long, maxExclusive: => Long): UIO[Long]
+  def nextLongBounded(n: => Long): UIO[Long]
   def nextPrintableChar: UIO[Char]
-  def nextString(length: Int): UIO[String]
+  def nextString(length: => Int): UIO[String]
   def nextUUID: UIO[UUID] = Random.nextUUIDWith(nextLong)
-  def setSeed(seed: Long): UIO[Unit]
-  def shuffle[A, Collection[+Element] <: Iterable[Element]](collection: Collection[A])(implicit
+  def setSeed(seed: => Long): UIO[Unit]
+  def shuffle[A, Collection[+Element] <: Iterable[Element]](collection: => Collection[A])(implicit
     bf: BuildFrom[Collection[A], A, Collection[A]]
   ): UIO[Collection[A]]
 }
@@ -47,7 +47,7 @@ object Random extends Serializable {
 
     val nextBoolean: UIO[Boolean] =
       ZIO.succeed(SRandom.nextBoolean())
-    def nextBytes(length: Int): UIO[Chunk[Byte]] =
+    def nextBytes(length: => Int): UIO[Chunk[Byte]] =
       ZIO.succeed {
         val array = Array.ofDim[Byte](length)
         SRandom.nextBytes(array)
@@ -55,34 +55,34 @@ object Random extends Serializable {
       }
     val nextDouble: UIO[Double] =
       ZIO.succeed(SRandom.nextDouble())
-    def nextDoubleBetween(minInclusive: Double, maxExclusive: Double): UIO[Double] =
+    def nextDoubleBetween(minInclusive: => Double, maxExclusive: => Double): UIO[Double] =
       nextDoubleBetweenWith(minInclusive, maxExclusive)(nextDouble)
     val nextFloat: UIO[Float] =
       ZIO.succeed(SRandom.nextFloat())
-    def nextFloatBetween(minInclusive: Float, maxExclusive: Float): UIO[Float] =
+    def nextFloatBetween(minInclusive: => Float, maxExclusive: => Float): UIO[Float] =
       nextFloatBetweenWith(minInclusive, maxExclusive)(nextFloat)
     val nextGaussian: UIO[Double] =
       ZIO.succeed(SRandom.nextGaussian())
     val nextInt: UIO[Int] =
       ZIO.succeed(SRandom.nextInt())
-    def nextIntBetween(minInclusive: Int, maxExclusive: Int): UIO[Int] =
-      nextIntBetweenWith(minInclusive, maxExclusive)(nextInt, nextIntBounded)
-    def nextIntBounded(n: Int): UIO[Int] =
+    def nextIntBetween(minInclusive: => Int, maxExclusive: => Int): UIO[Int] =
+      nextIntBetweenWith(minInclusive, maxExclusive)(nextInt, nextIntBounded(_))
+    def nextIntBounded(n: => Int): UIO[Int] =
       ZIO.succeed(SRandom.nextInt(n))
     val nextLong: UIO[Long] =
       ZIO.succeed(SRandom.nextLong())
-    def nextLongBetween(minInclusive: Long, maxExclusive: Long): UIO[Long] =
-      nextLongBetweenWith(minInclusive, maxExclusive)(nextLong, nextLongBounded)
-    def nextLongBounded(n: Long): UIO[Long] =
+    def nextLongBetween(minInclusive: => Long, maxExclusive: => Long): UIO[Long] =
+      nextLongBetweenWith(minInclusive, maxExclusive)(nextLong, nextLongBounded(_))
+    def nextLongBounded(n: => Long): UIO[Long] =
       Random.nextLongBoundedWith(n)(nextLong)
     val nextPrintableChar: UIO[Char] =
       ZIO.succeed(SRandom.nextPrintableChar())
-    def nextString(length: Int): UIO[String] =
+    def nextString(length: => Int): UIO[String] =
       ZIO.succeed(SRandom.nextString(length))
-    def setSeed(seed: Long): UIO[Unit] =
+    def setSeed(seed: => Long): UIO[Unit] =
       ZIO.succeed(SRandom.setSeed(seed))
     def shuffle[A, Collection[+Element] <: Iterable[Element]](
-      collection: Collection[A]
+      collection: => Collection[A]
     )(implicit bf: BuildFrom[Collection[A], A, Collection[A]]): UIO[Collection[A]] =
       Random.shuffleWith(nextIntBounded(_), collection)
   }
@@ -93,7 +93,7 @@ object Random extends Serializable {
   val live: Layer[Nothing, Has[Random]] =
     ZLayer.succeed(RandomLive)
 
-  private[zio] def nextDoubleBetweenWith(minInclusive: Double, maxExclusive: Double)(
+  private[zio] def nextDoubleBetweenWith(minInclusive: => Double, maxExclusive: => Double)(
     nextDouble: UIO[Double]
   ): UIO[Double] =
     if (minInclusive >= maxExclusive)
@@ -105,7 +105,7 @@ object Random extends Serializable {
         else Math.nextAfter(maxExclusive, Float.NegativeInfinity)
       }
 
-  private[zio] def nextFloatBetweenWith(minInclusive: Float, maxExclusive: Float)(
+  private[zio] def nextFloatBetweenWith(minInclusive: => Float, maxExclusive: => Float)(
     nextFloat: UIO[Float]
   ): UIO[Float] =
     if (minInclusive >= maxExclusive)
@@ -118,9 +118,9 @@ object Random extends Serializable {
       }
 
   private[zio] def nextIntBetweenWith(
-    minInclusive: Int,
-    maxExclusive: Int
-  )(nextInt: UIO[Int], nextIntBounded: Int => UIO[Int]): UIO[Int] =
+    minInclusive: => Int,
+    maxExclusive: => Int
+  )(nextInt: => UIO[Int], nextIntBounded: Int => UIO[Int]): UIO[Int] =
     if (minInclusive >= maxExclusive) {
       UIO.die(new IllegalArgumentException("invalid bounds"))
     } else {
@@ -130,8 +130,8 @@ object Random extends Serializable {
     }
 
   private[zio] def nextLongBetweenWith(
-    minInclusive: Long,
-    maxExclusive: Long
+    minInclusive: => Long,
+    maxExclusive: => Long
   )(nextLong: UIO[Long], nextLongBounded: Long => UIO[Long]): UIO[Long] =
     if (minInclusive >= maxExclusive)
       UIO.die(new IllegalArgumentException("invalid bounds"))
@@ -141,7 +141,7 @@ object Random extends Serializable {
       else nextLong.repeatUntil(n => minInclusive <= n && n < maxExclusive)
     }
 
-  private[zio] def nextLongBoundedWith(n: Long)(nextLong: UIO[Long]): UIO[Long] =
+  private[zio] def nextLongBoundedWith(n: => Long)(nextLong: => UIO[Long]): UIO[Long] =
     if (n <= 0)
       UIO.die(new IllegalArgumentException("n must be positive"))
     else {
@@ -158,7 +158,7 @@ object Random extends Serializable {
       }
     }
 
-  private[zio] def nextUUIDWith(nextLong: UIO[Long]): UIO[UUID] =
+  private[zio] def nextUUIDWith(nextLong: => UIO[Long]): UIO[UUID] =
     for {
       mostSigBits  <- nextLong
       leastSigBits <- nextLong
@@ -169,7 +169,7 @@ object Random extends Serializable {
 
   private[zio] def shuffleWith[A, Collection[+Element] <: Iterable[Element]](
     nextIntBounded: Int => UIO[Int],
-    collection: Collection[A]
+    collection: => Collection[A]
   )(implicit bf: BuildFrom[Collection[A], A, Collection[A]]): UIO[Collection[A]] =
     for {
       buffer <- ZIO.succeed {
@@ -212,7 +212,7 @@ object Random extends Serializable {
   /**
    * Generates a pseudo-random double in the specified range.
    */
-  def nextDoubleBetween(minInclusive: Double, maxExclusive: Double): URIO[Has[Random], Double] =
+  def nextDoubleBetween(minInclusive: => Double, maxExclusive: => Double): URIO[Has[Random], Double] =
     ZIO.serviceWith(_.nextDoubleBetween(minInclusive, maxExclusive))
 
   /**
@@ -225,7 +225,7 @@ object Random extends Serializable {
   /**
    * Generates a pseudo-random float in the specified range.
    */
-  def nextFloatBetween(minInclusive: Float, maxExclusive: Float): URIO[Has[Random], Float] =
+  def nextFloatBetween(minInclusive: => Float, maxExclusive: => Float): URIO[Has[Random], Float] =
     ZIO.serviceWith(_.nextFloatBetween(minInclusive, maxExclusive))
 
   /**
@@ -244,7 +244,7 @@ object Random extends Serializable {
   /**
    * Generates a pseudo-random integer in the specified range.
    */
-  def nextIntBetween(minInclusive: Int, maxExclusive: Int): URIO[Has[Random], Int] =
+  def nextIntBetween(minInclusive: => Int, maxExclusive: => Int): URIO[Has[Random], Int] =
     ZIO.serviceWith(_.nextIntBetween(minInclusive, maxExclusive))
 
   /**
@@ -263,7 +263,7 @@ object Random extends Serializable {
   /**
    * Generates a pseudo-random long in the specified range.
    */
-  def nextLongBetween(minInclusive: Long, maxExclusive: Long): URIO[Has[Random], Long] =
+  def nextLongBetween(minInclusive: => Long, maxExclusive: => Long): URIO[Has[Random], Long] =
     ZIO.serviceWith(_.nextLongBetween(minInclusive, maxExclusive))
 
   /**
@@ -294,7 +294,7 @@ object Random extends Serializable {
   /**
    * Sets the seed of this random number generator.
    */
-  def setSeed(seed: Long): URIO[Has[Random], Unit] =
+  def setSeed(seed: => Long): URIO[Has[Random], Unit] =
     ZIO.serviceWith(_.setSeed(seed))
 
   /**
