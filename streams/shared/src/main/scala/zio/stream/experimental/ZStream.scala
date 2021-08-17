@@ -1068,6 +1068,35 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   }
 
   /**
+   * Drops the last specified number of elements from this stream.
+   *
+   * @note This combinator keeps `n` elements in memory. Be careful with big numbers.
+   */
+  def dropRight(n: Int): ZStream[R, E, A] =
+    if (n <= 0) new ZStream(self.channel)
+    else
+      new ZStream({
+        val queue = SingleThreadedRingBuffer[A](n)
+
+        lazy val reader: ZChannel[Any, E, Chunk[A], Any, E, Chunk[A], Unit] =
+          ZChannel.readWith(
+            (in: Chunk[A]) => {
+              val outs = in.flatMap { elem =>
+                val head = queue.head
+                queue.put(elem)
+                head
+              }
+
+              ZChannel.write(outs) *> reader
+            },
+            ZChannel.fail(_),
+            (_: Any) => ZChannel.unit
+          )
+
+        self.channel >>> reader
+      })
+
+  /**
    * Drops all elements of the stream for as long as the specified predicate
    * evaluates to `true`.
    */
@@ -4916,4 +4945,80 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     case class Current[E, A](fiber: Fiber[E, HandoffSignal[Unit, E, A]]) extends DebounceState[E, A]
   }
 
+  /**
+   * An `Emit[R, E, A, B]` represents an asynchronous callback that can be
+   * called multiple times. The callback can be called with a value of type
+   * `ZIO[R, Option[E], Chunk[A]]`, where succeeding with a `Chunk[A]`
+   * indicates to emit those elements, failing with `Some[E]` indicates to
+   * terminate with that error, and failing with `None` indicates to terminate
+   * with an end of stream signal.
+   */
+  trait Emit[+R, -E, -A, +B] extends (ZIO[R, Option[E], Chunk[A]] => B) {
+
+    def apply(v1: ZIO[R, Option[E], Chunk[A]]): B
+
+    /**
+     * Emits a chunk containing the specified values.
+     */
+    def chunk(as: Chunk[A]): B =
+      apply(ZIO.succeedNow(as))
+
+    /**
+     * Terminates with a cause that dies with the specified `Throwable`.
+     */
+    def die(t: Throwable): B =
+      apply(ZIO.die(t))
+
+    /**
+     * Terminates with a cause that dies with a `Throwable` with the specified
+     * message.
+     */
+    def dieMessage(message: String): B =
+      apply(ZIO.dieMessage(message))
+
+    /**
+     * Either emits the specified value if this `Exit` is a `Success` or else
+     * terminates with the specified cause if this `Exit` is a `Failure`.
+     */
+    def done(exit: Exit[E, A]): B =
+      apply(ZIO.done(exit.mapBoth(e => Some(e), a => Chunk(a))))
+
+    /**
+     * Terminates with an end of stream signal.
+     */
+    def end: B =
+      apply(ZIO.fail(None))
+
+    /**
+     * Terminates with the specified error.
+     */
+    def fail(e: E): B =
+      apply(ZIO.fail(Some(e)))
+
+    /**
+     * Either emits the success value of this effect or terminates the stream
+     * with the failure value of this effect.
+     */
+    def fromEffect(zio: ZIO[R, E, A]): B =
+      apply(zio.mapBoth(e => Some(e), a => Chunk(a)))
+
+    /**
+     * Either emits the success value of this effect or terminates the stream
+     * with the failure value of this effect.
+     */
+    def fromEffectChunk(zio: ZIO[R, E, Chunk[A]]): B =
+      apply(zio.mapError(e => Some(e)))
+
+    /**
+     * Terminates the stream with the specified cause.
+     */
+    def halt(cause: Cause[E]): B =
+      apply(ZIO.failCause(cause.map(e => Some(e))))
+
+    /**
+     * Emits a chunk containing the specified value.
+     */
+    def single(a: A): B =
+      apply(ZIO.succeedNow(Chunk(a)))
+  }
 }

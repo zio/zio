@@ -1525,7 +1525,7 @@ Based on the type of underlying queue we can use one the buffering operators:
 - **Bounded Queue** — `ZStream#buffer(capacity: Int)`
 - **Unbounded Queue** — `ZStream#bufferUnbounded`
 - **Sliding Queue** — `ZStream#bufferDropping(capacity: Int)`
-- **Dropping Qeuue** `ZStream#bufferSliding(capacity: Int)`
+- **Dropping Queue** `ZStream#bufferSliding(capacity: Int)`
 
 ### Debouncing
 

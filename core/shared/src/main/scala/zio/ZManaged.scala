@@ -1612,16 +1612,16 @@ object ZManaged extends ZManagedPlatformSpecific {
   def acquireReleaseInterruptible[R, R1 <: R, E, A](
     acquire: => ZIO[R, E, A]
   )(release: => ZIO[R1, Nothing, Any]): ZManaged[R1, E, A] =
-    acquireReleaseInterruptibleWith[R1, E, A](acquire)(_ => release)
+    acquireReleaseInterruptibleWith(acquire)(_ => release)
 
   /**
    * Lifts a ZIO[R, E, A] into ZManaged[R, E, A] with a release action.
    * The acquire action will be performed interruptibly, while release
    * will be performed uninterruptibly.
    */
-  def acquireReleaseInterruptibleWith[R, E, A](
+  def acquireReleaseInterruptibleWith[R, R1 <: R, E, A](
     acquire: => ZIO[R, E, A]
-  )(release: A => URIO[R, Any]): ZManaged[R, E, A] =
+  )(release: A => URIO[R1, Any]): ZManaged[R1, E, A] =
     ZManaged.fromZIO(acquire).onExitFirst(_.foreach(release))
 
   /**
@@ -2437,6 +2437,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * does not need access to the resource but handles `Exit`. The acquire and
    * release actions will be performed uninterruptibly.
    */
+  @deprecated("use acquireReleaseExit", "2.0.0")
   def makeExit_[R, R1 <: R, E, A](acquire: => ZIO[R, E, A])(
     release: Exit[Any, Any] => ZIO[R1, Nothing, Any]
   ): ZManaged[R1, E, A] =
@@ -2447,7 +2448,8 @@ object ZManaged extends ZManagedPlatformSpecific {
    * The acquire action will be performed interruptibly, while release
    * will be performed uninterruptibly.
    */
-  def makeInterruptible[R, E, A](
+  @deprecated("use acquireReleaseInterruptibleWith", "2.0.0")
+  def makeInterruptible[R, R1 <: R, E, A](
     acquire: => ZIO[R, E, A]
   )(release: A => URIO[R, Any]): ZManaged[R, E, A] =
     acquireReleaseInterruptibleWith(acquire)(release)
@@ -2457,6 +2459,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * does not require access to the resource. The acquire action will be
    * performed interruptibly, while release will be performed uninterruptibly.
    */
+  @deprecated("use acquireReleaseInterruptible", "2.0.0")
   def makeInterruptible_[R, R1 <: R, E, A](
     acquire: => ZIO[R, E, A]
   )(release: => ZIO[R1, Nothing, Any]): ZManaged[R1, E, A] =

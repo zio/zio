@@ -1,28 +1,37 @@
 package zio.test.diff
 
-import zio.test.internal.myers.{Action, MyersDiff}
+import zio.test.diff.Diff.DiffOps
+import zio.test.internal.myers.MyersDiff
 import zio.{Chunk, NonEmptyChunk}
 
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 
-trait Diff[-A] {
+trait Diff[A] {
   def diff(x: A, y: A): DiffResult
 
   def isLowPriority: Boolean = false
 }
 
-object Diff extends LowPriDiff {
-
+object Diff extends DiffInstances {
   def render[A: Diff](oldValue: A, newValue: A): String =
     (oldValue diffed newValue).render
 
   implicit final class DiffOps[A](private val self: A)(implicit diff: Diff[A]) {
     def diffed(that: A): DiffResult = diff.diff(self, that)
   }
+}
 
-  def red[A](string: A): String   = scala.Console.RED + string + scala.Console.RESET
-  def dim[A](string: A): String   = "\u001b[2m" + string + scala.Console.RESET
-  def green[A](string: A): String = scala.Console.GREEN + string + scala.Console.RESET
+trait DiffInstances extends LowPriDiff {
+
+  implicit val stringDiff: Diff[String] = (x: String, y: String) =>
+    if (x.split("\n").length <= 1 && y.split("\n").length <= 1 && x.length < 50 && y.length < 50) {
+      if (x == y) DiffResult.Identical(x)
+      else DiffResult.Different(x, y)
+    } else {
+      val result = MyersDiff.diff(x, y)
+      if (result.isIdentical) DiffResult.Identical(x)
+      else DiffResult.Different(x, y, Some(result.toString))
+    }
 
   implicit def mapDiff[K, V: Diff]: Diff[Map[K, V]] = (x: Map[K, V], y: Map[K, V]) => {
     val fields =
@@ -39,8 +48,16 @@ object Diff extends LowPriDiff {
         }
       }
 
-    DiffResult.Recursive("Map", fields)
+    DiffResult.Nested("Map", fields)
   }
+
+  implicit def optionDiff[A: Diff]: Diff[Option[A]] = (x: Option[A], y: Option[A]) =>
+    (x, y) match {
+      case (Some(x), Some(y)) => DiffResult.Nested("Some", List(None -> (x diffed y)))
+      case (Some(x), _)       => DiffResult.Different(Some(x), None)
+      case (_, Some(y))       => DiffResult.Different(None, Some(y))
+      case _                  => DiffResult.Identical(None)
+    }
 
   implicit def listDiff[A: Diff]: Diff[List[A]]               = mkSeqDiff("List")(identity(_))
   implicit def vectorDiff[A: Diff]: Diff[Vector[A]]           = mkSeqDiff("Vector")(identity(_))
@@ -70,7 +87,7 @@ object Diff extends LowPriDiff {
         }
       }
 
-    DiffResult.Recursive(name, fields)
+    DiffResult.Nested(name, fields.toList)
   }
 
   implicit def setDiff[A: Diff]: Diff[Set[A]] = (x: Set[A], y: Set[A]) => {
@@ -80,54 +97,17 @@ object Diff extends LowPriDiff {
     val fields: List[(Option[String], DiffResult)] =
       (removed.map(None -> DiffResult.Removed(_)) ++ added.map(None -> DiffResult.Added(_))).toList
 
-    DiffResult.Recursive("Set", fields)
-  }
-
-  implicit val stringDiff: Diff[String] = (x: String, y: String) => {
-    val actions0 = MyersDiff.diff(x, y).actions
-
-    val actions = actions0
-      .foldLeft[Chunk[Action]](Chunk.empty) {
-        case (Action.Delete(s1) +: tail, Action.Delete(s2)) =>
-          Action.Delete(s1 + s2) +: tail
-        case (Action.Insert(s1) +: tail, Action.Insert(s2)) =>
-          Action.Insert(s1 + s2) +: tail
-        case (Action.Keep(s1) +: tail, Action.Keep(s2)) =>
-          Action.Keep(s1 + s2) +: tail
-        case (acc, action) => action +: acc
-      }
-      .reverse
-
-    val isIdentical = actions.count {
-      case Action.Keep(_) => false
-      case _              => true
-    } == 0
-
-    if (isIdentical) {
-      DiffResult.Identical(x)
-    } else if (
-      actions0.count {
-        case Action.Keep(_) => true
-        case _              => false
-      } < 30
-    ) {
-      DiffResult.Different(x, y)
-    } else {
-      val custom = scala.Console.RESET + actions.map {
-        case Action.Delete(s) => red("-" + s)
-        case Action.Insert(s) => green("+" + s)
-        case Action.Keep(s)   => s
-      }.mkString("")
-
-      DiffResult.Different(x, y, Some(custom))
-    }
+    DiffResult.Nested("Set", fields)
   }
 
 }
 
 trait LowPriDiff {
-  implicit val anyValDiff: Diff[AnyVal] = new Diff[AnyVal] {
-    override def diff(x: AnyVal, y: AnyVal): DiffResult =
+  implicit val anyValDiff: Diff[AnyVal] = anyDiff[AnyVal]
+
+  def anyDiff[A]: Diff[A] = new Diff[A] {
+
+    override def diff(x: A, y: A): DiffResult =
       if (x == y) DiffResult.Identical(x)
       else DiffResult.Different(x, y)
 
