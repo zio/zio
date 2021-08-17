@@ -540,7 +540,7 @@ lazy val jsdocs = project
 
 val http4sV     = "0.23.1"
 val doobieV     = "1.0.0-M5"
-val catsEffectV = "3.2.2"
+val catsEffectV = "3.2.3"
 val zioActorsV  = "0.0.9"
 
 lazy val docs = project.module
