@@ -11,7 +11,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    * Operator alias for [[race]].
    */
   final def |[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, A0, In1 <: In, L1 >: L, Z1 >: Z](
-    that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
+    that: => ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
   ): ZSink[R1, InErr1, In1, OutErr1, L1, Z1] =
     race(that)
 
@@ -19,7 +19,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    * Operator alias for [[zip]].
    */
   final def <*>[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, A0, In1 <: In, L1 >: L <: In1, Z1](
-    that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
+    that: => ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
   )(implicit zippable: Zippable[Z, Z1], ev: L <:< In1): ZSink[R1, InErr1, In1, OutErr1, L1, zippable.Out] =
     zip(that)
 
@@ -27,7 +27,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    * Operator alias for [[zipPar]].
    */
   final def <&>[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, A0, In1 <: In, L1 >: L <: In1, Z1](
-    that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
+    that: => ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
   )(implicit zippable: Zippable[Z, Z1]): ZSink[R1, InErr1, In1, OutErr1, L1, zippable.Out] =
     zipPar(that)
 
@@ -35,7 +35,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    * Operator alias for [[zipRight]].
    */
   final def *>[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, A0, In1 <: In, L1 >: L <: In1, Z1](
-    that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
+    that: => ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
   )(implicit ev: L <:< In1): ZSink[R1, InErr1, In1, OutErr1, L1, Z1] =
     zipRight(that)
 
@@ -43,7 +43,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    * Operator alias for [[zipParRight]].
    */
   final def &>[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, A0, In1 <: In, L1 >: L <: In1, Z1](
-    that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
+    that: => ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
   )(implicit ev: L <:< In1): ZSink[R1, InErr1, In1, OutErr1, L1, Z1] =
     zipParRight(that)
 
@@ -51,7 +51,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    * Operator alias for [[zipLeft]].
    */
   final def <*[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, A0, In1 <: In, L1 >: L <: In1, Z1](
-    that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
+    that: => ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
   )(implicit ev: L <:< In1): ZSink[R1, InErr1, In1, OutErr1, L1, Z] =
     zipLeft(that)
 
@@ -59,7 +59,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    * Operator alias for [[zipParLeft]].
    */
   final def <&[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, A0, In1 <: In, L1 >: L <: In1, Z1](
-    that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
+    that: => ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
   )(implicit ev: L <:< In1): ZSink[R1, InErr1, In1, OutErr1, L1, Z] =
     zipParLeft(that)
 
@@ -74,7 +74,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    * the predicate `p`. The sink's results will be accumulated
    * using the stepping function `f`.
    */
-  def collectAllWhileWith[S](z: S)(p: Z => Boolean)(f: (S, Z) => S)(implicit
+  def collectAllWhileWith[S](z: => S)(p: Z => Boolean)(f: (S, Z) => S)(implicit
     ev: L <:< In
   ): ZSink[R, InErr, In, OutErr, L, S] =
     new ZSink(
@@ -149,7 +149,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
   ): ZSink[R1, InErr1, In1, OutErr, L, Z] = {
     lazy val loop: ZChannel[R1, InErr1, Chunk[In1], Any, InErr1, Chunk[In], Any] =
       ZChannel.readWith[R1, InErr1, Chunk[In1], Any, InErr1, Chunk[In], Any](
-        chunk => ZChannel.fromZIO(f(chunk)).flatMap(ZChannel.write) *> loop,
+        chunk => ZChannel.fromZIO(f(chunk)).flatMap(ZChannel.write(_)) *> loop,
         ZChannel.fail(_),
         ZChannel.succeed(_)
       )
@@ -315,7 +315,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    * one that finishes first.
    */
   final def race[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, A0, In1 <: In, L1 >: L, Z1 >: Z](
-    that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
+    that: => ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
   ): ZSink[R1, InErr1, In1, OutErr1, L1, Z1] =
     self.raceBoth(that).map(_.merge)
 
@@ -324,7 +324,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    * one that finishes first.
    */
   final def raceBoth[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, A0, In1 <: In, L1 >: L, Z1 >: Z](
-    that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
+    that: => ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
   ): ZSink[R1, InErr1, In1, OutErr1, L1, Either[Z, Z1]] =
     ???
 
@@ -340,7 +340,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
   /**
    * Summarize a sink by running an effect when the sink starts and again when it completes
    */
-  final def summarized[R1 <: R, E1 >: OutErr, B, C](summary: ZIO[R1, E1, B])(f: (B, B) => C) =
+  final def summarized[R1 <: R, E1 >: OutErr, B, C](summary: => ZIO[R1, E1, B])(f: (B, B) => C) =
     new ZSink[R1, InErr, In, E1, L, (Z, C)](for {
       start <- ZChannel.fromZIO(summary)
       done  <- self.channel
@@ -353,7 +353,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
     new ZSink[R1, InErr1, In1, OutErr2, L1, Z1](self.channel.orElse(that.channel))
 
   def zip[R1 <: R, InErr1 <: InErr, In1 <: In, OutErr1 >: OutErr, L1 >: L <: In1, Z1](
-    that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
+    that: => ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
   )(implicit zippable: Zippable[Z, Z1], ev: L <:< In1): ZSink[R1, InErr1, In1, OutErr1, L1, zippable.Out] =
     zipWith[R1, InErr1, OutErr1, In1, L1, Z1, zippable.Out](that)(zippable.zip(_, _))
 
@@ -361,7 +361,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    * Like [[zip]], but keeps only the result from the `that` sink.
    */
   final def zipLeft[R1 <: R, InErr1 <: InErr, In1 <: In, OutErr1 >: OutErr, L1 >: L <: In1, Z1](
-    that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
+    that: => ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
   )(implicit ev: L <:< In1): ZSink[R1, InErr1, In1, OutErr1, L1, Z] =
     zipWith[R1, InErr1, OutErr1, In1, L1, Z1, Z](that)((z, _) => z)
 
@@ -369,7 +369,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    * Runs both sinks in parallel on the input and combines the results in a tuple.
    */
   final def zipPar[R1 <: R, InErr1 <: InErr, In1 <: In, OutErr1 >: OutErr, L1 >: L <: In1, Z1](
-    that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
+    that: => ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
   )(implicit zippable: Zippable[Z, Z1]): ZSink[R1, InErr1, In1, OutErr1, L1, zippable.Out] =
     zipWithPar[R1, InErr1, OutErr1, In1, L1, Z1, zippable.Out](that)(zippable.zip(_, _))
 
@@ -377,7 +377,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    * Like [[zipPar]], but keeps only the result from this sink.
    */
   final def zipParLeft[R1 <: R, InErr1 <: InErr, In1 <: In, OutErr1 >: OutErr, L1 >: L <: In1, Z1](
-    that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
+    that: => ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
   ): ZSink[R1, InErr1, In1, OutErr1, L1, Z] =
     zipWithPar[R1, InErr1, OutErr1, In1, L1, Z1, Z](that)((b, _) => b)
 
@@ -385,7 +385,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    * Like [[zipPar]], but keeps only the result from the `that` sink.
    */
   final def zipParRight[R1 <: R, InErr1 <: InErr, In1 <: In, OutErr1 >: OutErr, L1 >: L <: In1, Z1](
-    that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
+    that: => ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
   ): ZSink[R1, InErr1, In1, OutErr1, L1, Z1] =
     zipWithPar[R1, InErr1, OutErr1, In1, L1, Z1, Z1](that)((_, c) => c)
 
@@ -393,7 +393,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    * Like [[zip]], but keeps only the result from this sink.
    */
   final def zipRight[R1 <: R, InErr1 <: InErr, In1 <: In, OutErr1 >: OutErr, L1 >: L <: In1, Z1](
-    that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
+    that: => ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
   )(implicit ev: L <:< In1): ZSink[R1, InErr1, In1, OutErr1, L1, Z1] =
     zipWith[R1, InErr1, OutErr1, In1, L1, Z1, Z1](that)((_, z1) => z1)
 
@@ -402,7 +402,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    * provided sink until it yields a result, finally combining the two results with `f`.
    */
   final def zipWith[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, In1 <: In, L1 >: L <: In1, Z1, Z2](
-    that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
+    that: => ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
   )(f: (Z, Z1) => Z2)(implicit ev: L <:< In1): ZSink[R1, InErr1, In1, OutErr1, L1, Z2] =
     flatMap(z => that.map(f(z, _)))
 
@@ -411,7 +411,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    * using the provided function.
    */
   final def zipWithPar[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, In1 <: In, L1 >: L <: In1, Z1, Z2](
-    that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
+    that: => ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
   )(f: (Z, Z1) => Z2): ZSink[R1, InErr1, In1, OutErr1, L1, Z2] =
     ???
 
@@ -444,7 +444,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    * Provides the sink with its required environment, which eliminates
    * its dependency on `R`.
    */
-  def provide(r: R)(implicit ev: NeedsEnv[R]): ZSink[Any, InErr, In, OutErr, L, Z] =
+  def provide(r: => R)(implicit ev: NeedsEnv[R]): ZSink[Any, InErr, In, OutErr, L, Z] =
     new ZSink(channel.provide(r))
 }
 
@@ -470,7 +470,7 @@ object ZSink {
    * A sink that collects first `n` elements into a chunk. Note that the chunk
    * is preallocated and must fit in memory.
    */
-  def collectAllN[Err, In](n: Int): ZSink[Any, Err, In, Err, In, Chunk[In]] =
+  def collectAllN[Err, In](n: => Int): ZSink[Any, Err, In, Err, In, Chunk[In]] =
     fromZIO(UIO(ChunkBuilder.make[In](n)))
       .flatMap(cb => foldUntil[Err, In, ChunkBuilder[In]](cb, n.toLong)(_ += _))
       .map(_.result())
@@ -499,7 +499,7 @@ object ZSink {
    * from inputs using the keying function `key`; if multiple inputs use the
    * the same key, they are merged using the `f` function.
    */
-  def collectAllToMapN[Err, In, K](n: Long)(key: In => K)(f: (In, In) => In): ZSink[Any, Err, In, Err, In, Map[K, In]] =
+  def collectAllToMapN[Err, In, K](n: => Long)(key: In => K)(f: (In, In) => In): ZSink[Any, Err, In, Err, In, Map[K, In]] =
     foldWeighted[Err, In, Map[K, In]](Map())((acc, in) => if (acc.contains(key(in))) 0 else 1, n) { (acc, in) =>
       val k = key(in)
       val v = if (acc.contains(k)) f(acc(k), in) else in
@@ -516,7 +516,7 @@ object ZSink {
   /**
    * A sink that collects first `n` distinct inputs into a set.
    */
-  def collectAllToSetN[Err, In](n: Long): ZSink[Any, Err, In, Err, In, Set[In]] =
+  def collectAllToSetN[Err, In](n: => Long): ZSink[Any, Err, In, Err, In, Set[In]] =
     foldWeighted[Err, In, Set[In]](Set())((acc, in) => if (acc.contains(in)) 0 else 1, n)(_ + _)
 
   /**
@@ -600,7 +600,7 @@ object ZSink {
   /**
    * A sink that folds its inputs with the provided function, termination predicate and initial state.
    */
-  def fold[Err, In, S](z: S)(contFn: S => Boolean)(f: (S, In) => S): ZSink[Any, Err, In, Err, In, S] = {
+  def fold[Err, In, S](z: => S)(contFn: S => Boolean)(f: (S, In) => S): ZSink[Any, Err, In, Err, In, S] = {
     def foldChunkSplit(z: S, chunk: Chunk[In])(
       contFn: S => Boolean
     )(f: (S, In) => S): (S, Chunk[In]) = {
@@ -642,7 +642,7 @@ object ZSink {
    * `f` and `contFn` must preserve chunking-invariance.
    */
   def foldChunks[Err, In, S](
-    z: S
+    z: => S
   )(contFn: S => Boolean)(f: (S, Chunk[In]) => S): ZSink[Any, Err, In, Err, Nothing, S] = {
     def reader(s: S): ZChannel[Any, Err, Chunk[In], Any, Err, Nothing, S] = ZChannel.readWith(
       (in: Chunk[In]) => {
@@ -668,7 +668,7 @@ object ZSink {
    */
   @deprecated("use foldChunksZIO", "2.0.0")
   def foldChunksM[Env, Err, In, S](
-    z: S
+    z: => S
   )(contFn: S => Boolean)(f: (S, Chunk[In]) => ZIO[Env, Err, S]): ZSink[Env, Err, In, Err, In, S] =
     foldChunksZIO(z)(contFn)(f)
 
@@ -678,7 +678,7 @@ object ZSink {
    * `f` and `contFn` must preserve chunking-invariance.
    */
   def foldChunksZIO[Env, Err, In, S](
-    z: S
+    z: => S
   )(contFn: S => Boolean)(f: (S, Chunk[In]) => ZIO[Env, Err, S]): ZSink[Env, Err, In, Err, In, S] = {
     def reader(s: S): ZChannel[Env, Err, Chunk[In], Any, Err, Nothing, S] =
       ZChannel.readWith(
@@ -700,14 +700,14 @@ object ZSink {
   /**
    * A sink that folds its inputs with the provided function and initial state.
    */
-  def foldLeft[Err, In, S](z: S)(f: (S, In) => S): ZSink[Any, Err, In, Err, Nothing, S] =
+  def foldLeft[Err, In, S](z: => S)(f: (S, In) => S): ZSink[Any, Err, In, Err, Nothing, S] =
     fold(z)(_ => true)(f).dropLeftover
 
   /**
    * A sink that folds its input chunks with the provided function and initial state.
    * `f` must preserve chunking-invariance.
    */
-  def foldLeftChunks[Err, In, S](z: S)(f: (S, Chunk[In]) => S): ZSink[Any, Err, In, Err, Nothing, S] =
+  def foldLeftChunks[Err, In, S](z: => S)(f: (S, Chunk[In]) => S): ZSink[Any, Err, In, Err, Nothing, S] =
     foldChunks[Err, In, S](z)(_ => true)(f)
 
   /**
@@ -715,7 +715,7 @@ object ZSink {
    * `f` must preserve chunking-invariance.
    */
   @deprecated("use foldLeftChunksZIO", "2.0.0")
-  def foldLeftChunksM[R, Err, In, S](z: S)(
+  def foldLeftChunksM[R, Err, In, S](z: => S)(
     f: (S, Chunk[In]) => ZIO[R, Err, S]
   ): ZSink[R, Err, In, Err, Nothing, S] =
     foldLeftChunksZIO[R, Err, In, S](z)(f)
@@ -724,7 +724,7 @@ object ZSink {
    * A sink that effectfully folds its input chunks with the provided function and initial state.
    * `f` must preserve chunking-invariance.
    */
-  def foldLeftChunksZIO[R, Err, In, S](z: S)(
+  def foldLeftChunksZIO[R, Err, In, S](z: => S)(
     f: (S, Chunk[In]) => ZIO[R, Err, S]
   ): ZSink[R, Err, In, Err, Nothing, S] =
     foldChunksZIO[R, Err, In, S](z)(_ => true)(f).dropLeftover
@@ -733,7 +733,7 @@ object ZSink {
    * A sink that effectfully folds its inputs with the provided function and initial state.
    */
   @deprecated("use foldLeftZIO", "2.0.0")
-  def foldLeftM[R, Err, In, S](z: S)(
+  def foldLeftM[R, Err, In, S](z: => S)(
     f: (S, In) => ZIO[R, Err, S]
   ): ZSink[R, Err, In, Err, In, S] =
     foldLeftZIO(z)(f)
@@ -741,7 +741,7 @@ object ZSink {
   /**
    * A sink that effectfully folds its inputs with the provided function and initial state.
    */
-  def foldLeftZIO[R, Err, In, S](z: S)(
+  def foldLeftZIO[R, Err, In, S](z: => S)(
     f: (S, In) => ZIO[R, Err, S]
   ): ZSink[R, Err, In, Err, In, S] =
     foldZIO[R, Err, In, S](z)(_ => true)(f)
@@ -750,7 +750,7 @@ object ZSink {
    * A sink that effectfully folds its inputs with the provided function, termination predicate and initial state.
    */
   @deprecated("use foldZIO", "2.0.0")
-  def foldM[Env, Err, In, S](z: S)(contFn: S => Boolean)(
+  def foldM[Env, Err, In, S](z: => S)(contFn: S => Boolean)(
     f: (S, In) => ZIO[Env, Err, S]
   ): ZSink[Env, Err, In, Err, In, S] =
     foldZIO(z)(contFn)(f)
@@ -761,7 +761,7 @@ object ZSink {
    *
    * Like [[foldWeighted]], but with a constant cost function of 1.
    */
-  def foldUntil[Err, In, S](z: S, max: Long)(f: (S, In) => S): ZSink[Any, Err, In, Err, In, S] =
+  def foldUntil[Err, In, S](z: => S, max: => Long)(f: (S, In) => S): ZSink[Any, Err, In, Err, In, S] =
     fold[Err, In, (S, Long)]((z, 0))(_._2 < max) { case ((o, count), i) =>
       (f(o, i), count + 1)
     }.map(_._1)
@@ -773,7 +773,7 @@ object ZSink {
    * Like [[foldWeightedM]], but with a constant cost function of 1.
    */
   @deprecated("use foldUntilZIO", "2.0.0")
-  def foldUntilM[Env, In, Err, S](z: S, max: Long)(
+  def foldUntilM[Env, In, Err, S](z: => S, max: => Long)(
     f: (S, In) => ZIO[Env, Err, S]
   ): ZSink[Env, Err, In, Err, In, S] =
     foldUntilZIO(z, max)(f)
@@ -784,7 +784,7 @@ object ZSink {
    *
    * Like [[foldWeightedM]], but with a constant cost function of 1.
    */
-  def foldUntilZIO[Env, In, Err, S](z: S, max: Long)(
+  def foldUntilZIO[Env, In, Err, S](z: => S, max: => Long)(
     f: (S, In) => ZIO[Env, Err, S]
   ): ZSink[Env, Err, In, Err, In, S] =
     foldZIO[Env, Err, In, (S, Long)]((z, 0))(_._2 < max) { case ((o, count), i) =>
@@ -800,7 +800,7 @@ object ZSink {
    * force the sink to cross the `max` cost. See [[foldWeightedDecompose]]
    * for a variant that can handle these cases.
    */
-  def foldWeighted[Err, In, S](z: S)(costFn: (S, In) => Long, max: Long)(
+  def foldWeighted[Err, In, S](z: => S)(costFn: (S, In) => Long, max: => Long)(
     f: (S, In) => S
   ): ZSink[Any, Err, In, Err, In, S] =
     foldWeightedDecompose[Err, In, S](z)(costFn, max, Chunk.single(_))(f)
@@ -839,8 +839,8 @@ object ZSink {
    * to fail.
    */
   def foldWeightedDecompose[Err, In, S](
-    z: S
-  )(costFn: (S, In) => Long, max: Long, decompose: In => Chunk[In])(
+    z: => S
+  )(costFn: (S, In) => Long, max: => Long, decompose: In => Chunk[In])(
     f: (S, In) => S
   ): ZSink[Any, Err, In, Err, In, S] = {
     def go(s: S, cost: Long, dirty: Boolean): ZChannel[Any, Err, Chunk[In], Any, Err, Chunk[In], S] =
@@ -900,9 +900,9 @@ object ZSink {
    * See [[foldWeightedDecompose]] for an example.
    */
   @deprecated("use foldWeightedDecomposeZIO", "2.0.0")
-  def foldWeightedDecomposeM[Env, Err, In, S](z: S)(
+  def foldWeightedDecomposeM[Env, Err, In, S](z: => S)(
     costFn: (S, In) => ZIO[Env, Err, Long],
-    max: Long,
+    max: => Long,
     decompose: In => ZIO[Env, Err, Chunk[In]]
   )(f: (S, In) => ZIO[Env, Err, S]): ZSink[Env, Err, In, Err, In, S] =
     foldWeightedDecomposeZIO(z)(costFn, max, decompose)(f)
@@ -921,9 +921,9 @@ object ZSink {
    *
    * See [[foldWeightedDecompose]] for an example.
    */
-  def foldWeightedDecomposeZIO[Env, Err, In, S](z: S)(
+  def foldWeightedDecomposeZIO[Env, Err, In, S](z: => S)(
     costFn: (S, In) => ZIO[Env, Err, Long],
-    max: Long,
+    max: => Long,
     decompose: In => ZIO[Env, Err, Chunk[In]]
   )(f: (S, In) => ZIO[Env, Err, S]): ZSink[Env, Err, In, Err, In, S] = {
     def go(s: S, cost: Long, dirty: Boolean): ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[In], S] =
@@ -984,8 +984,8 @@ object ZSink {
    */
   @deprecated("use foldWeightedZIO", "2.0.0-")
   def foldWeightedM[Env, Err, In, S](
-    z: S
-  )(costFn: (S, In) => ZIO[Env, Err, Long], max: Long)(
+    z: => S
+  )(costFn: (S, In) => ZIO[Env, Err, Long], max: => Long)(
     f: (S, In) => ZIO[Env, Err, S]
   ): ZSink[Env, Err, In, Err, In, S] =
     foldWeightedZIO(z)(costFn, max)(f)
@@ -1000,8 +1000,8 @@ object ZSink {
    * for a variant that can handle these cases.
    */
   def foldWeightedZIO[Env, Err, In, S](
-    z: S
-  )(costFn: (S, In) => ZIO[Env, Err, Long], max: Long)(
+    z: => S
+  )(costFn: (S, In) => ZIO[Env, Err, Long], max: => Long)(
     f: (S, In) => ZIO[Env, Err, S]
   ): ZSink[Env, Err, In, Err, In, S] =
     foldWeightedDecomposeZIO(z)(costFn, max, (i: In) => UIO.succeedNow(Chunk.single(i)))(f)
@@ -1009,7 +1009,7 @@ object ZSink {
   /**
    * A sink that effectfully folds its inputs with the provided function, termination predicate and initial state.
    */
-  def foldZIO[Env, Err, In, S](z: S)(contFn: S => Boolean)(
+  def foldZIO[Env, Err, In, S](z: => S)(contFn: S => Boolean)(
     f: (S, In) => ZIO[Env, Err, S]
   ): ZSink[Env, Err, In, Err, In, S] = {
     def foldChunkSplitM(z: S, chunk: Chunk[In])(
@@ -1149,7 +1149,7 @@ object ZSink {
   def last[Err, In]: ZSink[Any, Err, In, Err, In, Option[In]] =
     foldLeft(None: Option[In])((_, in) => Some(in))
 
-  def leftover[L](c: Chunk[L]): ZSink[Any, Any, Any, Nothing, L, Unit] =
+  def leftover[L](c: => Chunk[L]): ZSink[Any, Any, Any, Nothing, L, Unit] =
     new ZSink(ZChannel.write(c))
 
   def mkString[Err]: ZSink[Any, Err, Any, Err, Nothing, String] =
@@ -1161,7 +1161,7 @@ object ZSink {
       )
     }
 
-  def managed[R, InErr, In, OutErr >: InErr, A, L <: In, Z](resource: ZManaged[R, OutErr, A])(
+  def managed[R, InErr, In, OutErr >: InErr, A, L <: In, Z](resource: => ZManaged[R, OutErr, A])(
     fn: A => ZSink[R, InErr, In, OutErr, L, Z]
   ): ZSink[R, InErr, In, OutErr, In, Z] =
     new ZSink(ZChannel.managed(resource)(fn(_).channel))
@@ -1182,7 +1182,7 @@ object ZSink {
   /**
    * A sink that takes the specified number of values.
    */
-  def take[Err, In](n: Int): ZSink[Any, Err, In, Err, In, Chunk[In]] =
+  def take[Err, In](n: => Int): ZSink[Any, Err, In, Err, In, Chunk[In]] =
     ZSink.foldChunks[Err, In, Chunk[In]](Chunk.empty)(_.length < n)(_ ++ _).flatMap { acc =>
       val (taken, leftover) = acc.splitAt(n)
       new ZSink(

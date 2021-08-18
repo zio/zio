@@ -299,7 +299,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     self.pipeTo(drainer)
   }
 
-  def embedInput[InErr2, InElem2, InDone2](input: AsyncInputProducer[InErr2, InElem2, InDone2])(implicit
+  def embedInput[InErr2, InElem2, InDone2](input: => AsyncInputProducer[InErr2, InElem2, InDone2])(implicit
     noInputErrors: Any <:< InErr,
     noInputElements: Any <:< InElem,
     noInputDone: Any <:< InDone
@@ -350,7 +350,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     ZChannel.Ensuring(self, finalizer)
 
   final def ensuring[Env1 <: Env](
-    finalizer: URIO[Env1, Any]
+    finalizer: => URIO[Env1, Any]
   ): ZChannel[Env1, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
     ensuringWith(_ => finalizer)
 
@@ -493,7 +493,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     OutElem1 >: OutElem,
     OutDone2,
     OutDone3
-  ](that: ZChannel[Env1, InErr1, InElem1, InDone1, OutErr2, OutElem1, OutDone2])(
+  ](that: => ZChannel[Env1, InErr1, InElem1, InDone1, OutErr2, OutElem1, OutDone2])(
     leftDone: Exit[OutErr, OutDone] => ZChannel.MergeDecision[Env1, OutErr2, OutDone2, OutErr3, OutDone3],
     rightDone: Exit[OutErr2, OutDone2] => ZChannel.MergeDecision[Env1, OutErr, OutDone, OutErr3, OutDone3]
   ): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr3, OutElem1, OutDone3] = {
@@ -578,7 +578,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
   }
 
   def mergeMap[Env1 <: Env, InErr1 <: InErr, InElem1 <: InElem, InDone1 <: InDone, OutErr1 >: OutErr, OutElem2](
-    n: Long
+    n: => Long
   )(
     f: OutElem => ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem2, Any]
   ): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem2, Any] =
@@ -592,7 +592,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     OutErr1 >: OutErr,
     OutElem2,
     OutDone1 >: OutDone
-  ](n: Long)(
+  ](n: => Long)(
     f: OutElem => ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem2, OutDone1]
   )(g: (OutDone1, OutDone1) => OutDone1): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem2, OutDone1] =
     ???
@@ -675,7 +675,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     }
 
   def mergeOut[Env1 <: Env, InErr1 <: InErr, InElem1 <: InElem, InDone1 <: InDone, OutErr1 >: OutErr, OutElem2](
-    n: Long
+    n: => Long
   )(implicit
     ev: OutElem <:< ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem2, Any]
   ): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem2, Any] =
@@ -689,7 +689,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     OutErr1 >: OutErr,
     OutElem2,
     OutDone1 >: OutDone
-  ](n: Long)(f: (OutDone1, OutDone1) => OutDone1)(implicit
+  ](n: => Long)(f: (OutDone1, OutDone1) => OutDone1)(implicit
     ev: OutElem <:< ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem2, OutDone1]
   ): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem2, OutDone1] =
     ZChannel.mergeAllWith(self.mapOut(ev), n)(f)
@@ -712,7 +712,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
    * Provides the channel with its required environment, which eliminates
    * its dependency on `Env`.
    */
-  final def provide(env: Env)(implicit
+  final def provide(env: => Env)(implicit
     ev: NeedsEnv[Env]
   ): ZChannel[Any, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
     ZChannel.Provide(env, self)
@@ -1003,18 +1003,18 @@ object ZChannel {
     def awaitConst[R, E, Z](zio: ZIO[R, E, Z]): MergeDecision[R, Any, Any, E, Z]                = Await(_ => zio)
   }
 
-  def acquireReleaseOutWith[Env, OutErr, Acquired](acquire: ZIO[Env, OutErr, Acquired])(
+  def acquireReleaseOutWith[Env, OutErr, Acquired](acquire: => ZIO[Env, OutErr, Acquired])(
     release: Acquired => URIO[Env, Any]
   ): ZChannel[Env, Any, Any, Any, OutErr, Acquired, Unit] =
     acquireReleaseOutExitWith(acquire)((z, _) => release(z))
 
-  def acquireReleaseOutExitWith[Env, OutErr, Acquired](acquire: ZIO[Env, OutErr, Acquired])(
+  def acquireReleaseOutExitWith[Env, OutErr, Acquired](acquire: => ZIO[Env, OutErr, Acquired])(
     release: (Acquired, Exit[Any, Any]) => URIO[Env, Any]
   ): ZChannel[Env, Any, Any, Any, OutErr, Acquired, Unit] =
     BracketOut(acquire, release)
 
   def acquireReleaseWith[Env, InErr, InElem, InDone, OutErr, Acquired, OutElem2, OutDone](
-    acquire: ZIO[Env, OutErr, Acquired]
+    acquire: => ZIO[Env, OutErr, Acquired]
   )(release: Acquired => URIO[Env, Any])(
     use: Acquired => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem2, OutDone]
   ): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem2, OutDone] =
@@ -1023,7 +1023,7 @@ object ZChannel {
     )(use)
 
   def acquireReleaseExitWith[Env, InErr, InElem, InDone, OutErr, Acquired, OutElem2, OutDone](
-    acquire: ZIO[Env, OutErr, Acquired]
+    acquire: => ZIO[Env, OutErr, Acquired]
   )(release: (Acquired, Exit[OutErr, OutDone]) => URIO[Env, Any])(
     use: Acquired => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem2, OutDone]
   ): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem2, OutDone] =
@@ -1039,9 +1039,9 @@ object ZChannel {
    * the buffer will be passed along as output.
    */
   def buffer[InErr, InElem, InDone](
-    empty: InElem,
+    empty: => InElem,
     isEmpty: InElem => Boolean,
-    ref: Ref[InElem]
+    ref: => Ref[InElem]
   ): ZChannel[Any, InErr, InElem, InDone, InErr, InElem, InDone] =
     unwrap(
       ref.modify { v =>
@@ -1060,12 +1060,12 @@ object ZChannel {
     )
 
   def bufferChunk[InErr, InElem, InDone](
-    ref: Ref[Chunk[InElem]]
+    ref: => Ref[Chunk[InElem]]
   ): ZChannel[Any, InErr, Chunk[InElem], InDone, InErr, Chunk[InElem], InDone] =
     buffer[InErr, Chunk[InElem], InDone](Chunk.empty, _.isEmpty, ref)
 
   def concatAll[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
-    channels: ZChannel[
+    channels: => ZChannel[
       Env,
       InErr,
       InElem,
@@ -1078,7 +1078,7 @@ object ZChannel {
     concatAllWith(channels)((_, _) => (), (_, _) => ())
 
   def concatAllWith[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone, OutDone2, OutDone3](
-    channels: ZChannel[
+    channels: => ZChannel[
       Env,
       InErr,
       InElem,
@@ -1107,13 +1107,13 @@ object ZChannel {
   def endWith[R, Z](f: R => Z): ZChannel[R, Any, Any, Any, Nothing, Nothing, Z] =
     ZChannel.fromZIO(ZIO.access[R](f))
 
-  def write[Out](out: Out): ZChannel[Any, Any, Any, Any, Nothing, Out, Unit] =
+  def write[Out](out: => Out): ZChannel[Any, Any, Any, Any, Nothing, Out, Unit] =
     Emit(out)
 
   def writeAll[Out](outs: Out*): ZChannel[Any, Any, Any, Any, Nothing, Out, Unit] =
     writeChunk(Chunk.fromIterable(outs))
 
-  def writeChunk[Out](outs: Chunk[Out]): ZChannel[Any, Any, Any, Any, Nothing, Out, Unit] = {
+  def writeChunk[Out](outs: => Chunk[Out]): ZChannel[Any, Any, Any, Any, Nothing, Out, Unit] = {
     def writer(idx: Int, len: Int): ZChannel[Any, Any, Any, Any, Nothing, Out, Unit] =
       if (idx == len) ZChannel.unit
       else ZChannel.write(outs(idx)) *> writer(idx + 1, len)
@@ -1124,13 +1124,13 @@ object ZChannel {
   def fail[E](e: => E): ZChannel[Any, Any, Any, Any, E, Nothing, Nothing] =
     failCause(Cause.fail(e))
 
-  def fromEither[E, A](either: Either[E, A]): ZChannel[Any, Any, Any, Any, E, Nothing, A] =
+  def fromEither[E, A](either: => Either[E, A]): ZChannel[Any, Any, Any, Any, E, Nothing, A] =
     either.fold(ZChannel.fail(_), ZChannel.succeed(_))
 
-  def fromOption[A](option: Option[A]): ZChannel[Any, Any, Any, Any, None.type, Nothing, A] =
+  def fromOption[A](option: => Option[A]): ZChannel[Any, Any, Any, Any, None.type, Nothing, A] =
     option.fold[ZChannel[Any, Any, Any, Any, None.type, Nothing, A]](ZChannel.fail(None))(ZChannel.succeed(_))
 
-  def fromZIO[R, E, A](zio: ZIO[R, E, A]): ZChannel[R, Any, Any, Any, E, Nothing, A] =
+  def fromZIO[R, E, A](zio: => ZIO[R, E, A]): ZChannel[R, Any, Any, Any, E, Nothing, A] =
     Effect(zio)
 
   def failCause[E](cause: => Cause[E]): ZChannel[Any, Any, Any, Any, E, Nothing, Nothing] =
@@ -1143,10 +1143,10 @@ object ZChannel {
       (done: Done) => end(done)
     )
 
-  def interrupt(fiberId: Fiber.Id): ZChannel[Any, Any, Any, Any, Nothing, Nothing, Nothing] =
+  def interrupt(fiberId: => Fiber.Id): ZChannel[Any, Any, Any, Any, Nothing, Nothing, Nothing] =
     failCause(Cause.interrupt(fiberId))
 
-  def managed[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone, A](m: ZManaged[Env, OutErr, A])(
+  def managed[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone, A](m: => ZManaged[Env, OutErr, A])(
     use: A => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]
   ): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
     acquireReleaseWith[Env, InErr, InElem, InDone, OutErr, ReleaseMap, OutElem, OutDone](ReleaseMap.make)(
@@ -1163,7 +1163,7 @@ object ZChannel {
         .flatMap(use)
     }
 
-  def managedOut[R, E, A](m: ZManaged[R, E, A]): ZChannel[R, Any, Any, Any, E, A, Any] =
+  def managedOut[R, E, A](m: => ZManaged[R, E, A]): ZChannel[R, Any, Any, Any, E, A, Any] =
     acquireReleaseOutWith(ReleaseMap.make)(
       _.releaseAll(
         Exit.unit, // FIXME: BracketOut should be BracketOutExit
@@ -1174,7 +1174,7 @@ object ZChannel {
     }
 
   def mergeAll[Env, InErr, InElem, InDone, OutErr, OutElem](
-    channels: ZChannel[
+    channels: => ZChannel[
       Env,
       InErr,
       InElem,
@@ -1183,12 +1183,12 @@ object ZChannel {
       ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, Any],
       Any
     ],
-    n: Long
+    n: => Long
   ): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, Any] =
     mergeAllWith(channels, n)((_, _) => ())
 
   def mergeAllUnbounded[Env, InErr, InElem, InDone, OutErr, OutElem](
-    channels: ZChannel[
+    channels: => ZChannel[
       Env,
       InErr,
       InElem,
@@ -1201,7 +1201,7 @@ object ZChannel {
     mergeAll(channels, Long.MaxValue)
 
   def mergeAllUnboundedWith[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
-    channels: ZChannel[
+    channels: => ZChannel[
       Env,
       InErr,
       InElem,
@@ -1214,7 +1214,7 @@ object ZChannel {
     mergeAllWith(channels, Long.MaxValue)(f)
 
   def mergeAllWith[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
-    channels: ZChannel[
+    channels: => ZChannel[
       Env,
       InErr,
       InElem,
@@ -1223,7 +1223,7 @@ object ZChannel {
       ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone],
       OutDone
     ],
-    n: Long
+    n: => Long
   )(f: (OutDone, OutDone) => OutDone): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
     ???
 
@@ -1241,7 +1241,7 @@ object ZChannel {
   ): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
     readWithCause(in, (c: Cause[InErr]) => c.failureOrCause.fold(error, ZChannel.failCause(_)), done)
 
-  def readOrFail[E, In](e: E): ZChannel[Any, Any, In, Any, E, Nothing, In] =
+  def readOrFail[E, In](e: => E): ZChannel[Any, Any, In, Any, E, Nothing, In] =
     Read[Any, Any, In, Any, Any, E, Nothing, Nothing, In, In](
       in => Done(in),
       new Fold.K((_: Any) => ZChannel.fail(e), (_: Any) => ZChannel.fail(e))
@@ -1257,22 +1257,22 @@ object ZChannel {
     succeed(())
 
   def unwrap[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
-    channel: ZIO[Env, OutErr, ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]]
+    channel: => ZIO[Env, OutErr, ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]]
   ): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
     ZChannel.fromZIO(channel).flatten
 
   def unwrapManaged[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
-    channel: ZManaged[Env, OutErr, ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]]
+    channel: => ZManaged[Env, OutErr, ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]]
   ): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
     ZChannel.concatAllWith(managedOut(channel))((d, _) => d, (d, _) => d)
 
   def fromHub[Err, Done, Elem](
-    hub: Hub[Exit[Either[Err, Done], Elem]]
+    hub: => Hub[Exit[Either[Err, Done], Elem]]
   ): ZChannel[Any, Any, Any, Any, Err, Elem, Done] =
-    ZChannel.managed(hub.subscribe)(fromQueue)
+    ZChannel.managed(hub.subscribe)(fromQueue(_))
 
   def fromInput[Err, Elem, Done](
-    input: AsyncInputConsumer[Err, Elem, Done]
+    input: => AsyncInputConsumer[Err, Elem, Done]
   ): ZChannel[Any, Any, Any, Any, Err, Elem, Done] =
     ZChannel.unwrap(
       input.takeWith(
@@ -1283,7 +1283,7 @@ object ZChannel {
     )
 
   def fromQueue[Err, Done, Elem](
-    queue: Dequeue[Exit[Either[Err, Done], Elem]]
+    queue: => Dequeue[Exit[Either[Err, Done], Elem]]
   ): ZChannel[Any, Any, Any, Any, Err, Elem, Done] =
     ZChannel.fromZIO(queue.take).flatMap {
       case Exit.Success(elem) => write(elem) *> fromQueue(queue)
@@ -1295,12 +1295,12 @@ object ZChannel {
     }
 
   def toHub[Err, Done, Elem](
-    hub: Hub[Exit[Either[Err, Done], Elem]]
+    hub: => Hub[Exit[Either[Err, Done], Elem]]
   ): ZChannel[Any, Err, Elem, Done, Nothing, Nothing, Any] =
     toQueue(hub.toQueue)
 
   def toQueue[Err, Done, Elem](
-    queue: Enqueue[Exit[Either[Err, Done], Elem]]
+    queue: => Enqueue[Exit[Either[Err, Done], Elem]]
   ): ZChannel[Any, Err, Elem, Done, Nothing, Nothing, Any] =
     ZChannel.readWithCause(
       (in: Elem) => ZChannel.fromZIO(queue.offer(Exit.succeed(in))) *> toQueue(queue),
