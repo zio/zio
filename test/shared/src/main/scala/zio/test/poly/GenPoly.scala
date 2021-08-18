@@ -72,7 +72,7 @@ import zio.{Has, Random}
  * Finally, we can test our property:
  *
  * {{{
- * testM("map fusion") {
+ * test("map fusion") {
  *   check(GenPoly.genPoly.flatMap(genExpr(_))) { expr =>
  *     assert(eval(fuse(expr)))(equalTo(eval(expr)))
  *   }

@@ -16,7 +16,6 @@
 
 package zio.internal
 
-import com.github.ghik.silencer.silent
 import zio.internal.stacktracer.Tracer
 import zio.internal.tracing.TracingConfig
 import zio.{Cause, Supervisor}
@@ -71,26 +70,21 @@ private[internal] trait PlatformSpecific {
    * Creates a platform from an `Executor`.
    */
   final def fromExecutor(executor0: Executor): Platform =
-    new Platform {
-      val blockingExecutor = executor0
-
-      val executor = executor0
-
-      def fatal(t: Throwable): Boolean = false
-
-      def reportFatal(t: Throwable): Nothing = {
+    Platform(
+      blockingExecutor = executor0,
+      executor = executor0,
+      fatal = (_: Throwable) => false,
+      reportFatal = (t: Throwable) => {
         t.printStackTrace()
         throw t
-      }
-
-      def reportFailure(cause: Cause[Any]): Unit =
+      },
+      reportFailure = (cause: Cause[Any]) =>
         if (cause.died)
-          println(cause.prettyPrint)
-
-      val tracing = Tracing(Tracer.Empty, TracingConfig.disabled)
-
-      val supervisor = Supervisor.none
-    }
+          println(cause.prettyPrint),
+      tracing = Tracing(Tracer.Empty, TracingConfig.disabled),
+      supervisor = Supervisor.none,
+      enableCurrentFiber = false
+    )
 
   /**
    * Creates a Platform from an execution context.
@@ -128,7 +122,4 @@ private[internal] trait PlatformSpecific {
   final def newWeakHashMap[A, B](): JMap[A, B] = new HashMap[A, B]()
 
   final def newWeakReference[A](value: A): () => A = { () => value }
-
-  @silent("is never used")
-  final def forceThrowableCause(throwable: => Throwable, newCause: => Throwable): Unit = ()
 }

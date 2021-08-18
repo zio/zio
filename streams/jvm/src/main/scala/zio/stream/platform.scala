@@ -106,7 +106,7 @@ trait ZStreamPlatformSpecificConstructors {
    * by setting it to `None`.
    */
   def async[R, E, A](
-    register: (ZIO[R, Option[E], Chunk[A]] => Unit) => Unit,
+    register: ZStream.Emit[R, E, A, Unit] => Unit,
     outputBuffer: Int = 16
   ): ZStream[R, E, A] =
     asyncMaybe(
@@ -124,7 +124,7 @@ trait ZStreamPlatformSpecificConstructors {
    * setting it to `None`.
    */
   def asyncInterrupt[R, E, A](
-    register: (ZIO[R, Option[E], Chunk[A]] => Unit) => Either[Canceler[R], ZStream[R, E, A]],
+    register: ZStream.Emit[R, E, A, Unit] => Either[Canceler[R], ZStream[R, E, A]],
     outputBuffer: Int = 16
   ): ZStream[R, E, A] =
     ZStream {
@@ -161,7 +161,7 @@ trait ZStreamPlatformSpecificConstructors {
    * error type `E` can be used to signal the end of the stream, by setting it to `None`.
    */
   def asyncZIO[R, E, A](
-    register: (ZIO[R, Option[E], Chunk[A]] => Unit) => ZIO[R, E, Any],
+    register: ZStream.Emit[R, E, A, Unit] => ZIO[R, E, Any],
     outputBuffer: Int = 16
   ): ZStream[R, E, A] =
     managed {
@@ -193,7 +193,7 @@ trait ZStreamPlatformSpecificConstructors {
    * by setting it to `None`.
    */
   def asyncMaybe[R, E, A](
-    register: (ZIO[R, Option[E], Chunk[A]] => Unit) => Option[ZStream[R, E, A]],
+    register: ZStream.Emit[R, E, A, Unit] => Option[ZStream[R, E, A]],
     outputBuffer: Int = 16
   ): ZStream[R, E, A] =
     ZStream {
@@ -232,7 +232,7 @@ trait ZStreamPlatformSpecificConstructors {
    */
   @deprecated("use async", "2.0.0")
   def effectAsync[R, E, A](
-    register: (ZIO[R, Option[E], Chunk[A]] => Unit) => Unit,
+    register: ZStream.Emit[R, E, A, Unit] => Unit,
     outputBuffer: Int = 16
   ): ZStream[R, E, A] =
     async(register, outputBuffer)
@@ -245,7 +245,7 @@ trait ZStreamPlatformSpecificConstructors {
    */
   @deprecated("use asyncInterrupt", "2.0.0")
   def effectAsyncInterrupt[R, E, A](
-    register: (ZIO[R, Option[E], Chunk[A]] => Unit) => Either[Canceler[R], ZStream[R, E, A]],
+    register: ZStream.Emit[R, E, A, Unit] => Either[Canceler[R], ZStream[R, E, A]],
     outputBuffer: Int = 16
   ): ZStream[R, E, A] =
     asyncInterrupt(register, outputBuffer)
@@ -257,7 +257,7 @@ trait ZStreamPlatformSpecificConstructors {
    */
   @deprecated("use asyncZIO", "2.0.0")
   def effectAsyncM[R, E, A](
-    register: (ZIO[R, Option[E], Chunk[A]] => Unit) => ZIO[R, E, Any],
+    register: ZStream.Emit[R, E, A, Unit] => ZIO[R, E, Any],
     outputBuffer: Int = 16
   ): ZStream[R, E, A] =
     asyncZIO(register, outputBuffer)
@@ -270,7 +270,7 @@ trait ZStreamPlatformSpecificConstructors {
    */
   @deprecated("use asyncMaybe", "2.0.0")
   def effectAsyncMaybe[R, E, A](
-    register: (ZIO[R, Option[E], Chunk[A]] => Unit) => Option[ZStream[R, E, A]],
+    register: ZStream.Emit[R, E, A, Unit] => Option[ZStream[R, E, A]],
     outputBuffer: Int = 16
   ): ZStream[R, E, A] =
     asyncMaybe(register, outputBuffer)
@@ -390,7 +390,18 @@ trait ZStreamPlatformSpecificConstructors {
    * Creates a stream from a `java.io.InputStream`. Ensures that the input
    * stream is closed after it is exhausted.
    */
+  @deprecated("use fromInputStreamZIO", "2.0.0")
   def fromInputStreamEffect[R](
+    is: ZIO[R, IOException, InputStream],
+    chunkSize: Int = ZStream.DefaultChunkSize
+  ): ZStream[R, IOException, Byte] =
+    fromInputStreamZIO(is, chunkSize)
+
+  /**
+   * Creates a stream from a `java.io.InputStream`. Ensures that the input
+   * stream is closed after it is exhausted.
+   */
+  def fromInputStreamZIO[R](
     is: ZIO[R, IOException, InputStream],
     chunkSize: Int = ZStream.DefaultChunkSize
   ): ZStream[R, IOException, Byte] =
@@ -431,11 +442,12 @@ trait ZStreamPlatformSpecificConstructors {
   /**
    * Creates a stream from an effect producing `java.io.Reader`.
    */
+  @deprecated("use fromReaderZIO", "2.0.0")
   def fromReaderEffect[R](
     reader: => ZIO[R, IOException, Reader],
     chunkSize: Int = ZStream.DefaultChunkSize
   ): ZStream[R, IOException, Char] =
-    fromReaderManaged(reader.toManagedWith(r => ZIO.succeed(r.close())), chunkSize)
+    fromReaderZIO(reader, chunkSize)
 
   /**
    * Creates a stream from managed `java.io.Reader`.
@@ -445,6 +457,15 @@ trait ZStreamPlatformSpecificConstructors {
     chunkSize: Int = ZStream.DefaultChunkSize
   ): ZStream[R, IOException, Char] =
     ZStream.managed(reader).flatMap(fromReader(_, chunkSize))
+
+  /**
+   * Creates a stream from an effect producing `java.io.Reader`.
+   */
+  def fromReaderZIO[R](
+    reader: => ZIO[R, IOException, Reader],
+    chunkSize: Int = ZStream.DefaultChunkSize
+  ): ZStream[R, IOException, Char] =
+    fromReaderManaged(reader.toManagedWith(r => ZIO.succeed(r.close())), chunkSize)
 
   /**
    * Creates a stream from a callback that writes to `java.io.OutputStream`.
@@ -479,14 +500,15 @@ trait ZStreamPlatformSpecificConstructors {
   /**
    * Creates a stream from a Java stream
    */
-  final def fromJavaStream[R, A](stream: => ju.stream.Stream[A]): ZStream[R, Throwable, A] =
+  final def fromJavaStream[A](stream: => ju.stream.Stream[A]): ZStream[Any, Throwable, A] =
     ZStream.fromJavaIterator(stream.iterator())
 
   /**
    * Creates a stream from a Java stream
    */
+  @deprecated("use fromJavaStreamZIO", "2.0.0")
   final def fromJavaStreamEffect[R, A](stream: ZIO[R, Throwable, ju.stream.Stream[A]]): ZStream[R, Throwable, A] =
-    ZStream.fromJavaIteratorEffect(stream.flatMap(s => UIO(s.iterator())))
+    fromJavaStreamZIO(stream)
 
   /**
    * Creates a stream from a managed Java stream
@@ -497,8 +519,21 @@ trait ZStreamPlatformSpecificConstructors {
   /**
    * Creates a stream from a Java stream
    */
+  final def fromJavaStreamSucceed[A](stream: => ju.stream.Stream[A]): ZStream[Any, Nothing, A] =
+    ZStream.fromJavaIteratorSucceed(stream.iterator())
+
+  /**
+   * Creates a stream from a Java stream
+   */
+  @deprecated("use fromJavaStreamSucceed", "2.0.0")
   final def fromJavaStreamTotal[A](stream: => ju.stream.Stream[A]): ZStream[Any, Nothing, A] =
-    ZStream.fromJavaIteratorTotal(stream.iterator())
+    fromJavaStreamSucceed(stream)
+
+  /**
+   * Creates a stream from a Java stream
+   */
+  final def fromJavaStreamZIO[R, A](stream: ZIO[R, Throwable, ju.stream.Stream[A]]): ZStream[R, Throwable, A] =
+    ZStream.fromJavaIteratorZIO(stream.flatMap(s => UIO(s.iterator())))
 
   /**
    * Create a stream of accepted connection from server socket
@@ -622,6 +657,114 @@ trait ZStreamPlatformSpecificConstructors {
       Managed.acquireReleaseWith(ZIO.succeed(new Connection(socket)))(_.close())
   }
 
+  trait ZStreamConstructorPlatformSpecific extends ZStreamConstructorLowPriority1 {
+
+    /**
+     * Constructs a `ZStream[Any, IOException, Byte]` from a
+     * `java.io.InputStream`.
+     */
+    implicit def InputStreamConstructor[InputStreamLike <: InputStream]
+      : WithOut[InputStreamLike, ZStream[Any, IOException, Byte]] =
+      new ZStreamConstructor[InputStreamLike] {
+        type Out = ZStream[Any, IOException, Byte]
+        def make(input: => InputStreamLike): ZStream[Any, IOException, Byte] =
+          ZStream.fromInputStream(input)
+      }
+
+    /**
+     * Constructs a `ZStream[Any, IOException, Byte]` from a
+     * `ZManaged[R, java.io.IOException, java.io.InputStream]`.
+     */
+    implicit def InputStreamManagedConstructor[R, E <: IOException, InputStreamLike <: InputStream]
+      : WithOut[ZManaged[R, E, InputStreamLike], ZStream[R, IOException, Byte]] =
+      new ZStreamConstructor[ZManaged[R, E, InputStreamLike]] {
+        type Out = ZStream[R, IOException, Byte]
+        def make(input: => ZManaged[R, E, InputStreamLike]): ZStream[R, IOException, Byte] =
+          ZStream.fromInputStreamManaged(input)
+      }
+
+    /**
+     * Constructs a `ZStream[Any, IOException, Byte]` from a
+     * `ZIO[R, java.io.IOException, java.io.InputStream]`.
+     */
+    implicit def InputStreamZIOConstructor[R, E <: IOException, InputStreamLike <: InputStream]
+      : WithOut[ZIO[R, E, InputStreamLike], ZStream[R, IOException, Byte]] =
+      new ZStreamConstructor[ZIO[R, E, InputStreamLike]] {
+        type Out = ZStream[R, IOException, Byte]
+        def make(input: => ZIO[R, E, InputStreamLike]): ZStream[R, IOException, Byte] =
+          ZStream.fromInputStreamZIO(input)
+      }
+
+    /**
+     * Constructs a `ZStream[Any, Throwable, A]` from a
+     * `java.util.stream.Stream[A]`.
+     */
+    implicit def JavaStreamConstructor[A, StreamLike[A] <: ju.stream.Stream[A]]
+      : WithOut[StreamLike[A], ZStream[Any, Throwable, A]] =
+      new ZStreamConstructor[StreamLike[A]] {
+        type Out = ZStream[Any, Throwable, A]
+        def make(input: => StreamLike[A]): ZStream[Any, Throwable, A] =
+          ZStream.fromJavaStream(input)
+      }
+
+    /**
+     * Constructs a `ZStream[Any, Throwable, A]` from a
+     * `ZManaged[R, Throwable, java.util.stream.Stream[A]]`.
+     */
+    implicit def JavaStreamManagedConstructor[R, E <: Throwable, A, StreamLike[A] <: ju.stream.Stream[A]]
+      : WithOut[ZManaged[R, E, StreamLike[A]], ZStream[R, Throwable, A]] =
+      new ZStreamConstructor[ZManaged[R, E, StreamLike[A]]] {
+        type Out = ZStream[R, Throwable, A]
+        def make(input: => ZManaged[R, E, StreamLike[A]]): ZStream[R, Throwable, A] =
+          ZStream.fromJavaStreamManaged(input)
+      }
+
+    /**
+     * Constructs a `ZStream[Any, Throwable, A]` from a
+     * `ZIO[R, Throwable, java.util.stream.Stream[A]]`.
+     */
+    implicit def JavaStreamZIOConstructor[R, E <: Throwable, A, StreamLike[A] <: ju.stream.Stream[A]]
+      : WithOut[ZIO[R, E, StreamLike[A]], ZStream[R, Throwable, A]] =
+      new ZStreamConstructor[ZIO[R, E, StreamLike[A]]] {
+        type Out = ZStream[R, Throwable, A]
+        def make(input: => ZIO[R, E, StreamLike[A]]): ZStream[R, Throwable, A] =
+          ZStream.fromJavaStreamZIO(input)
+      }
+
+    /**
+     * Constructs a `ZStream[Any, IOException, Char]` from a `java.io.Reader`.
+     */
+    implicit def ReaderConstructor[ReaderLike <: Reader]: WithOut[ReaderLike, ZStream[Any, IOException, Char]] =
+      new ZStreamConstructor[ReaderLike] {
+        type Out = ZStream[Any, IOException, Char]
+        def make(input: => ReaderLike): ZStream[Any, IOException, Char] =
+          ZStream.fromReader(input)
+      }
+
+    /**
+     * Constructs a `ZStream[Any, IOException, Char]` from a
+     * `ZManaged[R, java.io.IOException, java.io.Reader]`.
+     */
+    implicit def ReaderManagedConstructor[R, E <: IOException, ReaderLike <: Reader]
+      : WithOut[ZManaged[R, E, ReaderLike], ZStream[R, IOException, Char]] =
+      new ZStreamConstructor[ZManaged[R, E, ReaderLike]] {
+        type Out = ZStream[R, IOException, Char]
+        def make(input: => ZManaged[R, E, ReaderLike]): ZStream[R, IOException, Char] =
+          ZStream.fromReaderManaged(input)
+      }
+
+    /**
+     * Constructs a `ZStream[Any, IOException, Char]` from a
+     * `ZIO[R, java.io.IOException, java.io.Reader]`.
+     */
+    implicit def ReaderZIOConstructor[R, E <: IOException, ReaderLike <: Reader]
+      : WithOut[ZIO[R, E, ReaderLike], ZStream[R, IOException, Char]] =
+      new ZStreamConstructor[ZIO[R, E, ReaderLike]] {
+        type Out = ZStream[R, IOException, Char]
+        def make(input: => ZIO[R, E, ReaderLike]): ZStream[R, IOException, Char] =
+          ZStream.fromReaderZIO(input)
+      }
+  }
 }
 
 trait ZTransducerPlatformSpecificConstructors {

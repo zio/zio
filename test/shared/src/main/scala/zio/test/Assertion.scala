@@ -211,6 +211,13 @@ object Assertion extends AssertionVariants {
     Assertion.assertionRec("hasMessage")(param(message))(message)(th => Some(th.getMessage))
 
   /**
+   * Makes a new assertion that requires an exception to have certain
+   * suppressed exceptions.
+   */
+  def hasSuppressed(cause: Assertion[Iterable[Throwable]]): Assertion[Throwable] =
+    Assertion.assertionRec("hasSuppressed")(param(cause))(cause)(th => Some(th.getSuppressed))
+
+  /**
    * Makes a new assertion that requires an exception to have a certain cause.
    */
   def hasThrowableCause(cause: Assertion[Throwable]): Assertion[Throwable] =
@@ -469,7 +476,7 @@ object Assertion extends AssertionVariants {
    * assertion.
    */
   def isFailure(assertion: Assertion[Throwable]): Assertion[Try[Any]] =
-    Assertion.assertionRec("isSuccess")(param(assertion))(assertion) {
+    Assertion.assertionRec("isFailure")(param(assertion))(assertion) {
       case Failure(a) => Some(a)
       case Success(_) => None
     }
@@ -501,6 +508,15 @@ object Assertion extends AssertionVariants {
     Assertion.assertion("isInterrupted")() {
       case Exit.Failure(cause) => cause.interrupted
       case _                   => false
+    }
+
+  /**
+   * Makes a new assertion that requires an exit value to be interrupted.
+   */
+  def isJustInterrupted: Assertion[Exit[Any, Any]] =
+    Assertion.assertion("isJustInterrupted")() {
+      case Exit.Failure(Cause.Interrupt(_)) => true
+      case _                                => false
     }
 
   /**

@@ -8,7 +8,7 @@ object ZStateSpec extends DefaultRunnableSpec {
 
   def spec: ZSpec[Environment, Failure] =
     suite("StateSpec")(
-      testM("state can be updated") {
+      test("state can be updated") {
         final case class MyState(counter: Int)
         val zio = for {
           _     <- ZIO.updateState[MyState](state => state.copy(counter = state.counter + 1))

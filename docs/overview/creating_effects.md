@@ -102,17 +102,6 @@ val ztry = ZIO.fromTry(Try(42 / 0))
 
 The error type of the resulting effect will always be `Throwable`, because `Try` can only fail with values of type `Throwable`.
 
-### Function
-
-A function `A => B` can be converted into a ZIO effect with `ZIO.fromFunction`:
-
-```scala mdoc:silent
-val zfun: URIO[Int, Int] =
-  ZIO.fromFunction((i: Int) => i * i)
-```
-
-The environment type of the effect is `A` (the input type of the function), because in order to run the effect, it must be supplied with a value of this type.
-
 ### Future
 
 A `Future` can be converted into a ZIO effect using `ZIO.fromFuture`:

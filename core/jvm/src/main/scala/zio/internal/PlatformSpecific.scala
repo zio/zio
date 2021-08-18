@@ -77,31 +77,22 @@ private[internal] trait PlatformSpecific {
    * Creates a platform from an `Executor`.
    */
   final def fromExecutor(executor0: Executor): Platform =
-    new Platform {
-      val blockingExecutor = Blocking.blockingExecutor
-
-      val executor = executor0
-
-      val tracing = Tracing(Tracer.globallyCached(new AkkaLineNumbersTracer), TracingConfig.enabled)
-
-      def fatal(t: Throwable): Boolean =
-        t.isInstanceOf[VirtualMachineError]
-
-      def reportFatal(t: Throwable): Nothing = {
+    Platform(
+      blockingExecutor = Blocking.blockingExecutor,
+      executor = executor0,
+      tracing = Tracing(Tracer.globallyCached(new AkkaLineNumbersTracer), TracingConfig.enabled),
+      fatal = (t: Throwable) => t.isInstanceOf[VirtualMachineError],
+      reportFatal = (t: Throwable) => {
         t.printStackTrace()
         try {
           System.exit(-1)
           throw t
         } catch { case _: Throwable => throw t }
-      }
-
-      def reportFailure(cause: Cause[Any]): Unit =
-        if (cause.died)
-          System.err.println(cause.prettyPrint)
-
-      val supervisor = Supervisor.none
-
-    }
+      },
+      reportFailure = (cause: Cause[Any]) => if (cause.died) System.err.println(cause.prettyPrint),
+      supervisor = Supervisor.none,
+      enableCurrentFiber = false
+    )
 
   /**
    * Creates a Platform from an execution context.
@@ -145,19 +136,5 @@ private[internal] trait PlatformSpecific {
     val ref = new WeakReference[A](value)
 
     () => ref.get()
-  }
-
-  /**
-   * calling `initCause()` on [[java.lang.Throwable]] may fail on the JVM if `newCause != this`,
-   * which may happen if the cause is set to null.
-   * This works around this with reflection.
-   */
-  def forceThrowableCause(throwable: Throwable, newCause: Throwable): Unit = {
-    import scala.util.control.Exception._
-    ignoring(classOf[Throwable]) {
-      val causeField = classOf[Throwable].getDeclaredField("cause")
-      causeField.setAccessible(true)
-      causeField.set(throwable, newCause)
-    }
   }
 }

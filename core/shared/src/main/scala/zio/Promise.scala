@@ -39,7 +39,7 @@ import java.util.concurrent.atomic.AtomicReference
  */
 final class Promise[E, A] private (
   private val state: AtomicReference[Promise.internal.State[E, A]],
-  blockingOn: List[Fiber.Id]
+  blockingOn: Fiber.Id
 ) extends Serializable {
 
   /**
@@ -94,7 +94,7 @@ final class Promise[E, A] private (
    * that if you do not need to memoize the result of the specified effect.
    */
   def complete(io: IO[E, A]): UIO[Boolean] =
-    io.to(this)
+    io.intoPromise(this)
 
   /**
    * Completes the promise with the specified effect. If the promise has
@@ -259,5 +259,5 @@ object Promise {
     make[E, A].toManaged
 
   private[zio] def unsafeMake[E, A](fiberId: Fiber.Id): Promise[E, A] =
-    new Promise[E, A](new AtomicReference[State[E, A]](new internal.Pending[E, A](Nil)), fiberId :: Nil)
+    new Promise[E, A](new AtomicReference[State[E, A]](new internal.Pending[E, A](Nil)), fiberId)
 }

@@ -133,6 +133,14 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
   }
 
   /**
+   * Constructs a layer dynamically based on the output of this layer.
+   */
+  final def flatMap[RIn1 <: RIn, E1 >: E, ROut2](
+    f: ROut => ZLayer[RIn1, E1, ROut2]
+  ): ZLayer[RIn1, E1, ROut2] =
+    ZLayer.Flatten(self.map(f))
+
+  /**
    * Feeds the error or output services of this layer into the input of either
    * the specified `failure` or `success` layers, resulting in a new layer with
    * the inputs of this layer, and the error or outputs of the specified layer.
@@ -202,10 +210,9 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    * Retries constructing this layer according to the specified schedule.
    */
   final def retry[RIn1 <: RIn with Has[Clock]](schedule: Schedule[RIn1, E, Any]): ZLayer[RIn1, E, ROut] = {
-    import Schedule.StepFunction
     import Schedule.Decision._
 
-    type S = StepFunction[RIn1, E, Any]
+    type S = schedule.State
 
     lazy val loop: ZLayer[(RIn1, S), E, ROut] =
       (ZLayer.first >>> self).catchAll {
@@ -213,16 +220,16 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
           ZLayer.fromFunctionManyZIO { case ((r, s), e) =>
             Clock.currentDateTime
               .flatMap(now =>
-                s(now, e).flatMap {
-                  case Done(_)                     => ZIO.fail(e)
-                  case Continue(_, interval, next) => Clock.sleep(Duration.fromInterval(now, interval)) as ((r, next))
+                schedule.step(now, e, s).flatMap {
+                  case (_, _, Done)                   => ZIO.fail(e)
+                  case (state, _, Continue(interval)) => Clock.sleep(Duration.fromInterval(now, interval)) as ((r, state))
                 }
               )
               .provide(r)
           }
         update >>> ZLayer.suspend(loop.fresh)
       }
-    ZLayer.identity <&> ZLayer.fromZIOMany(ZIO.succeed(schedule.step)) >>> loop
+    ZLayer.identity <&> ZLayer.fromZIOMany(ZIO.succeed(schedule.initial)) >>> loop
   }
 
   /**
@@ -285,6 +292,8 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
 
   private final def scope: Managed[Nothing, ZLayer.MemoMap => ZManaged[RIn, E, ROut]] =
     self match {
+      case ZLayer.Flatten(self) =>
+        ZManaged.succeed(memoMap => memoMap.getOrElseMemoize(self).flatMap(memoMap.getOrElseMemoize))
       case ZLayer.Fold(self, failure, success) =>
         ZManaged.succeed(memoMap =>
           memoMap
@@ -309,6 +318,9 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
 
 object ZLayer extends ZLayerCompanionVersionSpecific {
 
+  private final case class Flatten[-RIn, +E, +ROut](
+    self: ZLayer[RIn, E, ZLayer[RIn, E, ROut]]
+  ) extends ZLayer[RIn, E, ROut]
   private final case class Fold[RIn, E, E1, ROut, ROut1](
     self: ZLayer[RIn, E, ROut],
     failure: ZLayer[(RIn, Cause[E]), E1, ROut1],
@@ -395,7 +407,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * resourceful function.
    */
   def fromFunctionManaged[A, E, B: Tag](f: A => ZManaged[Any, E, B]): ZLayer[A, E, Has[B]] =
-    fromManaged(ZManaged.fromFunctionManaged(f))
+    fromManaged(ZManaged.accessManaged(f))
 
   /**
    * Constructs a layer from the environment using the specified function,
@@ -417,7 +429,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * resourceful function, which must return one or more services.
    */
   def fromFunctionManyManaged[A, E, B](f: A => ZManaged[Any, E, B]): ZLayer[A, E, B] =
-    ZLayer(ZManaged.fromFunctionManaged(f))
+    ZLayer(ZManaged.accessManaged(f))
 
   /**
    * Constructs a layer from the environment using the specified effectful
@@ -2505,7 +2517,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * must return one or more services. For the more common variant that returns
    * a single service see `fromServices`.
    */
-    @deprecated("use toLayer", "2.0.0")
+  @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[
     A0: Tag,
     A1: Tag,
@@ -4233,7 +4245,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer from a managed resource.
    */
   def fromManaged[R, E, A: Tag](m: ZManaged[R, E, A]): ZLayer[R, E, Has[A]] =
-    ZLayer(m.asService)
+    ZLayer(m.map(Has(_)))
 
   /**
    * Constructs a layer from a managed resource, which must return one or more
@@ -4246,7 +4258,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer from the specified effect.
    */
   def fromZIO[R, E, A: Tag](zio: ZIO[R, E, A]): ZLayer[R, E, Has[A]] =
-    fromZIOMany(zio.asService)
+    fromZIOMany(zio.map(Has(_)))
 
   /**
    * Constructs a layer from the specified effect, which must return one or
@@ -4344,7 +4356,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
      * Constructs an empty memo map.
      */
     def make: UIO[MemoMap] =
-      RefM
+      Ref.Synchronized
         .make[Map[ZLayer[Nothing, Any, Any], (IO[Any, Any], ZManaged.Finalizer)]](Map.empty)
         .map { ref =>
           new MemoMap { self =>

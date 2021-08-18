@@ -71,7 +71,7 @@ object Task extends TaskPlatformSpecific {
   /**
    * @see See [[zio.ZIO.async]]
    */
-  def async[A](register: (Task[A] => Unit) => Any, blockingOn: List[Fiber.Id] = Nil): Task[A] =
+  def async[A](register: (Task[A] => Unit) => Any, blockingOn: Fiber.Id = Fiber.Id.None): Task[A] =
     ZIO.async(register, blockingOn)
 
   /**
@@ -79,7 +79,7 @@ object Task extends TaskPlatformSpecific {
    */
   def asyncMaybe[A](
     register: (Task[A] => Unit) => Option[Task[A]],
-    blockingOn: List[Fiber.Id] = Nil
+    blockingOn: Fiber.Id = Fiber.Id.None
   ): Task[A] =
     ZIO.asyncMaybe(register, blockingOn)
 
@@ -94,7 +94,7 @@ object Task extends TaskPlatformSpecific {
    */
   def asyncInterrupt[A](
     register: (Task[A] => Unit) => Either[Canceler[Any], Task[A]],
-    blockingOn: List[Fiber.Id] = Nil
+    blockingOn: Fiber.Id = Fiber.Id.None
   ): Task[A] =
     ZIO.asyncInterrupt(register, blockingOn)
 
@@ -370,7 +370,7 @@ object Task extends TaskPlatformSpecific {
   /**
    * @see See [[zio.ZIO.debug]]
    */
-  def debug(value: Any): UIO[Unit] =
+  def debug(value: => Any): UIO[Unit] =
     ZIO.debug(value)
 
   /**
@@ -410,7 +410,7 @@ object Task extends TaskPlatformSpecific {
    * @see See [[zio.ZIO.effectAsync]]
    */
   @deprecated("use async", "2.0.0")
-  def effectAsync[A](register: (Task[A] => Unit) => Any, blockingOn: List[Fiber.Id] = Nil): Task[A] =
+  def effectAsync[A](register: (Task[A] => Unit) => Any, blockingOn: Fiber.Id = Fiber.Id.None): Task[A] =
     ZIO.effectAsync(register, blockingOn)
 
   /**
@@ -419,7 +419,7 @@ object Task extends TaskPlatformSpecific {
   @deprecated("use asyncMaybe", "2.0.0")
   def effectAsyncMaybe[A](
     register: (Task[A] => Unit) => Option[Task[A]],
-    blockingOn: List[Fiber.Id] = Nil
+    blockingOn: Fiber.Id = Fiber.Id.None
   ): Task[A] =
     ZIO.effectAsyncMaybe(register, blockingOn)
 
@@ -436,7 +436,7 @@ object Task extends TaskPlatformSpecific {
   @deprecated("use asyncInterrupt", "2.0.0")
   def effectAsyncInterrupt[A](
     register: (Task[A] => Unit) => Either[Canceler[Any], Task[A]],
-    blockingOn: List[Fiber.Id] = Nil
+    blockingOn: Fiber.Id = Fiber.Id.None
   ): Task[A] =
     ZIO.effectAsyncInterrupt(register, blockingOn)
 
@@ -770,6 +770,14 @@ object Task extends TaskPlatformSpecific {
     ZIO.forkAllDiscard(as)
 
   /**
+   * Constructs a `Task` value of the appropriate type for the specified input.
+   */
+  def from[Input](input: => Input)(implicit
+    constructor: ZIO.ZIOConstructor[Any, Throwable, Input]
+  ): ZIO[constructor.OutEnvironment, constructor.OutError, constructor.OutSuccess] =
+    constructor.make(input)
+
+  /**
    * @see See [[zio.ZIO.fromEither]]
    */
   def fromEither[A](v: => Either[Throwable, A]): Task[A] =
@@ -795,40 +803,16 @@ object Task extends TaskPlatformSpecific {
     ZIO.fromFiberZIO(fiber)
 
   /**
-   * @see [[zio.ZIO.fromFunction]]
+   * @see See [[zio.ZIO.fromFuture]]
    */
-  def fromFunction[A](f: Any => A): Task[A] = ZIO.fromFunction(f)
+  def fromFuture[A](make: ExecutionContext => scala.concurrent.Future[A]): Task[A] =
+    ZIO.fromFuture(make)
 
   /**
    * @see See [[zio.ZIO.fromFutureInterrupt]]
    */
   def fromFutureInterrupt[A](make: ExecutionContext => scala.concurrent.Future[A]): Task[A] =
     ZIO.fromFutureInterrupt(make)
-
-  /**
-   * @see [[zio.ZIO.fromFunctionFuture]]
-   */
-  def fromFunctionFuture[A](f: Any => scala.concurrent.Future[A]): Task[A] =
-    ZIO.fromFunctionFuture(f)
-
-  /**
-   * @see [[zio.ZIO.fromFunctionM]]
-   */
-  @deprecated("use fromFunctionZIO", "2.0.0")
-  def fromFunctionM[A](f: Any => Task[A]): Task[A] =
-    ZIO.fromFunctionM(f)
-
-  /**
-   * @see [[zio.ZIO.fromFunctionZIO]]
-   */
-  def fromFunctionZIO[A](f: Any => Task[A]): Task[A] =
-    ZIO.fromFunctionZIO(f)
-
-  /**
-   * @see See [[zio.ZIO.fromFuture]]
-   */
-  def fromFuture[A](make: ExecutionContext => scala.concurrent.Future[A]): Task[A] =
-    ZIO.fromFuture(make)
 
   /**
    * @see See [[zio.ZIO.fromTry]]
@@ -854,11 +838,6 @@ object Task extends TaskPlatformSpecific {
   @deprecated("use failCauseWith", "2.0.0")
   def haltWith[E <: Throwable](function: (() => ZTrace) => Cause[E]): Task[Nothing] =
     ZIO.haltWith(function)
-
-  /**
-   * @see [[zio.ZIO.identity]]
-   */
-  def identity: Task[Any] = ZIO.identity
 
   /**
    * @see [[zio.ZIO.ifM]]
@@ -934,18 +913,21 @@ object Task extends TaskPlatformSpecific {
   /**
    *  @see [[zio.ZIO.mapN[R,E,A,B,C]*]]
    */
+  @deprecated("use zip", "2.0.0")
   def mapN[A, B, C](task1: Task[A], task2: Task[B])(f: (A, B) => C): Task[C] =
     ZIO.mapN(task1, task2)(f)
 
   /**
    *  @see [[zio.ZIO.mapN[R,E,A,B,C,D]*]]
    */
+  @deprecated("use zip", "2.0.0")
   def mapN[A, B, C, D](task1: Task[A], task2: Task[B], task3: Task[C])(f: (A, B, C) => D): Task[D] =
     ZIO.mapN(task1, task2, task3)(f)
 
   /**
    *  @see [[zio.ZIO.mapN[R,E,A,B,C,D,F]*]]
    */
+  @deprecated("use zip", "2.0.0")
   def mapN[A, B, C, D, F](task1: Task[A], task2: Task[B], task3: Task[C], task4: Task[D])(
     f: (A, B, C, D) => F
   ): Task[F] =
@@ -954,18 +936,21 @@ object Task extends TaskPlatformSpecific {
   /**
    *  @see [[zio.ZIO.mapParN[R,E,A,B,C]*]]
    */
+  @deprecated("use zipPar", "2.0.0")
   def mapParN[A, B, C](task1: Task[A], task2: Task[B])(f: (A, B) => C): Task[C] =
     ZIO.mapParN(task1, task2)(f)
 
   /**
    *  @see [[zio.ZIO.mapParN[R,E,A,B,C,D]*]]
    */
+  @deprecated("use zipPar", "2.0.0")
   def mapParN[A, B, C, D](task1: Task[A], task2: Task[B], task3: Task[C])(f: (A, B, C) => D): Task[D] =
     ZIO.mapParN(task1, task2, task3)(f)
 
   /**
    *  @see [[zio.ZIO.mapParN[R,E,A,B,C,D,F]*]]
    */
+  @deprecated("use zipPar", "2.0.0")
   def mapParN[A, B, C, D, F](task1: Task[A], task2: Task[B], task3: Task[C], task4: Task[D])(
     f: (A, B, C, D) => F
   ): Task[F] =
@@ -1088,6 +1073,7 @@ object Task extends TaskPlatformSpecific {
   /**
    * @see See [[zio.ZIO.require]]
    */
+  @deprecated("use someOrFail", "2.0.0")
   def require[A](error: => Throwable): Task[Option[A]] => Task[A] =
     ZIO.require[Any, Throwable, A](error)
 

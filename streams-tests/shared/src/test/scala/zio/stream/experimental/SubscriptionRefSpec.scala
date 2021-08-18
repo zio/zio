@@ -8,7 +8,7 @@ object SubscriptionRefSpec extends DefaultRunnableSpec {
 
   def spec: ZSpec[Environment, Failure] =
     suite("SubscriptionRefSpec")(
-      testM("multiple subscribers can receive changes") {
+      test("multiple subscribers can receive changes") {
         for {
           subscriptionRef <- SubscriptionRef.make(0)
           promise1        <- Promise.make[Nothing, Unit]
@@ -24,7 +24,7 @@ object SubscriptionRefSpec extends DefaultRunnableSpec {
         } yield assert(values1)(equalTo(Chunk(0, 1, 2))) &&
           assert(values2)(equalTo(Chunk(1, 2)))
       },
-      testM("subscriptions are interruptible") {
+      test("subscriptions are interruptible") {
         for {
           subscriptionRef <- SubscriptionRef.make(0)
           promise1        <- Promise.make[Nothing, Unit]
@@ -40,7 +40,7 @@ object SubscriptionRefSpec extends DefaultRunnableSpec {
         } yield assert(values1)(isInterrupted) &&
           assert(values2)(equalTo(Chunk(1, 2)))
       },
-      testM("concurrent subscribes and unsubscribes are handled correctly") {
+      test("concurrent subscribes and unsubscribes are handled correctly") {
         def subscriber(subscriptionRef: SubscriptionRef[Long]) =
           for {
             n  <- Random.nextLongBetween(1, 200)

@@ -973,8 +973,8 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
    * pairs of elements from each chunk. The returned chunk will have the
    * length of the shorter chunk.
    */
-  final def zip[B](that: Chunk[B]): Chunk[(A, B)] =
-    zipWith(that)((_, _))
+  final def zip[B](that: Chunk[B])(implicit zippable: Zippable[A, B]): Chunk[zippable.Out] =
+    zipWith(that)(zippable.zip(_, _))
 
   /**
    * Zips this chunk with the specified chunk to produce a new chunk with

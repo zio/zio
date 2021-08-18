@@ -17,6 +17,7 @@
 package zio.test
 
 import zio.{UIO, ZIO}
+import zio.test.internal.SmartAssertions
 import scala.quoted._
 
 object SmartAssertMacros {
@@ -75,13 +76,13 @@ class SmartAssertMacros(ctx: Quotes)  {
               case Some(ord) =>
                 op match {
                     case ">" =>
-                      '{${transform(lhs.asExprOf[l])} >>> Assertions.greaterThan(${rhs.asExprOf[l]})($ord).span($span)}.asExprOf[Arrow[Any, A]]
+                      '{${transform(lhs.asExprOf[l])} >>> SmartAssertions.greaterThan(${rhs.asExprOf[l]})($ord).span($span)}.asExprOf[Arrow[Any, A]]
                     case ">=" =>
-                      '{${transform(lhs.asExprOf[l])} >>> Assertions.greaterThanOrEqualTo(${rhs.asExprOf[l]})($ord).span($span)}.asExprOf[Arrow[Any, A]]
+                      '{${transform(lhs.asExprOf[l])} >>> SmartAssertions.greaterThanOrEqualTo(${rhs.asExprOf[l]})($ord).span($span)}.asExprOf[Arrow[Any, A]]
                     case "<" =>
-                      '{${transform(lhs.asExprOf[l])} >>> Assertions.lessThan(${rhs.asExprOf[l]})($ord).span($span)}.asExprOf[Arrow[Any, A]]
+                      '{${transform(lhs.asExprOf[l])} >>> SmartAssertions.lessThan(${rhs.asExprOf[l]})($ord).span($span)}.asExprOf[Arrow[Any, A]]
                     case "<=" =>
-                      '{${transform(lhs.asExprOf[l])} >>> Assertions.lessThanOrEqualTo(${rhs.asExprOf[l]})($ord).span($span)}.asExprOf[Arrow[Any, A]]
+                      '{${transform(lhs.asExprOf[l])} >>> SmartAssertions.lessThanOrEqualTo(${rhs.asExprOf[l]})($ord).span($span)}.asExprOf[Arrow[Any, A]]
                 }
               case _ => throw new Error("NO")
             }
@@ -91,7 +92,7 @@ class SmartAssertMacros(ctx: Quotes)  {
         val span = rhs.span
         lhs.tpe.widen.asType match {
           case '[l] => 
-            '{${transform(lhs.asExprOf[l])} >>> Assertions.equalTo(${rhs.asExprOf[l]}).span($span)}.asExprOf[Arrow[Any, A]]
+            '{${transform(lhs.asExprOf[l])} >>> SmartAssertions.equalTo(${rhs.asExprOf[l]}).span($span)}.asExprOf[Arrow[Any, A]]
         }
 
       // case method @AST.Method(lhs, lhsTpe, rhsTpe, name, tpeArgs, args, span) =>
@@ -100,7 +101,7 @@ class SmartAssertMacros(ctx: Quotes)  {
           (tpeArgs, args) match {
             case (Nil, None) => Select.unique(param, name)
             case (tpeArgs, Some(args)) => Select.overloaded(param, name, tpeArgs, args)
-            case (tpeArgs, None) => Select.overloaded(param, name, tpeArgs, List.empty)
+            case (tpeArgs, None) => TypeApply(Select.unique(param, name), tpeArgs.map(_.typeTree))
           }
 
         val tpe = lhs.tpe.widen
@@ -136,7 +137,7 @@ class SmartAssertMacros(ctx: Quotes)  {
     val ast = transform(value)
 
     val arrow = ast.asExprOf[Arrow[Any, Boolean]]
-    '{Assert($arrow.withCode(${Expr(code)}).withLocation(${Expr(srcLocation)}))}
+    '{Assert($arrow.withCode(${Expr(code)}).withLocation)}
   }
 
   def smartAssert_impl(values: Expr[Seq[Boolean]]): Expr[Assert] = {

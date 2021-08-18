@@ -145,7 +145,7 @@ val s2 = ZStream.fromChunks(Chunk(1, 2, 3), Chunk(4, 5, 6))
 
 ### From Effect
 
-**ZStream.fromEffect** — We can create a stream from an effect by using `ZStream.fromEffect` constructor. For example, the following stream is a stream that reads a line from a user:
+**ZStream.fromZIO** — We can create a stream from an effect by using `ZStream.fromZIO` constructor. For example, the following stream is a stream that reads a line from a user:
 
 ```scala mdoc:silent:nest
 val readline: ZStream[Has[Console], IOException, String] = 
@@ -159,11 +159,11 @@ val randomInt: ZStream[Has[Random], Nothing, Int] =
   ZStream.fromZIO(Random.nextInt)
 ```
 
-**ZStream.fromEffectOption** — In some cases, depending on the result of the effect, we should decide to emit an element or return an empty stream. In these cases, we can use `fromEffectOption` constructor:
+**ZStream.fromZIOOption** — In some cases, depending on the result of the effect, we should decide to emit an element or return an empty stream. In these cases, we can use `fromZIOOption` constructor:
 
 ```scala 
 object ZStream {
-  def fromEffectOption[R, E, A](fa: ZIO[R, Option[E], A]): ZStream[R, E, A] = ???
+  def fromZIOOption[R, E, A](fa: ZIO[R, Option[E], A]): ZStream[R, E, A] = ???
 }
 ```
 
@@ -207,7 +207,7 @@ The error type of the `register` function is optional, so by setting the error t
 
 Iterators are data structures that allow us to iterate over a sequence of elements. Similarly, we can think of ZIO Streams as effectual Iterators; every `ZStream` represents a collection of one or more, but effectful values. 
 
-**ZStream.fromIteratorTotal** — We can convert an iterator that does not throw exception to `ZStream` by using `ZStream.fromIteratorTotal`:
+**ZStream.fromIteratorSucceed** — We can convert an iterator that does not throw exception to `ZStream` by using `ZStream.fromIteratorSucceed`:
 
 ```scala mdoc:silent:nest
 val s1: ZStream[Any, Throwable, Int] = ZStream.fromIterator(Iterator(1, 2, 3))
@@ -217,12 +217,12 @@ val s3: ZStream[Any, Throwable, Int] = ZStream.fromIterator(Iterator.continually
 
 Also, there is another constructor called **`ZStream.fromIterator`** that creates a stream from an iterator which may throw an exception.
 
-**ZStream.fromIteratorEffect** — If we have an effectful Iterator that may throw Exception, we can use `fromIteratorEffect` to convert that to the ZIO Stream:
+**ZStream.fromIteratorZIO** — If we have an effectful Iterator that may throw Exception, we can use `fromIteratorZIO` to convert that to the ZIO Stream:
 
 ```scala mdoc:silent:nest
 import scala.io.Source
 val lines: ZStream[Any, Throwable, String] = 
-  ZStream.fromIteratorEffect(Task(Source.fromFile("file.txt").getLines()))
+  ZStream.fromIteratorZIO(Task(Source.fromFile("file.txt").getLines()))
 ```
 
 Using this method is not good for resourceful effects like above, so it's better to rewrite that using `ZStream.fromIteratorManaged` function.
@@ -243,11 +243,11 @@ val lines: ZStream[Any, Throwable, String] =
 For example, to convert the Java Stream to the ZIO Stream, `ZStream` has a `fromJavaStream` constructor which convert the Java Stream to the Java Iterator and then convert that to the ZIO Stream using `ZStream.fromJavaIterator` constructor:
 
 ```scala mdoc:silent:nest
-def fromJavaStream[R, A](stream: => java.util.stream.Stream[A]): ZStream[R, Throwable, A] =
+def fromJavaStream[A](stream: => java.util.stream.Stream[A]): ZStream[Any, Throwable, A] =
   ZStream.fromJavaIterator(stream.iterator())
 ```
 
-Similarly, `ZStream` has `ZStream.fromJavaIteratorTotal`, `ZStream.fromJavaIteratorEffect` and `ZStream.fromJavaIteratorManaged` constructors.
+Similarly, `ZStream` has `ZStream.fromJavaIteratorSucceed`, `ZStream.fromJavaIteratorZIO` and `ZStream.fromJavaIteratorManaged` constructors.
 
 ### From Iterables
 
@@ -257,7 +257,7 @@ Similarly, `ZStream` has `ZStream.fromJavaIteratorTotal`, `ZStream.fromJavaItera
 val list = ZStream.fromIterable(List(1, 2, 3))
 ```
 
-**ZStream.fromIterableM** — If we have an effect producing a value of type `Iterable` we can use `fromIterableM` constructor to create a stream of that effect.
+**ZStream.fromIterableZIO** — If we have an effect producing a value of type `Iterable` we can use `fromIterableZIO` constructor to create a stream of that effect.
 
 Assume we have a database that returns a list of users using `Task`:
 
@@ -277,11 +277,11 @@ object Database {
 }
 ```
 
-As this operation is effectful, we can use `ZStream.fromIterableM` to convert the result to the `ZStream`:
+As this operation is effectful, we can use `ZStream.fromIterableZIO` to convert the result to the `ZStream`:
 
 ```scala mdoc:silent:nest
 val users: ZStream[Has[Database], Throwable, User] = 
-  ZStream.fromIterableM(Database.getUsers)
+  ZStream.fromIterableZIO(Database.getUsers)
 ```
 
 ### From Repetition
@@ -304,7 +304,7 @@ val repeatZeroEverySecond: ZStream[Has[Clock], Nothing, Int] =
   ZStream.repeatWith(0, Schedule.spaced(1.seconds))
 ```
 
-**ZStream.repeatEffect** — Assume we have an effectful API, and we need to call that API and create a stream from the result of that. We can create a stream from that effect that repeats forever.
+**ZStream.repeatZIO** — Assume we have an effectful API, and we need to call that API and create a stream from the result of that. We can create a stream from that effect that repeats forever.
 
 Let's see an example of creating a stream of random numbers:
 
@@ -313,7 +313,7 @@ val randomInts: ZStream[Has[Random], Nothing, Int] =
   ZStream.repeatZIO(Random.nextInt)
 ```
 
-**ZStream.repeatEffectOption** — We can repeatedly evaluate the given effect and terminate the stream based on some conditions. 
+**ZStream.repeatZIOOption** — We can repeatedly evaluate the given effect and terminate the stream based on some conditions. 
 
 Let's create a stream repeatedly from user inputs until user enter "EOF" string:
 
@@ -327,7 +327,7 @@ val userInputs: ZStream[Has[Console], IOException, String] =
   )
 ```
 
-Here is another interesting example of using `repeatEffectOption`; In this example, we are draining an `Iterator` to create a stream of that iterator:
+Here is another interesting example of using `repeatZIOOption`; In this example, we are draining an `Iterator` to create a stream of that iterator:
 
 ```scala mdoc:silent:nest
 def drainIterator[A](it: Iterator[A]): ZStream[Any, Throwable, A] =
@@ -346,7 +346,7 @@ val stream: ZStream[Has[Clock], Nothing, Unit] =
   ZStream.tick(1.seconds)
 ```
 
-There are some other variant of repetition API like `repeatEffectWith`, `repeatEffectOption`, `repeatEffectChunk` and `repeatEffectChunkOption`.
+There are some other variant of repetition API like `repeatZIOWith`, `repeatZIOOption`, `repeatZIOChunk` and `repeatZIOChunkOption`.
 
 ### From Unfolding/Pagination
 
@@ -500,13 +500,13 @@ val stream: ZStream[Any, IOException, Byte] =
   ZStream.fromInputStream(new FileInputStream("file.txt"))
 ```
 
-Note that the InputStream will not be explicitly closed after it is exhausted. Use `ZStream.fromInputStreamEffect`, or `ZStream.fromInputStreamManaged` instead.
+Note that the InputStream will not be explicitly closed after it is exhausted. Use `ZStream.fromInputStreamZIO`, or `ZStream.fromInputStreamManaged` instead.
 
-**ZStream.fromInputStreamEffect** — Creates a stream from a `java.io.InputStream`. Ensures that the InputStream is closed after it is exhausted:
+**ZStream.fromInputStreamZIO** — Creates a stream from a `java.io.InputStream`. Ensures that the InputStream is closed after it is exhausted:
 
 ```scala mdoc:silent:nest
 val stream: ZStream[Any, IOException, Byte] = 
-  ZStream.fromInputStreamEffect(
+  ZStream.fromInputStreamZIO(
     ZIO.attempt(new FileInputStream("file.txt"))
       .refineToOrDie[IOException]
   )
@@ -537,7 +537,7 @@ val stream: ZStream[Any, IOException, Char] =
    ZStream.fromReader(new FileReader("file.txt"))
 ```
 
-ZIO Stream also has `ZStream.fromReaderEffect` and `ZStream.fromReaderManaged` variants.
+ZIO Stream also has `ZStream.fromReaderZIO` and `ZStream.fromReaderManaged` variants.
 
 ### From Java Stream
 
@@ -548,7 +548,7 @@ val stream: ZStream[Any, Throwable, Int] =
   ZStream.fromJavaStream(java.util.stream.Stream.of(1, 2, 3))
 ```
 
-ZIO Stream also has `ZStream.fromJavaStream`, `ZStream.fromJavaStreamEffect` and `ZStream.fromJavaStreamManaged` variants.
+ZIO Stream also has `ZStream.fromJavaStream`, `ZStream.fromJavaStreamZIO` and `ZStream.fromJavaStreamManaged` variants.
 
 ### From Queue and Hub
 
@@ -742,7 +742,7 @@ Let's write a simple page downloader, which download URLs concurrently:
 def fetchUrl(url: URL): Task[String] = Task.succeed(???)
 def getUrls: Task[List[URL]] = Task.succeed(???)
 
-val pages = ZStream.fromIterableM(getUrls).mapZIOPar(8)(fetchUrl)  
+val pages = ZStream.fromIterableZIO(getUrls).mapZIOPar(8)(fetchUrl)  
 ```
     
 **mapChunk** — Each stream is backed by some `Chunk`s. By using `mapChunk` we can batch the underlying stream and map every `Chunk` at once:
@@ -972,19 +972,13 @@ val pages = urls
 
 ### Zipping
 
-We can zip two stream by using `ZStream.zipN` or `ZStream#zipWith` operator:
+We can zip two stream by using `ZStream.zip` or `ZStream#zipWith` operator:
 
 ```scala mdoc:silent:nest
 val s1: UStream[(Int, String)] =
-  ZStream.zipN(
-    ZStream(1, 2, 3, 4, 5, 6),
-    ZStream("a", "b", "c")
-  )((a, b) => (a, b))
-
-val s2: UStream[(Int, String)] =
   ZStream(1, 2, 3, 4, 5, 6).zipWith(ZStream("a", "b", "c"))((a, b) => (a, b))
 
-val s3: UStream[(Int, String)] = 
+val s2: UStream[(Int, String)] = 
   ZStream(1, 2, 3, 4, 5, 6).zip(ZStream("a", "b", "c"))
   
 // Output: (1, "a"), (2, "b"), (3, "c")
@@ -1531,7 +1525,7 @@ Based on the type of underlying queue we can use one the buffering operators:
 - **Bounded Queue** — `ZStream#buffer(capacity: Int)`
 - **Unbounded Queue** — `ZStream#bufferUnbounded`
 - **Sliding Queue** — `ZStream#bufferDropping(capacity: Int)`
-- **Dropping Qeuue** `ZStream#bufferSliding(capacity: Int)`
+- **Dropping Queue** `ZStream#bufferSliding(capacity: Int)`
 
 ### Debouncing
 

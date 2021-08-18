@@ -34,7 +34,7 @@ abstract class TestAspect[+LowerR, -UpperR, +LowerE, -UpperE] { self =>
    * Applies the aspect to some tests in the spec, chosen by the provided
    * predicate.
    */
-  def some[R >: LowerR <: UpperR, E >: LowerE <: UpperE](predicate: String => Boolean, spec: ZSpec[R, E]): ZSpec[R, E]
+  def some[R >: LowerR <: UpperR, E >: LowerE <: UpperE](spec: ZSpec[R, E]): ZSpec[R, E]
 
   /**
    * An alias for [[all]].
@@ -46,7 +46,7 @@ abstract class TestAspect[+LowerR, -UpperR, +LowerE, -UpperE] { self =>
    * Applies the aspect to every test in the spec.
    */
   final def all[R >: LowerR <: UpperR, E >: LowerE <: UpperE](spec: ZSpec[R, E]): ZSpec[R, E] =
-    some[R, E](_ => true, spec)
+    some[R, E](spec)
 
   /**
    * Returns a new aspect that represents the sequential composition of this
@@ -57,10 +57,9 @@ abstract class TestAspect[+LowerR, -UpperR, +LowerE, -UpperE] { self =>
   ): TestAspect[LowerR1, UpperR1, LowerE1, UpperE1] =
     new TestAspect[LowerR1, UpperR1, LowerE1, UpperE1] {
       def some[R >: LowerR1 <: UpperR1, E >: LowerE1 <: UpperE1](
-        predicate: String => Boolean,
         spec: ZSpec[R, E]
       ): ZSpec[R, E] =
-        that.some(predicate, self.some(predicate, spec))
+        that.some(self.some(spec))
     }
 
   final def andThen[LowerR1 >: LowerR, UpperR1 <: UpperR, LowerE1 >: LowerE, UpperE1 <: UpperE](
@@ -75,7 +74,7 @@ object TestAspect extends TimeoutVariants {
    */
   val identity: TestAspectPoly =
     new TestAspectPoly {
-      def some[R, E](predicate: String => Boolean, spec: ZSpec[R, E]): ZSpec[R, E] =
+      def some[R, E](spec: ZSpec[R, E]): ZSpec[R, E] =
         spec
     }
 
@@ -84,7 +83,7 @@ object TestAspect extends TimeoutVariants {
    */
   val ignore: TestAspectAtLeastR[Has[Annotations]] =
     new TestAspectAtLeastR[Has[Annotations]] {
-      def some[R <: Has[Annotations], E](predicate: String => Boolean, spec: ZSpec[R, E]): ZSpec[R, E] =
+      def some[R <: Has[Annotations], E](spec: ZSpec[R, E]): ZSpec[R, E] =
         spec.when(false)
     }
 
@@ -110,7 +109,7 @@ object TestAspect extends TimeoutVariants {
    */
   def annotate[V](key: TestAnnotation[V], value: V): TestAspectPoly =
     new TestAspectPoly {
-      def some[R, E](predicate: String => Boolean, spec: ZSpec[R, E]): ZSpec[R, E] =
+      def some[R, E](spec: ZSpec[R, E]): ZSpec[R, E] =
         spec.annotate(key, value)
     }
 
@@ -143,20 +142,8 @@ object TestAspect extends TimeoutVariants {
     before: ZIO[R0, E0, A0]
   )(after: A0 => ZIO[R0, Nothing, Any]): TestAspect[Nothing, R0, E0, Any] =
     new TestAspect[Nothing, R0, E0, Any] {
-      def some[R <: R0, E >: E0](predicate: String => Boolean, spec: ZSpec[R, E]): ZSpec[R, E] = {
-        def aroundAll[R <: R0, E >: E0, A](
-          specs: ZManaged[R, TestFailure[E], Vector[Spec[R, TestFailure[E], TestSuccess]]]
-        ): ZManaged[R, TestFailure[E], Vector[Spec[R, TestFailure[E], TestSuccess]]] =
-          ZManaged.acquireReleaseWith(before)(after).mapError(TestFailure.fail) *> specs
-        def around[R <: R0, E >: E0, A](
-          test: ZIO[R, TestFailure[E], TestSuccess]
-        ): ZIO[R, TestFailure[E], TestSuccess] =
-          before.mapError(TestFailure.fail).acquireReleaseWith(after)(_ => test)
-        spec.caseValue match {
-          case Spec.SuiteCase(label, specs, exec)      => Spec.suite(label, aroundAll(specs), exec)
-          case Spec.TestCase(label, test, annotations) => Spec.test(label, around(test), annotations)
-        }
-      }
+      def some[R <: R0, E >: E0](spec: ZSpec[R, E]): ZSpec[R, E] =
+        Spec.managed(ZManaged.acquireReleaseWith(before)(after).mapError(TestFailure.fail).as(spec))
     }
 
   /**
@@ -195,10 +182,10 @@ object TestAspect extends TimeoutVariants {
   /**
    * Constructs an aspect that runs the specified effect before every test.
    */
-  def before[R0, E0](effect: ZIO[R0, Nothing, Any]): TestAspect[Nothing, R0, E0, Any] =
+  def before[R0, E0](effect: ZIO[R0, E0, Any]): TestAspect[Nothing, R0, E0, Any] =
     new TestAspect.PerTest[Nothing, R0, E0, Any] {
-      def perTest[R <: R0, E](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] =
-        effect *> test
+      def perTest[R <: R0, E >: E0](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] =
+        effect.catchAllCause(cause => ZIO.fail(TestFailure.failCause(cause))) *> test
     }
 
   /**
@@ -214,10 +201,7 @@ object TestAspect extends TimeoutVariants {
    */
   def diagnose(duration: Duration): TestAspectAtLeastR[Has[Live] with Has[Annotations]] =
     new TestAspectAtLeastR[Has[Live] with Has[Annotations]] {
-      def some[R <: Has[Live] with Has[Annotations], E](
-        predicate: String => Boolean,
-        spec: ZSpec[R, E]
-      ): ZSpec[R, E] = {
+      def some[R <: Has[Live] with Has[Annotations], E](spec: ZSpec[R, E]): ZSpec[R, E] = {
         def diagnose[R <: Has[Live] with Has[Annotations], E](
           label: String,
           test: ZIO[R, TestFailure[E], TestSuccess]
@@ -231,9 +215,8 @@ object TestAspect extends TimeoutVariants {
         def dump[E, A](label: String): URIO[Has[Live] with Has[Annotations], Unit] =
           Annotations.supervisedFibers.flatMap(fibers => Live.live(Fiber.putDumpStr(label, fibers.toSeq: _*).orDie))
         spec.transform[R, TestFailure[E], TestSuccess] {
-          case c @ Spec.SuiteCase(_, _, _) => c
-          case Spec.TestCase(label, test, annotations) =>
-            Spec.TestCase(label, if (predicate(label)) diagnose(label, test) else test, annotations)
+          case Spec.TestCase(test, annotations) => Spec.TestCase(diagnose("", test), annotations)
+          case c                                => c
         }
       }
     }
@@ -330,11 +313,8 @@ object TestAspect extends TimeoutVariants {
    */
   def executionStrategy(exec: ExecutionStrategy): TestAspectPoly =
     new TestAspectPoly {
-      def some[R, E](predicate: String => Boolean, spec: ZSpec[R, E]): ZSpec[R, E] =
-        spec.transform[R, TestFailure[E], TestSuccess] {
-          case Spec.SuiteCase(label, specs, None) if (predicate(label)) => Spec.SuiteCase(label, specs, Some(exec))
-          case c                                                        => c
-        }
+      def some[R, E](spec: ZSpec[R, E]): ZSpec[R, E] =
+        Spec.exec(exec, spec)
     }
 
   /**
@@ -434,7 +414,7 @@ object TestAspect extends TimeoutVariants {
    */
   def ifEnv(env: String, assertion: Assertion[String]): TestAspectAtLeastR[Has[Live] with Has[Annotations]] =
     new TestAspectAtLeastR[Has[Live] with Has[Annotations]] {
-      def some[R <: Has[Live] with Has[Annotations], E](predicate: String => Boolean, spec: ZSpec[R, E]): ZSpec[R, E] =
+      def some[R <: Has[Live] with Has[Annotations], E](spec: ZSpec[R, E]): ZSpec[R, E] =
         spec.whenZIO(Live.live(System.env(env)).orDie.map(_.fold(false)(assertion.test)))
     }
 
@@ -451,7 +431,7 @@ object TestAspect extends TimeoutVariants {
    */
   def ifProp(prop: String, assertion: Assertion[String]): TestAspectAtLeastR[Has[Live] with Has[Annotations]] =
     new TestAspectAtLeastR[Has[Live] with Has[Annotations]] {
-      def some[R <: Has[Live] with Has[Annotations], E](predicate: String => Boolean, spec: ZSpec[R, E]): ZSpec[R, E] =
+      def some[R <: Has[Live] with Has[Annotations], E](spec: ZSpec[R, E]): ZSpec[R, E] =
         spec.whenZIO(Live.live(System.property(prop)).orDie.map(_.fold(false)(assertion.test)))
     }
 
@@ -606,16 +586,14 @@ object TestAspect extends TimeoutVariants {
   ): TestAspectAtLeastR[R0] = {
     val repeat = new PerTest.AtLeastR[R0] {
       def perTest[R <: R0, E](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] =
-        ZIO.accessZIO(r =>
-          Live.live(
-            test
+        ZIO.accessZIO { r =>
+          val repeatSchedule: Schedule[Any, TestSuccess, TestSuccess] =
+            schedule
+              .zipRight(Schedule.identity[TestSuccess])
+              .tapOutput(_ => Annotations.annotate(TestAnnotation.repeated, 1))
               .provide(r)
-              .repeat(
-                (schedule *> Schedule
-                  .identity[TestSuccess]).tapOutput(_ => Annotations.annotate(TestAnnotation.repeated, 1)).provide(r)
-              )
-          )
-        )
+          Live.live(test.provide(r).repeat(repeatSchedule))
+        }
     }
     restoreTestEnvironment >>> repeat
   }
@@ -722,11 +700,13 @@ object TestAspect extends TimeoutVariants {
   ): TestAspect[Nothing, R0, Nothing, E0] = {
     val retry = new TestAspect.PerTest[Nothing, R0, Nothing, E0] {
       def perTest[R <: R0, E <: E0](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] =
-        ZIO.accessZIO[R](r =>
-          Live.live(
-            test.provide(r).retry(schedule.tapOutput(_ => Annotations.annotate(TestAnnotation.retried, 1)).provide(r))
-          )
-        )
+        ZIO.accessZIO[R] { r =>
+          val retrySchedule: Schedule[Any, TestFailure[E0], Any] =
+            schedule
+              .tapOutput(_ => Annotations.annotate(TestAnnotation.retried, 1))
+              .provide(r)
+          Live.live(test.provide(r).retry(retrySchedule))
+        }
     }
     restoreTestEnvironment >>> retry
   }
@@ -906,13 +886,11 @@ object TestAspect extends TimeoutVariants {
     ): ZIO[R, TestFailure[E], TestSuccess]
 
     final def some[R >: LowerR <: UpperR, E >: LowerE <: UpperE](
-      predicate: String => Boolean,
       spec: ZSpec[R, E]
     ): ZSpec[R, E] =
       spec.transform[R, TestFailure[E], TestSuccess] {
-        case c @ Spec.SuiteCase(_, _, _) => c
-        case Spec.TestCase(label, test, annotations) =>
-          Spec.TestCase(label, if (predicate(label)) perTest(test) else test, annotations)
+        case Spec.TestCase(test, annotations) => Spec.TestCase(perTest(test), annotations)
+        case c                                => c
       }
   }
   object PerTest {

@@ -10,9 +10,14 @@ test-output/
 .bloop
 .metals
 metals.sbt
+*/metals.sbt
 .idea
 coursier
 .DS_Store
+metals.sbt
+project/metals.sbt
+project/project/metals.sbt
+sbt.json
 .bsp/
 project/project/
 *.iml

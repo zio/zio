@@ -3,10 +3,11 @@ package zio
 import akka.Done
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.{Keep, Sink => AkkaSink, Source => AkkaSource}
+import cats.effect.unsafe.implicits.global
 import cats.effect.{IO => CatsIO}
 import fs2.{Chunk => FS2Chunk, Stream => FS2Stream}
 import org.openjdk.jmh.annotations._
-import zio.IOBenchmarks._
+import zio.BenchmarkUtil._
 import zio.stream._
 
 import java.util.concurrent.TimeUnit
@@ -138,6 +139,8 @@ class CSVStreamBenchmarks {
 
   @Benchmark
   def fs2CsvTokenize(): Unit = {
+    import cats.effect.unsafe.implicits.global
+
     val chunks = genCsvChunks.map(FS2Chunk.array(_))
     val stream = FS2Stream(chunks.toIndexedSeq: _*)
       .flatMap(FS2Stream.chunk)

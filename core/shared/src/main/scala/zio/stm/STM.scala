@@ -208,21 +208,16 @@ object STM {
   /**
    * @see See [[zio.stm.ZSTM.fromFunction]]
    */
+  @deprecated("use access", "2.0.0")
   def fromFunction[A](f: Any => A): USTM[A] =
     ZSTM.fromFunction(f)
 
   /**
    * @see See [[zio.stm.ZSTM.fromFunctionM]]
    */
-  @deprecated("use fromFunctionSTM", "2.0.0")
+  @deprecated("use accessSTM", "2.0.0")
   def fromFunctionM[E, A](f: Any => STM[E, A]): STM[E, A] =
     ZSTM.fromFunctionM(f)
-
-  /**
-   * @see See [[zio.stm.ZSTM.fromFunctionSTM]]
-   */
-  def fromFunctionSTM[E, A](f: Any => STM[E, A]): STM[E, A] =
-    ZSTM.fromFunctionSTM(f)
 
   /**
    * @see See [[zio.stm.ZSTM.fromOption]]
@@ -235,11 +230,6 @@ object STM {
    */
   def fromTry[A](a: => Try[A]): TaskSTM[A] =
     ZSTM.fromTry(a)
-
-  /**
-   * @see See [[zio.stm.ZSTM.identity]]
-   */
-  def identity: USTM[Any] = ZSTM.identity
 
   /**
    * @see See [[zio.stm.ZSTM.ifM]]
@@ -288,12 +278,14 @@ object STM {
   /**
    * @see See [[zio.stm.ZSTM.mapN[R,E,A,B,C]*]]
    */
+  @deprecated("use zip", "2.0.0")
   def mapN[E, A, B, C](tx1: STM[E, A], tx2: STM[E, B])(f: (A, B) => C): STM[E, C] =
     ZSTM.mapN(tx1, tx2)(f)
 
   /**
    * @see See [[zio.stm.ZSTM.mapN[R,E,A,B,C,D]*]]
    */
+  @deprecated("use zip", "2.0.0")
   def mapN[E, A, B, C, D](tx1: STM[E, A], tx2: STM[E, B], tx3: STM[E, C])(
     f: (A, B, C) => D
   ): STM[E, D] =
@@ -302,6 +294,7 @@ object STM {
   /**
    * @see See [[zio.stm.ZSTM.mapN[R,E,A,B,C,D,F]*]]
    */
+  @deprecated("use zip", "2.0.0")
   def mapN[E, A, B, C, D, F](tx1: STM[E, A], tx2: STM[E, B], tx3: STM[E, C], tx4: STM[E, D])(
     f: (A, B, C, D) => F
   ): STM[E, F] =
@@ -376,6 +369,7 @@ object STM {
   /**
    * @see See [[zio.stm.ZSTM.require]]
    */
+  @deprecated("use someOrFail", "2.0.0")
   def require[E, A](error: => E): STM[E, Option[A]] => STM[E, A] =
     ZSTM.require[Any, E, A](error)
 

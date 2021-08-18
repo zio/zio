@@ -351,7 +351,7 @@ We can combine our expectation to build complex scenarios using combinators defi
 ```scala mdoc:silent
 object AccountObserverSpec extends DefaultRunnableSpec {
   def spec = suite("processEvent")(
-    testM("calls printLine > readLine > printLine and returns unit") {
+    test("calls printLine > readLine > printLine and returns unit") {
       val result = app.provideSomeLayer(mockEnv >>> AccountObserver.live)
       assertM(result)(isUnit)
     }
@@ -366,7 +366,7 @@ Often the dependency on a collaborator is only in some branches of the code. To 
 ```scala mdoc:silent
 object MaybeConsoleSpec extends DefaultRunnableSpec {
   def spec = suite("processEvent")(
-    testM("expect no call") {
+    test("expect no call") {
       def maybeConsole(invokeConsole: Boolean) =
         ZIO.when(invokeConsole)(Console.printLine("foo"))
 

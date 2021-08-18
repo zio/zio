@@ -31,7 +31,7 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
    * by setting it to `None`.
    */
   def async[R, E, A](
-    register: (ZIO[R, Option[E], Chunk[A]] => Future[Boolean]) => Unit,
+    register: ZStream.Emit[R, E, A, Future[Boolean]] => Unit,
     outputBuffer: Int = 16
   ): ZStream[R, E, A] =
     asyncMaybe(
@@ -49,7 +49,7 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
    * setting it to `None`.
    */
   def asyncInterrupt[R, E, A](
-    register: (ZIO[R, Option[E], Chunk[A]] => Future[Boolean]) => Either[Canceler[R], ZStream[R, E, A]],
+    register: ZStream.Emit[R, E, A, Future[Boolean]] => Either[Canceler[R], ZStream[R, E, A]],
     outputBuffer: Int = 16
   ): ZStream[R, E, A] =
     ZStream {
@@ -86,7 +86,7 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
    * error type `E` can be used to signal the end of the stream, by setting it to `None`.
    */
   def asyncZIO[R, E, A](
-    register: (ZIO[R, Option[E], Chunk[A]] => Future[Boolean]) => ZIO[R, E, Any],
+    register: ZStream.Emit[R, E, A, Future[Boolean]] => ZIO[R, E, Any],
     outputBuffer: Int = 16
   ): ZStream[R, E, A] =
     managed {
@@ -118,7 +118,7 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
    * by setting it to `None`.
    */
   def asyncMaybe[R, E, A](
-    register: (ZIO[R, Option[E], Chunk[A]] => Future[Boolean]) => Option[ZStream[R, E, A]],
+    register: ZStream.Emit[R, E, A, Future[Boolean]] => Option[ZStream[R, E, A]],
     outputBuffer: Int = 16
   ): ZStream[R, E, A] =
     ZStream {
@@ -157,7 +157,7 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
    */
   @deprecated("use async", "2.0.0")
   def effectAsync[R, E, A](
-    register: (ZIO[R, Option[E], Chunk[A]] => Future[Boolean]) => Unit,
+    register: ZStream.Emit[R, E, A, Future[Boolean]] => Unit,
     outputBuffer: Int = 16
   ): ZStream[R, E, A] =
     async(register, outputBuffer)
@@ -170,7 +170,7 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
    */
   @deprecated("use asyncInterrupt", "2.0.0")
   def effectAsyncInterrupt[R, E, A](
-    register: (ZIO[R, Option[E], Chunk[A]] => Future[Boolean]) => Either[Canceler[R], ZStream[R, E, A]],
+    register: ZStream.Emit[R, E, A, Future[Boolean]] => Either[Canceler[R], ZStream[R, E, A]],
     outputBuffer: Int = 16
   ): ZStream[R, E, A] =
     asyncInterrupt(register, outputBuffer)
@@ -182,7 +182,7 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
    */
   @deprecated("use asyncZIO", "2.0.0")
   def effectAsyncM[R, E, A](
-    register: (ZIO[R, Option[E], Chunk[A]] => Future[Boolean]) => ZIO[R, E, Any],
+    register: ZStream.Emit[R, E, A, Future[Boolean]] => ZIO[R, E, Any],
     outputBuffer: Int = 16
   ): ZStream[R, E, A] =
     asyncZIO(register, outputBuffer)
@@ -195,7 +195,7 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
    */
   @deprecated("use asyncMaybe", "2.0.0")
   def effectAsyncMaybe[R, E, A](
-    register: (ZIO[R, Option[E], Chunk[A]] => Future[Boolean]) => Option[ZStream[R, E, A]],
+    register: ZStream.Emit[R, E, A, Future[Boolean]] => Option[ZStream[R, E, A]],
     outputBuffer: Int = 16
   ): ZStream[R, E, A] =
     asyncMaybe(register, outputBuffer)
@@ -240,7 +240,18 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
    * Creates a stream from a [[java.io.InputStream]]. Ensures that the input
    * stream is closed after it is exhausted.
    */
+  @deprecated("use fromInputStreamZIO", "2.0.0")
   def fromInputStreamEffect[R](
+    is: ZIO[R, IOException, InputStream],
+    chunkSize: Int = ZStream.DefaultChunkSize
+  ): ZStream[R, IOException, Byte] =
+    fromInputStreamZIO(is, chunkSize)
+
+  /**
+   * Creates a stream from a [[java.io.InputStream]]. Ensures that the input
+   * stream is closed after it is exhausted.
+   */
+  def fromInputStreamZIO[R](
     is: ZIO[R, IOException, InputStream],
     chunkSize: Int = ZStream.DefaultChunkSize
   ): ZStream[R, IOException, Byte] =
@@ -257,6 +268,43 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
       .managed(is)
       .flatMap(fromInputStream(_, chunkSize))
 
+  trait ZStreamConstructorPlatformSpecific extends ZStreamConstructorLowPriority1 {
+
+    /**
+     * Constructs a `ZStream[Any, IOException, Byte]` from a
+     * `java.io.InputStream`.
+     */
+    implicit val InputStreamConstructor: WithOut[InputStream, ZStream[Any, IOException, Byte]] =
+      new ZStreamConstructor[InputStream] {
+        type Out = ZStream[Any, IOException, Byte]
+        def make(input: => InputStream): ZStream[Any, IOException, Byte] =
+          ZStream.fromInputStream(input)
+      }
+
+    /**
+     * Constructs a `ZStream[Any, IOException, Byte]` from a
+     * `ZManaged[R, java.io.IOException, java.io.InputStream]`.
+     */
+    implicit def InputStreamManagedConstructor[R, E <: IOException]
+      : WithOut[ZManaged[R, E, InputStream], ZStream[R, IOException, Byte]] =
+      new ZStreamConstructor[ZManaged[R, E, InputStream]] {
+        type Out = ZStream[R, IOException, Byte]
+        def make(input: => ZManaged[R, E, InputStream]): ZStream[R, IOException, Byte] =
+          ZStream.fromInputStreamManaged(input)
+      }
+
+    /**
+     * Constructs a `ZStream[Any, IOException, Byte]` from a
+     * `ZIO[R, java.io.IOException, java.io.InputStream]`.
+     */
+    implicit def InputStreamZIOConstructor[R, E <: IOException]
+      : WithOut[ZIO[R, E, InputStream], ZStream[R, IOException, Byte]] =
+      new ZStreamConstructor[ZIO[R, E, InputStream]] {
+        type Out = ZStream[R, IOException, Byte]
+        def make(input: => ZIO[R, E, InputStream]): ZStream[R, IOException, Byte] =
+          ZStream.fromInputStreamZIO(input)
+      }
+  }
 }
 trait StreamPlatformSpecificConstructors
 

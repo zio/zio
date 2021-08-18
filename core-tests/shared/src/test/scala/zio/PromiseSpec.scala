@@ -8,14 +8,14 @@ object PromiseSpec extends ZIOBaseSpec {
   import ZIOTag._
 
   def spec: Spec[Any, TestFailure[Any], TestSuccess] = suite("PromiseSpec")(
-    testM("complete a promise using succeed") {
+    test("complete a promise using succeed") {
       for {
         p <- Promise.make[Nothing, Int]
         s <- p.succeed(32)
         v <- p.await
       } yield assert(s)(isTrue) && assert(v)(equalTo(32))
     },
-    testM("complete a promise using complete") {
+    test("complete a promise using complete") {
       for {
         p  <- Promise.make[Nothing, Int]
         r  <- Ref.make(13)
@@ -26,7 +26,7 @@ object PromiseSpec extends ZIOBaseSpec {
         assert(v1)(equalTo(14)) &&
         assert(v2)(equalTo(14))
     },
-    testM("complete a promise using completeWith") {
+    test("complete a promise using completeWith") {
       for {
         p  <- Promise.make[Nothing, Int]
         r  <- Ref.make(13)
@@ -37,14 +37,14 @@ object PromiseSpec extends ZIOBaseSpec {
         assert(v1)(equalTo(14)) &&
         assert(v2)(equalTo(15))
     },
-    testM("fail a promise using fail") {
+    test("fail a promise using fail") {
       for {
         p <- Promise.make[String, Int]
         s <- p.fail("error with fail")
         v <- p.await.exit
       } yield assert(s)(isTrue) && assert(v)(fails(equalTo("error with fail")))
     } @@ zioTag(errors),
-    testM("fail a promise using complete") {
+    test("fail a promise using complete") {
       for {
         p  <- Promise.make[String, Int]
         r  <- Ref.make(List("first error", "second error"))
@@ -55,7 +55,7 @@ object PromiseSpec extends ZIOBaseSpec {
         assert(v1)(fails(equalTo("first error"))) &&
         assert(v2)(fails(equalTo("first error")))
     } @@ zioTag(errors),
-    testM("fail a promise using completeWith") {
+    test("fail a promise using completeWith") {
       for {
         p  <- Promise.make[String, Int]
         r  <- Ref.make(List("first error", "second error"))
@@ -66,7 +66,7 @@ object PromiseSpec extends ZIOBaseSpec {
         assert(v1)(fails(equalTo("first error"))) &&
         assert(v2)(fails(equalTo("second error")))
     } @@ zioTag(errors),
-    testM("complete a promise twice") {
+    test("complete a promise twice") {
       for {
         p <- Promise.make[Nothing, Int]
         _ <- p.succeed(1)
@@ -74,47 +74,47 @@ object PromiseSpec extends ZIOBaseSpec {
         v <- p.await
       } yield assert(s)(isFalse) && assert(v)(equalTo(1))
     },
-    testM("interrupt a promise") {
+    test("interrupt a promise") {
       for {
         p <- Promise.make[Exception, Int]
         s <- p.interrupt
       } yield assert(s)(isTrue)
     } @@ zioTag(interruption),
-    testM("poll a promise that is not completed yet") {
+    test("poll a promise that is not completed yet") {
       for {
         p       <- Promise.make[String, Int]
         attempt <- p.poll
       } yield assert(attempt)(isNone)
     },
-    testM("poll a promise that is completed") {
+    test("poll a promise that is completed") {
       for {
         p      <- Promise.make[String, Int]
         _      <- p.succeed(12)
         result <- p.poll.someOrFail("fail").flatten.exit
       } yield assert(result)(succeeds(equalTo(12)))
     },
-    testM("poll a promise that is failed") {
+    test("poll a promise that is failed") {
       for {
         p      <- Promise.make[String, Int]
         _      <- p.fail("failure")
         result <- p.poll.someOrFail("fail").flatten.exit
       } yield assert(result)(fails(equalTo("failure")))
     },
-    testM("poll a promise that is interrupted") {
+    test("poll a promise that is interrupted") {
       for {
         p      <- Promise.make[String, Int]
         _      <- p.interrupt
         result <- p.poll.someOrFail("fail").flatten.exit
       } yield assert(result)(isInterrupted)
     } @@ zioTag(interruption),
-    testM("isDone when a promise is completed") {
+    test("isDone when a promise is completed") {
       for {
         p <- Promise.make[String, Int]
         _ <- p.succeed(0)
         d <- p.isDone
       } yield assert(d)(isTrue)
     },
-    testM("isDone when a promise is failed") {
+    test("isDone when a promise is failed") {
       for {
         p <- Promise.make[String, Int]
         _ <- p.fail("failure")

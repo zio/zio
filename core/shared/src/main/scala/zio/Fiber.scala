@@ -74,8 +74,10 @@ sealed abstract class Fiber[+E, +A] { self =>
    * @tparam B type of that fiber
    * @return `Fiber[E1, (A, B)]` combined fiber
    */
-  final def <*>[E1 >: E, B](that: => Fiber[E1, B]): Fiber.Synthetic[E1, (A, B)] =
-    (self zipWith that)((a, b) => (a, b))
+  final def <*>[E1 >: E, B](that: => Fiber[E1, B])(implicit
+    zippable: Zippable[A, B]
+  ): Fiber.Synthetic[E1, zippable.Out] =
+    (self zipWith that)((a, b) => zippable.zip(a, b))
 
   /**
    * A symbolic alias for `orElseEither`.
@@ -334,7 +336,9 @@ sealed abstract class Fiber[+E, +A] { self =>
    * @tparam B type of that fiber
    * @return `Fiber[E1, (A, B)]` combined fiber
    */
-  final def zip[E1 >: E, B](that: => Fiber[E1, B]): Fiber.Synthetic[E1, (A, B)] =
+  final def zip[E1 >: E, B](that: => Fiber[E1, B])(implicit
+    zippable: Zippable[A, B]
+  ): Fiber.Synthetic[E1, zippable.Out] =
     self <*> that
 
   /**
@@ -457,6 +461,7 @@ object Fiber extends FiberPlatformSpecific {
     def interrupters: Set[Fiber.Id]
     def interruptStatus: InterruptStatus
     def executor: Executor
+    def locked: Boolean
     def scope: ZScope[Exit[Any, Any]]
   }
 
@@ -476,6 +481,7 @@ object Fiber extends FiberPlatformSpecific {
       interrupters0: Set[Fiber.Id],
       interruptStatus0: InterruptStatus,
       executor0: Executor,
+      locked0: Boolean,
       scope0: ZScope[Exit[Any, Any]]
     ): Descriptor =
       new Descriptor {
@@ -484,6 +490,7 @@ object Fiber extends FiberPlatformSpecific {
         def interrupters: Set[Fiber.Id]      = interrupters0
         def interruptStatus: InterruptStatus = interruptStatus0
         def executor: Executor               = executor0
+        def locked: Boolean                  = locked0
         def scope: ZScope[Exit[Any, Any]]    = scope0
       }
   }
@@ -544,6 +551,21 @@ object Fiber extends FiberPlatformSpecific {
   sealed abstract class Status extends Serializable with Product { self =>
     import Status._
 
+    def isInterrupting: Boolean = {
+      import scala.annotation.tailrec
+
+      @tailrec
+      def loop(status0: Fiber.Status): Boolean =
+        status0 match {
+          case Status.Running(b)                      => b
+          case Status.Finishing(b)                    => b
+          case Status.Suspended(previous, _, _, _, _) => loop(previous)
+          case _                                      => false
+        }
+
+      loop(self)
+    }
+
     final def isDone: Boolean = self match {
       case Done => true
       case _    => false
@@ -571,7 +593,7 @@ object Fiber extends FiberPlatformSpecific {
       previous: Status,
       interruptible: Boolean,
       epoch: Long,
-      blockingOn: List[Fiber.Id],
+      blockingOn: Fiber.Id,
       asyncTrace: Option[ZTraceElement]
     ) extends Status
   }
@@ -810,5 +832,5 @@ object Fiber extends FiberPlatformSpecific {
   private[zio] val _currentFiber: ThreadLocal[internal.FiberContext[_, _]] =
     new ThreadLocal[internal.FiberContext[_, _]]()
 
-  private[zio] val _fiberCounter = new java.util.concurrent.atomic.AtomicLong(0)
+  private[zio] val _fiberCounter = new java.util.concurrent.atomic.AtomicLong(0L)
 }

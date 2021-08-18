@@ -17,7 +17,6 @@
 package zio
 
 import zio.Schedule.Decision._
-import zio.Schedule._
 
 import java.lang.{System => JSystem}
 import java.time.{Instant, LocalDateTime, OffsetDateTime}
@@ -37,17 +36,17 @@ trait Clock extends Serializable {
 
   def sleep(duration: Duration): UIO[Unit]
 
-  final def driver[Env, In, Out](schedule: Schedule[Env, In, Out]): UIO[Schedule.Driver[Env, In, Out]] =
-    Ref.make[(Option[Out], Schedule.StepFunction[Env, In, Out])]((None, schedule.step)).map { ref =>
+  final def driver[Env, In, Out](schedule: Schedule[Env, In, Out]): UIO[Schedule.Driver[schedule.State, Env, In, Out]] =
+    Ref.make[(Option[Out], schedule.State)]((None, schedule.initial)).map { ref =>
       val next = (in: In) =>
         for {
-          step <- ref.get.map(_._2)
-          now  <- currentDateTime
-          dec  <- step(now, in)
+          state <- ref.get.map(_._2)
+          now   <- currentDateTime
+          dec   <- schedule.step(now, in, state)
           v <- dec match {
-                 case Done(out) => ref.set((Some(out), StepFunction.done(out))) *> ZIO.fail(None)
-                 case Continue(out, interval, next) =>
-                   ref.set((Some(out), next)) *> sleep(Duration.fromInterval(now, interval)) as out
+                 case (state, out, Done) => ref.set((Some(out), state)) *> ZIO.fail(None)
+                 case (state, out, Continue(interval)) =>
+                   ref.set((Some(out), state)) *> sleep(Duration.fromInterval(now, interval)) as out
                }
         } yield v
 
@@ -56,9 +55,11 @@ trait Clock extends Serializable {
         case (Some(b), _) => ZIO.succeed(b)
       }
 
-      val reset = ref.set((None, schedule.step))
+      val reset = ref.set((None, schedule.initial))
 
-      Schedule.Driver(next, last, reset)
+      val state = ref.get.map(_._2)
+
+      Schedule.Driver(next, last, reset, state)
     }
 
   final def repeat[R, R1 <: R, E, A, B](zio: ZIO[R, E, A])(schedule: Schedule[R1, A, B]): ZIO[R1, E, B] =
@@ -106,7 +107,7 @@ trait Clock extends Serializable {
   )(schedule: Schedule[R1, E, Out], orElse: (E, Out) => ZIO[R1, E1, B])(implicit
     ev: CanFail[E]
   ): ZIO[R1, E1, Either[B, A]] = {
-    def loop(driver: Schedule.Driver[R1, E, Out]): ZIO[R1, E1, Either[B, A]] =
+    def loop(driver: Schedule.Driver[Any, R1, E, Out]): ZIO[R1, E1, Either[B, A]] =
       zio
         .map(Right(_))
         .catchAll(e =>
@@ -143,7 +144,7 @@ object Clock extends ClockPlatformSpecific with Serializable {
   val live: Layer[Nothing, Has[Clock]] =
     ZLayer.succeed(ClockLive)
 
-  private[zio] object ClockLive extends Clock {
+  object ClockLive extends Clock {
     def currentTime(unit: TimeUnit): UIO[Long] =
       instant.map { inst =>
         // A nicer solution without loss of precision or range would be
@@ -191,7 +192,9 @@ object Clock extends ClockPlatformSpecific with Serializable {
   val currentDateTime: URIO[Has[Clock], OffsetDateTime] =
     ZIO.serviceWith(_.currentDateTime)
 
-  def driver[Env, In, Out](schedule: Schedule[Env, In, Out]): URIO[Has[Clock], Schedule.Driver[Env, In, Out]] =
+  def driver[Env, In, Out](
+    schedule: Schedule[Env, In, Out]
+  ): URIO[Has[Clock], Schedule.Driver[schedule.State, Env, In, Out]] =
     ZIO.serviceWith(_.driver(schedule))
 
   val instant: ZIO[Has[Clock], Nothing, java.time.Instant] =
