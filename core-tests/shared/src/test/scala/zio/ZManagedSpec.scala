@@ -620,15 +620,15 @@ object ZManagedSpec extends ZIOBaseSpec {
     ),
     suite("optional")(
       test("fails when given Some error") {
-        val managed: UManaged[Exit[String, Option[Int]]] = Managed.fail(Some("Error")).optional.exit
+        val managed: UManaged[Exit[String, Option[Int]]] = Managed.fail(Some("Error")).unoption.exit
         managed.use(res => ZIO.succeed(assert(res)(fails(equalTo("Error")))))
       } @@ zioTag(errors),
       test("succeeds with None given None error") {
-        val managed: Managed[String, Option[Int]] = Managed.fail(None).optional
+        val managed: Managed[String, Option[Int]] = Managed.fail(None).unoption
         managed.use(res => ZIO.succeed(assert(res)(isNone)))
       } @@ zioTag(errors),
       test("succeeds with Some given a value") {
-        val managed: Managed[String, Option[Int]] = Managed.succeed(1).optional
+        val managed: Managed[String, Option[Int]] = Managed.succeed(1).unoption
         assertM(managed.useNow)(isSome(equalTo(1)))
       }
     ),
