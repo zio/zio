@@ -864,7 +864,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * `f` must preserve chunking-invariance.
    */
   def foldLeftChunksZIO[R, E, I, S](z: => S)(f: (S, Chunk[I]) => ZIO[R, E, S]): ZSink[R, E, I, Nothing, S] =
-    foldChunksZIO[R, E, I, S](z)(_ => true)(f).dropLeftover
+    foldChunksZIO[R, E, I, S](z: S)(_ => true)(f).dropLeftover
 
   /**
    * A sink that effectfully folds its inputs with the provided function and initial state.
@@ -877,7 +877,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * A sink that effectfully folds its inputs with the provided function and initial state.
    */
   def foldLeftZIO[R, E, I, S](z: => S)(f: (S, I) => ZIO[R, E, S]): ZSink[R, E, I, I, S] =
-    foldZIO[R, E, I, S](z)(_ => true)(f)
+    foldZIO[R, E, I, S](z: S)(_ => true)(f)
 
   /**
    * A sink that executes the provided effectful function for every element fed to it.
