@@ -499,9 +499,7 @@ object ZSink {
    * from inputs using the keying function `key`; if multiple inputs use the
    * the same key, they are merged using the `f` function.
    */
-  def collectAllToMapN[Err, In, K](
-    n: => Long
-  )(key: In => K)(f: (In, In) => In): ZSink[Any, Err, In, Err, In, Map[K, In]] =
+  def collectAllToMapN[Err, In, K](n: => Long)(key: In => K)(f: (In, In) => In): ZSink[Any, Err, In, Err, In, Map[K, In]] =
     foldWeighted[Err, In, Map[K, In]](Map())((acc, in) => if (acc.contains(key(in))) 0 else 1, n) { (acc, in) =>
       val k = key(in)
       val v = if (acc.contains(k)) f(acc(k), in) else in

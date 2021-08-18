@@ -579,10 +579,8 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   type Push[-R, +E, -I, +L, +Z] = Option[Chunk[I]] => ZIO[R, (Either[E, Z], Chunk[L]), Unit]
 
   object Push {
-    def emit[I, Z](z: => Z, leftover: => Chunk[I]): IO[(Right[Nothing, Z], Chunk[I]), Nothing] =
-      IO.fail((Right(z), leftover))
-    def fail[I, E](e: => E, leftover: => Chunk[I]): IO[(Left[E, Nothing], Chunk[I]), Nothing] =
-      IO.fail((Left(e), leftover))
+    def emit[I, Z](z: => Z, leftover: => Chunk[I]): IO[(Right[Nothing, Z], Chunk[I]), Nothing] = IO.fail((Right(z), leftover))
+    def fail[I, E](e: => E, leftover: => Chunk[I]): IO[(Left[E, Nothing], Chunk[I]), Nothing]  = IO.fail((Left(e), leftover))
     def failCause[E](c: => Cause[E]): ZIO[Any, (Left[E, Nothing], Chunk[Nothing]), Nothing] =
       IO.failCause(c).mapError(e => (Left(e), Chunk.empty))
     @deprecated("use failCause", "2.0.0")
@@ -1017,9 +1015,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * A sink that depends on another managed value
    * `resource` will be finalized after the processing.
    */
-  def managed[R, E, I, A, L <: I, Z](resource: => ZManaged[R, E, A])(
-    fn: A => ZSink[R, E, I, L, Z]
-  ): ZSink[R, E, I, I, Z] =
+  def managed[R, E, I, A, L <: I, Z](resource: => ZManaged[R, E, A])(fn: A => ZSink[R, E, I, L, Z]): ZSink[R, E, I, I, Z] =
     ZSink(resource.fold[ZSink[R, E, I, I, Z]](err => ZSink.fail[E, I](err), m => fn(m)).flatMap(_.push))
 
   /**

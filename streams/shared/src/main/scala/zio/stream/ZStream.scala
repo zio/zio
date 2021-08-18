@@ -1275,9 +1275,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    *
    * @param cont function which defines the early termination condition
    */
-  final def foldWhileZIO[R1 <: R, E1 >: E, S](s: => S)(cont: S => Boolean)(
-    f: (S, O) => ZIO[R1, E1, S]
-  ): ZIO[R1, E1, S] =
+  final def foldWhileZIO[R1 <: R, E1 >: E, S](s: => S)(cont: S => Boolean)(f: (S, O) => ZIO[R1, E1, S]): ZIO[R1, E1, S] =
     foldWhileManagedZIO[R1, E1, S](s)(cont)(f).use(ZIO.succeedNow)
 
   /**
@@ -4413,10 +4411,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * specified schedule.
    */
   @deprecated("use repeatZIOWith", "2.0.0")
-  def repeatEffectWith[R, E, A](
-    effect: => ZIO[R, E, A],
-    schedule: => Schedule[R, A, Any]
-  ): ZStream[R with Has[Clock], E, A] =
+  def repeatEffectWith[R, E, A](effect: => ZIO[R, E, A], schedule: => Schedule[R, A, Any]): ZStream[R with Has[Clock], E, A] =
     repeatZIOWith(effect, schedule)
 
   /**
@@ -4465,10 +4460,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * Creates a stream from an effect producing a value of type `A`, which is repeated using the
    * specified schedule.
    */
-  def repeatZIOWith[R, E, A](
-    effect: => ZIO[R, E, A],
-    schedule: => Schedule[R, A, Any]
-  ): ZStream[R with Has[Clock], E, A] =
+  def repeatZIOWith[R, E, A](effect: => ZIO[R, E, A], schedule: => Schedule[R, A, Any]): ZStream[R with Has[Clock], E, A] =
     ZStream.fromZIO(effect zip schedule.driver).flatMap { case (a, driver) =>
       ZStream.succeed(a) ++
         ZStream.unfoldZIO(a)(driver.next(_).foldZIO(ZIO.succeed(_), _ => effect.map(nextA => Some(nextA -> nextA))))
@@ -5010,15 +5002,15 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   type Pull[-R, +E, +O] = ZIO[R, Option[E], Chunk[O]]
 
   private[zio] object Pull {
-    def emit[A](a: A): IO[Nothing, Chunk[A]]                                         = UIO(Chunk.single(a))
-    def emit[A](as: Chunk[A]): IO[Nothing, Chunk[A]]                                 = UIO(as)
+    def emit[A](a: A): IO[Nothing, Chunk[A]]                                      = UIO(Chunk.single(a))
+    def emit[A](as: Chunk[A]): IO[Nothing, Chunk[A]]                              = UIO(as)
     def fromDequeue[E, A](d: => Dequeue[stream.Take[E, A]]): IO[Option[E], Chunk[A]] = d.take.flatMap(_.done)
     def fail[E](e: => E): IO[Option[E], Nothing]                                     = IO.fail(Some(e))
     def failCause[E](c: => Cause[E]): IO[Option[E], Nothing]                         = IO.failCause(c).mapError(Some(_))
     @deprecated("use failCause", "2.0.0")
     def halt[E](c: => Cause[E]): IO[Option[E], Nothing] = failCause(c)
-    def empty[A]: IO[Nothing, Chunk[A]]                 = UIO(Chunk.empty)
-    val end: IO[Option[Nothing], Nothing]               = IO.fail(None)
+    def empty[A]: IO[Nothing, Chunk[A]]              = UIO(Chunk.empty)
+    val end: IO[Option[Nothing], Nothing]            = IO.fail(None)
   }
 
   private[zio] case class BufferedPull[R, E, A](
