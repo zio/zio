@@ -335,7 +335,7 @@ object Task extends TaskPlatformSpecific {
   /**
    * @see See [[zio.ZIO.collectAllWithParN]]
    */
-  def collectAllWithParN[A, B, Collection[+Element] <: Iterable[Element]](n: Int)(
+  def collectAllWithParN[A, B, Collection[+Element] <: Iterable[Element]](n: => Int)(
     as: Collection[Task[A]]
   )(f: PartialFunction[A, B])(implicit bf: BuildFrom[Collection[Task[A]], B, Collection[B]]): Task[Collection[B]] =
     ZIO.collectAllWithParN(n)(as)(f)
@@ -357,7 +357,7 @@ object Task extends TaskPlatformSpecific {
   /**
    * @see See [[zio.ZIO.collectParN]]
    */
-  def collectParN[A, B, Collection[+Element] <: Iterable[Element]](n: Int)(
+  def collectParN[A, B, Collection[+Element] <: Iterable[Element]](n: => Int)(
     in: Collection[A]
   )(f: A => IO[Option[Throwable], B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): Task[Collection[B]] =
     ZIO.collectParN(n)(in)(f)
@@ -670,7 +670,7 @@ object Task extends TaskPlatformSpecific {
    * @see See [[zio.ZIO.foreachExec]]
    */
   final def foreachExec[A, B, Collection[+Element] <: Iterable[Element]](as: Collection[A])(
-    exec: ExecutionStrategy
+    exec: => ExecutionStrategy
   )(f: A => Task[B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): Task[Collection[B]] =
     ZIO.foreachExec(as)(exec)(f)
 
@@ -851,7 +851,7 @@ object Task extends TaskPlatformSpecific {
    * @see [[zio.ZIO.ifM]]
    */
   @deprecated("use ifZIO", "2.0.0")
-  def ifM(b: Task[Boolean]): ZIO.IfZIO[Any, Throwable] =
+  def ifM(b: => Task[Boolean]): ZIO.IfZIO[Any, Throwable] =
     ZIO.ifM(b)
 
   /**

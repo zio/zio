@@ -354,7 +354,7 @@ object RIO {
   /**
    * @see See [[zio.ZIO.collectAllWithParN]]
    */
-  def collectAllWithParN[R, A, B, Collection[+Element] <: Iterable[Element]](n: Int)(
+  def collectAllWithParN[R, A, B, Collection[+Element] <: Iterable[Element]](n: => Int)(
     as: Collection[RIO[R, A]]
   )(f: PartialFunction[A, B])(implicit bf: BuildFrom[Collection[RIO[R, A]], B, Collection[B]]): RIO[R, Collection[B]] =
     ZIO.collectAllWithParN(n)(as)(f)
@@ -376,7 +376,7 @@ object RIO {
   /**
    * @see See [[zio.ZIO.collectParN]]
    */
-  def collectParN[R, A, B, Collection[+Element] <: Iterable[Element]](n: Int)(in: Collection[A])(
+  def collectParN[R, A, B, Collection[+Element] <: Iterable[Element]](n: => Int)(in: Collection[A])(
     f: A => ZIO[R, Option[Throwable], B]
   )(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): RIO[R, Collection[B]] =
     ZIO.collectParN(n)(in)(f)
@@ -460,7 +460,7 @@ object RIO {
   @deprecated("use asyncInterrupt", "2.0.0")
   def effectAsyncInterrupt[R, A](
     register: (RIO[R, A] => Unit) => Either[Canceler[R], RIO[R, A]],
-    blockingOn: Fiber.Id = Fiber.Id.None
+    blockingOn: => Fiber.Id = Fiber.Id.None
   ): RIO[R, A] =
     ZIO.effectAsyncInterrupt(register, blockingOn)
 
@@ -475,7 +475,7 @@ object RIO {
    * @see See [[zio.ZIO.effectBlockingCancelable]]
    */
   @deprecated("use attemptBlockingCancelable", "2.0.0")
-  def effectBlockingCancelable[A](effect: => A)(cancel: UIO[Unit]): Task[A] =
+  def effectBlockingCancelable[A](effect: => A)(cancel: => UIO[Unit]): Task[A] =
     ZIO.effectBlockingCancelable(effect)(cancel)
 
   /**
@@ -695,7 +695,7 @@ object RIO {
    * @see See [[zio.ZIO.foreachExec]]
    */
   final def foreachExec[R, A, B, Collection[+Element] <: Iterable[Element]](as: Collection[A])(
-    exec: ExecutionStrategy
+    exec: => ExecutionStrategy
   )(f: A => RIO[R, B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): RIO[R, Collection[B]] =
     ZIO.foreachExec(as)(exec)(f)
 

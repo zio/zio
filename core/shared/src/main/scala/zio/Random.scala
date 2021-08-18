@@ -93,72 +93,96 @@ object Random extends Serializable {
   val live: Layer[Nothing, Has[Random]] =
     ZLayer.succeed(RandomLive)
 
-  private[zio] def nextDoubleBetweenWith(minInclusive: => Double, maxExclusive: => Double)(
+  private[zio] def nextDoubleBetweenWith(minInclusive0: => Double, maxExclusive0: => Double)(
     nextDouble: UIO[Double]
   ): UIO[Double] =
-    if (minInclusive >= maxExclusive)
-      UIO.die(new IllegalArgumentException("invalid bounds"))
-    else
-      nextDouble.map { n =>
-        val result = n * (maxExclusive - minInclusive) + minInclusive
-        if (result < maxExclusive) result
-        else Math.nextAfter(maxExclusive, Float.NegativeInfinity)
-      }
+    ZIO.suspendSucceed {
+      val minInclusive = minInclusive0
+      val maxExclusive = maxExclusive0
 
-  private[zio] def nextFloatBetweenWith(minInclusive: => Float, maxExclusive: => Float)(
+      if (minInclusive >= maxExclusive)
+        UIO.die(new IllegalArgumentException("invalid bounds"))
+      else
+        nextDouble.map { n =>
+          val result = n * (maxExclusive - minInclusive) + minInclusive
+          if (result < maxExclusive) result
+          else Math.nextAfter(maxExclusive, Float.NegativeInfinity)
+        }
+    }
+
+  private[zio] def nextFloatBetweenWith(minInclusive0: => Float, maxExclusive0: => Float)(
     nextFloat: UIO[Float]
   ): UIO[Float] =
-    if (minInclusive >= maxExclusive)
-      UIO.die(new IllegalArgumentException("invalid bounds"))
-    else
-      nextFloat.map { n =>
-        val result = n * (maxExclusive - minInclusive) + minInclusive
-        if (result < maxExclusive) result
-        else Math.nextAfter(maxExclusive, Float.NegativeInfinity)
-      }
+    ZIO.suspendSucceed {
+      val minInclusive = minInclusive0
+      val maxExclusive = maxExclusive0
+
+      if (minInclusive >= maxExclusive)
+        UIO.die(new IllegalArgumentException("invalid bounds"))
+      else
+        nextFloat.map { n =>
+          val result = n * (maxExclusive - minInclusive) + minInclusive
+          if (result < maxExclusive) result
+          else Math.nextAfter(maxExclusive, Float.NegativeInfinity)
+        }
+    }
 
   private[zio] def nextIntBetweenWith(
-    minInclusive: => Int,
-    maxExclusive: => Int
-  )(nextInt: => UIO[Int], nextIntBounded: Int => UIO[Int]): UIO[Int] =
-    if (minInclusive >= maxExclusive) {
-      UIO.die(new IllegalArgumentException("invalid bounds"))
-    } else {
-      val difference = maxExclusive - minInclusive
-      if (difference > 0) nextIntBounded(difference).map(_ + minInclusive)
-      else nextInt.repeatUntil(n => minInclusive <= n && n < maxExclusive)
+    minInclusive0: => Int,
+    maxExclusive0: => Int
+  )(nextInt: UIO[Int], nextIntBounded: Int => UIO[Int]): UIO[Int] =
+    ZIO.suspendSucceed {
+      val minInclusive = minInclusive0
+      val maxExclusive = maxExclusive0
+
+      if (minInclusive >= maxExclusive) {
+        UIO.die(new IllegalArgumentException("invalid bounds"))
+      } else {
+        val difference = maxExclusive - minInclusive
+        if (difference > 0) nextIntBounded(difference).map(_ + minInclusive)
+        else nextInt.repeatUntil(n => minInclusive <= n && n < maxExclusive)
+      }
     }
 
   private[zio] def nextLongBetweenWith(
-    minInclusive: => Long,
-    maxExclusive: => Long
+    minInclusive0: => Long,
+    maxExclusive0: => Long
   )(nextLong: UIO[Long], nextLongBounded: Long => UIO[Long]): UIO[Long] =
-    if (minInclusive >= maxExclusive)
-      UIO.die(new IllegalArgumentException("invalid bounds"))
-    else {
-      val difference = maxExclusive - minInclusive
-      if (difference > 0) nextLongBounded(difference).map(_ + minInclusive)
-      else nextLong.repeatUntil(n => minInclusive <= n && n < maxExclusive)
+    ZIO.suspendSucceed {
+      val minInclusive = minInclusive0
+      val maxExclusive = maxExclusive0
+
+      if (minInclusive >= maxExclusive)
+        UIO.die(new IllegalArgumentException("invalid bounds"))
+      else {
+        val difference = maxExclusive - minInclusive
+        if (difference > 0) nextLongBounded(difference).map(_ + minInclusive)
+        else nextLong.repeatUntil(n => minInclusive <= n && n < maxExclusive)
+      }
     }
 
-  private[zio] def nextLongBoundedWith(n: => Long)(nextLong: => UIO[Long]): UIO[Long] =
-    if (n <= 0)
-      UIO.die(new IllegalArgumentException("n must be positive"))
-    else {
-      nextLong.flatMap { r =>
-        val m = n - 1
-        if ((n & m) == 0L)
-          UIO.succeedNow(r & m)
-        else {
-          def loop(u: Long): UIO[Long] =
-            if (u + m - u % m < 0L) nextLong.flatMap(r => loop(r >>> 1))
-            else UIO.succeedNow(u % n)
-          loop(r >>> 1)
+  private[zio] def nextLongBoundedWith(n0: => Long)(nextLong: => UIO[Long]): UIO[Long] =
+    ZIO.suspendSucceed {
+      val n = n0
+
+      if (n <= 0)
+        UIO.die(new IllegalArgumentException("n must be positive"))
+      else {
+        nextLong.flatMap { r =>
+          val m = n - 1
+          if ((n & m) == 0L)
+            UIO.succeedNow(r & m)
+          else {
+            def loop(u: Long): UIO[Long] =
+              if (u + m - u % m < 0L) nextLong.flatMap(r => loop(r >>> 1))
+              else UIO.succeedNow(u % n)
+            loop(r >>> 1)
+          }
         }
       }
     }
 
-  private[zio] def nextUUIDWith(nextLong: => UIO[Long]): UIO[UUID] =
+  private[zio] def nextUUIDWith(nextLong: UIO[Long]): UIO[UUID] =
     for {
       mostSigBits  <- nextLong
       leastSigBits <- nextLong
@@ -169,25 +193,29 @@ object Random extends Serializable {
 
   private[zio] def shuffleWith[A, Collection[+Element] <: Iterable[Element]](
     nextIntBounded: Int => UIO[Int],
-    collection: => Collection[A]
+    collection0: => Collection[A]
   )(implicit bf: BuildFrom[Collection[A], A, Collection[A]]): UIO[Collection[A]] =
-    for {
-      buffer <- ZIO.succeed {
-                  val buffer = new scala.collection.mutable.ArrayBuffer[A]
-                  buffer ++= collection
-                }
-      swap = (i1: Int, i2: Int) =>
-               ZIO.succeed {
-                 val tmp = buffer(i1)
-                 buffer(i1) = buffer(i2)
-                 buffer(i2) = tmp
-                 buffer
-               }
-      _ <-
-        ZIO.foreachDiscard((collection.size to 2 by -1).toList)((n: Int) =>
-          nextIntBounded(n).flatMap(k => swap(n - 1, k))
-        )
-    } yield bf.fromSpecific(collection)(buffer)
+    ZIO.suspendSucceed {
+      val collection = collection0
+
+      for {
+        buffer <- ZIO.succeed {
+                    val buffer = new scala.collection.mutable.ArrayBuffer[A]
+                    buffer ++= collection
+                  }
+        swap = (i1: Int, i2: Int) =>
+                 ZIO.succeed {
+                   val tmp = buffer(i1)
+                   buffer(i1) = buffer(i2)
+                   buffer(i2) = tmp
+                   buffer
+                 }
+        _ <-
+          ZIO.foreachDiscard((collection.size to 2 by -1).toList)((n: Int) =>
+            nextIntBounded(n).flatMap(k => swap(n - 1, k))
+          )
+      } yield bf.fromSpecific(collection)(buffer)
+    }
 
   // Accessor Methods
 

@@ -621,7 +621,7 @@ object URIO {
    * @see See [[zio.ZIO.foreachExec]]
    */
   final def foreachExec[R, A, B, Collection[+Element] <: Iterable[Element]](as: Collection[A])(
-    exec: ExecutionStrategy
+    exec: => ExecutionStrategy
   )(f: A => URIO[R, B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): URIO[R, Collection[B]] =
     ZIO.foreachExec(as)(exec)(f)
 
@@ -852,7 +852,7 @@ object URIO {
   /**
    * @see [[zio.ZIO.lock]]
    */
-  def lock[R, A](executor: => Executor)(taskr: URIO[R, A]): URIO[R, A] =
+  def lock[R, A](executor: => Executor)(taskr: => URIO[R, A]): URIO[R, A] =
     ZIO.lock(executor)(taskr)
 
   /**
@@ -993,7 +993,7 @@ object URIO {
   /**
    * @see [[zio.ZIO.replicate]]
    */
-  def replicate[R, A](n: Int)(effect: => URIO[R, A]): Iterable[URIO[R, A]] =
+  def replicate[R, A](n: => Int)(effect: => URIO[R, A]): Iterable[URIO[R, A]] =
     ZIO.replicate(n)(effect)
 
   /**

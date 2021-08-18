@@ -33,8 +33,8 @@ object IO {
   /**
    * @see See acquireReleaseWith [[zio.ZIO]]
    */
-  def acquireReleaseWith[E, A](acquire: => IO[E, A]): BracketAcquire[E, A] =
-    new BracketAcquire(acquire)
+  def acquireReleaseWith[E, A](acquire: => IO[E, A]): ZIO.BracketAcquire[Any, E, A] =
+    ZIO.acquireReleaseWith(acquire)
 
   /**
    * @see See acquireReleaseWith [[zio.ZIO]]
@@ -145,7 +145,7 @@ object IO {
    * @see See bracket [[zio.ZIO]]
    */
   @deprecated("use acquireReleaseWith", "2.0.0")
-  def bracket[E, A](acquire: => IO[E, A]): BracketAcquire[E, A] =
+  def bracket[E, A](acquire: => IO[E, A]): ZIO.BracketAcquire[Any, E, A] =
     acquireReleaseWith(acquire)
 
   /**
@@ -223,7 +223,7 @@ object IO {
    * @see See [[zio.ZIO.collectAll_]]
    */
   @deprecated("use collectAllDiscard", "2.0.0")
-  def collectAll_[E, A](in: Iterable[IO[E, A]]): IO[E, Unit] =
+  def collectAll_[E, A](in: => Iterable[IO[E, A]]): IO[E, Unit] =
     ZIO.collectAll_(in)
 
   /**
@@ -320,7 +320,7 @@ object IO {
    * @see See [[zio.ZIO.collectAllWith]]
    */
   def collectAllWith[E, A, B, Collection[+Element] <: Iterable[Element]](
-    in: => Collection[IO[E, A]]
+    in: Collection[IO[E, A]]
   )(f: PartialFunction[A, B])(implicit bf: BuildFrom[Collection[IO[E, A]], B, Collection[B]]): IO[E, Collection[B]] =
     ZIO.collectAllWith(in)(f)
 
@@ -335,7 +335,7 @@ object IO {
   /**
    * @see See [[zio.ZIO.collectAllWithParN]]
    */
-  def collectAllWithParN[E, A, B, Collection[+Element] <: Iterable[Element]](n: Int)(
+  def collectAllWithParN[E, A, B, Collection[+Element] <: Iterable[Element]](n: => Int)(
     as: Collection[IO[E, A]]
   )(f: PartialFunction[A, B])(implicit bf: BuildFrom[Collection[IO[E, A]], B, Collection[B]]): IO[E, Collection[B]] =
     ZIO.collectAllWithParN(n)(as)(f)
@@ -357,7 +357,7 @@ object IO {
   /**
    * @see See [[zio.ZIO.collectParN]]
    */
-  def collectParN[E, A, B, Collection[+Element] <: Iterable[Element]](n: Int)(
+  def collectParN[E, A, B, Collection[+Element] <: Iterable[Element]](n: => Int)(
     in: Collection[A]
   )(f: A => IO[Option[E], B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): IO[E, Collection[B]] =
     ZIO.collectParN(n)(in)(f)
@@ -675,7 +675,7 @@ object IO {
    * @see See [[zio.ZIO.foreachExec]]
    */
   final def foreachExec[E, A, B, Collection[+Element] <: Iterable[Element]](as: Collection[A])(
-    exec: ExecutionStrategy
+    exec: => ExecutionStrategy
   )(f: A => IO[E, B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): IO[E, Collection[B]] =
     ZIO.foreachExec(as)(exec)(f)
 
@@ -716,7 +716,7 @@ object IO {
   /**
    * @see See [[zio.ZIO.foreachParN]]
    */
-  def foreachParN[E, A, B, Collection[+Element] <: Iterable[Element]](n: Int)(
+  def foreachParN[E, A, B, Collection[+Element] <: Iterable[Element]](n: => Int)(
     as: Collection[A]
   )(fn: A => IO[E, B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): IO[E, Collection[B]] =
     ZIO.foreachParN(n)(as)(fn)
@@ -751,7 +751,7 @@ object IO {
    * @see See [[zio.ZIO.foreachParN_]]
    */
   @deprecated("use foreachParNDiscard", "2.0.0")
-  def foreachParN_[E, A, B](n: Int)(as: => Iterable[A])(f: A => IO[E, Any]): IO[E, Unit] =
+  def foreachParN_[E, A, B](n: => Int)(as: => Iterable[A])(f: A => IO[E, Any]): IO[E, Unit] =
     ZIO.foreachParN_(n)(as)(f)
 
   /**
@@ -910,7 +910,7 @@ object IO {
   /**
    * @see See [[zio.ZIO.lock]]
    */
-  def lock[E, A](executor: => Executor)(io: IO[E, A]): IO[E, A] =
+  def lock[E, A](executor: => Executor)(io: => IO[E, A]): IO[E, A] =
     ZIO.lock(executor)(io)
 
   /**
@@ -966,7 +966,7 @@ object IO {
    *  @see [[zio.ZIO.mapParN[R,E,A,B,C,D]*]]
    */
   @deprecated("use zipPar", "2.0.0")
-  def mapParN[E, A, B, C, D](io1: => IO[E, A], io2: IO[E, B], io3: IO[E, C])(f: (A, B, C) => D): IO[E, D] =
+  def mapParN[E, A, B, C, D](io1: => IO[E, A], io2: => IO[E, B], io3: => IO[E, C])(f: (A, B, C) => D): IO[E, D] =
     ZIO.mapParN(io1, io2, io3)(f)
 
   /**
@@ -1345,24 +1345,6 @@ object IO {
    */
   val yieldNow: UIO[Unit] =
     ZIO.yieldNow
-
-  class BracketAcquire_[E](private val acquire: IO[E, Any]) extends AnyVal {
-    def apply(release: => IO[Nothing, Any]): BracketRelease_[E] =
-      new BracketRelease_(acquire, release)
-  }
-  class BracketRelease_[E](acquire: IO[E, Any], release: IO[Nothing, Any]) {
-    def apply[E1 >: E, B](use: => IO[E1, B]): IO[E1, B] =
-      ZIO.acquireReleaseWith(acquire, (_: Any) => release, (_: Any) => use)
-  }
-
-  class BracketAcquire[E, A](private val acquire: IO[E, A]) extends AnyVal {
-    def apply(release: A => IO[Nothing, Any]): BracketRelease[E, A] =
-      new BracketRelease[E, A](acquire, release)
-  }
-  class BracketRelease[E, A](acquire: IO[E, A], release: A => IO[Nothing, Any]) {
-    def apply[E1 >: E, B](use: A => IO[E1, B]): IO[E1, B] =
-      ZIO.acquireReleaseWith(acquire, release, use)
-  }
 
   private[zio] def succeedNow[A](a: A): UIO[A] =
     ZIO.succeedNow(a)

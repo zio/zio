@@ -283,7 +283,7 @@ object UIO {
    * @see See [[zio.ZIO.collectAllSuccessesParN]]
    */
   def collectAllSuccessesParN[A, Collection[+Element] <: Iterable[Element]](
-    n: Int
+    n: => Int
   )(as: Collection[UIO[A]])(implicit bf: BuildFrom[Collection[UIO[A]], A, Collection[A]]): UIO[Collection[A]] =
     ZIO.collectAllSuccessesParN(n)(as)
 
@@ -306,7 +306,7 @@ object UIO {
   /**
    * @see See [[zio.ZIO.collectAllWithParN]]
    */
-  def collectAllWithParN[A, B, Collection[+Element] <: Iterable[Element]](n: Int)(
+  def collectAllWithParN[A, B, Collection[+Element] <: Iterable[Element]](n: => Int)(
     as: Collection[UIO[A]]
   )(f: PartialFunction[A, B])(implicit bf: BuildFrom[Collection[UIO[A]], B, Collection[B]]): UIO[Collection[B]] =
     ZIO.collectAllWithParN(n)(as)(f)
@@ -618,7 +618,7 @@ object UIO {
    * @see See [[zio.ZIO.foreachExec]]
    */
   final def foreachExec[A, B, Collection[+Element] <: Iterable[Element]](as: Collection[A])(
-    exec: ExecutionStrategy
+    exec: => ExecutionStrategy
   )(f: A => UIO[B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): UIO[Collection[B]] =
     ZIO.foreachExec(as)(exec)(f)
 
@@ -789,7 +789,7 @@ object UIO {
   /**
    * @see See [[zio.ZIO.lock]]
    */
-  def lock[A](executor: => Executor)(uio: UIO[A]): UIO[A] =
+  def lock[A](executor: => Executor)(uio: => UIO[A]): UIO[A] =
     ZIO.lock(executor)(uio)
 
   /**

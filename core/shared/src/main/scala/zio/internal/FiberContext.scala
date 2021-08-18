@@ -273,8 +273,9 @@ private[zio] final class FiberContext[E, A](
 
     val raceIndicator = new AtomicBoolean(true)
 
-    val left  = fork[EL, A](race.left.asInstanceOf[IO[EL, A]], race.scope, noop)
-    val right = fork[ER, B](race.right.asInstanceOf[IO[ER, B]], race.scope, noop)
+    val scope = race.scope()
+    val left  = fork[EL, A](race.left().asInstanceOf[IO[EL, A]], scope, noop)
+    val right = fork[ER, B](race.right().asInstanceOf[IO[ER, B]], scope, noop)
 
     ZIO
       .async[R, E, C](
@@ -496,7 +497,7 @@ private[zio] final class FiberContext[E, A](
                   case ZIO.Tags.InterruptStatus =>
                     val zio = curZio.asInstanceOf[ZIO.InterruptStatus[Any, Any, Any]]
 
-                    val boolFlag = zio.flag.toBoolean
+                    val boolFlag = zio.flag().toBoolean
 
                     if (interruptStatus.peekOrElse(true) != boolFlag) {
                       interruptStatus.push(boolFlag)
@@ -515,7 +516,7 @@ private[zio] final class FiberContext[E, A](
                     val zio = curZio.asInstanceOf[ZIO.TracingStatus[Any, E, Any]]
 
                     if (tracingStatus ne null) {
-                      tracingStatus.push(zio.flag.toBoolean)
+                      tracingStatus.push(zio.flag().toBoolean)
                       // do not add TracingRegionExit to the stack trace
                       stack.push(TracingRegionExit)
                     }
@@ -534,7 +535,7 @@ private[zio] final class FiberContext[E, A](
                     asyncEpoch = epoch + 1
 
                     // Enter suspended state:
-                    enterAsync(epoch, zio.register, zio.blockingOn)
+                    enterAsync(epoch, zio.register, zio.blockingOn())
 
                     val k = zio.register
 
@@ -556,7 +557,7 @@ private[zio] final class FiberContext[E, A](
                   case ZIO.Tags.Fork =>
                     val zio = curZio.asInstanceOf[ZIO.Fork[Any, Any, Any]]
 
-                    curZio = nextInstr(fork(zio.value, zio.scope, zio.reportFailure))
+                    curZio = nextInstr(fork(zio.value, zio.scope(), zio.reportFailure))
 
                   case ZIO.Tags.Descriptor =>
                     val zio = curZio.asInstanceOf[ZIO.Descriptor[Any, Any, Any]]
@@ -569,7 +570,7 @@ private[zio] final class FiberContext[E, A](
                   case ZIO.Tags.Shift =>
                     val zio = curZio.asInstanceOf[ZIO.Shift]
 
-                    val executor = zio.executor
+                    val executor = zio.executor()
 
                     if (executor eq null) {
                       currentLocked = false
@@ -597,7 +598,7 @@ private[zio] final class FiberContext[E, A](
 
                     val oldEnvironment = currentEnvironment
 
-                    currentEnvironment = zio.r.asInstanceOf[AnyRef]
+                    currentEnvironment = zio.r().asInstanceOf[AnyRef]
 
                     ensure(ZIO.succeed { currentEnvironment = oldEnvironment })
 
@@ -637,9 +638,9 @@ private[zio] final class FiberContext[E, A](
                     val zio = curZio.asInstanceOf[ZIO.Supervise[Any, Any, Any]]
 
                     val oldSupervisor = currentSupervisor
-                    val newSupervisor = zio.supervisor ++ oldSupervisor
+                    val newSupervisor = zio.supervisor()
 
-                    currentSupervisor = newSupervisor
+                    currentSupervisor = newSupervisor ++ oldSupervisor
 
                     ensure(ZIO.succeed { currentSupervisor = oldSupervisor })
 
@@ -655,7 +656,7 @@ private[zio] final class FiberContext[E, A](
 
                     val oldForkScopeOverride = currentForkScopeOverride
 
-                    currentForkScopeOverride = zio.forkScope
+                    currentForkScopeOverride = zio.forkScope()
 
                     ensure(ZIO.succeed { currentForkScopeOverride = oldForkScopeOverride })
 
@@ -664,7 +665,7 @@ private[zio] final class FiberContext[E, A](
                   case ZIO.Tags.Ensuring =>
                     val zio = curZio.asInstanceOf[ZIO.Ensuring[Any, Any, Any]]
 
-                    ensure(zio.finalizer)
+                    ensure(zio.finalizer())
 
                     curZio = zio.zio
                 }

@@ -71,25 +71,30 @@ trait Clock extends Serializable {
     repeatOrElseEither[R, R1, E, E2, A, B, B](zio)(schedule, orElse).map(_.merge)
 
   final def repeatOrElseEither[R, R1 <: R, E, E2, A, B, C](
-    zio: => ZIO[R, E, A]
-  )(schedule: => Schedule[R1, A, B], orElse: (E, Option[B]) => ZIO[R1, E2, C]): ZIO[R1, E2, Either[C, B]] =
-    driver(schedule).flatMap { driver =>
-      def loop(a: A): ZIO[R1, E2, Either[C, B]] =
-        driver
-          .next(a)
-          .foldZIO(
-            _ => driver.last.orDie.map(Right(_)),
-            b =>
-              zio.foldZIO(
-                e => orElse(e, Some(b)).map(Left(_)),
-                a => loop(a)
-              )
-          )
+    zio0: => ZIO[R, E, A]
+  )(schedule0: => Schedule[R1, A, B], orElse: (E, Option[B]) => ZIO[R1, E2, C]): ZIO[R1, E2, Either[C, B]] =
+    ZIO.suspendSucceed {
+      val zio      = zio0
+      val schedule = schedule0
 
-      zio.foldZIO(
-        e => orElse(e, None).map(Left(_)),
-        a => loop(a)
-      )
+      driver(schedule).flatMap { driver =>
+        def loop(a: A): ZIO[R1, E2, Either[C, B]] =
+          driver
+            .next(a)
+            .foldZIO(
+              _ => driver.last.orDie.map(Right(_)),
+              b =>
+                zio.foldZIO(
+                  e => orElse(e, Some(b)).map(Left(_)),
+                  a => loop(a)
+                )
+            )
+
+        zio.foldZIO(
+          e => orElse(e, None).map(Left(_)),
+          a => loop(a)
+        )
+      }
     }
 
   final def retry[R, R1 <: R, E, A, S](zio: => ZIO[R, E, A])(policy: Schedule[R1, E, S])(implicit
@@ -103,36 +108,45 @@ trait Clock extends Serializable {
     retryOrElseEither(zio)(policy, orElse).map(_.merge)
 
   final def retryOrElseEither[R, R1 <: R, E, E1, A, B, Out](
-    zio: => ZIO[R, E, A]
-  )(schedule: => Schedule[R1, E, Out], orElse: (E, Out) => ZIO[R1, E1, B])(implicit
+    zio0: => ZIO[R, E, A]
+  )(schedule0: => Schedule[R1, E, Out], orElse: (E, Out) => ZIO[R1, E1, B])(implicit
     ev: CanFail[E]
-  ): ZIO[R1, E1, Either[B, A]] = {
-    def loop(driver: Schedule.Driver[Any, R1, E, Out]): ZIO[R1, E1, Either[B, A]] =
-      zio
-        .map(Right(_))
-        .catchAll(e =>
-          driver
-            .next(e)
-            .foldZIO(
-              _ => driver.last.orDie.flatMap(out => orElse(e, out).map(Left(_))),
-              _ => loop(driver)
-            )
-        )
+  ): ZIO[R1, E1, Either[B, A]] =
+    ZIO.suspendSucceed {
+      val zio      = zio0
+      val schedule = schedule0
 
-    driver(schedule).flatMap(loop(_))
-  }
+      def loop(driver: Schedule.Driver[Any, R1, E, Out]): ZIO[R1, E1, Either[B, A]] =
+        zio
+          .map(Right(_))
+          .catchAll(e =>
+            driver
+              .next(e)
+              .foldZIO(
+                _ => driver.last.orDie.flatMap(out => orElse(e, out).map(Left(_))),
+                _ => loop(driver)
+              )
+          )
+
+      driver(schedule).flatMap(loop(_))
+    }
 
   final def schedule[R, R1 <: R, E, A, B](zio: => ZIO[R, E, A])(schedule: => Schedule[R1, Any, B]): ZIO[R1, E, B] =
     scheduleFrom[R, R1, E, A, Any, B](zio)(())(schedule)
 
   final def scheduleFrom[R, R1 <: R, E, A, A1 >: A, B](
-    zio: => ZIO[R, E, A]
-  )(a: => A1)(schedule: Schedule[R1, A1, B]): ZIO[R1, E, B] =
-    driver(schedule).flatMap { driver =>
-      def loop(a: A1): ZIO[R1, E, B] =
-        driver.next(a).foldZIO(_ => driver.last.orDie, _ => zio.flatMap(loop))
+    zio0: => ZIO[R, E, A]
+  )(a: => A1)(schedule0: => Schedule[R1, A1, B]): ZIO[R1, E, B] =
+    ZIO.suspendSucceed {
+      val zio      = zio0
+      val schedule = schedule0
 
-      loop(a)
+      driver(schedule).flatMap { driver =>
+        def loop(a: A1): ZIO[R1, E, B] =
+          driver.next(a).foldZIO(_ => driver.last.orDie, _ => zio.flatMap(loop))
+
+        loop(a)
+      }
     }
 }
 
@@ -145,17 +159,21 @@ object Clock extends ClockPlatformSpecific with Serializable {
     ZLayer.succeed(ClockLive)
 
   object ClockLive extends Clock {
-    def currentTime(unit: => TimeUnit): UIO[Long] =
-      instant.map { inst =>
-        // A nicer solution without loss of precision or range would be
-        // unit.toChronoUnit.between(Instant.EPOCH, inst)
-        // However, ChronoUnit is not available on all platforms
-        unit match {
-          case TimeUnit.NANOSECONDS =>
-            inst.getEpochSecond() * 1000000000 + inst.getNano()
-          case TimeUnit.MICROSECONDS =>
-            inst.getEpochSecond() * 1000000 + inst.getNano() / 1000
-          case _ => unit.convert(inst.toEpochMilli(), TimeUnit.MILLISECONDS)
+    def currentTime(unit0: => TimeUnit): UIO[Long] =
+      ZIO.suspendSucceed {
+        val unit = unit0
+
+        instant.map { inst =>
+          // A nicer solution without loss of precision or range would be
+          // unit.toChronoUnit.between(Instant.EPOCH, inst)
+          // However, ChronoUnit is not available on all platforms
+          unit match {
+            case TimeUnit.NANOSECONDS =>
+              inst.getEpochSecond() * 1000000000 + inst.getNano()
+            case TimeUnit.MICROSECONDS =>
+              inst.getEpochSecond() * 1000000 + inst.getNano() / 1000
+            case _ => unit.convert(inst.toEpochMilli(), TimeUnit.MILLISECONDS)
+          }
         }
       }
 
