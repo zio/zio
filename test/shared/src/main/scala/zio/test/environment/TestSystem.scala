@@ -36,11 +36,11 @@ import zio.{Has, IO, Layer, Ref, System, UIO, URIO, ZIO, ZLayer}
  * }}}
  */
 trait TestSystem extends Restorable {
-  def putEnv(name: => String, value: => String): UIO[Unit]
-  def putProperty(name: => String, value: => String): UIO[Unit]
-  def setLineSeparator(lineSep: => String): UIO[Unit]
-  def clearEnv(variable: => String): UIO[Unit]
-  def clearProperty(prop: => String): UIO[Unit]
+  def putEnv(name: String, value: String): UIO[Unit]
+  def putProperty(name: String, value: String): UIO[Unit]
+  def setLineSeparator(lineSep: String): UIO[Unit]
+  def clearEnv(variable: String): UIO[Unit]
+  def clearProperty(prop: String): UIO[Unit]
 }
 
 object TestSystem extends Serializable {
@@ -103,33 +103,33 @@ object TestSystem extends Serializable {
      * Adds the specified name and value to the mapping of environment
      * variables maintained by this `TestSystem`.
      */
-    def putEnv(name: => String, value: => String): UIO[Unit] =
+    def putEnv(name: String, value: String): UIO[Unit] =
       systemState.update(data => data.copy(envs = data.envs.updated(name, value)))
 
     /**
      * Adds the specified name and value to the mapping of system properties
      * maintained by this `TestSystem`.
      */
-    def putProperty(name: => String, value: => String): UIO[Unit] =
+    def putProperty(name: String, value: String): UIO[Unit] =
       systemState.update(data => data.copy(properties = data.properties.updated(name, value)))
 
     /**
      * Sets the system line separator maintained by this `TestSystem` to the
      * specified value.
      */
-    def setLineSeparator(lineSep: => String): UIO[Unit] =
+    def setLineSeparator(lineSep: String): UIO[Unit] =
       systemState.update(_.copy(lineSeparator = lineSep))
 
     /**
      * Clears the mapping of environment variables.
      */
-    def clearEnv(variable: => String): UIO[Unit] =
+    def clearEnv(variable: String): UIO[Unit] =
       systemState.update(data => data.copy(envs = data.envs - variable))
 
     /**
      * Clears the mapping of system properties.
      */
-    def clearProperty(prop: => String): UIO[Unit] =
+    def clearProperty(prop: String): UIO[Unit] =
       systemState.update(data => data.copy(properties = data.properties - prop))
 
     /**
