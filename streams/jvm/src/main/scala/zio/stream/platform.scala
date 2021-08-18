@@ -283,7 +283,7 @@ trait ZStreamPlatformSpecificConstructors {
       ZManaged
         .attempt(iterator)
         .fold(
-          Pull.fail(_),
+          Pull.fail,
           iterator =>
             ZIO.suspendSucceed {
               if (maxChunkSize <= 1) {

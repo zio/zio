@@ -583,7 +583,7 @@ object ZChannelSpec extends ZIOBaseSpec {
                 ZChannel
                   .fromZIO(ZIO.environment[Int].map(m => (n, m)))
                   .provide(200)
-                  .flatMap(ZChannel.write(_))
+                  .flatMap(ZChannel.write)
               )
               .provide(100))
               .runCollect

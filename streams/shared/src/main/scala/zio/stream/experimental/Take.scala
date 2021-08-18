@@ -127,7 +127,7 @@ object Take {
    * Error from stream when pulling is converted to `Take.halt`. Creates a singleton chunk.
    */
   @deprecated("use fromZIO", "2.0.0")
-  def fromEffect[R, E, A](zio: => ZIO[R, E, A]): URIO[R, Take[E, A]] =
+  def fromEffect[R, E, A](zio: ZIO[R, E, A]): URIO[R, Take[E, A]] =
     fromZIO(zio)
 
   /**
@@ -135,7 +135,7 @@ object Take {
    * the `Take[E, A]`. Error from stream when pulling is converted to
    * `Take.failCause`. Creates a singleton chunk.
    */
-  def fromZIO[R, E, A](zio: => ZIO[R, E, A]): URIO[R, Take[E, A]] =
+  def fromZIO[R, E, A](zio: ZIO[R, E, A]): URIO[R, Take[E, A]] =
     zio.foldCause(failCause, single)
 
   /**
@@ -143,7 +143,7 @@ object Take {
    * the `Take[E, A]`. Error from stream when pulling is converted to
    * `Take.failCause`, end of stream to `Take.end`.
    */
-  def fromPull[R, E, A](pull: => ZStream.Pull[R, E, A]): URIO[R, Take[E, A]] =
+  def fromPull[R, E, A](pull: ZStream.Pull[R, E, A]): URIO[R, Take[E, A]] =
     pull.foldCause(Cause.flipCauseOption(_).fold[Take[E, Nothing]](end)(failCause), chunk)
 
   /**
