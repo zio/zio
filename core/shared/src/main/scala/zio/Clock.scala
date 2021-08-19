@@ -141,8 +141,46 @@ object Clock extends ClockPlatformSpecific with Serializable {
   val any: ZLayer[Has[Clock], Nothing, Has[Clock]] =
     ZLayer.service[Clock]
 
+  /**
+   * Constructs a `Clock` service from a `java.time.Clock`.
+   */
+  val javaClock: ZLayer[Has[java.time.Clock], Nothing, Has[Clock]] = {
+    for {
+      clock <- ZIO.service[java.time.Clock]
+    } yield ClockJava(clock)
+  }.toLayer
+
   val live: Layer[Nothing, Has[Clock]] =
     ZLayer.succeed(ClockLive)
+
+  /**
+   * An implementation of the `Clock` service backed by a `java.time.Clock`.
+   */
+  final case class ClockJava(clock: java.time.Clock) extends Clock {
+    def currentDateTime: UIO[OffsetDateTime] =
+      ZIO.succeed(OffsetDateTime.now(clock))
+    def currentTime(unit: TimeUnit): UIO[Long] =
+      instant.map { instant =>
+        unit match {
+          case TimeUnit.NANOSECONDS =>
+            instant.getEpochSecond * 1000000000 + instant.getNano
+          case TimeUnit.MICROSECONDS =>
+            instant.getEpochSecond * 1000000 + instant.getNano / 1000
+          case _ => unit.convert(instant.toEpochMilli, TimeUnit.MILLISECONDS)
+        }
+      }
+    def instant: UIO[Instant] =
+      ZIO.succeed(clock.instant())
+    def localDateTime: UIO[LocalDateTime] =
+      ZIO.succeed(LocalDateTime.now(clock))
+    def nanoTime: UIO[Long] =
+      currentTime(TimeUnit.NANOSECONDS)
+    def sleep(duration: Duration): UIO[Unit] =
+      ZIO.asyncInterrupt { cb =>
+        val canceler = globalScheduler.schedule(() => cb(UIO.unit), duration)
+        Left(UIO.succeed(canceler()))
+      }
+  }
 
   object ClockLive extends Clock {
     def currentTime(unit: TimeUnit): UIO[Long] =
