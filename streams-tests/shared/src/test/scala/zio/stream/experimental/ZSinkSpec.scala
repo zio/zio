@@ -541,14 +541,14 @@ object ZSinkSpec extends ZIOBaseSpec {
         //        })
         //      ),
         test("untilOutputZIO with head sink") {
-          val sink = ZSink.head[Nothing, Int].untilOutputZIO(h => ZIO.succeed(h.fold(false)(_ >= 10)))
+          val sink = ZSink.head[Nothing, Int].untilOutputZIO((h: Option[Int]) => ZIO.succeed(h.fold(false)(_ >= 10)))
           val assertions = ZIO.foreach(Chunk(1, 3, 7, 20)) { n =>
             assertM(ZStream.fromIterable(1 to 100).chunkN(n).run(sink))(equalTo(Some(Some(10))))
           }
           assertions.map(tst => tst.reduce(_ && _))
         },
         test("untilOutputZIO take sink across multiple chunks") {
-          val sink = ZSink.take[Nothing, Int](4).untilOutputZIO(s => ZIO.succeed(s.sum > 10))
+          val sink = ZSink.take[Nothing, Int](4).untilOutputZIO((s: Chunk[Int]) => ZIO.succeed(s.sum > 10))
 
           assertM(ZStream.fromIterable(1 to 8).chunkN(2).run(sink))(equalTo(Some(Chunk(5, 6, 7, 8))))
         },
