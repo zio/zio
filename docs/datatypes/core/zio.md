@@ -51,7 +51,6 @@ val readLine: ZIO[Has[Console], IOException, String] =
     + [Option](#option)
     + [Either](#either)
     + [Try](#try)
-    + [Function](#function)
     + [Future](#future)
     + [Promise](#promise)
     + [Fiber](#fiber)
