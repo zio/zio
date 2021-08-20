@@ -151,12 +151,20 @@ object UIO {
     ZIO.checkTraced(f)
 
   /**
-   * @see See [[zio.ZIO.collect]]
+   * @see See [[[zio.ZIO.collect[R,E,A,B,Collection[+Element]<:Iterable[Element]]*]]]
    */
   def collect[A, B, Collection[+Element] <: Iterable[Element]](
     in: Collection[A]
   )(f: A => IO[Option[Nothing], B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): UIO[Collection[B]] =
     ZIO.collect(in)(f)
+
+  /**
+   * @see See [[[zio.ZIO.collect[R,E,Key,Key2,Value,Value2](map:Map*]]]
+   */
+  def collect[Key, Key2, Value, Value2](
+    map: Map[Key, Value]
+  )(f: (Key, Value) => IO[Option[Nothing], (Key2, Value2)]): UIO[Map[Key2, Value2]] =
+    ZIO.collect(map)(f)
 
   /**
    * @see See [[[zio.ZIO.collectAll[R,E,A,Collection[+Element]<:Iterable[Element]]*]]]
@@ -318,12 +326,20 @@ object UIO {
     ZIO.collectFirst(as)(f)
 
   /**
-   * @see See [[zio.ZIO.collectPar]]
+   * @see See [[[zio.ZIO.collectPar[R,E,A,B,Collection[+Element]<:Iterable[Element]]*]]]
    */
   def collectPar[A, B, Collection[+Element] <: Iterable[Element]](
     in: Collection[A]
   )(f: A => IO[Option[Nothing], B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): UIO[Collection[B]] =
     ZIO.collectPar(in)(f)
+
+  /**
+   * @see See [[[zio.ZIO.collectPar[R,E,Key,Key2,Value,Value2](map:Map*]]]
+   */
+  def collectPar[Key, Key2, Value, Value2](
+    map: Map[Key, Value]
+  )(f: (Key, Value) => IO[Option[Nothing], (Key2, Value2)]): UIO[Map[Key2, Value2]] =
+    ZIO.collectPar(map)(f)
 
   /**
    * @see See [[zio.ZIO.collectParN]]
