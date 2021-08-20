@@ -4410,15 +4410,22 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * Creates a stream from an effect producing a value of type `A`, which is repeated using the
    * specified schedule.
    */
-  @deprecated("use repeatZIOWith", "2.0.0")
+  @deprecated("use repeatZIOWithSchedule", "2.0.0")
   def repeatEffectWith[R, E, A](effect: ZIO[R, E, A], schedule: Schedule[R, A, Any]): ZStream[R with Has[Clock], E, A] =
-    repeatZIOWith(effect, schedule)
+    repeatZIOWithSchedule(effect, schedule)
 
   /**
    * Repeats the value using the provided schedule.
    */
+  @deprecated("use repeatWithSchedule", "2.0.0")
   def repeatWith[R, A](a: => A, schedule: Schedule[R, A, _]): ZStream[R with Has[Clock], Nothing, A] =
-    repeatZIOWith(UIO.succeed(a), schedule)
+    repeatWithSchedule(a, schedule)
+
+  /**
+   * Repeats the value using the provided schedule.
+   */
+  def repeatWithSchedule[R, A](a: => A, schedule: Schedule[R, A, _]): ZStream[R with Has[Clock], Nothing, A] =
+    repeatZIOWithSchedule(UIO.succeed(a), schedule)
 
   /**
    * Creates a stream from an effect producing a value of type `A` which repeats forever.
@@ -4460,7 +4467,10 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * Creates a stream from an effect producing a value of type `A`, which is repeated using the
    * specified schedule.
    */
-  def repeatZIOWith[R, E, A](effect: ZIO[R, E, A], schedule: Schedule[R, A, Any]): ZStream[R with Has[Clock], E, A] =
+  def repeatZIOWithSchedule[R, E, A](
+    effect: ZIO[R, E, A],
+    schedule: Schedule[R, A, Any]
+  ): ZStream[R with Has[Clock], E, A] =
     ZStream.fromZIO(effect zip schedule.driver).flatMap { case (a, driver) =>
       ZStream.succeed(a) ++
         ZStream.unfoldZIO(a)(driver.next(_).foldZIO(ZIO.succeed(_), _ => effect.map(nextA => Some(nextA -> nextA))))
@@ -4510,7 +4520,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * A stream that emits Unit values spaced by the specified duration.
    */
   def tick(interval: Duration): ZStream[Has[Clock], Nothing, Unit] =
-    repeatWith((), Schedule.spaced(interval))
+    repeatWithSchedule((), Schedule.spaced(interval))
 
   /**
    * A stream that contains a single `Unit` value.

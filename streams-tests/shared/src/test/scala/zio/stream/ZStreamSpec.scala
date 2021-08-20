@@ -4156,12 +4156,12 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assert(result)(equalTo(1))
           }
         ),
-        suite("repeatEffectWith")(
+        suite("repeatZIOWithSchedule")(
           test("succeed")(
             for {
               ref <- Ref.make[List[Int]](Nil)
               fiber <- ZStream
-                         .repeatZIOWith(ref.update(1 :: _), Schedule.spaced(10.millis))
+                         .repeatZIOWithSchedule(ref.update(1 :: _), Schedule.spaced(10.millis))
                          .take(2)
                          .runDrain
                          .fork
@@ -4175,16 +4175,16 @@ object ZStreamSpec extends ZIOBaseSpec {
               ref     <- Ref.make(0)
               effect   = ref.getAndUpdate(_ + 1).filterOrFail(_ <= length + 1)(())
               schedule = Schedule.identity[Int].whileOutput(_ < length)
-              result  <- ZStream.repeatZIOWith(effect, schedule).runCollect
+              result  <- ZStream.repeatZIOWithSchedule(effect, schedule).runCollect
             } yield assert(result)(equalTo(Chunk.fromIterable(0 to length)))
           }),
           test("should perform repetitions in addition to the first execution (one repetition)") {
-            assertM(ZStream.repeatZIOWith(UIO(1), Schedule.once).runCollect)(
+            assertM(ZStream.repeatZIOWithSchedule(UIO(1), Schedule.once).runCollect)(
               equalTo(Chunk(1, 1))
             )
           },
           test("should perform repetitions in addition to the first execution (zero repetitions)") {
-            assertM(ZStream.repeatZIOWith(UIO(1), Schedule.stop).runCollect)(
+            assertM(ZStream.repeatZIOWithSchedule(UIO(1), Schedule.stop).runCollect)(
               equalTo(Chunk(1))
             )
           },
@@ -4196,7 +4196,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               effect     = ZIO.unit
               schedule   = Schedule.spaced(interval)
               streamFiber <- ZStream
-                               .repeatZIOWith(effect, schedule)
+                               .repeatZIOWithSchedule(effect, schedule)
                                .tap(_ => collected.update(_ + 1))
                                .runDrain
                                .fork
