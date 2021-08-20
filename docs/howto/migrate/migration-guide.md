@@ -69,7 +69,7 @@ case class LoggingLive(console: Console, clock: Clock) extends Logging {
 
 object LoggingLive {
   val layer: URLayer[Has[Console] with Has[Clock], Has[Logging]] =
-    (LoggingLive(_, _)).toLayer
+    (LoggingLive(_, _)).toLayer[Logging]
 }
 ```
 
@@ -151,28 +151,28 @@ case class DocRepoImpl(logging: Logging, database: Database, blobStorage: BlobSt
 
 object Logging {
   val live: URLayer[Has[Console], Has[Logging]] =
-    LoggerImpl.toLayer
+    LoggerImpl.toLayer[Logging]
 }
 
 object Database {
   val live: URLayer[Any, Has[Database]] =
-    DatabaseImp.toLayer
+    DatabaseImp.toLayer[Database]
 }
 
 object UserRepo {
   val live: URLayer[Has[Logging] with Has[Database], Has[UserRepo]] =
-    (UserRepoImpl(_, _)).toLayer
+    (UserRepoImpl(_, _)).toLayer[UserRepo]
 }
 
 
 object BlobStorage {
   val live: URLayer[Has[Logging], Has[BlobStorage]] =
-    BlobStorageImpl.toLayer
+    BlobStorageImpl.toLayer[BlobStorage]
 }
 
 object DocRepo {
   val live: URLayer[Has[Logging] with Has[Database] with Has[BlobStorage], Has[DocRepo]] =
-    (DocRepoImpl(_, _, _)).toLayer
+    (DocRepoImpl(_, _, _)).toLayer[DocRepo]
 }
   
 val myApp: ZIO[Has[DocRepo] with Has[UserRepo], Nothing, Unit] = ZIO.succeed(???)
