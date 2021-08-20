@@ -190,12 +190,19 @@ As the development of our application progress, the number of layers will grow, 
 
 For example, if we miss the `Logging.live` dependency, the compile-time error would be very messy:
 
+```scala
+myApp.provideLayer(
+  ((Database.live ++ BlobStorage.live) >>> DocRepo.live) ++
+    (Database.live >>> UserRepo.live)
+)
+```
+
 ```
 type mismatch;
  found   : zio.URLayer[zio.Has[Logging] with zio.Has[Database] with zio.Has[BlobStorage],zio.Has[DocRepo]]
     (which expands to)  zio.ZLayer[zio.Has[Logging] with zio.Has[Database] with zio.Has[BlobStorage],Nothing,zio.Has[DocRepo]]
- required: zio.ZLayer[zio.Has[zio.Console] with zio.Has[Database] with zio.Has[BlobStorage],?,?]
-    ((Console.live ++ Database.live ++ (Console.live >>> Logging.live >>> BlobStorage.live)) >>> DocRepo.live) ++
+ required: zio.ZLayer[zio.Has[Database] with zio.Has[BlobStorage],?,?]
+    ((Database.live ++ BlobStorage.live) >>> DocRepo.live) ++
 ```
 
 In ZIO 2.x, we can automatically construct layers with friendly compile-time hints, using `ZIO#inject` operator:
