@@ -541,7 +541,7 @@ object ZSinkSpec extends ZIOBaseSpec {
         //        })
         //      ),
         test("untilOutputZIO with head sink") {
-          val sink:  ZSink[Any, Nothing, Int, Nothing, Int, Option[Option[Int]]] =
+          val sink: ZSink[Any, Nothing, Int, Nothing, Int, Option[Option[Int]]] =
             ZSink.head[Nothing, Int].untilOutputZIO(h => ZIO.succeed(h.fold(false)(_ >= 10)))
           val assertions = ZIO.foreach(Chunk(1, 3, 7, 20)) { n =>
             assertM(ZStream.fromIterable(1 to 100).chunkN(n).run(sink))(equalTo(Some(Some(10))))
