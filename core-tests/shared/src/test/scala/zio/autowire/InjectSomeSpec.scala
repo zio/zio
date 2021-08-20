@@ -1,11 +1,10 @@
 package zio.autowire
 
 import zio._
-import zio.test.TestAspect._
 import zio.test._
 
 import java.io.IOException
-import zio.test.environment.Live
+import zio.test.environment.TestConsole
 
 // https://github.com/kitlangton/zio-magic/issues/91
 object InjectSomeSpec extends DefaultRunnableSpec {
@@ -37,12 +36,12 @@ object InjectSomeSpec extends DefaultRunnableSpec {
     for {
       service <- ZIO.service[TestService]
       _       <- service.somethingMagical(annotate)
-      _       <- ZIO.sleep(2.seconds)
+      _       <- ZIO.sleep(10.millis)
       _       <- Console.printLine(s"[$annotate] ...")
 
     } yield assertCompletes
 
-  def spec: ZSpec[Has[Console] with Has[Live], Any] =
+  def spec: ZSpec[Has[Console] with Has[TestConsole], Any] =
     suite("InjectSomeSpec")(
       test("basic") {
         testCase("basic").provideSomeLayer[Has[Console]](partial)
@@ -63,5 +62,5 @@ object InjectSomeSpec extends DefaultRunnableSpec {
       test("wireSome") {
         testCase("wireSome").provideSomeLayer[Has[Console]](partialLayer)
       }
-    ) @@ timeout(10.seconds)
+    ) @@ TestAspect.silent
 }
