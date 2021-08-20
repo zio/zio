@@ -347,13 +347,6 @@ TODO
 
 There are two significant changes in ZIO Services:
 
-| ZIO 1.x                  | ZIO 2.x                 |
-|--------------------------|-------------------------|
-| zio.Clock.Service.live   | zio.Clock.ClockLive     |
-| zio.Console.Service.live | zio.Console.ConsoleLive |
-| zio.System.Service.live  | zio.System.SystemLive   |
-| zio.Random.Service.live  | zio.Random.RandomLive   |
-
 1. All ZIO services moved to the `zio` package:
 
     | ZIO 1.x               | ZIO 2.x                       |
