@@ -369,7 +369,7 @@ There are two significant changes in ZIO Services:
 
 2. In ZIO 2.0 all type aliases like `type Logging = Has[Logging.Service]` removed. So we should explicitly use `Has` wrappers when we want to specify dependencies on ZIO services.
 
-So instead of writing `ZLayer[Console with Clock, Nothing, ConsoleLogger]`, we should write `ZLayer[Has[Console] with Has[Clock], Nothing, Has[ConsoleLogger]]`.
+So instead of writing `ZLayer[Console with Clock, Nothing, ConsoleLogger]`, we should write `ZLayer[Has[Console] with Has[Clock], Nothing, Has[ConsoleLogger]]`, or when accessing services instead of `ZIO.service[Console.Service]` we also now do `ZIO.service[Console]`.
 
 ### Blocking Service
 
