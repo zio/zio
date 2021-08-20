@@ -3651,17 +3651,16 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   def foreachPar[R, E, A, B, Collection[+Element] <: Iterable[Element]](
     as: Collection[A]
-  )(f: A => ZIO[R, E, B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZIO[R, E, Collection[B]] = {
-    val size = as.size
-    succeed(Array.ofDim[AnyRef](size)).flatMap { array =>
+  )(f: A => ZIO[R, E, B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZIO[R, E, Collection[B]] =
+    ZIO.suspendSucceed {
+      val array = Array.ofDim[AnyRef](as.size)
       val zioFunction: ZIOFn1[(A, Int), ZIO[R, E, Any]] =
         ZIOFn(f) { case (a, i) =>
-          f(a).flatMap(b => succeed(array(i) = b.asInstanceOf[AnyRef]))
+          f(a).flatMap(b => succeedNow(array(i) = b.asInstanceOf[AnyRef]))
         }
       foreachParDiscard(as.zipWithIndex)(zioFunction) *>
-        succeed(bf.newBuilder(as).++=(array.asInstanceOf[Array[B]]).result())
+        succeedNow(bf.fromSpecific(as)(array.asInstanceOf[Array[B]]))
     }
-  }
 
   /**
    * Applies the function `f` to each element of the `Set[A]` in parallel,
@@ -3741,58 +3740,37 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     if (as.isEmpty) ZIO.unit
     else {
       val size = as.size
-      for {
-        parentId <- ZIO.fiberId
-        causes   <- Ref.make[Cause[E]](Cause.empty)
-        result   <- Promise.make[Unit, Unit]
-        status   <- Ref.make((0, 0, false))
-
-        startTask = status.modify { case (started, done, failing) =>
-                      if (failing) {
-                        (false, (started, done, failing))
-                      } else {
-                        (true, (started + 1, done, failing))
-                      }
-                    }
-
-        startFailure = status.update { case (started, done, _) =>
-                         (started, done, true)
-                       } *> result.fail(())
-
-        task = ZIOFn(f)((a: A) =>
-                 ZIO
-                   .ifZIO(startTask)(
-                     ZIO
-                       .suspendSucceed(f(a))
-                       .interruptible
-                       .tapCause(c => causes.update(_ && c) *> startFailure)
-                       .ensuring {
-                         val isComplete = status.modify { case (started, done, failing) =>
-                           val newDone = done + 1
-                           ((if (failing) started else size) == newDone, (started, newDone, failing))
-                         }
-                         ZIO.whenZIO(isComplete) {
-                           result.succeed(())
-                         }
-                       },
-                     causes.update(_ && Cause.Interrupt(parentId))
-                   )
-                   .uninterruptible
-               )
-
-        fibers <- ZIO.transplant(graft => ZIO.foreach(as)(a => graft(task(a)).fork))
-        interrupter = result.await
-                        .catchAll(_ => ZIO.foreach(fibers)(_.interruptAs(parentId).fork).flatMap(Fiber.joinAll))
-                        .forkManaged
-        _ <- interrupter.useDiscard {
-               ZIO
-                 .whenZIO(ZIO.foreach(fibers)(_.await).map(_.exists(!_.succeeded))) {
-                   result.fail(()) *> causes.get.flatMap(ZIO.failCause(_))
-                 }
-                 .refailWithTrace
-             }
-        _ <- ZIO.foreach(fibers)(_.inheritRefs)
-      } yield ()
+      ZIO.uninterruptibleMask { restore =>
+        val promise = Promise.unsafeMake[Unit, Unit](Fiber.Id.None)
+        val ref     = new java.util.concurrent.atomic.AtomicInteger(0)
+        ZIO.transplant { graft =>
+          ZIO.foreach(as) { a =>
+            graft {
+              restore(ZIO.suspendSucceed(f(a))).foldCauseZIO(
+                cause => promise.fail(()) *> ZIO.failCause(cause),
+                _ =>
+                  if (ref.incrementAndGet == size) {
+                    promise.unsafeDone(ZIO.unit)
+                    ZIO.unit
+                  } else {
+                    ZIO.unit
+                  }
+              )
+            }.forkDaemon
+          }
+        }.flatMap { fibers =>
+          restore(promise.await).foldCauseZIO(
+            cause =>
+              ZIO
+                .foreachPar(fibers)(_.interrupt)
+                .flatMap(Exit.collectAllPar(_) match {
+                  case Some(Exit.Failure(causes)) => ZIO.failCause(cause.stripFailures && causes)
+                  case _                          => ZIO.failCause(cause.stripFailures)
+                }),
+            _ => ZIO.foreachDiscard(fibers)(_.inheritRefs)
+          )
+        }
+      }
     }
 
   /**
