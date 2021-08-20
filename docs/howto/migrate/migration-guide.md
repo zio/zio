@@ -406,17 +406,17 @@ In ZIO 2.x, when we are zipping together different effects:
 Assume we have these effects
 
 ```scala mdoc:silent:nest
-val x1: Task[Int]     = Task.succeed(???)
-val x2: Task[Unit]    = Task.succeed(???)
-val x3: Task[String]  = Task.succeed(???)
-val x4: Task[Boolean] = Task.succeed(???)
+val x1: UIO[Int]     = ZIO.succeed(???)
+val x2: UIO[Unit]    = ZIO.succeed(???)
+val x3: UIO[String]  = ZIO.succeed(???)
+val x4: UIO[Boolean] = ZIO.succeed(???)
 ```
 
 In ZIO 1.x, the output of zipping together these effects are nested:
 
 ```scala
 val zipped = x1 <*> x2 <*> x3 <*> x4
-// zipped: ZIO[Any, Throwable, (((Int, Unit), String), Boolean)] = zio.ZIO$FlatMap@3ed3c202
+// zipped: ZIO[Any, Nothing, (((Int, Unit), String), Boolean)] = zio.ZIO$FlatMap@3ed3c202
 ```
 
 While in ZIO 2.x, we have more ergonomics result type and also the `Unit` data-type doesn't contribute to the output:
