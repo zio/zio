@@ -6,6 +6,8 @@ import zio.test.TestAspect.jvmOnly
 import zio.test._
 import zio.test.environment.TestClock
 
+import java.nio.charset.StandardCharsets
+
 object ZSinkSpec extends ZIOBaseSpec {
 
   import ZIOTag._
@@ -768,6 +770,84 @@ object ZSinkSpec extends ZIOBaseSpec {
                 .map { result =>
                   assert(result.collect { case Some(s) => s }.mkString)(equalTo(s))
                 }
+            }
+          }
+        ),
+        suite("utf16BEDecode")(
+          test("regular strings") {
+            checkM(Gen.anyString) { s =>
+              assertM(
+                ZStream.fromChunk(Chunk.fromArray(s.getBytes(StandardCharsets.UTF_16BE)))
+                  .transduce(ZSink.utf16BEDecode)
+                  .runHead
+              )(isSome(isSome(equalTo(s))))
+            }
+          }
+        ),
+        suite("utf16FEDecode")(
+          test("regular strings") {
+            checkM(Gen.anyString) { s =>
+              assertM(
+                ZStream.fromChunk(Chunk.fromArray(s.getBytes(StandardCharsets.UTF_16LE)))
+                  .transduce(ZSink.utf16LEDecode)
+                  .runHead
+              )(isSome(isSome(equalTo(s))))
+            }
+          }
+        ),
+        suite("utf16Decode")(
+          test("regular strings") {
+            checkM(Gen.anyString) { s =>
+              assertM(
+                ZStream.fromChunk(
+                  Chunk.fromArray(s.getBytes(StandardCharsets.UTF_16))
+                ).transduce(ZSink.utf16Decode).runHead
+              )(isSome(isSome(equalTo(s))))
+            }
+          },
+          test("no magic sequence - parse as big endian") {
+            checkM(Gen.anyString.filter(_.nonEmpty)) { s =>
+              assertM(
+                ZStream.fromChunk(
+                  Chunk.fromArray(s.getBytes(StandardCharsets.UTF_16BE))
+                ).transduce(ZSink.utf16Decode).runHead
+              )(isSome(isSome(equalTo(s))))
+            }
+          },
+          test("big endian") {
+            checkM(Gen.anyString) { s =>
+              assertM(
+                ZStream.fromChunks(
+                  Chunk[Byte](-2, -1),
+                  Chunk.fromArray(s.getBytes(StandardCharsets.UTF_16BE))
+                ).transduce(ZSink.utf16Decode).runHead
+              )(isSome(isSome(equalTo(s))))
+            }
+          },
+          test("little endian") {
+            checkM(Gen.anyString) { s =>
+              assertM(
+                ZStream
+                  .fromChunks(
+                    Chunk[Byte](-1, -2),
+                    Chunk.fromArray(s.getBytes(StandardCharsets.UTF_16LE))
+                  )
+                  .transduce(ZSink.utf16Decode)
+                  .runHead
+              )(isSome(isSome(equalTo(s))))
+            }
+          }
+        ),
+        suite("usASCII")(
+          test("US-ASCII strings") {
+            checkM(Gen.chunkOf(Gen.anyASCIIString)) { chunk =>
+              val s = chunk.mkString("")
+              assertM(
+                ZStream
+                  .fromIterable(Chunk.fromArray(s.getBytes(StandardCharsets.US_ASCII)))
+                  .transduce(ZSink.usASCIIDecode)
+                  .runCollect
+              )(equalTo(Chunk(Some(s))))
             }
           }
         )
