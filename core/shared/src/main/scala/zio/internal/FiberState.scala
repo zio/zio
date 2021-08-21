@@ -23,7 +23,7 @@ private[zio] final class FiberState[E, A](executing0: FiberState.Executing[E, A]
 
   def getStatus: Fiber.Status = executing.status
 
-  def interrupting: Boolean = {
+  def isInterrupting: Boolean = {
     @tailrec
     def loop(status0: Fiber.Status): Boolean =
       status0 match {

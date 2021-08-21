@@ -138,7 +138,7 @@ object ZSinkSpec extends ZIOBaseSpec {
                               .map(_.reverse)
                               .flatMap(_.foldLeft(z)((acc, el) => acc.flatMap(f(_, el))))
                               .exit
-            } yield assert(foldResult.succeeded)(isTrue) implies assert(foldResult)(succeeds(equalTo(sinkResult)))
+            } yield assert(foldResult.isSuccess)(isTrue) implies assert(foldResult)(succeeds(equalTo(sinkResult)))
           }
         }
       ),

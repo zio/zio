@@ -967,8 +967,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
                          .foldCauseZIO(
                            {
                              // we ignore all downstream queues that were shut down and remove them later
-                             case c if c.interrupted => ZIO.succeedNow(id :: acc)
-                             case c                  => ZIO.failCause(c)
+                             case c if c.isInterrupted => ZIO.succeedNow(id :: acc)
+                             case c                    => ZIO.failCause(c)
                            },
                            _ => ZIO.succeedNow(acc)
                          )
@@ -1004,7 +1004,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
                            queues <- queuesRef.get.map(_.values)
                            _ <- ZIO.foreach(queues) { queue =>
                                   queue.offer(endTake).catchSomeCause {
-                                    case c if c.interrupted => ZIO.unit
+                                    case c if c.isInterrupted => ZIO.unit
                                   }
                                 }
                            _ <- done(endTake)
@@ -1458,7 +1458,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
       chunk: Chunk[Exit[Option[E1], A1]],
       cont: ZChannel[R, E, Chunk[Exit[Option[E1], A1]], Any, E1, Chunk[A1], Any]
     ): ZChannel[R, E, Chunk[Exit[Option[E1], A1]], Any, E1, Chunk[A1], Any] = {
-      val (toEmit, rest) = chunk.splitWhere(!_.succeeded)
+      val (toEmit, rest) = chunk.splitWhere(!_.isSuccess)
       val next = rest.headOption match {
         case Some(Exit.Success(_)) => ZChannel.end(())
         case Some(Exit.Failure(cause)) =>
@@ -1903,7 +1903,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
       ZStream.managed(ZManaged.lock(executor)) *>
         self <*
         ZStream.fromZIO {
-          if (descriptor.locked) ZIO.shift(descriptor.executor)
+          if (descriptor.isLocked) ZIO.shift(descriptor.executor)
           else ZIO.unshift
         }
     }
@@ -2179,7 +2179,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     import TerminationStrategy.{Left, Right, Either}
 
     def handler(terminate: Boolean)(exit: Exit[E1, Any]): ZChannel.MergeDecision[R1, E1, Any, E1, Any] =
-      if (terminate || !exit.succeeded) ZChannel.MergeDecision.done(ZIO.done(exit))
+      if (terminate || !exit.isSuccess) ZChannel.MergeDecision.done(ZIO.done(exit))
       else ZChannel.MergeDecision.await(ZIO.done(_))
 
     new ZStream(
@@ -3780,7 +3780,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       queue.take
         .catchAllCause(c =>
           queue.isShutdown.flatMap { down =>
-            if (down && c.interrupted) Pull.end
+            if (down && c.isInterrupted) Pull.end
             else Pull.failCause(c)
           }
         )
@@ -4018,7 +4018,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
         .map(Chunk.fromIterable)
         .catchAllCause(c =>
           queue.isShutdown.flatMap { down =>
-            if (down && c.interrupted) Pull.end
+            if (down && c.isInterrupted) Pull.end
             else Pull.failCause(c)
           }
         )

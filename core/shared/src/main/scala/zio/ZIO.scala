@@ -1201,7 +1201,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def onInterrupt[R1 <: R](cleanup: Set[Fiber.Id] => URIO[R1, Any]): ZIO[R1, E, A] =
     ZIO.uninterruptibleMask { restore =>
       restore(self).foldCauseZIO(
-        cause => if (cause.interrupted) cleanup(cause.interruptors) *> ZIO.failCause(cause) else ZIO.failCause(cause),
+        cause => if (cause.isInterrupted) cleanup(cause.interruptors) *> ZIO.failCause(cause) else ZIO.failCause(cause),
         a => ZIO.succeedNow(a)
       )
     }
@@ -4161,7 +4161,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   def lock[R, E, A](executor: => Executor)(zio: ZIO[R, E, A]): ZIO[R, E, A] =
     ZIO.descriptorWith { descriptor =>
-      if (descriptor.locked) ZIO.shift(executor).acquireRelease(ZIO.shift(descriptor.executor), zio)
+      if (descriptor.isLocked) ZIO.shift(executor).acquireRelease(ZIO.shift(descriptor.executor), zio)
       else ZIO.shift(executor).acquireRelease(ZIO.unshift, zio)
     }
 

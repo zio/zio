@@ -141,9 +141,24 @@ sealed abstract class Exit[+E, +A] extends Product with Serializable { self =>
   /**
    * Determines if the result is interrupted.
    */
-  final def interrupted: Boolean = self match {
+  @deprecated("use isInterrupted", "2.0.0")
+  final def interrupted: Boolean =
+    isInterrupted
+
+  /**
+   * Determines if the result is interrupted.
+   */
+  final def isInterrupted: Boolean = self match {
     case Success(_) => false
-    case Failure(c) => c.interrupted
+    case Failure(c) => c.isInterrupted
+  }
+
+  /**
+   * Determines if the result is a success.
+   */
+  final def isSuccess: Boolean = self match {
+    case Success(_) => true
+    case _          => false
   }
 
   /**
@@ -188,10 +203,9 @@ sealed abstract class Exit[+E, +A] extends Product with Serializable { self =>
   /**
    * Determines if the result is a success.
    */
-  final def succeeded: Boolean = self match {
-    case Success(_) => true
-    case _          => false
-  }
+  @deprecated("use isSuccess", "2.0.0")
+  final def succeeded: Boolean =
+    isSuccess
 
   /**
    * Converts the `Exit` to an `Either[Throwable, A]`, by wrapping the

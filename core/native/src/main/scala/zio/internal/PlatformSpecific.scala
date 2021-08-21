@@ -79,7 +79,7 @@ private[internal] trait PlatformSpecific {
         throw t
       },
       reportFailure = (cause: Cause[Any]) =>
-        if (cause.died)
+        if (cause.isDie)
           println(cause.prettyPrint),
       tracing = Tracing(Tracer.Empty, TracingConfig.disabled),
       supervisor = Supervisor.none,
