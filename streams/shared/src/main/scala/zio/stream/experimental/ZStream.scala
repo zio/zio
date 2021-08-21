@@ -1791,6 +1791,23 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     interruptWhen(Clock.sleep(duration))
 
   /**
+   * Returns a combined string resulting from concatenating each of the values from the stream
+   *
+   * @see [[intersperse]]
+   */
+  final def mkString: ZIO[R, E, String] =
+    run(ZSink.mkString)
+
+  /**
+   * Returns a combined string resulting from concatenating each of the values from the stream beginning with `before`
+   * interspersed with `middle` and ending with `after`.
+   *
+   * @see [[intersperse]]
+   */
+  final def mkString(before: String, middle: String, after: String): ZIO[R, E, String] =
+    intersperse(before, middle, after).mkString
+
+  /**
    * Enqueues elements of this stream into a queue. Stream failure and ending
    * will also be signalled.
    */
