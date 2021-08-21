@@ -42,7 +42,7 @@ object MutableRunnableSpecSpec
   test("check samples") {
     for {
       ref   <- ZIO.service[RefInt]
-      _     <- checkM(Gen.anyInt.noShrink)(_ => assertM(ref.inc)(anything))
+      _     <- checkM(Gen.int.noShrink)(_ => assertM(ref.inc)(anything))
       value <- ref.get
     } yield assert(value)(equalTo(13))
   }

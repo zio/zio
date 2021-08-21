@@ -66,19 +66,19 @@ object DeriveGen {
     }
 
   implicit val genBoolean: DeriveGen[Boolean]             = instance(Gen.boolean)
-  implicit val genByte: DeriveGen[Byte]                   = instance(Gen.anyByte)
-  implicit val genChar: DeriveGen[Char]                   = instance(Gen.anyChar)
-  implicit val genDouble: DeriveGen[Double]               = instance(Gen.anyDouble)
-  implicit val genFloat: DeriveGen[Float]                 = instance(Gen.anyFloat)
-  implicit val genInt: DeriveGen[Int]                     = instance(Gen.anyInt)
-  implicit val genLong: DeriveGen[Long]                   = instance(Gen.anyLong)
-  implicit val genShort: DeriveGen[Short]                 = instance(Gen.anyShort)
-  implicit val genString: DeriveGen[String]               = instance(Gen.anyString)
+  implicit val genByte: DeriveGen[Byte]                   = instance(Gen.byte)
+  implicit val genChar: DeriveGen[Char]                   = instance(Gen.char)
+  implicit val genDouble: DeriveGen[Double]               = instance(Gen.double)
+  implicit val genFloat: DeriveGen[Float]                 = instance(Gen.float)
+  implicit val genInt: DeriveGen[Int]                     = instance(Gen.int)
+  implicit val genLong: DeriveGen[Long]                   = instance(Gen.long)
+  implicit val genShort: DeriveGen[Short]                 = instance(Gen.short)
+  implicit val genString: DeriveGen[String]               = instance(Gen.string)
   implicit val genUnit: DeriveGen[Unit]                   = instance(Gen.unit)
-  implicit val genUUID: DeriveGen[UUID]                   = instance(Gen.anyUUID)
-  implicit val genInstant: DeriveGen[Instant]             = instance(Gen.anyInstant)
-  implicit val genLocalDateTime: DeriveGen[LocalDateTime] = instance(Gen.anyLocalDateTime)
-  implicit val genLocalDate: DeriveGen[LocalDate]         = instance(Gen.anyLocalDateTime.map(_.toLocalDate()))
+  implicit val genUUID: DeriveGen[UUID]                   = instance(Gen.uuid)
+  implicit val genInstant: DeriveGen[Instant]             = instance(Gen.instant)
+  implicit val genLocalDateTime: DeriveGen[LocalDateTime] = instance(Gen.localDateTime)
+  implicit val genLocalDate: DeriveGen[LocalDate]         = instance(Gen.localDateTime.map(_.toLocalDate()))
   implicit val genBigDecimal: DeriveGen[BigDecimal] = instance(
     Gen.bigDecimal(
       BigDecimal(Double.MinValue) * BigDecimal(Double.MaxValue),

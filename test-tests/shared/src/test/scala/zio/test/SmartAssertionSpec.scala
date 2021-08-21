@@ -288,7 +288,7 @@ object SmartAssertionSpec extends ZIOBaseSpec {
       assertTrue(!(Seq(1, 2, 3)(2) == 3))
     } @@ failing,
     test("check") {
-      check(Gen.anyInt) { int =>
+      check(Gen.int) { int =>
         assertTrue(int < 800)
       }
     } @@ failing,

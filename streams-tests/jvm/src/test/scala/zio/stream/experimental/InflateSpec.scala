@@ -56,7 +56,7 @@ object InflateSpec extends DefaultRunnableSpec {
         )(fails(anything))
       ),
       test("inflate what JDK deflated")(
-        checkM(Gen.listOfBounded(0, `1K`)(Gen.anyByte).zip(Gen.int(1, `1K`)).zip(Gen.int(1, `1K`))) {
+        checkM(Gen.listOfBounded(0, `1K`)(Gen.byte).zip(Gen.int(1, `1K`)).zip(Gen.int(1, `1K`))) {
           case (chunk, n, bufferSize) =>
             assertM(for {
               deflated <- ZIO.succeed(deflatedStream(chunk.toArray))
@@ -65,7 +65,7 @@ object InflateSpec extends DefaultRunnableSpec {
         }
       ),
       test("inflate what JDK deflated, nowrap")(
-        checkM(Gen.listOfBounded(0, `1K`)(Gen.anyByte).zip(Gen.int(1, `1K`)).zip(Gen.int(1, `1K`))) {
+        checkM(Gen.listOfBounded(0, `1K`)(Gen.byte).zip(Gen.int(1, `1K`)).zip(Gen.int(1, `1K`))) {
           case (chunk, n, bufferSize) =>
             assertM(for {
               deflated <- ZIO.succeed(noWrapDeflatedStream(chunk.toArray))

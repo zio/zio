@@ -55,7 +55,7 @@ Support for property based testing is included out of the box through the `check
 
 ```scala mdoc:silent
 val associativity =
-  check(Gen.anyInt, Gen.anyInt, Gen.anyInt) { (x, y, z) =>
+  check(Gen.int, Gen.int, Gen.int) { (x, y, z) =>
     assert((x + y) + z)(equalTo(x + (y + z)))
   }
 ```

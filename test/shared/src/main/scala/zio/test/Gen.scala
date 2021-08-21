@@ -74,7 +74,7 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
    * generators of the desired values instead.
    *
    * {{{
-   * val evens: Gen[Has[Random], Int] = Gen.anyInt.map(_ * 2)
+   * val evens: Gen[Has[Random], Int] = Gen.int.map(_ * 2)
    * }}}
    */
   def filter(f: A => Boolean): Gen[R, A] = Gen {
@@ -210,111 +210,120 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A generator US-ASCII strings. Shrinks towards the empty string.
    */
+  @deprecated("use ASCIIString", "2.0.0")
   def anyASCIIString: Gen[Has[Random] with Has[Sized], String] =
-    Gen.string(Gen.anyASCIIChar)
+    Gen.asciiString
 
   /**
    * A generator of US-ASCII characters. Shrinks toward '0'.
    */
+  @deprecated("use ASCIIChar", "2.0.0")
   def anyASCIIChar: Gen[Has[Random], Char] =
-    Gen.oneOf(Gen.char('\u0000', '\u007F'))
+    Gen.asciiChar
 
   /**
    * A generator of bytes. Shrinks toward '0'.
    */
+  @deprecated("use byte", "2.0.0")
   val anyByte: Gen[Has[Random], Byte] =
-    fromZIOSample {
-      nextIntBounded(Byte.MaxValue - Byte.MinValue + 1)
-        .map(r => (Byte.MinValue + r).toByte)
-        .map(Sample.shrinkIntegral(0))
-    }
+    Gen.byte
 
   /**
    * A generator of characters. Shrinks toward '0'.
    */
+  @deprecated("use char", "2.0.0")
   val anyChar: Gen[Has[Random], Char] =
-    fromZIOSample {
-      nextIntBounded(Char.MaxValue - Char.MinValue + 1)
-        .map(r => (Char.MinValue + r).toChar)
-        .map(Sample.shrinkIntegral(0))
-    }
+    Gen.char
 
   /**
    * A generator of doubles. Shrinks toward '0'.
    */
+  @deprecated("use double", "2.0.0")
   val anyDouble: Gen[Has[Random], Double] =
-    fromZIOSample(nextDouble.map(Sample.shrinkFractional(0f)))
+    Gen.double
 
   /**
    * A generator of floats. Shrinks toward '0'.
    */
+  @deprecated("use float", "2.0.0")
   val anyFloat: Gen[Has[Random], Float] =
-    fromZIOSample(nextFloat.map(Sample.shrinkFractional(0f)))
+    Gen.float
 
   /**
    * A generator of hex chars(0-9,a-f,A-F).
    */
-  val anyHexChar: Gen[Has[Random], Char] = weighted(
-    char('\u0030', '\u0039') -> 10,
-    char('\u0041', '\u0046') -> 6,
-    char('\u0061', '\u0066') -> 6
-  )
+  @deprecated("use hexChar", "2.0.0")
+  val anyHexChar: Gen[Has[Random], Char] =
+    Gen.hexChar
 
   /**
    * A generator of integers. Shrinks toward '0'.
    */
+  @deprecated("use int", "2.0.0")
   val anyInt: Gen[Has[Random], Int] =
-    fromZIOSample(nextInt.map(Sample.shrinkIntegral(0)))
+    Gen.int
 
   /**
    * A generator of longs. Shrinks toward '0'.
    */
+  @deprecated("use long", "2.0.0")
   val anyLong: Gen[Has[Random], Long] =
-    fromZIOSample(nextLong.map(Sample.shrinkIntegral(0L)))
+    Gen.long
 
   /**
    * A generator of lower hex chars(0-9, a-f).
    */
+  @deprecated("use lowerHexChar", "2.0.0")
   val anyLowerHexChar: Gen[Has[Random], Char] =
-    weighted(char('\u0030', '\u0039') -> 10, char('\u0061', '\u0066') -> 6)
+    Gen.lowerHexChar
 
   /**
    * A generator of shorts. Shrinks toward '0'.
    */
+  @deprecated("use short", "2.0.0")
   val anyShort: Gen[Has[Random], Short] =
-    fromZIOSample {
-      nextIntBounded(Short.MaxValue - Short.MinValue + 1)
-        .map(r => (Short.MinValue + r).toShort)
-        .map(Sample.shrinkIntegral(0))
-    }
+    Gen.short
 
   /**
    * A generator of strings. Shrinks towards the empty string.
    */
+  @deprecated("use string", "2.0.0")
   def anyString: Gen[Has[Random] with Has[Sized], String] =
-    Gen.string(Gen.anyUnicodeChar)
+    Gen.string
 
   /**
    * A generator of Unicode characters. Shrinks toward '0'.
    */
+  @deprecated("use unicodeChar", "2.0.0")
   val anyUnicodeChar: Gen[Has[Random], Char] =
-    Gen.oneOf(Gen.char('\u0000', '\uD7FF'), Gen.char('\uE000', '\uFFFD'))
+    Gen.unicodeChar
 
   /**
    * A generator of upper hex chars(0-9, A-F).
    */
+  @deprecated("use upperHexChar", "2.0.0")
   val anyUpperHexChar: Gen[Has[Random], Char] =
-    weighted(
-      char('\u0030', '\u0039') -> 10,
-      char('\u0041', '\u0046') -> 6
-    )
+    Gen.upperHexChar
 
   /**
    * A generator of universally unique identifiers. The returned generator will
    * not have any shrinking.
    */
+  @deprecated("use uuid", "2.0.0")
   val anyUUID: Gen[Has[Random], UUID] =
-    Gen.fromZIO(nextUUID)
+    Gen.uuid
+
+  /**
+   * A generator of US-ASCII characters. Shrinks toward '0'.
+   */
+  val asciiChar: Gen[Has[Random], Char] =
+    Gen.oneOf(Gen.char('\u0000', '\u007F'))
+
+  /**
+   * A generator US-ASCII strings. Shrinks towards the empty string.
+   */
+  val asciiString: Gen[Has[Random] with Has[Sized], String] =
+    Gen.string(Gen.asciiChar)
 
   /**
    * A generator of big decimals inside the specified range: [start, end].
@@ -367,11 +376,31 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     int(min, max).flatMap(f)
 
   /**
+   * A generator of bytes. Shrinks toward '0'.
+   */
+  val byte: Gen[Has[Random], Byte] =
+    fromZIOSample {
+      nextIntBounded(Byte.MaxValue - Byte.MinValue + 1)
+        .map(r => (Byte.MinValue + r).toByte)
+        .map(Sample.shrinkIntegral(0))
+    }
+
+  /**
    * A generator of byte values inside the specified range: [start, end].
    * The shrinker will shrink toward the lower end of the range ("smallest").
    */
   def byte(min: Byte, max: Byte): Gen[Has[Random], Byte] =
     int(min.toInt, max.toInt).map(_.toByte)
+
+  /**
+   * A generator of characters. Shrinks toward '0'.
+   */
+  val char: Gen[Has[Random], Char] =
+    fromZIOSample {
+      nextIntBounded(Char.MaxValue - Char.MinValue + 1)
+        .map(r => (Char.MinValue + r).toChar)
+        .map(Sample.shrinkIntegral(0))
+    }
 
   /**
    * A generator of character values inside the specified range: [start, end].
@@ -467,6 +496,12 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     } yield f(a, b, c, d)
 
   /**
+   * A generator of doubles. Shrinks toward '0'.
+   */
+  val double: Gen[Has[Random], Double] =
+    fromZIOSample(nextDouble.map(Sample.shrinkFractional(0f)))
+
+  /**
    * A generator of double values inside the specified range: [start, end].
    * The shrinker will shrink toward the lower end of the range ("smallest").
    */
@@ -545,6 +580,27 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     Gen(ZStream.fromZIO(effect))
 
   /**
+   * A generator of floats. Shrinks toward '0'.
+   */
+  val float: Gen[Has[Random], Float] =
+    fromZIOSample(nextFloat.map(Sample.shrinkFractional(0f)))
+
+  /**
+   * A generator of hex chars(0-9,a-f,A-F).
+   */
+  val hexChar: Gen[Has[Random], Char] = weighted(
+    char('\u0030', '\u0039') -> 10,
+    char('\u0041', '\u0046') -> 6,
+    char('\u0061', '\u0066') -> 6
+  )
+
+  /**
+   * A generator of integers. Shrinks toward '0'.
+   */
+  val int: Gen[Has[Random], Int] =
+    fromZIOSample(nextInt.map(Sample.shrinkIntegral(0)))
+
+  /**
    * A generator of integers inside the specified range: [start, end].
    * The shrinker will shrink toward the lower end of the range ("smallest").
    */
@@ -564,7 +620,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    *  A generator of strings that can be encoded in the ISO-8859-1 character set.
    */
   val iso_8859_1: Gen[Has[Random] with Has[Sized], String] =
-    chunkOf(anyByte).map(chunk => new String(chunk.toArray, StandardCharsets.ISO_8859_1))
+    chunkOf(byte).map(chunk => new String(chunk.toArray, StandardCharsets.ISO_8859_1))
 
   /**
    * A sized generator that uses a uniform distribution of size values. A large
@@ -592,6 +648,12 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     List.fill(n)(g).foldRight[Gen[R, List[A]]](const(Nil))((a, gen) => a.crossWith(gen)(_ :: _))
 
   /**
+   * A generator of longs. Shrinks toward '0'.
+   */
+  val long: Gen[Has[Random], Long] =
+    fromZIOSample(nextLong.map(Sample.shrinkIntegral(0L)))
+
+  /**
    * A generator of long values in the specified range: [start, end].
    * The shrinker will shrink toward the lower end of the range ("smallest").
    */
@@ -606,6 +668,12 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
         effect.map(Sample.shrinkIntegral(min))
       }
     }
+
+  /**
+   * A generator of lower hex chars(0-9, a-f).
+   */
+  val lowerHexChar: Gen[Has[Random], Char] =
+    weighted(char('\u0030', '\u0039') -> 10, char('\u0061', '\u0066') -> 6)
 
   /**
    * A sized generator of maps.
@@ -721,6 +789,16 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     }
 
   /**
+   * A generator of shorts. Shrinks toward '0'.
+   */
+  val short: Gen[Has[Random], Short] =
+    fromZIOSample {
+      nextIntBounded(Short.MaxValue - Short.MinValue + 1)
+        .map(r => (Short.MinValue + r).toShort)
+        .map(Sample.shrinkIntegral(0))
+    }
+
+  /**
    * A generator of short values inside the specified range: [start, end].
    * The shrinker will shrink toward the lower end of the range ("smallest").
    */
@@ -751,6 +829,12 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
 
   def some[R, A](gen: Gen[R, A]): Gen[R, Option[A]] =
     gen.map(Some(_))
+
+  /**
+   * A generator of strings. Shrinks towards the empty string.
+   */
+  def string: Gen[Has[Random] with Has[Sized], String] =
+    Gen.string(Gen.unicodeChar)
 
   def string[R <: Has[Random] with Has[Sized]](char: Gen[R, Char]): Gen[R, String] =
     listOf(char).map(_.mkString)
@@ -799,6 +883,12 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
       f(s).flatMap { case (s, a) => unfoldGenN(n - 1)(s)(f).map(a :: _) }
 
   /**
+   * A generator of Unicode characters. Shrinks toward '0'.
+   */
+  val unicodeChar: Gen[Has[Random], Char] =
+    Gen.oneOf(Gen.char('\u0000', '\uD7FF'), Gen.char('\uE000', '\uFFFD'))
+
+  /**
    * A generator of uniformly distributed doubles between [0, 1].
    * The shrinker will shrink toward `0`.
    */
@@ -810,6 +900,22 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    */
   val unit: Gen[Any, Unit] =
     const(())
+
+  /**
+   * A generator of upper hex chars(0-9, A-F).
+   */
+  val upperHexChar: Gen[Has[Random], Char] =
+    weighted(
+      char('\u0030', '\u0039') -> 10,
+      char('\u0041', '\u0046') -> 6
+    )
+
+  /**
+   * A generator of universally unique identifiers. The returned generator will
+   * not have any shrinking.
+   */
+  val uuid: Gen[Has[Random], UUID] =
+    Gen.fromZIO(nextUUID)
 
   def vectorOf[R <: Has[Random] with Has[Sized], A](g: Gen[R, A]): Gen[R, Vector[A]] =
     listOf(g).map(_.toVector)
