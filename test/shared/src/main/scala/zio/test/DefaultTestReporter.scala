@@ -405,7 +405,7 @@ object FailureRenderer {
   }
 
   private def renderAssertionLocation(av: AssertionValue, offset: Int) = av.sourceLocation.fold(Message()) { location =>
-    cyan(s"☛ $location").toLine
+    cyan(s"at $location").toLine
       .withOffset(offset + tabSize)
       .toMessage
   }
