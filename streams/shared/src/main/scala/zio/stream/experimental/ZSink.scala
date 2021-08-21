@@ -1144,6 +1144,11 @@ object ZSink {
       case (None, in)       => Some(in)
     }
 
+  val iso_8859_1Decode: ZSink[Any, Nothing, Byte, Nothing, Nothing, Option[String]] =
+    foldChunks[Nothing, Byte, Option[String]](Option.empty[String])(_ => true)((_, is) =>
+      Some(new String(is.toArray, StandardCharsets.ISO_8859_1))
+    )
+
   /**
    * Creates a sink containing the last value.
    */
@@ -1196,6 +1201,22 @@ object ZSink {
   final class AccessSinkPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[InErr, In, OutErr, L, Z](f: R => ZSink[R, InErr, In, OutErr, L, Z]): ZSink[R, InErr, In, OutErr, L, Z] =
       new ZSink(ZChannel.unwrap(ZIO.access[R](f(_).channel)))
+  }
+
+  def utfDecode[Err]: ZSink[Any, Err, Byte, Err, Byte, Option[String]] = {
+    def prepend(bytes: Chunk[Byte]): ZChannel[Any, Err, Chunk[Byte], Any, Err, Chunk[Byte], Any] =
+      ZChannel.write(bytes) *> ZChannel.identity[Err, Chunk[Byte], Any]
+
+    ZSink.take[Err, Byte](4).flatMap { bytes =>
+      bytes.toList match {
+        case 0 :: 0 :: -2 :: -1 :: Nil if Charset.isSupported("UTF-32BE") => utf32BEDecode
+        case -2 :: -1 :: 0 :: 0 :: Nil if Charset.isSupported("UTF-32LE") => utf32LEDecode
+        case -17 :: -69 :: -65 :: x1 :: Nil                               => new ZSink(prepend(Chunk(x1)) >>> utf8Decode.channel)
+        case -2 :: -1 :: x1 :: x2 :: Nil                                  => new ZSink(prepend(Chunk(x1, x2)) >>> utf16BEDecode.channel)
+        case -1 :: -2 :: x1 :: x2 :: Nil                                  => new ZSink(prepend(Chunk(x1, x2)) >>> utf16LEDecode.channel)
+        case _                                                            => utf8Decode
+      }
+    }
   }
 
   def utf8Decode[Err]: ZSink[Any, Err, Byte, Err, Byte, Option[String]] = {
@@ -1276,7 +1297,7 @@ object ZSink {
         case -2 :: -1 :: Nil =>
           utf16BEDecode
         case -1 :: -2 :: Nil =>
-          utf32LEDecode
+          utf16LEDecode
         case _ =>
           new ZSink(ZChannel.write(bytes) >>> utf16BEDecode.channel)
       }
