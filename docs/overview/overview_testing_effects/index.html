@@ -67,7 +67,7 @@
 <p>ZIO effects can access the environment using <code>ZIO.environment</code>, which provides direct access to the environment, as a value of type <code>R</code>.</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">for</span> {
   env &lt;- <span class="hljs-type">ZIO</span>.environment[<span class="hljs-type">Int</span>]
-  _   &lt;- putStrLn(<span class="hljs-string">s"The value of the environment is: <span class="hljs-subst">$env</span>"</span>)
+  _   &lt;- printLine(<span class="hljs-string">s"The value of the environment is: <span class="hljs-subst">$env</span>"</span>)
 } <span class="hljs-keyword">yield</span> env
 </code></pre>
 <p>The environment does not have to be a primitive value like an integer. It can be much more complex, like a <code>trait</code> or <code>case class</code>.</p>
@@ -80,7 +80,7 @@
     port   &lt;- <span class="hljs-type">ZIO</span>.access[<span class="hljs-type">Config</span>](_.port)
   } <span class="hljs-keyword">yield</span> <span class="hljs-string">s"Server: <span class="hljs-subst">$server</span>, port: <span class="hljs-subst">$port</span>"</span>
 </code></pre>
-<p>Even effects themselves can be stored in the environment! In this case, to access and execute an effect, the <code>ZIO.accessM</code> method can be used.</p>
+<p>Even effects themselves can be stored in the environment! In this case, to access and execute an effect, the <code>ZIO.accessZIO</code> method can be used.</p>
 <pre><code class="hljs css language-scala"><span class="hljs-class"><span class="hljs-keyword">trait</span> <span class="hljs-title">DatabaseOps</span> </span>{
   <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">getTableNames</span></span>: <span class="hljs-type">Task</span>[<span class="hljs-type">List</span>[<span class="hljs-type">String</span>]]
   <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">getColumnNames</span></span>(table: <span class="hljs-type">String</span>): <span class="hljs-type">Task</span>[<span class="hljs-type">List</span>[<span class="hljs-type">String</span>]]
@@ -88,8 +88,8 @@
 
 <span class="hljs-keyword">val</span> tablesAndColumns: <span class="hljs-type">ZIO</span>[<span class="hljs-type">DatabaseOps</span>, <span class="hljs-type">Throwable</span>, (<span class="hljs-type">List</span>[<span class="hljs-type">String</span>], <span class="hljs-type">List</span>[<span class="hljs-type">String</span>])] = 
   <span class="hljs-keyword">for</span> {
-    tables  &lt;- <span class="hljs-type">ZIO</span>.accessM[<span class="hljs-type">DatabaseOps</span>](_.getTableNames)
-    columns &lt;- <span class="hljs-type">ZIO</span>.accessM[<span class="hljs-type">DatabaseOps</span>](_.getColumnNames(<span class="hljs-string">"user_table"</span>))
+    tables  &lt;- <span class="hljs-type">ZIO</span>.accessZIO[<span class="hljs-type">DatabaseOps</span>](_.getTableNames)
+    columns &lt;- <span class="hljs-type">ZIO</span>.accessZIO[<span class="hljs-type">DatabaseOps</span>](_.getColumnNames(<span class="hljs-string">"user_table"</span>))
   } <span class="hljs-keyword">yield</span> (tables, columns)
 </code></pre>
 <p>When an effect is accessed from the environment, as in the preceding example, the effect is called an <em>environmental effect</em>.</p>
@@ -105,7 +105,7 @@
 <span class="hljs-keyword">val</span> result: <span class="hljs-type">UIO</span>[<span class="hljs-type">Int</span>] = square.provide(<span class="hljs-number">42</span>)
 </code></pre>
 <p>Once you provide an effect with the environment it requires, then you get back an effect whose environment type is <code>Any</code>, indicating its requirements have been fully satisfied.</p>
-<p>The combination of <code>ZIO.accessM</code> and <code>ZIO#provide</code> are all that is necessary to fully use environmental effects for easy testability.</p>
+<p>The combination of <code>ZIO.accessZIO</code> and <code>ZIO#provide</code> are all that is necessary to fully use environmental effects for easy testability.</p>
 <h2><a class="anchor" aria-hidden="true" id="environmental-effects"></a><a href="#environmental-effects" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Environmental Effects</h2>
 <p>The fundamental idea behind environmental effects is to <em>program to an interface, not an implementation</em>. In the case of functional Scala, interfaces do not contain any methods that perform side-effects, although they may contain methods that return <em>functional effects</em>.</p>
 <p>Rather than passing interfaces throughout our code base manually, injecting them using dependency injection, or threading them using incoherent implicits, we use <em>ZIO Environment</em> to do the heavy lifting, which results in elegant, inferrable, and painless code.</p>
@@ -124,16 +124,16 @@
 </code></pre>
 <p>In this example,  <code>Database</code> is the <em>module</em>, which contains the <code>Database.Service</code> <em>service</em>. The <em>service</em> is just an ordinary interface, placed inside the companion object of the module, which contains functions provide the <em>capabilities</em> of the service.</p>
 <h3><a class="anchor" aria-hidden="true" id="provide-helpers"></a><a href="#provide-helpers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Provide Helpers</h3>
-<p>In order to make it easier to access the database service as an environmental effect, we will define helper functions that use <code>ZIO.accessM</code>.</p>
+<p>In order to make it easier to access the database service as an environmental effect, we will define helper functions that use <code>ZIO.accessZIO</code>.</p>
 <pre><code class="hljs css language-scala"><span class="hljs-class"><span class="hljs-keyword">object</span> <span class="hljs-title">db</span> </span>{
   <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">lookup</span></span>(id: <span class="hljs-type">UserID</span>): <span class="hljs-type">RIO</span>[<span class="hljs-type">Database</span>, <span class="hljs-type">UserProfile</span>] =
-    <span class="hljs-type">ZIO</span>.accessM(_.database.lookup(id))
+    <span class="hljs-type">ZIO</span>.accessZIO(_.database.lookup(id))
 
   <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">update</span></span>(id: <span class="hljs-type">UserID</span>, profile: <span class="hljs-type">UserProfile</span>): <span class="hljs-type">RIO</span>[<span class="hljs-type">Database</span>, <span class="hljs-type">Unit</span>] =
-    <span class="hljs-type">ZIO</span>.accessM(_.database.update(id, profile))
+    <span class="hljs-type">ZIO</span>.accessZIO(_.database.update(id, profile))
 }
 </code></pre>
-<p>While these helpers are not required, because we can access the database module directly through <code>ZIO.accessM</code>, the helpers are easy to write and make use-site code simpler.</p>
+<p>While these helpers are not required, because we can access the database module directly through <code>ZIO.accessZIO</code>, the helpers are easy to write and make use-site code simpler.</p>
 <h3><a class="anchor" aria-hidden="true" id="use-the-service"></a><a href="#use-the-service" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Use the Service</h3>
 <p>Now that we have defined a module and helper functions, we are now ready to build an example that uses the database service:</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> lookedupProfile: <span class="hljs-type">RIO</span>[<span class="hljs-type">Database</span>, <span class="hljs-type">UserProfile</span>] = 
@@ -180,7 +180,7 @@
     <span class="hljs-type">Task</span>(map(id))
 
   <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">update</span></span>(id: <span class="hljs-type">UserID</span>, profile: <span class="hljs-type">UserProfile</span>): <span class="hljs-type">Task</span>[<span class="hljs-type">Unit</span>] = 
-    <span class="hljs-type">Task</span>.effect { map = map + (id -&gt; profile) }
+    <span class="hljs-type">Task</span>.attempt { map = map + (id -&gt; profile) }
 }
 <span class="hljs-class"><span class="hljs-keyword">trait</span> <span class="hljs-title">TestDatabase</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">Database</span> </span>{
   <span class="hljs-keyword">val</span> database: <span class="hljs-type">TestService</span> = <span class="hljs-keyword">new</span> <span class="hljs-type">TestService</span>

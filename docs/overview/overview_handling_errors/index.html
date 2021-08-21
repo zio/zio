@@ -106,16 +106,16 @@
     _    =&gt; <span class="hljs-type">DefaultData</span>,
     data =&gt; data)
 </code></pre>
-<p>The second fold method, <code>foldM</code>, lets you effectfully handle both failure and success, by supplying an effectful (but still pure) handler for each case:</p>
+<p>The second fold method, <code>foldZIO</code>, lets you effectfully handle both failure and success, by supplying an effectful (but still pure) handler for each case:</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> primaryOrSecondaryData: <span class="hljs-type">IO</span>[<span class="hljs-type">IOException</span>, <span class="hljs-type">Array</span>[<span class="hljs-type">Byte</span>]] = 
-  openFile(<span class="hljs-string">"primary.data"</span>).foldM(
+  openFile(<span class="hljs-string">"primary.data"</span>).foldZIO(
     _    =&gt; openFile(<span class="hljs-string">"secondary.data"</span>),
     data =&gt; <span class="hljs-type">ZIO</span>.succeed(data))
 </code></pre>
-<p>Nearly all error handling methods are defined in terms of <code>foldM</code>, because it is both powerful and fast.</p>
-<p>In the following example, <code>foldM</code> is used to handle both failure and success of the <code>readUrls</code> method:</p>
+<p>Nearly all error handling methods are defined in terms of <code>foldZIO</code>, because it is both powerful and fast.</p>
+<p>In the following example, <code>foldZIO</code> is used to handle both failure and success of the <code>readUrls</code> method:</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> urls: <span class="hljs-type">UIO</span>[<span class="hljs-type">Content</span>] =
-  readUrls(<span class="hljs-string">"urls.json"</span>).foldM(
+  readUrls(<span class="hljs-string">"urls.json"</span>).foldZIO(
     error   =&gt; <span class="hljs-type">IO</span>.succeed(<span class="hljs-type">NoContent</span>(error)), 
     success =&gt; fetchContent(success)
   )
@@ -123,9 +123,7 @@
 <h2><a class="anchor" aria-hidden="true" id="retrying"></a><a href="#retrying" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Retrying</h2>
 <p>There are a number of useful methods on the ZIO data type for retrying failed effects.</p>
 <p>The most basic of these is <code>ZIO#retry</code>, which takes a <code>Schedule</code> and returns a new effect that will retry the first effect if it fails, according to the specified policy:</p>
-<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> zio.clock._
-
-<span class="hljs-keyword">val</span> retriedOpenFile: <span class="hljs-type">ZIO</span>[<span class="hljs-type">Clock</span>, <span class="hljs-type">IOException</span>, <span class="hljs-type">Array</span>[<span class="hljs-type">Byte</span>]] = 
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> retriedOpenFile: <span class="hljs-type">ZIO</span>[<span class="hljs-type">Has</span>[<span class="hljs-type">Clock</span>], <span class="hljs-type">IOException</span>, <span class="hljs-type">Array</span>[<span class="hljs-type">Byte</span>]] = 
   openFile(<span class="hljs-string">"primary.data"</span>).retry(<span class="hljs-type">Schedule</span>.recurs(<span class="hljs-number">5</span>))
 </code></pre>
 <p>The next most powerful function is <code>ZIO#retryOrElse</code>, which allows specification of a fallback to use, if the effect does not succeed with the specified policy:</p>

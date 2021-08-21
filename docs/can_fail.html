@@ -18,7 +18,7 @@
 <tr><td><code>uio.eventually</code></td><td><code>uio</code></td></tr>
 <tr><td><code>uio.flatMapError(f)</code></td><td><code>uio</code></td></tr>
 <tr><td><code>uio.fold(f, g)</code></td><td><code>uio.map(g)</code></td></tr>
-<tr><td><code>uio.foldM(f, g)</code></td><td><code>uio.flatMap(g)</code></td></tr>
+<tr><td><code>uio.foldZIO(f, g)</code></td><td><code>uio.flatMap(g)</code></td></tr>
 <tr><td><code>uio.mapBoth(f, g)</code></td><td><code>uio.map(g)</code></td></tr>
 <tr><td><code>uio.mapError(f)</code></td><td><code>uio</code></td></tr>
 <tr><td><code>uio.option</code></td><td><code>uio</code>*</td></tr>
@@ -55,7 +55,7 @@
 <tr><td><code>umanaged.either</code></td><td><code>umanaged</code>*</td></tr>
 <tr><td><code>umanaged.flatMapError(f)</code></td><td><code>umanaged</code></td></tr>
 <tr><td><code>umanaged.fold(f, g)</code></td><td><code>umanaged.map(f)</code></td></tr>
-<tr><td><code>umanaged.foldM(f, g)</code></td><td><code>umanaged.flatMap(g)</code></td></tr>
+<tr><td><code>umanaged.foldManaged(f, g)</code></td><td><code>umanaged.flatMap(g)</code></td></tr>
 <tr><td><code>umanaged.mapBoth(f, g)</code></td><td><code>umanaged.map(g)</code></td></tr>
 <tr><td><code>umanaged.mapError(f)</code></td><td><code>umanaged</code></td></tr>
 <tr><td><code>umanaged.option</code></td><td><code>umanaged</code>*</td></tr>

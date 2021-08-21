@@ -499,31 +499,14 @@ object ZIOConfigExample extends zio.App {
 }
 
 <span class="hljs-keyword">val</span> json1         = <span class="hljs-string">""</span><span class="hljs-string">"{ "</span><span class="hljs-type">Banana</span><span class="hljs-string">":{ "</span><span class="hljs-string">curvature":0.5 }}"</span><span class="hljs-string">""</span>
-<span class="hljs-comment">// json1: String = "{ \"Banana\":{ \"curvature\":0.5 }}"</span>
 <span class="hljs-keyword">val</span> json2         = <span class="hljs-string">""</span><span class="hljs-string">"{ "</span><span class="hljs-type">Apple</span><span class="hljs-string">": { "</span><span class="hljs-string">poison": false }}"</span><span class="hljs-string">""</span>
-<span class="hljs-comment">// json2: String = "{ \"Apple\": { \"poison\": false }}"</span>
 <span class="hljs-keyword">val</span> malformedJson = <span class="hljs-string">""</span><span class="hljs-string">"{ "</span><span class="hljs-type">Banana</span><span class="hljs-string">":{ "</span><span class="hljs-string">curvature": true }}"</span><span class="hljs-string">""</span>
-<span class="hljs-comment">// malformedJson: String = "{ \"Banana\":{ \"curvature\": true }}"</span>
 
 json1.fromJson[<span class="hljs-type">Fruit</span>]
-<span class="hljs-comment">// res0: Either[String, Fruit] = Right(value = Banana(curvature = 0.5))</span>
 json2.fromJson[<span class="hljs-type">Fruit</span>]
-<span class="hljs-comment">// res1: Either[String, Fruit] = Right(value = Apple(poison = false))</span>
 malformedJson.fromJson[<span class="hljs-type">Fruit</span>]
-<span class="hljs-comment">// res2: Either[String, Fruit] = Left(</span>
-<span class="hljs-comment">//   value = ".Banana.curvature(expected a number, got t)"</span>
-<span class="hljs-comment">// )</span>
 
 <span class="hljs-type">List</span>(<span class="hljs-type">Apple</span>(<span class="hljs-literal">false</span>), <span class="hljs-type">Banana</span>(<span class="hljs-number">0.4</span>)).toJsonPretty
-<span class="hljs-comment">// res3: String = """[{</span>
-<span class="hljs-comment">//   "Apple" : {</span>
-<span class="hljs-comment">//     "poison" : false</span>
-<span class="hljs-comment">//   }</span>
-<span class="hljs-comment">// }, {</span>
-<span class="hljs-comment">//   "Banana" : {</span>
-<span class="hljs-comment">//     "curvature" : 0.4</span>
-<span class="hljs-comment">//   }</span>
-<span class="hljs-comment">// }]"""</span>
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="zio-kafka"></a><a href="#zio-kafka" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>ZIO Kafka</h2>
 <p><a href="https://github.com/zio/zio-kafka">ZIO Kafka</a> is a Kafka client for ZIO. It provides a purely functional, streams-based interface to the Kafka client and integrates effortlessly with ZIO and ZIO Streams.</p>
@@ -1263,53 +1246,10 @@ println(updated)
 }
 
 <span class="hljs-type">Person</span>.schema
-<span class="hljs-comment">// res5: Schema[Person] = CaseClass3(</span>
-<span class="hljs-comment">//   annotations = IndexedSeq(),</span>
-<span class="hljs-comment">//   field1 = Field(</span>
-<span class="hljs-comment">//     label = "name",</span>
-<span class="hljs-comment">//     schema = Lazy(</span>
-<span class="hljs-comment">//       schema0 = zio.schema.DeriveSchema$$$Lambda$22341/1053136711@555717a6</span>
-<span class="hljs-comment">//     ),</span>
-<span class="hljs-comment">//     annotations = IndexedSeq()</span>
-<span class="hljs-comment">//   ),</span>
-<span class="hljs-comment">//   field2 = Field(</span>
-<span class="hljs-comment">//     label = "age",</span>
-<span class="hljs-comment">//     schema = Lazy(</span>
-<span class="hljs-comment">//       schema0 = zio.schema.DeriveSchema$$$Lambda$22342/2078605595@2eca5020</span>
-<span class="hljs-comment">//     ),</span>
-<span class="hljs-comment">//     annotations = IndexedSeq()</span>
-<span class="hljs-comment">//   ),</span>
-<span class="hljs-comment">//   field3 = Field(</span>
-<span class="hljs-comment">//     label = "id",</span>
-<span class="hljs-comment">//     schema = Lazy(</span>
-<span class="hljs-comment">//       schema0 = zio.schema.DeriveSchema$$$Lambda$22343/1762184847@20cff826</span>
-<span class="hljs-comment">//     ),</span>
-<span class="hljs-comment">//     annotations = IndexedSeq()</span>
-<span class="hljs-comment">//   ),</span>
-<span class="hljs-comment">//   construct = zio.schema.DeriveSchema$$$Lambda$22344/1207468103@4172a4d2,</span>
-<span class="hljs-comment">//   extractField1 = zio.schema.DeriveSchema$$$Lambda$22345/348564602@2c75617d,</span>
-<span class="hljs-comment">//   extractField2 = zio.schema.DeriveSchema$$$Lambda$22346/999646427@50426f83,</span>
-<span class="hljs-comment">//   extractField3 = zio.schema.DeriveSchema$$$Lambda$22347/1577358436@f13b365</span>
-<span class="hljs-comment">// )</span>
 
 <span class="hljs-keyword">import</span> zio.schema.syntax._
 
 <span class="hljs-type">Person</span>(<span class="hljs-string">"Alex"</span>, <span class="hljs-number">31</span>, <span class="hljs-string">"0123"</span>).diff(<span class="hljs-type">Person</span>(<span class="hljs-string">"Alex"</span>, <span class="hljs-number">31</span>, <span class="hljs-string">"124"</span>))
-<span class="hljs-comment">// res6: schema.Diff = Record(</span>
-<span class="hljs-comment">//   differences = ListMap(</span>
-<span class="hljs-comment">//     "name" -&gt; Identical,</span>
-<span class="hljs-comment">//     "age" -&gt; Identical,</span>
-<span class="hljs-comment">//     "id" -&gt; Myers(</span>
-<span class="hljs-comment">//       edits = IndexedSeq(</span>
-<span class="hljs-comment">//         Delete(s = "0"),</span>
-<span class="hljs-comment">//         Keep(s = "1"),</span>
-<span class="hljs-comment">//         Keep(s = "2"),</span>
-<span class="hljs-comment">//         Insert(s = "4"),</span>
-<span class="hljs-comment">//         Delete(s = "3")</span>
-<span class="hljs-comment">//       )</span>
-<span class="hljs-comment">//     )</span>
-<span class="hljs-comment">//   )</span>
-<span class="hljs-comment">// )</span>
 
 <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">toHex</span></span>(chunk: <span class="hljs-type">Chunk</span>[<span class="hljs-type">Byte</span>]): <span class="hljs-type">String</span> =
   chunk.toArray.map(<span class="hljs-string">"%02X"</span>.format(_)).mkString
@@ -1323,7 +1263,6 @@ zio.<span class="hljs-type">Runtime</span>.<span class="hljs-keyword">default</s
     .runCollect
     .flatMap(x =&gt; putStrLn(<span class="hljs-string">s"Encoded data with protobuf codec: <span class="hljs-subst">${toHex(x)}</span>"</span>))
 )
-<span class="hljs-comment">// Encoded data with protobuf codec: 0A0654686F6D617310171A0432333534</span>
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="zio-sqs"></a><a href="#zio-sqs" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>ZIO SQS</h2>
 <p><a href="https://github.com/zio/zio-sqs">ZIO SQS</a> is a ZIO-powered client for AWS SQS. It is built on top of the <a href="https://docs.aws.amazon.com/sdk-for-java/v2/developer-guide/basics.html">AWS SDK for Java 2.0</a> via the automatically generated wrappers from <a href="https://gaithub.com/vigoo/zio-aws">zio-aws</a>.</p>

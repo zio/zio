@@ -79,7 +79,7 @@ a sequence, as well as an <code>Assertion[A]</code> to apply at that position:</
 test(<span class="hljs-string">"Fourth value is equal to 5"</span>) {
   assert(xs)(hasAt(<span class="hljs-number">3</span>)(???))
 }
-<span class="hljs-comment">// res1: ZSpec[Any, Nothing] = Spec(</span>
+<span class="hljs-comment">// res1: Spec[Any, TestFailure[Nothing], TestSuccess] = Spec(</span>
 <span class="hljs-comment">//   caseValue = LabeledCase(</span>
 <span class="hljs-comment">//     label = "Fourth value is equal to 5",</span>
 <span class="hljs-comment">//     spec = Spec(</span>
@@ -102,7 +102,7 @@ supply <code>5</code>:</p>
 test(<span class="hljs-string">"Fourth value is equal to 5"</span>) {
   assert(xs)(hasAt(<span class="hljs-number">3</span>)(equalTo(<span class="hljs-number">5</span>)))
 }
-<span class="hljs-comment">// res3: ZSpec[Any, Nothing] = Spec(</span>
+<span class="hljs-comment">// res3: Spec[Any, TestFailure[Nothing], TestSuccess] = Spec(</span>
 <span class="hljs-comment">//   caseValue = LabeledCase(</span>
 <span class="hljs-comment">//     label = "Fourth value is equal to 5",</span>
 <span class="hljs-comment">//     spec = Spec(</span>
@@ -129,7 +129,7 @@ starting value <code>reference</code>, as well as a <code>tolerance</code>, for 
 test(<span class="hljs-string">"Fourth value is approximately equal to 5"</span>) {
   assert(xs)(hasAt(<span class="hljs-number">3</span>)(approximatelyEquals(<span class="hljs-number">5</span>, <span class="hljs-number">2</span>)))
 }
-<span class="hljs-comment">// res5: ZSpec[Any, Nothing] = Spec(</span>
+<span class="hljs-comment">// res5: Spec[Any, TestFailure[Nothing], TestSuccess] = Spec(</span>
 <span class="hljs-comment">//   caseValue = LabeledCase(</span>
 <span class="hljs-comment">//     label = "Fourth value is approximately equal to 5",</span>
 <span class="hljs-comment">//     spec = Spec(</span>
