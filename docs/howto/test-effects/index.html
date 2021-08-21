@@ -618,7 +618,7 @@ testM(<span class="hljs-string">"One can control time as he see fit"</span>) {
     }
 }
 <span class="hljs-comment">// schedulingLayer: ZLayer[Clock with Has[LoggingService], Nothing, Has[SchedulingService]] = Managed(</span>
-<span class="hljs-comment">//   self = zio.ZManaged$$anon$2@1fc5bcc7</span>
+<span class="hljs-comment">//   self = zio.ZManaged$$anon$2@75d41411</span>
 <span class="hljs-comment">// )</span>
 
 testM(<span class="hljs-string">"One can control time for failing effects too"</span>) {
@@ -752,7 +752,7 @@ like in the code below:</p>
   _      &lt;- <span class="hljs-type">TestSystem</span>.putProperty(<span class="hljs-string">"java.vm.name"</span>, <span class="hljs-string">"VM"</span>)
   result &lt;- system.property(<span class="hljs-string">"java.vm.name"</span>)
 } <span class="hljs-keyword">yield</span> assert(result)(equalTo(<span class="hljs-type">Some</span>(<span class="hljs-string">"VM"</span>)))
-<span class="hljs-comment">// res11: ZIO[TestSystem with system.package.System, Throwable, TestResult] = zio.ZIO$FlatMap@10451d6e</span>
+<span class="hljs-comment">// res11: ZIO[TestSystem with system.package.System, Throwable, TestResult] = zio.ZIO$FlatMap@62f50cfe</span>
 </code></pre>
 <p>It is worth noticing that no actual environment variables or properties will be set during testing so there will be
 no impact on other parts of the system.</p>

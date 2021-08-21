@@ -95,7 +95,7 @@
 </code></pre>
 <p>Note that <code>zip</code> operates sequentially: the effect on the left side is executed before the effect on the right side.</p>
 <p>In any <code>zip</code> operation, if either the left or right hand sides fail, then the composed effect will fail, because <em>both</em> values are required to construct the tuple.</p>
-<p>Sometimes, when the success value of an effect is not useful (or example, it is <code>Unit</code>), it can be more convenient to use the <code>ZIO#zipLeft</code> or <code>ZIO#zipRight</code> functions, which first perform a <code>zip</code>, and then map over the tuple to discard one side or the other:</p>
+<p>Sometimes, when the success value of an effect is not useful (for example, it is <code>Unit</code>), it can be more convenient to use the <code>ZIO#zipLeft</code> or <code>ZIO#zipRight</code> functions, which first perform a <code>zip</code>, and then map over the tuple to discard one side or the other:</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> zipRight1 = 
   putStrLn(<span class="hljs-string">"What is your name?"</span>).zipRight(getStrLn)
 </code></pre>
