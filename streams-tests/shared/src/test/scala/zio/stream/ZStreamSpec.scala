@@ -827,7 +827,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             for {
               chunkConcat  <- s1.runCollect.zipWith(s2.runCollect)(_ ++ _).exit
               streamConcat <- (s1 ++ s2).runCollect.exit
-            } yield assert(streamConcat.succeeded && chunkConcat.succeeded)(isTrue) implies assert(
+            } yield assert(streamConcat.isSuccess && chunkConcat.isSuccess)(isTrue) implies assert(
               streamConcat
             )(
               equalTo(chunkConcat)
@@ -908,7 +908,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             for {
               dropStreamResult <- s.drop(n.toLong).runCollect.exit
               dropListResult   <- s.runCollect.map(_.drop(n)).exit
-            } yield assert(dropListResult.succeeded)(isTrue) implies assert(dropStreamResult)(
+            } yield assert(dropListResult.isSuccess)(isTrue) implies assert(dropStreamResult)(
               equalTo(dropListResult)
             )
           }),
@@ -2123,7 +2123,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 .mapZIOPar(8)(_ => ZIO(1).repeatN(2000))
                 .runDrain
                 .exit
-                .map(_.interrupted)
+                .map(_.isInterrupted)
             )(equalTo(false))
           } @@ TestAspect.jvmOnly,
           test("interrupts pending tasks when one of the tasks fails") {
@@ -2211,14 +2211,14 @@ object ZStreamSpec extends ZIOBaseSpec {
                                  .zipWith(s2.runCollect)((left, right) => left ++ right)
                                  .map(_.toSet)
                                  .exit
-              } yield assert(!mergedStream.succeeded && !mergedLists.succeeded)(isTrue) || assert(
+              } yield assert(!mergedStream.isSuccess && !mergedLists.isSuccess)(isTrue) || assert(
                 mergedStream
               )(
                 equalTo(mergedLists)
               )
           }),
           test("fail as soon as one stream fails") {
-            assertM(ZStream(1, 2, 3).merge(ZStream.fail(())).runCollect.exit.map(_.succeeded))(
+            assertM(ZStream(1, 2, 3).merge(ZStream.fail(())).runCollect.exit.map(_.isSuccess))(
               equalTo(false)
             )
           } @@ nonFlaky(20),
@@ -2633,7 +2633,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             for {
               takeStreamResult <- s.take(n.toLong).runCollect.exit
               takeListResult   <- s.runCollect.map(_.take(n)).exit
-            } yield assert(takeListResult.succeeded)(isTrue) implies assert(takeStreamResult)(
+            } yield assert(takeListResult.isSuccess)(isTrue) implies assert(takeStreamResult)(
               equalTo(takeListResult)
             )
           }),
@@ -2671,7 +2671,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               chunkTakeUntil <- s.runCollect
                                   .map(as => as.takeWhile(!p(_)) ++ as.dropWhile(!p(_)).take(1))
                                   .exit
-            } yield assert(chunkTakeUntil.succeeded)(isTrue) implies assert(streamTakeUntil)(
+            } yield assert(chunkTakeUntil.isSuccess)(isTrue) implies assert(streamTakeUntil)(
               equalTo(chunkTakeUntil)
             )
           }
@@ -2686,7 +2686,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                                        .zipWith(as.dropWhileZIO(p(_).map(!_)).map(_.take(1)))(_ ++ _)
                                    )
                                    .exit
-            } yield assert(chunkTakeUntilM.succeeded)(isTrue) implies assert(streamTakeUntilM)(
+            } yield assert(chunkTakeUntilM.isSuccess)(isTrue) implies assert(streamTakeUntilM)(
               equalTo(chunkTakeUntilM)
             )
           }
@@ -2696,7 +2696,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             for {
               streamTakeWhile <- s.takeWhile(p).runCollect.exit
               chunkTakeWhile  <- s.runCollect.map(_.takeWhile(p)).exit
-            } yield assert(chunkTakeWhile.succeeded)(isTrue) implies assert(streamTakeWhile)(equalTo(chunkTakeWhile))
+            } yield assert(chunkTakeWhile.isSuccess)(isTrue) implies assert(streamTakeWhile)(equalTo(chunkTakeWhile))
           }),
           test("takeWhile doesn't stop when hitting an empty chunk (#4272)") {
             ZStream

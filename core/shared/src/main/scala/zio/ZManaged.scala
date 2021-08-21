@@ -2302,7 +2302,7 @@ object ZManaged extends ZManagedPlatformSpecific {
   def lock(executor: => Executor): ZManaged[Any, Nothing, Unit] =
     ZManaged.acquireReleaseWith {
       ZIO.descriptorWith { descriptor =>
-        if (descriptor.locked) ZIO.shift(executor).as(Some(descriptor.executor))
+        if (descriptor.isLocked) ZIO.shift(executor).as(Some(descriptor.executor))
         else ZIO.shift(executor).as(None)
       }
     } {

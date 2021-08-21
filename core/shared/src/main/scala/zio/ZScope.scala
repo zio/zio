@@ -38,7 +38,7 @@ sealed abstract class ZScope[+A] { self =>
    * Returns an effect that will succeed with `true` if the scope is closed,
    * and `false` otherwise.
    */
-  def closed: UIO[Boolean]
+  def isClosed: UIO[Boolean]
 
   /**
    * Prevents a previously added finalizer from being executed when the scope
@@ -52,7 +52,7 @@ sealed abstract class ZScope[+A] { self =>
    * effect executes. The returned effect will succeed with `true` if the scope
    * is empty, and `false` otherwise.
    */
-  def empty: UIO[Boolean]
+  def isEmpty: UIO[Boolean]
 
   /**
    * Adds a finalizer to the scope. If successful, this ensures that when the
@@ -80,14 +80,14 @@ sealed abstract class ZScope[+A] { self =>
    * Returns an effect that will succeed with `true` if the scope is open,
    * and `false` otherwise.
    */
-  def open: UIO[Boolean] = closed.map(!_)
+  def isOpen: UIO[Boolean] = isClosed.map(!_)
 
   /**
    * Determines if the scope has been released at the moment the effect is
    * executed executed. A scope can be closed yet unreleased, if it has been
    * extended by another scope which is not yet released.
    */
-  def released: UIO[Boolean]
+  def isReleased: UIO[Boolean]
 
   private[zio] def unsafeDeny(key: ZScope.Key): Boolean
   private[zio] def unsafeEnsure(finalizer: A => UIO[Any], mode: ZScope.Mode): Either[A, ZScope.Key]
@@ -128,14 +128,14 @@ object ZScope {
     private val unsafeEnsureResult = Right(Key(UIO(true)))
     private val ensureResult       = UIO(unsafeEnsureResult)
 
-    def closed: UIO[Boolean] = UIO(false)
+    def isClosed: UIO[Boolean] = UIO(false)
 
-    def empty: UIO[Boolean] = UIO(false)
+    def isEmpty: UIO[Boolean] = UIO(false)
 
     def ensure(finalizer: Nothing => UIO[Any], mode: ZScope.Mode = ZScope.Mode.Strong): UIO[Either[Nothing, Key]] =
       ensureResult
 
-    def released: UIO[Boolean] = UIO(false)
+    def isReleased: UIO[Boolean] = UIO(false)
 
     private[zio] def unsafeDeny(key: Key): Boolean = true
     private[zio] def unsafeEnsure(finalizer: Nothing => UIO[Any], mode: ZScope.Mode): Either[Nothing, Key] =
@@ -195,9 +195,9 @@ object ZScope {
     private[zio] val strongFinalizers: Map[Key, OrderedFinalizer]
   ) extends ZScope[A] { self =>
 
-    def closed: UIO[Boolean] = UIO(unsafeClosed())
+    def isClosed: UIO[Boolean] = UIO(unsafeIsClosed())
 
-    def empty: UIO[Boolean] = UIO(Sync(self)(weakFinalizers.size() == 0 && strongFinalizers.size() == 0))
+    def isEmpty: UIO[Boolean] = UIO(Sync(self)(weakFinalizers.size() == 0 && strongFinalizers.size() == 0))
 
     def ensure(finalizer: A => UIO[Any], mode: ZScope.Mode = ZScope.Mode.Strong): UIO[Either[A, Key]] =
       UIO(unsafeEnsure(finalizer, mode))
@@ -210,12 +210,12 @@ object ZScope {
 
     def child: UIO[Either[A, ZScope.Open[A]]] = UIO(unsafeChild())
 
-    def released: UIO[Boolean] = UIO(unsafeReleased())
+    def isReleased: UIO[Boolean] = UIO(unsafeIsReleased())
 
     private[this] def finalizers(mode: ZScope.Mode): Map[Key, OrderedFinalizer] =
       if (mode == ZScope.Mode.Weak) weakFinalizers else strongFinalizers
 
-    private[zio] def unsafeClosed(): Boolean = Sync(self)(exitValue.get() != null)
+    private[zio] def unsafeIsClosed(): Boolean = Sync(self)(exitValue.get() != null)
 
     private[zio] def unsafeClose(a0: A): UIO[Any] =
       Sync(self) {
@@ -226,7 +226,7 @@ object ZScope {
 
     private[zio] def unsafeDeny(key: Key): Boolean =
       Sync(self) {
-        if (unsafeClosed()) false
+        if (unsafeIsClosed()) false
         else (weakFinalizers.remove(key) ne null) || (strongFinalizers.remove(key) ne null)
       }
 
@@ -234,7 +234,7 @@ object ZScope {
       Sync(self) {
         def coerce(f: A => UIO[Any]): Any => UIO[Any] = f.asInstanceOf[Any => UIO[Any]]
 
-        if (unsafeClosed()) Left(exitValue.get())
+        if (unsafeIsClosed()) Left(exitValue.get())
         else {
           lazy val key: Key = Key(deny(key))
 
@@ -246,14 +246,14 @@ object ZScope {
 
     private[zio] def unsafeAddRef(): Boolean =
       Sync(self) {
-        if (unsafeClosed()) false
+        if (unsafeIsClosed()) false
         else {
           references.incrementAndGet()
           true
         }
       }
 
-    private[zio] def unsafeEmpty(): Boolean =
+    private[zio] def unsafeIsEmpty(): Boolean =
       Sync(self) {
         (weakFinalizers.size() == 0) && (strongFinalizers.size() == 0)
       }
@@ -279,7 +279,7 @@ object ZScope {
           case child: ZScope.Local[Any] =>
             Sync(child) {
               Sync(self) {
-                if (!self.unsafeClosed() && !child.unsafeClosed()) {
+                if (!self.unsafeIsClosed() && !child.unsafeIsClosed()) {
                   // If parent and child scopes are both open:
                   child.unsafeAddRef()
 
@@ -335,7 +335,7 @@ object ZScope {
         } else null
       }
 
-    private[zio] def unsafeReleased(): Boolean = references.get() <= 0
+    private[zio] def unsafeIsReleased(): Boolean = references.get() <= 0
   }
 
   private val noCause: Cause[Nothing]            = Cause.empty

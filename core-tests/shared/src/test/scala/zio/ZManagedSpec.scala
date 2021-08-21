@@ -1321,7 +1321,7 @@ object ZManagedSpec extends ZIOBaseSpec {
       test("The canceler will run with an exit value indicating the effect was interrupted") {
         for {
           ref    <- Ref.make(false)
-          managed = ZManaged.acquireReleaseExitWith(ZIO.unit)((_, e) => ref.set(e.interrupted))
+          managed = ZManaged.acquireReleaseExitWith(ZIO.unit)((_, e) => ref.set(e.isInterrupted))
           _      <- managed.withEarlyRelease.use(_._1)
           result <- ref.get
         } yield assert(result)(isTrue)
@@ -1342,7 +1342,7 @@ object ZManagedSpec extends ZIOBaseSpec {
       test("Allows specifying an exit value") {
         for {
           ref    <- Ref.make(false)
-          managed = ZManaged.acquireReleaseExitWith(ZIO.unit)((_, e) => ref.set(e.succeeded))
+          managed = ZManaged.acquireReleaseExitWith(ZIO.unit)((_, e) => ref.set(e.isSuccess))
           _      <- managed.withEarlyReleaseExit(Exit.unit).use(_._1)
           result <- ref.get
         } yield assert(result)(isTrue)

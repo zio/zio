@@ -41,7 +41,7 @@ trait ZStreamPlatformSpecificConstructors {
                             runtime.unsafeRun(stream.Take.fromPull(k).flatMap(output.offer))
                             ()
                           } catch {
-                            case FiberFailure(c) if c.interrupted =>
+                            case FiberFailure(c) if c.isInterrupted =>
                           }
                         }
                       }
@@ -83,7 +83,7 @@ trait ZStreamPlatformSpecificConstructors {
                runtime.unsafeRun(stream.Take.fromPull(k).flatMap(output.offer))
                ()
              } catch {
-               case FiberFailure(c) if c.interrupted =>
+               case FiberFailure(c) if c.isInterrupted =>
              }
            }.toManaged
     } yield {

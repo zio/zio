@@ -979,8 +979,8 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                          .foldCauseZIO(
                            {
                              // we ignore all downstream queues that were shut down and remove them later
-                             case c if c.interrupted => ZIO.succeedNow(id :: acc)
-                             case c                  => ZIO.failCause(c)
+                             case c if c.isInterrupted => ZIO.succeedNow(id :: acc)
+                             case c                    => ZIO.failCause(c)
                            },
                            _ => ZIO.succeedNow(acc)
                          )
@@ -1016,7 +1016,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                            queues <- queuesRef.get.map(_.values)
                            _ <- ZIO.foreach(queues) { queue =>
                                   queue.offer(endTake).catchSomeCause {
-                                    case c if c.interrupted => ZIO.unit
+                                    case c if c.isInterrupted => ZIO.unit
                                   }
                                 }
                            _ <- done(endTake)
@@ -2033,7 +2033,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
       ZStream.managed(ZManaged.lock(executor)) *>
         self <*
         ZStream.fromZIO {
-          if (descriptor.locked) ZIO.shift(descriptor.executor)
+          if (descriptor.isLocked) ZIO.shift(descriptor.executor)
           else ZIO.unshift
         }
     }
@@ -3948,7 +3948,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       queue.take
         .catchAllCause(c =>
           queue.isShutdown.flatMap { down =>
-            if (down && c.interrupted) Pull.end
+            if (down && c.isInterrupted) Pull.end
             else Pull.failCause(c)
           }
         )
@@ -4214,7 +4214,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
         .map(Chunk.fromIterable)
         .catchAllCause(c =>
           queue.isShutdown.flatMap { down =>
-            if (down && c.interrupted) Pull.end
+            if (down && c.isInterrupted) Pull.end
             else Pull.failCause(c)
           }
         )

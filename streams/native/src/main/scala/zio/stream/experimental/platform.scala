@@ -42,7 +42,7 @@ trait ZStreamPlatformSpecificConstructors {
                           try {
                             runtime.unsafeRunToFuture(stream.Take.fromPull(k).flatMap(output.offer))
                           } catch {
-                            case FiberFailure(c) if c.interrupted =>
+                            case FiberFailure(c) if c.isInterrupted =>
                               Future.successful(false)
                           }
                         }
@@ -84,7 +84,7 @@ trait ZStreamPlatformSpecificConstructors {
              try {
                runtime.unsafeRunToFuture(stream.Take.fromPull(k).flatMap(output.offer))
              } catch {
-               case FiberFailure(c) if c.interrupted =>
+               case FiberFailure(c) if c.isInterrupted =>
                  Future.successful(false)
              }
            }.toManaged
