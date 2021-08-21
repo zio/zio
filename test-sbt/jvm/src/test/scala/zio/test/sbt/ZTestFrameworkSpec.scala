@@ -219,7 +219,7 @@ object ZTestFrameworkSpec {
   }
 
   lazy val sourceFilePath: String = zio.test.sourcePath
-  lazy val assertLocation: String = s"☛ $sourceFilePath:XXX"
+  lazy val assertLocation: String = s"at $sourceFilePath:XXX"
   implicit class TestOutputOps(output: String) {
     def withNoLineNumbers: String =
       output.replaceAll(Pattern.quote(sourceFilePath + ":") + "\\d+", sourceFilePath + ":XXX")

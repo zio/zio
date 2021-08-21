@@ -138,7 +138,7 @@ object FailureCase {
 
         errorMessageLines ++ Chunk(codeString) ++ nested.flatMap(renderFailureCase(_, true)).map("  " + _) ++
           Chunk.fromIterable(path.map { case (label, value) => dim(s"$label = ") + blue(PrettyPrint(value)) }) ++
-          Chunk(cyan(s"☛ $location")) ++ Chunk("")
+          Chunk(cyan(s"at $location")) ++ Chunk("")
 
     }
 }
