@@ -97,7 +97,7 @@ object SmartAssertions {
     Arrow
       .make[Seq[A], Boolean] { seq =>
         Trace.boolean(seq.contains(value)) {
-          className(seq) + M.did + "contain" + M.value(value)
+          className(seq) + M.did + "contain" + M.pretty(value)
         }
       }
 
@@ -105,7 +105,7 @@ object SmartAssertions {
     Arrow
       .make[Option[A], Boolean] { option =>
         Trace.boolean(option.contains(value)) {
-          className(option) + M.did + "contain" + M.value(value)
+          className(option) + M.did + "contain" + M.pretty(value)
         }
       }
 
@@ -113,7 +113,7 @@ object SmartAssertions {
     Arrow
       .make[String, Boolean] { str =>
         Trace.boolean(str.contains(value)) {
-          M.value(str) + M.did + "contain" + M.value(value)
+          M.pretty(str) + M.did + "contain" + M.pretty(value)
         }
       }
 
@@ -136,7 +136,7 @@ object SmartAssertions {
           case Some(value) => Trace.succeed(value)
           case None =>
             Trace.halt(
-              M.text("Missing key") + M.value(key)
+              M.text("Missing key") + M.pretty(key)
             )
         }
       }
@@ -155,7 +155,7 @@ object SmartAssertions {
     Arrow
       .make[A, Boolean] { (a: A) =>
         Trace.boolean(integral.rem(a, integral.fromInt(2)) == integral.fromInt(0)) {
-          M.value(a) + M.was + "even"
+          M.pretty(a) + M.was + "even"
         }
       }
 
@@ -163,7 +163,7 @@ object SmartAssertions {
     Arrow
       .make[A, Boolean] { (a: A) =>
         Trace.boolean(integral.rem(a, integral.fromInt(2)) == integral.fromInt(1)) {
-          M.value(a) + M.was + "odd"
+          M.pretty(a) + M.was + "odd"
         }
       }
 
@@ -171,7 +171,7 @@ object SmartAssertions {
     Arrow
       .make[A, Boolean] { (a: A) =>
         Trace.boolean(ordering.gt(a, that)) {
-          M.value(a) + M.was + "greater than" + M.value(that)
+          M.pretty(a) + M.was + "greater than" + M.pretty(that)
         }
       }
 
@@ -179,7 +179,7 @@ object SmartAssertions {
     Arrow
       .make[A, Boolean] { a =>
         Trace.boolean(ordering.gteq(a, that)) {
-          M.value(a) + M.was + s"greater than or equal to $that"
+          M.pretty(a) + M.was + s"greater than or equal to" + M.pretty(that)
         }
       }
 
@@ -187,7 +187,7 @@ object SmartAssertions {
     Arrow
       .make[A, Boolean] { a =>
         Trace.boolean(ordering.lt(a, that)) {
-          M.value(a) + M.was + "less than" + M.value(that)
+          M.pretty(a) + M.was + "less than" + M.pretty(that)
         }
       }
 
@@ -195,7 +195,7 @@ object SmartAssertions {
     Arrow
       .make[A, Boolean] { a =>
         Trace.boolean(ordering.lteq(a, that)) {
-          M.value(a) + M.was + "less than or equal to" + M.value(that)
+          M.pretty(a) + M.was + "less than or equal to" + M.pretty(that)
         }
       }
 
@@ -210,11 +210,11 @@ object SmartAssertions {
         Trace.boolean(result) {
           diff.value match {
             case Some(diff) if !diff.isLowPriority && !result =>
-              M.custom(ConsoleUtils.underlined("Expected")) + "\n" +/ M.value(PrettyPrint(that)) + "\n" +/
+              M.custom(ConsoleUtils.underlined("Expected")) + "\n" +/ M.pretty(that) + "\n" +/
                 M.custom(ConsoleUtils.underlined("Diff")) + "\n" +/
                 M.custom(ConsoleUtils.red(diff.diff(that, a).render))
             case _ =>
-              M.value(a) + M.equals + M.value(that)
+              M.pretty(a) + M.equals + M.pretty(that)
           }
         }
       }
