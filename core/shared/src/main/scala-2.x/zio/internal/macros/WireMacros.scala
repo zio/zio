@@ -25,7 +25,7 @@ final class WireMacros(val c: blackbox.Context) extends LayerMacroUtils {
     val requirements         = getRequirements[R] diff deferredRequirements
 
     val deferredLayer =
-      if (deferredRequirements.nonEmpty) Seq(Node(List.empty, deferredRequirements, reify(ZLayer.requires[R0])))
+      if (deferredRequirements.nonEmpty) Seq(Node(List.empty, deferredRequirements, reify(ZLayer.environment[R0])))
       else Nil
 
     val nodes = (deferredLayer ++ layers.map(getNode)).toList
@@ -51,7 +51,7 @@ final class WireMacros(val c: blackbox.Context) extends LayerMacroUtils {
 
     val deferredLayer =
       if (deferredRequirements.isEmpty) List.empty
-      else List(Node(List.empty, deferredRequirements, reify(ZLayer.requires[R0])))
+      else List(Node(List.empty, deferredRequirements, reify(ZLayer.environment[R0])))
     val nodes = deferredLayer ++ layers.map(getNode)
 
     val graph = generateExprGraph(nodes)

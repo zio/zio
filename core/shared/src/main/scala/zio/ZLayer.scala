@@ -129,7 +129,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
           c => ZIO.failCause(c)
         )
       }
-    fold(failureOrDie >>> handler, ZLayer.identity)
+    fold(failureOrDie >>> handler, ZLayer.environment)
   }
 
   /**
@@ -221,22 +221,25 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
             Clock.currentDateTime
               .flatMap(now =>
                 schedule.step(now, e, s).flatMap {
-                  case (_, _, Done)                   => ZIO.fail(e)
-                  case (state, _, Continue(interval)) => Clock.sleep(Duration.fromInterval(now, interval)) as ((r, state))
+                  case (_, _, Done) => ZIO.fail(e)
+                  case (state, _, Continue(interval)) =>
+                    Clock.sleep(Duration.fromInterval(now, interval)) as ((r, state))
                 }
               )
               .provide(r)
           }
         update >>> ZLayer.suspend(loop.fresh)
       }
-    ZLayer.identity <&> ZLayer.fromZIOMany(ZIO.succeed(schedule.initial)) >>> loop
+    ZLayer.environment <&> ZLayer.fromZIOMany(ZIO.succeed(schedule.initial)) >>> loop
   }
 
   /**
    * Performs the specified effect if this layer succeeds.
    */
   final def tap[RIn1 <: RIn, E1 >: E](f: ROut => ZIO[RIn1, E1, Any]): ZLayer[RIn1, E1, ROut] =
-    ZLayer.identity <&> self >>> ZLayer.fromFunctionManyZIO { case (in, out) => f(out).provide(in) *> ZIO.succeed(out) }
+    ZLayer.environment <&> self >>> ZLayer.fromFunctionManyZIO { case (in, out) =>
+      f(out).provide(in) *> ZIO.succeed(out)
+    }
 
   /**
    * Performs the specified effect if this layer fails.
@@ -4272,14 +4275,23 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * an identity with respect to the `>>>` operator. It represents an identity
    * with respect to the `++` operator when the environment type is `Any`.
    */
+  @deprecated("use environment", "2.0.0")
   def identity[A]: ZLayer[A, Nothing, A] =
-    ZLayer.requires[A]
+    ZLayer.environment[A]
 
   /**
    * Constructs a layer that passes along the specified environment as an
    * output.
    */
+  @deprecated("use environment", "2.0.0")
   def requires[A]: ZLayer[A, Nothing, A] =
+    ZLayer.environment[A]
+
+  /**
+   * Constructs a layer that passes along the specified environment as an
+   * output.
+   */
+  def environment[A]: ZLayer[A, Nothing, A] =
     ZLayer(ZManaged.environment[A])
 
   /**
@@ -4324,7 +4336,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
      * passes through the inputs to this layer.
      */
     def passthrough(implicit ev: Has.Union[RIn, ROut], tag: Tag[ROut]): ZLayer[RIn, E, RIn with ROut] =
-      ZLayer.identity[RIn] ++ self
+      ZLayer.environment[RIn] ++ self
   }
 
   implicit final class ZLayerProjectOps[R, E, A](private val self: ZLayer[R, E, Has[A]]) extends AnyVal {
@@ -4333,7 +4345,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
      * Projects out part of one of the layers output by this layer using the
      * specified function
      */
-    final def project[B: Tag](f: A => B)(implicit tag: Tag[A]): ZLayer[R, E, Has[B]] =
+    def project[B: Tag](f: A => B)(implicit tag: Tag[A]): ZLayer[R, E, Has[B]] =
       self >>> ZLayer.fromFunction(r => f(r.get))
   }
 

@@ -85,7 +85,7 @@ private[zio] trait LayerMacroUtils {
     val remainderRequirements = getRequirements[R0]
     val remainderExpr =
       if (weakTypeOf[R0] =:= weakTypeOf[ZEnv]) reify(ZEnv.any)
-      else reify(ZLayer.requires[R0])
+      else reify(ZLayer.environment[R0])
 
     val remainderNode = Node(List.empty, remainderRequirements, remainderExpr)
     val nodes         = (remainderNode +: layers.map(getNode)).toList
