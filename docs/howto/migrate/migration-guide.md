@@ -348,25 +348,24 @@ Let's try to write a Logging service using _Module Pattern 2.0_:
 
 ```scala
 object logging {
-  // Defining the Service Type by Wrapping the Service Interface with Has[_] Data Type
+  // Defining the service type by wrapping the service interface with Has[_] data type
   type Logging = Has[Logging.Service]
 
-  // Companion Object That Holds Service Interface and its Live Implementation
+  // Companion object that holds service interface and its live implementation
   object Logging {
-    // Service Interface
     trait Service {
       def log(line: String): UIO[Unit]
     }
-
-    // Live Implementation of the Logging Service
-    val live: URLayer[Clock with Console, Logging] =
+    
+    // Live implementation of the Logging service
+    val live: ZLayer[Clock with Console, Nothing, Logging] =
       ZLayer.fromServices[Clock.Service, Console.Service, Logging.Service] {
-        (clock: Clock, console: Console) =>
+        (clock: Clock.Service, console: Console.Service) =>
           new Logging.Service {
             override def log(line: String): UIO[Unit] =
               for {
-                current <- clock.currentDateTime
-                _ <- console.printLine(s"$current--$line").orDie
+                current <- clock.currentDateTime.orDie
+                _       <- console.putStrLn(s"$current--$line")
               } yield ()
           }
       }
@@ -374,7 +373,7 @@ object logging {
 
   // Accessor Methods
   def log(line: => String): URIO[Logging, Unit] =
-    ZIO.accessZIO(_.get.log(line))
+    ZIO.accessM(_.get.log(line))
 }
 ```
 
