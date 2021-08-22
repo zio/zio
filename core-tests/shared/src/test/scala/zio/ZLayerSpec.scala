@@ -390,6 +390,18 @@ object ZLayerSpec extends ZIOBaseSpec {
           _     <- layer.build.useNow
           value <- ref.get
         } yield assert(value)(equalTo("bar"))
+      },
+      testM(">%>") {
+        val layer: ZLayer[Has[Int] with Has[String], Nothing, Has[Int] with Has[String]] =
+          ZLayer.service[Int] ++ ZLayer.service[String]
+        val justInt: ULayer[Has[Int]]                                         = ZLayer.succeed(10)
+        val provided: ZLayer[Has[String], Nothing, Has[Int] with Has[String]] = justInt >%> layer
+        for {
+          has <- (ZLayer.succeed("Hello") >>> provided).build.useNow
+        } yield assertTrue(
+          has.get[Int] == 10,
+          has.get[String] == "Hello"
+        )
       }
     )
 }

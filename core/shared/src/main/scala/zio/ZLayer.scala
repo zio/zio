@@ -2234,6 +2234,17 @@ object ZLayer {
      Suspend(() => self)
    }
 
+  implicit final class ZLayerProvideSomeOps[RIn, E, ROut](private val self: ZLayer[RIn, E, ROut]) extends AnyVal {
+    /**
+     * Feeds the output services of this layer into the input of the specified
+     * layer, resulting in a new layer with the inputs of this layer as well as
+     * any leftover inputs, and the outputs of the specified layer.
+     */
+    def >%>[RIn2, E1 >: E, ROut2](that: ZLayer[ROut with RIn2, E1, ROut2])(implicit ev: Has.Union[RIn2, ROut], tag: Tag[ROut]): ZLayer[RIn with RIn2, E1, ROut2] =
+      ZLayer.requires[RIn2] ++ self >>> that
+  }
+
+
   implicit final class ZLayerPassthroughOps[RIn, E, ROut](private val self: ZLayer[RIn, E, ROut]) extends AnyVal {
 
     /**
