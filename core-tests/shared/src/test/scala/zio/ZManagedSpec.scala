@@ -143,14 +143,14 @@ object ZManagedSpec extends ZIOBaseSpec {
         }
       } @@ TestAspect.nonFlaky
     ),
-    suite("fromEffect")(
+    suite("fromZIO")(
       test("Performed interruptibly") {
         assertM(ZManaged.fromZIO(ZIO.checkInterruptible(ZIO.succeed(_))).use(ZIO.succeed(_)))(
           equalTo(InterruptStatus.interruptible)
         )
       }
     ) @@ zioTag(interruption),
-    suite("fromEffectUninterruptible")(
+    suite("fromZIOUninterruptible")(
       test("Performed uninterruptibly") {
         assertM(ZManaged.fromZIOUninterruptible(ZIO.checkInterruptible(ZIO.succeed(_))).use(ZIO.succeed(_)))(
           equalTo(InterruptStatus.uninterruptible)
