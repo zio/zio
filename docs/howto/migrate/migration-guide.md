@@ -294,7 +294,7 @@ val app: ZIO[Has[Console], Nothing, Unit] =
 
 In ZIO 2.x, we have a similar functionality but for injection, which is the `ZIO#injectSome[Rest](l1, l2, ...)` operator:
 
-```scala mdoc:silent:nest
+```scala mdoc:silent:nest:warn
 val app: ZIO[Has[Console], Nothing, Unit] =
   myApp.injectSome[Has[Console]](
     Logging.live,
@@ -339,6 +339,151 @@ val app: ZIO[zio.ZEnv, Nothing, Unit] =
 | `ZIO#provideCustomLayer`                      | `ZIO#injectCustom`      |
 | Composing manually using `ZLayer` combinators | `ZLayer#wire`           |
 | Composing manually using `ZLayer` combinators | `ZLayer#wireSome`       |
+
+### Module Pattern
+
+_Module Patternـ is one of the most significant changes in ZIO 2.x. Before discussing changes, let see how did we define services in ZIO 1.x.
+
+Let's try to write a Logging service using _Module Pattern 2.0_:
+
+```scala
+object logging {
+  // Defining the Service Type by Wrapping the Service Interface with Has[_] Data Type
+  type Logging = Has[Logging.Service]
+
+  // Companion Object That Holds Service Interface and its Live Implementation
+  object Logging {
+    // Service Interface
+    trait Service {
+      def log(line: String): UIO[Unit]
+    }
+
+    // Live Implementation of the Logging Service
+    val live: URLayer[Clock with Console, Logging] =
+      ZLayer.fromServices[Clock.Service, Console.Service, Logging.Service] {
+        (clock: Clock, console: Console) =>
+          new Logging.Service {
+            override def log(line: String): UIO[Unit] =
+              for {
+                current <- clock.currentDateTime
+                _ <- console.printLine(s"$current--$line").orDie
+              } yield ()
+          }
+      }
+  }
+
+  // Accessor Methods
+  def log(line: => String): URIO[Logging, Unit] =
+    ZIO.accessZIO(_.get.log(line))
+}
+```
+
+The `Logging` service is a logger which depends on the `Console` and `Clock` services.
+
+ZIO 2.x introduces the _Module Pattern 2.0_ which is much more concise and has more ergonomics. Let's see how the `Logging` service can be implemented using this new pattern:
+
+```scala mdoc:invisible:reset
+import zio._
+```
+
+```scala mdoc:silent:nest
+// Defining the Service Interface
+trait Logging {
+  def log(line: String): UIO[Unit]
+}
+
+// Accessor Methods Inside the Companion Object
+object Logging {
+  def log(line: String): URIO[Has[Logging], Unit] =
+    ZIO.serviceWith[Logging](_.log(line))
+}
+
+// Implementation of the Service Interface
+case class LoggingLive(console: Console, clock: Clock) extends Logging {
+  override def log(line: String): UIO[Unit] =
+    for {
+      time <- clock.currentDateTime
+      _    <- console.printLine(s"$time--$line").orDie
+    } yield ()
+}
+
+// Converting the Service Implementation into the ZLayer
+object LoggingLive {
+  val layer: URLayer[Has[Console] with Has[Clock], Has[Logging]] =
+    (LoggingLive(_, _)).toLayer[Logging]
+}
+```
+
+As we see, we have the following changes:
+
+1. **Deprecation of Type Alias for `Has` Wrappers** — In _Module Pattern 1.0_ although the type aliases were to prevent using `Has[ServiceName]` boilerplate everywhere, they were confusing, and led to doubly nested `Has[Has[ServiceName]]`. So the _Module Pattern 2.0_ doesn't anymore encourage using type aliases. Also, they were removed from all built-in ZIO services. So, the `type Console = Has[Console.Service]` removed and the `Console.Service` will just be `Console`. **We should explicitly wrap services with `Has` data types everywhere**. 
+
+2. **Introducing Constructor-based Dependency Injection** — In _Module Pattern 1.0_ when we wanted to create a service layer that depends on other services, we had to use `ZLayer.fromService*` constructors. The problem with the `ZLayer` constructors is that there are too many constructors each one is useful for a specific use-case, but people had troubled in spending a lot of time figuring out which one to use. 
+
+    In _Module Pattern 2.0_ we don't worry about all these different `ZLayer` constructors. It recommends **providing dependencies as interfaces through the case class constructor**, and then we have direct access to all of these dependencies to implement the service. Finally, to create the `ZLayer` we call `toLayer` on the service implementation.
+
+    > **_Note:_**
+    > 
+    > When implementing a service that doesn't have any dependency, our code might not compile:
+    > ```scala
+    > case class LoggingLive() extends Logging {
+    >   override def log(line: String): UIO[Unit] =
+    >     ZIO.attempt(println(line)).orDie
+    > }
+    > 
+    > object LoggingLive {
+    >   val layer: URLayer[Any, Has[Logging]] = LoggingLive().toLayer
+    > }
+    >``` 
+    > Compiler Error:
+    > ```
+    > value toLayer is not a member of LoggingLive
+    > val layer: URLayer[Any, Has[Logging]] = LoggingLive().toLayer
+    > ```
+    > The problem here is that the companion object won't automatically extend `() => Logging`. So the workaround is doing that manually:
+    > ```scala
+    > object LoggingLive extends (() => Logging) {
+    >   val layer: URLayer[Any, Has[Logging]] = LoggingLive.toLayer
+    > }
+    > ```
+    > Or we can just write the `val layer: URLayer[Any, Has[Logging]] = (() => Logging).toLayer` to fix that.
+ 
+    > **_Note:_**
+    > 
+    > The new pattern encourages us to parametrize _case classes_ to introduce service dependencies and then using `toLayer` syntax as a very simple way that always works. But it doesn't enforce us to do that. We can also just pull whatever services we want from the environment using `ZIO.service` or `ZManaged.service` and then implement the service and call `toLayer` on it:
+    > ```scala mdoc:silent:nest
+    > object LoggingLive {
+    >   val layer: ZLayer[Has[Clock] with Has[Console], Nothing, Has[Logging]] =
+    >     (for {
+    >       console <- ZIO.service[Console]
+    >       clock   <- ZIO.service[Clock]
+    >     } yield new Logging {
+    >       override def log(line: String): UIO[Unit] =
+    >         for {
+    >           time <- clock.currentDateTime
+    >           _    <- console.printLine(s"$time--$line").orDie
+    >         } yield ()
+    >     }).toLayer
+    > }
+    > ```
+
+3. **Separated Interface** — In the _Module Pattern 2.0_, ZIO supports the _Separated Interface_ pattern which encourages keeping the implementation of an interface decoupled from the client and its definition.
+
+    As our application grows, where we define our layers matters more. _Separated Interface_ is a very useful pattern while we are developing a complex application. It helps us to reduce the coupling between application components. 
+
+    Following two changes in _Module Pattern_ we can define the service definition in one package but its implementations in other packages:
+    
+   1. **Flattened Structure** — In the new pattern, everything is at the top level in a file. So the developer is not limited to package service definition and service implementation in one package.
+   
+      > **_Note_**:
+      > 
+      > Module Pattern 2.0 supports the idea of _Separated Interface_, but it doesn't enforce us grouping them into different packages and modules. The decision is up to us, based on the complexity and requirements of our application.
+   
+   2. **Decoupling Interfaces from Implementation** — Assume we have a complex application, and our interface is `Logging` with different implementations that potentially depend on entirely different modules. Putting layers in the service definition means anyone depending on the service definition needs to depend on all the dependencies of all the implementations, which is not a good practice.
+   
+    In Module Pattern 2.0, layers are defined in the implementation's companion object, not in the interface's companion object. So instead of calling `Logging.live` to access the live implementation we call `LoggingLive.layer`.
+
+The _Module Pattern 1.0_ was somehow complicated and had some boilerplates. The _Module Pattern 2.0_ is so much familiar to people coming from an object-oriented world. So it is so much easy to learn for newcomers. The new pattern is much simpler.
 
 ## ZIO Streams
 TODO
