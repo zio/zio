@@ -171,7 +171,10 @@ object Supervisor {
     }
   }
 
+  @deprecated("use fromZIO", "2.0.0")
   def fromEffect[A](value: UIO[A]): Supervisor[A] = new ConstSupervisor(value)
+
+  def fromZIO[A](value: UIO[A]): Supervisor[A] = new ConstSupervisor(value)
 
   /**
    * Creates a new supervisor that tracks children in a set.

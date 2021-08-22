@@ -2149,7 +2149,7 @@ object ZManaged extends ZManagedPlatformSpecific {
 
   /**
    * Lifts a ZIO[R, E, A] into ZManaged[R, E, A] with no release action. The
-   * effect will be performed uninterruptibly. You usually want the [[ZManaged.fromEffect]]
+   * effect will be performed uninterruptibly. You usually want the [[ZManaged.fromZIO]]
    * variant.
    */
   @deprecated("use fromZIOUninterruptible", "2.0.0")
@@ -2238,7 +2238,7 @@ object ZManaged extends ZManagedPlatformSpecific {
 
   /**
    * Lifts a ZIO[R, E, A] into ZManaged[R, E, A] with no release action. The
-   * effect will be performed uninterruptibly. You usually want the [[ZManaged.fromEffect]]
+   * effect will be performed uninterruptibly. You usually want the [[ZManaged.fromZIO]]
    * variant.
    */
   def fromZIOUninterruptible[R, E, A](fa: ZIO[R, E, A]): ZManaged[R, E, A] =

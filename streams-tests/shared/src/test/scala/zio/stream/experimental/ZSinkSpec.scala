@@ -497,7 +497,7 @@ object ZSinkSpec extends ZIOBaseSpec {
           assertM(leftover)(equalTo(Chunk(4, 5)))
         }
       ),
-      suite("fromEffect")(
+      suite("fromZIO")(
         test("result is ok") {
           val s = ZSink.fromZIO(ZIO.succeed("ok"))
           assertM(ZStream(1, 2, 3).run(s))(

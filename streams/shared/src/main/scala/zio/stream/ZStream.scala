@@ -1039,7 +1039,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    *
    * {{{
    * (Stream(1, 2, 3).tap(i => ZIO(println(i))) ++
-   *   Stream.fromEffect(ZIO(println("Done!"))).drain ++
+   *   Stream.fromZIO(ZIO(println("Done!"))).drain ++
    *   Stream(4, 5, 6).tap(i => ZIO(println(i)))).run(Sink.drain)
    * }}}
    */
@@ -5207,14 +5207,30 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
      * Either emits the success value of this effect or terminates the stream
      * with the failure value of this effect.
      */
+    @deprecated("use fromZIOChunk", "2.0.0")
     def fromEffect(zio: ZIO[R, E, A]): B =
+      fromZIO(zio)
+
+    /**
+     * Either emits the success value of this effect or terminates the stream
+     * with the failure value of this effect.
+     */
+    @deprecated("use fromZIOChunk", "2.0.0")
+    def fromEffectChunk(zio: ZIO[R, E, Chunk[A]]): B =
+      fromZIOChunk(zio)
+
+    /**
+     * Either emits the success value of this effect or terminates the stream
+     * with the failure value of this effect.
+     */
+    def fromZIO(zio: ZIO[R, E, A]): B =
       apply(zio.mapBoth(e => Some(e), a => Chunk(a)))
 
     /**
      * Either emits the success value of this effect or terminates the stream
      * with the failure value of this effect.
      */
-    def fromEffectChunk(zio: ZIO[R, E, Chunk[A]]): B =
+    def fromZIOChunk(zio: ZIO[R, E, Chunk[A]]): B =
       apply(zio.mapError(e => Some(e)))
 
     /**

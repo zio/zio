@@ -3892,7 +3892,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             }
           }
         ),
-        suite("fromEffectOption")(
+        suite("fromZIOOption")(
           test("emit one element with success") {
             val fa: ZIO[Any, Option[Int], Int] = ZIO.succeed(5)
             assertM(ZStream.fromZIOOption(fa).runCollect)(equalTo(Chunk(5)))
