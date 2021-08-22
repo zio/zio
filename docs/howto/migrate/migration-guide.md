@@ -394,7 +394,7 @@ trait Logging {
 // Accessor Methods Inside the Companion Object
 object Logging {
   def log(line: String): URIO[Has[Logging], Unit] =
-    ZIO.serviceWith[Logging](_.log(line))
+    ZIO.serviceWith(_.log(line))
 }
 
 // Implementation of the Service Interface
@@ -481,6 +481,8 @@ As we see, we have the following changes:
    2. **Decoupling Interfaces from Implementation** — Assume we have a complex application, and our interface is `Logging` with different implementations that potentially depend on entirely different modules. Putting layers in the service definition means anyone depending on the service definition needs to depend on all the dependencies of all the implementations, which is not a good practice.
    
     In Module Pattern 2.0, layers are defined in the implementation's companion object, not in the interface's companion object. So instead of calling `Logging.live` to access the live implementation we call `LoggingLive.layer`.
+
+4. **Accessor Methods** — The new pattern reduced one level of indirection on writing accessor methods. So instead of accessing the environment (`ZIO.access/ZIO.accessM`) and then retrieving the service from the environment (`Has#get`) and then calling the service method, the _Module Pattern 2.0_ introduced the `ZIO.serviceWith` that is a more concise way of writing accessor methods. For example, instead of `ZIO.accessM(_.get.log(line))` we write `ZIO.serviceWith(_.log(line))`.
 
 The _Module Pattern 1.0_ was somehow complicated and had some boilerplates. The _Module Pattern 2.0_ is so much familiar to people coming from an object-oriented world. So it is so much easy to learn for newcomers. The new pattern is much simpler.
 
