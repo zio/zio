@@ -10,6 +10,7 @@ object ErrorMessage {
   def custom(string: String): ErrorMessage                   = Custom(string)
   def text(string: String): ErrorMessage                     = choice(string, string)
   def value(value: Any): ErrorMessage                        = Value(value)
+  def pretty(value: Any): ErrorMessage                       = Value(PrettyPrint(value))
 
   val equals: ErrorMessage = choice("was equal to", "was not equal to")
   val is: ErrorMessage     = choice("is", "is not")
