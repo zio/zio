@@ -247,7 +247,7 @@ object ZIOSpec extends ZIOBaseSpec {
     suite("catchSomeCause")(
       test("catches matching cause") {
         ZIO.interrupt.catchSomeCause {
-          case c if c.interrupted => ZIO.succeed(true)
+          case c if c.isInterrupted => ZIO.succeed(true)
         }.sandbox.map(
           assert(_)(isTrue)
         )
@@ -255,7 +255,7 @@ object ZIOSpec extends ZIOBaseSpec {
       test("fails if cause doesn't match") {
         ZIO.fiberId.flatMap { fiberId =>
           ZIO.interrupt.catchSomeCause {
-            case c if (!c.interrupted) => ZIO.succeed(true)
+            case c if (!c.isInterrupted) => ZIO.succeed(true)
           }.sandbox.either.map(
             assert(_)(isLeft(equalTo(Cause.interrupt(fiberId))))
           )
@@ -999,9 +999,9 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield {
           assert(result1)(equalTo(Cause.die(boom))) && {
             assert(result2)(equalTo(Cause.die(boom))) ||
-            (assert(result2.dieOption)(isSome(equalTo(boom))) && assert(result2.interrupted)(isTrue))
+            (assert(result2.dieOption)(isSome(equalTo(boom))) && assert(result2.isInterrupted)(isTrue))
           } && {
-            assert(result3.dieOption)(isSome(equalTo(boom))) && assert(result3.interrupted)(isTrue)
+            assert(result3.dieOption)(isSome(equalTo(boom))) && assert(result3.isInterrupted)(isTrue)
           }
         }
       } @@ nonFlaky,
@@ -1596,8 +1596,8 @@ object ZIOSpec extends ZIOBaseSpec {
           _ <- ZIO
                  .die(new RuntimeException)
                  .onExit {
-                   case Exit.Failure(c) if c.died => ref.set(true)
-                   case _                         => UIO.unit
+                   case Exit.Failure(c) if c.isDie => ref.set(true)
+                   case _                          => UIO.unit
                  }
                  .sandbox
                  .ignore
@@ -1609,8 +1609,8 @@ object ZIOSpec extends ZIOBaseSpec {
           latch1 <- Promise.make[Nothing, Unit]
           latch2 <- Promise.make[Nothing, Unit]
           fiber <- (latch1.succeed(()) *> ZIO.never).onExit {
-                     case Exit.Failure(c) if c.interrupted => latch2.succeed(())
-                     case _                                => UIO.unit
+                     case Exit.Failure(c) if c.isInterrupted => latch2.succeed(())
+                     case _                                  => UIO.unit
                    }.fork
           _ <- latch1.await
           _ <- fiber.interrupt
@@ -2372,7 +2372,7 @@ object ZIOSpec extends ZIOBaseSpec {
 
         for {
           a1 <- assertM(io)(anything)
-          a2  = assert(reported.succeeded)(isFalse)
+          a2  = assert(reported.isSuccess)(isFalse)
         } yield a1 && a2
       } @@ zioTag(errors),
       test("acquireReleaseWith exit is usage result") {
@@ -3067,7 +3067,7 @@ object ZIOSpec extends ZIOBaseSpec {
           fiber <- withLatch { release =>
                      (release *> ZIO.never.interruptible)
                        .foldCauseZIO(
-                         cause => recovered.set(cause.interrupted),
+                         cause => recovered.set(cause.isInterrupted),
                          _ => recovered.set(false)
                        )
                        .uninterruptible
@@ -3833,7 +3833,7 @@ object ZIOSpec extends ZIOBaseSpec {
       },
       test("does not report failure when interrupting loser after it succeeded") {
         val io          = ZIO.interrupt.zipPar(IO.succeed(1))
-        val interrupted = io.sandbox.either.map(_.left.map(_.interrupted))
+        val interrupted = io.sandbox.either.map(_.left.map(_.isInterrupted))
         assertM(interrupted)(isLeft(isTrue))
       } @@ zioTag(interruption),
       test("passes regression 1") {

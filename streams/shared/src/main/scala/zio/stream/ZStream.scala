@@ -979,8 +979,8 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                          .foldCauseZIO(
                            {
                              // we ignore all downstream queues that were shut down and remove them later
-                             case c if c.interrupted => ZIO.succeedNow(id :: acc)
-                             case c                  => ZIO.failCause(c)
+                             case c if c.isInterrupted => ZIO.succeedNow(id :: acc)
+                             case c                    => ZIO.failCause(c)
                            },
                            _ => ZIO.succeedNow(acc)
                          )
@@ -1016,7 +1016,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                            queues <- queuesRef.get.map(_.values)
                            _ <- ZIO.foreach(queues) { queue =>
                                   queue.offer(endTake).catchSomeCause {
-                                    case c if c.interrupted => ZIO.unit
+                                    case c if c.isInterrupted => ZIO.unit
                                   }
                                 }
                            _ <- done(endTake)
@@ -1039,7 +1039,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    *
    * {{{
    * (Stream(1, 2, 3).tap(i => ZIO(println(i))) ++
-   *   Stream.fromEffect(ZIO(println("Done!"))).drain ++
+   *   Stream.fromZIO(ZIO(println("Done!"))).drain ++
    *   Stream(4, 5, 6).tap(i => ZIO(println(i)))).run(Sink.drain)
    * }}}
    */
@@ -2033,7 +2033,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
       ZStream.managed(ZManaged.lock(executor)) *>
         self <*
         ZStream.fromZIO {
-          if (descriptor.locked) ZIO.shift(descriptor.executor)
+          if (descriptor.isLocked) ZIO.shift(descriptor.executor)
           else ZIO.unshift
         }
     }
@@ -3948,7 +3948,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       queue.take
         .catchAllCause(c =>
           queue.isShutdown.flatMap { down =>
-            if (down && c.interrupted) Pull.end
+            if (down && c.isInterrupted) Pull.end
             else Pull.failCause(c)
           }
         )
@@ -4214,7 +4214,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
         .map(Chunk.fromIterable)
         .catchAllCause(c =>
           queue.isShutdown.flatMap { down =>
-            if (down && c.interrupted) Pull.end
+            if (down && c.isInterrupted) Pull.end
             else Pull.failCause(c)
           }
         )
@@ -4410,15 +4410,22 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * Creates a stream from an effect producing a value of type `A`, which is repeated using the
    * specified schedule.
    */
-  @deprecated("use repeatZIOWith", "2.0.0")
+  @deprecated("use repeatZIOWithSchedule", "2.0.0")
   def repeatEffectWith[R, E, A](effect: ZIO[R, E, A], schedule: Schedule[R, A, Any]): ZStream[R with Has[Clock], E, A] =
-    repeatZIOWith(effect, schedule)
+    repeatZIOWithSchedule(effect, schedule)
 
   /**
    * Repeats the value using the provided schedule.
    */
+  @deprecated("use repeatWithSchedule", "2.0.0")
   def repeatWith[R, A](a: => A, schedule: Schedule[R, A, _]): ZStream[R with Has[Clock], Nothing, A] =
-    repeatZIOWith(UIO.succeed(a), schedule)
+    repeatWithSchedule(a, schedule)
+
+  /**
+   * Repeats the value using the provided schedule.
+   */
+  def repeatWithSchedule[R, A](a: => A, schedule: Schedule[R, A, _]): ZStream[R with Has[Clock], Nothing, A] =
+    repeatZIOWithSchedule(UIO.succeed(a), schedule)
 
   /**
    * Creates a stream from an effect producing a value of type `A` which repeats forever.
@@ -4460,7 +4467,10 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * Creates a stream from an effect producing a value of type `A`, which is repeated using the
    * specified schedule.
    */
-  def repeatZIOWith[R, E, A](effect: ZIO[R, E, A], schedule: Schedule[R, A, Any]): ZStream[R with Has[Clock], E, A] =
+  def repeatZIOWithSchedule[R, E, A](
+    effect: ZIO[R, E, A],
+    schedule: Schedule[R, A, Any]
+  ): ZStream[R with Has[Clock], E, A] =
     ZStream.fromZIO(effect zip schedule.driver).flatMap { case (a, driver) =>
       ZStream.succeed(a) ++
         ZStream.unfoldZIO(a)(driver.next(_).foldZIO(ZIO.succeed(_), _ => effect.map(nextA => Some(nextA -> nextA))))
@@ -4510,7 +4520,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * A stream that emits Unit values spaced by the specified duration.
    */
   def tick(interval: Duration): ZStream[Has[Clock], Nothing, Unit] =
-    repeatWith((), Schedule.spaced(interval))
+    repeatWithSchedule((), Schedule.spaced(interval))
 
   /**
    * A stream that contains a single `Unit` value.
@@ -5197,14 +5207,30 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
      * Either emits the success value of this effect or terminates the stream
      * with the failure value of this effect.
      */
+    @deprecated("use fromZIOChunk", "2.0.0")
     def fromEffect(zio: ZIO[R, E, A]): B =
+      fromZIO(zio)
+
+    /**
+     * Either emits the success value of this effect or terminates the stream
+     * with the failure value of this effect.
+     */
+    @deprecated("use fromZIOChunk", "2.0.0")
+    def fromEffectChunk(zio: ZIO[R, E, Chunk[A]]): B =
+      fromZIOChunk(zio)
+
+    /**
+     * Either emits the success value of this effect or terminates the stream
+     * with the failure value of this effect.
+     */
+    def fromZIO(zio: ZIO[R, E, A]): B =
       apply(zio.mapBoth(e => Some(e), a => Chunk(a)))
 
     /**
      * Either emits the success value of this effect or terminates the stream
      * with the failure value of this effect.
      */
-    def fromEffectChunk(zio: ZIO[R, E, Chunk[A]]): B =
+    def fromZIOChunk(zio: ZIO[R, E, Chunk[A]]): B =
       apply(zio.mapError(e => Some(e)))
 
     /**

@@ -301,7 +301,7 @@ import zio.Duration._
 import zio.Random._
 import zio.Schedule
 val repeatZeroEverySecond: ZStream[Has[Clock], Nothing, Int] = 
-  ZStream.repeatWith(0, Schedule.spaced(1.seconds))
+  ZStream.repeatWithSchedule(0, Schedule.spaced(1.seconds))
 ```
 
 **ZStream.repeatZIO** — Assume we have an effectful API, and we need to call that API and create a stream from the result of that. We can create a stream from that effect that repeats forever.

@@ -89,7 +89,7 @@ private[internal] trait PlatformSpecific {
           throw t
         } catch { case _: Throwable => throw t }
       },
-      reportFailure = (cause: Cause[Any]) => if (cause.died) System.err.println(cause.prettyPrint),
+      reportFailure = (cause: Cause[Any]) => if (cause.isDie) System.err.println(cause.prettyPrint),
       supervisor = Supervisor.none,
       enableCurrentFiber = false
     )

@@ -141,6 +141,14 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
     ZLayer.Flatten(self.map(f))
 
   /**
+   * This method can be used to "flatten" nested layers.
+   */
+  final def flatten[RIn1 <: RIn, E1 >: E, ROut2](
+    implicit ev: ROut <:< ZLayer[RIn1, E1, ROut2]
+  ): ZLayer[RIn1, E1, ROut2] =
+    ZLayer.Flatten(self.map(ev))
+
+  /**
    * Feeds the error or output services of this layer into the input of either
    * the specified `failure` or `success` layers, resulting in a new layer with
    * the inputs of this layer, and the error or outputs of the specified layer.

@@ -222,7 +222,7 @@ object DefaultTestReporter {
           .flatMap(renderFailureCase(_, offset, true))
           .map(_.withOffset(offset + 1)) ++
           Chunk.fromIterable(path.map { case (label, value) => dim(s"$label = ") + primary(value.toString) }) ++
-          Chunk(detail(s"☛ $location").toLine))
+          Chunk(detail(s"at $location").toLine))
     }
 
   private def renderAssertionFailureDetails(failureDetails: ::[AssertionValue], offset: Int): Message = {
@@ -242,7 +242,7 @@ object DefaultTestReporter {
   }
 
   private def renderAssertionLocation(av: AssertionValue, offset: Int) = av.sourceLocation.fold(Message()) { location =>
-    detail(s"☛ $location").toLine
+    detail(s"at $location").toLine
       .withOffset(offset + 1)
       .toMessage
   }

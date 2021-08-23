@@ -461,7 +461,7 @@ object Fiber extends FiberPlatformSpecific {
     def interrupters: Set[Fiber.Id]
     def interruptStatus: InterruptStatus
     def executor: Executor
-    def locked: Boolean
+    def isLocked: Boolean
     def scope: ZScope[Exit[Any, Any]]
   }
 
@@ -490,7 +490,7 @@ object Fiber extends FiberPlatformSpecific {
         def interrupters: Set[Fiber.Id]      = interrupters0
         def interruptStatus: InterruptStatus = interruptStatus0
         def executor: Executor               = executor0
-        def locked: Boolean                  = locked0
+        def isLocked: Boolean                = locked0
         def scope: ZScope[Exit[Any, Any]]    = scope0
       }
   }
