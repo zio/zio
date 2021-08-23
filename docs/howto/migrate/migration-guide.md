@@ -529,6 +529,51 @@ All blocking operations were moved to the `ZIO` data type:
 
 We can also provide a user-defined blocking executor in ZIO 2.x with the `Runtime#withBlockingExecutor` operator that constructs a new `Runtime` with the specified blocking executor.
 
+### Clock Service
+
+In ZIO 2.0, without changing any API, the _retrying_, _repetition_, and _scheduling_ logic moved into the `Clock` service.
+
+Working with these three time-related APIs, always made us require `Clock` as our environment. So by moving these primitives into the `Clock` service, now we can directly call them via the `Clock` service. This change solves a common anti-pattern in ZIO 1.0, whereby a middleware that uses `Clock` via this retrying, repetition, or scheduling logic must provide the `Clock` layer on every method invocation:
+
+```scala mdoc:silent:nest
+trait Journal {
+  def append(log: String): ZIO[Any, Throwable, Unit]
+}
+
+trait Logger {
+  def log(line: String): UIO[Unit]
+}
+
+case class JournalLoggerLive(clock: Clock, journal: Journal) extends Logger {
+  override def log(line: String): UIO[Unit] = {
+    for {
+      current <- clock.currentDateTime
+      _ <- journal.append(s"$current--$line")
+        .retry(Schedule.exponential(2.seconds))
+        .provide(Has(clock))
+        .orDie
+    } yield ()
+  }
+}
+```
+
+In ZIO 2.0, we can implement the logger service with a better ergonomic:
+
+```scala mdoc:silent:nest
+case class JournalLoggerLive(clock: Clock, journal: Journal) extends Logger {
+  override def log(line: String): UIO[Unit] = {
+    for {
+      current <- clock.currentDateTime
+      _       <- clock.retry(
+                   journal.append(s"$current--$line")
+                )(Schedule.exponential(2.seconds)).orDie
+    } yield ()
+  }
+}
+```
+
+Note that the ZIO API didn't change, but the `Clock` trait became a bigger one, having more clock-related methods.
+
 ### Console Service
 
 Method names in the _Console_ service were renamed to the more readable names:
