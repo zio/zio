@@ -780,3 +780,12 @@ Here are some of the most important changes:
 | `ZLayer.fromEffectMany`    | `ZLayer.fromZIOMany`         |
 | `ZLayer.fromFunctionM`     | `ZLayer.fromFunctionZIO`     |
 | `ZLayer.fromFunctionManyM` | `ZLayer.fromFunctionManyZIO` |
+
+## New Features
+
+### Smart Assertion
+TODO
+
+### State
+TODO
+
