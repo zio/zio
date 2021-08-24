@@ -23,7 +23,7 @@ TODO
 
 ### Functions to Layers
 
-In ZIO 1.x, when we want to write a service that depends on other services, we need to use `ZLayer.fromSrevice*` variants with a lot of boilerplate:
+In ZIO 1.x, when we want to write a service that depends on other services, we need to use `ZLayer.fromService*` variants with a lot of boilerplate:
 
 ```scala
 val live: URLayer[Clock with Console, Logging] =
