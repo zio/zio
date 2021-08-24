@@ -19,7 +19,7 @@ object LayerMacros {
     val requirements     = getRequirements[R](s"Target Environment")
 
     val zEnvLayer: List[Node[ctx.reflect.TypeRepr, LayerExpr]] =
-      if (deferredRequirements.nonEmpty) List(Node(List.empty, deferredRequirements, '{ZLayer.requires[R0]}))
+      if (deferredRequirements.nonEmpty) List(Node(List.empty, deferredRequirements, '{ZLayer.environment[R0]}))
       else List.empty
 
     val nodes = zEnvLayer ++ getNodes(layers)

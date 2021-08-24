@@ -32,7 +32,7 @@ private[zio] trait PlatformSpecific {
     }
 
     val any: ZLayer[ZEnv, Nothing, ZEnv] =
-      ZLayer.requires[ZEnv]
+      ZLayer.environment[ZEnv]
 
     val live: Layer[Nothing, ZEnv] =
       Clock.live ++ Console.live ++ System.live ++ Random.live

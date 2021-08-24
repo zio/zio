@@ -4738,7 +4738,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     def apply[E1 >: E, R1](
       layer: ZLayer[R0, E1, R1]
     )(implicit ev1: R0 with R1 <:< R, ev2: Has.Union[R0, R1], tagged: Tag[R1]): ZStream[R0, E1, A] =
-      self.provideLayer[E1, R0, R0 with R1](ZLayer.identity[R0] ++ layer)
+      self.provideLayer[E1, R0, R0 with R1](ZLayer.environment[R0] ++ layer)
   }
 
   final class UpdateService[-R, +E, +O, M](private val self: ZStream[R, E, O]) extends AnyVal {

@@ -671,7 +671,7 @@ object TestRandom extends Serializable {
   }.toLayerMany
 
   val any: ZLayer[Has[Random] with Has[TestRandom], Nothing, Has[Random] with Has[TestRandom]] =
-    ZLayer.requires[Has[Random] with Has[TestRandom]]
+    ZLayer.environment[Has[Random] with Has[TestRandom]]
 
   val deterministic: Layer[Nothing, Has[Random] with Has[TestRandom]] =
     make(DefaultData)
