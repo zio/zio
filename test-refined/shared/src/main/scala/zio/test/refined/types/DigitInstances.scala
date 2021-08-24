@@ -11,8 +11,8 @@ object digit extends DigitInstances
 trait DigitInstances {
   private def hexStringsGen(n: Int): Gen[Has[Random], String] = Gen
     .oneOf(
-      Gen.stringN(n)(Gen.upperHexChar),
-      Gen.stringN(n)(Gen.lowerHexChar)
+      Gen.stringN(n)(Gen.hexCharUpper),
+      Gen.stringN(n)(Gen.hexCharLower)
     )
 
   val md5Gen: Gen[Has[Random], MD5]       = hexStringsGen(32).map(Refined.unsafeApply)

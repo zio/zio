@@ -273,9 +273,9 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A generator of lower hex chars(0-9, a-f).
    */
-  @deprecated("use lowerHexChar", "2.0.0")
+  @deprecated("use hexCharLower", "2.0.0")
   val anyLowerHexChar: Gen[Has[Random], Char] =
-    Gen.lowerHexChar
+    Gen.hexCharLower
 
   /**
    * A generator of shorts. Shrinks toward '0'.
@@ -301,9 +301,9 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A generator of upper hex chars(0-9, A-F).
    */
-  @deprecated("use upperHexChar", "2.0.0")
+  @deprecated("use hexCharUpper", "2.0.0")
   val anyUpperHexChar: Gen[Has[Random], Char] =
-    Gen.upperHexChar
+    Gen.hexCharUpper
 
   /**
    * A generator of universally unique identifiers. The returned generator will
@@ -595,6 +595,24 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   )
 
   /**
+   * A generator of lower hex chars(0-9, a-f).
+   */
+  val hexCharLower: Gen[Has[Random], Char] =
+    weighted(
+      char('\u0030', '\u0039') -> 10,
+      char('\u0061', '\u0066') -> 6
+    )
+
+  /**
+   * A generator of upper hex chars(0-9, A-F).
+   */
+  val hexCharUpper: Gen[Has[Random], Char] =
+    weighted(
+      char('\u0030', '\u0039') -> 10,
+      char('\u0041', '\u0046') -> 6
+    )
+
+  /**
    * A generator of integers. Shrinks toward '0'.
    */
   val int: Gen[Has[Random], Int] =
@@ -668,12 +686,6 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
         effect.map(Sample.shrinkIntegral(min))
       }
     }
-
-  /**
-   * A generator of lower hex chars(0-9, a-f).
-   */
-  val lowerHexChar: Gen[Has[Random], Char] =
-    weighted(char('\u0030', '\u0039') -> 10, char('\u0061', '\u0066') -> 6)
 
   /**
    * A sized generator of maps.
@@ -900,15 +912,6 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    */
   val unit: Gen[Any, Unit] =
     const(())
-
-  /**
-   * A generator of upper hex chars(0-9, A-F).
-   */
-  val upperHexChar: Gen[Has[Random], Char] =
-    weighted(
-      char('\u0030', '\u0039') -> 10,
-      char('\u0041', '\u0046') -> 6
-    )
 
   /**
    * A generator of universally unique identifiers. The returned generator will

@@ -30,7 +30,7 @@ trait StringInstance {
   def trimmedStringGen[R](charGen: Gen[R, Char]): Gen[R with Has[Random] with Has[Sized], TrimmedString] =
     Gen.string(charGen).map(s => Refined.unsafeApply(s.trim))
   def hexStringGen: Gen[Has[Random] with Has[Sized], HexString] =
-    Gen.oneOf(Gen.string(Gen.lowerHexChar), Gen.string(Gen.upperHexChar)).map(Refined.unsafeApply)
+    Gen.oneOf(Gen.string(Gen.hexCharLower), Gen.string(Gen.hexCharUpper)).map(Refined.unsafeApply)
 
   implicit def finiteStringDeriveGen[N <: Int](implicit
     ws: Witness.Aux[N],
