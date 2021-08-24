@@ -143,8 +143,8 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
   /**
    * This method can be used to "flatten" nested layers.
    */
-  final def flatten[RIn1 <: RIn, E1 >: E, ROut2](
-    implicit ev: ROut <:< ZLayer[RIn1, E1, ROut2]
+  final def flatten[RIn1 <: RIn, E1 >: E, ROut2](implicit
+    ev: ROut <:< ZLayer[RIn1, E1, ROut2]
   ): ZLayer[RIn1, E1, ROut2] =
     ZLayer.Flatten(self.map(ev))
 
@@ -356,6 +356,78 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   def apply[RIn, E, ROut](managed: ZManaged[RIn, E, ROut]): ZLayer[RIn, E, ROut] =
     Managed(managed)
+
+  sealed trait Debug
+
+  object Debug {
+    private[zio] type Tree = Tree.type
+    private[zio] case object Tree extends Debug
+    private[zio] type Mermaid = Mermaid.type
+    private[zio] case object Mermaid extends Debug
+
+    /**
+     * Including this layer in a call to a compile-time ZLayer constructor, such
+     * as [[ZIO.inject]] or [[ZLayer.wire]], will display a tree visualization
+     * of the constructed layer graph.
+     *
+     * {{{
+     *   val layer =
+     *     ZLayer.wire[Has[OldLady]](
+     *       OldLady.live,
+     *       Spider.live,
+     *       Fly.live,
+     *       Bear.live,
+     *       Console.live,
+     *       ZLayer.Debug.tree
+     *     )
+     *
+     * // Including `ZLayer.Debug.tree` will generate the following compilation error:
+     * //
+     * // ◉ OldLady.live
+     * // ├─◑ Spider.live
+     * // │ ╰─◑ Fly.live
+     * // │   ╰─◑ Console.live
+     * // ╰─◑ Bear.live
+     * //   ╰─◑ Fly.live
+     * //     ╰─◑ Console.live
+     *
+     * }}}
+     */
+    val tree: ULayer[Has[Debug]] = ZLayer.succeed(Debug.Tree)
+
+    /**
+     * Including this layer in a call to a compile-time ZLayer constructor, such
+     * as [[ZIO.inject]] or [[ZLayer.wire]], will display a tree visualization
+     * of the constructed layer graph as well as a link to Mermaid chart.
+     *
+     * {{{
+     *   val layer =
+     *     ZLayer.wire[Has[OldLady]](
+     *       OldLady.live,
+     *       Spider.live,
+     *       Fly.live,
+     *       Bear.live,
+     *       Console.live,
+     *       ZLayer.Debug.mermaid
+     *     )
+     *
+     * // Including `ZLayer.Debug.mermaid` will generate the following compilation error:
+     * //
+     * // ◉ OldLady.live
+     * // ├─◑ Spider.live
+     * // │ ╰─◑ Fly.live
+     * // │   ╰─◑ Console.live
+     * // ╰─◑ Bear.live
+     * //   ╰─◑ Fly.live
+     * //     ╰─◑ Console.live
+     * //
+     * // Mermaid Live Editor Link
+     * // https://mermaid-js.github.io/mermaid-live-editor/edit/#eyJjb2RlIjoiZ3JhcGhcbiAgICBDb25zb2xlLmxpdmVcbiAgICBTcGlkZXIubGl2ZSAtLT4gRmx5LmxpdmVcbiAgICBGbHkubGl2ZSAtLT4gQ29uc29sZS5saXZlXG4gICAgT2xkTGFkeS5saXZlIC0tPiBTcGlkZXIubGl2ZVxuICAgIE9sZExhZHkubGl2ZSAtLT4gQmVhci5saXZlXG4gICAgQmVhci5saXZlIC0tPiBGbHkubGl2ZVxuICAgICIsIm1lcm1haWQiOiAie1xuICBcInRoZW1lXCI6IFwiZGVmYXVsdFwiXG59IiwgInVwZGF0ZUVkaXRvciI6IHRydWUsICJhdXRvU3luYyI6IHRydWUsICJ1cGRhdGVEaWFncmFtIjogdHJ1ZX0=
+     *
+     * }}}
+     */
+    val mermaid: ULayer[Has[Debug]] = ZLayer.succeed(Debug.Mermaid)
+  }
 
   /**
    * Constructs a layer that fails with the specified value.

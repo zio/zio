@@ -10,11 +10,12 @@ private[zio] class LayerMacros(val c: blackbox.Context) extends LayerMacroUtils 
   def injectImpl[F[_, _, _], R: c.WeakTypeTag, E, A](
     layers: c.Expr[ZLayer[_, E, _]]*
   ): c.Expr[F[Any, E, A]] =
-    injectBaseImpl[F, R, E, A](layers, "provideLayer")
+    injectBaseImpl[F, Any, R, E, A](layers, "provideLayer")
 
   def injectSomeImpl[F[_, _, _], R0: c.WeakTypeTag, R: c.WeakTypeTag, E, A](
     layers: c.Expr[ZLayer[_, E, _]]*
-  ): c.Expr[F[R0, E, A]] = injectSomeBaseImpl[F, R0, R, E, A](layers, "provideLayer")
+  ): c.Expr[F[R0, E, A]] =
+    injectBaseImpl[F, R0, R, E, A](layers, "provideLayer")
 
   def debugGetRequirements[R: c.WeakTypeTag]: c.Expr[List[String]] =
     c.Expr[List[String]](q"${getRequirements[R]}")

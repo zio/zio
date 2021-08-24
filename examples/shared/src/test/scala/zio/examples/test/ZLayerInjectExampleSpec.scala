@@ -1,11 +1,11 @@
 package zio.examples.test
 
 import zio._
-import zio.examples.ProvideLayerAutoExample.{Bear, Fly, OldLady, Spider}
+import zio.examples.ZLayerInjectExample.{Bear, Fly, OldLady, Spider}
 import zio.test.Assertion.anything
 import zio.test._
 
-object ProvideLayerAutoExampleSpec extends DefaultRunnableSpec {
+object ZLayerInjectExampleSpec extends DefaultRunnableSpec {
 
   private val exampleZio: ZIO[Has[Console] with Has[OldLady], Nothing, Unit] =
     OldLady.contentsOfStomach.flatMap { contents =>
