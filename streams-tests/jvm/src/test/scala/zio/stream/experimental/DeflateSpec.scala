@@ -11,7 +11,7 @@ object DeflateSpec extends DefaultRunnableSpec {
   override def spec: ZSpec[Environment, Failure] =
     suite("DeflateSpec")(
       test("JDK inflates what was deflated")(
-        checkM(Gen.listOfBounded(0, `1K`)(Gen.anyByte).zip(Gen.int(1, `1K`)).zip(Gen.int(1, `1K`))) {
+        checkM(Gen.listOfBounded(0, `1K`)(Gen.byte).zip(Gen.int(1, `1K`)).zip(Gen.int(1, `1K`))) {
           case (input, n, bufferSize) =>
             assertM(for {
               (deflated, _) <-

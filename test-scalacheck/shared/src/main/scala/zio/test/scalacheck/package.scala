@@ -19,7 +19,7 @@ import zio.test.Sized
   * import zio.test._
   * import zio.test.scalacheck._
   * 
-  * val anyInt: Gen[Random with Sized, Int] =
+  * val int: Gen[Random with Sized, Int] =
   *   Arbitrary.arbitrary[Int].toGenZIO
   * }}}
   */

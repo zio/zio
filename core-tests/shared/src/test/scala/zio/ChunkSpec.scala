@@ -61,8 +61,8 @@ object ChunkSpec extends ZIOBaseSpec {
         val chunksWithIndex: Gen[Has[Random] with Has[Sized], (Chunk[Int], Chunk[Int], Int)] =
           for {
             p  <- Gen.boolean
-            as <- Gen.chunkOf(Gen.anyInt)
-            bs <- Gen.chunkOf1(Gen.anyInt)
+            as <- Gen.chunkOf(Gen.int)
+            bs <- Gen.chunkOf1(Gen.int)
             n  <- Gen.int(0, as.length + bs.length - 1)
           } yield if (p) (as, bs, n) else (bs, as, n)
         check(chunksWithIndex) { case (as, bs, n) =>
@@ -72,7 +72,7 @@ object ChunkSpec extends ZIOBaseSpec {
         }
       },
       test("buffer full") {
-        check(Gen.chunkOf(Gen.anyInt), Gen.chunkOf(Gen.anyInt)) { (as, bs) =>
+        check(Gen.chunkOf(Gen.int), Gen.chunkOf(Gen.int)) { (as, bs) =>
           def addAll[A](l: Chunk[A], r: Chunk[A]): Chunk[A] = r.foldLeft(l)(_ :+ _)
           val actual                                        = List.fill(100)(bs).foldLeft(as)(addAll)
           val expected                                      = List.fill(100)(bs).foldLeft(as)(_ ++ _)
@@ -80,7 +80,7 @@ object ChunkSpec extends ZIOBaseSpec {
         }
       },
       test("buffer used") {
-        checkM(Gen.chunkOf(Gen.anyInt), Gen.chunkOf(Gen.anyInt)) { (as, bs) =>
+        checkM(Gen.chunkOf(Gen.int), Gen.chunkOf(Gen.int)) { (as, bs) =>
           val effect   = ZIO.succeed(bs.foldLeft(as)(_ :+ _))
           val actual   = ZIO.collectAllPar(ZIO.replicate(100)(effect))
           val expected = as ++ bs
@@ -88,14 +88,14 @@ object ChunkSpec extends ZIOBaseSpec {
         }
       },
       test("equals") {
-        check(Gen.chunkOf(Gen.anyInt), Gen.chunkOf(Gen.anyInt)) { (as, bs) =>
+        check(Gen.chunkOf(Gen.int), Gen.chunkOf(Gen.int)) { (as, bs) =>
           val actual   = bs.foldLeft(as)(_ :+ _)
           val expected = as ++ bs
           assert(actual)(equalTo(expected))
         }
       },
       test("length") {
-        check(Gen.chunkOf(Gen.anyInt), smallChunks(Gen.anyInt)) { (as, bs) =>
+        check(Gen.chunkOf(Gen.int), smallChunks(Gen.int)) { (as, bs) =>
           val actual   = bs.foldLeft(as)(_ :+ _).length
           val expected = (as ++ bs).length
           assert(actual)(equalTo(expected))
@@ -111,8 +111,8 @@ object ChunkSpec extends ZIOBaseSpec {
         val chunksWithIndex: Gen[Has[Random] with Has[Sized], (Chunk[Int], Chunk[Int], Int)] =
           for {
             p  <- Gen.boolean
-            as <- Gen.chunkOf(Gen.anyInt)
-            bs <- Gen.chunkOf1(Gen.anyInt)
+            as <- Gen.chunkOf(Gen.int)
+            bs <- Gen.chunkOf1(Gen.int)
             n  <- Gen.int(0, as.length + bs.length - 1)
           } yield if (p) (as, bs, n) else (bs, as, n)
         check(chunksWithIndex) { case (as, bs, n) =>
@@ -122,7 +122,7 @@ object ChunkSpec extends ZIOBaseSpec {
         }
       },
       test("buffer full") {
-        check(Gen.chunkOf(Gen.anyInt), Gen.chunkOf(Gen.anyInt)) { (as, bs) =>
+        check(Gen.chunkOf(Gen.int), Gen.chunkOf(Gen.int)) { (as, bs) =>
           def addAll[A](l: Chunk[A], r: Chunk[A]): Chunk[A] = l.foldRight(r)(_ +: _)
           val actual                                        = List.fill(100)(as).foldRight(bs)(addAll)
           val expected                                      = List.fill(100)(as).foldRight(bs)(_ ++ _)
@@ -130,7 +130,7 @@ object ChunkSpec extends ZIOBaseSpec {
         }
       },
       test("buffer used") {
-        checkM(Gen.chunkOf(Gen.anyInt), Gen.chunkOf(Gen.anyInt)) { (as, bs) =>
+        checkM(Gen.chunkOf(Gen.int), Gen.chunkOf(Gen.int)) { (as, bs) =>
           val effect   = ZIO.succeed(as.foldRight(bs)(_ +: _))
           val actual   = ZIO.collectAllPar(ZIO.replicate(100)(effect))
           val expected = as ++ bs
@@ -138,14 +138,14 @@ object ChunkSpec extends ZIOBaseSpec {
         }
       },
       test("equals") {
-        check(Gen.chunkOf(Gen.anyInt), Gen.chunkOf(Gen.anyInt)) { (as, bs) =>
+        check(Gen.chunkOf(Gen.int), Gen.chunkOf(Gen.int)) { (as, bs) =>
           val actual   = as.foldRight(bs)(_ +: _)
           val expected = as ++ bs
           assert(actual)(equalTo(expected))
         }
       },
       test("length") {
-        check(Gen.chunkOf(Gen.anyInt), smallChunks(Gen.anyInt)) { (as, bs) =>
+        check(Gen.chunkOf(Gen.int), smallChunks(Gen.int)) { (as, bs) =>
           val actual   = as.foldRight(bs)(_ +: _).length
           val expected = (as ++ bs).length
           assert(actual)(equalTo(expected))
@@ -254,7 +254,7 @@ object ChunkSpec extends ZIOBaseSpec {
     },
     suite("mapAccumZIO")(
       test("mapAccumZIO happy path") {
-        checkM(smallChunks(Gen.anyInt), smallChunks(Gen.anyInt), Gen.anyInt, Gen.function2(Gen.anyInt <*> Gen.anyInt)) {
+        checkM(smallChunks(Gen.int), smallChunks(Gen.int), Gen.int, Gen.function2(Gen.int <*> Gen.int)) {
           (left, right, s, f) =>
             val actual = (left ++ right).mapAccumZIO[Any, Nothing, Int, Int](s)((s, a) => UIO.succeed(f(s, a)))
             val expected = (left ++ right).foldLeft[(Int, Chunk[Int])]((s, Chunk.empty)) { case ((s0, bs), a) =>
@@ -515,7 +515,7 @@ object ChunkSpec extends ZIOBaseSpec {
       assert(Chunk.fromArray(Array(1, 2, 3)).filter(_ => false))(equalTo(Chunk.empty))
     },
     test("zip") {
-      check(Gen.chunkOf(Gen.anyInt), Gen.chunkOf(Gen.anyInt)) { (as, bs) =>
+      check(Gen.chunkOf(Gen.int), Gen.chunkOf(Gen.int)) { (as, bs) =>
         val actual   = as.zip(bs).toList
         val expected = as.toList.zip(bs.toList)
         assert(actual)(equalTo(expected))
@@ -614,7 +614,7 @@ object ChunkSpec extends ZIOBaseSpec {
       assertCompletes
     },
     test("chunks can be constructed from heterogeneous collections") {
-      check(Gen.listOf(Gen.oneOf(Gen.anyInt, Gen.anyString, Gen.none))) { as =>
+      check(Gen.listOf(Gen.oneOf(Gen.int, Gen.string, Gen.none))) { as =>
         assert(Chunk.fromIterable(as).toList)(equalTo(as))
       }
     },
@@ -630,7 +630,7 @@ object ChunkSpec extends ZIOBaseSpec {
     },
     test("split") {
       val smallInts = Gen.small(n => Gen.const(n), 1)
-      val chunks    = Gen.chunkOf(Gen.anyInt)
+      val chunks    = Gen.chunkOf(Gen.int)
       check(smallInts, chunks) { (n, chunk) =>
         val groups = chunk.split(n)
         assert(groups.flatten)(equalTo(chunk)) &&
@@ -638,7 +638,7 @@ object ChunkSpec extends ZIOBaseSpec {
       }
     },
     test("fromIterator") {
-      check(Gen.chunkOf(Gen.anyInt)) { as =>
+      check(Gen.chunkOf(Gen.int)) { as =>
         assert(Chunk.fromIterator(as.iterator))(equalTo(as))
       }
     },

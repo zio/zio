@@ -861,7 +861,7 @@ object TArraySpec extends ZIOBaseSpec {
     ),
     suite("size") {
       test("returns the size of the array") {
-        checkM(Gen.listOf(Gen.anyInt)) { as =>
+        checkM(Gen.listOf(Gen.int)) { as =>
           val size = TArray.fromIterable(as).map(_.size)
           assertM(size.commit)(equalTo(as.size))
         }
