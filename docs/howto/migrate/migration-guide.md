@@ -486,6 +486,19 @@ As we see, we have the following changes:
 
 The _Module Pattern 1.0_ was somehow complicated and had some boilerplates. The _Module Pattern 2.0_ is so much familiar to people coming from an object-oriented world. So it is so much easy to learn for newcomers. The new pattern is much simpler.
 
+### Other Changes
+
+Here is list of other deprecated methods
+
+| ZIO 1.x                    | ZIO 2.x                      |
+|----------------------------+------------------------------|
+| `ZLayer.fromEffect`        | `ZLayer.fromZIO`             |
+| `ZLayer.fromEffectMany`    | `ZLayer.fromZIOMany`         |
+| `ZLayer.fromFunctionM`     | `ZLayer.fromFunctionZIO`     |
+| `ZLayer.fromFunctionManyM` | `ZLayer.fromFunctionManyZIO` |
+| `ZLayer.identity`          | `ZLayer.environment`         |
+| `ZLayer.requires`          | `ZLayer.environment`         |
+
 ## ZIO Streams
 
 ZIO Streams 2.x, does not include any significant API changes. Almost the same code we have for ZIO Stream 1.x, this will continue working and doesn't break our code. So we don't need to relearn any APIs. So we have maintained a quite good source compatibility, but have to forget some API elements.
