@@ -619,6 +619,72 @@ Method names in the _Console_ service were renamed to the more readable names:
 | `putStrLnErr` | `printLineError` |
 | `getStrLn`    | `readLine`       |
 
+## ZManaged
+
+| ZIO 1.x                              | ZIO 2.x                                    |
+|--------------------------------------|--------------------------------------------|
+| `ZManaged#&&&`                       | `ZManaged#zip`                             |
+| `ZManaged#mapN`                      | `ZManaged#zip`                             |
+| `ZManaged.mapM`                      | `ZManaged.mapZIO`                          |
+| `ZManaged.mapParN`                   | `ZManaged.zipPar`                          |
+| `ZManaged#>>=`                       | `ZManaged#flatMap`                         |
+| `ZManaged#bimap`                     | `ZManaged#mapBoth`                         |
+| `ZManaged#mapEffect`                 | `ZManaged#mapAttempt`                      |
+| `ZManaged#flattenM`                  | `ZManaged#flattenZIO`                      |
+|                                      |                                            |
+| `ZManaged#get`                       | `ZManaged#some`                            |
+| `ZManaged#someOrElseM`               | `ZManaged#someOrElseManaged`               |
+|                                      |                                            |
+| `ZManaged#asService`                 | `ZManaged#toLayer`                         |
+| `ZManaged.services`                  | `ZManaged.service`                         |
+|                                      |                                            |
+| `ZManaged.foreach_`                  | `ZManaged.foreachDiscard`                  |
+| `ZManaged.foreachPar_`               | `ZManaged.foreachParDiscard`               |
+| `ZManaged.foreachParN_`              | `ZManaged.foreachParNDiscard`              |
+|                                      |                                            |
+| `ZManaged#foldCauseM`                | `ZManaged#foldCauseManaged`                |
+| `ZManaged#foldM`                     | `ZManaged#foldManaged`                     |
+|                                      |                                            |
+| `ZManaged.make`                      | `ZManaged.acquireReleaseWith`              |
+| `ZManaged.make_`                     | `ZManaged.acquireRelease`                  |
+| `ZManaged.makeEffect`                | `ZManaged.acquireReleaseAttemptWith`       |
+| `ZManaged.makeEffect_`               | `ZManaged.acquireReleaseAttempt`           |
+| `ZManaged.makeEffectTotal`           | `ZManaged.acquireReleaseSucceedWith`       |
+| `ZManaged.makeEffectTotal_`          | `ZManaged.acquireReleaseSucceed`           |
+| `ZManaged.makeExit`                  | `ZManaged.acquireReleaseExitWith`          |
+| `ZManaged.makeExit_`                 | `ZManaged.acquireReleaseExit`              |
+| `ZManaged.makeInterruptible`         | `ZManaged.acquireReleaseInterruptibleWith` |
+| `ZManaged.makeInterruptible_`        | `ZManaged.acquireReleaseInterruptible`     |
+| `ZManaged.makeReserve`               | `ZManaged.fromReservationZIO`              |
+| `ZManaged.reserve`                   | `ZManaged.fromReservation`                 |
+|                                      |                                            |
+| `ZManaged#ifM`                       | `ZManaged#ifManaged`                       |
+| `ZManaged.loop_`                     | `ZManaged.loopDiscard`                     |
+| `ZManaged#unlessM`                   | `ZManaged#unlessManaged`                   |
+| `ZManaged#whenCaseM`                 | `ZManaged#whenCaseManaged`                 |
+| `ZManaged#whenM`                     | `ZManaged#whenManaged`                     |
+|                                      |                                            |
+| `ZManaged.fromFunction`              | `ZManaged.access`                          |
+| `ZManaged.fromFunctionM`             | `ZManaged.accessManaged`                   |
+| `ZManaged.fromEffect`                | `ZManaged.fromZIO`                         |
+| `ZManaged.fromEffectUninterruptible` | `ZManaged.fromZIOUninterruptible`          |
+| `ZManaged.effect`                    | `ZManaged.attempt`                         |
+| `ZManaged.effectTotal`               | `ZManaged.succeed`                         |
+|                                      |                                            |
+| `ZManaged#collectM`                  | `ZManaged#collectManage`                   |
+| `ZManaged#collectAll_`               | `ZManaged#collectAllDiscard`               |
+| `ZManaged#collectAllPar_`            | `ZManaged#collectAllParDiscard`            |
+| `ZManaged#collectAllParN_`           | `ZManaged#collectAllParNDiscard`           |
+|                                      |                                            |
+| `ZManaged#use_`                      | `ZManaged#useDiscard`                      |
+| `ZManaged.require`                   | `ZManaged.someOrFail`                      |
+| `ZManaged.accessM`                   | `ZManaged.accessZIO`                       |
+| `ZManaged#rejectM`                   | `ZManaged#rejectManaged`                   |
+| `ZManaged#tapM`                      | `ZManaged#tapZIO`                          |
+| `ZManaged#on`                        | `ZManaged#onExecutionContext`              |
+| `ZManaged#optional`                  | `ZManaged#unoption`                        |
+| `ZManaged#halt`                      | `ZManaged#failCause`                       |
+
 ## Improvements
 
 ### Composable Zips
