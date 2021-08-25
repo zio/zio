@@ -487,7 +487,40 @@ As we see, we have the following changes:
 The _Module Pattern 1.0_ was somehow complicated and had some boilerplates. The _Module Pattern 2.0_ is so much familiar to people coming from an object-oriented world. So it is so much easy to learn for newcomers. The new pattern is much simpler.
 
 ## ZIO Streams
-TODO
+
+ZIO Streams 2.x, does not include any significant API changes. Almost the same code we have for ZIO Stream 1.x, this will continue working and doesn't break our code. So we don't need to relearn any APIs. So we have maintained a quite good source compatibility, but have to forget some API elements.
+
+So far, before ZIO 2.0, the ZIO Stream has included three main abstractions:
+1. **`ZStream`** — represents the source of elements
+2. **`ZSink`** — represents consumers of elements that can be composed together to create composite consumers
+3. **`ZTransducer`** — represents generalized stateful and effectful stream processing
+
+![ZIO Streams 1.x](assets/zio-streams-1.x.svg)
+
+In ZIO 2.0, we added an underlying abstraction called `Channel`. Channels are underlying both the `Stream` and `Sink`. So streams and sinks are just channels. So the `Channel` is an abstraction that unifies everything in ZIO Streams.
+
+![ZChannel](assets/zio-streams-zchannel.svg)
+
+Channels are nexuses of I/O operations, which support both reading and writing:
+
+- A `Channel` can write some elements to the _output_, and it can terminate with some sort of _done_ value. The `Channel` uses this _done_ value to notify the downstream `Channel` that its emission of elements finished. In ZIO 2.x, the `ZStream` is encoded as an output side of the `Channel`.
+
+- A `Channel` can read from its input, and it can also terminate with some sort of _done_ value, which is an upstream result. So a `Channel` has the _input type_, and the _input done type_. The `Channel` uses this _done_ value to determine when the upstream `Channel` finishes its emission. In ZIO 2.x, the `ZSink` is encoded as an input side of the `Channel`.
+
+So we can say that streams are the output side and sinks are the input side of a `Channel`. What about the middle part? In ZIO 1.x, this used to be known as the`ZTransducer`. Transducers were great for writing high-performance codecs (e.g. compression). They were really just a specialization of sinks. We have added transducers because things were not sufficiently efficient using sinks. If we were to write streaming codecs using sinks, they could be quite slow.
+
+In ZIO 2.x, we removed the transducers, and they were deprecated. Instead, we realized we need something else for the middle part, and now it's called a `Pipeline` in ZIO 2.x. Pipelines accept a stream as input and return the transformed stream as output.
+
+![ZIO Streams 2.x](assets/zio-streams-2.x.svg)
+
+Pipelines are basically an abstraction for composing a bunch of operations together that can be later applied to a stream. For example, we can create a pipeline that reads bytes, decodes them to the UTF-8 and splits the lines, and then splits on commas. So this is a very simple CSV parsing pipeline which we can later use with another stream to pipe into. 
+
+| ZIO Streams 1.x | ZIO Streams 2.x                  |
+|-----------------|----------------------------------|
+|                 | `ZChannel`                       |
+| `ZStream`       | `ZStream` (backed by `ZChannel`) |
+| `ZSink`         | `ZSink` (backed by `ZChannel`)   |
+| `ZTransducer`   | `ZPipeline`                      |
 
 ## ZIO Services
 
