@@ -917,6 +917,38 @@ Here are some of the most important changes:
 
 ## New Features
 
+### Smart Constructors
+
+Every data type in ZIO (`ZIO`, `ZManaged`, `ZStream`, etc.) has a variety of constructor functions that are designed to _up convert_ some weaker type into the target type. Typically, these converter functions are named `fromXYZ`, e.g. `ZIO.fromEither`, `ZStream.fromZIO`, etc.
+
+While these are precise, ZIO 2.0 provides the `ZIO.from` constructor which can intelligently choose the most likely constructor based on the input type. So instead of writing `ZIO.fromEither(Right(3))` we can easily write `ZIO.from(Right(3))`. Let's try some of them:
+
+```scala mdoc:invisible
+import zio.stream.ZStream
+```
+```scala mdoc:nest
+ZIO.fromOption(Some("Ok!"))
+ZIO.from(Some("Ok!"))
+
+ZIO.fromEither(Right(3))
+ZIO.from(Right(3))
+
+ZIO.fromFiber(Fiber.succeed("Ok!"))
+ZIO.from(Fiber.succeed("Ok!"))
+
+ZManaged.fromZIO(ZIO.fromEither(Right("Ok!"))) 
+ZManaged.from(ZIO(Right("Ok!")))
+
+ZStream.fromIterable(List(1,2,3)) 
+ZStream.from(List(1,1,3))
+
+ZStream.fromChunk(Chunk(1,2,3))
+ZStream.from(Chunk(1,2,3))
+
+ZStream.fromIterableZIO(ZIO.succeed(List(1,2,3)))
+ZStream.from(ZIO.succeed(List(1,2,3)))
+```
+
 ### Smart Assertion
 TODO
 
