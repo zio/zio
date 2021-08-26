@@ -513,7 +513,7 @@ The _Module Pattern 1.0_ was somehow complicated and had some boilerplates. The 
 Here is list of other deprecated methods
 
 | ZIO 1.x                    | ZIO 2.x                      |
-|----------------------------+------------------------------|
+|----------------------------|------------------------------|
 | `ZLayer.fromEffect`        | `ZLayer.fromZIO`             |
 | `ZLayer.fromEffectMany`    | `ZLayer.fromZIOMany`         |
 | `ZLayer.fromFunctionM`     | `ZLayer.fromFunctionZIO`     |
