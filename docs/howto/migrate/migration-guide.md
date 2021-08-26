@@ -108,6 +108,28 @@ And to write the accessor method in ZIO 2.x, we can use `ZIO.serviceWith` operat
 ```scala mdoc:silent:nest
 def log(line: String): URIO[Has[Logging], Unit] = ZIO.serviceWith(_.log(line))
 ```
+### Accessing Multiple Services in the Environment
+
+In ZIO 1.x, we could access multiple services using higher arity service accessors like `ZIO.services` and `ZManaged.services`:
+
+```scala mdoc:silent:nest
+for {
+  (console, random) <- ZIO.services[Console, Random]
+  randomInt         <- random.nextInt
+  _                 <- console.printLine(s"The next random number: $randomInt")
+} yield ()
+```
+
+They were _deprecated_ as we can achieve the same functionality using `ZIO.service` with for-comprehension syntax, which is more idiomatic and scalable way of accessing multiple services in the environment:
+
+```scala mdoc:silent:nest
+for {
+  console   <- ZIO.service[Console]
+  random    <- ZIO.service[Random]
+  randomInt <- random.nextInt
+  _         <- console.printLine(s"The next random number: $randomInt")
+} yield ()
+```
 
 ### Building the Dependency Graph
 
