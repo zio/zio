@@ -6,10 +6,11 @@ import zio.test._
 import zio.test.environment.live
 
 import java.io.File
+import zio.test.environment.Live
 
 object SystemSpec extends ZIOBaseSpec {
 
-  def spec = suite("SystemSpec")(
+  def spec: Spec[Has[Live] with Has[Annotations], TestFailure[Any], TestSuccess] = suite("SystemSpec")(
     suite("Fetch an environment variable and check that")(
       test("If it exists, return a reasonable value") {
         assertM(live(System.env("PATH")))(isSome(containsString(File.separator + "bin")))

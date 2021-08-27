@@ -14,7 +14,7 @@ object JavaSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 
-  def spec = suite("JavaSpec")(
+  def spec: Spec[Has[Annotations], TestFailure[Any], TestSuccess] = suite("JavaSpec")(
     suite("`Task.fromFutureJava` must")(
       test("be lazy on the `Future` parameter") {
         var evaluated         = false
