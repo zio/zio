@@ -15,6 +15,6 @@
  */
 package zio
 
-import java.time.Instant
-
-final case class LogSpan(label: String, startTime: Instant)
+final case class LogSpan(label: String, startTime: Long) {
+  def render(now: Long): String = label + "=" + (now - startTime).toString
+}

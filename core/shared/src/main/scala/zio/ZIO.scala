@@ -5245,7 +5245,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
     def apply[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
       FiberRef.currentLogSpan.get.flatMap { stack =>
-        val instant = java.time.Instant.now()
+        val instant = java.lang.System.currentTimeMillis()
         val logSpan = ZioLogSpan(label(), instant)
 
         FiberRef.currentLogSpan.locally(logSpan :: stack)(zio)

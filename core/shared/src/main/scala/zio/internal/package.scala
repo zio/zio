@@ -53,6 +53,8 @@ package object internal {
 
     val now = java.time.Instant.now()
 
+    val nowMillis = java.lang.System.currentTimeMillis()
+
     sb.append(now.toString())
       .append(" level=")
       .append(logLevel.label)
@@ -63,7 +65,22 @@ package object internal {
       .append("\"")
 
     if (spans0.nonEmpty) {
-      sb.append(" spans=\"").append(spans0.mkString("/")).append("\"")
+      sb.append(" ")
+
+      val it    = spans0.iterator
+      var first = true
+
+      while (it.hasNext) {
+        if (first) {
+          first = false
+        } else {
+          sb.append(" ")
+        }
+
+        val span = it.next()
+
+        sb.append(span.render(nowMillis))
+      }
     }
 
     sb.toString()
