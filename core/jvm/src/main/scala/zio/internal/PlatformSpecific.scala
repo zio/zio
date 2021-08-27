@@ -84,9 +84,13 @@ private[internal] trait PlatformSpecific {
     val fatal = (t: Throwable) => t.isInstanceOf[VirtualMachineError]
 
     // FIXME: Make this nice
-    val logger =
-      (_: Fiber.Id, _: LogLevel, message: () => String, _: Map[FiberRef.Runtime[_], AnyRef], _: List[LogSpan]) =>
-        println(message())
+    val logger = (
+      fiberId: Fiber.Id,
+      level: LogLevel,
+      message: () => String,
+      context: Map[FiberRef.Runtime[_], AnyRef],
+      spans: List[LogSpan]
+    ) => println(defaultLogFormat(fiberId, level, message, context, spans))
 
     val reportFailure = (cause: Cause[Any]) => if (cause.isDie) System.err.println(cause.prettyPrint)
 

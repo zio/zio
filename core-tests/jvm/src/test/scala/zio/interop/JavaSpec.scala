@@ -14,7 +14,7 @@ object JavaSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 
-  def spec: Spec[Any, TestFailure[Any], TestSuccess] = suite("JavaSpec")(
+  def spec = suite("JavaSpec")(
     suite("`Task.fromFutureJava` must")(
       test("be lazy on the `Future` parameter") {
         var evaluated         = false
@@ -213,6 +213,6 @@ object JavaSpec extends ZIOBaseSpec {
           succeeds[(Integer, (Integer, List[Byte]))](equalTo((Integer.valueOf(1), (Integer.valueOf(1), list))))
         )
       }
-    ) @@ zioTag(future)
+    ) @@ zioTag(future) @@ TestAspect.unix
   )
 }

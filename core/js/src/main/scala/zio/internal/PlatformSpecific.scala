@@ -78,10 +78,16 @@ private[internal] trait PlatformSpecific {
     val fatal = (_: Throwable) => false
 
     val logger =
-      (_: Fiber.Id, level: LogLevel, message: () => String, _: Map[FiberRef.Runtime[_], AnyRef], _: List[LogSpan]) => {
+      (
+        fiberId: Fiber.Id,
+        level: LogLevel,
+        message: () => String,
+        context: Map[FiberRef.Runtime[_], AnyRef],
+        spans: List[LogSpan]
+      ) => {
         try {
-          // TODO: Improve output & use console.group, etc.
-          val line = message()
+          // TODO: Improve output & use console.group for spans, etc.
+          val line = defaultLogFormat(fiberId, level, message, context, spans)
 
           if (level == LogLevel.Fatal) jsglobal.console.error(line)
           else if (level == LogLevel.Error) jsglobal.console.error(line)

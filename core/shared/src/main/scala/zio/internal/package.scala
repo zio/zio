@@ -39,4 +39,33 @@ package object internal {
     ZSTM.succeedNow(a)
 
   type ZLogger = (Fiber.Id, LogLevel, () => String, Map[FiberRef.Runtime[_], AnyRef], List[LogSpan]) => Unit
+
+  def defaultLogFormat(
+    fiberId: Fiber.Id,
+    logLevel: LogLevel,
+    message0: () => String,
+    context: Map[FiberRef.Runtime[_], AnyRef],
+    spans0: List[LogSpan]
+  ): String = {
+    val sb = new StringBuilder()
+
+    val _ = context
+
+    val now = java.time.Instant.now()
+
+    sb.append(now.toString())
+      .append(" level=")
+      .append(logLevel.label)
+      .append(" thread=")
+      .append(fiberId.toString)
+      .append(" message=\"")
+      .append(message0())
+      .append("\"")
+
+    if (spans0.nonEmpty) {
+      sb.append(" spans=\"").append(spans0.mkString("/")).append("\"")
+    }
+
+    sb.toString()
+  }
 }

@@ -85,14 +85,12 @@ private[internal] trait PlatformSpecific {
       supervisor = Supervisor.none,
       enableCurrentFiber = false,
       logger = (
-        _: Fiber.Id,
-        _: LogLevel,
+        fiberId: Fiber.Id,
+        level: LogLevel,
         message: () => String,
-        _: Map[FiberRef.Runtime[_], AnyRef],
-        _: List[LogSpan]
-      ) =>
-        // TODO: Improve me
-        println(message())
+        context: Map[FiberRef.Runtime[_], AnyRef],
+        spans: List[LogSpan]
+      ) => println(defaultLogFormat(fiberId, level, message, context, spans))
     )
 
   /**

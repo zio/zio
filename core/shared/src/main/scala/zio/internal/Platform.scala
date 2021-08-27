@@ -54,4 +54,29 @@ final case class Platform(
   @deprecated("2.0.0", "Use Platform#copy instead")
   def withTracing(t: Tracing): Platform = copy(tracing = t)
 }
-object Platform extends PlatformSpecific
+object Platform extends PlatformSpecific {
+  private val osName =
+    Option(scala.util.Try(System.getProperty("os.name")).getOrElse("")).map(_.toLowerCase()).getOrElse("")
+
+  lazy val os: OS =
+    if (osName.contains("win")) OS.Windows
+    else if (osName.contains("mac")) OS.Mac
+    else if (osName.contains("nix") || osName.contains("nux") || osName.contains("aix")) OS.Unix
+    else if (osName.contains("sunos")) OS.Solaris
+    else OS.Unknown
+
+  sealed trait OS { self =>
+    def isWindows: Boolean = self == OS.Windows
+    def isMac: Boolean     = self == OS.Mac
+    def isUnix: Boolean    = self == OS.Unix
+    def isSolaris: Boolean = self == OS.Solaris
+    def isUnknown: Boolean = self == OS.Unknown
+  }
+  object OS {
+    case object Windows extends OS
+    case object Mac     extends OS
+    case object Unix    extends OS
+    case object Solaris extends OS
+    case object Unknown extends OS
+  }
+}

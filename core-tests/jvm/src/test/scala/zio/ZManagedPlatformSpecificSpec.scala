@@ -9,7 +9,7 @@ import java.{util => ju}
 
 object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
 
-  def spec: ZSpec[Environment, Failure] = suite("ZManagedPlatformSpecificSpec")(
+  def spec = suite("ZManagedPlatformSpecificSpec")(
     test("writeFile & readFile & OutputStream.write & InputStream.readAll") {
       val fixture = Chunk[Byte](1, 2, 3, 6, 5, 4)
       for {
@@ -148,7 +148,7 @@ object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
                         }
       } yield assert(readResult)(equalTo(read4Bytes))
     }
-  )
+  ) @@ TestAspect.unix
 
 }
 
