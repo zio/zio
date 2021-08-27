@@ -338,6 +338,23 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
     self.delayedZIO(d => ZIO.succeed(f(d)))
 
   /**
+   * Returns a new schedule that outputs the delay between each occurence.
+   */
+  def delays: Schedule.WithState[self.State, Env, In, Duration] =
+    new Schedule[Env, In, Duration] {
+      type State = self.State
+      val initial = self.initial
+      def step(now: OffsetDateTime, in: In, state: State): ZIO[Env, Nothing, (State, Duration, Decision)] =
+        self.step(now, in, state).flatMap {
+          case (state, out, Done) =>
+            ZIO.succeedNow((state, Duration.Zero, Done))
+          case (state, out, Continue(interval)) =>
+            val delay = Duration(interval.toInstant.toEpochMilli - now.toInstant.toEpochMilli, TimeUnit.MILLISECONDS)
+            ZIO.succeedNow((state, delay, Continue(interval)))
+        }
+    }
+
+  /**
    * Returns a new schedule with the specified effectfully computed delay added before the start
    * of each interval produced by this schedule.
    */
@@ -449,7 +466,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
         val z = state._2
         self.step(now, in, s).flatMap {
           case (s, _, Done)                 => ZIO.succeed(((s, z), z, Done))
-          case (s, out, Continue(interval)) => f(z, out).map(z2 => ((s, z2), z2, Continue(interval)))
+          case (s, out, Continue(interval)) => f(z, out).map(z2 => ((s, z2), z, Continue(interval)))
         }
       }
     }
@@ -680,8 +697,8 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
   /**
    * Returns a new schedule that outputs the number of repetitions of this one.
    */
-  def repetitions: Schedule.WithState[(self.State, Int), Env, In, Int] =
-    fold(0)((n: Int, _: Out) => n + 1)
+  def repetitions: Schedule.WithState[(self.State, Long), Env, In, Long] =
+    fold(0L)((n: Long, _: Out) => n + 1L)
 
   /**
    * Return a new schedule that automatically resets the schedule to its initial state
@@ -1054,7 +1071,7 @@ object Schedule {
             val interval = now.plusNanos(duration.toNanos)
             (false, duration, Decision.Continue(interval))
           } else {
-            (false, duration, Decision.Done)
+            (false, Duration.Zero, Decision.Done)
           }
         }
     }
@@ -1129,12 +1146,12 @@ object Schedule {
             val sleepTime = if (boundary.isZero) interval else boundary
             val nextRun   = if (runningBehind) now else now.plus(sleepTime)
 
-            ((Some((startMillis, nextRun.toInstant.toEpochMilli)), n + 1L), n + 1L, Decision.Continue(nextRun))
+            ((Some((startMillis, nextRun.toInstant.toEpochMilli)), n + 1L), n, Decision.Continue(nextRun))
           case (None, n) =>
             val nowMillis = now.toInstant.toEpochMilli
             val nextRun   = now.plus(interval)
 
-            ((Some((nowMillis, nextRun.toInstant().toEpochMilli())), n + 1L), n + 1L, Decision.Continue(nextRun))
+            ((Some((nowMillis, nextRun.toInstant().toEpochMilli())), n + 1L), n, Decision.Continue(nextRun))
         })
     }
 
@@ -1174,7 +1191,7 @@ object Schedule {
             case x :: y :: z => ((::(y, z), true), x, Decision.Continue(interval))
             case x :: y      => ((::(x, y), false), x, Decision.Continue(interval))
           }
-        } else ((durations, false), durations.head, Decision.Done))
+        } else ((durations, false), Duration.Zero, Decision.Done))
       }
     }
 
@@ -1283,7 +1300,7 @@ object Schedule {
           case (Some(startMillis), n) =>
             (
               (Some(startMillis), n + 1),
-              n + 1L,
+              n,
               Decision.Continue(
                 now.plus(
                   millis - (now.toInstant.toEpochMilli - startMillis) % millis,
@@ -1294,7 +1311,7 @@ object Schedule {
           case (None, n) =>
             (
               (Some(now.toInstant.toEpochMilli), n + 1),
-              n + 1L,
+              n,
               Decision.Continue(now.plus(millis, java.time.temporal.ChronoUnit.MILLIS))
             )
         })
