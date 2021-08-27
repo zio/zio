@@ -833,7 +833,7 @@ Acquire releases have compositional semantics, so if an acquire release is neste
 
 Let's look at a full working example on using acquire release:
 
-```scala mdoc:silent
+```scala mdoc:compile-only
 import zio._
 import java.io.{ File, FileInputStream }
 import java.nio.charset.StandardCharsets
