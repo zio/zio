@@ -346,9 +346,9 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
       val initial = self.initial
       def step(now: OffsetDateTime, in: In, state: State): ZIO[Env, Nothing, (State, Duration, Decision)] =
         self.step(now, in, state).flatMap {
-          case (state, out, Done) =>
+          case (state, _, Done) =>
             ZIO.succeedNow((state, Duration.Zero, Done))
-          case (state, out, Continue(interval)) =>
+          case (state, _, Continue(interval)) =>
             val delay = Duration(interval.toInstant.toEpochMilli - now.toInstant.toEpochMilli, TimeUnit.MILLISECONDS)
             ZIO.succeedNow((state, delay, Continue(interval)))
         }
