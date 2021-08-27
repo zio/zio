@@ -42,11 +42,12 @@ object ZLogger {
 
     val nowMillis = java.lang.System.currentTimeMillis()
 
-    sb.append(now.toString())
+    sb.append("timestamp=")
+      .append(now.toString())
       .append(" level=")
       .append(logLevel.label)
-      .append(" thread=")
-      .append(fiberId.toString)
+      .append(" thread=#")
+      .append(fiberId.seqNumber.toString)
       .append(" message=\"")
       .append(message0())
       .append("\"")
@@ -74,10 +75,16 @@ object ZLogger {
       case ZTraceElement.NoLocation(_) =>
 
       case ZTraceElement.SourceLocation(file, clazz, method, line) =>
-        sb.append("file=\"").append(file).append("\"")
-        sb.append("class=").append(clazz)
-        sb.append("method=").append(method)
-        sb.append("line=").append(line)
+        sb.append(" ")
+          .append("file=\"")
+          .append(file)
+          .append("\"")
+          .append("line=")
+          .append(line)
+          .append("class=")
+          .append(clazz)
+          .append("method=")
+          .append(method)
     }
 
     sb.toString()
