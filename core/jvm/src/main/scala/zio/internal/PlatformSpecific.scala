@@ -19,7 +19,7 @@ package zio.internal
 import zio.internal.stacktracer.Tracer
 import zio.internal.stacktracer.impl.AkkaLineNumbersTracer
 import zio.internal.tracing.TracingConfig
-import zio.{Cause, Fiber, FiberRef, LogLevel, LogSpan, Supervisor}
+import zio.{Cause, Supervisor}
 
 import java.lang.ref.WeakReference
 import java.util.concurrent.ConcurrentHashMap
@@ -83,14 +83,8 @@ private[internal] trait PlatformSpecific {
 
     val fatal = (t: Throwable) => t.isInstanceOf[VirtualMachineError]
 
-    // FIXME: Make this nice
-    val logger = (
-      fiberId: Fiber.Id,
-      level: LogLevel,
-      message: () => String,
-      context: Map[FiberRef.Runtime[_], AnyRef],
-      spans: List[LogSpan]
-    ) => println(defaultLogFormat(fiberId, level, message, context, spans))
+    val logger: ZLogger[Unit] =
+      ZLogger.defaultFormatter.logged(println(_))
 
     val reportFailure = (cause: Cause[Any]) => if (cause.isDie) System.err.println(cause.prettyPrint)
 

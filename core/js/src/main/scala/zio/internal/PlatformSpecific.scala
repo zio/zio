@@ -77,7 +77,7 @@ private[internal] trait PlatformSpecific {
 
     val fatal = (_: Throwable) => false
 
-    val logger =
+    val logger: ZLogger[Unit] =
       (
         fiberId: Fiber.Id,
         level: LogLevel,
@@ -87,7 +87,7 @@ private[internal] trait PlatformSpecific {
       ) => {
         try {
           // TODO: Improve output & use console.group for spans, etc.
-          val line = defaultLogFormat(fiberId, level, message, context, spans)
+          val line = ZLogger.defaultFormatter(fiberId, level, message, context, spans)
 
           if (level == LogLevel.Fatal) jsglobal.console.error(line)
           else if (level == LogLevel.Error) jsglobal.console.error(line)
