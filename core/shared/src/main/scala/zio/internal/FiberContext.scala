@@ -112,6 +112,16 @@ private[zio] final class FiberContext[E, A](
 
   private[this] def traceLocation(lambda: AnyRef): ZTraceElement = tracer.traceLocation(unwrap(lambda))
 
+  private[this] def currentLocation: ZTraceElement =
+    execTrace.head match {
+      case None =>
+        stackTrace.head match {
+          case None        => ZTraceElement.NoLocation("No location available")
+          case Some(trace) => trace
+        }
+      case Some(trace) => trace
+    }
+
   private[this] def addTrace(lambda: AnyRef): Unit = execTrace.put(traceLocation(lambda))
 
   @noinline private[this] def pushContinuation(k: Any => IO[Any, Any]): Unit = {
@@ -693,7 +703,7 @@ private[zio] final class FiberContext[E, A](
                         else map.updated(zio.overrideRef1, zio.overrideValue1)
                       } else fiberRefLocals.get
 
-                    platform.logger(fiberId, logLevel, zio.message, contextMap, spans)
+                    platform.logger(currentLocation, fiberId, logLevel, zio.message, contextMap, spans)
 
                     curZio = nextInstr(())
                 }

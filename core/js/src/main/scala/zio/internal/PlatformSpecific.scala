@@ -16,7 +16,7 @@
 
 package zio.internal
 
-import zio.internal.stacktracer.Tracer
+import zio.internal.stacktracer.{Tracer, ZTraceElement}
 import zio.internal.tracing.TracingConfig
 import zio.{Cause, Fiber, FiberRef, LogLevel, LogSpan, Supervisor}
 
@@ -79,6 +79,7 @@ private[internal] trait PlatformSpecific {
 
     val logger: ZLogger[Unit] =
       (
+        trace: ZTraceElement,
         fiberId: Fiber.Id,
         level: LogLevel,
         message: () => String,
@@ -87,7 +88,7 @@ private[internal] trait PlatformSpecific {
       ) => {
         try {
           // TODO: Improve output & use console.group for spans, etc.
-          val line = ZLogger.defaultFormatter(fiberId, level, message, context, spans)
+          val line = ZLogger.defaultFormatter(trace, fiberId, level, message, context, spans)
 
           if (level == LogLevel.Fatal) jsglobal.console.error(line)
           else if (level == LogLevel.Error) jsglobal.console.error(line)

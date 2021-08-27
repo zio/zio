@@ -1,9 +1,11 @@
 package zio.internal
 
 import zio._
+import zio.internal.stacktracer._
 
 trait ZLogger[+A] { self =>
   def apply(
+    trace: ZTraceElement,
     fiberId: Fiber.Id,
     logLevel: LogLevel,
     message: () => String,
@@ -14,16 +16,18 @@ trait ZLogger[+A] { self =>
   final def logged(f: A => Unit): ZLogger[Unit] =
     new ZLogger[Unit] {
       def apply(
+        trace: ZTraceElement,
         fiberId: Fiber.Id,
         logLevel: LogLevel,
         message: () => String,
         context: Map[FiberRef.Runtime[_], AnyRef],
         spans: List[LogSpan]
-      ): Unit = f(self(fiberId, logLevel, message, context, spans))
+      ): Unit = f(self(trace, fiberId, logLevel, message, context, spans))
     }
 }
 object ZLogger {
   val defaultFormatter: ZLogger[String] = (
+    trace: ZTraceElement,
     fiberId: Fiber.Id,
     logLevel: LogLevel,
     message0: () => String,
@@ -64,6 +68,16 @@ object ZLogger {
 
         sb.append(span.render(nowMillis))
       }
+    }
+
+    trace match {
+      case ZTraceElement.NoLocation(_) =>
+
+      case ZTraceElement.SourceLocation(file, clazz, method, line) =>
+        sb.append("file=\"").append(file).append("\"")
+        sb.append("class=").append(clazz)
+        sb.append("method=").append(method)
+        sb.append("line=").append(line)
     }
 
     sb.toString()
