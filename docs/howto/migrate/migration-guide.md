@@ -806,6 +806,44 @@ val unlefted       = leftProjection.map(_ * 2).unleft
 
 So the error channel of the output of `left` and `right` operators is changed from `Option` to `Either`.
 
+### Descriptive Errors
+
+ZIO's type system uses implicit evidence to ensure type safety, and some level of correctness at compile time. In ZIO 2.x, the _subtype evidence_, `<:<` replaced by these two descriptive implicit evidences:
+
+1. **`IsSubtypeOfError`** — The `O1 IsSubtypeOfError O2` ensures that the output type `O1` is subtype of `O2`
+
+2. **`IsSubtypeOfOutput`** — The `E1 IsSubtypeOfOutput E2` ensures that the error type `E1` is a subtype of `E2`
+
+Now we have more descriptive errors at compile time in the vast majority of operators. 
+
+Let's just see an example of each one. In ZIO 1.x, the compiler print obscurant error messages:
+
+```scala
+ZIO.fail("Boom!").orDie
+// error: Cannot prove that String <:< Throwable.
+// ZIO.fail("Boom!").orDie
+// ^^^^^^^^^^^^^^^^^^^^^^^
+
+ZIO.succeed(Set(3,4)).head
+// error: Cannot prove that scala.collection.immutable.Set[Int] <:< List[B].
+// ZIO.succeed(Set(3, 4)).head
+// ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+```
+
+Now in ZIO 2.x we have such informative error messages:
+
+```scala
+ZIO.fail("Boom!").orDie
+// error: This operator requires that the error type be a subtype of Throwable but the actual type was String.
+// ZIO.fail("Boom!").orDie
+// ^^^^^^^^^^^^^^^^^^^^^^^
+
+ZIO.succeed(Set(3, 4, 3)).head
+// error: This operator requires that the output type be a subtype of List[B] but the actual type was scala.collection.immutable.Set[Int].
+// ZIO.succeed(Set(3, 4, 3)).head
+// ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+```
+
 ## Removed Methods
 
 - **Arrow Combinators** — (`+++`, `|||`, `onSecond`, `onFirst`, `second`, `first`, `onRight`, `onLeft`, `andThen`, `>>>`, `compose`, `<<<`, `identity`, `swap`, `join`)
