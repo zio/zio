@@ -4280,6 +4280,46 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     mapParN(zio1, zio2, zio3, zio4)((_, _, _, _))
 
   /**
+   * Logs the specified message at the current log level.
+   */
+  def log(message: => String): UIO[Unit] = new Logged(() => message)
+
+  /**
+   * Logs the specified message at the debug log level.
+   */
+  def logDebug(message: => String): UIO[Unit] = new Logged(() => message, someDebug)
+
+  /**
+   * Logs the specified message at the error log level.
+   */
+  def logError(message: => String): UIO[Unit] = new Logged(() => message, someError)
+
+  /**
+   * Logs the specified message at the fatal log level.
+   */
+  def logFatal(message: => String): UIO[Unit] = new Logged(() => message, someFatal)
+
+  /**
+   * Logs the specified message at the informational log level.
+   */
+  def logInfo(message: => String): UIO[Unit] = new Logged(() => message, someInfo)
+
+  def logLevel(level: LogLevel): LogLevel = level
+
+  /**
+   * Adjusts the label for the current logging span.
+   * {{{
+   * ZIO.logSpan("parsing") { parseRequest(req) }
+   * }}}
+   */
+  def logSpan(label: => String): LogSpan = new LogSpan(() => label)
+
+  /**
+   * Logs the specified message at the warning log level.
+   */
+  def logWarning(message: => String): UIO[Unit] = new Logged(() => message, someWarning)
+
+  /**
    * Sequentially zips the specified effects using the specified combiner
    * function.
    */
@@ -4605,7 +4645,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       environment <- environment[R]
       platform    <- suspendSucceedWith((p, _) => ZIO.succeedNow(p))
       executor    <- executor
-    } yield Runtime(environment, platform.withExecutor(executor))
+    } yield Runtime(environment, platform.copy(executor = executor))
 
   /**
    * Passes the fiber's scope to the specified function, which creates an effect
@@ -5200,6 +5240,18 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       ZIO.serviceWith(_.get.map(f))
   }
 
+  final class LogSpan(val label: () => String) extends AnyVal {
+    import zio.{LogSpan => ZioLogSpan}
+
+    def apply[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+      FiberRef.currentLogSpan.get.flatMap { stack =>
+        val instant = java.lang.System.currentTimeMillis()
+        val logSpan = ZioLogSpan(label(), instant)
+
+        FiberRef.currentLogSpan.locally(logSpan :: stack)(zio)
+      }
+  }
+
   @inline
   private def succeedLeft[E, A]: E => UIO[Either[E, A]] =
     _succeedLeft.asInstanceOf[E => UIO[Either[E, A]]]
@@ -5675,6 +5727,10 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     final val Supervise         = 25
     final val GetForkScope      = 26
     final val OverrideForkScope = 27
+    final val Logged            = 28
+    final val FiberRefGetAll    = 29
+    final val FiberRefLocally   = 30
+    final val FiberRefDelete    = 31
   }
 
   private[zio] final case class ZioError[E, A](exit: Exit[E, A]) extends Throwable with NoStackTrace
@@ -5773,13 +5829,27 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     override def tag = Tags.Provide
   }
 
-  private[zio] final class FiberRefNew[A](val initial: A, private[zio] val onFork: A => A, val onJoin: (A, A) => A)
-      extends UIO[FiberRef.Runtime[A]] {
-    override def tag = Tags.FiberRefNew
+  private[zio] final class FiberRefGetAll[R, E, A](val make: Map[ZFiberRef.Runtime[_], Any] => ZIO[R, E, A])
+      extends ZIO[R, E, A] {
+    override def tag = Tags.FiberRefGetAll
   }
 
   private[zio] final class FiberRefModify[A, B](val fiberRef: FiberRef.Runtime[A], val f: A => (B, A)) extends UIO[B] {
     override def tag = Tags.FiberRefModify
+  }
+
+  private[zio] final class FiberRefLocally[V, R, E, A](
+    val localValue: V,
+    val fiberRef: FiberRef.Runtime[V],
+    val zio: ZIO[R, E, A]
+  ) extends ZIO[R, E, A] {
+    override def tag = Tags.FiberRefLocally
+  }
+
+  private[zio] final class FiberRefDelete(
+    val fiberRef: FiberRef.Runtime[_]
+  ) extends UIO[Unit] {
+    override def tag = Tags.FiberRefDelete
   }
 
   private[zio] object Trace extends UIO[ZTrace] {
@@ -5826,6 +5896,21 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   ) extends ZIO[R, E, A] {
     override def tag = Tags.Ensuring
   }
+
+  private[zio] final class Logged(
+    val message: () => String,
+    val overrideLogLevel: Option[LogLevel] = None,
+    val overrideRef1: FiberRef.Runtime[_] = null,
+    val overrideValue1: AnyRef = null
+  ) extends ZIO[Any, Nothing, Unit] {
+    override def tag = Tags.Logged
+  }
+
+  private[zio] val someFatal   = Some(LogLevel.Fatal)
+  private[zio] val someError   = Some(LogLevel.Error)
+  private[zio] val someWarning = Some(LogLevel.Warning)
+  private[zio] val someInfo    = Some(LogLevel.Info)
+  private[zio] val someDebug   = Some(LogLevel.Debug)
 
   private[zio] def succeedNow[A](a: A): UIO[A] = new ZIO.Succeed(a)
 }

@@ -148,7 +148,7 @@ object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
                         }
       } yield assert(readResult)(equalTo(read4Bytes))
     }
-  )
+  ) @@ TestAspect.unix
 
 }
 

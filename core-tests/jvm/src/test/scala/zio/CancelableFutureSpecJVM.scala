@@ -25,8 +25,8 @@ object CancelableFutureSpecJVM extends ZIOBaseSpec {
           .runtime[Any]
           .map(
             _.mapPlatform(
-              _.withExecutor(
-                Executor.fromExecutionContext(1)(
+              _.copy(
+                executor = Executor.fromExecutionContext(1)(
                   ExecutionContext.fromExecutor(Executors.newSingleThreadScheduledExecutor())
                 )
               )

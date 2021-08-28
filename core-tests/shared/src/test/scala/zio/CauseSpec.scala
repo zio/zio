@@ -222,7 +222,7 @@ object CauseSpec extends ZIOBaseSpec {
               hasSuppressed(exists(hasMessage(equalTo(renderedCause))))
           )
         }
-      }
+      } @@ TestAspect.unix
     ),
     suite("stripSomeDefects")(
       test("returns `Some` with remaining causes") {
