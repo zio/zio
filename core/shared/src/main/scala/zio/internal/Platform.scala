@@ -16,7 +16,6 @@
 
 package zio.internal
 
-import zio.internal.tracing.TracingConfig
 import zio.{Cause, Supervisor}
 
 /**
@@ -31,22 +30,53 @@ final case class Platform(
   reportFatal: Throwable => Nothing,
   reportFailure: Cause[Any] => Unit,
   supervisor: Supervisor[Any],
-  enableCurrentFiber: Boolean
+  enableCurrentFiber: Boolean,
+  logger: ZLogger[Unit]
 ) { self =>
+  @deprecated("2.0.0", "Use Platform#copy instead")
   def withBlockingExecutor(e: Executor): Platform = copy(blockingExecutor = e)
 
+  @deprecated("2.0.0", "Use Platform#copy instead")
   def withExecutor(e: Executor): Platform = copy(executor = e)
 
-  def withTracing(t: Tracing): Platform = copy(tracing = t)
-
-  def withTracingConfig(config: TracingConfig): Platform = copy(tracing = tracing.copy(tracingConfig = config))
-
+  @deprecated("2.0.0", "Use Platform#copy instead")
   def withFatal(f: Throwable => Boolean): Platform = copy(fatal = f)
 
-  def withReportFatal(f: Throwable => Nothing): Platform = copy(fatal = f)
+  @deprecated("2.0.0", "Use Platform#copy instead")
+  def withReportFatal(f: Throwable => Nothing): Platform = copy(reportFatal = f)
 
+  @deprecated("2.0.0", "Use Platform#copy instead")
   def withReportFailure(f: Cause[Any] => Unit): Platform = copy(reportFailure = f)
 
+  @deprecated("2.0.0", "Use Platform#copy instead")
   def withSupervisor(s0: Supervisor[Any]): Platform = copy(supervisor = s0)
+
+  @deprecated("2.0.0", "Use Platform#copy instead")
+  def withTracing(t: Tracing): Platform = copy(tracing = t)
 }
-object Platform extends PlatformSpecific
+object Platform extends PlatformSpecific {
+  private val osName =
+    Option(scala.util.Try(System.getProperty("os.name")).getOrElse("")).map(_.toLowerCase()).getOrElse("")
+
+  lazy val os: OS =
+    if (osName.contains("win")) OS.Windows
+    else if (osName.contains("mac")) OS.Mac
+    else if (osName.contains("nix") || osName.contains("nux") || osName.contains("aix")) OS.Unix
+    else if (osName.contains("sunos")) OS.Solaris
+    else OS.Unknown
+
+  sealed trait OS { self =>
+    def isWindows: Boolean = self == OS.Windows
+    def isMac: Boolean     = self == OS.Mac
+    def isUnix: Boolean    = self == OS.Unix
+    def isSolaris: Boolean = self == OS.Solaris
+    def isUnknown: Boolean = self == OS.Unknown
+  }
+  object OS {
+    case object Windows extends OS
+    case object Mac     extends OS
+    case object Unix    extends OS
+    case object Solaris extends OS
+    case object Unknown extends OS
+  }
+}

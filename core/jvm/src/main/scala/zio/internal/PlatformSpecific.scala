@@ -46,7 +46,7 @@ private[internal] trait PlatformSpecific {
    * optional feature and it's not valid to compare the performance of ZIO with
    * enabled Tracing with effect types _without_ a comparable feature.
    */
-  lazy val benchmark: Platform = makeDefault(Int.MaxValue).withReportFailure(_ => ()).withTracing(Tracing.disabled)
+  lazy val benchmark: Platform = makeDefault(Int.MaxValue).copy(reportFailure = _ => (), tracing = Tracing.disabled)
 
   /**
    * The default platform, configured with settings designed to work well for
@@ -76,23 +76,32 @@ private[internal] trait PlatformSpecific {
   /**
    * Creates a platform from an `Executor`.
    */
-  final def fromExecutor(executor0: Executor): Platform =
-    Platform(
-      blockingExecutor = Blocking.blockingExecutor,
-      executor = executor0,
-      tracing = Tracing(Tracer.globallyCached(new AkkaLineNumbersTracer), TracingConfig.enabled),
-      fatal = (t: Throwable) => t.isInstanceOf[VirtualMachineError],
-      reportFatal = (t: Throwable) => {
-        t.printStackTrace()
-        try {
-          System.exit(-1)
-          throw t
-        } catch { case _: Throwable => throw t }
-      },
-      reportFailure = (cause: Cause[Any]) => if (cause.isDie) System.err.println(cause.prettyPrint),
-      supervisor = Supervisor.none,
-      enableCurrentFiber = false
-    )
+  final def fromExecutor(executor0: Executor): Platform = {
+    val blockingExecutor = Blocking.blockingExecutor
+
+    val executor = executor0
+
+    val fatal = (t: Throwable) => t.isInstanceOf[VirtualMachineError]
+
+    val logger: ZLogger[Unit] =
+      ZLogger.defaultFormatter.logged(println(_))
+
+    val reportFailure = (cause: Cause[Any]) => if (cause.isDie) System.err.println(cause.prettyPrint)
+
+    val reportFatal = (t: Throwable) => {
+      t.printStackTrace()
+      try {
+        System.exit(-1)
+        throw t
+      } catch { case _: Throwable => throw t }
+    }
+
+    val supervisor = Supervisor.none
+
+    val tracing = Tracing(Tracer.globallyCached(new AkkaLineNumbersTracer), TracingConfig.enabled)
+
+    Platform(blockingExecutor, executor, tracing, fatal, reportFatal, reportFailure, supervisor, false, logger)
+  }
 
   /**
    * Creates a Platform from an execution context.

@@ -3,13 +3,14 @@ package system
 
 import zio.test.Assertion._
 import zio.test._
-import zio.test.environment.{Live, live}
+import zio.test.environment.live
 
 import java.io.File
+import zio.test.environment.Live
 
 object SystemSpec extends ZIOBaseSpec {
 
-  def spec: Spec[Has[Live], TestFailure[Throwable], TestSuccess] = suite("SystemSpec")(
+  def spec: Spec[Has[Live] with Has[Annotations], TestFailure[Any], TestSuccess] = suite("SystemSpec")(
     suite("Fetch an environment variable and check that")(
       test("If it exists, return a reasonable value") {
         assertM(live(System.env("PATH")))(isSome(containsString(File.separator + "bin")))
@@ -21,9 +22,9 @@ object SystemSpec extends ZIOBaseSpec {
     suite("Fetch all environment variables and check that")(
       test("If it exists, return a reasonable value") {
         assertM(live(System.envs.map(_.get("PATH"))))(isSome(containsString(File.separator + "bin")))
-      },
+      } @@ TestAspect.unix,
       test("If it does not exist, return None") {
-        assertM(live(System.envs.map(_.get("QWERTY"))))(isNone)
+        assertM(live(System.envs.map(_.get("QWERTY123"))))(isNone)
       }
     ),
     suite("Fetch all VM properties and check that")(

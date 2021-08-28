@@ -567,8 +567,42 @@ object ScheduleSpec extends ZIOBaseSpec {
       val scheduleIntervals = runManually(Schedule.fixed(5.seconds), inputs).map(_._1.map(_._1))
 
       assertM(scheduleIntervals)(equalTo(List(offsetDateTime(5000), offsetDateTime(10000))))
-    }
+    },
+    suite("return values")(
+      suite("delays")(
+        test("duration")(checkDelays(Schedule.duration(1.second))),
+        test("exponential")(checkDelays(Schedule.exponential(1.second))),
+        test("fibonacci")(checkDelays(Schedule.fibonacci(1.second))),
+        test("fromDuration")(checkDelays(Schedule.fromDuration(1.second))),
+        test("fromDurations")(checkDelays(Schedule.fromDurations(1.second, 2.seconds, 3.seconds, 4.seconds))),
+        test("linear")(checkDelays(Schedule.linear(1.second)))
+      ),
+      suite("repetitions")(
+        test("count")(checkRepetitions(Schedule.count)),
+        test("fixed")(checkRepetitions(Schedule.fixed(1.second))),
+        test("forever")(checkRepetitions(Schedule.forever)),
+        test("recurs")(checkRepetitions(Schedule.forever)),
+        test("spaced")(checkRepetitions(Schedule.spaced(1.second))),
+        test("windowed")(checkRepetitions(Schedule.windowed(1.second)))
+      )
+    )
   )
+
+  def checkDelays[Env](schedule: Schedule[Env, Any, Duration]): URIO[Env, TestResult] =
+    for {
+      now      <- ZIO.succeed(OffsetDateTime.now)
+      in        = Chunk(1, 2, 3, 4, 5)
+      actual   <- schedule.run(now, in)
+      expected <- schedule.delays.run(now, in)
+    } yield assert(actual)(equalTo(expected))
+
+  def checkRepetitions[Env](schedule: Schedule[Env, Any, Long]): URIO[Env, TestResult] =
+    for {
+      now      <- ZIO.succeed(OffsetDateTime.now)
+      in        = Chunk(1, 2, 3, 4, 5)
+      actual   <- schedule.run(now, in)
+      expected <- schedule.repetitions.run(now, in)
+    } yield assert(actual)(equalTo(expected))
 
   val ioSucceed: (String, Unit) => UIO[String]      = (_: String, _: Unit) => IO.succeed("OrElse")
   val ioFail: (String, Unit) => IO[String, Nothing] = (_: String, _: Unit) => IO.fail("OrElseFailed")
