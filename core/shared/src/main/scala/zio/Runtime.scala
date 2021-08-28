@@ -297,7 +297,6 @@ trait Runtime[+R] {
       None,
       PlatformConstants.tracingSupported,
       null,
-      supervisor,
       scope,
       platform.reportFailure
     )

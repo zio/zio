@@ -3948,6 +3948,14 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield {
           assert(value)(equalTo("Controlling side-effect of function passed to promise"))
         }
+      },
+      test("onPlatform") {
+        for {
+          platform <- ZIO.suspendSucceedWith((platform, _) => ZIO.succeed(platform))
+          global   <- ZIO.onPlatform(Platform.global)(ZIO.suspendSucceedWith((platform, _) => ZIO.succeed(platform)))
+          default  <- ZIO.suspendSucceedWith((platform, _) => ZIO.succeed(platform))
+        } yield assert(global)(equalTo(Platform.global)) &&
+          assert(default)(equalTo(platform))
       }
     )
   )

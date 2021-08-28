@@ -1019,6 +1019,12 @@ object Task extends TaskPlatformSpecific {
     ZIO.not(effect)
 
   /**
+   *  @see See [[zio.ZIO.onPlatform]]
+   */
+  def onPlatform[A](platform: => Platform)(task: => Task[A]): Task[A] =
+    ZIO.onPlatform(platform)(task)
+
+  /**
    * @see See [[zio.ZIO.partition]]
    */
   def partition[A, B](in: Iterable[A])(f: A => Task[B]): Task[(Iterable[Throwable], Iterable[B])] =

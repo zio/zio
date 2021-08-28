@@ -1207,6 +1207,13 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     }
 
   /**
+   * Runs this effect on the specified platform, restoring the old platform
+   * when it completes execution.
+   */
+  final def onPlatform(platform: => Platform): ZIO[R, E, A] =
+    ZIO.onPlatform(platform)(self)
+
+  /**
    * Runs the specified effect if this effect is terminated, either because of
    * a defect or because of interruption.
    */
@@ -4481,6 +4488,13 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     async[Any, Nothing, Nothing](_ => ())
 
   /**
+   * Runs the specified effect on the specified platform, restoring the old
+   * platform when it completes execution.
+   */
+  def onPlatform[R, E, A](platform: => Platform)(zio: => ZIO[R, E, A]): ZIO[R, E, A] =
+    new ZIO.OnPlatform(() => zio, () => platform)
+
+  /**
    * Races an `IO[E, A]` against zero or more other effects. Yields either the
    * first success or the last failure.
    */
@@ -5675,6 +5689,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     final val Supervise         = 25
     final val GetForkScope      = 26
     final val OverrideForkScope = 27
+    final val OnPlatform        = 28
   }
 
   private[zio] final case class ZioError[E, A](exit: Exit[E, A]) extends Throwable with NoStackTrace
@@ -5825,6 +5840,13 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     val finalizer: ZIO[R, Nothing, Any]
   ) extends ZIO[R, E, A] {
     override def tag = Tags.Ensuring
+  }
+
+  private[zio] final class OnPlatform[R, E, A](
+    val zio: () => ZIO[R, E, A],
+    val platform: () => Platform
+  ) extends ZIO[R, E, A] {
+    override def tag = Tags.OnPlatform
   }
 
   private[zio] def succeedNow[A](a: A): UIO[A] = new ZIO.Succeed(a)

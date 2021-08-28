@@ -968,6 +968,12 @@ object URIO {
     ZIO.not(effect)
 
   /**
+   *  @see See [[zio.ZIO.onPlatform]]
+   */
+  def onPlatform[R, A](platform: => Platform)(urio: => URIO[R, A]): URIO[R, A] =
+    ZIO.onPlatform(platform)(urio)
+
+  /**
    * @see [[zio.ZIO.provide]]
    */
   def provide[R, A](r: => R): URIO[R, A] => UIO[A] =
