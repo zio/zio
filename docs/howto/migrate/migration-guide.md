@@ -616,6 +616,13 @@ We can also provide a user-defined blocking executor in ZIO 2.x with the `Runtim
 
 ### Clock Service
 
+There is a slight change in the Clock service; the return value of the `currentDateTime`, and `localDateTime` methods changed from `IO` to `UIO`, so they do not longer throw `DateTimeException`:
+
+| Method Name       | Return Type (ZIO 1.x) | Return Type (ZIO 2.x) |
+|-------------------|-----------------------|-----------------------|
+| `currentDateTime` | `IO[OffsetDateTime]`  | `UIO[OffsetDateTime]` |
+| `localDateTime`   | `IO[LocalDateTime]`   | `UIO[LocalDateTime]`  |
+
 In ZIO 2.0, without changing any API, the _retrying_, _repetition_, and _scheduling_ logic moved into the `Clock` service.
 
 Working with these three time-related APIs, always made us require `Clock` as our environment. So by moving these primitives into the `Clock` service, now we can directly call them via the `Clock` service. This change solves a common anti-pattern in ZIO 1.0, whereby a middleware that uses `Clock` via this retrying, repetition, or scheduling logic must provide the `Clock` layer on every method invocation:
