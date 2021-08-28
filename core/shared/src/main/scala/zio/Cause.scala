@@ -56,8 +56,9 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
       }
       .reverse
 
+  @deprecated("use isDie", "2.0.0")
   final def died: Boolean =
-    dieOption.isDefined
+    isDie
 
   /**
    * Returns the `Throwable` associated with the first `Die` in this `Cause` if
@@ -66,8 +67,9 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
   final def dieOption: Option[Throwable] =
     find { case Die(t) => t }
 
+  @deprecated("use isFailure", "2.0.0")
   final def failed: Boolean =
-    failureOption.isDefined
+    isFailure
 
   /**
    * Returns the `E` associated with the first `Fail` in this `Cause` if one
@@ -133,18 +135,17 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
   /**
    * Determines if the `Cause` contains an interruption.
    */
+  @deprecated("use isInterrupted", "2.0.0")
   final def interrupted: Boolean =
-    find { case Interrupt(_) => () }.isDefined
+    isInterrupted
 
   /**
    * Determines if the `Cause` contains only interruptions and not any `Die` or
    * `Fail` causes.
    */
+  @deprecated("use isInterruptedOnly", "2.0.0")
   final def interruptedOnly: Boolean =
-    find {
-      case Die(_)  => false
-      case Fail(_) => false
-    }.getOrElse(true)
+    isInterruptedOnly
 
   /**
    * Returns a set of interruptors, fibers that interrupted the fiber described
@@ -154,6 +155,9 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
     foldLeft[Set[Fiber.Id]](Set()) { case (acc, Interrupt(fiberId)) =>
       acc + fiberId
     }
+
+  final def isDie: Boolean =
+    dieOption.isDefined
 
   /**
    * Determines if the `Cause` is empty.
@@ -165,6 +169,25 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
       case (_, Fail(_))         => false
       case (_, Interrupt(_))    => false
     }
+
+  final def isFailure: Boolean =
+    failureOption.isDefined
+
+  /**
+   * Determines if the `Cause` contains an interruption.
+   */
+  final def isInterrupted: Boolean =
+    find { case Interrupt(_) => () }.isDefined
+
+  /**
+   * Determines if the `Cause` contains only interruptions and not any `Die` or
+   * `Fail` causes.
+   */
+  final def isInterruptedOnly: Boolean =
+    find {
+      case Die(_)  => false
+      case Fail(_) => false
+    }.getOrElse(true)
 
   final def fold[Z](
     empty: => Z,
@@ -395,7 +418,7 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
    */
   final def squashWith(f: E => Throwable): Throwable =
     failureOption.map(f) orElse
-      (if (interrupted)
+      (if (isInterrupted)
          Some(
            new InterruptedException(
              "Interrupted by fibers: " + interruptors.map(_.seqNumber.toString()).map("#" + _).mkString(", ")

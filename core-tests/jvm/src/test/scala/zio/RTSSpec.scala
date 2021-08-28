@@ -82,7 +82,7 @@ object RTSSpec extends ZIOBaseSpec {
           acquireRelease = IO
                              .succeed(21)
                              .acquireReleaseExitWith((r: Int, exit: Exit[Any, Any]) =>
-                               if (exit.interrupted) exitLatch.succeed(r)
+                               if (exit.isInterrupted) exitLatch.succeed(r)
                                else IO.die(new Error("Unexpected case"))
                              )(a => startLatch.succeed(a) *> IO.never *> IO.succeed(1))
           fiber      <- acquireRelease.fork

@@ -31,7 +31,7 @@ object CheckSpec extends ZIOBaseSpec {
       }
     } @@ failing,
     test("overloaded check methods work") {
-      check(Gen.anyInt, Gen.anyInt, Gen.anyInt)((x, y, z) => assert((x + y) + z)(equalTo(x + (y + z))))
+      check(Gen.int, Gen.int, Gen.int)((x, y, z) => assert((x + y) + z)(equalTo(x + (y + z))))
     },
     test("max shrinks is respected") {
       val gen = Gen.listOfN(10)(Gen.int(-10, 10))
@@ -58,10 +58,10 @@ object CheckSpec extends ZIOBaseSpec {
       }
     },
     test("tests with filtered generators terminate") {
-      check(Gen.anyInt.filter(_ > 0), Gen.anyInt.filter(_ > 0))((a, b) => assert(a)(equalTo(b)))
+      check(Gen.int.filter(_ > 0), Gen.int.filter(_ > 0))((a, b) => assert(a)(equalTo(b)))
     } @@ failing,
     test("failing tests contain gen failure details") {
-      check(Gen.anyInt)(a => assert(a)(isGreaterThan(0))).map {
+      check(Gen.int)(a => assert(a)(isGreaterThan(0))).map {
         _.failures match {
           case Some(BoolAlgebra.Value(result)) =>
             result.genFailureDetails.fold(false)(_.shrunkenInput == 0)

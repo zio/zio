@@ -120,13 +120,13 @@ object ZSinkSpec extends ZIOBaseSpec {
           }
         ),
         test("head")(
-          checkM(Gen.listOf(Gen.small(Gen.chunkOfN(_)(Gen.anyInt)))) { chunks =>
+          checkM(Gen.listOf(Gen.small(Gen.chunkOfN(_)(Gen.int)))) { chunks =>
             val headOpt = ZStream.fromChunks(chunks: _*).run(ZSink.head[Nothing, Int])
             assertM(headOpt)(equalTo(chunks.flatMap(_.toSeq).headOption))
           }
         ),
         test("last")(
-          checkM(Gen.listOf(Gen.small(Gen.chunkOfN(_)(Gen.anyInt)))) { chunks =>
+          checkM(Gen.listOf(Gen.small(Gen.chunkOfN(_)(Gen.int)))) { chunks =>
             val lastOpt = ZStream.fromChunks(chunks: _*).run(ZSink.last)
             assertM(lastOpt)(equalTo(chunks.flatMap(_.toSeq).lastOption))
           }
@@ -269,9 +269,9 @@ object ZSinkSpec extends ZIOBaseSpec {
       },
       test("foldLeft equivalence with Chunk#foldLeft")(
         checkM(
-          Gen.small(ZStreamGen.pureStreamGen(Gen.anyInt, _)),
-          Gen.function2(Gen.anyString),
-          Gen.anyString
+          Gen.small(ZStreamGen.pureStreamGen(Gen.int, _)),
+          Gen.function2(Gen.string),
+          Gen.string
         ) { (s, f, z) =>
           for {
             xs <- s.run(ZSink.foldLeft(z)(f))
@@ -314,15 +314,15 @@ object ZSinkSpec extends ZIOBaseSpec {
           }
         },
         test("equivalence with List#foldLeft") {
-          val ioGen = ZStreamGen.successes(Gen.anyString)
-          checkM(Gen.small(ZStreamGen.pureStreamGen(Gen.anyInt, _)), Gen.function2(ioGen), ioGen) { (s, f, z) =>
+          val ioGen = ZStreamGen.successes(Gen.string)
+          checkM(Gen.small(ZStreamGen.pureStreamGen(Gen.int, _)), Gen.function2(ioGen), ioGen) { (s, f, z) =>
             for {
               sinkResult <- z.flatMap(z => s.run(ZSink.foldLeftZIO(z)(f)))
               foldResult <- s.runFold(List[Int]())((acc, el) => el :: acc)
                               .map(_.reverse)
                               .flatMap(_.foldLeft(z)((acc, el) => acc.flatMap(f(_, el))))
                               .exit
-            } yield assert(foldResult.succeeded)(isTrue) implies assert(foldResult)(succeeds(equalTo(sinkResult)))
+            } yield assert(foldResult.isSuccess)(isTrue) implies assert(foldResult)(succeeds(equalTo(sinkResult)))
           }
         }
       ),
@@ -497,7 +497,7 @@ object ZSinkSpec extends ZIOBaseSpec {
           assertM(leftover)(equalTo(Chunk(4, 5)))
         }
       ),
-      suite("fromEffect")(
+      suite("fromZIO")(
         test("result is ok") {
           val s = ZSink.fromZIO(ZIO.succeed("ok"))
           assertM(ZStream(1, 2, 3).run(s))(
@@ -563,7 +563,7 @@ object ZSinkSpec extends ZIOBaseSpec {
           test("with leftovers") {
             val headAndCount =
               ZSink.head[Nothing, Int].flatMap((h: Option[Int]) => ZSink.count.map(cnt => (h, cnt)))
-            checkM(Gen.listOf(Gen.small(Gen.chunkOfN(_)(Gen.anyInt)))) { chunks =>
+            checkM(Gen.listOf(Gen.small(Gen.chunkOfN(_)(Gen.int)))) { chunks =>
               ZStream.fromChunks(chunks: _*).run(headAndCount).map {
                 case (head, count) => {
                   assert(head)(equalTo(chunks.flatten.headOption)) &&
@@ -606,7 +606,7 @@ object ZSinkSpec extends ZIOBaseSpec {
                   sequenceSize <- Gen.int(1, 50)
                   takers       <- Gen.int(1, 5)
                   takeSizes    <- Gen.listOfN(takers)(Gen.int(1, sequenceSize))
-                  inputs       <- Gen.chunkOfN(sequenceSize)(ZStreamGen.tinyChunkOf(Gen.anyInt))
+                  inputs       <- Gen.chunkOfN(sequenceSize)(ZStreamGen.tinyChunkOf(Gen.int))
                   (expectedTakes, leftoverInputs, wasSplit) = takeSizes.foldLeft((Chunk[Chunk[Int]](), inputs, false)) {
                                                                 case ((takenChunks, leftover, _), takeSize) =>
                                                                   val (taken, rest, wasSplit) =
@@ -661,7 +661,7 @@ object ZSinkSpec extends ZIOBaseSpec {
         ),
         suite("take")(
           test("take")(
-            checkM(Gen.chunkOf(Gen.small(Gen.chunkOfN(_)(Gen.anyInt))), Gen.anyInt) { (chunks, n) =>
+            checkM(Gen.chunkOf(Gen.small(Gen.chunkOfN(_)(Gen.int))), Gen.int) { (chunks, n) =>
               ZStream
                 .fromChunks(chunks: _*)
                 .peel(ZSink.take[Nothing, Int](n))
@@ -684,7 +684,7 @@ object ZSinkSpec extends ZIOBaseSpec {
         },
         suite("utf8Decode")(
           test("running with regular strings") {
-            checkM(Gen.anyString.map(s => Chunk.fromArray(s.getBytes("UTF-8")))) { bytes =>
+            checkM(Gen.string.map(s => Chunk.fromArray(s.getBytes("UTF-8")))) { bytes =>
               ZStream
                 .fromChunk(bytes)
                 .run(ZSink.utf8Decode)
@@ -696,7 +696,7 @@ object ZSinkSpec extends ZIOBaseSpec {
             }
           },
           test("transducing with regular strings") {
-            checkM(Gen.anyString.map(s => Chunk.fromArray(s.getBytes("UTF-8")).map(Chunk.single(_)))) { byteChunks =>
+            checkM(Gen.string.map(s => Chunk.fromArray(s.getBytes("UTF-8")).map(Chunk.single(_)))) { byteChunks =>
               ZStream
                 .fromChunks(byteChunks.toList: _*)
                 .transduce(ZSink.utf8Decode.map(_.getOrElse("")))
@@ -760,7 +760,7 @@ object ZSinkSpec extends ZIOBaseSpec {
               }
           },
           test("handle byte order mark") {
-            checkM(Gen.anyString) { s =>
+            checkM(Gen.string) { s =>
               ZStream
                 .fromChunk(Chunk[Byte](-17, -69, -65) ++ Chunk.fromArray(s.getBytes("UTF-8")))
                 .transduce(ZSink.utf8Decode)

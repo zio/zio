@@ -1298,10 +1298,16 @@ val myApp: ZIO[Any, String, Unit] = transaction.transact
 In order to use this library, we need to add the following line in our `build.sbt` file:
 
 ```scala
-libraryDependencies += "io.scalac" %% "zio-slick-interop" % "0.3.0"
+libraryDependencies += "io.scalac" %% "zio-slick-interop" % "0.4.0"
 ```
 
 ### Example
+
+To run this example we should also add the _HikariCP integration for Slick_ in our `build.sbt` file:
+
+```scala
+libraryDependencies += "com.typesafe.slick" %% "slick-hikaricp" % "3.3.3"
+```
 
 Here is a full working example of creating database-agnostic Slick repository:
 

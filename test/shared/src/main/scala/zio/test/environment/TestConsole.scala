@@ -202,7 +202,7 @@ object TestConsole extends Serializable {
   }.toLayerMany
 
   val any: ZLayer[Has[Console] with Has[TestConsole], Nothing, Has[Console] with Has[TestConsole]] =
-    ZLayer.requires[Has[Console] with Has[TestConsole]]
+    ZLayer.environment[Has[Console] with Has[TestConsole]]
 
   val debug: ZLayer[Has[Live], Nothing, Has[Console] with Has[TestConsole]] =
     make(Data(Nil, Vector()), true)

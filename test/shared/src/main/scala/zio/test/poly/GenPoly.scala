@@ -180,7 +180,7 @@ object GenPoly {
    * strings.
    */
   val string: GenPoly =
-    GenOrderingPoly(Gen.anyString, Ordering.String)
+    GenOrderingPoly(Gen.string, Ordering.String)
 
   /**
    * Provides evidence that instances of `Gen` and `Ordering` exist for

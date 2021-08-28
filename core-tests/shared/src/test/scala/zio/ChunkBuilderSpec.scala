@@ -28,14 +28,14 @@ object ChunkBuilderSpec extends ZIOBaseSpec {
     ),
     suite("Byte")(
       test("addOne")(
-        check(Gen.chunkOf(Gen.anyByte)) { as =>
+        check(Gen.chunkOf(Gen.byte)) { as =>
           val builder = new ChunkBuilder.Byte
           as.foreach(builder += _)
           assert(builder.result())(equalTo(as))
         }
       ),
       test("addAll") {
-        check(Gen.chunkOf(Gen.anyByte)) { as =>
+        check(Gen.chunkOf(Gen.byte)) { as =>
           val builder = new ChunkBuilder.Byte
           builder ++= as
           assert(builder.result())(equalTo(as))
@@ -48,14 +48,14 @@ object ChunkBuilderSpec extends ZIOBaseSpec {
     ),
     suite("Char")(
       test("addOne")(
-        check(Gen.chunkOf(Gen.anyChar)) { as =>
+        check(Gen.chunkOf(Gen.char)) { as =>
           val builder = new ChunkBuilder.Char
           as.foreach(builder += _)
           assert(builder.result())(equalTo(as))
         }
       ),
       test("addAll") {
-        check(Gen.chunkOf(Gen.anyChar)) { as =>
+        check(Gen.chunkOf(Gen.char)) { as =>
           val builder = new ChunkBuilder.Char
           builder ++= as
           assert(builder.result())(equalTo(as))
@@ -68,14 +68,14 @@ object ChunkBuilderSpec extends ZIOBaseSpec {
     ),
     suite("Double")(
       test("addOne")(
-        check(Gen.chunkOf(Gen.anyDouble)) { as =>
+        check(Gen.chunkOf(Gen.double)) { as =>
           val builder = new ChunkBuilder.Double
           as.foreach(builder += _)
           assert(builder.result())(equalTo(as))
         }
       ),
       test("addAll") {
-        check(Gen.chunkOf(Gen.anyDouble)) { as =>
+        check(Gen.chunkOf(Gen.double)) { as =>
           val builder = new ChunkBuilder.Double
           builder ++= as
           assert(builder.result())(equalTo(as))
@@ -88,14 +88,14 @@ object ChunkBuilderSpec extends ZIOBaseSpec {
     ),
     suite("Float")(
       test("addOne")(
-        check(Gen.chunkOf(Gen.anyFloat)) { as =>
+        check(Gen.chunkOf(Gen.float)) { as =>
           val builder = new ChunkBuilder.Float
           as.foreach(builder += _)
           assert(builder.result())(equalTo(as))
         }
       ),
       test("addAll") {
-        check(Gen.chunkOf(Gen.anyFloat)) { as =>
+        check(Gen.chunkOf(Gen.float)) { as =>
           val builder = new ChunkBuilder.Float
           builder ++= as
           assert(builder.result())(equalTo(as))
@@ -108,14 +108,14 @@ object ChunkBuilderSpec extends ZIOBaseSpec {
     ),
     suite("Int")(
       test("addOne")(
-        check(Gen.chunkOf(Gen.anyInt)) { as =>
+        check(Gen.chunkOf(Gen.int)) { as =>
           val builder = new ChunkBuilder.Int
           as.foreach(builder += _)
           assert(builder.result())(equalTo(as))
         }
       ),
       test("addAll") {
-        check(Gen.chunkOf(Gen.anyInt)) { as =>
+        check(Gen.chunkOf(Gen.int)) { as =>
           val builder = new ChunkBuilder.Int
           builder ++= as
           assert(builder.result())(equalTo(as))
@@ -128,14 +128,14 @@ object ChunkBuilderSpec extends ZIOBaseSpec {
     ),
     suite("Long")(
       test("addOne")(
-        check(Gen.chunkOf(Gen.anyLong)) { as =>
+        check(Gen.chunkOf(Gen.long)) { as =>
           val builder = new ChunkBuilder.Long
           as.foreach(builder += _)
           assert(builder.result())(equalTo(as))
         }
       ),
       test("addAll") {
-        check(Gen.chunkOf(Gen.anyLong)) { as =>
+        check(Gen.chunkOf(Gen.long)) { as =>
           val builder = new ChunkBuilder.Long
           builder ++= as
           assert(builder.result())(equalTo(as))
@@ -148,14 +148,14 @@ object ChunkBuilderSpec extends ZIOBaseSpec {
     ),
     suite("Short")(
       test("addOne")(
-        check(Gen.chunkOf(Gen.anyShort)) { as =>
+        check(Gen.chunkOf(Gen.short)) { as =>
           val builder = new ChunkBuilder.Short
           as.foreach(builder += _)
           assert(builder.result())(equalTo(as))
         }
       ),
       test("addAll") {
-        check(Gen.chunkOf(Gen.anyShort)) { as =>
+        check(Gen.chunkOf(Gen.short)) { as =>
           val builder = new ChunkBuilder.Short
           builder ++= as
           assert(builder.result())(equalTo(as))

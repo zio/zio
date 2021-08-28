@@ -967,8 +967,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
                          .foldCauseZIO(
                            {
                              // we ignore all downstream queues that were shut down and remove them later
-                             case c if c.interrupted => ZIO.succeedNow(id :: acc)
-                             case c                  => ZIO.failCause(c)
+                             case c if c.isInterrupted => ZIO.succeedNow(id :: acc)
+                             case c                    => ZIO.failCause(c)
                            },
                            _ => ZIO.succeedNow(acc)
                          )
@@ -1004,7 +1004,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
                            queues <- queuesRef.get.map(_.values)
                            _ <- ZIO.foreach(queues) { queue =>
                                   queue.offer(endTake).catchSomeCause {
-                                    case c if c.interrupted => ZIO.unit
+                                    case c if c.isInterrupted => ZIO.unit
                                   }
                                 }
                            _ <- done(endTake)
@@ -1027,7 +1027,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    *
    * {{{
    * (Stream(1, 2, 3).tap(i => ZIO(println(i))) ++
-   *   Stream.fromEffect(ZIO(println("Done!"))).drain ++
+   *   Stream.fromZIO(ZIO(println("Done!"))).drain ++
    *   Stream(4, 5, 6).tap(i => ZIO(println(i)))).run(Sink.drain)
    * }}}
    */
@@ -1458,7 +1458,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
       chunk: Chunk[Exit[Option[E1], A1]],
       cont: ZChannel[R, E, Chunk[Exit[Option[E1], A1]], Any, E1, Chunk[A1], Any]
     ): ZChannel[R, E, Chunk[Exit[Option[E1], A1]], Any, E1, Chunk[A1], Any] = {
-      val (toEmit, rest) = chunk.splitWhere(!_.succeeded)
+      val (toEmit, rest) = chunk.splitWhere(!_.isSuccess)
       val next = rest.headOption match {
         case Some(Exit.Success(_)) => ZChannel.end(())
         case Some(Exit.Failure(cause)) =>
@@ -1903,7 +1903,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
       ZStream.managed(ZManaged.lock(executor)) *>
         self <*
         ZStream.fromZIO {
-          if (descriptor.locked) ZIO.shift(descriptor.executor)
+          if (descriptor.isLocked) ZIO.shift(descriptor.executor)
           else ZIO.unshift
         }
     }
@@ -2179,7 +2179,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     import TerminationStrategy.{Left, Right, Either}
 
     def handler(terminate: Boolean)(exit: Exit[E1, Any]): ZChannel.MergeDecision[R1, E1, Any, E1, Any] =
-      if (terminate || !exit.succeeded) ZChannel.MergeDecision.done(ZIO.done(exit))
+      if (terminate || !exit.isSuccess) ZChannel.MergeDecision.done(ZIO.done(exit))
       else ZChannel.MergeDecision.await(ZIO.done(_))
 
     new ZStream(
@@ -3780,7 +3780,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       queue.take
         .catchAllCause(c =>
           queue.isShutdown.flatMap { down =>
-            if (down && c.interrupted) Pull.end
+            if (down && c.isInterrupted) Pull.end
             else Pull.failCause(c)
           }
         )
@@ -4018,7 +4018,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
         .map(Chunk.fromIterable)
         .catchAllCause(c =>
           queue.isShutdown.flatMap { down =>
-            if (down && c.interrupted) Pull.end
+            if (down && c.isInterrupted) Pull.end
             else Pull.failCause(c)
           }
         )
@@ -4239,13 +4239,20 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    */
   @deprecated("use repeatZIOWith", "2.0.0")
   def repeatEffectWith[R, E, A](effect: ZIO[R, E, A], schedule: Schedule[R, A, Any]): ZStream[R with Has[Clock], E, A] =
-    repeatZIOWith(effect, schedule)
+    repeatZIOWithSchedule(effect, schedule)
 
   /**
    * Repeats the value using the provided schedule.
    */
+  @deprecated("use repeatWithSchedule", "2.0.0")
   def repeatWith[R, A](a: => A, schedule: Schedule[R, A, _]): ZStream[R with Has[Clock], Nothing, A] =
-    repeatZIOWith(UIO.succeed(a), schedule)
+    repeatWithSchedule(a, schedule)
+
+  /**
+   * Repeats the value using the provided schedule.
+   */
+  def repeatWithSchedule[R, A](a: => A, schedule: Schedule[R, A, _]): ZStream[R with Has[Clock], Nothing, A] =
+    repeatZIOWithSchedule(UIO.succeed(a), schedule)
 
   /**
    * Creates a stream from an effect producing a value of type `A` which repeats forever.
@@ -4280,7 +4287,10 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * Creates a stream from an effect producing a value of type `A`, which is repeated using the
    * specified schedule.
    */
-  def repeatZIOWith[R, E, A](effect: ZIO[R, E, A], schedule: Schedule[R, A, Any]): ZStream[R with Has[Clock], E, A] =
+  def repeatZIOWithSchedule[R, E, A](
+    effect: ZIO[R, E, A],
+    schedule: Schedule[R, A, Any]
+  ): ZStream[R with Has[Clock], E, A] =
     ZStream.fromZIO(effect zip schedule.driver).flatMap { case (a, driver) =>
       ZStream.succeed(a) ++
         ZStream.unfoldZIO(a)(driver.next(_).foldZIO(ZIO.succeed(_), _ => effect.map(nextA => Some(nextA -> nextA))))
@@ -4324,7 +4334,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * A stream that emits Unit values spaced by the specified duration.
    */
   def tick(interval: Duration): ZStream[Has[Clock], Nothing, Unit] =
-    repeatWith((), Schedule.spaced(interval))
+    repeatWithSchedule((), Schedule.spaced(interval))
 
   /**
    * A stream that contains a single `Unit` value.
@@ -4491,7 +4501,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     def apply[E1 >: E, R1](
       layer: ZLayer[R0, E1, R1]
     )(implicit ev1: R0 with R1 <:< R, ev2: Has.Union[R0, R1], tagged: Tag[R1]): ZStream[R0, E1, A] =
-      self.provideLayer[E1, R0, R0 with R1](ZLayer.identity[R0] ++ layer)
+      self.provideLayer[E1, R0, R0 with R1](ZLayer.environment[R0] ++ layer)
   }
 
   final class UpdateService[-R, +E, +A, M](private val self: ZStream[R, E, A]) extends AnyVal {

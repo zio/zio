@@ -143,14 +143,14 @@ object ZManagedSpec extends ZIOBaseSpec {
         }
       } @@ TestAspect.nonFlaky
     ),
-    suite("fromEffect")(
+    suite("fromZIO")(
       test("Performed interruptibly") {
         assertM(ZManaged.fromZIO(ZIO.checkInterruptible(ZIO.succeed(_))).use(ZIO.succeed(_)))(
           equalTo(InterruptStatus.interruptible)
         )
       }
     ) @@ zioTag(interruption),
-    suite("fromEffectUninterruptible")(
+    suite("fromZIOUninterruptible")(
       test("Performed uninterruptibly") {
         assertM(ZManaged.fromZIOUninterruptible(ZIO.checkInterruptible(ZIO.succeed(_))).use(ZIO.succeed(_)))(
           equalTo(InterruptStatus.uninterruptible)
@@ -620,15 +620,15 @@ object ZManagedSpec extends ZIOBaseSpec {
     ),
     suite("optional")(
       test("fails when given Some error") {
-        val managed: UManaged[Exit[String, Option[Int]]] = Managed.fail(Some("Error")).optional.exit
+        val managed: UManaged[Exit[String, Option[Int]]] = Managed.fail(Some("Error")).unoption.exit
         managed.use(res => ZIO.succeed(assert(res)(fails(equalTo("Error")))))
       } @@ zioTag(errors),
       test("succeeds with None given None error") {
-        val managed: Managed[String, Option[Int]] = Managed.fail(None).optional
+        val managed: Managed[String, Option[Int]] = Managed.fail(None).unoption
         managed.use(res => ZIO.succeed(assert(res)(isNone)))
       } @@ zioTag(errors),
       test("succeeds with Some given a value") {
-        val managed: Managed[String, Option[Int]] = Managed.succeed(1).optional
+        val managed: Managed[String, Option[Int]] = Managed.succeed(1).unoption
         assertM(managed.useNow)(isSome(equalTo(1)))
       }
     ),
@@ -1321,7 +1321,7 @@ object ZManagedSpec extends ZIOBaseSpec {
       test("The canceler will run with an exit value indicating the effect was interrupted") {
         for {
           ref    <- Ref.make(false)
-          managed = ZManaged.acquireReleaseExitWith(ZIO.unit)((_, e) => ref.set(e.interrupted))
+          managed = ZManaged.acquireReleaseExitWith(ZIO.unit)((_, e) => ref.set(e.isInterrupted))
           _      <- managed.withEarlyRelease.use(_._1)
           result <- ref.get
         } yield assert(result)(isTrue)
@@ -1342,7 +1342,7 @@ object ZManagedSpec extends ZIOBaseSpec {
       test("Allows specifying an exit value") {
         for {
           ref    <- Ref.make(false)
-          managed = ZManaged.acquireReleaseExitWith(ZIO.unit)((_, e) => ref.set(e.succeeded))
+          managed = ZManaged.acquireReleaseExitWith(ZIO.unit)((_, e) => ref.set(e.isSuccess))
           _      <- managed.withEarlyReleaseExit(Exit.unit).use(_._1)
           result <- ref.get
         } yield assert(result)(isTrue)

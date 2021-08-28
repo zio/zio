@@ -381,7 +381,7 @@ object TestClock extends Serializable {
   //    case class FooLive(int: Int, string: String)
 
   val any: ZLayer[Has[Clock] with Has[TestClock], Nothing, Has[Clock] with Has[TestClock]] =
-    ZLayer.requires[Has[Clock] with Has[TestClock]]
+    ZLayer.environment[Has[Clock] with Has[TestClock]]
 
   val default: ZLayer[Has[Live] with Has[Annotations], Nothing, Has[Clock] with Has[TestClock]] =
     live(Data(Duration.Zero, Nil, ZoneId.of("UTC")))

@@ -957,7 +957,7 @@ private[zio] final class FiberContext[E, A](
   private[this] def isInterruptible(): Boolean = interruptStatus.peekOrElse(true)
 
   @inline
-  private[this] def isInterrupting(): Boolean = state.get().interrupting
+  private[this] def isInterrupting(): Boolean = state.get().isInterrupting
 
   @inline
   private[this] final def shouldInterrupt(): Boolean =
@@ -1053,7 +1053,7 @@ private[zio] final class FiberContext[E, A](
             _
           ) => // TODO: Dotty doesn't infer this properly
 
-        if (openScope.scope.unsafeClosed()) {
+        if (openScope.scope.unsafeIsClosed()) {
           val interruptorsCause = oldState.interruptorsCause
 
           val newExit =
@@ -1227,7 +1227,7 @@ private[zio] object FiberContext {
   sealed abstract class FiberState[+E, +A] extends Serializable with Product {
     def suppressed: Cause[Nothing]
     def status: Fiber.Status
-    def interrupting: Boolean = status.isInterrupting
+    def isInterrupting: Boolean = status.isInterrupting
     def interruptors: Set[Fiber.Id]
     def interruptorsCause: Cause[Nothing] =
       interruptors.foldLeft[Cause[Nothing]](Cause.empty) { case (acc, interruptor) =>

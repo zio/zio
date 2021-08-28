@@ -129,7 +129,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
           c => ZIO.failCause(c)
         )
       }
-    fold(failureOrDie >>> handler, ZLayer.identity)
+    fold(failureOrDie >>> handler, ZLayer.environment)
   }
 
   /**
@@ -139,6 +139,14 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
     f: ROut => ZLayer[RIn1, E1, ROut2]
   ): ZLayer[RIn1, E1, ROut2] =
     ZLayer.Flatten(self.map(f))
+
+  /**
+   * This method can be used to "flatten" nested layers.
+   */
+  final def flatten[RIn1 <: RIn, E1 >: E, ROut2](implicit
+    ev: ROut <:< ZLayer[RIn1, E1, ROut2]
+  ): ZLayer[RIn1, E1, ROut2] =
+    ZLayer.Flatten(self.map(ev))
 
   /**
    * Feeds the error or output services of this layer into the input of either
@@ -221,22 +229,25 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
             Clock.currentDateTime
               .flatMap(now =>
                 schedule.step(now, e, s).flatMap {
-                  case (_, _, Done)                   => ZIO.fail(e)
-                  case (state, _, Continue(interval)) => Clock.sleep(Duration.fromInterval(now, interval)) as ((r, state))
+                  case (_, _, Done) => ZIO.fail(e)
+                  case (state, _, Continue(interval)) =>
+                    Clock.sleep(Duration.fromInterval(now, interval)) as ((r, state))
                 }
               )
               .provide(r)
           }
         update >>> ZLayer.suspend(loop.fresh)
       }
-    ZLayer.identity <&> ZLayer.fromZIOMany(ZIO.succeed(schedule.initial)) >>> loop
+    ZLayer.environment <&> ZLayer.fromZIOMany(ZIO.succeed(schedule.initial)) >>> loop
   }
 
   /**
    * Performs the specified effect if this layer succeeds.
    */
   final def tap[RIn1 <: RIn, E1 >: E](f: ROut => ZIO[RIn1, E1, Any]): ZLayer[RIn1, E1, ROut] =
-    ZLayer.identity <&> self >>> ZLayer.fromFunctionManyZIO { case (in, out) => f(out).provide(in) *> ZIO.succeed(out) }
+    ZLayer.environment <&> self >>> ZLayer.fromFunctionManyZIO { case (in, out) =>
+      f(out).provide(in) *> ZIO.succeed(out)
+    }
 
   /**
    * Performs the specified effect if this layer fails.
@@ -345,6 +356,78 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   def apply[RIn, E, ROut](managed: ZManaged[RIn, E, ROut]): ZLayer[RIn, E, ROut] =
     Managed(managed)
+
+  sealed trait Debug
+
+  object Debug {
+    private[zio] type Tree = Tree.type
+    private[zio] case object Tree extends Debug
+    private[zio] type Mermaid = Mermaid.type
+    private[zio] case object Mermaid extends Debug
+
+    /**
+     * Including this layer in a call to a compile-time ZLayer constructor, such
+     * as [[ZIO.inject]] or [[ZLayer.wire]], will display a tree visualization
+     * of the constructed layer graph.
+     *
+     * {{{
+     *   val layer =
+     *     ZLayer.wire[Has[OldLady]](
+     *       OldLady.live,
+     *       Spider.live,
+     *       Fly.live,
+     *       Bear.live,
+     *       Console.live,
+     *       ZLayer.Debug.tree
+     *     )
+     *
+     * // Including `ZLayer.Debug.tree` will generate the following compilation error:
+     * //
+     * // ◉ OldLady.live
+     * // ├─◑ Spider.live
+     * // │ ╰─◑ Fly.live
+     * // │   ╰─◑ Console.live
+     * // ╰─◑ Bear.live
+     * //   ╰─◑ Fly.live
+     * //     ╰─◑ Console.live
+     *
+     * }}}
+     */
+    val tree: ULayer[Has[Debug]] = ZLayer.succeed(Debug.Tree)
+
+    /**
+     * Including this layer in a call to a compile-time ZLayer constructor, such
+     * as [[ZIO.inject]] or [[ZLayer.wire]], will display a tree visualization
+     * of the constructed layer graph as well as a link to Mermaid chart.
+     *
+     * {{{
+     *   val layer =
+     *     ZLayer.wire[Has[OldLady]](
+     *       OldLady.live,
+     *       Spider.live,
+     *       Fly.live,
+     *       Bear.live,
+     *       Console.live,
+     *       ZLayer.Debug.mermaid
+     *     )
+     *
+     * // Including `ZLayer.Debug.mermaid` will generate the following compilation error:
+     * //
+     * // ◉ OldLady.live
+     * // ├─◑ Spider.live
+     * // │ ╰─◑ Fly.live
+     * // │   ╰─◑ Console.live
+     * // ╰─◑ Bear.live
+     * //   ╰─◑ Fly.live
+     * //     ╰─◑ Console.live
+     * //
+     * // Mermaid Live Editor Link
+     * // https://mermaid-js.github.io/mermaid-live-editor/edit/#eyJjb2RlIjoiZ3JhcGhcbiAgICBDb25zb2xlLmxpdmVcbiAgICBTcGlkZXIubGl2ZSAtLT4gRmx5LmxpdmVcbiAgICBGbHkubGl2ZSAtLT4gQ29uc29sZS5saXZlXG4gICAgT2xkTGFkeS5saXZlIC0tPiBTcGlkZXIubGl2ZVxuICAgIE9sZExhZHkubGl2ZSAtLT4gQmVhci5saXZlXG4gICAgQmVhci5saXZlIC0tPiBGbHkubGl2ZVxuICAgICIsIm1lcm1haWQiOiAie1xuICBcInRoZW1lXCI6IFwiZGVmYXVsdFwiXG59IiwgInVwZGF0ZUVkaXRvciI6IHRydWUsICJhdXRvU3luYyI6IHRydWUsICJ1cGRhdGVEaWFncmFtIjogdHJ1ZX0=
+     *
+     * }}}
+     */
+    val mermaid: ULayer[Has[Debug]] = ZLayer.succeed(Debug.Mermaid)
+  }
 
   /**
    * Constructs a layer that fails with the specified value.
@@ -4272,14 +4355,23 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * an identity with respect to the `>>>` operator. It represents an identity
    * with respect to the `++` operator when the environment type is `Any`.
    */
+  @deprecated("use environment", "2.0.0")
   def identity[A]: ZLayer[A, Nothing, A] =
-    ZLayer.requires[A]
+    ZLayer.environment[A]
 
   /**
    * Constructs a layer that passes along the specified environment as an
    * output.
    */
+  @deprecated("use environment", "2.0.0")
   def requires[A]: ZLayer[A, Nothing, A] =
+    ZLayer.environment[A]
+
+  /**
+   * Constructs a layer that passes along the specified environment as an
+   * output.
+   */
+  def environment[A]: ZLayer[A, Nothing, A] =
     ZLayer(ZManaged.environment[A])
 
   /**
@@ -4324,7 +4416,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
      * passes through the inputs to this layer.
      */
     def passthrough(implicit ev: Has.Union[RIn, ROut], tag: Tag[ROut]): ZLayer[RIn, E, RIn with ROut] =
-      ZLayer.identity[RIn] ++ self
+      ZLayer.environment[RIn] ++ self
   }
 
   implicit final class ZLayerProjectOps[R, E, A](private val self: ZLayer[R, E, Has[A]]) extends AnyVal {
@@ -4333,7 +4425,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
      * Projects out part of one of the layers output by this layer using the
      * specified function
      */
-    final def project[B: Tag](f: A => B)(implicit tag: Tag[A]): ZLayer[R, E, Has[B]] =
+    def project[B: Tag](f: A => B)(implicit tag: Tag[A]): ZLayer[R, E, Has[B]] =
       self >>> ZLayer.fromFunction(r => f(r.get))
   }
 

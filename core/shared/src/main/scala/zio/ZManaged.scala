@@ -634,11 +634,9 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   /**
    * Converts an option on errors into an option on values.
    */
+  @deprecated("use unoption", "2.0.0")
   final def optional[E1](implicit ev: E IsSubtypeOfError Option[E1]): ZManaged[R, E1, Option[A]] =
-    self.foldManaged(
-      e => ev(e).fold[ZManaged[R, E1, Option[A]]](ZManaged.succeedNow(Option.empty[A]))(ZManaged.fail(_)),
-      a => ZManaged.succeedNow(Some(a))
-    )
+    unoption
 
   /**
    * Translates effect failure into death of the fiber, making all failures unchecked and
@@ -1098,6 +1096,15 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
     ZManaged.unlessManaged(b)(self)
 
   /**
+   * Converts an option on errors into an option on values.
+   */
+  final def unoption[E1](implicit ev: E IsSubtypeOfError Option[E1]): ZManaged[R, E1, Option[A]] =
+    self.foldManaged(
+      e => ev(e).fold[ZManaged[R, E1, Option[A]]](ZManaged.succeedNow(Option.empty[A]))(ZManaged.fail(_)),
+      a => ZManaged.succeedNow(Some(a))
+    )
+
+  /**
    * The inverse operation `ZManaged.sandboxed`
    */
   def unsandbox[E1](implicit ev: E IsSubtypeOfError Cause[E1]): ZManaged[R, E1, A] =
@@ -1314,7 +1321,7 @@ object ZManaged extends ZManagedPlatformSpecific {
     def apply[E1 >: E, R1](
       layer: => ZLayer[R0, E1, R1]
     )(implicit ev1: R0 with R1 <:< R, ev2: Has.Union[R0, R1], tagged: Tag[R1]): ZManaged[R0, E1, A] =
-      self.provideLayer[E1, R0, R0 with R1](ZLayer.identity[R0] ++ layer)
+      self.provideLayer[E1, R0, R0 with R1](ZLayer.environment[R0] ++ layer)
   }
 
   final class UnlessManaged[R, E](private val b: () => ZManaged[R, E, Boolean]) extends AnyVal {
@@ -1681,7 +1688,7 @@ object ZManaged extends ZManagedPlatformSpecific {
   def collect[R, E, A, B, Collection[+Element] <: Iterable[Element]](in: Collection[A])(
     f: A => ZManaged[R, Option[E], B]
   )(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZManaged[R, E, Collection[B]] =
-    foreach[R, E, A, Option[B], Iterable](in)(a => f(a).optional).map(_.flatten).map(bf.fromSpecific(in))
+    foreach[R, E, A, Option[B], Iterable](in)(a => f(a).unoption).map(_.flatten).map(bf.fromSpecific(in))
 
   /**
    * Evaluate each effect in the structure from left to right, and collect the
@@ -1780,7 +1787,7 @@ object ZManaged extends ZManagedPlatformSpecific {
   def collectPar[R, E, A, B, Collection[+Element] <: Iterable[Element]](in: Collection[A])(
     f: A => ZManaged[R, Option[E], B]
   )(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZManaged[R, E, Collection[B]] =
-    foreachPar[R, E, A, Option[B], Iterable](in)(a => f(a).optional).map(_.flatten).map(bf.fromSpecific(in))
+    foreachPar[R, E, A, Option[B], Iterable](in)(a => f(a).unoption).map(_.flatten).map(bf.fromSpecific(in))
 
   /**
    * Evaluate each effect in the structure in parallel, collecting the
@@ -1791,7 +1798,7 @@ object ZManaged extends ZManagedPlatformSpecific {
   def collectParN[R, E, A, B, Collection[+Element] <: Iterable[Element]](n: => Int)(in: Collection[A])(
     f: A => ZManaged[R, Option[E], B]
   )(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZManaged[R, E, Collection[B]] =
-    foreachParN[R, E, A, Option[B], Iterable](n)(in)(a => f(a).optional).map(_.flatten).map(bf.fromSpecific(in))
+    foreachParN[R, E, A, Option[B], Iterable](n)(in)(a => f(a).unoption).map(_.flatten).map(bf.fromSpecific(in))
 
   /**
    * Similar to Either.cond, evaluate the predicate,
@@ -2158,7 +2165,7 @@ object ZManaged extends ZManagedPlatformSpecific {
 
   /**
    * Lifts a ZIO[R, E, A] into ZManaged[R, E, A] with no release action. The
-   * effect will be performed uninterruptibly. You usually want the [[ZManaged.fromEffect]]
+   * effect will be performed uninterruptibly. You usually want the [[ZManaged.fromZIO]]
    * variant.
    */
   @deprecated("use fromZIOUninterruptible", "2.0.0")
@@ -2247,7 +2254,7 @@ object ZManaged extends ZManagedPlatformSpecific {
 
   /**
    * Lifts a ZIO[R, E, A] into ZManaged[R, E, A] with no release action. The
-   * effect will be performed uninterruptibly. You usually want the [[ZManaged.fromEffect]]
+   * effect will be performed uninterruptibly. You usually want the [[ZManaged.fromZIO]]
    * variant.
    */
   def fromZIOUninterruptible[R, E, A](fa: => ZIO[R, E, A]): ZManaged[R, E, A] =
@@ -2263,7 +2270,7 @@ object ZManaged extends ZManagedPlatformSpecific {
   /**
    * Runs `onTrue` if the result of `b` is `true` and `onFalse` otherwise.
    */
-  @deprecated("use ifZManaged", "2.0.0")
+  @deprecated("use ifManaged", "2.0.0")
   def ifM[R, E](b: => ZManaged[R, E, Boolean]): ZManaged.IfManaged[R, E] =
     ifManaged(b)
 
@@ -2316,7 +2323,7 @@ object ZManaged extends ZManagedPlatformSpecific {
   def lock(executor: => Executor): ZManaged[Any, Nothing, Unit] =
     ZManaged.acquireReleaseWith {
       ZIO.descriptorWith { descriptor =>
-        if (descriptor.locked) ZIO.shift(executor).as(Some(descriptor.executor))
+        if (descriptor.isLocked) ZIO.shift(executor).as(Some(descriptor.executor))
         else ZIO.shift(executor).as(None)
       }
     } {
