@@ -113,13 +113,13 @@ private[zio] final class FiberContext[E, A](
   private[this] def traceLocation(lambda: AnyRef): ZTraceElement = tracer.traceLocation(unwrap(lambda))
 
   private[this] def currentLocation: ZTraceElement =
-    execTrace.head match {
-      case None =>
-        stackTrace.head match {
-          case None        => ZTraceElement.NoLocation("No location available")
-          case Some(trace) => trace
+    execTrace.lastOrNull match {
+      case null =>
+        stackTrace.lastOrNull match {
+          case null  => ZTraceElement.NoLocation("No location available")
+          case trace => trace
         }
-      case Some(trace) => trace
+      case trace => trace
     }
 
   private[this] def addTrace(lambda: AnyRef): Unit = execTrace.put(traceLocation(lambda))

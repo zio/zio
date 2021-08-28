@@ -16,5 +16,26 @@
 package zio
 
 final case class LogSpan(label: String, startTime: Long) {
-  def render(now: Long): String = label + "=" + (now - startTime).toString
+  private[zio] def unsafeRender(sb: StringBuilder, now: Long): Unit = {
+    if (label.indexOf(" ") < 0) sb.append(label)
+    else {
+      sb.append("\"")
+      sb.append(label)
+      sb.append("\"")
+    }
+
+    sb.append("=")
+    sb.append((now - startTime).toString())
+    sb.append("ms")
+
+    ()
+  }
+
+  def render(now: Long): String = {
+    val sb = new StringBuilder()
+
+    unsafeRender(sb, now)
+
+    sb.toString()
+  }
 }

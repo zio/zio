@@ -65,9 +65,7 @@ object ZLogger {
           sb.append(" ")
         }
 
-        val span = it.next()
-
-        sb.append(span.render(nowMillis))
+        it.next().unsafeRender(sb, nowMillis)
       }
     }
 
@@ -75,18 +73,26 @@ object ZLogger {
       case ZTraceElement.NoLocation(_) =>
 
       case ZTraceElement.SourceLocation(file, clazz, method, line) =>
-        sb.append(" ")
-          .append("file=\"")
-          .append(file)
-          .append("\"")
-          .append("line=")
+        sb.append(" file=")
+
+        appendQuoted(file, sb)
+
+        sb.append(" line=")
           .append(line)
-          .append("class=")
-          .append(clazz)
-          .append("method=")
+          .append(" class=")
+
+        appendQuoted(clazz, sb)
+
+        sb.append(" method=")
           .append(method)
     }
 
     sb.toString()
+  }
+
+  private def appendQuoted(label: String, sb: StringBuilder): StringBuilder = {
+    if (label.indexOf(" ") < 0) sb.append(label)
+    else sb.append("\"").append(label).append("\"")
+    sb
   }
 }

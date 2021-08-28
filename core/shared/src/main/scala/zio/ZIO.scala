@@ -5839,7 +5839,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   }
 
   private[zio] final class FiberRefLocally[V, R, E, A](
-    val localValue: A,
+    val localValue: V,
     val fiberRef: FiberRef.Runtime[V],
     val zio: ZIO[R, E, A]
   ) extends ZIO[R, E, A] {

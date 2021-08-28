@@ -283,10 +283,7 @@ object ZFiberRef {
     def initialValue: Either[Nothing, A] = Right(initial)
 
     def locally[R, EC, C](value: A)(use: ZIO[R, EC, C]): ZIO[R, EC, C] =
-      for {
-        oldValue <- get
-        b        <- set(value).acquireRelease(set(oldValue))(use)
-      } yield b
+      new ZIO.FiberRefLocally(value, self, use)
 
     def modify[B](f: A => (B, A)): UIO[B] =
       new ZIO.FiberRefModify(this, f)
