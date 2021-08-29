@@ -37,4 +37,5 @@ package zio
  * }
  * }}}
  */
+@deprecated("2.0.0", "Use zio.ZIOApp")
 trait App extends ZApp[ZEnv] with BootstrapRuntime

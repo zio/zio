@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2021 John A. De Goes and the ZIO Contributors
+ * Copyright 2021 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,10 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package zio
 
-@deprecated("2.0.0", "Use Runtime")
-trait BootstrapRuntime extends ZBootstrapRuntime[ZEnv] {
-  def environment: ZEnv = ZEnv.Services.live
-}
+final case class ZIOAppArgs(args: Chunk[String])

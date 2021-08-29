@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2021 John A. De Goes and the ZIO Contributors
+ * Copyright 2021 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,9 +14,13 @@
  * limitations under the License.
  */
 
-package zio
+package zio.internal
 
-@deprecated("2.0.0", "Use Runtime")
-trait BootstrapRuntime extends ZBootstrapRuntime[ZEnv] {
-  def environment: ZEnv = ZEnv.Services.live
+final case class PlatformAspect(customize: Platform => Platform) extends (Platform => Platform) { self =>
+  def apply(p: Platform): Platform = customize(p)
+
+  def >>>(that: PlatformAspect): PlatformAspect = PlatformAspect(self.customize.andThen(that.customize))
+}
+object PlatformAspect extends ((Platform => Platform) => PlatformAspect) {
+  def identity: PlatformAspect = PlatformAspect(identity(_))
 }

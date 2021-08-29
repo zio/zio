@@ -18,6 +18,7 @@ package zio
 
 import zio.internal.Platform
 
+@deprecated("2.0.0", "Use Runtime")
 trait ZBootstrapRuntime[R] extends Runtime[R] {
 
   /**
