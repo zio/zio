@@ -373,8 +373,18 @@ object Runtime {
     val platform    = platform0
   }
 
+  /**
+   * The default [[Runtime]] for most ZIO applications. This runtime is configured with
+   * the default environment, containing standard services, as well as the default
+   * platform, which is optimized for typical ZIO applications.
+   */
   lazy val default: Runtime[ZEnv] = Runtime(ZEnv.Services.live, Platform.default)
 
+  /**
+   * The global [[Runtime]], which piggybacks atop the global execution context available
+   * to Scala applications. Use of this runtime is not generally recommended, unless the
+   * intention is to avoid creating any thread pools or other resources.
+   */
   lazy val global: Runtime[ZEnv] = Runtime(ZEnv.Services.live, Platform.global)
 
   /**
