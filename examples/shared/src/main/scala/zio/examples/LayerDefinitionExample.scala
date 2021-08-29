@@ -1,7 +1,7 @@
 package zio.examples
 import zio._
 
-object LayerDefinitionExample extends App {
+object LayerDefinitionExample extends ZIOApp {
   trait Foo {
     def bar: UIO[Unit]
   }
@@ -15,7 +15,7 @@ object LayerDefinitionExample extends App {
     }
   }
 
-  override def run(args: List[String]): URIO[ZEnv, ExitCode] = {
+  override def run = {
 
     val program: ZIO[Has[Foo], Nothing, Unit] = ZIO.serviceWith[Foo](_.bar)
 
@@ -26,7 +26,6 @@ object LayerDefinitionExample extends App {
         ZLayer.succeed(3),
         Foo.live
       )
-      .exitCode
   }
 
 }
