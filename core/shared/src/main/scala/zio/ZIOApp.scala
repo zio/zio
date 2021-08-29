@@ -56,7 +56,7 @@ abstract class ZIOApp { self =>
    *   def run =
    *     for {
    *       args <- args
-   *       _    <- printLine(s"The command-line arguments of the application are: ${a}")
+   *       _    <- printLine(s"The command-line arguments of the application are: ${args}")
    *     } yield ()
    * }
    * }}}
