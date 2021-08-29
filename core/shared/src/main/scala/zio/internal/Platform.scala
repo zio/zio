@@ -33,6 +33,8 @@ final case class Platform(
   enableCurrentFiber: Boolean,
   logger: ZLogger[Unit]
 ) { self =>
+  def @@(aspect: PlatformAspect): Platform = aspect(self)
+
   @deprecated("2.0.0", "Use Platform#copy instead")
   def withBlockingExecutor(e: Executor): Platform = copy(blockingExecutor = e)
 

@@ -46,20 +46,6 @@ abstract class ZIOApp { self =>
   /**
    * A helper function to obtain access to the command-line arguments of the
    * application. You may use this helper function inside your `run` function.
-   *
-   * {{{
-   * import zio.ZIOApp
-   * import zio.Console._
-   *
-   * object MyApp extends ZIOApp {
-   *
-   *   def run =
-   *     for {
-   *       args <- args
-   *       _    <- printLine(s"The command-line arguments of the application are: ${args}")
-   *     } yield ()
-   * }
-   * }}}
    */
   final def args: ZIO[Has[ZIOAppArgs], Nothing, Chunk[String]] = ZIO.service[ZIOAppArgs].map(_.args)
 
