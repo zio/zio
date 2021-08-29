@@ -4508,6 +4508,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     ZIO.foreachParN(n)(in)(f(_).either).map(ZIO.partitionMap(_)(ZIO.identityFn))
 
   /**
+   * Retrieves the platform that this effect is running on.
+   */
+  val platform: UIO[Platform] =
+    ZIO.suspendSucceedWith((platform, _) => ZIO.succeedNow(platform))
+
+  /**
    * Given an environment `R`, returns a function that can supply the
    * environment to programs that require it, removing their need for any
    * specific environment.

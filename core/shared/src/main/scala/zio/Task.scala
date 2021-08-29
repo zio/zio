@@ -1043,6 +1043,12 @@ object Task extends TaskPlatformSpecific {
     ZIO.partitionParN(n)(in)(f)
 
   /**
+   * @see See [[zio.ZIO.platform]]
+   */
+  val platform: UIO[Platform] =
+    ZIO.platform
+
+  /**
    * @see See [[zio.ZIO.raceAll]]
    */
   def raceAll[A](task: Task[A], ios: Iterable[Task[A]]): Task[A] =

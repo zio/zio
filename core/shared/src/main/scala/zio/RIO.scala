@@ -1100,6 +1100,12 @@ object RIO {
     ZIO.partitionParN(n)(in)(f)
 
   /**
+   * @see See [[zio.ZIO.platform]]
+   */
+  val platform: UIO[Platform] =
+    ZIO.platform
+
+  /**
    * @see See [[zio.ZIO.provide]]
    */
   def provide[R, A](r: => R): RIO[R, A] => Task[A] =

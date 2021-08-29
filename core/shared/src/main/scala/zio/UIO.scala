@@ -903,6 +903,12 @@ object UIO {
     ZIO.onPlatform(platform)(uio)
 
   /**
+   * @see See [[zio.ZIO.platform]]
+   */
+  val platform: UIO[Platform] =
+    ZIO.platform
+
+  /**
    * @see See [[zio.ZIO.raceAll]]
    */
   def raceAll[A](uio: UIO[A], uios: Iterable[UIO[A]]): UIO[A] =

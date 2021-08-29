@@ -1059,6 +1059,12 @@ object IO {
     ZIO.partitionParN(n)(in)(f)
 
   /**
+   * @see See [[zio.ZIO.platform]]
+   */
+  val platform: UIO[Platform] =
+    ZIO.platform
+
+  /**
    * @see See [[zio.ZIO.raceAll]]
    */
   def raceAll[E, A](io: IO[E, A], ios: Iterable[IO[E, A]]): IO[E, A] = ZIO.raceAll(io, ios)

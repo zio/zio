@@ -3951,9 +3951,9 @@ object ZIOSpec extends ZIOBaseSpec {
       },
       test("onPlatform") {
         for {
-          platform <- ZIO.suspendSucceedWith((platform, _) => ZIO.succeed(platform))
-          global   <- ZIO.onPlatform(Platform.global)(ZIO.suspendSucceedWith((platform, _) => ZIO.succeed(platform)))
-          default  <- ZIO.suspendSucceedWith((platform, _) => ZIO.succeed(platform))
+          platform <- ZIO.platform
+          global   <- ZIO.onPlatform(Platform.global)(ZIO.platform)
+          default  <- ZIO.platform
         } yield assert(global)(equalTo(Platform.global)) &&
           assert(default)(equalTo(platform))
       }
