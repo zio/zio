@@ -312,7 +312,10 @@ trait Runtime[+R] {
 }
 
 object Runtime {
-  class Proxy[+R](val platform: Platform, val environment: R) extends Runtime[R]
+  class Proxy[+R](underlying: Runtime[R]) extends Runtime[R] {
+    def platform    = underlying.platform
+    def environment = underlying.environment
+  }
 
   /**
    * A runtime that can be shutdown to release resources allocated to it.
