@@ -66,6 +66,16 @@ sealed trait Trace[+A] { self =>
     self
   }
 
+  def withMessage(errorMessage: String): Trace[A] =
+    withMessage(ErrorMessage.text(errorMessage))
+
+  def withMessage(errorMessage: ErrorMessage): Trace[A] =
+    self match {
+      case node: Trace.Node[A] =>
+        node.copy(message = errorMessage)
+      case other => other
+    }
+
   /**
    * Apply the code to every node in the tree.
    */
@@ -186,6 +196,7 @@ object Trace {
 
     def code: String =
       span.getOrElse(Span(0, 0)).substring(fullCode.getOrElse(""))
+
   }
 
   private[test] case class AndThen[A, +B](left: Trace[A], right: Trace[B]) extends Trace[B] {
@@ -207,37 +218,14 @@ object Trace {
     }
   }
 
-  def halt: Trace[Nothing]                        = Node(Result.Fail)
-  def halt(message: String): Trace[Nothing]       = Node(Result.Fail, message = ErrorMessage.text(message))
-  def halt(message: ErrorMessage): Trace[Nothing] = Node(Result.Fail, message = message)
+  def fail: Trace[Nothing]                        = Node(Result.Fail)
+  def fail(message: String): Trace[Nothing]       = Node(Result.Fail, message = ErrorMessage.text(message))
+  def fail(message: ErrorMessage): Trace[Nothing] = Node(Result.Fail, message = message)
   def succeed[A](value: A): Trace[A]              = Node(Result.succeed(value))
 
-  def boolean(value: Boolean)(message: ErrorMessage): Trace[Boolean] = Node(Result.succeed(value), message = message)
+  def boolean(value: Boolean)(message: ErrorMessage): Trace[Boolean] =
+    Node(Result.succeed(value), message = message)
 
   def die(throwable: Throwable): Trace[Nothing] =
     Node(Result.die(throwable), message = ErrorMessage.throwable(throwable))
-
-  object Halt {
-    def unapply[A](trace: Trace[A]): Boolean =
-      trace.result match {
-        case Result.Fail => true
-        case _           => false
-      }
-  }
-
-  object Fail {
-    def unapply[A](trace: Trace[A]): Option[Throwable] =
-      trace.result match {
-        case Result.Die(err) => Some(err)
-        case _               => None
-      }
-  }
-
-  object Succeed {
-    def unapply[A](trace: Trace[A]): Option[A] =
-      trace.result match {
-        case Result.Succeed(value) => Some(value)
-        case _                     => None
-      }
-  }
 }

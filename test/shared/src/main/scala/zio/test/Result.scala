@@ -108,7 +108,7 @@ object FailureCase {
       node.message.render(node.isSuccess),
       highlight(node.fullCode.getOrElse("<CODE>"), node.span.getOrElse(Span(0, 0)), node.parentSpan, color),
       node.location.getOrElse("<LOCATION>"),
-      path,
+      path.filterNot(_._2.toString.startsWith("SmartAssertion(")),
       node.span.getOrElse(Span(0, 0)),
       node.children.map(fromTrace).getOrElse(Chunk.empty),
       node.result
