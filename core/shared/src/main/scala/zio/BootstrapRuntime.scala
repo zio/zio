@@ -16,7 +16,7 @@
 
 package zio
 
-@deprecated("2.0.0", "Use Runtime")
+@deprecated("2.0.0", "Use zio.Runtime")
 trait BootstrapRuntime extends ZBootstrapRuntime[ZEnv] {
   def environment: ZEnv = ZEnv.Services.live
 }

@@ -99,7 +99,7 @@ abstract class ZIOApp { self =>
                 val _ = runtime.unsafeRunSync(fiber.interrupt)
               }
           }))
-        result <- fiber.join.exitCode
+        result <- fiber.join.tapCause(cause => ZIO.logCause(cause)).exitCode
         _      <- fiber.interrupt
         _ <- UIO(
                try sys.exit(result.code)

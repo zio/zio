@@ -16,7 +16,7 @@
 
 package zio
 
-@deprecated("2.0.0", "Use ZIOApp and use the managed inside `run`")
+@deprecated("2.0.0", "Use zio.ZIOApp and use the managed inside `run`")
 trait ManagedApp extends BootstrapRuntime { ma =>
 
   /**

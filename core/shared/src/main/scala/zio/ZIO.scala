@@ -686,10 +686,10 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   /**
    * Maps this effect to the default exit codes.
    */
-  final def exitCode: URIO[R with Has[Console], ExitCode] =
-    self.foldCauseZIO(
-      cause => Console.printLineError(cause.prettyPrint).ignore as ExitCode.failure,
-      _ => ZIO.succeedNow(ExitCode.success)
+  final def exitCode: URIO[R, ExitCode] =
+    self.foldCause(
+      _ => ExitCode.failure,
+      _ => ExitCode.success
     )
 
   /**
@@ -4390,6 +4390,11 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Logs the specified message at the current log level.
    */
   def log(message: => String): UIO[Unit] = new Logged(() => message)
+
+  /**
+   * Logs the specified cause as an error.
+   */
+  def logCause(cause: => Cause[Any]): UIO[Unit] = new Logged(() => cause.prettyPrint, someError)
 
   /**
    * Logs the specified message at the debug log level.
