@@ -60,7 +60,7 @@ object Has {
     def add[R0 <: R, M: Tag](r: R0, m: M): R0 with Has[M]
     def union[R0 <: R, R1 <: Has[_]: Tag](r: R0, r1: R1): R0 with R1
     def update[R0 <: R, M: Tag](r: R0, f: M => M)(implicit ev: R0 <:< Has[M]): R0
-    def updateAt[R0 <: R, K: Tag, A: Tag](r: R0, k: K, f: A => A)(implicit ev: R0 <:< Has[Map[K, A]]): R0
+    def updateAt[R0 <: R, K: Tag, A: Tag](r: R0, k: K, f: A => A)(implicit ev: R0 <:< HasMany[K, A]): R0
   }
   object IsHas {
     implicit def ImplicitIs[R <: Has[_]]: IsHas[R] =
@@ -68,7 +68,7 @@ object Has {
         def add[R0 <: R, M: Tag](r: R0, m: M): R0 with Has[M] = r.add(m)
         def union[R0 <: R, R1 <: Has[_]: Tag](r: R0, r1: R1): R0 with R1 = r.union[R1](r1)
         def update[R0 <: R, M: Tag](r: R0, f: M => M)(implicit ev: R0 <:< Has[M]): R0 = r.update(f)
-        def updateAt[R0 <: R, K: Tag, A: Tag](r: R0, k: K, f: A => A)(implicit ev: R0 <:< Has[Map[K, A]]): R0 =
+        def updateAt[R0 <: R, K: Tag, A: Tag](r: R0, k: K, f: A => A)(implicit ev: R0 <:< HasMany[K, A]): R0 =
           r.updateAt(k)(f)
       }
   }

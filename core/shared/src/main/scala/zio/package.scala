@@ -81,5 +81,5 @@ package object zio
 
   type Semaphore = stm.TSemaphore
 
-  type HasMany[K, A] = Has[_ <: Map[K, A]]
+  type HasMany[K, A] = Has[Map[K, A]]
 }
