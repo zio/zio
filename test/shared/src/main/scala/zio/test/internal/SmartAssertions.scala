@@ -9,25 +9,33 @@ import scala.util.Try
 object SmartAssertions {
   import zio.test.{ErrorMessage => M}
 
+  def runSmartAssertion[A]: Arrow[SmartAssertion[A], A] =
+    Arrow.make[SmartAssertion[A], A] { smartAssertion =>
+      smartAssertion.result() match {
+        case Left(error)  => Trace.fail(error)
+        case Right(value) => Trace.succeed(value).withMessage(smartAssertion.error)
+      }
+    }
+
   def isSome[A]: Arrow[Option[A], A] =
     Arrow
       .make[Option[A], A] {
         case Some(value) => Trace.succeed(value)
-        case None        => Trace.halt("Option was None")
+        case None        => Trace.fail("Option was None")
       }
 
   def asRight[A]: Arrow[Either[_, A], A] =
     Arrow
       .make[Either[_, A], A] {
         case Right(value) => Trace.succeed(value)
-        case Left(_)      => Trace.halt("Either was Left")
+        case Left(_)      => Trace.fail("Either was Left")
       }
 
   def asLeft[A]: Arrow[Either[A, _], A] =
     Arrow
       .make[Either[A, _], A] {
         case Left(value) => Trace.succeed(value)
-        case Right(_)    => Trace.halt("Either was Right")
+        case Right(_)    => Trace.fail("Either was Right")
       }
 
   def isEmptyIterable[A]: Arrow[Iterable[A], Boolean] =
@@ -123,7 +131,7 @@ object SmartAssertions {
         Try(as(index)).toOption match {
           case Some(value) => Trace.succeed(value)
           case None =>
-            Trace.halt(
+            Trace.fail(
               M.text("Invalid index") + M.value(index) + "for" + className(as) + "of size" + M.value(as.length)
             )
         }
@@ -135,7 +143,7 @@ object SmartAssertions {
         Try(mapKV(key)).toOption match {
           case Some(value) => Trace.succeed(value)
           case None =>
-            Trace.halt(
+            Trace.fail(
               M.text("Missing key") + M.pretty(key)
             )
         }
@@ -147,7 +155,7 @@ object SmartAssertions {
         as.headOption match {
           case Some(value) => Trace.succeed(value)
           case None =>
-            Trace.halt(className(as) + "was empty")
+            Trace.fail(className(as) + "was empty")
         }
       }
 
@@ -222,7 +230,7 @@ object SmartAssertions {
   val throws: Arrow[Any, Throwable] =
     Arrow.makeEither(
       Trace.succeed,
-      _ => Trace.halt("Expected failure")
+      _ => Trace.fail("Expected failure")
     )
 
   def as[A, B](implicit CB: ClassTag[B]): Arrow[A, B] =
@@ -230,7 +238,7 @@ object SmartAssertions {
       .make[A, B] { a =>
         CB.unapply(a) match {
           case Some(value) => Trace.succeed(value)
-          case None        => Trace.halt(M.value(a.getClass.getSimpleName) + "is not an instance of" + M.value(className(CB)))
+          case None        => Trace.fail(M.value(a.getClass.getSimpleName) + "is not an instance of" + M.value(className(CB)))
         }
       }
 
