@@ -36,6 +36,7 @@ import zio.internal._
  * }}}
  */
 abstract class ZIOApp { self =>
+  @volatile private var shuttingDown = false
 
   /**
    * Composes this [[ZIOApp]] with another [[ZIOApp]], to yield an application that
@@ -52,7 +53,14 @@ abstract class ZIOApp { self =>
   /**
    * A helper function to exit the application with the specified exit code.
    */
-  final def exit(code: ExitCode): UIO[Any] = UIO(java.lang.System.exit(code.code))
+  final def exit(code: ExitCode): UIO[Unit] =
+    UIO {
+      if (!shuttingDown) {
+        shuttingDown = true
+        try java.lang.System.exit(code.code)
+        catch { case _: SecurityException => }
+      }
+    }
 
   /**
    * A hook into the ZIO platform used for boostrapping the application. This hook can
@@ -71,26 +79,26 @@ abstract class ZIOApp { self =>
       (for {
         fiber <- run.provide(runtime.environment ++ Has(ZIOAppArgs(Chunk.fromIterable(args0)))).fork
         _ <-
-          IO.succeed(java.lang.Runtime.getRuntime.addShutdownHook(new Thread {
-            override def run() =
-              if (FiberContext.fatal.get) {
-                println(
-                  "**** WARNING ***\n" +
-                    "Catastrophic JVM error encountered. " +
-                    "Application not safely interrupted. " +
-                    "Resources may be leaked. " +
-                    "Check the logs for more details and consider overriding `Platform.reportFatal` to capture context."
-                )
-              } else {
-                val _ = runtime.unsafeRunSync(fiber.interrupt)
-              }
-          }))
-        result <- fiber.join.tapCause(cause => ZIO.logCause(cause)).exitCode
-        _      <- fiber.interrupt
-        _ <- UIO(
-               try sys.exit(result.code)
-               catch { case _: SecurityException => }
-             )
+          IO.succeed(Platform.addShutdownHook { () =>
+            shuttingDown = true
+
+            if (FiberContext.fatal.get) {
+              println(
+                "**** WARNING ***\n" +
+                  "Catastrophic JVM error encountered. " +
+                  "Application not safely interrupted. " +
+                  "Resources may be leaked. " +
+                  "Check the logs for more details and consider overriding `Platform.reportFatal` to capture context."
+              )
+            } else {
+              try runtime.unsafeRunSync(fiber.interrupt)
+              catch { case _: Throwable => }
+            }
+
+            ()
+          })
+        result <- fiber.join.tapCause(ZIO.logCause(_)).exitCode
+        _      <- exit(result)
       } yield ())
     }
   }
@@ -105,8 +113,8 @@ abstract class ZIOApp { self =>
 }
 object ZIOApp {
   class Proxy(app: ZIOApp) extends ZIOApp {
-    override def hook = app.hook
-    def run           = app.run
+    override final def hook = app.hook
+    override final def run  = app.run
   }
 
   def apply(run0: ZIO[ZEnv with Has[ZIOAppArgs], Any, Any], hook0: PlatformAspect): ZIOApp =

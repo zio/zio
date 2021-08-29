@@ -15,4 +15,7 @@
  */
 package zio
 
+/**
+ * A service that contains command-line arguments of an application.
+ */
 final case class ZIOAppArgs(args: Chunk[String])
