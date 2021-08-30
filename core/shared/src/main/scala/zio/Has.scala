@@ -244,8 +244,8 @@ object Has {
     /**
      * Retrieves a service at the specified key from the environment.
      */
-    def getAt[K, A](k: K)(implicit ev: Self <:< HasMany[K, A], tagged: Tag[Map[K, A]]): Option[A] = {
-      val tag = taggedTagType(tagged)
+    def getAt[K, A](k: K)(implicit ev: Self <:< HasMany[K, A], keyTag: Tag[K], valueTag: Tag[A]): Option[A] = {
+      val tag = taggedTagType(Tag[Map[K, A]])
 
       val map = self.map
         .getOrElse(
