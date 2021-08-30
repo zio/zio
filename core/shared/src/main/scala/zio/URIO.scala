@@ -856,6 +856,7 @@ object URIO {
   /**
    * @see [[zio.ZIO.lock]]
    */
+  @deprecated("use onExecutor", "2.0.0")
   def lock[R, A](executor: => Executor)(taskr: URIO[R, A]): URIO[R, A] =
     ZIO.lock(executor)(taskr)
 
@@ -966,6 +967,12 @@ object URIO {
    */
   def not[R](effect: URIO[R, Boolean]): URIO[R, Boolean] =
     ZIO.not(effect)
+
+  /**
+   * @see [[zio.ZIO.onExecutor]]
+   */
+  def onExecutor[R, A](executor: => Executor)(taskr: URIO[R, A]): URIO[R, A] =
+    ZIO.onExecutor(executor)(taskr)
 
   /**
    * @see [[zio.ZIO.provide]]

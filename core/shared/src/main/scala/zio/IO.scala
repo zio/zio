@@ -916,8 +916,9 @@ object IO {
   /**
    * @see See [[zio.ZIO.lock]]
    */
+  @deprecated("use onExecutor", "2.0.0")
   def lock[E, A](executor: => Executor)(io: IO[E, A]): IO[E, A] =
-    ZIO.lock(executor)(io)
+    ZIO.onExecutor(executor)(io)
 
   /**
    *  @see See [[zio.ZIO.loop]]
@@ -1029,6 +1030,12 @@ object IO {
    */
   def not[E](effect: IO[E, Boolean]): IO[E, Boolean] =
     ZIO.not(effect)
+
+  /**
+   * @see See [[zio.ZIO.onExecutor]]
+   */
+  def onExecutor[E, A](executor: => Executor)(io: IO[E, A]): IO[E, A] =
+    ZIO.onExecutor(executor)(io)
 
   /**
    * @see See [[zio.ZIO.partition]]

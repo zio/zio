@@ -478,17 +478,17 @@ object ZManagedSpec extends ZIOBaseSpec {
         ZIO.succeed(assertCompletes)
       }
     ),
-    suite("lock")(
-      test("locks acquire, use, and release actions to the specified executor") {
+    suite("onExecutor")(
+      test("runs acquire, use, and release actions on the specified executor") {
         val executor: UIO[Executor] = ZIO.descriptorWith(descriptor => ZIO.succeedNow(descriptor.executor))
         val global                  = Executor.fromExecutionContext(100)(ExecutionContext.global)
         for {
           default <- executor
           ref1    <- Ref.make[Executor](default)
           ref2    <- Ref.make[Executor](default)
-          managed  = ZManaged.acquireRelease(executor.flatMap(ref1.set))(executor.flatMap(ref2.set)).lock(global)
+          managed  = ZManaged.acquireRelease(executor.flatMap(ref1.set))(executor.flatMap(ref2.set)).onExecutor(global)
           before  <- executor
-          use     <- managed.useDiscard(executor).lock(before)
+          use     <- managed.useDiscard(executor).onExecutor(before)
           acquire <- ref1.get
           release <- ref2.get
           after   <- executor
@@ -505,7 +505,7 @@ object ZManagedSpec extends ZIOBaseSpec {
           default <- executor
           ref1    <- Ref.make[Executor](default)
           ref2    <- Ref.make[Executor](default)
-          managed  = ZManaged.acquireRelease(executor.flatMap(ref1.set))(executor.flatMap(ref2.set)).lock(global)
+          managed  = ZManaged.acquireRelease(executor.flatMap(ref1.set))(executor.flatMap(ref2.set)).onExecutor(global)
           before  <- executor
           use     <- managed.useDiscard(executor)
           acquire <- ref1.get

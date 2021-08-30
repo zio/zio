@@ -473,15 +473,17 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * this managed effect as well as managed effects that are composed
    * sequentially after it will be run on the specified executor.
    */
+  @deprecated("use onExecutor", "2.0.0")
   final def lock(executor: Executor): ZManaged[R, E, A] =
-    ZManaged.lock(executor) *> self
+    onExecutor(executor)
 
   /**
    * Runs this managed effect, as well as any managed effects that are composed
    * sequentially after it, using the specified `ExecutionContext`.
    */
+  @deprecated("use onExecutionContext", "2.0.0")
   final def lockExecutionContext(ec: ExecutionContext): ZManaged[R, E, A] =
-    self.lock(Executor.fromExecutionContext(Int.MaxValue)(ec))
+    onExecutionContext(ec)
 
   /**
    * Returns an effect whose success is mapped by the specified `f` function.
@@ -573,7 +575,22 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    */
   @deprecated("use onExecutionContext", "2.0.0")
   final def on(ec: ExecutionContext): ZManaged[R, E, A] =
-    lockExecutionContext(ec)
+    onExecutionContext(ec)
+
+  /**
+   * Locks this managed effect to the specified executor, guaranteeing that
+   * this managed effect as well as managed effects that are composed
+   * sequentially after it will be run on the specified executor.
+   */
+  final def onExecutor(executor: Executor): ZManaged[R, E, A] =
+    ZManaged.onExecutor(executor) *> self
+
+  /**
+   * Runs this managed effect, as well as any managed effects that are composed
+   * sequentially after it, using the specified `ExecutionContext`.
+   */
+  final def onExecutionContext(ec: ExecutionContext): ZManaged[R, E, A] =
+    self.onExecutor(Executor.fromExecutionContext(Int.MaxValue)(ec))
 
   /**
    * Ensures that a cleanup function runs when this ZManaged is finalized, after
@@ -2300,15 +2317,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * `release` action.
    */
   def lock(executor: => Executor): ZManaged[Any, Nothing, Unit] =
-    ZManaged.acquireReleaseWith {
-      ZIO.descriptorWith { descriptor =>
-        if (descriptor.isLocked) ZIO.shift(executor).as(Some(descriptor.executor))
-        else ZIO.shift(executor).as(None)
-      }
-    } {
-      case Some(executor) => ZIO.shift(executor)
-      case None           => ZIO.unshift
-    }.unit
+    onExecutor(executor)
 
   /**
    * Loops with the specified effectual function, collecting the results into a
@@ -2637,6 +2646,22 @@ object ZManaged extends ZManagedPlatformSpecific {
    */
   val none: Managed[Nothing, Option[Nothing]] =
     succeedNow(None)
+
+  /**
+   * Returns a managed effect that describes shifting to the specified executor
+   * as the `acquire` action and shifting back to the original executor as the
+   * `release` action.
+   */
+  def onExecutor(executor: => Executor): ZManaged[Any, Nothing, Unit] =
+    ZManaged.acquireReleaseWith {
+      ZIO.descriptorWith { descriptor =>
+        if (descriptor.isLocked) ZIO.shift(executor).as(Some(descriptor.executor))
+        else ZIO.shift(executor).as(None)
+      }
+    } {
+      case Some(executor) => ZIO.shift(executor)
+      case None           => ZIO.unshift
+    }.unit
 
   /**
    * A scope in which resources can be safely preallocated. Passing a [[ZManaged]]

@@ -904,6 +904,7 @@ object Task extends TaskPlatformSpecific {
   /**
    * @see See [[zio.ZIO.lock]]
    */
+  @deprecated("use onExecutor", "2.0.0")
   def lock[A](executor: => Executor)(task: Task[A]): Task[A] =
     ZIO.lock(executor)(task)
 
@@ -1017,6 +1018,12 @@ object Task extends TaskPlatformSpecific {
    */
   def not(effect: Task[Boolean]): Task[Boolean] =
     ZIO.not(effect)
+
+  /**
+   * @see See [[zio.ZIO.onExecutor]]
+   */
+  def onExecutor[A](executor: => Executor)(task: Task[A]): Task[A] =
+    ZIO.onExecutor(executor)(task)
 
   /**
    * @see See [[zio.ZIO.partition]]
