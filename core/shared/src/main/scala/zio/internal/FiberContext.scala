@@ -709,16 +709,12 @@ private[zio] final class FiberContext[E, A](
 
                     curZio = nextInstr(())
 
-                  case ZIO.Tags.OnPlatform =>
-                    val zio = curZio.asInstanceOf[ZIO.OnPlatform[Any, Any, Any]]
-
-                    val oldPlatform = platform
+                  case ZIO.Tags.SetPlatform =>
+                    val zio = curZio.asInstanceOf[ZIO.SetPlatform]
 
                     platform = zio.platform()
 
-                    ensure(ZIO.succeed { platform = oldPlatform })
-
-                    curZio = zio.zio()
+                    curZio = ZIO.unit
                 }
               }
             } else {

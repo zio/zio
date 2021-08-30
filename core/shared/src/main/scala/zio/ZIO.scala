@@ -4538,7 +4538,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * platform when it completes execution.
    */
   def onPlatform[R, E, A](platform: => Platform)(zio: => ZIO[R, E, A]): ZIO[R, E, A] =
-    new ZIO.OnPlatform(() => zio, () => platform)
+    ZIO.platform.flatMap { currentPlatform =>
+      ZIO.setPlatform(platform).acquireRelease(ZIO.setPlatform(currentPlatform), zio)
+    }
 
   /**
    * Races an `IO[E, A]` against zero or more other effects. Yields either the
@@ -4679,6 +4681,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   def setState[S: Tag](s: S): ZIO[Has[ZState[S]], Nothing, Unit] =
     ZIO.serviceWith(_.set(s))
+
+  /**
+   * Sets the platform to the specified value.
+   */
+  def setPlatform(platform: => Platform): UIO[Unit] =
+    new ZIO.SetPlatform(() => platform)
 
   /**
    * Accesses the specified service in the environment of the effect.
@@ -5751,7 +5759,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     final val FiberRefGetAll    = 29
     final val FiberRefLocally   = 30
     final val FiberRefDelete    = 31
-    final val OnPlatform        = 32
+    final val SetPlatform       = 32
   }
 
   private[zio] final case class ZioError[E, A](exit: Exit[E, A]) extends Throwable with NoStackTrace
@@ -5927,11 +5935,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     override def tag = Tags.Logged
   }
 
-  private[zio] final class OnPlatform[R, E, A](
-    val zio: () => ZIO[R, E, A],
-    val platform: () => Platform
-  ) extends ZIO[R, E, A] {
-    override def tag = Tags.OnPlatform
+  private[zio] final class SetPlatform(val platform: () => Platform) extends UIO[Unit] {
+    override def tag = Tags.SetPlatform
   }
 
   private[zio] val someFatal   = Some(LogLevel.Fatal)
