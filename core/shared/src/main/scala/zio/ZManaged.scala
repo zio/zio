@@ -1116,6 +1116,12 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
     new ZManaged.UpdateService[R, E, A, M](self)
 
   /**
+   * Updates a service at the specified key in the environment of this effect.
+   */
+  final def updateServiceAt[Service]: ZManaged.UpdateServiceAt[R, E, A, Service] =
+    new ZManaged.UpdateServiceAt[R, E, A, Service](self)
+
+  /**
    * Run an effect while acquiring the resource before and releasing it after
    */
   def use[R1 <: R, E1 >: E, B](f: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
@@ -1283,6 +1289,13 @@ object ZManaged extends ZManagedPlatformSpecific {
       ZManaged.environment.flatMap(f)
   }
 
+  final class ServiceAtPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
+    def apply[Key](
+      key: Key
+    )(implicit tag: Tag[Map[Key, Service]]): ZManaged[HasMany[Key, Service], Nothing, Option[Service]] =
+      ZManaged.access(_.getAt(key))
+  }
+
   final class ServiceWithPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
     def apply[E, A](f: Service => ZIO[Has[Service], E, A])(implicit
       tag: Tag[Service]
@@ -1330,6 +1343,13 @@ object ZManaged extends ZManagedPlatformSpecific {
   final class UpdateService[-R, +E, +A, M](private val self: ZManaged[R, E, A]) extends AnyVal {
     def apply[R1 <: R with Has[M]](f: M => M)(implicit ev: Has.IsHas[R1], tag: Tag[M]): ZManaged[R1, E, A] =
       self.provideSome(ev.update(_, f))
+  }
+
+  final class UpdateServiceAt[-R, +E, +A, Service](private val self: ZManaged[R, E, A]) extends AnyVal {
+    def apply[R1 <: R with HasMany[Key, Service], Key](key: Key)(
+      f: Service => Service
+    )(implicit ev: Has.IsHas[R1], tag: Tag[Map[Key, Service]]): ZManaged[R1, E, A] =
+      self.provideSome(ev.updateAt(_, key, f))
   }
 
   final class WhenManaged[R, E](private val b: ZManaged[R, E, Boolean]) extends AnyVal {
@@ -2767,6 +2787,13 @@ object ZManaged extends ZManagedPlatformSpecific {
    */
   def service[A: Tag]: ZManaged[Has[A], Nothing, A] =
     ZManaged.access(_.get[A])
+
+  /**
+   * Accesses the service corresponding to the specified key in the
+   * environment.
+   */
+  def serviceAt[Service]: ZManaged.ServiceAtPartiallyApplied[Service] =
+    new ZManaged.ServiceAtPartiallyApplied[Service]
 
   /**
    * Accesses the specified services in the environment of the effect.
