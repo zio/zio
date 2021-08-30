@@ -5123,7 +5123,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   final class UpdateServiceAt[-R, +E, +A, Service](private val self: ZIO[R, E, A]) extends AnyVal {
     def apply[R1 <: R with HasMany[Key, Service], Key](key: Key)(
       f: Service => Service
-    )(implicit ev: Has.IsHas[R1], keyTag: Tag[Key], serviceTag: Tag[Service]): ZIO[R1, E, A] =
+    )(implicit ev: Has.IsHas[R1], tag: Tag[Map[Key, Service]]): ZIO[R1, E, A] =
       self.provideSome(ev.updateAt(_, key, f))
   }
 
@@ -5253,7 +5253,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   final class ServiceAtPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
     def apply[Key](
       key: Key
-    )(implicit keyTag: Tag[Key], serviceTag: Tag[Service]): URIO[HasMany[Key, Service], Option[Service]] =
+    )(implicit tag: Tag[Map[Key, Service]]): URIO[HasMany[Key, Service], Option[Service]] =
       ZIO.access(_.getAt(key))
   }
 
