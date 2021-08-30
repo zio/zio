@@ -1981,8 +1981,9 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * readFile("data.json").tapCause(logCause(_))
    * }}}
    */
+  @deprecated("use tapErrorCause", "2.0.0")
   final def tapCause[R1 <: R, E1 >: E](f: Cause[E] => ZIO[R1, E1, Any]): ZIO[R1, E1, A] =
-    self.foldCauseZIO(new ZIO.TapCauseRefailFn(f), ZIO.succeedNow)
+    tapErrorCause(f)
 
   /**
    * Returns an effect that effectually "peeks" at the defect of this effect.
@@ -2009,6 +2010,16 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def tapError[R1 <: R, E1 >: E](f: E => ZIO[R1, E1, Any])(implicit ev: CanFail[E]): ZIO[R1, E1, A] =
     self.foldCauseZIO(new ZIO.TapErrorRefailFn(f), ZIO.succeedNow)
+
+  /**
+   * Returns an effect that effectually "peeks" at the cause of the failure of
+   * this effect.
+   * {{{
+   * readFile("data.json").tapErrorCause(logCause(_))
+   * }}}
+   */
+  final def tapErrorCause[R1 <: R, E1 >: E](f: Cause[E] => ZIO[R1, E1, Any]): ZIO[R1, E1, A] =
+    self.foldCauseZIO(new ZIO.TapErrorCauseRefailFn(f), ZIO.succeedNow)
 
   /**
    * A version of `tapError` that gives you the (optional) trace of the error.
@@ -5342,7 +5353,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       c.failureTraceOrCause.fold(underlying, ZIO.failCause(_))
   }
 
-  final class TapCauseRefailFn[R, E, E1 >: E, A](override val underlying: Cause[E] => ZIO[R, E1, Any])
+  final class TapErrorCauseRefailFn[R, E, E1 >: E, A](override val underlying: Cause[E] => ZIO[R, E1, Any])
       extends ZIOFn1[Cause[E], ZIO[R, E1, Nothing]] {
     def apply(c: Cause[E]): ZIO[R, E1, Nothing] =
       underlying(c) *> ZIO.failCause(c)

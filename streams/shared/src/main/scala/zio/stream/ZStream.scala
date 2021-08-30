@@ -2235,7 +2235,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                  _ <- permits.withPermit {
                         latch.succeed(()) *>                 // Make sure we start evaluation before moving on to the next element
                           (errorSignal.await raceFirst f(a)) // Interrupt evaluation if another task fails
-                            .tapCause(errorSignal.failCause) // Notify other tasks of a failure
+                            .tapErrorCause(errorSignal.failCause) // Notify other tasks of a failure
                             .intoPromise(p)                  // Transfer the result to the consuming stream
                       }.fork
                  _ <- latch.await

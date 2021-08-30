@@ -3353,11 +3353,11 @@ object ZIOSpec extends ZIOBaseSpec {
         }
       }
     ),
-    suite("tapCause")(
+    suite("tapErrorCause")(
       test("effectually peeks at the cause of the failure of this effect") {
         for {
           ref    <- Ref.make(false)
-          result <- ZIO.dieMessage("die").tapCause(_ => ref.set(true)).exit
+          result <- ZIO.dieMessage("die").tapErrorCause(_ => ref.set(true)).exit
           effect <- ref.get
         } yield assert(result)(dies(hasMessage(equalTo("die")))) &&
           assert(effect)(isTrue)
