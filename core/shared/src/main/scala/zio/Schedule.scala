@@ -319,6 +319,23 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
   def delayed(f: Duration => Duration): Schedule[Env, In, Out] = self.delayedM(d => ZIO.succeed(f(d)))
 
   /**
+   * Returns a new schedule that outputs the delay between each occurence.
+   */
+  def delays: Schedule[Env, In, Duration] = {
+    def loop(self: StepFunction[Env, In, Out]): StepFunction[Env, In, Duration] =
+      (now, in: In) =>
+        self(now, in).map {
+          case Continue(_, interval, next) =>
+            val delay = Duration(interval.toInstant.toEpochMilli - now.toInstant.toEpochMilli, TimeUnit.MILLISECONDS)
+            Continue(delay, interval, loop(next))
+          case Done(_) =>
+            Done(Duration.Zero)
+        }
+
+    Schedule(loop(step))
+  }
+
+  /**
    * Returns a new schedule with the specified effectfully computed delay added before the start
    * of each interval produced by this schedule.
    */
@@ -1073,10 +1090,16 @@ object Schedule {
    * each time for the length of the specified duration. Returns the length of
    * the current duration between recurrences.
    */
-  def fromDurations(duration: Duration, durations: Duration*): Schedule[Any, Any, Duration] =
-    durations.foldLeft(fromDuration(duration)) { case (acc, d) =>
-      acc ++ fromDuration(d)
-    }
+  def fromDurations(duration: Duration, durations: Duration*): Schedule[Any, Any, Duration] = {
+    def loop(state: List[Duration]): StepFunction[Any, Any, Duration] =
+      (now: OffsetDateTime, _: Any) =>
+        state match {
+          case h :: t => ZIO.succeedNow(Decision.Continue(h, now.plusNanos(h.toNanos), loop(t)))
+          case Nil    => ZIO.succeedNow(Decision.Done(Duration.Zero))
+        }
+
+    Schedule(loop(duration :: durations.toList))
+  }
 
   /**
    * A schedule that always recurs, mapping input values through the

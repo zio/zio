@@ -587,8 +587,21 @@ object ScheduleSpec extends ZIOBaseSpec {
       val schedule: Schedule[Clock with Random, Any, Unit] = Schedule.once
       val schedule2: Schedule[Random, Any, Unit]           = schedule.provideSomeLayer[Random](clockLayer)
       assert(schedule2)(anything)
-    }
+    },
+    suite("return values")(
+      suite("delays")(
+        testM("fromDurations")(checkDelays(Schedule.fromDurations(1.second, 2.seconds, 3.seconds, 4.seconds)))
+      )
+    )
   )
+
+  def checkDelays[Env](schedule: Schedule[Env, Any, Duration]): URIO[Env, TestResult] =
+    for {
+      now      <- ZIO.succeed(OffsetDateTime.now)
+      in        = Chunk(1, 2, 3, 4, 5)
+      actual   <- schedule.run(now, in)
+      expected <- schedule.delays.run(now, in)
+    } yield assert(actual)(equalTo(expected))
 
   val ioSucceed: (String, Unit) => UIO[String]      = (_: String, _: Unit) => IO.succeed("OrElse")
   val ioFail: (String, Unit) => IO[String, Nothing] = (_: String, _: Unit) => IO.fail("OrElseFailed")
