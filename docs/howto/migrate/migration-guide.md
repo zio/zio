@@ -574,6 +574,32 @@ Here is list of other deprecated methods:
 | `ZLayer.identity`          | `ZLayer.environment`         |
 | `ZLayer.requires`          | `ZLayer.environment`         |
 
+## Mutable References
+
+ZIO 2.x unifies `ZRef` and `ZRefM`. `ZRefM` becomes a subtype of `ZRef` that has additional capabilities (i.e. the ability to perform effects within the operations) at some cost to performance:
+
+| ZIO 1.x | ZIO 2.x             |
+|---------|---------------------|
+| `ZRefM` | `ZRef.Synchronized` |
+| `RefM`  | `Ref.Synchronized`  |
+| `ERefM` | `ERef.Synchronized` |
+
+As the `ZRefM` is renamed to `ZRef.Synchronized`; now the `Synchronized` is a subtype of `ZRef`. This change allows a `ZRef.Synchronized` to be used anywhere a `Ref` is currently being used.
+
+To perform the migration, after renaming these types to the newer ones (e.g. `ZRefM` renamed to `ZRef.Synchronized`) we should perform the following method renames:
+
+| ZIO 1.x                  | ZIO 2.x                                 |
+|--------------------------|-----------------------------------------|
+| `ZRefM#dequeueRef`       | `ZRef.Synchronized#SubscriptionRef`     |
+| `ZRefM#getAndUpdate`     | `ZRef.Synchronized#getAndUpdateZIO`     |
+| `ZRefM#getAndUpdateSome` | `ZRef.Synchronized#getAndUpdateSomeZIO` |
+| `ZRefM#modify`           | `ZRef.Synchronized#modifyZIO`           |
+| `ZRefM#modifySome`       | `ZRef.Synchronized#modifySomeZIO`       |
+| `ZRefM#update`           | `ZRef.Synchronized#updateZIO`           |
+| `ZRefM#updateAndGet`     | `ZRef.Synchronized#updateAndGetZIO`     |
+| `ZRefM#updateSome`       | `ZRef.Synchronized#updateSomeZIO`       |
+| `ZRefM#updateSomeAndGet` | `ZRef.Synchronized#updateSomeAndGetZIO` |
+
 ## ZIO Streams
 
 ZIO Streams 2.x, does not include any significant API changes. Almost the same code we have for ZIO Stream 1.x, this will continue working and doesn't break our code. So we don't need to relearn any APIs. So we have maintained a quite good source compatibility, but have to forget some API elements.
