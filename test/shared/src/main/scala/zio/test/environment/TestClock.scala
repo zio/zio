@@ -16,8 +16,8 @@
 
 package zio.test.environment
 
+import zio._
 import zio.test.{Annotations, TestAnnotation}
-import zio.{Clock, Console, PlatformSpecific => _, _}
 
 import java.io.IOException
 import java.time.{Instant, LocalDateTime, OffsetDateTime, ZoneId}
@@ -337,8 +337,8 @@ object TestClock extends Serializable {
       suspendedWarningState.updateSomeZIO { case SuspendedWarningData.Start =>
         for {
           fiber <- live.provide {
-                     Console
-                       .printLine(suspendedWarning)
+                     ZIO
+                       .logWarning(suspendedWarning)
                        .zipRight(suspendedWarningState.set(SuspendedWarningData.done))
                        .delay(5.seconds)
                    }.interruptible.fork
@@ -352,7 +352,7 @@ object TestClock extends Serializable {
     private val warningStart: UIO[Unit] =
       warningState.updateSomeZIO { case WarningData.Start =>
         for {
-          fiber <- live.provide(Console.printLine(warning).delay(5.seconds)).interruptible.fork
+          fiber <- live.provide(ZIO.logWarning(warning).delay(5.seconds)).interruptible.fork
         } yield WarningData.pending(fiber)
       }
 
