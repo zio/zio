@@ -539,7 +539,7 @@ lazy val jsdocs = project
   .enablePlugins(ScalaJSPlugin)
 
 val http4sV     = "0.23.1"
-val doobieV     = "1.0.0-M5"
+val doobieV     = "1.0.0-RC1"
 val catsEffectV = "3.2.4"
 val zioActorsV  = "0.0.9"
 
