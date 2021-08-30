@@ -118,6 +118,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Teads](https://teads.com)
 * [TomTom](https://tomtom.com)
 * [Tinkoff](https://tinkoff.ru)
+* [Tranzzo](https://tranzzo.com)
 * [Tweddle Group](https://tweddle.com)
 * [Unit](https://unit.co)
 * [Univalence](https://univalence.io)
@@ -128,6 +129,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Audela](https://audela.ca)
 * [Valamis Group](https://valamis.com)
 * [Vish](https://getvish.com)
+* [Zalando](https://zalando.com/)
 * [Zooz](https://zooz.com/)
 
 # Sponsors

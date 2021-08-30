@@ -111,7 +111,7 @@ Notes:
 
 Some blocking operations do not respect `Thread#interrupt` by swallowing `InterruptedException`. So, they will not be interrupted via `effectBlockingInterrupt`. Instead, they may provide us an API to signal them to _cancel_ their operation.
 
-The following `BloclingService` will not be interrupted in case of `Thread#interrupt` call, but it checks the `released` flag constantly. If this flag becomes true, the blocking service will finish its job:
+The following `BlockingService` will not be interrupted in case of `Thread#interrupt` call, but it checks the `released` flag constantly. If this flag becomes true, the blocking service will finish its job:
 
 ```scala mdoc:silent:nest
 import java.util.concurrent.atomic.AtomicReference

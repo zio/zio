@@ -135,6 +135,14 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
   }
 
   /**
+    * Constructs a layer dynamically based on the output of this layer.
+    */
+   final def flatMap[RIn1 <: RIn, E1 >: E, ROut2](
+     f: ROut => ZLayer[RIn1, E1, ROut2]
+   ): ZLayer[RIn1, E1, ROut2] =
+     ZLayer.Flatten(self.map(f))
+
+  /**
    * Feeds the error or output services of this layer into the input of either
    * the specified `failure` or `success` layers, resulting in a new layer with
    * the inputs of this layer, and the error or outputs of the specified layer.
@@ -284,6 +292,8 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
 
   private final def scope: Managed[Nothing, ZLayer.MemoMap => ZManaged[RIn, E, ROut]] =
     self match {
+      case ZLayer.Flatten(self) =>
+         ZManaged.succeed(memoMap => memoMap.getOrElseMemoize(self).flatMap(memoMap.getOrElseMemoize))
       case ZLayer.Fold(self, failure, success) =>
         ZManaged.succeed(memoMap =>
           memoMap
@@ -310,6 +320,9 @@ object ZLayer {
   @deprecated("use Layer", "1.0.0")
   type NoDeps[+E, +B] = ZLayer[Any, E, B]
 
+  private final case class Flatten[-RIn, +E, +ROut](
+     self: ZLayer[RIn, E, ZLayer[RIn, E, ROut]]
+   ) extends ZLayer[RIn, E, ROut]
   private final case class Fold[RIn, E, E1, ROut, ROut1](
     self: ZLayer[RIn, E, ROut],
     failure: ZLayer[(RIn, Cause[E]), E1, ROut1],

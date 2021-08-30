@@ -16,7 +16,6 @@ pull_request_rules:
         add: ["type: breaking"]
   - name: merge Scala Steward's PRs
     conditions:
-      - base=master
       - author=scala-steward
       - "body~=(labels: library-update, semver-minor)|(labels: library-update, semver-patch)|(labels: sbt-plugin-update, semver-minor)|(labels: sbt-plugin-update, semver-patch)|(labels: scalafix-rule-update)|(labels: test-library-update)"
       - "status-success=license/cla"

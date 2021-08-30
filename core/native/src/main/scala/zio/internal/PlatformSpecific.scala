@@ -73,7 +73,7 @@ private[internal] trait PlatformSpecific {
     new Platform {
       val executor = executor0
 
-      val yieldOnStart = false
+      override val yieldOnStart = false
 
       def fatal(t: Throwable): Boolean = false
 

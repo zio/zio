@@ -267,7 +267,7 @@ object ReportingTestUtils {
     """[\s║]*failed!"""
   )
 
-  def assertSourceLocation(): String = cyan(s"☛ $sourceFilePath:XXX")
+  def assertSourceLocation(): String = cyan(s"at $sourceFilePath:XXX")
   implicit class TestOutputOps(output: String) {
     def withNoLineNumbers: String =
       output.replaceAll(Pattern.quote(sourceFilePath + ":") + "\\d+", sourceFilePath + ":XXX")

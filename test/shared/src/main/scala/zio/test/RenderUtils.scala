@@ -19,6 +19,8 @@ package zio.test
 import scala.{Console => SConsole}
 
 private[test] object ConsoleUtils {
+  def underlined(s: String): String =
+    SConsole.UNDERLINED + s + SConsole.RESET
 
   def green(s: String): String =
     SConsole.GREEN + s + SConsole.RESET

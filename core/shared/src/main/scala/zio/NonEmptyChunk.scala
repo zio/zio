@@ -280,6 +280,12 @@ object NonEmptyChunk {
     nonEmpty(Chunk.single(a) ++ Chunk.fromIterable(as))
 
   /**
+   * Constructs a `NonEmptyChunk` from an `Iterable` or `None` otherwise.
+   */
+  def fromIterableOption[A](as: Iterable[A]): Option[NonEmptyChunk[A]] =
+    if (as.isEmpty) None else Some(nonEmpty(Chunk.fromIterable(as)))
+
+  /**
    * Constructs a `NonEmptyChunk` from a single value.
    */
   def single[A](a: A): NonEmptyChunk[A] =
