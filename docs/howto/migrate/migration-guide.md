@@ -362,6 +362,42 @@ val app: ZIO[zio.ZEnv, Nothing, Unit] =
 | Composing manually using `ZLayer` combinators | `ZLayer#wire`           |
 | Composing manually using `ZLayer` combinators | `ZLayer#wireSome`       |
 
+### ZLayer Debugging
+
+To debug ZLayer construction, we have two built-in layers, i.e., `ZLayer.Debug.tree` and `ZLayer.Debug.mermaid`. For example, by including `ZLayer.Debug.mermaid` into our layer construction, the compiler generates the following debug information:
+
+```scala
+val layer = ZLayer.wire[Has[DocRepo] with Has[UserRepo]](
+  Console.live,
+  Logging.live,
+  DocRepo.live,
+  Database.live,
+  BlobStorage.live,
+  UserRepo.live,
+  ZLayer.Debug.mermaid
+)
+```
+
+```scala
+[info]   ZLayer Wiring Graph  
+[info] 
+[info] ◉ DocRepo.live
+[info] ├─◑ Logging.live
+[info] │ ╰─◑ Console.live
+[info] ├─◑ Database.live
+[info] ╰─◑ BlobStorage.live
+[info]   ╰─◑ Logging.live
+[info]     ╰─◑ Console.live
+[info] 
+[info] ◉ UserRepo.live
+[info] ├─◑ Logging.live
+[info] │ ╰─◑ Console.live
+[info] ╰─◑ Database.live
+[info] 
+[info] Mermaid Live Editor Link
+[info] https://mermaid-js.github.io/mermaid-live-editor/edit/#eyJjb2RlIjoiZ3JhcGhcbiAgICBDb25zb2xlLmxpdmVcbiAgICBCbG9iU3RvcmFnZS5saXZlIC0tPiBMb2dnaW5nLmxpdmVcbiAgICBMb2dnaW5nLmxpdmUgLS0+IENvbnNvbGUubGl2ZVxuICAgIFVzZXJSZXBvLmxpdmUgLS0+IExvZ2dpbmcubGl2ZVxuICAgIFVzZXJSZXBvLmxpdmUgLS0+IERhdGFiYXNlLmxpdmVcbiAgICBEb2NSZXBvLmxpdmUgLS0+IERhdGFiYXNlLmxpdmVcbiAgICBEb2NSZXBvLmxpdmUgLS0+IEJsb2JTdG9yYWdlLmxpdmVcbiAgICBEYXRhYmFzZS5saXZlXG4gICAgIiwibWVybWFpZCI6ICJ7XG4gIFwidGhlbWVcIjogXCJkZWZhdWx0XCJcbn0iLCAidXBkYXRlRWRpdG9yIjogdHJ1ZSwgImF1dG9TeW5jIjogdHJ1ZSwgInVwZGF0ZURpYWdyYW0iOiB0cnVlfQ==
+```
+
 ### Module Pattern
 
 _Module Patternـ is one of the most significant changes in ZIO 2.x. Before discussing changes, let see how did we define services in ZIO 1.x.
@@ -527,7 +563,7 @@ The _Module Pattern 1.0_ was somehow complicated and had some boilerplates. The 
 
 ### Other Changes
 
-Here is list of other deprecated methods
+Here is list of other deprecated methods:
 
 | ZIO 1.x                    | ZIO 2.x                      |
 |----------------------------|------------------------------|
