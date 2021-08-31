@@ -101,6 +101,9 @@ private[internal] trait PlatformSpecific {
         }
       }
 
+    val metrics: ZMetrics =
+      ZMetrics.default
+
     val reportFatal = (t: Throwable) => {
       t.printStackTrace()
       throw t

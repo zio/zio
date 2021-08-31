@@ -84,7 +84,7 @@ private[internal] trait PlatformSpecific {
       tracing = Tracing(Tracer.Empty, TracingConfig.disabled),
       supervisor = Supervisor.none,
       enableCurrentFiber = false,
-      logger = ZLogger.defaultFormatter.logged(println(_))
+      logger = ZLogger.defaultFormatter.logged(println(_)).metrics = ZMetrics.default
     )
 
   /**

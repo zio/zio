@@ -31,7 +31,8 @@ final case class Platform(
   reportFailure: Cause[Any] => Unit,
   supervisor: Supervisor[Any],
   enableCurrentFiber: Boolean,
-  logger: ZLogger[Unit]
+  logger: ZLogger[Unit],
+  platform: ZMetrics
 ) { self =>
   @deprecated("2.0.0", "Use Platform#copy instead")
   def withBlockingExecutor(e: Executor): Platform = copy(blockingExecutor = e)

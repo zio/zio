@@ -86,6 +86,9 @@ private[internal] trait PlatformSpecific {
     val logger: ZLogger[Unit] =
       ZLogger.defaultFormatter.logged(println(_))
 
+    val metrics: ZMetrics =
+      ZMetrics.default
+
     val reportFailure = (cause: Cause[Any]) => if (cause.isDie) System.err.println(cause.prettyPrint)
 
     val reportFatal = (t: Throwable) => {
@@ -100,7 +103,7 @@ private[internal] trait PlatformSpecific {
 
     val tracing = Tracing(Tracer.globallyCached(new AkkaLineNumbersTracer), TracingConfig.enabled)
 
-    Platform(blockingExecutor, executor, tracing, fatal, reportFatal, reportFailure, supervisor, false, logger)
+    Platform(blockingExecutor, executor, tracing, fatal, reportFatal, reportFailure, supervisor, false, logger, metrics)
   }
 
   /**
