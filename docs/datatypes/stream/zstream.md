@@ -1492,12 +1492,14 @@ val partitioned: ZManaged[Has[Clock], Nothing, (UStream[Int], UStream[Int], UStr
     .iterate(1)(_ + 1)
     .fixed(1.seconds)
     .distributedWith(3, 10, x => ZIO.succeed(q => x % 3 == q))
-    .flatMap { case q1 :: q2 :: q3 :: Nil =>
-      ZManaged.succeed(
-        ZStream.fromQueue(q1).flattenExitOption,
-        ZStream.fromQueue(q2).flattenExitOption,
-        ZStream.fromQueue(q3).flattenExitOption
-      )
+    .flatMap { 
+      case q1 :: q2 :: q3 :: Nil =>
+        ZManaged.succeed(
+          ZStream.fromQueue(q1).flattenExitOption,
+          ZStream.fromQueue(q2).flattenExitOption,
+          ZStream.fromQueue(q3).flattenExitOption
+        )
+      case _ => ZManaged.dieMessage("Impossible!")
     }
 ```
 

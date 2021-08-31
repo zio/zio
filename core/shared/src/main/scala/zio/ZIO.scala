@@ -943,7 +943,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def forkOn(
     ec: ExecutionContext
-  ): ZIO[R, E, Fiber.Runtime[E, A]] = self.lockExecutionContext(ec).fork
+  ): ZIO[R, E, Fiber.Runtime[E, A]] = self.onExecutionContext(ec).fork
 
   /**
    * Like fork but handles an error with the provided handler.
@@ -1069,15 +1069,17 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * composed with this one, making it easy to compositionally reason about
    * where effects are running.
    */
+  @deprecated("use onExecutor", "2.0.0")
   final def lock(executor: Executor): ZIO[R, E, A] =
-    ZIO.lock(executor)(self)
+    onExecutor(executor)
 
   /**
    * Executes the effect on the specified `ExecutionContext` and then shifts back
    * to the default one.
    */
+  @deprecated("use onExecutionContext", "2.0.0")
   final def lockExecutionContext(ec: ExecutionContext): ZIO[R, E, A] =
-    self.lock(Executor.fromExecutionContext(Int.MaxValue)(ec))
+    onExecutionContext(ec)
 
   /**
    * Returns an effect whose success is mapped by the specified `f` function.
@@ -1162,7 +1164,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   @deprecated("use lockExecutionContext", "2.0.0")
   final def on(ec: ExecutionContext): ZIO[R, E, A] =
-    self.lockExecutionContext(ec)
+    self.onExecutionContext(ec)
 
   /**
    * Returns an effect that will be executed at most once, even if it is
@@ -1180,6 +1182,30 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
       case Exit.Success(_)     => UIO.unit
       case Exit.Failure(cause) => cleanup(cause)
     }
+
+  /**
+   * Returns an effect which is guaranteed to be executed on the specified
+   * executor. The specified effect will always run on the specified executor,
+   * even in the presence of asynchronous boundaries.
+   *
+   * This is useful when an effect must be executed somewhere, for example:
+   * on a UI thread, inside a client library's thread pool, inside a blocking
+   * thread pool, inside a low-latency thread pool, or elsewhere.
+   *
+   * The `onExecutor` function composes with the innermost `onExecutor` taking
+   * priority. Use of this method does not alter the execution semantics of
+   * other effects composed with this one, making it easy to compositionally
+   * reason about where effects are running.
+   */
+  final def onExecutor(executor: Executor): ZIO[R, E, A] =
+    ZIO.onExecutor(executor)(self)
+
+  /**
+   * Executes the effect on the specified `ExecutionContext` and then shifts back
+   * to the default one.
+   */
+  final def onExecutionContext(ec: ExecutionContext): ZIO[R, E, A] =
+    self.onExecutor(Executor.fromExecutionContext(Int.MaxValue)(ec))
 
   /**
    * Ensures that a cleanup functions runs, whether this effect succeeds,
@@ -1205,6 +1231,13 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
         a => ZIO.succeedNow(a)
       )
     }
+
+  /**
+   * Runs this effect on the specified platform, restoring the old platform
+   * when it completes execution.
+   */
+  final def onPlatform(platform: => Platform): ZIO[R, E, A] =
+    ZIO.onPlatform(platform)(self)
 
   /**
    * Runs the specified effect if this effect is terminated, either because of
@@ -1981,8 +2014,9 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * readFile("data.json").tapCause(logCause(_))
    * }}}
    */
+  @deprecated("use tapErrorCause", "2.0.0")
   final def tapCause[R1 <: R, E1 >: E](f: Cause[E] => ZIO[R1, E1, Any]): ZIO[R1, E1, A] =
-    self.foldCauseZIO(new ZIO.TapCauseRefailFn(f), ZIO.succeedNow)
+    tapErrorCause(f)
 
   /**
    * Returns an effect that effectually "peeks" at the defect of this effect.
@@ -2009,6 +2043,16 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def tapError[R1 <: R, E1 >: E](f: E => ZIO[R1, E1, Any])(implicit ev: CanFail[E]): ZIO[R1, E1, A] =
     self.foldCauseZIO(new ZIO.TapErrorRefailFn(f), ZIO.succeedNow)
+
+  /**
+   * Returns an effect that effectually "peeks" at the cause of the failure of
+   * this effect.
+   * {{{
+   * readFile("data.json").tapErrorCause(logCause(_))
+   * }}}
+   */
+  final def tapErrorCause[R1 <: R, E1 >: E](f: Cause[E] => ZIO[R1, E1, Any]): ZIO[R1, E1, A] =
+    self.foldCauseZIO(new ZIO.TapErrorCauseRefailFn(f), ZIO.succeedNow)
 
   /**
    * A version of `tapError` that gives you the (optional) trace of the error.
@@ -2291,6 +2335,12 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def updateService[M] =
     new ZIO.UpdateService[R, E, A, M](self)
+
+  /**
+   * Updates a service at the specified key in the environment of this effect.
+   */
+  final def updateServiceAt[Service]: ZIO.UpdateServiceAt[R, E, A, Service] =
+    new ZIO.UpdateServiceAt[R, E, A, Service](self)
 
   /**
    * The inverse operation to `sandbox`. Submerges the full cause of failure.
@@ -2770,7 +2820,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Locks the specified effect to the blocking thread pool.
    */
   def blocking[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
-    ZIO.blockingExecutor.flatMap(zio.lock)
+    ZIO.blockingExecutor.flatMap(zio.onExecutor)
 
   /**
    * Retrieves the executor for all blocking tasks.
@@ -4159,11 +4209,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * provided executor, before returning to the default executor. See
    * [[ZIO!.lock]].
    */
+  @deprecated("use onExecutor", "2.0.0")
   def lock[R, E, A](executor: => Executor)(zio: ZIO[R, E, A]): ZIO[R, E, A] =
-    ZIO.descriptorWith { descriptor =>
-      if (descriptor.isLocked) ZIO.shift(executor).acquireRelease(ZIO.shift(descriptor.executor), zio)
-      else ZIO.shift(executor).acquireRelease(ZIO.unshift, zio)
-    }
+    onExecutor(executor)(zio)
 
   /**
    * Loops with the specified effectual function, collecting the results into a
@@ -4278,6 +4326,46 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     zio4: ZIO[R, E, D]
   ): ZIO[R, E, (A, B, C, D)] =
     mapParN(zio1, zio2, zio3, zio4)((_, _, _, _))
+
+  /**
+   * Logs the specified message at the current log level.
+   */
+  def log(message: => String): UIO[Unit] = new Logged(() => message)
+
+  /**
+   * Logs the specified message at the debug log level.
+   */
+  def logDebug(message: => String): UIO[Unit] = new Logged(() => message, someDebug)
+
+  /**
+   * Logs the specified message at the error log level.
+   */
+  def logError(message: => String): UIO[Unit] = new Logged(() => message, someError)
+
+  /**
+   * Logs the specified message at the fatal log level.
+   */
+  def logFatal(message: => String): UIO[Unit] = new Logged(() => message, someFatal)
+
+  /**
+   * Logs the specified message at the informational log level.
+   */
+  def logInfo(message: => String): UIO[Unit] = new Logged(() => message, someInfo)
+
+  def logLevel(level: LogLevel): LogLevel = level
+
+  /**
+   * Adjusts the label for the current logging span.
+   * {{{
+   * ZIO.logSpan("parsing") { parseRequest(req) }
+   * }}}
+   */
+  def logSpan(label: => String): LogSpan = new LogSpan(() => label)
+
+  /**
+   * Logs the specified message at the warning log level.
+   */
+  def logWarning(message: => String): UIO[Unit] = new Logged(() => message, someWarning)
 
   /**
    * Sequentially zips the specified effects using the specified combiner
@@ -4430,6 +4518,17 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     getOrFailUnit(o).flip.mapError(f)
 
   /**
+   * Returns an effect that will execute the specified effect fully on the
+   * provided executor, before returning to the default executor. See
+   * [[ZIO!.onExecutor]].
+   */
+  def onExecutor[R, E, A](executor: => Executor)(zio: ZIO[R, E, A]): ZIO[R, E, A] =
+    ZIO.descriptorWith { descriptor =>
+      if (descriptor.isLocked) ZIO.shift(executor).acquireRelease(ZIO.shift(descriptor.executor), zio)
+      else ZIO.shift(executor).acquireRelease(ZIO.unshift, zio)
+    }
+
+  /**
    * Feeds elements of type `A` to a function `f` that returns an effect.
    * Collects all successes and failures in a tupled fashion.
    */
@@ -4461,6 +4560,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     ZIO.foreachParN(n)(in)(f(_).either).map(ZIO.partitionMap(_)(ZIO.identityFn))
 
   /**
+   * Retrieves the platform that this effect is running on.
+   */
+  val platform: UIO[Platform] =
+    ZIO.suspendSucceedWith((platform, _) => ZIO.succeedNow(platform))
+
+  /**
    * Given an environment `R`, returns a function that can supply the
    * environment to programs that require it, removing their need for any
    * specific environment.
@@ -4479,6 +4584,15 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   lazy val never: UIO[Nothing] =
     async[Any, Nothing, Nothing](_ => ())
+
+  /**
+   * Runs the specified effect on the specified platform, restoring the old
+   * platform when it completes execution.
+   */
+  def onPlatform[R, E, A](platform: => Platform)(zio: => ZIO[R, E, A]): ZIO[R, E, A] =
+    ZIO.platform.flatMap { currentPlatform =>
+      ZIO.setPlatform(platform).acquireRelease(ZIO.setPlatform(currentPlatform), zio)
+    }
 
   /**
    * Races an `IO[E, A]` against zero or more other effects. Yields either the
@@ -4605,7 +4719,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       environment <- environment[R]
       platform    <- suspendSucceedWith((p, _) => ZIO.succeedNow(p))
       executor    <- executor
-    } yield Runtime(environment, platform.withExecutor(executor))
+    } yield Runtime(environment, platform.copy(executor = executor))
 
   /**
    * Passes the fiber's scope to the specified function, which creates an effect
@@ -4621,10 +4735,23 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     ZIO.serviceWith(_.set(s))
 
   /**
+   * Sets the platform to the specified value.
+   */
+  def setPlatform(platform: => Platform): UIO[Unit] =
+    new ZIO.SetPlatform(() => platform)
+
+  /**
    * Accesses the specified service in the environment of the effect.
    */
   def service[A: Tag]: URIO[Has[A], A] =
     ZIO.access(_.get[A])
+
+  /**
+   * Accesses the service corresponding to the specified key in the
+   * environment.
+   */
+  def serviceAt[Service]: ServiceAtPartiallyApplied[Service] =
+    new ServiceAtPartiallyApplied[Service]
 
   /**
    * Accesses the specified services in the environment of the effect.
@@ -4664,7 +4791,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * is useful to specify a default executor that effects sequenced after this
    * one will be run on if they are not shifted somewhere else. It can also be
    * used to implement higher level operators to manage where an effect is run
-   * such as [[ZIO!.lock]] and [[ZIO!.on]].
+   * such as [[ZIO!.onExecutor]] and [[ZIO!.onExecutionContext]].
    */
   def shift(executor: Executor): UIO[Unit] =
     new ZIO.Shift(executor)
@@ -5059,12 +5186,19 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     def apply[E1 >: E, R1](
       layer: ZLayer[R0, E1, R1]
     )(implicit ev1: R0 with R1 <:< R, ev2: Has.Union[R0, R1], tagged: Tag[R1]): ZIO[R0, E1, A] =
-      self.provideLayer[E1, R0, R0 with R1](ZLayer.identity[R0] ++ layer)
+      self.provideLayer[E1, R0, R0 with R1](ZLayer.environment[R0] ++ layer)
   }
 
   final class UpdateService[-R, +E, +A, M](private val self: ZIO[R, E, A]) extends AnyVal {
     def apply[R1 <: R with Has[M]](f: M => M)(implicit ev: Has.IsHas[R1], tag: Tag[M]): ZIO[R1, E, A] =
       self.provideSome(ev.update(_, f))
+  }
+
+  final class UpdateServiceAt[-R, +E, +A, Service](private val self: ZIO[R, E, A]) extends AnyVal {
+    def apply[R1 <: R with HasMany[Key, Service], Key](key: Key)(
+      f: Service => Service
+    )(implicit ev: Has.IsHas[R1], tag: Tag[Map[Key, Service]]): ZIO[R1, E, A] =
+      self.provideSome(ev.updateAt(_, key, f))
   }
 
   @implicitNotFound(
@@ -5190,6 +5324,13 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       new ZIO.Read(f)
   }
 
+  final class ServiceAtPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
+    def apply[Key](
+      key: Key
+    )(implicit tag: Tag[Map[Key, Service]]): URIO[HasMany[Key, Service], Option[Service]] =
+      ZIO.access(_.getAt(key))
+  }
+
   final class ServiceWithPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
     def apply[E, A](f: Service => ZIO[Has[Service], E, A])(implicit tag: Tag[Service]): ZIO[Has[Service], E, A] =
       new ZIO.Read(r => f(r.get))
@@ -5198,6 +5339,18 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   final class GetStateWithPartiallyApplied[S](private val dummy: Boolean = true) extends AnyVal {
     def apply[A](f: S => A)(implicit tag: Tag[S]): ZIO[Has[ZState[S]], Nothing, A] =
       ZIO.serviceWith(_.get.map(f))
+  }
+
+  final class LogSpan(val label: () => String) extends AnyVal {
+    import zio.{LogSpan => ZioLogSpan}
+
+    def apply[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+      FiberRef.currentLogSpan.get.flatMap { stack =>
+        val instant = java.lang.System.currentTimeMillis()
+        val logSpan = ZioLogSpan(label(), instant)
+
+        FiberRef.currentLogSpan.locally(logSpan :: stack)(zio)
+      }
   }
 
   @inline
@@ -5290,7 +5443,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       c.failureTraceOrCause.fold(underlying, ZIO.failCause(_))
   }
 
-  final class TapCauseRefailFn[R, E, E1 >: E, A](override val underlying: Cause[E] => ZIO[R, E1, Any])
+  final class TapErrorCauseRefailFn[R, E, E1 >: E, A](override val underlying: Cause[E] => ZIO[R, E1, Any])
       extends ZIOFn1[Cause[E], ZIO[R, E1, Nothing]] {
     def apply(c: Cause[E]): ZIO[R, E1, Nothing] =
       underlying(c) *> ZIO.failCause(c)
@@ -5675,6 +5828,11 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     final val Supervise         = 25
     final val GetForkScope      = 26
     final val OverrideForkScope = 27
+    final val Logged            = 28
+    final val FiberRefGetAll    = 29
+    final val FiberRefLocally   = 30
+    final val FiberRefDelete    = 31
+    final val SetPlatform       = 32
   }
 
   private[zio] final case class ZioError[E, A](exit: Exit[E, A]) extends Throwable with NoStackTrace
@@ -5773,13 +5931,27 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     override def tag = Tags.Provide
   }
 
-  private[zio] final class FiberRefNew[A](val initial: A, private[zio] val onFork: A => A, val onJoin: (A, A) => A)
-      extends UIO[FiberRef.Runtime[A]] {
-    override def tag = Tags.FiberRefNew
+  private[zio] final class FiberRefGetAll[R, E, A](val make: Map[ZFiberRef.Runtime[_], Any] => ZIO[R, E, A])
+      extends ZIO[R, E, A] {
+    override def tag = Tags.FiberRefGetAll
   }
 
   private[zio] final class FiberRefModify[A, B](val fiberRef: FiberRef.Runtime[A], val f: A => (B, A)) extends UIO[B] {
     override def tag = Tags.FiberRefModify
+  }
+
+  private[zio] final class FiberRefLocally[V, R, E, A](
+    val localValue: V,
+    val fiberRef: FiberRef.Runtime[V],
+    val zio: ZIO[R, E, A]
+  ) extends ZIO[R, E, A] {
+    override def tag = Tags.FiberRefLocally
+  }
+
+  private[zio] final class FiberRefDelete(
+    val fiberRef: FiberRef.Runtime[_]
+  ) extends UIO[Unit] {
+    override def tag = Tags.FiberRefDelete
   }
 
   private[zio] object Trace extends UIO[ZTrace] {
@@ -5826,6 +5998,25 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   ) extends ZIO[R, E, A] {
     override def tag = Tags.Ensuring
   }
+
+  private[zio] final class Logged(
+    val message: () => String,
+    val overrideLogLevel: Option[LogLevel] = None,
+    val overrideRef1: FiberRef.Runtime[_] = null,
+    val overrideValue1: AnyRef = null
+  ) extends ZIO[Any, Nothing, Unit] {
+    override def tag = Tags.Logged
+  }
+
+  private[zio] final class SetPlatform(val platform: () => Platform) extends UIO[Unit] {
+    override def tag = Tags.SetPlatform
+  }
+
+  private[zio] val someFatal   = Some(LogLevel.Fatal)
+  private[zio] val someError   = Some(LogLevel.Error)
+  private[zio] val someWarning = Some(LogLevel.Warning)
+  private[zio] val someInfo    = Some(LogLevel.Info)
+  private[zio] val someDebug   = Some(LogLevel.Debug)
 
   private[zio] def succeedNow[A](a: A): UIO[A] = new ZIO.Succeed(a)
 }

@@ -158,7 +158,7 @@ object TestSystem extends Serializable {
     Ref.make(data).map(ref => Has.allOf[System, TestSystem](Test(ref), Test(ref))).toLayerMany
 
   val any: ZLayer[Has[System] with Has[TestSystem], Nothing, Has[System] with Has[TestSystem]] =
-    ZLayer.requires[Has[System] with Has[TestSystem]]
+    ZLayer.environment[Has[System] with Has[TestSystem]]
 
   val default: Layer[Nothing, Has[System] with Has[TestSystem]] =
     live(DefaultData)

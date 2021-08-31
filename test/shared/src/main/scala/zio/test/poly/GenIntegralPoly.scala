@@ -44,14 +44,14 @@ object GenIntegralPoly {
    * Provides evidence that instances of `Gen` and `Integral` exist for bytes.
    */
   val byte: GenIntegralPoly =
-    GenIntegralPoly(Gen.anyByte, Numeric.ByteIsIntegral)
+    GenIntegralPoly(Gen.byte, Numeric.ByteIsIntegral)
 
   /**
    * Provides evidence that instances of `Gen` and `Integral` exist for
    * characters.
    */
   val char: GenIntegralPoly =
-    GenIntegralPoly(Gen.anyChar, Numeric.CharIsIntegral)
+    GenIntegralPoly(Gen.char, Numeric.CharIsIntegral)
 
   /**
    * A generator of polymorphic values constrainted to have an `Integral`
@@ -65,17 +65,17 @@ object GenIntegralPoly {
    * integers.
    */
   val int: GenIntegralPoly =
-    GenIntegralPoly(Gen.anyInt, Numeric.IntIsIntegral)
+    GenIntegralPoly(Gen.int, Numeric.IntIsIntegral)
 
   /**
    * Provides evidence that instances of `Gen` and `Integral` exist for longs.
    */
   val long: GenIntegralPoly =
-    GenIntegralPoly(Gen.anyLong, Numeric.LongIsIntegral)
+    GenIntegralPoly(Gen.long, Numeric.LongIsIntegral)
 
   /**
    * Provides evidence that instances of `Gen` and `Integral` exist for shorts.
    */
   val short: GenIntegralPoly =
-    GenIntegralPoly(Gen.anyShort, Numeric.ShortIsIntegral)
+    GenIntegralPoly(Gen.short, Numeric.ShortIsIntegral)
 }

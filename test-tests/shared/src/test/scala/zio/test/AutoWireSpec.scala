@@ -21,9 +21,9 @@ object AutoWireSpec extends ZIOBaseSpec {
               double <- ZIO.service[Double]
             } yield str.length + double.toInt).toLayer
           test("automatically constructs a layer from its dependencies") {
-            val program = ZIO.service[Int]
+            val program = ZIO.environment[ZEnv] *> ZIO.service[Int]
             assertM(program)(equalTo(128))
-          }.inject(doubleLayer, stringLayer, intLayer)
+          }.injectCustom(doubleLayer, stringLayer, intLayer)
         },
         test("reports missing top-level layers") {
           val program: URIO[Has[String] with Has[Int], String] = UIO("test")

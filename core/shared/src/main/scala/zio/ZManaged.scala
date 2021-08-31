@@ -17,7 +17,7 @@
 package zio
 
 import zio.ZManaged.ReleaseMap
-import zio.internal.Executor
+import zio.internal.{Executor, Platform}
 
 import scala.collection.immutable.LongMap
 import scala.concurrent.ExecutionContext
@@ -473,15 +473,17 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * this managed effect as well as managed effects that are composed
    * sequentially after it will be run on the specified executor.
    */
+  @deprecated("use onExecutor", "2.0.0")
   final def lock(executor: Executor): ZManaged[R, E, A] =
-    ZManaged.lock(executor) *> self
+    onExecutor(executor)
 
   /**
    * Runs this managed effect, as well as any managed effects that are composed
    * sequentially after it, using the specified `ExecutionContext`.
    */
+  @deprecated("use onExecutionContext", "2.0.0")
   final def lockExecutionContext(ec: ExecutionContext): ZManaged[R, E, A] =
-    self.lock(Executor.fromExecutionContext(Int.MaxValue)(ec))
+    onExecutionContext(ec)
 
   /**
    * Returns an effect whose success is mapped by the specified `f` function.
@@ -573,7 +575,22 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    */
   @deprecated("use onExecutionContext", "2.0.0")
   final def on(ec: ExecutionContext): ZManaged[R, E, A] =
-    lockExecutionContext(ec)
+    onExecutionContext(ec)
+
+  /**
+   * Locks this managed effect to the specified executor, guaranteeing that
+   * this managed effect as well as managed effects that are composed
+   * sequentially after it will be run on the specified executor.
+   */
+  final def onExecutor(executor: Executor): ZManaged[R, E, A] =
+    ZManaged.onExecutor(executor) *> self
+
+  /**
+   * Runs this managed effect, as well as any managed effects that are composed
+   * sequentially after it, using the specified `ExecutionContext`.
+   */
+  final def onExecutionContext(ec: ExecutionContext): ZManaged[R, E, A] =
+    self.onExecutor(Executor.fromExecutionContext(Int.MaxValue)(ec))
 
   /**
    * Ensures that a cleanup function runs when this ZManaged is finalized, after
@@ -624,6 +641,14 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
         } yield (releaseMapEntry, a)
       }
     }
+
+  /**
+   * Runs this managed effect on the specified platform, guaranteeing that
+   * this managed effect as well as managed effects that are composed
+   * sequentially after it will be run on the specified platform.
+   */
+  final def onPlatform(platform: => Platform): ZManaged[R, E, A] =
+    ZManaged.onPlatform(platform) *> self
 
   /**
    * Executes this effect, skipping the error but returning optionally the success.
@@ -974,8 +999,9 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * Returns an effect that effectually peeks at the cause of the failure of
    * the acquired resource.
    */
+  @deprecated("use tapErrorCause", "2.0.0")
   final def tapCause[R1 <: R, E1 >: E](f: Cause[E] => ZManaged[R1, E1, Any]): ZManaged[R1, E1, A] =
-    catchAllCause(c => f(c) *> ZManaged.failCause(c))
+    tapErrorCause(f)
 
   /**
    * Returns an effect that effectually "peeks" at the defect of the acquired
@@ -989,6 +1015,13 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    */
   def tapError[R1 <: R, E1 >: E](f: E => ZManaged[R1, E1, Any])(implicit ev: CanFail[E]): ZManaged[R1, E1, A] =
     tapBoth(f, ZManaged.succeedNow)
+
+  /**
+   * Returns an effect that effectually peeks at the cause of the failure of
+   * the acquired resource.
+   */
+  final def tapErrorCause[R1 <: R, E1 >: E](f: Cause[E] => ZManaged[R1, E1, Any]): ZManaged[R1, E1, A] =
+    catchAllCause(c => f(c) *> ZManaged.failCause(c))
 
   /**
    * Like [[ZManaged#tap]], but uses a function that returns a ZIO value rather than a
@@ -1114,6 +1147,12 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    */
   final def updateService[M] =
     new ZManaged.UpdateService[R, E, A, M](self)
+
+  /**
+   * Updates a service at the specified key in the environment of this effect.
+   */
+  final def updateServiceAt[Service]: ZManaged.UpdateServiceAt[R, E, A, Service] =
+    new ZManaged.UpdateServiceAt[R, E, A, Service](self)
 
   /**
    * Run an effect while acquiring the resource before and releasing it after
@@ -1283,6 +1322,13 @@ object ZManaged extends ZManagedPlatformSpecific {
       ZManaged.environment.flatMap(f)
   }
 
+  final class ServiceAtPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
+    def apply[Key](
+      key: Key
+    )(implicit tag: Tag[Map[Key, Service]]): ZManaged[HasMany[Key, Service], Nothing, Option[Service]] =
+      ZManaged.access(_.getAt(key))
+  }
+
   final class ServiceWithPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
     def apply[E, A](f: Service => ZIO[Has[Service], E, A])(implicit
       tag: Tag[Service]
@@ -1319,7 +1365,7 @@ object ZManaged extends ZManagedPlatformSpecific {
     def apply[E1 >: E, R1](
       layer: ZLayer[R0, E1, R1]
     )(implicit ev1: R0 with R1 <:< R, ev2: Has.Union[R0, R1], tagged: Tag[R1]): ZManaged[R0, E1, A] =
-      self.provideLayer[E1, R0, R0 with R1](ZLayer.identity[R0] ++ layer)
+      self.provideLayer[E1, R0, R0 with R1](ZLayer.environment[R0] ++ layer)
   }
 
   final class UnlessManaged[R, E](private val b: ZManaged[R, E, Boolean]) extends AnyVal {
@@ -1330,6 +1376,13 @@ object ZManaged extends ZManagedPlatformSpecific {
   final class UpdateService[-R, +E, +A, M](private val self: ZManaged[R, E, A]) extends AnyVal {
     def apply[R1 <: R with Has[M]](f: M => M)(implicit ev: Has.IsHas[R1], tag: Tag[M]): ZManaged[R1, E, A] =
       self.provideSome(ev.update(_, f))
+  }
+
+  final class UpdateServiceAt[-R, +E, +A, Service](private val self: ZManaged[R, E, A]) extends AnyVal {
+    def apply[R1 <: R with HasMany[Key, Service], Key](key: Key)(
+      f: Service => Service
+    )(implicit ev: Has.IsHas[R1], tag: Tag[Map[Key, Service]]): ZManaged[R1, E, A] =
+      self.provideSome(ev.updateAt(_, key, f))
   }
 
   final class WhenManaged[R, E](private val b: ZManaged[R, E, Boolean]) extends AnyVal {
@@ -2300,15 +2353,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * `release` action.
    */
   def lock(executor: => Executor): ZManaged[Any, Nothing, Unit] =
-    ZManaged.acquireReleaseWith {
-      ZIO.descriptorWith { descriptor =>
-        if (descriptor.isLocked) ZIO.shift(executor).as(Some(descriptor.executor))
-        else ZIO.shift(executor).as(None)
-      }
-    } {
-      case Some(executor) => ZIO.shift(executor)
-      case None           => ZIO.unshift
-    }.unit
+    onExecutor(executor)
 
   /**
    * Loops with the specified effectual function, collecting the results into a
@@ -2639,6 +2684,32 @@ object ZManaged extends ZManagedPlatformSpecific {
     succeedNow(None)
 
   /**
+   * Returns a managed effect that describes shifting to the specified executor
+   * as the `acquire` action and shifting back to the original executor as the
+   * `release` action.
+   */
+  def onExecutor(executor: => Executor): ZManaged[Any, Nothing, Unit] =
+    ZManaged.acquireReleaseWith {
+      ZIO.descriptorWith { descriptor =>
+        if (descriptor.isLocked) ZIO.shift(executor).as(Some(descriptor.executor))
+        else ZIO.shift(executor).as(None)
+      }
+    } {
+      case Some(executor) => ZIO.shift(executor)
+      case None           => ZIO.unshift
+    }.unit
+
+  /**
+   * Returns a managed effect that describes setting the platform to the
+   * specified value as the `acquire` action and setting it back to the
+   * original platform as the `release` action.
+   */
+  def onPlatform(platform: => Platform): ZManaged[Any, Nothing, Unit] =
+    ZManaged.fromZIO(ZIO.platform).flatMap { currentPlatform =>
+      ZManaged.acquireRelease(ZIO.setPlatform(platform))(ZIO.setPlatform(currentPlatform))
+    }
+
+  /**
    * A scope in which resources can be safely preallocated. Passing a [[ZManaged]]
    * to the `apply` method will create (inside an effect) a managed resource which
    * is already acquired and cannot fail.
@@ -2767,6 +2838,13 @@ object ZManaged extends ZManagedPlatformSpecific {
    */
   def service[A: Tag]: ZManaged[Has[A], Nothing, A] =
     ZManaged.access(_.get[A])
+
+  /**
+   * Accesses the service corresponding to the specified key in the
+   * environment.
+   */
+  def serviceAt[Service]: ZManaged.ServiceAtPartiallyApplied[Service] =
+    new ZManaged.ServiceAtPartiallyApplied[Service]
 
   /**
    * Accesses the specified services in the environment of the effect.

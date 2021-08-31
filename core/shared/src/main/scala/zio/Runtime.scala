@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.internal.tracing.{TracingConfig, ZIOFn}
+import zio.internal.tracing.ZIOFn
 import zio.internal.{Executor, FiberContext, Platform, PlatformConstants, Tracing}
 
 import scala.concurrent.Future
@@ -244,37 +244,32 @@ trait Runtime[+R] {
   /**
    * Constructs a new `Runtime` with the specified blocking executor.
    */
-  def withBlockingExecutor(e: Executor): Runtime[R] = mapPlatform(_.withBlockingExecutor(e))
+  def withBlockingExecutor(e: Executor): Runtime[R] = mapPlatform(_.copy(blockingExecutor = e))
 
   /**
    * Constructs a new `Runtime` with the specified executor.
    */
-  def withExecutor(e: Executor): Runtime[R] = mapPlatform(_.withExecutor(e))
+  def withExecutor(e: Executor): Runtime[R] = mapPlatform(_.copy(executor = e))
 
   /**
    * Constructs a new `Runtime` with the specified fatal predicate.
    */
-  def withFatal(f: Throwable => Boolean): Runtime[R] = mapPlatform(_.withFatal(f))
+  def withFatal(f: Throwable => Boolean): Runtime[R] = mapPlatform(_.copy(fatal = f))
 
   /**
    * Constructs a new `Runtime` with the fatal error reporter.
    */
-  def withReportFatal(f: Throwable => Nothing): Runtime[R] = mapPlatform(_.withReportFatal(f))
+  def withReportFatal(f: Throwable => Nothing): Runtime[R] = mapPlatform(_.copy(reportFatal = f))
 
   /**
    * Constructs a new `Runtime` with the specified error reporter.
    */
-  def withReportFailure(f: Cause[Any] => Unit): Runtime[R] = mapPlatform(_.withReportFailure(f))
+  def withReportFailure(f: Cause[Any] => Unit): Runtime[R] = mapPlatform(_.copy(reportFailure = f))
 
   /**
    * Constructs a new `Runtime` with the specified tracer and tracing configuration.
    */
-  def withTracing(t: Tracing): Runtime[R] = mapPlatform(_.withTracing(t))
-
-  /**
-   * Constructs a new `Runtime` with the specified tracing configuration.
-   */
-  def withTracingConfig(config: TracingConfig): Runtime[R] = mapPlatform(_.withTracingConfig(config))
+  def withTracing(t: Tracing): Runtime[R] = mapPlatform(_.copy(tracing = t))
 
   private final def unsafeRunWith[E, A](
     zio: => ZIO[R, E, A]
@@ -296,8 +291,7 @@ trait Runtime[+R] {
       InitialInterruptStatus,
       None,
       PlatformConstants.tracingSupported,
-      null,
-      supervisor,
+      new java.util.concurrent.atomic.AtomicReference(Map.empty),
       scope,
       platform.reportFailure
     )
@@ -341,22 +335,19 @@ object Runtime {
       Managed(environment, f(platform), () => shutdown())
 
     override final def withExecutor(e: Executor): Runtime.Managed[R] =
-      mapPlatform(_.withExecutor(e))
+      mapPlatform(_.copy(executor = e))
 
     override final def withFatal(f: Throwable => Boolean): Runtime.Managed[R] =
-      mapPlatform(_.withFatal(f))
+      mapPlatform(_.copy(fatal = f))
 
     override final def withReportFatal(f: Throwable => Nothing): Runtime.Managed[R] =
-      mapPlatform(_.withReportFatal(f))
+      mapPlatform(_.copy(reportFatal = f))
 
     override final def withReportFailure(f: Cause[Any] => Unit): Runtime.Managed[R] =
-      mapPlatform(_.withReportFailure(f))
+      mapPlatform(_.copy(reportFailure = f))
 
     override final def withTracing(t: Tracing): Runtime.Managed[R] =
-      mapPlatform(_.withTracing(t))
-
-    override final def withTracingConfig(config: TracingConfig): Runtime.Managed[R] =
-      mapPlatform(_.withTracingConfig(config))
+      mapPlatform(_.copy(tracing = t))
   }
 
   object Managed {

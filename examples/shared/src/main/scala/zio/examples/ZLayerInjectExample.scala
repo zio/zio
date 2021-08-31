@@ -2,7 +2,7 @@ package zio.examples
 
 import zio._
 
-object ProvideLayerAutoExample extends App {
+object ZLayerInjectExample extends App {
   val program =
     OldLady.contentsOfStomach.flatMap { contents =>
       Console.printLine(s"There was an old who lady swallowed:\n- ${contents.mkString("\n- ")}")
@@ -19,7 +19,7 @@ object ProvideLayerAutoExample extends App {
 
   def run(args: List[String]): URIO[ZEnv, ExitCode] =
     program
-      .inject(OldLady.live, Spider.live, Fly.live, Bear.live, Console.live)
+      .inject(OldLady.live, Spider.live, Fly.live, Bear.live, Console.live, ZLayer.Debug.tree)
       .exitCode
 
   trait OldLady {
@@ -33,7 +33,7 @@ object ProvideLayerAutoExample extends App {
       (for {
         spiderGuts <- Spider.contentsOfStomach
       } yield new OldLady {
-        def contentsOfStomach: UIO[List[String]] = UIO("a Spider" :: spiderGuts)
+        def contentsOfStomach: UIO[List[String]] = UIO("a Spdder" :: spiderGuts)
       }).toLayer
   }
 

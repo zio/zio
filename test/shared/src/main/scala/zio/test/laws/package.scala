@@ -73,7 +73,7 @@ import zio.{Has, ZIO}
  *
  * object Ord extends Lawful[Ord]
  *
- * checkAllLaws(Equal + Hash + Ord)(Gen.anyInt)
+ * checkAllLaws(Equal + Hash + Ord)(Gen.int)
  * }}}
  *
  * Note that capabilities compose seamlessly because of contravariance. We can

@@ -18,7 +18,7 @@ object GenZIOSpec extends ZIOBaseSpec {
       }
     },
     test("failures generates failed effects") {
-      val gen = failures(anyString)
+      val gen = failures(string)
       for {
         sample               <- sampleEffect(gen)
         (failures, successes) = partitionExit(sample)

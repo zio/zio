@@ -13,28 +13,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package zio
 
-private[zio] trait PlatformSpecific {
-  type ZEnv = Has[Clock] with Has[Console] with Has[System] with Has[Random]
-
-  object ZEnv {
-
-    private[zio] object Services {
-      val live: ZEnv =
-        Has.allOf[Clock, Console, System, Random](
-          Clock.ClockLive,
-          Console.ConsoleLive,
-          System.SystemLive,
-          Random.RandomLive
-        )
+final case class LogSpan(label: String, startTime: Long) {
+  private[zio] def unsafeRender(sb: StringBuilder, now: Long): Unit = {
+    if (label.indexOf(" ") < 0) sb.append(label)
+    else {
+      sb.append("\"")
+      sb.append(label)
+      sb.append("\"")
     }
 
-    val any: ZLayer[ZEnv, Nothing, ZEnv] =
-      ZLayer.environment[ZEnv]
+    sb.append("=")
+    sb.append((now - startTime).toString())
+    sb.append("ms")
 
-    val live: Layer[Nothing, ZEnv] =
-      Clock.live ++ Console.live ++ System.live ++ Random.live
+    ()
+  }
+
+  def render(now: Long): String = {
+    val sb = new StringBuilder()
+
+    unsafeRender(sb, now)
+
+    sb.toString()
   }
 }

@@ -856,6 +856,7 @@ object URIO {
   /**
    * @see [[zio.ZIO.lock]]
    */
+  @deprecated("use onExecutor", "2.0.0")
   def lock[R, A](executor: => Executor)(taskr: URIO[R, A]): URIO[R, A] =
     ZIO.lock(executor)(taskr)
 
@@ -968,6 +969,24 @@ object URIO {
     ZIO.not(effect)
 
   /**
+   * @see [[zio.ZIO.onExecutor]]
+   */
+  def onExecutor[R, A](executor: => Executor)(taskr: URIO[R, A]): URIO[R, A] =
+    ZIO.onExecutor(executor)(taskr)
+
+  /**
+   *  @see See [[zio.ZIO.onPlatform]]
+   */
+  def onPlatform[R, A](platform: => Platform)(urio: => URIO[R, A]): URIO[R, A] =
+    ZIO.onPlatform(platform)(urio)
+
+  /**
+   * @see See [[zio.ZIO.platform]]
+   */
+  val platform: UIO[Platform] =
+    ZIO.platform
+
+  /**
    * @see [[zio.ZIO.provide]]
    */
   def provide[R, A](r: => R): URIO[R, A] => UIO[A] =
@@ -1050,6 +1069,12 @@ object URIO {
    */
   def service[A: Tag]: URIO[Has[A], A] =
     ZIO.service[A]
+
+  /**
+   * @see See [[zio.ZIO.serviceAt]]
+   */
+  def serviceAt[Service]: ZIO.ServiceAtPartiallyApplied[Service] =
+    ZIO.serviceAt[Service]
 
   /**
    * @see See [[zio.ZIO.services[A,B]*]]

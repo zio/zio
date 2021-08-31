@@ -80,4 +80,6 @@ package object zio
   val Hub: ZHub.type = ZHub
 
   type Semaphore = stm.TSemaphore
+
+  type HasMany[K, A] = Has[Map[K, A]]
 }

@@ -954,8 +954,9 @@ object RIO {
   /**
    * @see See [[zio.ZIO.lock]]
    */
+  @deprecated("use onExecutor", "2.0.0")
   def lock[R, A](executor: => Executor)(taskr: RIO[R, A]): RIO[R, A] =
-    ZIO.lock(executor)(taskr)
+    ZIO.onExecutor(executor)(taskr)
 
   /**
    *  @see See [[zio.ZIO.loop]]
@@ -1076,6 +1077,18 @@ object RIO {
     ZIO.not(effect)
 
   /**
+   * @see See [[zio.ZIO.onExecutor]]
+   */
+  def onExecutor[R, A](executor: => Executor)(taskr: RIO[R, A]): RIO[R, A] =
+    ZIO.onExecutor(executor)(taskr)
+
+  /**
+   *  @see See [[zio.ZIO.onPlatform]]
+   */
+  def onPlatform[R, A](platform: => Platform)(rio: => RIO[R, A]): RIO[R, A] =
+    ZIO.onPlatform(platform)(rio)
+
+  /**
    * @see See [[zio.ZIO.partition]]
    */
   def partition[R, A, B](in: Iterable[A])(f: A => RIO[R, B]): RIO[R, (Iterable[Throwable], Iterable[B])] =
@@ -1092,6 +1105,12 @@ object RIO {
    */
   def partitionParN[R, A, B](n: Int)(in: Iterable[A])(f: A => RIO[R, B]): RIO[R, (Iterable[Throwable], Iterable[B])] =
     ZIO.partitionParN(n)(in)(f)
+
+  /**
+   * @see See [[zio.ZIO.platform]]
+   */
+  val platform: UIO[Platform] =
+    ZIO.platform
 
   /**
    * @see See [[zio.ZIO.provide]]
@@ -1183,6 +1202,12 @@ object RIO {
    */
   def service[A: Tag]: URIO[Has[A], A] =
     ZIO.service[A]
+
+  /**
+   * @see See [[zio.ZIO.serviceAt]]
+   */
+  def serviceAt[Service]: ZIO.ServiceAtPartiallyApplied[Service] =
+    ZIO.serviceAt[Service]
 
   /**
    * @see See [[zio.ZIO.services[A,B]*]]

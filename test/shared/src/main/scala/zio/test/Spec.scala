@@ -523,6 +523,12 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
     new Spec.UpdateService[R, E, T, M](self)
 
   /**
+   * Updates a service at the specified key in the environment of this effect.
+   */
+  final def updateServiceAt[Service]: Spec.UpdateServiceAt[R, E, T, Service] =
+    new Spec.UpdateServiceAt[R, E, T, Service](self)
+
+  /**
    * Runs the spec only if the specified predicate is satisfied.
    */
   final def when(b: => Boolean)(implicit ev: T <:< TestSuccess): Spec[R with Has[Annotations], E, TestSuccess] =
@@ -607,7 +613,7 @@ object Spec {
     def apply[E1 >: E, R1](
       layer: ZLayer[R0, E1, R1]
     )(implicit ev1: R0 with R1 <:< R, ev2: Has.Union[R0, R1], tagged: Tag[R1]): Spec[R0, E1, T] =
-      self.provideLayer[E1, R0, R0 with R1](ZLayer.identity[R0] ++ layer)
+      self.provideLayer[E1, R0, R0 with R1](ZLayer.environment[R0] ++ layer)
   }
 
   final class ProvideSomeLayerShared[R0, -R, +E, +T](private val self: Spec[R, E, T]) extends AnyVal {
@@ -631,5 +637,12 @@ object Spec {
   final class UpdateService[-R, +E, +T, M](private val self: Spec[R, E, T]) extends AnyVal {
     def apply[R1 <: R with Has[M]](f: M => M)(implicit ev: Has.IsHas[R1], tag: Tag[M]): Spec[R1, E, T] =
       self.provideSome(ev.update(_, f))
+  }
+
+  final class UpdateServiceAt[-R, +E, +T, Service](private val self: Spec[R, E, T]) extends AnyVal {
+    def apply[R1 <: R with HasMany[Key, Service], Key](key: Key)(
+      f: Service => Service
+    )(implicit ev: Has.IsHas[R1], tag: Tag[Map[Key, Service]]): Spec[R1, E, T] =
+      self.provideSome(ev.updateAt(_, key, f))
   }
 }
