@@ -600,6 +600,34 @@ To perform the migration, after renaming these types to the newer ones (e.g. `ZR
 | `ZRefM#updateSome`       | `ZRef.Synchronized#updateSomeZIO`       |
 | `ZRefM#updateSomeAndGet` | `ZRef.Synchronized#updateSomeAndGetZIO` |
 
+## Queue
+
+In ZIO 2.x, the `ZQueue` uses `Chunk` consistently with other ZIO APIs like ZIO Streams. This will avoid unnecessary conversions between collection types, particularly for streaming applications where streams use `Chunk` internally, but bulk take operations previously returned a `List` on `ZQueue`.
+
+Here is a list of affected APIs: `takeAll`, `takeUpTo`, `takeBetween`, `takeN`, `unsafePollAll`, `unsafePollN`, and `unsafeOfferAll`. Let's see an example:
+
+ZIO 1.x:
+
+```scala mdoc:silent
+val taken: UIO[List[Int]] = for {
+  queue <- Queue.bounded[Int](100)
+  _     <- queue.offer(10)
+  _     <- queue.offer(20)
+  list  <- queue.takeUpTo(5)
+} yield list
+```
+
+ZIO 2.x:
+
+```scala mdoc:silent
+val taken: UIO[Chunk[Int]] = for {
+  queue <- Queue.bounded[Int](100)
+  _     <- queue.offer(10)
+  _     <- queue.offer(20)
+  chunk <- queue.takeUpTo(5)
+} yield chunk
+```
+
 ## ZIO Streams
 
 ZIO Streams 2.x, does not include any significant API changes. Almost the same code we have for ZIO Stream 1.x, this will continue working and doesn't break our code. So we don't need to relearn any APIs. So we have maintained a quite good source compatibility, but have to forget some API elements.
@@ -1079,3 +1107,5 @@ TODO
 ### State
 TODO
 
+### ZHub
+TODO
