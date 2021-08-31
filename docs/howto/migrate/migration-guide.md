@@ -1104,8 +1104,38 @@ ZStream.from(ZIO.succeed(List(1,2,3)))
 ### Smart Assertion
 TODO
 
-### State
-TODO
+### ZState
+
+`ZState` is a new data type that the ZIO 2.0 introduced:
+
+```scala
+sealed trait ZState[S] {
+  def get: UIO[S]
+  def set(s: S): UIO[Unit]
+  def update(f: S => S): UIO[Unit]
+}
+```
+
+We can `set`, `get`, and `update` the state which is part of the ZIO environment using `ZIO.setState`, `ZIO.getState`, and `ZIO.updateState` operations:
+
+```scala mdoc:silent:nest
+import zio._
+
+object ZStateExample extends zio.App {
+  final case class MyState(counter: Int)
+
+  val app = for {
+    _     <- ZIO.updateState[MyState](state => state.copy(counter = state.counter + 1))
+    count <- ZIO.getStateWith[MyState](_.counter)
+    _     <- Console.printLine(count)
+  } yield count
+
+  override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] =
+    app.injectCustom(
+      ZState.makeLayer(MyState(0))
+    ).exitCode
+}
+```
 
 ### ZHub
 TODO
