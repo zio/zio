@@ -982,8 +982,9 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * Returns an effect that effectually peeks at the cause of the failure of
    * the acquired resource.
    */
+  @deprecated("use tapErrorCause", "2.0.0")
   final def tapCause[R1 <: R, E1 >: E](f: Cause[E] => ZManaged[R1, E1, Any]): ZManaged[R1, E1, A] =
-    catchAllCause(c => f(c) *> ZManaged.failCause(c))
+    tapErrorCause(f)
 
   /**
    * Returns an effect that effectually "peeks" at the defect of the acquired
@@ -997,6 +998,13 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    */
   def tapError[R1 <: R, E1 >: E](f: E => ZManaged[R1, E1, Any])(implicit ev: CanFail[E]): ZManaged[R1, E1, A] =
     tapBoth(f, ZManaged.succeedNow)
+
+  /**
+   * Returns an effect that effectually peeks at the cause of the failure of
+   * the acquired resource.
+   */
+  final def tapErrorCause[R1 <: R, E1 >: E](f: Cause[E] => ZManaged[R1, E1, Any]): ZManaged[R1, E1, A] =
+    catchAllCause(c => f(c) *> ZManaged.failCause(c))
 
   /**
    * Like [[ZManaged#tap]], but uses a function that returns a ZIO value rather than a
