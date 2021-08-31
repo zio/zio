@@ -67,6 +67,9 @@ class SmartAssertMacros(ctx: Quotes)  {
   def transform[A](expr: Expr[A])(using Type[A], PositionContext) : Expr[Arrow[Any, A]] =
     expr match {
       case Unseal(Inlined(_, _, expr)) => transform(expr.asExprOf[A])
+      
+      // TODO: Figure out how to unwrap implicit class
+      // case Unseal(Apply(select, args)) if select.symbol.isConstructor =>
 
       case Unseal(Apply(Select(lhs, op @ (">" | ">=" | "<" | "<=")), List(rhs))) =>
         val span = rhs.span
@@ -95,7 +98,16 @@ class SmartAssertMacros(ctx: Quotes)  {
             '{${transform(lhs.asExprOf[l])} >>> SmartAssertions.equalTo(${rhs.asExprOf[l]}).span($span)}.asExprOf[Arrow[Any, A]]
         }
 
-      // case method @AST.Method(lhs, lhsTpe, rhsTpe, name, tpeArgs, args, span) =>
+      case '{ SmartAssertion.smartAssertion2Value[t]($thing) } =>
+        val nested = transform(thing)
+        val span = thing.asTerm.span
+        '{ $nested >>> SmartAssertions.runSmartAssertion[t].span($span) }.asExprOf[Arrow[Any, A]]
+
+      case '{ ($lhs: SmartAssertion[`A`]).run } =>
+        val nested = transform(lhs)
+        val span = expr.asTerm.span
+        '{ $nested >>> SmartAssertions.runSmartAssertion[A].span($span) } //.asExprOf[Arrow[Any, A]]
+
       case Unseal(method @ MethodCall(lhs, name, tpeArgs, args)) =>
         def body(param: Term) =
           (tpeArgs, args) match {

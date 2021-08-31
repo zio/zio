@@ -85,14 +85,14 @@ class SmartAssertMacros(val c: blackbox.Context) {
         val tree = AssertAST.toTree(ast)
         q"${astToAssertion(lhs)} >>> $tree.span($span)"
 
-      case AST.Method(lhs, lhsTpe, rhsTpe, "smartAssertion2Value", _, Some(List(smartAssertion)), span) =>
+      case AST.Method(_, _, rhsTpe, "smartAssertion2Value", _, Some(List(smartAssertion)), span) =>
         val lhs = astToAssertion(parseExpr(smartAssertion))
         q"$lhs >>> $SA.runSmartAssertion[$rhsTpe].span($span)"
 
-      case AST.Method(lhs, lhsTpe, rhsTpe, "run", tpes, args, span) if lhsTpe <:< weakTypeOf[SmartAssertion[_]] =>
+      case AST.Method(lhs, lhsTpe, _, "run", _, _, span) if lhsTpe <:< weakTypeOf[SmartAssertion[_]] =>
         q"${astToAssertion(lhs)} >>> $SA.runSmartAssertion[${lhsTpe.typeArgs.head}].span($span)"
 
-      case AST.Method(lhs, lhsTpe, rhsTpe, name, tpes, args, span) =>
+      case AST.Method(lhs, lhsTpe, _, name, tpes, args, span) =>
         val select =
           args match {
             case Some(args) =>
@@ -166,14 +166,10 @@ class SmartAssertMacros(val c: blackbox.Context) {
     val parsed = parseExpr(tree)
     val ast    = astToAssertion(parsed)
 
-    val block =
-      q"""
+    q"""
 ..$stmts
 $Assert($ast.withCode($codeString).withLocation)
         """
-    println(show(ast))
-
-    block
   }
 
   object UnwrapImplicit {

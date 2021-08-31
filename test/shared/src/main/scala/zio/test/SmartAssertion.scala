@@ -14,6 +14,8 @@ object SmartAssertion {
   def fromEither[A](result: => Either[String, A]): SmartAssertion[A] =
     SmartAssertion(() => result, "")
 
-  implicit def smartAssertion2Value[A](smartAssertion: SmartAssertion[A]): A =
+  implicit def smartAssertion2Value[A](smartAssertion: SmartAssertion[A]): A = {
+    val _ = smartAssertion
     throw new Error("This must only be called within `assertTrue`")
+  }
 }
