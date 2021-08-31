@@ -1138,4 +1138,26 @@ object ZStateExample extends zio.App {
 ```
 
 ### ZHub
-TODO
+
+`ZHub` is a new concurrent data structure like `ZQueue`. While `ZQueue` solves the problem of _distributing_ messages to multiple consumers, the `ZHub` solves the problem of _broadcasting_ the same message to multiple consumers.
+
+![ZHub](assets/zhub.svg)
+
+Here is an example of broadcasting messages to multiple subscribers:
+
+```scala mdoc:silent:nest
+for {
+  hub <- Hub.bounded[String](requestedCapacity = 2)
+  s1 = hub.subscribe
+  s2 = hub.subscribe
+  _ <- s1.zip(s2).use { case (left, right) =>
+    for {
+      _ <- hub.publish("Hello from a hub!")
+      _ <- left.take.flatMap(Console.printLine(_))
+      _ <- right.take.flatMap(Console.printLine(_))
+    } yield ()
+  }
+} yield ()
+```
+
+Visit the [Hub](../../datatypes/concurrency/hub.md) page to learn more about it.
