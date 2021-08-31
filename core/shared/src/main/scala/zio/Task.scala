@@ -915,6 +915,7 @@ object Task extends TaskPlatformSpecific {
   /**
    * @see See [[zio.ZIO.lock]]
    */
+  @deprecated("use onExecutor", "2.0.0")
   def lock[A](executor: => Executor)(task: => Task[A]): Task[A] =
     ZIO.lock(executor)(task)
 
@@ -1032,6 +1033,18 @@ object Task extends TaskPlatformSpecific {
     ZIO.not(effect)
 
   /**
+   * @see See [[zio.ZIO.onExecutor]]
+   */
+  def onExecutor[A](executor: => Executor)(task: Task[A]): Task[A] =
+    ZIO.onExecutor(executor)(task)
+
+  /**
+   *  @see See [[zio.ZIO.onPlatform]]
+   */
+  def onPlatform[A](platform: => Platform)(task: => Task[A]): Task[A] =
+    ZIO.onPlatform(platform)(task)
+
+  /**
    * @see See [[zio.ZIO.partition]]
    */
   def partition[A, B](in: => Iterable[A])(f: A => Task[B]): Task[(Iterable[Throwable], Iterable[B])] =
@@ -1048,6 +1061,12 @@ object Task extends TaskPlatformSpecific {
    */
   def partitionParN[A, B](n: => Int)(in: => Iterable[A])(f: A => Task[B]): Task[(Iterable[Throwable], Iterable[B])] =
     ZIO.partitionParN(n)(in)(f)
+
+  /**
+   * @see See [[zio.ZIO.platform]]
+   */
+  val platform: UIO[Platform] =
+    ZIO.platform
 
   /**
    * @see See [[zio.ZIO.raceAll]]

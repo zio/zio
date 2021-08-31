@@ -16,12 +16,13 @@
 
 package zio.internal
 
-import zio.internal.stacktracer.Tracer
+import zio.internal.stacktracer.{Tracer, ZTraceElement}
 import zio.internal.tracing.TracingConfig
-import zio.{Cause, Supervisor}
+import zio.{Cause, Fiber, FiberRef, LogLevel, LogSpan, Supervisor}
 
 import java.util.{HashMap, HashSet, Map => JMap, Set => JSet}
 import scala.concurrent.ExecutionContext
+import scala.scalajs.js.Dynamic.{global => jsglobal}
 
 private[internal] trait PlatformSpecific {
 
@@ -40,7 +41,7 @@ private[internal] trait PlatformSpecific {
    * optional feature and it's not valid to compare the performance of ZIO with
    * enabled Tracing with effect types _without_ a comparable feature.
    */
-  lazy val benchmark: Platform = makeDefault(Int.MaxValue).withReportFailure(_ => ()).withTracing(Tracing.disabled)
+  lazy val benchmark: Platform = makeDefault(Int.MaxValue).copy(reportFailure = _ => (), tracing = Tracing.disabled)
 
   /**
    * The default platform, configured with settings designed to work well for
@@ -69,22 +70,62 @@ private[internal] trait PlatformSpecific {
   /**
    * Creates a platform from an `Executor`.
    */
-  final def fromExecutor(executor0: Executor): Platform =
+  final def fromExecutor(executor0: Executor): Platform = {
+    val blockingExecutor = executor0
+
+    val executor = executor0
+
+    val fatal = (_: Throwable) => false
+
+    val logger: ZLogger[Unit] =
+      (
+        trace: ZTraceElement,
+        fiberId: Fiber.Id,
+        level: LogLevel,
+        message: () => String,
+        context: Map[FiberRef.Runtime[_], AnyRef],
+        spans: List[LogSpan]
+      ) => {
+        try {
+          // TODO: Improve output & use console.group for spans, etc.
+          val line = ZLogger.defaultFormatter(trace, fiberId, level, message, context, spans)
+
+          if (level == LogLevel.Fatal) jsglobal.console.error(line)
+          else if (level == LogLevel.Error) jsglobal.console.error(line)
+          else if (level == LogLevel.Debug) jsglobal.console.debug(line)
+          else jsglobal.console.log(line)
+
+          ()
+        } catch {
+          case t if !fatal(t) => ()
+        }
+      }
+
+    val reportFatal = (t: Throwable) => {
+      t.printStackTrace()
+      throw t
+    }
+
+    val reportFailure = (cause: Cause[Any]) => if (cause.isDie) println(cause.prettyPrint)
+
+    val tracing = Tracing(Tracer.Empty, TracingConfig.disabled)
+
+    val supervisor = Supervisor.none
+
+    val enableCurrentFiber = false
+
     Platform(
-      blockingExecutor = executor0,
-      executor = executor0,
-      fatal = (_: Throwable) => false,
-      reportFatal = (t: Throwable) => {
-        t.printStackTrace()
-        throw t
-      },
-      reportFailure = (cause: Cause[Any]) =>
-        if (cause.isDie)
-          println(cause.prettyPrint),
-      tracing = Tracing(Tracer.Empty, TracingConfig.disabled),
-      supervisor = Supervisor.none,
-      enableCurrentFiber = false
+      blockingExecutor,
+      executor,
+      tracing,
+      fatal,
+      reportFatal,
+      reportFailure,
+      supervisor,
+      enableCurrentFiber,
+      logger
     )
+  }
 
   /**
    * Creates a Platform from an execution context.

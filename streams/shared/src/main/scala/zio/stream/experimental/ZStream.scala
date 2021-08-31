@@ -1,7 +1,7 @@
 package zio.stream.experimental
 
 import zio._
-import zio.internal.{Executor, SingleThreadedRingBuffer, UniqueKey}
+import zio.internal.{Executor, Platform, SingleThreadedRingBuffer, UniqueKey}
 import zio.stm._
 import zio.stream.experimental.ZStream.{DebounceState, HandoffSignal}
 import zio.stream.experimental.internal.Utils.zipChunks
@@ -1898,15 +1898,9 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * that are composed after this one will automatically be shifted back to the
    * previous executor.
    */
+  @deprecated("use onExecutor", "2.0.0")
   def lock(executor: Executor): ZStream[R, E, A] =
-    ZStream.fromZIO(ZIO.descriptor).flatMap { descriptor =>
-      ZStream.managed(ZManaged.lock(executor)) *>
-        self <*
-        ZStream.fromZIO {
-          if (descriptor.isLocked) ZIO.shift(descriptor.executor)
-          else ZIO.unshift
-        }
-    }
+    onExecutor(executor)
 
   /**
    * Transforms the elements of this stream using the supplied function.
@@ -2200,6 +2194,32 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def onError[R1 <: R](cleanup: Cause[E] => URIO[R1, Any]): ZStream[R1, E, A] =
     catchAllCause(cause => ZStream.fromZIO(cleanup(cause) *> ZIO.failCause(cause)))
+
+  /**
+   * Locks the execution of this stream to the specified executor. Any streams
+   * that are composed after this one will automatically be shifted back to the
+   * previous executor.
+   */
+  def onExecutor(executor: Executor): ZStream[R, E, A] =
+    ZStream.fromZIO(ZIO.descriptor).flatMap { descriptor =>
+      ZStream.managed(ZManaged.onExecutor(executor)) *>
+        self <*
+        ZStream.fromZIO {
+          if (descriptor.isLocked) ZIO.shift(descriptor.executor)
+          else ZIO.unshift
+        }
+    }
+
+  /**
+   * Runs this stream on the specified platform. Any streams that are composed
+   * after this one will be run on the previous executor.
+   */
+  def onPlatform(platform: => Platform): ZStream[R, E, A] =
+    ZStream.fromZIO(ZIO.platform).flatMap { currentPlatform =>
+      ZStream.managed(ZManaged.onPlatform(platform)) *>
+        self <*
+        ZStream.fromZIO(ZIO.setPlatform(currentPlatform))
+    }
 
   /**
    * Switches to the provided stream in case this one fails with a typed error.
@@ -3234,6 +3254,12 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     new ZStream.UpdateService[R, E, A, M](self)
 
   /**
+   * Updates a service at the specified key in the environment of this effect.
+   */
+  final def updateServiceAt[Service]: ZStream.UpdateServiceAt[R, E, A, Service] =
+    new ZStream.UpdateServiceAt[R, E, A, Service](self)
+
+  /**
    * Threads the stream through the transformation function `f`.
    */
   final def via[R2, E2, A2](f: ZStream[R, E, A] => ZStream[R2, E2, A2]): ZStream[R2, E2, A2] = f(self)
@@ -3593,7 +3619,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * back to the previous executor.
    */
   def blocking[R, E, A](stream: ZStream[R, E, A]): ZStream[R, E, A] =
-    ZStream.fromZIO(ZIO.blockingExecutor).flatMap(stream.lock)
+    ZStream.fromZIO(ZIO.blockingExecutor).flatMap(stream.onExecutor)
 
   /**
    * Creates a stream from a single value that will get cleaned up after the
@@ -4303,6 +4329,13 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     ZStream.access(_.get[A])
 
   /**
+   * Accesses the service corresponding to the specified key in the
+   * environment.
+   */
+  def serviceAt[Service]: ZStream.ServiceAtPartiallyApplied[Service] =
+    new ZStream.ServiceAtPartiallyApplied[Service]
+
+  /**
    * Accesses the specified services in the environment of the effect.
    */
   @deprecated("use service", "2.0.0")
@@ -4455,6 +4488,13 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       ZStream.environment[R].flatMap(f)
   }
 
+  final class ServiceAtPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
+    def apply[Key](
+      key: => Key
+    )(implicit tag: Tag[Map[Key, Service]]): ZStream[HasMany[Key, Service], Nothing, Option[Service]] =
+      ZStream.access(_.getAt(key))
+  }
+
   /**
    * Representation of a grouped stream.
    * This allows to filter which groups will be processed.
@@ -4507,6 +4547,13 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   final class UpdateService[-R, +E, +A, M](private val self: ZStream[R, E, A]) extends AnyVal {
     def apply[R1 <: R with Has[M]](f: M => M)(implicit ev: Has.IsHas[R1], tag: Tag[M]): ZStream[R1, E, A] =
       self.provideSome(ev.update(_, f))
+  }
+
+  final class UpdateServiceAt[-R, +E, +A, Service](private val self: ZStream[R, E, A]) extends AnyVal {
+    def apply[R1 <: R with HasMany[Key, Service], Key](key: => Key)(
+      f: Service => Service
+    )(implicit ev: Has.IsHas[R1], tag: Tag[Map[Key, Service]]): ZStream[R1, E, A] =
+      self.provideSome(ev.updateAt(_, key, f))
   }
 
   /**

@@ -805,6 +805,7 @@ object UIO {
   /**
    * @see See [[zio.ZIO.lock]]
    */
+  @deprecated("use onExecutor", "2.0.0")
   def lock[A](executor: => Executor)(uio: => UIO[A]): UIO[A] =
     ZIO.lock(executor)(uio)
 
@@ -908,6 +909,24 @@ object UIO {
    */
   def not(effect: => UIO[Boolean]): UIO[Boolean] =
     ZIO.not(effect)
+
+  /**
+   * @see See [[zio.ZIO.onExecutor]]
+   */
+  def onExecutor[A](executor: => Executor)(uio: UIO[A]): UIO[A] =
+    ZIO.onExecutor(executor)(uio)
+
+  /**
+   *  @see See [[zio.ZIO.onPlatform]]
+   */
+  def onPlatform[A](platform: => Platform)(uio: => UIO[A]): UIO[A] =
+    ZIO.onPlatform(platform)(uio)
+
+  /**
+   * @see See [[zio.ZIO.platform]]
+   */
+  val platform: UIO[Platform] =
+    ZIO.platform
 
   /**
    * @see See [[zio.ZIO.raceAll]]

@@ -11,7 +11,7 @@ object BenchmarkUtil extends BootstrapRuntime {
   override val platform: Platform = Platform.benchmark
 
   val TracedRuntime: BootstrapRuntime = new BootstrapRuntime {
-    override val platform = Platform.benchmark.withTracing(Tracing.enabled)
+    override val platform = Platform.benchmark.copy(tracing = Tracing.enabled)
   }
 
   implicit val futureExecutionContext: ExecutionContext =

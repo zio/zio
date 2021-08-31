@@ -648,7 +648,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                        _ <- permits.withPermit {
                               latch.succeed(()) *>
                                 (errorSignal.await raceFirst f(outElem))
-                                  .tapCause(errorSignal.failCause)
+                                  .tapErrorCause(errorSignal.failCause)
                                   .intoPromise(p)
                             }.fork
                        _ <- latch.await

@@ -17,7 +17,7 @@
 package zio.stream
 
 import zio._
-import zio.internal.{Executor, UniqueKey}
+import zio.internal.{Executor, Platform, UniqueKey}
 import zio.stm.TQueue
 import zio.stream.internal.Utils.zipChunks
 import zio.stream.internal.{ZInputStream, ZReader}
@@ -2028,15 +2028,9 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * that are composed after this one will automatically be shifted back to the
    * previous executor.
    */
+  @deprecated("use onExecutor", "2.0.0")
   def lock(executor: Executor): ZStream[R, E, O] =
-    ZStream.fromZIO(ZIO.descriptor).flatMap { descriptor =>
-      ZStream.managed(ZManaged.lock(executor)) *>
-        self <*
-        ZStream.fromZIO {
-          if (descriptor.isLocked) ZIO.shift(descriptor.executor)
-          else ZIO.unshift
-        }
-    }
+    onExecutor(executor)
 
   /**
    * Transforms the elements of this stream using the supplied function.
@@ -2233,10 +2227,10 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                  latch <- Promise.make[Nothing, Unit]
                  _     <- out.offer(p.await.mapError(Some(_)))
                  _ <- permits.withPermit {
-                        latch.succeed(()) *>                 // Make sure we start evaluation before moving on to the next element
-                          (errorSignal.await raceFirst f(a)) // Interrupt evaluation if another task fails
-                            .tapCause(errorSignal.failCause) // Notify other tasks of a failure
-                            .intoPromise(p)                  // Transfer the result to the consuming stream
+                        latch.succeed(()) *>                      // Make sure we start evaluation before moving on to the next element
+                          (errorSignal.await raceFirst f(a))      // Interrupt evaluation if another task fails
+                            .tapErrorCause(errorSignal.failCause) // Notify other tasks of a failure
+                            .intoPromise(p)                       // Transfer the result to the consuming stream
                       }.fork
                  _ <- latch.await
                } yield ()
@@ -2368,6 +2362,32 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    */
   final def onError[R1 <: R](cleanup: Cause[E] => URIO[R1, Any]): ZStream[R1, E, O] =
     catchAllCause(cause => ZStream.fromZIO(cleanup(cause) *> ZIO.failCause(cause)))
+
+  /**
+   * Locks the execution of this stream to the specified executor. Any streams
+   * that are composed after this one will automatically be shifted back to the
+   * previous executor.
+   */
+  def onExecutor(executor: Executor): ZStream[R, E, O] =
+    ZStream.fromZIO(ZIO.descriptor).flatMap { descriptor =>
+      ZStream.managed(ZManaged.onExecutor(executor)) *>
+        self <*
+        ZStream.fromZIO {
+          if (descriptor.isLocked) ZIO.shift(descriptor.executor)
+          else ZIO.unshift
+        }
+    }
+
+  /**
+   * Runs this stream on the specified platform. Any streams that are composed
+   * after this one will be run on the previous executor.
+   */
+  def onPlatform(platform: => Platform): ZStream[R, E, O] =
+    ZStream.fromZIO(ZIO.platform).flatMap { currentPlatform =>
+      ZStream.managed(ZManaged.onPlatform(platform)) *>
+        self <*
+        ZStream.fromZIO(ZIO.setPlatform(currentPlatform))
+    }
 
   /**
    * Switches to the provided stream in case this one fails with a typed error.
@@ -3337,6 +3357,12 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     new ZStream.UpdateService[R, E, O, M](self)
 
   /**
+   * Updates a service at the specified key in the environment of this effect.
+   */
+  final def updateServiceAt[Service]: ZStream.UpdateServiceAt[R, E, O, Service] =
+    new ZStream.UpdateServiceAt[R, E, O, Service](self)
+
+  /**
    * Threads the stream through the transformation function `f`.
    */
   final def via[R2, E2, O2](f: ZStream[R, E, O] => ZStream[R2, E2, O2]): ZStream[R2, E2, O2] = f(self)
@@ -3726,7 +3752,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * back to the previous executor.
    */
   def blocking[R, E, A](stream: ZStream[R, E, A]): ZStream[R, E, A] =
-    ZStream.fromZIO(ZIO.blockingExecutor).flatMap(stream.lock)
+    ZStream.fromZIO(ZIO.blockingExecutor).flatMap(stream.onExecutor)
 
   /**
    * Creates a stream from a single value that will get cleaned up after the
@@ -4483,6 +4509,13 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     ZStream.access(_.get[A])
 
   /**
+   * Accesses the service corresponding to the specified key in the
+   * environment.
+   */
+  def serviceAt[Service]: ZStream.ServiceAtPartiallyApplied[Service] =
+    new ZStream.ServiceAtPartiallyApplied[Service]
+
+  /**
    * Accesses the specified services in the environment of the effect.
    */
   @deprecated("use service", "2.0.0")
@@ -4685,6 +4718,13 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       ZStream.environment[R].flatMap(f)
   }
 
+  final class ServiceAtPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
+    def apply[Key](
+      key: => Key
+    )(implicit tag: Tag[Map[Key, Service]]): ZStream[HasMany[Key, Service], Nothing, Option[Service]] =
+      ZStream.access(_.getAt(key))
+  }
+
   final class ServiceWithPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
     def apply[E, A](f: Service => ZIO[Has[Service], E, A])(implicit
       tag: Tag[Service]
@@ -4744,6 +4784,13 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   final class UpdateService[-R, +E, +O, M](private val self: ZStream[R, E, O]) extends AnyVal {
     def apply[R1 <: R with Has[M]](f: M => M)(implicit ev: Has.IsHas[R1], tag: Tag[M]): ZStream[R1, E, O] =
       self.provideSome(ev.update(_, f))
+  }
+
+  final class UpdateServiceAt[-R, +E, +A, Service](private val self: ZStream[R, E, A]) extends AnyVal {
+    def apply[R1 <: R with HasMany[Key, Service], Key](key: => Key)(
+      f: Service => Service
+    )(implicit ev: Has.IsHas[R1], tag: Tag[Map[Key, Service]]): ZStream[R1, E, A] =
+      self.provideSome(ev.updateAt(_, key, f))
   }
 
   /**

@@ -15,7 +15,7 @@ Let's see how the `UIO` type alias is defined:
 import zio.ZIO
 ```
 
-```scala mdoc:silent
+```scala
 type UIO[+A] = ZIO[Any, Nothing, A]
 ```
 

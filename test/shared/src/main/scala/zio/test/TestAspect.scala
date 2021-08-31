@@ -470,32 +470,15 @@ object TestAspect extends TimeoutVariants {
     if (TestPlatform.isJVM) identity else ignore
 
   /**
-   * An aspect that runs each test with the maximum number of shrinkings to
-   * minimize large failures set to the specified value.
+   * An aspect that runs only on operating systems accepted by the specified predicate.
    */
-  def shrinks(n: Int): TestAspectAtLeastR[Has[TestConfig]] =
-    new PerTest.AtLeastR[Has[TestConfig]] {
-      def perTest[R <: Has[TestConfig], E](
-        test: ZIO[R, TestFailure[E], TestSuccess]
-      ): ZIO[R, TestFailure[E], TestSuccess] =
-        test.updateService[TestConfig] { old =>
-          new TestConfig {
-            val repeats = old.repeats
-            val retries = old.retries
-            val samples = old.samples
-            val shrinks = n
-          }
-        }
-    }
+  def os(f: zio.internal.Platform.OS => Boolean): TestAspectAtLeastR[Has[Annotations]] =
+    if (f(zio.internal.Platform.os)) identity else ignore
 
   /**
-   * An aspect that runs each test with the size set to the specified value.
+   * Runs only on Mac operating systems.
    */
-  def sized(n: Int): TestAspectAtLeastR[Has[Sized]] =
-    new PerTest.AtLeastR[Has[Sized]] {
-      def perTest[R <: Has[Sized], E](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] =
-        Sized.withSize(n)(test)
-    }
+  val mac: TestAspectAtLeastR[Has[Annotations]] = os(_.isMac)
 
   /**
    * An aspect that applies the specified aspect on ScalaNative.
@@ -800,6 +783,25 @@ object TestAspect extends TimeoutVariants {
     before(TestRandom.setSeed(seed))
 
   /**
+   * An aspect that runs each test with the maximum number of shrinkings to
+   * minimize large failures set to the specified value.
+   */
+  def shrinks(n: Int): TestAspectAtLeastR[Has[TestConfig]] =
+    new PerTest.AtLeastR[Has[TestConfig]] {
+      def perTest[R <: Has[TestConfig], E](
+        test: ZIO[R, TestFailure[E], TestSuccess]
+      ): ZIO[R, TestFailure[E], TestSuccess] =
+        test.updateService[TestConfig] { old =>
+          new TestConfig {
+            val repeats = old.repeats
+            val retries = old.retries
+            val samples = old.samples
+            val shrinks = n
+          }
+        }
+    }
+
+  /**
    * An aspect that runs each test with the [[zio.test.environment.TestConsole TestConsole]] instance in the
    * environment set to silent mode so that console output is only written to
    * the output buffer and not rendered to standard output.
@@ -810,6 +812,15 @@ object TestAspect extends TimeoutVariants {
         test: ZIO[R, TestFailure[E], TestSuccess]
       ): ZIO[R, TestFailure[E], TestSuccess] =
         TestConsole.silent(test)
+    }
+
+  /**
+   * An aspect that runs each test with the size set to the specified value.
+   */
+  def sized(n: Int): TestAspectAtLeastR[Has[Sized]] =
+    new PerTest.AtLeastR[Has[Sized]] {
+      def perTest[R <: Has[Sized], E](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] =
+        Sized.withSize(n)(test)
     }
 
   /**
@@ -872,12 +883,22 @@ object TestAspect extends TimeoutVariants {
         test <* ZTest(condition)
     }
 
+  /**
+   * Runs only on Unix / Linux operating systems.
+   */
+  val unix: TestAspectAtLeastR[Has[Annotations]] = os(_.isUnix)
+
   val untraced: TestAspectPoly = new PerTest[Nothing, Any, Nothing, Any] {
     override def perTest[R >: Nothing <: Any, E >: Nothing <: Any](
       test: ZIO[R, TestFailure[E], TestSuccess]
     ): ZIO[R, TestFailure[E], TestSuccess] =
       test.untraced
   }
+
+  /**
+   * Runs only on Windows operating systems.
+   */
+  val windows: TestAspectAtLeastR[Has[Annotations]] = os(_.isWindows)
 
   abstract class PerTest[+LowerR, -UpperR, +LowerE, -UpperE] extends TestAspect[LowerR, UpperR, LowerE, UpperE] {
 
@@ -907,4 +928,5 @@ object TestAspect extends TimeoutVariants {
      */
     type Poly = TestAspect.PerTest[Nothing, Any, Nothing, Any]
   }
+
 }

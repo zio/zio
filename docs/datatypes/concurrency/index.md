@@ -45,19 +45,19 @@ import zio.UIO
 ```
 
 ```scala mdoc:silent
-  final case class Ref[A](value: AtomicReference[A]) { self =>
-    def modify[B](f: A => (B, A)): UIO[B] = UIO.succeed {
-      var loop = true
-      var b: B = null.asInstanceOf[B]
-      while (loop) {
-        val current = value.get
-        val tuple   = f(current)
-        b = tuple._1
-        loop = !value.compareAndSet(current, tuple._2)
-      }
-      b
+case class Ref[A](value: AtomicReference[A]) { self =>
+  def modify[B](f: A => (B, A)): UIO[B] = UIO.succeed {
+    var loop = true
+    var b: B = null.asInstanceOf[B]
+    while (loop) {
+      val current = value.get
+      val tuple   = f(current)
+      b = tuple._1
+      loop = !value.compareAndSet(current, tuple._2)
     }
- }
+    b
+  }
+}
 ```
 
 The idea behind the `modify` is that a variable is only updated if it still has the same value as the time we had read the value from the original memory location. If the value has changed, it retries in the while loop until it succeeds. 

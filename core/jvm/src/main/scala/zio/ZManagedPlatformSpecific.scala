@@ -29,7 +29,7 @@ private[zio] trait ZManagedPlatformSpecific {
    * `release` action.
    */
   val blocking: ZManaged[Any, Nothing, Unit] =
-    ZIO.blockingExecutor.toManaged.flatMap(executor => ZManaged.lock(executor))
+    ZIO.blockingExecutor.toManaged.flatMap(executor => ZManaged.onExecutor(executor))
 
   def readFile(path: Path): ZManaged[Any, IOException, ZInputStream] =
     readFile(path.toString())

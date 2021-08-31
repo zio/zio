@@ -53,19 +53,62 @@ object ZIOAspect {
   /**
    * As aspect that runs effects on the specified `Executor`.
    */
+  @deprecated("use onExecutor", "2.0.0")
   def lock(executor: Executor): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
+    onExecutor(executor)
+
+  /**
+   * An aspect that logs values by using [[ZIO.log]].
+   */
+  val logged: ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
     new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
       def apply[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
-        zio.lock(executor)
+        zio.tap(value => ZIO.log(String.valueOf(value)))
+    }
+
+  /**
+   * An aspect that logs values using a specified user-defined prefix label,
+   * using [[ZIO.log]].
+   */
+  def logged(label: String): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
+    new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
+      override def apply[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+        zio.tap(value => ZIO.log(label + ": " + String.valueOf(value)))
+    }
+
+  /**
+   * An aspect that logs values using a specified function that convers the value
+   * into a log message. The log message is logged using [[ZIO.log]].
+   */
+  def loggedWith[A](f: A => String): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, A] =
+    new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, A] {
+      override def apply[R, E, A0 <: A](zio: ZIO[R, E, A0]): ZIO[R, E, A0] =
+        zio.tap(value => ZIO.log(f(value)))
     }
 
   /**
    * As aspect that runs effects on the specified `ExecutionContext`.
    */
+  @deprecated("use onExecutionContext", "2.0.0")
   def lockExecutionContext(ec: ExecutionContext): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
+    onExecutionContext(ec)
+
+  /**
+   * As aspect that runs effects on the specified `ExecutionContext`.
+   */
+  def onExecutionContext(ec: ExecutionContext): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
     new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
       def apply[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
-        zio.lockExecutionContext(ec)
+        zio.onExecutionContext(ec)
+    }
+
+  /**
+   * As aspect that runs effects on the specified `Executor`.
+   */
+  def onExecutor(executor: Executor): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
+    new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
+      def apply[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+        zio.onExecutor(executor)
     }
 
   /**

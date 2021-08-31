@@ -428,7 +428,7 @@ object ZIOSpec extends ZIOBaseSpec {
         }
         for {
           default <- ZIO.executor
-          global  <- ZIO.executor.lock(executor)
+          global  <- ZIO.executor.onExecutor(executor)
         } yield assert(default)(not(equalTo(global)))
       }
     ),
@@ -1363,12 +1363,12 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(ZIO.fail("Fail").left.exit)(fails(isLeft(equalTo("Fail"))))
       } @@ zioTag(errors)
     ),
-    suite("lock")(
+    suite("onExecutor")(
       test("effects continue on current executor if no executor is specified") {
         val global = zio.internal.Executor
           .fromExecutionContext(Platform.defaultYieldOpCount)(scala.concurrent.ExecutionContext.global)
         for {
-          _        <- ZIO.unit.lock(global)
+          _        <- ZIO.unit.onExecutor(global)
           executor <- ZIO.descriptor.map(_.executor)
         } yield assert(executor)(equalTo(global))
       },
@@ -1377,10 +1377,10 @@ object ZIOSpec extends ZIOBaseSpec {
         val global = zio.internal.Executor
           .fromExecutionContext(Platform.defaultYieldOpCount)(scala.concurrent.ExecutionContext.global)
         val effect = for {
-          _        <- ZIO.unit.lock(global)
+          _        <- ZIO.unit.onExecutor(global)
           executor <- ZIO.descriptor.map(_.executor)
         } yield assert(executor)(equalTo(default))
-        effect.lock(default)
+        effect.onExecutor(default)
       }
     ),
     suite("loop")(
@@ -3286,7 +3286,7 @@ object ZIOSpec extends ZIOBaseSpec {
           parentPool <- pool
           childPool  <- pool.fork.flatMap(_.join)
         } yield assert(parentPool)(equalTo(childPool))
-        io.lock(executor)
+        io.onExecutor(executor)
       } @@ jvm(nonFlaky(100))
     ),
     suite("serviceWith")(
@@ -3353,11 +3353,11 @@ object ZIOSpec extends ZIOBaseSpec {
         }
       }
     ),
-    suite("tapCause")(
+    suite("tapErrorCause")(
       test("effectually peeks at the cause of the failure of this effect") {
         for {
           ref    <- Ref.make(false)
-          result <- ZIO.dieMessage("die").tapCause(_ => ref.set(true)).exit
+          result <- ZIO.dieMessage("die").tapErrorCause(_ => ref.set(true)).exit
           effect <- ref.get
         } yield assert(result)(dies(hasMessage(equalTo("die")))) &&
           assert(effect)(isTrue)
@@ -3948,6 +3948,14 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield {
           assert(value)(equalTo("Controlling side-effect of function passed to promise"))
         }
+      },
+      test("onPlatform") {
+        for {
+          platform <- ZIO.platform
+          global   <- ZIO.onPlatform(Platform.global)(ZIO.platform)
+          default  <- ZIO.platform
+        } yield assert(global)(equalTo(Platform.global)) &&
+          assert(default)(equalTo(platform))
       }
     )
   )

@@ -3,7 +3,7 @@ package zio
 import zio.Cause.Interrupt
 import zio.Exit.Failure
 import zio.ZManaged.ReleaseMap
-import zio.internal.Executor
+import zio.internal.{Executor, Platform}
 import zio.test.Assertion._
 import zio.test.TestAspect.{nonFlaky, scala2Only}
 import zio.test._
@@ -478,17 +478,17 @@ object ZManagedSpec extends ZIOBaseSpec {
         ZIO.succeed(assertCompletes)
       }
     ),
-    suite("lock")(
-      test("locks acquire, use, and release actions to the specified executor") {
+    suite("onExecutor")(
+      test("runs acquire, use, and release actions on the specified executor") {
         val executor: UIO[Executor] = ZIO.descriptorWith(descriptor => ZIO.succeedNow(descriptor.executor))
         val global                  = Executor.fromExecutionContext(100)(ExecutionContext.global)
         for {
           default <- executor
           ref1    <- Ref.make[Executor](default)
           ref2    <- Ref.make[Executor](default)
-          managed  = ZManaged.acquireRelease(executor.flatMap(ref1.set))(executor.flatMap(ref2.set)).lock(global)
+          managed  = ZManaged.acquireRelease(executor.flatMap(ref1.set))(executor.flatMap(ref2.set)).onExecutor(global)
           before  <- executor
-          use     <- managed.useDiscard(executor).lock(before)
+          use     <- managed.useDiscard(executor).onExecutor(before)
           acquire <- ref1.get
           release <- ref2.get
           after   <- executor
@@ -505,7 +505,7 @@ object ZManagedSpec extends ZIOBaseSpec {
           default <- executor
           ref1    <- Ref.make[Executor](default)
           ref2    <- Ref.make[Executor](default)
-          managed  = ZManaged.acquireRelease(executor.flatMap(ref1.set))(executor.flatMap(ref2.set)).lock(global)
+          managed  = ZManaged.acquireRelease(executor.flatMap(ref1.set))(executor.flatMap(ref2.set)).onExecutor(global)
           before  <- executor
           use     <- managed.useDiscard(executor)
           acquire <- ref1.get
@@ -596,6 +596,27 @@ object ZManagedSpec extends ZIOBaseSpec {
           finalizers <- finalizersRef.get
           result     <- resultRef.get
         } yield assert(finalizers)(equalTo(List("Second", "First"))) && assert(result)(isSome(succeeds(equalTo("42"))))
+      }
+    ),
+    suite("onPlatform")(
+      test("runs acquire, use, and release actions on the specified platform") {
+        val platform: UIO[Platform] = ZIO.platform
+        val global                  = Platform.global
+        for {
+          default <- platform
+          ref1    <- Ref.make[Platform](default)
+          ref2    <- Ref.make[Platform](default)
+          managed  = ZManaged.acquireRelease(platform.flatMap(ref1.set))(platform.flatMap(ref2.set)).onPlatform(global)
+          before  <- platform
+          use     <- managed.useDiscard(platform)
+          acquire <- ref1.get
+          release <- ref2.get
+          after   <- platform
+        } yield assert(before)(equalTo(default)) &&
+          assert(acquire)(equalTo(global)) &&
+          assert(use)(equalTo(global)) &&
+          assert(release)(equalTo(global)) &&
+          assert(after)(equalTo(default))
       }
     ),
     suite("option")(
@@ -1173,11 +1194,11 @@ object ZManagedSpec extends ZIOBaseSpec {
         ).useNow
       }
     ),
-    suite("tapCause")(
+    suite("tapErrorCause")(
       test("effectually peeks at the cause of the failure of the acquired resource") {
         (for {
           ref    <- Ref.make(false).toManaged
-          result <- ZManaged.dieMessage("die").tapCause(_ => ref.set(true).toManaged).exit
+          result <- ZManaged.dieMessage("die").tapErrorCause(_ => ref.set(true).toManaged).exit
           effect <- ref.get.toManaged
         } yield assert(result)(dies(hasMessage(equalTo("die")))) &&
           assert(effect)(isTrue)).useNow
