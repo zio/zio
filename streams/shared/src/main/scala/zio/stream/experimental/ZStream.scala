@@ -1,7 +1,7 @@
 package zio.stream.experimental
 
 import zio._
-import zio.internal.{Executor, SingleThreadedRingBuffer, UniqueKey}
+import zio.internal.{Executor, Platform, SingleThreadedRingBuffer, UniqueKey}
 import zio.stm._
 import zio.stream.experimental.ZStream.{DebounceState, HandoffSignal}
 import zio.stream.experimental.internal.Utils.zipChunks
@@ -2208,6 +2208,17 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
           if (descriptor.isLocked) ZIO.shift(descriptor.executor)
           else ZIO.unshift
         }
+    }
+
+  /**
+   * Runs this stream on the specified platform. Any streams that are composed
+   * after this one will be run on the previous executor.
+   */
+  def onPlatform(platform: => Platform): ZStream[R, E, A] =
+    ZStream.fromZIO(ZIO.platform).flatMap { currentPlatform =>
+      ZStream.managed(ZManaged.onPlatform(platform)) *>
+        self <*
+        ZStream.fromZIO(ZIO.setPlatform(currentPlatform))
     }
 
   /**

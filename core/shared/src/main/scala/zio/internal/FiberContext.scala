@@ -30,7 +30,7 @@ import scala.annotation.{switch, tailrec}
  */
 private[zio] final class FiberContext[E, A](
   protected val fiberId: Fiber.Id,
-  platform: Platform,
+  var platform: Platform,
   startEnv: AnyRef,
   startExec: Executor,
   startLocked: Boolean,
@@ -38,7 +38,6 @@ private[zio] final class FiberContext[E, A](
   parentTrace: Option[ZTrace],
   initialTracingStatus: Boolean,
   var fiberRefLocals: FiberRefLocals,
-  supervisor0: Supervisor[Any],
   openScope: ZScope.Open[Exit[E, A]],
   reportFailure: Cause[Any] => Unit
 ) extends Fiber.Runtime.Internal[E, A]
@@ -62,7 +61,6 @@ private[zio] final class FiberContext[E, A](
   private[this] var currentEnvironment       = startEnv
   private[this] var currentExecutor          = startExec
   private[this] var currentLocked            = startLocked
-  private[this] var currentSupervisor        = supervisor0
   private[this] var currentForkScopeOverride = Option.empty[ZScope[Exit[Any, Any]]]
 
   var scopeKey: ZScope.Key = null
@@ -657,12 +655,12 @@ private[zio] final class FiberContext[E, A](
                   case ZIO.Tags.Supervise =>
                     val zio = curZio.asInstanceOf[ZIO.Supervise[Any, Any, Any]]
 
-                    val oldSupervisor = currentSupervisor
+                    val oldSupervisor = platform.supervisor
                     val newSupervisor = zio.supervisor ++ oldSupervisor
 
-                    currentSupervisor = newSupervisor
+                    platform = platform.copy(supervisor = newSupervisor)
 
-                    ensure(ZIO.succeed { currentSupervisor = oldSupervisor })
+                    ensure(ZIO.succeed { platform = platform.copy(supervisor = oldSupervisor) })
 
                     curZio = zio.zio
 
@@ -710,6 +708,13 @@ private[zio] final class FiberContext[E, A](
                     platform.logger(currentLocation, fiberId, logLevel, zio.message, contextMap, spans)
 
                     curZio = nextInstr(())
+
+                  case ZIO.Tags.SetPlatform =>
+                    val zio = curZio.asInstanceOf[ZIO.SetPlatform]
+
+                    platform = zio.platform()
+
+                    curZio = ZIO.unit
                 }
               }
             } else {
@@ -792,7 +797,6 @@ private[zio] final class FiberContext[E, A](
     val parentScope = (forkScope orElse currentForkScopeOverride).getOrElse(scope)
 
     val currentEnv = currentEnvironment
-    val currentSup = currentSupervisor
 
     val childId = Fiber.newFiberId()
 
@@ -808,15 +812,14 @@ private[zio] final class FiberContext[E, A](
       ancestry,
       tracingRegion,
       new AtomicReference(childFiberRefLocals),
-      currentSup,
       childScope,
       reportFailure.getOrElse(platform.reportFailure)
     )
 
-    if (currentSup ne Supervisor.none) {
-      currentSup.unsafeOnStart(currentEnv, zio, Some(self), childContext)
+    if (platform.supervisor ne Supervisor.none) {
+      platform.supervisor.unsafeOnStart(currentEnv, zio, Some(self), childContext)
 
-      childContext.onDone(exit => currentSup.unsafeOnEnd(exit.flatten, childContext))
+      childContext.onDone(exit => platform.supervisor.unsafeOnEnd(exit.flatten, childContext))
     }
 
     val childZio = if (parentScope ne ZScope.global) {

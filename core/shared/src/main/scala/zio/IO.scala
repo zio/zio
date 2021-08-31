@@ -1038,6 +1038,12 @@ object IO {
     ZIO.onExecutor(executor)(io)
 
   /**
+   *  @see See [[zio.ZIO.onPlatform]]
+   */
+  def onPlatform[E, A](platform: => Platform)(io: => IO[E, A]): IO[E, A] =
+    ZIO.onPlatform(platform)(io)
+
+  /**
    * @see See [[zio.ZIO.partition]]
    */
   def partition[E, A, B](in: Iterable[A])(f: A => IO[E, B])(implicit ev: CanFail[E]): UIO[(Iterable[E], Iterable[B])] =
@@ -1058,6 +1064,12 @@ object IO {
     n: Int
   )(in: Iterable[A])(f: A => IO[E, B])(implicit ev: CanFail[E]): UIO[(Iterable[E], Iterable[B])] =
     ZIO.partitionParN(n)(in)(f)
+
+  /**
+   * @see See [[zio.ZIO.platform]]
+   */
+  val platform: UIO[Platform] =
+    ZIO.platform
 
   /**
    * @see See [[zio.ZIO.raceAll]]

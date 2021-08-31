@@ -1026,6 +1026,12 @@ object Task extends TaskPlatformSpecific {
     ZIO.onExecutor(executor)(task)
 
   /**
+   *  @see See [[zio.ZIO.onPlatform]]
+   */
+  def onPlatform[A](platform: => Platform)(task: => Task[A]): Task[A] =
+    ZIO.onPlatform(platform)(task)
+
+  /**
    * @see See [[zio.ZIO.partition]]
    */
   def partition[A, B](in: Iterable[A])(f: A => Task[B]): Task[(Iterable[Throwable], Iterable[B])] =
@@ -1042,6 +1048,12 @@ object Task extends TaskPlatformSpecific {
    */
   def partitionParN[A, B](n: Int)(in: Iterable[A])(f: A => Task[B]): Task[(Iterable[Throwable], Iterable[B])] =
     ZIO.partitionParN(n)(in)(f)
+
+  /**
+   * @see See [[zio.ZIO.platform]]
+   */
+  val platform: UIO[Platform] =
+    ZIO.platform
 
   /**
    * @see See [[zio.ZIO.raceAll]]
