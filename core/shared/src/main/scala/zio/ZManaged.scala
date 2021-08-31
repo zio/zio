@@ -2671,7 +2671,7 @@ object ZManaged extends ZManagedPlatformSpecific {
       case None           => ZIO.unshift
     }.unit
 
- /**
+  /**
    * Returns a managed effect that describes setting the platform to the
    * specified value as the `acquire` action and setting it back to the
    * original platform as the `release` action.

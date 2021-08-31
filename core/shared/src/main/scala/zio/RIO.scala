@@ -1081,7 +1081,7 @@ object RIO {
    */
   def onExecutor[R, A](executor: => Executor)(taskr: RIO[R, A]): RIO[R, A] =
     ZIO.onExecutor(executor)(taskr)
-  
+
   /**
    *  @see See [[zio.ZIO.onPlatform]]
    */
