@@ -3948,6 +3948,14 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield {
           assert(value)(equalTo("Controlling side-effect of function passed to promise"))
         }
+      },
+      test("onPlatform") {
+        for {
+          platform <- ZIO.platform
+          global   <- ZIO.onPlatform(Platform.global)(ZIO.platform)
+          default  <- ZIO.platform
+        } yield assert(global)(equalTo(Platform.global)) &&
+          assert(default)(equalTo(platform))
       }
     )
   )

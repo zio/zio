@@ -17,7 +17,7 @@
 package zio
 
 import zio.ZManaged.ReleaseMap
-import zio.internal.Executor
+import zio.internal.{Executor, Platform}
 
 import scala.collection.immutable.LongMap
 import scala.concurrent.ExecutionContext
@@ -624,6 +624,14 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
         } yield (releaseMapEntry, a)
       }
     }
+
+  /**
+   * Runs this managed effect on the specified platform, guaranteeing that
+   * this managed effect as well as managed effects that are composed
+   * sequentially after it will be run on the specified platform.
+   */
+  final def onPlatform(platform: => Platform): ZManaged[R, E, A] =
+    ZManaged.onPlatform(platform) *> self
 
   /**
    * Executes this effect, skipping the error but returning optionally the success.
@@ -2637,6 +2645,16 @@ object ZManaged extends ZManagedPlatformSpecific {
    */
   val none: Managed[Nothing, Option[Nothing]] =
     succeedNow(None)
+
+  /**
+   * Returns a managed effect that describes setting the platform to the
+   * specified value as the `acquire` action and setting it back to the
+   * original platform as the `release` action.
+   */
+  def onPlatform(platform: => Platform): ZManaged[Any, Nothing, Unit] =
+    ZManaged.fromZIO(ZIO.platform).flatMap { currentPlatform =>
+      ZManaged.acquireRelease(ZIO.setPlatform(platform))(ZIO.setPlatform(currentPlatform))
+    }
 
   /**
    * A scope in which resources can be safely preallocated. Passing a [[ZManaged]]

@@ -292,7 +292,6 @@ trait Runtime[+R] {
       None,
       PlatformConstants.tracingSupported,
       new java.util.concurrent.atomic.AtomicReference(Map.empty),
-      supervisor,
       scope,
       platform.reportFailure
     )
