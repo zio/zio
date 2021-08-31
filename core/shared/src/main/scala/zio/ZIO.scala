@@ -943,7 +943,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def forkOn(
     ec: ExecutionContext
-  ): ZIO[R, E, Fiber.Runtime[E, A]] = self.lockExecutionContext(ec).fork
+  ): ZIO[R, E, Fiber.Runtime[E, A]] = self.onExecutionContext(ec).fork
 
   /**
    * Like fork but handles an error with the provided handler.
@@ -1069,15 +1069,17 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * composed with this one, making it easy to compositionally reason about
    * where effects are running.
    */
+  @deprecated("use onExecutor", "2.0.0")
   final def lock(executor: Executor): ZIO[R, E, A] =
-    ZIO.lock(executor)(self)
+    onExecutor(executor)
 
   /**
    * Executes the effect on the specified `ExecutionContext` and then shifts back
    * to the default one.
    */
+  @deprecated("use onExecutionContext", "2.0.0")
   final def lockExecutionContext(ec: ExecutionContext): ZIO[R, E, A] =
-    self.lock(Executor.fromExecutionContext(Int.MaxValue)(ec))
+    onExecutionContext(ec)
 
   /**
    * Returns an effect whose success is mapped by the specified `f` function.
@@ -1162,7 +1164,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   @deprecated("use lockExecutionContext", "2.0.0")
   final def on(ec: ExecutionContext): ZIO[R, E, A] =
-    self.lockExecutionContext(ec)
+    self.onExecutionContext(ec)
 
   /**
    * Returns an effect that will be executed at most once, even if it is
@@ -1180,6 +1182,30 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
       case Exit.Success(_)     => UIO.unit
       case Exit.Failure(cause) => cleanup(cause)
     }
+
+  /**
+   * Returns an effect which is guaranteed to be executed on the specified
+   * executor. The specified effect will always run on the specified executor,
+   * even in the presence of asynchronous boundaries.
+   *
+   * This is useful when an effect must be executed somewhere, for example:
+   * on a UI thread, inside a client library's thread pool, inside a blocking
+   * thread pool, inside a low-latency thread pool, or elsewhere.
+   *
+   * The `onExecutor` function composes with the innermost `onExecutor` taking
+   * priority. Use of this method does not alter the execution semantics of
+   * other effects composed with this one, making it easy to compositionally
+   * reason about where effects are running.
+   */
+  final def onExecutor(executor: Executor): ZIO[R, E, A] =
+    ZIO.onExecutor(executor)(self)
+
+  /**
+   * Executes the effect on the specified `ExecutionContext` and then shifts back
+   * to the default one.
+   */
+  final def onExecutionContext(ec: ExecutionContext): ZIO[R, E, A] =
+    self.onExecutor(Executor.fromExecutionContext(Int.MaxValue)(ec))
 
   /**
    * Ensures that a cleanup functions runs, whether this effect succeeds,
@@ -2794,7 +2820,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Locks the specified effect to the blocking thread pool.
    */
   def blocking[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
-    ZIO.blockingExecutor.flatMap(zio.lock)
+    ZIO.blockingExecutor.flatMap(zio.onExecutor)
 
   /**
    * Retrieves the executor for all blocking tasks.
@@ -4183,11 +4209,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * provided executor, before returning to the default executor. See
    * [[ZIO!.lock]].
    */
+  @deprecated("use onExecutor", "2.0.0")
   def lock[R, E, A](executor: => Executor)(zio: ZIO[R, E, A]): ZIO[R, E, A] =
-    ZIO.descriptorWith { descriptor =>
-      if (descriptor.isLocked) ZIO.shift(executor).acquireRelease(ZIO.shift(descriptor.executor), zio)
-      else ZIO.shift(executor).acquireRelease(ZIO.unshift, zio)
-    }
+    onExecutor(executor)(zio)
 
   /**
    * Loops with the specified effectual function, collecting the results into a
@@ -4494,6 +4518,17 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     getOrFailUnit(o).flip.mapError(f)
 
   /**
+   * Returns an effect that will execute the specified effect fully on the
+   * provided executor, before returning to the default executor. See
+   * [[ZIO!.onExecutor]].
+   */
+  def onExecutor[R, E, A](executor: => Executor)(zio: ZIO[R, E, A]): ZIO[R, E, A] =
+    ZIO.descriptorWith { descriptor =>
+      if (descriptor.isLocked) ZIO.shift(executor).acquireRelease(ZIO.shift(descriptor.executor), zio)
+      else ZIO.shift(executor).acquireRelease(ZIO.unshift, zio)
+    }
+
+  /**
    * Feeds elements of type `A` to a function `f` that returns an effect.
    * Collects all successes and failures in a tupled fashion.
    */
@@ -4756,7 +4791,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * is useful to specify a default executor that effects sequenced after this
    * one will be run on if they are not shifted somewhere else. It can also be
    * used to implement higher level operators to manage where an effect is run
-   * such as [[ZIO!.lock]] and [[ZIO!.on]].
+   * such as [[ZIO!.onExecutor]] and [[ZIO!.onExecutionContext]].
    */
   def shift(executor: Executor): UIO[Unit] =
     new ZIO.Shift(executor)

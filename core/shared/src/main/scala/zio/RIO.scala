@@ -954,8 +954,9 @@ object RIO {
   /**
    * @see See [[zio.ZIO.lock]]
    */
+  @deprecated("use onExecutor", "2.0.0")
   def lock[R, A](executor: => Executor)(taskr: RIO[R, A]): RIO[R, A] =
-    ZIO.lock(executor)(taskr)
+    ZIO.onExecutor(executor)(taskr)
 
   /**
    *  @see See [[zio.ZIO.loop]]
@@ -1074,6 +1075,12 @@ object RIO {
    */
   def not[R](effect: RIO[R, Boolean]): RIO[R, Boolean] =
     ZIO.not(effect)
+
+  /**
+   * @see See [[zio.ZIO.onExecutor]]
+   */
+  def onExecutor[R, A](executor: => Executor)(taskr: RIO[R, A]): RIO[R, A] =
+    ZIO.onExecutor(executor)(taskr)
 
   /**
    *  @see See [[zio.ZIO.onPlatform]]

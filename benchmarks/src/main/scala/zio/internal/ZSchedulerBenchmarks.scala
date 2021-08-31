@@ -166,7 +166,7 @@ class ZSchedulerBenchmarks {
       _       <- promise.await
     } yield 0
 
-    unsafeRun(io.lock(executor))
+    unsafeRun(io.onExecutor(executor))
   }
 
   def zioForkMany(executor: Executor): Int = {
@@ -179,7 +179,7 @@ class ZSchedulerBenchmarks {
       _       <- promise.await
     } yield 0
 
-    unsafeRun(io.lock(executor))
+    unsafeRun(io.onExecutor(executor))
   }
 
   def zioPingPong(executor: Executor): Int = {
@@ -200,7 +200,7 @@ class ZSchedulerBenchmarks {
       _       <- promise.await
     } yield 0
 
-    unsafeRun(io.lock(executor))
+    unsafeRun(io.onExecutor(executor))
   }
 
   def zioYieldMany(executor: Executor): Int = {
@@ -214,6 +214,6 @@ class ZSchedulerBenchmarks {
       _ <- promise.await
     } yield 0
 
-    unsafeRun(io.lock(executor))
+    unsafeRun(io.onExecutor(executor))
   }
 }

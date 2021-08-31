@@ -2028,15 +2028,9 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * that are composed after this one will automatically be shifted back to the
    * previous executor.
    */
+  @deprecated("use onExecutor", "2.0.0")
   def lock(executor: Executor): ZStream[R, E, O] =
-    ZStream.fromZIO(ZIO.descriptor).flatMap { descriptor =>
-      ZStream.managed(ZManaged.lock(executor)) *>
-        self <*
-        ZStream.fromZIO {
-          if (descriptor.isLocked) ZIO.shift(descriptor.executor)
-          else ZIO.unshift
-        }
-    }
+    onExecutor(executor)
 
   /**
    * Transforms the elements of this stream using the supplied function.
@@ -2368,6 +2362,21 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    */
   final def onError[R1 <: R](cleanup: Cause[E] => URIO[R1, Any]): ZStream[R1, E, O] =
     catchAllCause(cause => ZStream.fromZIO(cleanup(cause) *> ZIO.failCause(cause)))
+
+  /**
+   * Locks the execution of this stream to the specified executor. Any streams
+   * that are composed after this one will automatically be shifted back to the
+   * previous executor.
+   */
+  def onExecutor(executor: Executor): ZStream[R, E, O] =
+    ZStream.fromZIO(ZIO.descriptor).flatMap { descriptor =>
+      ZStream.managed(ZManaged.onExecutor(executor)) *>
+        self <*
+        ZStream.fromZIO {
+          if (descriptor.isLocked) ZIO.shift(descriptor.executor)
+          else ZIO.unshift
+        }
+    }
 
   /**
    * Runs this stream on the specified platform. Any streams that are composed
@@ -3743,7 +3752,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * back to the previous executor.
    */
   def blocking[R, E, A](stream: ZStream[R, E, A]): ZStream[R, E, A] =
-    ZStream.fromZIO(ZIO.blockingExecutor).flatMap(stream.lock)
+    ZStream.fromZIO(ZIO.blockingExecutor).flatMap(stream.onExecutor)
 
   /**
    * Creates a stream from a single value that will get cleaned up after the
