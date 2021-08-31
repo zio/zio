@@ -540,14 +540,32 @@ object ZSinkSpec extends ZIOBaseSpec {
         //          )
         //        })
         //      ),
-        // test("untilOutputZIO") {
-        //   val sink =
-        //     ZSink.head[Nothing, Int].untilOutputZIO(h => ZIO.succeed(h.fold(false)(_ >= 10)))
-        //   val assertions = ZIO.foreach(Chunk(1, 3, 7, 20)) { n =>
-        //     assertM(Stream.fromIterable(1 to 100).chunkN(n).run(sink))(equalTo(Some(Some(10))))
-        //   }
-        //   assertions.map(tst => tst.reduce(_ && _))
-        // },
+        test("untilOutputZIO with head sink") {
+          val sink: ZSink[Any, Nothing, Int, Nothing, Int, Option[Option[Int]]] =
+            ZSink.head[Nothing, Int].untilOutputZIO(h => ZIO.succeed(h.fold(false)(_ >= 10)))
+          val assertions = ZIO.foreach(Chunk(1, 3, 7, 20)) { n =>
+            assertM(ZStream.fromIterable(1 to 100).chunkN(n).run(sink))(equalTo(Some(Some(10))))
+          }
+          assertions.map(tst => tst.reduce(_ && _))
+        },
+        test("untilOutputZIO take sink across multiple chunks") {
+          val sink: ZSink[Any, Nothing, Int, Nothing, Int, Option[Chunk[Int]]] =
+            ZSink.take[Nothing, Int](4).untilOutputZIO(s => ZIO.succeed(s.sum > 10))
+
+          assertM(ZStream.fromIterable(1 to 8).chunkN(2).run(sink))(equalTo(Some(Chunk(5, 6, 7, 8))))
+        },
+        test("untilOutputZIO empty stream terminates with none") {
+          assertM(
+            ZStream.fromIterable(List.empty[Int]).run(ZSink.sum[Nothing, Int].untilOutputZIO(s => ZIO.succeed(s > 0)))
+          )(equalTo(None))
+        },
+        test("untilOutputZIO unsatisfied condition terminates with none") {
+          assertM(
+            ZStream
+              .fromIterable(List(1, 2))
+              .run(ZSink.head[Nothing, Int].untilOutputZIO(h => ZIO.succeed(h.fold(false)(_ >= 3))))
+          )(equalTo(None))
+        },
         suite("flatMap")(
           test("non-empty input") {
             assertM(
