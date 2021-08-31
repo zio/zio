@@ -1197,6 +1197,12 @@ object RIO {
     ZIO.service[A]
 
   /**
+   * @see See [[zio.ZIO.serviceAt]]
+   */
+  def serviceAt[Service]: ZIO.ServiceAtPartiallyApplied[Service] =
+    ZIO.serviceAt[Service]
+
+  /**
    * @see See [[zio.ZIO.services[A,B]*]]
    */
   @deprecated("use service", "2.0.0")

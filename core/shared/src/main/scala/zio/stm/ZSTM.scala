@@ -768,6 +768,12 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
     new ZSTM.UpdateService[R, E, A, M](self)
 
   /**
+   * Updates a service at the specified key in the environment of this effect.
+   */
+  final def updateServiceAt[Service]: ZSTM.UpdateServiceAt[R, E, A, Service] =
+    new ZSTM.UpdateServiceAt[R, E, A, Service](self)
+
+  /**
    * The moral equivalent of `if (p) exp`
    */
   def when(b: => Boolean): ZSTM[R, E, Unit] = ZSTM.when(b)(self)
@@ -1472,6 +1478,13 @@ object ZSTM {
     ZSTM.access(_.get[A])
 
   /**
+   * Accesses the service corresponding to the specified key in the
+   * environment.
+   */
+  def serviceAt[Service]: ZSTM.ServiceAtPartiallyApplied[Service] =
+    new ZSTM.ServiceAtPartiallyApplied[Service]
+
+  /**
    * Accesses the specified services in the environment of the effect.
    */
   @deprecated("use service", "2.0.0")
@@ -1627,6 +1640,13 @@ object ZSTM {
       ZSTM.environment.flatMap(f)
   }
 
+  final class ServiceAtPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
+    def apply[Key](
+      key: Key
+    )(implicit tag: Tag[Map[Key, Service]]): ZSTM[HasMany[Key, Service], Nothing, Option[Service]] =
+      ZSTM.access(_.getAt(key))
+  }
+
   final class ServiceWithPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
     def apply[E, A](f: Service => ZSTM[Has[Service], E, A])(implicit tag: Tag[Service]): ZSTM[Has[Service], E, A] =
       ZSTM.service[Service].flatMap(f)
@@ -1645,6 +1665,13 @@ object ZSTM {
   final class UpdateService[-R, +E, +A, M](private val self: ZSTM[R, E, A]) {
     def apply[R1 <: R with Has[M]](f: M => M)(implicit ev: Has.IsHas[R1], tag: Tag[M]): ZSTM[R1, E, A] =
       self.provideSome(ev.update(_, f))
+  }
+
+  final class UpdateServiceAt[-R, +E, +A, Service](private val self: ZSTM[R, E, A]) extends AnyVal {
+    def apply[R1 <: R with HasMany[Key, Service], Key](key: Key)(
+      f: Service => Service
+    )(implicit ev: Has.IsHas[R1], tag: Tag[Map[Key, Service]]): ZSTM[R1, E, A] =
+      self.provideSome(ev.updateAt(_, key, f))
   }
 
   final class WhenSTM[R, E](private val b: ZSTM[R, E, Boolean]) {

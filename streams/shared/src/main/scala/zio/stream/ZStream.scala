@@ -3348,6 +3348,12 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     new ZStream.UpdateService[R, E, O, M](self)
 
   /**
+   * Updates a service at the specified key in the environment of this effect.
+   */
+  final def updateServiceAt[Service]: ZStream.UpdateServiceAt[R, E, O, Service] =
+    new ZStream.UpdateServiceAt[R, E, O, Service](self)
+
+  /**
    * Threads the stream through the transformation function `f`.
    */
   final def via[R2, E2, O2](f: ZStream[R, E, O] => ZStream[R2, E2, O2]): ZStream[R2, E2, O2] = f(self)
@@ -4494,6 +4500,13 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     ZStream.access(_.get[A])
 
   /**
+   * Accesses the service corresponding to the specified key in the
+   * environment.
+   */
+  def serviceAt[Service]: ZStream.ServiceAtPartiallyApplied[Service] =
+    new ZStream.ServiceAtPartiallyApplied[Service]
+
+  /**
    * Accesses the specified services in the environment of the effect.
    */
   @deprecated("use service", "2.0.0")
@@ -4696,6 +4709,13 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       ZStream.environment[R].flatMap(f)
   }
 
+  final class ServiceAtPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
+    def apply[Key](
+      key: Key
+    )(implicit tag: Tag[Map[Key, Service]]): ZStream[HasMany[Key, Service], Nothing, Option[Service]] =
+      ZStream.access(_.getAt(key))
+  }
+
   final class ServiceWithPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
     def apply[E, A](f: Service => ZIO[Has[Service], E, A])(implicit
       tag: Tag[Service]
@@ -4755,6 +4775,13 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   final class UpdateService[-R, +E, +O, M](private val self: ZStream[R, E, O]) extends AnyVal {
     def apply[R1 <: R with Has[M]](f: M => M)(implicit ev: Has.IsHas[R1], tag: Tag[M]): ZStream[R1, E, O] =
       self.provideSome(ev.update(_, f))
+  }
+
+  final class UpdateServiceAt[-R, +E, +A, Service](private val self: ZStream[R, E, A]) extends AnyVal {
+    def apply[R1 <: R with HasMany[Key, Service], Key](key: Key)(
+      f: Service => Service
+    )(implicit ev: Has.IsHas[R1], tag: Tag[Map[Key, Service]]): ZStream[R1, E, A] =
+      self.provideSome(ev.updateAt(_, key, f))
   }
 
   /**

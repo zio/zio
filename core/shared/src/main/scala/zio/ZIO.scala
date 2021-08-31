@@ -2311,6 +2311,12 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     new ZIO.UpdateService[R, E, A, M](self)
 
   /**
+   * Updates a service at the specified key in the environment of this effect.
+   */
+  final def updateServiceAt[Service]: ZIO.UpdateServiceAt[R, E, A, Service] =
+    new ZIO.UpdateServiceAt[R, E, A, Service](self)
+
+  /**
    * The inverse operation to `sandbox`. Submerges the full cause of failure.
    */
   final def unsandbox[E1](implicit ev: E IsSubtypeOfError Cause[E1]): ZIO[R, E1, A] =
@@ -4706,6 +4712,13 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     ZIO.access(_.get[A])
 
   /**
+   * Accesses the service corresponding to the specified key in the
+   * environment.
+   */
+  def serviceAt[Service]: ServiceAtPartiallyApplied[Service] =
+    new ServiceAtPartiallyApplied[Service]
+
+  /**
    * Accesses the specified services in the environment of the effect.
    */
   @deprecated("use service", "2.0.0")
@@ -5146,6 +5159,13 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       self.provideSome(ev.update(_, f))
   }
 
+  final class UpdateServiceAt[-R, +E, +A, Service](private val self: ZIO[R, E, A]) extends AnyVal {
+    def apply[R1 <: R with HasMany[Key, Service], Key](key: Key)(
+      f: Service => Service
+    )(implicit ev: Has.IsHas[R1], tag: Tag[Map[Key, Service]]): ZIO[R1, E, A] =
+      self.provideSome(ev.updateAt(_, key, f))
+  }
+
   @implicitNotFound(
     "Pattern guards are only supported when the error type is a supertype of NoSuchElementException. However, your effect has ${E} for the error type."
   )
@@ -5267,6 +5287,13 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   final class AccessZIOPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[E, A](f: R => ZIO[R, E, A]): ZIO[R, E, A] =
       new ZIO.Read(f)
+  }
+
+  final class ServiceAtPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
+    def apply[Key](
+      key: Key
+    )(implicit tag: Tag[Map[Key, Service]]): URIO[HasMany[Key, Service], Option[Service]] =
+      ZIO.access(_.getAt(key))
   }
 
   final class ServiceWithPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
