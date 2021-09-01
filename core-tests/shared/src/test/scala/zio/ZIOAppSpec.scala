@@ -4,7 +4,7 @@ import zio.test._
 import zio.internal.PlatformAspect
 
 object ZIOAppSpec extends ZIOBaseSpec {
-  def spec = suite("ZIOAppSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("ZIOAppSpec")(
     test("fromEffect") {
       for {
         ref <- Ref.make(0)
