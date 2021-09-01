@@ -950,6 +950,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   /**
    * Forks an effect that will be executed on the specified `ExecutionContext`.
    */
+  @deprecated("use onExecutionContext(ec).fork", "2.0.0")
   final def forkOn(ec: => ExecutionContext): ZIO[R, E, Fiber.Runtime[E, A]] =
     self.onExecutionContext(ec).fork
 
