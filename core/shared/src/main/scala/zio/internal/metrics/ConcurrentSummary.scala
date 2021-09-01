@@ -32,7 +32,7 @@ object ConcurrentSummary {
       private[this] val count           = new LongAdder
       private[this] val currentCount    = new LongAdder
       private[this] val sum             = new DoubleAdder
-      private[this] val sortedQuantiles = quantiles.sorted(dblOrdering)
+      private[this] val sortedQuantiles = quantiles.sorted(DoubleOrdering)
 
       override def toString = s"ConcurrentSummary.manual(${getCount()}, ${getSum()})"
 
@@ -62,7 +62,7 @@ object ConcurrentSummary {
           builder += v
         }
 
-        calculateQuantiles(builder.result().sorted(dblOrdering))
+        calculateQuantiles(builder.result().sorted(DoubleOrdering))
       }
 
       // Assuming that the instant of observed values is continuously increasing
