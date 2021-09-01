@@ -4490,7 +4490,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
 
   final class ServiceAtPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
     def apply[Key](
-      key: Key
+      key: => Key
     )(implicit tag: Tag[Map[Key, Service]]): ZStream[HasMany[Key, Service], Nothing, Option[Service]] =
       ZStream.access(_.getAt(key))
   }
@@ -4550,7 +4550,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   }
 
   final class UpdateServiceAt[-R, +E, +A, Service](private val self: ZStream[R, E, A]) extends AnyVal {
-    def apply[R1 <: R with HasMany[Key, Service], Key](key: Key)(
+    def apply[R1 <: R with HasMany[Key, Service], Key](key: => Key)(
       f: Service => Service
     )(implicit ev: Has.IsHas[R1], tag: Tag[Map[Key, Service]]): ZStream[R1, E, A] =
       self.provideSome(ev.updateAt(_, key, f))

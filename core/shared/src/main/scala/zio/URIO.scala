@@ -25,13 +25,14 @@ object URIO {
   /**
    * @see [[zio.ZIO.absolve]]
    */
-  def absolve[R, A](v: URIO[R, Either[Nothing, A]]): URIO[R, A] =
+  def absolve[R, A](v: => URIO[R, Either[Nothing, A]]): URIO[R, A] =
     ZIO.absolve(v)
 
   /**
    * @see [[zio.ZIO.access]]
    */
-  def access[R]: ZIO.AccessPartiallyApplied[R] = ZIO.access[R]
+  def access[R]: ZIO.AccessPartiallyApplied[R] =
+    ZIO.access[R]
 
   /**
    * @see [[zio.ZIO.accessM]]
@@ -49,14 +50,14 @@ object URIO {
   /**
    * @see acquireReleaseWith in [[zio.ZIO]]
    */
-  def acquireReleaseWith[R, A](acquire: URIO[R, A]): ZIO.BracketAcquire[R, Nothing, A] =
+  def acquireReleaseWith[R, A](acquire: => URIO[R, A]): ZIO.BracketAcquire[R, Nothing, A] =
     ZIO.acquireReleaseWith(acquire)
 
   /**
    * @see acquireReleaseWith in [[zio.ZIO]]
    */
   def acquireReleaseWith[R, A, B](
-    acquire: URIO[R, A],
+    acquire: => URIO[R, A],
     release: A => URIO[R, Any],
     use: A => URIO[R, B]
   ): URIO[R, B] = ZIO.acquireReleaseWith(acquire, release, use)
@@ -64,14 +65,14 @@ object URIO {
   /**
    * @see acquireReleaseExitWith in [[zio.ZIO]]
    */
-  def acquireReleaseExitWith[R, A](acquire: URIO[R, A]): ZIO.BracketExitAcquire[R, Nothing, A] =
+  def acquireReleaseExitWith[R, A](acquire: => URIO[R, A]): ZIO.BracketExitAcquire[R, Nothing, A] =
     ZIO.acquireReleaseExitWith(acquire)
 
   /**
    * @see acquireReleaseExitWith in [[zio.ZIO]]
    */
   def acquireReleaseExitWith[R, A, B](
-    acquire: URIO[R, A],
+    acquire: => URIO[R, A],
     release: (A, Exit[Nothing, B]) => URIO[R, Any],
     use: A => URIO[R, B]
   ): URIO[R, B] = ZIO.acquireReleaseExitWith(acquire, release, use)
@@ -79,7 +80,8 @@ object URIO {
   /**
    * @see [[zio.ZIO.allowInterrupt]]
    */
-  def allowInterrupt: UIO[Unit] = ZIO.allowInterrupt
+  def allowInterrupt: UIO[Unit] =
+    ZIO.allowInterrupt
 
   /**
    * @see [[zio.ZIO.apply]]
@@ -90,7 +92,7 @@ object URIO {
   /**
    * @see [[zio.ZIO.async]]
    */
-  def async[R, A](register: (URIO[R, A] => Unit) => Any, blockingOn: Fiber.Id = Fiber.Id.None): URIO[R, A] =
+  def async[R, A](register: (URIO[R, A] => Unit) => Any, blockingOn: => Fiber.Id = Fiber.Id.None): URIO[R, A] =
     ZIO.async(register, blockingOn)
 
   /**
@@ -98,7 +100,7 @@ object URIO {
    */
   def asyncMaybe[R, A](
     register: (URIO[R, A] => Unit) => Option[URIO[R, A]],
-    blockingOn: Fiber.Id = Fiber.Id.None
+    blockingOn: => Fiber.Id = Fiber.Id.None
   ): URIO[R, A] =
     ZIO.asyncMaybe(register, blockingOn)
 
@@ -113,14 +115,14 @@ object URIO {
    */
   def asyncInterrupt[R, A](
     register: (URIO[R, A] => Unit) => Either[Canceler[R], URIO[R, A]],
-    blockingOn: Fiber.Id = Fiber.Id.None
+    blockingOn: => Fiber.Id = Fiber.Id.None
   ): URIO[R, A] =
     ZIO.asyncInterrupt(register, blockingOn)
 
   /**
    * @see See [[zio.ZIO.blocking]]
    */
-  def blocking[R, A](zio: URIO[R, A]): URIO[R, A] =
+  def blocking[R, A](zio: => URIO[R, A]): URIO[R, A] =
     ZIO.blocking(zio)
 
   /**
@@ -133,7 +135,7 @@ object URIO {
    * @see bracket in [[zio.ZIO]]
    */
   @deprecated("use acquireReleaseWith", "2.0.0")
-  def bracket[R, A](acquire: URIO[R, A]): ZIO.BracketAcquire[R, Nothing, A] =
+  def bracket[R, A](acquire: => URIO[R, A]): ZIO.BracketAcquire[R, Nothing, A] =
     ZIO.bracket(acquire)
 
   /**
@@ -141,7 +143,7 @@ object URIO {
    */
   @deprecated("use acquireReleaseWith", "2.0.0")
   def bracket[R, A, B](
-    acquire: URIO[R, A],
+    acquire: => URIO[R, A],
     release: A => URIO[R, Any],
     use: A => URIO[R, B]
   ): URIO[R, B] = ZIO.bracket(acquire, release, use)
@@ -150,7 +152,7 @@ object URIO {
    * @see bracketExit in [[zio.ZIO]]
    */
   @deprecated("use acquireReleaseExitWith", "2.0.0")
-  def bracketExit[R, A](acquire: URIO[R, A]): ZIO.BracketExitAcquire[R, Nothing, A] =
+  def bracketExit[R, A](acquire: => URIO[R, A]): ZIO.BracketExitAcquire[R, Nothing, A] =
     ZIO.bracketExit(acquire)
 
   /**
@@ -158,7 +160,7 @@ object URIO {
    */
   @deprecated("use acquireReleaseExitWith", "2.0.0")
   def bracketExit[R, A, B](
-    acquire: URIO[R, A],
+    acquire: => URIO[R, A],
     release: (A, Exit[Nothing, B]) => URIO[R, Any],
     use: A => URIO[R, B]
   ): URIO[R, B] =
@@ -225,16 +227,16 @@ object URIO {
     ZIO.collectAll(in)
 
   /**
-   * @see See [[[zio.ZIO.collectAll_[R,E,A](in:Iterable*]]]
+   * @see See [[zio.ZIO.collectAll_]]
    */
   @deprecated("use collectAllDiscard", "2.0.0")
-  def collectAll_[R, A](in: Iterable[URIO[R, A]]): URIO[R, Unit] =
+  def collectAll_[R, A](in: => Iterable[URIO[R, A]]): URIO[R, Unit] =
     ZIO.collectAll_(in)
 
   /**
-   * @see See [[[zio.ZIO.collectAllDiscard[R,E,A](in:Iterable*]]]
+   * @see See [[zio.ZIO.collectAllDiscard]]
    */
-  def collectAllDiscard[R, A](in: Iterable[URIO[R, A]]): URIO[R, Unit] =
+  def collectAllDiscard[R, A](in: => Iterable[URIO[R, A]]): URIO[R, Unit] =
     ZIO.collectAllDiscard(in)
 
   /**
@@ -264,22 +266,22 @@ object URIO {
     ZIO.collectAllPar(as)
 
   /**
-   * @see See [[[zio.ZIO.collectAllPar_[R,E,A](as:Iterable*]]]
+   * @see See [[zio.ZIO.collectAllPar_]]
    */
   @deprecated("use collectAllParDiscard", "2.0.0")
-  def collectAllPar_[R, A](in: Iterable[URIO[R, A]]): URIO[R, Unit] =
+  def collectAllPar_[R, A](in: => Iterable[URIO[R, A]]): URIO[R, Unit] =
     ZIO.collectAllPar_(in)
 
   /**
-   * @see See [[[zio.ZIO.collectAllParDiscard[R,E,A](as:Iterable*]]]
+   * @see See [[zio.ZIO.collectAllParDiscard]]
    */
-  def collectAllParDiscard[R, A](in: Iterable[URIO[R, A]]): URIO[R, Unit] =
+  def collectAllParDiscard[R, A](in: => Iterable[URIO[R, A]]): URIO[R, Unit] =
     ZIO.collectAllParDiscard(in)
 
   /**
    * @see See [[zio.ZIO.collectAllParN]]
    */
-  def collectAllParN[R, A, Collection[+Element] <: Iterable[Element]](n: Int)(
+  def collectAllParN[R, A, Collection[+Element] <: Iterable[Element]](n: => Int)(
     as: Collection[URIO[R, A]]
   )(implicit bf: BuildFrom[Collection[URIO[R, A]], A, Collection[A]]): URIO[R, Collection[A]] =
     ZIO.collectAllParN(n)(as)
@@ -288,13 +290,13 @@ object URIO {
    * @see See [[zio.ZIO.collectAllParN_]]
    */
   @deprecated("use collectAllParNDiscard", "2.0.0")
-  def collectAllParN_[R, A](n: Int)(as: Iterable[URIO[R, A]]): URIO[R, Unit] =
+  def collectAllParN_[R, A](n: => Int)(as: => Iterable[URIO[R, A]]): URIO[R, Unit] =
     ZIO.collectAllParN_(n)(as)
 
   /**
    * @see See [[zio.ZIO.collectAllParNDiscard]]
    */
-  def collectAllParNDiscard[R, A](n: Int)(as: Iterable[URIO[R, A]]): URIO[R, Unit] =
+  def collectAllParNDiscard[R, A](n: => Int)(as: => Iterable[URIO[R, A]]): URIO[R, Unit] =
     ZIO.collectAllParNDiscard(n)(as)
 
   /**
@@ -316,7 +318,7 @@ object URIO {
   /**
    * @see [[zio.ZIO.collectAllSuccessesParN]]
    */
-  def collectAllSuccessesParN[R, A, Collection[+Element] <: Iterable[Element]](n: Int)(
+  def collectAllSuccessesParN[R, A, Collection[+Element] <: Iterable[Element]](n: => Int)(
     as: Collection[URIO[R, A]]
   )(implicit bf: BuildFrom[Collection[URIO[R, A]], A, Collection[A]]): URIO[R, Collection[A]] =
     ZIO.collectAllSuccessesParN(n)(as)
@@ -340,7 +342,7 @@ object URIO {
   /**
    * @see [[zio.ZIO.collectAllWithParN]]
    */
-  def collectAllWithParN[R, A, B, Collection[+Element] <: Iterable[Element]](n: Int)(as: Collection[URIO[R, A]])(
+  def collectAllWithParN[R, A, B, Collection[+Element] <: Iterable[Element]](n: => Int)(as: Collection[URIO[R, A]])(
     f: PartialFunction[A, B]
   )(implicit bf: BuildFrom[Collection[URIO[R, A]], B, Collection[B]]): URIO[R, Collection[B]] =
     ZIO.collectAllWithParN(n)(as)(f)
@@ -348,7 +350,7 @@ object URIO {
   /**
    * @see See [[zio.ZIO.collectFirst]]
    */
-  def collectFirst[R, A, B](as: Iterable[A])(f: A => URIO[R, Option[B]]): URIO[R, Option[B]] =
+  def collectFirst[R, A, B](as: => Iterable[A])(f: A => URIO[R, Option[B]]): URIO[R, Option[B]] =
     ZIO.collectFirst(as)(f)
 
   /**
@@ -370,7 +372,7 @@ object URIO {
   /**
    * @see See [[zio.ZIO.collectParN]]
    */
-  def collectParN[R, A, B, Collection[+Element] <: Iterable[Element]](n: Int)(in: Collection[A])(
+  def collectParN[R, A, B, Collection[+Element] <: Iterable[Element]](n: => Int)(in: Collection[A])(
     f: A => ZIO[R, Option[Nothing], B]
   )(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): URIO[R, Collection[B]] =
     ZIO.collectParN(n)(in)(f)
@@ -384,7 +386,8 @@ object URIO {
   /**
    * @see [[zio.ZIO.descriptor]]
    */
-  def descriptor: UIO[Fiber.Descriptor] = ZIO.descriptor
+  def descriptor: UIO[Fiber.Descriptor] =
+    ZIO.descriptor
 
   /**
    * @see [[zio.ZIO.descriptorWith]]
@@ -395,23 +398,26 @@ object URIO {
   /**
    * @see [[zio.ZIO.die]]
    */
-  def die(t: => Throwable): UIO[Nothing] = ZIO.die(t)
+  def die(t: => Throwable): UIO[Nothing] =
+    ZIO.die(t)
 
   /**
    * @see [[zio.ZIO.dieMessage]]
    */
-  def dieMessage(message: => String): UIO[Nothing] = ZIO.dieMessage(message)
+  def dieMessage(message: => String): UIO[Nothing] =
+    ZIO.dieMessage(message)
 
   /**
    * @see [[zio.ZIO.done]]
    */
-  def done[A](r: => Exit[Nothing, A]): UIO[A] = ZIO.done(r)
+  def done[A](r: => Exit[Nothing, A]): UIO[A] =
+    ZIO.done(r)
 
   /**
    * @see [[zio.ZIO.effectAsync]]
    */
   @deprecated("use async", "2.0.0")
-  def effectAsync[R, A](register: (URIO[R, A] => Unit) => Any, blockingOn: Fiber.Id = Fiber.Id.None): URIO[R, A] =
+  def effectAsync[R, A](register: (URIO[R, A] => Unit) => Any, blockingOn: => Fiber.Id = Fiber.Id.None): URIO[R, A] =
     ZIO.effectAsync(register, blockingOn)
 
   /**
@@ -420,7 +426,7 @@ object URIO {
   @deprecated("use asyncMaybe", "2.0.0")
   def effectAsyncMaybe[R, A](
     register: (URIO[R, A] => Unit) => Option[URIO[R, A]],
-    blockingOn: Fiber.Id = Fiber.Id.None
+    blockingOn: => Fiber.Id = Fiber.Id.None
   ): URIO[R, A] =
     ZIO.effectAsyncMaybe(register, blockingOn)
 
@@ -437,7 +443,7 @@ object URIO {
   @deprecated("use asyncInterrupt", "2.0.0")
   def effectAsyncInterrupt[R, A](
     register: (URIO[R, A] => Unit) => Either[Canceler[R], URIO[R, A]],
-    blockingOn: Fiber.Id = Fiber.Id.None
+    blockingOn: => Fiber.Id = Fiber.Id.None
   ): URIO[R, A] =
     ZIO.effectAsyncInterrupt(register, blockingOn)
 
@@ -465,7 +471,8 @@ object URIO {
   /**
    * @see [[zio.ZIO.environment]]
    */
-  def environment[R]: URIO[R, R] = ZIO.environment
+  def environment[R]: URIO[R, R] =
+    ZIO.environment
 
   /**
    * @see See [[zio.ZIO.executor]]
@@ -476,7 +483,7 @@ object URIO {
   /**
    * @see See [[zio.ZIO.exists]]
    */
-  def exists[R, A](as: Iterable[A])(f: A => URIO[R, Boolean]): URIO[R, Boolean] =
+  def exists[R, A](as: => Iterable[A])(f: A => URIO[R, Boolean]): URIO[R, Boolean] =
     ZIO.exists(as)(f)
 
   /**
@@ -494,7 +501,8 @@ object URIO {
   /**
    * @see [[zio.ZIO.fiberId]]
    */
-  val fiberId: UIO[Fiber.Id] = ZIO.fiberId
+  val fiberId: UIO[Fiber.Id] =
+    ZIO.fiberId
 
   /**
    * @see [[zio.ZIO.filter[R,E,A,Collection*]]
@@ -556,32 +564,33 @@ object URIO {
    * @see [[zio.ZIO.firstSuccessOf]]
    */
   def firstSuccessOf[R, A](
-    rio: URIO[R, A],
-    rest: Iterable[URIO[R, A]]
-  ): URIO[R, A] = ZIO.firstSuccessOf(rio, rest)
+    rio: => URIO[R, A],
+    rest: => Iterable[URIO[R, A]]
+  ): URIO[R, A] =
+    ZIO.firstSuccessOf(rio, rest)
 
   /**
    * @see [[zio.ZIO.flatten]]
    */
-  def flatten[R, A](taskr: URIO[R, URIO[R, A]]): URIO[R, A] =
+  def flatten[R, A](taskr: => URIO[R, URIO[R, A]]): URIO[R, A] =
     ZIO.flatten(taskr)
 
   /**
    * @see [[zio.ZIO.foldLeft]]
    */
-  def foldLeft[R, S, A](in: Iterable[A])(zero: S)(f: (S, A) => URIO[R, S]): URIO[R, S] =
+  def foldLeft[R, S, A](in: => Iterable[A])(zero: => S)(f: (S, A) => URIO[R, S]): URIO[R, S] =
     ZIO.foldLeft(in)(zero)(f)
 
   /**
    * @see [[zio.ZIO.foldRight]]
    */
-  def foldRight[R, S, A](in: Iterable[A])(zero: S)(f: (A, S) => URIO[R, S]): URIO[R, S] =
+  def foldRight[R, S, A](in: => Iterable[A])(zero: => S)(f: (A, S) => URIO[R, S]): URIO[R, S] =
     ZIO.foldRight(in)(zero)(f)
 
   /**
    * @see See [[zio.ZIO.forall]]
    */
-  def forall[R, A](as: Iterable[A])(f: A => URIO[R, Boolean]): URIO[R, Boolean] =
+  def forall[R, A](as: => Iterable[A])(f: A => URIO[R, Boolean]): URIO[R, Boolean] =
     ZIO.forall(as)(f)
 
   /**
@@ -628,7 +637,7 @@ object URIO {
    * @see See [[zio.ZIO.foreachExec]]
    */
   final def foreachExec[R, A, B, Collection[+Element] <: Iterable[Element]](as: Collection[A])(
-    exec: ExecutionStrategy
+    exec: => ExecutionStrategy
   )(f: A => URIO[R, B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): URIO[R, Collection[B]] =
     ZIO.foreachExec(as)(exec)(f)
 
@@ -669,48 +678,48 @@ object URIO {
   /**
    * @see [[zio.ZIO.foreachParN]]
    */
-  def foreachParN[R, A, B, Collection[+Element] <: Iterable[Element]](n: Int)(
+  def foreachParN[R, A, B, Collection[+Element] <: Iterable[Element]](n: => Int)(
     as: Collection[A]
   )(fn: A => URIO[R, B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): URIO[R, Collection[B]] =
     ZIO.foreachParN(n)(as)(fn)
 
   /**
-   * @see [[[zio.ZIO.foreach_[R,E,A](as:Iterable*]]]
+   * @see [[zio.ZIO.foreach_]]
    */
   @deprecated("use foreachDiscard", "2.0.0")
-  def foreach_[R, A](as: Iterable[A])(f: A => URIO[R, Any]): URIO[R, Unit] =
+  def foreach_[R, A](as: => Iterable[A])(f: A => URIO[R, Any]): URIO[R, Unit] =
     ZIO.foreach_(as)(f)
 
   /**
-   * @see [[[zio.ZIO.foreachDiscard[R,E,A](as:Iterable*]]]
+   * @see [[zio.ZIO.foreachDiscard]]
    */
-  def foreachDiscard[R, A](as: Iterable[A])(f: A => URIO[R, Any]): URIO[R, Unit] =
+  def foreachDiscard[R, A](as: => Iterable[A])(f: A => URIO[R, Any]): URIO[R, Unit] =
     ZIO.foreachDiscard(as)(f)
 
   /**
-   * @see [[[zio.ZIO.foreachPar_[R,E,A](as:Iterable*]]]
+   * @see [[zio.ZIO.foreachPar_]]
    */
   @deprecated("use foreachParDiscard", "2.0.0")
-  def foreachPar_[R, A, B](as: Iterable[A])(f: A => URIO[R, Any]): URIO[R, Unit] =
+  def foreachPar_[R, A, B](as: => Iterable[A])(f: A => URIO[R, Any]): URIO[R, Unit] =
     ZIO.foreachPar_(as)(f)
 
   /**
-   * @see [[[zio.ZIO.foreachParDiscard[R,E,A](as:Iterable*]]]
+   * @see [[zio.ZIO.foreachParDiscard]]
    */
-  def foreachParDiscard[R, A, B](as: Iterable[A])(f: A => URIO[R, Any]): URIO[R, Unit] =
+  def foreachParDiscard[R, A, B](as: => Iterable[A])(f: A => URIO[R, Any]): URIO[R, Unit] =
     ZIO.foreachParDiscard(as)(f)
 
   /**
    * @see [[zio.ZIO.foreachParN_]]
    */
   @deprecated("use foreachParNDiscard", "2.0.0")
-  def foreachParN_[R, A, B](n: Int)(as: Iterable[A])(f: A => URIO[R, Any]): URIO[R, Unit] =
+  def foreachParN_[R, A, B](n: => Int)(as: => Iterable[A])(f: A => URIO[R, Any]): URIO[R, Unit] =
     ZIO.foreachParN_(n)(as)(f)
 
   /**
    * @see [[zio.ZIO.foreachParNDiscard]]
    */
-  def foreachParNDiscard[R, A, B](n: Int)(as: Iterable[A])(f: A => URIO[R, Any]): URIO[R, Unit] =
+  def foreachParNDiscard[R, A, B](n: => Int)(as: => Iterable[A])(f: A => URIO[R, Any]): URIO[R, Unit] =
     ZIO.foreachParNDiscard(n)(as)(f)
 
   /**
@@ -725,13 +734,13 @@ object URIO {
    * @see [[zio.ZIO.forkAll_]]
    */
   @deprecated("use forkAllDiscard", "2.0.0")
-  def forkAll_[R, A](as: Iterable[URIO[R, A]]): URIO[R, Unit] =
+  def forkAll_[R, A](as: => Iterable[URIO[R, A]]): URIO[R, Unit] =
     ZIO.forkAll_(as)
 
   /**
    * @see [[zio.ZIO.forkAllDiscard]]
    */
-  def forkAllDiscard[R, A](as: Iterable[URIO[R, A]]): URIO[R, Unit] =
+  def forkAllDiscard[R, A](as: => Iterable[URIO[R, A]]): URIO[R, Unit] =
     ZIO.forkAllDiscard(as)
 
   /**
@@ -758,13 +767,13 @@ object URIO {
    * @see [[zio.ZIO.fromFiberM]]
    */
   @deprecated("use fromFiberZIO", "2.0.0")
-  def fromFiberM[A](fiber: UIO[Fiber[Nothing, A]]): UIO[A] =
+  def fromFiberM[A](fiber: => UIO[Fiber[Nothing, A]]): UIO[A] =
     ZIO.fromFiberM(fiber)
 
   /**
    * @see [[zio.ZIO.fromFiberZIO]]
    */
-  def fromFiberZIO[A](fiber: UIO[Fiber[Nothing, A]]): UIO[A] =
+  def fromFiberZIO[A](fiber: => UIO[Fiber[Nothing, A]]): UIO[A] =
     ZIO.fromFiberZIO(fiber)
 
   /**
@@ -785,13 +794,13 @@ object URIO {
    * @see [[zio.ZIO.getState]]
    */
   def getState[S: Tag]: ZIO[Has[ZState[S]], Nothing, S] =
-    ZIO.serviceWith(_.get)
+    ZIO.getState
 
   /**
    * @see [[zio.ZIO.getStateWith]]
    */
   def getStateWith[S]: ZIO.GetStateWithPartiallyApplied[S] =
-    new ZIO.GetStateWithPartiallyApplied[S]
+    ZIO.getStateWith
 
   /**
    * @see [[zio.ZIO.halt]]
@@ -811,34 +820,37 @@ object URIO {
    * @see [[zio.ZIO.ifM]]
    */
   @deprecated("use ifZIO", "2.0.0")
-  def ifM[R](b: URIO[R, Boolean]): ZIO.IfZIO[R, Nothing] =
+  def ifM[R](b: => URIO[R, Boolean]): ZIO.IfZIO[R, Nothing] =
     ZIO.ifM(b)
 
   /**
    * @see [[zio.ZIO.ifZIO]]
    */
-  def ifZIO[R](b: URIO[R, Boolean]): ZIO.IfZIO[R, Nothing] =
+  def ifZIO[R](b: => URIO[R, Boolean]): ZIO.IfZIO[R, Nothing] =
     ZIO.ifZIO(b)
 
   /**
    * @see [[zio.ZIO.infinity]]
    */
-  val infinity: URIO[Has[Clock], Nothing] = ZIO.sleep(Duration.fromNanos(Long.MaxValue)) *> ZIO.never
+  val infinity: URIO[Has[Clock], Nothing] =
+    ZIO.infinity
 
   /**
    * @see [[zio.ZIO.interrupt]]
    */
-  val interrupt: UIO[Nothing] = ZIO.interrupt
+  val interrupt: UIO[Nothing] =
+    ZIO.interrupt
 
   /**
    * @see See [[zio.ZIO.interruptAs]]
    */
-  def interruptAs(fiberId: => Fiber.Id): UIO[Nothing] = ZIO.interruptAs(fiberId)
+  def interruptAs(fiberId: => Fiber.Id): UIO[Nothing] =
+    ZIO.interruptAs(fiberId)
 
   /**
    * @see [[zio.ZIO.interruptible]]
    */
-  def interruptible[R, A](taskr: URIO[R, A]): URIO[R, A] =
+  def interruptible[R, A](taskr: => URIO[R, A]): URIO[R, A] =
     ZIO.interruptible(taskr)
 
   /**
@@ -850,52 +862,53 @@ object URIO {
   /**
    * @see See [[zio.ZIO.iterate]]
    */
-  def iterate[R, S](initial: S)(cont: S => Boolean)(body: S => URIO[R, S]): URIO[R, S] =
+  def iterate[R, S](initial: => S)(cont: S => Boolean)(body: S => URIO[R, S]): URIO[R, S] =
     ZIO.iterate(initial)(cont)(body)
 
   /**
    * @see [[zio.ZIO.lock]]
    */
   @deprecated("use onExecutor", "2.0.0")
-  def lock[R, A](executor: => Executor)(taskr: URIO[R, A]): URIO[R, A] =
+  def lock[R, A](executor: => Executor)(taskr: => URIO[R, A]): URIO[R, A] =
     ZIO.lock(executor)(taskr)
 
   /**
    *  @see See [[zio.ZIO.loop]]
    */
-  def loop[R, A, S](initial: S)(cont: S => Boolean, inc: S => S)(body: S => URIO[R, A]): URIO[R, List[A]] =
+  def loop[R, A, S](initial: => S)(cont: S => Boolean, inc: S => S)(body: S => URIO[R, A]): URIO[R, List[A]] =
     ZIO.loop(initial)(cont, inc)(body)
 
   /**
    *  @see See [[zio.ZIO.loop_]]
    */
   @deprecated("use loopDiscard", "2.0.0")
-  def loop_[R, S](initial: S)(cont: S => Boolean, inc: S => S)(body: S => URIO[R, Any]): URIO[R, Unit] =
+  def loop_[R, S](initial: => S)(cont: S => Boolean, inc: S => S)(body: S => URIO[R, Any]): URIO[R, Unit] =
     ZIO.loop_(initial)(cont, inc)(body)
 
   /**
    *  @see See [[zio.ZIO.loopDiscard]]
    */
-  def loopDiscard[R, S](initial: S)(cont: S => Boolean, inc: S => S)(body: S => URIO[R, Any]): URIO[R, Unit] =
+  def loopDiscard[R, S](initial: => S)(cont: S => Boolean, inc: S => S)(body: S => URIO[R, Any]): URIO[R, Unit] =
     ZIO.loopDiscard(initial)(cont, inc)(body)
 
   /**
    *  @see [[zio.ZIO.left]]
    */
-  def left[R, A](a: => A): URIO[R, Either[A, Nothing]] = ZIO.left(a)
+  def left[R, A](a: => A): URIO[R, Either[A, Nothing]] =
+    ZIO.left(a)
 
   /**
    *  @see [[zio.ZIO.mapN[R,E,A,B,C]*]]
    */
   @deprecated("use zip", "2.0.0")
-  def mapN[R, A, B, C](urio1: URIO[R, A], urio2: URIO[R, B])(f: (A, B) => C): URIO[R, C] =
+  def mapN[R, A, B, C](urio1: => URIO[R, A], urio2: => URIO[R, B])(f: (A, B) => C): URIO[R, C] =
     ZIO.mapN(urio1, urio2)(f)
 
   /**
    *  @see [[zio.ZIO.mapN[R,E,A,B,C,D]*]]
    */
   @deprecated("use zip", "2.0.0")
-  def mapN[R, A, B, C, D](urio1: URIO[R, A], urio2: URIO[R, B], urio3: URIO[R, C])(
+  def mapN[R, A, B, C, D](urio1: => URIO[R, A], urio2: => URIO[R, B], urio3: => URIO[R, C])(
     f: (A, B, C) => D
   ): URIO[R, D] =
     ZIO.mapN(urio1, urio2, urio3)(f)
@@ -904,7 +917,7 @@ object URIO {
    *  @see [[zio.ZIO.mapN[R,E,A,B,C,D,F]*]]
    */
   @deprecated("use zip", "2.0.0")
-  def mapN[R, A, B, C, D, F](urio1: URIO[R, A], urio2: URIO[R, B], urio3: URIO[R, C], urio4: URIO[R, D])(
+  def mapN[R, A, B, C, D, F](urio1: => URIO[R, A], urio2: => URIO[R, B], urio3: => URIO[R, C], urio4: => URIO[R, D])(
     f: (A, B, C, D) => F
   ): URIO[R, F] =
     ZIO.mapN(urio1, urio2, urio3, urio4)(f)
@@ -913,14 +926,14 @@ object URIO {
    *  @see [[zio.ZIO.mapParN[R,E,A,B,C]*]]
    */
   @deprecated("use zipPar", "2.0.0")
-  def mapParN[R, A, B, C](urio1: URIO[R, A], urio2: URIO[R, B])(f: (A, B) => C): URIO[R, C] =
+  def mapParN[R, A, B, C](urio1: => URIO[R, A], urio2: => URIO[R, B])(f: (A, B) => C): URIO[R, C] =
     ZIO.mapParN(urio1, urio2)(f)
 
   /**
    *  @see [[zio.ZIO.mapParN[R,E,A,B,C,D]*]]
    */
   @deprecated("use zipPar", "2.0.0")
-  def mapParN[R, A, B, C, D](urio1: URIO[R, A], urio2: URIO[R, B], urio3: URIO[R, C])(
+  def mapParN[R, A, B, C, D](urio1: => URIO[R, A], urio2: => URIO[R, B], urio3: => URIO[R, C])(
     f: (A, B, C) => D
   ): URIO[R, D] =
     ZIO.mapParN(urio1, urio2, urio3)(f)
@@ -929,7 +942,7 @@ object URIO {
    *  @see [[zio.ZIO.mapParN[R,E,A,B,C,D,F]*]]
    */
   @deprecated("use zipPar", "2.0.0")
-  def mapParN[R, A, B, C, D, F](urio1: URIO[R, A], urio2: URIO[R, B], urio3: URIO[R, C], urio4: URIO[R, D])(
+  def mapParN[R, A, B, C, D, F](urio1: => URIO[R, A], urio2: => URIO[R, B], urio3: => URIO[R, C], urio4: => URIO[R, D])(
     f: (A, B, C, D) => F
   ): URIO[R, F] =
     ZIO.mapParN(urio1, urio2, urio3, urio4)(f)
@@ -943,29 +956,31 @@ object URIO {
   /**
    * @see [[zio.ZIO.mergeAll]]
    */
-  def mergeAll[R, A, B](in: Iterable[URIO[R, A]])(zero: B)(f: (B, A) => B): URIO[R, B] =
+  def mergeAll[R, A, B](in: => Iterable[URIO[R, A]])(zero: => B)(f: (B, A) => B): URIO[R, B] =
     ZIO.mergeAll(in)(zero)(f)
 
   /**
    * @see [[zio.ZIO.mergeAllPar]]
    */
-  def mergeAllPar[R, A, B](in: Iterable[URIO[R, A]])(zero: B)(f: (B, A) => B): URIO[R, B] =
+  def mergeAllPar[R, A, B](in: => Iterable[URIO[R, A]])(zero: => B)(f: (B, A) => B): URIO[R, B] =
     ZIO.mergeAllPar(in)(zero)(f)
 
   /**
    * @see [[zio.ZIO.never]]
    */
-  val never: UIO[Nothing] = ZIO.never
+  val never: UIO[Nothing] =
+    ZIO.never
 
   /**
    * @see [[zio.ZIO.none]]
    */
-  val none: UIO[Option[Nothing]] = ZIO.none
+  val none: UIO[Option[Nothing]] =
+    ZIO.none
 
   /**
    *  @see See [[zio.ZIO.not]]
    */
-  def not[R](effect: URIO[R, Boolean]): URIO[R, Boolean] =
+  def not[R](effect: => URIO[R, Boolean]): URIO[R, Boolean] =
     ZIO.not(effect)
 
   /**
@@ -995,74 +1010,76 @@ object URIO {
   /**
    * @see [[zio.ZIO.raceAll]]
    */
-  def raceAll[R, R1 <: R, A](taskr: URIO[R, A], taskrs: Iterable[URIO[R1, A]]): URIO[R1, A] =
+  def raceAll[R, R1 <: R, A](taskr: => URIO[R, A], taskrs: => Iterable[URIO[R1, A]]): URIO[R1, A] =
     ZIO.raceAll(taskr, taskrs)
 
   /**
    * @see [[zio.ZIO.reduceAll]]
    */
-  def reduceAll[R, R1 <: R, A](a: URIO[R, A], as: Iterable[URIO[R1, A]])(f: (A, A) => A): URIO[R1, A] =
+  def reduceAll[R, R1 <: R, A](a: => URIO[R, A], as: => Iterable[URIO[R1, A]])(f: (A, A) => A): URIO[R1, A] =
     ZIO.reduceAll(a, as)(f)
 
   /**
    * @see [[zio.ZIO.reduceAllPar]]
    */
-  def reduceAllPar[R, R1 <: R, A](a: URIO[R, A], as: Iterable[URIO[R1, A]])(f: (A, A) => A): URIO[R1, A] =
+  def reduceAllPar[R, R1 <: R, A](a: => URIO[R, A], as: => Iterable[URIO[R1, A]])(f: (A, A) => A): URIO[R1, A] =
     ZIO.reduceAllPar(a, as)(f)
 
   /**
    * @see [[zio.ZIO.replicate]]
    */
-  def replicate[R, A](n: Int)(effect: URIO[R, A]): Iterable[URIO[R, A]] =
+  def replicate[R, A](n: => Int)(effect: => URIO[R, A]): Iterable[URIO[R, A]] =
     ZIO.replicate(n)(effect)
 
   /**
    * @see See [[zio.ZIO.replicateM]]
    */
   @deprecated("use replicateZIO", "2.0.0")
-  def replicateM[R, A](n: Int)(effect: URIO[R, A]): URIO[R, Iterable[A]] =
+  def replicateM[R, A](n: => Int)(effect: => URIO[R, A]): URIO[R, Iterable[A]] =
     ZIO.replicateM(n)(effect)
 
   /**
    * @see See [[zio.ZIO.replicateM_]]
    */
   @deprecated("use replicateZIODiscard", "2.0.0")
-  def replicateM_[R, A](n: Int)(effect: URIO[R, A]): URIO[R, Unit] =
+  def replicateM_[R, A](n: => Int)(effect: => URIO[R, A]): URIO[R, Unit] =
     ZIO.replicateM_(n)(effect)
 
   /**
    * @see See [[zio.ZIO.replicateZIO]]
    */
-  def replicateZIO[R, A](n: Int)(effect: URIO[R, A]): URIO[R, Iterable[A]] =
+  def replicateZIO[R, A](n: => Int)(effect: => URIO[R, A]): URIO[R, Iterable[A]] =
     ZIO.replicateZIO(n)(effect)
 
   /**
    * @see See [[zio.ZIO.replicateZIODiscard]]
    */
-  def replicateZIODiscard[R, A](n: Int)(effect: URIO[R, A]): URIO[R, Unit] =
+  def replicateZIODiscard[R, A](n: => Int)(effect: => URIO[R, A]): URIO[R, Unit] =
     ZIO.replicateZIODiscard(n)(effect)
 
   /**
    * @see [[zio.ZIO.reserve]]
    */
-  def reserve[R, A, B](reservation: URIO[R, Reservation[R, Nothing, A]])(use: A => URIO[R, B]): URIO[R, B] =
+  def reserve[R, A, B](reservation: => URIO[R, Reservation[R, Nothing, A]])(use: A => URIO[R, B]): URIO[R, B] =
     ZIO.reserve(reservation)(use)
 
   /**
    *  @see [[zio.ZIO.right]]
    */
-  def right[R, B](b: => B): RIO[R, Either[Nothing, B]] = ZIO.right(b)
+  def right[R, B](b: => B): RIO[R, Either[Nothing, B]] =
+    ZIO.right(b)
 
   /**
    * @see [[zio.ZIO.runtime]]
    */
-  def runtime[R]: URIO[R, Runtime[R]] = ZIO.runtime
+  def runtime[R]: URIO[R, Runtime[R]] =
+    ZIO.runtime
 
   /**
    * @see [[zio.ZIO.setState]]
    */
-  def setState[S: Tag](s: S): ZIO[Has[ZState[S]], Nothing, Unit] =
-    ZIO.serviceWith(_.set(s))
+  def setState[S: Tag](s: => S): ZIO[Has[ZState[S]], Nothing, Unit] =
+    ZIO.setState(s)
 
   /**
    * @see See [[zio.ZIO.service]]
@@ -1106,12 +1123,14 @@ object URIO {
   /**
    * @see [[zio.ZIO.sleep]]
    */
-  def sleep(duration: => Duration): URIO[Has[Clock], Unit] = ZIO.sleep(duration)
+  def sleep(duration: => Duration): URIO[Has[Clock], Unit] =
+    ZIO.sleep(duration)
 
   /**
    *  @see [[zio.ZIO.some]]
    */
-  def some[R, A](a: => A): URIO[R, Option[A]] = ZIO.some(a)
+  def some[R, A](a: => A): URIO[R, Option[A]] =
+    ZIO.some(a)
 
   /**
    * @see [[zio.ZIO.suspendSucceed]]
@@ -1140,22 +1159,26 @@ object URIO {
   /**
    * @see [[zio.ZIO.trace]]
    */
-  def trace: UIO[ZTrace] = ZIO.trace
+  def trace: UIO[ZTrace] =
+    ZIO.trace
 
   /**
    * @see [[zio.ZIO.traced]]
    */
-  def traced[R, A](zio: URIO[R, A]): URIO[R, A] = ZIO.traced(zio)
+  def traced[R, A](zio: => URIO[R, A]): URIO[R, A] =
+    ZIO.traced(zio)
 
   /**
    * @see [[zio.ZIO.unit]]
    */
-  val unit: UIO[Unit] = ZIO.unit
+  val unit: UIO[Unit] =
+    ZIO.unit
 
   /**
    * @see [[zio.ZIO.uninterruptible]]
    */
-  def uninterruptible[R, A](taskr: URIO[R, A]): URIO[R, A] = ZIO.uninterruptible(taskr)
+  def uninterruptible[R, A](taskr: => URIO[R, A]): URIO[R, A] =
+    ZIO.uninterruptible(taskr)
 
   /**
    * @see [[zio.ZIO.uninterruptibleMask]]
@@ -1173,35 +1196,38 @@ object URIO {
    * @see See [[zio.ZIO.unlessM]]
    */
   @deprecated("use unlessZIO", "2.0.0")
-  def unlessM[R](b: URIO[R, Boolean]): ZIO.UnlessZIO[R, Nothing] =
+  def unlessM[R](b: => URIO[R, Boolean]): ZIO.UnlessZIO[R, Nothing] =
     ZIO.unlessM(b)
 
   /**
    * @see See [[zio.ZIO.unlessZIO]]
    */
-  def unlessZIO[R](b: URIO[R, Boolean]): ZIO.UnlessZIO[R, Nothing] =
+  def unlessZIO[R](b: => URIO[R, Boolean]): ZIO.UnlessZIO[R, Nothing] =
     ZIO.unlessZIO(b)
 
   /**
    * @see [[zio.ZIO.unsandbox]]
    */
-  def unsandbox[R, A](v: IO[Cause[Nothing], A]): URIO[R, A] = ZIO.unsandbox(v)
+  def unsandbox[R, A](v: => IO[Cause[Nothing], A]): URIO[R, A] =
+    ZIO.unsandbox(v)
 
   /**
    * @see [[zio.ZIO.untraced]]
    */
-  def untraced[R, A](zio: URIO[R, A]): URIO[R, A] = ZIO.untraced(zio)
+  def untraced[R, A](zio: => URIO[R, A]): URIO[R, A] =
+    ZIO.untraced(zio)
 
   /**
    * @see [[zio.ZIO.updateState]]
    */
   def updateState[S: Tag](f: S => S): ZIO[Has[ZState[S]], Nothing, Unit] =
-    ZIO.serviceWith(_.update(f))
+    ZIO.updateState(f)
 
   /**
    * @see [[zio.ZIO.when]]
    */
-  def when[R](b: => Boolean)(rio: => URIO[R, Any]): URIO[R, Unit] = ZIO.when(b)(rio)
+  def when[R](b: => Boolean)(rio: => URIO[R, Any]): URIO[R, Unit] =
+    ZIO.when(b)(rio)
 
   /**
    * @see [[zio.ZIO.whenCase]]
@@ -1213,32 +1239,34 @@ object URIO {
    * @see [[zio.ZIO.whenCaseM]]
    */
   @deprecated("use whenCaseZIO", "2.0.0")
-  def whenCaseM[R, A](a: URIO[R, A])(pf: PartialFunction[A, URIO[R, Any]]): URIO[R, Unit] =
+  def whenCaseM[R, A](a: => URIO[R, A])(pf: PartialFunction[A, URIO[R, Any]]): URIO[R, Unit] =
     ZIO.whenCaseM(a)(pf)
 
   /**
    * @see [[zio.ZIO.whenCaseZIO]]
    */
-  def whenCaseZIO[R, A](a: URIO[R, A])(pf: PartialFunction[A, URIO[R, Any]]): URIO[R, Unit] =
+  def whenCaseZIO[R, A](a: => URIO[R, A])(pf: PartialFunction[A, URIO[R, Any]]): URIO[R, Unit] =
     ZIO.whenCaseZIO(a)(pf)
 
   /**
    * @see [[zio.ZIO.whenM]]
    */
   @deprecated("use whenZIO", "2.0.0")
-  def whenM[R](b: URIO[R, Boolean]): ZIO.WhenZIO[R, Nothing] =
+  def whenM[R](b: => URIO[R, Boolean]): ZIO.WhenZIO[R, Nothing] =
     ZIO.whenM(b)
 
   /**
    * @see [[zio.ZIO.whenZIO]]
    */
-  def whenZIO[R](b: URIO[R, Boolean]): ZIO.WhenZIO[R, Nothing] =
+  def whenZIO[R](b: => URIO[R, Boolean]): ZIO.WhenZIO[R, Nothing] =
     ZIO.whenZIO(b)
 
   /**
    * @see [[zio.ZIO.yieldNow]]
    */
-  val yieldNow: UIO[Unit] = ZIO.yieldNow
+  val yieldNow: UIO[Unit] =
+    ZIO.yieldNow
 
-  private[zio] def succeedNow[A](a: A): UIO[A] = ZIO.succeedNow(a)
+  private[zio] def succeedNow[A](a: A): UIO[A] =
+    ZIO.succeedNow(a)
 }

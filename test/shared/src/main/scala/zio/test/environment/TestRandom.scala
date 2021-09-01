@@ -81,7 +81,7 @@ trait TestRandom extends Restorable {
   def feedLongs(longs: Long*): UIO[Unit]
   def feedStrings(strings: String*): UIO[Unit]
   def getSeed: UIO[Long]
-  def setSeed(seed: Long): UIO[Unit]
+  def setSeed(seed: => Long): UIO[Unit]
 }
 
 object TestRandom extends Serializable {
@@ -222,7 +222,7 @@ object TestRandom extends Serializable {
      * Takes a chunk of bytes from the buffer if one exists or else generates a
      * pseudo-random chunk of bytes of the specified length.
      */
-    def nextBytes(length: Int): UIO[Chunk[Byte]] =
+    def nextBytes(length: => Int): UIO[Chunk[Byte]] =
       getOrElse(bufferedBytes)(randomBytes(length))
 
     /**
@@ -236,7 +236,7 @@ object TestRandom extends Serializable {
      * Takes a double from the buffer if one exists or else generates a
      * pseudo-random double in the specified range.
      */
-    def nextDoubleBetween(minInclusive: Double, maxExclusive: Double): UIO[Double] =
+    def nextDoubleBetween(minInclusive: => Double, maxExclusive: => Double): UIO[Double] =
       getOrElse(bufferedDouble)(randomDoubleBetween(minInclusive, maxExclusive))
 
     /**
@@ -250,7 +250,7 @@ object TestRandom extends Serializable {
      * Takes a float from the buffer if one exists or else generates a
      * pseudo-random float in the specified range.
      */
-    def nextFloatBetween(minInclusive: Float, maxExclusive: Float): UIO[Float] =
+    def nextFloatBetween(minInclusive: => Float, maxExclusive: => Float): UIO[Float] =
       getOrElse(bufferedFloat)(randomFloatBetween(minInclusive, maxExclusive))
 
     /**
@@ -272,7 +272,7 @@ object TestRandom extends Serializable {
      * Takes an integer from the buffer if one exists or else generates a
      * pseudo-random integer in the specified range.
      */
-    def nextIntBetween(minInclusive: Int, maxExclusive: Int): UIO[Int] =
+    def nextIntBetween(minInclusive: => Int, maxExclusive: => Int): UIO[Int] =
       getOrElse(bufferedInt)(randomIntBetween(minInclusive, maxExclusive))
 
     /**
@@ -280,7 +280,7 @@ object TestRandom extends Serializable {
      * pseudo-random integer between 0 (inclusive) and the specified value
      * (exclusive).
      */
-    def nextIntBounded(n: Int): UIO[Int] =
+    def nextIntBounded(n: => Int): UIO[Int] =
       getOrElse(bufferedInt)(randomIntBounded(n))
 
     /**
@@ -294,7 +294,7 @@ object TestRandom extends Serializable {
      * Takes a long from the buffer if one exists or else generates a
      * pseudo-random long in the specified range.
      */
-    def nextLongBetween(minInclusive: Long, maxExclusive: Long): UIO[Long] =
+    def nextLongBetween(minInclusive: => Long, maxExclusive: => Long): UIO[Long] =
       getOrElse(bufferedLong)(randomLongBetween(minInclusive, maxExclusive))
 
     /**
@@ -302,7 +302,7 @@ object TestRandom extends Serializable {
      * pseudo-random long between 0 (inclusive) and the specified value
      * (exclusive).
      */
-    def nextLongBounded(n: Long): UIO[Long] =
+    def nextLongBounded(n: => Long): UIO[Long] =
       getOrElse(bufferedLong)(randomLongBounded(n))
 
     /**
@@ -316,7 +316,7 @@ object TestRandom extends Serializable {
      * Takes a string from the buffer if one exists or else generates a
      * pseudo-random string of the specified length.
      */
-    def nextString(length: Int): UIO[String] =
+    def nextString(length: => Int): UIO[String] =
       getOrElse(bufferedString)(randomString(length))
 
     /**
@@ -332,7 +332,7 @@ object TestRandom extends Serializable {
     /**
      * Sets the seed of this `TestRandom` to the specified value.
      */
-    def setSeed(seed: Long): UIO[Unit] =
+    def setSeed(seed: => Long): UIO[Unit] =
       randomState.set {
         val newSeed = (seed ^ 0x5deece66dL) & ((1L << 48) - 1)
         val seed1   = (newSeed >>> 24).toInt
@@ -344,7 +344,7 @@ object TestRandom extends Serializable {
      * Randomly shuffles the specified list.
      */
     def shuffle[A, Collection[+Element] <: Iterable[Element]](
-      list: Collection[A]
+      list: => Collection[A]
     )(implicit bf: BuildFrom[Collection[A], A, Collection[A]]): UIO[Collection[A]] =
       Random.shuffleWith(randomIntBounded, list)
 

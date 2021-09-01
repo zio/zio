@@ -138,7 +138,7 @@ object TestConsole extends Serializable {
     /**
      * Writes the specified string to the output buffer.
      */
-    override def print(line: Any): IO[IOException, Unit] =
+    override def print(line: => Any): IO[IOException, Unit] =
       consoleState.update { data =>
         Data(data.input, data.output :+ line.toString, data.errOutput)
       } *> live.provide(Console.print(line)).whenZIO(debugState.get)
@@ -146,7 +146,7 @@ object TestConsole extends Serializable {
     /**
      * Writes the specified string to the error buffer.
      */
-    override def printError(line: Any): IO[IOException, Unit] =
+    override def printError(line: => Any): IO[IOException, Unit] =
       consoleState.update { data =>
         Data(data.input, data.output, data.errOutput :+ line.toString)
       } *> live.provide(Console.printError(line)).whenZIO(debugState.get)
@@ -155,7 +155,7 @@ object TestConsole extends Serializable {
      * Writes the specified string to the output buffer followed by a newline
      * character.
      */
-    override def printLine(line: Any): IO[IOException, Unit] =
+    override def printLine(line: => Any): IO[IOException, Unit] =
       consoleState.update { data =>
         Data(data.input, data.output :+ s"$line\n", data.errOutput)
       } *> live.provide(Console.printLine(line)).whenZIO(debugState.get)
@@ -164,7 +164,7 @@ object TestConsole extends Serializable {
      * Writes the specified string to the error buffer followed by a newline
      * character.
      */
-    override def printLineError(line: Any): IO[IOException, Unit] =
+    override def printLineError(line: => Any): IO[IOException, Unit] =
       consoleState.update { data =>
         Data(data.input, data.output, data.errOutput :+ s"$line\n")
       } *> live.provide(Console.printLineError(line)).whenZIO(debugState.get)

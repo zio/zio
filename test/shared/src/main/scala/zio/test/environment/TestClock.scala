@@ -120,7 +120,7 @@ object TestClock extends Serializable {
     /**
      * Returns the current clock time in the specified time unit.
      */
-    def currentTime(unit: TimeUnit): UIO[Long] =
+    def currentTime(unit: => TimeUnit): UIO[Long] =
       clockState.get.map(data => unit.convert(data.duration.toMillis, TimeUnit.MILLISECONDS))
 
     /**
@@ -180,7 +180,7 @@ object TestClock extends Serializable {
      * adjusted to on or after the duration, the fiber will automatically be
      * resumed.
      */
-    def sleep(duration: Duration): UIO[Unit] =
+    def sleep(duration: => Duration): UIO[Unit] =
       for {
         promise <- Promise.make[Nothing, Unit]
         shouldAwait <- clockState.modify { data =>
