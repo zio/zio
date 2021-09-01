@@ -7,7 +7,7 @@ import java.util.concurrent.atomic.{AtomicReferenceArray, DoubleAdder, LongAdder
 sealed abstract class ConcurrentHistogram {
 
   // The overall count for all observed values in the histogram
-  def count(): Long
+  def getCount(): Long
 
   // Observe a single value
   def observe(value: Double): Unit
@@ -16,7 +16,7 @@ sealed abstract class ConcurrentHistogram {
   def snapshot(): Chunk[(Double, Long)]
 
   // The sum of all observed values
-  def sum(): Double
+  def getSum(): Double
 }
 
 object ConcurrentHistogram {
@@ -30,7 +30,7 @@ object ConcurrentHistogram {
       private[this] val size       = bounds.length
       bounds.sorted.zipWithIndex.foreach { case (n, i) => boundaries(i) = n }
 
-      def count(): Long = count.longValue()
+      def getCount(): Long = count.longValue()
 
       // Insert the value into the right bucket with a binary search
       def observe(value: Double): Unit = {
@@ -66,6 +66,6 @@ object ConcurrentHistogram {
         builder.result()
       }
 
-      def sum(): Double = sum.doubleValue()
+      def getSum(): Double = sum.doubleValue()
     }
 }

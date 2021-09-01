@@ -7,7 +7,7 @@ import java.util.concurrent.ConcurrentHashMap
 
 sealed abstract class ConcurrentSetCount {
 
-  def count(): Long
+  def getCount(): Long
 
   def observe(word: String): Unit
 
@@ -22,7 +22,7 @@ object ConcurrentSetCount {
       private[this] val count  = new LongAdder
       private[this] val values = new ConcurrentHashMap[String, LongAdder]
 
-      def count(): Long = count.longValue()
+      def getCount(): Long = count.longValue()
 
       def observe(word: String): Unit = {
         count.increment()

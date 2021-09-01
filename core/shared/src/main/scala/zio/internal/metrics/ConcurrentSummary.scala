@@ -9,7 +9,7 @@ sealed abstract class ConcurrentSummary {
 
   // The count how many values have been observed in total
   // It is NOT the number of samples currently held => count() >= samples.size
-  def count(): Long
+  def getCount(): Long
 
   // Observe a single value and record it in the summary
   def observe(value: Double, t: java.time.Instant): Unit
@@ -20,7 +20,7 @@ sealed abstract class ConcurrentSummary {
   def snapshot(now: java.time.Instant): Chunk[(Double, Option[Double])]
 
   // The sum of all values ever observed
-  def sum(): Double
+  def getSum(): Double
 
 }
 
@@ -34,12 +34,12 @@ object ConcurrentSummary {
       private[this] val sum             = new DoubleAdder
       private[this] val sortedQuantiles = quantiles.sorted(dblOrdering)
 
-      override def toString = s"ConcurrentSummary.manual(${count()}, ${sum()})"
+      override def toString = s"ConcurrentSummary.manual(${getCount()}, ${getSum()})"
 
-      def count(): Long =
+      def getCount(): Long =
         count.longValue
 
-      def sum(): Double =
+      def getSum(): Double =
         sum.doubleValue
 
       // Just before the Snapshot we filter out all values older than maxAge

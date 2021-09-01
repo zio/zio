@@ -13,14 +13,14 @@ sealed trait ConcurrentMetricState { self =>
       case ConcurrentMetricState.Gauge(key, help, value) =>
         MetricState.gauge(key, help, value.get)
       case ConcurrentMetricState.Histogram(key, help, histogram) =>
-        MetricState.doubleHistogram(key, help, histogram.snapshot(), histogram.count(), histogram.sum())
+        MetricState.doubleHistogram(key, help, histogram.snapshot(), histogram.getCount(), histogram.getSum())
       case ConcurrentMetricState.Summary(key, help, summary) =>
         MetricState.summary(
           key,
           help,
           summary.snapshot(java.time.Instant.now()),
-          summary.count(),
-          summary.sum()
+          summary.getCount(),
+          summary.getSum()
         )
       case ConcurrentMetricState.SetCount(key, help, setCount) =>
         MetricState.setCount(key, help, setCount.snapshot())
