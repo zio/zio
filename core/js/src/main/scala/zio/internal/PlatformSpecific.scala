@@ -126,7 +126,8 @@ private[internal] trait PlatformSpecific {
       reportFailure,
       supervisor,
       enableCurrentFiber,
-      logger
+      logger,
+      metrics
     )
   }
 

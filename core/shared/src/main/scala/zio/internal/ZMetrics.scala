@@ -1,10 +1,6 @@
 package zio.internal
 
-import zio._
 import zio.internal.metrics._
-
-import java.util.concurrent.atomic.{AtomicReference, AtomicReferenceArray, DoubleAdder, LongAdder}
-import java.util.concurrent.{ConcurrentHashMap, ConcurrentLinkedDeque}
 
 trait ZMetrics {
   def snapshot: Map[MetricKey, MetricState]
