@@ -592,7 +592,7 @@ lazy val docs = project.module
       "dev.zio"                       %% "zio-interop-scalaz7x"          % "7.3.3.0",
       "dev.zio"                       %% "zio-interop-reactivestreams"   % "1.3.5",
       "dev.zio"                       %% "zio-interop-twitter"           % "20.10.0.0",
-      "dev.zio"                       %% "zio-zmx"                       % "0.0.6",
+      "dev.zio"                       %% "zio-zmx"                       % "0.0.7",
       "dev.zio"                       %% "zio-query"                     % "0.2.10",
       "org.polynote"                  %% "uzhttp"                        % "0.2.7",
       "org.tpolecat"                  %% "doobie-core"                   % doobieV,
