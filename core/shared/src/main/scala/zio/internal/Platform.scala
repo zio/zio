@@ -16,7 +16,7 @@
 
 package zio.internal
 
-import zio.{Cause, Supervisor}
+import zio.{Cause, Supervisor, UIO}
 
 /**
  * A `Platform` provides the minimum capabilities necessary to bootstrap
@@ -28,7 +28,7 @@ final case class Platform(
   tracing: Tracing,
   fatal: Throwable => Boolean,
   reportFatal: Throwable => Nothing,
-  reportFailure: Cause[Any] => Unit,
+  reportFailure: Cause[Any] => UIO[Unit],
   supervisor: Supervisor[Any],
   enableCurrentFiber: Boolean,
   logger: ZLogger[Unit]
@@ -48,7 +48,7 @@ final case class Platform(
   def withReportFatal(f: Throwable => Nothing): Platform = copy(reportFatal = f)
 
   @deprecated("2.0.0", "Use Platform#copy instead")
-  def withReportFailure(f: Cause[Any] => Unit): Platform = copy(reportFailure = f)
+  def withReportFailure(f: Cause[Any] => UIO[Unit]): Platform = copy(reportFailure = f)
 
   @deprecated("2.0.0", "Use Platform#copy instead")
   def withSupervisor(s0: Supervisor[Any]): Platform = copy(supervisor = s0)

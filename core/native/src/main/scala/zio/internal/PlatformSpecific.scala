@@ -18,7 +18,7 @@ package zio.internal
 
 import zio.internal.stacktracer.Tracer
 import zio.internal.tracing.TracingConfig
-import zio.{Cause, Supervisor}
+import zio.{Cause, Supervisor, ZIO}
 
 import java.util.{HashMap, HashSet, Map => JMap, Set => JSet}
 import scala.concurrent.ExecutionContext
@@ -40,7 +40,8 @@ private[internal] trait PlatformSpecific {
    * optional feature and it's not valid to compare the performance of ZIO with
    * enabled Tracing with effect types _without_ a comparable feature.
    */
-  lazy val benchmark: Platform = makeDefault(Int.MaxValue).copy(reportFailure = _ => (), tracing = Tracing.disabled)
+  lazy val benchmark: Platform =
+    makeDefault(Int.MaxValue).copy(reportFailure = _ => ZIO.unit, tracing = Tracing.disabled)
 
   /**
    * The default platform, configured with settings designed to work well for
@@ -78,9 +79,7 @@ private[internal] trait PlatformSpecific {
         t.printStackTrace()
         throw t
       },
-      reportFailure = (cause: Cause[Any]) =>
-        if (cause.isDie)
-          println(cause.prettyPrint),
+      reportFailure = (cause: Cause[Any]) => if (cause.isDie) ZIO.logErrorCause(cause) else ZIO.unit,
       tracing = Tracing(Tracer.Empty, TracingConfig.disabled),
       supervisor = Supervisor.none,
       enableCurrentFiber = false,

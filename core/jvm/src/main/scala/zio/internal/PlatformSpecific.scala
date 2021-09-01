@@ -19,7 +19,7 @@ package zio.internal
 import zio.internal.stacktracer.Tracer
 import zio.internal.stacktracer.impl.AkkaLineNumbersTracer
 import zio.internal.tracing.TracingConfig
-import zio.{Cause, Supervisor}
+import zio.{Cause, Supervisor, ZIO}
 
 import java.lang.ref.WeakReference
 import java.util.concurrent.ConcurrentHashMap
@@ -46,7 +46,8 @@ private[internal] trait PlatformSpecific {
    * optional feature and it's not valid to compare the performance of ZIO with
    * enabled Tracing with effect types _without_ a comparable feature.
    */
-  lazy val benchmark: Platform = makeDefault(Int.MaxValue).copy(reportFailure = _ => (), tracing = Tracing.disabled)
+  lazy val benchmark: Platform =
+    makeDefault(Int.MaxValue).copy(reportFailure = _ => ZIO.unit, tracing = Tracing.disabled)
 
   /**
    * The default platform, configured with settings designed to work well for
@@ -86,7 +87,7 @@ private[internal] trait PlatformSpecific {
     val logger: ZLogger[Unit] =
       ZLogger.defaultFormatter.logged(println(_))
 
-    val reportFailure = (cause: Cause[Any]) => if (cause.isDie) System.err.println(cause.prettyPrint)
+    val reportFailure = (cause: Cause[Any]) => if (cause.isDie) ZIO.logErrorCause(cause) else ZIO.unit
 
     val reportFatal = (t: Throwable) => {
       t.printStackTrace()

@@ -272,7 +272,7 @@ trait Runtime[+R] {
   /**
    * Constructs a new `Runtime` with the specified error reporter.
    */
-  def withReportFailure(f: Cause[Any] => Unit): Runtime[R] = mapPlatform(_.copy(reportFailure = f))
+  def withReportFailure(f: Cause[Any] => UIO[Unit]): Runtime[R] = mapPlatform(_.copy(reportFailure = f))
 
   /**
    * Constructs a new `Runtime` with the specified tracer and tracing configuration.
@@ -353,7 +353,7 @@ object Runtime {
     override final def withReportFatal(f: Throwable => Nothing): Runtime.Managed[R] =
       mapPlatform(_.copy(reportFatal = f))
 
-    override final def withReportFailure(f: Cause[Any] => Unit): Runtime.Managed[R] =
+    override final def withReportFailure(f: Cause[Any] => UIO[Unit]): Runtime.Managed[R] =
       mapPlatform(_.copy(reportFailure = f))
 
     override final def withTracing(t: Tracing): Runtime.Managed[R] =

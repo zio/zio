@@ -34,7 +34,7 @@ object ZIOAppSpec extends ZIOBaseSpec {
     test("hook update platform") {
       val counter = new java.util.concurrent.atomic.AtomicInteger(0)
 
-      val reportFailure1 = (_: Cause[Any]) => { counter.incrementAndGet(); () }
+      val reportFailure1 = (_: Cause[Any]) => ZIO.succeed { counter.incrementAndGet(); () }
 
       val app1 = ZIOApp(ZIO.fail("Uh oh!"), PlatformAspect(_.copy(reportFailure = reportFailure1)))
 

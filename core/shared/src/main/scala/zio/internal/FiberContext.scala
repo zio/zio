@@ -39,7 +39,7 @@ private[zio] final class FiberContext[E, A](
   initialTracingStatus: Boolean,
   var fiberRefLocals: FiberRefLocals,
   openScope: ZScope.Open[Exit[E, A]],
-  reportFailure: Cause[Any] => Unit
+  reportFailure: Cause[Any] => UIO[Unit]
 ) extends Fiber.Runtime.Internal[E, A]
     with FiberRunnable { self =>
   type Erased = ZIO[Any, Any, Any]
@@ -784,7 +784,7 @@ private[zio] final class FiberContext[E, A](
   def fork[E, A](
     zio: IO[E, A],
     forkScope: Option[ZScope[Exit[Any, Any]]] = None,
-    reportFailure: Option[Cause[Any] => Unit] = None
+    reportFailure: Option[Cause[Any] => UIO[Unit]] = None
   ): FiberContext[E, A] = {
     val childFiberRefLocals: Map[FiberRef.Runtime[_], AnyRef] = fiberRefLocals.get.transform { case (fiberRef, value) =>
       fiberRef.fork(value.asInstanceOf[fiberRef.ValueType]).asInstanceOf[AnyRef]
@@ -1105,10 +1105,9 @@ private[zio] final class FiberContext[E, A](
           //  We are truly "done" because the scope has been closed.
           if (!state.compareAndSet(oldState, Done(newExit))) done(exit)
           else {
-            reportUnhandled(newExit)
             notifyObservers(newExit, observers)
 
-            null
+            reportUnhandled(newExit)
           }
         } else {
           // We aren't quite done yet, because we have to close the fiber's scope:
@@ -1120,9 +1119,9 @@ private[zio] final class FiberContext[E, A](
     }
   }
 
-  private[this] def reportUnhandled(v: Exit[E, A]): Unit = v match {
+  private[this] def reportUnhandled(v: Exit[E, A]): UIO[Unit] = v match {
     case Exit.Failure(cause) => reportFailure(cause)
-    case _                   =>
+    case _                   => ZIO.unit
   }
 
   @tailrec
@@ -1300,8 +1299,8 @@ private[zio] object FiberContext {
 
   type FiberRefLocals = AtomicReference[Map[FiberRef.Runtime[_], AnyRef]]
 
-  private val noop: Option[Any => Unit] =
-    Some(_ => ())
+  private val noop: Option[Any => UIO[Unit]] =
+    Some(_ => ZIO.unit)
 
   val fatal: AtomicBoolean =
     new AtomicBoolean(false)
