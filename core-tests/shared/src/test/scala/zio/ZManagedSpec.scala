@@ -601,12 +601,14 @@ object ZManagedSpec extends ZIOBaseSpec {
     suite("onRuntimeConfig")(
       test("runs acquire, use, and release actions on the specified runtime configuration") {
         val runtimeConfig: UIO[RuntimeConfig] = ZIO.runtimeConfig
-        val global                  = RuntimeConfig.global
+        val global                            = RuntimeConfig.global
         for {
           default <- runtimeConfig
           ref1    <- Ref.make[RuntimeConfig](default)
           ref2    <- Ref.make[RuntimeConfig](default)
-          managed  = ZManaged.acquireRelease(runtimeConfig.flatMap(ref1.set))(runtimeConfig.flatMap(ref2.set)).onRuntimeConfig(global)
+          managed = ZManaged
+                      .acquireRelease(runtimeConfig.flatMap(ref1.set))(runtimeConfig.flatMap(ref2.set))
+                      .onRuntimeConfig(global)
           before  <- runtimeConfig
           use     <- managed.useDiscard(runtimeConfig)
           acquire <- ref1.get

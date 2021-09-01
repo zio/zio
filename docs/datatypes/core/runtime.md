@@ -3,7 +3,7 @@ id: runtime
 title: "Runtime"
 ---
 ```scala mdoc:invisible
-import zio.{Has, Runtime, RuntimeConfig, Task, UIO, URIO, ZIO}_
+import zio.{Has, Runtime, RuntimeConfig, Task, UIO, URIO, ZIO}
 ```
 
 A `Runtime[R]` is capable of executing tasks within an environment `R`.
