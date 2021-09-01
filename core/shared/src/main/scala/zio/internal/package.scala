@@ -20,6 +20,11 @@ import zio.stm.ZSTM
 
 package object internal {
 
+  @deprecated("use RuntimeConfig", "2.0.0")
+  type Platform = RuntimeConfig
+  @deprecated("use RuntimeConfig", "2.0.0")
+  val Platform = RuntimeConfig
+
   /**
    * Returns an effect that models success with the specified value.
    */

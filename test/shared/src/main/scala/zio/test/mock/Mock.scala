@@ -38,7 +38,7 @@ abstract class Mock[R <: Has[_]: Tag] { self =>
       if (!TestPlatform.isJS) runtime
       else
         runtime.withExecutor {
-          val ec = runtime.platform.executor.asExecutionContext
+          val ec = runtime.runtimeConfig.executor.asExecutionContext
           Executor.fromExecutionContext(Int.MaxValue)(ec)
         }
     }

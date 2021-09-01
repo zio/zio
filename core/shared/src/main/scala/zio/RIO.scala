@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.internal.{Executor, Platform}
+import zio.internal.Executor
 
 import scala.concurrent.ExecutionContext
 import scala.reflect.ClassTag
@@ -520,15 +520,15 @@ object RIO {
    * @see See [[zio.ZIO.effectSuspendTotalWith]]
    */
   @deprecated("use suspendSucceedWith", "2.0.0")
-  def effectSuspendTotalWith[R, A](p: (Platform, Fiber.Id) => RIO[R, A]): RIO[R, A] =
-    ZIO.effectSuspendTotalWith(p)
+  def effectSuspendTotalWith[R, A](f: (RuntimeConfig, Fiber.Id) => RIO[R, A]): RIO[R, A] =
+    ZIO.effectSuspendTotalWith(f)
 
   /**
    * @see See [[zio.ZIO.effectSuspendWith]]
    */
   @deprecated("use suspendWith", "2.0.0")
-  def effectSuspendWith[R, A](p: (Platform, Fiber.Id) => RIO[R, A]): RIO[R, A] =
-    ZIO.effectSuspendWith(p)
+  def effectSuspendWith[R, A](f: (RuntimeConfig, Fiber.Id) => RIO[R, A]): RIO[R, A] =
+    ZIO.effectSuspendWith(f)
 
   /**
    * @see See [[zio.ZIO.effectTotal]]
@@ -1098,10 +1098,10 @@ object RIO {
     ZIO.onExecutor(executor)(taskr)
 
   /**
-   *  @see See [[zio.ZIO.onPlatform]]
+   *  @see See [[zio.ZIO.onRuntimeConfig]]
    */
-  def onPlatform[R, A](platform: => Platform)(rio: => RIO[R, A]): RIO[R, A] =
-    ZIO.onPlatform(platform)(rio)
+  def onRuntimeConfig[R, A](runtimeConfig: => RuntimeConfig)(rio: => RIO[R, A]): RIO[R, A] =
+    ZIO.onRuntimeConfig(runtimeConfig)(rio)
 
   /**
    * @see See [[zio.ZIO.partition]]
@@ -1122,12 +1122,6 @@ object RIO {
     f: A => RIO[R, B]
   ): RIO[R, (Iterable[Throwable], Iterable[B])] =
     ZIO.partitionParN(n)(in)(f)
-
-  /**
-   * @see See [[zio.ZIO.platform]]
-   */
-  val platform: UIO[Platform] =
-    ZIO.platform
 
   /**
    * @see See [[zio.ZIO.provide]]
@@ -1209,6 +1203,12 @@ object RIO {
    */
   def runtime[R]: ZIO[R, Nothing, Runtime[R]] =
     ZIO.runtime
+
+  /**
+   * @see See [[zio.ZIO.runtimeConfig]]
+   */
+  val runtimeConfig: UIO[RuntimeConfig] =
+    ZIO.runtimeConfig
 
   /**
    * @see See [[zio.ZIO.setState]]
@@ -1294,14 +1294,14 @@ object RIO {
   /**
    * @see See [[zio.ZIO.suspendSucceedWith]]
    */
-  def suspendSucceedWith[R, A](p: (Platform, Fiber.Id) => RIO[R, A]): RIO[R, A] =
-    ZIO.suspendSucceedWith(p)
+  def suspendSucceedWith[R, A](f: (RuntimeConfig, Fiber.Id) => RIO[R, A]): RIO[R, A] =
+    ZIO.suspendSucceedWith(f)
 
   /**
    * @see See [[zio.ZIO.suspendWith]]
    */
-  def suspendWith[R, A](p: (Platform, Fiber.Id) => RIO[R, A]): RIO[R, A] =
-    ZIO.suspendWith(p)
+  def suspendWith[R, A](f: (RuntimeConfig, Fiber.Id) => RIO[R, A]): RIO[R, A] =
+    ZIO.suspendWith(f)
 
   /**
    * @see See [[zio.ZIO.trace]]

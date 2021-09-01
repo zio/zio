@@ -18,12 +18,12 @@ package zio.internal
 
 import zio.internal.stacktracer.Tracer
 import zio.internal.tracing.TracingConfig
-import zio.{Cause, Supervisor}
+import zio.{Cause, RuntimeConfig, Supervisor}
 
 import java.util.{HashMap, HashSet, Map => JMap, Set => JSet}
 import scala.concurrent.ExecutionContext
 
-private[internal] trait PlatformSpecific {
+private[zio] trait PlatformSpecific {
 
   /**
    * Adds a shutdown hook that executes the specified action on shutdown.
@@ -40,14 +40,14 @@ private[internal] trait PlatformSpecific {
    * optional feature and it's not valid to compare the performance of ZIO with
    * enabled Tracing with effect types _without_ a comparable feature.
    */
-  lazy val benchmark: Platform = makeDefault(Int.MaxValue).copy(reportFailure = _ => (), tracing = Tracing.disabled)
+  lazy val benchmark: RuntimeConfig = makeDefault(Int.MaxValue).copy(reportFailure = _ => (), tracing = Tracing.disabled)
 
   /**
-   * The default platform, configured with settings designed to work well for
-   * mainstream usage. Advanced users should consider making their own platform
-   * customized for specific application requirements.
+   * The default runtime configuration, with settings designed to work well for
+   * mainstream usage. Advanced users should consider making their own runtime
+   * configuration customized for specific application requirements.
    */
-  lazy val default: Platform = makeDefault()
+  lazy val default: RuntimeConfig = makeDefault()
 
   /**
    * The default number of operations the ZIO runtime should execute before
@@ -62,15 +62,15 @@ private[internal] trait PlatformSpecific {
   val getCurrentThreadGroup: String = ""
 
   /**
-   * A `Platform` created from Scala's global execution context.
+   * A `RuntimeConfig` created from Scala's global execution context.
    */
-  lazy val global: Platform = fromExecutionContext(ExecutionContext.global)
+  lazy val global: RuntimeConfig = fromExecutionContext(ExecutionContext.global)
 
   /**
-   * Creates a platform from an `Executor`.
+   * Creates a runtime configuration from an `Executor`.
    */
-  final def fromExecutor(executor0: Executor): Platform =
-    Platform(
+  final def fromExecutor(executor0: Executor): RuntimeConfig =
+    RuntimeConfig(
       blockingExecutor = executor0,
       executor = executor0,
       fatal = (_: Throwable) => false,
@@ -88,9 +88,9 @@ private[internal] trait PlatformSpecific {
     )
 
   /**
-   * Creates a Platform from an execution context.
+   * Creates a RuntimeConfig from an execution context.
    */
-  final def fromExecutionContext(ec: ExecutionContext, yieldOpCount: Int = 2048): Platform =
+  final def fromExecutionContext(ec: ExecutionContext, yieldOpCount: Int = 2048): RuntimeConfig =
     fromExecutor(Executor.fromExecutionContext(yieldOpCount)(ec))
 
   /**
@@ -109,9 +109,10 @@ private[internal] trait PlatformSpecific {
   val isNative = true
 
   /**
-   * Makes a new default platform. This is a side-effecting method.
+   * Makes a new default runtime configuration. This is a side-effecting
+   * method.
    */
-  final def makeDefault(yieldOpCount: Int = defaultYieldOpCount): Platform =
+  final def makeDefault(yieldOpCount: Int = defaultYieldOpCount): RuntimeConfig =
     fromExecutor(Executor.fromExecutionContext(yieldOpCount)(ExecutionContext.global))
 
   final def newWeakSet[A](): JSet[A] = new HashSet[A]()

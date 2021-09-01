@@ -17,7 +17,7 @@
 package zio
 
 import zio.ZManaged.ReleaseMap
-import zio.internal.{Executor, Platform}
+import zio.internal.Executor
 
 import scala.collection.immutable.LongMap
 import scala.concurrent.ExecutionContext
@@ -643,12 +643,13 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
     }
 
   /**
-   * Runs this managed effect on the specified platform, guaranteeing that
-   * this managed effect as well as managed effects that are composed
-   * sequentially after it will be run on the specified platform.
+   * Runs this managed effect on the specified runtime configuration,
+   * guaranteeing that this managed effect as well as managed effects that are
+   * composed sequentially after it will be run on the specified runtime
+   * configuration.
    */
-  final def onPlatform(platform: => Platform): ZManaged[R, E, A] =
-    ZManaged.onPlatform(platform) *> self
+  final def onRuntimeConfig(runtimeConfig: => RuntimeConfig): ZManaged[R, E, A] =
+    ZManaged.onRuntimeConfig(runtimeConfig) *> self
 
   /**
    * Executes this effect, skipping the error but returning optionally the success.
@@ -2740,13 +2741,13 @@ object ZManaged extends ZManagedPlatformSpecific {
     }.unit
 
   /**
-   * Returns a managed effect that describes setting the platform to the
-   * specified value as the `acquire` action and setting it back to the
-   * original platform as the `release` action.
+   * Returns a managed effect that describes setting the runtime configuration
+   * to the specified value as the `acquire` action and setting it back to the
+   * original runtime configuration as the `release` action.
    */
-  def onPlatform(platform: => Platform): ZManaged[Any, Nothing, Unit] =
-    ZManaged.fromZIO(ZIO.platform).flatMap { currentPlatform =>
-      ZManaged.acquireRelease(ZIO.setPlatform(platform))(ZIO.setPlatform(currentPlatform))
+  def onRuntimeConfig(runtimeConfig: => RuntimeConfig): ZManaged[Any, Nothing, Unit] =
+    ZManaged.fromZIO(ZIO.runtimeConfig).flatMap { currentRuntimeConfig =>
+      ZManaged.acquireRelease(ZIO.setRuntimeConfig(runtimeConfig))(ZIO.setRuntimeConfig(currentRuntimeConfig))
     }
 
   /**

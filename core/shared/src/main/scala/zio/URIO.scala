@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.internal.{Executor, Platform}
+import zio.internal.Executor
 
 import scala.reflect.ClassTag
 
@@ -458,8 +458,8 @@ object URIO {
    * @see [[zio.ZIO.effectSuspendTotalWith]]
    */
   @deprecated("use suspendSucceedWith", "2.0.0")
-  def effectSuspendTotalWith[R, A](p: (Platform, Fiber.Id) => URIO[R, A]): URIO[R, A] =
-    ZIO.effectSuspendTotalWith(p)
+  def effectSuspendTotalWith[R, A](f: (RuntimeConfig, Fiber.Id) => URIO[R, A]): URIO[R, A] =
+    ZIO.effectSuspendTotalWith(f)
 
   /**
    * @see [[zio.ZIO.effectTotal]]
@@ -990,16 +990,10 @@ object URIO {
     ZIO.onExecutor(executor)(taskr)
 
   /**
-   *  @see See [[zio.ZIO.onPlatform]]
+   *  @see See [[zio.ZIO.onRuntimeConfig]]
    */
-  def onPlatform[R, A](platform: => Platform)(urio: => URIO[R, A]): URIO[R, A] =
-    ZIO.onPlatform(platform)(urio)
-
-  /**
-   * @see See [[zio.ZIO.platform]]
-   */
-  val platform: UIO[Platform] =
-    ZIO.platform
+  def onRuntimeConfig[R, A](runtimeConfig: => RuntimeConfig)(urio: => URIO[R, A]): URIO[R, A] =
+    ZIO.onRuntimeConfig(runtimeConfig)(urio)
 
   /**
    * @see [[zio.ZIO.provide]]
@@ -1076,6 +1070,12 @@ object URIO {
     ZIO.runtime
 
   /**
+   * @see See [[zio.ZIO.runtimeConfig]]
+   */
+  val runtimeConfig: UIO[RuntimeConfig] =
+    ZIO.runtimeConfig
+
+  /**
    * @see [[zio.ZIO.setState]]
    */
   def setState[S: Tag](s: => S): ZIO[Has[ZState[S]], Nothing, Unit] =
@@ -1141,8 +1141,8 @@ object URIO {
   /**
    * @see [[zio.ZIO.suspendSucceedWith]]
    */
-  def suspendSucceedWith[R, A](p: (Platform, Fiber.Id) => URIO[R, A]): URIO[R, A] =
-    ZIO.suspendSucceedWith(p)
+  def suspendSucceedWith[R, A](f: (RuntimeConfig, Fiber.Id) => URIO[R, A]): URIO[R, A] =
+    ZIO.suspendSucceedWith(f)
 
   /**
    * @see [[zio.ZIO.succeed]]

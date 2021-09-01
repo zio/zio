@@ -2,7 +2,6 @@ package zio
 
 import zio.Cause._
 import zio.LatchOps._
-import zio.internal.Platform
 import zio.test.Assertion._
 import zio.test.TestAspect.{flaky, forked, ignore, jvm, jvmOnly, nonFlaky, scala2Only}
 import zio.test._
@@ -1366,16 +1365,16 @@ object ZIOSpec extends ZIOBaseSpec {
     suite("onExecutor")(
       test("effects continue on current executor if no executor is specified") {
         val global = zio.internal.Executor
-          .fromExecutionContext(Platform.defaultYieldOpCount)(scala.concurrent.ExecutionContext.global)
+          .fromExecutionContext(RuntimeConfig.defaultYieldOpCount)(scala.concurrent.ExecutionContext.global)
         for {
           _        <- ZIO.unit.onExecutor(global)
           executor <- ZIO.descriptor.map(_.executor)
         } yield assert(executor)(equalTo(global))
       },
       test("effects are shifted back if executor is specified") {
-        val default = Platform.default.executor
+        val default = RuntimeConfig.default.executor
         val global = zio.internal.Executor
-          .fromExecutionContext(Platform.defaultYieldOpCount)(scala.concurrent.ExecutionContext.global)
+          .fromExecutionContext(RuntimeConfig.defaultYieldOpCount)(scala.concurrent.ExecutionContext.global)
         val effect = for {
           _        <- ZIO.unit.onExecutor(global)
           executor <- ZIO.descriptor.map(_.executor)
@@ -3281,7 +3280,7 @@ object ZIOSpec extends ZIOBaseSpec {
         val executor = zio.internal.Executor.fromExecutionContext(100) {
           scala.concurrent.ExecutionContext.Implicits.global
         }
-        val pool = ZIO.succeed(Platform.getCurrentThreadGroup)
+        val pool = ZIO.succeed(RuntimeConfig.getCurrentThreadGroup)
         val io = for {
           parentPool <- pool
           childPool  <- pool.fork.flatMap(_.join)
@@ -3949,13 +3948,13 @@ object ZIOSpec extends ZIOBaseSpec {
           assert(value)(equalTo("Controlling side-effect of function passed to promise"))
         }
       },
-      test("onPlatform") {
+      test("onRuntimeConfig") {
         for {
-          platform <- ZIO.platform
-          global   <- ZIO.onPlatform(Platform.global)(ZIO.platform)
-          default  <- ZIO.platform
-        } yield assert(global)(equalTo(Platform.global)) &&
-          assert(default)(equalTo(platform))
+          runtimeConfig <- ZIO.runtimeConfig
+          global   <- ZIO.onRuntimeConfig(RuntimeConfig.global)(ZIO.runtimeConfig)
+          default  <- ZIO.runtimeConfig
+        } yield assert(global)(equalTo(RuntimeConfig.global)) &&
+          assert(default)(equalTo(runtimeConfig))
       }
     )
   )

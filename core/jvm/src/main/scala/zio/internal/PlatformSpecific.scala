@@ -19,14 +19,14 @@ package zio.internal
 import zio.internal.stacktracer.Tracer
 import zio.internal.stacktracer.impl.AkkaLineNumbersTracer
 import zio.internal.tracing.TracingConfig
-import zio.{Cause, Supervisor}
+import zio.{Cause, RuntimeConfig, Supervisor}
 
 import java.lang.ref.WeakReference
 import java.util.concurrent.ConcurrentHashMap
 import java.util.{Collections, Map => JMap, Set => JSet, WeakHashMap}
 import scala.concurrent.ExecutionContext
 
-private[internal] trait PlatformSpecific {
+private[zio] trait PlatformSpecific {
 
   /**
    * Adds a shutdown hook that executes the specified action on shutdown.
@@ -46,14 +46,14 @@ private[internal] trait PlatformSpecific {
    * optional feature and it's not valid to compare the performance of ZIO with
    * enabled Tracing with effect types _without_ a comparable feature.
    */
-  lazy val benchmark: Platform = makeDefault(Int.MaxValue).copy(reportFailure = _ => (), tracing = Tracing.disabled)
+  lazy val benchmark: RuntimeConfig = makeDefault(Int.MaxValue).copy(reportFailure = _ => (), tracing = Tracing.disabled)
 
   /**
-   * The default platform, configured with settings designed to work well for
-   * mainstream usage. Advanced users should consider making their own platform
-   * customized for specific application requirements.
+   * The default runtime configuration, with settings designed to work well for
+   * mainstream usage. Advanced users should consider making their own runtime
+   * configuration customized for specific application requirements.
    */
-  lazy val default: Platform = makeDefault()
+  lazy val default: RuntimeConfig = makeDefault()
 
   /**
    * The default number of operations the ZIO runtime should execute before
@@ -69,14 +69,14 @@ private[internal] trait PlatformSpecific {
     Thread.currentThread.getThreadGroup.getName
 
   /**
-   * A `Platform` created from Scala's global execution context.
+   * A `RuntimeConfig` created from Scala's global execution context.
    */
-  lazy val global: Platform = fromExecutionContext(ExecutionContext.global)
+  lazy val global: RuntimeConfig = fromExecutionContext(ExecutionContext.global)
 
   /**
-   * Creates a platform from an `Executor`.
+   * Creates a runtime configuration from an `Executor`.
    */
-  final def fromExecutor(executor0: Executor): Platform = {
+  final def fromExecutor(executor0: Executor): RuntimeConfig = {
     val blockingExecutor = Blocking.blockingExecutor
 
     val executor = executor0
@@ -100,13 +100,13 @@ private[internal] trait PlatformSpecific {
 
     val tracing = Tracing(Tracer.globallyCached(new AkkaLineNumbersTracer), TracingConfig.enabled)
 
-    Platform(blockingExecutor, executor, tracing, fatal, reportFatal, reportFailure, supervisor, false, logger)
+    RuntimeConfig(blockingExecutor, executor, tracing, fatal, reportFatal, reportFailure, supervisor, false, logger)
   }
 
   /**
-   * Creates a Platform from an execution context.
+   * Creates a RuntimeConfig from an execution context.
    */
-  final def fromExecutionContext(ec: ExecutionContext): Platform =
+  final def fromExecutionContext(ec: ExecutionContext): RuntimeConfig =
     fromExecutor(Executor.fromExecutionContext(defaultYieldOpCount)(ec))
 
   /**
@@ -125,9 +125,10 @@ private[internal] trait PlatformSpecific {
   val isNative = false
 
   /**
-   * Makes a new default platform. This is a side-effecting method.
+   * Makes a new default runtime configuration. This is a side-effecting
+   * method.
    */
-  def makeDefault(yieldOpCount: Int = defaultYieldOpCount): Platform =
+  def makeDefault(yieldOpCount: Int = defaultYieldOpCount): RuntimeConfig =
     fromExecutor(Executor.makeDefault(yieldOpCount))
 
   final def newWeakHashMap[A, B](): JMap[A, B] =

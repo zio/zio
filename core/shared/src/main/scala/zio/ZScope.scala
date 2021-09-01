@@ -165,7 +165,7 @@ object ZScope {
 
     val exitValue = new AtomicReference(nullA)
 
-    val weakFinalizers   = internal.Platform.newWeakHashMap[Key, OrderedFinalizer]()
+    val weakFinalizers   = RuntimeConfig.newWeakHashMap[Key, OrderedFinalizer]()
     val strongFinalizers = new java.util.HashMap[Key, OrderedFinalizer]()
 
     val scope0 =

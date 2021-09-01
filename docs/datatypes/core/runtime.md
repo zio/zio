@@ -3,8 +3,7 @@ id: runtime
 title: "Runtime"
 ---
 ```scala mdoc:invisible
-import zio.{Runtime, ZIO, UIO, URIO, Has, Task}
-import zio.internal.Platform
+import zio.{Has, Runtime, RuntimeConfig, Task, UIO, URIO, ZIO}_
 ```
 
 A `Runtime[R]` is capable of executing tasks within an environment `R`.
@@ -97,15 +96,15 @@ We don't usually use this method to run our effects. One of the use cases of thi
 
 ## Default Runtime
 
-ZIO contains a default runtime called `Runtime.default`, configured with the `ZEnv` (the default ZIO environment) and a default `Platform` designed to work well for mainstream usage. It is already implemented as below:
+ZIO contains a default runtime called `Runtime.default`, configured with the `ZEnv` (the default ZIO environment) and a default `RuntimeConfig` designed to work well for mainstream usage. It is already implemented as below:
 
 ```scala
 object Runtime {
-  lazy val default: Runtime[ZEnv] = Runtime(ZEnv.Services.live, Platform.default)
+  lazy val default: Runtime[ZEnv] = Runtime(ZEnv.Services.live, RuntimeConfig.default)
 }
 ```
 
-The default runtime includes a default `Platform` which contains minimum capabilities to bootstrap execution of ZIO tasks and live (production) versions of all ZIO built-in services. The default ZIO environment (`ZEnv`) for the `JS` platform includes `Clock`, `Console`, `System`, `Random`; and the `JVM` platform also has a `Blocking` service:
+The default runtime includes a default `RuntimeConfig` which contains minimum capabilities to bootstrap execution of ZIO tasks and live (production) versions of all ZIO built-in services. The default ZIO environment (`ZEnv`) for the `JS` platform includes `Clock`, `Console`, `System`, `Random`; and the `JVM` platform also has a `Blocking` service:
 
 ```scala
 // Default JS environment
@@ -126,7 +125,7 @@ object MainApp extends scala.App {
 
 ## Custom Runtime
 
-Sometimes we need to create a custom `Runtime` with a user-defined environment and user-specified `Platform`. Many real applications should not use `Runtime.default`. Instead, they should make their own `Runtime` which configures the `Platform` and environment accordingly.
+Sometimes we need to create a custom `Runtime` with a user-defined environment and user-specified `RuntimeCOnfig`. Many real applications should not use `Runtime.default`. Instead, they should make their own `Runtime` which configures the `RuntimeConfig` and environment accordingly.
 
 Some use-cases of custom Runtimes:
 
@@ -177,7 +176,7 @@ Let's create a custom runtime that contains these two service implementations in
 ```scala mdoc:silent:nest
 val testableRuntime = Runtime(
   Has.allOf[Logging, Email](LoggingLive(), EmailMock()),
-  Platform.default
+  RuntimeConfig.default
 )
 ```
 
@@ -206,7 +205,7 @@ testableRuntime.unsafeRun(
 
 Sometimes to diagnose runtime issues and understand what is going on in our application we need to add some sort of monitoring task to the Runtime System. It helps us to track fibers and their status.
 
-By adding a `Supervisor` to the current platform of the Runtime System, we can track the activity of fibers in a program. So every time a fiber gets started, forked, or every time a fiber ends its life, all these contextual pieces of information get reported to that `Supervisor`.
+By adding a `Supervisor` to the current configuration of the Runtime System, we can track the activity of fibers in a program. So every time a fiber gets started, forked, or every time a fiber ends its life, all these contextual pieces of information get reported to that `Supervisor`.
 
 For example, the [ZIO ZMX](https://zio.github.io/zio-zmx/) enables us to monitor our ZIO application. To include that in our project we must add the following line to our `build.sbt`:
 
@@ -233,7 +232,7 @@ val diagnosticsLayer: ZLayer[ZEnv, Throwable, Has[Diagnostics]] =
   Diagnostics.make("localhost", 1111)
 
 val runtime: Runtime[ZEnv] =
-  Runtime.default.mapPlatform(_.withSupervisor(ZMXSupervisor))
+  Runtime.default.mapRuntimeConfig(_.withSupervisor(ZMXSupervisor))
 
 runtime.unsafeRun(program.provideCustomLayer(diagnosticsLayer))
 ```
@@ -248,8 +247,8 @@ Users often turn off tracing in critical areas of their application. Also, when 
 import zio.internal.Tracing
 import zio.internal.tracing.TracingConfig
 
-val rt1 = Runtime.default.mapPlatform(_.copy(tracing = Tracing.disabled))
-val rt2 = Runtime.default.mapPlatform(_.copy(tracing = Tracing.enabledWith(TracingConfig.stackOnly)))
+val rt1 = Runtime.default.mapRuntimeConfig(_.copy(tracing = Tracing.disabled))
+val rt2 = Runtime.default.mapRuntimeConfig(_.copy(tracing = Tracing.enabledWith(TracingConfig.stackOnly)))
 
 val config = TracingConfig(
   traceExecution = true,
@@ -261,7 +260,7 @@ val config = TracingConfig(
   ancestorExecutionTraceLength = 10,
   ancestorStackTraceLength = 10
 )
-val rt3 = Runtime.default.mapPlatform(platform => platform.copy(tracing = platform.tracing.copy(tracingConfig = config)))
+val rt3 = Runtime.default.mapRuntimeConfig(runtimeConfig => runtimeConfig.copy(tracing = runtimeConfig.tracing.copy(tracingConfig = config)))
 ```
 
 ### User-defined Executor
@@ -272,7 +271,7 @@ An executor is responsible for executing effects. The way how each effect will b
 import zio.internal.Executor
 import java.util.concurrent.{ThreadPoolExecutor, TimeUnit, LinkedBlockingQueue}
 
-val runtime = Runtime.default.mapPlatform(
+val runtime = Runtime.default.mapRuntimeConfig(
   _.copy(
     executor = 
       Executor.fromThreadPoolExecutor(_ => 1024)(
@@ -290,8 +289,8 @@ val runtime = Runtime.default.mapPlatform(
 
 ### Benchmarking
 
-To do benchmark operation, we need a `Runtime` with settings suitable for that. It would be better to disable tracing and auto-yielding. ZIO has a built-in `Platform` proper for benchmark operations, called `Platform.benchmark` which we can map the default `Platform` to the benchmark version:
+To do benchmark operation, we need a `Runtime` with settings suitable for that. It would be better to disable tracing and auto-yielding. ZIO has a built-in `RuntimeConfig` proper for benchmark operations, called `RuntimeConfig.benchmark` which we can map the default `RuntimeConfig` to the benchmark version:
 
 ```scala mdoc:silent:nest
-val benchmarkRuntime = Runtime.default.mapPlatform(_ => Platform.benchmark)
+val benchmarkRuntime = Runtime.default.mapRuntimeConfig(_ => RuntimeConfig.benchmark)
 ```

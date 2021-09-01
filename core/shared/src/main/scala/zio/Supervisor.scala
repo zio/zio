@@ -145,7 +145,7 @@ object Supervisor {
    */
   def track(weak: Boolean): UIO[Supervisor[Chunk[Fiber.Runtime[Any, Any]]]] = UIO {
     val set: java.util.Set[Fiber.Runtime[Any, Any]] =
-      if (weak) Platform.newWeakSet[Fiber.Runtime[Any, Any]]()
+      if (weak) RuntimeConfig.newWeakSet[Fiber.Runtime[Any, Any]]()
       else new java.util.HashSet[Fiber.Runtime[Any, Any]]()
 
     new Supervisor[Chunk[Fiber.Runtime[Any, Any]]] {

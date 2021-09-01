@@ -1,7 +1,7 @@
 package zio.stream.experimental
 
 import zio._
-import zio.internal.{Executor, Platform, SingleThreadedRingBuffer, UniqueKey}
+import zio.internal.{Executor, SingleThreadedRingBuffer, UniqueKey}
 import zio.stm._
 import zio.stream.experimental.ZStream.{DebounceState, HandoffSignal}
 import zio.stream.experimental.internal.Utils.zipChunks
@@ -2211,14 +2211,14 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     }
 
   /**
-   * Runs this stream on the specified platform. Any streams that are composed
-   * after this one will be run on the previous executor.
+   * Runs this stream on the specified runtime configuration. Any streams that
+   * are composed after this one will be run on the previous executor.
    */
-  def onPlatform(platform: => Platform): ZStream[R, E, A] =
-    ZStream.fromZIO(ZIO.platform).flatMap { currentPlatform =>
-      ZStream.managed(ZManaged.onPlatform(platform)) *>
+  def onRuntimeConfig(runtimeConfig: => RuntimeConfig): ZStream[R, E, A] =
+    ZStream.fromZIO(ZIO.runtimeConfig).flatMap { currentRuntimeConfig =>
+      ZStream.managed(ZManaged.onRuntimeConfig(runtimeConfig)) *>
         self <*
-        ZStream.fromZIO(ZIO.setPlatform(currentPlatform))
+        ZStream.fromZIO(ZIO.setRuntimeConfig(currentRuntimeConfig))
     }
 
   /**
@@ -3910,14 +3910,14 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
           val hasNext: Boolean =
             try it.hasNext
             catch {
-              case e: Throwable if !rt.platform.fatal(e) =>
+              case e: Throwable if !rt.runtimeConfig.fatal(e) =>
                 throw e
             }
 
           if (hasNext) {
             try it.next()
             catch {
-              case e: Throwable if !rt.platform.fatal(e) =>
+              case e: Throwable if !rt.runtimeConfig.fatal(e) =>
                 throw e
             }
           } else throw StreamEnd

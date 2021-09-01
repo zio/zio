@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.internal.{Executor, Platform}
+import zio.internal.Executor
 
 import scala.concurrent.ExecutionContext
 import scala.reflect.ClassTag
@@ -500,15 +500,15 @@ object Task extends TaskPlatformSpecific {
    * @see See [[zio.ZIO.effectSuspendTotalWith]]
    */
   @deprecated("use suspendSucceedWith", "2.0.0")
-  def effectSuspendTotalWith[A](p: (Platform, Fiber.Id) => Task[A]): Task[A] =
-    ZIO.effectSuspendTotalWith(p)
+  def effectSuspendTotalWith[A](f: (RuntimeConfig, Fiber.Id) => Task[A]): Task[A] =
+    ZIO.effectSuspendTotalWith(f)
 
   /**
    * @see See [[zio.RIO.effectSuspendWith]]
    */
   @deprecated("use suspendWith", "2.0.0")
-  def effectSuspendWith[A](p: (Platform, Fiber.Id) => Task[A]): Task[A] =
-    ZIO.effectSuspendWith(p)
+  def effectSuspendWith[A](f: (RuntimeConfig, Fiber.Id) => Task[A]): Task[A] =
+    ZIO.effectSuspendWith(f)
 
   /**
    * @see See [[zio.ZIO.effectTotal]]
@@ -1039,10 +1039,10 @@ object Task extends TaskPlatformSpecific {
     ZIO.onExecutor(executor)(task)
 
   /**
-   *  @see See [[zio.ZIO.onPlatform]]
+   *  @see See [[zio.ZIO.onRuntimeConfig]]
    */
-  def onPlatform[A](platform: => Platform)(task: => Task[A]): Task[A] =
-    ZIO.onPlatform(platform)(task)
+  def onRuntimeConfig[A](runtimeConfig: => RuntimeConfig)(task: => Task[A]): Task[A] =
+    ZIO.onRuntimeConfig(runtimeConfig)(task)
 
   /**
    * @see See [[zio.ZIO.partition]]
@@ -1061,12 +1061,6 @@ object Task extends TaskPlatformSpecific {
    */
   def partitionParN[A, B](n: => Int)(in: => Iterable[A])(f: A => Task[B]): Task[(Iterable[Throwable], Iterable[B])] =
     ZIO.partitionParN(n)(in)(f)
-
-  /**
-   * @see See [[zio.ZIO.platform]]
-   */
-  val platform: UIO[Platform] =
-    ZIO.platform
 
   /**
    * @see See [[zio.ZIO.raceAll]]
@@ -1144,6 +1138,12 @@ object Task extends TaskPlatformSpecific {
     ZIO.runtime
 
   /**
+   * @see See [[zio.ZIO.runtimeConfig]]
+   */
+  val runtimeConfig: UIO[RuntimeConfig] =
+    ZIO.runtimeConfig
+
+  /**
    *  @see [[zio.ZIO.some]]
    */
   def some[A](a: => A): Task[Option[A]] =
@@ -1176,14 +1176,14 @@ object Task extends TaskPlatformSpecific {
   /**
    * @see See [[zio.ZIO.suspendSucceedWith]]
    */
-  def suspendSucceedWith[A](p: (Platform, Fiber.Id) => Task[A]): Task[A] =
-    ZIO.suspendSucceedWith(p)
+  def suspendSucceedWith[A](f: (RuntimeConfig, Fiber.Id) => Task[A]): Task[A] =
+    ZIO.suspendSucceedWith(f)
 
   /**
    * @see See [[zio.RIO.suspendWith]]
    */
-  def suspendWith[A](p: (Platform, Fiber.Id) => Task[A]): Task[A] =
-    ZIO.suspendWith(p)
+  def suspendWith[A](f: (RuntimeConfig, Fiber.Id) => Task[A]): Task[A] =
+    ZIO.suspendWith(f)
 
   /**
    * @see See [[zio.ZIO.trace]]

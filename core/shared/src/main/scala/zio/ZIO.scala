@@ -17,7 +17,7 @@
 package zio
 
 import zio.internal.tracing.{ZIOFn, ZIOFn1, ZIOFn2}
-import zio.internal.{Executor, Platform}
+import zio.internal.Executor
 import zio.{TracingStatus => TracingS}
 
 import java.io.IOException
@@ -1246,11 +1246,11 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     }
 
   /**
-   * Runs this effect on the specified platform, restoring the old platform
-   * when it completes execution.
+   * Runs this effect on the specified runtime configuration, restoring the old
+   * runtime configuration when it completes execution.
    */
-  final def onPlatform(platform: => Platform): ZIO[R, E, A] =
-    ZIO.onPlatform(platform)(self)
+  final def onRuntimeConfig(runtimeConfig: => RuntimeConfig): ZIO[R, E, A] =
+    ZIO.onRuntimeConfig(runtimeConfig)(self)
 
   /**
    * Runs the specified effect if this effect is terminated, either because of
@@ -2743,10 +2743,10 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * }}}
    */
   def attempt[A](effect: => A): Task[A] =
-    effectTotalWith { (platform, _) =>
+    effectTotalWith { (runtimeConfig, _) =>
       try effect
       catch {
-        case t: Throwable if !platform.fatal(t) => throw new ZioError(Exit.fail(t))
+        case t: Throwable if !runtimeConfig.fatal(t) => throw new ZioError(Exit.fail(t))
       }
     }
 
@@ -2865,7 +2865,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Retrieves the executor for all blocking tasks.
    */
   def blockingExecutor: UIO[Executor] =
-    ZIO.suspendSucceedWith((platform, _) => ZIO.succeedNow(platform.blockingExecutor))
+    ZIO.suspendSucceedWith((runtimeConfig, _) => ZIO.succeedNow(runtimeConfig.blockingExecutor))
 
   /**
    * When this effect represents acquisition of a resource (for example,
@@ -3393,7 +3393,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * do not use this method, use [[Task.effectSuspend]] or [[ZIO.effectSuspend]].
    */
   @deprecated("use suspendSucceedWith", "2.0.0")
-  def effectSuspendTotalWith[R, E, A](f: (Platform, Fiber.Id) => ZIO[R, E, A]): ZIO[R, E, A] =
+  def effectSuspendTotalWith[R, E, A](f: (RuntimeConfig, Fiber.Id) => ZIO[R, E, A]): ZIO[R, E, A] =
     suspendSucceedWith(f)
 
   /**
@@ -3401,7 +3401,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * When no environment is required (i.e., when R == Any) it is conceptually equivalent to `flatten(effect(io))`.
    */
   @deprecated("use suspendWith", "2.0.0")
-  def effectSuspendWith[R, A](f: (Platform, Fiber.Id) => RIO[R, A]): RIO[R, A] =
+  def effectSuspendWith[R, A](f: (RuntimeConfig, Fiber.Id) => RIO[R, A]): RIO[R, A] =
     suspendWith(f)
 
   /**
@@ -3420,9 +3420,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
   /**
    * The same as [[ZIO.effectTotal]], but also provides access to the
-   * underlying Platform and fiber id.
+   * underlying RuntimeConfig and fiber id.
    */
-  def effectTotalWith[A](effect: (Platform, Fiber.Id) => A): UIO[A] =
+  def effectTotalWith[A](effect: (RuntimeConfig, Fiber.Id) => A): UIO[A] =
     new ZIO.EffectWith(effect)
 
   /**
@@ -4570,6 +4570,15 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     Ref.make(zero).flatMap(acc => foreachParNDiscard(n)(in)(_.flatMap(a => acc.update(f(_, a)))) *> acc.get)
 
   /**
+   * Returns a effect that will never produce anything. The moral equivalent of
+   * `while(true) {}`, only without the wasted CPU cycles. Fibers that suspended
+   * running this effect are automatically garbage collected on the JVM,
+   * because they cannot be reactivated.
+   */
+  lazy val never: UIO[Nothing] =
+    async[Any, Nothing, Nothing](_ => ())
+
+  /**
    * Returns an effect with the empty value.
    */
   lazy val none: UIO[Option[Nothing]] = succeedNow(None)
@@ -4599,6 +4608,15 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     ZIO.descriptorWith { descriptor =>
       if (descriptor.isLocked) ZIO.shift(executor).acquireRelease(ZIO.shift(descriptor.executor), zio)
       else ZIO.shift(executor).acquireRelease(ZIO.unshift, zio)
+    }
+
+  /**
+   * Runs the specified effect on the specified runtime configuration,
+   * restoring the old runtime configuration when it completes execution.
+   */
+  def onRuntimeConfig[R, E, A](runtimeConfig: => RuntimeConfig)(zio: => ZIO[R, E, A]): ZIO[R, E, A] =
+    ZIO.runtimeConfig.flatMap { currentRuntimeConfig =>
+      ZIO.setRuntimeConfig(runtimeConfig).acquireRelease(ZIO.setRuntimeConfig(currentRuntimeConfig), zio)
     }
 
   /**
@@ -4633,12 +4651,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     ZIO.suspendSucceed(ZIO.foreachParN(n)(in)(f(_).either).map(ZIO.partitionMap(_)(ZIO.identityFn)))
 
   /**
-   * Retrieves the platform that this effect is running on.
-   */
-  val platform: UIO[Platform] =
-    ZIO.suspendSucceedWith((platform, _) => ZIO.succeedNow(platform))
-
-  /**
    * Given an environment `R`, returns a function that can supply the
    * environment to programs that require it, removing their need for any
    * specific environment.
@@ -4649,23 +4661,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def provide[R, E, A](r: => R): ZIO[R, E, A] => IO[E, A] =
     (zio: ZIO[R, E, A]) => new ZIO.Provide(() => r, zio)
 
-  /**
-   * Returns a effect that will never produce anything. The moral equivalent of
-   * `while(true) {}`, only without the wasted CPU cycles. Fibers that suspended
-   * running this effect are automatically garbage collected on the JVM,
-   * because they cannot be reactivated.
-   */
-  lazy val never: UIO[Nothing] =
-    async[Any, Nothing, Nothing](_ => ())
-
-  /**
-   * Runs the specified effect on the specified platform, restoring the old
-   * platform when it completes execution.
-   */
-  def onPlatform[R, E, A](platform: => Platform)(zio: => ZIO[R, E, A]): ZIO[R, E, A] =
-    ZIO.platform.flatMap { currentPlatform =>
-      ZIO.setPlatform(platform).acquireRelease(ZIO.setPlatform(currentPlatform), zio)
-    }
 
   /**
    * Races an `IO[E, A]` against zero or more other effects. Yields either the
@@ -4798,9 +4793,15 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def runtime[R]: URIO[R, Runtime[R]] =
     for {
       environment <- environment[R]
-      platform    <- suspendSucceedWith((p, _) => ZIO.succeedNow(p))
+      runtimeConfig    <- suspendSucceedWith((p, _) => ZIO.succeedNow(p))
       executor    <- executor
-    } yield Runtime(environment, platform.copy(executor = executor))
+    } yield Runtime(environment, runtimeConfig.copy(executor = executor))
+
+  /**
+   * Retrieves the runtimeConfig that this effect is running on.
+   */
+  val runtimeConfig: UIO[RuntimeConfig] =
+    ZIO.suspendSucceedWith((runtimeConfig, _) => ZIO.succeedNow(runtimeConfig))
 
   /**
    * Passes the fiber's scope to the specified function, which creates an effect
@@ -4816,10 +4817,10 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     ZIO.serviceWith(_.set(s))
 
   /**
-   * Sets the platform to the specified value.
+   * Sets the runtime configuration to the specified value.
    */
-  def setPlatform(platform: => Platform): UIO[Unit] =
-    new ZIO.SetPlatform(() => platform)
+  def setRuntimeConfig(runtimeConfig: => RuntimeConfig): UIO[Unit] =
+    new ZIO.SetRuntimeConfig(() => runtimeConfig)
 
   /**
    * Accesses the specified service in the environment of the effect.
@@ -4908,10 +4909,10 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * When no environment is required (i.e., when R == Any) it is conceptually equivalent to `flatten(effect(io))`.
    */
   def suspend[R, A](rio: => RIO[R, A]): RIO[R, A] =
-    suspendSucceedWith { (platform, _) =>
+    suspendSucceedWith { (runtimeConfig, _) =>
       try rio
       catch {
-        case t: Throwable if !platform.fatal(t) => throw new ZioError(Exit.fail(t))
+        case t: Throwable if !runtimeConfig.fatal(t) => throw new ZioError(Exit.fail(t))
       }
     }
 
@@ -4930,18 +4931,18 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * it is conceptually equivalent to `flatten(succeed(zio))`. If you wonder if the effect throws exceptions,
    * do not use this method, use [[Task.suspend]] or [[ZIO.suspend]].
    */
-  def suspendSucceedWith[R, E, A](f: (Platform, Fiber.Id) => ZIO[R, E, A]): ZIO[R, E, A] =
+  def suspendSucceedWith[R, E, A](f: (RuntimeConfig, Fiber.Id) => ZIO[R, E, A]): ZIO[R, E, A] =
     new ZIO.SuspendWith(f)
 
   /**
    * Returns a lazily constructed effect, whose construction may itself require effects.
    * When no environment is required (i.e., when R == Any) it is conceptually equivalent to `flatten(effect(io))`.
    */
-  def suspendWith[R, A](f: (Platform, Fiber.Id) => RIO[R, A]): RIO[R, A] =
-    suspendSucceedWith((platform, fiberId) =>
-      try f(platform, fiberId)
+  def suspendWith[R, A](f: (RuntimeConfig, Fiber.Id) => RIO[R, A]): RIO[R, A] =
+    suspendSucceedWith((runtimeConfig, fiberId) =>
+      try f(runtimeConfig, fiberId)
       catch {
-        case t: Throwable if !platform.fatal(t) => throw new ZioError(Exit.fail(t))
+        case t: Throwable if !runtimeConfig.fatal(t) => throw new ZioError(Exit.fail(t))
       }
     )
 
@@ -5917,7 +5918,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     final val FiberRefGetAll    = 29
     final val FiberRefLocally   = 30
     final val FiberRefDelete    = 31
-    final val SetPlatform       = 32
+    final val SetRuntimeConfig       = 32
   }
 
   private[zio] final case class ZioError[E, A](exit: Exit[E, A]) extends Throwable with NoStackTrace
@@ -5935,7 +5936,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     override def tag = Tags.EffectTotal
   }
 
-  private[zio] final class EffectWith[A](val effect: (Platform, Fiber.Id) => A) extends UIO[A] {
+  private[zio] final class EffectWith[A](val effect: (RuntimeConfig, Fiber.Id) => A) extends UIO[A] {
     override def tag = Tags.EffectWith
   }
 
@@ -5943,7 +5944,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     override def tag = Tags.Suspend
   }
 
-  private[zio] final class SuspendWith[R, E, A](val make: (Platform, Fiber.Id) => ZIO[R, E, A]) extends ZIO[R, E, A] {
+  private[zio] final class SuspendWith[R, E, A](val make: (RuntimeConfig, Fiber.Id) => ZIO[R, E, A]) extends ZIO[R, E, A] {
     override def tag = Tags.SuspendWith
   }
 
@@ -6094,8 +6095,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     override def tag = Tags.Logged
   }
 
-  private[zio] final class SetPlatform(val platform: () => Platform) extends UIO[Unit] {
-    override def tag = Tags.SetPlatform
+  private[zio] final class SetRuntimeConfig(val runtimeConfig: () => RuntimeConfig) extends UIO[Unit] {
+    override def tag = Tags.SetRuntimeConfig
   }
 
   private[zio] val someFatal   = Some(LogLevel.Fatal)

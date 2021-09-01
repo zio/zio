@@ -8,9 +8,9 @@ import scala.concurrent.ExecutionContext
 
 object BenchmarkUtil extends Runtime[ZEnv] {
   val environment = Runtime.default.environment
-  val platform    = Platform.benchmark
+  val runtimeConfig    = RuntimeConfig.benchmark
 
-  val TracedRuntime: Runtime[ZEnv] = Runtime(environment, Platform.benchmark.copy(tracing = Tracing.enabled))
+  val TracedRuntime: Runtime[ZEnv] = Runtime(environment, RuntimeConfig.benchmark.copy(tracing = Tracing.enabled))
 
   implicit val futureExecutionContext: ExecutionContext =
     ExecutionContext.global

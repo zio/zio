@@ -582,7 +582,7 @@ def transactor: ZManaged[Any, Throwable, HikariTransactor[Task]] =
               "jdbc:h2:mem:test;DB_CLOSE_DELAY=-1",               // connect URL
               "sa",                                               // username
               "",                                                 // password
-              rt.platform.executor.asExecutionContext,            // await connection here
+              rt.runtimeConfig.executor.asExecutionContext,       // await connection here
               Blocker.liftExecutionContext(be.asExecutionContext) // execute JDBC operations here
             )
             .toManagedZIO
@@ -625,11 +625,11 @@ def transactor: ZManaged[Any, Throwable, HikariTransactor[Task]] =
     xa <-
       HikariTransactor
         .newHikariTransactor[Task](
-          "org.h2.Driver",                        // driver classname
-          "jdbc:h2:mem:test;DB_CLOSE_DELAY=-1",   // connect URL
-          "sa",                                   // username
-          "",                                     // password
-          rt.platform.executor.asExecutionContext // await connection here
+          "org.h2.Driver",                             // driver classname
+          "jdbc:h2:mem:test;DB_CLOSE_DELAY=-1",        // connect URL
+          "sa",                                        // username
+          "",                                          // password
+          rt.runtimeConfig.executor.asExecutionContext // await connection here
         )
         .toManaged
   } yield xa

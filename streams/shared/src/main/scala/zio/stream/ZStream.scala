@@ -17,7 +17,7 @@
 package zio.stream
 
 import zio._
-import zio.internal.{Executor, Platform, UniqueKey}
+import zio.internal.{Executor, UniqueKey}
 import zio.stm.TQueue
 import zio.stream.internal.Utils.zipChunks
 import zio.stream.internal.{ZInputStream, ZReader}
@@ -2379,14 +2379,14 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     }
 
   /**
-   * Runs this stream on the specified platform. Any streams that are composed
-   * after this one will be run on the previous executor.
+   * Runs this stream on the specified runtime configuration. Any streams that
+   * are composed after this one will be run on the previous executor.
    */
-  def onPlatform(platform: => Platform): ZStream[R, E, O] =
-    ZStream.fromZIO(ZIO.platform).flatMap { currentPlatform =>
-      ZStream.managed(ZManaged.onPlatform(platform)) *>
+  def onRuntimeConfig(runtimeConfig: => RuntimeConfig): ZStream[R, E, O] =
+    ZStream.fromZIO(ZIO.runtimeConfig).flatMap { currentRuntimeConfig =>
+      ZStream.managed(ZManaged.onRuntimeConfig(runtimeConfig)) *>
         self <*
-        ZStream.fromZIO(ZIO.setPlatform(currentPlatform))
+        ZStream.fromZIO(ZIO.setRuntimeConfig(currentRuntimeConfig))
     }
 
   /**
