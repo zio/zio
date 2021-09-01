@@ -334,8 +334,8 @@ trait Runtime[+R] {
 
 object Runtime {
   class Proxy[+R](underlying: Runtime[R]) extends Runtime[R] {
-    def runtimeConfig    = underlying.runtimeConfig
-    def environment = underlying.environment
+    def runtimeConfig = underlying.runtimeConfig
+    def environment   = underlying.environment
   }
 
   /**
@@ -383,9 +383,9 @@ object Runtime {
      */
     def apply[R](r: R, runtimeConfig0: RuntimeConfig, shutdown0: () => Unit): Runtime.Managed[R] =
       new Runtime.Managed[R] {
-        val environment = r
-        val runtimeConfig    = runtimeConfig0
-        def shutdown()  = shutdown0()
+        val environment   = r
+        val runtimeConfig = runtimeConfig0
+        def shutdown()    = shutdown0()
       }
   }
 
@@ -393,8 +393,8 @@ object Runtime {
    * Builds a new runtime given an environment `R` and a [[zio.RuntimeConfig]].
    */
   def apply[R](r: R, runtimeConfig0: RuntimeConfig): Runtime[R] = new Runtime[R] {
-    val environment = r
-    val runtimeConfig    = runtimeConfig0
+    val environment   = r
+    val runtimeConfig = runtimeConfig0
   }
 
   /**
@@ -420,7 +420,10 @@ object Runtime {
    * legacy code, but other applications should investigate using
    * [[ZIO.provideLayer]] directly in their application entry points.
    */
-  def unsafeFromLayer[R](layer: Layer[Any, R], runtimeConfig: RuntimeConfig = RuntimeConfig.default): Runtime.Managed[R] = {
+  def unsafeFromLayer[R](
+    layer: Layer[Any, R],
+    runtimeConfig: RuntimeConfig = RuntimeConfig.default
+  ): Runtime.Managed[R] = {
     val runtime = Runtime((), runtimeConfig)
     val (environment, shutdown) = runtime.unsafeRun {
       ZManaged.ReleaseMap.make.flatMap { releaseMap =>

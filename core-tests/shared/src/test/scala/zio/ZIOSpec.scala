@@ -3951,8 +3951,8 @@ object ZIOSpec extends ZIOBaseSpec {
       test("onRuntimeConfig") {
         for {
           runtimeConfig <- ZIO.runtimeConfig
-          global   <- ZIO.onRuntimeConfig(RuntimeConfig.global)(ZIO.runtimeConfig)
-          default  <- ZIO.runtimeConfig
+          global        <- ZIO.onRuntimeConfig(RuntimeConfig.global)(ZIO.runtimeConfig)
+          default       <- ZIO.runtimeConfig
         } yield assert(global)(equalTo(RuntimeConfig.global)) &&
           assert(default)(equalTo(runtimeConfig))
       }

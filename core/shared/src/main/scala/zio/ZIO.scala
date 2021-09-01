@@ -4661,7 +4661,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def provide[R, E, A](r: => R): ZIO[R, E, A] => IO[E, A] =
     (zio: ZIO[R, E, A]) => new ZIO.Provide(() => r, zio)
 
-
   /**
    * Races an `IO[E, A]` against zero or more other effects. Yields either the
    * first success or the last failure.
@@ -4792,9 +4791,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   def runtime[R]: URIO[R, Runtime[R]] =
     for {
-      environment <- environment[R]
-      runtimeConfig    <- suspendSucceedWith((p, _) => ZIO.succeedNow(p))
-      executor    <- executor
+      environment   <- environment[R]
+      runtimeConfig <- suspendSucceedWith((p, _) => ZIO.succeedNow(p))
+      executor      <- executor
     } yield Runtime(environment, runtimeConfig.copy(executor = executor))
 
   /**
@@ -5918,7 +5917,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     final val FiberRefGetAll    = 29
     final val FiberRefLocally   = 30
     final val FiberRefDelete    = 31
-    final val SetRuntimeConfig       = 32
+    final val SetRuntimeConfig  = 32
   }
 
   private[zio] final case class ZioError[E, A](exit: Exit[E, A]) extends Throwable with NoStackTrace
@@ -5944,7 +5943,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     override def tag = Tags.Suspend
   }
 
-  private[zio] final class SuspendWith[R, E, A](val make: (RuntimeConfig, Fiber.Id) => ZIO[R, E, A]) extends ZIO[R, E, A] {
+  private[zio] final class SuspendWith[R, E, A](val make: (RuntimeConfig, Fiber.Id) => ZIO[R, E, A])
+      extends ZIO[R, E, A] {
     override def tag = Tags.SuspendWith
   }
 

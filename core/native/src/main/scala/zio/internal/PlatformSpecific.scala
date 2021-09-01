@@ -40,7 +40,8 @@ private[zio] trait PlatformSpecific {
    * optional feature and it's not valid to compare the performance of ZIO with
    * enabled Tracing with effect types _without_ a comparable feature.
    */
-  lazy val benchmark: RuntimeConfig = makeDefault(Int.MaxValue).copy(reportFailure = _ => (), tracing = Tracing.disabled)
+  lazy val benchmark: RuntimeConfig =
+    makeDefault(Int.MaxValue).copy(reportFailure = _ => (), tracing = Tracing.disabled)
 
   /**
    * The default runtime configuration, with settings designed to work well for

@@ -18,7 +18,8 @@ package zio
 
 import zio.internal.{Executor, Tracing, ZLogger}
 
-final case class RuntimeConfigAspect(customize: RuntimeConfig => RuntimeConfig) extends (RuntimeConfig => RuntimeConfig) { self =>
+final case class RuntimeConfigAspect(customize: RuntimeConfig => RuntimeConfig)
+    extends (RuntimeConfig => RuntimeConfig) { self =>
   def apply(p: RuntimeConfig): RuntimeConfig = customize(p)
 
   def >>>(that: RuntimeConfigAspect): RuntimeConfigAspect = RuntimeConfigAspect(self.customize.andThen(that.customize))
@@ -29,10 +30,10 @@ object RuntimeConfigAspect extends ((RuntimeConfig => RuntimeConfig) => RuntimeC
     RuntimeConfigAspect(self => self.copy(logger = self.logger ++ logger))
 
   def addReportFailure(f: Cause[Any] => Unit): RuntimeConfigAspect =
-    RuntimeConfigAspect(self => self.copy(reportFailure = c => { self.reportFailure(c); f(c)}))
+    RuntimeConfigAspect(self => self.copy(reportFailure = c => { self.reportFailure(c); f(c) }))
 
   def addReportFatal(f: Throwable => Nothing): RuntimeConfigAspect =
-    RuntimeConfigAspect(self => self.copy(reportFatal = t => { self.reportFatal(t); f(t)}))
+    RuntimeConfigAspect(self => self.copy(reportFatal = t => { self.reportFatal(t); f(t) }))
 
   def addSupervisor(supervisor: Supervisor[Any]): RuntimeConfigAspect =
     RuntimeConfigAspect(self => self.copy(supervisor = self.supervisor ++ supervisor))
