@@ -14,19 +14,19 @@
  * limitations under the License.
  */
 
-package zio.internal
+package zio
 
 import zio.internal.stacktracer.Tracer
 import zio.internal.stacktracer.impl.AkkaLineNumbersTracer
 import zio.internal.tracing.TracingConfig
-import zio.{Cause, RuntimeConfig, Supervisor}
+import zio.internal.{Blocking, Executor, Tracing, ZLogger}
 
 import java.lang.ref.WeakReference
 import java.util.concurrent.ConcurrentHashMap
 import java.util.{Collections, Map => JMap, Set => JSet, WeakHashMap}
 import scala.concurrent.ExecutionContext
 
-private[zio] trait PlatformSpecific {
+private[zio] trait RuntimeConfigPlatformSpecific {
 
   /**
    * Adds a shutdown hook that executes the specified action on shutdown.
@@ -87,12 +87,12 @@ private[zio] trait PlatformSpecific {
     val logger: ZLogger[Unit] =
       ZLogger.defaultFormatter.logged(println(_))
 
-    val reportFailure = (cause: Cause[Any]) => if (cause.isDie) System.err.println(cause.prettyPrint)
+    val reportFailure = (cause: Cause[Any]) => if (cause.isDie) java.lang.System.err.println(cause.prettyPrint)
 
     val reportFatal = (t: Throwable) => {
       t.printStackTrace()
       try {
-        System.exit(-1)
+        java.lang.System.exit(-1)
         throw t
       } catch { case _: Throwable => throw t }
     }

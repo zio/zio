@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.internal.{Executor, PlatformSpecific, Tracing, ZLogger}
+import zio.internal.{Executor, Tracing, ZLogger}
 
 /**
  * A `RuntimeConfig` provides the minimum capabilities necessary to bootstrap
@@ -56,4 +56,4 @@ final case class RuntimeConfig(
   @deprecated("2.0.0", "Use RuntimeConfig#copy instead")
   def withTracing(t: Tracing): RuntimeConfig = copy(tracing = t)
 }
-object RuntimeConfig extends PlatformSpecific
+object RuntimeConfig extends RuntimeConfigPlatformSpecific

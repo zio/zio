@@ -14,17 +14,17 @@
  * limitations under the License.
  */
 
-package zio.internal
+package zio
 
 import zio.internal.stacktracer.{Tracer, ZTraceElement}
 import zio.internal.tracing.TracingConfig
-import zio._
+import zio.internal.{Executor, Tracing, ZLogger}
 
 import java.util.{HashMap, HashSet, Map => JMap, Set => JSet}
 import scala.concurrent.ExecutionContext
 import scala.scalajs.js.Dynamic.{global => jsglobal}
 
-private[zio] trait PlatformSpecific {
+private[zio] trait RuntimeConfigPlatformSpecific {
 
   /**
    * Adds a shutdown hook that executes the specified action on shutdown.
