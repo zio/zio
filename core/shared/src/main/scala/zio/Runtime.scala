@@ -56,6 +56,14 @@ trait Runtime[+R] {
     Runtime(environment, f(platform))
 
   /**
+   * Runs the effect "purely" through an async boundary. Useful for testing.
+   */
+  final def run[E, A](zio: ZIO[R, E, A]): IO[E, A] =
+    IO.async[E, A] { callback =>
+      unsafeRunAsyncWith(zio)(exit => callback(ZIO.done(exit)))
+    }
+
+  /**
    * Executes the effect synchronously, failing
    * with [[zio.FiberFailure]] if there are any errors. May fail on
    * Scala.js if the effect cannot be entirely run synchronously.
@@ -274,8 +282,6 @@ trait Runtime[+R] {
   private final def unsafeRunWith[E, A](
     zio: => ZIO[R, E, A]
   )(k: Exit[E, A] => Any): Fiber.Id => (Exit[E, A] => Any) => Unit = {
-    val InitialInterruptStatus = InterruptStatus.Interruptible
-
     val fiberId = Fiber.newFiberId()
 
     val scope = ZScope.unsafeMake[Exit[E, A]]()
@@ -288,7 +294,7 @@ trait Runtime[+R] {
       environment.asInstanceOf[AnyRef],
       platform.executor,
       false,
-      InitialInterruptStatus,
+      InterruptStatus.Interruptible,
       None,
       PlatformConstants.tracingSupported,
       new java.util.concurrent.atomic.AtomicReference(Map.empty),

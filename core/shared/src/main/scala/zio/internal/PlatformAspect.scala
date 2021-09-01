@@ -22,5 +22,5 @@ final case class PlatformAspect(customize: Platform => Platform) extends (Platfo
   def >>>(that: PlatformAspect): PlatformAspect = PlatformAspect(self.customize.andThen(that.customize))
 }
 object PlatformAspect extends ((Platform => Platform) => PlatformAspect) {
-  def identity: PlatformAspect = PlatformAspect(identity(_))
+  val identity: PlatformAspect = PlatformAspect(Predef.identity(_))
 }

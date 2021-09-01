@@ -35,7 +35,7 @@ import zio.internal._
  * }
  * }}}
  */
-abstract class ZIOApp { self =>
+trait ZIOApp { self =>
   @volatile private var shuttingDown = false
 
   /**
@@ -70,21 +70,29 @@ abstract class ZIOApp { self =>
   def hook: PlatformAspect = PlatformAspect.identity
 
   /**
+   * Invokes the main app. Designed primarily for testing.
+   */
+  final def invoke(args: Chunk[String]): ZIO[ZEnv, Nothing, ExitCode] =
+    ZIO.runtime[ZEnv].flatMap { runtime =>
+      val newRuntime = runtime.mapPlatform(hook)
+
+      newRuntime.run(run.provideCustomLayer(ZLayer.succeed(ZIOAppArgs(args)))).exitCode
+    }
+
+  /**
    * The Scala main function, intended to be called only by the Scala runtime.
    */
   final def main(args0: Array[String]): Unit = {
-    val runtime = Runtime.default.mapPlatform(hook)
-
     runtime.unsafeRun {
       (for {
-        fiber <- run.provide(runtime.environment ++ Has(ZIOAppArgs(Chunk.fromIterable(args0)))).fork
+        fiber <- invoke(Chunk.fromIterable(args0)).provide(runtime.environment).fork
         _ <-
           IO.succeed(Platform.addShutdownHook { () =>
             shuttingDown = true
 
             if (FiberContext.fatal.get) {
               println(
-                "**** WARNING ***\n" +
+                "**** WARNING ****\n" +
                   "Catastrophic JVM error encountered. " +
                   "Application not safely interrupted. " +
                   "Resources may be leaked. " +
@@ -101,6 +109,8 @@ abstract class ZIOApp { self =>
         _      <- exit(result)
       } yield ())
     }
+
+    def runtime: Runtime[ZEnv] = Runtime.default
   }
 
   /**
@@ -117,9 +127,18 @@ object ZIOApp {
     override final def run  = app.run
   }
 
+  /**
+   * Creates a [[ZIOApp]] from an effect, which can consume the arguments of the program, as well
+   * as a hook into the ZIO runtime configuration.
+   */
   def apply(run0: ZIO[ZEnv with Has[ZIOAppArgs], Any, Any], hook0: PlatformAspect): ZIOApp =
     new ZIOApp {
       override def hook = hook0
       def run           = run0
     }
+
+  /**
+   * Creates a [[ZIOApp]] from an effect, using the unmodified default runtime's platform.
+   */
+  def fromEffect(run0: ZIO[ZEnv with Has[ZIOAppArgs], Any, Any]): ZIOApp = ZIOApp(run0, PlatformAspect.identity)
 }
