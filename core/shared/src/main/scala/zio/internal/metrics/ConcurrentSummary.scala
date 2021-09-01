@@ -46,7 +46,13 @@ object ConcurrentSummary {
       def snapshot(now: java.time.Instant): Chunk[(Double, Option[Double])] = {
         val builder = ChunkBuilder.make[Double]()
 
-        values.removeIf { case (t, _) => Duration.fromInterval(t, now).compareTo(maxAge) > 0 }
+        val predicate: java.util.function.Predicate[(java.time.Instant, Double)] =
+          new java.util.function.Predicate[(java.time.Instant, Double)] {
+            override def test(t: (java.time.Instant, Double)): Boolean =
+              Duration.fromInterval(t._1, now).compareTo(maxAge) > 0
+          }
+
+        values.removeIf(predicate)
         currentCount.reset()
 
         val it = values.iterator()
