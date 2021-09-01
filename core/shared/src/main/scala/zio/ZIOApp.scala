@@ -105,7 +105,7 @@ trait ZIOApp { self =>
 
             ()
           })
-        result <- fiber.join.tapCause(ZIO.logCause(_)).exitCode
+        result <- fiber.join.tapErrorCause(ZIO.logCause(_)).exitCode
         _      <- exit(result)
       } yield ())
     }
