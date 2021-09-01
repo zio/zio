@@ -608,7 +608,7 @@ Here is a list of affected APIs: `takeAll`, `takeUpTo`, `takeBetween`, `takeN`, 
 
 ZIO 1.x:
 
-```scala mdoc:silent
+```scala
 val taken: UIO[List[Int]] = for {
   queue <- Queue.bounded[Int](100)
   _     <- queue.offer(10)
@@ -619,7 +619,7 @@ val taken: UIO[List[Int]] = for {
 
 ZIO 2.x:
 
-```scala mdoc:silent
+```scala mdoc:silent:nest
 val taken: UIO[Chunk[Int]] = for {
   queue <- Queue.bounded[Int](100)
   _     <- queue.offer(10)
