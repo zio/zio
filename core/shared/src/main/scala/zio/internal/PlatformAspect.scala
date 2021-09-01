@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2021 John A. De Goes and the ZIO Contributors
+ * Copyright 2021 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,20 +14,13 @@
  * limitations under the License.
  */
 
-package zio
+package zio.internal
 
-@deprecated("2.0.0", "Use zio.ZIOApp")
-trait ZApp[R] extends ZBootstrapRuntime[R] {
+final case class PlatformAspect(customize: Platform => Platform) extends (Platform => Platform) { self =>
+  def apply(p: Platform): Platform = customize(p)
 
-  /**
-   * The main function of the application, which will be passed the command-line
-   * arguments to the program.
-   */
-  def run(args: List[String]): URIO[R, ExitCode]
-
-  /**
-   * The Scala main function, intended to be called only by the Scala runtime.
-   */
-  final def main(args0: Array[String]): Unit =
-    unsafeRunAsync(run(args0.toList))
+  def >>>(that: PlatformAspect): PlatformAspect = PlatformAspect(self.customize.andThen(that.customize))
+}
+object PlatformAspect extends ((Platform => Platform) => PlatformAspect) {
+  val identity: PlatformAspect = PlatformAspect(Predef.identity(_))
 }

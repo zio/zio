@@ -56,6 +56,14 @@ trait Runtime[+R] {
     Runtime(environment, f(platform))
 
   /**
+   * Runs the effect "purely" through an async boundary. Useful for testing.
+   */
+  final def run[E, A](zio: ZIO[R, E, A]): IO[E, A] =
+    IO.async[E, A] { callback =>
+      unsafeRunAsyncWith(zio)(exit => callback(ZIO.done(exit)))
+    }
+
+  /**
    * Executes the effect synchronously, failing
    * with [[zio.FiberFailure]] if there are any errors. May fail on
    * Scala.js if the effect cannot be entirely run synchronously.
@@ -274,8 +282,6 @@ trait Runtime[+R] {
   private final def unsafeRunWith[E, A](
     zio: => ZIO[R, E, A]
   )(k: Exit[E, A] => Any): Fiber.Id => (Exit[E, A] => Any) => Unit = {
-    val InitialInterruptStatus = InterruptStatus.Interruptible
-
     val fiberId = Fiber.newFiberId()
 
     val scope = ZScope.unsafeMake[Exit[E, A]]()
@@ -288,7 +294,7 @@ trait Runtime[+R] {
       environment.asInstanceOf[AnyRef],
       platform.executor,
       false,
-      InitialInterruptStatus,
+      InterruptStatus.Interruptible,
       None,
       PlatformConstants.tracingSupported,
       new java.util.concurrent.atomic.AtomicReference(Map.empty),
@@ -312,6 +318,10 @@ trait Runtime[+R] {
 }
 
 object Runtime {
+  class Proxy[+R](underlying: Runtime[R]) extends Runtime[R] {
+    def platform    = underlying.platform
+    def environment = underlying.environment
+  }
 
   /**
    * A runtime that can be shutdown to release resources allocated to it.
@@ -372,8 +382,18 @@ object Runtime {
     val platform    = platform0
   }
 
+  /**
+   * The default [[Runtime]] for most ZIO applications. This runtime is configured with
+   * the default environment, containing standard services, as well as the default
+   * platform, which is optimized for typical ZIO applications.
+   */
   lazy val default: Runtime[ZEnv] = Runtime(ZEnv.Services.live, Platform.default)
 
+  /**
+   * The global [[Runtime]], which piggybacks atop the global execution context available
+   * to Scala applications. Use of this runtime is not generally recommended, unless the
+   * intention is to avoid creating any thread pools or other resources.
+   */
   lazy val global: Runtime[ZEnv] = Runtime(ZEnv.Services.live, Platform.global)
 
   /**
