@@ -892,7 +892,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * directly, consider other higher-level methods, such as `raceWith`,
    * `zipPar`, and so forth.
    *
-   * The fiber returned by this method has methods interrupt the fiber and to
+   * The fiber returned by this method has methods to interrupt the fiber and to
    * wait for it to finish executing the effect. See [[zio.Fiber]] for more
    * information.
    *

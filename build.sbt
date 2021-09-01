@@ -543,8 +543,8 @@ lazy val jsdocs = project
   .enablePlugins(ScalaJSPlugin)
 
 val http4sV     = "0.23.1"
-val doobieV     = "1.0.0-M5"
-val catsEffectV = "3.2.2"
+val doobieV     = "1.0.0-RC1"
+val catsEffectV = "3.2.4"
 val zioActorsV  = "0.0.9"
 
 lazy val docs = project.module
@@ -580,10 +580,10 @@ lazy val docs = project.module
       "dev.zio"                       %% "zio-metrics-prometheus"        % "1.0.12",
       "dev.zio"                       %% "zio-nio"                       % "1.0.0-RC11",
       "dev.zio"                       %% "zio-optics"                    % "0.1.0",
-      "dev.zio"                       %% "zio-prelude"                   % "1.0.0-RC5",
+      "dev.zio"                       %% "zio-prelude"                   % "1.0.0-RC6",
       "dev.zio"                       %% "zio-process"                   % "0.5.0",
       "dev.zio"                       %% "zio-rocksdb"                   % "0.3.0",
-      "dev.zio"                       %% "zio-s3"                        % "0.3.5",
+      "dev.zio"                       %% "zio-s3"                        % "0.3.6",
       "dev.zio"                       %% "zio-schema"                    % "0.0.6",
       "dev.zio"                       %% "zio-sqs"                       % "0.4.2",
       "dev.zio"                       %% "zio-opentracing"               % "0.8.1",
@@ -607,16 +607,16 @@ lazy val docs = project.module
       "org.http4s"                    %% "http4s-dsl"                    % http4sV,
       "com.github.ghostdogpr"         %% "caliban"                       % "1.1.1",
       "com.github.ghostdogpr"         %% "caliban-zio-http"              % "1.1.1",
-      "org.scalameta"                 %% "munit"                         % "0.7.28",
+      "org.scalameta"                 %% "munit"                         % "0.7.29",
       "com.github.poslegm"            %% "munit-zio"                     % "0.0.2",
       "nl.vroste"                     %% "rezilience"                    % "0.6.2",
       "io.github.gaelrenoux"          %% "tranzactio"                    % "2.1.0",
       "io.github.neurodyne"           %% "zio-arrow"                     % "0.2.1",
-      "nl.vroste"                     %% "zio-amqp"                      % "0.2.0",
-      "io.github.vigoo"               %% "zio-aws-core"                  % "3.17.23.1",
-      "io.github.vigoo"               %% "zio-aws-ec2"                   % "3.17.23.1",
-      "io.github.vigoo"               %% "zio-aws-elasticbeanstalk"      % "3.17.23.1",
-      "io.github.vigoo"               %% "zio-aws-netty"                 % "3.17.23.1",
+      "nl.vroste"                     %% "zio-amqp"                      % "0.2.2",
+      "io.github.vigoo"               %% "zio-aws-core"                  % "3.17.30.1",
+      "io.github.vigoo"               %% "zio-aws-ec2"                   % "3.17.30.1",
+      "io.github.vigoo"               %% "zio-aws-elasticbeanstalk"      % "3.17.30.1",
+      "io.github.vigoo"               %% "zio-aws-netty"                 % "3.17.30.1",
       "io.github.neurodyne"           %% "zio-aws-s3"                    % "0.4.13",
       "io.d11"                        %% "zhttp"                         % "1.0.0.0-RC17",
       "com.coralogix"                 %% "zio-k8s-client"                % "1.3.4",
