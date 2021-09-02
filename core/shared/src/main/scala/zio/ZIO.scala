@@ -1246,13 +1246,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     }
 
   /**
-   * Runs this effect on the specified runtime configuration, restoring the old
-   * runtime configuration when it completes execution.
-   */
-  final def onRuntimeConfig(runtimeConfig: => RuntimeConfig): ZIO[R, E, A] =
-    ZIO.onRuntimeConfig(runtimeConfig)(self)
-
-  /**
    * Runs the specified effect if this effect is terminated, either because of
    * a defect or because of interruption.
    */
@@ -2433,6 +2426,13 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     b: => ZIO[R1, E1, Boolean]
   ): ZIO[R1, E1, Unit] =
     ZIO.whenZIO(b)(self)
+
+  /**
+   * Runs this effect on the specified runtime configuration, restoring the old
+   * runtime configuration when it completes execution.
+   */
+  final def withRuntimeConfig(runtimeConfig: => RuntimeConfig): ZIO[R, E, A] =
+    ZIO.withRuntimeConfig(runtimeConfig)(self)
 
   /**
    * A named alias for `&&&` or `<*>`.
@@ -4611,15 +4611,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     }
 
   /**
-   * Runs the specified effect on the specified runtime configuration,
-   * restoring the old runtime configuration when it completes execution.
-   */
-  def onRuntimeConfig[R, E, A](runtimeConfig: => RuntimeConfig)(zio: => ZIO[R, E, A]): ZIO[R, E, A] =
-    ZIO.runtimeConfig.flatMap { currentRuntimeConfig =>
-      ZIO.setRuntimeConfig(runtimeConfig).acquireRelease(ZIO.setRuntimeConfig(currentRuntimeConfig), zio)
-    }
-
-  /**
    * Feeds elements of type `A` to a function `f` that returns an effect.
    * Collects all successes and failures in a tupled fashion.
    */
@@ -5206,6 +5197,15 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       // Filter out the fiber id of whoever is calling this:
       get(supervisor.value.flatMap(children => ZIO.descriptor.map(d => children.filter(_.id != d.id))))
         .supervised(supervisor)
+    }
+
+  /**
+   * Runs the specified effect on the specified runtime configuration,
+   * restoring the old runtime configuration when it completes execution.
+   */
+  def withRuntimeConfig[R, E, A](runtimeConfig: => RuntimeConfig)(zio: => ZIO[R, E, A]): ZIO[R, E, A] =
+    ZIO.runtimeConfig.flatMap { currentRuntimeConfig =>
+      ZIO.setRuntimeConfig(runtimeConfig).acquireRelease(ZIO.setRuntimeConfig(currentRuntimeConfig), zio)
     }
 
   /**

@@ -1039,12 +1039,6 @@ object Task extends TaskPlatformSpecific {
     ZIO.onExecutor(executor)(task)
 
   /**
-   *  @see See [[zio.ZIO.onRuntimeConfig]]
-   */
-  def onRuntimeConfig[A](runtimeConfig: => RuntimeConfig)(task: => Task[A]): Task[A] =
-    ZIO.onRuntimeConfig(runtimeConfig)(task)
-
-  /**
    * @see See [[zio.ZIO.partition]]
    */
   def partition[A, B](in: => Iterable[A])(f: A => Task[B]): Task[(Iterable[Throwable], Iterable[B])] =
@@ -1283,6 +1277,12 @@ object Task extends TaskPlatformSpecific {
    */
   def whenZIO(b: => Task[Boolean]): ZIO.WhenZIO[Any, Throwable] =
     ZIO.whenZIO(b)
+
+  /**
+   *  @see See [[zio.ZIO.withRuntimeConfig]]
+   */
+  def withRuntimeConfig[A](runtimeConfig: => RuntimeConfig)(task: => Task[A]): Task[A] =
+    ZIO.withRuntimeConfig(runtimeConfig)(task)
 
   /**
    * @see See [[zio.ZIO.yieldNow]]

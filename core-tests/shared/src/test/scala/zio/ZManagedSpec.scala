@@ -598,29 +598,6 @@ object ZManagedSpec extends ZIOBaseSpec {
         } yield assert(finalizers)(equalTo(List("Second", "First"))) && assert(result)(isSome(succeeds(equalTo("42"))))
       }
     ),
-    suite("onRuntimeConfig")(
-      test("runs acquire, use, and release actions on the specified runtime configuration") {
-        val runtimeConfig: UIO[RuntimeConfig] = ZIO.runtimeConfig
-        val global                            = RuntimeConfig.global
-        for {
-          default <- runtimeConfig
-          ref1    <- Ref.make[RuntimeConfig](default)
-          ref2    <- Ref.make[RuntimeConfig](default)
-          managed = ZManaged
-                      .acquireRelease(runtimeConfig.flatMap(ref1.set))(runtimeConfig.flatMap(ref2.set))
-                      .onRuntimeConfig(global)
-          before  <- runtimeConfig
-          use     <- managed.useDiscard(runtimeConfig)
-          acquire <- ref1.get
-          release <- ref2.get
-          after   <- runtimeConfig
-        } yield assert(before)(equalTo(default)) &&
-          assert(acquire)(equalTo(global)) &&
-          assert(use)(equalTo(global)) &&
-          assert(release)(equalTo(global)) &&
-          assert(after)(equalTo(default))
-      }
-    ),
     suite("option")(
       test("return success in Some") {
         implicit val canFail = CanFail
@@ -1369,6 +1346,29 @@ object ZManagedSpec extends ZIOBaseSpec {
           _      <- managed.withEarlyReleaseExit(Exit.unit).use(_._1)
           result <- ref.get
         } yield assert(result)(isTrue)
+      }
+    ),
+    suite("withRuntimeConfig")(
+      test("runs acquire, use, and release actions on the specified runtime configuration") {
+        val runtimeConfig: UIO[RuntimeConfig] = ZIO.runtimeConfig
+        val global                            = RuntimeConfig.global
+        for {
+          default <- runtimeConfig
+          ref1    <- Ref.make[RuntimeConfig](default)
+          ref2    <- Ref.make[RuntimeConfig](default)
+          managed = ZManaged
+                      .acquireRelease(runtimeConfig.flatMap(ref1.set))(runtimeConfig.flatMap(ref2.set))
+                      .withRuntimeConfig(global)
+          before  <- runtimeConfig
+          use     <- managed.useDiscard(runtimeConfig)
+          acquire <- ref1.get
+          release <- ref2.get
+          after   <- runtimeConfig
+        } yield assert(before)(equalTo(default)) &&
+          assert(acquire)(equalTo(global)) &&
+          assert(use)(equalTo(global)) &&
+          assert(release)(equalTo(global)) &&
+          assert(after)(equalTo(default))
       }
     ),
     suite("zipPar")(

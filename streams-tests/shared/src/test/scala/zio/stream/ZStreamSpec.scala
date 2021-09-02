@@ -2229,22 +2229,6 @@ object ZStreamSpec extends ZIOBaseSpec {
             assertM(s1.mergeWith(s2)(_ => (), _ => ()).runCollect.either)(isLeft(equalTo("Ouch")))
           }
         ),
-        suite("onRuntimeConfig")(
-          test("runs the stream on the specified runtime configuration") {
-            val global = RuntimeConfig.global
-            for {
-              default   <- ZIO.runtimeConfig
-              ref1      <- Ref.make[RuntimeConfig](default)
-              ref2      <- Ref.make[RuntimeConfig](default)
-              stream1    = ZStream.fromZIO(ZIO.runtimeConfig.flatMap(ref1.set)).onRuntimeConfig(global)
-              stream2    = ZStream.fromZIO(ZIO.runtimeConfig.flatMap(ref2.set))
-              _         <- (stream1 *> stream2).runDrain
-              executor1 <- ref1.get
-              executor2 <- ref2.get
-            } yield assert(executor1)(equalTo(global)) &&
-              assert(executor2)(equalTo(default))
-          }
-        ),
         suite("partitionEither")(
           test("allows repeated runs without hanging") {
             val stream = ZStream
@@ -3298,6 +3282,22 @@ object ZStreamSpec extends ZIOBaseSpec {
                 }
               )
             )(equalTo(chars))
+          }
+        ),
+        suite("withRuntimeConfig")(
+          test("runs the stream on the specified runtime configuration") {
+            val global = RuntimeConfig.global
+            for {
+              default   <- ZIO.runtimeConfig
+              ref1      <- Ref.make[RuntimeConfig](default)
+              ref2      <- Ref.make[RuntimeConfig](default)
+              stream1    = ZStream.fromZIO(ZIO.runtimeConfig.flatMap(ref1.set)).withRuntimeConfig(global)
+              stream2    = ZStream.fromZIO(ZIO.runtimeConfig.flatMap(ref2.set))
+              _         <- (stream1 *> stream2).runDrain
+              executor1 <- ref1.get
+              executor2 <- ref2.get
+            } yield assert(executor1)(equalTo(global)) &&
+              assert(executor2)(equalTo(default))
           }
         ),
         suite("zipWith")(

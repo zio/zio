@@ -1050,12 +1050,6 @@ object IO {
     ZIO.onExecutor(executor)(io)
 
   /**
-   *  @see See [[zio.ZIO.onRuntimeConfig]]
-   */
-  def onRuntimeConfig[E, A](runtimeConfig: => RuntimeConfig)(io: => IO[E, A]): IO[E, A] =
-    ZIO.onRuntimeConfig(runtimeConfig)(io)
-
-  /**
    * @see See [[zio.ZIO.partition]]
    */
   def partition[E, A, B](in: => Iterable[A])(f: A => IO[E, B])(implicit
@@ -1374,6 +1368,12 @@ object IO {
    */
   def whenZIO[E](b: => IO[E, Boolean]): ZIO.WhenZIO[Any, E] =
     ZIO.whenZIO(b)
+
+  /**
+   *  @see See [[zio.ZIO.withRuntimeConfig]]
+   */
+  def withRuntimeConfig[E, A](runtimeConfig: => RuntimeConfig)(io: => IO[E, A]): IO[E, A] =
+    ZIO.withRuntimeConfig(runtimeConfig)(io)
 
   /**
    * @see See [[zio.ZIO.yieldNow]]

@@ -2211,17 +2211,6 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     }
 
   /**
-   * Runs this stream on the specified runtime configuration. Any streams that
-   * are composed after this one will be run on the previous executor.
-   */
-  def onRuntimeConfig(runtimeConfig: => RuntimeConfig): ZStream[R, E, A] =
-    ZStream.fromZIO(ZIO.runtimeConfig).flatMap { currentRuntimeConfig =>
-      ZStream.managed(ZManaged.onRuntimeConfig(runtimeConfig)) *>
-        self <*
-        ZStream.fromZIO(ZIO.setRuntimeConfig(currentRuntimeConfig))
-    }
-
-  /**
    * Switches to the provided stream in case this one fails with a typed error.
    *
    * See also [[ZStream#catchAll]].
@@ -3269,6 +3258,17 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   def withFilter(predicate: A => Boolean): ZStream[R, E, A] =
     filter(predicate)
+
+  /**
+   * Runs this stream on the specified runtime configuration. Any streams that
+   * are composed after this one will be run on the previous executor.
+   */
+  def withRuntimeConfig(runtimeConfig: => RuntimeConfig): ZStream[R, E, A] =
+    ZStream.fromZIO(ZIO.runtimeConfig).flatMap { currentRuntimeConfig =>
+      ZStream.managed(ZManaged.withRuntimeConfig(runtimeConfig)) *>
+        self <*
+        ZStream.fromZIO(ZIO.setRuntimeConfig(currentRuntimeConfig))
+    }
 
   /**
    * Zips this stream with another point-wise, but keeps only the outputs of this stream.

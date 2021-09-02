@@ -643,15 +643,6 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
     }
 
   /**
-   * Runs this managed effect on the specified runtime configuration,
-   * guaranteeing that this managed effect as well as managed effects that are
-   * composed sequentially after it will be run on the specified runtime
-   * configuration.
-   */
-  final def onRuntimeConfig(runtimeConfig: => RuntimeConfig): ZManaged[R, E, A] =
-    ZManaged.onRuntimeConfig(runtimeConfig) *> self
-
-  /**
    * Executes this effect, skipping the error but returning optionally the success.
    */
   def option(implicit ev: CanFail[E]): ZManaged[R, Nothing, Option[A]] =
@@ -1230,6 +1221,15 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    */
   def withEarlyReleaseExit(e: => Exit[Any, Any]): ZManaged[R, E, (UIO[Any], A)] =
     ZManaged(zio.map(tp => (tp._1, (tp._1(e).uninterruptible, tp._2))))
+
+  /**
+   * Runs this managed effect on the specified runtime configuration,
+   * guaranteeing that this managed effect as well as managed effects that are
+   * composed sequentially after it will be run on the specified runtime
+   * configuration.
+   */
+  final def withRuntimeConfig(runtimeConfig: => RuntimeConfig): ZManaged[R, E, A] =
+    ZManaged.withRuntimeConfig(runtimeConfig) *> self
 
   /**
    * Named alias for `<*>`.
@@ -2741,16 +2741,6 @@ object ZManaged extends ZManagedPlatformSpecific {
     }.unit
 
   /**
-   * Returns a managed effect that describes setting the runtime configuration
-   * to the specified value as the `acquire` action and setting it back to the
-   * original runtime configuration as the `release` action.
-   */
-  def onRuntimeConfig(runtimeConfig: => RuntimeConfig): ZManaged[Any, Nothing, Unit] =
-    ZManaged.fromZIO(ZIO.runtimeConfig).flatMap { currentRuntimeConfig =>
-      ZManaged.acquireRelease(ZIO.setRuntimeConfig(runtimeConfig))(ZIO.setRuntimeConfig(currentRuntimeConfig))
-    }
-
-  /**
    * A scope in which resources can be safely preallocated. Passing a [[ZManaged]]
    * to the `apply` method will create (inside an effect) a managed resource which
    * is already acquired and cannot fail.
@@ -3104,6 +3094,16 @@ object ZManaged extends ZManagedPlatformSpecific {
           .supervised(supervisor)
       )
     })
+
+  /**
+   * Returns a managed effect that describes setting the runtime configuration
+   * to the specified value as the `acquire` action and setting it back to the
+   * original runtime configuration as the `release` action.
+   */
+  def withRuntimeConfig(runtimeConfig: => RuntimeConfig): ZManaged[Any, Nothing, Unit] =
+    ZManaged.fromZIO(ZIO.runtimeConfig).flatMap { currentRuntimeConfig =>
+      ZManaged.acquireRelease(ZIO.setRuntimeConfig(runtimeConfig))(ZIO.setRuntimeConfig(currentRuntimeConfig))
+    }
 
   /**
    * A `ZManagedConstructor[Input]` knows how to construct a `ZManaged` value from an

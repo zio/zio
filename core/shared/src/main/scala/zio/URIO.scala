@@ -990,12 +990,6 @@ object URIO {
     ZIO.onExecutor(executor)(taskr)
 
   /**
-   *  @see See [[zio.ZIO.onRuntimeConfig]]
-   */
-  def onRuntimeConfig[R, A](runtimeConfig: => RuntimeConfig)(urio: => URIO[R, A]): URIO[R, A] =
-    ZIO.onRuntimeConfig(runtimeConfig)(urio)
-
-  /**
    * @see [[zio.ZIO.provide]]
    */
   def provide[R, A](r: => R): URIO[R, A] => UIO[A] =
@@ -1260,6 +1254,12 @@ object URIO {
    */
   def whenZIO[R](b: => URIO[R, Boolean]): ZIO.WhenZIO[R, Nothing] =
     ZIO.whenZIO(b)
+
+  /**
+   *  @see See [[zio.ZIO.withRuntimeConfig]]
+   */
+  def withRuntimeConfig[R, A](runtimeConfig: => RuntimeConfig)(urio: => URIO[R, A]): URIO[R, A] =
+    ZIO.withRuntimeConfig(runtimeConfig)(urio)
 
   /**
    * @see [[zio.ZIO.yieldNow]]

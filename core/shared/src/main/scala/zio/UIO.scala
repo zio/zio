@@ -917,12 +917,6 @@ object UIO {
     ZIO.onExecutor(executor)(uio)
 
   /**
-   *  @see See [[zio.ZIO.onRuntimeConfig]]
-   */
-  def onRuntimeConfig[A](runtimeConfig: => RuntimeConfig)(uio: => UIO[A]): UIO[A] =
-    ZIO.onRuntimeConfig(runtimeConfig)(uio)
-
-  /**
    * @see See [[zio.ZIO.raceAll]]
    */
   def raceAll[A](uio: => UIO[A], uios: => Iterable[UIO[A]]): UIO[A] =
@@ -1124,6 +1118,12 @@ object UIO {
    */
   def whenZIO(b: => UIO[Boolean]): ZIO.WhenZIO[Any, Nothing] =
     ZIO.whenZIO(b)
+
+  /**
+   *  @see See [[zio.ZIO.withRuntimeConfig]]
+   */
+  def withRuntimeConfig[A](runtimeConfig: => RuntimeConfig)(uio: => UIO[A]): UIO[A] =
+    ZIO.withRuntimeConfig(runtimeConfig)(uio)
 
   /**
    * @see See [[zio.ZIO.yieldNow]]

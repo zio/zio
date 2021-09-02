@@ -1098,12 +1098,6 @@ object RIO {
     ZIO.onExecutor(executor)(taskr)
 
   /**
-   *  @see See [[zio.ZIO.onRuntimeConfig]]
-   */
-  def onRuntimeConfig[R, A](runtimeConfig: => RuntimeConfig)(rio: => RIO[R, A]): RIO[R, A] =
-    ZIO.onRuntimeConfig(runtimeConfig)(rio)
-
-  /**
    * @see See [[zio.ZIO.partition]]
    */
   def partition[R, A, B](in: => Iterable[A])(f: A => RIO[R, B]): RIO[R, (Iterable[Throwable], Iterable[B])] =
@@ -1407,6 +1401,12 @@ object RIO {
    */
   def whenZIO[R](b: => RIO[R, Boolean]): ZIO.WhenZIO[R, Throwable] =
     ZIO.whenZIO(b)
+
+  /**
+   *  @see See [[zio.ZIO.withRuntimeConfig]]
+   */
+  def withRuntimeConfig[R, A](runtimeConfig: => RuntimeConfig)(rio: => RIO[R, A]): RIO[R, A] =
+    ZIO.withRuntimeConfig(runtimeConfig)(rio)
 
   /**
    * @see See [[zio.ZIO.yieldNow]]
