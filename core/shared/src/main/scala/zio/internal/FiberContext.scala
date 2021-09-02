@@ -29,7 +29,7 @@ import scala.annotation.{switch, tailrec}
  * An implementation of Fiber that maintains context necessary for evaluation.
  */
 private[zio] final class FiberContext[E, A](
-  protected val fiberId: Fiber.Id,
+  protected val fiberId: FiberId,
   var platform: Platform,
   startEnv: AnyRef,
   startExec: Executor,
@@ -734,7 +734,7 @@ private[zio] final class FiberContext[E, A](
           case _: InterruptedException =>
             // Reset thread interrupt status and interrupt with zero fiber id:
             Thread.interrupted()
-            curZio = ZIO.interruptAs(Fiber.Id.None)
+            curZio = ZIO.interruptAs(FiberId.None)
 
           case ZIO.ZioError(exit) =>
             exit match {
@@ -886,7 +886,7 @@ private[zio] final class FiberContext[E, A](
     if (exitAsync(epoch)) evaluateLater(zio)
   }
 
-  final def interruptAs(fiberId: Fiber.Id): UIO[Exit[E, A]] = kill0(fiberId)
+  final def interruptAs(fiberId: FiberId): UIO[Exit[E, A]] = kill0(fiberId)
 
   def await: UIO[Exit[E, A]] =
     ZIO.asyncInterrupt[Any, Nothing, Exit[E, A]](
@@ -940,7 +940,7 @@ private[zio] final class FiberContext[E, A](
 
   def poll: UIO[Option[Exit[E, A]]] = ZIO.succeed(poll0)
 
-  def id: Fiber.Id = fiberId
+  def id: FiberId = fiberId
 
   def inheritRefs: UIO[Unit] = UIO.suspendSucceed {
     val locals = fiberRefLocals.get
@@ -960,7 +960,7 @@ private[zio] final class FiberContext[E, A](
   def trace: UIO[ZTrace] = UIO(captureTrace(null))
 
   @tailrec
-  private[this] def enterAsync(epoch: Long, register: AnyRef, blockingOn: Fiber.Id): Unit = {
+  private[this] def enterAsync(epoch: Long, register: AnyRef, blockingOn: FiberId): Unit = {
     val oldState = state.get
 
     oldState match {
@@ -1156,7 +1156,7 @@ private[zio] final class FiberContext[E, A](
     }
   }
 
-  private[this] def kill0(fiberId: Fiber.Id): UIO[Exit[E, A]] = {
+  private[this] def kill0(fiberId: FiberId): UIO[Exit[E, A]] = {
     val interruptedCause = Cause.interrupt(fiberId)
 
     @tailrec
@@ -1265,7 +1265,7 @@ private[zio] object FiberContext {
     def suppressed: Cause[Nothing]
     def status: Fiber.Status
     def isInterrupting: Boolean = status.isInterrupting
-    def interruptors: Set[Fiber.Id]
+    def interruptors: Set[FiberId]
     def interruptorsCause: Cause[Nothing] =
       interruptors.foldLeft[Cause[Nothing]](Cause.empty) { case (acc, interruptor) =>
         acc ++ Cause.interrupt(interruptor)
@@ -1276,17 +1276,17 @@ private[zio] object FiberContext {
       status: Fiber.Status,
       observers: List[Callback[Nothing, Exit[E, A]]],
       suppressed: Cause[Nothing],
-      interruptors: Set[Fiber.Id],
+      interruptors: Set[FiberId],
       asyncCanceler: CancelerState
     ) extends FiberState[E, A]
     final case class Done[E, A](value: Exit[E, A]) extends FiberState[E, A] {
-      def suppressed: Cause[Nothing]  = Cause.empty
-      def status: Fiber.Status        = Status.Done
-      def interruptors: Set[Fiber.Id] = Set.empty
+      def suppressed: Cause[Nothing] = Cause.empty
+      def status: Fiber.Status       = Status.Done
+      def interruptors: Set[FiberId] = Set.empty
     }
 
     def initial[E, A]: Executing[E, A] =
-      Executing[E, A](Status.Running(false), Nil, Cause.empty, Set.empty[Fiber.Id], CancelerState.Empty)
+      Executing[E, A](Status.Running(false), Nil, Cause.empty, Set.empty[FiberId], CancelerState.Empty)
   }
 
   sealed abstract class CancelerState

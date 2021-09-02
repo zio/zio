@@ -278,7 +278,7 @@ object Exit extends Serializable {
   final case class Success[+A](value: A)        extends Exit[Nothing, A]
   final case class Failure[+E](cause: Cause[E]) extends Exit[E, Nothing]
 
-  def interrupt(id: Fiber.Id): Exit[Nothing, Nothing] =
+  def interrupt(id: FiberId): Exit[Nothing, Nothing] =
     failCause(Cause.interrupt(id))
 
   def collectAll[E, A](exits: Iterable[Exit[E, A]]): Option[Exit[E, List[A]]] =

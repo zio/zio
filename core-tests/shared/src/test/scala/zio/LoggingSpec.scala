@@ -10,7 +10,7 @@ import scala.annotation.tailrec
 object LoggingSpec extends ZIOBaseSpec {
   final case class LogEntry(
     trace: ZTraceElement,
-    fiberId: Fiber.Id,
+    fiberId: FiberId,
     logLevel: LogLevel,
     message: () => String,
     context: Map[FiberRef.Runtime[_], AnyRef],
@@ -31,7 +31,7 @@ object LoggingSpec extends ZIOBaseSpec {
       @tailrec
       def apply(
         trace: ZTraceElement,
-        fiberId: Fiber.Id,
+        fiberId: FiberId,
         logLevel: LogLevel,
         message: () => String,
         context: Map[FiberRef.Runtime[_], AnyRef],

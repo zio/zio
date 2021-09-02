@@ -21,7 +21,7 @@ import zio.internal.stacktracer.ZTraceElement
 import scala.annotation.tailrec
 
 final case class ZTrace(
-  fiberId: Fiber.Id,
+  fiberId: FiberId,
   executionTrace: List[ZTraceElement],
   stackTrace: List[ZTraceElement],
   parentTrace: Option[ZTrace]

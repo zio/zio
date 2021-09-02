@@ -88,7 +88,7 @@ object RIO {
   /**
    * @see See [[zio.ZIO.async]]
    */
-  def async[R, A](register: (RIO[R, A] => Unit) => Any, blockingOn: => Fiber.Id = Fiber.Id.None): RIO[R, A] =
+  def async[R, A](register: (RIO[R, A] => Unit) => Any, blockingOn: => FiberId = FiberId.None): RIO[R, A] =
     ZIO.async(register, blockingOn)
 
   /**
@@ -96,7 +96,7 @@ object RIO {
    */
   def asyncMaybe[R, A](
     register: (RIO[R, A] => Unit) => Option[RIO[R, A]],
-    blockingOn: => Fiber.Id = Fiber.Id.None
+    blockingOn: => FiberId = FiberId.None
   ): RIO[R, A] =
     ZIO.asyncMaybe(register, blockingOn)
 
@@ -111,7 +111,7 @@ object RIO {
    */
   def asyncInterrupt[R, A](
     register: (RIO[R, A] => Unit) => Either[Canceler[R], RIO[R, A]],
-    blockingOn: => Fiber.Id = Fiber.Id.None
+    blockingOn: => FiberId = FiberId.None
   ): RIO[R, A] =
     ZIO.asyncInterrupt(register, blockingOn)
 
@@ -450,7 +450,7 @@ object RIO {
    * @see See [[zio.ZIO.effectAsync]]
    */
   @deprecated("use async", "2.0.0")
-  def effectAsync[R, A](register: (RIO[R, A] => Unit) => Any, blockingOn: => Fiber.Id = Fiber.Id.None): RIO[R, A] =
+  def effectAsync[R, A](register: (RIO[R, A] => Unit) => Any, blockingOn: => FiberId = FiberId.None): RIO[R, A] =
     ZIO.effectAsync(register, blockingOn)
 
   /**
@@ -459,7 +459,7 @@ object RIO {
   @deprecated("use asyncMaybe", "2.0.0")
   def effectAsyncMaybe[R, A](
     register: (RIO[R, A] => Unit) => Option[RIO[R, A]],
-    blockingOn: => Fiber.Id = Fiber.Id.None
+    blockingOn: => FiberId = FiberId.None
   ): RIO[R, A] =
     ZIO.effectAsyncMaybe(register, blockingOn)
 
@@ -476,7 +476,7 @@ object RIO {
   @deprecated("use asyncInterrupt", "2.0.0")
   def effectAsyncInterrupt[R, A](
     register: (RIO[R, A] => Unit) => Either[Canceler[R], RIO[R, A]],
-    blockingOn: => Fiber.Id = Fiber.Id.None
+    blockingOn: => FiberId = FiberId.None
   ): RIO[R, A] =
     ZIO.effectAsyncInterrupt(register, blockingOn)
 
@@ -520,14 +520,14 @@ object RIO {
    * @see See [[zio.ZIO.effectSuspendTotalWith]]
    */
   @deprecated("use suspendSucceedWith", "2.0.0")
-  def effectSuspendTotalWith[R, A](p: (Platform, Fiber.Id) => RIO[R, A]): RIO[R, A] =
+  def effectSuspendTotalWith[R, A](p: (Platform, FiberId) => RIO[R, A]): RIO[R, A] =
     ZIO.effectSuspendTotalWith(p)
 
   /**
    * @see See [[zio.ZIO.effectSuspendWith]]
    */
   @deprecated("use suspendWith", "2.0.0")
-  def effectSuspendWith[R, A](p: (Platform, Fiber.Id) => RIO[R, A]): RIO[R, A] =
+  def effectSuspendWith[R, A](p: (Platform, FiberId) => RIO[R, A]): RIO[R, A] =
     ZIO.effectSuspendWith(p)
 
   /**
@@ -576,7 +576,7 @@ object RIO {
   /**
    * @see [[zio.ZIO.fiberId]]
    */
-  val fiberId: UIO[Fiber.Id] =
+  val fiberId: UIO[FiberId] =
     ZIO.fiberId
 
   /**
@@ -942,7 +942,7 @@ object RIO {
   /**
    * @see See [[zio.ZIO.interruptAs]]
    */
-  def interruptAs(fiberId: => Fiber.Id): UIO[Nothing] =
+  def interruptAs(fiberId: => FiberId): UIO[Nothing] =
     ZIO.interruptAs(fiberId)
 
   /**
@@ -1294,13 +1294,13 @@ object RIO {
   /**
    * @see See [[zio.ZIO.suspendSucceedWith]]
    */
-  def suspendSucceedWith[R, A](p: (Platform, Fiber.Id) => RIO[R, A]): RIO[R, A] =
+  def suspendSucceedWith[R, A](p: (Platform, FiberId) => RIO[R, A]): RIO[R, A] =
     ZIO.suspendSucceedWith(p)
 
   /**
    * @see See [[zio.ZIO.suspendWith]]
    */
-  def suspendWith[R, A](p: (Platform, Fiber.Id) => RIO[R, A]): RIO[R, A] =
+  def suspendWith[R, A](p: (Platform, FiberId) => RIO[R, A]): RIO[R, A] =
     ZIO.suspendWith(p)
 
   /**

@@ -18,7 +18,7 @@ package zio.internal
 
 import zio.internal.stacktracer.{Tracer, ZTraceElement}
 import zio.internal.tracing.TracingConfig
-import zio.{Cause, Fiber, FiberRef, LogLevel, LogSpan, Supervisor, ZIO}
+import zio._
 
 import java.util.{HashMap, HashSet, Map => JMap, Set => JSet}
 import scala.concurrent.ExecutionContext
@@ -81,7 +81,7 @@ private[internal] trait PlatformSpecific {
     val logger: ZLogger[Unit] =
       (
         trace: ZTraceElement,
-        fiberId: Fiber.Id,
+        fiberId: FiberId,
         level: LogLevel,
         message: () => String,
         context: Map[FiberRef.Runtime[_], AnyRef],

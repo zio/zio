@@ -249,9 +249,9 @@ object TestClock extends Serializable {
      * cannot synchronize on the status of multiple fibers at the same time
      * this snapshot may not be fully consistent.
      */
-    private lazy val freeze: IO[Unit, Map[Fiber.Id, Fiber.Status]] =
+    private lazy val freeze: IO[Unit, Map[FiberId, Fiber.Status]] =
       supervisedFibers.flatMap { fibers =>
-        ZIO.foldLeft(fibers)(Map.empty[Fiber.Id, Fiber.Status]) { (map, fiber) =>
+        ZIO.foldLeft(fibers)(Map.empty[FiberId, Fiber.Status]) { (map, fiber) =>
           fiber.status.flatMap {
             case done @ Fiber.Status.Done                          => ZIO.succeedNow(map + (fiber.id -> done))
             case suspended @ Fiber.Status.Suspended(_, _, _, _, _) => ZIO.succeedNow(map + (fiber.id -> suspended))
@@ -305,7 +305,7 @@ object TestClock extends Serializable {
     /**
      * Returns whether all descendants of this fiber are done or suspended.
      */
-    private lazy val suspended: IO[Unit, Map[Fiber.Id, Fiber.Status]] =
+    private lazy val suspended: IO[Unit, Map[FiberId, Fiber.Status]] =
       freeze.zip(delay *> freeze).flatMap { case (first, last) =>
         if (first == last) ZIO.succeedNow(first)
         else ZIO.fail(())
@@ -456,7 +456,7 @@ object TestClock extends Serializable {
    * the effect is scheduled to run, a promise that can be completed to
    * resume execution of the effect, and the fiber executing the effect.
    */
-  final case class Sleep(duration: Duration, promise: Promise[Nothing, Unit], fiberId: Fiber.Id)
+  final case class Sleep(duration: Duration, promise: Promise[Nothing, Unit], fiberId: FiberId)
 
   /**
    * `WarningData` describes the state of the warning message that is
