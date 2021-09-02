@@ -6,7 +6,7 @@ import zio.internal.{Executor, Platform}
 import zio.stm.TQueue
 import zio.stream.experimental.ZStreamGen._
 import zio.test.Assertion._
-import zio.test.TestAspect.{flaky, nonFlaky, scala2Only, timeout}
+import zio.test.TestAspect.{flaky, ignore, nonFlaky, scala2Only, timeout}
 import zio.test._
 import zio.test.environment.TestClock
 
@@ -2277,7 +2277,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 .exit
                 .map(_.isInterrupted)
             )(equalTo(false))
-          } @@ TestAspect.jvmOnly,
+          } @@ TestAspect.ignore,
           test("interrupts pending tasks when one of the tasks fails") {
             for {
               interrupted <- Ref.make(0)
