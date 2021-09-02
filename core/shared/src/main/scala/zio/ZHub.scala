@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.internal.MutableConcurrentQueue
+import zio.internal.{MutableConcurrentQueue, Platform}
 
 import java.util.Set
 import java.util.concurrent.atomic.AtomicBoolean
@@ -318,7 +318,7 @@ object ZHub {
       Promise.make[Nothing, Unit].map { promise =>
         unsafeMakeHub(
           hub,
-          RuntimeConfig.newConcurrentSet[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])](),
+          Platform.newConcurrentSet[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])](),
           releaseMap,
           promise,
           new AtomicBoolean(false),

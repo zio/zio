@@ -2,6 +2,7 @@ package zio
 
 import zio.Cause._
 import zio.LatchOps._
+import zio.internal.Platform
 import zio.test.Assertion._
 import zio.test.TestAspect.{flaky, forked, ignore, jvm, jvmOnly, nonFlaky, scala2Only}
 import zio.test._
@@ -3280,7 +3281,7 @@ object ZIOSpec extends ZIOBaseSpec {
         val executor = Executor.fromExecutionContext(100) {
           scala.concurrent.ExecutionContext.Implicits.global
         }
-        val pool = ZIO.succeed(RuntimeConfig.getCurrentThreadGroup)
+        val pool = ZIO.succeed(Platform.getCurrentThreadGroup)
         val io = for {
           parentPool <- pool
           childPool  <- pool.fork.flatMap(_.join)

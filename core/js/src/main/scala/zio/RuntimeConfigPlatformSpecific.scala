@@ -18,20 +18,12 @@ package zio
 
 import zio.internal.stacktracer.{Tracer, ZTraceElement}
 import zio.internal.tracing.TracingConfig
-import zio.internal.{Executor, Tracing, ZLogger}
+import zio.internal.{Tracing, ZLogger}
 
-import java.util.{HashMap, HashSet, Map => JMap, Set => JSet}
 import scala.concurrent.ExecutionContext
 import scala.scalajs.js.Dynamic.{global => jsglobal}
 
 private[zio] trait RuntimeConfigPlatformSpecific {
-
-  /**
-   * Adds a shutdown hook that executes the specified action on shutdown.
-   */
-  def addShutdownHook(action: () => Unit): Unit = {
-    val _ = action
-  }
 
   /**
    * A Runtime with settings suitable for benchmarks, specifically with Tracing
@@ -56,12 +48,6 @@ private[zio] trait RuntimeConfigPlatformSpecific {
    * yielding to other fibers.
    */
   final val defaultYieldOpCount = 2048
-
-  /**
-   * Returns the name of the thread group to which this thread belongs. This
-   * is a side-effecting method.
-   */
-  val getCurrentThreadGroup: String = ""
 
   /**
    * A `RuntimeConfig` created from Scala's global execution context.
@@ -135,34 +121,9 @@ private[zio] trait RuntimeConfigPlatformSpecific {
     fromExecutor(Executor.fromExecutionContext(yieldOpCount)(ec))
 
   /**
-   * Returns whether the current platform is ScalaJS.
-   */
-  val isJS = true
-
-  /**
-   * Returns whether the currently platform is the JVM.
-   */
-  val isJVM = false
-
-  /**
-   * Returns whether the currently platform is Scala Native.
-   */
-  val isNative = false
-
-  /**
    * Makes a new default runtime configuration. This is a side-effecting
    * method.
    */
   final def makeDefault(yieldOpCount: Int = defaultYieldOpCount): RuntimeConfig =
     fromExecutor(Executor.fromExecutionContext(yieldOpCount)(ExecutionContext.global))
-
-  final def newWeakSet[A](): JSet[A] = new HashSet[A]()
-
-  final def newConcurrentSet[A](): JSet[A] = new HashSet[A]()
-
-  final def newConcurrentWeakSet[A](): JSet[A] = new HashSet[A]()
-
-  final def newWeakHashMap[A, B](): JMap[A, B] = new HashMap[A, B]()
-
-  final def newWeakReference[A](value: A): () => A = { () => value }
 }

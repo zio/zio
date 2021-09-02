@@ -88,7 +88,7 @@ trait ZIOApp { self =>
       (for {
         fiber <- invoke(Chunk.fromIterable(args0)).provide(runtime.environment).fork
         _ <-
-          IO.succeed(RuntimeConfig.addShutdownHook { () =>
+          IO.succeed(Platform.addShutdownHook { () =>
             shuttingDown = true
 
             if (FiberContext.fatal.get) {

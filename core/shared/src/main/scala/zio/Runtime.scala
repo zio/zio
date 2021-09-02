@@ -433,7 +433,7 @@ object Runtime {
               releaseMap.releaseAll(Exit.unit, ExecutionStrategy.Sequential).uninterruptible.unit
             }
 
-          UIO.succeed(RuntimeConfig.addShutdownHook(finalizer)).as((acquire, finalizer))
+          UIO.succeed(Platform.addShutdownHook(finalizer)).as((acquire, finalizer))
         }
       }
     }

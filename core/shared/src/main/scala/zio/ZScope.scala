@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.internal.Sync
+import zio.internal.{Platform, Sync}
 
 import java.util.concurrent.atomic.{AtomicInteger, AtomicReference}
 import java.util.{Comparator, Map}
@@ -165,7 +165,7 @@ object ZScope {
 
     val exitValue = new AtomicReference(nullA)
 
-    val weakFinalizers   = RuntimeConfig.newWeakHashMap[Key, OrderedFinalizer]()
+    val weakFinalizers   = Platform.newWeakHashMap[Key, OrderedFinalizer]()
     val strongFinalizers = new java.util.HashMap[Key, OrderedFinalizer]()
 
     val scope0 =

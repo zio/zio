@@ -826,7 +826,7 @@ private[zio] final class FiberContext[E, A](
     val childZio = if (parentScope ne ZScope.global) {
       // Create a weak reference to the child fiber, so that we don't prevent it
       // from being garbage collected:
-      val childContextRef = RuntimeConfig.newWeakReference[FiberContext[E, A]](childContext)
+      val childContextRef = Platform.newWeakReference[FiberContext[E, A]](childContext)
 
       // Ensure that when the fiber's parent scope ends, the child fiber is
       // interrupted, but do so using a weak finalizer, which will be removed
