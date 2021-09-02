@@ -71,7 +71,7 @@ object FiberState extends Serializable {
     @volatile var asyncEpoch: Long                               = 0L
     val interruptStatus: StackBool                               = StackBool(startIStatus.toBoolean)
     var currentEnvironment: Any                                  = startEnv
-    var currentExecutor: zio.Executor                                = startExec
+    var currentExecutor: zio.Executor                            = startExec
     var currentSupervisor: Supervisor[Any]                       = supervisor0
     var currentForkScopeOverride: Option[ZScope[Exit[Any, Any]]] = None
     var currentTracingStatus: TracingStatus                      = initialTracingStatus
