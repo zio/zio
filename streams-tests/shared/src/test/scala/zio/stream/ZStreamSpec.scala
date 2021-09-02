@@ -2125,7 +2125,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 .exit
                 .map(_.isInterrupted)
             )(equalTo(false))
-          } @@ TestAspect.jvmOnly,
+          } @@ TestAspect.ignore,
           test("interrupts pending tasks when one of the tasks fails") {
             for {
               interrupted <- Ref.make(0)
