@@ -628,6 +628,35 @@ val taken: UIO[Chunk[Int]] = for {
 } yield chunk
 ```
 
+## ZIO Test
+
+### Smart Constructors
+
+By introducing smart constructors, we do not longer have the `testM` function to create effectful test suits. Instead, we should use the `test` function:
+
+ZIO 1.x:
+
+```scala
+suite("ZRef") {
+  testM("updateAndGet") {
+    val result = ZRef.make(0).flatMap(_.updateAndGet(_ + 1))
+    assertM(result)(Assertion.equalTo(1))
+  }
+}
+```
+
+ZIO 2.x:
+```scala mdoc:silent:nest
+suite("ZRef") {
+  test("updateAndGet") {
+    val result = ZRef.make(0).flatMap(_.updateAndGet(_ + 1))
+    assertM(result)(Assertion.equalTo(1))
+  }
+}
+```
+
+In ZIO 2.x, to create a test suite, it's not important that whether we are testing pure or effectful tests. The syntax is the same, and the `test`, and `testM` are unified. So the `testM` was removed.
+
 ## ZIO Streams
 
 ZIO Streams 2.x, does not include any significant API changes. Almost the same code we have for ZIO Stream 1.x, this will continue working and doesn't break our code. So we don't need to relearn any APIs. So we have maintained a quite good source compatibility, but have to forget some API elements.
