@@ -14,6 +14,7 @@ module.exports = {
       additionalLanguages: ['java', 'scala'],
     },
     navbar: {
+      style: 'dark',
       logo: {
         alt: 'ZIO',
         src: '/img/navbar_brand.png',
@@ -26,11 +27,6 @@ module.exports = {
         { to: 'howto/index', label: 'How to', position: 'right' },
         { to: 'resources/index', label: 'Resources', position: 'right' },
         { to: 'about/about_index', label: 'About', position: 'right' },
-        {
-          href: 'https://github.com/zio/zio',
-          label: 'GitHub',
-          position: 'right',
-        },
       ],
     },
     algolia: {
@@ -43,42 +39,57 @@ module.exports = {
       style: 'dark',
       links: [
         {
-          title: 'About',
           items: [
             {
-              label: 'Andreas Gies',
-              to: '#',
-            },
-            {
-              label: 'Legal',
-              to: '#',
-            },
+              html: `
+                <img src="/img/navbar_brand.png" alt="zio" />
+            `
+            }
           ],
         },
         {
-          title: 'Community',
+          title: 'Github',
           items: [
             {
-              label: 'Discord',
-              href: '#',
-            },
-            {
-              label: 'Discussions',
-              href: '#',
-            },
+              html: `
+              <a href="https://github.com/zio/zio">
+                <img src="https://img.shields.io/github/stars/zio/zio?style=social" alt="github" />
+              </a>
+            `
+            }
           ],
         },
         {
-          title: 'More',
+          title: 'Chat with us on Discord',
           items: [
             {
-              label: 'Atom',
-              to: '#',
-            },
+              html: `
+                <a href="https://discord.gg/2ccFBr4">
+                  <img src="https://img.shields.io/discord/629491597070827530?logo=discord&style=social" alt="discord"/>
+                </a>
+              `
+            }
+          ],
+        },
+        {
+          title: 'Follow us on Twitter',
+          items: [
             {
-              label: 'RSS',
-              to: '#',
-            },
+              html: `
+                <a href="https://twitter.com/zioscala">
+                  <img src="https://img.shields.io/twitter/follow/zioscala?label=Follow&style=social" alt="twitter"/>
+                </a>
+              `
+            }
+          ],
+        },
+        {
+          title: 'Additional resources',
+          items: [
+            {
+              label: 'Scaladoc of ZIO',
+              href: 'https://javadoc.io/doc/dev.zio/zio_2.12/'
+            }
           ],
         },
       ],
