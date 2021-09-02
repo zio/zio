@@ -407,7 +407,7 @@ object ZIOSpec extends ZIOBaseSpec {
     suite("done")(
       test("Check done lifts exit result into IO") {
 
-        val fiberId = Fiber.Id(0L, 123L)
+        val fiberId = FiberId(0L, 123L)
         val error   = exampleError
 
         for {
@@ -1651,7 +1651,7 @@ object ZIOSpec extends ZIOBaseSpec {
     suite("orElse")(
       test("does not recover from defects") {
         val ex               = new Exception("Died")
-        val fiberId          = Fiber.Id(0L, 123L)
+        val fiberId          = FiberId(0L, 123L)
         implicit val canFail = CanFail
         for {
           plain <- (ZIO.die(ex) <> IO.unit).exit
@@ -3875,7 +3875,7 @@ object ZIOSpec extends ZIOBaseSpec {
         for {
           future <- ZIO.fail(new Throwable(new IllegalArgumentException)).toFuture
           result <- ZIO.fromFuture(_ => future).either
-        } yield assert(result)(isLeft(hasSuppressed(exists(hasMessage(containsString("Fiber:Id("))))))
+        } yield assert(result)(isLeft(hasSuppressed(exists(hasMessage(containsString("Fiber:FiberId("))))))
       }
     ) @@ zioTag(future),
     suite("resurrect")(

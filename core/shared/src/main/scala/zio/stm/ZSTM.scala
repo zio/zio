@@ -823,7 +823,7 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
   def zipWith[R1 <: R, E1 >: E, B, C](that: => ZSTM[R1, E1, B])(f: (A, B) => C): ZSTM[R1, E1, C] =
     self flatMap (a => that map (b => f(a, b)))
 
-  private def run(journal: Journal, fiberId: Fiber.Id, r0: R): TExit[E, A] = {
+  private def run(journal: Journal, fiberId: FiberId, r0: R): TExit[E, A] = {
     type Erased = ZSTM[Any, Any, Any]
     type Cont   = Any => Erased
 
@@ -1088,7 +1088,7 @@ object ZSTM {
   /**
    * Returns the fiber id of the fiber committing the transaction.
    */
-  val fiberId: USTM[Fiber.Id] = Effect((_, fiberId, _) => fiberId)
+  val fiberId: USTM[FiberId] = Effect((_, fiberId, _) => fiberId)
 
   /**
    * Filters the collection using the specified effectual predicate.
@@ -1685,7 +1685,7 @@ object ZSTM {
 
   private[stm] case object RetryException extends Throwable(null, null, false, false)
 
-  private[stm] final case class Effect[R, E, A](f: (Journal, Fiber.Id, R) => A) extends ZSTM[R, E, A] {
+  private[stm] final case class Effect[R, E, A](f: (Journal, FiberId, R) => A) extends ZSTM[R, E, A] {
     def tag: Int = Tags.Effect
   }
 
@@ -1922,7 +1922,7 @@ object ZSTM {
 
     def tryCommitSync[R, E, A](
       platform: Platform,
-      fiberId: Fiber.Id,
+      fiberId: FiberId,
       stm: ZSTM[R, E, A],
       r: R
     ): TryCommit[E, A] = {
@@ -1992,7 +1992,7 @@ object ZSTM {
     def tryCommitAsync[R, E, A](
       journal: Journal,
       platform: Platform,
-      fiberId: Fiber.Id,
+      fiberId: FiberId,
       stm: ZSTM[R, E, A],
       txnId: TxnId,
       state: AtomicReference[State[E, A]],
@@ -2033,7 +2033,7 @@ object ZSTM {
 
     def tryCommit[R, E, A](
       platform: Platform,
-      fiberId: Fiber.Id,
+      fiberId: FiberId,
       stm: ZSTM[R, E, A],
       state: AtomicReference[State[E, A]],
       r: R

@@ -208,7 +208,7 @@ trait Runtime[+R] {
    *
    * This method is effectful and should only be invoked at the edges of your program.
    */
-  final def unsafeRunAsyncCancelable[E, A](zio: => ZIO[R, E, A])(k: Exit[E, A] => Any): Fiber.Id => Exit[E, A] = {
+  final def unsafeRunAsyncCancelable[E, A](zio: => ZIO[R, E, A])(k: Exit[E, A] => Any): FiberId => Exit[E, A] = {
     lazy val curZio = zio
     val canceler    = unsafeRunWith(curZio)(k)
     fiberId => {
@@ -243,7 +243,7 @@ trait Runtime[+R] {
     new CancelableFuture[A](p.future) {
       def cancel(): Future[Exit[Throwable, A]] = {
         val p: concurrent.Promise[Exit[Throwable, A]] = scala.concurrent.Promise[Exit[Throwable, A]]()
-        canceler(Fiber.Id.None)(p.success)
+        canceler(FiberId.None)(p.success)
         p.future
       }
     }
@@ -281,7 +281,7 @@ trait Runtime[+R] {
 
   private final def unsafeRunWith[E, A](
     zio: => ZIO[R, E, A]
-  )(k: Exit[E, A] => Any): Fiber.Id => (Exit[E, A] => Any) => Unit = {
+  )(k: Exit[E, A] => Any): FiberId => (Exit[E, A] => Any) => Unit = {
     val fiberId = Fiber.newFiberId()
 
     val scope = ZScope.unsafeMake[Exit[E, A]]()

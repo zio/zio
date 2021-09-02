@@ -152,7 +152,7 @@ sealed abstract class Fiber[+E, +A] { self =>
    *
    * @return `UIO[Exit, E, A]]`
    */
-  def interruptAs(fiberId: Fiber.Id): UIO[Exit[E, A]]
+  def interruptAs(fiberId: FiberId): UIO[Exit[E, A]]
 
   /**
    * Interrupts the fiber from whichever fiber is calling this method. The
@@ -212,7 +212,7 @@ sealed abstract class Fiber[+E, +A] { self =>
       final def getRef[A](ref: FiberRef.Runtime[A]): UIO[A] = self.getRef(ref)
       final def inheritRefs: UIO[Unit] =
         self.inheritRefs
-      final def interruptAs(id: Fiber.Id): UIO[Exit[E1, B]] =
+      final def interruptAs(id: FiberId): UIO[Exit[E1, B]] =
         self.interruptAs(id).flatMap(_.foreach(f))
       final def poll: UIO[Option[Exit[E1, B]]] =
         self.poll.flatMap(_.fold[UIO[Option[Exit[E1, B]]]](UIO.succeedNow(None))(_.foreach(f).map(Some(_))))
@@ -243,7 +243,7 @@ sealed abstract class Fiber[+E, +A] { self =>
           second <- self.getRef(ref)
         } yield if (first == ref.initial) second else first
 
-      final def interruptAs(id: Fiber.Id): UIO[Exit[E1, A1]] =
+      final def interruptAs(id: FiberId): UIO[Exit[E1, A1]] =
         self.interruptAs(id) *> that.interruptAs(id)
 
       final def inheritRefs: UIO[Unit] =
@@ -383,7 +383,7 @@ sealed abstract class Fiber[+E, +A] { self =>
       final def getRef[A](ref: FiberRef.Runtime[A]): UIO[A] =
         (self.getRef(ref) zipWith that.getRef(ref))(ref.join(_, _))
 
-      final def interruptAs(id: Fiber.Id): UIO[Exit[E1, C]] =
+      final def interruptAs(id: FiberId): UIO[Exit[E1, C]] =
         (self interruptAs id).zipWith(that interruptAs id)(_.zipWith(_)(f, _ && _))
 
       final def inheritRefs: UIO[Unit] = that.inheritRefs *> self.inheritRefs
@@ -422,7 +422,7 @@ object Fiber extends FiberPlatformSpecific {
     /**
      * The identity of the fiber.
      */
-    def id: Fiber.Id
+    def id: FiberId
 
     def scope: ZScope[Exit[E, A]]
 
@@ -456,9 +456,9 @@ object Fiber extends FiberPlatformSpecific {
   }
 
   sealed abstract class Descriptor {
-    def id: Fiber.Id
+    def id: FiberId
     def status: Status
-    def interrupters: Set[Fiber.Id]
+    def interrupters: Set[FiberId]
     def interruptStatus: InterruptStatus
     def executor: Executor
     def isLocked: Boolean
@@ -476,18 +476,18 @@ object Fiber extends FiberPlatformSpecific {
      * @param children      The fiber's forked children.
      */
     def apply(
-      id0: Fiber.Id,
+      id0: FiberId,
       status0: Status,
-      interrupters0: Set[Fiber.Id],
+      interrupters0: Set[FiberId],
       interruptStatus0: InterruptStatus,
       executor0: Executor,
       locked0: Boolean,
       scope0: ZScope[Exit[Any, Any]]
     ): Descriptor =
       new Descriptor {
-        def id: Fiber.Id                     = id0
+        def id: FiberId                      = id0
         def status: Status                   = status0
-        def interrupters: Set[Fiber.Id]      = interrupters0
+        def interrupters: Set[FiberId]       = interrupters0
         def interruptStatus: InterruptStatus = interruptStatus0
         def executor: Executor               = executor0
         def isLocked: Boolean                = locked0
@@ -497,7 +497,7 @@ object Fiber extends FiberPlatformSpecific {
 
   sealed abstract class Dump extends Serializable { self =>
 
-    def fiberId: Fiber.Id
+    def fiberId: FiberId
 
     def fiberName: Option[String]
 
@@ -521,13 +521,13 @@ object Fiber extends FiberPlatformSpecific {
 
   object Dump {
     def apply(
-      fiberId0: Fiber.Id,
+      fiberId0: FiberId,
       fiberName0: Option[String],
       status0: Status,
       trace0: Option[ZTrace]
     ): Dump =
       new Dump {
-        def fiberId: Fiber.Id         = fiberId0
+        def fiberId: FiberId          = fiberId0
         def fiberName: Option[String] = fiberName0
         def status: Status            = status0
         def trace: Option[ZTrace]     = trace0
@@ -539,14 +539,10 @@ object Fiber extends FiberPlatformSpecific {
    * The identity of a Fiber, described by the time it began life, and a
    * monotonically increasing sequence number generated from an atomic counter.
    */
-  final case class Id(startTimeMillis: Long, seqNumber: Long) extends Serializable
-  object Id {
-
-    /**
-     * A sentinel value to indicate a fiber without identity.
-     */
-    final val None: Id = Id(0L, 0L)
-  }
+  @deprecated("use FiberId", "2.0.0")
+  type Id = FiberId
+  @deprecated("use FiberId", "2.0.0")
+  val Id = FiberId
 
   sealed abstract class Status extends Serializable with Product { self =>
     import Status._
@@ -593,7 +589,7 @@ object Fiber extends FiberPlatformSpecific {
       previous: Status,
       interruptible: Boolean,
       epoch: Long,
-      blockingOn: Fiber.Id,
+      blockingOn: FiberId,
       asyncTrace: Option[ZTraceElement]
     ) extends Status
   }
@@ -621,7 +617,7 @@ object Fiber extends FiberPlatformSpecific {
         UIO.foldLeft(fibers)(ref.initial)((a, fiber) => fiber.getRef(ref).map(ref.join(a, _)))
       def inheritRefs: UIO[Unit] =
         UIO.foreachDiscard(fibers)(_.inheritRefs)
-      def interruptAs(fiberId: Fiber.Id): UIO[Exit[E, Collection[A]]] =
+      def interruptAs(fiberId: FiberId): UIO[Exit[E, Collection[A]]] =
         UIO
           .foreach[Fiber[E, A], Exit[E, A], Iterable](fibers)(_.interruptAs(fiberId))
           .map(_.foldRight[Exit[E, List[A]]](Exit.succeed(Nil))(_.zipWith(_)(_ :: _, _ && _)))
@@ -648,7 +644,7 @@ object Fiber extends FiberPlatformSpecific {
     new Fiber.Synthetic[E, A] {
       final def await: UIO[Exit[E, A]]                      = IO.succeedNow(exit)
       final def getRef[A](ref: FiberRef.Runtime[A]): UIO[A] = UIO(ref.initial)
-      final def interruptAs(id: Fiber.Id): UIO[Exit[E, A]]  = IO.succeedNow(exit)
+      final def interruptAs(id: FiberId): UIO[Exit[E, A]]   = IO.succeedNow(exit)
       final def inheritRefs: UIO[Unit]                      = IO.unit
       final def poll: UIO[Option[Exit[E, A]]]               = IO.succeedNow(Some(exit))
     }
@@ -714,7 +710,7 @@ object Fiber extends FiberPlatformSpecific {
 
       def getRef[A](ref: FiberRef.Runtime[A]): UIO[A] = UIO(ref.initial)
 
-      def interruptAs(id: Fiber.Id): UIO[Exit[Throwable, A]] =
+      def interruptAs(id: FiberId): UIO[Exit[Throwable, A]] =
         UIO.suspendSucceed {
           ftr match {
             case c: CancelableFuture[A] => ZIO.fromFuture(_ => c.cancel()).orDie
@@ -761,7 +757,7 @@ object Fiber extends FiberPlatformSpecific {
    * @param fs `Iterable` of fibers to be interrupted
    * @return `UIO[Unit]`
    */
-  def interruptAllAs(fiberId: Fiber.Id)(fs: Iterable[Fiber[Any, Any]]): UIO[Unit] =
+  def interruptAllAs(fiberId: FiberId)(fs: Iterable[Fiber[Any, Any]]): UIO[Unit] =
     fs.foldLeft(IO.unit)((io, f) => io <* f.interruptAs(fiberId))
 
   /**
@@ -769,7 +765,7 @@ object Fiber extends FiberPlatformSpecific {
    *
    * @return `Fiber[Nothing, Nothing]` interrupted fiber
    */
-  def interruptAs(id: Fiber.Id): Fiber.Synthetic[Nothing, Nothing] =
+  def interruptAs(id: FiberId): Fiber.Synthetic[Nothing, Nothing] =
     done(Exit.interrupt(id))
 
   /**
@@ -788,11 +784,11 @@ object Fiber extends FiberPlatformSpecific {
    */
   val never: Fiber.Synthetic[Nothing, Nothing] =
     new Fiber.Synthetic[Nothing, Nothing] {
-      def await: UIO[Exit[Nothing, Nothing]]                     = IO.never
-      def getRef[A](ref: FiberRef.Runtime[A]): UIO[A]            = UIO(ref.initial)
-      def interruptAs(id: Fiber.Id): UIO[Exit[Nothing, Nothing]] = IO.never
-      def inheritRefs: UIO[Unit]                                 = IO.unit
-      def poll: UIO[Option[Exit[Nothing, Nothing]]]              = IO.succeedNow(None)
+      def await: UIO[Exit[Nothing, Nothing]]                    = IO.never
+      def getRef[A](ref: FiberRef.Runtime[A]): UIO[A]           = UIO(ref.initial)
+      def interruptAs(id: FiberId): UIO[Exit[Nothing, Nothing]] = IO.never
+      def inheritRefs: UIO[Unit]                                = IO.unit
+      def poll: UIO[Option[Exit[Nothing, Nothing]]]             = IO.succeedNow(None)
     }
 
   /**
@@ -826,8 +822,8 @@ object Fiber extends FiberPlatformSpecific {
   def unsafeCurrentFiber(): Option[Fiber[Any, Any]] =
     Option(_currentFiber.get)
 
-  private[zio] def newFiberId(): Fiber.Id =
-    Fiber.Id(java.lang.System.currentTimeMillis(), _fiberCounter.getAndIncrement())
+  private[zio] def newFiberId(): FiberId =
+    FiberId(java.lang.System.currentTimeMillis(), _fiberCounter.getAndIncrement())
 
   private[zio] val _currentFiber: ThreadLocal[internal.FiberContext[_, _]] =
     new ThreadLocal[internal.FiberContext[_, _]]()
