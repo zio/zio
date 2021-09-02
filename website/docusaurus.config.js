@@ -33,6 +33,12 @@ module.exports = {
         },
       ],
     },
+    algolia: {
+      apiKey: '0c94b59071da7001757d08ab43d9e033',
+      indexName: 'zio',
+      contextualSearch: true,
+      searchParameters: {},
+    },
     footer: {
       style: 'dark',
       links: [
@@ -76,7 +82,7 @@ module.exports = {
           ],
         },
       ],
-      copyright: `Copyright © ${new Date().getFullYear()} Way of Quality GmbH - Built with <a href="https://v2.docusaurus.io/">Docusaurus v2</a>`,
+      copyright: `Copyright © ${new Date().getFullYear()} ZIO Maintainers - Built with <a href="https://v2.docusaurus.io/">Docusaurus v2</a>`,
     },
   },
   // doctag<configure>
