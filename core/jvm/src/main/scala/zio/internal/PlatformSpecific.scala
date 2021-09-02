@@ -4,7 +4,7 @@ import java.lang.ref.WeakReference
 import java.util.concurrent.ConcurrentHashMap
 import java.util.{Collections, Map => JMap, Set => JSet, WeakHashMap}
 
-trait PlatformSpecific {
+private[zio] trait PlatformSpecific {
 
   /**
    * Adds a shutdown hook that executes the specified action on shutdown.

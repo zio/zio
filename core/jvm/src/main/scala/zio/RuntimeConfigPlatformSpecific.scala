@@ -87,8 +87,8 @@ private[zio] trait RuntimeConfigPlatformSpecific {
   /**
    * Creates a RuntimeConfig from an execution context.
    */
-  final def fromExecutionContext(ec: ExecutionContext): RuntimeConfig =
-    fromExecutor(Executor.fromExecutionContext(defaultYieldOpCount)(ec))
+  final def fromExecutionContext(ec: ExecutionContext, yieldOpCount: Int = defaultYieldOpCount): RuntimeConfig =
+    fromExecutor(Executor.fromExecutionContext(yieldOpCount)(ec))
 
   /**
    * Makes a new default runtime configuration. This is a side-effecting

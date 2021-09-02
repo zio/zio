@@ -2,7 +2,7 @@ package zio.internal
 
 import java.util.{HashMap, HashSet, Map => JMap, Set => JSet}
 
-trait PlatformSpecific {
+private[zio] trait PlatformSpecific {
 
   /**
    * Adds a shutdown hook that executes the specified action on shutdown.

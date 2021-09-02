@@ -2744,7 +2744,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * }}}
    */
   def attempt[A](effect: => A): Task[A] =
-    effectTotalWith { (runtimeConfig, _) =>
+    succeedWith { (runtimeConfig, _) =>
       try effect
       catch {
         case t: Throwable if !runtimeConfig.fatal(t) => throw new ZioError(Exit.fail(t))

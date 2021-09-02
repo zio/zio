@@ -21,7 +21,7 @@ trait ZLogger[+A] { self =>
     new ZLogger[zippable.Out] {
       def apply(
         trace: ZTraceElement,
-        fiberId: Fiber.Id,
+        fiberId: FiberId,
         logLevel: LogLevel,
         message: () => String,
         context: Map[FiberRef.Runtime[_], AnyRef],
