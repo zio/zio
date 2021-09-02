@@ -31,7 +31,7 @@ object Platform extends PlatformSpecific {
    * enabled Tracing with effect types _without_ a comparable feature.
    */
   @deprecated("use RuntimeConfig.benchmark", "2.0.0")
-  lazy val benchmark: Platform =
+  lazy val benchmark: RuntimeConfig =
     RuntimeConfig.benchmark
 
   /**
@@ -40,7 +40,7 @@ object Platform extends PlatformSpecific {
    * customized for specific application requirements.
    */
   @deprecated("use RuntimeConfig.default", "2.0.0")
-  lazy val default: Platform =
+  lazy val default: RuntimeConfig =
     RuntimeConfig.default
 
   /**
@@ -55,7 +55,7 @@ object Platform extends PlatformSpecific {
    * A `Platform` created from Scala's global execution context.
    */
   @deprecated("use RuntimeConfig.global", "2.0.0")
-  lazy val global: Platform =
+  lazy val global: RuntimeConfig =
     RuntimeConfig.global
 
   /**

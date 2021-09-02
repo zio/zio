@@ -32,7 +32,7 @@ private[zio] final class FiberContext[E, A](
   protected val fiberId: FiberId,
   var runtimeConfig: RuntimeConfig,
   startEnv: AnyRef,
-  startExec: Executor,
+  startExec: zio.Executor,
   startLocked: Boolean,
   startIStatus: InterruptStatus,
   parentTrace: Option[ZTrace],
@@ -257,7 +257,7 @@ private[zio] final class FiberContext[E, A](
     discardedFolds
   }
 
-  private[this] def executor: Executor =
+  private[this] def executor: zio.Executor =
     if (currentExecutor ne null) currentExecutor else runtimeConfig.executor
 
   @inline private[this] def raceWithImpl[R, EL, ER, E, A, B, C](
@@ -758,7 +758,7 @@ private[zio] final class FiberContext[E, A](
       }
     } finally if (runtimeConfig.enableCurrentFiber) Fiber._currentFiber.remove()
 
-  private[this] def shift(executor: Executor): UIO[Unit] =
+  private[this] def shift(executor: zio.Executor): UIO[Unit] =
     ZIO.succeed { currentExecutor = executor } *> ZIO.yieldNow
 
   private[this] def getDescriptor(): Fiber.Descriptor =
