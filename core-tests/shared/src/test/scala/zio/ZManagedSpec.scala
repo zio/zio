@@ -1877,7 +1877,7 @@ object ZManagedSpec extends ZIOBaseSpec {
 
   def doInterrupt(
     managed: IO[Nothing, Unit] => ZManaged[Any, Nothing, Unit],
-    expected: Fiber.Id => Option[Exit[Nothing, Unit]]
+    expected: FiberId => Option[Exit[Nothing, Unit]]
   ): ZIO[Has[Live], Nothing, TestResult] =
     for {
       fiberId            <- ZIO.fiberId

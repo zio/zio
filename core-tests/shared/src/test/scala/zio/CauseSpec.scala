@@ -149,7 +149,7 @@ object CauseSpec extends ZIOBaseSpec {
       } @@ zioTag(interruption),
       test("Traced") {
         check(causes) { cause1 =>
-          val trace1 = ZTrace(Fiber.Id(0L, 0L), Nil, Nil, None)
+          val trace1 = ZTrace(FiberId(0L, 0L), Nil, Nil, None)
           val result = Cause.traced(cause1, trace1) match {
             case Cause.Traced(cause2, trace2) => cause1 == cause2 && trace1 == trace2
             case _                            => false
@@ -209,7 +209,7 @@ object CauseSpec extends ZIOBaseSpec {
         val failOrDie = Gen.elements[Throwable => Cause[Throwable]](Cause.fail, Cause.die)
         check(throwable, failOrDie) { (e, makeCause) =>
           val rootCause        = makeCause(e)
-          val cause            = Cause.traced(rootCause, ZTrace(Fiber.Id(0L, 0L), Nil, Nil, None))
+          val cause            = Cause.traced(rootCause, ZTrace(FiberId(0L, 0L), Nil, Nil, None))
           val causeMessage     = e.getCause.getMessage
           val throwableMessage = e.getMessage
           val renderedCause    = Cause.stackless(cause).prettyPrint
@@ -247,7 +247,7 @@ object CauseSpec extends ZIOBaseSpec {
     (causes <*> causes <*> causes).flatMap { case (a, b, c) =>
       Gen.elements(
         (a, a),
-        (a, Cause.traced(a, ZTrace(Fiber.Id(0L, 0L), Nil, Nil, None))),
+        (a, Cause.traced(a, ZTrace(FiberId(0L, 0L), Nil, Nil, None))),
         (Then(Then(a, b), c), Then(a, Then(b, c))),
         (Then(a, Both(b, c)), Both(Then(a, b), Then(a, c))),
         (Both(Both(a, b), c), Both(a, Both(b, c))),
@@ -265,8 +265,8 @@ object CauseSpec extends ZIOBaseSpec {
   val errors: Gen[Has[Random] with Has[Sized], String] =
     Gen.string
 
-  val fiberIds: Gen[Has[Random], Fiber.Id] =
-    Gen.long.zipWith(Gen.long)(Fiber.Id(_, _))
+  val fiberIds: Gen[Has[Random], FiberId] =
+    Gen.long.zipWith(Gen.long)(FiberId(_, _))
 
   val throwables: Gen[Has[Random], Throwable] =
     Gen.throwable
