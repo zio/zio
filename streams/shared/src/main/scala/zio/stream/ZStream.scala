@@ -17,7 +17,7 @@
 package zio.stream
 
 import zio._
-import zio.internal.{Executor, UniqueKey}
+import zio.internal.UniqueKey
 import zio.stm.TQueue
 import zio.stream.internal.Utils.zipChunks
 import zio.stream.internal.{ZInputStream, ZReader}

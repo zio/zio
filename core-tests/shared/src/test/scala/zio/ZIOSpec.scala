@@ -422,7 +422,7 @@ object ZIOSpec extends ZIOBaseSpec {
     ),
     suite("executor")(
       test("retrieves the current executor for this effect") {
-        val executor = zio.internal.Executor.fromExecutionContext(100) {
+        val executor = Executor.fromExecutionContext(100) {
           scala.concurrent.ExecutionContext.Implicits.global
         }
         for {
@@ -1364,8 +1364,8 @@ object ZIOSpec extends ZIOBaseSpec {
     ),
     suite("onExecutor")(
       test("effects continue on current executor if no executor is specified") {
-        val global = zio.internal.Executor
-          .fromExecutionContext(RuntimeConfig.defaultYieldOpCount)(scala.concurrent.ExecutionContext.global)
+        val global =
+          Executor.fromExecutionContext(RuntimeConfig.defaultYieldOpCount)(scala.concurrent.ExecutionContext.global)
         for {
           _        <- ZIO.unit.onExecutor(global)
           executor <- ZIO.descriptor.map(_.executor)
@@ -1373,8 +1373,8 @@ object ZIOSpec extends ZIOBaseSpec {
       },
       test("effects are shifted back if executor is specified") {
         val default = RuntimeConfig.default.executor
-        val global = zio.internal.Executor
-          .fromExecutionContext(RuntimeConfig.defaultYieldOpCount)(scala.concurrent.ExecutionContext.global)
+        val global =
+          Executor.fromExecutionContext(RuntimeConfig.defaultYieldOpCount)(scala.concurrent.ExecutionContext.global)
         val effect = for {
           _        <- ZIO.unit.onExecutor(global)
           executor <- ZIO.descriptor.map(_.executor)
@@ -3277,7 +3277,7 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(v)(equalTo(InterruptStatus.uninterruptible))
       } @@ zioTag(interruption),
       test("executor is heritable") {
-        val executor = zio.internal.Executor.fromExecutionContext(100) {
+        val executor = Executor.fromExecutionContext(100) {
           scala.concurrent.ExecutionContext.Implicits.global
         }
         val pool = ZIO.succeed(RuntimeConfig.getCurrentThreadGroup)

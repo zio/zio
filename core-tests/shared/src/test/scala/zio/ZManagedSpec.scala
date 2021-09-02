@@ -3,7 +3,6 @@ package zio
 import zio.Cause.Interrupt
 import zio.Exit.Failure
 import zio.ZManaged.ReleaseMap
-import zio.internal.Executor
 import zio.test.Assertion._
 import zio.test.TestAspect.{nonFlaky, scala2Only}
 import zio.test._

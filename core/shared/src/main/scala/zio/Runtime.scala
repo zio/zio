@@ -17,7 +17,7 @@
 package zio
 
 import zio.internal.tracing.ZIOFn
-import zio.internal.{Executor, FiberContext, Platform, PlatformConstants, Tracing}
+import zio.internal.{FiberContext, Platform, PlatformConstants, Tracing}
 
 import scala.concurrent.Future
 

@@ -16,8 +16,6 @@
 
 package zio
 
-import zio.internal.Executor
-
 import scala.reflect.ClassTag
 
 object UIO {

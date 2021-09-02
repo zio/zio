@@ -1,5 +1,7 @@
 package zio.internal
 
+import zio.Executor
+
 import java.util.concurrent.{SynchronousQueue, ThreadPoolExecutor, TimeUnit}
 
 object Blocking {

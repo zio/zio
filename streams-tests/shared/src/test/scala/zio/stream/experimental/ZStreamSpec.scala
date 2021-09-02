@@ -2,7 +2,6 @@ package zio.stream.experimental
 
 // import java.io.ByteArrayInputStream
 import zio._
-import zio.internal.Executor
 import zio.stm.TQueue
 import zio.stream.experimental.ZStreamGen._
 import zio.test.Assertion._

@@ -19,7 +19,7 @@ package zio
 import zio.internal.stacktracer.Tracer
 import zio.internal.stacktracer.impl.AkkaLineNumbersTracer
 import zio.internal.tracing.TracingConfig
-import zio.internal.{Blocking, Executor, Tracing, ZLogger}
+import zio.internal.{Blocking, Tracing, ZLogger}
 
 import java.lang.ref.WeakReference
 import java.util.concurrent.ConcurrentHashMap

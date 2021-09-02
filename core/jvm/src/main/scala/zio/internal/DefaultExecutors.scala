@@ -16,9 +16,11 @@
 
 package zio.internal
 
+import zio.Executor
+
 import java.util.concurrent.{RejectedExecutionException, ThreadPoolExecutor}
 
-private[internal] abstract class DefaultExecutors {
+private[zio] abstract class DefaultExecutors {
 
   final def makeDefault(yieldOpCount: Int): Executor =
     new ZScheduler(yieldOpCount)

@@ -268,7 +268,6 @@ val rt3 = Runtime.default.mapRuntimeConfig(runtimeConfig => runtimeConfig.copy(t
 An executor is responsible for executing effects. The way how each effect will be run including detail of threading, scheduling, and so forth, is separated from the caller. So, if we need to have a specialized executor according to our requirements, we can provide that to the ZIO `Runtime`:
 
 ```scala mdoc:silent:nest
-import zio.internal.Executor
 import java.util.concurrent.{ThreadPoolExecutor, TimeUnit, LinkedBlockingQueue}
 
 val runtime = Runtime.default.mapRuntimeConfig(

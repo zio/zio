@@ -1,7 +1,6 @@
 package zio.stream
 
 import zio._
-import zio.internal.Executor
 import zio.stm.TQueue
 import zio.stream.ZSink.Push
 import zio.stream.ZStreamGen._

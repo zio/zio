@@ -14,6 +14,6 @@
  * limitations under the License.
  */
 
-package zio.internal
+package zio
 
 trait ExecutorPlatformSpecific

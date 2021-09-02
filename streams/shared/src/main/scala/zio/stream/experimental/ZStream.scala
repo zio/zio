@@ -1,7 +1,7 @@
 package zio.stream.experimental
 
 import zio._
-import zio.internal.{Executor, SingleThreadedRingBuffer, UniqueKey}
+import zio.internal.{SingleThreadedRingBuffer, UniqueKey}
 import zio.stm._
 import zio.stream.experimental.ZStream.{DebounceState, HandoffSignal}
 import zio.stream.experimental.internal.Utils.zipChunks

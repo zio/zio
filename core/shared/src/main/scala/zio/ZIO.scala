@@ -17,7 +17,6 @@
 package zio
 
 import zio.internal.tracing.{ZIOFn, ZIOFn1, ZIOFn2}
-import zio.internal.Executor
 import zio.{TracingStatus => TracingS}
 
 import java.io.IOException

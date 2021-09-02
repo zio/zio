@@ -1,7 +1,7 @@
 package zio.internal
 
 import zio.Fiber.Status
-import zio.{Callback, Cause, Exit, Fiber, IO, InterruptStatus, Supervisor, TracingStatus, ZScope}
+import zio._
 
 import scala.annotation.tailrec
 

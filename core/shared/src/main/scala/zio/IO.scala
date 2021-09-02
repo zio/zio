@@ -16,8 +16,6 @@
 
 package zio
 
-import zio.internal.Executor
-
 import java.io.IOException
 import scala.concurrent.ExecutionContext
 import scala.reflect.ClassTag
