@@ -16,7 +16,7 @@
 
 package zio.stm
 
-import zio.{BuildFrom, CanFail, Fiber, IO, NonEmptyChunk}
+import zio.{BuildFrom, CanFail, FiberId, IO, NonEmptyChunk}
 
 import scala.util.Try
 
@@ -117,7 +117,7 @@ object STM {
   /**
    * @see See [[zio.stm.ZSTM.fiberId]]
    */
-  val fiberId: USTM[Fiber.Id] =
+  val fiberId: USTM[FiberId] =
     ZSTM.fiberId
 
   /**

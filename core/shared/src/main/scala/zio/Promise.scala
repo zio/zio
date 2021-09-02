@@ -39,7 +39,7 @@ import java.util.concurrent.atomic.AtomicReference
  */
 final class Promise[E, A] private (
   private val state: AtomicReference[Promise.internal.State[E, A]],
-  blockingOn: Fiber.Id
+  blockingOn: FiberId
 ) extends Serializable {
 
   /**
@@ -166,7 +166,7 @@ final class Promise[E, A] private (
    * Completes the promise with interruption. This will interrupt all fibers
    * waiting on the value of the promise as by the specified fiber.
    */
-  def interruptAs(fiberId: Fiber.Id): UIO[Boolean] = completeWith(IO.interruptAs(fiberId))
+  def interruptAs(fiberId: FiberId): UIO[Boolean] = completeWith(IO.interruptAs(fiberId))
 
   /**
    * Checks for completion of this Promise. Produces true if this promise has
@@ -249,7 +249,7 @@ object Promise {
   /**
    * Makes a new promise to be completed by the fiber with the specified id.
    */
-  def makeAs[E, A](fiberId: Fiber.Id): UIO[Promise[E, A]] =
+  def makeAs[E, A](fiberId: FiberId): UIO[Promise[E, A]] =
     ZIO.succeed(unsafeMake(fiberId))
 
   /**
@@ -258,6 +258,6 @@ object Promise {
   def makeManaged[E, A]: UManaged[Promise[E, A]] =
     make[E, A].toManaged
 
-  private[zio] def unsafeMake[E, A](fiberId: Fiber.Id): Promise[E, A] =
+  private[zio] def unsafeMake[E, A](fiberId: FiberId): Promise[E, A] =
     new Promise[E, A](new AtomicReference[State[E, A]](new internal.Pending[E, A](Nil)), fiberId)
 }

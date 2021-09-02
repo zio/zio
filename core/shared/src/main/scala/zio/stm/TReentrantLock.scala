@@ -17,7 +17,7 @@
 package zio.stm
 
 import zio.stm.TReentrantLock._
-import zio.{Fiber, Managed, UManaged}
+import zio.{FiberId, Managed, UManaged}
 
 /**
  * A `TReentrantLock` is a reentrant read/write lock. Multiple readers may all
@@ -169,9 +169,9 @@ object TReentrantLock {
 
   private[stm] sealed abstract class LockState {
     def readLocks: Int
-    def readLocks(fiberId: Fiber.Id): Int
+    def readLocks(fiberId: FiberId): Int
     val writeLocks: Int
-    def writeLocks(fiberId: Fiber.Id): Int
+    def writeLocks(fiberId: FiberId): Int
   }
 
   /**
@@ -179,10 +179,10 @@ object TReentrantLock {
    * has a write lock. The fiber has an identity, and may also have acquired
    * a certain number of read locks.
    */
-  private[stm] final case class WriteLock(writeLocks: Int, readLocks: Int, fiberId: Fiber.Id) extends LockState {
-    override def readLocks(fiberId0: Fiber.Id): Int = if (fiberId0 == fiberId) readLocks else 0
+  private[stm] final case class WriteLock(writeLocks: Int, readLocks: Int, fiberId: FiberId) extends LockState {
+    override def readLocks(fiberId0: FiberId): Int = if (fiberId0 == fiberId) readLocks else 0
 
-    override def writeLocks(fiberId0: Fiber.Id): Int = if (fiberId0 == fiberId) writeLocks else 0
+    override def writeLocks(fiberId0: FiberId): Int = if (fiberId0 == fiberId) writeLocks else 0
   }
 
   /**
@@ -191,7 +191,7 @@ object TReentrantLock {
    * to number of read locks acquired by the fiber. This level of detail permits
    * upgrading a read lock to a write lock.
    */
-  private[stm] final class ReadLock(readers: Map[Fiber.Id, Int]) extends LockState {
+  private[stm] final class ReadLock(readers: Map[FiberId, Int]) extends LockState {
 
     /**
      * Computes the total number of read locks acquired.
@@ -204,18 +204,18 @@ object TReentrantLock {
      * aside from the specified fiber id, then it is safe to upgrade the
      * read lock into a write lock.
      */
-    def noOtherHolder(fiberId: Fiber.Id): Boolean =
+    def noOtherHolder(fiberId: FiberId): Boolean =
       readers.isEmpty || (readers.size == 1 && readers.contains(fiberId))
 
     /**
      * Computes the number of read locks held by the specified fiber id.
      */
-    def readLocks(fiberId: Fiber.Id): Int = readers.getOrElse(fiberId, 0)
+    def readLocks(fiberId: FiberId): Int = readers.getOrElse(fiberId, 0)
 
     /**
      * Adjusts the number of read locks held by the specified fiber id.
      */
-    def adjust(fiberId: Fiber.Id, adjust: Int): ReadLock = {
+    def adjust(fiberId: FiberId, adjust: Int): ReadLock = {
       val total = readLocks(fiberId)
 
       val newTotal = total + adjust
@@ -229,7 +229,7 @@ object TReentrantLock {
 
     override val writeLocks: Int = 0
 
-    override def writeLocks(fiberId: Fiber.Id): Int = 0
+    override def writeLocks(fiberId: FiberId): Int = 0
   }
   private[stm] object ReadLock {
 
@@ -242,7 +242,7 @@ object TReentrantLock {
      * Creates a new read lock where the specified fiber holds the
      * specified number of read locks.
      */
-    def apply(fiberId: Fiber.Id, count: Int): ReadLock =
+    def apply(fiberId: FiberId, count: Int): ReadLock =
       if (count <= 0) empty else new ReadLock(Map(fiberId -> count))
   }
 

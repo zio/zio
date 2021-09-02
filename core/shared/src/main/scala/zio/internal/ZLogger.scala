@@ -6,7 +6,7 @@ import zio.internal.stacktracer._
 trait ZLogger[+A] { self =>
   def apply(
     trace: ZTraceElement,
-    fiberId: Fiber.Id,
+    fiberId: FiberId,
     logLevel: LogLevel,
     message: () => String,
     context: Map[FiberRef.Runtime[_], AnyRef],
@@ -17,7 +17,7 @@ trait ZLogger[+A] { self =>
     new ZLogger[Unit] {
       def apply(
         trace: ZTraceElement,
-        fiberId: Fiber.Id,
+        fiberId: FiberId,
         logLevel: LogLevel,
         message: () => String,
         context: Map[FiberRef.Runtime[_], AnyRef],
@@ -28,7 +28,7 @@ trait ZLogger[+A] { self =>
 object ZLogger {
   val defaultFormatter: ZLogger[String] = (
     trace: ZTraceElement,
-    fiberId: Fiber.Id,
+    fiberId: FiberId,
     logLevel: LogLevel,
     message0: () => String,
     context: Map[FiberRef.Runtime[_], AnyRef],

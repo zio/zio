@@ -1929,9 +1929,9 @@ object ZManaged extends ZManagedPlatformSpecific {
     ZManaged.fromZIO(ZIO.failCause(cause))
 
   /**
-   * Returns an effect that succeeds with the `Fiber.Id` of the caller.
+   * Returns an effect that succeeds with the `FiberId` of the caller.
    */
-  lazy val fiberId: ZManaged[Any, Nothing, Fiber.Id] =
+  lazy val fiberId: ZManaged[Any, Nothing, FiberId] =
     ZManaged.fromZIO(ZIO.fiberId)
 
   /**
@@ -2343,7 +2343,7 @@ object ZManaged extends ZManagedPlatformSpecific {
   /**
    * Returns an effect that is interrupted as if by the specified fiber.
    */
-  def interruptAs(fiberId: => Fiber.Id): ZManaged[Any, Nothing, Nothing] =
+  def interruptAs(fiberId: => FiberId): ZManaged[Any, Nothing, Nothing] =
     failCause(Cause.interrupt(fiberId))
 
   /**
