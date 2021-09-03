@@ -1112,15 +1112,6 @@ Here are some of the most important changes:
 | `ZIO.validate_`                | `ZIO.validateDiscard`           |
 | `ZIO.validatePar_`             | `ZIO.validateParDiscard`        |
 
-### ZLayer
-
-| ZIO 1.x                    | ZIO 2.x                      |
-|----------------------------|------------------------------|
-| `ZLayer.fromEffect`        | `ZLayer.fromZIO`             |
-| `ZLayer.fromEffectMany`    | `ZLayer.fromZIOMany`         |
-| `ZLayer.fromFunctionM`     | `ZLayer.fromFunctionZIO`     |
-| `ZLayer.fromFunctionManyM` | `ZLayer.fromFunctionManyZIO` |
-
 ## New Features
 
 ### Smart Constructors
