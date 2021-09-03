@@ -17,7 +17,7 @@
 package zio
 
 import zio.internal.tracing.ZIOFn
-import zio.internal.{Executor, FiberContext, Platform, PlatformConstants, Tracing}
+import zio.internal.{FiberContext, Platform, PlatformConstants, Tracing}
 
 import scala.concurrent.Future
 
@@ -32,10 +32,10 @@ trait Runtime[+R] {
   def environment: R
 
   /**
-   * The platform of the runtime, which provides the essential capabilities
-   * necessary to bootstrap execution of tasks.
+   * The configuration of the runtime, which provides the essential
+   * capabilities necessary to bootstrap execution of tasks.
    */
-  def platform: Platform
+  def runtimeConfig: RuntimeConfig
 
   /**
    * Constructs a new `Runtime` with the specified new environment.
@@ -47,13 +47,28 @@ trait Runtime[+R] {
    * Constructs a new `Runtime` by mapping the environment.
    */
   def map[R1](f: R => R1): Runtime[R1] =
-    Runtime(f(environment), platform)
+    Runtime(f(environment), runtimeConfig)
 
   /**
    * Constructs a new `Runtime` by mapping the platform.
    */
+  @deprecated("use mapRuntimeConfig", "2.0.0")
   def mapPlatform(f: Platform => Platform): Runtime[R] =
-    Runtime(environment, f(platform))
+    mapRuntimeConfig(f)
+
+  /**
+   * Constructs a new `Runtime` by mapping the runtime configuration.
+   */
+  def mapRuntimeConfig(f: RuntimeConfig => RuntimeConfig): Runtime[R] =
+    Runtime(environment, f(runtimeConfig))
+
+  /**
+   * The platform of the runtime, which provides the essential capabilities
+   * necessary to bootstrap execution of tasks.
+   */
+  @deprecated("use runtimeConfig", "2.0.0")
+  def platform: Platform =
+    runtimeConfig
 
   /**
    * Runs the effect "purely" through an async boundary. Useful for testing.
@@ -182,7 +197,7 @@ trait Runtime[+R] {
           case ZIO.ZioError(e) =>
             done = Exit.fail(e)
 
-          case t: Throwable if !platform.fatal(t) =>
+          case t: Throwable if !runtimeConfig.fatal(t) =>
             done = Exit.die(t)
         }
       }
@@ -208,7 +223,7 @@ trait Runtime[+R] {
    *
    * This method is effectful and should only be invoked at the edges of your program.
    */
-  final def unsafeRunAsyncCancelable[E, A](zio: => ZIO[R, E, A])(k: Exit[E, A] => Any): Fiber.Id => Exit[E, A] = {
+  final def unsafeRunAsyncCancelable[E, A](zio: => ZIO[R, E, A])(k: Exit[E, A] => Any): FiberId => Exit[E, A] = {
     lazy val curZio = zio
     val canceler    = unsafeRunWith(curZio)(k)
     fiberId => {
@@ -243,7 +258,7 @@ trait Runtime[+R] {
     new CancelableFuture[A](p.future) {
       def cancel(): Future[Exit[Throwable, A]] = {
         val p: concurrent.Promise[Exit[Throwable, A]] = scala.concurrent.Promise[Exit[Throwable, A]]()
-        canceler(Fiber.Id.None)(p.success)
+        canceler(FiberId.None)(p.success)
         p.future
       }
     }
@@ -252,54 +267,54 @@ trait Runtime[+R] {
   /**
    * Constructs a new `Runtime` with the specified blocking executor.
    */
-  def withBlockingExecutor(e: Executor): Runtime[R] = mapPlatform(_.copy(blockingExecutor = e))
+  def withBlockingExecutor(e: Executor): Runtime[R] = mapRuntimeConfig(_.copy(blockingExecutor = e))
 
   /**
    * Constructs a new `Runtime` with the specified executor.
    */
-  def withExecutor(e: Executor): Runtime[R] = mapPlatform(_.copy(executor = e))
+  def withExecutor(e: Executor): Runtime[R] = mapRuntimeConfig(_.copy(executor = e))
 
   /**
    * Constructs a new `Runtime` with the specified fatal predicate.
    */
-  def withFatal(f: Throwable => Boolean): Runtime[R] = mapPlatform(_.copy(fatal = f))
+  def withFatal(f: Throwable => Boolean): Runtime[R] = mapRuntimeConfig(_.copy(fatal = f))
 
   /**
    * Constructs a new `Runtime` with the fatal error reporter.
    */
-  def withReportFatal(f: Throwable => Nothing): Runtime[R] = mapPlatform(_.copy(reportFatal = f))
+  def withReportFatal(f: Throwable => Nothing): Runtime[R] = mapRuntimeConfig(_.copy(reportFatal = f))
 
   /**
    * Constructs a new `Runtime` with the specified error reporter.
    */
-  def withReportFailure(f: Cause[Any] => Unit): Runtime[R] = mapPlatform(_.copy(reportFailure = f))
+  def withReportFailure(f: Cause[Any] => Unit): Runtime[R] = mapRuntimeConfig(_.copy(reportFailure = f))
 
   /**
    * Constructs a new `Runtime` with the specified tracer and tracing configuration.
    */
-  def withTracing(t: Tracing): Runtime[R] = mapPlatform(_.copy(tracing = t))
+  def withTracing(t: Tracing): Runtime[R] = mapRuntimeConfig(_.copy(tracing = t))
 
   private final def unsafeRunWith[E, A](
     zio: => ZIO[R, E, A]
-  )(k: Exit[E, A] => Any): Fiber.Id => (Exit[E, A] => Any) => Unit = {
+  )(k: Exit[E, A] => Any): FiberId => (Exit[E, A] => Any) => Unit = {
     val fiberId = Fiber.newFiberId()
 
     val scope = ZScope.unsafeMake[Exit[E, A]]()
 
-    val supervisor = platform.supervisor
+    val supervisor = runtimeConfig.supervisor
 
     lazy val context: FiberContext[E, A] = new FiberContext[E, A](
       fiberId,
-      platform,
+      runtimeConfig,
       environment.asInstanceOf[AnyRef],
-      platform.executor,
+      runtimeConfig.executor,
       false,
       InterruptStatus.Interruptible,
       None,
       PlatformConstants.tracingSupported,
       new java.util.concurrent.atomic.AtomicReference(Map.empty),
       scope,
-      platform.reportFailure
+      runtimeConfig.reportFailure
     )
 
     if (supervisor ne Supervisor.none) {
@@ -319,8 +334,8 @@ trait Runtime[+R] {
 
 object Runtime {
   class Proxy[+R](underlying: Runtime[R]) extends Runtime[R] {
-    def platform    = underlying.platform
-    def environment = underlying.environment
+    def runtimeConfig = underlying.runtimeConfig
+    def environment   = underlying.environment
   }
 
   /**
@@ -339,62 +354,62 @@ object Runtime {
       map(_ => r1)
 
     override final def map[R1](f: R => R1): Runtime.Managed[R1] =
-      Managed(f(environment), platform, () => shutdown())
+      Managed(f(environment), runtimeConfig, () => shutdown())
 
-    override final def mapPlatform(f: Platform => Platform): Runtime.Managed[R] =
-      Managed(environment, f(platform), () => shutdown())
+    override final def mapRuntimeConfig(f: RuntimeConfig => RuntimeConfig): Runtime.Managed[R] =
+      Managed(environment, f(runtimeConfig), () => shutdown())
 
     override final def withExecutor(e: Executor): Runtime.Managed[R] =
-      mapPlatform(_.copy(executor = e))
+      mapRuntimeConfig(_.copy(executor = e))
 
     override final def withFatal(f: Throwable => Boolean): Runtime.Managed[R] =
-      mapPlatform(_.copy(fatal = f))
+      mapRuntimeConfig(_.copy(fatal = f))
 
     override final def withReportFatal(f: Throwable => Nothing): Runtime.Managed[R] =
-      mapPlatform(_.copy(reportFatal = f))
+      mapRuntimeConfig(_.copy(reportFatal = f))
 
     override final def withReportFailure(f: Cause[Any] => Unit): Runtime.Managed[R] =
-      mapPlatform(_.copy(reportFailure = f))
+      mapRuntimeConfig(_.copy(reportFailure = f))
 
     override final def withTracing(t: Tracing): Runtime.Managed[R] =
-      mapPlatform(_.copy(tracing = t))
+      mapRuntimeConfig(_.copy(tracing = t))
   }
 
   object Managed {
 
     /**
      * Builds a new managed runtime given an environment `R`, a
-     * [[zio.internal.Platform]], and a shut down action.
+     * [[zio.RuntimeConfig]], and a shut down action.
      */
-    def apply[R](r: R, platform0: Platform, shutdown0: () => Unit): Runtime.Managed[R] =
+    def apply[R](r: R, runtimeConfig0: RuntimeConfig, shutdown0: () => Unit): Runtime.Managed[R] =
       new Runtime.Managed[R] {
-        val environment = r
-        val platform    = platform0
-        def shutdown()  = shutdown0()
+        val environment   = r
+        val runtimeConfig = runtimeConfig0
+        def shutdown()    = shutdown0()
       }
   }
 
   /**
-   * Builds a new runtime given an environment `R` and a [[zio.internal.Platform]].
+   * Builds a new runtime given an environment `R` and a [[zio.RuntimeConfig]].
    */
-  def apply[R](r: R, platform0: Platform): Runtime[R] = new Runtime[R] {
-    val environment = r
-    val platform    = platform0
+  def apply[R](r: R, runtimeConfig0: RuntimeConfig): Runtime[R] = new Runtime[R] {
+    val environment   = r
+    val runtimeConfig = runtimeConfig0
   }
 
   /**
    * The default [[Runtime]] for most ZIO applications. This runtime is configured with
    * the default environment, containing standard services, as well as the default
-   * platform, which is optimized for typical ZIO applications.
+   * runtime configuration, which is optimized for typical ZIO applications.
    */
-  lazy val default: Runtime[ZEnv] = Runtime(ZEnv.Services.live, Platform.default)
+  lazy val default: Runtime[ZEnv] = Runtime(ZEnv.Services.live, RuntimeConfig.default)
 
   /**
    * The global [[Runtime]], which piggybacks atop the global execution context available
    * to Scala applications. Use of this runtime is not generally recommended, unless the
    * intention is to avoid creating any thread pools or other resources.
    */
-  lazy val global: Runtime[ZEnv] = Runtime(ZEnv.Services.live, Platform.global)
+  lazy val global: Runtime[ZEnv] = Runtime(ZEnv.Services.live, RuntimeConfig.global)
 
   /**
    * Unsafely creates a `Runtime` from a `ZLayer` whose resources will be
@@ -405,8 +420,11 @@ object Runtime {
    * legacy code, but other applications should investigate using
    * [[ZIO.provideLayer]] directly in their application entry points.
    */
-  def unsafeFromLayer[R](layer: Layer[Any, R], platform: Platform = Platform.default): Runtime.Managed[R] = {
-    val runtime = Runtime((), platform)
+  def unsafeFromLayer[R](
+    layer: Layer[Any, R],
+    runtimeConfig: RuntimeConfig = RuntimeConfig.default
+  ): Runtime.Managed[R] = {
+    val runtime = Runtime((), runtimeConfig)
     val (environment, shutdown) = runtime.unsafeRun {
       ZManaged.ReleaseMap.make.flatMap { releaseMap =>
         layer.build.zio.provide(((), releaseMap)).flatMap { case (_, acquire) =>
@@ -420,6 +438,6 @@ object Runtime {
       }
     }
 
-    Runtime.Managed(environment, platform, shutdown)
+    Runtime.Managed(environment, runtimeConfig, shutdown)
   }
 }

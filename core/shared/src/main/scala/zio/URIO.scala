@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.internal.{Executor, Platform}
+import zio.internal.Platform
 
 import scala.reflect.ClassTag
 
@@ -92,7 +92,7 @@ object URIO {
   /**
    * @see [[zio.ZIO.async]]
    */
-  def async[R, A](register: (URIO[R, A] => Unit) => Any, blockingOn: => Fiber.Id = Fiber.Id.None): URIO[R, A] =
+  def async[R, A](register: (URIO[R, A] => Unit) => Any, blockingOn: => FiberId = FiberId.None): URIO[R, A] =
     ZIO.async(register, blockingOn)
 
   /**
@@ -100,7 +100,7 @@ object URIO {
    */
   def asyncMaybe[R, A](
     register: (URIO[R, A] => Unit) => Option[URIO[R, A]],
-    blockingOn: => Fiber.Id = Fiber.Id.None
+    blockingOn: => FiberId = FiberId.None
   ): URIO[R, A] =
     ZIO.asyncMaybe(register, blockingOn)
 
@@ -115,7 +115,7 @@ object URIO {
    */
   def asyncInterrupt[R, A](
     register: (URIO[R, A] => Unit) => Either[Canceler[R], URIO[R, A]],
-    blockingOn: => Fiber.Id = Fiber.Id.None
+    blockingOn: => FiberId = FiberId.None
   ): URIO[R, A] =
     ZIO.asyncInterrupt(register, blockingOn)
 
@@ -417,7 +417,7 @@ object URIO {
    * @see [[zio.ZIO.effectAsync]]
    */
   @deprecated("use async", "2.0.0")
-  def effectAsync[R, A](register: (URIO[R, A] => Unit) => Any, blockingOn: => Fiber.Id = Fiber.Id.None): URIO[R, A] =
+  def effectAsync[R, A](register: (URIO[R, A] => Unit) => Any, blockingOn: => FiberId = FiberId.None): URIO[R, A] =
     ZIO.effectAsync(register, blockingOn)
 
   /**
@@ -426,7 +426,7 @@ object URIO {
   @deprecated("use asyncMaybe", "2.0.0")
   def effectAsyncMaybe[R, A](
     register: (URIO[R, A] => Unit) => Option[URIO[R, A]],
-    blockingOn: => Fiber.Id = Fiber.Id.None
+    blockingOn: => FiberId = FiberId.None
   ): URIO[R, A] =
     ZIO.effectAsyncMaybe(register, blockingOn)
 
@@ -443,7 +443,7 @@ object URIO {
   @deprecated("use asyncInterrupt", "2.0.0")
   def effectAsyncInterrupt[R, A](
     register: (URIO[R, A] => Unit) => Either[Canceler[R], URIO[R, A]],
-    blockingOn: => Fiber.Id = Fiber.Id.None
+    blockingOn: => FiberId = FiberId.None
   ): URIO[R, A] =
     ZIO.effectAsyncInterrupt(register, blockingOn)
 
@@ -501,7 +501,7 @@ object URIO {
   /**
    * @see [[zio.ZIO.fiberId]]
    */
-  val fiberId: UIO[Fiber.Id] =
+  val fiberId: UIO[FiberId] =
     ZIO.fiberId
 
   /**
@@ -844,7 +844,7 @@ object URIO {
   /**
    * @see See [[zio.ZIO.interruptAs]]
    */
-  def interruptAs(fiberId: => Fiber.Id): UIO[Nothing] =
+  def interruptAs(fiberId: => FiberId): UIO[Nothing] =
     ZIO.interruptAs(fiberId)
 
   /**
@@ -990,18 +990,6 @@ object URIO {
     ZIO.onExecutor(executor)(taskr)
 
   /**
-   *  @see See [[zio.ZIO.onPlatform]]
-   */
-  def onPlatform[R, A](platform: => Platform)(urio: => URIO[R, A]): URIO[R, A] =
-    ZIO.onPlatform(platform)(urio)
-
-  /**
-   * @see See [[zio.ZIO.platform]]
-   */
-  val platform: UIO[Platform] =
-    ZIO.platform
-
-  /**
    * @see [[zio.ZIO.provide]]
    */
   def provide[R, A](r: => R): URIO[R, A] => UIO[A] =
@@ -1076,6 +1064,12 @@ object URIO {
     ZIO.runtime
 
   /**
+   * @see See [[zio.ZIO.runtimeConfig]]
+   */
+  val runtimeConfig: UIO[RuntimeConfig] =
+    ZIO.runtimeConfig
+
+  /**
    * @see [[zio.ZIO.setState]]
    */
   def setState[S: Tag](s: => S): ZIO[Has[ZState[S]], Nothing, Unit] =
@@ -1141,8 +1135,8 @@ object URIO {
   /**
    * @see [[zio.ZIO.suspendSucceedWith]]
    */
-  def suspendSucceedWith[R, A](p: (Platform, Fiber.Id) => URIO[R, A]): URIO[R, A] =
-    ZIO.suspendSucceedWith(p)
+  def suspendSucceedWith[R, A](f: (RuntimeConfig, FiberId) => URIO[R, A]): URIO[R, A] =
+    ZIO.suspendSucceedWith(f)
 
   /**
    * @see [[zio.ZIO.succeed]]
@@ -1260,6 +1254,12 @@ object URIO {
    */
   def whenZIO[R](b: => URIO[R, Boolean]): ZIO.WhenZIO[R, Nothing] =
     ZIO.whenZIO(b)
+
+  /**
+   *  @see See [[zio.ZIO.withRuntimeConfig]]
+   */
+  def withRuntimeConfig[R, A](runtimeConfig: => RuntimeConfig)(urio: => URIO[R, A]): URIO[R, A] =
+    ZIO.withRuntimeConfig(runtimeConfig)(urio)
 
   /**
    * @see [[zio.ZIO.yieldNow]]

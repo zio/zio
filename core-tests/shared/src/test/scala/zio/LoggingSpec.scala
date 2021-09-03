@@ -10,7 +10,7 @@ import scala.annotation.tailrec
 object LoggingSpec extends ZIOBaseSpec {
   final case class LogEntry(
     trace: ZTraceElement,
-    fiberId: Fiber.Id,
+    fiberId: FiberId,
     logLevel: LogLevel,
     message: () => String,
     context: Map[FiberRef.Runtime[_], AnyRef],
@@ -31,7 +31,7 @@ object LoggingSpec extends ZIOBaseSpec {
       @tailrec
       def apply(
         trace: ZTraceElement,
-        fiberId: Fiber.Id,
+        fiberId: FiberId,
         logLevel: LogLevel,
         message: () => String,
         context: Map[FiberRef.Runtime[_], AnyRef],
@@ -47,7 +47,7 @@ object LoggingSpec extends ZIOBaseSpec {
       }
     }
 
-  override def runner: TestRunner[Environment, Any] = super.runner.withPlatform(_.copy(logger = testLogger))
+  override def runner: TestRunner[Environment, Any] = super.runner.withRuntimeConfig(_.copy(logger = testLogger))
 
   def spec: ZSpec[Any, Any] =
     suite("LoggingSpec")(

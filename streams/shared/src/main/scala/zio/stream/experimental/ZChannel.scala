@@ -1143,7 +1143,7 @@ object ZChannel {
       (done: Done) => end(done)
     )
 
-  def interrupt(fiberId: Fiber.Id): ZChannel[Any, Any, Any, Any, Nothing, Nothing, Nothing] =
+  def interrupt(fiberId: FiberId): ZChannel[Any, Any, Any, Any, Nothing, Nothing, Nothing] =
     failCause(Cause.interrupt(fiberId))
 
   def managed[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone, A](m: ZManaged[Env, OutErr, A])(

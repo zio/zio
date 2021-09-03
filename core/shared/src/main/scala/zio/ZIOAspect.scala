@@ -1,7 +1,5 @@
 package zio
 
-import zio.internal.Executor
-
 import scala.concurrent.ExecutionContext
 
 trait ZIOAspect[+LowerR, -UpperR, +LowerE, -UpperE, +LowerA, -UpperA] { self =>

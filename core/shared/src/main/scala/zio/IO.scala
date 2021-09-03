@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.internal.{Executor, Platform}
+import zio.internal.Platform
 
 import java.io.IOException
 import scala.concurrent.ExecutionContext
@@ -72,7 +72,7 @@ object IO {
   /**
    * @see See [[zio.ZIO.async]]
    */
-  def async[E, A](register: (IO[E, A] => Unit) => Any, blockingOn: => Fiber.Id = Fiber.Id.None): IO[E, A] =
+  def async[E, A](register: (IO[E, A] => Unit) => Any, blockingOn: => FiberId = FiberId.None): IO[E, A] =
     ZIO.async(register, blockingOn)
 
   /**
@@ -80,7 +80,7 @@ object IO {
    */
   def asyncInterrupt[E, A](
     register: (IO[E, A] => Unit) => Either[Canceler[Any], IO[E, A]],
-    blockingOn: => Fiber.Id = Fiber.Id.None
+    blockingOn: => FiberId = FiberId.None
   ): IO[E, A] =
     ZIO.asyncInterrupt(register, blockingOn)
 
@@ -95,7 +95,7 @@ object IO {
    */
   def asyncMaybe[E, A](
     register: (IO[E, A] => Unit) => Option[IO[E, A]],
-    blockingOn: => Fiber.Id = Fiber.Id.None
+    blockingOn: => FiberId = FiberId.None
   ): IO[E, A] =
     ZIO.asyncMaybe(register, blockingOn)
 
@@ -430,7 +430,7 @@ object IO {
    * @see See [[zio.ZIO.effectAsync]]
    */
   @deprecated("use async", "2.0.0")
-  def effectAsync[E, A](register: (IO[E, A] => Unit) => Any, blockingOn: => Fiber.Id = Fiber.Id.None): IO[E, A] =
+  def effectAsync[E, A](register: (IO[E, A] => Unit) => Any, blockingOn: => FiberId = FiberId.None): IO[E, A] =
     ZIO.effectAsync(register, blockingOn)
 
   /**
@@ -439,7 +439,7 @@ object IO {
   @deprecated("use asyncInterrupt", "2.0.0")
   def effectAsyncInterrupt[E, A](
     register: (IO[E, A] => Unit) => Either[Canceler[Any], IO[E, A]],
-    blockingOn: => Fiber.Id = Fiber.Id.None
+    blockingOn: => FiberId = FiberId.None
   ): IO[E, A] =
     ZIO.effectAsyncInterrupt(register, blockingOn)
 
@@ -456,7 +456,7 @@ object IO {
   @deprecated("use asyncMaybe", "2.0.0")
   def effectAsyncMaybe[E, A](
     register: (IO[E, A] => Unit) => Option[IO[E, A]],
-    blockingOn: => Fiber.Id = Fiber.Id.None
+    blockingOn: => FiberId = FiberId.None
   ): IO[E, A] =
     ZIO.effectAsyncMaybe(register, blockingOn)
 
@@ -556,7 +556,7 @@ object IO {
   /**
    * @see [[zio.ZIO.fiberId]]
    */
-  val fiberId: UIO[Fiber.Id] =
+  val fiberId: UIO[FiberId] =
     ZIO.fiberId
 
   /**
@@ -896,7 +896,7 @@ object IO {
   /**
    * @see See [[zio.ZIO.interruptAs]]
    */
-  def interruptAs(fiberId: => Fiber.Id): UIO[Nothing] =
+  def interruptAs(fiberId: => FiberId): UIO[Nothing] =
     ZIO.interruptAs(fiberId)
 
   /**
@@ -1050,12 +1050,6 @@ object IO {
     ZIO.onExecutor(executor)(io)
 
   /**
-   *  @see See [[zio.ZIO.onPlatform]]
-   */
-  def onPlatform[E, A](platform: => Platform)(io: => IO[E, A]): IO[E, A] =
-    ZIO.onPlatform(platform)(io)
-
-  /**
    * @see See [[zio.ZIO.partition]]
    */
   def partition[E, A, B](in: => Iterable[A])(f: A => IO[E, B])(implicit
@@ -1078,12 +1072,6 @@ object IO {
     n: => Int
   )(in: => Iterable[A])(f: A => IO[E, B])(implicit ev: CanFail[E]): UIO[(Iterable[E], Iterable[B])] =
     ZIO.partitionParN(n)(in)(f)
-
-  /**
-   * @see See [[zio.ZIO.platform]]
-   */
-  val platform: UIO[Platform] =
-    ZIO.platform
 
   /**
    * @see See [[zio.ZIO.raceAll]]
@@ -1161,6 +1149,12 @@ object IO {
     ZIO.runtime
 
   /**
+   * @see See [[zio.ZIO.runtimeConfig]]
+   */
+  val runtimeConfig: UIO[RuntimeConfig] =
+    ZIO.runtimeConfig
+
+  /**
    *  @see [[zio.ZIO.some]]
    */
   def some[E, A](a: => A): IO[E, Option[A]] =
@@ -1187,8 +1181,8 @@ object IO {
   /**
    * @see [[zio.ZIO.suspendWith]]
    */
-  def suspendWith[A](p: (Platform, Fiber.Id) => IO[Throwable, A]): IO[Throwable, A] =
-    ZIO.suspendWith(p)
+  def suspendWith[A](f: (RuntimeConfig, FiberId) => IO[Throwable, A]): IO[Throwable, A] =
+    ZIO.suspendWith(f)
 
   /**
    * @see See [[zio.ZIO.suspendSucceed]]
@@ -1199,8 +1193,8 @@ object IO {
   /**
    * @see See [[zio.ZIO.suspendSucceedWith]]
    */
-  def suspendSucceedWith[E, A](p: (Platform, Fiber.Id) => IO[E, A]): IO[E, A] =
-    ZIO.suspendSucceedWith(p)
+  def suspendSucceedWith[E, A](f: (RuntimeConfig, FiberId) => IO[E, A]): IO[E, A] =
+    ZIO.suspendSucceedWith(f)
 
   /**
    * @see See [[zio.ZIO.trace]]
@@ -1374,6 +1368,12 @@ object IO {
    */
   def whenZIO[E](b: => IO[E, Boolean]): ZIO.WhenZIO[Any, E] =
     ZIO.whenZIO(b)
+
+  /**
+   *  @see See [[zio.ZIO.withRuntimeConfig]]
+   */
+  def withRuntimeConfig[E, A](runtimeConfig: => RuntimeConfig)(io: => IO[E, A]): IO[E, A] =
+    ZIO.withRuntimeConfig(runtimeConfig)(io)
 
   /**
    * @see See [[zio.ZIO.yieldNow]]

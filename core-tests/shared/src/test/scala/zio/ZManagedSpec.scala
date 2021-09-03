@@ -3,7 +3,6 @@ package zio
 import zio.Cause.Interrupt
 import zio.Exit.Failure
 import zio.ZManaged.ReleaseMap
-import zio.internal.{Executor, Platform}
 import zio.test.Assertion._
 import zio.test.TestAspect.{nonFlaky, scala2Only}
 import zio.test._
@@ -596,27 +595,6 @@ object ZManagedSpec extends ZIOBaseSpec {
           finalizers <- finalizersRef.get
           result     <- resultRef.get
         } yield assert(finalizers)(equalTo(List("Second", "First"))) && assert(result)(isSome(succeeds(equalTo("42"))))
-      }
-    ),
-    suite("onPlatform")(
-      test("runs acquire, use, and release actions on the specified platform") {
-        val platform: UIO[Platform] = ZIO.platform
-        val global                  = Platform.global
-        for {
-          default <- platform
-          ref1    <- Ref.make[Platform](default)
-          ref2    <- Ref.make[Platform](default)
-          managed  = ZManaged.acquireRelease(platform.flatMap(ref1.set))(platform.flatMap(ref2.set)).onPlatform(global)
-          before  <- platform
-          use     <- managed.useDiscard(platform)
-          acquire <- ref1.get
-          release <- ref2.get
-          after   <- platform
-        } yield assert(before)(equalTo(default)) &&
-          assert(acquire)(equalTo(global)) &&
-          assert(use)(equalTo(global)) &&
-          assert(release)(equalTo(global)) &&
-          assert(after)(equalTo(default))
       }
     ),
     suite("option")(
@@ -1369,6 +1347,29 @@ object ZManagedSpec extends ZIOBaseSpec {
         } yield assert(result)(isTrue)
       }
     ),
+    suite("withRuntimeConfig")(
+      test("runs acquire, use, and release actions on the specified runtime configuration") {
+        val runtimeConfig: UIO[RuntimeConfig] = ZIO.runtimeConfig
+        val global                            = RuntimeConfig.global
+        for {
+          default <- runtimeConfig
+          ref1    <- Ref.make[RuntimeConfig](default)
+          ref2    <- Ref.make[RuntimeConfig](default)
+          managed = ZManaged
+                      .acquireRelease(runtimeConfig.flatMap(ref1.set))(runtimeConfig.flatMap(ref2.set))
+                      .withRuntimeConfig(global)
+          before  <- runtimeConfig
+          use     <- managed.useDiscard(runtimeConfig)
+          acquire <- ref1.get
+          release <- ref2.get
+          after   <- runtimeConfig
+        } yield assert(before)(equalTo(default)) &&
+          assert(acquire)(equalTo(global)) &&
+          assert(use)(equalTo(global)) &&
+          assert(release)(equalTo(global)) &&
+          assert(after)(equalTo(default))
+      }
+    ),
     suite("zipPar")(
       test("Does not swallow exit cause if one reservation fails") {
         (for {
@@ -1876,7 +1877,7 @@ object ZManagedSpec extends ZIOBaseSpec {
 
   def doInterrupt(
     managed: IO[Nothing, Unit] => ZManaged[Any, Nothing, Unit],
-    expected: Fiber.Id => Option[Exit[Nothing, Unit]]
+    expected: FiberId => Option[Exit[Nothing, Unit]]
   ): ZIO[Has[Live], Nothing, TestResult] =
     for {
       fiberId            <- ZIO.fiberId

@@ -14,7 +14,9 @@
  * limitations under the License.
  */
 
-package zio.internal
+package zio
+
+import zio.internal.{DefaultExecutors, ExecutionMetrics}
 
 import java.util.concurrent._
 import scala.concurrent.ExecutionContext

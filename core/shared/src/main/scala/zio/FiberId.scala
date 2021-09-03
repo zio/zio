@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2021 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,13 +14,18 @@
  * limitations under the License.
  */
 
-package zio.internal
+package zio
 
-final case class PlatformAspect(customize: Platform => Platform) extends (Platform => Platform) { self =>
-  def apply(p: Platform): Platform = customize(p)
+/**
+ * The identity of a Fiber, described by the time it began life, and a
+ * monotonically increasing sequence number generated from an atomic counter.
+ */
+final case class FiberId(startTimeMillis: Long, seqNumber: Long) extends Serializable
 
-  def >>>(that: PlatformAspect): PlatformAspect = PlatformAspect(self.customize.andThen(that.customize))
-}
-object PlatformAspect extends ((Platform => Platform) => PlatformAspect) {
-  val identity: PlatformAspect = PlatformAspect(Predef.identity(_))
+object FiberId {
+
+  /**
+   * A sentinel value to indicate a fiber without identity.
+   */
+  final val None: FiberId = FiberId(0L, 0L)
 }

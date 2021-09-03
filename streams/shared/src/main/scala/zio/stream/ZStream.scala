@@ -17,7 +17,7 @@
 package zio.stream
 
 import zio._
-import zio.internal.{Executor, Platform, UniqueKey}
+import zio.internal.UniqueKey
 import zio.stm.TQueue
 import zio.stream.internal.Utils.zipChunks
 import zio.stream.internal.{ZInputStream, ZReader}
@@ -2379,17 +2379,6 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     }
 
   /**
-   * Runs this stream on the specified platform. Any streams that are composed
-   * after this one will be run on the previous executor.
-   */
-  def onPlatform(platform: => Platform): ZStream[R, E, O] =
-    ZStream.fromZIO(ZIO.platform).flatMap { currentPlatform =>
-      ZStream.managed(ZManaged.onPlatform(platform)) *>
-        self <*
-        ZStream.fromZIO(ZIO.setPlatform(currentPlatform))
-    }
-
-  /**
    * Switches to the provided stream in case this one fails with a typed error.
    *
    * See also [[ZStream#catchAll]].
@@ -3391,6 +3380,17 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    */
   def withFilter(predicate: O => Boolean): ZStream[R, E, O] =
     filter(predicate)
+
+  /**
+   * Runs this stream on the specified runtime configuration. Any streams that
+   * are composed after this one will be run on the previous executor.
+   */
+  def withRuntimeConfig(runtimeConfig: => RuntimeConfig): ZStream[R, E, O] =
+    ZStream.fromZIO(ZIO.runtimeConfig).flatMap { currentRuntimeConfig =>
+      ZStream.managed(ZManaged.withRuntimeConfig(runtimeConfig)) *>
+        self <*
+        ZStream.fromZIO(ZIO.setRuntimeConfig(currentRuntimeConfig))
+    }
 
   /**
    * Zips this stream with another point-wise, but keeps only the outputs of this stream.

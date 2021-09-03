@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.internal.{Executor, Platform}
+import zio.internal.Platform
 
 import scala.concurrent.ExecutionContext
 import scala.reflect.ClassTag
@@ -72,7 +72,7 @@ object Task extends TaskPlatformSpecific {
   /**
    * @see See [[zio.ZIO.async]]
    */
-  def async[A](register: (Task[A] => Unit) => Any, blockingOn: => Fiber.Id = Fiber.Id.None): Task[A] =
+  def async[A](register: (Task[A] => Unit) => Any, blockingOn: => FiberId = FiberId.None): Task[A] =
     ZIO.async(register, blockingOn)
 
   /**
@@ -80,7 +80,7 @@ object Task extends TaskPlatformSpecific {
    */
   def asyncMaybe[A](
     register: (Task[A] => Unit) => Option[Task[A]],
-    blockingOn: => Fiber.Id = Fiber.Id.None
+    blockingOn: => FiberId = FiberId.None
   ): Task[A] =
     ZIO.asyncMaybe(register, blockingOn)
 
@@ -95,7 +95,7 @@ object Task extends TaskPlatformSpecific {
    */
   def asyncInterrupt[A](
     register: (Task[A] => Unit) => Either[Canceler[Any], Task[A]],
-    blockingOn: => Fiber.Id = Fiber.Id.None
+    blockingOn: => FiberId = FiberId.None
   ): Task[A] =
     ZIO.asyncInterrupt(register, blockingOn)
 
@@ -431,7 +431,7 @@ object Task extends TaskPlatformSpecific {
    * @see See [[zio.ZIO.effectAsync]]
    */
   @deprecated("use async", "2.0.0")
-  def effectAsync[A](register: (Task[A] => Unit) => Any, blockingOn: => Fiber.Id = Fiber.Id.None): Task[A] =
+  def effectAsync[A](register: (Task[A] => Unit) => Any, blockingOn: => FiberId = FiberId.None): Task[A] =
     ZIO.effectAsync(register, blockingOn)
 
   /**
@@ -440,7 +440,7 @@ object Task extends TaskPlatformSpecific {
   @deprecated("use asyncMaybe", "2.0.0")
   def effectAsyncMaybe[A](
     register: (Task[A] => Unit) => Option[Task[A]],
-    blockingOn: => Fiber.Id = Fiber.Id.None
+    blockingOn: => FiberId = FiberId.None
   ): Task[A] =
     ZIO.effectAsyncMaybe(register, blockingOn)
 
@@ -457,7 +457,7 @@ object Task extends TaskPlatformSpecific {
   @deprecated("use asyncInterrupt", "2.0.0")
   def effectAsyncInterrupt[A](
     register: (Task[A] => Unit) => Either[Canceler[Any], Task[A]],
-    blockingOn: => Fiber.Id = Fiber.Id.None
+    blockingOn: => FiberId = FiberId.None
   ): Task[A] =
     ZIO.effectAsyncInterrupt(register, blockingOn)
 
@@ -550,7 +550,7 @@ object Task extends TaskPlatformSpecific {
   /**
    * @see [[zio.ZIO.fiberId]]
    */
-  val fiberId: UIO[Fiber.Id] =
+  val fiberId: UIO[FiberId] =
     ZIO.fiberId
 
   /**
@@ -885,7 +885,7 @@ object Task extends TaskPlatformSpecific {
   /**
    * @see See [[zio.ZIO.interruptAs]]
    */
-  def interruptAs(fiberId: => Fiber.Id): UIO[Nothing] =
+  def interruptAs(fiberId: => FiberId): UIO[Nothing] =
     ZIO.interruptAs(fiberId)
 
   /**
@@ -1039,12 +1039,6 @@ object Task extends TaskPlatformSpecific {
     ZIO.onExecutor(executor)(task)
 
   /**
-   *  @see See [[zio.ZIO.onPlatform]]
-   */
-  def onPlatform[A](platform: => Platform)(task: => Task[A]): Task[A] =
-    ZIO.onPlatform(platform)(task)
-
-  /**
    * @see See [[zio.ZIO.partition]]
    */
   def partition[A, B](in: => Iterable[A])(f: A => Task[B]): Task[(Iterable[Throwable], Iterable[B])] =
@@ -1061,12 +1055,6 @@ object Task extends TaskPlatformSpecific {
    */
   def partitionParN[A, B](n: => Int)(in: => Iterable[A])(f: A => Task[B]): Task[(Iterable[Throwable], Iterable[B])] =
     ZIO.partitionParN(n)(in)(f)
-
-  /**
-   * @see See [[zio.ZIO.platform]]
-   */
-  val platform: UIO[Platform] =
-    ZIO.platform
 
   /**
    * @see See [[zio.ZIO.raceAll]]
@@ -1144,6 +1132,12 @@ object Task extends TaskPlatformSpecific {
     ZIO.runtime
 
   /**
+   * @see See [[zio.ZIO.runtimeConfig]]
+   */
+  val runtimeConfig: UIO[RuntimeConfig] =
+    ZIO.runtimeConfig
+
+  /**
    *  @see [[zio.ZIO.some]]
    */
   def some[A](a: => A): Task[Option[A]] =
@@ -1176,14 +1170,14 @@ object Task extends TaskPlatformSpecific {
   /**
    * @see See [[zio.ZIO.suspendSucceedWith]]
    */
-  def suspendSucceedWith[A](p: (Platform, Fiber.Id) => Task[A]): Task[A] =
-    ZIO.suspendSucceedWith(p)
+  def suspendSucceedWith[A](f: (RuntimeConfig, FiberId) => Task[A]): Task[A] =
+    ZIO.suspendSucceedWith(f)
 
   /**
    * @see See [[zio.RIO.suspendWith]]
    */
-  def suspendWith[A](p: (Platform, Fiber.Id) => Task[A]): Task[A] =
-    ZIO.suspendWith(p)
+  def suspendWith[A](f: (RuntimeConfig, FiberId) => Task[A]): Task[A] =
+    ZIO.suspendWith(f)
 
   /**
    * @see See [[zio.ZIO.trace]]
@@ -1283,6 +1277,12 @@ object Task extends TaskPlatformSpecific {
    */
   def whenZIO(b: => Task[Boolean]): ZIO.WhenZIO[Any, Throwable] =
     ZIO.whenZIO(b)
+
+  /**
+   *  @see See [[zio.ZIO.withRuntimeConfig]]
+   */
+  def withRuntimeConfig[A](runtimeConfig: => RuntimeConfig)(task: => Task[A]): Task[A] =
+    ZIO.withRuntimeConfig(runtimeConfig)(task)
 
   /**
    * @see See [[zio.ZIO.yieldNow]]
