@@ -739,6 +739,23 @@ All blocking operations were moved to the `ZIO` data type:
 |---------------------------|---------|
 | `zio.blocking.Blocking.*` | `ZIO.*` |
 
+With some renaming stuffs:
+
+| ZIO 1.x (`zio.blocking.Blocking.*`) | ZIO 2.x (`ZIO.*`)               |
+|-------------------------------------|---------------------------------|
+| `effectBlocking`                    | `ZIO.attemptBlocking`           |
+| `effectBlockingCancelable`          | `ZIO.attemptBlockingCancelable` |
+| `effectBlockingIO`                  | `ZIO.attemptBlockingIO`         |
+| `effectBlockingInterrupt`           | `ZIO.attemptBlockingInterrupt`  |
+
+Now we have all the blocking operations under the `ZIO` data type as below:
+- `ZIO.attemptBlocking`
+- `ZIO.attemptBlockingCancelable`
+- `ZIO.attemptBlockingIO`
+- `ZIO.attemptBlockingInterrupt`
+- `ZIO.blocking`
+- `ZIO.blockingExecutor`
+
 We can also provide a user-defined blocking executor in ZIO 2.x with the `Runtime#withBlockingExecutor` operator that constructs a new `Runtime` with the specified blocking executor.
 
 ### Clock Service
