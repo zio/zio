@@ -6,12 +6,19 @@ module.exports = {
   onBrokenLinks: 'throw',
   onBrokenMarkdownLinks: 'warn',
   favicon: 'img/favicon.ico',
-  organizationName: 'zio', // Usually your GitHub org/user name.
-  projectName: 'zio', // Usually your repo name.
+  organizationName: 'zio',
+  projectName: 'zio',
   themeConfig: {
     prism: {
-      theme: require('prism-react-renderer/themes/vsDark'),
-      additionalLanguages: ['java', 'scala'],
+      // In case we want to use one of the json packaged themes, we can simply require those 
+      //theme: require('prism-react-renderer/themes/vsDark'),
+
+      // if we want to use any of the styles in '/static/css/prism' we have to 
+      // use an empty theme config. The stylesheet must then be included in the stylesheets 
+      // section below.
+      // The CSS stylesheets are included from  https://github.com/PrismJS/prism-themes.git 
+      theme: { plain: [], styles: [] },
+      additionalLanguages: ['json', 'java', 'scala'],
     },
     navbar: {
       style: 'dark',
@@ -96,6 +103,12 @@ module.exports = {
       copyright: `Copyright © ${new Date().getFullYear()} ZIO Maintainers - Built with <a href="https://v2.docusaurus.io/">Docusaurus v2</a>`,
     },
   },
+  stylesheets: [
+    // see https://atelierbram.github.io/syntax-highlighting/prism/ for examples / customising
+    '/css/custom.css',
+    //'/css/prism/prism-atom-dark.css'
+    '/css/prism/prism-material-dark.css'
+  ],
   // doctag<configure>
   presets: [
     [
@@ -111,8 +124,6 @@ module.exports = {
         },
         theme: {
           customCss: [
-            require.resolve('./src/css/custom.css'),
-            //require.resolve('./node_modules/prism-themes/themes/prism-cb.css')
           ],
         },
       },
