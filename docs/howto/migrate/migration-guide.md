@@ -600,7 +600,7 @@ To perform the migration, after renaming these types to the newer ones (e.g. `ZR
 | `ZRefM#updateSome`       | `ZRef.Synchronized#updateSomeZIO`       |
 | `ZRefM#updateSomeAndGet` | `ZRef.Synchronized#updateSomeAndGetZIO` |
 
-## Queue
+## ZQueue
 
 In ZIO 2.x, the `ZQueue` uses `Chunk` consistently with other ZIO APIs like ZIO Streams. This will avoid unnecessary conversions between collection types, particularly for streaming applications where streams use `Chunk` internally, but bulk take operations previously returned a `List` on `ZQueue`.
 
