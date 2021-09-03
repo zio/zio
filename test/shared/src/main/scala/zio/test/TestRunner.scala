@@ -27,7 +27,7 @@ import zio.test.render.TestRenderer
  */
 final case class TestRunner[R, E](
   executor: TestExecutor[R, E],
-  runtimeConfig: RuntimeConfig = RuntimeConfig.makeDefault().copy(reportFailure = _ => ZIO.unit),
+  runtimeConfig: RuntimeConfig = RuntimeConfig.makeDefault(),
   reporter: TestReporter[E] = DefaultTestReporter(TestRenderer.default, TestAnnotationRenderer.default),
   bootstrap: Layer[Nothing, Has[TestLogger] with Has[Clock]] = (Console.live >>> TestLogger.fromConsole) ++ Clock.live
 ) { self =>

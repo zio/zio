@@ -29,9 +29,6 @@ object RuntimeConfigAspect extends ((RuntimeConfig => RuntimeConfig) => RuntimeC
   def addLogger(logger: ZLogger[Any]): RuntimeConfigAspect =
     RuntimeConfigAspect(self => self.copy(logger = self.logger ++ logger))
 
-  def addReportFailure(f: Cause[Any] => UIO[Unit]): RuntimeConfigAspect =
-    RuntimeConfigAspect(self => self.copy(reportFailure = c => self.reportFailure(c) *> f(c)))
-
   def addReportFatal(f: Throwable => Nothing): RuntimeConfigAspect =
     RuntimeConfigAspect(self => self.copy(reportFatal = t => { self.reportFatal(t); f(t) }))
 

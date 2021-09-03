@@ -33,7 +33,7 @@ private[zio] trait RuntimeConfigPlatformSpecific {
    * enabled Tracing with effect types _without_ a comparable feature.
    */
   lazy val benchmark: RuntimeConfig =
-    makeDefault(Int.MaxValue).copy(reportFailure = _ => ZIO.unit, tracing = Tracing.disabled)
+    makeDefault(Int.MaxValue).copy(tracing = Tracing.disabled)
 
   /**
    * The default runtime configuration, with settings designed to work well for
@@ -65,11 +65,10 @@ private[zio] trait RuntimeConfigPlatformSpecific {
         t.printStackTrace()
         throw t
       },
-      reportFailure = (cause: Cause[Any]) => if (cause.isDie) ZIO.logErrorCause(cause) else ZIO.unit,
       tracing = Tracing(Tracer.Empty, TracingConfig.disabled),
       supervisor = Supervisor.none,
       enableCurrentFiber = false,
-      logger = ZLogger.defaultFormatter.logged(println(_))
+      logger = ZLogger.defaultFormatter.logged(println(_)).filterLogLevel(_ >= LogLevel.Info)
     )
 
   /**

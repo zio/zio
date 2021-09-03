@@ -28,7 +28,6 @@ final case class RuntimeConfig(
   tracing: Tracing,
   fatal: Throwable => Boolean,
   reportFatal: Throwable => Nothing,
-  reportFailure: Cause[Any] => UIO[Unit],
   supervisor: Supervisor[Any],
   enableCurrentFiber: Boolean,
   logger: ZLogger[Any]
@@ -46,9 +45,6 @@ final case class RuntimeConfig(
 
   @deprecated("2.0.0", "Use RuntimeConfig#copy instead")
   def withReportFatal(f: Throwable => Nothing): RuntimeConfig = copy(reportFatal = f)
-
-  @deprecated("2.0.0", "Use RuntimeConfig#copy instead")
-  def withReportFailure(f: Cause[Any] => UIO[Unit]): RuntimeConfig = copy(reportFailure = f)
 
   @deprecated("2.0.0", "Use RuntimeConfig#copy instead")
   def withSupervisor(s0: Supervisor[Any]): RuntimeConfig = copy(supervisor = s0)
