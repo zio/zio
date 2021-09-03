@@ -89,7 +89,7 @@ function Sponsor(sponsor) {
           <img class='tw-object-contain tw-object-scale-down' src={`${sponsor.image}`} alt={`${sponsor.imageAlt}`} />
         </a>
       </div>
-      <p class='tw-text-center tw-text-lg tw-font-medium'>{sponsor.content}</p>
+      <p class='tw-text-center tw-text-gray-800 tw-text-lg tw-font-medium'>{sponsor.content}</p>
     </div>
   );
 }
