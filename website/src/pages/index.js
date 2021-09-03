@@ -4,7 +4,6 @@ import Layout from '@theme/Layout';
 import Link from '@docusaurus/Link';
 import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 import useBaseUrl from '@docusaurus/useBaseUrl';
-import styles from './styles.module.css';
 
 const baseUrl = '/';
 
@@ -46,35 +45,27 @@ const features = [
 
 const sponsors = [
   {
-    title: '',
     image: `${baseUrl}img/ziverge.png`,
     imageAlt: 'Ziverge',
     imageLink: 'https://ziverge.com',
-    imageAlign: 'top',
     content: 'Brilliant solutions for innovative companies'
   },
   {
-    title: '',
     image: `${baseUrl}img/scalac.svg`,
     imageAlt: 'Scalac',
     imageLink: 'https://scalac.io/',
-    imageAlign: 'top',
     content: 'Scale fast with Scala'
   },
   {
-    title: '',
     image: `${baseUrl}img/septimal_mind.svg`,
     imageAlt: 'Septimal Mind',
     imageLink: 'https://7mind.io/',
-    imageAlign: 'top',
     content: 'Inventing productivity'
   },
   {
-    title: '',
     image: `https://files.softwaremill.com/logo/logo_vertical.png`,
     imageAlt: 'SoftwareMill',
     imageLink: 'https://softwaremill.com/',
-    imageAlign: 'top',
     content: 'Custom software by true engineers'
   },
 ];
@@ -82,9 +73,9 @@ const sponsors = [
 // How a single feature block is displayed 
 function Feature(feature) {
   return (
-    <div className={clsx('col col--3', styles.feature)}>
-      <h3>{feature.title}</h3>
-      <p>{feature.content}</p>
+    <div class='tw-container tw-text-center'>
+      <h2 class='tw-text-red-700'>{feature.title}</h2>
+      <p class='tw-text-lg tw-font-medium'>{feature.content}</p>
     </div>
   );
 }
@@ -92,8 +83,13 @@ function Feature(feature) {
 // How a single sponsor block is being displayed 
 function Sponsor(sponsor) {
   return (
-    <div className={clsx('col col--4', styles.feature)}>
-      <p>{sponsor.content}</p>
+    <div class='tw-container'>
+      <div class='tw-w-80 tw-h-40 tw-m-auto tw-flex tw-place-content-center'>
+        <a class='tw-inline-flex' href={`${sponsor.imageLink}`}>
+          <img class='tw-object-contain tw-object-scale-down' src={`${sponsor.image}`} alt={`${sponsor.imageAlt}`} />
+        </a>
+      </div>
+      <p class='tw-text-center tw-text-lg tw-font-medium'>{sponsor.content}</p>
     </div>
   );
 }
@@ -105,48 +101,43 @@ function Home() {
   return (
     <Layout
       title={`${siteConfig.title}`}
-      description="Composable, functional integration flows">
-      <header className={clsx('hero hero--primary', styles.heroBanner)}>
-        <div className="container">
-          <h1 className="hero__title">{siteConfig.title}</h1>
-          <p className="hero__subtitle">{siteConfig.tagline}</p>
-          <div className={styles.buttons}>
-            <Link
-              className={clsx(
-                'button button--outline button--secondary button--lg',
-                styles.getStarted,
-              )}
-              to={useBaseUrl('/getting_started')}>
-              Get Started
-            </Link>
+      description={`${siteConfig.tagLine}`}>
+      <header class='tw-bg-black'>
+        <div class='tw-mx-auto tw-relative'>
+          <img class='tw-mx-auto' src="/img/jumbotron_pattern.png" alt={`${siteConfig.title}`} />
+          <div class='tw-absolute tw-top-1/2 tw-w-full'>
+            <p class='tw-text-center tw-text-white tw-text-lg tw-font-medium'>{siteConfig.tagline}</p>
+            <div class='tw-container tw-mx-auto tw-flex tw-place-content-center'>
+              <Link
+                class='tw-inline-block tw-text-white tw-p-4 tw-border tw-rounded-lg tw-text-xl tw-font-bold hover:tw-text-white hover:tw-no-underline hover:tw-bg-gray-700'
+                to={useBaseUrl('/getting_started')}>
+                Get Started
+              </Link>
+            </div>
           </div>
         </div>
       </header>
       <main>
         {features && features.length > 0 && (
-          <section className={styles.features}>
-            <div className="container">
-              <div className="row">
-                {features.map((props, idx) => (
-                  <Feature key={idx} {...props} />
-                ))}
-              </div>
+          <div class="tw-container tw-m-auto tw-mt-4">
+            <div class='tw-grid lg:tw-grid-cols-4 md:tw-grid-cols-2 sm:tw-grid-cols-1 tw-gap-4'>
+              {features.map((f, idx) => (
+                <Feature key={idx} {...f} />
+              ))}
             </div>
-          </section>
+          </div>
         )}
         {sponsors && sponsors.length > 0 && (
-          <section className={styles.features}>
-            <div className="container">
-              <div className="row">
-                {sponsors.map((props, idx) => (
-                  <Sponsor key={idx} {...props} />
-                ))}
-              </div>
+          <div className="tw-container tw-m-auto tw-bg-gray-200 tw-rounded-xl">
+            <div class='tw-grid lg:tw-grid-cols-2 sm:tw-grid-cols-1 tw-gap-4'>
+              {sponsors.map((s, idx) => (
+                <Sponsor key={idx} {...s} />
+              ))}
             </div>
-          </section>
+          </div>
         )}
       </main>
-    </Layout>
+    </Layout >
   );
 }
 
