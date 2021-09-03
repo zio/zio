@@ -646,6 +646,7 @@ suite("ZRef") {
 ```
 
 ZIO 2.x:
+
 ```scala mdoc:silent:nest
 suite("ZRef") {
   test("updateAndGet") {
@@ -656,6 +657,9 @@ suite("ZRef") {
 ```
 
 In ZIO 2.x, to create a test suite, it's not important that whether we are testing pure or effectful tests. The syntax is the same, and the `test`, and `testM` are unified. So the `testM` was removed.
+
+### Smart Assertions
+
 
 ## ZIO Streams
 
@@ -1131,7 +1135,36 @@ ZStream.from(ZIO.succeed(List(1,2,3)))
 ```
 
 ### Smart Assertion
-TODO
+
+ZIO 2.x, introduced a new test method, named `assertTrue` which allows us to assert an expected behavior using ordinary Scala expressions that return `Boolean` values instead of specialized assertion operators.
+
+So instead of writing following test assertions:
+
+```scala mdoc:silent:nest
+suite("ZIO 1.x Test Assertions")(
+  test("contains")(assert(list)(Assertion.contains(5))),
+  test("forall")(assert(list)(Assertion.forall(Assertion.assertion("even")()(actual => actual % 2 == 0)))),
+  test("less than")(assert(number)(Assertion.isLessThan(0))),
+  test("isSome")(assert(option)(Assertion.equalTo(Some(3))))
+)
+```
+
+We can write them like this:
+
+```scala mdoc:silent:nest
+suite("ZIO 2.x SmartAssertions")(
+  test("contains")(assertTrue(list.contains(5))),
+  test("forall")(assertTrue(list.forall(_ % 2 == 0))),
+  test("less than")(assertTrue(number < 0)),
+  test("isSome")(assertTrue(option.get == 3))
+)
+```
+
+Smart Assertions are extremely expressive when a test fails:
+- They highlight the exact section of the syntax with the path leading up to the left-hand side of the assertion that causes the failure.
+- They have the strong and nice diffing capability which shows where our expectation varies.
+- When using partial functions in test cases there is no problem with the happy path, but if something goes wrong, it is a little annoying to find what went wrong. But smart assertions are descriptive, e.g., when we call `Option#get` to an optional value that is `None` the test fails with a related error message: `Option was None`
+- They have lots of domains specific errors that talk to us in a language that we understand.
 
 ### ZState
 
