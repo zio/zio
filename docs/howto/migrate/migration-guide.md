@@ -647,6 +647,10 @@ suite("ZRef") {
 
 ZIO 2.x:
 
+```scala mdoc:invisible
+import zio.test._
+```
+
 ```scala mdoc:silent:nest
 suite("ZRef") {
   test("updateAndGet") {
@@ -1141,6 +1145,10 @@ ZIO 2.x, introduced a new test method, named `assertTrue` which allows us to ass
 So instead of writing following test assertions:
 
 ```scala mdoc:silent:nest
+val list   = List(1, 2, 3, 4, 5)
+val number = 3
+val option = Option.empty[Int]
+
 suite("ZIO 1.x Test Assertions")(
   test("contains")(assert(list)(Assertion.contains(5))),
   test("forall")(assert(list)(Assertion.forall(Assertion.assertion("even")()(actual => actual % 2 == 0)))),
@@ -1160,7 +1168,7 @@ suite("ZIO 2.x SmartAssertions")(
 )
 ```
 
-Smart Assertions are extremely expressive when a test fails:
+Smart Assertions are extremely expressive, so when a test fails:
 - They highlight the exact section of the syntax with the path leading up to the left-hand side of the assertion that causes the failure.
 - They have the strong and nice diffing capability which shows where our expectation varies.
 - When using partial functions in test cases there is no problem with the happy path, but if something goes wrong, it is a little annoying to find what went wrong. But smart assertions are descriptive, e.g., when we call `Option#get` to an optional value that is `None` the test fails with a related error message: `Option was None`
