@@ -1,6 +1,5 @@
 package zio
 
-import zio.internal.Executor
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test._
@@ -24,7 +23,7 @@ object CancelableFutureSpecJVM extends ZIOBaseSpec {
         ZIO
           .runtime[Any]
           .map(
-            _.mapPlatform(
+            _.mapRuntimeConfig(
               _.copy(
                 executor = Executor.fromExecutionContext(1)(
                   ExecutionContext.fromExecutor(Executors.newSingleThreadScheduledExecutor())

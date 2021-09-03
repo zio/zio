@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.internal.{Executor, Platform}
+import zio.internal.Platform
 
 import scala.reflect.ClassTag
 
@@ -430,7 +430,7 @@ object UIO {
    * @see See [[zio.ZIO.effectSuspendTotalWith]]
    */
   @deprecated("use suspendSucceedWith", "2.0.0")
-  def effectSuspendTotalWith[A](p: (Platform, FiberId) => UIO[A]): UIO[A] =
+  def effectSuspendTotalWith[A](p: (Platform, Fiber.Id) => UIO[A]): UIO[A] =
     ZIO.effectSuspendTotalWith(p)
 
   /**
@@ -917,18 +917,6 @@ object UIO {
     ZIO.onExecutor(executor)(uio)
 
   /**
-   *  @see See [[zio.ZIO.onPlatform]]
-   */
-  def onPlatform[A](platform: => Platform)(uio: => UIO[A]): UIO[A] =
-    ZIO.onPlatform(platform)(uio)
-
-  /**
-   * @see See [[zio.ZIO.platform]]
-   */
-  val platform: UIO[Platform] =
-    ZIO.platform
-
-  /**
    * @see See [[zio.ZIO.raceAll]]
    */
   def raceAll[A](uio: => UIO[A], uios: => Iterable[UIO[A]]): UIO[A] =
@@ -997,6 +985,12 @@ object UIO {
     ZIO.runtime
 
   /**
+   * @see See [[zio.ZIO.runtimeConfig]]
+   */
+  val runtimeConfig: UIO[RuntimeConfig] =
+    ZIO.runtimeConfig
+
+  /**
    *  @see [[zio.ZIO.some]]
    */
   def some[A](a: => A): UIO[Option[A]] =
@@ -1023,8 +1017,8 @@ object UIO {
   /**
    * @see See [[zio.ZIO.suspendSucceedWith]]
    */
-  def suspendSucceedWith[A](p: (Platform, FiberId) => UIO[A]): UIO[A] =
-    ZIO.suspendSucceedWith(p)
+  def suspendSucceedWith[A](f: (RuntimeConfig, FiberId) => UIO[A]): UIO[A] =
+    ZIO.suspendSucceedWith(f)
 
   /**
    * @see See [[zio.ZIO.trace]]
@@ -1124,6 +1118,12 @@ object UIO {
    */
   def whenZIO(b: => UIO[Boolean]): ZIO.WhenZIO[Any, Nothing] =
     ZIO.whenZIO(b)
+
+  /**
+   *  @see See [[zio.ZIO.withRuntimeConfig]]
+   */
+  def withRuntimeConfig[A](runtimeConfig: => RuntimeConfig)(uio: => UIO[A]): UIO[A] =
+    ZIO.withRuntimeConfig(runtimeConfig)(uio)
 
   /**
    * @see See [[zio.ZIO.yieldNow]]

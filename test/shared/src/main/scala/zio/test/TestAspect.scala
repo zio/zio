@@ -472,8 +472,8 @@ object TestAspect extends TimeoutVariants {
   /**
    * An aspect that runs only on operating systems accepted by the specified predicate.
    */
-  def os(f: zio.internal.Platform.OS => Boolean): TestAspectAtLeastR[Has[Annotations]] =
-    if (f(zio.internal.Platform.os)) identity else ignore
+  def os(f: System.OS => Boolean): TestAspectAtLeastR[Has[Annotations]] =
+    if (f(System.os)) identity else ignore
 
   /**
    * Runs only on Mac operating systems.
