@@ -731,7 +731,7 @@ So instead of writing `ZLayer[Console with Clock, Nothing, ConsoleLogger]`, we s
 
 ### Blocking Service
 
-Since there is rarely a need to use a separate blocking thread pool, ZIO 2.0 created _one global blocking pool_ removed the Blocking service from `ZEnv` and the built-in services.
+Since there is rarely a need to use a separate blocking thread pool, ZIO 2.0 created _one global blocking pool_, and removed the Blocking service from `ZEnv` and the built-in services.
 
 All blocking operations were moved to the `ZIO` data type:
 
