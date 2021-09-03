@@ -1,5 +1,6 @@
 package zio
 
+import zio.internal.ZLogger
 import zio.test._
 
 object ZIOAppSpec extends ZIOBaseSpec {
@@ -29,18 +30,30 @@ object ZIOAppSpec extends ZIOBaseSpec {
         _   <- (app1 <> app2).invoke(Chunk.empty)
         v   <- ref.get
       } yield assertTrue(v == 0)
+    },
+    test("hook update platform") {
+      val counter = new java.util.concurrent.atomic.AtomicInteger(0)
+
+      val logger1 = new ZLogger[Unit] {
+        def apply(
+          trace: zio.internal.stacktracer.ZTraceElement,
+          fiberId: zio.FiberId,
+          logLevel: zio.LogLevel,
+          message: () => String,
+          context: Map[zio.FiberRef.Runtime[_], AnyRef],
+          spans: List[zio.LogSpan]
+        ): Unit = {
+          counter.incrementAndGet()
+          ()
+        }
+      }
+
+      val app1 = ZIOApp(ZIO.fail("Uh oh!"), RuntimeConfigAspect.addLogger(logger1))
+
+      for {
+        c <- app1.invoke(Chunk.empty)
+        v <- ZIO.succeed(counter.get())
+      } yield assertTrue(c == ExitCode.failure) && assertTrue(v == 1)
     }
-    // test("hook update platform") {
-    //   val counter = new java.util.concurrent.atomic.AtomicInteger(0)
-
-    //   val logger1 = (_: Cause[Any]) => ZIO.succeed { counter.incrementAndGet(); () }
-
-    //   val app1 = ZIOApp(ZIO.fail("Uh oh!"), RuntimeConfigAspect(_.copy(reportFailure = reportFailure1)))
-
-    //   for {
-    //     c <- app1.invoke(Chunk.empty)
-    //     v <- ZIO.succeed(counter.get())
-    //   } yield assertTrue(c == ExitCode.failure) && assertTrue(v == 1)
-    // }
   )
 }
