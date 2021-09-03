@@ -1,7 +1,7 @@
 package zio.stream.experimental
 
 import zio._
-import zio.internal.{Executor, Platform, SingleThreadedRingBuffer, UniqueKey}
+import zio.internal.{SingleThreadedRingBuffer, UniqueKey}
 import zio.stm._
 import zio.stream.experimental.ZStream.{DebounceState, HandoffSignal}
 import zio.stream.experimental.internal.Utils.zipChunks
@@ -2211,17 +2211,6 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     }
 
   /**
-   * Runs this stream on the specified platform. Any streams that are composed
-   * after this one will be run on the previous executor.
-   */
-  def onPlatform(platform: => Platform): ZStream[R, E, A] =
-    ZStream.fromZIO(ZIO.platform).flatMap { currentPlatform =>
-      ZStream.managed(ZManaged.onPlatform(platform)) *>
-        self <*
-        ZStream.fromZIO(ZIO.setPlatform(currentPlatform))
-    }
-
-  /**
    * Switches to the provided stream in case this one fails with a typed error.
    *
    * See also [[ZStream#catchAll]].
@@ -3271,6 +3260,17 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     filter(predicate)
 
   /**
+   * Runs this stream on the specified runtime configuration. Any streams that
+   * are composed after this one will be run on the previous executor.
+   */
+  def withRuntimeConfig(runtimeConfig: => RuntimeConfig): ZStream[R, E, A] =
+    ZStream.fromZIO(ZIO.runtimeConfig).flatMap { currentRuntimeConfig =>
+      ZStream.managed(ZManaged.withRuntimeConfig(runtimeConfig)) *>
+        self <*
+        ZStream.fromZIO(ZIO.setRuntimeConfig(currentRuntimeConfig))
+    }
+
+  /**
    * Zips this stream with another point-wise, but keeps only the outputs of this stream.
    *
    * The new stream will end when one of the sides ends.
@@ -3910,14 +3910,14 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
           val hasNext: Boolean =
             try it.hasNext
             catch {
-              case e: Throwable if !rt.platform.fatal(e) =>
+              case e: Throwable if !rt.runtimeConfig.fatal(e) =>
                 throw e
             }
 
           if (hasNext) {
             try it.next()
             catch {
-              case e: Throwable if !rt.platform.fatal(e) =>
+              case e: Throwable if !rt.runtimeConfig.fatal(e) =>
                 throw e
             }
           } else throw StreamEnd

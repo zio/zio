@@ -402,7 +402,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
             val expected = bytess.foldLeft[Chunk[Byte]](Chunk.empty)(_ ++ _)
             ZStream.fromOutputStreamWriter(write, chunkSize).runCollect.map(assert(_)(equalTo(expected)))
           }
-        },
+        } @@ TestAspect.ignore,
         test("captures errors") {
           val write = (_: OutputStream) => throw new Exception("boom")
           ZStream.fromOutputStreamWriter(write).runDrain.exit.map(assert(_)(fails(hasMessage(equalTo("boom")))))

@@ -1,7 +1,6 @@
 package zio
 
 import zio.test._
-import zio.internal.PlatformAspect
 
 object ZIOAppSpec extends ZIOBaseSpec {
   def spec: ZSpec[Environment, Failure] = suite("ZIOAppSpec")(
@@ -36,7 +35,7 @@ object ZIOAppSpec extends ZIOBaseSpec {
 
       val reportFailure1 = (_: Cause[Any]) => ZIO.succeed { counter.incrementAndGet(); () }
 
-      val app1 = ZIOApp(ZIO.fail("Uh oh!"), PlatformAspect(_.copy(reportFailure = reportFailure1)))
+      val app1 = ZIOApp(ZIO.fail("Uh oh!"), RuntimeConfigAspect(_.copy(reportFailure = reportFailure1)))
 
       for {
         c <- app1.invoke(Chunk.empty)

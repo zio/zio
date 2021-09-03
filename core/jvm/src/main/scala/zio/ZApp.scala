@@ -67,7 +67,7 @@ trait ZApp[R] extends ZBootstrapRuntime[R] {
                          "Catastrophic JVM error encountered. " +
                          "Application not safely interrupted. " +
                          "Resources may be leaked. " +
-                         "Check the logs for more details and consider overriding `Platform.reportFatal` to capture context."
+                         "Check the logs for more details and consider overriding `RuntimeConfig.reportFatal` to capture context."
                      )
                    } else {
                      val _ = unsafeRunSync(fiber.interrupt)

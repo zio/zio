@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2021 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,13 +14,6 @@
  * limitations under the License.
  */
 
-package zio.internal
+package zio
 
-final case class PlatformAspect(customize: Platform => Platform) extends (Platform => Platform) { self =>
-  def apply(p: Platform): Platform = customize(p)
-
-  def >>>(that: PlatformAspect): PlatformAspect = PlatformAspect(self.customize.andThen(that.customize))
-}
-object PlatformAspect extends ((Platform => Platform) => PlatformAspect) {
-  val identity: PlatformAspect = PlatformAspect(Predef.identity(_))
-}
+trait ExecutorPlatformSpecific

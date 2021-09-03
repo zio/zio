@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package zio.internal
+package zio
 
 import java.util.concurrent.{AbstractExecutorService, TimeUnit}
 import java.{util => ju}

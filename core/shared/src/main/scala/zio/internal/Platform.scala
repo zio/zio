@@ -1,3 +1,9 @@
+package zio.internal
+
+import zio.RuntimeConfig
+
+import scala.concurrent.ExecutionContext
+
 /*
  * Copyright 2017-2021 John A. De Goes and the ZIO Contributors
  *
@@ -14,71 +20,62 @@
  * limitations under the License.
  */
 
-package zio.internal
-
-import zio.{Cause, Supervisor, UIO}
-
-/**
- * A `Platform` provides the minimum capabilities necessary to bootstrap
- * execution of `ZIO` tasks.
- */
-final case class Platform(
-  blockingExecutor: Executor,
-  executor: Executor,
-  tracing: Tracing,
-  fatal: Throwable => Boolean,
-  reportFatal: Throwable => Nothing,
-  reportFailure: Cause[Any] => UIO[Unit],
-  supervisor: Supervisor[Any],
-  enableCurrentFiber: Boolean,
-  logger: ZLogger[Unit]
-) { self =>
-  def @@(aspect: PlatformAspect): Platform = aspect(self)
-
-  @deprecated("2.0.0", "Use Platform#copy instead")
-  def withBlockingExecutor(e: Executor): Platform = copy(blockingExecutor = e)
-
-  @deprecated("2.0.0", "Use Platform#copy instead")
-  def withExecutor(e: Executor): Platform = copy(executor = e)
-
-  @deprecated("2.0.0", "Use Platform#copy instead")
-  def withFatal(f: Throwable => Boolean): Platform = copy(fatal = f)
-
-  @deprecated("2.0.0", "Use Platform#copy instead")
-  def withReportFatal(f: Throwable => Nothing): Platform = copy(reportFatal = f)
-
-  @deprecated("2.0.0", "Use Platform#copy instead")
-  def withReportFailure(f: Cause[Any] => UIO[Unit]): Platform = copy(reportFailure = f)
-
-  @deprecated("2.0.0", "Use Platform#copy instead")
-  def withSupervisor(s0: Supervisor[Any]): Platform = copy(supervisor = s0)
-
-  @deprecated("2.0.0", "Use Platform#copy instead")
-  def withTracing(t: Tracing): Platform = copy(tracing = t)
-}
 object Platform extends PlatformSpecific {
-  private val osName =
-    Option(scala.util.Try(System.getProperty("os.name")).getOrElse("")).map(_.toLowerCase()).getOrElse("")
 
-  lazy val os: OS =
-    if (osName.contains("win")) OS.Windows
-    else if (osName.contains("mac")) OS.Mac
-    else if (osName.contains("nix") || osName.contains("nux") || osName.contains("aix")) OS.Unix
-    else if (osName.contains("sunos")) OS.Solaris
-    else OS.Unknown
+  /**
+   * A Runtime with settings suitable for benchmarks, specifically with Tracing
+   * and auto-yielding disabled.
+   *
+   * Tracing adds a constant ~2x overhead on FlatMaps, however, it's an
+   * optional feature and it's not valid to compare the performance of ZIO with
+   * enabled Tracing with effect types _without_ a comparable feature.
+   */
+  @deprecated("use RuntimeConfig.benchmark", "2.0.0")
+  lazy val benchmark: RuntimeConfig =
+    RuntimeConfig.benchmark
 
-  sealed trait OS { self =>
-    def isWindows: Boolean = self == OS.Windows
-    def isMac: Boolean     = self == OS.Mac
-    def isUnix: Boolean    = self == OS.Unix
-    def isSolaris: Boolean = self == OS.Solaris
-    def isUnknown: Boolean = self == OS.Unknown
-  }
-  object OS {
-    case object Windows extends OS
-    case object Mac     extends OS
-    case object Unix    extends OS
-    case object Solaris extends OS
-    case object Unknown extends OS
-  }
+  /**
+   * The default platform, configured with settings designed to work well for
+   * mainstream usage. Advanced users should consider making their own platform
+   * customized for specific application requirements.
+   */
+  @deprecated("use RuntimeConfig.default", "2.0.0")
+  lazy val default: RuntimeConfig =
+    RuntimeConfig.default
+
+  /**
+   * The default number of operations the ZIO runtime should execute before
+   * yielding to other fibers.
+   */
+  @deprecated("use RuntimeConfig.defaultYieldOpCount", "2.0.0")
+  final val defaultYieldOpCount =
+    RuntimeConfig.defaultYieldOpCount
+
+  /**
+   * A `Platform` created from Scala's global execution context.
+   */
+  @deprecated("use RuntimeConfig.global", "2.0.0")
+  lazy val global: RuntimeConfig =
+    RuntimeConfig.global
+
+  /**
+   * Creates a platform from an `Executor`.
+   */
+  @deprecated("use RuntimeConfig.fromExecutor", "2.0.0")
+  final def fromExecutor(executor0: Executor): Platform =
+    RuntimeConfig.fromExecutor(executor0)
+
+  /**
+   * Creates a Platform from an execution context.
+   */
+  @deprecated("use RuntimeConfig.fromExecutionContext", "2.0.0")
+  final def fromExecutionContext(ec: ExecutionContext, yieldOpCount: Int = 2048): Platform =
+    RuntimeConfig.fromExecutionContext(ec, yieldOpCount)
+
+  /**
+   * Makes a new default platform. This is a side-effecting method.
+   */
+  @deprecated("use RuntimeConfig.makeDefault", "2.0.0")
+  final def makeDefault(yieldOpCount: Int = 2048): Platform =
+    RuntimeConfig.makeDefault(yieldOpCount)
 }

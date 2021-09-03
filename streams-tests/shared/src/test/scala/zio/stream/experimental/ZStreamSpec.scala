@@ -2,7 +2,6 @@ package zio.stream.experimental
 
 // import java.io.ByteArrayInputStream
 import zio._
-import zio.internal.{Executor, Platform}
 import zio.stm.TQueue
 import zio.stream.experimental.ZStreamGen._
 import zio.test.Assertion._
@@ -4028,22 +4027,6 @@ object ZStreamSpec extends ZIOBaseSpec {
             equalTo(Chunk.fromIterable(1 to 10))
           )
         ),
-        suite("onPlatform")(
-          test("runs the stream on the specified platform") {
-            val global = Platform.global
-            for {
-              default   <- ZIO.platform
-              ref1      <- Ref.make[Platform](default)
-              ref2      <- Ref.make[Platform](default)
-              stream1    = ZStream.fromZIO(ZIO.platform.flatMap(ref1.set)).onPlatform(global)
-              stream2    = ZStream.fromZIO(ZIO.platform.flatMap(ref2.set))
-              _         <- (stream1 *> stream2).runDrain
-              executor1 <- ref1.get
-              executor2 <- ref2.get
-            } yield assert(executor1)(equalTo(global)) &&
-              assert(executor2)(equalTo(default))
-          }
-        ),
         test("paginate") {
           val s = (0, List(1, 2, 3))
 
@@ -4245,7 +4228,23 @@ object ZStreamSpec extends ZIOBaseSpec {
               }
             }.runCollect.either
           )(isLeft(equalTo("error")))
-        }
+        },
+        suite("withRuntimeConfig")(
+          test("runs the stream on the specified runtime configuration") {
+            val global = RuntimeConfig.global
+            for {
+              default   <- ZIO.runtimeConfig
+              ref1      <- Ref.make[RuntimeConfig](default)
+              ref2      <- Ref.make[RuntimeConfig](default)
+              stream1    = ZStream.fromZIO(ZIO.runtimeConfig.flatMap(ref1.set)).withRuntimeConfig(global)
+              stream2    = ZStream.fromZIO(ZIO.runtimeConfig.flatMap(ref2.set))
+              _         <- (stream1 *> stream2).runDrain
+              executor1 <- ref1.get
+              executor2 <- ref2.get
+            } yield assert(executor1)(equalTo(global)) &&
+              assert(executor2)(equalTo(default))
+          }
+        )
       )
     ) @@ TestAspect.timed
 

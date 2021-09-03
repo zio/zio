@@ -63,18 +63,19 @@ trait ZIOApp { self =>
     }
 
   /**
-   * A hook into the ZIO platform used for boostrapping the application. This hook can
-   * be used to install low-level functionality into the ZIO application, such as
-   * logging, profiling, and other similar foundational pieces of infrastructure.
+   * A hook into the ZIO runtime configuration used for boostrapping the
+   * application. This hook can be used to install low-level functionality into
+   * the ZIO application, such as logging, profiling, and other similar
+   * foundational pieces of infrastructure.
    */
-  def hook: PlatformAspect = PlatformAspect.identity
+  def hook: RuntimeConfigAspect = RuntimeConfigAspect.identity
 
   /**
    * Invokes the main app. Designed primarily for testing.
    */
   final def invoke(args: Chunk[String]): ZIO[ZEnv, Nothing, ExitCode] =
     ZIO.runtime[ZEnv].flatMap { runtime =>
-      val newRuntime = runtime.mapPlatform(hook)
+      val newRuntime = runtime.mapRuntimeConfig(hook)
 
       newRuntime.run(run.provideCustomLayer(ZLayer.succeed(ZIOAppArgs(args)))).exitCode
     }
@@ -96,7 +97,7 @@ trait ZIOApp { self =>
                   "Catastrophic JVM error encountered. " +
                   "Application not safely interrupted. " +
                   "Resources may be leaked. " +
-                  "Check the logs for more details and consider overriding `Platform.reportFatal` to capture context."
+                  "Check the logs for more details and consider overriding `RuntimeConfig.reportFatal` to capture context."
               )
             } else {
               try runtime.unsafeRunSync(fiber.interrupt)
@@ -131,14 +132,14 @@ object ZIOApp {
    * Creates a [[ZIOApp]] from an effect, which can consume the arguments of the program, as well
    * as a hook into the ZIO runtime configuration.
    */
-  def apply(run0: ZIO[ZEnv with Has[ZIOAppArgs], Any, Any], hook0: PlatformAspect): ZIOApp =
+  def apply(run0: ZIO[ZEnv with Has[ZIOAppArgs], Any, Any], hook0: RuntimeConfigAspect): ZIOApp =
     new ZIOApp {
       override def hook = hook0
       def run           = run0
     }
 
   /**
-   * Creates a [[ZIOApp]] from an effect, using the unmodified default runtime's platform.
+   * Creates a [[ZIOApp]] from an effect, using the unmodified default runtime's configuration.
    */
-  def fromEffect(run0: ZIO[ZEnv with Has[ZIOAppArgs], Any, Any]): ZIOApp = ZIOApp(run0, PlatformAspect.identity)
+  def fromEffect(run0: ZIO[ZEnv with Has[ZIOAppArgs], Any, Any]): ZIOApp = ZIOApp(run0, RuntimeConfigAspect.identity)
 }

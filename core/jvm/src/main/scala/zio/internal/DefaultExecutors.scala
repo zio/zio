@@ -18,15 +18,15 @@ package zio.internal
 
 import java.util.concurrent.{RejectedExecutionException, ThreadPoolExecutor}
 
-private[internal] abstract class DefaultExecutors {
+private[zio] abstract class DefaultExecutors {
 
-  final def makeDefault(yieldOpCount: Int): Executor =
+  final def makeDefault(yieldOpCount: Int): zio.Executor =
     new ZScheduler(yieldOpCount)
 
   final def fromThreadPoolExecutor(yieldOpCount0: ExecutionMetrics => Int)(
     es: ThreadPoolExecutor
-  ): Executor =
-    new Executor {
+  ): zio.Executor =
+    new zio.Executor {
       private[this] def metrics0 = new ExecutionMetrics {
         def concurrency: Int = es.getMaximumPoolSize()
 

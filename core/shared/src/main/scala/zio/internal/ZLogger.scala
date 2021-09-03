@@ -13,6 +13,26 @@ trait ZLogger[+A] { self =>
     spans: List[LogSpan]
   ): A
 
+  /**
+   * Combines this logger with the specified logger to produce a new logger
+   * that logs to both this logger and that logger.
+   */
+  def ++[B](that: ZLogger[B])(implicit zippable: Zippable[A, B]): ZLogger[zippable.Out] =
+    new ZLogger[zippable.Out] {
+      def apply(
+        trace: ZTraceElement,
+        fiberId: FiberId,
+        logLevel: LogLevel,
+        message: () => String,
+        context: Map[FiberRef.Runtime[_], AnyRef],
+        spans: List[LogSpan]
+      ): zippable.Out =
+        zippable.zip(
+          self(trace, fiberId, logLevel, message, context, spans),
+          that(trace, fiberId, logLevel, message, context, spans)
+        )
+    }
+
   final def logged(f: A => Unit): ZLogger[Unit] =
     new ZLogger[Unit] {
       def apply(

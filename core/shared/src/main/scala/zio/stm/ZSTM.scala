@@ -18,7 +18,7 @@ package zio.stm
 
 import com.github.ghik.silencer.silent
 import zio._
-import zio.internal.{Platform, Stack, Sync}
+import zio.internal.{Stack, Sync}
 
 import java.util.concurrent.atomic.{AtomicLong, AtomicReference}
 import java.util.{HashMap => MutableMap}
@@ -946,13 +946,13 @@ object ZSTM {
    */
   def atomically[R, E, A](stm: ZSTM[R, E, A]): ZIO[R, E, A] =
     ZIO.accessZIO[R] { r =>
-      ZIO.suspendSucceedWith { (platform, fiberId) =>
-        tryCommitSync(platform, fiberId, stm, r) match {
+      ZIO.suspendSucceedWith { (runtimeConfig, fiberId) =>
+        tryCommitSync(runtimeConfig, fiberId, stm, r) match {
           case TryCommit.Done(exit) => throw new ZIO.ZioError(exit)
           case TryCommit.Suspend(journal) =>
             val txnId = makeTxnId()
             val state = new AtomicReference[State[E, A]](State.Running)
-            val async = ZIO.async(tryCommitAsync(journal, platform, fiberId, stm, txnId, state, r))
+            val async = ZIO.async(tryCommitAsync(journal, runtimeConfig, fiberId, stm, txnId, state, r))
 
             ZIO.uninterruptibleMask { restore =>
               restore(async).catchAllCause { cause =>
@@ -1884,10 +1884,10 @@ object ZSTM {
     /**
      * Runs all the todos.
      */
-    def completeTodos[E, A](exit: Exit[E, A], journal: Journal, platform: Platform): TryCommit[E, A] = {
+    def completeTodos[E, A](exit: Exit[E, A], journal: Journal, runtimeConfig: RuntimeConfig): TryCommit[E, A] = {
       val todos = collectTodos(journal)
 
-      if (todos.size > 0) platform.executor.submitOrThrow(() => execTodos(todos))
+      if (todos.size > 0) runtimeConfig.executor.submitOrThrow(() => execTodos(todos))
 
       TryCommit.Done(exit)
     }
@@ -1921,7 +1921,7 @@ object ZSTM {
     }
 
     def tryCommitSync[R, E, A](
-      platform: Platform,
+      runtimeConfig: RuntimeConfig,
       fiberId: FiberId,
       stm: ZSTM[R, E, A],
       r: R
@@ -1982,16 +1982,16 @@ object ZSTM {
       }
 
       value match {
-        case TExit.Succeed(a) => completeTodos(Exit.succeed(a), journal, platform)
-        case TExit.Fail(e)    => completeTodos(Exit.fail(e), journal, platform)
-        case TExit.Die(t)     => completeTodos(Exit.die(t), journal, platform)
+        case TExit.Succeed(a) => completeTodos(Exit.succeed(a), journal, runtimeConfig)
+        case TExit.Fail(e)    => completeTodos(Exit.fail(e), journal, runtimeConfig)
+        case TExit.Die(t)     => completeTodos(Exit.die(t), journal, runtimeConfig)
         case TExit.Retry      => TryCommit.Suspend(journal)
       }
     }
 
     def tryCommitAsync[R, E, A](
       journal: Journal,
-      platform: Platform,
+      runtimeConfig: RuntimeConfig,
       fiberId: FiberId,
       stm: ZSTM[R, E, A],
       txnId: TxnId,
@@ -2004,9 +2004,9 @@ object ZSTM {
 
       @tailrec
       def suspend(accum: Journal, journal: Journal): Unit = {
-        addTodo(txnId, journal, () => tryCommitAsync(null, platform, fiberId, stm, txnId, state, r)(k))
+        addTodo(txnId, journal, () => tryCommitAsync(null, runtimeConfig, fiberId, stm, txnId, state, r)(k))
 
-        if (isInvalid(journal)) tryCommit(platform, fiberId, stm, state, r) match {
+        if (isInvalid(journal)) tryCommit(runtimeConfig, fiberId, stm, state, r) match {
           case TryCommit.Done(exit) => complete(exit)
           case TryCommit.Suspend(journal2) =>
             val untracked = untrackedTodoTargets(accum, journal2)
@@ -2023,7 +2023,7 @@ object ZSTM {
         if (state.get.isRunning) {
           if (journal ne null) suspend(journal, journal)
           else
-            tryCommit(platform, fiberId, stm, state, r) match {
+            tryCommit(runtimeConfig, fiberId, stm, state, r) match {
               case TryCommit.Done(io)         => complete(io)
               case TryCommit.Suspend(journal) => suspend(journal, journal)
             }
@@ -2032,7 +2032,7 @@ object ZSTM {
     }
 
     def tryCommit[R, E, A](
-      platform: Platform,
+      runtimeConfig: RuntimeConfig,
       fiberId: FiberId,
       stm: ZSTM[R, E, A],
       state: AtomicReference[State[E, A]],
@@ -2100,9 +2100,9 @@ object ZSTM {
       }
 
       value match {
-        case TExit.Succeed(a) => completeTodos(Exit.succeed(a), journal, platform)
-        case TExit.Fail(e)    => completeTodos(Exit.fail(e), journal, platform)
-        case TExit.Die(t)     => completeTodos(Exit.die(t), journal, platform)
+        case TExit.Succeed(a) => completeTodos(Exit.succeed(a), journal, runtimeConfig)
+        case TExit.Fail(e)    => completeTodos(Exit.fail(e), journal, runtimeConfig)
+        case TExit.Die(t)     => completeTodos(Exit.die(t), journal, runtimeConfig)
         case TExit.Retry      => TryCommit.Suspend(journal)
       }
     }

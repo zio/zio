@@ -68,18 +68,18 @@ object Console extends Serializable {
     def printLineError(line: => Any): IO[IOException, Unit] = printLine(SConsole.err)(line)
 
     def readLine: IO[IOException, String] =
-      IO.attempt {
+      IO.attemptBlockingIO {
         val line = StdIn.readLine()
 
         if (line ne null) line
         else throw new EOFException("There is no more input left to read")
-      }.refineToOrDie[IOException]
+      }
 
     private def print(stream: => PrintStream)(line: => Any): IO[IOException, Unit] =
-      IO.attempt(SConsole.withOut(stream)(SConsole.print(line))).refineToOrDie[IOException]
+      IO.attemptBlockingIO(SConsole.withOut(stream)(SConsole.print(line)))
 
     private def printLine(stream: => PrintStream)(line: => Any): IO[IOException, Unit] =
-      IO.attempt(SConsole.withOut(stream)(SConsole.println(line))).refineToOrDie[IOException]
+      IO.attemptBlockingIO(SConsole.withOut(stream)(SConsole.println(line)))
   }
 
   // Accessor Methods

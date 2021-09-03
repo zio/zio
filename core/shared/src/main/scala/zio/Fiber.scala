@@ -17,7 +17,7 @@
 package zio
 
 import zio.internal.stacktracer.ZTraceElement
-import zio.internal.{Executor, FiberRenderer}
+import zio.internal.{FiberRenderer}
 
 import java.io.IOException
 import scala.concurrent.Future
@@ -472,7 +472,7 @@ object Fiber extends FiberPlatformSpecific {
      *
      * @param id            The fiber's unique identifier
      * @param interrupters  The set of fibers attempting to interrupt the fiber or its ancestors.
-     * @param executor      The [[zio.internal.Executor]] executing this fiber
+     * @param executor      The [[Executor]] executing this fiber
      * @param children      The fiber's forked children.
      */
     def apply(
