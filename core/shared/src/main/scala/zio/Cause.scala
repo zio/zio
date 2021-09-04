@@ -151,8 +151,8 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
    * Returns a set of interruptors, fibers that interrupted the fiber described
    * by this `Cause`.
    */
-  final def interruptors: Set[Fiber.Id] =
-    foldLeft[Set[Fiber.Id]](Set()) { case (acc, Interrupt(fiberId)) =>
+  final def interruptors: Set[FiberId] =
+    foldLeft[Set[FiberId]](Set()) { case (acc, Interrupt(fiberId)) =>
       acc + fiberId
     }
 
@@ -193,7 +193,7 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
     empty: => Z,
     failCase: E => Z,
     dieCase: Throwable => Z,
-    interruptCase: Fiber.Id => Z
+    interruptCase: FiberId => Z
   )(thenCase: (Z, Z) => Z, bothCase: (Z, Z) => Z, tracedCase: (Z, ZTrace) => Z): Z =
     self match {
       case Empty => empty
@@ -335,7 +335,7 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
         List(Failure("An unchecked error was produced." :: renderThrowable(t, maybeData) ++ renderTrace(maybeTrace)))
       )
 
-    def renderInterrupt(fiberId: Fiber.Id, maybeTrace: Option[ZTrace]): Sequential =
+    def renderInterrupt(fiberId: FiberId, maybeTrace: Option[ZTrace]): Sequential =
       Sequential(
         List(Failure(s"An interrupt was produced by #${fiberId.seqNumber}." :: renderTrace(maybeTrace)))
       )
@@ -550,7 +550,7 @@ object Cause extends Serializable {
   val empty: Cause[Nothing]                               = Internal.Empty
   def die(defect: Throwable): Cause[Nothing]              = Internal.Die(defect)
   def fail[E](error: E): Cause[E]                         = Internal.Fail(error)
-  def interrupt(fiberId: Fiber.Id): Cause[Nothing]        = Internal.Interrupt(fiberId)
+  def interrupt(fiberId: FiberId): Cause[Nothing]         = Internal.Interrupt(fiberId)
   def stack[E](cause: Cause[E]): Cause[E]                 = Internal.Meta(cause, Internal.Data(false))
   def stackless[E](cause: Cause[E]): Cause[E]             = Internal.Meta(cause, Internal.Data(true))
   def traced[E](cause: Cause[E], trace: ZTrace): Cause[E] = Internal.Traced(cause, trace)
@@ -657,9 +657,9 @@ object Cause extends Serializable {
   }
 
   object Interrupt {
-    def apply(fiberId: Fiber.Id): Cause[Nothing] =
+    def apply(fiberId: FiberId): Cause[Nothing] =
       Internal.Interrupt(fiberId)
-    def unapply[E](cause: Cause[E]): Option[Fiber.Id] =
+    def unapply[E](cause: Cause[E]): Option[FiberId] =
       cause.find {
         case cause if cause eq Internal.Empty => None
         case Internal.Fail(_)                 => None
@@ -751,7 +751,7 @@ object Cause extends Serializable {
       }
     }
 
-    final case class Interrupt(fiberId: Fiber.Id) extends Cause[Nothing] {
+    final case class Interrupt(fiberId: FiberId) extends Cause[Nothing] {
       override def equals(that: Any): Boolean =
         (this eq that.asInstanceOf[AnyRef]) || (that match {
           case interrupt: Interrupt => fiberId == interrupt.fiberId

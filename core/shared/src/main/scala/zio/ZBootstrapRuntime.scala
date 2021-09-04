@@ -16,13 +16,12 @@
 
 package zio
 
-import zio.internal.Platform
-
+@deprecated("2.0.0", "Use Runtime")
 trait ZBootstrapRuntime[R] extends Runtime[R] {
 
   /**
-   * The platform of the runtime, which provides the essential capabilities
-   * necessary to bootstrap execution of tasks.
+   * The configuration of the runtime, which provides the essential
+   * capabilities necessary to bootstrap execution of tasks.
    */
-  def platform: Platform = Platform.default
+  def runtimeConfig: RuntimeConfig = RuntimeConfig.default
 }

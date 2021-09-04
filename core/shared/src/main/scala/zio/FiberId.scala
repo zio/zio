@@ -14,6 +14,18 @@
  * limitations under the License.
  */
 
-package zio.internal
+package zio
 
-trait ExecutorPlatformSpecific
+/**
+ * The identity of a Fiber, described by the time it began life, and a
+ * monotonically increasing sequence number generated from an atomic counter.
+ */
+final case class FiberId(startTimeMillis: Long, seqNumber: Long) extends Serializable
+
+object FiberId {
+
+  /**
+   * A sentinel value to indicate a fiber without identity.
+   */
+  final val None: FiberId = FiberId(0L, 0L)
+}

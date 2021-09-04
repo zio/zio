@@ -60,19 +60,17 @@ If you are using a custom environment for your application, then you may find it
 A custom `Runtime[R]` can be created with two values:
 
  - **`R` Environment**. This is the environment that will be provided to effects when they are executed.
- - **`Platform`**. This is a platform that is required by ZIO in order to bootstrap the runtime system.
+ - **`RuntimeConfig`**. This is a runtime configuration that is required by ZIO in order to bootstrap the runtime system.
 
-For example, the following creates a `Runtime` that can provide an `Int` to effects, using the default `Platform` provided by ZIO:
+For example, the following creates a `Runtime` that can provide an `Int` to effects, using the default `RuntimeConfig` provided by ZIO:
 
 ```scala mdoc:silent
-import zio.internal.Platform
-
-val myRuntime: Runtime[Int] = Runtime(42, Platform.default)
+val myRuntime: Runtime[Int] = Runtime(42, RuntimeConfig.default)
 ```
 
 ## Error Reporting
 
-In the `Platform` that is a part of every runtime, there is an error reporter that will be called by ZIO to report every unhandled error. It is a good idea to supply your own error reporter, which can log unhandled errors to a file.
+In the `RuntimeConfig` that is a part of every runtime, there is an error reporter that will be called by ZIO to report every unhandled error. It is a good idea to supply your own error reporter, which can log unhandled errors to a file.
 
 The default unhandled error reporter merely logs the error to standard error.
 

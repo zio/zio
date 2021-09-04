@@ -17,7 +17,6 @@
 package zio
 
 import zio.ZManaged.ReleaseMap
-import zio.internal.Platform
 
 /**
  * A `ZLayer[A, E, B]` describes a layer of an application: every layer in an
@@ -231,7 +230,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
                 schedule.step(now, e, s).flatMap {
                   case (_, _, Done) => ZIO.fail(e)
                   case (state, _, Continue(interval)) =>
-                    Clock.sleep(Duration.fromInterval(now, interval)) as ((r, state))
+                    Clock.sleep(Duration.fromInterval(now, interval.start)) as ((r, state))
                 }
               )
               .provide(r)
@@ -265,8 +264,8 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    * Converts a layer that requires no services into a managed runtime, which
    * can be used to execute effects.
    */
-  final def toRuntime(p: Platform)(implicit ev: Any <:< RIn): Managed[E, Runtime[ROut]] =
-    build.provide(ev).map(Runtime(_, p))
+  final def toRuntime(runtimeConfig: RuntimeConfig)(implicit ev: Any <:< RIn): Managed[E, Runtime[ROut]] =
+    build.provide(ev).map(Runtime(_, runtimeConfig))
 
   /**
    * Updates one of the services output by this layer.

@@ -33,11 +33,11 @@ object MockConsole extends Mock[Has[Console]] {
       .service[Proxy]
       .map(proxy =>
         new Console {
-          def print(line: Any): IO[IOException, Unit]          = proxy(Print, line)
-          def printError(line: Any): IO[IOException, Unit]     = proxy(PrintError, line)
-          def printLine(line: Any): IO[IOException, Unit]      = proxy(PrintLine, line)
-          def printLineError(line: Any): IO[IOException, Unit] = proxy(PrintLineError, line)
-          val readLine: IO[IOException, String]                = proxy(ReadLine)
+          def print(line: => Any): IO[IOException, Unit]          = proxy(Print, line)
+          def printError(line: => Any): IO[IOException, Unit]     = proxy(PrintError, line)
+          def printLine(line: => Any): IO[IOException, Unit]      = proxy(PrintLine, line)
+          def printLineError(line: => Any): IO[IOException, Unit] = proxy(PrintLineError, line)
+          val readLine: IO[IOException, String]                   = proxy(ReadLine)
         }
       )
       .toLayer

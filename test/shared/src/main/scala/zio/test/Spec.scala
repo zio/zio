@@ -640,7 +640,7 @@ object Spec {
   }
 
   final class UpdateServiceAt[-R, +E, +T, Service](private val self: Spec[R, E, T]) extends AnyVal {
-    def apply[R1 <: R with HasMany[Key, Service], Key](key: Key)(
+    def apply[R1 <: R with HasMany[Key, Service], Key](key: => Key)(
       f: Service => Service
     )(implicit ev: Has.IsHas[R1], tag: Tag[Map[Key, Service]]): Spec[R1, E, T] =
       self.provideSome(ev.updateAt(_, key, f))

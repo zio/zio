@@ -407,7 +407,7 @@ object ZIOSpec extends ZIOBaseSpec {
     suite("done")(
       test("Check done lifts exit result into IO") {
 
-        val fiberId = Fiber.Id(0L, 123L)
+        val fiberId = FiberId(0L, 123L)
         val error   = exampleError
 
         for {
@@ -423,7 +423,7 @@ object ZIOSpec extends ZIOBaseSpec {
     ),
     suite("executor")(
       test("retrieves the current executor for this effect") {
-        val executor = zio.internal.Executor.fromExecutionContext(100) {
+        val executor = Executor.fromExecutionContext(100) {
           scala.concurrent.ExecutionContext.Implicits.global
         }
         for {
@@ -1365,17 +1365,17 @@ object ZIOSpec extends ZIOBaseSpec {
     ),
     suite("onExecutor")(
       test("effects continue on current executor if no executor is specified") {
-        val global = zio.internal.Executor
-          .fromExecutionContext(Platform.defaultYieldOpCount)(scala.concurrent.ExecutionContext.global)
+        val global =
+          Executor.fromExecutionContext(RuntimeConfig.defaultYieldOpCount)(scala.concurrent.ExecutionContext.global)
         for {
           _        <- ZIO.unit.onExecutor(global)
           executor <- ZIO.descriptor.map(_.executor)
         } yield assert(executor)(equalTo(global))
       },
       test("effects are shifted back if executor is specified") {
-        val default = Platform.default.executor
-        val global = zio.internal.Executor
-          .fromExecutionContext(Platform.defaultYieldOpCount)(scala.concurrent.ExecutionContext.global)
+        val default = RuntimeConfig.default.executor
+        val global =
+          Executor.fromExecutionContext(RuntimeConfig.defaultYieldOpCount)(scala.concurrent.ExecutionContext.global)
         val effect = for {
           _        <- ZIO.unit.onExecutor(global)
           executor <- ZIO.descriptor.map(_.executor)
@@ -1651,7 +1651,7 @@ object ZIOSpec extends ZIOBaseSpec {
     suite("orElse")(
       test("does not recover from defects") {
         val ex               = new Exception("Died")
-        val fiberId          = Fiber.Id(0L, 123L)
+        val fiberId          = FiberId(0L, 123L)
         implicit val canFail = CanFail
         for {
           plain <- (ZIO.die(ex) <> IO.unit).exit
@@ -3278,7 +3278,7 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(v)(equalTo(InterruptStatus.uninterruptible))
       } @@ zioTag(interruption),
       test("executor is heritable") {
-        val executor = zio.internal.Executor.fromExecutionContext(100) {
+        val executor = Executor.fromExecutionContext(100) {
           scala.concurrent.ExecutionContext.Implicits.global
         }
         val pool = ZIO.succeed(Platform.getCurrentThreadGroup)
@@ -3875,7 +3875,7 @@ object ZIOSpec extends ZIOBaseSpec {
         for {
           future <- ZIO.fail(new Throwable(new IllegalArgumentException)).toFuture
           result <- ZIO.fromFuture(_ => future).either
-        } yield assert(result)(isLeft(hasSuppressed(exists(hasMessage(containsString("Fiber:Id("))))))
+        } yield assert(result)(isLeft(hasSuppressed(exists(hasMessage(containsString("Fiber:FiberId("))))))
       }
     ) @@ zioTag(future),
     suite("resurrect")(
@@ -3949,13 +3949,13 @@ object ZIOSpec extends ZIOBaseSpec {
           assert(value)(equalTo("Controlling side-effect of function passed to promise"))
         }
       },
-      test("onPlatform") {
+      test("withRuntimeConfig") {
         for {
-          platform <- ZIO.platform
-          global   <- ZIO.onPlatform(Platform.global)(ZIO.platform)
-          default  <- ZIO.platform
-        } yield assert(global)(equalTo(Platform.global)) &&
-          assert(default)(equalTo(platform))
+          runtimeConfig <- ZIO.runtimeConfig
+          global        <- ZIO.withRuntimeConfig(RuntimeConfig.global)(ZIO.runtimeConfig)
+          default       <- ZIO.runtimeConfig
+        } yield assert(global)(equalTo(RuntimeConfig.global)) &&
+          assert(default)(equalTo(runtimeConfig))
       }
     )
   )

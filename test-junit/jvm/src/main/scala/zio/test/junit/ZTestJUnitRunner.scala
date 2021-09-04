@@ -39,7 +39,9 @@ import zio.test.render.LogLine.Message
  * <br/><br/>
  * Scala.JS is not supported, as JUnit TestFramework for SBT under Scala.JS doesn't support custom runners.
  */
-class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable with BootstrapRuntime {
+class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
+  import zio.Runtime.default.unsafeRun
+
   private val className = klass.getName.stripSuffix("$")
 
   private lazy val spec: AbstractRunnableSpec = {
@@ -79,7 +81,7 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable with Boot
   }
 
   override def run(notifier: RunNotifier): Unit =
-    zio.Runtime((), spec.runner.platform).unsafeRun {
+    zio.Runtime((), spec.runner.runtimeConfig).unsafeRun {
       val instrumented = instrumentSpec(filteredSpec, new JUnitNotifier(notifier))
       spec.runner.run(instrumented).unit.provideLayer(spec.runner.bootstrap)
     }

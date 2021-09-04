@@ -1,5 +1,5 @@
-package zio.internal
-import zio.ZIOBaseSpec
+package zio
+
 import zio.test.Assertion._
 import zio.test._
 

@@ -443,7 +443,7 @@ trait Configuration
 val userRepoWithConfig: ZLayer[Has[Configuration] with Has[Connection], Nothing, UserRepo] = 
   ZLayer.succeed(new Configuration{}) ++ postgresLayer
 val partialLayer: ZLayer[Has[Configuration], Nothing, UserRepo] = 
-  (ZLayer.identity[Has[Configuration]] ++ connection) >>> userRepoWithConfig
+  (ZLayer.environment[Has[Configuration]] ++ connection) >>> userRepoWithConfig
 ``` 
 
 In this example the requirement for a `Connection` has been satisfied, but `Configuration` is still required by `partialLayer`.
@@ -662,7 +662,7 @@ object ZLayerApp1 extends scala.App {
     trait Service {}
 
     val any: ZLayer[ModuleA, Nothing, ModuleA] =
-      ZLayer.requires[ModuleA]
+      ZLayer.environment[ModuleA]
 
     val live: ZLayer[Any, Nothing, ModuleA] =
       ZLayer.succeed(new Service {})
@@ -675,7 +675,7 @@ object ZLayerApp1 extends scala.App {
     trait Service {}
 
     val any: ZLayer[ModuleB, Nothing, ModuleB] =
-      ZLayer.requires[ModuleB]
+      ZLayer.environment[ModuleB]
 
     val live: ZLayer[Any, Nothing, ModuleB] =
       ZLayer.succeed(new Service {})
@@ -690,7 +690,7 @@ object ZLayerApp1 extends scala.App {
     }
 
     val any: ZLayer[ModuleC, Nothing, ModuleC] =
-      ZLayer.requires[ModuleC]
+      ZLayer.environment[ModuleC]
 
     val live: ZLayer[ModuleA with ModuleB with Has[Clock], Nothing, ModuleC] =
       ZLayer.succeed {
@@ -703,7 +703,7 @@ object ZLayerApp1 extends scala.App {
       ZIO.accessZIO(_.get.foo)
   }
 
-  val env = (ModuleA.live ++ ModuleB.live ++ ZLayer.identity[Has[Clock]]) >>> ModuleC.live
+  val env = (ModuleA.live ++ ModuleB.live ++ ZLayer.environment[Has[Clock]]) >>> ModuleC.live
 
   val res = ModuleC.foo.provideCustomLayer(env)
 
