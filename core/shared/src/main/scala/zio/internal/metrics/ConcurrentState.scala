@@ -6,7 +6,7 @@ import zio.metrics._
 import java.util.concurrent.atomic.{AtomicReference, DoubleAdder}
 import java.util.concurrent.ConcurrentHashMap
 
-private class ConcurrentState {
+private[zio] class ConcurrentState {
   private val listeners = zio.internal.Platform.newConcurrentSet[MetricListener]()
 
   final def installListener(listener: MetricListener): Unit = {
@@ -62,8 +62,18 @@ private class ConcurrentState {
       }
     }
 
-  val map: ConcurrentHashMap[MetricKey, ConcurrentMetricState] =
+  private val map: ConcurrentHashMap[MetricKey, ConcurrentMetricState] =
     new ConcurrentHashMap[MetricKey, ConcurrentMetricState]()
+
+  private[zio] def snapshot: Map[MetricKey, MetricState] = {
+    val iterator = map.entrySet().iterator()
+    val result   = scala.collection.mutable.Map[MetricKey, MetricState]()
+    while (iterator.hasNext) {
+      val value = iterator.next()
+      result.put(value.getKey(), value.getValue().toMetricState)
+    }
+    result.toMap
+  }
 
   /**
    * Increase a named counter by some value.

@@ -1,7 +1,5 @@
 package zio.internal.metrics
 
-import zio.metrics._
-
 import java.util.concurrent.atomic.{AtomicReference, DoubleAdder}
 
 private sealed trait ConcurrentMetricState { self =>

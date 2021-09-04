@@ -1,7 +1,6 @@
 package zio.internal.metrics
 
 import zio._
-import zio.metrics._
 import zio.internal.ZMetrics._
 
 final case class MetricState(

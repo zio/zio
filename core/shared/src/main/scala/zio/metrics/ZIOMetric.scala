@@ -17,8 +17,6 @@
 package zio.metrics
 
 import zio._
-import zio.internal.metrics._
-
 import java.time.Instant
 
 /**
@@ -207,8 +205,7 @@ object ZIOMetric {
     }
 
   abstract class Counter[-A](name: String, tags: Label*) extends ZIOMetric[A] {
-    private val key     = MetricKey.Counter(name, Chunk.fromIterable(tags))
-    private val counter = metricState.getCounter(key)
+    private val counter = metrics.Counter(name, tags: _*)
     val increment: UIO[Any] =
       counter.increment(1.0)
     def increment(value: Double): UIO[Any] =
@@ -217,8 +214,7 @@ object ZIOMetric {
   }
 
   abstract class Gauge[A](name: String, tags: Label*) extends ZIOMetric[A] {
-    private val key   = MetricKey.Gauge(name, Chunk.fromIterable(tags))
-    private val gauge = metricState.getGauge(key)
+    private val gauge = metrics.Gauge(name, tags: _*)
     def set(value: Double): UIO[Any] =
       gauge.set(value)
     def adjust(value: Double): UIO[Any] =
@@ -227,8 +223,7 @@ object ZIOMetric {
   }
 
   abstract class Histogram[A](name: String, boundaries: Chunk[Double], tags: Label*) extends ZIOMetric[A] {
-    private val key       = MetricKey.Histogram(name, boundaries, Chunk.fromIterable(tags))
-    private val histogram = metricState.getHistogram(key)
+    private val histogram = metrics.Histogram(name, boundaries, tags: _*)
     def observe(value: Double): UIO[Any] =
       histogram.observe(value)
     def apply[R, E, A1 <: A](zio: ZIO[R, E, A1]): ZIO[R, E, A1]
@@ -242,16 +237,14 @@ object ZIOMetric {
     quantiles: Chunk[Double],
     tags: Label*
   ) extends ZIOMetric[A] {
-    private val key     = MetricKey.Summary(name, maxAge, maxSize, error, quantiles, Chunk.fromIterable(tags))
-    private val summary = metricState.getSummary(key)
+    private val summary = metrics.Summary(name, maxAge, maxSize, error, quantiles, tags: _*)
     def observe(value: Double): UIO[Any] =
       summary.observe(value, Instant.now())
     def apply[R, E, A1 <: A](zio: ZIO[R, E, A1]): ZIO[R, E, A1]
   }
 
   abstract class Occurences[A](name: String, setTag: String, tags: Label*) extends ZIOMetric[A] {
-    private val key      = MetricKey.SetCount(name, setTag, Chunk.fromIterable(tags))
-    private val setCount = metricState.getSetCount(key)
+    private val setCount = metrics.SetCount(name, setTag, tags: _*)
     def observe(value: String): UIO[Any] =
       setCount.observe(value)
     def apply[R, E, A1 <: A](zio: ZIO[R, E, A1]): ZIO[R, E, A1]

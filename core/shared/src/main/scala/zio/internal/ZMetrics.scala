@@ -1,6 +1,5 @@
 package zio.internal
 
-import zio.metrics._
 import zio.internal.metrics._
 
 trait ZMetrics {
@@ -15,15 +14,8 @@ object ZMetrics {
   val default: ZMetrics =
     new ZMetrics {
 
-      def snapshot: Map[MetricKey, MetricState] = {
-        val iterator = metricState.map.entrySet().iterator()
-        val result   = scala.collection.mutable.Map[MetricKey, MetricState]()
-        while (iterator.hasNext) {
-          val value = iterator.next()
-          result.put(value.getKey(), value.getValue().toMetricState)
-        }
-        result.toMap
-      }
+      def snapshot: Map[MetricKey, MetricState] =
+        metricState.snapshot
       val metricListener: MetricListener =
         MetricListener.none
     }
