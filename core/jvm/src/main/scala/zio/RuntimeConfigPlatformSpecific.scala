@@ -84,7 +84,18 @@ private[zio] trait RuntimeConfigPlatformSpecific {
 
     val tracing = Tracing(Tracer.globallyCached(new AkkaLineNumbersTracer), TracingConfig.enabled)
 
-    RuntimeConfig(blockingExecutor, executor, tracing, fatal, reportFatal, reportFailure, supervisor, false, logger, metrics)
+    RuntimeConfig(
+      blockingExecutor,
+      executor,
+      tracing,
+      fatal,
+      reportFatal,
+      reportFailure,
+      supervisor,
+      false,
+      logger,
+      metrics
+    )
   }
 
   /**
