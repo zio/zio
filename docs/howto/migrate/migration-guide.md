@@ -822,6 +822,50 @@ To perform the migration, after renaming these types to the newer ones (e.g. `ZR
 | `ZRefM#updateSome`       | `ZRef.Synchronized#updateSomeZIO`       |
 | `ZRefM#updateSomeAndGet` | `ZRef.Synchronized#updateSomeAndGetZIO` |
 
+## Semaphore and TSemaphore
+
+In ZIO 1.x, we have two versions of Semaphore, `zio.Semaphore` and `zio.stm.TSemaphore`. The former is the ordinary semaphore, and the latter is the STM one.
+
+In ZIO 2.x, we removed the implementation of `zio.stm.Semaphore` and used the `TSemaphore` as its implementation. So, now the `Semaphore` uses the `TSemaphore` in its underlying. So to migrate a `Semaphore` code base to the ZIO 2.x, we just need to commit `STM` values to get back to the `ZIO` world.
+
+ZIO 1.x:
+
+```scala
+import zio._
+import zio.console.Console
+
+val myApp: ZIO[Console, Nothing, Unit] =
+  for {
+    semaphore <- Semaphore.make(4)
+    available <- ZIO.foreach((1 to 10).toList) { _ =>
+      semaphore.withPermit(semaphore.available)
+    }
+    _ <- zio.console.putStrLn(available.toString()).orDie
+  } yield ()
+```
+
+ZIO 2.x:
+
+```scala mdoc:silent:nest
+import zio._
+
+val myApp: ZIO[Has[Console], Nothing, Unit] =
+  for {
+    semaphore <- Semaphore.make(4)
+    available <- ZIO.foreach((1 to 10).toList) { _ =>
+      semaphore.withPermit(semaphore.available.commit)
+    }
+    _ <- Console.printLine(available.toString()).orDie
+  } yield ()
+```
+
+Also, there is a slight change on `TSemaphore#withPermit` method. In ZIO 2.x, instead of accepting `STM` values, it accepts only `ZIO` values and returns the `ZIO` value.
+
+| `withPermit` | Input           | Output         |
+|--------------|-----------------|----------------|
+| ZIO 1.x      | `STM[E, B]`     | `STM[E, B]`    |
+| ZIO 2.x      | `ZIO[R, E, A])` | `ZIO[R, E, A]` |
+
 ## ZQueue
 
 In ZIO 2.x, the `ZQueue` uses `Chunk` consistently with other ZIO APIs like ZIO Streams. This will avoid unnecessary conversions between collection types, particularly for streaming applications where streams use `Chunk` internally, but bulk take operations previously returned a `List` on `ZQueue`.
