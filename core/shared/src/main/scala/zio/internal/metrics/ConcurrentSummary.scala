@@ -5,7 +5,7 @@ import zio._
 import java.util.concurrent.ConcurrentLinkedDeque
 import java.util.concurrent.atomic.{DoubleAdder, LongAdder}
 
-sealed abstract class ConcurrentSummary {
+private sealed abstract class ConcurrentSummary {
 
   // The count how many values have been observed in total
   // It is NOT the number of samples currently held => count() >= samples.size
@@ -24,7 +24,7 @@ sealed abstract class ConcurrentSummary {
 
 }
 
-object ConcurrentSummary {
+private object ConcurrentSummary {
 
   def manual(maxSize: Int, maxAge: Duration, error: Double, quantiles: Chunk[Double]): ConcurrentSummary =
     new ConcurrentSummary {

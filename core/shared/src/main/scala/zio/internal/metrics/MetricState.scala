@@ -1,6 +1,7 @@
 package zio.internal.metrics
 
 import zio._
+import zio.metrics._
 import zio.internal.ZMetrics._
 
 final case class MetricState(
@@ -17,20 +18,15 @@ final case class MetricState(
 
 object MetricState {
 
-  // --------- Methods creating and using Prometheus counters
   def counter(key: MetricKey.Counter, help: String, value: Double): MetricState =
-    MetricState(key.name, help, Chunk(key.tags: _*), MetricType.Counter(value))
-
-  // --------- Methods creating and using Prometheus Gauges
+    MetricState(key.name, help, key.tags, MetricType.Counter(value))
 
   def gauge(
     key: MetricKey.Gauge,
     help: String,
     startAt: Double
   ): MetricState =
-    MetricState(key.name, help, Chunk(key.tags: _*), MetricType.Gauge(startAt))
-
-  // --------- Methods creating and using Prometheus Histograms
+    MetricState(key.name, help, key.tags, MetricType.Gauge(startAt))
 
   def doubleHistogram(
     key: MetricKey.Histogram,
@@ -42,11 +38,9 @@ object MetricState {
     MetricState(
       key.name,
       help,
-      Chunk(key.tags: _*),
+      key.tags,
       MetricType.DoubleHistogram(buckets, count, sum)
     )
-
-  // --------- Methods creating and using Prometheus Histograms
 
   def summary(
     key: MetricKey.Summary,
@@ -58,7 +52,7 @@ object MetricState {
     MetricState(
       key.name,
       help,
-      Chunk(key.tags: _*),
+      key.tags,
       MetricType.Summary(key.error, quantiles, count, sum)
     )
 
@@ -66,5 +60,5 @@ object MetricState {
     key: MetricKey.SetCount,
     help: String,
     values: Chunk[(String, Long)]
-  ): MetricState = MetricState(key.name, help, Chunk(key.tags: _*), MetricType.SetCount(key.setTag, values))
+  ): MetricState = MetricState(key.name, help, key.tags, MetricType.SetCount(key.setTag, values))
 }

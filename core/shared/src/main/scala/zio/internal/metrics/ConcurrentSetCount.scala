@@ -5,7 +5,7 @@ import zio._
 import java.util.concurrent.atomic.LongAdder
 import java.util.concurrent.ConcurrentHashMap
 
-sealed abstract class ConcurrentSetCount {
+private sealed abstract class ConcurrentSetCount {
 
   def getCount(): Long
 
@@ -15,7 +15,7 @@ sealed abstract class ConcurrentSetCount {
 
 }
 
-object ConcurrentSetCount {
+private object ConcurrentSetCount {
 
   def manual(): ConcurrentSetCount =
     new ConcurrentSetCount {

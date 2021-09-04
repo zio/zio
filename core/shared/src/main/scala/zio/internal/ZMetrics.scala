@@ -1,5 +1,6 @@
 package zio.internal
 
+import zio.metrics._
 import zio.internal.metrics._
 
 trait ZMetrics {

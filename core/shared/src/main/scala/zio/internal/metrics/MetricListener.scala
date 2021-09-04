@@ -1,5 +1,7 @@
 package zio.internal.metrics
 
+import zio.metrics._
+
 /**
  * A `MetricListener` is capable of taking some action in response to a metric
  * being recorded, such as sending that metric to a third party service.

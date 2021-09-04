@@ -4,7 +4,7 @@ import zio._
 
 import java.util.concurrent.atomic.{AtomicReferenceArray, DoubleAdder, LongAdder}
 
-sealed abstract class ConcurrentHistogram {
+private sealed abstract class ConcurrentHistogram {
 
   // The overall count for all observed values in the histogram
   def getCount(): Long
@@ -19,7 +19,7 @@ sealed abstract class ConcurrentHistogram {
   def getSum(): Double
 }
 
-object ConcurrentHistogram {
+private object ConcurrentHistogram {
 
   def manual(bounds: Chunk[Double]): ConcurrentHistogram =
     new ConcurrentHistogram {

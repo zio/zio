@@ -1,11 +1,12 @@
 package zio.internal.metrics
 
 import zio._
+import zio.metrics._
 
 import java.util.concurrent.atomic.{AtomicReference, DoubleAdder}
 import java.util.concurrent.ConcurrentHashMap
 
-class ConcurrentState {
+private class ConcurrentState {
   private val listeners = zio.internal.Platform.newConcurrentSet[MetricListener]()
 
   final def installListener(listener: MetricListener): Unit = {
