@@ -781,6 +781,8 @@ As we see, we have the following changes:
       } yield ()
     ```
 
+While Scala 3 doesn't support macro annotation like, so instead of using `@accessible`, the `Accessible` trait is a macro-less approach to create accessor methods specially for Scala 3 users.
+
 The _Module Pattern 1.0_ was somehow complicated and had some boilerplates. The _Module Pattern 2.0_ is so much familiar to people coming from an object-oriented world. So it is so much easy to learn for newcomers. The new pattern is much simpler.
 
 ### Other Changes
