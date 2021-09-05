@@ -1281,6 +1281,22 @@ for {
 
 Visit the [Hub](../../datatypes/concurrency/hub.md) page to learn more about it.
 
+### ZIO Aspects
+
+We introduced the`ZIOAspect` which enables us to modify the existing `ZIO` effect with some additional aspects like debugging, tracing, retrying, and logging:
+
+```scala mdoc:silent:nest
+val myApp: ZIO[Has[Random], Nothing, String] =
+  ZIO.ifZIO(
+    Random.nextIntBounded(10) @@ ZIOAspect.debug map (_ % 2 == 0)
+  )(onTrue = ZIO.succeed("Hello!"), onFalse = ZIO.succeed("Good Bye!")) @@
+    ZIOAspect.debug @@ ZIOAspect.logged("result")
+    
+// Sample Output:     
+// 2
+// Hello!
+// timestamp=2021-09-05T15:32:56.705901Z level=INFO thread=#2 message="result: Hello!" file=ZIOAspect.scala line=74 class=zio.ZIOAspect$$anon$4 method=apply
+```
 
 ### Logging
 
