@@ -1300,6 +1300,25 @@ val myApp: ZIO[Has[Random], Nothing, String] =
 // timestamp=2021-09-05T15:32:56.705901Z level=INFO thread=#2 message="result: Hello!" file=ZIOAspect.scala line=74 class=zio.ZIOAspect$$anon$4 method=apply
 ```
 
+### Debugging
+
+ZIO 2.x introduces the `debug` that is useful when we want to print something to the console for debugging purposes without introducing additional environmental requirements or error types:
+
+```scala mdoc:silent:nest
+val myApp: ZIO[Has[Random], Nothing, String] =
+  ZIO
+    .ifZIO(
+      Random.nextIntBounded(10) debug("random") map (_ % 2 == 0)
+    )(
+      onTrue = ZIO.succeed("Hello!"),
+      onFalse = ZIO.succeed("Good Bye!")
+    )
+    .debug("result")
+// Sample Output
+// random: 2
+// result: Hello!
+``` 
+
 ### Logging
 
 TODO
