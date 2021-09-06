@@ -64,7 +64,7 @@ private[zio] trait RuntimeConfigPlatformSpecific {
 
     val fatal = (t: Throwable) => t.isInstanceOf[VirtualMachineError]
 
-    val logger: ZLogger[Unit] =
+    val logger: ZLogger[Any] =
       ZLogger.defaultFormatter.logged(println(_)).filterLogLevel(_ >= LogLevel.Info)
 
     val reportFatal = (t: Throwable) => {
