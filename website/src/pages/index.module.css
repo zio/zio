@@ -58,6 +58,7 @@
 
 .featureTitle {
   color: red;
+  margin: 0.5rem auto;
   text-align: center;
 }
 

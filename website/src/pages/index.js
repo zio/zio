@@ -74,7 +74,7 @@ const sponsors = [
 // How a single feature block is displayed 
 function Feature(feature) {
   return (
-    <div className='container'>
+    <div className='container col col--3'>
       <h2 className={styles.featureTitle}>{feature.title}</h2>
       <p className={styles.featureText}>{feature.content}</p>
     </div>
@@ -84,7 +84,7 @@ function Feature(feature) {
 // How a single sponsor block is being displayed 
 function Sponsor(sponsor) {
   return (
-    <div class='container'>
+    <div class='container col col--6'>
       <div className={styles.sponsorImageContainer}>
         <a href={`${sponsor.imageLink}`}>
           <img className={styles.sponsorImage} src={`${sponsor.image}`} alt={`${sponsor.imageAlt}`} />
@@ -122,9 +122,11 @@ function Home() {
         {features && features.length > 0 && (
           <section className={styles.featureSection}>
             <div class='container'>
-              {features.map((f, idx) => (
-                <Feature key={idx} {...f} />
-              ))}
+              <div class='row'>
+                {features.map((f, idx) => (
+                  <Feature key={idx} {...f} />
+                ))}
+              </div>
             </div>
           </section>
         )}
@@ -132,9 +134,11 @@ function Home() {
         {sponsors && sponsors.length > 0 && (
           <section className={styles.sponsorSection}>
             <div class='container'>
-              {sponsors.map((s, idx) => (
-                <Sponsor key={idx} {...s} />
-              ))}
+              <div class='row'>
+                {sponsors.map((s, idx) => (
+                  <Sponsor key={idx} {...s} />
+                ))}
+              </div>
             </div>
           </section>
         )}
