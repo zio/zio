@@ -106,7 +106,6 @@ module.exports = {
     //'/css/prism/prism-atom-dark.css'
     '/css/prism/prism-material-dark.css'
   ],
-  // doctag<configure>
   presets: [
     [
       '@docusaurus/preset-classic',
@@ -125,5 +124,4 @@ module.exports = {
       },
     ],
   ],
-  // end:doctag<configure>
 };
