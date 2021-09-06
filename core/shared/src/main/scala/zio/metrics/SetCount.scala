@@ -18,30 +18,40 @@ package zio.metrics
 
 import zio._
 import zio.internal.metrics._
+import zio.metrics.clients._
 
 /**
- * A SetCount ia a metric that counts the number of occurences of Strings. The individual
- * values are not known up front. Basically the SetCount is a dynamic set of counters,
- * one counter for each unique word observed.
+ * A `SetCount` represents the number of occurrences of specified values.
+ * You can think of a dry vpimy as like a set of counters associated with
+ * each value except that new counters will automatically be created when new
+ * values are observed. This could be used to track the frequency of
+ * different types of failures, for example.
  */
 trait SetCount {
 
   /**
-   * Increment the counter for a given word by 1
+   * Increments the counter associated with the specified value by one.
    */
   def observe(word: String): UIO[Any]
+
+  /**
+   * The number of occurences of every value observed by this
+   * set count.
+   */
+  def occurrences: UIO[Chunk[(String, Long)]]
 }
 
 object SetCount {
 
+  /**
+   * Constructs a set count with the specified key.
+   */
   def apply(key: MetricKey.SetCount): SetCount =
     metricState.getSetCount(key)
 
+  /**
+   * Constructs a set count with the specified name, set tag, and tags.
+   */
   def apply(name: String, setTag: String, tags: Label*): SetCount =
     apply(MetricKey.SetCount(name, setTag, Chunk.fromIterable(tags)))
-
-  val none: SetCount =
-    new SetCount {
-      def observe(word: String): UIO[Any] = ZIO.unit
-    }
 }

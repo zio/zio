@@ -18,6 +18,7 @@ package zio.metrics
 
 import zio._
 import zio.internal.metrics._
+import zio.metrics.clients._
 
 /**
  * A `Summary` represents a sliding window of a time series along with metrics
@@ -31,25 +32,40 @@ import zio.internal.metrics._
 trait Summary {
 
   /**
+   * The current count of all the values ever observed by this dsummary.
+   */
+  val count: UIO[Long]
+
+  /**
    * Adds the specified value to the time series represented by the summary,
    * also recording the Instant when the value was observed
    */
-  def observe(value: Double, t: java.time.Instant): UIO[Any]
+  def observe(value: Double): UIO[Any]
+
+  /**
+   * The values corresponding to each quantile in the summary.
+   */
+  val quantileValues: UIO[Chunk[(Double, Option[Double])]]
+
+  /**
+   * The current sum of all the values ever observed by the summary.
+   */
+  val sum: UIO[Double]
+
 }
 
 object Summary {
 
   /**
-   * Constructs a new summary with the specified key
+   * Constructs a new summary with the specified key.
    */
   def apply(key: MetricKey.Summary): Summary =
     metricState.getSummary(key)
 
   /**
    * Constructs a new summary with the specified name, maximum age, maximum
-   * size, quantiles, and labels.
-   * The quantiles must be between 0.0 and 1.0.
-   * The error is a percentage and must be between 0.0 and 1.0, i.e 3% => 0.03
+   * size, quantiles, and labels. The quantiles must be between 0.0 and 1.0.
+   * The error is a percentage and must be between 0.0 and 1.0.
    */
   def apply(
     name: String,
@@ -60,13 +76,4 @@ object Summary {
     tags: Label*
   ): Summary =
     apply(MetricKey.Summary(name, maxAge, maxSize, error, quantiles, Chunk.fromIterable(tags)))
-
-  /**
-   * A summary that does nothing.
-   */
-  val none: Summary =
-    new Summary {
-      def observe(value: Double, t: java.time.Instant): UIO[Any] =
-        ZIO.unit
-    }
 }

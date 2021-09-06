@@ -18,6 +18,7 @@ package zio.metrics
 
 import zio._
 import zio.internal.metrics._
+import zio.metrics.clients._
 
 /**
  * A `Histogram` is a metric representing a collection of numerical with the
@@ -30,14 +31,32 @@ import zio.internal.metrics._
 trait Histogram {
 
   /**
+   * The current sum and count of values in each bucket of the histogram.
+   */
+  def buckets: UIO[Chunk[(Double, Long)]]
+
+  /**
+   * The current count of values in the histogram.
+   */
+  def count: UIO[Long]
+
+  /**
    * Adds the specified value to the distribution of values represented by the
    * histogram.
    */
   def observe(value: Double): UIO[Any]
+
+  /**
+   * The current sum of values in the histogram.
+   */
+  def sum: UIO[Double]
 }
 
 object Histogram {
 
+  /**
+   * Constructs a histogram with the specified key.
+   */
   def apply(key: MetricKey.Histogram): Histogram =
     metricState.getHistogram(key)
 
@@ -47,13 +66,4 @@ object Histogram {
    */
   def apply(name: String, boundaries: Chunk[Double], tags: Label*): Histogram =
     apply(MetricKey.Histogram(name, boundaries, Chunk.fromIterable(tags)))
-
-  /**
-   * A histogram that does nothing.
-   */
-  val none: Histogram =
-    new Histogram {
-      def observe(value: Double): UIO[Any] =
-        ZIO.unit
-    }
 }

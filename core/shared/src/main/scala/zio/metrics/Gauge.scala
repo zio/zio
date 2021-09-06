@@ -19,6 +19,7 @@ package zio.metrics
 import zio._
 
 import zio.internal.metrics._
+import zio.metrics.clients._
 
 /**
  * A `Gauge` is a metric representing a single numerical value that may be set
@@ -30,14 +31,19 @@ import zio.internal.metrics._
 trait Gauge {
 
   /**
-   * Sets the counter to the specified value.
+   * Adjusts the gauge by the specified amount.
+   */
+  def adjust(value: Double): UIO[Any]
+
+  /**
+   * Sets the gauge to the specified value.
    */
   def set(value: Double): UIO[Any]
 
   /**
-   * Adjusts the counter by the specified amount.
+   * The current value of the gauge.
    */
-  def adjust(value: Double): UIO[Any]
+  def value: UIO[Double]
 }
 
 object Gauge {
@@ -54,15 +60,4 @@ object Gauge {
    */
   def apply(name: String, tags: Label*): Gauge =
     apply(MetricKey.Gauge(name, Chunk.fromIterable(tags)))
-
-  /**
-   * A guage that does nothing.
-   */
-  val none: Gauge =
-    new Gauge {
-      def set(value: Double): UIO[Any] =
-        ZIO.unit
-      def adjust(value: Double): UIO[Any] =
-        ZIO.unit
-    }
 }

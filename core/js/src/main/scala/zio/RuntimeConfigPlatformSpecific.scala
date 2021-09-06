@@ -18,7 +18,7 @@ package zio
 
 import zio.internal.stacktracer.{Tracer, ZTraceElement}
 import zio.internal.tracing.TracingConfig
-import zio.internal.{Tracing, ZLogger, ZMetrics}
+import zio.internal.{Tracing, ZLogger}
 
 import scala.concurrent.ExecutionContext
 import scala.scalajs.js.Dynamic.{global => jsglobal}
@@ -88,9 +88,6 @@ private[zio] trait RuntimeConfigPlatformSpecific {
         }
       }
 
-    val metrics: ZMetrics =
-      ZMetrics.default
-
     val reportFatal = (t: Throwable) => {
       t.printStackTrace()
       throw t
@@ -113,8 +110,7 @@ private[zio] trait RuntimeConfigPlatformSpecific {
       reportFailure,
       supervisor,
       enableCurrentFiber,
-      logger,
-      metrics
+      logger
     )
   }
 

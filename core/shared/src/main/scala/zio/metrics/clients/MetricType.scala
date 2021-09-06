@@ -1,7 +1,12 @@
-package zio.internal.metrics
+package zio.metrics.clients
 
 import zio._
 
+/**
+ * `MetricType` represents information about the state of a metric that is
+ * particular to a certain type of metric, such as a histogram as opposed to a
+ * counter.
+ */
 sealed trait MetricType
 
 object MetricType {

@@ -19,7 +19,7 @@ package zio
 import zio.internal.stacktracer.Tracer
 import zio.internal.stacktracer.impl.AkkaLineNumbersTracer
 import zio.internal.tracing.TracingConfig
-import zio.internal.{Blocking, Tracing, ZLogger, ZMetrics}
+import zio.internal.{Blocking, Tracing, ZLogger}
 
 import scala.concurrent.ExecutionContext
 
@@ -67,9 +67,6 @@ private[zio] trait RuntimeConfigPlatformSpecific {
     val logger: ZLogger[Unit] =
       ZLogger.defaultFormatter.logged(println(_))
 
-    val metrics: ZMetrics =
-      ZMetrics.default
-
     val reportFailure = (cause: Cause[Any]) => if (cause.isDie) java.lang.System.err.println(cause.prettyPrint)
 
     val reportFatal = (t: Throwable) => {
@@ -93,8 +90,7 @@ private[zio] trait RuntimeConfigPlatformSpecific {
       reportFailure,
       supervisor,
       false,
-      logger,
-      metrics
+      logger
     )
   }
 

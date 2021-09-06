@@ -19,6 +19,7 @@ package zio.metrics
 import zio._
 
 import zio.internal.metrics._
+import zio.metrics.clients._
 
 /**
  * A `Counter` is a metric representing a single numerical value that may be
@@ -28,6 +29,11 @@ import zio.internal.metrics._
  * the quantity of interest is the value as of a specific point in time.
  */
 trait Counter {
+
+  /**
+   * The current value of the counter.
+   */
+  def count: UIO[Double]
 
   /**
    * Increments the counter by the specified amount.
@@ -48,13 +54,4 @@ object Counter {
    */
   def apply(name: String, tags: Label*): Counter =
     apply(MetricKey.Counter(name, Chunk.fromIterable(tags)))
-
-  /**
-   * A counter that does nothing.
-   */
-  val none: Counter =
-    new Counter {
-      def increment(value: Double): UIO[Any] =
-        ZIO.unit
-    }
 }

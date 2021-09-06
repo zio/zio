@@ -14,11 +14,10 @@
  * limitations under the License.
  */
 
-package zio.internal.metrics
+package zio.metrics.clients
 
 import zio._
-
-import zio.internal.ZMetrics._
+import zio.metrics._
 
 /**
  * A `MetricKey` is a unique key associated with each metric. The key is based

@@ -1,8 +1,12 @@
-package zio.internal.metrics
+package zio.metrics.clients
 
 import zio._
-import zio.internal.ZMetrics._
+import zio.metrics._
 
+/**
+ * `MetricState` represents a snapshot of the current state of a metric as of
+ * a poiint in time.
+ */
 final case class MetricState(
   name: String,
   help: String,
@@ -17,9 +21,15 @@ final case class MetricState(
 
 object MetricState {
 
+  /**
+   * Constructs a snapshot of the state of a counter.
+   */
   def counter(key: MetricKey.Counter, help: String, value: Double): MetricState =
     MetricState(key.name, help, key.tags, MetricType.Counter(value))
 
+  /**
+   * Constructs a snapshot of the state of a gauge.
+   */
   def gauge(
     key: MetricKey.Gauge,
     help: String,
@@ -27,7 +37,10 @@ object MetricState {
   ): MetricState =
     MetricState(key.name, help, key.tags, MetricType.Gauge(startAt))
 
-  def doubleHistogram(
+  /**
+   * Constructs a snapshot of the state of a histogram.
+   */
+  def histogram(
     key: MetricKey.Histogram,
     help: String,
     buckets: Chunk[(Double, Long)],
@@ -41,6 +54,9 @@ object MetricState {
       MetricType.DoubleHistogram(buckets, count, sum)
     )
 
+  /**
+   * Constructs a snapshot of the state of a summary.
+   */
   def summary(
     key: MetricKey.Summary,
     help: String,
@@ -55,9 +71,13 @@ object MetricState {
       MetricType.Summary(key.error, quantiles, count, sum)
     )
 
+  /**
+   * Constructs a snapshot of the state of a set count..
+   */
   def setCount(
     key: MetricKey.SetCount,
     help: String,
     values: Chunk[(String, Long)]
-  ): MetricState = MetricState(key.name, help, key.tags, MetricType.SetCount(key.setTag, values))
+  ): MetricState =
+    MetricState(key.name, help, key.tags, MetricType.SetCount(key.setTag, values))
 }

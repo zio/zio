@@ -1,5 +1,7 @@
 package zio.internal.metrics
 
+import zio.metrics.clients._
+
 import java.util.concurrent.atomic.{AtomicReference, DoubleAdder}
 
 private sealed trait ConcurrentMetricState { self =>
@@ -13,7 +15,7 @@ private sealed trait ConcurrentMetricState { self =>
       case ConcurrentMetricState.Gauge(key, help, value) =>
         MetricState.gauge(key, help, value.get)
       case ConcurrentMetricState.Histogram(key, help, histogram) =>
-        MetricState.doubleHistogram(key, help, histogram.snapshot(), histogram.getCount(), histogram.getSum())
+        MetricState.histogram(key, help, histogram.snapshot(), histogram.getCount(), histogram.getSum())
       case ConcurrentMetricState.Summary(key, help, summary) =>
         MetricState.summary(
           key,
@@ -30,6 +32,8 @@ private sealed trait ConcurrentMetricState { self =>
 private object ConcurrentMetricState {
 
   final case class Counter(key: MetricKey.Counter, help: String, value: DoubleAdder) extends ConcurrentMetricState {
+    def count: Double =
+      value.doubleValue()
     def increment(v: Double): (Double, Double) = {
       value.add(v)
       (value.sum(), v)

@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.internal.{Tracing, ZLogger, ZMetrics}
+import zio.internal.{Tracing, ZLogger}
 
 /**
  * A `RuntimeConfig` provides the minimum capabilities necessary to bootstrap
@@ -31,8 +31,7 @@ final case class RuntimeConfig(
   reportFailure: Cause[Any] => Unit,
   supervisor: Supervisor[Any],
   enableCurrentFiber: Boolean,
-  logger: ZLogger[Any],
-  metrics: ZMetrics
+  logger: ZLogger[Any]
 ) { self =>
   def @@(aspect: RuntimeConfigAspect): RuntimeConfig = aspect(self)
 
@@ -57,4 +56,5 @@ final case class RuntimeConfig(
   @deprecated("2.0.0", "Use RuntimeConfig#copy instead")
   def withTracing(t: Tracing): RuntimeConfig = copy(tracing = t)
 }
+
 object RuntimeConfig extends RuntimeConfigPlatformSpecific
