@@ -230,7 +230,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
                 schedule.step(now, e, s).flatMap {
                   case (_, _, Done) => ZIO.fail(e)
                   case (state, _, Continue(interval)) =>
-                    Clock.sleep(Duration.fromInterval(now, interval)) as ((r, state))
+                    Clock.sleep(Duration.fromInterval(now, interval.start)) as ((r, state))
                 }
               )
               .provide(r)

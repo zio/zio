@@ -22,8 +22,7 @@
     "prismjs": "1.24.1",
     "react": "17.0.0",
     "react-dom": "17.0.0",
-    "remark-kroki-plugin": "0.1.1",
-    "tailwindcss": "^2.2.9"
+    "remark-kroki-plugin": "0.1.1"
   },
   "browserslist": {
     "production": [

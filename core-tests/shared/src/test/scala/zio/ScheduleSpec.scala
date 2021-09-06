@@ -308,7 +308,7 @@ object ScheduleSpec extends ZIOBaseSpec {
     suite("cron-like scheduling. Repeats at point of time (minute of hour, day of week, ...)")(
       test("recur at 01 second of each minute") {
         def toOffsetDateTime[T](in: (List[(OffsetDateTime, T)], Option[T])): List[OffsetDateTime] =
-          in._1.map(t => t._1.withNano(0))
+          in._1.map(t => t._1)
 
         val originOffset = OffsetDateTime.now().withMinute(0).withSecond(0).withNano(0)
 
@@ -322,7 +322,7 @@ object ScheduleSpec extends ZIOBaseSpec {
         assertM(runManually(Schedule.secondOfMinute(1), input).map(toOffsetDateTime)) {
           val expected          = originOffset.withSecond(1)
           val afterTimeExpected = expected.withMinute(expected.getMinute + 1)
-          equalTo(List(expected, afterTimeExpected, expected, afterTimeExpected))
+          equalTo(List(inTimeSecondNanosec, inTimeSecond, inTimeSecond, afterTimeExpected))
         }
       },
       test("throw IllegalArgumentException on invalid `second` argument of `secondOfMinute`") {
@@ -333,7 +333,7 @@ object ScheduleSpec extends ZIOBaseSpec {
       } @@ failing(diesWith(isSubtype[IllegalArgumentException](anything))),
       test("recur at 01 minute of each hour") {
         def toOffsetDateTime[T](in: (List[(OffsetDateTime, T)], Option[T])): List[OffsetDateTime] =
-          in._1.map(t => t._1.withNano(0))
+          in._1.map(t => t._1)
 
         val originOffset = OffsetDateTime.now().withHour(0).withSecond(0).withNano(0)
 
@@ -347,7 +347,7 @@ object ScheduleSpec extends ZIOBaseSpec {
         assertM(runManually(Schedule.minuteOfHour(1), input).map(toOffsetDateTime)) {
           val expected          = originOffset.withMinute(1)
           val afterTimeExpected = expected.withHour(expected.getHour + 1)
-          equalTo(List(expected, afterTimeExpected, expected, afterTimeExpected))
+          equalTo(List(inTimeMinuteNanosec, inTimeMinute, inTimeMinute, afterTimeExpected))
         }
       },
       test("throw IllegalArgumentException on invalid `minute` argument of `minuteOfHour`") {
@@ -374,7 +374,7 @@ object ScheduleSpec extends ZIOBaseSpec {
         assertM(runManually(Schedule.hourOfDay(1), input).map(toOffsetDateTime)) {
           val expected          = originOffset.withHour(1)
           val afterTimeExpected = expected.withDayOfYear(expected.getDayOfYear + 1)
-          equalTo(List(expected, afterTimeExpected, expected, afterTimeExpected))
+          equalTo(List(inTimeHourSecond, inTimeHour, inTimeHour, afterTimeExpected))
         }
       },
       test("throw IllegalArgumentException on invalid `hour` argument of `hourOfDay`") {
@@ -401,7 +401,7 @@ object ScheduleSpec extends ZIOBaseSpec {
         assertM(runManually(Schedule.dayOfWeek(2), input).map(toOffsetDateTime)) {
           val expectedTuesday = originOffset.`with`(ChronoField.DAY_OF_WEEK, 2)
           val nextTuesday     = expectedTuesday.plusDays(7).`with`(ChronoField.DAY_OF_WEEK, 2)
-          equalTo(List(expectedTuesday, nextTuesday, expectedTuesday, nextTuesday))
+          equalTo(List(tuesdayHour, tuesday, tuesday, nextTuesday))
         }
       },
       test("throw IllegalArgumentException on invalid `day` argument of `dayOfWeek`") {
@@ -428,11 +428,9 @@ object ScheduleSpec extends ZIOBaseSpec {
         val input = List(inTimeDate1, inTimeDate2, before, after).map((_, ()))
 
         assertM(runManually(Schedule.dayOfMonth(2), input).map(toOffsetDateTime)) {
-          val expectedFirstInTime  = originOffset.withDayOfMonth(2)
-          val expectedSecondInTime = expectedFirstInTime.plusMonths(1)
-          val expectedBefore       = originOffset.withDayOfMonth(2)
-          val expectedAfter        = originOffset.withDayOfMonth(2).plusMonths(1)
-          equalTo(List(expectedFirstInTime, expectedSecondInTime, expectedBefore, expectedAfter))
+          val expectedBefore = originOffset.withDayOfMonth(2)
+          val expectedAfter  = originOffset.withDayOfMonth(2).plusMonths(1)
+          equalTo(List(inTimeDate1, inTimeDate2, expectedBefore, expectedAfter))
         }
       },
       test("recur only in months containing valid number of days") {
@@ -579,13 +577,28 @@ object ScheduleSpec extends ZIOBaseSpec {
       ),
       suite("repetitions")(
         test("count")(checkRepetitions(Schedule.count)),
+        test("dayOfMonth")(checkRepetitions(Schedule.dayOfMonth(1))),
+        test("dayOfWeek")(checkRepetitions(Schedule.dayOfWeek(1))),
         test("fixed")(checkRepetitions(Schedule.fixed(1.second))),
         test("forever")(checkRepetitions(Schedule.forever)),
+        test("hourOfDay")(checkRepetitions(Schedule.hourOfDay(1))),
+        test("minuteOfHour")(checkRepetitions(Schedule.minuteOfHour(1))),
         test("recurs")(checkRepetitions(Schedule.forever)),
+        test("secondOfMinute")(checkRepetitions(Schedule.secondOfMinute(1))),
         test("spaced")(checkRepetitions(Schedule.spaced(1.second))),
         test("windowed")(checkRepetitions(Schedule.windowed(1.second)))
       )
-    )
+    ),
+    test("intersection of schedules recurring in bounded intervals") {
+      val schedule: Schedule[Any, Any, (Long, Long)] = Schedule.hourOfDay(4) && Schedule.minuteOfHour(20)
+      for {
+        now    <- ZIO.succeed(OffsetDateTime.now)
+        in      = Chunk(1, 2, 3, 4, 5)
+        delays <- schedule.delays.run(now, in)
+        actual  = delays.scanLeft(now)((now, delay) => now.plus(delay)).tail
+      } yield assert(actual.map(_.getHour))(forall(equalTo(4))) &&
+        assert(actual.map(_.getMinute))(forall(equalTo(20)))
+    }
   )
 
   def checkDelays[Env](schedule: Schedule[Env, Any, Duration]): URIO[Env, TestResult] =
@@ -660,7 +673,7 @@ object ScheduleSpec extends ZIOBaseSpec {
           schedule.step(odt, in, state) flatMap {
             case (state, out, Schedule.Decision.Done) => UIO.succeed(acc.reverse -> Some(out))
             case (state, out, Schedule.Decision.Continue(interval)) =>
-              loop(state, rest, (interval -> out) :: acc)
+              loop(state, rest, (interval.start -> out) :: acc)
           }
       }
 

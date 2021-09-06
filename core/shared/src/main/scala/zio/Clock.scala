@@ -46,7 +46,7 @@ trait Clock extends Serializable {
           v <- dec match {
                  case (state, out, Done) => ref.set((Some(out), state)) *> ZIO.fail(None)
                  case (state, out, Continue(interval)) =>
-                   ref.set((Some(out), state)) *> sleep(Duration.fromInterval(now, interval)) as out
+                   ref.set((Some(out), state)) *> sleep(Duration.fromInterval(now, interval.start)) as out
                }
         } yield v
 

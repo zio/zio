@@ -104,8 +104,9 @@ module.exports = {
     },
   },
   stylesheets: [
-    // see https://atelierbram.github.io/syntax-highlighting/prism/ for examples / customising
+    // The generated tailwind stylesheet, needs t be regenerated whenever the tailwind.config.js changes 
     '/css/custom.css',
+    // see https://atelierbram.github.io/syntax-highlighting/prism/ for examples / customizing
     //'/css/prism/prism-atom-dark.css'
     '/css/prism/prism-material-dark.css'
   ],
