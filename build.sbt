@@ -557,6 +557,8 @@ lazy val docs = project.module
     scalacOptions -= "-Xfatal-warnings",
     scalacOptions ~= { _ filterNot (_ startsWith "-Ywarn") },
     scalacOptions ~= { _ filterNot (_ startsWith "-Xlint") },
+    mdocIn := (LocalRootProject / baseDirectory).value / "docs",
+    mdocOut := (LocalRootProject / baseDirectory).value / "website" / "docs",
     libraryDependencies ++= Seq(
       "commons-io"          % "commons-io"                % "2.11.0" % "provided",
       "io.7mind.izumi"     %% "distage-core"              % "1.0.8",
