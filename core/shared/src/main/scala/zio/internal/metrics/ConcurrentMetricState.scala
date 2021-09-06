@@ -4,7 +4,7 @@ import zio.metrics.clients._
 
 import java.util.concurrent.atomic.{AtomicReference, DoubleAdder}
 
-private sealed trait ConcurrentMetricState { self =>
+private[zio] sealed trait ConcurrentMetricState { self =>
   def key: MetricKey
   def help: String
 
@@ -29,7 +29,7 @@ private sealed trait ConcurrentMetricState { self =>
     }
 }
 
-private object ConcurrentMetricState {
+private[zio] object ConcurrentMetricState {
 
   final case class Counter(key: MetricKey.Counter, help: String, value: DoubleAdder) extends ConcurrentMetricState {
     def count: Double =
