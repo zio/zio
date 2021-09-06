@@ -108,7 +108,7 @@ function Home() {
           <img className={styles.headerImage} src="/img/jumbotron_pattern.png" alt={`${siteConfig.title}`} />
           <div className={styles.headerDetailContainer}>
             <p className={styles.headerTagline}>{siteConfig.tagline}</p>
-            <div class={`container ${styles.headerButtonContainer}`}>
+            <div className={styles.headerButtonContainer}>
               <Link
                 className={`${styles.headerButton}`}
                 to={useBaseUrl('/getting_started')}>
@@ -116,8 +116,8 @@ function Home() {
               </Link>
             </div>
           </div>
-        </div>
-      </header>
+        </div >
+      </header >
       <main>
         {features && features.length > 0 && (
           <section className={styles.featureSection}>

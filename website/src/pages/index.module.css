@@ -13,15 +13,15 @@
   width: 100%;
   top: 50%;
   left: 0%;
-  margin: 0.5rem auto;
 }
 
 .headerButtonContainer { 
-  margin: auto;
   width: fit-content;
+  margin: auto;
 }
 
 .headerButton {
+  display: inline-block;
   color: white;
   border: white;
   border-width: 1px;
@@ -29,6 +29,7 @@
   padding: 0.5rem;
   border-radius: 0.5rem;
   text-align: center;
+  margin: 1rem auto;
 }
 
 .headerButton:hover {
