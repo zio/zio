@@ -90,7 +90,8 @@
   margin: auto;
 }
 
-.sponsorImage { 
+.sponsorImage {
+  display: block; 
   margin: auto;
   object-fit: contain;
 }
