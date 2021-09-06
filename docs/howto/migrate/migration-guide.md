@@ -1360,3 +1360,21 @@ object MyApp extends ZIOApp {
     } yield ()
 }
 ```
+
+### Compositional Specs
+
+In ZIO 1.x, we cannot compose specs directly, although if we can combine all children's specs via the suite itself:
+
+```scala mdoc:silent:nest
+val fooSuite = suite("Foo")(???)
+val barSuite = suite("Bar")(???)
+val bazSuite = suite("Baz")(???)
+
+val bigSuite = suite("big suite")(fooSuite, barSuite, bazSuite)
+```
+
+Now in ZIO 2.x, we can compose two suites using _binary composition operator_ without having to unnecessarily nest them inside another suite just for purpose of composition:
+
+```scala mdoc:silent:nest
+val bigSuite = fooSute + barSuite + bazSuite
+```
