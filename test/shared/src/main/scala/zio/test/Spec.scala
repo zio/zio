@@ -383,10 +383,10 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
       case ExecCase(exec, spec)     => Spec.exec(exec, spec.provideLayerShared(layer))
       case LabeledCase(label, spec) => Spec.labeled(label, spec.provideLayerShared(layer))
       case ManagedCase(managed) =>
-        Spec.managed(layer.memoize.flatMap(layer => managed.map(_.provideLayer(layer)).provideLayer(layer)))
+        Spec.managed(layer.build.flatMap(r => managed.map(_.provide(r)).provide(r)))
       case MultipleCase(specs) =>
         Spec.managed(
-          layer.memoize.map(layer => Spec.multiple(specs.map(_.provideLayer(layer))))
+          layer.build.map(r => Spec.multiple(specs.map(_.provide(r))))
         )
       case TestCase(test, annotations) => Spec.test(test.provideLayer(layer), annotations)
     }
@@ -598,10 +598,14 @@ object Spec {
         case ExecCase(exec, spec)     => Spec.exec(exec, spec.provideSomeLayerShared(layer))
         case LabeledCase(label, spec) => Spec.labeled(label, spec.provideSomeLayerShared(layer))
         case ManagedCase(managed) =>
-          Spec.managed(layer.memoize.flatMap(layer => managed.map(_.provideSomeLayer(layer)).provideSomeLayer(layer)))
+          Spec.managed(
+            layer.build.flatMap { r =>
+              managed.map(_.provideSomeLayer[R0](ZLayer.succeedMany(r))).provideSomeLayer[R0](ZLayer.succeedMany(r))
+            }
+          )
         case MultipleCase(specs) =>
           Spec.managed(
-            layer.memoize.map(layer => Spec.multiple(specs.map(_.provideSomeLayer(layer))))
+            layer.build.map(r => Spec.multiple(specs.map(_.provideSomeLayer[R0](ZLayer.succeedMany(r)))))
           )
         case TestCase(test, annotations) =>
           Spec.test(test.provideSomeLayer(layer), annotations)
