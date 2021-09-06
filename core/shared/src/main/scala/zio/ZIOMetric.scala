@@ -16,7 +16,6 @@
 
 package zio
 
-import zio._
 import zio.metrics._
 
 /**
