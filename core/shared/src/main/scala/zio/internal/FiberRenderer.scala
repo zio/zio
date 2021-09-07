@@ -18,7 +18,7 @@ package zio.internal
 
 import zio.Fiber.Dump
 import zio.Fiber.Status.{Done, Finishing, Running, Suspended}
-import zio.{Fiber, UIO, ZIO}
+import zio.{Fiber, FiberId, UIO, ZIO}
 
 private[zio] object FiberRenderer {
 
@@ -55,9 +55,7 @@ private[zio] object FiberRenderer {
       (s"${millis}ms")
     val waitMsg = dump.status match {
       case Suspended(_, _, _, blockingOn, _) =>
-        if (blockingOn.nonEmpty)
-          "waiting on " + blockingOn.map(id => s"#${id.seqNumber}").mkString(", ")
-        else ""
+        if (blockingOn ne FiberId.None) "waiting on " + s"#${blockingOn.seqNumber}" else ""
       case _ => ""
     }
     val statMsg = renderStatus(dump.status)

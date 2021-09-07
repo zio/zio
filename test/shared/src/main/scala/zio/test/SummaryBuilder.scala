@@ -17,6 +17,7 @@
 package zio.test
 
 import zio.Chunk
+import zio.test.render.ConsoleRenderer
 
 object SummaryBuilder {
   def buildSummary[E](executedSpec: ExecutedSpec[E]): Summary = {
@@ -30,9 +31,8 @@ object SummaryBuilder {
       case _                          => false
     }
     val failures = extractFailures(executedSpec)
-    val rendered = failures
-      .flatMap(DefaultTestReporter.render(_, TestAnnotationRenderer.silent, false))
-      .flatMap(_.rendered)
+    val rendered = ConsoleRenderer
+      .render(failures.flatMap(DefaultTestReporter.render(_, false)), TestAnnotationRenderer.silent)
       .mkString("\n")
     Summary(success, fail, ignore, rendered)
   }

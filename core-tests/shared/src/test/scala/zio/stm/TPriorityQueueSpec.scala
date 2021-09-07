@@ -1,9 +1,8 @@
 package zio.stm
 
-import zio.random.Random
 import zio.test.Assertion._
 import zio.test._
-import zio.{Chunk, ZIOBaseSpec}
+import zio.{Chunk, Has, Random, ZIOBaseSpec}
 
 object TPriorityQueueSpec extends ZIOBaseSpec {
 
@@ -12,20 +11,20 @@ object TPriorityQueueSpec extends ZIOBaseSpec {
   implicit val eventOrdering: Ordering[Event] =
     Ordering.by(_.time)
 
-  val genEvent: Gen[Random with Sized, Event] =
+  val genEvent: Gen[Has[Random] with Has[Sized], Event] =
     for {
       time        <- Gen.int(-10, 10)
       description <- Gen.alphaNumericString
     } yield Event(time, description)
 
-  val genEvents: Gen[Random with Sized, Chunk[Event]] =
+  val genEvents: Gen[Has[Random] with Has[Sized], Chunk[Event]] =
     Gen.chunkOf(genEvent)
 
-  val genPredicate: Gen[Random, Event => Boolean] =
+  val genPredicate: Gen[Has[Random], Event => Boolean] =
     Gen.function(Gen.boolean)
 
   def spec: ZSpec[Environment, Failure] = suite("TPriorityQueueSpec")(
-    testM("isEmpty") {
+    test("isEmpty") {
       checkM(genEvents) { as =>
         val transaction = for {
           queue <- TPriorityQueue.empty[Event]
@@ -35,7 +34,7 @@ object TPriorityQueueSpec extends ZIOBaseSpec {
         assertM(transaction.commit)(equalTo(as.isEmpty))
       }
     },
-    testM("nonEmpty") {
+    test("nonEmpty") {
       checkM(genEvents) { as =>
         val transaction = for {
           queue    <- TPriorityQueue.empty[Event]
@@ -45,7 +44,7 @@ object TPriorityQueueSpec extends ZIOBaseSpec {
         assertM(transaction.commit)(equalTo(as.nonEmpty))
       }
     },
-    testM("offerAll and takeAll") {
+    test("offerAll and takeAll") {
       checkM(genEvents) { as =>
         val transaction = for {
           queue  <- TPriorityQueue.empty[Event]
@@ -55,7 +54,7 @@ object TPriorityQueueSpec extends ZIOBaseSpec {
         assertM(transaction.commit)(hasSameElements(as) && isSorted)
       }
     },
-    testM("removeIf") {
+    test("removeIf") {
       checkM(genEvents, genPredicate) { (as, f) =>
         val transaction = for {
           queue <- TPriorityQueue.fromIterable(as)
@@ -65,7 +64,7 @@ object TPriorityQueueSpec extends ZIOBaseSpec {
         assertM(transaction.commit)(hasSameElements(as.filterNot(f)) && isSorted)
       }
     },
-    testM("retainIf") {
+    test("retainIf") {
       checkM(Gen.listOf(genEvent), genPredicate) { (as, f) =>
         val transaction = for {
           queue <- TPriorityQueue.fromIterable(as)
@@ -75,7 +74,7 @@ object TPriorityQueueSpec extends ZIOBaseSpec {
         assertM(transaction.commit)(hasSameElements(as.filter(f)) && isSorted)
       }
     },
-    testM("take") {
+    test("take") {
       checkM(genEvents) { as =>
         val transaction = for {
           queue <- TPriorityQueue.fromIterable(as)
@@ -84,7 +83,7 @@ object TPriorityQueueSpec extends ZIOBaseSpec {
         assertM(transaction.commit)(hasSameElements(as) && isSorted)
       }
     },
-    testM("takeUpTo") {
+    test("takeUpTo") {
       val gen = for {
         as <- genEvents
         n  <- Gen.int(0, as.length)
@@ -98,7 +97,7 @@ object TPriorityQueueSpec extends ZIOBaseSpec {
         assertM(transaction.commit)(hasSameElements(as) && isSorted)
       }
     },
-    testM("toChunk") {
+    test("toChunk") {
       checkM(genEvents) { as =>
         val transaction = for {
           queue <- TPriorityQueue.fromIterable(as)
@@ -107,7 +106,7 @@ object TPriorityQueueSpec extends ZIOBaseSpec {
         assertM(transaction.commit)(hasSameElements(as) && isSorted)
       }
     },
-    testM("toList") {
+    test("toList") {
       checkM(genEvents) { as =>
         val transaction = for {
           queue <- TPriorityQueue.fromIterable(as)
@@ -116,7 +115,7 @@ object TPriorityQueueSpec extends ZIOBaseSpec {
         assertM(transaction.commit)(hasSameElements(as) && isSorted)
       }
     },
-    testM("toVector") {
+    test("toVector") {
       checkM(genEvents) { as =>
         val transaction = for {
           queue <- TPriorityQueue.fromIterable(as)

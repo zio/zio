@@ -172,15 +172,15 @@ Resulting set in example above has only one element.
 
 Note that `transform` serves the same purpose as `map`. The reason for naming it differently was to emphasize a distinction in its nature. Namely, `transform` is destructive - calling it can modify the collection.
 
-The elements can be mapped effectfully via `transformM`:
+The elements can be mapped effectfully via `transformSTM`:
 
 ```scala mdoc:silent
 import zio._
 import zio.stm._
 
-val transformMTSet: UIO[TSet[Int]] = (for {
+val transformSTMTSet: UIO[TSet[Int]] = (for {
   tSet <- TSet.make(1, 2, 3, 4)
-  _    <- tSet.transformM(a => STM.succeed(a * a))
+  _    <- tSet.transformSTM(a => STM.succeed(a * a))
 } yield tSet).commit
 ```
 
@@ -196,15 +196,15 @@ val foldTSet: UIO[Int] = (for {
 } yield sum).commit
 ```
 
-The elements can be folded effectfully via `foldM`:
+The elements can be folded effectfully via `foldSTM`:
 
 ```scala mdoc:silent
 import zio._
 import zio.stm._
 
-val foldMTSet: UIO[Int] = (for {
+val foldSTMTSet: UIO[Int] = (for {
   tSet <- TSet.make(1, 2, 3, 4)
-  sum  <- tSet.foldM(0)((acc, el) => STM.succeed(acc + el))
+  sum  <- tSet.foldSTM(0)((acc, el) => STM.succeed(acc + el))
 } yield sum).commit
 ```
 

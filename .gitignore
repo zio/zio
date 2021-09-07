@@ -4,19 +4,30 @@ project/secrets.tar.xz
 target
 test-output/
 .sbtopts
+.bsp
 project/.sbt
 test-output/
 .bloop
 .metals
 metals.sbt
+*/metals.sbt
 .idea
 coursier
 .DS_Store
+metals.sbt
+project/metals.sbt
+project/project/metals.sbt
+sbt.json
+.bsp/
+project/project/
+*.iml
 
 # if you are here to add your IDE's files please read this instead:
 # https://stackoverflow.com/questions/7335420/global-git-ignore#22885996
 website/node_modules
+website/.docusaurus
 website/build
+website/docs
 website/i18n/en.json
 website/yarn.lock
 .bsp/

@@ -7,34 +7,34 @@ object ZRefSpec extends ZIOBaseSpec {
 
   def spec: ZSpec[Environment, Failure] = suite("ZRefSpec")(
     suite("Atomic")(
-      testM("get") {
+      test("get") {
         for {
           ref   <- Ref.make(current)
           value <- ref.get
         } yield assert(value)(equalTo(current))
       },
-      testM("getAndSet") {
+      test("getAndSet") {
         for {
           ref    <- Ref.make(current)
           value1 <- ref.getAndSet(update)
           value2 <- ref.get
         } yield assert(value1)(equalTo(current)) && assert(value2)(equalTo(update))
       },
-      testM("getAndUpdate") {
+      test("getAndUpdate") {
         for {
           ref    <- Ref.make(current)
           value1 <- ref.getAndUpdate(_ => update)
           value2 <- ref.get
         } yield assert(value1)(equalTo(current)) && assert(value2)(equalTo(update))
       },
-      testM("getAndUpdateSome") {
+      test("getAndUpdateSome") {
         for {
           ref    <- Ref.make[State](Active)
           value1 <- ref.getAndUpdateSome { case Closed => Changed }
           value2 <- ref.get
         } yield assert(value1)(equalTo(Active)) && assert(value2)(equalTo(Active))
       },
-      testM("getAndUpdateSome twice") {
+      test("getAndUpdateSome twice") {
         for {
           ref    <- Ref.make[State](Active)
           value1 <- ref.getAndUpdateSome { case Active => Changed }
@@ -45,20 +45,20 @@ object ZRefSpec extends ZIOBaseSpec {
           value3 <- ref.get
         } yield assert(value1)(equalTo(Active)) && assert(value2)(equalTo(Changed)) && assert(value3)(equalTo(Closed))
       },
-      testM("modify") {
+      test("modify") {
         for {
           ref   <- Ref.make(current)
           r     <- ref.modify(_ => ("hello", update))
           value <- ref.get
         } yield assert(r)(equalTo("hello")) && assert(value)(equalTo(update))
       },
-      testM("modifySome") {
+      test("modifySome") {
         for {
           ref   <- Ref.make[State](Active)
           value <- ref.modifySome("State doesn't change") { case Closed => ("active", Active) }
         } yield assert(value)(equalTo("State doesn't change"))
       },
-      testM("modifySome twice") {
+      test("modifySome twice") {
         for {
           ref    <- Ref.make[State](Active)
           value1 <- ref.modifySome("doesn't change the state") { case Active => ("changed", Changed) }
@@ -68,37 +68,37 @@ object ZRefSpec extends ZIOBaseSpec {
                     }
         } yield assert(value1)(equalTo("changed")) && assert(value2)(equalTo("closed"))
       },
-      testM("set") {
+      test("set") {
         for {
           ref   <- Ref.make(current)
           _     <- ref.set(update)
           value <- ref.get
         } yield assert(value)(equalTo(update))
       },
-      testM("toString") {
+      test("toString") {
         assertM(Ref.make(42).map(_.toString))(equalTo("Ref(42)"))
       },
-      testM("update") {
+      test("update") {
         for {
           ref   <- Ref.make(current)
           _     <- ref.update(_ => update)
           value <- ref.get
         } yield assert(value)(equalTo(update))
       },
-      testM("updateAndGet") {
+      test("updateAndGet") {
         for {
           ref   <- Ref.make(current)
           value <- ref.updateAndGet(_ => update)
         } yield assert(value)(equalTo(update))
       },
-      testM("updateSome") {
+      test("updateSome") {
         for {
           ref   <- Ref.make[State](Active)
           _     <- ref.updateSome { case Closed => Changed }
           value <- ref.get
         } yield assert(value)(equalTo(Active))
       },
-      testM("updateSome twice") {
+      test("updateSome twice") {
         for {
           ref    <- Ref.make[State](Active)
           _      <- ref.updateSome { case Active => Changed }
@@ -110,13 +110,13 @@ object ZRefSpec extends ZIOBaseSpec {
           value2 <- ref.get
         } yield assert(value1)(equalTo(Changed)) && assert(value2)(equalTo(Closed))
       },
-      testM("updateSomeAndGet") {
+      test("updateSomeAndGet") {
         for {
           ref   <- Ref.make[State](Active)
           value <- ref.updateSomeAndGet { case Closed => Changed }
         } yield assert(value)(equalTo(Active))
       },
-      testM("updateSomeAndGet twice") {
+      test("updateSomeAndGet twice") {
         for {
           ref    <- Ref.make[State](Active)
           value1 <- ref.updateSomeAndGet { case Active => Changed }
@@ -128,41 +128,41 @@ object ZRefSpec extends ZIOBaseSpec {
       }
     ),
     suite("Derived")(
-      testM("atomicity") {
+      test("atomicity") {
         for {
           ref   <- Derived.make(0)
           _     <- ZIO.collectAllPar(ZIO.replicate(100)(ref.update(_ + 1)))
           value <- ref.get
         } yield assert(value)(equalTo(100))
       },
-      testM("get") {
+      test("get") {
         for {
           ref   <- Derived.make(current)
           value <- ref.get
         } yield assert(value)(equalTo(current))
       },
-      testM("getAndSet") {
+      test("getAndSet") {
         for {
           ref    <- Derived.make(current)
           value1 <- ref.getAndSet(update)
           value2 <- ref.get
         } yield assert(value1)(equalTo(current)) && assert(value2)(equalTo(update))
       },
-      testM("getAndUpdate") {
+      test("getAndUpdate") {
         for {
           ref    <- Derived.make(current)
           value1 <- ref.getAndUpdate(_ => update)
           value2 <- ref.get
         } yield assert(value1)(equalTo(current)) && assert(value2)(equalTo(update))
       },
-      testM("getAndUpdateSome") {
+      test("getAndUpdateSome") {
         for {
           ref    <- Derived.make[State](Active)
           value1 <- ref.getAndUpdateSome { case Closed => Changed }
           value2 <- ref.get
         } yield assert(value1)(equalTo(Active)) && assert(value2)(equalTo(Active))
       },
-      testM("getAndUpdateSome twice") {
+      test("getAndUpdateSome twice") {
         for {
           ref    <- Derived.make[State](Active)
           value1 <- ref.getAndUpdateSome { case Active => Changed }
@@ -173,20 +173,20 @@ object ZRefSpec extends ZIOBaseSpec {
           value3 <- ref.get
         } yield assert(value1)(equalTo(Active)) && assert(value2)(equalTo(Changed)) && assert(value3)(equalTo(Closed))
       },
-      testM("modify") {
+      test("modify") {
         for {
           ref   <- Derived.make(current)
           r     <- ref.modify(_ => ("hello", update))
           value <- ref.get
         } yield assert(r)(equalTo("hello")) && assert(value)(equalTo(update))
       },
-      testM("modifySome") {
+      test("modifySome") {
         for {
           ref   <- Derived.make[State](Active)
           value <- ref.modifySome("State doesn't change") { case Closed => ("active", Active) }
         } yield assert(value)(equalTo("State doesn't change"))
       },
-      testM("modifySome twice") {
+      test("modifySome twice") {
         for {
           ref    <- Derived.make[State](Active)
           value1 <- ref.modifySome("doesn't change the state") { case Active => ("changed", Changed) }
@@ -196,34 +196,34 @@ object ZRefSpec extends ZIOBaseSpec {
                     }
         } yield assert(value1)(equalTo("changed")) && assert(value2)(equalTo("closed"))
       },
-      testM("set") {
+      test("set") {
         for {
           ref   <- Derived.make(current)
           _     <- ref.set(update)
           value <- ref.get
         } yield assert(value)(equalTo(update))
       },
-      testM("update") {
+      test("update") {
         for {
           ref   <- Derived.make(current)
           _     <- ref.update(_ => update)
           value <- ref.get
         } yield assert(value)(equalTo(update))
       },
-      testM("updateAndGet") {
+      test("updateAndGet") {
         for {
           ref   <- Derived.make(current)
           value <- ref.updateAndGet(_ => update)
         } yield assert(value)(equalTo(update))
       },
-      testM("updateSome") {
+      test("updateSome") {
         for {
           ref   <- Derived.make[State](Active)
           _     <- ref.updateSome { case Closed => Changed }
           value <- ref.get
         } yield assert(value)(equalTo(Active))
       },
-      testM("updateSome twice") {
+      test("updateSome twice") {
         for {
           ref    <- Derived.make[State](Active)
           _      <- ref.updateSome { case Active => Changed }
@@ -235,13 +235,13 @@ object ZRefSpec extends ZIOBaseSpec {
           value2 <- ref.get
         } yield assert(value1)(equalTo(Changed)) && assert(value2)(equalTo(Closed))
       },
-      testM("updateSomeAndGet") {
+      test("updateSomeAndGet") {
         for {
           ref   <- Derived.make[State](Active)
           value <- ref.updateSomeAndGet { case Closed => Changed }
         } yield assert(value)(equalTo(Active))
       },
-      testM("updateSomeAndGet twice") {
+      test("updateSomeAndGet twice") {
         for {
           ref    <- Derived.make[State](Active)
           value1 <- ref.updateSomeAndGet { case Active => Changed }
@@ -253,41 +253,41 @@ object ZRefSpec extends ZIOBaseSpec {
       }
     ),
     suite("DerivedAll")(
-      testM("atomicity") {
+      test("atomicity") {
         for {
           ref   <- DerivedAll.make(0)
           _     <- ZIO.collectAllPar(ZIO.replicate(100)(ref.update(_ + 1)))
           value <- ref.get
         } yield assert(value)(equalTo(100))
       },
-      testM("get") {
+      test("get") {
         for {
           ref   <- DerivedAll.make(current)
           value <- ref.get
         } yield assert(value)(equalTo(current))
       },
-      testM("getAndSet") {
+      test("getAndSet") {
         for {
           ref    <- DerivedAll.make(current)
           value1 <- ref.getAndSet(update)
           value2 <- ref.get
         } yield assert(value1)(equalTo(current)) && assert(value2)(equalTo(update))
       },
-      testM("getAndUpdate") {
+      test("getAndUpdate") {
         for {
           ref    <- DerivedAll.make(current)
           value1 <- ref.getAndUpdate(_ => update)
           value2 <- ref.get
         } yield assert(value1)(equalTo(current)) && assert(value2)(equalTo(update))
       },
-      testM("getAndUpdateSome") {
+      test("getAndUpdateSome") {
         for {
           ref    <- DerivedAll.make[State](Active)
           value1 <- ref.getAndUpdateSome { case Closed => Changed }
           value2 <- ref.get
         } yield assert(value1)(equalTo(Active)) && assert(value2)(equalTo(Active))
       },
-      testM("getAndUpdateSome twice") {
+      test("getAndUpdateSome twice") {
         for {
           ref    <- DerivedAll.make[State](Active)
           value1 <- ref.getAndUpdateSome { case Active => Changed }
@@ -298,20 +298,20 @@ object ZRefSpec extends ZIOBaseSpec {
           value3 <- ref.get
         } yield assert(value1)(equalTo(Active)) && assert(value2)(equalTo(Changed)) && assert(value3)(equalTo(Closed))
       },
-      testM("modify") {
+      test("modify") {
         for {
           ref   <- DerivedAll.make(current)
           r     <- ref.modify(_ => ("hello", update))
           value <- ref.get
         } yield assert(r)(equalTo("hello")) && assert(value)(equalTo(update))
       },
-      testM("modifySome") {
+      test("modifySome") {
         for {
           ref   <- DerivedAll.make[State](Active)
           value <- ref.modifySome("State doesn't change") { case Closed => ("active", Active) }
         } yield assert(value)(equalTo("State doesn't change"))
       },
-      testM("modifySome twice") {
+      test("modifySome twice") {
         for {
           ref    <- DerivedAll.make[State](Active)
           value1 <- ref.modifySome("doesn't change the state") { case Active => ("changed", Changed) }
@@ -321,34 +321,34 @@ object ZRefSpec extends ZIOBaseSpec {
                     }
         } yield assert(value1)(equalTo("changed")) && assert(value2)(equalTo("closed"))
       },
-      testM("set") {
+      test("set") {
         for {
           ref   <- DerivedAll.make(current)
           _     <- ref.set(update)
           value <- ref.get
         } yield assert(value)(equalTo(update))
       },
-      testM("update") {
+      test("update") {
         for {
           ref   <- DerivedAll.make(current)
           _     <- ref.update(_ => update)
           value <- ref.get
         } yield assert(value)(equalTo(update))
       },
-      testM("updateAndGet") {
+      test("updateAndGet") {
         for {
           ref   <- DerivedAll.make(current)
           value <- ref.updateAndGet(_ => update)
         } yield assert(value)(equalTo(update))
       },
-      testM("updateSome") {
+      test("updateSome") {
         for {
           ref   <- DerivedAll.make[State](Active)
           _     <- ref.updateSome { case Closed => Changed }
           value <- ref.get
         } yield assert(value)(equalTo(Active))
       },
-      testM("updateSome twice") {
+      test("updateSome twice") {
         for {
           ref    <- DerivedAll.make[State](Active)
           _      <- ref.updateSome { case Active => Changed }
@@ -360,13 +360,13 @@ object ZRefSpec extends ZIOBaseSpec {
           value2 <- ref.get
         } yield assert(value1)(equalTo(Changed)) && assert(value2)(equalTo(Closed))
       },
-      testM("updateSomeAndGet") {
+      test("updateSomeAndGet") {
         for {
           ref   <- DerivedAll.make[State](Active)
           value <- ref.updateSomeAndGet { case Closed => Changed }
         } yield assert(value)(equalTo(Active))
       },
-      testM("updateSomeAndGet twice") {
+      test("updateSomeAndGet twice") {
         for {
           ref    <- DerivedAll.make[State](Active)
           value1 <- ref.updateSomeAndGet { case Active => Changed }
@@ -378,7 +378,7 @@ object ZRefSpec extends ZIOBaseSpec {
       }
     ),
     suite("combinators")(
-      testM("readOnly") {
+      test("readOnly") {
         for {
           ref     <- Ref.make(current)
           readOnly = ref.readOnly
@@ -386,7 +386,7 @@ object ZRefSpec extends ZIOBaseSpec {
           value   <- readOnly.get
         } yield assert(value)(equalTo(update))
       },
-      testM("writeOnly") {
+      test("writeOnly") {
         for {
           ref      <- Ref.make(current)
           writeOnly = ref.writeOnly

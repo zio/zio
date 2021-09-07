@@ -42,16 +42,14 @@ In the following example, we are going to run sleep and printing on a separate f
 
 ```scala mdoc:silent
 import zio._
-import zio.console._
-import zio.clock._
-import zio.duration._
+import zio.Console._
 for {
-  fiber <- (sleep(3.seconds) *>
-    putStrLn("Hello, after 3 second") *>
+  fiber <- (ZIO.sleep(3.seconds) *>
+    printLine("Hello, after 3 second") *>
     ZIO.succeed(10)).fork
-  _ <- putStrLn(s"Hello, World!")
+  _ <- printLine(s"Hello, World!")
   res <- fiber.join
-  _ <- putStrLn(s"Our fiber succeeded with $res")
+  _ <- printLine(s"Our fiber succeeded with $res")
 } yield ()
 ```
 
@@ -65,18 +63,18 @@ The `ZIO#forkDaemon` forks the effect into a new fiber **attached to the global 
 In the following example, we have three effects: `inner`, `outer`, and `mainApp`. The outer effect is forking the `inner` effect using `ZIO#forkDaemon`. The `mainApp` effect is forking the `inner` fiber using `ZIO#fork` method and interrupt it after 3 seconds. Since the `inner` effect is forked in global scope, it will not be interrupted and continue its job:
 
 ```scala mdoc:silent:nest
-val inner = putStrLn("Inner job is running.")
+val inner = printLine("Inner job is running.")
   .delay(1.seconds)
   .forever
-  .onInterrupt(putStrLn("Inner job interrupted.").orDie)
+  .onInterrupt(printLine("Inner job interrupted.").orDie)
 
 val outer = (
   for {
     f <- inner.forkDaemon
-    _ <- putStrLn("Outer job is running.").delay(1.seconds).forever
+    _ <- printLine("Outer job is running.").delay(1.seconds).forever
     _ <- f.join
   } yield ()
-).onInterrupt(putStrLn("Outer job interrupted.").orDie)
+).onInterrupt(printLine("Outer job interrupted.").orDie)
 
 val myApp = for {
   fiber <- outer.fork
@@ -92,15 +90,15 @@ Whenever we want to get rid of our fiber, we can simply call interrupt on that. 
 To inspect whether our fiber succeeded or failed, we can call `await` on fiber. if we call `await` it will wait for that fiber to terminate, and it will give us back the fiber's value as an `Exit`. That exit value could be failure or success. 
 
 ```scala mdoc:silent
-import zio.console._
-import zio.random._
+import zio.Console._
+
 for {
-  b <- nextBoolean
+  b <- Random.nextBoolean
   fiber <- (if (b) ZIO.succeed(10) else ZIO.fail("The boolean was not true")).fork
   exitValue <- fiber.await
   _ <- exitValue match {
-    case Exit.Success(value) => putStrLn(s"Fiber succeeded with $value")
-    case Exit.Failure(cause) => putStrLn(s"Fiber failed")
+    case Exit.Success(value) => printLine(s"Fiber succeeded with $value")
+    case Exit.Failure(cause) => printLine(s"Fiber failed")
   }
 } yield ()
 ```
@@ -174,8 +172,7 @@ Separately from errors of type `E`, a fiber may be terminated for the following 
 * **The fiber has a defect that leads to a non-recoverable error**. There are only two ways this can happen:
 
      1. A partial function is passed to a higher-order function such as `map` or `flatMap`. For example, `io.map(_ => throw e)`, or `io.flatMap(a => throw e)`. The solution to this problem is to not to pass impure functions to purely functional libraries like ZIO, because doing so leads to violations of laws and destruction of equational reasoning.
-     
-     2. Error-throwing code was embedded into some value via `IO.effectTotal`, etc. For importing partial effects into `IO`, the proper solution is to use a method such as `IO.effect`, which safely translates exceptions into values.
+     2. Error-throwing code was embedded into some value via `IO.succeed`, etc. For importing partial effects into `IO`, the proper solution is to use a method such as `IO.attempt`, which safely translates exceptions into values.
 
 When a fiber is terminated, the reason for the termination, expressed as a `Throwable`, is passed to the fiber's supervisor, which may choose to log, print the stack trace, restart the fiber, or perform some other action appropriate to the context.
 
@@ -195,8 +192,8 @@ All fibers are interruptible by default. To make an effect uninterruptible we ca
 
 ```scala mdoc:silent:nest
 for {
-  fiber <- clock.currentDateTime
-    .flatMap(time => putStrLn(time.toString))
+  fiber <- Clock.currentDateTime
+    .flatMap(time => printLine(time))
     .schedule(Schedule.fixed(1.seconds))
     .uninterruptible
     .fork
@@ -212,16 +209,16 @@ When a fiber done its work or even interrupted, the finalizer of that fiber is g
 
 ```scala mdoc:silent:nest
 for {
-  fiber <- putStrLn("Working on the first job")
+  fiber <- printLine("Working on the first job")
     .schedule(Schedule.fixed(1.seconds))
     .ensuring {
-      (putStrLn(
+      (printLine(
         "Finalizing or releasing a resource that is time-consuming"
       ) *> ZIO.sleep(7.seconds)).orDie
     }
     .fork
   _     <- fiber.interrupt.delay(4.seconds)
-  _     <- putStrLn(
+  _     <- printLine(
           "Starting another task when the interruption of the previous task finished"
         )
 } yield ()
@@ -237,16 +234,16 @@ Let's try the `Fiber#interruptFork`:
 
 ```scala mdoc:silent:nest
 for {
-  fiber <- putStrLn("Working on the first job")
+  fiber <- printLine("Working on the first job")
     .schedule(Schedule.fixed(1.seconds))
     .ensuring {
-      (putStrLn(
+      (printLine(
         "Finalizing or releasing a resource that is time-consuming"
       ) *> ZIO.sleep(7.seconds)).orDie
     }
     .fork
   _ <- fiber.interruptFork.delay(4.seconds) // fast interruption
-  _ <- putStrLn(
+  _ <- printLine(
     "Starting another task while interruption of the previous fiber happening in the background"
   )
 } yield ()
@@ -276,12 +273,12 @@ We can join an interrupted fiber, which will cause our fiber to become interrupt
 val myApp =
   (
     for {
-      fiber <- putStrLn("Running a job").delay(1.seconds).forever.fork
+      fiber <- printLine("Running a job").delay(1.seconds).forever.fork
       _     <- fiber.interrupt.delay(3.seconds)
       _     <- fiber.join // Joining an interrupted fiber
     } yield ()
   ).ensuring(
-    putStrLn(
+    printLine(
       "This finalizer will be executed without occurring any deadlock"
     ).orDie
   )
@@ -309,7 +306,7 @@ What we refer to as CPU Work is pure computational firepower without involving a
 
 Fibers are designed to be **cooperative** which means that **they will yield to each other as required to preserve some level of fairness**. If we have a fiber that's is doing CPU Work which passes through one or more ZIO operations such as flatMap or map, as long as there exists a touchpoint where the ZIO runtime system can sort of keep a tab on that ongoing CPU Work then that fiber will yield to other fibers. These touchpoints allow many fibers who are doing CPU Work to end up sharing the same thread.
 
-What if though, we have a CPU Work operation that takes a really long time to run? Let's say 30 seconds or something it does pure CPU Work very computationally intensive? What happens if we take that single gigantic function and put that into a `ZIO.effect`? So there is no way for the ZIO Runtime that can force that fiber to yield to other fibers. In this situation, the ZIO Runtime cannot preserve some level of fairness, and that single big CPU operation monopolizes the underlying thread. It is not a good practice to monopolize the underlying thread.
+What if though, we have a CPU Work operation that takes a really long time to run? Let's say 30 seconds or something it does pure CPU Work very computationally intensive? What happens if we take that single gigantic function and put that into a `ZIO.attempt`? So there is no way for the ZIO Runtime that can force that fiber to yield to other fibers. In this situation, the ZIO Runtime cannot preserve some level of fairness, and that single big CPU operation monopolizes the underlying thread. It is not a good practice to monopolize the underlying thread.
 
 ZIO has a special thread pool that can be used to do these computations. That's the **blocking thread pool**. There is a `ZIO.blocking._` package that contains an operator called `blocking`, which can be used to run a big CPU Work on a dedicated thread. So, it doesn't interfere with all the other work that is going on simultaneously in the ZIO Runtime system.
 
@@ -379,7 +376,7 @@ Similarly in ZIO we never see a callback with ZIO, but fundamentally everything 
 
 With ZIO, we do not have to think about a callback nonetheless sometimes when we need to integrate with legacy code. ZIO has an appropriate constructor to turn that ugly callback-based API into a ZIO effect. It is the `async` constructor.
 
-Every time we do one of ZIO blocking operations it doesn't actually block the underlying thread, but also it is a semantic blocking managed by ZIO. For example, every time we see something like `ZIO.sleep` or when we take something from a queue (`queue.take`) or offer something to a queue (`queue.offer`) or if we acquire a permit from a semaphore (`semaphore.withPermit`) or if we acquire a lock (`ZIO.lock`) and so forth, we are blocking semantically. If we use the same stuff in Java, like `Thread.sleep` or any of its `lock` machinery then those things are going to block a thread. So this is why we say ZIO is 100% blocking but the Java thread is not.
+Every time we do one of ZIO blocking operations it doesn't actually block the underlying thread, but also it is a semantic blocking managed by ZIO. For example, every time we see something like `ZIO.sleep` or when we take something from a queue (`queue.take`) or offer something to a queue (`queue.offer`) or if we acquire a permit from a semaphore (`semaphore.withPermit`) and so forth, we are blocking semantically. If we use the same stuff in Java, like `Thread.sleep` or any of its `lock` machinery then those things are going to block a thread. So this is why we say ZIO is 100% blocking but the Java thread is not.
 
 All of the pieces of machinery ZIO gives us are 100% asynchronous and non-blocking. As they don't block and monopolize the thread, all of the async work is executed on the primary thread pool in ZIO.
 

@@ -23,13 +23,7 @@ You can also use methods in the companion objects of the `ZIO` type aliases:
 val s2: Task[Int] = Task.succeed(42)
 ```
 
-The `succeed` method takes a by-name parameter to make sure that any accidental side effects from constructing the value can be properly managed by the ZIO Runtime. However, `succeed` is intended for values which do not have any side effects. If you know that your value does have side effects consider using `ZIO.effectTotal` for clarity.
-
-```scala mdoc:silent
-val now = ZIO.effectTotal(System.currentTimeMillis())
-```
-
-The value inside a successful effect constructed with `ZIO.effectTotal` will only be constructed if absolutely required.
+The `succeed` method takes a by-name parameter to make sure that any accidental side effects from constructing the value can be properly managed by the ZIO Runtime.
 
 ## From Failure Values
 
@@ -83,7 +77,7 @@ val result: IO[Throwable, Option[(User, Team)]] = (for {
   id   <- maybeId
   user <- getUser(id).some
   team <- getTeam(user.teamId).asSomeError 
-} yield (user, team)).optional 
+} yield (user, team)).unoption 
 ```
 
 ### Either
@@ -107,17 +101,6 @@ val ztry = ZIO.fromTry(Try(42 / 0))
 ```
 
 The error type of the resulting effect will always be `Throwable`, because `Try` can only fail with values of type `Throwable`.
-
-### Function
-
-A function `A => B` can be converted into a ZIO effect with `ZIO.fromFunction`:
-
-```scala mdoc:silent
-val zfun: URIO[Int, Int] =
-  ZIO.fromFunction((i: Int) => i * i)
-```
-
-The environment type of the effect is `A` (the input type of the function), because in order to run the effect, it must be supplied with a value of this type.
 
 ### Future
 
@@ -146,38 +129,38 @@ These functions can be used to wrap procedural code, allowing you to seamlessly 
 
 ### Synchronous Side-Effects
 
-A synchronous side-effect can be converted into a ZIO effect using `ZIO.effect`:
+A synchronous side-effect can be converted into a ZIO effect using `ZIO.attempt`:
 
 ```scala mdoc:silent
 import scala.io.StdIn
 
-val getStrLn: Task[String] =
-  ZIO.effect(StdIn.readLine())
+val readLine: Task[String] =
+  ZIO.attempt(StdIn.readLine())
 ```
 
 The error type of the resulting effect will always be `Throwable`, because side-effects may throw exceptions with any value of type `Throwable`.
 
-If a given side-effect is known to not throw any exceptions, then the side-effect can be converted into a ZIO effect using `ZIO.effectTotal`:
+If a given side-effect is known to not throw any exceptions, then the side-effect can be converted into a ZIO effect using `ZIO.succeed`:
 
 ```scala mdoc:silent
-def putStrLn(line: String): UIO[Unit] =
-  ZIO.effectTotal(println(line))
+def printLine(line: String): UIO[Unit] =
+  ZIO.succeed(println(line))
 ```
 
-You should be careful when using `ZIO.effectTotal`—when in doubt about whether or not a side-effect is total, prefer `ZIO.effect` to convert the effect.
+You should be careful when using `ZIO.succeed`—when in doubt about whether or not a side-effect is total, prefer `ZIO.attempt` to convert the effect.
 
 If you wish to refine the error type of an effect (by treating other errors as fatal), then you can use the `ZIO#refineToOrDie` method:
 
 ```scala mdoc:silent
 import java.io.IOException
 
-val getStrLn2: IO[IOException, String] =
-  ZIO.effect(StdIn.readLine()).refineToOrDie[IOException]
+val readLine2: IO[IOException, String] =
+  ZIO.attempt(StdIn.readLine()).refineToOrDie[IOException]
 ```
 
 ### Asynchronous Side-Effects
 
-An asynchronous side-effect with a callback-based API can be converted into a ZIO effect using `ZIO.effectAsync`:
+An asynchronous side-effect with a callback-based API can be converted into a ZIO effect using `ZIO.async`:
 
 ```scala mdoc:invisible
 trait User { 
@@ -194,7 +177,7 @@ object legacy {
 }
 
 val login: IO[AuthError, User] =
-  IO.effectAsync[AuthError, User] { callback =>
+  IO.async[AuthError, User] { callback =>
     legacy.login(
       user => callback(IO.succeed(user)),
       err  => callback(IO.fail(err))
@@ -208,43 +191,41 @@ Asynchronous ZIO effects are much easier to use than callback-based APIs, and th
 
 Some side-effects use blocking IO or otherwise put a thread into a waiting state. If not carefully managed, these side-effects can deplete threads from your application's main thread pool, resulting in work starvation.
 
-ZIO provides the `zio.blocking` package, which can be used to safely convert such blocking side-effects into ZIO effects.
+ZIO provides `zio.Blocking`, which can be used to safely convert such blocking side-effects into ZIO effects.
 
-A blocking side-effect can be converted directly into a ZIO effect blocking with the `effectBlocking` method:
+A blocking side-effect can be converted directly into a ZIO effect blocking with the `attemptBlocking` method:
 
 ```scala mdoc:silent
-import zio.blocking._
-
 val sleeping =
-  effectBlocking(Thread.sleep(Long.MaxValue))
+  ZIO.attemptBlocking(Thread.sleep(Long.MaxValue))
 ```
 
 The resulting effect will be executed on a separate thread pool designed specifically for blocking effects.
 
-Blocking side-effects can be interrupted by invoking `Thread.interrupt` using the `effectBlockingInterrupt` method.
+Blocking side-effects can be interrupted by invoking `Thread.interrupt` using the `attemptBlockingInterrupt` method.
 
-Some blocking side-effects can only be interrupted by invoking a cancellation effect. You can convert these side-effects using the `effectBlockingCancelable` method:
+Some blocking side-effects can only be interrupted by invoking a cancellation effect. You can convert these side-effects using the `attemptBlockingCancelable` method:
 
 ```scala mdoc:silent
 import java.net.ServerSocket
 import zio.UIO
 
 def accept(l: ServerSocket) =
-  effectBlockingCancelable(l.accept())(UIO.effectTotal(l.close()))
+  ZIO.attemptBlockingCancelable(l.accept())(UIO.succeed(l.close()))
 ```
 
-If a side-effect has already been converted into a ZIO effect, then instead of `effectBlocking`, the `blocking` method can be used to ensure the effect will be executed on the blocking thread pool:
+If a side-effect has already been converted into a ZIO effect, then instead of `attemptBlocking`, the `blocking` method can be used to ensure the effect will be executed on the blocking thread pool:
 
 ```scala mdoc:silent
 import scala.io.{ Codec, Source }
 
 def download(url: String) =
-  Task.effect {
+  Task.attempt {
     Source.fromURL(url)(Codec.UTF8).mkString
   }
 
 def safeDownload(url: String) =
-  blocking(download(url))
+  ZIO.blocking(download(url))
 ```
 
 ## Next Steps

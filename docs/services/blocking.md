@@ -4,13 +4,12 @@ title: "Blocking"
 ---
 
 ```scala mdoc:invisible
-import zio.duration._
-import zio.{Schedule, RIO, UIO}
+import zio._
 ```
 
 ## Introduction
 
-The **Blocking** service provides access to a thread pool that can be used for performing
+ZIO provides access to a thread pool that can be used for performing
 blocking operations, such as thread sleeps, synchronous socket/file reads, and so forth. 
 
 By default, ZIO is asynchronous and all effects will be executed on a default primary thread pool which is optimized for asynchronous operations. As ZIO uses a fiber-based concurrency model, if we run **Blocking I/O** or **CPU Work** workloads on a primary thread pool, they are going to monopolize all threads of **primary thread pool**.
@@ -18,11 +17,11 @@ By default, ZIO is asynchronous and all effects will be executed on a default pr
 In the following example, we create 20 blocking tasks to run parallel on the primary async thread pool. Assume we have a machine with an 8 CPU core, so the ZIO creates a thread pool of size 16 (2 * 8). If we run this program, all of our threads got stuck, and the remaining 4 blocking tasks (20 - 16) haven't any chance to run on our thread pool:
 
 ```scala mdoc:silent
-import zio.{ZIO, URIO}
-import zio.console._ 
-def blockingTask(n: Int): URIO[Console, Unit] =
-  putStrLn(s"running blocking task number $n").orDie *>
-    ZIO.effectTotal(Thread.sleep(3000)) *>
+import zio._
+import zio.Console._
+def blockingTask(n: Int): URIO[Has[Console], Unit] =
+  printLine(s"running blocking task number $n").orDie *>
+    ZIO.succeed(Thread.sleep(3000)) *>
     blockingTask(n)
 
 val program = ZIO.foreachPar((1 to 100).toArray)(blockingTask)
@@ -38,14 +37,13 @@ and continuously create new threads as necessary.
 The `blocking` operator takes a ZIO effect and return another effect that is going to run on a blocking thread pool:
 
 ```scala mdoc:invisible:nest
-val program = ZIO.foreachPar((1 to 100).toArray)(t => zio.blocking.blocking(blockingTask(t)))
+val program = ZIO.foreachPar((1 to 100).toArray)(t => ZIO.blocking(blockingTask(t)))
 ```
 
-Also, we can directly import a synchronous effect that does blocking operation into ZIO effect by using `effectBlocking`:
+Also, we can directly import a synchronous effect that does blocking IO into ZIO effect by using `attemptBlocking`:
 
 ```scala mdoc:silent:nest
-import zio.blocking._
-def blockingTask(n: Int) = effectBlocking {
+def blockingTask(n: Int) = ZIO.attemptBlocking {
   do {
     println(s"Running blocking task number $n on dedicated blocking thread pool")
     Thread.sleep(3000) 
@@ -55,20 +53,20 @@ def blockingTask(n: Int) = effectBlocking {
 
 ## Interruption of Blocking Operations
 
-By default, when we convert a blocking operation into the ZIO effects using `effectBlocking`, there is no guarantee that if that effect is interrupted the underlying effect will be interrupted.
+By default, when we convert a blocking operation into the ZIO effects using `attemptBlocking`, there is no guarantee that if that effect is interrupted the underlying effect will be interrupted.
 
 Let's create a blocking effect from an endless loop:
 
 ```scala mdoc:silent:nest
 for {
-  _ <- putStrLn("Starting a blocking operation")
-  fiber <- effectBlocking {
+  _ <- printLine("Starting a blocking operation")
+  fiber <- ZIO.attemptBlocking {
     while (true) {
       Thread.sleep(1000)
       println("Doing some blocking operation")
     }
   }.ensuring(
-    putStrLn("End of a blocking operation").orDie
+    printLine("End of a blocking operation").orDie
   ).fork
   _ <- fiber.interrupt.schedule(
     Schedule.delayed(
@@ -78,20 +76,20 @@ for {
 } yield ()
 ```
 
-When we interrupt this loop after one second, it will not interrupted. It will only stop when the entire JVM stops. So the `effectBlocking` doesn't translate the ZIO interruption into thread interruption (`Thread.interrupt`). 
+When we interrupt this loop after one second, it will not interrupted. It will only stop when the entire JVM stops. So the `attemptBlocking` doesn't translate the ZIO interruption into thread interruption (`Thread.interrupt`). 
 
-Instead, we should use `effectBlockingInterrupt` to create interruptible blocking effects:
+Instead, we should use `attemptBlockingInterrupt` to create interruptible blocking effects:
 
 ```scala mdoc:silent:nest
 for {
-  _ <- putStrLn("Starting a blocking operation")
-  fiber <- effectBlockingInterrupt {
+  _ <- printLine("Starting a blocking operation")
+  fiber <- ZIO.attemptBlockingInterrupt {
     while(true) {
       Thread.sleep(1000)
       println("Doing some blocking operation")
     }
   }.ensuring(
-     putStrLn("End of the blocking operation").orDie
+     printLine("End of the blocking operation").orDie
    ).fork
   _ <- fiber.interrupt.schedule(
     Schedule.delayed(
@@ -103,13 +101,13 @@ for {
 
 Notes:
 
-1. If we are converting a blocking I/O to the ZIO effect, it would be better to use `effectBlockingIO` which refines the error type to the `java.io.IOException`.
+1. If we are converting a blocking I/O to the ZIO effect, it would be better to use `attemptBlockingIO` which refines the error type to the `java.io.IOException`.
 
-2. The `effectBlockingInterrupt` method adds significant overhead. So for performance-sensitive applications, it is better to handle interruptions manually using `effectBlockingCancel`.
+2. The `attemptBlockingInterrupt` method adds significant overhead. So for performance-sensitive applications, it is better to handle interruptions manually using `attemptBlockingCancelable`.
 
 ## Cancellation of Blocking Operation
 
-Some blocking operations do not respect `Thread#interrupt` by swallowing `InterruptedException`. So, they will not be interrupted via `effectBlockingInterrupt`. Instead, they may provide us an API to signal them to _cancel_ their operation.
+Some blocking operations do not respect `Thread#interrupt` by swallowing `InterruptedException`. So, they will not be interrupted via `attemptBlockingInterrupt`. Instead, they may provide us an API to signal them to _cancel_ their operation.
 
 The following `BlockingService` will not be interrupted in case of `Thread#interrupt` call, but it checks the `released` flag constantly. If this flag becomes true, the blocking service will finish its job:
 
@@ -136,16 +134,16 @@ final case class BlockingService() {
 }
 ```
 
-So, to translate ZIO interruption into cancellation of these types of blocking operations we should use `effectBlockingCancelation`. This method takes a `cancel` effect which responsible to signal the blocking code to close itself when ZIO interruption occurs:
+So, to translate ZIO interruption into cancellation of these types of blocking operations we should use `attemptBlockingCancelable`. This method takes a `cancel` effect which responsible to signal the blocking code to close itself when ZIO interruption occurs:
 
 ```scala mdoc:silent:nest
 val myApp =
   for {
-    service <- ZIO.effect(BlockingService())
-    fiber   <- effectBlockingCancelable(
+    service <- ZIO.attempt(BlockingService())
+    fiber   <- ZIO.attemptBlockingCancelable(
       effect = service.start()
     )(
-      cancel = UIO.effectTotal(service.close())
+      cancel = UIO.succeed(service.close())
     ).fork
     _       <- fiber.interrupt.schedule(
       Schedule.delayed(
@@ -159,6 +157,6 @@ Here is another example of the cancelation of a blocking operation. When we `acc
 
 ```scala mdoc:silent:nest
 import java.net.{Socket, ServerSocket}
-def accept(ss: ServerSocket): RIO[Blocking, Socket] =
-  effectBlockingCancelable(ss.accept())(UIO.effectTotal(ss.close()))
+def accept(ss: ServerSocket): Task[Socket] =
+  ZIO.attemptBlockingCancelable(ss.accept())(UIO.succeed(ss.close()))
 ```

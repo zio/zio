@@ -73,15 +73,15 @@ Java libraries using channels from the NIO API for asynchronous, interruptible I
 ```scala
 def readFile(file: AsynchronousFileChannel): Task[Chunk[Byte]] = for {
     pos <- Ref.make(0)
-    buf <- ZIO.effectTotal(ByteBuffer.allocate(1024))
+    buf <- ZIO.succeed(ByteBuffer.allocate(1024))
     contents <- Ref.make[Chunk[Byte]](Chunk.empty)
     def go = pos.get.flatMap { p =>
-        ZIO.effectAsyncWithCompletionHandler[Chunk[Byte]] { handler =>
+        ZIO.asyncWithCompletionHandler[Chunk[Byte]] { handler =>
             file.read(buf, p, buf, handler)
         }.flatMap {
             case -1 => contents.get
             case n  =>
-                ZIO.effectTotal {
+                ZIO.succeed {
                     val arr = Array.ofDim[Byte](n)
                     buf.get(arr, 0, n)
                     buf.clear()

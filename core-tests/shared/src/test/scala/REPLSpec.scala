@@ -8,8 +8,7 @@ object REPLSpec extends DefaultRunnableSpec {
     test("settings compile") {
       import zio.Runtime.default._
       import zio._
-      import zio.console._
-      import zio.duration._
+      import zio.Console._
       @silent("never used")
       implicit class RunSyntax[A](io: ZIO[ZEnv, Any, A]) {
         def unsafeRun: A =

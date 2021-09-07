@@ -1,15 +1,17 @@
 package zio
 
-import zio.duration._
 import zio.test._
 import zio.test.environment.Live
 
 import scala.annotation.tailrec
 
 trait ZIOBaseSpec extends DefaultRunnableSpec {
-  override def aspects: List[TestAspectAtLeastR[Live]] =
+  override def aspects: List[TestAspectAtLeastR[Has[Live]]] =
     if (TestPlatform.isJVM) List(TestAspect.timeout(60.seconds))
     else List(TestAspect.sequential, TestAspect.timeout(60.seconds))
+
+  override def runner: TestRunner[Environment, Any] =
+    defaultTestRunner.withRuntimeConfig(_.copy(enableCurrentFiber = true))
 
   sealed trait ZIOTag {
     val value: String

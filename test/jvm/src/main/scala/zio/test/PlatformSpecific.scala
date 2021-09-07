@@ -16,28 +16,26 @@
 
 package zio.test
 
-import zio.blocking.Blocking
+import zio._
 import zio.test.environment._
-import zio.{ZEnv, ZLayer}
 
 private[test] abstract class PlatformSpecific {
   type TestEnvironment =
-    Annotations
-      with Live
-      with Sized
-      with TestClock
-      with TestConfig
-      with TestConsole
-      with TestRandom
-      with TestSystem
+    Has[Annotations]
+      with Has[Live]
+      with Has[Sized]
+      with Has[TestClock]
+      with Has[TestConfig]
+      with Has[TestConsole]
+      with Has[TestRandom]
+      with Has[TestSystem]
       with ZEnv
 
   object TestEnvironment {
     val any: ZLayer[TestEnvironment, Nothing, TestEnvironment] =
-      ZLayer.requires[TestEnvironment]
+      ZLayer.environment[TestEnvironment]
     lazy val live: ZLayer[ZEnv, Nothing, TestEnvironment] =
       Annotations.live ++
-        Blocking.live ++
         Live.default ++
         Sized.live(100) ++
         ((Live.default ++ Annotations.live) >>> TestClock.default) ++

@@ -1,6 +1,6 @@
 package zio.test
 
-import zio.duration.durationInt
+import zio.durationInt
 import zio.test.SmartTestTypes._
 import zio.test.environment.TestClock
 import zio.{Chunk, NonEmptyChunk}
@@ -84,7 +84,7 @@ object SmartAssertionSpec extends ZIOBaseSpec {
         assertTrue(array.head == 3)
       },
       test("Object constructor") {
-        assertTrue(zio.duration.Duration.fromNanos(1000) == zio.duration.Duration.Zero)
+        assertTrue(zio.Duration.fromNanos(1000) == zio.Duration.Zero)
       }
     ) @@ failing,
     suite("contains")(
@@ -145,7 +145,7 @@ object SmartAssertionSpec extends ZIOBaseSpec {
       val list = Some(List(1, 8, 132, 83))
       assertTrue(list.get.contains(78))
     } @@ failing,
-    testM("sleep delays effect until time is adjusted") {
+    test("sleep delays effect until time is adjusted") {
       for {
         ref    <- zio.Ref.make(false)
         _      <- ref.set(true).delay(10.hours).fork
@@ -172,7 +172,7 @@ object SmartAssertionSpec extends ZIOBaseSpec {
       assertTrue("Howdy".endsWith("no"))
     } @@ failing,
     test("duration equality") {
-      assertTrue(zio.duration.Duration.fromNanos(1000) == zio.duration.Duration.Zero)
+      assertTrue(zio.Duration.fromNanos(1000) == zio.Duration.Zero)
     } @@ failing,
     test("string contains") {
       assertTrue("FUNNY HOUSE".contains("OH NO"))
@@ -287,8 +287,8 @@ object SmartAssertionSpec extends ZIOBaseSpec {
     test("hasAt must fail when an index is outside of a sequence range") {
       assertTrue(!(Seq(1, 2, 3)(2) == 3))
     } @@ failing,
-    testM("check") {
-      check(Gen.anyInt) { int =>
+    test("check") {
+      check(Gen.int) { int =>
         assertTrue(int < 800)
       }
     } @@ failing,
@@ -335,7 +335,7 @@ object SmartAssertionSpec extends ZIOBaseSpec {
       } @@ failing
     ),
     test("Package qualified identifiers") {
-      assertTrue(zio.duration.Duration.fromNanos(0) == zio.duration.Duration.Zero)
+      assertTrue(zio.Duration.fromNanos(0) == zio.Duration.Zero)
     },
     suite("isInstanceOf")(
       test("success") {

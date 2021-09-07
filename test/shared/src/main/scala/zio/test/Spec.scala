@@ -26,7 +26,8 @@ import zio.test.environment.TestEnvironment
  * an environment of type `R` and may potentially fail with an error of type
  * `E`.
  */
-final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) { self =>
+final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) extends SpecVersionSpecific[R, E, T] {
+  self =>
 
   /**
    * Combines this spec with the specified spec.
@@ -62,8 +63,8 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
   /**
    * Returns a new spec with the annotation map at each node.
    */
-  final def annotated: Spec[R with Annotations, Annotated[E], Annotated[T]] =
-    transform[R with Annotations, Annotated[E], Annotated[T]] {
+  final def annotated: Spec[R with Has[Annotations], Annotated[E], Annotated[T]] =
+    transform[R with Has[Annotations], Annotated[E], Annotated[T]] {
       case ExecCase(exec, spec)        => ExecCase(exec, spec)
       case LabeledCase(label, spec)    => LabeledCase(label, spec)
       case ManagedCase(managed)        => ManagedCase(managed.mapError((_, TestAnnotationMap.empty)))
@@ -94,26 +95,26 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
       case LabeledCase(_, spec) => spec
       case ManagedCase(managed) => managed.flatten
       case MultipleCase(specs)  => ZManaged.collectAll(specs).map(_.sum)
-      case TestCase(test, _)    => test.map(t => if (f(t)) 1 else 0).toManaged_
+      case TestCase(test, _)    => test.map(t => if (f(t)) 1 else 0).toManaged
     }
 
   /**
    * Returns an effect that models execution of this spec.
    */
   final def execute(defExec: ExecutionStrategy): ZManaged[R, Nothing, Spec[Any, E, T]] =
-    ZManaged.accessManaged(provide(_).foreachExec(defExec)(ZIO.halt(_), ZIO.succeedNow))
+    ZManaged.accessManaged(provide(_).foreachExec(defExec)(ZIO.failCause(_), ZIO.succeedNow))
 
   /**
    * Determines if any node in the spec is satisfied by the given predicate.
    */
   final def exists[R1 <: R, E1 >: E](f: SpecCase[R, E, T, Any] => ZIO[R1, E1, Boolean]): ZManaged[R1, E1, Boolean] =
     fold[ZManaged[R1, E1, Boolean]] {
-      case c @ ExecCase(_, spec)    => spec.zipWith(f(c).toManaged_)(_ || _)
-      case c @ LabeledCase(_, spec) => spec.zipWith(f(c).toManaged_)(_ || _)
-      case c @ ManagedCase(managed) => managed.flatMap(_.zipWith(f(c).toManaged_)(_ || _))
+      case c @ ExecCase(_, spec)    => spec.zipWith(f(c).toManaged)(_ || _)
+      case c @ LabeledCase(_, spec) => spec.zipWith(f(c).toManaged)(_ || _)
+      case c @ ManagedCase(managed) => managed.flatMap(_.zipWith(f(c).toManaged)(_ || _))
       case c @ MultipleCase(specs) =>
-        ZManaged.collectAll(specs).map(_.exists(identity)).zipWith(f(c).toManaged_)(_ || _)
-      case c @ TestCase(_, _) => f(c).toManaged_
+        ZManaged.collectAll(specs).map(_.exists(identity)).zipWith(f(c).toManaged)(_ || _)
+      case c @ TestCase(_, _) => f(c).toManaged
     }
 
   /**
@@ -185,19 +186,29 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
    * Effectfully folds over all nodes according to the execution strategy of
    * suites, utilizing the specified default for other cases.
    */
+  @deprecated("use foldManaged", "2.0.0")
   final def foldM[R1 <: R, E1, Z](
     defExec: ExecutionStrategy
   )(f: SpecCase[R, E, T, Z] => ZManaged[R1, E1, Z]): ZManaged[R1, E1, Z] =
+    foldManaged(defExec)(f)
+
+  /**
+   * Effectfully folds over all nodes according to the execution strategy of
+   * suites, utilizing the specified default for other cases.
+   */
+  final def foldManaged[R1 <: R, E1, Z](
+    defExec: ExecutionStrategy
+  )(f: SpecCase[R, E, T, Z] => ZManaged[R1, E1, Z]): ZManaged[R1, E1, Z] =
     caseValue match {
-      case ExecCase(exec, spec)     => spec.foldM(exec)(f).flatMap(z => f(ExecCase(exec, z)))
-      case LabeledCase(label, spec) => spec.foldM(defExec)(f).flatMap(z => f(LabeledCase(label, z)))
+      case ExecCase(exec, spec)     => spec.foldManaged(exec)(f).flatMap(z => f(ExecCase(exec, z)))
+      case LabeledCase(label, spec) => spec.foldManaged(defExec)(f).flatMap(z => f(LabeledCase(label, z)))
       case ManagedCase(managed) =>
-        managed.foldCauseM(
-          c => f(ManagedCase(ZManaged.halt(c))),
-          spec => spec.foldM(defExec)(f).flatMap(z => f(ManagedCase(ZManaged.succeedNow(z))))
+        managed.foldCauseManaged(
+          c => f(ManagedCase(ZManaged.failCause(c))),
+          spec => spec.foldManaged(defExec)(f).flatMap(z => f(ManagedCase(ZManaged.succeedNow(z))))
         )
       case MultipleCase(specs) =>
-        ZManaged.foreachExec(specs)(defExec)(_.foldM(defExec)(f).release).flatMap(zs => f(MultipleCase(zs)))
+        ZManaged.foreachExec(specs)(defExec)(_.foldManaged(defExec)(f).release).flatMap(zs => f(MultipleCase(zs)))
       case t @ TestCase(_, _) => f(t)
     }
 
@@ -206,12 +217,12 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
    */
   final def forall[R1 <: R, E1 >: E](f: SpecCase[R, E, T, Any] => ZIO[R1, E1, Boolean]): ZManaged[R1, E1, Boolean] =
     fold[ZManaged[R1, E1, Boolean]] {
-      case c @ ExecCase(_, spec)    => spec.zipWith(f(c).toManaged_)(_ && _)
-      case c @ LabeledCase(_, spec) => spec.zipWith(f(c).toManaged_)(_ && _)
-      case c @ ManagedCase(managed) => managed.flatMap(_.zipWith(f(c).toManaged_)(_ && _))
+      case c @ ExecCase(_, spec)    => spec.zipWith(f(c).toManaged)(_ && _)
+      case c @ LabeledCase(_, spec) => spec.zipWith(f(c).toManaged)(_ && _)
+      case c @ ManagedCase(managed) => managed.flatMap(_.zipWith(f(c).toManaged)(_ && _))
       case c @ MultipleCase(specs) =>
-        ZManaged.collectAll(specs).map(_.forall(identity)).zipWith(f(c).toManaged_)(_ && _)
-      case c @ TestCase(_, _) => f(c).toManaged_
+        ZManaged.collectAll(specs).map(_.forall(identity)).zipWith(f(c).toManaged)(_ && _)
+      case c @ TestCase(_, _) => f(c).toManaged
     }
 
   /**
@@ -222,7 +233,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
   final def foreachExec[R1 <: R, E1, A](
     defExec: ExecutionStrategy
   )(failure: Cause[E] => ZIO[R1, E1, A], success: T => ZIO[R1, E1, A]): ZManaged[R1, Nothing, Spec[R1, E1, A]] =
-    foldM[R1, Nothing, Spec[R1, E1, A]](defExec) {
+    foldManaged[R1, Nothing, Spec[R1, E1, A]](defExec) {
       case ExecCase(exec, spec)     => ZManaged.succeedNow(Spec.exec(exec, spec))
       case LabeledCase(label, spec) => ZManaged.succeedNow(Spec.labeled(label, spec))
       case ManagedCase(managed) =>
@@ -234,7 +245,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
       case TestCase(test, annotations) =>
         test
           .foldCause(e => Spec.test(failure(e), annotations), t => Spec.test(success(t), annotations))
-          .toManaged_
+          .toManaged
     }
 
   /**
@@ -336,9 +347,11 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
    * val spec2 = spec.provideCustomLayer(loggingLayer)
    * }}}
    */
-  def provideCustomLayer[E1 >: E, R1 <: Has[_]](
-    layer: ZLayer[TestEnvironment, E1, R1]
-  )(implicit ev: TestEnvironment with R1 <:< R, tagged: Tag[R1]): Spec[TestEnvironment, E1, T] =
+  def provideCustomLayer[E1 >: E, R1](layer: ZLayer[TestEnvironment, E1, R1])(implicit
+    ev1: TestEnvironment with R1 <:< R,
+    ev2: Has.Union[TestEnvironment, R1],
+    tagged: Tag[R1]
+  ): Spec[TestEnvironment, E1, T] =
     provideSomeLayer[TestEnvironment](layer)
 
   /**
@@ -354,17 +367,17 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
    * val spec2 = spec.provideCustomLayerShared(loggingLayer)
    * }}}
    */
-  def provideCustomLayerShared[E1 >: E, R1 <: Has[_]](
-    layer: ZLayer[TestEnvironment, E1, R1]
-  )(implicit ev: TestEnvironment with R1 <:< R, tagged: Tag[R1]): Spec[TestEnvironment, E1, T] =
+  def provideCustomLayerShared[E1 >: E, R1](layer: ZLayer[TestEnvironment, E1, R1])(implicit
+    ev1: TestEnvironment with R1 <:< R,
+    ev2: Has.Union[TestEnvironment, R1],
+    tagged: Tag[R1]
+  ): Spec[TestEnvironment, E1, T] =
     provideSomeLayerShared[TestEnvironment](layer)
 
   /**
    * Provides a layer to the spec, translating it up a level.
    */
-  final def provideLayer[E1 >: E, R0, R1](
-    layer: ZLayer[R0, E1, R1]
-  )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R]): Spec[R0, E1, T] =
+  final def provideLayer[E1 >: E, R0, R1](layer: ZLayer[R0, E1, R1])(implicit ev: R1 <:< R): Spec[R0, E1, T] =
     transform[R0, E1, T] {
       case ExecCase(exec, spec)        => ExecCase(exec, spec)
       case LabeledCase(label, spec)    => LabeledCase(label, spec)
@@ -376,9 +389,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
   /**
    * Provides a layer to the spec, sharing services between all tests.
    */
-  final def provideLayerShared[E1 >: E, R0, R1](
-    layer: ZLayer[R0, E1, R1]
-  )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R]): Spec[R0, E1, T] =
+  final def provideLayerShared[E1 >: E, R0, R1](layer: ZLayer[R0, E1, R1])(implicit ev: R1 <:< R): Spec[R0, E1, T] =
     caseValue match {
       case ExecCase(exec, spec)     => Spec.exec(exec, spec.provideLayerShared(layer))
       case LabeledCase(label, spec) => Spec.labeled(label, spec.provideLayerShared(layer))
@@ -411,12 +422,12 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
    * {{{
    * val clockLayer: ZLayer[Any, Nothing, Clock] = ???
    *
-   * val spec: ZSpec[Clock with Random, Nothing] = ???
+   * val spec: ZSpec[Has[Clock] with Has[Random], Nothing] = ???
    *
-   * val spec2 = spec.provideSomeLayer[Random](clockLayer)
+   * val spec2 = spec.provideSomeLayer[Has[Random]](clockLayer)
    * }}}
    */
-  final def provideSomeLayer[R0 <: Has[_]]: Spec.ProvideSomeLayer[R0, R, E, T] =
+  final def provideSomeLayer[R0]: Spec.ProvideSomeLayer[R0, R, E, T] =
     new Spec.ProvideSomeLayer[R0, R, E, T](self)
 
   /**
@@ -427,12 +438,12 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
    * {{{
    * val clockLayer: ZLayer[Any, Nothing, Clock] = ???
    *
-   * val spec: ZSpec[Clock with Random, Nothing] = ???
+   * val spec: ZSpec[Has[Clock] with Has[Random], Nothing] = ???
    *
-   * val spec2 = spec.provideSomeLayerShared[Random](clockLayer)
+   * val spec2 = spec.provideSomeLayerShared[Has[Random]](clockLayer)
    * }}}
    */
-  final def provideSomeLayerShared[R0 <: Has[_]]: Spec.ProvideSomeLayerShared[R0, R, E, T] =
+  final def provideSomeLayerShared[R0]: Spec.ProvideSomeLayerShared[R0, R, E, T] =
     new Spec.ProvideSomeLayerShared[R0, R, E, T](self)
 
   /**
@@ -512,31 +523,46 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
     new Spec.UpdateService[R, E, T, M](self)
 
   /**
+   * Updates a service at the specified key in the environment of this effect.
+   */
+  final def updateServiceAt[Service]: Spec.UpdateServiceAt[R, E, T, Service] =
+    new Spec.UpdateServiceAt[R, E, T, Service](self)
+
+  /**
    * Runs the spec only if the specified predicate is satisfied.
    */
-  final def when(b: => Boolean)(implicit ev: T <:< TestSuccess): Spec[R with Annotations, E, TestSuccess] =
-    whenM(ZIO.succeedNow(b))
+  final def when(b: => Boolean)(implicit ev: T <:< TestSuccess): Spec[R with Has[Annotations], E, TestSuccess] =
+    whenZIO(ZIO.succeedNow(b))
 
   /**
    * Runs the spec only if the specified effectual predicate is satisfied.
    */
+  @deprecated("use whenZIO", "2.0.0")
   final def whenM[R1 <: R, E1 >: E](
     b: ZIO[R1, E1, Boolean]
-  )(implicit ev: T <:< TestSuccess): Spec[R1 with Annotations, E1, TestSuccess] =
+  )(implicit ev: T <:< TestSuccess): Spec[R1 with Has[Annotations], E1, TestSuccess] =
+    whenZIO(b)
+
+  /**
+   * Runs the spec only if the specified effectual predicate is satisfied.
+   */
+  final def whenZIO[R1 <: R, E1 >: E](
+    b: ZIO[R1, E1, Boolean]
+  )(implicit ev: T <:< TestSuccess): Spec[R1 with Has[Annotations], E1, TestSuccess] =
     caseValue match {
       case ExecCase(exec, spec) =>
-        Spec.exec(exec, spec.whenM(b))
+        Spec.exec(exec, spec.whenZIO(b))
       case LabeledCase(label, spec) =>
-        Spec.labeled(label, spec.whenM(b))
+        Spec.labeled(label, spec.whenZIO(b))
       case ManagedCase(managed) =>
         Spec.managed(
-          ZManaged.fromEffect(b).flatMap { b =>
+          ZManaged.fromZIO(b).flatMap { b =>
             if (b) managed.map(_.mapTest(ev))
             else ZManaged.succeedNow(Spec.empty)
           }
         )
       case MultipleCase(specs) =>
-        Spec.multiple(specs.map(_.whenM(b)))
+        Spec.multiple(specs.map(_.whenZIO(b)))
       case TestCase(test, annotations) =>
         Spec.test(
           b.flatMap { b =>
@@ -583,17 +609,17 @@ object Spec {
   val empty: Spec[Any, Nothing, Nothing] =
     Spec.multiple(Chunk.empty)
 
-  final class ProvideSomeLayer[R0 <: Has[_], -R, +E, +T](private val self: Spec[R, E, T]) extends AnyVal {
-    def apply[E1 >: E, R1 <: Has[_]](
+  final class ProvideSomeLayer[R0, -R, +E, +T](private val self: Spec[R, E, T]) extends AnyVal {
+    def apply[E1 >: E, R1](
       layer: ZLayer[R0, E1, R1]
-    )(implicit ev1: R0 with R1 <:< R, ev2: NeedsEnv[R], tagged: Tag[R1]): Spec[R0, E1, T] =
-      self.provideLayer[E1, R0, R0 with R1](ZLayer.identity[R0] ++ layer)
+    )(implicit ev1: R0 with R1 <:< R, ev2: Has.Union[R0, R1], tagged: Tag[R1]): Spec[R0, E1, T] =
+      self.provideLayer[E1, R0, R0 with R1](ZLayer.environment[R0] ++ layer)
   }
 
-  final class ProvideSomeLayerShared[R0 <: Has[_], -R, +E, +T](private val self: Spec[R, E, T]) extends AnyVal {
-    def apply[E1 >: E, R1 <: Has[_]](
+  final class ProvideSomeLayerShared[R0, -R, +E, +T](private val self: Spec[R, E, T]) extends AnyVal {
+    def apply[E1 >: E, R1](
       layer: ZLayer[R0, E1, R1]
-    )(implicit ev1: R0 with R1 <:< R, ev2: NeedsEnv[R], tagged: Tag[R1]): Spec[R0, E1, T] =
+    )(implicit ev1: R0 with R1 <:< R, ev2: Has.Union[R0, R1], tagged: Tag[R1]): Spec[R0, E1, T] =
       self.caseValue match {
         case ExecCase(exec, spec)     => Spec.exec(exec, spec.provideSomeLayerShared(layer))
         case LabeledCase(label, spec) => Spec.labeled(label, spec.provideSomeLayerShared(layer))
@@ -611,5 +637,12 @@ object Spec {
   final class UpdateService[-R, +E, +T, M](private val self: Spec[R, E, T]) extends AnyVal {
     def apply[R1 <: R with Has[M]](f: M => M)(implicit ev: Has.IsHas[R1], tag: Tag[M]): Spec[R1, E, T] =
       self.provideSome(ev.update(_, f))
+  }
+
+  final class UpdateServiceAt[-R, +E, +T, Service](private val self: Spec[R, E, T]) extends AnyVal {
+    def apply[R1 <: R with HasMany[Key, Service], Key](key: => Key)(
+      f: Service => Service
+    )(implicit ev: Has.IsHas[R1], tag: Tag[Map[Key, Service]]): Spec[R1, E, T] =
+      self.provideSome(ev.updateAt(_, key, f))
   }
 }

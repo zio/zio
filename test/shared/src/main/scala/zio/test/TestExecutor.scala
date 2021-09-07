@@ -22,13 +22,13 @@ import zio.{ExecutionStrategy, Has, Layer, UIO, ZIO, ZManaged}
  * A `TestExecutor[R, E]` is capable of executing specs that require an
  * environment `R` and may fail with an `E`.
  */
-abstract class TestExecutor[+R <: Has[_], E] {
+abstract class TestExecutor[+R, E] {
   def run(spec: ZSpec[R, E], defExec: ExecutionStrategy): UIO[ExecutedSpec[E]]
   def environment: Layer[Nothing, R]
 }
 
 object TestExecutor {
-  def default[R <: Annotations, E](
+  def default[R <: Has[Annotations], E](
     env: Layer[Nothing, R]
   ): TestExecutor[R, E] = new TestExecutor[R, E] {
     def run(spec: ZSpec[R, E], defExec: ExecutionStrategy): UIO[ExecutedSpec[E]] =
@@ -44,7 +44,7 @@ object TestExecutor {
             ZIO.succeedNow((Right(success), annotations))
           }
         )
-        .use(_.foldM[Any, Nothing, ExecutedSpec[E]](defExec) {
+        .use(_.foldManaged[Any, Nothing, ExecutedSpec[E]](defExec) {
           case Spec.ExecCase(_, spec) =>
             ZManaged.succeedNow(spec)
           case Spec.LabeledCase(label, spec) =>
@@ -56,7 +56,7 @@ object TestExecutor {
           case Spec.TestCase(test, staticAnnotations) =>
             test.map { case (result, dynamicAnnotations) =>
               ExecutedSpec.test(result, staticAnnotations ++ dynamicAnnotations)
-            }.toManaged_
+            }.toManaged
         }.useNow)
     val environment = env
   }

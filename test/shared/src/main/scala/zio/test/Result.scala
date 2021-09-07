@@ -3,6 +3,7 @@ package zio.test
 import zio.Chunk
 import zio.test.Arrow.Span
 import zio.test.ConsoleUtils._
+import zio.test.render.LogLine.Message
 
 import scala.annotation.tailrec
 
@@ -41,7 +42,7 @@ object Result {
 }
 
 case class FailureCase(
-  errorMessage: String,
+  errorMessage: Message,
   codeString: String,
   location: String,
   path: Chunk[(String, Any)],
@@ -119,7 +120,7 @@ object FailureCase {
     failureCase match {
       case FailureCase(errorMessage, _, _, path, _, _, _) if isNested =>
         val errorMessageLines =
-          Chunk.fromIterable(errorMessage.split("\n")) match {
+          Chunk.fromIterable(errorMessage.lines) match {
             case head +: tail => (red("• ") + head) +: tail.map("  " + _)
             case _            => Chunk.empty
           }
@@ -131,7 +132,7 @@ object FailureCase {
 
       case FailureCase(errorMessage, codeString, location, path, _, nested, _) =>
         val errorMessageLines =
-          Chunk.fromIterable(errorMessage.split("\n")) match {
+          Chunk.fromIterable(errorMessage.lines) match {
             case head +: tail => (red("• ") + head) +: tail.map("  " + _)
             case _            => Chunk.empty
           }

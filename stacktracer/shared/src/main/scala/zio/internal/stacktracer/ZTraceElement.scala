@@ -31,4 +31,5 @@ object ZTraceElement {
     final def prettyPrint: String                    = toStackTraceElement.toString
   }
 
+  private[zio] val noLocation = ZTraceElement.NoLocation("No location available")
 }

@@ -3,11 +3,8 @@ id: zsink
 title: "ZSink"
 ---
 ```scala mdoc:invisible
-import zio.clock.Clock
-import zio.console.Console
-import zio.blocking.Blocking
-import zio.duration._
-import zio.console._
+import zio._
+import zio.Console._
 import java.io.IOException
 import java.nio.file.{Path, Paths}
 import zio.stream.ZSink.Push
@@ -83,8 +80,8 @@ val drain: ZSink[Any, Nothing, Any, Nothing, Unit] = ZSink.drain
 **ZSink.timed** — A sink that executes the stream and times its execution:
 
 ```scala mdoc:silent
-val timed: ZSink[Clock, Nothing, Any, Nothing, Duration] = ZSink.timed
-val stream: ZIO[Clock, Nothing, Long] =
+val timed: ZSink[Has[Clock], Nothing, Any, Nothing, Duration] = ZSink.timed
+val stream: ZIO[Has[Clock], Nothing, Long] =
   ZStream(1, 2, 3, 4, 5).fixed(2.seconds).run(timed).map(_.getSeconds)
 // Result: 10
 ```
@@ -92,9 +89,9 @@ val stream: ZIO[Clock, Nothing, Long] =
 **ZSink.foreach** — A sink that executes the provided effectful function for every element fed to it:
 
 ```scala mdoc:silent:nest
-val printer: ZSink[Console, IOException, Int, Int, Unit] =
-  ZSink.foreach((i: Int) => zio.console.putStrLn(i.toString))
-val stream : ZIO[Console, IOException, Unit]             =
+val printer: ZSink[Has[Console], IOException, Int, Int, Unit] =
+  ZSink.foreach((i: Int) => printLine(i))
+val stream : ZIO[Has[Console], IOException, Unit]             =
   ZStream(1, 2, 3, 4, 5).run(printer)
 ```
 
@@ -162,7 +159,7 @@ ZStream.iterate(0)(_ + 1).run(
 The `ZSink.fromEffect` creates a single-value sink produced from an effect:
 
 ```scala mdoc:silent:nest
-val sink = ZSink.fromEffect(ZIO.succeed(1))
+val sink = ZSink.fromZIO(ZIO.succeed(1))
 ```
 
 ### From File
@@ -170,7 +167,7 @@ val sink = ZSink.fromEffect(ZIO.succeed(1))
 The `ZSink.fromFile` creates a file sink that consumes byte chunks and writes them to the specified file:
 
 ```scala mdoc:silent:nest
-def fileSink(path: Path): ZSink[Blocking, Throwable, String, Byte, Long] =
+def fileSink(path: Path): ZSink[Any, Throwable, String, Byte, Long] =
   ZSink
     .fromFile(path)
     .contramapChunks[String](_.flatMap(_.getBytes))
@@ -189,7 +186,7 @@ ZStream("Application", "Error", "Logs")
   .intersperse("\n")
   .run(
     ZSink
-      .fromOutputStream(System.err)
+      .fromOutputStream(java.lang.System.err)
       .contramapChunks[String](_.flatMap(_.getBytes))
   )
 ```
@@ -199,7 +196,7 @@ ZStream("Application", "Error", "Logs")
 A queue has a finite or infinite buffer size, so they are useful in situations where we need to consume streams as fast as we can, and then do some batching operations on consumed messages. By using `ZSink.fromQueue` we can create a sink that is backed by a queue; it enqueues each element into the specified queue:
 
 ```scala mdoc:silent:nest
-val myApp: ZIO[Console with Clock, IOException, Unit] =
+val myApp: ZIO[Has[Console] with Has[Clock], IOException, Unit] =
   for {
     queue    <- ZQueue.bounded[Int](32)
     producer <- ZStream
@@ -207,7 +204,7 @@ val myApp: ZIO[Console with Clock, IOException, Unit] =
       .fixed(200.millis)
       .run(ZSink.fromQueue(queue))
       .fork
-    consumer <- queue.take.flatMap(x => putStrLn(x.toString)).forever
+    consumer <- queue.take.flatMap(printLine(_)).forever
     _        <- producer.zip(consumer).join
   } yield ()
 ```
@@ -219,7 +216,7 @@ val myApp: ZIO[Console with Clock, IOException, Unit] =
 In the following example, the `sink` consumes elements of the `producer` stream and publishes them to the `hub`. We have two consumers that are subscribed to that hub and they are taking its elements forever:
 
 ```scala mdoc:silent:nest
-val myApp: ZIO[Console with Clock, IOException, Unit] =
+val myApp: ZIO[Has[Console] with Has[Clock], IOException, Unit] =
   for {
     promise <- Promise.make[Nothing, Unit]
     hub <- ZHub.bounded[Int](1)
@@ -228,8 +225,8 @@ val myApp: ZIO[Console with Clock, IOException, Unit] =
     consumers <- hub.subscribe.zip(hub.subscribe).use { case (left, right) =>
       for {
         _ <- promise.succeed(())
-        f1 <- left.take.flatMap(e => putStrLn(s"Left Queue: $e")).forever.fork
-        f2 <- right.take.flatMap(e => putStrLn(s"Right Queue: $e")).forever.fork
+        f1 <- left.take.flatMap(e => printLine(s"Left Queue: $e")).forever.fork
+        f2 <- right.take.flatMap(e => printLine(s"Right Queue: $e")).forever.fork
         _ <- f1.zip(f2).join
       } yield ()
     }.fork
@@ -289,13 +286,13 @@ def fail[I, E](
   IO.fail((Left(e), leftover))
 ```
 
-4. **Push.halt** — By providing a `Cause` we can create a `Push` data-type describing a sink that halts the process of consuming elements (`Option[Chunk[I]] => ZIO[Any, (Left[E, Nothing], Chunk[Nothing]), Nothing]`):
+4. **Push.failCause** — By providing a `Cause` we can create a `Push` data-type describing a sink that halts the process of consuming elements (`Option[Chunk[I]] => ZIO[Any, (Left[E, Nothing], Chunk[Nothing]), Nothing]`):
 
 ```scala
-def halt[E](
+def failCause[E](
     c: Cause[E]
 ): ZIO[Any, (Left[E, Nothing], Chunk[Nothing]), Nothing] =
-  IO.halt(c).mapError(e => (Left(e), Chunk.empty))
+  IO.failCause(c).mapError(e => (Left(e), Chunk.empty))
 ```
 
 Now, we are ready to see how the existing `ZSink.head` sink is implemented using `Push` data-type:
@@ -389,12 +386,12 @@ case class Record()
 
 ```scala mdoc:silent:nest
 val kafkaSink: ZSink[Any, Throwable, Record, Record, Unit] =
-  ZSink.foreach[Any, Throwable, Record](record => ZIO.effect(???))
+  ZSink.foreach[Any, Throwable, Record](record => ZIO.attempt(???))
 
 val pulsarSink: ZSink[Any, Throwable, Record, Record, Unit] =
-  ZSink.foreach[Any, Throwable, Record](record => ZIO.effect(???))
+  ZSink.foreach[Any, Throwable, Record](record => ZIO.attempt(???))
 
-val stream: ZSink[Any, Throwable, Record, Record, (Unit, Unit)] =
+val stream: ZSink[Any, Throwable, Record, Record, Unit] =
   kafkaSink zipPar pulsarSink 
 ```
 

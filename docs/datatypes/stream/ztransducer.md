@@ -6,8 +6,7 @@ title: "ZTransducer"
 ```scala mdoc:invisible
 import zio.stream.{UStream, ZStream, ZTransducer, ZSink}
 import zio.{Schedule, Chunk, IO, ZIO}
-import zio.console._
-import zio.blocking.Blocking
+import zio.Console._
 import java.nio.file.Paths
 ```
 
@@ -30,7 +29,7 @@ There is no fundamental requirement for transducers to exist, because everything
 The `ZTransducer.fromEffect` creates a transducer that always evaluates the specified effect. Let's write a transducer that fails with a message: 
 
 ```scala mdoc:silent:nest
-val error: ZTransducer[Any, String, Any, Nothing] = ZTransducer.fromEffect(IO.fail("Ouch"))
+val error: ZTransducer[Any, String, Any, Nothing] = ZTransducer.fromZIO(IO.fail("Ouch"))
 ```
 
 ### From Function
@@ -44,7 +43,7 @@ val chars: ZTransducer[Any, Nothing, String, Char] =
     .mapChunks(_.flatten)
 ```
 
-There is also a `ZTransducer.fromFunctionM` which is an effecful version of this constructor.
+There is also a `ZTransducer.fromFunctionZIO` which is an effecful version of this constructor.
 
 ## Built-in Transducers
 
@@ -104,7 +103,7 @@ ZStream(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
 // Output: 6, 7, 8, 9, 10
 ```
 
-The `ZTransducer` also has `dropWhileM` which takes an effectful predicate `p: I => ZIO[R, E, Boolean]`.
+The `ZTransducer` also has `dropWhileZIO` which takes an effectful predicate `p: I => ZIO[R, E, Boolean]`.
 
 ### Folding
 
@@ -121,7 +120,7 @@ ZStream
 // Ouput: Chunk(0, 1, 2), Chunk(3, 4, 5), Chunk(6, 7)
 ```
 
-Note that the `ZTransducer.foldM` is like `fold`, but it folds effectfully.
+Note that the `ZTransducer.foldZIO` is like `fold`, but it folds effectfully.
 
 **ZTransducer.foldWeighted** — Creates a transducer that folds incoming elements until reaches the `max` worth of elements determined by the `costFn`, then the transducer emits the computed value and restarts the folding process:
 
@@ -234,8 +233,8 @@ In the following example, we are prompting the user to enter a series of numbers
 
 ```scala mdoc:silent:nest
 ZStream
-  .fromEffect(
-    putStr("Enter numbers separated by comma: ") *> getStrLn
+  .fromZIO(
+    printLine("Enter numbers separated by comma: ") *> readLine
   )
   .mapConcat(_.split(","))
   .map(_.trim.toInt)
@@ -244,8 +243,8 @@ ZStream
       if (elements.sum < 5)
         ZTransducer.identity
       else
-        ZTransducer.fromEffect(
-          putStrLn(s"received elements are not applicable: $elements")
+        ZTransducer.fromZIO(
+          printLine(s"received elements are not applicable: $elements")
         ) >>> ZTransducer.fail("boom")
     }
   )
@@ -438,7 +437,7 @@ We can compose transducers in two ways:
 1. **Composing Two Transducers** — One transducer can be composed with another transducer, resulting in a composite transducer:
 
 ```scala mdoc:silent:nest
-val lines: ZStream[Blocking, Throwable, String] =
+val lines: ZStream[Any, Throwable, String] =
   ZStream
     .fromFile(Paths.get("file.txt"))
     .transduce(
@@ -449,7 +448,7 @@ val lines: ZStream[Blocking, Throwable, String] =
 2. **Composing ZTransducer with ZSink** — One transducer can be composed with a sink, resulting in a sink that processes elements by piping them through the transducer and piping the results into the sink:
 
 ```scala mdoc:silent:nest
-val refine: ZIO[Blocking, Throwable, Long] =
+val refine: ZIO[Any, Throwable, Long] =
   ZStream
     .fromFile(Paths.get("file.txt"))
     .run(

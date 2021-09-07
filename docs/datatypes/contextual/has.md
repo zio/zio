@@ -5,7 +5,7 @@ title: "Has"
 
 The trait `Has[A]` is used with the ZIO environment to express an effect's dependency on a service of type `A`. 
 
-For example,`RIO[Has[Console.Service], Unit]` is an effect that requires a `Console.Service` service.
+For example,`RIO[Has[Console], Unit]` is an effect that requires a `Console` service.
 
 ## Overview
 ZIO Wrap services with `Has` data type to:
@@ -69,15 +69,15 @@ trait RandomInt {
 }
 ```
 
-We also provided their accessors to their companion object. We just used `ZIO.accessM` to access environment of each service:
+We also provided their accessors to their companion object. We just used `ZIO.accessZIO` to access environment of each service:
 
 ```scala mdoc:silent:nest
 object Logging {
-  def log(line: String): ZIO[Logging, Nothing, Unit] = ZIO.accessM[Logging](_.log(line))
+  def log(line: String): ZIO[Logging, Nothing, Unit] = ZIO.accessZIO[Logging](_.log(line))
 }
 
 object RandomInt {
-  val random: ZIO[RandomInt, Nothing, Int] = ZIO.accessM[RandomInt](_.random)
+  val random: ZIO[RandomInt, Nothing, Int] = ZIO.accessZIO[RandomInt](_.random)
 }
 ```
 
@@ -97,12 +97,12 @@ To run this program, we need to implement a live version of `Logging` and `Rando
 ```scala mdoc:silent:nest
 val LoggingLive: Logging = new Logging {
   override def log(line: String): UIO[Unit] =
-    ZIO.effectTotal(println(line))
+    ZIO.succeed(println(line))
 }
 
 val RandomIntLive: RandomInt = new RandomInt {
   override def random: UIO[Int] =
-    ZIO.effectTotal(scala.util.Random.nextInt())
+    ZIO.succeed(scala.util.Random.nextInt())
 }
 ```
 
@@ -119,10 +119,10 @@ But, there is a workaround, we can throw away these implementations and write a 
 ```scala mdoc:silent:nest
 val LoggingWithRandomIntLive = new Logging with RandomInt {
   override def log(line: String): UIO[Unit] =
-    ZIO.effectTotal(println(line))
+    ZIO.succeed(println(line))
 
   override def random: UIO[Int] =
-    ZIO.effectTotal(scala.util.Random.nextInt())
+    ZIO.succeed(scala.util.Random.nextInt())
 }
 ```
 
@@ -160,7 +160,7 @@ object RandomInt {
 }
 ```
 
-`ZIO.serviceWith` is accessor method like `ZIO.accessM`, it accesses the specified service in the environment of effect, but it returns a ZIO effect which requires a service wrapped in `Has[_]` data type.
+`ZIO.serviceWith` is accessor method like `ZIO.accessZIO`, it accesses the specified service in the environment of effect, but it returns a ZIO effect which requires a service wrapped in `Has[_]` data type.
 
 We should refactor our application to represent the correct types.
 
@@ -195,12 +195,12 @@ Let's implement `Logging` and `RandomInt` services:
 ```scala mdoc:silent:nest
 case class LoggingLive() extends Logging {
   override def log(line: String): UIO[Unit] =
-    ZIO.effectTotal(println(line))
+    ZIO.succeed(println(line))
 }
 
 case class RandomIntLive() extends RandomInt {
   override def random: UIO[Int] =
-    ZIO.effectTotal(scala.util.Random.nextInt())
+    ZIO.succeed(scala.util.Random.nextInt())
 }
 ```
 
@@ -235,12 +235,12 @@ val myApp: ZIO[Has[Logging] with Has[RandomInt], Nothing, Unit] =
 
 case class LoggingLive() extends Logging {
   override def log(line: String): UIO[Unit] =
-    ZIO.effectTotal(println(line))
+    ZIO.succeed(println(line))
 }
 
 case class RandomIntLive() extends RandomInt {
   override def random: UIO[Int] =
-    ZIO.effectTotal(scala.util.Random.nextInt())
+    ZIO.succeed(scala.util.Random.nextInt())
 }
 ```
 

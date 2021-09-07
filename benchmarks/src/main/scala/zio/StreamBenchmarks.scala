@@ -3,14 +3,15 @@ package zio
 import akka.Done
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.{Keep, Sink => AkkaSink, Source => AkkaSource}
+import cats.effect.unsafe.implicits.global
 import cats.effect.{IO => CatsIO}
 import fs2.{Chunk => FS2Chunk, Stream => FS2Stream}
 import org.openjdk.jmh.annotations._
-import zio.IOBenchmarks._
+import zio.BenchmarkUtil._
 import zio.stream._
 
 import java.util.concurrent.TimeUnit
-import scala.concurrent.duration.Duration
+import scala.concurrent.duration.{Duration => ScalaDuration}
 import scala.concurrent.{Await, ExecutionContextExecutor}
 
 @State(Scope.Thread)
@@ -41,7 +42,7 @@ class StreamBenchmarks {
       .map(_.toLong)
       .toMat(AkkaSink.fold(0L)(_ + _))(Keep.right)
 
-    Await.result(program.run(), Duration.Inf)
+    Await.result(program.run(), ScalaDuration.Inf)
   }
 
   @Benchmark
@@ -133,11 +134,13 @@ class CSVStreamBenchmarks {
       .mapConcat(t => t._2)
       .toMat(AkkaSink.ignore)(Keep.right)
 
-    Await.result(program.run(), Duration.Inf)
+    Await.result(program.run(), ScalaDuration.Inf)
   }
 
   @Benchmark
   def fs2CsvTokenize(): Unit = {
+    import cats.effect.unsafe.implicits.global
+
     val chunks = genCsvChunks.map(FS2Chunk.array(_))
     val stream = FS2Stream(chunks.toIndexedSeq: _*)
       .flatMap(FS2Stream.chunk)
@@ -200,7 +203,7 @@ object CSV {
   val RowSep    = '\n'
 
   def alphanumeric(random: scala.util.Random, min: Int, max: Int): String = {
-    val n = random.nextInt(max - min + 1) + min
+    val n = scala.util.Random.nextInt(max - min + 1) + min
 
     random.alphanumeric.take(n).mkString
   }

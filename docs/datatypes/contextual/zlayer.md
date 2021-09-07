@@ -80,13 +80,13 @@ object terminal {
 
   object Terminal {
     trait Service {
-      def putStrLn(line: String): UIO[Unit]
+      def printLine(line: String): UIO[Unit]
     }
 
     object Service {
       val live: Service = new Service {
-        override def putStrLn(line: String): UIO[Unit] =
-          ZIO.effectTotal(println(line))
+        override def printLine(line: String): UIO[Unit] =
+          ZIO.succeed(println(line))
       }
     }
   }
@@ -116,7 +116,7 @@ import scala.io.BufferedSource
 
 ```scala mdoc:silent:nest
 val managedFile = ZManaged.fromAutoCloseable(
-  ZIO.effect(scala.io.Source.fromFile("file.txt"))
+  ZIO.attempt(scala.io.Source.fromFile("file.txt"))
 )
 val fileLayer: ZLayer[Any, Throwable, Has[BufferedSource]] = 
   ZLayer.fromManaged(managedFile)
@@ -132,17 +132,16 @@ Let's see another real-world example of creating a layer from managed resources.
 
 ```scala mdoc:invisible:reset
 import zio._
-import zio.blocking._
-import zio.console._
+import zio.Console._
 import scala.io.Source._
 import java.io.{FileInputStream, FileOutputStream, Closeable}
 
 trait DBConfig
 trait Transactor
 
-def dbConfig: Task[DBConfig] = Task.effect(???)
-def initializeDb(config: DBConfig): Task[Unit] = Task.effect(???)
-def makeTransactor(config: DBConfig): ZManaged[Blocking, Throwable, Transactor] = ???
+def dbConfig: Task[DBConfig] = Task.attempt(???)
+def initializeDb(config: DBConfig): Task[Unit] = Task.attempt(???)
+def makeTransactor(config: DBConfig): ZManaged[Any, Throwable, Transactor] = ???
 
 case class UserRepository(xa: Transactor)
 object UserRepository {
@@ -151,9 +150,9 @@ object UserRepository {
 ```
 
 ```scala mdoc:silent:nest
-def userRepository: ZManaged[Blocking with Console, Throwable, UserRepository] = for {
-  cfg <- dbConfig.toManaged_
-  _ <- initializeDb(cfg).toManaged_
+def userRepository: ZManaged[Has[Console], Throwable, UserRepository] = for {
+  cfg <- dbConfig.toManaged
+  _ <- initializeDb(cfg).toManaged
   xa <- makeTransactor(cfg)
 } yield new UserRepository(xa)
 ```
@@ -168,8 +167,8 @@ val usersLayer_ = ZLayer.fromManaged(userRepository)
 Also, we can create a `ZLayer` directly from `acquire` and `release` actions of a managed resource:
 
 ```scala mdoc:nest
-def acquire = ZIO.effect(new FileInputStream("file.txt"))
-def release(resource: Closeable) = ZIO.effectTotal(resource.close())
+def acquire = ZIO.attempt(new FileInputStream("file.txt"))
+def release(resource: Closeable) = ZIO.succeed(resource.close())
 
 val inputStreamLayer = ZLayer.fromAcquireRelease(acquire)(release)
 ```
@@ -179,7 +178,7 @@ val inputStreamLayer = ZLayer.fromAcquireRelease(acquire)(release)
 We can create `ZLayer` from any `ZIO` effect by using `ZLayer.fromEffect` constructor, or calling `ZIO#toLayer` method:
 
 ```scala mdoc
-val layer = ZLayer.fromEffect(ZIO.succeed("Hello, World!"))
+val layer = ZLayer.fromZIO(ZIO.succeed("Hello, World!"))
 val layer_ = ZIO.succeed("Hello, World!").toLayer
 ```
 
@@ -190,8 +189,8 @@ trait AppConfig
 ```
 
 ```scala mdoc:nest
-def loadConfig: Task[AppConfig] = Task.effect(???)
-val configLayer = ZLayer.fromEffect(loadConfig)
+def loadConfig: Task[AppConfig] = Task.attempt(???)
+val configLayer = ZLayer.fromZIO(loadConfig)
 ```
 
 ### From another Service
@@ -225,10 +224,10 @@ import logging.Logging
 import logging.Logging._
 ```
 
-```scala mdoc:silent:nest
-val live: ZLayer[Console, Nothing, Logging] = ZLayer.fromService(console =>
+```scala mdoc:silent:nest:warn
+val live: ZLayer[Has[Console], Nothing, Logging] = ZLayer.fromService(console =>
   new Service {
-    override def log(msg: String): UIO[Unit] = console.putStrLn(msg).orDie
+    override def log(msg: String): UIO[Unit] = console.printLine(msg).orDie
   }
 )
 ```
@@ -246,8 +245,6 @@ We said that we can think of the `ZLayer` as a more powerful _constructor_. Cons
 Let's get into an example, assume we have these services with their implementations:
 
 ```scala mdoc:invisible:reset
-import zio.blocking.Blocking
-import zio.console.Console
 import zio._
 ```
 
@@ -258,8 +255,8 @@ trait BlobStorage { }
 trait UserRepo { }
 trait DocRepo { }
 
-case class LoggerImpl(console: Console.Service) extends Logging { }
-case class DatabaseImp(blocking: Blocking.Service) extends Database { }
+case class LoggerImpl(console: Console) extends Logging { }
+case object DatabaseImp extends Database { }
 case class UserRepoImpl(logging: Logging, database: Database) extends UserRepo { } 
 case class BlobStorageImpl(logging: Logging) extends BlobStorage { }
 case class DocRepoImpl(logging: Logging, database: Database, blobStorage: BlobStorage) extends DocRepo { }
@@ -270,10 +267,10 @@ We can't compose these services together, because their constructors are not val
 Let's assume we have lifted these services into `ZLayer`s:
 
 ```scala mdoc:silent
-val logging: URLayer[Has[Console.Service], Has[Logging]] = 
+val logging: URLayer[Has[Console], Has[Logging]] = 
   (LoggerImpl.apply _).toLayer
-val database: URLayer[Has[Blocking.Service], Has[Database]] = 
-  (DatabaseImp(_)).toLayer
+val database: URLayer[Any, Has[Database]] = 
+  ZLayer.succeed(DatabaseImp)
 val userRepo: URLayer[Has[Logging] with Has[Database], Has[UserRepo]] = 
   (UserRepoImpl(_, _)).toLayer
 val blobStorage: URLayer[Has[Logging], Has[BlobStorage]] = 
@@ -285,13 +282,13 @@ val docRepo: URLayer[Has[Logging] with Has[Database] with Has[BlobStorage], Has[
 Now, we can compose logging and database horizontally:
 
 ```scala mdoc:silent
-val newLayer: ZLayer[Has[Console.Service] with Has[Blocking.Service], Throwable, Has[Logging] with Has[Database]] = logging ++ database
+val newLayer: ZLayer[Has[Console], Throwable, Has[Logging] with Has[Database]] = logging ++ database
 ```
 
 And then we can compose the `newLayer` with `userRepo` vertically:
 
 ```scala mdoc:silent
-val myLayer: ZLayer[Has[Console.Service] with Has[Blocking.Service], Throwable, Has[UserRepo]] = newLayer >>> userRepo
+val myLayer: ZLayer[Has[Console], Throwable, Has[UserRepo]] = newLayer >>> userRepo
 ```
 
 ## Layer Memoization
@@ -305,10 +302,7 @@ If we don't want to share a module, we should create a fresh, non-shared version
 ## Updating Local Dependencies
 
 ```scala mdoc:invisible:reset
-import zio.{ Has, IO, Layer, UIO, URIO, ZEnv, ZIO, ZLayer }
-import zio.clock.Clock
-import zio.console.Console
-import zio.random.Random
+import zio._
 
 trait DBError
 trait Product
@@ -338,10 +332,10 @@ object UserRepo {
 
   //accessor methods
   def getUser(userId: UserId): ZIO[UserRepo, DBError, Option[User]] =
-    ZIO.accessM(_.get.getUser(userId))
+    ZIO.accessZIO(_.get.getUser(userId))
 
   def createUser(user: User): ZIO[UserRepo, DBError, Unit] =
-    ZIO.accessM(_.get.createUser(user))
+    ZIO.accessZIO(_.get.createUser(user))
 }
 
 
@@ -353,20 +347,19 @@ object Logging {
     def error(s: String): UIO[Unit]
   }
 
-  import zio.console.Console
-  val consoleLogger: ZLayer[Console, Nothing, Logging] = ZLayer.fromFunction( console =>
+  val consoleLogger: ZLayer[Has[Console], Nothing, Logging] = ZLayer.fromFunction( console =>
     new Service {
-      def info(s: String): UIO[Unit]  = console.get.putStrLn(s"info - $s").orDie
-      def error(s: String): UIO[Unit] = console.get.putStrLn(s"error - $s").orDie
+      def info(s: String): UIO[Unit]  = console.get.printLine(s"info - $s").orDie
+      def error(s: String): UIO[Unit] = console.get.printLine(s"error - $s").orDie
     }
   )
 
   //accessor methods
   def info(s: String): URIO[Logging, Unit] =
-    ZIO.accessM(_.get.info(s))
+    ZIO.accessZIO(_.get.info(s))
 
   def error(s: String): URIO[Logging, Unit] =
-    ZIO.accessM(_.get.error(s))
+    ZIO.accessZIO(_.get.error(s))
 }
 
 
@@ -396,13 +389,13 @@ val makeUser: ZIO[Logging with UserRepo, DBError, Unit] = for {
 
 
 // compose horizontally
-val horizontal: ZLayer[Console, Nothing, Logging with UserRepo] = Logging.consoleLogger ++ UserRepo.inMemory
+val horizontal: ZLayer[Has[Console], Nothing, Logging with UserRepo] = Logging.consoleLogger ++ UserRepo.inMemory
 
 // fulfill missing deps, composing vertically
 val fullLayer: Layer[Nothing, Logging with UserRepo] = Console.live >>> horizontal
 
 // provide the layer to the program
-makeUser.provideLayer(fullLayer)
+makeUser.provideSomeLayer(fullLayer)
 ```
 
 Given a layer, it is possible to update one or more components it provides. We update a dependency in two ways:
@@ -450,7 +443,7 @@ trait Configuration
 val userRepoWithConfig: ZLayer[Has[Configuration] with Has[Connection], Nothing, UserRepo] = 
   ZLayer.succeed(new Configuration{}) ++ postgresLayer
 val partialLayer: ZLayer[Has[Configuration], Nothing, UserRepo] = 
-  (ZLayer.identity[Has[Configuration]] ++ connection) >>> userRepoWithConfig
+  (ZLayer.environment[Has[Configuration]] ++ connection) >>> userRepoWithConfig
 ``` 
 
 In this example the requirement for a `Connection` has been satisfied, but `Configuration` is still required by `partialLayer`.
@@ -560,7 +553,7 @@ object Example extends zio.App {
 
   // Run the program, providing the `nameLayer`
   def run(args: List[String]): URIO[ZEnv, ExitCode] =
-    zio.provideLayer(nameLayer).as(ExitCode.success)
+    zio.provideSomeLayer(nameLayer).as(ExitCode.success)
 }
 
 ```
@@ -568,17 +561,16 @@ object Example extends zio.App {
 ### ZLayer application with dependencies 
 
 In the following example, our ZIO application has several dependencies:
- - `zio.clock.Clock`
- - `zio.console.Console`
+ - `zio.Clock`
+ - `zio.Console`
  - `ModuleB`
 
 `ModuleB` in turn depends upon `ModuleA`:
 
-```scala mdoc:silent
+```scala
 import zio._
-import zio.clock._
-import zio.console._
-import zio.duration.Duration._
+import zio.Clock._
+import zio.Console._
 import java.io.IOException
 
 object moduleA {
@@ -600,7 +592,7 @@ object moduleA {
   }
 
   def letsGoA(v: Int): URIO[ModuleA, String] =
-    ZIO.accessM(_.get.letsGoA(v))
+    ZIO.accessZIO(_.get.letsGoA(v))
 }
 
 import moduleA._
@@ -625,7 +617,7 @@ object moduleB {
   }
 
   def letsGoB(v: Int): URIO[ModuleB, String] =
-    ZIO.accessM(_.get.letsGoB(v))
+    ZIO.accessZIO(_.get.letsGoB(v))
 }
 
 object ZLayerApp0 extends zio.App {
@@ -633,16 +625,16 @@ object ZLayerApp0 extends zio.App {
   import moduleB._
 
   val env = Console.live ++ Clock.live ++ (ModuleA.live >>> ModuleB.live)
-  val program: ZIO[Console with Clock with moduleB.ModuleB, IOException, Unit] =
+  val program: ZIO[Has[Console] with Has[Clock] with moduleB.ModuleB, IOException, Unit] =
     for {
-      _ <- putStrLn(s"Welcome to ZIO!")
-      _ <- sleep(Finite(1000))
+      _ <- printLine(s"Welcome to ZIO!")
+      _ <- sleep(1.second)
       r <- letsGoB(10)
-      _ <- putStrLn(r)
+      _ <- printLine(r)
     } yield ()
 
   def run(args: List[String]) =
-    program.provideLayer(env).exitCode
+    program.provideSomeLayer(env).exitCode
 
 }
 
@@ -658,7 +650,7 @@ In this example, we can see that `ModuleC` depends upon `ModuleA`, `ModuleB`, an
 
 ```scala mdoc:silent
 import zio._
-import zio.clock._
+import zio.Clock._
 
 object ZLayerApp1 extends scala.App {
   val rt = Runtime.default
@@ -670,7 +662,7 @@ object ZLayerApp1 extends scala.App {
     trait Service {}
 
     val any: ZLayer[ModuleA, Nothing, ModuleA] =
-      ZLayer.requires[ModuleA]
+      ZLayer.environment[ModuleA]
 
     val live: ZLayer[Any, Nothing, ModuleA] =
       ZLayer.succeed(new Service {})
@@ -683,7 +675,7 @@ object ZLayerApp1 extends scala.App {
     trait Service {}
 
     val any: ZLayer[ModuleB, Nothing, ModuleB] =
-      ZLayer.requires[ModuleB]
+      ZLayer.environment[ModuleB]
 
     val live: ZLayer[Any, Nothing, ModuleB] =
       ZLayer.succeed(new Service {})
@@ -698,9 +690,9 @@ object ZLayerApp1 extends scala.App {
     }
 
     val any: ZLayer[ModuleC, Nothing, ModuleC] =
-      ZLayer.requires[ModuleC]
+      ZLayer.environment[ModuleC]
 
-    val live: ZLayer[ModuleA with ModuleB with Clock, Nothing, ModuleC] =
+    val live: ZLayer[ModuleA with ModuleB with Has[Clock], Nothing, ModuleC] =
       ZLayer.succeed {
         new Service {
           val foo: UIO[Int] = UIO.succeed(42)
@@ -708,10 +700,10 @@ object ZLayerApp1 extends scala.App {
       }
 
     val foo: URIO[ModuleC, Int] =
-      ZIO.accessM(_.get.foo)
+      ZIO.accessZIO(_.get.foo)
   }
 
-  val env = (ModuleA.live ++ ModuleB.live ++ ZLayer.identity[Clock]) >>> ModuleC.live
+  val env = (ModuleA.live ++ ModuleB.live ++ ZLayer.environment[Has[Clock]]) >>> ModuleC.live
 
   val res = ModuleC.foo.provideCustomLayer(env)
 

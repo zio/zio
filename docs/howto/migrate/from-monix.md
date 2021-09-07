@@ -19,9 +19,9 @@ If you are using operators from from Cats Effect extension methods see also
 | Monix | ZIO |
 |-------|-----|
 | `attempt` | `either` |
-| `bracketCase` | `bracketExit` |
-| `bracketE` | `bracketExit` |
-| `bracket` | `bracket` |
+| `bracketCase` | `acquireReleaseExitWith` |
+| `bracketE` | `acquireReleaseExitWith` |
+| `bracket` | `acquireReleaseWith` |
 | `delayExecution` | `delay` |
 | `dematerialize` | `absolve` |
 | `doOnCancel` | `onInterrupt` |
@@ -38,7 +38,7 @@ If you are using operators from from Cats Effect extension methods see also
 | `onErrorHandleWith` | `catchAll` |
 | `onErrorRecoverWith` | `catchSome` |
 | `onErrorRestart` | `retryN` |
-| `redeemWith` | `foldM` |
+| `redeemWith` | `foldZIO` |
 | `redeem` | `fold` |
 | `restartUntil` | `repeatUntil` |
 | `start` | `fork` |
@@ -51,13 +51,13 @@ If you are using operators from from Cats Effect extension methods see also
 | Monix  | ZIO |
 |-------|-----|
 | `apply` | `apply` |
-| `asyncF` | `effectAsyncM` |
-| `async` | `effectAsync` |
-| `cancelable` | `effectAsyncInterrupt` |
+| `asyncF` | `asyncZIO` |
+| `async` | `async` |
+| `cancelable` | `asyncInterrupt` |
 | `deferFuture` | `fromFuture` |
-| `defer` | `effectSuspend` |
-| `delay` | `effect` |
-| `eval` | `effect` |
+| `defer` | `suspend` |
+| `delay` | `attempt` |
+| `eval` | `attempt` |
 | `fromEither` | `fromEither` |
 | `fromFuture` | `fromFuture` |
 | `fromTry` | `fromTry` |
@@ -78,7 +78,7 @@ If you are using operators from from Cats Effect extension methods see also
 | `sequence` | `collectAll` |
 | `shift` | `yield` |
 | `sleep` | `sleep` |
-| `suspend` | `effectSuspend` |
+| `suspend` | `suspend` |
 | `traverse` | `foreach` |
 | `unit` | `unit` |
 

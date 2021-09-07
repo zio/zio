@@ -13,7 +13,7 @@ import java.util.concurrent.TimeUnit
 @Warmup(iterations = 15, timeUnit = TimeUnit.SECONDS, time = 10)
 @Fork(1)
 class STMRetryBenchmark {
-  import IOBenchmarks.unsafeRun
+  import BenchmarkUtil.unsafeRun
 
   private var long: UIO[Unit]  = _
   private var short: UIO[Unit] = _
@@ -27,7 +27,7 @@ class STMRetryBenchmark {
     val n          = JRuntime.getRuntime().availableProcessors() - 1
     val updateHead = ref.update(list => 0 :: list.tail).commit.forever
 
-    short = UIO.collectAllParN_(n)(List.fill(n)(updateHead))
+    short = UIO.collectAllParNDiscard(n)(List.fill(n)(updateHead))
     long = ref.update(_.map(_ + 1)).commit
   }
 

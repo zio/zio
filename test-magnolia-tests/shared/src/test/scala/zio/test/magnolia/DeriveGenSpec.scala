@@ -2,8 +2,7 @@ package zio.test.magnolia
 
 import java.time.{Instant, LocalDate, LocalDateTime}
 import java.util.UUID
-
-import zio.random.Random
+import zio._
 import zio.test.Assertion._
 import zio.test.GenUtils._
 import zio.test.Sized
@@ -14,7 +13,7 @@ object DeriveGenSpec extends DefaultRunnableSpec {
 
   final case class Person(name: String, age: Int)
 
-  val genPerson: Gen[Random with Sized, Person] = DeriveGen[Person]
+  val genPerson: Gen[Has[Random] with Has[Sized], Person] = DeriveGen[Person]
 
   sealed trait Color
 
@@ -24,7 +23,7 @@ object DeriveGenSpec extends DefaultRunnableSpec {
     case object Blue  extends Color
   }
 
-  val genColor: Gen[Random with Sized, Color] = DeriveGen[Color]
+  val genColor: Gen[Has[Random] with Has[Sized], Color] = DeriveGen[Color]
 
   sealed trait NonEmptyList[+A] { self =>
     def foldLeft[S](s: S)(f: (S, A) => S): S =
@@ -43,20 +42,20 @@ object DeriveGenSpec extends DefaultRunnableSpec {
     implicit def deriveGen[A: DeriveGen]: DeriveGen[NonEmptyList[A]] = DeriveGen.gen
   }
 
-  def genNonEmptyList[A](implicit ev: DeriveGen[A]): Gen[Random with Sized, NonEmptyList[A]] =
+  def genNonEmptyList[A](implicit ev: DeriveGen[A]): Gen[Has[Random] with Has[Sized], NonEmptyList[A]] =
     DeriveGen[NonEmptyList[A]]
 
   def assertDeriveGen[A: DeriveGen]: TestResult = assertCompletes
 
   def spec = suite("DeriveGenSpec")(
     suite("derivation")(
-      testM("case classes can be derived") {
+      test("case classes can be derived") {
         checkSample(genPerson)(isGreaterThan(1), _.distinct.length)
       },
-      testM("sealed traits can be derived") {
+      test("sealed traits can be derived") {
         checkSample(genColor)(equalTo(3), _.distinct.length)
       },
-      testM("recursive types can be derived") {
+      test("recursive types can be derived") {
         check(genNonEmptyList[Int])(as => assert(as.length)(isGreaterThan(0)))
       }
     ),
@@ -96,7 +95,7 @@ object DeriveGenSpec extends DefaultRunnableSpec {
       test("bigDecimal")(assertDeriveGen[BigDecimal])
     ),
     suite("shrinking")(
-      testM("derived generators shrink to smallest value") {
+      test("derived generators shrink to smallest value") {
         checkShrink(genPerson)(Person("", 0))
       }
     )

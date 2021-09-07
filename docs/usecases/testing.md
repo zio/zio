@@ -18,7 +18,6 @@ From there the fastest way to start writing tests is to extend `DefaultRunnableS
 
 ```scala mdoc:silent
 import zio._
-import zio.console._
 import zio.test._
 import zio.test.Assertion._
 import zio.test.environment._
@@ -28,13 +27,13 @@ import java.io.IOException
 import HelloWorld._
 
 object HelloWorld {
-  def sayHello: ZIO[Console, IOException, Unit] =
-    console.putStrLn("Hello, World!")
+  def sayHello: ZIO[Has[Console], IOException, Unit] =
+    Console.printLine("Hello, World!")
 }
 
 object HelloWorldSpec extends DefaultRunnableSpec {
   def spec = suite("HelloWorldSpec")(
-    testM("sayHello correctly displays output") {
+    test("sayHello correctly displays output") {
       for {
         _      <- sayHello
         output <- TestConsole.output
@@ -44,7 +43,7 @@ object HelloWorldSpec extends DefaultRunnableSpec {
 }
 ```
 
-In **ZIO Test**, all tests are immutable values and tests are tightly integrated with ZIO, so testing effectual programs is as natural as testing pure ones. In the example above, our test involved the effect of printing to the console but we didn't have to do anything differently in our test because of this other than use `testM` instead of `test`.
+In **ZIO Test**, all tests are immutable values and tests are tightly integrated with ZIO, so testing effectual programs is as natural as testing pure ones. In the example above, our test involved the effect of printing to the console but we didn't have to do anything differently in our test.
 
 **Test Environment**
 
@@ -56,7 +55,7 @@ Support for property based testing is included out of the box through the `check
 
 ```scala mdoc:silent
 val associativity =
-  check(Gen.anyInt, Gen.anyInt, Gen.anyInt) { (x, y, z) =>
+  check(Gen.int, Gen.int, Gen.int) { (x, y, z) =>
     assert((x + y) + z)(equalTo(x + (y + z)))
   }
 ```
@@ -66,19 +65,19 @@ If a property fails, the failure will be automatically shrunk to the smallest fa
 ZIO Test also supports automatic derivation of generators using the ZIO Test Magnolia module:
 
 ```scala mdoc:silent:nest
-import zio.random.Random
+import zio.Random
 import zio.test.magnolia._
 
 final case class Point(x: Double, y: Double)
 
-val genPoint: Gen[Random with Sized, Point] = DeriveGen[Point]
+val genPoint: Gen[Has[Random] with Has[Sized], Point] = DeriveGen[Point]
  
 sealed trait Color
 case object Red   extends Color
 case object Green extends Color
 case object Blue  extends Color
  
-val genColor: Gen[Random with Sized, Color] = DeriveGen[Color]
+val genColor: Gen[Has[Random] with Has[Sized], Color] = DeriveGen[Color]
 ```
 
 **Results Reporting**

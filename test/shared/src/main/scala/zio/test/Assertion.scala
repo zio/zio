@@ -208,7 +208,7 @@ object Assertion extends AssertionVariants {
    * Makes a new assertion that requires an exception to have a certain message.
    */
   def hasMessage(message: Assertion[String]): Assertion[Throwable] =
-    Assertion.assertionRec("hasMessage")(param(message))(message)(th => Some(th.getMessage))
+    Assertion.assertionRec("hasMessage")(param(message))(message)(th => Some(th.getMessage()))
 
   /**
    * Makes a new assertion that requires an exception to have certain
@@ -221,7 +221,7 @@ object Assertion extends AssertionVariants {
    * Makes a new assertion that requires an exception to have a certain cause.
    */
   def hasThrowableCause(cause: Assertion[Throwable]): Assertion[Throwable] =
-    Assertion.assertionRec("hasThrowableCause")(param(cause))(cause)(th => Some(th.getCause))
+    Assertion.assertionRec("hasThrowableCause")(param(cause))(cause)(th => Some(th.getCause()))
 
   /**
    * Makes a new assertion that requires a given string to end with the specified suffix.
@@ -506,8 +506,17 @@ object Assertion extends AssertionVariants {
    */
   def isInterrupted: Assertion[Exit[Any, Any]] =
     Assertion.assertion("isInterrupted")() {
-      case Exit.Failure(cause) => cause.interrupted
+      case Exit.Failure(cause) => cause.isInterrupted
       case _                   => false
+    }
+
+  /**
+   * Makes a new assertion that requires an exit value to be interrupted.
+   */
+  def isJustInterrupted: Assertion[Exit[Any, Any]] =
+    Assertion.assertion("isJustInterrupted")() {
+      case Exit.Failure(Cause.Interrupt(_)) => true
+      case _                                => false
     }
 
   /**

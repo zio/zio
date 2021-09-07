@@ -1,6 +1,9 @@
 package zio.test
 
-import zio.test.ConsoleUtils._
+import zio.test.render.LogLine.Message
+import zio.test.render._
+
+import scala.io.AnsiColor
 
 object ErrorMessage {
 
@@ -31,24 +34,25 @@ sealed trait ErrorMessage { self =>
   def +(that: ErrorMessage): ErrorMessage  = ErrorMessage.Combine(self, that)
   def +/(that: ErrorMessage): ErrorMessage = ErrorMessage.Combine(self, that, 0)
 
-  private[test] def render(isSuccess: Boolean): String =
+  private[test] def render(isSuccess: Boolean): Message =
     self match {
-      case ErrorMessage.Custom(custom) => custom
+      case ErrorMessage.Custom(custom) => error(custom).toLine.toMessage
 
       case ErrorMessage.Choice(success, failure) =>
-        if (isSuccess) magenta(success) else red(failure)
+        (if (isSuccess) fr(success).ansi(AnsiColor.MAGENTA) else error(failure)).toLine.toMessage
 
-      case ErrorMessage.Value(value) => bold(blue(value.toString))
+      case ErrorMessage.Value(value) => primary(value.toString).bold.toLine.toMessage
 
-      case ErrorMessage.Combine(lhs, rhs, spacing) =>
-        lhs.render(isSuccess) + (" " * spacing) + rhs.render(isSuccess)
+      case ErrorMessage.Combine(lhs, rhs, spacing) => {
+        (lhs.render(isSuccess) :+ (sp * spacing)) ++ rhs.render(isSuccess)
+      }
 
       case ErrorMessage.ThrowableM(throwable) =>
-        (red("ERROR: ") + bold(throwable.toString)) + "\n" +
-          throwable.getStackTrace.toIndexedSeq
-            .takeWhile(!_.getClassName.startsWith("zio.test.Arrow$"))
-            .mkString("\n")
+        val stacktrace = throwable.getStackTrace.toIndexedSeq
+          .takeWhile(!_.getClassName.startsWith("zio.test.Arrow$"))
+          .map(s => LogLine.Line.fromString(s.toString))
 
+        Message((error("ERROR:") + sp + bold(throwable.toString)) +: stacktrace)
     }
 
 }

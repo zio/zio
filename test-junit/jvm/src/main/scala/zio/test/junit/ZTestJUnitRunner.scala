@@ -19,14 +19,15 @@ package zio.test.junit
 import org.junit.runner.manipulation.{Filter, Filterable}
 import org.junit.runner.notification.{Failure, RunNotifier}
 import org.junit.runner.{Description, RunWith, Runner}
-import zio.ZIO.effectTotal
+import zio.ZIO.succeed
 import zio._
-import zio.test.FailureRenderer.FailureMessage.Message
-import zio.test.RenderedResult.CaseType.Test
-import zio.test.RenderedResult.Status.Failed
+import zio.test.DefaultTestReporter.rendered
 import zio.test.TestFailure.{Assertion, Runtime}
 import zio.test.TestSuccess.{Ignored, Succeeded}
 import zio.test._
+import zio.test.render.ExecutionResult.ResultType.Test
+import zio.test.render.ExecutionResult.Status.Failed
+import zio.test.render.LogLine.Message
 
 /**
  * Custom JUnit 4 runner for ZIO Test Specs.<br/>
@@ -38,7 +39,9 @@ import zio.test._
  * <br/><br/>
  * Scala.JS is not supported, as JUnit TestFramework for SBT under Scala.JS doesn't support custom runners.
  */
-class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable with BootstrapRuntime {
+class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
+  import zio.Runtime.default.unsafeRun
+
   private val className = klass.getName.stripSuffix("$")
 
   private lazy val spec: AbstractRunnableSpec = {
@@ -63,10 +66,10 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable with Boot
         case Spec.ManagedCase(managed)     => managed.flatMap(traverse(_, description, path))
         case Spec.MultipleCase(specs) =>
           val suiteDesc = Description.createSuiteDescription(path.lastOption.getOrElse(""), path.mkString(":"))
-          ZManaged.effectTotal(description.addChild(suiteDesc)) *>
+          ZManaged.succeed(description.addChild(suiteDesc)) *>
             ZManaged.foreach(specs)(traverse(_, suiteDesc, path)).ignore
         case Spec.TestCase(_, _) =>
-          ZManaged.effectTotal(description.addChild(testDescription(path.lastOption.getOrElse(""), path)))
+          ZManaged.succeed(description.addChild(testDescription(path.lastOption.getOrElse(""), path)))
       }
 
     unsafeRun(
@@ -78,7 +81,7 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable with Boot
   }
 
   override def run(notifier: RunNotifier): Unit =
-    zio.Runtime((), spec.runner.platform).unsafeRun {
+    zio.Runtime((), spec.runner.runtimeConfig).unsafeRun {
       val instrumented = instrumentSpec(filteredSpec, new JUnitNotifier(notifier))
       spec.runner.run(instrumented).unit.provideLayer(spec.runner.bootstrap)
     }
@@ -89,7 +92,7 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable with Boot
     label: String,
     cause: Cause[E]
   ): UIO[Unit] = {
-    val rendered = renderToString(FailureRenderer.renderCause(cause, 0))
+    val rendered = renderToString(DefaultTestReporter.renderCause(cause, 0))
     notifier.fireTestFailure(label, path, rendered, cause.dieOption.orNull)
   }
 
@@ -105,9 +108,11 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable with Boot
 
   private def renderFailureDetails(label: String, result: TestResult): Message =
     Message(
-      result.fold { result =>
-        RenderedResult(Test, label, Failed, 0, FailureRenderer.renderAssertionResult(result, 0).lines)
-      }(_ && _, _ || _, !_).rendered
+      result
+        .fold(details =>
+          rendered(Test, label, Failed, 0, DefaultTestReporter.renderAssertionResult(details, 0).lines: _*)
+        )(_ && _, _ || _, !_)
+        .lines
     )
 
   private def testDescription(label: String, path: Vector[String]): Description = {
@@ -168,21 +173,21 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable with Boot
       renderedText: String,
       throwable: Throwable = null
     ): UIO[Unit] =
-      effectTotal {
+      succeed {
         notifier.fireTestFailure(
           new Failure(testDescription(label, path), new TestFailed(renderedText, throwable))
         )
       }
 
-    def fireTestStarted(label: String, path: Vector[String]): UIO[Unit] = effectTotal {
+    def fireTestStarted(label: String, path: Vector[String]): UIO[Unit] = succeed {
       notifier.fireTestStarted(testDescription(label, path))
     }
 
-    def fireTestFinished(label: String, path: Vector[String]): UIO[Unit] = effectTotal {
+    def fireTestFinished(label: String, path: Vector[String]): UIO[Unit] = succeed {
       notifier.fireTestFinished(testDescription(label, path))
     }
 
-    def fireTestIgnored(label: String, path: Vector[String]): UIO[Unit] = effectTotal {
+    def fireTestIgnored(label: String, path: Vector[String]): UIO[Unit] = succeed {
       notifier.fireTestIgnored(testDescription(label, path))
     }
   }

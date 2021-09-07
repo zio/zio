@@ -12,7 +12,7 @@ trait RefInt {
 }
 
 object RefInt {
-  val live: ZLayer[Any, Nothing, Has[RefInt]] = ZLayer.fromEffect(
+  val live: ZLayer[Any, Nothing, Has[RefInt]] = ZLayer.fromZIO(
     Ref
       .make(0)
       .map(ref =>
@@ -30,18 +30,19 @@ object MutableRunnableSpecSpec
       RefInt.live,
       sequential >>> samples(10) >>> before(ZIO.service[RefInt].flatMap(_.inc))
     ) {
-  testM("ref 1") {
+
+  test("ref 1") {
     assertM(ZIO.service[RefInt].flatMap(_.get))(equalTo(1))
   }
 
-  testM("ref 2") {
+  test("ref 2") {
     assertM(ZIO.service[RefInt].flatMap(_.get))(equalTo(2))
   }
 
-  testM("check samples") {
+  test("check samples") {
     for {
       ref   <- ZIO.service[RefInt]
-      _     <- checkM(Gen.anyInt.noShrink)(_ => assertM(ref.inc)(anything))
+      _     <- checkM(Gen.int.noShrink)(_ => assertM(ref.inc)(anything))
       value <- ref.get
     } yield assert(value)(equalTo(13))
   }

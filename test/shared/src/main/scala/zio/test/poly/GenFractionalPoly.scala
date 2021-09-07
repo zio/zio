@@ -16,8 +16,8 @@
 
 package zio.test.poly
 
-import zio.random.Random
 import zio.test.{Gen, Sized}
+import zio.{Has, Random}
 
 /**
  * `GenFractionalPoly` provides evidence that instances of `Gen[T]` and
@@ -33,7 +33,7 @@ object GenFractionalPoly {
    * Constructs an instance of `GenFractionalPoly` using the specified `Gen`
    * and `Fractional` instances, existentially hiding the underlying type.
    */
-  def apply[A](gen: Gen[Random with Sized, A], num: Fractional[A]): GenFractionalPoly =
+  def apply[A](gen: Gen[Has[Random] with Has[Sized], A], num: Fractional[A]): GenFractionalPoly =
     new GenFractionalPoly {
       type T = A
       val genT = gen
@@ -45,19 +45,19 @@ object GenFractionalPoly {
    * doubles.
    */
   val double: GenFractionalPoly =
-    GenFractionalPoly(Gen.anyDouble, Numeric.DoubleIsFractional)
+    GenFractionalPoly(Gen.double, Numeric.DoubleIsFractional)
 
   /**
    * Provides evidence that instances of `Gen` and `Fractional` exist for
    * floats.
    */
   val float: GenFractionalPoly =
-    GenFractionalPoly(Gen.anyFloat, Numeric.FloatIsFractional)
+    GenFractionalPoly(Gen.float, Numeric.FloatIsFractional)
 
   /**
    * A generator of polymorphic values constrainted to have a `Fractional`
    * instance.
    */
-  val genFractionalPoly: Gen[Random, GenFractionalPoly] =
+  val genFractionalPoly: Gen[Has[Random], GenFractionalPoly] =
     Gen.elements(double, float)
 }

@@ -77,6 +77,9 @@ addCommandAlias(
   "all coreJVM/mimaReportBinaryIssues streamsJVM/mimaReportBinaryIssues testJVM/mimaReportBinaryIssues"
 )
 
+val catsEffectVersion = "3.2.5"
+val fs2Version        = "3.1.1"
+
 lazy val root = project
   .in(file("."))
   .settings(
@@ -133,13 +136,14 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(stdSettings("zio"))
   .settings(crossProjectSettings)
   .settings(buildInfoSettings("zio"))
-  .settings(libraryDependencies += "dev.zio" %%% "izumi-reflect" % "1.1.3")
+  .settings(libraryDependencies += "dev.zio" %%% "izumi-reflect" % "2.0.0")
   .enablePlugins(BuildInfoPlugin)
+  .settings(macroDefinitionSettings)
 
 lazy val coreJVM = core.jvm
   .settings(dottySettings)
   .settings(replSettings)
-  .settings(mimaSettings(failOnProblem = true))
+  .settings(mimaSettings(failOnProblem = false))
 
 lazy val coreJS = core.js
   .settings(dottySettings)
@@ -210,6 +214,7 @@ lazy val streams = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(buildInfoSettings("zio.stream"))
   .settings(streamReplSettings)
   .enablePlugins(BuildInfoPlugin)
+  .settings(macroDefinitionSettings)
 
 lazy val streamsJVM = streams.jvm
   .settings(dottySettings)
@@ -298,21 +303,19 @@ lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform)
   .settings(
     crossScalaVersions --= Seq(Scala211),
     scalacOptions ++= {
-      if (scalaVersion.value == ScalaDotty) {
+      if (scalaVersion.value == ScalaDotty)
         Seq.empty
-      } else {
+      else
         Seq("-language:experimental.macros")
-      }
     },
     libraryDependencies ++= {
-      if (scalaVersion.value == ScalaDotty) {
+      if (scalaVersion.value == ScalaDotty)
         Seq.empty
-      } else {
+      else
         Seq(
           ("com.propensive" %%% "magnolia" % "0.17.0")
             .exclude("org.scala-lang", "scala-compiler")
         )
-      }
     }
   )
 
@@ -496,21 +499,22 @@ lazy val benchmarks = project.module
     publish / skip := true,
     libraryDependencies ++=
       Seq(
-        "co.fs2"                    %% "fs2-core"       % "2.5.9",
-        "com.google.code.findbugs"   % "jsr305"         % "3.0.2",
-        "com.twitter"               %% "util-core"      % "21.8.0",
-        "com.typesafe.akka"         %% "akka-stream"    % "2.6.16",
-        "io.monix"                  %% "monix"          % "3.4.0",
-        "io.projectreactor"          % "reactor-core"   % "3.4.9",
-        "io.reactivex.rxjava2"       % "rxjava"         % "2.2.21",
-        "org.jctools"                % "jctools-core"   % "3.3.0",
-        "org.ow2.asm"                % "asm"            % "9.2",
-        "org.scala-lang"             % "scala-compiler" % scalaVersion.value % Provided,
-        "org.scala-lang"             % "scala-reflect"  % scalaVersion.value,
-        "org.typelevel"             %% "cats-effect"    % "2.5.3",
-        "org.scalacheck"            %% "scalacheck"     % "1.15.4",
-        "qa.hedgehog"               %% "hedgehog-core"  % "0.7.0",
-        "com.github.japgolly.nyaya" %% "nyaya-gen"      % "0.10.0"
+        "co.fs2"                    %% "fs2-core"        % fs2Version,
+        "com.google.code.findbugs"   % "jsr305"          % "3.0.2",
+        "com.twitter"               %% "util-core"       % "21.8.0",
+        "com.typesafe.akka"         %% "akka-stream"     % "2.6.16",
+        "io.github.timwspence"      %% "cats-stm"        % "0.10.3",
+        "io.projectreactor"          % "reactor-core"    % "3.4.9",
+        "io.reactivex.rxjava2"       % "rxjava"          % "2.2.21",
+        "org.jctools"                % "jctools-core"    % "3.3.0",
+        "org.ow2.asm"                % "asm"             % "9.2",
+        "org.scala-lang"             % "scala-compiler"  % scalaVersion.value % Provided,
+        "org.scala-lang"             % "scala-reflect"   % scalaVersion.value,
+        "org.typelevel"             %% "cats-effect"     % catsEffectVersion,
+        "org.typelevel"             %% "cats-effect-std" % catsEffectVersion,
+        "org.scalacheck"            %% "scalacheck"      % "1.15.4",
+        "qa.hedgehog"               %% "hedgehog-core"   % "0.7.0",
+        "com.github.japgolly.nyaya" %% "nyaya-gen"       % "0.10.0"
       ),
     unusedCompileDependenciesFilter -= libraryDependencies.value
       .map(moduleid =>
@@ -553,6 +557,8 @@ lazy val docs = project.module
     scalacOptions -= "-Xfatal-warnings",
     scalacOptions ~= { _ filterNot (_ startsWith "-Ywarn") },
     scalacOptions ~= { _ filterNot (_ startsWith "-Xlint") },
+    mdocIn := (LocalRootProject / baseDirectory).value / "docs",
+    mdocOut := (LocalRootProject / baseDirectory).value / "website" / "docs",
     libraryDependencies ++= Seq(
       "commons-io"          % "commons-io"                % "2.11.0" % "provided",
       "io.7mind.izumi"     %% "distage-core"              % "1.0.8",

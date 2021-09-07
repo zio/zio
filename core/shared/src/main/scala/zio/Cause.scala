@@ -56,8 +56,9 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
       }
       .reverse
 
+  @deprecated("use isDie", "2.0.0")
   final def died: Boolean =
-    dieOption.isDefined
+    isDie
 
   /**
    * Returns the `Throwable` associated with the first `Die` in this `Cause` if
@@ -66,8 +67,9 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
   final def dieOption: Option[Throwable] =
     find { case Die(t) => t }
 
+  @deprecated("use isFailure", "2.0.0")
   final def failed: Boolean =
-    failureOption.isDefined
+    isFailure
 
   /**
    * Returns the `E` associated with the first `Fail` in this `Cause` if one
@@ -133,27 +135,29 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
   /**
    * Determines if the `Cause` contains an interruption.
    */
+  @deprecated("use isInterrupted", "2.0.0")
   final def interrupted: Boolean =
-    find { case Interrupt(_) => () }.isDefined
+    isInterrupted
 
   /**
    * Determines if the `Cause` contains only interruptions and not any `Die` or
    * `Fail` causes.
    */
+  @deprecated("use isInterruptedOnly", "2.0.0")
   final def interruptedOnly: Boolean =
-    find {
-      case Die(_)  => false
-      case Fail(_) => false
-    }.getOrElse(true)
+    isInterruptedOnly
 
   /**
    * Returns a set of interruptors, fibers that interrupted the fiber described
    * by this `Cause`.
    */
-  final def interruptors: Set[Fiber.Id] =
-    foldLeft[Set[Fiber.Id]](Set()) { case (acc, Interrupt(fiberId)) =>
+  final def interruptors: Set[FiberId] =
+    foldLeft[Set[FiberId]](Set()) { case (acc, Interrupt(fiberId)) =>
       acc + fiberId
     }
+
+  final def isDie: Boolean =
+    dieOption.isDefined
 
   /**
    * Determines if the `Cause` is empty.
@@ -166,11 +170,30 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
       case (_, Interrupt(_))    => false
     }
 
+  final def isFailure: Boolean =
+    failureOption.isDefined
+
+  /**
+   * Determines if the `Cause` contains an interruption.
+   */
+  final def isInterrupted: Boolean =
+    find { case Interrupt(_) => () }.isDefined
+
+  /**
+   * Determines if the `Cause` contains only interruptions and not any `Die` or
+   * `Fail` causes.
+   */
+  final def isInterruptedOnly: Boolean =
+    find {
+      case Die(_)  => false
+      case Fail(_) => false
+    }.getOrElse(true)
+
   final def fold[Z](
     empty: => Z,
     failCase: E => Z,
     dieCase: Throwable => Z,
-    interruptCase: Fiber.Id => Z
+    interruptCase: FiberId => Z
   )(thenCase: (Z, Z) => Z, bothCase: (Z, Z) => Z, tracedCase: (Z, ZTrace) => Z): Z =
     self match {
       case Empty => empty
@@ -312,7 +335,7 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
         List(Failure("An unchecked error was produced." :: renderThrowable(t, maybeData) ++ renderTrace(maybeTrace)))
       )
 
-    def renderInterrupt(fiberId: Fiber.Id, maybeTrace: Option[ZTrace]): Sequential =
+    def renderInterrupt(fiberId: FiberId, maybeTrace: Option[ZTrace]): Sequential =
       Sequential(
         List(Failure(s"An interrupt was produced by #${fiberId.seqNumber}." :: renderTrace(maybeTrace)))
       )
@@ -386,7 +409,7 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
    * Squashes a `Cause` down to a single `Throwable`, chosen to be the
    * "most important" `Throwable`.
    */
-  final def squash(implicit ev: E <:< Throwable): Throwable =
+  final def squash(implicit ev: E IsSubtypeOfError Throwable): Throwable =
     squashWith(ev)
 
   /**
@@ -395,7 +418,7 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
    */
   final def squashWith(f: E => Throwable): Throwable =
     failureOption.map(f) orElse
-      (if (interrupted)
+      (if (isInterrupted)
          Some(
            new InterruptedException(
              "Interrupted by fibers: " + interruptors.map(_.seqNumber.toString()).map("#" + _).mkString(", ")
@@ -410,7 +433,7 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
    * suppressed exceptions of the `Throwable`, with this `Cause` "pretty
    * printed" (in stackless mode) as the message.
    */
-  final def squashTrace(implicit ev: E <:< Throwable): Throwable =
+  final def squashTrace(implicit ev: E IsSubtypeOfError Throwable): Throwable =
     squashTraceWith(ev)
 
   /**
@@ -527,7 +550,7 @@ object Cause extends Serializable {
   val empty: Cause[Nothing]                               = Internal.Empty
   def die(defect: Throwable): Cause[Nothing]              = Internal.Die(defect)
   def fail[E](error: E): Cause[E]                         = Internal.Fail(error)
-  def interrupt(fiberId: Fiber.Id): Cause[Nothing]        = Internal.Interrupt(fiberId)
+  def interrupt(fiberId: FiberId): Cause[Nothing]         = Internal.Interrupt(fiberId)
   def stack[E](cause: Cause[E]): Cause[E]                 = Internal.Meta(cause, Internal.Data(false))
   def stackless[E](cause: Cause[E]): Cause[E]             = Internal.Meta(cause, Internal.Data(true))
   def traced[E](cause: Cause[E], trace: ZTrace): Cause[E] = Internal.Traced(cause, trace)
@@ -536,17 +559,17 @@ object Cause extends Serializable {
    * Converts the specified `Cause[Option[E]]` to an `Option[Cause[E]]` by
    * recursively stripping out any failures with the error `None`.
    */
-  def sequenceCauseOption[E](c: Cause[Option[E]]): Option[Cause[E]] =
+  def flipCauseOption[E](c: Cause[Option[E]]): Option[Cause[E]] =
     c match {
       case Internal.Empty                => Some(Internal.Empty)
-      case Internal.Traced(cause, trace) => sequenceCauseOption(cause).map(Internal.Traced(_, trace))
-      case Internal.Meta(cause, data)    => sequenceCauseOption(cause).map(Internal.Meta(_, data))
+      case Internal.Traced(cause, trace) => flipCauseOption(cause).map(Internal.Traced(_, trace))
+      case Internal.Meta(cause, data)    => flipCauseOption(cause).map(Internal.Meta(_, data))
       case Internal.Interrupt(id)        => Some(Internal.Interrupt(id))
       case d @ Internal.Die(_)           => Some(d)
       case Internal.Fail(Some(e))        => Some(Internal.Fail(e))
       case Internal.Fail(None)           => None
       case Internal.Then(left, right) =>
-        (sequenceCauseOption(left), sequenceCauseOption(right)) match {
+        (flipCauseOption(left), flipCauseOption(right)) match {
           case (Some(cl), Some(cr)) => Some(Internal.Then(cl, cr))
           case (None, Some(cr))     => Some(cr)
           case (Some(cl), None)     => Some(cl)
@@ -554,7 +577,7 @@ object Cause extends Serializable {
         }
 
       case Internal.Both(left, right) =>
-        (sequenceCauseOption(left), sequenceCauseOption(right)) match {
+        (flipCauseOption(left), flipCauseOption(right)) match {
           case (Some(cl), Some(cr)) => Some(Internal.Both(cl, cr))
           case (None, Some(cr))     => Some(cr)
           case (Some(cl), None)     => Some(cl)
@@ -566,24 +589,24 @@ object Cause extends Serializable {
    * Converts the specified `Cause[Either[E, A]]` to an `Either[Cause[E], A]` by
    * recursively stripping out any failures with the error `None`.
    */
-  def sequenceCauseEither[E, A](c: Cause[Either[E, A]]): Either[Cause[E], A] =
+  def flipCauseEither[E, A](c: Cause[Either[E, A]]): Either[Cause[E], A] =
     c match {
       case Internal.Empty                => Left(Internal.Empty)
-      case Internal.Traced(cause, trace) => sequenceCauseEither(cause).left.map(Internal.Traced(_, trace))
-      case Internal.Meta(cause, data)    => sequenceCauseEither(cause).left.map(Internal.Meta(_, data))
+      case Internal.Traced(cause, trace) => flipCauseEither(cause).left.map(Internal.Traced(_, trace))
+      case Internal.Meta(cause, data)    => flipCauseEither(cause).left.map(Internal.Meta(_, data))
       case Internal.Interrupt(id)        => Left(Internal.Interrupt(id))
       case d @ Internal.Die(_)           => Left(d)
       case Internal.Fail(Left(e))        => Left(Internal.Fail(e))
       case Internal.Fail(Right(a))       => Right(a)
       case Internal.Then(left, right) =>
-        (sequenceCauseEither(left), sequenceCauseEither(right)) match {
+        (flipCauseEither(left), flipCauseEither(right)) match {
           case (Left(cl), Left(cr)) => Left(Internal.Then(cl, cr))
           case (Right(a), _)        => Right(a)
           case (_, Right(a))        => Right(a)
         }
 
       case Internal.Both(left, right) =>
-        (sequenceCauseEither(left), sequenceCauseEither(right)) match {
+        (flipCauseEither(left), flipCauseEither(right)) match {
           case (Left(cl), Left(cr)) => Left(Internal.Both(cl, cr))
           case (Right(a), _)        => Right(a)
           case (_, Right(a))        => Right(a)
@@ -605,7 +628,7 @@ object Cause extends Serializable {
 
   object Fail {
     def apply[E](value: E): Cause[E] =
-      new Internal.Fail(value)
+      Internal.Fail(value)
     def unapply[E](cause: Cause[E]): Option[E] =
       cause.find {
         case cause if cause eq Internal.Empty => None
@@ -620,7 +643,7 @@ object Cause extends Serializable {
 
   object Die {
     def apply(value: Throwable): Cause[Nothing] =
-      new Internal.Die(value)
+      Internal.Die(value)
     def unapply[E](cause: Cause[E]): Option[Throwable] =
       cause.find {
         case cause if cause eq Internal.Empty => None
@@ -634,9 +657,9 @@ object Cause extends Serializable {
   }
 
   object Interrupt {
-    def apply(fiberId: Fiber.Id): Cause[Nothing] =
+    def apply(fiberId: FiberId): Cause[Nothing] =
       Internal.Interrupt(fiberId)
-    def unapply[E](cause: Cause[E]): Option[Fiber.Id] =
+    def unapply[E](cause: Cause[E]): Option[FiberId] =
       cause.find {
         case cause if cause eq Internal.Empty => None
         case Internal.Fail(_)                 => None
@@ -665,7 +688,7 @@ object Cause extends Serializable {
 
   object Then {
     def apply[E](left: Cause[E], right: Cause[E]): Cause[E] =
-      new Internal.Then(left, right)
+      Internal.Then(left, right)
     def unapply[E](cause: Cause[E]): Option[(Cause[E], Cause[E])] =
       cause.find {
         case cause if cause eq Internal.Empty => None
@@ -680,7 +703,7 @@ object Cause extends Serializable {
 
   object Both {
     def apply[E](left: Cause[E], right: Cause[E]): Cause[E] =
-      new Internal.Both(left, right)
+      Internal.Both(left, right)
     def unapply[E](cause: Cause[E]): Option[(Cause[E], Cause[E])] =
       cause.find {
         case cause if cause eq Internal.Empty => None
@@ -728,7 +751,7 @@ object Cause extends Serializable {
       }
     }
 
-    final case class Interrupt(fiberId: Fiber.Id) extends Cause[Nothing] {
+    final case class Interrupt(fiberId: FiberId) extends Cause[Nothing] {
       override def equals(that: Any): Boolean =
         (this eq that.asInstanceOf[AnyRef]) || (that match {
           case interrupt: Interrupt => fiberId == interrupt.fiberId

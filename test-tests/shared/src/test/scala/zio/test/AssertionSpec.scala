@@ -2,14 +2,14 @@ package zio.test
 
 import zio.test.Assertion._
 import zio.test.TestAspect._
-import zio.{Chunk, Exit}
+import zio.{Chunk, Exit, Has}
 
 import scala.collection.immutable.SortedSet
 import scala.util.{Failure, Success}
 
 object AssertionSpec extends ZIOBaseSpec {
 
-  def spec: Spec[Annotations, TestFailure[Any], TestSuccess] = suite("AssertionSpec")(
+  def spec: Spec[Has[Annotations], TestFailure[Any], TestSuccess] = suite("AssertionSpec")(
     test("and must succeed when both assertions are satisfied") {
       assert(sampleUser)(nameStartsWithU && ageGreaterThan20)
     },
@@ -76,7 +76,7 @@ object AssertionSpec extends ZIOBaseSpec {
     test("equalTo must not have type inference issues") {
       assert(List(1, 2, 3).filter(_ => false))(equalTo(List.empty))
     },
-    testM("equalTo must not compile when comparing two unrelated types") {
+    test("equalTo must not compile when comparing two unrelated types") {
       val result = typeCheck("assert(1)(equalTo(\"abc\"))")
       assertM(result)(
         isLeft(
@@ -479,7 +479,7 @@ object AssertionSpec extends ZIOBaseSpec {
     test("isUnit must succeed when supplied value is ()") {
       assert(())(isUnit)
     },
-    testM("isUnit must not compile when supplied value is not ()") {
+    test("isUnit must not compile when supplied value is not ()") {
       val result = typeCheck("assert(10)(isUnit)")
       assertM(result)(isLeft(anything))
     },

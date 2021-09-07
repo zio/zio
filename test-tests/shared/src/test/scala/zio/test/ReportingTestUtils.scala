@@ -1,13 +1,13 @@
 package zio.test
 
-import zio.clock.Clock
 import zio.test.Assertion.{equalTo, isGreaterThan, isLessThan, isRight, isSome, not}
 import zio.test.environment.{TestClock, TestConsole, TestEnvironment, testEnvironment}
 import zio.test.mock.Expectation._
 import zio.test.mock.internal.InvalidCall._
 import zio.test.mock.internal.MockException._
 import zio.test.mock.module.{PureModule, PureModuleMock}
-import zio.{Cause, Layer, Promise, ZIO}
+import zio.test.render.TestRenderer
+import zio.{Cause, Clock, Has, Layer, Promise, ZIO}
 
 import java.util.regex.Pattern
 import scala.{Console => SConsole}
@@ -23,7 +23,7 @@ object ReportingTestUtils {
     red("- " + label) + "\n"
 
   def expectedIgnored(label: String): String =
-    yellow("- ") + yellow(label) + " - " + TestAnnotation.ignored.identifier + " suite" + "\n"
+    yellow("- " + label) + " - " + TestAnnotation.ignored.identifier + " suite" + "\n"
 
   def withOffset(n: Int)(s: String): String =
     " " * n + s
@@ -54,7 +54,9 @@ object ReportingTestUtils {
     for {
       _ <- TestTestRunner(testEnvironment)
              .run(spec)
-             .provideLayer[Nothing, TestEnvironment, TestLogger with Clock](TestLogger.fromConsole ++ TestClock.default)
+             .provideLayer[Nothing, TestEnvironment, Has[TestLogger] with Has[Clock]](
+               TestLogger.fromConsole ++ TestClock.default
+             )
       output <- TestConsole.output
     } yield output.mkString.withNoLineNumbers
 
@@ -62,7 +64,7 @@ object ReportingTestUtils {
     for {
       results <- TestTestRunner(testEnvironment)
                    .run(spec)
-                   .provideLayer[Nothing, TestEnvironment, TestLogger with Clock](
+                   .provideLayer[Nothing, TestEnvironment, Has[TestLogger] with Has[Clock]](
                      TestLogger.fromConsole ++ TestClock.default
                    )
       actualSummary = SummaryBuilder.buildSummary(results)
@@ -71,7 +73,7 @@ object ReportingTestUtils {
   private[this] def TestTestRunner(testEnvironment: Layer[Nothing, TestEnvironment]) =
     TestRunner[TestEnvironment, String](
       executor = TestExecutor.default[TestEnvironment, String](testEnvironment),
-      reporter = DefaultTestReporter(TestAnnotationRenderer.default)
+      reporter = DefaultTestReporter(TestRenderer.default, TestAnnotationRenderer.default)
     )
 
   val test1: ZSpec[Any, Nothing] = test("Addition works fine")(assert(1 + 1)(equalTo(2)))
@@ -132,12 +134,12 @@ object ReportingTestUtils {
     withOffset(2)(assertSourceLocation() + "\n")
   )
 
-  val test7: ZSpec[Any, Nothing] = testM("labeled failures") {
+  val test7: ZSpec[Any, Nothing] = test("labeled failures") {
     for {
-      a <- ZIO.effectTotal(Some(1))
-      b <- ZIO.effectTotal(Some(1))
-      c <- ZIO.effectTotal(Some(0))
-      d <- ZIO.effectTotal(Some(1))
+      a <- ZIO.succeed(Some(1))
+      b <- ZIO.succeed(Some(1))
+      c <- ZIO.succeed(Some(0))
+      d <- ZIO.succeed(Some(1))
     } yield assert(a)(isSome(equalTo(1)).label("first")) &&
       assert(b)(isSome(equalTo(1)).label("second")) &&
       assert(c)(isSome(equalTo(1)).label("third")) &&
@@ -246,7 +248,7 @@ object ReportingTestUtils {
     withOffset(2)(s"""${red("- invalid repetition range 4 to 2 by -1")}\n""")
   )
 
-  val mock5: ZSpec[Any, String] = testM("Failing layer") {
+  val mock5: ZSpec[Any, String] = test("Failing layer") {
     for {
       promise     <- Promise.make[Nothing, Unit]
       failingLayer = (promise.await *> ZIO.fail("failed!")).toLayer[String]

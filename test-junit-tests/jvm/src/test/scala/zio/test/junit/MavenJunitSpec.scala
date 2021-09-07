@@ -1,10 +1,9 @@
 package zio.test.junit
 
 import org.apache.maven.cli.MavenCli
-import zio.blocking.{Blocking, effectBlocking}
 import zio.test.Assertion._
 import zio.test.{DefaultRunnableSpec, ZSpec, _}
-import zio.{RIO, ZIO}
+import zio.{System => _, _}
 
 import java.io.File
 import scala.collection.immutable
@@ -17,7 +16,7 @@ import scala.xml.XML
 object MavenJunitSpec extends DefaultRunnableSpec {
 
   def spec: ZSpec[Environment, Failure] = suite("MavenJunitSpec")(
-    testM("FailingSpec results are properly reported") {
+    test("FailingSpec results are properly reported") {
       for {
         mvn       <- makeMaven
         mvnResult <- mvn.clean() *> mvn.test()
@@ -72,34 +71,35 @@ object MavenJunitSpec extends DefaultRunnableSpec {
   class MavenDriver(projectDir: String, projectVersion: String, scalaVersion: String, scalaCompatVersion: String) {
     val mvnRoot: String = new File(s"$projectDir/../maven").getCanonicalPath
     private val cli     = new MavenCli
-    System.setProperty("maven.multiModuleProjectDirectory", mvnRoot)
+    java.lang.System.setProperty("maven.multiModuleProjectDirectory", mvnRoot)
 
-    def clean(): RIO[Blocking, Int] = run("clean")
+    def clean(): Task[Int] = run("clean")
 
-    def test(): RIO[Blocking, Int] = run(
+    def test(): Task[Int] = run(
       "test",
       s"-Dzio.version=$projectVersion",
       s"-Dscala.version=$scalaVersion",
       s"-Dscala.compat.version=$scalaCompatVersion",
       s"-ssettings.xml"
     )
-    def run(command: String*): RIO[Blocking, Int] = effectBlocking(
+    def run(command: String*): Task[Int] = ZIO.attemptBlocking(
       cli.doMain(command.toArray, mvnRoot, System.out, System.err)
     )
 
-    def parseSurefireReport(testFQN: String): ZIO[Blocking, Throwable, immutable.Seq[TestCase]] =
-      effectBlocking(
-        XML.load(scala.xml.Source.fromFile(new File(s"$mvnRoot/target/surefire-reports/TEST-$testFQN.xml")))
-      ).map { report =>
-        (report \ "testcase").map { tcNode =>
-          TestCase(
-            tcNode \@ "name",
-            (tcNode \ "error").headOption.map(error =>
-              TestError(error.text.linesIterator.map(_.trim).mkString("\n"), error \@ "type")
+    def parseSurefireReport(testFQN: String): Task[immutable.Seq[TestCase]] =
+      ZIO
+        .attemptBlocking(
+          XML.load(scala.xml.Source.fromFile(new File(s"$mvnRoot/target/surefire-reports/TEST-$testFQN.xml")))
+        )
+        .map { report =>
+          (report \ "testcase").map { tcNode =>
+            TestCase(
+              tcNode \@ "name",
+              (tcNode \ "error").headOption
+                .map(error => TestError(error.text.linesIterator.map(_.trim).mkString("\n"), error \@ "type"))
             )
-          )
+          }
         }
-      }
 
   }
 

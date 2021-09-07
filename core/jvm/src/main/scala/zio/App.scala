@@ -16,65 +16,26 @@
 
 package zio
 
-import zio.internal.FiberContext
-
 /**
  * The entry point for a purely-functional application on the JVM.
  *
  * {{{
  * import zio.App
- * import zio.console._
+ * import zio.Console._
  *
  * object MyApp extends App {
  *
  *   final def run(args: List[String]) =
  *     myAppLogic.exitCode
  *
- *   def myAppLogic =
+ *   val myAppLogic =
  *     for {
- *       _ <- putStrLn("Hello! What is your name?")
- *       n <- getStrLn
- *       _ <- putStrLn("Hello, " + n + ", good to meet you!")
+ *       _ <- printLine("Hello! What is your name?")
+ *       n <- readLine
+ *       _ <- printLine("Hello, " + n + ", good to meet you!")
  *     } yield ()
  * }
  * }}}
  */
-trait App extends BootstrapRuntime {
-
-  /**
-   * The main function of the application, which will be passed the command-line
-   * arguments to the program and has to return an `IO` with the errors fully handled.
-   */
-  def run(args: List[String]): URIO[ZEnv, ExitCode]
-
-  /**
-   * The Scala main function, intended to be called only by the Scala runtime.
-   */
-  // $COVERAGE-OFF$ Bootstrap to `Unit`
-  final def main(args0: Array[String]): Unit =
-    try sys.exit(
-      unsafeRun(
-        for {
-          fiber <- run(args0.toList).fork
-          _ <- IO.effectTotal(java.lang.Runtime.getRuntime.addShutdownHook(new Thread {
-                 override def run() =
-                   if (FiberContext.fatal.get) {
-                     println(
-                       "**** WARNING ***\n" +
-                         "Catastrophic JVM error encountered. " +
-                         "Application not safely interrupted. " +
-                         "Resources may be leaked. " +
-                         "Check the logs for more details and consider overriding `Platform.reportFatal` to capture context."
-                     )
-                   } else {
-                     val _ = unsafeRunSync(fiber.interrupt)
-                   }
-               }))
-          result <- fiber.join
-          _      <- fiber.interrupt
-        } yield result.code
-      )
-    )
-    catch { case _: SecurityException => }
-  // $COVERAGE-ON$
-}
+@deprecated("2.0.0", "Use zio.ZIOApp")
+trait App extends ZApp[ZEnv] with BootstrapRuntime

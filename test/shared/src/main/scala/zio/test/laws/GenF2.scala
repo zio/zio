@@ -16,8 +16,8 @@
 
 package zio.test.laws
 
-import zio.random.Random
 import zio.test.{FunctionVariants, Gen}
+import zio.{Has, Random}
 
 /**
  * A `GenF` knows how to construct a generator of `F[A,B]` values given a
@@ -38,10 +38,10 @@ object GenF2 extends FunctionVariants {
   /**
    * A generator of `Function1` A => B values.
    */
-  val function1: GenF2[Random, Function1] =
-    new GenF2[Random, Function1] {
+  val function1: GenF2[Has[Random], Function1] =
+    new GenF2[Has[Random], Function1] {
 
-      override def apply[R1 <: Random, A, B](gen: Gen[R1, B]): Gen[R1, Function1[A, B]] =
+      override def apply[R1 <: Has[Random], A, B](gen: Gen[R1, B]): Gen[R1, Function1[A, B]] =
         function[R1, A, B](gen)
     }
 }
