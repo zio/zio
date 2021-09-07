@@ -661,6 +661,15 @@ object ChunkSpec extends ZIOBaseSpec {
         val expected = Some(())
         assert(actual)(equalTo(expected))
       }
-    )
+    ),
+    test("updated") {
+      check(Gen.chunkOfN(100)(Gen.int), Gen.listOf(Gen.int(0, 99)), Gen.listOf(Gen.int)) { (chunk, indices, values) =>
+        val actual =
+          indices.zip(values).foldLeft(chunk) { case (chunk, (index, value)) => chunk.updated(index, value) }
+        val expected =
+          indices.zip(values).foldLeft(chunk.toList) { case (chunk, (index, value)) => chunk.updated(index, value) }
+        assert(actual.toList)(equalTo(expected))
+      }
+    }
   )
 }

@@ -1184,6 +1184,17 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
   protected def right: Chunk[A] =
     Chunk.empty
 
+  /**
+   * Updates an element at the specified index of the chunk.
+   */
+  protected def update[A1 >: A](index: Int, a1: A1): Chunk[A1] = {
+    val bufferIndices = Array.ofDim[Int](Chunk.UpdateBufferSize)
+    val bufferValues  = Array.ofDim[AnyRef](Chunk.UpdateBufferSize)
+    bufferIndices(0) = index
+    bufferValues(0) = a1.asInstanceOf[AnyRef]
+    Chunk.Update(self, bufferIndices, bufferValues, 1, new AtomicInteger(1))
+  }
+
   private final def fromBuilder[A1 >: A, B[_]](builder: Builder[A1, B[A1]]): B[A1] = {
     val c   = materialize
     var i   = 0
@@ -1424,6 +1435,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       case x: PrependN[A]    => x.classTag
       case x: Singleton[A]   => x.classTag
       case x: Slice[A]       => x.classTag
+      case x: Update[A]      => x.classTag
       case x: VectorChunk[A] => x.classTag
       case _: BitChunk       => ClassTag.Boolean.asInstanceOf[ClassTag[A]]
     }
@@ -1433,6 +1445,12 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
    */
   private val BufferSize: Int =
     64
+
+  /**
+   * The maximum number of elements in the buffer for fast update.
+   */
+  private val UpdateBufferSize: Int =
+    256
 
   private final case class AppendN[A](start: Chunk[A], buffer: Array[AnyRef], bufferUsed: Int, chain: AtomicInteger)
       extends Chunk[A] { self =>
@@ -1488,6 +1506,59 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       val length = math.min(bufferUsed, math.max(dest.length - n, 0))
       Array.copy(buffer, BufferSize - bufferUsed, dest, n, length)
       val _ = end.toArray(n + length, dest)
+    }
+  }
+
+  private final case class Update[A](
+    chunk: Chunk[A],
+    bufferIndices: Array[Int],
+    bufferValues: Array[AnyRef],
+    used: Int,
+    chain: AtomicInteger
+  ) extends Chunk[A] { self =>
+
+    implicit val classTag: ClassTag[A] = Chunk.classTagOf(chunk)
+
+    val length: Int =
+      chunk.length
+
+    def apply(i: Int): A = {
+      var j = used
+      var a = null.asInstanceOf[A]
+      while (j >= 0) {
+        if (bufferIndices(j) == i) {
+          a = bufferValues(j).asInstanceOf[A]
+          j = -1
+        } else {
+          j -= 1
+        }
+      }
+      if (a != null) a else chunk(i)
+    }
+
+    override protected def update[A1 >: A](i: Int, a: A1): Chunk[A1] =
+      if (used < UpdateBufferSize && chain.compareAndSet(used, used + 1)) {
+        bufferIndices(used) = i
+        bufferValues(used) = a.asInstanceOf[AnyRef]
+        Update(chunk, bufferIndices, bufferValues, used + 1, chain)
+      } else {
+        val bufferIndices = Array.ofDim[Int](UpdateBufferSize)
+        val bufferValues  = Array.ofDim[AnyRef](UpdateBufferSize)
+        bufferIndices(0) = i
+        bufferValues(0) = a.asInstanceOf[AnyRef]
+        val array = chunk.asInstanceOf[Chunk[AnyRef]].toArray
+        Update(Chunk.fromArray(array.asInstanceOf[Array[A1]]), bufferIndices, bufferValues, 1, new AtomicInteger(1))
+      }
+
+    override protected[zio] def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit = {
+      chunk.toArray(n, dest)
+      var i = 0
+      while (i < used) {
+        val index = bufferIndices(i)
+        val value = self.bufferValues(i)
+        dest(index) = value.asInstanceOf[A1]
+        i += 1
+      }
     }
   }
 
