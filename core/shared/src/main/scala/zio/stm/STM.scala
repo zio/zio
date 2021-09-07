@@ -412,7 +412,7 @@ object STM {
   /**
    * @see See [[zio.stm.ZSTM.unless]]
    */
-  def unless[E](b: => Boolean)(stm: => STM[E, Any]): STM[E, Unit] =
+  def unless[E, A](b: => Boolean)(stm: => STM[E, A]): STM[E, Option[A]] =
     ZSTM.unless(b)(stm)
 
   /**
@@ -455,25 +455,26 @@ object STM {
   /**
    * @see See [[zio.stm.ZSTM.when]]
    */
-  def when[E](b: => Boolean)(stm: => STM[E, Any]): STM[E, Unit] = ZSTM.when(b)(stm)
+  def when[E, A](b: => Boolean)(stm: => STM[E, A]): STM[E, Option[A]] =
+    ZSTM.when(b)(stm)
 
   /**
    * @see See [[zio.stm.ZSTM.whenCase]]
    */
-  def whenCase[E, A](a: => A)(pf: PartialFunction[A, STM[E, Any]]): STM[E, Unit] =
+  def whenCase[E, A, B](a: => A)(pf: PartialFunction[A, STM[E, B]]): STM[E, Option[B]] =
     ZSTM.whenCase(a)(pf)
 
   /**
    * @see See [[zio.stm.ZSTM.whenCaseM]]
    */
   @deprecated("use whenCaseSTM", "2.0.0")
-  def whenCaseM[E, A](a: STM[E, A])(pf: PartialFunction[A, STM[E, Any]]): STM[E, Unit] =
+  def whenCaseM[E, A, B](a: STM[E, A])(pf: PartialFunction[A, STM[E, B]]): STM[E, Option[B]] =
     ZSTM.whenCaseM(a)(pf)
 
   /**
    * @see See [[zio.stm.ZSTM.whenCaseSTM]]
    */
-  def whenCaseSTM[E, A](a: STM[E, A])(pf: PartialFunction[A, STM[E, Any]]): STM[E, Unit] =
+  def whenCaseSTM[E, A, B](a: STM[E, A])(pf: PartialFunction[A, STM[E, B]]): STM[E, Option[B]] =
     ZSTM.whenCaseSTM(a)(pf)
 
   /**

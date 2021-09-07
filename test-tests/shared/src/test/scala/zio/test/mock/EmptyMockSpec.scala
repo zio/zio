@@ -15,7 +15,7 @@ object EmptyMockSpec extends ZIOBaseSpec with MockSpecUtils[Has[Console]] {
     suite("expect no calls on empty mocks")(
       testValue("should succeed when no call")(
         MockConsole.empty,
-        ZIO.when(false)(Console.printLine("foo")),
+        ZIO.when(false)(Console.printLine("foo")).unit,
         isUnit
       ), {
 

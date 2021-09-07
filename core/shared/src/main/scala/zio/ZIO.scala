@@ -1185,7 +1185,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * evaluated multiple times.
    */
   final def once: UIO[ZIO[R, E, Unit]] =
-    Ref.make(true).map(ref => self.whenZIO(ref.getAndSet(false)))
+    Ref.make(true).map(ref => self.whenZIO(ref.getAndSet(false)).unit)
 
   /**
    * Runs the specified effect if this effect fails, providing the error to the
@@ -2289,20 +2289,20 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   /**
    * The moral equivalent of `if (!p) exp`
    */
-  final def unless(b: => Boolean): ZIO[R, E, Unit] =
+  final def unless(b: => Boolean): ZIO[R, E, Option[A]] =
     ZIO.unless(b)(self)
 
   /**
    * The moral equivalent of `if (!p) exp` when `p` has side-effects
    */
   @deprecated("use unlessZIO", "2.0.0")
-  final def unlessM[R1 <: R, E1 >: E](b: => ZIO[R1, E1, Boolean]): ZIO[R1, E1, Unit] =
+  final def unlessM[R1 <: R, E1 >: E](b: => ZIO[R1, E1, Boolean]): ZIO[R1, E1, Option[A]] =
     unlessZIO(b)
 
   /**
    * The moral equivalent of `if (!p) exp` when `p` has side-effects
    */
-  final def unlessZIO[R1 <: R, E1 >: E](b: => ZIO[R1, E1, Boolean]): ZIO[R1, E1, Unit] =
+  final def unlessZIO[R1 <: R, E1 >: E](b: => ZIO[R1, E1, Boolean]): ZIO[R1, E1, Option[A]] =
     ZIO.unlessZIO(b)(self)
 
   /**
@@ -2408,7 +2408,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   /**
    * The moral equivalent of `if (p) exp`
    */
-  final def when(b: => Boolean): ZIO[R, E, Unit] =
+  final def when(b: => Boolean): ZIO[R, E, Option[A]] =
     ZIO.when(b)(self)
 
   /**
@@ -2417,7 +2417,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   @deprecated("use whenZIO", "2.0.0")
   final def whenM[R1 <: R, E1 >: E](
     b: => ZIO[R1, E1, Boolean]
-  ): ZIO[R1, E1, Unit] =
+  ): ZIO[R1, E1, Option[A]] =
     whenZIO(b)
 
   /**
@@ -2425,7 +2425,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def whenZIO[R1 <: R, E1 >: E](
     b: => ZIO[R1, E1, Boolean]
-  ): ZIO[R1, E1, Unit] =
+  ): ZIO[R1, E1, Option[A]] =
     ZIO.whenZIO(b)(self)
 
   /**
@@ -4993,8 +4993,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * The moral equivalent of `if (!p) exp`
    */
-  def unless[R, E](b: => Boolean)(zio: => ZIO[R, E, Any]): ZIO[R, E, Unit] =
-    suspendSucceed(if (b) unit else zio.unit)
+  def unless[R, E, A](b: => Boolean)(zio: => ZIO[R, E, A]): ZIO[R, E, Option[A]] =
+    suspendSucceed(if (b) none else zio.asSome)
 
   /**
    * The moral equivalent of `if (!p) exp` when `p` has side-effects
@@ -5162,26 +5162,26 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * The moral equivalent of `if (p) exp`
    */
-  def when[R, E](b: => Boolean)(zio: => ZIO[R, E, Any]): ZIO[R, E, Unit] =
-    suspendSucceed(if (b) zio.unit else unit)
+  def when[R, E, A](b: => Boolean)(zio: => ZIO[R, E, A]): ZIO[R, E, Option[A]] =
+    suspendSucceed(if (b) zio.asSome else none)
 
   /**
    * Runs an effect when the supplied `PartialFunction` matches for the given value, otherwise does nothing.
    */
-  def whenCase[R, E, A](a: => A)(pf: PartialFunction[A, ZIO[R, E, Any]]): ZIO[R, E, Unit] =
-    suspendSucceed(pf.applyOrElse(a, (_: A) => unit).unit)
+  def whenCase[R, E, A, B](a: => A)(pf: PartialFunction[A, ZIO[R, E, B]]): ZIO[R, E, Option[B]] =
+    suspendSucceed(pf.andThen(_.asSome).applyOrElse(a, (_: A) => none))
 
   /**
    * Runs an effect when the supplied `PartialFunction` matches for the given effectful value, otherwise does nothing.
    */
   @deprecated("use whenCaseZIO", "2.0.0")
-  def whenCaseM[R, E, A](a: => ZIO[R, E, A])(pf: PartialFunction[A, ZIO[R, E, Any]]): ZIO[R, E, Unit] =
+  def whenCaseM[R, E, A, B](a: => ZIO[R, E, A])(pf: PartialFunction[A, ZIO[R, E, B]]): ZIO[R, E, Option[B]] =
     whenCaseZIO(a)(pf)
 
   /**
    * Runs an effect when the supplied `PartialFunction` matches for the given effectful value, otherwise does nothing.
    */
-  def whenCaseZIO[R, E, A](a: => ZIO[R, E, A])(pf: PartialFunction[A, ZIO[R, E, Any]]): ZIO[R, E, Unit] =
+  def whenCaseZIO[R, E, A, B](a: => ZIO[R, E, A])(pf: PartialFunction[A, ZIO[R, E, B]]): ZIO[R, E, Option[B]] =
     ZIO.suspendSucceed(a.flatMap(whenCase(_)(pf)))
 
   /**
@@ -5360,13 +5360,13 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   }
 
   final class UnlessZIO[R, E](private val b: () => ZIO[R, E, Boolean]) extends AnyVal {
-    def apply[R1 <: R, E1 >: E](zio: => ZIO[R1, E1, Any]): ZIO[R1, E1, Unit] =
-      ZIO.suspendSucceed(b().flatMap(b => if (b) unit else zio.unit))
+    def apply[R1 <: R, E1 >: E, A](zio: => ZIO[R1, E1, A]): ZIO[R1, E1, Option[A]] =
+      ZIO.suspendSucceed(b().flatMap(b => if (b) none else zio.asSome))
   }
 
   final class WhenZIO[R, E](private val b: () => ZIO[R, E, Boolean]) extends AnyVal {
-    def apply[R1 <: R, E1 >: E](zio: => ZIO[R1, E1, Any]): ZIO[R1, E1, Unit] =
-      ZIO.suspendSucceed(b()).flatMap(b => if (b) zio.unit else unit)
+    def apply[R1 <: R, E1 >: E, A](zio: => ZIO[R1, E1, A]): ZIO[R1, E1, Option[A]] =
+      ZIO.suspendSucceed(b()).flatMap(b => if (b) zio.asSome else none)
   }
 
   final class TimeoutTo[-R, +E, +A, +B](self: ZIO[R, E, A], b: () => B) {
