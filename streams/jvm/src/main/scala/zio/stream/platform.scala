@@ -294,7 +294,7 @@ trait ZStreamPlatformSpecificConstructors {
                 val blocking = ZIO.attemptBlocking(builder += iterator.next())
 
                 def go(i: Int): ZIO[Any, Throwable, Unit] =
-                  ZIO.when(i < maxChunkSize && iterator.hasNext)(blocking *> go(i + 1))
+                  ZIO.when(i < maxChunkSize && iterator.hasNext)(blocking *> go(i + 1)).unit
 
                 go(0).asSomeError.flatMap { _ =>
                   val chunk = builder.result()

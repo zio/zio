@@ -266,9 +266,9 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
                        openThatPush(nextSink.push).tap(thatPush.set).flatMap { p =>
                          switched.set(true) *> {
                            if (in.isDefined)
-                             p(Some(leftover).asInstanceOf[Some[Chunk[I2]]]).when(leftover.nonEmpty)
+                             p(Some(leftover).asInstanceOf[Some[Chunk[I2]]]).when(leftover.nonEmpty).unit
                            else
-                             p(Some(leftover).asInstanceOf[Some[Chunk[I2]]]).when(leftover.nonEmpty) *> p(None)
+                             p(Some(leftover).asInstanceOf[Some[Chunk[I2]]]).when(leftover.nonEmpty).unit *> p(None)
                          }
                        }
                      }

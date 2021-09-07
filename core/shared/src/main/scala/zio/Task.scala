@@ -1212,7 +1212,7 @@ object Task extends TaskPlatformSpecific {
   /**
    * @see See [[zio.ZIO.unless]]
    */
-  def unless(b: => Boolean)(zio: => Task[Any]): Task[Unit] =
+  def unless[A](b: => Boolean)(zio: => Task[A]): Task[Option[A]] =
     ZIO.unless(b)(zio)
 
   /**
@@ -1243,26 +1243,26 @@ object Task extends TaskPlatformSpecific {
   /**
    * @see See [[zio.ZIO.when]]
    */
-  def when(b: => Boolean)(task: => Task[Any]): Task[Unit] =
+  def when[A](b: => Boolean)(task: => Task[A]): Task[Option[A]] =
     ZIO.when(b)(task)
 
   /**
    * @see See [[zio.ZIO.whenCase]]
    */
-  def whenCase[A](a: => A)(pf: PartialFunction[A, Task[Any]]): Task[Unit] =
+  def whenCase[A, B](a: => A)(pf: PartialFunction[A, Task[B]]): Task[Option[B]] =
     ZIO.whenCase(a)(pf)
 
   /**
    * @see See [[zio.ZIO.whenCaseM]]
    */
   @deprecated("use whenCaseZIO", "2.0.0")
-  def whenCaseM[A](a: => Task[A])(pf: PartialFunction[A, Task[Any]]): Task[Unit] =
+  def whenCaseM[A, B](a: => Task[A])(pf: PartialFunction[A, Task[B]]): Task[Option[B]] =
     ZIO.whenCaseM(a)(pf)
 
   /**
    * @see See [[zio.ZIO.whenCaseZIO]]
    */
-  def whenCaseZIO[A](a: => Task[A])(pf: PartialFunction[A, Task[Any]]): Task[Unit] =
+  def whenCaseZIO[A, B](a: => Task[A])(pf: PartialFunction[A, Task[B]]): Task[Option[B]] =
     ZIO.whenCaseZIO(a)(pf)
 
   /**
