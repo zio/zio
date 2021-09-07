@@ -17,7 +17,6 @@
 package zio.metrics.clients
 
 import zio._
-import zio.metrics._
 
 /**
  * A `MetricKey` is a unique key associated with each metric. The key is based
@@ -29,9 +28,9 @@ import zio.metrics._
 sealed trait MetricKey
 
 object MetricKey {
-  final case class Counter(name: String, tags: Chunk[Label] = Chunk.empty) extends MetricKey
-  final case class Gauge(name: String, tags: Chunk[Label] = Chunk.empty)   extends MetricKey
-  final case class Histogram(name: String, boundaries: Chunk[Double], tags: Chunk[Label] = Chunk.empty)
+  final case class Counter(name: String, tags: Chunk[MetricLabel] = Chunk.empty) extends MetricKey
+  final case class Gauge(name: String, tags: Chunk[MetricLabel] = Chunk.empty)   extends MetricKey
+  final case class Histogram(name: String, boundaries: Chunk[Double], tags: Chunk[MetricLabel] = Chunk.empty)
       extends MetricKey
   final case class Summary(
     name: String,
@@ -39,9 +38,9 @@ object MetricKey {
     maxSize: Int,
     error: Double,
     quantiles: Chunk[Double],
-    tags: Chunk[Label] = Chunk.empty
+    tags: Chunk[MetricLabel] = Chunk.empty
   ) extends MetricKey
-  final case class SetCount(name: String, setTag: String, tags: Chunk[Label] = Chunk.empty) extends MetricKey {
-    def counterKey(word: String): MetricKey.Counter = MetricKey.Counter(name, Chunk((setTag, word)) ++ tags)
+  final case class SetCount(name: String, setTag: String, tags: Chunk[MetricLabel] = Chunk.empty) extends MetricKey {
+    def counterKey(word: String): MetricKey.Counter = MetricKey.Counter(name, Chunk(MetricLabel(setTag, word)) ++ tags)
   }
 }

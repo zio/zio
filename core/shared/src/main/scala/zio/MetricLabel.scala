@@ -16,6 +16,10 @@
 
 package zio
 
-package object metrics {
-  type Label = (String, String)
-}
+/**
+ * A `MetricLabel` represents a key value pair that allows analyzing metrics at
+ * an additional level of granularity. For example if a metric tracks the
+ * response time of a service labels could be used to create separate versions
+ * that track response times for different clients.
+ */
+final case class MetricLabel(key: String, value: String)
