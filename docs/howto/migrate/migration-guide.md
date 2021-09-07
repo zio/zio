@@ -241,6 +241,14 @@ ZIO.succeed(Set(3, 4, 3)).head
 // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 ```
 
+## Fiber
+
+We deprecated the `Fiber.ID` and moved it to the `zio` package and called it the `FiberId`:
+
+| ZIO 1.0        | ZIO 2.x       |
+|----------------|---------------|
+| `zio.Fiber.ID` | `zio.FiberID` |
+
 ## ZLayer
 
 ### Functions to Layers
