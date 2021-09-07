@@ -606,6 +606,14 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * whether two elements are equal.
    */
   def changesWith(f: (O, O) => Boolean): ZStream[R, E, O] =
+    changesWithZIO((o, o1) => ZIO.succeedNow(f(o, o1)))
+
+  /**
+   * Returns a new stream that only emits elements that are not equal to the
+   * previous element emitted, using the specified effectual function to
+   * determine whether two elements are equal.
+   */
+  def changesWithZIO[R1 <: R, E1 >: E](f: (O, O) => ZIO[R1, E1, Boolean]): ZStream[R1, E1, O] =
     ZStream {
       for {
         ref <- Ref.makeManaged[Option[O]](None)
@@ -613,11 +621,14 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
         pull = for {
                  z0 <- ref.get
                  c  <- p
-                 (z1, chunk) = c.foldLeft[(Option[O], Chunk[O])]((z0, Chunk.empty)) {
-                                 case ((Some(o), os), o1) if (f(o, o1)) => (Some(o1), os)
-                                 case ((_, os), o1)                     => (Some(o1), os :+ o1)
-                               }
-                 _ <- ref.set(z1)
+                 tuple <- c.foldZIO[R1, E1, (Option[O], Chunk[O])]((z0, Chunk.empty)) {
+                            case ((Some(o), os), o1) =>
+                              f(o, o1).map(b => if (b) (Some(o1), os) else (Some(o1), os :+ o1))
+                            case ((_, os), o1) =>
+                              ZIO.succeedNow((Some(o1), os :+ o1))
+                          }.asSomeError
+                 (z1, chunk) = tuple
+                 _          <- ref.set(z1)
                } yield chunk
       } yield pull
     }
