@@ -957,7 +957,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   /**
    * Like fork but handles an error with the provided handler.
    */
-  final def forkWithErrorHandler(handler: E => UIO[Unit]): URIO[R, Fiber.Runtime[E, A]] =
+  final def forkWithErrorHandler(handler: E => UIO[Any]): URIO[R, Fiber.Runtime[E, A]] =
     onError(new ZIO.FoldCauseZIOFailureFn(handler)).fork
 
   /**
@@ -2764,7 +2764,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * If the returned `ZIO` is interrupted, the blocked thread running the
    * synchronous effect will be interrupted via the cancel effect.
    */
-  def attemptBlockingCancelable[A](effect: => A)(cancel: => UIO[Unit]): Task[A] =
+  def attemptBlockingCancelable[A](effect: => A)(cancel: => UIO[Any]): Task[A] =
     blocking(ZIO.attempt(effect)).fork.flatMap(_.join).onInterrupt(cancel)
 
   /**
@@ -3344,7 +3344,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * synchronous effect will be interrupted via the cancel effect.
    */
   @deprecated("use attemptBlockingCancelable", "2.0.0")
-  def effectBlockingCancelable[A](effect: => A)(cancel: => UIO[Unit]): Task[A] =
+  def effectBlockingCancelable[A](effect: => A)(cancel: => UIO[Any]): Task[A] =
     attemptBlockingCancelable(effect)(cancel)
 
   /**
@@ -5982,7 +5982,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   private[zio] final class Fork[R, E, A](
     val value: ZIO[R, E, A],
     val scope: () => Option[ZScope[Exit[Any, Any]]],
-    val reportFailure: Option[Cause[Any] => UIO[Unit]]
+    val reportFailure: Option[Cause[Any] => UIO[Any]]
   ) extends URIO[R, Fiber.Runtime[E, A]] {
     override def tag = Tags.Fork
   }

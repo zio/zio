@@ -114,7 +114,7 @@ object IO {
   /**
    * @see See [[zio.ZIO.attemptBlockingCancelable]]
    */
-  def attemptBlockingCancelable[A](effect: => A)(cancel: => UIO[Unit]): Task[A] =
+  def attemptBlockingCancelable[A](effect: => A)(cancel: => UIO[Any]): Task[A] =
     ZIO.attemptBlockingCancelable(effect)(cancel)
 
   /**
@@ -471,7 +471,7 @@ object IO {
    * @see See [[zio.ZIO.effectBlockingCancelable]]
    */
   @deprecated("use attemptBlockingCancelable", "2.0.0")
-  def effectBlockingCancelable[A](effect: => A)(cancel: => UIO[Unit]): Task[A] =
+  def effectBlockingCancelable[A](effect: => A)(cancel: => UIO[Any]): Task[A] =
     ZIO.effectBlockingCancelable(effect)(cancel)
 
   /**
