@@ -542,9 +542,9 @@ lazy val jsdocs = project
   .settings(libraryDependencies += "org.scala-js" %%% "scalajs-dom" % "1.0.0")
   .enablePlugins(ScalaJSPlugin)
 
-val http4sV     = "0.23.1"
+val http4sV     = "0.23.3"
 val doobieV     = "1.0.0-RC1"
-val catsEffectV = "3.2.4"
+val catsEffectV = "3.2.6"
 val zioActorsV  = "0.0.9"
 
 lazy val docs = project.module
@@ -598,9 +598,9 @@ lazy val docs = project.module
       "dev.zio"                       %% "zio-interop-scalaz7x"          % "7.3.3.0",
       "dev.zio"                       %% "zio-interop-reactivestreams"   % "1.3.5",
       "dev.zio"                       %% "zio-interop-twitter"           % "20.10.0.0",
-      "dev.zio"                       %% "zio-zmx"                       % "0.0.6",
+      "dev.zio"                       %% "zio-zmx"                       % "0.0.7",
       "dev.zio"                       %% "zio-query"                     % "0.2.10",
-      "org.polynote"                  %% "uzhttp"                        % "0.2.7",
+      "org.polynote"                  %% "uzhttp"                        % "0.2.8",
       "org.tpolecat"                  %% "doobie-core"                   % doobieV,
       "org.tpolecat"                  %% "doobie-h2"                     % doobieV,
       "org.tpolecat"                  %% "doobie-hikari"                 % doobieV,
@@ -615,14 +615,14 @@ lazy val docs = project.module
       "io.github.gaelrenoux"          %% "tranzactio"                    % "2.1.0",
       "io.github.neurodyne"           %% "zio-arrow"                     % "0.2.1",
       "nl.vroste"                     %% "zio-amqp"                      % "0.2.2",
-      "io.github.vigoo"               %% "zio-aws-core"                  % "3.17.30.1",
-      "io.github.vigoo"               %% "zio-aws-ec2"                   % "3.17.30.1",
-      "io.github.vigoo"               %% "zio-aws-elasticbeanstalk"      % "3.17.30.1",
-      "io.github.vigoo"               %% "zio-aws-netty"                 % "3.17.30.1",
+      "io.github.vigoo"               %% "zio-aws-core"                  % "3.17.34.1",
+      "io.github.vigoo"               %% "zio-aws-ec2"                   % "3.17.34.1",
+      "io.github.vigoo"               %% "zio-aws-elasticbeanstalk"      % "3.17.34.1",
+      "io.github.vigoo"               %% "zio-aws-netty"                 % "3.17.34.1",
       "io.github.neurodyne"           %% "zio-aws-s3"                    % "0.4.13",
       "io.d11"                        %% "zhttp"                         % "1.0.0.0-RC17",
       "com.coralogix"                 %% "zio-k8s-client"                % "1.3.4",
-      "com.softwaremill.sttp.client3" %% "async-http-client-backend-zio" % "3.3.13",
+      "com.softwaremill.sttp.client3" %% "async-http-client-backend-zio" % "3.3.14",
       "nl.vroste"                     %% "zio-kinesis"                   % "0.20.0",
       "com.vladkopanev"               %% "zio-saga-core"                 % "0.4.0",
       "io.scalac"                     %% "zio-slick-interop"             % "0.4",
