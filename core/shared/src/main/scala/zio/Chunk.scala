@@ -1434,16 +1434,16 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
         Update(Chunk.fromArray(array.asInstanceOf[Array[A1]]), bufferIndices, bufferValues, 1, new AtomicInteger(1))
       }
 
-      override protected[zio] def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit = {
-        chunk.toArray(n, dest)
-        var i     = 0
-        while (i < used) {
-          val index = bufferIndices(i)
-          val value = self.bufferValues(i)
-          dest(index) = value.asInstanceOf[A1]
-          i += 1
-        }
+    override protected[zio] def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit = {
+      chunk.toArray(n, dest)
+      var i = 0
+      while (i < used) {
+        val index = bufferIndices(i)
+        val value = self.bufferValues(i)
+        dest(index) = value.asInstanceOf[A1]
+        i += 1
       }
+    }
   }
 
   private[zio] sealed abstract class Arr[A] extends Chunk[A] with Serializable { self =>
