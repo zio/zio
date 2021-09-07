@@ -56,4 +56,5 @@ final case class RuntimeConfig(
   @deprecated("2.0.0", "Use RuntimeConfig#copy instead")
   def withTracing(t: Tracing): RuntimeConfig = copy(tracing = t)
 }
+
 object RuntimeConfig extends RuntimeConfigPlatformSpecific
