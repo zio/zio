@@ -142,6 +142,9 @@ private[zio] trait ChunkLike[+A]
   override final def size: Int =
     length
 
+  override final def updated[A1 >: A](index: Int, elem: A1): Chunk[A1] =
+    update(index, elem)
+
   /**
    * The implementation of `flatMap` for `Chunk`.
    */
