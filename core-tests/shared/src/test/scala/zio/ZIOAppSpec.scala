@@ -1,6 +1,5 @@
 package zio
 
-import zio.internal.ZLogger
 import zio.test._
 
 object ZIOAppSpec extends ZIOBaseSpec {

@@ -19,7 +19,7 @@ package zio
 import zio.internal.stacktracer.Tracer
 import zio.internal.stacktracer.impl.AkkaLineNumbersTracer
 import zio.internal.tracing.TracingConfig
-import zio.internal.{Blocking, Tracing, ZLogger}
+import zio.internal.{Blocking, Tracing}
 
 import scala.concurrent.ExecutionContext
 
@@ -65,7 +65,7 @@ private[zio] trait RuntimeConfigPlatformSpecific {
     val fatal = (t: Throwable) => t.isInstanceOf[VirtualMachineError]
 
     val logger: ZLogger[Any] =
-      ZLogger.defaultFormatter.logged(println(_)).filterLogLevel(_ >= LogLevel.Info)
+      ZLogger.defaultFormatter.map(println(_)).filterLogLevel(_ >= LogLevel.Info)
 
     val reportFatal = (t: Throwable) => {
       t.printStackTrace()

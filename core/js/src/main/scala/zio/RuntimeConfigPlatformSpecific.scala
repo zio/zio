@@ -18,7 +18,7 @@ package zio
 
 import zio.internal.stacktracer.{Tracer, ZTraceElement}
 import zio.internal.tracing.TracingConfig
-import zio.internal.{Tracing, ZLogger}
+import zio.internal.Tracing
 
 import scala.concurrent.ExecutionContext
 import scala.scalajs.js.Dynamic.{global => jsglobal}

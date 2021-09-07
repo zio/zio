@@ -4,7 +4,6 @@ import zio.test._
 import zio.test.TestAspect._
 
 import zio.internal.stacktracer.ZTraceElement
-import zio.internal.ZLogger
 import scala.annotation.tailrec
 
 object LoggingSpec extends ZIOBaseSpec {
