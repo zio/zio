@@ -52,6 +52,6 @@ object Counter {
   /**
    * Constructs a counter with the specified name and labels.
    */
-     def apply(name: String, tags: MetricLabel*): Counter =
+  def apply(name: String, tags: MetricLabel*): Counter =
     apply(MetricKey.Counter(name, Chunk.fromIterable(tags)))
 }

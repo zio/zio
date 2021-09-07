@@ -29,7 +29,7 @@ object ZIOMetric {
    * A metric aspect that increments the specified counter each time the
    * effect it is applied to succeeds.
    */
-     def count(name: String, tags: MetricLabel*): Counter[Any] =
+  def count(name: String, tags: MetricLabel*): Counter[Any] =
     new Counter[Any](name, Chunk.fromIterable(tags)) { self =>
       def apply[R, E, A1](zio: ZIO[R, E, A1]): ZIO[R, E, A1] =
         zio.tap(_ => increment)
@@ -38,7 +38,7 @@ object ZIOMetric {
   /**
    * A metric aspect that increments the specified counter by a given value.
    */
-     def countValue(name: String, tags: MetricLabel*): Counter[Double] =
+  def countValue(name: String, tags: MetricLabel*): Counter[Double] =
     new Counter[Double](name, Chunk.fromIterable(tags)) {
       def apply[R, E, A1 <: Double](zio: ZIO[R, E, A1]): ZIO[R, E, A1] =
         zio.tap(increment)
@@ -47,7 +47,7 @@ object ZIOMetric {
   /**
    * A metric aspect that increments the specified counter by a given value.
    */
-     def countValueWith[A](name: String, tags: MetricLabel*)(f: A => Double): Counter[A] =
+  def countValueWith[A](name: String, tags: MetricLabel*)(f: A => Double): Counter[A] =
     new Counter[A](name, Chunk.fromIterable(tags)) {
       def apply[R, E, A1 <: A](zio: ZIO[R, E, A1]): ZIO[R, E, A1] =
         zio.tap(a => increment(f(a)))
@@ -57,7 +57,7 @@ object ZIOMetric {
    * A metric aspect that increments the specified counter each time the
    * effect it is applied to fails.
    */
-     def countErrors(name: String, tags: MetricLabel*): Counter[Any] =
+  def countErrors(name: String, tags: MetricLabel*): Counter[Any] =
     new Counter[Any](name, Chunk.fromIterable(tags)) {
       def apply[R, E, A1](zio: ZIO[R, E, A1]): ZIO[R, E, A1] =
         zio.tapError(_ => increment)
@@ -67,7 +67,7 @@ object ZIOMetric {
    * A metric aspect that sets a gauge each time the effect it is applied to
    * succeeds.
    */
-     def setGauge(name: String, tags: MetricLabel*): Gauge[Double] =
+  def setGauge(name: String, tags: MetricLabel*): Gauge[Double] =
     new Gauge[Double](name, Chunk.fromIterable(tags)) {
       def apply[R, E, A1 <: Double](zio: ZIO[R, E, A1]): ZIO[R, E, A1] =
         zio.tap(set)
@@ -88,7 +88,7 @@ object ZIOMetric {
    * A metric aspect that adjusts a gauge each time the effect it is applied
    * to succeeds.
    */
-     def adjustGauge(name: String, tags: MetricLabel*): Gauge[Double] =
+  def adjustGauge(name: String, tags: MetricLabel*): Gauge[Double] =
     new Gauge[Double](name, Chunk.fromIterable(tags)) {
       def apply[R, E, A1 <: Double](zio: ZIO[R, E, A1]): ZIO[R, E, A1] =
         zio.tap(adjust)
@@ -99,7 +99,7 @@ object ZIOMetric {
    * to succeeds, using the specified function to transform the value returned
    * by the effect to the value to adjust the gauge with.
    */
-     def adjustGaugeWith[A](name: String, tags: MetricLabel*)(f: A => Double): Gauge[A] =
+  def adjustGaugeWith[A](name: String, tags: MetricLabel*)(f: A => Double): Gauge[A] =
     new Gauge[A](name, Chunk.fromIterable(tags)) {
       def apply[R, E, A1 <: A](zio: ZIO[R, E, A1]): ZIO[R, E, A1] =
         zio.tap(a => adjust(f(a)))
@@ -109,7 +109,7 @@ object ZIOMetric {
    * A metric aspect that tracks how long the effect it is applied to takes to
    * complete execution, recording the results in a histogram.
    */
-     def observeDurations[A](name: String, boundaries: Chunk[Double], tags: MetricLabel*)(
+  def observeDurations[A](name: String, boundaries: Chunk[Double], tags: MetricLabel*)(
     f: Duration => Double
   ): Histogram[A] =
     new Histogram[A](name, boundaries, Chunk.fromIterable(tags)) {
@@ -123,7 +123,7 @@ object ZIOMetric {
    * A metric aspect that adds a value to a histogram each time the effect it
    * is applied to succeeds.
    */
-     def observeHistogram(name: String, boundaries: Chunk[Double], tags: MetricLabel*): Histogram[Double] =
+  def observeHistogram(name: String, boundaries: Chunk[Double], tags: MetricLabel*): Histogram[Double] =
     new Histogram[Double](name, boundaries, Chunk.fromIterable(tags)) {
       def apply[R, E, A1 <: Double](zio: ZIO[R, E, A1]): ZIO[R, E, A1] =
         zio.tap(observe)
@@ -134,7 +134,7 @@ object ZIOMetric {
    * is applied to succeeds, using the specified function to transform the
    * value returned by the effect to the value to add to the histogram.
    */
-     def observeHistogramWith[A](name: String, boundaries: Chunk[Double], tags: MetricLabel*)(
+  def observeHistogramWith[A](name: String, boundaries: Chunk[Double], tags: MetricLabel*)(
     f: A => Double
   ): Histogram[A] =
     new Histogram[A](name, boundaries, Chunk.fromIterable(tags)) {
@@ -181,7 +181,7 @@ object ZIOMetric {
    * A metric aspect that counts the number of occurrences of each distinct
    * value returned by the effect it is applied to.
    */
-     def occurrences(name: String, setTag: String, tags: MetricLabel*): SetCount[String] =
+  def occurrences(name: String, setTag: String, tags: MetricLabel*): SetCount[String] =
     new SetCount[String](name, setTag, Chunk.fromIterable(tags)) {
       def apply[R, E, A1 <: String](zio: ZIO[R, E, A1]): ZIO[R, E, A1] =
         zio.tap(observe)
@@ -193,7 +193,7 @@ object ZIOMetric {
    * function to transform the value returned by the effect to the value to
    * count the occurrences of.
    */
-     def occurrencesWith[A](name: String, setTag: String, tags: MetricLabel*)(
+  def occurrencesWith[A](name: String, setTag: String, tags: MetricLabel*)(
     f: A => String
   ): SetCount[A] =
     new SetCount[A](name, setTag, Chunk.fromIterable(tags)) {
@@ -208,7 +208,7 @@ object ZIOMetric {
    * of interest is the cumulative value over time, as opposed to a gauge where
    * the quantity of interest is the value as of a specific point in time.
    */
-     abstract class Counter[-A](final val name: String, final val tags: Chunk[MetricLabel]) extends ZIOMetric[A] { self =>
+  abstract class Counter[-A](final val name: String, final val tags: Chunk[MetricLabel]) extends ZIOMetric[A] { self =>
     private[this] val counter = metrics.Counter(name, tags: _*)
 
     def apply[R, E, A1 <: A](zio: ZIO[R, E, A1]): ZIO[R, E, A1]
@@ -216,7 +216,7 @@ object ZIOMetric {
     /**
      * Returns a copy of this counter with the specified name and tags.
      */
-         final def copy(name: String = name, tags: Chunk[MetricLabel] = tags): Counter[A] =
+    final def copy(name: String = name, tags: Chunk[MetricLabel] = tags): Counter[A] =
       new Counter[A](name, tags) {
         def apply[R, E, A1 <: A](zio: ZIO[R, E, A1]): ZIO[R, E, A1] =
           self.apply(zio)
@@ -271,7 +271,7 @@ object ZIOMetric {
    * value, as opposed to a counter where the quantity of interest is the
    * cumulative values over time.
    */
-     abstract class Gauge[A](final val name: String, final val tags: Chunk[MetricLabel]) extends ZIOMetric[A] { self =>
+  abstract class Gauge[A](final val name: String, final val tags: Chunk[MetricLabel]) extends ZIOMetric[A] { self =>
     private[this] val gauge = metrics.Gauge(name, tags: _*)
 
     def apply[R, E, A1 <: A](zio: ZIO[R, E, A1]): ZIO[R, E, A1]
@@ -285,7 +285,7 @@ object ZIOMetric {
     /**
      * Returns a copy of this gauge with the specified name and tags.
      */
-         final def copy(name: String = name, tags: Chunk[MetricLabel] = tags): Gauge[A] =
+    final def copy(name: String = name, tags: Chunk[MetricLabel] = tags): Gauge[A] =
       new Gauge[A](name, tags) {
         def apply[R, E, A1 <: A](zio: ZIO[R, E, A1]): ZIO[R, E, A1] =
           self.apply(zio)
@@ -335,8 +335,11 @@ object ZIOMetric {
    * distribution. Histograms are constructed with user specified boundaries
    * which describe the buckets to aggregate values into.
    */
-     abstract class Histogram[A](final val name: String, final val boundaries: Chunk[Double], final val tags: Chunk[MetricLabel])
-      extends ZIOMetric[A] { self =>
+  abstract class Histogram[A](
+    final val name: String,
+    final val boundaries: Chunk[Double],
+    final val tags: Chunk[MetricLabel]
+  ) extends ZIOMetric[A] { self =>
     private val histogram = metrics.Histogram(name, boundaries, tags: _*)
 
     def apply[R, E, A1 <: A](zio: ZIO[R, E, A1]): ZIO[R, E, A1]
@@ -507,7 +510,7 @@ object ZIOMetric {
    * values are observed. This could be used to track the frequency of
    * different types of failures, for example.
    */
-     abstract class SetCount[A](final val name: String, final val setTag: String, final val tags: Chunk[MetricLabel])
+  abstract class SetCount[A](final val name: String, final val setTag: String, final val tags: Chunk[MetricLabel])
       extends ZIOMetric[A] { self =>
     private val setCount = metrics.SetCount(name, setTag, tags: _*)
 

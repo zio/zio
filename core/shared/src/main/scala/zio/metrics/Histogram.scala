@@ -64,6 +64,6 @@ object Histogram {
    * Constructs a histogram with the specified name, boundaries, and labels.
    * The boundaries must be in strictly increasing order.
    */
-     def apply(name: String, boundaries: Chunk[Double], tags: MetricLabel*): Histogram =
+  def apply(name: String, boundaries: Chunk[Double], tags: MetricLabel*): Histogram =
     apply(MetricKey.Histogram(name, boundaries, Chunk.fromIterable(tags)))
 }
