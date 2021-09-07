@@ -33,6 +33,25 @@ trait ZLogger[+A] { self =>
         )
     }
 
+  /**
+   * Returns a version of this logger that only logs messages when the log
+   * level satisfies the specified predicate.
+   */
+  final def filterLogLevel(f: LogLevel => Boolean): ZLogger[Option[A]] =
+    new ZLogger[Option[A]] {
+      def apply(
+        trace: ZTraceElement,
+        fiberId: FiberId,
+        logLevel: LogLevel,
+        message: () => String,
+        context: Map[FiberRef.Runtime[_], AnyRef],
+        spans: List[LogSpan]
+      ): Option[A] =
+        if (f(logLevel)) {
+          Some(self(trace, fiberId, logLevel, message, context, spans))
+        } else None
+    }
+
   final def logged(f: A => Unit): ZLogger[Unit] =
     new ZLogger[Unit] {
       def apply(

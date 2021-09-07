@@ -937,7 +937,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * themselves.
    */
   final def forkInternal: ZIO[R, Nothing, Fiber.Runtime[E, A]] =
-    new ZIO.Fork(self, () => None, Some(_ => ()))
+    new ZIO.Fork(self, () => None, Some(_ => ZIO.unit))
 
   /**
    * Forks the fiber in a [[ZManaged]]. Using the [[ZManaged]] value will
@@ -4394,11 +4394,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def log(message: => String): UIO[Unit] = new Logged(() => message)
 
   /**
-   * Logs the specified cause as an error.
-   */
-  def logCause(cause: => Cause[Any]): UIO[Unit] = new Logged(() => cause.prettyPrint, someError)
-
-  /**
    * Logs the specified message at the debug log level.
    */
   def logDebug(message: => String): UIO[Unit] = new Logged(() => message, someDebug)
@@ -4407,6 +4402,11 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Logs the specified message at the error log level.
    */
   def logError(message: => String): UIO[Unit] = new Logged(() => message, someError)
+
+  /**
+   * Logs the specified cause as an error.
+   */
+  def logErrorCause(cause: => Cause[Any]): UIO[Unit] = new Logged(() => cause.prettyPrint, someError)
 
   /**
    * Logs the specified message at the fatal log level.
@@ -5982,7 +5982,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   private[zio] final class Fork[R, E, A](
     val value: ZIO[R, E, A],
     val scope: () => Option[ZScope[Exit[Any, Any]]],
-    val reportFailure: Option[Cause[Any] => Unit]
+    val reportFailure: Option[Cause[Any] => UIO[Unit]]
   ) extends URIO[R, Fiber.Runtime[E, A]] {
     override def tag = Tags.Fork
   }

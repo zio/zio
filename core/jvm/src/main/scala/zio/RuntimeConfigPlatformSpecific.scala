@@ -34,7 +34,7 @@ private[zio] trait RuntimeConfigPlatformSpecific {
    * enabled Tracing with effect types _without_ a comparable feature.
    */
   lazy val benchmark: RuntimeConfig =
-    makeDefault(Int.MaxValue).copy(reportFailure = _ => (), tracing = Tracing.disabled)
+    makeDefault(Int.MaxValue).copy(tracing = Tracing.disabled)
 
   /**
    * The default runtime configuration, with settings designed to work well for
@@ -64,10 +64,8 @@ private[zio] trait RuntimeConfigPlatformSpecific {
 
     val fatal = (t: Throwable) => t.isInstanceOf[VirtualMachineError]
 
-    val logger: ZLogger[Unit] =
-      ZLogger.defaultFormatter.logged(println(_))
-
-    val reportFailure = (cause: Cause[Any]) => if (cause.isDie) java.lang.System.err.println(cause.prettyPrint)
+    val logger: ZLogger[Any] =
+      ZLogger.defaultFormatter.logged(println(_)).filterLogLevel(_ >= LogLevel.Info)
 
     val reportFatal = (t: Throwable) => {
       t.printStackTrace()
@@ -87,7 +85,6 @@ private[zio] trait RuntimeConfigPlatformSpecific {
       tracing,
       fatal,
       reportFatal,
-      reportFailure,
       supervisor,
       false,
       logger

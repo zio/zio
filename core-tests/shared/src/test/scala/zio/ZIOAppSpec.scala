@@ -1,5 +1,6 @@
 package zio
 
+import zio.internal.ZLogger
 import zio.test._
 
 object ZIOAppSpec extends ZIOBaseSpec {
@@ -33,9 +34,21 @@ object ZIOAppSpec extends ZIOBaseSpec {
     test("hook update platform") {
       val counter = new java.util.concurrent.atomic.AtomicInteger(0)
 
-      val reportFailure1 = (_: Cause[Any]) => { counter.incrementAndGet(); () }
+      val logger1 = new ZLogger[Unit] {
+        def apply(
+          trace: zio.internal.stacktracer.ZTraceElement,
+          fiberId: zio.FiberId,
+          logLevel: zio.LogLevel,
+          message: () => String,
+          context: Map[zio.FiberRef.Runtime[_], AnyRef],
+          spans: List[zio.LogSpan]
+        ): Unit = {
+          counter.incrementAndGet()
+          ()
+        }
+      }
 
-      val app1 = ZIOApp(ZIO.fail("Uh oh!"), RuntimeConfigAspect(_.copy(reportFailure = reportFailure1)))
+      val app1 = ZIOApp(ZIO.fail("Uh oh!"), RuntimeConfigAspect.addLogger(logger1))
 
       for {
         c <- app1.invoke(Chunk.empty)
