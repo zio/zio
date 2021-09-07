@@ -1,7 +1,6 @@
 package zio.metrics.clients
 
 import zio._
-import zio.metrics._
 
 /**
  * `MetricState` represents a snapshot of the current state of a metric as of
@@ -10,11 +9,11 @@ import zio.metrics._
 final case class MetricState(
   name: String,
   help: String,
-  labels: Chunk[Label],
+  labels: Chunk[MetricLabel],
   details: MetricType
 ) {
   override def toString(): String = {
-    val lbls = if (labels.isEmpty) "" else labels.map(l => s"${l._1}->${l._2}").mkString("{", ",", "}")
+    val lbls = if (labels.isEmpty) "" else labels.map(l => s"${l.key}->${l.value}").mkString("{", ",", "}")
     s"MetricState($name$lbls, $details)"
   }
 }

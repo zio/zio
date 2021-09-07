@@ -73,7 +73,7 @@ object Summary {
     maxSize: Int,
     error: Double,
     quantiles: Chunk[Double],
-    tags: Label*
+    tags: MetricLabel*
   ): Summary =
     apply(MetricKey.Summary(name, maxAge, maxSize, error, quantiles, Chunk.fromIterable(tags)))
 }

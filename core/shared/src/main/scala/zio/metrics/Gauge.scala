@@ -58,6 +58,6 @@ object Gauge {
   /**
    * Constructs a gauge with the specified name and labels.
    */
-  def apply(name: String, tags: Label*): Gauge =
+  def apply(name: String, tags: MetricLabel*): Gauge =
     apply(MetricKey.Gauge(name, Chunk.fromIterable(tags)))
 }

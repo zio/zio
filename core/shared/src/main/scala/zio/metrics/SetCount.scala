@@ -52,6 +52,6 @@ object SetCount {
   /**
    * Constructs a set count with the specified name, set tag, and tags.
    */
-  def apply(name: String, setTag: String, tags: Label*): SetCount =
+  def apply(name: String, setTag: String, tags: MetricLabel*): SetCount =
     apply(MetricKey.SetCount(name, setTag, Chunk.fromIterable(tags)))
 }
