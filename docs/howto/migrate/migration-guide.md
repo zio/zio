@@ -242,6 +242,44 @@ ZIO.succeed(Set(3, 4, 3)).head
 // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 ```
 
+## ZIO App
+
+In ZIO 1.x, we were used to writing ZIO applications using `zio.App` trait:
+
+```scala mdoc:silent:nest
+import zio.App
+import zio.Console._
+
+object MyApp extends App {
+
+  final def run(args: List[String]) =
+    myAppLogic.exitCode
+
+  val myAppLogic =
+    for {
+      _ <- printLine("Hello! What is your name?")
+      n <- readLine
+      _ <- printLine("Hello, " + n + ", good to meet you!")
+    } yield ()
+}
+```
+
+Now in ZIO 2.x, the `zio.App` trait is deprecated and, we have the `zio.ZIOApp` trait which is simpler than the former approach:
+
+```scala mdoc:silent:nest
+import zio.ZIOApp
+import zio.Console._
+
+object MyApp extends ZIOApp {
+  def run =
+    for {
+      _ <- printLine("Hello! What is your name?")
+      n <- readLine
+      _ <- printLine("Hello, " + n + ", good to meet you!")
+    } yield ()
+}
+```
+
 ## Fiber
 
 We deprecated the `Fiber.ID` and moved it to the `zio` package and called it the `FiberId`:
@@ -1419,44 +1457,6 @@ ZIO.logSpan {
 ```
 
 ZIO Logging calculates the running duration of that span and includes that in the logging data corresponding to its span label.
-
-### ZIO App
-
-In ZIO 1.x, we were used to writing ZIO applications using `zio.App` trait:
-
-```scala mdoc:silent:nest
-import zio.App
-import zio.Console._
-
-object MyApp extends App {
-
-  final def run(args: List[String]) =
-    myAppLogic.exitCode
-
-  val myAppLogic =
-    for {
-      _ <- printLine("Hello! What is your name?")
-      n <- readLine
-      _ <- printLine("Hello, " + n + ", good to meet you!")
-    } yield ()
-}
-```
-
-Now in ZIO 2.x, the `zio.App` trait is deprecated and, we have the `zio.ZIOApp` trait which is simpler than the former approach:
-
-```scala mdoc:silent:nest
-import zio.ZIOApp
-import zio.Console._
-
-object MyApp extends ZIOApp {
-  def run =
-    for {
-      _ <- printLine("Hello! What is your name?")
-      n <- readLine
-      _ <- printLine("Hello, " + n + ", good to meet you!")
-    } yield ()
-}
-```
 
 ### Compositional Specs
 
