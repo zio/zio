@@ -1339,9 +1339,9 @@ object ZManaged extends ZManagedPlatformSpecific {
   }
 
   final class ServiceWithManagedPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
-    def apply[E, A](f: Service => ZManaged[Has[Service], E, A])(implicit
+    def apply[R <: Has[Service], E, A](f: Service => ZManaged[Has[Service], E, A])(implicit
       tag: Tag[Service]
-    ): ZManaged[Has[Service], E, A] =
+    ): ZManaged[R with Has[Service], E, A] =
       ZManaged.accessManaged[Has[Service]](hasService => f(hasService.get))
   }
 

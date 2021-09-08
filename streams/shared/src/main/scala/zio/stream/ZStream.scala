@@ -4741,9 +4741,9 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   }
 
   final class ServiceWithStreamPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
-    def apply[E, A](f: Service => ZStream[Has[Service], E, A])(implicit
+    def apply[R <: Has[Service], E, A](f: Service => ZStream[R, E, A])(implicit
       tag: Tag[Service]
-    ): ZStream[Has[Service], E, A] =
+    ): ZStream[R with Has[Service], E, A] =
       ZStream.service[Service].flatMap(f)
   }
 
