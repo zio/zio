@@ -5415,7 +5415,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   }
 
   final class AccessZIOPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
-    def apply[E, A](f: R => ZIO[R, E, A]): ZIO[R, E, A] =
+    def apply[R1 <: R, E, A](f: R => ZIO[R1, E, A]): ZIO[R with R1, E, A] =
       new ZIO.Read(f)
   }
 

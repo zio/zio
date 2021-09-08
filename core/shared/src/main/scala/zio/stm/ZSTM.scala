@@ -1637,7 +1637,7 @@ object ZSTM {
   }
 
   final class AccessSTMPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
-    def apply[E, A](f: R => ZSTM[R, E, A]): ZSTM[R, E, A] =
+    def apply[R1 <: R, E, A](f: R => ZSTM[R1, E, A]): ZSTM[R with R1, E, A] =
       ZSTM.environment.flatMap(f)
   }
 

@@ -1315,12 +1315,12 @@ object ZManaged extends ZManagedPlatformSpecific {
   }
 
   final class AccessZIOPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
-    def apply[E, A](f: R => ZIO[R, E, A]): ZManaged[R, E, A] =
+    def apply[R1 <: R, E, A](f: R => ZIO[R1, E, A]): ZManaged[R with R1, E, A] =
       ZManaged.environment.mapZIO(f)
   }
 
   final class AccessManagedPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
-    def apply[E, A](f: R => ZManaged[R, E, A]): ZManaged[R, E, A] =
+    def apply[R1 <: R, E, A](f: R => ZManaged[R1, E, A]): ZManaged[R with R1, E, A] =
       ZManaged.environment.flatMap(f)
   }
 

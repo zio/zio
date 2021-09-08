@@ -4717,12 +4717,12 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   }
 
   final class AccessZIOPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
-    def apply[E, A](f: R => ZIO[R, E, A]): ZStream[R, E, A] =
+    def apply[R1 <: R, E, A](f: R => ZIO[R1, E, A]): ZStream[R with R1, E, A] =
       ZStream.environment[R].mapZIO(f)
   }
 
   final class AccessStreamPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
-    def apply[E, A](f: R => ZStream[R, E, A]): ZStream[R, E, A] =
+    def apply[R1 <: R, E, A](f: R => ZStream[R1, E, A]): ZStream[R with R1, E, A] =
       ZStream.environment[R].flatMap(f)
   }
 
