@@ -528,8 +528,24 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * previous element emitted, using the specified function to determine
    * whether two elements are equal.
    */
-  def changesWith(f: (A, A) => Boolean): ZStream[R, E, A] =
-    changesWithZIO((o, o1) => ZIO.succeedNow(f(o, o1)))
+  def changesWith(f: (A, A) => Boolean): ZStream[R, E, A] = {
+    def writer(last: Option[A]): ZChannel[R, E, Chunk[A], Any, E, Chunk[A], Unit] =
+      ZChannel.readWithCause[R, E, Chunk[A], Any, E, Chunk[A], Unit](
+        chunk => {
+          val (newLast, newChunk) =
+            chunk.foldLeft[(Option[A], Chunk[A])]((last, Chunk.empty)) {
+              case ((Some(o), os), o1) if (f(o, o1)) => (Some(o1), os)
+              case ((_, os), o1)                     => (Some(o1), os :+ o1)
+            }
+
+          ZChannel.write(newChunk) *> writer(newLast)
+        },
+        cause => ZChannel.failCause(cause),
+        _ => ZChannel.unit
+      )
+
+    new ZStream(self.channel >>> writer(None))
+  }
 
   /**
    * Returns a new stream that only emits elements that are not equal to the
