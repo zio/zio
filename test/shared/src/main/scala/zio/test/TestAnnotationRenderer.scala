@@ -33,9 +33,8 @@ sealed abstract class TestAnnotationRenderer { self =>
     self.combine(that)
 
   /**
-   * Combines this test annotation renderer with the specified test annotation
-   * renderer to produce a new test annotation renderer that renders both sets
-   * of test annotations.
+   * Combines this test annotation renderer with the specified test annotation renderer to produce a new test annotation
+   * renderer that renders both sets of test annotations.
    */
   final def combine(that: TestAnnotationRenderer): TestAnnotationRenderer =
     (self, that) match {
@@ -85,8 +84,7 @@ object TestAnnotationRenderer {
     }
 
   /**
-   * A test annotation renderer that renders how many times a test was
-   * repeated.
+   * A test annotation renderer that renders how many times a test was repeated.
    */
   val repeated: TestAnnotationRenderer =
     LeafRenderer(TestAnnotation.repeated) { case (child :: _) =>
@@ -95,8 +93,7 @@ object TestAnnotationRenderer {
     }
 
   /**
-   * A test annotation renderer that renders how many times a test had to be
-   * retried before it succeeded.
+   * A test annotation renderer that renders how many times a test had to be retried before it succeeded.
    */
   val retried: TestAnnotationRenderer =
     LeafRenderer(TestAnnotation.retried) { case (child :: _) =>
@@ -123,9 +120,8 @@ object TestAnnotationRenderer {
     }
 
   /**
-   * A test annotation renderer that renders the time taken to execute each
-   * test or suite both in absolute duration and as a percentage of total
-   * execution time.
+   * A test annotation renderer that renders the time taken to execute each test or suite both in absolute duration and
+   * as a percentage of total execution time.
    */
   val timed: TestAnnotationRenderer =
     LeafRenderer(TestAnnotation.timing) { case (child :: ancestors) =>

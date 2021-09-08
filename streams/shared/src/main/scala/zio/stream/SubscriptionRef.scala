@@ -19,9 +19,8 @@ package zio.stream
 import zio._
 
 /**
- * A `SubscriptionRef[A]` contains a `RefM` with a value of type `A` and a
- * `ZStream` that can be subscribed to in order to receive the current value as
- * well as all changes to the value.
+ * A `SubscriptionRef[A]` contains a `RefM` with a value of type `A` and a `ZStream` that can be subscribed to in order
+ * to receive the current value as well as all changes to the value.
  */
 final class SubscriptionRef[A] private (val ref: RefM[A], val changes: Stream[Nothing, A])
 

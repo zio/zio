@@ -20,8 +20,8 @@ import zio.random.Random
 import zio.test.{Gen, Sized}
 
 /**
- * `GenIntegralPoly` provides evidence that instances of `Gen[T]` and
- * `Integral[T]` exist for some concrete but unknown type `T`.
+ * `GenIntegralPoly` provides evidence that instances of `Gen[T]` and `Integral[T]` exist for some concrete but unknown
+ * type `T`.
  */
 trait GenIntegralPoly extends GenNumericPoly {
   override val numT: Integral[T]
@@ -30,8 +30,8 @@ trait GenIntegralPoly extends GenNumericPoly {
 object GenIntegralPoly {
 
   /**
-   * Constructs an instance of `GenIntegralPoly` using the specified `Gen`
-   * and `Integral` instances, existentially hiding the underlying type.
+   * Constructs an instance of `GenIntegralPoly` using the specified `Gen` and `Integral` instances, existentially
+   * hiding the underlying type.
    */
   def apply[A](gen: Gen[Random with Sized, A], num: Integral[A]): GenIntegralPoly =
     new GenIntegralPoly {
@@ -47,22 +47,19 @@ object GenIntegralPoly {
     GenIntegralPoly(Gen.anyByte, Numeric.ByteIsIntegral)
 
   /**
-   * Provides evidence that instances of `Gen` and `Integral` exist for
-   * characters.
+   * Provides evidence that instances of `Gen` and `Integral` exist for characters.
    */
   val char: GenIntegralPoly =
     GenIntegralPoly(Gen.anyChar, Numeric.CharIsIntegral)
 
   /**
-   * A generator of polymorphic values constrainted to have an `Integral`
-   * instance.
+   * A generator of polymorphic values constrainted to have an `Integral` instance.
    */
   lazy val genIntegralPoly: Gen[Random, GenIntegralPoly] =
     Gen.elements(byte, char, int, long, short)
 
   /**
-   * Provides evidence that instances of `Gen` and `Integral` exist for
-   * integers.
+   * Provides evidence that instances of `Gen` and `Integral` exist for integers.
    */
   val int: GenIntegralPoly =
     GenIntegralPoly(Gen.anyInt, Numeric.IntIsIntegral)

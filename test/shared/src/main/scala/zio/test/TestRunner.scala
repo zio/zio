@@ -22,9 +22,8 @@ import zio.console.Console
 import zio.internal.Platform
 
 /**
- * A `TestRunner[R, E]` encapsulates all the logic necessary to run specs that
- * require an environment `R` and may fail with an error `E`. Test runners
- * require a test executor, a platform, and a reporter.
+ * A `TestRunner[R, E]` encapsulates all the logic necessary to run specs that require an environment `R` and may fail
+ * with an error `E`. Test runners require a test executor, a platform, and a reporter.
  */
 final case class TestRunner[R <: Has[_], E](
   executor: TestExecutor[R, E],

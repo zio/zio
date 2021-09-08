@@ -19,8 +19,8 @@ package zio
 trait ManagedApp extends BootstrapRuntime { ma =>
 
   /**
-   * The main function of the application, which will be passed the command-line
-   * arguments to the program and has to return an `ZManaged` with the errors fully handled.
+   * The main function of the application, which will be passed the command-line arguments to the program and has to
+   * return an `ZManaged` with the errors fully handled.
    */
   def run(args: List[String]): ZManaged[ZEnv, Nothing, ExitCode]
 

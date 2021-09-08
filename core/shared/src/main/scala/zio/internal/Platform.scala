@@ -20,8 +20,7 @@ import zio.internal.tracing.TracingConfig
 import zio.{Cause, Supervisor}
 
 /**
- * A `Platform` provides the minimum capabilities necessary to bootstrap
- * execution of `ZIO` tasks.
+ * A `Platform` provides the minimum capabilities necessary to bootstrap execution of `ZIO` tasks.
  */
 abstract class Platform { self =>
 
@@ -65,9 +64,8 @@ abstract class Platform { self =>
     }
 
   /**
-   * Determines if a throwable is fatal or not. It is important to identify
-   * these as it is not recommended to catch, and try to recover from, any
-   * fatal error.
+   * Determines if a throwable is fatal or not. It is important to identify these as it is not recommended to catch, and
+   * try to recover from, any fatal error.
    */
   def fatal(t: Throwable): Boolean
 

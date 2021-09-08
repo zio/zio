@@ -41,8 +41,7 @@ final class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
     })
 
   /**
-   * Views the last element inserted into the queue, retrying if the queue is
-   * empty.
+   * Views the last element inserted into the queue, retrying if the queue is empty.
    */
   def last: USTM[A] =
     new ZSTM((journal, _, _, _) => {
@@ -55,8 +54,7 @@ final class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
     })
 
   /**
-   * Offers the specified value to the queue, retrying if the queue is at
-   * capacity.
+   * Offers the specified value to the queue, retrying if the queue is at capacity.
    */
   def offer(a: A): USTM[Unit] =
     new ZSTM((journal, _, _, _) => {
@@ -69,9 +67,8 @@ final class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
     })
 
   /**
-   * Offers each of the elements in the specified collection to the queue up to
-   * the maximum capacity of the queue, retrying if there is not capacity in
-   * the queue for all of these elements. Returns any remaining elements in the
+   * Offers each of the elements in the specified collection to the queue up to the maximum capacity of the queue,
+   * retrying if there is not capacity in the queue for all of these elements. Returns any remaining elements in the
    * specified collection.
    */
   def offerAll(as: Iterable[A]): USTM[Iterable[A]] =
@@ -88,8 +85,7 @@ final class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
     })
 
   /**
-   * Views the next element in the queue without removing it, retrying if the
-   * queue is empty.
+   * Views the next element in the queue without removing it, retrying if the queue is empty.
    */
   def peek: USTM[A] =
     new ZSTM((journal, _, _, _) => {
@@ -102,8 +98,7 @@ final class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
     })
 
   /**
-   * Views the next element in the queue without removing it, returning `None`
-   * if the queue is empty.
+   * Views the next element in the queue without removing it, returning `None` if the queue is empty.
    */
   def peekOption: USTM[Option[A]] =
     new ZSTM((journal, _, _, _) => {
@@ -112,16 +107,14 @@ final class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
     })
 
   /**
-   * Takes a single element from the queue, returning `None` if the queue is
-   * empty.
+   * Takes a single element from the queue, returning `None` if the queue is empty.
    */
   def poll: USTM[Option[A]] =
     takeUpTo(1).map(_.headOption)
 
   /**
-   * Drops elements from the queue while they do not satisfy the predicate,
-   * taking and returning the first element that does satisfy the predicate.
-   * Retries if no elements satisfy the predicate.
+   * Drops elements from the queue while they do not satisfy the predicate, taking and returning the first element that
+   * does satisfy the predicate. Retries if no elements satisfy the predicate.
    */
   def seek(f: A => Boolean): USTM[A] =
     new ZSTM((journal, _, _, _) => {

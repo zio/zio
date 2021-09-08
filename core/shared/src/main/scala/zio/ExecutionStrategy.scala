@@ -17,9 +17,8 @@
 package zio
 
 /**
- * Describes a strategy for evaluating multiple effects, potentially in
- * parallel. There are three possible execution strategies: `Sequential`,
- * `Parallel`, and `ParallelN`.
+ * Describes a strategy for evaluating multiple effects, potentially in parallel. There are three possible execution
+ * strategies: `Sequential`, `Parallel`, and `ParallelN`.
  */
 sealed abstract class ExecutionStrategy
 
@@ -36,8 +35,7 @@ object ExecutionStrategy {
   case object Parallel extends ExecutionStrategy
 
   /**
-   * Execute effects in parallel, up to the specified number of concurrent
-   * fibers.
+   * Execute effects in parallel, up to the specified number of concurrent fibers.
    */
   final case class ParallelN(n: Int) extends ExecutionStrategy
 }

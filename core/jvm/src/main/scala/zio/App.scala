@@ -42,8 +42,8 @@ import zio.internal.FiberContext
 trait App extends BootstrapRuntime {
 
   /**
-   * The main function of the application, which will be passed the command-line
-   * arguments to the program and has to return an `IO` with the errors fully handled.
+   * The main function of the application, which will be passed the command-line arguments to the program and has to
+   * return an `IO` with the errors fully handled.
    */
   def run(args: List[String]): URIO[ZEnv, ExitCode]
 

@@ -54,8 +54,8 @@ final case class ZTrace(
   /**
    * Parent fiber traces flattened into a list.
    *
-   * NOTE: `parentTrace` fields are still populated for members of this list,
-   * despite that the next trace in the list is equivalent to `parentTrace`
+   * NOTE: `parentTrace` fields are still populated for members of this list, despite that the next trace in the list is
+   * equivalent to `parentTrace`
    */
   def parents: List[ZTrace] = {
     val builder = List.newBuilder[ZTrace]

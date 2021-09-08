@@ -37,8 +37,7 @@ private[test] object ExpectationState {
   case object Unsatisfied extends ExpectationState(0)
 
   /**
-   * Expectation that has been partially satisfied (meaning, there is a chained
-   * expectation that has not yet completed).
+   * Expectation that has been partially satisfied (meaning, there is a chained expectation that has not yet completed).
    *
    * The test will fail, if it ends with expectation in this state.
    */
@@ -52,8 +51,8 @@ private[test] object ExpectationState {
   case object Satisfied extends ExpectationState(2)
 
   /**
-   * Expectation that has been satisfied and saturated - it cannot match further calls.
-   * Will short-circuit and skip ahead to the next expectation when looking for matches.
+   * Expectation that has been satisfied and saturated - it cannot match further calls. Will short-circuit and skip
+   * ahead to the next expectation when looking for matches.
    *
    * The test will succeed, if it ends with expectation in this state.
    */

@@ -26,10 +26,9 @@ package object blocking {
   type Blocking = Has[Blocking.Service]
 
   /**
-   * The `Blocking` module provides access to a thread pool that can be used for performing
-   * blocking operations, such as thread sleeps, synchronous socket/file reads, and so forth.
-   * The contract is that the thread pool will accept unlimited tasks (up to the available memory)
-   * and continuously create new threads as necessary.
+   * The `Blocking` module provides access to a thread pool that can be used for performing blocking operations, such as
+   * thread sleeps, synchronous socket/file reads, and so forth. The contract is that the thread pool will accept
+   * unlimited tasks (up to the available memory) and continuously create new threads as necessary.
    */
   object Blocking extends Serializable {
     trait Service extends Serializable {
@@ -52,11 +51,10 @@ package object blocking {
         blocking(ZIO.effect(effect))
 
       /**
-       * Imports a synchronous effect that does blocking IO into a pure value,
-       * with a custom cancel effect.
+       * Imports a synchronous effect that does blocking IO into a pure value, with a custom cancel effect.
        *
-       * If the returned `ZIO` is interrupted, the blocked thread running the
-       * synchronous effect will be interrupted via the cancel effect.
+       * If the returned `ZIO` is interrupted, the blocked thread running the synchronous effect will be interrupted via
+       * the cancel effect.
        */
       def effectBlockingCancelable[A](effect: => A)(cancel: UIO[Unit]): Task[A] =
         blocking(ZIO.effect(effect)).fork.flatMap(_.join).onInterrupt(cancel)
@@ -64,12 +62,11 @@ package object blocking {
       /**
        * Imports a synchronous effect that does blocking IO into a pure value.
        *
-       * If the returned `ZIO` is interrupted, the blocked thread running the
-       * synchronous effect will be interrupted via `Thread.interrupt`.
+       * If the returned `ZIO` is interrupted, the blocked thread running the synchronous effect will be interrupted via
+       * `Thread.interrupt`.
        *
-       * Note that this adds significant overhead. For performance sensitive
-       * applications consider using `effectBlocking` or
-       * `effectBlockingCancel`.
+       * Note that this adds significant overhead. For performance sensitive applications consider using
+       * `effectBlocking` or `effectBlockingCancel`.
        */
       def effectBlockingInterrupt[A](effect: => A): Task[A] =
         // Reference user's lambda for the tracer
@@ -144,8 +141,8 @@ package object blocking {
         }
 
       /**
-       * Imports a synchronous effect that does blocking IO into a pure value,
-       * refining the error type to `[[java.io.IOException]]`.
+       * Imports a synchronous effect that does blocking IO into a pure value, refining the error type to
+       * `[[java.io.IOException]]`.
        */
       def effectBlockingIO[A](effect: => A): IO[IOException, A] =
         effectBlocking(effect).refineToOrDie[IOException]
@@ -183,11 +180,10 @@ package object blocking {
     ZIO.accessM(_.get.effectBlocking(effect))
 
   /**
-   * Imports a synchronous effect that does blocking IO into a pure value, with
-   * a custom cancel effect.
+   * Imports a synchronous effect that does blocking IO into a pure value, with a custom cancel effect.
    *
-   * If the returned `ZIO` is interrupted, the blocked thread running the
-   * synchronous effect will be interrupted via the cancel effect.
+   * If the returned `ZIO` is interrupted, the blocked thread running the synchronous effect will be interrupted via the
+   * cancel effect.
    */
   def effectBlockingCancelable[A](effect: => A)(cancel: UIO[Unit]): RIO[Blocking, A] =
     ZIO.accessM(_.get.effectBlockingCancelable(effect)(cancel))
@@ -195,18 +191,18 @@ package object blocking {
   /**
    * Imports a synchronous effect that does blocking IO into a pure value.
    *
-   * If the returned `ZIO` is interrupted, the blocked thread running the
-   * synchronous effect will be interrupted via `Thread.interrupt`.
+   * If the returned `ZIO` is interrupted, the blocked thread running the synchronous effect will be interrupted via
+   * `Thread.interrupt`.
    *
-   * Note that this adds significant overhead. For performance sensitive
-   * applications consider using `effectBlocking` or `effectBlockingCancel`.
+   * Note that this adds significant overhead. For performance sensitive applications consider using `effectBlocking` or
+   * `effectBlockingCancel`.
    */
   def effectBlockingInterrupt[A](effect: => A): RIO[Blocking, A] =
     ZIO.accessM(_.get.effectBlockingInterrupt(effect))
 
   /**
-   * Imports a synchronous effect that does blocking IO into a pure value,
-   * refining the error type to `[[java.io.IOException]]`.
+   * Imports a synchronous effect that does blocking IO into a pure value, refining the error type to
+   * `[[java.io.IOException]]`.
    */
   def effectBlockingIO[A](effect: => A): ZIO[Blocking, IOException, A] =
     ZIO.accessM(_.get.effectBlockingIO(effect))

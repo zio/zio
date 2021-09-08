@@ -29,25 +29,23 @@ import scala.util.Try
 /**
  * _ZIO Test_ is a featherweight testing library for effectful programs.
  *
- * The library imagines every spec as an ordinary immutable value, providing
- * tremendous potential for composition. Thanks to tight integration with ZIO,
- * specs can use resources (including those requiring disposal), have well-
- * defined linear and parallel semantics, and can benefit from a host of ZIO
- * combinators.
+ * The library imagines every spec as an ordinary immutable value, providing tremendous potential for composition.
+ * Thanks to tight integration with ZIO, specs can use resources (including those requiring disposal), have well-
+ * defined linear and parallel semantics, and can benefit from a host of ZIO combinators.
  *
  * {{{
- *  import zio.test._
- *  import zio.test.environment.Live
- *  import zio.clock.nanoTime
- *  import Assertion.isGreaterThan
+ *   import zio.test._
+ *   import zio.test.environment.Live
+ *   import zio.clock.nanoTime
+ *   import Assertion.isGreaterThan
  *
- *  object MyTest extends DefaultRunnableSpec {
- *    def spec = suite("clock")(
- *      testM("time is non-zero") {
- *        assertM(Live.live(nanoTime))(isGreaterThan(0))
- *      }
- *    )
- *  }
+ *   object MyTest extends DefaultRunnableSpec {
+ *     def spec = suite("clock")(
+ *       testM("time is non-zero") {
+ *         assertM(Live.live(nanoTime))(isGreaterThan(0))
+ *       }
+ *     )
+ *   }
  * }}}
  */
 package object test extends CompileVariants {
@@ -65,8 +63,8 @@ package object test extends CompileVariants {
   type TestAspectAtLeastR[R] = TestAspect[Nothing, R, Nothing, Any]
 
   /**
-   * A `TestAspectPoly` is a `TestAspect` that is completely polymorphic,
-   * having no requirements on error or environment.
+   * A `TestAspectPoly` is a `TestAspect` that is completely polymorphic, having no requirements on error or
+   * environment.
    */
   type TestAspectPoly = TestAspect[Nothing, Any, Nothing, Any]
 
@@ -81,8 +79,7 @@ package object test extends CompileVariants {
   }
 
   /**
-   * A `TestReporter[E]` is capable of reporting test results with error type
-   * `E`.
+   * A `TestReporter[E]` is capable of reporting test results with error type `E`.
    */
   type TestReporter[-E] = (Duration, ExecutedSpec[E]) => URIO[TestLogger, Unit]
 
@@ -101,8 +98,7 @@ package object test extends CompileVariants {
   type ZTestEnv = TestClock with TestConsole with TestRandom with TestSystem
 
   /**
-   * A `ZTest[R, E]` is an effectfully produced test that requires an `R` and
-   * may fail with an `E`.
+   * A `ZTest[R, E]` is an effectfully produced test that requires an `R` and may fail with an `E`.
    */
   type ZTest[-R, +E] = ZIO[R, TestFailure[E], TestSuccess]
 
@@ -124,14 +120,13 @@ package object test extends CompileVariants {
   }
 
   /**
-   * A `ZSpec[R, E]` is the canonical spec for testing ZIO programs. The spec's
-   * test type is a ZIO effect that requires an `R` and might fail with an `E`.
+   * A `ZSpec[R, E]` is the canonical spec for testing ZIO programs. The spec's test type is a ZIO effect that requires
+   * an `R` and might fail with an `E`.
    */
   type ZSpec[-R, +E] = Spec[R, TestFailure[E], TestSuccess]
 
   /**
-   * An `Annotated[A]` contains a value of type `A` along with zero or more
-   * test annotations.
+   * An `Annotated[A]` contains a value of type `A` along with zero or more test annotations.
    */
   type Annotated[+A] = (A, TestAnnotationMap)
 
@@ -198,8 +193,7 @@ package object test extends CompileVariants {
     } yield traverseResult(value, assertResult, assertion, None, sourceLocation)
 
   /**
-   * Checks the test passes for "sufficient" numbers of samples from the
-   * given random variable.
+   * Checks the test passes for "sufficient" numbers of samples from the given random variable.
    */
   def check[R <: TestConfig, A](rv: Gen[R, A])(test: A => TestResult): URIO[R, TestResult] =
     TestConfig.samples.flatMap(checkN(_)(rv)(test))
@@ -258,8 +252,7 @@ package object test extends CompileVariants {
     check(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6)(reassociate(test))
 
   /**
-   * Checks the effectual test passes for "sufficient" numbers of samples from
-   * the given random variable.
+   * Checks the effectual test passes for "sufficient" numbers of samples from the given random variable.
    */
   def checkM[R <: TestConfig, R1 <: R, E, A](rv: Gen[R, A])(
     test: A => ZIO[R1, E, TestResult]
@@ -320,9 +313,8 @@ package object test extends CompileVariants {
     checkM(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6)(reassociate(test))
 
   /**
-   * Checks the test passes for all values from the given random variable. This
-   * is useful for deterministic `Gen` that comprehensively explore all
-   * possibilities in a given domain.
+   * Checks the test passes for all values from the given random variable. This is useful for deterministic `Gen` that
+   * comprehensively explore all possibilities in a given domain.
    */
   def checkAll[R <: TestConfig, A](rv: Gen[R, A])(test: A => TestResult): URIO[R, TestResult] =
     checkAllM(rv)(test andThen ZIO.succeedNow)
@@ -381,9 +373,8 @@ package object test extends CompileVariants {
     checkAll(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6)(reassociate(test))
 
   /**
-   * Checks the effectual test passes for all values from the given random
-   * variable. This is useful for deterministic `Gen` that comprehensively
-   * explore all possibilities in a given domain.
+   * Checks the effectual test passes for all values from the given random variable. This is useful for deterministic
+   * `Gen` that comprehensively explore all possibilities in a given domain.
    */
   def checkAllM[R <: TestConfig, R1 <: R, E, A](
     rv: Gen[R, A]
@@ -449,9 +440,8 @@ package object test extends CompileVariants {
     checkAllM(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6)(reassociate(test))
 
   /**
-   * Checks in parallel the effectual test passes for all values from the given random
-   * variable. This is useful for deterministic `Gen` that comprehensively
-   * explore all possibilities in a given domain.
+   * Checks in parallel the effectual test passes for all values from the given random variable. This is useful for
+   * deterministic `Gen` that comprehensively explore all possibilities in a given domain.
    */
   def checkAllMPar[R <: TestConfig, R1 <: R, E, A](rv: Gen[R, A], parallelism: Int)(
     test: A => ZIO[R1, E, TestResult]
@@ -525,15 +515,13 @@ package object test extends CompileVariants {
     checkAllMPar(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6, parallelism)(reassociate(test))
 
   /**
-   * Checks the test passes for the specified number of samples from the given
-   * random variable.
+   * Checks the test passes for the specified number of samples from the given random variable.
    */
   def checkN(n: Int): CheckVariants.CheckN =
     new CheckVariants.CheckN(n)
 
   /**
-   * Checks the effectual test passes for the specified number of samples from
-   * the given random variable.
+   * Checks the effectual test passes for the specified number of samples from the given random variable.
    */
   def checkNM(n: Int): CheckVariants.CheckNM =
     new CheckVariants.CheckNM(n)
@@ -557,9 +545,8 @@ package object test extends CompileVariants {
     ZIO.succeedNow(TestSuccess.Ignored)
 
   /**
-   * Passes platform specific information to the specified function, which will
-   * use that information to create a test. If the platform is neither ScalaJS
-   * nor the JVM, an ignored test result will be returned.
+   * Passes platform specific information to the specified function, which will use that information to create a test.
+   * If the platform is neither ScalaJS nor the JVM, an ignored test result will be returned.
    */
   def platformSpecific[R, E, A](js: => A, jvm: => A)(f: A => ZTest[R, E]): ZTest[R, E] =
     if (TestPlatform.isJS) f(js)
@@ -594,9 +581,8 @@ package object test extends CompileVariants {
     )
 
   /**
-   * Passes version specific information to the specified function, which will
-   * use that information to create a test. If the version is neither Dotty nor
-   * Scala 2, an ignored test result will be returned.
+   * Passes version specific information to the specified function, which will use that information to create a test. If
+   * the version is neither Dotty nor Scala 2, an ignored test result will be returned.
    */
   def versionSpecific[R, E, A](dotty: => A, scala2: => A)(f: A => ZTest[R, E]): ZTest[R, E] =
     if (TestVersion.isDotty) f(dotty)
@@ -604,12 +590,10 @@ package object test extends CompileVariants {
     else ignored
 
   /**
-   * The `Annotations` trait provides access to an annotation map that tests
-   * can add arbitrary annotations to. Each annotation consists of a string
-   * identifier, an initial value, and a function for combining two values.
-   * Annotations form monoids and you can think of `Annotations` as a more
-   * structured logging service or as a super polymorphic version of the writer
-   * monad effect.
+   * The `Annotations` trait provides access to an annotation map that tests can add arbitrary annotations to. Each
+   * annotation consists of a string identifier, an initial value, and a function for combining two values. Annotations
+   * form monoids and you can think of `Annotations` as a more structured logging service or as a super polymorphic
+   * version of the writer monad effect.
    */
   object Annotations {
 
@@ -621,15 +605,14 @@ package object test extends CompileVariants {
     }
 
     /**
-     * Accesses an `Annotations` instance in the environment and appends the
-     * specified annotation to the annotation map.
+     * Accesses an `Annotations` instance in the environment and appends the specified annotation to the annotation map.
      */
     def annotate[V](key: TestAnnotation[V], value: V): URIO[Annotations, Unit] =
       ZIO.accessM(_.get.annotate(key, value))
 
     /**
-     * Accesses an `Annotations` instance in the environment and retrieves the
-     * annotation of the specified type, or its default value if there is none.
+     * Accesses an `Annotations` instance in the environment and retrieves the annotation of the specified type, or its
+     * default value if there is none.
      */
     def get[V](key: TestAnnotation[V]): URIO[Annotations, V] =
       ZIO.accessM(_.get.get(key))
@@ -669,9 +652,8 @@ package object test extends CompileVariants {
       })
 
     /**
-     * Accesses an `Annotations` instance in the environment and executes the
-     * specified effect with an empty annotation map, returning the annotation
-     * map along with the result of execution.
+     * Accesses an `Annotations` instance in the environment and executes the specified effect with an empty annotation
+     * map, returning the annotation map along with the result of execution.
      */
     def withAnnotation[R <: Annotations, E, A](zio: ZIO[R, E, A]): ZIO[R, Annotated[E], Annotated[A]] =
       ZIO.accessM(_.get.withAnnotation(zio))
@@ -701,11 +683,9 @@ package object test extends CompileVariants {
   }
 
   /**
-   * The `TestConfig` service provides access to default configuation settings
-   * used by ZIO Test, including the number of times to repeat tests to ensure
-   * they are stable, the number of times to retry flaky tests, the sufficient
-   * number of samples to check from a random variable, and the maximum number
-   * of shrinkings to minimize large failures.
+   * The `TestConfig` service provides access to default configuation settings used by ZIO Test, including the number of
+   * times to repeat tests to ensure they are stable, the number of times to retry flaky tests, the sufficient number of
+   * samples to check from a random variable, and the maximum number of shrinkings to minimize large failures.
    */
   object TestConfig {
 

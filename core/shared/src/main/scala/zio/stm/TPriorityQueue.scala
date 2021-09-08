@@ -22,11 +22,9 @@ import zio.{Chunk, ChunkBuilder}
 import scala.collection.immutable.SortedMap
 
 /**
- * A `TPriorityQueue` contains values of type `A` that an `Ordering` is defined
- * on. Unlike a `TQueue`, `take` returns the highest priority value (the value
- * that is first in the specified ordering) as opposed to the first value
- * offered to the queue. The ordering that elements with the same priority will
- * be taken from the queue is not guaranteed.
+ * A `TPriorityQueue` contains values of type `A` that an `Ordering` is defined on. Unlike a `TQueue`, `take` returns
+ * the highest priority value (the value that is first in the specified ordering) as opposed to the first value offered
+ * to the queue. The ordering that elements with the same priority will be taken from the queue is not guaranteed.
  */
 final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, ::[A]]]) extends AnyVal {
 
@@ -55,8 +53,7 @@ final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, ::[A]]
     ref.update(map => values.foldLeft(map)((map, a) => map + (a -> map.get(a).fold(::(a, Nil))(::(a, _)))))
 
   /**
-   * Peeks at the first value in the queue without removing it, retrying until
-   * a value is in the queue.
+   * Peeks at the first value in the queue without removing it, retrying until a value is in the queue.
    */
   def peek: USTM[A] =
     new ZSTM((journal, _, _, _) =>
@@ -67,8 +64,7 @@ final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, ::[A]]
     )
 
   /**
-   * Peeks at the first value in the queue without removing it, returning
-   * `None` if there is not a value in the queue.
+   * Peeks at the first value in the queue without removing it, returning `None` if there is not a value in the queue.
    */
   def peekOption: USTM[Option[A]] =
     ref.modify(map => (map.headOption.map(_._2.head), map))
@@ -151,8 +147,7 @@ final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, ::[A]]
     }
 
   /**
-   * Takes a value from the queue, returning `None` if there is not a value in
-   * the queue.
+   * Takes a value from the queue, returning `None` if there is not a value in the queue.
    */
   def takeOption: USTM[Option[A]] =
     new ZSTM((journal, _, _, _) => {

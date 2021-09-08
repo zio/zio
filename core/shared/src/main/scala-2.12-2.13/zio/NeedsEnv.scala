@@ -19,9 +19,8 @@ package zio
 import scala.annotation.implicitAmbiguous
 
 /**
- * A value of type `NeedsEnv[R]` provides implicit evidence that an effect with
- * environment type `R` needs an environment, that is, that `R` is not equal to
- * `Any`.
+ * A value of type `NeedsEnv[R]` provides implicit evidence that an effect with environment type `R` needs an
+ * environment, that is, that `R` is not equal to `Any`.
  */
 sealed abstract class NeedsEnv[+R] extends Serializable
 

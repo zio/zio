@@ -27,9 +27,8 @@ object ZLawsF2 {
   abstract class Divariant[-CapsF[_[-_, +_]], -CapsLeft[_], -CapsRight[_], -R] { self =>
 
     /**
-     * Test that values of type `F[+_,-_]` satisfy the laws using the specified
-     * function to construct a generator of `F[A,B]` values given a generator of
-     * `B` values.
+     * Test that values of type `F[+_,-_]` satisfy the laws using the specified function to construct a generator of
+     * `F[A,B]` values given a generator of `B` values.
      */
     def run[R1 <: R with TestConfig, F[-_, +_]: CapsF, A: CapsLeft, B: CapsRight](
       genF: GenF2[R1, F],
@@ -37,8 +36,8 @@ object ZLawsF2 {
     ): ZIO[R1, Nothing, TestResult]
 
     /**
-     * Combine these laws with the specified laws to produce a set of laws that
-     * require both sets of laws to be satisfied.
+     * Combine these laws with the specified laws to produce a set of laws that require both sets of laws to be
+     * satisfied.
      */
     def +[CapsF1[x[-_, +_]] <: CapsF[x], CapsLeft1[x] <: CapsLeft[x], CapsRight1[x] <: CapsRight[x], R1 <: R](
       that: Divariant[CapsF1, CapsLeft1, CapsRight1, R1]
@@ -64,8 +63,7 @@ object ZLawsF2 {
     }
 
     /**
-     * Constructs a law from a pure function taking one parameterized value and
-     * two functions that can be composed.
+     * Constructs a law from a pure function taking one parameterized value and two functions that can be composed.
      */
     abstract class ComposeLaw[-CapsBothF[_[-_, +_]], -Caps[_]](label: String)
         extends Divariant[CapsBothF, Caps, Caps, Any] {

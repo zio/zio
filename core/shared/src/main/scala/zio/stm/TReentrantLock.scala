@@ -21,35 +21,30 @@ import zio.stm.ZSTM.internal.TExit
 import zio.{Fiber, Managed, UManaged}
 
 /**
- * A `TReentrantLock` is a reentrant read/write lock. Multiple readers may all
- * concurrently acquire read locks. Only one writer is allowed to acquire a
- * write lock at any given time. Read locks may be upgraded into write locks.
- * A fiber that has a write lock may acquire other write locks or read locks.
+ * A `TReentrantLock` is a reentrant read/write lock. Multiple readers may all concurrently acquire read locks. Only one
+ * writer is allowed to acquire a write lock at any given time. Read locks may be upgraded into write locks. A fiber
+ * that has a write lock may acquire other write locks or read locks.
  *
- * The two primary methods of this structure are `readLock`, which acquires a
- * read lock in a managed context, and `writeLock`, which acquires a write lock
- * in a managed context.
+ * The two primary methods of this structure are `readLock`, which acquires a read lock in a managed context, and
+ * `writeLock`, which acquires a write lock in a managed context.
  *
- * Although located in the STM package, there is no need for locks within
- * STM transactions. However, this lock can be quite useful in effectful code,
- * to provide consistent read/write access to mutable state; and being in STM
- * allows this structure to be composed into more complicated concurrent
- * structures that are consumed from effectful code.
+ * Although located in the STM package, there is no need for locks within STM transactions. However, this lock can be
+ * quite useful in effectful code, to provide consistent read/write access to mutable state; and being in STM allows
+ * this structure to be composed into more complicated concurrent structures that are consumed from effectful code.
  */
 final class TReentrantLock private (data: TRef[LockState]) {
 
   private val tExitOne = TExit.Succeed(1)
 
   /**
-   * Acquires a read lock. The transaction will suspend until no other fiber
-   * is holding a write lock. Succeeds with the number of read locks held by this fiber.
+   * Acquires a read lock. The transaction will suspend until no other fiber is holding a write lock. Succeeds with the
+   * number of read locks held by this fiber.
    */
   lazy val acquireRead: USTM[Int] = adjustRead(1)
 
   /**
-   * Acquires a write lock. The transaction will suspend until no other
-   * fibers are holding read or write locks. Succeeds with the number of
-   * write locks held by this fiber.
+   * Acquires a write lock. The transaction will suspend until no other fibers are holding read or write locks. Succeeds
+   * with the number of write locks held by this fiber.
    */
   lazy val acquireWrite: USTM[Int] = new ZSTM((journal, fiberId, _, _) =>
     data.unsafeGet(journal) match {
@@ -67,8 +62,8 @@ final class TReentrantLock private (data: TRef[LockState]) {
   )
 
   /**
-   * Just a convenience method for applications that only need reentrant locks,
-   * without needing a distinction between readers / writers.
+   * Just a convenience method for applications that only need reentrant locks, without needing a distinction between
+   * readers / writers.
    *
    * See [[writeLock]].
    */
@@ -109,21 +104,19 @@ final class TReentrantLock private (data: TRef[LockState]) {
   def readLocked: USTM[Boolean] = data.get.map(_.readLocks > 0)
 
   /**
-   * Releases a read lock held by this fiber. Succeeds with the outstanding
-   * number of read locks held by this fiber.
+   * Releases a read lock held by this fiber. Succeeds with the outstanding number of read locks held by this fiber.
    */
   lazy val releaseRead: USTM[Int] = adjustRead(-1)
 
   /**
-   * Releases a write lock held by this fiber. Succeeds with the outstanding
-   * number of write locks held by this fiber.
+   * Releases a write lock held by this fiber. Succeeds with the outstanding number of write locks held by this fiber.
    */
   lazy val releaseWrite: USTM[Int] = new ZSTM((journal, fiberId, _, _) => {
     val res = data.unsafeGet(journal) match {
       case WriteLock(1, m, `fiberId`) => ReadLock(fiberId, m)
       case WriteLock(n, m, `fiberId`) if n > 1 =>
         WriteLock(n - 1, m, fiberId)
-      case s => die(s"Defect: Fiber ${fiberId} releasing write lock it does not hold: ${s}")
+      case s => die(s"Defect: Fiber $fiberId releasing write lock it does not hold: $s")
     }
     data.unsafeSet(journal, res)
     TExit.Succeed(res.writeLocks(fiberId))
@@ -157,7 +150,7 @@ final class TReentrantLock private (data: TRef[LockState]) {
         case WriteLock(w, r, `fiberId`) =>
           val newTotal = r + delta
           if (newTotal < 0)
-            die(s"Defect: Fiber ${fiberId} releasing read locks it does not hold, newTotal: $newTotal")
+            die(s"Defect: Fiber $fiberId releasing read locks it does not hold, newTotal: $newTotal")
           else
             data.unsafeSet(journal, WriteLock(w, newTotal, fiberId))
           TExit.Succeed(newTotal)
@@ -176,9 +169,8 @@ object TReentrantLock {
   }
 
   /**
-   * This data structure describes the state of the lock when a single fiber
-   * has a write lock. The fiber has an identity, and may also have acquired
-   * a certain number of read locks.
+   * This data structure describes the state of the lock when a single fiber has a write lock. The fiber has an
+   * identity, and may also have acquired a certain number of read locks.
    */
   private[stm] final case class WriteLock(writeLocks: Int, readLocks: Int, fiberId: Fiber.Id) extends LockState {
     override def readLocks(fiberId0: Fiber.Id): Int = if (fiberId0 == fiberId) readLocks else 0
@@ -187,9 +179,8 @@ object TReentrantLock {
   }
 
   /**
-   * This data structure describes the state of the lock when multiple fibers
-   * have acquired read locks. The state is tracked as a map from fiber identity
-   * to number of read locks acquired by the fiber. This level of detail permits
+   * This data structure describes the state of the lock when multiple fibers have acquired read locks. The state is
+   * tracked as a map from fiber identity to number of read locks acquired by the fiber. This level of detail permits
    * upgrading a read lock to a write lock.
    */
   private[stm] final class ReadLock(readers: Map[Fiber.Id, Int]) extends LockState {
@@ -200,10 +191,9 @@ object TReentrantLock {
     lazy val readLocks: Int = readers.values.sum
 
     /**
-     * Determines if there is no other holder of read locks aside from the
-     * specified fiber id. If there are no other holders of read locks
-     * aside from the specified fiber id, then it is safe to upgrade the
-     * read lock into a write lock.
+     * Determines if there is no other holder of read locks aside from the specified fiber id. If there are no other
+     * holders of read locks aside from the specified fiber id, then it is safe to upgrade the read lock into a write
+     * lock.
      */
     def noOtherHolder(fiberId: Fiber.Id): Boolean =
       readers.isEmpty || (readers.size == 1 && readers.contains(fiberId))
@@ -222,7 +212,7 @@ object TReentrantLock {
       val newTotal = total + adjust
 
       new ReadLock(
-        if (newTotal < 0) die(s"Defect: Fiber ${fiberId} releasing read lock it does not hold: ${readers}")
+        if (newTotal < 0) die(s"Defect: Fiber $fiberId releasing read lock it does not hold: $readers")
         else if (newTotal == 0) readers - fiberId
         else readers.updated(fiberId, newTotal)
       )
@@ -240,8 +230,7 @@ object TReentrantLock {
     val empty: ReadLock = new ReadLock(Map())
 
     /**
-     * Creates a new read lock where the specified fiber holds the
-     * specified number of read locks.
+     * Creates a new read lock where the specified fiber holds the specified number of read locks.
      */
     def apply(fiberId: Fiber.Id, count: Int): ReadLock =
       if (count <= 0) empty else new ReadLock(Map(fiberId -> count))

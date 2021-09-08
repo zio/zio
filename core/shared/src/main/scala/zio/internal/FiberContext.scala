@@ -171,8 +171,7 @@ private[zio] final class FiberContext[E, A](
   }
 
   /**
-   * Unwinds the stack, looking for the first error handler, and exiting
-   * interruptible / uninterruptible regions.
+   * Unwinds the stack, looking for the first error handler, and exiting interruptible / uninterruptible regions.
    */
   private[this] def unwindStack(): Boolean = {
     var unwinding      = true
@@ -265,12 +264,12 @@ private[zio] final class FiberContext[E, A](
   }
 
   /**
-   * The main interpreter loop for `IO` actions. For purely synchronous actions,
-   * this will run to completion unless required to yield to other fibers.
-   * For mixed actions, the loop will proceed no further than the first
-   * asynchronous boundary.
+   * The main interpreter loop for `IO` actions. For purely synchronous actions, this will run to completion unless
+   * required to yield to other fibers. For mixed actions, the loop will proceed no further than the first asynchronous
+   * boundary.
    *
-   * @param io0 The `IO` to evaluate on the fiber.
+   * @param io0
+   *   The `IO` to evaluate on the fiber.
    */
   def evaluateNow(io0: IO[E, Any]): Unit =
     try {
@@ -852,7 +851,7 @@ private[zio] final class FiberContext[E, A](
           ZIO.halt(state.get.interrupted)
         } else null
 
-      case _ => throw new RuntimeException(s"Unexpected fiber completion ${fiberId}")
+      case _ => throw new RuntimeException(s"Unexpected fiber completion $fiberId")
     }
   }
 

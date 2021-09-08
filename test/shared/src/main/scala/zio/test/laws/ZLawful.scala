@@ -17,10 +17,8 @@
 package zio.test.laws
 
 /**
- * `ZLawful[Caps, R]` describes a capability that is expected to satisfy a set
- * of laws. Lawful instances can be combined using `+` to describe a set of
- * capabilities and all of the laws that those capabilities are expected to
- * satisfy.
+ * `ZLawful[Caps, R]` describes a capability that is expected to satisfy a set of laws. Lawful instances can be combined
+ * using `+` to describe a set of capabilities and all of the laws that those capabilities are expected to satisfy.
  *
  * {{{
  * trait Equal[-A] {

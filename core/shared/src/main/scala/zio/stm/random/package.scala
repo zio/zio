@@ -315,8 +315,8 @@ package object random {
     ZSTM.accessM(_.get.nextFloatBetween(minInclusive, maxExclusive))
 
   /**
-   * Generates a pseudo-random double from a normal distribution with mean 0.0
-   * and standard deviation 1.0 inside a transaction.
+   * Generates a pseudo-random double from a normal distribution with mean 0.0 and standard deviation 1.0 inside a
+   * transaction.
    */
   val nextGaussian: URSTM[TRandom, Double] =
     ZSTM.accessM(_.get.nextGaussian)
@@ -334,8 +334,7 @@ package object random {
     ZSTM.accessM(_.get.nextIntBetween(minInclusive, maxExclusive))
 
   /**
-   * Generates a pseudo-random integer between 0 (inclusive) and the specified
-   * value (exclusive) inside a transaction.
+   * Generates a pseudo-random integer between 0 (inclusive) and the specified value (exclusive) inside a transaction.
    */
   def nextIntBounded(n: => Int): URSTM[TRandom, Int] =
     ZSTM.accessM(_.get.nextIntBounded(n))
@@ -353,8 +352,7 @@ package object random {
     ZSTM.accessM(_.get.nextLongBetween(minInclusive, maxExclusive))
 
   /**
-   * Generates a pseudo-random long between 0 (inclusive) and the specified
-   * value (exclusive) inside a transaction.
+   * Generates a pseudo-random long between 0 (inclusive) and the specified value (exclusive) inside a transaction.
    */
   def nextLongBounded(n: => Long): URSTM[TRandom, Long] =
     ZSTM.accessM(_.get.nextLongBounded(n))

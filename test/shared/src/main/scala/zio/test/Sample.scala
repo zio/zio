@@ -20,8 +20,8 @@ import zio.stream.ZStream
 import zio.{Cause, Exit, ZIO}
 
 /**
- * A sample is a single observation from a random variable, together with a
- * tree of "shrinkings" used for minimization of "large" failures.
+ * A sample is a single observation from a random variable, together with a tree of "shrinkings" used for minimization
+ * of "large" failures.
  */
 final case class Sample[-R, +A](value: A, shrink: ZStream[R, Nothing, Sample[R, A]]) { self =>
 
@@ -38,23 +38,21 @@ final case class Sample[-R, +A](value: A, shrink: ZStream[R, Nothing, Sample[R, 
     self.cross(that)
 
   /**
-   * Composes this sample with the specified sample to create a cartesian
-   * product of values and shrinkings.
+   * Composes this sample with the specified sample to create a cartesian product of values and shrinkings.
    */
   def cross[R1 <: R, B](that: Sample[R1, B]): Sample[R1, (A, B)] =
     self.crossWith(that)((_, _))
 
   /**
-   * Composes this sample with the specified sample to create a cartesian
-   * product of values and shrinkings with the specified function.
+   * Composes this sample with the specified sample to create a cartesian product of values and shrinkings with the
+   * specified function.
    */
   def crossWith[R1 <: R, B, C](that: Sample[R1, B])(f: (A, B) => C): Sample[R1, C] =
     self.flatMap(a => that.map(b => f(a, b)))
 
   /**
-   * Filters this sample by replacing it with its shrink tree if the value does
-   * not meet the specified predicate and recursively filtering the shrink
-   * tree.
+   * Filters this sample by replacing it with its shrink tree if the value does not meet the specified predicate and
+   * recursively filtering the shrink tree.
    */
   def filter(f: A => Boolean): ZStream[R, Nothing, Sample[R, A]] =
     if (f(value)) ZStream(Sample(value, shrink.flatMap(_.filter(f))))
@@ -72,10 +70,9 @@ final case class Sample[-R, +A](value: A, shrink: ZStream[R, Nothing, Sample[R, 
     Sample(f(value), shrink.map(_.map(f)))
 
   /**
-   * Converts the shrink tree into a stream of shrinkings by recursively
-   * searching the shrink tree, using the specified function to determine
-   * whether a value is a failure. The resulting stream will contain all
-   * values explored, regardless of whether they are successes or failures.
+   * Converts the shrink tree into a stream of shrinkings by recursively searching the shrink tree, using the specified
+   * function to determine whether a value is a failure. The resulting stream will contain all values explored,
+   * regardless of whether they are successes or failures.
    */
   def shrinkSearch(f: A => Boolean): ZStream[R, Nothing, A] =
     if (!f(value))

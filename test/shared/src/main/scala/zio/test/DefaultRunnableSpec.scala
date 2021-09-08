@@ -22,8 +22,7 @@ import zio.test.environment.TestEnvironment
 import zio.{URIO, ZIO}
 
 /**
- * A default runnable spec that provides testable versions of all of the
- * modules in ZIO (Clock, Random, etc).
+ * A default runnable spec that provides testable versions of all of the modules in ZIO (Clock, Random, etc).
  */
 abstract class DefaultRunnableSpec extends RunnableSpec[TestEnvironment, Any] {
 

@@ -17,8 +17,8 @@
 package zio.test
 
 /**
- * Filters a given `ZSpec` based on the command-line arguments.
- * If no arguments were specified, the spec returns unchanged.
+ * Filters a given `ZSpec` based on the command-line arguments. If no arguments were specified, the spec returns
+ * unchanged.
  */
 private[zio] object FilteredSpec {
   def apply[R, E](spec: ZSpec[R, E], args: TestArgs): ZSpec[R, E] = {

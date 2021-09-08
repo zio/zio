@@ -22,12 +22,10 @@ import java.util.Set
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * A `ZHub[RA, RB, EA, EB, A, B]` is an asynchronous message hub. Publishers
- * can publish messages of type `A` to the hub and subscribers can subscribe to
- * take messages of type `B` from the hub. Publishing messages can require an
- * environment of type `RA` and fail with an error of type `EA`. Taking
- * messages can require an environment of type `RB` and fail with an error of
- * type `EB`.
+ * A `ZHub[RA, RB, EA, EB, A, B]` is an asynchronous message hub. Publishers can publish messages of type `A` to the hub
+ * and subscribers can subscribe to take messages of type `B` from the hub. Publishing messages can require an
+ * environment of type `RA` and fail with an error of type `EA`. Taking messages can require an environment of type `RB`
+ * and fail with an error of type `EB`.
  */
 sealed abstract class ZHub[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { self =>
 
@@ -47,14 +45,12 @@ sealed abstract class ZHub[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { se
   def isShutdown: UIO[Boolean]
 
   /**
-   * Publishes a message to the hub, returning whether the message was
-   * published to the hub.
+   * Publishes a message to the hub, returning whether the message was published to the hub.
    */
   def publish(a: A): ZIO[RA, EA, Boolean]
 
   /**
-   * Publishes all of the specified messages to the hub, returning whether
-   * they were published to the hub.
+   * Publishes all of the specified messages to the hub, returning whether they were published to the hub.
    */
   def publishAll(as: Iterable[A]): ZIO[RA, EA, Boolean]
 
@@ -69,9 +65,8 @@ sealed abstract class ZHub[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { se
   def size: UIO[Int]
 
   /**
-   * Subscribes to receive messages from the hub. The resulting subscription
-   * can be evaluated multiple times within the scope of the managed to take a
-   * message from the hub each time.
+   * Subscribes to receive messages from the hub. The resulting subscription can be evaluated multiple times within the
+   * scope of the managed to take a message from the hub each time.
    */
   def subscribe: ZManaged[Any, Nothing, ZDequeue[RB, EB, B]]
 
@@ -82,22 +77,19 @@ sealed abstract class ZHub[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { se
     contramapM(c => ZIO.succeedNow(f(c)))
 
   /**
-   * Transforms messages published to the hub using the specified effectual
-   * function.
+   * Transforms messages published to the hub using the specified effectual function.
    */
   final def contramapM[RC <: RA, EC >: EA, C](f: C => ZIO[RC, EC, A]): ZHub[RC, RB, EC, EB, C, B] =
     dimapM(f, ZIO.succeedNow)
 
   /**
-   * Transforms messages published to and taken from the hub using the
-   * specified functions.
+   * Transforms messages published to and taken from the hub using the specified functions.
    */
   final def dimap[C, D](f: C => A, g: B => D): ZHub[RA, RB, EA, EB, C, D] =
     dimapM(c => ZIO.succeedNow(f(c)), b => ZIO.succeedNow(g(b)))
 
   /**
-   * Transforms messages published to and taken from the hub using the
-   * specified effectual functions.
+   * Transforms messages published to and taken from the hub using the specified effectual functions.
    */
   final def dimapM[RC <: RA, RD <: RB, EC >: EA, ED >: EB, C, D](
     f: C => ZIO[RC, EC, A],
@@ -129,8 +121,7 @@ sealed abstract class ZHub[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { se
     filterInputM(a => ZIO.succeedNow(f(a)))
 
   /**
-   * Filters messages published to the hub using the specified effectual
-   * function.
+   * Filters messages published to the hub using the specified effectual function.
    */
   final def filterInputM[RA1 <: RA, EA1 >: EA, A1 <: A](
     f: A1 => ZIO[RA1, EA1, Boolean]
@@ -161,8 +152,7 @@ sealed abstract class ZHub[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { se
     filterOutputM(b => ZIO.succeedNow(f(b)))
 
   /**
-   * Filters messages taken from the hub using the specified effectual
-   * function.
+   * Filters messages taken from the hub using the specified effectual function.
    */
   final def filterOutputM[RB1 <: RB, EB1 >: EB](
     f: B => ZIO[RB1, EB1, Boolean]
@@ -193,8 +183,7 @@ sealed abstract class ZHub[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { se
     mapM(b => ZIO.succeedNow(f(b)))
 
   /**
-   * Transforms messages taken from the hub using the specified effectual
-   * function.
+   * Transforms messages taken from the hub using the specified effectual function.
    */
   final def mapM[RC <: RB, EC >: EB, C](f: B => ZIO[RC, EC, C]): ZHub[RA, RC, EA, EC, A, C] =
     dimapM(ZIO.succeedNow, f)
@@ -230,9 +219,8 @@ sealed abstract class ZHub[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { se
 object ZHub {
 
   /**
-   * Creates a bounded hub with the back pressure strategy. The hub will retain
-   * messages until they have been taken by all subscribers, applying back
-   * pressure to publishers if the hub is at capacity.
+   * Creates a bounded hub with the back pressure strategy. The hub will retain messages until they have been taken by
+   * all subscribers, applying back pressure to publishers if the hub is at capacity.
    *
    * For best performance use capacities that are powers of two.
    */
@@ -240,8 +228,7 @@ object ZHub {
     ZIO.effectTotal(internal.Hub.bounded[A](requestedCapacity)).flatMap(makeHub(_, Strategy.BackPressure()))
 
   /**
-   * Creates a bounded hub with the dropping strategy. The hub will drop new
-   * messages if the hub is at capacity.
+   * Creates a bounded hub with the dropping strategy. The hub will drop new messages if the hub is at capacity.
    *
    * For best performance use capacities that are powers of two.
    */
@@ -249,8 +236,8 @@ object ZHub {
     ZIO.effectTotal(internal.Hub.bounded[A](requestedCapacity)).flatMap(makeHub(_, Strategy.Dropping()))
 
   /**
-   * Creates a bounded hub with the sliding strategy. The hub will add new
-   * messages and drop old messages if the hub is at capacity.
+   * Creates a bounded hub with the sliding strategy. The hub will add new messages and drop old messages if the hub is
+   * at capacity.
    *
    * For best performance use capacities that are powers of two.
    */
@@ -435,14 +422,14 @@ object ZHub {
     }
 
   /**
-   * A `Strategy[A]` describes the protocol for how publishers and subscribers
-   * will communicate with each other through the hub.
+   * A `Strategy[A]` describes the protocol for how publishers and subscribers will communicate with each other through
+   * the hub.
    */
   private sealed abstract class Strategy[A] {
 
     /**
-     * Describes how publishers should signal to subscribers that they are
-     * waiting for space to become available in the hub.
+     * Describes how publishers should signal to subscribers that they are waiting for space to become available in the
+     * hub.
      */
     def handleSurplus(
       hub: internal.Hub[A],
@@ -457,8 +444,8 @@ object ZHub {
     def shutdown: UIO[Unit]
 
     /**
-     * Describes how subscribers should signal to publishers waiting for space
-     * to become available in the hub that space may be available.
+     * Describes how subscribers should signal to publishers waiting for space to become available in the hub that space
+     * may be available.
      */
     def unsafeOnHubEmptySpace(
       hub: internal.Hub[A],
@@ -466,9 +453,8 @@ object ZHub {
     ): Unit
 
     /**
-     * Describes how subscribers waiting for additional values from the hub
-     * should take those values and signal to publishers that they are no
-     * longer waiting for additional values.
+     * Describes how subscribers waiting for additional values from the hub should take those values and signal to
+     * publishers that they are no longer waiting for additional values.
      */
     final def unsafeCompletePollers(
       hub: internal.Hub[A],
@@ -499,8 +485,8 @@ object ZHub {
     }
 
     /**
-     * Describes how publishers should signal to subscribers waiting for
-     * additional values from the hub that new values are available.
+     * Describes how publishers should signal to subscribers waiting for additional values from the hub that new values
+     * are available.
      */
     final def unsafeCompleteSubscribers(
       hub: internal.Hub[A],
@@ -517,11 +503,10 @@ object ZHub {
   private object Strategy {
 
     /**
-     * A strategy that applies back pressure to publishers when the hub is at
-     * capacity. This guarantees that all subscribers will receive all messages
-     * published to the hub while they are subscribed. However, it creates the
-     * risk that a slow subscriber will slow down the rate at which messages
-     * are published and received by other subscribers.
+     * A strategy that applies back pressure to publishers when the hub is at capacity. This guarantees that all
+     * subscribers will receive all messages published to the hub while they are subscribed. However, it creates the
+     * risk that a slow subscriber will slow down the rate at which messages are published and received by other
+     * subscribers.
      */
     final case class BackPressure[A]() extends Strategy[A] {
       val publishers: MutableConcurrentQueue[(A, Promise[Nothing, Boolean], Boolean)] =
@@ -594,12 +579,10 @@ object ZHub {
     }
 
     /**
-     * A strategy that drops new messages when the hub is at capacity. This
-     * guarantees that a slow subscriber will not slow down the rate at which
-     * messages are published. However, it creates the risk that a slow
-     * subscriber will slow down the rate at which messages are received by
-     * other subscribers and that subscribers may not receive all messages
-     * published to the hub while they are subscribed.
+     * A strategy that drops new messages when the hub is at capacity. This guarantees that a slow subscriber will not
+     * slow down the rate at which messages are published. However, it creates the risk that a slow subscriber will slow
+     * down the rate at which messages are received by other subscribers and that subscribers may not receive all
+     * messages published to the hub while they are subscribed.
      */
     final case class Dropping[A]() extends Strategy[A] {
 
@@ -622,11 +605,10 @@ object ZHub {
     }
 
     /**
-     * A strategy that adds new messages and drops old messages when the hub is
-     * at capacity. This guarantees that a slow subscriber will not slow down
-     * the rate at which messages are published and received by other
-     * subscribers. However, it creates the risk that a slow subscriber will
-     * not receive some messages published to the hub while it is subscribed.
+     * A strategy that adds new messages and drops old messages when the hub is at capacity. This guarantees that a slow
+     * subscriber will not slow down the rate at which messages are published and received by other subscribers.
+     * However, it creates the risk that a slow subscriber will not receive some messages published to the hub while it
+     * is subscribed.
      */
     final case class Sliding[A]() extends Strategy[A] {
 

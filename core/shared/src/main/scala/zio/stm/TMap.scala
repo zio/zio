@@ -20,8 +20,7 @@ import zio.stm.ZSTM.internal._
 import zio.{Chunk, ChunkBuilder}
 
 /**
- * Transactional map implemented on top of [[TRef]] and [[TArray]]. Resolves
- * conflicts via chaining.
+ * Transactional map implemented on top of [[TRef]] and [[TArray]]. Resolves conflicts via chaining.
  */
 final class TMap[K, V] private (
   private val tBuckets: TRef[TArray[List[(K, V)]]],
@@ -106,8 +105,7 @@ final class TMap[K, V] private (
     })
 
   /**
-   * Retrieves value associated with given key or default value, in case the
-   * key isn't present.
+   * Retrieves value associated with given key or default value, in case the key isn't present.
    */
   def getOrElse(k: K, default: => V): USTM[V] =
     get(k).map(_.getOrElse(default))
@@ -119,9 +117,8 @@ final class TMap[K, V] private (
     toList.map(_.map(_._1))
 
   /**
-   * If the key `k` is not already associated with a value, stores the provided
-   * value, otherwise merge the existing value with the new one using function `f`
-   * and store the result
+   * If the key `k` is not already associated with a value, stores the provided value, otherwise merge the existing
+   * value with the new one using function `f` and store the result
    */
   def merge(k: K, v: V)(f: (V, V) => V): USTM[V] =
     get(k).flatMap(_.fold(put(k, v).as(v)) { v0 =>

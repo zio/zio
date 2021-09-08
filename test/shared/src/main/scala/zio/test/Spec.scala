@@ -21,10 +21,8 @@ import zio.test.Spec._
 import zio.test.environment.TestEnvironment
 
 /**
- * A `Spec[R, E, T]` is the backbone of _ZIO Test_. Every spec is either a
- * suite, which contains other specs, or a test of type `T`. All specs require
- * an environment of type `R` and may potentially fail with an error of type
- * `E`.
+ * A `Spec[R, E, T]` is the backbone of _ZIO Test_. Every spec is either a suite, which contains other specs, or a test
+ * of type `T`. All specs require an environment of type `R` and may potentially fail with an error of type `E`.
  */
 final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) { self =>
 
@@ -85,8 +83,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
     }
 
   /**
-   * Returns the number of tests in the spec that satisfy the specified
-   * predicate.
+   * Returns the number of tests in the spec that satisfy the specified predicate.
    */
   final def countTests(f: T => Boolean): ZManaged[R, E, Int] =
     fold[ZManaged[R, E, Int]] {
@@ -117,10 +114,8 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
     }
 
   /**
-   * Returns a new spec with only those tests with annotations satisfying the
-   * specified predicate. If no annotations satisfy the specified predicate
-   * then returns `Some` with an empty suite if this is a suite or `None`
-   * otherwise.
+   * Returns a new spec with only those tests with annotations satisfying the specified predicate. If no annotations
+   * satisfy the specified predicate then returns `Some` with an empty suite if this is a suite or `None` otherwise.
    */
   final def filterAnnotations[V](key: TestAnnotation[V])(f: V => Boolean): Option[Spec[R, E, T]] =
     caseValue match {
@@ -137,12 +132,10 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
     }
 
   /**
-   * Returns a new spec with only those suites and tests satisfying the
-   * specified predicate. If a suite label satisfies the predicate the entire
-   * suite will be included in the new spec. Otherwise only those specs in a
-   * suite that satisfy the specified predicate will be included in the new
-   * spec. If no labels satisfy the specified predicate then returns `Some`
-   * with an empty suite if this is a suite or `None` otherwise.
+   * Returns a new spec with only those suites and tests satisfying the specified predicate. If a suite label satisfies
+   * the predicate the entire suite will be included in the new spec. Otherwise only those specs in a suite that satisfy
+   * the specified predicate will be included in the new spec. If no labels satisfy the specified predicate then returns
+   * `Some` with an empty suite if this is a suite or `None` otherwise.
    */
   final def filterLabels(f: String => Boolean): Option[Spec[R, E, T]] =
     caseValue match {
@@ -161,10 +154,9 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
     }
 
   /**
-   * Returns a new spec with only those suites and tests with tags satisfying
-   * the specified predicate. If no tags satisfy the specified predicate then
-   * returns `Some` with an empty suite with the root label if this is a suite
-   * or `None` otherwise.
+   * Returns a new spec with only those suites and tests with tags satisfying the specified predicate. If no tags
+   * satisfy the specified predicate then returns `Some` with an empty suite with the root label if this is a suite or
+   * `None` otherwise.
    */
   final def filterTags(f: String => Boolean): Option[Spec[R, E, T]] =
     filterAnnotations(TestAnnotation.tagged)(_.exists(f))
@@ -182,8 +174,8 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
     }
 
   /**
-   * Effectfully folds over all nodes according to the execution strategy of
-   * suites, utilizing the specified default for other cases.
+   * Effectfully folds over all nodes according to the execution strategy of suites, utilizing the specified default for
+   * other cases.
    */
   final def foldM[R1 <: R, E1, Z](
     defExec: ExecutionStrategy
@@ -215,9 +207,8 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
     }
 
   /**
-   * Iterates over the spec with the specified default execution strategy, and
-   * effectfully transforming every test with the provided function, finally
-   * reconstructing the spec with the same structure.
+   * Iterates over the spec with the specified default execution strategy, and effectfully transforming every test with
+   * the provided function, finally reconstructing the spec with the same structure.
    */
   final def foreachExec[R1 <: R, E1, A](
     defExec: ExecutionStrategy
@@ -238,9 +229,8 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
     }
 
   /**
-   * Iterates over the spec with the sequential strategy as the default, and
-   * effectfully transforming every test with the provided function, finally
-   * reconstructing the spec with the same structure.
+   * Iterates over the spec with the sequential strategy as the default, and effectfully transforming every test with
+   * the provided function, finally reconstructing the spec with the same structure.
    */
   final def foreach[R1 <: R, E1, A](
     failure: Cause[E] => ZIO[R1, E1, A],
@@ -249,9 +239,8 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
     foreachExec(ExecutionStrategy.Sequential)(failure, success)
 
   /**
-   * Iterates over the spec with the parallel strategy as the default, and
-   * effectfully transforming every test with the provided function, finally
-   * reconstructing the spec with the same structure.
+   * Iterates over the spec with the parallel strategy as the default, and effectfully transforming every test with the
+   * provided function, finally reconstructing the spec with the same structure.
    */
   final def foreachPar[R1 <: R, E1, A](
     failure: Cause[E] => ZIO[R1, E1, A],
@@ -260,9 +249,8 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
     foreachExec(ExecutionStrategy.Parallel)(failure, success)
 
   /**
-   * Iterates over the spec with the parallel (`n`) strategy as the default, and
-   * effectfully transforming every test with the provided function, finally
-   * reconstructing the spec with the same structure.
+   * Iterates over the spec with the parallel (`n`) strategy as the default, and effectfully transforming every test
+   * with the provided function, finally reconstructing the spec with the same structure.
    */
   final def foreachParN[R1 <: R, E1, A](
     n: Int
@@ -324,9 +312,8 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
     provideSome(_ => r)
 
   /**
-   * Provides each test with the part of the environment that is not part of
-   * the `TestEnvironment`, leaving a spec that only depends on the
-   * `TestEnvironment`.
+   * Provides each test with the part of the environment that is not part of the `TestEnvironment`, leaving a spec that
+   * only depends on the `TestEnvironment`.
    *
    * {{{
    * val loggingLayer: ZLayer[Any, Nothing, Logging] = ???
@@ -342,9 +329,8 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
     provideSomeLayer[TestEnvironment](layer)
 
   /**
-   * Provides all tests with a shared version of the part of the environment
-   * that is not part of the `TestEnvironment`, leaving a spec that only
-   * depends on the `TestEnvironment`.
+   * Provides all tests with a shared version of the part of the environment that is not part of the `TestEnvironment`,
+   * leaving a spec that only depends on the `TestEnvironment`.
    *
    * {{{
    * val loggingLayer: ZLayer[Any, Nothing, Logging] = ???
@@ -392,8 +378,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
     }
 
   /**
-   * Uses the specified function to provide each test in this spec with part of
-   * its required environment.
+   * Uses the specified function to provide each test in this spec with part of its required environment.
    */
   final def provideSome[R0](f: R0 => R)(implicit ev: NeedsEnv[R]): Spec[R0, E, T] =
     transform[R0, E, T] {
@@ -405,8 +390,8 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
     }
 
   /**
-   * Splits the environment into two parts, providing each test with one part
-   * using the specified layer and leaving the remainder `R0`.
+   * Splits the environment into two parts, providing each test with one part using the specified layer and leaving the
+   * remainder `R0`.
    *
    * {{{
    * val clockLayer: ZLayer[Any, Nothing, Clock] = ???
@@ -420,9 +405,8 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
     new Spec.ProvideSomeLayer[R0, R, E, T](self)
 
   /**
-   * Splits the environment into two parts, providing all tests with a shared
-   * version of one part using the specified layer and leaving the remainder
-   * `R0`.
+   * Splits the environment into two parts, providing all tests with a shared version of one part using the specified
+   * layer and leaving the remainder `R0`.
    *
    * {{{
    * val clockLayer: ZLayer[Any, Nothing, Clock] = ???

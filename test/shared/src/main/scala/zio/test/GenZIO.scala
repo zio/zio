@@ -58,23 +58,20 @@ trait GenZIO {
   }
 
   /**
-   * A generator of effects that are the result of chaining the specified
-   * effect with itself a random number of times.
+   * A generator of effects that are the result of chaining the specified effect with itself a random number of times.
    */
   final def chained[R <: Random with Sized, Env, E, A](gen: Gen[R, ZIO[Env, E, A]]): Gen[R, ZIO[Env, E, A]] =
     Gen.small(chainedN(_)(gen))
 
   /**
-   * A generator of effects that are the result of chaining the specified
-   * effect with itself a given number of times.
+   * A generator of effects that are the result of chaining the specified effect with itself a given number of times.
    */
   final def chainedN[R <: Random, Env, E, A](n: Int)(zio: Gen[R, ZIO[Env, E, A]]): Gen[R, ZIO[Env, E, A]] =
     Gen.listOfN(n min 1)(zio).map(_.reduce(_ *> _))
 
   /**
-   * A generator of effects that are the result of applying concurrency
-   * combinators to the specified effect that are guaranteed not to change its
-   * value.
+   * A generator of effects that are the result of applying concurrency combinators to the specified effect that are
+   * guaranteed not to change its value.
    */
   final def concurrent[R, E, A](zio: ZIO[R, E, A]): Gen[Any, ZIO[R, E, A]] =
     Gen.const(zio.race(ZIO.never))
@@ -92,9 +89,8 @@ trait GenZIO {
     gen.map(ZIO.fail(_))
 
   /**
-   * A generator of effects that are the result of applying parallelism
-   * combinators to the specified effect that are guaranteed not to change its
-   * value.
+   * A generator of effects that are the result of applying parallelism combinators to the specified effect that are
+   * guaranteed not to change its value.
    */
   final def parallel[R, E, A](zio: ZIO[R, E, A]): Gen[Any, ZIO[R, E, A]] =
     successes(Gen.unit).map(_.zipParRight(zio))

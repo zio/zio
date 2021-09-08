@@ -32,8 +32,7 @@ trait Runtime[+R] {
   def environment: R
 
   /**
-   * The platform of the runtime, which provides the essential capabilities
-   * necessary to bootstrap execution of tasks.
+   * The platform of the runtime, which provides the essential capabilities necessary to bootstrap execution of tasks.
    */
   def platform: Platform
 
@@ -48,9 +47,8 @@ trait Runtime[+R] {
   def mapPlatform(f: Platform => Platform): Runtime[R] = Runtime(environment, f(platform))
 
   /**
-   * Executes the effect synchronously, failing
-   * with [[zio.FiberFailure]] if there are any errors. May fail on
-   * Scala.js if the effect cannot be entirely run synchronously.
+   * Executes the effect synchronously, failing with [[zio.FiberFailure]] if there are any errors. May fail on Scala.js
+   * if the effect cannot be entirely run synchronously.
    *
    * This method is effectful and should only be done at the edges of your program.
    */
@@ -58,22 +56,18 @@ trait Runtime[+R] {
     unsafeRunSync(zio).getOrElse(c => throw FiberFailure(c))
 
   /**
-   * Executes the Task/RIO effect synchronously, failing
-   * with the original `Throwable` on both [[Cause.Fail]] and [[Cause.Die]].
-   * In addition, appends a new element to the suppressed exceptions of the
-   * `Throwable`, with this `Cause` "pretty printed" (in stackless mode) as the
-   * message. May fail on Scala.js if the effect cannot be entirely run
-   * synchronously.
+   * Executes the Task/RIO effect synchronously, failing with the original `Throwable` on both [[Cause.Fail]] and
+   * [[Cause.Die]]. In addition, appends a new element to the suppressed exceptions of the `Throwable`, with this
+   * `Cause` "pretty printed" (in stackless mode) as the message. May fail on Scala.js if the effect cannot be entirely
+   * run synchronously.
    *
-   * This method is effectful and should only be done at the edges of your
-   * program.
+   * This method is effectful and should only be done at the edges of your program.
    */
   final def unsafeRunTask[A](task: => RIO[R, A]): A =
     unsafeRunSync(task).fold(cause => throw cause.squashTrace, identity)
 
   /**
-   * Executes the effect synchronously. May
-   * fail on Scala.js if the effect cannot be entirely run synchronously.
+   * Executes the effect synchronously. May fail on Scala.js if the effect cannot be entirely run synchronously.
    *
    * This method is effectful and should only be invoked at the edges of your program.
    */
@@ -86,8 +80,7 @@ trait Runtime[+R] {
   }
 
   /**
-   * Executes the effect asynchronously,
-   * eventually passing the exit value to the specified callback.
+   * Executes the effect asynchronously, eventually passing the exit value to the specified callback.
    *
    * This method is effectful and should only be invoked at the edges of your program.
    */
@@ -97,9 +90,8 @@ trait Runtime[+R] {
   }
 
   /**
-   * Executes the effect asynchronously,
-   * eventually passing the exit value to the specified callback.
-   * It returns a callback, which can be used to interrupt the running execution.
+   * Executes the effect asynchronously, eventually passing the exit value to the specified callback. It returns a
+   * callback, which can be used to interrupt the running execution.
    *
    * This method is effectful and should only be invoked at the edges of your program.
    */
@@ -226,9 +218,8 @@ object Runtime {
   abstract class Managed[+R] extends Runtime[R] {
 
     /**
-     * Shuts down this runtime and releases resources allocated to it. Once
-     * this runtime has been shut down the behavior of methods on it is
-     * undefined and it should be discarded.
+     * Shuts down this runtime and releases resources allocated to it. Once this runtime has been shut down the behavior
+     * of methods on it is undefined and it should be discarded.
      */
     def shutdown(): Unit
 
@@ -263,8 +254,7 @@ object Runtime {
   object Managed {
 
     /**
-     * Builds a new managed runtime given an environment `R`, a
-     * [[zio.internal.Platform]], and a shut down action.
+     * Builds a new managed runtime given an environment `R`, a [[zio.internal.Platform]], and a shut down action.
      */
     def apply[R](r: R, platform0: Platform, shutdown0: () => Unit): Runtime.Managed[R] =
       new Runtime.Managed[R] {
@@ -287,13 +277,11 @@ object Runtime {
   lazy val global: Runtime[ZEnv] = Runtime(ZEnv.Services.live, Platform.global)
 
   /**
-   * Unsafely creates a `Runtime` from a `ZLayer` whose resources will be
-   * allocated immediately, and not released until the `Runtime` is shut down
-   * or the end of the application.
+   * Unsafely creates a `Runtime` from a `ZLayer` whose resources will be allocated immediately, and not released until
+   * the `Runtime` is shut down or the end of the application.
    *
-   * This method is useful for small applications and integrating ZIO with
-   * legacy code, but other applications should investigate using
-   * [[ZIO.provideLayer]] directly in their application entry points.
+   * This method is useful for small applications and integrating ZIO with legacy code, but other applications should
+   * investigate using [[ZIO.provideLayer]] directly in their application entry points.
    */
   def unsafeFromLayer[R <: Has[_]](
     layer: Layer[Any, R],

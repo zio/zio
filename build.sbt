@@ -8,7 +8,7 @@ Global / onChangedBuildSource := ReloadOnSourceChanges
 inThisBuild(
   List(
     organization := "dev.zio",
-    homepage := Some(url("https://zio.dev")),
+    homepage     := Some(url("https://zio.dev")),
     licenses := List(
       "Apache-2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")
     ),
@@ -80,9 +80,9 @@ addCommandAlias(
 lazy val root = project
   .in(file("."))
   .settings(
-    name := "zio",
+    name           := "zio",
     publish / skip := true,
-    console := (coreJVM / Compile / console).value,
+    console        := (coreJVM / Compile / console).value,
     unusedCompileDependenciesFilter -= moduleFilter(
       "org.scala-js",
       "scalajs-library"
@@ -466,9 +466,7 @@ lazy val testJunitRunnerTestsJVM = testJunitRunnerTests.jvm
   )
 
 /**
- * Examples sub-project that is not included in the root project.
- * To run tests :
- * `sbt "examplesJVM/test"`
+ * Examples sub-project that is not included in the root project. To run tests : `sbt "examplesJVM/test"`
  */
 lazy val examples = crossProject(JVMPlatform, JSPlatform)
   .in(file("examples"))
@@ -547,7 +545,7 @@ lazy val docs = project.module
   .in(file("zio-docs"))
   .settings(
     publish / skip := true,
-    moduleName := "zio-docs",
+    moduleName     := "zio-docs",
     unusedCompileDependenciesFilter -= moduleFilter("org.scalameta", "mdoc"),
     scalacOptions -= "-Yno-imports",
     scalacOptions -= "-Xfatal-warnings",

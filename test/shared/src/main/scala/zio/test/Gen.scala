@@ -26,8 +26,8 @@ import scala.collection.immutable.SortedMap
 import scala.math.Numeric.DoubleIsFractional
 
 /**
- * A `Gen[R, A]` represents a generator of values of type `A`, which requires
- * an environment `R`. Generators may be random or deterministic.
+ * A `Gen[R, A]` represents a generator of values of type `A`, which requires an environment `R`. Generators may be
+ * random or deterministic.
  */
 final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =>
 
@@ -44,8 +44,8 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
     self.cross(that)
 
   /**
-   * Maps the values produced by this generator with the specified partial
-   * function, discarding any values the partial function is not defined at.
+   * Maps the values produced by this generator with the specified partial function, discarding any values the partial
+   * function is not defined at.
    */
   def collect[B](pf: PartialFunction[A, B]): Gen[R, B] =
     self.flatMap { a =>
@@ -53,25 +53,22 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
     }
 
   /**
-   * Composes this generator with the specified generator to create a cartesian
-   * product of elements.
+   * Composes this generator with the specified generator to create a cartesian product of elements.
    */
   def cross[R1 <: R, B](that: Gen[R1, B]): Gen[R1, (A, B)] =
     self.crossWith(that)((_, _))
 
   /**
-   * Composes this generator with the specified generator to create a cartesian
-   * product of elements with the specified function.
+   * Composes this generator with the specified generator to create a cartesian product of elements with the specified
+   * function.
    */
   def crossWith[R1 <: R, B, C](that: Gen[R1, B])(f: (A, B) => C): Gen[R1, C] =
     self.flatMap(a => that.map(b => f(a, b)))
 
   /**
-   * Filters the values produced by this generator, discarding any values that
-   * do not meet the specified predicate. Using `filter` can reduce test
-   * performance, especially if many values must be discarded. It is
-   * recommended to use combinators such as `map` and `flatMap` to create
-   * generators of the desired values instead.
+   * Filters the values produced by this generator, discarding any values that do not meet the specified predicate.
+   * Using `filter` can reduce test performance, especially if many values must be discarded. It is recommended to use
+   * combinators such as `map` and `flatMap` to create generators of the desired values instead.
    *
    * {{{
    * val evens: Gen[Random, Int] = Gen.anyInt.map(_ * 2)
@@ -82,8 +79,7 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
   }
 
   /**
-   * Filters the values produced by this generator, discarding any values that
-   * meet the specified predicate.
+   * Filters the values produced by this generator, discarding any values that meet the specified predicate.
    */
   def filterNot(f: A => Boolean): Gen[R, A] =
     filter(a => !f(a))
@@ -117,10 +113,9 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
     reshrink(Sample.noShrink)
 
   /**
-   * Discards the shrinker for this generator and applies a new shrinker by
-   * mapping each value to a sample using the specified function. This is
-   * useful when the process to shrink a value is simpler than the process used
-   * to generate it.
+   * Discards the shrinker for this generator and applies a new shrinker by mapping each value to a sample using the
+   * specified function. This is useful when the process to shrink a value is simpler than the process used to generate
+   * it.
    */
   def reshrink[R1 <: R, B](f: A => Sample[R1, B]): Gen[R1, B] =
     Gen(sample.map(sample => f(sample.value)))
@@ -132,8 +127,7 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
     sample.map(_.value).runCollect.map(_.toList)
 
   /**
-   * Repeatedly runs the generator and collects the specified number of values
-   * in a list.
+   * Repeatedly runs the generator and collects the specified number of values in a list.
    */
   def runCollectN(n: Int): ZIO[R, Nothing, List[A]] =
     sample.map(_.value).forever.take(n.toLong).runCollect.map(_.toList)
@@ -145,17 +139,15 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
     sample.map(_.value).runHead
 
   /**
-   * Zips two generators together pairwise. The new generator will generate
-   * elements as long as either generator is generating elements, running the
-   * other generator multiple times if necessary.
+   * Zips two generators together pairwise. The new generator will generate elements as long as either generator is
+   * generating elements, running the other generator multiple times if necessary.
    */
   def zip[R1 <: R, B](that: Gen[R1, B]): Gen[R1, (A, B)] =
     self.zipWith(that)((_, _))
 
   /**
-   * Zips two generators together pairwise with the specified function. The new
-   * generator will generate elements as long as either generator is generating
-   * elements, running the other generator multiple times if necessary.
+   * Zips two generators together pairwise with the specified function. The new generator will generate elements as long
+   * as either generator is generating elements, running the other generator multiple times if necessary.
    */
   def zipWith[R1 <: R, B, C](that: Gen[R1, B])(f: (A, B) => C): Gen[R1, C] = Gen {
     val left  = self.sample.map(Right(_)) ++ self.sample.map(Left(_)).forever
@@ -194,8 +186,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     Gen.string(alphaNumericChar)
 
   /**
-   * A generator of alphanumeric strings whose size falls within the specified
-   * bounds.
+   * A generator of alphanumeric strings whose size falls within the specified bounds.
    */
   def alphaNumericStringBounded(min: Int, max: Int): Gen[Random with Sized, String] =
     Gen.stringBounded(min, max)(alphaNumericChar)
@@ -302,18 +293,16 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     )
 
   /**
-   * A generator of universally unique identifiers. The returned generator will
-   * not have any shrinking.
+   * A generator of universally unique identifiers. The returned generator will not have any shrinking.
    */
   val anyUUID: Gen[Random, UUID] =
     Gen.fromEffect(nextUUID)
 
   /**
-   * A generator of big decimals inside the specified range: [start, end].
-   * The shrinker will shrink toward the lower end of the range ("smallest").
+   * A generator of big decimals inside the specified range: [start, end]. The shrinker will shrink toward the lower end
+   * of the range ("smallest").
    *
-   * The values generated will have a precision equal to the precision of the
-   * difference between `max` and `min`.
+   * The values generated will have a precision equal to the precision of the difference between `max` and `min`.
    */
   def bigDecimal(min: BigDecimal, max: BigDecimal): Gen[Random, BigDecimal] =
     if (min > max)
@@ -326,8 +315,8 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     }
 
   /**
-   * A generator of big integers inside the specified range: [start, end].
-   * The shrinker will shrink toward the lower end of the range ("smallest").
+   * A generator of big integers inside the specified range: [start, end]. The shrinker will shrink toward the lower end
+   * of the range ("smallest").
    */
   def bigInt(min: BigInt, max: BigInt): Gen[Random, BigInt] =
     Gen.fromEffectSample {
@@ -359,15 +348,15 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     int(min, max).flatMap(f)
 
   /**
-   * A generator of byte values inside the specified range: [start, end].
-   * The shrinker will shrink toward the lower end of the range ("smallest").
+   * A generator of byte values inside the specified range: [start, end]. The shrinker will shrink toward the lower end
+   * of the range ("smallest").
    */
   def byte(min: Byte, max: Byte): Gen[Random, Byte] =
     int(min.toInt, max.toInt).map(_.toByte)
 
   /**
-   * A generator of character values inside the specified range: [start, end].
-   * The shrinker will shrink toward the lower end of the range ("smallest").
+   * A generator of character values inside the specified range: [start, end]. The shrinker will shrink toward the lower
+   * end of the range ("smallest").
    */
   def char(min: Char, max: Char): Gen[Random, Char] =
     int(min.toInt, max.toInt).map(_.toChar)
@@ -397,9 +386,8 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     listOfN(n)(g).map(Chunk.fromIterable)
 
   /**
-   * Combines the specified deterministic generators to return a new
-   * deterministic generator that generates all of the values generated by
-   * the specified generators.
+   * Combines the specified deterministic generators to return a new deterministic generator that generates all of the
+   * values generated by the specified generators.
    */
   def concatAll[R, A](gens: => Iterable[Gen[R, A]]): Gen[R, A] =
     Gen(ZStream.concatAll(Chunk.fromIterable(gens).map(_.sample)))
@@ -417,22 +405,19 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     fromEffectSample(ZIO.succeedNow(sample))
 
   /**
-   * Composes the specified generators to create a cartesian product of
-   * elements with the specified function.
+   * Composes the specified generators to create a cartesian product of elements with the specified function.
    */
   def crossAll[R, A](gens: Iterable[Gen[R, A]]): Gen[R, List[A]] =
     gens.foldRight[Gen[R, List[A]]](Gen.const(List.empty))(_.crossWith(_)(_ :: _))
 
   /**
-   * Composes the specified generators to create a cartesian product of
-   * elements with the specified function.
+   * Composes the specified generators to create a cartesian product of elements with the specified function.
    */
   def crossN[R, A, B, C](gen1: Gen[R, A], gen2: Gen[R, B])(f: (A, B) => C): Gen[R, C] =
     gen1.crossWith(gen2)(f)
 
   /**
-   * Composes the specified generators to create a cartesian product of
-   * elements with the specified function.
+   * Composes the specified generators to create a cartesian product of elements with the specified function.
    */
   def crossN[R, A, B, C, D](gen1: Gen[R, A], gen2: Gen[R, B], gen3: Gen[R, C])(f: (A, B, C) => D): Gen[R, D] =
     for {
@@ -442,8 +427,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     } yield f(a, b, c)
 
   /**
-   * Composes the specified generators to create a cartesian product of
-   * elements with the specified function.
+   * Composes the specified generators to create a cartesian product of elements with the specified function.
    */
   def crossN[R, A, B, C, D, F](gen1: Gen[R, A], gen2: Gen[R, B], gen3: Gen[R, C], gen4: Gen[R, D])(
     f: (A, B, C, D) => F
@@ -456,8 +440,8 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     } yield f(a, b, c, d)
 
   /**
-   * A generator of double values inside the specified range: [start, end].
-   * The shrinker will shrink toward the lower end of the range ("smallest").
+   * A generator of double values inside the specified range: [start, end]. The shrinker will shrink toward the lower
+   * end of the range ("smallest").
    */
   def double(min: Double, max: Double): Gen[Random, Double] =
     if (min > max)
@@ -478,8 +462,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     Gen(Stream.empty)
 
   /**
-   * A generator of exponentially distributed doubles with mean `1`.
-   * The shrinker will shrink toward `0`.
+   * A generator of exponentially distributed doubles with mean `1`. The shrinker will shrink toward `0`.
    */
   val exponential: Gen[Random, Double] =
     uniform.map(n => -math.log(1 - n))
@@ -506,22 +489,20 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     Gen(ZStream.fromIterable(as).map(a => Sample.unfold(a)(a => (a, shrinker(a)))))
 
   /**
-   * Constructs a generator from a function that uses randomness. The returned
-   * generator will not have any shrinking.
+   * Constructs a generator from a function that uses randomness. The returned generator will not have any shrinking.
    */
   final def fromRandom[A](f: Random.Service => UIO[A]): Gen[Random, A] =
     Gen(ZStream.fromEffect(ZIO.accessM[Random](r => f(r.get)).map(Sample.noShrink)))
 
   /**
-   * Constructs a generator from a function that uses randomness to produce a
-   * sample.
+   * Constructs a generator from a function that uses randomness to produce a sample.
    */
   final def fromRandomSample[R <: Random, A](f: Random.Service => UIO[Sample[R, A]]): Gen[R, A] =
     Gen(ZStream.fromEffect(ZIO.accessM[Random](r => f(r.get))))
 
   /**
-   * A generator of integers inside the specified range: [start, end].
-   * The shrinker will shrink toward the lower end of the range ("smallest").
+   * A generator of integers inside the specified range: [start, end]. The shrinker will shrink toward the lower end of
+   * the range ("smallest").
    */
   def int(min: Int, max: Int): Gen[Random, Int] =
     Gen.fromEffectSample {
@@ -536,14 +517,14 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     }
 
   /**
-   *  A generator of strings that can be encoded in the ISO-8859-1 character set.
+   * A generator of strings that can be encoded in the ISO-8859-1 character set.
    */
   val iso_8859_1: Gen[Random with Sized, String] =
     chunkOf(anyByte).map(chunk => new String(chunk.toArray, StandardCharsets.ISO_8859_1))
 
   /**
-   * A sized generator that uses a uniform distribution of size values. A large
-   * number of larger sizes will be generated.
+   * A sized generator that uses a uniform distribution of size values. A large number of larger sizes will be
+   * generated.
    */
   def large[R <: Random with Sized, A](f: Int => Gen[R, A], min: Int = 0): Gen[R, A] =
     size.flatMap(max => int(min, max)).flatMap(f)
@@ -567,8 +548,8 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     List.fill(n)(g).foldRight[Gen[R, List[A]]](const(Nil))((a, gen) => a.crossWith(gen)(_ :: _))
 
   /**
-   * A generator of long values in the specified range: [start, end].
-   * The shrinker will shrink toward the lower end of the range ("smallest").
+   * A generator of long values in the specified range: [start, end]. The shrinker will shrink toward the lower end of
+   * the range ("smallest").
    */
   def long(min: Long, max: Long): Gen[Random, Long] =
     Gen.fromEffectSample {
@@ -607,9 +588,8 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     bounded(min, max)(mapOfN(_)(key, value))
 
   /**
-   * A sized generator that uses an exponential distribution of size values.
-   * The majority of sizes will be towards the lower end of the range but some
-   * larger sizes will be generated as well.
+   * A sized generator that uses an exponential distribution of size values. The majority of sizes will be towards the
+   * lower end of the range but some larger sizes will be generated as well.
    */
   def medium[R <: Random with Sized, A](f: Int => Gen[R, A], min: Int = 0): Gen[R, A] = {
     val gen = for {
@@ -641,21 +621,18 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     if (as.isEmpty) empty else int(0, as.length - 1).flatMap(as)
 
   /**
-   * Constructs a generator of partial functions from `A` to `B` given a
-   * generator of `B` values. Two `A` values will be considered to be equal,
-   * and thus will be guaranteed to generate the same `B` value or both be
-   * outside the partial function's domain, if they have the same `hashCode`.
+   * Constructs a generator of partial functions from `A` to `B` given a generator of `B` values. Two `A` values will be
+   * considered to be equal, and thus will be guaranteed to generate the same `B` value or both be outside the partial
+   * function's domain, if they have the same `hashCode`.
    */
   def partialFunction[R <: Random, A, B](gen: Gen[R, B]): Gen[R, PartialFunction[A, B]] =
     partialFunctionWith(gen)(_.hashCode)
 
   /**
-   * Constructs a generator of partial functions from `A` to `B` given a
-   * generator of `B` values and a hashing function for `A` values. Two `A`
-   * values will be considered to be equal, and thus will be guaranteed to
-   * generate the same `B` value or both be outside the partial function's
-   * domain, if they have have the same hash. This is useful when `A` does not
-   * implement `hashCode` in a way that is consistent with equality.
+   * Constructs a generator of partial functions from `A` to `B` given a generator of `B` values and a hashing function
+   * for `A` values. Two `A` values will be considered to be equal, and thus will be guaranteed to generate the same `B`
+   * value or both be outside the partial function's domain, if they have have the same hash. This is useful when `A`
+   * does not implement `hashCode` in a way that is consistent with equality.
    */
   def partialFunctionWith[R <: Random, A, B](gen: Gen[R, B])(hash: A => Int): Gen[R, PartialFunction[A, B]] =
     functionWith(option(gen))(hash).map(Function.unlift)
@@ -696,8 +673,8 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     }
 
   /**
-   * A generator of short values inside the specified range: [start, end].
-   * The shrinker will shrink toward the lower end of the range ("smallest").
+   * A generator of short values inside the specified range: [start, end]. The shrinker will shrink toward the lower end
+   * of the range ("smallest").
    */
   def short(min: Short, max: Short): Gen[Random, Short] =
     int(min.toInt, max.toInt).map(_.toShort)
@@ -712,9 +689,8 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     size.flatMap(f)
 
   /**
-   * A sized generator that uses an exponential distribution of size values.
-   * The values generated will be strongly concentrated towards the lower end
-   * of the range but a few larger values will still be generated.
+   * A sized generator that uses an exponential distribution of size values. The values generated will be strongly
+   * concentrated towards the lower end of the range but a few larger values will still be generated.
    */
   def small[R <: Random with Sized, A](f: Int => Gen[R, A], min: Int = 0): Gen[R, A] = {
     val gen = for {
@@ -743,8 +719,8 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     listOfN(n)(char).map(_.mkString)
 
   /**
-   * Lazily constructs a generator. This is useful to avoid infinite recursion
-   * when creating generators that refer to themselves.
+   * Lazily constructs a generator. This is useful to avoid infinite recursion when creating generators that refer to
+   * themselves.
    */
   def suspend[R, A](gen: => Gen[R, A]): Gen[R, A] =
     fromEffect(ZIO.effectTotal(gen)).flatten
@@ -756,16 +732,15 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     Gen.const(new Throwable)
 
   /**
-   * A sized generator of collections, where each collection is generated by
-   * repeatedly applying a function to an initial state.
+   * A sized generator of collections, where each collection is generated by repeatedly applying a function to an
+   * initial state.
    */
   def unfoldGen[R <: Random with Sized, S, A](s: S)(f: S => Gen[R, (S, A)]): Gen[R, List[A]] =
     small(unfoldGenN(_)(s)(f))
 
   /**
-   * A generator of collections of up to the specified size, where each
-   * collection is generated by repeatedly applying a function to an initial
-   * state.
+   * A generator of collections of up to the specified size, where each collection is generated by repeatedly applying a
+   * function to an initial state.
    */
   def unfoldGenN[R, S, A](n: Int)(s: S)(f: S => Gen[R, (S, A)]): Gen[R, List[A]] =
     if (n <= 0)
@@ -774,8 +749,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
       f(s).flatMap { case (s, a) => unfoldGenN(n - 1)(s)(f).map(a :: _) }
 
   /**
-   * A generator of uniformly distributed doubles between [0, 1].
-   * The shrinker will shrink toward `0`.
+   * A generator of uniformly distributed doubles between [0, 1]. The shrinker will shrink toward `0`.
    */
   def uniform: Gen[Random, Double] =
     fromEffectSample(nextDouble.map(Sample.shrinkFractional(0.0)))
@@ -802,9 +776,8 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     listOfN(n)(g).map(_.toVector)
 
   /**
-   * A generator which chooses one of the given generators according to their
-   * weights. For example, the following generator will generate 90% true and
-   * 10% false values.
+   * A generator which chooses one of the given generators according to their weights. For example, the following
+   * generator will generate 90% true and 10% false values.
    * {{{
    * val trueFalse = Gen.weighted((Gen.const(true), 9), (Gen.const(false), 1))
    * }}}
@@ -825,25 +798,22 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     Gen.elements((Char.MinValue to Char.MaxValue).filter(_.isWhitespace): _*)
 
   /**
-   * Zips the specified generators together pairwise. The new generator will
-   * generate elements as long as any generator is generating elements, running
-   * the other generators multiple times if necessary.
+   * Zips the specified generators together pairwise. The new generator will generate elements as long as any generator
+   * is generating elements, running the other generators multiple times if necessary.
    */
   def zipAll[R, A](gens: Iterable[Gen[R, A]]): Gen[R, List[A]] =
     gens.foldRight[Gen[R, List[A]]](Gen.const(List.empty))(_.zipWith(_)(_ :: _))
 
   /**
-   * Zips the specified generators together pairwise. The new generator will
-   * generate elements as long as any generator is generating elements, running
-   * the other generators multiple times if necessary.
+   * Zips the specified generators together pairwise. The new generator will generate elements as long as any generator
+   * is generating elements, running the other generators multiple times if necessary.
    */
   def zipN[R, A, B, C](gen1: Gen[R, A], gen2: Gen[R, B])(f: (A, B) => C): Gen[R, C] =
     gen1.zipWith(gen2)(f)
 
   /**
-   * Zips the specified generators together pairwise. The new generator will
-   * generate elements as long as any generator is generating elements, running
-   * the other generators multiple times if necessary.
+   * Zips the specified generators together pairwise. The new generator will generate elements as long as any generator
+   * is generating elements, running the other generators multiple times if necessary.
    */
   def zipN[R, A, B, C, D](gen1: Gen[R, A], gen2: Gen[R, B], gen3: Gen[R, C])(f: (A, B, C) => D): Gen[R, D] =
     (gen1 <&> gen2 <&> gen3).map { case ((a, b), c) =>
@@ -851,9 +821,8 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     }
 
   /**
-   * Zips the specified generators together pairwise. The new generator will
-   * generate elements as long as any generator is generating elements, running
-   * the other generators multiple times if necessary.
+   * Zips the specified generators together pairwise. The new generator will generate elements as long as any generator
+   * is generating elements, running the other generators multiple times if necessary.
    */
   def zipN[R, A, B, C, D, F](gen1: Gen[R, A], gen2: Gen[R, B], gen3: Gen[R, C], gen4: Gen[R, D])(
     f: (A, B, C, D) => F
@@ -863,9 +832,8 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     }
 
   /**
-   * Zips the specified generators together pairwise. The new generator will
-   * generate elements as long as any generator is generating elements, running
-   * the other generators multiple times if necessary.
+   * Zips the specified generators together pairwise. The new generator will generate elements as long as any generator
+   * is generating elements, running the other generators multiple times if necessary.
    */
   def zipN[R, A, B, C, D, F, G](
     gen1: Gen[R, A],
@@ -881,9 +849,8 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     }
 
   /**
-   * Zips the specified generators together pairwise. The new generator will
-   * generate elements as long as any generator is generating elements, running
-   * the other generators multiple times if necessary.
+   * Zips the specified generators together pairwise. The new generator will generate elements as long as any generator
+   * is generating elements, running the other generators multiple times if necessary.
    */
   def zipN[R, A, B, C, D, F, G, H](
     gen1: Gen[R, A],
@@ -900,9 +867,8 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     }
 
   /**
-   * Zips the specified generators together pairwise. The new generator will
-   * generate elements as long as any generator is generating elements, running
-   * the other generators multiple times if necessary.
+   * Zips the specified generators together pairwise. The new generator will generate elements as long as any generator
+   * is generating elements, running the other generators multiple times if necessary.
    */
   def zipN[R, A, B, C, D, F, G, H, I](
     gen1: Gen[R, A],
@@ -920,9 +886,8 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     }
 
   /**
-   * Zips the specified generators together pairwise. The new generator will
-   * generate elements as long as any generator is generating elements, running
-   * the other generators multiple times if necessary.
+   * Zips the specified generators together pairwise. The new generator will generate elements as long as any generator
+   * is generating elements, running the other generators multiple times if necessary.
    */
   def zipN[R, A, B, C, D, F, G, H, I, J](
     gen1: Gen[R, A],
@@ -942,9 +907,8 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     }
 
   /**
-   * Zips the specified generators together pairwise. The new generator will
-   * generate elements as long as any generator is generating elements, running
-   * the other generators multiple times if necessary.
+   * Zips the specified generators together pairwise. The new generator will generate elements as long as any generator
+   * is generating elements, running the other generators multiple times if necessary.
    */
   def zipN[R, A, B, C, D, F, G, H, I, J, K](
     gen1: Gen[R, A],
@@ -965,9 +929,8 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     }
 
   /**
-   * Zips the specified generators together pairwise. The new generator will
-   * generate elements as long as any generator is generating elements, running
-   * the other generators multiple times if necessary.
+   * Zips the specified generators together pairwise. The new generator will generate elements as long as any generator
+   * is generating elements, running the other generators multiple times if necessary.
    */
   def zipN[R, A, B, C, D, F, G, H, I, J, K, L](
     gen1: Gen[R, A],

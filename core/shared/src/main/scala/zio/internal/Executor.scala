@@ -20,8 +20,8 @@ import java.util.concurrent._
 import scala.concurrent.ExecutionContext
 
 /**
- * An executor is responsible for executing actions. Each action is guaranteed
- * to begin execution on a fresh stack frame.
+ * An executor is responsible for executing actions. Each action is guaranteed to begin execution on a fresh stack
+ * frame.
  */
 abstract class Executor extends ExecutorPlatformSpecific { self =>
 

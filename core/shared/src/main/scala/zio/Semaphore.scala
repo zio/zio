@@ -26,11 +26,9 @@ import scala.annotation.tailrec
 import scala.collection.immutable.{Queue => IQueue}
 
 /**
- * An asynchronous semaphore, which is a generalization of a mutex. Semaphores
- * have a certain number of permits, which can be held and released
- * concurrently by different parties. Attempts to acquire more permits than
- * available result in the acquiring fiber being suspended until the specified
- * number of permits become available.
+ * An asynchronous semaphore, which is a generalization of a mutex. Semaphores have a certain number of permits, which
+ * can be held and released concurrently by different parties. Attempts to acquire more permits than available result in
+ * the acquiring fiber being suspended until the specified number of permits become available.
  */
 final class Semaphore private (private val state: Ref[State]) extends Serializable {
 
@@ -92,9 +90,8 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
   /**
    * Releases a specified number of permits.
    *
-   * If fibers are currently suspended until enough permits are available,
-   * they will be woken up (in FIFO order) if this action releases enough
-   * of them.
+   * If fibers are currently suspended until enough permits are available, they will be woken up (in FIFO order) if this
+   * action releases enough of them.
    */
   private def releaseN0(toRelease: Long): UIO[Unit] = {
 

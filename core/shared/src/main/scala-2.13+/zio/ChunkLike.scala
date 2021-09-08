@@ -21,18 +21,15 @@ import scala.collection.{IterableFactoryDefaults, SeqFactory}
 import scala.reflect.ClassTag
 
 /**
- * `ChunkLike` represents the capability for a `Chunk` to extend Scala's
- * collection library. Because of changes to Scala's collection library in
- * 2.13, separate versions of this trait are implemented for 2.11 / 2.12 and
- * 2.13 / Dotty. This allows code in `Chunk` to be written without concern for
- * the implementation details of Scala's collection library to the maximum
- * extent possible.
+ * `ChunkLike` represents the capability for a `Chunk` to extend Scala's collection library. Because of changes to
+ * Scala's collection library in 2.13, separate versions of this trait are implemented for 2.11 / 2.12 and 2.13 / Dotty.
+ * This allows code in `Chunk` to be written without concern for the implementation details of Scala's collection
+ * library to the maximum extent possible.
  *
- * Note that `IndexedSeq` is not a referentially transparent interface in that
- * it exposes methods that are partial (e.g. `apply`), allocate mutable state
- * (e.g. `iterator`), or are purely side effecting (e.g. `foreach`). `Chunk`
- * extends `IndexedSeq` to provide interoperability with Scala's collection
- * library but users should avoid these methods whenever possible.
+ * Note that `IndexedSeq` is not a referentially transparent interface in that it exposes methods that are partial (e.g.
+ * `apply`), allocate mutable state (e.g. `iterator`), or are purely side effecting (e.g. `foreach`). `Chunk` extends
+ * `IndexedSeq` to provide interoperability with Scala's collection library but users should avoid these methods
+ * whenever possible.
  */
 trait ChunkLike[+A]
     extends IndexedSeq[A]
@@ -53,8 +50,7 @@ trait ChunkLike[+A]
     collectChunk(pf)
 
   /**
-   * Returns the concatenation of mapping every element into a new chunk using
-   * the specified function.
+   * Returns the concatenation of mapping every element into a new chunk using the specified function.
    */
   override final def flatMap[B](f: A => IterableOnce[B]): Chunk[B] = {
     val iterator               = arrayIterator
@@ -95,9 +91,8 @@ trait ChunkLike[+A]
   }
 
   /**
-   * Returns a `SeqFactory` that can construct `Chunk` values. The
-   * `SeqFactory` exposes a `newBuilder` method that is not referentially
-   * transparent because it allocates mutable state.
+   * Returns a `SeqFactory` that can construct `Chunk` values. The `SeqFactory` exposes a `newBuilder` method that is
+   * not referentially transparent because it allocates mutable state.
    */
   override val iterableFactory: SeqFactory[Chunk] =
     ChunkLike
@@ -136,9 +131,8 @@ object ChunkLike extends SeqFactory[Chunk] {
     }
 
   /**
-   * Constructs a new `ChunkBuilder`. This operation allocates mutable state
-   * and is not referentially transparent. It is provided for compatibility
-   * with Scala's collection library and should not be used for other purposes.
+   * Constructs a new `ChunkBuilder`. This operation allocates mutable state and is not referentially transparent. It is
+   * provided for compatibility with Scala's collection library and should not be used for other purposes.
    */
   def newBuilder[A]: ChunkBuilder[A] =
     ChunkBuilder.make()

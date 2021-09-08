@@ -20,8 +20,7 @@ import zio.Has
 import zio.test.mock.{Capability, Expectation}
 
 /**
- * A `MockException` is used internally by the mock framework to signal
- * failed expectations to the test framework.
+ * A `MockException` is used internally by the mock framework to signal failed expectations to the test framework.
  */
 sealed abstract class MockException extends Throwable
 

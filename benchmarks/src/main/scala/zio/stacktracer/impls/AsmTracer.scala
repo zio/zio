@@ -27,8 +27,8 @@ import scala.util.{Failure, Success, Try}
 /**
  * Java 8+ only
  *
- * file:line extraction will work for lambdas only.
- * For subclasses of scala.Function1 it will point to the class definition
+ * file:line extraction will work for lambdas only. For subclasses of scala.Function1 it will point to the class
+ * definition
  */
 final class AsmTracer extends Tracer {
 

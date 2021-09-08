@@ -19,8 +19,8 @@ package zio.test.mock
 import zio.{Has, ZIO}
 
 /**
- * A `Proxy` provides the machinery to map mocked invocations to predefined results
- * and check some constraints on the way.
+ * A `Proxy` provides the machinery to map mocked invocations to predefined results and check some constraints on the
+ * way.
  */
 abstract class Proxy {
 

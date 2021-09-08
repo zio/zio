@@ -24,18 +24,16 @@ import scala.annotation.tailrec
 import scala.collection.mutable.ListBuffer
 
 /**
- * A `ZQueue[RA, RB, EA, EB, A, B]` is a lightweight, asynchronous queue into which values of
- * type `A` can be enqueued and of which elements of type `B` can be dequeued. The queue's
- * enqueueing operations may utilize an environment of type `RA` and may fail with errors of
- * type `EA`. The dequeueing operations may utilize an environment of type `RB` and may fail
- * with errors of type `EB`.
+ * A `ZQueue[RA, RB, EA, EB, A, B]` is a lightweight, asynchronous queue into which values of type `A` can be enqueued
+ * and of which elements of type `B` can be dequeued. The queue's enqueueing operations may utilize an environment of
+ * type `RA` and may fail with errors of type `EA`. The dequeueing operations may utilize an environment of type `RB`
+ * and may fail with errors of type `EB`.
  */
 abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { self =>
 
   /**
-   * Waits until the queue is shutdown.
-   * The `IO` returned by this method will not resume until the queue has been shutdown.
-   * If the queue is already shutdown, the `IO` will resume right away.
+   * Waits until the queue is shutdown. The `IO` returned by this method will not resume until the queue has been
+   * shutdown. If the queue is already shutdown, the `IO` will resume right away.
    */
   def awaitShutdown: UIO[Unit]
 
@@ -55,45 +53,40 @@ abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { self =>
   def offer(a: A): ZIO[RA, EA, Boolean]
 
   /**
-   * For Bounded Queue: uses the `BackPressure` Strategy, places the values in the queue and always returns true.
-   * If the queue has reached capacity, then
-   * the fiber performing the `offerAll` will be suspended until there is room in
-   * the queue.
+   * For Bounded Queue: uses the `BackPressure` Strategy, places the values in the queue and always returns true. If the
+   * queue has reached capacity, then the fiber performing the `offerAll` will be suspended until there is room in the
+   * queue.
    *
-   * For Unbounded Queue:
-   * Places all values in the queue and returns true.
+   * For Unbounded Queue: Places all values in the queue and returns true.
    *
-   * For Sliding Queue: uses `Sliding` Strategy
-   * If there is room in the queue, it places the values otherwise it removes the old elements and
-   * enqueues the new ones. Always returns true.
+   * For Sliding Queue: uses `Sliding` Strategy If there is room in the queue, it places the values otherwise it removes
+   * the old elements and enqueues the new ones. Always returns true.
    *
-   * For Dropping Queue: uses `Dropping` Strategy,
-   * It places the values in the queue but if there is no room it will not enqueue them and return false.
+   * For Dropping Queue: uses `Dropping` Strategy, It places the values in the queue but if there is no room it will not
+   * enqueue them and return false.
    */
   def offerAll(as: Iterable[A]): ZIO[RA, EA, Boolean]
 
   /**
-   * Interrupts any fibers that are suspended on `offer` or `take`.
-   * Future calls to `offer*` and `take*` will be interrupted immediately.
+   * Interrupts any fibers that are suspended on `offer` or `take`. Future calls to `offer*` and `take*` will be
+   * interrupted immediately.
    */
   def shutdown: UIO[Unit]
 
   /**
-   * Retrieves the size of the queue, which is equal to the number of elements
-   * in the queue. This may be negative if fibers are suspended waiting for
-   * elements to be added to the queue.
+   * Retrieves the size of the queue, which is equal to the number of elements in the queue. This may be negative if
+   * fibers are suspended waiting for elements to be added to the queue.
    */
   def size: UIO[Int]
 
   /**
-   * Removes the oldest value in the queue. If the queue is empty, this will
-   * return a computation that resumes when an item has been added to the queue.
+   * Removes the oldest value in the queue. If the queue is empty, this will return a computation that resumes when an
+   * item has been added to the queue.
    */
   def take: ZIO[RB, EB, B]
 
   /**
-   * Removes all the values in the queue and returns the list of the values. If the queue
-   * is empty returns empty list.
+   * Removes all the values in the queue and returns the list of the values. If the queue is empty returns empty list.
    */
   def takeAll: ZIO[RB, EB, List[B]]
 
@@ -103,10 +96,8 @@ abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { self =>
   def takeUpTo(max: Int): ZIO[RB, EB, List[B]]
 
   /**
-   * Takes a number of elements from the queue between the specified minimum
-   * and maximum. If there are fewer than the minimum number of elements
-   * available, suspends until at least the minimum number of elements have
-   * been collected.
+   * Takes a number of elements from the queue between the specified minimum and maximum. If there are fewer than the
+   * minimum number of elements available, suspends until at least the minimum number of elements have been collected.
    */
   final def takeBetween(min: Int, max: Int): ZIO[RB, EB, List[B]] =
     ZIO.effectSuspendTotal {
@@ -134,9 +125,8 @@ abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { self =>
     }
 
   /**
-   * Takes the specified number of elements from the queue.
-   * If there are fewer than the specified number of elements available,
-   * it suspends until they become available.
+   * Takes the specified number of elements from the queue. If there are fewer than the specified number of elements
+   * available, it suspends until they become available.
    */
   final def takeN(n: Int): ZIO[RB, EB, List[B]] =
     takeBetween(n, n)
@@ -169,13 +159,12 @@ abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { self =>
     bothWithM(that)((a, b) => IO.succeedNow(f(a, b)))
 
   /**
-   * Creates a new queue from this queue and another. Offering to the composite queue
-   * will broadcast the elements to both queues; taking from the composite queue
-   * will dequeue elements from both queues and apply the function point-wise.
+   * Creates a new queue from this queue and another. Offering to the composite queue will broadcast the elements to
+   * both queues; taking from the composite queue will dequeue elements from both queues and apply the function
+   * point-wise.
    *
-   * Note that using queues with different strategies may result in surprising behavior.
-   * For example, a dropping queue and a bounded queue composed together may apply `f`
-   * to different elements.
+   * Note that using queues with different strategies may result in surprising behavior. For example, a dropping queue
+   * and a bounded queue composed together may apply `f` to different elements.
    */
   @deprecated("use ZStream", "2.0.0")
   final def bothWithM[RA1 <: RA, RB1 <: RB, R3 <: RB1, EA1 >: EA, EB1 >: EB, E3 >: EB1, A1 <: A, C, D](
@@ -223,15 +212,13 @@ abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { self =>
     dimapM(f, ZIO.succeedNow)
 
   /**
-   * Transforms elements enqueued into and dequeued from this queue with the
-   * specified pure functions.
+   * Transforms elements enqueued into and dequeued from this queue with the specified pure functions.
    */
   final def dimap[C, D](f: C => A, g: B => D): ZQueue[RA, RB, EA, EB, C, D] =
     dimapM(f andThen ZIO.succeedNow, g andThen ZIO.succeedNow)
 
   /**
-   * Transforms elements enqueued into and dequeued from this queue with the
-   * specified effectual functions.
+   * Transforms elements enqueued into and dequeued from this queue with the specified effectual functions.
    */
   final def dimapM[RC <: RA, RD <: RB, EC >: EA, ED >: EB, C, D](
     f: C => ZIO[RC, EC, A],
@@ -256,8 +243,8 @@ abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { self =>
     }
 
   /**
-   * Applies a filter to elements enqueued into this queue. Elements that do not
-   * pass the filter will be immediately dropped.
+   * Applies a filter to elements enqueued into this queue. Elements that do not pass the filter will be immediately
+   * dropped.
    */
   final def filterInput[A1 <: A](f: A1 => Boolean): ZQueue[RA, RB, EA, EB, A1, B] =
     filterInputM(f andThen ZIO.succeedNow)
@@ -298,8 +285,7 @@ abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { self =>
     filterOutputM(b => ZIO.succeedNow(f(b)))
 
   /**
-   * Filters elements dequeued from the queue using the specified effectual
-   * predicate.
+   * Filters elements dequeued from the queue using the specified effectual predicate.
    */
   def filterOutputM[RB1 <: RB, EB1 >: EB](f: B => ZIO[RB1, EB1, Boolean]): ZQueue[RA, RB1, EA, EB1, A, B] =
     new ZQueue[RA, RB1, EA, EB1, A, B] {
@@ -713,48 +699,55 @@ object ZQueue {
   }
 
   /**
-   * Makes a new bounded queue.
-   * When the capacity of the queue is reached, any additional calls to `offer` will be suspended
-   * until there is more room in the queue.
+   * Makes a new bounded queue. When the capacity of the queue is reached, any additional calls to `offer` will be
+   * suspended until there is more room in the queue.
    *
-   * @note when possible use only power of 2 capacities; this will
-   * provide better performance by utilising an optimised version of
-   * the underlying [[zio.internal.RingBuffer]].
+   * @note
+   *   when possible use only power of 2 capacities; this will provide better performance by utilising an optimised
+   *   version of the underlying [[zio.internal.RingBuffer]].
    *
-   * @param requestedCapacity capacity of the `Queue`
-   * @tparam A type of the `Queue`
-   * @return `UIO[Queue[A]]`
+   * @param requestedCapacity
+   *   capacity of the `Queue`
+   * @tparam A
+   *   type of the `Queue`
+   * @return
+   *   `UIO[Queue[A]]`
    */
   def bounded[A](requestedCapacity: Int): UIO[Queue[A]] =
     IO.effectTotal(MutableConcurrentQueue.bounded[A](requestedCapacity)).flatMap(createQueue(_, BackPressure()))
 
   /**
-   * Makes a new bounded queue with the dropping strategy.
-   * When the capacity of the queue is reached, new elements will be dropped.
+   * Makes a new bounded queue with the dropping strategy. When the capacity of the queue is reached, new elements will
+   * be dropped.
    *
-   * @note when possible use only power of 2 capacities; this will
-   * provide better performance by utilising an optimised version of
-   * the underlying [[zio.internal.RingBuffer]].
+   * @note
+   *   when possible use only power of 2 capacities; this will provide better performance by utilising an optimised
+   *   version of the underlying [[zio.internal.RingBuffer]].
    *
-   * @param requestedCapacity capacity of the `Queue`
-   * @tparam A type of the `Queue`
-   * @return `UIO[Queue[A]]`
+   * @param requestedCapacity
+   *   capacity of the `Queue`
+   * @tparam A
+   *   type of the `Queue`
+   * @return
+   *   `UIO[Queue[A]]`
    */
   def dropping[A](requestedCapacity: Int): UIO[Queue[A]] =
     IO.effectTotal(MutableConcurrentQueue.bounded[A](requestedCapacity)).flatMap(createQueue(_, Dropping()))
 
   /**
-   * Makes a new bounded queue with sliding strategy.
-   * When the capacity of the queue is reached, new elements will be added and the old elements
-   * will be dropped.
+   * Makes a new bounded queue with sliding strategy. When the capacity of the queue is reached, new elements will be
+   * added and the old elements will be dropped.
    *
-   * @note when possible use only power of 2 capacities; this will
-   * provide better performance by utilising an optimised version of
-   * the underlying [[zio.internal.RingBuffer]].
+   * @note
+   *   when possible use only power of 2 capacities; this will provide better performance by utilising an optimised
+   *   version of the underlying [[zio.internal.RingBuffer]].
    *
-   * @param requestedCapacity capacity of the `Queue`
-   * @tparam A type of the `Queue`
-   * @return `UIO[Queue[A]]`
+   * @param requestedCapacity
+   *   capacity of the `Queue`
+   * @tparam A
+   *   type of the `Queue`
+   * @return
+   *   `UIO[Queue[A]]`
    */
   def sliding[A](requestedCapacity: Int): UIO[Queue[A]] =
     IO.effectTotal(MutableConcurrentQueue.bounded[A](requestedCapacity)).flatMap(createQueue(_, Sliding()))
@@ -762,8 +755,10 @@ object ZQueue {
   /**
    * Makes a new unbounded queue.
    *
-   * @tparam A type of the `Queue`
-   * @return `UIO[Queue[A]]`
+   * @tparam A
+   *   type of the `Queue`
+   * @return
+   *   `UIO[Queue[A]]`
    */
   def unbounded[A]: UIO[Queue[A]] =
     IO.effectTotal(MutableConcurrentQueue.unbounded[A]).flatMap(createQueue(_, Dropping()))

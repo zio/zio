@@ -20,23 +20,19 @@ import zio.test.{Gen, TestConfig, TestResult, check, checkM}
 import zio.{URIO, ZIO}
 
 /**
- * `ZLaws[Caps, R]` represents a set of laws that values with capabilities
- * `Caps` are expected to satisfy. Laws can be run by providing a generator of
- * values of a type `A` with the required capabilities to return a test result.
- * Laws can be combined using `+` to produce a set of laws that require both
- * sets of laws to be satisfied.
+ * `ZLaws[Caps, R]` represents a set of laws that values with capabilities `Caps` are expected to satisfy. Laws can be
+ * run by providing a generator of values of a type `A` with the required capabilities to return a test result. Laws can
+ * be combined using `+` to produce a set of laws that require both sets of laws to be satisfied.
  */
 abstract class ZLaws[-Caps[_], -R] { self =>
 
   /**
-   * Test that values of type `A` satisfy the laws using the specified
-   * generator.
+   * Test that values of type `A` satisfy the laws using the specified generator.
    */
   def run[R1 <: R with TestConfig, A: Caps](gen: Gen[R1, A]): ZIO[R1, Nothing, TestResult]
 
   /**
-   * Combine these laws with the specified laws to produce a set of laws that
-   * require both sets of laws to be satisfied.
+   * Combine these laws with the specified laws to produce a set of laws that require both sets of laws to be satisfied.
    */
   def +[Caps1[x] <: Caps[x], R1 <: R](that: ZLaws[Caps1, R1]): ZLaws[Caps1, R1] =
     ZLaws.Both(self, that)

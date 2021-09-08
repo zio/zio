@@ -17,8 +17,8 @@
 package zio.test
 
 /**
- * `TestVersion` provides information about the Scala version tests are being
- * run on to enable platform specific test configuration.
+ * `TestVersion` provides information about the Scala version tests are being run on to enable platform specific test
+ * configuration.
  */
 object TestVersion {
 

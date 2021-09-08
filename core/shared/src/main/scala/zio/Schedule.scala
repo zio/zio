@@ -27,27 +27,25 @@ import java.time.temporal.{ChronoField, TemporalAdjusters}
 import java.util.concurrent.TimeUnit
 
 /**
- * A `Schedule[Env, In, Out]` defines a recurring schedule, which consumes values of type `In`, and
- * which returns values of type `Out`.
+ * A `Schedule[Env, In, Out]` defines a recurring schedule, which consumes values of type `In`, and which returns values
+ * of type `Out`.
  *
- * Schedules are defined as a possibly infinite set of intervals spread out over time. Each
- * interval defines a window in which recurrence is possible.
+ * Schedules are defined as a possibly infinite set of intervals spread out over time. Each interval defines a window in
+ * which recurrence is possible.
  *
- * When schedules are used to repeat or retry effects, the starting boundary of each interval
- * produced by a schedule is used as the moment when the effect will be executed again.
+ * When schedules are used to repeat or retry effects, the starting boundary of each interval produced by a schedule is
+ * used as the moment when the effect will be executed again.
  *
  * Schedules compose in the following primary ways:
  *
- *  * Union. This performs the union of the intervals of two schedules.
- *  * Intersection. This performs the intersection of the intervals of two schedules.
- *  * Sequence. This concatenates the intervals of one schedule onto another.
+ * * Union. This performs the union of the intervals of two schedules. * Intersection. This performs the intersection of
+ * the intervals of two schedules. * Sequence. This concatenates the intervals of one schedule onto another.
  *
- * In addition, schedule inputs and outputs can be transformed, filtered (to  terminate a
- * schedule early in response to some input or output), and so forth.
+ * In addition, schedule inputs and outputs can be transformed, filtered (to terminate a schedule early in response to
+ * some input or output), and so forth.
  *
- * A variety of other operators exist for transforming and combining schedules, and the companion
- * object for `Schedule` contains all common types of schedules, both for performing retrying, as
- * well as performing repetition.
+ * A variety of other operators exist for transforming and combining schedules, and the companion object for `Schedule`
+ * contains all common types of schedules, both for performing retrying, as well as performing repetition.
  */
 sealed abstract class Schedule[-Env, -In, +Out] private (
   private[zio] val step: Schedule.StepFunction[Env, In, Out]
@@ -56,15 +54,13 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
   import Schedule._
 
   /**
-   * Returns a new schedule that performs a geometric intersection on the intervals defined
-   * by both schedules.
+   * Returns a new schedule that performs a geometric intersection on the intervals defined by both schedules.
    */
   def &&[Env1 <: Env, In1 <: In, Out2](that: Schedule[Env1, In1, Out2]): Schedule[Env1, In1, (Out, Out2)] =
     (self intersectWith that)((l, r) => Schedule.maxOffsetDateTime(l, r))
 
   /**
-   * Returns a new schedule that has both the inputs and outputs of this and the specified
-   * schedule.
+   * Returns a new schedule that has both the inputs and outputs of this and the specified schedule.
    */
   def ***[Env1 <: Env, In2, Out2](that: Schedule[Env1, In2, Out2]): Schedule[Env1, (In, In2), (Out, Out2)] = {
     def loop(
@@ -101,8 +97,8 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
     self andThen that
 
   /**
-   * Returns a new schedule that allows choosing between feeding inputs to this schedule, or
-   * feeding inputs to the specified schedule.
+   * Returns a new schedule that allows choosing between feeding inputs to this schedule, or feeding inputs to the
+   * specified schedule.
    */
   def +++[Env1 <: Env, In2, Out2](
     that: Schedule[Env1, In2, Out2]
@@ -155,9 +151,9 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
   def <<<[Env1 <: Env, In2](that: Schedule[Env1, In2, In]): Schedule[Env1, In2, Out] = that >>> self
 
   /**
-   * Returns the composition of this schedule and the specified schedule, by piping the output of
-   * this one into the input of the other. Effects described by this schedule will always be
-   * executed before the effects described by the second schedule.
+   * Returns the composition of this schedule and the specified schedule, by piping the output of this one into the
+   * input of the other. Effects described by this schedule will always be executed before the effects described by the
+   * second schedule.
    */
   def >>>[Env1 <: Env, Out2](that: Schedule[Env1, Out, Out2]): Schedule[Env1, In, Out2] = {
     def loop(self: StepFunction[Env, In, Out], that: StepFunction[Env1, Out, Out2]): StepFunction[Env1, In, Out2] =
@@ -178,8 +174,7 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
   }
 
   /**
-   * Returns a new schedule that performs a geometric union on the intervals defined
-   * by both schedules.
+   * Returns a new schedule that performs a geometric union on the intervals defined by both schedules.
    */
   def ||[Env1 <: Env, In1 <: In, Out2](that: Schedule[Env1, In1, Out2]): Schedule[Env1, In1, (Out, Out2)] =
     (self unionWith that)((l, r) => Schedule.minOffsetDateTime(l, r))
@@ -198,8 +193,7 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
   def addDelay(f: Out => Duration): Schedule[Env, In, Out] = addDelayM(out => ZIO.succeed(f(out)))
 
   /**
-   * Returns a new schedule with the given effectfully computed delay added to every interval
-   * defined by this schedule.
+   * Returns a new schedule with the given effectfully computed delay added to every interval defined by this schedule.
    */
   def addDelayM[Env1 <: Env](f: Out => URIO[Env1, Duration]): Schedule[Env1, In, Out] =
     modifyDelayM((out, duration) => f(out).map(duration + _))
@@ -211,8 +205,8 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
     (self andThenEither that).map(_.merge)
 
   /**
-   * Returns a new schedule that first executes this schedule to completion, and then executes the
-   * specified schedule to completion.
+   * Returns a new schedule that first executes this schedule to completion, and then executes the specified schedule to
+   * completion.
    */
   def andThenEither[Env1 <: Env, In1 <: In, Out2](
     that: Schedule[Env1, In1, Out2]
@@ -242,17 +236,15 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
   def as[Out2](out2: => Out2): Schedule[Env, In, Out2] = self.map(_ => out2)
 
   /**
-   * Returns a new schedule that passes each input and output of this schedule to the spefcified
-   * function, and then determines whether or not to continue based on the return value of the
-   * function.
+   * Returns a new schedule that passes each input and output of this schedule to the spefcified function, and then
+   * determines whether or not to continue based on the return value of the function.
    */
   def check[In1 <: In](test: (In1, Out) => Boolean): Schedule[Env, In1, Out] =
     checkM((in1, out) => ZIO.succeed(test(in1, out)))
 
   /**
-   * Returns a new schedule that passes each input and output of this schedule to the specified
-   * function, and then determines whether or not to continue based on the return value of the
-   * function.
+   * Returns a new schedule that passes each input and output of this schedule to the specified function, and then
+   * determines whether or not to continue based on the return value of the function.
    */
   def checkM[Env1 <: Env, In1 <: In](test: (In1, Out) => URIO[Env1, Boolean]): Schedule[Env1, In1, Out] = {
     def loop(self: StepFunction[Env, In1, Out]): StepFunction[Env1, In1, Out] =
@@ -277,8 +269,8 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
   def compose[Env1 <: Env, In2](that: Schedule[Env1, In2, In]): Schedule[Env1, In2, Out] = that >>> self
 
   /**
-   * Returns a new schedule that combines this schedule with the specified schedule, merging the next
-   * intervals according to the specified merge function.
+   * Returns a new schedule that combines this schedule with the specified schedule, merging the next intervals
+   * according to the specified merge function.
    */
   @deprecated("use intersectWith", "2.0.0")
   def combineWith[Env1 <: Env, In1 <: In, Out2](
@@ -313,8 +305,8 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
     self <* Schedule.upTo(duration)
 
   /**
-   * Returns a new schedule with the specified effectfully computed delay added before the start
-   * of each interval produced by this schedule.
+   * Returns a new schedule with the specified effectfully computed delay added before the start of each interval
+   * produced by this schedule.
    */
   def delayed(f: Duration => Duration): Schedule[Env, In, Out] = self.delayedM(d => ZIO.succeed(f(d)))
 
@@ -336,8 +328,8 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
   }
 
   /**
-   * Returns a new schedule with the specified effectfully computed delay added before the start
-   * of each interval produced by this schedule.
+   * Returns a new schedule with the specified effectfully computed delay added before the start of each interval
+   * produced by this schedule.
    */
   def delayedM[Env1 <: Env](f: Duration => URIO[Env1, Duration]): Schedule[Env1, In, Out] =
     modifyDelayM((_, delay) => f(delay))
@@ -396,10 +388,9 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
     (self || that).map(f.tupled)
 
   /**
-   * Returns a new schedule that will run the specified finalizer as soon as the schedule is
-   * complete. Note that unlike `ZIO#ensuring`, this method does not guarantee the finalizer
-   * will be run. The `Schedule` may not initialize or the driver of the schedule may not run
-   * to completion. However, if the `Schedule` ever decides not to continue, then the
+   * Returns a new schedule that will run the specified finalizer as soon as the schedule is complete. Note that unlike
+   * `ZIO#ensuring`, this method does not guarantee the finalizer will be run. The `Schedule` may not initialize or the
+   * driver of the schedule may not run to completion. However, if the `Schedule` ever decides not to continue, then the
    * finalizer will be run.
    */
   def ensuring(finalizer: UIO[Any]): Schedule[Env, In, Out] = {
@@ -414,8 +405,8 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
   }
 
   /**
-   * Returns a new schedule that packs the input and output of this schedule into the first
-   * element of a tuple. This allows carrying information through this schedule.
+   * Returns a new schedule that packs the input and output of this schedule into the first element of a tuple. This
+   * allows carrying information through this schedule.
    */
   def first[X]: Schedule[Env, (In, X), (Out, X)] = self *** Schedule.identity[X]
 
@@ -440,8 +431,7 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
   }
 
   /**
-   * Returns a new schedule that loops this one continuously, resetting the state
-   * when this schedule is done.
+   * Returns a new schedule that loops this one continuously, resetting the state when this schedule is done.
    */
   def forever: Schedule[Env, In, Out] = {
     def loop(self: StepFunction[Env, In, Out]): StepFunction[Env, In, Out] =
@@ -455,9 +445,8 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
   }
 
   /**
-   * Returns a new schedule that combines this schedule with the specified
-   * schedule, continuing as long as both schedules want to continue and
-   * merging the next intervals according to the specified merge function.
+   * Returns a new schedule that combines this schedule with the specified schedule, continuing as long as both
+   * schedules want to continue and merging the next intervals according to the specified merge function.
    */
   def intersectWith[Env1 <: Env, In1 <: In, Out2](
     that: Schedule[Env1, In1, Out2]
@@ -502,8 +491,8 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
     }
 
   /**
-   * Returns a new schedule that makes this schedule available on the `Left` side of an `Either`
-   * input, allowing propagating some type `X` through this channel on demand.
+   * Returns a new schedule that makes this schedule available on the `Left` side of an `Either` input, allowing
+   * propagating some type `X` through this channel on demand.
    */
   def left[X]: Schedule[Env, Either[In, X], Either[Out, X]] = self +++ Schedule.identity[X]
 
@@ -513,8 +502,7 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
   def map[Out2](f: Out => Out2): Schedule[Env, In, Out2] = self.mapM(out => ZIO.succeed(f(out)))
 
   /**
-   * Returns a new schedule that maps the output of this schedule through the specified
-   * effectful function.
+   * Returns a new schedule that maps the output of this schedule through the specified effectful function.
    */
   def mapM[Env1 <: Env, Out2](f: Out => URIO[Env1, Out2]): Schedule[Env1, In, Out2] = {
     def loop(self: StepFunction[Env, In, Out]): StepFunction[Env1, In, Out2] =
@@ -529,15 +517,13 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
   }
 
   /**
-   * Returns a new schedule that modifies the delay using the specified
-   * function.
+   * Returns a new schedule that modifies the delay using the specified function.
    */
   def modifyDelay(f: (Out, Duration) => Duration): Schedule[Env, In, Out] =
     modifyDelayM((out, duration) => UIO.succeedNow(f(out, duration)))
 
   /**
-   * Returns a new schedule that modifies the delay using the specified
-   * effectual function.
+   * Returns a new schedule that modifies the delay using the specified effectual function.
    */
   def modifyDelayM[Env1 <: Env](f: (Out, Duration) => URIO[Env1, Duration]): Schedule[Env1, In, Out] = {
     def loop(self: StepFunction[Env, In, Out]): StepFunction[Env1, In, Out] =
@@ -558,9 +544,8 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
   }
 
   /**
-   * Returns a new schedule that applies the current one but runs the specified effect
-   * for every decision of this schedule. This can be used to create schedules
-   * that log failures, decisions, or computed values.
+   * Returns a new schedule that applies the current one but runs the specified effect for every decision of this
+   * schedule. This can be used to create schedules that log failures, decisions, or computed values.
    */
   def onDecision[Env1 <: Env](f: Decision[Env, In, Out] => URIO[Env1, Any]): Schedule[Env1, In, Out] = {
     def loop(self: StepFunction[Env, In, Out]): StepFunction[Env1, In, Out] =
@@ -574,8 +559,8 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
   }
 
   /**
-   * Returns a new schedule with its environment provided to it, so the resulting
-   * schedule does not require any environment.
+   * Returns a new schedule with its environment provided to it, so the resulting schedule does not require any
+   * environment.
    */
   def provide(env: Env): Schedule[Any, In, Out] = {
     def loop(self: StepFunction[Env, In, Out]): StepFunction[Any, In, Out] =
@@ -605,8 +590,8 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
   }
 
   /**
-   * Returns a new schedule with part of its environment provided to it, so the
-   * resulting schedule does not require any environment.
+   * Returns a new schedule with part of its environment provided to it, so the resulting schedule does not require any
+   * environment.
    */
   def provideSome[Env2](f: Env2 => Env): Schedule[Env2, In, Out] = {
     def loop(self: StepFunction[Env, In, Out]): StepFunction[Env2, In, Out] =
@@ -620,8 +605,8 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
   }
 
   /**
-   * Provides the part of the environment that is not part of the `ZEnv`,
-   * leaving a schedule that only depends on the `ZEnv`.
+   * Provides the part of the environment that is not part of the `ZEnv`, leaving a schedule that only depends on the
+   * `ZEnv`.
    */
   final def provideCustomLayer[Env1 <: Has[_]](
     layer: ZLayer[ZEnv, Nothing, Env1]
@@ -629,22 +614,22 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
     provideSomeLayer[ZEnv](layer)
 
   /**
-   * Splits the environment into two parts, providing one part using the
-   * specified layer and leaving the remainder `Env0`.
+   * Splits the environment into two parts, providing one part using the specified layer and leaving the remainder
+   * `Env0`.
    */
   final def provideSomeLayer[Env0 <: Has[_]]: Schedule.ProvideSomeLayer[Env0, Env, In, Out] =
     new Schedule.ProvideSomeLayer[Env0, Env, In, Out](self)
 
   /**
-   * Returns a new schedule that reconsiders every decision made by this schedule, possibly
-   * modifying the next interval and the output type in the process.
+   * Returns a new schedule that reconsiders every decision made by this schedule, possibly modifying the next interval
+   * and the output type in the process.
    */
   def reconsider[Out2](f: Decision[Env, In, Out] => Either[Out2, (Out2, Interval)]): Schedule[Env, In, Out2] =
     reconsiderM(d => ZIO.succeed(f(d)))
 
   /**
-   * Returns a new schedule that effectfully reconsiders every decision made by this schedule,
-   * possibly modifying the next interval and the output type in the process.
+   * Returns a new schedule that effectfully reconsiders every decision made by this schedule, possibly modifying the
+   * next interval and the output type in the process.
    */
   def reconsiderM[Env1 <: Env, In1 <: In, Out2](
     f: Decision[Env, In, Out] => URIO[Env1, Either[Out2, (Out2, Interval)]]
@@ -674,8 +659,8 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
     fold(0)((n: Int, _: Out) => n + 1)
 
   /**
-   * Return a new schedule that automatically resets the schedule to its initial state
-   * after some time of inactivity defined by `duration`.
+   * Return a new schedule that automatically resets the schedule to its initial state after some time of inactivity
+   * defined by `duration`.
    */
   final def resetAfter(duration: Duration): Schedule[Env, In, Out] =
     (self zip Schedule.elapsed).resetWhen(_._2 >= duration).map(_._1)
@@ -696,8 +681,8 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
   }
 
   /**
-   * Returns a new schedule that makes this schedule available on the `Right` side of an `Either`
-   * input, allowing propagating some type `X` through this channel on demand.
+   * Returns a new schedule that makes this schedule available on the `Right` side of an `Either` input, allowing
+   * propagating some type `X` through this channel on demand.
    */
   def right[X]: Schedule[Env, Either[X, In], Either[X, Out]] = Schedule.identity[X] +++ self
 
@@ -724,8 +709,8 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
   }
 
   /**
-   * Returns a new schedule that packs the input and output of this schedule into the second
-   * element of a tuple. This allows carrying information through this schedule.
+   * Returns a new schedule that packs the input and output of this schedule into the second element of a tuple. This
+   * allows carrying information through this schedule.
    */
   def second[X]: Schedule[Env, (X, In), (X, Out)] = Schedule.identity[X] *** self
 
@@ -758,9 +743,8 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
   }
 
   /**
-   * Returns a new schedule that combines this schedule with the specified
-   * schedule, continuing as long as either schedule wants to continue and
-   * merging the next intervals according to the specified merge function.
+   * Returns a new schedule that combines this schedule with the specified schedule, continuing as long as either
+   * schedule wants to continue and merging the next intervals according to the specified merge function.
    */
   def unionWith[Env1 <: Env, In1 <: In, Out2](
     that: Schedule[Env1, In1, Out2]
@@ -794,54 +778,47 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
   def unit: Schedule[Env, In, Unit] = self.as(())
 
   /**
-   * Returns a new schedule that continues until the specified predicate on the input evaluates
-   * to true.
+   * Returns a new schedule that continues until the specified predicate on the input evaluates to true.
    */
   def untilInput[In1 <: In](f: In1 => Boolean): Schedule[Env, In1, Out] = check((in, _) => !f(in))
 
   /**
-   * Returns a new schedule that continues until the specified effectful predicate on the input
-   * evaluates to true.
+   * Returns a new schedule that continues until the specified effectful predicate on the input evaluates to true.
    */
   def untilInputM[Env1 <: Env, In1 <: In](f: In1 => URIO[Env1, Boolean]): Schedule[Env1, In1, Out] =
     checkM((in, _) => f(in).map(b => !b))
 
   /**
-   * Returns a new schedule that continues until the specified predicate on the output evaluates
-   * to true.
+   * Returns a new schedule that continues until the specified predicate on the output evaluates to true.
    */
   def untilOutput(f: Out => Boolean): Schedule[Env, In, Out] = check((_, out) => !f(out))
 
   /**
-   * Returns a new schedule that continues until the specified effectful predicate on the output
-   * evaluates to true.
+   * Returns a new schedule that continues until the specified effectful predicate on the output evaluates to true.
    */
   def untilOutputM[Env1 <: Env](f: Out => URIO[Env1, Boolean]): Schedule[Env1, In, Out] =
     checkM((_, out) => f(out).map(b => !b))
 
   /**
-   * Returns a new schedule that continues for as long the specified predicate on the input
-   * evaluates to true.
+   * Returns a new schedule that continues for as long the specified predicate on the input evaluates to true.
    */
   def whileInput[In1 <: In](f: In1 => Boolean): Schedule[Env, In1, Out] =
     check((in, _) => f(in))
 
   /**
-   * Returns a new schedule that continues for as long the specified effectful predicate on the
-   * input evaluates to true.
+   * Returns a new schedule that continues for as long the specified effectful predicate on the input evaluates to true.
    */
   def whileInputM[Env1 <: Env, In1 <: In](f: In1 => URIO[Env1, Boolean]): Schedule[Env1, In1, Out] =
     checkM((in, _) => f(in))
 
   /**
-   * Returns a new schedule that continues for as long the specified predicate on the output
-   * evaluates to true.
+   * Returns a new schedule that continues for as long the specified predicate on the output evaluates to true.
    */
   def whileOutput(f: Out => Boolean): Schedule[Env, In, Out] = check((_, out) => f(out))
 
   /**
-   * Returns a new schedule that continues for as long the specified effectful predicate on the
-   * output evaluates to true.
+   * Returns a new schedule that continues for as long the specified effectful predicate on the output evaluates to
+   * true.
    */
   def whileOutputM[Env1 <: Env](f: Out => URIO[Env1, Boolean]): Schedule[Env1, In, Out] =
     checkM((_, out) => f(out))
@@ -892,8 +869,7 @@ object Schedule {
     recurWhile(f).collectAll
 
   /**
-   * A schedule that recurs as long as the effectful condition holds,
-   * collecting all inputs into a list.
+   * A schedule that recurs as long as the effectful condition holds, collecting all inputs into a list.
    */
   def collectWhileM[Env, A](f: A => URIO[Env, Boolean]): Schedule[Env, A, Chunk[A]] =
     recurWhileM(f).collectAll
@@ -905,15 +881,14 @@ object Schedule {
     recurUntil(f).collectAll
 
   /**
-   * A schedule that recurs until the effectful condition f fails, collecting
-   * all inputs into a list.
+   * A schedule that recurs until the effectful condition f fails, collecting all inputs into a list.
    */
   def collectUntilM[Env, A](f: A => URIO[Env, Boolean]): Schedule[Env, A, Chunk[A]] =
     recurUntilM(f).collectAll
 
   /**
-   * Takes a schedule that produces a delay, and returns a new schedule that uses this delay to
-   * further delay intervals in the resulting schedule.
+   * Takes a schedule that produces a delay, and returns a new schedule that uses this delay to further delay intervals
+   * in the resulting schedule.
    */
   def delayed[Env, In, Out](schedule: Schedule[Env, In, Duration]): Schedule[Env, In, Duration] =
     schedule.addDelay(x => x)
@@ -955,8 +930,8 @@ object Schedule {
     identity[A].untilInput(_ == a)
 
   /**
-   * A schedule that recurs for until the input value becomes applicable to partial function
-   * and then map that value with given function.
+   * A schedule that recurs for until the input value becomes applicable to partial function and then map that value
+   * with given function.
    */
   def recurUntil[A, B](pf: PartialFunction[A, B]): Schedule[Any, A, Option[B]] =
     identity[A].map(pf.lift(_)).untilOutput(_.isDefined)
@@ -972,8 +947,7 @@ object Schedule {
     )
 
   /**
-   * A schedule that occurs everywhere, which returns the total elapsed duration since the
-   * first step.
+   * A schedule that occurs everywhere, which returns the total elapsed duration since the first step.
    */
   val elapsed: Schedule[Any, Any, Duration] = {
     def loop(start: Option[OffsetDateTime]): StepFunction[Any, Any, Duration] =
@@ -993,17 +967,15 @@ object Schedule {
   }
 
   /**
-   * A schedule that always recurs, but will wait a certain amount between
-   * repetitions, given by `base * factor.pow(n)`, where `n` is the number of
-   * repetitions so far. Returns the current duration between recurrences.
+   * A schedule that always recurs, but will wait a certain amount between repetitions, given by `base * factor.pow(n)`,
+   * where `n` is the number of repetitions so far. Returns the current duration between recurrences.
    */
   def exponential(base: Duration, factor: Double = 2.0): Schedule[Any, Any, Duration] =
     delayed(forever.map(i => base * math.pow(factor, i.doubleValue)))
 
   /**
-   * A schedule that always recurs, increasing delays by summing the
-   * preceding two delays (similar to the fibonacci sequence). Returns the
-   * current duration between recurrences.
+   * A schedule that always recurs, increasing delays by summing the preceding two delays (similar to the fibonacci
+   * sequence). Returns the current duration between recurrences.
    */
   def fibonacci(one: Duration): Schedule[Any, Any, Duration] =
     delayed {
@@ -1013,15 +985,15 @@ object Schedule {
     }
 
   /**
-   * A schedule that recurs on a fixed interval. Returns the number of
-   * repetitions of the schedule so far.
+   * A schedule that recurs on a fixed interval. Returns the number of repetitions of the schedule so far.
    *
-   * If the action run between updates takes longer than the interval, then the
-   * action will be run immediately, but re-runs will not "pile up".
+   * If the action run between updates takes longer than the interval, then the action will be run immediately, but
+   * re-runs will not "pile up".
    *
    * <pre>
-   * |-----interval-----|-----interval-----|-----interval-----|
-   * |---------action--------||action|-----|action|-----------|
+   * | -----interval-----      | -----interval----- | -----interval----- |       |        |             |
+   * |:------------------------|:-------------------|:-------------------|:------|:-------|:------------|
+   * | ---------action-------- |                    | action             | ----- | action | ----------- |
    * </pre>
    */
   def fixed(interval: Duration): Schedule[Any, Any, Long] = {
@@ -1086,9 +1058,8 @@ object Schedule {
     )
 
   /**
-   * A schedule that recurs once for each of the specified durations, delaying
-   * each time for the length of the specified duration. Returns the length of
-   * the current duration between recurrences.
+   * A schedule that recurs once for each of the specified durations, delaying each time for the length of the specified
+   * duration. Returns the length of the current duration between recurrences.
    */
   def fromDurations(duration: Duration, durations: Duration*): Schedule[Any, Any, Duration] = {
     def loop(state: List[Duration]): StepFunction[Any, Any, Duration] =
@@ -1102,8 +1073,7 @@ object Schedule {
   }
 
   /**
-   * A schedule that always recurs, mapping input values through the
-   * specified function.
+   * A schedule that always recurs, mapping input values through the specified function.
    */
   def fromFunction[A, B](f: A => B): Schedule[Any, A, B] = identity[A].map(f)
 
@@ -1124,9 +1094,8 @@ object Schedule {
   }
 
   /**
-   * A schedule that always recurs, but will repeat on a linear time
-   * interval, given by `base * n` where `n` is the number of
-   * repetitions so far. Returns the current duration between recurrences.
+   * A schedule that always recurs, but will repeat on a linear time interval, given by `base * n` where `n` is the
+   * number of repetitions so far. Returns the current duration between recurrences.
    */
   def linear(base: Duration): Schedule[Any, Any, Duration] =
     delayed(forever.map(i => base * (i + 1).doubleValue()))
@@ -1137,21 +1106,18 @@ object Schedule {
   val once: Schedule[Any, Any, Unit] = recurs(1).unit
 
   /**
-   * A schedule spanning all time, which can be stepped only the specified number of times before
-   * it terminates.
+   * A schedule spanning all time, which can be stepped only the specified number of times before it terminates.
    */
   def recurs(n: Long): Schedule[Any, Any, Long] =
     forever.whileOutput(_ < n)
 
   /**
-   * A schedule spanning all time, which can be stepped only the specified number of times before
-   * it terminates.
+   * A schedule spanning all time, which can be stepped only the specified number of times before it terminates.
    */
   def recurs(n: Int): Schedule[Any, Any, Long] = recurs(n.toLong)
 
   /**
-   * Returns a schedule that recurs continuously, each repetition spaced the specified duration
-   * from the last run.
+   * Returns a schedule that recurs continuously, each repetition spaced the specified duration from the last run.
    */
   def spaced(duration: Duration): Schedule[Any, Any, Long] =
     forever.addDelay(_ => duration)
@@ -1178,14 +1144,13 @@ object Schedule {
   }
 
   /**
-   * A schedule that divides the timeline to `interval`-long windows, and sleeps
-   * until the nearest window boundary every time it recurs.
+   * A schedule that divides the timeline to `interval`-long windows, and sleeps until the nearest window boundary every
+   * time it recurs.
    *
-   * For example, `windowed(10.seconds)` would produce a schedule as follows:
-   * <pre>
-   *      10s        10s        10s       10s
-   * |----------|----------|----------|----------|
-   * |action------|sleep---|act|-sleep|action----|
+   * For example, `windowed(10.seconds)` would produce a schedule as follows: <pre> 10s 10s 10s 10s
+   * | ----------   | ---------- | ---------- | ---------- |            |
+   * |:-------------|:-----------|:-----------|:-----------|:-----------|
+   * | action------ | sleep---   | act        | -sleep     | action---- |
    * </pre>
    */
   def windowed(interval: Duration): Schedule[Any, Any, Long] = {
@@ -1217,9 +1182,8 @@ object Schedule {
   }
 
   /**
-   * Cron-like schedule that recurs every specified `second` of each minute.
-   * It triggers at zero nanosecond of the second.
-   * Producing a count of repeats: 0, 1, 2.
+   * Cron-like schedule that recurs every specified `second` of each minute. It triggers at zero nanosecond of the
+   * second. Producing a count of repeats: 0, 1, 2.
    *
    * NOTE: `second` parameter is validated lazily. Must be in range 0...59.
    */
@@ -1246,8 +1210,7 @@ object Schedule {
   }
 
   /**
-   * Cron-like schedule that recurs every specified `minute` of each hour.
-   * It triggers at zero second of the minute.
+   * Cron-like schedule that recurs every specified `minute` of each hour. It triggers at zero second of the minute.
    * Producing a count of repeats: 0, 1, 2.
    *
    * NOTE: `minute` parameter is validated lazily. Must be in range 0...59.
@@ -1273,8 +1236,7 @@ object Schedule {
   }
 
   /**
-   * Cron-like schedule that recurs every specified `hour` of each day.
-   * It triggers at zero minute of the hour.
+   * Cron-like schedule that recurs every specified `hour` of each day. It triggers at zero minute of the hour.
    * Producing a count of repeats: 0, 1, 2.
    *
    * NOTE: `hour` parameter is validated lazily. Must be in range 0...23.
@@ -1300,9 +1262,8 @@ object Schedule {
   }
 
   /**
-   * Cron-like schedule that recurs every specified `day` of each week.
-   * It triggers at zero hour of the week.
-   * Producing a count of repeats: 0, 1, 2.
+   * Cron-like schedule that recurs every specified `day` of each week. It triggers at zero hour of the week. Producing
+   * a count of repeats: 0, 1, 2.
    *
    * NOTE: `day` parameter is validated lazily. Must be in range 1 (Monday)...7 (Sunday).
    */
@@ -1326,11 +1287,10 @@ object Schedule {
   }
 
   /**
-   * Cron-like schedule that recurs every specified `day` of month.
-   * Won't recur on months containing less days than specified in `day` param.
+   * Cron-like schedule that recurs every specified `day` of month. Won't recur on months containing less days than
+   * specified in `day` param.
    *
-   * It triggers at zero hour of the day.
-   * Producing a count of repeats: 0, 1, 2.
+   * It triggers at zero hour of the day. Producing a count of repeats: 0, 1, 2.
    *
    * NOTE: `day` parameter is validated lazily. Must be in range 1...31.
    */

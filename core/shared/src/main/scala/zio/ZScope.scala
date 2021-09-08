@@ -22,70 +22,59 @@ import java.util.concurrent.atomic.{AtomicInteger, AtomicReference}
 import java.util.{Comparator, Map}
 
 /**
- * A `ZScope[A]` is a value that allows adding finalizers identified by a key.
- * Scopes are closed with a value of type `A`, which is provided to all the
- * finalizers when the scope is released.
+ * A `ZScope[A]` is a value that allows adding finalizers identified by a key. Scopes are closed with a value of type
+ * `A`, which is provided to all the finalizers when the scope is released.
  *
- * For safety reasons, this interface has no method to close a scope. Rather,
- * an open scope may be required with `ZScope.make`, which returns a function
- * that can close a scope. This allows scopes to be safely passed around
- * without fear they will be accidentally closed.
+ * For safety reasons, this interface has no method to close a scope. Rather, an open scope may be required with
+ * `ZScope.make`, which returns a function that can close a scope. This allows scopes to be safely passed around without
+ * fear they will be accidentally closed.
  */
 sealed abstract class ZScope[+A] { self =>
 
   /**
-   * Determines if the scope is closed at the instant the effect executes.
-   * Returns an effect that will succeed with `true` if the scope is closed,
-   * and `false` otherwise.
+   * Determines if the scope is closed at the instant the effect executes. Returns an effect that will succeed with
+   * `true` if the scope is closed, and `false` otherwise.
    */
   def closed: UIO[Boolean]
 
   /**
-   * Prevents a previously added finalizer from being executed when the scope
-   * is closed. The returned effect will succeed with `true` if the finalizer
-   * will not be run by this scope, and `false` otherwise.
+   * Prevents a previously added finalizer from being executed when the scope is closed. The returned effect will
+   * succeed with `true` if the finalizer will not be run by this scope, and `false` otherwise.
    */
   def deny(key: => ZScope.Key): UIO[Boolean] = UIO(unsafeDeny(key))
 
   /**
-   * Determines if the scope is empty (has no finalizers) at the instant the
-   * effect executes. The returned effect will succeed with `true` if the scope
-   * is empty, and `false` otherwise.
+   * Determines if the scope is empty (has no finalizers) at the instant the effect executes. The returned effect will
+   * succeed with `true` if the scope is empty, and `false` otherwise.
    */
   def empty: UIO[Boolean]
 
   /**
-   * Adds a finalizer to the scope. If successful, this ensures that when the
-   * scope exits, the finalizer will be run, assuming the key has not been
-   * garbage collected.
+   * Adds a finalizer to the scope. If successful, this ensures that when the scope exits, the finalizer will be run,
+   * assuming the key has not been garbage collected.
    *
-   * The returned effect will succeed with `Right` with a key if the finalizer
-   * was added to the scope or `Left` with the value the scope was closed with
-   * if the scope is already closed.
+   * The returned effect will succeed with `Right` with a key if the finalizer was added to the scope or `Left` with the
+   * value the scope was closed with if the scope is already closed.
    */
   def ensure(finalizer: A => UIO[Any], mode: ZScope.Mode = ZScope.Mode.Strong): UIO[Either[A, ZScope.Key]]
 
   /**
-   * Extends the specified scope so that it will not be closed until this
-   * scope is closed. Note that extending a scope into the global scope
-   * will result in the scope *never* being closed!
+   * Extends the specified scope so that it will not be closed until this scope is closed. Note that extending a scope
+   * into the global scope will result in the scope *never* being closed!
    *
-   * Scope extension does not result in changes to the scope contract: open
-   * scopes must *always* be closed.
+   * Scope extension does not result in changes to the scope contract: open scopes must *always* be closed.
    */
   final def extend(that: ZScope[Any]): UIO[Boolean] = UIO(unsafeExtend(that))
 
   /**
-   * Determines if the scope is open at the moment the effect is executed.
-   * Returns an effect that will succeed with `true` if the scope is open,
-   * and `false` otherwise.
+   * Determines if the scope is open at the moment the effect is executed. Returns an effect that will succeed with
+   * `true` if the scope is open, and `false` otherwise.
    */
   def open: UIO[Boolean] = closed.map(!_)
 
   /**
-   * Determines if the scope has been released at the moment the effect is
-   * executed executed. A scope can be closed yet unreleased, if it has been
-   * extended by another scope which is not yet released.
+   * Determines if the scope has been released at the moment the effect is executed executed. A scope can be closed yet
+   * unreleased, if it has been extended by another scope which is not yet released.
    */
   def released: UIO[Boolean]
 
@@ -106,11 +95,9 @@ object ZScope {
   sealed abstract class Key {
 
     /**
-     * Attempts to remove the finalizer associated with this key from the
-     * scope. The returned effect will succeed with a boolean, which indicates
-     * whether the attempt was successful. A value of `true` indicates the
-     * finalizer will not be executed, while a value of `false` indicates the
-     * finalizer was already executed.
+     * Attempts to remove the finalizer associated with this key from the scope. The returned effect will succeed with a
+     * boolean, which indicates whether the attempt was successful. A value of `true` indicates the finalizer will not
+     * be executed, while a value of `false` indicates the finalizer was already executed.
      *
      * @return
      */
@@ -121,8 +108,8 @@ object ZScope {
   }
 
   /**
-   * The global scope, which is entirely stateless. Finalizers added to the
-   * global scope will never be executed (nor kept in memory).
+   * The global scope, which is entirely stateless. Finalizers added to the global scope will never be executed (nor
+   * kept in memory).
    */
   object global extends ZScope[Nothing] {
     private val unsafeEnsureResult = Right(Key(UIO(true)))
@@ -147,14 +134,12 @@ object ZScope {
   }
 
   /**
-   * A tuple that contains an open scope, together with a function that closes
-   * the scope.
+   * A tuple that contains an open scope, together with a function that closes the scope.
    */
   final case class Open[A](close: A => UIO[Boolean], scope: Local[A])
 
   /**
-   * An effect that makes a new open scope, which provides not just the scope,
-   * but also a way to close the scope.
+   * An effect that makes a new open scope, which provides not just the scope, but also a way to close the scope.
    */
   def make[A]: UIO[Open[A]] = UIO(unsafeMake())
 

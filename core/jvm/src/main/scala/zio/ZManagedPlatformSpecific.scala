@@ -26,9 +26,8 @@ import java.nio.file.Path
 private[zio] trait ZManagedPlatformSpecific {
 
   /**
-   * Returns a managed effect that describes shifting to the blocking executor
-   * as the `acquire` action and shifting back to the original executor as the
-   * `release` action.
+   * Returns a managed effect that describes shifting to the blocking executor as the `acquire` action and shifting back
+   * to the original executor as the `release` action.
    */
   val blocking: ZManaged[Blocking, Nothing, Unit] =
     blockingExecutor.toManaged_.flatMap(executor => ZManaged.lock(executor))

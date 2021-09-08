@@ -20,10 +20,9 @@ import zio.random.Random
 import zio.test.{FunctionVariants, Gen}
 
 /**
- * A `GenF` knows how to construct a generator of `F[A,B]` values given a
- * generator of `A` and generator of `B` values. For example, a `GenF2` of `Function1` values
- * knows how to generate functions A => B with elements given a generator of elements of
- * that type `B`.
+ * A `GenF` knows how to construct a generator of `F[A,B]` values given a generator of `A` and generator of `B` values.
+ * For example, a `GenF2` of `Function1` values knows how to generate functions A => B with elements given a generator
+ * of elements of that type `B`.
  */
 trait GenF2[-R, F[_, _]] {
 

@@ -60,8 +60,7 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
     dieOption.isDefined
 
   /**
-   * Returns the `Throwable` associated with the first `Die` in this `Cause` if
-   * one exists.
+   * Returns the `Throwable` associated with the first `Die` in this `Cause` if one exists.
    */
   final def dieOption: Option[Throwable] =
     find { case Die(t) => t }
@@ -70,15 +69,13 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
     failureOption.isDefined
 
   /**
-   * Returns the `E` associated with the first `Fail` in this `Cause` if one
-   * exists.
+   * Returns the `E` associated with the first `Fail` in this `Cause` if one exists.
    */
   def failureOption: Option[E] =
     find { case Fail(e) => e }
 
   /**
-   * Returns the `E` associated with the first `Fail` in this `Cause` if one
-   * exists, along with its (optional) trace.
+   * Returns the `E` associated with the first `Fail` in this `Cause` if one exists, along with its (optional) trace.
    */
   def failureTraceOption: Option[(E, Option[ZTrace])] =
     find {
@@ -87,9 +84,8 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
     }
 
   /**
-   * Retrieve the first checked error on the `Left` if available,
-   * if there are no checked errors return the rest of the `Cause`
-   * that is known to contain only `Die` or `Interrupt` causes.
+   * Retrieve the first checked error on the `Left` if available, if there are no checked errors return the rest of the
+   * `Cause` that is known to contain only `Die` or `Interrupt` causes.
    */
   final def failureOrCause: Either[E, Cause[Nothing]] = failureOption match {
     case Some(error) => Left(error)
@@ -97,9 +93,8 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
   }
 
   /**
-   * Retrieve the first checked error and its trace on the `Left` if available,
-   * if there are no checked errors return the rest of the `Cause`
-   * that is known to contain only `Die` or `Interrupt` causes.
+   * Retrieve the first checked error and its trace on the `Left` if available, if there are no checked errors return
+   * the rest of the `Cause` that is known to contain only `Die` or `Interrupt` causes.
    */
   final def failureTraceOrCause: Either[(E, Option[ZTrace]), Cause[Nothing]] = failureTraceOption match {
     case Some(errorAndTrace) => Left(errorAndTrace)
@@ -137,8 +132,7 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
     find { case Interrupt(_) => () }.isDefined
 
   /**
-   * Determines if the `Cause` contains only interruptions and not any `Die` or
-   * `Fail` causes.
+   * Determines if the `Cause` contains only interruptions and not any `Die` or `Fail` causes.
    */
   final def interruptedOnly: Boolean =
     find {
@@ -147,8 +141,7 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
     }.getOrElse(true)
 
   /**
-   * Returns a set of interruptors, fibers that interrupted the fiber described
-   * by this `Cause`.
+   * Returns a set of interruptors, fibers that interrupted the fiber described by this `Cause`.
    */
   final def interruptors: Set[Fiber.Id] =
     foldLeft[Set[Fiber.Id]](Set()) { case (acc, Interrupt(fiberId)) =>
@@ -200,8 +193,7 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
     }
 
   /**
-   * Remove all `Fail` and `Interrupt` nodes from this `Cause`,
-   * return only `Die` cause/finalizer defects.
+   * Remove all `Fail` and `Interrupt` nodes from this `Cause`, return only `Die` cause/finalizer defects.
    */
   final def keepDefects: Option[Cause[Nothing]] =
     self match {
@@ -383,15 +375,13 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
   }
 
   /**
-   * Squashes a `Cause` down to a single `Throwable`, chosen to be the
-   * "most important" `Throwable`.
+   * Squashes a `Cause` down to a single `Throwable`, chosen to be the "most important" `Throwable`.
    */
   final def squash(implicit ev: E <:< Throwable): Throwable =
     squashWith(ev)
 
   /**
-   * Squashes a `Cause` down to a single `Throwable`, chosen to be the
-   * "most important" `Throwable`.
+   * Squashes a `Cause` down to a single `Throwable`, chosen to be the "most important" `Throwable`.
    */
   final def squashWith(f: E => Throwable): Throwable =
     failureOption.map(f) orElse
@@ -405,19 +395,17 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
       defects.headOption getOrElse (new InterruptedException)
 
   /**
-   * Squashes a `Cause` down to a single `Throwable`, chosen to be the "most
-   * important" `Throwable`. In addition, appends a new element to the
-   * suppressed exceptions of the `Throwable`, with this `Cause` "pretty
-   * printed" (in stackless mode) as the message.
+   * Squashes a `Cause` down to a single `Throwable`, chosen to be the "most important" `Throwable`. In addition,
+   * appends a new element to the suppressed exceptions of the `Throwable`, with this `Cause` "pretty printed" (in
+   * stackless mode) as the message.
    */
   final def squashTrace(implicit ev: E <:< Throwable): Throwable =
     squashTraceWith(ev)
 
   /**
-   * Squashes a `Cause` down to a single `Throwable`, chosen to be the
-   * "most important" `Throwable`.
-   * In addition, appends a new element the to `Throwable`s "caused by" chain,
-   * with this `Cause` "pretty printed" (in stackless mode) as the message.
+   * Squashes a `Cause` down to a single `Throwable`, chosen to be the "most important" `Throwable`. In addition,
+   * appends a new element the to `Throwable`s "caused by" chain, with this `Cause` "pretty printed" (in stackless mode)
+   * as the message.
    */
   final def squashTraceWith(f: E => Throwable): Throwable =
     attachTrace(squashWith(f))
@@ -440,9 +428,8 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
     }
 
   /**
-   * Remove all `Die` causes that the specified partial function is defined at,
-   * returning `Some` with the remaining causes or `None` if there are no
-   * remaining causes.
+   * Remove all `Die` causes that the specified partial function is defined at, returning `Some` with the remaining
+   * causes or `None` if there are no remaining causes.
    */
   final def stripSomeDefects(pf: PartialFunction[Throwable, Any]): Option[Cause[E]] =
     self match {
@@ -533,8 +520,8 @@ object Cause extends Serializable {
   def traced[E](cause: Cause[E], trace: ZTrace): Cause[E] = Internal.Traced(cause, trace)
 
   /**
-   * Converts the specified `Cause[Option[E]]` to an `Option[Cause[E]]` by
-   * recursively stripping out any failures with the error `None`.
+   * Converts the specified `Cause[Option[E]]` to an `Option[Cause[E]]` by recursively stripping out any failures with
+   * the error `None`.
    */
   def sequenceCauseOption[E](c: Cause[Option[E]]): Option[Cause[E]] =
     c match {
@@ -563,8 +550,8 @@ object Cause extends Serializable {
     }
 
   /**
-   * Converts the specified `Cause[Either[E, A]]` to an `Either[Cause[E], A]` by
-   * recursively stripping out any failures with the error `None`.
+   * Converts the specified `Cause[Either[E, A]]` to an `Either[Cause[E], A]` by recursively stripping out any failures
+   * with the error `None`.
    */
   def sequenceCauseEither[E, A](c: Cause[Either[E, A]]): Either[Cause[E], A] =
     c match {
@@ -839,9 +826,8 @@ object Cause extends Serializable {
     }
 
     /**
-     * Flattens a cause to a sequence of sets of causes, where each set
-     * represents causes that fail in parallel and sequential sets represent
-     * causes that fail after each other.
+     * Flattens a cause to a sequence of sets of causes, where each set represents causes that fail in parallel and
+     * sequential sets represent causes that fail after each other.
      */
     private def flatten(c: Cause[_]): List[Set[Cause[_]]] = {
 
@@ -861,8 +847,8 @@ object Cause extends Serializable {
     }
 
     /**
-     * Takes one step in evaluating a cause, returning a set of causes that fail
-     * in parallel and a list of causes that fail sequentially after those causes.
+     * Takes one step in evaluating a cause, returning a set of causes that fail in parallel and a list of causes that
+     * fail sequentially after those causes.
      */
     private def step(c: Cause[_]): (Set[Cause[_]], List[Cause[_]]) = {
 

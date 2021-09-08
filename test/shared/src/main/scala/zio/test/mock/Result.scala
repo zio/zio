@@ -19,8 +19,7 @@ package zio.test.mock
 import zio.{IO, UIO}
 
 /**
- * A `Result[-I, +E, +A]` represents the value or failure that will be returned
- * by mock expectation when invoked.
+ * A `Result[-I, +E, +A]` represents the value or failure that will be returned by mock expectation when invoked.
  */
 sealed abstract class Result[-I, +E, +A] {
   val io: I => IO[E, A]

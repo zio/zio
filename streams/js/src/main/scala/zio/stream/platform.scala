@@ -26,9 +26,8 @@ trait ZSinkPlatformSpecificConstructors
 trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
 
   /**
-   * Creates a stream from an asynchronous callback that can be called multiple times.
-   * The optionality of the error type `E` can be used to signal the end of the stream,
-   * by setting it to `None`.
+   * Creates a stream from an asynchronous callback that can be called multiple times. The optionality of the error type
+   * `E` can be used to signal the end of the stream, by setting it to `None`.
    */
   def effectAsync[R, E, A](
     register: (ZIO[R, Option[E], Chunk[A]] => Future[Boolean]) => Unit,
@@ -43,10 +42,9 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
     )
 
   /**
-   * Creates a stream from an asynchronous callback that can be called multiple times.
-   * The registration of the callback returns either a canceler or synchronously returns a stream.
-   * The optionality of the error type `E` can be used to signal the end of the stream, by
-   * setting it to `None`.
+   * Creates a stream from an asynchronous callback that can be called multiple times. The registration of the callback
+   * returns either a canceler or synchronously returns a stream. The optionality of the error type `E` can be used to
+   * signal the end of the stream, by setting it to `None`.
    */
   def effectAsyncInterrupt[R, E, A](
     register: ZStream.Emit[R, E, A, Future[Boolean]] => Either[Canceler[R], ZStream[R, E, A]],
@@ -81,9 +79,9 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
     }
 
   /**
-   * Creates a stream from an asynchronous callback that can be called multiple times
-   * The registration of the callback itself returns an effect. The optionality of the
-   * error type `E` can be used to signal the end of the stream, by setting it to `None`.
+   * Creates a stream from an asynchronous callback that can be called multiple times The registration of the callback
+   * itself returns an effect. The optionality of the error type `E` can be used to signal the end of the stream, by
+   * setting it to `None`.
    */
   def effectAsyncM[R, E, A](
     register: ZStream.Emit[R, E, A, Future[Boolean]] => ZIO[R, E, Any],
@@ -112,10 +110,9 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
     }.flatMap(repeatEffectChunkOption(_))
 
   /**
-   * Creates a stream from an asynchronous callback that can be called multiple times.
-   * The registration of the callback can possibly return the stream synchronously.
-   * The optionality of the error type `E` can be used to signal the end of the stream,
-   * by setting it to `None`.
+   * Creates a stream from an asynchronous callback that can be called multiple times. The registration of the callback
+   * can possibly return the stream synchronously. The optionality of the error type `E` can be used to signal the end
+   * of the stream, by setting it to `None`.
    */
   def effectAsyncMaybe[R, E, A](
     register: ZStream.Emit[R, E, A, Future[Boolean]] => Option[ZStream[R, E, A]],
@@ -187,8 +184,7 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
     }
 
   /**
-   * Creates a stream from a `java.io.InputStream`. Ensures that the input
-   * stream is closed after it is exhausted.
+   * Creates a stream from a `java.io.InputStream`. Ensures that the input stream is closed after it is exhausted.
    */
   def fromInputStreamEffect[R](
     is: ZIO[R, IOException, InputStream],

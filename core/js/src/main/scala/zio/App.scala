@@ -19,8 +19,7 @@ package zio
 trait App extends BootstrapRuntime {
 
   /**
-   * The main function of the application, which will be passed the command-line
-   * arguments to the program.
+   * The main function of the application, which will be passed the command-line arguments to the program.
    */
   def run(args: List[String]): URIO[ZEnv, ExitCode]
 

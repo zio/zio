@@ -20,13 +20,10 @@ import zio.test.{Gen, TestConfig, TestResult, check, checkM}
 import zio.{URIO, ZIO}
 
 /**
- * `ZLaws[CapsF, Caps, R]` describes a set of laws that a parameterized type
- * `F[A]` with capabilities `CapsF` is expected to satisfy with respect to all
- * types `A` that have capabilities `Caps`. Laws can be run by providing a
- * `GenF` that is capable of generating `F[A]` values given a generator of `A`
- * values and a generator of values of some type `A`. Laws can be combined
- * using `+` to produce a set of laws that require both sets of laws to be
- * satisfied.
+ * `ZLaws[CapsF, Caps, R]` describes a set of laws that a parameterized type `F[A]` with capabilities `CapsF` is
+ * expected to satisfy with respect to all types `A` that have capabilities `Caps`. Laws can be run by providing a
+ * `GenF` that is capable of generating `F[A]` values given a generator of `A` values and a generator of values of some
+ * type `A`. Laws can be combined using `+` to produce a set of laws that require both sets of laws to be satisfied.
  */
 object ZLawsF {
 
@@ -36,9 +33,8 @@ object ZLawsF {
   abstract class Covariant[-CapsF[_[+_]], -Caps[_], -R] { self =>
 
     /**
-     * Test that values of type `F[+_]` satisfy the laws using the specified
-     * function to construct a generator of `F[A]` values given a generator of
-     * `A` values.
+     * Test that values of type `F[+_]` satisfy the laws using the specified function to construct a generator of `F[A]`
+     * values given a generator of `A` values.
      */
     def run[R1 <: R with TestConfig, F[+_]: CapsF, A: Caps](
       genF: GenF[R1, F],
@@ -46,8 +42,8 @@ object ZLawsF {
     ): ZIO[R1, Nothing, TestResult]
 
     /**
-     * Combine these laws with the specified laws to produce a set of laws that
-     * require both sets of laws to be satisfied.
+     * Combine these laws with the specified laws to produce a set of laws that require both sets of laws to be
+     * satisfied.
      */
     def +[CapsF1[x[+_]] <: CapsF[x], Caps1[x] <: Caps[x], R1 <: R](
       that: Covariant[CapsF1, Caps1, R1]
@@ -69,8 +65,7 @@ object ZLawsF {
     }
 
     /**
-     * Constructs a law from a pure function taking one parameterized value and
-     * two functions that can be composed.
+     * Constructs a law from a pure function taking one parameterized value and two functions that can be composed.
      */
     abstract class ComposeLaw[-CapsF[_[+_]], -Caps[_]](label: String) extends Covariant[CapsF, Caps, Any] { self =>
       def apply[F[+_]: CapsF, A: Caps, B: Caps, C: Caps](fa: F[A], f: A => B, g: B => C): TestResult
@@ -79,8 +74,7 @@ object ZLawsF {
     }
 
     /**
-     * Constructs a law from a parameterized value wrapped in two additional
-     * layers that can be flattened.
+     * Constructs a law from a parameterized value wrapped in two additional layers that can be flattened.
      */
     abstract class FlattenLaw[-CapsF[_[+_]], -Caps[_]](label: String) extends Covariant[CapsF, Caps, Any] { self =>
       def apply[F[+_]: CapsF, A: Caps](fffa: F[F[F[A]]]): TestResult
@@ -158,9 +152,8 @@ object ZLawsF {
   abstract class Contravariant[-CapsF[_[-_]], -Caps[_], -R] { self =>
 
     /**
-     * Test that values of type `F[+_]` satisfy the laws using the specified
-     * function to construct a generator of `F[A]` values given a generator of
-     * `A` values.
+     * Test that values of type `F[+_]` satisfy the laws using the specified function to construct a generator of `F[A]`
+     * values given a generator of `A` values.
      */
     def run[R1 <: R with TestConfig, F[-_]: CapsF, A: Caps](
       genF: GenF[R1, F],
@@ -168,8 +161,8 @@ object ZLawsF {
     ): ZIO[R1, Nothing, TestResult]
 
     /**
-     * Combine these laws with the specified laws to produce a set of laws that
-     * require both sets of laws to be satisfied.
+     * Combine these laws with the specified laws to produce a set of laws that require both sets of laws to be
+     * satisfied.
      */
     def +[CapsF1[x[-_]] <: CapsF[x], Caps1[x] <: Caps[x], R1 <: R](
       that: Contravariant[CapsF1, Caps1, R1]
@@ -191,8 +184,7 @@ object ZLawsF {
     }
 
     /**
-     * Constructs a law from a pure function taking one parameterized value and
-     * two functions that can be composed.
+     * Constructs a law from a pure function taking one parameterized value and two functions that can be composed.
      */
     abstract class ComposeLaw[-CapsF[_[-_]], -Caps[_]](label: String) extends Contravariant[CapsF, Caps, Any] {
       self =>
@@ -271,9 +263,8 @@ object ZLawsF {
   abstract class Invariant[-CapsF[_[_]], -Caps[_], -R] { self =>
 
     /**
-     * Test that values of type `F[+_]` satisfy the laws using the specified
-     * function to construct a generator of `F[A]` values given a generator of
-     * `A` values.
+     * Test that values of type `F[+_]` satisfy the laws using the specified function to construct a generator of `F[A]`
+     * values given a generator of `A` values.
      */
     def run[R1 <: R with TestConfig, F[_]: CapsF, A: Caps](
       genF: GenF[R1, F],
@@ -281,8 +272,8 @@ object ZLawsF {
     ): ZIO[R1, Nothing, TestResult]
 
     /**
-     * Combine these laws with the specified laws to produce a set of laws that
-     * require both sets of laws to be satisfied.
+     * Combine these laws with the specified laws to produce a set of laws that require both sets of laws to be
+     * satisfied.
      */
     def +[CapsF1[x[_]] <: CapsF[x], Caps1[x] <: Caps[x], R1 <: R](
       that: Invariant[CapsF1, Caps1, R1]

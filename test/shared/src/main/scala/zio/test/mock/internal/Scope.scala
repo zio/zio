@@ -20,8 +20,8 @@ import zio.Has
 import zio.test.mock.Expectation
 
 /**
- * A `Scope[R]` represents state of a branch of depth first search
- * on `Expectation[R]` tree for a matching mock to given invocation.
+ * A `Scope[R]` represents state of a branch of depth first search on `Expectation[R]` tree for a matching mock to given
+ * invocation.
  */
 private[mock] final case class Scope[R <: Has[_]](
   expectation: Expectation[R],

@@ -49,8 +49,8 @@ abstract class ZTransducer[-R, +E, -I, +O](val push: ZManaged[R, Nothing, Option
     }
 
   /**
-   * Compose this transducer with a sink, resulting in a sink that processes elements by piping
-   * them through this transducer and piping the results into the sink.
+   * Compose this transducer with a sink, resulting in a sink that processes elements by piping them through this
+   * transducer and piping the results into the sink.
    */
   def >>>[R1 <: R, E1 >: E, O2 >: O, I1 <: I, L, Z](that: ZSink[R1, E1, O2, L, Z]): ZSink[R1, E1, I1, L, Z] =
     ZSink[R1, E1, I1, L, Z] {
@@ -150,8 +150,8 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
   def apply[I]: ZTransducer[Any, Nothing, I, I] = identity[I]
 
   /**
-   * Reads the first n values from the stream and uses them to choose the transducer that will be used for the remainder of the stream.
-   * If the stream ends before it has collected n values the partial chunk will be provided to f.
+   * Reads the first n values from the stream and uses them to choose the transducer that will be used for the remainder
+   * of the stream. If the stream ends before it has collected n values the partial chunk will be provided to f.
    */
   def branchAfter[R, E, I, O](n: Int)(f: Chunk[I] => ZTransducer[R, E, I, O]): ZTransducer[R, E, I, O] =
     ZTransducer {
@@ -236,9 +236,8 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
     }
 
   /**
-   * Creates a transducer accumulating incoming values into maps of up to `n` keys. Elements
-   * are mapped to keys using the function `key`; elements mapped to the same key will
-   * be merged with the function `f`.
+   * Creates a transducer accumulating incoming values into maps of up to `n` keys. Elements are mapped to keys using
+   * the function `key`; elements mapped to the same key will be merged with the function `f`.
    */
   def collectAllToMapN[K, I](n: Long)(key: I => K)(f: (I, I) => I): ZTransducer[Any, Nothing, I, Map[K, I]] =
     foldWeighted(Map[K, I]())((acc, i: I) => if (acc contains key(i)) 0 else 1, n) { (acc, i) =>
@@ -277,8 +276,7 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
     ZTransducer(Managed.succeed((_: Any) => IO.die(e)))
 
   /**
-   * Creates a transducer that starts consuming values as soon as one fails
-   * the predicate `p`.
+   * Creates a transducer that starts consuming values as soon as one fails the predicate `p`.
    */
   def dropWhile[I](p: I => Boolean): ZTransducer[Any, Nothing, I, I] =
     ZTransducer {
@@ -300,8 +298,7 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
     }
 
   /**
-   * Creates a transducer that starts consuming values as soon as one fails
-   * the effectful predicate `p`.
+   * Creates a transducer that starts consuming values as soon as one fails the effectful predicate `p`.
    */
   def dropWhileM[R, E, I](p: I => ZIO[R, E, Boolean]): ZTransducer[R, E, I, I] =
     ZTransducer {
@@ -327,9 +324,8 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
     ZTransducer(ZManaged.succeed((_: Option[Any]) => ZIO.fail(e)))
 
   /**
-   * Creates a transducer by folding over a structure of type `O` for as long as
-   * `contFn` results in `true`. The transducer will emit a value when `contFn`
-   * evaluates to `false` and then restart the folding.
+   * Creates a transducer by folding over a structure of type `O` for as long as `contFn` results in `true`. The
+   * transducer will emit a value when `contFn` evaluates to `false` and then restart the folding.
    */
   def fold[I, O](z: O)(contFn: O => Boolean)(f: (O, I) => O): ZTransducer[Any, Nothing, I, O] =
     ZTransducer {
@@ -358,15 +354,15 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
     }
 
   /**
-   * Creates a transducer by folding over a structure of type `O`. The transducer will
-   * fold the inputs until the stream ends, resulting in a stream with one element.
+   * Creates a transducer by folding over a structure of type `O`. The transducer will fold the inputs until the stream
+   * ends, resulting in a stream with one element.
    */
   def foldLeft[I, O](z: O)(f: (O, I) => O): ZTransducer[Any, Nothing, I, O] =
     fold(z)(_ => true)(f)
 
   /**
-   * Creates a transducer by effectfully folding over a structure of type `O`. The transducer will
-   * fold the inputs until the stream ends, resulting in a stream with one element.
+   * Creates a transducer by effectfully folding over a structure of type `O`. The transducer will fold the inputs until
+   * the stream ends, resulting in a stream with one element.
    */
   def foldLeftM[R, E, I, O](z: O)(f: (O, I) => ZIO[R, E, O]): ZTransducer[R, E, I, O] =
     foldM(z)(_ => true)(f)
@@ -404,8 +400,8 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
     }
 
   /**
-   * Creates a transducer that folds elements of type `I` into a structure
-   * of type `O` until `max` elements have been folded.
+   * Creates a transducer that folds elements of type `I` into a structure of type `O` until `max` elements have been
+   * folded.
    *
    * Like [[foldWeighted]], but with a constant cost function of 1.
    */
@@ -415,8 +411,8 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
     }.map(_._1)
 
   /**
-   * Creates a transducer that effectfully folds elements of type `I` into a structure
-   * of type `O` until `max` elements have been folded.
+   * Creates a transducer that effectfully folds elements of type `I` into a structure of type `O` until `max` elements
+   * have been folded.
    *
    * Like [[foldWeightedM]], but with a constant cost function of 1.
    */
@@ -426,49 +422,43 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
     }.map(_._1)
 
   /**
-   * Creates a transducer that folds elements of type `I` into a structure
-   * of type `O`, until `max` worth of elements (determined by the `costFn`)
-   * have been folded.
+   * Creates a transducer that folds elements of type `I` into a structure of type `O`, until `max` worth of elements
+   * (determined by the `costFn`) have been folded.
    *
-   * @note Elements that have an individual cost larger than `max` will
-   * force the transducer to cross the `max` cost. See [[foldWeightedDecompose]]
-   * for a variant that can handle these cases.
+   * @note
+   *   Elements that have an individual cost larger than `max` will force the transducer to cross the `max` cost. See
+   *   [[foldWeightedDecompose]] for a variant that can handle these cases.
    */
   def foldWeighted[I, O](z: O)(costFn: (O, I) => Long, max: Long)(f: (O, I) => O): ZTransducer[Any, Nothing, I, O] =
     foldWeightedDecompose[I, O](z)(costFn, max, Chunk.single(_))(f)
 
   /**
-   * Creates a transducer that folds elements of type `I` into a structure
-   * of type `O`, until `max` worth of elements (determined by the `costFn`)
-   * have been folded.
+   * Creates a transducer that folds elements of type `I` into a structure of type `O`, until `max` worth of elements
+   * (determined by the `costFn`) have been folded.
    *
-   * The `decompose` function will be used for decomposing elements that
-   * cause an `O` aggregate to cross `max` into smaller elements. For
-   * example:
+   * The `decompose` function will be used for decomposing elements that cause an `O` aggregate to cross `max` into
+   * smaller elements. For example:
    * {{{
    * Stream(1, 5, 1)
-   *  .aggregate(
-   *    ZTransducer
-   *      .foldWeightedDecompose(List[Int]())((_, i: Int) => i.toLong, 4,
-   *        (i: Int) => if (i > 1) Chunk(i - 1, 1) else Chunk(i)) { (acc, el) =>
-   *        el :: acc
-   *      }
-   *      .map(_.reverse)
-   *  )
-   *  .runCollect
+   *   .aggregate(
+   *     ZTransducer
+   *       .foldWeightedDecompose(List[Int]())((_, i: Int) => i.toLong, 4,
+   *         (i: Int) => if (i > 1) Chunk(i - 1, 1) else Chunk(i)) { (acc, el) =>
+   *         el :: acc
+   *       }
+   *       .map(_.reverse)
+   *   )
+   *   .runCollect
    * }}}
    *
    * The stream would emit the elements `List(1), List(4), List(1, 1)`.
    *
-   * Be vigilant with this function, it has to generate "simpler" values
-   * or the fold may never end. A value is considered indivisible if
-   * `decompose` yields the empty chunk or a single-valued chunk. In
-   * these cases, there is no other choice than to yield a value that
-   * will cross the threshold.
+   * Be vigilant with this function, it has to generate "simpler" values or the fold may never end. A value is
+   * considered indivisible if `decompose` yields the empty chunk or a single-valued chunk. In these cases, there is no
+   * other choice than to yield a value that will cross the threshold.
    *
-   * The [[foldWeightedDecomposeM]] allows the decompose function
-   * to return a `ZIO` value, and consequently it allows the transducer
-   * to fail.
+   * The [[foldWeightedDecomposeM]] allows the decompose function to return a `ZIO` value, and consequently it allows
+   * the transducer to fail.
    */
   def foldWeightedDecompose[I, O](
     z: O
@@ -525,13 +515,12 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
     }
 
   /**
-   * Creates a transducer that effectfully folds elements of type `I` into a structure
-   * of type `S`, until `max` worth of elements (determined by the `costFn`) have
-   * been folded.
+   * Creates a transducer that effectfully folds elements of type `I` into a structure of type `S`, until `max` worth of
+   * elements (determined by the `costFn`) have been folded.
    *
-   * @note Elements that have an individual cost larger than `max` will
-   * force the transducer to cross the `max` cost. See [[foldWeightedDecomposeM]]
-   * for a variant that can handle these cases.
+   * @note
+   *   Elements that have an individual cost larger than `max` will force the transducer to cross the `max` cost. See
+   *   [[foldWeightedDecomposeM]] for a variant that can handle these cases.
    */
   def foldWeightedM[R, E, I, O](
     z: O
@@ -539,16 +528,13 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
     foldWeightedDecomposeM(z)(costFn, max, (i: I) => UIO.succeedNow(Chunk.single(i)))(f)
 
   /**
-   * Creates a transducer that effectfully folds elements of type `I` into a structure
-   * of type `S`, until `max` worth of elements (determined by the `costFn`) have
-   * been folded.
+   * Creates a transducer that effectfully folds elements of type `I` into a structure of type `S`, until `max` worth of
+   * elements (determined by the `costFn`) have been folded.
    *
-   * The `decompose` function will be used for decomposing elements that
-   * cause an `S` aggregate to cross `max` into smaller elements. Be vigilant with
-   * this function, it has to generate "simpler" values or the fold may never end.
-   * A value is considered indivisible if `decompose` yields the empty chunk or a
-   * single-valued chunk. In these cases, there is no other choice than to yield
-   * a value that will cross the threshold.
+   * The `decompose` function will be used for decomposing elements that cause an `S` aggregate to cross `max` into
+   * smaller elements. Be vigilant with this function, it has to generate "simpler" values or the fold may never end. A
+   * value is considered indivisible if `decompose` yields the empty chunk or a single-valued chunk. In these cases,
+   * there is no other choice than to yield a value that will cross the threshold.
    *
    * See [[foldWeightedDecompose]] for an example.
    */
@@ -652,8 +638,7 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
   /**
    * Decodes chunks of ISO/IEC 8859-1 bytes into strings.
    *
-   * This transducer uses the String constructor's behavior when handling malformed byte
-   * sequences.
+   * This transducer uses the String constructor's behavior when handling malformed byte sequences.
    */
   val iso_8859_1Decode: ZTransducer[Any, Nothing, Byte, String] =
     ZTransducer.fromPush {
@@ -809,8 +794,8 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
   /**
    * Decodes chunks of Unicode bytes into strings.
    *
-   * Detects byte order marks for UTF-8, UTF-16BE, UTF-16LE, UTF-32BE, UTF-32LE or defaults
-   * to UTF-8 if no BOM is detected.
+   * Detects byte order marks for UTF-8, UTF-16BE, UTF-16LE, UTF-32BE, UTF-32LE or defaults to UTF-8 if no BOM is
+   * detected.
    */
   val utfDecode: ZTransducer[Any, Nothing, Byte, String] =
     branchAfter(4) { bytes =>
@@ -827,8 +812,7 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
   /**
    * Decodes chunks of UTF-8 bytes into strings.
    *
-   * This transducer uses the String constructor's behavior when handling malformed byte
-   * sequences.
+   * This transducer uses the String constructor's behavior when handling malformed byte sequences.
    */
   val utf8Decode: ZTransducer[Any, Nothing, Byte, String] = {
     val transducer = ZTransducer[Any, Nothing, Byte, String] {
@@ -895,11 +879,9 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
   }
 
   /**
-   * Decodes chunks of UTF-16 bytes into strings.
-   * If no byte order mark is found big-endianness is assumed.
+   * Decodes chunks of UTF-16 bytes into strings. If no byte order mark is found big-endianness is assumed.
    *
-   * This transducer uses the endisn-specific String constructor's behavior when handling
-   * malformed byte sequences.
+   * This transducer uses the endisn-specific String constructor's behavior when handling malformed byte sequences.
    */
   val utf16Decode: ZTransducer[Any, Nothing, Byte, String] =
     branchAfter(2) { bytes =>
@@ -916,8 +898,7 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
   /**
    * Decodes chunks of UTF-16BE bytes into strings.
    *
-   * This transducer uses the String constructor's behavior when handling malformed byte
-   * sequences.
+   * This transducer uses the String constructor's behavior when handling malformed byte sequences.
    */
   val utf16BEDecode: ZTransducer[Any, Nothing, Byte, String] =
     utfFixedLengthDecode(StandardCharsets.UTF_16BE, 2)
@@ -925,15 +906,13 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
   /**
    * Decodes chunks of UTF-16LE bytes into strings.
    *
-   * This transducer uses the String constructor's behavior when handling malformed byte
-   * sequences.
+   * This transducer uses the String constructor's behavior when handling malformed byte sequences.
    */
   val utf16LEDecode: ZTransducer[Any, Nothing, Byte, String] =
     utfFixedLengthDecode(StandardCharsets.UTF_16LE, 2)
 
   /**
-   * Decodes chunks of UTF-32 bytes into strings.
-   * If no byte order mark is found big-endianness is assumed.
+   * Decodes chunks of UTF-32 bytes into strings. If no byte order mark is found big-endianness is assumed.
    */
   lazy val utf32Decode: ZTransducer[Any, Nothing, Byte, String] =
     branchAfter(4) { bytes =>
@@ -950,8 +929,7 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
   /**
    * Decodes chunks of UTF-32BE bytes into strings.
    *
-   * This transducer uses the String constructor's behavior when handling malformed byte
-   * sequences.
+   * This transducer uses the String constructor's behavior when handling malformed byte sequences.
    */
   lazy val utf32BEDecode: ZTransducer[Any, Nothing, Byte, String] =
     utfFixedLengthDecode(Charset.forName("UTF-32BE"), 4)
@@ -959,8 +937,7 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
   /**
    * Decodes chunks of UTF-32LE bytes into strings.
    *
-   * This transducer uses the String constructor's behavior when handling malformed byte
-   * sequences.
+   * This transducer uses the String constructor's behavior when handling malformed byte sequences.
    */
   lazy val utf32LEDecode: ZTransducer[Any, Nothing, Byte, String] =
     utfFixedLengthDecode(Charset.forName("UTF-32LE"), 4)
@@ -994,8 +971,7 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
   /**
    * Decodes chunks of US-ASCII bytes into strings.
    *
-   * This transducer uses the String constructor's behavior when handling malformed byte
-   * sequences.
+   * This transducer uses the String constructor's behavior when handling malformed byte sequences.
    */
   val usASCIIDecode: ZTransducer[Any, Nothing, Byte, String] =
     ZTransducer.fromPush {

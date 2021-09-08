@@ -22,8 +22,8 @@ import zio.test.{Gen, Sized}
 import scala.annotation.tailrec
 
 /**
- * `GenOrderingPoly` provides evidence that instances of `Gen[T]` and
- * `Ordering[T]` exist for some concrete but unknown type `T`.
+ * `GenOrderingPoly` provides evidence that instances of `Gen[T]` and `Ordering[T]` exist for some concrete but unknown
+ * type `T`.
  */
 trait GenOrderingPoly extends GenPoly {
   val ordT: Ordering[T]
@@ -32,8 +32,8 @@ trait GenOrderingPoly extends GenPoly {
 object GenOrderingPoly {
 
   /**
-   * Constructs an instance of `GenOrderingPoly` using the specified `Gen` and
-   * `Ordering` instances, existentially hiding the underlying type.
+   * Constructs an instance of `GenOrderingPoly` using the specified `Gen` and `Ordering` instances, existentially
+   * hiding the underlying type.
    */
   def apply[A](gen: Gen[Random with Sized, A], ord: Ordering[A]): GenOrderingPoly =
     new GenOrderingPoly {
@@ -43,8 +43,7 @@ object GenOrderingPoly {
     }
 
   /**
-   * Provides evidence that instances of `Gen` and a `Ordering` exist for
-   * booleans.
+   * Provides evidence that instances of `Gen` and a `Ordering` exist for booleans.
    */
   val boolean: GenOrderingPoly =
     GenOrderingPoly(Gen.boolean, Ordering.Boolean)
@@ -56,8 +55,7 @@ object GenOrderingPoly {
     GenNumericPoly.byte
 
   /**
-   * Provides evidence that instances of `Gen` and `Ordering` exist for
-   * characters.
+   * Provides evidence that instances of `Gen` and `Ordering` exist for characters.
    */
   val char: GenOrderingPoly =
     GenNumericPoly.char
@@ -96,16 +94,14 @@ object GenOrderingPoly {
   }
 
   /**
-   * Provides evidence that instances of `Gen` and `Ordering` exist for
-   * integers.
+   * Provides evidence that instances of `Gen` and `Ordering` exist for integers.
    */
   val int: GenOrderingPoly =
     GenNumericPoly.int
 
   /**
-   * Provides evidence that instances of `Gen[List[T]]` and
-   * `Ordering[List[T]]` exist for any type for which `Gen[T]` and
-   * `Ordering[T]` exist.
+   * Provides evidence that instances of `Gen[List[T]]` and `Ordering[List[T]]` exist for any type for which `Gen[T]`
+   * and `Ordering[T]` exist.
    */
   def list(poly: GenOrderingPoly): GenOrderingPoly =
     GenOrderingPoly(Gen.listOf(poly.genT), ListOrdering(poly.ordT))
@@ -117,9 +113,8 @@ object GenOrderingPoly {
     GenNumericPoly.long
 
   /**
-   * Provides evidence that instances of `Gen[Option[T]]` and
-   * `Ordering[Option[T]]` exist for any type for which `Gen[T]` and
-   * `Ordering[T]` exist.
+   * Provides evidence that instances of `Gen[Option[T]]` and `Ordering[Option[T]]` exist for any type for which
+   * `Gen[T]` and `Ordering[T]` exist.
    */
   def option(poly: GenOrderingPoly): GenOrderingPoly =
     GenOrderingPoly(Gen.option(poly.genT), Ordering.Option(poly.ordT))
@@ -131,23 +126,20 @@ object GenOrderingPoly {
     GenNumericPoly.long
 
   /**
-   * Provides evidence that instances of `Gen` and `Ordering` exist for
-   * strings.
+   * Provides evidence that instances of `Gen` and `Ordering` exist for strings.
    */
   val string: GenOrderingPoly =
     GenOrderingPoly(Gen.anyString, Ordering.String)
 
   /**
-   * Provides evidence that instances of `Gen` and `Ordering` exist for
-   * the unit value.
+   * Provides evidence that instances of `Gen` and `Ordering` exist for the unit value.
    */
   val unit: GenOrderingPoly =
     GenOrderingPoly(Gen.unit, Ordering.Unit)
 
   /**
-   * Provides evidence that instances of `Gen[Vector[T]]` and
-   * `Ordering[Vector[T]]` exist for any type for which `Gen[T]` and
-   * `Ordering[T]` exist.
+   * Provides evidence that instances of `Gen[Vector[T]]` and `Ordering[Vector[T]]` exist for any type for which
+   * `Gen[T]` and `Ordering[T]` exist.
    */
   def vector(poly: GenOrderingPoly): GenOrderingPoly =
     GenOrderingPoly(Gen.vectorOf(poly.genT), VectorOrdering(poly.ordT))

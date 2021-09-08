@@ -23,19 +23,16 @@ import scala.collection.mutable.Builder
 import scala.reflect.{ClassTag, classTag}
 
 /**
- * A `Chunk[A]` represents a chunk of values of type `A`. Chunks are designed
- * are usually backed by arrays, but expose a purely functional, safe interface
- * to the underlying elements, and they become lazy on operations that would be
- * costly with arrays, such as repeated concatenation.
+ * A `Chunk[A]` represents a chunk of values of type `A`. Chunks are designed are usually backed by arrays, but expose a
+ * purely functional, safe interface to the underlying elements, and they become lazy on operations that would be costly
+ * with arrays, such as repeated concatenation.
  *
- * The implementation of balanced concatenation is based on the one for
- * Conc-Trees in "Conc-Trees for Functional and Parallel Programming" by
- * Aleksandar Prokopec and Martin Odersky.
+ * The implementation of balanced concatenation is based on the one for Conc-Trees in "Conc-Trees for Functional and
+ * Parallel Programming" by Aleksandar Prokopec and Martin Odersky.
  * [[http://aleksandar-prokopec.com/resources/docs/lcpc-conc-trees.pdf]]
  *
- * NOTE: For performance reasons `Chunk` does not box primitive types. As a
- * result, it is not safe to construct chunks from heterogeneous primitive
- * types.
+ * NOTE: For performance reasons `Chunk` does not box primitive types. As a result, it is not safe to construct chunks
+ * from heterogeneous primitive types.
  */
 sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
 
@@ -134,9 +131,8 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
     if (isEmpty) ZIO.succeedNow(Chunk.empty) else self.materialize.collectWhileM(pf)
 
   /**
-   * Determines whether this chunk and the specified chunk have the same length
-   * and every pair of corresponding elements of this chunk and the specified
-   * chunk satisfy the specified predicate.
+   * Determines whether this chunk and the specified chunk have the same length and every pair of corresponding elements
+   * of this chunk and the specified chunk satisfy the specified predicate.
    */
   final def corresponds[B](that: Chunk[B])(f: (A, B) => Boolean): Boolean =
     if (self.length != that.length) false
@@ -340,8 +336,8 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
   }
 
   /**
-   * Filters this chunk by the specified effectful predicate, retaining all elements for
-   * which the predicate evaluates to true.
+   * Filters this chunk by the specified effectful predicate, retaining all elements for which the predicate evaluates
+   * to true.
    */
   final def filterM[R, E](f: A => ZIO[R, E, Boolean]): ZIO[R, E, Chunk[A]] = ZIO.effectSuspendTotal {
     val iterator = arrayIterator
@@ -441,8 +437,7 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
   }
 
   /**
-   * Folds over the elements in this chunk from the left.
-   * Stops the fold early when the condition is not fulfilled.
+   * Folds over the elements in this chunk from the left. Stops the fold early when the condition is not fulfilled.
    */
   final def foldWhile[S](s0: S)(pred: S => Boolean)(f: (S, A) => S): S = {
     val iterator = arrayIterator
@@ -511,11 +506,10 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
   }
 
   /**
-   * Returns the first element of this chunk. Note that this method is partial
-   * in that it will throw an exception if the chunk is empty. Consider using
-   * `headOption` to explicitly handle the possibility that the chunk is empty
-   * or iterating over the elements of the chunk in lower level, performance
-   * sensitive code unless you really only need the first element of the chunk.
+   * Returns the first element of this chunk. Note that this method is partial in that it will throw an exception if the
+   * chunk is empty. Consider using `headOption` to explicitly handle the possibility that the chunk is empty or
+   * iterating over the elements of the chunk in lower level, performance sensitive code unless you really only need the
+   * first element of the chunk.
    */
   override def head: A =
     self(0)
@@ -600,8 +594,7 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
   }
 
   /**
-   * Statefully and effectfully maps over the elements of this chunk to produce
-   * new elements.
+   * Statefully and effectfully maps over the elements of this chunk to produce new elements.
    */
   final def mapAccumM[R, E, S1, B](s1: S1)(f1: (S1, A) => ZIO[R, E, (S1, B)]): ZIO[R, E, (S1, Chunk[B])] =
     ZIO.effectSuspendTotal {
@@ -652,8 +645,7 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
     ZIO.foreach_(self)(f)
 
   /**
-   * Materializes a chunk into a chunk backed by an array. This method can
-   * improve the performance of bulk operations.
+   * Materializes a chunk into a chunk backed by an array. This method can improve the performance of bulk operations.
    */
   def materialize[A1 >: A]: Chunk[A1] =
     self.toArrayOption[A1] match {
@@ -668,8 +660,7 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
     if (isEmpty) ifEmpty else fn(NonEmptyChunk.nonEmpty(self))
 
   /**
-   * Partitions the elements of this chunk into two chunks using the specified
-   * function.
+   * Partitions the elements of this chunk into two chunks using the specified function.
    */
   override final def partitionMap[B, C](f: A => Either[B, C]): (Chunk[B], Chunk[C]) = {
     val bs = ChunkBuilder.make[B]()
@@ -861,28 +852,23 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
     toArrayOption.fold("Chunk()")(_.mkString("Chunk(", ",", ")"))
 
   /**
-   * Zips this chunk with the specified chunk to produce a new chunk with
-   * pairs of elements from each chunk. The returned chunk will have the
-   * length of the shorter chunk.
+   * Zips this chunk with the specified chunk to produce a new chunk with pairs of elements from each chunk. The
+   * returned chunk will have the length of the shorter chunk.
    */
   final def zip[B](that: Chunk[B]): Chunk[(A, B)] =
     zipWith(that)((_, _))
 
   /**
-   * Zips this chunk with the specified chunk to produce a new chunk with
-   * pairs of elements from each chunk, filling in missing values from the
-   * shorter chunk with `None`. The returned chunk will have the length of the
-   * longer chunk.
+   * Zips this chunk with the specified chunk to produce a new chunk with pairs of elements from each chunk, filling in
+   * missing values from the shorter chunk with `None`. The returned chunk will have the length of the longer chunk.
    */
   final def zipAll[B](that: Chunk[B]): Chunk[(Option[A], Option[B])] =
     zipAllWith(that)(a => (Some(a), None), b => (None, Some(b)))((a, b) => (Some(a), Some(b)))
 
   /**
-   * Zips with chunk with the specified chunk to produce a new chunk with
-   * pairs of elements from each chunk combined using the specified function
-   * `both`. If one chunk is shorter than the other uses the specified
-   * function `left` or `right` to map the element that does exist to the
-   * result type.
+   * Zips with chunk with the specified chunk to produce a new chunk with pairs of elements from each chunk combined
+   * using the specified function `both`. If one chunk is shorter than the other uses the specified function `left` or
+   * `right` to map the element that does exist to the result type.
    */
   final def zipAllWith[B, C](
     that: Chunk[B]
@@ -978,8 +964,7 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
   }
 
   /**
-   * Zips this chunk with the index of every element, starting from the initial
-   * index value.
+   * Zips this chunk with the index of every element, starting from the initial index value.
    */
   final def zipWithIndexFrom(indexOffset: Int): Chunk[(A, Int)] = {
     val iterator = arrayIterator
@@ -1014,9 +999,8 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
   }
 
   /**
-   * Returns an `Iterator` that iterates over the arrays underlying this
-   * `Chunk`. Note that this method is side effecting because it allocates
-   * mutable state and should only be used internally.
+   * Returns an `Iterator` that iterates over the arrays underlying this `Chunk`. Note that this method is side
+   * effecting because it allocates mutable state and should only be used internally.
    */
   private[zio] def arrayIterator[A1 >: A]: Iterator[Array[A1]] =
     materialize.arrayIterator
@@ -1064,11 +1048,9 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
   }
 
   /**
-   * Returns an `Iterator` that iterates over the arrays underlying this
-   * `Chunk` in reverse order. While the arrays will be iterated over in
-   * reverse order the ordering of elements in the arrays themselves will not
-   * be changed.  Note that this method is side effecting because it allocates
-   * mutable state and should only be used internally.
+   * Returns an `Iterator` that iterates over the arrays underlying this `Chunk` in reverse order. While the arrays will
+   * be iterated over in reverse order the ordering of elements in the arrays themselves will not be changed. Note that
+   * this method is side effecting because it allocates mutable state and should only be used internally.
    */
   private[zio] def reverseArrayIterator[A1 >: A]: Iterator[Array[A1]] =
     materialize.arrayIterator
@@ -1260,8 +1242,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     single(a)
 
   /**
-   * Constructs a `Chunk` by repeatedly applying the function `f` as long as it
-   * returns `Some`.
+   * Constructs a `Chunk` by repeatedly applying the function `f` as long as it returns `Some`.
    */
   def unfold[S, A](s: S)(f: S => Option[(A, S)]): Chunk[A] = {
 
@@ -1276,8 +1257,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
   }
 
   /**
-   * Constructs a `Chunk` by repeatedly applying the effectual function `f` as
-   * long as it returns `Some`.
+   * Constructs a `Chunk` by repeatedly applying the effectual function `f` as long as it returns `Some`.
    */
   def unfoldM[R, E, A, S](s: S)(f: S => ZIO[R, E, Option[(A, S)]]): ZIO[R, E, Chunk[A]] =
     ZIO.effectSuspendTotal {
@@ -1778,8 +1758,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     }
 
     /**
-     * Materializes a chunk into a chunk backed by an array. This method can
-     * improve the performance of bulk operations.
+     * Materializes a chunk into a chunk backed by an array. This method can improve the performance of bulk operations.
      */
     override def materialize[A1]: Chunk[A1] =
       Empty

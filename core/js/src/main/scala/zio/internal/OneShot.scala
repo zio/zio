@@ -17,14 +17,12 @@
 package zio.internal
 
 /**
- * A variable that can be set a single time. The synchronous,
- * effectful equivalent of `Promise`.
+ * A variable that can be set a single time. The synchronous, effectful equivalent of `Promise`.
  */
 private[zio] final class OneShot[A] private (var value: A) {
 
   /**
-   * Sets the variable to the value. The behavior of this function
-   * is undefined if the variable has already been set.
+   * Sets the variable to the value. The behavior of this function is undefined if the variable has already been set.
    */
   def set(v: A): Unit = {
     if (v == null) throw new Error("Defect: OneShot variable cannot be set to null value")

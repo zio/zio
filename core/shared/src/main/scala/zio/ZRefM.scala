@@ -19,31 +19,25 @@ package zio
 import com.github.ghik.silencer.silent
 
 /**
- * A `ZRefM[RA, RB, EA, EB, A, B]` is a polymorphic, purely functional
- * description of a mutable reference. The fundamental operations of a `ZRefM`
- * are `set` and `get`. `set` takes a value of type `A` and sets the reference
- * to a new value, requiring an environment of type `RA` and potentially
- * failing with an error of type `EA`. `get` gets the current value of the
- * reference and returns a value of type `B`, requiring an environment of type
- * `RB` and potentially failing with an error of type `EB`.
+ * A `ZRefM[RA, RB, EA, EB, A, B]` is a polymorphic, purely functional description of a mutable reference. The
+ * fundamental operations of a `ZRefM` are `set` and `get`. `set` takes a value of type `A` and sets the reference to a
+ * new value, requiring an environment of type `RA` and potentially failing with an error of type `EA`. `get` gets the
+ * current value of the reference and returns a value of type `B`, requiring an environment of type `RB` and potentially
+ * failing with an error of type `EB`.
  *
- * When the error and value types of the `ZRefM` are unified, that is, it is a
- * `ZRefM[E, E, A, A]`, the `ZRefM` also supports atomic `modify` and `update`
- * operations.
+ * When the error and value types of the `ZRefM` are unified, that is, it is a `ZRefM[E, E, A, A]`, the `ZRefM` also
+ * supports atomic `modify` and `update` operations.
  *
- * Unlike `ZRef`, `ZRefM` allows performing effects within update operations,
- * at some cost to performance. Writes will semantically block other writers,
- * while multiple readers can read simultaneously.
+ * Unlike `ZRef`, `ZRefM` allows performing effects within update operations, at some cost to performance. Writes will
+ * semantically block other writers, while multiple readers can read simultaneously.
  */
 sealed abstract class ZRefM[-RA, -RB, +EA, +EB, -A, +B] { self =>
 
   /**
-   * Folds over the error and value types of the `ZRefM`. This is a highly
-   * polymorphic method that is capable of arbitrarily transforming the error
-   * and value types of the `ZRefM`. For most use cases one of the more
-   * specific combinators implemented in terms of `foldM` will be more
-   * ergonomic but this method is extremely useful for implementing new
-   * combinators.
+   * Folds over the error and value types of the `ZRefM`. This is a highly polymorphic method that is capable of
+   * arbitrarily transforming the error and value types of the `ZRefM`. For most use cases one of the more specific
+   * combinators implemented in terms of `foldM` will be more ergonomic but this method is extremely useful for
+   * implementing new combinators.
    */
   def foldM[RC <: RA, RD <: RB, EC, ED, C, D](
     ea: EA => EC,
@@ -53,9 +47,8 @@ sealed abstract class ZRefM[-RA, -RB, +EA, +EB, -A, +B] { self =>
   ): ZRefM[RC, RD, EC, ED, C, D]
 
   /**
-   * Folds over the error and value types of the `ZRefM`, allowing access to
-   * the state in transforming the `set` value. This is a more powerful version
-   * of `foldM` but requires unifying the environment and error types.
+   * Folds over the error and value types of the `ZRefM`, allowing access to the state in transforming the `set` value.
+   * This is a more powerful version of `foldM` but requires unifying the environment and error types.
    */
   def foldAllM[RC <: RA with RB, RD <: RB, EC, ED, C, D](
     ea: EA => EC,
@@ -71,30 +64,26 @@ sealed abstract class ZRefM[-RA, -RB, +EA, +EB, -A, +B] { self =>
   def get: ZIO[RB, EB, B]
 
   /**
-   * Writes a new value to the `ZRefM`, with a guarantee of immediate
-   * consistency (at some cost to performance).
+   * Writes a new value to the `ZRefM`, with a guarantee of immediate consistency (at some cost to performance).
    */
   def set(a: A): ZIO[RA, EA, Unit]
 
   /**
-   * Writes a new value to the `ZRefM` without providing a guarantee of
-   * immediate consistency.
+   * Writes a new value to the `ZRefM` without providing a guarantee of immediate consistency.
    */
   def setAsync(a: A): ZIO[RA, EA, Unit]
 
   /**
-   * Maps and filters the `get` value of the `ZRefM` with the specified partial
-   * function, returning a `ZRefM` with a `get` value that succeeds with the
-   * result of the partial function if it is defined or else fails with `None`.
+   * Maps and filters the `get` value of the `ZRefM` with the specified partial function, returning a `ZRefM` with a
+   * `get` value that succeeds with the result of the partial function if it is defined or else fails with `None`.
    */
   final def collect[C](pf: PartialFunction[B, C]): ZRefM[RA, RB, EA, Option[EB], A, C] =
     collectM(pf.andThen(ZIO.succeedNow(_)))
 
   /**
-   * Maps and filters the `get` value of the `ZRefM` with the specified
-   * effectual partial function, returning a `ZRefM` with a `get` value that
-   * succeeds with the result of the partial function if it is defined or else
-   * fails with `None`.
+   * Maps and filters the `get` value of the `ZRefM` with the specified effectual partial function, returning a `ZRefM`
+   * with a `get` value that succeeds with the result of the partial function if it is defined or else fails with
+   * `None`.
    */
   final def collectM[RC <: RB, EC >: EB, C](
     pf: PartialFunction[B, ZIO[RC, EC, C]]
@@ -113,22 +102,19 @@ sealed abstract class ZRefM[-RA, -RB, +EA, +EB, -A, +B] { self =>
     contramapM(c => ZIO.succeedNow(f(c)))
 
   /**
-   * Transforms the `set` value of the `ZRefM` with the specified effectual
-   * function.
+   * Transforms the `set` value of the `ZRefM` with the specified effectual function.
    */
   final def contramapM[RC <: RA, EC >: EA, C](f: C => ZIO[RC, EC, A]): ZRefM[RC, RB, EC, EB, C, B] =
     dimapM(f, ZIO.succeedNow)
 
   /**
-   * Transforms both the `set` and `get` values of the `ZRefM` with the
-   * specified functions.
+   * Transforms both the `set` and `get` values of the `ZRefM` with the specified functions.
    */
   final def dimap[C, D](f: C => A, g: B => D): ZRefM[RA, RB, EA, EB, C, D] =
     dimapM(c => ZIO.succeedNow(f(c)), b => ZIO.succeedNow(g(b)))
 
   /**
-   * Transforms both the `set` and `get` values of the `ZRefM` with the
-   * specified effectual functions.
+   * Transforms both the `set` and `get` values of the `ZRefM` with the specified effectual functions.
    */
   final def dimapM[RC <: RA, RD <: RB, EC >: EA, ED >: EB, C, D](
     f: C => ZIO[RC, EC, A],
@@ -137,24 +123,21 @@ sealed abstract class ZRefM[-RA, -RB, +EA, +EB, -A, +B] { self =>
     foldM(identity, identity, f, g)
 
   /**
-   * Transforms both the `set` and `get` errors of the `ZRefM` with the
-   * specified functions.
+   * Transforms both the `set` and `get` errors of the `ZRefM` with the specified functions.
    */
   final def dimapError[EC, ED](f: EA => EC, g: EB => ED): ZRefM[RA, RB, EC, ED, A, B] =
     fold(f, g, Right(_), Right(_))
 
   /**
-   * Filters the `set` value of the `ZRefM` with the specified predicate,
-   * returning a `ZRefM` with a `set` value that succeeds if the predicate is
-   * satisfied or else fails with `None`.
+   * Filters the `set` value of the `ZRefM` with the specified predicate, returning a `ZRefM` with a `set` value that
+   * succeeds if the predicate is satisfied or else fails with `None`.
    */
   final def filterInput[A1 <: A](f: A1 => Boolean): ZRefM[RA, RB, Option[EA], EB, A1, B] =
     filterInputM(a => ZIO.succeedNow(f(a)))
 
   /**
-   * Filters the `set` value of the `ZRefM` with the specified effectual
-   * predicate, returning a `ZRefM` with a `set` value that succeeds if the
-   * predicate is satisfied or else fails with `None`.
+   * Filters the `set` value of the `ZRefM` with the specified effectual predicate, returning a `ZRefM` with a `set`
+   * value that succeeds if the predicate is satisfied or else fails with `None`.
    */
   final def filterInputM[RC <: RA, EC >: EA, A1 <: A](
     f: A1 => ZIO[RC, EC, Boolean]
@@ -162,17 +145,15 @@ sealed abstract class ZRefM[-RA, -RB, +EA, +EB, -A, +B] { self =>
     foldM(Some(_), identity, a => ZIO.ifM(f(a).asSomeError)(ZIO.succeedNow(a), ZIO.fail(None)), ZIO.succeedNow)
 
   /**
-   * Filters the `get` value of the `ZRefM` with the specified predicate,
-   * returning a `ZRefM` with a `get` value that succeeds if the predicate is
-   * satisfied or else fails with `None`.
+   * Filters the `get` value of the `ZRefM` with the specified predicate, returning a `ZRefM` with a `get` value that
+   * succeeds if the predicate is satisfied or else fails with `None`.
    */
   final def filterOutput(f: B => Boolean): ZRefM[RA, RB, EA, Option[EB], A, B] =
     filterOutputM(a => ZIO.succeedNow(f(a)))
 
   /**
-   * Filters the `get` value of the `ZRefM` with the specified effectual predicate,
-   * returning a `ZRefM` with a `get` value that succeeds if the predicate is
-   * satisfied or else fails with `None`.
+   * Filters the `get` value of the `ZRefM` with the specified effectual predicate, returning a `ZRefM` with a `get`
+   * value that succeeds if the predicate is satisfied or else fails with `None`.
    */
   final def filterOutputM[RC <: RB, EC >: EB](f: B => ZIO[RC, EC, Boolean]): ZRefM[RA, RC, EA, Option[EC], A, B] =
     foldM(identity, Some(_), ZIO.succeedNow, b => ZIO.ifM(f(b).asSomeError)(ZIO.succeedNow(b), ZIO.fail(None)))
@@ -189,9 +170,8 @@ sealed abstract class ZRefM[-RA, -RB, +EA, +EB, -A, +B] { self =>
     foldM(ea, eb, c => ZIO.fromEither(ca(c)), b => ZIO.fromEither(bd(b)))
 
   /**
-   * Folds over the error and value types of the `ZRefM`, allowing access to
-   * the state in transforming the `set` value but requiring unifying the error
-   * type.
+   * Folds over the error and value types of the `ZRefM`, allowing access to the state in transforming the `set` value
+   * but requiring unifying the error type.
    */
   def foldAll[EC, ED, C, D](
     ea: EA => EC,
@@ -209,8 +189,7 @@ sealed abstract class ZRefM[-RA, -RB, +EA, +EB, -A, +B] { self =>
     mapM(b => ZIO.succeedNow(f(b)))
 
   /**
-   * Transforms the `get` value of the `ZRefM` with the specified effectual
-   * function.
+   * Transforms the `get` value of the `ZRefM` with the specified effectual function.
    */
   final def mapM[RC <: RB, EC >: EB, C](f: B => ZIO[RC, EC, C]): ZRefM[RA, RC, EA, EC, A, C] =
     dimapM(ZIO.succeedNow, f)
@@ -222,15 +201,13 @@ sealed abstract class ZRefM[-RA, -RB, +EA, +EB, -A, +B] { self =>
     self
 
   /**
-   * Performs the specified effect every time a value is written to this
-   * `ZRefM`.
+   * Performs the specified effect every time a value is written to this `ZRefM`.
    */
   final def tapInput[RC <: RA, EC >: EA, A1 <: A](f: A1 => ZIO[RC, EC, Any]): ZRefM[RC, RB, EC, EB, A1, B] =
     contramapM(a => f(a).as(a))
 
   /**
-   * Performs the specified effect very time a value is read from this
-   * `ZRefM`.
+   * Performs the specified effect very time a value is read from this `ZRefM`.
    */
   final def tapOutput[RC <: RB, EC >: EB](f: B => ZIO[RC, EC, Any]): ZRefM[RA, RC, EA, EC, A, B] =
     mapM(b => f(b).as(b))
@@ -396,31 +373,27 @@ object ZRefM {
   implicit class UnifiedSyntax[-R, +E, A](private val self: ZRefM[R, R, E, E, A, A]) extends AnyVal {
 
     /**
-     * Writes a new value to the `RefM`, returning the value immediately before
-     * modification.
+     * Writes a new value to the `RefM`, returning the value immediately before modification.
      */
     def getAndSet(a: A): ZIO[R, E, A] =
       modify(v => ZIO.succeedNow((v, a)))
 
     /**
-     * Atomically modifies the `RefM` with the specified function, returning the
-     * value immediately before modification.
+     * Atomically modifies the `RefM` with the specified function, returning the value immediately before modification.
      */
     def getAndUpdate[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, A]): ZIO[R1, E1, A] =
       modify(v => f(v).map(result => (v, result)))
 
     /**
-     * Atomically modifies the `RefM` with the specified partial function,
-     * returning the value immediately before modification.
-     * If the function is undefined on the current value it doesn't change it.
+     * Atomically modifies the `RefM` with the specified partial function, returning the value immediately before
+     * modification. If the function is undefined on the current value it doesn't change it.
      */
     def getAndUpdateSome[R1 <: R, E1 >: E](pf: PartialFunction[A, ZIO[R1, E1, A]]): ZIO[R1, E1, A] =
       modify(v => pf.applyOrElse[A, ZIO[R1, E1, A]](v, ZIO.succeedNow).map(result => (v, result)))
 
     /**
-     * Atomically modifies the `RefM` with the specified function, which computes
-     * a return value for the modification. This is a more powerful version of
-     * `update`.
+     * Atomically modifies the `RefM` with the specified function, which computes a return value for the modification.
+     * This is a more powerful version of `update`.
      */
     @silent("unreachable code")
     def modify[R1 <: R, E1 >: E, B](f: A => ZIO[R1, E1, (B, A)]): ZIO[R1, E1, B] =
@@ -446,10 +419,9 @@ object ZRefM {
       }
 
     /**
-     * Atomically modifies the `RefM` with the specified function, which computes
-     * a return value for the modification if the function is defined in the current value
-     * otherwise it returns a default value.
-     * This is a more powerful version of `updateSome`.
+     * Atomically modifies the `RefM` with the specified function, which computes a return value for the modification if
+     * the function is defined in the current value otherwise it returns a default value. This is a more powerful
+     * version of `updateSome`.
      */
     def modifySome[R1 <: R, E1 >: E, B](default: B)(pf: PartialFunction[A, ZIO[R1, E1, (B, A)]]): ZIO[R1, E1, B] =
       modify(v => pf.applyOrElse[A, ZIO[R1, E1, (B, A)]](v, _ => ZIO.succeedNow((default, v))))
@@ -461,31 +433,28 @@ object ZRefM {
       modify(v => f(v).map(result => ((), result)))
 
     /**
-     * Atomically modifies the `RefM` with the specified function, returning the
-     * value immediately after modification.
+     * Atomically modifies the `RefM` with the specified function, returning the value immediately after modification.
      */
     def updateAndGet[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, A]): ZIO[R1, E1, A] =
       modify(v => f(v).map(result => (result, result)))
 
     /**
-     * Atomically modifies the `RefM` with the specified partial function.
-     * If the function is undefined on the current value it doesn't change it.
+     * Atomically modifies the `RefM` with the specified partial function. If the function is undefined on the current
+     * value it doesn't change it.
      */
     def updateSome[R1 <: R, E1 >: E](pf: PartialFunction[A, ZIO[R1, E1, A]]): ZIO[R1, E1, Unit] =
       modify(v => pf.applyOrElse[A, ZIO[R1, E1, A]](v, ZIO.succeedNow).map(result => ((), result)))
 
     /**
-     * Atomically modifies the `RefM` with the specified partial function.
-     * If the function is undefined on the current value it returns the old value
-     * without changing it.
+     * Atomically modifies the `RefM` with the specified partial function. If the function is undefined on the current
+     * value it returns the old value without changing it.
      */
     def updateSomeAndGet[R1 <: R, E1 >: E](pf: PartialFunction[A, ZIO[R1, E1, A]]): ZIO[R1, E1, A] =
       modify(v => pf.applyOrElse[A, ZIO[R1, E1, A]](v, ZIO.succeedNow).map(result => (result, result)))
   }
 
   /**
-   * Creates a new `RefM` and a `Dequeue` that will emit every change to the
-   * `RefM`.
+   * Creates a new `RefM` and a `Dequeue` that will emit every change to the `RefM`.
    */
   @deprecated("use SubscriptionRef", "2.0.0")
   def dequeueRef[A](a: A): UIO[(RefM[A], Dequeue[A])] =
@@ -504,8 +473,7 @@ object ZRefM {
     } yield Atomic(ref, semaphore)
 
   /**
-   * Creates a new `ZRefM` with the specified value in the context of a
-   * `Managed.`
+   * Creates a new `ZRefM` with the specified value in the context of a `Managed.`
    */
   def makeManaged[A](a: A): UManaged[RefM[A]] =
     make(a).toManaged_

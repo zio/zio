@@ -40,8 +40,7 @@ final class TSet[A] private (private val tmap: TMap[A, Unit]) extends AnyVal {
     tmap.delete(a)
 
   /**
-   * Atomically transforms the set into the difference of itself and the
-   * provided set.
+   * Atomically transforms the set into the difference of itself and the provided set.
    */
   def diff(other: TSet[A]): USTM[Unit] =
     other.toSet.flatMap(vals => removeIf(vals.contains))
@@ -65,8 +64,7 @@ final class TSet[A] private (private val tmap: TMap[A, Unit]) extends AnyVal {
     foldM(())((_, a) => f(a))
 
   /**
-   * Atomically transforms the set into the intersection of itself and the
-   * provided set.
+   * Atomically transforms the set into the intersection of itself and the provided set.
    */
   def intersect(other: TSet[A]): USTM[Unit] =
     other.toSet.flatMap(vals => retainIf(vals.contains))
@@ -117,8 +115,7 @@ final class TSet[A] private (private val tmap: TMap[A, Unit]) extends AnyVal {
     tmap.transformM((k, v) => f(k).map(_ -> v))
 
   /**
-   * Atomically transforms the set into the union of itself and the provided
-   * set.
+   * Atomically transforms the set into the union of itself and the provided set.
    */
   def union(other: TSet[A]): USTM[Unit] =
     other.foreach(put)

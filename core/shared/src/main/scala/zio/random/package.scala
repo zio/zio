@@ -231,8 +231,7 @@ package object random {
     ZIO.accessM(_.get.nextFloatBetween(minInclusive, maxExclusive))
 
   /**
-   * Generates a pseudo-random double from a normal distribution with mean 0.0
-   * and standard deviation 1.0.
+   * Generates a pseudo-random double from a normal distribution with mean 0.0 and standard deviation 1.0.
    */
   val nextGaussian: URIO[Random, Double] =
     ZIO.accessM(_.get.nextGaussian)
@@ -250,8 +249,7 @@ package object random {
     ZIO.accessM(_.get.nextIntBetween(minInclusive, maxExclusive))
 
   /**
-   * Generates a pseudo-random integer between 0 (inclusive) and the specified
-   * value (exclusive).
+   * Generates a pseudo-random integer between 0 (inclusive) and the specified value (exclusive).
    */
   def nextIntBounded(n: => Int): URIO[Random, Int] =
     ZIO.accessM(_.get.nextIntBounded(n))
@@ -269,8 +267,7 @@ package object random {
     ZIO.accessM(_.get.nextLongBetween(minInclusive, maxExclusive))
 
   /**
-   * Generates a pseudo-random long between 0 (inclusive) and the specified
-   * value (exclusive).
+   * Generates a pseudo-random long between 0 (inclusive) and the specified value (exclusive).
    */
   def nextLongBounded(n: => Long): URIO[Random, Long] =
     ZIO.accessM(_.get.nextLongBounded(n))

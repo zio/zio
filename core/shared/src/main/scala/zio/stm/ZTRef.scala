@@ -23,22 +23,18 @@ import zio.stm.ZSTM.internal._
 import java.util.concurrent.atomic.AtomicReference
 
 /**
- * A `ZTRef[EA, EB, A, B]` is a polymorphic, purely functional description of a
- * mutable reference that can be modified as part of a transactional effect. The
- * fundamental operations of a `ZTRef` are `set` and `get`. `set` takes a value
- * of type `A` and transactionally sets the reference to a new value, potentially
- * failing with an error of type `EA`. `get` gets the current value of the reference
- * and returns a value of type `B`, potentially failing with an error of type `EB`.
+ * A `ZTRef[EA, EB, A, B]` is a polymorphic, purely functional description of a mutable reference that can be modified
+ * as part of a transactional effect. The fundamental operations of a `ZTRef` are `set` and `get`. `set` takes a value
+ * of type `A` and transactionally sets the reference to a new value, potentially failing with an error of type `EA`.
+ * `get` gets the current value of the reference and returns a value of type `B`, potentially failing with an error of
+ * type `EB`.
  *
- * When the error and value types of the `ZTRef` are unified, that is, it is a
- * `ZTRef[E, E, A, A]`, the `ZTRef` also supports atomic `modify` and `update`
- * operations. All operations are guaranteed to be executed transactionally.
+ * When the error and value types of the `ZTRef` are unified, that is, it is a `ZTRef[E, E, A, A]`, the `ZTRef` also
+ * supports atomic `modify` and `update` operations. All operations are guaranteed to be executed transactionally.
  *
- * NOTE: While `ZTRef` provides the transactional equivalent of a mutable reference,
- * the value inside the `ZTRef` should be immutable. For performance reasons `ZTRef`
- * is implemented in terms of compare and swap operations rather than synchronization.
- * These operations are not safe for mutable values that do not support concurrent
- * access.
+ * NOTE: While `ZTRef` provides the transactional equivalent of a mutable reference, the value inside the `ZTRef` should
+ * be immutable. For performance reasons `ZTRef` is implemented in terms of compare and swap operations rather than
+ * synchronization. These operations are not safe for mutable values that do not support concurrent access.
  */
 sealed abstract class ZTRef[+EA, +EB, -A, +B] extends Serializable { self =>
 
@@ -55,11 +51,10 @@ sealed abstract class ZTRef[+EA, +EB, -A, +B] extends Serializable { self =>
   def set(a: A): STM[EA, Unit]
 
   /**
-   * Folds over the error and value types of the `ZTRef`. This is a highly
-   * polymorphic method that is capable of arbitrarily transforming the error
-   * and value types of the `ZTRef`. For most use cases one of the more
-   * specific combinators implemented in terms of `fold` will be more ergonomic
-   * but this method is extremely useful for implementing new combinators.
+   * Folds over the error and value types of the `ZTRef`. This is a highly polymorphic method that is capable of
+   * arbitrarily transforming the error and value types of the `ZTRef`. For most use cases one of the more specific
+   * combinators implemented in terms of `fold` will be more ergonomic but this method is extremely useful for
+   * implementing new combinators.
    */
   def fold[EC, ED, C, D](
     ea: EA => EC,
@@ -69,9 +64,8 @@ sealed abstract class ZTRef[+EA, +EB, -A, +B] extends Serializable { self =>
   ): ZTRef[EC, ED, C, D]
 
   /**
-   * Folds over the error and value types of the `ZTRef`, allowing access to
-   * the state in transforming the `set` value. This is a more powerful version
-   * of `fold` but requires unifying the error types.
+   * Folds over the error and value types of the `ZTRef`, allowing access to the state in transforming the `set` value.
+   * This is a more powerful version of `fold` but requires unifying the error types.
    */
   def foldAll[EC, ED, C, D](
     ea: EA => EC,
@@ -82,9 +76,8 @@ sealed abstract class ZTRef[+EA, +EB, -A, +B] extends Serializable { self =>
   ): ZTRef[EC, ED, C, D]
 
   /**
-   * Maps and filters the `get` value of the `ZTRef` with the specified partial
-   * function, returning a `ZTRef` with a `get` value that succeeds with the
-   * result of the partial function if it is defined or else fails with `None`.
+   * Maps and filters the `get` value of the `ZTRef` with the specified partial function, returning a `ZTRef` with a
+   * `get` value that succeeds with the result of the partial function if it is defined or else fails with `None`.
    */
   final def collect[C](pf: PartialFunction[B, C]): ZTRef[EA, Option[EB], A, C] =
     fold(identity, Some(_), Right(_), pf.lift(_).toRight(None))
@@ -96,53 +89,46 @@ sealed abstract class ZTRef[+EA, +EB, -A, +B] extends Serializable { self =>
     contramapEither(c => Right(f(c)))
 
   /**
-   * Transforms the `set` value of the `ZTRef` with the specified fallible
-   * function.
+   * Transforms the `set` value of the `ZTRef` with the specified fallible function.
    */
   final def contramapEither[EC >: EA, C](f: C => Either[EC, A]): ZTRef[EC, EB, C, B] =
     dimapEither(f, Right(_))
 
   /**
-   * Transforms both the `set` and `get` values of the `ZTRef` with the
-   * specified functions.
+   * Transforms both the `set` and `get` values of the `ZTRef` with the specified functions.
    */
   final def dimap[C, D](f: C => A, g: B => D): ZTRef[EA, EB, C, D] =
     dimapEither(c => Right(f(c)), b => Right(g(b)))
 
   /**
-   * Transforms both the `set` and `get` values of the `ZTRef` with the
-   * specified fallible functions.
+   * Transforms both the `set` and `get` values of the `ZTRef` with the specified fallible functions.
    */
   final def dimapEither[EC >: EA, ED >: EB, C, D](f: C => Either[EC, A], g: B => Either[ED, D]): ZTRef[EC, ED, C, D] =
     fold(identity, identity, f, g)
 
   /**
-   * Transforms both the `set` and `get` errors of the `ZTRef` with the
-   * specified functions.
+   * Transforms both the `set` and `get` errors of the `ZTRef` with the specified functions.
    */
   final def dimapError[EC, ED](f: EA => EC, g: EB => ED): ZTRef[EC, ED, A, B] =
     fold(f, g, Right(_), Right(_))
 
   /**
-   * Filters the `set` value of the `ZTRef` with the specified predicate,
-   * returning a `ZTRef` with a `set` value that succeeds if the predicate is
-   * satisfied or else fails with `None`.
+   * Filters the `set` value of the `ZTRef` with the specified predicate, returning a `ZTRef` with a `set` value that
+   * succeeds if the predicate is satisfied or else fails with `None`.
    */
   final def filterInput[A1 <: A](f: A1 => Boolean): ZTRef[Option[EA], EB, A1, B] =
     fold(Some(_), identity, a => if (f(a)) Right(a) else Left(None), Right(_))
 
   /**
-   * Filters the `get` value of the `ZTRef` with the specified predicate,
-   * returning a `ZTRef` with a `get` value that succeeds if the predicate is
-   * satisfied or else fails with `None`.
+   * Filters the `get` value of the `ZTRef` with the specified predicate, returning a `ZTRef` with a `get` value that
+   * succeeds if the predicate is satisfied or else fails with `None`.
    */
   final def filterOutput(f: B => Boolean): ZTRef[EA, Option[EB], A, B] =
     fold(identity, Some(_), Right(_), b => if (f(b)) Right(b) else Left(None))
 
   /**
-   * Folds over the error and value types of the `ZTRef`, allowing access to
-   * the state in transforming the `set` value. This is a more powerful version
-   * of `fold` but requires unifying the error types.
+   * Folds over the error and value types of the `ZTRef`, allowing access to the state in transforming the `set` value.
+   * This is a more powerful version of `fold` but requires unifying the error types.
    */
   def foldAllM[EC, ED, C, D](
     ea: EA => EC,
@@ -161,11 +147,10 @@ sealed abstract class ZTRef[+EA, +EB, -A, +B] extends Serializable { self =>
     }
 
   /**
-   * Folds over the error and value types of the `ZTRef`. This is a highly
-   * polymorphic method that is capable of arbitrarily transforming the error
-   * and value types of the `ZTRef`. For most use cases one of the more
-   * specific combinators implemented in terms of `fold` will be more ergonomic
-   * but this method is extremely useful for implementing new combinators.
+   * Folds over the error and value types of the `ZTRef`. This is a highly polymorphic method that is capable of
+   * arbitrarily transforming the error and value types of the `ZTRef`. For most use cases one of the more specific
+   * combinators implemented in terms of `fold` will be more ergonomic but this method is extremely useful for
+   * implementing new combinators.
    */
   def foldM[EC, ED, C, D](
     ea: EA => EC,
@@ -189,8 +174,7 @@ sealed abstract class ZTRef[+EA, +EB, -A, +B] extends Serializable { self =>
     mapEither(b => Right(f(b)))
 
   /**
-   * Transforms the `get` value of the `ZTRef` with the specified fallible
-   * function.
+   * Transforms the `get` value of the `ZTRef` with the specified fallible function.
    */
   final def mapEither[EC >: EB, C](f: B => Either[EC, C]): ZTRef[EA, EC, A, C] =
     dimapEither(Right(_), f)
@@ -285,15 +269,13 @@ object ZTRef {
       })
 
     /**
-     * Updates some values of the variable but leaves others alone, returning the
-     * old value.
+     * Updates some values of the variable but leaves others alone, returning the old value.
      */
     def getAndUpdateSome(f: PartialFunction[A, A]): USTM[A] =
       getAndUpdate(f orElse { case a => a })
 
     /**
-     * Updates the value of the variable, returning a function of the specified
-     * value.
+     * Updates the value of the variable, returning a function of the specified value.
      */
     def modify[B](f: A => (B, A)): USTM[B] =
       new ZSTM((journal, _, _, _) => {
@@ -304,8 +286,7 @@ object ZTRef {
       })
 
     /**
-     * Updates the value of the variable, returning a function of the specified
-     * value.
+     * Updates the value of the variable, returning a function of the specified value.
      */
     def modifySome[B](default: B)(f: PartialFunction[A, (B, A)]): USTM[B] =
       modify(a => f.lift(a).getOrElse((default, a)))
@@ -342,8 +323,7 @@ object ZTRef {
       update(f orElse { case a => a })
 
     /**
-     * Updates some values of the variable but leaves others alone, returning the
-     * new value.
+     * Updates some values of the variable but leaves others alone, returning the new value.
      */
     def updateSomeAndGet(f: PartialFunction[A, A]): USTM[A] =
       updateAndGet(f orElse { case a => a })
@@ -616,8 +596,7 @@ object ZTRef {
     })
 
   /**
-   * A convenience method that makes a `ZTRef` and immediately commits the
-   * transaction to extract the value out.
+   * A convenience method that makes a `ZTRef` and immediately commits the transaction to extract the value out.
    */
   def makeCommit[A](a: => A): UIO[TRef[A]] =
     STM.atomically(make(a))

@@ -17,8 +17,8 @@
 package zio
 
 /**
- * The `InterruptStatus` of a fiber determines whether or not it can be
- * interrupted. The status can change over time in different regions.
+ * The `InterruptStatus` of a fiber determines whether or not it can be interrupted. The status can change over time in
+ * different regions.
  */
 sealed abstract class InterruptStatus(val isInterruptible: Boolean) extends Serializable with Product {
   final def isUninterruptible: Boolean = !isInterruptible

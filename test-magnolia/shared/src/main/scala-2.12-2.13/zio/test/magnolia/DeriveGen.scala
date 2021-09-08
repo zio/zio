@@ -24,10 +24,9 @@ import java.time.{Instant, LocalDate, LocalDateTime}
 import java.util.UUID
 
 /**
- * A `DeriveGen[A]` can derive a generator of `A` values. Implicit instances of
- * DeriveGen are automatically provided for standard types and algebraic data
- * types made up of standard types. For example, here is how you can
- * automatically derive generators for case classes and sealed traits:
+ * A `DeriveGen[A]` can derive a generator of `A` values. Implicit instances of DeriveGen are automatically provided for
+ * standard types and algebraic data types made up of standard types. For example, here is how you can automatically
+ * derive generators for case classes and sealed traits:
  *
  * {{{
  * final case class Point(x: Double, y: Double)
@@ -42,9 +41,8 @@ import java.util.UUID
  * val genColor: Gen[Random with Sized, Color] = DeriveGen[Color]
  * }}}
  *
- * You can derive generators that include your own custom types by providing an
- * implicit `DeriveGen` instance for your type using a generator and the
- * `instance` method.
+ * You can derive generators that include your own custom types by providing an implicit `DeriveGen` instance for your
+ * type using a generator and the `instance` method.
  */
 trait DeriveGen[A] {
   def derive: Gen[Random with Sized, A]

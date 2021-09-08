@@ -17,9 +17,8 @@
 package zio.test
 
 /**
- * An `AssertionValue` keeps track of a assertion and a value, existentially
- * hiding the type. This is used internally by the library to provide useful
- * error messages in the event of test failures.
+ * An `AssertionValue` keeps track of a assertion and a value, existentially hiding the type. This is used internally by
+ * the library to provide useful error messages in the event of test failures.
  */
 sealed abstract class AssertionValue {
   type Value

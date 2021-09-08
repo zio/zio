@@ -25,8 +25,7 @@ import zio.{Has, IO, Managed, Tag, ULayer, URLayer, ZLayer}
 import scala.language.implicitConversions
 
 /**
- * An `Expectation[R]` is an immutable tree structure that represents
- * expectations on environment `R`.
+ * An `Expectation[R]` is an immutable tree structure that represents expectations on environment `R`.
  */
 sealed abstract class Expectation[R <: Has[_]: Tag] { self =>
 
@@ -51,9 +50,7 @@ sealed abstract class Expectation[R <: Has[_]: Tag] { self =>
   /**
    * Compose two expectations, producing a new expectation to satisfy both.
    *
-   * {{
-   * val mockEnv = MockClock.sleep(equalTo(1.second)) and MockConsole.getStrLn(value("foo"))
-   * }}
+   * {{ val mockEnv = MockClock.sleep(equalTo(1.second)) and MockConsole.getStrLn(value("foo")) }}
    */
   def and[R0 <: Has[_]: Tag](that: Expectation[R0]): Expectation[R with R0] =
     (self, that) match {
@@ -69,9 +66,7 @@ sealed abstract class Expectation[R <: Has[_]: Tag] { self =>
   /**
    * Compose two expectations, producing a new expectation to satisfy both sequentially.
    *
-   * {{
-   * val mockEnv = MockClock.sleep(equalTo(1.second)) andThen MockConsole.getStrLn(value("foo"))
-   * }}
+   * {{ val mockEnv = MockClock.sleep(equalTo(1.second)) andThen MockConsole.getStrLn(value("foo")) }}
    */
   def andThen[R0 <: Has[_]: Tag](that: Expectation[R0]): Expectation[R with R0] =
     (self, that) match {
@@ -85,15 +80,15 @@ sealed abstract class Expectation[R <: Has[_]: Tag] { self =>
     }
 
   /**
-   * Lower-bounded variant of `repeated`, produces a new expectation to satisfy
-   * itself sequentially at least given number of times.
+   * Lower-bounded variant of `repeated`, produces a new expectation to satisfy itself sequentially at least given
+   * number of times.
    */
   def atLeast(min: Int): Expectation[R] =
     Repeated(self, min to -1)
 
   /**
-   * Upper-bounded variant of `repeated`, produces a new expectation to satisfy
-   * itself sequentially at most given number of times.
+   * Upper-bounded variant of `repeated`, produces a new expectation to satisfy itself sequentially at most given number
+   * of times.
    */
   def atMost(max: Int): Expectation[R] =
     Repeated(self, 0 to max)
@@ -107,9 +102,7 @@ sealed abstract class Expectation[R <: Has[_]: Tag] { self =>
   /**
    * Compose two expectations, producing a new expectation to satisfy one of them.
    *
-   * {{
-   * val mockEnv = MockClock.sleep(equalTo(1.second)) or MockConsole.getStrLn(value("foo"))
-   * }}
+   * {{ val mockEnv = MockClock.sleep(equalTo(1.second)) or MockConsole.getStrLn(value("foo")) }}
    */
   def or[R0 <: Has[_]: Tag](that: Expectation[R0]): Expectation[R with R0] =
     (self, that) match {
@@ -123,17 +116,14 @@ sealed abstract class Expectation[R <: Has[_]: Tag] { self =>
     }
 
   /**
-   * Repeats this expectation withing given bounds, producing a new expectation to
-   * satisfy itself sequentially given number of times.
+   * Repeats this expectation withing given bounds, producing a new expectation to satisfy itself sequentially given
+   * number of times.
    *
-   * {{
-   * val mockEnv = MockClock.sleep(equalTo(1.second)).repeats(1, 5)
-   * }}
+   * {{ val mockEnv = MockClock.sleep(equalTo(1.second)).repeats(1, 5) }}
    *
-   * NOTE: once another repetition starts executing, it must be completed in order to satisfy
-   * the composite expectation. For example (A ++ B).repeats(1, 2) will be satisfied by either
-   * A->B (one repetition) or A->B->A->B (two repetitions), but will fail on A->B->A
-   * (incomplete second repetition).
+   * NOTE: once another repetition starts executing, it must be completed in order to satisfy the composite expectation.
+   * For example (A ++ B).repeats(1, 2) will be satisfied by either A->B (one repetition) or A->B->A->B (two
+   * repetitions), but will fail on A->B->A (incomplete second repetition).
    */
   def repeats(range: Range): Expectation[R] =
     Repeated(self, range)
@@ -192,8 +182,8 @@ object Expectation {
   }
 
   /**
-   * Models a call in environment `R` that takes input arguments `I` and returns an effect
-   * that may fail with an error `E` or produce a single `A`.
+   * Models a call in environment `R` that takes input arguments `I` and returns an effect that may fail with an error
+   * `E` or produce a single `A`.
    */
   private[test] case class Call[R <: Has[_]: Tag, I, E, A](
     capability: Capability[R, I, E, A],

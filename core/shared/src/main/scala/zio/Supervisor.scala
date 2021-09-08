@@ -21,27 +21,24 @@ import zio.internal.{Platform, Sync}
 import scala.collection.immutable.SortedSet
 
 /**
- * A `Supervisor[A]` is allowed to supervise the launching and termination of
- * fibers, producing some visible value of type `A` from the supervision.
+ * A `Supervisor[A]` is allowed to supervise the launching and termination of fibers, producing some visible value of
+ * type `A` from the supervision.
  */
 abstract class Supervisor[+A] { self =>
   import Supervisor._
 
   /**
-   * Returns an effect that succeeds with the value produced by this
-   * supervisor. This value may change over time, reflecting what the
-   * supervisor produces as it supervises fibers.
+   * Returns an effect that succeeds with the value produced by this supervisor. This value may change over time,
+   * reflecting what the supervisor produces as it supervises fibers.
    */
   def value: UIO[A]
 
   /**
-   * Returns a new supervisor that performs the function of this supervisor,
-   * and the function of the specified supervisor, producing a tuple of the
-   * outputs produced by both supervisors.
+   * Returns a new supervisor that performs the function of this supervisor, and the function of the specified
+   * supervisor, producing a tuple of the outputs produced by both supervisors.
    *
-   * The composite supervisor indicates that it has fully handled the
-   * supervision event if only both component supervisors indicate they have
-   * handled the supervision event.
+   * The composite supervisor indicates that it has fully handled the supervision event if only both component
+   * supervisors indicate they have handled the supervision event.
    */
   final def &&[B](that0: => Supervisor[B]): Supervisor[(A, B)] =
     new Supervisor[(A, B)] {
@@ -62,13 +59,11 @@ abstract class Supervisor[+A] { self =>
     }
 
   /**
-   * Returns a new supervisor that performs the function of this supervisor,
-   * and the function of the specified supervisor, producing a tuple of the
-   * outputs produced by both supervisors.
+   * Returns a new supervisor that performs the function of this supervisor, and the function of the specified
+   * supervisor, producing a tuple of the outputs produced by both supervisors.
    *
-   * The composite supervisor indicates that it has fully handled the
-   * supervision event if either component supervisors indicate they have
-   * handled the supervision event.
+   * The composite supervisor indicates that it has fully handled the supervision event if either component supervisors
+   * indicate they have handled the supervision event.
    */
   final def ||[B](that0: => Supervisor[B]): Supervisor[(A, B)] =
     new Supervisor[(A, B)] {
@@ -100,8 +95,7 @@ abstract class Supervisor[+A] { self =>
 object Supervisor {
 
   /**
-   * A hint indicating whether or not to propagate supervision events across
-   * supervisor hierarchies.
+   * A hint indicating whether or not to propagate supervision events across supervisor hierarchies.
    */
   sealed abstract class Propagation { self =>
     import Propagation._
@@ -128,8 +122,8 @@ object Supervisor {
   /**
    * Creates a new supervisor that tracks children in a set.
    *
-   * @param weak Whether or not to track the children in a weak set, if
-   *             possible (platform-dependent).
+   * @param weak
+   *   Whether or not to track the children in a weak set, if possible (platform-dependent).
    */
   def track(weak: Boolean): UIO[Supervisor[Chunk[Fiber.Runtime[Any, Any]]]] = UIO {
     val set: java.util.Set[Fiber.Runtime[Any, Any]] =

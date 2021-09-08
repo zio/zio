@@ -19,36 +19,31 @@ package zio.test
 import zio.ZIO
 
 /**
- * A `BoolAlgebra[A]` is a description of logical operations on values of type
- * `A`.
+ * A `BoolAlgebra[A]` is a description of logical operations on values of type `A`.
  */
 sealed abstract class BoolAlgebra[+A] extends Product with Serializable { self =>
   import BoolAlgebra._
 
   /**
-   * Returns a new result that is the logical conjunction of this result and
-   * the specified result.
+   * Returns a new result that is the logical conjunction of this result and the specified result.
    */
   final def &&[A1 >: A](that: BoolAlgebra[A1]): BoolAlgebra[A1] =
     both(that)
 
   /**
-   * Returns a new result that is the logical disjunction of this result and
-   * the specified result.
+   * Returns a new result that is the logical disjunction of this result and the specified result.
    */
   final def ||[A1 >: A](that: BoolAlgebra[A1]): BoolAlgebra[A1] =
     either(that)
 
   /**
-   * Returns a new result that is the logical implication of this result and
-   * the specified result.
+   * Returns a new result that is the logical implication of this result and the specified result.
    */
   final def ==>[A1 >: A](that: BoolAlgebra[A1]): BoolAlgebra[A1] =
     implies(that)
 
   /**
-   * Returns a new result that is the logical double implication of this result and
-   * the specified result.
+   * Returns a new result that is the logical double implication of this result and the specified result.
    */
   final def <==>[A1 >: A](that: BoolAlgebra[A1]): BoolAlgebra[A1] =
     iff(that)
@@ -78,9 +73,8 @@ sealed abstract class BoolAlgebra[+A] extends Product with Serializable { self =
     or(self, that)
 
   /**
-   * If this result is a success returns `None`. If it is a failure returns a
-   * new result containing all failures that are relevant to this result being
-   * a failure.
+   * If this result is a success returns `None`. If it is a failure returns a new result containing all failures that
+   * are relevant to this result being a failure.
    */
   final def failures: Option[BoolAlgebra[A]] =
     fold[Either[BoolAlgebra[A], BoolAlgebra[A]]](a => Right(success(a)))(
@@ -100,22 +94,20 @@ sealed abstract class BoolAlgebra[+A] extends Product with Serializable { self =
     ).fold(Some(_), _ => None)
 
   /**
-   * Returns a new result, with all values mapped to new results using the
-   * specified function.
+   * Returns a new result, with all values mapped to new results using the specified function.
    */
   final def flatMap[B](f: A => BoolAlgebra[B]): BoolAlgebra[B] =
     fold(f)(and, or, not)
 
   /**
-   * Returns a new result, with all values mapped to new results using the
-   * specified effectual function.
+   * Returns a new result, with all values mapped to new results using the specified effectual function.
    */
   final def flatMapM[R, E, B](f: A => ZIO[R, E, BoolAlgebra[B]]): ZIO[R, E, BoolAlgebra[B]] =
     fold(a => f(a))(_.zipWith(_)(_ && _), _.zipWith(_)(_ || _), _.map(!_))
 
   /**
-   * Folds over the result bottom up, first converting values to `B`
-   * values, and then combining the `B` values, using the specified functions.
+   * Folds over the result bottom up, first converting values to `B` values, and then combining the `B` values, using
+   * the specified functions.
    */
   final def fold[B](caseValue: A => B)(caseAnd: (B, B) => B, caseOr: (B, B) => B, caseNot: B => B): B =
     self match {
@@ -151,15 +143,15 @@ sealed abstract class BoolAlgebra[+A] extends Product with Serializable { self =
     (self ==> that) && (that ==> self)
 
   /**
-   * Determines whether the result is a failure, where values represent success
-   * and are combined using logical conjunction, disjunction, and negation.
+   * Determines whether the result is a failure, where values represent success and are combined using logical
+   * conjunction, disjunction, and negation.
    */
   final def isFailure: Boolean =
     !isSuccess
 
   /**
-   * Determines whether the result is a success, where values represent success
-   * and are combined using logical conjunction, disjunction, and negation.
+   * Determines whether the result is a success, where values represent success and are combined using logical
+   * conjunction, disjunction, and negation.
    */
   final def isSuccess: Boolean =
     fold(_ => true)(_ && _, _ || _, !_)
@@ -171,15 +163,13 @@ sealed abstract class BoolAlgebra[+A] extends Product with Serializable { self =
     flatMap(f andThen success)
 
   /**
-   * Returns a new result, with all values mapped by the specified effectual
-   * function.
+   * Returns a new result, with all values mapped by the specified effectual function.
    */
   final def mapM[R, E, B](f: A => ZIO[R, E, B]): ZIO[R, E, BoolAlgebra[B]] =
     flatMapM(a => f(a).map(success))
 
   /**
-   * Negates this result, converting all successes into failures and failures
-   * into successes.
+   * Negates this result, converting all successes into failures and failures into successes.
    */
   final def negate: BoolAlgebra[A] =
     not(self)
@@ -301,8 +291,7 @@ object BoolAlgebra {
   }
 
   /**
-   * Returns a result that is the logical conjunction of all of the results in
-   * the specified collection.
+   * Returns a result that is the logical conjunction of all of the results in the specified collection.
    */
   def all[A](as: Iterable[BoolAlgebra[A]]): Option[BoolAlgebra[A]] =
     if (as.isEmpty) None else Some(as.reduce(_ && _))
@@ -320,8 +309,7 @@ object BoolAlgebra {
     And(left, right)
 
   /**
-   * Returns a result that is the logical disjunction of all of the results in
-   * the specified collection.
+   * Returns a result that is the logical disjunction of all of the results in the specified collection.
    */
   def any[A](as: Iterable[BoolAlgebra[A]]): Option[BoolAlgebra[A]] =
     if (as.isEmpty) None else Some(as.reduce(_ || _))
@@ -333,8 +321,7 @@ object BoolAlgebra {
     as.foldLeft(a)(_ || _)
 
   /**
-   * Combines a collection of results to create a single result that succeeds
-   * if all of the results succeed.
+   * Combines a collection of results to create a single result that succeeds if all of the results succeed.
    */
   def collectAll[A](as: Iterable[BoolAlgebra[A]]): Option[BoolAlgebra[A]] =
     foreach(as)(identity)
@@ -346,9 +333,8 @@ object BoolAlgebra {
     not(success(a))
 
   /**
-   * Applies the function `f` to each element of the `Iterable[A]` to produce
-   * a collection of results, then combines all of those results to create a
-   * single result that is the logical conjunction of all of the results.
+   * Applies the function `f` to each element of the `Iterable[A]` to produce a collection of results, then combines all
+   * of those results to create a single result that is the logical conjunction of all of the results.
    */
   def foreach[A, B](as: Iterable[A])(f: A => BoolAlgebra[B]): Option[BoolAlgebra[B]] =
     if (as.isEmpty) None else Some(as.map(f).reduce(_ && _))

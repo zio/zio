@@ -1,9 +1,8 @@
 package zio.test
 
 /**
- * PrettyPrint will attempt to render a Scala value as the syntax used to create
- * that value. This makes it easier to copy-paste from values printed to the
- * console during tests back into runnable code.
+ * PrettyPrint will attempt to render a Scala value as the syntax used to create that value. This makes it easier to
+ * copy-paste from values printed to the console during tests back into runnable code.
  */
 private[zio] object PrettyPrint extends PrettyPrintVersionSpecific {
   def apply(any: Any): String = any match {

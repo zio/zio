@@ -20,8 +20,8 @@ import zio.random.Random
 import zio.test.{Gen, Sized}
 
 /**
- * `GenNumericPoly` provides evidence that instances of `Gen[T]` and
- * `Numeric[T]` exist for some concrete but unknown type `T`.
+ * `GenNumericPoly` provides evidence that instances of `Gen[T]` and `Numeric[T]` exist for some concrete but unknown
+ * type `T`.
  */
 trait GenNumericPoly extends GenOrderingPoly {
   val numT: Numeric[T]
@@ -31,8 +31,8 @@ trait GenNumericPoly extends GenOrderingPoly {
 object GenNumericPoly {
 
   /**
-   * Constructs an instance of `GenIntegralPoly` using the specified `Gen`
-   * and `Numeric` instances, existentially hiding the underlying type.
+   * Constructs an instance of `GenIntegralPoly` using the specified `Gen` and `Numeric` instances, existentially hiding
+   * the underlying type.
    */
   def apply[A](gen: Gen[Random with Sized, A], num: Numeric[A]): GenNumericPoly =
     new GenNumericPoly {
@@ -48,8 +48,7 @@ object GenNumericPoly {
     GenIntegralPoly.byte
 
   /**
-   * Provides evidence that instances of `Gen` and `Numeric` exist for
-   * characters.
+   * Provides evidence that instances of `Gen` and `Numeric` exist for characters.
    */
   val char: GenNumericPoly =
     GenIntegralPoly.char
@@ -67,8 +66,7 @@ object GenNumericPoly {
     GenFractionalPoly.float
 
   /**
-   * A generator of polymorphic values constrainted to have a `Numeric`
-   * instance.
+   * A generator of polymorphic values constrainted to have a `Numeric` instance.
    */
   lazy val genNumericPoly: Gen[Random, GenNumericPoly] =
     Gen.elements(
@@ -82,8 +80,7 @@ object GenNumericPoly {
     )
 
   /**
-   * Provides evidence that instances of `Gen` and `Numeric` exist for
-   * integers.
+   * Provides evidence that instances of `Gen` and `Numeric` exist for integers.
    */
   val int: GenNumericPoly =
     GenIntegralPoly.int

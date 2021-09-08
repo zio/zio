@@ -40,8 +40,7 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
     find(pf.isDefinedAt).map(_.map(pf))
 
   /**
-   * Finds the result of applying an transactional partial function to the
-   * first value in its domain.
+   * Finds the result of applying an transactional partial function to the first value in its domain.
    */
   def collectFirstM[E, B](pf: PartialFunction[A, STM[E, B]]): STM[E, Option[B]] =
     find(pf.isDefinedAt).flatMap {
@@ -177,14 +176,12 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
     toChunk.flatMap(STM.foldLeft(_)(zero)(op))
 
   /**
-   * Atomically evaluate the conjunction of a predicate across the members
-   * of the array.
+   * Atomically evaluate the conjunction of a predicate across the members of the array.
    */
   def forall(p: A => Boolean): USTM[Boolean] = exists(a => !p(a)).map(!_)
 
   /**
-   * Atomically evaluate the conjunction of a transactional predicate across
-   * the members of the array.
+   * Atomically evaluate the conjunction of a transactional predicate across the members of the array.
    */
   def forallM[E](p: A => STM[E, Boolean]): STM[E, Boolean] =
     countM(p).map(_ == array.length)
@@ -196,14 +193,12 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
     foldM(())((_, a) => f(a))
 
   /**
-   * Get the first index of a specific value in the array or -1 if it does
-   * not occur.
+   * Get the first index of a specific value in the array or -1 if it does not occur.
    */
   def indexOf(a: A): USTM[Int] = indexOf(a, 0)
 
   /**
-   * Get the first index of a specific value in the array, starting at a specific
-   * index, or -1 if it does not occur.
+   * Get the first index of a specific value in the array, starting at a specific index, or -1 if it does not occur.
    */
   def indexOf(a: A, from: Int): USTM[Int] = indexWhere(_ == a, from)
 
@@ -213,8 +208,7 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
   def indexWhere(p: A => Boolean): USTM[Int] = indexWhere(p, 0)
 
   /**
-   * Get the index of the first entry in the array, starting at a specific index,
-   * matching a predicate.
+   * Get the index of the first entry in the array, starting at a specific index, matching a predicate.
    */
   def indexWhere(p: A => Boolean, from: Int): USTM[Int] =
     if (from < 0)
@@ -234,14 +228,12 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
       })
 
   /**
-   * Get the index of the first entry in the array matching a transactional
-   * predicate.
+   * Get the index of the first entry in the array matching a transactional predicate.
    */
   def indexWhereM[E](p: A => STM[E, Boolean]): STM[E, Int] = indexWhereM(p, 0)
 
   /**
-   * Starting at specified index, get the index of the next entry that matches
-   * a transactional predicate.
+   * Starting at specified index, get the index of the next entry that matches a transactional predicate.
    */
   def indexWhereM[E](p: A => STM[E, Boolean], from: Int): STM[E, Int] = {
     def forIndex(i: Int): STM[E, Int] =
@@ -260,8 +252,8 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
     if (array.isEmpty) STM.succeedNow(-1) else lastIndexOf(a, array.length - 1)
 
   /**
-   * Get the first index of a specific value in the array, bounded above by a
-   * specific index, or -1 if it does not occur.
+   * Get the first index of a specific value in the array, bounded above by a specific index, or -1 if it does not
+   * occur.
    */
   def lastIndexOf(a: A, end: Int): USTM[Int] =
     if (end >= array.length)

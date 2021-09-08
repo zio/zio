@@ -19,9 +19,8 @@ package zio.internal
 import zio.Chunk
 
 /**
- * A `Hub[A]` is a concurrent data structure that allows multiple publishers
- * to publish `A` values and multiple subscribers to poll `A` values with the
- * guarantee that all subscribers will receive all values published to the hub
+ * A `Hub[A]` is a concurrent data structure that allows multiple publishers to publish `A` values and multiple
+ * subscribers to poll `A` values with the guarantee that all subscribers will receive all values published to the hub
  * while they are subscribed.
  */
 abstract class Hub[A] extends Serializable {
@@ -42,14 +41,13 @@ abstract class Hub[A] extends Serializable {
   def isFull(): Boolean
 
   /**
-   * Publishes the specified value to the hub and returns whether the value was
-   * successfully published to the hub.
+   * Publishes the specified value to the hub and returns whether the value was successfully published to the hub.
    */
   def publish(a: A): Boolean
 
   /**
-   * Publishes the specified values to the hub, returning the values that could
-   * not be successfully published to the hub.
+   * Publishes the specified values to the hub, returning the values that could not be successfully published to the
+   * hub.
    */
   def publishAll(as: Iterable[A]): Chunk[A]
 
@@ -88,9 +86,8 @@ object Hub {
     new UnboundedHub
 
   /**
-   * A `Subscription[A]` is a subscription to receive `A` values from the hub.
-   * The guarantee is that a subscriber will receive all values published to
-   * hub while it is subscribed.
+   * A `Subscription[A]` is a subscription to receive `A` values from the hub. The guarantee is that a subscriber will
+   * receive all values published to hub while it is subscribed.
    */
   abstract class Subscription[A] extends Serializable {
 
@@ -100,8 +97,7 @@ object Hub {
     def isEmpty(): Boolean
 
     /**
-     * Takes a value from the hub if there is one or else returns the
-     * specified default value.
+     * Takes a value from the hub if there is one or else returns the specified default value.
      */
     def poll(default: A): A
 

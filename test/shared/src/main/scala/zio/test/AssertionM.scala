@@ -22,9 +22,8 @@ import scala.reflect.ClassTag
 import scala.util.Try
 
 /**
- * An `AssertionM[A]` is capable of producing assertion results on an `A`. As a
- * proposition, assertions compose using logical conjunction and disjunction,
- * and can be negated.
+ * An `AssertionM[A]` is capable of producing assertion results on an `A`. As a proposition, assertions compose using
+ * logical conjunction and disjunction, and can be negated.
  */
 abstract class AssertionM[-A] { self =>
   import zio.test.AssertionM.Render._
@@ -88,8 +87,8 @@ object AssertionM {
   }
 
   /**
-   * `Render` captures both the name of an assertion as well as the parameters
-   * to the assertion combinator for pretty-printing.
+   * `Render` captures both the name of an assertion as well as the parameters to the assertion combinator for
+   * pretty-printing.
    */
   sealed abstract class Render {
     override final def toString: String = this match {
@@ -122,15 +121,13 @@ object AssertionM {
       "_." + name
 
     /**
-     * Create a `Render` from an assertion combinator that should be rendered
-     * using standard function notation.
+     * Create a `Render` from an assertion combinator that should be rendered using standard function notation.
      */
     def function(name: String, paramLists: List[List[RenderParam]]): Render =
       Render.Function(name, paramLists)
 
     /**
-     * Create a `Render` from an assertion combinator that should be rendered
-     * using infix function notation.
+     * Create a `Render` from an assertion combinator that should be rendered using infix function notation.
      */
     def infix(left: RenderParam, op: String, right: RenderParam): Render =
       Render.Infix(left, op, right)

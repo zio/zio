@@ -19,9 +19,8 @@ package zio.test
 import scala.annotation.implicitNotFound
 
 /**
- * A value of type `Eql[A, B]` provides implicit evidence that two values with
- * types `A` and `B` could potentially be equal, that is, that
- * `A` is a subtype of `B` or `B` is a subtype of `A`.
+ * A value of type `Eql[A, B]` provides implicit evidence that two values with types `A` and `B` could potentially be
+ * equal, that is, that `A` is a subtype of `B` or `B` is a subtype of `A`.
  */
 @implicitNotFound(
   "This operation assumes that values of types ${A} and ${B} could " +

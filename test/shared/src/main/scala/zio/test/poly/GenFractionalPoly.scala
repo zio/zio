@@ -20,8 +20,8 @@ import zio.random.Random
 import zio.test.{Gen, Sized}
 
 /**
- * `GenFractionalPoly` provides evidence that instances of `Gen[T]` and
- * `Fractional[T]` exist for some concrete but unknown type `T`.
+ * `GenFractionalPoly` provides evidence that instances of `Gen[T]` and `Fractional[T]` exist for some concrete but
+ * unknown type `T`.
  */
 trait GenFractionalPoly extends GenNumericPoly {
   override val numT: Fractional[T]
@@ -30,8 +30,8 @@ trait GenFractionalPoly extends GenNumericPoly {
 object GenFractionalPoly {
 
   /**
-   * Constructs an instance of `GenFractionalPoly` using the specified `Gen`
-   * and `Fractional` instances, existentially hiding the underlying type.
+   * Constructs an instance of `GenFractionalPoly` using the specified `Gen` and `Fractional` instances, existentially
+   * hiding the underlying type.
    */
   def apply[A](gen: Gen[Random with Sized, A], num: Fractional[A]): GenFractionalPoly =
     new GenFractionalPoly {
@@ -41,22 +41,19 @@ object GenFractionalPoly {
     }
 
   /**
-   * Provides evidence that instances of `Gen` and `Fractional` exist for
-   * doubles.
+   * Provides evidence that instances of `Gen` and `Fractional` exist for doubles.
    */
   val double: GenFractionalPoly =
     GenFractionalPoly(Gen.anyDouble, Numeric.DoubleIsFractional)
 
   /**
-   * Provides evidence that instances of `Gen` and `Fractional` exist for
-   * floats.
+   * Provides evidence that instances of `Gen` and `Fractional` exist for floats.
    */
   val float: GenFractionalPoly =
     GenFractionalPoly(Gen.anyFloat, Numeric.FloatIsFractional)
 
   /**
-   * A generator of polymorphic values constrainted to have a `Fractional`
-   * instance.
+   * A generator of polymorphic values constrainted to have a `Fractional` instance.
    */
   val genFractionalPoly: Gen[Random, GenFractionalPoly] =
     Gen.elements(double, float)
