@@ -244,27 +244,25 @@ ZIO.succeed(Set(3, 4, 3)).head
 
 ## ZIO App
 
-In ZIO 1.x, we were used to writing ZIO applications using `zio.App` trait:
+### ZIOApp
+
+In ZIO 1.x, we were used to writing ZIO applications using the `zio.App` trait:
+
+```scala mdoc:invisible
+def startMyApp(arguments: Chunk[String]) = ZIO.succeed(???)
+```
 
 ```scala mdoc:silent:nest
 import zio.App
 import zio.Console._
 
 object MyApp extends App {
-
-  final def run(args: List[String]) =
-    myAppLogic.exitCode
-
-  val myAppLogic =
-    for {
-      _ <- printLine("Hello! What is your name?")
-      n <- readLine
-      _ <- printLine("Hello, " + n + ", good to meet you!")
-    } yield ()
+  def run(args: List[String]) = 
+    startMyApp(args).exitCode
 }
 ```
 
-Now in ZIO 2.x, the `zio.App` trait is deprecated and, we have the `zio.ZIOApp` trait which is simpler than the former approach:
+Now in ZIO 2.x, the `zio.App` trait is deprecated and, we have the `zio.ZIOApp` trait which is simpler than the former approach (Note that the `ZApp` and `ManagedApp` are also deprecated, and we should use the `ZIOApp` instead):
 
 ```scala mdoc:silent:nest
 import zio.ZIOApp
@@ -273,12 +271,66 @@ import zio.Console._
 object MyApp extends ZIOApp {
   def run =
     for {
+      arguments <- args
+      _         <- startMyApp(arguments) 
+    } yield ()
+}
+```
+
+In ZIO 1.x, `run` is the main function of our application, which will be passed the command-line arguments to our application:
+
+```scala
+def run(args: List[String]): URIO[R, ExitCode]
+```
+While in most cases we don't write command-line applications, and we don't use it, in ZIO 2.x, we created the `ZIOAppArgs` service and a helper method called `ZIOApp#args` which obtains access to the command-line arguments of our application:
+
+```scala
+trait ZIOApp { self =>
+  final def args: ZIO[Has[ZIOAppArgs], Nothing, Chunk[String]] = ZIO.service[ZIOAppArgs].map(_.args)
+}
+```
+
+### Compositional Apps
+
+ZIO 2.x introduced compositional apps which enables us to compose applications with different runtime configurations using the `<>` combinator:
+
+```scala mdoc:invisible
+def startMyApp(arguments: Chunk[String]) = ZIO.succeed(???)
+val asyncProfiler, slf4j, loggly, newRelic = RuntimeConfigAspect.identity
+```
+
+```scala mdoc:silent:nest
+import zio._
+import zio.Console._
+
+import java.io.IOException
+
+object MyApp1 extends ZIOApp {
+
+  def run =
+    for {
       _ <- printLine("Hello! What is your name?")
       n <- readLine
       _ <- printLine("Hello, " + n + ", good to meet you!")
     } yield ()
 }
+
+object MyApp2 extends ZIOApp {
+
+  override def hook: RuntimeConfigAspect =
+    asyncProfiler >>> slf4j >>> loggly >>> newRelic
+
+  def run =
+    for {
+      arguments <- args
+      _ <- startMyApp(arguments)
+    } yield ()
+}
+
+object Main extends ZIOApp.Proxy(MyApp1 <> MyApp2)
 ```
+
+You might notice that in ZIO 2.x, we can `hook` the ZIO runtime configuration to install low-level functionalities like application logging, profiling, monitoring, and other similar foundational pieces of infrastructure.
 
 ## Fiber
 
@@ -1433,7 +1485,7 @@ To log with a specific log-level, we can use the `ZIO.logLevel` combinator:
 
 ```scala mdoc:silent:nest
 ZIO.logLevel(LogLevel.Warning) {
-  ZIO.log("The response time exceeded its threshold!"    
+  ZIO.log("The response time exceeded its threshold!")
 }
 ```
 Or we can use the following functions directly:
