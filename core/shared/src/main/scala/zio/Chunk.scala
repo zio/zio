@@ -1187,13 +1187,15 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
   /**
    * Updates an element at the specified index of the chunk.
    */
-  protected def update[A1 >: A](index: Int, a1: A1): Chunk[A1] = {
-    val bufferIndices = Array.ofDim[Int](Chunk.UpdateBufferSize)
-    val bufferValues  = Array.ofDim[AnyRef](Chunk.UpdateBufferSize)
-    bufferIndices(0) = index
-    bufferValues(0) = a1.asInstanceOf[AnyRef]
-    Chunk.Update(self, bufferIndices, bufferValues, 1, new AtomicInteger(1))
-  }
+  protected def update[A1 >: A](index: Int, a1: A1): Chunk[A1] =
+    if (index < 0 || index >= length) throw new IndexOutOfBoundsException(s"Update chunk access to $index")
+    else {
+      val bufferIndices = Array.ofDim[Int](Chunk.UpdateBufferSize)
+      val bufferValues  = Array.ofDim[AnyRef](Chunk.UpdateBufferSize)
+      bufferIndices(0) = index
+      bufferValues(0) = a1.asInstanceOf[AnyRef]
+      Chunk.Update(self, bufferIndices, bufferValues, 1, new AtomicInteger(1))
+    }
 
   private final def fromBuilder[A1 >: A, B[_]](builder: Builder[A1, B[A1]]): B[A1] = {
     val c   = materialize
@@ -1472,7 +1474,9 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       }
 
     def apply(n: Int): A =
-      if (n < start.length) start(n) else buffer(n - start.length).asInstanceOf[A]
+      if (n < 0 || n >= length) throw new IndexOutOfBoundsException(s"Append chunk access to $n")
+      else if (n < start.length) start(n)
+      else buffer(n - start.length).asInstanceOf[A]
 
     override protected[zio] def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit = {
       start.toArray(n, dest)
@@ -1500,7 +1504,9 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       }
 
     def apply(n: Int): A =
-      if (n < bufferUsed) buffer(BufferSize - bufferUsed + n).asInstanceOf[A] else end(n - bufferUsed)
+      if (n < 0 || n >= length) throw new IndexOutOfBoundsException(s"Prepend chunk access to $n")
+      else if (n < bufferUsed) buffer(BufferSize - bufferUsed + n).asInstanceOf[A]
+      else end(n - bufferUsed)
 
     override protected[zio] def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit = {
       val length = math.min(bufferUsed, math.max(dest.length - n, 0))
@@ -1537,7 +1543,8 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     }
 
     override protected def update[A1 >: A](i: Int, a: A1): Chunk[A1] =
-      if (used < UpdateBufferSize && chain.compareAndSet(used, used + 1)) {
+      if (i < 0 || i >= length) throw new IndexOutOfBoundsException(s"Update chunk access to $i")
+      else if (used < UpdateBufferSize && chain.compareAndSet(used, used + 1)) {
         bufferIndices(used) = i
         bufferValues(used) = a.asInstanceOf[AnyRef]
         Update(chunk, bufferIndices, bufferValues, used + 1, chain)
