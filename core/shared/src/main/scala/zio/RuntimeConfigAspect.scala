@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.internal.{Tracing, ZLogger}
+import zio.internal.Tracing
 
 final case class RuntimeConfigAspect(customize: RuntimeConfig => RuntimeConfig)
     extends (RuntimeConfig => RuntimeConfig) { self =>

@@ -1,6 +1,5 @@
-package zio.internal
+package zio
 
-import zio._
 import zio.internal.stacktracer._
 
 trait ZLogger[+A] { self =>
@@ -52,8 +51,8 @@ trait ZLogger[+A] { self =>
         } else None
     }
 
-  final def logged(f: A => Unit): ZLogger[Unit] =
-    new ZLogger[Unit] {
+  final def map[B](f: A => B): ZLogger[B] =
+    new ZLogger[B] {
       def apply(
         trace: ZTraceElement,
         fiberId: FiberId,
@@ -61,7 +60,7 @@ trait ZLogger[+A] { self =>
         message: () => String,
         context: Map[FiberRef.Runtime[_], AnyRef],
         spans: List[LogSpan]
-      ): Unit = f(self(trace, fiberId, logLevel, message, context, spans))
+      ): B = f(self(trace, fiberId, logLevel, message, context, spans))
     }
 }
 object ZLogger {

@@ -18,7 +18,7 @@ package zio
 
 import zio.internal.stacktracer.Tracer
 import zio.internal.tracing.TracingConfig
-import zio.internal.{Tracing, ZLogger}
+import zio.internal.Tracing
 
 import scala.concurrent.ExecutionContext
 
@@ -68,7 +68,7 @@ private[zio] trait RuntimeConfigPlatformSpecific {
       tracing = Tracing(Tracer.Empty, TracingConfig.disabled),
       supervisor = Supervisor.none,
       enableCurrentFiber = false,
-      logger = ZLogger.defaultFormatter.logged(println(_)).filterLogLevel(_ >= LogLevel.Info)
+      logger = ZLogger.defaultFormatter.map(println(_)).filterLogLevel(_ >= LogLevel.Info)
     )
 
   /**
