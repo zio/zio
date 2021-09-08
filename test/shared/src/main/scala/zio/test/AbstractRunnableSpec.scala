@@ -17,10 +17,10 @@
 package zio.test
 
 import org.portablescala.reflect.annotation.EnableReflectiveInstantiation
-import zio.{Clock, Has, RuntimeConfig, URIO}
+import zio._
 
 @EnableReflectiveInstantiation
-abstract class AbstractRunnableSpec {
+abstract class AbstractRunnableSpec extends ZIOApp {
 
   type Environment
   type Failure
@@ -39,8 +39,8 @@ abstract class AbstractRunnableSpec {
   /**
    * Returns an effect that executes the spec, producing the results of the execution.
    */
-  final def run: URIO[Has[TestLogger] with Has[Clock], ExecutedSpec[Failure]] =
-    runSpec(spec)
+  def run: ZIO[ZEnv with Has[ZIOAppArgs], Any, Any] =
+    runSpec(spec).provideCustomLayer(runner.bootstrap)
 
   /**
    * Returns an effect that executes a given spec, producing the results of the execution.

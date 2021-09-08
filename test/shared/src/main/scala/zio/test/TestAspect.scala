@@ -341,9 +341,10 @@ object TestAspect extends TimeoutVariants {
     }
 
   /**
-   * An aspect that records the state of fibers spawned by the current test in [[TestAnnotation.fibers]].
-   * Applied by default in [[DefaultRunnableSpec]] and [[MutableRunnableSpec]] but not in [[RunnableSpec]].
-   * This aspect is required for the proper functioning of `TestClock.adjust`.
+   * An aspect that records the state of fibers spawned by the current test in
+   * [[TestAnnotation.fibers]]. Applied by default in [[DefaultRunnableSpec]]
+   * but not in [[RunnableSpec]]. This aspect is required for the proper
+   * functioning of `TestClock.adjust`.
    */
   lazy val fibers: TestAspect[Nothing, Has[Annotations], Nothing, Any] =
     new TestAspect.PerTest[Nothing, Has[Annotations], Nothing, Any] {
