@@ -165,11 +165,8 @@ object ZScope {
 
     val exitValue = new AtomicReference(nullA)
 
-    val weakFinalizers   = Platform.newWeakHashMap[Key, OrderedFinalizer]()
-    val strongFinalizers = new java.util.HashMap[Key, OrderedFinalizer]()
-
     val scope0 =
-      new Local[A](new AtomicInteger(Int.MinValue), exitValue, new AtomicInteger(1), weakFinalizers, strongFinalizers)
+      new Local[A](new AtomicInteger(Int.MinValue), exitValue, new AtomicInteger(1))
 
     Open[A](
       (a: A) =>
@@ -188,16 +185,33 @@ object ZScope {
     // The value that a scope is closed with (or `null`).
     private[zio] val exitValue: AtomicReference[A],
     // The number of references to the scope, which defaults to 1.
-    private[zio] val references: AtomicInteger,
-    // The weak finalizers attached to the scope.
-    private[zio] val weakFinalizers: Map[Key, OrderedFinalizer],
-    // The strong finalizers attached to the scope.
-    private[zio] val strongFinalizers: Map[Key, OrderedFinalizer]
+    private[zio] val references: AtomicInteger
   ) extends ZScope[A] { self =>
+
+    // The weak finalizers attached to the scope.
+    private[this] var _weakFinalizers: Map[Key, OrderedFinalizer] = null.asInstanceOf[Map[Key, OrderedFinalizer]]
+    // The strong finalizers attached to the scope.
+    private[this] var _strongFinalizers: Map[Key, OrderedFinalizer] = null.asInstanceOf[Map[Key, OrderedFinalizer]]
+
+    def weakFinalizers: Map[Key, OrderedFinalizer] =
+      if (_weakFinalizers eq null) {
+        _weakFinalizers = Platform.newWeakHashMap[Key, OrderedFinalizer]()
+        _weakFinalizers
+      } else {
+        _weakFinalizers
+      }
+
+    def strongFinalizers: Map[Key, OrderedFinalizer] =
+      if (_strongFinalizers eq null) {
+        _strongFinalizers = new java.util.HashMap[Key, OrderedFinalizer]()
+        _strongFinalizers
+      } else {
+        _strongFinalizers
+      }
 
     def isClosed: UIO[Boolean] = UIO(unsafeIsClosed())
 
-    def isEmpty: UIO[Boolean] = UIO(Sync(self)(weakFinalizers.size() == 0 && strongFinalizers.size() == 0))
+    def isEmpty: UIO[Boolean] = UIO(unsafeIsEmpty())
 
     def ensure(finalizer: A => UIO[Any], mode: ZScope.Mode = ZScope.Mode.Strong): UIO[Either[A, Key]] =
       UIO(unsafeEnsure(finalizer, mode))
@@ -227,7 +241,9 @@ object ZScope {
     private[zio] def unsafeDeny(key: Key): Boolean =
       Sync(self) {
         if (unsafeIsClosed()) false
-        else (weakFinalizers.remove(key) ne null) || (strongFinalizers.remove(key) ne null)
+        else
+          ((_weakFinalizers ne null) && (_weakFinalizers.remove(key) ne null)) ||
+          ((_strongFinalizers ne null) && (_strongFinalizers.remove(key) ne null))
       }
 
     private[zio] def unsafeEnsure(finalizer: A => UIO[Any], mode: ZScope.Mode): Either[A, Key] =
@@ -255,7 +271,8 @@ object ZScope {
 
     private[zio] def unsafeIsEmpty(): Boolean =
       Sync(self) {
-        (weakFinalizers.size() == 0) && (strongFinalizers.size() == 0)
+        ((_weakFinalizers eq null) || _weakFinalizers.isEmpty()) &&
+        ((_strongFinalizers eq null) || _strongFinalizers.isEmpty())
       }
 
     private[zio] def unsafeChild(): Either[A, ZScope.Open[A]] =
@@ -294,29 +311,37 @@ object ZScope {
     private[zio] def unsafeRelease(): UIO[Unit] =
       Sync(self) {
         if (references.decrementAndGet() == 0) {
-          val totalSize = weakFinalizers.size() + strongFinalizers.size()
+          val weakFinalizersSize   = if (_weakFinalizers eq null) 0 else _weakFinalizers.size()
+          val strongFinalizersSize = if (_strongFinalizers eq null) 0 else _strongFinalizers.size()
+          val totalSize            = weakFinalizersSize + strongFinalizersSize
 
           if (totalSize == 0) null
           else {
             val array = Array.ofDim[OrderedFinalizer](totalSize)
 
-            var i        = 0
-            var iterator = weakFinalizers.entrySet().iterator()
+            var i = 0
 
-            while (iterator.hasNext()) {
-              array(i) = iterator.next().getValue()
-              i = i + 1
+            if (weakFinalizersSize != 0) {
+              val iterator = weakFinalizers.entrySet().iterator()
+
+              while (iterator.hasNext()) {
+                array(i) = iterator.next().getValue()
+                i = i + 1
+              }
+
+              weakFinalizers.clear()
             }
 
-            iterator = strongFinalizers.entrySet().iterator()
+            if (strongFinalizersSize != 0) {
+              val iterator = strongFinalizers.entrySet().iterator()
 
-            while (iterator.hasNext()) {
-              array(i) = iterator.next().getValue()
-              i = i + 1
+              while (iterator.hasNext()) {
+                array(i) = iterator.next().getValue()
+                i = i + 1
+              }
+
+              strongFinalizers.clear()
             }
-
-            weakFinalizers.clear()
-            strongFinalizers.clear()
 
             val comparator: Comparator[OrderedFinalizer] = (l: OrderedFinalizer, r: OrderedFinalizer) =>
               if (l eq null) -1 else if (r eq null) 1 else l.order - r.order
