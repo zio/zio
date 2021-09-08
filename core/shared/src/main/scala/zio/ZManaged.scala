@@ -1332,7 +1332,7 @@ object ZManaged extends ZManagedPlatformSpecific {
   }
 
   final class ServiceWithPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
-    def apply[R, E, A](f: Service => ZIO[R, E, A])(implicit
+    def apply[R <: Has[Service], E, A](f: Service => ZIO[R, E, A])(implicit
       tag: Tag[Service]
     ): ZManaged[R with Has[Service], E, A] =
       ZManaged.fromZIO(ZIO.serviceWith[Service](f))
