@@ -1223,7 +1223,9 @@ object ZSink {
   def timed[Err]: ZSink[Has[Clock], Err, Any, Err, Nothing, Duration] = ZSink.drain.timed.map(_._2)
 
   final class AccessSinkPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
-    def apply[R1 <: R, InErr, In, OutErr, L, Z](f: R => ZSink[R1, InErr, In, OutErr, L, Z]): ZSink[R with R1, InErr, In, OutErr, L, Z] =
+    def apply[R1 <: R, InErr, In, OutErr, L, Z](
+      f: R => ZSink[R1, InErr, In, OutErr, L, Z]
+    ): ZSink[R with R1, InErr, In, OutErr, L, Z] =
       new ZSink(ZChannel.unwrap(ZIO.access[R](f(_).channel)))
   }
 
