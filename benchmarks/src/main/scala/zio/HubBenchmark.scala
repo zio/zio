@@ -8,6 +8,7 @@ import fs2.concurrent.Topic
 import io.github.timwspence.cats.stm._
 import org.openjdk.jmh.annotations._
 import zio.BenchmarkUtil._
+import zio.stm.THub
 
 import java.util.concurrent.TimeUnit
 
@@ -107,6 +108,26 @@ class HubBenchmarks {
   def zioQueueUnboundedSequential(): Int =
     zioSequential(ZIOHubLike.zioQueueUnbounded)
 
+  @Benchmark
+  def zioTHubBoundedBackPressure(): Int =
+    zioParallel(ZIOHubLike.zioTHubBounded(hubSize))
+
+  @Benchmark
+  def zioTHubBoundedParallel(): Int =
+    zioParallel(ZIOHubLike.zioTHubBounded(totalSize))
+
+  @Benchmark
+  def zioTHubBoundedSequential(): Int =
+    zioSequential(ZIOHubLike.zioTHubBounded(totalSize))
+
+  @Benchmark
+  def zioTHubUnboundedParallel(): Int =
+    zioParallel(ZIOHubLike.zioTHubUnbounded)
+
+  @Benchmark
+  def zioTHubUnboundedSequential(): Int =
+    zioSequential(ZIOHubLike.zioTHubUnbounded)
+
   trait ZIOHubLike[A] {
     def publish(a: A): UIO[Any]
     def subscribe: ZManaged[Any, Nothing, Int => UIO[Any]]
@@ -159,6 +180,26 @@ class HubBenchmarks {
               queue <- Queue.unbounded[A].toManaged
               _     <- ZManaged.acquireRelease(ref.update(_ + (key -> queue)))(ref.update(_ - key))
             } yield n => zioRepeat(n)(queue.take)
+        }
+      }
+
+    def zioTHubBounded[A](capacity: Int): UIO[ZIOHubLike[A]] =
+      THub.bounded[A](capacity).commit.map { hub =>
+        new ZIOHubLike[A] {
+          def publish(a: A): UIO[Any] =
+            hub.publish(a).commit
+          def subscribe: ZManaged[Any, Nothing, Int => UIO[Any]] =
+            hub.subscribeManaged.map(dequeue => n => zioRepeat(n)(dequeue.take.commit))
+        }
+      }
+
+    def zioTHubUnbounded[A]: UIO[ZIOHubLike[A]] =
+      THub.unbounded[A].commit.map { hub =>
+        new ZIOHubLike[A] {
+          def publish(a: A): UIO[Any] =
+            hub.publish(a).commit
+          def subscribe: ZManaged[Any, Nothing, Int => UIO[Any]] =
+            hub.subscribeManaged.map(dequeue => n => zioRepeat(n)(dequeue.take.commit))
         }
       }
   }

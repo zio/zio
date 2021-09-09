@@ -53,20 +53,20 @@ object ZSTMSpec extends ZIOBaseSpec {
           assertM(tx.catchSome { case Error1 => ZSTM.succeed("gotcha") }.commit.exit)(fails(equalTo(Error2)))
         }
       ) @@ zioTag(errors),
-      test("repeatWhile to run effect while it satisfies predicate") {
-        (for {
-          a <- TQueue.bounded[Int](5)
-          _ <- a.offerAll(List(0, 0, 0, 1, 2))
-          n <- a.take.repeatWhile(_ == 0)
-        } yield assert(n)(equalTo(1))).commit
-      },
-      test("repeatUntil to run effect until it satisfies predicate") {
-        (for {
-          a <- TQueue.bounded[Int](5)
-          _ <- a.offerAll(List(0, 0, 0, 1, 2))
-          b <- a.take.repeatUntil(_ == 1)
-        } yield assert(b)(equalTo(1))).commit
-      },
+      // test("repeatWhile to run effect while it satisfies predicate") {
+      //   (for {
+      //     a <- TQueue.bounded[Int](5)
+      //     _ <- a.offerAll(List(0, 0, 0, 1, 2))
+      //     n <- a.take.repeatWhile(_ == 0)
+      //   } yield assert(n)(equalTo(1))).commit
+      // },
+      // test("repeatUntil to run effect until it satisfies predicate") {
+      //   (for {
+      //     a <- TQueue.bounded[Int](5)
+      //     _ <- a.offerAll(List(0, 0, 0, 1, 2))
+      //     b <- a.take.repeatUntil(_ == 1)
+      //   } yield assert(b)(equalTo(1))).commit
+      // },
       suite("either to convert")(
         test("A successful computation into Right(a)") {
           implicit val canFail = CanFail
