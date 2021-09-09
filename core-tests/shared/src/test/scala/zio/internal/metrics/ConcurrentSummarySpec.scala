@@ -9,7 +9,7 @@ object ConcurrentSummarySpec extends ZIOBaseSpec {
   override def spec: ZSpec[Environment, Any] =
     suite("ConcurrentSummary")(
       test("single observe works with maxSize = 0") {
-        val summary = ConcurrentSummary.manual(maxSize = 0, maxAge = 10.seconds, error = 0.0, quantiles = Chunk.empty)
+        val summary = ConcurrentSummary.manual(maxSize = 0, maxAge = 10.seconds, err = 0.0, quantiles = Chunk.empty)
         val observe = Clock.instant.flatMap(now => ZIO.attempt(summary.observe(11.0, now)))
 
         for {
@@ -26,7 +26,7 @@ object ConcurrentSummarySpec extends ZIOBaseSpec {
       },
       test("single observe works with arbitrary maxSize") {
         checkM(Gen.int(0, 100000)) { maxSize =>
-          val summary = ConcurrentSummary.manual(maxSize, maxAge = 10.seconds, error = 0.0, quantiles = Chunk.empty)
+          val summary = ConcurrentSummary.manual(maxSize, maxAge = 10.seconds, err = 0.0, quantiles = Chunk.empty)
           val observe = Clock.instant.flatMap(now => ZIO.attempt(summary.observe(11.0, now)))
 
           for {
@@ -45,7 +45,7 @@ object ConcurrentSummarySpec extends ZIOBaseSpec {
       zio.test.suite("stable under load")(
         Seq(0, 1, 100, 100000).map { maxSize =>
           test(s"maxSize = $maxSize") {
-            val summary     = ConcurrentSummary.manual(maxSize, maxAge = 10.seconds, error = 0.0, quantiles = Chunk.empty)
+            val summary     = ConcurrentSummary.manual(maxSize, maxAge = 10.seconds, err = 0.0, quantiles = Chunk.empty)
             val observe     = Clock.instant.flatMap(now => ZIO.attempt(summary.observe(11.0, now)))
             val getSnapshot = Clock.instant.flatMap(now => ZIO.attempt(summary.snapshot(now)))
 
@@ -71,7 +71,7 @@ object ConcurrentSummarySpec extends ZIOBaseSpec {
       ),
       test(s"old measurements not used for quantiles with non-full buffer") {
         val summary =
-          ConcurrentSummary.manual(maxSize = 10, maxAge = 1.seconds, error = 0.0, quantiles = Chunk(0.5, 1.0))
+          ConcurrentSummary.manual(maxSize = 10, maxAge = 1.seconds, err = 0.0, quantiles = Chunk(0.5, 1.0))
         def observe(v: Double) = Clock.instant.flatMap(now => ZIO.attempt(summary.observe(v, now)))
         val getSnapshot        = Clock.instant.flatMap(now => ZIO.attempt(summary.snapshot(now)))
 
@@ -101,7 +101,7 @@ object ConcurrentSummarySpec extends ZIOBaseSpec {
       },
       test(s"old measurements not used for quantiles with full buffer") {
         val summary =
-          ConcurrentSummary.manual(maxSize = 3, maxAge = 1.seconds, error = 0.0, quantiles = Chunk(0.5, 1.0))
+          ConcurrentSummary.manual(maxSize = 3, maxAge = 1.seconds, err = 0.0, quantiles = Chunk(0.5, 1.0))
         def observe(v: Double) = Clock.instant.flatMap(now => ZIO.attempt(summary.observe(v, now)))
         val getSnapshot        = Clock.instant.flatMap(now => ZIO.attempt(summary.snapshot(now)))
 
