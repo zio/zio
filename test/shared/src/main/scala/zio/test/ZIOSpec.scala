@@ -16,80 +16,10 @@
 
 package zio.test
 
-import org.portablescala.reflect.annotation.EnableReflectiveInstantiation
 import zio._
-import zio.test.environment.TestEnvironment
-import zio.test.render._
 
-@EnableReflectiveInstantiation
 abstract class ZIOSpec[R <: Has[_]: Tag] extends ZIOApp { self =>
+  type Environment = R
 
-  def layer: ZLayer[TestEnvironment, Any, R]
-
-  def spec: ZSpec[R with TestEnvironment with Has[ZIOAppArgs], Any]
-
-  def aspects: Chunk[TestAspect[Nothing, R with TestEnvironment with Has[ZIOAppArgs], Nothing, Any]] =
-    Chunk.empty
-
-  final def run: ZIO[ZEnv with Has[ZIOAppArgs], Any, Any] =
-    runSpec.provideSomeLayer[ZEnv with Has[ZIOAppArgs]](TestEnvironment.live ++ (TestEnvironment.live >>> layer))
-
-  final def <>[R1 <: R: Tag](that: ZIOSpec[R1]): ZIOSpec[R with R1] =
-    new ZIOSpec[R with R1] {
-      def layer: ZLayer[TestEnvironment, Any, R with R1] =
-        self.layer ++ that.layer
-      override def runSpec: ZIO[R with R1 with TestEnvironment with Has[ZIOAppArgs], Any, Any] =
-        self.runSpec.zipPar(that.runSpec)
-      def spec: ZSpec[R with R1 with TestEnvironment with Has[ZIOAppArgs], Any] =
-        self.spec + that.spec
-    }
-
-  protected def runSpec: ZIO[R with TestEnvironment with Has[ZIOAppArgs], Any, Any] =
-    for {
-      args     <- ZIO.service[ZIOAppArgs]
-      testArgs  = TestArgs.parse(args.args.toArray)
-      exitCode <- runSpec(spec, testArgs)
-      _        <- doExit(exitCode)
-    } yield ()
-
-  private def createTestReporter(rendererName: String): TestReporter[Any] = {
-    val renderer = rendererName match {
-      case "intellij" => IntelliJRenderer
-      case _          => TestRenderer.default
-    }
-    DefaultTestReporter(renderer, TestAnnotationRenderer.default)
-  }
-
-  private def doExit(exitCode: Int): UIO[Unit] =
-    exit(ExitCode(exitCode)).when(!isAmmonite).unit
-
-  private def isAmmonite: Boolean =
-    sys.env.exists { case (k, v) =>
-      k.contains("JAVA_MAIN_CLASS") && v == "ammonite.Main"
-    }
-
-  private def runSpec(
-    spec: ZSpec[R with TestEnvironment with Has[ZIOAppArgs], Any],
-    testArgs: TestArgs
-  ): URIO[R with TestEnvironment with Has[ZIOAppArgs], Int] = {
-    val filteredSpec = FilteredSpec(spec, testArgs)
-
-    for {
-      env <- ZIO.environment[R with TestEnvironment with Has[ZIOAppArgs]]
-      runner = TestRunner(
-                 TestExecutor.default[R with TestEnvironment with Has[ZIOAppArgs], Any](ZLayer.succeedMany(env))
-               )
-      testReporter = testArgs.testRenderer.fold(runner.reporter)(createTestReporter)
-      results <-
-        runner.withReporter(testReporter).run(aspects.foldLeft(filteredSpec)(_ @@ _)).provideLayer(runner.bootstrap)
-      hasFailures = results.exists {
-                      case ExecutedSpec.TestCase(test, _) => test.isLeft
-                      case _                              => false
-                    }
-      _ <- TestLogger
-             .logLine(SummaryBuilder.buildSummary(results).summary)
-             .when(testArgs.printSummary)
-             .provideLayer(runner.bootstrap)
-    } yield if (hasFailures) 1 else 0
-  }
+  final val tag: Tag[R] = Tag[R]
 }
