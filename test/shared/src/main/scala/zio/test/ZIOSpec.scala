@@ -35,7 +35,7 @@ abstract class ZIOSpec[R <: Has[_]: Tag] extends ZIOApp { self =>
     runSpec.provideSomeLayer[ZEnv with Has[ZIOAppArgs]](TestEnvironment.live ++ (TestEnvironment.live >>> layer))
 
   final def <>[R1 <: R: Tag](that: ZIOSpec[R1]): ZIOSpec[R with R1] =
-    new ZIOSpec[R with R1]{
+    new ZIOSpec[R with R1] {
       def layer: ZLayer[TestEnvironment, Any, R with R1] =
         self.layer ++ that.layer
       override def runSpec: ZIO[R with R1 with TestEnvironment with Has[ZIOAppArgs], Any, Any] =
