@@ -22,7 +22,9 @@ import zio.test.environment.TestEnvironment
 import zio.test.render._
 
 @EnableReflectiveInstantiation
-abstract class ZIOSpec[R <: Has[_]: Tag](val layer: ZLayer[TestEnvironment, Any, R]) extends ZIOApp { self =>
+abstract class ZIOSpec[R <: Has[_]: Tag] extends ZIOApp { self =>
+
+  def layer: ZLayer[TestEnvironment, Any, R]
 
   def spec: ZSpec[R with TestEnvironment with Has[ZIOAppArgs], Any]
 
@@ -33,7 +35,9 @@ abstract class ZIOSpec[R <: Has[_]: Tag](val layer: ZLayer[TestEnvironment, Any,
     runSpec.provideSomeLayer[ZEnv with Has[ZIOAppArgs]](TestEnvironment.live ++ (TestEnvironment.live >>> layer))
 
   final def <>[R1 <: R: Tag](that: ZIOSpec[R1]): ZIOSpec[R with R1] =
-    new ZIOSpec[R with R1](self.layer ++ that.layer) {
+    new ZIOSpec[R with R1]{
+      def layer: ZLayer[TestEnvironment, Any, R with R1] =
+        self.layer ++ that.layer
       override def runSpec: ZIO[R with R1 with TestEnvironment with Has[ZIOAppArgs], Any, Any] =
         self.runSpec.zipPar(that.runSpec)
       def spec: ZSpec[R with R1 with TestEnvironment with Has[ZIOAppArgs], Any] =
