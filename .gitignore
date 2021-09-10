@@ -28,6 +28,8 @@ website/node_modules
 website/.docusaurus
 website/build
 website/docs
+website/versioned_docs
+website/versioned_sidebars
 website/i18n/en.json
 website/yarn.lock
 .bsp/
