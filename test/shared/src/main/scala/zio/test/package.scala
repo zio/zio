@@ -109,7 +109,6 @@ package object test extends CompileVariants {
         .overrideForkScope(ZScope.global)
         .ensuringChildren { children =>
           ZIO.foreach(children) { child =>
-            quoted()
             val warning =
               s"Warning: ZIO Test is attempting to interrupt fiber " +
                 s"${child.id} forked in test $label due to automatic, " +
