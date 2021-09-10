@@ -2,8 +2,8 @@ package zio.internal.metrics
 
 import zio._
 
-import java.util.concurrent.atomic.LongAdder
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.LongAdder
 
 private[zio] sealed abstract class ConcurrentSetCount {
 

@@ -4,7 +4,6 @@ import zio._
 import zio.metrics._
 
 import java.time.Instant
-import java.util.concurrent.atomic.{AtomicReference, DoubleAdder}
 import java.util.concurrent.ConcurrentHashMap
 
 private[zio] class ConcurrentState {
@@ -82,7 +81,7 @@ private[zio] class ConcurrentState {
   def getCounter(key: MetricKey.Counter): Counter = {
     var value = map.get(key)
     if (value eq null) {
-      val counter = ConcurrentMetricState.Counter(key, "", new DoubleAdder)
+      val counter = ConcurrentMetricState.Counter(key, "", ConcurrentCounter.manual())
       map.putIfAbsent(key, counter)
       value = map.get(key)
     }
@@ -101,7 +100,7 @@ private[zio] class ConcurrentState {
   def getGauge(key: MetricKey.Gauge): Gauge = {
     var value = map.get(key)
     if (value eq null) {
-      val gauge = ConcurrentMetricState.Gauge(key, "", new AtomicReference(0.0))
+      val gauge = ConcurrentMetricState.Gauge(key, "", ConcurrentGauge.manual(0.0))
       map.putIfAbsent(key, gauge)
       value = map.get(key)
     }
@@ -118,7 +117,7 @@ private[zio] class ConcurrentState {
           listener.unsafeGaugeChanged(key, v, d)
         }
       def value: UIO[Double] =
-        ZIO.succeed(gauge.value.get)
+        ZIO.succeed(gauge.get)
     }
   }
 
