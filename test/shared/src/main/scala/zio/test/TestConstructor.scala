@@ -27,7 +27,7 @@ trait TestConstructorLowPriority1 extends TestConstructorLowPriority2 {
         Spec.labeled(
           label,
           Spec
-            .test(ZTest(assertion), TestAnnotationMap.empty)
+            .test(ZTest(label, assertion), TestAnnotationMap.empty)
             .annotate(TestAnnotation.location, location :: Nil)
         )
     }
@@ -52,7 +52,7 @@ trait TestConstructorLowPriority3 {
         Spec.labeled(
           label,
           Spec
-            .test(ZTest(assertion), TestAnnotationMap.empty)
+            .test(ZTest(label, assertion), TestAnnotationMap.empty)
             .annotate(TestAnnotation.location, location :: Nil)
         )
     }
