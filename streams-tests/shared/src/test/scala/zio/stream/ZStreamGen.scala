@@ -58,4 +58,22 @@ object ZStreamGen extends GenZIO {
       if (predicate(chunk)) chunk
       else Chunk.empty
     }
+
+  def splitChunks[A](chunks: Chunk[Chunk[A]]): Gen[Random with Sized, Chunk[Chunk[A]]] =
+    Gen.sized(splitChunksN(_)(chunks))
+
+  def splitChunksN[A](n: Int)(chunks: Chunk[Chunk[A]]): Gen[Random, Chunk[Chunk[A]]] = {
+
+    def split(chunks: Chunk[Chunk[A]]): Gen[Random, Chunk[Chunk[A]]] =
+      for {
+        i     <- Gen.int(0, chunks.length - 1 max 0)
+        chunk  = chunks(i)
+        j     <- Gen.int(0, chunks.length - 1 max 0)
+        (l, r) = chunk.splitAt(j)
+        split  = chunks.take(i) ++ Chunk(l) ++ Chunk(r) ++ chunks.drop(i + 1)
+      } yield split
+
+    if (n == 0) Gen.const(chunks)
+    else split(chunks).flatMap(splitChunksN(n - 1))
+  }
 }
