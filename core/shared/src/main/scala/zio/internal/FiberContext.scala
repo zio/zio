@@ -852,7 +852,7 @@ private[zio] final class FiberContext[E, A](
           ZIO.halt(state.get.interrupted)
         } else null
 
-      case _ => throw new RuntimeException(s"Unexpected fiber completion ${fiberId}")
+      case _ => throw new RuntimeException(s"Unexpected fiber completion $fiberId")
     }
   }
 
