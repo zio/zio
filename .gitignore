@@ -28,7 +28,7 @@ website/node_modules
 website/.docusaurus
 website/build
 website/docs
-website/static/css/tailwind.css
+website/versioned_docs
 website/i18n/en.json
 website/yarn.lock
 .bsp/

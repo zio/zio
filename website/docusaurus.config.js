@@ -34,6 +34,11 @@ module.exports = {
         { to: 'howto/index', label: 'How to', position: 'right' },
         { to: 'resources/index', label: 'Resources', position: 'right' },
         { to: 'about/about_index', label: 'About', position: 'right' },
+        {
+          type: 'docsVersionDropdown',
+          position: 'right',
+          dropdownActiveClassDisabled: true,
+        },
       ],
     },
     algolia: {
