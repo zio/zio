@@ -9,7 +9,7 @@ import zio.test.TestUtils.execute
 
 object TestSpec extends ZIOBaseSpec {
 
-  override val runner =
+  override val runner: TestRunner[TestEnvironment, Any] =
     defaultTestRunner.withRuntimeConfig { runtimeConfig =>
       runtimeConfig.copy(logger = runtimeConfig.logger.filterLogLevel(_ >= LogLevel.Error))
     }
