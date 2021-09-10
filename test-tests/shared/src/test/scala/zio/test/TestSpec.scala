@@ -1,14 +1,20 @@
 package zio.test
 
+import zio._
 import zio.Clock._
+import zio.test.environment._
 import zio.test.Assertion._
-import zio.test.TestAspect.failing
+import zio.test.TestAspect.{failing, timeout}
 import zio.test.TestUtils.execute
-import zio.{Clock, Has, ZIO}
 
 object TestSpec extends ZIOBaseSpec {
 
-  def spec: Spec[Has[Clock], TestFailure[Any], TestSuccess] = suite("TestSpec")(
+  override val runner =
+    defaultTestRunner.withRuntimeConfig { runtimeConfig =>
+      runtimeConfig.copy(logger = runtimeConfig.logger.filterLogLevel(_ >= LogLevel.Error))
+    }
+
+  def spec: Spec[Environment, TestFailure[Any], TestSuccess] = suite("TestSpec")(
     test("assertM works correctly") {
       assertM(nanoTime)(equalTo(0L))
     },
@@ -39,6 +45,13 @@ object TestSpec extends ZIOBaseSpec {
       for {
         _ <- execute(spec)
       } yield assert(n)(equalTo(1))
-    }
+    },
+    test("test does not wait to interrupt children") {
+      for {
+        promise <- Promise.make[Nothing, Unit]
+        _       <- (promise.succeed(()) *> Live.live(ZIO.sleep(20.seconds))).uninterruptible.fork
+        _       <- promise.await
+      } yield assertCompletes
+    } @@ timeout(10.seconds)
   )
 }
