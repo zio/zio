@@ -12,7 +12,7 @@ sbt docs/mdoc
 mkdir -p website/versioned_docs/version-1.x
 mv zio-docs/target/mdoc/* website/versioned_docs/version-1.x
 
-git checkout series/2.x
+git checkout documentation
 sbt docs/mdoc
 
 cd website 
