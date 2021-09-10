@@ -57,7 +57,7 @@ trait ZIOApp { self =>
     UIO {
       if (!shuttingDown) {
         shuttingDown = true
-        try java.lang.System.exit(code.code)
+        try Platform.exit(code.code)
         catch { case _: SecurityException => }
       }
     }
@@ -106,7 +106,7 @@ trait ZIOApp { self =>
 
             ()
           })
-        result <- fiber.join.tapErrorCause(ZIO.logCause(_)).exitCode
+        result <- fiber.join.tapErrorCause(ZIO.logErrorCause(_)).exitCode
         _      <- exit(result)
       } yield ())
     }

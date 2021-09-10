@@ -38,8 +38,7 @@ private[zio] final class FiberContext[E, A](
   parentTrace: Option[ZTrace],
   initialTracingStatus: Boolean,
   var fiberRefLocals: FiberRefLocals,
-  openScope: ZScope.Open[Exit[E, A]],
-  reportFailure: Cause[Any] => Unit
+  openScope: ZScope.Open[Exit[E, A]]
 ) extends Fiber.Runtime.Internal[E, A]
     with FiberRunnable { self =>
   type Erased = ZIO[Any, Any, Any]
@@ -283,8 +282,8 @@ private[zio] final class FiberContext[E, A](
     val raceIndicator = new AtomicBoolean(true)
 
     val scope = race.scope()
-    val left  = fork[EL, A](race.left().asInstanceOf[IO[EL, A]], scope, noop)
-    val right = fork[ER, B](race.right().asInstanceOf[IO[ER, B]], scope, noop)
+    val left  = fork[EL, A](race.left().asInstanceOf[IO[EL, A]], scope)
+    val right = fork[ER, B](race.right().asInstanceOf[IO[ER, B]], scope)
 
     ZIO
       .async[R, E, C](
@@ -566,7 +565,7 @@ private[zio] final class FiberContext[E, A](
                   case ZIO.Tags.Fork =>
                     val zio = curZio.asInstanceOf[ZIO.Fork[Any, Any, Any]]
 
-                    curZio = nextInstr(fork(zio.value, zio.scope(), zio.reportFailure))
+                    curZio = nextInstr(fork(zio.value, zio.scope()))
 
                   case ZIO.Tags.Descriptor =>
                     val zio = curZio.asInstanceOf[ZIO.Descriptor[Any, Any, Any]]
@@ -691,22 +690,7 @@ private[zio] final class FiberContext[E, A](
                   case ZIO.Tags.Logged =>
                     val zio = curZio.asInstanceOf[ZIO.Logged]
 
-                    val logLevel = zio.overrideLogLevel match {
-                      case Some(level) => level
-                      case _           => getFiberRefValue(FiberRef.currentLogLevel)
-                    }
-
-                    val spans = getFiberRefValue(FiberRef.currentLogSpan)
-
-                    val contextMap =
-                      if (zio.overrideRef1 ne null) {
-                        val map = fiberRefLocals.get
-
-                        if (zio.overrideValue1 eq null) map - zio.overrideRef1
-                        else map.updated(zio.overrideRef1, zio.overrideValue1)
-                      } else fiberRefLocals.get
-
-                    runtimeConfig.logger(currentLocation, fiberId, logLevel, zio.message, contextMap, spans)
+                    log(zio.message, zio.overrideLogLevel, zio.overrideRef1, zio.overrideValue1)
 
                     curZio = nextInstr(())
 
@@ -783,8 +767,7 @@ private[zio] final class FiberContext[E, A](
    */
   def fork[E, A](
     zio: IO[E, A],
-    forkScope: Option[ZScope[Exit[Any, Any]]] = None,
-    reportFailure: Option[Cause[Any] => Unit] = None
+    forkScope: Option[ZScope[Exit[Any, Any]]] = None
   ): FiberContext[E, A] = {
     val childFiberRefLocals: Map[FiberRef.Runtime[_], AnyRef] = fiberRefLocals.get.transform { case (fiberRef, value) =>
       fiberRef.fork(value.asInstanceOf[fiberRef.ValueType]).asInstanceOf[AnyRef]
@@ -813,8 +796,7 @@ private[zio] final class FiberContext[E, A](
       ancestry,
       tracingRegion,
       new AtomicReference(childFiberRefLocals),
-      childScope,
-      reportFailure.getOrElse(runtimeConfig.reportFailure)
+      childScope
     )
 
     if (runtimeConfig.supervisor ne Supervisor.none) {
@@ -1121,7 +1103,7 @@ private[zio] final class FiberContext[E, A](
   }
 
   private[this] def reportUnhandled(v: Exit[E, A]): Unit = v match {
-    case Exit.Failure(cause) => reportFailure(cause)
+    case Exit.Failure(cause) => log(() => cause.prettyPrint, ZIO.someDebug)
     case _                   =>
   }
 
@@ -1260,6 +1242,31 @@ private[zio] final class FiberContext[E, A](
       observers.foreach(k => k(result))
     }
 
+  private[this] def log(
+    message: () => String,
+    overrideLogLevel: Option[LogLevel],
+    overrideRef1: FiberRef.Runtime[_] = null,
+    overrideValue1: AnyRef = null
+  ): Unit = {
+    val logLevel = overrideLogLevel match {
+      case Some(level) => level
+      case _           => getFiberRefValue(FiberRef.currentLogLevel)
+    }
+
+    val spans = getFiberRefValue(FiberRef.currentLogSpan)
+
+    val contextMap =
+      if (overrideRef1 ne null) {
+        val map = fiberRefLocals.get
+
+        if (overrideValue1 eq null) map - overrideRef1
+        else map.updated(overrideRef1, overrideValue1)
+      } else fiberRefLocals.get
+
+    runtimeConfig.logger(currentLocation, fiberId, logLevel, message, contextMap, spans)
+
+    ()
+  }
 }
 private[zio] object FiberContext {
   sealed abstract class FiberState[+E, +A] extends Serializable with Product {
@@ -1299,9 +1306,6 @@ private[zio] object FiberContext {
   }
 
   type FiberRefLocals = AtomicReference[Map[FiberRef.Runtime[_], AnyRef]]
-
-  private val noop: Option[Any => Unit] =
-    Some(_ => ())
 
   val fatal: AtomicBoolean =
     new AtomicBoolean(false)

@@ -4,7 +4,6 @@ import zio.test._
 import zio.test.TestAspect._
 
 import zio.internal.stacktracer.ZTraceElement
-import zio.internal.ZLogger
 import scala.annotation.tailrec
 
 object LoggingSpec extends ZIOBaseSpec {
@@ -36,7 +35,7 @@ object LoggingSpec extends ZIOBaseSpec {
         message: () => String,
         context: Map[FiberRef.Runtime[_], AnyRef],
         spans: List[LogSpan]
-      ): Unit = {
+      ): Unit = if (logLevel >= LogLevel.Info) {
         val newEntry = LogEntry(trace, fiberId, logLevel, message, context, spans)
 
         val oldState = _logOutput.get
@@ -61,27 +60,27 @@ object LoggingSpec extends ZIOBaseSpec {
       },
       test("change log level in region") {
         for {
-          _      <- LogLevel.Debug(ZIO.log("It's alive!"))
+          _      <- LogLevel.Warning(ZIO.log("It's alive!"))
           output <- logOutput
         } yield assertTrue(output.length == 1) &&
           assertTrue(output(0).message() == "It's alive!") &&
-          assertTrue(output(0).logLevel == LogLevel.Debug)
+          assertTrue(output(0).logLevel == LogLevel.Warning)
       },
       test("log at a different log level") {
         for {
-          _      <- ZIO.logDebug("It's alive!")
+          _      <- ZIO.logWarning("It's alive!")
           output <- logOutput
         } yield assertTrue(output.length == 1) &&
           assertTrue(output(0).message() == "It's alive!") &&
-          assertTrue(output(0).logLevel == LogLevel.Debug)
+          assertTrue(output(0).logLevel == LogLevel.Warning)
       },
       test("log at a different log level") {
         for {
-          _      <- ZIO.logDebug("It's alive!")
+          _      <- ZIO.logWarning("It's alive!")
           output <- logOutput
         } yield assertTrue(output.length == 1) &&
           assertTrue(output(0).message() == "It's alive!") &&
-          assertTrue(output(0).logLevel == LogLevel.Debug)
+          assertTrue(output(0).logLevel == LogLevel.Warning)
       },
       test("log at a span") {
         for {

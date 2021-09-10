@@ -17,6 +17,12 @@ private[zio] trait PlatformSpecific {
     }
 
   /**
+   * Exits the application with the specified exit code.
+   */
+  def exit(code: Int): Unit =
+    java.lang.System.exit(code)
+
+  /**
    * Returns the name of the thread group to which this thread belongs. This
    * is a side-effecting method.
    */

@@ -623,6 +623,31 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     }
 
   /**
+   * Returns a new stream that only emits elements that are not equal to the
+   * previous element emitted, using the specified effectual function to
+   * determine whether two elements are equal.
+   */
+  def changesWithZIO[R1 <: R, E1 >: E](f: (O, O) => ZIO[R1, E1, Boolean]): ZStream[R1, E1, O] =
+    ZStream {
+      for {
+        ref <- Ref.makeManaged[Option[O]](None)
+        p   <- self.process
+        pull = for {
+                 z0 <- ref.get
+                 c  <- p
+                 tuple <- c.foldZIO[R1, E1, (Option[O], Chunk[O])]((z0, Chunk.empty)) {
+                            case ((Some(o), os), o1) =>
+                              f(o, o1).map(b => if (b) (Some(o1), os) else (Some(o1), os :+ o1))
+                            case ((_, os), o1) =>
+                              ZIO.succeedNow((Some(o1), os :+ o1))
+                          }.asSomeError
+                 (z1, chunk) = tuple
+                 _          <- ref.set(z1)
+               } yield chunk
+      } yield pull
+    }
+
+  /**
    * Re-chunks the elements of the stream into chunks of
    * `n` elements each.
    * The last chunk might contain less than `n` elements
@@ -4523,14 +4548,14 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     ZStream.access(r => (r.get[A], r.get[B]))
 
   /**
-   * Accesses the specified services in the environment of the effect.
+   * Accesses the specified services in the environment of the stream.
    */
   @deprecated("use service", "2.0.0")
   def services[A: Tag, B: Tag, C: Tag]: ZStream[Has[A] with Has[B] with Has[C], Nothing, (A, B, C)] =
     ZStream.access(r => (r.get[A], r.get[B], r.get[C]))
 
   /**
-   * Accesses the specified services in the environment of the effect.
+   * Accesses the specified services in the environment of the stream.
    */
   @deprecated("use service", "2.0.0")
   def services[A: Tag, B: Tag, C: Tag, D: Tag]
@@ -4538,10 +4563,18 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     ZStream.access(r => (r.get[A], r.get[B], r.get[C], r.get[D]))
 
   /**
-   * Effectfully accesses the specified service in the environment of the effect.
+   * Accesses the specified service in the environment of the stream in the
+   * context of an effect.
    */
   def serviceWith[Service]: ServiceWithPartiallyApplied[Service] =
     new ServiceWithPartiallyApplied[Service]
+
+  /**
+   * Accesses the specified service in the environment of the stream in the
+   * context of a stream.
+   */
+  def serviceWithStream[Service]: ServiceWithStreamPartiallyApplied[Service] =
+    new ServiceWithStreamPartiallyApplied[Service]
 
   /**
    * Creates a single-valued pure stream
@@ -4730,6 +4763,13 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       tag: Tag[Service]
     ): ZStream[Has[Service], E, A] =
       ZStream.fromZIO(ZIO.serviceWith(f))
+  }
+
+  final class ServiceWithStreamPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
+    def apply[E, A](f: Service => ZStream[Has[Service], E, A])(implicit
+      tag: Tag[Service]
+    ): ZStream[Has[Service], E, A] =
+      ZStream.service[Service].flatMap(f)
   }
 
   /**

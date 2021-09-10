@@ -1,6 +1,5 @@
-package zio.internal
+package zio
 
-import zio._
 import zio.internal.stacktracer._
 
 trait ZLogger[+A] { self =>
@@ -33,8 +32,12 @@ trait ZLogger[+A] { self =>
         )
     }
 
-  final def logged(f: A => Unit): ZLogger[Unit] =
-    new ZLogger[Unit] {
+  /**
+   * Returns a version of this logger that only logs messages when the log
+   * level satisfies the specified predicate.
+   */
+  final def filterLogLevel(f: LogLevel => Boolean): ZLogger[Option[A]] =
+    new ZLogger[Option[A]] {
       def apply(
         trace: ZTraceElement,
         fiberId: FiberId,
@@ -42,7 +45,22 @@ trait ZLogger[+A] { self =>
         message: () => String,
         context: Map[FiberRef.Runtime[_], AnyRef],
         spans: List[LogSpan]
-      ): Unit = f(self(trace, fiberId, logLevel, message, context, spans))
+      ): Option[A] =
+        if (f(logLevel)) {
+          Some(self(trace, fiberId, logLevel, message, context, spans))
+        } else None
+    }
+
+  final def map[B](f: A => B): ZLogger[B] =
+    new ZLogger[B] {
+      def apply(
+        trace: ZTraceElement,
+        fiberId: FiberId,
+        logLevel: LogLevel,
+        message: () => String,
+        context: Map[FiberRef.Runtime[_], AnyRef],
+        spans: List[LogSpan]
+      ): B = f(self(trace, fiberId, logLevel, message, context, spans))
     }
 }
 object ZLogger {

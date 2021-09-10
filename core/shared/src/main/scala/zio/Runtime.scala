@@ -285,11 +285,6 @@ trait Runtime[+R] {
   def withReportFatal(f: Throwable => Nothing): Runtime[R] = mapRuntimeConfig(_.copy(reportFatal = f))
 
   /**
-   * Constructs a new `Runtime` with the specified error reporter.
-   */
-  def withReportFailure(f: Cause[Any] => Unit): Runtime[R] = mapRuntimeConfig(_.copy(reportFailure = f))
-
-  /**
    * Constructs a new `Runtime` with the specified tracer and tracing configuration.
    */
   def withTracing(t: Tracing): Runtime[R] = mapRuntimeConfig(_.copy(tracing = t))
@@ -313,8 +308,7 @@ trait Runtime[+R] {
       None,
       PlatformConstants.tracingSupported,
       new java.util.concurrent.atomic.AtomicReference(Map.empty),
-      scope,
-      runtimeConfig.reportFailure
+      scope
     )
 
     if (supervisor ne Supervisor.none) {
@@ -367,9 +361,6 @@ object Runtime {
 
     override final def withReportFatal(f: Throwable => Nothing): Runtime.Managed[R] =
       mapRuntimeConfig(_.copy(reportFatal = f))
-
-    override final def withReportFailure(f: Cause[Any] => Unit): Runtime.Managed[R] =
-      mapRuntimeConfig(_.copy(reportFailure = f))
 
     override final def withTracing(t: Tracing): Runtime.Managed[R] =
       mapRuntimeConfig(_.copy(tracing = t))

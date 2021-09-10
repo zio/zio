@@ -830,6 +830,18 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assert(actual)(equalTo(expected))
           }
         },
+        test("changesWithZIO") {
+          checkM(pureStreamOfInts) { stream =>
+            for {
+              actual <- stream.changesWithZIO((l, r) => ZIO.succeed(l == r)).runCollect.map(_.toList)
+              expected <- stream.runCollect.map { as =>
+                            as.foldLeft[List[Int]](Nil) { (s, n) =>
+                              if (s.isEmpty || s.head != n) n :: s else s
+                            }.reverse
+                          }
+            } yield assert(actual)(equalTo(expected))
+          }
+        },
         suite("collectZIO")(
           test("collectZIO") {
             assertM(
@@ -2276,7 +2288,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 .exit
                 .map(_.isInterrupted)
             )(equalTo(false))
-          } @@ TestAspect.jvmOnly,
+          } @@ TestAspect.ignore,
           test("interrupts pending tasks when one of the tasks fails") {
             for {
               interrupted <- Ref.make(0)

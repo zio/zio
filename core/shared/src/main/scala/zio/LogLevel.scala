@@ -34,6 +34,19 @@ package zio
  */
 final case class LogLevel(ordinal: Int, label: String, syslog: Int)
     extends ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] { self =>
+
+  def <(that: LogLevel): Boolean =
+    self.ordinal < that.ordinal
+
+  def <=(that: LogLevel): Boolean =
+    self.ordinal <= that.ordinal
+
+  def >=(that: LogLevel): Boolean =
+    self.ordinal >= that.ordinal
+
+  def >(that: LogLevel): Boolean =
+    self.ordinal > that.ordinal
+
   def apply[R >: Nothing <: Any, E >: Nothing <: Any, A >: Nothing <: Any](zio: ZIO[R, E, A]): ZIO[R, E, A] =
     FiberRef.currentLogLevel.locally(self)(zio)
 }

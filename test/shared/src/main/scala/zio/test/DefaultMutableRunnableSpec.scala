@@ -34,4 +34,5 @@ import zio.{Has, ZLayer}
  * }
  * }}}
  */
+@deprecated("use DefaultRunnableSpec", "2.0.0")
 class DefaultMutableRunnableSpec extends MutableRunnableSpec[Has[Any]](ZLayer.succeed[Any](()), TestAspect.identity)

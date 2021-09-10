@@ -1103,20 +1103,20 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   /**
    * The moral equivalent of `if (!p) exp`
    */
-  final def unless(b: => Boolean): ZManaged[R, E, Unit] =
+  final def unless(b: => Boolean): ZManaged[R, E, Option[A]] =
     ZManaged.unless(b)(self)
 
   /**
    * The moral equivalent of `if (!p) exp` when `p` has side-effects
    */
   @deprecated("use unlessManaged", "2.0.0")
-  final def unlessM[R1 <: R, E1 >: E](b: => ZManaged[R1, E1, Boolean]): ZManaged[R1, E1, Unit] =
+  final def unlessM[R1 <: R, E1 >: E](b: => ZManaged[R1, E1, Boolean]): ZManaged[R1, E1, Option[A]] =
     unlessManaged(b)
 
   /**
    * The moral equivalent of `if (!p) exp` when `p` has side-effects
    */
-  final def unlessManaged[R1 <: R, E1 >: E](b: => ZManaged[R1, E1, Boolean]): ZManaged[R1, E1, Unit] =
+  final def unlessManaged[R1 <: R, E1 >: E](b: => ZManaged[R1, E1, Boolean]): ZManaged[R1, E1, Option[A]] =
     ZManaged.unlessManaged(b)(self)
 
   /**
@@ -1189,20 +1189,20 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   /**
    * The moral equivalent of `if (p) exp`
    */
-  def when(b: => Boolean): ZManaged[R, E, Unit] =
+  def when(b: => Boolean): ZManaged[R, E, Option[A]] =
     ZManaged.when(b)(self)
 
   /**
    * The moral equivalent of `if (p) exp` when `p` has side-effects
    */
   @deprecated("use whenManaged", "2.0.0")
-  def whenM[R1 <: R, E1 >: E](b: => ZManaged[R1, E1, Boolean]): ZManaged[R1, E1, Unit] =
+  def whenM[R1 <: R, E1 >: E](b: => ZManaged[R1, E1, Boolean]): ZManaged[R1, E1, Option[A]] =
     whenManaged(b)
 
   /**
    * The moral equivalent of `if (p) exp` when `p` has side-effects
    */
-  def whenManaged[R1 <: R, E1 >: E](b: => ZManaged[R1, E1, Boolean]): ZManaged[R1, E1, Unit] =
+  def whenManaged[R1 <: R, E1 >: E](b: => ZManaged[R1, E1, Boolean]): ZManaged[R1, E1, Option[A]] =
     ZManaged.whenManaged(b)(self)
 
   /**
@@ -1371,8 +1371,8 @@ object ZManaged extends ZManagedPlatformSpecific {
   }
 
   final class UnlessManaged[R, E](private val b: () => ZManaged[R, E, Boolean]) extends AnyVal {
-    def apply[R1 <: R, E1 >: E](managed: => ZManaged[R1, E1, Any]): ZManaged[R1, E1, Unit] =
-      ZManaged.suspend(b().flatMap(b => if (b) unit else managed.unit))
+    def apply[R1 <: R, E1 >: E, A](managed: => ZManaged[R1, E1, A]): ZManaged[R1, E1, Option[A]] =
+      ZManaged.suspend(b().flatMap(b => if (b) none else managed.asSome))
   }
 
   final class UpdateService[-R, +E, +A, M](private val self: ZManaged[R, E, A]) extends AnyVal {
@@ -1388,8 +1388,8 @@ object ZManaged extends ZManagedPlatformSpecific {
   }
 
   final class WhenManaged[R, E](private val b: () => ZManaged[R, E, Boolean]) extends AnyVal {
-    def apply[R1 <: R, E1 >: E](managed: => ZManaged[R1, E1, Any]): ZManaged[R1, E1, Unit] =
-      ZManaged.suspend(b().flatMap(b => if (b) managed.unit else unit))
+    def apply[R1 <: R, E1 >: E, A](managed: => ZManaged[R1, E1, A]): ZManaged[R1, E1, Option[A]] =
+      ZManaged.suspend(b().flatMap(b => if (b) managed.asSome else none))
   }
 
   /**
@@ -3011,8 +3011,8 @@ object ZManaged extends ZManagedPlatformSpecific {
   /**
    * The moral equivalent of `if (!p) exp`
    */
-  def unless[R, E](b: => Boolean)(zio: => ZManaged[R, E, Any]): ZManaged[R, E, Unit] =
-    suspend(if (b) unit else zio.unit)
+  def unless[R, E, A](b: => Boolean)(zManaged: => ZManaged[R, E, A]): ZManaged[R, E, Option[A]] =
+    suspend(if (b) none else zManaged.asSome)
 
   /**
    * The moral equivalent of `if (!p) exp` when `p` has side-effects
@@ -3042,30 +3042,30 @@ object ZManaged extends ZManagedPlatformSpecific {
   /**
    * The moral equivalent of `if (p) exp`
    */
-  def when[R, E](b: => Boolean)(zManaged: => ZManaged[R, E, Any]): ZManaged[R, E, Unit] =
-    ZManaged.suspend(if (b) zManaged.unit else unit)
+  def when[R, E, A](b: => Boolean)(zManaged: => ZManaged[R, E, A]): ZManaged[R, E, Option[A]] =
+    ZManaged.suspend(if (b) zManaged.asSome else none)
 
   /**
    * Runs an effect when the supplied `PartialFunction` matches for the given value, otherwise does nothing.
    */
-  def whenCase[R, E, A](a: => A)(pf: PartialFunction[A, ZManaged[R, E, Any]]): ZManaged[R, E, Unit] =
-    ZManaged.suspend(pf.applyOrElse(a, (_: A) => unit).unit)
+  def whenCase[R, E, A, B](a: => A)(pf: PartialFunction[A, ZManaged[R, E, B]]): ZManaged[R, E, Option[B]] =
+    ZManaged.suspend(pf.andThen(_.asSome).applyOrElse(a, (_: A) => none))
 
   /**
    * Runs an effect when the supplied `PartialFunction` matches for the given effectful value, otherwise does nothing.
    */
   @deprecated("use whenCaseManaged", "2.0.0")
-  def whenCaseM[R, E, A](
+  def whenCaseM[R, E, A, B](
     a: => ZManaged[R, E, A]
-  )(pf: PartialFunction[A, ZManaged[R, E, Any]]): ZManaged[R, E, Unit] =
+  )(pf: PartialFunction[A, ZManaged[R, E, B]]): ZManaged[R, E, Option[B]] =
     whenCaseManaged(a)(pf)
 
   /**
    * Runs an effect when the supplied `PartialFunction` matches for the given effectful value, otherwise does nothing.
    */
-  def whenCaseManaged[R, E, A](
+  def whenCaseManaged[R, E, A, B](
     a: => ZManaged[R, E, A]
-  )(pf: PartialFunction[A, ZManaged[R, E, Any]]): ZManaged[R, E, Unit] =
+  )(pf: PartialFunction[A, ZManaged[R, E, B]]): ZManaged[R, E, Option[B]] =
     ZManaged.suspend(a.flatMap(whenCase(_)(pf)))
 
   /**

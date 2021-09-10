@@ -18,7 +18,7 @@ package zio
 
 import zio.internal.stacktracer.{Tracer, ZTraceElement}
 import zio.internal.tracing.TracingConfig
-import zio.internal.{Tracing, ZLogger}
+import zio.internal.Tracing
 
 import scala.concurrent.ExecutionContext
 import scala.scalajs.js.Dynamic.{global => jsglobal}
@@ -34,7 +34,7 @@ private[zio] trait RuntimeConfigPlatformSpecific {
    * enabled Tracing with effect types _without_ a comparable feature.
    */
   lazy val benchmark: RuntimeConfig =
-    makeDefault(Int.MaxValue).copy(reportFailure = _ => (), tracing = Tracing.disabled)
+    makeDefault(Int.MaxValue).copy(tracing = Tracing.disabled)
 
   /**
    * The default runtime configuration, with settings designed to work well for
@@ -93,8 +93,6 @@ private[zio] trait RuntimeConfigPlatformSpecific {
       throw t
     }
 
-    val reportFailure = (cause: Cause[Any]) => if (cause.isDie) println(cause.prettyPrint)
-
     val tracing = Tracing(Tracer.Empty, TracingConfig.disabled)
 
     val supervisor = Supervisor.none
@@ -107,10 +105,9 @@ private[zio] trait RuntimeConfigPlatformSpecific {
       tracing,
       fatal,
       reportFatal,
-      reportFailure,
       supervisor,
       enableCurrentFiber,
-      logger
+      logger.filterLogLevel(_ >= LogLevel.Info)
     )
   }
 

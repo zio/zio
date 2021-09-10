@@ -1183,7 +1183,7 @@ object URIO {
   /**
    * @see See [[zio.ZIO.unless]]
    */
-  def unless[R](b: => Boolean)(zio: => URIO[R, Any]): URIO[R, Unit] =
+  def unless[R, A](b: => Boolean)(zio: => URIO[R, A]): URIO[R, Option[A]] =
     ZIO.unless(b)(zio)
 
   /**
@@ -1220,26 +1220,26 @@ object URIO {
   /**
    * @see [[zio.ZIO.when]]
    */
-  def when[R](b: => Boolean)(rio: => URIO[R, Any]): URIO[R, Unit] =
+  def when[R, A](b: => Boolean)(rio: => URIO[R, A]): URIO[R, Option[A]] =
     ZIO.when(b)(rio)
 
   /**
    * @see [[zio.ZIO.whenCase]]
    */
-  def whenCase[R, A](a: => A)(pf: PartialFunction[A, URIO[R, Any]]): URIO[R, Unit] =
+  def whenCase[R, A, B](a: => A)(pf: PartialFunction[A, URIO[R, B]]): URIO[R, Option[B]] =
     ZIO.whenCase(a)(pf)
 
   /**
    * @see [[zio.ZIO.whenCaseM]]
    */
   @deprecated("use whenCaseZIO", "2.0.0")
-  def whenCaseM[R, A](a: => URIO[R, A])(pf: PartialFunction[A, URIO[R, Any]]): URIO[R, Unit] =
+  def whenCaseM[R, A, B](a: => URIO[R, A])(pf: PartialFunction[A, URIO[R, B]]): URIO[R, Option[B]] =
     ZIO.whenCaseM(a)(pf)
 
   /**
    * @see [[zio.ZIO.whenCaseZIO]]
    */
-  def whenCaseZIO[R, A](a: => URIO[R, A])(pf: PartialFunction[A, URIO[R, Any]]): URIO[R, Unit] =
+  def whenCaseZIO[R, A, B](a: => URIO[R, A])(pf: PartialFunction[A, URIO[R, B]]): URIO[R, Option[B]] =
     ZIO.whenCaseZIO(a)(pf)
 
   /**

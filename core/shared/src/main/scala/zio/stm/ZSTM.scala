@@ -716,20 +716,20 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
   /**
    * The moral equivalent of `if (!p) exp`
    */
-  def unless(b: => Boolean): ZSTM[R, E, Unit] =
+  def unless(b: => Boolean): ZSTM[R, E, Option[A]] =
     ZSTM.unless(b)(self)
 
   /**
    * The moral equivalent of `if (!p) exp` when `p` has side-effects
    */
   @deprecated("use unlessSTM", "2.0.0")
-  def unlessM[R1 <: R, E1 >: E](b: ZSTM[R1, E1, Boolean]): ZSTM[R1, E1, Unit] =
+  def unlessM[R1 <: R, E1 >: E](b: ZSTM[R1, E1, Boolean]): ZSTM[R1, E1, Option[A]] =
     unlessSTM(b)
 
   /**
    * The moral equivalent of `if (!p) exp` when `p` has side-effects
    */
-  def unlessSTM[R1 <: R, E1 >: E](b: ZSTM[R1, E1, Boolean]): ZSTM[R1, E1, Unit] =
+  def unlessSTM[R1 <: R, E1 >: E](b: ZSTM[R1, E1, Boolean]): ZSTM[R1, E1, Option[A]] =
     ZSTM.unlessSTM(b)(self)
 
   /**
@@ -776,19 +776,20 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
   /**
    * The moral equivalent of `if (p) exp`
    */
-  def when(b: => Boolean): ZSTM[R, E, Unit] = ZSTM.when(b)(self)
+  def when(b: => Boolean): ZSTM[R, E, Option[A]] =
+    ZSTM.when(b)(self)
 
   /**
    * The moral equivalent of `if (p) exp` when `p` has side-effects
    */
   @deprecated("use whenSTM", "2.0.0")
-  def whenM[R1 <: R, E1 >: E](b: ZSTM[R1, E1, Boolean]): ZSTM[R1, E1, Unit] =
+  def whenM[R1 <: R, E1 >: E](b: ZSTM[R1, E1, Boolean]): ZSTM[R1, E1, Option[A]] =
     whenSTM(b)
 
   /**
    * The moral equivalent of `if (p) exp` when `p` has side-effects
    */
-  def whenSTM[R1 <: R, E1 >: E](b: ZSTM[R1, E1, Boolean]): ZSTM[R1, E1, Unit] =
+  def whenSTM[R1 <: R, E1 >: E](b: ZSTM[R1, E1, Boolean]): ZSTM[R1, E1, Option[A]] =
     ZSTM.whenSTM(b)(self)
 
   /**
@@ -1537,8 +1538,8 @@ object ZSTM {
   /**
    * The moral equivalent of `if (!p) exp`
    */
-  def unless[R, E](b: => Boolean)(stm: => ZSTM[R, E, Any]): ZSTM[R, E, Unit] =
-    suspend(if (b) unit else stm.unit)
+  def unless[R, E, A](b: => Boolean)(stm: => ZSTM[R, E, A]): ZSTM[R, E, Option[A]] =
+    suspend(if (b) none else stm.asSome)
 
   /**
    * The moral equivalent of `if (!p) exp` when `p` has side-effects
@@ -1595,26 +1596,26 @@ object ZSTM {
   /**
    * The moral equivalent of `if (p) exp`
    */
-  def when[R, E](b: => Boolean)(stm: => ZSTM[R, E, Any]): ZSTM[R, E, Unit] =
-    suspend(if (b) stm.unit else unit)
+  def when[R, E, A](b: => Boolean)(stm: => ZSTM[R, E, A]): ZSTM[R, E, Option[A]] =
+    suspend(if (b) stm.asSome else none)
 
   /**
    * Runs an effect when the supplied `PartialFunction` matches for the given value, otherwise does nothing.
    */
-  def whenCase[R, E, A](a: => A)(pf: PartialFunction[A, ZSTM[R, E, Any]]): ZSTM[R, E, Unit] =
-    suspend(pf.applyOrElse(a, (_: A) => unit).unit)
+  def whenCase[R, E, A, B](a: => A)(pf: PartialFunction[A, ZSTM[R, E, B]]): ZSTM[R, E, Option[B]] =
+    suspend(pf.andThen(_.asSome).applyOrElse(a, (_: A) => none))
 
   /**
    * Runs an effect when the supplied `PartialFunction` matches for the given effectful value, otherwise does nothing.
    */
   @deprecated("use whenCaseSTM", "2.0.0")
-  def whenCaseM[R, E, A](a: ZSTM[R, E, A])(pf: PartialFunction[A, ZSTM[R, E, Any]]): ZSTM[R, E, Unit] =
+  def whenCaseM[R, E, A, B](a: ZSTM[R, E, A])(pf: PartialFunction[A, ZSTM[R, E, B]]): ZSTM[R, E, Option[B]] =
     whenCaseSTM(a)(pf)
 
   /**
    * Runs an effect when the supplied `PartialFunction` matches for the given effectful value, otherwise does nothing.
    */
-  def whenCaseSTM[R, E, A](a: ZSTM[R, E, A])(pf: PartialFunction[A, ZSTM[R, E, Any]]): ZSTM[R, E, Unit] =
+  def whenCaseSTM[R, E, A, B](a: ZSTM[R, E, A])(pf: PartialFunction[A, ZSTM[R, E, B]]): ZSTM[R, E, Option[B]] =
     a.flatMap(whenCase(_)(pf))
 
   /**
@@ -1658,8 +1659,8 @@ object ZSTM {
   }
 
   final class UnlessSTM[R, E](private val b: ZSTM[R, E, Boolean]) {
-    def apply[R1 <: R, E1 >: E](stm: => ZSTM[R1, E1, Any]): ZSTM[R1, E1, Unit] =
-      b.flatMap(b => if (b) unit else stm.unit)
+    def apply[R1 <: R, E1 >: E, A](stm: => ZSTM[R1, E1, A]): ZSTM[R1, E1, Option[A]] =
+      b.flatMap(b => if (b) none else stm.asSome)
   }
 
   final class UpdateService[-R, +E, +A, M](private val self: ZSTM[R, E, A]) {
@@ -1675,8 +1676,8 @@ object ZSTM {
   }
 
   final class WhenSTM[R, E](private val b: ZSTM[R, E, Boolean]) {
-    def apply[R1 <: R, E1 >: E](stm: => ZSTM[R1, E1, Any]): ZSTM[R1, E1, Unit] =
-      b.flatMap(b => if (b) stm.unit else unit)
+    def apply[R1 <: R, E1 >: E, A](stm: => ZSTM[R1, E1, A]): ZSTM[R1, E1, Option[A]] =
+      b.flatMap(b => if (b) stm.asSome else none)
   }
 
   private[stm] final case class FailException[E](e: E) extends Throwable(null, null, false, false)
