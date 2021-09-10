@@ -572,18 +572,18 @@ object AssertionSpec extends ZIOBaseSpec {
     },
     test("hasThrowableCause must succeed when supplied value has matching cause") {
       val cause = new Exception("cause")
-      val t = new Exception("result", cause)
+      val t     = new Exception("result", cause)
       assert(t)(hasThrowableCause(hasMessage(equalTo("cause"))))
     },
     test("hasThrowableCause must fail when supplied value has non-matching cause") {
       val cause = new Exception("something different")
-      val t = new Exception("result", cause)
+      val t     = new Exception("result", cause)
       assert(t)(hasThrowableCause(hasMessage(equalTo("cause"))))
     } @@ failing,
     test("hasThrowableCause must fail when supplied value does not have a cause") {
       val t = new Exception("result")
       assert(t)(hasThrowableCause(hasMessage(equalTo("cause"))))
-    } @@ failing,
+    } @@ failing
   )
 
   case class SampleUser(name: String, age: Int)
