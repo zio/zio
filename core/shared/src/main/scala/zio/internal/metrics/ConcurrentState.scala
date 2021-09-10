@@ -2,7 +2,6 @@ package zio.internal.metrics
 
 import zio._
 import zio.metrics._
-import zio.metrics.clients._
 
 import java.time.Instant
 import java.util.concurrent.atomic.{AtomicReference, DoubleAdder}

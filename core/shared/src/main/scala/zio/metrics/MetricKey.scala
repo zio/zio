@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package zio.metrics.clients
+package zio.metrics
 
 import zio._
 

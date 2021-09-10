@@ -14,11 +14,10 @@
  * limitations under the License.
  */
 
-package zio.metrics
+package zio.internal.metrics
 
 import zio._
-import zio.internal.metrics._
-import zio.metrics.clients._
+import zio.metrics._
 
 /**
  * A `Histogram` is a metric representing a collection of numerical with the
@@ -28,7 +27,7 @@ import zio.metrics.clients._
  * distribution. Histograms are constructed with user specified boundaries
  * which describe the buckets to aggregate values into.
  */
-trait Histogram {
+private[zio] trait Histogram {
 
   /**
    * The current sum and count of values in each bucket of the histogram.
@@ -52,7 +51,7 @@ trait Histogram {
   def sum: UIO[Double]
 }
 
-object Histogram {
+private[zio] object Histogram {
 
   /**
    * Constructs a histogram with the specified key.
@@ -64,6 +63,6 @@ object Histogram {
    * Constructs a histogram with the specified name, boundaries, and labels.
    * The boundaries must be in strictly increasing order.
    */
-  def apply(name: String, boundaries: Chunk[Double], tags: MetricLabel*): Histogram =
-    apply(MetricKey.Histogram(name, boundaries, Chunk.fromIterable(tags)))
+  def apply(name: String, boundaries: Chunk[Double], tags: Chunk[MetricLabel]): Histogram =
+    apply(MetricKey.Histogram(name, boundaries, tags))
 }

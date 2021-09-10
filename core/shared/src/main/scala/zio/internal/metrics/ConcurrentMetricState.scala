@@ -1,6 +1,6 @@
 package zio.internal.metrics
 
-import zio.metrics.clients._
+import zio.metrics._
 
 import java.util.concurrent.atomic.{AtomicReference, DoubleAdder}
 

@@ -14,12 +14,10 @@
  * limitations under the License.
  */
 
-package zio.metrics
+package zio.internal.metrics
 
 import zio._
-
-import zio.internal.metrics._
-import zio.metrics.clients._
+import zio.metrics._
 
 /**
  * A `Counter` is a metric representing a single numerical value that may be
@@ -28,7 +26,7 @@ import zio.metrics.clients._
  * of interest is the cumulative value over time, as opposed to a gauge where
  * the quantity of interest is the value as of a specific point in time.
  */
-trait Counter {
+private[zio] trait Counter {
 
   /**
    * The current value of the counter.
@@ -41,7 +39,7 @@ trait Counter {
   def increment(value: Double): UIO[Any]
 }
 
-object Counter {
+private[zio] object Counter {
 
   /**
    * Construct a counter with the specified metric key.
@@ -52,6 +50,6 @@ object Counter {
   /**
    * Constructs a counter with the specified name and labels.
    */
-  def apply(name: String, tags: MetricLabel*): Counter =
-    apply(MetricKey.Counter(name, Chunk.fromIterable(tags)))
+  def apply(name: String, tags: Chunk[MetricLabel]): Counter =
+    apply(MetricKey.Counter(name, tags))
 }

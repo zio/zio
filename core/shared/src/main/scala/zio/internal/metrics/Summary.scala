@@ -14,11 +14,10 @@
  * limitations under the License.
  */
 
-package zio.metrics
+package zio.internal.metrics
 
 import zio._
-import zio.internal.metrics._
-import zio.metrics.clients._
+import zio.metrics._
 
 /**
  * A `Summary` represents a sliding window of a time series along with metrics
@@ -29,7 +28,7 @@ import zio.metrics.clients._
  * percentile, 90th percentile, 95th percentile, and 99th percentile for
  * response times.
  */
-trait Summary {
+private[zio] trait Summary {
 
   /**
    * The current count of all the values ever observed by this dsummary.
@@ -54,7 +53,7 @@ trait Summary {
 
 }
 
-object Summary {
+private[zio] object Summary {
 
   /**
    * Constructs a new summary with the specified key.
@@ -73,7 +72,7 @@ object Summary {
     maxSize: Int,
     error: Double,
     quantiles: Chunk[Double],
-    tags: MetricLabel*
+    tags: Chunk[MetricLabel]
   ): Summary =
-    apply(MetricKey.Summary(name, maxAge, maxSize, error, quantiles, Chunk.fromIterable(tags)))
+    apply(MetricKey.Summary(name, maxAge, maxSize, error, quantiles, tags))
 }
