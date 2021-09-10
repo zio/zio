@@ -22,7 +22,7 @@ So how ZIO run these workflows? This is where ZIO Runtime System comes into play
 To simplify everything, we can think of a Runtime System like a black box that takes both the ZIO effect (`ZIO[R, E, A]`) and its environment (`R`), it will run this effect and then will return its result as an `Either[E, A]` value.
 
 
-![ZIO Runtime System](assets/zio-runtime-system.svg)
+![ZIO Runtime System](/img/zio-runtime-system.svg)
 
 ## Responsibilities of the Runtime System
 
