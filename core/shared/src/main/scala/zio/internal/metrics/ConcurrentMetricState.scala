@@ -1,6 +1,6 @@
 package zio.internal.metrics
 
-import zio.metrics.clients._
+import zio.metrics._
 
 private[zio] sealed trait ConcurrentMetricState { self =>
   def key: MetricKey

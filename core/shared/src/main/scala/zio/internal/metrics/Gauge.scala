@@ -14,12 +14,10 @@
  * limitations under the License.
  */
 
-package zio.metrics
+package zio.internal.metrics
 
 import zio._
-
-import zio.internal.metrics._
-import zio.metrics.clients._
+import zio.metrics._
 
 /**
  * A `Gauge` is a metric representing a single numerical value that may be set
@@ -28,7 +26,7 @@ import zio.metrics.clients._
  * as opposed to a counter where the quantity of interest is the cumulative
  * values over time.
  */
-trait Gauge {
+private[zio] trait Gauge {
 
   /**
    * Adjusts the gauge by the specified amount.
@@ -46,7 +44,7 @@ trait Gauge {
   def value: UIO[Double]
 }
 
-object Gauge {
+private[zio] object Gauge {
 
   /**
    * Construct a gauge with the specified key.
@@ -58,6 +56,6 @@ object Gauge {
   /**
    * Constructs a gauge with the specified name and labels.
    */
-  def apply(name: String, tags: MetricLabel*): Gauge =
-    apply(MetricKey.Gauge(name, Chunk.fromIterable(tags)))
+  def apply(name: String, tags: Chunk[MetricLabel]): Gauge =
+    apply(MetricKey.Gauge(name, tags))
 }

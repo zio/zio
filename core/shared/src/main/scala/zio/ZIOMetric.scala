@@ -209,7 +209,7 @@ object ZIOMetric {
    * the quantity of interest is the value as of a specific point in time.
    */
   abstract class Counter[-A](final val name: String, final val tags: Chunk[MetricLabel]) extends ZIOMetric[A] { self =>
-    private[this] val counter = metrics.Counter(name, tags: _*)
+    private[this] val counter = internal.metrics.Counter(name, tags)
 
     def apply[R, E, A1 <: A](zio: ZIO[R, E, A1]): ZIO[R, E, A1]
 
@@ -272,7 +272,7 @@ object ZIOMetric {
    * cumulative values over time.
    */
   abstract class Gauge[A](final val name: String, final val tags: Chunk[MetricLabel]) extends ZIOMetric[A] { self =>
-    private[this] val gauge = metrics.Gauge(name, tags: _*)
+    private[this] val gauge = internal.metrics.Gauge(name, tags)
 
     def apply[R, E, A1 <: A](zio: ZIO[R, E, A1]): ZIO[R, E, A1]
 
@@ -340,7 +340,7 @@ object ZIOMetric {
     final val boundaries: Chunk[Double],
     final val tags: Chunk[MetricLabel]
   ) extends ZIOMetric[A] { self =>
-    private val histogram = metrics.Histogram(name, boundaries, tags: _*)
+    private[this] val histogram = internal.metrics.Histogram(name, boundaries, tags)
 
     def apply[R, E, A1 <: A](zio: ZIO[R, E, A1]): ZIO[R, E, A1]
 
@@ -427,7 +427,7 @@ object ZIOMetric {
     final val quantiles: Chunk[Double],
     final val tags: Chunk[MetricLabel]
   ) extends ZIOMetric[A] { self =>
-    private val summary = metrics.Summary(name, maxAge, maxSize, error, quantiles, tags: _*)
+    private[this] val summary = internal.metrics.Summary(name, maxAge, maxSize, error, quantiles, tags)
 
     def apply[R, E, A1 <: A](zio: ZIO[R, E, A1]): ZIO[R, E, A1]
 
@@ -512,7 +512,7 @@ object ZIOMetric {
    */
   abstract class SetCount[A](final val name: String, final val setTag: String, final val tags: Chunk[MetricLabel])
       extends ZIOMetric[A] { self =>
-    private val setCount = metrics.SetCount(name, setTag, tags: _*)
+    private[this] val setCount = internal.metrics.SetCount(name, setTag, tags)
 
     def apply[R, E, A1 <: A](zio: ZIO[R, E, A1]): ZIO[R, E, A1]
 
