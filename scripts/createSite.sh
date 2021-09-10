@@ -3,6 +3,7 @@
 # Clean existing build and mdoc output directory
 rm -Rf target
 rm -Rf website/docs
+rm -Rf website/versioned_docs
 
 # Checkout latest released version of 1.x 
 git checkout v1.0.11
@@ -18,5 +19,6 @@ git checkout series/2.x
 sbt docs/mdoc
 
 cd website 
+rm -Rf node_modules
 yarn install 
 yarn build 
