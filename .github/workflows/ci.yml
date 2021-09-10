@@ -76,7 +76,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        java: ['8', '11', '17']
+        java: ['11', '17']
         platform: ['JVM']
     steps:
       - name: Checkout current branch
@@ -97,7 +97,7 @@ jobs:
       fail-fast: false
       matrix:
         java: ['8']
-        platform: ['JVM', 'JS', 'Native']
+        platform: ['JS', 'Native']
     steps:
       - name: Checkout current branch
         uses: actions/checkout@v2.3.4
