@@ -2301,7 +2301,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
               ZStream.fromQueueWithShutdown(q2).flattenExitOption.collectRight
             )
           }
-        case otherwise => ZManaged.dieMessage(s"partitionEither: expected two streams but got ${otherwise}")
+        case otherwise => ZManaged.dieMessage(s"partitionEither: expected two streams but got $otherwise")
       }
 
   /**
@@ -4510,7 +4510,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
      * Collect elements of the given type flowing through the stream, and filters out others.
      */
     def collectType[O1 <: O](implicit tag: ClassTag[O1]): ZStream[R, E, O1] =
-      self.collect({ case o if tag.runtimeClass.isInstance(o) => o.asInstanceOf[O1] })
+      self.collect { case o if tag.runtimeClass.isInstance(o) => o.asInstanceOf[O1] }
   }
 
   /**

@@ -47,7 +47,7 @@ class MutableRunnableSpec[R <: Has[_]: Tag](
   self =>
 
   private class InAnotherTestException(`type`: String, label: String)
-      extends Exception(s"${`type`} `${label}` is in another test")
+      extends Exception(s"${`type`} `$label` is in another test")
       with NoStackTrace
 
   sealed trait SpecBuilder {

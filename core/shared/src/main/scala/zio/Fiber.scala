@@ -752,7 +752,7 @@ object Fiber extends FiberPlatformSpecific {
    * fibers and renders it to the console.
    */
   def putDumpStr(label: String, fibers: Fiber.Runtime[_, _]*): ZIO[Console, IOException, Unit] =
-    dumpStr(fibers: _*).flatMap(str => console.putStrLn(s"$label: ${str}"))
+    dumpStr(fibers: _*).flatMap(str => console.putStrLn(s"$label: $str"))
 
   /**
    * Returns a fiber that has already succeeded with the specified value.
