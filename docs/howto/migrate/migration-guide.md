@@ -1519,16 +1519,23 @@ ZIO Logging calculates the running duration of that span and includes that in th
 
 In ZIO 1.x, we cannot compose specs directly, although if we can combine all children's specs via the suite itself:
 
-```scala
-val fooSuite = suite("Foo")(???)
-val barSuite = suite("Bar")(???)
-val bazSuite = suite("Baz")(???)
+```scala mdoc:invisible
+import zio.test._
+val fooSpec = test("foo")(???)
+val barSpec = test("bar")(???)
+val bazSpec = test("baz")(???)
+```
+
+```scala mdoc:silent:nest
+val fooSuite = suite("Foo")(fooSpec)
+val barSuite = suite("Bar")(barSpec)
+val bazSuite = suite("Baz")(bazSpec)
 
 val bigSuite = suite("big suite")(fooSuite, barSuite, bazSuite)
 ```
 
 Now in ZIO 2.x, we can compose two suites using _binary composition operator_ without having to unnecessarily nest them inside another suite just for purpose of composition:
 
-```scala
+```scala mdoc:silent:nest
 val bigSuite = fooSuite + barSuite + bazSuite
 ```
