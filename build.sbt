@@ -439,7 +439,7 @@ lazy val testJunitRunnerTests = crossProject(JVMPlatform)
   .settings(publish / skip := true)
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
   .settings(
-    crossScalaVersions --= List(BuildHelper.Scala211),
+    crossScalaVersions --= List(Scala211),
     libraryDependencies ++= Seq(
       "junit"                   % "junit"     % "4.13.2" % Test,
       "org.scala-lang.modules" %% "scala-xml" % "2.0.1"  % Test,
