@@ -252,11 +252,11 @@ In ZIO 1.x, we were used to writing ZIO applications using the `zio.App` trait:
 def startMyApp(arguments: Chunk[String]) = ZIO.succeed(???)
 ```
 
-```scala mdoc:silent:nest
+```scala mdoc:silent:nest:warn
 import zio.App
 import zio.Console._
 
-object MyApp extends App {
+object MyApp extends zio.App {
   def run(args: List[String]) = 
     startMyApp(args).exitCode
 }
@@ -482,6 +482,11 @@ And to write the accessor method in ZIO 2.x, we can use `ZIO.serviceWith` operat
 ```scala mdoc:silent:nest
 def log(line: String): URIO[Has[Logging], Unit] = ZIO.serviceWith(_.log(line))
 ```
+
+```scala mdoc:reset
+import zio._
+```
+
 ### Accessing Multiple Services in the Environment
 
 In ZIO 1.x, we could access multiple services using higher arity service accessors like `ZIO.services` and `ZManaged.services`:
@@ -1503,7 +1508,7 @@ ZIO.logError("File does not exist: ~/var/www/favicon.ico")
 It also supports logging spans:
 
 ```scala mdoc:silent:nest
-ZIO.logSpan {
+ZIO.logSpan("myspan") {
   ZIO.sleep(1.second) *> ZIO.log("The job is finished!")
 }
 ```
@@ -1514,7 +1519,7 @@ ZIO Logging calculates the running duration of that span and includes that in th
 
 In ZIO 1.x, we cannot compose specs directly, although if we can combine all children's specs via the suite itself:
 
-```scala mdoc:silent:nest
+```scala
 val fooSuite = suite("Foo")(???)
 val barSuite = suite("Bar")(???)
 val bazSuite = suite("Baz")(???)
@@ -1524,6 +1529,6 @@ val bigSuite = suite("big suite")(fooSuite, barSuite, bazSuite)
 
 Now in ZIO 2.x, we can compose two suites using _binary composition operator_ without having to unnecessarily nest them inside another suite just for purpose of composition:
 
-```scala mdoc:silent:nest
-val bigSuite = fooSute + barSuite + bazSuite
+```scala
+val bigSuite = fooSuite + barSuite + bazSuite
 ```
