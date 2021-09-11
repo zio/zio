@@ -475,12 +475,9 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
   /**
    * Converts an option on errors into an option on values.
    */
-  @deprecated("use unoption", "2.0.0")
+  @deprecated("use unsome", "2.0.0")
   def optional[E1](implicit ev: E <:< Option[E1]): ZSTM[R, E1, Option[A]] =
-    foldSTM(
-      _.fold[ZSTM[R, E1, Option[A]]](ZSTM.succeedNow(Option.empty[A]))(ZSTM.fail(_)),
-      a => ZSTM.succeedNow(Some(a))
-    )
+    unsome
 
   /**
    * Translates `STM` effect failure into death of the fiber, making all failures unchecked and
@@ -745,11 +742,9 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
   /**
    * Converts an option on errors into an option on values.
    */
+  @deprecated("use unsome", "2.0.0")
   def unoption[E1](implicit ev: E <:< Option[E1]): ZSTM[R, E1, Option[A]] =
-    foldSTM(
-      _.fold[ZSTM[R, E1, Option[A]]](ZSTM.succeedNow(Option.empty[A]))(ZSTM.fail(_)),
-      a => ZSTM.succeedNow(Some(a))
-    )
+    unsome
 
   /**
    * Converts a `ZSTM[R, Either[B, E], A]` into a `ZSTM[R, E, Either[B, A]]`. The
@@ -760,6 +755,15 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
       e => ev(e).fold(b => ZSTM.succeedNow(Left(b)), e1 => ZSTM.fail(e1)),
       a => ZSTM.succeedNow(Right(a))
     )
+
+      /**
+     * Converts an option on errors into an option on values.
+     */
+    def unsome[E1](implicit ev: E <:< Option[E1]): ZSTM[R, E1, Option[A]] =
+      foldSTM(
+        _.fold[ZSTM[R, E1, Option[A]]](ZSTM.succeedNow(Option.empty[A]))(ZSTM.fail(_)),
+        a => ZSTM.succeedNow(Some(a))
+      )
 
   /**
    * Updates a service in the environment of this effect.
@@ -987,7 +991,7 @@ object ZSTM {
   def collect[R, E, A, B, Collection[+Element] <: Iterable[Element]](
     in: Collection[A]
   )(f: A => ZSTM[R, Option[E], B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZSTM[R, E, Collection[B]] =
-    foreach[R, E, A, Option[B], Iterable](in)(a => f(a).unoption).map(_.flatten).map(bf.fromSpecific(in))
+    foreach[R, E, A, Option[B], Iterable](in)(a => f(a).unsome).map(_.flatten).map(bf.fromSpecific(in))
 
   /**
    * Collects all the transactional effects in a collection, returning a single

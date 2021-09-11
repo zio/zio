@@ -64,7 +64,7 @@ trait FunctionVariants {
         for {
           lock    <- Semaphore.make(1)
           bufPull <- BufferedPull.make[R, Nothing, Sample[R, B]](pull)
-          fun     <- Fun.makeHash((_: A) => lock.withPermit(bufPull.pullElement).unoption.map(_.get.value))(hash)
+          fun     <- Fun.makeHash((_: A) => lock.withPermit(bufPull.pullElement).unsome.map(_.get.value))(hash)
         } yield fun
       }
     }

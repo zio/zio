@@ -1268,7 +1268,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   /**
    * Converts an option on errors into an option on values.
    */
-  @deprecated("use unoption", "2.0.0")
+  @deprecated("use unsome", "2.0.0")
   final def optional[E1](implicit ev: E IsSubtypeOfError Option[E1]): ZIO[R, E1, Option[A]] =
     self.foldZIO(
       e => ev(e).fold[ZIO[R, E1, Option[A]]](ZIO.succeedNow(Option.empty[A]))(ZIO.fail(_)),
@@ -2309,11 +2309,9 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   /**
    * Converts an option on errors into an option on values.
    */
+  @deprecated("use unsome", "2.0.0")
   final def unoption[E1](implicit ev: E IsSubtypeOfError Option[E1]): ZIO[R, E1, Option[A]] =
-    self.foldZIO(
-      e => ev(e).fold[ZIO[R, E1, Option[A]]](ZIO.succeedNow(Option.empty[A]))(ZIO.fail(_)),
-      a => ZIO.succeedNow(Some(a))
-    )
+    unsome
 
   /**
    * Takes some fiber failures and converts them into errors.
@@ -2346,6 +2344,15 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     self.foldZIO(
       e => ev(e).fold(b => ZIO.succeedNow(Left(b)), e1 => ZIO.fail(e1)),
       a => ZIO.succeedNow(Right(a))
+    )
+
+  /**
+   * Converts an option on errors into an option on values.
+   */
+  final def unsome[E1](implicit ev: E IsSubtypeOfError Option[E1]): ZIO[R, E1, Option[A]] =
+    self.foldZIO(
+      e => ev(e).fold[ZIO[R, E1, Option[A]]](ZIO.succeedNow(Option.empty[A]))(ZIO.fail(_)),
+      a => ZIO.succeedNow(Some(a))
     )
 
   /**
@@ -2960,7 +2967,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def collect[R, E, A, B, Collection[+Element] <: Iterable[Element]](
     in: Collection[A]
   )(f: A => ZIO[R, Option[E], B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZIO[R, E, Collection[B]] =
-    foreach[R, E, A, Option[B], Iterable](in)(a => f(a).unoption).map(_.flatten).map(bf.fromSpecific(in))
+    foreach[R, E, A, Option[B], Iterable](in)(a => f(a).unsome).map(_.flatten).map(bf.fromSpecific(in))
 
   /**
    * Evaluate each effect in the structure from left to right, collecting the
@@ -2969,7 +2976,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def collect[R, E, Key, Key2, Value, Value2](
     map: Map[Key, Value]
   )(f: (Key, Value) => ZIO[R, Option[E], (Key2, Value2)]): ZIO[R, E, Map[Key2, Value2]] =
-    foreach[R, E, (Key, Value), Option[(Key2, Value2)], Iterable](map)(f.tupled(_).unoption).map(_.flatten.toMap)
+    foreach[R, E, (Key, Value), Option[(Key2, Value2)], Iterable](map)(f.tupled(_).unsome).map(_.flatten.toMap)
 
   /**
    * Evaluate each effect in the structure from left to right, and collect the
@@ -3173,7 +3180,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def collectPar[R, E, A, B, Collection[+Element] <: Iterable[Element]](
     in: Collection[A]
   )(f: A => ZIO[R, Option[E], B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZIO[R, E, Collection[B]] =
-    foreachPar[R, E, A, Option[B], Iterable](in)(a => f(a).unoption).map(_.flatten).map(bf.fromSpecific(in))
+    foreachPar[R, E, A, Option[B], Iterable](in)(a => f(a).unsome).map(_.flatten).map(bf.fromSpecific(in))
 
   /**
    * Evaluate each effect in the structure from left to right, collecting the
@@ -3182,7 +3189,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def collectPar[R, E, Key, Key2, Value, Value2](
     map: Map[Key, Value]
   )(f: (Key, Value) => ZIO[R, Option[E], (Key2, Value2)]): ZIO[R, E, Map[Key2, Value2]] =
-    foreachPar[R, E, (Key, Value), Option[(Key2, Value2)], Iterable](map)(f.tupled(_).unoption).map(_.flatten.toMap)
+    foreachPar[R, E, (Key, Value), Option[(Key2, Value2)], Iterable](map)(f.tupled(_).unsome).map(_.flatten.toMap)
 
   /**
    * Evaluate each effect in the structure in parallel, collecting the
@@ -3193,7 +3200,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def collectParN[R, E, A, B, Collection[+Element] <: Iterable[Element]](n: => Int)(
     in: Collection[A]
   )(f: A => ZIO[R, Option[E], B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZIO[R, E, Collection[B]] =
-    foreachParN[R, E, A, Option[B], Iterable](n)(in)(a => f(a).unoption).map(_.flatten).map(bf.fromSpecific(in))
+    foreachParN[R, E, A, Option[B], Iterable](n)(in)(a => f(a).unsome).map(_.flatten).map(bf.fromSpecific(in))
 
   /**
    * Similar to Either.cond, evaluate the predicate,
