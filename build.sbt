@@ -294,7 +294,7 @@ lazy val testTestsJS  = testTests.js.settings(dottySettings)
 
 lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-magnolia"))
-  .dependsOn(test % "test->test;compile->compile")
+  .dependsOn(test)
   .settings(stdSettings("zio-test-magnolia"))
   .settings(crossProjectSettings)
   .settings(macroDefinitionSettings)
@@ -320,7 +320,6 @@ lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform)
   )
 
 lazy val testMagnoliaJVM = testMagnolia.jvm
-  .dependsOn(testJVM % "test->compile")
   .settings(dottySettings)
 lazy val testMagnoliaJS = testMagnolia.js
   .settings(dottySettings)
@@ -558,6 +557,7 @@ lazy val docs = project.module
     scalacOptions -= "-Xfatal-warnings",
     scalacOptions ~= { _ filterNot (_ startsWith "-Ywarn") },
     scalacOptions ~= { _ filterNot (_ startsWith "-Xlint") },
+    crossScalaVersions --= List(Scala211),
     libraryDependencies ++= Seq(
       "commons-io"          % "commons-io"                % "2.11.0" % "provided",
       "io.7mind.izumi"     %% "distage-core"              % "1.0.8",
@@ -632,5 +632,5 @@ lazy val docs = project.module
   )
   .settings(macroExpansionSettings)
   .settings(mdocJS := Some(jsdocs))
-  .dependsOn(coreJVM, streamsJVM, testJVM, testMagnoliaJVM, coreJS)
+  .dependsOn(coreJVM, streamsJVM, testJVM, coreJS)
   .enablePlugins(MdocPlugin, DocusaurusPlugin)
