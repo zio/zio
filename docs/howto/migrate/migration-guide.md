@@ -453,7 +453,7 @@ Note that the `LoggingLive(_, _)` is a `Function2` of type `(Console, Clock) => 
 
 Assume we have a service named `Logging`:
 
-```scala mdoc:silent
+```scala mdoc:silent:nest
 trait Logging {
   def log(line: String): UIO[Unit]
 }
