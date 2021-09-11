@@ -294,7 +294,7 @@ lazy val testTestsJS  = testTests.js.settings(dottySettings)
 
 lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-magnolia"))
-  .dependsOn(test % "compile->compile;test->compile")
+  .dependsOn(test % "test->test;compile->compile")
   .settings(stdSettings("zio-test-magnolia"))
   .settings(crossProjectSettings)
   .settings(macroDefinitionSettings)
@@ -320,6 +320,7 @@ lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform)
   )
 
 lazy val testMagnoliaJVM = testMagnolia.jvm
+  .dependsOn(testJVM % "test->compile")
   .settings(dottySettings)
 lazy val testMagnoliaJS = testMagnolia.js
   .settings(dottySettings)
