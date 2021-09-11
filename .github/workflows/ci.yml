@@ -110,9 +110,22 @@ jobs:
       - name: Test on different Scala target platforms
         run: ./sbt test${{ matrix.platform }}
 
+  docScalaVersions:
+    runs-on: ubuntu-20.04
+    timeout-minutes: 60
+    steps:
+      - name: Checkout current branch
+        uses: actions/checkout@v2.3.4
+      - name: Setup Scala and Java
+        uses: olafurpg/setup-scala@v13
+      - name: Cache scala dependencies
+        uses: coursier/cache-action@v6
+      - name: Check Document Generation
+        run: ./sbt +Test/doc
+
   ci:
     runs-on: ubuntu-20.04
-    needs: [lint, mdoc, test, testJvms, testPlatforms]
+    needs: [lint, mdoc, test, testJvms, testPlatforms, docScalaVersions]
     steps:
       - name: Aggregate of lint, mdoc and all tests
         run: echo "ci passed"
