@@ -25,7 +25,7 @@ object ZStreamSpec extends ZIOBaseSpec {
 
   // Wrongly emits warnings on Scala 2.12.x https://github.com/scala/bug/issues/11918
   @silent(
-    "pattern var otherwise in value $anonfun is never used: use a wildcard `_` or suppress this warning with `otherwise@_`"
+    "pattern var .* in value .* is never used: use a wildcard `_` or suppress this warning with .*"
   )
   def spec: ZSpec[Environment, Failure] =
     suite("ZStreamSpec")(
