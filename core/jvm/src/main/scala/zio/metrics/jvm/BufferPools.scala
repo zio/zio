@@ -4,8 +4,6 @@ import zio._
 
 import java.lang.management.{BufferPoolMXBean, ManagementFactory}
 
-import scala.collection.JavaConverters._
-
 object BufferPools extends JvmMetrics {
 
   /** Used bytes of a given JVM buffer pool. */
@@ -36,7 +34,7 @@ object BufferPools extends JvmMetrics {
     ZManaged.acquireReleaseWith {
       for {
         bufferPoolMXBeans <-
-          Task(ManagementFactory.getPlatformMXBeans(classOf[BufferPoolMXBean]).asScala.toList)
+          Task(fromJavaList(ManagementFactory.getPlatformMXBeans(classOf[BufferPoolMXBean])).toList)
         fiber <-
           reportBufferPoolMetrics(bufferPoolMXBeans)
             .repeat(collectionSchedule)

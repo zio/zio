@@ -57,9 +57,17 @@ object Standard extends JvmMetrics {
             Some(method)
           } catch {
             case _: IllegalAccessException =>
-              method.getDeclaringClass.getInterfaces.toStream.flatMap { iface =>
-                findGetter(Try(iface.getMethod(getterName)))
-              }.headOption
+              var result: Option[Method] = None
+              var idx                    = 0
+              val ifaces                 = method.getDeclaringClass.getInterfaces
+
+              while (idx < ifaces.length && result.isEmpty) {
+                val iface = ifaces(idx)
+                result = findGetter(Try(iface.getMethod(getterName)))
+                idx = idx + 1
+              }
+
+              result
           }
       }
   }
