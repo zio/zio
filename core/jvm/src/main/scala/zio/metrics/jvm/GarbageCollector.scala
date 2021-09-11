@@ -5,8 +5,6 @@ import zio._
 
 import java.lang.management.{GarbageCollectorMXBean, ManagementFactory}
 
-import scala.collection.JavaConverters._
-
 /** Exports metrics related to the garbage collector */
 object GarbageCollector extends JvmMetrics {
 
@@ -31,7 +29,7 @@ object GarbageCollector extends JvmMetrics {
   val collectMetrics: ZManaged[Has[Clock], Throwable, Unit] =
     ZManaged.acquireReleaseWith {
       for {
-        classLoadingMXBean <- Task(ManagementFactory.getGarbageCollectorMXBeans.asScala.toList)
+        classLoadingMXBean <- Task(fromJavaList(ManagementFactory.getGarbageCollectorMXBeans).toList)
         fiber <-
           reportGarbageCollectionMetrics(classLoadingMXBean)
             .repeat(collectionSchedule)

@@ -8,7 +8,6 @@ import java.lang.management.ManagementFactory
 import javax.management.openmbean.CompositeData
 import javax.management.{Notification, NotificationEmitter, NotificationListener}
 import scala.collection.mutable
-import scala.collection.JavaConverters._
 
 object MemoryAllocation extends JvmMetrics {
 
@@ -25,7 +24,7 @@ object MemoryAllocation extends JvmMetrics {
       val gcInfo              = info.getGcInfo
       val memoryUsageBeforeGc = gcInfo.getMemoryUsageBeforeGc
       val memoryUsageAfterGc  = gcInfo.getMemoryUsageAfterGc
-      for (entry <- memoryUsageBeforeGc.entrySet.asScala) {
+      for (entry <- fromJavaSet(memoryUsageBeforeGc.entrySet)) {
         val memoryPool = entry.getKey
         val before     = entry.getValue.getUsed
         val after      = memoryUsageAfterGc.get(memoryPool).getUsed
@@ -59,9 +58,8 @@ object MemoryAllocation extends JvmMetrics {
       if (diff2 < 0) diff2 = 0
       val increase = diff1 + diff2
       if (increase > 0) {
-        runtime.unsafeRun {
-          (UIO(increase) @@ countAllocations(memoryPool)).unit
-        }
+        val effect: ZIO[Any, Nothing, Long] = UIO(increase) @@ countAllocations(memoryPool)
+        runtime.unsafeRun(effect.unit)
       }
     }
   }
@@ -72,7 +70,7 @@ object MemoryAllocation extends JvmMetrics {
         for {
           runtime                 <- ZIO.runtime[Any]
           listener                 = new Listener(runtime)
-          garbageCollectorMXBeans <- Task(ManagementFactory.getGarbageCollectorMXBeans.asScala)
+          garbageCollectorMXBeans <- Task(fromJavaList(ManagementFactory.getGarbageCollectorMXBeans))
           _ <- ZIO.foreachDiscard(garbageCollectorMXBeans) {
                  case emitter: NotificationEmitter =>
                    Task(emitter.addNotificationListener(listener, null, null))

@@ -5,8 +5,6 @@ import zio._
 
 import java.lang.management.{ManagementFactory, MemoryMXBean, MemoryPoolMXBean, MemoryUsage}
 
-import scala.collection.JavaConverters._
-
 object MemoryPools extends JvmMetrics {
 
   sealed private trait Area { val label: String }
@@ -83,7 +81,7 @@ object MemoryPools extends JvmMetrics {
     ZManaged.acquireReleaseWith {
       for {
         memoryMXBean <- Task(ManagementFactory.getMemoryMXBean)
-        poolMXBeans  <- Task(ManagementFactory.getMemoryPoolMXBeans.asScala.toList)
+        poolMXBeans  <- Task(fromJavaList(ManagementFactory.getMemoryPoolMXBeans).toList)
         fiber <-
           reportMemoryMetrics(memoryMXBean, poolMXBeans)
             .repeat(collectionSchedule)
