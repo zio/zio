@@ -1634,17 +1634,17 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(ZIO.die(ExampleError).sandbox.option)(equalTo(None))
       } @@ zioTag(errors)
     ),
-    suite("optional")(
+    suite("unsome")(
       test("fails when given Some error") {
-        val task: IO[String, Option[Int]] = IO.fail(Some("Error")).unoption
+        val task: IO[String, Option[Int]] = IO.fail(Some("Error")).unsome
         assertM(task.exit)(fails(equalTo("Error")))
       } @@ zioTag(errors),
       test("succeeds with None given None error") {
-        val task: IO[String, Option[Int]] = IO.fail(None).unoption
+        val task: IO[String, Option[Int]] = IO.fail(None).unsome
         assertM(task)(isNone)
       } @@ zioTag(errors),
       test("succeeds with Some given a value") {
-        val task: IO[String, Option[Int]] = IO.succeed(1).unoption
+        val task: IO[String, Option[Int]] = IO.succeed(1).unsome
         assertM(task)(isSome(equalTo(1)))
       }
     ),
