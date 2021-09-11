@@ -1132,14 +1132,14 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   def unsandbox[E1](implicit ev: E IsSubtypeOfError Cause[E1]): ZManaged[R, E1, A] =
     ZManaged.unsandbox(mapError(ev))
 
-      /**
-     * Converts an option on errors into an option on values.
-     */
-    final def unsome[E1](implicit ev: E IsSubtypeOfError Option[E1]): ZManaged[R, E1, Option[A]] =
-      self.foldManaged(
-        e => ev(e).fold[ZManaged[R, E1, Option[A]]](ZManaged.succeedNow(Option.empty[A]))(ZManaged.fail(_)),
-        a => ZManaged.succeedNow(Some(a))
-      )
+  /**
+   * Converts an option on errors into an option on values.
+   */
+  final def unsome[E1](implicit ev: E IsSubtypeOfError Option[E1]): ZManaged[R, E1, Option[A]] =
+    self.foldManaged(
+      e => ev(e).fold[ZManaged[R, E1, Option[A]]](ZManaged.succeedNow(Option.empty[A]))(ZManaged.fail(_)),
+      a => ZManaged.succeedNow(Some(a))
+    )
 
   /**
    * Updates a service in the environment of this effect.

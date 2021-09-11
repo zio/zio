@@ -3526,11 +3526,11 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
         exec match {
           case ExecutionStrategy.Sequential =>
             pullL.unsome
-                          .zipWith(pullR.unsome)(handleSuccess(_, _, excess))
+              .zipWith(pullR.unsome)(handleSuccess(_, _, excess))
               .catchAllCause(e => UIO.succeedNow(Exit.failCause(e.map(Some(_)))))
           case _ =>
             pullL.unsome
-                          .zipWithPar(pullR.unsome)(handleSuccess(_, _, excess))
+              .zipWithPar(pullR.unsome)(handleSuccess(_, _, excess))
               .catchAllCause(e => UIO.succeedNow(Exit.failCause(e.map(Some(_)))))
         }
       case ((LeftDone, excess), _, pullR) =>

@@ -756,14 +756,14 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
       a => ZSTM.succeedNow(Right(a))
     )
 
-      /**
-     * Converts an option on errors into an option on values.
-     */
-    def unsome[E1](implicit ev: E <:< Option[E1]): ZSTM[R, E1, Option[A]] =
-      foldSTM(
-        _.fold[ZSTM[R, E1, Option[A]]](ZSTM.succeedNow(Option.empty[A]))(ZSTM.fail(_)),
-        a => ZSTM.succeedNow(Some(a))
-      )
+  /**
+   * Converts an option on errors into an option on values.
+   */
+  def unsome[E1](implicit ev: E <:< Option[E1]): ZSTM[R, E1, Option[A]] =
+    foldSTM(
+      _.fold[ZSTM[R, E1, Option[A]]](ZSTM.succeedNow(Option.empty[A]))(ZSTM.fail(_)),
+      a => ZSTM.succeedNow(Some(a))
+    )
 
   /**
    * Updates a service in the environment of this effect.
