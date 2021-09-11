@@ -632,5 +632,5 @@ lazy val docs = project.module
   )
   .settings(macroExpansionSettings)
   .settings(mdocJS := Some(jsdocs))
-  .dependsOn(coreJVM, streamsJVM, testJVM, coreJS)
+  .dependsOn(coreJVM, streamsJVM, testJVM, testMagnoliaJVM, coreJS)
   .enablePlugins(MdocPlugin, DocusaurusPlugin)
