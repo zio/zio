@@ -567,6 +567,18 @@ lazy val docs = project.module
     scalacOptions ~= { _ filterNot (_ startsWith "-Ywarn") },
     scalacOptions ~= { _ filterNot (_ startsWith "-Xlint") },
     crossScalaVersions --= List(Scala211),
+    ScalaUnidoc / unidoc / unidocProjectFilter := inProjects(
+      coreJVM,
+      streamsJVM,
+      testJVM,
+      testMagnoliaJVM,
+      testRefinedJVM,
+      testScalaCheckJVM
+    ),
+    ScalaUnidoc / unidoc / target := (LocalRootProject / baseDirectory).value / "website" / "static" / "api",
+    cleanFiles += (ScalaUnidoc / unidoc / target).value,
+    docusaurusCreateSite     := docusaurusCreateSite.dependsOn(Compile / unidoc).value,
+    docusaurusPublishGhpages := docusaurusPublishGhpages.dependsOn(Compile / unidoc).value,
     libraryDependencies ++= Seq(
       "commons-io"          % "commons-io"                % "2.11.0" % "provided",
       "io.7mind.izumi"     %% "distage-core"              % "1.0.8",
@@ -639,7 +651,7 @@ lazy val docs = project.module
       "io.getquill"                   %% "quill-jdbc-zio"                % "3.9.0"
     )
   )
-  .settings(macroExpansionSettings)
+  .settings(macroDefinitionSettings)
   .settings(mdocJS := Some(jsdocs))
-  .dependsOn(coreJVM, streamsJVM, testJVM, testMagnoliaJVM, coreJS)
-  .enablePlugins(MdocPlugin, DocusaurusPlugin)
+  .dependsOn(coreJVM, streamsJVM, testJVM, testMagnoliaJVM, testRefinedJVM, testScalaCheckJVM, coreJS)
+  .enablePlugins(MdocPlugin, DocusaurusPlugin, ScalaUnidocPlugin)
