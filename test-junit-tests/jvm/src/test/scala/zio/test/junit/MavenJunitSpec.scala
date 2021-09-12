@@ -12,7 +12,7 @@ import scala.xml.XML
 
 /**
  * when running from IDE run `sbt publishM2`, copy the snapshot version the artifacts were published under (something like: `1.0.2+0-37ee0765+20201006-1859-SNAPSHOT`)
- * and put this into `VM Parameters`: `-Dproject.dir=$PROJECT_DIR$/test-junit-tests/jvm -Dproject.version=$snapshotVersion`
+ * and put this into `VM Parameters`: `-Dproject.dir=\$PROJECT_DIR\$/test-junit-tests/jvm -Dproject.version=\$snapshotVersion`
  */
 object MavenJunitSpec extends DefaultRunnableSpec {
 

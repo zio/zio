@@ -93,40 +93,46 @@ lazy val root = project
     welcomeMessage
   )
   .aggregate(
-    coreJVM,
-    coreJS,
-    coreNative,
-    coreTestsJVM,
-    coreTestsJS,
-    macrosJVM,
-    macrosJS,
-    docs,
-    streamsJVM,
-    streamsJS,
-    streamsNative,
-    streamsTestsJVM,
-    streamsTestsJS,
     benchmarks,
-    testJVM,
-    testJS,
-    testNative,
-    testTestsJVM,
-    testTestsJS,
+    coreJS,
+    coreJVM,
+    coreNative,
+    coreTestsJS,
+    coreTestsJVM,
+    docs,
+    examplesJS,
+    examplesJVM,
+    macrosJS,
+    macrosJVM,
+    macrosTestsJS,
+    macrosTestsJVM,
     stacktracerJS,
     stacktracerJVM,
     stacktracerNative,
+    streamsJS,
+    streamsJVM,
+    streamsNative,
+    streamsTestsJS,
+    streamsTestsJVM,
+    testJS,
+    testJVM,
+    testNative,
+    testJunitRunnerJVM,
+    testJunitRunnerTestsJVM,
+    testMagnoliaJS,
+    testMagnoliaJVM,
+    testMagnoliaTestsJS,
+    testMagnoliaTestsJVM,
+    testRefinedJS,
+    testRefinedJVM,
     testRunnerJS,
     testRunnerJVM,
     testRunnerNative,
-    testJunitRunnerJVM,
-    testJunitRunnerTestsJVM,
-    testMagnoliaJVM,
-    testMagnoliaJS,
-    testRefinedJVM,
-    testRefinedJS,
-    testScalaCheckJVM,
     testScalaCheckJS,
-    testScalaCheckNative
+    testScalaCheckJVM,
+    testScalaCheckNative,
+    testTestsJS,
+    testTestsJVM
   )
   .enablePlugins(ScalaJSPlugin)
 
@@ -333,7 +339,10 @@ lazy val testMagnoliaTests = crossProject(JVMPlatform, JSPlatform)
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
   .dependsOn(testRunner)
   .settings(buildInfoSettings("zio.test"))
-  .settings(publish / skip := true)
+  .settings(
+    publish / skip := true,
+    crossScalaVersions --= Seq(Scala211)
+  )
   .enablePlugins(BuildInfoPlugin)
 
 lazy val testMagnoliaTestsJVM = testMagnoliaTests.jvm
@@ -439,6 +448,7 @@ lazy val testJunitRunnerTests = crossProject(JVMPlatform)
   .settings(publish / skip := true)
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
   .settings(
+    crossScalaVersions --= List(Scala211),
     libraryDependencies ++= Seq(
       "junit"                   % "junit"     % "4.13.2" % Test,
       "org.scala-lang.modules" %% "scala-xml" % "2.0.1"  % Test,
@@ -556,6 +566,7 @@ lazy val docs = project.module
     scalacOptions -= "-Xfatal-warnings",
     scalacOptions ~= { _ filterNot (_ startsWith "-Ywarn") },
     scalacOptions ~= { _ filterNot (_ startsWith "-Xlint") },
+    crossScalaVersions --= List(Scala211),
     libraryDependencies ++= Seq(
       "commons-io"          % "commons-io"                % "2.11.0" % "provided",
       "io.7mind.izumi"     %% "distage-core"              % "1.0.8",

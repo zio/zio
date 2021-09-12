@@ -1,5 +1,6 @@
 package zio.stream
 
+import com.github.ghik.silencer.silent
 import zio._
 import zio.clock.Clock
 import zio.duration._
@@ -22,6 +23,10 @@ object ZStreamSpec extends ZIOBaseSpec {
   def inParallel(action: => Unit)(implicit ec: ExecutionContext): Unit =
     ec.execute(() => action)
 
+  // Wrongly emits warnings on Scala 2.12.x https://github.com/scala/bug/issues/11918
+  @silent(
+    "pattern var .* in value .* is never used: use a wildcard `_` or suppress this warning with .*"
+  )
   def spec: ZSpec[Environment, Failure] =
     suite("ZStreamSpec")(
       suite("Combinators")(
