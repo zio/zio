@@ -109,6 +109,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Risk Ident](https://riskident.com/)
 * [Rocker](https://rocker.com/)
 * [Rudder](https://www.rudder.io/)
+* [Sanjagh](https://sanjagh.pro/)
 * [Scalac](https://scalac.io/)
 * [SecurityScorecard](https://www.securityscorecard.io/)
 * [SentinelOne](https://www.sentinelone.com/)
