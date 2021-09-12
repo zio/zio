@@ -65,6 +65,7 @@ Here are some of the most important changes:
 | `ZIO#someOrElseM`              | `ZIO#someOrElseZIO`               |
 |                                |                                   |
 | `ZIO.forkAll_`                 | `ZIO.forkAllDiscard`              |
+| `ZIO#forkInternal`             | `ZIO#fork`                        |
 | `ZIO#forkOn`                   | `ZIO#onExecutionContext(ec).fork` |
 | `ZIO.fromFiberM`               | `ZIO.fromFiberZIO`                |
 | `ZIO.require`                  | `ZIO.someOrFail`                  |
