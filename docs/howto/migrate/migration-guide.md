@@ -24,9 +24,9 @@ TODO
 
 ### Removed Methods
 
-- **Arrow Combinators** — (`+++`, `|||`, `onSecond`, `onFirst`, `second`, `first`, `onRight`, `onLeft`, `andThen`, `>>>`, `compose`, `<<<`, `identity`, `swap`, `join`)
+**Arrow Combinators** — (`+++`, `|||`, `onSecond`, `onFirst`, `second`, `first`, `onRight`, `onLeft`, `andThen`, `>>>`, `compose`, `<<<`, `identity`, `swap`, `join`)
 
-As the module pattern in ZIO 2.0 encourages users to use `Has` with the environment `R` (`Has[R]`), it doesn't make sense to have arrow combinators. An arrow makes the `R` parameter as the _input_ of the arrow function, and it doesn't match properly with environments with the `Has` data type. So In ZIO 2.0, all arrow combinators are removed, and we need to use alternatives like doing monadic for-comprehension style or `flatMap`, `provide`, `zip`, and so on.
+As the _Module Pattern 2.0_ encourages users to use `Has` with the environment `R` (`Has[R]`), it doesn't make sense to have arrow combinators. An arrow makes the `R` parameter as the _input_ of the arrow function, and it doesn't match properly with environments with the `Has` data type. So In ZIO 2.0, all arrow combinators are removed, and we need to use alternatives like doing monadic for-comprehension style `flatMap` with combinators like `provide`, `zip`, and so on.
 
 ### Deprecated Methods
 
@@ -37,9 +37,9 @@ Here are some of the most important changes:
 - **Multiple ways of doing the same thing are removed** — For example:
     - Both `ZIO.succeed` and `ZIO.effectTotal` do the same thing. So in ZIO 2.0 we just have one version of these constructors which is `ZIO.succeed`.
     - The bind operator `>>=` is removed. So we just have one way to flatMap which is the `flatMap` method. Therefore, the `>>=` method doesn't surprise the non-Haskellers.
-    - The `ZIO#get` method was essentially a more constrained version of `ZIO#some`. So the `get` method is deleted.
+    - The `ZIO#get` method was essentially a more constrained version of `ZIO#some`. So the `get` method is deprecated.
 
-- **ZIO.attempt instead of ZIO.effect** — In ZIO 2.0 all ZIO constructors like `ZIO.effect*` that create a ZIO from a side effect are deprecated and renamed to the `ZIO.attempt*` version. For example, when we are reading from a file, it's more meaning full to say we are attempting to read from a file instead of saying we have an effect of reading from a file.
+- **`ZIO.attempt` instead of `ZIO.effect`** — In ZIO 2.0 all ZIO constructors like `ZIO.effect*` that create a ZIO from a side effect are deprecated and renamed to the `ZIO.attempt*` version. For example, when we are reading from a file, it's more meaning full to say we are attempting to read from a file instead of saying we have an effect of reading from a file.
 
 - **`ZIO` instead of the `M` suffix** — In effectful operations, the `M` suffix is renamed to the `ZIO` suffix. In ZIO 1.x, the `M` suffix in an effectful operation means that the operation works with monad in a monadic context. This naming convention is the legacy of Haskell jargon. In ZIO 2.x, all these suffixes are renamed to the `ZIO`. For example, the `ifM` operator is renamed to `ifZIO`.
 
@@ -47,7 +47,7 @@ Here are some of the most important changes:
 
 - **`as`, `to`, `into` prefixes** — The `ZIO#asService` method is renamed to `ZIO#toLayer` and also the `ZIO#to` is renamed to the `ZIO#intoPromise`. So now we have three categories of conversion:
     1. **as** — The `ZIO#as` method and its variants like `ZIO#asSome`, `ZIO#asSomeError` and `ZIO#asService` are used when transforming the `A` inside of a `ZIO`, generally as shortcuts for `map(aToFoo(_))`.
-    2. **to** — The `ZIO#to` method and its variants like `ZIO#toLayer`, `ZIO#toManaged`, and `ZIO#toFuture` are used when the `ZIO` is transformed into something else other than `ZIO` data-type.
+    2. **to** — The `ZIO#to` method and its variants like `ZIO#toLayer`, `ZIO#toManaged`, and `ZIO#toFuture` are used when the `ZIO` is transformed into something else other than the `ZIO` data-type.
     3. **into** — All `into*` methods, accept secondary data-type, modify it with the result of the current effect (e.g. `ZIO#intoPromise`, `ZStream#intoHub`, `ZStream#intoQueue` and `ZStream#intoManaged`)
 
 | ZIO 1.x                        | ZIO 2.x                           |
@@ -284,6 +284,7 @@ In ZIO 1.x, `run` is the main function of our application, which will be passed 
 ```scala
 def run(args: List[String]): URIO[R, ExitCode]
 ```
+
 While in most cases we don't write command-line applications, and we don't use it, in ZIO 2.x, we created the `ZIOAppArgs` service and a helper method called `ZIOApp#args` which obtains access to the command-line arguments of our application:
 
 ```scala
@@ -308,7 +309,6 @@ import zio.Console._
 import java.io.IOException
 
 object MyApp1 extends ZIOApp {
-
   def run =
     for {
       _ <- printLine("Hello! What is your name?")
@@ -318,7 +318,6 @@ object MyApp1 extends ZIOApp {
 }
 
 object MyApp2 extends ZIOApp {
-
   override def hook: RuntimeConfigAspect =
     asyncProfiler >>> slf4j >>> loggly >>> newRelic
 
@@ -332,7 +331,7 @@ object MyApp2 extends ZIOApp {
 object Main extends ZIOApp.Proxy(MyApp1 <> MyApp2)
 ```
 
-You might notice that in ZIO 2.x, we can `hook` the ZIO runtime configuration to install low-level functionalities like application logging, profiling, monitoring, and other similar foundational pieces of infrastructure.
+You might notice that in ZIO 2.x, we can `hook` the ZIO runtime configuration to install low-level functionalities like _application logging_, _profiling_, _monitoring_, and other similar foundational pieces of infrastructure.
 
 ## Fiber
 
@@ -346,7 +345,7 @@ We deprecated the `Fiber.ID` and moved it to the `zio` package and called it the
 
 ### Method Deprecation and Renaming
 
-We renamed the `Platform` data type to the `RuntimeConfig` and moved it from the `zio.internal` to the `zio` package with some member deprecation:
+We renamed the `Platform` data type to the `RuntimeConfig`, and moved it from the `zio.internal` to the `zio` package with some member deprecation:
 
 | ZIO 1.0                         | ZIO 2.x              |
 |---------------------------------|----------------------|
@@ -365,7 +364,7 @@ Also, we moved the `Executor` from `zio.internal` to the `zio` package:
 |-------------------------|----------------|
 | `zio.internal.Executor` | `zio.Executor` |
 
-In regard to renaming the `Platform data type to the `RuntimeConfig` we have some similar renaming in other data types like `Runtime` and `ZIO`:
+In regard to renaming the `Platform` data-type to the `RuntimeConfig` we have some similar renaming in other data-types like `Runtime` and `ZIO`:
 
 | ZIO 1.0               | ZIO 2.x                    |
 |-----------------------|----------------------------|
@@ -375,7 +374,7 @@ In regard to renaming the `Platform data type to the `RuntimeConfig` we have som
 
 ### Runtime Config Aspect
 
-ZIO 2.x, introduced a new data type called `RuntimeConfigAspect` with the following methods:
+ZIO 2.x, introduced a new data-type called `RuntimeConfigAspect` with the following methods:
 
 * `addLogger`
 * `addReportFailure`
@@ -957,6 +956,72 @@ Here is list of other deprecated methods:
 | `ZLayer.identity`          | `ZLayer.environment`         |
 | `ZLayer.requires`          | `ZLayer.environment`         |
 
+## ZManaged
+
+| ZIO 1.x                              | ZIO 2.x                                    |
+|--------------------------------------|--------------------------------------------|
+| `ZManaged#&&&`                       | `ZManaged#zip`                             |
+| `ZManaged#mapN`                      | `ZManaged#zip`                             |
+| `ZManaged.mapM`                      | `ZManaged.mapZIO`                          |
+| `ZManaged.mapParN`                   | `ZManaged.zipPar`                          |
+| `ZManaged#>>=`                       | `ZManaged#flatMap`                         |
+| `ZManaged#bimap`                     | `ZManaged#mapBoth`                         |
+| `ZManaged#mapEffect`                 | `ZManaged#mapAttempt`                      |
+| `ZManaged#flattenM`                  | `ZManaged#flattenZIO`                      |
+|                                      |                                            |
+| `ZManaged#get`                       | `ZManaged#some`                            |
+| `ZManaged#someOrElseM`               | `ZManaged#someOrElseManaged`               |
+|                                      |                                            |
+| `ZManaged#asService`                 | `ZManaged#toLayer`                         |
+| `ZManaged.services`                  | `ZManaged.service`                         |
+|                                      |                                            |
+| `ZManaged.foreach_`                  | `ZManaged.foreachDiscard`                  |
+| `ZManaged.foreachPar_`               | `ZManaged.foreachParDiscard`               |
+| `ZManaged.foreachParN_`              | `ZManaged.foreachParNDiscard`              |
+|                                      |                                            |
+| `ZManaged#foldCauseM`                | `ZManaged#foldCauseManaged`                |
+| `ZManaged#foldM`                     | `ZManaged#foldManaged`                     |
+|                                      |                                            |
+| `ZManaged.make`                      | `ZManaged.acquireReleaseWith`              |
+| `ZManaged.make_`                     | `ZManaged.acquireRelease`                  |
+| `ZManaged.makeEffect`                | `ZManaged.acquireReleaseAttemptWith`       |
+| `ZManaged.makeEffect_`               | `ZManaged.acquireReleaseAttempt`           |
+| `ZManaged.makeEffectTotal`           | `ZManaged.acquireReleaseSucceedWith`       |
+| `ZManaged.makeEffectTotal_`          | `ZManaged.acquireReleaseSucceed`           |
+| `ZManaged.makeExit`                  | `ZManaged.acquireReleaseExitWith`          |
+| `ZManaged.makeExit_`                 | `ZManaged.acquireReleaseExit`              |
+| `ZManaged.makeInterruptible`         | `ZManaged.acquireReleaseInterruptibleWith` |
+| `ZManaged.makeInterruptible_`        | `ZManaged.acquireReleaseInterruptible`     |
+| `ZManaged.makeReserve`               | `ZManaged.fromReservationZIO`              |
+| `ZManaged.reserve`                   | `ZManaged.fromReservation`                 |
+|                                      |                                            |
+| `ZManaged#ifM`                       | `ZManaged#ifManaged`                       |
+| `ZManaged.loop_`                     | `ZManaged.loopDiscard`                     |
+| `ZManaged#unlessM`                   | `ZManaged#unlessManaged`                   |
+| `ZManaged#whenCaseM`                 | `ZManaged#whenCaseManaged`                 |
+| `ZManaged#whenM`                     | `ZManaged#whenManaged`                     |
+|                                      |                                            |
+| `ZManaged.fromFunction`              | `ZManaged.access`                          |
+| `ZManaged.fromFunctionM`             | `ZManaged.accessManaged`                   |
+| `ZManaged.fromEffect`                | `ZManaged.fromZIO`                         |
+| `ZManaged.fromEffectUninterruptible` | `ZManaged.fromZIOUninterruptible`          |
+| `ZManaged.effect`                    | `ZManaged.attempt`                         |
+| `ZManaged.effectTotal`               | `ZManaged.succeed`                         |
+|                                      |                                            |
+| `ZManaged#collectM`                  | `ZManaged#collectManage`                   |
+| `ZManaged#collectAll_`               | `ZManaged#collectAllDiscard`               |
+| `ZManaged#collectAllPar_`            | `ZManaged#collectAllParDiscard`            |
+| `ZManaged#collectAllParN_`           | `ZManaged#collectAllParNDiscard`           |
+|                                      |                                            |
+| `ZManaged#use_`                      | `ZManaged#useDiscard`                      |
+| `ZManaged.require`                   | `ZManaged.someOrFail`                      |
+| `ZManaged.accessM`                   | `ZManaged.accessZIO`                       |
+| `ZManaged#rejectM`                   | `ZManaged#rejectManaged`                   |
+| `ZManaged#tapM`                      | `ZManaged#tapZIO`                          |
+| `ZManaged#on`                        | `ZManaged#onExecutionContext`              |
+| `ZManaged#optional`                  | `ZManaged#unoption`                        |
+| `ZManaged#halt`                      | `ZManaged#failCause`                       |
+
 ## ZRef
 
 ZIO 2.x unifies `ZRef` and `ZRefM`. `ZRefM` becomes a subtype of `ZRef` that has additional capabilities (i.e. the ability to perform effects within the operations) at some cost to performance:
@@ -1089,7 +1154,66 @@ suite("ZRef") {
 
 In ZIO 2.x, to create a test suite, it's not important that whether we are testing pure or effectful tests. The syntax is the same, and the `test`, and `testM` are unified. So the `testM` was removed.
 
-### Smart Assertions
+### Smart Assertion
+
+ZIO 2.x, introduced a new test method, named `assertTrue` which allows us to assert an expected behavior using ordinary Scala expressions that return `Boolean` values instead of specialized assertion operators.
+
+So instead of writing following test assertions:
+
+```scala mdoc:silent:nest
+val list   = List(1, 2, 3, 4, 5)
+val number = 3
+val option = Option.empty[Int]
+
+suite("ZIO 1.x Test Assertions")(
+  test("contains")(assert(list)(Assertion.contains(5))),
+  test("forall")(assert(list)(Assertion.forall(Assertion.assertion("even")()(actual => actual % 2 == 0)))),
+  test("less than")(assert(number)(Assertion.isLessThan(0))),
+  test("isSome")(assert(option)(Assertion.equalTo(Some(3))))
+)
+```
+
+We can write them like this:
+
+```scala mdoc:silent:nest
+suite("ZIO 2.x SmartAssertions")(
+  test("contains")(assertTrue(list.contains(5))),
+  test("forall")(assertTrue(list.forall(_ % 2 == 0))),
+  test("less than")(assertTrue(number < 0)),
+  test("isSome")(assertTrue(option.get == 3))
+)
+```
+
+Smart Assertions are extremely expressive, so when a test fails:
+- They highlight the exact section of the syntax with the path leading up to the left-hand side of the assertion that causes the failure.
+- They have the strong and nice diffing capability which shows where our expectation varies.
+- When using partial functions in test cases there is no problem with the happy path, but if something goes wrong, it is a little annoying to find what went wrong. But smart assertions are descriptive, e.g., when we call `Option#get` to an optional value that is `None` the test fails with a related error message: `Option was None`
+- They have lots of domains specific errors that talk to us in a language that we understand.
+
+### Compositional Specs
+
+In ZIO 1.x, we cannot compose specs directly, although if we can combine all children's specs via the suite itself:
+
+```scala mdoc:invisible
+import zio.test._
+val fooSpec = test("foo")(???)
+val barSpec = test("bar")(???)
+val bazSpec = test("baz")(???)
+```
+
+```scala mdoc:silent:nest
+val fooSuite = suite("Foo")(fooSpec)
+val barSuite = suite("Bar")(barSpec)
+val bazSuite = suite("Baz")(bazSpec)
+
+val bigSuite = suite("big suite")(fooSuite, barSuite, bazSuite)
+```
+
+Now in ZIO 2.x, we can compose two suites using _binary composition operator_ without having to unnecessarily nest them inside another suite just for purpose of composition:
+
+```scala mdoc:silent:nest
+val bigSuite = fooSuite + barSuite + bazSuite
+```
 
 ## ZIO Streams
 
@@ -1126,6 +1250,7 @@ Pipelines are basically an abstraction for composing a bunch of operations toget
 | `ZStream`       | `ZStream` (backed by `ZChannel`) |
 | `ZSink`         | `ZSink` (backed by `ZChannel`)   |
 | `ZTransducer`   | `ZPipeline`                      |
+
 
 ## ZIO Services
 
@@ -1248,73 +1373,7 @@ Method names in the _Console_ service were renamed to the more readable names:
 | `putStrLnErr` | `printLineError` |
 | `getStrLn`    | `readLine`       |
 
-## ZManaged
-
-| ZIO 1.x                              | ZIO 2.x                                    |
-|--------------------------------------|--------------------------------------------|
-| `ZManaged#&&&`                       | `ZManaged#zip`                             |
-| `ZManaged#mapN`                      | `ZManaged#zip`                             |
-| `ZManaged.mapM`                      | `ZManaged.mapZIO`                          |
-| `ZManaged.mapParN`                   | `ZManaged.zipPar`                          |
-| `ZManaged#>>=`                       | `ZManaged#flatMap`                         |
-| `ZManaged#bimap`                     | `ZManaged#mapBoth`                         |
-| `ZManaged#mapEffect`                 | `ZManaged#mapAttempt`                      |
-| `ZManaged#flattenM`                  | `ZManaged#flattenZIO`                      |
-|                                      |                                            |
-| `ZManaged#get`                       | `ZManaged#some`                            |
-| `ZManaged#someOrElseM`               | `ZManaged#someOrElseManaged`               |
-|                                      |                                            |
-| `ZManaged#asService`                 | `ZManaged#toLayer`                         |
-| `ZManaged.services`                  | `ZManaged.service`                         |
-|                                      |                                            |
-| `ZManaged.foreach_`                  | `ZManaged.foreachDiscard`                  |
-| `ZManaged.foreachPar_`               | `ZManaged.foreachParDiscard`               |
-| `ZManaged.foreachParN_`              | `ZManaged.foreachParNDiscard`              |
-|                                      |                                            |
-| `ZManaged#foldCauseM`                | `ZManaged#foldCauseManaged`                |
-| `ZManaged#foldM`                     | `ZManaged#foldManaged`                     |
-|                                      |                                            |
-| `ZManaged.make`                      | `ZManaged.acquireReleaseWith`              |
-| `ZManaged.make_`                     | `ZManaged.acquireRelease`                  |
-| `ZManaged.makeEffect`                | `ZManaged.acquireReleaseAttemptWith`       |
-| `ZManaged.makeEffect_`               | `ZManaged.acquireReleaseAttempt`           |
-| `ZManaged.makeEffectTotal`           | `ZManaged.acquireReleaseSucceedWith`       |
-| `ZManaged.makeEffectTotal_`          | `ZManaged.acquireReleaseSucceed`           |
-| `ZManaged.makeExit`                  | `ZManaged.acquireReleaseExitWith`          |
-| `ZManaged.makeExit_`                 | `ZManaged.acquireReleaseExit`              |
-| `ZManaged.makeInterruptible`         | `ZManaged.acquireReleaseInterruptibleWith` |
-| `ZManaged.makeInterruptible_`        | `ZManaged.acquireReleaseInterruptible`     |
-| `ZManaged.makeReserve`               | `ZManaged.fromReservationZIO`              |
-| `ZManaged.reserve`                   | `ZManaged.fromReservation`                 |
-|                                      |                                            |
-| `ZManaged#ifM`                       | `ZManaged#ifManaged`                       |
-| `ZManaged.loop_`                     | `ZManaged.loopDiscard`                     |
-| `ZManaged#unlessM`                   | `ZManaged#unlessManaged`                   |
-| `ZManaged#whenCaseM`                 | `ZManaged#whenCaseManaged`                 |
-| `ZManaged#whenM`                     | `ZManaged#whenManaged`                     |
-|                                      |                                            |
-| `ZManaged.fromFunction`              | `ZManaged.access`                          |
-| `ZManaged.fromFunctionM`             | `ZManaged.accessManaged`                   |
-| `ZManaged.fromEffect`                | `ZManaged.fromZIO`                         |
-| `ZManaged.fromEffectUninterruptible` | `ZManaged.fromZIOUninterruptible`          |
-| `ZManaged.effect`                    | `ZManaged.attempt`                         |
-| `ZManaged.effectTotal`               | `ZManaged.succeed`                         |
-|                                      |                                            |
-| `ZManaged#collectM`                  | `ZManaged#collectManage`                   |
-| `ZManaged#collectAll_`               | `ZManaged#collectAllDiscard`               |
-| `ZManaged#collectAllPar_`            | `ZManaged#collectAllParDiscard`            |
-| `ZManaged#collectAllParN_`           | `ZManaged#collectAllParNDiscard`           |
-|                                      |                                            |
-| `ZManaged#use_`                      | `ZManaged#useDiscard`                      |
-| `ZManaged.require`                   | `ZManaged.someOrFail`                      |
-| `ZManaged.accessM`                   | `ZManaged.accessZIO`                       |
-| `ZManaged#rejectM`                   | `ZManaged#rejectManaged`                   |
-| `ZManaged#tapM`                      | `ZManaged#tapZIO`                          |
-| `ZManaged#on`                        | `ZManaged#onExecutionContext`              |
-| `ZManaged#optional`                  | `ZManaged#unoption`                        |
-| `ZManaged#halt`                      | `ZManaged#failCause`                       |
-
-## New Features
+## Other New Features
 
 ### Smart Constructors
 
@@ -1347,42 +1406,6 @@ ZStream.from(Chunk(1,2,3))
 ZStream.fromIterableZIO(ZIO.succeed(List(1,2,3)))
 ZStream.from(ZIO.succeed(List(1,2,3)))
 ```
-
-### Smart Assertion
-
-ZIO 2.x, introduced a new test method, named `assertTrue` which allows us to assert an expected behavior using ordinary Scala expressions that return `Boolean` values instead of specialized assertion operators.
-
-So instead of writing following test assertions:
-
-```scala mdoc:silent:nest
-val list   = List(1, 2, 3, 4, 5)
-val number = 3
-val option = Option.empty[Int]
-
-suite("ZIO 1.x Test Assertions")(
-  test("contains")(assert(list)(Assertion.contains(5))),
-  test("forall")(assert(list)(Assertion.forall(Assertion.assertion("even")()(actual => actual % 2 == 0)))),
-  test("less than")(assert(number)(Assertion.isLessThan(0))),
-  test("isSome")(assert(option)(Assertion.equalTo(Some(3))))
-)
-```
-
-We can write them like this:
-
-```scala mdoc:silent:nest
-suite("ZIO 2.x SmartAssertions")(
-  test("contains")(assertTrue(list.contains(5))),
-  test("forall")(assertTrue(list.forall(_ % 2 == 0))),
-  test("less than")(assertTrue(number < 0)),
-  test("isSome")(assertTrue(option.get == 3))
-)
-```
-
-Smart Assertions are extremely expressive, so when a test fails:
-- They highlight the exact section of the syntax with the path leading up to the left-hand side of the assertion that causes the failure.
-- They have the strong and nice diffing capability which shows where our expectation varies.
-- When using partial functions in test cases there is no problem with the happy path, but if something goes wrong, it is a little annoying to find what went wrong. But smart assertions are descriptive, e.g., when we call `Option#get` to an optional value that is `None` the test fails with a related error message: `Option was None`
-- They have lots of domains specific errors that talk to us in a language that we understand.
 
 ### ZState
 
@@ -1517,27 +1540,3 @@ ZIO.logSpan("myspan") {
 
 ZIO Logging calculates the running duration of that span and includes that in the logging data corresponding to its span label.
 
-### Compositional Specs
-
-In ZIO 1.x, we cannot compose specs directly, although if we can combine all children's specs via the suite itself:
-
-```scala mdoc:invisible
-import zio.test._
-val fooSpec = test("foo")(???)
-val barSpec = test("bar")(???)
-val bazSpec = test("baz")(???)
-```
-
-```scala mdoc:silent:nest
-val fooSuite = suite("Foo")(fooSpec)
-val barSuite = suite("Bar")(barSpec)
-val bazSuite = suite("Baz")(bazSpec)
-
-val bigSuite = suite("big suite")(fooSuite, barSuite, bazSuite)
-```
-
-Now in ZIO 2.x, we can compose two suites using _binary composition operator_ without having to unnecessarily nest them inside another suite just for purpose of composition:
-
-```scala mdoc:silent:nest
-val bigSuite = fooSuite + barSuite + bazSuite
-```
