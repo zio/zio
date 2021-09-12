@@ -6,7 +6,7 @@
 
 | Scaladoc | Scaladex | Discord | Twitter | Gitpod |
 | --- | --- | --- | --- | --- |
-| [![Badge-Scaladoc]][Link-Scaladoc] | [![Badge-Scaladex-page]][Link-Scaladex-page] | [![Badge-Discord]][Link-Discord] | [![Badge-Twitter]][Link-Twitter] | [![Gitpod ready-to-code](https://img.shields.io/badge/Gitpod-ready--to--code-blue?logo=gitpod)](https://gitpod.io/#https://github.com/zio/zio) |
+| [Scaladoc][Link-Scaladoc] | [![Badge-Scaladex-page]][Link-Scaladex-page] | [![Badge-Discord]][Link-Discord] | [![Badge-Twitter]][Link-Twitter] | [![Gitpod ready-to-code](https://img.shields.io/badge/Gitpod-ready--to--code-blue?logo=gitpod)](https://gitpod.io/#https://github.com/zio/zio) |
 
 # Welcome to ZIO
 
@@ -182,7 +182,7 @@ Copyright 2017 - 2020 John A. De Goes and the ZIO Contributors. All rights reser
 
 [Link-Codecov]: https://codecov.io/gh/zio/zio?branch=master "Codecov"
 [Link-IsItMaintained]: http://isitmaintained.com/project/zio/zio "Average time to resolve an issue"
-[Link-Scaladoc]: https://zio.dev/api/zio/
+[Link-Scaladoc]: https://javadoc.io/doc/dev.zio/zio_2.12/latest/zio/index.html
 [Link-Scaladex-page]: https://index.scala-lang.org/zio/zio/zio "Scaladex"
 [Link-SonatypeReleases]: https://oss.sonatype.org/content/repositories/releases/dev/zio/zio_2.12/ "Sonatype Releases"
 [Link-SonatypeSnapshots]: https://oss.sonatype.org/content/repositories/snapshots/dev/zio/zio_2.12/ "Sonatype Snapshots"
