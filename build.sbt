@@ -339,7 +339,10 @@ lazy val testMagnoliaTests = crossProject(JVMPlatform, JSPlatform)
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
   .dependsOn(testRunner)
   .settings(buildInfoSettings("zio.test"))
-  .settings(publish / skip := true)
+  .settings(
+    publish / skip := true,
+    crossScalaVersions --= Seq(Scala211)
+  )
   .enablePlugins(BuildInfoPlugin)
 
 lazy val testMagnoliaTestsJVM = testMagnoliaTests.jvm
