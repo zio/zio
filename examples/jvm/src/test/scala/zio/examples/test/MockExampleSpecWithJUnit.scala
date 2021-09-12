@@ -4,12 +4,14 @@ import zio.test.Assertion._
 import zio.test.junit.JUnitRunnableSpec
 import zio.test.mock.Expectation.{value, valueF}
 import zio.test.mock.{MockClock, MockConsole, MockRandom}
-import zio.test.assertM
+import zio.test.{Spec, TestFailure, TestSuccess, assertM}
 import zio.{clock, console, random}
+
+import java.io.IOException
 
 class MockExampleSpecWithJUnit extends JUnitRunnableSpec {
 
-  def spec = suite("suite with mocks")(
+  def spec: Spec[Any, TestFailure[IOException], TestSuccess] = suite("suite with mocks")(
     testM("expect call returning output") {
       val app = clock.nanoTime
       val env = MockClock.NanoTime(value(1000L))

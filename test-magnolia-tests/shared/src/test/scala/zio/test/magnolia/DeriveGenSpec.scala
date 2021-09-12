@@ -1,14 +1,13 @@
 package zio.test.magnolia
 
-import java.time.{Instant, LocalDate, LocalDateTime}
-import java.util.UUID
-
 import zio.random.Random
 import zio.test.Assertion._
 import zio.test.GenUtils._
-import zio.test.Sized
-import zio.test._
 import zio.test.magnolia.DeriveGen._
+import zio.test.{Sized, _}
+
+import java.time.{Instant, LocalDate, LocalDateTime}
+import java.util.UUID
 
 object DeriveGenSpec extends DefaultRunnableSpec {
 
@@ -48,7 +47,7 @@ object DeriveGenSpec extends DefaultRunnableSpec {
 
   def assertDeriveGen[A: DeriveGen]: TestResult = assertCompletes
 
-  def spec = suite("DeriveGenSpec")(
+  def spec: ZSpec[Environment, Failure] = suite("DeriveGenSpec")(
     suite("derivation")(
       testM("case classes can be derived") {
         checkSample(genPerson)(isGreaterThan(1), _.distinct.length)

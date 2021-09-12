@@ -4,7 +4,7 @@ import zio.test._
 
 object ExampleSpec extends DefaultRunnableSpec {
 
-  def spec = suite("some suite")(
+  def spec: ZSpec[Environment, Failure] = suite("some suite")(
     test("failing test") {
       val stuff = 1
       assert(stuff)(Assertion.equalTo(2))
