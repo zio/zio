@@ -358,7 +358,7 @@ We renamed the `Platform` data type to the `RuntimeConfig` and moved it from the
 | `Platform#withSupervisor`       | `RuntimeConfig#copy` |
 | `Platform#withTracing`          | `RuntimeConfig#copy` |
 
-Also, we moved the `zio.internal.Executor` to the `zio` package:
+Also, we moved the `Executor` from `zio.internal` to the `zio` package:
 
 | ZIO 1.0                 | ZIO 2.x        |
 |-------------------------|----------------|
