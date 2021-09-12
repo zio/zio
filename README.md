@@ -181,7 +181,7 @@ Copyright 2017 - 2020 John A. De Goes and the ZIO Contributors. All rights reser
 
 [Link-Codecov]: https://codecov.io/gh/zio/zio?branch=master "Codecov"
 [Link-IsItMaintained]: http://isitmaintained.com/project/zio/zio "Average time to resolve an issue"
-[Link-Scaladoc]: https://javadoc.io/doc/dev.zio/zio_2.12/latest/zio/index.html
+[Link-Scaladoc]: https://zio.dev/api/zio/
 [Link-Scaladex-page]: https://index.scala-lang.org/zio/zio/zio "Scaladex"
 [Link-SonatypeReleases]: https://oss.sonatype.org/content/repositories/releases/dev/zio/zio_2.12/ "Sonatype Releases"
 [Link-SonatypeSnapshots]: https://oss.sonatype.org/content/repositories/snapshots/dev/zio/zio_2.12/ "Sonatype Snapshots"
@@ -196,7 +196,6 @@ Copyright 2017 - 2020 John A. De Goes and the ZIO Contributors. All rights reser
 [Badge-CI]: https://github.com/zio/zio/workflows/CI/badge.svg
 [Badge-Codecov]: https://codecov.io/gh/zio/zio/coverage.svg?branch=master "Codecov"
 [Badge-IsItMaintained]: http://isitmaintained.com/badge/resolution/zio/zio.svg "Average time to resolve an issue"
-[Badge-Scaladoc]: https://javadoc-badge.appspot.com/dev.zio/zio_2.12.svg?label=scaladoc "Scaladoc"
 [Badge-Scaladex-page]: https://index.scala-lang.org/zio/zio/zio/latest.svg "Scaladex"
 [Badge-SonatypeReleases]: https://img.shields.io/nexus/r/https/oss.sonatype.org/dev.zio/zio_2.12.svg "Sonatype Releases"
 [Badge-SonatypeSnapshots]: https://img.shields.io/nexus/s/https/oss.sonatype.org/dev.zio/zio_2.12.svg "Sonatype Snapshots"
