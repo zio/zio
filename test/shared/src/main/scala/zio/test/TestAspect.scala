@@ -62,6 +62,15 @@ abstract class TestAspect[+LowerR, -UpperR, +LowerE, -UpperE] { self =>
         that.some(self.some(spec))
     }
 
+  /**
+   * Returns a new aspect that represents the sequential composition of this
+   * aspect with the specified one.
+   */
+  final def @@[LowerR1 >: LowerR, UpperR1 <: UpperR, LowerE1 >: LowerE, UpperE1 <: UpperE](
+    that: TestAspect[LowerR1, UpperR1, LowerE1, UpperE1]
+  ): TestAspect[LowerR1, UpperR1, LowerE1, UpperE1] =
+    self >>> that
+
   final def andThen[LowerR1 >: LowerR, UpperR1 <: UpperR, LowerE1 >: LowerE, UpperE1 <: UpperE](
     that: TestAspect[LowerR1, UpperR1, LowerE1, UpperE1]
   ): TestAspect[LowerR1, UpperR1, LowerE1, UpperE1] =
