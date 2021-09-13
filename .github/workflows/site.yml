@@ -18,7 +18,7 @@ jobs:
       - name: Setup Scala and Java
         uses: olafurpg/setup-scala@v13
       - run: |
-          ./scripts/createSite ${{ github.ref }}
+          ./scripts/prepareSite.sh ${{ github.ref }}
       - name: Publish Github pages
         run: |
           ./sbt docs/docusaurusPublishGhpages
