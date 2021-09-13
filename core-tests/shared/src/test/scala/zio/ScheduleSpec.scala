@@ -327,10 +327,10 @@ object ScheduleSpec extends ZIOBaseSpec {
       },
       test("throw IllegalArgumentException on invalid `second` argument of `secondOfMinute`") {
         val input = List(OffsetDateTime.now())
-        assertM(run(Schedule.secondOfMinute(60))(input)) {
-          equalTo(Chunk.empty)
-        }
-      } @@ failing(diesWith(isSubtype[IllegalArgumentException](anything))),
+        for {
+          exit <- run(Schedule.secondOfMinute(60))(input).exit
+        } yield assertTrue(exit.failureOption.get.dieOption.get.isInstanceOf[IllegalArgumentException])
+      },
       test("recur at 01 minute of each hour") {
         def toOffsetDateTime[T](in: (List[(OffsetDateTime, T)], Option[T])): List[OffsetDateTime] =
           in._1.map(t => t._1)
@@ -352,10 +352,10 @@ object ScheduleSpec extends ZIOBaseSpec {
       },
       test("throw IllegalArgumentException on invalid `minute` argument of `minuteOfHour`") {
         val input = List(OffsetDateTime.now())
-        assertM(run(Schedule.minuteOfHour(60))(input)) {
-          equalTo(Chunk.empty)
-        }
-      } @@ failing(diesWith(isSubtype[IllegalArgumentException](anything))),
+        for {
+          exit <- run(Schedule.minuteOfHour(60))(input).exit
+        } yield assertTrue(exit.failureOption.get.dieOption.get.isInstanceOf[IllegalArgumentException])
+      },
       test("recur at 01 hour of each day") {
         def toOffsetDateTime[T](in: (List[(OffsetDateTime, T)], Option[T])): List[OffsetDateTime] =
           in._1.map(t => t._1.withNano(0))
@@ -379,10 +379,10 @@ object ScheduleSpec extends ZIOBaseSpec {
       },
       test("throw IllegalArgumentException on invalid `hour` argument of `hourOfDay`") {
         val input = List(OffsetDateTime.now())
-        assertM(run(Schedule.hourOfDay(24))(input)) {
-          equalTo(Chunk.empty)
-        }
-      } @@ failing(diesWith(isSubtype[IllegalArgumentException](anything))),
+        for {
+          exit <- run(Schedule.hourOfDay(24))(input).exit
+        } yield assertTrue(exit.failureOption.get.dieOption.get.isInstanceOf[IllegalArgumentException])
+      },
       test("recur at Tuesday of each week") {
         def toOffsetDateTime[T](in: (List[(OffsetDateTime, T)], Option[T])): List[OffsetDateTime] =
           in._1.map(t => t._1.withNano(0))
@@ -406,10 +406,10 @@ object ScheduleSpec extends ZIOBaseSpec {
       },
       test("throw IllegalArgumentException on invalid `day` argument of `dayOfWeek`") {
         val input = List(OffsetDateTime.now())
-        assertM(run(Schedule.dayOfWeek(8))(input)) {
-          equalTo(Chunk.empty)
-        }
-      } @@ failing(diesWith(isSubtype[IllegalArgumentException](anything))),
+        for {
+          exit <- run(Schedule.dayOfWeek(8))(input).exit
+        } yield assertTrue(exit.failureOption.get.dieOption.get.isInstanceOf[IllegalArgumentException])
+      },
       test("recur in 2nd day of each month") {
         def toOffsetDateTime[T](in: (List[(OffsetDateTime, T)], Option[T])): List[OffsetDateTime] =
           in._1.map(t => t._1.withNano(0))
@@ -453,10 +453,10 @@ object ScheduleSpec extends ZIOBaseSpec {
       },
       test("throw IllegalArgumentException on invalid `day` argument of `dayOfMonth`") {
         val input = List(OffsetDateTime.now())
-        assertM(run(Schedule.dayOfMonth(32))(input)) {
-          equalTo(Chunk.empty)
-        }
-      } @@ failing(diesWith(isSubtype[IllegalArgumentException](anything)))
+        for {
+          exit <- run(Schedule.dayOfMonth(32))(input).exit
+        } yield assertTrue(exit.failureOption.get.dieOption.get.isInstanceOf[IllegalArgumentException])
+      }
     ),
     suite("Return the result after successful retry")(
       test("retry exactly one time for `once` when second time succeeds - retryOrElse") {
