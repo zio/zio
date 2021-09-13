@@ -91,4 +91,3 @@ object QuillZIOExample extends zio.App {
       .provideCustomLayer(DataSourceLayer.fromPrefix("myH2DB"))
       .exitCode
 }
-```

@@ -142,3 +142,7 @@ And the response:
   }
 }
 ```
+
+## Resources
+
+- [Zymposium - Caliban](https://www.youtube.com/watch?v=mzqsXklbmfM&t=2849s) by Adam Fraser, Kit Langton and Pierre Ricadat — We will be building full-stack applications with the special guest international man of mystery Pierre Ricadat. Pierre will be walking us through Caliban, a GraphQL library in Scala that just had its 1.0 release. We'll be seeing how easy it can be to upgrade an existing application to use GraphQL with the power of Caliban!

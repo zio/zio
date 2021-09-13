@@ -87,3 +87,7 @@ curl -X GET localhost:8080
 ```
 
 Now we can config the Prometheus server to scrape metric information periodically.
+
+## Resources
+
+- [ZIO WORLD - ZIO ZMX - Development Testing, Deployment](https://www.youtube.com/watch?v=VM_8ByPuAcI) by Adam Fraser (May 2021) — Adam Fraser went on to present the state of ZMX, showing how metrics Iadded to the runtime system will enable rich real-time analytics out of any ZIO app with zero coding, including fiber lifetimes, fiber failure analysis, fiber counts, & much more (StatsD/Promethus/etc).

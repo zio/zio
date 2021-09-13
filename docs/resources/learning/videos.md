@@ -7,14 +7,17 @@ title:  "Videos"
 - [FP to the Max](https://www.youtube.com/watch?v=sxudIMiOo68) by John De Goes (July 2018)
 - [FP to the Min](https://www.youtube.com/watch?v=mrHphQT4RpU) by John De Goes (July 2020)
 
+## Tour of ZIO
+- [The ZIO of the Future](https://www.youtube.com/watch?v=u3pgyEiu9eU) by John De Goes (May 2021)
+- [A Tour of ZIO](https://www.youtube.com/watch?v=TWdC7DhvD8M) by John De Goes (January 2020)
+- [Tour of ZIO](https://www.youtube.com/watch?v=5s0GOA3WQnY&t=1405s) by Oleksandra Holubitska (March 2019)
+
 ## ZIO Core
 - [The Death of Tagless Final](https://www.youtube.com/watch?v=p98W4bUtbO8) by John De Goes (February 2019)
-- [A Tour of ZIO](https://www.youtube.com/watch?v=TWdC7DhvD8M) by John De Goes (January 2020)
 - [Upgrade Your Future](https://www.youtube.com/watch?v=USgfku1h7Hw) by John De Goes (September 2019)
 - [One Monad to Rule Them All](https://www.youtube.com/watch?v=POUEz8XHMhE) by John De Goes (August 2019)
 - [Functional Concurrency in Scala with ZIO](https://www.youtube.com/watch?v=m5nas4Hndqo) by Itamar Ravid (June 2019)
 - [Thinking Functionally](https://www.youtube.com/watch?v=-KA3BSdqYug) by John De Goes (March 2019)
-- [Tour of ZIO](https://www.youtube.com/watch?v=5s0GOA3WQnY&t=1405s) by Oleksandra Holubitska (March 2019)
 - [ZIO: Next-Generation Effects in Scala](https://www.youtube.com/watch?v=mkSHhsJXjdc&t=6s) by John De Goes (October 2018)
 - [Functional Effects in ZIO](https://www.youtube.com/watch?v=4EeL8-chAR8) by  Wiem Zine El Abidine
 - [ZIO WORLD - Blocking](https://www.youtube.com/watch?v=1g21c8VKeuU&t=320s) by Adam Fraser (March 2021) — Adam Fraser presented his work to make ZIO faster with blocking code, showing the tremendous (unbelievable) performance improvements possible with batch-mode blocking; part of ongoing work to make ZIO better at blocking workloads.
@@ -47,6 +50,7 @@ title:  "Videos"
 - [0 to 100 with ZIO Test](https://www.youtube.com/watch?v=qDFfVinjDPQ) by Adam Fraser
 - [ZIO WORLD - Execution Tracing](https://www.youtube.com/watch?v=1-z06KIde0k) by Rob Walsh (March 2021) — Rob Walsh then presented his work taking ZIO's execution tracing to the next level, which will improve the quality of tracing, as well as make it virtually "cost-free", which is effectively the same as more than doubling the perf of ZIO applications today.
 - [Using Aspects To Transform Your Code With ZIO Environment](https://www.youtube.com/watch?v=gcqWdNwNEPg) by Adam Fraser (September 2020)
+- [Zymposium — Smart Assertions](https://www.youtube.com/watch?v=lgCb4-4M-fw) by Adam Fraser and Kit Langton (August 2021) — This week, Adam and Kit will demo and explore the inner workings of zio-test's new Smart Assertions. This new test syntax allows you to write simple, straightforward, boolean expressions—all without losing the human-readable, debuggable error messages from other assertion DSLs. As we look at the implementation, we'll discuss the delicate fusion of principled combinator DSLs with hacky macros.
 
 ## Migration and Interoperability
 - [Functional Legacy - How to Incorporate ZIO In Your Legacy Services](https://www.youtube.com/watch?v=pdgr9bbFQLE) by Natan Silnitsky (March 2020) — You want to introduce ZIO to your existing Scala codebase? Great Idea! It will make your code more efficient, readable, composable, and safe. For the past year, Natan Silnitsky has done this at Wix and has learned a lot about how to do it right. In this talk, Natan will show you how to successfully use ZIO in your legacy service using real-life code examples. You will learn key tips and takeaways including how and when to execute the ZIO runtime; how/when to introduce ZLayers into your codebase; how to make your existing APIs interop with ZIO; and how to have more flexibility on ZManaged resource shutdown. When you're done attending the presentation, you'll be able to introduce ZIO into your existing Scala code base with confidence!
@@ -66,6 +70,7 @@ title:  "Videos"
 
 ### ZIO Flow
 - [ZIO WORLD - ZIO FLOW](https://www.youtube.com/watch?v=H4pMkTAsg48) by Aiswarya Prakasan (March 2020) - Aiswarya Prakasan introducing ZIO Flow the new open-source platform will help developers orchestrate microservices for mission-critical code. With a type-safe and compositional design, ZIO Flow will make it easier for developers to create and test robust workflows, which statefully interact with microservices, databases, and human agents, and which survive flakiness, software updates, and even data center failures.
+- [Zymposium - ZIO Flow](https://www.youtube.com/watch?v=DDZ8HgWOpBk) (August 2021) — This Friday Adam and Kit will be learning about ZIO Flow, a project that aims to do for distributed programming what ZIO has done for concurrent programming, with special guest Ash. Ash will explain how ZIO Flow lets us execute persistent, distributed, fault-tolerant computations. Then we'll be live coding building a small application in ZIO Flow with her. 
 
 ### ZIO SQL
 - [ZIO WORLD - ZIO SQL](https://www.youtube.com/watch?v=cIMA6iT9B-k) by Jakub Czuchnowski (March 2020) — Jakub Czuchnowski summarized the latest work in ZIO SQL, demonstrating type-inferred, type-safe queries with the full-range of SQL features, including database-specific functions, with working SELECT/DELETE/UPDATE for Postgres.
