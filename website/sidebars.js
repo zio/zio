@@ -159,11 +159,38 @@ module.exports = {
       "resources/learning/poweredbyzio"
     ],
     "Ecosystem": [
-      "resources/ecosystem/officials",
-      "resources/ecosystem/community",
-      "resources/ecosystem/compatible",
-      "resources/ecosystem/tools",
-      "resources/ecosystem/templates"
+        {
+            type: "category",
+            label: "Official Libraries",
+            items: [
+                "resources/ecosystem/officials/",
+                "resources/ecosystem/officials/zio-actors",
+                "resources/ecosystem/officials/zio-akka-cluster",
+                "resources/ecosystem/officials/zio-cache",
+                "resources/ecosystem/officials/zio-config",
+                "resources/ecosystem/officials/zio-ftp",
+                "resources/ecosystem/officials/zio-json",
+                "resources/ecosystem/officials/zio-kafka",
+                "resources/ecosystem/officials/zio-logging",
+                "resources/ecosystem/officials/zio-metrics",
+                "resources/ecosystem/officials/zio-nio",
+                "resources/ecosystem/officials/zio-optics",
+                "resources/ecosystem/officials/zio-prelude",
+                "resources/ecosystem/officials/zio-process",
+                "resources/ecosystem/officials/zio-query",
+                "resources/ecosystem/officials/zio-redis",
+                "resources/ecosystem/officials/zio-rocksdb",
+                "resources/ecosystem/officials/zio-s3",
+                "resources/ecosystem/officials/zio-schema",
+                "resources/ecosystem/officials/zio-sqs",
+                "resources/ecosystem/officials/zio-telemetry",
+                "resources/ecosystem/officials/zio-zmx",
+            ],
+        },
+        "resources/ecosystem/community",
+        "resources/ecosystem/compatible",
+        "resources/ecosystem/tools",
+        "resources/ecosystem/templates"
     ]
   },
   "about-sidebar": {
