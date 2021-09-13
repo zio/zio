@@ -63,3 +63,7 @@ zio.Runtime.default.unsafeRun(
     .flatMap(x => putStrLn(s"Encoded data with protobuf codec: ${toHex(x)}"))
 )
 ```
+
+## Resources
+
+- [Zymposium - ZIO Schema](https://www.youtube.com/watch?v=GfNiDaL5aIM) by John A. De Goes, Adam Fraser and Kit Langton (May 2021)

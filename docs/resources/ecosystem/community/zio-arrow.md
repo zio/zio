@@ -74,3 +74,7 @@ Enter positive number (-1 to exit): 8
 Enter positive number (-1 to exit): -1
 Goodbye!
 ```
+
+## Resources
+
+- [Blazing Fast, Pure Effects without Monads](https://www.youtube.com/watch?v=L8AEj6IRNEE) by John De Goes (Dec 2018)

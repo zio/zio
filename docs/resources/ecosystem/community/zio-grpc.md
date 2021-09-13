@@ -132,3 +132,7 @@ object HelloWorldClient extends zio.App {
     myApp.provideCustomLayer(clientLayer).exitCode
 }
 ```
+
+## Resources
+
+- [Functional, Type-safe, Testable Microservices with ZIO gRPC](https://www.youtube.com/watch?v=XTkhxRTH1nE) by Nadav Samet (July 2020)

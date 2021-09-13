@@ -38,3 +38,7 @@ object ZIOHTTPExample extends zio.App {
     Server.start(8090, app.silent).exitCode
 }
 ```
+
+## Resources
+
+- [ZIO World - ZIO HTTP](https://www.youtube.com/watch?v=dVggks9_1Qk&t=257s) by Tushar Mathur (March 2020) — At ZIO World Tushar Mathur unveiled a new open-source library 'ZIO HTTP' that gives you better performance than Vert.x, but with pure functional Scala and native ZIO integration.

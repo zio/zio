@@ -91,3 +91,7 @@ libraryDependencies += "dev.zio" %% "zio-actors-persistence-jdbc" % zioActorVers
 libraryDependencies += "dev.zio" %% "zio-actors-akka-interop" % zioActorVersion
 ```
 
+## Resources
+
+- [Acting Lessons for Scala Engineers with Akka and ZIO](https://www.youtube.com/watch?v=AQXBlbkf9wc) by [Salar Rahmanian](https://wwww.softinio.com) (November 2020)
+- [Introduction to ZIO Actors](https://www.softinio.com/post/introduction-to-zio-actors/) by [Salar Rahmanian](https://www.softinio.com) (November 2020)

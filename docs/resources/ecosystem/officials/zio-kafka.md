@@ -108,3 +108,7 @@ object ZIOKafkaProducerConsumerExample extends zio.App {
   def appLayer = producerLayer ++ consumerLayer
 }
 ```
+
+## Resources
+
+- [ZIO WORLD - ZIO Kafka](https://www.youtube.com/watch?v=GECv1ONieLw) by Aleksandar Skrbic (March 2020) — Aleksandar Skrbic presented ZIO Kafka, a critical library for the modern Scala developer, which hides some of the complexities of Kafka.

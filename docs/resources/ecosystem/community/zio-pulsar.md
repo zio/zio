@@ -86,3 +86,7 @@ object StreamingExample extends zio.App {
       ).useNow.exitCode
 }
 ```
+
+## Resources
+
+- [ZIO World - ZIO PULSAR](https://www.youtube.com/watch?v=tpwydDqQBmk) by Jakub Czuchnowski (March 2020) — A new library that offers a native, first-class ZIO experience for Pulsar, the Kafka competitor gaining traction for some use cases.

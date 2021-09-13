@@ -77,3 +77,7 @@ object ZIOK8sLogsExample extends zio.App {
       .runDrain
 }
 ```
+
+## Resources
+
+- [ZIO World - ZIO Kubernetes (ZIO K8S 1.0)](https://www.youtube.com/watch?v=BUMe2hGKjXA&t=31s) by Daniel Vigovszky (March 2020) — ZIO K8S 1.0, a new library by Daniel Vigovszky and Coralogix for working with Kubernetes, which includes support for the whole API, including event processors and compositional aspects for metrics and logging.

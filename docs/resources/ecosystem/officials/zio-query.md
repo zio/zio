@@ -113,3 +113,7 @@ object ZQueryExample extends zio.App {
       .exitCode
 }
 ```
+
+## Resources
+
+- [Wicked Fast API Calls with ZIO Query](https://www.youtube.com/watch?v=rUUxDXJMzJo) by Adam Fraser (July 2020) (https://www.youtube.com/watch?v=rUUxDXJMzJo)

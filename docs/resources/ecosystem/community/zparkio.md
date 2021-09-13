@@ -43,3 +43,7 @@ def readParquetFile[A](parquetPath: String): ZIO[Clock with SparkModule, Throwab
       .timeoutFail(ZparkioApplicationTimeoutException())(5.minutes)
   } yield dataset
 ```
+
+## Resources
+
+- [Accelerating Spark with ZIO](https://www.youtube.com/watch?v=bWgVGzb5-H8) by Leo Benkel (December 2020) — Apache Spark is a powerful tool for distributed analytics but isn’t built to offer rich primitives for local parallelism. Yet, using local parallelism, it is possible to dramatically improve the performance of ML projects—for example, by fetching data sources in parallel. Historically, Scala projects have used Scala's Future for local parallelism, but increasingly, many projects have begun adopting ZIO as a better Future. Although powerful, ZIO is not easy to set up with Spark. In this talk, Leo will introduce an open-source library that handles all boilerplate so you can easily implement Spark and ZIO in your ML projects, and will then present detailed benchmarks showing how much additional performance can be obtained through local parallelism. Learn how to use ZIO to make Spark better and faster!

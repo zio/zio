@@ -59,3 +59,7 @@ val updated = optic.update(jane)(_ + 1)
 
 println(updated)
 ```
+
+## Resources
+
+- [Zymposium - Optics](https://www.youtube.com/watch?v=-km5ohYhJa4) by Adam Fraser and Kit Langton (June 2021) — Optics are great tools for working with parts of larger data structures and come up in disguise in many places such as ZIO Test assertions.
