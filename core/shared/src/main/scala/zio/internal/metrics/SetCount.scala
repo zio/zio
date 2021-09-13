@@ -14,11 +14,10 @@
  * limitations under the License.
  */
 
-package zio.metrics
+package zio.internal.metrics
 
 import zio._
-import zio.internal.metrics._
-import zio.metrics.clients._
+import zio.metrics._
 
 /**
  * A `SetCount` represents the number of occurrences of specified values.
@@ -27,7 +26,7 @@ import zio.metrics.clients._
  * values are observed. This could be used to track the frequency of
  * different types of failures, for example.
  */
-trait SetCount {
+private[zio] trait SetCount {
 
   /**
    * Increments the counter associated with the specified value by one.
@@ -41,7 +40,7 @@ trait SetCount {
   def occurrences: UIO[Chunk[(String, Long)]]
 }
 
-object SetCount {
+private[zio] object SetCount {
 
   /**
    * Constructs a set count with the specified key.
@@ -52,6 +51,6 @@ object SetCount {
   /**
    * Constructs a set count with the specified name, set tag, and tags.
    */
-  def apply(name: String, setTag: String, tags: MetricLabel*): SetCount =
-    apply(MetricKey.SetCount(name, setTag, Chunk.fromIterable(tags)))
+  def apply(name: String, setTag: String, tags: Chunk[MetricLabel]): SetCount =
+    apply(MetricKey.SetCount(name, setTag, tags))
 }
