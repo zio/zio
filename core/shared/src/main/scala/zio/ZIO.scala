@@ -1615,7 +1615,10 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     repeatOrElse[R1, E, B](schedule, (e, _) => ZIO.fail(e))
 
   /**
-   * Repeats this effect the specified number of times.
+   * Returns a new effect that repeats this effect the specified number of
+   * times or until the first failure. Repeats are in addition to the first
+   * execution, so that `io.repeatN(1)` yields an effect that executes `io`,
+   * and then if that succeeds, executes `io` an additional time.
    */
   final def repeatN(n: => Int): ZIO[R, E, A] =
     ZIO.suspendSucceed {
