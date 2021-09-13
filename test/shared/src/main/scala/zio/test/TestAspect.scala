@@ -334,7 +334,7 @@ object TestAspect extends TimeoutVariants {
         test.foldZIO(
           failure =>
             if (assertion(failure)) ZIO.succeedNow(TestSuccess.Succeeded(BoolAlgebra.unit))
-            else ZIO.fail(TestFailure.assertion(assertTrue(assertion(failure)))),
+            else ZIO.fail(TestFailure.die(new RuntimeException("did not fail as expected"))),
           _ => ZIO.fail(TestFailure.die(new RuntimeException("did not fail as expected")))
         )
     }
