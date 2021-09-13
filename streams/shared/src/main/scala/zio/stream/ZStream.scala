@@ -2837,6 +2837,15 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     mapM(o => f0(o).as(o))
 
   /**
+   * Returns a stream that effectfully "peeks" at the failure of the stream.
+   */
+  final def tapError[R1 <: R, E1 >: E](f: E => ZIO[R1, E1, Any])(implicit ev: CanFail[E]): ZStream[R1, E1, O] =
+    ZStream(self.process.map(_.tapError {
+      case None      => ZIO.fail(None)
+      case Some(err) => f(err).mapError(Some(_))
+    }))
+
+  /**
    * Throttles the chunks of this stream according to the given bandwidth parameters using the token bucket
    * algorithm. Allows for burst in the processing of elements by allowing the token bucket to accumulate
    * tokens up to a `units + burst` threshold. Chunks that do not meet the bandwidth constraints are dropped.
