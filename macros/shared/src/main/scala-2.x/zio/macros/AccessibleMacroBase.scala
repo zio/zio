@@ -289,7 +289,7 @@ private[macros] abstract class AccessibleMacroBase(val c: whitebox.Context) {
               _
             ) =>
           q"""
-          ${service}
+          $service
           $mods object $tname extends { ..$earlydefns } with ..$parents { $self =>
             ..$body
             ..$accessors
@@ -297,7 +297,7 @@ private[macros] abstract class AccessibleMacroBase(val c: whitebox.Context) {
         """
         case PlainModuleInfo(None, service, _) =>
           q"""
-          ${service}
+          $service
           object ${service.name.toTermName} {
             ..$accessors
           }

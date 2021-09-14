@@ -14,16 +14,16 @@ object ScheduleSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 
+  /**
+   * Retry `once` means that we try to exec `io`, get and error,
+   * try again to exec `io`, and whatever the output is, we return that
+   * second result.
+   * The three following tests test retry when:
+   * - the first time succeeds (no retry)
+   * - the first time fails and the second succeeds (one retry, result success)
+   * - both first time and retry fail (one retry, result failure)
+   */
   def spec: ZSpec[Environment, Failure] = suite("ScheduleSpec")(
-    /**
-     * Retry `once` means that we try to exec `io`, get and error,
-     * try again to exec `io`, and whatever the output is, we return that
-     * second result.
-     * The three following tests test retry when:
-     * - the first time succeeds (no retry)
-     * - the first time fails and the second succeeds (one retry, result success)
-     * - both first time and retry fail (one retry, result failure)
-     */
     suite("Repeat on success according to a provided strategy")(
       test("for 'recurs(a negative number)' repeats 0 additional time") {
         // A repeat with a negative number of times should not repeat the action at all

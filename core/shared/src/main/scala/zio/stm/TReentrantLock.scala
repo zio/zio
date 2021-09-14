@@ -122,7 +122,7 @@ final class TReentrantLock private (data: TRef[LockState]) {
         case WriteLock(1, m, `fiberId`) => ReadLock(fiberId, m)
         case WriteLock(n, m, `fiberId`) if n > 1 =>
           WriteLock(n - 1, m, fiberId)
-        case s => die(s"Defect: Fiber ${fiberId} releasing write lock it does not hold: ${s}")
+        case s => die(s"Defect: Fiber $fiberId releasing write lock it does not hold: $s")
       }
       data.unsafeSet(journal, res)
       res.writeLocks(fiberId)
@@ -155,7 +155,7 @@ final class TReentrantLock private (data: TRef[LockState]) {
         case WriteLock(w, r, `fiberId`) =>
           val newTotal = r + delta
           if (newTotal < 0)
-            die(s"Defect: Fiber ${fiberId} releasing read locks it does not hold, newTotal: $newTotal")
+            die(s"Defect: Fiber $fiberId releasing read locks it does not hold, newTotal: $newTotal")
           else
             data.unsafeSet(journal, WriteLock(w, newTotal, fiberId))
 
@@ -221,7 +221,7 @@ object TReentrantLock {
       val newTotal = total + adjust
 
       new ReadLock(
-        if (newTotal < 0) die(s"Defect: Fiber ${fiberId} releasing read lock it does not hold: ${readers}")
+        if (newTotal < 0) die(s"Defect: Fiber $fiberId releasing read lock it does not hold: $readers")
         else if (newTotal == 0) readers - fiberId
         else readers.updated(fiberId, newTotal)
       )
