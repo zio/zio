@@ -18,6 +18,22 @@ trait ZStreamAspect[+LowerR, -UpperR, +LowerE, -UpperE, +LowerA, -UpperA] { self
   ): ZStreamAspect[LowerR1, UpperR1, LowerE1, UpperE1, LowerA1, UpperA1] =
     self.andThen(that)
 
+  /**
+   * Returns a new aspect that represents the sequential composition of this
+   * aspect with the specified one.
+   */
+  def @@[
+    LowerR1 >: LowerR,
+    UpperR1 <: UpperR,
+    LowerE1 >: LowerE,
+    UpperE1 <: UpperE,
+    LowerA1 >: LowerA,
+    UpperA1 <: UpperA
+  ](
+    that: ZStreamAspect[LowerR1, UpperR1, LowerE1, UpperE1, LowerA1, UpperA1]
+  ): ZStreamAspect[LowerR1, UpperR1, LowerE1, UpperE1, LowerA1, UpperA1] =
+    self >>> that
+
   def andThen[
     LowerR1 >: LowerR,
     UpperR1 <: UpperR,
