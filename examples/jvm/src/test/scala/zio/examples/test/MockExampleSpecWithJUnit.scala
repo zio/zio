@@ -7,9 +7,12 @@ import zio.test.mock.{MockClock, MockConsole, MockRandom}
 import zio.test.assertM
 import zio.{Console, Random, Clock}
 
+import java.io.IOException
+import zio.test.{Spec, TestFailure, TestSuccess}
+
 class MockExampleSpecWithJUnit extends JUnitRunnableSpec {
 
-  def spec = suite("suite with mocks")(
+  def spec: Spec[Any, TestFailure[IOException], TestSuccess] = suite("suite with mocks")(
     test("expect call returning output") {
       val app = Clock.nanoTime
       val env = MockClock.NanoTime(value(1000L))

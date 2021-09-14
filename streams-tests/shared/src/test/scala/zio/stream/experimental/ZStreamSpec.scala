@@ -2825,6 +2825,15 @@ object ZStreamSpec extends ZIOBaseSpec {
         //         )
         //       }
         //     ),
+        suite("tapError")(
+          test("tapError") {
+            for {
+              ref <- Ref.make("")
+              res <- (ZStream(1, 1) ++ ZStream.fail("Ouch")).tapError(err => ref.update(_ + err)).runCollect.either
+              err <- ref.get
+            } yield assert(res)(isLeft(equalTo("Ouch"))) && assert(err)(equalTo("Ouch"))
+          }
+        ),
         suite("throttleEnforce")(
           test("free elements") {
             assertM(

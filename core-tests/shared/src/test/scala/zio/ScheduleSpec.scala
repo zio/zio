@@ -14,16 +14,16 @@ object ScheduleSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 
+  /**
+   * Retry `once` means that we try to exec `io`, get and error,
+   * try again to exec `io`, and whatever the output is, we return that
+   * second result.
+   * The three following tests test retry when:
+   * - the first time succeeds (no retry)
+   * - the first time fails and the second succeeds (one retry, result success)
+   * - both first time and retry fail (one retry, result failure)
+   */
   def spec: ZSpec[Environment, Failure] = suite("ScheduleSpec")(
-    /**
-     * Retry `once` means that we try to exec `io`, get and error,
-     * try again to exec `io`, and whatever the output is, we return that
-     * second result.
-     * The three following tests test retry when:
-     * - the first time succeeds (no retry)
-     * - the first time fails and the second succeeds (one retry, result success)
-     * - both first time and retry fail (one retry, result failure)
-     */
     suite("Repeat on success according to a provided strategy")(
       test("for 'recurs(a negative number)' repeats 0 additional time") {
         // A repeat with a negative number of times should not repeat the action at all
@@ -671,7 +671,7 @@ object ScheduleSpec extends ZIOBaseSpec {
         case Nil => UIO.succeed(acc.reverse -> None)
         case (odt, in) :: rest =>
           schedule.step(odt, in, state) flatMap {
-            case (state, out, Schedule.Decision.Done) => UIO.succeed(acc.reverse -> Some(out))
+            case (_, out, Schedule.Decision.Done) => UIO.succeed(acc.reverse -> Some(out))
             case (state, out, Schedule.Decision.Continue(interval)) =>
               loop(state, rest, (interval.start -> out) :: acc)
           }

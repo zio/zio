@@ -1,5 +1,6 @@
 package zio.stream
 
+import com.github.ghik.silencer.silent
 import zio._
 import zio.stm.TQueue
 import zio.stream.ZSink.Push
@@ -19,6 +20,10 @@ object ZStreamSpec extends ZIOBaseSpec {
   def inParallel(action: => Unit)(implicit ec: ExecutionContext): Unit =
     ec.execute(() => action)
 
+  // Wrongly emits warnings on Scala 2.12.x https://github.com/scala/bug/issues/11918
+  @silent(
+    "pattern var .* in value .* is never used: use a wildcard `_` or suppress this warning with .*"
+  )
   def spec: ZSpec[Environment, Failure] =
     suite("ZStreamSpec")(
       suite("Combinators")(
@@ -2743,6 +2748,15 @@ object ZStreamSpec extends ZIOBaseSpec {
             assertM(Stream(1, 2, 3).tap(x => IO.when(x == 3)(IO.fail("error"))).either.runCollect)(
               equalTo(Chunk(Right(1), Right(2), Left("error")))
             )
+          }
+        ),
+        suite("tapError")(
+          test("tapError") {
+            for {
+              ref <- Ref.make("")
+              res <- (ZStream(1, 1) ++ ZStream.fail("Ouch")).tapError(err => ref.update(_ + err)).runCollect.either
+              err <- ref.get
+            } yield assert(res)(isLeft(equalTo("Ouch"))) && assert(err)(equalTo("Ouch"))
           }
         ),
         suite("throttleEnforce")(

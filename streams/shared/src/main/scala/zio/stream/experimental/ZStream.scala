@@ -2311,7 +2311,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
               ZStream.fromQueueWithShutdown(q2).flattenExitOption.collectRight
             )
           }
-        case otherwise => ZManaged.dieMessage(s"partitionEither: expected two streams but got ${otherwise}")
+        case otherwise => ZManaged.dieMessage(s"partitionEither: expected two streams but got $otherwise")
       }
 
   /**
@@ -2836,6 +2836,12 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def tap[R1 <: R, E1 >: E](f0: A => ZIO[R1, E1, Any]): ZStream[R1, E1, A] =
     mapZIO(a => f0(a).as(a))
+
+  /**
+   * Returns a stream that effectfully "peeks" at the failure of the stream.
+   */
+  final def tapError[R1 <: R, E1 >: E](f: E => ZIO[R1, E1, Any])(implicit ev: CanFail[E]): ZStream[R1, E1, A] =
+    catchAll(e => ZStream.fromZIO(f(e) *> ZIO.fail(e)))
 
   /**
    * Throttles the chunks of this stream according to the given bandwidth parameters using the token bucket
