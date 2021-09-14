@@ -1298,7 +1298,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * }}}
    */
   final def resurrect(implicit ev1: E IsSubtypeOfError Throwable): RIO[R, A] =
-    self.unrefineWith({ case e => e })(ev1)
+    self.unrefineWith { case e => e }(ev1)
 
   /**
    * Executes this effect and returns its value, if it succeeds, but

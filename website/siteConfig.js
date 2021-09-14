@@ -44,6 +44,9 @@ const siteConfig = {
     { doc: 'about/about_index', label: 'About' },
   ],
 
+  // by default Docusaurus combines CSS files in a way that doesn't play nicely with Scaladoc
+  separateCss: ["api"],
+
   // If you have users set above, you add it here:
   users,
 

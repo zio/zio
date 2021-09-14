@@ -78,7 +78,7 @@ object ZScopeSpec extends ZIOBaseSpec {
           key3 <- open.scope.ensure(_ => ref.update(_ :+ "3"), Strong)
           key4 <- open.scope.ensure(_ => ref.update(_ :+ "4"), Weak)
           _    <- open.close(())
-          _    <- ZIO.succeed(s"${key1} ${key2} ${key3} ${key4}")
+          _    <- ZIO.succeed(s"$key1 $key2 $key3 $key4")
           v    <- ref.get
         } yield assert(v)(equalTo(Chunk("1", "2", "3", "4")))
       },

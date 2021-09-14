@@ -104,7 +104,7 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
           def go(s: S, in: Option[Chunk[I]], end: Boolean): ZIO[R, (Either[E, S], Chunk[L]), S] =
             push(in)
               .as(s)
-              .catchAll({
+              .catchAll {
                 case (Left(e), leftover) => Push.fail(e, leftover)
                 case (Right(z), leftover) =>
                   if (p(z)) {
@@ -116,7 +116,7 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
                   } else {
                     Push.emit(s, leftover)
                   }
-              })
+              }
 
           (in: Option[Chunk[I]]) => acc.get.flatMap(s => go(s, in, in.isEmpty).flatMap(s1 => acc.set(s1)))
         }
@@ -496,19 +496,17 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
 
               }
               case LeftDone(z) => {
-                p2(in)
-                  .catchAll({
-                    case (Left(e), l)    => Push.fail(e, l)
-                    case (Right(z1), l1) => Push.emit(f(z, z1), l1)
-                  })
+                p2(in).catchAll {
+                  case (Left(e), l)    => Push.fail(e, l)
+                  case (Right(z1), l1) => Push.emit(f(z, z1), l1)
+                }
                   .as(state)
               }
               case RightDone(z1) => {
-                p1(in)
-                  .catchAll({
-                    case (Left(e), l)   => Push.fail(e, l)
-                    case (Right(z), l1) => Push.emit(f(z, z1), l1)
-                  })
+                p1(in).catchAll {
+                  case (Left(e), l)   => Push.fail(e, l)
+                  case (Right(z), l1) => Push.emit(f(z, z1), l1)
+                }
                   .as(state)
               }
             }
@@ -980,7 +978,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * Creates a sink containing the first value.
    */
   def head[I]: ZSink[Any, Nothing, I, I, Option[I]] =
-    ZSink[Any, Nothing, I, I, Option[I]](ZManaged.succeed({
+    ZSink[Any, Nothing, I, I, Option[I]](ZManaged.succeed {
       case Some(ch) =>
         if (ch.isEmpty) {
           Push.more
@@ -988,7 +986,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
           Push.emit(Some(ch.head), ch.drop(1))
         }
       case None => Push.emit(None, Chunk.empty)
-    }))
+    })
 
   /**
    * Creates a sink containing the last value.

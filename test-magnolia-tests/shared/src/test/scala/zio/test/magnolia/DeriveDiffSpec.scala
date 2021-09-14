@@ -17,7 +17,7 @@ object DeriveDiffSpec extends DefaultRunnableSpec {
     final case class Green(isCool: Boolean)                                 extends Color
   }
 
-  def spec = suite("DeriveDiffSpec")(
+  def spec: Spec[Any, TestFailure[Any], TestSuccess] = suite("DeriveDiffSpec")(
     suite("derivation")(
       test("case classes can be derived") {
         val l1 = List("Alpha", "This is a wonderful \"way\" to dance and party", "Potato")
