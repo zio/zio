@@ -351,19 +351,19 @@ object ZTQueue {
           val queue = ref.unsafeGet(journal)
           if (queue eq null) throw ZSTM.InterruptException(fiberId)
           else if (queue.size + as.size <= capacity) {
-            ref.unsafeSet(journal, queue.enqueueAll(as))
+            ref.unsafeSet(journal, queue ++ as)
             true
           } else
             strategy match {
               case Strategy.BackPressure => throw ZSTM.RetryException
               case Strategy.Dropping =>
                 val forQueue = as.take(capacity - queue.size)
-                ref.unsafeSet(journal, queue.enqueueAll(forQueue))
+                ref.unsafeSet(journal, queue ++ forQueue)
                 false
               case Strategy.Sliding =>
                 val forQueue = as.take(capacity)
                 val toDrop   = queue.size + forQueue.size - capacity
-                ref.unsafeSet(journal, queue.drop(toDrop).enqueueAll(forQueue))
+                ref.unsafeSet(journal, queue.drop(toDrop) ++ forQueue)
                 true
             }
         }

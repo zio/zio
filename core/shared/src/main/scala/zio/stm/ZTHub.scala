@@ -363,7 +363,7 @@ object ZTHub {
         makeSubscription(hubSize, publisherTail, requestedCapacity, subscriberCount, subscribers)
     }
 
-  def makeSubscription[A](
+  private def makeSubscription[A](
     hubSize: TRef[Int],
     publisherTail: TRef[TRef[Node[A]]],
     requestedCapacity: Int,
@@ -379,7 +379,7 @@ object ZTHub {
       unsafeMakeSubscription(hubSize, requestedCapacity, subscriberHead, subscriberCount, subscribers)
     }
 
-  def unsafeMakeSubscription[A](
+  private def unsafeMakeSubscription[A](
     hubSize: TRef[Int],
     requestedCapacity: Int,
     subscriberHead: TRef[TRef[Node[A]]],
