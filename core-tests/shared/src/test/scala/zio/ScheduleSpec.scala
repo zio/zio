@@ -2,7 +2,7 @@ package zio
 
 import zio.stream.ZStream
 import zio.test.Assertion._
-import zio.test.TestAspect.{failing, timeout}
+import zio.test.TestAspect.timeout
 import zio.test._
 import zio.test.environment.{TestClock, TestRandom}
 
