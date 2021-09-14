@@ -671,7 +671,7 @@ object ScheduleSpec extends ZIOBaseSpec {
         case Nil => UIO.succeed(acc.reverse -> None)
         case (odt, in) :: rest =>
           schedule.step(odt, in, state) flatMap {
-            case (state, out, Schedule.Decision.Done) => UIO.succeed(acc.reverse -> Some(out))
+            case (_, out, Schedule.Decision.Done) => UIO.succeed(acc.reverse -> Some(out))
             case (state, out, Schedule.Decision.Continue(interval)) =>
               loop(state, rest, (interval.start -> out) :: acc)
           }
