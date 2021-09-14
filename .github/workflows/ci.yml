@@ -28,7 +28,7 @@ jobs:
     - name: Lint code
       run: ./sbt check
 
-  mdoc:
+  doc:
     runs-on: ubuntu-20.04
     timeout-minutes: 60
     steps:
@@ -38,8 +38,34 @@ jobs:
         uses: olafurpg/setup-scala@v13
       - name: Cache scala dependencies
         uses: coursier/cache-action@v6
-      - name: Check Document Generation
-        run: ./sbt mdoc
+      - name: Check generation of ScalaDoc
+        run: ./sbt +Test/doc
+
+  publishLocal:
+    runs-on: ubuntu-20.04
+    timeout-minutes: 60
+    steps:
+      - name: Checkout current branch
+        uses: actions/checkout@v2.3.4
+      - name: Setup Scala and Java
+        uses: olafurpg/setup-scala@v13
+      - name: Cache scala dependencies
+        uses: coursier/cache-action@v6
+      - name: Check that building packages works
+        run: ./sbt +publishLocal
+
+  website:
+    runs-on: ubuntu-20.04
+    timeout-minutes: 60
+    steps:
+      - name: Checkout current branch
+        uses: actions/checkout@v2.3.4
+      - name: Setup Scala and Java
+        uses: olafurpg/setup-scala@v13
+      - name: Cache scala dependencies
+        uses: coursier/cache-action@v6
+      - name: Check Website Generation
+        run: ./sbt docs/docusaurusCreateSite
         
   test:
     runs-on: ubuntu-20.04
@@ -48,7 +74,7 @@ jobs:
       fail-fast: false
       matrix:
         java: ['8']
-        scala: ['2.11.12', '2.12.13', '2.13.6', '3.0.2']
+        scala: ['2.11.12', '2.12.14', '2.13.6', '3.0.2']
         platform: ['JVM']
     steps:
     - name: Checkout current branch
@@ -78,7 +104,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        java: ['8', '11', '17']
+        java: ['11', '17']
         platform: ['JVM']
     steps:
       - name: Checkout current branch
@@ -99,7 +125,7 @@ jobs:
       fail-fast: false
       matrix:
         java: ['8']
-        platform: ['JVM', 'JS', 'Native']
+        platform: ['JS', 'Native']
     steps:
       - name: Checkout current branch
         uses: actions/checkout@v2.3.4
@@ -114,7 +140,7 @@ jobs:
 
   ci:
     runs-on: ubuntu-20.04
-    needs: [lint, mdoc, test, testJvms, testPlatforms]
+    needs: [lint, doc, publishLocal, website, test, testJvms, testPlatforms]
     steps:
       - name: Aggregate of lint, mdoc and all tests
         run: echo "ci passed"

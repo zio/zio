@@ -1,9 +1,10 @@
 package zio.examples
 
 import zio._
+import java.io.IOException
 
 object ZLayerInjectExample extends ZIOApp {
-  val program =
+  val program: ZIO[Has[OldLady] with Has[Console], IOException, Unit] =
     OldLady.contentsOfStomach.flatMap { contents =>
       Console.printLine(s"There was an old who lady swallowed:\n- ${contents.mkString("\n- ")}")
     }
@@ -17,7 +18,7 @@ object ZLayerInjectExample extends ZIOApp {
       Console.live
     )
 
-  def run =
+  def run: ZIO[Any, IOException, Unit] =
     program
       .inject(OldLady.live, Spider.live, Fly.live, Bear.live, Console.live, ZLayer.Debug.tree)
 

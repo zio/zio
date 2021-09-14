@@ -5,10 +5,12 @@ import zio.test.mock.Expectation.{unit, value, valueF}
 import zio.test.mock.{MockClock, MockConsole, MockRandom}
 import zio.test.{assertM, DefaultRunnableSpec}
 import zio.{Clock, Console, Random, ZIO}
+import java.io.IOException
+import zio.test.{Spec, TestFailure, TestSuccess}
 
 object MockExampleSpec extends DefaultRunnableSpec {
 
-  def spec = suite("suite with mocks")(
+  def spec: Spec[Any, TestFailure[IOException], TestSuccess] = suite("suite with mocks")(
     test("expect no call") {
       def maybeConsole(invokeConsole: Boolean) =
         ZIO.when(invokeConsole)(Console.printLine("foo"))

@@ -61,8 +61,8 @@ private[zio] object FiberRenderer {
     val statMsg = renderStatus(dump.status)
 
     s"""
-       |${name}#${dump.fiberId.seqNumber} (${lifeMsg}) ${waitMsg}
-       |   Status: ${statMsg}
+       |$name#${dump.fiberId.seqNumber} ($lifeMsg) $waitMsg
+       |   Status: $statMsg
        |${dump.trace.fold("")(_.prettyPrint)}
        |""".stripMargin
   }
@@ -88,7 +88,7 @@ private[zio] object FiberRenderer {
     def go(t: Dump, prefix: String): String = {
       val nameStr   = t.fiberName.fold("")(n => "\"" + n + "\" ")
       val statusMsg = renderStatus(t.status)
-      s"${prefix}+---${nameStr}#${t.fiberId.seqNumber} Status: $statusMsg\n"
+      s"$prefix+---$nameStr#${t.fiberId.seqNumber} Status: $statusMsg\n"
     }
 
     go(tree, "")

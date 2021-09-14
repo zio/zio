@@ -12,9 +12,9 @@ object InjectSomeSpec extends DefaultRunnableSpec {
   final case class TestService(console: Console, clock: Clock) {
     def somethingMagical(annotate: String): ZIO[Any, IOException, Unit] =
       for {
-        _ <- console.printLine(s"[${annotate}] Imma chargin' my fireball!!!")
+        _ <- console.printLine(s"[$annotate] Imma chargin' my fireball!!!")
         _ <- clock.sleep(1500.milliseconds)
-        _ <- console.printLine(s"[${annotate}] Counterspell!")
+        _ <- console.printLine(s"[$annotate] Counterspell!")
       } yield ()
   }
 
