@@ -37,7 +37,7 @@ jobs:
       - name: Cache scala dependencies
         uses: coursier/cache-action@v6
       - name: Check generation of ScalaDoc
-        run: ./sbt +Test/doc
+        run: ./sbt Test/doc
 
   publishLocal:
     runs-on: ubuntu-20.04
