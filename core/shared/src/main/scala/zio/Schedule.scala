@@ -203,7 +203,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
    */
   def |||[Env1 <: Env, Out1 >: Out, In2](
     that: Schedule[Env1, In2, Out1]
-  ): Schedule[Env1, Either[In, In2], Out1] =
+  ): Schedule.WithState[(self.State, that.State), Env1, Either[In, In2], Out1] =
     (self +++ that).map(_.merge)
 
   /**
@@ -1241,7 +1241,10 @@ object Schedule {
    * each time for the length of the specified duration. Returns the length of
    * the current duration between recurrences.
    */
-  def fromDurations(duration: Duration, durations: Duration*): Schedule[Any, Any, Duration] =
+  def fromDurations(
+    duration: Duration,
+    durations: Duration*
+  ): Schedule.WithState[(::[Duration], Boolean), Any, Any, Duration] =
     new Schedule[Any, Any, Duration] {
       type State = (::[Duration], Boolean)
       val initial = (::(duration, durations.toList), true)
