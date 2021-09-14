@@ -305,7 +305,7 @@ object ZTQueue {
    * Creates a queue with the specified strategy.
    */
   private def makeQueue[A](requestedCapacity: Int, strategy: Strategy): USTM[TQueue[A]] =
-    TRef.make[QueueState[A]](QueueState(false, ScalaQueue.empty)).map { ref =>
+    TRef.make[ScalaQueue[A]](ScalaQueue.empty).map { ref =>
       unsafeMakeQueue(ref, requestedCapacity, strategy)
     }
 
@@ -313,7 +313,7 @@ object ZTQueue {
    * Unsafely creates a queue with the specified strategy.
    */
   private def unsafeMakeQueue[A](
-    ref: TRef[QueueState[A]],
+    ref: TRef[ScalaQueue[A]],
     requestedCapacity: Int,
     strategy: Strategy
   ): TQueue[A] =
@@ -322,24 +322,24 @@ object ZTQueue {
         requestedCapacity
       val isShutdown: USTM[Boolean] =
         ZSTM.Effect { (journal, _, _) =>
-          val state = ref.unsafeGet(journal)
-          state.isShutdown
+          val queue = ref.unsafeGet(journal)
+          queue eq null
         }
       def offer(a: A): ZSTM[Any, Nothing, Boolean] =
         ZSTM.Effect { (journal, fiberId, _) =>
-          val state = ref.unsafeGet(journal)
-          if (state.isShutdown) throw ZSTM.InterruptException(fiberId)
-          else if (state.queue.size < capacity) {
-            ref.unsafeSet(journal, state.copy(queue = state.queue.enqueue(a)))
+          val queue = ref.unsafeGet(journal)
+          if (queue eq null) throw ZSTM.InterruptException(fiberId)
+          else if (queue.size < capacity) {
+            ref.unsafeSet(journal, queue.enqueue(a))
             true
           } else
             strategy match {
               case Strategy.BackPressure => throw ZSTM.RetryException
               case Strategy.Dropping     => false
               case Strategy.Sliding =>
-                state.queue.dequeueOption match {
+                queue.dequeueOption match {
                   case Some((_, queue)) =>
-                    ref.unsafeSet(journal, state.copy(queue = queue.enqueue(a)))
+                    ref.unsafeSet(journal, queue.enqueue(a))
                     true
                   case None =>
                     true
@@ -348,89 +348,83 @@ object ZTQueue {
         }
       def offerAll(as: Iterable[A]): ZSTM[Any, Nothing, Boolean] =
         ZSTM.Effect { (journal, fiberId, _) =>
-          val state = ref.unsafeGet(journal)
-          if (state.isShutdown) throw ZSTM.InterruptException(fiberId)
-          else if (state.queue.size + as.size <= capacity) {
-            ref.unsafeSet(journal, state.copy(queue = state.queue.enqueueAll(as)))
+          val queue = ref.unsafeGet(journal)
+          if (queue eq null) throw ZSTM.InterruptException(fiberId)
+          else if (queue.size + as.size <= capacity) {
+            ref.unsafeSet(journal, queue.enqueueAll(as))
             true
           } else
             strategy match {
               case Strategy.BackPressure => throw ZSTM.RetryException
               case Strategy.Dropping =>
-                val forQueue = as.take(capacity - state.queue.size)
-                ref.unsafeSet(journal, state.copy(queue = state.queue.enqueueAll(forQueue)))
+                val forQueue = as.take(capacity - queue.size)
+                ref.unsafeSet(journal, queue.enqueueAll(forQueue))
                 false
               case Strategy.Sliding =>
                 val forQueue = as.take(capacity)
-                val toDrop   = state.queue.size + forQueue.size - capacity
-                ref.unsafeSet(journal, state.copy(queue = state.queue.drop(toDrop).enqueueAll(forQueue)))
+                val toDrop   = queue.size + forQueue.size - capacity
+                ref.unsafeSet(journal, queue.drop(toDrop).enqueueAll(forQueue))
                 true
             }
         }
-      def peek: USTM[A] =
+      val peek: USTM[A] =
         ZSTM.Effect { (journal, fiberId, _) =>
-          val state = ref.unsafeGet(journal)
-          if (state.isShutdown) throw ZSTM.InterruptException(fiberId)
+          val queue = ref.unsafeGet(journal)
+          if (queue eq null) throw ZSTM.InterruptException(fiberId)
           else
-            state.queue.headOption match {
+            queue.headOption match {
               case Some(a) => a
               case None    => throw ZSTM.RetryException
             }
         }
-      def peekOption: USTM[Option[A]] =
+      val peekOption: USTM[Option[A]] =
         ZSTM.Effect { (journal, fiberId, _) =>
-          val state = ref.unsafeGet(journal)
-          if (state.isShutdown) throw ZSTM.InterruptException(fiberId)
-          else state.queue.headOption
+          val queue = ref.unsafeGet(journal)
+          if (queue eq null) throw ZSTM.InterruptException(fiberId)
+          else queue.headOption
         }
-      def shutdown: USTM[Unit] =
+      val shutdown: USTM[Unit] =
         ZSTM.Effect { (journal, _, _) =>
-          val state = ref.unsafeGet(journal)
-          ref.unsafeSet(journal, state.copy(isShutdown = true))
+          ref.unsafeSet(journal, null)
         }
-      def size: USTM[Int] =
+      val size: USTM[Int] =
         ZSTM.Effect { (journal, fiberId, _) =>
-          val state = ref.unsafeGet(journal)
-          if (state.isShutdown) throw ZSTM.InterruptException(fiberId)
-          else state.queue.size
+          val queue = ref.unsafeGet(journal)
+          if (queue eq null) throw ZSTM.InterruptException(fiberId)
+          else queue.size
         }
-      def take: ZSTM[Any, Nothing, A] =
+      val take: ZSTM[Any, Nothing, A] =
         ZSTM.Effect { (journal, fiberId, _) =>
-          val state = ref.unsafeGet(journal)
-          if (state.isShutdown) throw ZSTM.InterruptException(fiberId)
+          val queue = ref.unsafeGet(journal)
+          if (queue eq null) throw ZSTM.InterruptException(fiberId)
           else
-            state.queue.dequeueOption match {
+            queue.dequeueOption match {
               case Some((a, queue)) =>
-                ref.unsafeSet(journal, state.copy(queue = queue))
+                ref.unsafeSet(journal, queue)
                 a
               case None => throw ZSTM.RetryException
             }
         }
-      def takeAll: ZSTM[Any, Nothing, zio.Chunk[A]] =
+      val takeAll: ZSTM[Any, Nothing, zio.Chunk[A]] =
         ZSTM.Effect { (journal, fiberId, _) =>
-          val state = ref.unsafeGet(journal)
-          if (state.isShutdown) throw ZSTM.InterruptException(fiberId)
+          val queue = ref.unsafeGet(journal)
+          if (queue eq null) throw ZSTM.InterruptException(fiberId)
           else {
-            ref.unsafeSet(journal, state.copy(queue = ScalaQueue.empty))
-            Chunk.fromIterable(state.queue)
+            ref.unsafeSet(journal, ScalaQueue.empty)
+            Chunk.fromIterable(queue)
           }
         }
       def takeUpTo(max: Int): ZSTM[Any, Nothing, Chunk[A]] =
         ZSTM.Effect { (journal, fiberId, _) =>
-          val state = ref.unsafeGet(journal)
-          if (state.isShutdown) throw ZSTM.InterruptException(fiberId)
+          val queue = ref.unsafeGet(journal)
+          if (queue eq null) throw ZSTM.InterruptException(fiberId)
           else {
-            val (as, queue) = state.queue.splitAt(max)
-            ref.unsafeSet(journal, state.copy(queue = queue))
-            Chunk.fromIterable(as)
+            val (toTake, remaining) = queue.splitAt(max)
+            ref.unsafeSet(journal, remaining)
+            Chunk.fromIterable(toTake)
           }
         }
     }
-
-  /**
-   * The state of the queue, including whether it is shutdown.
-   */
-  private final case class QueueState[A](isShutdown: Boolean, queue: ScalaQueue[A])
 
   /**
    * A `Strategy` describes how the queue will handle values if the queue is
