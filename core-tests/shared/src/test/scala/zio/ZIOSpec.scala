@@ -304,9 +304,9 @@ object ZIOSpec extends ZIOBaseSpec {
       test("returns failure ignoring value") {
         for {
           goodCase <-
-            exactlyOnce(0)(_.collect(s"value was not 0")({ case v @ 0 => v })).sandbox.either
+            exactlyOnce(0)(_.collect(s"value was not 0") { case v @ 0 => v }).sandbox.either
           badCase <-
-            exactlyOnce(1)(_.collect(s"value was not 0")({ case v @ 0 => v })).sandbox.either
+            exactlyOnce(1)(_.collect(s"value was not 0") { case v @ 0 => v }).sandbox.either
               .map(_.left.map(_.failureOrCause))
         } yield assert(goodCase)(isRight(equalTo(0))) &&
           assert(badCase)(isLeft(isLeft(equalTo("value was not 0"))))
@@ -354,15 +354,15 @@ object ZIOSpec extends ZIOBaseSpec {
         for {
           goodCase <-
             exactlyOnce(0)(
-              _.collectZIO[Any, String, Int]("Predicate failed!")({ case v @ 0 => ZIO.succeed(v) })
+              _.collectZIO[Any, String, Int]("Predicate failed!") { case v @ 0 => ZIO.succeed(v) }
             ).sandbox.either
           partialBadCase <-
             exactlyOnce(0)(
-              _.collectZIO("Predicate failed!")({ case v @ 0 => ZIO.fail("Partial failed!") })
+              _.collectZIO("Predicate failed!") { case v @ 0 => ZIO.fail("Partial failed!") }
             ).sandbox.either
               .map(_.left.map(_.failureOrCause))
           badCase <-
-            exactlyOnce(1)(_.collectZIO("Predicate failed!")({ case v @ 0 => ZIO.succeed(v) })).sandbox.either
+            exactlyOnce(1)(_.collectZIO("Predicate failed!") { case v @ 0 => ZIO.succeed(v) }).sandbox.either
               .map(_.left.map(_.failureOrCause))
         } yield assert(goodCase)(isRight(equalTo(0))) &&
           assert(partialBadCase)(isLeft(isLeft(equalTo("Partial failed!")))) &&
@@ -1634,17 +1634,17 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(ZIO.die(ExampleError).sandbox.option)(equalTo(None))
       } @@ zioTag(errors)
     ),
-    suite("optional")(
+    suite("unsome")(
       test("fails when given Some error") {
-        val task: IO[String, Option[Int]] = IO.fail(Some("Error")).unoption
+        val task: IO[String, Option[Int]] = IO.fail(Some("Error")).unsome
         assertM(task.exit)(fails(equalTo("Error")))
       } @@ zioTag(errors),
       test("succeeds with None given None error") {
-        val task: IO[String, Option[Int]] = IO.fail(None).unoption
+        val task: IO[String, Option[Int]] = IO.fail(None).unsome
         assertM(task)(isNone)
       } @@ zioTag(errors),
       test("succeeds with Some given a value") {
-        val task: IO[String, Option[Int]] = IO.succeed(1).unoption
+        val task: IO[String, Option[Int]] = IO.succeed(1).unsome
         assertM(task)(isSome(equalTo(1)))
       }
     ),
@@ -2059,9 +2059,9 @@ object ZIOSpec extends ZIOBaseSpec {
       test("returns failure ignoring value") {
         for {
           goodCase <-
-            exactlyOnce(0)(_.reject({ case v if v != 0 => "Partial failed!" })).sandbox.either
+            exactlyOnce(0)(_.reject { case v if v != 0 => "Partial failed!" }).sandbox.either
           badCase <-
-            exactlyOnce(1)(_.reject({ case v if v != 0 => "Partial failed!" })).sandbox.either
+            exactlyOnce(1)(_.reject { case v if v != 0 => "Partial failed!" }).sandbox.either
               .map(_.left.map(_.failureOrCause))
         } yield assert(goodCase)(isRight(equalTo(0))) &&
           assert(badCase)(isLeft(isLeft(equalTo("Partial failed!"))))
@@ -2072,13 +2072,13 @@ object ZIOSpec extends ZIOBaseSpec {
         for {
           goodCase <-
             exactlyOnce(0)(
-              _.rejectZIO[Any, String]({ case v if v != 0 => ZIO.succeed("Partial failed!") })
+              _.rejectZIO[Any, String] { case v if v != 0 => ZIO.succeed("Partial failed!") }
             ).sandbox.either
           partialBadCase <-
-            exactlyOnce(1)(_.rejectZIO({ case v if v != 0 => ZIO.fail("Partial failed!") })).sandbox.either
+            exactlyOnce(1)(_.rejectZIO { case v if v != 0 => ZIO.fail("Partial failed!") }).sandbox.either
               .map(_.left.map(_.failureOrCause))
           badCase <-
-            exactlyOnce(1)(_.rejectZIO({ case v if v != 0 => ZIO.fail("Partial failed!") })).sandbox.either
+            exactlyOnce(1)(_.rejectZIO { case v if v != 0 => ZIO.fail("Partial failed!") }).sandbox.either
               .map(_.left.map(_.failureOrCause))
 
         } yield assert(goodCase)(isRight(equalTo(0))) &&

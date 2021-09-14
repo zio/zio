@@ -881,7 +881,7 @@ object TestAspect extends TimeoutVariants {
   def verify[R0, E0](condition: => ZIO[R0, E0, TestResult]): TestAspect[Nothing, R0, E0, Any] =
     new TestAspect.PerTest[Nothing, R0, E0, Any] {
       def perTest[R <: R0, E >: E0](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] =
-        test <* ZTest(condition)
+        test <* ZTest("verify", condition)
     }
 
   /**

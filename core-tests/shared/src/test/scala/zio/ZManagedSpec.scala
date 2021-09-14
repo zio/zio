@@ -619,15 +619,15 @@ object ZManagedSpec extends ZIOBaseSpec {
     ),
     suite("optional")(
       test("fails when given Some error") {
-        val managed: UManaged[Exit[String, Option[Int]]] = Managed.fail(Some("Error")).unoption.exit
+        val managed: UManaged[Exit[String, Option[Int]]] = Managed.fail(Some("Error")).unsome.exit
         managed.use(res => ZIO.succeed(assert(res)(fails(equalTo("Error")))))
       } @@ zioTag(errors),
       test("succeeds with None given None error") {
-        val managed: Managed[String, Option[Int]] = Managed.fail(None).unoption
+        val managed: Managed[String, Option[Int]] = Managed.fail(None).unsome
         managed.use(res => ZIO.succeed(assert(res)(isNone)))
       } @@ zioTag(errors),
       test("succeeds with Some given a value") {
-        val managed: Managed[String, Option[Int]] = Managed.succeed(1).unoption
+        val managed: Managed[String, Option[Int]] = Managed.succeed(1).unsome
         assertM(managed.useNow)(isSome(equalTo(1)))
       }
     ),
@@ -905,11 +905,11 @@ object ZManagedSpec extends ZIOBaseSpec {
     suite("reject")(
       test("returns failure ignoring value") {
         val goodCase =
-          ZManaged.succeed(0).reject({ case v if v != 0 => "Partial failed!" }).sandbox.either
+          ZManaged.succeed(0).reject { case v if v != 0 => "Partial failed!" }.sandbox.either
 
         val badCase = ZManaged
           .succeed(1)
-          .reject({ case v if v != 0 => "Partial failed!" })
+          .reject { case v if v != 0 => "Partial failed!" }
           .sandbox
           .either
           .map(_.left.map(_.failureOrCause))
@@ -925,14 +925,14 @@ object ZManagedSpec extends ZIOBaseSpec {
         val goodCase =
           ZManaged
             .succeed(0)
-            .rejectManaged[Any, String]({ case v if v != 0 => ZManaged.succeed("Partial failed!") })
+            .rejectManaged[Any, String] { case v if v != 0 => ZManaged.succeed("Partial failed!") }
             .sandbox
             .either
 
         val partialBadCase =
           ZManaged
             .succeed(1)
-            .rejectManaged({ case v if v != 0 => ZManaged.fail("Partial failed!") })
+            .rejectManaged { case v if v != 0 => ZManaged.fail("Partial failed!") }
             .sandbox
             .either
             .map(_.left.map(_.failureOrCause))
@@ -940,7 +940,7 @@ object ZManagedSpec extends ZIOBaseSpec {
         val badCase =
           ZManaged
             .succeed(1)
-            .rejectManaged({ case v if v != 0 => ZManaged.fail("Partial failed!") })
+            .rejectManaged { case v if v != 0 => ZManaged.fail("Partial failed!") }
             .sandbox
             .either
             .map(_.left.map(_.failureOrCause))

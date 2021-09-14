@@ -318,15 +318,15 @@ object ZSTMSpec extends ZIOBaseSpec {
       suite("optional to convert:")(
         test("A Some(e) in E to a e in E") {
           val ei: Either[Option[String], Int] = Left(Some("my Error"))
-          assertM(ZSTM.fromEither(ei).unoption.commit.exit)(fails(equalTo("my Error")))
+          assertM(ZSTM.fromEither(ei).unsome.commit.exit)(fails(equalTo("my Error")))
         },
         test("a None in E into None in A") {
           val ei: Either[Option[String], Int] = Left(None)
-          assertM(ZSTM.fromEither(ei).unoption.commit)(isNone)
+          assertM(ZSTM.fromEither(ei).unsome.commit)(isNone)
         },
         test("no error") {
           val ei: Either[Option[String], Int] = Right(42)
-          assertM(ZSTM.fromEither(ei).unoption.commit)(isSome(equalTo(42)))
+          assertM(ZSTM.fromEither(ei).unsome.commit)(isSome(equalTo(42)))
         }
       ),
       suite("orDie")(

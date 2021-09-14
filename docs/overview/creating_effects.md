@@ -77,7 +77,7 @@ val result: IO[Throwable, Option[(User, Team)]] = (for {
   id   <- maybeId
   user <- getUser(id).some
   team <- getTeam(user.teamId).asSomeError 
-} yield (user, team)).unoption 
+} yield (user, team)).unsome 
 ```
 
 ### Either

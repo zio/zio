@@ -1,8 +1,6 @@
 package zio.internal.metrics
 
-import zio.metrics.clients._
-
-import java.util.concurrent.atomic.{AtomicReference, DoubleAdder}
+import zio.metrics._
 
 private[zio] sealed trait ConcurrentMetricState { self =>
   def key: MetricKey
@@ -10,10 +8,10 @@ private[zio] sealed trait ConcurrentMetricState { self =>
 
   def toMetricState: MetricState =
     self match {
-      case ConcurrentMetricState.Counter(key, help, value) =>
-        MetricState.counter(key, help, value.doubleValue)
-      case ConcurrentMetricState.Gauge(key, help, value) =>
-        MetricState.gauge(key, help, value.get)
+      case ConcurrentMetricState.Counter(key, help, counter) =>
+        MetricState.counter(key, help, counter.count)
+      case ConcurrentMetricState.Gauge(key, help, gauge) =>
+        MetricState.gauge(key, help, gauge.get)
       case ConcurrentMetricState.Histogram(key, help, histogram) =>
         MetricState.histogram(key, help, histogram.snapshot(), histogram.getCount(), histogram.getSum())
       case ConcurrentMetricState.Summary(key, help, summary) =>
@@ -31,23 +29,16 @@ private[zio] sealed trait ConcurrentMetricState { self =>
 
 private[zio] object ConcurrentMetricState {
 
-  final case class Counter(key: MetricKey.Counter, help: String, value: DoubleAdder) extends ConcurrentMetricState {
-    def count: Double =
-      value.doubleValue()
-    def increment(v: Double): (Double, Double) = {
-      value.add(v)
-      (value.sum(), v)
-    }
+  final case class Counter(key: MetricKey.Counter, help: String, counter: ConcurrentCounter)
+      extends ConcurrentMetricState {
+    def count: Double                          = counter.count
+    def increment(v: Double): (Double, Double) = counter.increment(v)
   }
 
-  final case class Gauge(key: MetricKey.Gauge, help: String, value: AtomicReference[Double])
-      extends ConcurrentMetricState {
-    def set(v: Double): (Double, Double) = {
-      val old = value.getAndSet(v)
-      (v, v - old)
-    }
-    def adjust(v: Double): (Double, Double) =
-      (value.updateAndGet(_ + v), v)
+  final case class Gauge(key: MetricKey.Gauge, help: String, gauge: ConcurrentGauge) extends ConcurrentMetricState {
+    def set(v: Double): (Double, Double)    = gauge.set(v)
+    def adjust(v: Double): (Double, Double) = gauge.adjust(v)
+    def get: Double                         = gauge.get
   }
 
   final case class Histogram(
