@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e 
+
 OLDDIR=`pwd`
 # Clean existing build and mdoc output directory
 rm -Rf target
