@@ -152,13 +152,13 @@ object TestAspectSpec extends ZIOBaseSpec {
     } @@ flaky @@ failing,
     test("ifEnv runs a test if environment variable satisfies assertion") {
       assert(true)(isTrue)
-    } @@ ifEnv("PATH", _.contains("bin")) @@ success @@ jvmOnly,
+    } @@ ifEnv("PATH")(_.contains("bin")) @@ success @@ jvmOnly,
     test("ifEnv ignores a test if environment variable does not satisfy assertion") {
       assert(true)(isFalse)
-    } @@ ifEnv("PATH", _ => false) @@ jvmOnly,
+    } @@ ifEnv("PATH")(_ => false) @@ jvmOnly,
     test("ifEnv ignores a test if environment variable does not exist") {
       assert(true)(isFalse)
-    } @@ ifEnv("QWERTY", _ => true) @@ jvmOnly,
+    } @@ ifEnv("QWERTY")(_ => true) @@ jvmOnly,
     test("ifEnvSet runs a test if environment variable is set") {
       assert(true)(isTrue)
     } @@ ifEnvSet("PATH") @@ success @@ jvmOnly,
@@ -167,13 +167,13 @@ object TestAspectSpec extends ZIOBaseSpec {
     } @@ ifEnvSet("QWERTY") @@ jvmOnly,
     test("ifProp runs a test if property satisfies assertion") {
       assert(true)(isTrue)
-    } @@ ifProp("java.vm.name", _.contains("VM")) @@ success @@ jvmOnly,
+    } @@ ifProp("java.vm.name")(_.contains("VM")) @@ success @@ jvmOnly,
     test("ifProp ignores a test if property does not satisfy assertion") {
       assert(true)(isFalse)
-    } @@ ifProp("java.vm.name", _ => false) @@ jvmOnly,
+    } @@ ifProp("java.vm.name")(_ => false) @@ jvmOnly,
     test("ifProp ignores a test if property does not exist") {
       assert(true)(isFalse)
-    } @@ ifProp("qwerty", _ => true) @@ jvmOnly,
+    } @@ ifProp("qwerty")(_ => true) @@ jvmOnly,
     test("ifPropSet runs a test if property is set") {
       assert(true)(isTrue)
     } @@ ifPropSet("java.vm.name") @@ success @@ jvmOnly,

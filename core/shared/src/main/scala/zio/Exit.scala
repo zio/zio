@@ -71,12 +71,6 @@ sealed abstract class Exit[+E, +A] extends Product with Serializable { self =>
     fold(_ => false, p)
 
   /**
-   * Returns the cause if this is a failure or `None` otherwise.
-   */
-  final def failureOption: Option[Cause[E]] =
-    fold(Some(_), _ => None)
-
-  /**
    * Flat maps over the value type.
    */
   final def flatMap[E1 >: E, A1](f: A => Exit[E1, A1]): Exit[E1, A1] =
@@ -212,12 +206,6 @@ sealed abstract class Exit[+E, +A] extends Product with Serializable { self =>
   @deprecated("use isSuccess", "2.0.0")
   final def succeeded: Boolean =
     isSuccess
-
-  /**
-   * Returns the value if this is a success or `None` otherwise.
-   */
-  final def successOption: Option[A] =
-    fold(_ => None, Some(_))
 
   /**
    * Converts the `Exit` to an `Either[Throwable, A]`, by wrapping the

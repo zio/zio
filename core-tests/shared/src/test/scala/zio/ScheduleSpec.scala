@@ -329,7 +329,7 @@ object ScheduleSpec extends ZIOBaseSpec {
         val input = List(OffsetDateTime.now())
         for {
           exit <- run(Schedule.secondOfMinute(60))(input).exit
-        } yield assertTrue(exit.failureOption.get.dieOption.get.isInstanceOf[IllegalArgumentException])
+        } yield assert(exit)(dies(isSubtype[IllegalArgumentException](anything)))
       },
       test("recur at 01 minute of each hour") {
         def toOffsetDateTime[T](in: (List[(OffsetDateTime, T)], Option[T])): List[OffsetDateTime] =
@@ -354,7 +354,7 @@ object ScheduleSpec extends ZIOBaseSpec {
         val input = List(OffsetDateTime.now())
         for {
           exit <- run(Schedule.minuteOfHour(60))(input).exit
-        } yield assertTrue(exit.failureOption.get.dieOption.get.isInstanceOf[IllegalArgumentException])
+        } yield assert(exit)(dies(isSubtype[IllegalArgumentException](anything)))
       },
       test("recur at 01 hour of each day") {
         def toOffsetDateTime[T](in: (List[(OffsetDateTime, T)], Option[T])): List[OffsetDateTime] =
@@ -381,7 +381,7 @@ object ScheduleSpec extends ZIOBaseSpec {
         val input = List(OffsetDateTime.now())
         for {
           exit <- run(Schedule.hourOfDay(24))(input).exit
-        } yield assertTrue(exit.failureOption.get.dieOption.get.isInstanceOf[IllegalArgumentException])
+        } yield assert(exit)(dies(isSubtype[IllegalArgumentException](anything)))
       },
       test("recur at Tuesday of each week") {
         def toOffsetDateTime[T](in: (List[(OffsetDateTime, T)], Option[T])): List[OffsetDateTime] =
@@ -408,7 +408,7 @@ object ScheduleSpec extends ZIOBaseSpec {
         val input = List(OffsetDateTime.now())
         for {
           exit <- run(Schedule.dayOfWeek(8))(input).exit
-        } yield assertTrue(exit.failureOption.get.dieOption.get.isInstanceOf[IllegalArgumentException])
+        } yield assert(exit)(dies(isSubtype[IllegalArgumentException](anything)))
       },
       test("recur in 2nd day of each month") {
         def toOffsetDateTime[T](in: (List[(OffsetDateTime, T)], Option[T])): List[OffsetDateTime] =
@@ -455,7 +455,7 @@ object ScheduleSpec extends ZIOBaseSpec {
         val input = List(OffsetDateTime.now())
         for {
           exit <- run(Schedule.dayOfMonth(32))(input).exit
-        } yield assertTrue(exit.failureOption.get.dieOption.get.isInstanceOf[IllegalArgumentException])
+        } yield assert(exit)(dies(isSubtype[IllegalArgumentException](anything)))
       }
     ),
     suite("Return the result after successful retry")(

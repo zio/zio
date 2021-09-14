@@ -412,7 +412,7 @@ object TestAspect extends TimeoutVariants {
    * An aspect that only runs a test if the specified environment variable
    * satisfies the specified assertion.
    */
-  def ifEnv(env: String, assertion: String => Boolean): TestAspectAtLeastR[Has[Live] with Has[Annotations]] =
+  def ifEnv(env: String)(assertion: String => Boolean): TestAspectAtLeastR[Has[Live] with Has[Annotations]] =
     new TestAspectAtLeastR[Has[Live] with Has[Annotations]] {
       def some[R <: Has[Live] with Has[Annotations], E](spec: ZSpec[R, E]): ZSpec[R, E] =
         spec.whenZIO(Live.live(System.env(env)).orDie.map(_.fold(false)(assertion)))
@@ -423,13 +423,13 @@ object TestAspect extends TimeoutVariants {
    * set.
    */
   def ifEnvSet(env: String): TestAspectAtLeastR[Has[Live] with Has[Annotations]] =
-    ifEnv(env, _ => true)
+    ifEnv(env)(_ => true)
 
   /**
    * An aspect that only runs a test if the specified Java property satisfies
    * the specified assertion.
    */
-  def ifProp(prop: String, assertion: String => Boolean): TestAspectAtLeastR[Has[Live] with Has[Annotations]] =
+  def ifProp(prop: String)(assertion: String => Boolean): TestAspectAtLeastR[Has[Live] with Has[Annotations]] =
     new TestAspectAtLeastR[Has[Live] with Has[Annotations]] {
       def some[R <: Has[Live] with Has[Annotations], E](spec: ZSpec[R, E]): ZSpec[R, E] =
         spec.whenZIO(Live.live(System.property(prop)).orDie.map(_.fold(false)(assertion)))
@@ -439,7 +439,7 @@ object TestAspect extends TimeoutVariants {
    * As aspect that only runs a test if the specified Java property is set.
    */
   def ifPropSet(prop: String): TestAspectAtLeastR[Has[Live] with Has[Annotations]] =
-    ifProp(prop, _ => true)
+    ifProp(prop)(_ => true)
 
   /**
    * An aspect that applies the specified aspect on ScalaJS.
