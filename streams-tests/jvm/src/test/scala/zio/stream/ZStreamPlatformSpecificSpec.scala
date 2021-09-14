@@ -363,7 +363,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
                    .use(c => ZIO.fromFutureJava(c.write(ByteBuffer.wrap(message.getBytes))))
                    .retry(Schedule.forever)
 
-            receive <- refOut.get.repeatWhileZIO(s => ZIO.succeed(s.isEmpty))
+            receive <- refOut.get.repeatWhileZIO(s => ZIO.succeed(s.isEmpty)).map(_.last)
 
             _ <- server.interrupt
           } yield assert(receive)(equalTo(message))
@@ -389,7 +389,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
                      }
                  }.retry(Schedule.forever)
 
-            receive <- refOut.get.repeatWhileZIO(s => ZIO.succeed(s.isEmpty))
+            receive <- refOut.get.repeatWhileZIO(s => ZIO.succeed(s.isEmpty)).map(_.last)
 
             _ <- server.interrupt
           } yield assert(receive)(equalTo(message)))

@@ -1617,11 +1617,22 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   /**
    * Repeats this effect the specified number of times.
    */
-  final def repeatN(n: => Int): ZIO[R, E, A] =
+  final def repeatN(n0: => Int): ZIO[R, E, Chunk[A]] =
     ZIO.suspendSucceed {
+      val n       = n0
+      val builder = ChunkBuilder.make[A]()
 
-      def loop(n: Int): ZIO[R, E, A] =
-        self.flatMap(a => if (n <= 0) ZIO.succeedNow(a) else ZIO.yieldNow *> loop(n - 1))
+      def loop(n: Int): ZIO[R, E, Chunk[A]] =
+        if (n <= 0)
+          self.map { a =>
+            builder += a
+            builder.result()
+          }
+        else
+          self.flatMap { a =>
+            builder += a
+            ZIO.yieldNow *> loop(n - 1)
+          }
 
       loop(n)
     }
@@ -1660,14 +1671,14 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Repeats this effect until its value satisfies the specified predicate
    * or until the first failure.
    */
-  final def repeatUntil(f: A => Boolean): ZIO[R, E, A] =
+  final def repeatUntil(f: A => Boolean): ZIO[R, E, Chunk[A]] =
     repeatUntilZIO(a => ZIO.succeed(f(a)))
 
   /**
    * Repeats this effect until its value is equal to the specified value
    * or until the first failure.
    */
-  final def repeatUntilEquals[A1 >: A](a: => A1): ZIO[R, E, A1] =
+  final def repeatUntilEquals[A1 >: A](a: => A1): ZIO[R, E, Chunk[A1]] =
     repeatUntil(_ == a)
 
   /**
@@ -1675,28 +1686,45 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * or until the first failure.
    */
   @deprecated("use repeatUntilZIO", "2.0.0")
-  final def repeatUntilM[R1 <: R](f: A => URIO[R1, Boolean]): ZIO[R1, E, A] =
+  final def repeatUntilM[R1 <: R](f: A => URIO[R1, Boolean]): ZIO[R1, E, Chunk[A]] =
     repeatUntilZIO(f)
 
   /**
    * Repeats this effect until its value satisfies the specified effectful predicate
    * or until the first failure.
    */
-  final def repeatUntilZIO[R1 <: R](f: A => URIO[R1, Boolean]): ZIO[R1, E, A] =
-    self.flatMap(a => f(a).flatMap(b => if (b) ZIO.succeedNow(a) else ZIO.yieldNow *> repeatUntilZIO(f)))
+  final def repeatUntilZIO[R1 <: R](f: A => URIO[R1, Boolean]): ZIO[R1, E, Chunk[A]] =
+    ZIO.suspendSucceed {
+      val builder = ChunkBuilder.make[A]()
+
+      lazy val loop: ZIO[R1, E, Chunk[A]] =
+        self.flatMap { a =>
+          f(a).flatMap { b =>
+            if (b) {
+              builder += a
+              ZIO.succeedNow(builder.result())
+            } else {
+              builder += a
+              ZIO.yieldNow *> loop
+            }
+          }
+        }
+
+      loop
+    }
 
   /**
    * Repeats this effect while its value satisfies the specified predicate
    * or until the first failure.
    */
-  final def repeatWhile(f: A => Boolean): ZIO[R, E, A] =
+  final def repeatWhile(f: A => Boolean): ZIO[R, E, Chunk[A]] =
     repeatWhileZIO(a => ZIO.succeed(f(a)))
 
   /**
    * Repeats this effect for as long as its value is equal to the specified value
    * or until the first failure.
    */
-  final def repeatWhileEquals[A1 >: A](a: => A1): ZIO[R, E, A1] =
+  final def repeatWhileEquals[A1 >: A](a: => A1): ZIO[R, E, Chunk[A1]] =
     repeatWhile(_ == a)
 
   /**
@@ -1704,14 +1732,14 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * or until the first failure.
    */
   @deprecated("use repeatWhileZIO", "2.0.0")
-  final def repeatWhileM[R1 <: R](f: A => URIO[R1, Boolean]): ZIO[R1, E, A] =
+  final def repeatWhileM[R1 <: R](f: A => URIO[R1, Boolean]): ZIO[R1, E, Chunk[A]] =
     repeatWhileZIO(f)
 
   /**
    * Repeats this effect while its value satisfies the specified effectful predicate
    * or until the first failure.
    */
-  final def repeatWhileZIO[R1 <: R](f: A => URIO[R1, Boolean]): ZIO[R1, E, A] =
+  final def repeatWhileZIO[R1 <: R](f: A => URIO[R1, Boolean]): ZIO[R1, E, Chunk[A]] =
     repeatUntilZIO(e => f(e).map(!_))
 
   /**

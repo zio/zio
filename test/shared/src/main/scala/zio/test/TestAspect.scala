@@ -505,7 +505,10 @@ object TestAspect extends TimeoutVariants {
         test: ZIO[R, TestFailure[E], TestSuccess]
       ): ZIO[R, TestFailure[E], TestSuccess] =
         TestConfig.repeats.flatMap { n =>
-          test *> test.tap(_ => Annotations.annotate(TestAnnotation.repeated, 1)).repeatN(n - 1)
+          def loop(n: Int): ZIO[R, TestFailure[E], TestSuccess] =
+            if (n <= 0) test
+            else test *> Annotations.annotate(TestAnnotation.repeated, 1) *> ZIO.yieldNow *> loop(n - 1)
+          loop(n)
         }
     }
     restoreTestEnvironment >>> nonFlaky
@@ -520,7 +523,7 @@ object TestAspect extends TimeoutVariants {
       def perTest[R <: ZTestEnv with Has[Annotations], E](
         test: ZIO[R, TestFailure[E], TestSuccess]
       ): ZIO[R, TestFailure[E], TestSuccess] =
-        test *> test.tap(_ => Annotations.annotate(TestAnnotation.repeated, 1)).repeatN(n - 1)
+        test *> test.tap(_ => Annotations.annotate(TestAnnotation.repeated, 1)).repeatN(n - 1).map(_.last)
     }
     restoreTestEnvironment >>> nonFlaky
   }

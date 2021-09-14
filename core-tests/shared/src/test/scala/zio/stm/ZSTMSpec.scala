@@ -1249,6 +1249,7 @@ object ZSTMSpec extends ZIOBaseSpec {
         v <- tvar.get
       } yield v)
       .repeatN(n)
+      .map(_.last)
 
   def compute3VarN(
     n: Int,
@@ -1266,6 +1267,7 @@ object ZSTMSpec extends ZIOBaseSpec {
         _  <- tvar2.set(v2 + 1)
       } yield v3)
       .repeatN(n)
+      .map(_.last)
 
   def transfer(receiver: TRef[Int], sender: TRef[Int], much: Int): UIO[Int] =
     STM.atomically {

@@ -354,11 +354,13 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
         val byteLength = ((bitLength.toLong + 7) / 8).toInt
         val excessBits = byteLength * 8 - bitLength
         val mask       = (1 << (8 - excessBits)) - 1
-        val effect = nextBytes(byteLength).map { bytes =>
-          val arr = bytes.toArray
-          arr(0) = (arr(0) & mask).toByte
-          min + BigInt(arr)
-        }.repeatUntil(n => min <= n && n <= max)
+        lazy val effect: URIO[Has[Random], BigInt] =
+          nextBytes(byteLength).flatMap { bytes =>
+            val arr = bytes.toArray
+            arr(0) = (arr(0) & mask).toByte
+            val n = min + BigInt(arr)
+            if (min <= n && n <= max) UIO.succeedNow(n) else effect
+          }
         effect.map(Sample.shrinkIntegral(min))
       }
     }

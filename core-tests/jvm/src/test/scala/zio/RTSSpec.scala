@@ -25,7 +25,7 @@ object RTSSpec extends ZIOBaseSpec {
       val io =
         for {
           accum <- Ref.make(Set.empty[Thread])
-          b     <- runAndTrack(accum).repeatUntil(_ == true)
+          b     <- runAndTrack(accum).repeatUntil(_ == true).map(_.last)
         } yield b
       assertM(Live.live(io))(isTrue)
     },
@@ -137,7 +137,8 @@ object RTSSpec extends ZIOBaseSpec {
         for {
           f <- test.fork
           c <- (IO.succeed[Int](c.get) <* Clock.sleep(1.millis))
-                 .repeatUntil(_ >= 1) <* f.interrupt
+                 .repeatUntil(_ >= 1)
+                 .map(_.last) <* f.interrupt
         } yield c
 
       assertM(Live.live(zio))(isGreaterThanEqualTo(1))

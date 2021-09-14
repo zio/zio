@@ -140,7 +140,11 @@ object Random extends Serializable {
       } else {
         val difference = maxExclusive - minInclusive
         if (difference > 0) nextIntBounded(difference).map(_ + minInclusive)
-        else nextInt.repeatUntil(n => minInclusive <= n && n < maxExclusive)
+        else {
+          lazy val loop: UIO[Int] =
+            nextInt.flatMap(n => if (minInclusive <= n && n < maxExclusive) UIO.succeedNow(n) else loop)
+          loop
+        }
       }
     }
 
@@ -157,7 +161,11 @@ object Random extends Serializable {
       else {
         val difference = maxExclusive - minInclusive
         if (difference > 0) nextLongBounded(difference).map(_ + minInclusive)
-        else nextLong.repeatUntil(n => minInclusive <= n && n < maxExclusive)
+        else {
+          lazy val loop: UIO[Long] =
+            nextLong.flatMap(n => if (minInclusive <= n && n < maxExclusive) UIO.succeedNow(n) else loop)
+          loop
+        }
       }
     }
 
