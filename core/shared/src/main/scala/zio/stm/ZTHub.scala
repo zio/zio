@@ -212,20 +212,28 @@ sealed abstract class ZTHub[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { s
    */
   final def toTQueue: ZTEnqueue[RA, EA, A] =
     new ZTEnqueue[RA, EA, A] {
-      def awaitShutdown: USTM[Unit] =
-        self.awaitShutdown
       def capacity: Int =
         self.capacity
       def isShutdown: USTM[Boolean] =
         self.isShutdown
       def offer(a: A): ZSTM[RA, EA, Boolean] =
         self.publish(a)
+      def offerAll(as: Iterable[A]): ZSTM[RA, EA, Boolean] =
+        ???
+      def peek: ZSTM[Nothing, Any, Any] =
+        ZSTM.unit
+      def peekOption: ZSTM[Nothing, Any, Option[Any]] =
+        ZSTM.succeedNow(None)
       def shutdown: USTM[Unit] =
         self.shutdown
       def size: USTM[Int] =
         self.size
       def take: ZSTM[Nothing, Any, Any] =
         ZSTM.unit
+      def takeAll: ZSTM[Nothing, Any, Chunk[Any]] =
+        ZSTM.succeedNow(Chunk.empty)
+      def takeUpTo(n: Int): ZSTM[Nothing, Any, Chunk[Any]] =
+        ZSTM.succeedNow(Chunk.empty)
     }
 }
 
@@ -360,17 +368,18 @@ object ZTHub {
     shutdownFlag: TRef[Boolean]
   ): ZTDequeue[Any, Nothing, A] =
     new ZTDequeue[Any, Nothing, A] { self =>
-      val awaitShutdown: USTM[Unit] =
-        ZSTM.Effect { (journal, _, _) =>
-          if (shutdownFlag.unsafeGet(journal)) ()
-          else throw ZSTM.RetryException
-        }
       val capacity: Int =
         hub.capacity
       val isShutdown: USTM[Boolean] =
         shutdownFlag.get
       def offer(a: Nothing): ZSTM[Nothing, Any, Boolean] =
         ZSTM.succeedNow(false)
+      def offerAll(as: Iterable[Nothing]): ZSTM[Nothing, Any, Boolean] =
+        ZSTM.succeedNow(false)
+      def peek: ZSTM[Any, Nothing, A] =
+        ???
+      def peekOption: ZSTM[Any, Nothing, Option[A]] =
+        ???
       val shutdown: USTM[Unit] =
         ZSTM.Effect { (journal, _, _) =>
           if (shutdownFlag.unsafeGet(journal)) ()
@@ -394,6 +403,10 @@ object ZTHub {
             }
           }
         }
+      val takeAll: ZSTM[Any, Nothing, Chunk[A]] =
+        ???
+      def takeUpTo(n: Int): ZSTM[Any, Nothing, Chunk[A]] =
+        ???
     }
 
   private trait Strategy[A] {
@@ -529,7 +542,7 @@ object ZTHub {
     private[this] val subscribers      = Array.ofDim[TRef[Int]](requestedCapacity)
     private[this] val subscribersIndex = ZTRef.unsafeMake(0L)
     (0 until requestedCapacity).foreach(n => array(n) = ZTRef.unsafeMake(null))
-    (0 until requestedCapacity).foreach(n => seq(n) = ZTRef.unsafeMake(n))
+    (0 until requestedCapacity).foreach(n => seq(n) = ZTRef.unsafeMake(n.toLong))
     (0 until requestedCapacity).foreach(n => subscribers(n) = ZTRef.unsafeMake(0))
 
     def capacity: Int =

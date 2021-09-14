@@ -1269,7 +1269,7 @@ object ZSTM {
   /**
    * Interrupts the fiber running the effect with the specified fiber id.
    */
-  def interruptAs(fiberId: => Fiber.Id): USTM[Nothing] =
+  def interruptAs(fiberId: => FiberId): USTM[Nothing] =
     Effect((_, _, _) => throw InterruptException(fiberId))
 
   /**
@@ -1697,7 +1697,7 @@ object ZSTM {
 
   private[stm] final case class DieException(t: Throwable) extends Throwable(null, null, false, false)
 
-  private[stm] final case class InterruptException(fiberId: Fiber.Id) extends Throwable(null, null, false, false)
+  private[stm] final case class InterruptException(fiberId: FiberId) extends Throwable(null, null, false, false)
 
   private[stm] case object RetryException extends Throwable(null, null, false, false)
 
@@ -2135,11 +2135,11 @@ object ZSTM {
     object TExit {
       val unit: TExit[Nothing, Unit] = Succeed(())
 
-      final case class Fail[+A](value: A)           extends TExit[A, Nothing]
-      final case class Die(error: Throwable)        extends TExit[Nothing, Nothing]
-      final case class Interrupt(fiberId: Fiber.Id) extends TExit[Nothing, Nothing]
-      final case class Succeed[+B](value: B)        extends TExit[Nothing, B]
-      case object Retry                             extends TExit[Nothing, Nothing]
+      final case class Fail[+A](value: A)          extends TExit[A, Nothing]
+      final case class Die(error: Throwable)       extends TExit[Nothing, Nothing]
+      final case class Interrupt(fiberId: FiberId) extends TExit[Nothing, Nothing]
+      final case class Succeed[+B](value: B)       extends TExit[Nothing, B]
+      case object Retry                            extends TExit[Nothing, Nothing]
     }
 
     abstract class Entry { self =>
