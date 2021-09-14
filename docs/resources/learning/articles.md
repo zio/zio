@@ -42,9 +42,6 @@ _These articles reflect the state of ZIO at the time of their publication. The c
 - [Decouple the Program from its Implementation with ZIO modules.](https://medium.com/@pascal.mengelt/decouple-the-program-from-its-implementation-with-zio-modules-d9b8713d502e) by Pascal Mengelt (December 2019)
 - [Functional dependency injection in Scala using ZIO environments](https://blog.jdriven.com/2019/10/functional-dependency-injection-in-scala-using-zio-environments/) by Chiel van de Steeg (October 2019)
 
-## ZIO Libraries
-- [Introduction to ZIO Actors](https://www.softinio.com/post/introduction-to-zio-actors/) by [Salar Rahmanian](https://www.softinio.com) (November 2020)
-
 ## ZIO Use Cases
 - [Implement your future with ZIO](https://scala.monster/welcome-zio-old/) by Pavels Sisojevs (December 2019)
 - [How to write a command line application with ZIO?](https://scalac.io/write-command-line-application-with-zio/) by Piotr Gołębiewski (November 2019)

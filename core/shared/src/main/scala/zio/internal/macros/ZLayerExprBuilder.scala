@@ -121,7 +121,7 @@ $body
         val styledDependencies = dependencies.zipWithIndex.map { case (dep, idx) =>
           val prefix = if (idx == 0) "missing".underlined else " " * 7
           val styled = showKey(dep).blue.bold
-          s"""${prefix} $styled"""
+          s"""$prefix $styled"""
         }
           .mkString("\n")
         val styledLayer = showExpr(node.value).blue

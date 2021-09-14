@@ -15,7 +15,7 @@ object LayerDefinitionExample extends ZIOApp {
     }
   }
 
-  override def run = {
+  override def run: ZIO[ZEnv with Has[ZIOAppArgs], Any, Any] = {
 
     val program: ZIO[Has[Foo], Nothing, Unit] = ZIO.serviceWith[Foo](_.bar)
 

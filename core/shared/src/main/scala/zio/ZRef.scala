@@ -1008,16 +1008,14 @@ object ZRef extends Serializable {
 
     def getAndUpdate(f: A => A): UIO[A] =
       UIO.succeed {
-        {
-          var loop       = true
-          var current: A = null.asInstanceOf[A]
-          while (loop) {
-            current = value.get
-            val next = f(current)
-            loop = !value.compareAndSet(current, next)
-          }
-          current
+        var loop       = true
+        var current: A = null.asInstanceOf[A]
+        while (loop) {
+          current = value.get
+          val next = f(current)
+          loop = !value.compareAndSet(current, next)
         }
+        current
       }
 
     def getAndUpdateSome(pf: PartialFunction[A, A]): UIO[A] =
@@ -1047,17 +1045,15 @@ object ZRef extends Serializable {
 
     def modifySome[B](default: B)(pf: PartialFunction[A, (B, A)]): UIO[B] =
       UIO.succeed {
-        {
-          var loop = true
-          var b: B = null.asInstanceOf[B]
-          while (loop) {
-            val current = value.get
-            val tuple   = pf.applyOrElse(current, (_: A) => (default, current))
-            b = tuple._1
-            loop = !value.compareAndSet(current, tuple._2)
-          }
-          b
+        var loop = true
+        var b: B = null.asInstanceOf[B]
+        while (loop) {
+          val current = value.get
+          val tuple   = pf.applyOrElse(current, (_: A) => (default, current))
+          b = tuple._1
+          loop = !value.compareAndSet(current, tuple._2)
         }
+        b
       }
 
     def set(a: A): UIO[Unit] =
