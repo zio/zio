@@ -89,7 +89,7 @@ Retrieving first `n` elements of the queue:
 import zio._
 import zio.stm._
 
-val tQueueTakeUpTo: UIO[List[Int]] = (for {
+val tQueueTakeUpTo: UIO[Chunk[Int]] = (for {
   tQueue <- TQueue.bounded[Int](4)
   _      <- tQueue.offerAll(List(1, 2))
   res    <- tQueue.takeUpTo(3)
@@ -102,7 +102,7 @@ All elements of the queue can be obtained as follows:
 import zio._
 import zio.stm._
 
-val tQueueTakeAll: UIO[List[Int]] = (for {
+val tQueueTakeAll: UIO[Chunk[Int]] = (for {
   tQueue <- TQueue.bounded[Int](4)
   _      <- tQueue.offerAll(List(1, 2))
   res    <- tQueue.takeAll
