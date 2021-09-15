@@ -630,7 +630,7 @@ lazy val docs = project.module
       "com.github.ghostdogpr"         %% "caliban"                       % "1.1.1",
       "com.github.ghostdogpr"         %% "caliban-zio-http"              % "1.1.1",
       "org.scalameta"                 %% "munit"                         % "0.7.29",
-      "com.github.poslegm"            %% "munit-zio"                     % "0.0.2",
+      "com.github.poslegm"            %% "munit-zio"                     % "0.0.3",
       "nl.vroste"                     %% "rezilience"                    % "0.6.2",
       "io.github.gaelrenoux"          %% "tranzactio"                    % "2.1.0",
       "io.github.neurodyne"           %% "zio-arrow"                     % "0.2.1",
