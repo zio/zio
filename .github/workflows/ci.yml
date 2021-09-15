@@ -69,6 +69,7 @@ jobs:
           ./sbt docs/mdoc
           cd website
           mv version2-only-docusaurus.config.js docusaurus.config.js 
+          rm -f versions.json
           yarn install 
           yarn build 
           cd ..
