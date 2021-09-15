@@ -2615,7 +2615,7 @@ object ZStreamSpec extends ZIOBaseSpec {
         //           stream  = ZStream.managed(res).flatMap(a => ZStream(a, a, a))
         //           collectAndCheck <- stream
         //                                .runManaged(ZSink.collectAll)
-        //                                .flatMap(r => closed.get.toManaged_.map((r, _)))
+        //                                .flatMap(r => closed.get.toManaged.map((r, _)))
         //                                .useNow
         //           (result, state) = collectAndCheck
         //           finalState     <- closed.get
