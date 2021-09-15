@@ -147,7 +147,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
                        },
                        5
                      )
-            run    <- stream.run(ZSink.fromZIO(ZIO.never)).fork
+            run    <- stream.run(ZSink.take(1) *> ZSink.never).fork
             _      <- refCnt.get.repeatWhile(_ != 7)
             isDone <- refDone.get
             _      <- run.interrupt
