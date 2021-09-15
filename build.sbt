@@ -608,7 +608,7 @@ lazy val docs = project.module
       "dev.zio"                       %% "zio-s3"                        % "0.3.7",
       "dev.zio"                       %% "zio-schema"                    % "0.1.1",
       "dev.zio"                       %% "zio-sqs"                       % "0.4.2",
-      "dev.zio"                       %% "zio-opentracing"               % "0.8.1",
+      "dev.zio"                       %% "zio-opentracing"               % "0.8.2",
       "io.jaegertracing"               % "jaeger-core"                   % "1.6.0",
       "io.jaegertracing"               % "jaeger-client"                 % "1.6.0",
       "io.jaegertracing"               % "jaeger-zipkin"                 % "1.6.0",
