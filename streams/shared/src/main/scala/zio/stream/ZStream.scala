@@ -2478,7 +2478,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
               ZStream.fromQueueWithShutdown(q2).flattenExitOption.collectRight
             )
           }
-        case otherwise => ZManaged.dieMessage(s"partitionEither: expected two streams but got ${otherwise}")
+        case otherwise => ZManaged.dieMessage(s"partitionEither: expected two streams but got $otherwise")
       }
 
   /**
@@ -3036,6 +3036,15 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    */
   final def tap[R1 <: R, E1 >: E](f0: O => ZIO[R1, E1, Any]): ZStream[R1, E1, O] =
     mapZIO(o => f0(o).as(o))
+
+  /**
+   * Returns a stream that effectfully "peeks" at the failure of the stream.
+   */
+  final def tapError[R1 <: R, E1 >: E](f: E => ZIO[R1, E1, Any])(implicit ev: CanFail[E]): ZStream[R1, E1, O] =
+    ZStream(self.process.map(_.tapError {
+      case None      => ZIO.fail(None)
+      case Some(err) => f(err).mapError(Some(_))
+    }))
 
   /**
    * Throttles the chunks of this stream according to the given bandwidth parameters using the token bucket
@@ -5237,7 +5246,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
      * Collect elements of the given type flowing through the stream, and filters out others.
      */
     def collectType[O1 <: O](implicit tag: ClassTag[O1]): ZStream[R, E, O1] =
-      self.collect({ case o if tag.runtimeClass.isInstance(o) => o.asInstanceOf[O1] })
+      self.collect { case o if tag.runtimeClass.isInstance(o) => o.asInstanceOf[O1] }
   }
 
   /**

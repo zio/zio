@@ -109,6 +109,55 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
         } yield assert(isDone)(isFalse)
       }
     ),
+    suite("asyncManaged")(
+      test("asyncManaged")(checkM(Gen.chunkOf(Gen.int).filter(_.nonEmpty)) { chunk =>
+        for {
+          latch <- Promise.make[Nothing, Unit]
+          fiber <- ZStream
+                     .asyncManaged[Any, Throwable, Int] { k =>
+                       global.execute(() => chunk.foreach(a => k(Task.succeed(Chunk.single(a)))))
+                       latch.succeed(()).toManaged *>
+                         Task.unit.toManaged
+                     }
+                     .take(chunk.size.toLong)
+                     .run(ZSink.collectAll)
+                     .fork
+          _ <- latch.await
+          s <- fiber.join
+        } yield assert(s)(equalTo(chunk))
+      }),
+      test("asyncManaged signal end stream") {
+        for {
+          result <- ZStream
+                      .asyncManaged[Any, Nothing, Int] { k =>
+                        k(IO.fail(None))
+                        UIO.unit.toManaged
+                      }
+                      .runCollect
+        } yield assert(result)(equalTo(Chunk.empty))
+      },
+      test("asyncManaged back pressure") {
+        for {
+          refCnt  <- Ref.make(0)
+          refDone <- Ref.make[Boolean](false)
+          stream = ZStream.asyncManaged[Any, Throwable, Int](
+                     cb => {
+                       Future
+                         .sequence(
+                           (1 to 7).map(i => cb(refCnt.set(i) *> ZIO.succeedNow(Chunk.single(1))))
+                         )
+                         .flatMap(_ => cb(refDone.set(true) *> ZIO.fail(None)))
+                       UIO.unit.toManaged
+                     },
+                     5
+                   )
+          run    <- stream.run(ZSink.fromZIO(ZIO.never)).fork
+          _      <- refCnt.get.repeatWhile(_ != 7)
+          isDone <- refDone.get
+          _      <- run.interrupt
+        } yield assert(isDone)(isFalse)
+      }
+    ),
     suite("asyncInterrupt")(
       test("asyncInterrupt Left") {
         for {

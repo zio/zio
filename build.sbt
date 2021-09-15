@@ -8,7 +8,7 @@ Global / onChangedBuildSource := ReloadOnSourceChanges
 inThisBuild(
   List(
     organization := "dev.zio",
-    homepage := Some(url("https://zio.dev")),
+    homepage     := Some(url("https://zio.dev")),
     licenses := List(
       "Apache-2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")
     ),
@@ -35,7 +35,10 @@ addCommandAlias(
 )
 addCommandAlias("fmt", "all root/scalafmtSbt root/scalafmtAll")
 addCommandAlias("fmtCheck", "all root/scalafmtSbtCheck root/scalafmtCheckAll")
-addCommandAlias("check", "; scalafmtSbtCheck; scalafmtCheckAll; compile:scalafix --check; test:scalafix --check")
+addCommandAlias(
+  "check",
+  "; scalafmtSbtCheck; scalafmtCheckAll; Test/compile; compile:scalafix --check; test:scalafix --check"
+)
 addCommandAlias(
   "compileJVM",
   ";coreTestsJVM/test:compile;stacktracerJVM/test:compile;streamsTestsJVM/test:compile;testTestsJVM/test:compile;testMagnoliaTestsJVM/test:compile;testRefinedJVM/test:compile;testRunnerJVM/test:compile;examplesJVM/test:compile;macrosTestsJVM/test:compile"
@@ -83,9 +86,9 @@ val fs2Version        = "3.1.1"
 lazy val root = project
   .in(file("."))
   .settings(
-    name := "zio",
+    name           := "zio",
     publish / skip := true,
-    console := (coreJVM / Compile / console).value,
+    console        := (coreJVM / Compile / console).value,
     unusedCompileDependenciesFilter -= moduleFilter(
       "org.scala-js",
       "scalajs-library"
@@ -93,40 +96,46 @@ lazy val root = project
     welcomeMessage
   )
   .aggregate(
-    coreJVM,
-    coreJS,
-    coreNative,
-    coreTestsJVM,
-    coreTestsJS,
-    macrosJVM,
-    macrosJS,
-    docs,
-    streamsJVM,
-    streamsJS,
-    streamsNative,
-    streamsTestsJVM,
-    streamsTestsJS,
     benchmarks,
-    testJVM,
-    testJS,
-    testNative,
-    testTestsJVM,
-    testTestsJS,
+    coreJS,
+    coreJVM,
+    coreNative,
+    coreTestsJS,
+    coreTestsJVM,
+    docs,
+    examplesJS,
+    examplesJVM,
+    macrosJS,
+    macrosJVM,
+    macrosTestsJS,
+    macrosTestsJVM,
     stacktracerJS,
     stacktracerJVM,
     stacktracerNative,
+    streamsJS,
+    streamsJVM,
+    streamsNative,
+    streamsTestsJS,
+    streamsTestsJVM,
+    testJS,
+    testJVM,
+    testNative,
+    testJunitRunnerJVM,
+    testJunitRunnerTestsJVM,
+    testMagnoliaJS,
+    testMagnoliaJVM,
+    testMagnoliaTestsJS,
+    testMagnoliaTestsJVM,
+    testRefinedJS,
+    testRefinedJVM,
     testRunnerJS,
     testRunnerJVM,
     testRunnerNative,
-    testJunitRunnerJVM,
-    testJunitRunnerTestsJVM,
-    testMagnoliaJVM,
-    testMagnoliaJS,
-    testRefinedJVM,
-    testRefinedJS,
-    testScalaCheckJVM,
     testScalaCheckJS,
-    testScalaCheckNative
+    testScalaCheckJVM,
+    testScalaCheckNative,
+    testTestsJS,
+    testTestsJVM
   )
   .enablePlugins(ScalaJSPlugin)
 
@@ -333,7 +342,10 @@ lazy val testMagnoliaTests = crossProject(JVMPlatform, JSPlatform)
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
   .dependsOn(testRunner)
   .settings(buildInfoSettings("zio.test"))
-  .settings(publish / skip := true)
+  .settings(
+    publish / skip := true,
+    crossScalaVersions --= Seq(Scala211)
+  )
   .enablePlugins(BuildInfoPlugin)
 
 lazy val testMagnoliaTestsJVM = testMagnoliaTests.jvm
@@ -439,6 +451,7 @@ lazy val testJunitRunnerTests = crossProject(JVMPlatform)
   .settings(publish / skip := true)
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
   .settings(
+    crossScalaVersions --= List(Scala211),
     libraryDependencies ++= Seq(
       "junit"                   % "junit"     % "4.13.2" % Test,
       "org.scala-lang.modules" %% "scala-xml" % "2.0.1"  % Test,
@@ -504,7 +517,7 @@ lazy val benchmarks = project.module
         "com.twitter"               %% "util-core"       % "21.8.0",
         "com.typesafe.akka"         %% "akka-stream"     % "2.6.16",
         "io.github.timwspence"      %% "cats-stm"        % "0.10.3",
-        "io.projectreactor"          % "reactor-core"    % "3.4.9",
+        "io.projectreactor"          % "reactor-core"    % "3.4.10",
         "io.reactivex.rxjava2"       % "rxjava"          % "2.2.21",
         "org.jctools"                % "jctools-core"    % "3.3.0",
         "org.ow2.asm"                % "asm"             % "9.2",
@@ -544,21 +557,34 @@ lazy val jsdocs = project
 
 val http4sV     = "0.23.3"
 val doobieV     = "1.0.0-RC1"
-val catsEffectV = "3.2.6"
+val catsEffectV = "3.2.8"
 val zioActorsV  = "0.0.9"
 
 lazy val docs = project.module
   .in(file("zio-docs"))
   .settings(
     publish / skip := true,
-    moduleName := "zio-docs",
+    moduleName     := "zio-docs",
     unusedCompileDependenciesFilter -= moduleFilter("org.scalameta", "mdoc"),
     scalacOptions -= "-Yno-imports",
     scalacOptions -= "-Xfatal-warnings",
     scalacOptions ~= { _ filterNot (_ startsWith "-Ywarn") },
     scalacOptions ~= { _ filterNot (_ startsWith "-Xlint") },
-    mdocIn := (LocalRootProject / baseDirectory).value / "docs",
+    crossScalaVersions --= List(Scala211),
+    mdocIn  := (LocalRootProject / baseDirectory).value / "docs",
     mdocOut := (LocalRootProject / baseDirectory).value / "website" / "docs",
+    ScalaUnidoc / unidoc / unidocProjectFilter := inProjects(
+      coreJVM,
+      streamsJVM,
+      testJVM,
+      testMagnoliaJVM,
+      testRefinedJVM,
+      testScalaCheckJVM
+    ),
+    ScalaUnidoc / unidoc / target := (LocalRootProject / baseDirectory).value / "website" / "static" / "api",
+    cleanFiles += (ScalaUnidoc / unidoc / target).value,
+    docusaurusCreateSite     := docusaurusCreateSite.dependsOn(Compile / unidoc).value,
+    docusaurusPublishGhpages := docusaurusPublishGhpages.dependsOn(Compile / unidoc).value,
     libraryDependencies ++= Seq(
       "commons-io"          % "commons-io"                % "2.11.0" % "provided",
       "io.7mind.izumi"     %% "distage-core"              % "1.0.8",
@@ -578,17 +604,17 @@ lazy val docs = project.module
       "dev.zio"                       %% "zio-ftp"                       % "0.3.3",
       "dev.zio"                       %% "zio-json"                      % "0.1.5",
       "dev.zio"                       %% "zio-kafka"                     % "0.16.0",
-      "dev.zio"                       %% "zio-logging"                   % "0.5.11",
+      "dev.zio"                       %% "zio-logging"                   % "0.5.12",
       "dev.zio"                       %% "zio-metrics-prometheus"        % "1.0.12",
       "dev.zio"                       %% "zio-nio"                       % "1.0.0-RC11",
       "dev.zio"                       %% "zio-optics"                    % "0.1.0",
       "dev.zio"                       %% "zio-prelude"                   % "1.0.0-RC6",
       "dev.zio"                       %% "zio-process"                   % "0.5.0",
       "dev.zio"                       %% "zio-rocksdb"                   % "0.3.0",
-      "dev.zio"                       %% "zio-s3"                        % "0.3.6",
-      "dev.zio"                       %% "zio-schema"                    % "0.0.6",
+      "dev.zio"                       %% "zio-s3"                        % "0.3.7",
+      "dev.zio"                       %% "zio-schema"                    % "0.1.1",
       "dev.zio"                       %% "zio-sqs"                       % "0.4.2",
-      "dev.zio"                       %% "zio-opentracing"               % "0.8.1",
+      "dev.zio"                       %% "zio-opentracing"               % "0.8.2",
       "io.jaegertracing"               % "jaeger-core"                   % "1.6.0",
       "io.jaegertracing"               % "jaeger-client"                 % "1.6.0",
       "io.jaegertracing"               % "jaeger-zipkin"                 % "1.6.0",
@@ -598,7 +624,7 @@ lazy val docs = project.module
       "dev.zio"                       %% "zio-interop-scalaz7x"          % "7.3.3.0",
       "dev.zio"                       %% "zio-interop-reactivestreams"   % "1.3.5",
       "dev.zio"                       %% "zio-interop-twitter"           % "20.10.0.0",
-      "dev.zio"                       %% "zio-zmx"                       % "0.0.7",
+      "dev.zio"                       %% "zio-zmx"                       % "0.0.8",
       "dev.zio"                       %% "zio-query"                     % "0.2.10",
       "org.polynote"                  %% "uzhttp"                        % "0.2.8",
       "org.tpolecat"                  %% "doobie-core"                   % doobieV,
@@ -610,15 +636,15 @@ lazy val docs = project.module
       "com.github.ghostdogpr"         %% "caliban"                       % "1.1.1",
       "com.github.ghostdogpr"         %% "caliban-zio-http"              % "1.1.1",
       "org.scalameta"                 %% "munit"                         % "0.7.29",
-      "com.github.poslegm"            %% "munit-zio"                     % "0.0.2",
+      "com.github.poslegm"            %% "munit-zio"                     % "0.0.3",
       "nl.vroste"                     %% "rezilience"                    % "0.6.2",
       "io.github.gaelrenoux"          %% "tranzactio"                    % "2.1.0",
       "io.github.neurodyne"           %% "zio-arrow"                     % "0.2.1",
       "nl.vroste"                     %% "zio-amqp"                      % "0.2.2",
-      "io.github.vigoo"               %% "zio-aws-core"                  % "3.17.34.1",
-      "io.github.vigoo"               %% "zio-aws-ec2"                   % "3.17.34.1",
-      "io.github.vigoo"               %% "zio-aws-elasticbeanstalk"      % "3.17.34.1",
-      "io.github.vigoo"               %% "zio-aws-netty"                 % "3.17.34.1",
+      "io.github.vigoo"               %% "zio-aws-core"                  % "3.17.38.1",
+      "io.github.vigoo"               %% "zio-aws-ec2"                   % "3.17.38.1",
+      "io.github.vigoo"               %% "zio-aws-elasticbeanstalk"      % "3.17.38.1",
+      "io.github.vigoo"               %% "zio-aws-netty"                 % "3.17.38.1",
       "io.github.neurodyne"           %% "zio-aws-s3"                    % "0.4.13",
       "io.d11"                        %% "zhttp"                         % "1.0.0.0-RC17",
       "com.coralogix"                 %% "zio-k8s-client"                % "1.3.4",
@@ -631,7 +657,7 @@ lazy val docs = project.module
       "io.getquill"                   %% "quill-jdbc-zio"                % "3.9.0"
     )
   )
-  .settings(macroExpansionSettings)
+  .settings(macroDefinitionSettings)
   .settings(mdocJS := Some(jsdocs))
-  .dependsOn(coreJVM, streamsJVM, testJVM, testMagnoliaJVM, coreJS)
-  .enablePlugins(MdocPlugin, DocusaurusPlugin)
+  .dependsOn(coreJVM, streamsJVM, testJVM, testMagnoliaJVM, testRefinedJVM, testScalaCheckJVM, coreJS)
+  .enablePlugins(MdocPlugin, DocusaurusPlugin, ScalaUnidocPlugin)

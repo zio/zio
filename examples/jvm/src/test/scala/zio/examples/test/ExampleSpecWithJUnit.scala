@@ -1,10 +1,10 @@
 package zio.examples.test
 
-import zio.test.junit.JUnitRunnableSpec
 import zio.test._
+import zio.test.junit.JUnitRunnableSpec
 
 class ExampleSpecWithJUnit extends JUnitRunnableSpec {
-  def spec = suite("some suite")(
+  def spec: ZSpec[Environment, Failure] = suite("some suite")(
     test("failing test") {
       assert(1)(Assertion.equalTo(2))
     },

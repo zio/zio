@@ -614,10 +614,10 @@ object ZTransducerSpec extends ZIOBaseSpec {
                             Managed.acquireReleaseWith(
                               ref
                                 .update(_ + 1)
-                                .as[Option[Chunk[Int]] => UIO[Chunk[Int]]]({
+                                .as[Option[Chunk[Int]] => UIO[Chunk[Int]]] {
                                   case None    => ZIO.succeedNow(Chunk.empty)
                                   case Some(c) => ZIO.succeedNow(c)
-                                })
+                                }
                             )(_ => ref.update(_ - 1))
                           }
                       }
@@ -642,9 +642,9 @@ object ZTransducerSpec extends ZIOBaseSpec {
                             Managed.acquireReleaseWith(
                               ref
                                 .update(_ + 1)
-                                .as[Option[Chunk[Int]] => IO[String, Chunk[Int]]]({ case _ =>
+                                .as[Option[Chunk[Int]] => IO[String, Chunk[Int]]] { case _ =>
                                   ZIO.fail("boom")
-                                })
+                                }
                             )(_ => ref.update(_ - 1))
                           }
                       }
