@@ -120,8 +120,7 @@ module.exports = {
           sidebarPath: require.resolve('./sidebars.js'),
           lastVersion: "current",
           versions: {
-            current: { label: "ZIO 2.x" },
-            '1.x': { label: "ZIO 1.x" }
+            current: { label: "ZIO 2.x" }
           },
           remarkPlugins: [
             [require('blended-include-code-plugin'), { marker: 'CODE_INCLUDE' }],

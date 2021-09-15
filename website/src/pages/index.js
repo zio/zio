@@ -4,6 +4,7 @@ import Layout from '@theme/Layout';
 import Link from '@docusaurus/Link';
 import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 import useBaseUrl from '@docusaurus/useBaseUrl';
+import styles from './index.module.css';
 
 const baseUrl = '/';
 
@@ -73,9 +74,9 @@ const sponsors = [
 // How a single feature block is displayed 
 function Feature(feature) {
   return (
-    <div class='tw-container tw-text-center'>
-      <h2 class='tw-text-red-700'>{feature.title}</h2>
-      <p class='tw-text-lg tw-font-medium'>{feature.content}</p>
+    <div className='container col col--3'>
+      <h2 className={styles.featureTitle}>{feature.title}</h2>
+      <p className={styles.featureText}>{feature.content}</p>
     </div>
   );
 }
@@ -83,13 +84,13 @@ function Feature(feature) {
 // How a single sponsor block is being displayed 
 function Sponsor(sponsor) {
   return (
-    <div class='tw-container'>
-      <div class='tw-w-80 tw-h-40 tw-m-auto tw-flex tw-place-content-center'>
-        <a class='tw-inline-flex' href={`${sponsor.imageLink}`}>
-          <img class='tw-object-contain tw-object-scale-down' src={`${sponsor.image}`} alt={`${sponsor.imageAlt}`} />
+    <div class='container col col--6'>
+      <div className={styles.sponsorImageContainer}>
+        <a href={`${sponsor.imageLink}`}>
+          <img className={styles.sponsorImage} src={`${sponsor.image}`} alt={`${sponsor.imageAlt}`} />
         </a>
       </div>
-      <p class='tw-text-center tw-text-gray-800 tw-text-lg tw-font-medium'>{sponsor.content}</p>
+      <p class={styles.sponsorText}>{sponsor.content}</p>
     </div>
   );
 }
@@ -102,39 +103,44 @@ function Home() {
     <Layout
       title={`${siteConfig.title}`}
       description={`${siteConfig.tagLine}`}>
-      <header class='tw-bg-black'>
-        <div class='tw-mx-auto tw-relative'>
-          <img class='tw-mx-auto' src="/img/jumbotron_pattern.png" alt={`${siteConfig.title}`} />
-          <div class='tw-absolute tw-top-1/2 tw-w-full'>
-            <p class='tw-text-center tw-text-white tw-text-lg tw-font-medium'>{siteConfig.tagline}</p>
-            <div class='tw-container tw-mx-auto tw-flex tw-place-content-center'>
+      <header className={styles.headerContainer}>
+        <div className={`container ${styles.headerInnerContainer}`}>
+          <img className={styles.headerImage} src="/img/jumbotron_pattern.png" alt={`${siteConfig.title}`} />
+          <div className={styles.headerDetailContainer}>
+            <p className={styles.headerTagline}>{siteConfig.tagline}</p>
+            <div className={styles.headerButtonContainer}>
               <Link
-                class='tw-inline-block tw-text-white tw-p-4 tw-border tw-rounded-lg tw-text-xl tw-font-bold hover:tw-text-white hover:tw-no-underline hover:tw-bg-gray-700'
+                className={`${styles.headerButton}`}
                 to={useBaseUrl('/getting_started')}>
                 Get Started
               </Link>
             </div>
           </div>
-        </div>
-      </header>
+        </div >
+      </header >
       <main>
         {features && features.length > 0 && (
-          <div class="tw-container tw-m-auto tw-mt-4">
-            <div class='tw-grid lg:tw-grid-cols-4 md:tw-grid-cols-2 sm:tw-grid-cols-1 tw-gap-4'>
-              {features.map((f, idx) => (
-                <Feature key={idx} {...f} />
-              ))}
+          <section className={styles.featureSection}>
+            <div class='container'>
+              <div class='row'>
+                {features.map((f, idx) => (
+                  <Feature key={idx} {...f} />
+                ))}
+              </div>
             </div>
-          </div>
+          </section>
         )}
+
         {sponsors && sponsors.length > 0 && (
-          <div className="tw-container tw-m-auto tw-bg-gray-200 tw-rounded-xl">
-            <div class='tw-grid lg:tw-grid-cols-2 sm:tw-grid-cols-1 tw-gap-4'>
-              {sponsors.map((s, idx) => (
-                <Sponsor key={idx} {...s} />
-              ))}
+          <section className={styles.sponsorSection}>
+            <div class='container'>
+              <div class='row'>
+                {sponsors.map((s, idx) => (
+                  <Sponsor key={idx} {...s} />
+                ))}
+              </div>
             </div>
-          </div>
+          </section>
         )}
       </main>
     </Layout >
