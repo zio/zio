@@ -65,7 +65,13 @@ jobs:
       - name: Cache scala dependencies
         uses: coursier/cache-action@v6
       - name: Check Website Generation
-        run: ./sbt docs/docusaurusCreateSite
+        run: |
+          ./sbt docs/mdoc
+          cd website
+          mv version2-only-docusaurus.config.js docusaurus.config.js 
+          yarn install 
+          yarn build 
+          cd ..
         
   test:
     runs-on: ubuntu-20.04
