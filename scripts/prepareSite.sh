@@ -9,7 +9,7 @@ rm -Rf website/docs
 rm -Rf website/versioned_docs
 
 # Checkout latest released version of 1.x 
-git checkout refs/heads/master
+git checkout origin/master
 sbt docs/mdoc
 
 mkdir -p website/versioned_docs/version-1.x

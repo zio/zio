@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-20.04
     if: github.event_name != 'pull_request'
     steps:
-      - name: Checkout current branch
+      - name: Checkout all branches
         uses: actions/checkout@v2
         with:
           fetch-depth: '0'
