@@ -130,7 +130,7 @@ class HubBenchmarks {
 
   @Benchmark
   def zioTQueueBoundedBackPressure(): Int =
-    zioSequential(ZIOHubLike.zioTQueueBounded(hubSize))
+    zioParallel(ZIOHubLike.zioTQueueBounded(hubSize))
 
   @Benchmark
   def zioTQueueBoundedParallel(): Int =
@@ -141,12 +141,12 @@ class HubBenchmarks {
     zioSequential(ZIOHubLike.zioTQueueBounded(totalSize))
 
   @Benchmark
-  def zioTQueueUnboundedSequential(): Int =
-    zioSequential(ZIOHubLike.zioTQueueUnbounded)
-
-  @Benchmark
   def zioTQueueUnboundedParallel(): Int =
     zioParallel(ZIOHubLike.zioTQueueUnbounded)
+
+  @Benchmark
+  def zioTQueueUnboundedSequential(): Int =
+    zioSequential(ZIOHubLike.zioTQueueUnbounded)
 
   trait ZIOHubLike[A] {
     def publish(a: A): UIO[Any]
