@@ -2129,24 +2129,6 @@ object ZStreamSpec extends ZIOBaseSpec {
             assertM(stream.runDrain.run)(fails(equalTo("fail")))
           } @@ nonFlaky
         ),
-        testM("mergeSortedByKey") {
-          val genSortedByKey = for {
-            map    <- Gen.mapOf(Gen.int(1, 100), Gen.int(1, 100))
-            chunk   = Chunk.fromIterable(map).sorted
-            chunks <- splitChunks(Chunk(chunk))
-          } yield chunks
-          checkM(genSortedByKey, genSortedByKey) { (as, bs) =>
-            val left   = ZStream.fromChunks(as: _*)
-            val right  = ZStream.fromChunks(bs: _*)
-            val actual = left.mergeSortedByKey(right)(identity, identity)(_ + _)
-            val expected = Chunk.fromIterable {
-              as.flatten.toMap.foldLeft(bs.flatten.toMap) { case (map, (k, v)) =>
-                map.get(k).fold(map + (k -> v))(v1 => map + (k -> (v + v1)))
-              }
-            }.sorted
-            assertM(actual.runCollect)(equalTo(expected))
-          }
-        },
         suite("mergeTerminateLeft")(
           testM("terminates as soon as the first stream terminates") {
             for {
@@ -3344,6 +3326,24 @@ object ZStreamSpec extends ZIOBaseSpec {
             )(isLeft(equalTo("Ouch")))
           }
         ),
+        testM("zipAllSortedByKeyWith") {
+          val genSortedByKey = for {
+            map    <- Gen.mapOf(Gen.int(1, 100), Gen.int(1, 100))
+            chunk   = Chunk.fromIterable(map).sorted
+            chunks <- splitChunks(Chunk(chunk))
+          } yield chunks
+          checkM(genSortedByKey, genSortedByKey) { (as, bs) =>
+            val left   = ZStream.fromChunks(as: _*)
+            val right  = ZStream.fromChunks(bs: _*)
+            val actual = left.zipAllSortedByKeyWith(right)(identity, identity)(_ + _)
+            val expected = Chunk.fromIterable {
+              as.flatten.toMap.foldLeft(bs.flatten.toMap) { case (map, (k, v)) =>
+                map.get(k).fold(map + (k -> v))(v1 => map + (k -> (v + v1)))
+              }
+            }.sorted
+            assertM(actual.runCollect)(equalTo(expected))
+          }
+        },
         testM("zipWithIndex")(checkM(pureStreamOfInts) { s =>
           for {
             res1 <- (s.zipWithIndex.runCollect)

@@ -4578,17 +4578,17 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   implicit final class SortedByKey[R, E, K, A](private val self: ZStream[R, E, (K, A)]) {
 
     /**
-     * Merges this stream that is sorted by distinct keys and the specified
+     * Zips this stream that is sorted by distinct keys and the specified
      * stream that is sorted by distinct keys to produce a new stream that is
-     * sorted by distinct keys. Uses the functions `left`, `right`, and `both` to
-     * handle the cases where a key and value exist in this stream, that stream,
-     * or both streams.
+     * sorted by distinct keys. Uses the functions `left`, `right`, and `both`
+     * to handle the cases where a key and value exist in this stream, that
+     * stream, or both streams.
      *
-     * This allows merging potentially unbounded streams of data by key in
-     * constant space but the caller is responsible for ensuring that the streams
-     * are sorted by distinct keys.
+     * This allows zipping potentially unbounded streams of data by key in
+     * constant space but the caller is responsible for ensuring that the
+     * streams are sorted by distinct keys.
      */
-    final def mergeSortedByKey[R1 <: R, E1 >: E, B, C](
+    final def zipAllSortedByKeyWith[R1 <: R, E1 >: E, B, C](
       that: ZStream[R1, E1, (K, B)]
     )(left: A => C, right: B => C)(
       both: (A, B) => C
