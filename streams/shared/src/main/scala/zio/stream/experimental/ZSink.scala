@@ -618,7 +618,7 @@ object ZSink {
   def dropWhileM[R, InErr, In](p: In => ZIO[R, InErr, Boolean]): ZSink[R, InErr, In, InErr, In, Any] = {
     lazy val loop: ZChannel[R, InErr, Chunk[In], Any, InErr, Chunk[In], Any] = ZChannel.readWith(
       (in: Chunk[In]) =>
-        ZChannel.unwrap(in.dropWhileM(p).map { leftover =>
+        ZChannel.unwrap(in.dropWhileZIO(p).map { leftover =>
           val more = leftover.isEmpty
           if (more) loop else ZChannel.write(leftover) *> ZChannel.identity[InErr, Chunk[In], Any]
         }),
