@@ -616,7 +616,7 @@ lazy val docs = project.module
       "io.zipkin.reporter2"            % "zipkin-sender-okhttp3"         % "2.16.3",
       "dev.zio"                       %% "zio-interop-cats"              % "3.1.1.0",
       "dev.zio"                       %% "zio-interop-scalaz7x"          % "7.3.3.0",
-      "dev.zio"                       %% "zio-interop-reactivestreams"   % "1.3.5",
+      "dev.zio"                       %% "zio-interop-reactivestreams"   % "1.3.7",
       "dev.zio"                       %% "zio-interop-twitter"           % "20.10.0.0",
       "dev.zio"                       %% "zio-zmx"                       % "0.0.8",
       "dev.zio"                       %% "zio-query"                     % "0.2.10",
