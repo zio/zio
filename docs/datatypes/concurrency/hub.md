@@ -425,7 +425,7 @@ trait ZStream[-R, +E, +O] {
 }
 ```
 
-The `broadcast` operator generates the specified number of new streams and broadcasts each value from the original stream to each of the new streams. The `broadcast` dynamic operator returns a new `ZManaged` value that you can use to dynamically subscribe and unsubscribe to receive values broadcast from the original stream.
+The `broadcast` operator generates the specified number of new streams and broadcasts each value from the original stream to each of the new streams. The `broadcastDynamic` operator returns a new `ZManaged` value that you can use to dynamically subscribe and unsubscribe to receive values broadcast from the original stream.
 
 You don't have to do anything with `ZHub` to take advantage of these operators other than enjoy their optimized implementation in terms of `ZHub`.
 
