@@ -25,7 +25,7 @@ object ClockSpecJVM extends ZIOBaseSpec {
         @@ TestAspect.flaky
         // This test should only run on JRE >= 9, which is when microsecond precision was introduced.
         // Versions of JREs < 9 started with s"1.${majorVersion}", then with JEP 223 they switched to semantic versioning.
-        @@ TestAspect.ifProp("java.version", not(startsWithString("1."))),
+        @@ TestAspect.ifProp("java.version")(!_.startsWith("1.")),
       test("currentTime has correct time") {
         val unit = TimeUnit.MICROSECONDS
         for {
