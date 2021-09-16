@@ -17,14 +17,7 @@ jobs:
       - name: Setup Scala and Java
         uses: olafurpg/setup-scala@v13
       - run: |
-          ./scripts/prepareSite.sh ${{ github.ref }}
-      - name: Build the site 
-        run: |
-          ./sbt docs/unidoc docs/mdoc
-          cd website 
-          yarn install 
-          yarn build 
-          cd ..
+          ./scripts/createSite.sh ${{ github.ref }}
       - name: Deploy Site
         uses: peaceiris/actions-gh-pages@v3
         with:

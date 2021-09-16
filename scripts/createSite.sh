@@ -22,6 +22,7 @@ sbt docs/unidoc docs/mdoc
 cd website 
 rm -Rf node_modules
 yarn install 
+yarn build 
 
 cd $OLDDIR
 
