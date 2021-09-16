@@ -18,8 +18,15 @@ jobs:
         uses: olafurpg/setup-scala@v13
       - run: |
           ./scripts/prepareSite.sh ${{ github.ref }}
-      - name: Publish Github pages
+      - name: Build the site 
         run: |
-          ./sbt docs/docusaurusPublishGhpages
-        env:
-          GIT_DEPLOY_KEY: ${{ secrets.GIT_DEPLOY_KEY }}
+          ./sbt docs/unidoc docs/mdoc
+          cd website 
+          yarn install 
+          yarn build 
+          cd ..
+      - name: Deploy Site
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./website/build
