@@ -17,7 +17,6 @@
 package zio.test
 
 import zio._
-import zio.test.Assertion.{equalTo, hasMessage, isCase, isSubtype}
 import zio.test.environment.{Live, Restorable, TestClock, TestConsole, TestRandom, TestSystem}
 
 import java.util.concurrent.atomic.AtomicReference
@@ -331,20 +330,20 @@ object TestAspect extends TimeoutVariants {
    * the test passes this aspect will make it fail.
    */
   val failing: TestAspectPoly =
-    failing(Assertion.anything)
+    failing(_ => true)
 
   /**
    * An aspect that makes a test that failed for the specified failure pass.
    * Note that the test will fail for other failures and also if it passes
    * correctly.
    */
-  def failing[E0](assertion: Assertion[TestFailure[E0]]): TestAspect[Nothing, Any, Nothing, E0] =
+  def failing[E0](assertion: TestFailure[E0] => Boolean): TestAspect[Nothing, Any, Nothing, E0] =
     new TestAspect.PerTest[Nothing, Any, Nothing, E0] {
       def perTest[R, E <: E0](test: ZIO[R, TestFailure[E], TestSuccess]): ZIO[R, TestFailure[E], TestSuccess] =
         test.foldZIO(
           failure =>
-            if (assertion.test(failure)) ZIO.succeedNow(TestSuccess.Succeeded(BoolAlgebra.unit))
-            else ZIO.fail(TestFailure.assertion(assertImpl(failure)(assertion))),
+            if (assertion(failure)) ZIO.succeedNow(TestSuccess.Succeeded(BoolAlgebra.unit))
+            else ZIO.fail(TestFailure.die(new RuntimeException("did not fail as expected"))),
           _ => ZIO.fail(TestFailure.die(new RuntimeException("did not fail as expected")))
         )
     }
@@ -422,10 +421,10 @@ object TestAspect extends TimeoutVariants {
    * An aspect that only runs a test if the specified environment variable
    * satisfies the specified assertion.
    */
-  def ifEnv(env: String, assertion: Assertion[String]): TestAspectAtLeastR[Has[Live] with Has[Annotations]] =
+  def ifEnv(env: String)(assertion: String => Boolean): TestAspectAtLeastR[Has[Live] with Has[Annotations]] =
     new TestAspectAtLeastR[Has[Live] with Has[Annotations]] {
       def some[R <: Has[Live] with Has[Annotations], E](spec: ZSpec[R, E]): ZSpec[R, E] =
-        spec.whenZIO(Live.live(System.env(env)).orDie.map(_.fold(false)(assertion.test)))
+        spec.whenZIO(Live.live(System.env(env)).orDie.map(_.fold(false)(assertion)))
     }
 
   /**
@@ -433,23 +432,23 @@ object TestAspect extends TimeoutVariants {
    * set.
    */
   def ifEnvSet(env: String): TestAspectAtLeastR[Has[Live] with Has[Annotations]] =
-    ifEnv(env, Assertion.anything)
+    ifEnv(env)(_ => true)
 
   /**
    * An aspect that only runs a test if the specified Java property satisfies
    * the specified assertion.
    */
-  def ifProp(prop: String, assertion: Assertion[String]): TestAspectAtLeastR[Has[Live] with Has[Annotations]] =
+  def ifProp(prop: String)(assertion: String => Boolean): TestAspectAtLeastR[Has[Live] with Has[Annotations]] =
     new TestAspectAtLeastR[Has[Live] with Has[Annotations]] {
       def some[R <: Has[Live] with Has[Annotations], E](spec: ZSpec[R, E]): ZSpec[R, E] =
-        spec.whenZIO(Live.live(System.property(prop)).orDie.map(_.fold(false)(assertion.test)))
+        spec.whenZIO(Live.live(System.property(prop)).orDie.map(_.fold(false)(assertion)))
     }
 
   /**
    * As aspect that only runs a test if the specified Java property is set.
    */
   def ifPropSet(prop: String): TestAspectAtLeastR[Has[Live] with Has[Annotations]] =
-    ifProp(prop, Assertion.anything)
+    ifProp(prop)(_ => true)
 
   /**
    * An aspect that applies the specified aspect on ScalaJS.
@@ -540,16 +539,14 @@ object TestAspect extends TimeoutVariants {
    */
   def nonTermination(duration: Duration): TestAspectAtLeastR[Has[Live]] =
     timeout(duration) >>>
-      failing(
-        isCase[TestFailure[Any], Throwable](
-          "Runtime",
-          {
-            case TestFailure.Runtime(cause) => cause.dieOption
-            case _                          => None
-          },
-          isSubtype[TestTimeoutException](hasMessage(equalTo(s"Timeout of ${duration.render} exceeded.")))
-        )
-      )
+      failing {
+        case TestFailure.Assertion(_) => false
+        case TestFailure.Runtime(cause) =>
+          cause.dieOption match {
+            case Some(t) => t.getMessage == s"Timeout of ${duration.render} exceeded."
+            case None    => false
+          }
+      }
 
   /**
    * Sets the seed of the `TestRandom` instance in the environment to a random
