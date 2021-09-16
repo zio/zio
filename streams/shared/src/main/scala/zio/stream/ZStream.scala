@@ -4575,7 +4575,56 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       apply(ZIO.succeedNow(Chunk(a)))
   }
 
+  /**
+   * Provides extension methods for streams that are sorted by distinct keys.
+   */
   implicit final class SortedByKey[R, E, K, A](private val self: ZStream[R, E, (K, A)]) {
+
+    /**
+     * Zips this stream that is sorted by distinct keys and the specified
+     * stream that is sorted by distinct keys to produce a new stream that is
+     * sorted by distinct keys. Combines values associated with each key into a
+     * tuple, using the specified values `defaultLeft` and `defaultRight` to
+     * fill in missing values.
+     *
+     * This allows zipping potentially unbounded streams of data by key in
+     * constant space but the caller is responsible for ensuring that the
+     * streams are sorted by distinct keys.
+     */
+    final def zipAllSortedByKey[R1 <: R, E1 >: E, B](
+      that: ZStream[R1, E1, (K, B)]
+    )(defaultLeft: A, defaultRight: B)(implicit ord: Ordering[K]): ZStream[R1, E1, (K, (A, B))] =
+      zipAllSortedByKeyWith(that)((_, defaultRight), (defaultLeft, _))((_, _))
+
+    /**
+     * Zips this stream that is sorted by distinct keys and the specified
+     * stream that is sorted by distinct keys to produce a new stream that is
+     * sorted by distinct keys. Keeps only values from this stream, using the
+     * specified value `default` to fill in missing values.
+     *
+     * This allows zipping potentially unbounded streams of data by key in
+     * constant space but the caller is responsible for ensuring that the
+     * streams are sorted by distinct keys.
+     */
+    final def zipAllSortedByKeyLeft[R1 <: R, E1 >: E, B](
+      that: ZStream[R1, E1, (K, B)]
+    )(default: A)(implicit ord: Ordering[K]): ZStream[R1, E1, (K, A)] =
+      zipAllSortedByKeyWith(that)(identity, _ => default)((a, _) => a)
+
+    /**
+     * Zips this stream that is sorted by distinct keys and the specified
+     * stream that is sorted by distinct keys to produce a new stream that is
+     * sorted by distinct keys. Keeps only values from that stream, using the
+     * specified value `default` to fill in missing values.
+     *
+     * This allows zipping potentially unbounded streams of data by key in
+     * constant space but the caller is responsible for ensuring that the
+     * streams are sorted by distinct keys.
+     */
+    final def zipAllSortedByKeyRight[R1 <: R, E1 >: E, B](
+      that: ZStream[R1, E1, (K, B)]
+    )(default: B)(implicit ord: Ordering[K]): ZStream[R1, E1, (K, B)] =
+      zipAllSortedByKeyWith(that)(_ => default, identity)((_, b) => b)
 
     /**
      * Zips this stream that is sorted by distinct keys and the specified
@@ -4592,7 +4641,26 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       that: ZStream[R1, E1, (K, B)]
     )(left: A => C, right: B => C)(
       both: (A, B) => C
-    )(implicit ord: Ordering[K]): ZStream[R1, E1, (K, C)] = {
+    )(implicit ord: Ordering[K]): ZStream[R1, E1, (K, C)] =
+      zipAllSortedByKeyWithExec(that)(ExecutionStrategy.Parallel)(left, right)(both)
+
+    /**
+     * Zips this stream that is sorted by distinct keys and the specified
+     * stream that is sorted by distinct keys to produce a new stream that is
+     * sorted by distinct keys. Uses the functions `left`, `right`, and `both`
+     * to handle the cases where a key and value exist in this stream, that
+     * stream, or both streams.
+     *
+     * This allows zipping potentially unbounded streams of data by key in
+     * constant space but the caller is responsible for ensuring that the
+     * streams are sorted by distinct keys.
+     *
+     * The execution strategy `exec` will be used to determine whether to pull
+     * from the streams sequentially or in parallel.
+     */
+    final def zipAllSortedByKeyWithExec[R1 <: R, E1 >: E, B, C](that: ZStream[R1, E1, (K, B)])(
+      exec: ExecutionStrategy
+    )(left: A => C, right: B => C)(both: (A, B) => C)(implicit ord: Ordering[K]): ZStream[R1, E1, (K, C)] = {
 
       sealed trait State
       case object DrainLeft                                extends State
@@ -4618,22 +4686,35 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
               rightChunk => Exit.succeed(rightChunk.map { case (k, b) => (k, right(b)) } -> DrainRight)
             )
           case PullBoth =>
-            pullLeft.optional
-              .zipPar(pullRight.optional)
-              .foldM(
-                e => ZIO.succeedNow(Exit.fail(Some(e))),
-                {
-                  case (Some(leftChunk), Some(rightChunk)) =>
-                    ZIO.succeedNow(Exit.succeed(mergeSortedByKeyChunk(leftChunk, rightChunk)))
-                  case (Some(leftChunk), None) =>
-                    if (leftChunk.isEmpty) pull(DrainLeft, pullLeft, pullRight)
-                    else ZIO.succeedNow(Exit.succeed(leftChunk.map { case (k, a) => (k, left(a)) } -> DrainLeft))
-                  case (None, Some(rightChunk)) =>
-                    if (rightChunk.isEmpty) pull(DrainRight, pullLeft, pullRight)
-                    else ZIO.succeedNow(Exit.succeed(rightChunk.map { case (k, b) => (k, right(b)) } -> DrainRight))
-                  case (None, None) => ZIO.succeedNow(Exit.fail(None))
-                }
-              )
+            exec match {
+              case ExecutionStrategy.Sequential =>
+                pullLeft.foldM(
+                  {
+                    case Some(e) => ZIO.succeedNow(Exit.fail(Some(e)))
+                    case None    => pull(DrainRight, pullLeft, pullRight)
+                  },
+                  leftChunk =>
+                    if (leftChunk.isEmpty) pull(PullBoth, pullLeft, pullRight)
+                    else pull(PullRight(leftChunk), pullLeft, pullRight)
+                )
+              case _ =>
+                pullLeft.optional
+                  .zipPar(pullRight.optional)
+                  .foldM(
+                    e => ZIO.succeedNow(Exit.fail(Some(e))),
+                    {
+                      case (Some(leftChunk), Some(rightChunk)) =>
+                        ZIO.succeedNow(Exit.succeed(mergeSortedByKeyChunk(leftChunk, rightChunk)))
+                      case (Some(leftChunk), None) =>
+                        if (leftChunk.isEmpty) pull(DrainLeft, pullLeft, pullRight)
+                        else ZIO.succeedNow(Exit.succeed(leftChunk.map { case (k, a) => (k, left(a)) } -> DrainLeft))
+                      case (None, Some(rightChunk)) =>
+                        if (rightChunk.isEmpty) pull(DrainRight, pullLeft, pullRight)
+                        else ZIO.succeedNow(Exit.succeed(rightChunk.map { case (k, b) => (k, right(b)) } -> DrainRight))
+                      case (None, None) => ZIO.succeedNow(Exit.fail(None))
+                    }
+                  )
+            }
           case PullLeft(rightChunk) =>
             pullLeft.foldM(
               {
