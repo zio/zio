@@ -876,7 +876,7 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
               if (curr eq null) exit = TExit.Die(t)
 
             case ZSTM.InterruptException(fiberId) =>
-              TExit.Interrupt(fiberId)
+              exit = TExit.Interrupt(fiberId)
           }
 
         case Tags.OnSuccess =>

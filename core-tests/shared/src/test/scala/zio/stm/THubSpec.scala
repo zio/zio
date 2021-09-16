@@ -263,13 +263,13 @@ object THubSpec extends ZIOBaseSpec {
           checkM(smallInt, Gen.listOf(smallInt)) { (n, as) =>
             for {
               promise <- Promise.make[Nothing, Unit]
-              hub     <- Hub.sliding[Int](n)
+              hub     <- THub.sliding[Int](n).commit
               subscriber <-
-                hub.subscribe.use { subscription =>
-                  promise.succeed(()) *> ZIO.foreach(as.take(n))(_ => subscription.take)
+                hub.subscribeManaged.use { subscription =>
+                  promise.succeed(()) *> ZIO.foreach(as.take(n))(_ => subscription.take.commit)
                 }.fork
               _         <- promise.await
-              publisher <- ZIO.foreach(as.sorted)(hub.publish).fork
+              publisher <- ZIO.foreach(as.sorted)(a => hub.publish(a).commit).fork
               _         <- publisher.join
               values    <- subscriber.join
             } yield assert(values)(isSorted)
@@ -280,18 +280,18 @@ object THubSpec extends ZIOBaseSpec {
             for {
               promise1 <- Promise.make[Nothing, Unit]
               promise2 <- Promise.make[Nothing, Unit]
-              hub      <- Hub.sliding[Int](n)
+              hub      <- THub.sliding[Int](n).commit
               subscriber1 <-
-                hub.subscribe.use { subscription =>
-                  promise1.succeed(()) *> ZIO.foreach(as.take(n))(_ => subscription.take)
+                hub.subscribeManaged.use { subscription =>
+                  promise1.succeed(()) *> ZIO.foreach(as.take(n))(_ => subscription.take.commit)
                 }.fork
               subscriber2 <-
-                hub.subscribe.use { subscription =>
-                  promise2.succeed(()) *> ZIO.foreach(as.take(n))(_ => subscription.take)
+                hub.subscribeManaged.use { subscription =>
+                  promise2.succeed(()) *> ZIO.foreach(as.take(n))(_ => subscription.take.commit)
                 }.fork
               _       <- promise1.await
               _       <- promise2.await
-              _       <- ZIO.foreach(as.sorted)(hub.publish).fork
+              _       <- ZIO.foreach(as.sorted)(a => hub.publish(a).commit).fork
               values1 <- subscriber1.join
               values2 <- subscriber2.join
             } yield assert(values1)(isSorted) &&
@@ -303,19 +303,19 @@ object THubSpec extends ZIOBaseSpec {
             for {
               promise1 <- Promise.make[Nothing, Unit]
               promise2 <- Promise.make[Nothing, Unit]
-              hub      <- Hub.sliding[Int](n * 2)
+              hub      <- THub.sliding[Int](n * 2).commit
               subscriber1 <-
-                hub.subscribe.use { subscription =>
-                  promise1.succeed(()) *> ZIO.foreach((as ::: as).take(n * 2))(_ => subscription.take)
+                hub.subscribeManaged.use { subscription =>
+                  promise1.succeed(()) *> ZIO.foreach((as ::: as).take(n * 2))(_ => subscription.take.commit)
                 }.fork
               subscriber2 <-
-                hub.subscribe.use { subscription =>
-                  promise2.succeed(()) *> ZIO.foreach((as ::: as).take(n * 2))(_ => subscription.take)
+                hub.subscribeManaged.use { subscription =>
+                  promise2.succeed(()) *> ZIO.foreach((as ::: as).take(n * 2))(_ => subscription.take.commit)
                 }.fork
               _       <- promise1.await
               _       <- promise2.await
-              _       <- ZIO.foreach(as.sorted)(hub.publish).fork
-              _       <- ZIO.foreach(as.map(-_).sorted)(hub.publish).fork
+              _       <- ZIO.foreach(as.sorted)(a => hub.publish(a).commit).fork
+              _       <- ZIO.foreach(as.map(-_).sorted)(a => hub.publish(a).commit).fork
               values1 <- subscriber1.join
               values2 <- subscriber2.join
             } yield assert(values1.filter(_ > 0))(isSorted) &&

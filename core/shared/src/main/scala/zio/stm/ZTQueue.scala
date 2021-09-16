@@ -244,7 +244,8 @@ trait ZTQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { self =>
     mapSTM(b => ZSTM.succeedNow(f(b)))
 
   /**
-   * Transforms values taken from the queue using the specified transactional function.
+   * Transforms values taken from the queue using the specified transactional
+   * function.
    */
   final def mapSTM[RC <: RB, EC >: EB, C](f: B => ZSTM[RC, EC, C]): ZTQueue[RA, RC, EA, EC, A, C] =
     dimapSTM(ZSTM.succeedNow, f)
@@ -263,6 +264,42 @@ trait ZTQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { self =>
    */
   final def seek(f: B => Boolean): ZSTM[RB, EB, B] =
     take.flatMap(b => if (f(b)) ZSTM.succeedNow(b) else seek(f))
+
+  /**
+   * Takes a number of elements from the queue between the specified minimum
+   * and maximum. If there are fewer than the minimum number of elements
+   * available, retries until at least the minimum number of elements have been
+   * collected.
+   */
+  final def takeBetween(min: Int, max: Int): ZSTM[RB, EB, Chunk[B]] =
+    ZSTM.suspend {
+
+      def takeRemainder(min: Int, max: Int, acc: Chunk[B]): ZSTM[RB, EB, Chunk[B]] =
+        if (max < min) ZSTM.succeedNow(acc)
+        else
+          takeUpTo(max).flatMap { bs =>
+            val remaining = min - bs.length
+            if (remaining == 1)
+              take.map(b => acc ++ bs :+ b)
+            else if (remaining > 1) {
+              take.flatMap { b =>
+                takeRemainder(remaining - 1, max - bs.length - 1, acc ++ bs :+ b)
+
+              }
+            } else
+              ZSTM.succeedNow(acc ++ bs)
+          }
+
+      takeRemainder(min, max, Chunk.empty)
+    }
+
+  /**
+   * Takes the specified number of elements from the queue. If there are fewer
+   * than the specified number of elements available, it retries until they
+   * become available.
+   */
+  final def takeN(n: Int): ZSTM[RB, EB, Chunk[B]] =
+    takeBetween(n, n)
 }
 
 object ZTQueue {

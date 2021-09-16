@@ -36,7 +36,7 @@ package object stm extends EitherCompat {
   type TDequeue[+A]          = ZTQueue[Nothing, Any, Any, Nothing, Nothing, A]
 
   /**
-   * A queue that can only be enqueued.
+   * A transactional queue that can only be enqueued.
    */
   type ZTEnqueue[-R, +E, -A] = ZTQueue[R, Nothing, E, Any, A, Any]
   type TEnqueue[-A]          = ZTQueue[Any, Nothing, Nothing, Any, A, Any]
