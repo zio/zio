@@ -2528,51 +2528,51 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   final def provideSomeLayer[R0]: ZStream.ProvideSomeLayer[R0, R, E, O] =
     new ZStream.ProvideSomeLayer[R0, R, E, O](self)
 
-      /**
-     * Re-chunks the elements of the stream into chunks of
-     * `n` elements each.
-     * The last chunk might contain less than `n` elements
-     */
-    def rechunk(n: Int): ZStream[R, E, O] = {
-      case class State[X](buffer: Chunk[X], done: Boolean)
+  /**
+   * Re-chunks the elements of the stream into chunks of
+   * `n` elements each.
+   * The last chunk might contain less than `n` elements
+   */
+  def rechunk(n: Int): ZStream[R, E, O] = {
+    case class State[X](buffer: Chunk[X], done: Boolean)
 
-      def emitOrAccumulate(
-        buffer: Chunk[O],
-        done: Boolean,
-        ref: Ref[State[O]],
-        pull: ZIO[R, Option[E], Chunk[O]]
-      ): ZIO[R, Option[E], Chunk[O]] =
-        if (buffer.size < n) {
-          if (done) {
-            if (buffer.isEmpty)
-              Pull.end
-            else
-              ref.set(State(Chunk.empty, true)) *> Pull.emit(buffer)
-          } else
-            pull.foldZIO(
-              {
-                case Some(e) => Pull.fail(e)
-                case None    => emitOrAccumulate(buffer, true, ref, pull)
-              },
-              ch => emitOrAccumulate(buffer ++ ch, false, ref, pull)
-            )
-        } else {
-          val (chunk, leftover) = buffer.splitAt(n)
-          ref.set(State(leftover, done)) *> Pull.emit(chunk)
-        }
+    def emitOrAccumulate(
+      buffer: Chunk[O],
+      done: Boolean,
+      ref: Ref[State[O]],
+      pull: ZIO[R, Option[E], Chunk[O]]
+    ): ZIO[R, Option[E], Chunk[O]] =
+      if (buffer.size < n) {
+        if (done) {
+          if (buffer.isEmpty)
+            Pull.end
+          else
+            ref.set(State(Chunk.empty, true)) *> Pull.emit(buffer)
+        } else
+          pull.foldZIO(
+            {
+              case Some(e) => Pull.fail(e)
+              case None    => emitOrAccumulate(buffer, true, ref, pull)
+            },
+            ch => emitOrAccumulate(buffer ++ ch, false, ref, pull)
+          )
+      } else {
+        val (chunk, leftover) = buffer.splitAt(n)
+        ref.set(State(leftover, done)) *> Pull.emit(chunk)
+      }
 
-      if (n < 1)
-        ZStream.failCause(Cause.die(new IllegalArgumentException("rechunk: n must be at least 1")))
-      else
-        ZStream {
-          for {
-            ref <- ZRef.make[State[O]](State(Chunk.empty, false)).toManaged
-            p   <- self.process
-            pull = ref.get.flatMap(s => emitOrAccumulate(s.buffer, s.done, ref, p))
-          } yield pull
+    if (n < 1)
+      ZStream.failCause(Cause.die(new IllegalArgumentException("rechunk: n must be at least 1")))
+    else
+      ZStream {
+        for {
+          ref <- ZRef.make[State[O]](State(Chunk.empty, false)).toManaged
+          p   <- self.process
+          pull = ref.get.flatMap(s => emitOrAccumulate(s.buffer, s.done, ref, p))
+        } yield pull
 
-        }
-    }
+      }
+  }
 
   /**
    * Keeps some of the errors, and terminates the fiber with the rest
