@@ -1016,7 +1016,7 @@ val s1 = ZStream(1, 2, 3)
 
 val s2 = ZStream("a", "b", "c", "d")
   .schedule(Schedule.spaced(500.milliseconds))
-  .chunkN(3)
+  .rechunk(3)
 
 s1.zipWithLatest(s2)((a, b) => (a, b))
 
@@ -1296,8 +1296,8 @@ Sometimes we need to interleave the emission of two streams and create another s
 The `ZSstream#merge` picks elements randomly from specified streams:
 
 ```scala mdoc:silent:nest
-val s1 = ZStream(1, 2, 3).chunkN(1)
-val s2 = ZStream(4, 5, 6).chunkN(1)
+val s1 = ZStream(1, 2, 3).rechunk(1)
+val s2 = ZStream(4, 5, 6).rechunk(1)
 
 val merged = s1 merge s2
 // As the merge operation is not deterministic, it may output the following stream of numbers:
@@ -1321,8 +1321,8 @@ Here is an example of specifying termination strategy when merging two streams:
 
 ```scala mdoc:silent:nest
 import zio.stream.ZStream.TerminationStrategy
-val s1 = ZStream.iterate(1)(_+1).take(5).chunkN(1)
-val s2 = ZStream.repeat(0).chunkN(1)
+val s1 = ZStream.iterate(1)(_+1).take(5).rechunk(1)
+val s2 = ZStream.repeat(0).rechunk(1)
 
 val merged = s1.merge(s2, TerminationStrategy.Left)
 ```
@@ -1514,7 +1514,7 @@ In the following example, we are going to buffer a stream. We print each element
 ```scala mdoc:silent:nest
 ZStream
   .fromIterable(1 to 10)
-  .chunkN(1)
+  .rechunk(1)
   .tap(x => Console.printLine(s"before buffering: $x"))
   .buffer(4)
   .tap(x => Console.printLine(s"after buffering: $x"))

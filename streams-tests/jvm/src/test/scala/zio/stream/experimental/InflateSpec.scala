@@ -25,7 +25,7 @@ object InflateSpec extends DefaultRunnableSpec {
       ),
       test("stream of two deflated inputs as a single chunk")(
         assertM(
-          ((deflatedStream(shortText) ++ deflatedStream(otherShortText)).chunkN(500).channel >>> makeInflater(
+          ((deflatedStream(shortText) ++ deflatedStream(otherShortText)).rechunk(500).channel >>> makeInflater(
             64
           )).runCollect.map(_._1.flatten)
         )(equalTo(Chunk.fromArray(shortText) ++ Chunk.fromArray(otherShortText)))
@@ -37,12 +37,12 @@ object InflateSpec extends DefaultRunnableSpec {
       ),
       test("long input, buffer smaller than chunks")(
         assertM(
-          (deflatedStream(longText).chunkN(500).channel >>> makeInflater(1)).runCollect.map(_._1.flatten)
+          (deflatedStream(longText).rechunk(500).channel >>> makeInflater(1)).runCollect.map(_._1.flatten)
         )(equalTo(Chunk.fromArray(longText)))
       ),
       test("long input, chunks smaller then buffer")(
         assertM(
-          (deflatedStream(longText).chunkN(1).channel >>> makeInflater(500)).runCollect.map(_._1.flatten)
+          (deflatedStream(longText).rechunk(1).channel >>> makeInflater(500)).runCollect.map(_._1.flatten)
         )(equalTo(Chunk.fromArray(longText)))
       ),
       test("long input, not wrapped in ZLIB header and trailer")(
@@ -60,7 +60,7 @@ object InflateSpec extends DefaultRunnableSpec {
           case (chunk, n, bufferSize) =>
             assertM(for {
               deflated <- ZIO.succeed(deflatedStream(chunk.toArray))
-              out      <- (deflated.chunkN(n).channel >>> makeInflater(bufferSize)).runCollect.map(_._1.flatten)
+              out      <- (deflated.rechunk(n).channel >>> makeInflater(bufferSize)).runCollect.map(_._1.flatten)
             } yield out.toList)(equalTo(chunk))
         }
       ),
@@ -69,7 +69,7 @@ object InflateSpec extends DefaultRunnableSpec {
           case (chunk, n, bufferSize) =>
             assertM(for {
               deflated <- ZIO.succeed(noWrapDeflatedStream(chunk.toArray))
-              out      <- (deflated.chunkN(n).channel >>> makeInflater(bufferSize, true)).runCollect.map(_._1.flatten)
+              out      <- (deflated.rechunk(n).channel >>> makeInflater(bufferSize, true)).runCollect.map(_._1.flatten)
             } yield out.toList)(equalTo(chunk))
         }
       ),
@@ -78,7 +78,7 @@ object InflateSpec extends DefaultRunnableSpec {
         assertM(for {
           input    <- ZIO.succeed(inflateRandomExampleThatFailed)
           deflated <- ZIO.succeed(noWrapDeflatedStream(input))
-          out      <- (deflated.chunkN(40).channel >>> makeInflater(11, true)).runCollect.map(_._1.flatten)
+          out      <- (deflated.rechunk(40).channel >>> makeInflater(11, true)).runCollect.map(_._1.flatten)
         } yield out.toList)(equalTo(inflateRandomExampleThatFailed.toList))
       ),
       test("fail if input stream finished unexpected")(

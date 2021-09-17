@@ -518,10 +518,10 @@ object ZStreamSpec extends ZIOBaseSpec {
               latch4 <- Promise.make[Nothing, Unit]
               s1 = ZStream(0) ++ ZStream
                      .fromZIO(latch1.await)
-                     .flatMap(_ => ZStream.range(1, 17).chunkN(1).ensuring(latch2.succeed(())))
+                     .flatMap(_ => ZStream.range(1, 17).rechunk(1).ensuring(latch2.succeed(())))
               s2 = ZStream
                      .fromZIO(latch3.await)
-                     .flatMap(_ => ZStream.range(17, 25).chunkN(1).ensuring(latch4.succeed(())))
+                     .flatMap(_ => ZStream.range(17, 25).rechunk(1).ensuring(latch4.succeed(())))
               s = (s1 ++ s2).bufferChunksDropping(8)
               snapshots <- s.toPull.use { as =>
                              for {
@@ -563,10 +563,10 @@ object ZStreamSpec extends ZIOBaseSpec {
               latch4 <- Promise.make[Nothing, Unit]
               s1 = ZStream(0) ++ ZStream
                      .fromZIO(latch1.await)
-                     .flatMap(_ => ZStream.range(1, 17).chunkN(1).ensuring(latch2.succeed(())))
+                     .flatMap(_ => ZStream.range(1, 17).rechunk(1).ensuring(latch2.succeed(())))
               s2 = ZStream
                      .fromZIO(latch3.await)
-                     .flatMap(_ => ZStream.range(17, 25).chunkN(1).ensuring(latch4.succeed(())))
+                     .flatMap(_ => ZStream.range(17, 25).rechunk(1).ensuring(latch4.succeed(())))
               s = (s1 ++ s2).bufferChunksSliding(8)
               snapshots <- s.toPull.use { as =>
                              for {
@@ -3154,7 +3154,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           test("`available` returns the size of chunk's leftover") {
             ZStream
               .fromIterable((1 to 10).map(_.toByte))
-              .chunkN(3)
+              .rechunk(3)
               .toInputStream
               .use[Any, Throwable, TestResult](is =>
                 ZIO.attempt {
@@ -3626,13 +3626,13 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assert(result)(fails(equalTo("fail")))
           }
         ),
-        test("chunkN") {
+        test("rechunk") {
           checkM(tinyChunkOf(Gen.chunkOf(Gen.int)) <*> (Gen.int(1, 100))) { case (chunk, n) =>
             val expected = Chunk.fromIterable(chunk.flatten.grouped(n).toList)
             assertM(
               ZStream
                 .fromChunks(chunk: _*)
-                .chunkN(n)
+                .rechunk(n)
                 .mapChunks(ch => Chunk(ch))
                 .runCollect
             )(equalTo(expected))
