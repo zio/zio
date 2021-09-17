@@ -694,6 +694,13 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   }
 
   /**
+   * Exposes the underlying chunks of the stream as a stream of chunks of
+   * elements.
+   */
+  def chunks: ZStream[R, E, Chunk[O]] =
+    mapChunks(Chunk.single)
+
+  /**
    * Performs a filter and map in a single step.
    */
   def collect[O1](pf: PartialFunction[O, O1]): ZStream[R, E, O1] =
