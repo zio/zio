@@ -613,7 +613,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     }
 
   /**
-   * Exposes the underlying chunks of the stream as a stream of chunks of elements
+   * Exposes the underlying chunks of the stream as a stream of chunks of
+   * elements.
    */
   def chunks: ZStream[R, E, Chunk[A]] =
     mapChunks(Chunk.single)
