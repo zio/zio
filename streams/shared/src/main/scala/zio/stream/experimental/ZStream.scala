@@ -613,7 +613,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     }
 
   /**
-   * Exposes the underlying chunks of the stream as a stream of chunks of elements
+   * Exposes the underlying chunks of the stream as a stream of chunks of
+   * elements.
    */
   def chunks: ZStream[R, E, Chunk[A]] =
     mapChunks(Chunk.single)
@@ -3768,6 +3769,12 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    */
   def environment[R]: ZStream[R, Nothing, R] =
     fromZIO(ZIO.environment[R])
+
+  /**
+   * Creates a stream that executes the specified effect but emits no elements.
+   */
+  def execute[R, E](zio: ZIO[R, E, Any]): ZStream[R, E, Nothing] =
+    ZStream.fromZIO(zio).drain
 
   /**
    * The stream that always fails with the `error`

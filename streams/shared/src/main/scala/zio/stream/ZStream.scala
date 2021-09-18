@@ -694,6 +694,13 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   }
 
   /**
+   * Exposes the underlying chunks of the stream as a stream of chunks of
+   * elements.
+   */
+  def chunks: ZStream[R, E, Chunk[O]] =
+    mapChunks(Chunk.single)
+
+  /**
    * Performs a filter and map in a single step.
    */
   def collect[O1](pf: PartialFunction[O, O1]): ZStream[R, E, O1] =
@@ -3921,6 +3928,12 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    */
   def environment[R]: ZStream[R, Nothing, R] =
     fromZIO(ZIO.environment[R])
+
+  /**
+   * Creates a stream that executes the specified effect but emits no elements.
+   */
+  def execute[R, E](zio: ZIO[R, E, Any]): ZStream[R, E, Nothing] =
+    ZStream.fromZIO(zio).drain
 
   /**
    * The stream that always fails with the `error`
