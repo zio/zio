@@ -1062,6 +1062,18 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    */
   def timed: ZSink[Has[Clock], Nothing, Any, Nothing, Duration] = ZSink.drain.timed.map(_._2)
 
+  /**
+   * Creates a sink produced from an effect.
+   */
+  def unwrap[R, E, I, L <: I, Z](zio: ZIO[R, E, ZSink[R, E, I, L, Z]]): ZSink[R, E, I, I, Z] =
+    unwrapManaged(zio.toManaged)
+
+  /**
+   * Creates a sink produced from a managed effect.
+   */
+  def unwrapManaged[R, E, I, L <: I, Z](managed: ZManaged[R, E, ZSink[R, E, I, L, Z]]): ZSink[R, E, I, I, Z] =
+    ZSink(managed.fold[ZSink[R, E, I, I, Z]](err => ZSink.fail[E, I](err), identity).flatMap(_.push))
+
   final class AccessSinkPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[E, I, L, Z](f: R => ZSink[R, E, I, L, Z]): ZSink[R, E, I, L, Z] =
       ZSink {
