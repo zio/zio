@@ -17,9 +17,16 @@ jobs:
       - name: Setup Scala and Java
         uses: olafurpg/setup-scala@v13
       - run: |
-          ./scripts/prepareSite.sh ${{ github.ref }}
-      - name: Publish Github pages
-        run: |
-          ./sbt docs/docusaurusPublishGhpages
+          ./scripts/createSite.sh ${{ github.ref }}
+      - uses: webfactory/ssh-agent@v0.5.0
+        with:
+          ssh-private-key: ${{ secrets.microsite }}
+      - name: Release to GitHub Pages
         env:
-          GIT_DEPLOY_KEY: ${{ secrets.GIT_DEPLOY_KEY }}
+          USE_SSH: true
+          GIT_USER: git
+        run: |
+          cd website 
+          git config --global user.email "ci@ziverge.com"
+          git config --global user.name "GH Actions Site"
+          yarn deploy
