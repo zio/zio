@@ -104,6 +104,12 @@ object ChunkSpec extends ZIOBaseSpec {
       test("returns most specific type") {
         val seq = (zio.Chunk("foo"): Seq[String]) :+ "post1"
         assert(seq)(isSubtype[Chunk[String]](equalTo(Chunk("foo", "post1"))))
+      },
+      test("fails if the chunk does not contain the specified index") {
+        val chunk    = Chunk(1, 2, 3)
+        val appended = chunk :+ 4
+        val _        = chunk :+ 5
+        assert(appended(4))(throwsA[IndexOutOfBoundsException])
       }
     ),
     suite("prepend")(
@@ -154,6 +160,12 @@ object ChunkSpec extends ZIOBaseSpec {
       test("returns most specific type") {
         val seq = "pre1" +: (zio.Chunk("foo"): Seq[String])
         assert(seq)(isSubtype[Chunk[String]](equalTo(Chunk("pre1", "foo"))))
+      },
+      test("fails if the chunk does not contain the specified index") {
+        val chunk     = Chunk(1, 2, 3)
+        val prepended = 0 +: chunk
+        val _         = -1 +: chunk
+        assert(prepended(-1))(throwsA[IndexOutOfBoundsException])
       }
     ),
     test("apply") {
@@ -662,14 +674,20 @@ object ChunkSpec extends ZIOBaseSpec {
         assert(actual)(equalTo(expected))
       }
     ),
-    test("updated") {
-      check(Gen.chunkOfN(100)(Gen.int), Gen.listOf(Gen.int(0, 99)), Gen.listOf(Gen.int)) { (chunk, indices, values) =>
-        val actual =
-          indices.zip(values).foldLeft(chunk) { case (chunk, (index, value)) => chunk.updated(index, value) }
-        val expected =
-          indices.zip(values).foldLeft(chunk.toList) { case (chunk, (index, value)) => chunk.updated(index, value) }
-        assert(actual.toList)(equalTo(expected))
+    suite("updated")(
+      test("updates the chunk at the specified index") {
+        check(Gen.chunkOfN(100)(Gen.int), Gen.listOf(Gen.int(0, 99)), Gen.listOf(Gen.int)) { (chunk, indices, values) =>
+          val actual =
+            indices.zip(values).foldLeft(chunk) { case (chunk, (index, value)) => chunk.updated(index, value) }
+          val expected =
+            indices.zip(values).foldLeft(chunk.toList) { case (chunk, (index, value)) => chunk.updated(index, value) }
+          assert(actual.toList)(equalTo(expected))
+        }
+      },
+      test("fails if the chunk does not contain the specified index") {
+        val chunk = Chunk(1, 2, 3)
+        assert(chunk.updated(3, 4))(throwsA[IndexOutOfBoundsException])
       }
-    }
+    )
   )
 }
