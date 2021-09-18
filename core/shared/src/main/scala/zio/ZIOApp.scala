@@ -62,7 +62,7 @@ trait ZIOApp { self =>
   final def exit(code: ExitCode): UIO[Unit] =
     UIO {
       if (!shuttingDown) {
-        shuttingDownå = true
+        shuttingDown = true
         try Platform.exit(code.code)
         catch { case _: SecurityException => }
       }
