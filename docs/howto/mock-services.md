@@ -156,7 +156,7 @@ import ExampleMock._
 
 val compose: URLayer[Has[Proxy], Example] =
   ZIO.serviceWith[Proxy] { proxy =>
-    withRuntime.map { rts =>
+    withRuntime[Any].map { rts =>
       new Example.Service {
         val static                                 = proxy(Static)
         def zeroArgs                               = proxy(ZeroArgs)
@@ -437,7 +437,7 @@ object PolyExampleMock extends Mock[PolyExample] {
 
   val compose: URLayer[Has[Proxy], PolyExample] =
     ZIO.serviceWith[Proxy] { proxy =>
-      withRuntime.map { rts =>
+      withRuntime[Any].map { rts =>
         new PolyExample.Service {
           def polyInput[I: Tag](input: I)                     = proxy(PolyInput.of[I], input)
           def polyError[E: Tag](input: Int)                   = proxy(PolyError.of[E], input)

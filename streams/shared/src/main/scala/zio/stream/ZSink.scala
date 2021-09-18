@@ -25,7 +25,7 @@ import zio._
 //   ZIO.fail((Left(e), l)) - "failed with e and emit leftover l"
 // - Result of processing of the stream using the sink must not depend on how the stream is chunked
 //   (chunking-invariance)
-//   stream.run(sink).either === stream.chunkN(1).run(sink).either
+//   stream.run(sink).either === stream.rechunk(1).run(sink).either
 // - Sinks should always end when receiving a `None`. It is a defect to not end with some
 //   sort of result (even a failure) when receiving a `None`.
 // - Sinks can assume they will not be pushed again after emitting a value.
@@ -1063,7 +1063,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   def timed: ZSink[Has[Clock], Nothing, Any, Nothing, Duration] = ZSink.drain.timed.map(_._2)
 
   final class AccessSinkPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
-    def apply[E, I, L, Z](f: R => ZSink[R, E, I, L, Z]): ZSink[R, E, I, L, Z] =
+    def apply[R1 <: R, E, I, L, Z](f: R => ZSink[R1, E, I, L, Z]): ZSink[R with R1, E, I, L, Z] =
       ZSink {
         for {
           env  <- ZManaged.environment[R]

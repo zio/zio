@@ -874,6 +874,9 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
               curr = unwindStack(t, false)
 
               if (curr eq null) exit = TExit.Die(t)
+
+            case ZSTM.InterruptException(fiberId) =>
+              exit = TExit.Interrupt(fiberId)
           }
 
         case Tags.OnSuccess =>
@@ -1264,6 +1267,18 @@ object ZSTM {
     new ZSTM.IfSTM(b)
 
   /**
+   * Interrupts the fiber running the effect.
+   */
+  lazy val interrupt: USTM[Nothing] =
+    ZSTM.fiberId.flatMap(fiberId => interruptAs(fiberId))
+
+  /**
+   * Interrupts the fiber running the effect with the specified fiber id.
+   */
+  def interruptAs(fiberId: => FiberId): USTM[Nothing] =
+    Effect((_, _, _) => throw InterruptException(fiberId))
+
+  /**
    * Iterates with the specified transactional function. The moral equivalent
    * of:
    *
@@ -1641,7 +1656,7 @@ object ZSTM {
   }
 
   final class AccessSTMPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
-    def apply[E, A](f: R => ZSTM[R, E, A]): ZSTM[R, E, A] =
+    def apply[R1 <: R, E, A](f: R => ZSTM[R1, E, A]): ZSTM[R with R1, E, A] =
       ZSTM.environment.flatMap(f)
   }
 
@@ -1653,7 +1668,9 @@ object ZSTM {
   }
 
   final class ServiceWithPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
-    def apply[E, A](f: Service => ZSTM[Has[Service], E, A])(implicit tag: Tag[Service]): ZSTM[Has[Service], E, A] =
+    def apply[R <: Has[Service], E, A](f: Service => ZSTM[R, E, A])(implicit
+      tag: Tag[Service]
+    ): ZSTM[R with Has[Service], E, A] =
       ZSTM.service[Service].flatMap(f)
   }
 
@@ -1687,6 +1704,8 @@ object ZSTM {
   private[stm] final case class FailException[E](e: E) extends Throwable(null, null, false, false)
 
   private[stm] final case class DieException(t: Throwable) extends Throwable(null, null, false, false)
+
+  private[stm] final case class InterruptException(fiberId: FiberId) extends Throwable(null, null, false, false)
 
   private[stm] case object RetryException extends Throwable(null, null, false, false)
 
@@ -1987,10 +2006,11 @@ object ZSTM {
       }
 
       value match {
-        case TExit.Succeed(a) => completeTodos(Exit.succeed(a), journal, runtimeConfig)
-        case TExit.Fail(e)    => completeTodos(Exit.fail(e), journal, runtimeConfig)
-        case TExit.Die(t)     => completeTodos(Exit.die(t), journal, runtimeConfig)
-        case TExit.Retry      => TryCommit.Suspend(journal)
+        case TExit.Succeed(a)         => completeTodos(Exit.succeed(a), journal, runtimeConfig)
+        case TExit.Fail(e)            => completeTodos(Exit.fail(e), journal, runtimeConfig)
+        case TExit.Die(t)             => completeTodos(Exit.die(t), journal, runtimeConfig)
+        case TExit.Interrupt(fiberId) => completeTodos(Exit.interrupt(fiberId), journal, runtimeConfig)
+        case TExit.Retry              => TryCommit.Suspend(journal)
       }
     }
 
@@ -2105,10 +2125,11 @@ object ZSTM {
       }
 
       value match {
-        case TExit.Succeed(a) => completeTodos(Exit.succeed(a), journal, runtimeConfig)
-        case TExit.Fail(e)    => completeTodos(Exit.fail(e), journal, runtimeConfig)
-        case TExit.Die(t)     => completeTodos(Exit.die(t), journal, runtimeConfig)
-        case TExit.Retry      => TryCommit.Suspend(journal)
+        case TExit.Succeed(a)         => completeTodos(Exit.succeed(a), journal, runtimeConfig)
+        case TExit.Fail(e)            => completeTodos(Exit.fail(e), journal, runtimeConfig)
+        case TExit.Die(t)             => completeTodos(Exit.die(t), journal, runtimeConfig)
+        case TExit.Interrupt(fiberId) => completeTodos(Exit.interrupt(fiberId), journal, runtimeConfig)
+        case TExit.Retry              => TryCommit.Suspend(journal)
       }
     }
 
@@ -2122,10 +2143,11 @@ object ZSTM {
     object TExit {
       val unit: TExit[Nothing, Unit] = Succeed(())
 
-      final case class Fail[+A](value: A)    extends TExit[A, Nothing]
-      final case class Die(error: Throwable) extends TExit[Nothing, Nothing]
-      final case class Succeed[+B](value: B) extends TExit[Nothing, B]
-      case object Retry                      extends TExit[Nothing, Nothing]
+      final case class Fail[+A](value: A)          extends TExit[A, Nothing]
+      final case class Die(error: Throwable)       extends TExit[Nothing, Nothing]
+      final case class Interrupt(fiberId: FiberId) extends TExit[Nothing, Nothing]
+      final case class Succeed[+B](value: B)       extends TExit[Nothing, B]
+      case object Retry                            extends TExit[Nothing, Nothing]
     }
 
     abstract class Entry { self =>
@@ -2226,10 +2248,11 @@ object ZSTM {
 
       def done[E, A](exit: TExit[E, A]): State[E, A] =
         exit match {
-          case TExit.Succeed(a) => State.Done(Exit.succeed(a))
-          case TExit.Die(t)     => State.Done(Exit.die(t))
-          case TExit.Fail(e)    => State.Done(Exit.fail(e))
-          case TExit.Retry      => throw new Error("Defect: done being called on TExit.Retry")
+          case TExit.Succeed(a)         => State.Done(Exit.succeed(a))
+          case TExit.Die(t)             => State.Done(Exit.die(t))
+          case TExit.Fail(e)            => State.Done(Exit.fail(e))
+          case TExit.Interrupt(fiberId) => State.Done(Exit.interrupt(fiberId))
+          case TExit.Retry              => throw new Error("Defect: done being called on TExit.Retry")
         }
     }
   }

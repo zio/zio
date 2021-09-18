@@ -652,46 +652,9 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * `n` elements each.
    * The last chunk might contain less than `n` elements
    */
-  def chunkN(n: Int): ZStream[R, E, O] = {
-    case class State[X](buffer: Chunk[X], done: Boolean)
-
-    def emitOrAccumulate(
-      buffer: Chunk[O],
-      done: Boolean,
-      ref: Ref[State[O]],
-      pull: ZIO[R, Option[E], Chunk[O]]
-    ): ZIO[R, Option[E], Chunk[O]] =
-      if (buffer.size < n) {
-        if (done) {
-          if (buffer.isEmpty)
-            Pull.end
-          else
-            ref.set(State(Chunk.empty, true)) *> Pull.emit(buffer)
-        } else
-          pull.foldZIO(
-            {
-              case Some(e) => Pull.fail(e)
-              case None    => emitOrAccumulate(buffer, true, ref, pull)
-            },
-            ch => emitOrAccumulate(buffer ++ ch, false, ref, pull)
-          )
-      } else {
-        val (chunk, leftover) = buffer.splitAt(n)
-        ref.set(State(leftover, done)) *> Pull.emit(chunk)
-      }
-
-    if (n < 1)
-      ZStream.failCause(Cause.die(new IllegalArgumentException("chunkN: n must be at least 1")))
-    else
-      ZStream {
-        for {
-          ref <- ZRef.make[State[O]](State(Chunk.empty, false)).toManaged
-          p   <- self.process
-          pull = ref.get.flatMap(s => emitOrAccumulate(s.buffer, s.done, ref, p))
-        } yield pull
-
-      }
-  }
+  @deprecated("use rechunk", "2.0.0")
+  def chunkN(n: Int): ZStream[R, E, O] =
+    rechunk(n)
 
   /**
    * Exposes the underlying chunks of the stream as a stream of chunks of
@@ -2564,6 +2527,52 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    */
   final def provideSomeLayer[R0]: ZStream.ProvideSomeLayer[R0, R, E, O] =
     new ZStream.ProvideSomeLayer[R0, R, E, O](self)
+
+  /**
+   * Re-chunks the elements of the stream into chunks of
+   * `n` elements each.
+   * The last chunk might contain less than `n` elements
+   */
+  def rechunk(n: Int): ZStream[R, E, O] = {
+    case class State[X](buffer: Chunk[X], done: Boolean)
+
+    def emitOrAccumulate(
+      buffer: Chunk[O],
+      done: Boolean,
+      ref: Ref[State[O]],
+      pull: ZIO[R, Option[E], Chunk[O]]
+    ): ZIO[R, Option[E], Chunk[O]] =
+      if (buffer.size < n) {
+        if (done) {
+          if (buffer.isEmpty)
+            Pull.end
+          else
+            ref.set(State(Chunk.empty, true)) *> Pull.emit(buffer)
+        } else
+          pull.foldZIO(
+            {
+              case Some(e) => Pull.fail(e)
+              case None    => emitOrAccumulate(buffer, true, ref, pull)
+            },
+            ch => emitOrAccumulate(buffer ++ ch, false, ref, pull)
+          )
+      } else {
+        val (chunk, leftover) = buffer.splitAt(n)
+        ref.set(State(leftover, done)) *> Pull.emit(chunk)
+      }
+
+    if (n < 1)
+      ZStream.failCause(Cause.die(new IllegalArgumentException("rechunk: n must be at least 1")))
+    else
+      ZStream {
+        for {
+          ref <- ZRef.make[State[O]](State(Chunk.empty, false)).toManaged
+          p   <- self.process
+          pull = ref.get.flatMap(s => emitOrAccumulate(s.buffer, s.done, ref, p))
+        } yield pull
+
+      }
+  }
 
   /**
    * Keeps some of the errors, and terminates the fiber with the rest
@@ -4764,12 +4773,12 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   }
 
   final class AccessZIOPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
-    def apply[E, A](f: R => ZIO[R, E, A]): ZStream[R, E, A] =
+    def apply[R1 <: R, E, A](f: R => ZIO[R1, E, A]): ZStream[R with R1, E, A] =
       ZStream.environment[R].mapZIO(f)
   }
 
   final class AccessStreamPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
-    def apply[E, A](f: R => ZStream[R, E, A]): ZStream[R, E, A] =
+    def apply[R1 <: R, E, A](f: R => ZStream[R1, E, A]): ZStream[R with R1, E, A] =
       ZStream.environment[R].flatMap(f)
   }
 
@@ -4781,16 +4790,16 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   }
 
   final class ServiceWithPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
-    def apply[E, A](f: Service => ZIO[Has[Service], E, A])(implicit
+    def apply[R <: Has[Service], E, A](f: Service => ZIO[R, E, A])(implicit
       tag: Tag[Service]
-    ): ZStream[Has[Service], E, A] =
+    ): ZStream[R with Has[Service], E, A] =
       ZStream.fromZIO(ZIO.serviceWith(f))
   }
 
   final class ServiceWithStreamPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
-    def apply[E, A](f: Service => ZStream[Has[Service], E, A])(implicit
+    def apply[R <: Has[Service], E, A](f: Service => ZStream[R, E, A])(implicit
       tag: Tag[Service]
-    ): ZStream[Has[Service], E, A] =
+    ): ZStream[R with Has[Service], E, A] =
       ZStream.service[Service].flatMap(f)
   }
 

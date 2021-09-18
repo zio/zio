@@ -57,9 +57,16 @@ object ZStreamAspect {
   /**
    * An aspect that rechunks the stream into chunks of the specified size.
    */
+  @deprecated("use rechunk", "2.0.0")
   def chunkN(n: Int): ZStreamAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
+    rechunk(n)
+
+  /**
+   * An aspect that rechunks the stream into chunks of the specified size.
+   */
+  def rechunk(n: Int): ZStreamAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
     new ZStreamAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
       def apply[R, E, A](stream: ZStream[R, E, A]): ZStream[R, E, A] =
-        stream.chunkN(n)
+        stream.rechunk(n)
     }
 }

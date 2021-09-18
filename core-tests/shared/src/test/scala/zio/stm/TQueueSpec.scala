@@ -1,6 +1,6 @@
 package zio.stm
 
-import zio.ZIOBaseSpec
+import zio.{Chunk, ZIOBaseSpec}
 import zio.test.Assertion._
 import zio.test._
 
@@ -38,7 +38,7 @@ object TQueueSpec extends ZIOBaseSpec {
           ans  <- tq.takeUpTo(3)
           size <- tq.size
         } yield (ans, size)
-        assertM(tx.commit)(equalTo((List(1, 2, 3), 2)))
+        assertM(tx.commit)(equalTo((Chunk(1, 2, 3), 2)))
       },
       test("offerAll & takeAll") {
         val tx = for {
@@ -46,15 +46,7 @@ object TQueueSpec extends ZIOBaseSpec {
           _   <- tq.offerAll(List(1, 2, 3, 4, 5))
           ans <- tq.takeAll
         } yield ans
-        assertM(tx.commit)(equalTo(List(1, 2, 3, 4, 5)))
-      },
-      test("offerAll respects capacity") {
-        val tx = for {
-          tq        <- TQueue.bounded[Int](3)
-          remaining <- tq.offerAll(List(1, 2, 3, 4, 5))
-          ans       <- tq.takeAll
-        } yield (ans, remaining)
-        assertM(tx.commit)(equalTo((List(1, 2, 3), List(4, 5))))
+        assertM(tx.commit)(equalTo(Chunk(1, 2, 3, 4, 5)))
       },
       test("takeUpTo") {
         val tx = for {
@@ -63,7 +55,7 @@ object TQueueSpec extends ZIOBaseSpec {
           ans  <- tq.takeUpTo(3)
           size <- tq.size
         } yield (ans, size)
-        assertM(tx.commit)(equalTo((List(1, 2, 3), 2)))
+        assertM(tx.commit)(equalTo((Chunk(1, 2, 3), 2)))
       },
       test("takeUpTo larger than container") {
         val tx = for {
@@ -72,7 +64,7 @@ object TQueueSpec extends ZIOBaseSpec {
           ans  <- tq.takeUpTo(7)
           size <- tq.size
         } yield (ans, size)
-        assertM(tx.commit)(equalTo((List(1, 2, 3, 4, 5), 0)))
+        assertM(tx.commit)(equalTo((Chunk(1, 2, 3, 4, 5), 0)))
       },
       test("poll value") {
         val tx = for {
@@ -132,15 +124,6 @@ object TQueueSpec extends ZIOBaseSpec {
           next <- tq.peekOption
         } yield next
         assertM(tx.commit)(isNone)
-      },
-      test("view the last value") {
-        val tx = for {
-          tq   <- TQueue.unbounded[Int]
-          _    <- tq.offerAll(List(1, 2, 3, 4, 5))
-          last <- tq.last
-          size <- tq.size
-        } yield (last, size)
-        assertM(tx.commit)(equalTo((5, 5)))
       },
       test("check isEmpty") {
         val tx = for {

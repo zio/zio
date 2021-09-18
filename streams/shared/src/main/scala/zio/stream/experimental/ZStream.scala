@@ -300,7 +300,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Allows a faster producer to progress independently of a slower consumer by buffering
    * up to `capacity` elements in a queue.
    *
-   * @note This combinator destroys the chunking structure. It's recommended to use chunkN afterwards.
+   * @note This combinator destroys the chunking structure. It's recommended to use rechunk afterwards.
    * @note Prefer capacities that are powers of 2 for better performance.
    */
   final def buffer(capacity: Int): ZStream[R, E, A] = {
@@ -376,24 +376,24 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Allows a faster producer to progress independently of a slower consumer by buffering
    * up to `capacity` elements in a dropping queue.
    *
-   * @note This combinator destroys the chunking structure. It's recommended to use chunkN afterwards.
+   * @note This combinator destroys the chunking structure. It's recommended to use rechunk afterwards.
    * @note Prefer capacities that are powers of 2 for better performance.
    */
   final def bufferDropping(capacity: Int): ZStream[R, E, A] = {
     val queue = Queue.dropping[(Take[E, A], Promise[Nothing, Unit])](capacity).toManagedWith(_.shutdown)
-    new ZStream(bufferSignal[R, E, A](queue, self.chunkN(1).channel))
+    new ZStream(bufferSignal[R, E, A](queue, self.rechunk(1).channel))
   }
 
   /**
    * Allows a faster producer to progress independently of a slower consumer by buffering
    * up to `capacity` elements in a sliding queue.
    *
-   * @note This combinator destroys the chunking structure. It's recommended to use chunkN afterwards.
+   * @note This combinator destroys the chunking structure. It's recommended to use rechunk afterwards.
    * @note Prefer capacities that are powers of 2 for better performance.
    */
   final def bufferSliding(capacity: Int): ZStream[R, E, A] = {
     val queue = Queue.sliding[(Take[E, A], Promise[Nothing, Unit])](capacity).toManagedWith(_.shutdown)
-    new ZStream(bufferSignal[R, E, A](queue, self.chunkN(1).channel))
+    new ZStream(bufferSignal[R, E, A](queue, self.rechunk(1).channel))
   }
 
   private def bufferSignal[R1 <: R, E1 >: E, A1 >: A](
@@ -578,39 +578,9 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * `n` elements each.
    * The last chunk might contain less than `n` elements
    */
+  @deprecated("use rechunk", "2.0.0")
   def chunkN(n: Int): ZStream[R, E, A] =
-    ZStream.unwrap {
-      ZIO.succeed {
-        val rechunker = new ZStream.Rechunker[A](n)
-        lazy val process: ZChannel[R, E, Chunk[A], Any, E, Chunk[A], Unit] =
-          ZChannel.readWithCause(
-            (chunk: Chunk[A]) =>
-              if (chunk.size > 0) {
-                var chunks: List[Chunk[A]] = Nil
-                var result: Chunk[A]       = null
-                var i                      = 0
-
-                while (i < chunk.size) {
-                  while (i < chunk.size && (result eq null)) {
-                    result = rechunker.write(chunk(i))
-                    i += 1
-                  }
-
-                  if (result ne null) {
-                    chunks = result :: chunks
-                    result = null
-                  }
-                }
-
-                ZChannel.writeAll(chunks.reverse: _*) *> process
-              } else process,
-            (cause: Cause[E]) => rechunker.emitIfNotEmpty() *> ZChannel.failCause(cause),
-            (_: Any) => rechunker.emitIfNotEmpty()
-          )
-
-        new ZStream(channel >>> process)
-      }
-    }
+    rechunk(n)
 
   /**
    * Exposes the underlying chunks of the stream as a stream of chunks of
@@ -2077,7 +2047,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * executing up to `n` invocations of `f` concurrently. Transformed elements
    * will be emitted in the original order.
    *
-   * @note This combinator destroys the chunking structure. It's recommended to use chunkN afterwards.
+   * @note This combinator destroys the chunking structure. It's recommended to use rechunk afterwards.
    */
   @deprecated("use mapZIOPar", "2.0.0")
   final def mapMPar[R1 <: R, E1 >: E, A2](n: Int)(f: A => ZIO[R1, E1, A2]): ZStream[R1, E1, A2] =
@@ -2117,7 +2087,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * executing up to `n` invocations of `f` concurrently. Transformed elements
    * will be emitted in the original order.
    *
-   * @note This combinator destroys the chunking structure. It's recommended to use chunkN afterwards.
+   * @note This combinator destroys the chunking structure. It's recommended to use rechunk afterwards.
    */
   final def mapZIOPar[R1 <: R, E1 >: E, A2](n: Int)(f: A => ZIO[R1, E1, A2]): ZStream[R1, E1, A2] =
     new ZStream(self.channel.concatMap(ZChannel.writeChunk(_)).mapOutZIOPar[R1, E1, A2](n)(f).mapOut(Chunk.single))
@@ -2426,6 +2396,45 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def provideSomeLayer[R0]: ZStream.ProvideSomeLayer[R0, R, E, A] =
     new ZStream.ProvideSomeLayer[R0, R, E, A](self)
+
+  /**
+   * Re-chunks the elements of the stream into chunks of
+   * `n` elements each.
+   * The last chunk might contain less than `n` elements
+   */
+  def rechunk(n: Int): ZStream[R, E, A] =
+    ZStream.unwrap {
+      ZIO.succeed {
+        val rechunker = new ZStream.Rechunker[A](n)
+        lazy val process: ZChannel[R, E, Chunk[A], Any, E, Chunk[A], Unit] =
+          ZChannel.readWithCause(
+            (chunk: Chunk[A]) =>
+              if (chunk.size > 0) {
+                var chunks: List[Chunk[A]] = Nil
+                var result: Chunk[A]       = null
+                var i                      = 0
+
+                while (i < chunk.size) {
+                  while (i < chunk.size && (result eq null)) {
+                    result = rechunker.write(chunk(i))
+                    i += 1
+                  }
+
+                  if (result ne null) {
+                    chunks = result :: chunks
+                    result = null
+                  }
+                }
+
+                ZChannel.writeAll(chunks.reverse: _*) *> process
+              } else process,
+            (cause: Cause[E]) => rechunker.emitIfNotEmpty() *> ZChannel.failCause(cause),
+            (_: Any) => rechunker.emitIfNotEmpty()
+          )
+
+        new ZStream(channel >>> process)
+      }
+    }
 
   /**
    * Keeps some of the errors, and terminates the fiber with the rest
@@ -4523,12 +4532,12 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   }
 
   final class AccessZIOPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
-    def apply[E, A](f: R => ZIO[R, E, A]): ZStream[R, E, A] =
+    def apply[R1 <: R, E, A](f: R => ZIO[R1, E, A]): ZStream[R with R1, E, A] =
       ZStream.environment[R].mapZIO(f)
   }
 
   final class AccessStreamPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
-    def apply[E, A](f: R => ZStream[R, E, A]): ZStream[R, E, A] =
+    def apply[R1 <: R, E, A](f: R => ZStream[R1, E, A]): ZStream[R with R1, E, A] =
       ZStream.environment[R].flatMap(f)
   }
 

@@ -5,9 +5,10 @@ import cats.effect.unsafe.implicits.global
 import cats.effect.{Fiber => CFiber, IO => CIO, Resource}
 import cats.syntax.all._
 import fs2.concurrent.Topic
-import io.github.timwspence.cats.stm._
+import io.github.timwspence.cats.stm.{STM => CSTM}
 import org.openjdk.jmh.annotations._
 import zio.BenchmarkUtil._
+import zio.stm._
 
 import java.util.concurrent.TimeUnit
 
@@ -24,8 +25,8 @@ class HubBenchmarks {
   val publisherParallelism  = 1
   val subscriberParallelism = 1024
 
-  val stm: STM[CIO] = STM.runtime[CIO].unsafeRunSync()
-  import stm._
+  val cstm: CSTM[CIO] = CSTM.runtime[CIO].unsafeRunSync()
+  import cstm.{TQueue => CatsTQueue, TVar}
 
   @Benchmark
   def catsQueueBoundedBackPressure(): Int =
@@ -48,12 +49,12 @@ class HubBenchmarks {
     catsSequential(CatsHubLike.catsQueueUnbounded)
 
   @Benchmark
-  def catsSTMQueueParallel(): Int =
-    catsParallel(CatsHubLike.catsSTMQueueUnbounded)
+  def catsTQueueParallel(): Int =
+    catsParallel(CatsHubLike.catsTQueueUnbounded)
 
   @Benchmark
-  def catsSTMQueueSequential(): Int =
-    catsSequential(CatsHubLike.catsSTMQueueUnbounded)
+  def catsTQueueSequential(): Int =
+    catsSequential(CatsHubLike.catsTQueueUnbounded)
 
   @Benchmark
   def fs2TopicBackPressure(): Int =
@@ -106,6 +107,46 @@ class HubBenchmarks {
   @Benchmark
   def zioQueueUnboundedSequential(): Int =
     zioSequential(ZIOHubLike.zioQueueUnbounded)
+
+  @Benchmark
+  def zioTHubBoundedBackPressure(): Int =
+    zioParallel(ZIOHubLike.zioTHubBounded(hubSize))
+
+  @Benchmark
+  def zioTHubBoundedParallel(): Int =
+    zioParallel(ZIOHubLike.zioTHubBounded(totalSize))
+
+  @Benchmark
+  def zioTHubBoundedSequential(): Int =
+    zioSequential(ZIOHubLike.zioTHubBounded(totalSize))
+
+  @Benchmark
+  def zioTHubUnboundedParallel(): Int =
+    zioParallel(ZIOHubLike.zioTHubUnbounded)
+
+  @Benchmark
+  def zioTHubUnboundedSequential(): Int =
+    zioSequential(ZIOHubLike.zioTHubUnbounded)
+
+  @Benchmark
+  def zioTQueueBoundedBackPressure(): Int =
+    zioParallel(ZIOHubLike.zioTQueueBounded(hubSize))
+
+  @Benchmark
+  def zioTQueueBoundedParallel(): Int =
+    zioParallel(ZIOHubLike.zioTQueueBounded(totalSize))
+
+  @Benchmark
+  def zioTQueueBoundedSequential(): Int =
+    zioSequential(ZIOHubLike.zioTQueueBounded(totalSize))
+
+  @Benchmark
+  def zioTQueueUnboundedParallel(): Int =
+    zioParallel(ZIOHubLike.zioTQueueUnbounded)
+
+  @Benchmark
+  def zioTQueueUnboundedSequential(): Int =
+    zioSequential(ZIOHubLike.zioTQueueUnbounded)
 
   trait ZIOHubLike[A] {
     def publish(a: A): UIO[Any]
@@ -161,6 +202,54 @@ class HubBenchmarks {
             } yield n => zioRepeat(n)(queue.take)
         }
       }
+
+    def zioTHubBounded[A](capacity: Int): UIO[ZIOHubLike[A]] =
+      THub.bounded[A](capacity).commit.map { hub =>
+        new ZIOHubLike[A] {
+          def publish(a: A): UIO[Any] =
+            hub.publish(a).commit
+          def subscribe: ZManaged[Any, Nothing, Int => UIO[Any]] =
+            hub.subscribeManaged.map(dequeue => n => zioRepeat(n)(dequeue.take.commit))
+        }
+      }
+
+    def zioTHubUnbounded[A]: UIO[ZIOHubLike[A]] =
+      THub.unbounded[A].commit.map { hub =>
+        new ZIOHubLike[A] {
+          def publish(a: A): UIO[Any] =
+            hub.publish(a).commit
+          def subscribe: ZManaged[Any, Nothing, Int => UIO[Any]] =
+            hub.subscribeManaged.map(dequeue => n => zioRepeat(n)(dequeue.take.commit))
+        }
+      }
+
+    def zioTQueueBounded[A](capacity: Int): UIO[ZIOHubLike[A]] =
+      TRef.make(0L).commit.zipWith(TRef.make[Map[Long, TQueue[A]]](Map.empty).commit) { (key, ref) =>
+        new ZIOHubLike[A] {
+          def publish(a: A): UIO[Any] =
+            ref.get.flatMap(map => ZSTM.foreach(map.values)(_.offer(a))).commit
+          def subscribe: ZManaged[Any, Nothing, Int => UIO[Any]] =
+            for {
+              key   <- key.getAndUpdate(_ + 1).commit.toManaged
+              queue <- TQueue.bounded[A](capacity).commit.toManaged
+              _     <- ZManaged.acquireRelease(ref.update(_ + (key -> queue)).commit)(ref.update(_ - key).commit)
+            } yield n => zioRepeat(n)(queue.take.commit)
+        }
+      }
+
+    def zioTQueueUnbounded[A]: UIO[ZIOHubLike[A]] =
+      TRef.make(0L).commit.zipWith(TRef.make[Map[Long, TQueue[A]]](Map.empty).commit) { (key, ref) =>
+        new ZIOHubLike[A] {
+          def publish(a: A): UIO[Any] =
+            ref.get.flatMap(map => ZSTM.foreach(map.values)(_.offer(a))).commit
+          def subscribe: ZManaged[Any, Nothing, Int => UIO[Any]] =
+            for {
+              key   <- key.getAndUpdate(_ + 1).commit.toManaged
+              queue <- TQueue.unbounded[A].commit.toManaged
+              _     <- ZManaged.acquireRelease(ref.update(_ + (key -> queue)).commit)(ref.update(_ - key).commit)
+            } yield n => zioRepeat(n)(queue.take.commit)
+        }
+      }
   }
 
   trait CatsHubLike[A] {
@@ -198,18 +287,18 @@ class HubBenchmarks {
         }
       }
 
-    def catsSTMQueueUnbounded[A]: CIO[CatsHubLike[A]] =
-      stm.commit {
-        TVar.of(0L).map2(TVar.of[Map[Long, TQueue[A]]](Map.empty)) { (key, ref) =>
+    def catsTQueueUnbounded[A]: CIO[CatsHubLike[A]] =
+      cstm.commit {
+        TVar.of(0L).map2(TVar.of[Map[Long, CatsTQueue[A]]](Map.empty)) { (key, ref) =>
           new CatsHubLike[A] {
             def publish(a: A): CIO[Unit] =
-              stm.commit(ref.get.flatMap(_.values.toList.traverse_(_.put(a))))
+              cstm.commit(ref.get.flatMap(_.values.toList.traverse_(_.put(a))))
             def subscribe: Resource[CIO, Int => CIO[Any]] =
               for {
-                key   <- Resource.eval(stm.commit(key.get.flatMap(n => key.modify(_ + 1).as(n))))
-                queue <- Resource.eval(stm.commit(TQueue.empty[A]))
-                _     <- Resource.make(stm.commit(ref.modify(_ + (key -> queue))))(_ => stm.commit(ref.modify(_ - key)))
-              } yield n => catsRepeat(n)(stm.commit(queue.read))
+                key   <- Resource.eval(cstm.commit(key.get.flatMap(n => key.modify(_ + 1).as(n))))
+                queue <- Resource.eval(cstm.commit(CatsTQueue.empty[A]))
+                _     <- Resource.make(cstm.commit(ref.modify(_ + (key -> queue))))(_ => cstm.commit(ref.modify(_ - key)))
+              } yield n => catsRepeat(n)(cstm.commit(queue.read))
           }
         }
       }
