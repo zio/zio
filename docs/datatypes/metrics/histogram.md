@@ -1,0 +1,4 @@
+---
+id: histogram
+title: "Histogram"
+---
