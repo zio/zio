@@ -569,9 +569,10 @@ object ZStreamSpec extends ZIOBaseSpec {
           test("range emits values in chunks of chunkSize") {
             assertM(
               (ZStream
-                .range(1, 10, 2))
+                .range(1, 10)
+                .withChunkSize(2)
                 .mapChunks(c => Chunk[Int](c.sum))
-                .runCollect
+                .runCollect)
             )(equalTo(Chunk(1 + 2, 3 + 4, 5 + 6, 7 + 8, 9)))
           }
         ),
@@ -931,7 +932,8 @@ object ZStreamSpec extends ZIOBaseSpec {
           test("leftover chunk branch") {
             for {
               count <- ZStream
-                         .range(1, 10, 3)
+                         .range(1, 10)
+                         .withChunkSize(3)
                          .drop(5)
                          .runCollect
                          .map(_.length)
@@ -3161,6 +3163,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             n         = 2000
             out <- ZStream
                      .fromIterator(iterator.map(_.merge))
+                     .withChunkSize(1)
                      .mapConcatZIO(element => effect.map(newElement => List(element, newElement)))
                      .take(n.toLong)
                      .runCollect
@@ -3949,15 +3952,18 @@ object ZStreamSpec extends ZIOBaseSpec {
         ),
         suite("fromInputStream")(
           test("example 1") {
-            val chunkSize = ZStream.DefaultChunkSize
-            val data      = Array.tabulate[Byte](chunkSize * 5 / 2)(_.toByte)
-            def is        = new ByteArrayInputStream(data)
-            ZStream.fromInputStream(is, chunkSize).runCollect map { bytes => assert(bytes.toArray)(equalTo(data)) }
+            ZStream.ChunkSize.get.flatMap { chunkSize =>
+              val data = Array.tabulate[Byte](chunkSize * 5 / 2)(_.toByte)
+              def is   = new ByteArrayInputStream(data)
+              ZStream.fromInputStream(is).withChunkSize(chunkSize).runCollect map { bytes =>
+                assert(bytes.toArray)(equalTo(data))
+              }
+            }
           },
           test("example 2") {
             checkM(Gen.small(Gen.chunkOfN(_)(Gen.byte)), Gen.int(1, 10)) { (bytes, chunkSize) =>
               val is = new ByteArrayInputStream(bytes.toArray)
-              ZStream.fromInputStream(is, chunkSize).runCollect.map(assert(_)(equalTo(bytes)))
+              ZStream.fromInputStream(is).withChunkSize(chunkSize).runCollect.map(assert(_)(equalTo(bytes)))
             }
           }
         ),
@@ -3970,12 +3976,12 @@ object ZStreamSpec extends ZIOBaseSpec {
         }),
         test("fromIterator") {
           checkM(Gen.small(Gen.chunkOfN(_)(Gen.int)), Gen.small(Gen.const(_), 1)) { (chunk, maxChunkSize) =>
-            assertM(ZStream.fromIterator(chunk.iterator, maxChunkSize).runCollect)(equalTo(chunk))
+            assertM(ZStream.fromIterator(chunk.iterator).withChunkSize(maxChunkSize).runCollect)(equalTo(chunk))
           }
         },
         test("fromIteratorSucceed") {
           checkM(Gen.small(Gen.chunkOfN(_)(Gen.int)), Gen.small(Gen.const(_), 1)) { (chunk, maxChunkSize) =>
-            assertM(ZStream.fromIteratorSucceed(chunk.iterator, maxChunkSize).runCollect)(equalTo(chunk))
+            assertM(ZStream.fromIteratorSucceed(chunk.iterator).withChunkSize(maxChunkSize).runCollect)(equalTo(chunk))
           }
         },
         suite("fromIteratorManaged")(
@@ -3986,6 +3992,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                          .fromIteratorManaged(
                            Managed.acquireReleaseWith(UIO.succeedNow(List(1, 2).iterator))(_ => ref.set(true))
                          )
+                         .withChunkSize(1)
                          .process
                          .use(nPulls(_, 4))
               fin <- ref.get
@@ -4080,7 +4087,8 @@ object ZStreamSpec extends ZIOBaseSpec {
               _     <- queue.offerAll(List(1, 2, 3, 4, 5, 6, 7))
 
               result <- ZStream
-                          .fromQueue(queue, maxChunkSize = 2)
+                          .fromQueue(queue)
+                          .withChunkSize(2)
                           .mapChunks(Chunk.single)
                           .take(3)
                           .runCollect

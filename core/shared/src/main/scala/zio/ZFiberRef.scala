@@ -97,6 +97,13 @@ sealed abstract class ZFiberRef[+EA, +EB, -A, +B] extends Serializable { self =>
   def locally[R, EC >: EA, C](value: A)(use: ZIO[R, EC, C]): ZIO[R, EC, C]
 
   /**
+   * Returns a managed effect that sets the value associated with the curent
+   * fiber to the specified value as its `acquire` action and restores it to
+   * its original value as its `release` action.
+   */
+  def locallyManaged(value: A): ZManaged[Any, EA, Unit]
+
+  /**
    * Sets the value associated with the current fiber.
    */
   def set(value: A): IO[EA, Unit]
@@ -285,6 +292,9 @@ object ZFiberRef {
     def locally[R, EC, C](value: A)(use: ZIO[R, EC, C]): ZIO[R, EC, C] =
       new ZIO.FiberRefLocally(value, self, use)
 
+    def locallyManaged(value: A): ZManaged[Any, Nothing, Unit] =
+      ZManaged.acquireReleaseWith(get.flatMap(old => set(value).as(old)))(set).unit
+
     def modify[B](f: A => (B, A)): UIO[B] =
       new ZIO.FiberRefModify(this, f)
 
@@ -419,6 +429,18 @@ object ZFiberRef {
         )
       }
 
+    def locallyManaged(a: A): ZManaged[Any, EA, Unit] =
+      ZManaged.acquireReleaseWith {
+        value.get.flatMap { old =>
+          setEither(a).fold(
+            e => ZIO.fail(e),
+            s => value.set(s).as(old)
+          )
+        }
+      } {
+        value.set
+      }.unit
+
     def set(a: A): IO[EA, Unit] =
       setEither(a).fold(ZIO.fail(_), value.set)
   }
@@ -480,6 +502,18 @@ object ZFiberRef {
           s => value.set(s).acquireRelease(value.set(old))(use)
         )
       }
+
+    def locallyManaged(a: A): ZManaged[Any, EA, Unit] =
+      ZManaged.acquireReleaseWith {
+        value.get.flatMap { old =>
+          setEither(a)(old).fold(
+            e => ZIO.fail(e),
+            s => value.set(s).as(old)
+          )
+        }
+      } {
+        value.set
+      }.unit
 
     def set(a: A): IO[EA, Unit] =
       value.modify { s =>

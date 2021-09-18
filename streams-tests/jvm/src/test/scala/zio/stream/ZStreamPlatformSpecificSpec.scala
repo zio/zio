@@ -323,7 +323,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
       ),
       test("fromBlockingIterator") {
         checkM(Gen.small(Gen.chunkOfN(_)(Gen.int)), Gen.small(Gen.const(_), 1)) { (chunk, maxChunkSize) =>
-          assertM(ZStream.fromBlockingIterator(chunk.iterator, maxChunkSize).runCollect)(equalTo(chunk))
+          assertM(ZStream.fromBlockingIterator(chunk.iterator).withChunkSize(maxChunkSize).runCollect)(equalTo(chunk))
         }
       },
       suite("fromFile")(
@@ -333,13 +333,15 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
           Task(Files.createTempFile("stream", "fromFile")).acquireReleaseWith(path => Task(Files.delete(path)).orDie) {
             path =>
               Task(Files.write(path, data.getBytes("UTF-8"))) *>
-                assertM(ZStream.fromFile(path, 24).transduce(ZTransducer.utf8Decode).runCollect.map(_.mkString))(
+                assertM(
+                  ZStream.fromFile(path).withChunkSize(24).transduce(ZTransducer.utf8Decode).runCollect.map(_.mkString)
+                )(
                   equalTo(data)
                 )
           }
         },
         test("fails on a nonexistent file") {
-          assertM(ZStream.fromFile(Paths.get("nonexistent"), 24).runDrain.exit)(
+          assertM(ZStream.fromFile(Paths.get("nonexistent")).withChunkSize(24).runDrain.exit)(
             fails(isSubtype[NoSuchFileException](anything))
           )
         }
@@ -449,7 +451,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
           checkM(Gen.listOf(Gen.chunkOf(Gen.byte)), Gen.int(1, 10)) { (bytess, chunkSize) =>
             val write    = (out: OutputStream) => for (bytes <- bytess) out.write(bytes.toArray)
             val expected = bytess.foldLeft[Chunk[Byte]](Chunk.empty)(_ ++ _)
-            ZStream.fromOutputStreamWriter(write, chunkSize).runCollect.map(assert(_)(equalTo(expected)))
+            ZStream.fromOutputStreamWriter(write).withChunkSize(chunkSize).runCollect.map(assert(_)(equalTo(expected)))
           }
         } @@ TestAspect.ignore,
         test("captures errors") {
@@ -457,9 +459,12 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
           ZStream.fromOutputStreamWriter(write).runDrain.exit.map(assert(_)(fails(hasMessage(equalTo("boom")))))
         },
         test("is not affected by closing the output stream") {
-          val data  = Array.tabulate[Byte](ZStream.DefaultChunkSize * 5 / 2)(_.toByte)
-          val write = (out: OutputStream) => { out.write(data); out.close() }
-          ZStream.fromOutputStreamWriter(write).runCollect.map(assert(_)(equalTo(Chunk.fromArray(data))))
+          for {
+            chunkSize <- ZStream.ChunkSize.get
+            data       = Array.tabulate[Byte](chunkSize * 5 / 2)(_.toByte)
+            write      = (out: OutputStream) => { out.write(data); out.close() }
+            actual    <- ZStream.fromOutputStreamWriter(write).runCollect
+          } yield assert(actual)(equalTo(Chunk.fromArray(data)))
         } @@ timeout(10.seconds) @@ flaky,
         test("is interruptable") {
           val latch = new CountDownLatch(1)

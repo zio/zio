@@ -310,14 +310,14 @@ trait ZStreamPlatformSpecificConstructors {
   /**
    * Creates a stream from an blocking iterator that may throw exceptions.
    */
-  def fromBlockingIterator[A](iterator: => Iterator[A], maxChunkSize: Int = 1): ZStream[Any, Throwable, A] =
+  def fromBlockingIterator[A](iterator: => Iterator[A]): ZStream[Any, Throwable, A] =
     ZStream {
       ZManaged
         .attempt(iterator)
         .fold(
           Pull.fail,
           iterator =>
-            ZIO.suspendSucceed {
+            ZStream.ChunkSize.get.flatMap { maxChunkSize =>
               if (maxChunkSize <= 1) {
                 if (iterator.isEmpty) Pull.end
                 else ZIO.attemptBlocking(Chunk.single(iterator.next())).asSomeError
@@ -340,38 +340,35 @@ trait ZStreamPlatformSpecificConstructors {
   /**
    * Creates a stream from an blocking Java iterator that may throw exceptions.
    */
-  def fromBlockingJavaIterator[A](
-    iter: => java.util.Iterator[A],
-    maxChunkSize: Int = 1
-  ): ZStream[Any, Throwable, A] =
+  def fromBlockingJavaIterator[A](iter: => java.util.Iterator[A]): ZStream[Any, Throwable, A] =
     fromBlockingIterator(
       new Iterator[A] {
         def next(): A        = iter.next
         def hasNext: Boolean = iter.hasNext
-      },
-      maxChunkSize
+      }
     )
 
   /**
    * Creates a stream of bytes from a file at the specified path.
    */
-  def fromFile(path: => Path, chunkSize: Int = ZStream.DefaultChunkSize): ZStream[Any, Throwable, Byte] =
+  def fromFile(path: => Path): ZStream[Any, Throwable, Byte] =
     ZStream
       .acquireReleaseWith(ZIO.attemptBlockingInterrupt(FileChannel.open(path)))(chan =>
         ZIO.attemptBlocking(chan.close()).orDie
       )
       .flatMap { channel =>
-        ZStream.fromZIO(UIO(ByteBuffer.allocate(chunkSize))).flatMap { reusableBuffer =>
-          ZStream.repeatZIOChunkOption(
-            for {
-              bytesRead <- ZIO.attemptBlockingInterrupt(channel.read(reusableBuffer)).mapError(Some(_))
-              _         <- ZIO.fail(None).when(bytesRead == -1)
-              chunk <- UIO {
-                         reusableBuffer.flip()
-                         Chunk.fromByteBuffer(reusableBuffer)
-                       }
-            } yield chunk
-          )
+        ZStream.fromZIO(ChunkSize.get.flatMap(chunkSize => UIO(ByteBuffer.allocate(chunkSize)))).flatMap {
+          reusableBuffer =>
+            ZStream.repeatZIOChunkOption(
+              for {
+                bytesRead <- ZIO.attemptBlockingInterrupt(channel.read(reusableBuffer)).mapError(Some(_))
+                _         <- ZIO.fail(None).when(bytesRead == -1)
+                chunk <- UIO {
+                           reusableBuffer.flip()
+                           Chunk.fromByteBuffer(reusableBuffer)
+                         }
+              } yield chunk
+            )
         }
       }
 
@@ -379,13 +376,11 @@ trait ZStreamPlatformSpecificConstructors {
    * Creates a stream from a `java.io.InputStream`.
    * Note: the input stream will not be explicitly closed after it is exhausted.
    */
-  def fromInputStream(
-    is: => InputStream,
-    chunkSize: Int = ZStream.DefaultChunkSize
-  ): ZStream[Any, IOException, Byte] =
+  def fromInputStream(is: => InputStream): ZStream[Any, IOException, Byte] =
     ZStream.fromZIO(UIO(is)).flatMap { capturedIs =>
       ZStream.repeatZIOChunkOption {
         for {
+          chunkSize <- ChunkSize.get
           bufArray  <- UIO(Array.ofDim[Byte](chunkSize))
           bytesRead <- ZIO.attemptBlockingIO(capturedIs.read(bufArray)).mapError(Some(_))
           bytes <- if (bytesRead < 0)
@@ -403,10 +398,7 @@ trait ZStreamPlatformSpecificConstructors {
   /**
    * Creates a stream from the resource specified in `path`
    */
-  final def fromResource(
-    path: String,
-    chunkSize: Int = ZStream.DefaultChunkSize
-  ): ZStream[Any, IOException, Byte] =
+  final def fromResource(path: String): ZStream[Any, IOException, Byte] =
     ZStream.managed {
       ZManaged.fromAutoCloseable {
         ZIO.attemptBlockingIO(getClass.getClassLoader.getResourceAsStream(path.replace('\\', '/'))).flatMap { x =>
@@ -416,47 +408,39 @@ trait ZStreamPlatformSpecificConstructors {
             ZIO.succeed(x)
         }
       }
-    }.flatMap(is => fromInputStream(is, chunkSize = chunkSize))
+    }.flatMap(is => fromInputStream(is))
 
   /**
    * Creates a stream from a `java.io.InputStream`. Ensures that the input
    * stream is closed after it is exhausted.
    */
   @deprecated("use fromInputStreamZIO", "2.0.0")
-  def fromInputStreamEffect[R](
-    is: ZIO[R, IOException, InputStream],
-    chunkSize: Int = ZStream.DefaultChunkSize
-  ): ZStream[R, IOException, Byte] =
-    fromInputStreamZIO(is, chunkSize)
+  def fromInputStreamEffect[R](is: ZIO[R, IOException, InputStream]): ZStream[R, IOException, Byte] =
+    fromInputStreamZIO(is)
 
   /**
    * Creates a stream from a `java.io.InputStream`. Ensures that the input
    * stream is closed after it is exhausted.
    */
-  def fromInputStreamZIO[R](
-    is: ZIO[R, IOException, InputStream],
-    chunkSize: Int = ZStream.DefaultChunkSize
-  ): ZStream[R, IOException, Byte] =
-    fromInputStreamManaged(is.toManagedWith(is => ZIO.succeed(is.close())), chunkSize)
+  def fromInputStreamZIO[R](is: ZIO[R, IOException, InputStream]): ZStream[R, IOException, Byte] =
+    fromInputStreamManaged(is.toManagedWith(is => ZIO.succeed(is.close())))
 
   /**
    * Creates a stream from a managed `java.io.InputStream` value.
    */
-  def fromInputStreamManaged[R](
-    is: ZManaged[R, IOException, InputStream],
-    chunkSize: Int = ZStream.DefaultChunkSize
-  ): ZStream[R, IOException, Byte] =
+  def fromInputStreamManaged[R](is: ZManaged[R, IOException, InputStream]): ZStream[R, IOException, Byte] =
     ZStream
       .managed(is)
-      .flatMap(fromInputStream(_, chunkSize))
+      .flatMap(fromInputStream(_))
 
   /**
    * Creates a stream from `java.io.Reader`.
    */
-  def fromReader(reader: => Reader, chunkSize: Int = ZStream.DefaultChunkSize): ZStream[Any, IOException, Char] =
+  def fromReader(reader: => Reader): ZStream[Any, IOException, Char] =
     ZStream.fromZIO(UIO(reader)).flatMap { capturedReader =>
       ZStream.repeatZIOChunkOption {
         for {
+          chunkSize <- ChunkSize.get
           bufArray  <- UIO(Array.ofDim[Char](chunkSize))
           bytesRead <- ZIO.attemptBlockingIO(capturedReader.read(bufArray)).mapError(Some(_))
           chars <- if (bytesRead < 0)
@@ -475,40 +459,28 @@ trait ZStreamPlatformSpecificConstructors {
    * Creates a stream from an effect producing `java.io.Reader`.
    */
   @deprecated("use fromReaderZIO", "2.0.0")
-  def fromReaderEffect[R](
-    reader: => ZIO[R, IOException, Reader],
-    chunkSize: Int = ZStream.DefaultChunkSize
-  ): ZStream[R, IOException, Char] =
-    fromReaderZIO(reader, chunkSize)
+  def fromReaderEffect[R](reader: => ZIO[R, IOException, Reader]): ZStream[R, IOException, Char] =
+    fromReaderZIO(reader)
 
   /**
    * Creates a stream from managed `java.io.Reader`.
    */
-  def fromReaderManaged[R](
-    reader: => ZManaged[R, IOException, Reader],
-    chunkSize: Int = ZStream.DefaultChunkSize
-  ): ZStream[R, IOException, Char] =
-    ZStream.managed(reader).flatMap(fromReader(_, chunkSize))
+  def fromReaderManaged[R](reader: => ZManaged[R, IOException, Reader]): ZStream[R, IOException, Char] =
+    ZStream.managed(reader).flatMap(fromReader(_))
 
   /**
    * Creates a stream from an effect producing `java.io.Reader`.
    */
-  def fromReaderZIO[R](
-    reader: => ZIO[R, IOException, Reader],
-    chunkSize: Int = ZStream.DefaultChunkSize
-  ): ZStream[R, IOException, Char] =
-    fromReaderManaged(reader.toManagedWith(r => ZIO.succeed(r.close())), chunkSize)
+  def fromReaderZIO[R](reader: => ZIO[R, IOException, Reader]): ZStream[R, IOException, Char] =
+    fromReaderManaged(reader.toManagedWith(r => ZIO.succeed(r.close())))
 
   /**
    * Creates a stream from a callback that writes to `java.io.OutputStream`.
    * Note: the input stream will be closed after the `write` is done.
    */
-  def fromOutputStreamWriter(
-    write: OutputStream => Unit,
-    chunkSize: Int = ZStream.DefaultChunkSize
-  ): ZStream[Any, Throwable, Byte] = {
+  def fromOutputStreamWriter(write: OutputStream => Unit): ZStream[Any, Throwable, Byte] = {
     def from(in: InputStream, out: OutputStream, err: Promise[Throwable, None.type]) = {
-      val readIn = fromInputStream(in, chunkSize).ensuring(ZIO.succeed(in.close()))
+      val readIn = fromInputStream(in).ensuring(ZIO.succeed(in.close()))
       val writeOut = ZStream.fromZIO {
         ZIO
           .attemptBlockingInterrupt(write(out))
@@ -627,21 +599,23 @@ trait ZStreamPlatformSpecificConstructors {
       ZStream.unfoldChunkZIO(0) {
         case -1 => ZIO.succeed(Option.empty)
         case _ =>
-          val buff = ByteBuffer.allocate(ZStream.DefaultChunkSize)
+          ChunkSize.get.flatMap { chunkSize =>
+            val buff = ByteBuffer.allocate(chunkSize)
 
-          IO.async[Throwable, Option[(Chunk[Byte], Int)]] { callback =>
-            socket.read(
-              buff,
-              null,
-              new CompletionHandler[Integer, Void] {
-                override def completed(bytesRead: Integer, attachment: Void): Unit = {
-                  (buff: Buffer).flip()
-                  callback(ZIO.succeed(Option(Chunk.fromByteBuffer(buff) -> bytesRead.toInt)))
+            IO.async[Throwable, Option[(Chunk[Byte], Int)]] { callback =>
+              socket.read(
+                buff,
+                null,
+                new CompletionHandler[Integer, Void] {
+                  override def completed(bytesRead: Integer, attachment: Void): Unit = {
+                    (buff: Buffer).flip()
+                    callback(ZIO.succeed(Option(Chunk.fromByteBuffer(buff) -> bytesRead.toInt)))
+                  }
+
+                  override def failed(error: Throwable, attachment: Void): Unit = callback(ZIO.fail(error))
                 }
-
-                override def failed(error: Throwable, attachment: Void): Unit = callback(ZIO.fail(error))
-              }
-            )
+              )
+            }
           }
       }
 

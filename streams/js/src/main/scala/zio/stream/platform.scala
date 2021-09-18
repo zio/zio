@@ -235,12 +235,10 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
   /**
    * Creates a stream from a `java.io.InputStream`
    */
-  def fromInputStream(
-    is: => InputStream,
-    chunkSize: Int = ZStream.DefaultChunkSize
-  ): ZStream[Any, IOException, Byte] =
+  def fromInputStream(is: => InputStream): ZStream[Any, IOException, Byte] =
     ZStream {
       for {
+        chunkSize  <- ZStream.ChunkSize.get.toManaged
         done       <- Ref.make(false).toManaged
         capturedIs <- Managed.succeed(is)
         pull = {
@@ -273,32 +271,23 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
    * stream is closed after it is exhausted.
    */
   @deprecated("use fromInputStreamZIO", "2.0.0")
-  def fromInputStreamEffect[R](
-    is: ZIO[R, IOException, InputStream],
-    chunkSize: Int = ZStream.DefaultChunkSize
-  ): ZStream[R, IOException, Byte] =
-    fromInputStreamZIO(is, chunkSize)
+  def fromInputStreamEffect[R](is: ZIO[R, IOException, InputStream]): ZStream[R, IOException, Byte] =
+    fromInputStreamZIO(is)
 
   /**
    * Creates a stream from a `java.io.InputStream`. Ensures that the input
    * stream is closed after it is exhausted.
    */
-  def fromInputStreamZIO[R](
-    is: ZIO[R, IOException, InputStream],
-    chunkSize: Int = ZStream.DefaultChunkSize
-  ): ZStream[R, IOException, Byte] =
-    fromInputStreamManaged(is.toManagedWith(is => ZIO.succeed(is.close())), chunkSize)
+  def fromInputStreamZIO[R](is: ZIO[R, IOException, InputStream]): ZStream[R, IOException, Byte] =
+    fromInputStreamManaged(is.toManagedWith(is => ZIO.succeed(is.close())))
 
   /**
    * Creates a stream from a managed `java.io.InputStream` value.
    */
-  def fromInputStreamManaged[R](
-    is: ZManaged[R, IOException, InputStream],
-    chunkSize: Int = ZStream.DefaultChunkSize
-  ): ZStream[R, IOException, Byte] =
+  def fromInputStreamManaged[R](is: ZManaged[R, IOException, InputStream]): ZStream[R, IOException, Byte] =
     ZStream
       .managed(is)
-      .flatMap(fromInputStream(_, chunkSize))
+      .flatMap(fromInputStream(_))
 
   trait ZStreamConstructorPlatformSpecific extends ZStreamConstructorLowPriority1 {
 

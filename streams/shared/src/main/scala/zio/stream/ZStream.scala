@@ -3417,6 +3417,14 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     ZStream.whenZIO(b)(self)
 
   /**
+   * Runs this stream with the specified chunk size for stream operators,
+   * restoring the old chunk size for stream operators when it completes
+   * execution.
+   */
+  def withChunkSize(n: Int): ZStream[R, E, O] =
+    ZStream.withChunkSize(n)(self)
+
+  /**
    * Equivalent to [[filter]] but enables the use of filter clauses in for-comprehensions
    */
   def withFilter(predicate: O => Boolean): ZStream[R, E, O] =
@@ -3718,9 +3726,10 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
 object ZStream extends ZStreamPlatformSpecificConstructors {
 
   /**
-   * The default chunk size used by the various combinators and constructors of [[ZStream]].
+   * The chunk size used by stream operators.
    */
-  final val DefaultChunkSize = 4096
+  final val ChunkSize: FiberRef.Runtime[Int] =
+    FiberRef.unsafeMake(4096)
 
   /**
    * Submerges the error case of an `Either` into the `ZStream`.
@@ -3812,6 +3821,12 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     acquire: ZIO[R, E, A]
   )(release: (A, Exit[Any, Any]) => URIO[R, Any]): ZStream[R, E, A] =
     acquireReleaseExitWith(acquire)(release)
+
+  /**
+   * Retrieves the chunk size for stream operators.
+   */
+  def chunkSize: ZStream[Any, Nothing, Int] =
+    ZStream.fromZIO(ChunkSize.get)
 
   /**
    * Composes the specified streams to create a cartesian product of elements
@@ -4076,33 +4091,24 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   /**
    * Creates a stream from a subscription to a hub.
    */
-  def fromHub[R, E, A](
-    hub: ZHub[Nothing, R, Any, E, Nothing, A],
-    maxChunkSize: Int = DefaultChunkSize
-  ): ZStream[R, E, A] =
-    managed(hub.subscribe).flatMap(queue => fromQueue(queue, maxChunkSize))
+  def fromHub[R, E, A](hub: ZHub[Nothing, R, Any, E, Nothing, A]): ZStream[R, E, A] =
+    managed(hub.subscribe).flatMap(queue => fromQueue(queue))
 
   /**
    * Creates a stream from a subscription to a hub in the context of a managed
    * effect. The managed effect describes subscribing to receive messages from
    * the hub while the stream describes taking messages from the hub.
    */
-  def fromHubManaged[R, E, A](
-    hub: ZHub[Nothing, R, Any, E, Nothing, A],
-    maxChunkSize: Int = DefaultChunkSize
-  ): ZManaged[Any, Nothing, ZStream[R, E, A]] =
-    hub.subscribe.map(queue => fromQueueWithShutdown(queue, maxChunkSize))
+  def fromHubManaged[R, E, A](hub: ZHub[Nothing, R, Any, E, Nothing, A]): ZManaged[Any, Nothing, ZStream[R, E, A]] =
+    hub.subscribe.map(queue => fromQueueWithShutdown(queue))
 
   /**
    * Creates a stream from a subscription to a hub.
    *
    * The hub will be shut down once the stream is closed.
    */
-  def fromHubWithShutdown[R, E, A](
-    hub: ZHub[Nothing, R, Any, E, Nothing, A],
-    maxChunkSize: Int = DefaultChunkSize
-  ): ZStream[R, E, A] =
-    fromHub(hub, maxChunkSize).ensuringFirst(hub.shutdown)
+  def fromHubWithShutdown[R, E, A](hub: ZHub[Nothing, R, Any, E, Nothing, A]): ZStream[R, E, A] =
+    fromHub(hub).ensuringFirst(hub.shutdown)
 
   /**
    * Creates a stream from a subscription to a hub in the context of a managed
@@ -4112,10 +4118,9 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * The hub will be shut down once the stream is closed.
    */
   def fromHubManagedWithShutdown[R, E, A](
-    hub: ZHub[Nothing, R, Any, E, Nothing, A],
-    maxChunkSize: Int = DefaultChunkSize
+    hub: ZHub[Nothing, R, Any, E, Nothing, A]
   ): ZManaged[Any, Nothing, ZStream[R, E, A]] =
-    fromHubManaged(hub, maxChunkSize).map(_.ensuringFirst(hub.shutdown))
+    fromHubManaged(hub).map(_.ensuringFirst(hub.shutdown))
 
   /**
    * Creates a stream from an iterable collection of values
@@ -4139,14 +4144,14 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   /**
    * Creates a stream from an iterator that may throw exceptions.
    */
-  def fromIterator[A](iterator: => Iterator[A], maxChunkSize: Int = 1): ZStream[Any, Throwable, A] =
+  def fromIterator[A](iterator: => Iterator[A]): ZStream[Any, Throwable, A] =
     ZStream {
       ZManaged
         .attempt(iterator)
         .fold(
           Pull.fail,
           iterator =>
-            ZIO.attempt {
+            ZStream.ChunkSize.get.mapAttempt { maxChunkSize =>
               if (maxChunkSize <= 1) {
                 if (iterator.isEmpty) Pull.end else Pull.emit(iterator.next())
               } else {
@@ -4182,10 +4187,10 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   /**
    * Creates a stream from an iterator that does not throw exceptions.
    */
-  def fromIteratorSucceed[A](iterator: => Iterator[A], maxChunkSize: Int = 1): ZStream[Any, Nothing, A] =
+  def fromIteratorSucceed[A](iterator: => Iterator[A]): ZStream[Any, Nothing, A] =
     ZStream {
       Managed.succeed(iterator).map { iterator =>
-        ZIO.succeed {
+        ZStream.ChunkSize.get.map { maxChunkSize =>
           if (maxChunkSize <= 1) {
             if (iterator.isEmpty) Pull.end else Pull.emit(iterator.next())
           } else {
@@ -4207,7 +4212,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * Creates a stream from an iterator that does not throw exceptions.
    */
   @deprecated("use fromIteratorSucceed", "2.0.0")
-  def fromIteratorTotal[A](iterator: => Iterator[A], maxChunkSize: Int = 1): ZStream[Any, Nothing, A] =
+  def fromIteratorTotal[A](iterator: => Iterator[A]): ZStream[Any, Nothing, A] =
     fromIteratorSucceed(iterator)
 
   /**
@@ -4273,36 +4278,29 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     fromZIO(iterator).flatMap(fromJavaIterator(_))
 
   /**
-   * Creates a stream from a queue of values
-   *
-   * @param maxChunkSize Maximum number of queued elements to put in one chunk in the stream
+   * Creates a stream from a queue of values.
    */
-  def fromQueue[R, E, O](
-    queue: ZQueue[Nothing, R, Any, E, Nothing, O],
-    maxChunkSize: Int = DefaultChunkSize
-  ): ZStream[R, E, O] =
-    repeatZIOChunkOption {
-      queue
-        .takeBetween(1, maxChunkSize)
-        .map(Chunk.fromIterable)
-        .catchAllCause(c =>
-          queue.isShutdown.flatMap { down =>
-            if (down && c.isInterrupted) Pull.end
-            else Pull.failCause(c)
-          }
-        )
+  def fromQueue[R, E, O](queue: ZQueue[Nothing, R, Any, E, Nothing, O]): ZStream[R, E, O] =
+    ZStream.chunkSize.flatMap { maxChunkSize =>
+      repeatZIOChunkOption {
+        queue
+          .takeBetween(1, maxChunkSize)
+          .map(Chunk.fromIterable)
+          .catchAllCause(c =>
+            queue.isShutdown.flatMap { down =>
+              if (down && c.isInterrupted) Pull.end
+              else Pull.failCause(c)
+            }
+          )
+      }
     }
 
   /**
-   * Creates a stream from a queue of values. The queue will be shutdown once the stream is closed.
-   *
-   * @param maxChunkSize Maximum number of queued elements to put in one chunk in the stream
+   * Creates a stream from a queue of values. The queue will be shutdown once
+   * the stream is closed.
    */
-  def fromQueueWithShutdown[R, E, O](
-    queue: ZQueue[Nothing, R, Any, E, Nothing, O],
-    maxChunkSize: Int = DefaultChunkSize
-  ): ZStream[R, E, O] =
-    fromQueue(queue, maxChunkSize).ensuringFirst(queue.shutdown)
+  def fromQueueWithShutdown[R, E, O](queue: ZQueue[Nothing, R, Any, E, Nothing, O]): ZStream[R, E, O] =
+    fromQueue(queue).ensuringFirst(queue.shutdown)
 
   /**
    * Creates a stream from a [[zio.Schedule]] that does not require any further
@@ -4436,14 +4434,15 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   /**
    * Constructs a stream from a range of integers (lower bound included, upper bound not included)
    */
-  def range(min: Int, max: Int, chunkSize: Int = DefaultChunkSize): ZStream[Any, Nothing, Int] = {
-    val pull = (ref: Ref[Int]) =>
-      for {
-        start <- ref.getAndUpdate(_ + chunkSize)
-        _     <- ZIO.when(start >= max)(ZIO.fail(None))
-      } yield Chunk.fromIterable(Range(start, (start + chunkSize).min(max)))
-    ZStream(Ref.makeManaged(min).map(pull))
-  }
+  def range(min: Int, max: Int): ZStream[Any, Nothing, Int] =
+    ZStream.chunkSize.flatMap { chunkSize =>
+      val pull = (ref: Ref[Int]) =>
+        for {
+          start <- ref.getAndUpdate(_ + chunkSize)
+          _     <- ZIO.when(start >= max)(ZIO.fail(None))
+        } yield Chunk.fromIterable(Range(start, (start + chunkSize).min(max)))
+      ZStream(Ref.makeManaged(min).map(pull))
+    }
 
   /**
    * Repeats the provided value infinitely.
@@ -4725,6 +4724,14 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    */
   def whenZIO[R, E](b: ZIO[R, E, Boolean]) =
     new WhenZIO(b)
+
+  /**
+   * Runs the specified stream with the specified chunk size for stream
+   * operators, restoring the old chunk size for stream operators when it
+   * completes execution.
+   */
+  def withChunkSize[R, E, A](n: Int)(stream: ZStream[R, E, A]): ZStream[R, E, A] =
+    ZStream.managed(ChunkSize.locallyManaged(n)) *> stream
 
   /**
    * Zips the specified streams together with the specified function.

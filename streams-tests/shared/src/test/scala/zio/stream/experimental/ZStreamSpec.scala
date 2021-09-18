@@ -658,9 +658,10 @@ object ZStreamSpec extends ZIOBaseSpec {
           test("range emits values in chunks of chunkSize") {
             assertM(
               (ZStream
-                .range(1, 10, 2))
+                .range(1, 10)
+                .withChunkSize(2)
                 .mapChunks(c => Chunk[Int](c.sum))
-                .runCollect
+                .runCollect)
             )(equalTo(Chunk(1 + 2, 3 + 4, 5 + 6, 7 + 8, 9)))
           }
         ),
@@ -4023,7 +4024,8 @@ object ZStreamSpec extends ZIOBaseSpec {
               _     <- queue.offerAll(List(1, 2, 3, 4, 5, 6, 7))
 
               result <- ZStream
-                          .fromQueue(queue, maxChunkSize = 2)
+                          .fromQueue(queue)
+                          .withChunkSize(2)
                           .mapChunks(Chunk.single)
                           .take(3)
                           .runCollect

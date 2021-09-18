@@ -557,8 +557,7 @@ ZIO Stream also has `ZStream.fromJavaStream`, `ZStream.fromJavaStreamZIO` and `Z
 ```scala
 object ZStream {
   def fromQueue[R, E, O](
-    queue: ZQueue[Nothing, R, Any, E, Nothing, O],
-    maxChunkSize: Int = DefaultChunkSize
+    queue: ZQueue[Nothing, R, Any, E, Nothing, O]
   ): ZStream[R, E, O] = ???
 
   def fromHub[R, E, A](
