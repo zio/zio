@@ -520,7 +520,7 @@ lazy val benchmarks = project.module
         "org.ow2.asm"                % "asm"            % "9.2",
         "org.scala-lang"             % "scala-compiler" % scalaVersion.value % Provided,
         "org.scala-lang"             % "scala-reflect"  % scalaVersion.value,
-        "org.typelevel"             %% "cats-effect"    % "2.5.3",
+        "org.typelevel"             %% "cats-effect"    % "2.5.4",
         "org.scalacheck"            %% "scalacheck"     % "1.15.4",
         "qa.hedgehog"               %% "hedgehog-core"  % "0.7.0",
         "com.github.japgolly.nyaya" %% "nyaya-gen"      % "0.10.0"
