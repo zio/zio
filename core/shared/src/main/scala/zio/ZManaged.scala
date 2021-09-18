@@ -1322,12 +1322,12 @@ object ZManaged extends ZManagedPlatformSpecific {
   }
 
   final class AccessZIOPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
-    def apply[E, A](f: R => ZIO[R, E, A]): ZManaged[R, E, A] =
+    def apply[R1 <: R, E, A](f: R => ZIO[R1, E, A]): ZManaged[R with R1, E, A] =
       ZManaged.environment.mapZIO(f)
   }
 
   final class AccessManagedPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
-    def apply[E, A](f: R => ZManaged[R, E, A]): ZManaged[R, E, A] =
+    def apply[R1 <: R, E, A](f: R => ZManaged[R1, E, A]): ZManaged[R with R1, E, A] =
       ZManaged.environment.flatMap(f)
   }
 
@@ -1339,16 +1339,16 @@ object ZManaged extends ZManagedPlatformSpecific {
   }
 
   final class ServiceWithPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
-    def apply[E, A](f: Service => ZIO[Has[Service], E, A])(implicit
+    def apply[R <: Has[Service], E, A](f: Service => ZIO[R, E, A])(implicit
       tag: Tag[Service]
-    ): ZManaged[Has[Service], E, A] =
+    ): ZManaged[R with Has[Service], E, A] =
       ZManaged.fromZIO(ZIO.serviceWith[Service](f))
   }
 
   final class ServiceWithManagedPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
-    def apply[E, A](f: Service => ZManaged[Has[Service], E, A])(implicit
+    def apply[R <: Has[Service], E, A](f: Service => ZManaged[Has[Service], E, A])(implicit
       tag: Tag[Service]
-    ): ZManaged[Has[Service], E, A] =
+    ): ZManaged[R with Has[Service], E, A] =
       ZManaged.accessManaged[Has[Service]](hasService => f(hasService.get))
   }
 

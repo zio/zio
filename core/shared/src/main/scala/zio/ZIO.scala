@@ -5422,7 +5422,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   }
 
   final class AccessZIOPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
-    def apply[E, A](f: R => ZIO[R, E, A]): ZIO[R, E, A] =
+    def apply[R1 <: R, E, A](f: R => ZIO[R1, E, A]): ZIO[R with R1, E, A] =
       new ZIO.Read(f)
   }
 
@@ -5434,7 +5434,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   }
 
   final class ServiceWithPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
-    def apply[E, A](f: Service => ZIO[Has[Service], E, A])(implicit tag: Tag[Service]): ZIO[Has[Service], E, A] =
+    def apply[R <: Has[Service], E, A](f: Service => ZIO[R, E, A])(implicit
+      tag: Tag[Service]
+    ): ZIO[R with Has[Service], E, A] =
       new ZIO.Read(r => f(r.get))
   }
 

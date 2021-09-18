@@ -4764,12 +4764,12 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   }
 
   final class AccessZIOPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
-    def apply[E, A](f: R => ZIO[R, E, A]): ZStream[R, E, A] =
+    def apply[R1 <: R, E, A](f: R => ZIO[R1, E, A]): ZStream[R with R1, E, A] =
       ZStream.environment[R].mapZIO(f)
   }
 
   final class AccessStreamPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
-    def apply[E, A](f: R => ZStream[R, E, A]): ZStream[R, E, A] =
+    def apply[R1 <: R, E, A](f: R => ZStream[R1, E, A]): ZStream[R with R1, E, A] =
       ZStream.environment[R].flatMap(f)
   }
 
@@ -4781,16 +4781,16 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   }
 
   final class ServiceWithPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
-    def apply[E, A](f: Service => ZIO[Has[Service], E, A])(implicit
+    def apply[R <: Has[Service], E, A](f: Service => ZIO[R, E, A])(implicit
       tag: Tag[Service]
-    ): ZStream[Has[Service], E, A] =
+    ): ZStream[R with Has[Service], E, A] =
       ZStream.fromZIO(ZIO.serviceWith(f))
   }
 
   final class ServiceWithStreamPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
-    def apply[E, A](f: Service => ZStream[Has[Service], E, A])(implicit
+    def apply[R <: Has[Service], E, A](f: Service => ZStream[R, E, A])(implicit
       tag: Tag[Service]
-    ): ZStream[Has[Service], E, A] =
+    ): ZStream[R with Has[Service], E, A] =
       ZStream.service[Service].flatMap(f)
   }
 

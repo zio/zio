@@ -1063,7 +1063,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   def timed: ZSink[Has[Clock], Nothing, Any, Nothing, Duration] = ZSink.drain.timed.map(_._2)
 
   final class AccessSinkPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
-    def apply[E, I, L, Z](f: R => ZSink[R, E, I, L, Z]): ZSink[R, E, I, L, Z] =
+    def apply[R1 <: R, E, I, L, Z](f: R => ZSink[R1, E, I, L, Z]): ZSink[R with R1, E, I, L, Z] =
       ZSink {
         for {
           env  <- ZManaged.environment[R]

@@ -1641,7 +1641,7 @@ object ZSTM {
   }
 
   final class AccessSTMPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
-    def apply[E, A](f: R => ZSTM[R, E, A]): ZSTM[R, E, A] =
+    def apply[R1 <: R, E, A](f: R => ZSTM[R1, E, A]): ZSTM[R with R1, E, A] =
       ZSTM.environment.flatMap(f)
   }
 
@@ -1653,7 +1653,9 @@ object ZSTM {
   }
 
   final class ServiceWithPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
-    def apply[E, A](f: Service => ZSTM[Has[Service], E, A])(implicit tag: Tag[Service]): ZSTM[Has[Service], E, A] =
+    def apply[R <: Has[Service], E, A](f: Service => ZSTM[R, E, A])(implicit
+      tag: Tag[Service]
+    ): ZSTM[R with Has[Service], E, A] =
       ZSTM.service[Service].flatMap(f)
   }
 
