@@ -38,7 +38,7 @@ trait ZIOAppDefault extends ZIOApp {
 
   type Environment = ZEnv
 
-  val layer = ZLayer.environment
+  val layer: ZLayer[ZEnv with Has[ZIOAppArgs], Any, ZEnv] = ZLayer.environment
 
   val tag: Tag[ZEnv] = Tag[ZEnv]
 }
