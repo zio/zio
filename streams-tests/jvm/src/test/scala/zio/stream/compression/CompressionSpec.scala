@@ -37,7 +37,7 @@ object CompressionSpec extends DefaultRunnableSpec {
         ),
         test("stream of two deflated inputs as a single chunk")(
           assertM(
-            (deflatedStream(shortText) ++ deflatedStream(otherShortText)).chunkN(500).transduce(inflate(64)).runCollect
+            (deflatedStream(shortText) ++ deflatedStream(otherShortText)).rechunk(500).transduce(inflate(64)).runCollect
           )(equalTo(Chunk.fromArray(shortText) ++ Chunk.fromArray(otherShortText)))
         ),
         test("long input")(
@@ -47,12 +47,12 @@ object CompressionSpec extends DefaultRunnableSpec {
         ),
         test("long input, buffer smaller than chunks")(
           assertM(
-            deflatedStream(longText).chunkN(500).transduce(inflate(1)).runCollect
+            deflatedStream(longText).rechunk(500).transduce(inflate(1)).runCollect
           )(equalTo(Chunk.fromArray(longText)))
         ),
         test("long input, chunks smaller then buffer")(
           assertM(
-            deflatedStream(longText).chunkN(1).transduce(inflate(500)).runCollect
+            deflatedStream(longText).rechunk(1).transduce(inflate(500)).runCollect
           )(equalTo(Chunk.fromArray(longText)))
         ),
         test("long input, not wrapped in ZLIB header and trailer")(
@@ -70,7 +70,7 @@ object CompressionSpec extends DefaultRunnableSpec {
             case (chunk, n, bufferSize) =>
               assertM(for {
                 deflated <- ZIO.succeed(deflatedStream(chunk.toArray))
-                out      <- deflated.chunkN(n).transduce(inflate(bufferSize)).runCollect
+                out      <- deflated.rechunk(n).transduce(inflate(bufferSize)).runCollect
               } yield out.toList)(equalTo(chunk))
           }
         ),
@@ -79,7 +79,7 @@ object CompressionSpec extends DefaultRunnableSpec {
             case (chunk, n, bufferSize) =>
               assertM(for {
                 deflated <- ZIO.succeed(noWrapDeflatedStream(chunk.toArray))
-                out      <- deflated.chunkN(n).transduce(inflate(bufferSize, true)).runCollect
+                out      <- deflated.rechunk(n).transduce(inflate(bufferSize, true)).runCollect
               } yield out.toList)(equalTo(chunk))
           }
         ),
@@ -88,7 +88,7 @@ object CompressionSpec extends DefaultRunnableSpec {
           assertM(for {
             input    <- ZIO.succeed(inflateRandomExampleThatFailed)
             deflated <- ZIO.succeed(noWrapDeflatedStream(input))
-            out      <- deflated.chunkN(40).transduce(inflate(11, true)).runCollect
+            out      <- deflated.rechunk(40).transduce(inflate(11, true)).runCollect
           } yield out.toList)(equalTo(inflateRandomExampleThatFailed.toList))
         ),
         test("fail if input stream finished unexpected")(
@@ -106,7 +106,7 @@ object CompressionSpec extends DefaultRunnableSpec {
         test("stream of two gzipped inputs as a single chunk")(
           assertM(
             (jdkGzippedStream(shortText) ++ jdkGzippedStream(otherShortText))
-              .chunkN(500)
+              .rechunk(500)
               .transduce(gunzip(64))
               .runCollect
           )(equalTo(Chunk.fromArray(shortText) ++ Chunk.fromArray(otherShortText)))
@@ -123,12 +123,12 @@ object CompressionSpec extends DefaultRunnableSpec {
         ),
         test("long input, buffer smaller than chunks")(
           assertM(
-            jdkGzippedStream(longText).chunkN(500).transduce(gunzip(1)).runCollect
+            jdkGzippedStream(longText).rechunk(500).transduce(gunzip(1)).runCollect
           )(equalTo(Chunk.fromArray(longText)))
         ),
         test("long input, chunks smaller then buffer")(
           assertM(
-            jdkGzippedStream(longText).chunkN(1).transduce(gunzip(500)).runCollect
+            jdkGzippedStream(longText).rechunk(1).transduce(gunzip(500)).runCollect
           )(equalTo(Chunk.fromArray(longText)))
         ),
         test("fail early if header is corrupted")(
@@ -151,7 +151,7 @@ object CompressionSpec extends DefaultRunnableSpec {
             case (chunk, n, bufferSize) =>
               assertM(for {
                 deflated <- ZIO.succeed(jdkGzippedStream(chunk.toArray))
-                out      <- deflated.chunkN(n).transduce(gunzip(bufferSize)).runCollect
+                out      <- deflated.rechunk(n).transduce(gunzip(bufferSize)).runCollect
               } yield out.toList)(equalTo(chunk))
           }
         ),
@@ -172,7 +172,7 @@ object CompressionSpec extends DefaultRunnableSpec {
         ),
         test("parses header with CRC16")(
           assertM(
-            headerWithCrc.chunkN(1).transduce(gunzip(64)).runCollect
+            headerWithCrc.rechunk(1).transduce(gunzip(64)).runCollect
           )(equalTo(Chunk.fromArray(shortText)))
         ),
         test("parses header with CRC16, FNAME, FCOMMENT, FEXTRA")(
@@ -186,33 +186,33 @@ object CompressionSpec extends DefaultRunnableSpec {
           checkM(Gen.listOfBounded(0, `1K`)(Gen.byte).zip(Gen.int(1, `1K`)).zip(Gen.int(1, `1K`))) {
             case (input, n, bufferSize) =>
               assertM(for {
-                deflated <- Stream.fromIterable(input).chunkN(n).transduce(deflate(bufferSize, false)).runCollect
+                deflated <- Stream.fromIterable(input).rechunk(n).transduce(deflate(bufferSize, false)).runCollect
                 inflated <- jdkInflate(deflated, noWrap = false)
               } yield inflated)(equalTo(input))
           }
         ),
         test("deflate empty bytes, small buffer")(
           assertM(
-            Stream.fromIterable(List.empty).chunkN(1).transduce(deflate(100, false)).runCollect.map(_.toList)
+            Stream.fromIterable(List.empty).rechunk(1).transduce(deflate(100, false)).runCollect.map(_.toList)
           )(equalTo(jdkDeflate(Array.empty, new Deflater(-1, false)).toList))
         ),
         test("deflates same as JDK")(
-          assertM(Stream.fromIterable(longText).chunkN(128).transduce(deflate(256, false)).runCollect)(
+          assertM(Stream.fromIterable(longText).rechunk(128).transduce(deflate(256, false)).runCollect)(
             equalTo(Chunk.fromArray(jdkDeflate(longText, new Deflater(-1, false))))
           )
         ),
         test("deflates same as JDK, nowrap")(
-          assertM(Stream.fromIterable(longText).chunkN(128).transduce(deflate(256, true)).runCollect)(
+          assertM(Stream.fromIterable(longText).rechunk(128).transduce(deflate(256, true)).runCollect)(
             equalTo(Chunk.fromArray(jdkDeflate(longText, new Deflater(-1, true))))
           )
         ),
         test("deflates same as JDK, small buffer")(
-          assertM(Stream.fromIterable(longText).chunkN(64).transduce(deflate(1, false)).runCollect)(
+          assertM(Stream.fromIterable(longText).rechunk(64).transduce(deflate(1, false)).runCollect)(
             equalTo(Chunk.fromArray(jdkDeflate(longText, new Deflater(-1, false))))
           )
         ),
         test("deflates same as JDK, nowrap, small buffer ")(
-          assertM(Stream.fromIterable(longText).chunkN(64).transduce(deflate(1, true)).runCollect)(
+          assertM(Stream.fromIterable(longText).rechunk(64).transduce(deflate(1, true)).runCollect)(
             equalTo(Chunk.fromArray(jdkDeflate(longText, new Deflater(-1, true))))
           )
         )
@@ -222,7 +222,7 @@ object CompressionSpec extends DefaultRunnableSpec {
           checkM(Gen.listOfBounded(0, `1K`)(Gen.byte).zip(Gen.int(1, `1K`)).zip(Gen.int(1, `1K`))) {
             case (input, n, bufferSize) =>
               assertM(for {
-                gzipped  <- Stream.fromIterable(input).chunkN(n).transduce(gzip(bufferSize)).runCollect
+                gzipped  <- Stream.fromIterable(input).rechunk(n).transduce(gzip(bufferSize)).runCollect
                 inflated <- jdkGunzip(gzipped)
               } yield inflated)(equalTo(input))
           }
@@ -241,19 +241,19 @@ object CompressionSpec extends DefaultRunnableSpec {
         ),
         test("gzips, small chunks, small buffer")(
           assertM(for {
-            gzipped      <- Stream.fromIterable(longText).chunkN(1).transduce(gzip(1)).runCollect
+            gzipped      <- Stream.fromIterable(longText).rechunk(1).transduce(gzip(1)).runCollect
             jdkGunzipped <- jdkGunzip(gzipped)
           } yield jdkGunzipped)(equalTo(longText.toList))
         ),
         test("gzips, small chunks, 1k buffer")(
           assertM(for {
-            gzipped      <- Stream.fromIterable(longText).chunkN(1).transduce(gzip(`1K`)).runCollect
+            gzipped      <- Stream.fromIterable(longText).rechunk(1).transduce(gzip(`1K`)).runCollect
             jdkGunzipped <- jdkGunzip(gzipped)
           } yield jdkGunzipped)(equalTo(longText.toList))
         ),
         test("chunks bigger than buffer")(
           assertM(for {
-            gzipped      <- Stream.fromIterable(longText).chunkN(`1K`).transduce(gzip(64)).runCollect
+            gzipped      <- Stream.fromIterable(longText).rechunk(`1K`).transduce(gzip(64)).runCollect
             jdkGunzipped <- jdkGunzip(gzipped)
           } yield jdkGunzipped)(equalTo(longText.toList))
         ),

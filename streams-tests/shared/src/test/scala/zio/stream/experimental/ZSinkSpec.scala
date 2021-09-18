@@ -127,7 +127,7 @@ object ZSinkSpec extends ZIOBaseSpec {
                 assertM(
                   ZStream
                     .fromChunk(Chunk.fromIterable(1 to 10))
-                    .chunkN(chunkSize)
+                    .rechunk(chunkSize)
                     .run(ZSink.sum[Nothing, Int].collectAllWhileWith(-1)((s: Int) => s == s)(_ + _))
                 )(equalTo(54))
               }
@@ -140,7 +140,7 @@ object ZSinkSpec extends ZIOBaseSpec {
                 (a: List[Int], b: Option[Int]) => a ++ b.toList
               )
             val stream = ZStream.fromChunk(Chunk.fromIterable(1 to 100))
-            assertM((stream ++ stream).chunkN(3).run(sink))(equalTo(List(1, 2, 3, 4)))
+            assertM((stream ++ stream).rechunk(3).run(sink))(equalTo(List(1, 2, 3, 4)))
           }
         ),
         test("head")(
@@ -568,7 +568,7 @@ object ZSinkSpec extends ZIOBaseSpec {
           val sink: ZSink[Any, Nothing, Int, Nothing, Int, Option[Option[Int]]] =
             ZSink.head[Nothing, Int].untilOutputZIO(h => ZIO.succeed(h.fold(false)(_ >= 10)))
           val assertions = ZIO.foreach(Chunk(1, 3, 7, 20)) { n =>
-            assertM(ZStream.fromIterable(1 to 100).chunkN(n).run(sink))(equalTo(Some(Some(10))))
+            assertM(ZStream.fromIterable(1 to 100).rechunk(n).run(sink))(equalTo(Some(Some(10))))
           }
           assertions.map(tst => tst.reduce(_ && _))
         },
@@ -576,7 +576,7 @@ object ZSinkSpec extends ZIOBaseSpec {
           val sink: ZSink[Any, Nothing, Int, Nothing, Int, Option[Chunk[Int]]] =
             ZSink.take[Nothing, Int](4).untilOutputZIO(s => ZIO.succeed(s.sum > 10))
 
-          assertM(ZStream.fromIterable(1 to 8).chunkN(2).run(sink))(equalTo(Some(Chunk(5, 6, 7, 8))))
+          assertM(ZStream.fromIterable(1 to 8).rechunk(2).run(sink))(equalTo(Some(Chunk(5, 6, 7, 8))))
         },
         test("untilOutputZIO empty stream terminates with none") {
           assertM(
