@@ -210,9 +210,9 @@ So the error channel of the output of `left` and `right` operators is changed fr
 
 ZIO's type system uses implicit evidence to ensure type safety, and some level of correctness at compile time. In ZIO 2.x, the _subtype evidence_, `<:<` replaced by these two descriptive implicit evidences:
 
-1. **`IsSubtypeOfError`** — The `O1 IsSubtypeOfError O2` ensures that the output type `O1` is subtype of `O2`
+1. **`IsSubtypeOfOutput`** — The `O1 IsSubtypeOfOutput O2` ensures that the output type `O1` is subtype of `O2`
 
-2. **`IsSubtypeOfOutput`** — The `E1 IsSubtypeOfOutput E2` ensures that the error type `E1` is a subtype of `E2`
+2. **`IsSubtypeOfError`** — The `E1 IsSubtypeOfError E2` ensures that the error type `E1` is a subtype of `E2`
 
 Now we have more descriptive errors at compile time in the vast majority of operators.
 
