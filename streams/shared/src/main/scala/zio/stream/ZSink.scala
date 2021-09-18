@@ -1013,6 +1013,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * A sink that depends on another managed value
    * `resource` will be finalized after the processing.
    */
+  @deprecated("use unwrapManaged", "2.0.0")
   def managed[R, E, I, A, L <: I, Z](resource: ZManaged[R, E, A])(fn: A => ZSink[R, E, I, L, Z]): ZSink[R, E, I, I, Z] =
     ZSink(resource.fold[ZSink[R, E, I, I, Z]](err => ZSink.fail[E, I](err), m => fn(m)).flatMap(_.push))
 
