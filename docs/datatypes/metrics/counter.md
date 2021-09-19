@@ -32,3 +32,16 @@ def countValue(name: String, tags: MetricLabel*): Counter[Double]
 ```scala
 def countValueWith[A](name: String, tags: MetricLabel*)(f: A => Double): Counter[A]
 ```
+
+## Use Cases
+
+We use the counter metric type for any value that increases, such as request counts. Note that we should never use the counter for a value that can decrease.
+
+So when we should use counters?
+- When we want to track a value over time, that only goes up
+- When we want to measure the increasing rate of something, how fast something is growing, such as request rates.
+
+Here are some of the use cases:
+- Request Counts
+- Completed Tasks
+- Error Counts
