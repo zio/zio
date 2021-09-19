@@ -11,25 +11,25 @@ A gauge is a named variable of type _Double_ that can change over time. It can e
 
 ## API
 
-* **`setGauge`** — Create a gauge that can be set to absolute values. It can be applied to effects yielding a Double
+**`setGauge`** — Create a gauge that can be set to absolute values. It can be applied to effects yielding a Double
 
 ```scala
 def setGauge(name: String, tags: MetricLabel*): Gauge[Double]
 ```
 
-* **`setGaugeWith`** — Create a gauge that can be set to absolute values. It can be applied to effects producing a value of type `A`. Given the effect produces `v: A` the gauge will be set to `f(v)` upon successful execution of the effect.
+**`setGaugeWith`** — Create a gauge that can be set to absolute values. It can be applied to effects producing a value of type `A`. Given the effect produces `v: A` the gauge will be set to `f(v)` upon successful execution of the effect.
 
 ```scala
 def setGaugeWith[A](name: String, tags: MetricLabel*)(f: A => Double): Gauge[A]
 ```
 
-* **`adjustGauge`** — Create a gauge that can be set relative to its previous value. It can be applied to effects yielding a _Double_.
+**`adjustGauge`** — Create a gauge that can be set relative to its previous value. It can be applied to effects yielding a _Double_.
 
 ```scala
 def adjustGauge(name: String, tags: MetricLabel*): Gauge[Double]
 ```
 
-* **`adjustGaugeWith`** — Create a gauge that can be set relative to its previous value. It can be applied to effects producing a value of type `A`. Given the effect produces `v: A` the gauge will be modified by `_ + f(v)` upon successful execution of the effect.
+**`adjustGaugeWith`** — Create a gauge that can be set relative to its previous value. It can be applied to effects producing a value of type `A`. Given the effect produces `v: A` the gauge will be modified by `_ + f(v)` upon successful execution of the effect.
 
 ```scala
 def adjustGaugeWith[A](name: String, tags: MetricLabel*)(f: A => Double): Gauge[A]

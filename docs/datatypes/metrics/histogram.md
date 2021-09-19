@@ -24,13 +24,13 @@ The mental model for a ZMX histogram is inspired from [Prometheus](https://prome
 
 To define a histogram aspect, the API requires that the boundaries for the histogram are specified when creating the aspect.
 
-* **`observeHistogram`** — Create a histogram that can be applied to effects producing `Double` values. The values will be counted as outlined above. 
+**`observeHistogram`** — Create a histogram that can be applied to effects producing `Double` values. The values will be counted as outlined above. 
 
 ```scala
 def observeHistogram(name: String, boundaries: Chunk[Double], tags: MetricLabel*): Histogram[Double]
 ```
 
-* **`observeHistogramWith`** — Create a histogram that can be applied to effects producing values `v` of `A`. The values `f(v)` will be counted as outlined above. 
+**`observeHistogramWith`** — Create a histogram that can be applied to effects producing values `v` of `A`. The values `f(v)` will be counted as outlined above. 
 
 ```scala
 def observeHistogramWith[A](name: String, boundaries: Chunk[Double], tags: MetricLabel*)(

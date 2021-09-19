@@ -24,7 +24,7 @@ The ZIO Metrics API also allows summaries to be configured with an error margin 
 
 ## API
 
-* **`observeSummary`** — A metric aspect that adds a value to a summary each time the effect it is applied to succeeds. This aspect can be applied to effects producing a `Double`.
+**`observeSummary`** — A metric aspect that adds a value to a summary each time the effect it is applied to succeeds. This aspect can be applied to effects producing a `Double`.
 
 ```scala
 def observeSummary(
@@ -37,7 +37,7 @@ def observeSummary(
 ): Summary[Double]
 ```
 
-* **`observeSummaryWith`** — A metric aspect that adds a value to a summary each time the effect it is applied to succeeds, using the specified function to transform the value returned by the effect to the value to add to the summary.
+**`observeSummaryWith`** — A metric aspect that adds a value to a summary each time the effect it is applied to succeeds, using the specified function to transform the value returned by the effect to the value to add to the summary.
 
 ```scala
 def observeSummaryWith[A](
