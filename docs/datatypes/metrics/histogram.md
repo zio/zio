@@ -37,3 +37,17 @@ def observeHistogramWith[A](name: String, boundaries: Chunk[Double], tags: Metri
   f: A => Double
 ): Histogram[A]
 ```
+
+## Use Cases
+
+Histogram measures the frequency of value observations that fall into specific _pre-defined buckets_. For example, we can measure the request duration of an HTTP request using histograms. Rather than storing every duration for every request, the histogram will make an approximation by storing the frequency of requests that fall into pre-defined particular buckets.
+
+Thus, histograms are the best choice in these situations:
+- When we want to observe many values and then later want to calculate the percentile of observed values
+- When we can estimate the range of values upfront, as the histogram put the observations into pre-defined buckets
+- When accuracy is not so important, and we don't want the exact values because of the lossy nature of bucketing data in histograms
+- When we need to aggregate histograms across multiple instances
+
+Some examples of histogram use cases:
+- Request Latency
+- Response Time
