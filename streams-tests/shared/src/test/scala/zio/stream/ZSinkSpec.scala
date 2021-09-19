@@ -74,7 +74,7 @@ object ZSinkSpec extends ZIOBaseSpec {
             closed <- Ref.make[Boolean](false)
             res     = ZManaged.acquireReleaseWith(ZIO.succeed(100))(_ => closed.set(true))
             sink: ZSink[Any, Nothing, Int, Int, (Long, Boolean)] =
-              ZSink.managed(res)(m => ZSink.count.mapZIO(cnt => closed.get.map(cl => (cnt + m, cl))))
+              ZSink.managed(res).flatMap(m => ZSink.count.mapZIO(cnt => closed.get.map(cl => (cnt + m, cl))))
             resAndState <- ZStream(1, 2, 3).run(sink)
             finalState  <- closed.get
           } yield {
@@ -85,7 +85,7 @@ object ZSinkSpec extends ZIOBaseSpec {
           for {
             closed     <- Ref.make[Boolean](false)
             res         = ZManaged.acquireReleaseWith(ZIO.succeed(100))(_ => closed.set(true))
-            sink        = ZSink.managed(res)(_ => ZSink.succeed[Int, String]("ok"))
+            sink        = ZSink.managed(res).flatMap(_ => ZSink.succeed[Int, String]("ok"))
             r          <- ZStream.fail("fail").run(sink).either
             finalState <- closed.get
           } yield assert(r)(equalTo(Left("fail"))) && assert(finalState)(isTrue)

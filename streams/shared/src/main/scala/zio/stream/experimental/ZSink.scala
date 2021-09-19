@@ -1218,11 +1218,11 @@ object ZSink {
       )
     }
 
-  @deprecated("use unwrapManaged", "2.0.0")
-  def managed[R, InErr, In, OutErr >: InErr, A, L <: In, Z](resource: ZManaged[R, OutErr, A])(
-    fn: A => ZSink[R, InErr, In, OutErr, L, Z]
-  ): ZSink[R, InErr, In, OutErr, In, Z] =
-    new ZSink(ZChannel.managed(resource)(fn(_).channel))
+  /**
+   * Creates a single valued sink from a managed resource.
+   */
+  def managed[R, E, Z](resource: ZManaged[R, E, Z]): ZSink[R, Any, Any, E, Nothing, Z] =
+    unwrapManaged(resource.map(ZSink.succeed(_)))
 
   val never: ZSink[Any, Any, Any, Nothing, Nothing, Nothing] = new ZSink(ZChannel.fromZIO(ZIO.never))
 
