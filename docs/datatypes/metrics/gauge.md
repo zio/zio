@@ -34,3 +34,12 @@ def adjustGauge(name: String, tags: MetricLabel*): Gauge[Double]
 ```scala
 def adjustGaugeWith[A](name: String, tags: MetricLabel*)(f: A => Double): Gauge[A]
 ```
+
+## Use Case
+
+The gauge metric type is the best choice for things that their values can go down as well as up, such as queue size, and we don't want to query their rates. Thus, they are used to measuring things that have a particular value at a certain point in time:
+
+- Memory Usage
+- Queue Size
+- In-Progress Request Counts
+- Temperature
