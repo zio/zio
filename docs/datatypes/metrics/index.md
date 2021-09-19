@@ -1,6 +1,6 @@
 ---
 id: index
-title: "ZIO Metrics"
+title: "Introduction"
 ---
 
 In highly concurrent applications, things are interconnected, so maintaining such setup to run smoothly and without application downtimes is very challenging. 
