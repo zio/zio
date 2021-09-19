@@ -49,3 +49,10 @@ def observeSummaryWith[A](
   tags: MetricLabel*
 )(f: A => Double): Summary[A]
 ```
+
+## Use Cases
+
+Like [histograms](histogram.md), summaries are used for _monitoring latencies_, but they don't require us to define buckets. So, summaries are the best choice in these situations:
+- When histograms are not proper for us, in terms of accuracy
+- When we can't use histograms, as we don't have a good estimation of the range of values
+- When we don't need to perform aggregation or averages across multiple instances, as the calculations are done on the application side
