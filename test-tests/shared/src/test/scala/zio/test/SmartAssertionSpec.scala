@@ -1,6 +1,7 @@
 package zio.test
 
 import zio.duration.durationInt
+import zio.test.Assertion.{isNonEmpty, isSome, not}
 import zio.test.SmartTestTypes._
 import zio.test.environment.TestClock
 import zio.{Chunk, NonEmptyChunk}
@@ -389,6 +390,29 @@ object SmartAssertionSpec extends ZIOBaseSpec {
       test("reports source location of actual usage") {
         customAssertion("hello")
       } @@ failing
+    ),
+    suite("is")(
+      test("succeeds at root position") {
+        assert(Seq(1, 2, 3))(is(_.headOption.get == 1))
+      },
+      test("fails at root position") {
+        assert(Seq(1, 2, 3))(is(_.headOption.get == 4))
+      } @@ failing,
+      test("fails with negate") {
+        assert(Seq(1, 2, 3))(not(is(_.headOption.get == 1)))
+      } @@ failing,
+      test("succeeds with negate") {
+        assert(Seq(1, 2, 3))(not(is(_(3) == 4)))
+      },
+      test("fail with &&") {
+        assert(Option(Seq(1, 2, 3)))(isSome(isNonEmpty && is(_.head == 5)))
+      } @@ failing,
+      test("fail multiple with &&") {
+        assert(Option(Seq(1, 2, 3)))(isSome(is[Seq[Int]](_(3) == 4) && is(_.head == 5)))
+      } @@ failing,
+      test("succeeds multiple with &&") {
+        assert(Option(Seq(1, 2, 3)))(isSome(is[Seq[Int]](_(1) == 2) && is(_.head == 1)))
+      }
     )
   )
 

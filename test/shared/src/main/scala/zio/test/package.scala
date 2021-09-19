@@ -73,11 +73,8 @@ package object test extends CompileVariants {
   type TestResult = BoolAlgebra[AssertionResult]
 
   object TestResult {
-    implicit def trace2TestResult(assert: Assert): TestResult = {
-      val trace = Arrow.run(assert.arrow, Right(()))
-      if (trace.isSuccess) BoolAlgebra.success(AssertionResult.TraceResult(trace))
-      else BoolAlgebra.failure(AssertionResult.TraceResult(trace))
-    }
+    implicit def trace2TestResult(assert: Assert): TestResult =
+      Assert.trace2TestResult(assert)
   }
 
   /**
@@ -156,7 +153,9 @@ package object test extends CompileVariants {
 
       loop(
         fragment,
-        FailureDetails(::(AssertionValue(assertion, value, assertResult, expression, sourceLocation), Nil))
+        FailureDetails(
+          ::(AssertionValue(assertion, value, assertResult, expression, sourceLocation, fragment.trace), Nil)
+        )
       )
     }
 

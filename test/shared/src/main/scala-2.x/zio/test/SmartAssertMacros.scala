@@ -8,9 +8,10 @@ import scala.reflect.macros.blackbox
 class SmartAssertMacros(val c: blackbox.Context) {
   import c.universe._
 
-  private val SA     = q"_root_.zio.test.internal.SmartAssertions"
-  private val Arrow  = q"_root_.zio.test.Arrow"
-  private val Assert = q"_root_.zio.test.Assert"
+  private val SA        = q"_root_.zio.test.internal.SmartAssertions"
+  private val Arrow     = q"_root_.zio.test.Arrow"
+  private val Assert    = q"_root_.zio.test.Assert"
+  private val Assertion = q"_root_.zio.test.Assertion"
 
   def assert_impl(expr: c.Expr[Boolean], exprs: c.Expr[Boolean]*): c.Tree =
     exprs.map(assertOne_impl).foldLeft(assertOne_impl(expr)) { (acc, assert) =>
@@ -160,6 +161,29 @@ class SmartAssertMacros(val c: blackbox.Context) {
       q"""
 ..$stmts
 $Assert($ast.withCode($codeString).withLocation)
+        """
+
+    block
+  }
+
+  def is_impl[T: c.WeakTypeTag](f: Expr[T => Boolean]): c.Tree = {
+    val (stmts, tree) = f.tree match {
+      case Block(others, expr) => (others, expr)
+      case other               => (List.empty, other)
+    }
+
+    val (_, start, codeString) = text(tree)
+    implicit val pos           = PositionContext(start, codeString)
+
+    val parsed = parseExpr(tree)
+    val ast    = astToAssertion(parsed)
+
+    val T = c.weakTypeOf[T]
+
+    val block =
+      q"""
+..$stmts
+$Assertion.assertionArrow[$T]("is", $ast.withCode($codeString).withLocation, isRoot = false)
         """
 
     block

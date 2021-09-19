@@ -17,7 +17,7 @@
 package zio.test
 
 import zio.duration._
-import zio.test.ConsoleUtils.{cyan, red, _}
+import zio.test.ConsoleUtils._
 import zio.test.FailureRenderer.FailureMessage.{Fragment, Message}
 import zio.test.RenderedResult.CaseType._
 import zio.test.RenderedResult.Status._
@@ -52,12 +52,10 @@ object DefaultTestReporter {
             case ExecutedSpec.TestCase(test, _) => test.isLeft
             case _                              => false
           }
-          val annotations = executedSpec.fold[TestAnnotationMap] { es =>
-            es match {
-              case ExecutedSpec.LabeledCase(_, annotations) => annotations
-              case ExecutedSpec.MultipleCase(annotations)   => annotations.foldLeft(TestAnnotationMap.empty)(_ ++ _)
-              case ExecutedSpec.TestCase(_, annotations)    => annotations
-            }
+          val annotations = executedSpec.fold[TestAnnotationMap] {
+            case ExecutedSpec.LabeledCase(_, annotations) => annotations
+            case ExecutedSpec.MultipleCase(annotations)   => annotations.foldLeft(TestAnnotationMap.empty)(_ ++ _)
+            case ExecutedSpec.TestCase(_, annotations)    => annotations
           }
           val status = if (hasFailures) Failed else Passed
           val renderedLabel =
@@ -73,77 +71,48 @@ object DefaultTestReporter {
           val renderedAnnotations = testAnnotationRenderer.run(ancestors, annotations)
           val renderedResult = result match {
             case Right(TestSuccess.Succeeded(_)) =>
-              Some(
-                rendered(
-                  Test,
-                  labels.reverse.mkString(" - "),
-                  Passed,
-                  depth,
-                  withOffset(depth)(green("+") + " " + labels.reverse.mkString(" - "))
-                )
+              rendered(
+                Test,
+                labels.reverse.mkString(" - "),
+                Passed,
+                depth,
+                withOffset(depth)(green("+") + " " + labels.reverse.mkString(" - "))
               )
             case Right(TestSuccess.Ignored) =>
-              Some(
-                rendered(
-                  Test,
-                  labels.reverse.mkString(" - "),
-                  Ignored,
-                  depth,
-                  withOffset(depth)(yellow("-") + " " + yellow(labels.reverse.mkString(" - ")))
-                )
+              rendered(
+                Test,
+                labels.reverse.mkString(" - "),
+                Ignored,
+                depth,
+                withOffset(depth)(yellow("-") + " " + yellow(labels.reverse.mkString(" - ")))
               )
             case Left(TestFailure.Assertion(result)) =>
               result
-                .fold[Option[TestResult]] {
-                  case result: AssertionResult.FailureDetailsResult => Some(BoolAlgebra.success(result))
-                  case AssertionResult.TraceResult(trace, genFailureDetails) =>
-                    Trace
-                      .prune(trace, false)
-                      .map(a => BoolAlgebra.success(AssertionResult.TraceResult(a, genFailureDetails)))
-                }(
-                  {
-                    case (Some(a), Some(b)) => Some(a && b)
-                    case (Some(a), None)    => Some(a)
-                    case (None, Some(b))    => Some(b)
-                    case _                  => None
-                  },
-                  {
-                    case (Some(a), Some(b)) => Some(a || b)
-                    case (Some(a), None)    => Some(a)
-                    case (None, Some(b))    => Some(b)
-                    case _                  => None
-                  },
-                  _.map(!_)
-                )
-                .map {
-                  _.fold(details =>
-                    rendered(
-                      Test,
-                      labels.reverse.mkString(" - "),
-                      Failed,
-                      depth,
-                      renderFailure(labels.reverse.mkString(" - "), depth, details): _*
-                    )
-                  )(
-                    _ && _,
-                    _ || _,
-                    !_
+                .fold(details =>
+                  rendered(
+                    Test,
+                    labels.reverse.mkString(" - "),
+                    Failed,
+                    depth,
+                    renderFailure(labels.reverse.mkString(" - "), depth, details): _*
                   )
-                }
+                )(
+                  _ && _,
+                  _ || _,
+                  !_
+                )
 
             case Left(TestFailure.Runtime(cause)) =>
-              Some(
-                rendered(
-                  Test,
-                  labels.reverse.mkString(" - "),
-                  Failed,
-                  depth,
-                  Seq(renderFailureLabel(labels.reverse.mkString(" - "), depth)) ++ Seq(renderCause(cause, depth))
-                    .filter(_ => includeCause): _*
-                )
+              rendered(
+                Test,
+                labels.reverse.mkString(" - "),
+                Failed,
+                depth,
+                Seq(renderFailureLabel(labels.reverse.mkString(" - "), depth)) ++ Seq(renderCause(cause, depth))
+                  .filter(_ => includeCause): _*
               )
           }
-          renderedResult.map(r => Seq(r.withAnnotations(renderedAnnotations))).getOrElse(Seq.empty)
+          Seq(renderedResult.withAnnotations(renderedAnnotations))
       }
     loop(executedSpec, 0, List.empty, List.empty)
   }
@@ -156,20 +125,18 @@ object DefaultTestReporter {
   }
 
   private def logStats[E](duration: Duration, executedSpec: ExecutedSpec[E]): String = {
-    val (success, ignore, failure) = executedSpec.fold[(Int, Int, Int)] { es =>
-      es match {
-        case ExecutedSpec.LabeledCase(_, stats) => stats
-        case ExecutedSpec.MultipleCase(stats) =>
-          stats.foldLeft((0, 0, 0)) { case ((x1, x2, x3), (y1, y2, y3)) =>
-            (x1 + y1, x2 + y2, x3 + y3)
-          }
-        case ExecutedSpec.TestCase(result, _) =>
-          result match {
-            case Left(_)                         => (0, 0, 1)
-            case Right(TestSuccess.Succeeded(_)) => (1, 0, 0)
-            case Right(TestSuccess.Ignored)      => (0, 1, 0)
-          }
-      }
+    val (success, ignore, failure) = executedSpec.fold[(Int, Int, Int)] {
+      case ExecutedSpec.LabeledCase(_, stats) => stats
+      case ExecutedSpec.MultipleCase(stats) =>
+        stats.foldLeft((0, 0, 0)) { case ((x1, x2, x3), (y1, y2, y3)) =>
+          (x1 + y1, x2 + y2, x3 + y3)
+        }
+      case ExecutedSpec.TestCase(result, _) =>
+        result match {
+          case Left(_)                         => (0, 0, 1)
+          case Right(TestSuccess.Succeeded(_)) => (1, 0, 0)
+          case Right(TestSuccess.Ignored)      => (0, 1, 0)
+        }
     }
     val total = success + ignore + failure
     cyan(
@@ -321,17 +288,6 @@ object FailureRenderer {
 
   def renderAssertionResult(assertionResult: AssertionResult, offset: Int): Message =
     assertionResult match {
-      case AssertionResult.TraceResult(trace, genFailureDetails) =>
-        val failures = FailureCase.fromTrace(trace)
-        failures
-          .map(fc =>
-            renderGenFailureDetails(genFailureDetails, offset) ++
-              Message(
-                FailureCase.renderFailureCase(fc).map(Line.fromString(_, offset + tabSize))
-              )
-          )
-          .foldLeft(Message.empty)(_ ++ _)
-
       case AssertionResult.FailureDetailsResult(failureDetails, genFailureDetails) =>
         renderGenFailureDetails(genFailureDetails, offset) ++
           renderFailureDetails(failureDetails, offset)
@@ -350,7 +306,7 @@ object FailureRenderer {
           rendered
       }
 
-    renderFragment(failureDetails.head, offset).toMessage ++ loop(
+    renderFragment(failureDetails.head, offset) ++ loop(
       failureDetails,
       Message.empty
     ) ++ renderAssertionLocation(failureDetails.last, offset)
@@ -375,6 +331,18 @@ object FailureRenderer {
       case None => Message.empty
     }
 
+  private def renderTrace(trace: AssertionValue.TraceData, offset: Int, negate: Boolean): Option[Message] =
+    Trace.prune(trace.trace, negate).map { trace =>
+      val failures = FailureCase.fromTrace(trace)
+      failures
+        .map(fc =>
+          Message(
+            FailureCase.renderFailureCase(fc).map(Line.fromString(_, offset + tabSize))
+          )
+        )
+        .foldLeft(Message.empty)(_ ++ _)
+    }
+
   private def renderWhole(fragment: AssertionValue, whole: AssertionValue, offset: Int): Line =
     withOffset(offset + tabSize) {
       blue(renderValue(whole)) +
@@ -382,12 +350,18 @@ object FailureRenderer {
         highlight(cyan(whole.printAssertion), fragment.printAssertion)
     }
 
-  private def renderFragment(fragment: AssertionValue, offset: Int): Line =
-    withOffset(offset + tabSize) {
-      blue(renderValue(fragment)) +
-        renderSatisfied(fragment) +
-        cyan(fragment.printAssertion)
-    }
+  private def renderFragment(fragment: AssertionValue, offset: Int): Message = {
+    val message =
+      if (fragment.trace.exists(_.isRoot)) Message.empty
+      else
+        withOffset(offset + tabSize) {
+          blue(renderValue(fragment)) +
+            renderSatisfied(fragment) +
+            cyan(fragment.printAssertion)
+        }.toMessage
+
+    message ++ fragment.trace.flatMap(renderTrace(_, offset, fragment.result.isSuccess)).getOrElse(Message.empty)
+  }
 
   private def renderValue(av: AssertionValue) = (av.value, av.expression) match {
     case (v, Some(expression)) if !expressionRedundant(v.toString, expression) => s"`$expression` = $v"

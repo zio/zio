@@ -48,6 +48,8 @@ trait CompileVariants {
   def assertTrue(expr: Boolean, exprs: Boolean*): Assert = macro SmartAssertMacros.assert_impl
   def assertTrue(expr: Boolean): Assert = macro SmartAssertMacros.assertOne_impl
 
+  def is[T](f: T => Boolean): Assertion[T] = macro SmartAssertMacros.is_impl[T]
+
   /**
    * Checks the assertion holds for the given value.
    */

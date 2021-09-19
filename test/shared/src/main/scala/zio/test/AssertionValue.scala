@@ -16,6 +16,8 @@
 
 package zio.test
 
+import zio.test.AssertionValue.TraceData
+
 /**
  * An `AssertionValue` keeps track of a assertion and a value, existentially
  * hiding the type. This is used internally by the library to provide useful
@@ -28,31 +30,36 @@ sealed abstract class AssertionValue {
   def sourceLocation: Option[String]
   protected def assertion: AssertionM[Value]
   def result: AssertResult
+  def trace: Option[TraceData]
 
   def printAssertion: String = assertion.toString
   def label(string: String): AssertionValue =
-    AssertionValue(assertion.label(string), value, result, expression, sourceLocation)
+    AssertionValue(assertion.label(string), value, result, expression, sourceLocation, trace)
   def sameAssertion(that: AssertionValue): Boolean = assertion == that.assertion
 
-  def negate: AssertionValue = AssertionValue(assertion.negate, value, !result, expression, sourceLocation)
+  def negate: AssertionValue = AssertionValue(assertion.negate, value, !result, expression, sourceLocation, trace)
   def withContext(expr: Option[String], sourceLocation: Option[String]): AssertionValue =
-    AssertionValue(assertion, value, result, expr, sourceLocation)
+    AssertionValue(assertion, value, result, expr, sourceLocation, trace)
 }
 
 object AssertionValue {
+  final case class TraceData(trace: Trace[Boolean], isRoot: Boolean = false)
+
   def apply[A](
     assertion: AssertionM[A],
     value: => A,
     result: => AssertResult,
     expression: Option[String] = None,
-    sourceLocation: Option[String] = None
+    sourceLocation: Option[String] = None,
+    trace: => Option[TraceData] = None
   ): AssertionValue = {
     def inner(
       assertion0: AssertionM[A],
       value0: => A,
       result0: => AssertResult,
       expression0: Option[String],
-      sourceLocation0: Option[String]
+      sourceLocation0: Option[String],
+      trace0: => Option[TraceData]
     ) =
       new AssertionValue {
         type Value = A
@@ -61,7 +68,8 @@ object AssertionValue {
         lazy val result: AssertResult               = result0
         override val expression: Option[String]     = expression0
         override val sourceLocation: Option[String] = sourceLocation0
+        lazy val trace: Option[TraceData]           = trace0
       }
-    inner(assertion, value, result, expression, sourceLocation)
+    inner(assertion, value, result, expression, sourceLocation, trace)
   }
 }

@@ -19,9 +19,9 @@ object Assert {
   def any(asserts: Assert*): Assert = asserts.reduce(_ || _)
 
   implicit def trace2TestResult(assert: Assert): TestResult = {
-    val trace = Arrow.run(assert.arrow, Right(()))
-    if (trace.isSuccess) BoolAlgebra.success(AssertionResult.TraceResult(trace))
-    else BoolAlgebra.failure(AssertionResult.TraceResult(trace))
+    val assertion = Assertion.assertionArrow("<root>", assert.arrow, isRoot = true)
+    val result    = assertion.run(())
+    result.map(value => AssertionResult.FailureDetailsResult(FailureDetails(::(value, Nil))))
   }
 
   implicit def traceM2TestResult[R, E](zio: ZIO[R, E, Assert]): ZIO[R, E, TestResult] =
@@ -71,6 +71,11 @@ sealed trait Arrow[-A, +B] { self =>
 
   def unary_!(implicit ev: Any <:< A, ev2: B <:< Boolean): Arrow[Any, Boolean] =
     Not(self.asInstanceOf[Arrow[Any, Boolean]])
+
+  def getCode: Option[String] = this match {
+    case meta: Meta[A, B] => meta.code
+    case _                => None
+  }
 }
 
 object Arrow {

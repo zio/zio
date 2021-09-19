@@ -162,6 +162,33 @@ object Assertion extends AssertionVariants {
     resultAssertion
   }
 
+  def assertionArrow[A](name: String, arrow: Arrow[A, Boolean], isRoot: Boolean = false): Assertion[A] = {
+    lazy val assertion: Assertion[A] = {
+      val runAssertion: (=> A) => AssertResult = { actual =>
+        lazy val tryActual = Try(actual)
+        val eitherActual = tryActual match {
+          case Failure(exception) => Left(exception)
+          case Success(value)     => Right(value)
+        }
+        val trace = Arrow.run(arrow, eitherActual)
+        lazy val result: AssertResult = {
+          val value = AssertionValue(
+            assertion,
+            tryActual.get,
+            result,
+            trace = Some(AssertionValue.TraceData(trace, isRoot = isRoot))
+          )
+
+          if (trace.isSuccess) BoolAlgebra.success(value)
+          else BoolAlgebra.failure(value)
+        }
+        result
+      }
+      new Assertion[A](function(name, List(arrow.getCode.map(param(_)).toList)), runAssertion)
+    }
+    assertion
+  }
+
   /**
    * Makes a new assertion that requires a given numeric value to match a value with some tolerance.
    */
