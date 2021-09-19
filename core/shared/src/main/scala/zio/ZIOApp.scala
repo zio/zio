@@ -84,8 +84,8 @@ trait ZIOApp { self =>
       val newRuntime = runtime.mapRuntimeConfig(hook)
 
       val newLayer =
-        ZLayer.environment[ZEnv] ++ ZLayer.succeed(ZIOAppArgs(args)) >>>
-          layer ++ ZLayer.environment[ZEnv with Has[ZIOAppArgs]]
+        ZLayer.environment[ZEnv] +!+ ZLayer.succeed(ZIOAppArgs(args)) >>>
+          layer +!+ ZLayer.environment[ZEnv with Has[ZIOAppArgs]]
 
       newRuntime.run(run.provideLayer(newLayer)).exitCode
     }
