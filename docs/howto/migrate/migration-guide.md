@@ -2,6 +2,7 @@
 id: zio-2.x-migration-guide
 title: "ZIO 2.x Migration Guide"
 ---
+
 ```scala mdoc:invisible
 import zio._
 ```
@@ -1098,11 +1099,11 @@ So far, before ZIO 2.0, the ZIO Stream has included three main abstractions:
 2. **`ZSink`** — represents consumers of elements that can be composed together to create composite consumers
 3. **`ZTransducer`** — represents generalized stateful and effectful stream processing
 
-![ZIO Streams 1.x](assets/zio-streams-1.x.svg)
+![ZIO Streams 1.x](/img/assets/zio-streams-1.x.svg)
 
 In ZIO 2.0, we added an underlying abstraction called `Channel`. Channels are underlying both the `Stream` and `Sink`. So streams and sinks are just channels. So the `Channel` is an abstraction that unifies everything in ZIO Streams.
 
-![ZChannel](assets/zio-streams-zchannel.svg)
+![ZChannel](/img/assets/zio-streams-zchannel.svg)
 
 Channels are nexuses of I/O operations, which support both reading and writing:
 
@@ -1114,7 +1115,7 @@ So we can say that streams are the output side and sinks are the input side of a
 
 In ZIO 2.x, we removed the transducers, and they were deprecated. Instead, we realized we need something else for the middle part, and now it's called a `Pipeline` in ZIO 2.x. Pipelines accept a stream as input and return the transformed stream as output.
 
-![ZIO Streams 2.x](assets/zio-streams-2.x.svg)
+![ZIO Streams 2.x](/img/assets/zio-streams-2.x.svg)
 
 Pipelines are basically an abstraction for composing a bunch of operations together that can be later applied to a stream. For example, we can create a pipeline that reads bytes, decodes them to the UTF-8 and splits the lines, and then splits on commas. So this is a very simple CSV parsing pipeline which we can later use with another stream to pipe into. 
 
@@ -1419,7 +1420,7 @@ object ZStateExample extends zio.App {
 
 `ZHub` is a new concurrent data structure like `ZQueue`. While `ZQueue` solves the problem of _distributing_ messages to multiple consumers, the `ZHub` solves the problem of _broadcasting_ the same message to multiple consumers.
 
-![ZHub](assets/zhub.svg)
+![ZHub](/img/assets/zhub.svg)
 
 Here is an example of broadcasting messages to multiple subscribers:
 
