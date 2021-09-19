@@ -91,12 +91,18 @@ module.exports = {
       "datatypes/stream/sink",
       "datatypes/stream/subscription-ref"
     ],
-    "Metrics": [
-      "datatypes/metrics/index",
-      "datatypes/metrics/counter",
-      "datatypes/metrics/gauge",
-      "datatypes/metrics/histogram",
-      "datatypes/metrics/summary"
+      "Metrics": [
+          "datatypes/metrics/index",
+          {
+              type: "category",
+              label: "Metric Types",
+              items: [
+                  "datatypes/metrics/counter",
+                  "datatypes/metrics/gauge",
+                  "datatypes/metrics/histogram",
+                  "datatypes/metrics/summary"
+              ]
+          }
       ],
     "Miscellaneous": [
       "datatypes/misc/index",
