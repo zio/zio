@@ -22,7 +22,7 @@ import zio.metrics._
 /**
  * A `Gauge` is a metric representing a single numerical value that may be set
  * or adjusted. A typical use of this metric would be to track the current
- * memory usage. With a guage the quantity of interest is the current value,
+ * memory usage. With a gauge the quantity of interest is the current value,
  * as opposed to a counter where the quantity of interest is the cumulative
  * values over time.
  */
