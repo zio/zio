@@ -145,6 +145,6 @@ object ZIOApp {
   /**
    * Creates a [[ZIOApp]] from an effect, using the unmodified default runtime's configuration.
    */
-  def fromEffect(run0: ZIO[ZEnv with Has[ZIOAppArgs], Any, Any]): ZIOApp =
+  def fromZIO(run0: ZIO[ZEnv with Has[ZIOAppArgs], Any, Any]): ZIOApp =
     ZIOApp(run0, ZLayer.environment, RuntimeConfigAspect.identity)
 }

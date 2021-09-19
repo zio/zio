@@ -63,6 +63,6 @@ object ZIOAppDefault {
    * Creates a [[ZIOAppDefault]] from an effect, using the unmodified default
    * runtime's configuration.
    */
-  def fromEffect(run0: ZIO[ZEnv with Has[ZIOAppArgs], Any, Any]): ZIOAppDefault =
+  def fromZIO(run0: ZIO[ZEnv with Has[ZIOAppArgs], Any, Any]): ZIOAppDefault =
     ZIOAppDefault(run0, RuntimeConfigAspect.identity)
 }
