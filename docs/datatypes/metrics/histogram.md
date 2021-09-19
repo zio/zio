@@ -9,6 +9,8 @@ Histograms allow visualizing not only the value of the quantity being measured b
 
 ## Internals
 
+In a histogram, we assign the incoming samples to pre-defined buckets. So each data point increases the count for the bucket that it falls into, and then the individual samples are discarded. As histograms are bucketed, we can aggregate data across multiple instances. Histograms are a typical way to measure percentiles. We can look at bucket counts to estimate a specific percentile.
+
 A histogram observes _Double_ values and counts the observed values in buckets. Each bucket is defined by an upper boundary, and the count for a bucket with the upper boundary `b` increases by `1` if an observed value `v` is less or
 equal to `b`.
 
@@ -18,7 +20,7 @@ A histogram also keeps track of the overall count of observed values, and the su
 
 By definition, the last bucket is always defined as `Double.MaxValue`, so that the count of observed values in the last bucket is always equal to the overall count of observed values within the histogram.
 
-The mental model for a ZMX histogram is inspired from [Prometheus](https://prometheus.io/docs/concepts/metric_types/#histogram).
+The mental model for histogram is inspired from [Prometheus](https://prometheus.io/docs/concepts/metric_types/#histogram).
 
 ## API
 
