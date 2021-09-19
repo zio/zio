@@ -48,7 +48,7 @@ trait ZIOApp { self =>
    * executes the logic of both applications.
    */
   final def <>(that: ZIOApp): ZIOApp =
-    ZIOApp(self.run.zipPar(that.run), self.layer ++ that.layer, self.hook >>> that.hook)
+    ZIOApp(self.run.zipPar(that.run), self.layer +!+ that.layer, self.hook >>> that.hook)
 
   /**
    * A helper function to obtain access to the command-line arguments of the
@@ -83,14 +83,11 @@ trait ZIOApp { self =>
     ZIO.runtime[ZEnv].flatMap { runtime =>
       val newRuntime = runtime.mapRuntimeConfig(hook)
 
-      newRuntime
-        .run(
-          run.provideCustomLayer(
-            (ZLayer.environment[ZEnv] ++ ZLayer.succeed(ZIOAppArgs(args))) >>> (layer ++ ZLayer
-              .environment[Has[ZIOAppArgs]])
-          )
-        )
-        .exitCode
+      val newLayer =
+        ZLayer.environment[ZEnv] ++ ZLayer.succeed(ZIOAppArgs(args)) >>>
+          layer ++ ZLayer.environment[ZEnv with Has[ZIOAppArgs]]
+
+      newRuntime.run(run.provideLayer(newLayer)).exitCode
     }
 
   /**
