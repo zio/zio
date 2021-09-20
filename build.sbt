@@ -557,7 +557,7 @@ lazy val jsdocs = project
 
 val http4sV     = "0.23.3"
 val doobieV     = "1.0.0-RC1"
-val catsEffectV = "3.2.8"
+val catsEffectV = "3.2.9"
 val zioActorsV  = "0.0.9"
 
 lazy val docs = project.module
@@ -598,9 +598,9 @@ lazy val docs = project.module
       "dev.zio"                       %% "zio-actors"                    % zioActorsV,
       "dev.zio"                       %% "zio-akka-cluster"              % "0.2.0",
       "dev.zio"                       %% "zio-cache"                     % "0.1.0",
-      "dev.zio"                       %% "zio-config-magnolia"           % "1.0.6",
-      "dev.zio"                       %% "zio-config-typesafe"           % "1.0.6",
-      "dev.zio"                       %% "zio-config-refined"            % "1.0.6",
+      "dev.zio"                       %% "zio-config-magnolia"           % "1.0.10",
+      "dev.zio"                       %% "zio-config-typesafe"           % "1.0.10",
+      "dev.zio"                       %% "zio-config-refined"            % "1.0.10",
       "dev.zio"                       %% "zio-ftp"                       % "0.3.3",
       "dev.zio"                       %% "zio-json"                      % "0.1.5",
       "dev.zio"                       %% "zio-kafka"                     % "0.16.0",
@@ -622,7 +622,7 @@ lazy val docs = project.module
       "io.zipkin.reporter2"            % "zipkin-sender-okhttp3"         % "2.16.3",
       "dev.zio"                       %% "zio-interop-cats"              % "3.1.1.0",
       "dev.zio"                       %% "zio-interop-scalaz7x"          % "7.3.3.0",
-      "dev.zio"                       %% "zio-interop-reactivestreams"   % "1.3.5",
+      "dev.zio"                       %% "zio-interop-reactivestreams"   % "1.3.7",
       "dev.zio"                       %% "zio-interop-twitter"           % "20.10.0.0",
       "dev.zio"                       %% "zio-zmx"                       % "0.0.8",
       "dev.zio"                       %% "zio-query"                     % "0.2.10",
@@ -641,10 +641,10 @@ lazy val docs = project.module
       "io.github.gaelrenoux"          %% "tranzactio"                    % "2.1.0",
       "io.github.neurodyne"           %% "zio-arrow"                     % "0.2.1",
       "nl.vroste"                     %% "zio-amqp"                      % "0.2.2",
-      "io.github.vigoo"               %% "zio-aws-core"                  % "3.17.38.1",
-      "io.github.vigoo"               %% "zio-aws-ec2"                   % "3.17.38.1",
-      "io.github.vigoo"               %% "zio-aws-elasticbeanstalk"      % "3.17.38.1",
-      "io.github.vigoo"               %% "zio-aws-netty"                 % "3.17.38.1",
+      "io.github.vigoo"               %% "zio-aws-core"                  % "3.17.40.1",
+      "io.github.vigoo"               %% "zio-aws-ec2"                   % "3.17.40.1",
+      "io.github.vigoo"               %% "zio-aws-elasticbeanstalk"      % "3.17.40.1",
+      "io.github.vigoo"               %% "zio-aws-netty"                 % "3.17.40.1",
       "io.github.neurodyne"           %% "zio-aws-s3"                    % "0.4.13",
       "io.d11"                        %% "zhttp"                         % "1.0.0.0-RC17",
       "com.coralogix"                 %% "zio-k8s-client"                % "1.3.4",
