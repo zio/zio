@@ -24,11 +24,6 @@ import zio.test.render._
 @EnableReflectiveInstantiation
 abstract class ZIOSpecAbstract extends ZIOApp { self =>
 
-  final def layer: ZLayer[ZEnv with Has[ZIOAppArgs], Any, Environment] =
-    (TestEnvironment.live ++ ZLayer.environment[Has[ZIOAppArgs]]) >>> testLayer
-
-  def testLayer: ZLayer[TestEnvironment with Has[ZIOAppArgs], Any, Environment]
-
   def spec: ZSpec[Environment with TestEnvironment with Has[ZIOAppArgs], Any]
 
   def aspects: Chunk[TestAspect[Nothing, Environment with TestEnvironment with Has[ZIOAppArgs], Nothing, Any]] =
@@ -40,8 +35,8 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
   final def <>(that: ZIOSpecAbstract): ZIOSpecAbstract =
     new ZIOSpecAbstract {
       type Environment = self.Environment with that.Environment
-      def testLayer: ZLayer[TestEnvironment with Has[ZIOAppArgs], Any, Environment] =
-        self.testLayer ++ that.testLayer
+      def layer: ZLayer[Has[ZIOAppArgs], Any, Environment] =
+        self.layer +!+ that.layer
       override def runSpec: ZIO[Environment with TestEnvironment with Has[ZIOAppArgs], Any, Any] =
         self.runSpec.zipPar(that.runSpec)
       def spec: ZSpec[Environment with TestEnvironment with Has[ZIOAppArgs], Any] =

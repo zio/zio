@@ -33,7 +33,7 @@ trait ZIOApp { self =>
    * A layer that manages the acquisition and release of services necessary for
    * the application to run.
    */
-  def layer: ZLayer[ZEnv with Has[ZIOAppArgs], Any, Environment]
+  def layer: ZLayer[Has[ZIOAppArgs], Any, Environment]
 
   /**
    * The main function of the application, which can access the command-line arguments through
@@ -131,7 +131,7 @@ object ZIOApp {
    */
   def apply[R <: Has[_]](
     run0: ZIO[R with ZEnv with Has[ZIOAppArgs], Any, Any],
-    layer0: ZLayer[ZEnv with Has[ZIOAppArgs], Any, R],
+    layer0: ZLayer[Has[ZIOAppArgs], Any, R],
     hook0: RuntimeConfigAspect
   )(implicit tagged: Tag[R]): ZIOApp =
     new ZIOApp {
