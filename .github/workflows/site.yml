@@ -18,17 +18,8 @@ jobs:
         uses: olafurpg/setup-scala@v13
       - run: |
           ./scripts/createSite.sh ${{ github.ref }}
-      - uses: webfactory/ssh-agent@v0.5.0
-        with:
-          ssh-private-key: ${{ secrets.GIT_DEPLOY_KEY }}
       - name: Release to GitHub Pages
-        env:
-          USE_SSH: true
-          GIT_USER: git
-        run: |
-          cd website 
-          git config --global user.email "ci@ziverge.com"
-          git config --global user.name "GH Actions Site"
-          yarn deploy
-
-
+        uses: JamesIves/github-pages-deploy-action@4.1.5
+        with:
+          branch: gh-pages
+          folder: ./website/build
