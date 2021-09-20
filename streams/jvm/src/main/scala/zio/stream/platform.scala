@@ -51,14 +51,16 @@ trait ZSinkPlatformSpecificConstructors {
   final def fromOutputStreamManaged(
     os: ZManaged[Any, IOException, OutputStream]
   ): ZSink[Any, IOException, Byte, Byte, Long] =
-    ZSink.managed(os) { out =>
-      ZSink.foldLeftChunksZIO(0L) { (bytesWritten, byteChunk: Chunk[Byte]) =>
-        ZIO.attemptBlockingInterrupt {
-          val bytes = byteChunk.toArray
-          out.write(bytes)
-          bytesWritten + bytes.length
-        }.refineOrDie { case e: IOException =>
-          e
+    ZSink.unwrapManaged {
+      os.map { out =>
+        ZSink.foldLeftChunksZIO(0L) { (bytesWritten, byteChunk: Chunk[Byte]) =>
+          ZIO.attemptBlockingInterrupt {
+            val bytes = byteChunk.toArray
+            out.write(bytes)
+            bytesWritten + bytes.length
+          }.refineOrDie { case e: IOException =>
+            e
+          }
         }
       }
     }
@@ -86,13 +88,16 @@ trait ZSinkPlatformSpecificConstructors {
         )
     )(chan => ZIO.attemptBlocking(chan.close()).orDie)
 
-    val writer: ZSink[Any, Throwable, Byte, Byte, Unit] = ZSink.managed(managedChannel) { chan =>
-      ZSink.foreachChunk[Any, Throwable, Byte](byteChunk =>
-        ZIO.attemptBlockingInterrupt {
-          chan.write(ByteBuffer.wrap(byteChunk.toArray))
+    val writer: ZSink[Any, Throwable, Byte, Byte, Unit] =
+      ZSink.unwrapManaged {
+        managedChannel.map { chan =>
+          ZSink.foreachChunk[Any, Throwable, Byte](byteChunk =>
+            ZIO.attemptBlockingInterrupt {
+              chan.write(ByteBuffer.wrap(byteChunk.toArray))
+            }
+          )
         }
-      )
-    }
+      }
     writer &> ZSink.count
   }
 }
