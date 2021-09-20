@@ -947,4 +947,30 @@ package object test extends CompileVariants {
   private def reassociate[A, B, C, D, E, F, G](fn: (A, B, C, D, E, F) => G): ((((((A, B), C), D), E), F)) => G = {
     case (((((a, b), c), d), e), f) => fn(a, b, c, d, e, f)
   }
+
+  implicit final class EitherSmartAssertionOps[E, A](private val self: Either[E, A]) extends AnyVal {
+    def $left: E = throw new Error("OH NO")
+
+    def $right: A = throw new Error("OH NO")
+  }
+
+  implicit final class OptionSmartAssertionOps[A](private val self: Option[A]) extends AnyVal {
+    def $some: A = throw new Error("OH NO")
+  }
+
+  implicit final class ExitAssertionOps[E, A](private val self: zio.Exit[E, A]) extends AnyVal {
+    def $die: Throwable = throw new Error("OH NO")
+
+    def $fail: E = throw new Error("OH NO")
+
+    def $success: A = throw new Error("OH NO")
+  }
+
+  implicit final class SmartAssertionOps[A](private val self: A) extends AnyVal {
+    def $as[Subtype <: A]: Subtype = throw new Error("OH NO")
+
+    def $is[Subtype <: A]: Boolean = throw new Error("OH NO")
+
+    def $throws: Throwable = throw new Error("OH NO")
+  }
 }

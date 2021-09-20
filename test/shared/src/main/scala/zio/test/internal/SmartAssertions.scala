@@ -1,5 +1,6 @@
 package zio.test.internal
 
+import zio.Exit
 import zio.test._
 import zio.test.diff.Diff
 
@@ -232,6 +233,37 @@ object SmartAssertions {
       Trace.succeed,
       _ => Trace.fail("Expected failure")
     )
+
+  def asExitDie[E, A]: Arrow[Exit[E, A], Throwable] =
+    Arrow
+      .make[Exit[E, A], Throwable] {
+        case Exit.Failure(cause) if cause.dieOption.isDefined =>
+          Trace.succeed(cause.dieOption.get)
+        case Exit.Success(_) =>
+          Trace.fail(M.value("Exit.Success") + M.was + "a" + M.value("Cause.Die"))
+        case Exit.Failure(_) =>
+          Trace.fail(M.value("Exit.Failure") + M.did + "contain a" + M.value("Cause.Die"))
+      }
+
+  def asExitFail[E, A]: Arrow[Exit[E, A], E] =
+    Arrow
+      .make[Exit[E, A], E] {
+        case Exit.Failure(cause) if cause.failureOption.isDefined =>
+          Trace.succeed(cause.failureOption.get)
+        case Exit.Success(_) =>
+          Trace.fail(M.value("Exit.Success") + M.was + "a" + M.value("Cause.Fail"))
+        case Exit.Failure(_) =>
+          Trace.fail(M.value("Exit.Failure") + M.did + "contain a" + M.value("Cause.Fail"))
+      }
+
+  def asExitSuccess[E, A]: Arrow[Exit[E, A], A] =
+    Arrow
+      .make[Exit[E, A], A] {
+        case Exit.Success(value) =>
+          Trace.succeed(value)
+        case Exit.Failure(_) =>
+          Trace.fail(M.value("Exit") + M.was + "a" + M.value("Success"))
+      }
 
   def as[A, B](implicit CB: ClassTag[B]): Arrow[A, B] =
     Arrow

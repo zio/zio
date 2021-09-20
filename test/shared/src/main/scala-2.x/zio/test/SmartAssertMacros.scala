@@ -171,7 +171,7 @@ class SmartAssertMacros(val c: blackbox.Context) {
 ..$stmts
 $Assert($ast.withCode($codeString).withLocation)
         """
-    println(show(ast))
+//    println(show(ast))
 
     block
   }
@@ -412,16 +412,16 @@ $Assert($ast.withCode($codeString).withLocation)
       }
 
     // Option
-    val asSome: ASTConverter =
+    val $some: ASTConverter =
       ASTConverter.make {
-        case AST.Method(_, lhsTpe, _, "get", _, _, _) if lhsTpe <:< weakTypeOf[Option[_]] =>
+        case AST.Method(_, lhsTpe, _, "$some", _, _, _) if lhsTpe <:< weakTypeOf[Option[_]] =>
           AssertAST("isSome")
       }
 
     // Either
-    val asRight: ASTConverter =
+    val $right: ASTConverter =
       ASTConverter.make {
-        case AST.Method(_, lhsTpe, _, "$asRight", _, _, _) if lhsTpe <:< weakTypeOf[Either[_, _]] =>
+        case AST.Method(_, lhsTpe, _, "$right", _, _, _) if lhsTpe <:< weakTypeOf[Either[_, _]] =>
           AssertAST("asRight")
       }
 
@@ -438,9 +438,9 @@ $Assert($ast.withCode($codeString).withLocation)
           }
       }
 
-    val asLeft: ASTConverter =
+    val $left: ASTConverter =
       ASTConverter.make {
-        case AST.Method(_, lhsTpe, _, "$asLeft", _, _, _) if lhsTpe <:< eitherType =>
+        case AST.Method(_, lhsTpe, _, "$left", _, _, _) if lhsTpe <:< eitherType =>
           AssertAST("asLeft")
       }
 
@@ -455,32 +455,68 @@ $Assert($ast.withCode($codeString).withLocation)
           }
       }
 
+    val $as: ASTConverter =
+      ASTConverter.make { case AST.Method(_, lhsTpe, _, "$as", List(tpe), _, _) =>
+        AssertAST("as", List(lhsTpe, tpe))
+      }
+
+    val $is: ASTConverter =
+      ASTConverter.make { case AST.Method(_, lhsTpe, _, "$is", List(tpe), _, _) =>
+        AssertAST("is", List(lhsTpe, tpe))
+      }
+
+    val $throws: ASTConverter =
+      ASTConverter.make { case AST.Method(_, lhsTpe, _, "$throws", _, _, _) =>
+        AssertAST("throws")
+      }
+
+    val $die: ASTConverter =
+      ASTConverter.make { case AST.Method(_, lhsTpe, _, "$die", _, _, _) =>
+        AssertAST("asExitDie")
+      }
+
+    val $success: ASTConverter =
+      ASTConverter.make { case AST.Method(_, lhsTpe, _, "$success", _, _, _) =>
+        AssertAST("asExitSuccess")
+      }
+
+    val $fail: ASTConverter =
+      ASTConverter.make { case AST.Method(_, lhsTpe, _, "$fail", _, _, _) =>
+        AssertAST("asExitFail")
+      }
+
     val all: List[ASTConverter] = List(
-      isEven,
-      isOdd,
+      $as,
+      $die,
+      $fail,
+      $is,
+      $left,
+      $right,
+      $some,
+      $success,
+      $throws,
+      asInstance,
+      containsOption,
+      containsSeq,
+      containsString,
       equalTo,
       get,
       greaterThan,
       greaterThanOrEqualTo,
-      lessThan,
-      lessThanOrEqualTo,
-      head,
       hasAt,
       hasKey,
-      isEmptyIterable,
-      isNonEmptyIterable,
-      isEmptyOption,
+      head,
       isDefinedOption,
-      containsSeq,
-      containsOption,
-      containsString,
-      asSome,
-      asRight,
-      rightGet,
+      isEmptyIterable,
+      isEmptyOption,
+      isEven,
+      isInstance,
+      isNonEmptyIterable,
+      isOdd,
       leftGet,
-      asLeft,
-      asInstance,
-      isInstance
+      lessThan,
+      lessThanOrEqualTo,
+      rightGet
     )
   }
 }

@@ -7,7 +7,6 @@ import zio.{Chunk, NonEmptyChunk}
 
 import java.time.LocalDateTime
 import scala.collection.immutable.SortedSet
-import scala.language.implicitConversions
 
 object SmartAssertionSpec extends ZIOBaseSpec {
 
@@ -20,34 +19,10 @@ object SmartAssertionSpec extends ZIOBaseSpec {
 
   private val company: Company = Company("Ziverge", List(User("Bobo", List.tabulate(2)(n => Post(s"Post #$n")))))
 
-  def spec: ZSpec[Environment, Failure] =
+  def spec: ZSpec[Environment, Failure] = {
     suite("SmartAssertionSpec")(
-      suite("user-defined smart assertions")(
-        test("custom assertions") {
-          val double = 12.5
-          assertTrue(double ~= 12.8)
-        },
-        test("custom assertions") {
-          val double = 12.3
-          assertTrue(double.asEven * 3 == 13.5)
-        },
-        test("custom assertions") {
-          val thing: Color = Blue("blue")
-          assertTrue(thing.asRed.foo == 12)
-        },
-        test("custom assertions") {
-          val double = 12.3
-          assertTrue((double.asEven: Double) == 13.5)
-        },
-        test("custom assertions") {
-          val thing: Color = Blue("blue")
-          assertTrue(thing.asRed.run == Red(12))
-        },
-        test("custom assertions") {
-          val thing: Color = Blue("blue")
-          assertTrue(Color.asRed(thing).run == Red(12))
-        }
-      ) @@ failing,
+      extensionMethodAssertionsSuite,
+      userDefinedAssertionsSuite @@ failing,
       suite("Array")(
         suite("==")(
           test("success") {
@@ -292,6 +267,7 @@ object SmartAssertionSpec extends ZIOBaseSpec {
         val result = 1
         assertTrue {
           def cool(int: Int) = int * 3
+
           cool(result) > 400
         }
       } @@ failing,
@@ -425,6 +401,147 @@ object SmartAssertionSpec extends ZIOBaseSpec {
           customAssertion("hello")
         } @@ failing
       )
+    )
+  }
+
+  private lazy val extensionMethodAssertionsSuite =
+    suite("extension method smart assertions")(
+      suite("Either")(
+        suite("$right")(
+          test("success") {
+            val either: Either[String, Int] = Right(10)
+            assertTrue(either.$right == 10)
+          },
+          test("failure") {
+            val either: Either[String, Int] = Left("Howdy")
+            assertTrue(either.$right == 10)
+          } @@ failing
+        ),
+        suite("$left")(
+          test("success") {
+            val either: Either[String, Int] = Left("Howdy")
+            assertTrue(either.$left == "Howdy")
+          },
+          test("failure") {
+            val either: Either[String, Int] = Right(10)
+            assertTrue(either.$left == "Howdy")
+          } @@ failing
+        )
+      ),
+      suite("Option")(
+        suite("$some")(
+          test("success") {
+            val option: Option[Int] = Some(10)
+            assertTrue(option.$some == 10)
+          },
+          test("failure") {
+            val option: Option[Int] = None
+            assertTrue(option.$some == 10)
+          } @@ failing
+        )
+      ),
+      suite("$throws")(
+        test("success") {
+          def boom: Int = throw new Error("BOOM!")
+          assertTrue(boom.$throws.isInstanceOf[Error])
+        },
+        test("failure") {
+          def boom: Int = 10
+          assertTrue(boom.$throws.isInstanceOf[Error])
+        } @@ failing
+      ),
+      suite("$as")(
+        test("success") {
+          val res: Color = Red(12)
+          assertTrue(res.$as[Red].foo > 10)
+        },
+        test("failure") {
+          val res: Color = Blue("Hello")
+          assertTrue(res.$as[Red].foo > 11)
+        } @@ failing
+      ),
+      suite("$is")(
+        test("success") {
+          val res: Color = Red(12)
+          assertTrue(res.$is[Red])
+        },
+        test("failure") {
+          val res: Color = Blue("Hello")
+          assertTrue(res.$is[Red])
+        } @@ failing
+      ),
+      suite("Exit")(
+        suite("$success")(
+          test("success") {
+            val exit: zio.Exit[String, Int] = zio.Exit.succeed(10)
+            assertTrue(exit.$success == 10)
+          },
+          test("failure Exit.Success") {
+            val exit: zio.Exit[String, Int] = zio.Exit.die(new Error("Oops!"))
+            assertTrue(exit.$success == 10)
+          } @@ failing,
+          test("failure Exit.Failure") {
+            val exit: zio.Exit[String, Int] = zio.Exit.fail("Failed.")
+            assertTrue(exit.$success == 10)
+          } @@ failing
+        ),
+        suite("$die")(
+          test("success") {
+            val exit: zio.Exit[String, Int] = zio.Exit.die(new Error("Oops!"))
+            assertTrue(exit.$die.getMessage == "Oops!")
+          },
+          test("failure Exit.Success") {
+            val exit: zio.Exit[String, Int] = zio.Exit.succeed(10)
+            assertTrue(exit.$die.getMessage == "Oops!")
+          } @@ failing,
+          test("failure Exit.Failure") {
+            val exit: zio.Exit[String, Int] = zio.Exit.fail("Failed.")
+            assertTrue(exit.$die.getMessage == "Oops!")
+          } @@ failing
+        ),
+        suite("$failure")(
+          test("success") {
+            val exit: zio.Exit[String, Int] = zio.Exit.fail("Doh!")
+            assertTrue(exit.$fail == "Doh!")
+          },
+          test("failure Exit.Success") {
+            val exit: zio.Exit[String, Int] = zio.Exit.succeed(10)
+            assertTrue(exit.$fail == "Doh!")
+          } @@ failing,
+          test("failure Exit.Failure") {
+            val exit: zio.Exit[String, Int] = zio.Exit.die(new Error("Died!"))
+            assertTrue(exit.$fail == "Doh!")
+          } @@ failing
+        )
+      )
+    )
+
+  private lazy val userDefinedAssertionsSuite =
+    suite("user-defined smart assertions")(
+      test("custom assertions") {
+        val double = 12.5
+        assertTrue(double ~= 12.8)
+      },
+      test("custom assertions") {
+        val double = 12.3
+        assertTrue(double.asEven * 3 == 13.5)
+      },
+      test("custom assertions") {
+        val thing: Color = Blue("blue")
+        assertTrue(thing.asRed.foo == 12)
+      },
+      test("custom assertions") {
+        val double = 12.3
+        assertTrue((double.asEven: Double) == 13.5)
+      },
+      test("custom assertions") {
+        val thing: Color = Blue("blue")
+        assertTrue(thing.asRed.run == Red(12))
+      },
+      test("custom assertions") {
+        val thing: Color = Blue("blue")
+        assertTrue(Color.asRed(thing).run == Red(12))
+      }
     )
 
   // The implicit SourceLocation will be used by assertTrue to report the
