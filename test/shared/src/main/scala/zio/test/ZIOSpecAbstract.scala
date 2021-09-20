@@ -24,30 +24,24 @@ import zio.test.render._
 @EnableReflectiveInstantiation
 abstract class ZIOSpecAbstract extends ZIOApp { self =>
 
-  type Environment <: Has[_]
-
-  protected implicit def tag: Tag[Environment]
-
-  def layer: ZLayer[TestEnvironment, Any, Environment]
-
   def spec: ZSpec[Environment with TestEnvironment with Has[ZIOAppArgs], Any]
 
   def aspects: Chunk[TestAspect[Nothing, Environment with TestEnvironment with Has[ZIOAppArgs], Nothing, Any]] =
     Chunk.empty
 
   final def run: ZIO[ZEnv with Has[ZIOAppArgs], Any, Any] =
-    runSpec.provideSomeLayer[ZEnv with Has[ZIOAppArgs]](TestEnvironment.live ++ (TestEnvironment.live >>> layer))
+    runSpec.provideSomeLayer[ZEnv with Has[ZIOAppArgs]](TestEnvironment.live ++ layer)
 
   final def <>(that: ZIOSpecAbstract): ZIOSpecAbstract =
     new ZIOSpecAbstract {
       type Environment = self.Environment with that.Environment
-      def layer: ZLayer[TestEnvironment, Any, Environment] =
-        self.layer ++ that.layer
+      def layer: ZLayer[Has[ZIOAppArgs], Any, Environment] =
+        self.layer +!+ that.layer
       override def runSpec: ZIO[Environment with TestEnvironment with Has[ZIOAppArgs], Any, Any] =
         self.runSpec.zipPar(that.runSpec)
       def spec: ZSpec[Environment with TestEnvironment with Has[ZIOAppArgs], Any] =
         self.spec + that.spec
-      protected def tag: Tag[Environment] = {
+      def tag: Tag[Environment] = {
         implicit val selfTag: Tag[self.Environment] = self.tag
         implicit val thatTag: Tag[that.Environment] = that.tag
         val _                                       = (selfTag, thatTag)
