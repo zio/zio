@@ -958,12 +958,24 @@ package object test extends CompileVariants {
     def $some: A = throw new Error("OH NO")
   }
 
-  implicit final class ExitAssertionOps[E, A](private val self: zio.Exit[E, A]) extends AnyVal {
+  implicit final class ExitAssertionOps[E, A](private val self: Exit[E, A]) extends AnyVal {
     def $die: Throwable = throw new Error("OH NO")
 
     def $fail: E = throw new Error("OH NO")
 
     def $success: A = throw new Error("OH NO")
+
+    def $cause: Cause[E] = throw new Error("OH NO")
+
+    def $interrupt: Fiber.Id = throw new Error("OH NO")
+  }
+
+  implicit final class CauseAssertionOps[E](private val self: Cause[E]) extends AnyVal {
+    def $die: Throwable = throw new Error("OH NO")
+
+    def $fail: E = throw new Error("OH NO")
+
+    def $interrupt: Fiber.Id = throw new Error("OH NO")
   }
 
   implicit final class SmartAssertionOps[A](private val self: A) extends AnyVal {

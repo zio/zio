@@ -3,7 +3,7 @@ package zio.test
 import zio.duration.durationInt
 import zio.test.SmartTestTypes._
 import zio.test.environment.TestClock
-import zio.{Chunk, NonEmptyChunk}
+import zio.{Chunk, Fiber, NonEmptyChunk}
 
 import java.time.LocalDateTime
 import scala.collection.immutable.SortedSet
@@ -485,6 +485,16 @@ object SmartAssertionSpec extends ZIOBaseSpec {
             assertTrue(exit.$success == 10)
           } @@ failing
         ),
+        suite("$cause")(
+          test("success") {
+            val exit: zio.Exit[String, Int] = zio.Exit.fail("Failed.")
+            assertTrue(exit.$cause == zio.Cause.fail("Failed."))
+          },
+          test("failure Exit.Success") {
+            val exit: zio.Exit[String, Int] = zio.Exit.succeed(10)
+            assertTrue(exit.$cause == zio.Cause.fail("Fail"))
+          } @@ failing
+        ),
         suite("$die")(
           test("success") {
             val exit: zio.Exit[String, Int] = zio.Exit.die(new Error("Oops!"))
@@ -511,6 +521,50 @@ object SmartAssertionSpec extends ZIOBaseSpec {
           test("failure Exit.Failure") {
             val exit: zio.Exit[String, Int] = zio.Exit.die(new Error("Died!"))
             assertTrue(exit.$fail == "Doh!")
+          } @@ failing
+        )
+      ),
+      suite("Cause")(
+        suite("$fail")(
+          test("success") {
+            val cause: zio.Cause[String] = zio.Cause.fail("Dang!")
+            assertTrue(cause.$fail == "Dang!")
+          },
+          test("failure Cause.Die") {
+            val cause: zio.Cause[String] = zio.Cause.die(new Error("DIE!"))
+            assertTrue(cause.$fail == "Dang!")
+          } @@ failing,
+          test("failure Cause.Interrupt") {
+            val cause: zio.Cause[String] = zio.Cause.interrupt(Fiber.Id(0, 0))
+            assertTrue(cause.$fail == "Dang!")
+          } @@ failing
+        ),
+        suite("$die")(
+          test("success") {
+            val cause: zio.Cause[String] = zio.Cause.die(new Error("DIE!"))
+            assertTrue(cause.$die.getMessage == "DIE!")
+          },
+          test("failure Cause.Fail") {
+            val cause: zio.Cause[String] = zio.Cause.fail("Dang!")
+            assertTrue(cause.$die.getMessage == "DIE!")
+          } @@ failing,
+          test("failure Cause.Interrupt") {
+            val cause: zio.Cause[String] = zio.Cause.interrupt(Fiber.Id(0, 0))
+            assertTrue(cause.$die.getMessage == "DIE!")
+          } @@ failing
+        ),
+        suite("$interrupt")(
+          test("success") {
+            val cause: zio.Cause[String] = zio.Cause.interrupt(Fiber.Id(0, 0))
+            assertTrue(cause.$interrupt == Fiber.Id(0, 0))
+          },
+          test("failure Cause.Fail") {
+            val cause: zio.Cause[String] = zio.Cause.fail("Dang!")
+            assertTrue(cause.$interrupt == Fiber.Id(0, 0))
+          } @@ failing,
+          test("failure Cause.Die") {
+            val cause: zio.Cause[String] = zio.Cause.die(new Error("DIE!"))
+            assertTrue(cause.$interrupt == Fiber.Id(0, 0))
           } @@ failing
         )
       )

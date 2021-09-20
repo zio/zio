@@ -1,6 +1,6 @@
 package zio.test.internal
 
-import zio.Exit
+import zio.{Cause, Exit, Fiber}
 import zio.test._
 import zio.test.diff.Diff
 
@@ -234,6 +234,33 @@ object SmartAssertions {
       _ => Trace.fail("Expected failure")
     )
 
+  def asCauseDie[E]: Arrow[Cause[E], Throwable] =
+    Arrow
+      .make[Cause[E], Throwable] {
+        case cause if cause.dieOption.isDefined =>
+          Trace.succeed(cause.dieOption.get)
+        case _ =>
+          Trace.fail(M.value("Cause") + M.did + "contain a" + M.value("Die"))
+      }
+
+  def asCauseFail[E]: Arrow[Cause[E], E] =
+    Arrow
+      .make[Cause[E], E] {
+        case cause if cause.failureOption.isDefined =>
+          Trace.succeed(cause.failureOption.get)
+        case _ =>
+          Trace.fail(M.value("Cause") + M.did + "contain a" + M.value("Fail"))
+      }
+
+  def asCauseInterrupt[E]: Arrow[Cause[E], Fiber.Id] =
+    Arrow
+      .make[Cause[E], Fiber.Id] {
+        case cause if cause.interruptors.nonEmpty =>
+          Trace.succeed(cause.interruptors.head)
+        case _ =>
+          Trace.fail(M.value("Cause") + M.did + "contain a" + M.value("Interrupt"))
+      }
+
   def asExitDie[E, A]: Arrow[Exit[E, A], Throwable] =
     Arrow
       .make[Exit[E, A], Throwable] {
@@ -245,15 +272,35 @@ object SmartAssertions {
           Trace.fail(M.value("Exit.Failure") + M.did + "contain a" + M.value("Cause.Die"))
       }
 
+  def asExitCause[E, A]: Arrow[Exit[E, A], Cause[E]] =
+    Arrow
+      .make[Exit[E, A], Cause[E]] {
+        case Exit.Failure(cause) =>
+          Trace.succeed(cause)
+        case Exit.Success(_) =>
+          Trace.fail(M.value("Exit.Success") + M.did + "contain a" + M.value("Cause"))
+      }
+
   def asExitFail[E, A]: Arrow[Exit[E, A], E] =
     Arrow
       .make[Exit[E, A], E] {
         case Exit.Failure(cause) if cause.failureOption.isDefined =>
           Trace.succeed(cause.failureOption.get)
         case Exit.Success(_) =>
-          Trace.fail(M.value("Exit.Success") + M.was + "a" + M.value("Cause.Fail"))
+          Trace.fail(M.value("Exit.Success") + M.was + "a" + M.value("Failure"))
         case Exit.Failure(_) =>
           Trace.fail(M.value("Exit.Failure") + M.did + "contain a" + M.value("Cause.Fail"))
+      }
+
+  def asExitInterrupt[E, A]: Arrow[Exit[E, A], Fiber.Id] =
+    Arrow
+      .make[Exit[E, A], Fiber.Id] {
+        case Exit.Failure(cause) if cause.interruptors.nonEmpty =>
+          Trace.succeed(cause.interruptors.head)
+        case Exit.Success(_) =>
+          Trace.fail(M.value("Exit.Success") + M.was + "interrupted")
+        case Exit.Failure(_) =>
+          Trace.fail(M.value("Exit.Failure") + M.did + "contain a" + M.value("Cause.Interrupt"))
       }
 
   def asExitSuccess[E, A]: Arrow[Exit[E, A], A] =

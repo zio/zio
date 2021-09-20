@@ -470,30 +470,74 @@ $Assert($ast.withCode($codeString).withLocation)
         AssertAST("throws")
       }
 
-    val $die: ASTConverter =
-      ASTConverter.make { case AST.Method(_, lhsTpe, _, "$die", _, _, _) =>
-        AssertAST("asExitDie")
+    val $interruptExit: ASTConverter =
+      ASTConverter.make {
+        case AST.Method(_, lhsTpe, _, "$interrupt", _, _, _) if lhsTpe <:< weakTypeOf[zio.Exit[_, _]] =>
+          AssertAST("asExitInterrupt")
       }
 
-    val $success: ASTConverter =
-      ASTConverter.make { case AST.Method(_, lhsTpe, _, "$success", _, _, _) =>
-        AssertAST("asExitSuccess")
+    val $dieExit: ASTConverter =
+      ASTConverter.make {
+        case AST.Method(_, lhsTpe, _, "$die", _, _, _) if lhsTpe <:< weakTypeOf[zio.Exit[_, _]] =>
+          AssertAST("asExitDie")
       }
 
-    val $fail: ASTConverter =
-      ASTConverter.make { case AST.Method(_, lhsTpe, _, "$fail", _, _, _) =>
-        AssertAST("asExitFail")
+    val $successExit: ASTConverter =
+      ASTConverter.make {
+        case AST.Method(_, lhsTpe, _, "$success", _, _, _) if lhsTpe <:< weakTypeOf[zio.Exit[_, _]] =>
+          AssertAST("asExitSuccess")
+      }
+
+    val $failExit: ASTConverter =
+      ASTConverter.make {
+        case AST.Method(_, lhsTpe, _, "$fail", _, _, _) if lhsTpe <:< weakTypeOf[zio.Exit[_, _]] =>
+          AssertAST("asExitFail")
+      }
+
+    val $causeExit: ASTConverter =
+      ASTConverter.make {
+        case AST.Method(_, lhsTpe, _, "$cause", _, _, _) if lhsTpe <:< weakTypeOf[zio.Exit[_, _]] =>
+          AssertAST("asExitCause")
+      }
+
+    val $dieCause: ASTConverter =
+      ASTConverter.make {
+        case AST.Method(_, lhsTpe, _, "$die", _, _, _) if lhsTpe <:< weakTypeOf[zio.Cause[_]] =>
+          AssertAST("asCauseDie")
+      }
+
+    val $successCause: ASTConverter =
+      ASTConverter.make {
+        case AST.Method(_, lhsTpe, _, "$success", _, _, _) if lhsTpe <:< weakTypeOf[zio.Cause[_]] =>
+          AssertAST("asCauseSuccess")
+      }
+
+    val $failCause: ASTConverter =
+      ASTConverter.make {
+        case AST.Method(_, lhsTpe, _, "$fail", _, _, _) if lhsTpe <:< weakTypeOf[zio.Cause[_]] =>
+          AssertAST("asCauseFail")
+      }
+
+    val $interruptCause: ASTConverter =
+      ASTConverter.make {
+        case AST.Method(_, lhsTpe, _, "$interrupt", _, _, _) if lhsTpe <:< weakTypeOf[zio.Cause[_]] =>
+          AssertAST("asCauseInterrupt")
       }
 
     val all: List[ASTConverter] = List(
       $as,
-      $die,
-      $fail,
+      $causeExit,
+      $interruptCause,
+      $interruptExit,
+      $dieCause,
+      $dieExit,
+      $failCause,
+      $failExit,
       $is,
       $left,
       $right,
       $some,
-      $success,
+      $successExit,
       $throws,
       asInstance,
       containsOption,
