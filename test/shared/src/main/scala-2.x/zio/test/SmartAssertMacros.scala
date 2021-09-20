@@ -289,6 +289,11 @@ $Assert($ast.withCode($codeString).withLocation)
         AssertAST("equalTo", List(lhsTpe), args)
       }
 
+    val notEqualTo: ASTConverter =
+      ASTConverter.make { case AST.Method(_, lhsTpe, _, "$bang$eq", _, Some(args), _) =>
+        AssertAST("notEqualTo", List(lhsTpe), args)
+      }
+
     val get: ASTConverter =
       ASTConverter.make {
         case AST.Method(_, lhsTpe, _, "get", _, _, _) if lhsTpe <:< weakTypeOf[Option[_]] =>
@@ -550,6 +555,7 @@ $Assert($ast.withCode($codeString).withLocation)
       hasAt,
       hasKey,
       head,
+      notEqualTo,
       isDefinedOption,
       isEmptyIterable,
       isEmptyOption,

@@ -208,6 +208,9 @@ object SmartAssertions {
         }
       }
 
+  def notEqualTo[A](that: A)(implicit diff: OptionalImplicit[Diff[A]]): Arrow[A, Boolean] =
+    !equalTo[A](that)
+
   def equalTo[A](that: A)(implicit diff: OptionalImplicit[Diff[A]]): Arrow[A, Boolean] =
     Arrow
       .make[A, Boolean] { a =>

@@ -69,7 +69,7 @@ sealed trait Arrow[-A, +B] { self =>
   def ||(that: Arrow[Any, Boolean])(implicit ev: Any <:< A, ev2: B <:< Boolean): Arrow[Any, Boolean] =
     Or(self.asInstanceOf[Arrow[Any, Boolean]], that)
 
-  def unary_!(implicit ev: Any <:< A, ev2: B <:< Boolean): Arrow[Any, Boolean] =
+  def unary_!(implicit ev2: B <:< Boolean): Arrow[Any, Boolean] =
     Not(self.asInstanceOf[Arrow[Any, Boolean]])
 }
 
