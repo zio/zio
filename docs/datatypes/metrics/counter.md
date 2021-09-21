@@ -67,8 +67,7 @@ val myApp = for {
 Or we can apply them in recurrence situations:
 
 ```scala mdoc:silent:nest
-import zio.Random
-(Random.nextIntBounded(10) @@ ZIOMetric.count("request_counts")).repeatUntil(_ == 7)
+(zio.Random.nextIntBounded(10) @@ ZIOMetric.count("request_counts")).repeatUntil(_ == 7)
 ```
 
 Create a counter named `countBytes` that can be applied to effects having the output type `Double`:
