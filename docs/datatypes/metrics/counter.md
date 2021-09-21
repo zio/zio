@@ -45,3 +45,40 @@ Here are some of the use cases:
 - Request Counts
 - Completed Tasks
 - Error Counts
+
+## Examples
+
+Create a counter named `countAll` which is incremented by `1` every time it is invoked:
+
+```scala mdoc:silent:nest
+import zio._
+val countAll = ZIOMetric.count("countAll")
+```
+
+Now the counter can be applied to any effect. Note, that the same aspect can be applied to more than one effect. In the example we would count the sum of executions of both effects in the for comprehension:
+
+```
+val myApp = for {
+  _ <- ZIO.unit @@ countAll
+  _ <- ZIO.unit @@ countAll
+} yield ()
+```
+
+Or we can apply them in recurrence situations:
+
+```scala mdoc:silent:nest
+import zio.Random
+(Random.nextIntBounded(10) @@ ZIOMetric.count("request_counts")).repeatUntil(_ == 7)
+```
+
+Create a counter named `countBytes` that can be applied to effects having the output type `Double`:
+
+```scala mdoc:silent:nest
+val countBytes = ZIOMetric.countValue("countBytes")
+```
+
+Now we can apply it to effects producing `Double` (in a real application the value might be the number of bytes read from a stream or something similar):
+
+```scala mdoc:silent:nest
+val myApp = Random.nextDoubleBetween(0.0d, 100.0d) @@ countBytes
+```
