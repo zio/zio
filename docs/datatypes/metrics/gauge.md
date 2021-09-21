@@ -43,3 +43,31 @@ The gauge metric type is the best choice for things that their values can go dow
 - Queue Size
 - In-Progress Request Counts
 - Temperature
+
+## Examples
+
+Create a gauge that can be set to absolute values, it can be applied to effects yielding a `Double`:
+
+```scala mdoc:silent:nest
+import zio._
+val absoluteGuage = ZIOMetric.setGauge("setGauge")
+```
+
+Create a gauge that can be set relative to its current value, it can be applied to effects yielding a `Double`:
+
+```scala mdoc:silent:nest
+val relativeGauge = ZIOMetric.adjustGauge("adjustGauge")
+```
+
+Now we can apply these gauges to effects having an output type `Double`. Note that we can instrument an effect with any number of aspects if the type constraints are satisfied:
+
+```scala mdoc:invisible
+val countAll = ZIOMetric.count("countAll")
+```
+
+```scala mdoc:silent:nest
+for {
+  _ <- Random.nextDoubleBetween(0.0d, 100.0d) @@ absoluteGuage @@ countAll
+  _ <- Random.nextDoubleBetween(-50d, 50d) @@ relativeGauge @@ countAll
+} yield ()
+```
