@@ -53,3 +53,22 @@ Thus, histograms are the best choice in these situations:
 Some examples of histogram use cases:
 - Request Latency
 - Response Time
+
+## Examples
+
+Create a histogram with 12 buckets: `0..100` in steps of `10` and `Double.MaxValue`. It can be applied to effects yielding a `Double`:
+
+```scala mdoc:silent:nest
+import zio._
+val histogram =
+  ZIOMetric.observeHistogram(
+    "histogram", 
+    Chunk.fromArray(0.until(11).map(i => 0.0d + i * 10.0d).toArray) ++ Chunk(Double.MaxValue)
+  )
+```
+
+Now we can apply the histogram to effects producing `Double`:
+
+```scala mdoc:silent:nest
+Random.nextDoubleBetween(0.0d, 120.0d) @@ histogram
+```
