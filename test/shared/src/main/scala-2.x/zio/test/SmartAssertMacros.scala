@@ -286,7 +286,7 @@ $Assert($ast.withCode($codeString).withLocation)
 
     val equalTo: ASTConverter =
       ASTConverter.make { case AST.Method(_, lhsTpe, _, "$eq$eq", _, Some(args), _) =>
-        AssertAST("equalTo", List(lhsTpe), args)
+        AssertAST("equalTo", List(weakTypeOf[Any]), args)
       }
 
     val notEqualTo: ASTConverter =

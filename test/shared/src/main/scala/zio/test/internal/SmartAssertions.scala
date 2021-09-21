@@ -1,8 +1,8 @@
 package zio.test.internal
 
-import zio.{Cause, Exit, Fiber}
 import zio.test._
 import zio.test.diff.Diff
+import zio.{Cause, Exit, Fiber}
 
 import scala.reflect.ClassTag
 import scala.util.Try
