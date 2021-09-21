@@ -56,3 +56,25 @@ Like [histograms](histogram.md), summaries are used for _monitoring latencies_, 
 - When histograms are not proper for us, in terms of accuracy
 - When we can't use histograms, as we don't have a good estimation of the range of values
 - When we don't need to perform aggregation or averages across multiple instances, as the calculations are done on the application side
+
+## Examples
+
+Create a summary that can hold `100` samples, the max age of the samples is `1 day` and the error margin is `3%`. The summary should report the `10%`, `50%` and `90%` Quantile. It can be applied to effects yielding an `Int`:
+
+```scala mdoc:silent:nest
+import zio._
+val summary =
+  ZIOMetric.observeSummaryWith[Int](
+    name = "mySummary", 
+    maxAge = 1.day,
+    maxSize = 100,
+    error = 0.03d, 
+    quantiles = Chunk(0.1, 0.5, 0.9)
+  )(_.toDouble)
+``` 
+
+Now we can apply this aspect to an effect producing an `Int`:
+
+```scala mdoc:silent:nest
+Random.nextIntBetween(100, 500) @@ summary
+```
