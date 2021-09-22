@@ -97,8 +97,14 @@ module.exports = {
           title: 'Additional resources',
           items: [
             {
-              label: 'Scaladoc of ZIO',
-              href: 'https://javadoc.io/doc/dev.zio/zio_2.12/'
+              html: `<a href="/api/zio/" target="_blank">Latest Scaladoc of ZIO</a>`
+            },
+            {
+              html: `<a href="/api-1.x/zio/" target="_blank">Scaladoc of ZIO-1.x</a>`
+            },
+            {
+              label: 'Scaladoc on javadoc.io',
+              href: 'https://javadoc.io/doc/dev.zio/'
             }
           ],
         },
