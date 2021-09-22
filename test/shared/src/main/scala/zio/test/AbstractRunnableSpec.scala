@@ -20,7 +20,7 @@ import org.portablescala.reflect.annotation.EnableReflectiveInstantiation
 import zio._
 
 @EnableReflectiveInstantiation
-abstract class AbstractRunnableSpec extends ZIOApp {
+abstract class AbstractRunnableSpec {
 
   type Environment
   type Failure
@@ -39,7 +39,7 @@ abstract class AbstractRunnableSpec extends ZIOApp {
   /**
    * Returns an effect that executes the spec, producing the results of the execution.
    */
-  def run: ZIO[ZEnv with Has[ZIOAppArgs], Any, Any] =
+  final def run: ZIO[ZEnv with Has[ZIOAppArgs], Any, Any] =
     runSpec(spec).provideCustomLayer(runner.bootstrap)
 
   /**
