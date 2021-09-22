@@ -10,10 +10,14 @@ rm -Rf website/versioned_docs
 
 # Checkout latest released version of 1.x 
 git checkout origin/master
-sbt docs/mdoc
+sbt docs/mdoc docs/unidoc
 
 mkdir -p website/versioned_docs/version-1.x
 mv zio-docs/target/mdoc/* website/versioned_docs/version-1.x
+
+mkdiir -p website/static/api/1.x
+mv website/static/api/* website/static/api/1.x
+rm -Rf website/static/api
 
 # No we need to checkout the branch that originally has triggered the site build 
 git checkout $1
