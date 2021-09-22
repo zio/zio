@@ -3,7 +3,7 @@ package zio.examples
 import zio._
 import java.io.IOException
 
-object ZLayerInjectExample extends ZIOApp {
+object ZLayerInjectExample extends ZIOAppDefault {
   val program: ZIO[Has[OldLady] with Has[Console], IOException, Unit] =
     OldLady.contentsOfStomach.flatMap { contents =>
       Console.printLine(s"There was an old who lady swallowed:\n- ${contents.mkString("\n- ")}")

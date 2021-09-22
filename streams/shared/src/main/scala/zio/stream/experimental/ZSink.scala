@@ -1218,6 +1218,7 @@ object ZSink {
       )
     }
 
+  @deprecated("use unwrapManaged", "2.0.0")
   def managed[R, InErr, In, OutErr >: InErr, A, L <: In, Z](resource: ZManaged[R, OutErr, A])(
     fn: A => ZSink[R, InErr, In, OutErr, L, Z]
   ): ZSink[R, InErr, In, OutErr, In, Z] =
@@ -1248,6 +1249,22 @@ object ZSink {
     }
 
   def timed[Err]: ZSink[Has[Clock], Err, Any, Err, Nothing, Duration] = ZSink.drain.timed.map(_._2)
+
+  /**
+   * Creates a sink produced from an effect.
+   */
+  def unwrap[R, InErr, In, OutErr, L, Z](
+    zio: ZIO[R, OutErr, ZSink[R, InErr, In, OutErr, L, Z]]
+  ): ZSink[R, InErr, In, OutErr, L, Z] =
+    new ZSink(ZChannel.unwrap(zio.map(_.channel)))
+
+  /**
+   * Creates a sink produced from a managed effect.
+   */
+  def unwrapManaged[R, InErr, In, OutErr, L, Z](
+    managed: ZManaged[R, OutErr, ZSink[R, InErr, In, OutErr, L, Z]]
+  ): ZSink[R, InErr, In, OutErr, L, Z] =
+    new ZSink(ZChannel.unwrapManaged(managed.map(_.channel)))
 
   final class AccessSinkPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[R1 <: R, InErr, In, OutErr, L, Z](
