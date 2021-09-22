@@ -67,11 +67,11 @@ ZIO contains a few data types that can help you solve complex problems in asynch
  
 ## Resource Safety
 - **[ZManaged](resource/zmanaged.md)** — A `ZManaged` is a value that describes a perishable resource that may be consumed only once inside a given scope.
-    - **[Managed](managed.md)** — `Managed[E, A]` is a type alias for `ZManaged[Any, E, A]`.
-    - **[TaskManaged](task-managed.md)** — `TaskManaged[A]` is a type alias for `ZManaged[Any, Throwable, A]`.
-    - **[RManaged](rmanaged.md)** — `RManaged[R, A]` is a type alias for `ZManaged[R, Throwable, A]`.
-    - **[UManaged](umanaged.md)** — `UManaged[A]` is a type alias for `ZManaged[Any, Nothing, A]`.
-    - **[URManaged](urmanaged.md)** — `URManaged[R, A]` is a type alias for `ZManaged[R, Nothing, A]`.
+    - **[Managed](resource/managed.md)** — `Managed[E, A]` is a type alias for `ZManaged[Any, E, A]`.
+    - **[TaskManaged](resource/task-managed.md)** — `TaskManaged[A]` is a type alias for `ZManaged[Any, Throwable, A]`.
+    - **[RManaged](resource/rmanaged.md)** — `RManaged[R, A]` is a type alias for `ZManaged[R, Throwable, A]`.
+    - **[UManaged](resource/umanaged.md)** — `UManaged[A]` is a type alias for `ZManaged[Any, Nothing, A]`.
+    - **[URManaged](resource/urmanaged.md)** — `URManaged[R, A]` is a type alias for `ZManaged[R, Nothing, A]`.
 
 ## Streaming
 - **[ZStream](stream/zstream.md)** — A `ZStream` is a lazy, concurrent, asynchronous source of values.
