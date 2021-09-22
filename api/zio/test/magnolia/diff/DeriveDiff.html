@@ -5,13 +5,15 @@ specs can use resources (including those requiring disposal), have well-
 defined linear and parallel semantics, and can benefit from a host of ZIO
 combinators.</p><pre><span class="kw">import</span> zio.test._
 <span class="kw">import</span> zio.test.environment.Live
-<span class="kw">import</span> zio.clock.nanoTime
+<span class="kw">import</span> zio.Clock.nanoTime
 <span class="kw">import</span> Assertion.isGreaterThan
 
 <span class="kw">object</span> MyTest <span class="kw">extends</span> DefaultRunnableSpec {
   <span class="kw">def</span> spec = suite(<span class="lit">"clock"</span>)(
-    testM(<span class="lit">"time is non-zero"</span>) {
-      assertM(Live.live(nanoTime))(isGreaterThan(<span class="num">0</span>))
+    test(<span class="lit">"time is non-zero"</span>) {
+      <span class="kw">for</span> {
+        time <span class="kw">&lt;-</span> Live.live(nanoTime)
+      } <span class="kw">yield</span> assertTrue(time &gt;= <span class="num">0</span>)
     }
   )
 }</pre></div><dl class="attributes block"><dt>Definition Classes</dt><dd><a href="../../../index.html" name="zio" id="zio" class="extype">zio</a></dd></dl></div></li><li class="indented3 " name="zio.test.magnolia" group="Ungrouped" fullComment="yes" data-isabs="false" visbl="pub"><a id="magnolia" class="anchorToMember"></a><a id="magnolia:magnolia" class="anchorToMember"></a> <span class="permalink"><a href="../../../../zio/test/magnolia/index.html" title="Permalink"><i class="material-icons"></i></a></span> <span class="modifier_kind"><span class="modifier"></span> <span class="kind">package</span></span> <span class="symbol"><a href="../index.html" title=""><span class="name">magnolia</span></a></span><div class="fullcomment"><dl class="attributes block"><dt>Definition Classes</dt><dd><a href="../../index.html" name="zio.test" id="zio.test" class="extype">test</a></dd></dl></div></li><li class="indented4 " name="zio.test.magnolia.diff" group="Ungrouped" fullComment="yes" data-isabs="false" visbl="pub"><a id="diff" class="anchorToMember"></a><a id="diff:diff" class="anchorToMember"></a> <span class="permalink"><a href="../../../../zio/test/magnolia/diff/index.html" title="Permalink"><i class="material-icons"></i></a></span> <span class="modifier_kind"><span class="modifier"></span> <span class="kind">package</span></span> <span class="symbol"><a href="index.html" title="Use import zio.test.magnolia.diff._ to get automatic case class diffing when using smartAssert(result == SomeCaseClass(&quot;Nice&quot;, 123))."><span class="name">diff</span></a></span><p class="shortcomment cmt">Use <code>import zio.test.magnolia.diff._</code> to get automatic case class diffing
