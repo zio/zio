@@ -9,12 +9,13 @@ Imagine we have a complex infrastructure with lots of services. Services are rep
 
 ZIO Metrics has a _label based dimensional_ data model where we have metric name and just list of key-value pairs attached to that metric name. So labels are first-class citizen in ZIO Metrics. They are sets of numbers that gives us information about a process, activity or a state of a system. 
 
-ZIO supports 4 types of Metrics:
+ZIO supports 5 types of Metrics:
 
 * **[Counter](counter.md)** — The Counter is used for any value that increases over time like _request counts_.
 * **[Gauge](gauge.md)** — The gauge is a single numerical value that can arbitrary goes up or down over time like _memory usage_.
 * **[Histogram](histogram.md)** — The Histogram is used to track the distribution of a set of observed values across a set of buckets like _request latencies_.
 * **[Summary](summary.md)** — The Summary represents a sliding window of a time series along with metrics for certain percentiles of the time series, referred to as quantiles like _request latencies_.
+* **[SetCount](setcount.md)** — The SetCount is a metric that counts the number of occurrences of distinct string values.
 
 All ZIO Metrics are defined in the form of ZIO Aspects that can be applied to effects without changing the signature of the effect it is applied to:
 

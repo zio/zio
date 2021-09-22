@@ -100,7 +100,8 @@ module.exports = {
                   "datatypes/metrics/counter",
                   "datatypes/metrics/gauge",
                   "datatypes/metrics/histogram",
-                  "datatypes/metrics/summary"
+                  "datatypes/metrics/summary",
+                  "datatypes/metrics/setcount"
               ]
           }
       ],
