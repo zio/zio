@@ -6,10 +6,12 @@ title: "Introduction"
 ZIO contains a few data types that can help you solve complex problems in asynchronous and concurrent programming. ZIO data types categorize into these sections:
 
 1. [Core Data Types](#core-data-types)
-2. [Fiber Primitives](#fiber-primitives)
-3. [Concurrency Primitives](#concurrency-primitives)
-4. [STM](#stm)
-5. [Resource Safety](#resource-safety)
+2. [Contextual Data Types](#contextual-data-types)
+3. [Concurrency](#concurrency)
+   - [Fiber Primitives](#fiber-primitives)
+   - [Concurrency Primitives](#concurrency-primitives)
+   - [STM](#stm)
+3. [Resource Safety](#resource-safety)
 6. [Streaming](#streaming)
 7. [Miscellaneous](#miscellaneous)
 
