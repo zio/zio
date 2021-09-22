@@ -16,8 +16,7 @@ mkdir -p website/versioned_docs/version-1.x
 mv zio-docs/target/mdoc/* website/versioned_docs/version-1.x
 
 mkdir -p website/static/api/1.x
-mv website/static/api/* website/static/api/1.x
-rm -Rf website/static/api
+mv website/static/api website/static/api-1.x
 
 # No we need to checkout the branch that originally has triggered the site build 
 git checkout $1
