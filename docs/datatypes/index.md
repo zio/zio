@@ -32,24 +32,26 @@ ZIO contains a few data types that can help you solve complex problems in asynch
     + **[Layer](contextual/layer.md)** — Layer[+E, +ROut] is a type alias for ZLayer[Any, E, ROut], which represents a layer that doesn't require any services, it may fail with an error type of E, and returns ROut as its output.
     + **[URLayer](contextual/urlayer.md)** — URLayer[-RIn, +ROut] is a type alias for ZLayer[RIn, Nothing, ROut], which represents a layer that requires RIn as its input, it can't fail, and returns ROut as its output.
     + **[TaskLayer](contextual/task-layer.md)** — TaskLayer[+ROut] is a type alias for ZLayer[Any, Throwable, ROut], which represents a layer that doesn't require any services as its input, it may fail with Throwable value, and returns ROut as its output.
- 
-## Fiber Primitives
+
+## Concurrency
+
+### Fiber Primitives
  - **[Fiber](fiber/fiber.md)** — A fiber value models an `IO` value that has started running, and is the moral equivalent of a green thread.
  - **[FiberRef](fiber/fiberref.md)** — `FiberRef[A]` models a mutable reference to a value of type `A`. As opposed to `Ref[A]`, a value is bound to an executing `Fiber` only.  You can think of it as Java's `ThreadLocal` on steroids.
  - **[Fiber.Status](fiber/fiberstatus.md)** — `Fiber.Status` describe the current status of a Fiber.
  - **[FiberId](fiber/fiberid.md)** — `FiberId` describe the unique identity of a Fiber.
  
-## Concurrency Primitives
- - **[Hub](concurrency/hub.md)** - A `Hub` is an asynchronous message hub that allows publishers to efficiently broadcast values to many subscribers.
- - **[Promise](concurrency/promise.md)** — A `Promise` is a model of a variable that may be set a single time, and awaited on by many fibers.
- - **[Semaphore](concurrency/semaphore.md)** — A `Semaphore` is an asynchronous (non-blocking) semaphore that plays well with ZIO's interruption.
+### Concurrency Primitives
 - **[ZRef](concurrency/zref.md)** — A `ZRef[EA, EB, A, B]` is a polymorphic, purely functional description of a mutable reference. The fundamental operations of a `ZRef` are `set` and `get`.
-  + **[Ref](concurrency/ref.md)** — `Ref[A]` models a mutable reference to a value of type `A`. The two basic operations are `set`, which fills the `Ref` with a new value, and `get`, which retrieves its current content. All operations on a `Ref` are atomic and thread-safe, providing a reliable foundation for synchronizing concurrent programs.
-- **[ZRef.Synchronized](concurrency/zrefsynchronized.md)** — A `ZRef.Synchronized[RA, RB, EA, EB, A, B]` is a polymorphic, purely functional description of a mutable reference. 
-  + **[Ref.Synchronized](concurrency/refsynchronized.md)** — `Ref.Synchronized[A]` models a **mutable reference** to a value of type `A` in which we can store **immutable** data, and update it atomically **and** effectfully.
- - **[Queue](concurrency/queue.md)** — A `Queue` is an asynchronous queue that never blocks, which is safe for multiple concurrent producers and consumers.
+    + **[Ref](concurrency/ref.md)** — `Ref[A]` models a mutable reference to a value of type `A`. The two basic operations are `set`, which fills the `Ref` with a new value, and `get`, which retrieves its current content. All operations on a `Ref` are atomic and thread-safe, providing a reliable foundation for synchronizing concurrent programs.
+- **[ZRef.Synchronized](concurrency/zrefsynchronized.md)** — A `ZRef.Synchronized[RA, RB, EA, EB, A, B]` is a polymorphic, purely functional description of a mutable reference.
+    + **[Ref.Synchronized](concurrency/refsynchronized.md)** — `Ref.Synchronized[A]` models a **mutable reference** to a value of type `A` in which we can store **immutable** data, and update it atomically **and** effectfully.
+- **[Promise](concurrency/promise.md)** — A `Promise` is a model of a variable that may be set a single time, and awaited on by many fibers.
+- **[Queue](concurrency/queue.md)** — A `Queue` is an asynchronous queue that never blocks, which is safe for multiple concurrent producers and consumers.
+ - **[Hub](concurrency/hub.md)** - A `Hub` is an asynchronous message hub that allows publishers to efficiently broadcast values to many subscribers.
+- **[Semaphore](concurrency/semaphore.md)** — A `Semaphore` is an asynchronous (non-blocking) semaphore that plays well with ZIO's interruption.
 
-## STM
+### STM
  - **[STM](stm/stm.md)** - An `STM` represents an effect that can be performed transactionally resulting in a failure or success.
  - **[TArray](stm/tarray.md)** - A `TArray[A]` is an array of mutable references that can participate in transactions.
  - **[TSet](stm/tset.md)** - A `TSet` is a mutable set that can participate in transactions.
