@@ -15,7 +15,7 @@ sbt docs/mdoc docs/unidoc
 mkdir -p website/versioned_docs/version-1.x
 mv zio-docs/target/mdoc/* website/versioned_docs/version-1.x
 
-mkdiir -p website/static/api/1.x
+mkdir -p website/static/api/1.x
 mv website/static/api/* website/static/api/1.x
 rm -Rf website/static/api
 
