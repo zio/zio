@@ -19,7 +19,6 @@ module.exports = {
       "datatypes/index"
     ],
     "Core Data Types": [
-        "datatypes/core/index",
         {
             type: "category",
             label: "ZIO Effects",
@@ -148,7 +147,6 @@ module.exports = {
         "datatypes/stream/subscription-ref"
     ],
     "Miscellaneous": [
-      "datatypes/misc/index",
       "datatypes/misc/chunk",
       "datatypes/misc/schedule",
       "datatypes/misc/supervisor"
