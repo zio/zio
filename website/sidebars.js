@@ -52,42 +52,56 @@ module.exports = {
         },
         "datatypes/contextual/has",
     ],
-    "Fiber Primitives": [
-      "datatypes/fiber/index",
-      "datatypes/fiber/fiber",
-      "datatypes/fiber/fiberref",
-      "datatypes/fiber/fiberid",
-      "datatypes/fiber/fiberstatus"
-    ],
-    "Concurrency Primitives": [
-        "datatypes/concurrency/index",
+    "Concurrency": [
         {
             type: "category",
-            label: "Mutable References",
+            label: "ZIO Fibers",
             items: [
-                "datatypes/concurrency/zref",
-                "datatypes/concurrency/ref",
-                "datatypes/concurrency/zrefsynchronized",
-                "datatypes/concurrency/refsynchronized",
+                "datatypes/fiber/index",
+                "datatypes/fiber/fiber",
+                "datatypes/fiber/fiberref",
+                "datatypes/fiber/fiberid",
+                "datatypes/fiber/fiberstatus"
             ]
         },
-        "datatypes/concurrency/promise",
-        "datatypes/concurrency/queue",
-        "datatypes/concurrency/hub",
-        "datatypes/concurrency/semaphore"
-    ],
-    "STM": [
-      "datatypes/stm/index",
-      "datatypes/stm/stm",
-      "datatypes/stm/tarray",
-      "datatypes/stm/tset",
-      "datatypes/stm/tmap",
-      "datatypes/stm/tref",
-      "datatypes/stm/tpriorityqueue",
-      "datatypes/stm/tpromise",
-      "datatypes/stm/tqueue",
-      "datatypes/stm/treentrantlock",
-      "datatypes/stm/tsemaphore"
+        {
+            type: "category",
+            label: "Concurrency Primitives",
+            items: [
+                "datatypes/concurrency/index",
+                {
+                    type: "category",
+                    label: "Mutable References",
+                    items: [
+                        "datatypes/concurrency/zref",
+                        "datatypes/concurrency/ref",
+                        "datatypes/concurrency/zrefsynchronized",
+                        "datatypes/concurrency/refsynchronized",
+                    ]
+                },
+                "datatypes/concurrency/promise",
+                "datatypes/concurrency/queue",
+                "datatypes/concurrency/hub",
+                "datatypes/concurrency/semaphore"
+            ]
+        },
+        {
+            type: "category",
+            label: "STM",
+            items: [
+                "datatypes/stm/index",
+                "datatypes/stm/stm",
+                "datatypes/stm/tarray",
+                "datatypes/stm/tset",
+                "datatypes/stm/tmap",
+                "datatypes/stm/tref",
+                "datatypes/stm/tpriorityqueue",
+                "datatypes/stm/tpromise",
+                "datatypes/stm/tqueue",
+                "datatypes/stm/treentrantlock",
+                "datatypes/stm/tsemaphore"
+            ]
+        },
     ],
     "Resource Safety": [
       "datatypes/resource/index",
