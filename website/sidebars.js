@@ -74,8 +74,8 @@ module.exports = {
                     label: "Mutable References",
                     items: [
                         "datatypes/concurrency/zref",
-                        "datatypes/concurrency/ref",
                         "datatypes/concurrency/zrefsynchronized",
+                        "datatypes/concurrency/ref",
                         "datatypes/concurrency/refsynchronized",
                     ]
                 },
