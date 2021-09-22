@@ -38,6 +38,7 @@ module.exports = {
     ],
     "Contextual Types": [
         "datatypes/contextual/index",
+        "datatypes/contextual/has",
         {
             type: "category",
             label: "ZIO Layers",
@@ -49,8 +50,7 @@ module.exports = {
                 "datatypes/contextual/urlayer",
                 "datatypes/contextual/tasklayer"
             ]
-        },
-        "datatypes/contextual/has",
+        }
     ],
     "Concurrency": [
         {
