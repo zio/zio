@@ -19,26 +19,38 @@ module.exports = {
       "datatypes/index"
     ],
     "Core Data Types": [
-      "datatypes/core/index",
-      "datatypes/core/zio",
-      "datatypes/core/uio",
-      "datatypes/core/urio",
-      "datatypes/core/task",
-      "datatypes/core/rio",
-      "datatypes/core/io",
-      "datatypes/core/exit",
-      "datatypes/core/cause",
-      "datatypes/core/runtime"
+        "datatypes/core/index",
+        {
+            type: "category",
+            label: "ZIO Effects",
+            items: [
+                "datatypes/core/zio",
+                "datatypes/core/uio",
+                "datatypes/core/urio",
+                "datatypes/core/task",
+                "datatypes/core/rio",
+                "datatypes/core/io",
+            ]
+        },
+        "datatypes/core/exit",
+        "datatypes/core/cause",
+        "datatypes/core/runtime"
     ],
     "Contextual Types": [
-      "datatypes/contextual/index",
-      "datatypes/contextual/has",
-      "datatypes/contextual/zlayer",
-      "datatypes/contextual/rlayer",
-      "datatypes/contextual/ulayer",
-      "datatypes/contextual/layer",
-      "datatypes/contextual/urlayer",
-      "datatypes/contextual/tasklayer"
+        "datatypes/contextual/index",
+        {
+            type: "category",
+            label: "ZIO Layers",
+            items: [
+                "datatypes/contextual/zlayer",
+                "datatypes/contextual/rlayer",
+                "datatypes/contextual/ulayer",
+                "datatypes/contextual/layer",
+                "datatypes/contextual/urlayer",
+                "datatypes/contextual/tasklayer"
+            ]
+        },
+        "datatypes/contextual/has",
     ],
     "Fiber Primitives": [
       "datatypes/fiber/index",
@@ -48,15 +60,21 @@ module.exports = {
       "datatypes/fiber/fiberstatus"
     ],
     "Concurrency Primitives": [
-      "datatypes/concurrency/index",
-      "datatypes/concurrency/zref",
-      "datatypes/concurrency/ref",
-      "datatypes/concurrency/zrefsynchronized",
-      "datatypes/concurrency/refsynchronized",
-      "datatypes/concurrency/promise",
-      "datatypes/concurrency/queue",
-      "datatypes/concurrency/hub",
-      "datatypes/concurrency/semaphore"
+        "datatypes/concurrency/index",
+        {
+            type: "category",
+            label: "Mutable References",
+            items: [
+                "datatypes/concurrency/zref",
+                "datatypes/concurrency/ref",
+                "datatypes/concurrency/zrefsynchronized",
+                "datatypes/concurrency/refsynchronized",
+            ]
+        },
+        "datatypes/concurrency/promise",
+        "datatypes/concurrency/queue",
+        "datatypes/concurrency/hub",
+        "datatypes/concurrency/semaphore"
     ],
     "STM": [
       "datatypes/stm/index",
@@ -81,15 +99,39 @@ module.exports = {
       "datatypes/resource/urmanaged"
     ],
     "Streaming": [
-      "datatypes/stream/index",
-      "datatypes/stream/zstream",
-      "datatypes/stream/stream",
-      "datatypes/stream/ustream",
-      "datatypes/stream/ztransducer",
-      "datatypes/stream/transducer",
-      "datatypes/stream/zsink",
-      "datatypes/stream/sink",
-      "datatypes/stream/subscription-ref"
+        "datatypes/stream/index",
+        {
+            type: "category",
+            label: "Main Components",
+            items: [
+                {
+                    type: "category",
+                    label: "ZStream",
+                    items: [
+                        "datatypes/stream/zstream",
+                        "datatypes/stream/stream",
+                        "datatypes/stream/ustream",
+                    ]
+                },
+                {
+                    type: "category",
+                    label: "ZTransducer",
+                    items: [
+                        "datatypes/stream/ztransducer",
+                        "datatypes/stream/transducer",
+                    ]
+                },
+                {
+                    type: "category",
+                    label: "ZSink",
+                    items: [
+                        "datatypes/stream/zsink",
+                        "datatypes/stream/sink",
+                    ]
+                }
+            ]
+        },
+        "datatypes/stream/subscription-ref"
     ],
     "Miscellaneous": [
       "datatypes/misc/index",
