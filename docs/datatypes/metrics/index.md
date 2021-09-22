@@ -7,8 +7,6 @@ In highly concurrent applications, things are interconnected, so maintaining suc
 
 Imagine we have a complex infrastructure with lots of services. Services are replicated and distributed across our servers. So we have no insight on what happening on the across our services at level of errors, response latency, service uptime, etc. With ZIO Metrics, we can capture these different metrics and provide them to a _metric service_ for later investigation.
 
-ZIO Metrics has a _label based dimensional_ data model where we have metric name and just list of key-value pairs attached to that metric name. So labels are first-class citizen in ZIO Metrics. They are sets of numbers that gives us information about a process, activity or a state of a system. 
-
 ZIO supports 5 types of Metrics:
 
 * **[Counter](counter.md)** — The Counter is used for any value that increases over time like _request counts_.

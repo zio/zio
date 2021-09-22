@@ -103,7 +103,8 @@ module.exports = {
                   "datatypes/metrics/summary",
                   "datatypes/metrics/setcount"
               ]
-          }
+          },
+          "datatypes/metrics/metriclabel"
       ],
     "Miscellaneous": [
       "datatypes/misc/index",
