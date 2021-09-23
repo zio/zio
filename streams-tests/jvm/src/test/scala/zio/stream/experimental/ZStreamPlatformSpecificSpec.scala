@@ -303,7 +303,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
             refOut <- Ref.make("")
 
             server <- ZStream
-                        .fromSocketServer(8886)
+                        .fromSocketServer(8896)
                         .foreach { c =>
                           c.read
                             .transduce(ZSink.utf8Decode)
@@ -313,7 +313,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
                         }
                         .fork
 
-            _ <- socketClient(8886)
+            _ <- socketClient(8896)
                    .use(c => ZIO.fromFutureJava(c.write(ByteBuffer.wrap(message.getBytes))))
                    .retry(Schedule.forever)
 
@@ -327,11 +327,11 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
             refOut <- Ref.make("")
 
             server <- ZStream
-                        .fromSocketServer(8887)
+                        .fromSocketServer(8897)
                         .foreach(c => ZStream.fromIterable(message.getBytes).run(c.write))
                         .fork
 
-            _ <- socketClient(8887).use { c =>
+            _ <- socketClient(8897).use { c =>
                    val buffer = ByteBuffer.allocate(message.getBytes.length)
 
                    ZIO
