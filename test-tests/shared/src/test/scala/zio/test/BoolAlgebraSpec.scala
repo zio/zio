@@ -11,13 +11,13 @@ object BoolAlgebraSpec extends ZIOBaseSpec {
       assert(BoolAlgebra.all(success1, failure1, failure2))(isFailure) &&
       assert(BoolAlgebra.all(success1, success2))(isSuccess)
     },
-    testM("and distributes over or") {
+    test("and distributes over or") {
       check(boolAlgebra, boolAlgebra, boolAlgebra)((a, b, c) => assert(a && (b || c))(equalTo((a && b) || (a && c))))
     },
-    testM("and is associative") {
+    test("and is associative") {
       check(boolAlgebra, boolAlgebra, boolAlgebra)((a, b, c) => assert((a && b) && c)(equalTo(a && (b && c))))
     },
-    testM("and is commutative") {
+    test("and is commutative") {
       check(boolAlgebra, boolAlgebra)((a, b) => assert(a && b)(equalTo(b && a)))
     },
     test("any returns disjunction of values") {
@@ -39,7 +39,7 @@ object BoolAlgebraSpec extends ZIOBaseSpec {
         isSome(equalTo(success1 && failure1 && failure2))
       )
     },
-    testM("De Morgan's laws") {
+    test("De Morgan's laws") {
       check(boolAlgebra, boolAlgebra) { (a, b) =>
         assert(!(a && b))(equalTo(!a || !b)) &&
         assert(!a || !b)(equalTo(!(a && b))) &&
@@ -47,7 +47,7 @@ object BoolAlgebraSpec extends ZIOBaseSpec {
         assert(!a && !b)(equalTo(!(a || b)))
       }
     },
-    testM("double negative") {
+    test("double negative") {
       check(boolAlgebra) { a =>
         assert(!(!a))(equalTo(a)) &&
         assert(a)(equalTo(!(!a)))
@@ -59,7 +59,7 @@ object BoolAlgebraSpec extends ZIOBaseSpec {
       assert(failure1 || success1)(isSuccess) &&
       assert(failure1 || failure2)(isFailure)
     },
-    testM("hashCode is consistent with equals") {
+    test("hashCode is consistent with equals") {
       checkN(10)(equalBoolAlgebraOfSize(4)) { pair =>
         val (a, b) = pair
         assert(a.hashCode)(equalTo(b.hashCode))
@@ -105,35 +105,35 @@ object BoolAlgebraSpec extends ZIOBaseSpec {
       val expected = BoolAlgebra.success("first") && BoolAlgebra.failure("first") && BoolAlgebra.failure("second")
       assert(actual)(equalTo(expected))
     },
-    testM("monad left identity") {
+    test("monad left identity") {
       check(boolAlgebra)(a => assert(a.flatMap(BoolAlgebra.success))(equalTo(a)))
     },
-    testM("monad right identity") {
+    test("monad right identity") {
       val genInt      = Gen.int(0, 9)
       val genFunction = Gen.function[Has[Random] with Has[Sized], Int, BoolAlgebra[Int]](boolAlgebra)
       check(genInt, genFunction)((a, f) => assert(BoolAlgebra.success(a).flatMap(f))(equalTo(f(a))))
     },
-    testM("monad associativity") {
+    test("monad associativity") {
       val genFunction = Gen.function[Has[Random] with Has[Sized], Int, BoolAlgebra[Int]](boolAlgebra)
       check(boolAlgebra, genFunction, genFunction) { (a, f, g) =>
         assert(a.flatMap(f).flatMap(g))(equalTo(a.flatMap(n => f(n).flatMap(g))))
       }
     },
-    testM("or distributes over and") {
+    test("or distributes over and") {
       check(boolAlgebra, boolAlgebra, boolAlgebra) { (a, b, c) =>
         val left  = a || (b && c)
         val right = (a || b) && (a || c)
         assert(left)(equalTo(right))
       }
     },
-    testM("or is associative") {
+    test("or is associative") {
       check(boolAlgebra, boolAlgebra, boolAlgebra) { (a, b, c) =>
         val left  = (a || b) || c
         val right = a || (b || c)
         assert(left)(equalTo(right))
       }
     },
-    testM("or is commutative") {
+    test("or is commutative") {
       check(boolAlgebra, boolAlgebra)((a, b) => assert(a || b)(equalTo(b || a)))
     }
   )

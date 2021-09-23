@@ -1,6 +1,7 @@
 package zio.test.sbt
 
 import sbt.testing._
+import zio.test.environment.Live
 import zio.test.sbt.TestingSupport._
 import zio.test.{
   Annotations,
@@ -14,7 +15,7 @@ import zio.test.{
   TestSuccess,
   ZSpec
 }
-import zio.{Has, UIO}
+import zio.{Has, ZIO, durationInt}
 
 import java.util.regex.Pattern
 import scala.collection.mutable.ArrayBuffer
@@ -28,6 +29,7 @@ object ZTestFrameworkSpec {
   def tests: Seq[Try[Unit]] = Seq(
     test("should return correct fingerprints")(testFingerprints()),
     test("should report events")(testReportEvents()),
+    test("should report durations")(testReportDurations()),
     test("should log messages")(testLogMessages()),
     test("should correctly display colorized output for multi-line strings")(testColored()),
     test("should test only selected test")(testTestSelection()),
@@ -56,6 +58,13 @@ object ZTestFrameworkSpec {
   private def sbtEvent(fqn: String, label: String, status: Status) =
     ZTestEvent(fqn, new TestSelector(label), status, None, 0, RunnableSpecFingerprint)
 
+  def testReportDurations(): Unit = {
+    val reported = ArrayBuffer[Event]()
+    loadAndExecute(timedSpecFQN, reported.append(_))
+
+    assert(reported.forall(_.duration() > 0), s"reported events should have positive durations: $reported")
+  }
+
   def testLogMessages(): Unit = {
     val loggers = Seq.fill(3)(new MockLogger)
 
@@ -69,7 +78,7 @@ object ZTestFrameworkSpec {
           s"${reset("info:")} ${red("- some suite")} - ignored: 1",
           s"${reset("info:")}   ${red("- failing test")}",
           s"${reset("info:")}     ${blue("1")} did not satisfy ${cyan("equalTo(2)")}",
-          s"${reset("info:")}       ${blue(assertLocation)}",
+          s"${reset("info:")}     ${cyan(assertLocation)}",
           s"${reset("info:")}   ${green("+")} passing test",
           s"${reset("info:")}   ${yellow("-")} ${yellow("ignored test")} - ignored: 1"
         ).mkString("\n")
@@ -89,7 +98,7 @@ object ZTestFrameworkSpec {
           s"${red("- multi-line test")}",
           s"  ${Console.BLUE}Hello,",
           s"${blue("World!")} did not satisfy ${cyan("equalTo(Hello, World!)")}",
-          s"    ${blue(assertLocation)}"
+          s"  ${cyan(assertLocation)}"
         ).mkString("\n")
           .split('\n')
           .map(s"${reset("info:")} " + _)
@@ -125,7 +134,7 @@ object ZTestFrameworkSpec {
         new ZTestTask(
           zTestTask.taskDef,
           zTestTask.testClassLoader,
-          UIO.succeed(Summary(1, 0, 0, "foo")) >>> zTestTask.sendSummary,
+          zTestTask.sendSummary.provide(Summary(1, 0, 0, "foo")),
           TestArgs.empty
         )
       }
@@ -146,7 +155,7 @@ object ZTestFrameworkSpec {
         new ZTestTask(
           zTestTask.taskDef,
           zTestTask.testClassLoader,
-          UIO.succeed(Summary(0, 0, 0, "foo")) >>> zTestTask.sendSummary,
+          zTestTask.sendSummary.provide(Summary(0, 0, 0, "foo")),
           TestArgs.empty
         )
       }
@@ -163,7 +172,7 @@ object ZTestFrameworkSpec {
     loggers: Seq[Logger] = Nil,
     testArgs: Array[String] = Array.empty
   ) = {
-    val taskDef = new TaskDef(fqn, RunnableSpecFingerprint, false, Array())
+    val taskDef = new TaskDef(fqn, RunnableSpecFingerprint, false, Array(new SuiteSelector))
     val task = new ZTestFramework()
       .runner(testArgs, Array(), getClass.getClassLoader)
       .tasks(Array(taskDef))
@@ -192,6 +201,13 @@ object ZTestFrameworkSpec {
         zio.test.assert(1)(Assertion.equalTo(2))
       } @@ TestAspect.ignore
     )
+  }
+
+  lazy val timedSpecFQN = TimedSpec.getClass.getName
+  object TimedSpec extends DefaultRunnableSpec {
+    override def spec: ZSpec[Environment, Failure] = test("timed passing test") {
+      zio.test.assertCompletes
+    } @@ TestAspect.before(Live.live(ZIO.sleep(5.millis))) @@ TestAspect.timed
   }
 
   lazy val multiLineSpecFQN = MultiLineSpec.getClass.getName

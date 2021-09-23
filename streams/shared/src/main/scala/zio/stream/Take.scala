@@ -44,12 +44,26 @@ case class Take[+E, +A](exit: Exit[Option[E], Chunk[A]]) extends AnyVal {
    * Folds over the failure cause, success value and end-of-stream marker to
    * yield an effect.
    */
+  @deprecated("use foldZIO", "2.0.0")
   def foldM[R, E1, Z](
     end: => ZIO[R, E1, Z],
     error: Cause[E] => ZIO[R, E1, Z],
     value: Chunk[A] => ZIO[R, E1, Z]
   ): ZIO[R, E1, Z] =
-    exit.foldM(Cause.flipCauseOption(_).fold(end)(error), value)
+    foldZIO(end, error, value)
+
+  /**
+   * Effectful version of [[Take#fold]].
+   *
+   * Folds over the failure cause, success value and end-of-stream marker to
+   * yield an effect.
+   */
+  def foldZIO[R, E1, Z](
+    end: => ZIO[R, E1, Z],
+    error: Cause[E] => ZIO[R, E1, Z],
+    value: Chunk[A] => ZIO[R, E1, Z]
+  ): ZIO[R, E1, Z] =
+    exit.foldZIO(Cause.flipCauseOption(_).fold(end)(error), value)
 
   /**
    * Checks if this `take` is done (`Take.end`).
@@ -103,24 +117,41 @@ object Take {
     Take(Exit.fail(Some(e)))
 
   /**
+   * Creates a failing `Take[E, Nothing]` with the specified cause.
+   */
+  def failCause[E](c: Cause[E]): Take[E, Nothing] =
+    Take(Exit.failCause(c.map(Some(_))))
+
+  /**
    * Creates an effect from `ZIO[R, E,A]` that does not fail, but succeeds with the `Take[E, A]`.
    * Error from stream when pulling is converted to `Take.halt`. Creates a singleton chunk.
    */
+  @deprecated("use fromZIO", "2.0.0")
   def fromEffect[R, E, A](zio: ZIO[R, E, A]): URIO[R, Take[E, A]] =
-    zio.foldCause(halt, single)
+    fromZIO(zio)
 
   /**
-   * Creates effect from `Pull[R, E, A]` that does not fail, but succeeds with the `Take[E, A]`.
-   * Error from stream when pulling is converted to `Take.halt`, end of stream to `Take.end`.
+   * Creates effect from `Pull[R, E, A]` that does not fail, but succeeds with
+   * the `Take[E, A]`. Error from stream when pulling is converted to
+   * `Take.failCause`, end of stream to `Take.end`.
    */
   def fromPull[R, E, A](pull: ZStream.Pull[R, E, A]): URIO[R, Take[E, A]] =
-    pull.foldCause(Cause.flipCauseOption(_).fold[Take[E, Nothing]](end)(halt), chunk)
+    pull.foldCause(Cause.flipCauseOption(_).fold[Take[E, Nothing]](end)(failCause), chunk)
+
+  /**
+   * Creates an effect from `ZIO[R, E,A]` that does not fail, but succeeds with
+   * the `Take[E, A]`. Error from stream when pulling is converted to
+   * `Take.failCause`. Creates a singleton chunk.
+   */
+  def fromZIO[R, E, A](zio: ZIO[R, E, A]): URIO[R, Take[E, A]] =
+    zio.foldCause(failCause, single)
 
   /**
    * Creates a failing `Take[E, Nothing]` with the specified cause.
    */
+  @deprecated("use failCause", "2.0.0")
   def halt[E](c: Cause[E]): Take[E, Nothing] =
-    Take(Exit.halt(c.map(Some(_))))
+    Take(Exit.failCause(c.map(Some(_))))
 
   /**
    * Creates a failing `Take[Nothing, Nothing]` with the specified throwable.

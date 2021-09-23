@@ -16,8 +16,7 @@
 
 package zio.test
 
-import zio.internal.Executor
-import zio.{Runtime, URIO, ZIO}
+import zio.{Executor, Runtime, URIO, ZIO}
 
 import scala.concurrent.ExecutionContext
 

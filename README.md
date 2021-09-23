@@ -6,7 +6,7 @@
 
 | Scaladoc | Scaladex | Discord | Twitter | Gitpod |
 | --- | --- | --- | --- | --- |
-| [![Badge-Scaladoc]][Link-Scaladoc] | [![Badge-Scaladex-page]][Link-Scaladex-page] | [![Badge-Discord]][Link-Discord] | [![Badge-Twitter]][Link-Twitter] | [![Gitpod ready-to-code](https://img.shields.io/badge/Gitpod-ready--to--code-blue?logo=gitpod)](https://gitpod.io/#https://github.com/zio/zio) |
+| [Scaladoc][Link-Scaladoc] | [![Badge-Scaladex-page]][Link-Scaladex-page] | [![Badge-Discord]][Link-Discord] | [![Badge-Twitter]][Link-Twitter] | [![Gitpod ready-to-code](https://img.shields.io/badge/Gitpod-ready--to--code-blue?logo=gitpod)](https://gitpod.io/#https://github.com/zio/zio) |
 
 # Welcome to ZIO
 
@@ -75,6 +75,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Dream11](https://dream11.com)
 * [Deutsche Telekom IoT GmbH](https://iot.telekom.com/en)
 * [eBay](https://www.ebay.com)
+* [Electricité de France (EDF)](https://www.edf.fr/)
 * [EnelX](https://www.enelx.com)
 * [Evolution](https://evolution.engineering)
 * [Evo](https://evo.company)
@@ -108,6 +109,8 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Risk Ident](https://riskident.com/)
 * [Rocker](https://rocker.com/)
 * [Rudder](https://www.rudder.io/)
+* [Sanjagh](https://sanjagh.pro/)
+* [Scalac](https://scalac.io/)
 * [SecurityScorecard](https://www.securityscorecard.io/)
 * [SentinelOne](https://www.sentinelone.com/)
 * [Signicat](https://www.signicat.com/)
@@ -117,6 +120,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Teads](https://teads.com)
 * [TomTom](https://tomtom.com)
 * [Tinkoff](https://tinkoff.ru)
+* [Tranzzo](https://tranzzo.com)
 * [Tweddle Group](https://tweddle.com)
 * [Unit](https://unit.co)
 * [Univalence](https://univalence.io)
@@ -126,7 +130,9 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Yandex.Classifieds](https://o.yandex.ru)
 * [Audela](https://audela.ca)
 * [Valamis Group](https://valamis.com)
+* [VirtusLab](https://virtuslab.com/)
 * [Vish](https://getvish.com)
+* [Zalando](https://zalando.com/)
 * [Zooz](https://zooz.com/)
 
 # Sponsors
@@ -147,6 +153,9 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 
 [SoftwareMill][Link-SoftwareMill] generously provides ZIO with paid-for CircleCI build infrastructure.
 
+[![YourKit][Image-YourKit]][Link-YourKit]
+
+[YourKit][Link-YourKit] generously provides use of their monitoring and profiling tools to maximize the performance of ZIO applications.
 
 ---
 
@@ -181,13 +190,13 @@ Copyright 2017 - 2020 John A. De Goes and the ZIO Contributors. All rights reser
 [Link-Scalac]: https://scalac.io "Scalac"
 [Link-SoftwareMill]: https://softwaremill.com "SoftwareMill"
 [Link-SeptimalMind]: https://7mind.io "Septimal Mind"
+[Link-YourKit]: https://www.yourkit.com "YourKit"
 [Link-Discord]: https://discord.gg/2ccFBr4 "Discord"
 [Link-Twitter]: https://twitter.com/zioscala
 
 [Badge-CI]: https://github.com/zio/zio/workflows/CI/badge.svg
 [Badge-Codecov]: https://codecov.io/gh/zio/zio/coverage.svg?branch=master "Codecov"
 [Badge-IsItMaintained]: http://isitmaintained.com/badge/resolution/zio/zio.svg "Average time to resolve an issue"
-[Badge-Scaladoc]: https://javadoc-badge.appspot.com/dev.zio/zio_2.12.svg?label=scaladoc "Scaladoc"
 [Badge-Scaladex-page]: https://index.scala-lang.org/zio/zio/zio/latest.svg "Scaladex"
 [Badge-SonatypeReleases]: https://img.shields.io/nexus/r/https/oss.sonatype.org/dev.zio/zio_2.12.svg "Sonatype Releases"
 [Badge-SonatypeSnapshots]: https://img.shields.io/nexus/s/https/oss.sonatype.org/dev.zio/zio_2.12.svg "Sonatype Snapshots"
@@ -200,3 +209,4 @@ Copyright 2017 - 2020 John A. De Goes and the ZIO Contributors. All rights reser
 [Image-Scalac]: ./website/static/img/scalac.svg "Scalac"
 [Image-SoftwareMill]: ./website/static/img/softwaremill.svg "SoftwareMill"
 [Image-SeptimalMind]: ./website/static/img/septimal_mind.svg "Septimal Mind"
+[Image-YourKit]: ./website/static/img/yourkit.png "YourKit"

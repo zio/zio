@@ -13,7 +13,7 @@ object RTSSpec extends ZIOBaseSpec {
   import ZIOTag._
 
   def spec: ZSpec[Environment, Failure] = suite("Blocking specs (to be migrated to ZIOSpecJvm)")(
-    testM("blocking caches threads") {
+    test("blocking caches threads") {
 
       def runAndTrack(ref: Ref[Set[Thread]]): ZIO[Has[Clock], Nothing, Boolean] =
         ZIO.blocking {
@@ -29,11 +29,11 @@ object RTSSpec extends ZIOBaseSpec {
         } yield b
       assertM(Live.live(io))(isTrue)
     },
-    testM("blocking IO is effect blocking") {
+    test("blocking IO is effect blocking") {
       for {
         done  <- Ref.make(false)
         start <- Promise.make[Nothing, Unit]
-        fiber <- ZIO.effectBlockingInterrupt { start.unsafeDone(IO.unit); Thread.sleep(60L * 60L * 1000L) }
+        fiber <- ZIO.attemptBlockingInterrupt { start.unsafeDone(IO.unit); Thread.sleep(60L * 60L * 1000L) }
                    .ensuring(done.set(true))
                    .fork
         _     <- start.await
@@ -41,12 +41,12 @@ object RTSSpec extends ZIOBaseSpec {
         value <- done.get
       } yield assert(res)(isInterrupted) && assert(value)(isTrue)
     } @@ nonFlaky,
-    testM("cancelation is guaranteed") {
+    test("cancelation is guaranteed") {
       val io =
         for {
           release <- Promise.make[Nothing, Int]
           latch   <- Promise.make[Nothing, Unit]
-          async = IO.effectAsyncInterrupt[Nothing, Unit] { _ =>
+          async = IO.asyncInterrupt[Nothing, Unit] { _ =>
                     latch.unsafeDone(IO.unit); Left(release.succeed(42).unit)
                   }
           fiber  <- async.fork
@@ -57,7 +57,7 @@ object RTSSpec extends ZIOBaseSpec {
 
       assertM(io)(isTrue)
     } @@ nonFlaky,
-    testM("Fiber dump looks correct") {
+    test("Fiber dump looks correct") {
       for {
         promise <- Promise.make[Nothing, Int]
         fiber   <- promise.await.fork
@@ -66,7 +66,7 @@ object RTSSpec extends ZIOBaseSpec {
         _       <- Console.printLine(dumpStr)
       } yield assert(dumpStr)(anything)
     } @@ silent,
-    testM("interruption causes") {
+    test("interruption causes") {
       for {
         queue    <- Queue.bounded[Int](100)
         producer <- queue.offer(42).forever.fork
@@ -74,18 +74,18 @@ object RTSSpec extends ZIOBaseSpec {
         _        <- Console.printLine(rez.fold(_.prettyPrint, _ => ""))
       } yield assert(rez)(anything)
     } @@ zioTag(interruption) @@ silent,
-    testM("interruption of unending bracket") {
+    test("interruption of unending acquireReleaseWith") {
       val io =
         for {
           startLatch <- Promise.make[Nothing, Int]
           exitLatch  <- Promise.make[Nothing, Int]
-          bracketed = IO
-                        .succeed(21)
-                        .bracketExit((r: Int, exit: Exit[Any, Any]) =>
-                          if (exit.interrupted) exitLatch.succeed(r)
-                          else IO.die(new Error("Unexpected case"))
-                        )(a => startLatch.succeed(a) *> IO.never *> IO.succeed(1))
-          fiber      <- bracketed.fork
+          acquireRelease = IO
+                             .succeed(21)
+                             .acquireReleaseExitWith((r: Int, exit: Exit[Any, Any]) =>
+                               if (exit.isInterrupted) exitLatch.succeed(r)
+                               else IO.die(new Error("Unexpected case"))
+                             )(a => startLatch.succeed(a) *> IO.never *> IO.succeed(1))
+          fiber      <- acquireRelease.fork
           startValue <- startLatch.await
           _          <- fiber.interrupt.fork
           exitValue  <- exitLatch.await
@@ -93,41 +93,41 @@ object RTSSpec extends ZIOBaseSpec {
 
       assertM(io)(isTrue)
     } @@ zioTag(interruption) @@ nonFlaky,
-    testM("deadlock regression 1") {
+    test("deadlock regression 1") {
       import java.util.concurrent.Executors
 
-      val rts = new BootstrapRuntime {}
+      val rts = Runtime.default
       val e   = Executors.newSingleThreadExecutor()
 
       (0 until 10000).foreach { _ =>
         rts.unsafeRun {
-          IO.effectAsync[Nothing, Int] { k =>
+          IO.async[Nothing, Int] { k =>
             val c: Callable[Unit] = () => k(IO.succeed(1))
             val _                 = e.submit(c)
           }
         }
       }
 
-      assertM(ZIO.effect(e.shutdown()))(isUnit)
+      assertM(ZIO.attempt(e.shutdown()))(isUnit)
     } @@ zioTag(regression),
-    testM("second callback call is ignored") {
+    test("second callback call is ignored") {
       for {
-        _ <- IO.effectAsync[Throwable, Int] { k =>
+        _ <- IO.async[Throwable, Int] { k =>
                k(IO.succeed(42))
                Thread.sleep(500)
                k(IO.succeed(42))
              }
-        res <- IO.effectAsync[Throwable, String] { k =>
+        res <- IO.async[Throwable, String] { k =>
                  Thread.sleep(1000)
                  k(IO.succeed("ok"))
                }
       } yield assert(res)(equalTo("ok"))
     },
-    testM("check interruption regression 1") {
+    test("check interruption regression 1") {
       val c = new AtomicInteger(0)
 
       def test =
-        IO.effect(if (c.incrementAndGet() <= 1) throw new RuntimeException("x"))
+        IO.attempt(if (c.incrementAndGet() <= 1) throw new RuntimeException("x"))
           .forever
           .ensuring(IO.unit)
           .either
@@ -136,27 +136,11 @@ object RTSSpec extends ZIOBaseSpec {
       val zio =
         for {
           f <- test.fork
-          c <- (IO.effectTotal[Int](c.get) <* Clock.sleep(1.millis))
+          c <- (IO.succeed[Int](c.get) <* Clock.sleep(1.millis))
                  .repeatUntil(_ >= 1) <* f.interrupt
         } yield c
 
       assertM(Live.live(zio))(isGreaterThanEqualTo(1))
-    } @@ zioTag(interruption, regression),
-    testM("unsafeRunAsync runs effects on ZIO thread pool") {
-      for {
-        runtime <- ZIO.runtime[Any]
-        promise <- Promise.make[Nothing, String]
-        _ <- UIO.effectTotal {
-               val thread = new Thread("user-thread") {
-                 override def run(): Unit =
-                   runtime.unsafeRunAsync_ {
-                     UIO.effectTotal(Thread.currentThread.getName).to(promise)
-                   }
-               }
-               thread.start()
-             }
-        value <- promise.await
-      } yield assert(value)(startsWithString("zio-default-async"))
-    }
+    } @@ zioTag(interruption, regression)
   )
 }

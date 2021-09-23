@@ -35,5 +35,5 @@ object TestLogger {
       .toLayer
 
   def logLine(line: String): URIO[Has[TestLogger], Unit] =
-    ZIO.accessM(_.get.logLine(line))
+    ZIO.accessZIO(_.get.logLine(line))
 }

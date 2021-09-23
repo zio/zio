@@ -17,11 +17,150 @@
 package zio.test
 
 import zio.{UIO, ZIO}
+import zio.test.internal.SmartAssertions
+import scala.quoted._
+
+object SmartAssertMacros {
+  def smartAssertSingle(expr: Expr[Boolean])(using ctx: Quotes): Expr[Assert] =
+    new SmartAssertMacros(ctx).smartAssertSingle_impl(expr)
+
+  def smartAssert(exprs: Expr[Seq[Boolean]])(using ctx: Quotes): Expr[Assert] =
+    new SmartAssertMacros(ctx).smartAssert_impl(exprs)
+}
+
+
+class SmartAssertMacros(ctx: Quotes)  {
+  given Quotes = ctx
+  import quotes.reflect._
+
+  extension (typeRepr: TypeRepr) {
+    def typeTree: TypeTree =
+      typeRepr.widen.asType match  {
+        case '[tp] => TypeTree.of[tp]
+      }
+  }
+
+
+  object MethodCall {
+    def unapply(tree: Term): Option[(Term, String, List[TypeRepr], Option[List[Term]])] =
+      tree match {
+        case Select(lhs, name) => Some((lhs, name, List.empty, None))
+        case TypeApply(Select(lhs, name), tpes) => Some((lhs, name, tpes.map(_.tpe), None))
+        case Apply(Select(lhs, name), args) => Some((lhs, name, List.empty, Some(args)))
+        case Apply(TypeApply(Select(lhs, name), tpes), args) => Some((lhs, name, tpes.map(_.tpe), Some(args)))
+        case _ => None
+      }
+  }
+
+  case class PositionContext(start: Int) 
+
+  object PositionContext {
+    def apply(term: Term) = new PositionContext(term.pos.start)
+  }
+
+  extension (term: Term)(using ctx: PositionContext) {
+    def span: Expr[(Int, Int)] = {
+      Expr(term.pos.start - ctx.start, term.pos.end - ctx.start)
+    }
+  }
+
+  def transform[A](expr: Expr[A])(using Type[A], PositionContext) : Expr[Arrow[Any, A]] =
+    expr match {
+      case Unseal(Inlined(_, _, expr)) => transform(expr.asExprOf[A])
+
+      case Unseal(Apply(Select(lhs, op @ (">" | ">=" | "<" | "<=")), List(rhs))) =>
+        val span = rhs.span
+        lhs.tpe.widen.asType match {
+          case '[l] => 
+            Expr.summon[Ordering[l]] match { 
+              case Some(ord) =>
+                op match {
+                    case ">" =>
+                      '{${transform(lhs.asExprOf[l])} >>> SmartAssertions.greaterThan(${rhs.asExprOf[l]})($ord).span($span)}.asExprOf[Arrow[Any, A]]
+                    case ">=" =>
+                      '{${transform(lhs.asExprOf[l])} >>> SmartAssertions.greaterThanOrEqualTo(${rhs.asExprOf[l]})($ord).span($span)}.asExprOf[Arrow[Any, A]]
+                    case "<" =>
+                      '{${transform(lhs.asExprOf[l])} >>> SmartAssertions.lessThan(${rhs.asExprOf[l]})($ord).span($span)}.asExprOf[Arrow[Any, A]]
+                    case "<=" =>
+                      '{${transform(lhs.asExprOf[l])} >>> SmartAssertions.lessThanOrEqualTo(${rhs.asExprOf[l]})($ord).span($span)}.asExprOf[Arrow[Any, A]]
+                }
+              case _ => throw new Error("NO")
+            }
+        }
+
+      case Unseal(MethodCall(lhs, "==", tpes, Some(List(rhs)))) =>
+        val span = rhs.span
+        lhs.tpe.widen.asType match {
+          case '[l] => 
+            '{${transform(lhs.asExprOf[l])} >>> SmartAssertions.equalTo(${rhs.asExprOf[l]}).span($span)}.asExprOf[Arrow[Any, A]]
+        }
+
+      // case method @AST.Method(lhs, lhsTpe, rhsTpe, name, tpeArgs, args, span) =>
+      case Unseal(method @ MethodCall(lhs, name, tpeArgs, args)) =>
+        def body(param: Term) =
+          (tpeArgs, args) match {
+            case (Nil, None) => Select.unique(param, name)
+            case (tpeArgs, Some(args)) => Select.overloaded(param, name, tpeArgs, args)
+            case (tpeArgs, None) => TypeApply(Select.unique(param, name), tpeArgs.map(_.typeTree))
+          }
+
+        val tpe = lhs.tpe.widen
+
+        if(tpe.typeSymbol.isPackageDef)
+          '{Arrow.succeed($expr).span(${method.span})}
+        else
+          tpe.asType match {
+            case '[l] =>
+              val selectBody = '{
+                (from: l) => ${ body('{from}.asTerm).asExprOf[A] }
+              }
+              val lhsExpr = transform(lhs.asExprOf[l]).asExprOf[Arrow[Any, l]]
+              val assertExpr = '{Arrow.fromFunction[l, A](${selectBody})}
+              val pos = summon[PositionContext]
+              val span = Expr((lhs.pos.end - pos.start, method.pos.end - pos.start))
+              '{$lhsExpr >>> $assertExpr.span($span)}
+          }
+
+
+      case Unseal(tree) =>
+        val span = tree.span
+       '{Arrow.succeed($expr).span($span)}
+    }
+
+  def smartAssertSingle_impl(value: Expr[Boolean]): Expr[Assert] = {
+    val (path, line) = Macros.location(ctx)
+    val code = Macros.showExpr(value)
+    val srcLocation = s"$path:$line"
+
+    implicit val ptx = PositionContext(value.asTerm)
+
+    val ast = transform(value)
+
+    val arrow = ast.asExprOf[Arrow[Any, Boolean]]
+    '{Assert($arrow.withCode(${Expr(code)}).withLocation)}
+  }
+
+  def smartAssert_impl(values: Expr[Seq[Boolean]]): Expr[Assert] = {
+    import quotes.reflect._
+
+    values match {
+        case Varargs(head +: tail) =>
+          tail.foldLeft(smartAssertSingle_impl(head)) { (acc, expr) =>
+            '{$acc && ${smartAssertSingle_impl(expr)}}
+        }
+
+        case other =>
+          throw new Error(s"Improper Varargs: ${other}")
+    }
+  }
+
+  object Unseal {
+    def unapply(expr: Expr[_]): Option[Term] = Some(expr.asTerm)
+  }
+}
 
 object Macros {
-  import scala.quoted._
-
-  private def location(ctx: Quotes): (String, Int) = {
+  def location(ctx: Quotes): (String, Int) = {
     import ctx.reflect._
     val path = Position.ofMacroExpansion.sourceFile.jpath.toString
     val line = Position.ofMacroExpansion.startLine + 1
@@ -36,6 +175,7 @@ object Macros {
     '{_root_.zio.test.CompileVariants.assertMProxy($effect, ${Expr(srcLocation)})($assertion)}
   }
 
+  // inline def assert[A](inline value: => A)(inline assertion: Assertion[A]): TestResult = ${Macros.assert_impl('value)('assertion)}
   def assert_impl[A](value: Expr[A])(assertion: Expr[Assertion[A]])(using ctx: Quotes, tp: Type[A]): Expr[TestResult] = {
     import quotes.reflect._
     val (path, line) = location(ctx)
@@ -44,7 +184,8 @@ object Macros {
     '{_root_.zio.test.CompileVariants.assertProxy($value, ${Expr(code)}, ${Expr(srcLocation)})($assertion)}
   }
 
-  private def showExpr[A](expr: Expr[A])(using ctx: Quotes): String = {
+
+  def showExpr[A](expr: Expr[A])(using ctx: Quotes): String = {
     import quotes.reflect._
     expr.asTerm.pos.sourceCode.get
   }
@@ -65,3 +206,6 @@ object Macros {
     Expr(showExpr(value))
   }
 }
+
+
+

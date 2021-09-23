@@ -3,6 +3,8 @@ package zio.internal.macros
 import zio._
 import zio.internal.ansi.AnsiStringOps
 
+import java.nio.charset.StandardCharsets
+import java.util.Base64
 import scala.reflect.macros.blackbox
 
 private[zio] trait LayerMacroUtils {
@@ -18,35 +20,17 @@ private[zio] trait LayerMacroUtils {
     ZLayerExprBuilder[c.Type, LayerExpr](
       graph = Graph(
         nodes = nodes,
-        // The types must be `.toString`-ed as a backup in the case of refinement
-        // types.
+        // They must be `.toString`-ed as a backup in the case of refinement
+        // types. Otherwise, [[examples.DumbExample]] will fail.
         keyEquals = (t1, t2) => t1 =:= t2 || (t1.toString == t2.toString)
       ),
       showKey = tpe => tpe.toString,
       showExpr = expr => CleanCodePrinter.show(c)(expr.tree),
       abort = c.abort(c.enclosingPosition, _),
       emptyExpr = reify(ZLayer.succeed(())),
-      composeH = (lhs, rhs) => c.Expr(q"""$lhs +!+ $rhs"""),
+      composeH = (lhs, rhs) => c.Expr(q"""$lhs ++ $rhs"""),
       composeV = (lhs, rhs) => c.Expr(q"""$lhs >>> $rhs""")
     )
-
-  def buildSomeMemoizedLayer[R0: c.WeakTypeTag, R: c.WeakTypeTag, E](
-    layers: Seq[c.Expr[ZLayer[_, E, _]]]
-  ): c.Expr[ZLayer[R0, E, R]] = {
-    assertEnvIsNotNothing[R]()
-    assertProperVarArgs(layers)
-
-    val deferredRequirements = getRequirements[R0]
-
-    val deferredLayer =
-      if (deferredRequirements.nonEmpty) List(Node(List.empty, deferredRequirements, reify(ZLayer.requires[R0])))
-      else Nil
-
-    val nodes     = deferredLayer ++ layers.map(getNode)
-    val exprGraph = generateExprGraph(nodes)
-
-    buildMemoizedLayer(exprGraph, getRequirements[R]).asInstanceOf[c.Expr[ZLayer[R0, E, R]]]
-  }
 
   def buildMemoizedLayer(exprGraph: ZLayerExprBuilder[c.Type, LayerExpr], requirements: List[c.Type]): LayerExpr = {
     // This is run for its side effects: Reporting compile errors with the original source names.
@@ -72,30 +56,11 @@ private[zio] trait LayerMacroUtils {
     """)
   }
 
-  /**
-   * Ensures the macro has been annotated with the intended result type.
-   * The macro will not behave correctly otherwise.
-   */
-  def assertEnvIsNotNothing[Out: c.WeakTypeTag](): Unit = {
-    val outType     = weakTypeOf[Out]
-    val nothingType = weakTypeOf[Nothing]
-    if (outType == nothingType) {
-      val errorMessage =
-        s"""
-${"  ZLayer Wiring Error  ".red.bold.inverted}
-
-You must provide a type to ${"wire".cyan.bold} (e.g. ${"ZLayer.wire".cyan.bold}${"[A with B]".cyan.bold.underlined}${"(A.live, B.live)".cyan.bold})
-
-"""
-      c.abort(c.enclosingPosition, errorMessage)
-    }
-  }
-
   def getNode(layer: LayerExpr): Node[c.Type, LayerExpr] = {
-    val tpeArgs = layer.actualType.dealias.typeArgs
-    // ZLayer[in, _, out]
-    val in  = tpeArgs.head
-    val out = tpeArgs(2)
+    val typeArgs = layer.actualType.dealias.typeArgs
+    // ZIO[in, _, out]
+    val in  = typeArgs.head
+    val out = typeArgs(2)
     Node(getRequirements(in), getRequirements(out), layer)
   }
 
@@ -105,21 +70,98 @@ You must provide a type to ${"wire".cyan.bold} (e.g. ${"ZLayer.wire".cyan.bold}$
   def isValidHasType(tpe: Type): Boolean =
     tpe.isHas || tpe.isAny
 
+  def injectBaseImpl[F[_, _, _], R0: c.WeakTypeTag, R: c.WeakTypeTag, E, A](
+    layers: Seq[c.Expr[ZLayer[_, E, _]]],
+    method: String
+  ): c.Expr[F[R0, E, A]] = {
+    val expr = constructLayer[R0, R, E](layers)
+    c.Expr[F[R0, E, A]](q"${c.prefix}.${TermName(method)}(${expr.tree})")
+  }
+
+  def constructLayer[R0: c.WeakTypeTag, R: c.WeakTypeTag, E](
+    layers0: Seq[c.Expr[ZLayer[_, E, _]]]
+  ): c.Expr[ZLayer[Any, E, R]] = {
+    assertProperVarArgs(layers0)
+
+    val debug = layers0.collectFirst {
+      _.tree match {
+        case q"zio.ZLayer.Debug.tree"    => ZLayer.Debug.Tree
+        case q"zio.ZLayer.Debug.mermaid" => ZLayer.Debug.Mermaid
+      }
+    }
+    val layers = layers0.filter {
+      _.tree match {
+        case q"zio.ZLayer.Debug.tree" | q"zio.ZLayer.Debug.mermaid" => false
+        case _                                                      => true
+      }
+    }
+
+    val remainderExpr =
+      if (weakTypeOf[R0] =:= weakTypeOf[ZEnv]) reify(ZEnv.any)
+      else reify(ZLayer.environment[R0])
+    val remainderNode =
+      if (weakTypeOf[R0] =:= weakTypeOf[Any]) List.empty
+      else List(Node(List.empty, getRequirements[R0], remainderExpr))
+    val nodes = remainderNode ++ layers.map(getNode)
+
+    val graph        = generateExprGraph(nodes)
+    val requirements = getRequirements[R]
+    val expr         = buildMemoizedLayer(graph, requirements)
+    debug.foreach { debug =>
+      debugLayers(debug, graph, requirements)
+    }
+    expr.asInstanceOf[c.Expr[ZLayer[Any, E, R]]]
+  }
+
+  private def debugLayers(
+    debug: ZLayer.Debug,
+    graph: ZLayerExprBuilder[c.Type, LayerExpr],
+    requirements: List[c.Type]
+  ): Unit = {
+    val graphString: String =
+      eitherToOption(
+        graph.graph
+          .map(layer => RenderedGraph(layer.showTree))
+          .buildComplete(requirements)
+      ).get
+        .fold[RenderedGraph](RenderedGraph.Row(List.empty), identity, _ ++ _, _ >>> _)
+        .render
+
+    val title   = "  ZLayer Wiring Graph  ".yellow.bold.inverted
+    val builder = new StringBuilder
+    builder ++= "\n" + title + "\n\n" + graphString + "\n\n"
+
+    if (debug == ZLayer.Debug.Mermaid) {
+      val mermaidLink: String = generateMermaidJsLink(requirements, graph)
+      builder ++= "Mermaid Live Editor Link".underlined + "\n" + mermaidLink.faint + "\n\n"
+    }
+
+    c.info(c.enclosingPosition, builder.result(), true)
+  }
+
+  /**
+   * Scala 2.11 doesn't have `Either.toOption`
+   */
+  private def eitherToOption[A](either: Either[_, A]): Option[A] = either match {
+    case Left(_)      => None
+    case Right(value) => Some(value)
+  }
+
   def getRequirements(tpe: Type): List[c.Type] = {
-    val intersectionTypes = tpe.intersectionTypes
+    val intersectionTypes = tpe.dealias.map(_.dealias).intersectionTypes
 
     intersectionTypes.filter(!isValidHasType(_)) match {
       case Nil => ()
       case nonHasTypes =>
         c.abort(
           c.enclosingPosition,
-          s"\nContains non-Has types:\n- ${nonHasTypes.map(_.toString.cyan.bold).mkString("\n- ")}"
+          s"\nContains non-Has types:\n- ${nonHasTypes.map(_.toString.yellow).mkString("\n- ")}"
         )
     }
 
     intersectionTypes
       .filter(_.isHas)
-      .map(_.dealias.typeArgs.head)
+      .map(_.dealias.typeArgs.head.dealias)
       .distinct
   }
 
@@ -138,7 +180,7 @@ You must provide a type to ${"wire".cyan.bold} (e.g. ${"ZLayer.wire".cyan.bold}$
     def isAny: Boolean = self.dealias.typeSymbol == typeOf[Any].typeSymbol
 
     /**
-     * Given a type `A with B with C`, you'll get back `List(A,B,C)`
+     * Given a type `A with B with C` You'll get back List[A,B,C]
      */
     def intersectionTypes: List[Type] =
       self.dealias match {
@@ -154,6 +196,52 @@ You must provide a type to ${"wire".cyan.bold} (e.g. ${"ZLayer.wire".cyan.bold}$
   implicit class TreeOps(self: c.Expr[_]) {
     def showTree: String = CleanCodePrinter.show(c)(self.tree)
   }
+
+  /**
+   * Generates a link of the Layer graph for the Mermaid.js graph viz
+   * library's live-editor (https://mermaid-js.github.io/mermaid-live-editor)
+   */
+  private def generateMermaidJsLink[R <: Has[_]: c.WeakTypeTag, R0: c.WeakTypeTag, E](
+    requirements: List[c.Type],
+    graph: ZLayerExprBuilder[c.Type, LayerExpr]
+  ): String = {
+    val cool = eitherToOption(
+      graph.graph
+        .map(layer => layer.showTree)
+        .buildComplete(requirements)
+    ).get
+
+    val map = cool.fold[Map[String, Chunk[String]]](
+      z = Map.empty,
+      value = str => Map(str -> Chunk.empty),
+      composeH = _ ++ _,
+      composeV = (m1, m2) =>
+        m2.map { case (key, values) =>
+          val result = m1.keys.toSet -- m1.values.flatten.toSet
+          key -> (values ++ Chunk.fromIterable(result))
+        } ++ m1
+    )
+
+    val mermaidGraphString = map.flatMap {
+      case (key, children) if children.isEmpty =>
+        List(s"    $key")
+      case (key, children) =>
+        children.map { child =>
+          s"    $key --> $child"
+        }
+    }
+      .mkString("\\n")
+
+    val mermaidGraph =
+      s"""{"code":"graph\\n$mermaidGraphString\\n    ","mermaid": "{\\n  \\"theme\\": \\"default\\"\\n}", "updateEditor": true, "autoSync": true, "updateDiagram": true}"""
+
+    val encodedMermaidGraph: String =
+      new String(Base64.getEncoder.encode(mermaidGraph.getBytes(StandardCharsets.UTF_8)), StandardCharsets.UTF_8)
+
+    val mermaidLink = s"https://mermaid-js.github.io/mermaid-live-editor/edit/#$encodedMermaidGraph"
+    mermaidLink
+  }
+
 }
 
 trait ExprGraphCompileVariants {}

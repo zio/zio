@@ -16,37 +16,157 @@
 
 package zio.test
 
+import com.github.ghik.silencer.silent
 import zio.{Duration, Has, Random}
 
-import java.time.{Instant, LocalDateTime, OffsetDateTime, ZoneOffset}
+import java.time._
+import scala.collection.JavaConverters._
 
 trait TimeVariants {
 
   /**
-   * A generator of finite `zio.Duration` values. Shrinks toward `Duration.Zero`.
+   * A generator of `java.time.DayOfWeek` values. Shrinks toward `DayOfWeek.MONDAY`.
    */
-  final def anyFiniteDuration: Gen[Has[Random], Duration] = Gen.long(0L, Long.MaxValue).map(Duration.Finite(_))
+  @deprecated("use dayOfWeek", "2.0.0")
+  final def anyDayOfWeek: Gen[Has[Random], DayOfWeek] =
+    Gen.dayOfWeek
+
+  /**
+   * A generator of finite `zio.duration.Duration` values. Shrinks toward `Duration.Zero`.
+   */
+  @deprecated("use finiteDuration", "2.0.0")
+  final def anyFiniteDuration: Gen[Has[Random], Duration] =
+    Gen.finiteDuration
 
   /**
    * A generator of `java.time.Instant` values. Shrinks toward `Instant.MIN`.
    */
-  final def anyInstant: Gen[Has[Random], Instant] = instant(Instant.MIN, Instant.MAX)
+  @deprecated("use instant", "2.0.0")
+  final def anyInstant: Gen[Has[Random], Instant] =
+    Gen.instant
+
+  /**
+   * A generator of `java.time.LocalDate` values. Shrinks toward `LocalDate.MIN`.
+   */
+  @deprecated("use localDate", "2.0.0")
+  final def anyLocalDate: Gen[Has[Random], LocalDate] =
+    Gen.localDate
+
+  /**
+   * A generator of `java.time.LocalTime` values. Shrinks toward `LocalTime.MIN`.
+   */
+  @deprecated("use localTime", "2.0.0")
+  final def anyLocalTime: Gen[Has[Random], LocalTime] =
+    Gen.localTime
 
   /**
    * A generator of `java.time.LocalDateTime` values. Shrinks toward `LocalDateTime.MIN`.
    */
-  final def anyLocalDateTime: Gen[Has[Random], LocalDateTime] = localDateTime(LocalDateTime.MIN, LocalDateTime.MAX)
+  @deprecated("use localDateTime", "2.0.0")
+  final def anyLocalDateTime: Gen[Has[Random], LocalDateTime] =
+    Gen.localDateTime
+
+  /**
+   * A generator of `java.time.Month` values. Shrinks toward `Month.JANUARY`.
+   */
+  @deprecated("use month", "2.0.0")
+  final def anyMonth: Gen[Has[Random], Month] =
+    Gen.month
+
+  /**
+   * A generator of `java.time.MonthDay` values. Shrinks toward `MonthDay.of(Month.JANUARY, 1)`.
+   */
+  @deprecated("use monthDay", "2.0.0")
+  final def anyMonthDay: Gen[Has[Random], MonthDay] =
+    Gen.monthDay
 
   /**
    * A generator of `java.time.OffsetDateTime` values. Shrinks toward `OffsetDateTime.MIN`.
    */
-  final def anyOffsetDateTime: Gen[Has[Random], OffsetDateTime] = offsetDateTime(OffsetDateTime.MIN, OffsetDateTime.MAX)
+  @deprecated("use offsetDateTime", "2.0.0")
+  final def anyOffsetDateTime: Gen[Has[Random], OffsetDateTime] =
+    Gen.offsetDateTime
 
   /**
-   * A generator of finite `zio.Duration` values inside the specified range: [min, max]. Shrinks toward min.
+   * A generator of `java.time.OffsetTime` values. Shrinks torward `OffsetTime.MIN`.
+   */
+  @deprecated("use offsetTime", "2.0.0")
+  final def anyOffsetTime: Gen[Has[Random], OffsetTime] =
+    Gen.offsetTime
+
+  /**
+   * A generator of `java.time.Period` values. Shrinks toward `Period.ZERO`.
+   */
+  @deprecated("use period", "2.0.0")
+  final def anyPeriod: Gen[Has[Random], Period] =
+    Gen.period
+
+  /**
+   * A generator of `java.time.Year` values. Shrinks toward `Year.of(Year.MIN_VALUE)`.
+   */
+  @deprecated("use year", "2.0.0")
+  final def anyYear: Gen[Has[Random], Year] =
+    Gen.year
+
+  /**
+   * A generator of `java.time.YearMonth` values. Shrinks toward `YearMonth.of(Year.MIN_VALUE, Month.JANUARY)`.
+   */
+  @deprecated("use yearMonth", "2.0.0")
+  final def anyYearMonth: Gen[Has[Random], YearMonth] =
+    Gen.yearMonth
+
+  /**
+   * A generator of `java.time.ZonedDateTime` values. Shrinks toward `ZoneDateTime.of(LocalDateTime.MIN, zoneId)`.
+   */
+  @deprecated("use zonedDateTime", "2.0.0")
+  final def anyZonedDateTime: Gen[Has[Random], ZonedDateTime] =
+    Gen.zonedDateTime
+
+  /**
+   * A generator of `java.time.ZoneId` values. Doesn't have any shrinking.
+   */
+  @deprecated("use zoneId", "2.0.0")
+  final def anyZoneId: Gen[Has[Random], ZoneId] =
+    Gen.zoneId
+
+  /**
+   * A generator of `java.time.ZoneOffset` values. Shrinks toward `ZoneOffset.MIN`.
+   */
+  @deprecated("use zoneOffset", "2.0.0")
+  final def anyZoneOffset: Gen[Has[Random], ZoneOffset] =
+    Gen.zoneOffset
+
+  /**
+   * A generator of `java.time.DayOfWeek` values. Shrinks toward `DayOfWeek.MONDAY`.
+   */
+  final def dayOfWeek: Gen[Has[Random], DayOfWeek] =
+    Gen.elements(
+      DayOfWeek.MONDAY,
+      DayOfWeek.TUESDAY,
+      DayOfWeek.WEDNESDAY,
+      DayOfWeek.THURSDAY,
+      DayOfWeek.FRIDAY,
+      DayOfWeek.SATURDAY,
+      DayOfWeek.SUNDAY
+    )
+
+  /**
+   * A generator of finite `zio.duration.Duration` values. Shrinks toward `Duration.Zero`.
+   */
+  final def finiteDuration: Gen[Has[Random], Duration] =
+    Gen.long(0L, Long.MaxValue).map(Duration.Finite(_))
+
+  /**
+   * A generator of finite `zio.duration.Duration` values inside the specified range: [min, max]. Shrinks toward min.
    */
   final def finiteDuration(min: Duration, max: Duration): Gen[Has[Random], Duration] =
     Gen.long(min.toNanos, max.toNanos).map(Duration.Finite(_))
+
+  /**
+   * A generator of `java.time.Instant` values. Shrinks toward `Instant.MIN`.
+   */
+  final def instant: Gen[Has[Random], Instant] =
+    instant(Instant.MIN, Instant.MAX)
 
   /**
    * A generator of `java.time.Instant` values inside the specified range: [min, max]. Shrinks toward min.
@@ -69,10 +189,72 @@ trait TimeVariants {
   }
 
   /**
+   * A generator of `java.time.LocalDate` values. Shrinks toward `LocalDate.MIN`.
+   */
+  final def localDate: Gen[Has[Random], LocalDate] =
+    for {
+      year  <- year
+      month <- Gen.int(1, 12)
+      maxLen = if (!year.isLeap && month == 2) 28 else Month.of(month).maxLength
+      day   <- Gen.int(1, maxLen)
+    } yield LocalDate.of(year.getValue, month, day)
+
+  /**
+   * A generator of `java.time.LocalDateTime` values. Shrinks toward `LocalDateTime.MIN`.
+   */
+  final def localDateTime: Gen[Has[Random], LocalDateTime] =
+    localDateTime(LocalDateTime.MIN, LocalDateTime.MAX)
+
+  /**
    * A generator of `java.time.LocalDateTime` values inside the specified range: [min, max]. Shrinks toward min.
    */
   final def localDateTime(min: LocalDateTime, max: LocalDateTime): Gen[Has[Random], LocalDateTime] =
     instant(min.toInstant(utc), max.toInstant(utc)).map(LocalDateTime.ofInstant(_, utc))
+
+  /**
+   * A generator of `java.time.LocalTime` values. Shrinks toward `LocalTime.MIN`.
+   */
+  final def localTime: Gen[Has[Random], LocalTime] =
+    for {
+      hour   <- Gen.int(0, 23)
+      minute <- Gen.int(0, 59)
+      second <- Gen.int(0, 59)
+      nanos  <- Gen.int(0, 999999999)
+    } yield LocalTime.of(hour, minute, second, nanos)
+
+  /**
+   * A generator of `java.time.Month` values. Shrinks toward `Month.JANUARY`.
+   */
+  final def month: Gen[Has[Random], Month] =
+    Gen.elements(
+      Month.JANUARY,
+      Month.FEBRUARY,
+      Month.MARCH,
+      Month.APRIL,
+      Month.MAY,
+      Month.JUNE,
+      Month.JULY,
+      Month.AUGUST,
+      Month.SEPTEMBER,
+      Month.OCTOBER,
+      Month.NOVEMBER,
+      Month.DECEMBER
+    )
+
+  /**
+   * A generator of `java.time.MonthDay` values. Shrinks toward `MonthDay.of(Month.JANUARY, 1)`.
+   */
+  final def monthDay: Gen[Has[Random], MonthDay] =
+    for {
+      month <- Gen.int(1, 12).map(Month.of)
+      days  <- Gen.int(1, month.maxLength())
+    } yield MonthDay.of(month, days)
+
+  /**
+   * A generator of `java.time.OffsetDateTime` values. Shrinks toward `OffsetDateTime.MIN`.
+   */
+  final def offsetDateTime: Gen[Has[Random], OffsetDateTime] =
+    offsetDateTime(OffsetDateTime.MIN, OffsetDateTime.MAX)
 
   /**
    * A generator of `java.time.OffsetDateTime` values inside the specified range: [min, max]. Shrinks toward min.
@@ -99,6 +281,64 @@ trait TimeVariants {
       offset        <- genOffset(min, max, localDateTime)
     } yield OffsetDateTime.of(localDateTime, offset)
   }
+
+  /**
+   * A generator of `java.time.OffsetTime` values. Shrinks torward `OffsetTime.MIN`.
+   */
+  final def offsetTime: Gen[Has[Random], OffsetTime] =
+    for {
+      time   <- localTime
+      offset <- zoneOffset
+    } yield OffsetTime.of(time, ZoneOffset.ofTotalSeconds(-offset.getTotalSeconds))
+
+  /**
+   * A generator of `java.time.Period` values. Shrinks toward `Period.ZERO`.
+   */
+  final def period: Gen[Has[Random], Period] =
+    for {
+      years  <- Gen.int(0, Int.MaxValue)
+      months <- Gen.int(0, Int.MaxValue)
+      days   <- Gen.int(0, Int.MaxValue)
+    } yield Period.of(years, months, days)
+
+  /**
+   * A generator of `java.time.Year` values. Shrinks toward `Year.of(Year.MIN_VALUE)`.
+   */
+  final def year: Gen[Has[Random], Year] =
+    Gen.int(Year.MIN_VALUE, Year.MAX_VALUE).map(Year.of)
+
+  /**
+   * A generator of `java.time.YearMonth` values. Shrinks toward `YearMonth.of(Year.MIN_VALUE, Month.JANUARY)`.
+   */
+  final def yearMonth: Gen[Has[Random], YearMonth] =
+    for {
+      year  <- year
+      month <- Gen.int(1, 12)
+    } yield YearMonth.of(year.getValue(), month)
+
+  /**
+   * A generator of `java.time.ZonedDateTime` values. Shrinks toward `ZoneDateTime.of(LocalDateTime.MIN, zoneId)`.
+   */
+  final def zonedDateTime: Gen[Has[Random], ZonedDateTime] =
+    for {
+      dateTime <- localDateTime
+      zoneId   <- zoneId
+    } yield ZonedDateTime.of(dateTime, zoneId)
+
+  /**
+   * A generator of `java.time.ZoneId` values. Doesn't have any shrinking.
+   */
+  @silent("JavaConverters")
+  final def zoneId: Gen[Has[Random], ZoneId] =
+    Gen.elements(ZoneId.getAvailableZoneIds.asScala.map(ZoneId.of).toList: _*).noShrink
+
+  /**
+   * A generator of `java.time.ZoneOffset` values. Shrinks toward `ZoneOffset.MIN`.
+   */
+  final def zoneOffset: Gen[Has[Random], ZoneOffset] =
+    Gen
+      .int(ZoneOffset.MIN.getTotalSeconds, ZoneOffset.MAX.getTotalSeconds)
+      .map(ZoneOffset.ofTotalSeconds)
 
   private val utc: ZoneOffset = ZoneOffset.UTC
 }

@@ -81,7 +81,7 @@ trait TestRandom extends Restorable {
   def feedLongs(longs: Long*): UIO[Unit]
   def feedStrings(strings: String*): UIO[Unit]
   def getSeed: UIO[Long]
-  def setSeed(seed: Long): UIO[Unit]
+  def setSeed(seed: => Long): UIO[Unit]
 }
 
 object TestRandom extends Serializable {
@@ -222,7 +222,7 @@ object TestRandom extends Serializable {
      * Takes a chunk of bytes from the buffer if one exists or else generates a
      * pseudo-random chunk of bytes of the specified length.
      */
-    def nextBytes(length: Int): UIO[Chunk[Byte]] =
+    def nextBytes(length: => Int): UIO[Chunk[Byte]] =
       getOrElse(bufferedBytes)(randomBytes(length))
 
     /**
@@ -236,7 +236,7 @@ object TestRandom extends Serializable {
      * Takes a double from the buffer if one exists or else generates a
      * pseudo-random double in the specified range.
      */
-    def nextDoubleBetween(minInclusive: Double, maxExclusive: Double): UIO[Double] =
+    def nextDoubleBetween(minInclusive: => Double, maxExclusive: => Double): UIO[Double] =
       getOrElse(bufferedDouble)(randomDoubleBetween(minInclusive, maxExclusive))
 
     /**
@@ -250,7 +250,7 @@ object TestRandom extends Serializable {
      * Takes a float from the buffer if one exists or else generates a
      * pseudo-random float in the specified range.
      */
-    def nextFloatBetween(minInclusive: Float, maxExclusive: Float): UIO[Float] =
+    def nextFloatBetween(minInclusive: => Float, maxExclusive: => Float): UIO[Float] =
       getOrElse(bufferedFloat)(randomFloatBetween(minInclusive, maxExclusive))
 
     /**
@@ -272,7 +272,7 @@ object TestRandom extends Serializable {
      * Takes an integer from the buffer if one exists or else generates a
      * pseudo-random integer in the specified range.
      */
-    def nextIntBetween(minInclusive: Int, maxExclusive: Int): UIO[Int] =
+    def nextIntBetween(minInclusive: => Int, maxExclusive: => Int): UIO[Int] =
       getOrElse(bufferedInt)(randomIntBetween(minInclusive, maxExclusive))
 
     /**
@@ -280,7 +280,7 @@ object TestRandom extends Serializable {
      * pseudo-random integer between 0 (inclusive) and the specified value
      * (exclusive).
      */
-    def nextIntBounded(n: Int): UIO[Int] =
+    def nextIntBounded(n: => Int): UIO[Int] =
       getOrElse(bufferedInt)(randomIntBounded(n))
 
     /**
@@ -294,7 +294,7 @@ object TestRandom extends Serializable {
      * Takes a long from the buffer if one exists or else generates a
      * pseudo-random long in the specified range.
      */
-    def nextLongBetween(minInclusive: Long, maxExclusive: Long): UIO[Long] =
+    def nextLongBetween(minInclusive: => Long, maxExclusive: => Long): UIO[Long] =
       getOrElse(bufferedLong)(randomLongBetween(minInclusive, maxExclusive))
 
     /**
@@ -302,7 +302,7 @@ object TestRandom extends Serializable {
      * pseudo-random long between 0 (inclusive) and the specified value
      * (exclusive).
      */
-    def nextLongBounded(n: Long): UIO[Long] =
+    def nextLongBounded(n: => Long): UIO[Long] =
       getOrElse(bufferedLong)(randomLongBounded(n))
 
     /**
@@ -316,7 +316,7 @@ object TestRandom extends Serializable {
      * Takes a string from the buffer if one exists or else generates a
      * pseudo-random string of the specified length.
      */
-    def nextString(length: Int): UIO[String] =
+    def nextString(length: => Int): UIO[String] =
       getOrElse(bufferedString)(randomString(length))
 
     /**
@@ -332,7 +332,7 @@ object TestRandom extends Serializable {
     /**
      * Sets the seed of this `TestRandom` to the specified value.
      */
-    def setSeed(seed: Long): UIO[Unit] =
+    def setSeed(seed: => Long): UIO[Unit] =
       randomState.set {
         val newSeed = (seed ^ 0x5deece66dL) & ((1L << 48) - 1)
         val seed1   = (newSeed >>> 24).toInt
@@ -344,7 +344,7 @@ object TestRandom extends Serializable {
      * Randomly shuffles the specified list.
      */
     def shuffle[A, Collection[+Element] <: Iterable[Element]](
-      list: Collection[A]
+      list: => Collection[A]
     )(implicit bf: BuildFrom[Collection[A], A, Collection[A]]): UIO[Collection[A]] =
       Random.shuffleWith(randomIntBounded, list)
 
@@ -544,118 +544,118 @@ object TestRandom extends Serializable {
    * of booleans.
    */
   val clearBooleans: URIO[Has[TestRandom], Unit] =
-    ZIO.accessM(_.get.clearBooleans)
+    ZIO.accessZIO(_.get.clearBooleans)
 
   /**
    * Accesses a `TestRandom` instance in the environment and clears the buffer
    * of bytes.
    */
   val clearBytes: URIO[Has[TestRandom], Unit] =
-    ZIO.accessM(_.get.clearBytes)
+    ZIO.accessZIO(_.get.clearBytes)
 
   /**
    * Accesses a `TestRandom` instance in the environment and clears the buffer
    * of characters.
    */
   val clearChars: URIO[Has[TestRandom], Unit] =
-    ZIO.accessM(_.get.clearChars)
+    ZIO.accessZIO(_.get.clearChars)
 
   /**
    * Accesses a `TestRandom` instance in the environment and clears the buffer
    * of doubles.
    */
   val clearDoubles: URIO[Has[TestRandom], Unit] =
-    ZIO.accessM(_.get.clearDoubles)
+    ZIO.accessZIO(_.get.clearDoubles)
 
   /**
    * Accesses a `TestRandom` instance in the environment and clears the buffer
    * of floats.
    */
   val clearFloats: URIO[Has[TestRandom], Unit] =
-    ZIO.accessM(_.get.clearFloats)
+    ZIO.accessZIO(_.get.clearFloats)
 
   /**
    * Accesses a `TestRandom` instance in the environment and clears the buffer
    * of integers.
    */
   val clearInts: URIO[Has[TestRandom], Unit] =
-    ZIO.accessM(_.get.clearInts)
+    ZIO.accessZIO(_.get.clearInts)
 
   /**
    * Accesses a `TestRandom` instance in the environment and clears the buffer
    * of longs.
    */
   val clearLongs: URIO[Has[TestRandom], Unit] =
-    ZIO.accessM(_.get.clearLongs)
+    ZIO.accessZIO(_.get.clearLongs)
 
   /**
    * Accesses a `TestRandom` instance in the environment and clears the buffer
    * of strings.
    */
   val clearStrings: URIO[Has[TestRandom], Unit] =
-    ZIO.accessM(_.get.clearStrings)
+    ZIO.accessZIO(_.get.clearStrings)
 
   /**
    * Accesses a `TestRandom` instance in the environment and feeds the buffer
    * with the specified sequence of booleans.
    */
   def feedBooleans(booleans: Boolean*): URIO[Has[TestRandom], Unit] =
-    ZIO.accessM(_.get.feedBooleans(booleans: _*))
+    ZIO.accessZIO(_.get.feedBooleans(booleans: _*))
 
   /**
    * Accesses a `TestRandom` instance in the environment and feeds the buffer
    * with the specified sequence of chunks of bytes.
    */
   def feedBytes(bytes: Chunk[Byte]*): URIO[Has[TestRandom], Unit] =
-    ZIO.accessM(_.get.feedBytes(bytes: _*))
+    ZIO.accessZIO(_.get.feedBytes(bytes: _*))
 
   /**
    * Accesses a `TestRandom` instance in the environment and feeds the buffer
    * with the specified sequence of characters.
    */
   def feedChars(chars: Char*): URIO[Has[TestRandom], Unit] =
-    ZIO.accessM(_.get.feedChars(chars: _*))
+    ZIO.accessZIO(_.get.feedChars(chars: _*))
 
   /**
    * Accesses a `TestRandom` instance in the environment and feeds the buffer
    * with the specified sequence of doubles.
    */
   def feedDoubles(doubles: Double*): URIO[Has[TestRandom], Unit] =
-    ZIO.accessM(_.get.feedDoubles(doubles: _*))
+    ZIO.accessZIO(_.get.feedDoubles(doubles: _*))
 
   /**
    * Accesses a `TestRandom` instance in the environment and feeds the buffer
    * with the specified sequence of floats.
    */
   def feedFloats(floats: Float*): URIO[Has[TestRandom], Unit] =
-    ZIO.accessM(_.get.feedFloats(floats: _*))
+    ZIO.accessZIO(_.get.feedFloats(floats: _*))
 
   /**
    * Accesses a `TestRandom` instance in the environment and feeds the buffer
    * with the specified sequence of integers.
    */
   def feedInts(ints: Int*): URIO[Has[TestRandom], Unit] =
-    ZIO.accessM(_.get.feedInts(ints: _*))
+    ZIO.accessZIO(_.get.feedInts(ints: _*))
 
   /**
    * Accesses a `TestRandom` instance in the environment and feeds the buffer
    * with the specified sequence of longs.
    */
   def feedLongs(longs: Long*): URIO[Has[TestRandom], Unit] =
-    ZIO.accessM(_.get.feedLongs(longs: _*))
+    ZIO.accessZIO(_.get.feedLongs(longs: _*))
 
   /**
    * Accesses a `TestRandom` instance in the environment and feeds the buffer
    * with the specified sequence of strings.
    */
   def feedStrings(strings: String*): URIO[Has[TestRandom], Unit] =
-    ZIO.accessM(_.get.feedStrings(strings: _*))
+    ZIO.accessZIO(_.get.feedStrings(strings: _*))
 
   /**
    * Accesses a `TestRandom` instance in the environment and gets the seed.
    */
   val getSeed: URIO[Has[TestRandom], Long] =
-    ZIO.accessM(_.get.getSeed)
+    ZIO.accessZIO(_.get.getSeed)
 
   /**
    * Constructs a new `TestRandom` with the specified initial state. This can
@@ -671,7 +671,7 @@ object TestRandom extends Serializable {
   }.toLayerMany
 
   val any: ZLayer[Has[Random] with Has[TestRandom], Nothing, Has[Random] with Has[TestRandom]] =
-    ZLayer.requires[Has[Random] with Has[TestRandom]]
+    ZLayer.environment[Has[Random] with Has[TestRandom]]
 
   val deterministic: Layer[Nothing, Has[Random] with Has[TestRandom]] =
     make(DefaultData)
@@ -702,14 +702,14 @@ object TestRandom extends Serializable {
    * saved state.
    */
   val save: ZIO[Has[TestRandom], Nothing, UIO[Unit]] =
-    ZIO.accessM(_.get.save)
+    ZIO.accessZIO(_.get.save)
 
   /**
    * Accesses a `TestRandom` instance in the environment and sets the seed to
    * the specified value.
    */
   def setSeed(seed: => Long): URIO[Has[TestRandom], Unit] =
-    ZIO.accessM(_.get.setSeed(seed))
+    ZIO.accessZIO(_.get.setSeed(seed))
 
   /**
    * The buffer of the `TestRandom`.

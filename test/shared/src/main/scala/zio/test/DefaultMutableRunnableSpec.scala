@@ -23,7 +23,7 @@ import zio.{Has, ZLayer}
  * {{{
  * object MySpec extends DefaultMutableRunnableSpec {
  *   suite("foo") {
- *     testM("name") {
+ *     test("name") {
  *     } @@ ignore
  *
  *     test("name 2")
@@ -34,4 +34,5 @@ import zio.{Has, ZLayer}
  * }
  * }}}
  */
+@deprecated("use DefaultRunnableSpec", "2.0.0")
 class DefaultMutableRunnableSpec extends MutableRunnableSpec[Has[Any]](ZLayer.succeed[Any](()), TestAspect.identity)

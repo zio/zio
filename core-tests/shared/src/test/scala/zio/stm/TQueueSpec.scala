@@ -1,6 +1,6 @@
 package zio.stm
 
-import zio.ZIOBaseSpec
+import zio.{Chunk, ZIOBaseSpec}
 import zio.test.Assertion._
 import zio.test._
 
@@ -8,18 +8,18 @@ object TQueueSpec extends ZIOBaseSpec {
 
   def spec: ZSpec[Environment, Failure] = suite("TQueue")(
     suite("factories")(
-      testM("bounded") {
+      test("bounded") {
         val capacity = 5
         val tq       = TQueue.bounded[Int](capacity).map(_.capacity)
         assertM(tq.commit)(equalTo(capacity))
       },
-      testM("unbounded") {
+      test("unbounded") {
         val tq = TQueue.unbounded[Int].map(_.capacity)
         assertM(tq.commit)(equalTo(Int.MaxValue))
       }
     ),
     suite("insertion and removal")(
-      testM("offer & take") {
+      test("offer & take") {
         val tx = for {
           tq    <- TQueue.bounded[Int](5)
           _     <- tq.offer(1)
@@ -31,50 +31,42 @@ object TQueueSpec extends ZIOBaseSpec {
         } yield List(one, two, three)
         assertM(tx.commit)(equalTo(List(1, 2, 3)))
       },
-      testM("takeUpTo") {
+      test("takeUpTo") {
         val tx = for {
           tq   <- TQueue.bounded[Int](5)
           _    <- tq.offerAll(List(1, 2, 3, 4, 5))
           ans  <- tq.takeUpTo(3)
           size <- tq.size
         } yield (ans, size)
-        assertM(tx.commit)(equalTo((List(1, 2, 3), 2)))
+        assertM(tx.commit)(equalTo((Chunk(1, 2, 3), 2)))
       },
-      testM("offerAll & takeAll") {
+      test("offerAll & takeAll") {
         val tx = for {
           tq  <- TQueue.bounded[Int](5)
           _   <- tq.offerAll(List(1, 2, 3, 4, 5))
           ans <- tq.takeAll
         } yield ans
-        assertM(tx.commit)(equalTo(List(1, 2, 3, 4, 5)))
+        assertM(tx.commit)(equalTo(Chunk(1, 2, 3, 4, 5)))
       },
-      testM("offerAll respects capacity") {
-        val tx = for {
-          tq        <- TQueue.bounded[Int](3)
-          remaining <- tq.offerAll(List(1, 2, 3, 4, 5))
-          ans       <- tq.takeAll
-        } yield (ans, remaining)
-        assertM(tx.commit)(equalTo((List(1, 2, 3), List(4, 5))))
-      },
-      testM("takeUpTo") {
+      test("takeUpTo") {
         val tx = for {
           tq   <- TQueue.bounded[Int](5)
           _    <- tq.offerAll(List(1, 2, 3, 4, 5))
           ans  <- tq.takeUpTo(3)
           size <- tq.size
         } yield (ans, size)
-        assertM(tx.commit)(equalTo((List(1, 2, 3), 2)))
+        assertM(tx.commit)(equalTo((Chunk(1, 2, 3), 2)))
       },
-      testM("takeUpTo larger than container") {
+      test("takeUpTo larger than container") {
         val tx = for {
           tq   <- TQueue.bounded[Int](5)
           _    <- tq.offerAll(List(1, 2, 3, 4, 5))
           ans  <- tq.takeUpTo(7)
           size <- tq.size
         } yield (ans, size)
-        assertM(tx.commit)(equalTo((List(1, 2, 3, 4, 5), 0)))
+        assertM(tx.commit)(equalTo((Chunk(1, 2, 3, 4, 5), 0)))
       },
-      testM("poll value") {
+      test("poll value") {
         val tx = for {
           tq  <- TQueue.bounded[Int](5)
           _   <- tq.offerAll(List(1, 2, 3))
@@ -82,14 +74,14 @@ object TQueueSpec extends ZIOBaseSpec {
         } yield ans
         assertM(tx.commit)(isSome(equalTo(1)))
       },
-      testM("poll empty queue") {
+      test("poll empty queue") {
         val tx = for {
           tq  <- TQueue.bounded[Int](5)
           ans <- tq.poll
         } yield ans
         assertM(tx.commit)(isNone)
       },
-      testM("seek element") {
+      test("seek element") {
         val tx = for {
           tq   <- TQueue.bounded[Int](5)
           _    <- tq.offerAll(List(1, 2, 3, 4, 5))
@@ -100,7 +92,7 @@ object TQueueSpec extends ZIOBaseSpec {
       }
     ),
     suite("lookup")(
-      testM("size") {
+      test("size") {
         val tx = for {
           tq   <- TQueue.unbounded[Int]
           _    <- tq.offerAll(List(1, 2, 3, 4, 5))
@@ -108,7 +100,7 @@ object TQueueSpec extends ZIOBaseSpec {
         } yield size
         assertM(tx.commit)(equalTo(5))
       },
-      testM("peek the next value") {
+      test("peek the next value") {
         val tx = for {
           tq   <- TQueue.unbounded[Int]
           _    <- tq.offerAll(List(1, 2, 3, 4, 5))
@@ -117,7 +109,7 @@ object TQueueSpec extends ZIOBaseSpec {
         } yield (next, size)
         assertM(tx.commit)(equalTo((1, 5)))
       },
-      testM("peekOption value") {
+      test("peekOption value") {
         val tx = for {
           tq   <- TQueue.unbounded[Int]
           _    <- tq.offerAll(List(1, 2, 3, 4, 5))
@@ -126,23 +118,14 @@ object TQueueSpec extends ZIOBaseSpec {
         } yield (next, size)
         assertM(tx.commit)(equalTo((Some(1), 5)))
       },
-      testM("peekOption empty queue") {
+      test("peekOption empty queue") {
         val tx = for {
           tq   <- TQueue.bounded[Int](5)
           next <- tq.peekOption
         } yield next
         assertM(tx.commit)(isNone)
       },
-      testM("view the last value") {
-        val tx = for {
-          tq   <- TQueue.unbounded[Int]
-          _    <- tq.offerAll(List(1, 2, 3, 4, 5))
-          last <- tq.last
-          size <- tq.size
-        } yield (last, size)
-        assertM(tx.commit)(equalTo((5, 5)))
-      },
-      testM("check isEmpty") {
+      test("check isEmpty") {
         val tx = for {
           tq1 <- TQueue.unbounded[Int]
           tq2 <- TQueue.unbounded[Int]
@@ -152,7 +135,7 @@ object TQueueSpec extends ZIOBaseSpec {
         } yield (qb1, qb2)
         assertM(tx.commit)(equalTo((false, true)))
       },
-      testM("check isFull") {
+      test("check isFull") {
         val tx = for {
           tq1 <- TQueue.bounded[Int](5)
           tq2 <- TQueue.bounded[Int](5)
