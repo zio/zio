@@ -3946,6 +3946,11 @@ object ZStreamSpec extends ZIOBaseSpec {
           def lazyIt = l.iterator
           assertM(ZStream.fromIteratorSucceed(lazyIt).runCollect)(equalTo(l))
         }),
+        test("fromBlockingIterator") {
+          checkM(Gen.small(Gen.chunkOfN(_)(Gen.int))) { chunk =>
+            assertM(ZStream.blocking(ZStream.fromIterator(chunk.iterator)).runCollect)(equalTo(chunk))
+          }
+        },
         // suite("fromIteratorManaged")( // TODO: implement these without .process
         //   test("is safe to pull again after success") {
         //     for {
