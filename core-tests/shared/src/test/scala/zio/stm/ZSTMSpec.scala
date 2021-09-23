@@ -186,19 +186,19 @@ object ZSTMSpec extends ZIOBaseSpec {
       } @@ zioTag(errors),
       suite("foldLeft")(
         test("with a successful step function sums the list properly") {
-          checkM(Gen.listOf(Gen.anyInt)) { l =>
+          checkM(Gen.listOf(Gen.int)) { l =>
             val tx = STM.foldLeft(l)(0)((acc, el) => STM.succeed(acc + el))
             assertM(tx.commit)(equalTo(l.sum))
           }
         },
         test("with a failing step function returns a failed transaction") {
-          checkM(Gen.listOf1(Gen.anyInt)) { l =>
+          checkM(Gen.listOf1(Gen.int)) { l =>
             val tx = STM.foldLeft(l)(0)((_, _) => STM.fail("fail"))
             assertM(tx.commit.exit)(fails(equalTo("fail")))
           }
         },
         test("run sequentially from left to right") {
-          checkM(Gen.listOf1(Gen.anyInt)) { l =>
+          checkM(Gen.listOf1(Gen.int)) { l =>
             val tx = STM.foldLeft(l)(List.empty[Int])((acc, el) => STM.succeed(el :: acc))
             assertM(tx.commit)(equalTo(l.reverse))
           }
@@ -206,19 +206,19 @@ object ZSTMSpec extends ZIOBaseSpec {
       ),
       suite("foldRight")(
         test("with a successful step function sums the list properly") {
-          checkM(Gen.listOf(Gen.anyInt)) { l =>
+          checkM(Gen.listOf(Gen.int)) { l =>
             val tx = STM.foldRight(l)(0)((el, acc) => STM.succeed(acc + el))
             assertM(tx.commit)(equalTo(l.sum))
           }
         },
         test("with a failing step function returns a failed transaction") {
-          checkM(Gen.listOf1(Gen.anyInt)) { l =>
+          checkM(Gen.listOf1(Gen.int)) { l =>
             val tx = STM.foldRight(l)(0)((_, _) => STM.fail("fail"))
             assertM(tx.commit.exit)(fails(equalTo("fail")))
           }
         },
         test("run sequentially from right to left") {
-          checkM(Gen.listOf1(Gen.anyInt)) { l =>
+          checkM(Gen.listOf1(Gen.int)) { l =>
             val tx = STM.foldRight(l)(List.empty[Int])((el, acc) => STM.succeed(el :: acc))
             assertM(tx.commit)(equalTo(l))
           }
@@ -318,15 +318,15 @@ object ZSTMSpec extends ZIOBaseSpec {
       suite("optional to convert:")(
         test("A Some(e) in E to a e in E") {
           val ei: Either[Option[String], Int] = Left(Some("my Error"))
-          assertM(ZSTM.fromEither(ei).unoption.commit.exit)(fails(equalTo("my Error")))
+          assertM(ZSTM.fromEither(ei).unsome.commit.exit)(fails(equalTo("my Error")))
         },
         test("a None in E into None in A") {
           val ei: Either[Option[String], Int] = Left(None)
-          assertM(ZSTM.fromEither(ei).unoption.commit)(isNone)
+          assertM(ZSTM.fromEither(ei).unsome.commit)(isNone)
         },
         test("no error") {
           val ei: Either[Option[String], Int] = Right(42)
-          assertM(ZSTM.fromEither(ei).unoption.commit)(isSome(equalTo(42)))
+          assertM(ZSTM.fromEither(ei).unsome.commit)(isSome(equalTo(42)))
         }
       ),
       suite("orDie")(

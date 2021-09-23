@@ -116,20 +116,17 @@ object TestAspectSpec extends ZIOBaseSpec {
       @@ failing,
     test("failure does not make a test pass if the specified failure does not match") {
       assert(throw new RuntimeException())(isFalse)
-    } @@ failing(diesWith(hasMessage(equalTo("boom"))))
+    } @@ failing(diesWith(_.getMessage == "boom"))
       @@ failing,
     test("failure makes tests pass on any assertion failure") {
       assert(true)(equalTo(false))
     } @@ failing,
     test("failure makes tests pass on an expected assertion failure") {
       assert(true)(equalTo(false))
-    } @@ failing(
-      isCase[TestFailure[Any], Any](
-        "Assertion",
-        { case TestFailure.Assertion(result) => Some(result); case _ => None },
-        anything
-      )
-    ),
+    } @@ failing[TestFailure[Any]] {
+      case TestFailure.Assertion(_) => true
+      case TestFailure.Runtime(_)   => false
+    },
     test("flaky retries a test that fails") {
       for {
         ref <- Ref.make(0)
@@ -155,13 +152,13 @@ object TestAspectSpec extends ZIOBaseSpec {
     } @@ flaky @@ failing,
     test("ifEnv runs a test if environment variable satisfies assertion") {
       assert(true)(isTrue)
-    } @@ ifEnv("PATH", containsString("bin")) @@ success @@ jvmOnly,
+    } @@ ifEnv("PATH")(_.contains("bin")) @@ success @@ jvmOnly,
     test("ifEnv ignores a test if environment variable does not satisfy assertion") {
       assert(true)(isFalse)
-    } @@ ifEnv("PATH", nothing) @@ jvmOnly,
+    } @@ ifEnv("PATH")(_ => false) @@ jvmOnly,
     test("ifEnv ignores a test if environment variable does not exist") {
       assert(true)(isFalse)
-    } @@ ifEnv("QWERTY", anything) @@ jvmOnly,
+    } @@ ifEnv("QWERTY")(_ => true) @@ jvmOnly,
     test("ifEnvSet runs a test if environment variable is set") {
       assert(true)(isTrue)
     } @@ ifEnvSet("PATH") @@ success @@ jvmOnly,
@@ -170,13 +167,13 @@ object TestAspectSpec extends ZIOBaseSpec {
     } @@ ifEnvSet("QWERTY") @@ jvmOnly,
     test("ifProp runs a test if property satisfies assertion") {
       assert(true)(isTrue)
-    } @@ ifProp("java.vm.name", containsString("VM")) @@ success @@ jvmOnly,
+    } @@ ifProp("java.vm.name")(_.contains("VM")) @@ success @@ jvmOnly,
     test("ifProp ignores a test if property does not satisfy assertion") {
       assert(true)(isFalse)
-    } @@ ifProp("java.vm.name", nothing) @@ jvmOnly,
+    } @@ ifProp("java.vm.name")(_ => false) @@ jvmOnly,
     test("ifProp ignores a test if property does not exist") {
       assert(true)(isFalse)
-    } @@ ifProp("qwerty", anything) @@ jvmOnly,
+    } @@ ifProp("qwerty")(_ => true) @@ jvmOnly,
     test("ifPropSet runs a test if property is set") {
       assert(true)(isTrue)
     } @@ ifPropSet("java.vm.name") @@ success @@ jvmOnly,
@@ -252,7 +249,7 @@ object TestAspectSpec extends ZIOBaseSpec {
     test("samples sets the number of sufficient samples to the specified value") {
       for {
         ref   <- Ref.make(0)
-        _     <- checkM(Gen.anyInt.noShrink)(_ => assertM(ref.update(_ + 1))(anything))
+        _     <- checkM(Gen.int.noShrink)(_ => assertM(ref.update(_ + 1))(anything))
         value <- ref.get
       } yield assert(value)(equalTo(42))
     } @@ samples(42),
@@ -275,12 +272,12 @@ object TestAspectSpec extends ZIOBaseSpec {
     test("shrinks sets the maximum number of shrinkings to the specified value") {
       for {
         ref   <- Ref.make(0)
-        _     <- checkM(Gen.anyInt)(_ => assertM(ref.update(_ + 1))(nothing))
+        _     <- checkM(Gen.int)(_ => assertM(ref.update(_ + 1))(nothing))
         value <- ref.get
       } yield assert(value)(equalTo(1))
     } @@ shrinks(0),
     test("shrinks preserves the original failure") {
-      check(Gen.anyInt) { n =>
+      check(Gen.int) { n =>
         assert(n)(equalTo(n + 1))
       }
     } @@ shrinks(0) @@ failing,
@@ -306,18 +303,17 @@ object TestAspectSpec extends ZIOBaseSpec {
     } @@ untraced
   )
 
-  def diesWithSubtypeOf[E](implicit ct: ClassTag[E]): Assertion[TestFailure[E]] =
-    diesWith(isSubtype[E](anything))
+  def diesWithSubtypeOf[E](implicit ct: ClassTag[E]): TestFailure[E] => Boolean =
+    diesWith(ct.unapply(_).isDefined)
 
-  def diesWith(assertion: Assertion[Throwable]): Assertion[TestFailure[Any]] =
-    isCase(
-      "Runtime",
-      {
-        case TestFailure.Runtime(c) => c.dieOption
-        case _                      => None
-      },
-      assertion
-    )
+  def diesWith(assertion: Throwable => Boolean): TestFailure[Any] => Boolean = {
+    case TestFailure.Assertion(_) => false
+    case TestFailure.Runtime(cause) =>
+      cause.dieOption match {
+        case Some(t) => assertion(t)
+        case None    => false
+      }
+  }
 
   val interruptionTimeoutFailure: TestTimeoutException =
     TestTimeoutException(

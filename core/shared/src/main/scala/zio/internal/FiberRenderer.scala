@@ -18,7 +18,7 @@ package zio.internal
 
 import zio.Fiber.Dump
 import zio.Fiber.Status.{Done, Finishing, Running, Suspended}
-import zio.{Fiber, UIO, ZIO}
+import zio.{Fiber, FiberId, UIO, ZIO}
 
 private[zio] object FiberRenderer {
 
@@ -55,14 +55,14 @@ private[zio] object FiberRenderer {
       (s"${millis}ms")
     val waitMsg = dump.status match {
       case Suspended(_, _, _, blockingOn, _) =>
-        if (blockingOn ne Fiber.Id.None) "waiting on " + s"#${blockingOn.seqNumber}" else ""
+        if (blockingOn ne FiberId.None) "waiting on " + s"#${blockingOn.seqNumber}" else ""
       case _ => ""
     }
     val statMsg = renderStatus(dump.status)
 
     s"""
-       |${name}#${dump.fiberId.seqNumber} (${lifeMsg}) ${waitMsg}
-       |   Status: ${statMsg}
+       |$name#${dump.fiberId.seqNumber} ($lifeMsg) $waitMsg
+       |   Status: $statMsg
        |${dump.trace.fold("")(_.prettyPrint)}
        |""".stripMargin
   }
@@ -88,7 +88,7 @@ private[zio] object FiberRenderer {
     def go(t: Dump, prefix: String): String = {
       val nameStr   = t.fiberName.fold("")(n => "\"" + n + "\" ")
       val statusMsg = renderStatus(t.status)
-      s"${prefix}+---${nameStr}#${t.fiberId.seqNumber} Status: $statusMsg\n"
+      s"$prefix+---$nameStr#${t.fiberId.seqNumber} Status: $statusMsg\n"
     }
 
     go(tree, "")

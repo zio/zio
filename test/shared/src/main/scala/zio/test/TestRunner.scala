@@ -23,16 +23,16 @@ import zio.test.render.TestRenderer
 /**
  * A `TestRunner[R, E]` encapsulates all the logic necessary to run specs that
  * require an environment `R` and may fail with an error `E`. Test runners
- * require a test executor, a platform, and a reporter.
+ * require a test executor, a runtime configuration, and a reporter.
  */
 final case class TestRunner[R, E](
   executor: TestExecutor[R, E],
-  platform: Platform = Platform.makeDefault().withReportFailure(_ => ()),
+  runtimeConfig: RuntimeConfig = RuntimeConfig.makeDefault(),
   reporter: TestReporter[E] = DefaultTestReporter(TestRenderer.default, TestAnnotationRenderer.default),
   bootstrap: Layer[Nothing, Has[TestLogger] with Has[Clock]] = (Console.live >>> TestLogger.fromConsole) ++ Clock.live
 ) { self =>
 
-  lazy val runtime: Runtime[Unit] = Runtime((), platform)
+  lazy val runtime: Runtime[Unit] = Runtime((), runtimeConfig)
 
   /**
    * Runs the spec, producing the execution results.
@@ -72,17 +72,24 @@ final case class TestRunner[R, E](
     runtime.unsafeRunSync(run(spec).provideLayer(bootstrap))
 
   /**
+   * Creates a copy of this runner replacing the platform
+   */
+  @deprecated("use withRuntimeConfig", "2.0.0")
+  def withPlatform(f: Platform => Platform): TestRunner[R, E] =
+    withRuntimeConfig(f)
+
+  /**
    * Creates a copy of this runner replacing the reporter.
    */
   def withReporter[E1 >: E](reporter: TestReporter[E1]): TestRunner[R, E] =
     copy(reporter = reporter)
 
   /**
-   * Creates a copy of this runner replacing the platform
+   * Creates a copy of this runner replacing the runtime configuration.
    */
-  def withPlatform(f: Platform => Platform): TestRunner[R, E] =
-    copy(platform = f(platform))
+  def withRuntimeConfig(f: RuntimeConfig => RuntimeConfig): TestRunner[R, E] =
+    copy(runtimeConfig = f(runtimeConfig))
 
   private[test] def buildRuntime: Managed[Nothing, Runtime[Has[TestLogger] with Has[Clock]]] =
-    bootstrap.toRuntime(platform)
+    bootstrap.toRuntime(runtimeConfig)
 }

@@ -18,10 +18,32 @@ package zio
 
 import java.time.OffsetDateTime
 import java.time.temporal.ChronoField._
-import java.time.temporal.ChronoUnit._
-import java.time.temporal.{ChronoField, TemporalAdjusters}
+import java.time.temporal.TemporalAdjusters
 import java.util.concurrent.TimeUnit
 
+/**
+ * A `Schedule[Env, In, Out]` defines a recurring schedule, which consumes values of type `In`, and
+ * which returns values of type `Out`.
+ *
+ * Schedules are defined as a possibly infinite set of intervals spread out over time. Each
+ * interval defines a window in which recurrence is possible.
+ *
+ * When schedules are used to repeat or retry effects, the starting boundary of each interval
+ * produced by a schedule is used as the moment when the effect will be executed again.
+ *
+ * Schedules compose in the following primary ways:
+ *
+ *  * Union. This performs the union of the intervals of two schedules.
+ *  * Intersection. This performs the intersection of the intervals of two schedules.
+ *  * Sequence. This concatenates the intervals of one schedule onto another.
+ *
+ * In addition, schedule inputs and outputs can be transformed, filtered (to terminate a
+ * schedule early in response to some input or output), and so forth.
+ *
+ * A variety of other operators exist for transforming and combining schedules, and the companion
+ * object for `Schedule` contains all common types of schedules, both for performing retrying, as
+ * well as performing repetition.
+ */
 trait Schedule[-Env, -In, +Out] extends Serializable { self =>
   import Schedule.Decision._
   import Schedule._
@@ -39,7 +61,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
   def &&[Env1 <: Env, In1 <: In, Out2](that: Schedule[Env1, In1, Out2])(implicit
     zippable: Zippable[Out, Out2]
   ): Schedule.WithState[(self.State, that.State), Env1, In1, zippable.Out] =
-    (self intersectWith that)((l, r) => Schedule.maxOffsetDateTime(l, r))
+    (self intersectWith that)(_ intersect _)
 
   /**
    * Returns a new schedule that has both the inputs and outputs of this and the specified
@@ -56,7 +78,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
 
         self.step(now, in1, state._1).zipWith(that.step(now, in2, state._2)) {
           case ((lState, out, Continue(lInterval)), (rState, out2, Continue(rInterval))) =>
-            val interval = Schedule.minOffsetDateTime(lInterval, rInterval)
+            val interval = lInterval.union(rInterval).getOrElse(lInterval.min(rInterval))
             ((lState, rState), out -> out2, Continue(interval))
           case ((lState, out, _), (rState, out2, _)) =>
             ((lState, rState), out -> out2, Done)
@@ -160,7 +182,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
             that.step(now, out, state._2).map {
               case (rState, out2, Done) => ((lState, rState), out2, Done)
               case (rState, out2, Continue(interval2)) =>
-                val combined = Schedule.maxOffsetDateTime(interval, interval2)
+                val combined = interval max interval2
 
                 ((lState, rState), out2, Continue(combined))
             }
@@ -174,14 +196,14 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
   def ||[Env1 <: Env, In1 <: In, Out2](that: Schedule[Env1, In1, Out2])(implicit
     zippable: Zippable[Out, Out2]
   ): Schedule.WithState[(self.State, that.State), Env1, In1, zippable.Out] =
-    (self unionWith that)((l, r) => Schedule.minOffsetDateTime(l, r))
+    (self unionWith that)((l, r) => (l union r).getOrElse(l min r))
 
   /**
    * Returns a new schedule that chooses between two schedules with a common output.
    */
   def |||[Env1 <: Env, Out1 >: Out, In2](
     that: Schedule[Env1, In2, Out1]
-  ): Schedule[Env1, Either[In, In2], Out1] =
+  ): Schedule.WithState[(self.State, that.State), Env1, Either[In, In2], Out1] =
     (self +++ that).map(_.merge)
 
   /**
@@ -338,6 +360,24 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
     self.delayedZIO(d => ZIO.succeed(f(d)))
 
   /**
+   * Returns a new schedule that outputs the delay between each occurence.
+   */
+  def delays: Schedule.WithState[self.State, Env, In, Duration] =
+    new Schedule[Env, In, Duration] {
+      type State = self.State
+      val initial = self.initial
+      def step(now: OffsetDateTime, in: In, state: State): ZIO[Env, Nothing, (State, Duration, Decision)] =
+        self.step(now, in, state).flatMap {
+          case (state, _, Done) =>
+            ZIO.succeedNow((state, Duration.Zero, Done))
+          case (state, _, Continue(interval)) =>
+            val delay =
+              Duration(interval.start.toInstant.toEpochMilli - now.toInstant.toEpochMilli, TimeUnit.MILLISECONDS)
+            ZIO.succeedNow((state, delay, Continue(interval)))
+        }
+    }
+
+  /**
    * Returns a new schedule with the specified effectfully computed delay added before the start
    * of each interval produced by this schedule.
    */
@@ -449,7 +489,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
         val z = state._2
         self.step(now, in, s).flatMap {
           case (s, _, Done)                 => ZIO.succeed(((s, z), z, Done))
-          case (s, out, Continue(interval)) => f(z, out).map(z2 => ((s, z2), z2, Continue(interval)))
+          case (s, out, Continue(interval)) => f(z, out).map(z2 => ((s, z2), z, Continue(interval)))
         }
       }
     }
@@ -476,23 +516,48 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
    */
   def intersectWith[Env1 <: Env, In1 <: In, Out2](
     that: Schedule[Env1, In1, Out2]
-  )(
-    f: (Interval, Interval) => Interval
-  )(implicit zippable: Zippable[Out, Out2]): Schedule.WithState[(self.State, that.State), Env1, In1, zippable.Out] =
+  )(f: (Interval, Interval) => Interval)(implicit
+    zippable: Zippable[Out, Out2]
+  ): Schedule.WithState[(self.State, that.State), Env1, In1, zippable.Out] =
     new Schedule[Env1, In1, zippable.Out] {
       type State = (self.State, that.State)
-      val initial: State =
-        (self.initial, that.initial)
+      val initial = (self.initial, that.initial)
+
+      def loop(
+        in: In1,
+        lState: self.State,
+        out: Out,
+        lInterval: Interval,
+        rState: that.State,
+        out2: Out2,
+        rInterval: Interval
+      ): ZIO[Env1, Nothing, (State, zippable.Out, Decision)] = {
+        val combined = f(lInterval, rInterval)
+        if (combined.nonEmpty)
+          ZIO.succeedNow(((lState, rState), zippable.zip(out, out2), Continue(combined)))
+        else if (lInterval < rInterval)
+          self.step(lInterval.end, in, lState).flatMap {
+            case ((lState, out, Continue(lInterval))) =>
+              loop(in, lState, out, lInterval, rState, out2, rInterval)
+            case ((lState, out, _)) => ZIO.succeedNow(((lState, rState), zippable.zip(out, out2), Done))
+          }
+        else
+          that.step(rInterval.end, in, rState).flatMap {
+            case ((rState, out2, Continue(rInterval))) =>
+              loop(in, lState, out, lInterval, rState, out2, rInterval)
+            case ((rState, out2, _)) => ZIO.succeedNow(((lState, rState), zippable.zip(out, out2), Done))
+          }
+      }
+
       def step(now: OffsetDateTime, in: In1, state: State): ZIO[Env1, Nothing, (State, zippable.Out, Decision)] = {
         val left  = self.step(now, in, state._1)
         val right = that.step(now, in, state._2)
 
-        left.zipWith(right) {
+        left.zipWith(right)((_, _)).flatMap {
           case ((lState, out, Continue(lInterval)), (rState, out2, Continue(rInterval))) =>
-            val combined = f(lInterval, rInterval)
-            ((lState, rState), zippable.zip(out, out2), Continue(combined))
+            loop(in, lState, out, lInterval, rState, out2, rInterval)
           case ((lState, out, _), (rState, out2, _)) =>
-            ((lState, rState), zippable.zip(out, out2), Done)
+            ZIO.succeedNow(((lState, rState), zippable.zip(out, out2), Done))
         }
       }
     }
@@ -582,10 +647,17 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
         self.step(now, in, state).flatMap {
           case (state, out, Done) => ZIO.succeedNow((state, out, Done))
           case (state, out, Continue(interval)) =>
-            val delay = Duration(interval.toInstant.toEpochMilli - now.toInstant.toEpochMilli, TimeUnit.MILLISECONDS)
+            val delay = Interval(now, interval.start).size
 
             f(out, delay).map { duration =>
-              val newInterval = now.plusNanos(duration.toNanos)
+              val oldStart = interval.start
+              val newStart = now.plusNanos(duration.toNanos)
+              val delta    = java.time.Duration.between(oldStart, newStart)
+              val newEnd =
+                try { interval.end.plus(delta) }
+                catch { case _: java.time.DateTimeException => OffsetDateTime.MAX }
+
+              val newInterval = Interval(newStart, newEnd)
 
               (state, out, Continue(newInterval))
             }
@@ -680,8 +752,8 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
   /**
    * Returns a new schedule that outputs the number of repetitions of this one.
    */
-  def repetitions: Schedule.WithState[(self.State, Int), Env, In, Int] =
-    fold(0)((n: Int, _: Out) => n + 1)
+  def repetitions: Schedule.WithState[(self.State, Long), Env, In, Long] =
+    fold(0L)((n: Long, _: Out) => n + 1L)
 
   /**
    * Return a new schedule that automatically resets the schedule to its initial state
@@ -725,7 +797,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
         case in :: xs =>
           self.step(now, in, state).flatMap {
             case (_, out, Done)                   => ZIO.succeed(acc :+ out)
-            case (state, out, Continue(interval)) => loop(interval, xs, state, acc :+ out)
+            case (state, out, Continue(interval)) => loop(interval.start, xs, state, acc :+ out)
           }
       }
 
@@ -1051,10 +1123,10 @@ object Schedule {
       def step(now: OffsetDateTime, in: Any, state: State): ZIO[Any, Nothing, (State, Duration, Decision)] =
         ZIO.succeed {
           if (state) {
-            val interval = now.plusNanos(duration.toNanos)
+            val interval = Interval.after(now.plusNanos(duration.toNanos))
             (false, duration, Decision.Continue(interval))
           } else {
-            (false, duration, Decision.Done)
+            (false, Duration.Zero, Decision.Done)
           }
         }
     }
@@ -1070,12 +1142,12 @@ object Schedule {
       def step(now: OffsetDateTime, in: Any, state: State): ZIO[Any, Nothing, (State, Duration, Decision)] =
         ZIO.succeed {
           state match {
-            case None => (Some(now), Duration.Zero, Decision.Continue(now))
+            case None => (Some(now), Duration.Zero, Decision.Continue(Interval(now, OffsetDateTime.MAX)))
             case Some(start) =>
               val duration =
                 Duration(now.toInstant.toEpochMilli - start.toInstant.toEpochMilli, TimeUnit.MILLISECONDS)
 
-              (Some(start), duration, Decision.Continue(now))
+              (Some(start), duration, Decision.Continue(Interval(now, OffsetDateTime.MAX)))
           }
         }
     }
@@ -1129,12 +1201,20 @@ object Schedule {
             val sleepTime = if (boundary.isZero) interval else boundary
             val nextRun   = if (runningBehind) now else now.plus(sleepTime)
 
-            ((Some((startMillis, nextRun.toInstant.toEpochMilli)), n + 1L), n + 1L, Decision.Continue(nextRun))
+            (
+              (Some((startMillis, nextRun.toInstant.toEpochMilli)), n + 1L),
+              n,
+              Decision.Continue(Interval.after(nextRun))
+            )
           case (None, n) =>
             val nowMillis = now.toInstant.toEpochMilli
             val nextRun   = now.plus(interval)
 
-            ((Some((nowMillis, nextRun.toInstant().toEpochMilli())), n + 1L), n + 1L, Decision.Continue(nextRun))
+            (
+              (Some((nowMillis, nextRun.toInstant().toEpochMilli())), n + 1L),
+              n,
+              Decision.Continue(Interval.after(nextRun))
+            )
         })
     }
 
@@ -1161,7 +1241,10 @@ object Schedule {
    * each time for the length of the specified duration. Returns the length of
    * the current duration between recurrences.
    */
-  def fromDurations(duration: Duration, durations: Duration*): Schedule[Any, Any, Duration] =
+  def fromDurations(
+    duration: Duration,
+    durations: Duration*
+  ): Schedule.WithState[(::[Duration], Boolean), Any, Any, Duration] =
     new Schedule[Any, Any, Duration] {
       type State = (::[Duration], Boolean)
       val initial = (::(duration, durations.toList), true)
@@ -1169,12 +1252,12 @@ object Schedule {
         val durations = state._1
         val continue  = state._2
         ZIO.succeed(if (continue) {
-          val interval = now.plusNanos(durations.head.toNanos)
+          val interval = Interval.after(now.plusNanos(durations.head.toNanos))
           durations match {
             case x :: y :: z => ((::(y, z), true), x, Decision.Continue(interval))
             case x :: y      => ((::(x, y), false), x, Decision.Continue(interval))
           }
-        } else ((durations, false), durations.head, Decision.Done))
+        } else ((durations, false), Duration.Zero, Decision.Done))
       }
     }
 
@@ -1199,7 +1282,7 @@ object Schedule {
       type State = Unit
       val initial = ()
       def step(now: OffsetDateTime, in: A, state: State): ZIO[Any, Nothing, (State, A, Decision)] =
-        ZIO.succeed((state, in, Decision.Continue(now)))
+        ZIO.succeed((state, in, Decision.Continue(Interval.after(now))))
     }
 
   /**
@@ -1258,7 +1341,7 @@ object Schedule {
       lazy val initial = a
       def step(now: OffsetDateTime, in: Any, state: State): ZIO[Any, Nothing, (State, A, Decision)] =
         ZIO.succeed {
-          (f(state), state, Decision.Continue(now))
+          (f(state), state, Decision.Continue(Interval(now, OffsetDateTime.MAX)))
         }
     }
 
@@ -1283,19 +1366,21 @@ object Schedule {
           case (Some(startMillis), n) =>
             (
               (Some(startMillis), n + 1),
-              n + 1L,
+              n,
               Decision.Continue(
-                now.plus(
-                  millis - (now.toInstant.toEpochMilli - startMillis) % millis,
-                  java.time.temporal.ChronoUnit.MILLIS
+                Interval.after(
+                  now.plus(
+                    millis - (now.toInstant.toEpochMilli - startMillis) % millis,
+                    java.time.temporal.ChronoUnit.MILLIS
+                  )
                 )
               )
             )
           case (None, n) =>
             (
               (Some(now.toInstant.toEpochMilli), n + 1),
-              n + 1L,
-              Decision.Continue(now.plus(millis, java.time.temporal.ChronoUnit.MILLIS))
+              n,
+              Decision.Continue(Interval.after(now.plus(millis, java.time.temporal.ChronoUnit.MILLIS)))
             )
         })
     }
@@ -1307,29 +1392,22 @@ object Schedule {
    *
    * NOTE: `second` parameter is validated lazily. Must be in range 0...59.
    */
-  def secondOfMinute(second0: Int): Schedule.WithState[(Long, Boolean), Any, Any, Long] =
+  def secondOfMinute(second0: => Int): Schedule.WithState[Long, Any, Any, Long] =
     new Schedule[Any, Any, Long] {
-      type State = (Long, Boolean)
-      val initial = (0L, true)
-      def step(now: OffsetDateTime, in: Any, state: State): ZIO[Any, Nothing, (State, Long, Decision)] = {
-        val n           = state._1
-        val initialLoop = state._2
-        if (second0 >= 60 || second0 < 0)
+      type State = Long
+      val initial = 0L
+      def step(now: OffsetDateTime, in: Any, state: State): ZIO[Any, Nothing, (State, Long, Decision)] =
+        if (second0 < 0 || 59 < second0) {
           ZIO.die(
             new IllegalArgumentException(s"Invalid argument in `secondOfMinute($second)`. Must be in range 0...59")
           )
-        else
-          ZIO.succeed(
-            (
-              (n + 1L, false),
-              n + 1,
-              Decision.Continue(
-                calculateNextOffset(initialLoop, now, second0, SECOND_OF_MINUTE)
-                  .truncatedTo(SECONDS)
-              )
-            )
-          )
-      }
+        } else {
+          val second00 = nextSecond(now, second0)
+          val start    = maxOffsetDateTime(beginningOfSecond(second00), now)
+          val end      = endOfSecond(second00)
+          val interval = Interval(start, end)
+          ZIO.succeedNow((state + 1, state, Decision.Continue(interval)))
+        }
     }
 
   /**
@@ -1339,27 +1417,20 @@ object Schedule {
    *
    * NOTE: `minute` parameter is validated lazily. Must be in range 0...59.
    */
-  def minuteOfHour(minute: Int): Schedule.WithState[(Long, Boolean), Any, Any, Long] =
+  def minuteOfHour(minute: Int): Schedule.WithState[Long, Any, Any, Long] =
     new Schedule[Any, Any, Long] {
-      type State = (Long, Boolean)
-      val initial = (0L, true)
-      def step(now: OffsetDateTime, in: Any, state: State): ZIO[Any, Nothing, (State, Long, Decision)] = {
-        val n           = state._1
-        val initialLoop = state._2
-        if (minute >= 60 || minute < 0)
+      type State = Long
+      val initial = 0L
+      def step(now: OffsetDateTime, in: Any, state: State): ZIO[Any, Nothing, (State, Long, Decision)] =
+        if (minute < 0 || 59 < minute) {
           ZIO.die(new IllegalArgumentException(s"Invalid argument in `minuteOfHour($minute)`. Must be in range 0...59"))
-        else
-          ZIO.succeed(
-            (
-              (n + 1L, false),
-              n + 1,
-              Decision.Continue(
-                calculateNextOffset(initialLoop, now, minute, MINUTE_OF_HOUR)
-                  .truncatedTo(MINUTES)
-              )
-            )
-          )
-      }
+        } else {
+          val minute0  = nextMinute(now, minute)
+          val start    = maxOffsetDateTime(beginningOfMinute(minute0), now)
+          val end      = endOfMinute(minute0)
+          val interval = Interval(start, end)
+          ZIO.succeedNow((state + 1, state, Decision.Continue(interval)))
+        }
     }
 
   /**
@@ -1369,27 +1440,20 @@ object Schedule {
    *
    * NOTE: `hour` parameter is validated lazily. Must be in range 0...23.
    */
-  def hourOfDay(hour: Int): Schedule.WithState[(Long, Boolean), Any, Any, Long] =
+  def hourOfDay(hour: Int): Schedule.WithState[Long, Any, Any, Long] =
     new Schedule[Any, Any, Long] {
-      type State = (Long, Boolean)
-      val initial = (0L, true)
-      def step(now: OffsetDateTime, in: Any, state: State): ZIO[Any, Nothing, (State, Long, Decision)] = {
-        val n           = state._1
-        val initialLoop = state._2
-        if (hour >= 24 || hour < 0)
+      type State = Long
+      val initial = 0L
+      def step(now: OffsetDateTime, in: Any, state: State): ZIO[Any, Nothing, (State, Long, Decision)] =
+        if (hour < 0 || 23 < hour) {
           ZIO.die(new IllegalArgumentException(s"Invalid argument in `hourOfDay($hour)`. Must be in range 0...23"))
-        else
-          ZIO.succeed(
-            (
-              (n + 1L, false),
-              n + 1,
-              Decision.Continue(
-                calculateNextOffset(initialLoop, now, hour, HOUR_OF_DAY)
-                  .truncatedTo(HOURS)
-              )
-            )
-          )
-      }
+        } else {
+          val hour0    = nextHour(now, hour)
+          val start    = maxOffsetDateTime(beginningOfHour(hour0), now)
+          val end      = endOfHour(hour0)
+          val interval = Interval(start, end)
+          ZIO.succeedNow((state + 1, state, Decision.Continue(interval)))
+        }
     }
 
   /**
@@ -1399,28 +1463,24 @@ object Schedule {
    *
    * NOTE: `day` parameter is validated lazily. Must be in range 1 (Monday)...7 (Sunday).
    */
-  def dayOfWeek(day: Int): Schedule.WithState[(Long, Boolean), Any, Any, Long] =
+  def dayOfWeek(day: Int): Schedule.WithState[Long, Any, Any, Long] =
     new Schedule[Any, Any, Long] {
-      type State = (Long, Boolean)
-      val initial = (0L, true)
-      def step(now: OffsetDateTime, in: Any, state: State): ZIO[Any, Nothing, (State, Long, Decision)] = {
-        val n           = state._1
-        val initialLoop = state._2
-        if (day >= 7 || day < 1)
+      type State = Long
+      val initial = 0L
+      def step(now: OffsetDateTime, in: Any, state: State): ZIO[Any, Nothing, (State, Long, Decision)] =
+        if (day < 1 || 7 < day) {
           ZIO.die(
             new IllegalArgumentException(
               s"Invalid argument in `dayOfWeek($day)`. Must be in range 1 (Monday)...7 (Sunday)"
             )
           )
-        else
-          ZIO.succeed(
-            (
-              (n + 1L, false),
-              n + 1,
-              Decision.Continue(calculateNextOffset(initialLoop, now, day, DAY_OF_WEEK).truncatedTo(DAYS))
-            )
-          )
-      }
+        } else {
+          val day0     = nextDay(now, day)
+          val start    = maxOffsetDateTime(beginningOfDay(day0), now)
+          val end      = endOfDay(day0)
+          val interval = Interval(start, end)
+          ZIO.succeedNow((state + 1, state, Decision.Continue(interval)))
+        }
     }
 
   /**
@@ -1432,63 +1492,90 @@ object Schedule {
    *
    * NOTE: `day` parameter is validated lazily. Must be in range 1...31.
    */
-  def dayOfMonth(day: Int): Schedule.WithState[(Long, Boolean), Any, Any, Long] =
+  def dayOfMonth(day: Int): Schedule.WithState[Long, Any, Any, Long] =
     new Schedule[Any, Any, Long] {
-      type State = (Long, Boolean)
-      val initial = (0L, true)
-
-      def calculateNextDate(currentDayAllowed: Boolean, currentDate: OffsetDateTime) = {
-
-        def mustBeInCurrentMonth =
-          (if (currentDayAllowed) currentDate.getDayOfMonth <= day else currentDate.getDayOfMonth < day) &&
-            currentDate.range(DAY_OF_MONTH).getMaximum >= day
-
-        def lastDayOfNextMonth(date: OffsetDateTime) = date
-          .`with`(TemporalAdjusters.firstDayOfNextMonth())
-          .`with`(TemporalAdjusters.lastDayOfMonth())
-
-        def findValidMonth(prevMonthDate: OffsetDateTime): OffsetDateTime =
-          lastDayOfNextMonth(prevMonthDate) match {
-            case d if d.getDayOfMonth >= day => d
-            case d                           => findValidMonth(d)
-          }
-
-        if (mustBeInCurrentMonth) currentDate.withDayOfMonth(day)
-        else findValidMonth(currentDate).withDayOfMonth(day)
-
-      }
-
-      def step(now: OffsetDateTime, in: Any, state: State): ZIO[Any, Nothing, (State, Long, Decision)] = {
-        val n           = state._1
-        val initialLoop = state._2
-        if (day > 31 || day < 1)
+      type State = Long
+      val initial = 0L
+      def step(now: OffsetDateTime, in: Any, state: State): ZIO[Any, Nothing, (State, Long, Decision)] =
+        if (day < 1 || 31 < day) {
           ZIO.die(new IllegalArgumentException(s"Invalid argument in `dayOfMonth($day)`. Must be in range 1...31"))
-        else
-          ZIO.succeed(
-            (
-              (n + 1L, false),
-              n + 1,
-              Decision.Continue(calculateNextDate(initialLoop, now).truncatedTo(DAYS))
-            )
-          )
-      }
+        } else {
+          val day0     = nextDayOfMonth(now, day)
+          val start    = maxOffsetDateTime(beginningOfDay(day0), now)
+          val end      = endOfDay(day0)
+          val interval = Interval(start, end)
+          ZIO.succeedNow((state + 1, state, Decision.Continue(interval)))
+        }
     }
 
-  private[this] def calculateNextOffset(
-    currentTemporalUnitAllowed: Boolean,
-    currentOffset: OffsetDateTime,
-    fixedTimeUnitValue: Int,
-    timeUnit: ChronoField
-  ) = {
-    val offsetWithAdjustedField = currentOffset.`with`(timeUnit, fixedTimeUnitValue.toLong)
-    def mustBeInCurrentTemporalUnitValue =
-      if (currentTemporalUnitAllowed) currentOffset.get(timeUnit) <= fixedTimeUnitValue
-      else currentOffset.get(timeUnit) < fixedTimeUnitValue
-    if (mustBeInCurrentTemporalUnitValue) offsetWithAdjustedField
-    else offsetWithAdjustedField.plus(1, timeUnit.getRangeUnit)
+  /**
+   * An `Interval` represents an interval of time. Intervals can encompass all time, or no time
+   * at all.
+   */
+  sealed abstract class Interval private (val start: OffsetDateTime, val end: OffsetDateTime) { self =>
+
+    final def <(that: Interval): Boolean = (self min that) == self
+
+    final def isEmpty: Boolean =
+      start.compareTo(end) >= 0
+
+    final def intersect(that: Interval): Interval = {
+      val start = Interval.max(self.start, that.start)
+      val end   = Interval.min(self.end, that.end)
+
+      Interval(start, end)
+    }
+
+    final def max(that: Interval): Interval = {
+      val m = self min that
+
+      if (m == self) that else self
+    }
+
+    final def min(that: Interval): Interval =
+      if (self.end.compareTo(that.start) <= 0) self
+      else if (that.end.compareTo(self.start) <= 0) that
+      else if (self.start.compareTo(that.start) < 0) self
+      else if (that.start.compareTo(self.start) < 0) that
+      else if (self.end.compareTo(that.end) <= 0) self
+      else that
+
+    final def nonEmpty: Boolean =
+      !isEmpty
+
+    final def size: Duration = Duration.fromNanos(java.time.Duration.between(start, end).toNanos)
+
+    final def union(that: Interval): Option[Interval] = {
+      val istart = Interval.max(self.start, that.start)
+      val iend   = Interval.min(self.end, that.end)
+
+      if (istart.compareTo(iend) <= 0) None
+      else Some(Interval(istart, iend))
+    }
   }
 
-  type Interval = java.time.OffsetDateTime
+  object Interval extends Function2[OffsetDateTime, OffsetDateTime, Interval] {
+
+    /**
+     * Constructs a new interval from the two specified endpoints. If the start endpoint greater
+     * than the end endpoint, then a zero size interval will be returned.
+     */
+    def apply(start: OffsetDateTime, end: OffsetDateTime): Interval =
+      if (start.isBefore(end) || start == end) new Interval(start, end) {}
+      else empty
+
+    def after(start: OffsetDateTime): Interval = Interval(start, OffsetDateTime.MAX)
+
+    def before(end: OffsetDateTime): Interval = Interval(OffsetDateTime.MIN, end)
+
+    /**
+     * An interval of zero-width.
+     */
+    val empty: Interval = Interval(OffsetDateTime.MIN, OffsetDateTime.MIN)
+
+    private def min(l: OffsetDateTime, r: OffsetDateTime): OffsetDateTime = if (l.compareTo(r) <= 0) l else r
+    private def max(l: OffsetDateTime, r: OffsetDateTime): OffsetDateTime = if (l.compareTo(r) >= 0) l else r
+  }
 
   def minOffsetDateTime(l: OffsetDateTime, r: OffsetDateTime): OffsetDateTime =
     if (l.compareTo(r) <= 0) l else r
@@ -1511,4 +1598,76 @@ object Schedule {
     final case class Continue(interval: Interval) extends Decision
     case object Done                              extends Decision
   }
+
+  private def nextDay(now: OffsetDateTime, day: Int): OffsetDateTime = {
+    val temporalAdjuster = TemporalAdjusters.nextOrSame(java.time.DayOfWeek.of(day))
+    now.`with`(temporalAdjuster)
+  }
+
+  private def nextDayOfMonth(now: OffsetDateTime, day: Int): OffsetDateTime =
+    if (now.getDayOfMonth == day) now
+    else if (now.getDayOfMonth < day) now.`with`(DAY_OF_MONTH, day.toLong)
+    else findNextMonth(now, day, 1)
+
+  private def findNextMonth(now: OffsetDateTime, day: Int, months: Int): OffsetDateTime =
+    if (now.`with`(DAY_OF_MONTH, day.toLong).plusMonths(months.toLong).getDayOfMonth == day)
+      now.`with`(DAY_OF_MONTH, day.toLong).plusMonths(months.toLong)
+    else findNextMonth(now, day, months + 1)
+
+  private def nextHour(now: OffsetDateTime, hour: Int): OffsetDateTime =
+    if (now.getHour == hour) now
+    else if (now.getHour < hour) now.`with`(HOUR_OF_DAY, hour.toLong)
+    else now.`with`(HOUR_OF_DAY, hour.toLong).plusDays(1)
+
+  private def nextMinute(now: OffsetDateTime, minute: Int): OffsetDateTime =
+    if (now.getMinute == minute) now
+    else if (now.getMinute < minute) now.`with`(MINUTE_OF_HOUR, minute.toLong)
+    else now.`with`(MINUTE_OF_HOUR, minute.toLong).plusHours(1L)
+
+  private def nextSecond(now: OffsetDateTime, second: Int): OffsetDateTime =
+    if (now.getSecond == second) now
+    else if (now.getSecond < second) now.`with`(SECOND_OF_MINUTE, second.toLong)
+    else now.`with`(SECOND_OF_MINUTE, second.toLong).plusMinutes(1L)
+
+  private def beginningOfDay(now: OffsetDateTime): OffsetDateTime =
+    OffsetDateTime.of(now.getYear, now.getMonth.getValue, now.getDayOfMonth, 0, 0, 0, 0, now.getOffset)
+
+  private def endOfDay(now: OffsetDateTime): OffsetDateTime =
+    beginningOfDay(now).plusDays(1L)
+
+  private def beginningOfHour(now: OffsetDateTime): OffsetDateTime =
+    OffsetDateTime.of(now.getYear, now.getMonth.getValue, now.getDayOfMonth, now.getHour, 0, 0, 0, now.getOffset)
+
+  private def endOfHour(now: OffsetDateTime): OffsetDateTime =
+    beginningOfHour(now).plusHours(1L)
+
+  private def beginningOfMinute(now: OffsetDateTime): OffsetDateTime =
+    OffsetDateTime.of(
+      now.getYear,
+      now.getMonth.getValue,
+      now.getDayOfMonth,
+      now.getHour,
+      now.getMinute,
+      0,
+      0,
+      now.getOffset
+    )
+
+  private def endOfMinute(now: OffsetDateTime): OffsetDateTime =
+    beginningOfMinute(now).plusMinutes(1L)
+
+  private def beginningOfSecond(now: OffsetDateTime): OffsetDateTime =
+    OffsetDateTime.of(
+      now.getYear,
+      now.getMonth.getValue,
+      now.getDayOfMonth,
+      now.getHour,
+      now.getMinute,
+      now.getSecond,
+      0,
+      now.getOffset
+    )
+
+  private def endOfSecond(now: OffsetDateTime): OffsetDateTime =
+    beginningOfSecond(now).plusSeconds(1L)
 }

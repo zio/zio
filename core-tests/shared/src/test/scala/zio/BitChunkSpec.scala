@@ -7,7 +7,7 @@ object BitChunkSpec extends ZIOBaseSpec {
 
   val genByteChunk: Gen[Has[Random] with Has[Sized], Chunk[Byte]] =
     for {
-      bytes <- Gen.listOf(Gen.anyByte)
+      bytes <- Gen.listOf(Gen.byte)
     } yield Chunk.fromIterable(bytes)
 
   val genInt: Gen[Has[Random] with Has[Sized], Int] =

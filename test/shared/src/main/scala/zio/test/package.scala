@@ -41,7 +41,9 @@ import scala.util.Try
  *  object MyTest extends DefaultRunnableSpec {
  *    def spec = suite("clock")(
  *      test("time is non-zero") {
- *        assertM(Live.live(nanoTime))(isGreaterThan(0))
+ *        for {
+ *          time <- Live.live(nanoTime)
+ *        } yield assertTrue(time >= 0)
  *      }
  *    )
  *  }
@@ -103,9 +105,25 @@ package object test extends CompileVariants {
     /**
      * Builds a test with an effectual assertion.
      */
-    def apply[R, E](assertion: => ZIO[R, E, TestResult]): ZIO[R, TestFailure[E], TestSuccess] =
+    def apply[R, E](label: String, assertion: => ZIO[R, E, TestResult]): ZIO[R, TestFailure[E], TestSuccess] =
       ZIO
         .suspendSucceed(assertion)
+        .overrideForkScope(ZScope.global)
+        .ensuringChildren { children =>
+          ZIO.foreach(children) { child =>
+            val warning =
+              s"Warning: ZIO Test is attempting to interrupt fiber " +
+                s"${child.id} forked in test $label due to automatic, " +
+                "supervision, but interruption has taken more than 10 " +
+                "seconds to complete. This may indicate a resource leak. " +
+                "Make sure you are not forking a fiber in an " +
+                "uninterruptible region."
+            for {
+              fiber <- ZIO.logWarning(warning).delay(10.seconds).provide(Has(Clock.ClockLive)).interruptible.forkDaemon
+              _     <- (child.interrupt *> fiber.interrupt).forkDaemon
+            } yield ()
+          }
+        }
         .foldCauseZIO(
           cause => ZIO.fail(TestFailure.Runtime(cause)),
           _.failures match {

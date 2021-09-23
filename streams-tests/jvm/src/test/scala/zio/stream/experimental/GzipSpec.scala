@@ -8,10 +8,10 @@ object GzipSpec extends DefaultRunnableSpec {
   override def spec: ZSpec[Environment, Failure] =
     suite("GzipSpec")(
       test("JDK gunzips what was gzipped")(
-        checkM(Gen.listOfBounded(0, `1K`)(Gen.anyByte).zip(Gen.int(1, `1K`)).zip(Gen.int(1, `1K`))) {
+        checkM(Gen.listOfBounded(0, `1K`)(Gen.byte).zip(Gen.int(1, `1K`)).zip(Gen.int(1, `1K`))) {
           case (input, n, bufferSize) =>
             assertM(for {
-              gzipped <- (ZStream.fromIterable(input).chunkN(n).channel >>> Gzip.makeGzipper(bufferSize)).runCollect
+              gzipped <- (ZStream.fromIterable(input).rechunk(n).channel >>> Gzip.makeGzipper(bufferSize)).runCollect
                            .map(_._1.flatten)
               inflated <- jdkGunzip(gzipped)
             } yield inflated)(equalTo(input))
@@ -32,20 +32,20 @@ object GzipSpec extends DefaultRunnableSpec {
       test("gzips, small chunks, small buffer")(
         assertM(for {
           gzipped <-
-            (ZStream.fromIterable(longText).chunkN(1).channel >>> Gzip.makeGzipper(1)).runCollect.map(_._1.flatten)
+            (ZStream.fromIterable(longText).rechunk(1).channel >>> Gzip.makeGzipper(1)).runCollect.map(_._1.flatten)
           jdkGunzipped <- jdkGunzip(gzipped)
         } yield jdkGunzipped)(equalTo(longText.toList))
       ),
       test("gzips, small chunks, 1k buffer")(
         assertM(for {
           gzipped <-
-            (ZStream.fromIterable(longText).chunkN(1).channel >>> Gzip.makeGzipper(`1K`)).runCollect.map(_._1.flatten)
+            (ZStream.fromIterable(longText).rechunk(1).channel >>> Gzip.makeGzipper(`1K`)).runCollect.map(_._1.flatten)
           jdkGunzipped <- jdkGunzip(gzipped)
         } yield jdkGunzipped)(equalTo(longText.toList))
       ),
       test("chunks bigger than buffer")(
         assertM(for {
-          gzipped <- (ZStream.fromIterable(longText).chunkN(`1K`).channel >>> Gzip.makeGzipper(64)).runCollect
+          gzipped <- (ZStream.fromIterable(longText).rechunk(`1K`).channel >>> Gzip.makeGzipper(64)).runCollect
                        .map(_._1.flatten)
           jdkGunzipped <- jdkGunzip(gzipped)
         } yield jdkGunzipped)(equalTo(longText.toList))

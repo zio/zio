@@ -439,7 +439,37 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
   def untilOutputZIO[R1 <: R, OutErr1 >: OutErr](
     f: Z => ZIO[R1, OutErr1, Boolean]
   )(implicit ev: L <:< In): ZSink[R1, InErr, In, OutErr1, L, Option[Z]] =
-    ???
+    new ZSink(
+      ZChannel
+        .fromZIO(Ref.make(Chunk[In]()).zip(Ref.make(false)))
+        .flatMap { case (leftoversRef, upstreamDoneRef) =>
+          lazy val upstreamMarker: ZChannel[Any, InErr, Chunk[In], Any, InErr, Chunk[In], Any] =
+            ZChannel.readWith(
+              (in: Chunk[In]) => ZChannel.write(in) *> upstreamMarker,
+              ZChannel.fail(_: InErr),
+              (x: Any) => ZChannel.fromZIO(upstreamDoneRef.set(true)).as(x)
+            )
+
+          lazy val loop: ZChannel[R1, InErr, Chunk[In], Any, OutErr1, Chunk[L], Option[Z]] =
+            channel.doneCollect
+              .foldChannel(
+                ZChannel.fail(_),
+                { case (leftovers, doneValue) =>
+                  for {
+                    satisfied    <- ZChannel.fromZIO(f(doneValue))
+                    _            <- ZChannel.fromZIO(leftoversRef.set(leftovers.flatten.asInstanceOf[Chunk[In]]))
+                    upstreamDone <- ZChannel.fromZIO(upstreamDoneRef.get)
+                    res <- if (satisfied) ZChannel.write(leftovers.flatten).as(Some(doneValue))
+                           else if (upstreamDone)
+                             ZChannel.write(leftovers.flatten).as(None)
+                           else loop
+                  } yield res
+                }
+              )
+
+          upstreamMarker >>> ZChannel.bufferChunk(leftoversRef) >>> loop
+        }
+    )
 
   /**
    * Provides the sink with its required environment, which eliminates
@@ -572,6 +602,33 @@ object ZSink {
    */
   def drain[Err]: ZSink[Any, Err, Any, Err, Nothing, Unit] =
     new ZSink(ZChannel.read[Any].unit.repeated.catchAll(_ => ZChannel.unit))
+
+  def dropWhile[Err, In](p: In => Boolean): ZSink[Any, Err, In, Err, In, Any] = {
+    lazy val loop: ZChannel[Any, Err, Chunk[In], Any, Err, Chunk[In], Any] = ZChannel.readWith(
+      (in: Chunk[In]) => {
+        val leftover = in.dropWhile(p)
+        val more     = leftover.isEmpty
+        if (more) loop else ZChannel.write(leftover) *> ZChannel.identity[Err, Chunk[In], Any]
+      },
+      (e: Err) => ZChannel.fail(e),
+      (_: Any) => ZChannel.unit
+    )
+    new ZSink(loop)
+  }
+
+  def dropWhileM[R, InErr, In](p: In => ZIO[R, InErr, Boolean]): ZSink[R, InErr, In, InErr, In, Any] = {
+    lazy val loop: ZChannel[R, InErr, Chunk[In], Any, InErr, Chunk[In], Any] = ZChannel.readWith(
+      (in: Chunk[In]) =>
+        ZChannel.unwrap(in.dropWhileZIO(p).map { leftover =>
+          val more = leftover.isEmpty
+          if (more) loop else ZChannel.write(leftover) *> ZChannel.identity[InErr, Chunk[In], Any]
+        }),
+      (e: InErr) => ZChannel.fail(e),
+      (_: Any) => ZChannel.unit
+    )
+
+    new ZSink(loop)
+  }
 
   /**
    * Returns a lazily constructed sink that may require effects for its creation.
@@ -1167,6 +1224,7 @@ object ZSink {
       )
     }
 
+  @deprecated("use unwrapManaged", "2.0.0")
   def managed[R, InErr, In, OutErr >: InErr, A, L <: In, Z](resource: ZManaged[R, OutErr, A])(
     fn: A => ZSink[R, InErr, In, OutErr, L, Z]
   ): ZSink[R, InErr, In, OutErr, In, Z] =
@@ -1198,8 +1256,26 @@ object ZSink {
 
   def timed[Err]: ZSink[Has[Clock], Err, Any, Err, Nothing, Duration] = ZSink.drain.timed.map(_._2)
 
+  /**
+   * Creates a sink produced from an effect.
+   */
+  def unwrap[R, InErr, In, OutErr, L, Z](
+    zio: ZIO[R, OutErr, ZSink[R, InErr, In, OutErr, L, Z]]
+  ): ZSink[R, InErr, In, OutErr, L, Z] =
+    new ZSink(ZChannel.unwrap(zio.map(_.channel)))
+
+  /**
+   * Creates a sink produced from a managed effect.
+   */
+  def unwrapManaged[R, InErr, In, OutErr, L, Z](
+    managed: ZManaged[R, OutErr, ZSink[R, InErr, In, OutErr, L, Z]]
+  ): ZSink[R, InErr, In, OutErr, L, Z] =
+    new ZSink(ZChannel.unwrapManaged(managed.map(_.channel)))
+
   final class AccessSinkPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
-    def apply[InErr, In, OutErr, L, Z](f: R => ZSink[R, InErr, In, OutErr, L, Z]): ZSink[R, InErr, In, OutErr, L, Z] =
+    def apply[R1 <: R, InErr, In, OutErr, L, Z](
+      f: R => ZSink[R1, InErr, In, OutErr, L, Z]
+    ): ZSink[R with R1, InErr, In, OutErr, L, Z] =
       new ZSink(ZChannel.unwrap(ZIO.access[R](f(_).channel)))
   }
 

@@ -31,7 +31,7 @@ private[zio] trait ZLayerCompanionVersionSpecific {
     new WirePartiallyApplied[R]
 
   /**
-   * Automatically assembles a layer for the provided type `R`, leaving
+   * Automatically constructs a layer for the provided type `R`, leaving
    * a remainder `R0`.
    *
    * {{{
@@ -41,9 +41,24 @@ private[zio] trait ZLayerCompanionVersionSpecific {
    * val layer = ZLayer.wireSome[Engine, Car](carLayer, wheelsLayer)
    * }}}
    */
-
   def wireSome[R0 <: Has[_], R <: Has[_]]: WireSomePartiallyApplied[R0, R] =
     new WireSomePartiallyApplied[R0, R]
+
+  /**
+   * Automatically constructs a layer for the provided type `R`, leaving a
+   * remainder `ZEnv`. This will satisfy all transitive `ZEnv` requirements
+   * with `ZEnv.any`, allowing them to be provided later.
+   *
+   * {{{
+   * val oldLadyLayer: ZLayer[Fly, Nothing, OldLady] = ???
+   * val flyLayer: ZLayer[Blocking, Nothing, Fly] = ???
+   *
+   * // The ZEnv you use later will provide both Blocking to flyLayer and Console to zio
+   * val layer : ZLayer[ZEnv, Nothing, OldLady] = ZLayer.wireCustom[OldLady](oldLadyLayer, flyLayer)
+   * }}}
+   */
+  def wireCustom[R <: Has[_]]: WireSomePartiallyApplied[ZEnv, R] =
+    new WireSomePartiallyApplied[ZEnv, R]
 
 }
 

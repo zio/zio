@@ -164,7 +164,7 @@ val result: IO[Throwable, Option[(User, Team)]] = (for {
   id   <- maybeId
   user <- getUser(id).some
   team <- getTeam(user.teamId).asSomeError 
-} yield (user, team)).unoption 
+} yield (user, team)).unsome 
 ```
 
 #### Either
@@ -398,12 +398,12 @@ Asynchronous ZIO effects are much easier to use than callback-based APIs, and th
 
 ### Creating Suspended Effects
 
-| Function                 | Input Type                             | Output Type    |
-|--------------------------|----------------------------------------|----------------|
-| `suspend`                | `RIO[R, A]`                            | `RIO[R, A]`    |
-| `suspendSucceed`         | `ZIO[R, E, A]`                         | `ZIO[R, E, A]` |
-| `suspendSucceedWith`     | `(Platform, Fiber.Id) => ZIO[R, E, A]` | `ZIO[R, E, A]` |
-| `suspendWith`            | `(Platform, Fiber.Id) => RIO[R, A]`    | `RIO[R, A]`    |
+| Function                 | Input Type                                 | Output Type    |
+|--------------------------|--------------------------------------------|----------------|
+| `suspend`                | `RIO[R, A]`                                | `RIO[R, A]`    |
+| `suspendSucceed`         | `ZIO[R, E, A]`                             | `ZIO[R, E, A]` |
+| `suspendSucceedWith`     | `(RuntimeConfig, FiberId) => ZIO[R, E, A]` | `ZIO[R, E, A]` |
+| `suspendWith`            | `(RuntimeConfig, FiberId) => RIO[R, A]`    | `RIO[R, A]`    |
 
 A `RIO[R, A]` effect can be suspended using `suspend` function:
 
@@ -833,7 +833,7 @@ Acquire releases have compositional semantics, so if an acquire release is neste
 
 Let's look at a full working example on using acquire release:
 
-```scala mdoc:silent
+```scala mdoc:compile-only
 import zio._
 import java.io.{ File, FileInputStream }
 import java.nio.charset.StandardCharsets

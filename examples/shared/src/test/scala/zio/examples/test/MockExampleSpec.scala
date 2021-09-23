@@ -5,16 +5,18 @@ import zio.test.mock.Expectation.{unit, value, valueF}
 import zio.test.mock.{MockClock, MockConsole, MockRandom}
 import zio.test.{assertM, DefaultRunnableSpec}
 import zio.{Clock, Console, Random, ZIO}
+import java.io.IOException
+import zio.test.{Spec, TestFailure, TestSuccess}
 
 object MockExampleSpec extends DefaultRunnableSpec {
 
-  def spec = suite("suite with mocks")(
+  def spec: Spec[Any, TestFailure[IOException], TestSuccess] = suite("suite with mocks")(
     test("expect no call") {
       def maybeConsole(invokeConsole: Boolean) =
         ZIO.when(invokeConsole)(Console.printLine("foo"))
 
-      val maybeTest1 = maybeConsole(false).inject(MockConsole.empty)
-      val maybeTest2 = maybeConsole(true).inject(MockConsole.PrintLine(equalTo("foo"), unit))
+      val maybeTest1 = maybeConsole(false).unit.inject(MockConsole.empty)
+      val maybeTest2 = maybeConsole(true).unit.inject(MockConsole.PrintLine(equalTo("foo"), unit))
       assertM(maybeTest1)(isUnit) *> assertM(maybeTest2)(isUnit)
     },
     test("expect no call on skipped branch") {
@@ -55,8 +57,8 @@ object MockExampleSpec extends DefaultRunnableSpec {
       def maybeConsole(invokeConsole: Boolean) =
         ZIO.when(invokeConsole)(Console.printLine("foo"))
 
-      val maybeTest1 = maybeConsole(true).inject(MockConsole.empty)
-      val maybeTest2 = maybeConsole(false).inject(MockConsole.PrintLine(equalTo("foo"), unit))
+      val maybeTest1 = maybeConsole(true).unit.inject(MockConsole.empty)
+      val maybeTest2 = maybeConsole(false).unit.inject(MockConsole.PrintLine(equalTo("foo"), unit))
       assertM(maybeTest1)(isUnit) *> assertM(maybeTest2)(isUnit)
     },
     test("expect call returning output") {

@@ -21,27 +21,27 @@ import scala.io.StdIn
 import scala.{Console => SConsole}
 
 trait Console extends Serializable {
-  def print(line: Any): IO[IOException, Unit]
+  def print(line: => Any): IO[IOException, Unit]
 
-  def printError(line: Any): IO[IOException, Unit]
+  def printError(line: => Any): IO[IOException, Unit]
 
-  def printLine(line: Any): IO[IOException, Unit]
+  def printLine(line: => Any): IO[IOException, Unit]
 
-  def printLineError(line: Any): IO[IOException, Unit]
+  def printLineError(line: => Any): IO[IOException, Unit]
 
   def readLine: IO[IOException, String]
 
   @deprecated("use `print`", "2.0.0")
-  def putStr(line: String): IO[IOException, Unit] = print(line)
+  def putStr(line: => String): IO[IOException, Unit] = print(line)
 
   @deprecated("use `printError`", "2.0.0")
-  def putStrErr(line: String): IO[IOException, Unit] = printError(line)
+  def putStrErr(line: => String): IO[IOException, Unit] = printError(line)
 
   @deprecated("use `printLine`", "2.0.0")
-  def putStrLn(line: String): IO[IOException, Unit] = printLine(line)
+  def putStrLn(line: => String): IO[IOException, Unit] = printLine(line)
 
   @deprecated("use `printLineError`", "2.0.0")
-  def putStrLnErr(line: String): IO[IOException, Unit] = printLineError(line)
+  def putStrLnErr(line: => String): IO[IOException, Unit] = printLineError(line)
 
   @deprecated("use `readLine`", "2.0.0")
   def getStrLn: IO[IOException, String] = readLine
@@ -59,27 +59,27 @@ object Console extends Serializable {
 
   object ConsoleLive extends Console {
 
-    def print(line: Any): IO[IOException, Unit] = print(SConsole.out)(line)
+    def print(line: => Any): IO[IOException, Unit] = print(SConsole.out)(line)
 
-    def printError(line: Any): IO[IOException, Unit] = print(SConsole.err)(line)
+    def printError(line: => Any): IO[IOException, Unit] = print(SConsole.err)(line)
 
-    def printLine(line: Any): IO[IOException, Unit] = printLine(SConsole.out)(line)
+    def printLine(line: => Any): IO[IOException, Unit] = printLine(SConsole.out)(line)
 
-    def printLineError(line: Any): IO[IOException, Unit] = printLine(SConsole.err)(line)
+    def printLineError(line: => Any): IO[IOException, Unit] = printLine(SConsole.err)(line)
 
     def readLine: IO[IOException, String] =
-      IO.attempt {
+      IO.attemptBlockingIO {
         val line = StdIn.readLine()
 
         if (line ne null) line
         else throw new EOFException("There is no more input left to read")
-      }.refineToOrDie[IOException]
+      }
 
-    private def print(stream: PrintStream)(line: Any): IO[IOException, Unit] =
-      IO.attempt(SConsole.withOut(stream)(SConsole.print(line))).refineToOrDie[IOException]
+    private def print(stream: => PrintStream)(line: => Any): IO[IOException, Unit] =
+      IO.attemptBlockingIO(SConsole.withOut(stream)(SConsole.print(line)))
 
-    private def printLine(stream: PrintStream)(line: Any): IO[IOException, Unit] =
-      IO.attempt(SConsole.withOut(stream)(SConsole.println(line))).refineToOrDie[IOException]
+    private def printLine(stream: => PrintStream)(line: => Any): IO[IOException, Unit] =
+      IO.attemptBlockingIO(SConsole.withOut(stream)(SConsole.println(line)))
   }
 
   // Accessor Methods

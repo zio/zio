@@ -3,7 +3,6 @@ package zio
 import zio.Cause.Interrupt
 import zio.Exit.Failure
 import zio.ZManaged.ReleaseMap
-import zio.internal.Executor
 import zio.test.Assertion._
 import zio.test.TestAspect.{nonFlaky, scala2Only}
 import zio.test._
@@ -143,14 +142,14 @@ object ZManagedSpec extends ZIOBaseSpec {
         }
       } @@ TestAspect.nonFlaky
     ),
-    suite("fromEffect")(
+    suite("fromZIO")(
       test("Performed interruptibly") {
         assertM(ZManaged.fromZIO(ZIO.checkInterruptible(ZIO.succeed(_))).use(ZIO.succeed(_)))(
           equalTo(InterruptStatus.interruptible)
         )
       }
     ) @@ zioTag(interruption),
-    suite("fromEffectUninterruptible")(
+    suite("fromZIOUninterruptible")(
       test("Performed uninterruptibly") {
         assertM(ZManaged.fromZIOUninterruptible(ZIO.checkInterruptible(ZIO.succeed(_))).use(ZIO.succeed(_)))(
           equalTo(InterruptStatus.uninterruptible)
@@ -478,17 +477,17 @@ object ZManagedSpec extends ZIOBaseSpec {
         ZIO.succeed(assertCompletes)
       }
     ),
-    suite("lock")(
-      test("locks acquire, use, and release actions to the specified executor") {
+    suite("onExecutor")(
+      test("runs acquire, use, and release actions on the specified executor") {
         val executor: UIO[Executor] = ZIO.descriptorWith(descriptor => ZIO.succeedNow(descriptor.executor))
         val global                  = Executor.fromExecutionContext(100)(ExecutionContext.global)
         for {
           default <- executor
           ref1    <- Ref.make[Executor](default)
           ref2    <- Ref.make[Executor](default)
-          managed  = ZManaged.acquireRelease(executor.flatMap(ref1.set))(executor.flatMap(ref2.set)).lock(global)
+          managed  = ZManaged.acquireRelease(executor.flatMap(ref1.set))(executor.flatMap(ref2.set)).onExecutor(global)
           before  <- executor
-          use     <- managed.useDiscard(executor).lock(before)
+          use     <- managed.useDiscard(executor).onExecutor(before)
           acquire <- ref1.get
           release <- ref2.get
           after   <- executor
@@ -505,7 +504,7 @@ object ZManagedSpec extends ZIOBaseSpec {
           default <- executor
           ref1    <- Ref.make[Executor](default)
           ref2    <- Ref.make[Executor](default)
-          managed  = ZManaged.acquireRelease(executor.flatMap(ref1.set))(executor.flatMap(ref2.set)).lock(global)
+          managed  = ZManaged.acquireRelease(executor.flatMap(ref1.set))(executor.flatMap(ref2.set)).onExecutor(global)
           before  <- executor
           use     <- managed.useDiscard(executor)
           acquire <- ref1.get
@@ -620,15 +619,15 @@ object ZManagedSpec extends ZIOBaseSpec {
     ),
     suite("optional")(
       test("fails when given Some error") {
-        val managed: UManaged[Exit[String, Option[Int]]] = Managed.fail(Some("Error")).unoption.exit
+        val managed: UManaged[Exit[String, Option[Int]]] = Managed.fail(Some("Error")).unsome.exit
         managed.use(res => ZIO.succeed(assert(res)(fails(equalTo("Error")))))
       } @@ zioTag(errors),
       test("succeeds with None given None error") {
-        val managed: Managed[String, Option[Int]] = Managed.fail(None).unoption
+        val managed: Managed[String, Option[Int]] = Managed.fail(None).unsome
         managed.use(res => ZIO.succeed(assert(res)(isNone)))
       } @@ zioTag(errors),
       test("succeeds with Some given a value") {
-        val managed: Managed[String, Option[Int]] = Managed.succeed(1).unoption
+        val managed: Managed[String, Option[Int]] = Managed.succeed(1).unsome
         assertM(managed.useNow)(isSome(equalTo(1)))
       }
     ),
@@ -906,11 +905,11 @@ object ZManagedSpec extends ZIOBaseSpec {
     suite("reject")(
       test("returns failure ignoring value") {
         val goodCase =
-          ZManaged.succeed(0).reject({ case v if v != 0 => "Partial failed!" }).sandbox.either
+          ZManaged.succeed(0).reject { case v if v != 0 => "Partial failed!" }.sandbox.either
 
         val badCase = ZManaged
           .succeed(1)
-          .reject({ case v if v != 0 => "Partial failed!" })
+          .reject { case v if v != 0 => "Partial failed!" }
           .sandbox
           .either
           .map(_.left.map(_.failureOrCause))
@@ -926,14 +925,14 @@ object ZManagedSpec extends ZIOBaseSpec {
         val goodCase =
           ZManaged
             .succeed(0)
-            .rejectManaged[Any, String]({ case v if v != 0 => ZManaged.succeed("Partial failed!") })
+            .rejectManaged[Any, String] { case v if v != 0 => ZManaged.succeed("Partial failed!") }
             .sandbox
             .either
 
         val partialBadCase =
           ZManaged
             .succeed(1)
-            .rejectManaged({ case v if v != 0 => ZManaged.fail("Partial failed!") })
+            .rejectManaged { case v if v != 0 => ZManaged.fail("Partial failed!") }
             .sandbox
             .either
             .map(_.left.map(_.failureOrCause))
@@ -941,7 +940,7 @@ object ZManagedSpec extends ZIOBaseSpec {
         val badCase =
           ZManaged
             .succeed(1)
-            .rejectManaged({ case v if v != 0 => ZManaged.fail("Partial failed!") })
+            .rejectManaged { case v if v != 0 => ZManaged.fail("Partial failed!") }
             .sandbox
             .either
             .map(_.left.map(_.failureOrCause))
@@ -1173,11 +1172,11 @@ object ZManagedSpec extends ZIOBaseSpec {
         ).useNow
       }
     ),
-    suite("tapCause")(
+    suite("tapErrorCause")(
       test("effectually peeks at the cause of the failure of the acquired resource") {
         (for {
           ref    <- Ref.make(false).toManaged
-          result <- ZManaged.dieMessage("die").tapCause(_ => ref.set(true).toManaged).exit
+          result <- ZManaged.dieMessage("die").tapErrorCause(_ => ref.set(true).toManaged).exit
           effect <- ref.get.toManaged
         } yield assert(result)(dies(hasMessage(equalTo("die")))) &&
           assert(effect)(isTrue)).useNow
@@ -1321,7 +1320,7 @@ object ZManagedSpec extends ZIOBaseSpec {
       test("The canceler will run with an exit value indicating the effect was interrupted") {
         for {
           ref    <- Ref.make(false)
-          managed = ZManaged.acquireReleaseExitWith(ZIO.unit)((_, e) => ref.set(e.interrupted))
+          managed = ZManaged.acquireReleaseExitWith(ZIO.unit)((_, e) => ref.set(e.isInterrupted))
           _      <- managed.withEarlyRelease.use(_._1)
           result <- ref.get
         } yield assert(result)(isTrue)
@@ -1342,10 +1341,33 @@ object ZManagedSpec extends ZIOBaseSpec {
       test("Allows specifying an exit value") {
         for {
           ref    <- Ref.make(false)
-          managed = ZManaged.acquireReleaseExitWith(ZIO.unit)((_, e) => ref.set(e.succeeded))
+          managed = ZManaged.acquireReleaseExitWith(ZIO.unit)((_, e) => ref.set(e.isSuccess))
           _      <- managed.withEarlyReleaseExit(Exit.unit).use(_._1)
           result <- ref.get
         } yield assert(result)(isTrue)
+      }
+    ),
+    suite("withRuntimeConfig")(
+      test("runs acquire, use, and release actions on the specified runtime configuration") {
+        val runtimeConfig: UIO[RuntimeConfig] = ZIO.runtimeConfig
+        val global                            = RuntimeConfig.global
+        for {
+          default <- runtimeConfig
+          ref1    <- Ref.make[RuntimeConfig](default)
+          ref2    <- Ref.make[RuntimeConfig](default)
+          managed = ZManaged
+                      .acquireRelease(runtimeConfig.flatMap(ref1.set))(runtimeConfig.flatMap(ref2.set))
+                      .withRuntimeConfig(global)
+          before  <- runtimeConfig
+          use     <- managed.useDiscard(runtimeConfig)
+          acquire <- ref1.get
+          release <- ref2.get
+          after   <- runtimeConfig
+        } yield assert(before)(equalTo(default)) &&
+          assert(acquire)(equalTo(global)) &&
+          assert(use)(equalTo(global)) &&
+          assert(release)(equalTo(global)) &&
+          assert(after)(equalTo(default))
       }
     ),
     suite("zipPar")(
@@ -1855,7 +1877,7 @@ object ZManagedSpec extends ZIOBaseSpec {
 
   def doInterrupt(
     managed: IO[Nothing, Unit] => ZManaged[Any, Nothing, Unit],
-    expected: Fiber.Id => Option[Exit[Nothing, Unit]]
+    expected: FiberId => Option[Exit[Nothing, Unit]]
   ): ZIO[Has[Live], Nothing, TestResult] =
     for {
       fiberId            <- ZIO.fiberId

@@ -38,7 +38,7 @@ abstract class BaseTestTask(
 
   override def execute(eventHandler: EventHandler, loggers: Array[Logger]): Array[Task] =
     try {
-      Runtime((), specInstance.platform).unsafeRun {
+      Runtime((), specInstance.runtimeConfig).unsafeRun {
         run(eventHandler)
           .provideLayer(sbtTestLayer(loggers))
           .onError(e => UIO(println(e.prettyPrint)))

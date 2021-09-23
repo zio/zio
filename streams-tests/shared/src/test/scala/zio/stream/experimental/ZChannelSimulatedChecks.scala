@@ -142,7 +142,7 @@ object ZChannelSimulatedChecks extends ZIOBaseSpec {
     override def asEffect(f: IO[Err, Res]): IO[Err, Nothing] = f.flatMap(_ => IO.fail(error))
 
     override def writeOutChannelString(sb: StringBuilder): Unit = {
-      sb.append(s""".concatMap(_ => ZChannel.fail("${error}"))"""); ()
+      sb.append(s""".concatMap(_ => ZChannel.fail("$error"))"""); ()
     }
   }
   final case class Map(addN: Int) extends Op {

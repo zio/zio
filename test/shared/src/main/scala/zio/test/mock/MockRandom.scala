@@ -43,28 +43,28 @@ object MockRandom extends Mock[Has[Random]] {
       .service[Proxy]
       .map(proxy =>
         new Random {
-          val nextBoolean: UIO[Boolean]                = proxy(NextBoolean)
-          def nextBytes(length: Int): UIO[Chunk[Byte]] = proxy(NextBytes, length)
-          val nextDouble: UIO[Double]                  = proxy(NextDouble)
-          def nextDoubleBetween(minInclusive: Double, maxExclusive: Double): UIO[Double] =
+          val nextBoolean: UIO[Boolean]                   = proxy(NextBoolean)
+          def nextBytes(length: => Int): UIO[Chunk[Byte]] = proxy(NextBytes, length)
+          val nextDouble: UIO[Double]                     = proxy(NextDouble)
+          def nextDoubleBetween(minInclusive: => Double, maxExclusive: => Double): UIO[Double] =
             proxy(NextDoubleBetween, minInclusive, maxExclusive)
           val nextFloat: UIO[Float] = proxy(NextFloat)
-          def nextFloatBetween(minInclusive: Float, maxExclusive: Float): UIO[Float] =
+          def nextFloatBetween(minInclusive: => Float, maxExclusive: => Float): UIO[Float] =
             proxy(NextFloatBetween, minInclusive, maxExclusive)
           val nextGaussian: UIO[Double] = proxy(NextGaussian)
           val nextInt: UIO[Int]         = proxy(NextInt)
-          def nextIntBetween(minInclusive: Int, maxExclusive: Int): UIO[Int] =
+          def nextIntBetween(minInclusive: => Int, maxExclusive: => Int): UIO[Int] =
             proxy(NextIntBetween, minInclusive, maxExclusive)
-          def nextIntBounded(n: Int): UIO[Int] = proxy(NextIntBounded, n)
-          val nextLong: UIO[Long]              = proxy(NextLong)
-          def nextLongBetween(minInclusive: Long, maxExclusive: Long): UIO[Long] =
+          def nextIntBounded(n: => Int): UIO[Int] = proxy(NextIntBounded, n)
+          val nextLong: UIO[Long]                 = proxy(NextLong)
+          def nextLongBetween(minInclusive: => Long, maxExclusive: => Long): UIO[Long] =
             proxy(NextLongBetween, minInclusive, maxExclusive)
-          def nextLongBounded(n: Long): UIO[Long]  = proxy(NextLongBounded, n)
-          val nextPrintableChar: UIO[Char]         = proxy(NextPrintableChar)
-          def nextString(length: Int): UIO[String] = proxy(NextString, length)
-          def setSeed(seed: Long): UIO[Unit]       = proxy(SetSeed, seed)
+          def nextLongBounded(n: => Long): UIO[Long]  = proxy(NextLongBounded, n)
+          val nextPrintableChar: UIO[Char]            = proxy(NextPrintableChar)
+          def nextString(length: => Int): UIO[String] = proxy(NextString, length)
+          def setSeed(seed: => Long): UIO[Unit]       = proxy(SetSeed, seed)
           def shuffle[A, Collection[+Element] <: Iterable[Element]](
-            collection: Collection[A]
+            collection: => Collection[A]
           )(implicit bf: BuildFrom[Collection[A], A, Collection[A]]): UIO[Collection[A]] =
             proxy(Shuffle, collection).asInstanceOf[UIO[Collection[A]]]
         }

@@ -33,8 +33,8 @@ object GenSpec extends ZIOBaseSpec {
       },
       test("with bogus reverse property") {
         val gen = for {
-          as <- Gen.int(0, 100).flatMap(Gen.listOfN(_)(Gen.anyInt))
-          bs <- Gen.int(0, 100).flatMap(Gen.listOfN(_)(Gen.anyInt))
+          as <- Gen.int(0, 100).flatMap(Gen.listOfN(_)(Gen.int))
+          bs <- Gen.int(0, 100).flatMap(Gen.listOfN(_)(Gen.int))
         } yield (as, bs)
 
         def test(a: (List[Int], List[Int])): TestResult = a match {
@@ -60,8 +60,8 @@ object GenSpec extends ZIOBaseSpec {
         Check(ints, intBooleanFn)((as, f) => assert(as.takeWhile(f).forall(f))(isTrue))
       },
       test("with multiple parameter function generator") {
-        val ints                                       = Gen.anyInt
-        val genFn: Gen[Has[Random], (Int, Int) => Int] = Gen.function2(Gen.anyInt)
+        val ints                                       = Gen.int
+        val genFn: Gen[Has[Random], (Int, Int) => Int] = Gen.function2(Gen.int)
 
         def swap[A, B, C](f: (A, B) => C): (B, A) => C =
           (b, a) => f(a, b)
@@ -72,7 +72,7 @@ object GenSpec extends ZIOBaseSpec {
         }
       },
       test("with shrinking nonempty list") {
-        val gen = Gen.int(1, 100).flatMap(Gen.listOfN(_)(Gen.anyInt))
+        val gen = Gen.int(1, 100).flatMap(Gen.listOfN(_)(Gen.int))
 
         def test(a: List[Int]): TestResult = assert(a)(Assertion.nothing)
 
@@ -118,53 +118,53 @@ object GenSpec extends ZIOBaseSpec {
       test("alphaNumericStringBounded generates strings whose size is in bounds") {
         checkSample(Gen.alphaNumericStringBounded(2, 10))(forall(hasSizeString(isWithin(2, 10))))
       },
-      test("anyDayOfWeek generates java.time.DayOfWeek values") {
-        checkSample(Gen.anyDayOfWeek)(isTrue, ds => ds.forall(DayOfWeek.values().contains))
+      test("dayOfWeek generates java.time.DayOfWeek values") {
+        checkSample(Gen.dayOfWeek)(isTrue, ds => ds.forall(DayOfWeek.values().contains))
       },
-      test("anyFiniteDuration generates Duration values") {
-        checkSample(Gen.anyFiniteDuration)(isNonEmpty)
+      test("finiteDuration generates Duration values") {
+        checkSample(Gen.finiteDuration)(isNonEmpty)
       },
-      test("anyInstant generates Instant values") {
-        checkSample(Gen.anyInstant)(isNonEmpty)
+      test("instant generates Instant values") {
+        checkSample(Gen.instant)(isNonEmpty)
       },
-      test("anyLocalDateTime generates LocalDateTime values") {
-        checkSample(Gen.anyLocalDateTime)(isNonEmpty)
+      test("localDateTime generates LocalDateTime values") {
+        checkSample(Gen.localDateTime)(isNonEmpty)
       },
-      test("anyLocalDate generates java.time.LocalDate values") {
-        checkSample(Gen.anyLocalDate)(isNonEmpty)
+      test("localDate generates java.time.LocalDate values") {
+        checkSample(Gen.localDate)(isNonEmpty)
       },
-      test("anyLocalTime generates java.time.LocalTime values") {
-        checkSample(Gen.anyLocalTime)(isNonEmpty)
+      test("localTime generates java.time.LocalTime values") {
+        checkSample(Gen.localTime)(isNonEmpty)
       },
-      test("anyMonth generates java.time.Month values") {
-        checkSample(Gen.anyMonth)(isTrue, ms => ms.forall(Month.values().contains))
+      test("month generates java.time.Month values") {
+        checkSample(Gen.month)(isTrue, ms => ms.forall(Month.values().contains))
       },
-      test("anyMonthDay generates java.time.MonthDay values") {
-        checkSample(Gen.anyMonthDay)(isNonEmpty)
+      test("monthDay generates java.time.MonthDay values") {
+        checkSample(Gen.monthDay)(isNonEmpty)
       },
-      test("anyOffsetDateTime generates OffsetDateTime values") {
-        checkSample(Gen.anyOffsetDateTime)(isNonEmpty)
+      test("offsetDateTime generates OffsetDateTime values") {
+        checkSample(Gen.offsetDateTime)(isNonEmpty)
       },
-      test("anyOffsetTime generates java.time.OffsetTime values") {
-        checkSample(Gen.anyOffsetTime)(isNonEmpty)
+      test("offsetTime generates java.time.OffsetTime values") {
+        checkSample(Gen.offsetTime)(isNonEmpty)
       },
-      test("anyPeriod generates java.time.Period values") {
-        checkSample(Gen.anyPeriod)(isNonEmpty)
+      test("period generates java.time.Period values") {
+        checkSample(Gen.period)(isNonEmpty)
       },
-      test("anyYear generates java.time.Year values") {
-        checkSample(Gen.anyYear)(isNonEmpty)
+      test("year generates java.time.Year values") {
+        checkSample(Gen.year)(isNonEmpty)
       },
-      test("anyYearMonth generates java.time.YearMonth values") {
-        checkSample(Gen.anyYearMonth)(isNonEmpty)
+      test("yearMonth generates java.time.YearMonth values") {
+        checkSample(Gen.yearMonth)(isNonEmpty)
       },
-      test("anyZonedDateTime generates java.time.ZonedDateTime values") {
-        checkSample(Gen.anyZonedDateTime)(isNonEmpty)
+      test("zonedDateTime generates java.time.ZonedDateTime values") {
+        checkSample(Gen.zonedDateTime)(isNonEmpty)
       },
-      test("anyZoneId generates java.time.ZoneId values") {
-        checkSample(Gen.anyZoneId)(isNonEmpty)
+      test("zoneId generates java.time.ZoneId values") {
+        checkSample(Gen.zoneId)(isNonEmpty)
       },
-      test("anyZoneOffset generates java.time.ZoneOffset values") {
-        checkSample(Gen.anyZoneOffset)(isNonEmpty)
+      test("zoneOffset generates java.time.ZoneOffset values") {
+        checkSample(Gen.zoneOffset)(isNonEmpty)
       },
       test("bigDecimal generates values in range") {
         val min        = BigDecimal("1.414213562373095048801688724209698")
@@ -229,22 +229,22 @@ object GenSpec extends ZIOBaseSpec {
         val gen = for {
           f <- genStringIntFn
           g <- genStringIntFn
-          s <- Gen.string(Gen.anyChar)
+          s <- Gen.string(Gen.char)
         } yield f(s) == g(s)
         checkSample(gen)(isTrue, _.exists(!_))
       },
       test("function generates functions that are not constant") {
         val gen = for {
           f  <- genStringIntFn
-          s1 <- Gen.string(Gen.anyChar)
-          s2 <- Gen.string(Gen.anyChar)
+          s1 <- Gen.string(Gen.char)
+          s2 <- Gen.string(Gen.char)
         } yield f(s1) == f(s2)
         checkSample(gen)(isTrue, _.exists(!_))
       },
       test("function generates referentially transparent functions") {
         val gen = for {
           f <- genStringIntFn
-          s <- Gen.string(Gen.anyChar)
+          s <- Gen.string(Gen.char)
         } yield f(s) == f(s)
         checkSample(gen)(isTrue, _.forall(identity))
       },
@@ -323,7 +323,7 @@ object GenSpec extends ZIOBaseSpec {
       test("partialFunction generates partial functions") {
         val gen = for {
           f <- Gen.partialFunction[Has[Random], String, Int](Gen.int(-10, 10))
-          s <- Gen.string(Gen.anyChar)
+          s <- Gen.string(Gen.char)
         } yield f.lift(s)
         checkSample(gen)(exists(isNone) && exists(isSome(anything)))
       },
@@ -410,73 +410,73 @@ object GenSpec extends ZIOBaseSpec {
       test("alphaNumericStringBounded shrinks to bottom of range") {
         checkShrink(Gen.alphaNumericStringBounded(2, 10))("00")
       },
-      test("anyByte shrinks to zero") {
-        checkShrink(Gen.anyByte)(0)
+      test("byte shrinks to zero") {
+        checkShrink(Gen.byte)(0)
       },
-      test("anyChar shrinks to zero") {
-        checkShrink(Gen.anyChar)(0)
+      test("char shrinks to zero") {
+        checkShrink(Gen.char)(0)
       },
-      test("anyDayOfWeek shrinks to DayOfWeek.MONDAY") {
-        checkShrink(Gen.anyDayOfWeek)(DayOfWeek.MONDAY)
+      test("dayOfWeek shrinks to DayOfWeek.MONDAY") {
+        checkShrink(Gen.dayOfWeek)(DayOfWeek.MONDAY)
       },
-      test("anyFiniteDuration shrinks to Duration.Zero") {
-        checkShrink(Gen.anyFiniteDuration)(Duration.Zero)
+      test("finiteDuration shrinks to Duration.Zero") {
+        checkShrink(Gen.finiteDuration)(Duration.Zero)
       },
-      test("anyFloat shrinks to zero") {
-        checkShrink(Gen.anyFloat)(0)
+      test("float shrinks to zero") {
+        checkShrink(Gen.float)(0)
       },
-      test("anyInstant shrinks to Instant.MIN") {
+      test("instant shrinks to Instant.MIN") {
         val min = Instant.ofEpochSecond(-93487534873L, 2387642L)
         val max = Instant.ofEpochSecond(394876L, 376542888L)
         checkShrink(Gen.instant(min, max))(min)
       },
-      test("anyLocalDateTime shrinks to LocalDateTime.MIN") {
-        checkShrink(Gen.anyLocalDateTime)(LocalDateTime.MIN)
+      test("localDateTime shrinks to LocalDateTime.MIN") {
+        checkShrink(Gen.localDateTime)(LocalDateTime.MIN)
       },
-      test("anyInt shrinks to zero") {
-        checkShrink(Gen.anyInt)(0)
+      test("int shrinks to zero") {
+        checkShrink(Gen.int)(0)
       },
-      test("anyLong shrinks to zero") {
-        checkShrink(Gen.anyLong)(0)
+      test("long shrinks to zero") {
+        checkShrink(Gen.long)(0)
       },
-      test("anyLocalDate shrinks to LocalDate.MIN") {
-        checkShrink(Gen.anyLocalDate)(LocalDate.MIN)
+      test("localDate shrinks to LocalDate.MIN") {
+        checkShrink(Gen.localDate)(LocalDate.MIN)
       },
-      test("anyLocalTime shrinks to LocalTime.MIN") {
-        checkShrink(Gen.anyLocalTime)(LocalTime.MIN)
+      test("localTime shrinks to LocalTime.MIN") {
+        checkShrink(Gen.localTime)(LocalTime.MIN)
       },
-      test("anyMonth shrinks to Month.JANUARY") {
-        checkShrink(Gen.anyMonth)(Month.JANUARY)
+      test("month shrinks to Month.JANUARY") {
+        checkShrink(Gen.month)(Month.JANUARY)
       },
-      test("anyMonthDay shrinks to MonthDay.of(Month.JANUARY, 1)") {
-        checkShrink(Gen.anyMonthDay)(MonthDay.of(Month.JANUARY, 1))
+      test("monthDay shrinks to MonthDay.of(Month.JANUARY, 1)") {
+        checkShrink(Gen.monthDay)(MonthDay.of(Month.JANUARY, 1))
       },
-      test("anyOffsetDateTime shrinks to OffsetDateTime.MIN") {
-        checkShrink(Gen.anyOffsetDateTime)(OffsetDateTime.MIN)
+      test("offsetDateTime shrinks to OffsetDateTime.MIN") {
+        checkShrink(Gen.offsetDateTime)(OffsetDateTime.MIN)
       },
-      test("anyOffsetTime shrinks to OffsetTime.MIN") {
-        checkShrink(Gen.anyOffsetTime)(OffsetTime.MIN)
+      test("offsetTime shrinks to OffsetTime.MIN") {
+        checkShrink(Gen.offsetTime)(OffsetTime.MIN)
       },
-      test("anyPeriod shrinks to Period.ZERO") {
-        checkShrink(Gen.anyPeriod)(Period.ZERO)
+      test("period shrinks to Period.ZERO") {
+        checkShrink(Gen.period)(Period.ZERO)
       },
-      test("anyShort shrinks to zero") {
-        checkShrink(Gen.anyShort)(0)
+      test("short shrinks to zero") {
+        checkShrink(Gen.short)(0)
       },
-      test("anyString shrinks to empty string") {
-        checkShrink(Gen.anyString)("")
+      test("string shrinks to empty string") {
+        checkShrink(Gen.string)("")
       },
-      test("anyUnicodeChar shrinks to zero") {
-        checkShrink(Gen.anyUnicodeChar)(0)
+      test("unicodeChar shrinks to zero") {
+        checkShrink(Gen.unicodeChar)(0)
       },
-      test("anyYear shrinks to Year.MIN_VALUE") {
-        checkShrink(Gen.anyYear)(Year.of(Year.MIN_VALUE))
+      test("year shrinks to Year.MIN_VALUE") {
+        checkShrink(Gen.year)(Year.of(Year.MIN_VALUE))
       },
-      test("anyYearMonth shrinks to YearMonth.of(Year.MIN_VALUE, Month.JANUARY)") {
-        checkShrink(Gen.anyYearMonth)(YearMonth.of(Year.MIN_VALUE, Month.JANUARY))
+      test("yearMonth shrinks to YearMonth.of(Year.MIN_VALUE, Month.JANUARY)") {
+        checkShrink(Gen.yearMonth)(YearMonth.of(Year.MIN_VALUE, Month.JANUARY))
       },
-      test("anyZoneOffset shrinks to ZoneOffset.MIN") {
-        checkShrink(Gen.anyZoneOffset)(ZoneOffset.MIN)
+      test("zoneOffset shrinks to ZoneOffset.MIN") {
+        checkShrink(Gen.zoneOffset)(ZoneOffset.MIN)
       },
       test("boolean shrinks to false") {
         checkShrink(Gen.boolean)(false)
@@ -562,7 +562,7 @@ object GenSpec extends ZIOBaseSpec {
         checkShrink(Gen.mapOfN(1)(smallInt, smallInt))(Map(-10 -> -10))
       },
       test("noShrink discards the shrinker for this generator") {
-        assertM(shrinks(Gen.anyInt.noShrink))(hasSize(equalTo(1)))
+        assertM(shrinks(Gen.int.noShrink))(hasSize(equalTo(1)))
       },
       test("offsetDateTime shrinks to min") {
         val min = OffsetDateTime.ofInstant(Instant.ofEpochSecond(8345983298736L, 345), ZoneOffset.ofHours(-4))
@@ -666,7 +666,7 @@ object GenSpec extends ZIOBaseSpec {
         }
       },
       test("determinism") {
-        val gen = Gen.anyInt <&> Gen.anyInt
+        val gen = Gen.int <&> Gen.int
         assertM(gen.runHead)(isSome(equalTo((-1170105035, 234785527))))
       } @@ setSeed(42) @@ nonFlaky
     ),
@@ -750,7 +750,7 @@ object GenSpec extends ZIOBaseSpec {
       final case class Push(value: Int) extends Command
 
       val genPop: Gen[Any, Command]          = Gen.const(Pop)
-      def genPush: Gen[Has[Random], Command] = Gen.anyInt.map(value => Push(value))
+      def genPush: Gen[Has[Random], Command] = Gen.int.map(value => Push(value))
 
       val genCommands: Gen[Has[Random] with Has[Sized], List[Command]] =
         Gen.unfoldGen(0) { n =>

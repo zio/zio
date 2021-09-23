@@ -49,10 +49,10 @@ object LawsSpec extends ZIOBaseSpec {
     suite("LawsSpec") {
       suite("equalLaws")(
         test("int") {
-          checkAllLaws(Equal)(Gen.anyInt)
+          checkAllLaws(Equal)(Gen.int)
         },
         test("string") {
-          checkAllLaws(Equal)(Gen.anyString)
+          checkAllLaws(Equal)(Gen.string)
         }
       )
     }

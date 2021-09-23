@@ -1,3 +1,9 @@
+package zio.internal
+
+import zio.RuntimeConfig
+
+import scala.concurrent.ExecutionContext
+
 /*
  * Copyright 2017-2021 John A. De Goes and the ZIO Contributors
  *
@@ -14,39 +20,62 @@
  * limitations under the License.
  */
 
-package zio.internal
+object Platform extends PlatformSpecific {
 
-import zio.internal.tracing.TracingConfig
-import zio.{Cause, Supervisor}
+  /**
+   * A Runtime with settings suitable for benchmarks, specifically with Tracing
+   * and auto-yielding disabled.
+   *
+   * Tracing adds a constant ~2x overhead on FlatMaps, however, it's an
+   * optional feature and it's not valid to compare the performance of ZIO with
+   * enabled Tracing with effect types _without_ a comparable feature.
+   */
+  @deprecated("use RuntimeConfig.benchmark", "2.0.0")
+  lazy val benchmark: RuntimeConfig =
+    RuntimeConfig.benchmark
 
-/**
- * A `Platform` provides the minimum capabilities necessary to bootstrap
- * execution of `ZIO` tasks.
- */
-final case class Platform(
-  blockingExecutor: Executor,
-  executor: Executor,
-  tracing: Tracing,
-  fatal: Throwable => Boolean,
-  reportFatal: Throwable => Nothing,
-  reportFailure: Cause[Any] => Unit,
-  supervisor: Supervisor[Any],
-  enableCurrentFiber: Boolean
-) { self =>
-  def withBlockingExecutor(e: Executor): Platform = copy(blockingExecutor = e)
+  /**
+   * The default platform, configured with settings designed to work well for
+   * mainstream usage. Advanced users should consider making their own platform
+   * customized for specific application requirements.
+   */
+  @deprecated("use RuntimeConfig.default", "2.0.0")
+  lazy val default: RuntimeConfig =
+    RuntimeConfig.default
 
-  def withExecutor(e: Executor): Platform = copy(executor = e)
+  /**
+   * The default number of operations the ZIO runtime should execute before
+   * yielding to other fibers.
+   */
+  @deprecated("use RuntimeConfig.defaultYieldOpCount", "2.0.0")
+  final val defaultYieldOpCount =
+    RuntimeConfig.defaultYieldOpCount
 
-  def withTracing(t: Tracing): Platform = copy(tracing = t)
+  /**
+   * A `Platform` created from Scala's global execution context.
+   */
+  @deprecated("use RuntimeConfig.global", "2.0.0")
+  lazy val global: RuntimeConfig =
+    RuntimeConfig.global
 
-  def withTracingConfig(config: TracingConfig): Platform = copy(tracing = tracing.copy(tracingConfig = config))
+  /**
+   * Creates a platform from an `Executor`.
+   */
+  @deprecated("use RuntimeConfig.fromExecutor", "2.0.0")
+  final def fromExecutor(executor0: Executor): Platform =
+    RuntimeConfig.fromExecutor(executor0)
 
-  def withFatal(f: Throwable => Boolean): Platform = copy(fatal = f)
+  /**
+   * Creates a Platform from an execution context.
+   */
+  @deprecated("use RuntimeConfig.fromExecutionContext", "2.0.0")
+  final def fromExecutionContext(ec: ExecutionContext, yieldOpCount: Int = 2048): Platform =
+    RuntimeConfig.fromExecutionContext(ec, yieldOpCount)
 
-  def withReportFatal(f: Throwable => Nothing): Platform = copy(fatal = f)
-
-  def withReportFailure(f: Cause[Any] => Unit): Platform = copy(reportFailure = f)
-
-  def withSupervisor(s0: Supervisor[Any]): Platform = copy(supervisor = s0)
+  /**
+   * Makes a new default platform. This is a side-effecting method.
+   */
+  @deprecated("use RuntimeConfig.makeDefault", "2.0.0")
+  final def makeDefault(yieldOpCount: Int = 2048): Platform =
+    RuntimeConfig.makeDefault(yieldOpCount)
 }
-object Platform extends PlatformSpecific

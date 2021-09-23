@@ -18,7 +18,7 @@ package zio.stm
 
 import com.github.ghik.silencer.silent
 import zio._
-import zio.internal.{Platform, Stack, Sync}
+import zio.internal.{Stack, Sync}
 
 import java.util.concurrent.atomic.{AtomicLong, AtomicReference}
 import java.util.{HashMap => MutableMap}
@@ -475,12 +475,9 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
   /**
    * Converts an option on errors into an option on values.
    */
-  @deprecated("use unoption", "2.0.0")
+  @deprecated("use unsome", "2.0.0")
   def optional[E1](implicit ev: E <:< Option[E1]): ZSTM[R, E1, Option[A]] =
-    foldSTM(
-      _.fold[ZSTM[R, E1, Option[A]]](ZSTM.succeedNow(Option.empty[A]))(ZSTM.fail(_)),
-      a => ZSTM.succeedNow(Some(a))
-    )
+    unsome
 
   /**
    * Translates `STM` effect failure into death of the fiber, making all failures unchecked and
@@ -716,20 +713,20 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
   /**
    * The moral equivalent of `if (!p) exp`
    */
-  def unless(b: => Boolean): ZSTM[R, E, Unit] =
+  def unless(b: => Boolean): ZSTM[R, E, Option[A]] =
     ZSTM.unless(b)(self)
 
   /**
    * The moral equivalent of `if (!p) exp` when `p` has side-effects
    */
   @deprecated("use unlessSTM", "2.0.0")
-  def unlessM[R1 <: R, E1 >: E](b: ZSTM[R1, E1, Boolean]): ZSTM[R1, E1, Unit] =
+  def unlessM[R1 <: R, E1 >: E](b: ZSTM[R1, E1, Boolean]): ZSTM[R1, E1, Option[A]] =
     unlessSTM(b)
 
   /**
    * The moral equivalent of `if (!p) exp` when `p` has side-effects
    */
-  def unlessSTM[R1 <: R, E1 >: E](b: ZSTM[R1, E1, Boolean]): ZSTM[R1, E1, Unit] =
+  def unlessSTM[R1 <: R, E1 >: E](b: ZSTM[R1, E1, Boolean]): ZSTM[R1, E1, Option[A]] =
     ZSTM.unlessSTM(b)(self)
 
   /**
@@ -745,11 +742,9 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
   /**
    * Converts an option on errors into an option on values.
    */
+  @deprecated("use unsome", "2.0.0")
   def unoption[E1](implicit ev: E <:< Option[E1]): ZSTM[R, E1, Option[A]] =
-    foldSTM(
-      _.fold[ZSTM[R, E1, Option[A]]](ZSTM.succeedNow(Option.empty[A]))(ZSTM.fail(_)),
-      a => ZSTM.succeedNow(Some(a))
-    )
+    unsome
 
   /**
    * Converts a `ZSTM[R, Either[B, E], A]` into a `ZSTM[R, E, Either[B, A]]`. The
@@ -762,27 +757,43 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
     )
 
   /**
+   * Converts an option on errors into an option on values.
+   */
+  def unsome[E1](implicit ev: E <:< Option[E1]): ZSTM[R, E1, Option[A]] =
+    foldSTM(
+      _.fold[ZSTM[R, E1, Option[A]]](ZSTM.succeedNow(Option.empty[A]))(ZSTM.fail(_)),
+      a => ZSTM.succeedNow(Some(a))
+    )
+
+  /**
    * Updates a service in the environment of this effect.
    */
   def updateService[M] =
     new ZSTM.UpdateService[R, E, A, M](self)
 
   /**
+   * Updates a service at the specified key in the environment of this effect.
+   */
+  final def updateServiceAt[Service]: ZSTM.UpdateServiceAt[R, E, A, Service] =
+    new ZSTM.UpdateServiceAt[R, E, A, Service](self)
+
+  /**
    * The moral equivalent of `if (p) exp`
    */
-  def when(b: => Boolean): ZSTM[R, E, Unit] = ZSTM.when(b)(self)
+  def when(b: => Boolean): ZSTM[R, E, Option[A]] =
+    ZSTM.when(b)(self)
 
   /**
    * The moral equivalent of `if (p) exp` when `p` has side-effects
    */
   @deprecated("use whenSTM", "2.0.0")
-  def whenM[R1 <: R, E1 >: E](b: ZSTM[R1, E1, Boolean]): ZSTM[R1, E1, Unit] =
+  def whenM[R1 <: R, E1 >: E](b: ZSTM[R1, E1, Boolean]): ZSTM[R1, E1, Option[A]] =
     whenSTM(b)
 
   /**
    * The moral equivalent of `if (p) exp` when `p` has side-effects
    */
-  def whenSTM[R1 <: R, E1 >: E](b: ZSTM[R1, E1, Boolean]): ZSTM[R1, E1, Unit] =
+  def whenSTM[R1 <: R, E1 >: E](b: ZSTM[R1, E1, Boolean]): ZSTM[R1, E1, Option[A]] =
     ZSTM.whenSTM(b)(self)
 
   /**
@@ -817,7 +828,7 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
   def zipWith[R1 <: R, E1 >: E, B, C](that: => ZSTM[R1, E1, B])(f: (A, B) => C): ZSTM[R1, E1, C] =
     self flatMap (a => that map (b => f(a, b)))
 
-  private def run(journal: Journal, fiberId: Fiber.Id, r0: R): TExit[E, A] = {
+  private def run(journal: Journal, fiberId: FiberId, r0: R): TExit[E, A] = {
     type Erased = ZSTM[Any, Any, Any]
     type Cont   = Any => Erased
 
@@ -863,6 +874,9 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
               curr = unwindStack(t, false)
 
               if (curr eq null) exit = TExit.Die(t)
+
+            case ZSTM.InterruptException(fiberId) =>
+              exit = TExit.Interrupt(fiberId)
           }
 
         case Tags.OnSuccess =>
@@ -940,13 +954,13 @@ object ZSTM {
    */
   def atomically[R, E, A](stm: ZSTM[R, E, A]): ZIO[R, E, A] =
     ZIO.accessZIO[R] { r =>
-      ZIO.suspendSucceedWith { (platform, fiberId) =>
-        tryCommitSync(platform, fiberId, stm, r) match {
+      ZIO.suspendSucceedWith { (runtimeConfig, fiberId) =>
+        tryCommitSync(runtimeConfig, fiberId, stm, r) match {
           case TryCommit.Done(exit) => throw new ZIO.ZioError(exit)
           case TryCommit.Suspend(journal) =>
             val txnId = makeTxnId()
             val state = new AtomicReference[State[E, A]](State.Running)
-            val async = ZIO.async(tryCommitAsync(journal, platform, fiberId, stm, txnId, state, r))
+            val async = ZIO.async(tryCommitAsync(journal, runtimeConfig, fiberId, stm, txnId, state, r))
 
             ZIO.uninterruptibleMask { restore =>
               restore(async).catchAllCause { cause =>
@@ -980,7 +994,7 @@ object ZSTM {
   def collect[R, E, A, B, Collection[+Element] <: Iterable[Element]](
     in: Collection[A]
   )(f: A => ZSTM[R, Option[E], B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZSTM[R, E, Collection[B]] =
-    foreach[R, E, A, Option[B], Iterable](in)(a => f(a).unoption).map(_.flatten).map(bf.fromSpecific(in))
+    foreach[R, E, A, Option[B], Iterable](in)(a => f(a).unsome).map(_.flatten).map(bf.fromSpecific(in))
 
   /**
    * Collects all the transactional effects in a collection, returning a single
@@ -1082,7 +1096,7 @@ object ZSTM {
   /**
    * Returns the fiber id of the fiber committing the transaction.
    */
-  val fiberId: USTM[Fiber.Id] = Effect((_, fiberId, _) => fiberId)
+  val fiberId: USTM[FiberId] = Effect((_, fiberId, _) => fiberId)
 
   /**
    * Filters the collection using the specified effectual predicate.
@@ -1251,6 +1265,18 @@ object ZSTM {
    */
   def ifSTM[R, E](b: ZSTM[R, E, Boolean]): ZSTM.IfSTM[R, E] =
     new ZSTM.IfSTM(b)
+
+  /**
+   * Interrupts the fiber running the effect.
+   */
+  lazy val interrupt: USTM[Nothing] =
+    ZSTM.fiberId.flatMap(fiberId => interruptAs(fiberId))
+
+  /**
+   * Interrupts the fiber running the effect with the specified fiber id.
+   */
+  def interruptAs(fiberId: => FiberId): USTM[Nothing] =
+    Effect((_, _, _) => throw InterruptException(fiberId))
 
   /**
    * Iterates with the specified transactional function. The moral equivalent
@@ -1472,6 +1498,13 @@ object ZSTM {
     ZSTM.access(_.get[A])
 
   /**
+   * Accesses the service corresponding to the specified key in the
+   * environment.
+   */
+  def serviceAt[Service]: ZSTM.ServiceAtPartiallyApplied[Service] =
+    new ZSTM.ServiceAtPartiallyApplied[Service]
+
+  /**
    * Accesses the specified services in the environment of the effect.
    */
   @deprecated("use service", "2.0.0")
@@ -1524,8 +1557,8 @@ object ZSTM {
   /**
    * The moral equivalent of `if (!p) exp`
    */
-  def unless[R, E](b: => Boolean)(stm: => ZSTM[R, E, Any]): ZSTM[R, E, Unit] =
-    suspend(if (b) unit else stm.unit)
+  def unless[R, E, A](b: => Boolean)(stm: => ZSTM[R, E, A]): ZSTM[R, E, Option[A]] =
+    suspend(if (b) none else stm.asSome)
 
   /**
    * The moral equivalent of `if (!p) exp` when `p` has side-effects
@@ -1582,26 +1615,26 @@ object ZSTM {
   /**
    * The moral equivalent of `if (p) exp`
    */
-  def when[R, E](b: => Boolean)(stm: => ZSTM[R, E, Any]): ZSTM[R, E, Unit] =
-    suspend(if (b) stm.unit else unit)
+  def when[R, E, A](b: => Boolean)(stm: => ZSTM[R, E, A]): ZSTM[R, E, Option[A]] =
+    suspend(if (b) stm.asSome else none)
 
   /**
    * Runs an effect when the supplied `PartialFunction` matches for the given value, otherwise does nothing.
    */
-  def whenCase[R, E, A](a: => A)(pf: PartialFunction[A, ZSTM[R, E, Any]]): ZSTM[R, E, Unit] =
-    suspend(pf.applyOrElse(a, (_: A) => unit).unit)
+  def whenCase[R, E, A, B](a: => A)(pf: PartialFunction[A, ZSTM[R, E, B]]): ZSTM[R, E, Option[B]] =
+    suspend(pf.andThen(_.asSome).applyOrElse(a, (_: A) => none))
 
   /**
    * Runs an effect when the supplied `PartialFunction` matches for the given effectful value, otherwise does nothing.
    */
   @deprecated("use whenCaseSTM", "2.0.0")
-  def whenCaseM[R, E, A](a: ZSTM[R, E, A])(pf: PartialFunction[A, ZSTM[R, E, Any]]): ZSTM[R, E, Unit] =
+  def whenCaseM[R, E, A, B](a: ZSTM[R, E, A])(pf: PartialFunction[A, ZSTM[R, E, B]]): ZSTM[R, E, Option[B]] =
     whenCaseSTM(a)(pf)
 
   /**
    * Runs an effect when the supplied `PartialFunction` matches for the given effectful value, otherwise does nothing.
    */
-  def whenCaseSTM[R, E, A](a: ZSTM[R, E, A])(pf: PartialFunction[A, ZSTM[R, E, Any]]): ZSTM[R, E, Unit] =
+  def whenCaseSTM[R, E, A, B](a: ZSTM[R, E, A])(pf: PartialFunction[A, ZSTM[R, E, B]]): ZSTM[R, E, Option[B]] =
     a.flatMap(whenCase(_)(pf))
 
   /**
@@ -1623,12 +1656,21 @@ object ZSTM {
   }
 
   final class AccessSTMPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
-    def apply[E, A](f: R => ZSTM[R, E, A]): ZSTM[R, E, A] =
+    def apply[R1 <: R, E, A](f: R => ZSTM[R1, E, A]): ZSTM[R with R1, E, A] =
       ZSTM.environment.flatMap(f)
   }
 
+  final class ServiceAtPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
+    def apply[Key](
+      key: => Key
+    )(implicit tag: Tag[Map[Key, Service]]): ZSTM[HasMany[Key, Service], Nothing, Option[Service]] =
+      ZSTM.access(_.getAt(key))
+  }
+
   final class ServiceWithPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
-    def apply[E, A](f: Service => ZSTM[Has[Service], E, A])(implicit tag: Tag[Service]): ZSTM[Has[Service], E, A] =
+    def apply[R <: Has[Service], E, A](f: Service => ZSTM[R, E, A])(implicit
+      tag: Tag[Service]
+    ): ZSTM[R with Has[Service], E, A] =
       ZSTM.service[Service].flatMap(f)
   }
 
@@ -1638,8 +1680,8 @@ object ZSTM {
   }
 
   final class UnlessSTM[R, E](private val b: ZSTM[R, E, Boolean]) {
-    def apply[R1 <: R, E1 >: E](stm: => ZSTM[R1, E1, Any]): ZSTM[R1, E1, Unit] =
-      b.flatMap(b => if (b) unit else stm.unit)
+    def apply[R1 <: R, E1 >: E, A](stm: => ZSTM[R1, E1, A]): ZSTM[R1, E1, Option[A]] =
+      b.flatMap(b => if (b) none else stm.asSome)
   }
 
   final class UpdateService[-R, +E, +A, M](private val self: ZSTM[R, E, A]) {
@@ -1647,18 +1689,27 @@ object ZSTM {
       self.provideSome(ev.update(_, f))
   }
 
+  final class UpdateServiceAt[-R, +E, +A, Service](private val self: ZSTM[R, E, A]) extends AnyVal {
+    def apply[R1 <: R with HasMany[Key, Service], Key](key: => Key)(
+      f: Service => Service
+    )(implicit ev: Has.IsHas[R1], tag: Tag[Map[Key, Service]]): ZSTM[R1, E, A] =
+      self.provideSome(ev.updateAt(_, key, f))
+  }
+
   final class WhenSTM[R, E](private val b: ZSTM[R, E, Boolean]) {
-    def apply[R1 <: R, E1 >: E](stm: => ZSTM[R1, E1, Any]): ZSTM[R1, E1, Unit] =
-      b.flatMap(b => if (b) stm.unit else unit)
+    def apply[R1 <: R, E1 >: E, A](stm: => ZSTM[R1, E1, A]): ZSTM[R1, E1, Option[A]] =
+      b.flatMap(b => if (b) stm.asSome else none)
   }
 
   private[stm] final case class FailException[E](e: E) extends Throwable(null, null, false, false)
 
   private[stm] final case class DieException(t: Throwable) extends Throwable(null, null, false, false)
 
+  private[stm] final case class InterruptException(fiberId: FiberId) extends Throwable(null, null, false, false)
+
   private[stm] case object RetryException extends Throwable(null, null, false, false)
 
-  private[stm] final case class Effect[R, E, A](f: (Journal, Fiber.Id, R) => A) extends ZSTM[R, E, A] {
+  private[stm] final case class Effect[R, E, A](f: (Journal, FiberId, R) => A) extends ZSTM[R, E, A] {
     def tag: Int = Tags.Effect
   }
 
@@ -1857,10 +1908,10 @@ object ZSTM {
     /**
      * Runs all the todos.
      */
-    def completeTodos[E, A](exit: Exit[E, A], journal: Journal, platform: Platform): TryCommit[E, A] = {
+    def completeTodos[E, A](exit: Exit[E, A], journal: Journal, runtimeConfig: RuntimeConfig): TryCommit[E, A] = {
       val todos = collectTodos(journal)
 
-      if (todos.size > 0) platform.executor.submitOrThrow(() => execTodos(todos))
+      if (todos.size > 0) runtimeConfig.executor.submitOrThrow(() => execTodos(todos))
 
       TryCommit.Done(exit)
     }
@@ -1894,8 +1945,8 @@ object ZSTM {
     }
 
     def tryCommitSync[R, E, A](
-      platform: Platform,
-      fiberId: Fiber.Id,
+      runtimeConfig: RuntimeConfig,
+      fiberId: FiberId,
       stm: ZSTM[R, E, A],
       r: R
     ): TryCommit[E, A] = {
@@ -1955,17 +2006,18 @@ object ZSTM {
       }
 
       value match {
-        case TExit.Succeed(a) => completeTodos(Exit.succeed(a), journal, platform)
-        case TExit.Fail(e)    => completeTodos(Exit.fail(e), journal, platform)
-        case TExit.Die(t)     => completeTodos(Exit.die(t), journal, platform)
-        case TExit.Retry      => TryCommit.Suspend(journal)
+        case TExit.Succeed(a)         => completeTodos(Exit.succeed(a), journal, runtimeConfig)
+        case TExit.Fail(e)            => completeTodos(Exit.fail(e), journal, runtimeConfig)
+        case TExit.Die(t)             => completeTodos(Exit.die(t), journal, runtimeConfig)
+        case TExit.Interrupt(fiberId) => completeTodos(Exit.interrupt(fiberId), journal, runtimeConfig)
+        case TExit.Retry              => TryCommit.Suspend(journal)
       }
     }
 
     def tryCommitAsync[R, E, A](
       journal: Journal,
-      platform: Platform,
-      fiberId: Fiber.Id,
+      runtimeConfig: RuntimeConfig,
+      fiberId: FiberId,
       stm: ZSTM[R, E, A],
       txnId: TxnId,
       state: AtomicReference[State[E, A]],
@@ -1977,9 +2029,9 @@ object ZSTM {
 
       @tailrec
       def suspend(accum: Journal, journal: Journal): Unit = {
-        addTodo(txnId, journal, () => tryCommitAsync(null, platform, fiberId, stm, txnId, state, r)(k))
+        addTodo(txnId, journal, () => tryCommitAsync(null, runtimeConfig, fiberId, stm, txnId, state, r)(k))
 
-        if (isInvalid(journal)) tryCommit(platform, fiberId, stm, state, r) match {
+        if (isInvalid(journal)) tryCommit(runtimeConfig, fiberId, stm, state, r) match {
           case TryCommit.Done(exit) => complete(exit)
           case TryCommit.Suspend(journal2) =>
             val untracked = untrackedTodoTargets(accum, journal2)
@@ -1996,7 +2048,7 @@ object ZSTM {
         if (state.get.isRunning) {
           if (journal ne null) suspend(journal, journal)
           else
-            tryCommit(platform, fiberId, stm, state, r) match {
+            tryCommit(runtimeConfig, fiberId, stm, state, r) match {
               case TryCommit.Done(io)         => complete(io)
               case TryCommit.Suspend(journal) => suspend(journal, journal)
             }
@@ -2005,8 +2057,8 @@ object ZSTM {
     }
 
     def tryCommit[R, E, A](
-      platform: Platform,
-      fiberId: Fiber.Id,
+      runtimeConfig: RuntimeConfig,
+      fiberId: FiberId,
       stm: ZSTM[R, E, A],
       state: AtomicReference[State[E, A]],
       r: R
@@ -2073,10 +2125,11 @@ object ZSTM {
       }
 
       value match {
-        case TExit.Succeed(a) => completeTodos(Exit.succeed(a), journal, platform)
-        case TExit.Fail(e)    => completeTodos(Exit.fail(e), journal, platform)
-        case TExit.Die(t)     => completeTodos(Exit.die(t), journal, platform)
-        case TExit.Retry      => TryCommit.Suspend(journal)
+        case TExit.Succeed(a)         => completeTodos(Exit.succeed(a), journal, runtimeConfig)
+        case TExit.Fail(e)            => completeTodos(Exit.fail(e), journal, runtimeConfig)
+        case TExit.Die(t)             => completeTodos(Exit.die(t), journal, runtimeConfig)
+        case TExit.Interrupt(fiberId) => completeTodos(Exit.interrupt(fiberId), journal, runtimeConfig)
+        case TExit.Retry              => TryCommit.Suspend(journal)
       }
     }
 
@@ -2090,10 +2143,11 @@ object ZSTM {
     object TExit {
       val unit: TExit[Nothing, Unit] = Succeed(())
 
-      final case class Fail[+A](value: A)    extends TExit[A, Nothing]
-      final case class Die(error: Throwable) extends TExit[Nothing, Nothing]
-      final case class Succeed[+B](value: B) extends TExit[Nothing, B]
-      case object Retry                      extends TExit[Nothing, Nothing]
+      final case class Fail[+A](value: A)          extends TExit[A, Nothing]
+      final case class Die(error: Throwable)       extends TExit[Nothing, Nothing]
+      final case class Interrupt(fiberId: FiberId) extends TExit[Nothing, Nothing]
+      final case class Succeed[+B](value: B)       extends TExit[Nothing, B]
+      case object Retry                            extends TExit[Nothing, Nothing]
     }
 
     abstract class Entry { self =>
@@ -2194,10 +2248,11 @@ object ZSTM {
 
       def done[E, A](exit: TExit[E, A]): State[E, A] =
         exit match {
-          case TExit.Succeed(a) => State.Done(Exit.succeed(a))
-          case TExit.Die(t)     => State.Done(Exit.die(t))
-          case TExit.Fail(e)    => State.Done(Exit.fail(e))
-          case TExit.Retry      => throw new Error("Defect: done being called on TExit.Retry")
+          case TExit.Succeed(a)         => State.Done(Exit.succeed(a))
+          case TExit.Die(t)             => State.Done(Exit.die(t))
+          case TExit.Fail(e)            => State.Done(Exit.fail(e))
+          case TExit.Interrupt(fiberId) => State.Done(Exit.interrupt(fiberId))
+          case TExit.Retry              => throw new Error("Defect: done being called on TExit.Retry")
         }
     }
   }

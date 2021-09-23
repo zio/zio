@@ -394,10 +394,10 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
       case ExecCase(exec, spec)     => Spec.exec(exec, spec.provideLayerShared(layer))
       case LabeledCase(label, spec) => Spec.labeled(label, spec.provideLayerShared(layer))
       case ManagedCase(managed) =>
-        Spec.managed(layer.memoize.flatMap(layer => managed.map(_.provideLayer(layer)).provideLayer(layer)))
+        Spec.managed(layer.build.flatMap(r => managed.map(_.provide(r)).provide(r)))
       case MultipleCase(specs) =>
         Spec.managed(
-          layer.memoize.map(layer => Spec.multiple(specs.map(_.provideLayer(layer))))
+          layer.build.map(r => Spec.multiple(specs.map(_.provide(r))))
         )
       case TestCase(test, annotations) => Spec.test(test.provideLayer(layer), annotations)
     }
@@ -523,6 +523,12 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
     new Spec.UpdateService[R, E, T, M](self)
 
   /**
+   * Updates a service at the specified key in the environment of this effect.
+   */
+  final def updateServiceAt[Service]: Spec.UpdateServiceAt[R, E, T, Service] =
+    new Spec.UpdateServiceAt[R, E, T, Service](self)
+
+  /**
    * Runs the spec only if the specified predicate is satisfied.
    */
   final def when(b: => Boolean)(implicit ev: T <:< TestSuccess): Spec[R with Has[Annotations], E, TestSuccess] =
@@ -607,7 +613,7 @@ object Spec {
     def apply[E1 >: E, R1](
       layer: ZLayer[R0, E1, R1]
     )(implicit ev1: R0 with R1 <:< R, ev2: Has.Union[R0, R1], tagged: Tag[R1]): Spec[R0, E1, T] =
-      self.provideLayer[E1, R0, R0 with R1](ZLayer.identity[R0] ++ layer)
+      self.provideLayer[E1, R0, R0 with R1](ZLayer.environment[R0] ++ layer)
   }
 
   final class ProvideSomeLayerShared[R0, -R, +E, +T](private val self: Spec[R, E, T]) extends AnyVal {
@@ -618,10 +624,14 @@ object Spec {
         case ExecCase(exec, spec)     => Spec.exec(exec, spec.provideSomeLayerShared(layer))
         case LabeledCase(label, spec) => Spec.labeled(label, spec.provideSomeLayerShared(layer))
         case ManagedCase(managed) =>
-          Spec.managed(layer.memoize.flatMap(layer => managed.map(_.provideSomeLayer(layer)).provideSomeLayer(layer)))
+          Spec.managed(
+            layer.build.flatMap { r =>
+              managed.map(_.provideSomeLayer[R0](ZLayer.succeedMany(r))).provideSomeLayer[R0](ZLayer.succeedMany(r))
+            }
+          )
         case MultipleCase(specs) =>
           Spec.managed(
-            layer.memoize.map(layer => Spec.multiple(specs.map(_.provideSomeLayer(layer))))
+            layer.build.map(r => Spec.multiple(specs.map(_.provideSomeLayer[R0](ZLayer.succeedMany(r)))))
           )
         case TestCase(test, annotations) =>
           Spec.test(test.provideSomeLayer(layer), annotations)
@@ -631,5 +641,12 @@ object Spec {
   final class UpdateService[-R, +E, +T, M](private val self: Spec[R, E, T]) extends AnyVal {
     def apply[R1 <: R with Has[M]](f: M => M)(implicit ev: Has.IsHas[R1], tag: Tag[M]): Spec[R1, E, T] =
       self.provideSome(ev.update(_, f))
+  }
+
+  final class UpdateServiceAt[-R, +E, +T, Service](private val self: Spec[R, E, T]) extends AnyVal {
+    def apply[R1 <: R with HasMany[Key, Service], Key](key: => Key)(
+      f: Service => Service
+    )(implicit ev: Has.IsHas[R1], tag: Tag[Map[Key, Service]]): Spec[R1, E, T] =
+      self.provideSome(ev.updateAt(_, key, f))
   }
 }

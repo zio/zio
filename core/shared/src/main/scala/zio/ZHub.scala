@@ -368,9 +368,11 @@ object ZHub {
       val shutdown: UIO[Unit] =
         ZIO.suspendSucceedWith { (_, fiberId) =>
           shutdownFlag.set(true)
-          ZIO.whenZIO(shutdownHook.succeed(())) {
-            releaseMap.releaseAll(Exit.interrupt(fiberId), ExecutionStrategy.Parallel) *> strategy.shutdown
-          }
+          ZIO
+            .whenZIO(shutdownHook.succeed(())) {
+              releaseMap.releaseAll(Exit.interrupt(fiberId), ExecutionStrategy.Parallel) *> strategy.shutdown
+            }
+            .unit
         }.uninterruptible
       val size: UIO[Int] =
         ZIO.suspendSucceed {
@@ -431,10 +433,12 @@ object ZHub {
       val shutdown: UIO[Unit] =
         ZIO.suspendSucceedWith { (_, fiberId) =>
           shutdownFlag.set(true)
-          ZIO.whenZIO(shutdownHook.succeed(())) {
-            ZIO.foreachPar(unsafePollAll(pollers))(_.interruptAs(fiberId)) *>
-              ZIO.succeed(subscription.unsubscribe())
-          }
+          ZIO
+            .whenZIO(shutdownHook.succeed(())) {
+              ZIO.foreachPar(unsafePollAll(pollers))(_.interruptAs(fiberId)) *>
+                ZIO.succeed(subscription.unsubscribe())
+            }
+            .unit
         }.uninterruptible
       val size: UIO[Int] =
         ZIO.suspendSucceed {

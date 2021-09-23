@@ -20,29 +20,29 @@ object ZScopeSpec extends ZIOBaseSpec {
     test("make returns an empty and open scope") {
       for {
         open  <- ZScope.make[Unit]
-        empty <- open.scope.empty
-        value <- open.scope.closed
+        empty <- open.scope.isEmpty
+        value <- open.scope.isClosed
       } yield assert(empty)(isTrue) && assert(value)(isFalse)
     },
     test("close makes the scope closed") {
       for {
         open  <- ZScope.make[Unit]
         _     <- open.close(())
-        value <- open.scope.closed
+        value <- open.scope.isClosed
       } yield assert(value)(isTrue)
     },
     test("close can be called multiple times") {
       for {
         open  <- ZScope.make[Unit]
         _     <- open.close(()).repeatN(10)
-        value <- open.scope.closed
+        value <- open.scope.isClosed
       } yield assert(value)(isTrue)
     },
     test("ensure makes the scope non-empty") {
       for {
         open  <- ZScope.make[Unit]
         value <- open.scope.ensure(_ => IO.unit)
-        empty <- open.scope.empty
+        empty <- open.scope.isEmpty
       } yield assert(empty)(isFalse) && assert(value)(isRight(anything))
     },
     test("ensure on closed scope returns false") {
@@ -50,7 +50,7 @@ object ZScopeSpec extends ZIOBaseSpec {
         open  <- ZScope.make[Unit]
         _     <- open.close(())
         value <- open.scope.ensure(_ => IO.unit)
-        empty <- open.scope.empty
+        empty <- open.scope.isEmpty
       } yield assert(empty)(isTrue) && assert(value)(isLeft(anything))
     },
     testScope("one finalizer", 0)((ref, scope) => scope.ensure(_ => ref.update(_ + 1)) as 1),
@@ -78,7 +78,7 @@ object ZScopeSpec extends ZIOBaseSpec {
           key3 <- open.scope.ensure(_ => ref.update(_ :+ "3"), Strong)
           key4 <- open.scope.ensure(_ => ref.update(_ :+ "4"), Weak)
           _    <- open.close(())
-          _    <- ZIO.succeed(s"${key1} ${key2} ${key3} ${key4}")
+          _    <- ZIO.succeed(s"$key1 $key2 $key3 $key4")
           v    <- ref.get
         } yield assert(v)(equalTo(Chunk("1", "2", "3", "4")))
       },
@@ -111,8 +111,8 @@ object ZScopeSpec extends ZIOBaseSpec {
           child    <- ZScope.make[Any]
           _        <- parent.scope.extend(child.scope)
           _        <- child.close(())
-          closed   <- child.scope.closed
-          released <- child.scope.released
+          closed   <- child.scope.isClosed
+          released <- child.scope.isReleased
         } yield assert(closed)(isTrue ?? "closed") && assert(released)(isFalse ?? "released")
       },
       test("single extension") {

@@ -6,13 +6,11 @@ import zio.internal._
 
 import scala.concurrent.ExecutionContext
 
-object BenchmarkUtil extends BootstrapRuntime {
+object BenchmarkUtil extends Runtime[ZEnv] {
+  val environment   = Runtime.default.environment
+  val runtimeConfig = RuntimeConfig.benchmark
 
-  override val platform: Platform = Platform.benchmark
-
-  val TracedRuntime: BootstrapRuntime = new BootstrapRuntime {
-    override val platform = Platform.benchmark.withTracing(Tracing.enabled)
-  }
+  val TracedRuntime: Runtime[ZEnv] = Runtime(environment, RuntimeConfig.benchmark.copy(tracing = Tracing.enabled))
 
   implicit val futureExecutionContext: ExecutionContext =
     ExecutionContext.global
@@ -22,7 +20,7 @@ object BenchmarkUtil extends BootstrapRuntime {
     else zio *> repeat(n - 1)(zio)
 
   def verify(cond: Boolean)(message: => String): IO[AssertionError, Unit] =
-    ZIO.when(!cond)(IO.fail(new AssertionError(message)))
+    ZIO.when(!cond)(IO.fail(new AssertionError(message))).unit
 
   def catsForeach[A, B](as: List[A])(f: A => CIO[B]): CIO[List[B]] =
     Traverse[List].traverse(as)(f)

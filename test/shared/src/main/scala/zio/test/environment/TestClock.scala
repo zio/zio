@@ -16,8 +16,8 @@
 
 package zio.test.environment
 
+import zio._
 import zio.test.{Annotations, TestAnnotation}
-import zio.{Clock, Console, PlatformSpecific => _, _}
 
 import java.io.IOException
 import java.time.{Instant, LocalDateTime, OffsetDateTime, ZoneId}
@@ -120,7 +120,7 @@ object TestClock extends Serializable {
     /**
      * Returns the current clock time in the specified time unit.
      */
-    def currentTime(unit: TimeUnit): UIO[Long] =
+    def currentTime(unit: => TimeUnit): UIO[Long] =
       clockState.get.map(data => unit.convert(data.duration.toMillis, TimeUnit.MILLISECONDS))
 
     /**
@@ -180,7 +180,7 @@ object TestClock extends Serializable {
      * adjusted to on or after the duration, the fiber will automatically be
      * resumed.
      */
-    def sleep(duration: Duration): UIO[Unit] =
+    def sleep(duration: => Duration): UIO[Unit] =
       for {
         promise <- Promise.make[Nothing, Unit]
         shouldAwait <- clockState.modify { data =>
@@ -249,9 +249,9 @@ object TestClock extends Serializable {
      * cannot synchronize on the status of multiple fibers at the same time
      * this snapshot may not be fully consistent.
      */
-    private lazy val freeze: IO[Unit, Map[Fiber.Id, Fiber.Status]] =
+    private lazy val freeze: IO[Unit, Map[FiberId, Fiber.Status]] =
       supervisedFibers.flatMap { fibers =>
-        ZIO.foldLeft(fibers)(Map.empty[Fiber.Id, Fiber.Status]) { (map, fiber) =>
+        ZIO.foldLeft(fibers)(Map.empty[FiberId, Fiber.Status]) { (map, fiber) =>
           fiber.status.flatMap {
             case done @ Fiber.Status.Done                          => ZIO.succeedNow(map + (fiber.id -> done))
             case suspended @ Fiber.Status.Suspended(_, _, _, _, _) => ZIO.succeedNow(map + (fiber.id -> suspended))
@@ -305,7 +305,7 @@ object TestClock extends Serializable {
     /**
      * Returns whether all descendants of this fiber are done or suspended.
      */
-    private lazy val suspended: IO[Unit, Map[Fiber.Id, Fiber.Status]] =
+    private lazy val suspended: IO[Unit, Map[FiberId, Fiber.Status]] =
       freeze.zip(delay *> freeze).flatMap { case (first, last) =>
         if (first == last) ZIO.succeedNow(first)
         else ZIO.fail(())
@@ -337,8 +337,8 @@ object TestClock extends Serializable {
       suspendedWarningState.updateSomeZIO { case SuspendedWarningData.Start =>
         for {
           fiber <- live.provide {
-                     Console
-                       .printLine(suspendedWarning)
+                     ZIO
+                       .logWarning(suspendedWarning)
                        .zipRight(suspendedWarningState.set(SuspendedWarningData.done))
                        .delay(5.seconds)
                    }.interruptible.fork
@@ -352,7 +352,7 @@ object TestClock extends Serializable {
     private val warningStart: UIO[Unit] =
       warningState.updateSomeZIO { case WarningData.Start =>
         for {
-          fiber <- live.provide(Console.printLine(warning).delay(5.seconds)).interruptible.fork
+          fiber <- live.provide(ZIO.logWarning(warning).delay(5.seconds)).interruptible.fork
         } yield WarningData.pending(fiber)
       }
 
@@ -381,7 +381,7 @@ object TestClock extends Serializable {
   //    case class FooLive(int: Int, string: String)
 
   val any: ZLayer[Has[Clock] with Has[TestClock], Nothing, Has[Clock] with Has[TestClock]] =
-    ZLayer.requires[Has[Clock] with Has[TestClock]]
+    ZLayer.environment[Has[Clock] with Has[TestClock]]
 
   val default: ZLayer[Has[Live] with Has[Annotations], Nothing, Has[Clock] with Has[TestClock]] =
     live(Data(Duration.Zero, Nil, ZoneId.of("UTC")))
@@ -456,7 +456,7 @@ object TestClock extends Serializable {
    * the effect is scheduled to run, a promise that can be completed to
    * resume execution of the effect, and the fiber executing the effect.
    */
-  final case class Sleep(duration: Duration, promise: Promise[Nothing, Unit], fiberId: Fiber.Id)
+  final case class Sleep(duration: Duration, promise: Promise[Nothing, Unit], fiberId: FiberId)
 
   /**
    * `WarningData` describes the state of the warning message that is

@@ -51,8 +51,8 @@ trait NumericInstances {
   val negBigDecimalGen: Gen[Has[Random], NegBigDecimal] = Gen.bigDecimal(Double.MinValue, -1).map(Refined.unsafeApply)
   val nonPosBigDecimalGen: Gen[Has[Random], NonPosBigDecimal] =
     Gen.bigDecimal(Double.MinValue, 0).map(Refined.unsafeApply)
-  val nonNanFloatGen: Gen[Has[Random], NonNaNFloat]   = Gen.anyFloat.map(Refined.unsafeApply)
-  val nonNanDoubleGen: Gen[Has[Random], NonNaNDouble] = Gen.anyDouble.map(Refined.unsafeApply)
+  val nonNanFloatGen: Gen[Has[Random], NonNaNFloat]   = Gen.float.map(Refined.unsafeApply)
+  val nonNanDoubleGen: Gen[Has[Random], NonNaNDouble] = Gen.double.map(Refined.unsafeApply)
 
   implicit val posByteDeriveGen: DeriveGen[PosByte]                   = DeriveGen.instance(posByteGen)
   implicit val nonNegByteDeriveGen: DeriveGen[NonNegByte]             = DeriveGen.instance(nonNegByteGen)

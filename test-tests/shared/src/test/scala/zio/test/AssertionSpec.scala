@@ -569,7 +569,21 @@ object AssertionSpec extends ZIOBaseSpec {
       val assertionM = AssertionM.assertionDirect[Unit]("sameName")()(_ => ???)
       assert(assertion.equals(assertionM))(isFalse ?? "assertion != assertionM") &&
       assert(assertionM.equals(assertion))(isFalse ?? "assertionM != assertion")
-    }
+    },
+    test("hasThrowableCause must succeed when supplied value has matching cause") {
+      val cause = new Exception("cause")
+      val t     = new Exception("result", cause)
+      assert(t)(hasThrowableCause(hasMessage(equalTo("cause"))))
+    },
+    test("hasThrowableCause must fail when supplied value has non-matching cause") {
+      val cause = new Exception("something different")
+      val t     = new Exception("result", cause)
+      assert(t)(hasThrowableCause(hasMessage(equalTo("cause"))))
+    } @@ failing,
+    test("hasThrowableCause must fail when supplied value does not have a cause") {
+      val t = new Exception("result")
+      assert(t)(hasThrowableCause(hasMessage(equalTo("cause"))))
+    } @@ failing
   )
 
   case class SampleUser(name: String, age: Int)

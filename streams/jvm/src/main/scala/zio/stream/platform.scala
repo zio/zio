@@ -51,14 +51,16 @@ trait ZSinkPlatformSpecificConstructors {
   final def fromOutputStreamManaged(
     os: ZManaged[Any, IOException, OutputStream]
   ): ZSink[Any, IOException, Byte, Byte, Long] =
-    ZSink.managed(os) { out =>
-      ZSink.foldLeftChunksZIO(0L) { (bytesWritten, byteChunk: Chunk[Byte]) =>
-        ZIO.attemptBlockingInterrupt {
-          val bytes = byteChunk.toArray
-          out.write(bytes)
-          bytesWritten + bytes.length
-        }.refineOrDie { case e: IOException =>
-          e
+    ZSink.unwrapManaged {
+      os.map { out =>
+        ZSink.foldLeftChunksZIO(0L) { (bytesWritten, byteChunk: Chunk[Byte]) =>
+          ZIO.attemptBlockingInterrupt {
+            val bytes = byteChunk.toArray
+            out.write(bytes)
+            bytesWritten + bytes.length
+          }.refineOrDie { case e: IOException =>
+            e
+          }
         }
       }
     }
@@ -86,13 +88,16 @@ trait ZSinkPlatformSpecificConstructors {
         )
     )(chan => ZIO.attemptBlocking(chan.close()).orDie)
 
-    val writer: ZSink[Any, Throwable, Byte, Byte, Unit] = ZSink.managed(managedChannel) { chan =>
-      ZSink.foreachChunk[Any, Throwable, Byte](byteChunk =>
-        ZIO.attemptBlockingInterrupt {
-          chan.write(ByteBuffer.wrap(byteChunk.toArray))
+    val writer: ZSink[Any, Throwable, Byte, Byte, Unit] =
+      ZSink.unwrapManaged {
+        managedChannel.map { chan =>
+          ZSink.foreachChunk[Any, Throwable, Byte](byteChunk =>
+            ZIO.attemptBlockingInterrupt {
+              chan.write(ByteBuffer.wrap(byteChunk.toArray))
+            }
+          )
         }
-      )
-    }
+      }
     writer &> ZSink.count
   }
 }
@@ -137,7 +142,7 @@ trait ZStreamPlatformSpecificConstructors {
                               runtime.unsafeRun(stream.Take.fromPull(k).flatMap(output.offer))
                               ()
                             } catch {
-                              case FiberFailure(c) if c.interrupted =>
+                              case FiberFailure(c) if c.isInterrupted =>
                             }
                           )
                         }
@@ -154,6 +159,38 @@ trait ZStreamPlatformSpecificConstructors {
                 }
       } yield pull
     }
+
+  /**
+   * Creates a stream from an asynchronous callback that can be called multiple times.
+   * The registration of the callback itself returns an a managed resource.
+   * The optionality of the error type `E` can be used to signal the end of the
+   * stream, by setting it to `None`.
+   */
+  def asyncManaged[R, E, A](
+    register: (ZIO[R, Option[E], Chunk[A]] => Unit) => ZManaged[R, E, Any],
+    outputBuffer: Int = 16
+  ): ZStream[R, E, A] =
+    managed {
+      for {
+        output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).toManagedWith(_.shutdown)
+        runtime <- ZIO.runtime[R].toManaged
+        _ <- register { k =>
+               try {
+                 runtime.unsafeRun(stream.Take.fromPull(k).flatMap(output.offer))
+                 ()
+               } catch {
+                 case FiberFailure(c) if c.isInterrupted =>
+               }
+             }
+        done <- ZRef.makeManaged(false)
+        pull = done.get.flatMap {
+                 if (_)
+                   Pull.end
+                 else
+                   output.take.flatMap(_.done).onError(_ => done.set(true) *> output.shutdown)
+               }
+      } yield pull
+    }.flatMap(repeatZIOChunkOption(_))
 
   /**
    * Creates a stream from an asynchronous callback that can be called multiple times
@@ -173,7 +210,7 @@ trait ZStreamPlatformSpecificConstructors {
                  runtime.unsafeRun(stream.Take.fromPull(k).flatMap(output.offer))
                  ()
                } catch {
-                 case FiberFailure(c) if c.interrupted =>
+                 case FiberFailure(c) if c.isInterrupted =>
                }
              }.toManaged
         done <- ZRef.makeManaged(false)
@@ -206,7 +243,7 @@ trait ZStreamPlatformSpecificConstructors {
                              runtime.unsafeRun(stream.Take.fromPull(k).flatMap(output.offer))
                              ()
                            } catch {
-                             case FiberFailure(c) if c.interrupted =>
+                             case FiberFailure(c) if c.isInterrupted =>
                            }
                          }
                        }
@@ -294,7 +331,7 @@ trait ZStreamPlatformSpecificConstructors {
                 val blocking = ZIO.attemptBlocking(builder += iterator.next())
 
                 def go(i: Int): ZIO[Any, Throwable, Unit] =
-                  ZIO.when(i < maxChunkSize && iterator.hasNext)(blocking *> go(i + 1))
+                  ZIO.when(i < maxChunkSize && iterator.hasNext)(blocking *> go(i + 1)).unit
 
                 go(0).asSomeError.flatMap { _ =>
                   val chunk = builder.result()

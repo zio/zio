@@ -6,7 +6,7 @@
 
 | Scaladoc | Scaladex | Discord | Twitter | Gitpod |
 | --- | --- | --- | --- | --- |
-| [![Badge-Scaladoc]][Link-Scaladoc] | [![Badge-Scaladex-page]][Link-Scaladex-page] | [![Badge-Discord]][Link-Discord] | [![Badge-Twitter]][Link-Twitter] | [![Gitpod ready-to-code](https://img.shields.io/badge/Gitpod-ready--to--code-blue?logo=gitpod)](https://gitpod.io/#https://github.com/zio/zio) |
+| [Scaladoc][Link-Scaladoc] | [![Badge-Scaladex-page]][Link-Scaladex-page] | [![Badge-Discord]][Link-Discord] | [![Badge-Twitter]][Link-Twitter] | [![Gitpod ready-to-code](https://img.shields.io/badge/Gitpod-ready--to--code-blue?logo=gitpod)](https://gitpod.io/#https://github.com/zio/zio) |
 
 # Welcome to ZIO
 
@@ -75,6 +75,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Dream11](https://dream11.com)
 * [Deutsche Telekom IoT GmbH](https://iot.telekom.com/en)
 * [eBay](https://www.ebay.com)
+* [Electricité de France (EDF)](https://www.edf.fr/)
 * [EnelX](https://www.enelx.com)
 * [Evolution](https://evolution.engineering)
 * [Evo](https://evo.company)
@@ -108,6 +109,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Risk Ident](https://riskident.com/)
 * [Rocker](https://rocker.com/)
 * [Rudder](https://www.rudder.io/)
+* [Sanjagh](https://sanjagh.pro/)
 * [Scalac](https://scalac.io/)
 * [SecurityScorecard](https://www.securityscorecard.io/)
 * [SentinelOne](https://www.sentinelone.com/)
@@ -128,6 +130,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Yandex.Classifieds](https://o.yandex.ru)
 * [Audela](https://audela.ca)
 * [Valamis Group](https://valamis.com)
+* [VirtusLab](https://virtuslab.com/)
 * [Vish](https://getvish.com)
 * [Zalando](https://zalando.com/)
 * [Zooz](https://zooz.com/)
@@ -194,7 +197,6 @@ Copyright 2017 - 2020 John A. De Goes and the ZIO Contributors. All rights reser
 [Badge-CI]: https://github.com/zio/zio/workflows/CI/badge.svg
 [Badge-Codecov]: https://codecov.io/gh/zio/zio/coverage.svg?branch=master "Codecov"
 [Badge-IsItMaintained]: http://isitmaintained.com/badge/resolution/zio/zio.svg "Average time to resolve an issue"
-[Badge-Scaladoc]: https://javadoc-badge.appspot.com/dev.zio/zio_2.12.svg?label=scaladoc "Scaladoc"
 [Badge-Scaladex-page]: https://index.scala-lang.org/zio/zio/zio/latest.svg "Scaladex"
 [Badge-SonatypeReleases]: https://img.shields.io/nexus/r/https/oss.sonatype.org/dev.zio/zio_2.12.svg "Sonatype Releases"
 [Badge-SonatypeSnapshots]: https://img.shields.io/nexus/s/https/oss.sonatype.org/dev.zio/zio_2.12.svg "Sonatype Snapshots"

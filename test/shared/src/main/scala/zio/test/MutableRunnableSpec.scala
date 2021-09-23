@@ -38,6 +38,7 @@ import scala.util.control.NoStackTrace
  * }
  * }}}
  */
+@deprecated("use RunnableSpec", "2.0.0")
 class MutableRunnableSpec[R <: Has[_]: Tag](
   layer: ZLayer[TestEnvironment, Throwable, R],
   aspect: TestAspect[R with TestEnvironment, R with TestEnvironment, Any, Any] = TestAspect.identity
@@ -45,7 +46,7 @@ class MutableRunnableSpec[R <: Has[_]: Tag](
   self =>
 
   private class InAnotherTestException(`type`: String, label: String)
-      extends Exception(s"${`type`} `${label}` is in another test")
+      extends Exception(s"${`type`} `$label` is in another test")
       with NoStackTrace
 
   sealed trait SpecBuilder {

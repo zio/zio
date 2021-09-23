@@ -16,6 +16,7 @@
 
 package zio
 
+@deprecated("2.0.0", "Use zio.ZIOApp")
 trait ZApp[R] extends Runtime[R] {
 
   /**

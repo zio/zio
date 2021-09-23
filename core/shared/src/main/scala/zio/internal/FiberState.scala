@@ -1,7 +1,7 @@
 package zio.internal
 
 import zio.Fiber.Status
-import zio.{Callback, Cause, Exit, Fiber, IO, InterruptStatus, Supervisor, TracingStatus, ZScope}
+import zio._
 
 import scala.annotation.tailrec
 
@@ -23,7 +23,7 @@ private[zio] final class FiberState[E, A](executing0: FiberState.Executing[E, A]
 
   def getStatus: Fiber.Status = executing.status
 
-  def interrupting: Boolean = {
+  def isInterrupting: Boolean = {
     @tailrec
     def loop(status0: Fiber.Status): Boolean =
       status0 match {
@@ -51,7 +51,7 @@ object FiberState extends Serializable {
   def apply[E, A](
     startIStatus: InterruptStatus,
     startEnv: AnyRef,
-    startExec: Executor,
+    startExec: zio.Executor,
     supervisor0: Supervisor[Any],
     initialTracingStatus: TracingStatus
   ): FiberState[E, A] =
@@ -60,7 +60,7 @@ object FiberState extends Serializable {
   class Executing[E, A](
     startIStatus: InterruptStatus,
     startEnv: AnyRef,
-    startExec: Executor,
+    startExec: zio.Executor,
     supervisor0: Supervisor[Any],
     initialTracingStatus: TracingStatus
   ) {
@@ -71,7 +71,7 @@ object FiberState extends Serializable {
     @volatile var asyncEpoch: Long                               = 0L
     val interruptStatus: StackBool                               = StackBool(startIStatus.toBoolean)
     var currentEnvironment: Any                                  = startEnv
-    var currentExecutor: Executor                                = startExec
+    var currentExecutor: zio.Executor                            = startExec
     var currentSupervisor: Supervisor[Any]                       = supervisor0
     var currentForkScopeOverride: Option[ZScope[Exit[Any, Any]]] = None
     var currentTracingStatus: TracingStatus                      = initialTracingStatus

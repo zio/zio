@@ -50,22 +50,22 @@ object TestSystem extends Serializable {
     /**
      * Returns the specified environment variable if it exists.
      */
-    def env(variable: String): IO[SecurityException, Option[String]] =
+    def env(variable: => String): IO[SecurityException, Option[String]] =
       systemState.get.map(_.envs.get(variable))
 
     /**
      * Returns the specified environment variable if it exists or else the
      * specified fallback value.
      */
-    def envOrElse(variable: String, alt: => String): IO[SecurityException, String] =
-      System.envOrElseWith(variable, alt)(env)
+    def envOrElse(variable: => String, alt: => String): IO[SecurityException, String] =
+      System.envOrElseWith(variable, alt)(env(_))
 
     /**
      * Returns the specified environment variable if it exists or else the
      * specified optional fallback value.
      */
-    def envOrOption(variable: String, alt: => Option[String]): IO[SecurityException, Option[String]] =
-      System.envOrOptionWith(variable, alt)(env)
+    def envOrOption(variable: => String, alt: => Option[String]): IO[SecurityException, Option[String]] =
+      System.envOrOptionWith(variable, alt)(env(_))
 
     val envs: ZIO[Any, SecurityException, Map[String, String]] =
       systemState.get.map(_.envs)
@@ -82,22 +82,22 @@ object TestSystem extends Serializable {
     /**
      * Returns the specified system property if it exists.
      */
-    def property(prop: String): IO[Throwable, Option[String]] =
+    def property(prop: => String): IO[Throwable, Option[String]] =
       systemState.get.map(_.properties.get(prop))
 
     /**
      * Returns the specified system property if it exists or else the
      * specified fallback value.
      */
-    def propertyOrElse(prop: String, alt: => String): IO[Throwable, String] =
-      System.propertyOrElseWith(prop, alt)(property)
+    def propertyOrElse(prop: => String, alt: => String): IO[Throwable, String] =
+      System.propertyOrElseWith(prop, alt)(property(_))
 
     /**
      * Returns the specified system property if it exists or else the
      * specified optional fallback value.
      */
-    def propertyOrOption(prop: String, alt: => Option[String]): IO[Throwable, Option[String]] =
-      System.propertyOrOptionWith(prop, alt)(property)
+    def propertyOrOption(prop: => String, alt: => Option[String]): IO[Throwable, Option[String]] =
+      System.propertyOrOptionWith(prop, alt)(property(_))
 
     /**
      * Adds the specified name and value to the mapping of environment
@@ -158,7 +158,7 @@ object TestSystem extends Serializable {
     Ref.make(data).map(ref => Has.allOf[System, TestSystem](Test(ref), Test(ref))).toLayerMany
 
   val any: ZLayer[Has[System] with Has[TestSystem], Nothing, Has[System] with Has[TestSystem]] =
-    ZLayer.requires[Has[System] with Has[TestSystem]]
+    ZLayer.environment[Has[System] with Has[TestSystem]]
 
   val default: Layer[Nothing, Has[System] with Has[TestSystem]] =
     live(DefaultData)

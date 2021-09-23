@@ -26,7 +26,7 @@ class GenBenchmarks {
   def zioIntListsOfSizeN: List[List[Int]] =
     unsafeRun(
       Gen
-        .listOfN(listSize)(Gen.listOfN(elementSize)(Gen.anyInt))
+        .listOfN(listSize)(Gen.listOfN(elementSize)(Gen.int))
         .sample
         .map(_.value)
         .runHead
@@ -38,7 +38,7 @@ class GenBenchmarks {
   def zioStringsOfSizeN: List[String] =
     unsafeRun(
       Gen
-        .listOfN(listSize)(Gen.stringN(elementSize)(Gen.anyChar))
+        .listOfN(listSize)(Gen.stringN(elementSize)(Gen.char))
         .sample
         .map(_.value)
         .runHead

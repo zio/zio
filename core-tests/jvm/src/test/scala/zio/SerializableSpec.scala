@@ -102,7 +102,7 @@ object SerializableSpec extends ZIOBaseSpec {
       assert(serializeAndDeserialize(cause))(equalTo(cause))
     },
     testSync("Cause.traced is serializable") {
-      val fiberId = Fiber.Id(0L, 0L)
+      val fiberId = FiberId(0L, 0L)
       val cause   = Cause.traced(Cause.fail("test"), ZTrace(fiberId, List.empty, List.empty, None))
       assert(serializeAndDeserialize(cause))(equalTo(cause))
     },
@@ -192,6 +192,7 @@ object SerializableSpec extends ZIOBaseSpec {
     },
     test("FiberRef is serializable") {
       val value = 10
+
       for {
         init   <- FiberRef.make(value)
         ref    <- serializeAndBack(init)
@@ -206,7 +207,7 @@ object SerializableSpec extends ZIOBaseSpec {
     },
     testSync("ZTrace is serializable") {
       val trace = ZTrace(
-        Fiber.Id(0L, 0L),
+        FiberId(0L, 0L),
         List(ZTraceElement.NoLocation("test")),
         List(ZTraceElement.SourceLocation("file.scala", "Class", "method", 123)),
         None

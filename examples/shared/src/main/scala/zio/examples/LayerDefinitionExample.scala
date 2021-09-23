@@ -1,7 +1,7 @@
 package zio.examples
 import zio._
 
-object LayerDefinitionExample extends App {
+object LayerDefinitionExample extends ZIOAppDefault {
   trait Foo {
     def bar: UIO[Unit]
   }
@@ -15,14 +15,17 @@ object LayerDefinitionExample extends App {
     }
   }
 
-  override def run(args: List[String]): URIO[ZEnv, ExitCode] = {
-    val liveLayer: ULayer[Has[Foo]] =
-      (Console.live ++ ZLayer.succeed("Hello") ++ ZLayer.succeed(3)) >>> Foo.live
+  override def run: ZIO[ZEnv with Has[ZIOAppArgs], Any, Any] = {
 
-    ZIO
-      .accessZIO[Has[Foo]](_.get.bar)
-      .inject(liveLayer)
-      .exitCode
+    val program: ZIO[Has[Foo], Nothing, Unit] = ZIO.serviceWith[Foo](_.bar)
+
+    program
+      .inject(
+        Console.live,
+        ZLayer.succeed("Hello"),
+        ZLayer.succeed(3),
+        Foo.live
+      )
   }
 
 }

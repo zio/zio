@@ -156,7 +156,7 @@ import ExampleMock._
 
 val compose: URLayer[Has[Proxy], Example] =
   ZIO.serviceWith[Proxy] { proxy =>
-    withRuntime.map { rts =>
+    withRuntime[Any].map { rts =>
       new Example.Service {
         val static                                 = proxy(Static)
         def zeroArgs                               = proxy(ZeroArgs)
@@ -370,8 +370,8 @@ object MaybeConsoleSpec extends DefaultRunnableSpec {
       def maybeConsole(invokeConsole: Boolean) =
         ZIO.when(invokeConsole)(Console.printLine("foo"))
 
-      val maybeTest1 = maybeConsole(false).provideSomeLayer(MockConsole.empty)
-      val maybeTest2 = maybeConsole(true).provideSomeLayer(MockConsole.PrintLine(equalTo("foo"), unit))
+      val maybeTest1 = maybeConsole(false).unit.provideSomeLayer(MockConsole.empty)
+      val maybeTest2 = maybeConsole(true).unit.provideSomeLayer(MockConsole.PrintLine(equalTo("foo"), unit))
       assertM(maybeTest1)(isUnit) *> assertM(maybeTest2)(isUnit)
     }
   )
@@ -437,7 +437,7 @@ object PolyExampleMock extends Mock[PolyExample] {
 
   val compose: URLayer[Has[Proxy], PolyExample] =
     ZIO.serviceWith[Proxy] { proxy =>
-      withRuntime.map { rts =>
+      withRuntime[Any].map { rts =>
         new PolyExample.Service {
           def polyInput[I: Tag](input: I)                     = proxy(PolyInput.of[I], input)
           def polyError[E: Tag](input: Int)                   = proxy(PolyError.of[E], input)
