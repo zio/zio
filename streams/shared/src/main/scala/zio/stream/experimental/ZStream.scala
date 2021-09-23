@@ -3820,6 +3820,20 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     constructor.make(input)
 
   /**
+   * Creates a stream from an blocking iterator that may throw exceptions.
+   */
+  @deprecated("use blocking(fromIterator())", "2.0.0")
+  def fromBlockingIterator[A](iterator: => Iterator[A]): ZStream[Any, Throwable, A] =
+    blocking(fromIterator(iterator))
+
+  /**
+   * Creates a stream from an blocking Java iterator that may throw exceptions.
+   */
+  @deprecated("use blocking(fromJavaIterator())", "2.0.0")
+  def fromBlockingJavaIterator[A](iter: => java.util.Iterator[A]): ZStream[Any, Throwable, A] =
+    blocking(fromJavaIterator(iter))
+
+  /**
    * Creates a stream from a [[zio.Chunk]] of values
    *
    * @param c a chunk of values
