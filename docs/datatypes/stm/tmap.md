@@ -154,15 +154,15 @@ val shrinkTMap: UIO[TMap[String, Int]] = (for {
 } yield tMap).commit
 ```
 
-The entries can be mapped effectfully via `transformM`:
+The entries can be mapped effectfully via `transformSTM`:
 
 ```scala mdoc:silent
 import zio._
 import zio.stm._
 
-val transformMTMap: UIO[TMap[String, Int]] = (for {
+val transformSTMTMap: UIO[TMap[String, Int]] = (for {
   tMap <- TMap.make(("a", 1), ("b", 2), ("c", 3))
-  _    <- tMap.transformM((k, v) => STM.succeed(k -> v * v))
+  _    <- tMap.transformSTM((k, v) => STM.succeed(k -> v * v))
 } yield tMap).commit
 ```
 
@@ -186,7 +186,7 @@ import zio.stm._
 
 val transformValuesMTMap: UIO[TMap[String, Int]] = (for {
   tMap <- TMap.make(("a", 1), ("b", 2), ("c", 3))
-  _    <- tMap.transformValuesM(v => STM.succeed(v * v))
+  _    <- tMap.transformValuesSTM(v => STM.succeed(v * v))
 } yield tMap).commit
 ```
 
@@ -204,15 +204,15 @@ val foldTMap: UIO[Int] = (for {
 } yield sum).commit
 ```
 
-The elements can be folded effectfully via `foldM`:
+The elements can be folded effectfully via `foldSTM`:
 
 ```scala mdoc:silent
 import zio._
 import zio.stm._
 
-val foldMTMap: UIO[Int] = (for {
+val foldSTMTMap: UIO[Int] = (for {
   tMap <- TMap.make(("a", 1), ("b", 2), ("c", 3))
-  sum  <- tMap.foldM(0) { case (acc, (_, v)) => STM.succeed(acc + v) }
+  sum  <- tMap.foldSTM(0) { case (acc, (_, v)) => STM.succeed(acc + v) }
 } yield sum).commit
 ```
 

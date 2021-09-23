@@ -18,7 +18,7 @@ final case class Graph[Key, A](nodes: List[Node[Key, A]], keyEquals: (Key, Key) 
 
   private def getDependencies[E](node: Node[Key, A]): Either[::[GraphError[Key, A]], List[Node[Key, A]]] =
     forEach(node.inputs) { input =>
-      getNodeWithOutput(input, error = GraphError.MissingTransitiveDependency(node, input))
+      getNodeWithOutput(input, error = GraphError.missingTransitiveDependency(node, input))
     }
       .map(_.distinct)
 

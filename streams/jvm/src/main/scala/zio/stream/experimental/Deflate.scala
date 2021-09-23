@@ -17,12 +17,12 @@ object Deflate {
   ): ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[Byte], Done] =
     ZChannel.managed {
       ZManaged
-        .make(ZIO.effectTotal {
+        .acquireReleaseWith(ZIO.succeed {
           val deflater = new Deflater(level.jValue, noWrap)
           deflater.setStrategy(strategy.jValue)
           (deflater, new Array[Byte](bufferSize))
         }) { case (deflater, _) =>
-          ZIO.effectTotal(deflater.end())
+          ZIO.succeed(deflater.end())
         }
     } {
       case (deflater, buffer) => {
@@ -34,7 +34,7 @@ object Deflate {
                 deflater.setInput(chunk.toArray)
                 pullOutput(deflater, buffer, flushMode)
               }.flatMap(chunk => ZChannel.write(chunk) *> loop),
-            ZChannel.halt(_),
+            ZChannel.failCause(_),
             done =>
               ZChannel.effectTotal {
                 deflater.finish()

@@ -34,7 +34,7 @@ val program = for {
 
   sem <- Semaphore.make(permits = 1)
 
-  seq <- ZIO.effectTotal(semTaskSeq(sem))
+  seq <- ZIO.succeed(semTaskSeq(sem))
 
   _ <- ZIO.collectAllPar(seq)
 

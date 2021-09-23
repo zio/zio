@@ -18,7 +18,7 @@ package zio.stm
 
 import com.github.ghik.silencer.silent
 import zio._
-import zio.internal.{Platform, Stack, Sync}
+import zio.internal.{Stack, Sync}
 
 import java.util.concurrent.atomic.{AtomicLong, AtomicReference}
 import java.util.{HashMap => MutableMap}
@@ -74,17 +74,17 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
   import ZSTM._
 
   /**
-   * Alias for `<*>` and `zip`.
+   * A symbolic alias for `orDie`.
    */
-  def &&&[R1 <: R, E1 >: E, B](that: ZSTM[R1, E1, B]): ZSTM[R1, E1, (A, B)] =
-    self <*> that
+  final def !(implicit ev: E <:< Throwable, ev2: CanFail[E]): ZSTM[R, Nothing, A] =
+    self.orDie
 
   /**
-   * Splits the environment, providing the first part to this effect and the
-   * second part to that effect.
+   * Alias for `<*>` and `zip`.
    */
-  def ***[R1, E1 >: E, B](that: ZSTM[R1, E1, B]): ZSTM[(R, R1), E1, (A, B)] =
-    (ZSTM.first >>> self) &&& (ZSTM.second >>> that)
+  @deprecated("use zip", "2.0.0")
+  def &&&[R1 <: R, E1 >: E, B](that: ZSTM[R1, E1, B])(implicit zippable: Zippable[A, B]): ZSTM[R1, E1, zippable.Out] =
+    self <*> that
 
   /**
    * Sequentially zips this value with the specified one, discarding the
@@ -92,13 +92,6 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
    */
   def *>[R1 <: R, E1 >: E, B](that: => ZSTM[R1, E1, B]): ZSTM[R1, E1, B] =
     self zipRight that
-
-  /**
-   * Depending on provided environment, returns either this one or the other
-   * effect lifted in `Left` or `Right`, respectively.
-   */
-  def +++[R1, B, E1 >: E](that: ZSTM[R1, E1, B]): ZSTM[Either[R, R1], E1, Either[A, B]] =
-    ZSTM.accessM[Either[R, R1]](_.fold(self.provide(_).map(Left(_)), that.provide(_).map(Right(_))))
 
   /**
    * Sequentially zips this value with the specified one, discarding the
@@ -110,7 +103,9 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
   /**
    * Sequentially zips this value with the specified one.
    */
-  def <*>[R1 <: R, E1 >: E, B](that: => ZSTM[R1, E1, B]): ZSTM[R1, E1, (A, B)] =
+  def <*>[R1 <: R, E1 >: E, B](that: => ZSTM[R1, E1, B])(implicit
+    zippable: Zippable[A, B]
+  ): ZSTM[R1, E1, zippable.Out] =
     self zip that
 
   /**
@@ -118,12 +113,6 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
    */
   def <+>[R1 <: R, E1, B](that: => ZSTM[R1, E1, B]): ZSTM[R1, E1, Either[A, B]] =
     self.orElseEither(that)
-
-  /**
-   * Propagates self environment to that.
-   */
-  def <<<[R1, E1 >: E](that: ZSTM[R1, E1, R]): ZSTM[R1, E1, A] =
-    that >>> self
 
   /**
    * Tries this effect first, and if it fails or retries, tries the other effect.
@@ -142,20 +131,9 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
    * Feeds the value produced by this effect to the specified function,
    * and then runs the returned effect as well to produce its results.
    */
+  @deprecated("use flatMap", "2.0.0")
   def >>=[R1 <: R, E1 >: E, B](f: A => ZSTM[R1, E1, B]): ZSTM[R1, E1, B] =
     self flatMap f
-
-  /**
-   * Propagates the given environment to self.
-   */
-  def >>>[E1 >: E, B](that: ZSTM[A, E1, B]): ZSTM[R, E1, B] =
-    flatMap(that.provide)
-
-  /**
-   * Depending on provided environment returns either this one or the other effect.
-   */
-  def |||[R1, E1 >: E, A1 >: A](that: ZSTM[R1, E1, A1]): ZSTM[Either[R, R1], E1, A1] =
-    ZSTM.accessM[Either[R, R1]](_.fold(self.provide, that.provide))
 
   /**
    * Returns an effect that submerges the error case of an `Either` into the
@@ -163,12 +141,6 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
    */
   def absolve[E1 >: E, B](implicit ev: A <:< Either[E1, B]): ZSTM[R, E1, B] =
     ZSTM.absolve(self.map(ev))
-
-  /**
-   * Named alias for `>>>`.
-   */
-  def andThen[E1 >: E, B](that: ZSTM[A, E1, B]): ZSTM[R, E1, B] =
-    self >>> that
 
   /**
    * Maps the success value of this effect to the specified constant value.
@@ -191,8 +163,9 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
    * Returns an `STM` effect whose failure and success channels have been mapped by
    * the specified pair of functions, `f` and `g`.
    */
+  @deprecated("use mapBoth", "2.0.0")
   def bimap[E2, B](f: E => E2, g: A => B)(implicit ev: CanFail[E]): ZSTM[R, E2, B] =
-    foldM(e => ZSTM.fail(f(e)), a => ZSTM.succeedNow(g(a)))
+    mapBoth(f, g)
 
   /**
    * Recovers from all errors.
@@ -212,20 +185,22 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
    * Simultaneously filters and maps the value produced by this effect.
    */
   def collect[B](pf: PartialFunction[A, B]): ZSTM[R, E, B] =
-    collectM(pf.andThen(ZSTM.succeedNow(_)))
+    collectSTM(pf.andThen(ZSTM.succeedNow(_)))
 
   /**
    * Simultaneously filters and flatMaps the value produced by this effect.
    * Continues on the effect returned from pf.
    */
+  @deprecated("use collectSTM", "2.0.0")
   def collectM[R1 <: R, E1 >: E, B](pf: PartialFunction[A, ZSTM[R1, E1, B]]): ZSTM[R1, E1, B] =
-    foldM(ZSTM.fail(_), (a: A) => if (pf.isDefinedAt(a)) pf(a) else ZSTM.retry)
+    collectSTM(pf)
 
   /**
-   * Named alias for `<<<`.
+   * Simultaneously filters and flatMaps the value produced by this effect.
+   * Continues on the effect returned from pf.
    */
-  def compose[R1, E1 >: E](that: ZSTM[R1, E1, R]): ZSTM[R1, E1, A] =
-    self <<< that
+  def collectSTM[R1 <: R, E1 >: E, B](pf: PartialFunction[A, ZSTM[R1, E1, B]]): ZSTM[R1, E1, B] =
+    foldSTM(ZSTM.fail(_), (a: A) => if (pf.isDefinedAt(a)) pf(a) else ZSTM.retry)
 
   /**
    * Commits this transaction atomically.
@@ -275,44 +250,51 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
    * if the full transaction fails, everything will be rolled back.
    */
   def ensuring[R1 <: R](finalizer: ZSTM[R1, Nothing, Any]): ZSTM[R1, E, A] =
-    foldM(e => finalizer *> ZSTM.fail(e), a => finalizer *> ZSTM.succeedNow(a))
+    foldSTM(e => finalizer *> ZSTM.fail(e), a => finalizer *> ZSTM.succeedNow(a))
 
   /**
    * Returns an effect that ignores errors and runs repeatedly until it eventually succeeds.
    */
   def eventually(implicit ev: CanFail[E]): URSTM[R, A] =
-    foldM(_ => eventually, ZSTM.succeedNow)
+    foldSTM(_ => eventually, ZSTM.succeedNow)
 
   /**
    * Dies with specified `Throwable` if the predicate fails.
    */
   def filterOrDie(p: A => Boolean)(t: => Throwable): ZSTM[R, E, A] =
-    filterOrElse_(p)(ZSTM.die(t))
+    filterOrElse(p)(ZSTM.die(t))
 
   /**
    * Dies with a [[java.lang.RuntimeException]] having the specified text message
    * if the predicate fails.
    */
   def filterOrDieMessage(p: A => Boolean)(msg: => String): ZSTM[R, E, A] =
-    filterOrElse_(p)(ZSTM.dieMessage(msg))
-
-  /**
-   * Applies `f` if the predicate fails.
-   */
-  def filterOrElse[R1 <: R, E1 >: E, A1 >: A](p: A => Boolean)(f: A => ZSTM[R1, E1, A1]): ZSTM[R1, E1, A1] =
-    flatMap(v => if (!p(v)) f(v) else ZSTM.succeedNow(v))
+    filterOrElse(p)(ZSTM.dieMessage(msg))
 
   /**
    * Supplies `zstm` if the predicate fails.
    */
+  def filterOrElse[R1 <: R, E1 >: E, A1 >: A](p: A => Boolean)(zstm: => ZSTM[R1, E1, A1]): ZSTM[R1, E1, A1] =
+    filterOrElseWith[R1, E1, A1](p)(_ => zstm)
+
+  /**
+   * Supplies `zstm` if the predicate fails.
+   */
+  @deprecated("use filterOrElse", "2.0.0")
   def filterOrElse_[R1 <: R, E1 >: E, A1 >: A](p: A => Boolean)(zstm: => ZSTM[R1, E1, A1]): ZSTM[R1, E1, A1] =
-    filterOrElse[R1, E1, A1](p)(_ => zstm)
+    filterOrElse[R1, E1, A1](p)(zstm)
+
+  /**
+   * Applies `f` if the predicate fails.
+   */
+  def filterOrElseWith[R1 <: R, E1 >: E, A1 >: A](p: A => Boolean)(f: A => ZSTM[R1, E1, A1]): ZSTM[R1, E1, A1] =
+    flatMap(v => if (!p(v)) f(v) else ZSTM.succeedNow(v))
 
   /**
    * Fails with `e` if the predicate fails.
    */
   def filterOrFail[E1 >: E](p: A => Boolean)(e: => E1): ZSTM[R, E1, A] =
-    filterOrElse_[R, E1, A](p)(ZSTM.fail(e))
+    filterOrElse[R, E1, A](p)(ZSTM.fail(e))
 
   /**
    * Feeds the value produced by this effect to the specified function,
@@ -326,7 +308,7 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
    * one that may depend on the error produced by this one.
    */
   def flatMapError[R1 <: R, E2](f: E => ZSTM[R1, Nothing, E2])(implicit ev: CanFail[E]): ZSTM[R1, E2, A] =
-    foldM(e => f(e).flip, ZSTM.succeedNow)
+    foldSTM(e => f(e).flip, ZSTM.succeedNow)
 
   /**
    * Flattens out a nested `STM` effect.
@@ -346,7 +328,7 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
    * flipping back.
    */
   def flip(implicit ev: CanFail[E]): ZSTM[R, A, E] =
-    foldM(ZSTM.succeedNow, ZSTM.fail(_))
+    foldSTM(ZSTM.succeedNow, ZSTM.fail(_))
 
   /**
    *  Swaps the error/value parameters, applies the function `f` and flips the parameters back
@@ -359,13 +341,23 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
    * retry.
    */
   def fold[B](f: E => B, g: A => B)(implicit ev: CanFail[E]): URSTM[R, B] =
-    foldM(f andThen ZSTM.succeedNow, g andThen ZSTM.succeedNow)
+    foldSTM(f andThen ZSTM.succeedNow, g andThen ZSTM.succeedNow)
 
   /**
    * Effectfully folds over the `STM` effect, handling both failure and
    * success.
    */
+  @deprecated("use foldSTM", "2.0.0")
   def foldM[R1 <: R, E1, B](f: E => ZSTM[R1, E1, B], g: A => ZSTM[R1, E1, B])(implicit
+    ev: CanFail[E]
+  ): ZSTM[R1, E1, B] =
+    foldSTM(f, g)
+
+  /**
+   * Effectfully folds over the `STM` effect, handling both failure and
+   * success.
+   */
+  def foldSTM[R1 <: R, E1, B](f: E => ZSTM[R1, E1, B], g: A => ZSTM[R1, E1, B])(implicit
     ev: CanFail[E]
   ): ZSTM[R1, E1, B] =
     self
@@ -379,8 +371,9 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
   /**
    * Unwraps the optional success of this effect, but can fail with None value.
    */
+  @deprecated("use some", "2.0.0")
   def get[B](implicit ev1: E <:< Nothing, ev2: A <:< Option[B]): ZSTM[R, Option[Nothing], B] =
-    foldM(
+    foldSTM(
       ev1,
       ev2(_).fold[ZSTM[R, Option[Nothing], B]](ZSTM.fail(None))(ZSTM.succeedNow(_))
     )(CanFail)
@@ -390,7 +383,7 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
    * non-empty or fails with the error `None` if the list is empty.
    */
   def head[B](implicit ev: A <:< List[B]): ZSTM[R, Option[E], B] =
-    foldM(
+    foldSTM(
       e => ZSTM.fail(Some(e)),
       ev(_).headOption.fold[ZSTM[R, Option[E], B]](ZSTM.fail(None))(ZSTM.succeedNow)
     )
@@ -413,34 +406,13 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
     fold(_ => false, _ => true)
 
   /**
-   * Returns a successful effect if the value is `Left`, or fails with the error `None`.
+   * "Zooms in" on the value in the `Left` side of an `Either`, moving the
+   * possibility that the value is a `Right` to the error channel.
    */
-  def left[B, C](implicit ev: A <:< Either[B, C]): ZSTM[R, Option[E], B] =
-    foldM(
-      e => ZSTM.fail(Some(e)),
-      a => ev(a).fold(ZSTM.succeedNow, _ => ZSTM.fail(None))
-    )
-
-  /**
-   * Returns a successful effect if the value is `Left`, or fails with the error e.
-   */
-  def leftOrFail[B, C, E1 >: E](e: => E1)(implicit ev: A <:< Either[B, C]): ZSTM[R, E1, B] =
-    flatMap(ev(_) match {
-      case Right(_)    => ZSTM.fail(e)
-      case Left(value) => ZSTM.succeedNow(value)
-    })
-
-  /**
-   * Returns a successful effect if the value is `Left`, or fails with
-   * a [[java.util.NoSuchElementException]].
-   */
-  def leftOrFailException[B, C, E1 >: NoSuchElementException](implicit
-    ev: A <:< Either[B, C],
-    ev2: E <:< E1
-  ): ZSTM[R, E1, B] =
-    foldM(
-      e => ZSTM.fail(ev2(e)),
-      a => ev(a).fold(ZSTM.succeedNow(_), _ => ZSTM.fail(new NoSuchElementException("Either.left.get on Right")))
+  def left[B, C](implicit ev: A IsSubtypeOfOutput Either[B, C]): ZSTM[R, Either[E, C], B] =
+    self.foldSTM(
+      e => ZSTM.fail(Left(e)),
+      a => ev(a).fold(b => ZSTM.succeedNow(b), c => ZSTM.fail(Right(c)))
     )
 
   /**
@@ -449,66 +421,50 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
   def map[B](f: A => B): ZSTM[R, E, B] = flatMap(f andThen ZSTM.succeedNow)
 
   /**
+   * Maps the value produced by the effect with the specified function that may
+   * throw exceptions but is otherwise pure, translating any thrown exceptions
+   * into typed failed effects.
+   */
+  def mapAttempt[B](f: A => B)(implicit ev: E IsSubtypeOfError Throwable): ZSTM[R, Throwable, B] =
+    foldSTM(e => ZSTM.fail(ev(e)), a => ZSTM.attempt(f(a)))
+
+  /**
+   * Returns an `STM` effect whose failure and success channels have been mapped by
+   * the specified pair of functions, `f` and `g`.
+   */
+  def mapBoth[E2, B](f: E => E2, g: A => B)(implicit ev: CanFail[E]): ZSTM[R, E2, B] =
+    foldSTM(e => ZSTM.fail(f(e)), a => ZSTM.succeedNow(g(a)))
+
+  /**
    * Maps from one error type to another.
    */
   def mapError[E1](f: E => E1)(implicit ev: CanFail[E]): ZSTM[R, E1, A] =
-    foldM(e => ZSTM.fail(f(e)), ZSTM.succeedNow)
+    foldSTM(e => ZSTM.fail(f(e)), ZSTM.succeedNow)
 
   /**
    * Maps the value produced by the effect with the specified function that may
    * throw exceptions but is otherwise pure, translating any thrown exceptions
    * into typed failed effects.
    */
+  @deprecated("use mapAttempt", "2.0.0")
   def mapPartial[B](f: A => B)(implicit ev: E IsSubtypeOfError Throwable): ZSTM[R, Throwable, B] =
-    foldM(e => ZSTM.fail(ev(e)), a => ZSTM.partial(f(a)))
+    mapAttempt(f)
 
   /**
    * Returns a new effect where the error channel has been merged into the
    * success channel to their common combined type.
    */
   def merge[A1 >: A](implicit ev1: E <:< A1, ev2: CanFail[E]): URSTM[R, A1] =
-    foldM(e => ZSTM.succeedNow(ev1(e)), ZSTM.succeedNow)
+    foldSTM(e => ZSTM.succeedNow(ev1(e)), ZSTM.succeedNow)
 
   /**
    * Requires the option produced by this value to be `None`.
    */
   def none[B](implicit ev: A <:< Option[B]): ZSTM[R, Option[E], Unit] =
-    self.foldM(
+    self.foldSTM(
       e => ZSTM.fail(Some(e)),
       _.fold[ZSTM[R, Option[E], Unit]](ZSTM.unit)(_ => ZSTM.fail(None))
     )
-
-  /**
-   * Propagates the success value to the first element of a tuple, but
-   * passes the effect input `R` along unmodified as the second element
-   * of the tuple.
-   */
-  def onFirst[R1 <: R]: ZSTM[R1, E, (A, R1)] =
-    self <*> ZSTM.identity[R1]
-
-  /**
-   * Returns this effect if environment is on the left, otherwise returns
-   * whatever is on the right unmodified. Note that the result is lifted
-   * in either.
-   */
-  def onLeft[C]: ZSTM[Either[R, C], E, Either[A, C]] =
-    self +++ ZSTM.identity[C]
-
-  /**
-   * Returns this effect if environment is on the right, otherwise returns
-   * whatever is on the left unmodified. Note that the result is lifted
-   * in either.
-   */
-  def onRight[C]: ZSTM[Either[C, R], E, Either[C, A]] =
-    ZSTM.identity[C] +++ self
-
-  /**
-   * Propagates the success value to the second element of a tuple, but
-   * passes the effect input `R` along unmodified as the first element
-   * of the tuple.
-   */
-  def onSecond[R1 <: R]: ZSTM[R1, E, (R1, A)] =
-    ZSTM.identity[R1] <*> self
 
   /**
    * Converts the failure channel into an `Option`.
@@ -519,11 +475,9 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
   /**
    * Converts an option on errors into an option on values.
    */
+  @deprecated("use unsome", "2.0.0")
   def optional[E1](implicit ev: E <:< Option[E1]): ZSTM[R, E1, Option[A]] =
-    foldM(
-      _.fold[ZSTM[R, E1, Option[A]]](ZSTM.succeedNow(Option.empty[A]))(ZSTM.fail(_)),
-      a => ZSTM.succeedNow(Some(a))
-    )
+    unsome
 
   /**
    * Translates `STM` effect failure into death of the fiber, making all failures unchecked and
@@ -618,14 +572,23 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
    * continue with our held value.
    */
   def reject[E1 >: E](pf: PartialFunction[A, E1]): ZSTM[R, E1, A] =
-    rejectM(pf.andThen(ZSTM.fail(_)))
+    rejectSTM(pf.andThen(ZSTM.fail(_)))
 
   /**
    * Continue with the returned computation if the `PartialFunction` matches,
    * translating the successful match into a failure, otherwise continue with
    * our held value.
    */
+  @deprecated("use rejectSTM", "2.0.0")
   def rejectM[R1 <: R, E1 >: E](pf: PartialFunction[A, ZSTM[R1, E1, E1]]): ZSTM[R1, E1, A] =
+    rejectSTM(pf)
+
+  /**
+   * Continue with the returned computation if the `PartialFunction` matches,
+   * translating the successful match into a failure, otherwise continue with
+   * our held value.
+   */
+  def rejectSTM[R1 <: R, E1 >: E](pf: PartialFunction[A, ZSTM[R1, E1, E1]]): ZSTM[R1, E1, A] =
     self.flatMap { v =>
       pf.andThen[ZSTM[R1, E1, A]](_.flatMap(ZSTM.fail(_)))
         .applyOrElse[A, ZSTM[R1, E1, A]](v, ZSTM.succeedNow)
@@ -650,42 +613,20 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
     }
 
   /**
-   * Returns a successful effect if the value is `Right`, or fails with the error `None`.
+   * "Zooms in" on the value in the `Right` side of an `Either`, moving the
+   * possibility that the value is a `Left` to the error channel.
    */
-  def right[B, C](implicit ev: A <:< Either[B, C]): ZSTM[R, Option[E], C] =
-    self.foldM(
-      e => ZSTM.fail(Some(e)),
-      a => ev(a).fold(_ => ZSTM.fail(None), ZSTM.succeedNow)
-    )
-
-  /**
-   * Returns a successful effect if the value is `Right`, or fails with the
-   * given error 'e'.
-   */
-  def rightOrFail[B, C, E1 >: E](e: => E1)(implicit ev: A <:< Either[B, C]): ZSTM[R, E1, C] =
-    self.flatMap(ev(_) match {
-      case Right(value) => ZSTM.succeedNow(value)
-      case Left(_)      => ZSTM.fail(e)
-    })
-
-  /**
-   * Returns a successful effect if the value is `Right`, or fails with
-   * a [[java.util.NoSuchElementException]].
-   */
-  def rightOrFailException[B, C, E1 >: NoSuchElementException](implicit
-    ev: A <:< Either[B, C],
-    ev2: E <:< E1
-  ): ZSTM[R, E1, C] =
-    self.foldM(
-      e => ZSTM.fail(ev2(e)),
-      a => ev(a).fold(_ => ZSTM.fail(new NoSuchElementException("Either.right.get on Left")), ZSTM.succeedNow(_))
+  final def right[B, C](implicit ev: A IsSubtypeOfOutput Either[B, C]): ZSTM[R, Either[B, E], C] =
+    self.foldSTM(
+      e => ZSTM.fail(Right(e)),
+      a => ev(a).fold(b => ZSTM.fail(Left(b)), c => ZSTM.succeedNow(c))
     )
 
   /**
    * Converts an option on values into an option on errors.
    */
   def some[B](implicit ev: A <:< Option[B]): ZSTM[R, Option[E], B] =
-    self.foldM(
+    self.foldSTM(
       e => ZSTM.fail(Some(e)),
       _.fold[ZSTM[R, Option[E], B]](ZSTM.fail(Option.empty[E]))(ZSTM.succeedNow)
     )
@@ -699,7 +640,14 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
   /**
    * Extracts the optional value, or executes the effect 'default'.
    */
+  @deprecated("use someOrElseSTM", "2.0.0")
   def someOrElseM[B, R1 <: R, E1 >: E](default: ZSTM[R1, E1, B])(implicit ev: A <:< Option[B]): ZSTM[R1, E1, B] =
+    someOrElseSTM(default)
+
+  /**
+   * Extracts the optional value, or executes the effect 'default'.
+   */
+  def someOrElseSTM[B, R1 <: R, E1 >: E](default: ZSTM[R1, E1, B])(implicit ev: A <:< Option[B]): ZSTM[R1, E1, B] =
     self.flatMap(ev(_) match {
       case Some(value) => ZSTM.succeedNow(value)
       case None        => default
@@ -718,7 +666,7 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
     ev: A <:< Option[B],
     ev2: NoSuchElementException <:< E1
   ): ZSTM[R, E1, B] =
-    foldM(
+    foldSTM(
       ZSTM.fail(_),
       _.fold[ZSTM[R, E1, B]](ZSTM.fail(ev2(new NoSuchElementException("None.get"))))(ZSTM.succeedNow)
     )
@@ -749,13 +697,13 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
   def tapBoth[R1 <: R, E1 >: E](f: E => ZSTM[R1, E1, Any], g: A => ZSTM[R1, E1, Any])(implicit
     ev: CanFail[E]
   ): ZSTM[R1, E1, A] =
-    foldM(e => f(e) *> ZSTM.fail(e), a => g(a) as a)
+    foldSTM(e => f(e) *> ZSTM.fail(e), a => g(a) as a)
 
   /**
    * "Peeks" at the error of the transactional effect.
    */
   def tapError[R1 <: R, E1 >: E](f: E => ZSTM[R1, E1, Any])(implicit ev: CanFail[E]): ZSTM[R1, E1, A] =
-    foldM(e => f(e) *> ZSTM.fail(e), ZSTM.succeedNow)
+    foldSTM(e => f(e) *> ZSTM.fail(e), ZSTM.succeedNow)
 
   /**
    * Maps the success value of this effect to unit.
@@ -765,14 +713,57 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
   /**
    * The moral equivalent of `if (!p) exp`
    */
-  def unless(b: => Boolean): ZSTM[R, E, Unit] =
+  def unless(b: => Boolean): ZSTM[R, E, Option[A]] =
     ZSTM.unless(b)(self)
 
   /**
    * The moral equivalent of `if (!p) exp` when `p` has side-effects
    */
-  def unlessM[R1 <: R, E1 >: E](b: ZSTM[R1, E1, Boolean]): ZSTM[R1, E1, Unit] =
-    ZSTM.unlessM(b)(self)
+  @deprecated("use unlessSTM", "2.0.0")
+  def unlessM[R1 <: R, E1 >: E](b: ZSTM[R1, E1, Boolean]): ZSTM[R1, E1, Option[A]] =
+    unlessSTM(b)
+
+  /**
+   * The moral equivalent of `if (!p) exp` when `p` has side-effects
+   */
+  def unlessSTM[R1 <: R, E1 >: E](b: ZSTM[R1, E1, Boolean]): ZSTM[R1, E1, Option[A]] =
+    ZSTM.unlessSTM(b)(self)
+
+  /**
+   * Converts a `ZSTM[R, Either[E, B], A]` into a `ZSTM[R, E, Either[A, B]]`. The
+   * inverse of `left`.
+   */
+  final def unleft[E1, B](implicit ev: E IsSubtypeOfError Either[E1, B]): ZSTM[R, E1, Either[A, B]] =
+    self.foldSTM(
+      e => ev(e).fold(e1 => ZSTM.fail(e1), b => ZSTM.succeedNow(Right(b))),
+      a => ZSTM.succeedNow(Left(a))
+    )
+
+  /**
+   * Converts an option on errors into an option on values.
+   */
+  @deprecated("use unsome", "2.0.0")
+  def unoption[E1](implicit ev: E <:< Option[E1]): ZSTM[R, E1, Option[A]] =
+    unsome
+
+  /**
+   * Converts a `ZSTM[R, Either[B, E], A]` into a `ZSTM[R, E, Either[B, A]]`. The
+   * inverse of `right`.
+   */
+  final def unright[E1, B](implicit ev: E IsSubtypeOfError Either[B, E1]): ZSTM[R, E1, Either[B, A]] =
+    self.foldSTM(
+      e => ev(e).fold(b => ZSTM.succeedNow(Left(b)), e1 => ZSTM.fail(e1)),
+      a => ZSTM.succeedNow(Right(a))
+    )
+
+  /**
+   * Converts an option on errors into an option on values.
+   */
+  def unsome[E1](implicit ev: E <:< Option[E1]): ZSTM[R, E1, Option[A]] =
+    foldSTM(
+      _.fold[ZSTM[R, E1, Option[A]]](ZSTM.succeedNow(Option.empty[A]))(ZSTM.fail(_)),
+      a => ZSTM.succeedNow(Some(a))
+    )
 
   /**
    * Updates a service in the environment of this effect.
@@ -781,14 +772,29 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
     new ZSTM.UpdateService[R, E, A, M](self)
 
   /**
+   * Updates a service at the specified key in the environment of this effect.
+   */
+  final def updateServiceAt[Service]: ZSTM.UpdateServiceAt[R, E, A, Service] =
+    new ZSTM.UpdateServiceAt[R, E, A, Service](self)
+
+  /**
    * The moral equivalent of `if (p) exp`
    */
-  def when(b: => Boolean): ZSTM[R, E, Unit] = ZSTM.when(b)(self)
+  def when(b: => Boolean): ZSTM[R, E, Option[A]] =
+    ZSTM.when(b)(self)
 
   /**
    * The moral equivalent of `if (p) exp` when `p` has side-effects
    */
-  def whenM[R1 <: R, E1 >: E](b: ZSTM[R1, E1, Boolean]): ZSTM[R1, E1, Unit] = ZSTM.whenM(b)(self)
+  @deprecated("use whenSTM", "2.0.0")
+  def whenM[R1 <: R, E1 >: E](b: ZSTM[R1, E1, Boolean]): ZSTM[R1, E1, Option[A]] =
+    whenSTM(b)
+
+  /**
+   * The moral equivalent of `if (p) exp` when `p` has side-effects
+   */
+  def whenSTM[R1 <: R, E1 >: E](b: ZSTM[R1, E1, Boolean]): ZSTM[R1, E1, Option[A]] =
+    ZSTM.whenSTM(b)(self)
 
   /**
    * Same as [[retryUntil]].
@@ -798,8 +804,10 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
   /**
    * Named alias for `<*>`.
    */
-  def zip[R1 <: R, E1 >: E, B](that: => ZSTM[R1, E1, B]): ZSTM[R1, E1, (A, B)] =
-    (self zipWith that)((a, b) => a -> b)
+  def zip[R1 <: R, E1 >: E, B](that: => ZSTM[R1, E1, B])(implicit
+    zippable: Zippable[A, B]
+  ): ZSTM[R1, E1, zippable.Out] =
+    (self zipWith that)((a, b) => zippable.zip(a, b))
 
   /**
    * Named alias for `<*`.
@@ -820,7 +828,7 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
   def zipWith[R1 <: R, E1 >: E, B, C](that: => ZSTM[R1, E1, B])(f: (A, B) => C): ZSTM[R1, E1, C] =
     self flatMap (a => that map (b => f(a, b)))
 
-  private def run(journal: Journal, fiberId: Fiber.Id, r0: R): TExit[E, A] = {
+  private def run(journal: Journal, fiberId: FiberId, r0: R): TExit[E, A] = {
     type Erased = ZSTM[Any, Any, Any]
     type Cont   = Any => Erased
 
@@ -866,6 +874,9 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
               curr = unwindStack(t, false)
 
               if (curr eq null) exit = TExit.Die(t)
+
+            case ZSTM.InterruptException(fiberId) =>
+              exit = TExit.Interrupt(fiberId)
           }
 
         case Tags.OnSuccess =>
@@ -928,36 +939,47 @@ object ZSTM {
   /**
    * Accesses the environment of the transaction to perform a transaction.
    */
-  def accessM[R]: AccessMPartiallyApplied[R] =
-    new AccessMPartiallyApplied
+  @deprecated("use accessSTM", "2.0.0")
+  def accessM[R]: AccessSTMPartiallyApplied[R] =
+    accessSTM
+
+  /**
+   * Accesses the environment of the transaction to perform a transaction.
+   */
+  def accessSTM[R]: AccessSTMPartiallyApplied[R] =
+    new AccessSTMPartiallyApplied
 
   /**
    * Atomically performs a batch of operations in a single transaction.
    */
   def atomically[R, E, A](stm: ZSTM[R, E, A]): ZIO[R, E, A] =
-    ZIO.accessM[R] { r =>
-      ZIO.effectSuspendMaybeWith { (platform, fiberId) =>
-        tryCommitSync(platform, fiberId, stm, r) match {
-          case TryCommit.Done(exit) => Left(exit)
+    ZIO.accessZIO[R] { r =>
+      ZIO.suspendSucceedWith { (runtimeConfig, fiberId) =>
+        tryCommitSync(runtimeConfig, fiberId, stm, r) match {
+          case TryCommit.Done(exit) => throw new ZIO.ZioError(exit)
           case TryCommit.Suspend(journal) =>
             val txnId = makeTxnId()
             val state = new AtomicReference[State[E, A]](State.Running)
-            val async = ZIO.effectAsync(tryCommitAsync(journal, platform, fiberId, stm, txnId, state, r))
+            val async = ZIO.async(tryCommitAsync(journal, runtimeConfig, fiberId, stm, txnId, state, r))
 
-            Right {
-              ZIO.uninterruptibleMask { restore =>
-                restore(async).catchAllCause { cause =>
-                  state.compareAndSet(State.Running, State.Interrupted)
-                  state.get match {
-                    case State.Done(exit) => ZIO.done(exit)
-                    case _                => ZIO.halt(cause)
-                  }
+            ZIO.uninterruptibleMask { restore =>
+              restore(async).catchAllCause { cause =>
+                state.compareAndSet(State.Running, State.Interrupted)
+                state.get match {
+                  case State.Done(exit) => ZIO.done(exit)
+                  case _                => ZIO.failCause(cause)
                 }
               }
             }
         }
       }
     }
+
+  /**
+   * Creates an `STM` value from a partial (but pure) function.
+   */
+  def attempt[A](a: => A): STM[Throwable, A] =
+    fromTry(Try(a))
 
   /**
    * Checks the condition, and if it's true, returns unit, otherwise, retries.
@@ -972,7 +994,7 @@ object ZSTM {
   def collect[R, E, A, B, Collection[+Element] <: Iterable[Element]](
     in: Collection[A]
   )(f: A => ZSTM[R, Option[E], B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZSTM[R, E, Collection[B]] =
-    foreach[R, E, A, Option[B], Iterable](in)(a => f(a).optional).map(_.flatten).map(bf.fromSpecific(in))
+    foreach[R, E, A, Option[B], Iterable](in)(a => f(a).unsome).map(_.flatten).map(bf.fromSpecific(in))
 
   /**
    * Collects all the transactional effects in a collection, returning a single
@@ -997,8 +1019,31 @@ object ZSTM {
    * Equivalent to `collectAll(i).unit`, but without the cost of building the
    * list of results.
    */
+  @deprecated("use collectAllDiscard", "2.0.0")
   def collectAll_[R, E, A](in: Iterable[ZSTM[R, E, A]]): ZSTM[R, E, Unit] =
-    foreach_(in)(ZIO.identityFn)
+    collectAllDiscard(in)
+
+  /**
+   * Collects all the transactional effects, returning a single transactional
+   * effect that produces `Unit`.
+   *
+   * Equivalent to `collectAll(i).unit`, but without the cost of building the
+   * list of results.
+   */
+  def collectAllDiscard[R, E, A](in: Iterable[ZSTM[R, E, A]]): ZSTM[R, E, Unit] =
+    foreachDiscard(in)(ZIO.identityFn)
+
+  /**
+   * Collects the first element of the `Iterable[A]` for which the effectual
+   * function `f` returns `Some`.
+   */
+  def collectFirst[R, E, A, B](as: Iterable[A])(f: A => ZSTM[R, E, Option[B]]): ZSTM[R, E, Option[B]] =
+    succeedNow(as.iterator).flatMap { iterator =>
+      def loop: ZSTM[R, E, Option[B]] =
+        if (iterator.hasNext) f(iterator.next()).flatMap(_.fold(loop)(some(_)))
+        else none
+      loop
+    }
 
   /**
    * Similar to Either.cond, evaluate the predicate,
@@ -1032,6 +1077,18 @@ object ZSTM {
   def environment[R]: URSTM[R, R] = Effect((_, _, r) => r)
 
   /**
+   * Determines whether any element of the `Iterable[A]` satisfies the
+   * effectual predicate `f`.
+   */
+  def exists[R, E, A](as: Iterable[A])(f: A => ZSTM[R, E, Boolean]): ZSTM[R, E, Boolean] =
+    succeedNow(as.iterator).flatMap { iterator =>
+      def loop: ZSTM[R, E, Boolean] =
+        if (iterator.hasNext) f(iterator.next()).flatMap(b => if (b) succeedNow(b) else loop)
+        else succeedNow(false)
+      loop
+    }
+
+  /**
    * Returns a value that models failure in the transaction.
    */
   def fail[E](e: => E): STM[E, Nothing] = Effect((_, _, _) => throw FailException(e))
@@ -1039,7 +1096,7 @@ object ZSTM {
   /**
    * Returns the fiber id of the fiber committing the transaction.
    */
-  val fiberId: USTM[Fiber.Id] = Effect((_, fiberId, _) => fiberId)
+  val fiberId: USTM[FiberId] = Effect((_, fiberId, _) => fiberId)
 
   /**
    * Filters the collection using the specified effectual predicate.
@@ -1074,13 +1131,6 @@ object ZSTM {
     filterNot[R, E, A, Iterable](as)(f).map(_.toSet)
 
   /**
-   * Returns an effectful function that extracts out the first element of a
-   * tuple.
-   */
-  def first[A]: ZSTM[(A, Any), Nothing, A] =
-    fromFunction(_._1)
-
-  /**
    * Returns an effect that first executes the outer effect, and then executes
    * the inner effect, returning the value from the inner effect, and effectively
    * flattening a nested effect.
@@ -1103,6 +1153,18 @@ object ZSTM {
     in: Iterable[A]
   )(zero: S)(f: (A, S) => ZSTM[R, E, S]): ZSTM[R, E, S] =
     in.foldRight(ZSTM.succeedNow(zero): ZSTM[R, E, S])((el, acc) => acc.flatMap(f(el, _)))
+
+  /**
+   * Determines whether all elements of the `Iterable[A]` satisfy the effectual
+   * predicate `f`.
+   */
+  def forall[R, E, A](as: Iterable[A])(f: A => ZSTM[R, E, Boolean]): ZSTM[R, E, Boolean] =
+    succeedNow(as.iterator).flatMap { iterator =>
+      def loop: ZSTM[R, E, Boolean] =
+        if (iterator.hasNext) f(iterator.next()).flatMap(b => if (b) loop else succeedNow(b))
+        else succeedNow(true)
+      loop
+    }
 
   /**
    * Applies the function `f` to each element of the `Collection[A]` and
@@ -1129,7 +1191,18 @@ object ZSTM {
    * Equivalent to `foreach(as)(f).unit`, but without the cost of building
    * the list of results.
    */
+  @deprecated("use foreachDiscard", "2.0.0")
   def foreach_[R, E, A](in: Iterable[A])(f: A => ZSTM[R, E, Any]): ZSTM[R, E, Unit] =
+    foreachDiscard(in)(f)
+
+  /**
+   * Applies the function `f` to each element of the `Iterable[A]` and
+   * returns a transactional effect that produces `Unit`.
+   *
+   * Equivalent to `foreach(as)(f).unit`, but without the cost of building
+   * the list of results.
+   */
+  def foreachDiscard[R, E, A](in: Iterable[A])(f: A => ZSTM[R, E, Any]): ZSTM[R, E, Unit] =
     ZSTM.succeedNow(in.iterator).flatMap[R, E, Unit] { it =>
       def loop: ZSTM[R, E, Unit] =
         if (it.hasNext) f(it.next()) *> loop
@@ -1151,6 +1224,7 @@ object ZSTM {
   /**
    * Lifts a function `R => A` into a `URSTM[R, A]`.
    */
+  @deprecated("use access", "2.0.0")
   def fromFunction[R, A](f: R => A): URSTM[R, A] =
     access(f)
 
@@ -1158,8 +1232,9 @@ object ZSTM {
    * Lifts an effectful function whose effect requires no environment into
    * an effect that requires the input to the function.
    */
+  @deprecated("use accessSTM", "2.0.0")
   def fromFunctionM[R, E, A](f: R => STM[E, A]): ZSTM[R, E, A] =
-    accessM(f)
+    accessSTM(f)
 
   /**
    * Lifts an `Option` into a `STM`.
@@ -1179,15 +1254,29 @@ object ZSTM {
     }
 
   /**
-   * Returns the identity effectful function, which performs no effects
+   * Runs `onTrue` if the result of `b` is `true` and `onFalse` otherwise.
    */
-  def identity[R]: URSTM[R, R] = fromFunction[R, R](ZIO.identityFn)
+  @deprecated("use ifSTM", "2.0.0")
+  def ifM[R, E](b: ZSTM[R, E, Boolean]): ZSTM.IfSTM[R, E] =
+    ifSTM(b)
 
   /**
    * Runs `onTrue` if the result of `b` is `true` and `onFalse` otherwise.
    */
-  def ifM[R, E](b: ZSTM[R, E, Boolean]): ZSTM.IfM[R, E] =
-    new ZSTM.IfM(b)
+  def ifSTM[R, E](b: ZSTM[R, E, Boolean]): ZSTM.IfSTM[R, E] =
+    new ZSTM.IfSTM(b)
+
+  /**
+   * Interrupts the fiber running the effect.
+   */
+  lazy val interrupt: USTM[Nothing] =
+    ZSTM.fiberId.flatMap(fiberId => interruptAs(fiberId))
+
+  /**
+   * Interrupts the fiber running the effect with the specified fiber id.
+   */
+  def interruptAs(fiberId: => FiberId): USTM[Nothing] =
+    Effect((_, _, _) => throw InterruptException(fiberId))
 
   /**
    * Iterates with the specified transactional function. The moral equivalent
@@ -1248,14 +1337,32 @@ object ZSTM {
    * }
    * }}}
    */
+  @deprecated("use loopDiscard", "2.0.0")
   def loop_[R, E, S](initial: S)(cont: S => Boolean, inc: S => S)(body: S => ZSTM[R, E, Any]): ZSTM[R, E, Unit] =
-    if (cont(initial)) body(initial) *> loop_(inc(initial))(cont, inc)(body)
+    loopDiscard(initial)(cont, inc)(body)
+
+  /**
+   * Loops with the specified transactional function purely for its
+   * transactional effects. The moral equivalent of:
+   *
+   * {{{
+   * var s = initial
+   *
+   * while (cont(s)) {
+   *   body(s)
+   *   s = inc(s)
+   * }
+   * }}}
+   */
+  def loopDiscard[R, E, S](initial: S)(cont: S => Boolean, inc: S => S)(body: S => ZSTM[R, E, Any]): ZSTM[R, E, Unit] =
+    if (cont(initial)) body(initial) *> loopDiscard(inc(initial))(cont, inc)(body)
     else ZSTM.unit
 
   /**
    * Sequentially zips the specified effects using the specified combiner
    * function.
    */
+  @deprecated("use zip", "2.0.0")
   def mapN[R, E, A, B, C](tx1: ZSTM[R, E, A], tx2: ZSTM[R, E, B])(f: (A, B) => C): ZSTM[R, E, C] =
     tx1.zipWith(tx2)(f)
 
@@ -1263,6 +1370,7 @@ object ZSTM {
    * Sequentially zips the specified effects using the specified combiner
    * function.
    */
+  @deprecated("use zip", "2.0.0")
   def mapN[R, E, A, B, C, D](tx1: ZSTM[R, E, A], tx2: ZSTM[R, E, B], tx3: ZSTM[R, E, C])(
     f: (A, B, C) => D
   ): ZSTM[R, E, D] =
@@ -1276,6 +1384,7 @@ object ZSTM {
    * Sequentially zips the specified effects using the specified combiner
    * function.
    */
+  @deprecated("use zip", "2.0.0")
   def mapN[R, E, A, B, C, D, F](tx1: ZSTM[R, E, A], tx2: ZSTM[R, E, B], tx3: ZSTM[R, E, C], tx4: ZSTM[R, E, D])(
     f: (A, B, C, D) => F
   ): ZSTM[R, E, F] =
@@ -1302,8 +1411,9 @@ object ZSTM {
   /**
    * Creates an `STM` value from a partial (but pure) function.
    */
+  @deprecated("use attempt", "2.0.0")
   def partial[A](a: => A): STM[Throwable, A] =
-    fromTry(Try(a))
+    attempt(a)
 
   /**
    * Feeds elements of type `A` to a function `f` that returns an effect.
@@ -1335,20 +1445,37 @@ object ZSTM {
    * Performs this transaction the specified number of times and collects the
    * results.
    */
+  @deprecated("use replicateSTM", "2.0.0")
   def replicateM[R, E, A](n: Int)(transaction: ZSTM[R, E, A]): ZSTM[R, E, Iterable[A]] =
+    replicateSTM(n)(transaction)
+
+  /**
+   * Performs this transaction the specified number of times, discarding the
+   * results.
+   */
+  @deprecated("use replicateSTMDiscard", "2.0.0")
+  def replicateM_[R, E, A](n: Int)(transaction: ZSTM[R, E, A]): ZSTM[R, E, Unit] =
+    replicateSTMDiscard(n)(transaction)
+
+  /**
+   * Performs this transaction the specified number of times and collects the
+   * results.
+   */
+  def replicateSTM[R, E, A](n: Int)(transaction: ZSTM[R, E, A]): ZSTM[R, E, Iterable[A]] =
     ZSTM.collectAll(ZSTM.replicate(n)(transaction))
 
   /**
    * Performs this transaction the specified number of times, discarding the
    * results.
    */
-  def replicateM_[R, E, A](n: Int)(transaction: ZSTM[R, E, A]): ZSTM[R, E, Unit] =
-    ZSTM.collectAll_(ZSTM.replicate(n)(transaction))
+  def replicateSTMDiscard[R, E, A](n: Int)(transaction: ZSTM[R, E, A]): ZSTM[R, E, Unit] =
+    ZSTM.collectAllDiscard(ZSTM.replicate(n)(transaction))
 
   /**
    * Requires that the given `ZSTM[R, E, Option[A]]` contain a value. If there is no
    * value, then the specified error will be raised.
    */
+  @deprecated("use someOrFail", "2.0.0")
   def require[R, E, A](error: => E): ZSTM[R, E, Option[A]] => ZSTM[R, E, A] =
     _.flatMap(_.fold[ZSTM[R, E, A]](fail(error))(succeedNow))
 
@@ -1365,33 +1492,36 @@ object ZSTM {
     succeed(Right(a))
 
   /**
-   * Returns an effectful function that extracts out the second element of a
-   * tuple.
-   */
-  def second[A]: URSTM[(Any, A), A] =
-    fromFunction(_._2)
-
-  /**
    * Accesses the specified service in the environment of the effect.
    */
   def service[A: Tag]: ZSTM[Has[A], Nothing, A] =
     ZSTM.access(_.get[A])
 
   /**
+   * Accesses the service corresponding to the specified key in the
+   * environment.
+   */
+  def serviceAt[Service]: ZSTM.ServiceAtPartiallyApplied[Service] =
+    new ZSTM.ServiceAtPartiallyApplied[Service]
+
+  /**
    * Accesses the specified services in the environment of the effect.
    */
+  @deprecated("use service", "2.0.0")
   def services[A: Tag, B: Tag]: ZSTM[Has[A] with Has[B], Nothing, (A, B)] =
     ZSTM.access(r => (r.get[A], r.get[B]))
 
   /**
    * Accesses the specified services in the environment of the effect.
    */
+  @deprecated("use service", "2.0.0")
   def services[A: Tag, B: Tag, C: Tag]: ZSTM[Has[A] with Has[B] with Has[C], Nothing, (A, B, C)] =
     ZSTM.access(r => (r.get[A], r.get[B], r.get[C]))
 
   /**
    * Accesses the specified services in the environment of the effect.
    */
+  @deprecated("use service", "2.0.0")
   def services[A: Tag, B: Tag, C: Tag, D: Tag]
     : ZSTM[Has[A] with Has[B] with Has[C] with Has[D], Nothing, (A, B, C, D)] =
     ZSTM.access(r => (r.get[A], r.get[B], r.get[C], r.get[D]))
@@ -1420,12 +1550,6 @@ object ZSTM {
     STM.succeed(stm).flatten
 
   /**
-   * Returns an effectful function that merely swaps the elements in a `Tuple2`.
-   */
-  def swap[A, B]: URSTM[(A, B), (B, A)] =
-    fromFunction[(A, B), (B, A)](_.swap)
-
-  /**
    * Returns an `STM` effect that succeeds with `Unit`.
    */
   val unit: USTM[Unit] = succeedNow(())
@@ -1433,14 +1557,21 @@ object ZSTM {
   /**
    * The moral equivalent of `if (!p) exp`
    */
-  def unless[R, E](b: => Boolean)(stm: => ZSTM[R, E, Any]): ZSTM[R, E, Unit] =
-    suspend(if (b) unit else stm.unit)
+  def unless[R, E, A](b: => Boolean)(stm: => ZSTM[R, E, A]): ZSTM[R, E, Option[A]] =
+    suspend(if (b) none else stm.asSome)
 
   /**
    * The moral equivalent of `if (!p) exp` when `p` has side-effects
    */
-  def unlessM[R, E](b: ZSTM[R, E, Boolean]): ZSTM.UnlessM[R, E] =
-    new ZSTM.UnlessM(b)
+  @deprecated("use unlessSTM", "2.0.0")
+  def unlessM[R, E](b: ZSTM[R, E, Boolean]): ZSTM.UnlessSTM[R, E] =
+    unlessSTM(b)
+
+  /**
+   * The moral equivalent of `if (!p) exp` when `p` has side-effects
+   */
+  def unlessSTM[R, E](b: ZSTM[R, E, Boolean]): ZSTM.UnlessSTM[R, E] =
+    new ZSTM.UnlessSTM(b)
 
   /**
    * Feeds elements of type `A` to `f` and accumulates all errors in error
@@ -1458,6 +1589,21 @@ object ZSTM {
     }
 
   /**
+   * Feeds elements of type `A` to `f` and accumulates all errors in error
+   * channel or successes in success channel.
+   *
+   * This combinator is lossy meaning that if there are errors all successes
+   * will be lost. To retain all information please use [[partition]].
+   */
+  def validate[R, E, A, B](in: NonEmptyChunk[A])(
+    f: A => ZSTM[R, E, B]
+  )(implicit ev: CanFail[E]): ZSTM[R, ::[E], NonEmptyChunk[B]] =
+    partition(in)(f).flatMap {
+      case (e :: es, _) => fail(::(e, es))
+      case (_, bs)      => succeedNow(NonEmptyChunk.nonEmpty(Chunk.fromIterable(bs)))
+    }
+
+  /**
    * Feeds elements of type `A` to `f` until it succeeds. Returns first success
    * or the accumulation of all errors.
    */
@@ -1469,50 +1615,73 @@ object ZSTM {
   /**
    * The moral equivalent of `if (p) exp`
    */
-  def when[R, E](b: => Boolean)(stm: => ZSTM[R, E, Any]): ZSTM[R, E, Unit] =
-    suspend(if (b) stm.unit else unit)
+  def when[R, E, A](b: => Boolean)(stm: => ZSTM[R, E, A]): ZSTM[R, E, Option[A]] =
+    suspend(if (b) stm.asSome else none)
 
   /**
    * Runs an effect when the supplied `PartialFunction` matches for the given value, otherwise does nothing.
    */
-  def whenCase[R, E, A](a: => A)(pf: PartialFunction[A, ZSTM[R, E, Any]]): ZSTM[R, E, Unit] =
-    suspend(pf.applyOrElse(a, (_: A) => unit).unit)
+  def whenCase[R, E, A, B](a: => A)(pf: PartialFunction[A, ZSTM[R, E, B]]): ZSTM[R, E, Option[B]] =
+    suspend(pf.andThen(_.asSome).applyOrElse(a, (_: A) => none))
 
   /**
    * Runs an effect when the supplied `PartialFunction` matches for the given effectful value, otherwise does nothing.
    */
-  def whenCaseM[R, E, A](a: ZSTM[R, E, A])(pf: PartialFunction[A, ZSTM[R, E, Any]]): ZSTM[R, E, Unit] =
+  @deprecated("use whenCaseSTM", "2.0.0")
+  def whenCaseM[R, E, A, B](a: ZSTM[R, E, A])(pf: PartialFunction[A, ZSTM[R, E, B]]): ZSTM[R, E, Option[B]] =
+    whenCaseSTM(a)(pf)
+
+  /**
+   * Runs an effect when the supplied `PartialFunction` matches for the given effectful value, otherwise does nothing.
+   */
+  def whenCaseSTM[R, E, A, B](a: ZSTM[R, E, A])(pf: PartialFunction[A, ZSTM[R, E, B]]): ZSTM[R, E, Option[B]] =
     a.flatMap(whenCase(_)(pf))
 
   /**
    * The moral equivalent of `if (p) exp` when `p` has side-effects
    */
-  def whenM[R, E](b: ZSTM[R, E, Boolean]): ZSTM.WhenM[R, E] =
-    new ZSTM.WhenM(b)
+  @deprecated("use whenSTM", "2.0.0")
+  def whenM[R, E](b: ZSTM[R, E, Boolean]): ZSTM.WhenSTM[R, E] =
+    whenSTM(b)
+
+  /**
+   * The moral equivalent of `if (p) exp` when `p` has side-effects
+   */
+  def whenSTM[R, E](b: ZSTM[R, E, Boolean]): ZSTM.WhenSTM[R, E] =
+    new ZSTM.WhenSTM(b)
 
   final class AccessPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[A](f: R => A): ZSTM[R, Nothing, A] =
       ZSTM.environment.map(f)
   }
 
-  final class AccessMPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
-    def apply[E, A](f: R => ZSTM[R, E, A]): ZSTM[R, E, A] =
+  final class AccessSTMPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+    def apply[R1 <: R, E, A](f: R => ZSTM[R1, E, A]): ZSTM[R with R1, E, A] =
       ZSTM.environment.flatMap(f)
   }
 
+  final class ServiceAtPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
+    def apply[Key](
+      key: => Key
+    )(implicit tag: Tag[Map[Key, Service]]): ZSTM[HasMany[Key, Service], Nothing, Option[Service]] =
+      ZSTM.access(_.getAt(key))
+  }
+
   final class ServiceWithPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
-    def apply[E, A](f: Service => ZSTM[Has[Service], E, A])(implicit tag: Tag[Service]): ZSTM[Has[Service], E, A] =
+    def apply[R <: Has[Service], E, A](f: Service => ZSTM[R, E, A])(implicit
+      tag: Tag[Service]
+    ): ZSTM[R with Has[Service], E, A] =
       ZSTM.service[Service].flatMap(f)
   }
 
-  final class IfM[R, E](private val b: ZSTM[R, E, Boolean]) {
+  final class IfSTM[R, E](private val b: ZSTM[R, E, Boolean]) {
     def apply[R1 <: R, E1 >: E, A](onTrue: => ZSTM[R1, E1, A], onFalse: => ZSTM[R1, E1, A]): ZSTM[R1, E1, A] =
       b.flatMap(b => if (b) onTrue else onFalse)
   }
 
-  final class UnlessM[R, E](private val b: ZSTM[R, E, Boolean]) {
-    def apply[R1 <: R, E1 >: E](stm: => ZSTM[R1, E1, Any]): ZSTM[R1, E1, Unit] =
-      b.flatMap(b => if (b) unit else stm.unit)
+  final class UnlessSTM[R, E](private val b: ZSTM[R, E, Boolean]) {
+    def apply[R1 <: R, E1 >: E, A](stm: => ZSTM[R1, E1, A]): ZSTM[R1, E1, Option[A]] =
+      b.flatMap(b => if (b) none else stm.asSome)
   }
 
   final class UpdateService[-R, +E, +A, M](private val self: ZSTM[R, E, A]) {
@@ -1520,18 +1689,27 @@ object ZSTM {
       self.provideSome(ev.update(_, f))
   }
 
-  final class WhenM[R, E](private val b: ZSTM[R, E, Boolean]) {
-    def apply[R1 <: R, E1 >: E](stm: => ZSTM[R1, E1, Any]): ZSTM[R1, E1, Unit] =
-      b.flatMap(b => if (b) stm.unit else unit)
+  final class UpdateServiceAt[-R, +E, +A, Service](private val self: ZSTM[R, E, A]) extends AnyVal {
+    def apply[R1 <: R with HasMany[Key, Service], Key](key: => Key)(
+      f: Service => Service
+    )(implicit ev: Has.IsHas[R1], tag: Tag[Map[Key, Service]]): ZSTM[R1, E, A] =
+      self.provideSome(ev.updateAt(_, key, f))
+  }
+
+  final class WhenSTM[R, E](private val b: ZSTM[R, E, Boolean]) {
+    def apply[R1 <: R, E1 >: E, A](stm: => ZSTM[R1, E1, A]): ZSTM[R1, E1, Option[A]] =
+      b.flatMap(b => if (b) stm.asSome else none)
   }
 
   private[stm] final case class FailException[E](e: E) extends Throwable(null, null, false, false)
 
   private[stm] final case class DieException(t: Throwable) extends Throwable(null, null, false, false)
 
+  private[stm] final case class InterruptException(fiberId: FiberId) extends Throwable(null, null, false, false)
+
   private[stm] case object RetryException extends Throwable(null, null, false, false)
 
-  private[stm] final case class Effect[R, E, A](f: (Journal, Fiber.Id, R) => A) extends ZSTM[R, E, A] {
+  private[stm] final case class Effect[R, E, A](f: (Journal, FiberId, R) => A) extends ZSTM[R, E, A] {
     def tag: Int = Tags.Effect
   }
 
@@ -1730,10 +1908,10 @@ object ZSTM {
     /**
      * Runs all the todos.
      */
-    def completeTodos[E, A](exit: Exit[E, A], journal: Journal, platform: Platform): TryCommit[E, A] = {
+    def completeTodos[E, A](exit: Exit[E, A], journal: Journal, runtimeConfig: RuntimeConfig): TryCommit[E, A] = {
       val todos = collectTodos(journal)
 
-      if (todos.size > 0) platform.executor.submitOrThrow(() => execTodos(todos))
+      if (todos.size > 0) runtimeConfig.executor.submitOrThrow(() => execTodos(todos))
 
       TryCommit.Done(exit)
     }
@@ -1767,8 +1945,8 @@ object ZSTM {
     }
 
     def tryCommitSync[R, E, A](
-      platform: Platform,
-      fiberId: Fiber.Id,
+      runtimeConfig: RuntimeConfig,
+      fiberId: FiberId,
       stm: ZSTM[R, E, A],
       r: R
     ): TryCommit[E, A] = {
@@ -1828,17 +2006,18 @@ object ZSTM {
       }
 
       value match {
-        case TExit.Succeed(a) => completeTodos(Exit.succeed(a), journal, platform)
-        case TExit.Fail(e)    => completeTodos(Exit.fail(e), journal, platform)
-        case TExit.Die(t)     => completeTodos(Exit.die(t), journal, platform)
-        case TExit.Retry      => TryCommit.Suspend(journal)
+        case TExit.Succeed(a)         => completeTodos(Exit.succeed(a), journal, runtimeConfig)
+        case TExit.Fail(e)            => completeTodos(Exit.fail(e), journal, runtimeConfig)
+        case TExit.Die(t)             => completeTodos(Exit.die(t), journal, runtimeConfig)
+        case TExit.Interrupt(fiberId) => completeTodos(Exit.interrupt(fiberId), journal, runtimeConfig)
+        case TExit.Retry              => TryCommit.Suspend(journal)
       }
     }
 
     def tryCommitAsync[R, E, A](
       journal: Journal,
-      platform: Platform,
-      fiberId: Fiber.Id,
+      runtimeConfig: RuntimeConfig,
+      fiberId: FiberId,
       stm: ZSTM[R, E, A],
       txnId: TxnId,
       state: AtomicReference[State[E, A]],
@@ -1850,9 +2029,9 @@ object ZSTM {
 
       @tailrec
       def suspend(accum: Journal, journal: Journal): Unit = {
-        addTodo(txnId, journal, () => tryCommitAsync(null, platform, fiberId, stm, txnId, state, r)(k))
+        addTodo(txnId, journal, () => tryCommitAsync(null, runtimeConfig, fiberId, stm, txnId, state, r)(k))
 
-        if (isInvalid(journal)) tryCommit(platform, fiberId, stm, state, r) match {
+        if (isInvalid(journal)) tryCommit(runtimeConfig, fiberId, stm, state, r) match {
           case TryCommit.Done(exit) => complete(exit)
           case TryCommit.Suspend(journal2) =>
             val untracked = untrackedTodoTargets(accum, journal2)
@@ -1869,7 +2048,7 @@ object ZSTM {
         if (state.get.isRunning) {
           if (journal ne null) suspend(journal, journal)
           else
-            tryCommit(platform, fiberId, stm, state, r) match {
+            tryCommit(runtimeConfig, fiberId, stm, state, r) match {
               case TryCommit.Done(io)         => complete(io)
               case TryCommit.Suspend(journal) => suspend(journal, journal)
             }
@@ -1878,8 +2057,8 @@ object ZSTM {
     }
 
     def tryCommit[R, E, A](
-      platform: Platform,
-      fiberId: Fiber.Id,
+      runtimeConfig: RuntimeConfig,
+      fiberId: FiberId,
       stm: ZSTM[R, E, A],
       state: AtomicReference[State[E, A]],
       r: R
@@ -1946,10 +2125,11 @@ object ZSTM {
       }
 
       value match {
-        case TExit.Succeed(a) => completeTodos(Exit.succeed(a), journal, platform)
-        case TExit.Fail(e)    => completeTodos(Exit.fail(e), journal, platform)
-        case TExit.Die(t)     => completeTodos(Exit.die(t), journal, platform)
-        case TExit.Retry      => TryCommit.Suspend(journal)
+        case TExit.Succeed(a)         => completeTodos(Exit.succeed(a), journal, runtimeConfig)
+        case TExit.Fail(e)            => completeTodos(Exit.fail(e), journal, runtimeConfig)
+        case TExit.Die(t)             => completeTodos(Exit.die(t), journal, runtimeConfig)
+        case TExit.Interrupt(fiberId) => completeTodos(Exit.interrupt(fiberId), journal, runtimeConfig)
+        case TExit.Retry              => TryCommit.Suspend(journal)
       }
     }
 
@@ -1963,10 +2143,11 @@ object ZSTM {
     object TExit {
       val unit: TExit[Nothing, Unit] = Succeed(())
 
-      final case class Fail[+A](value: A)    extends TExit[A, Nothing]
-      final case class Die(error: Throwable) extends TExit[Nothing, Nothing]
-      final case class Succeed[+B](value: B) extends TExit[Nothing, B]
-      case object Retry                      extends TExit[Nothing, Nothing]
+      final case class Fail[+A](value: A)          extends TExit[A, Nothing]
+      final case class Die(error: Throwable)       extends TExit[Nothing, Nothing]
+      final case class Interrupt(fiberId: FiberId) extends TExit[Nothing, Nothing]
+      final case class Succeed[+B](value: B)       extends TExit[Nothing, B]
+      case object Retry                            extends TExit[Nothing, Nothing]
     }
 
     abstract class Entry { self =>
@@ -2067,10 +2248,11 @@ object ZSTM {
 
       def done[E, A](exit: TExit[E, A]): State[E, A] =
         exit match {
-          case TExit.Succeed(a) => State.Done(Exit.succeed(a))
-          case TExit.Die(t)     => State.Done(Exit.die(t))
-          case TExit.Fail(e)    => State.Done(Exit.fail(e))
-          case TExit.Retry      => throw new Error("Defect: done being called on TExit.Retry")
+          case TExit.Succeed(a)         => State.Done(Exit.succeed(a))
+          case TExit.Die(t)             => State.Done(Exit.die(t))
+          case TExit.Fail(e)            => State.Done(Exit.fail(e))
+          case TExit.Interrupt(fiberId) => State.Done(Exit.interrupt(fiberId))
+          case TExit.Retry              => throw new Error("Defect: done being called on TExit.Retry")
         }
     }
   }

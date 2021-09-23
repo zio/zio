@@ -6,7 +6,7 @@ import zio.test.Assertion._
 object AnnotationsSpec extends ZIOBaseSpec {
 
   def spec: ZSpec[Environment, Failure] = suite("annotationsSpec")(
-    testM("withAnnotation executes specified effect with an empty annotation map") {
+    test("withAnnotation executes specified effect with an empty annotation map") {
       for {
         _   <- Annotations.annotate(count, 1)
         a   <- Annotations.get(count)
@@ -14,7 +14,7 @@ object AnnotationsSpec extends ZIOBaseSpec {
         b    = map.get(count)
       } yield assert(a)(equalTo(1)) && assert(b)(equalTo(2))
     },
-    testM("withAnnotation returns annotation map with result") {
+    test("withAnnotation returns annotation map with result") {
       for {
         map <- Annotations.withAnnotation(Annotations.annotate(count, 3) *> ZIO.fail("fail")).flip.map(_._2)
         c    = map.get(count)

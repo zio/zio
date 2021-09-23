@@ -1,7 +1,7 @@
 package zio.internal
 
 import org.openjdk.jmh.annotations._
-import zio.IOBenchmarks._
+import zio.BenchmarkUtil._
 import zio.ZIO.succeedNow
 import zio._
 

@@ -75,30 +75,29 @@ Naming expectations can be helpful in understanding the role of certain paramete
 
 5. ZIO effects are called `f`, unless they bear specific meaning like partially providing environment: `r0`;
 
-6. Consider methods ending with `_` having more meaningful names;
+6. Iterable are called `in`;
 
-7. Iterable are called `in`;
+7. When a parameter type equals own (in a method of a trait) call it `that`;
 
-8. When a parameter type equals own (in a method of a trait) call it `that`;
-
-9. Be mindful of using by-name parameters. Mind the `Function[0]` extra allocation and loss of clean syntax when invoking the method.
+8. Be mindful of using by-name parameters. Mind the `Function[0]` extra allocation and loss of clean syntax when invoking the method.
    Loss of syntax means that instead of being able to do something like `f.flatMap(ZIO.success)` you require to explicitly do `f.flatMap(ZIO.success(_))`;
    
-10. Fold or fold variants initial values are called `zero`.
+9. Fold or fold variants initial values are called `zero`.
 
 ### Understanding naming of methods
 
 ZIO goes to great lengths to define method names that are intuitive to the library user. Naming is hard!!! 
 This section will attempt to provide some guidelines and examples to document, guide and explain naming of methods in ZIO.
 
-1. Methods that lift pure values to effects are dangerous. Dangerous in the sense that they can potentially have dangerous side-effects. 
-   Such methods should have a default lazy variant and an eager variant for advanced users that are aware they absolutely do not have side-effects in their code, 
-   having slight gains in performance. The lazy variant should have a normal name (succeed, fail, die, lift) and the eager variant should have a `Now` suffix 
-   (succeedNow, failNow, dieNow, liftNow) which makes it clear of its eager behaviour;
+1. All operators that return effects should be lazy in all parameters that are not lambdas. Strict parameters are a source of bugs when users inadvertently call side effecting code
+   in arguments to these parameters. Preventing these bugs is the responsibility of the effect system and lazy parameters allow the runtime to properly manage these side effects.
+   There are two exceptions. First, strict parameters should be used when by name parameters would cause duplicate method signatures due to type erasure. Second, operators on high
+   performance concurrent data structures such as `Ref`, `Queue`, and `Hub` should be strict in their parameters.
 
 2. Methods that have the form of `List#zip` are called `zip`, and have an alias called `<*>`. The parallel version, if applicable, has the name `zipPar`, with an alias called `<&>`;
 
-3. Methods that are intended to capture side-effects, convert them into functional effects, should be prefixed by effect*. For example, `ZIO.effect`;
+3. Avoid the use of `effect` in constructors as this pushes responsibility on users to identify what code is or is not side effecting whereas the effect system should handle this
+   correctly regardless. Instead prefer more specific names such as `succeed`, `attempt`, or `suspend`.
 
 4. The dual of zip, which is trying either a left or right side, producing an Either of the result, should be called `orElseEither`, with alias `<+>`. 
    The simplified variant where both left and right have the same type should be called `orElse`, with alias `<>`;
@@ -108,7 +107,13 @@ This section will attempt to provide some guidelines and examples to document, g
    
 6. Parallel versions of methods should be named the same, but with a `Par` suffix. Parallel versions with a bound on parallelism should use a `ParN` suffix;
 
-7. `Foreach` should be used as the default traverse operation, with `traverse` retained as an alias for programmers with an FP background. For example, `ZIO.foreach`.
+7. `foreach` should be used for operators that effectually iterate over a collection. For example, `ZIO.foreach`.
+
+8. Variants of operators that accept arguments or return results in the context of an effect type should be suffixed by the name of the effect type, for example `mapZIO` or
+   `mapSTM`. The `M` suffix should not be used as it is not idiomatic Scala and does not specify what effect type is involved.
+
+9. Use the `Discard` suffix for variants of methods that discard their results. For example, `foreachDiscard`. The `_` suffix should not be used as it is not idiomatic Scala and
+   does not describe what it does.
    
 ### Type annotations
 

@@ -48,11 +48,11 @@ object LawsSpec extends ZIOBaseSpec {
   def spec: ZSpec[Environment, Failure] =
     suite("LawsSpec") {
       suite("equalLaws")(
-        testM("int") {
-          checkAllLaws(Equal)(Gen.anyInt)
+        test("int") {
+          checkAllLaws(Equal)(Gen.int)
         },
-        testM("string") {
-          checkAllLaws(Equal)(Gen.anyString)
+        test("string") {
+          checkAllLaws(Equal)(Gen.string)
         }
       )
     }

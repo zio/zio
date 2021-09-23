@@ -32,22 +32,22 @@ object Deflate {
     flushMode: FlushMode
   ): ZManaged[Any, Nothing, Option[Chunk[Byte]] => ZIO[Any, Nothing, Chunk[Byte]]] =
     ZManaged
-      .make(ZIO.effectTotal {
+      .acquireReleaseWith(ZIO.succeed {
         val deflater = new Deflater(level.jValue, noWrap)
         deflater.setStrategy(strategy.jValue)
         (deflater, new Array[Byte](bufferSize))
       }) { case (deflater, _) =>
-        ZIO.effectTotal(deflater.end())
+        ZIO.succeed(deflater.end())
       }
       .map {
         case (deflater, buffer) => {
           case Some(chunk) =>
-            ZIO.effectTotal {
+            ZIO.succeed {
               deflater.setInput(chunk.toArray)
               Deflate.pullOutput(deflater, buffer, flushMode)
             }
           case None =>
-            ZIO.effectTotal {
+            ZIO.succeed {
               deflater.finish()
               val out = Deflate.pullOutput(deflater, buffer, flushMode)
               deflater.reset()

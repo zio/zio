@@ -11,26 +11,26 @@ object ConsoleSpec extends ZIOBaseSpec {
 
   def spec: ZSpec[Environment, Failure] =
     suite("ConsoleSpec")(
-      testM("outputs nothing") {
+      test("outputs nothing") {
         for {
           output <- TestConsole.output
         } yield assert(output)(isEmpty)
       },
-      testM("writes to output") {
+      test("writes to output") {
         for {
           _      <- print("First line")
           _      <- print("Second line")
           output <- TestConsole.output
         } yield assert(output)(equalTo(Vector("First line", "Second line")))
       },
-      testM("writes line to output") {
+      test("writes line to output") {
         for {
           _      <- printLine("First line")
           _      <- printLine("Second line")
           output <- TestConsole.output
         } yield assert(output)(equalTo(Vector("First line\n", "Second line\n")))
       },
-      testM("reads from input") {
+      test("reads from input") {
         {
           for {
             testConsole <- ZIO.service[Console]
@@ -42,7 +42,7 @@ object ConsoleSpec extends ZIOBaseSpec {
           }
         }.provideLayer(TestConsole.make(Data(List("Input 1", "Input 2"), Vector.empty)))
       },
-      testM("fails on empty input") {
+      test("fails on empty input") {
         for {
           failed <- readLine.either
           message = failed.fold(_.getMessage, identity)
@@ -51,7 +51,7 @@ object ConsoleSpec extends ZIOBaseSpec {
           assert(message)(equalTo("There is no more input left to read"))
         }
       },
-      testM("feeds lines to input") {
+      test("feeds lines to input") {
         for {
           _      <- feedLines("Input 1", "Input 2")
           input1 <- readLine
@@ -61,7 +61,7 @@ object ConsoleSpec extends ZIOBaseSpec {
           assert(input2)(equalTo("Input 2"))
         }
       },
-      testM("clears lines from input") {
+      test("clears lines from input") {
         for {
           _      <- feedLines("Input 1", "Input 2")
           _      <- clearInput
@@ -72,7 +72,7 @@ object ConsoleSpec extends ZIOBaseSpec {
           assert(message)(equalTo("There is no more input left to read"))
         }
       },
-      testM("clears lines from output") {
+      test("clears lines from output") {
         for {
           _      <- print("First line")
           _      <- print("Second line")
@@ -80,7 +80,7 @@ object ConsoleSpec extends ZIOBaseSpec {
           output <- TestConsole.output
         } yield assert(output)(isEmpty)
       },
-      testM("output is empty at the start of repeating tests") {
+      test("output is empty at the start of repeating tests") {
         for {
           output <- TestConsole.output
           _      <- printLine("Input")

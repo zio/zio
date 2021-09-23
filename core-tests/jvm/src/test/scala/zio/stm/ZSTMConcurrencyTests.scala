@@ -26,7 +26,7 @@ object ZSTMConcurrencyTests {
   )
   @State
   class ConcurrentAcquireAndInterruptDone {
-    val promise: Promise[Nothing, Unit] = Promise.unsafeMake[Nothing, Unit](Fiber.Id.None)
+    val promise: Promise[Nothing, Unit] = Promise.unsafeMake[Nothing, Unit](FiberId.None)
     val semaphore: Semaphore            = runtime.unsafeRun(Semaphore.make(1L))
     var fiber: Fiber[Nothing, Unit]     = null.asInstanceOf[Fiber[Nothing, Unit]]
 
@@ -72,7 +72,7 @@ object ZSTMConcurrencyTests {
   )
   @State
   class ConcurrentAcquireAndInterruptSuspend {
-    val promise: Promise[Nothing, Unit] = Promise.unsafeMake[Nothing, Unit](Fiber.Id.None)
+    val promise: Promise[Nothing, Unit] = Promise.unsafeMake[Nothing, Unit](FiberId.None)
     val semaphore: Semaphore            = runtime.unsafeRun(Semaphore.make(0L))
     var fiber: Fiber[Nothing, Unit]     = null.asInstanceOf[Fiber[Nothing, Unit]]
 
@@ -122,7 +122,7 @@ object ZSTMConcurrencyTests {
   )
   @State
   class ConcurrentWithPermit {
-    val promise: Promise[Nothing, Unit] = Promise.unsafeMake[Nothing, Unit](Fiber.Id.None)
+    val promise: Promise[Nothing, Unit] = Promise.unsafeMake[Nothing, Unit](FiberId.None)
     val semaphore: Semaphore            = runtime.unsafeRun(Semaphore.make(1L))
     var fiber: Fiber[Nothing, Unit]     = null.asInstanceOf[Fiber[Nothing, Unit]]
 
@@ -162,13 +162,13 @@ object ZSTMConcurrencyTests {
   )
   @State
   class ConcurrentWithPermitManaged {
-    val promise: Promise[Nothing, Unit] = Promise.unsafeMake[Nothing, Unit](Fiber.Id.None)
+    val promise: Promise[Nothing, Unit] = Promise.unsafeMake[Nothing, Unit](FiberId.None)
     val semaphore: Semaphore            = runtime.unsafeRun(Semaphore.make(1L))
     var fiber: Fiber[Nothing, Unit]     = null.asInstanceOf[Fiber[Nothing, Unit]]
 
     @Actor
     def actor1(): Unit = {
-      val zio = semaphore.withPermitManaged.use_(ZIO.unit)
+      val zio = semaphore.withPermitManaged.useDiscard(ZIO.unit)
       fiber = runtime.unsafeRun(zio.fork)
       runtime.unsafeRun(promise.succeed(()))
       runtime.unsafeRun(fiber.await)

@@ -22,7 +22,7 @@ import zio.{Task, UIO, ZIO, ZManaged}
 ```
 
 ```scala mdoc:silent:nest
-def lines(file: String): Task[Long] = Task.effect {
+def lines(file: String): Task[Long] = Task.attempt {
   def countLines(br: BufferedReader): Long = br.lines().count()
   val bufferedReader = new BufferedReader(
     new InputStreamReader(new FileInputStream("file.txt")),
@@ -39,7 +39,7 @@ What happens if after opening the file and before closing the file, an exception
 Let's rewrite the above example with `try..finally`:
 
 ```scala mdoc:silent:nest
-def lines(file: String): Task[Long] = Task.effect {
+def lines(file: String): Task[Long] = Task.attempt {
   def countLines(br: BufferedReader): Long = br.lines().count()
   val bufferedReader = new BufferedReader(
     new InputStreamReader(new FileInputStream("file.txt")),
@@ -68,11 +68,11 @@ ZIO's resource management features work across synchronous, asynchronous, concur
 
 ZIO has two major mechanisms to manage resources.
 
-### bracket
+### Acquire Release
 
-ZIO generalized the pattern of `try` / `finally` and encoded it in `ZIO.bracket` or `ZIO#bracket` operations. 
+ZIO generalized the pattern of `try` / `finally` and encoded it in `ZIO.acquireRelease` or `ZIO#acquireRelease` operations. 
 
-Every bracket requires three actions:
+Every acquire release requires three actions:
 1. **Acquiring Resource**— An effect describing the acquisition of resource. For example, opening a file.
 2. **Using Resource**— An effect describing the actual process to produce a result. For example, counting the number of lines in a file.
 3. **Releasing Resource**— An effect describing the final step of releasing or cleaning up the resource. For example, closing a file.
@@ -82,72 +82,72 @@ trait Resource
 ```
 
 ```scala mdoc:silent
-def use(resource: Resource): Task[Any] = Task.effect(???)
-def release(resource: Resource): UIO[Unit] = Task.effectTotal(???)
-def acquire: Task[Resource]                = Task.effect(???)
+def use(resource: Resource): Task[Any] = Task.attempt(???)
+def release(resource: Resource): UIO[Unit] = Task.succeed(???)
+def acquire: Task[Resource]                = Task.attempt(???)
 
-val result1: Task[Any] = acquire.bracket(release, use)
-val result2: Task[Any] = acquire.bracket(release)(use) // More ergonomic API
+val result1: Task[Any] = acquire.acquireReleaseWith(release, use)
+val result2: Task[Any] = acquire.acquireReleaseWith(release)(use) // More ergonomic API
 
-val result3: Task[Any] = Task.bracket(acquire, release, use)
-val result4: Task[Any] = Task.bracket(acquire)(release)(use) // More ergonomic API
+val result3: Task[Any] = Task.acquireReleaseWith(acquire, release, use)
+val result4: Task[Any] = Task.acquireReleaseWith(acquire)(release)(use) // More ergonomic API
 ```
 
-The bracket guarantees us that the `acquiring` and `releasing` of a resource will not be interrupted. These two guarantees ensure us that the resource will always be released.
+The acquire release guarantees us that the `acquiring` and `releasing` of a resource will not be interrupted. These two guarantees ensure us that the resource will always be released.
 
 Let's try a real example. We are going to write a function which count line number of given file. As we are working with file resource, we should separate our logic into three part. At the first part, we create a `BufferedReader`. At the second, we count the file lines with given `BufferedReader` resource, and at the end we close that resource:
 
 ```scala:mdoc:silent
 def lines(file: String): Task[Long] = {
-  def countLines(reader: BufferedReader): Task[Long]    = Task.effect(reader.lines().count())
-  def releaseReader(reader: BufferedReader): UIO[Unit]  = Task.effectTotal(reader.close())
-  def acquireReader(file: String): Task[BufferedReader] = Task.effect(new BufferedReader(new FileReader(file), 2048))
+  def countLines(reader: BufferedReader): Task[Long]    = Task.attempt(reader.lines().count())
+  def releaseReader(reader: BufferedReader): UIO[Unit]  = Task.succeed(reader.close())
+  def acquireReader(file: String): Task[BufferedReader] = Task.attempt(new BufferedReader(new FileReader(file), 2048))
 
-  Task.bracket(acquireReader(file), releaseReader, countLines)
+  Task.acquireReleaseWith(acquireReader(file), releaseReader, countLines)
 }
 ```
 
-Let's write another function which copy a file from source to destination file. We can do that by nesting two brackets one for the `FileInputStream` and the other for `FileOutputStream`:
+Let's write another function which copy a file from source to destination file. We can do that by nesting two acquire releases one for the `FileInputStream` and the other for `FileOutputStream`:
 
 ```scala mdoc:silent
-def is(file: String): Task[FileInputStream]  = Task.effect(???)
-def os(file: String): Task[FileOutputStream] = Task.effect(???)
+def is(file: String): Task[FileInputStream]  = Task.attempt(???)
+def os(file: String): Task[FileOutputStream] = Task.attempt(???)
 
-def close(resource: Closeable): UIO[Unit] = Task.effectTotal(???)
+def close(resource: Closeable): UIO[Unit] = Task.succeed(???)
 def copy(from: FileInputStream, to: FileOutputStream): Task[Unit] = ???
 
 def transfer(src: String, dst: String): ZIO[Any, Throwable, Unit] = {
-  Task.bracket(is(src))(close) { in =>
-    Task.bracket(os(dst))(close) { out =>
+  Task.acquireReleaseWith(is(src))(close) { in =>
+    Task.acquireReleaseWith(os(dst))(close) { out =>
       copy(in, out)
     }
   }
 }
 ```
 
-As there isn't any dependency between our two resources (`is` and `os`), it doesn't make sense to use nested brackets, so let's `zip` these two acquisition into one effect, and the use one bracket on them:
+As there isn't any dependency between our two resources (`is` and `os`), it doesn't make sense to use nested acquire releases, so let's `zip` these two acquisition into one effect, and then use one acquire release on them:
 
 ```scala mdoc:silent:nest
 def transfer(src: String, dst: String): ZIO[Any, Throwable, Unit] = {
   is(src)
     .zipPar(os(dst))
-    .bracket { case (in, out) =>
+    .acquireReleaseWith { case (in, out) =>
       Task
-        .effectTotal(in.close())
-        .zipPar(Task.effectTotal(out.close()))
+        .succeed(in.close())
+        .zipPar(Task.succeed(out.close()))
     } { case (in, out) =>
       copy(in, out)
     }
 }
 ```
 
-While using bracket is a nice and simple way of managing resources, but there are some cases where a bracket is not the best choice:
+While using acquire release is a nice and simple way of managing resources, but there are some cases where an acquire release is not the best choice:
 
-1. Bracket is not composable— When we have multiple resources, composing them with a bracket is not straightforward.
+1. Acquire release is not composable— When we have multiple resources, composing them with an acquire release is not straightforward.
 
-2. Messy nested brackets— In the case of multiple resources, nested brackets remind us of callback hell awkwardness. The bracket is designed with nested resource acquisition. In the case of multiple resources, we encounter inefficient nested bracket calls, and it causes refactoring a complicated process.
+2. Messy nested acquire releases — In the case of multiple resources, nested acquire releases remind us of callback hell awkwardness. The acquire release is designed with nested resource acquisition. In the case of multiple resources, we encounter inefficient nested acquire release calls, and it causes refactoring a complicated process.
 
-Using brackets is simple and straightforward, but in the case of multiple resources, it isn't a good player. This is where we need another abstraction to cover these issues.
+Using acquire releases is simple and straightforward, but in the case of multiple resources, it isn't a good player. This is where we need another abstraction to cover these issues.
 
 ### ZManaged 
 
@@ -156,7 +156,7 @@ Using brackets is simple and straightforward, but in the case of multiple resour
 To create a managed resource, we need to provide `acquire` and `release` action of that resource to the `make` constructor:
 
 ```scala mdoc:silent
-val managed = ZManaged.make(acquire)(release)
+val managed = ZManaged.acquireReleaseWith(acquire)(release)
 ```
 
 We can use managed resources by calling `use` on that. A managed resource is meant to be used only inside of the `use` block. So that resource is not available outside of the `use` block. 
@@ -168,8 +168,8 @@ Let's try to rewrite a `transfer` example with `ZManaged`:
 ```scala mdoc:silent:nest
 def transfer(from: String, to: String): ZIO[Any, Throwable, Unit] = {
   val resource = for {
-    from <- ZManaged.make(is(from))(close)
-    to   <- ZManaged.make(os(to))(close)
+    from <- ZManaged.acquireReleaseWith(is(from))(close)
+    to   <- ZManaged.acquireReleaseWith(os(to))(close)
   } yield (from, to)
 
   resource.use { case (in, out) =>
@@ -183,15 +183,15 @@ Also, we can get rid of this ceremony and treat the `Managed` like a `ZIO` effec
 ```scala mdoc:silent:nest
 def transfer(from: String, to: String): ZIO[Any, Throwable, Unit] = {
   val resource: ZManaged[Any, Throwable, Unit] = for {
-    from <- ZManaged.make(is(from))(close)
-    to   <- ZManaged.make(os(to))(close)
-    _    <- copy(from, to).toManaged_
+    from <- ZManaged.acquireReleaseWith(is(from))(close)
+    to   <- ZManaged.acquireReleaseWith(os(to))(close)
+    _    <- copy(from, to).toManaged
   } yield ()
   resource.useNow
 }
 ```
 
-This is where the `ZManaged` provides us a composable and flexible way of allocating resources.  They can be composed with any `ZIO` effect by converting them using the `ZIO#toManaged_` operator.
+This is where the `ZManaged` provides us a composable and flexible way of allocating resources.  They can be composed with any `ZIO` effect by converting them using the `ZIO#toManaged` operator.
 
 `ZManaged` has several type aliases, each of which is useful for a specific workflow:
 

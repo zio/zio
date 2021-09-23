@@ -16,17 +16,5 @@
 
 package zio
 
-trait App extends BootstrapRuntime {
-
-  /**
-   * The main function of the application, which will be passed the command-line
-   * arguments to the program.
-   */
-  def run(args: List[String]): URIO[ZEnv, ExitCode]
-
-  /**
-   * The Scala main function, intended to be called only by the Scala runtime.
-   */
-  final def main(args0: Array[String]): Unit =
-    unsafeRunAsync(run(args0.toList))(_ => ())
-}
+@deprecated("2.0.0", "Use zio.ZIOApp")
+trait App extends ZApp[ZEnv] with BootstrapRuntime

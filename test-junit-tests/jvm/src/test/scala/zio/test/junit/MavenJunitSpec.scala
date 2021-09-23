@@ -11,12 +11,12 @@ import scala.xml.XML
 
 /**
  * when running from IDE run `sbt publishM2`, copy the snapshot version the artifacts were published under (something like: `1.0.2+0-37ee0765+20201006-1859-SNAPSHOT`)
- * and put this into `VM Parameters`: `-Dproject.dir=$PROJECT_DIR$/test-junit-tests/jvm -Dproject.version=$snapshotVersion`
+ * and put this into `VM Parameters`: `-Dproject.dir=\$PROJECT_DIR\$/test-junit-tests/jvm -Dproject.version=\$snapshotVersion`
  */
 object MavenJunitSpec extends DefaultRunnableSpec {
 
   def spec: ZSpec[Environment, Failure] = suite("MavenJunitSpec")(
-    testM("FailingSpec results are properly reported") {
+    test("FailingSpec results are properly reported") {
       for {
         mvn       <- makeMaven
         mvnResult <- mvn.clean() *> mvn.test()
@@ -82,13 +82,13 @@ object MavenJunitSpec extends DefaultRunnableSpec {
       s"-Dscala.compat.version=$scalaCompatVersion",
       s"-ssettings.xml"
     )
-    def run(command: String*): Task[Int] = ZIO.effectBlocking(
+    def run(command: String*): Task[Int] = ZIO.attemptBlocking(
       cli.doMain(command.toArray, mvnRoot, System.out, System.err)
     )
 
     def parseSurefireReport(testFQN: String): Task[immutable.Seq[TestCase]] =
       ZIO
-        .effectBlocking(
+        .attemptBlocking(
           XML.load(scala.xml.Source.fromFile(new File(s"$mvnRoot/target/surefire-reports/TEST-$testFQN.xml")))
         )
         .map { report =>

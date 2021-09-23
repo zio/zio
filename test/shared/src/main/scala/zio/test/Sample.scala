@@ -17,7 +17,7 @@
 package zio.test
 
 import zio.stream.ZStream
-import zio.{Cause, Exit, ZIO}
+import zio.{Cause, Exit, ZIO, Zippable}
 
 /**
  * A sample is a single observation from a random variable, together with a
@@ -28,21 +28,21 @@ final case class Sample[-R, +A](value: A, shrink: ZStream[R, Nothing, Sample[R, 
   /**
    * A symbolic alias for `zip`.
    */
-  def <&>[R1 <: R, B](that: Sample[R1, B]): Sample[R1, (A, B)] =
+  def <&>[R1 <: R, B](that: Sample[R1, B])(implicit zippable: Zippable[A, B]): Sample[R1, zippable.Out] =
     self.zip(that)
 
   /**
    * A symbolic alias for `cross`.
    */
-  def <*>[R1 <: R, B](that: Sample[R1, B]): Sample[R1, (A, B)] =
+  def <*>[R1 <: R, B](that: Sample[R1, B])(implicit zippable: Zippable[A, B]): Sample[R1, zippable.Out] =
     self.cross(that)
 
   /**
    * Composes this sample with the specified sample to create a cartesian
    * product of values and shrinkings.
    */
-  def cross[R1 <: R, B](that: Sample[R1, B]): Sample[R1, (A, B)] =
-    self.crossWith(that)((_, _))
+  def cross[R1 <: R, B](that: Sample[R1, B])(implicit zippable: Zippable[A, B]): Sample[R1, zippable.Out] =
+    self.crossWith(that)(zippable.zip(_, _))
 
   /**
    * Composes this sample with the specified sample to create a cartesian
@@ -66,7 +66,7 @@ final case class Sample[-R, +A](value: A, shrink: ZStream[R, Nothing, Sample[R, 
   }
 
   def foreach[R1 <: R, B](f: A => ZIO[R1, Nothing, B]): ZIO[R1, Nothing, Sample[R1, B]] =
-    f(value).map(Sample(_, shrink.mapM(_.foreach(f))))
+    f(value).map(Sample(_, shrink.mapZIO(_.foreach(f))))
 
   def map[B](f: A => B): Sample[R, B] =
     Sample(f(value), shrink.map(_.map(f)))
@@ -86,8 +86,8 @@ final case class Sample[-R, +A](value: A, shrink: ZStream[R, Nothing, Sample[R, 
   /**
    * Zips two samples together pairwise.
    */
-  def zip[R1 <: R, B](that: Sample[R1, B]): Sample[R1, (A, B)] =
-    self.zipWith(that)((_, _))
+  def zip[R1 <: R, B](that: Sample[R1, B])(implicit zippable: Zippable[A, B]): Sample[R1, zippable.Out] =
+    self.zipWith(that)(zippable.zip(_, _))
 
   /**
    * Zips two samples together pairwise with the specified function.
@@ -98,13 +98,13 @@ final case class Sample[-R, +A](value: A, shrink: ZStream[R, Nothing, Sample[R, 
     val shrink = self.shrink
       .combine[R1, Nothing, State, Sample[R1, B], Sample[R1, C]](that.shrink)((false, false, None, None)) {
         case ((leftDone, rightDone, s1, s2), left, right) =>
-          left.run.zipWith(right.run) {
+          left.exit.zipWith(right.exit) {
             case (Exit.Success(l), Exit.Success(r)) =>
               Exit.succeed((zipWith(r)(f), (leftDone, rightDone, Some(l), Some(r))))
 
             case (Exit.Success(l), Exit.Failure(cause)) =>
               Cause.flipCauseOption(cause) match {
-                case Some(c) => Exit.halt(c)
+                case Some(c) => Exit.failCause(c)
                 case None =>
                   s2 match {
                     case Some(r) => Exit.succeed((l.zipWith(r)(f), (leftDone, rightDone, Some(l), s2)))
@@ -114,7 +114,7 @@ final case class Sample[-R, +A](value: A, shrink: ZStream[R, Nothing, Sample[R, 
 
             case (Exit.Failure(cause), Exit.Success(r)) =>
               Cause.flipCauseOption(cause) match {
-                case Some(c) => Exit.halt(c)
+                case Some(c) => Exit.failCause(c)
                 case None =>
                   s1 match {
                     case Some(l) => Exit.succeed((l.zipWith(r)(f), (leftDone, rightDone, s1, Some(r))))
@@ -130,9 +130,9 @@ final case class Sample[-R, +A](value: A, shrink: ZStream[R, Nothing, Sample[R, 
                     case (_, false, Some(l), _) => Exit.succeed((l.map(f(_, that.value)), (leftDone, true, None, s2)))
                     case _                      => Exit.fail(None)
                   }
-                case (Some(cl), Some(cr)) => Exit.halt(Cause.Both(cl, cr))
-                case (_, Some(c))         => Exit.halt(c)
-                case (Some(c), _)         => Exit.halt(c)
+                case (Some(cl), Some(cr)) => Exit.failCause(Cause.Both(cl, cr))
+                case (_, Some(c))         => Exit.failCause(c)
+                case (Some(c), _)         => Exit.failCause(c)
               }
           }
       }

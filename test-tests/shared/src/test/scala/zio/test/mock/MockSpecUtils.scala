@@ -3,7 +3,7 @@ package zio.test.mock
 import zio._
 import zio.test.environment.Live
 import zio.test.mock.module.T22
-import zio.test.{Assertion, ZSpec, assertM, testM}
+import zio.test.{Assertion, ZSpec, assertM, test}
 
 trait MockSpecUtils[R] {
 
@@ -14,8 +14,8 @@ trait MockSpecUtils[R] {
     mock: ULayer[R],
     app: ZIO[R, E, A],
     check: Assertion[A]
-  ): ZSpec[Any, E] = testM(name) {
-    val result = mock.build.use[Any, E, A](app.provide _)
+  ): ZSpec[Any, E] = test(name) {
+    val result = mock.build.use[Any, E, A](app.provide(_))
     assertM(result)(check)
   }
 
@@ -23,8 +23,8 @@ trait MockSpecUtils[R] {
     mock: ULayer[R],
     app: ZIO[R, E, A],
     check: Assertion[E]
-  ): ZSpec[Any, A] = testM(name) {
-    val result = mock.build.use[Any, A, E](app.flip.provide _)
+  ): ZSpec[Any, A] = test(name) {
+    val result = mock.build.use[Any, A, E](app.flip.provide(_))
     assertM(result)(check)
   }
 
@@ -32,11 +32,11 @@ trait MockSpecUtils[R] {
     mock: ULayer[R],
     app: ZIO[R, E, A],
     check: Assertion[Option[A]]
-  ): ZSpec[Has[Live], E] = testM(name) {
+  ): ZSpec[Has[Live], E] = test(name) {
     val result =
       Live.live {
         mock.build
-          .use(app.provide _)
+          .use(app.provide(_))
           .timeout(duration)
       }
 
@@ -47,10 +47,10 @@ trait MockSpecUtils[R] {
     mock: ULayer[R],
     app: ZIO[R, E, A],
     check: Assertion[Throwable]
-  ): ZSpec[Any, Any] = testM(name) {
+  ): ZSpec[Any, Any] = test(name) {
     val result: IO[Any, Throwable] =
       mock.build
-        .use(app.provide _)
+        .use(app.provide(_))
         .orElse(ZIO.unit)
         .absorb
         .flip
