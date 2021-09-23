@@ -8,9 +8,9 @@ object Gunzip {
     bufferSize: Int = 64 * 1024
   ): ZChannel[Any, CompressionException, Chunk[Byte], Done, CompressionException, Chunk[Byte], Done] =
     ZChannel.managed(
-      ZManaged.make(
+      ZManaged.acquireReleaseWith(
         Gunzipper.make(bufferSize)
-      )(gunzipper => ZIO.effectTotal(gunzipper.close()))
+      )(gunzipper => ZIO.succeed(gunzipper.close()))
     ) {
       case gunzipper => {
 
