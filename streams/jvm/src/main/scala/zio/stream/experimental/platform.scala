@@ -212,7 +212,9 @@ trait ZStreamPlatformSpecificConstructors {
    */
   def fromFile(path: => Path, chunkSize: Int = ZStream.DefaultChunkSize): ZStream[Any, Throwable, Byte] =
     ZStream
-      .acquireReleaseWith(ZIO.attemptBlockingInterrupt(FileChannel.open(path)))(chan => ZIO.attemptBlocking(chan.close()).orDie)
+      .acquireReleaseWith(ZIO.attemptBlockingInterrupt(FileChannel.open(path)))(chan =>
+        ZIO.attemptBlocking(chan.close()).orDie
+      )
       .flatMap { channel =>
         ZStream.fromZIO(UIO(ByteBuffer.allocate(chunkSize))).flatMap { reusableBuffer =>
           ZStream.repeatZIOChunkOption(
@@ -427,7 +429,7 @@ trait ZStreamPlatformSpecificConstructors {
   /**
    * Accepted connection made to a specific channel `AsynchronousServerSocketChannel`
    */
-  final class Connection private(socket: AsynchronousSocketChannel) {
+  final class Connection private (socket: AsynchronousSocketChannel) {
 
     /**
      * Read the entire `AsynchronousSocketChannel` by emitting a `Chunk[Byte]`

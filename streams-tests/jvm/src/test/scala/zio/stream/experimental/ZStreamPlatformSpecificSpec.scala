@@ -229,28 +229,29 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
         test("reads from an existing file") {
           val data = (0 to 100).mkString
 
-          Task(Files.createTempFile("stream", "fromFile")).acquireReleaseWith(path => Task(Files.delete(path)).orDie) { path =>
-            Task(Files.write(path, data.getBytes("UTF-8"))) *>
-              assertM(
-                ZStream
-                  .fromFile(path, 24)
-                  .transduce(ZSink.utf8Decode)
-                  .runCollect
-                  .map(_.collect { case Some(str) => str }.mkString)
-              )(
-                equalTo(data)
-              )
+          Task(Files.createTempFile("stream", "fromFile")).acquireReleaseWith(path => Task(Files.delete(path)).orDie) {
+            path =>
+              Task(Files.write(path, data.getBytes("UTF-8"))) *>
+                assertM(
+                  ZStream
+                    .fromFile(path, 24)
+                    .transduce(ZSink.utf8Decode)
+                    .runCollect
+                    .map(_.collect { case Some(str) => str }.mkString)
+                )(
+                  equalTo(data)
+                )
           }
         },
         test("fails on a nonexistent file") {
-          assertM(ZStream.fromFile(Paths.get("nonexistent"), 24).runDrain.run)(
+          assertM(ZStream.fromFile(Paths.get("nonexistent"), 24).runDrain.exit)(
             fails(isSubtype[NoSuchFileException](anything))
           )
         }
       ),
       suite("fromReader")(
         test("reads non-empty file") {
-          Task(Files.createTempFile("stream", "reader")).bracket(path => UIO(Files.delete(path))) { path =>
+          Task(Files.createTempFile("stream", "reader")).acquireReleaseWith(path => UIO(Files.delete(path))) { path =>
             for {
               data <- UIO((0 to 100).mkString)
               _    <- Task(Files.write(path, data.getBytes("UTF-8")))
@@ -259,12 +260,13 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
           }
         },
         test("reads empty file") {
-          Task(Files.createTempFile("stream", "reader-empty")).acquireReleaseWith(path => UIO(Files.delete(path))) { path =>
-            ZStream
-              .fromReader(new FileReader(path.toString))
-              .runCollect
-              .map(_.mkString)
-              .map(assert(_)(isEmptyString))
+          Task(Files.createTempFile("stream", "reader-empty")).acquireReleaseWith(path => UIO(Files.delete(path))) {
+            path =>
+              ZStream
+                .fromReader(new FileReader(path.toString))
+                .runCollect
+                .map(_.mkString)
+                .map(assert(_)(isEmptyString))
           }
         },
         test("fails on a failing reader") {
@@ -277,7 +279,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
           ZStream
             .fromReader(new FailingReader)
             .runDrain
-            .run
+            .exit
             .map(assert(_)(fails(isSubtype[IOException](anything))))
         }
       ),
@@ -290,13 +292,13 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
             .map(b => assert(b.collect { case Some(str) => str }.mkString)(startsWithString("Sent")))
         },
         test("fails with FileNotFoundException if the stream does not exist") {
-          assertM(ZStream.fromResource("does_not_exist").runDrain.run)(
+          assertM(ZStream.fromResource("does_not_exist").runDrain.exit)(
             fails(isSubtype[FileNotFoundException](hasMessage(containsString("does_not_exist"))))
           )
         }
       ),
       suite("fromSocketServer")(
-        test("read data")(checkM(Gen.anyString.filter(_.nonEmpty)) { message =>
+        test("read data")(checkM(Gen.string.filter(_.nonEmpty)) { message =>
           for {
             refOut <- Ref.make("")
 
@@ -357,7 +359,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
         },
         test("captures errors") {
           val write = (_: OutputStream) => throw new Exception("boom")
-          ZStream.fromOutputStreamWriter(write).runDrain.run.map(assert(_)(fails(hasMessage(equalTo("boom")))))
+          ZStream.fromOutputStreamWriter(write).runDrain.exit.map(assert(_)(fails(hasMessage(equalTo("boom")))))
         },
         test("is not affected by closing the output stream") {
           val data  = Array.tabulate[Byte](ZStream.DefaultChunkSize * 5 / 2)(_.toByte)
