@@ -17,12 +17,12 @@ object Gunzip {
         lazy val loop: ZChannel[Any, CompressionException, Chunk[Byte], Done, CompressionException, Chunk[Byte], Done] =
           ZChannel.readWithCause(
             chunk =>
-              ZChannel.fromEffect {
+              ZChannel.fromZIO {
                 gunzipper.onChunk(chunk)
               }.flatMap(chunk => ZChannel.write(chunk) *> loop),
-            ZChannel.halt(_),
+            ZChannel.failCause(_),
             done =>
-              ZChannel.fromEffect {
+              ZChannel.fromZIO {
                 gunzipper.onNone
               }.flatMap(chunk => ZChannel.write(chunk).as(done))
           )

@@ -12,85 +12,85 @@ object GunzipSpec extends DefaultRunnableSpec {
 
   override def spec: ZSpec[Environment, Failure] =
     suite("Gunzip")(
-      testM("short stream")(
+      test("short stream")(
         assertM(
           (jdkGzippedStream(shortText).channel >>> Gunzip.makeGunzipper(64)).runCollect.map(_._1.flatten)
         )(
           equalTo(Chunk.fromArray(shortText))
         )
       ),
-      testM("stream of two gzipped inputs as a single chunk")(
+      test("stream of two gzipped inputs as a single chunk")(
         assertM(
           ((jdkGzippedStream(shortText) ++ jdkGzippedStream(otherShortText))
-            .chunkN(500)
+            .rechunk(500)
             .channel >>> Gunzip.makeGunzipper(64)).runCollect.map(_._1.flatten)
         )(equalTo(Chunk.fromArray(shortText) ++ Chunk.fromArray(otherShortText)))
       ),
-      testM("long input")(
+      test("long input")(
         assertM(
           (jdkGzippedStream(longText).channel >>> Gunzip.makeGunzipper(64)).runCollect.map(_._1.flatten)
         )(equalTo(Chunk.fromArray(longText)))
       ),
-      testM("long input, no SYNC_FLUSH")(
+      test("long input, no SYNC_FLUSH")(
         assertM(
           (jdkGzippedStream(longText, false).channel >>> Gunzip.makeGunzipper(64)).runCollect.map(_._1.flatten)
         )(equalTo(Chunk.fromArray(longText)))
       ),
-      testM("long input, buffer smaller than chunks")(
+      test("long input, buffer smaller than chunks")(
         assertM(
-          (jdkGzippedStream(longText).chunkN(500).channel >>> Gunzip.makeGunzipper(1)).runCollect.map(_._1.flatten)
+          (jdkGzippedStream(longText).rechunk(500).channel >>> Gunzip.makeGunzipper(1)).runCollect.map(_._1.flatten)
         )(equalTo(Chunk.fromArray(longText)))
       ),
-      testM("long input, chunks smaller then buffer")(
+      test("long input, chunks smaller then buffer")(
         assertM(
-          (jdkGzippedStream(longText).chunkN(1).channel >>> Gunzip.makeGunzipper(500)).runCollect.map(_._1.flatten)
+          (jdkGzippedStream(longText).rechunk(1).channel >>> Gunzip.makeGunzipper(500)).runCollect.map(_._1.flatten)
         )(equalTo(Chunk.fromArray(longText)))
       ),
-      testM("fail early if header is corrupted")(
+      test("fail early if header is corrupted")(
         assertM(
-          (ZStream.fromIterable(1 to 10).map(_.toByte).channel >>> Gunzip.makeGunzipper()).runCollect.run
+          (ZStream.fromIterable(1 to 10).map(_.toByte).channel >>> Gunzip.makeGunzipper()).runCollect.exit
         )(fails(anything))
       ),
-      testM("fail if input stream finished unexpected")(
+      test("fail if input stream finished unexpected")(
         assertM(
-          (jdkGzippedStream(longText).take(80).channel >>> Gunzip.makeGunzipper()).runCollect.run
+          (jdkGzippedStream(longText).take(80).channel >>> Gunzip.makeGunzipper()).runCollect.exit
         )(fails(anything))
       ),
-      testM("no output on very incomplete stream is not OK")(
+      test("no output on very incomplete stream is not OK")(
         assertM(
-          (ZStream.fromIterable(1 to 5).map(_.toByte).channel >>> Gunzip.makeGunzipper()).runCollect.run
+          (ZStream.fromIterable(1 to 5).map(_.toByte).channel >>> Gunzip.makeGunzipper()).runCollect.exit
         )(fails(anything))
       ),
-      testM("gunzip what JDK gzipped, nowrap")(
-        checkM(Gen.listOfBounded(0, `1K`)(Gen.anyByte).zip(Gen.int(1, `1K`)).zip(Gen.int(1, `1K`))) {
-          case ((chunk, n), bufferSize) =>
+      test("gunzip what JDK gzipped, nowrap")(
+        checkM(Gen.listOfBounded(0, `1K`)(Gen.byte).zip(Gen.int(1, `1K`)).zip(Gen.int(1, `1K`))) {
+          case (chunk, n, bufferSize) =>
             assertM(for {
-              deflated <- ZIO.effectTotal(jdkGzippedStream(chunk.toArray))
-              out      <- (deflated.chunkN(n).channel >>> Gunzip.makeGunzipper(bufferSize)).runCollect.map(_._1.flatten)
+              deflated <- ZIO.succeed(jdkGzippedStream(chunk.toArray))
+              out      <- (deflated.rechunk(n).channel >>> Gunzip.makeGunzipper(bufferSize)).runCollect.map(_._1.flatten)
             } yield out.toList)(equalTo(chunk))
         }
       ),
-      testM("parses header with FEXTRA")(
+      test("parses header with FEXTRA")(
         assertM(
           (headerWithExtra.channel >>> Gunzip.makeGunzipper(64)).runCollect.map(_._1.flatten)
         )(equalTo(Chunk.fromArray(shortText)))
       ),
-      testM("parses header with FCOMMENT")(
+      test("parses header with FCOMMENT")(
         assertM(
           (headerWithComment.channel >>> Gunzip.makeGunzipper(64)).runCollect.map(_._1.flatten)
         )(equalTo(Chunk.fromArray(shortText)))
       ),
-      testM("parses header with FNAME")(
+      test("parses header with FNAME")(
         assertM(
           (headerWithFileName.channel >>> Gunzip.makeGunzipper(64)).runCollect.map(_._1.flatten)
         )(equalTo(Chunk.fromArray(shortText)))
       ),
-      testM("parses header with CRC16")(
+      test("parses header with CRC16")(
         assertM(
-          (headerWithCrc.chunkN(1).channel >>> Gunzip.makeGunzipper(64)).runCollect.map(_._1.flatten)
+          (headerWithCrc.rechunk(1).channel >>> Gunzip.makeGunzipper(64)).runCollect.map(_._1.flatten)
         )(equalTo(Chunk.fromArray(shortText)))
       ),
-      testM("parses header with CRC16, FNAME, FCOMMENT, FEXTRA")(
+      test("parses header with CRC16, FNAME, FCOMMENT, FEXTRA")(
         assertM(
           (headerWithAll.channel >>> Gunzip.makeGunzipper(64)).runCollect.map(_._1.flatten)
         )(equalTo(Chunk.fromArray(shortText)))
