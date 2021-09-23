@@ -739,13 +739,13 @@ object ZSinkSpec extends ZIOBaseSpec {
             }
           },
           test("transducing with regular strings") {
-            checkM(Gen.string.map(s => Chunk.fromArray(s.getBytes("UTF-8")).map(Chunk.single(_)))) { byteChunks =>
+            checkM(Gen.string.map(s => Chunk.fromArray(s.getBytes("UTF-8")))) { byteChunk =>
               ZStream
-                .fromChunks(byteChunks.toList: _*)
+                .fromChunk(byteChunk)
                 .transduce(ZSink.utf8Decode.map(_.getOrElse("")))
                 .run(ZSink.mkString)
                 .map { result =>
-                  assert(byteChunks.flatten)(equalTo(Chunk.fromArray(result.getBytes("UTF-8"))))
+                  assert(byteChunk)(equalTo(Chunk.fromArray(result.getBytes("UTF-8"))))
                 }
             }
           },
@@ -825,55 +825,51 @@ object ZSinkSpec extends ZIOBaseSpec {
         ),
         suite("utf16BEDecode")(
           test("regular strings") {
-            checkM(Gen.const("").map(s => Chunk.fromArray(s.getBytes(StandardCharsets.UTF_16BE))).map(Chunk.single)) {
-              byteChunks =>
-                ZStream
-                  .fromChunks(byteChunks.toList: _*)
-                  .transduce(ZSink.utf16BEDecode.map(_.getOrElse("")))
-                  .mkString
-                  .map { result =>
-                    assertTrue(byteChunks.flatten == Chunk.fromArray(result.getBytes(StandardCharsets.UTF_16BE)))
-                  }
+            checkM(Gen.string.map(s => Chunk.fromArray(s.getBytes(StandardCharsets.UTF_16BE)))) { byteChunk =>
+              ZStream
+                .fromChunk(byteChunk)
+                .transduce(ZSink.utf16BEDecode.map(_.getOrElse("")))
+                .mkString
+                .map { result =>
+                  assertTrue(byteChunk == Chunk.fromArray(result.getBytes(StandardCharsets.UTF_16BE)))
+                }
             }
           }
         ),
         suite("utf16FEDecode")(
           test("regular strings") {
-            checkM(Gen.anyString.map(s => Chunk.fromArray(s.getBytes(StandardCharsets.UTF_16LE))).map(Chunk.single)) {
-              byteChunks =>
-                ZStream
-                  .fromChunks(byteChunks.toList: _*)
-                  .transduce(ZSink.utf16LEDecode.map(_.getOrElse("")))
-                  .mkString
-                  .map { result =>
-                    assertTrue(byteChunks.flatten == Chunk.fromArray(result.getBytes(StandardCharsets.UTF_16LE)))
-                  }
+            checkM(Gen.string.map(s => Chunk.fromArray(s.getBytes(StandardCharsets.UTF_16LE)))) { byteChunk =>
+              ZStream
+                .fromChunk(byteChunk)
+                .transduce(ZSink.utf16LEDecode.map(_.getOrElse("")))
+                .mkString
+                .map { result =>
+                  assertTrue(byteChunk == Chunk.fromArray(result.getBytes(StandardCharsets.UTF_16LE)))
+                }
             }
           }
         ),
         suite("utf16Decode")(
           test("regular strings") {
-            checkM(Gen.anyString.map(s => Chunk.fromArray(s.getBytes(StandardCharsets.UTF_16))).map(Chunk.single)) {
-              byteChunks =>
-                ZStream.fromChunks(byteChunks: _*).transduce(ZSink.utf16Decode.map(_.getOrElse(""))).mkString.map {
-                  result => assertTrue(byteChunks.flatten == Chunk.fromArray(result.getBytes(StandardCharsets.UTF_16)))
-                }
+            checkM(Gen.string.map(s => Chunk.fromArray(s.getBytes(StandardCharsets.UTF_16)))) { byteChunk =>
+              ZStream.fromChunk(byteChunk).transduce(ZSink.utf16Decode.map(_.getOrElse(""))).mkString.map { result =>
+                assertTrue(byteChunk == Chunk.fromArray(result.getBytes(StandardCharsets.UTF_16)))
+              }
             }
           },
           test("no magic sequence - parse as big endian") {
             checkM(
-              Gen.anyString
+              Gen.string
                 .filter(_.nonEmpty)
                 .map(s => Chunk.fromArray(s.getBytes(StandardCharsets.UTF_16BE)))
-                .map(Chunk.single)
-            ) { byteChunks =>
-              ZStream.fromChunks(byteChunks: _*).transduce(ZSink.utf16Decode.map(_.getOrElse(""))).mkString.map {
-                result => assertTrue(byteChunks.flatten == Chunk.fromArray(result.getBytes(StandardCharsets.UTF_16BE)))
+            ) { byteChunk =>
+              ZStream.fromChunk(byteChunk).transduce(ZSink.utf16Decode.map(_.getOrElse(""))).mkString.map { result =>
+                assertTrue(byteChunk == Chunk.fromArray(result.getBytes(StandardCharsets.UTF_16BE)))
               }
             }
           },
           test("big endian") {
-            checkM(Gen.anyString.map(s => Chunk.fromArray(s.getBytes(StandardCharsets.UTF_16BE)))) { s =>
+            checkM(Gen.string.map(s => Chunk.fromArray(s.getBytes(StandardCharsets.UTF_16BE)))) { s =>
               ZStream
                 .fromChunks(
                   Chunk[Byte](-2, -1),
@@ -885,7 +881,7 @@ object ZSinkSpec extends ZIOBaseSpec {
             }
           },
           test("little endian") {
-            checkM(Gen.anyString.map(s => Chunk.fromArray(s.getBytes(StandardCharsets.UTF_16LE)))) { s =>
+            checkM(Gen.string.map(s => Chunk.fromArray(s.getBytes(StandardCharsets.UTF_16LE)))) { s =>
               ZStream
                 .fromChunks(
                   Chunk[Byte](-1, -2),
@@ -899,7 +895,7 @@ object ZSinkSpec extends ZIOBaseSpec {
         ),
         suite("usASCII")(
           test("US-ASCII strings") {
-            checkM(Gen.chunkOf(Gen.anyASCIIString.map(s => Chunk.fromArray(s.getBytes(StandardCharsets.US_ASCII))))) {
+            checkM(Gen.chunkOf(Gen.asciiString.map(s => Chunk.fromArray(s.getBytes(StandardCharsets.US_ASCII))))) {
               chunks =>
                 ZStream
                   .fromChunks(chunks: _*)
