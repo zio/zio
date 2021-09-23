@@ -19,10 +19,9 @@ package zio.test.junit
 import org.junit.runner.manipulation.{Filter, Filterable}
 import org.junit.runner.notification.{Failure, RunNotifier}
 import org.junit.runner.{Description, RunWith, Runner}
-import zio.ZIO.effectTotal
+import zio.ZIO.succeed
 import zio._
 import zio.test.DefaultTestReporter.rendered
-import zio.test.Spec.{SpecCase, SuiteCase, TestCase}
 import zio.test.TestFailure.{Assertion, Runtime}
 import zio.test.TestSuccess.{Ignored, Succeeded}
 import zio.test._
@@ -40,7 +39,9 @@ import zio.test.render.LogLine.Message
  * <br/><br/>
  * Scala.JS is not supported, as JUnit TestFramework for SBT under Scala.JS doesn't support custom runners.
  */
-class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable with BootstrapRuntime {
+class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
+  import zio.Runtime.default.unsafeRun
+
   private val className = klass.getName.stripSuffix("$")
 
   private lazy val spec: AbstractRunnableSpec = {
@@ -60,14 +61,15 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable with Boot
       path: Vector[String] = Vector.empty
     ): ZManaged[R, Any, Unit] =
       spec.caseValue match {
-        case SuiteCase(label, specs, _) =>
-          val suiteDesc = Description.createSuiteDescription(label, path.mkString(":"))
-          ZManaged.effectTotal(description.addChild(suiteDesc)) *>
-            specs
-              .flatMap(ZManaged.foreach(_)(traverse(_, suiteDesc, path :+ label)))
-              .ignore
-        case TestCase(label, _, _) =>
-          ZManaged.effectTotal(description.addChild(testDescription(label, path)))
+        case Spec.ExecCase(_, spec)        => traverse(spec, description, path)
+        case Spec.LabeledCase(label, spec) => traverse(spec, description, path :+ label)
+        case Spec.ManagedCase(managed)     => managed.flatMap(traverse(_, description, path))
+        case Spec.MultipleCase(specs) =>
+          val suiteDesc = Description.createSuiteDescription(path.lastOption.getOrElse(""), path.mkString(":"))
+          ZManaged.succeed(description.addChild(suiteDesc)) *>
+            ZManaged.foreach(specs)(traverse(_, suiteDesc, path)).ignore
+        case Spec.TestCase(_, _) =>
+          ZManaged.succeed(description.addChild(testDescription(path.lastOption.getOrElse(""), path)))
       }
 
     unsafeRun(
@@ -79,7 +81,7 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable with Boot
   }
 
   override def run(notifier: RunNotifier): Unit =
-    zio.Runtime((), spec.runner.platform).unsafeRun {
+    zio.Runtime((), spec.runner.runtimeConfig).unsafeRun {
       val instrumented = instrumentSpec(filteredSpec, new JUnitNotifier(notifier))
       spec.runner.run(instrumented).unit.provideLayer(spec.runner.bootstrap)
     }
@@ -122,7 +124,7 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable with Boot
     zspec: ZSpec[R, E],
     notifier: JUnitNotifier
   ): ZSpec[R, E] = {
-    type ZSpecCase = SpecCase[R, TestFailure[E], TestSuccess, Spec[R, TestFailure[E], TestSuccess]]
+    type ZSpecCase = Spec.SpecCase[R, TestFailure[E], TestSuccess, Spec[R, TestFailure[E], TestSuccess]]
     def instrumentTest(label: String, path: Vector[String], test: ZIO[R, TestFailure[E], TestSuccess]) =
       notifier.fireTestStarted(label, path) *> test.tapBoth(
         {
@@ -136,11 +138,17 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable with Boot
       )
     def loop(specCase: ZSpecCase, path: Vector[String] = Vector.empty): ZSpecCase =
       specCase match {
-        case TestCase(label, test, annotations) => TestCase(label, instrumentTest(label, path, test), annotations)
-        case SuiteCase(label, specs, es) =>
-          val instrumented =
-            specs.flatMap(ZManaged.foreach(_)(s => ZManaged.succeedNow(Spec(loop(s.caseValue, path :+ label)))))
-          SuiteCase(label, instrumented.map(_.toVector), es)
+        case Spec.ExecCase(exec, spec) =>
+          Spec.ExecCase(exec, Spec(loop(spec.caseValue, path)))
+        case Spec.LabeledCase(label, spec) =>
+          Spec.LabeledCase(label, Spec(loop(spec.caseValue, path :+ label)))
+        case Spec.ManagedCase(managed) =>
+          Spec.ManagedCase(managed.map(spec => Spec(loop(spec.caseValue, path))))
+        case Spec.MultipleCase(specs) =>
+          Spec.MultipleCase(specs.map(spec => Spec(loop(spec.caseValue, path))))
+        case Spec.TestCase(test, annotations) =>
+          Spec.TestCase(instrumentTest(path.lastOption.getOrElse(""), path, test), annotations)
+
       }
     Spec(loop(zspec.caseValue))
   }
@@ -165,21 +173,21 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable with Boot
       renderedText: String,
       throwable: Throwable = null
     ): UIO[Unit] =
-      effectTotal {
+      succeed {
         notifier.fireTestFailure(
           new Failure(testDescription(label, path), new TestFailed(renderedText, throwable))
         )
       }
 
-    def fireTestStarted(label: String, path: Vector[String]): UIO[Unit] = effectTotal {
+    def fireTestStarted(label: String, path: Vector[String]): UIO[Unit] = succeed {
       notifier.fireTestStarted(testDescription(label, path))
     }
 
-    def fireTestFinished(label: String, path: Vector[String]): UIO[Unit] = effectTotal {
+    def fireTestFinished(label: String, path: Vector[String]): UIO[Unit] = succeed {
       notifier.fireTestFinished(testDescription(label, path))
     }
 
-    def fireTestIgnored(label: String, path: Vector[String]): UIO[Unit] = effectTotal {
+    def fireTestIgnored(label: String, path: Vector[String]): UIO[Unit] = succeed {
       notifier.fireTestIgnored(testDescription(label, path))
     }
   }

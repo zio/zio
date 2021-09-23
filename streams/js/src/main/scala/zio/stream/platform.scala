@@ -30,11 +30,11 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
    * The optionality of the error type `E` can be used to signal the end of the stream,
    * by setting it to `None`.
    */
-  def effectAsync[R, E, A](
-    register: (ZIO[R, Option[E], Chunk[A]] => Future[Boolean]) => Unit,
+  def async[R, E, A](
+    register: ZStream.Emit[R, E, A, Future[Boolean]] => Unit,
     outputBuffer: Int = 16
   ): ZStream[R, E, A] =
-    effectAsyncMaybe(
+    asyncMaybe(
       callback => {
         register(callback)
         None
@@ -48,20 +48,20 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
    * The optionality of the error type `E` can be used to signal the end of the stream, by
    * setting it to `None`.
    */
-  def effectAsyncInterrupt[R, E, A](
-    register: (ZIO[R, Option[E], Chunk[A]] => Future[Boolean]) => Either[Canceler[R], ZStream[R, E, A]],
+  def asyncInterrupt[R, E, A](
+    register: ZStream.Emit[R, E, A, Future[Boolean]] => Either[Canceler[R], ZStream[R, E, A]],
     outputBuffer: Int = 16
   ): ZStream[R, E, A] =
     ZStream {
       for {
-        output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).toManaged(_.shutdown)
-        runtime <- ZIO.runtime[R].toManaged_
-        eitherStream <- ZManaged.effectTotal {
+        output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).toManagedWith(_.shutdown)
+        runtime <- ZIO.runtime[R].toManaged
+        eitherStream <- ZManaged.succeed {
                           register(k =>
                             try {
                               runtime.unsafeRunToFuture(stream.Take.fromPull(k).flatMap(output.offer))
                             } catch {
-                              case FiberFailure(c) if c.interrupted =>
+                              case FiberFailure(c) if c.isInterrupted =>
                                 Future.successful(false)
                             }
                           )
@@ -75,32 +75,33 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
                       else
                         output.take.flatMap(_.done).onError(_ => done.set(true) *> output.shutdown)
                     }).ensuring(canceler)
-                  case Right(stream) => output.shutdown.toManaged_ *> stream.process
+                  case Right(stream) => output.shutdown.toManaged *> stream.process
                 }
       } yield pull
     }
 
   /**
-   * Creates a stream from an asynchronous callback that can be called multiple times
-   * The registration of the callback itself returns an effect. The optionality of the
-   * error type `E` can be used to signal the end of the stream, by setting it to `None`.
+   * Creates a stream from an asynchronous callback that can be called multiple times.
+   * The registration of the callback itself returns an a managed resource.
+   * The optionality of the error type `E` can be used to signal the end of the
+   * stream, by setting it to `None`.
    */
-  def effectAsyncM[R, E, A](
-    register: (ZIO[R, Option[E], Chunk[A]] => Future[Boolean]) => ZIO[R, E, Any],
+  def asyncManaged[R, E, A](
+    register: (ZIO[R, Option[E], Chunk[A]] => Future[Boolean]) => ZManaged[R, E, Any],
     outputBuffer: Int = 16
   ): ZStream[R, E, A] =
     managed {
       for {
-        output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).toManaged(_.shutdown)
-        runtime <- ZIO.runtime[R].toManaged_
+        output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).toManagedWith(_.shutdown)
+        runtime <- ZIO.runtime[R].toManaged
         _ <- register { k =>
                try {
                  runtime.unsafeRunToFuture(stream.Take.fromPull(k).flatMap(output.offer))
                } catch {
-                 case FiberFailure(c) if c.interrupted =>
+                 case FiberFailure(c) if c.isInterrupted =>
                    Future.successful(false)
                }
-             }.toManaged_
+             }
         done <- ZRef.makeManaged(false)
         pull = done.get.flatMap {
                  if (_)
@@ -109,7 +110,38 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
                    output.take.flatMap(_.done).onError(_ => done.set(true) *> output.shutdown)
                }
       } yield pull
-    }.flatMap(repeatEffectChunkOption(_))
+    }.flatMap(repeatZIOChunkOption(_))
+
+  /**
+   * Creates a stream from an asynchronous callback that can be called multiple times
+   * The registration of the callback itself returns an effect. The optionality of the
+   * error type `E` can be used to signal the end of the stream, by setting it to `None`.
+   */
+  def asyncZIO[R, E, A](
+    register: ZStream.Emit[R, E, A, Future[Boolean]] => ZIO[R, E, Any],
+    outputBuffer: Int = 16
+  ): ZStream[R, E, A] =
+    managed {
+      for {
+        output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).toManagedWith(_.shutdown)
+        runtime <- ZIO.runtime[R].toManaged
+        _ <- register { k =>
+               try {
+                 runtime.unsafeRunToFuture(stream.Take.fromPull(k).flatMap(output.offer))
+               } catch {
+                 case FiberFailure(c) if c.isInterrupted =>
+                   Future.successful(false)
+               }
+             }.toManaged
+        done <- ZRef.makeManaged(false)
+        pull = done.get.flatMap {
+                 if (_)
+                   Pull.end
+                 else
+                   output.take.flatMap(_.done).onError(_ => done.set(true) *> output.shutdown)
+               }
+      } yield pull
+    }.flatMap(repeatZIOChunkOption(_))
 
   /**
    * Creates a stream from an asynchronous callback that can be called multiple times.
@@ -117,26 +149,26 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
    * The optionality of the error type `E` can be used to signal the end of the stream,
    * by setting it to `None`.
    */
-  def effectAsyncMaybe[R, E, A](
-    register: (ZIO[R, Option[E], Chunk[A]] => Future[Boolean]) => Option[ZStream[R, E, A]],
+  def asyncMaybe[R, E, A](
+    register: ZStream.Emit[R, E, A, Future[Boolean]] => Option[ZStream[R, E, A]],
     outputBuffer: Int = 16
   ): ZStream[R, E, A] =
     ZStream {
       for {
-        output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).toManaged(_.shutdown)
-        runtime <- ZIO.runtime[R].toManaged_
-        maybeStream <- ZManaged.effectTotal {
+        output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).toManagedWith(_.shutdown)
+        runtime <- ZIO.runtime[R].toManaged
+        maybeStream <- ZManaged.succeed {
                          register { k =>
                            try {
                              runtime.unsafeRunToFuture(stream.Take.fromPull(k).flatMap(output.offer))
                            } catch {
-                             case FiberFailure(c) if c.interrupted =>
+                             case FiberFailure(c) if c.isInterrupted =>
                                Future.successful(false)
                            }
                          }
                        }
         pull <- maybeStream match {
-                  case Some(stream) => output.shutdown.toManaged_ *> stream.process
+                  case Some(stream) => output.shutdown.toManaged *> stream.process
                   case None =>
                     for {
                       done <- ZRef.makeManaged(false)
@@ -151,6 +183,56 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
     }
 
   /**
+   * Creates a stream from an asynchronous callback that can be called multiple times.
+   * The optionality of the error type `E` can be used to signal the end of the stream,
+   * by setting it to `None`.
+   */
+  @deprecated("use async", "2.0.0")
+  def effectAsync[R, E, A](
+    register: ZStream.Emit[R, E, A, Future[Boolean]] => Unit,
+    outputBuffer: Int = 16
+  ): ZStream[R, E, A] =
+    async(register, outputBuffer)
+
+  /**
+   * Creates a stream from an asynchronous callback that can be called multiple times.
+   * The registration of the callback returns either a canceler or synchronously returns a stream.
+   * The optionality of the error type `E` can be used to signal the end of the stream, by
+   * setting it to `None`.
+   */
+  @deprecated("use asyncInterrupt", "2.0.0")
+  def effectAsyncInterrupt[R, E, A](
+    register: ZStream.Emit[R, E, A, Future[Boolean]] => Either[Canceler[R], ZStream[R, E, A]],
+    outputBuffer: Int = 16
+  ): ZStream[R, E, A] =
+    asyncInterrupt(register, outputBuffer)
+
+  /**
+   * Creates a stream from an asynchronous callback that can be called multiple times
+   * The registration of the callback itself returns an effect. The optionality of the
+   * error type `E` can be used to signal the end of the stream, by setting it to `None`.
+   */
+  @deprecated("use asyncZIO", "2.0.0")
+  def effectAsyncM[R, E, A](
+    register: ZStream.Emit[R, E, A, Future[Boolean]] => ZIO[R, E, Any],
+    outputBuffer: Int = 16
+  ): ZStream[R, E, A] =
+    asyncZIO(register, outputBuffer)
+
+  /**
+   * Creates a stream from an asynchronous callback that can be called multiple times.
+   * The registration of the callback can possibly return the stream synchronously.
+   * The optionality of the error type `E` can be used to signal the end of the stream,
+   * by setting it to `None`.
+   */
+  @deprecated("use asyncMaybe", "2.0.0")
+  def effectAsyncMaybe[R, E, A](
+    register: ZStream.Emit[R, E, A, Future[Boolean]] => Option[ZStream[R, E, A]],
+    outputBuffer: Int = 16
+  ): ZStream[R, E, A] =
+    asyncMaybe(register, outputBuffer)
+
+  /**
    * Creates a stream from a `java.io.InputStream`
    */
   def fromInputStream(
@@ -159,8 +241,8 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
   ): ZStream[Any, IOException, Byte] =
     ZStream {
       for {
-        done       <- Ref.make(false).toManaged_
-        capturedIs <- Managed.effectTotal(is)
+        done       <- Ref.make(false).toManaged
+        capturedIs <- Managed.succeed(is)
         pull = {
           def go: ZIO[Any, Option[IOException], Chunk[Byte]] = done.get.flatMap {
             if (_) Pull.end
@@ -190,11 +272,22 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
    * Creates a stream from a `java.io.InputStream`. Ensures that the input
    * stream is closed after it is exhausted.
    */
+  @deprecated("use fromInputStreamZIO", "2.0.0")
   def fromInputStreamEffect[R](
     is: ZIO[R, IOException, InputStream],
     chunkSize: Int = ZStream.DefaultChunkSize
   ): ZStream[R, IOException, Byte] =
-    fromInputStreamManaged(is.toManaged(is => ZIO.effectTotal(is.close())), chunkSize)
+    fromInputStreamZIO(is, chunkSize)
+
+  /**
+   * Creates a stream from a `java.io.InputStream`. Ensures that the input
+   * stream is closed after it is exhausted.
+   */
+  def fromInputStreamZIO[R](
+    is: ZIO[R, IOException, InputStream],
+    chunkSize: Int = ZStream.DefaultChunkSize
+  ): ZStream[R, IOException, Byte] =
+    fromInputStreamManaged(is.toManagedWith(is => ZIO.succeed(is.close())), chunkSize)
 
   /**
    * Creates a stream from a managed `java.io.InputStream` value.
@@ -207,6 +300,43 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
       .managed(is)
       .flatMap(fromInputStream(_, chunkSize))
 
+  trait ZStreamConstructorPlatformSpecific extends ZStreamConstructorLowPriority1 {
+
+    /**
+     * Constructs a `ZStream[Any, IOException, Byte]` from a
+     * `java.io.InputStream`.
+     */
+    implicit val InputStreamConstructor: WithOut[InputStream, ZStream[Any, IOException, Byte]] =
+      new ZStreamConstructor[InputStream] {
+        type Out = ZStream[Any, IOException, Byte]
+        def make(input: => InputStream): ZStream[Any, IOException, Byte] =
+          ZStream.fromInputStream(input)
+      }
+
+    /**
+     * Constructs a `ZStream[Any, IOException, Byte]` from a
+     * `ZManaged[R, java.io.IOException, java.io.InputStream]`.
+     */
+    implicit def InputStreamManagedConstructor[R, E <: IOException]
+      : WithOut[ZManaged[R, E, InputStream], ZStream[R, IOException, Byte]] =
+      new ZStreamConstructor[ZManaged[R, E, InputStream]] {
+        type Out = ZStream[R, IOException, Byte]
+        def make(input: => ZManaged[R, E, InputStream]): ZStream[R, IOException, Byte] =
+          ZStream.fromInputStreamManaged(input)
+      }
+
+    /**
+     * Constructs a `ZStream[Any, IOException, Byte]` from a
+     * `ZIO[R, java.io.IOException, java.io.InputStream]`.
+     */
+    implicit def InputStreamZIOConstructor[R, E <: IOException]
+      : WithOut[ZIO[R, E, InputStream], ZStream[R, IOException, Byte]] =
+      new ZStreamConstructor[ZIO[R, E, InputStream]] {
+        type Out = ZStream[R, IOException, Byte]
+        def make(input: => ZIO[R, E, InputStream]): ZStream[R, IOException, Byte] =
+          ZStream.fromInputStreamZIO(input)
+      }
+  }
 }
 trait StreamPlatformSpecificConstructors
 

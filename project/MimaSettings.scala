@@ -6,13 +6,14 @@ import com.typesafe.tools.mima.core._
 import com.typesafe.tools.mima.core.ProblemFilters._
 
 object MimaSettings {
-  lazy val bincompatVersionToCompare = "1.0.8"
+  lazy val bincompatVersionToCompare = "1.0.11"
 
   def mimaSettings(failOnProblem: Boolean) =
     Seq(
       mimaPreviousArtifacts := Set(organization.value %% name.value % bincompatVersionToCompare),
       mimaBinaryIssueFilters ++= Seq(
         exclude[Problem]("zio.internal.*"),
+        exclude[Problem]("zio.ZQueue#internal#*"),
         exclude[ReversedMissingMethodProblem](
           "zio.ZManagedPlatformSpecific.zio$ZManagedPlatformSpecific$_setter_$blocking_="
         ),

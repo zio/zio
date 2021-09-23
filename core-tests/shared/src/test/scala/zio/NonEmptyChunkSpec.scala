@@ -19,38 +19,38 @@ object NonEmptyChunkSpec extends ZIOBaseSpec {
     Gen.function(genNonEmptyChunk)
 
   def spec: ZSpec[Environment, Failure] = suite("NonEmptyChunkSpec")(
-    testM("+") {
+    test("+") {
       check(genNonEmptyChunk, genInt)((as, a) => assert((as :+ a).toChunk)(equalTo(as.toChunk :+ a)))
     },
     suite("++")(
-      testM("Chunk with NonEmptyChunk") {
+      test("Chunk with NonEmptyChunk") {
         check(genChunk, genNonEmptyChunk)((as, bs) => assert((as ++ bs).toChunk)(equalTo(as ++ bs.toChunk)))
       },
-      testM("NonEmptyChunk with Chunk") {
+      test("NonEmptyChunk with Chunk") {
         check(genNonEmptyChunk, genChunk)((as, bs) => assert((as ++ bs).toChunk)(equalTo(as.toChunk ++ bs)))
       },
-      testM("NonEmptyChunk with NonEmptyChunk") {
+      test("NonEmptyChunk with NonEmptyChunk") {
         check(genNonEmptyChunk, genNonEmptyChunk) { (as, bs) =>
           assert((as ++ bs).toChunk)(equalTo(as.toChunk ++ bs.toChunk))
         }
       }
     ),
-    testM("flatMap") {
+    test("flatMap") {
       check(genNonEmptyChunk, genNonEmptyChunkFunction) { (as, f) =>
         assert(as.flatMap(f).toChunk)(equalTo(as.toChunk.flatMap(a => f(a).toChunk)))
       }
     },
-    testM("map") {
+    test("map") {
       check(genNonEmptyChunk, genIntFunction)((as, f) => assert(as.map(f).toChunk)(equalTo(as.toChunk.map(f))))
     },
-    testM("reduceMapLeft") {
+    test("reduceMapLeft") {
       check(genNonEmptyChunk, genIntFunction, genIntFunction2) { (as, map, reduce) =>
         val actual   = as.reduceMapLeft(map)(reduce)
         val expected = as.tail.foldLeft(map(as.head))(reduce)
         assert(actual)(equalTo(expected))
       }
     },
-    testM("reduceMapRight") {
+    test("reduceMapRight") {
       check(genNonEmptyChunk, genIntFunction, genIntFunction2) { (as, map, reduce) =>
         val actual   = as.reduceMapRight(map)(reduce)
         val expected = as.init.foldRight(map(as.last))(reduce)

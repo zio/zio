@@ -15,7 +15,7 @@ object GenSpec extends ZIOBaseSpec {
 
   def spec: ZSpec[Environment, Failure] = suite("GenSpec")(
     suite("integration tests")(
-      testM("with bogus even property") {
+      test("with bogus even property") {
         val gen = Gen.int(0, 100)
 
         def test(n: Int): TestResult = {
@@ -31,10 +31,10 @@ object GenSpec extends ZIOBaseSpec {
           }
         })(isTrue)
       },
-      testM("with bogus reverse property") {
+      test("with bogus reverse property") {
         val gen = for {
-          as <- Gen.int(0, 100).flatMap(Gen.listOfN(_)(Gen.anyInt))
-          bs <- Gen.int(0, 100).flatMap(Gen.listOfN(_)(Gen.anyInt))
+          as <- Gen.int(0, 100).flatMap(Gen.listOfN(_)(Gen.int))
+          bs <- Gen.int(0, 100).flatMap(Gen.listOfN(_)(Gen.int))
         } yield (as, bs)
 
         def test(a: (List[Int], List[Int])): TestResult = a match {
@@ -53,15 +53,15 @@ object GenSpec extends ZIOBaseSpec {
           }
         })(isTrue)
       },
-      testM("with randomly generated functions") {
+      test("with randomly generated functions") {
         val ints                                           = Gen.listOf(Gen.int(-10, 10))
         val intBooleanFn: Gen[Has[Random], Int => Boolean] = Gen.function(Gen.boolean)
 
         Check(ints, intBooleanFn)((as, f) => assert(as.takeWhile(f).forall(f))(isTrue))
       },
-      testM("with multiple parameter function generator") {
-        val ints                                       = Gen.anyInt
-        val genFn: Gen[Has[Random], (Int, Int) => Int] = Gen.function2(Gen.anyInt)
+      test("with multiple parameter function generator") {
+        val ints                                       = Gen.int
+        val genFn: Gen[Has[Random], (Int, Int) => Int] = Gen.function2(Gen.int)
 
         def swap[A, B, C](f: (A, B) => C): (B, A) => C =
           (b, a) => f(a, b)
@@ -71,8 +71,8 @@ object GenSpec extends ZIOBaseSpec {
           assert(f(a, b))(equalTo(g(a, b)))
         }
       },
-      testM("with shrinking nonempty list") {
-        val gen = Gen.int(1, 100).flatMap(Gen.listOfN(_)(Gen.anyInt))
+      test("with shrinking nonempty list") {
+        val gen = Gen.int(1, 100).flatMap(Gen.listOfN(_)(Gen.int))
 
         def test(a: List[Int]): TestResult = assert(a)(Assertion.nothing)
 
@@ -86,17 +86,17 @@ object GenSpec extends ZIOBaseSpec {
       }
     ),
     suite("monad laws")(
-      testM("monad left identity") {
+      test("monad left identity") {
         assertM(equal(smallInt.flatMap(a => Gen.const(a)), smallInt))(isTrue)
       },
-      testM("monad right identity") {
+      test("monad right identity") {
         val n = 10
 
         def f(n: Int): Gen[Has[Random], Int] = Gen.int(-n, n)
 
         assertM(equal(Gen.const(n).flatMap(f), f(n)))(isTrue)
       },
-      testM("monad associativity") {
+      test("monad associativity") {
         val fa = Gen.int(0, 2)
 
         def f(p: Int): Gen[Has[Random], (Int, Int)] =
@@ -109,530 +109,530 @@ object GenSpec extends ZIOBaseSpec {
       }
     ),
     suite("sample")(
-      testM("alphaNumericChar generates numbers and letters") {
+      test("alphaNumericChar generates numbers and letters") {
         checkSample(Gen.alphaNumericChar)(forall(isTrue), _.map(_.isLetterOrDigit))
       },
-      testM("alphaNumericString generates numbers and letters") {
+      test("alphaNumericString generates numbers and letters") {
         checkSample(Gen.alphaNumericString)(forall(isTrue), _.map(_.forall(_.isLetterOrDigit)))
       },
-      testM("alphaNumericStringBounded generates strings whose size is in bounds") {
+      test("alphaNumericStringBounded generates strings whose size is in bounds") {
         checkSample(Gen.alphaNumericStringBounded(2, 10))(forall(hasSizeString(isWithin(2, 10))))
       },
-      testM("anyDayOfWeek generates java.time.DayOfWeek values") {
-        checkSample(Gen.anyDayOfWeek)(isTrue, ds => ds.forall(DayOfWeek.values().contains))
+      test("dayOfWeek generates java.time.DayOfWeek values") {
+        checkSample(Gen.dayOfWeek)(isTrue, ds => ds.forall(DayOfWeek.values().contains))
       },
-      testM("anyFiniteDuration generates Duration values") {
-        checkSample(Gen.anyFiniteDuration)(isNonEmpty)
+      test("finiteDuration generates Duration values") {
+        checkSample(Gen.finiteDuration)(isNonEmpty)
       },
-      testM("anyInstant generates Instant values") {
-        checkSample(Gen.anyInstant)(isNonEmpty)
+      test("instant generates Instant values") {
+        checkSample(Gen.instant)(isNonEmpty)
       },
-      testM("anyLocalDateTime generates LocalDateTime values") {
-        checkSample(Gen.anyLocalDateTime)(isNonEmpty)
+      test("localDateTime generates LocalDateTime values") {
+        checkSample(Gen.localDateTime)(isNonEmpty)
       },
-      testM("anyLocalDate generates java.time.LocalDate values") {
-        checkSample(Gen.anyLocalDate)(isNonEmpty)
+      test("localDate generates java.time.LocalDate values") {
+        checkSample(Gen.localDate)(isNonEmpty)
       },
-      testM("anyLocalTime generates java.time.LocalTime values") {
-        checkSample(Gen.anyLocalTime)(isNonEmpty)
+      test("localTime generates java.time.LocalTime values") {
+        checkSample(Gen.localTime)(isNonEmpty)
       },
-      testM("anyMonth generates java.time.Month values") {
-        checkSample(Gen.anyMonth)(isTrue, ms => ms.forall(Month.values().contains))
+      test("month generates java.time.Month values") {
+        checkSample(Gen.month)(isTrue, ms => ms.forall(Month.values().contains))
       },
-      testM("anyMonthDay generates java.time.MonthDay values") {
-        checkSample(Gen.anyMonthDay)(isNonEmpty)
+      test("monthDay generates java.time.MonthDay values") {
+        checkSample(Gen.monthDay)(isNonEmpty)
       },
-      testM("anyOffsetDateTime generates OffsetDateTime values") {
-        checkSample(Gen.anyOffsetDateTime)(isNonEmpty)
+      test("offsetDateTime generates OffsetDateTime values") {
+        checkSample(Gen.offsetDateTime)(isNonEmpty)
       },
-      testM("anyOffsetTime generates java.time.OffsetTime values") {
-        checkSample(Gen.anyOffsetTime)(isNonEmpty)
+      test("offsetTime generates java.time.OffsetTime values") {
+        checkSample(Gen.offsetTime)(isNonEmpty)
       },
-      testM("anyPeriod generates java.time.Period values") {
-        checkSample(Gen.anyPeriod)(isNonEmpty)
+      test("period generates java.time.Period values") {
+        checkSample(Gen.period)(isNonEmpty)
       },
-      testM("anyYear generates java.time.Year values") {
-        checkSample(Gen.anyYear)(isNonEmpty)
+      test("year generates java.time.Year values") {
+        checkSample(Gen.year)(isNonEmpty)
       },
-      testM("anyYearMonth generates java.time.YearMonth values") {
-        checkSample(Gen.anyYearMonth)(isNonEmpty)
+      test("yearMonth generates java.time.YearMonth values") {
+        checkSample(Gen.yearMonth)(isNonEmpty)
       },
-      testM("anyZonedDateTime generates java.time.ZonedDateTime values") {
-        checkSample(Gen.anyZonedDateTime)(isNonEmpty)
+      test("zonedDateTime generates java.time.ZonedDateTime values") {
+        checkSample(Gen.zonedDateTime)(isNonEmpty)
       },
-      testM("anyZoneId generates java.time.ZoneId values") {
-        checkSample(Gen.anyZoneId)(isNonEmpty)
+      test("zoneId generates java.time.ZoneId values") {
+        checkSample(Gen.zoneId)(isNonEmpty)
       },
-      testM("anyZoneOffset generates java.time.ZoneOffset values") {
-        checkSample(Gen.anyZoneOffset)(isNonEmpty)
+      test("zoneOffset generates java.time.ZoneOffset values") {
+        checkSample(Gen.zoneOffset)(isNonEmpty)
       },
-      testM("bigDecimal generates values in range") {
+      test("bigDecimal generates values in range") {
         val min        = BigDecimal("1.414213562373095048801688724209698")
         val max        = BigDecimal("2.0")
         val bigDecimal = Gen.bigDecimal(min, max)
         checkSample(bigDecimal)(forall(isGreaterThanEqualTo(min) && isLessThanEqualTo(max)))
       },
-      testM("bigInt generates values in range") {
+      test("bigInt generates values in range") {
         val min    = BigInt("1")
         val max    = BigInt("265252859812191058636308480000000")
         val bigInt = Gen.bigInt(min, max)
         checkSample(bigInt)(forall(isGreaterThanEqualTo(min) && isLessThanEqualTo(max)))
       },
-      testM("boolean generates true and false") {
+      test("boolean generates true and false") {
         checkSample(Gen.boolean)(contains(true) && contains(false))
       },
-      testM("byte generates values in range") {
+      test("byte generates values in range") {
         checkSample(Gen.byte(38, 38))(forall(equalTo(38.toByte)))
       },
-      testM("char generates values in range") {
+      test("char generates values in range") {
         checkSample(Gen.char(33, 123))(
           forall(isGreaterThanEqualTo(33) && isLessThanEqualTo(123)),
           _.map(_.toInt)
         )
       },
-      testM("chunkOf generates sizes in range") {
+      test("chunkOf generates sizes in range") {
         checkSample(Gen.chunkOf(smallInt))(
           forall(isGreaterThanEqualTo(0) && isLessThanEqualTo(100)),
           _.map(_.length)
         )
       },
-      testM("chunkOfBounded generates chunks whose size is in bounds") {
+      test("chunkOfBounded generates chunks whose size is in bounds") {
         checkSample(Gen.chunkOfBounded(2, 10)(smallInt))(forall(hasSize(isWithin(2, 10))))
       },
-      testM("chunkOf1 generates nonempty chunks") {
+      test("chunkOf1 generates nonempty chunks") {
         checkSample(Gen.chunkOf1(smallInt), size = 0)(forall(isNonEmpty), _.map(_.toChunk))
       },
-      testM("chunkOfN generates chunks of correct size") {
+      test("chunkOfN generates chunks of correct size") {
         checkSample(Gen.chunkOfN(10)(smallInt))(forall(equalTo(10)), _.map(_.length))
       },
-      testM("collect collects values a partial function is defined at") {
+      test("collect collects values a partial function is defined at") {
         checkSample(smallInt.collect { case n if n % 2 == 0 => n })(forall(equalTo(0)), _.map(_ % 2))
       },
-      testM("const generates constant value") {
+      test("const generates constant value") {
         checkSample(Gen.const("constant"))(forall(equalTo("constant")))
       },
-      testM("double generates values in range") {
+      test("double generates values in range") {
         checkSample(Gen.double(5.0, 9.0))(forall(isGreaterThanEqualTo(5.0) && isLessThan(9.0)))
       },
-      testM("exponential generates values between 0 and positive infinity") {
+      test("exponential generates values between 0 and positive infinity") {
         checkSample(Gen.exponential)(forall(isGreaterThanEqualTo(0.0)))
       },
-      testM("filter filters values according to predicate") {
+      test("filter filters values according to predicate") {
         checkSample(smallInt.filter(_ % 2 == 0))(forall(equalTo(0)), _.map(_ % 2))
       },
-      testM("finiteDuration generates values in range") {
+      test("finiteDuration generates values in range") {
         val min = 42.minutes + 23222.nanos
         val max = 3.hours + 30.seconds + 887999.nanos
         checkSample(Gen.finiteDuration(min, max))(forall(isGreaterThanEqualTo(min) && isLessThanEqualTo(max)))
       },
-      testM("function generates different functions") {
+      test("function generates different functions") {
         val gen = for {
           f <- genStringIntFn
           g <- genStringIntFn
-          s <- Gen.string(Gen.anyChar)
+          s <- Gen.string(Gen.char)
         } yield f(s) == g(s)
         checkSample(gen)(isTrue, _.exists(!_))
       },
-      testM("function generates functions that are not constant") {
+      test("function generates functions that are not constant") {
         val gen = for {
           f  <- genStringIntFn
-          s1 <- Gen.string(Gen.anyChar)
-          s2 <- Gen.string(Gen.anyChar)
+          s1 <- Gen.string(Gen.char)
+          s2 <- Gen.string(Gen.char)
         } yield f(s1) == f(s2)
         checkSample(gen)(isTrue, _.exists(!_))
       },
-      testM("function generates referentially transparent functions") {
+      test("function generates referentially transparent functions") {
         val gen = for {
           f <- genStringIntFn
-          s <- Gen.string(Gen.anyChar)
+          s <- Gen.string(Gen.char)
         } yield f(s) == f(s)
         checkSample(gen)(isTrue, _.forall(identity))
       },
-      testM("instant generates values in range") {
+      test("instant generates values in range") {
         val min = Instant.ofEpochSecond(-38457693893669L, 435345)
         val max = Instant.ofEpochSecond(74576982873324L, 345345345)
         checkSample(Gen.instant(min, max))(forall(isGreaterThanEqualTo(min) && isLessThanEqualTo(max)))
       },
-      testM("int generates values in range") {
+      test("int generates values in range") {
         checkSample(smallInt)(forall(isGreaterThanEqualTo(-10) && isLessThanEqualTo(10)))
       },
-      testM("int is safe for ranges greater than Int.MaxValue") {
+      test("int is safe for ranges greater than Int.MaxValue") {
         val gen = Gen.int(0, Int.MaxValue)
         checkSample(gen)(forall(isGreaterThanEqualTo(0) && isLessThanEqualTo(Int.MaxValue)))
       },
-      testM("large generates sizes in range") {
+      test("large generates sizes in range") {
         val gen = Gen.large(Gen.listOfN(_)(Gen.int(-10, 10)))
         checkSample(gen)(forall(isLessThanEqualTo(100)), _.map(_.length))
       },
-      testM("listOf generates sizes in range") {
+      test("listOf generates sizes in range") {
         checkSample(Gen.listOf(smallInt))(
           forall(isGreaterThanEqualTo(0) && isLessThanEqualTo(100)),
           _.map(_.length)
         )
       },
-      testM("listOf1 generates nonempty lists") {
+      test("listOf1 generates nonempty lists") {
         checkSample(Gen.listOf1(smallInt), size = 0)(forall(isNonEmpty))
       },
-      testM("listOfBounded generates lists whose size is in bounds") {
+      test("listOfBounded generates lists whose size is in bounds") {
         checkSample(Gen.listOfBounded(2, 10)(smallInt))(forall(hasSize(isWithin(2, 10))))
       },
-      testM("listOfN generates lists of correct size") {
+      test("listOfN generates lists of correct size") {
         checkSample(Gen.listOfN(10)(smallInt))(forall(equalTo(10)), _.map(_.length))
       },
-      testM("localDateTime generates values in range") {
+      test("localDateTime generates values in range") {
         val min = LocalDateTime.ofEpochSecond(-238756L, 987435, ZoneOffset.ofHours(12))
         val max = LocalDateTime.ofEpochSecond(3987384759834L, 4736, ZoneOffset.ofHours(-2))
         checkSample(Gen.localDateTime(min, max))(forall(isGreaterThanEqualTo(min) && isLessThanEqualTo(max)))
       },
-      testM("long generates values in range") {
+      test("long generates values in range") {
         val min = -775050485969923566L
         val max = 2826409893363053690L
         checkSample(Gen.long(min, max))(forall(isGreaterThanEqualTo(min) && isLessThanEqualTo(max)))
       },
-      testM("mapM maps an effectual function over a generator") {
-        val gen = Gen.int(1, 6).mapM(n => ZIO.succeed(n + 6))
+      test("mapZIO maps an effectual function over a generator") {
+        val gen = Gen.int(1, 6).mapZIO(n => ZIO.succeed(n + 6))
         checkSample(gen)(forall(Assertion.isGreaterThanEqualTo(7) && isLessThanEqualTo(12)))
       },
-      testM("mapOf generates sizes in range") {
+      test("mapOf generates sizes in range") {
         checkSample(Gen.mapOf(smallInt, smallInt))(forall(hasSize(isGreaterThanEqualTo(0) && isLessThanEqualTo(100))))
       },
-      testM("mapOf1 generates nonempty maps") {
+      test("mapOf1 generates nonempty maps") {
         checkSample(Gen.mapOf1(smallInt, smallInt), size = 0)(forall(isNonEmpty))
       },
-      testM("mapOfBounded generates maps whose size is in bounds") {
+      test("mapOfBounded generates maps whose size is in bounds") {
         checkSample(Gen.mapOfBounded(2, 10)(smallInt, smallInt))(forall(hasSize(isWithin(2, 10))))
       },
-      testM("mapOfN generates maps of correct size") {
+      test("mapOfN generates maps of correct size") {
         checkSample(Gen.mapOfN(10)(smallInt, smallInt))(forall(hasSize(equalTo(10))))
       },
-      testM("medium generates sizes in range") {
+      test("medium generates sizes in range") {
         val gen = Gen.medium(Gen.listOfN(_)(Gen.int(-10, 10)))
         checkSample(gen)(forall(isGreaterThanEqualTo(0) && isLessThanEqualTo(100)), _.map(_.length))
       },
-      testM("none generates the constant empty value") {
+      test("none generates the constant empty value") {
         checkSample(Gen.none)(forall(isNone))
       },
-      testM("offsetDateTime generates values in range") {
+      test("offsetDateTime generates values in range") {
         val min = OffsetDateTime.ofInstant(Instant.ofEpochSecond(-98345983298736L, 34334), ZoneOffset.ofHours(7))
         val max = OffsetDateTime.ofInstant(Instant.ofEpochSecond(39847530948982L, 4875384), ZoneOffset.ofHours(3))
         checkSample(Gen.offsetDateTime(min, max))(forall(isGreaterThanEqualTo(min) && isLessThanEqualTo(max)))
       },
-      testM("optionOf generates optional values") {
+      test("optionOf generates optional values") {
         checkSample(Gen.option(smallInt))(exists(isNone) && exists(isSome(anything)))
       },
-      testM("partialFunction generates partial functions") {
+      test("partialFunction generates partial functions") {
         val gen = for {
           f <- Gen.partialFunction[Has[Random], String, Int](Gen.int(-10, 10))
-          s <- Gen.string(Gen.anyChar)
+          s <- Gen.string(Gen.char)
         } yield f.lift(s)
         checkSample(gen)(exists(isNone) && exists(isSome(anything)))
       },
-      testM("printableChar generates values in range") {
+      test("printableChar generates values in range") {
         checkSample(Gen.printableChar)(
           forall(isGreaterThanEqualTo(33) && isLessThanEqualTo(126)),
           _.map(_.toInt)
         )
       },
-      testM("setOf generates sizes in range") {
+      test("setOf generates sizes in range") {
         checkSample(Gen.setOf(smallInt))(forall(hasSize(isGreaterThanEqualTo(0) && isLessThanEqualTo(100))))
       },
-      testM("setOf1 generates nonempty sets") {
+      test("setOf1 generates nonempty sets") {
         checkSample(Gen.setOf1(smallInt), size = 0)(forall(isNonEmpty))
       },
-      testM("setOfBounded generates sets whose size is in bounds") {
+      test("setOfBounded generates sets whose size is in bounds") {
         checkSample(Gen.setOfBounded(2, 10)(smallInt))(forall(hasSize(isWithin(2, 10))))
       },
-      testM("setOfN generates sets of correct size") {
+      test("setOfN generates sets of correct size") {
         checkSample(Gen.setOfN(10)(smallInt))(forall(hasSize(equalTo(10))))
       },
-      testM("short generates values in range") {
+      test("short generates values in range") {
         checkSample(Gen.short(5, 10))(forall(isGreaterThanEqualTo(5) && isLessThanEqualTo(10)), _.map(_.toInt))
       },
-      testM("sized accesses size in environment") {
+      test("sized accesses size in environment") {
         checkSample(Gen.sized(Gen.const(_)), size = 50)(forall(equalTo(50)))
       } @@ nonFlaky,
-      testM("small generates sizes in range") {
+      test("small generates sizes in range") {
         val gen = Gen.small(Gen.listOfN(_)(Gen.int(-10, 10)))
         checkSample(gen)(forall(isGreaterThanEqualTo(0) && isLessThanEqualTo(100)), _.map(_.length))
       },
-      testM("string generates sizes in range") {
+      test("string generates sizes in range") {
         checkSample(Gen.string(Gen.printableChar))(
           forall(isGreaterThanEqualTo(0) && isLessThanEqualTo(100)),
           _.map(_.length)
         )
       },
-      testM("string1 generates nonempty strings") {
+      test("string1 generates nonempty strings") {
         checkSample(Gen.string1(Gen.printableChar), size = 0)(forall(isFalse), _.map(_.isEmpty))
       },
-      testM("stringBounded generates strings whose size is in bounds") {
+      test("stringBounded generates strings whose size is in bounds") {
         checkSample(Gen.stringBounded(2, 10)(Gen.printableChar))(forall(hasSizeString(isWithin(2, 10))))
       },
-      testM("stringN generates strings of correct size") {
+      test("stringN generates strings of correct size") {
         checkSample(Gen.stringN(10)(Gen.printableChar))(forall(equalTo(10)), _.map(_.length))
       },
-      testM("uniform generates values between 0 and 1") {
+      test("uniform generates values between 0 and 1") {
         checkSample(Gen.uniform)(forall(isGreaterThanEqualTo(0.0) && isLessThanEqualTo(1.0)))
       },
-      testM("unit generates the constant unit value") {
+      test("unit generates the constant unit value") {
         checkSample(Gen.unit)(forall(equalTo(())))
       },
-      testM("vectorOf generates sizes in range") {
+      test("vectorOf generates sizes in range") {
         checkSample(Gen.vectorOf(smallInt))(
           forall(isGreaterThanEqualTo(0) && isLessThanEqualTo(100)),
           _.map(_.length)
         )
       },
-      testM("vectorOfBounded generates vectors whose size is in bounds") {
+      test("vectorOfBounded generates vectors whose size is in bounds") {
         checkSample(Gen.vectorOfBounded(2, 10)(smallInt))(forall(hasSize(isWithin(2, 10))))
       },
-      testM("vectorOf1 generates nonempty vectors") {
+      test("vectorOf1 generates nonempty vectors") {
         checkSample(Gen.vectorOf1(smallInt), size = 0)(forall(isNonEmpty))
       },
-      testM("vectorOfN generates vectors of correct size") {
+      test("vectorOfN generates vectors of correct size") {
         checkSample(Gen.vectorOfN(10)(smallInt))(forall(equalTo(10)), _.map(_.length))
       },
-      testM("weighted generates weighted distribution") {
+      test("weighted generates weighted distribution") {
         val weighted = Gen.weighted((Gen.const(true), 10), (Gen.const(false), 90))
         checkSample(weighted)(isTrue, ps => ps.count(!_) > ps.count(identity))
       },
-      testM("weighted never chooses a generator with zero probability") {
+      test("weighted never chooses a generator with zero probability") {
         val weighted = Gen.weighted((Gen.const(true), 1), (Gen.const(false), 0))
         checkSample(weighted)(isTrue, ps => ps.forall(identity))
       }
     ),
     suite("shrinks")(
-      testM("alphaNumericChar shrinks to zero") {
+      test("alphaNumericChar shrinks to zero") {
         checkShrink(Gen.alphaNumericChar)('0')
       },
-      testM("alphaNumericString shrinks to empty string") {
+      test("alphaNumericString shrinks to empty string") {
         checkShrink(Gen.alphaNumericString)("")
       },
-      testM("alphaNumericStringBounded shrinks to bottom of range") {
+      test("alphaNumericStringBounded shrinks to bottom of range") {
         checkShrink(Gen.alphaNumericStringBounded(2, 10))("00")
       },
-      testM("anyByte shrinks to zero") {
-        checkShrink(Gen.anyByte)(0)
+      test("byte shrinks to zero") {
+        checkShrink(Gen.byte)(0)
       },
-      testM("anyChar shrinks to zero") {
-        checkShrink(Gen.anyChar)(0)
+      test("char shrinks to zero") {
+        checkShrink(Gen.char)(0)
       },
-      testM("anyDayOfWeek shrinks to DayOfWeek.MONDAY") {
-        checkShrink(Gen.anyDayOfWeek)(DayOfWeek.MONDAY)
+      test("dayOfWeek shrinks to DayOfWeek.MONDAY") {
+        checkShrink(Gen.dayOfWeek)(DayOfWeek.MONDAY)
       },
-      testM("anyFiniteDuration shrinks to Duration.Zero") {
-        checkShrink(Gen.anyFiniteDuration)(Duration.Zero)
+      test("finiteDuration shrinks to Duration.Zero") {
+        checkShrink(Gen.finiteDuration)(Duration.Zero)
       },
-      testM("anyFloat shrinks to zero") {
-        checkShrink(Gen.anyFloat)(0)
+      test("float shrinks to zero") {
+        checkShrink(Gen.float)(0)
       },
-      testM("anyInstant shrinks to Instant.MIN") {
+      test("instant shrinks to Instant.MIN") {
         val min = Instant.ofEpochSecond(-93487534873L, 2387642L)
         val max = Instant.ofEpochSecond(394876L, 376542888L)
         checkShrink(Gen.instant(min, max))(min)
       },
-      testM("anyLocalDateTime shrinks to LocalDateTime.MIN") {
-        checkShrink(Gen.anyLocalDateTime)(LocalDateTime.MIN)
+      test("localDateTime shrinks to LocalDateTime.MIN") {
+        checkShrink(Gen.localDateTime)(LocalDateTime.MIN)
       },
-      testM("anyInt shrinks to zero") {
-        checkShrink(Gen.anyInt)(0)
+      test("int shrinks to zero") {
+        checkShrink(Gen.int)(0)
       },
-      testM("anyLong shrinks to zero") {
-        checkShrink(Gen.anyLong)(0)
+      test("long shrinks to zero") {
+        checkShrink(Gen.long)(0)
       },
-      testM("anyLocalDate shrinks to LocalDate.MIN") {
-        checkShrink(Gen.anyLocalDate)(LocalDate.MIN)
+      test("localDate shrinks to LocalDate.MIN") {
+        checkShrink(Gen.localDate)(LocalDate.MIN)
       },
-      testM("anyLocalTime shrinks to LocalTime.MIN") {
-        checkShrink(Gen.anyLocalTime)(LocalTime.MIN)
+      test("localTime shrinks to LocalTime.MIN") {
+        checkShrink(Gen.localTime)(LocalTime.MIN)
       },
-      testM("anyMonth shrinks to Month.JANUARY") {
-        checkShrink(Gen.anyMonth)(Month.JANUARY)
+      test("month shrinks to Month.JANUARY") {
+        checkShrink(Gen.month)(Month.JANUARY)
       },
-      testM("anyMonthDay shrinks to MonthDay.of(Month.JANUARY, 1)") {
-        checkShrink(Gen.anyMonthDay)(MonthDay.of(Month.JANUARY, 1))
+      test("monthDay shrinks to MonthDay.of(Month.JANUARY, 1)") {
+        checkShrink(Gen.monthDay)(MonthDay.of(Month.JANUARY, 1))
       },
-      testM("anyOffsetDateTime shrinks to OffsetDateTime.MIN") {
-        checkShrink(Gen.anyOffsetDateTime)(OffsetDateTime.MIN)
+      test("offsetDateTime shrinks to OffsetDateTime.MIN") {
+        checkShrink(Gen.offsetDateTime)(OffsetDateTime.MIN)
       },
-      testM("anyOffsetTime shrinks to OffsetTime.MIN") {
-        checkShrink(Gen.anyOffsetTime)(OffsetTime.MIN)
+      test("offsetTime shrinks to OffsetTime.MIN") {
+        checkShrink(Gen.offsetTime)(OffsetTime.MIN)
       },
-      testM("anyPeriod shrinks to Period.ZERO") {
-        checkShrink(Gen.anyPeriod)(Period.ZERO)
+      test("period shrinks to Period.ZERO") {
+        checkShrink(Gen.period)(Period.ZERO)
       },
-      testM("anyShort shrinks to zero") {
-        checkShrink(Gen.anyShort)(0)
+      test("short shrinks to zero") {
+        checkShrink(Gen.short)(0)
       },
-      testM("anyString shrinks to empty string") {
-        checkShrink(Gen.anyString)("")
+      test("string shrinks to empty string") {
+        checkShrink(Gen.string)("")
       },
-      testM("anyUnicodeChar shrinks to zero") {
-        checkShrink(Gen.anyUnicodeChar)(0)
+      test("unicodeChar shrinks to zero") {
+        checkShrink(Gen.unicodeChar)(0)
       },
-      testM("anyYear shrinks to Year.MIN_VALUE") {
-        checkShrink(Gen.anyYear)(Year.of(Year.MIN_VALUE))
+      test("year shrinks to Year.MIN_VALUE") {
+        checkShrink(Gen.year)(Year.of(Year.MIN_VALUE))
       },
-      testM("anyYearMonth shrinks to YearMonth.of(Year.MIN_VALUE, Month.JANUARY)") {
-        checkShrink(Gen.anyYearMonth)(YearMonth.of(Year.MIN_VALUE, Month.JANUARY))
+      test("yearMonth shrinks to YearMonth.of(Year.MIN_VALUE, Month.JANUARY)") {
+        checkShrink(Gen.yearMonth)(YearMonth.of(Year.MIN_VALUE, Month.JANUARY))
       },
-      testM("anyZoneOffset shrinks to ZoneOffset.MIN") {
-        checkShrink(Gen.anyZoneOffset)(ZoneOffset.MIN)
+      test("zoneOffset shrinks to ZoneOffset.MIN") {
+        checkShrink(Gen.zoneOffset)(ZoneOffset.MIN)
       },
-      testM("boolean shrinks to false") {
+      test("boolean shrinks to false") {
         checkShrink(Gen.boolean)(false)
       },
-      testM("byte shrinks to bottom of range") {
+      test("byte shrinks to bottom of range") {
         checkShrink(Gen.byte(38, 123))(38)
       },
-      testM("char shrinks to bottom of range") {
+      test("char shrinks to bottom of range") {
         checkShrink(Gen.char(33, 123))(33)
       },
-      testM("chunkOf shrinks to empty vector") {
+      test("chunkOf shrinks to empty vector") {
         checkShrink(Gen.chunkOf(smallInt))(Chunk.empty)
       },
-      testM("chunkOf1 shrinks to singleton vector") {
+      test("chunkOf1 shrinks to singleton vector") {
         checkShrink(Gen.chunkOf1(smallInt))(NonEmptyChunk(-10))
       },
-      testM("chunkOfBounded shrinks to bottom of range") {
+      test("chunkOfBounded shrinks to bottom of range") {
         checkShrink(Gen.chunkOfBounded(2, 10)(smallInt))(Chunk(-10, -10))
       },
-      testM("chunkOfN shrinks elements") {
+      test("chunkOfN shrinks elements") {
         checkShrink(Gen.chunkOfN(10)(smallInt))(Chunk.fill(10)(-10))
       },
-      testM("collect collects shrinks a partial function is defined at") {
+      test("collect collects shrinks a partial function is defined at") {
         checkShrink(Gen.int(1, 10).collect { case n if n % 2 == 0 => n })(2)
       },
-      testM("double shrinks to bottom of range") {
+      test("double shrinks to bottom of range") {
         checkShrink(Gen.double(5.0, 9.0))(5.0)
       },
-      testM("either shrinks to left") {
+      test("either shrinks to left") {
         checkShrink(Gen.either(smallInt, smallInt))(Left(-10))
       },
-      testM("exponential shrinks to zero") {
+      test("exponential shrinks to zero") {
         checkShrink(Gen.exponential)(0.0)
       },
-      testM("filter filters shrinks according to predicate") {
+      test("filter filters shrinks according to predicate") {
         checkShrink(Gen.int(1, 10).filter(_ % 2 == 0))(2)
       },
-      testM("finiteDuration shrinks to min") {
+      test("finiteDuration shrinks to min") {
         val min = 97.minutes + 13.seconds + 32.nanos
         val max = 3.hours + 2.minutes + 45.seconds + 23453.nanos
         checkShrink(Gen.finiteDuration(min, max))(min)
       },
-      testM("instant shrinks to min") {
+      test("instant shrinks to min") {
         val min = Instant.ofEpochSecond(-93487534873L, 2387642L)
         val max = Instant.ofEpochSecond(394876L, 376542888L)
         checkShrink(Gen.instant(min, max))(min)
       },
-      testM("int shrinks to bottom of range") {
+      test("int shrinks to bottom of range") {
         checkShrink(smallInt)(-10)
       },
-      testM("listOf shrinks to empty list") {
+      test("listOf shrinks to empty list") {
         checkShrink(Gen.listOf(smallInt))(Nil)
       },
-      testM("listOf1 shrinks to singleton list") {
+      test("listOf1 shrinks to singleton list") {
         checkShrink(Gen.listOf1(smallInt))(::(-10, Nil))
       },
-      testM("listOfBounded shrinks to bottom of range") {
+      test("listOfBounded shrinks to bottom of range") {
         checkShrink(Gen.listOfBounded(2, 10)(smallInt))(List(-10, -10))
       },
-      testM("listOfN shrinks elements") {
+      test("listOfN shrinks elements") {
         checkShrink(Gen.listOfN(10)(smallInt))(List.fill(10)(-10))
       },
-      testM("localDateTime shrinks to min") {
+      test("localDateTime shrinks to min") {
         val min = LocalDateTime.ofEpochSecond(-349875349L, 38743843, ZoneOffset.ofHours(-13))
         val max = LocalDateTime.ofEpochSecond(-234234L, 34985434, ZoneOffset.ofHours(-1))
         checkShrink(Gen.localDateTime(min, max))(min)
       },
-      testM("long shrinks to bottom of range") {
+      test("long shrinks to bottom of range") {
         val min = -8649088475068069159L
         val max = 7907688119669724678L
         checkShrink(Gen.long(min, max))(min)
       },
-      testM("mapOf shrinks to empty map") {
+      test("mapOf shrinks to empty map") {
         checkShrink(Gen.mapOf(smallInt, smallInt))(Map.empty)
       },
-      testM("mapOf1 shrinks to singleton map") {
+      test("mapOf1 shrinks to singleton map") {
         checkShrink(Gen.mapOf1(smallInt, smallInt))(Map(-10 -> -10))
       },
-      testM("mapOfBounded shrinks to bottom of range") {
+      test("mapOfBounded shrinks to bottom of range") {
         checkShrink(Gen.mapOfBounded(1, 10)(smallInt, smallInt))(Map(-10 -> -10))
       },
-      testM("mapOfN shrinks elements") {
+      test("mapOfN shrinks elements") {
         checkShrink(Gen.mapOfN(1)(smallInt, smallInt))(Map(-10 -> -10))
       },
-      testM("noShrink discards the shrinker for this generator") {
-        assertM(shrinks(Gen.anyInt.noShrink))(hasSize(equalTo(1)))
+      test("noShrink discards the shrinker for this generator") {
+        assertM(shrinks(Gen.int.noShrink))(hasSize(equalTo(1)))
       },
-      testM("offsetDateTime shrinks to min") {
+      test("offsetDateTime shrinks to min") {
         val min = OffsetDateTime.ofInstant(Instant.ofEpochSecond(8345983298736L, 345), ZoneOffset.ofHours(-4))
         val max = OffsetDateTime.ofInstant(Instant.ofEpochSecond(348975394875348L, 56456456), ZoneOffset.ofHours(0))
         checkShrink(Gen.offsetDateTime(min, max))(min)
       },
-      testM("optionOf shrinks to None") {
+      test("optionOf shrinks to None") {
         checkShrink(Gen.option(smallInt))(None)
       },
-      testM("printableChar shrinks to bottom of range") {
+      test("printableChar shrinks to bottom of range") {
         checkShrink(Gen.printableChar)('!')
       },
-      testM("reshrink applies new shrinking logic") {
+      test("reshrink applies new shrinking logic") {
         val gen = Gen.int(0, 10).reshrink(Sample.shrinkIntegral(10))
         checkShrink(gen)(10)
       },
-      testM("setOf shrinks to empty set") {
+      test("setOf shrinks to empty set") {
         checkShrink(Gen.setOf(smallInt))(Set.empty)
       },
-      testM("setOf1 shrinks to singleton set") {
+      test("setOf1 shrinks to singleton set") {
         checkShrink(Gen.setOf1(smallInt))(Set(-10))
       },
-      testM("setOfBounded shrinks to bottom of range") {
+      test("setOfBounded shrinks to bottom of range") {
         checkShrink(Gen.setOfBounded(1, 10)(smallInt))(Set(-10))
       },
-      testM("setOfN shrinks elements") {
+      test("setOfN shrinks elements") {
         checkShrink(Gen.setOfN(1)(smallInt))(Set(-10))
       },
-      testM("short shrinks to bottom of range") {
+      test("short shrinks to bottom of range") {
         checkShrink(Gen.short(5, 10))(5)
       },
-      testM("some shrinks to smallest value") {
+      test("some shrinks to smallest value") {
         checkShrink(Gen.some(smallInt))(Some(-10))
       },
-      testM("string shrinks to empty string") {
+      test("string shrinks to empty string") {
         checkShrink(Gen.string(Gen.printableChar))("")
       },
-      testM("string1 shrinks to single character") {
+      test("string1 shrinks to single character") {
         checkShrink(Gen.string1(Gen.printableChar))("!")
       },
-      testM("stringBounded shrinks to bottom of range") {
+      test("stringBounded shrinks to bottom of range") {
         checkShrink(Gen.stringBounded(2, 10)(Gen.printableChar))("!!")
       },
-      testM("stringN shrinks characters") {
+      test("stringN shrinks characters") {
         checkShrink(Gen.stringN(10)(Gen.printableChar))("!!!!!!!!!!")
       },
-      testM("uniform shrinks to zero") {
+      test("uniform shrinks to zero") {
         checkShrink(Gen.uniform)(0.0)
       },
-      testM("vectorOf shrinks to empty vector") {
+      test("vectorOf shrinks to empty vector") {
         checkShrink(Gen.vectorOf(smallInt))(Vector.empty)
       },
-      testM("vectorOf1 shrinks to singleton vector") {
+      test("vectorOf1 shrinks to singleton vector") {
         checkShrink(Gen.vectorOf1(smallInt))(Vector(-10))
       },
-      testM("vectorOfBounded shrinks to bottom of range") {
+      test("vectorOfBounded shrinks to bottom of range") {
         checkShrink(Gen.vectorOfBounded(2, 10)(smallInt))(Vector(-10, -10))
       },
-      testM("vectorOfN shrinks elements") {
+      test("vectorOfN shrinks elements") {
         checkShrink(Gen.vectorOfN(10)(smallInt))(Vector.fill(10)(-10))
       },
-      testM("zip shrinks correctly") {
+      test("zip shrinks correctly") {
         checkShrink(three <*> three)((0, 0))
       },
-      testM("zipWith shrinks correctly") {
+      test("zipWith shrinks correctly") {
         checkShrink(smallInt.zipWith(smallInt)(_ + _))(-20)
       }
     ),
     suite("zipWith")(
-      testM("left preservation") {
+      test("left preservation") {
         checkM(deterministic, deterministic) { (a, b) =>
           for {
             left  <- sample(a.zip(b).map(_._1))
@@ -640,7 +640,7 @@ object GenSpec extends ZIOBaseSpec {
           } yield assert(left)(startsWith(right))
         }
       } @@ scala2Only,
-      testM("right preservation") {
+      test("right preservation") {
         checkM(deterministic, deterministic) { (a, b) =>
           for {
             left  <- sample(a.zip(b).map(_._2))
@@ -648,7 +648,7 @@ object GenSpec extends ZIOBaseSpec {
           } yield assert(left)(startsWith(right))
         }
       } @@ scala2Only,
-      testM("shrinking") {
+      test("shrinking") {
         checkM(random, random) { (a, b) =>
           for {
             left  <- shrink(a.zip(b))
@@ -656,26 +656,27 @@ object GenSpec extends ZIOBaseSpec {
           } yield assert(left)(equalTo(right))
         }
       },
-      testM("shrink search") {
+      test("shrink search") {
+        val gen      = shrinkable.zip(shrinkable)
         val smallInt = Gen.int(0, 9)
-        checkM(Gen.const(shrinkable.zip(shrinkable)), smallInt, smallInt) { (gen, m, n) =>
+        checkM(smallInt, smallInt) { (m, n) =>
           for {
             result <- shrinkWith(gen) { case (x, y) => x < m && y < n }
           } yield assert(result.reverse.headOption)(isSome(equalTo((m, 0)) || equalTo((0, n))))
         }
       },
-      testM("determinism") {
-        val gen = Gen.anyInt <&> Gen.anyInt
+      test("determinism") {
+        val gen = Gen.int <&> Gen.int
         assertM(gen.runHead)(isSome(equalTo((-1170105035, 234785527))))
       } @@ setSeed(42) @@ nonFlaky
     ),
-    testM("fromIterable constructs deterministic generators") {
+    test("fromIterable constructs deterministic generators") {
       val expected   = List.range(1, 6).flatMap(x => List.range(1, 6).map(y => x + y))
       val exhaustive = Gen.fromIterable(1 until 6)
       val actual     = exhaustive.crossWith(exhaustive)(_ + _)
       checkFinite(actual)(equalTo(expected))
     } @@ scala2Only, //todo fix when #2232 is resolved
-    testM("size can be modified locally") {
+    test("size can be modified locally") {
       val getSize = Gen.size.sample.map(_.value).runCollect.map(_.head)
       val result = for {
         x <- Sized.withSize(200)(getSize)
@@ -683,10 +684,10 @@ object GenSpec extends ZIOBaseSpec {
       } yield x == 2 * y
       assertM(provideSize(result)(100))(isTrue)
     },
-    testM("suspend lazily constructs a generator") {
+    test("suspend lazily constructs a generator") {
       check(genIntList)(as => assert(as.reverse.reverse)(equalTo(as)))
     },
-    testM("runCollect") {
+    test("runCollect") {
       val domain = List.range(-10, 10)
       val gen    = Gen.fromIterable(domain)
       for {
@@ -695,7 +696,7 @@ object GenSpec extends ZIOBaseSpec {
       } yield assert(a)(equalTo(domain)) &&
         assert(b)(equalTo(domain))
     } @@ scala2Only,
-    testM("runCollectN") {
+    test("runCollectN") {
       val gen = Gen.int(-10, 10)
       for {
         a <- gen.runCollectN(100)
@@ -704,10 +705,10 @@ object GenSpec extends ZIOBaseSpec {
         assert(a)(hasSize(equalTo(100))) &&
         assert(b)(hasSize(equalTo(100)))
     },
-    testM("runHead") {
+    test("runHead") {
       assertM(Gen.int(-10, 10).runHead)(isSome(isWithin(-10, 10)))
     },
-    testM("crossAll") {
+    test("crossAll") {
       val gen = Gen.crossAll(
         List(
           Gen.fromIterable(List(1, 2)),
@@ -726,7 +727,7 @@ object GenSpec extends ZIOBaseSpec {
         )
       )
     },
-    testM("zipAll") {
+    test("zipAll") {
       val gen = Gen.zipAll(
         List(
           Gen.fromIterable(List(1, 2)),
@@ -743,13 +744,13 @@ object GenSpec extends ZIOBaseSpec {
         )
       )
     },
-    testM("unfoldGen") {
+    test("unfoldGen") {
       sealed trait Command
       case object Pop                   extends Command
       final case class Push(value: Int) extends Command
 
       val genPop: Gen[Any, Command]          = Gen.const(Pop)
-      def genPush: Gen[Has[Random], Command] = Gen.anyInt.map(value => Push(value))
+      def genPush: Gen[Has[Random], Command] = Gen.int.map(value => Push(value))
 
       val genCommands: Gen[Has[Random] with Has[Sized], List[Command]] =
         Gen.unfoldGen(0) { n =>

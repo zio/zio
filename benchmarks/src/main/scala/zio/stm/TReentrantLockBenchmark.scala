@@ -2,7 +2,7 @@ package zio.stm
 
 import org.openjdk.jmh.annotations.{Benchmark, Group, GroupThreads, _}
 import org.openjdk.jmh.infra.Blackhole
-import zio.IOBenchmarks._
+import zio.BenchmarkUtil._
 import zio._
 
 import java.util.concurrent.TimeUnit
@@ -141,7 +141,7 @@ class TReentrantLockBenchmark {
   }
 
   @CompilerControl(CompilerControl.Mode.DONT_INLINE)
-  def doWorkM(): UIO[Unit] = ZIO.effectTotal(doWork())
+  def doWorkM(): UIO[Unit] = ZIO.succeed(doWork())
 
   @CompilerControl(CompilerControl.Mode.DONT_INLINE)
   def doWork(): Unit = Blackhole.consumeCPU(100L)

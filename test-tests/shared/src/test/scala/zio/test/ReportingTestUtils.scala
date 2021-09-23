@@ -5,9 +5,9 @@ import zio.test.environment.{TestClock, TestConsole, TestEnvironment, testEnviro
 import zio.test.mock.Expectation._
 import zio.test.mock.internal.InvalidCall._
 import zio.test.mock.internal.MockException._
-import zio.test.mock.module.PureModuleMock
+import zio.test.mock.module.{PureModule, PureModuleMock}
 import zio.test.render.TestRenderer
-import zio.{Cause, Clock, Has, Layer, ZIO}
+import zio.{Cause, Clock, Has, Layer, Promise, ZIO}
 
 import java.util.regex.Pattern
 import scala.{Console => SConsole}
@@ -99,7 +99,7 @@ object ReportingTestUtils {
   )
 
   val test4: Spec[Any, TestFailure[String], Nothing] =
-    Spec.test("Failing test", failed(Cause.fail("Fail")), TestAnnotationMap.empty)
+    Spec.labeled("Failing test", Spec.test(failed(Cause.fail("Fail")), TestAnnotationMap.empty))
   val test4Expected: Vector[String] = Vector(
     expectedFailure("Failing test"),
     withOffset(2)("Fiber failed.\n") +
@@ -134,12 +134,12 @@ object ReportingTestUtils {
     withOffset(2)(assertSourceLocation() + "\n")
   )
 
-  val test7: ZSpec[Any, Nothing] = testM("labeled failures") {
+  val test7: ZSpec[Any, Nothing] = test("labeled failures") {
     for {
-      a <- ZIO.effectTotal(Some(1))
-      b <- ZIO.effectTotal(Some(1))
-      c <- ZIO.effectTotal(Some(0))
-      d <- ZIO.effectTotal(Some(1))
+      a <- ZIO.succeed(Some(1))
+      b <- ZIO.succeed(Some(1))
+      c <- ZIO.succeed(Some(0))
+      d <- ZIO.succeed(Some(1))
     } yield assert(a)(isSome(equalTo(1)).label("first")) &&
       assert(b)(isSome(equalTo(1)).label("second")) &&
       assert(c)(isSome(equalTo(1)).label("third")) &&
@@ -248,7 +248,28 @@ object ReportingTestUtils {
     withOffset(2)(s"""${red("- invalid repetition range 4 to 2 by -1")}\n""")
   )
 
-  def assertSourceLocation(): String = cyan(s"☛ $sourceFilePath:XXX")
+  val mock5: ZSpec[Any, String] = test("Failing layer") {
+    for {
+      promise     <- Promise.make[Nothing, Unit]
+      failingLayer = (promise.await *> ZIO.fail("failed!")).toLayer[String]
+      mock = PureModuleMock.ZeroParams(value("mocked")).toLayer.tap { _ =>
+               promise.succeed(())
+             }
+      f       = ZIO.serviceWith[PureModule.Service](_.zeroParams) <* ZIO.service[String]
+      result <- f.provideLayer(failingLayer ++ mock).untraced
+    } yield assert(result)(equalTo("mocked"))
+  }
+
+  val mock5Expected: Vector[String] = Vector(
+    """.*Failing layer.*""",
+    """.*- unsatisfied expectations.*""",
+    """\s*zio\.test\.mock\.module\.PureModuleMock\.ZeroParams with arguments.*""",
+    """\s*Fiber failed\.""",
+    """[\s║╠─]*A checked error was not handled.""",
+    """[\s║]*failed!"""
+  )
+
+  def assertSourceLocation(): String = cyan(s"at $sourceFilePath:XXX")
   implicit class TestOutputOps(output: String) {
     def withNoLineNumbers: String =
       output.replaceAll(Pattern.quote(sourceFilePath + ":") + "\\d+", sourceFilePath + ":XXX")

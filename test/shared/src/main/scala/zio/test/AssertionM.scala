@@ -179,7 +179,7 @@ object AssertionM {
   )(params: RenderParam*)(run: (=> A) => UIO[Boolean]): AssertionM[A] = {
     lazy val assertion: AssertionM[A] = assertionDirect(name)(params: _*) { actual =>
       lazy val tryActual = Try(actual)
-      BoolAlgebraM.fromEffect(run(tryActual.get)).flatMap { p =>
+      BoolAlgebraM.fromZIO(run(tryActual.get)).flatMap { p =>
         lazy val result: AssertResult =
           if (p) BoolAlgebra.success(AssertionValue(assertion, tryActual.get, result))
           else BoolAlgebra.failure(AssertionValue(assertion, tryActual.get, result))
@@ -207,7 +207,7 @@ object AssertionM {
   ): AssertionM[A] = {
     lazy val resultAssertion: AssertionM[A] = assertionDirect(name)(params: _*) { a =>
       lazy val tryA = Try(a)
-      BoolAlgebraM.fromEffect(get(tryA.get)).flatMap {
+      BoolAlgebraM.fromZIO(get(tryA.get)).flatMap {
         case Some(b) =>
           BoolAlgebraM(assertion.runM(b).run.map { p =>
             lazy val result: AssertResult =

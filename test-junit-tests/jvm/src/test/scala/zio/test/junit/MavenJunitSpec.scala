@@ -11,12 +11,12 @@ import scala.xml.XML
 
 /**
  * when running from IDE run `sbt publishM2`, copy the snapshot version the artifacts were published under (something like: `1.0.2+0-37ee0765+20201006-1859-SNAPSHOT`)
- * and put this into `VM Parameters`: `-Dproject.dir=$PROJECT_DIR$/test-junit-tests/jvm -Dproject.version=$snapshotVersion`
+ * and put this into `VM Parameters`: `-Dproject.dir=\$PROJECT_DIR\$/test-junit-tests/jvm -Dproject.version=\$snapshotVersion`
  */
 object MavenJunitSpec extends DefaultRunnableSpec {
 
   def spec: ZSpec[Environment, Failure] = suite("MavenJunitSpec")(
-    testM("FailingSpec results are properly reported") {
+    test("FailingSpec results are properly reported") {
       for {
         mvn       <- makeMaven
         mvnResult <- mvn.clean() *> mvn.test()
@@ -28,14 +28,14 @@ object MavenJunitSpec extends DefaultRunnableSpec {
             "should fail",
             s"""zio.test.junit.TestFailed:
                |11 did not satisfy equalTo(12)
-               |☛ ${mvn.mvnRoot}/src/test/scala/zio/test/junit/maven/FailingSpec.scala:10""".stripMargin
+               |at ${mvn.mvnRoot}/src/test/scala/zio/test/junit/maven/FailingSpec.scala:10""".stripMargin
           ) &&
             containsFailure(
               "should fail - isSome",
               s"""zio.test.junit.TestFailed:
                  |11 did not satisfy equalTo(12)
                  |Some(11) did not satisfy isSome(equalTo(12))
-                 |☛ ${mvn.mvnRoot}/src/test/scala/zio/test/junit/maven/FailingSpec.scala:13""".stripMargin
+                 |at ${mvn.mvnRoot}/src/test/scala/zio/test/junit/maven/FailingSpec.scala:13""".stripMargin
             ) &&
             containsSuccess("should succeed")
         )
@@ -82,13 +82,13 @@ object MavenJunitSpec extends DefaultRunnableSpec {
       s"-Dscala.compat.version=$scalaCompatVersion",
       s"-ssettings.xml"
     )
-    def run(command: String*): Task[Int] = ZIO.effectBlocking(
+    def run(command: String*): Task[Int] = ZIO.attemptBlocking(
       cli.doMain(command.toArray, mvnRoot, System.out, System.err)
     )
 
     def parseSurefireReport(testFQN: String): Task[immutable.Seq[TestCase]] =
       ZIO
-        .effectBlocking(
+        .attemptBlocking(
           XML.load(scala.xml.Source.fromFile(new File(s"$mvnRoot/target/surefire-reports/TEST-$testFQN.xml")))
         )
         .map { report =>

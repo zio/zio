@@ -7,7 +7,7 @@ import zio.{IO, UIO}
 object SinkUtils {
 
   def findSink[A](a: A): ZSink[Any, Unit, A, A, A] =
-    ZSink.fold[A, Option[A]](None)(_.isEmpty)((_, v) => if (a == v) Some(a) else None).mapM {
+    ZSink.fold[A, Option[A]](None)(_.isEmpty)((_, v) => if (a == v) Some(a) else None).mapZIO {
       case Some(v) => IO.succeedNow(v)
       case None    => IO.fail(())
     }

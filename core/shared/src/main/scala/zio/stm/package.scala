@@ -26,4 +26,21 @@ package object stm extends EitherCompat {
   type TRef[A]       = ZTRef[Nothing, Nothing, A, A]
   type ETRef[+E, A]  = ZTRef[E, E, A, A]
 
+  type TQueue[A] = ZTQueue[Any, Any, Nothing, Nothing, A, A]
+  val TQueue: ZTQueue.type = ZTQueue
+
+  /**
+   * A transactional queue that can only be dequeued.
+   */
+  type ZTDequeue[-R, +E, +A] = ZTQueue[Nothing, R, Any, E, Nothing, A]
+  type TDequeue[+A]          = ZTQueue[Nothing, Any, Any, Nothing, Nothing, A]
+
+  /**
+   * A transactional queue that can only be enqueued.
+   */
+  type ZTEnqueue[-R, +E, -A] = ZTQueue[R, Nothing, E, Any, A, Any]
+  type TEnqueue[-A]          = ZTQueue[Any, Nothing, Nothing, Any, A, Any]
+
+  type THub[A] = ZTHub[Any, Any, Nothing, Nothing, A, A]
+  val THub: ZTHub.type = ZTHub
 }

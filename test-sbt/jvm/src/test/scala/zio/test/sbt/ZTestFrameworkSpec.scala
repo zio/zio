@@ -15,7 +15,7 @@ import zio.test.{
   TestSuccess,
   ZSpec
 }
-import zio.{Has, UIO, ZIO, durationInt}
+import zio.{Has, ZIO, durationInt}
 
 import java.util.regex.Pattern
 import scala.collection.mutable.ArrayBuffer
@@ -134,7 +134,7 @@ object ZTestFrameworkSpec {
         new ZTestTask(
           zTestTask.taskDef,
           zTestTask.testClassLoader,
-          UIO.succeed(Summary(1, 0, 0, "foo")) >>> zTestTask.sendSummary,
+          zTestTask.sendSummary.provide(Summary(1, 0, 0, "foo")),
           TestArgs.empty
         )
       }
@@ -155,7 +155,7 @@ object ZTestFrameworkSpec {
         new ZTestTask(
           zTestTask.taskDef,
           zTestTask.testClassLoader,
-          UIO.succeed(Summary(0, 0, 0, "foo")) >>> zTestTask.sendSummary,
+          zTestTask.sendSummary.provide(Summary(0, 0, 0, "foo")),
           TestArgs.empty
         )
       }
@@ -218,7 +218,7 @@ object ZTestFrameworkSpec {
   }
 
   lazy val sourceFilePath: String = zio.test.sourcePath
-  lazy val assertLocation: String = s"☛ $sourceFilePath:XXX"
+  lazy val assertLocation: String = s"at $sourceFilePath:XXX"
   implicit class TestOutputOps(output: String) {
     def withNoLineNumbers: String =
       output.replaceAll(Pattern.quote(sourceFilePath + ":") + "\\d+", sourceFilePath + ":XXX")

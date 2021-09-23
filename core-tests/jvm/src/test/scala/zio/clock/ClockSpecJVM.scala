@@ -13,7 +13,7 @@ object ClockSpecJVM extends ZIOBaseSpec {
     Any
   ], TestSuccess] =
     suite("ClockSpec")(
-      testM("currentTime has microsecond resolution on JRE >= 9") {
+      test("currentTime has microsecond resolution on JRE >= 9") {
         val unit = TimeUnit.MICROSECONDS
         for {
           a <- Clock.currentTime(unit)
@@ -25,13 +25,13 @@ object ClockSpecJVM extends ZIOBaseSpec {
         @@ TestAspect.flaky
         // This test should only run on JRE >= 9, which is when microsecond precision was introduced.
         // Versions of JREs < 9 started with s"1.${majorVersion}", then with JEP 223 they switched to semantic versioning.
-        @@ TestAspect.ifProp("java.version", not(startsWithString("1."))),
-      testM("currentTime has correct time") {
+        @@ TestAspect.ifProp("java.version")(!_.startsWith("1.")),
+      test("currentTime has correct time") {
         val unit = TimeUnit.MICROSECONDS
         for {
-          start  <- ZIO.effectTotal(Instant.now).map(_.toEpochMilli)
+          start  <- ZIO.succeed(Instant.now).map(_.toEpochMilli)
           time   <- Clock.currentTime(unit).map(TimeUnit.MILLISECONDS.convert(_, unit))
-          finish <- ZIO.effectTotal(Instant.now).map(_.toEpochMilli)
+          finish <- ZIO.succeed(Instant.now).map(_.toEpochMilli)
         } yield assert(time)(isGreaterThanEqualTo(start) && isLessThanEqualTo(finish))
       }.provideLayer(Clock.live)
         @@ TestAspect.nonFlaky
