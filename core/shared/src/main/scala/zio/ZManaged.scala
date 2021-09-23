@@ -1229,6 +1229,24 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
     ZManaged(zio.map(tp => (tp._1, (tp._1(e).uninterruptible, tp._2))))
 
   /**
+   * Runs this managed effect with the specified maximum number of fibers for
+   * parallel operators, guaranteeing that this managed effect as well as
+   * managed effects that are composed sequentially after it will be run with
+   * the specified maximum number of fibers for parallel operators.
+   */
+  def withParallelism(n: => Int): ZManaged[R, E, A] =
+    ZManaged.withParallism(n) *> self
+
+  /**
+   * Runs this managed effect with an unbounded maximum number of fibers for
+   * parallel operators, guaranteeing that this managed effect as well as
+   * managed effects that are composed sequentially after it will be run with
+   * an unbounded maximum number of fibers for parallel operators.
+   */
+  def withParallelismUnbounded: ZManaged[R, E, A] =
+    ZManaged.withParallismUnbounded *> self
+
+  /**
    * Runs this managed effect on the specified runtime configuration,
    * guaranteeing that this managed effect as well as managed effects that are
    * composed sequentially after it will be run on the specified runtime
@@ -1472,6 +1490,17 @@ object ZManaged extends ZManagedPlatformSpecific {
   object ReleaseMap {
 
     /**
+     * Construct a [[ReleaseMap]] wrapped in a [[ZManaged]]. The `ReleaseMap`
+     * will be released with the in parallel as the release action for the
+     * resulting `ZManaged`.
+     */
+    def makeManagedPar: ZManaged[Any, Nothing, ReleaseMap] =
+      ZManaged.parallelism.flatMap {
+        case Some(n) => makeManaged(ExecutionStrategy.ParallelN(n))
+        case None    => makeManaged(ExecutionStrategy.Parallel)
+      }
+
+    /**
      * Construct a [[ReleaseMap]] wrapped in a [[ZManaged]]. The `ReleaseMap` will
      * be released with the specified [[ExecutionStrategy]] as the release action
      * for the resulting `ZManaged`.
@@ -1556,10 +1585,11 @@ object ZManaged extends ZManagedPlatformSpecific {
                   case ExecutionStrategy.ParallelN(n) =>
                     (
                       ZIO
-                        .foreachParN(n)(fins: Iterable[(Long, Finalizer)]) { case (_, finalizer) =>
+                        .foreachPar(fins: Iterable[(Long, Finalizer)]) { case (_, finalizer) =>
                           update(finalizer)(exit).exit
                         }
-                        .flatMap(results => ZIO.done(Exit.collectAllPar(results) getOrElse Exit.unit)),
+                        .flatMap(results => ZIO.done(Exit.collectAllPar(results) getOrElse Exit.unit))
+                        .withParallelism(n),
                       Exited(nextKey, exit, update)
                     )
 
@@ -1804,6 +1834,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    *
    * Unlike `CollectAllPar`, this method will use at most `n` fibers.
    */
+  @deprecated("use collectAllPar", "2.0.0")
   def collectAllParN[R, E, A, Collection[+Element] <: Iterable[Element]](n: => Int)(
     as: Collection[ZManaged[R, E, A]]
   )(implicit bf: BuildFrom[Collection[ZManaged[R, E, A]], A, Collection[A]]): ZManaged[R, E, Collection[A]] =
@@ -1815,7 +1846,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    *
    * Unlike `CollectAllPar_`, this method will use at most `n` fibers.
    */
-  @deprecated("use collectAllParNDiscard", "2.0.0")
+  @deprecated("use collectAllParDiscard", "2.0.0")
   def collectAllParN_[R, E, A](n: => Int)(as: => Iterable[ZManaged[R, E, A]]): ZManaged[R, E, Unit] =
     collectAllParNDiscard(n)(as)
 
@@ -1825,6 +1856,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    *
    * Unlike `collectAllParDiscard`, this method will use at most `n` fibers.
    */
+  @deprecated("use collectAllParDiscard", "2.0.0")
   def collectAllParNDiscard[R, E, A](n: => Int)(as: => Iterable[ZManaged[R, E, A]]): ZManaged[R, E, Unit] =
     foreachParNDiscard(n)(as)(ZIO.identityFn)
 
@@ -1855,6 +1887,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    *
    * Unlike `collectPar`, this method will use at most up to `n` fibers.
    */
+  @deprecated("use collectAllPar", "2.0.0")
   def collectParN[R, E, A, B, Collection[+Element] <: Iterable[Element]](n: => Int)(in: Collection[A])(
     f: A => ZManaged[R, Option[E], B]
   )(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZManaged[R, E, Collection[B]] =
@@ -2055,8 +2088,8 @@ object ZManaged extends ZManagedPlatformSpecific {
   )(f: A => ZManaged[R, E, B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZManaged[R, E, Collection[B]] =
     ZManaged.suspend {
       exec match {
-        case ExecutionStrategy.Parallel     => ZManaged.foreachPar(as)(f)
-        case ExecutionStrategy.ParallelN(n) => ZManaged.foreachParN(n)(as)(f)
+        case ExecutionStrategy.Parallel     => ZManaged.foreachPar(as)(f).withParallelismUnbounded
+        case ExecutionStrategy.ParallelN(n) => ZManaged.foreachPar(as)(f).withParallelism(n)
         case ExecutionStrategy.Sequential   => ZManaged.foreach(as)(f)
       }
     }
@@ -2070,18 +2103,16 @@ object ZManaged extends ZManagedPlatformSpecific {
   def foreachPar[R, E, A1, A2, Collection[+Element] <: Iterable[Element]](as: Collection[A1])(
     f: A1 => ZManaged[R, E, A2]
   )(implicit bf: BuildFrom[Collection[A1], A2, Collection[A2]]): ZManaged[R, E, Collection[A2]] =
-    ReleaseMap
-      .makeManaged(ExecutionStrategy.Parallel)
-      .mapZIO { parallelReleaseMap =>
-        val makeInnerMap =
-          ReleaseMap.makeManaged(ExecutionStrategy.Sequential).zio.map(_._2).provideSome[Any]((_, parallelReleaseMap))
+    ReleaseMap.makeManagedPar.mapZIO { parallelReleaseMap =>
+      val makeInnerMap =
+        ReleaseMap.makeManaged(ExecutionStrategy.Sequential).zio.map(_._2).provideSome[Any]((_, parallelReleaseMap))
 
-        ZIO
-          .foreachPar(as.toIterable)(a =>
-            makeInnerMap.flatMap(innerMap => f(a).zio.map(_._2).provideSome[R]((_, innerMap)))
-          )
-          .map(bf.fromSpecific(as))
-      }
+      ZIO
+        .foreachPar(as.toIterable)(a =>
+          makeInnerMap.flatMap(innerMap => f(a).zio.map(_._2).provideSome[R]((_, innerMap)))
+        )
+        .map(bf.fromSpecific(as))
+    }
 
   /**
    * Applies the function `f` to each element of the `Collection[A]` in parallel,
@@ -2089,6 +2120,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    *
    * Unlike `foreachPar`, this method will use at most up to `n` fibers.
    */
+  @deprecated("use foreachPar", "2.0.0")
   def foreachParN[R, E, A1, A2, Collection[+Element] <: Iterable[Element]](n0: => Int)(as: Collection[A1])(
     f: A1 => ZManaged[R, E, A2]
   )(implicit bf: BuildFrom[Collection[A1], A2, Collection[A2]]): ZManaged[R, E, Collection[A2]] =
@@ -2153,7 +2185,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * For a sequential version of this method, see `foreachDiscard`.
    */
   def foreachParDiscard[R, E, A](as: => Iterable[A])(f: A => ZManaged[R, E, Any]): ZManaged[R, E, Unit] =
-    ReleaseMap.makeManaged(ExecutionStrategy.Parallel).mapZIO { parallelReleaseMap =>
+    ReleaseMap.makeManagedPar.mapZIO { parallelReleaseMap =>
       val makeInnerMap =
         ReleaseMap.makeManaged(ExecutionStrategy.Sequential).zio.map(_._2).provideSome[Any]((_, parallelReleaseMap))
 
@@ -2166,7 +2198,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    *
    * Unlike `foreachPar_`, this method will use at most up to `n` fibers.
    */
-  @deprecated("use foreachParNDiscard", "2.0.0")
+  @deprecated("use foreachParDiscard", "2.0.0")
   def foreachParN_[R, E, A](
     n: => Int
   )(
@@ -2182,6 +2214,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    *
    * Unlike `foreachParDiscard`, this method will use at most up to `n` fibers.
    */
+  @deprecated("use foreachParDiscard", "2.0.0")
   def foreachParNDiscard[R, E, A](
     n0: => Int
   )(
@@ -2689,7 +2722,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * - associative: `f(a, f(b, c)) == f(f(a, b), c)`
    */
   def mergeAllPar[R, E, A, B](in: => Iterable[ZManaged[R, E, A]])(zero: => B)(f: (B, A) => B): ZManaged[R, E, B] =
-    ReleaseMap.makeManaged(ExecutionStrategy.Parallel).mapZIO { parallelReleaseMap =>
+    ReleaseMap.makeManagedPar.mapZIO { parallelReleaseMap =>
       ZIO.mergeAllPar(in.map(_.zio.map(_._2)))(zero)(f).provideSome[R]((_, parallelReleaseMap))
     }
 
@@ -2702,6 +2735,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    *
    * Unlike `mergeAllPar`, this method will use at most up to `n` fibers.
    */
+  @deprecated("use mergeAllPar", "2.0.0")
   def mergeAllParN[R, E, A, B](
     n0: => Int
   )(
@@ -2747,6 +2781,13 @@ object ZManaged extends ZManagedPlatformSpecific {
     }.unit
 
   /**
+   * Retrieves the maximum number of fibers for parallel operators or `None` if
+   * it is unbounded.
+   */
+  def parallelism: ZManaged[Any, Nothing, Option[Int]] =
+    ZManaged.fromZIO(ZIO.Parallelism.get)
+
+  /**
    * A scope in which resources can be safely preallocated. Passing a [[ZManaged]]
    * to the `apply` method will create (inside an effect) a managed resource which
    * is already acquired and cannot fail.
@@ -2782,7 +2823,7 @@ object ZManaged extends ZManagedPlatformSpecific {
   def reduceAllPar[R, E, A](a: => ZManaged[R, E, A], as: => Iterable[ZManaged[R, E, A]])(
     f: (A, A) => A
   ): ZManaged[R, E, A] =
-    ReleaseMap.makeManaged(ExecutionStrategy.Parallel).mapZIO { parallelReleaseMap =>
+    ReleaseMap.makeManagedPar.mapZIO { parallelReleaseMap =>
       ZIO.reduceAllPar(a.zio.map(_._2), as.map(_.zio.map(_._2)))(f).provideSome[R]((_, parallelReleaseMap))
     }
 
@@ -2793,6 +2834,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    *
    * This is not implemented in terms of ZIO.foreach / ZManaged.zipWithPar as otherwise all reservation phases would always run, causing unnecessary work
    */
+  @deprecated("use reduceAllPar", "2.0.0")
   def reduceAllParN[R, E, A](
     n0: => Int
   )(
@@ -3100,6 +3142,22 @@ object ZManaged extends ZManagedPlatformSpecific {
           .supervised(supervisor)
       )
     })
+
+  /**
+   * Returns a managed effect that describes setting the specified maximum
+   * number of fibers for parallel operators as the `acquire` action and
+   * setting it back to the original value as the `release` action.
+   */
+  def withParallism(n: => Int): ZManaged[Any, Nothing, Unit] =
+    ZIO.Parallelism.locallyManaged(Some(n))
+
+  /**
+   * Returns a managed effect that describes setting an unbounded maximum
+   * number of fibers for parallel operators as the `acquire` action and
+   * setting it back to the original value as the `release` action.
+   */
+  def withParallismUnbounded: ZManaged[Any, Nothing, Unit] =
+    ZIO.Parallelism.locallyManaged(None)
 
   /**
    * Returns a managed effect that describes setting the runtime configuration

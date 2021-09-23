@@ -341,7 +341,7 @@ object StackTracesSpec extends DefaultRunnableSpec {
 
   def foreachParNFail: ZIO[Any, Nothing, Unit] =
     for {
-      _ <- ZIO.foreachParN(4)(1 to 10)(i => (if (i >= 7) UIO(i / 0) else UIO(i / 10)))
+      _ <- ZIO.foreachPar(1 to 10)(i => (if (i >= 7) UIO(i / 0) else UIO(i / 10))).withParallelism(4)
     } yield ()
 
   def leftAssociativeFold(n: Int): UIO[ZTrace] =

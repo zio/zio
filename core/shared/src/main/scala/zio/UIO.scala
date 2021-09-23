@@ -253,6 +253,7 @@ object UIO {
   /**
    * @see See [[zio.ZIO.collectAllParN]]
    */
+  @deprecated("use collectAllPar", "2.0.0")
   def collectAllParN[A, Collection[+Element] <: Iterable[Element]](
     n: => Int
   )(as: Collection[UIO[A]])(implicit bf: BuildFrom[Collection[UIO[A]], A, Collection[A]]): UIO[Collection[A]] =
@@ -261,13 +262,14 @@ object UIO {
   /**
    * @see See [[zio.ZIO.collectAllParN_]]
    */
-  @deprecated("use collectAllParNDiscard", "2.0.0")
+  @deprecated("use collectAllDiscard", "2.0.0")
   def collectAllParN_[A](n: => Int)(as: => Iterable[UIO[A]]): UIO[Unit] =
     ZIO.collectAllParN_(n)(as)
 
   /**
    * @see See [[zio.ZIO.collectAllParNDiscard]]
    */
+  @deprecated("use collectAllParDiscard", "2.0.0")
   def collectAllParNDiscard[A](n: => Int)(as: => Iterable[UIO[A]]): UIO[Unit] =
     ZIO.collectAllParNDiscard(n)(as)
 
@@ -290,6 +292,7 @@ object UIO {
   /**
    * @see See [[zio.ZIO.collectAllSuccessesParN]]
    */
+  @deprecated("use collectAllSuccessesPar", "2.0.0")
   def collectAllSuccessesParN[A, Collection[+Element] <: Iterable[Element]](
     n: => Int
   )(as: Collection[UIO[A]])(implicit bf: BuildFrom[Collection[UIO[A]], A, Collection[A]]): UIO[Collection[A]] =
@@ -314,6 +317,7 @@ object UIO {
   /**
    * @see See [[zio.ZIO.collectAllWithParN]]
    */
+  @deprecated("use collectAllWithPar", "2.0.0")
   def collectAllWithParN[A, B, Collection[+Element] <: Iterable[Element]](n: => Int)(
     as: Collection[UIO[A]]
   )(f: PartialFunction[A, B])(implicit bf: BuildFrom[Collection[UIO[A]], B, Collection[B]]): UIO[Collection[B]] =
@@ -344,6 +348,7 @@ object UIO {
   /**
    * @see See [[zio.ZIO.collectParN]]
    */
+  @deprecated("use collectAllPar", "2.0.0")
   def collectParN[A, B, Collection[+Element] <: Iterable[Element]](n: => Int)(
     in: Collection[A]
   )(f: A => IO[Option[Nothing], B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): UIO[Collection[B]] =
@@ -688,6 +693,7 @@ object UIO {
   /**
    * @see See [[zio.ZIO.foreachParN]]
    */
+  @deprecated("use foreachPar", "2.0.0")
   def foreachParN[A, B, Collection[+Element] <: Iterable[Element]](
     n: => Int
   )(as: Collection[A])(fn: A => UIO[B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): UIO[Collection[B]] =
@@ -696,13 +702,14 @@ object UIO {
   /**
    * @see See [[zio.ZIO.foreachParN_]]
    */
-  @deprecated("use foreachParNDiscard", "2.0.0")
+  @deprecated("use foreachParDiscard", "2.0.0")
   def foreachParN_[A](n: => Int)(as: => Iterable[A])(f: A => UIO[Any]): UIO[Unit] =
     ZIO.foreachParN_(n)(as)(f)
 
   /**
    * @see See [[zio.ZIO.foreachParNDiscard]]
    */
+  @deprecated("use foreachParDiscard", "2.0.0")
   def foreachParNDiscard[A](n: => Int)(as: => Iterable[A])(f: A => UIO[Any]): UIO[Unit] =
     ZIO.foreachParNDiscard(n)(as)(f)
 

@@ -363,21 +363,21 @@ object ZManagedSpec extends ZIOBaseSpec {
         def res(int: Int) =
           ZManaged.succeed(int)
 
-        val managed = ZManaged.foreachParN(2)(List(1, 2, 3, 4))(res)
+        val managed = ZManaged.foreachPar(List(1, 2, 3, 4))(res).withParallelism(2)
         managed.use[Any, Nothing, TestResult](res => ZIO.succeed(assert(res)(equalTo(List(1, 2, 3, 4)))))
       },
       test("Uses at most n fibers for reservation") {
-        testFinalizersPar(4, res => ZManaged.foreachParN(2)(List(1, 2, 3, 4))(_ => res))
+        testFinalizersPar(4, res => ZManaged.foreachPar(List(1, 2, 3, 4))(_ => res)).withParallelism(2)
       },
       test("Uses at most n fibers for acquisition") {
-        testReservePar(2, res => ZManaged.foreachParN(2)(List(1, 2, 3, 4))(_ => res))
+        testReservePar(2, res => ZManaged.foreachPar(List(1, 2, 3, 4))(_ => res)).withParallelism(2)
       },
       test("Runs finalizers") {
-        testAcquirePar(2, res => ZManaged.foreachParN(2)(List(1, 2, 3, 4))(_ => res))
+        testAcquirePar(2, res => ZManaged.foreachPar(List(1, 2, 3, 4))(_ => res)).withParallelism(2)
       },
       test("Maintains finalizer ordering in inner ZManaged values") {
         checkM(Gen.int(4, 10), Gen.int(5, 100)) { (n, l) =>
-          testParallelNestedFinalizerOrdering(l, ZManaged.foreachParN(n)(_)(identity))
+          testParallelNestedFinalizerOrdering(l, ZManaged.foreachPar(_)(identity)).withParallelism(n)
         }
       }
     ),
@@ -399,13 +399,13 @@ object ZManagedSpec extends ZIOBaseSpec {
     ),
     suite("foreachParNDiscard")(
       test("Uses at most n fibers for reservation") {
-        testFinalizersPar(4, res => ZManaged.foreachParNDiscard(2)(List(1, 2, 3, 4))(_ => res))
+        testFinalizersPar(4, res => ZManaged.foreachParDiscard(List(1, 2, 3, 4))(_ => res)).withParallelism(2)
       },
       test("Uses at most n fibers for acquisition") {
-        testReservePar(2, res => ZManaged.foreachParNDiscard(2)(List(1, 2, 3, 4))(_ => res))
+        testReservePar(2, res => ZManaged.foreachParDiscard(List(1, 2, 3, 4))(_ => res)).withParallelism(2)
       },
       test("Runs finalizers") {
-        testReservePar(2, res => ZManaged.foreachParNDiscard(2)(List(1, 2, 3, 4))(_ => res))
+        testReservePar(2, res => ZManaged.foreachParDiscard(List(1, 2, 3, 4))(_ => res)).withParallelism(2)
       }
     ),
     suite("fork")(
@@ -551,23 +551,24 @@ object ZManagedSpec extends ZIOBaseSpec {
       test("Merges elements") {
         def res(int: Int) =
           ZManaged.succeed(int)
-        val managed = ZManaged.mergeAllParN(2)(List(1, 2, 3, 4).map(res))(List[Int]()) { case (acc, a) => a :: acc }
+        val managed =
+          ZManaged.mergeAllPar(List(1, 2, 3, 4).map(res))(List[Int]()) { case (acc, a) => a :: acc }.withParallelism(2)
         managed.use[Any, Nothing, TestResult](res => ZIO.succeed(assert(res)(hasSameElements(List(4, 3, 2, 1)))))
       },
       test("Uses at most n fibers for reservation") {
-        testReservePar(2, res => ZManaged.mergeAllParN(2)(List.fill(4)(res))(0) { case (a, _) => a })
+        testReservePar(2, res => ZManaged.mergeAllPar(List.fill(4)(res))(0) { case (a, _) => a }).withParallelism(2)
       },
       test("Uses at most n fibers for acquisition") {
-        testAcquirePar(2, res => ZManaged.mergeAllParN(2)(List.fill(4)(res))(0) { case (a, _) => a })
+        testAcquirePar(2, res => ZManaged.mergeAllPar(List.fill(4)(res))(0) { case (a, _) => a }).withParallelism(2)
       },
       test("Runs finalizers") {
-        testFinalizersPar(4, res => ZManaged.mergeAllParN(2)(List.fill(4)(res))(0) { case (a, _) => a })
+        testFinalizersPar(4, res => ZManaged.mergeAllPar(List.fill(4)(res))(0) { case (a, _) => a }).withParallelism(2)
       },
       test("All finalizers run even when finalizers have defects") {
         for {
           releases <- Ref.make[Int](0)
           _ <- ZManaged
-                 .mergeAllParN(2)(
+                 .mergeAllPar(
                    List(
                      ZManaged.finalizer(ZIO.dieMessage("Boom")),
                      ZManaged.finalizer(releases.update(_ + 1)),
@@ -579,6 +580,7 @@ object ZManagedSpec extends ZIOBaseSpec {
                  )(())((_, _) => ())
                  .useDiscard(ZIO.unit)
                  .exit
+                 .withParallelism(2)
           count <- releases.get
         } yield assert(count)(equalTo(3))
       }
@@ -784,34 +786,36 @@ object ZManagedSpec extends ZIOBaseSpec {
         def res(int: Int) =
           ZManaged.succeed(List(int))
 
-        val managed = ZManaged.reduceAllParN(2)(ZManaged.succeed(Nil), List(1, 2, 3, 4).map(res)) { case (acc, a) =>
-          a ++ acc
-        }
+        val managed = ZManaged
+          .reduceAllPar(ZManaged.succeed(Nil), List(1, 2, 3, 4).map(res)) { case (acc, a) =>
+            a ++ acc
+          }
+          .withParallelism(2)
         managed.use[Any, Nothing, TestResult](res => ZIO.succeed(assert(res)(hasSameElements(List(4, 3, 2, 1)))))
       },
       test("Uses at most n fibers for reservation") {
         testFinalizersPar(
           4,
-          res => ZManaged.reduceAllParN(2)(ZManaged.succeed(0), List.fill(4)(res)) { case (a, _) => a }
-        )
+          res => ZManaged.reduceAllPar(ZManaged.succeed(0), List.fill(4)(res)) { case (a, _) => a }
+        ).withParallelism(2)
       },
       test("Uses at most n fibers for acquisition") {
         testReservePar(
           2,
-          res => ZManaged.reduceAllParN(2)(ZManaged.succeed(0), List.fill(4)(res)) { case (a, _) => a }
-        )
+          res => ZManaged.reduceAllPar(ZManaged.succeed(0), List.fill(4)(res)) { case (a, _) => a }
+        ).withParallelism(2)
       },
       test("Runs finalizers") {
         testAcquirePar(
           2,
-          res => ZManaged.reduceAllParN(2)(ZManaged.succeed(0), List.fill(4)(res)) { case (a, _) => a }
-        )
+          res => ZManaged.reduceAllPar(ZManaged.succeed(0), List.fill(4)(res)) { case (a, _) => a }
+        ).withParallelism(2)
       },
       test("All finalizers run even when finalizers have defects") {
         for {
           releases <- Ref.make[Int](0)
           _ <- ZManaged
-                 .reduceAllParN(2)(
+                 .reduceAllPar(
                    ZManaged.finalizer(ZIO.dieMessage("Boom")),
                    List(
                      ZManaged.finalizer(releases.update(_ + 1)),
@@ -823,6 +827,7 @@ object ZManagedSpec extends ZIOBaseSpec {
                  )((_, _) => ())
                  .useDiscard(ZIO.unit)
                  .exit
+                 .withParallelism(2)
           count <- releases.get
         } yield assert(count)(equalTo(3))
       }

@@ -36,9 +36,11 @@ So streams are everywhere. We can see all of these different things as being str
 
 ## Motivation
 
-Assume, we would like to take a list of numbers and grab all the prime numbers and then do some more hard work on each of these prime numbers. We can do it using `ZIO.foreachParN` and `ZIO.filterPar` operators like this:
+Assume, we would like to take a list of numbers and grab all the prime numbers and then do some more hard work on each of these prime numbers. We can do it using `ZIO.foreachPar` and `ZIO.filterPar` operators like this:
 
 ```scala mdoc:silent
+import zio.ZIOAspect._
+
 def isPrime(number: Int): Task[Boolean] = Task.succeed(???)
 def moreHardWork(i: Int): Task[Boolean] = Task.succeed(???)
 
@@ -46,7 +48,7 @@ val numbers = 1 to 1000
 
 for {
   primes <- ZIO.filterPar(numbers)(isPrime)
-  _      <- ZIO.foreachParN(20)(primes)(moreHardWork)
+  _      <- ZIO.foreachPar(primes)(moreHardWork) @@ parallel(20)
 } yield ()
 ```
 
