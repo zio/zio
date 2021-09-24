@@ -1,6 +1,5 @@
 package zio
 
-import zio.internal.Executor
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test._
@@ -14,7 +13,7 @@ object CancelableFutureSpecJVM extends ZIOBaseSpec {
 
   def spec: ZSpec[ZTestEnv with Has[Annotations] with Has[TestConfig], Any] =
     suite("CancelableFutureSpecJVM")(
-      testM("fromFuture/unsafeRunToFuture doesn't deadlock") {
+      test("fromFuture/unsafeRunToFuture doesn't deadlock") {
 
         val tst =
           for {
@@ -24,9 +23,9 @@ object CancelableFutureSpecJVM extends ZIOBaseSpec {
         ZIO
           .runtime[Any]
           .map(
-            _.mapPlatform(
-              _.withExecutor(
-                Executor.fromExecutionContext(1)(
+            _.mapRuntimeConfig(
+              _.copy(
+                executor = Executor.fromExecutionContext(1)(
                   ExecutionContext.fromExecutor(Executors.newSingleThreadScheduledExecutor())
                 )
               )

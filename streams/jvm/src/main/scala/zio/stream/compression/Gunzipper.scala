@@ -35,7 +35,7 @@ private[compression] class Gunzipper private (bufferSize: Int) {
   def close(): Unit = state.close()
 
   def onChunk(c: Chunk[Byte]): ZIO[Any, CompressionException, Chunk[Byte]] =
-    ZIO.effect {
+    ZIO.attempt {
       val (newState, output) = state.feed(c.toArray)
       state = newState
       output
@@ -46,7 +46,7 @@ private[compression] class Gunzipper private (bufferSize: Int) {
 
   def onNone: ZIO[Any, CompressionException, Chunk[Byte]] =
     if (state.isInProgress) ZIO.fail(CompressionException("Stream closed before completion."))
-    else ZIO.effectTotal(Chunk.empty)
+    else ZIO.succeed(Chunk.empty)
 
   private def nextStep(
     acc: Array[Byte],

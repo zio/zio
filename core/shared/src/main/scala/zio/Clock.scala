@@ -17,7 +17,6 @@
 package zio
 
 import zio.Schedule.Decision._
-import zio.Schedule._
 
 import java.lang.{System => JSystem}
 import java.time.{Instant, LocalDateTime, OffsetDateTime}
@@ -25,7 +24,7 @@ import java.util.concurrent.TimeUnit
 
 trait Clock extends Serializable {
 
-  def currentTime(unit: TimeUnit): UIO[Long]
+  def currentTime(unit: => TimeUnit): UIO[Long]
 
   def currentDateTime: UIO[OffsetDateTime]
 
@@ -35,19 +34,19 @@ trait Clock extends Serializable {
 
   def nanoTime: UIO[Long]
 
-  def sleep(duration: Duration): UIO[Unit]
+  def sleep(duration: => Duration): UIO[Unit]
 
-  final def driver[Env, In, Out](schedule: Schedule[Env, In, Out]): UIO[Schedule.Driver[Env, In, Out]] =
-    Ref.make[(Option[Out], Schedule.StepFunction[Env, In, Out])]((None, schedule.step)).map { ref =>
+  final def driver[Env, In, Out](schedule: Schedule[Env, In, Out]): UIO[Schedule.Driver[schedule.State, Env, In, Out]] =
+    Ref.make[(Option[Out], schedule.State)]((None, schedule.initial)).map { ref =>
       val next = (in: In) =>
         for {
-          step <- ref.get.map(_._2)
-          now  <- currentDateTime
-          dec  <- step(now, in)
+          state <- ref.get.map(_._2)
+          now   <- currentDateTime
+          dec   <- schedule.step(now, in, state)
           v <- dec match {
-                 case Done(out) => ref.set((Some(out), StepFunction.done(out))) *> ZIO.fail(None)
-                 case Continue(out, interval, next) =>
-                   ref.set((Some(out), next)) *> sleep(Duration.fromInterval(now, interval)) as out
+                 case (state, out, Done) => ref.set((Some(out), state)) *> ZIO.fail(None)
+                 case (state, out, Continue(interval)) =>
+                   ref.set((Some(out), state)) *> sleep(Duration.fromInterval(now, interval.start)) as out
                }
         } yield v
 
@@ -56,82 +55,98 @@ trait Clock extends Serializable {
         case (Some(b), _) => ZIO.succeed(b)
       }
 
-      val reset = ref.set((None, schedule.step))
+      val reset = ref.set((None, schedule.initial))
 
-      Schedule.Driver(next, last, reset)
+      val state = ref.get.map(_._2)
+
+      Schedule.Driver(next, last, reset, state)
     }
 
-  final def repeat[R, R1 <: R, E, A, B](zio: ZIO[R, E, A])(schedule: Schedule[R1, A, B]): ZIO[R1, E, B] =
+  final def repeat[R, R1 <: R, E, A, B](zio: => ZIO[R, E, A])(schedule: => Schedule[R1, A, B]): ZIO[R1, E, B] =
     repeatOrElse[R, R1, E, E, A, B](zio)(schedule, (e, _) => ZIO.fail(e))
 
   final def repeatOrElse[R, R1 <: R, E, E2, A, B](
-    zio: ZIO[R, E, A]
-  )(schedule: Schedule[R1, A, B], orElse: (E, Option[B]) => ZIO[R1, E2, B]): ZIO[R1, E2, B] =
+    zio: => ZIO[R, E, A]
+  )(schedule: => Schedule[R1, A, B], orElse: (E, Option[B]) => ZIO[R1, E2, B]): ZIO[R1, E2, B] =
     repeatOrElseEither[R, R1, E, E2, A, B, B](zio)(schedule, orElse).map(_.merge)
 
   final def repeatOrElseEither[R, R1 <: R, E, E2, A, B, C](
-    zio: ZIO[R, E, A]
-  )(schedule: Schedule[R1, A, B], orElse: (E, Option[B]) => ZIO[R1, E2, C]): ZIO[R1, E2, Either[C, B]] =
-    driver(schedule).flatMap { driver =>
-      def loop(a: A): ZIO[R1, E2, Either[C, B]] =
-        driver
-          .next(a)
-          .foldM(
-            _ => driver.last.orDie.map(Right(_)),
-            b =>
-              zio.foldM(
-                e => orElse(e, Some(b)).map(Left(_)),
-                a => loop(a)
-              )
-          )
+    zio0: => ZIO[R, E, A]
+  )(schedule0: => Schedule[R1, A, B], orElse: (E, Option[B]) => ZIO[R1, E2, C]): ZIO[R1, E2, Either[C, B]] =
+    ZIO.suspendSucceed {
+      val zio      = zio0
+      val schedule = schedule0
 
-      zio.foldM(
-        e => orElse(e, None).map(Left(_)),
-        a => loop(a)
-      )
+      driver(schedule).flatMap { driver =>
+        def loop(a: A): ZIO[R1, E2, Either[C, B]] =
+          driver
+            .next(a)
+            .foldZIO(
+              _ => driver.last.orDie.map(Right(_)),
+              b =>
+                zio.foldZIO(
+                  e => orElse(e, Some(b)).map(Left(_)),
+                  a => loop(a)
+                )
+            )
+
+        zio.foldZIO(
+          e => orElse(e, None).map(Left(_)),
+          a => loop(a)
+        )
+      }
     }
 
-  final def retry[R, R1 <: R, E, A, S](zio: ZIO[R, E, A])(policy: Schedule[R1, E, S])(implicit
+  final def retry[R, R1 <: R, E, A, S](zio: => ZIO[R, E, A])(policy: Schedule[R1, E, S])(implicit
     ev: CanFail[E]
   ): ZIO[R1, E, A] =
     retryOrElse(zio)(policy, (e: E, _: S) => ZIO.fail(e))
 
   final def retryOrElse[R, R1 <: R, E, E1, A, A1 >: A, S](
-    zio: ZIO[R, E, A]
-  )(policy: Schedule[R1, E, S], orElse: (E, S) => ZIO[R1, E1, A1])(implicit ev: CanFail[E]): ZIO[R1, E1, A1] =
+    zio: => ZIO[R, E, A]
+  )(policy: => Schedule[R1, E, S], orElse: (E, S) => ZIO[R1, E1, A1])(implicit ev: CanFail[E]): ZIO[R1, E1, A1] =
     retryOrElseEither(zio)(policy, orElse).map(_.merge)
 
   final def retryOrElseEither[R, R1 <: R, E, E1, A, B, Out](
-    zio: ZIO[R, E, A]
-  )(schedule: Schedule[R1, E, Out], orElse: (E, Out) => ZIO[R1, E1, B])(implicit
+    zio0: => ZIO[R, E, A]
+  )(schedule0: => Schedule[R1, E, Out], orElse: (E, Out) => ZIO[R1, E1, B])(implicit
     ev: CanFail[E]
-  ): ZIO[R1, E1, Either[B, A]] = {
-    def loop(driver: Schedule.Driver[R1, E, Out]): ZIO[R1, E1, Either[B, A]] =
-      zio
-        .map(Right(_))
-        .catchAll(e =>
-          driver
-            .next(e)
-            .foldM(
-              _ => driver.last.orDie.flatMap(out => orElse(e, out).map(Left(_))),
-              _ => loop(driver)
-            )
-        )
+  ): ZIO[R1, E1, Either[B, A]] =
+    ZIO.suspendSucceed {
+      val zio      = zio0
+      val schedule = schedule0
 
-    driver(schedule).flatMap(loop(_))
-  }
+      def loop(driver: Schedule.Driver[Any, R1, E, Out]): ZIO[R1, E1, Either[B, A]] =
+        zio
+          .map(Right(_))
+          .catchAll(e =>
+            driver
+              .next(e)
+              .foldZIO(
+                _ => driver.last.orDie.flatMap(out => orElse(e, out).map(Left(_))),
+                _ => loop(driver)
+              )
+          )
 
-  final def schedule[R, R1 <: R, E, A, B](zio: ZIO[R, E, A])(schedule: Schedule[R1, Any, B]): ZIO[R1, E, B] =
+      driver(schedule).flatMap(loop(_))
+    }
+
+  final def schedule[R, R1 <: R, E, A, B](zio: => ZIO[R, E, A])(schedule: => Schedule[R1, Any, B]): ZIO[R1, E, B] =
     scheduleFrom[R, R1, E, A, Any, B](zio)(())(schedule)
 
   final def scheduleFrom[R, R1 <: R, E, A, A1 >: A, B](
-    zio: ZIO[R, E, A]
-  )(a: A1)(schedule: Schedule[R1, A1, B]): ZIO[R1, E, B] =
-    driver(schedule).flatMap { driver =>
-      def loop(a: A1): ZIO[R1, E, B] =
-        driver.next(a).foldM(_ => driver.last.orDie, _ => zio.flatMap(loop))
+    zio0: => ZIO[R, E, A]
+  )(a: => A1)(schedule0: => Schedule[R1, A1, B]): ZIO[R1, E, B] =
+    ZIO.suspendSucceed {
+      val zio      = zio0
+      val schedule = schedule0
 
-      loop(a)
+      driver(schedule).flatMap { driver =>
+        def loop(a: A1): ZIO[R1, E, B] =
+          driver.next(a).foldZIO(_ => driver.last.orDie, _ => zio.flatMap(loop))
+
+        loop(a)
+      }
     }
 }
 
@@ -140,40 +155,85 @@ object Clock extends ClockPlatformSpecific with Serializable {
   val any: ZLayer[Has[Clock], Nothing, Has[Clock]] =
     ZLayer.service[Clock]
 
+  /**
+   * Constructs a `Clock` service from a `java.time.Clock`.
+   */
+  val javaClock: ZLayer[Has[java.time.Clock], Nothing, Has[Clock]] = {
+    for {
+      clock <- ZIO.service[java.time.Clock]
+    } yield ClockJava(clock)
+  }.toLayer
+
   val live: Layer[Nothing, Has[Clock]] =
     ZLayer.succeed(ClockLive)
 
-  private[zio] object ClockLive extends Clock {
-    def currentTime(unit: TimeUnit): UIO[Long] =
-      instant.map { inst =>
-        // A nicer solution without loss of precision or range would be
-        // unit.toChronoUnit.between(Instant.EPOCH, inst)
-        // However, ChronoUnit is not available on all platforms
-        unit match {
-          case TimeUnit.NANOSECONDS =>
-            inst.getEpochSecond() * 1000000000 + inst.getNano()
-          case TimeUnit.MICROSECONDS =>
-            inst.getEpochSecond() * 1000000 + inst.getNano() / 1000
-          case _ => unit.convert(inst.toEpochMilli(), TimeUnit.MILLISECONDS)
+  /**
+   * An implementation of the `Clock` service backed by a `java.time.Clock`.
+   */
+  final case class ClockJava(clock: java.time.Clock) extends Clock {
+    def currentDateTime: UIO[OffsetDateTime] =
+      ZIO.succeed(OffsetDateTime.now(clock))
+    def currentTime(unit0: => TimeUnit): UIO[Long] =
+      ZIO.suspendSucceed {
+        val unit = unit0
+        instant.map { instant =>
+          unit match {
+            case TimeUnit.NANOSECONDS =>
+              instant.getEpochSecond * 1000000000 + instant.getNano
+            case TimeUnit.MICROSECONDS =>
+              instant.getEpochSecond * 1000000 + instant.getNano / 1000
+            case _ => unit.convert(instant.toEpochMilli, TimeUnit.MILLISECONDS)
+          }
+        }
+      }
+    def instant: UIO[Instant] =
+      ZIO.succeed(clock.instant())
+    def localDateTime: UIO[LocalDateTime] =
+      ZIO.succeed(LocalDateTime.now(clock))
+    def nanoTime: UIO[Long] =
+      currentTime(TimeUnit.NANOSECONDS)
+    def sleep(duration: => Duration): UIO[Unit] =
+      ZIO.asyncInterrupt { cb =>
+        val canceler = globalScheduler.schedule(() => cb(UIO.unit), duration)
+        Left(UIO.succeed(canceler()))
+      }
+  }
+
+  object ClockLive extends Clock {
+    def currentTime(unit0: => TimeUnit): UIO[Long] =
+      ZIO.suspendSucceed {
+        val unit = unit0
+
+        instant.map { inst =>
+          // A nicer solution without loss of precision or range would be
+          // unit.toChronoUnit.between(Instant.EPOCH, inst)
+          // However, ChronoUnit is not available on all platforms
+          unit match {
+            case TimeUnit.NANOSECONDS =>
+              inst.getEpochSecond() * 1000000000 + inst.getNano()
+            case TimeUnit.MICROSECONDS =>
+              inst.getEpochSecond() * 1000000 + inst.getNano() / 1000
+            case _ => unit.convert(inst.toEpochMilli(), TimeUnit.MILLISECONDS)
+          }
         }
       }
 
-    val nanoTime: UIO[Long] = IO.effectTotal(JSystem.nanoTime)
+    val nanoTime: UIO[Long] = IO.succeed(JSystem.nanoTime)
 
-    def sleep(duration: Duration): UIO[Unit] =
-      UIO.effectAsyncInterrupt { cb =>
+    def sleep(duration: => Duration): UIO[Unit] =
+      UIO.asyncInterrupt { cb =>
         val canceler = globalScheduler.schedule(() => cb(UIO.unit), duration)
-        Left(UIO.effectTotal(canceler()))
+        Left(UIO.succeed(canceler()))
       }
 
     def currentDateTime: UIO[OffsetDateTime] =
-      ZIO.effectTotal(OffsetDateTime.now())
+      ZIO.succeed(OffsetDateTime.now())
 
     override def instant: UIO[Instant] =
-      ZIO.effectTotal(Instant.now())
+      ZIO.succeed(Instant.now())
 
     override def localDateTime: UIO[LocalDateTime] =
-      ZIO.effectTotal(LocalDateTime.now())
+      ZIO.succeed(LocalDateTime.now())
 
   }
 
@@ -191,7 +251,9 @@ object Clock extends ClockPlatformSpecific with Serializable {
   val currentDateTime: URIO[Has[Clock], OffsetDateTime] =
     ZIO.serviceWith(_.currentDateTime)
 
-  def driver[Env, In, Out](schedule: Schedule[Env, In, Out]): URIO[Has[Clock], Schedule.Driver[Env, In, Out]] =
+  def driver[Env, In, Out](
+    schedule: Schedule[Env, In, Out]
+  ): URIO[Has[Clock], Schedule.Driver[schedule.State, Env, In, Out]] =
     ZIO.serviceWith(_.driver(schedule))
 
   val instant: ZIO[Has[Clock], Nothing, java.time.Instant] =
@@ -210,8 +272,10 @@ object Clock extends ClockPlatformSpecific with Serializable {
    * effect that executes `io`, and then if that succeeds, executes `io` an
    * additional time.
    */
-  def repeat[R, R1 <: R, E, A, B](zio: ZIO[R, E, A])(schedule: Schedule[R1, A, B]): ZIO[R1 with Has[Clock], E, B] =
-    ZIO.accessM(_.get.repeat(zio)(schedule))
+  def repeat[R, R1 <: R, E, A, B](zio: => ZIO[R, E, A])(
+    schedule: => Schedule[R1, A, B]
+  ): ZIO[R1 with Has[Clock], E, B] =
+    ZIO.accessZIO(_.get.repeat(zio)(schedule))
 
   /**
    * Returns a new effect that repeats this effect according to the specified
@@ -223,9 +287,9 @@ object Clock extends ClockPlatformSpecific with Serializable {
    * if that succeeds, executes `io` an additional time.
    */
   final def repeatOrElse[R, R1 <: R, E, E2, A, B](
-    zio: ZIO[R, E, A]
-  )(schedule: Schedule[R1, A, B], orElse: (E, Option[B]) => ZIO[R1, E2, B]): ZIO[R1 with Has[Clock], E2, B] =
-    ZIO.accessM(_.get.repeatOrElse(zio)(schedule, orElse))
+    zio: => ZIO[R, E, A]
+  )(schedule: => Schedule[R1, A, B], orElse: (E, Option[B]) => ZIO[R1, E2, B]): ZIO[R1 with Has[Clock], E2, B] =
+    ZIO.accessZIO(_.get.repeatOrElse(zio)(schedule, orElse))
 
   /**
    * Returns a new effect that repeats this effect according to the specified
@@ -237,9 +301,12 @@ object Clock extends ClockPlatformSpecific with Serializable {
    * if that succeeds, executes `io` an additional time.
    */
   final def repeatOrElseEither[R, R1 <: R, E, E2, A, B, C](
-    zio: ZIO[R, E, A]
-  )(schedule: Schedule[R1, A, B], orElse: (E, Option[B]) => ZIO[R1, E2, C]): ZIO[R1 with Has[Clock], E2, Either[C, B]] =
-    ZIO.accessM(_.get.repeatOrElseEither(zio)(schedule, orElse))
+    zio: => ZIO[R, E, A]
+  )(
+    schedule: => Schedule[R1, A, B],
+    orElse: (E, Option[B]) => ZIO[R1, E2, C]
+  ): ZIO[R1 with Has[Clock], E2, Either[C, B]] =
+    ZIO.accessZIO(_.get.repeatOrElseEither(zio)(schedule, orElse))
 
   /**
    * Retries with the specified retry policy.
@@ -247,32 +314,32 @@ object Clock extends ClockPlatformSpecific with Serializable {
    * `once` or `recurs` for example), so that that `io.retry(Schedule.once)` means
    * "execute `io` and in case of failure, try again once".
    */
-  final def retry[R, R1 <: R, E, A, S](zio: ZIO[R, E, A])(policy: Schedule[R1, E, S])(implicit
+  final def retry[R, R1 <: R, E, A, S](zio: => ZIO[R, E, A])(policy: => Schedule[R1, E, S])(implicit
     ev: CanFail[E]
   ): ZIO[R1 with Has[Clock], E, A] =
-    ZIO.accessM(_.get.retry(zio)(policy))
+    ZIO.accessZIO(_.get.retry(zio)(policy))
 
   /**
    * Retries with the specified schedule, until it fails, and then both the
    * value produced by the schedule together with the last error are passed to
    * the recovery function.
    */
-  final def retryOrElse[R, R1 <: R, E, E1, A, A1 >: A, S](zio: ZIO[R, E, A])(
-    policy: Schedule[R1, E, S],
+  final def retryOrElse[R, R1 <: R, E, E1, A, A1 >: A, S](zio: => ZIO[R, E, A])(
+    policy: => Schedule[R1, E, S],
     orElse: (E, S) => ZIO[R1, E1, A1]
   )(implicit ev: CanFail[E]): ZIO[R1 with Has[Clock], E1, A1] =
-    ZIO.accessM(_.get.retryOrElse[R, R1, E, E1, A, A1, S](zio)(policy, orElse))
+    ZIO.accessZIO(_.get.retryOrElse[R, R1, E, E1, A, A1, S](zio)(policy, orElse))
 
   /**
    * Returns an effect that retries this effect with the specified schedule when it fails, until
    * the schedule is done, then both the value produced by the schedule together with the last
    * error are passed to the specified recovery function.
    */
-  final def retryOrElseEither[R, R1 <: R, E, E1, A, B, Out](zio: ZIO[R, E, A])(
-    schedule: Schedule[R1, E, Out],
+  final def retryOrElseEither[R, R1 <: R, E, E1, A, B, Out](zio: => ZIO[R, E, A])(
+    schedule: => Schedule[R1, E, Out],
     orElse: (E, Out) => ZIO[R1, E1, B]
   )(implicit ev: CanFail[E]): ZIO[R1 with Has[Clock], E1, Either[B, A]] =
-    ZIO.accessM(_.get.retryOrElseEither(zio)(schedule, orElse))
+    ZIO.accessZIO(_.get.retryOrElseEither(zio)(schedule, orElse))
 
   /**
    * Runs this effect according to the specified schedule.
@@ -280,19 +347,19 @@ object Clock extends ClockPlatformSpecific with Serializable {
    * See [[scheduleFrom]] for a variant that allows the schedule's decision to
    * depend on the result of this effect.
    */
-  final def schedule[R, R1 <: R, E, A, B](zio: ZIO[R, E, A])(
-    schedule: Schedule[R1, Any, B]
+  final def schedule[R, R1 <: R, E, A, B](zio: => ZIO[R, E, A])(
+    schedule: => Schedule[R1, Any, B]
   ): ZIO[R1 with Has[Clock], E, B] =
-    ZIO.accessM(_.get.schedule(zio)(schedule))
+    ZIO.accessZIO(_.get.schedule(zio)(schedule))
 
   /**
    * Runs this effect according to the specified schedule starting from the
    * specified input value.
    */
   final def scheduleFrom[R, R1 <: R, E, A, A1 >: A, B](
-    zio: ZIO[R, E, A]
-  )(a: A1)(schedule: Schedule[R1, A1, B]): ZIO[R1 with Has[Clock], E, B] =
-    ZIO.accessM(_.get.scheduleFrom[R, R1, E, A, A1, B](zio)(a)(schedule))
+    zio: => ZIO[R, E, A]
+  )(a: => A1)(schedule: => Schedule[R1, A1, B]): ZIO[R1 with Has[Clock], E, B] =
+    ZIO.accessZIO(_.get.scheduleFrom[R, R1, E, A, A1, B](zio)(a)(schedule))
 
   /**
    * Sleeps for the specified duration. This is always asynchronous.

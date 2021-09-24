@@ -35,10 +35,10 @@ object MockClock extends Mock[Has[Clock]] {
       .service[Proxy]
       .map { proxy =>
         new Clock {
-          def currentTime(unit: TimeUnit): UIO[Long]          = proxy(CurrentTime, unit)
+          def currentTime(unit: => TimeUnit): UIO[Long]       = proxy(CurrentTime, unit)
           def currentDateTime: UIO[OffsetDateTime]            = proxy(CurrentDateTime)
           val nanoTime: UIO[Long]                             = proxy(NanoTime)
-          def sleep(duration: Duration): UIO[Unit]            = proxy(Sleep, duration)
+          def sleep(duration: => Duration): UIO[Unit]         = proxy(Sleep, duration)
           def instant: zio.UIO[java.time.Instant]             = proxy(Instant)
           def localDateTime: zio.UIO[java.time.LocalDateTime] = proxy(LocalDateTime)
         }

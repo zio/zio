@@ -14,7 +14,7 @@ object TRandomSpec extends ZIOBaseSpec {
     (l, r) => java.lang.Float.compare(l, r)
 
   def spec: ZSpec[Environment, Failure] = suite("TRandomSpec")(
-    testM("nextDoubleBetween generates doubles in specified range") {
+    test("nextDoubleBetween generates doubles in specified range") {
       checkM(genDoubles) { case (min, max) =>
         for {
           n <- nextDoubleBetween(min, max).commit
@@ -22,7 +22,7 @@ object TRandomSpec extends ZIOBaseSpec {
           assert(n)(isLessThan(max))
       }
     },
-    testM("nextFloatBetween generates floats in specified range") {
+    test("nextFloatBetween generates floats in specified range") {
       checkM(genFloats) { case (min, max) =>
         for {
           n <- nextFloatBetween(min, max).commit
@@ -30,7 +30,7 @@ object TRandomSpec extends ZIOBaseSpec {
           assert(n)(isLessThan(max))
       }
     },
-    testM("nextIntBetween generates integers in specified range") {
+    test("nextIntBetween generates integers in specified range") {
       checkM(genInts) { case (min, max) =>
         for {
           n <- nextIntBetween(min, max).commit
@@ -38,7 +38,7 @@ object TRandomSpec extends ZIOBaseSpec {
           assert(n)(isLessThan(max))
       }
     },
-    testM("nextLongBetween generates longs in specified range") {
+    test("nextLongBetween generates longs in specified range") {
       checkM(genLongs) { case (min, max) =>
         for {
           n <- nextLongBetween(min, max).commit
@@ -50,25 +50,25 @@ object TRandomSpec extends ZIOBaseSpec {
 
   val genDoubles: Gen[Has[Random], (Double, Double)] =
     for {
-      a <- Gen.anyDouble
-      b <- Gen.anyDouble if a != b
+      a <- Gen.double
+      b <- Gen.double if a != b
     } yield if (b > a) (a, b) else (b, a)
 
   val genFloats: Gen[Has[Random], (Float, Float)] =
     for {
-      a <- Gen.anyFloat
-      b <- Gen.anyFloat if a != b
+      a <- Gen.float
+      b <- Gen.float if a != b
     } yield if (b > a) (a, b) else (b, a)
 
   val genInts: Gen[Has[Random], (Int, Int)] =
     for {
-      a <- Gen.anyInt
-      b <- Gen.anyInt if a != b
+      a <- Gen.int
+      b <- Gen.int if a != b
     } yield if (b > a) (a, b) else (b, a)
 
   val genLongs: Gen[Has[Random], (Long, Long)] =
     for {
-      a <- Gen.anyLong
-      b <- Gen.anyLong if a != b
+      a <- Gen.long
+      b <- Gen.long if a != b
     } yield if (b > a) (a, b) else (b, a)
 }

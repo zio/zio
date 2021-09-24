@@ -29,13 +29,13 @@ Let's try to create some of these causes:
 ```scala mdoc:silent
 import zio._
 for {
-  failExit <- ZIO.fail("Oh! Error!").run
-  dieExit  <- ZIO.effectTotal(5 / 0).run
-  thenExit <- ZIO.fail("first").ensuring(ZIO.die(throw new Exception("second"))).run
-  bothExit <- ZIO.fail("first").zipPar(ZIO.die(throw new Exception("second"))).run
+  failExit <- ZIO.fail("Oh! Error!").exit
+  dieExit  <- ZIO.succeed(5 / 0).exit
+  thenExit <- ZIO.fail("first").ensuring(ZIO.die(throw new Exception("second"))).exit
+  bothExit <- ZIO.fail("first").zipPar(ZIO.die(throw new Exception("second"))).exit
   fiber    <- ZIO.sleep(1.second).fork
   _        <- fiber.interrupt
-  interruptionExit <- fiber.join.run
+  interruptionExit <- fiber.join.exit
 } yield ()
 ```
 

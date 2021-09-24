@@ -16,8 +16,6 @@
 
 package zio
 
-import zio.internal.FiberContext
-
 /**
  * The entry point for a purely-functional application on the JVM.
  *
@@ -39,42 +37,5 @@ import zio.internal.FiberContext
  * }
  * }}}
  */
-trait App extends BootstrapRuntime {
-
-  /**
-   * The main function of the application, which will be passed the command-line
-   * arguments to the program and has to return an `IO` with the errors fully handled.
-   */
-  def run(args: List[String]): URIO[ZEnv, ExitCode]
-
-  /**
-   * The Scala main function, intended to be called only by the Scala runtime.
-   */
-  // $COVERAGE-OFF$ Bootstrap to `Unit`
-  final def main(args0: Array[String]): Unit =
-    try sys.exit(
-      unsafeRun(
-        for {
-          fiber <- run(args0.toList).fork
-          _ <- IO.effectTotal(java.lang.Runtime.getRuntime.addShutdownHook(new Thread {
-                 override def run() =
-                   if (FiberContext.fatal.get) {
-                     println(
-                       "**** WARNING ***\n" +
-                         "Catastrophic JVM error encountered. " +
-                         "Application not safely interrupted. " +
-                         "Resources may be leaked. " +
-                         "Check the logs for more details and consider overriding `Platform.reportFatal` to capture context."
-                     )
-                   } else {
-                     val _ = unsafeRunSync(fiber.interrupt)
-                   }
-               }))
-          result <- fiber.join
-          _      <- fiber.interrupt
-        } yield result.code
-      )
-    )
-    catch { case _: SecurityException => }
-  // $COVERAGE-ON$
-}
+@deprecated("2.0.0", "Use zio.ZIOApp")
+trait App extends ZApp[ZEnv] with BootstrapRuntime

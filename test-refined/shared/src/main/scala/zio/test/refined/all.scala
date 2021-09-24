@@ -16,6 +16,8 @@
 
 package zio.test.refined
 
+import zio.test.refined.types.AllTypesInstances
+
 object all
     extends BooleanInstances
     with CharInstances
@@ -23,3 +25,4 @@ object all
     with GenericInstances
     with StringInstances
     with NumericInstances
+    with AllTypesInstances

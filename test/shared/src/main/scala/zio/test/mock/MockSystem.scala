@@ -35,11 +35,11 @@ object MockSystem extends Mock[Has[System]] {
       .service[Proxy]
       .map(proxy =>
         new System {
-          def env(variable: String): IO[SecurityException, Option[String]] =
+          def env(variable: => String): IO[SecurityException, Option[String]] =
             proxy(Env, variable)
-          def envOrElse(variable: String, alt: => String): IO[SecurityException, String] =
+          def envOrElse(variable: => String, alt: => String): IO[SecurityException, String] =
             proxy(EnvOrElse, variable, alt)
-          def envOrOption(variable: String, alt: => Option[String]): IO[SecurityException, Option[String]] =
+          def envOrOption(variable: => String, alt: => Option[String]): IO[SecurityException, Option[String]] =
             proxy(EnvOrOption, variable, alt)
           val envs: IO[SecurityException, Map[String, String]] =
             proxy(Envs)
@@ -47,11 +47,11 @@ object MockSystem extends Mock[Has[System]] {
             proxy(LineSeparator)
           val properties: IO[Throwable, Map[String, String]] =
             proxy(Properties)
-          def property(prop: String): IO[Throwable, Option[String]] =
+          def property(prop: => String): IO[Throwable, Option[String]] =
             proxy(Property, prop)
-          def propertyOrElse(prop: String, alt: => String): IO[Throwable, String] =
+          def propertyOrElse(prop: => String, alt: => String): IO[Throwable, String] =
             proxy(PropertyOrElse, prop, alt)
-          def propertyOrOption(prop: String, alt: => Option[String]): IO[Throwable, Option[String]] =
+          def propertyOrOption(prop: => String, alt: => Option[String]): IO[Throwable, Option[String]] =
             proxy(PropertyOrOption, prop, alt)
 
         }

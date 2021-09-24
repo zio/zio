@@ -88,7 +88,7 @@ ZIO have two data type that plays a key role in writing ZIO services using _Modu
 1. Has
 2. ZLayer
 
-So, before diving into the _Module Patter_, We need to learn more about ZIO Contextual Data Types. Let's review each of them:
+So, before diving into the _Module Pattern_, We need to learn more about ZIO Contextual Data Types. Let's review each of them:
 
 ### Has
 
@@ -195,13 +195,13 @@ Let's start learning this pattern by writing a `Logging` service:
 
 3. **Service Definition** — Then we create the `Logging` companion object. Inside the companion object, we define the service definition with a trait named `Service`. Traits are how we define services. A service could be all the stuff that is related to one concept with singular responsibility.
 
-4. **Service Implementation** — After that, we implement our service by creating a new Service and then lifting that entire implementation into the `ZLayer` data type by using the `ZIO.succeed` constructor.
+4. **Service Implementation** — After that, we implement our service by creating a new Service and then lifting that entire implementation into the `ZLayer` data type by using the `ZLayer.succeed` constructor.
 
 5. **Defining Dependencies** — If our service has a dependency on other services, we should use constructors like `ZLayer.fromService` and `ZLayer.fromServices`.
 
 6. **Accessor Methods** — Finally, to create the API more ergonomic, it's better to write accessor methods for all of our service methods. 
 
-Accessor methods allow us to utilize all the features inside the service through the ZIO Environment. That means, if we call `log`, we don't need to pull out the `log` function from the ZIO Environment. The `accessM` method helps us to access the environment of effect and reduce the redundant operation, every time.
+Accessor methods allow us to utilize all the features inside the service through the ZIO Environment. That means, if we call `log`, we don't need to pull out the `log` function from the ZIO Environment. The `accessZIO` method helps us to access the environment of effect and reduce the redundant operation, every time.
 
 ```scala mdoc:invisible:reset
 import zio._
@@ -225,20 +225,20 @@ object logging {
     val live: ULayer[Logging] = ZLayer.succeed {
       new Service {
         override def log(line: String): UIO[Unit] =
-          ZIO.effectTotal(println(line))
+          ZIO.succeed(println(line))
       }
     }
   }
 
   // Accessor Methods
   def log(line: => String): URIO[Logging, Unit] =
-    ZIO.accessM(_.get.log(line))
+    ZIO.accessZIO(_.get.log(line))
 }
 ```
 
 We might need `Console` and `Clock` services to implement the `Logging` service. In this case, we use `ZLayer.fromServices` constructor:
 
-```scala mdoc:silent:nest
+```scala mdoc:silent:nest:warn
 object logging {
   type Logging = Has[Logging.Service]
 
@@ -255,7 +255,7 @@ object logging {
             override def log(line: String): UIO[Unit] =
               for {
                 current <- clock.currentDateTime
-                _ <- console.printLine(current.toString + "--" + line).orDie
+                _ <- console.printLine(s"$current--$line").orDie
               } yield ()
           }
       }
@@ -263,7 +263,7 @@ object logging {
 
   // Accessor Methods
   def log(line: => String): URIO[Logging, Unit] =
-    ZIO.accessM(_.get.log(line))
+    ZIO.accessZIO(_.get.log(line))
 }
 ```
 
@@ -307,7 +307,7 @@ trait Logging {
 ```scala mdoc:silent:nest
 case class LoggingLive() extends Logging {
   override def log(line: String): UIO[Unit] = 
-    ZIO.effectTotal(print(line))
+    ZIO.succeed(print(line))
 }
 ```
 
@@ -326,7 +326,7 @@ case class LoggingLive(console: Console, clock: Clock) extends Logging {
   override def log(line: String): UIO[Unit] = 
     for {
       current <- clock.currentDateTime
-      _       <- console.printLine(current.toString + "--" + line).orDie
+      _       <- console.printLine(s"$current--$line").orDie
     } yield ()
 }
 ```
@@ -340,7 +340,7 @@ object LoggingLive {
 }
 ```
 
-5. **Accessor Methods** — Finally, to create the API more ergonomic, it's better to write accessor methods for all of our service methods. Just like what we did in Module Pattern 1.0, but with a slight change, in this case, instead of using `ZIO.accessM` we use `ZIO.serviceWith` method to define accessors inside the service companion object:
+5. **Accessor Methods** — Finally, to create the API more ergonomic, it's better to write accessor methods for all of our service methods. Just like what we did in Module Pattern 1.0, but with a slight change, in this case, instead of using `ZIO.accessZIO` we use `ZIO.serviceWith` method to define accessors inside the service companion object:
 
 ```scala mdoc:silent
 object Logging {
@@ -354,7 +354,7 @@ That's it! Very simple! ZIO encourages us to follow some of the best practices i
 >
 > In _Module Pattern 2.0_ we don't use type aliases for Has wrappers, like `type Logging = Has[Logging.Service]`. So unlike the previous pattern, we encourage using explicitly the `Has` wrappers whenever we want to specify the dependency on a service.
 >
-> So instead of writing `ZLayer[Console with Clock, Nothing, Logging]`, we write `ZLayer[Has[Logging] with Has[Clock], Nothing, Has[Logging]]`.
+> So instead of writing `ZLayer[Console with Clock, Nothing, Logging]`, we write `ZLayer[Has[Console] with Has[Clock], Nothing, Has[Logging]]`.
 
 Finally, we provide required layers to our `app` effect:
 
@@ -432,7 +432,7 @@ We can `provide` implementation of `Logging` service into the `app` effect:
 ```scala mdoc:silent:nest
 val loggingImpl = Has(new Logging {
   override def log(line: String): UIO[Unit] =
-    UIO.effectTotal(println(line))
+    UIO.succeed(println(line))
 })
 
 val effect = app.provide(loggingImpl)
@@ -453,9 +453,9 @@ import zio.Random._
 
 val myApp: ZIO[Has[Random] with Has[Console] with Has[Clock], Nothing, Unit] = for {
   random  <- nextInt 
-  _       <- printLine(s"A random number: ${random.toString}").orDie
+  _       <- printLine(s"A random number: $random").orDie
   current <- currentDateTime
-  _       <- printLine(s"Current Data Time: ${current.toString}").orDie
+  _       <- printLine(s"Current Data Time: $current").orDie
 } yield ()
 ```
 
@@ -521,7 +521,7 @@ object LoggingLive {
 val myApp: ZIO[Has[Logging] with Has[Console] with Has[Clock], Nothing, Unit] = for {
   _       <- Logging.log("Application Started!")
   current <- currentDateTime
-  _       <- printLine(s"Current Data Time: ${current.toString}").orDie
+  _       <- printLine(s"Current Data Time: $current").orDie
 } yield ()
 ```
 

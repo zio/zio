@@ -25,14 +25,14 @@ private[zio] trait FiberPlatformSpecific {
     lazy val cs: CompletionStage[A] = thunk
 
     new Fiber.Synthetic.Internal[Throwable, A] {
-      override def await: UIO[Exit[Throwable, A]] = ZIO.fromCompletionStage(cs).run
+      override def await: UIO[Exit[Throwable, A]] = ZIO.fromCompletionStage(cs).exit
 
       override def poll: UIO[Option[Exit[Throwable, A]]] =
-        UIO.effectSuspendTotal {
+        UIO.suspendSucceed {
           val cf = cs.toCompletableFuture
           if (cf.isDone) {
             Task
-              .effectSuspendWith((p, _) => javaz.unwrapDone(p.fatal)(cf))
+              .suspendWith((p, _) => javaz.unwrapDone(p.fatal)(cf))
               .fold(Exit.fail, Exit.succeed)
               .map(Some(_))
           } else {
@@ -42,7 +42,7 @@ private[zio] trait FiberPlatformSpecific {
 
       final def getRef[A](ref: FiberRef.Runtime[A]): UIO[A] = UIO(ref.initial)
 
-      final def interruptAs(id: Fiber.Id): UIO[Exit[Throwable, A]] = join.fold(Exit.fail, Exit.succeed)
+      final def interruptAs(id: FiberId): UIO[Exit[Throwable, A]] = join.fold(Exit.fail, Exit.succeed)
 
       final def inheritRefs: UIO[Unit] = IO.unit
     }
@@ -54,13 +54,13 @@ private[zio] trait FiberPlatformSpecific {
 
     new Fiber.Synthetic.Internal[Throwable, A] {
       def await: UIO[Exit[Throwable, A]] =
-        ZIO.fromFutureJava(ftr).run
+        ZIO.fromFutureJava(ftr).exit
 
       def poll: UIO[Option[Exit[Throwable, A]]] =
-        UIO.effectSuspendTotal {
+        UIO.suspendSucceed {
           if (ftr.isDone) {
             Task
-              .effectSuspendWith((p, _) => javaz.unwrapDone(p.fatal)(ftr))
+              .suspendWith((p, _) => javaz.unwrapDone(p.fatal)(ftr))
               .fold(Exit.fail, Exit.succeed)
               .map(Some(_))
           } else {
@@ -70,7 +70,7 @@ private[zio] trait FiberPlatformSpecific {
 
       def getRef[A](ref: FiberRef.Runtime[A]): UIO[A] = UIO(ref.initial)
 
-      def interruptAs(id: Fiber.Id): UIO[Exit[Throwable, A]] = join.fold(Exit.fail, Exit.succeed)
+      def interruptAs(id: FiberId): UIO[Exit[Throwable, A]] = join.fold(Exit.fail, Exit.succeed)
 
       def inheritRefs: UIO[Unit] = UIO.unit
     }

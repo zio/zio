@@ -15,7 +15,7 @@ Let's see how the `UIO` type alias is defined:
 import zio.ZIO
 ```
 
-```scala mdoc:silent
+```scala
 type UIO[+A] = ZIO[Any, Nothing, A]
 ```
 
@@ -28,8 +28,9 @@ Let's write a fibonacci function. As we don't expect any failure, it is an unexc
 
 In the following example, the `fib`, doesn't have any requirement, as it is an unexceptional effect, we don't except any failure, and it succeeds with value of type `Int`:
 
-```scala mdoc:silent
+```scala mdoc:reset:silent
 import zio.UIO
+
 def fib(n: Int): UIO[Int] =
   if (n <= 1) {
     UIO.succeed(1)

@@ -26,7 +26,7 @@ In following example we are going to print the current time periodically by plac
 
 ```scala mdoc:silent
 def printTimeForever: ZIO[Has[Console] with Has[Clock], Throwable, Nothing] =
-  Clock.currentDateTime.flatMap(time => Console.printLine(time.toString)) *>
+  Clock.currentDateTime.flatMap(Console.printLine(_)) *>
     ZIO.sleep(1.seconds) *> printTimeForever
 ```
 

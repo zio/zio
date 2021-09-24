@@ -17,8 +17,8 @@
 package zio.test.magnolia
 
 import magnolia._
-import zio.test.{Gen, Sized}
 import zio.{Has, Random}
+import zio.test.{Gen, Sized}
 
 import java.time.{Instant, LocalDate, LocalDateTime}
 import java.util.UUID
@@ -66,19 +66,19 @@ object DeriveGen {
     }
 
   implicit val genBoolean: DeriveGen[Boolean]             = instance(Gen.boolean)
-  implicit val genByte: DeriveGen[Byte]                   = instance(Gen.anyByte)
-  implicit val genChar: DeriveGen[Char]                   = instance(Gen.anyChar)
-  implicit val genDouble: DeriveGen[Double]               = instance(Gen.anyDouble)
-  implicit val genFloat: DeriveGen[Float]                 = instance(Gen.anyFloat)
-  implicit val genInt: DeriveGen[Int]                     = instance(Gen.anyInt)
-  implicit val genLong: DeriveGen[Long]                   = instance(Gen.anyLong)
-  implicit val genShort: DeriveGen[Short]                 = instance(Gen.anyShort)
-  implicit val genString: DeriveGen[String]               = instance(Gen.anyString)
+  implicit val genByte: DeriveGen[Byte]                   = instance(Gen.byte)
+  implicit val genChar: DeriveGen[Char]                   = instance(Gen.char)
+  implicit val genDouble: DeriveGen[Double]               = instance(Gen.double)
+  implicit val genFloat: DeriveGen[Float]                 = instance(Gen.float)
+  implicit val genInt: DeriveGen[Int]                     = instance(Gen.int)
+  implicit val genLong: DeriveGen[Long]                   = instance(Gen.long)
+  implicit val genShort: DeriveGen[Short]                 = instance(Gen.short)
+  implicit val genString: DeriveGen[String]               = instance(Gen.string)
   implicit val genUnit: DeriveGen[Unit]                   = instance(Gen.unit)
-  implicit val genUUID: DeriveGen[UUID]                   = instance(Gen.anyUUID)
-  implicit val genInstant: DeriveGen[Instant]             = instance(Gen.anyInstant)
-  implicit val genLocalDateTime: DeriveGen[LocalDateTime] = instance(Gen.anyLocalDateTime)
-  implicit val genLocalDate: DeriveGen[LocalDate]         = instance(Gen.anyLocalDateTime.map(_.toLocalDate()))
+  implicit val genUUID: DeriveGen[UUID]                   = instance(Gen.uuid)
+  implicit val genInstant: DeriveGen[Instant]             = instance(Gen.instant)
+  implicit val genLocalDateTime: DeriveGen[LocalDateTime] = instance(Gen.localDateTime)
+  implicit val genLocalDate: DeriveGen[LocalDate]         = instance(Gen.localDateTime.map(_.toLocalDate()))
   implicit val genBigDecimal: DeriveGen[BigDecimal] = instance(
     Gen.bigDecimal(
       BigDecimal(Double.MinValue) * BigDecimal(Double.MaxValue),
@@ -114,14 +114,14 @@ object DeriveGen {
     instance(Gen.setOf(ev.derive))
 
   implicit def genTuple2[A, B](implicit ev1: DeriveGen[A], ev2: DeriveGen[B]): DeriveGen[(A, B)] =
-    instance(Gen.zipN(ev1.derive, ev2.derive)((_, _)))
+    instance(ev1.derive <*> ev2.derive)
 
   implicit def genTuple3[A, B, C](implicit
     ev1: DeriveGen[A],
     ev2: DeriveGen[B],
     ev3: DeriveGen[C]
   ): DeriveGen[(A, B, C)] =
-    instance(Gen.zipN(ev1.derive, ev2.derive, ev3.derive)((_, _, _)))
+    instance(ev1.derive <*> ev2.derive <*> ev3.derive)
 
   implicit def genTuple4[A, B, C, D](implicit
     ev1: DeriveGen[A],
@@ -129,7 +129,7 @@ object DeriveGen {
     ev3: DeriveGen[C],
     ev4: DeriveGen[D]
   ): DeriveGen[(A, B, C, D)] =
-    instance(Gen.zipN(ev1.derive, ev2.derive, ev3.derive, ev4.derive)((_, _, _, _)))
+    instance(ev1.derive <*> ev2.derive <*> ev3.derive <*> ev4.derive)
 
   implicit def genTuple5[A, B, C, D, F](implicit
     ev1: DeriveGen[A],
@@ -138,7 +138,7 @@ object DeriveGen {
     ev4: DeriveGen[D],
     ev5: DeriveGen[F]
   ): DeriveGen[(A, B, C, D, F)] =
-    instance(Gen.zipN(ev1.derive, ev2.derive, ev3.derive, ev4.derive, ev5.derive)((_, _, _, _, _)))
+    instance(ev1.derive <*> ev2.derive <*> ev3.derive <*> ev4.derive <*> ev5.derive)
 
   implicit def genTuple6[A, B, C, D, F, G](implicit
     ev1: DeriveGen[A],
@@ -148,7 +148,7 @@ object DeriveGen {
     ev5: DeriveGen[F],
     ev6: DeriveGen[G]
   ): DeriveGen[(A, B, C, D, F, G)] =
-    instance(Gen.zipN(ev1.derive, ev2.derive, ev3.derive, ev4.derive, ev5.derive, ev6.derive)((_, _, _, _, _, _)))
+    instance(ev1.derive <*> ev2.derive <*> ev3.derive <*> ev4.derive <*> ev5.derive <*> ev6.derive)
 
   implicit def genTuple7[A, B, C, D, F, G, H](implicit
     ev1: DeriveGen[A],
@@ -159,11 +159,7 @@ object DeriveGen {
     ev6: DeriveGen[G],
     ev7: DeriveGen[H]
   ): DeriveGen[(A, B, C, D, F, G, H)] =
-    instance(
-      Gen.zipN(ev1.derive, ev2.derive, ev3.derive, ev4.derive, ev5.derive, ev6.derive, ev7.derive)(
-        (_, _, _, _, _, _, _)
-      )
-    )
+    instance(ev1.derive <*> ev2.derive <*> ev3.derive <*> ev4.derive <*> ev5.derive <*> ev6.derive <*> ev7.derive)
 
   implicit def genTuple8[A, B, C, D, F, G, H, I](implicit
     ev1: DeriveGen[A],
@@ -176,9 +172,7 @@ object DeriveGen {
     ev8: DeriveGen[I]
   ): DeriveGen[(A, B, C, D, F, G, H, I)] =
     instance(
-      Gen.zipN(ev1.derive, ev2.derive, ev3.derive, ev4.derive, ev5.derive, ev6.derive, ev7.derive, ev8.derive)(
-        (_, _, _, _, _, _, _, _)
-      )
+      ev1.derive <*> ev2.derive <*> ev3.derive <*> ev4.derive <*> ev5.derive <*> ev6.derive <*> ev7.derive <*> ev8.derive
     )
 
   implicit def genTuple9[A, B, C, D, F, G, H, I, J](implicit
@@ -193,17 +187,7 @@ object DeriveGen {
     ev9: DeriveGen[J]
   ): DeriveGen[(A, B, C, D, F, G, H, I, J)] =
     instance(
-      Gen.zipN(
-        ev1.derive,
-        ev2.derive,
-        ev3.derive,
-        ev4.derive,
-        ev5.derive,
-        ev6.derive,
-        ev7.derive,
-        ev8.derive,
-        ev9.derive
-      )((_, _, _, _, _, _, _, _, _))
+      ev1.derive <*> ev2.derive <*> ev3.derive <*> ev4.derive <*> ev5.derive <*> ev6.derive <*> ev7.derive <*> ev8.derive <*> ev9.derive
     )
 
   implicit def genTuple10[A, B, C, D, F, G, H, I, J, K](implicit
@@ -219,18 +203,7 @@ object DeriveGen {
     ev10: DeriveGen[K]
   ): DeriveGen[(A, B, C, D, F, G, H, I, J, K)] =
     instance(
-      Gen.zipN(
-        ev1.derive,
-        ev2.derive,
-        ev3.derive,
-        ev4.derive,
-        ev5.derive,
-        ev6.derive,
-        ev7.derive,
-        ev8.derive,
-        ev9.derive,
-        ev10.derive
-      )((_, _, _, _, _, _, _, _, _, _))
+      ev1.derive <*> ev2.derive <*> ev3.derive <*> ev4.derive <*> ev5.derive <*> ev6.derive <*> ev7.derive <*> ev8.derive <*> ev9.derive <*> ev10.derive
     )
 
   implicit def genVector[A](implicit ev: DeriveGen[A]): DeriveGen[Vector[A]] =
