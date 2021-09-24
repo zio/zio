@@ -1,10 +1,12 @@
 package zio.stream.experimental
 
+import java.io.ByteArrayInputStream
+
 import zio._
 import zio.stm.TQueue
 import zio.stream.experimental.ZStreamGen._
 import zio.test.Assertion._
-import zio.test.TestAspect.{flaky, ignore, nonFlaky, scala2Only, timeout}
+import zio.test.TestAspect.{flaky, ignore, nonFlaky, samples, scala2Only, timeout}
 import zio.test._
 import zio.test.environment.TestClock
 
@@ -1296,7 +1298,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assert(flatMap)(equalTo(flatMapPar))
           }),
           test("consistent with flatMap")(
-            checkM(Gen.int(1, Int.MaxValue), tinyListOf(Gen.int)) { (n, m) =>
+            checkM(Gen.int(1, 10000), tinyListOf(Gen.int)) { (n, m) =>
               for {
                 flatMap <- ZStream
                              .fromIterable(m)
@@ -1305,7 +1307,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                              .map(_.toSet)
                 flatMapPar <- ZStream
                                 .fromIterable(m)
-                                .flatMapPar(n.toLong)(i => ZStream(i, i))
+                                .flatMapPar(n)(i => ZStream(i, i))
                                 .runCollect
                                 .map(_.toSet)
               } yield assert(n)(isGreaterThan(0)) implies assert(flatMap)(equalTo(flatMapPar))
@@ -1351,7 +1353,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                         ).flatMapPar(2)(identity).runDrain.either
               cancelled <- substreamCancelled.get
             } yield assert(cancelled)(isTrue) && assert(result)(isLeft(equalTo("Ouch")))
-          },
+          } @@ nonFlaky,
           test("outer errors interrupt all fibers") {
             for {
               substreamCancelled <- Ref.make[Boolean](false)
@@ -1416,8 +1418,8 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assert(results)(
               equalTo(List("OuterRelease", "InnerRelease", "InnerAcquire", "OuterAcquire"))
             )
-          }
-        ) @@ ignore, // TODO: needs mergeAllWith (#5172)
+          } @@ flaky @@ ignore // TODO: fix
+        ),
         suite("flatMapParSwitch")(
           test("guarantee ordering no parallelism") {
             for {
@@ -1553,8 +1555,8 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assert(results)(
               equalTo(List("OuterRelease", "InnerRelease", "InnerAcquire", "OuterAcquire"))
             )
-          }
-        ) @@ ignore, // TODO: needs flatMapParSwitch (#5172)
+          } @@ flaky @@ ignore // TODO: fix
+        ),
         suite("flattenExitOption")(
           test("happy path") {
             assertM(
@@ -3408,7 +3410,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             }.sorted
             assertM(actual.runCollect)(equalTo(expected))
           }
-        },
+        } @@ samples(25),
         suite("zipWith")(
           test("zip doesn't pull too much when one of the streams is done") {
             val l = ZStream.fromChunks(Chunk(1, 2), Chunk(3, 4), Chunk(5)) ++ ZStream.fail(
@@ -3917,20 +3919,20 @@ object ZStreamSpec extends ZIOBaseSpec {
             assertM(ZStream.fromZIOOption(fa).runCollect)(equalTo(Chunk()))
           }
         ),
-//         suite("fromInputStream")( // TODO: enabled by #5175
-//           test("example 1") {
-//             val chunkSize = ZStream.DefaultChunkSize
-//             val data      = Array.tabulate[Byte](chunkSize * 5 / 2)(_.toByte)
-//             def is        = new ByteArrayInputStream(data)
-//             ZStream.fromInputStream(is, chunkSize).runCollect map { bytes => assert(bytes.toArray)(equalTo(data)) }
-//           },
-//           test("example 2") {
-//             checkM(Gen.small(Gen.chunkOfN(_)(Gen.byte)), Gen.int(1, 10)) { (bytes, chunkSize) =>
-//               val is = new ByteArrayInputStream(bytes.toArray)
-//               ZStream.fromInputStream(is, chunkSize).runCollect.map(assert(_)(equalTo(bytes)))
-//             }
-//           }
-//         ),
+         suite("fromInputStream")( // TODO: enabled by #5175
+           test("example 1") {
+             val chunkSize = ZStream.DefaultChunkSize
+             val data      = Array.tabulate[Byte](chunkSize * 5 / 2)(_.toByte)
+             def is        = new ByteArrayInputStream(data)
+             ZStream.fromInputStream(is, chunkSize).runCollect map { bytes => assert(bytes.toArray)(equalTo(data)) }
+           },
+           test("example 2") {
+             checkM(Gen.small(Gen.chunkOfN(_)(Gen.byte)), Gen.int(1, 10)) { (bytes, chunkSize) =>
+               val is = new ByteArrayInputStream(bytes.toArray)
+               ZStream.fromInputStream(is, chunkSize).runCollect.map(assert(_)(equalTo(bytes)))
+             }
+           }
+         ),
         test("fromIterable")(checkM(Gen.small(Gen.chunkOfN(_)(Gen.int))) { l =>
           def lazyL = l
           assertM(ZStream.fromIterable(lazyL).runCollect)(equalTo(l))
